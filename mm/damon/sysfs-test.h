@@ -62,7 +62,7 @@ static void damon_sysfs_test_set_targets(struct kunit *test)
 	sysfs_target->pid = __damon_sysfs_test_get_any_pid(
 			sysfs_target->pid + 1, 200);
 	damon_sysfs_set_targets(ctx, sysfs_targets);
-	KUNIT_EXPECT_EQ(test, 1u, nr_damon_targets(ctx));
+	KUNIT_EXPECT_EQ(test, 2u, nr_damon_targets(ctx));
 
 	damon_destroy_ctx(ctx);
 	kfree(sysfs_targets->targets_arr);

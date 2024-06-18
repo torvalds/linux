@@ -1162,72 +1162,16 @@ destroy_targets_out:
 	return err;
 }
 
-static int damon_sysfs_update_target_pid(struct damon_target *target, int pid)
-{
-	struct pid *pid_new;
-
-	pid_new = find_get_pid(pid);
-	if (!pid_new)
-		return -EINVAL;
-
-	if (pid_new == target->pid) {
-		put_pid(pid_new);
-		return 0;
-	}
-
-	put_pid(target->pid);
-	target->pid = pid_new;
-	return 0;
-}
-
-static int damon_sysfs_update_target(struct damon_target *target,
-		struct damon_ctx *ctx,
-		struct damon_sysfs_target *sys_target)
-{
-	int err = 0;
-
-	if (damon_target_has_pid(ctx)) {
-		err = damon_sysfs_update_target_pid(target, sys_target->pid);
-		if (err)
-			return err;
-	}
-
-	/*
-	 * Do monitoring target region boundary update only if one or more
-	 * regions are set by the user.  This is for keeping current monitoring
-	 * target results and range easier, especially for dynamic monitoring
-	 * target regions update ops like 'vaddr'.
-	 */
-	if (sys_target->regions->nr)
-		err = damon_sysfs_set_regions(target, sys_target->regions);
-	return err;
-}
-
 static int damon_sysfs_set_targets(struct damon_ctx *ctx,
 		struct damon_sysfs_targets *sysfs_targets)
 {
-	struct damon_target *t, *next;
-	int i = 0, err;
+	int i, err;
 
 	/* Multiple physical address space monitoring targets makes no sense */
 	if (ctx->ops.id == DAMON_OPS_PADDR && sysfs_targets->nr > 1)
 		return -EINVAL;
 
-	damon_for_each_target_safe(t, next, ctx) {
-		if (i < sysfs_targets->nr) {
-			err = damon_sysfs_update_target(t, ctx,
-					sysfs_targets->targets_arr[i]);
-			if (err)
-				return err;
-		} else {
-			if (damon_target_has_pid(ctx))
-				put_pid(t->pid);
-			damon_destroy_target(t);
-		}
-		i++;
-	}
-
-	for (; i < sysfs_targets->nr; i++) {
+	for (i = 0; i < sysfs_targets->nr; i++) {
 		struct damon_sysfs_target *st = sysfs_targets->targets_arr[i];
 
 		err = damon_sysfs_add_target(st, ctx);
