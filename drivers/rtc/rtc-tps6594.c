@@ -360,10 +360,6 @@ static int tps6594_rtc_probe(struct platform_device *pdev)
 	int irq;
 	int ret;
 
-	rtc = devm_kzalloc(dev, sizeof(*rtc), GFP_KERNEL);
-	if (!rtc)
-		return -ENOMEM;
-
 	rtc = devm_rtc_allocate_device(dev);
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
