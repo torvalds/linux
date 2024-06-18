@@ -181,23 +181,11 @@ static struct damos *damon_reclaim_new_scheme(void)
 			NUMA_NO_NODE);
 }
 
-static void damon_reclaim_copy_quota_status(struct damos_quota *dst,
-		struct damos_quota *src)
-{
-	dst->total_charged_sz = src->total_charged_sz;
-	dst->total_charged_ns = src->total_charged_ns;
-	dst->charged_sz = src->charged_sz;
-	dst->charged_from = src->charged_from;
-	dst->charge_target_from = src->charge_target_from;
-	dst->charge_addr_from = src->charge_addr_from;
-	dst->esz_bp = src->esz_bp;
-}
-
 static int damon_reclaim_apply_parameters(void)
 {
 	struct damon_ctx *param_ctx;
 	struct damon_target *param_target;
-	struct damos *scheme, *old_scheme;
+	struct damos *scheme;
 	struct damos_quota_goal *goal;
 	struct damos_filter *filter;
 	int err;
@@ -214,11 +202,6 @@ static int damon_reclaim_apply_parameters(void)
 	scheme = damon_reclaim_new_scheme();
 	if (!scheme)
 		goto out;
-	if (!list_empty(&ctx->schemes)) {
-		damon_for_each_scheme(old_scheme, ctx)
-			damon_reclaim_copy_quota_status(&scheme->quota,
-					&old_scheme->quota);
-	}
 	damon_set_schemes(ctx, &scheme, 1);
 
 	if (quota_mem_pressure_us) {
