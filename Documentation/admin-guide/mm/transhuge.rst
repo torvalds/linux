@@ -467,11 +467,11 @@ anon_fault_fallback_charge
 	instead falls back to using huge pages with lower orders or
 	small pages even though the allocation was successful.
 
-anon_swpout
+swpout
 	is incremented every time a huge page is swapped out in one
 	piece without splitting.
 
-anon_swpout_fallback
+swpout_fallback
 	is incremented if a huge page has to be split before swapout.
 	Usually because failed to allocate some continuous swap space
 	for the huge page.
