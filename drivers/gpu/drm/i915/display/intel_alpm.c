@@ -125,7 +125,8 @@ static int _lnl_compute_aux_less_wake_time(int port_clock)
 	int tsilence_max = 180;
 	int t1 = 50 * 1000;
 	int tps4 = 252;
-	int tml_phy_lock = 1000 * 1000 * tps4 * 10 / port_clock;
+	/* port_clock is link rate in 10kbit/s units */
+	int tml_phy_lock = 1000 * 1000 * tps4 / port_clock;
 	int num_ml_phy_lock = 7 + DIV_ROUND_UP(6500, tml_phy_lock) + 1;
 	int t2 = num_ml_phy_lock * tml_phy_lock;
 	int tcds = 1 * t2;
