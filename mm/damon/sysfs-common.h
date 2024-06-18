@@ -38,7 +38,7 @@ void damon_sysfs_schemes_rm_dirs(struct damon_sysfs_schemes *schemes);
 
 extern const struct kobj_type damon_sysfs_schemes_ktype;
 
-int damon_sysfs_set_schemes(struct damon_ctx *ctx,
+int damon_sysfs_add_schemes(struct damon_ctx *ctx,
 		struct damon_sysfs_schemes *sysfs_schemes);
 
 void damon_sysfs_schemes_update_stats(

@@ -1908,7 +1908,7 @@ static int damon_sysfs_memcg_path_to_id(char *memcg_path, unsigned short *id)
 	return found ? 0 : -EINVAL;
 }
 
-static int damon_sysfs_set_scheme_filters(struct damos *scheme,
+static int damon_sysfs_add_scheme_filters(struct damos *scheme,
 		struct damon_sysfs_scheme_filters *sysfs_filters)
 {
 	int i;
@@ -1947,7 +1947,7 @@ static int damon_sysfs_set_scheme_filters(struct damos *scheme,
 	return 0;
 }
 
-static int damos_sysfs_set_quota_score(
+static int damos_sysfs_add_quota_score(
 		struct damos_sysfs_quota_goals *sysfs_goals,
 		struct damos_quota *quota)
 {
@@ -1990,7 +1990,7 @@ int damos_sysfs_set_quota_scores(struct damon_sysfs_schemes *sysfs_schemes,
 			break;
 
 		sysfs_scheme = sysfs_schemes->schemes_arr[i];
-		err = damos_sysfs_set_quota_score(sysfs_scheme->quotas->goals,
+		err = damos_sysfs_add_quota_score(sysfs_scheme->quotas->goals,
 				&quota);
 		if (err) {
 			damos_for_each_quota_goal_safe(g, g_next, &quota)
@@ -2070,13 +2070,13 @@ static struct damos *damon_sysfs_mk_scheme(
 	if (!scheme)
 		return NULL;
 
-	err = damos_sysfs_set_quota_score(sysfs_quotas->goals, &scheme->quota);
+	err = damos_sysfs_add_quota_score(sysfs_quotas->goals, &scheme->quota);
 	if (err) {
 		damon_destroy_scheme(scheme);
 		return NULL;
 	}
 
-	err = damon_sysfs_set_scheme_filters(scheme, sysfs_filters);
+	err = damon_sysfs_add_scheme_filters(scheme, sysfs_filters);
 	if (err) {
 		damon_destroy_scheme(scheme);
 		return NULL;
@@ -2084,7 +2084,7 @@ static struct damos *damon_sysfs_mk_scheme(
 	return scheme;
 }
 
-int damon_sysfs_set_schemes(struct damon_ctx *ctx,
+int damon_sysfs_add_schemes(struct damon_ctx *ctx,
 		struct damon_sysfs_schemes *sysfs_schemes)
 {
 	int i;
