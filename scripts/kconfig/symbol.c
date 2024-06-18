@@ -257,9 +257,9 @@ static void sym_calc_visibility(struct symbol *sym)
  */
 struct symbol *sym_choice_default(struct menu *choice)
 {
+	struct menu *menu;
 	struct symbol *def_sym;
 	struct property *prop;
-	struct expr *e;
 
 	/* any of the defaults visible? */
 	for_all_defaults(choice->sym, prop) {
@@ -272,10 +272,9 @@ struct symbol *sym_choice_default(struct menu *choice)
 	}
 
 	/* just get the first visible value */
-	prop = sym_get_choice_prop(choice->sym);
-	expr_list_for_each_sym(prop->expr, e, def_sym)
-		if (def_sym->visible != no)
-			return def_sym;
+	menu_for_each_sub_entry(menu, choice)
+		if (menu->sym && menu->sym->visible != no)
+			return menu->sym;
 
 	/* failed to locate any defaults */
 	return NULL;
