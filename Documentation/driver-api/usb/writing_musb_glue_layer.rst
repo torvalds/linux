@@ -717,4 +717,4 @@ https://www.maximintegrated.com/app-notes/index.mvp/id/1822
 :ref:`Writing USB Device Drivers <writing-usb-driver>`
 
 Texas Instruments USB Configuration Wiki Page:
-http://processors.wiki.ti.com/index.php/Usbgeneralpage
+https://web.archive.org/web/20201215135015/http://processors.wiki.ti.com/index.php/Usbgeneralpage
