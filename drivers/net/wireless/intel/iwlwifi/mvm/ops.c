@@ -875,7 +875,7 @@ get_nvm_from_fw:
 		IWL_ERR(mvm, "Failed to run INIT ucode: %d\n", ret);
 
 	/* no longer need this regardless of failure or not */
-	mvm->pldr_sync = false;
+	mvm->fw_product_reset = false;
 
 	return ret;
 }

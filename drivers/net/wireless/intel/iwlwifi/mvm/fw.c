@@ -408,7 +408,7 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 						UREG_LMAC2_CURRENT_PC));
 		}
 
-		if (ret == -ETIMEDOUT && !mvm->pldr_sync)
+		if (ret == -ETIMEDOUT && !mvm->fw_product_reset)
 			iwl_fw_dbg_error_collect(&mvm->fwrt,
 						 FW_DBG_TRIGGER_ALIVE_TIMEOUT);
 
@@ -627,8 +627,8 @@ static int iwl_run_unified_mvm_ucode(struct iwl_mvm *mvm)
 	if (mvm->trans->trans_cfg->device_family == IWL_DEVICE_FAMILY_AX210) {
 		sb_cfg = iwl_read_umac_prph(mvm->trans, SB_MODIFY_CFG_FLAG);
 		/* if needed, we'll reset this on our way out later */
-		mvm->pldr_sync = sb_cfg == SB_CFG_RESIDES_IN_ROM;
-		if (mvm->pldr_sync && iwl_mei_pldr_req())
+		mvm->fw_product_reset = sb_cfg == SB_CFG_RESIDES_IN_ROM;
+		if (mvm->fw_product_reset && iwl_mei_pldr_req())
 			return -EBUSY;
 	}
 
@@ -647,7 +647,7 @@ static int iwl_run_unified_mvm_ucode(struct iwl_mvm *mvm)
 		IWL_ERR(mvm, "Failed to start RT ucode: %d\n", ret);
 
 		/* if we needed reset then fail here, but notify and remove */
-		if (mvm->pldr_sync) {
+		if (mvm->fw_product_reset) {
 			iwl_mei_alive_notif(false);
 			iwl_trans_pcie_remove(mvm->trans, true);
 		}
@@ -1407,14 +1407,14 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	ret = iwl_mvm_load_rt_fw(mvm);
 	if (ret) {
 		IWL_ERR(mvm, "Failed to start RT ucode: %d\n", ret);
-		if (ret != -ERFKILL && !mvm->pldr_sync)
+		if (ret != -ERFKILL && !mvm->fw_product_reset)
 			iwl_fw_dbg_error_collect(&mvm->fwrt,
 						 FW_DBG_TRIGGER_DRIVER);
 		goto error;
 	}
 
 	/* FW loaded successfully */
-	mvm->pldr_sync = false;
+	mvm->fw_product_reset = false;
 
 	iwl_fw_disable_dbg_asserts(&mvm->fwrt);
 	iwl_get_shared_mem_conf(&mvm->fwrt);

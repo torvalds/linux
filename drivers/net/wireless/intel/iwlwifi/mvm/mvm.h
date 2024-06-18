@@ -1325,7 +1325,12 @@ struct iwl_mvm {
 	bool sta_remove_requires_queue_remove;
 	bool mld_api_is_used;
 
-	bool pldr_sync;
+	/*
+	 * Indicates that firmware will do a product reset (and then
+	 * therefore fail to load) when we start it (due to OTP burn),
+	 * if so don't dump errors etc. since this is expected.
+	 */
+	bool fw_product_reset;
 
 	struct iwl_time_sync_data time_sync;
 
