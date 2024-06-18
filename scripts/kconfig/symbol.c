@@ -255,14 +255,14 @@ static void sym_calc_visibility(struct symbol *sym)
  * Next locate the first visible choice value
  * Return NULL if none was found
  */
-struct symbol *sym_choice_default(struct symbol *sym)
+struct symbol *sym_choice_default(struct menu *choice)
 {
 	struct symbol *def_sym;
 	struct property *prop;
 	struct expr *e;
 
 	/* any of the defaults visible? */
-	for_all_defaults(sym, prop) {
+	for_all_defaults(choice->sym, prop) {
 		prop->visible.tri = expr_calc_value(prop->visible.expr);
 		if (prop->visible.tri == no)
 			continue;
@@ -272,7 +272,7 @@ struct symbol *sym_choice_default(struct symbol *sym)
 	}
 
 	/* just get the first visible value */
-	prop = sym_get_choice_prop(sym);
+	prop = sym_get_choice_prop(choice->sym);
 	expr_list_for_each_sym(prop->expr, e, def_sym)
 		if (def_sym->visible != no)
 			return def_sym;
@@ -312,7 +312,7 @@ struct symbol *sym_calc_choice(struct menu *choice)
 	 * explicitly set to 'n'.
 	 */
 	if (!res) {
-		res = sym_choice_default(choice->sym);
+		res = sym_choice_default(choice);
 		if (res && sym_has_value(res) && res->def[S_DEF_USER].tri == no)
 			res = NULL;
 	}

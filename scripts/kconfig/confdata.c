@@ -779,7 +779,7 @@ int conf_write_defconfig(const char *filename)
 		if (choice) {
 			struct symbol *ds;
 
-			ds = sym_choice_default(choice->sym);
+			ds = sym_choice_default(choice);
 			if (sym == ds && sym_get_tristate_value(sym) == yes)
 				continue;
 		}
