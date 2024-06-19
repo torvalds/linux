@@ -11,6 +11,7 @@
 #include <linux/cma.h>
 
 #include "hab_virtio.h" /* requires hab.h */
+#include "hab_trace_os.h"
 
 #define HAB_VIRTIO_DEVICE_ID_HAB	88
 #define HAB_VIRTIO_DEVICE_ID_BUFFERQ	89
@@ -129,6 +130,8 @@ static void virthab_recv_txq(struct virtqueue *vq)
 	if (!vpc)
 		return;
 
+	trace_hab_recv_txq_start(vpc->pchan);
+
 	spin_lock_irqsave(&vpc->lock[HAB_PCHAN_TX_VQ], flags);
 	if (vpc->pchan_ready) {
 		if (vq != vpc->vq[HAB_PCHAN_TX_VQ])
@@ -181,6 +184,9 @@ static void virthab_recv_txq(struct virtqueue *vq)
 		}
 	}
 	spin_unlock_irqrestore(&vpc->lock[HAB_PCHAN_TX_VQ], flags);
+
+	trace_hab_recv_txq_end(vpc->pchan);
+
 	wake_up(&vpc->out_wq);
 }
 
@@ -204,6 +210,8 @@ static void virthab_recv_rxq(unsigned long p)
 	if (vq != vpc->vq[HAB_PCHAN_RX_VQ])
 		pr_err("%s failed to match rxq %pK expecting %pK\n",
 			vq->name, vq, vpc->vq[HAB_PCHAN_RX_VQ]);
+
+	trace_hab_recv_rxq_start(vpc->pchan);
 
 	spin_lock(&vpc->lock[HAB_PCHAN_RX_VQ]);
 
@@ -236,6 +244,7 @@ static void virthab_recv_rxq(unsigned long p)
 		else {
 			/* parse and handle the input */
 			spin_unlock(&vpc->lock[HAB_PCHAN_RX_VQ]);
+			trace_hab_pchan_recv_start(pchan);
 			rc = hab_msg_recv(pchan, (struct hab_header *)inbuf);
 
 			spin_lock(&vpc->lock[HAB_PCHAN_RX_VQ]);
@@ -271,6 +280,8 @@ static void virthab_recv_rxq(unsigned long p)
 
 	}
 	spin_unlock(&vpc->lock[HAB_PCHAN_RX_VQ]);
+
+	trace_hab_recv_rxq_end(vpc->pchan);
 }
 
 static void virthab_recv_rxq_task(struct virtqueue *vq)
@@ -971,6 +982,8 @@ int physical_channel_send(struct physical_channel *pchan,
 		return -EINVAL;
 	}
 
+	trace_hab_pchan_send_start(pchan);
+
 	spin_lock_irqsave(&vpc->lock[HAB_PCHAN_TX_VQ], lock_flags);
 	if (vpc->pchan_ready) {
 		/* pick the available outbuf */
@@ -1021,6 +1034,7 @@ int physical_channel_send(struct physical_channel *pchan,
 		rc = virtqueue_add_outbuf(vpc->vq[HAB_PCHAN_TX_VQ], sgout, 1,
 							hd, GFP_ATOMIC);
 		if (!rc) {
+			trace_hab_pchan_send_done(pchan);
 			rc = virtqueue_kick(vpc->vq[HAB_PCHAN_TX_VQ]);
 			if (!rc)
 				pr_err("failed to kick outbuf to PVM %d\n", rc);
