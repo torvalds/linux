@@ -211,6 +211,7 @@ struct ionic_lif {
 	u16 rx_copybreak;
 	u16 rx_mode;
 	bool registered;
+	bool doorbell_wa;
 	u16 lif_type;
 	unsigned int link_down_count;
 	unsigned int nmcast;

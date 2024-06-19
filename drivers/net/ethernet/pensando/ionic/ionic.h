@@ -18,6 +18,8 @@ struct ionic_lif;
 #define PCI_DEVICE_ID_PENSANDO_IONIC_ETH_PF	0x1002
 #define PCI_DEVICE_ID_PENSANDO_IONIC_ETH_VF	0x1003
 
+#define IONIC_ASIC_TYPE_ELBA	2
+
 #define DEVCMD_TIMEOUT			5
 #define IONIC_ADMINQ_TIME_SLICE		msecs_to_jiffies(100)
 
@@ -95,5 +97,7 @@ int ionic_reset(struct ionic *ionic);
 int ionic_port_identify(struct ionic *ionic);
 int ionic_port_init(struct ionic *ionic);
 int ionic_port_reset(struct ionic *ionic);
+
+bool ionic_doorbell_wa(struct ionic *ionic);
 
 #endif /* _IONIC_H_ */

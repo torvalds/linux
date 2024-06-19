@@ -412,7 +412,8 @@ static void ionic_remove(struct pci_dev *pdev)
 		if (test_and_clear_bit(IONIC_LIF_F_FW_RESET, ionic->lif->state))
 			set_bit(IONIC_LIF_F_FW_STOPPING, ionic->lif->state);
 
-		cancel_delayed_work_sync(&ionic->doorbell_check_dwork);
+		if (ionic->lif->doorbell_wa)
+			cancel_delayed_work_sync(&ionic->doorbell_check_dwork);
 		ionic_lif_unregister(ionic->lif);
 		ionic_devlink_unregister(ionic);
 		ionic_lif_deinit(ionic->lif);

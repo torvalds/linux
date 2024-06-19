@@ -128,6 +128,13 @@ static void ionic_doorbell_check_dwork(struct work_struct *work)
 	ionic_queue_doorbell_check(ionic, IONIC_NAPI_DEADLINE);
 }
 
+bool ionic_doorbell_wa(struct ionic *ionic)
+{
+	u8 asic_type = ionic->idev.dev_info.asic_type;
+
+	return !asic_type || asic_type == IONIC_ASIC_TYPE_ELBA;
+}
+
 static int ionic_watchdog_init(struct ionic *ionic)
 {
 	struct ionic_dev *idev = &ionic->idev;
@@ -151,8 +158,10 @@ static int ionic_watchdog_init(struct ionic *ionic)
 		dev_err(ionic->dev, "alloc_workqueue failed");
 		return -ENOMEM;
 	}
-	INIT_DELAYED_WORK(&ionic->doorbell_check_dwork,
-			  ionic_doorbell_check_dwork);
+
+	if (ionic_doorbell_wa(ionic))
+		INIT_DELAYED_WORK(&ionic->doorbell_check_dwork,
+				  ionic_doorbell_check_dwork);
 
 	return 0;
 }
@@ -160,6 +169,9 @@ static int ionic_watchdog_init(struct ionic *ionic)
 void ionic_queue_doorbell_check(struct ionic *ionic, int delay)
 {
 	int cpu;
+
+	if (!ionic->lif->doorbell_wa)
+		return;
 
 	cpu = ionic_get_preferred_cpu(ionic, &ionic->lif->adminqcq->intr);
 	queue_delayed_work_on(cpu, ionic->wq, &ionic->doorbell_check_dwork,
