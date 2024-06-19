@@ -926,6 +926,7 @@ static const int device_qfull_result =
 static const int condition_met_result = SAM_STAT_CONDITION_MET;
 
 static struct dentry *sdebug_debugfs_root;
+static ASYNC_DOMAIN_EXCLUSIVE(sdebug_async_domain);
 
 static void sdebug_err_free(struct rcu_head *head)
 {
@@ -1148,6 +1149,8 @@ static int sdebug_target_alloc(struct scsi_target *starget)
 	if (!targetip)
 		return -ENOMEM;
 
+	async_synchronize_full_domain(&sdebug_async_domain);
+
 	targetip->debugfs_entry = debugfs_create_dir(dev_name(&starget->dev),
 				sdebug_debugfs_root);
 
@@ -1174,7 +1177,8 @@ static void sdebug_target_destroy(struct scsi_target *starget)
 	targetip = (struct sdebug_target_info *)starget->hostdata;
 	if (targetip) {
 		starget->hostdata = NULL;
-		async_schedule(sdebug_tartget_cleanup_async, targetip);
+		async_schedule_domain(sdebug_tartget_cleanup_async, targetip,
+				&sdebug_async_domain);
 	}
 }
 
