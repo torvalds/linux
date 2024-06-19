@@ -23,141 +23,131 @@
  * This list should get updated as new features get added to the NV
  * support, and new extension to the architecture.
  */
-static u64 limit_nv_id_reg(u32 id, u64 val)
+static void limit_nv_id_regs(struct kvm *kvm)
 {
-	u64 tmp;
+	u64 val, tmp;
 
-	switch (id) {
-	case SYS_ID_AA64ISAR0_EL1:
-		/* Support everything but TME, O.S. and Range TLBIs */
-		val &= ~(NV_FTR(ISAR0, TLB)		|
-			 NV_FTR(ISAR0, TME));
-		break;
+	/* Support everything but TME, O.S. and Range TLBIs */
+	val = kvm_read_vm_id_reg(kvm, SYS_ID_AA64ISAR0_EL1);
+	val &= ~(NV_FTR(ISAR0, TLB)	|
+		 NV_FTR(ISAR0, TME));
+	kvm_set_vm_id_reg(kvm, SYS_ID_AA64ISAR0_EL1, val);
 
-	case SYS_ID_AA64ISAR1_EL1:
-		/* Support everything but Spec Invalidation */
-		val &= ~(GENMASK_ULL(63, 56)	|
-			 NV_FTR(ISAR1, SPECRES));
-		break;
+	/* Support everything but Spec Invalidation */
+	val = kvm_read_vm_id_reg(kvm, SYS_ID_AA64ISAR1_EL1);
+	val &= ~(GENMASK_ULL(63, 56)	|
+		 NV_FTR(ISAR1, SPECRES));
+	kvm_set_vm_id_reg(kvm, SYS_ID_AA64ISAR1_EL1, val);
 
-	case SYS_ID_AA64PFR0_EL1:
-		/* No AMU, MPAM, S-EL2, RAS or SVE */
-		val &= ~(GENMASK_ULL(55, 52)	|
-			 NV_FTR(PFR0, AMU)	|
-			 NV_FTR(PFR0, MPAM)	|
-			 NV_FTR(PFR0, SEL2)	|
-			 NV_FTR(PFR0, RAS)	|
-			 NV_FTR(PFR0, SVE)	|
-			 NV_FTR(PFR0, EL3)	|
-			 NV_FTR(PFR0, EL2)	|
-			 NV_FTR(PFR0, EL1));
-		/* 64bit EL1/EL2/EL3 only */
-		val |= FIELD_PREP(NV_FTR(PFR0, EL1), 0b0001);
-		val |= FIELD_PREP(NV_FTR(PFR0, EL2), 0b0001);
-		val |= FIELD_PREP(NV_FTR(PFR0, EL3), 0b0001);
-		break;
+	/* No AMU, MPAM, S-EL2, RAS or SVE */
+	kvm_read_vm_id_reg(kvm, SYS_ID_AA64PFR0_EL1);
+	val &= ~(GENMASK_ULL(55, 52)	|
+		 NV_FTR(PFR0, AMU)	|
+		 NV_FTR(PFR0, MPAM)	|
+		 NV_FTR(PFR0, SEL2)	|
+		 NV_FTR(PFR0, RAS)	|
+		 NV_FTR(PFR0, SVE)	|
+		 NV_FTR(PFR0, EL3)	|
+		 NV_FTR(PFR0, EL2)	|
+		 NV_FTR(PFR0, EL1));
+	/* 64bit EL1/EL2/EL3 only */
+	val |= FIELD_PREP(NV_FTR(PFR0, EL1), 0b0001);
+	val |= FIELD_PREP(NV_FTR(PFR0, EL2), 0b0001);
+	val |= FIELD_PREP(NV_FTR(PFR0, EL3), 0b0001);
+	kvm_set_vm_id_reg(kvm, SYS_ID_AA64PFR0_EL1, val);
 
-	case SYS_ID_AA64PFR1_EL1:
-		/* Only support SSBS */
-		val &= NV_FTR(PFR1, SSBS);
-		break;
+	/* Only support SSBS */
+	val = kvm_read_vm_id_reg(kvm, SYS_ID_AA64PFR1_EL1);
+	val &= NV_FTR(PFR1, SSBS);
+	kvm_set_vm_id_reg(kvm, SYS_ID_AA64PFR1_EL1, val);
 
-	case SYS_ID_AA64MMFR0_EL1:
-		/* Hide ECV, ExS, Secure Memory */
-		val &= ~(NV_FTR(MMFR0, ECV)		|
-			 NV_FTR(MMFR0, EXS)		|
-			 NV_FTR(MMFR0, TGRAN4_2)	|
-			 NV_FTR(MMFR0, TGRAN16_2)	|
-			 NV_FTR(MMFR0, TGRAN64_2)	|
-			 NV_FTR(MMFR0, SNSMEM));
+	/* Hide ECV, ExS, Secure Memory */
+	val = kvm_read_vm_id_reg(kvm, SYS_ID_AA64MMFR0_EL1);
+	val &= ~(NV_FTR(MMFR0, ECV)		|
+		 NV_FTR(MMFR0, EXS)		|
+		 NV_FTR(MMFR0, TGRAN4_2)	|
+		 NV_FTR(MMFR0, TGRAN16_2)	|
+		 NV_FTR(MMFR0, TGRAN64_2)	|
+		 NV_FTR(MMFR0, SNSMEM));
 
-		/* Disallow unsupported S2 page sizes */
-		switch (PAGE_SIZE) {
-		case SZ_64K:
-			val |= FIELD_PREP(NV_FTR(MMFR0, TGRAN16_2), 0b0001);
-			fallthrough;
-		case SZ_16K:
-			val |= FIELD_PREP(NV_FTR(MMFR0, TGRAN4_2), 0b0001);
-			fallthrough;
-		case SZ_4K:
-			/* Support everything */
-			break;
-		}
-		/*
-		 * Since we can't support a guest S2 page size smaller than
-		 * the host's own page size (due to KVM only populating its
-		 * own S2 using the kernel's page size), advertise the
-		 * limitation using FEAT_GTG.
-		 */
-		switch (PAGE_SIZE) {
-		case SZ_4K:
-			val |= FIELD_PREP(NV_FTR(MMFR0, TGRAN4_2), 0b0010);
-			fallthrough;
-		case SZ_16K:
-			val |= FIELD_PREP(NV_FTR(MMFR0, TGRAN16_2), 0b0010);
-			fallthrough;
-		case SZ_64K:
-			val |= FIELD_PREP(NV_FTR(MMFR0, TGRAN64_2), 0b0010);
-			break;
-		}
-		/* Cap PARange to 48bits */
-		tmp = FIELD_GET(NV_FTR(MMFR0, PARANGE), val);
-		if (tmp > 0b0101) {
-			val &= ~NV_FTR(MMFR0, PARANGE);
-			val |= FIELD_PREP(NV_FTR(MMFR0, PARANGE), 0b0101);
-		}
-		break;
-
-	case SYS_ID_AA64MMFR1_EL1:
-		val &= (NV_FTR(MMFR1, HCX)	|
-			NV_FTR(MMFR1, PAN)	|
-			NV_FTR(MMFR1, LO)	|
-			NV_FTR(MMFR1, HPDS)	|
-			NV_FTR(MMFR1, VH)	|
-			NV_FTR(MMFR1, VMIDBits));
-		break;
-
-	case SYS_ID_AA64MMFR2_EL1:
-		val &= ~(NV_FTR(MMFR2, BBM)	|
-			 NV_FTR(MMFR2, TTL)	|
-			 GENMASK_ULL(47, 44)	|
-			 NV_FTR(MMFR2, ST)	|
-			 NV_FTR(MMFR2, CCIDX)	|
-			 NV_FTR(MMFR2, VARange));
-
-		/* Force TTL support */
-		val |= FIELD_PREP(NV_FTR(MMFR2, TTL), 0b0001);
-		break;
-
-	case SYS_ID_AA64MMFR4_EL1:
-		val = 0;
-		if (!cpus_have_final_cap(ARM64_HAS_HCR_NV1))
-			val |= FIELD_PREP(NV_FTR(MMFR4, E2H0),
-					  ID_AA64MMFR4_EL1_E2H0_NI_NV1);
-		break;
-
-	case SYS_ID_AA64DFR0_EL1:
-		/* Only limited support for PMU, Debug, BPs and WPs */
-		val &= (NV_FTR(DFR0, PMUVer)	|
-			NV_FTR(DFR0, WRPs)	|
-			NV_FTR(DFR0, BRPs)	|
-			NV_FTR(DFR0, DebugVer));
-
-		/* Cap Debug to ARMv8.1 */
-		tmp = FIELD_GET(NV_FTR(DFR0, DebugVer), val);
-		if (tmp > 0b0111) {
-			val &= ~NV_FTR(DFR0, DebugVer);
-			val |= FIELD_PREP(NV_FTR(DFR0, DebugVer), 0b0111);
-		}
-		break;
-
-	default:
-		/* Unknown register, just wipe it clean */
-		val = 0;
+	/* Disallow unsupported S2 page sizes */
+	switch (PAGE_SIZE) {
+	case SZ_64K:
+		val |= FIELD_PREP(NV_FTR(MMFR0, TGRAN16_2), 0b0001);
+		fallthrough;
+	case SZ_16K:
+		val |= FIELD_PREP(NV_FTR(MMFR0, TGRAN4_2), 0b0001);
+		fallthrough;
+	case SZ_4K:
+		/* Support everything */
 		break;
 	}
+	/*
+	 * Since we can't support a guest S2 page size smaller than
+	 * the host's own page size (due to KVM only populating its
+	 * own S2 using the kernel's page size), advertise the
+	 * limitation using FEAT_GTG.
+	 */
+	switch (PAGE_SIZE) {
+	case SZ_4K:
+		val |= FIELD_PREP(NV_FTR(MMFR0, TGRAN4_2), 0b0010);
+		fallthrough;
+	case SZ_16K:
+		val |= FIELD_PREP(NV_FTR(MMFR0, TGRAN16_2), 0b0010);
+		fallthrough;
+	case SZ_64K:
+		val |= FIELD_PREP(NV_FTR(MMFR0, TGRAN64_2), 0b0010);
+		break;
+	}
+	/* Cap PARange to 48bits */
+	tmp = FIELD_GET(NV_FTR(MMFR0, PARANGE), val);
+	if (tmp > 0b0101) {
+		val &= ~NV_FTR(MMFR0, PARANGE);
+		val |= FIELD_PREP(NV_FTR(MMFR0, PARANGE), 0b0101);
+	}
+	kvm_set_vm_id_reg(kvm, SYS_ID_AA64MMFR0_EL1, val);
 
-	return val;
+	val = kvm_read_vm_id_reg(kvm, SYS_ID_AA64MMFR1_EL1);
+	val &= (NV_FTR(MMFR1, HCX)	|
+		NV_FTR(MMFR1, PAN)	|
+		NV_FTR(MMFR1, LO)	|
+		NV_FTR(MMFR1, HPDS)	|
+		NV_FTR(MMFR1, VH)	|
+		NV_FTR(MMFR1, VMIDBits));
+	kvm_set_vm_id_reg(kvm, SYS_ID_AA64MMFR1_EL1, val);
+
+	val = kvm_read_vm_id_reg(kvm, SYS_ID_AA64MMFR2_EL1);
+	val &= ~(NV_FTR(MMFR2, BBM)	|
+		 NV_FTR(MMFR2, TTL)	|
+		 GENMASK_ULL(47, 44)	|
+		 NV_FTR(MMFR2, ST)	|
+		 NV_FTR(MMFR2, CCIDX)	|
+		 NV_FTR(MMFR2, VARange));
+
+	/* Force TTL support */
+	val |= FIELD_PREP(NV_FTR(MMFR2, TTL), 0b0001);
+	kvm_set_vm_id_reg(kvm, SYS_ID_AA64MMFR2_EL1, val);
+
+	val = 0;
+	if (!cpus_have_final_cap(ARM64_HAS_HCR_NV1))
+		val |= FIELD_PREP(NV_FTR(MMFR4, E2H0),
+				  ID_AA64MMFR4_EL1_E2H0_NI_NV1);
+	kvm_set_vm_id_reg(kvm, SYS_ID_AA64MMFR4_EL1, val);
+
+	/* Only limited support for PMU, Debug, BPs and WPs */
+	val = kvm_read_vm_id_reg(kvm, SYS_ID_AA64DFR0_EL1);
+	val &= (NV_FTR(DFR0, PMUVer)	|
+		NV_FTR(DFR0, WRPs)	|
+		NV_FTR(DFR0, BRPs)	|
+		NV_FTR(DFR0, DebugVer));
+
+	/* Cap Debug to ARMv8.1 */
+	tmp = FIELD_GET(NV_FTR(DFR0, DebugVer), val);
+	if (tmp > 0b0111) {
+		val &= ~NV_FTR(DFR0, DebugVer);
+		val |= FIELD_PREP(NV_FTR(DFR0, DebugVer), 0b0111);
+	}
+	kvm_set_vm_id_reg(kvm, SYS_ID_AA64DFR0_EL1, val);
 }
 
 u64 kvm_vcpu_sanitise_vncr_reg(const struct kvm_vcpu *vcpu, enum vcpu_sysreg sr)
@@ -202,9 +192,7 @@ int kvm_init_nv_sysregs(struct kvm *kvm)
 		goto out;
 	}
 
-	for (int i = 0; i < KVM_ARM_ID_REG_NUM; i++)
-		kvm_set_vm_id_reg(kvm, IDX_IDREG(i), limit_nv_id_reg(IDX_IDREG(i),
-								     kvm->arch.id_regs[i]));
+	limit_nv_id_regs(kvm);
 
 	/* VTTBR_EL2 */
 	res0 = res1 = 0;
