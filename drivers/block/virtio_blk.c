@@ -728,7 +728,7 @@ static int virtblk_read_zoned_limits(struct virtio_blk *vblk,
 
 	dev_dbg(&vdev->dev, "probing host-managed zoned device\n");
 
-	lim->zoned = true;
+	lim->features |= BLK_FEAT_ZONED | BLK_FEAT_ZONE_RESETALL;
 
 	virtio_cread(vdev, struct virtio_blk_config,
 		     zoned.max_open_zones, &v);
@@ -1089,14 +1089,6 @@ static int virtblk_get_cache_mode(struct virtio_device *vdev)
 	return writeback;
 }
 
-static void virtblk_update_cache_mode(struct virtio_device *vdev)
-{
-	u8 writeback = virtblk_get_cache_mode(vdev);
-	struct virtio_blk *vblk = vdev->priv;
-
-	blk_queue_write_cache(vblk->disk->queue, writeback, false);
-}
-
 static const char *const virtblk_cache_types[] = {
 	"write through", "write back"
 };
@@ -1108,6 +1100,7 @@ cache_type_store(struct device *dev, struct device_attribute *attr,
 	struct gendisk *disk = dev_to_disk(dev);
 	struct virtio_blk *vblk = disk->private_data;
 	struct virtio_device *vdev = vblk->vdev;
+	struct queue_limits lim;
 	int i;
 
 	BUG_ON(!virtio_has_feature(vblk->vdev, VIRTIO_BLK_F_CONFIG_WCE));
@@ -1116,7 +1109,17 @@ cache_type_store(struct device *dev, struct device_attribute *attr,
 		return i;
 
 	virtio_cwrite8(vdev, offsetof(struct virtio_blk_config, wce), i);
-	virtblk_update_cache_mode(vdev);
+
+	lim = queue_limits_start_update(disk->queue);
+	if (virtblk_get_cache_mode(vdev))
+		lim.features |= BLK_FEAT_WRITE_CACHE;
+	else
+		lim.features &= ~BLK_FEAT_WRITE_CACHE;
+	blk_mq_freeze_queue(disk->queue);
+	i = queue_limits_commit_update(disk->queue, &lim);
+	blk_mq_unfreeze_queue(disk->queue);
+	if (i)
+		return i;
 	return count;
 }
 
@@ -1448,7 +1451,9 @@ static int virtblk_read_limits(struct virtio_blk *vblk,
 static int virtblk_probe(struct virtio_device *vdev)
 {
 	struct virtio_blk *vblk;
-	struct queue_limits lim = { };
+	struct queue_limits lim = {
+		.features		= BLK_FEAT_ROTATIONAL,
+	};
 	int err, index;
 	unsigned int queue_depth;
 
@@ -1512,6 +1517,9 @@ static int virtblk_probe(struct virtio_device *vdev)
 	if (err)
 		goto out_free_tags;
 
+	if (virtblk_get_cache_mode(vdev))
+		lim.features |= BLK_FEAT_WRITE_CACHE;
+
 	vblk->disk = blk_mq_alloc_disk(&vblk->tag_set, &lim, vblk);
 	if (IS_ERR(vblk->disk)) {
 		err = PTR_ERR(vblk->disk);
@@ -1527,9 +1535,6 @@ static int virtblk_probe(struct virtio_device *vdev)
 	vblk->disk->fops = &virtblk_fops;
 	vblk->index = index;
 
-	/* configure queue flush support */
-	virtblk_update_cache_mode(vdev);
-
 	/* If disk is read-only in the host, the guest should obey */
 	if (virtio_has_feature(vdev, VIRTIO_BLK_F_RO))
 		set_disk_ro(vblk->disk, 1);
@@ -1541,8 +1546,8 @@ static int virtblk_probe(struct virtio_device *vdev)
 	 * All steps that follow use the VQs therefore they need to be
 	 * placed after the virtio_device_ready() call above.
 	 */
-	if (IS_ENABLED(CONFIG_BLK_DEV_ZONED) && lim.zoned) {
-		blk_queue_flag_set(QUEUE_FLAG_ZONE_RESETALL, vblk->disk->queue);
+	if (IS_ENABLED(CONFIG_BLK_DEV_ZONED) &&
+	    (lim.features & BLK_FEAT_ZONED)) {
 		err = blk_revalidate_disk_zones(vblk->disk);
 		if (err)
 			goto out_cleanup_disk;

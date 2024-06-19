@@ -189,12 +189,9 @@ static ssize_t queue_discard_max_store(struct request_queue *q,
 	if ((max_discard_bytes >> SECTOR_SHIFT) > UINT_MAX)
 		return -EINVAL;
 
-	blk_mq_freeze_queue(q);
 	lim = queue_limits_start_update(q);
 	lim.max_user_discard_sectors = max_discard_bytes >> SECTOR_SHIFT;
 	err = queue_limits_commit_update(q, &lim);
-	blk_mq_unfreeze_queue(q);
-
 	if (err)
 		return err;
 	return ret;
@@ -241,11 +238,9 @@ queue_max_sectors_store(struct request_queue *q, const char *page, size_t count)
 	if (ret < 0)
 		return ret;
 
-	blk_mq_freeze_queue(q);
 	lim = queue_limits_start_update(q);
 	lim.max_user_sectors = max_sectors_kb << 1;
 	err = queue_limits_commit_update(q, &lim);
-	blk_mq_unfreeze_queue(q);
 	if (err)
 		return err;
 	return ret;
@@ -268,37 +263,43 @@ static ssize_t queue_dma_alignment_show(struct request_queue *q, char *page)
 	return queue_var_show(queue_dma_alignment(q), page);
 }
 
-#define QUEUE_SYSFS_BIT_FNS(name, flag, neg)				\
-static ssize_t								\
-queue_##name##_show(struct request_queue *q, char *page)		\
-{									\
-	int bit;							\
-	bit = test_bit(QUEUE_FLAG_##flag, &q->queue_flags);		\
-	return queue_var_show(neg ? !bit : bit, page);			\
-}									\
-static ssize_t								\
-queue_##name##_store(struct request_queue *q, const char *page, size_t count) \
-{									\
-	unsigned long val;						\
-	ssize_t ret;							\
-	ret = queue_var_store(&val, page, count);			\
-	if (ret < 0)							\
-		 return ret;						\
-	if (neg)							\
-		val = !val;						\
-									\
-	if (val)							\
-		blk_queue_flag_set(QUEUE_FLAG_##flag, q);		\
-	else								\
-		blk_queue_flag_clear(QUEUE_FLAG_##flag, q);		\
-	return ret;							\
+static ssize_t queue_feature_store(struct request_queue *q, const char *page,
+		size_t count, unsigned int feature)
+{
+	struct queue_limits lim;
+	unsigned long val;
+	ssize_t ret;
+
+	ret = queue_var_store(&val, page, count);
+	if (ret < 0)
+		return ret;
+
+	lim = queue_limits_start_update(q);
+	if (val)
+		lim.features |= feature;
+	else
+		lim.features &= ~feature;
+	ret = queue_limits_commit_update(q, &lim);
+	if (ret)
+		return ret;
+	return count;
 }
 
-QUEUE_SYSFS_BIT_FNS(nonrot, NONROT, 1);
-QUEUE_SYSFS_BIT_FNS(random, ADD_RANDOM, 0);
-QUEUE_SYSFS_BIT_FNS(iostats, IO_STAT, 0);
-QUEUE_SYSFS_BIT_FNS(stable_writes, STABLE_WRITES, 0);
-#undef QUEUE_SYSFS_BIT_FNS
+#define QUEUE_SYSFS_FEATURE(_name, _feature)				 \
+static ssize_t queue_##_name##_show(struct request_queue *q, char *page) \
+{									 \
+	return sprintf(page, "%u\n", !!(q->limits.features & _feature)); \
+}									 \
+static ssize_t queue_##_name##_store(struct request_queue *q,		 \
+		const char *page, size_t count)				 \
+{									 \
+	return queue_feature_store(q, page, count, _feature);		 \
+}
+
+QUEUE_SYSFS_FEATURE(rotational, BLK_FEAT_ROTATIONAL)
+QUEUE_SYSFS_FEATURE(add_random, BLK_FEAT_ADD_RANDOM)
+QUEUE_SYSFS_FEATURE(iostats, BLK_FEAT_IO_STAT)
+QUEUE_SYSFS_FEATURE(stable_writes, BLK_FEAT_STABLE_WRITES);
 
 static ssize_t queue_zoned_show(struct request_queue *q, char *page)
 {
@@ -393,13 +394,13 @@ static ssize_t queue_poll_delay_store(struct request_queue *q, const char *page,
 
 static ssize_t queue_poll_show(struct request_queue *q, char *page)
 {
-	return queue_var_show(test_bit(QUEUE_FLAG_POLL, &q->queue_flags), page);
+	return queue_var_show(q->limits.features & BLK_FEAT_POLL, page);
 }
 
 static ssize_t queue_poll_store(struct request_queue *q, const char *page,
 				size_t count)
 {
-	if (!test_bit(QUEUE_FLAG_POLL, &q->queue_flags))
+	if (!(q->limits.features & BLK_FEAT_POLL))
 		return -EINVAL;
 	pr_info_ratelimited("writes to the poll attribute are ignored.\n");
 	pr_info_ratelimited("please use driver specific parameters instead.\n");
@@ -428,32 +429,41 @@ static ssize_t queue_io_timeout_store(struct request_queue *q, const char *page,
 
 static ssize_t queue_wc_show(struct request_queue *q, char *page)
 {
-	if (test_bit(QUEUE_FLAG_WC, &q->queue_flags))
-		return sprintf(page, "write back\n");
-
-	return sprintf(page, "write through\n");
+	if (q->limits.features & BLK_FLAGS_WRITE_CACHE_DISABLED)
+		return sprintf(page, "write through\n");
+	return sprintf(page, "write back\n");
 }
 
 static ssize_t queue_wc_store(struct request_queue *q, const char *page,
 			      size_t count)
 {
+	struct queue_limits lim;
+	bool disable;
+	int err;
+
 	if (!strncmp(page, "write back", 10)) {
-		if (!test_bit(QUEUE_FLAG_HW_WC, &q->queue_flags))
-			return -EINVAL;
-		blk_queue_flag_set(QUEUE_FLAG_WC, q);
+		disable = false;
 	} else if (!strncmp(page, "write through", 13) ||
-		 !strncmp(page, "none", 4)) {
-		blk_queue_flag_clear(QUEUE_FLAG_WC, q);
+		   !strncmp(page, "none", 4)) {
+		disable = true;
 	} else {
 		return -EINVAL;
 	}
 
+	lim = queue_limits_start_update(q);
+	if (disable)
+		lim.flags |= BLK_FLAGS_WRITE_CACHE_DISABLED;
+	else
+		lim.flags &= ~BLK_FLAGS_WRITE_CACHE_DISABLED;
+	err = queue_limits_commit_update(q, &lim);
+	if (err)
+		return err;
 	return count;
 }
 
 static ssize_t queue_fua_show(struct request_queue *q, char *page)
 {
-	return sprintf(page, "%u\n", test_bit(QUEUE_FLAG_FUA, &q->queue_flags));
+	return sprintf(page, "%u\n", !!(q->limits.features & BLK_FEAT_FUA));
 }
 
 static ssize_t queue_dax_show(struct request_queue *q, char *page)
@@ -522,9 +532,9 @@ static struct queue_sysfs_entry queue_hw_sector_size_entry = {
 	.show = queue_logical_block_size_show,
 };
 
-QUEUE_RW_ENTRY(queue_nonrot, "rotational");
+QUEUE_RW_ENTRY(queue_rotational, "rotational");
 QUEUE_RW_ENTRY(queue_iostats, "iostats");
-QUEUE_RW_ENTRY(queue_random, "add_random");
+QUEUE_RW_ENTRY(queue_add_random, "add_random");
 QUEUE_RW_ENTRY(queue_stable_writes, "stable_writes");
 
 #ifdef CONFIG_BLK_WBT
@@ -585,13 +595,11 @@ static ssize_t queue_wb_lat_store(struct request_queue *q, const char *page,
 	 * ends up either enabling or disabling wbt completely. We can't
 	 * have IO inflight if that happens.
 	 */
-	blk_mq_freeze_queue(q);
 	blk_mq_quiesce_queue(q);
 
 	wbt_set_min_lat(q, val);
 
 	blk_mq_unquiesce_queue(q);
-	blk_mq_unfreeze_queue(q);
 
 	return count;
 }
@@ -622,7 +630,7 @@ static struct attribute *queue_attrs[] = {
 	&queue_write_zeroes_max_entry.attr,
 	&queue_zone_append_max_entry.attr,
 	&queue_zone_write_granularity_entry.attr,
-	&queue_nonrot_entry.attr,
+	&queue_rotational_entry.attr,
 	&queue_zoned_entry.attr,
 	&queue_nr_zones_entry.attr,
 	&queue_max_open_zones_entry.attr,
@@ -630,7 +638,7 @@ static struct attribute *queue_attrs[] = {
 	&queue_nomerges_entry.attr,
 	&queue_iostats_entry.attr,
 	&queue_stable_writes_entry.attr,
-	&queue_random_entry.attr,
+	&queue_add_random_entry.attr,
 	&queue_poll_entry.attr,
 	&queue_wc_entry.attr,
 	&queue_fua_entry.attr,
@@ -722,9 +730,11 @@ queue_attr_store(struct kobject *kobj, struct attribute *attr,
 	if (!entry->store)
 		return -EIO;
 
+	blk_mq_freeze_queue(q);
 	mutex_lock(&q->sysfs_lock);
 	res = entry->store(q, page, length);
 	mutex_unlock(&q->sysfs_lock);
+	blk_mq_unfreeze_queue(q);
 	return res;
 }
 

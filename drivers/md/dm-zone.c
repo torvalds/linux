@@ -372,7 +372,7 @@ int dm_set_zones_restrictions(struct dm_table *t, struct request_queue *q,
 		lim->max_zone_append_sectors = 0;
 		lim->zone_write_granularity = 0;
 		lim->chunk_sectors = 0;
-		lim->zoned = false;
+		lim->features &= ~BLK_FEAT_ZONED;
 		clear_bit(DMF_EMULATE_ZONE_APPEND, &md->flags);
 		md->nr_zones = 0;
 		disk->nr_zones = 0;
@@ -392,7 +392,8 @@ int dm_set_zones_restrictions(struct dm_table *t, struct request_queue *q,
 		DMWARN("%s zone resource limits may be unreliable",
 		       disk->disk_name);
 
-	if (lim->zoned && !static_key_enabled(&zoned_enabled.key))
+	if (lim->features & BLK_FEAT_ZONED &&
+	    !static_key_enabled(&zoned_enabled.key))
 		static_branch_enable(&zoned_enabled);
 	return 0;
 }

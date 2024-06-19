@@ -388,9 +388,9 @@ static int ps3disk_probe(struct ps3_system_bus_device *_dev)
 		.max_segments		= -1,
 		.max_segment_size	= dev->bounce_size,
 		.dma_alignment		= dev->blk_size - 1,
+		.features		= BLK_FEAT_WRITE_CACHE |
+					  BLK_FEAT_ROTATIONAL,
 	};
-
-	struct request_queue *queue;
 	struct gendisk *gendisk;
 
 	if (dev->blk_size < 512) {
@@ -446,10 +446,6 @@ static int ps3disk_probe(struct ps3_system_bus_device *_dev)
 		error = PTR_ERR(gendisk);
 		goto fail_free_tag_set;
 	}
-
-	queue = gendisk->queue;
-
-	blk_queue_write_cache(queue, true, false);
 
 	priv->gendisk = gendisk;
 	gendisk->major = ps3disk_major;

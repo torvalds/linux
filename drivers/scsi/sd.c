@@ -120,17 +120,18 @@ static const char *sd_cache_types[] = {
 	"write back, no read (daft)"
 };
 
-static void sd_set_flush_flag(struct scsi_disk *sdkp)
+static void sd_set_flush_flag(struct scsi_disk *sdkp,
+		struct queue_limits *lim)
 {
-	bool wc = false, fua = false;
-
 	if (sdkp->WCE) {
-		wc = true;
+		lim->features |= BLK_FEAT_WRITE_CACHE;
 		if (sdkp->DPOFUA)
-			fua = true;
+			lim->features |= BLK_FEAT_FUA;
+		else
+			lim->features &= ~BLK_FEAT_FUA;
+	} else {
+		lim->features &= ~(BLK_FEAT_WRITE_CACHE | BLK_FEAT_FUA);
 	}
-
-	blk_queue_write_cache(sdkp->disk->queue, wc, fua);
 }
 
 static ssize_t
@@ -168,9 +169,18 @@ cache_type_store(struct device *dev, struct device_attribute *attr,
 	wce = (ct & 0x02) && !sdkp->write_prot ? 1 : 0;
 
 	if (sdkp->cache_override) {
+		struct queue_limits lim;
+
 		sdkp->WCE = wce;
 		sdkp->RCD = rcd;
-		sd_set_flush_flag(sdkp);
+
+		lim = queue_limits_start_update(sdkp->disk->queue);
+		sd_set_flush_flag(sdkp, &lim);
+		blk_mq_freeze_queue(sdkp->disk->queue);
+		ret = queue_limits_commit_update(sdkp->disk->queue, &lim);
+		blk_mq_unfreeze_queue(sdkp->disk->queue);
+		if (ret)
+			return ret;
 		return count;
 	}
 
@@ -465,10 +475,6 @@ provisioning_mode_store(struct device *dev, struct device_attribute *attr,
 
 	if (sdp->type != TYPE_DISK)
 		return -EINVAL;
-
-	/* ignore the provisioning mode for ZBC devices */
-	if (sd_is_zoned(sdkp))
-		return count;
 
 	mode = sysfs_match_string(lbp_mode, buf);
 	if (mode < 0)
@@ -2288,7 +2294,7 @@ static int sd_done(struct scsi_cmnd *SCpnt)
 	}
 
  out:
-	if (sd_is_zoned(sdkp))
+	if (sdkp->device->type == TYPE_ZBC)
 		good_bytes = sd_zbc_complete(SCpnt, good_bytes, &sshdr);
 
 	SCSI_LOG_HLCOMPLETE(1, scmd_printk(KERN_INFO, SCpnt,
@@ -3295,7 +3301,6 @@ static void sd_read_block_limits_ext(struct scsi_disk *sdkp)
 static void sd_read_block_characteristics(struct scsi_disk *sdkp,
 		struct queue_limits *lim)
 {
-	struct request_queue *q = sdkp->disk->queue;
 	struct scsi_vpd *vpd;
 	u16 rot;
 
@@ -3311,34 +3316,13 @@ static void sd_read_block_characteristics(struct scsi_disk *sdkp,
 	sdkp->zoned = (vpd->data[8] >> 4) & 3;
 	rcu_read_unlock();
 
-	if (rot == 1) {
-		blk_queue_flag_set(QUEUE_FLAG_NONROT, q);
-		blk_queue_flag_clear(QUEUE_FLAG_ADD_RANDOM, q);
-	}
-
-
-#ifdef CONFIG_BLK_DEV_ZONED /* sd_probe rejects ZBD devices early otherwise */
-	if (sdkp->device->type == TYPE_ZBC) {
-		lim->zoned = true;
-
-		/*
-		 * Per ZBC and ZAC specifications, writes in sequential write
-		 * required zones of host-managed devices must be aligned to
-		 * the device physical block size.
-		 */
-		lim->zone_write_granularity = sdkp->physical_block_size;
-	} else {
-		/*
-		 * Host-aware devices are treated as conventional.
-		 */
-		lim->zoned = false;
-	}
-#endif /* CONFIG_BLK_DEV_ZONED */
+	if (rot == 1)
+		lim->features &= ~(BLK_FEAT_ROTATIONAL | BLK_FEAT_ADD_RANDOM);
 
 	if (!sdkp->first_scan)
 		return;
 
-	if (lim->zoned)
+	if (sdkp->device->type == TYPE_ZBC)
 		sd_printk(KERN_NOTICE, sdkp, "Host-managed zoned block device\n");
 	else if (sdkp->zoned == 1)
 		sd_printk(KERN_NOTICE, sdkp, "Host-aware SMR disk used as regular disk\n");
@@ -3612,7 +3596,6 @@ static int sd_revalidate_disk(struct gendisk *disk)
 {
 	struct scsi_disk *sdkp = scsi_disk(disk);
 	struct scsi_device *sdp = sdkp->device;
-	struct request_queue *q = sdkp->disk->queue;
 	sector_t old_capacity = sdkp->capacity;
 	struct queue_limits lim;
 	unsigned char *buffer;
@@ -3659,8 +3642,7 @@ static int sd_revalidate_disk(struct gendisk *disk)
 		 * cause this to be updated correctly and any device which
 		 * doesn't support it should be treated as rotational.
 		 */
-		blk_queue_flag_clear(QUEUE_FLAG_NONROT, q);
-		blk_queue_flag_set(QUEUE_FLAG_ADD_RANDOM, q);
+		lim.features |= (BLK_FEAT_ROTATIONAL | BLK_FEAT_ADD_RANDOM);
 
 		if (scsi_device_supports_vpd(sdp)) {
 			sd_read_block_provisioning(sdkp);
@@ -3686,7 +3668,7 @@ static int sd_revalidate_disk(struct gendisk *disk)
 	 * We now have all cache related info, determine how we deal
 	 * with flush requests.
 	 */
-	sd_set_flush_flag(sdkp);
+	sd_set_flush_flag(sdkp, &lim);
 
 	/* Initial block count limit based on CDB TRANSFER LENGTH field size. */
 	dev_max = sdp->use_16_for_rw ? SD_MAX_XFER_BLOCKS : SD_DEF_XFER_BLOCKS;

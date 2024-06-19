@@ -206,8 +206,8 @@ static void wbt_rqw_done(struct rq_wb *rwb, struct rq_wait *rqw,
 	 */
 	if (wb_acct & WBT_DISCARD)
 		limit = rwb->wb_background;
-	else if (test_bit(QUEUE_FLAG_WC, &rwb->rqos.disk->queue->queue_flags) &&
-	         !wb_recent_wait(rwb))
+	else if (blk_queue_write_cache(rwb->rqos.disk->queue) &&
+		 !wb_recent_wait(rwb))
 		limit = 0;
 	else
 		limit = rwb->wb_normal;

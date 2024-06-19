@@ -98,6 +98,7 @@ static int __init nfhd_init_one(int id, u32 blocks, u32 bsize)
 {
 	struct queue_limits lim = {
 		.logical_block_size	= bsize,
+		.features		= BLK_FEAT_ROTATIONAL,
 	};
 	struct nfhd_device *dev;
 	int dev_id = id - NFHD_DEV_OFFSET;

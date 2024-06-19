@@ -7086,12 +7086,14 @@ raid5_store_skip_copy(struct mddev *mddev, const char *page, size_t len)
 		err = -ENODEV;
 	else if (new != conf->skip_copy) {
 		struct request_queue *q = mddev->gendisk->queue;
+		struct queue_limits lim = queue_limits_start_update(q);
 
 		conf->skip_copy = new;
 		if (new)
-			blk_queue_flag_set(QUEUE_FLAG_STABLE_WRITES, q);
+			lim.features |= BLK_FEAT_STABLE_WRITES;
 		else
-			blk_queue_flag_clear(QUEUE_FLAG_STABLE_WRITES, q);
+			lim.features &= ~BLK_FEAT_STABLE_WRITES;
+		err = queue_limits_commit_update(q, &lim);
 	}
 	mddev_unlock_and_resume(mddev);
 	return err ?: len;

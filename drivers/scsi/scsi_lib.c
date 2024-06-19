@@ -631,8 +631,7 @@ static bool scsi_end_request(struct request *req, blk_status_t error,
 	if (blk_update_request(req, error, bytes))
 		return true;
 
-	// XXX:
-	if (blk_queue_add_random(q))
+	if (q->limits.features & BLK_FEAT_ADD_RANDOM)
 		add_disk_randomness(req->q->disk);
 
 	WARN_ON_ONCE(!blk_rq_is_passthrough(req) &&
@@ -1987,7 +1986,7 @@ void scsi_init_limits(struct Scsi_Host *shost, struct queue_limits *lim)
 		shost->dma_alignment, dma_get_cache_alignment() - 1);
 
 	if (shost->no_highmem)
-		lim->bounce = BLK_BOUNCE_HIGH;
+		lim->features |= BLK_FEAT_BOUNCE_HIGH;
 
 	dma_set_seg_boundary(dev, shost->dma_boundary);
 	dma_set_max_seg_size(dev, shost->max_segment_size);

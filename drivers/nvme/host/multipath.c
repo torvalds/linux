@@ -521,7 +521,6 @@ static void nvme_requeue_work(struct work_struct *work)
 int nvme_mpath_alloc_disk(struct nvme_ctrl *ctrl, struct nvme_ns_head *head)
 {
 	struct queue_limits lim;
-	bool vwc = false;
 
 	mutex_init(&head->lock);
 	bio_list_init(&head->requeue_list);
@@ -539,6 +538,7 @@ int nvme_mpath_alloc_disk(struct nvme_ctrl *ctrl, struct nvme_ns_head *head)
 
 	blk_set_stacking_limits(&lim);
 	lim.dma_alignment = 3;
+	lim.features |= BLK_FEAT_IO_STAT | BLK_FEAT_NOWAIT | BLK_FEAT_POLL;
 	if (head->ids.csi != NVME_CSI_ZNS)
 		lim.max_zone_append_sectors = 0;
 
@@ -549,24 +549,6 @@ int nvme_mpath_alloc_disk(struct nvme_ctrl *ctrl, struct nvme_ns_head *head)
 	head->disk->private_data = head;
 	sprintf(head->disk->disk_name, "nvme%dn%d",
 			ctrl->subsys->instance, head->instance);
-
-	blk_queue_flag_set(QUEUE_FLAG_NONROT, head->disk->queue);
-	blk_queue_flag_set(QUEUE_FLAG_NOWAIT, head->disk->queue);
-	blk_queue_flag_set(QUEUE_FLAG_IO_STAT, head->disk->queue);
-	/*
-	 * This assumes all controllers that refer to a namespace either
-	 * support poll queues or not.  That is not a strict guarantee,
-	 * but if the assumption is wrong the effect is only suboptimal
-	 * performance but not correctness problem.
-	 */
-	if (ctrl->tagset->nr_maps > HCTX_TYPE_POLL &&
-	    ctrl->tagset->map[HCTX_TYPE_POLL].nr_queues)
-		blk_queue_flag_set(QUEUE_FLAG_POLL, head->disk->queue);
-
-	/* we need to propagate up the VMC settings */
-	if (ctrl->vwc & NVME_CTRL_VWC_PRESENT)
-		vwc = true;
-	blk_queue_write_cache(head->disk->queue, vwc, vwc);
 	return 0;
 }
 
@@ -875,10 +857,6 @@ void nvme_mpath_add_disk(struct nvme_ns *ns, __le32 anagrpid)
 		nvme_mpath_set_live(ns);
 	}
 
-	if (test_bit(QUEUE_FLAG_STABLE_WRITES, &ns->queue->queue_flags) &&
-	    ns->head->disk)
-		blk_queue_flag_set(QUEUE_FLAG_STABLE_WRITES,
-				   ns->head->disk->queue);
 #ifdef CONFIG_BLK_DEV_ZONED
 	if (blk_queue_is_zoned(ns->queue) && ns->head->disk)
 		ns->head->disk->nr_zones = ns->disk->nr_zones;
