@@ -68,6 +68,25 @@ static const struct mmio_reg dlvr_mmio_regs[] = {
 	{ 1, 0x15A10, 1, 0x1, 16}, /* dlvr_pll_busy */
 };
 
+static const struct mmio_reg lnl_dlvr_mmio_regs[] = {
+	{ 0, 0x5A08, 5, 0x1F, 0}, /* dlvr_spread_spectrum_pct */
+	{ 0, 0x5A08, 1, 0x1, 5}, /* dlvr_control_mode */
+	{ 0, 0x5A08, 1, 0x1, 6}, /* dlvr_control_lock */
+	{ 0, 0x5A08, 1, 0x1, 7}, /* dlvr_rfim_enable */
+	{ 0, 0x5A08, 2, 0x3, 8}, /* dlvr_freq_select */
+	{ 1, 0x5A10, 2, 0x3, 30}, /* dlvr_hardware_rev */
+	{ 1, 0x5A10, 2, 0x3, 0}, /* dlvr_freq_mhz */
+	{ 1, 0x5A10, 1, 0x1, 23}, /* dlvr_pll_busy */
+};
+
+static const struct mapping_table lnl_dlvr_mapping[] = {
+	{"dlvr_freq_select", 0, "2227.2"},
+	{"dlvr_freq_select", 1, "2140"},
+	{"dlvr_freq_mhz", 0, "2227.2"},
+	{"dlvr_freq_mhz", 1, "2140"},
+	{NULL, 0, NULL},
+};
+
 static int match_mapping_table(const struct mapping_table *table, const char *attr_name,
 			       bool match_int_value, const u32 value, const char *value_str,
 			       char **result_str, u32 *result_int)
@@ -167,7 +186,12 @@ static ssize_t suffix##_show(struct device *dev,\
 		mmio_regs = adl_dvfs_mmio_regs;\
 	} else if (table == 2) { \
 		match_strs = (const char **)dlvr_strings;\
-		mmio_regs = dlvr_mmio_regs;\
+		if (pdev->device == PCI_DEVICE_ID_INTEL_LNLM_THERMAL) {\
+			mmio_regs = lnl_dlvr_mmio_regs;\
+			mapping = lnl_dlvr_mapping;\
+		} else {\
+			mmio_regs = dlvr_mmio_regs;\
+		} \
 	} else {\
 		match_strs = (const char **)fivr_strings;\
 		mmio_regs = tgl_fivr_mmio_regs;\
@@ -206,7 +230,12 @@ static ssize_t suffix##_store(struct device *dev,\
 		mmio_regs = adl_dvfs_mmio_regs;\
 	} else if (table == 2) { \
 		match_strs = (const char **)dlvr_strings;\
-		mmio_regs = dlvr_mmio_regs;\
+		if (pdev->device == PCI_DEVICE_ID_INTEL_LNLM_THERMAL) {\
+			mmio_regs = lnl_dlvr_mmio_regs;\
+			mapping = lnl_dlvr_mapping;\
+		} else {\
+			mmio_regs = dlvr_mmio_regs;\
+		} \
 	} else {\
 		match_strs = (const char **)fivr_strings;\
 		mmio_regs = tgl_fivr_mmio_regs;\
