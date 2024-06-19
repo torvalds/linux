@@ -761,7 +761,7 @@ static int ims_pcu_switch_to_bootloader(struct ims_pcu *pcu)
 struct ims_pcu_flash_fmt {
 	__le32 addr;
 	u8 len;
-	u8 data[];
+	u8 data[] __counted_by(len);
 };
 
 static unsigned int ims_pcu_count_fw_records(const struct firmware *fw)
