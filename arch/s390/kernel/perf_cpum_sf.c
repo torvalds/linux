@@ -585,7 +585,7 @@ static void extend_sampling_buffer(struct sf_buffer *sfb,
 }
 
 /* Number of perf events counting hardware events */
-static atomic_t num_events;
+static refcount_t num_events;
 /* Used to avoid races in calling reserve/release_cpumf_hardware */
 static DEFINE_MUTEX(pmc_reserve_mutex);
 
@@ -644,10 +644,8 @@ static int reserve_pmc_hardware(void)
 static void hw_perf_event_destroy(struct perf_event *event)
 {
 	/* Release PMC if this is the last perf event */
-	if (!atomic_add_unless(&num_events, -1, 1)) {
-		mutex_lock(&pmc_reserve_mutex);
-		if (atomic_dec_return(&num_events) == 0)
-			release_pmc_hardware();
+	if (refcount_dec_and_mutex_lock(&num_events, &pmc_reserve_mutex)) {
+		release_pmc_hardware();
 		mutex_unlock(&pmc_reserve_mutex);
 	}
 }
@@ -810,22 +808,19 @@ static int __hw_perf_event_init(struct perf_event *event)
 	struct hws_qsi_info_block si;
 	struct perf_event_attr *attr = &event->attr;
 	struct hw_perf_event *hwc = &event->hw;
-	int cpu, err;
+	int cpu, err = 0;
 
 	/* Reserve CPU-measurement sampling facility */
-	err = 0;
-	if (!atomic_inc_not_zero(&num_events)) {
-		mutex_lock(&pmc_reserve_mutex);
-		if (atomic_read(&num_events) == 0 && reserve_pmc_hardware())
-			err = -EBUSY;
-		else
-			atomic_inc(&num_events);
-		mutex_unlock(&pmc_reserve_mutex);
+	mutex_lock(&pmc_reserve_mutex);
+	if (!refcount_inc_not_zero(&num_events)) {
+		err = reserve_pmc_hardware();
+		if (!err)
+			refcount_set(&num_events, 1);
 	}
-	event->destroy = hw_perf_event_destroy;
-
+	mutex_unlock(&pmc_reserve_mutex);
 	if (err)
 		goto out;
+	event->destroy = hw_perf_event_destroy;
 
 	/* Access per-CPU sampling information (query sampling info) */
 	/*
@@ -2143,7 +2138,7 @@ static int cpusf_pmu_setup(unsigned int cpu, int flags)
 	/* Ignore the notification if no events are scheduled on the PMU.
 	 * This might be racy...
 	 */
-	if (!atomic_read(&num_events))
+	if (!refcount_read(&num_events))
 		return 0;
 
 	local_irq_disable();
