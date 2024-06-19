@@ -400,7 +400,7 @@ static const struct of_device_id mp3309c_match_table[] = {
 MODULE_DEVICE_TABLE(of, mp3309c_match_table);
 
 static const struct i2c_device_id mp3309c_id[] = {
-	{ "mp3309c", 0 },
+	{ "mp3309c" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mp3309c_id);

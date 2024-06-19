@@ -311,7 +311,10 @@ static void lm3509_remove(struct i2c_client *client)
 	regmap_write(data->regmap, REG_GP, 0x00);
 }
 
-static const struct i2c_device_id lm3509_id[] = { { LM3509_NAME, 0 }, {} };
+static const struct i2c_device_id lm3509_id[] = {
+	{ LM3509_NAME },
+	{}
+};
 
 MODULE_DEVICE_TABLE(i2c, lm3509_id);
 

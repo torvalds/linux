@@ -132,7 +132,7 @@ static void lv5207lp_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id lv5207lp_ids[] = {
-	{ "lv5207lp", 0 },
+	{ "lv5207lp" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lv5207lp_ids);
