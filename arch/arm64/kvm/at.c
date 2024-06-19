@@ -164,3 +164,54 @@ void __kvm_at_s1e01(struct kvm_vcpu *vcpu, u32 op, u64 vaddr)
 
 	vcpu_write_sys_reg(vcpu, par, PAR_EL1);
 }
+
+void __kvm_at_s1e2(struct kvm_vcpu *vcpu, u32 op, u64 vaddr)
+{
+	u64 par;
+
+	/*
+	 * We've trapped, so everything is live on the CPU. As we will be
+	 * switching context behind everybody's back, disable interrupts...
+	 */
+	scoped_guard(write_lock_irqsave, &vcpu->kvm->mmu_lock) {
+		struct kvm_s2_mmu *mmu;
+		u64 val, hcr;
+		bool fail;
+
+		mmu = &vcpu->kvm->arch.mmu;
+
+		val = hcr = read_sysreg(hcr_el2);
+		val &= ~HCR_TGE;
+		val |= HCR_VM;
+
+		if (!vcpu_el2_e2h_is_set(vcpu))
+			val |= HCR_NV | HCR_NV1;
+
+		write_sysreg(val, hcr_el2);
+		isb();
+
+		par = SYS_PAR_EL1_F;
+
+		switch (op) {
+		case OP_AT_S1E2R:
+			fail = __kvm_at(OP_AT_S1E1R, vaddr);
+			break;
+		case OP_AT_S1E2W:
+			fail = __kvm_at(OP_AT_S1E1W, vaddr);
+			break;
+		default:
+			WARN_ON_ONCE(1);
+			fail = true;
+		}
+
+		isb();
+
+		if (!fail)
+			par = read_sysreg_par();
+
+		write_sysreg(hcr, hcr_el2);
+		isb();
+	}
+
+	vcpu_write_sys_reg(vcpu, par, PAR_EL1);
+}
