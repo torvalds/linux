@@ -305,51 +305,6 @@ static bool spd5118_vendor_valid(u8 bank, u8 id)
 	return id && id != 0x7f;
 }
 
-/* Return 0 if detection is successful, -ENODEV otherwise */
-static int spd5118_detect(struct i2c_client *client, struct i2c_board_info *info)
-{
-	struct i2c_adapter *adapter = client->adapter;
-	int regval;
-
-	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA |
-				     I2C_FUNC_SMBUS_WORD_DATA))
-		return -ENODEV;
-
-	regval = i2c_smbus_read_word_swapped(client, SPD5118_REG_TYPE);
-	if (regval != 0x5118)
-		return -ENODEV;
-
-	regval = i2c_smbus_read_word_data(client, SPD5118_REG_VENDOR);
-	if (regval < 0 || !spd5118_vendor_valid(regval & 0xff, regval >> 8))
-		return -ENODEV;
-
-	regval = i2c_smbus_read_byte_data(client, SPD5118_REG_CAPABILITY);
-	if (regval < 0)
-		return -ENODEV;
-	if (!(regval & SPD5118_CAP_TS_SUPPORT) || (regval & 0xfc))
-		return -ENODEV;
-
-	regval = i2c_smbus_read_byte_data(client, SPD5118_REG_TEMP_CLR);
-	if (regval)
-		return -ENODEV;
-	regval = i2c_smbus_read_byte_data(client, SPD5118_REG_ERROR_CLR);
-	if (regval)
-		return -ENODEV;
-
-	regval = i2c_smbus_read_byte_data(client, SPD5118_REG_REVISION);
-	if (regval < 0 || (regval & 0xc1))
-		return -ENODEV;
-
-	regval = i2c_smbus_read_byte_data(client, SPD5118_REG_TEMP_CONFIG);
-	if (regval < 0)
-		return -ENODEV;
-	if (regval & ~SPD5118_TS_DISABLE)
-		return -ENODEV;
-
-	strscpy(info->type, "spd5118", I2C_NAME_SIZE);
-	return 0;
-}
-
 static const struct hwmon_channel_info *spd5118_info[] = {
 	HWMON_CHANNEL_INFO(chip,
 			   HWMON_C_REGISTER_TZ),
@@ -483,7 +438,7 @@ static bool spd5118_volatile_reg(struct device *dev, unsigned int reg)
 	}
 }
 
-static const struct regmap_range_cfg spd5118_regmap_range_cfg[] = {
+static const struct regmap_range_cfg spd5118_i2c_regmap_range_cfg[] = {
 	{
 	.selector_reg   = SPD5118_REG_I2C_LEGACY_MODE,
 	.selector_mask  = SPD5118_LEGACY_PAGE_MASK,
@@ -495,7 +450,7 @@ static const struct regmap_range_cfg spd5118_regmap_range_cfg[] = {
 	},
 };
 
-static const struct regmap_config spd5118_regmap_config = {
+static const struct regmap_config spd5118_i2c_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = 0x7ff,
@@ -503,11 +458,153 @@ static const struct regmap_config spd5118_regmap_config = {
 	.volatile_reg = spd5118_volatile_reg,
 	.cache_type = REGCACHE_MAPLE,
 
-	.ranges = spd5118_regmap_range_cfg,
-	.num_ranges = ARRAY_SIZE(spd5118_regmap_range_cfg),
+	.ranges = spd5118_i2c_regmap_range_cfg,
+	.num_ranges = ARRAY_SIZE(spd5118_i2c_regmap_range_cfg),
 };
 
-static int spd5118_init(struct i2c_client *client)
+static int spd5118_suspend(struct device *dev)
+{
+	struct spd5118_data *data = dev_get_drvdata(dev);
+	struct regmap *regmap = data->regmap;
+	u32 regval;
+	int err;
+
+	/*
+	 * Make sure the configuration register in the regmap cache is current
+	 * before bypassing it.
+	 */
+	err = regmap_read(regmap, SPD5118_REG_TEMP_CONFIG, &regval);
+	if (err < 0)
+		return err;
+
+	regcache_cache_bypass(regmap, true);
+	regmap_update_bits(regmap, SPD5118_REG_TEMP_CONFIG, SPD5118_TS_DISABLE,
+			   SPD5118_TS_DISABLE);
+	regcache_cache_bypass(regmap, false);
+
+	regcache_cache_only(regmap, true);
+	regcache_mark_dirty(regmap);
+
+	return 0;
+}
+
+static int spd5118_resume(struct device *dev)
+{
+	struct spd5118_data *data = dev_get_drvdata(dev);
+	struct regmap *regmap = data->regmap;
+
+	regcache_cache_only(regmap, false);
+	return regcache_sync(regmap);
+}
+
+static DEFINE_SIMPLE_DEV_PM_OPS(spd5118_pm_ops, spd5118_suspend, spd5118_resume);
+
+static int spd5118_common_probe(struct device *dev, struct regmap *regmap)
+{
+	unsigned int capability, revision, vendor, bank;
+	struct spd5118_data *data;
+	struct device *hwmon_dev;
+	int err;
+
+	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	err = regmap_read(regmap, SPD5118_REG_CAPABILITY, &capability);
+	if (err)
+		return err;
+	if (!(capability & SPD5118_CAP_TS_SUPPORT))
+		return -ENODEV;
+
+	err = regmap_read(regmap, SPD5118_REG_REVISION, &revision);
+	if (err)
+		return err;
+
+	err = regmap_read(regmap, SPD5118_REG_VENDOR, &bank);
+	if (err)
+		return err;
+	err = regmap_read(regmap, SPD5118_REG_VENDOR + 1, &vendor);
+	if (err)
+		return err;
+	if (!spd5118_vendor_valid(bank, vendor))
+		return -ENODEV;
+
+	data->regmap = regmap;
+	mutex_init(&data->nvmem_lock);
+	dev_set_drvdata(dev, data);
+
+	err = spd5118_nvmem_init(dev, data);
+	/* Ignore if NVMEM support is disabled */
+	if (err && err != -EOPNOTSUPP) {
+		dev_err_probe(dev, err, "failed to register nvmem\n");
+		return err;
+	}
+
+	hwmon_dev = devm_hwmon_device_register_with_info(dev, "spd5118",
+							 regmap, &spd5118_chip_info,
+							 NULL);
+	if (IS_ERR(hwmon_dev))
+		return PTR_ERR(hwmon_dev);
+
+	/*
+	 * From JESD300-5B
+	 *   MR2 bits [5:4]: Major revision, 1..4
+	 *   MR2 bits [3:1]: Minor revision, 0..8? Probably a typo, assume 1..8
+	 */
+	dev_info(dev, "DDR5 temperature sensor: vendor 0x%02x:0x%02x revision %d.%d\n",
+		 bank & 0x7f, vendor, ((revision >> 4) & 0x03) + 1, ((revision >> 1) & 0x07) + 1);
+
+	return 0;
+}
+
+/* I2C */
+
+/* Return 0 if detection is successful, -ENODEV otherwise */
+static int spd5118_detect(struct i2c_client *client, struct i2c_board_info *info)
+{
+	struct i2c_adapter *adapter = client->adapter;
+	int regval;
+
+	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA |
+				     I2C_FUNC_SMBUS_WORD_DATA))
+		return -ENODEV;
+
+	regval = i2c_smbus_read_word_swapped(client, SPD5118_REG_TYPE);
+	if (regval != 0x5118)
+		return -ENODEV;
+
+	regval = i2c_smbus_read_word_data(client, SPD5118_REG_VENDOR);
+	if (regval < 0 || !spd5118_vendor_valid(regval & 0xff, regval >> 8))
+		return -ENODEV;
+
+	regval = i2c_smbus_read_byte_data(client, SPD5118_REG_CAPABILITY);
+	if (regval < 0)
+		return -ENODEV;
+	if (!(regval & SPD5118_CAP_TS_SUPPORT) || (regval & 0xfc))
+		return -ENODEV;
+
+	regval = i2c_smbus_read_byte_data(client, SPD5118_REG_TEMP_CLR);
+	if (regval)
+		return -ENODEV;
+	regval = i2c_smbus_read_byte_data(client, SPD5118_REG_ERROR_CLR);
+	if (regval)
+		return -ENODEV;
+
+	regval = i2c_smbus_read_byte_data(client, SPD5118_REG_REVISION);
+	if (regval < 0 || (regval & 0xc1))
+		return -ENODEV;
+
+	regval = i2c_smbus_read_byte_data(client, SPD5118_REG_TEMP_CONFIG);
+	if (regval < 0)
+		return -ENODEV;
+	if (regval & ~SPD5118_TS_DISABLE)
+		return -ENODEV;
+
+	strscpy(info->type, "spd5118", I2C_NAME_SIZE);
+	return 0;
+}
+
+static int spd5118_i2c_init(struct i2c_client *client)
 {
 	struct i2c_adapter *adapter = client->adapter;
 	int err, regval, mode;
@@ -559,116 +656,28 @@ static int spd5118_init(struct i2c_client *client)
 	return 0;
 }
 
-static int spd5118_probe(struct i2c_client *client)
+static int spd5118_i2c_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
-	unsigned int regval, revision, vendor, bank;
-	struct spd5118_data *data;
-	struct device *hwmon_dev;
 	struct regmap *regmap;
 	int err;
 
-	err = spd5118_init(client);
+	err = spd5118_i2c_init(client);
 	if (err)
 		return err;
 
-	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
-	if (!data)
-		return -ENOMEM;
-
-	regmap = devm_regmap_init_i2c(client, &spd5118_regmap_config);
+	regmap = devm_regmap_init_i2c(client, &spd5118_i2c_regmap_config);
 	if (IS_ERR(regmap))
 		return dev_err_probe(dev, PTR_ERR(regmap), "regmap init failed\n");
 
-	err = regmap_read(regmap, SPD5118_REG_CAPABILITY, &regval);
-	if (err)
-		return err;
-	if (!(regval & SPD5118_CAP_TS_SUPPORT))
-		return -ENODEV;
-
-	err = regmap_read(regmap, SPD5118_REG_REVISION, &revision);
-	if (err)
-		return err;
-
-	err = regmap_read(regmap, SPD5118_REG_VENDOR, &bank);
-	if (err)
-		return err;
-	err = regmap_read(regmap, SPD5118_REG_VENDOR + 1, &vendor);
-	if (err)
-		return err;
-	if (!spd5118_vendor_valid(bank, vendor))
-		return -ENODEV;
-
-	data->regmap = regmap;
-	mutex_init(&data->nvmem_lock);
-	dev_set_drvdata(dev, data);
-
-	err = spd5118_nvmem_init(dev, data);
-	/* Ignore if NVMEM support is disabled */
-	if (err && err != -EOPNOTSUPP) {
-		dev_err_probe(dev, err, "failed to register nvmem\n");
-		return err;
-	}
-
-	hwmon_dev = devm_hwmon_device_register_with_info(dev, "spd5118",
-							 regmap, &spd5118_chip_info,
-							 NULL);
-	if (IS_ERR(hwmon_dev))
-		return PTR_ERR(hwmon_dev);
-
-	/*
-	 * From JESD300-5B
-	 *   MR2 bits [5:4]: Major revision, 1..4
-	 *   MR2 bits [3:1]: Minor revision, 0..8? Probably a typo, assume 1..8
-	 */
-	dev_info(dev, "DDR5 temperature sensor: vendor 0x%02x:0x%02x revision %d.%d\n",
-		 bank & 0x7f, vendor, ((revision >> 4) & 0x03) + 1, ((revision >> 1) & 0x07) + 1);
-
-	return 0;
+	return spd5118_common_probe(dev, regmap);
 }
 
-static int spd5118_suspend(struct device *dev)
-{
-	struct spd5118_data *data = dev_get_drvdata(dev);
-	struct regmap *regmap = data->regmap;
-	u32 regval;
-	int err;
-
-	/*
-	 * Make sure the configuration register in the regmap cache is current
-	 * before bypassing it.
-	 */
-	err = regmap_read(regmap, SPD5118_REG_TEMP_CONFIG, &regval);
-	if (err < 0)
-		return err;
-
-	regcache_cache_bypass(regmap, true);
-	regmap_update_bits(regmap, SPD5118_REG_TEMP_CONFIG, SPD5118_TS_DISABLE,
-			   SPD5118_TS_DISABLE);
-	regcache_cache_bypass(regmap, false);
-
-	regcache_cache_only(regmap, true);
-	regcache_mark_dirty(regmap);
-
-	return 0;
-}
-
-static int spd5118_resume(struct device *dev)
-{
-	struct spd5118_data *data = dev_get_drvdata(dev);
-	struct regmap *regmap = data->regmap;
-
-	regcache_cache_only(regmap, false);
-	return regcache_sync(regmap);
-}
-
-static DEFINE_SIMPLE_DEV_PM_OPS(spd5118_pm_ops, spd5118_suspend, spd5118_resume);
-
-static const struct i2c_device_id spd5118_id[] = {
+static const struct i2c_device_id spd5118_i2c_id[] = {
 	{ "spd5118" },
 	{ }
 };
-MODULE_DEVICE_TABLE(i2c, spd5118_id);
+MODULE_DEVICE_TABLE(i2c, spd5118_i2c_id);
 
 static const struct of_device_id spd5118_of_ids[] = {
 	{ .compatible = "jedec,spd5118", },
@@ -676,20 +685,20 @@ static const struct of_device_id spd5118_of_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, spd5118_of_ids);
 
-static struct i2c_driver spd5118_driver = {
+static struct i2c_driver spd5118_i2c_driver = {
 	.class		= I2C_CLASS_HWMON,
 	.driver = {
 		.name	= "spd5118",
 		.of_match_table = spd5118_of_ids,
 		.pm = pm_sleep_ptr(&spd5118_pm_ops),
 	},
-	.probe		= spd5118_probe,
-	.id_table	= spd5118_id,
+	.probe		= spd5118_i2c_probe,
+	.id_table	= spd5118_i2c_id,
 	.detect		= IS_ENABLED(CONFIG_SENSORS_SPD5118_DETECT) ? spd5118_detect : NULL,
 	.address_list	= IS_ENABLED(CONFIG_SENSORS_SPD5118_DETECT) ? normal_i2c : NULL,
 };
 
-module_i2c_driver(spd5118_driver);
+module_i2c_driver(spd5118_i2c_driver);
 
 MODULE_AUTHOR("René Rebe <rene@exactcode.de>");
 MODULE_AUTHOR("Guenter Roeck <linux@roeck-us.net>");
