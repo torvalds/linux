@@ -3502,7 +3502,7 @@ static int idregs_debug_show(struct seq_file *s, void *v)
 		return 0;
 
 	seq_printf(s, "%20s:\t%016llx\n",
-		   desc->name, IDREG(kvm, IDX_IDREG(kvm->arch.idreg_debugfs_iter)));
+		   desc->name, IDREG(kvm, reg_to_encoding(desc)));
 
 	return 0;
 }
