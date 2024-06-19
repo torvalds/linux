@@ -2515,7 +2515,7 @@ static int __init memory_failure_init(void)
 core_initcall(memory_failure_init);
 
 #undef pr_fmt
-#define pr_fmt(fmt)	fmt
+#define pr_fmt(fmt)	"Unpoison: " fmt
 #define unpoison_pr_info(fmt, pfn, rs)			\
 ({							\
 	if (__ratelimit(rs))				\
@@ -2553,27 +2553,27 @@ int unpoison_memory(unsigned long pfn)
 	mutex_lock(&mf_mutex);
 
 	if (hw_memory_failure) {
-		unpoison_pr_info("Unpoison: Disabled after HW memory failure %#lx\n",
+		unpoison_pr_info("%#lx: disabled after HW memory failure\n",
 				 pfn, &unpoison_rs);
 		ret = -EOPNOTSUPP;
 		goto unlock_mutex;
 	}
 
 	if (is_huge_zero_folio(folio)) {
-		unpoison_pr_info("Unpoison: huge zero page is not supported %#lx\n",
+		unpoison_pr_info("%#lx: huge zero page is not supported\n",
 				 pfn, &unpoison_rs);
 		ret = -EOPNOTSUPP;
 		goto unlock_mutex;
 	}
 
 	if (!PageHWPoison(p)) {
-		unpoison_pr_info("Unpoison: Page was already unpoisoned %#lx\n",
+		unpoison_pr_info("%#lx: page was already unpoisoned\n",
 				 pfn, &unpoison_rs);
 		goto unlock_mutex;
 	}
 
 	if (folio_ref_count(folio) > 1) {
-		unpoison_pr_info("Unpoison: Someone grabs the hwpoison page %#lx\n",
+		unpoison_pr_info("%#lx: someone grabs the hwpoison page\n",
 				 pfn, &unpoison_rs);
 		goto unlock_mutex;
 	}
@@ -2583,13 +2583,13 @@ int unpoison_memory(unsigned long pfn)
 		goto unlock_mutex;
 
 	if (folio_mapped(folio)) {
-		unpoison_pr_info("Unpoison: Someone maps the hwpoison page %#lx\n",
+		unpoison_pr_info("%#lx: someone maps the hwpoison page\n",
 				 pfn, &unpoison_rs);
 		goto unlock_mutex;
 	}
 
 	if (folio_mapping(folio)) {
-		unpoison_pr_info("Unpoison: the hwpoison page has non-NULL mapping %#lx\n",
+		unpoison_pr_info("%#lx: the hwpoison page has non-NULL mapping\n",
 				 pfn, &unpoison_rs);
 		goto unlock_mutex;
 	}
@@ -2608,7 +2608,7 @@ int unpoison_memory(unsigned long pfn)
 			ret = put_page_back_buddy(p) ? 0 : -EBUSY;
 		} else {
 			ret = ghp;
-			unpoison_pr_info("Unpoison: failed to grab page %#lx\n",
+			unpoison_pr_info("%#lx: failed to grab page\n",
 					 pfn, &unpoison_rs);
 		}
 	} else {
@@ -2633,7 +2633,7 @@ unlock_mutex:
 	if (!ret) {
 		if (!huge)
 			num_poisoned_pages_sub(pfn, 1);
-		unpoison_pr_info("Unpoison: Software-unpoisoned page %#lx\n",
+		unpoison_pr_info("%#lx: software-unpoisoned page\n",
 				 page_to_pfn(p), &unpoison_rs);
 	}
 	return ret;
