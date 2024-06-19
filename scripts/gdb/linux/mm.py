@@ -48,7 +48,9 @@ class aarch64_page_ops():
         self.VA_BITS = constants.LX_CONFIG_ARM64_VA_BITS
         if self.VA_BITS > 48:
             self.VA_BITS_MIN = 48
-            self.vabits_actual = gdb.parse_and_eval('vabits_actual')
+            tcr_el1 = gdb.execute("info registers $TCR_EL1", to_string=True)
+            tcr_el1 = int(tcr_el1.split()[1], 16)
+            self.vabits_actual = 64 - ((tcr_el1 >> 16) & 63)
         else:
             self.VA_BITS_MIN = self.VA_BITS
             self.vabits_actual = self.VA_BITS
