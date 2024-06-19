@@ -1306,14 +1306,15 @@ static int intel_psr_entry_setup_frames(struct intel_dp *intel_dp,
 }
 
 static bool wake_lines_fit_into_vblank(struct intel_dp *intel_dp,
-				       const struct intel_crtc_state *crtc_state)
+				       const struct intel_crtc_state *crtc_state,
+				       bool aux_less)
 {
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 	int vblank = crtc_state->hw.adjusted_mode.crtc_vblank_end -
 		crtc_state->hw.adjusted_mode.crtc_vblank_start;
 	int wake_lines;
 
-	if (crtc_state->has_panel_replay)
+	if (aux_less)
 		wake_lines = intel_dp->alpm_parameters.aux_less_wake_lines;
 	else
 		wake_lines = DISPLAY_VER(i915) < 20 ?
@@ -1326,6 +1327,27 @@ static bool wake_lines_fit_into_vblank(struct intel_dp *intel_dp,
 	/* Vblank >= PSR2_CTL Block Count Number maximum line count */
 	if (vblank < wake_lines)
 		return false;
+
+	return true;
+}
+
+static bool alpm_config_valid(struct intel_dp *intel_dp,
+			      const struct intel_crtc_state *crtc_state,
+			      bool aux_less)
+{
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+
+	if (!intel_alpm_compute_params(intel_dp, crtc_state)) {
+		drm_dbg_kms(&i915->drm,
+			    "PSR2/Panel Replay  not enabled, Unable to use long enough wake times\n");
+		return false;
+	}
+
+	if (!wake_lines_fit_into_vblank(intel_dp, crtc_state, aux_less)) {
+		drm_dbg_kms(&i915->drm,
+			    "PSR2/Panel Replay not enabled, too short vblank time\n");
+		return false;
+	}
 
 	return true;
 }
@@ -1413,18 +1435,8 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 		return false;
 	}
 
-	if (!intel_alpm_compute_params(intel_dp, crtc_state)) {
-		drm_dbg_kms(&dev_priv->drm,
-			    "PSR2 not enabled, Unable to use long enough wake times\n");
+	if (!alpm_config_valid(intel_dp, crtc_state, false))
 		return false;
-	}
-
-	/* Vblank >= PSR2_CTL Block Count Number maximum line count */
-	if (!wake_lines_fit_into_vblank(intel_dp, crtc_state)) {
-		drm_dbg_kms(&dev_priv->drm,
-			    "PSR2 not enabled, too short vblank time\n");
-		return false;
-	}
 
 	if (!crtc_state->enable_psr2_sel_fetch &&
 	    (crtc_hdisplay > psr_max_h || crtc_vdisplay > psr_max_v)) {
@@ -1557,6 +1569,9 @@ _panel_replay_compute_config(struct intel_dp *intel_dp,
 			    "Panel Replay is not supported with HDCP\n");
 		return false;
 	}
+
+	if (!alpm_config_valid(intel_dp, crtc_state, true))
+		return false;
 
 	return true;
 }
