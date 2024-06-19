@@ -33,7 +33,7 @@ class aarch64_page_ops():
     def __init__(self):
         self.SUBSECTION_SHIFT = 21
         self.SEBSECTION_SIZE = 1 << self.SUBSECTION_SHIFT
-        self.MODULES_VSIZE = 128 * 1024 * 1024
+        self.MODULES_VSIZE = 2 * 1024 * 1024 * 1024
 
         if constants.LX_CONFIG_ARM64_64K_PAGES:
             self.SECTION_SIZE_BITS = 29
