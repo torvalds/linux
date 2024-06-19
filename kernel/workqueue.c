@@ -1683,33 +1683,6 @@ static void __pwq_activate_work(struct pool_workqueue *pwq,
 	__clear_bit(WORK_STRUCT_INACTIVE_BIT, wdb);
 }
 
-/**
- * pwq_activate_work - Activate a work item if inactive
- * @pwq: pool_workqueue @work belongs to
- * @work: work item to activate
- *
- * Returns %true if activated. %false if already active.
- */
-static bool pwq_activate_work(struct pool_workqueue *pwq,
-			      struct work_struct *work)
-{
-	struct worker_pool *pool = pwq->pool;
-	struct wq_node_nr_active *nna;
-
-	lockdep_assert_held(&pool->lock);
-
-	if (!(*work_data_bits(work) & WORK_STRUCT_INACTIVE))
-		return false;
-
-	nna = wq_node_nr_active(pwq->wq, pool->node);
-	if (nna)
-		atomic_inc(&nna->nr);
-
-	pwq->nr_active++;
-	__pwq_activate_work(pwq, work);
-	return true;
-}
-
 static bool tryinc_node_nr_active(struct wq_node_nr_active *nna)
 {
 	int max = READ_ONCE(nna->max);
@@ -2116,7 +2089,7 @@ static int try_to_grab_pending(struct work_struct *work, u32 cflags,
 	 */
 	pwq = get_work_pwq(work);
 	if (pwq && pwq->pool == pool) {
-		unsigned long work_data;
+		unsigned long work_data = *work_data_bits(work);
 
 		debug_work_deactivate(work);
 
@@ -2125,13 +2098,17 @@ static int try_to_grab_pending(struct work_struct *work, u32 cflags,
 		 * pwq->inactive_works since a queued barrier can't be
 		 * canceled (see the comments in insert_wq_barrier()).
 		 *
-		 * An inactive work item cannot be grabbed directly because
+		 * An inactive work item cannot be deleted directly because
 		 * it might have linked barrier work items which, if left
 		 * on the inactive_works list, will confuse pwq->nr_active
-		 * management later on and cause stall.  Make sure the work
-		 * item is activated before grabbing.
+		 * management later on and cause stall.  Move the linked
+		 * barrier work items to the worklist when deleting the grabbed
+		 * item. Also keep WORK_STRUCT_INACTIVE in work_data, so that
+		 * it doesn't participate in nr_active management in later
+		 * pwq_dec_nr_in_flight().
 		 */
-		pwq_activate_work(pwq, work);
+		if (work_data & WORK_STRUCT_INACTIVE)
+			move_linked_works(work, &pwq->pool->worklist, NULL);
 
 		list_del_init(&work->entry);
 
@@ -2139,7 +2116,6 @@ static int try_to_grab_pending(struct work_struct *work, u32 cflags,
 		 * work->data points to pwq iff queued. Let's point to pool. As
 		 * this destroys work->data needed by the next step, stash it.
 		 */
-		work_data = *work_data_bits(work);
 		set_work_pool_and_keep_pending(work, pool->id,
 					       pool_offq_flags(pool));
 
