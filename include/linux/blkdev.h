@@ -343,15 +343,6 @@ enum {
 	BLK_FLAGS_WRITE_CACHE_DISABLED		= (1u << 31),
 };
 
-/*
- * BLK_BOUNCE_NONE:	never bounce (default)
- * BLK_BOUNCE_HIGH:	bounce all highmem pages
- */
-enum blk_bounce {
-	BLK_BOUNCE_NONE,
-	BLK_BOUNCE_HIGH,
-};
-
 struct queue_limits {
 	unsigned int		features;
 	unsigned int		flags;
