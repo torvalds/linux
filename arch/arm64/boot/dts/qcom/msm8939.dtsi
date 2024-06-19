@@ -443,8 +443,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		qcom,ipc-1 = <&apcs1_mbox 8 13>;
-		qcom,ipc-3 = <&apcs1_mbox 8 19>;
+		mboxes = <0>, <&apcs1_mbox 13>, <0>, <&apcs1_mbox 19>;
 
 		apps_smsm: apps@0 {
 			reg = <0>;
