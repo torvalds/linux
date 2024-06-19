@@ -274,6 +274,58 @@ static __naked void iter_limit_bug_cb(void)
 	);
 }
 
+int tmp_var;
+SEC("socket")
+__failure __msg("infinite loop detected at insn 2")
+__naked void jgt_imm64_and_may_goto(void)
+{
+	asm volatile ("			\
+	r0 = %[tmp_var] ll;		\
+l0_%=:	.byte 0xe5; /* may_goto */	\
+	.byte 0; /* regs */		\
+	.short -3; /* off -3 */		\
+	.long 0; /* imm */		\
+	if r0 > 10 goto l0_%=;		\
+	r0 = 0;				\
+	exit;				\
+"	:: __imm_addr(tmp_var)
+	: __clobber_all);
+}
+
+SEC("socket")
+__failure __msg("infinite loop detected at insn 1")
+__naked void may_goto_self(void)
+{
+	asm volatile ("			\
+	r0 = *(u32 *)(r10 - 4);		\
+l0_%=:	.byte 0xe5; /* may_goto */	\
+	.byte 0; /* regs */		\
+	.short -1; /* off -1 */		\
+	.long 0; /* imm */		\
+	if r0 > 10 goto l0_%=;		\
+	r0 = 0;				\
+	exit;				\
+"	::: __clobber_all);
+}
+
+SEC("socket")
+__success __retval(0)
+__naked void may_goto_neg_off(void)
+{
+	asm volatile ("			\
+	r0 = *(u32 *)(r10 - 4);		\
+	goto l0_%=;			\
+	goto l1_%=;			\
+l0_%=:	.byte 0xe5; /* may_goto */	\
+	.byte 0; /* regs */		\
+	.short -2; /* off -2 */		\
+	.long 0; /* imm */		\
+	if r0 > 10 goto l0_%=;		\
+l1_%=:	r0 = 0;				\
+	exit;				\
+"	::: __clobber_all);
+}
+
 SEC("tc")
 __failure
 __flag(BPF_F_TEST_STATE_FREQ)
