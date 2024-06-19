@@ -339,8 +339,8 @@ enum {
 
 /* internal flags in queue_limits.flags */
 enum {
-	/* do not send FLUSH or FUA command despite advertised write cache */
-	BLK_FLAGS_WRITE_CACHE_DISABLED		= (1u << 31),
+	/* do not send FLUSH/FUA commands despite advertising a write cache */
+	BLK_FLAG_WRITE_CACHE_DISABLED		= (1u << 0),
 };
 
 struct queue_limits {
@@ -1339,7 +1339,7 @@ static inline bool bdev_stable_writes(struct block_device *bdev)
 static inline bool blk_queue_write_cache(struct request_queue *q)
 {
 	return (q->limits.features & BLK_FEAT_WRITE_CACHE) &&
-		!(q->limits.flags & BLK_FLAGS_WRITE_CACHE_DISABLED);
+		!(q->limits.flags & BLK_FLAG_WRITE_CACHE_DISABLED);
 }
 
 static inline bool bdev_write_cache(struct block_device *bdev)
