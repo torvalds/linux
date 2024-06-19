@@ -4,7 +4,7 @@
  */
 #include <nvif/chan.h>
 
-static void
+void
 nvif_chan506f_gpfifo_kick(struct nvif_chan *chan)
 {
 	wmb();
@@ -31,13 +31,13 @@ nvif_chan506f_gpfifo_push(struct nvif_chan *chan, bool main, u64 addr, u32 size,
 		chan->push.end = chan->push.cur;
 }
 
-u32
+static u32
 nvif_chan506f_gpfifo_read_get(struct nvif_chan *chan)
 {
 	return nvif_rd32(&chan->userd, 0x88);
 }
 
-u32
+static u32
 nvif_chan506f_read_get(struct nvif_chan *chan)
 {
 	u32 tlgetlo = nvif_rd32(&chan->userd, 0x58);

@@ -17,6 +17,7 @@ nvif-y += nvif/vmm.o
 # Channel classes
 nvif-y += nvif/chan.o
 nvif-y += nvif/chan506f.o
+nvif-y += nvif/chan906f.o
 nvif-y += nvif/chanc36f.o
 
 # Usermode classes

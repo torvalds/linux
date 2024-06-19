@@ -43,6 +43,11 @@ struct nouveau_channel {
 	u32 user_get;
 	u32 user_put;
 
+	struct {
+		struct nouveau_bo *bo;
+		struct nouveau_vma *vma;
+	} sema;
+
 	struct nvif_object user;
 	struct nvif_object blit;
 

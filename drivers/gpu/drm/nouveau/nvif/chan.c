@@ -9,7 +9,16 @@ nvif_chan_gpfifo_push_kick(struct nvif_push *push)
 {
 	struct nvif_chan *chan = container_of(push, typeof(*chan), push);
 	u32 put = push->bgn - (u32 *)chan->push.mem.object.map.ptr;
-	u32 cnt = push->cur - push->bgn;
+	u32 cnt;
+
+	if (chan->func->gpfifo.post) {
+		if (push->end - push->cur < chan->func->gpfifo.post_size)
+			push->end = push->cur + chan->func->gpfifo.post_size;
+
+		WARN_ON(nvif_chan_gpfifo_post(chan));
+	}
+
+	cnt = push->cur - push->bgn;
 
 	chan->func->gpfifo.push(chan, true, chan->push.addr + (put << 2), cnt << 2, false);
 	chan->func->gpfifo.kick(chan);
@@ -23,6 +32,16 @@ nvif_chan_gpfifo_push_wait(struct nvif_push *push, u32 push_nr)
 	return nvif_chan_gpfifo_wait(chan, 1, push_nr);
 }
 
+int
+nvif_chan_gpfifo_post(struct nvif_chan *chan)
+{
+	const u32 *map = chan->push.mem.object.map.ptr;
+	const u32 pbptr = (chan->push.cur - map) + chan->func->gpfifo.post_size;
+	const u32 gpptr = (chan->gpfifo.cur + 1) & chan->gpfifo.max;
+
+	return chan->func->gpfifo.post(chan, gpptr, pbptr);
+}
+
 void
 nvif_chan_gpfifo_push(struct nvif_chan *chan, u64 addr, u32 size, bool no_prefetch)
 {
@@ -34,6 +53,14 @@ nvif_chan_gpfifo_wait(struct nvif_chan *chan, u32 gpfifo_nr, u32 push_nr)
 {
 	struct nvif_push *push = &chan->push;
 	int ret = 0, time = 1000000;
+
+	if (gpfifo_nr) {
+		/* Account for pushbuf space needed by nvif_chan_gpfifo_post(),
+		 * if used after pushing userspace GPFIFO entries.
+		 */
+		if (chan->func->gpfifo.post)
+			push_nr += chan->func->gpfifo.post_size;
+	}
 
 	/* Account for the GPFIFO entry needed to submit pushbuf. */
 	if (push_nr)
@@ -89,6 +116,8 @@ nvif_chan_dma_wait(struct nvif_chan *chan, u32 nr)
 	u32 cur = push->cur - (u32 *)push->mem.object.map.ptr;
 	u32 free, time = 1000000;
 
+	nr += chan->func->gpfifo.post_size;
+
 	do {
 		u32 get = chan->func->push.read_get(chan);
 
@@ -122,6 +151,6 @@ nvif_chan_dma_wait(struct nvif_chan *chan, u32 nr)
 
 	push->bgn = (u32 *)push->mem.object.map.ptr + cur;
 	push->cur = push->bgn;
-	push->end = push->bgn + free;
+	push->end = push->bgn + free - chan->func->gpfifo.post_size;
 	return 0;
 }

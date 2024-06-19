@@ -103,6 +103,8 @@ nouveau_channel_del(struct nouveau_channel **pchan)
 		nvif_event_dtor(&chan->kill);
 		nvif_object_dtor(&chan->user);
 		nvif_mem_dtor(&chan->mem_userd);
+		nouveau_vma_del(&chan->sema.vma);
+		nouveau_bo_unpin_del(&chan->sema.bo);
 		nvif_object_dtor(&chan->push.ctxdma);
 		nouveau_vma_del(&chan->push.vma);
 		nouveau_bo_unpin_del(&chan->push.buffer);
@@ -189,8 +191,10 @@ nouveau_channel_prep(struct nouveau_cli *cli,
 
 		chan->push.addr = chan->push.vma->addr;
 
-		if (device->info.family >= NV_DEVICE_INFO_V0_FERMI)
-			return 0;
+		if (device->info.family >= NV_DEVICE_INFO_V0_FERMI) {
+			return nouveau_bo_new_map_gpu(cli, NOUVEAU_GEM_DOMAIN_GART, PAGE_SIZE,
+						      &chan->sema.bo, &chan->sema.vma);
+		}
 
 		args.target = NV_DMA_V0_TARGET_VM;
 		args.access = NV_DMA_V0_ACCESS_VM;
@@ -429,16 +433,25 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 		chan->user_get = 0x44;
 		chan->dma.max = (0x10000 / 4) - 2;
 	} else
-	if (chan->user.oclass < VOLTA_CHANNEL_GPFIFO_A) {
+	if (chan->user.oclass < FERMI_CHANNEL_GPFIFO) {
 		ret = nvif_chan506f_ctor(&chan->chan, chan->userd->map.ptr,
 					 (u8*)chan->push.buffer->kmap.virtual + 0x10000, 0x2000,
 					 chan->push.buffer->kmap.virtual, chan->push.addr, 0x10000);
+		if (ret)
+			return ret;
+	} else
+	if (chan->user.oclass < VOLTA_CHANNEL_GPFIFO_A) {
+		ret = nvif_chan906f_ctor(&chan->chan, chan->userd->map.ptr,
+					 (u8*)chan->push.buffer->kmap.virtual + 0x10000, 0x2000,
+					 chan->push.buffer->kmap.virtual, chan->push.addr, 0x10000,
+					 chan->sema.bo->kmap.virtual, chan->sema.vma->addr);
 		if (ret)
 			return ret;
 	} else {
 		ret = nvif_chanc36f_ctor(&chan->chan, chan->userd->map.ptr,
 					 (u8*)chan->push.buffer->kmap.virtual + 0x10000, 0x2000,
 					 chan->push.buffer->kmap.virtual, chan->push.addr, 0x10000,
+					 chan->sema.bo->kmap.virtual, chan->sema.vma->addr,
 					 &drm->client.device.user, chan->token);
 		if (ret)
 			return ret;

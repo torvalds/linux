@@ -92,6 +92,8 @@ void nouveau_bo_del_io_reserve_lru(struct ttm_buffer_object *bo);
 
 int nouveau_bo_new_pin(struct nouveau_cli *, u32 domain, u32 size, struct nouveau_bo **);
 int nouveau_bo_new_map(struct nouveau_cli *, u32 domain, u32 size, struct nouveau_bo **);
+int nouveau_bo_new_map_gpu(struct nouveau_cli *, u32 domain, u32 size,
+			   struct nouveau_bo **, struct nouveau_vma **);
 void nouveau_bo_unpin_del(struct nouveau_bo **);
 
 /* TODO: submit equivalent to TTM generic API upstream? */

@@ -866,6 +866,8 @@ revalidate:
 
 			nvif_chan_gpfifo_push(&chan->chan, addr, length, no_prefetch);
 		}
+
+		nvif_chan_gpfifo_post(&chan->chan);
 	} else
 	if (drm->client.device.info.chipset >= 0x25) {
 		ret = PUSH_WAIT(&chan->chan.push, req->nr_push * 2);

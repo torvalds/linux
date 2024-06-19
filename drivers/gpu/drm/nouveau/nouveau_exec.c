@@ -146,6 +146,8 @@ nouveau_exec_job_run(struct nouveau_job *job)
 		nvif_chan_gpfifo_push(&chan->chan, p->va, p->va_len, no_prefetch);
 	}
 
+	nvif_chan_gpfifo_post(&chan->chan);
+
 	ret = nouveau_fence_emit(fence);
 	if (ret) {
 		nouveau_fence_unref(&exec_job->fence);

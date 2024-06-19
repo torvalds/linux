@@ -456,6 +456,28 @@ nouveau_bo_new_map(struct nouveau_cli *cli, u32 domain, u32 size, struct nouveau
 	return 0;
 }
 
+int
+nouveau_bo_new_map_gpu(struct nouveau_cli *cli, u32 domain, u32 size,
+		       struct nouveau_bo **pnvbo, struct nouveau_vma **pvma)
+{
+	struct nouveau_vmm *vmm = nouveau_cli_vmm(cli);
+	struct nouveau_bo *nvbo;
+	int ret;
+
+	ret = nouveau_bo_new_map(cli, domain, size, &nvbo);
+	if (ret)
+		return ret;
+
+	ret = nouveau_vma_new(nvbo, vmm, pvma);
+	if (ret) {
+		nouveau_bo_unpin_del(&nvbo);
+		return ret;
+	}
+
+	*pnvbo = nvbo;
+	return 0;
+}
+
 static void
 set_placement_range(struct nouveau_bo *nvbo, uint32_t domain)
 {
