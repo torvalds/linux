@@ -54,6 +54,13 @@ static void ionic_napi_schedule_do_softirq(struct napi_struct *napi)
 	local_bh_enable();
 }
 
+void ionic_doorbell_napi_work(struct work_struct *work)
+{
+	struct ionic_qcq *qcq = container_of(work, struct ionic_qcq,
+					     doorbell_napi_work);
+	ionic_napi_schedule_do_softirq(&qcq->napi);
+}
+
 static int ionic_get_preferred_cpu(struct ionic *ionic,
 				   struct ionic_intr_info *intr)
 {
@@ -64,6 +71,18 @@ static int ionic_get_preferred_cpu(struct ionic *ionic,
 		cpu = cpumask_local_spread(0, dev_to_node(ionic->dev));
 
 	return cpu;
+}
+
+static void ionic_queue_dbell_napi_work(struct ionic *ionic,
+					struct ionic_qcq *qcq)
+{
+	int cpu;
+
+	if (!(qcq->flags & IONIC_QCQ_F_INTR))
+		return;
+
+	cpu = ionic_get_preferred_cpu(ionic, &qcq->intr);
+	queue_work_on(cpu, ionic->wq, &qcq->doorbell_napi_work);
 }
 
 static void ionic_doorbell_check_dwork(struct work_struct *work)
@@ -86,8 +105,8 @@ static void ionic_doorbell_check_dwork(struct work_struct *work)
 		int i;
 
 		for (i = 0; i < lif->nxqs; i++) {
-			ionic_napi_schedule_do_softirq(&lif->txqcqs[i]->napi);
-			ionic_napi_schedule_do_softirq(&lif->rxqcqs[i]->napi);
+			ionic_queue_dbell_napi_work(ionic, lif->txqcqs[i]);
+			ionic_queue_dbell_napi_work(ionic, lif->rxqcqs[i]);
 		}
 
 		if (lif->hwstamp_txq &&

@@ -88,6 +88,7 @@ struct ionic_qcq {
 	struct ionic_cq cq;
 	struct napi_struct napi;
 	struct ionic_intr_info intr;
+	struct work_struct doorbell_napi_work;
 	struct dentry *dentry;
 };
 
