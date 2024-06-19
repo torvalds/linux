@@ -35,6 +35,7 @@
 #include "xe_perf.h"
 #include "xe_pm.h"
 #include "xe_sched_job.h"
+#include "xe_sriov.h"
 
 #define DEFAULT_POLL_FREQUENCY_HZ 200
 #define DEFAULT_POLL_PERIOD_NS (NSEC_PER_SEC / DEFAULT_POLL_FREQUENCY_HZ)
@@ -2386,6 +2387,9 @@ int xe_oa_init(struct xe_device *xe)
 
 	/* Support OA only with GuC submission and Gen12+ */
 	if (!xe_device_uc_enabled(xe) || GRAPHICS_VER(xe) < 12)
+		return 0;
+
+	if (IS_SRIOV_VF(xe))
 		return 0;
 
 	oa->xe = xe;
