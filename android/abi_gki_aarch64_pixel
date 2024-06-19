@@ -425,6 +425,8 @@
   devm_clk_get
   devm_clk_get_optional
   devm_clk_put
+  devm_devfreq_add_device
+  devm_devfreq_remove_device
   devm_device_add_group
   devm_device_add_groups
   devm_device_remove_group
@@ -518,6 +520,7 @@
   dev_pm_opp_of_register_em
   dev_pm_opp_of_remove_table
   dev_pm_opp_put
+  dev_pm_opp_remove_all_dynamic
   dev_pm_opp_set_config
   dev_pm_qos_add_notifier
   dev_pm_qos_add_request
