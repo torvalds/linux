@@ -877,6 +877,15 @@ int drm_mode_getplane(struct drm_device *dev, void *data,
 	return 0;
 }
 
+/**
+ * drm_plane_has_format - Check whether the plane supports this format and modifier combination
+ * @plane: drm plane
+ * @format: pixel format (DRM_FORMAT_*)
+ * @modifier: data layout modifier
+ *
+ * Returns:
+ * Whether the plane supports the specified format and modifier combination.
+ */
 bool drm_plane_has_format(struct drm_plane *plane,
 			  u32 format, u64 modifier)
 {
@@ -906,6 +915,7 @@ bool drm_plane_has_format(struct drm_plane *plane,
 
 	return true;
 }
+EXPORT_SYMBOL(drm_plane_has_format);
 
 static int __setplane_check(struct drm_plane *plane,
 			    struct drm_crtc *crtc,
