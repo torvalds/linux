@@ -126,13 +126,13 @@ static void ionic_lif_deferred_work(struct work_struct *work)
 	} while (true);
 }
 
-void ionic_lif_deferred_enqueue(struct ionic_deferred *def,
+void ionic_lif_deferred_enqueue(struct ionic_lif *lif,
 				struct ionic_deferred_work *work)
 {
-	spin_lock_bh(&def->lock);
-	list_add_tail(&work->list, &def->list);
-	spin_unlock_bh(&def->lock);
-	schedule_work(&def->work);
+	spin_lock_bh(&lif->deferred.lock);
+	list_add_tail(&work->list, &lif->deferred.list);
+	spin_unlock_bh(&lif->deferred.lock);
+	queue_work(lif->ionic->wq, &lif->deferred.work);
 }
 
 static void ionic_link_status_check(struct ionic_lif *lif)
@@ -207,7 +207,7 @@ void ionic_link_status_check_request(struct ionic_lif *lif, bool can_sleep)
 		}
 
 		work->type = IONIC_DW_TYPE_LINK_STATUS;
-		ionic_lif_deferred_enqueue(&lif->deferred, work);
+		ionic_lif_deferred_enqueue(lif, work);
 	} else {
 		ionic_link_status_check(lif);
 	}
@@ -1389,7 +1389,7 @@ static void ionic_ndo_set_rx_mode(struct net_device *netdev)
 	}
 	work->type = IONIC_DW_TYPE_RX_MODE;
 	netdev_dbg(lif->netdev, "deferred: rx_mode\n");
-	ionic_lif_deferred_enqueue(&lif->deferred, work);
+	ionic_lif_deferred_enqueue(lif, work);
 }
 
 static __le64 ionic_netdev_features_to_nic(netdev_features_t features)
