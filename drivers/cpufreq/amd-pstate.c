@@ -86,15 +86,6 @@ struct quirk_entry {
 	u32 lowest_freq;
 };
 
-/*
- * TODO: We need more time to fine tune processors with shared memory solution
- * with community together.
- *
- * There are some performance drops on the CPU benchmarks which reports from
- * Suse. We are co-working with them to fine tune the shared memory solution. So
- * we disable it by default to go acpi-cpufreq on these processors and add a
- * module parameter to be able to enable it manually for debugging.
- */
 static struct cpufreq_driver *current_pstate_driver;
 static struct cpufreq_driver amd_pstate_driver;
 static struct cpufreq_driver amd_pstate_epp_driver;
@@ -1815,11 +1806,9 @@ static int __init amd_pstate_init(void)
 		/* Disable on the following configs by default:
 		 * 1. Undefined platforms
 		 * 2. Server platforms
-		 * 3. Shared memory designs
 		 */
 		if (amd_pstate_acpi_pm_profile_undefined() ||
-		    amd_pstate_acpi_pm_profile_server() ||
-		    !cpu_feature_enabled(X86_FEATURE_CPPC)) {
+		    amd_pstate_acpi_pm_profile_server()) {
 			pr_info("driver load is disabled, boot with specific mode to enable this\n");
 			return -ENODEV;
 		}
