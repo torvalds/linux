@@ -613,7 +613,7 @@ static __always_inline void vc_forward_exception(struct es_em_ctxt *ctxt)
 }
 
 /* Include code shared with pre-decompression boot stage */
-#include "sev-shared.c"
+#include "shared.c"
 
 static inline struct svsm_ca *svsm_get_caa(void)
 {
