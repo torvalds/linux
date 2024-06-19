@@ -213,13 +213,6 @@ void ionic_link_status_check_request(struct ionic_lif *lif, bool can_sleep)
 	}
 }
 
-static void ionic_napi_deadline(struct timer_list *timer)
-{
-	struct ionic_qcq *qcq = container_of(timer, struct ionic_qcq, napi_deadline);
-
-	napi_schedule(&qcq->napi);
-}
-
 static irqreturn_t ionic_isr(int irq, void *data)
 {
 	struct napi_struct *napi = data;
@@ -343,7 +336,6 @@ static int ionic_qcq_disable(struct ionic_lif *lif, struct ionic_qcq *qcq, int f
 		synchronize_irq(qcq->intr.vector);
 		irq_set_affinity_hint(qcq->intr.vector, NULL);
 		napi_disable(&qcq->napi);
-		del_timer_sync(&qcq->napi_deadline);
 	}
 
 	/* If there was a previous fw communcation error, don't bother with
@@ -478,7 +470,6 @@ static void ionic_link_qcq_interrupts(struct ionic_qcq *src_qcq,
 {
 	n_qcq->intr.vector = src_qcq->intr.vector;
 	n_qcq->intr.index = src_qcq->intr.index;
-	n_qcq->napi_qcq = src_qcq->napi_qcq;
 }
 
 static int ionic_alloc_qcq_interrupt(struct ionic_lif *lif, struct ionic_qcq *qcq)
@@ -832,11 +823,8 @@ static int ionic_lif_txq_init(struct ionic_lif *lif, struct ionic_qcq *qcq)
 	q->dbell_deadline = IONIC_TX_DOORBELL_DEADLINE;
 	q->dbell_jiffies = jiffies;
 
-	if (test_bit(IONIC_LIF_F_SPLIT_INTR, lif->state)) {
+	if (test_bit(IONIC_LIF_F_SPLIT_INTR, lif->state))
 		netif_napi_add(lif->netdev, &qcq->napi, ionic_tx_napi);
-		qcq->napi_qcq = qcq;
-		timer_setup(&qcq->napi_deadline, ionic_napi_deadline, 0);
-	}
 
 	qcq->flags |= IONIC_QCQ_F_INITED;
 
@@ -908,9 +896,6 @@ static int ionic_lif_rxq_init(struct ionic_lif *lif, struct ionic_qcq *qcq)
 		netif_napi_add(lif->netdev, &qcq->napi, ionic_rx_napi);
 	else
 		netif_napi_add(lif->netdev, &qcq->napi, ionic_txrx_napi);
-
-	qcq->napi_qcq = qcq;
-	timer_setup(&qcq->napi_deadline, ionic_napi_deadline, 0);
 
 	qcq->flags |= IONIC_QCQ_F_INITED;
 
@@ -1166,7 +1151,6 @@ static int ionic_adminq_napi(struct napi_struct *napi, int budget)
 	struct ionic_dev *idev = &lif->ionic->idev;
 	unsigned long irqflags;
 	unsigned int flags = 0;
-	bool resched = false;
 	int rx_work = 0;
 	int tx_work = 0;
 	int n_work = 0;
@@ -1203,15 +1187,12 @@ static int ionic_adminq_napi(struct napi_struct *napi, int budget)
 		ionic_intr_credits(idev->intr_ctrl, intr->index, credits, flags);
 	}
 
-	if (!a_work && ionic_adminq_poke_doorbell(&lif->adminqcq->q))
-		resched = true;
-	if (lif->hwstamp_rxq && !rx_work && ionic_rxq_poke_doorbell(&lif->hwstamp_rxq->q))
-		resched = true;
-	if (lif->hwstamp_txq && !tx_work && ionic_txq_poke_doorbell(&lif->hwstamp_txq->q))
-		resched = true;
-	if (resched)
-		mod_timer(&lif->adminqcq->napi_deadline,
-			  jiffies + IONIC_NAPI_DEADLINE);
+	if (!a_work)
+		ionic_adminq_poke_doorbell(&lif->adminqcq->q);
+	if (lif->hwstamp_rxq && !rx_work)
+		ionic_rxq_poke_doorbell(&lif->hwstamp_rxq->q);
+	if (lif->hwstamp_txq && !tx_work)
+		ionic_txq_poke_doorbell(&lif->hwstamp_txq->q);
 
 	return work_done;
 }
@@ -3501,9 +3482,6 @@ static int ionic_lif_adminq_init(struct ionic_lif *lif)
 	q->dbell_jiffies = jiffies;
 
 	netif_napi_add(lif->netdev, &qcq->napi, ionic_adminq_napi);
-
-	qcq->napi_qcq = qcq;
-	timer_setup(&qcq->napi_deadline, ionic_napi_deadline, 0);
 
 	napi_enable(&qcq->napi);
 

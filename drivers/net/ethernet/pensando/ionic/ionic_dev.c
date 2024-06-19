@@ -703,10 +703,6 @@ void ionic_q_post(struct ionic_queue *q, bool ring_doorbell)
 				 q->dbval | q->head_idx);
 
 		q->dbell_jiffies = jiffies;
-
-		if (q_to_qcq(q)->napi_qcq)
-			mod_timer(&q_to_qcq(q)->napi_qcq->napi_deadline,
-				  jiffies + IONIC_NAPI_DEADLINE);
 	}
 }
 

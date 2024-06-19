@@ -84,11 +84,9 @@ struct ionic_qcq {
 	u32 cmb_pgid;
 	u32 cmb_order;
 	struct dim dim;
-	struct timer_list napi_deadline;
 	struct ionic_queue q;
 	struct ionic_cq cq;
 	struct napi_struct napi;
-	struct ionic_qcq *napi_qcq;
 	struct ionic_intr_info intr;
 	struct dentry *dentry;
 };
