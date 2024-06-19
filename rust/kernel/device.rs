@@ -30,8 +30,10 @@ use core::ptr;
 ///
 /// # Invariants
 ///
-/// The pointer stored in `Self` is non-null and valid for the lifetime of the `ARef` instance. In
-/// particular, the `ARef` instance owns an increment on the underlying object’s reference count.
+/// A `Device` instance represents a valid `struct device` created by the C portion of the kernel.
+///
+/// Instances of this type are always reference-counted, that is, a call to `get_device` ensures
+/// that the allocation remains valid at least until the matching call to `put_device`.
 ///
 /// `bindings::device::release` is valid to be called from any thread, hence `ARef<Device>` can be
 /// dropped from any thread.
@@ -58,7 +60,8 @@ impl Device {
         // CAST: `Self` is a `repr(transparent)` wrapper around `bindings::device`.
         let ptr = ptr.cast::<Self>();
 
-        // SAFETY: By the safety requirements, ptr is valid.
+        // SAFETY: `ptr` is valid by the safety requirements of this function. By the above call to
+        // `bindings::get_device` we also own a reference to the underlying `struct device`.
         unsafe { ARef::from_raw(ptr::NonNull::new_unchecked(ptr)) }
     }
 
