@@ -40,6 +40,9 @@ properties:
 
   operating-points-v2: true
 
+  opp-table:
+    type: object
+
 required:
   - compatible
   - reg
