@@ -712,12 +712,12 @@ static inline struct page *get_page_from_free_area(struct free_area *area,
 }
 
 /*
- * If this is not the largest possible page, check if the buddy
- * of the next-highest order is free. If it is, it's possible
+ * If this is less than the 2nd largest possible page, check if the buddy
+ * of the next-higher order is free. If it is, it's possible
  * that pages are being freed that will coalesce soon. In case,
  * that is happening, add the free page to the tail of the list
  * so it's less likely to be used soon and more likely to be merged
- * as a higher order page
+ * as a 2-level higher order page
  */
 static inline bool
 buddy_merge_likely(unsigned long pfn, unsigned long buddy_pfn,
