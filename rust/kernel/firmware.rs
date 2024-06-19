@@ -22,8 +22,7 @@ type FwFunc =
 ///
 /// The pointer is valid, and has ownership over the instance of `struct firmware`.
 ///
-/// Once requested, the `Firmware` backing buffer is not modified until it is freed when `Firmware`
-/// is dropped.
+/// The `Firmware`'s backing buffer is not modified.
 ///
 /// # Examples
 ///
@@ -72,22 +71,22 @@ impl Firmware {
 
     /// Returns the size of the requested firmware in bytes.
     pub fn size(&self) -> usize {
-        // SAFETY: Safe by the type invariant.
+        // SAFETY: `self.as_raw()` is valid by the type invariant.
         unsafe { (*self.as_raw()).size }
     }
 
     /// Returns the requested firmware as `&[u8]`.
     pub fn data(&self) -> &[u8] {
-        // SAFETY: Safe by the type invariant. Additionally, `bindings::firmware` guarantees, if
-        // successfully requested, that `bindings::firmware::data` has a size of
-        // `bindings::firmware::size` bytes.
+        // SAFETY: `self.as_raw()` is valid by the type invariant. Additionally,
+        // `bindings::firmware` guarantees, if successfully requested, that
+        // `bindings::firmware::data` has a size of `bindings::firmware::size` bytes.
         unsafe { core::slice::from_raw_parts((*self.as_raw()).data, self.size()) }
     }
 }
 
 impl Drop for Firmware {
     fn drop(&mut self) {
-        // SAFETY: Safe by the type invariant.
+        // SAFETY: `self.as_raw()` is valid by the type invariant.
         unsafe { bindings::release_firmware(self.as_raw()) };
     }
 }
