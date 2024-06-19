@@ -1620,7 +1620,7 @@ static int evsel__read_group(struct evsel *leader, int cpu_map_idx, int thread)
 
 static bool read_until_char(struct io *io, char e)
 {
-	char c;
+	int c;
 
 	do {
 		c = io__get_char(io);
