@@ -1749,11 +1749,37 @@ static int __init amd_pstate_set_driver(int mode_idx)
  */
 static bool amd_cppc_supported(void)
 {
+	struct cpuinfo_x86 *c = &cpu_data(0);
+	bool warn = false;
+
 	if ((boot_cpu_data.x86 == 0x17) && (boot_cpu_data.x86_model < 0x30)) {
 		pr_debug_once("CPPC feature is not supported by the processor\n");
 		return false;
 	}
 
+	/*
+	 * If the CPPC feature is disabled in the BIOS for processors that support MSR-based CPPC,
+	 * the AMD Pstate driver may not function correctly.
+	 * Check the CPPC flag and display a warning message if the platform supports CPPC.
+	 * Note: below checking code will not abort the driver registeration process because of
+	 * the code is added for debugging purposes.
+	 */
+	if (!cpu_feature_enabled(X86_FEATURE_CPPC)) {
+		if (cpu_feature_enabled(X86_FEATURE_ZEN1) || cpu_feature_enabled(X86_FEATURE_ZEN2)) {
+			if (c->x86_model > 0x60 && c->x86_model < 0xaf)
+				warn = true;
+		} else if (cpu_feature_enabled(X86_FEATURE_ZEN3) || cpu_feature_enabled(X86_FEATURE_ZEN4)) {
+			if ((c->x86_model > 0x10 && c->x86_model < 0x1F) ||
+					(c->x86_model > 0x40 && c->x86_model < 0xaf))
+				warn = true;
+		} else if (cpu_feature_enabled(X86_FEATURE_ZEN5)) {
+			warn = true;
+		}
+	}
+
+	if (warn)
+		pr_warn_once("The CPPC feature is supported but currently disabled by the BIOS.\n"
+					"Please enable it if your BIOS has the CPPC option.\n");
 	return true;
 }
 
