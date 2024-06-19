@@ -390,6 +390,11 @@ static int read_unwind_spec_debug_frame(struct dso *dso,
 			char *debuglink = malloc(PATH_MAX);
 			int ret = 0;
 
+			if (debuglink == NULL) {
+				pr_err("unwind: Can't read unwind spec debug frame.\n");
+				return -ENOMEM;
+			}
+
 			ret = dso__read_binary_type_filename(
 				dso, DSO_BINARY_TYPE__DEBUGLINK,
 				machine->root_dir, debuglink, PATH_MAX);
