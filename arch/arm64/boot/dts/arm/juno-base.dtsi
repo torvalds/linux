@@ -663,7 +663,6 @@
 		dma-coherent;
 		/* The SMMU is only really of interest to bare-metal hypervisors */
 		/* iommus = <&smmu_gpu 0>; */
-		status = "disabled";
 	};
 
 	sram: sram@2e000000 {
