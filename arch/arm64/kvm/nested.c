@@ -203,8 +203,8 @@ int kvm_init_nv_sysregs(struct kvm *kvm)
 	}
 
 	for (int i = 0; i < KVM_ARM_ID_REG_NUM; i++)
-		kvm->arch.id_regs[i] = limit_nv_id_reg(IDX_IDREG(i),
-						       kvm->arch.id_regs[i]);
+		kvm_set_vm_id_reg(kvm, IDX_IDREG(i), limit_nv_id_reg(IDX_IDREG(i),
+								     kvm->arch.id_regs[i]));
 
 	/* VTTBR_EL2 */
 	res0 = res1 = 0;
