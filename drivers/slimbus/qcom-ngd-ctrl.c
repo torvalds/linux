@@ -2279,16 +2279,16 @@ static int __maybe_unused qcom_slim_ngd_runtime_suspend(struct device *dev)
 	 * HW reset on remote slimbus side.
 	 */
 	mutex_lock(&ctrl->suspend_resume_lock);
-	qcom_slim_ngd_exit_dma(ctrl);
-
-	qcom_slim_ngd_disable_irq(ctrl);
-	writel_relaxed(0x0, ngd->base + NGD_INT_EN);
 
 	if (!ctrl->qmi.handle) {
 		SLIM_WARN(ctrl, "%s QMI handle is NULL\n", __func__);
 		mutex_unlock(&ctrl->suspend_resume_lock);
 		return 0;
 	}
+	qcom_slim_ngd_exit_dma(ctrl);
+
+	qcom_slim_ngd_disable_irq(ctrl);
+	writel_relaxed(0x0, ngd->base + NGD_INT_EN);
 
 	SLIM_INFO(ctrl, "Sending QMI power off request\n");
 	ret = qcom_slim_qmi_power_request(ctrl, false);
