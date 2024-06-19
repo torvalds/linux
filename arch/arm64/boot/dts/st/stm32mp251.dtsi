@@ -497,6 +497,55 @@
 				access-controllers = <&rifsc 76>;
 				status = "disabled";
 			};
+
+			ethernet1: ethernet@482c0000 {
+				compatible = "st,stm32mp25-dwmac", "snps,dwmac-5.20";
+				reg = <0x482c0000 0x4000>;
+				reg-names = "stmmaceth";
+				interrupts-extended = <&intc GIC_SPI 130 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "macirq";
+				clock-names = "stmmaceth",
+					      "mac-clk-tx",
+					      "mac-clk-rx",
+					      "ptp_ref",
+					      "ethstp",
+					      "eth-ck";
+				clocks = <&rcc CK_ETH1_MAC>,
+					 <&rcc CK_ETH1_TX>,
+					 <&rcc CK_ETH1_RX>,
+					 <&rcc CK_KER_ETH1PTP>,
+					 <&rcc CK_ETH1_STP>,
+					 <&rcc CK_KER_ETH1>;
+				snps,axi-config = <&stmmac_axi_config_1>;
+				snps,mixed-burst;
+				snps,mtl-rx-config = <&mtl_rx_setup_1>;
+				snps,mtl-tx-config = <&mtl_tx_setup_1>;
+				snps,pbl = <2>;
+				snps,tso;
+				st,syscon = <&syscfg 0x3000>;
+				access-controllers = <&rifsc 60>;
+				status = "disabled";
+
+				mtl_rx_setup_1: rx-queues-config {
+					snps,rx-queues-to-use = <2>;
+					queue0 {};
+					queue1 {};
+				};
+
+				mtl_tx_setup_1: tx-queues-config {
+					snps,tx-queues-to-use = <4>;
+					queue0 {};
+					queue1 {};
+					queue2 {};
+					queue3 {};
+				};
+
+				stmmac_axi_config_1: stmmac-axi-config {
+					snps,blen = <0 0 0 0 16 8 4>;
+					snps,rd_osr_lmt = <0x7>;
+					snps,wr_osr_lmt = <0x7>;
+				};
+			};
 		};
 
 		bsec: efuse@44000000 {
