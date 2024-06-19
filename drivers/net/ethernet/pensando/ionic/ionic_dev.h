@@ -280,9 +280,9 @@ struct ionic_intr_info {
 	u64 rearm_count;
 	unsigned int index;
 	unsigned int vector;
-	unsigned int cpu;
 	u32 dim_coal_hw;
-	cpumask_t affinity_mask;
+	cpumask_var_t *affinity_mask;
+	struct irq_affinity_notify aff_notify;
 };
 
 struct ionic_cq {
