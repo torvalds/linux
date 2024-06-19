@@ -1449,6 +1449,17 @@ phys_addr_t __init memblock_alloc_range_nid(phys_addr_t size,
 	if (WARN_ONCE(nid == MAX_NUMNODES, "Usage of MAX_NUMNODES is deprecated. Use NUMA_NO_NODE instead\n"))
 		nid = NUMA_NO_NODE;
 
+	/*
+	 * Detect any accidental use of these APIs after slab is ready, as at
+	 * this moment memblock may be deinitialized already and its
+	 * internal data may be destroyed (after execution of memblock_free_all)
+	 */
+	if (WARN_ON_ONCE(slab_is_available())) {
+		void *vaddr = kzalloc_node(size, GFP_NOWAIT, nid);
+
+		return vaddr ? virt_to_phys(vaddr) : 0;
+	}
+
 	if (!align) {
 		/* Can't use WARNs this early in boot on powerpc */
 		dump_stack();
@@ -1574,13 +1585,6 @@ static void * __init memblock_alloc_internal(
 {
 	phys_addr_t alloc;
 
-	/*
-	 * Detect any accidental use of these APIs after slab is ready, as at
-	 * this moment memblock may be deinitialized already and its
-	 * internal data may be destroyed (after execution of memblock_free_all)
-	 */
-	if (WARN_ON_ONCE(slab_is_available()))
-		return kzalloc_node(size, GFP_NOWAIT, nid);
 
 	if (max_addr > memblock.current_limit)
 		max_addr = memblock.current_limit;
