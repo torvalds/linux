@@ -206,10 +206,10 @@ struct ionic_lif {
 	unsigned int nxqs;
 	unsigned int ntxq_descs;
 	unsigned int nrxq_descs;
-	u32 rx_copybreak;
 	u64 rxq_features;
-	u16 rx_mode;
 	u64 hw_features;
+	u16 rx_copybreak;
+	u16 rx_mode;
 	bool registered;
 	u16 lif_type;
 	unsigned int link_down_count;
@@ -225,11 +225,11 @@ struct ionic_lif {
 	u32 info_sz;
 	struct ionic_qtype_info qtype_info[IONIC_QTYPE_MAX];
 
-	u16 rss_types;
 	u8 rss_hash_key[IONIC_RSS_HASH_KEY_SIZE];
 	u8 *rss_ind_tbl;
 	dma_addr_t rss_ind_tbl_pa;
 	u32 rss_ind_tbl_sz;
+	u16 rss_types;
 
 	struct ionic_rx_filters rx_filters;
 	u32 rx_coalesce_usecs;		/* what the user asked for */
