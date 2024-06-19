@@ -887,9 +887,9 @@ err_free:
 	return ERR_CAST(bb);
 }
 
-static struct xe_oa_config_bo *xe_oa_alloc_config_buffer(struct xe_oa_stream *stream)
+static struct xe_oa_config_bo *
+xe_oa_alloc_config_buffer(struct xe_oa_stream *stream, struct xe_oa_config *oa_config)
 {
-	struct xe_oa_config *oa_config = stream->oa_config;
 	struct xe_oa_config_bo *oa_bo;
 
 	/* Look for the buffer in the already allocated BOs attached to the stream */
@@ -905,13 +905,13 @@ out:
 	return oa_bo;
 }
 
-static int xe_oa_emit_oa_config(struct xe_oa_stream *stream)
+static int xe_oa_emit_oa_config(struct xe_oa_stream *stream, struct xe_oa_config *config)
 {
 #define NOA_PROGRAM_ADDITIONAL_DELAY_US 500
 	struct xe_oa_config_bo *oa_bo;
 	int err, us = NOA_PROGRAM_ADDITIONAL_DELAY_US;
 
-	oa_bo = xe_oa_alloc_config_buffer(stream);
+	oa_bo = xe_oa_alloc_config_buffer(stream, config);
 	if (IS_ERR(oa_bo)) {
 		err = PTR_ERR(oa_bo);
 		goto exit;
@@ -989,7 +989,7 @@ static int xe_oa_enable_metric_set(struct xe_oa_stream *stream)
 			return ret;
 	}
 
-	return xe_oa_emit_oa_config(stream);
+	return xe_oa_emit_oa_config(stream, stream->oa_config);
 }
 
 static void xe_oa_stream_enable(struct xe_oa_stream *stream)
@@ -1054,7 +1054,7 @@ static long xe_oa_config_locked(struct xe_oa_stream *stream, u64 arg)
 		return -ENODEV;
 
 	if (config != stream->oa_config) {
-		err = xe_oa_emit_oa_config(stream);
+		err = xe_oa_emit_oa_config(stream, config);
 		if (!err)
 			config = xchg(&stream->oa_config, config);
 		else
