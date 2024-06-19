@@ -21,6 +21,7 @@
 #include "xe_mmio.h"
 #include "xe_platform_types.h"
 #include "xe_rtp.h"
+#include "xe_sriov.h"
 #include "xe_step.h"
 
 /**
@@ -864,6 +865,9 @@ void xe_wa_dump(struct xe_gt *gt, struct drm_printer *p)
 void xe_wa_apply_tile_workarounds(struct xe_tile *tile)
 {
 	struct xe_gt *mmio = tile->primary_gt;
+
+	if (IS_SRIOV_VF(tile->xe))
+		return;
 
 	if (XE_WA(mmio, 22010954014))
 		xe_mmio_rmw32(mmio, XEHP_CLOCK_GATE_DIS, 0, SGSI_SIDECLK_DIS);
