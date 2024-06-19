@@ -121,7 +121,28 @@ static const struct address_space_operations incfs_address_space_ops = {
 
 static vm_fault_t incfs_fault(struct vm_fault *vmf)
 {
-	vmf->flags &= ~FAULT_FLAG_ALLOW_RETRY;
+	struct file *file = vmf->vma->vm_file;
+	struct data_file *df = get_incfs_data_file(file);
+	struct backing_file_context *bfc = df ? df->df_backing_file_context : NULL;
+
+	/*
+	 * This is something of a kludge
+	 * We want to retry if the read from the underlying file is interrupted,
+	 * but not if the read fails because the stored data is corrupt since the
+	 * latter causes an infinite loop.
+	 *
+	 * However, whether we wish to retry must be set before we call
+	 * filemap_fault, *and* there is no way of getting the read error code out
+	 * of filemap_fault.
+	 *
+	 * So unless there is a robust solution to both the above problems, we can
+	 * solve the actual issues we have encoutered by retrying unless there is
+	 * known corruption in the backing file. This does mean that we won't retry
+	 * with a corrupt backing file if a (good) read is interrupted, but we
+	 * don't really handle corruption well anyway at this time.
+	 */
+	if (bfc && bfc->bc_has_bad_block)
+		vmf->flags &= ~FAULT_FLAG_ALLOW_RETRY;
 	return filemap_fault(vmf);
 }
 
@@ -596,6 +617,13 @@ err:
 		result = 0;
 	if (total_read < PAGE_SIZE)
 		zero_user(page, total_read, PAGE_SIZE - total_read);
+
+	if (result == -EBADMSG) {
+		struct backing_file_context *bfc = df ? df->df_backing_file_context : NULL;
+
+		if (bfc)
+			bfc->bc_has_bad_block = 1;
+	}
 
 	if (result == 0)
 		SetPageUptodate(page);
