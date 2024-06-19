@@ -484,7 +484,9 @@ void arch_pick_mmap_layout(struct mm_struct *mm, struct rlimit *rlim_stack)
 	clear_bit(MMF_TOPDOWN, &mm->flags);
 }
 #endif
+#ifdef CONFIG_MMU
 EXPORT_SYMBOL_IF_KUNIT(arch_pick_mmap_layout);
+#endif
 
 /**
  * __account_locked_vm - account locked pages to an mm's locked_vm

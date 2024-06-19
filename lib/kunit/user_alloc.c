@@ -30,6 +30,10 @@ static int kunit_attach_mm(void)
 	if (current->mm)
 		return 0;
 
+	/* arch_pick_mmap_layout() is only sane with MMU systems. */
+	if (!IS_ENABLED(CONFIG_MMU))
+		return -EINVAL;
+
 	mm = mm_alloc();
 	if (!mm)
 		return -ENOMEM;
