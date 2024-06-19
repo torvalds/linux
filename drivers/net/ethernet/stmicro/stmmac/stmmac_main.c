@@ -1228,7 +1228,7 @@ static void stmmac_mac_link_up(struct phylink_config *config,
 	if (priv->dma_cap.fpesel)
 		stmmac_fpe_link_state_handle(priv, true);
 
-	if (phy->link == 1 && !priv->boot_kpi) {
+	if (phy && phy->link == 1 && !priv->boot_kpi) {
 		pr_info("M - Ethernet is Ready.Link is UP\n");
 		priv->boot_kpi = true;
 	}
