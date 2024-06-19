@@ -89,10 +89,10 @@ class aarch64_page_ops():
         self.MODULES_VADDR = self._PAGE_END(self.VA_BITS_MIN)
         self.MODULES_END = self.MODULES_VADDR + self.MODULES_VSIZE
 
-        self.VMEMMAP_SHIFT = (self.PAGE_SHIFT - self.STRUCT_PAGE_MAX_SHIFT)
-        self.VMEMMAP_SIZE = ((self._PAGE_END(self.VA_BITS_MIN) - self.PAGE_OFFSET) >> self.VMEMMAP_SHIFT)
-        self.VMEMMAP_START = (-(1 << (self.VA_BITS - self.VMEMMAP_SHIFT))) & 0xffffffffffffffff
-        self.VMEMMAP_END = self.VMEMMAP_START + self.VMEMMAP_SIZE
+        self.VMEMMAP_RANGE = self._PAGE_END(self.VA_BITS_MIN) - self.PAGE_OFFSET
+        self.VMEMMAP_SIZE = (self.VMEMMAP_RANGE >> self.PAGE_SHIFT) * self.struct_page_size
+        self.VMEMMAP_END = (-(1 * 1024 * 1024 * 1024)) & 0xffffffffffffffff
+        self.VMEMMAP_START = self.VMEMMAP_END - self.VMEMMAP_SIZE
 
         self.VMALLOC_START = self.MODULES_END
         self.VMALLOC_END = self.VMEMMAP_START - 256 * 1024 * 1024
