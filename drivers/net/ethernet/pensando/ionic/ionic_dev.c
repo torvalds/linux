@@ -58,7 +58,14 @@ void ionic_doorbell_napi_work(struct work_struct *work)
 {
 	struct ionic_qcq *qcq = container_of(work, struct ionic_qcq,
 					     doorbell_napi_work);
-	ionic_napi_schedule_do_softirq(&qcq->napi);
+	unsigned long now, then, dif;
+
+	now = READ_ONCE(jiffies);
+	then = qcq->q.dbell_jiffies;
+	dif = now - then;
+
+	if (dif > qcq->q.dbell_deadline)
+		ionic_napi_schedule_do_softirq(&qcq->napi);
 }
 
 static int ionic_get_preferred_cpu(struct ionic *ionic,
