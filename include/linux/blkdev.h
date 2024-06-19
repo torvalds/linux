@@ -377,7 +377,6 @@ struct queue_limits {
 	unsigned short		max_integrity_segments;
 	unsigned short		max_discard_segments;
 
-	unsigned char		discard_misaligned;
 	unsigned char		raid_partial_stripes_expensive;
 	unsigned int		max_open_zones;
 	unsigned int		max_active_zones;

@@ -1808,7 +1808,6 @@ int dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 		limits->max_hw_discard_sectors = 0;
 		limits->discard_granularity = 0;
 		limits->discard_alignment = 0;
-		limits->discard_misaligned = 0;
 	}
 
 	if (!dm_table_supports_write_zeroes(t))
