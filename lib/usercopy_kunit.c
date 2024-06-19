@@ -331,4 +331,5 @@ static struct kunit_suite usercopy_test_suite = {
 
 kunit_test_suites(&usercopy_test_suite);
 MODULE_AUTHOR("Kees Cook <kees@kernel.org>");
+MODULE_DESCRIPTION("Kernel module for testing copy_to/from_user infrastructure");
 MODULE_LICENSE("GPL");
