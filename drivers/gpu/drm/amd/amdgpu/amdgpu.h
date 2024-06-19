@@ -221,7 +221,6 @@ extern int amdgpu_mes;
 extern int amdgpu_mes_log_enable;
 extern int amdgpu_mes_kiq;
 extern int amdgpu_uni_mes;
-extern int amdgpu_jpeg_test;
 extern int amdgpu_noretry;
 extern int amdgpu_force_asic_type;
 extern int amdgpu_smartshift_bias;
@@ -1018,7 +1017,6 @@ struct amdgpu_device {
 
 	/* jpeg */
 	struct amdgpu_jpeg		jpeg;
-	bool enable_jpeg_test;
 
 	/* vpe */
 	struct amdgpu_vpe		vpe;
