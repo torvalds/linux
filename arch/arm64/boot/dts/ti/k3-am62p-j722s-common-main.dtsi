@@ -227,8 +227,6 @@
 		reg = <0x00 0x40900000 0x00 0x1200>;
 		#address-cells = <2>;
 		#size-cells = <2>;
-		ranges = <0x00 0x40900000 0x00 0x40900000 0x00 0x30000>;
-
 		dmas = <&main_pktdma 0xf501 0>, <&main_pktdma 0x7506 0>,
 		       <&main_pktdma 0x7507 0>;
 		dma-names = "tx", "rx1", "rx2";
