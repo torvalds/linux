@@ -328,6 +328,9 @@ enum {
 
 	/* bounce all highmem pages */
 	BLK_FEAT_BOUNCE_HIGH			= (1u << 14),
+
+	/* undocumented magic for bcache */
+	BLK_FEAT_RAID_PARTIAL_STRIPES_EXPENSIVE	= (1u << 15),
 };
 
 /*
@@ -335,7 +338,8 @@ enum {
  */
 #define BLK_FEAT_INHERIT_MASK \
 	(BLK_FEAT_WRITE_CACHE | BLK_FEAT_FUA | BLK_FEAT_ROTATIONAL | \
-	 BLK_FEAT_STABLE_WRITES | BLK_FEAT_ZONED | BLK_FEAT_BOUNCE_HIGH)
+	 BLK_FEAT_STABLE_WRITES | BLK_FEAT_ZONED | BLK_FEAT_BOUNCE_HIGH | \
+	 BLK_FEAT_RAID_PARTIAL_STRIPES_EXPENSIVE)
 
 /* internal flags in queue_limits.flags */
 enum {
@@ -377,7 +381,6 @@ struct queue_limits {
 	unsigned short		max_integrity_segments;
 	unsigned short		max_discard_segments;
 
-	unsigned char		raid_partial_stripes_expensive;
 	unsigned int		max_open_zones;
 	unsigned int		max_active_zones;
 
