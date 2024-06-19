@@ -207,8 +207,7 @@ static int ims_pcu_setup_buttons(struct ims_pcu *pcu,
 
 	input = input_allocate_device();
 	if (!input) {
-		dev_err(pcu->dev,
-			"Not enough memory for input input device\n");
+		dev_err(pcu->dev, "Not enough memory for input device\n");
 		return -ENOMEM;
 	}
 
