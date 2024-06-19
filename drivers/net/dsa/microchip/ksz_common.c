@@ -3906,6 +3906,13 @@ static int ksz_hsr_join(struct dsa_switch *ds, int port, struct net_device *hsr,
 		return -EOPNOTSUPP;
 	}
 
+	/* KSZ9477 can only perform HSR offloading for up to two ports */
+	if (hweight8(dev->hsr_ports) >= 2) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Cannot offload more than two ports - using software HSR");
+		return -EOPNOTSUPP;
+	}
+
 	/* Self MAC address filtering, to avoid frames traversing
 	 * the HSR ring more than once.
 	 */
