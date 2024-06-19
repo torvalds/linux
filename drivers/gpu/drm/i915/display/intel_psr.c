@@ -1443,9 +1443,6 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 
 	tgl_dc3co_exitline_compute_config(intel_dp, crtc_state);
 
-	if (psr2_su_region_et_valid(intel_dp, crtc_state->has_panel_replay))
-		crtc_state->enable_psr2_su_region_et = true;
-
 	return true;
 }
 
@@ -1491,6 +1488,9 @@ static bool intel_sel_update_config_valid(struct intel_dp *intel_dp,
 			    "Selective update not enabled, SU granularity not compatible\n");
 		goto unsupported;
 	}
+
+	crtc_state->enable_psr2_su_region_et =
+		psr2_su_region_et_valid(intel_dp, crtc_state->has_panel_replay);
 
 	return true;
 
