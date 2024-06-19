@@ -717,11 +717,6 @@ static int analogix_dp_config_video(struct analogix_dp_device *dp)
 
 	analogix_dp_set_video_color_format(dp);
 
-	if (analogix_dp_get_pll_lock_status(dp) == PLL_UNLOCKED) {
-		dev_err(dp->dev, "PLL is not locked yet.\n");
-		return -EINVAL;
-	}
-
 	for (;;) {
 		timeout_loop++;
 		if (analogix_dp_is_slave_video_stream_clock_on(dp) == 0)
