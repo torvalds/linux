@@ -751,6 +751,14 @@ const char *io_uring_get_opcode(u8 opcode)
 	return "INVALID";
 }
 
+bool io_uring_op_supported(u8 opcode)
+{
+	if (opcode < IORING_OP_LAST &&
+	    io_issue_defs[opcode].prep != io_eopnotsupp_prep)
+		return true;
+	return false;
+}
+
 void __init io_uring_optable_init(void)
 {
 	int i;
