@@ -15,6 +15,7 @@
 #include "xe_macros.h"
 #include "xe_mmio.h"
 #include "xe_pm.h"
+#include "xe_sriov.h"
 
 /**
  * DOC: Xe GT Idle
@@ -100,6 +101,9 @@ void xe_gt_idle_enable_pg(struct xe_gt *gt)
 	u32 pg_enable;
 	int i, j;
 
+	if (IS_SRIOV_VF(xe))
+		return;
+
 	/* Disable CPG for PVC */
 	if (xe->info.platform == XE_PVC)
 		return;
@@ -130,6 +134,9 @@ void xe_gt_idle_enable_pg(struct xe_gt *gt)
 
 void xe_gt_idle_disable_pg(struct xe_gt *gt)
 {
+	if (IS_SRIOV_VF(gt_to_xe(gt)))
+		return;
+
 	xe_device_assert_mem_access(gt_to_xe(gt));
 	XE_WARN_ON(xe_force_wake_get(gt_to_fw(gt), XE_FW_GT));
 
@@ -214,6 +221,9 @@ int xe_gt_idle_init(struct xe_gt_idle *gtidle)
 	struct kobject *kobj;
 	int err;
 
+	if (IS_SRIOV_VF(xe))
+		return 0;
+
 	kobj = kobject_create_and_add("gtidle", gt->sysfs);
 	if (!kobj)
 		return -ENOMEM;
@@ -246,6 +256,9 @@ void xe_gt_idle_enable_c6(struct xe_gt *gt)
 	xe_device_assert_mem_access(gt_to_xe(gt));
 	xe_force_wake_assert_held(gt_to_fw(gt), XE_FW_GT);
 
+	if (IS_SRIOV_VF(gt_to_xe(gt)))
+		return;
+
 	/* Units of 1280 ns for a total of 5s */
 	xe_mmio_write32(gt, RC_IDLE_HYSTERSIS, 0x3B9ACA);
 	/* Enable RC6 */
@@ -257,6 +270,9 @@ void xe_gt_idle_disable_c6(struct xe_gt *gt)
 {
 	xe_device_assert_mem_access(gt_to_xe(gt));
 	xe_force_wake_assert_held(gt_to_fw(gt), XE_FW_GT);
+
+	if (IS_SRIOV_VF(gt_to_xe(gt)))
+		return;
 
 	xe_mmio_write32(gt, RC_CONTROL, 0);
 	xe_mmio_write32(gt, RC_STATE, 0);
