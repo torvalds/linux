@@ -631,6 +631,10 @@ int btintel_parse_version_tlv(struct hci_dev *hdev,
 		case INTEL_TLV_GIT_SHA1:
 			version->git_sha1 = get_unaligned_le32(tlv->val);
 			break;
+		case INTEL_TLV_FW_ID:
+			snprintf(version->fw_id, sizeof(version->fw_id),
+				 "%s", tlv->val);
+			break;
 		default:
 			/* Ignore rest of information */
 			break;
@@ -2133,30 +2137,61 @@ static void btintel_get_fw_name_tlv(const struct intel_version_tlv *ver,
 				    const char *suffix)
 {
 	const char *format;
-	/* The firmware file name for new generation controllers will be
-	 * ibt-<cnvi_top type+cnvi_top step>-<cnvr_top type+cnvr_top step>
-	 */
-	switch (ver->cnvi_top & 0xfff) {
+	u32 cnvi, cnvr;
+
+	cnvi = INTEL_CNVX_TOP_PACK_SWAB(INTEL_CNVX_TOP_TYPE(ver->cnvi_top),
+					INTEL_CNVX_TOP_STEP(ver->cnvi_top));
+
+	cnvr = INTEL_CNVX_TOP_PACK_SWAB(INTEL_CNVX_TOP_TYPE(ver->cnvr_top),
+					INTEL_CNVX_TOP_STEP(ver->cnvr_top));
+
 	/* Only Blazar  product supports downloading of intermediate loader
 	 * image
 	 */
-	case BTINTEL_CNVI_BLAZARI:
-		if (ver->img_type == BTINTEL_IMG_BOOTLOADER)
-			format = "intel/ibt-%04x-%04x-iml.%s";
-		else
-			format = "intel/ibt-%04x-%04x.%s";
-		break;
-	default:
-			format = "intel/ibt-%04x-%04x.%s";
-		break;
-	}
+	if ((ver->cnvi_top & 0xfff) >= BTINTEL_CNVI_BLAZARI) {
+		u8 zero[BTINTEL_FWID_MAXLEN];
 
-	snprintf(fw_name, len, format,
-		 INTEL_CNVX_TOP_PACK_SWAB(INTEL_CNVX_TOP_TYPE(ver->cnvi_top),
-					  INTEL_CNVX_TOP_STEP(ver->cnvi_top)),
-		 INTEL_CNVX_TOP_PACK_SWAB(INTEL_CNVX_TOP_TYPE(ver->cnvr_top),
-					  INTEL_CNVX_TOP_STEP(ver->cnvr_top)),
-		 suffix);
+		if (ver->img_type == BTINTEL_IMG_BOOTLOADER) {
+			format = "intel/ibt-%04x-%04x-iml.%s";
+			snprintf(fw_name, len, format, cnvi, cnvr, suffix);
+			return;
+		}
+
+		memset(zero, 0, sizeof(zero));
+
+		/* ibt-<cnvi_top type+cnvi_top step>-<cnvr_top type+cnvr_top step-fw_id> */
+		if (memcmp(ver->fw_id, zero, sizeof(zero))) {
+			format = "intel/ibt-%04x-%04x-%s.%s";
+			snprintf(fw_name, len, format, cnvi, cnvr,
+				 ver->fw_id, suffix);
+			return;
+		}
+		/* If firmware id is not present, fallback to legacy naming
+		 * convention
+		 */
+	}
+	/* Fallback to legacy naming convention for other controllers
+	 * ibt-<cnvi_top type+cnvi_top step>-<cnvr_top type+cnvr_top step>
+	 */
+	format = "intel/ibt-%04x-%04x.%s";
+	snprintf(fw_name, len, format, cnvi, cnvr, suffix);
+}
+
+static void btintel_get_iml_tlv(const struct intel_version_tlv *ver,
+				char *fw_name, size_t len,
+				const char *suffix)
+{
+	const char *format;
+	u32 cnvi, cnvr;
+
+	cnvi = INTEL_CNVX_TOP_PACK_SWAB(INTEL_CNVX_TOP_TYPE(ver->cnvi_top),
+					INTEL_CNVX_TOP_STEP(ver->cnvi_top));
+
+	cnvr = INTEL_CNVX_TOP_PACK_SWAB(INTEL_CNVX_TOP_TYPE(ver->cnvr_top),
+					INTEL_CNVX_TOP_STEP(ver->cnvr_top));
+
+	format = "intel/ibt-%04x-%04x-iml.%s";
+	snprintf(fw_name, len, format, cnvi, cnvr, suffix);
 }
 
 static int btintel_prepare_fw_download_tlv(struct hci_dev *hdev,
@@ -2164,7 +2199,7 @@ static int btintel_prepare_fw_download_tlv(struct hci_dev *hdev,
 					   u32 *boot_param)
 {
 	const struct firmware *fw;
-	char fwname[64];
+	char fwname[128];
 	int err;
 	ktime_t calltime;
 
@@ -2199,7 +2234,20 @@ static int btintel_prepare_fw_download_tlv(struct hci_dev *hdev,
 		}
 	}
 
-	btintel_get_fw_name_tlv(ver, fwname, sizeof(fwname), "sfi");
+	if (ver->img_type == BTINTEL_IMG_OP) {
+		/* Controller running OP image. In case of FW downgrade,
+		 * FWID TLV may not be present and driver may attempt to load
+		 * firmware image which doesn't exist. Lets compare the version
+		 * of IML image
+		 */
+		if ((ver->cnvi_top & 0xfff) >= BTINTEL_CNVI_BLAZARI)
+			btintel_get_iml_tlv(ver, fwname, sizeof(fwname), "sfi");
+		else
+			btintel_get_fw_name_tlv(ver, fwname, sizeof(fwname), "sfi");
+	} else {
+		btintel_get_fw_name_tlv(ver, fwname, sizeof(fwname), "sfi");
+	}
+
 	err = firmware_request_nowarn(&fw, fwname, &hdev->dev);
 	if (err < 0) {
 		if (!btintel_test_flag(hdev, INTEL_BOOTLOADER)) {
