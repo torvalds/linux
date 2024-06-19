@@ -1725,7 +1725,8 @@ static int xe_oa_user_extensions(struct xe_oa *oa, u64 extension, int ext_number
  */
 int xe_oa_stream_open_ioctl(struct drm_device *dev, u64 data, struct drm_file *file)
 {
-	struct xe_oa *oa = &to_xe_device(dev)->oa;
+	struct xe_device *xe = to_xe_device(dev);
+	struct xe_oa *oa = &xe->oa;
 	struct xe_file *xef = to_xe_file(file);
 	struct xe_oa_open_param param = {};
 	const struct xe_oa_format *f;
@@ -1733,7 +1734,7 @@ int xe_oa_stream_open_ioctl(struct drm_device *dev, u64 data, struct drm_file *f
 	int ret;
 
 	if (!oa->xe) {
-		drm_dbg(&oa->xe->drm, "xe oa interface not available for this system\n");
+		drm_dbg(&xe->drm, "xe oa interface not available for this system\n");
 		return -ENODEV;
 	}
 
@@ -2005,7 +2006,8 @@ static int create_dynamic_oa_sysfs_entry(struct xe_oa *oa,
  */
 int xe_oa_add_config_ioctl(struct drm_device *dev, u64 data, struct drm_file *file)
 {
-	struct xe_oa *oa = &to_xe_device(dev)->oa;
+	struct xe_device *xe = to_xe_device(dev);
+	struct xe_oa *oa = &xe->oa;
 	struct drm_xe_oa_config param;
 	struct drm_xe_oa_config *arg = &param;
 	struct xe_oa_config *oa_config, *tmp;
@@ -2013,7 +2015,7 @@ int xe_oa_add_config_ioctl(struct drm_device *dev, u64 data, struct drm_file *fi
 	int err, id;
 
 	if (!oa->xe) {
-		drm_dbg(&oa->xe->drm, "xe oa interface not available for this system\n");
+		drm_dbg(&xe->drm, "xe oa interface not available for this system\n");
 		return -ENODEV;
 	}
 
@@ -2106,13 +2108,14 @@ reg_err:
  */
 int xe_oa_remove_config_ioctl(struct drm_device *dev, u64 data, struct drm_file *file)
 {
-	struct xe_oa *oa = &to_xe_device(dev)->oa;
+	struct xe_device *xe = to_xe_device(dev);
+	struct xe_oa *oa = &xe->oa;
 	struct xe_oa_config *oa_config;
 	u64 arg, *ptr = u64_to_user_ptr(data);
 	int ret;
 
 	if (!oa->xe) {
-		drm_dbg(&oa->xe->drm, "xe oa interface not available for this system\n");
+		drm_dbg(&xe->drm, "xe oa interface not available for this system\n");
 		return -ENODEV;
 	}
 
