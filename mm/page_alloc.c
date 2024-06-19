@@ -5242,7 +5242,7 @@ static void build_zonelists_in_node_order(pg_data_t *pgdat, int *node_order,
 }
 
 /*
- * Build gfp_thisnode zonelists
+ * Build __GFP_THISNODE zonelists
  */
 static void build_thisnode_zonelists(pg_data_t *pgdat)
 {
