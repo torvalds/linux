@@ -6,6 +6,7 @@
 
 #include <net/mac80211.h>
 #include <linux/etherdevice.h>
+
 #include "mac.h"
 #include "core.h"
 #include "debug.h"

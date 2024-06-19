@@ -5,6 +5,10 @@
  */
 
 #include <linux/delay.h>
+#include <linux/inetdevice.h>
+#include <net/addrconf.h>
+#include <net/if_inet6.h>
+#include <net/ipv6.h>
 
 #include "mac.h"
 
@@ -599,6 +603,179 @@ static int ath12k_wow_clear_hw_filter(struct ath12k *ar)
 	return 0;
 }
 
+static void ath12k_wow_generate_ns_mc_addr(struct ath12k_base *ab,
+					   struct wmi_arp_ns_offload_arg *offload)
+{
+	int i;
+
+	for (i = 0; i < offload->ipv6_count; i++) {
+		offload->self_ipv6_addr[i][0] = 0xff;
+		offload->self_ipv6_addr[i][1] = 0x02;
+		offload->self_ipv6_addr[i][11] = 0x01;
+		offload->self_ipv6_addr[i][12] = 0xff;
+		offload->self_ipv6_addr[i][13] =
+					offload->ipv6_addr[i][13];
+		offload->self_ipv6_addr[i][14] =
+					offload->ipv6_addr[i][14];
+		offload->self_ipv6_addr[i][15] =
+					offload->ipv6_addr[i][15];
+		ath12k_dbg(ab, ATH12K_DBG_WOW, "NS solicited addr %pI6\n",
+			   offload->self_ipv6_addr[i]);
+	}
+}
+
+static void ath12k_wow_prepare_ns_offload(struct ath12k_vif *arvif,
+					  struct wmi_arp_ns_offload_arg *offload)
+{
+	struct net_device *ndev = ieee80211_vif_to_wdev(arvif->vif)->netdev;
+	struct ath12k_base *ab = arvif->ar->ab;
+	struct inet6_ifaddr *ifa6;
+	struct ifacaddr6 *ifaca6;
+	struct inet6_dev *idev;
+	u32 count = 0, scope;
+
+	if (!ndev)
+		return;
+
+	idev = in6_dev_get(ndev);
+	if (!idev)
+		return;
+
+	ath12k_dbg(ab, ATH12K_DBG_WOW, "wow prepare ns offload\n");
+
+	read_lock_bh(&idev->lock);
+
+	/* get unicast address */
+	list_for_each_entry(ifa6, &idev->addr_list, if_list) {
+		if (count >= WMI_IPV6_MAX_COUNT)
+			goto unlock;
+
+		if (ifa6->flags & IFA_F_DADFAILED)
+			continue;
+
+		scope = ipv6_addr_src_scope(&ifa6->addr);
+		if (scope != IPV6_ADDR_SCOPE_LINKLOCAL &&
+		    scope != IPV6_ADDR_SCOPE_GLOBAL) {
+			ath12k_dbg(ab, ATH12K_DBG_WOW,
+				   "Unsupported ipv6 scope: %d\n", scope);
+			continue;
+		}
+
+		memcpy(offload->ipv6_addr[count], &ifa6->addr.s6_addr,
+		       sizeof(ifa6->addr.s6_addr));
+		offload->ipv6_type[count] = WMI_IPV6_UC_TYPE;
+		ath12k_dbg(ab, ATH12K_DBG_WOW, "mac count %d ipv6 uc %pI6 scope %d\n",
+			   count, offload->ipv6_addr[count],
+			   scope);
+		count++;
+	}
+
+	/* get anycast address */
+	rcu_read_lock();
+
+	for (ifaca6 = rcu_dereference(idev->ac_list); ifaca6;
+	     ifaca6 = rcu_dereference(ifaca6->aca_next)) {
+		if (count >= WMI_IPV6_MAX_COUNT) {
+			rcu_read_unlock();
+			goto unlock;
+		}
+
+		scope = ipv6_addr_src_scope(&ifaca6->aca_addr);
+		if (scope != IPV6_ADDR_SCOPE_LINKLOCAL &&
+		    scope != IPV6_ADDR_SCOPE_GLOBAL) {
+			ath12k_dbg(ab, ATH12K_DBG_WOW,
+				   "Unsupported ipv scope: %d\n", scope);
+			continue;
+		}
+
+		memcpy(offload->ipv6_addr[count], &ifaca6->aca_addr,
+		       sizeof(ifaca6->aca_addr));
+		offload->ipv6_type[count] = WMI_IPV6_AC_TYPE;
+		ath12k_dbg(ab, ATH12K_DBG_WOW, "mac count %d ipv6 ac %pI6 scope %d\n",
+			   count, offload->ipv6_addr[count],
+			   scope);
+		count++;
+	}
+
+	rcu_read_unlock();
+
+unlock:
+	read_unlock_bh(&idev->lock);
+
+	in6_dev_put(idev);
+
+	offload->ipv6_count = count;
+	ath12k_wow_generate_ns_mc_addr(ab, offload);
+}
+
+static void ath12k_wow_prepare_arp_offload(struct ath12k_vif *arvif,
+					   struct wmi_arp_ns_offload_arg *offload)
+{
+	struct ieee80211_vif *vif = arvif->vif;
+	struct ieee80211_vif_cfg vif_cfg = vif->cfg;
+	struct ath12k_base *ab = arvif->ar->ab;
+	u32 ipv4_cnt;
+
+	ath12k_dbg(ab, ATH12K_DBG_WOW, "wow prepare arp offload\n");
+
+	ipv4_cnt = min(vif_cfg.arp_addr_cnt, WMI_IPV4_MAX_COUNT);
+	memcpy(offload->ipv4_addr, vif_cfg.arp_addr_list, ipv4_cnt * sizeof(u32));
+	offload->ipv4_count = ipv4_cnt;
+
+	ath12k_dbg(ab, ATH12K_DBG_WOW,
+		   "wow arp_addr_cnt %d vif->addr %pM, offload_addr %pI4\n",
+		   vif_cfg.arp_addr_cnt, vif->addr, offload->ipv4_addr);
+}
+
+static int ath12k_wow_arp_ns_offload(struct ath12k *ar, bool enable)
+{
+	struct wmi_arp_ns_offload_arg *offload;
+	struct ath12k_vif *arvif;
+	int ret;
+
+	lockdep_assert_held(&ar->conf_mutex);
+
+	offload = kmalloc(sizeof(*offload), GFP_KERNEL);
+	if (!offload)
+		return -ENOMEM;
+
+	list_for_each_entry(arvif, &ar->arvifs, list) {
+		if (arvif->vdev_type != WMI_VDEV_TYPE_STA)
+			continue;
+
+		memset(offload, 0, sizeof(*offload));
+
+		memcpy(offload->mac_addr, arvif->vif->addr, ETH_ALEN);
+		ath12k_wow_prepare_ns_offload(arvif, offload);
+		ath12k_wow_prepare_arp_offload(arvif, offload);
+
+		ret = ath12k_wmi_arp_ns_offload(ar, arvif, offload, enable);
+		if (ret) {
+			ath12k_warn(ar->ab, "failed to set arp ns offload vdev %i: enable %d, ret %d\n",
+				    arvif->vdev_id, enable, ret);
+			return ret;
+		}
+	}
+
+	kfree(offload);
+
+	return 0;
+}
+
+static int ath12k_wow_protocol_offload(struct ath12k *ar, bool enable)
+{
+	int ret;
+
+	ret = ath12k_wow_arp_ns_offload(ar, enable);
+	if (ret) {
+		ath12k_warn(ar->ab, "failed to offload ARP and NS %d %d\n",
+			    enable, ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 int ath12k_wow_op_suspend(struct ieee80211_hw *hw,
 			  struct cfg80211_wowlan *wowlan)
 {
@@ -618,6 +795,13 @@ int ath12k_wow_op_suspend(struct ieee80211_hw *hw,
 	ret = ath12k_wow_set_wakeups(ar, wowlan);
 	if (ret) {
 		ath12k_warn(ar->ab, "failed to set wow wakeup events: %d\n",
+			    ret);
+		goto cleanup;
+	}
+
+	ret = ath12k_wow_protocol_offload(ar, true);
+	if (ret) {
+		ath12k_warn(ar->ab, "failed to set wow protocol offload events: %d\n",
 			    ret);
 		goto cleanup;
 	}
@@ -705,6 +889,13 @@ int ath12k_wow_op_resume(struct ieee80211_hw *hw)
 	ret = ath12k_wow_clear_hw_filter(ar);
 	if (ret) {
 		ath12k_warn(ar->ab, "failed to clear hw filter: %d\n", ret);
+		goto exit;
+	}
+
+	ret = ath12k_wow_protocol_offload(ar, false);
+	if (ret) {
+		ath12k_warn(ar->ab, "failed to clear wow protocol offload events: %d\n",
+			    ret);
 		goto exit;
 	}
 
