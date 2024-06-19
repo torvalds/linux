@@ -341,6 +341,9 @@ enum {
 enum {
 	/* do not send FLUSH/FUA commands despite advertising a write cache */
 	BLK_FLAG_WRITE_CACHE_DISABLED		= (1u << 0),
+
+	/* I/O topology is misaligned */
+	BLK_FEAT_MISALIGNED			= (1u << 1),
 };
 
 struct queue_limits {
@@ -374,7 +377,6 @@ struct queue_limits {
 	unsigned short		max_integrity_segments;
 	unsigned short		max_discard_segments;
 
-	unsigned char		misaligned;
 	unsigned char		discard_misaligned;
 	unsigned char		raid_partial_stripes_expensive;
 	unsigned int		max_open_zones;
