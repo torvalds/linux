@@ -59,9 +59,9 @@ class aarch64_page_ops():
         if str(constants.LX_CONFIG_ARCH_FORCE_MAX_ORDER).isdigit():
             self.MAX_ORDER = constants.LX_CONFIG_ARCH_FORCE_MAX_ORDER
         else:
-            self.MAX_ORDER = 11
+            self.MAX_ORDER = 10
 
-        self.MAX_ORDER_NR_PAGES = 1 << (self.MAX_ORDER - 1)
+        self.MAX_ORDER_NR_PAGES = 1 << (self.MAX_ORDER)
         self.PFN_SECTION_SHIFT = self.SECTION_SIZE_BITS - self.PAGE_SHIFT
         self.NR_MEM_SECTIONS = 1 << self.SECTIONS_SHIFT
         self.PAGES_PER_SECTION = 1 << self.PFN_SECTION_SHIFT
