@@ -1191,6 +1191,7 @@ static int ionic_adminq_napi(struct napi_struct *napi, int budget)
 	if (lif->adminqcq && lif->adminqcq->flags & IONIC_QCQ_F_INITED)
 		a_work = ionic_cq_service(&lif->adminqcq->cq, budget,
 					  ionic_adminq_service, NULL, NULL);
+
 	spin_unlock_irqrestore(&lif->adminq_lock, irqflags);
 
 	if (lif->hwstamp_rxq)
@@ -3406,6 +3407,7 @@ int ionic_restart_lif(struct ionic_lif *lif)
 	clear_bit(IONIC_LIF_F_FW_RESET, lif->state);
 	ionic_link_status_check_request(lif, CAN_SLEEP);
 	netif_device_attach(lif->netdev);
+	ionic_queue_doorbell_check(ionic, IONIC_NAPI_DEADLINE);
 
 	return 0;
 
