@@ -2385,7 +2385,7 @@ int xe_oa_init(struct xe_device *xe)
 	int ret;
 
 	/* Support OA only with GuC submission and Gen12+ */
-	if (XE_WARN_ON(!xe_device_uc_enabled(xe)) || XE_WARN_ON(GRAPHICS_VER(xe) < 12))
+	if (!xe_device_uc_enabled(xe) || GRAPHICS_VER(xe) < 12)
 		return 0;
 
 	oa->xe = xe;
