@@ -990,8 +990,9 @@ enum bch_version_upgrade_opts {
 
 #define BCH_ERROR_ACTIONS()		\
 	x(continue,		0)	\
-	x(ro,			1)	\
-	x(panic,		2)
+	x(fix_safe,		1)	\
+	x(panic,		2)	\
+	x(ro,			3)
 
 enum bch_error_actions {
 #define x(t, n) BCH_ON_ERROR_##t = n,
