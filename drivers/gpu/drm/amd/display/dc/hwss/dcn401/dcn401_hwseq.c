@@ -1088,6 +1088,17 @@ static bool dcn401_can_pipe_disable_cursor(struct pipe_ctx *pipe_ctx)
 	return false;
 }
 
+void adjust_hotspot_between_slices_for_2x_magnify(uint32_t cursor_width, struct dc_cursor_position *pos_cpy)
+{
+	if (cursor_width <= 128) {
+		pos_cpy->x_hotspot /= 2;
+		pos_cpy->x_hotspot += 1;
+	} else {
+		pos_cpy->x_hotspot /= 2;
+		pos_cpy->x_hotspot += 2;
+	}
+}
+
 void dcn401_set_cursor_position(struct pipe_ctx *pipe_ctx)
 {
 	struct dc_cursor_position pos_cpy = pipe_ctx->stream->cursor_position;
@@ -1109,11 +1120,20 @@ void dcn401_set_cursor_position(struct pipe_ctx *pipe_ctx)
 	int prev_odm_width = 0;
 	int prev_odm_offset = 0;
 	struct pipe_ctx *prev_odm_pipe = NULL;
+	bool mpc_combine_on = false;
+	int  bottom_pipe_x_pos = 0;
 
 	int x_pos = pos_cpy.x;
 	int y_pos = pos_cpy.y;
 	int recout_x_pos = 0;
 	int recout_y_pos = 0;
+
+	if ((pipe_ctx->top_pipe != NULL) || (pipe_ctx->bottom_pipe != NULL)) {
+		if ((pipe_ctx->plane_state->src_rect.width != pipe_ctx->plane_res.scl_data.viewport.width) ||
+			(pipe_ctx->plane_state->src_rect.height != pipe_ctx->plane_res.scl_data.viewport.height)) {
+			mpc_combine_on = true;
+		}
+	}
 
 	/* DCN4 moved cursor composition after Scaler, so in HW it is in
 	 * recout space and for HW Cursor position programming need to
@@ -1177,21 +1197,30 @@ void dcn401_set_cursor_position(struct pipe_ctx *pipe_ctx)
 
 	if (x_pos < 0) {
 		pos_cpy.x_hotspot -= x_pos;
-		if ((odm_combine_on) && (hubp->curs_attr.attribute_flags.bits.ENABLE_MAGNIFICATION)) {
-			if (hubp->curs_attr.width <= 128) {
-				pos_cpy.x_hotspot /= 2;
-				pos_cpy.x_hotspot += 1;
-			} else {
-				pos_cpy.x_hotspot /= 2;
-				pos_cpy.x_hotspot += 2;
-			}
-		}
+		if (hubp->curs_attr.attribute_flags.bits.ENABLE_MAGNIFICATION)
+			adjust_hotspot_between_slices_for_2x_magnify(hubp->curs_attr.width, &pos_cpy);
 		x_pos = 0;
 	}
 
 	if (y_pos < 0) {
 		pos_cpy.y_hotspot -= y_pos;
 		y_pos = 0;
+	}
+
+	/* If the position on bottom MPC pipe is negative then we need to add to the hotspot and
+	 * adjust x_pos on bottom pipe to make cursor visible when crossing between MPC slices.
+	 */
+	if (mpc_combine_on &&
+		pipe_ctx->top_pipe &&
+		(pipe_ctx == pipe_ctx->top_pipe->bottom_pipe)) {
+
+		bottom_pipe_x_pos = x_pos - pipe_ctx->plane_res.scl_data.recout.x;
+		if (bottom_pipe_x_pos < 0) {
+			x_pos = pipe_ctx->plane_res.scl_data.recout.x;
+			pos_cpy.x_hotspot -= bottom_pipe_x_pos;
+			if (hubp->curs_attr.attribute_flags.bits.ENABLE_MAGNIFICATION)
+				adjust_hotspot_between_slices_for_2x_magnify(hubp->curs_attr.width, &pos_cpy);
+		}
 	}
 
 	pos_cpy.x = (uint32_t)x_pos;
