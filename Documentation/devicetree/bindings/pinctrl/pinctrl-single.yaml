@@ -144,6 +144,13 @@ patternProperties:
           - description: drive strength mask
 
       pinctrl-single,input-schmitt:
+        description: Optional schmitt strength configuration
+        $ref: /schemas/types.yaml#/definitions/uint32-array
+        items:
+          - description: schmitt strength current
+          - description: schmitt strength mask
+
+      pinctrl-single,input-schmitt-enable:
         description: Optional input schmitt configuration
         $ref: /schemas/types.yaml#/definitions/uint32-array
         items:
