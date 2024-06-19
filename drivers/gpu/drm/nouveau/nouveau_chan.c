@@ -424,25 +424,24 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 	}
 
 	/* initialise dma tracking parameters */
-	switch (chan->user.oclass) {
-	case NV03_CHANNEL_DMA:
-	case NV10_CHANNEL_DMA:
-	case NV17_CHANNEL_DMA:
-	case NV40_CHANNEL_DMA:
+	if (chan->user.oclass < NV50_CHANNEL_GPFIFO) {
 		chan->user_put = 0x40;
 		chan->user_get = 0x44;
 		chan->dma.max = (0x10000 / 4) - 2;
-		break;
-	default:
-		chan->user_put = 0x40;
-		chan->user_get = 0x44;
-		chan->user_get_hi = 0x60;
-		chan->dma.ib_base =  0x10000 / 4;
-		chan->dma.ib_max  = NV50_DMA_IB_MAX;
-		chan->dma.ib_put  = 0;
-		chan->dma.ib_free = chan->dma.ib_max - chan->dma.ib_put;
-		chan->dma.max = chan->dma.ib_base;
-		break;
+	} else
+	if (chan->user.oclass < VOLTA_CHANNEL_GPFIFO_A) {
+		ret = nvif_chan506f_ctor(&chan->chan, chan->userd->map.ptr,
+					 (u8*)chan->push.buffer->kmap.virtual + 0x10000, 0x2000,
+					 chan->push.buffer->kmap.virtual, chan->push.addr, 0x10000);
+		if (ret)
+			return ret;
+	} else {
+		ret = nvif_chanc36f_ctor(&chan->chan, chan->userd->map.ptr,
+					 (u8*)chan->push.buffer->kmap.virtual + 0x10000, 0x2000,
+					 chan->push.buffer->kmap.virtual, chan->push.addr, 0x10000,
+					 &drm->client.device.user, chan->token);
+		if (ret)
+			return ret;
 	}
 
 	chan->dma.put = 0;

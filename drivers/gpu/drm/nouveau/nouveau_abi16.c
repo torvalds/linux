@@ -416,7 +416,7 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 	 */
 	if (nouveau_cli_uvmm(cli)) {
 		ret = nouveau_sched_create(&chan->sched, drm, drm->sched_wq,
-					   chan->chan->dma.ib_max);
+					   chan->chan->chan.gpfifo.max);
 		if (ret)
 			goto done;
 	}

@@ -3,13 +3,11 @@
 #define __NOUVEAU_CHAN_H__
 #include <nvif/object.h>
 #include <nvif/event.h>
-#include <nvif/push.h>
+#include <nvif/chan.h>
 struct nvif_device;
 
 struct nouveau_channel {
-	struct {
-		struct nvif_push push;
-	} chan;
+	struct nvif_chan chan;
 
 	struct nouveau_cli *cli;
 	struct nouveau_vmm *vmm;
@@ -41,12 +39,7 @@ struct nouveau_channel {
 		int free;
 		int cur;
 		int put;
-		int ib_base;
-		int ib_max;
-		int ib_free;
-		int ib_put;
 	} dma;
-	u32 user_get_hi;
 	u32 user_get;
 	u32 user_put;
 
