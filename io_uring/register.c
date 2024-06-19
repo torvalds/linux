@@ -39,9 +39,10 @@ static __cold int io_probe(struct io_ring_ctx *ctx, void __user *arg,
 	size_t size;
 	int i, ret;
 
+	if (nr_args > IORING_OP_LAST)
+		nr_args = IORING_OP_LAST;
+
 	size = struct_size(p, ops, nr_args);
-	if (size == SIZE_MAX)
-		return -EOVERFLOW;
 	p = kzalloc(size, GFP_KERNEL);
 	if (!p)
 		return -ENOMEM;
@@ -54,8 +55,6 @@ static __cold int io_probe(struct io_ring_ctx *ctx, void __user *arg,
 		goto out;
 
 	p->last_op = IORING_OP_LAST - 1;
-	if (nr_args > IORING_OP_LAST)
-		nr_args = IORING_OP_LAST;
 
 	for (i = 0; i < nr_args; i++) {
 		p->ops[i].op = i;
