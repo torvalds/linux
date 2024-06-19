@@ -461,7 +461,7 @@ static const struct regmap_range_cfg spd5118_i2c_regmap_range_cfg[] = {
 	},
 };
 
-static const struct regmap_config spd5118_i2c_regmap_config = {
+static const struct regmap_config spd5118_regmap8_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = 0x7ff,
@@ -471,6 +471,15 @@ static const struct regmap_config spd5118_i2c_regmap_config = {
 
 	.ranges = spd5118_i2c_regmap_range_cfg,
 	.num_ranges = ARRAY_SIZE(spd5118_i2c_regmap_range_cfg),
+};
+
+static const struct regmap_config spd5118_regmap16_config = {
+	.reg_bits = 16,
+	.val_bits = 8,
+	.max_register = 0x7ff,
+	.writeable_reg = spd5118_writeable_reg,
+	.volatile_reg = spd5118_volatile_reg,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static int spd5118_suspend(struct device *dev)
@@ -510,7 +519,8 @@ static int spd5118_resume(struct device *dev)
 
 static DEFINE_SIMPLE_DEV_PM_OPS(spd5118_pm_ops, spd5118_suspend, spd5118_resume);
 
-static int spd5118_common_probe(struct device *dev, struct regmap *regmap)
+static int spd5118_common_probe(struct device *dev, struct regmap *regmap,
+				bool is_16bit)
 {
 	unsigned int capability, revision, vendor, bank;
 	struct spd5118_data *data;
@@ -527,12 +537,7 @@ static int spd5118_common_probe(struct device *dev, struct regmap *regmap)
 	if (!(capability & SPD5118_CAP_TS_SUPPORT))
 		return -ENODEV;
 
-	/*
-	 * 16-bit register addresses are not (yet) supported with I2C.
-	 * Therefore, if this is an I2C device, register addresses must be
-	 * 8 bit wide.
-	 */
-	data->is_16bit = !!i2c_verify_adapter(dev);
+	data->is_16bit = is_16bit;
 
 	err = regmap_read(regmap, SPD5118_REG_REVISION, &revision);
 	if (err)
@@ -675,21 +680,69 @@ static int spd5118_i2c_init(struct i2c_client *client)
 	return 0;
 }
 
+/*
+ * 16-bit addressing note:
+ *
+ * If I2C_FUNC_I2C is not supported by an I2C adapter driver, regmap uses
+ * SMBus operations as alternative. To simulate a read operation with a 16-bit
+ * address, it writes the address using i2c_smbus_write_byte_data(), followed
+ * by one or more calls to i2c_smbus_read_byte() to read the data.
+ * Per spd5118 standard, a read operation after writing the address must start
+ * with <Sr> (Repeat Start). However, a SMBus read byte operation starts with
+ * <S> (Start). This resets the register address in the spd5118 chip. As result,
+ * i2c_smbus_read_byte() always returns data from register address 0x00.
+ *
+ * A working alternative to access chips with 16-bit register addresses in the
+ * absence of I2C_FUNC_I2C support is not known.
+ *
+ * For this reason, 16-bit addressing can only be supported with I2C if the
+ * adapter supports I2C_FUNC_I2C.
+ *
+ * For I2C, the addressing mode selected by the BIOS must not be changed.
+ * Experiments show that at least some PC BIOS versions will not change the
+ * addressing mode on a soft reboot and end up in setup, claiming that some
+ * configuration change happened. This will happen again after a power cycle,
+ * which does reset the addressing mode. To prevent this from happening,
+ * detect if 16-bit addressing is enabled and always use the currently
+ * configured addressing mode.
+ */
+
 static int spd5118_i2c_probe(struct i2c_client *client)
 {
+	const struct regmap_config *config;
 	struct device *dev = &client->dev;
 	struct regmap *regmap;
-	int err;
+	int err, mode;
+	bool is_16bit;
 
 	err = spd5118_i2c_init(client);
 	if (err)
 		return err;
 
-	regmap = devm_regmap_init_i2c(client, &spd5118_i2c_regmap_config);
+	mode = i2c_smbus_read_byte_data(client, SPD5118_REG_I2C_LEGACY_MODE);
+	if (mode < 0)
+		return mode;
+
+	is_16bit = mode & SPD5118_LEGACY_MODE_ADDR;
+	if (is_16bit) {
+		/*
+		 * See 16-bit addressing note above explaining why it is
+		 * necessary to check for I2C_FUNC_I2C support here.
+		 */
+		if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
+			dev_err(dev, "Adapter does not support 16-bit register addresses\n");
+			return -ENODEV;
+		}
+		config = &spd5118_regmap16_config;
+	} else {
+		config = &spd5118_regmap8_config;
+	}
+
+	regmap = devm_regmap_init_i2c(client, config);
 	if (IS_ERR(regmap))
 		return dev_err_probe(dev, PTR_ERR(regmap), "regmap init failed\n");
 
-	return spd5118_common_probe(dev, regmap);
+	return spd5118_common_probe(dev, regmap, is_16bit);
 }
 
 static const struct i2c_device_id spd5118_i2c_id[] = {
