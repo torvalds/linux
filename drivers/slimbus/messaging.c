@@ -171,6 +171,9 @@ int slim_do_transfer(struct slim_controller *ctrl, struct slim_msg_txn *txn)
 
 	ret = ctrl->xfer_msg(ctrl, txn);
 
+	if (ret == -ETIMEDOUT)
+		slim_free_txn_tid(ctrl, txn);
+
 	if (!ret && need_tid && !txn->msg->comp) {
 		unsigned long ms = txn->rl + HZ;
 
