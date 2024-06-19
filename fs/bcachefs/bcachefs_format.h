@@ -468,18 +468,6 @@ struct bch_backpointer {
 	struct bpos		pos;
 } __packed __aligned(8);
 
-/* LRU btree: */
-
-struct bch_lru {
-	struct bch_val		v;
-	__le64			idx;
-} __packed __aligned(8);
-
-#define LRU_ID_STRIPES		(1U << 16)
-
-#define LRU_TIME_BITS	48
-#define LRU_TIME_MAX	((1ULL << LRU_TIME_BITS) - 1)
-
 /* Optional/variable size superblock sections: */
 
 struct bch_sb_field {
@@ -516,6 +504,7 @@ struct bch_sb_field {
 #include "inode_format.h"
 #include "journal_seq_blacklist_format.h"
 #include "logged_ops_format.h"
+#include "lru_format.h"
 #include "quota_format.h"
 #include "reflink_format.h"
 #include "replicas_format.h"
