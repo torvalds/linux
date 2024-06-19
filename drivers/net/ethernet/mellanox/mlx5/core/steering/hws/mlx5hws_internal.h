@@ -5,13 +5,13 @@
 #define MLX5HWS_INTERNAL_H_
 
 #include <linux/mlx5/transobj.h>
-
-#include "../dr_types.h"
+#include <linux/mlx5/vport.h>
+#include "fs_core.h"
+#include "wq.h"
+#include "lib/mlx5.h"
 
 #include "mlx5hws_prm.h"
-
 #include "mlx5hws.h"
-
 #include "mlx5hws_pool.h"
 #include "mlx5hws_vport.h"
 #include "mlx5hws_context.h"
