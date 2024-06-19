@@ -186,6 +186,7 @@ static void __exit mips_poly1305_mod_exit(void)
 module_init(mips_poly1305_mod_init);
 module_exit(mips_poly1305_mod_exit);
 
+MODULE_DESCRIPTION("Poly1305 transform (MIPS accelerated");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS_CRYPTO("poly1305");
 MODULE_ALIAS_CRYPTO("poly1305-mips");
