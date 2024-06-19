@@ -365,8 +365,8 @@ static void handle_removed_pt(struct kvm *kvm, tdp_ptep_t pt, bool shared)
 			 * value to the removed SPTE value.
 			 */
 			for (;;) {
-				old_spte = kvm_tdp_mmu_write_spte_atomic(sptep, REMOVED_SPTE);
-				if (!is_removed_spte(old_spte))
+				old_spte = kvm_tdp_mmu_write_spte_atomic(sptep, FROZEN_SPTE);
+				if (!is_frozen_spte(old_spte))
 					break;
 				cpu_relax();
 			}
@@ -397,11 +397,11 @@ static void handle_removed_pt(struct kvm *kvm, tdp_ptep_t pt, bool shared)
 			 * No retry is needed in the atomic update path as the
 			 * sole concern is dropping a Dirty bit, i.e. no other
 			 * task can zap/remove the SPTE as mmu_lock is held for
-			 * write.  Marking the SPTE as a removed SPTE is not
+			 * write.  Marking the SPTE as a frozen SPTE is not
 			 * strictly necessary for the same reason, but using
-			 * the remove SPTE value keeps the shared/exclusive
+			 * the frozen SPTE value keeps the shared/exclusive
 			 * paths consistent and allows the handle_changed_spte()
-			 * call below to hardcode the new value to REMOVED_SPTE.
+			 * call below to hardcode the new value to FROZEN_SPTE.
 			 *
 			 * Note, even though dropping a Dirty bit is the only
 			 * scenario where a non-atomic update could result in a
@@ -413,10 +413,10 @@ static void handle_removed_pt(struct kvm *kvm, tdp_ptep_t pt, bool shared)
 			 * it here.
 			 */
 			old_spte = kvm_tdp_mmu_write_spte(sptep, old_spte,
-							  REMOVED_SPTE, level);
+							  FROZEN_SPTE, level);
 		}
 		handle_changed_spte(kvm, kvm_mmu_page_as_id(sp), gfn,
-				    old_spte, REMOVED_SPTE, level, shared);
+				    old_spte, FROZEN_SPTE, level, shared);
 	}
 
 	call_rcu(&sp->rcu_head, tdp_mmu_free_sp_rcu_callback);
@@ -490,19 +490,19 @@ static void handle_changed_spte(struct kvm *kvm, int as_id, gfn_t gfn,
 	 */
 	if (!was_present && !is_present) {
 		/*
-		 * If this change does not involve a MMIO SPTE or removed SPTE,
+		 * If this change does not involve a MMIO SPTE or frozen SPTE,
 		 * it is unexpected. Log the change, though it should not
 		 * impact the guest since both the former and current SPTEs
 		 * are nonpresent.
 		 */
 		if (WARN_ON_ONCE(!is_mmio_spte(kvm, old_spte) &&
 				 !is_mmio_spte(kvm, new_spte) &&
-				 !is_removed_spte(new_spte)))
+				 !is_frozen_spte(new_spte)))
 			pr_err("Unexpected SPTE change! Nonpresent SPTEs\n"
 			       "should not be replaced with another,\n"
 			       "different nonpresent SPTE, unless one or both\n"
 			       "are MMIO SPTEs, or the new SPTE is\n"
-			       "a temporary removed SPTE.\n"
+			       "a temporary frozen SPTE.\n"
 			       "as_id: %d gfn: %llx old_spte: %llx new_spte: %llx level: %d",
 			       as_id, gfn, old_spte, new_spte, level);
 		return;
@@ -541,7 +541,7 @@ static inline int __must_check __tdp_mmu_set_spte_atomic(struct tdp_iter *iter,
 	 * and pre-checking before inserting a new SPTE is advantageous as it
 	 * avoids unnecessary work.
 	 */
-	WARN_ON_ONCE(iter->yielded || is_removed_spte(iter->old_spte));
+	WARN_ON_ONCE(iter->yielded || is_frozen_spte(iter->old_spte));
 
 	/*
 	 * Note, fast_pf_fix_direct_spte() can also modify TDP MMU SPTEs and
@@ -604,26 +604,26 @@ static inline int __must_check tdp_mmu_zap_spte_atomic(struct kvm *kvm,
 	 * in its place before the TLBs are flushed.
 	 *
 	 * Delay processing of the zapped SPTE until after TLBs are flushed and
-	 * the REMOVED_SPTE is replaced (see below).
+	 * the FROZEN_SPTE is replaced (see below).
 	 */
-	ret = __tdp_mmu_set_spte_atomic(iter, REMOVED_SPTE);
+	ret = __tdp_mmu_set_spte_atomic(iter, FROZEN_SPTE);
 	if (ret)
 		return ret;
 
 	kvm_flush_remote_tlbs_gfn(kvm, iter->gfn, iter->level);
 
 	/*
-	 * No other thread can overwrite the removed SPTE as they must either
+	 * No other thread can overwrite the frozen SPTE as they must either
 	 * wait on the MMU lock or use tdp_mmu_set_spte_atomic() which will not
-	 * overwrite the special removed SPTE value. Use the raw write helper to
+	 * overwrite the special frozen SPTE value. Use the raw write helper to
 	 * avoid an unnecessary check on volatile bits.
 	 */
 	__kvm_tdp_mmu_write_spte(iter->sptep, SHADOW_NONPRESENT_VALUE);
 
 	/*
 	 * Process the zapped SPTE after flushing TLBs, and after replacing
-	 * REMOVED_SPTE with 0. This minimizes the amount of time vCPUs are
-	 * blocked by the REMOVED_SPTE and reduces contention on the child
+	 * FROZEN_SPTE with 0. This minimizes the amount of time vCPUs are
+	 * blocked by the FROZEN_SPTE and reduces contention on the child
 	 * SPTEs.
 	 */
 	handle_changed_spte(kvm, iter->as_id, iter->gfn, iter->old_spte,
@@ -653,12 +653,12 @@ static u64 tdp_mmu_set_spte(struct kvm *kvm, int as_id, tdp_ptep_t sptep,
 
 	/*
 	 * No thread should be using this function to set SPTEs to or from the
-	 * temporary removed SPTE value.
+	 * temporary frozen SPTE value.
 	 * If operating under the MMU lock in read mode, tdp_mmu_set_spte_atomic
 	 * should be used. If operating under the MMU lock in write mode, the
-	 * use of the removed SPTE should not be necessary.
+	 * use of the frozen SPTE should not be necessary.
 	 */
-	WARN_ON_ONCE(is_removed_spte(old_spte) || is_removed_spte(new_spte));
+	WARN_ON_ONCE(is_frozen_spte(old_spte) || is_frozen_spte(new_spte));
 
 	old_spte = kvm_tdp_mmu_write_spte(sptep, old_spte, new_spte, level);
 
@@ -1127,7 +1127,7 @@ int kvm_tdp_mmu_map(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 		 * If SPTE has been frozen by another thread, just give up and
 		 * retry, avoiding unnecessary page table allocation and free.
 		 */
-		if (is_removed_spte(iter.old_spte))
+		if (is_frozen_spte(iter.old_spte))
 			goto retry;
 
 		if (iter.level == fault->goal_level)

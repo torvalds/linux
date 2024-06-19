@@ -3458,7 +3458,7 @@ static int fast_page_fault(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 		 * available as the vCPU holds a reference to its root(s).
 		 */
 		if (WARN_ON_ONCE(!sptep))
-			spte = REMOVED_SPTE;
+			spte = FROZEN_SPTE;
 
 		if (!is_shadow_present_pte(spte))
 			break;
