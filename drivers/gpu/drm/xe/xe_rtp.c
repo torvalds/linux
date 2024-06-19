@@ -13,6 +13,7 @@
 #include "xe_gt_topology.h"
 #include "xe_macros.h"
 #include "xe_reg_sr.h"
+#include "xe_sriov.h"
 
 /**
  * DOC: Register Table Processing
@@ -256,6 +257,9 @@ void xe_rtp_process_to_sr(struct xe_rtp_process_ctx *ctx,
 	struct xe_device *xe = NULL;
 
 	rtp_get_context(ctx, &hwe, &gt, &xe);
+
+	if (IS_SRIOV_VF(xe))
+		return;
 
 	for (entry = entries; entry && entry->name; entry++) {
 		bool match = false;
