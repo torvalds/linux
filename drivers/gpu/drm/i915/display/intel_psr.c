@@ -1523,6 +1523,9 @@ _panel_replay_compute_config(struct intel_dp *intel_dp,
 			     const struct drm_connector_state *conn_state)
 {
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+	struct intel_connector *connector =
+		to_intel_connector(conn_state->connector);
+	struct intel_hdcp *hdcp = &connector->hdcp;
 
 	if (!CAN_PANEL_REPLAY(intel_dp))
 		return false;
@@ -1541,6 +1544,17 @@ _panel_replay_compute_config(struct intel_dp *intel_dp,
 	if (intel_dp_is_uhbr(crtc_state)) {
 		drm_dbg_kms(&i915->drm,
 			    "Panel Replay is not supported with 128b/132b\n");
+		return false;
+	}
+
+	/* HW will not allow Panel Replay on eDP when HDCP enabled */
+	if (conn_state->content_protection ==
+	    DRM_MODE_CONTENT_PROTECTION_DESIRED ||
+	    (conn_state->content_protection ==
+	     DRM_MODE_CONTENT_PROTECTION_ENABLED && hdcp->value ==
+	     DRM_MODE_CONTENT_PROTECTION_UNDESIRED)) {
+		drm_dbg_kms(&i915->drm,
+			    "Panel Replay is not supported with HDCP\n");
 		return false;
 	}
 
