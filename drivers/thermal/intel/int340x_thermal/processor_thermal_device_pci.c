@@ -150,7 +150,7 @@ static irqreturn_t proc_thermal_irq_handler(int irq, void *devid)
 {
 	struct proc_thermal_pci *pci_info = devid;
 	struct proc_thermal_device *proc_priv;
-	int ret = IRQ_HANDLED;
+	int ret = IRQ_NONE;
 	u32 status;
 
 	proc_priv = pci_info->proc_priv;
@@ -175,6 +175,7 @@ static irqreturn_t proc_thermal_irq_handler(int irq, void *devid)
 		/* Disable enable interrupt flag */
 		proc_thermal_mmio_write(pci_info, PROC_THERMAL_MMIO_INT_ENABLE_0, 0);
 		pkg_thermal_schedule_work(&pci_info->work);
+		ret = IRQ_HANDLED;
 	}
 
 	pci_write_config_byte(pci_info->pdev, 0xdc, 0x01);
