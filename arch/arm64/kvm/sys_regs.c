@@ -2753,8 +2753,6 @@ static struct sys_reg_desc sys_insn_descs[] = {
 	{ SYS_DESC(SYS_DC_CIGDSW), access_dcgsw },
 };
 
-static const struct sys_reg_desc *first_idreg;
-
 static bool trap_dbgdidr(struct kvm_vcpu *vcpu,
 			struct sys_reg_params *p,
 			const struct sys_reg_desc *r)
@@ -3440,6 +3438,25 @@ static bool emulate_sys_reg(struct kvm_vcpu *vcpu,
 	return false;
 }
 
+static const struct sys_reg_desc *idregs_debug_find(struct kvm *kvm, u8 pos)
+{
+	unsigned long i, idreg_idx = 0;
+
+	for (i = 0; i < ARRAY_SIZE(sys_reg_descs); i++) {
+		const struct sys_reg_desc *r = &sys_reg_descs[i];
+
+		if (!is_vm_ftr_id_reg(reg_to_encoding(r)))
+			continue;
+
+		if (idreg_idx == pos)
+			return r;
+
+		idreg_idx++;
+	}
+
+	return NULL;
+}
+
 static void *idregs_debug_start(struct seq_file *s, loff_t *pos)
 {
 	struct kvm *kvm = s->private;
@@ -3451,7 +3468,7 @@ static void *idregs_debug_start(struct seq_file *s, loff_t *pos)
 	if (test_bit(KVM_ARCH_FLAG_ID_REGS_INITIALIZED, &kvm->arch.flags) &&
 	    *iter == (u8)~0) {
 		*iter = *pos;
-		if (*iter >= KVM_ARM_ID_REG_NUM)
+		if (!idregs_debug_find(kvm, *iter))
 			iter = NULL;
 	} else {
 		iter = ERR_PTR(-EBUSY);
@@ -3468,7 +3485,7 @@ static void *idregs_debug_next(struct seq_file *s, void *v, loff_t *pos)
 
 	(*pos)++;
 
-	if ((kvm->arch.idreg_debugfs_iter + 1) < KVM_ARM_ID_REG_NUM) {
+	if (idregs_debug_find(kvm, kvm->arch.idreg_debugfs_iter + 1)) {
 		kvm->arch.idreg_debugfs_iter++;
 
 		return &kvm->arch.idreg_debugfs_iter;
@@ -3493,10 +3510,10 @@ static void idregs_debug_stop(struct seq_file *s, void *v)
 
 static int idregs_debug_show(struct seq_file *s, void *v)
 {
-	struct kvm *kvm = s->private;
 	const struct sys_reg_desc *desc;
+	struct kvm *kvm = s->private;
 
-	desc = first_idreg + kvm->arch.idreg_debugfs_iter;
+	desc = idregs_debug_find(kvm, kvm->arch.idreg_debugfs_iter);
 
 	if (!desc->name)
 		return 0;
@@ -4115,7 +4132,6 @@ out:
 
 int __init kvm_sys_reg_table_init(void)
 {
-	struct sys_reg_params params;
 	bool valid = true;
 	unsigned int i;
 	int ret = 0;
@@ -4135,12 +4151,6 @@ int __init kvm_sys_reg_table_init(void)
 	/* We abuse the reset function to overwrite the table itself. */
 	for (i = 0; i < ARRAY_SIZE(invariant_sys_regs); i++)
 		invariant_sys_regs[i].reset(NULL, &invariant_sys_regs[i]);
-
-	/* Find the first idreg (SYS_ID_PFR0_EL1) in sys_reg_descs. */
-	params = encoding_to_params(SYS_ID_PFR0_EL1);
-	first_idreg = find_reg(&params, sys_reg_descs, ARRAY_SIZE(sys_reg_descs));
-	if (!first_idreg)
-		return -EINVAL;
 
 	ret = populate_nv_trap_config();
 
