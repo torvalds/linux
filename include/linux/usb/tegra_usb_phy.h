@@ -7,10 +7,11 @@
 #define __TEGRA_USB_PHY_H
 
 #include <linux/clk.h>
-#include <linux/gpio.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
 #include <linux/usb/otg.h>
+
+struct gpio_desc;
 
 /*
  * utmi_pll_config_in_car_module: true if the UTMI PLL configuration registers

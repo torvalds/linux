@@ -59,7 +59,7 @@ struct snp_guest_dev {
 	 */
 	struct snp_guest_msg secret_request, secret_response;
 
-	struct snp_secrets_page_layout *layout;
+	struct snp_secrets_page *secrets;
 	struct snp_req_data input;
 	union {
 		struct snp_report_req report;
@@ -743,26 +743,26 @@ static const struct file_operations snp_guest_fops = {
 	.unlocked_ioctl = snp_guest_ioctl,
 };
 
-static u8 *get_vmpck(int id, struct snp_secrets_page_layout *layout, u32 **seqno)
+static u8 *get_vmpck(int id, struct snp_secrets_page *secrets, u32 **seqno)
 {
 	u8 *key = NULL;
 
 	switch (id) {
 	case 0:
-		*seqno = &layout->os_area.msg_seqno_0;
-		key = layout->vmpck0;
+		*seqno = &secrets->os_area.msg_seqno_0;
+		key = secrets->vmpck0;
 		break;
 	case 1:
-		*seqno = &layout->os_area.msg_seqno_1;
-		key = layout->vmpck1;
+		*seqno = &secrets->os_area.msg_seqno_1;
+		key = secrets->vmpck1;
 		break;
 	case 2:
-		*seqno = &layout->os_area.msg_seqno_2;
-		key = layout->vmpck2;
+		*seqno = &secrets->os_area.msg_seqno_2;
+		key = secrets->vmpck2;
 		break;
 	case 3:
-		*seqno = &layout->os_area.msg_seqno_3;
-		key = layout->vmpck3;
+		*seqno = &secrets->os_area.msg_seqno_3;
+		key = secrets->vmpck3;
 		break;
 	default:
 		break;
@@ -897,8 +897,8 @@ static void unregister_sev_tsm(void *data)
 
 static int __init sev_guest_probe(struct platform_device *pdev)
 {
-	struct snp_secrets_page_layout *layout;
 	struct sev_guest_platform_data *data;
+	struct snp_secrets_page *secrets;
 	struct device *dev = &pdev->dev;
 	struct snp_guest_dev *snp_dev;
 	struct miscdevice *misc;
@@ -916,7 +916,7 @@ static int __init sev_guest_probe(struct platform_device *pdev)
 	if (!mapping)
 		return -ENODEV;
 
-	layout = (__force void *)mapping;
+	secrets = (__force void *)mapping;
 
 	ret = -ENOMEM;
 	snp_dev = devm_kzalloc(&pdev->dev, sizeof(struct snp_guest_dev), GFP_KERNEL);
@@ -924,7 +924,7 @@ static int __init sev_guest_probe(struct platform_device *pdev)
 		goto e_unmap;
 
 	ret = -EINVAL;
-	snp_dev->vmpck = get_vmpck(vmpck_id, layout, &snp_dev->os_area_msg_seqno);
+	snp_dev->vmpck = get_vmpck(vmpck_id, secrets, &snp_dev->os_area_msg_seqno);
 	if (!snp_dev->vmpck) {
 		dev_err(dev, "invalid vmpck id %d\n", vmpck_id);
 		goto e_unmap;
@@ -938,7 +938,7 @@ static int __init sev_guest_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, snp_dev);
 	snp_dev->dev = dev;
-	snp_dev->layout = layout;
+	snp_dev->secrets = secrets;
 
 	/* Allocate the shared page used for the request and response message. */
 	snp_dev->request = alloc_shared_pages(dev, sizeof(struct snp_guest_msg));

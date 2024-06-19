@@ -31,7 +31,7 @@
 	can_tc1: can-phy0 {
 		compatible = "ti,tcan1042";
 		#phy-cells = <0>;
-		max-bitrate = <5000000>;
+		max-bitrate = <8000000>;
 		standby-gpios = <&gpio_exp 1 GPIO_ACTIVE_HIGH>;
 	};
 
@@ -66,6 +66,35 @@
 		};
 	};
 
+	sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "phyBOARD-Lyra";
+		simple-audio-card,widgets =
+			"Microphone",           "Mic Jack",
+			"Headphone",            "Headphone Jack",
+			"Speaker",              "External Speaker";
+		simple-audio-card,routing =
+			"MIC3R",                "Mic Jack",
+			"Mic Jack",             "Mic Bias",
+			"Headphone Jack",       "HPLOUT",
+			"Headphone Jack",       "HPROUT",
+			"External Speaker",     "SPOP",
+			"External Speaker",     "SPOM";
+		simple-audio-card,format = "dsp_b";
+		simple-audio-card,bitclock-master = <&sound_master>;
+		simple-audio-card,frame-master = <&sound_master>;
+		simple-audio-card,bitclock-inversion;
+
+		simple-audio-card,cpu {
+			sound-dai = <&mcasp2>;
+		};
+
+		sound_master: simple-audio-card,codec {
+				sound-dai = <&audio_codec>;
+				clocks = <&audio_refclk1>;
+		};
+	};
+
 	leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
@@ -82,6 +111,15 @@
 		};
 	};
 
+	vcc_1v8: regulator-vcc-1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "VCC_1V8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
 	vcc_3v3_mmc: regulator-vcc-3v3-mmc {
 		compatible = "regulator-fixed";
 		regulator-name = "VCC_3V3_MMC";
@@ -90,9 +128,24 @@
 		regulator-always-on;
 		regulator-boot-on;
 	};
+
+	vcc_3v3_sw: regulator-vcc-3v3-sw {
+		compatible = "regulator-fixed";
+		regulator-name = "VCC_3V3_SW";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
 };
 
 &main_pmx0 {
+	audio_ext_refclk1_pins_default: audio-ext-refclk1-default-pins {
+		pinctrl-single,pins = <
+			AM62X_IOPAD(0x0a0, PIN_OUTPUT, 1) /* (K25) GPMC0_WPn.AUDIO_EXT_REFCLK1 */
+		>;
+	};
+
 	gpio_keys_pins_default: gpio-keys-default-pins {
 		pinctrl-single,pins = <
 			AM62X_IOPAD(0x1d4, PIN_INPUT, 7) /* (B15) UART0_RTSn.GPIO1_23 */
@@ -147,6 +200,15 @@
 		pinctrl-single,pins = <
 			AM62X_IOPAD(0x1dc, PIN_INPUT, 0) /* (E15) MCAN0_RX */
 			AM62X_IOPAD(0x1d8, PIN_OUTPUT, 0) /* (C15) MCAN0_TX */
+		>;
+	};
+
+	main_mcasp2_pins_default: main-mcasp2-default-pins {
+		pinctrl-single,pins = <
+			AM62X_IOPAD(0x070, PIN_INPUT, 3) /* (T24) GPMC0_AD13.MCASP2_ACLKX */
+			AM62X_IOPAD(0x06c, PIN_INPUT, 3) /* (T22) GPMC0_AD12.MCASP2_AFSX */
+			AM62X_IOPAD(0x064, PIN_OUTPUT, 3) /* (T25) GPMC0_AD10.MCASP2_AXR2 */
+			AM62X_IOPAD(0x068, PIN_INPUT, 3) /* (R21) GPMC0_AD11.MCASP2_AXR3 */
 		>;
 	};
 
@@ -254,6 +316,21 @@
 	clock-frequency = <100000>;
 	status = "okay";
 
+	audio_codec: audio-codec@18 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&audio_ext_refclk1_pins_default>;
+
+		#sound-dai-cells = <0>;
+		compatible = "ti,tlv320aic3007";
+		reg = <0x18>;
+		ai3x-micbias-vg = <2>;
+
+		AVDD-supply = <&vcc_3v3_sw>;
+		IOVDD-supply = <&vcc_3v3_sw>;
+		DRVDD-supply = <&vcc_3v3_sw>;
+		DVDD-supply = <&vcc_1v8>;
+	};
+
 	gpio_exp: gpio-expander@21 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&gpio_exp_int_pins_default>;
@@ -269,6 +346,24 @@
 				  "GPIO2_LED2", "GPIO3_LVDS_GPIO",
 				  "GPIO4_BUT2", "GPIO5_LVDS_BKLT_EN",
 				  "GPIO6_ETH1_USER_RESET", "GPIO7_AUDIO_USER_RESET";
+	};
+
+	usb-pd@22 {
+		compatible = "ti,tps6598x";
+		reg = <0x22>;
+
+		connector {
+			compatible = "usb-c-connector";
+			label = "USB-C";
+			self-powered;
+			data-role = "dual";
+			power-role = "sink";
+			port {
+				usb_con_hs: endpoint {
+					remote-endpoint = <&typec_hs>;
+				};
+			};
+		};
 	};
 
 	sii9022: bridge-hdmi@39 {
@@ -329,6 +424,28 @@
 	status = "okay";
 };
 
+&mcasp2 {
+	#sound-dai-cells = <0>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&main_mcasp2_pins_default>;
+
+	/* MCASP_IIS_MODE */
+	op-mode = <0>;
+	tdm-slots = <2>;
+
+	/* 0: INACTIVE, 1: TX, 2: RX */
+	serial-dir = <
+			0 0 1 2
+			0 0 0 0
+			0 0 0 0
+			0 0 0 0
+	>;
+	tx-num-evt = <32>;
+	rx-num-evt = <32>;
+	status = "okay";
+};
+
 &sdhci1 {
 	vmmc-supply = <&vcc_3v3_mmc>;
 	vqmmc-supply = <&vddshv5_sdio>;
@@ -350,7 +467,13 @@
 };
 
 &usb0 {
-	dr_mode = "peripheral";
+	usb-role-switch;
+
+	port {
+		typec_hs: endpoint {
+			remote-endpoint = <&usb_con_hs>;
+		};
+	};
 };
 
 &usb1 {

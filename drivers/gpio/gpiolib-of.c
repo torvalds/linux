@@ -1037,7 +1037,7 @@ static int of_gpiochip_add_pin_range(struct gpio_chip *chip)
 	struct of_phandle_args pinspec;
 	struct pinctrl_dev *pctldev;
 	struct device_node *np;
-	int index = 0, ret;
+	int index = 0, ret, trim;
 	const char *name;
 	static const char group_names_propname[] = "gpio-ranges-group-names";
 	struct property *group_names;
@@ -1059,7 +1059,14 @@ static int of_gpiochip_add_pin_range(struct gpio_chip *chip)
 		if (!pctldev)
 			return -EPROBE_DEFER;
 
+		/* Ignore ranges outside of this GPIO chip */
+		if (pinspec.args[0] >= (chip->offset + chip->ngpio))
+			continue;
+		if (pinspec.args[0] + pinspec.args[2] <= chip->offset)
+			continue;
+
 		if (pinspec.args[2]) {
+			/* npins != 0: linear range */
 			if (group_names) {
 				of_property_read_string_index(np,
 						group_names_propname,
@@ -1070,7 +1077,19 @@ static int of_gpiochip_add_pin_range(struct gpio_chip *chip)
 					break;
 				}
 			}
-			/* npins != 0: linear range */
+
+			/* Trim the range to fit this GPIO chip */
+			if (chip->offset > pinspec.args[0]) {
+				trim = chip->offset - pinspec.args[0];
+				pinspec.args[2] -= trim;
+				pinspec.args[1] += trim;
+				pinspec.args[0] = 0;
+			} else {
+				pinspec.args[0] -= chip->offset;
+			}
+			if ((pinspec.args[0] + pinspec.args[2]) > chip->ngpio)
+				pinspec.args[2] = chip->ngpio - pinspec.args[0];
+
 			ret = gpiochip_add_pin_range(chip,
 					pinctrl_dev_get_devname(pctldev),
 					pinspec.args[0],

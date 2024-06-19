@@ -1,0 +1,35 @@
+C cmpxchg-fail-ordered-1
+
+(*
+ * Result: Never
+ *
+ * Demonstrate that a failing cmpxchg() operation will act as a full
+ * barrier when followed by smp_mb__after_atomic().
+ *)
+
+{}
+
+P0(int *x, int *y, int *z)
+{
+	int r0;
+	int r1;
+
+	WRITE_ONCE(*x, 1);
+	r1 = cmpxchg(z, 1, 0);
+	smp_mb__after_atomic();
+	r0 = READ_ONCE(*y);
+}
+
+P1(int *x, int *y, int *z)
+{
+	int r0;
+	int r1;
+
+	WRITE_ONCE(*y, 1);
+	r1 = cmpxchg(z, 1, 0);
+	smp_mb__after_atomic();
+	r0 = READ_ONCE(*x);
+}
+
+locations[0:r1;1:r1]
+exists (0:r0=0 /\ 1:r0=0)

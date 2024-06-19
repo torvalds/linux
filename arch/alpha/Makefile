@@ -15,18 +15,14 @@ CHECKFLAGS	+= -D__alpha__
 cflags-y	:= -pipe -mno-fp-regs -ffixed-8
 cflags-y	+= $(call cc-option, -fno-jump-tables)
 
-cpuflags-$(CONFIG_ALPHA_EV4)		:= -mcpu=ev4
-cpuflags-$(CONFIG_ALPHA_EV5)		:= -mcpu=ev5
 cpuflags-$(CONFIG_ALPHA_EV56)		:= -mcpu=ev56
 cpuflags-$(CONFIG_ALPHA_POLARIS)	:= -mcpu=pca56
 cpuflags-$(CONFIG_ALPHA_SX164)		:= -mcpu=pca56
 cpuflags-$(CONFIG_ALPHA_EV6)		:= -mcpu=ev6
 cpuflags-$(CONFIG_ALPHA_EV67)		:= -mcpu=ev67
 # If GENERIC, make sure to turn off any instruction set extensions that
-# the host compiler might have on by default.  Given that EV4 and EV5
-# have the same instruction set, prefer EV5 because an EV5 schedule is
-# more likely to keep an EV4 processor busy than vice-versa.
-cpuflags-$(CONFIG_ALPHA_GENERIC)	:= -mcpu=ev5
+# the host compiler might have on by default.
+cpuflags-$(CONFIG_ALPHA_GENERIC)	:= -mcpu=ev56 -mtune=ev6
 
 cflags-y				+= $(cpuflags-y)
 

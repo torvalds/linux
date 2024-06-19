@@ -183,4 +183,4 @@ EXPORT_SYMBOL_GPL(meson_sclk_ws_inv_ops);
 
 MODULE_DESCRIPTION("Amlogic phase driver");
 MODULE_AUTHOR("Jerome Brunet <jbrunet@baylibre.com>");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");

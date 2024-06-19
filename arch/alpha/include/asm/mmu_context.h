@@ -71,9 +71,7 @@ __reload_thread(struct pcb_struct *pcb)
 #ifdef CONFIG_ALPHA_GENERIC
 # define MAX_ASN	(alpha_mv.max_asn)
 #else
-# ifdef CONFIG_ALPHA_EV4
-#  define MAX_ASN	EV4_MAX_ASN
-# elif defined(CONFIG_ALPHA_EV5)
+# if defined(CONFIG_ALPHA_EV56)
 #  define MAX_ASN	EV5_MAX_ASN
 # else
 #  define MAX_ASN	EV6_MAX_ASN
@@ -162,26 +160,6 @@ ev5_switch_mm(struct mm_struct *prev_mm, struct mm_struct *next_mm,
 	task_thread_info(next)->pcb.asn = mmc & HARDWARE_ASN_MASK;
 }
 
-__EXTERN_INLINE void
-ev4_switch_mm(struct mm_struct *prev_mm, struct mm_struct *next_mm,
-	      struct task_struct *next)
-{
-	/* As described, ASN's are broken for TLB usage.  But we can
-	   optimize for switching between threads -- if the mm is
-	   unchanged from current we needn't flush.  */
-	/* ??? May not be needed because EV4 PALcode recognizes that
-	   ASN's are broken and does a tbiap itself on swpctx, under
-	   the "Must set ASN or flush" rule.  At least this is true
-	   for a 1992 SRM, reports Joseph Martin (jmartin@hlo.dec.com).
-	   I'm going to leave this here anyway, just to Be Sure.  -- r~  */
-	if (prev_mm != next_mm)
-		tbiap();
-
-	/* Do continue to allocate ASNs, because we can still use them
-	   to avoid flushing the icache.  */
-	ev5_switch_mm(prev_mm, next_mm, next);
-}
-
 extern void __load_new_mm_context(struct mm_struct *);
 asmlinkage void do_page_fault(unsigned long address, unsigned long mmcsr,
 			      long cause, struct pt_regs *regs);
@@ -209,25 +187,8 @@ ev5_activate_mm(struct mm_struct *prev_mm, struct mm_struct *next_mm)
 	__load_new_mm_context(next_mm);
 }
 
-__EXTERN_INLINE void
-ev4_activate_mm(struct mm_struct *prev_mm, struct mm_struct *next_mm)
-{
-	__load_new_mm_context(next_mm);
-	tbiap();
-}
-
-#ifdef CONFIG_ALPHA_GENERIC
-# define switch_mm(a,b,c)	alpha_mv.mv_switch_mm((a),(b),(c))
-# define activate_mm(x,y)	alpha_mv.mv_activate_mm((x),(y))
-#else
-# ifdef CONFIG_ALPHA_EV4
-#  define switch_mm(a,b,c)	ev4_switch_mm((a),(b),(c))
-#  define activate_mm(x,y)	ev4_activate_mm((x),(y))
-# else
-#  define switch_mm(a,b,c)	ev5_switch_mm((a),(b),(c))
-#  define activate_mm(x,y)	ev5_activate_mm((x),(y))
-# endif
-#endif
+#define switch_mm(a,b,c)	ev5_switch_mm((a),(b),(c))
+#define activate_mm(x,y)	ev5_activate_mm((x),(y))
 
 #define init_new_context init_new_context
 static inline int

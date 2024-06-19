@@ -26,6 +26,7 @@
 #include <media/videobuf2-vmalloc.h>
 
 #include "../include/linux/raspberrypi/vchiq.h"
+#include "../interface/vchiq_arm/vchiq_arm.h"
 #include "mmal-common.h"
 #include "mmal-vchiq.h"
 #include "mmal-msg.h"
@@ -548,9 +549,9 @@ static void bulk_abort_cb(struct vchiq_mmal_instance *instance,
 }
 
 /* incoming event service callback */
-static int service_callback(struct vchiq_instance *vchiq_instance,
-			    enum vchiq_reason reason, struct vchiq_header *header,
-			    unsigned int handle, void *bulk_ctx)
+static int mmal_service_callback(struct vchiq_instance *vchiq_instance,
+				 enum vchiq_reason reason, struct vchiq_header *header,
+				 unsigned int handle, void *bulk_ctx)
 {
 	struct vchiq_mmal_instance *instance = vchiq_get_service_userdata(vchiq_instance, handle);
 	u32 msg_len;
@@ -1852,7 +1853,7 @@ int vchiq_mmal_finalise(struct vchiq_mmal_instance *instance)
 }
 EXPORT_SYMBOL_GPL(vchiq_mmal_finalise);
 
-int vchiq_mmal_init(struct vchiq_mmal_instance **out_instance)
+int vchiq_mmal_init(struct device *dev, struct vchiq_mmal_instance **out_instance)
 {
 	int status;
 	int err = -ENODEV;
@@ -1862,9 +1863,10 @@ int vchiq_mmal_init(struct vchiq_mmal_instance **out_instance)
 		.version		= VC_MMAL_VER,
 		.version_min		= VC_MMAL_MIN_VER,
 		.fourcc			= VCHIQ_MAKE_FOURCC('m', 'm', 'a', 'l'),
-		.callback		= service_callback,
+		.callback		= mmal_service_callback,
 		.userdata		= NULL,
 	};
+	struct vchiq_drv_mgmt *mgmt = dev_get_drvdata(dev->parent);
 
 	/* compile time checks to ensure structure size as they are
 	 * directly (de)serialised from memory.
@@ -1880,7 +1882,7 @@ int vchiq_mmal_init(struct vchiq_mmal_instance **out_instance)
 	BUILD_BUG_ON(sizeof(struct mmal_port) != 64);
 
 	/* create a vchi instance */
-	status = vchiq_initialise(&vchiq_instance);
+	status = vchiq_initialise(&mgmt->state, &vchiq_instance);
 	if (status) {
 		pr_err("Failed to initialise VCHI instance (status=%d)\n",
 		       status);

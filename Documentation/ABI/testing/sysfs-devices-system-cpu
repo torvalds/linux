@@ -423,7 +423,7 @@ What:		/sys/devices/system/cpu/cpuX/cpufreq/throttle_stats
 		/sys/devices/system/cpu/cpuX/cpufreq/throttle_stats/occ_reset
 Date:		March 2016
 Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
-		Linux for PowerPC mailing list <linuxppc-dev@ozlabs.org>
+		Linux for PowerPC mailing list <linuxppc-dev@lists.ozlabs.org>
 Description:	POWERNV CPUFreq driver's frequency throttle stats directory and
 		attributes
 
@@ -473,7 +473,7 @@ What:		/sys/devices/system/cpu/cpufreq/policyX/throttle_stats
 		/sys/devices/system/cpu/cpufreq/policyX/throttle_stats/occ_reset
 Date:		March 2016
 Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
-		Linux for PowerPC mailing list <linuxppc-dev@ozlabs.org>
+		Linux for PowerPC mailing list <linuxppc-dev@lists.ozlabs.org>
 Description:	POWERNV CPUFreq driver's frequency throttle stats directory and
 		attributes
 
@@ -608,7 +608,7 @@ Description:	Umwait control
 What:		/sys/devices/system/cpu/svm
 Date:		August 2019
 Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
-		Linux for PowerPC mailing list <linuxppc-dev@ozlabs.org>
+		Linux for PowerPC mailing list <linuxppc-dev@lists.ozlabs.org>
 Description:	Secure Virtual Machine
 
 		If 1, it means the system is using the Protected Execution
@@ -617,7 +617,7 @@ Description:	Secure Virtual Machine
 
 What:		/sys/devices/system/cpu/cpuX/purr
 Date:		Apr 2005
-Contact:	Linux for PowerPC mailing list <linuxppc-dev@ozlabs.org>
+Contact:	Linux for PowerPC mailing list <linuxppc-dev@lists.ozlabs.org>
 Description:	PURR ticks for this CPU since the system boot.
 
 		The Processor Utilization Resources Register (PURR) is
@@ -628,7 +628,7 @@ Description:	PURR ticks for this CPU since the system boot.
 
 What: 		/sys/devices/system/cpu/cpuX/spurr
 Date:		Dec 2006
-Contact:	Linux for PowerPC mailing list <linuxppc-dev@ozlabs.org>
+Contact:	Linux for PowerPC mailing list <linuxppc-dev@lists.ozlabs.org>
 Description:	SPURR ticks for this CPU since the system boot.
 
 		The Scaled Processor Utilization Resources Register
@@ -640,7 +640,7 @@ Description:	SPURR ticks for this CPU since the system boot.
 
 What: 		/sys/devices/system/cpu/cpuX/idle_purr
 Date:		Apr 2020
-Contact:	Linux for PowerPC mailing list <linuxppc-dev@ozlabs.org>
+Contact:	Linux for PowerPC mailing list <linuxppc-dev@lists.ozlabs.org>
 Description:	PURR ticks for cpuX when it was idle.
 
 		This sysfs interface exposes the number of PURR ticks
@@ -648,7 +648,7 @@ Description:	PURR ticks for cpuX when it was idle.
 
 What: 		/sys/devices/system/cpu/cpuX/idle_spurr
 Date:		Apr 2020
-Contact:	Linux for PowerPC mailing list <linuxppc-dev@ozlabs.org>
+Contact:	Linux for PowerPC mailing list <linuxppc-dev@lists.ozlabs.org>
 Description:	SPURR ticks for cpuX when it was idle.
 
 		This sysfs interface exposes the number of SPURR ticks

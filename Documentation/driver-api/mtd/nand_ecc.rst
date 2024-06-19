@@ -462,7 +462,7 @@ statements is reduced. This is also reflected in the assembly code.
 Analysis 3
 ==========
 
-Very weird. Guess it has to do with caching or instruction parallellism
+Very weird. Guess it has to do with caching or instruction parallelism
 or so. I also tried on an eeePC (Celeron, clocked at 900 Mhz). Interesting
 observation was that this one is only 30% slower (according to time)
 executing the code as my 3Ghz D920 processor.

@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Qualcomm Technologies, Inc. SPMI SDAM
 
 maintainers:
-  - Shyam Kumar Thella <sthella@codeaurora.org>
+  - David Collins <quic_collinsd@quicinc.com>
 
 description: |
   The SDAM provides scratch register space for the PMIC clients. This

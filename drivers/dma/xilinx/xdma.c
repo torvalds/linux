@@ -1307,6 +1307,7 @@ static const struct platform_device_id xdma_id_table[] = {
 	{ "xdma", 0},
 	{ },
 };
+MODULE_DEVICE_TABLE(platform, xdma_id_table);
 
 static struct platform_driver xdma_driver = {
 	.driver		= {

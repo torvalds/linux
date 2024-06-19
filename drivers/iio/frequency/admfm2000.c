@@ -160,26 +160,21 @@ static int admfm2000_channel_config(struct admfm2000_state *st,
 {
 	struct platform_device *pdev = to_platform_device(indio_dev->dev.parent);
 	struct device *dev = &pdev->dev;
-	struct fwnode_handle *child;
 	struct gpio_desc **dsa;
 	struct gpio_desc **sw;
 	int ret, i;
 	bool mode;
 	u32 reg;
 
-	device_for_each_child_node(dev, child) {
+	device_for_each_child_node_scoped(dev, child) {
 		ret = fwnode_property_read_u32(child, "reg", &reg);
-		if (ret) {
-			fwnode_handle_put(child);
+		if (ret)
 			return dev_err_probe(dev, ret,
 					     "Failed to get reg property\n");
-		}
 
-		if (reg >= indio_dev->num_channels) {
-			fwnode_handle_put(child);
+		if (reg >= indio_dev->num_channels)
 			return dev_err_probe(dev, -EINVAL, "reg bigger than: %d\n",
 					     indio_dev->num_channels);
-		}
 
 		if (fwnode_property_present(child, "adi,mixer-mode"))
 			mode = ADMFM2000_MIXER_MODE;
@@ -196,36 +191,29 @@ static int admfm2000_channel_config(struct admfm2000_state *st,
 			dsa = st->dsa2_gpios;
 			break;
 		default:
-			fwnode_handle_put(child);
 			return -EINVAL;
 		}
 
 		for (i = 0; i < ADMFM2000_MODE_GPIOS; i++) {
 			sw[i] = devm_fwnode_gpiod_get_index(dev, child, "switch",
 							    i, GPIOD_OUT_LOW, NULL);
-			if (IS_ERR(sw[i])) {
-				fwnode_handle_put(child);
+			if (IS_ERR(sw[i]))
 				return dev_err_probe(dev, PTR_ERR(sw[i]),
 						     "Failed to get gpios\n");
-			}
 		}
 
 		for (i = 0; i < ADMFM2000_DSA_GPIOS; i++) {
 			dsa[i] = devm_fwnode_gpiod_get_index(dev, child,
 							     "attenuation", i,
 							     GPIOD_OUT_LOW, NULL);
-			if (IS_ERR(dsa[i])) {
-				fwnode_handle_put(child);
+			if (IS_ERR(dsa[i]))
 				return dev_err_probe(dev, PTR_ERR(dsa[i]),
 						     "Failed to get gpios\n");
-			}
 		}
 
 		ret = admfm2000_mode(indio_dev, reg, mode);
-		if (ret) {
-			fwnode_handle_put(child);
+		if (ret)
 			return ret;
-		}
 	}
 
 	return 0;

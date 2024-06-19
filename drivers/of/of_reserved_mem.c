@@ -437,17 +437,10 @@ void __init fdt_init_reserved_mem(void)
 	for (i = 0; i < reserved_mem_count; i++) {
 		struct reserved_mem *rmem = &reserved_mem[i];
 		unsigned long node = rmem->fdt_node;
-		int len;
-		const __be32 *prop;
 		int err = 0;
 		bool nomap;
 
 		nomap = of_get_flat_dt_prop(node, "no-map", NULL) != NULL;
-		prop = of_get_flat_dt_prop(node, "phandle", &len);
-		if (!prop)
-			prop = of_get_flat_dt_prop(node, "linux,phandle", &len);
-		if (prop)
-			rmem->phandle = of_read_number(prop, len/4);
 
 		if (rmem->size == 0)
 			err = __reserved_mem_alloc_size(node, rmem->name,
@@ -475,19 +468,6 @@ void __init fdt_init_reserved_mem(void)
 			}
 		}
 	}
-}
-
-static inline struct reserved_mem *__find_rmem(struct device_node *node)
-{
-	unsigned int i;
-
-	if (!node->phandle)
-		return NULL;
-
-	for (i = 0; i < reserved_mem_count; i++)
-		if (reserved_mem[i].phandle == node->phandle)
-			return &reserved_mem[i];
-	return NULL;
 }
 
 struct rmem_assigned_device {
@@ -534,7 +514,7 @@ int of_reserved_mem_device_init_by_idx(struct device *dev,
 		return 0;
 	}
 
-	rmem = __find_rmem(target);
+	rmem = of_reserved_mem_lookup(target);
 	of_node_put(target);
 
 	if (!rmem || !rmem->ops || !rmem->ops->device_init)

@@ -50,7 +50,7 @@ objpool_init_percpu_slots(struct objpool_head *pool, int nr_objs,
 {
 	int i, cpu_count = 0;
 
-	for (i = 0; i < pool->nr_cpus; i++) {
+	for (i = 0; i < nr_cpu_ids; i++) {
 
 		struct objpool_slot *slot;
 		int nodes, size, rc;
@@ -60,8 +60,8 @@ objpool_init_percpu_slots(struct objpool_head *pool, int nr_objs,
 			continue;
 
 		/* compute how many objects to be allocated with this slot */
-		nodes = nr_objs / num_possible_cpus();
-		if (cpu_count < (nr_objs % num_possible_cpus()))
+		nodes = nr_objs / pool->nr_possible_cpus;
+		if (cpu_count < (nr_objs % pool->nr_possible_cpus))
 			nodes++;
 		cpu_count++;
 
@@ -103,7 +103,7 @@ static void objpool_fini_percpu_slots(struct objpool_head *pool)
 	if (!pool->cpu_slots)
 		return;
 
-	for (i = 0; i < pool->nr_cpus; i++)
+	for (i = 0; i < nr_cpu_ids; i++)
 		kvfree(pool->cpu_slots[i]);
 	kfree(pool->cpu_slots);
 }
@@ -130,13 +130,13 @@ int objpool_init(struct objpool_head *pool, int nr_objs, int object_size,
 
 	/* initialize objpool pool */
 	memset(pool, 0, sizeof(struct objpool_head));
-	pool->nr_cpus = nr_cpu_ids;
+	pool->nr_possible_cpus = num_possible_cpus();
 	pool->obj_size = object_size;
 	pool->capacity = capacity;
 	pool->gfp = gfp & ~__GFP_ZERO;
 	pool->context = context;
 	pool->release = release;
-	slot_size = pool->nr_cpus * sizeof(struct objpool_slot);
+	slot_size = nr_cpu_ids * sizeof(struct objpool_slot);
 	pool->cpu_slots = kzalloc(slot_size, pool->gfp);
 	if (!pool->cpu_slots)
 		return -ENOMEM;
@@ -151,106 +151,6 @@ int objpool_init(struct objpool_head *pool, int nr_objs, int object_size,
 	return rc;
 }
 EXPORT_SYMBOL_GPL(objpool_init);
-
-/* adding object to slot, abort if the slot was already full */
-static inline int
-objpool_try_add_slot(void *obj, struct objpool_head *pool, int cpu)
-{
-	struct objpool_slot *slot = pool->cpu_slots[cpu];
-	uint32_t head, tail;
-
-	/* loading tail and head as a local snapshot, tail first */
-	tail = READ_ONCE(slot->tail);
-
-	do {
-		head = READ_ONCE(slot->head);
-		/* fault caught: something must be wrong */
-		WARN_ON_ONCE(tail - head > pool->nr_objs);
-	} while (!try_cmpxchg_acquire(&slot->tail, &tail, tail + 1));
-
-	/* now the tail position is reserved for the given obj */
-	WRITE_ONCE(slot->entries[tail & slot->mask], obj);
-	/* update sequence to make this obj available for pop() */
-	smp_store_release(&slot->last, tail + 1);
-
-	return 0;
-}
-
-/* reclaim an object to object pool */
-int objpool_push(void *obj, struct objpool_head *pool)
-{
-	unsigned long flags;
-	int rc;
-
-	/* disable local irq to avoid preemption & interruption */
-	raw_local_irq_save(flags);
-	rc = objpool_try_add_slot(obj, pool, raw_smp_processor_id());
-	raw_local_irq_restore(flags);
-
-	return rc;
-}
-EXPORT_SYMBOL_GPL(objpool_push);
-
-/* try to retrieve object from slot */
-static inline void *objpool_try_get_slot(struct objpool_head *pool, int cpu)
-{
-	struct objpool_slot *slot = pool->cpu_slots[cpu];
-	/* load head snapshot, other cpus may change it */
-	uint32_t head = smp_load_acquire(&slot->head);
-
-	while (head != READ_ONCE(slot->last)) {
-		void *obj;
-
-		/*
-		 * data visibility of 'last' and 'head' could be out of
-		 * order since memory updating of 'last' and 'head' are
-		 * performed in push() and pop() independently
-		 *
-		 * before any retrieving attempts, pop() must guarantee
-		 * 'last' is behind 'head', that is to say, there must
-		 * be available objects in slot, which could be ensured
-		 * by condition 'last != head && last - head <= nr_objs'
-		 * that is equivalent to 'last - head - 1 < nr_objs' as
-		 * 'last' and 'head' are both unsigned int32
-		 */
-		if (READ_ONCE(slot->last) - head - 1 >= pool->nr_objs) {
-			head = READ_ONCE(slot->head);
-			continue;
-		}
-
-		/* obj must be retrieved before moving forward head */
-		obj = READ_ONCE(slot->entries[head & slot->mask]);
-
-		/* move head forward to mark it's consumption */
-		if (try_cmpxchg_release(&slot->head, &head, head + 1))
-			return obj;
-	}
-
-	return NULL;
-}
-
-/* allocate an object from object pool */
-void *objpool_pop(struct objpool_head *pool)
-{
-	void *obj = NULL;
-	unsigned long flags;
-	int i, cpu;
-
-	/* disable local irq to avoid preemption & interruption */
-	raw_local_irq_save(flags);
-
-	cpu = raw_smp_processor_id();
-	for (i = 0; i < num_possible_cpus(); i++) {
-		obj = objpool_try_get_slot(pool, cpu);
-		if (obj)
-			break;
-		cpu = cpumask_next_wrap(cpu, cpu_possible_mask, -1, 1);
-	}
-	raw_local_irq_restore(flags);
-
-	return obj;
-}
-EXPORT_SYMBOL_GPL(objpool_pop);
 
 /* release whole objpool forcely */
 void objpool_free(struct objpool_head *pool)

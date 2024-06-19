@@ -63,10 +63,11 @@ xfs_ialloc_log_agi(
 	struct xfs_buf	*bp,		/* allocation group header buffer */
 	uint32_t	fields);	/* bitmask of fields to log */
 
-int xfs_read_agi(struct xfs_perag *pag, struct xfs_trans *tp,
+int xfs_read_agi(struct xfs_perag *pag, struct xfs_trans *tp, xfs_buf_flags_t flags,
 		struct xfs_buf **agibpp);
 int xfs_ialloc_read_agi(struct xfs_perag *pag, struct xfs_trans *tp,
-		struct xfs_buf **agibpp);
+		int flags, struct xfs_buf **agibpp);
+#define	XFS_IALLOC_FLAG_TRYLOCK	(1U << 0)  /* use trylock for buffer locking */
 
 /*
  * Lookup a record by ino in the btree given by cur.

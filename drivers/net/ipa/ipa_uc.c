@@ -1,17 +1,19 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2018-2022 Linaro Ltd.
+ * Copyright (C) 2018-2024 Linaro Ltd.
  */
 
-#include <linux/types.h>
-#include <linux/io.h>
 #include <linux/delay.h>
+#include <linux/io.h>
 #include <linux/pm_runtime.h>
+#include <linux/types.h>
 
 #include "ipa.h"
-#include "ipa_uc.h"
+#include "ipa_interrupt.h"
 #include "ipa_power.h"
+#include "ipa_reg.h"
+#include "ipa_uc.h"
 
 /**
  * DOC:  The IPA embedded microcontroller

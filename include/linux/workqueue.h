@@ -51,20 +51,23 @@ enum work_bits {
 	 * data contains off-queue information when !WORK_STRUCT_PWQ.
 	 *
 	 * MSB
-	 * [ pool ID ] [ OFFQ flags ] [ STRUCT flags ]
-	 *                 1 bit        4 or 5 bits
+	 * [ pool ID ] [ disable depth ] [ OFFQ flags ] [ STRUCT flags ]
+	 *                  16 bits          1 bit        4 or 5 bits
 	 */
 	WORK_OFFQ_FLAG_SHIFT	= WORK_STRUCT_FLAG_BITS,
-	WORK_OFFQ_CANCELING_BIT = WORK_OFFQ_FLAG_SHIFT,
+	WORK_OFFQ_BH_BIT	= WORK_OFFQ_FLAG_SHIFT,
 	WORK_OFFQ_FLAG_END,
 	WORK_OFFQ_FLAG_BITS	= WORK_OFFQ_FLAG_END - WORK_OFFQ_FLAG_SHIFT,
+
+	WORK_OFFQ_DISABLE_SHIFT	= WORK_OFFQ_FLAG_SHIFT + WORK_OFFQ_FLAG_BITS,
+	WORK_OFFQ_DISABLE_BITS	= 16,
 
 	/*
 	 * When a work item is off queue, the high bits encode off-queue flags
 	 * and the last pool it was on. Cap pool ID to 31 bits and use the
 	 * highest number to indicate that no pool is associated.
 	 */
-	WORK_OFFQ_POOL_SHIFT	= WORK_OFFQ_FLAG_SHIFT + WORK_OFFQ_FLAG_BITS,
+	WORK_OFFQ_POOL_SHIFT	= WORK_OFFQ_DISABLE_SHIFT + WORK_OFFQ_DISABLE_BITS,
 	WORK_OFFQ_LEFT		= BITS_PER_LONG - WORK_OFFQ_POOL_SHIFT,
 	WORK_OFFQ_POOL_BITS	= WORK_OFFQ_LEFT <= 31 ? WORK_OFFQ_LEFT : 31,
 };
@@ -96,7 +99,9 @@ enum wq_misc_consts {
 };
 
 /* Convenience constants - of type 'unsigned long', not 'enum'! */
-#define WORK_OFFQ_CANCELING	(1ul << WORK_OFFQ_CANCELING_BIT)
+#define WORK_OFFQ_BH		(1ul << WORK_OFFQ_BH_BIT)
+#define WORK_OFFQ_FLAG_MASK	(((1ul << WORK_OFFQ_FLAG_BITS) - 1) << WORK_OFFQ_FLAG_SHIFT)
+#define WORK_OFFQ_DISABLE_MASK	(((1ul << WORK_OFFQ_DISABLE_BITS) - 1) << WORK_OFFQ_DISABLE_SHIFT)
 #define WORK_OFFQ_POOL_NONE	((1ul << WORK_OFFQ_POOL_BITS) - 1)
 #define WORK_STRUCT_NO_POOL	(WORK_OFFQ_POOL_NONE << WORK_OFFQ_POOL_SHIFT)
 #define WORK_STRUCT_PWQ_MASK	(~((1ul << WORK_STRUCT_PWQ_SHIFT) - 1))
@@ -180,6 +185,9 @@ struct workqueue_attrs {
 	 * Below fields aren't properties of a worker_pool. They only modify how
 	 * :c:func:`apply_workqueue_attrs` select pools and thus don't
 	 * participate in pool hash calculations or equality comparisons.
+	 *
+	 * If @affn_strict is set, @cpumask isn't a property of a worker_pool
+	 * either.
 	 */
 
 	/**
@@ -465,7 +473,7 @@ void workqueue_softirq_dead(unsigned int cpu);
  * @fmt: printf format for the name of the workqueue
  * @flags: WQ_* flags
  * @max_active: max in-flight work items, 0 for default
- * remaining args: args for @fmt
+ * @...: args for @fmt
  *
  * For a per-cpu workqueue, @max_active limits the number of in-flight work
  * items for each CPU. e.g. @max_active of 1 indicates that each CPU can be
@@ -558,6 +566,14 @@ extern bool cancel_work_sync(struct work_struct *work);
 extern bool flush_delayed_work(struct delayed_work *dwork);
 extern bool cancel_delayed_work(struct delayed_work *dwork);
 extern bool cancel_delayed_work_sync(struct delayed_work *dwork);
+
+extern bool disable_work(struct work_struct *work);
+extern bool disable_work_sync(struct work_struct *work);
+extern bool enable_work(struct work_struct *work);
+
+extern bool disable_delayed_work(struct delayed_work *dwork);
+extern bool disable_delayed_work_sync(struct delayed_work *dwork);
+extern bool enable_delayed_work(struct delayed_work *dwork);
 
 extern bool flush_rcu_work(struct rcu_work *rwork);
 
@@ -664,6 +680,32 @@ static inline bool schedule_work_on(int cpu, struct work_struct *work)
 static inline bool schedule_work(struct work_struct *work)
 {
 	return queue_work(system_wq, work);
+}
+
+/**
+ * enable_and_queue_work - Enable and queue a work item on a specific workqueue
+ * @wq: The target workqueue
+ * @work: The work item to be enabled and queued
+ *
+ * This function combines the operations of enable_work() and queue_work(),
+ * providing a convenient way to enable and queue a work item in a single call.
+ * It invokes enable_work() on @work and then queues it if the disable depth
+ * reached 0. Returns %true if the disable depth reached 0 and @work is queued,
+ * and %false otherwise.
+ *
+ * Note that @work is always queued when disable depth reaches zero. If the
+ * desired behavior is queueing only if certain events took place while @work is
+ * disabled, the user should implement the necessary state tracking and perform
+ * explicit conditional queueing after enable_work().
+ */
+static inline bool enable_and_queue_work(struct workqueue_struct *wq,
+					 struct work_struct *work)
+{
+	if (enable_work(work)) {
+		queue_work(wq, work);
+		return true;
+	}
+	return false;
 }
 
 /*

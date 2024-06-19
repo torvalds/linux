@@ -22,14 +22,14 @@ Documentation/translations/zh_CN/dev-tools/testing-overview.rst
    sparse
    gcov
    kasan
+   kcov
+   ubsan
+   kmemleak
    gdb-kernel-debugging
 
 Todolist:
 
  - coccinelle
- - kcov
- - ubsan
- - kmemleak
  - kcsan
  - kfence
  - kgdb

@@ -1,30 +1,30 @@
 # SPDX-License-Identifier: GPL-2.0
 # P1022 DS Machine Support
-snd-soc-p1022-ds-objs := p1022_ds.o
+snd-soc-p1022-ds-y := p1022_ds.o
 obj-$(CONFIG_SND_SOC_P1022_DS) += snd-soc-p1022-ds.o
 
 # P1022 RDK Machine Support
-snd-soc-p1022-rdk-objs := p1022_rdk.o
+snd-soc-p1022-rdk-y := p1022_rdk.o
 obj-$(CONFIG_SND_SOC_P1022_RDK) += snd-soc-p1022-rdk.o
 
 # Freescale SSI/DMA/SAI/SPDIF Support
-snd-soc-fsl-audmix-objs := fsl_audmix.o
-snd-soc-fsl-asoc-card-objs := fsl-asoc-card.o
-snd-soc-fsl-asrc-objs := fsl_asrc.o fsl_asrc_dma.o
-snd-soc-fsl-sai-objs := fsl_sai.o
+snd-soc-fsl-audmix-y := fsl_audmix.o
+snd-soc-fsl-asoc-card-y := fsl-asoc-card.o
+snd-soc-fsl-asrc-y := fsl_asrc.o fsl_asrc_dma.o
+snd-soc-fsl-sai-y := fsl_sai.o
 snd-soc-fsl-ssi-y := fsl_ssi.o
 snd-soc-fsl-ssi-$(CONFIG_DEBUG_FS) += fsl_ssi_dbg.o
-snd-soc-fsl-spdif-objs := fsl_spdif.o
-snd-soc-fsl-esai-objs := fsl_esai.o
-snd-soc-fsl-micfil-objs := fsl_micfil.o
-snd-soc-fsl-utils-objs := fsl_utils.o
-snd-soc-fsl-dma-objs := fsl_dma.o
-snd-soc-fsl-mqs-objs := fsl_mqs.o
-snd-soc-fsl-easrc-objs := fsl_easrc.o
-snd-soc-fsl-xcvr-objs := fsl_xcvr.o
-snd-soc-fsl-aud2htx-objs := fsl_aud2htx.o
-snd-soc-fsl-rpmsg-objs := fsl_rpmsg.o
-snd-soc-fsl-qmc-audio-objs := fsl_qmc_audio.o
+snd-soc-fsl-spdif-y := fsl_spdif.o
+snd-soc-fsl-esai-y := fsl_esai.o
+snd-soc-fsl-micfil-y := fsl_micfil.o
+snd-soc-fsl-utils-y := fsl_utils.o
+snd-soc-fsl-dma-y := fsl_dma.o
+snd-soc-fsl-mqs-y := fsl_mqs.o
+snd-soc-fsl-easrc-y := fsl_easrc.o
+snd-soc-fsl-xcvr-y := fsl_xcvr.o
+snd-soc-fsl-aud2htx-y := fsl_aud2htx.o
+snd-soc-fsl-rpmsg-y := fsl_rpmsg.o
+snd-soc-fsl-qmc-audio-y := fsl_qmc_audio.o
 
 obj-$(CONFIG_SND_SOC_FSL_AUDMIX) += snd-soc-fsl-audmix.o
 obj-$(CONFIG_SND_SOC_FSL_ASOC_CARD) += snd-soc-fsl-asoc-card.o
@@ -53,7 +53,7 @@ obj-$(CONFIG_SND_MPC52xx_SOC_PCM030) += pcm030-audio-fabric.o
 obj-$(CONFIG_SND_MPC52xx_SOC_EFIKA) += efika-audio-fabric.o
 
 # i.MX Platform Support
-snd-soc-imx-audmux-objs := imx-audmux.o
+snd-soc-imx-audmux-y := imx-audmux.o
 obj-$(CONFIG_SND_SOC_IMX_AUDMUX) += snd-soc-imx-audmux.o
 
 obj-$(CONFIG_SND_SOC_IMX_PCM_FIQ) += imx-pcm-fiq.o
@@ -62,14 +62,14 @@ obj-$(CONFIG_SND_SOC_IMX_AUDIO_RPMSG) += imx-audio-rpmsg.o
 obj-$(CONFIG_SND_SOC_IMX_PCM_RPMSG) += imx-pcm-rpmsg.o
 
 # i.MX Machine Support
-snd-soc-eukrea-tlv320-objs := eukrea-tlv320.o
-snd-soc-imx-es8328-objs := imx-es8328.o
-snd-soc-imx-sgtl5000-objs := imx-sgtl5000.o
-snd-soc-imx-spdif-objs := imx-spdif.o
-snd-soc-imx-audmix-objs := imx-audmix.o
-snd-soc-imx-hdmi-objs := imx-hdmi.o
-snd-soc-imx-rpmsg-objs := imx-rpmsg.o
-snd-soc-imx-card-objs := imx-card.o
+snd-soc-eukrea-tlv320-y := eukrea-tlv320.o
+snd-soc-imx-es8328-y := imx-es8328.o
+snd-soc-imx-sgtl5000-y := imx-sgtl5000.o
+snd-soc-imx-spdif-y := imx-spdif.o
+snd-soc-imx-audmix-y := imx-audmix.o
+snd-soc-imx-hdmi-y := imx-hdmi.o
+snd-soc-imx-rpmsg-y := imx-rpmsg.o
+snd-soc-imx-card-y := imx-card.o
 
 obj-$(CONFIG_SND_SOC_EUKREA_TLV320) += snd-soc-eukrea-tlv320.o
 obj-$(CONFIG_SND_SOC_IMX_ES8328) += snd-soc-imx-es8328.o

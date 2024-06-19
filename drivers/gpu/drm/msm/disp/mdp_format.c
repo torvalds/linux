@@ -62,115 +62,573 @@ static struct csc_cfg csc_convert[CSC_MAX] = {
 	},
 };
 
-#define FMT(name, a, r, g, b, e0, e1, e2, e3, alpha, tight, c, cnt, fp, cs, yuv) { \
-		.base = { .pixel_format = DRM_FORMAT_ ## name }, \
-		.bpc_a = BPC ## a ## A,                          \
-		.bpc_r = BPC ## r,                               \
-		.bpc_g = BPC ## g,                               \
-		.bpc_b = BPC ## b,                               \
-		.unpack = { e0, e1, e2, e3 },                    \
-		.alpha_enable = alpha,                           \
-		.unpack_tight = tight,                           \
-		.cpp = c,                                        \
-		.unpack_count = cnt,                             \
-		.fetch_type = fp,                                \
-		.chroma_sample = cs,                             \
-		.is_yuv = yuv,                                   \
+#define MDP_TILE_HEIGHT_DEFAULT	1
+#define MDP_TILE_HEIGHT_UBWC	4
+#define MDP_TILE_HEIGHT_NV12	8
+
+#define INTERLEAVED_RGB_FMT(fmt, a, r, g, b, e0, e1, e2, e3, uc, alpha,   \
+bp, flg, fm, np)                                                          \
+{                                                                         \
+	.pixel_format = DRM_FORMAT_ ## fmt,                               \
+	.fetch_type = MDP_PLANE_INTERLEAVED,                              \
+	.alpha_enable = alpha,                                            \
+	.element = { (e0), (e1), (e2), (e3) },                            \
+	.bpc_g_y = g,                                                     \
+	.bpc_b_cb = b,                                                    \
+	.bpc_r_cr = r,                                                    \
+	.bpc_a = a,                                                       \
+	.chroma_sample = CHROMA_FULL,                                     \
+	.unpack_count = uc,                                               \
+	.bpp = bp,                                                        \
+	.fetch_mode = fm,                                                 \
+	.flags = MSM_FORMAT_FLAG_UNPACK_TIGHT | flg,                      \
+	.num_planes = np,                                                 \
+	.tile_height = MDP_TILE_HEIGHT_DEFAULT                            \
 }
 
-#define BPC0A 0
+#define INTERLEAVED_RGB_FMT_TILED(fmt, a, r, g, b, e0, e1, e2, e3, uc,    \
+alpha, bp, flg, fm, np, th)                                               \
+{                                                                         \
+	.pixel_format = DRM_FORMAT_ ## fmt,                               \
+	.fetch_type = MDP_PLANE_INTERLEAVED,                              \
+	.alpha_enable = alpha,                                            \
+	.element = { (e0), (e1), (e2), (e3) },                            \
+	.bpc_g_y = g,                                                     \
+	.bpc_b_cb = b,                                                    \
+	.bpc_r_cr = r,                                                    \
+	.bpc_a = a,                                                       \
+	.chroma_sample = CHROMA_FULL,                                     \
+	.unpack_count = uc,                                               \
+	.bpp = bp,                                                        \
+	.fetch_mode = fm,                                                 \
+	.flags = MSM_FORMAT_FLAG_UNPACK_TIGHT | flg,                      \
+	.num_planes = np,                                                 \
+	.tile_height = th                                                 \
+}
 
-/*
- * Note: Keep RGB formats 1st, followed by YUV formats to avoid breaking
- * mdp_get_rgb_formats()'s implementation.
- */
-static const struct mdp_format formats[] = {
-	/*  name      a  r  g  b   e0 e1 e2 e3  alpha   tight  cpp cnt ... */
-	FMT(ARGB8888, 8, 8, 8, 8,  1, 0, 2, 3,  true,   true,  4,  4,
-			MDP_PLANE_INTERLEAVED, CHROMA_FULL, false),
-	FMT(ABGR8888, 8, 8, 8, 8,  2, 0, 1, 3,  true,   true,  4,  4,
-			MDP_PLANE_INTERLEAVED, CHROMA_FULL, false),
-	FMT(RGBA8888, 8, 8, 8, 8,  3, 1, 0, 2,  true,   true,  4,  4,
-			MDP_PLANE_INTERLEAVED, CHROMA_FULL, false),
-	FMT(BGRA8888, 8, 8, 8, 8,  3, 2, 0, 1,  true,   true,  4,  4,
-			MDP_PLANE_INTERLEAVED, CHROMA_FULL, false),
-	FMT(XRGB8888, 8, 8, 8, 8,  1, 0, 2, 3,  false,  true,  4,  4,
-			MDP_PLANE_INTERLEAVED, CHROMA_FULL, false),
-	FMT(XBGR8888, 8, 8, 8, 8,  2, 0, 1, 3,  false,   true,  4,  4,
-			MDP_PLANE_INTERLEAVED, CHROMA_FULL, false),
-	FMT(RGBX8888, 8, 8, 8, 8,  3, 1, 0, 2,  false,   true,  4,  4,
-			MDP_PLANE_INTERLEAVED, CHROMA_FULL, false),
-	FMT(BGRX8888, 8, 8, 8, 8,  3, 2, 0, 1,  false,   true,  4,  4,
-			MDP_PLANE_INTERLEAVED, CHROMA_FULL, false),
-	FMT(RGB888,   0, 8, 8, 8,  1, 0, 2, 0,  false,  true,  3,  3,
-			MDP_PLANE_INTERLEAVED, CHROMA_FULL, false),
-	FMT(BGR888,   0, 8, 8, 8,  2, 0, 1, 0,  false,  true,  3,  3,
-			MDP_PLANE_INTERLEAVED, CHROMA_FULL, false),
-	FMT(RGB565,   0, 5, 6, 5,  1, 0, 2, 0,  false,  true,  2,  3,
-			MDP_PLANE_INTERLEAVED, CHROMA_FULL, false),
-	FMT(BGR565,   0, 5, 6, 5,  2, 0, 1, 0,  false,  true,  2,  3,
-			MDP_PLANE_INTERLEAVED, CHROMA_FULL, false),
+#define INTERLEAVED_YUV_FMT(fmt, a, r, g, b, e0, e1, e2, e3,              \
+alpha, chroma, count, bp, flg, fm, np)                                    \
+{                                                                         \
+	.pixel_format = DRM_FORMAT_ ## fmt,                               \
+	.fetch_type = MDP_PLANE_INTERLEAVED,                              \
+	.alpha_enable = alpha,                                            \
+	.element = { (e0), (e1), (e2), (e3)},                             \
+	.bpc_g_y = g,                                                     \
+	.bpc_b_cb = b,                                                    \
+	.bpc_r_cr = r,                                                    \
+	.bpc_a = a,                                                       \
+	.chroma_sample = chroma,                                          \
+	.unpack_count = count,                                            \
+	.bpp = bp,                                                        \
+	.fetch_mode = fm,                                                 \
+	.flags = MSM_FORMAT_FLAG_UNPACK_TIGHT | flg,                      \
+	.num_planes = np,                                                 \
+	.tile_height = MDP_TILE_HEIGHT_DEFAULT                            \
+}
+
+#define PSEUDO_YUV_FMT(fmt, a, r, g, b, e0, e1, chroma, flg, fm, np)      \
+{                                                                         \
+	.pixel_format = DRM_FORMAT_ ## fmt,                               \
+	.fetch_type = MDP_PLANE_PSEUDO_PLANAR,                            \
+	.alpha_enable = 0,                                                \
+	.element = { (e0), (e1), 0, 0 },                                  \
+	.bpc_g_y = g,                                                     \
+	.bpc_b_cb = b,                                                    \
+	.bpc_r_cr = r,                                                    \
+	.bpc_a = a,                                                       \
+	.chroma_sample = chroma,                                          \
+	.unpack_count = 2,                                                \
+	.bpp = 2,                                                         \
+	.fetch_mode = fm,                                                 \
+	.flags = MSM_FORMAT_FLAG_UNPACK_TIGHT | flg,                      \
+	.num_planes = np,                                                 \
+	.tile_height = MDP_TILE_HEIGHT_DEFAULT                            \
+}
+
+#define PSEUDO_YUV_FMT_TILED(fmt, a, r, g, b, e0, e1, chroma,             \
+flg, fm, np, th)                                                          \
+{                                                                         \
+	.pixel_format = DRM_FORMAT_ ## fmt,                               \
+	.fetch_type = MDP_PLANE_PSEUDO_PLANAR,                            \
+	.alpha_enable = 0,                                                \
+	.element = { (e0), (e1), 0, 0 },                                  \
+	.bpc_g_y = g,                                                     \
+	.bpc_b_cb = b,                                                    \
+	.bpc_r_cr = r,                                                    \
+	.bpc_a = a,                                                       \
+	.chroma_sample = chroma,                                          \
+	.unpack_count = 2,                                                \
+	.bpp = 2,                                                         \
+	.fetch_mode = fm,                                                 \
+	.flags = MSM_FORMAT_FLAG_UNPACK_TIGHT | flg,                      \
+	.num_planes = np,                                                 \
+	.tile_height = th                                                 \
+}
+
+#define PSEUDO_YUV_FMT_LOOSE(fmt, a, r, g, b, e0, e1, chroma, flg, fm, np)\
+{                                                                         \
+	.pixel_format = DRM_FORMAT_ ## fmt,                               \
+	.fetch_type = MDP_PLANE_PSEUDO_PLANAR,                            \
+	.alpha_enable = 0,                                                \
+	.element = { (e0), (e1), 0, 0 },                                  \
+	.bpc_g_y = g,                                                     \
+	.bpc_b_cb = b,                                                    \
+	.bpc_r_cr = r,                                                    \
+	.bpc_a = a,                                                       \
+	.chroma_sample = chroma,                                          \
+	.unpack_count = 2,                                                \
+	.bpp = 2,                                                         \
+	.fetch_mode = fm,                                                 \
+	.flags = MSM_FORMAT_FLAG_UNPACK_ALIGN_MSB | flg,                  \
+	.num_planes = np,                                                 \
+	.tile_height = MDP_TILE_HEIGHT_DEFAULT                            \
+}
+
+#define PSEUDO_YUV_FMT_LOOSE_TILED(fmt, a, r, g, b, e0, e1, chroma,       \
+flg, fm, np, th)                                                          \
+{                                                                         \
+	.pixel_format = DRM_FORMAT_ ## fmt,                               \
+	.fetch_type = MDP_PLANE_PSEUDO_PLANAR,                            \
+	.alpha_enable = 0,                                                \
+	.element = { (e0), (e1), 0, 0 },                                  \
+	.bpc_g_y = g,                                                     \
+	.bpc_b_cb = b,                                                    \
+	.bpc_r_cr = r,                                                    \
+	.bpc_a = a,                                                       \
+	.chroma_sample = chroma,                                          \
+	.unpack_count = 2,                                                \
+	.bpp = 2,                                                         \
+	.fetch_mode = fm,                                                 \
+	.flags = MSM_FORMAT_FLAG_UNPACK_ALIGN_MSB | flg,                  \
+	.num_planes = np,                                                 \
+	.tile_height = th                                                 \
+}
+
+#define PLANAR_YUV_FMT(fmt, a, r, g, b, e0, e1, e2, alpha, chroma, bp,    \
+flg, fm, np)                                                      \
+{                                                                         \
+	.pixel_format = DRM_FORMAT_ ## fmt,                               \
+	.fetch_type = MDP_PLANE_PLANAR,                                   \
+	.alpha_enable = alpha,                                            \
+	.element = { (e0), (e1), (e2), 0 },                               \
+	.bpc_g_y = g,                                                     \
+	.bpc_b_cb = b,                                                    \
+	.bpc_r_cr = r,                                                    \
+	.bpc_a = a,                                                       \
+	.chroma_sample = chroma,                                          \
+	.unpack_count = 1,                                                \
+	.bpp = bp,                                                        \
+	.fetch_mode = fm,                                                 \
+	.flags = MSM_FORMAT_FLAG_UNPACK_TIGHT | flg,                      \
+	.num_planes = np,                                                 \
+	.tile_height = MDP_TILE_HEIGHT_DEFAULT                            \
+}
+
+static const struct msm_format mdp_formats[] = {
+	INTERLEAVED_RGB_FMT(ARGB8888,
+		BPC8A, BPC8, BPC8, BPC8,
+		C1_B_Cb, C0_G_Y, C2_R_Cr, C3_ALPHA, 4,
+		true, 4, 0,
+		MDP_FETCH_LINEAR, 1),
+
+	INTERLEAVED_RGB_FMT(ABGR8888,
+		BPC8A, BPC8, BPC8, BPC8,
+		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
+		true, 4, 0,
+		MDP_FETCH_LINEAR, 1),
+
+	INTERLEAVED_RGB_FMT(XBGR8888,
+		BPC8A, BPC8, BPC8, BPC8,
+		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
+		false, 4, 0,
+		MDP_FETCH_LINEAR, 1),
+
+	INTERLEAVED_RGB_FMT(RGBA8888,
+		BPC8A, BPC8, BPC8, BPC8,
+		C3_ALPHA, C1_B_Cb, C0_G_Y, C2_R_Cr, 4,
+		true, 4, 0,
+		MDP_FETCH_LINEAR, 1),
+
+	INTERLEAVED_RGB_FMT(BGRA8888,
+		BPC8A, BPC8, BPC8, BPC8,
+		C3_ALPHA, C2_R_Cr, C0_G_Y, C1_B_Cb, 4,
+		true, 4, 0,
+		MDP_FETCH_LINEAR, 1),
+
+	INTERLEAVED_RGB_FMT(BGRX8888,
+		BPC8A, BPC8, BPC8, BPC8,
+		C3_ALPHA, C2_R_Cr, C0_G_Y, C1_B_Cb, 4,
+		false, 4, 0,
+		MDP_FETCH_LINEAR, 1),
+
+	INTERLEAVED_RGB_FMT(XRGB8888,
+		BPC8A, BPC8, BPC8, BPC8,
+		C1_B_Cb, C0_G_Y, C2_R_Cr, C3_ALPHA, 4,
+		false, 4, 0,
+		MDP_FETCH_LINEAR, 1),
+
+	INTERLEAVED_RGB_FMT(RGBX8888,
+		BPC8A, BPC8, BPC8, BPC8,
+		C3_ALPHA, C1_B_Cb, C0_G_Y, C2_R_Cr, 4,
+		false, 4, 0,
+		MDP_FETCH_LINEAR, 1),
+
+	INTERLEAVED_RGB_FMT(RGB888,
+		0, BPC8, BPC8, BPC8,
+		C1_B_Cb, C0_G_Y, C2_R_Cr, 0, 3,
+		false, 3, 0,
+		MDP_FETCH_LINEAR, 1),
+
+	INTERLEAVED_RGB_FMT(BGR888,
+		0, BPC8, BPC8, BPC8,
+		C2_R_Cr, C0_G_Y, C1_B_Cb, 0, 3,
+		false, 3, 0,
+		MDP_FETCH_LINEAR, 1),
+
+	INTERLEAVED_RGB_FMT(RGB565,
+		0, BPC5, BPC6, BPC5,
+		C1_B_Cb, C0_G_Y, C2_R_Cr, 0, 3,
+		false, 2, 0,
+		MDP_FETCH_LINEAR, 1),
+
+	INTERLEAVED_RGB_FMT(BGR565,
+		0, BPC5, BPC6, BPC5,
+		C2_R_Cr, C0_G_Y, C1_B_Cb, 0, 3,
+		false, 2, 0,
+		MDP_FETCH_LINEAR, 1),
+
+	INTERLEAVED_RGB_FMT(ARGB1555,
+		BPC1A, BPC5, BPC5, BPC5,
+		C1_B_Cb, C0_G_Y, C2_R_Cr, C3_ALPHA, 4,
+		true, 2, 0,
+		MDP_FETCH_LINEAR, 1),
+
+	INTERLEAVED_RGB_FMT(ABGR1555,
+		BPC1A, BPC5, BPC5, BPC5,
+		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
+		true, 2, 0,
+		MDP_FETCH_LINEAR, 1),
+
+	INTERLEAVED_RGB_FMT(RGBA5551,
+		BPC1A, BPC5, BPC5, BPC5,
+		C3_ALPHA, C1_B_Cb, C0_G_Y, C2_R_Cr, 4,
+		true, 2, 0,
+		MDP_FETCH_LINEAR, 1),
+
+	INTERLEAVED_RGB_FMT(BGRA5551,
+		BPC1A, BPC5, BPC5, BPC5,
+		C3_ALPHA, C2_R_Cr, C0_G_Y, C1_B_Cb, 4,
+		true, 2, 0,
+		MDP_FETCH_LINEAR, 1),
+
+	INTERLEAVED_RGB_FMT(XRGB1555,
+		BPC1A, BPC5, BPC5, BPC5,
+		C1_B_Cb, C0_G_Y, C2_R_Cr, C3_ALPHA, 4,
+		false, 2, 0,
+		MDP_FETCH_LINEAR, 1),
+
+	INTERLEAVED_RGB_FMT(XBGR1555,
+		BPC1A, BPC5, BPC5, BPC5,
+		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
+		false, 2, 0,
+		MDP_FETCH_LINEAR, 1),
+
+	INTERLEAVED_RGB_FMT(RGBX5551,
+		BPC1A, BPC5, BPC5, BPC5,
+		C3_ALPHA, C1_B_Cb, C0_G_Y, C2_R_Cr, 4,
+		false, 2, 0,
+		MDP_FETCH_LINEAR, 1),
+
+	INTERLEAVED_RGB_FMT(BGRX5551,
+		BPC1A, BPC5, BPC5, BPC5,
+		C3_ALPHA, C2_R_Cr, C0_G_Y, C1_B_Cb, 4,
+		false, 2, 0,
+		MDP_FETCH_LINEAR, 1),
+
+	INTERLEAVED_RGB_FMT(ARGB4444,
+		BPC4A, BPC4, BPC4, BPC4,
+		C1_B_Cb, C0_G_Y, C2_R_Cr, C3_ALPHA, 4,
+		true, 2, 0,
+		MDP_FETCH_LINEAR, 1),
+
+	INTERLEAVED_RGB_FMT(ABGR4444,
+		BPC4A, BPC4, BPC4, BPC4,
+		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
+		true, 2, 0,
+		MDP_FETCH_LINEAR, 1),
+
+	INTERLEAVED_RGB_FMT(RGBA4444,
+		BPC4A, BPC4, BPC4, BPC4,
+		C3_ALPHA, C1_B_Cb, C0_G_Y, C2_R_Cr, 4,
+		true, 2, 0,
+		MDP_FETCH_LINEAR, 1),
+
+	INTERLEAVED_RGB_FMT(BGRA4444,
+		BPC4A, BPC4, BPC4, BPC4,
+		C3_ALPHA, C2_R_Cr, C0_G_Y, C1_B_Cb, 4,
+		true, 2, 0,
+		MDP_FETCH_LINEAR, 1),
+
+	INTERLEAVED_RGB_FMT(XRGB4444,
+		BPC4A, BPC4, BPC4, BPC4,
+		C1_B_Cb, C0_G_Y, C2_R_Cr, C3_ALPHA, 4,
+		false, 2, 0,
+		MDP_FETCH_LINEAR, 1),
+
+	INTERLEAVED_RGB_FMT(XBGR4444,
+		BPC4A, BPC4, BPC4, BPC4,
+		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
+		false, 2, 0,
+		MDP_FETCH_LINEAR, 1),
+
+	INTERLEAVED_RGB_FMT(RGBX4444,
+		BPC4A, BPC4, BPC4, BPC4,
+		C3_ALPHA, C1_B_Cb, C0_G_Y, C2_R_Cr, 4,
+		false, 2, 0,
+		MDP_FETCH_LINEAR, 1),
+
+	INTERLEAVED_RGB_FMT(BGRX4444,
+		BPC4A, BPC4, BPC4, BPC4,
+		C3_ALPHA, C2_R_Cr, C0_G_Y, C1_B_Cb, 4,
+		false, 2, 0,
+		MDP_FETCH_LINEAR, 1),
+
+	INTERLEAVED_RGB_FMT(BGRA1010102,
+		BPC8A, BPC8, BPC8, BPC8,
+		C3_ALPHA, C2_R_Cr, C0_G_Y, C1_B_Cb, 4,
+		true, 4, MSM_FORMAT_FLAG_DX,
+		MDP_FETCH_LINEAR, 1),
+
+	INTERLEAVED_RGB_FMT(RGBA1010102,
+		BPC8A, BPC8, BPC8, BPC8,
+		C3_ALPHA, C1_B_Cb, C0_G_Y, C2_R_Cr, 4,
+		true, 4, MSM_FORMAT_FLAG_DX,
+		MDP_FETCH_LINEAR, 1),
+
+	INTERLEAVED_RGB_FMT(ABGR2101010,
+		BPC8A, BPC8, BPC8, BPC8,
+		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
+		true, 4, MSM_FORMAT_FLAG_DX,
+		MDP_FETCH_LINEAR, 1),
+
+	INTERLEAVED_RGB_FMT(ARGB2101010,
+		BPC8A, BPC8, BPC8, BPC8,
+		C1_B_Cb, C0_G_Y, C2_R_Cr, C3_ALPHA, 4,
+		true, 4, MSM_FORMAT_FLAG_DX,
+		MDP_FETCH_LINEAR, 1),
+
+	INTERLEAVED_RGB_FMT(XRGB2101010,
+		BPC8A, BPC8, BPC8, BPC8,
+		C1_B_Cb, C0_G_Y, C2_R_Cr, C3_ALPHA, 4,
+		false, 4, MSM_FORMAT_FLAG_DX,
+		MDP_FETCH_LINEAR, 1),
+
+	INTERLEAVED_RGB_FMT(BGRX1010102,
+		BPC8A, BPC8, BPC8, BPC8,
+		C3_ALPHA, C2_R_Cr, C0_G_Y, C1_B_Cb, 4,
+		false, 4, MSM_FORMAT_FLAG_DX,
+		MDP_FETCH_LINEAR, 1),
+
+	INTERLEAVED_RGB_FMT(XBGR2101010,
+		BPC8A, BPC8, BPC8, BPC8,
+		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
+		false, 4, MSM_FORMAT_FLAG_DX,
+		MDP_FETCH_LINEAR, 1),
+
+	INTERLEAVED_RGB_FMT(RGBX1010102,
+		BPC8A, BPC8, BPC8, BPC8,
+		C3_ALPHA, C1_B_Cb, C0_G_Y, C2_R_Cr, 4,
+		false, 4, MSM_FORMAT_FLAG_DX,
+		MDP_FETCH_LINEAR, 1),
 
 	/* --- RGB formats above / YUV formats below this line --- */
 
 	/* 2 plane YUV */
-	FMT(NV12,     0, 8, 8, 8,  1, 2, 0, 0,  false,  true,  2, 2,
-			MDP_PLANE_PSEUDO_PLANAR, CHROMA_420, true),
-	FMT(NV21,     0, 8, 8, 8,  2, 1, 0, 0,  false,  true,  2, 2,
-			MDP_PLANE_PSEUDO_PLANAR, CHROMA_420, true),
-	FMT(NV16,     0, 8, 8, 8,  1, 2, 0, 0,  false,  true,  2, 2,
-			MDP_PLANE_PSEUDO_PLANAR, CHROMA_H2V1, true),
-	FMT(NV61,     0, 8, 8, 8,  2, 1, 0, 0,  false,  true,  2, 2,
-			MDP_PLANE_PSEUDO_PLANAR, CHROMA_H2V1, true),
+	PSEUDO_YUV_FMT(NV12,
+		0, BPC8, BPC8, BPC8,
+		C1_B_Cb, C2_R_Cr,
+		CHROMA_420, MSM_FORMAT_FLAG_YUV,
+		MDP_FETCH_LINEAR, 2),
+
+	PSEUDO_YUV_FMT(NV21,
+		0, BPC8, BPC8, BPC8,
+		C2_R_Cr, C1_B_Cb,
+		CHROMA_420, MSM_FORMAT_FLAG_YUV,
+		MDP_FETCH_LINEAR, 2),
+
+	PSEUDO_YUV_FMT(NV16,
+		0, BPC8, BPC8, BPC8,
+		C1_B_Cb, C2_R_Cr,
+		CHROMA_H2V1, MSM_FORMAT_FLAG_YUV,
+		MDP_FETCH_LINEAR, 2),
+
+	PSEUDO_YUV_FMT(NV61,
+		0, BPC8, BPC8, BPC8,
+		C2_R_Cr, C1_B_Cb,
+		CHROMA_H2V1, MSM_FORMAT_FLAG_YUV,
+		MDP_FETCH_LINEAR, 2),
+
+	PSEUDO_YUV_FMT_LOOSE(P010,
+		0, BPC8, BPC8, BPC8,
+		C1_B_Cb, C2_R_Cr,
+		CHROMA_420, MSM_FORMAT_FLAG_DX | MSM_FORMAT_FLAG_YUV,
+		MDP_FETCH_LINEAR, 2),
+
 	/* 1 plane YUV */
-	FMT(VYUY,     0, 8, 8, 8,  2, 0, 1, 0,  false,  true,  2, 4,
-			MDP_PLANE_INTERLEAVED, CHROMA_H2V1, true),
-	FMT(UYVY,     0, 8, 8, 8,  1, 0, 2, 0,  false,  true,  2, 4,
-			MDP_PLANE_INTERLEAVED, CHROMA_H2V1, true),
-	FMT(YUYV,     0, 8, 8, 8,  0, 1, 0, 2,  false,  true,  2, 4,
-			MDP_PLANE_INTERLEAVED, CHROMA_H2V1, true),
-	FMT(YVYU,     0, 8, 8, 8,  0, 2, 0, 1,  false,  true,  2, 4,
-			MDP_PLANE_INTERLEAVED, CHROMA_H2V1, true),
+	INTERLEAVED_YUV_FMT(VYUY,
+		0, BPC8, BPC8, BPC8,
+		C2_R_Cr, C0_G_Y, C1_B_Cb, C0_G_Y,
+		false, CHROMA_H2V1, 4, 2, MSM_FORMAT_FLAG_YUV,
+		MDP_FETCH_LINEAR, 2),
+
+	INTERLEAVED_YUV_FMT(UYVY,
+		0, BPC8, BPC8, BPC8,
+		C1_B_Cb, C0_G_Y, C2_R_Cr, C0_G_Y,
+		false, CHROMA_H2V1, 4, 2, MSM_FORMAT_FLAG_YUV,
+		MDP_FETCH_LINEAR, 2),
+
+	INTERLEAVED_YUV_FMT(YUYV,
+		0, BPC8, BPC8, BPC8,
+		C0_G_Y, C1_B_Cb, C0_G_Y, C2_R_Cr,
+		false, CHROMA_H2V1, 4, 2, MSM_FORMAT_FLAG_YUV,
+		MDP_FETCH_LINEAR, 2),
+
+	INTERLEAVED_YUV_FMT(YVYU,
+		0, BPC8, BPC8, BPC8,
+		C0_G_Y, C2_R_Cr, C0_G_Y, C1_B_Cb,
+		false, CHROMA_H2V1, 4, 2, MSM_FORMAT_FLAG_YUV,
+		MDP_FETCH_LINEAR, 2),
+
 	/* 3 plane YUV */
-	FMT(YUV420,   0, 8, 8, 8,  2, 1, 0, 0,  false,  true,  1, 1,
-			MDP_PLANE_PLANAR, CHROMA_420, true),
-	FMT(YVU420,   0, 8, 8, 8,  1, 2, 0, 0,  false,  true,  1, 1,
-			MDP_PLANE_PLANAR, CHROMA_420, true),
+	PLANAR_YUV_FMT(YUV420,
+		0, BPC8, BPC8, BPC8,
+		C2_R_Cr, C1_B_Cb, C0_G_Y,
+		false, CHROMA_420, 1, MSM_FORMAT_FLAG_YUV,
+		MDP_FETCH_LINEAR, 3),
+
+	PLANAR_YUV_FMT(YVU420,
+		0, BPC8, BPC8, BPC8,
+		C1_B_Cb, C2_R_Cr, C0_G_Y,
+		false, CHROMA_420, 1, MSM_FORMAT_FLAG_YUV,
+		MDP_FETCH_LINEAR, 3),
 };
 
 /*
- * Note:
- * @rgb_only must be set to true, when requesting
- * supported formats for RGB pipes.
+ * UBWC formats table:
+ * This table holds the UBWC formats supported.
+ * If a compression ratio needs to be used for this or any other format,
+ * the data will be passed by user-space.
  */
-uint32_t mdp_get_formats(uint32_t *pixel_formats, uint32_t max_formats,
-		bool rgb_only)
-{
-	uint32_t i;
-	for (i = 0; i < ARRAY_SIZE(formats); i++) {
-		const struct mdp_format *f = &formats[i];
+static const struct msm_format mdp_formats_ubwc[] = {
+	INTERLEAVED_RGB_FMT_TILED(BGR565,
+		0, BPC5, BPC6, BPC5,
+		C2_R_Cr, C0_G_Y, C1_B_Cb, 0, 3,
+		false, 2, MSM_FORMAT_FLAG_COMPRESSED,
+		MDP_FETCH_UBWC, 2, MDP_TILE_HEIGHT_UBWC),
 
-		if (i == max_formats)
-			break;
+	INTERLEAVED_RGB_FMT_TILED(ABGR8888,
+		BPC8A, BPC8, BPC8, BPC8,
+		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
+		true, 4, MSM_FORMAT_FLAG_COMPRESSED,
+		MDP_FETCH_UBWC, 2, MDP_TILE_HEIGHT_UBWC),
 
-		if (rgb_only && MDP_FORMAT_IS_YUV(f))
-			break;
+	/* ARGB8888 and ABGR8888 purposely have the same color
+	 * ordering.  The hardware only supports ABGR8888 UBWC
+	 * natively.
+	 */
+	INTERLEAVED_RGB_FMT_TILED(ARGB8888,
+		BPC8A, BPC8, BPC8, BPC8,
+		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
+		true, 4, MSM_FORMAT_FLAG_COMPRESSED,
+		MDP_FETCH_UBWC, 2, MDP_TILE_HEIGHT_UBWC),
 
-		pixel_formats[i] = f->base.pixel_format;
-	}
+	INTERLEAVED_RGB_FMT_TILED(XBGR8888,
+		BPC8A, BPC8, BPC8, BPC8,
+		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
+		false, 4, MSM_FORMAT_FLAG_COMPRESSED,
+		MDP_FETCH_UBWC, 2, MDP_TILE_HEIGHT_UBWC),
 
-	return i;
-}
+	INTERLEAVED_RGB_FMT_TILED(XRGB8888,
+		BPC8A, BPC8, BPC8, BPC8,
+		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
+		false, 4, MSM_FORMAT_FLAG_COMPRESSED,
+		MDP_FETCH_UBWC, 2, MDP_TILE_HEIGHT_UBWC),
+
+	INTERLEAVED_RGB_FMT_TILED(ABGR2101010,
+		BPC8A, BPC8, BPC8, BPC8,
+		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
+		true, 4, MSM_FORMAT_FLAG_DX | MSM_FORMAT_FLAG_COMPRESSED,
+		MDP_FETCH_UBWC, 2, MDP_TILE_HEIGHT_UBWC),
+
+	INTERLEAVED_RGB_FMT_TILED(XBGR2101010,
+		BPC8A, BPC8, BPC8, BPC8,
+		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
+		true, 4, MSM_FORMAT_FLAG_DX | MSM_FORMAT_FLAG_COMPRESSED,
+		MDP_FETCH_UBWC, 2, MDP_TILE_HEIGHT_UBWC),
+
+	INTERLEAVED_RGB_FMT_TILED(XRGB2101010,
+		BPC8A, BPC8, BPC8, BPC8,
+		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
+		true, 4, MSM_FORMAT_FLAG_DX | MSM_FORMAT_FLAG_COMPRESSED,
+		MDP_FETCH_UBWC, 2, MDP_TILE_HEIGHT_UBWC),
+
+	/* XRGB2101010 and ARGB2101010 purposely have the same color
+	* ordering.  The hardware only supports ARGB2101010 UBWC
+	* natively.
+	*/
+	INTERLEAVED_RGB_FMT_TILED(ARGB2101010,
+		BPC8A, BPC8, BPC8, BPC8,
+		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
+		true, 4, MSM_FORMAT_FLAG_DX | MSM_FORMAT_FLAG_COMPRESSED,
+		MDP_FETCH_UBWC, 2, MDP_TILE_HEIGHT_UBWC),
+
+	PSEUDO_YUV_FMT_TILED(NV12,
+		0, BPC8, BPC8, BPC8,
+		C1_B_Cb, C2_R_Cr,
+		CHROMA_420, MSM_FORMAT_FLAG_YUV |
+				MSM_FORMAT_FLAG_COMPRESSED,
+		MDP_FETCH_UBWC, 4, MDP_TILE_HEIGHT_NV12),
+
+	PSEUDO_YUV_FMT_TILED(P010,
+		0, BPC8, BPC8, BPC8,
+		C1_B_Cb, C2_R_Cr,
+		CHROMA_420, MSM_FORMAT_FLAG_DX |
+				MSM_FORMAT_FLAG_YUV |
+				MSM_FORMAT_FLAG_COMPRESSED,
+		MDP_FETCH_UBWC, 4, MDP_TILE_HEIGHT_UBWC),
+};
 
 const struct msm_format *mdp_get_format(struct msm_kms *kms, uint32_t format,
 		uint64_t modifier)
 {
+	const struct msm_format *map = NULL;
+	ssize_t map_size;
 	int i;
-	for (i = 0; i < ARRAY_SIZE(formats); i++) {
-		const struct mdp_format *f = &formats[i];
-		if (f->base.pixel_format == format)
-			return &f->base;
+
+	switch (modifier) {
+	case 0:
+		map = mdp_formats;
+		map_size = ARRAY_SIZE(mdp_formats);
+		break;
+	case DRM_FORMAT_MOD_QCOM_COMPRESSED:
+		map = mdp_formats_ubwc;
+		map_size = ARRAY_SIZE(mdp_formats_ubwc);
+		break;
+	default:
+		drm_err(kms->dev, "unsupported format modifier %llX\n", modifier);
+		return NULL;
 	}
+
+	for (i = 0; i < map_size; i++) {
+		const struct msm_format *f = &map[i];
+
+		if (f->pixel_format == format)
+			return f;
+	}
+
+	drm_err(kms->dev, "unsupported fmt: %p4cc modifier 0x%llX\n",
+		&format, modifier);
+
 	return NULL;
 }
 

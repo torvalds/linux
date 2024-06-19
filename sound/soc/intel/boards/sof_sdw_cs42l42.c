@@ -15,13 +15,7 @@
 #include <sound/soc-acpi.h>
 #include <sound/soc-dapm.h>
 #include <sound/jack.h>
-#include "sof_board_helpers.h"
 #include "sof_sdw_common.h"
-
-static const struct snd_soc_dapm_widget cs42l42_widgets[] = {
-	SND_SOC_DAPM_HP("Headphone", NULL),
-	SND_SOC_DAPM_MIC("Headset Mic", NULL),
-};
 
 static const struct snd_soc_dapm_route cs42l42_map[] = {
 	/* HP jack connectors - unknown if we have jack detection */
@@ -29,11 +23,6 @@ static const struct snd_soc_dapm_route cs42l42_map[] = {
 
 	/* other jacks */
 	{"cs42l42 HS", NULL, "Headset Mic"},
-};
-
-static const struct snd_kcontrol_new cs42l42_controls[] = {
-	SOC_DAPM_PIN_SWITCH("Headphone"),
-	SOC_DAPM_PIN_SWITCH("Headset Mic"),
 };
 
 static struct snd_soc_jack_pin cs42l42_jack_pins[] = {
@@ -51,7 +40,7 @@ static const char * const jack_codecs[] = {
 	"cs42l42"
 };
 
-int cs42l42_rtd_init(struct snd_soc_pcm_runtime *rtd)
+int cs42l42_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *dai)
 {
 	struct snd_soc_card *card = rtd->card;
 	struct mc_private *ctx = snd_soc_card_get_drvdata(card);
@@ -70,20 +59,6 @@ int cs42l42_rtd_init(struct snd_soc_pcm_runtime *rtd)
 					  card->components);
 	if (!card->components)
 		return -ENOMEM;
-
-	ret = snd_soc_add_card_controls(card, cs42l42_controls,
-					ARRAY_SIZE(cs42l42_controls));
-	if (ret) {
-		dev_err(card->dev, "cs42l42 control addition failed: %d\n", ret);
-		return ret;
-	}
-
-	ret = snd_soc_dapm_new_controls(&card->dapm, cs42l42_widgets,
-					ARRAY_SIZE(cs42l42_widgets));
-	if (ret) {
-		dev_err(card->dev, "cs42l42 widgets addition failed: %d\n", ret);
-		return ret;
-	}
 
 	ret = snd_soc_dapm_add_routes(&card->dapm, cs42l42_map,
 				      ARRAY_SIZE(cs42l42_map));

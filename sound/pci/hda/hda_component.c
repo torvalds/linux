@@ -123,6 +123,21 @@ static int hda_comp_match_dev_name(struct device *dev, void *data)
 	return !strcmp(d + n, tmp);
 }
 
+int hda_component_manager_bind(struct hda_codec *cdc,
+			       struct hda_component *comps, int count)
+{
+	int i;
+
+	/* Init shared data */
+	for (i = 0; i < count; ++i) {
+		memset(&comps[i], 0, sizeof(comps[i]));
+		comps[i].codec = cdc;
+	}
+
+	return component_bind_all(hda_codec_dev(cdc), comps);
+}
+EXPORT_SYMBOL_NS_GPL(hda_component_manager_bind, SND_HDA_SCODEC_COMPONENT);
+
 int hda_component_manager_init(struct hda_codec *cdc,
 			       struct hda_component *comps, int count,
 			       const char *bus, const char *hid,
@@ -143,7 +158,6 @@ int hda_component_manager_init(struct hda_codec *cdc,
 		sm->hid = hid;
 		sm->match_str = match_str;
 		sm->index = i;
-		comps[i].codec = cdc;
 		component_match_add(dev, &match, hda_comp_match_dev_name, sm);
 	}
 

@@ -239,23 +239,31 @@ static void a5psw_phylink_get_caps(struct dsa_switch *ds, int port,
 }
 
 static struct phylink_pcs *
-a5psw_phylink_mac_select_pcs(struct dsa_switch *ds, int port,
+a5psw_phylink_mac_select_pcs(struct phylink_config *config,
 			     phy_interface_t interface)
 {
-	struct dsa_port *dp = dsa_to_port(ds, port);
-	struct a5psw *a5psw = ds->priv;
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct a5psw *a5psw = dp->ds->priv;
 
-	if (!dsa_port_is_cpu(dp) && a5psw->pcs[port])
-		return a5psw->pcs[port];
+	if (dsa_port_is_cpu(dp))
+		return NULL;
 
-	return NULL;
+	return a5psw->pcs[dp->index];
 }
 
-static void a5psw_phylink_mac_link_down(struct dsa_switch *ds, int port,
+static void a5psw_phylink_mac_config(struct phylink_config *config,
+				     unsigned int mode,
+				     const struct phylink_link_state *state)
+{
+}
+
+static void a5psw_phylink_mac_link_down(struct phylink_config *config,
 					unsigned int mode,
 					phy_interface_t interface)
 {
-	struct a5psw *a5psw = ds->priv;
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct a5psw *a5psw = dp->ds->priv;
+	int port = dp->index;
 	u32 cmd_cfg;
 
 	cmd_cfg = a5psw_reg_readl(a5psw, A5PSW_CMD_CFG(port));
@@ -263,15 +271,17 @@ static void a5psw_phylink_mac_link_down(struct dsa_switch *ds, int port,
 	a5psw_reg_writel(a5psw, A5PSW_CMD_CFG(port), cmd_cfg);
 }
 
-static void a5psw_phylink_mac_link_up(struct dsa_switch *ds, int port,
+static void a5psw_phylink_mac_link_up(struct phylink_config *config,
+				      struct phy_device *phydev,
 				      unsigned int mode,
 				      phy_interface_t interface,
-				      struct phy_device *phydev, int speed,
-				      int duplex, bool tx_pause, bool rx_pause)
+				      int speed, int duplex, bool tx_pause,
+				      bool rx_pause)
 {
 	u32 cmd_cfg = A5PSW_CMD_CFG_RX_ENA | A5PSW_CMD_CFG_TX_ENA |
 		      A5PSW_CMD_CFG_TX_CRC_APPEND;
-	struct a5psw *a5psw = ds->priv;
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct a5psw *a5psw = dp->ds->priv;
 
 	if (speed == SPEED_1000)
 		cmd_cfg |= A5PSW_CMD_CFG_ETH_SPEED;
@@ -284,7 +294,7 @@ static void a5psw_phylink_mac_link_up(struct dsa_switch *ds, int port,
 	if (!rx_pause)
 		cmd_cfg &= ~A5PSW_CMD_CFG_PAUSE_IGNORE;
 
-	a5psw_reg_writel(a5psw, A5PSW_CMD_CFG(port), cmd_cfg);
+	a5psw_reg_writel(a5psw, A5PSW_CMD_CFG(dp->index), cmd_cfg);
 }
 
 static int a5psw_set_ageing_time(struct dsa_switch *ds, unsigned int msecs)
@@ -992,15 +1002,19 @@ static int a5psw_setup(struct dsa_switch *ds)
 	return 0;
 }
 
+static const struct phylink_mac_ops a5psw_phylink_mac_ops = {
+	.mac_select_pcs = a5psw_phylink_mac_select_pcs,
+	.mac_config = a5psw_phylink_mac_config,
+	.mac_link_down = a5psw_phylink_mac_link_down,
+	.mac_link_up = a5psw_phylink_mac_link_up,
+};
+
 static const struct dsa_switch_ops a5psw_switch_ops = {
 	.get_tag_protocol = a5psw_get_tag_protocol,
 	.setup = a5psw_setup,
 	.port_disable = a5psw_port_disable,
 	.port_enable = a5psw_port_enable,
 	.phylink_get_caps = a5psw_phylink_get_caps,
-	.phylink_mac_select_pcs = a5psw_phylink_mac_select_pcs,
-	.phylink_mac_link_down = a5psw_phylink_mac_link_down,
-	.phylink_mac_link_up = a5psw_phylink_mac_link_up,
 	.port_change_mtu = a5psw_port_change_mtu,
 	.port_max_mtu = a5psw_port_max_mtu,
 	.get_sset_count = a5psw_get_sset_count,
@@ -1252,6 +1266,7 @@ static int a5psw_probe(struct platform_device *pdev)
 	ds->dev = dev;
 	ds->num_ports = A5PSW_PORTS_NUM;
 	ds->ops = &a5psw_switch_ops;
+	ds->phylink_mac_ops = &a5psw_phylink_mac_ops;
 	ds->priv = a5psw;
 
 	ret = dsa_register_switch(ds);

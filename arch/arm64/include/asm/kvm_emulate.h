@@ -125,16 +125,6 @@ static inline void vcpu_set_wfx_traps(struct kvm_vcpu *vcpu)
 	vcpu->arch.hcr_el2 |= HCR_TWI;
 }
 
-static inline void vcpu_ptrauth_enable(struct kvm_vcpu *vcpu)
-{
-	vcpu->arch.hcr_el2 |= (HCR_API | HCR_APK);
-}
-
-static inline void vcpu_ptrauth_disable(struct kvm_vcpu *vcpu)
-{
-	vcpu->arch.hcr_el2 &= ~(HCR_API | HCR_APK);
-}
-
 static inline unsigned long vcpu_get_vsesr(struct kvm_vcpu *vcpu)
 {
 	return vcpu->arch.vsesr_el2;
@@ -567,6 +557,68 @@ static __always_inline void kvm_incr_pc(struct kvm_vcpu *vcpu)
 		vcpu_set_flag((v), e);					\
 	} while (0)
 
+#define __build_check_all_or_none(r, bits)				\
+	BUILD_BUG_ON(((r) & (bits)) && ((r) & (bits)) != (bits))
+
+#define __cpacr_to_cptr_clr(clr, set)					\
+	({								\
+		u64 cptr = 0;						\
+									\
+		if ((set) & CPACR_ELx_FPEN)				\
+			cptr |= CPTR_EL2_TFP;				\
+		if ((set) & CPACR_ELx_ZEN)				\
+			cptr |= CPTR_EL2_TZ;				\
+		if ((set) & CPACR_ELx_SMEN)				\
+			cptr |= CPTR_EL2_TSM;				\
+		if ((clr) & CPACR_ELx_TTA)				\
+			cptr |= CPTR_EL2_TTA;				\
+		if ((clr) & CPTR_EL2_TAM)				\
+			cptr |= CPTR_EL2_TAM;				\
+		if ((clr) & CPTR_EL2_TCPAC)				\
+			cptr |= CPTR_EL2_TCPAC;				\
+									\
+		cptr;							\
+	})
+
+#define __cpacr_to_cptr_set(clr, set)					\
+	({								\
+		u64 cptr = 0;						\
+									\
+		if ((clr) & CPACR_ELx_FPEN)				\
+			cptr |= CPTR_EL2_TFP;				\
+		if ((clr) & CPACR_ELx_ZEN)				\
+			cptr |= CPTR_EL2_TZ;				\
+		if ((clr) & CPACR_ELx_SMEN)				\
+			cptr |= CPTR_EL2_TSM;				\
+		if ((set) & CPACR_ELx_TTA)				\
+			cptr |= CPTR_EL2_TTA;				\
+		if ((set) & CPTR_EL2_TAM)				\
+			cptr |= CPTR_EL2_TAM;				\
+		if ((set) & CPTR_EL2_TCPAC)				\
+			cptr |= CPTR_EL2_TCPAC;				\
+									\
+		cptr;							\
+	})
+
+#define cpacr_clear_set(clr, set)					\
+	do {								\
+		BUILD_BUG_ON((set) & CPTR_VHE_EL2_RES0);		\
+		BUILD_BUG_ON((clr) & CPACR_ELx_E0POE);			\
+		__build_check_all_or_none((clr), CPACR_ELx_FPEN);	\
+		__build_check_all_or_none((set), CPACR_ELx_FPEN);	\
+		__build_check_all_or_none((clr), CPACR_ELx_ZEN);	\
+		__build_check_all_or_none((set), CPACR_ELx_ZEN);	\
+		__build_check_all_or_none((clr), CPACR_ELx_SMEN);	\
+		__build_check_all_or_none((set), CPACR_ELx_SMEN);	\
+									\
+		if (has_vhe() || has_hvhe())				\
+			sysreg_clear_set(cpacr_el1, clr, set);		\
+		else							\
+			sysreg_clear_set(cptr_el2,			\
+					 __cpacr_to_cptr_clr(clr, set),	\
+					 __cpacr_to_cptr_set(clr, set));\
+	} while (0)
+
 static __always_inline void kvm_write_cptr_el2(u64 val)
 {
 	if (has_vhe() || has_hvhe())
@@ -580,23 +632,20 @@ static __always_inline u64 kvm_get_reset_cptr_el2(struct kvm_vcpu *vcpu)
 	u64 val;
 
 	if (has_vhe()) {
-		val = (CPACR_EL1_FPEN_EL0EN | CPACR_EL1_FPEN_EL1EN |
-		       CPACR_EL1_ZEN_EL1EN);
+		val = (CPACR_ELx_FPEN | CPACR_EL1_ZEN_EL1EN);
 		if (cpus_have_final_cap(ARM64_SME))
 			val |= CPACR_EL1_SMEN_EL1EN;
 	} else if (has_hvhe()) {
-		val = (CPACR_EL1_FPEN_EL0EN | CPACR_EL1_FPEN_EL1EN);
+		val = CPACR_ELx_FPEN;
 
-		if (!vcpu_has_sve(vcpu) ||
-		    (vcpu->arch.fp_state != FP_STATE_GUEST_OWNED))
-			val |= CPACR_EL1_ZEN_EL1EN | CPACR_EL1_ZEN_EL0EN;
+		if (!vcpu_has_sve(vcpu) || !guest_owns_fp_regs())
+			val |= CPACR_ELx_ZEN;
 		if (cpus_have_final_cap(ARM64_SME))
-			val |= CPACR_EL1_SMEN_EL1EN | CPACR_EL1_SMEN_EL0EN;
+			val |= CPACR_ELx_SMEN;
 	} else {
 		val = CPTR_NVHE_EL2_RES1;
 
-		if (vcpu_has_sve(vcpu) &&
-		    (vcpu->arch.fp_state == FP_STATE_GUEST_OWNED))
+		if (vcpu_has_sve(vcpu) && guest_owns_fp_regs())
 			val |= CPTR_EL2_TZ;
 		if (cpus_have_final_cap(ARM64_SME))
 			val &= ~CPTR_EL2_TSM;

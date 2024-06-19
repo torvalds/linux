@@ -29,6 +29,7 @@
 #include "dml/dcn32/display_mode_vba_util_32.h"
 #include "dml/dcn32/dcn32_fpu.h"
 #include "dc_state_priv.h"
+#include "dc_stream_priv.h"
 
 static bool is_dual_plane(enum surface_pixel_format format)
 {
@@ -459,7 +460,7 @@ static int get_frame_rate_at_max_stretch_100hz(
 }
 
 static bool is_refresh_rate_support_mclk_switch_using_fw_based_vblank_stretch(
-		struct dc_stream_state *fpo_candidate_stream, uint32_t fpo_vactive_margin_us)
+		struct dc_stream_state *fpo_candidate_stream, uint32_t fpo_vactive_margin_us, int current_refresh_rate)
 {
 	int refresh_rate_max_stretch_100hz;
 	int min_refresh_100hz;
@@ -471,6 +472,10 @@ static bool is_refresh_rate_support_mclk_switch_using_fw_based_vblank_stretch(
 	min_refresh_100hz = fpo_candidate_stream->timing.min_refresh_in_uhz / 10000;
 
 	if (refresh_rate_max_stretch_100hz < min_refresh_100hz)
+		return false;
+
+	if (fpo_candidate_stream->ctx->dc->config.enable_fpo_flicker_detection == 1 &&
+			!dc_stream_is_refresh_rate_range_flickerless(fpo_candidate_stream, (refresh_rate_max_stretch_100hz / 100), current_refresh_rate, false))
 		return false;
 
 	return true;
@@ -540,7 +545,7 @@ struct dc_stream_state *dcn32_can_support_mclk_switch_using_fw_based_vblank_stre
 		if (fpo_candidate_stream)
 			fpo_stream_status = dc_state_get_stream_status(context, fpo_candidate_stream);
 		DC_FP_START();
-		is_fpo_vactive = dcn32_find_vactive_pipe(dc, context, dc->debug.fpo_vactive_min_active_margin_us);
+		is_fpo_vactive = dcn32_find_vactive_pipe(dc, context, fpo_candidate_stream, dc->debug.fpo_vactive_min_active_margin_us);
 		DC_FP_END();
 		if (!is_fpo_vactive || dc->debug.disable_fpo_vactive)
 			return NULL;
@@ -569,13 +574,15 @@ struct dc_stream_state *dcn32_can_support_mclk_switch_using_fw_based_vblank_stre
 		return NULL;
 
 	fpo_vactive_margin_us = is_fpo_vactive ? dc->debug.fpo_vactive_margin_us : 0; // For now hardcode the FPO + Vactive stretch margin to be 2000us
-	if (!is_refresh_rate_support_mclk_switch_using_fw_based_vblank_stretch(fpo_candidate_stream, fpo_vactive_margin_us))
+	if (!is_refresh_rate_support_mclk_switch_using_fw_based_vblank_stretch(fpo_candidate_stream, fpo_vactive_margin_us, refresh_rate))
 		return NULL;
 
 	if (!fpo_candidate_stream->allow_freesync)
 		return NULL;
 
-	if (fpo_candidate_stream->vrr_active_variable && dc->debug.disable_fams_gaming)
+	if (fpo_candidate_stream->vrr_active_variable &&
+	((dc->debug.disable_fams_gaming == INGAME_FAMS_DISABLE) ||
+	(context->stream_count > 1 && !(dc->debug.disable_fams_gaming == INGAME_FAMS_MULTI_DISP_ENABLE))))
 		return NULL;
 
 	return fpo_candidate_stream;

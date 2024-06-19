@@ -252,9 +252,6 @@ void dcn32_link_encoder_construct(
 
 	enc10->base.features = *enc_features;
 
-	if (enc10->base.connector.id == CONNECTOR_ID_USBC)
-		enc10->base.features.flags.bits.DP_IS_USB_C = 1;
-
 	enc10->base.transmitter = init_data->transmitter;
 
 	/* set the flag to indicate whether driver poll the I2C data pin

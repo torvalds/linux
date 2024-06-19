@@ -876,11 +876,11 @@ void amdgpu_gmc_noretry_set(struct amdgpu_device *adev)
 	struct amdgpu_gmc *gmc = &adev->gmc;
 	uint32_t gc_ver = amdgpu_ip_version(adev, GC_HWIP, 0);
 	bool noretry_default = (gc_ver == IP_VERSION(9, 0, 1) ||
-				gc_ver == IP_VERSION(9, 3, 0) ||
 				gc_ver == IP_VERSION(9, 4, 0) ||
 				gc_ver == IP_VERSION(9, 4, 1) ||
 				gc_ver == IP_VERSION(9, 4, 2) ||
 				gc_ver == IP_VERSION(9, 4, 3) ||
+				gc_ver == IP_VERSION(9, 4, 4) ||
 				gc_ver >= IP_VERSION(10, 3, 0));
 
 	if (!amdgpu_sriov_xnack_support(adev))
@@ -1015,7 +1015,7 @@ void amdgpu_gmc_init_pdb0(struct amdgpu_device *adev)
 	flags |= AMDGPU_PTE_WRITEABLE;
 	flags |= AMDGPU_PTE_SNOOPED;
 	flags |= AMDGPU_PTE_FRAG((adev->gmc.vmid0_page_table_block_size + 9*1));
-	flags |= AMDGPU_PDE_PTE;
+	flags |= AMDGPU_PDE_PTE_FLAG(adev);
 
 	/* The first n PDE0 entries are used as PTE,
 	 * pointing to vram
@@ -1028,7 +1028,7 @@ void amdgpu_gmc_init_pdb0(struct amdgpu_device *adev)
 	 * pointing to a 4K system page
 	 */
 	flags = AMDGPU_PTE_VALID;
-	flags |= AMDGPU_PDE_BFS(0) | AMDGPU_PTE_SNOOPED;
+	flags |= AMDGPU_PTE_SNOOPED | AMDGPU_PDE_BFS_FLAG(adev, 0);
 	/* Requires gart_ptb_gpu_pa to be 4K aligned */
 	amdgpu_gmc_set_pte_pde(adev, adev->gmc.ptr_pdb0, i, gart_ptb_gpu_pa, flags);
 	drm_dev_exit(idx);
@@ -1147,8 +1147,6 @@ static ssize_t current_memory_partition_show(
 	default:
 		return sysfs_emit(buf, "UNKNOWN\n");
 	}
-
-	return sysfs_emit(buf, "UNKNOWN\n");
 }
 
 static DEVICE_ATTR_RO(current_memory_partition);
@@ -1165,4 +1163,80 @@ int amdgpu_gmc_sysfs_init(struct amdgpu_device *adev)
 void amdgpu_gmc_sysfs_fini(struct amdgpu_device *adev)
 {
 	device_remove_file(adev->dev, &dev_attr_current_memory_partition);
+}
+
+int amdgpu_gmc_get_nps_memranges(struct amdgpu_device *adev,
+				 struct amdgpu_mem_partition_info *mem_ranges,
+				 int exp_ranges)
+{
+	struct amdgpu_gmc_memrange *ranges;
+	int range_cnt, ret, i, j;
+	uint32_t nps_type;
+
+	if (!mem_ranges)
+		return -EINVAL;
+
+	ret = amdgpu_discovery_get_nps_info(adev, &nps_type, &ranges,
+					    &range_cnt);
+
+	if (ret)
+		return ret;
+
+	/* TODO: For now, expect ranges and partition count to be the same.
+	 * Adjust if there are holes expected in any NPS domain.
+	 */
+	if (range_cnt != exp_ranges) {
+		dev_warn(
+			adev->dev,
+			"NPS config mismatch - expected ranges: %d discovery - nps mode: %d, nps ranges: %d",
+			exp_ranges, nps_type, range_cnt);
+		ret = -EINVAL;
+		goto err;
+	}
+
+	for (i = 0; i < exp_ranges; ++i) {
+		if (ranges[i].base_address >= ranges[i].limit_address) {
+			dev_warn(
+				adev->dev,
+				"Invalid NPS range - nps mode: %d, range[%d]: base: %llx limit: %llx",
+				nps_type, i, ranges[i].base_address,
+				ranges[i].limit_address);
+			ret = -EINVAL;
+			goto err;
+		}
+
+		/* Check for overlaps, not expecting any now */
+		for (j = i - 1; j >= 0; j--) {
+			if (max(ranges[j].base_address,
+				ranges[i].base_address) <=
+			    min(ranges[j].limit_address,
+				ranges[i].limit_address)) {
+				dev_warn(
+					adev->dev,
+					"overlapping ranges detected [ %llx - %llx ] | [%llx - %llx]",
+					ranges[j].base_address,
+					ranges[j].limit_address,
+					ranges[i].base_address,
+					ranges[i].limit_address);
+				ret = -EINVAL;
+				goto err;
+			}
+		}
+
+		mem_ranges[i].range.fpfn =
+			(ranges[i].base_address -
+			 adev->vm_manager.vram_base_offset) >>
+			AMDGPU_GPU_PAGE_SHIFT;
+		mem_ranges[i].range.lpfn =
+			(ranges[i].limit_address -
+			 adev->vm_manager.vram_base_offset) >>
+			AMDGPU_GPU_PAGE_SHIFT;
+		mem_ranges[i].size =
+			ranges[i].limit_address - ranges[i].base_address + 1;
+	}
+
+err:
+	kfree(ranges);
+
+	return ret;
 }

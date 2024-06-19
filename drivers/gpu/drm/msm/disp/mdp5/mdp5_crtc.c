@@ -216,7 +216,7 @@ static void blend_setup(struct drm_crtc *crtc)
 	struct mdp5_kms *mdp5_kms = get_kms(crtc);
 	struct drm_plane *plane;
 	struct mdp5_plane_state *pstate, *pstates[STAGE_MAX + 1] = {NULL};
-	const struct mdp_format *format;
+	const struct msm_format *format;
 	struct mdp5_hw_mixer *mixer = pipeline->mixer;
 	uint32_t lm = mixer->lm;
 	struct mdp5_hw_mixer *r_mixer = pipeline->r_mixer;
@@ -274,7 +274,7 @@ static void blend_setup(struct drm_crtc *crtc)
 		ctl_blend_flags |= MDP5_CTL_BLEND_OP_FLAG_BORDER_OUT;
 		DBG("Border Color is enabled");
 	} else if (plane_cnt) {
-		format = to_mdp_format(msm_framebuffer_format(pstates[STAGE_BASE]->base.fb));
+		format = msm_framebuffer_format(pstates[STAGE_BASE]->base.fb);
 
 		if (format->alpha_enable)
 			bg_alpha_enabled = true;
@@ -285,8 +285,7 @@ static void blend_setup(struct drm_crtc *crtc)
 		if (!pstates[i])
 			continue;
 
-		format = to_mdp_format(
-			msm_framebuffer_format(pstates[i]->base.fb));
+		format = msm_framebuffer_format(pstates[i]->base.fb);
 		plane = pstates[i]->base.plane;
 		blend_op = MDP5_LM_BLEND_OP_MODE_FG_ALPHA(FG_CONST) |
 			MDP5_LM_BLEND_OP_MODE_BG_ALPHA(BG_CONST);

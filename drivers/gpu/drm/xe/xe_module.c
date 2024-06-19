@@ -17,6 +17,7 @@ struct xe_modparam xe_modparam = {
 	.enable_display = true,
 	.guc_log_level = 5,
 	.force_probe = CONFIG_DRM_XE_FORCE_PROBE,
+	.wedged_mode = 1,
 	/* the rest are 0 by default */
 };
 
@@ -54,6 +55,10 @@ MODULE_PARM_DESC(max_vfs,
 		 "Limit number of Virtual Functions (VFs) that could be managed. "
 		 "(0 = no VFs [default]; N = allow up to N VFs)");
 #endif
+
+module_param_named_unsafe(wedged_mode, xe_modparam.wedged_mode, int, 0600);
+MODULE_PARM_DESC(wedged_mode,
+		 "Module's default policy for the wedged mode - 0=never, 1=upon-critical-errors[default], 2=upon-any-hang");
 
 struct init_funcs {
 	int (*init)(void);

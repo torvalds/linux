@@ -9,7 +9,7 @@ gen := arch/$(ARCH)/include/generated
 kapi := $(gen)/asm
 uapi := $(gen)/uapi/asm
 syshdr := $(srctree)/scripts/syscallhdr.sh
-sysnr := $(srctree)/$(src)/syscallnr.sh
+sysnr := $(src)/syscallnr.sh
 systbl := $(srctree)/scripts/syscalltbl.sh
 syscall := $(src)/syscall.tbl
 

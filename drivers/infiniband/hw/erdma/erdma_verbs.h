@@ -140,8 +140,8 @@ struct erdma_uqp {
 	struct erdma_mem sq_mem;
 	struct erdma_mem rq_mem;
 
-	dma_addr_t sq_db_info_dma_addr;
-	dma_addr_t rq_db_info_dma_addr;
+	dma_addr_t sq_dbrec_dma;
+	dma_addr_t rq_dbrec_dma;
 
 	struct erdma_user_dbrecords_page *user_dbr_page;
 
@@ -167,8 +167,11 @@ struct erdma_kqp {
 	void *rq_buf;
 	dma_addr_t rq_buf_dma_addr;
 
-	void *sq_db_info;
-	void *rq_db_info;
+	void *sq_dbrec;
+	void *rq_dbrec;
+
+	dma_addr_t sq_dbrec_dma;
+	dma_addr_t rq_dbrec_dma;
 
 	u8 sig_all;
 };
@@ -246,13 +249,14 @@ struct erdma_kcq_info {
 
 	spinlock_t lock;
 	u8 __iomem *db;
-	u64 *db_record;
+	u64 *dbrec;
+	dma_addr_t dbrec_dma;
 };
 
 struct erdma_ucq_info {
 	struct erdma_mem qbuf_mem;
 	struct erdma_user_dbrecords_page *user_dbr_page;
-	dma_addr_t db_info_dma_addr;
+	dma_addr_t dbrec_dma;
 };
 
 struct erdma_cq {

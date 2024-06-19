@@ -31,7 +31,7 @@ you probably needn't concern yourself with pcmciautils.
 ====================== ===============  ========================================
 GNU C                  5.1              gcc --version
 Clang/LLVM (optional)  13.0.1           clang --version
-Rust (optional)        1.76.0           rustc --version
+Rust (optional)        1.78.0           rustc --version
 bindgen (optional)     0.65.1           bindgen --version
 GNU make               3.82             make --version
 bash                   4.2              bash --version
@@ -62,6 +62,7 @@ Sphinx\ [#f1]_         2.4.4            sphinx-build --version
 cpio                   any              cpio --version
 GNU tar                1.28             tar --version
 gtags (optional)       6.6.5            gtags --version
+mkimage (optional)     2017.01          mkimage --version
 ====================== ===============  ========================================
 
 .. [#f1] Sphinx is needed only to build the Kernel documentation
@@ -188,6 +189,14 @@ gtags / GNU GLOBAL (optional)
 The kernel build requires GNU GLOBAL version 6.6.5 or later to generate
 tag files through ``make gtags``.  This is due to its use of the gtags
 ``-C (--directory)`` flag.
+
+mkimage
+-------
+
+This tool is used when building a Flat Image Tree (FIT), commonly used on ARM
+platforms. The tool is available via the ``u-boot-tools`` package or can be
+built from the U-Boot source code. See the instructions at
+https://docs.u-boot.org/en/latest/build/tools.html#building-tools-for-linux
 
 System utilities
 ****************

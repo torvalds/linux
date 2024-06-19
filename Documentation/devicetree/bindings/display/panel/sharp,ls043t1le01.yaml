@@ -16,7 +16,9 @@ properties:
   compatible:
     const: sharp,ls043t1le01-qhd
 
-  reg: true
+  reg:
+    maxItems: 1
+
   backlight: true
   reset-gpios: true
   port: true

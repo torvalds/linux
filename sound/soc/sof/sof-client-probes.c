@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 //
-// Copyright(c) 2019-2022 Intel Corporation. All rights reserved.
+// Copyright(c) 2019-2022 Intel Corporation
 //
 // Author: Cezary Rojewski <cezary.rojewski@intel.com>
 //
@@ -540,6 +540,6 @@ static struct auxiliary_driver sof_probes_client_drv = {
 
 module_auxiliary_driver(sof_probes_client_drv);
 
-MODULE_DESCRIPTION("SOF Probes Client Driver");
 MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("SOF Probes Client Driver");
 MODULE_IMPORT_NS(SND_SOC_SOF_CLIENT);

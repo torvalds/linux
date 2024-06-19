@@ -33,8 +33,10 @@
 #include "resource.h"
 #include "link_enc_cfg.h"
 
+#if defined(CONFIG_DRM_AMD_DC_FP)
 #include "dml2/dml2_wrapper.h"
 #include "dml2/dml2_internal_types.h"
+#endif
 
 #define DC_LOGGER \
 	dc->ctx->logger
@@ -191,7 +193,11 @@ static void init_state(struct dc *dc, struct dc_state *state)
 struct dc_state *dc_state_create(struct dc *dc, struct dc_state_create_params *params)
 {
 #ifdef CONFIG_DRM_AMD_DC_FP
-	struct dml2_configuration_options *dml2_opt = &dc->dml2_options;
+	struct dml2_configuration_options *dml2_opt;
+
+	dml2_opt = kmemdup(&dc->dml2_options, sizeof(*dml2_opt), GFP_KERNEL);
+	if (!dml2_opt)
+		return NULL;
 #endif
 	struct dc_state *state = kvzalloc(sizeof(struct dc_state),
 			GFP_KERNEL);
@@ -211,6 +217,8 @@ struct dc_state *dc_state_create(struct dc *dc, struct dc_state_create_params *p
 		dml2_opt->use_clock_dc_limits = true;
 		dml2_create(dc, dml2_opt, &state->bw_ctx.dml2_dc_power_source);
 	}
+
+	kfree(dml2_opt);
 #endif
 
 	kref_init(&state->refcount);
@@ -916,3 +924,17 @@ struct dc_stream_state *dc_state_get_stream_from_id(const struct dc_state *state
 	return stream;
 }
 
+bool dc_state_is_fams2_in_use(
+		const struct dc *dc,
+		const struct dc_state *state)
+{
+	bool is_fams2_in_use = false;
+
+	if (state)
+		is_fams2_in_use |= state->bw_ctx.bw.dcn.fams2_stream_count > 0;
+
+	if (dc->current_state)
+		is_fams2_in_use |= dc->current_state->bw_ctx.bw.dcn.fams2_stream_count > 0;
+
+	return is_fams2_in_use;
+}

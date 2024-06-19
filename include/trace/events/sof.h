@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright(c) 2022 Intel Corporation. All rights reserved.
+ * Copyright(c) 2022 Intel Corporation
  *
  * Author: Noah Klayman <noah.klayman@intel.com>
  */
@@ -23,7 +23,7 @@ DECLARE_EVENT_CLASS(sof_widget_template,
 		__field(int, use_count)
 	),
 	TP_fast_assign(
-		__assign_str(name, swidget->widget->name);
+		__assign_str(name);
 		__entry->use_count = swidget->use_count;
 	),
 	TP_printk("name=%s use_count=%d", __get_str(name), __entry->use_count)
@@ -49,7 +49,7 @@ TRACE_EVENT(sof_ipc3_period_elapsed_position,
 		__field(u64, wallclock)
 	),
 	TP_fast_assign(
-		__assign_str(device_name, dev_name(sdev->dev));
+		__assign_str(device_name);
 		__entry->host_posn = posn->host_posn;
 		__entry->dai_posn = posn->dai_posn;
 		__entry->wallclock = posn->wallclock;
@@ -75,7 +75,7 @@ TRACE_EVENT(sof_pcm_pointer_position,
 		__field(unsigned long, dai_posn)
 	),
 	TP_fast_assign(
-		__assign_str(device_name, dev_name(sdev->dev));
+		__assign_str(device_name);
 		__entry->pcm_id = le32_to_cpu(spcm->pcm.pcm_id);
 		__entry->stream = substream->stream;
 		__entry->dma_posn = dma_posn;
@@ -93,7 +93,7 @@ TRACE_EVENT(sof_stream_position_ipc_rx,
 		__string(device_name, dev_name(dev))
 	),
 	TP_fast_assign(
-		__assign_str(device_name, dev_name(dev));
+		__assign_str(device_name);
 	),
 	TP_printk("device_name=%s", __get_str(device_name))
 );
@@ -107,8 +107,8 @@ TRACE_EVENT(sof_ipc4_fw_config,
 		__field(u32, value)
 	),
 	TP_fast_assign(
-		__assign_str(device_name, dev_name(sdev->dev));
-		__assign_str(key, key);
+		__assign_str(device_name);
+		__assign_str(key);
 		__entry->value = value;
 	),
 	TP_printk("device_name=%s key=%s value=%d",

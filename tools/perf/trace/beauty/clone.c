@@ -7,52 +7,16 @@
 
 #include "trace/beauty/beauty.h"
 #include <linux/kernel.h>
+#include <linux/log2.h>
 #include <sys/types.h>
-#include <uapi/linux/sched.h>
+#include <sched.h>
 
 static size_t clone__scnprintf_flags(unsigned long flags, char *bf, size_t size, bool show_prefix)
 {
-	const char *prefix = "CLONE_";
-	int printed = 0;
+#include "trace/beauty/generated/clone_flags_array.c"
+	static DEFINE_STRARRAY(clone_flags, "CLONE_");
 
-#define	P_FLAG(n) \
-	if (flags & CLONE_##n) { \
-		printed += scnprintf(bf + printed, size - printed, "%s%s%s", printed ? "|" : "", show_prefix ? prefix : "", #n); \
-		flags &= ~CLONE_##n; \
-	}
-
-	P_FLAG(VM);
-	P_FLAG(FS);
-	P_FLAG(FILES);
-	P_FLAG(SIGHAND);
-	P_FLAG(PIDFD);
-	P_FLAG(PTRACE);
-	P_FLAG(VFORK);
-	P_FLAG(PARENT);
-	P_FLAG(THREAD);
-	P_FLAG(NEWNS);
-	P_FLAG(SYSVSEM);
-	P_FLAG(SETTLS);
-	P_FLAG(PARENT_SETTID);
-	P_FLAG(CHILD_CLEARTID);
-	P_FLAG(DETACHED);
-	P_FLAG(UNTRACED);
-	P_FLAG(CHILD_SETTID);
-	P_FLAG(NEWCGROUP);
-	P_FLAG(NEWUTS);
-	P_FLAG(NEWIPC);
-	P_FLAG(NEWUSER);
-	P_FLAG(NEWPID);
-	P_FLAG(NEWNET);
-	P_FLAG(IO);
-	P_FLAG(CLEAR_SIGHAND);
-	P_FLAG(INTO_CGROUP);
-#undef P_FLAG
-
-	if (flags)
-		printed += scnprintf(bf + printed, size - printed, "%s%#x", printed ? "|" : "", flags);
-
-	return printed;
+	return strarray__scnprintf_flags(&strarray__clone_flags, bf, size, show_prefix, flags);
 }
 
 size_t syscall_arg__scnprintf_clone_flags(char *bf, size_t size, struct syscall_arg *arg)

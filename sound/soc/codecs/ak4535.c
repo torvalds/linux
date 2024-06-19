@@ -430,7 +430,7 @@ static int ak4535_i2c_probe(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id ak4535_i2c_id[] = {
-	{ "ak4535", 0 },
+	{ "ak4535" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ak4535_i2c_id);

@@ -2558,3 +2558,35 @@ undo_insert_range:
 
 	goto out;
 }
+
+/*
+ * attr_force_nonresident
+ *
+ * Convert default data attribute into non resident form.
+ */
+int attr_force_nonresident(struct ntfs_inode *ni)
+{
+	int err;
+	struct ATTRIB *attr;
+	struct ATTR_LIST_ENTRY *le = NULL;
+	struct mft_inode *mi;
+
+	attr = ni_find_attr(ni, NULL, &le, ATTR_DATA, NULL, 0, NULL, &mi);
+	if (!attr) {
+		ntfs_bad_inode(&ni->vfs_inode, "no data attribute");
+		return -ENOENT;
+	}
+
+	if (attr->non_res) {
+		/* Already non resident. */
+		return 0;
+	}
+
+	down_write(&ni->file.run_lock);
+	err = attr_make_nonresident(ni, attr, le, mi,
+				    le32_to_cpu(attr->res.data_size),
+				    &ni->file.run, &attr, NULL);
+	up_write(&ni->file.run_lock);
+
+	return err;
+}

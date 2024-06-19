@@ -204,7 +204,7 @@ static int wm1250_ev1_probe(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id wm1250_ev1_i2c_id[] = {
-	{ "wm1250-ev1", 0 },
+	{ "wm1250-ev1" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, wm1250_ev1_i2c_id);

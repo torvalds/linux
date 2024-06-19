@@ -4,6 +4,7 @@
  */
 
 #include <linux/dma-buf.h>
+#include <linux/vmalloc.h>
 
 #include <drm/drm.h>
 #include <drm/drm_device.h>

@@ -21,7 +21,7 @@ properties:
     const: samsung,s5m8767-pmic
 
   clocks:
-    $ref: ../clock/samsung,s2mps11.yaml
+    $ref: /schemas/clock/samsung,s2mps11.yaml
     description:
       Child node describing clock provider.
 
@@ -32,7 +32,7 @@ properties:
     maxItems: 1
 
   regulators:
-    $ref: ../regulator/samsung,s5m8767.yaml
+    $ref: /schemas/regulator/samsung,s5m8767.yaml
     description:
       List of child nodes that specify the regulators.
 

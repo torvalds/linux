@@ -255,7 +255,13 @@ prlog() { # messages
   [ "$LOG_FILE" ] && printf "$*$newline" | strip_esc >> $LOG_FILE
 }
 catlog() { #file
-  cat $1
+  if [ "${KTAP}" = "1" ]; then
+    cat $1 | while read line ; do
+      echo "# $line"
+    done
+  else
+    cat $1
+  fi
   [ "$LOG_FILE" ] && cat $1 | strip_esc >> $LOG_FILE
 }
 prlog "=== Ftrace unit tests ==="

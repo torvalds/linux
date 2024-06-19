@@ -47,7 +47,6 @@ for current_test in ${TESTS:-$ALL_TESTS}; do
 		RET=0
 		target=$(${current_test}_get_target "$should_fail")
 		if ((target == 0)); then
-			log_test_skip "'$current_test' should_fail=$should_fail test"
 			continue
 		fi
 

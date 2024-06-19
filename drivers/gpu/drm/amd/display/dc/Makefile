@@ -22,7 +22,7 @@
 #
 # Makefile for Display Core (dc) component.
 
-DC_LIBS = basics bios dml clk_mgr dce gpio hwss irq link virtual dsc resource optc dpp
+DC_LIBS = basics bios dml clk_mgr dce gpio hwss irq link virtual dsc resource optc dpp hubbub dccg hubp
 
 ifdef CONFIG_DRM_AMD_DC_FP
 
@@ -39,6 +39,7 @@ DC_LIBS += dcn314
 DC_LIBS += dcn32
 DC_LIBS += dcn321
 DC_LIBS += dcn35
+DC_LIBS += dcn401
 DC_LIBS += dml
 DC_LIBS += dml2
 endif
@@ -55,6 +56,11 @@ endif
 
 DC_LIBS += hdcp
 
+ifdef CONFIG_DRM_AMD_DC_FP
+DC_LIBS += spl
+DC_SPL_TRANS += dc_spl_translate.o
+endif
+
 AMD_DC = $(addsuffix /Makefile, $(addprefix $(FULL_AMD_DISPLAY_PATH)/dc/,$(DC_LIBS)))
 
 include $(AMD_DC)
@@ -68,6 +74,8 @@ AMD_DISPLAY_CORE = $(addprefix $(AMDDALPATH)/dc/core/,$(DISPLAY_CORE))
 
 AMD_DM_REG_UPDATE = $(addprefix $(AMDDALPATH)/dc/,dc_helper.o)
 
+AMD_DC_SPL_TRANS = $(addprefix $(AMDDALPATH)/dc/,$(DC_SPL_TRANS))
+
 AMD_DISPLAY_FILES += $(AMD_DISPLAY_CORE)
 AMD_DISPLAY_FILES += $(AMD_DM_REG_UPDATE)
 
@@ -77,3 +85,4 @@ AMD_DISPLAY_DMUB = $(addprefix $(AMDDALPATH)/dc/,$(DC_DMUB))
 AMD_DISPLAY_EDID = $(addprefix $(AMDDALPATH)/dc/,$(DC_EDID))
 AMD_DISPLAY_FILES += $(AMD_DISPLAY_DMUB) $(AMD_DISPLAY_EDID)
 
+AMD_DISPLAY_FILES += $(AMD_DC_SPL_TRANS)

@@ -532,7 +532,7 @@ error:
 }
 
 static int
-mt76_dma_tx_queue_skb(struct mt76_dev *dev, struct mt76_queue *q,
+mt76_dma_tx_queue_skb(struct mt76_phy *phy, struct mt76_queue *q,
 		      enum mt76_txq_id qid, struct sk_buff *skb,
 		      struct mt76_wcid *wcid, struct ieee80211_sta *sta)
 {
@@ -542,6 +542,7 @@ mt76_dma_tx_queue_skb(struct mt76_dev *dev, struct mt76_queue *q,
 	struct mt76_tx_info tx_info = {
 		.skb = skb,
 	};
+	struct mt76_dev *dev = phy->dev;
 	struct ieee80211_hw *hw;
 	int len, n = 0, ret = -ENOMEM;
 	struct mt76_txwi_cache *t;
@@ -549,7 +550,7 @@ mt76_dma_tx_queue_skb(struct mt76_dev *dev, struct mt76_queue *q,
 	dma_addr_t addr;
 	u8 *txwi;
 
-	if (test_bit(MT76_RESET, &dev->phy.state))
+	if (test_bit(MT76_RESET, &phy->state))
 		goto free_skb;
 
 	t = mt76_get_txwi(dev);

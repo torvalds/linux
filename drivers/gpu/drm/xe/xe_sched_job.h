@@ -70,7 +70,12 @@ to_xe_sched_job(struct drm_sched_job *drm)
 
 static inline u32 xe_sched_job_seqno(struct xe_sched_job *job)
 {
-	return job->fence->seqno;
+	return job->fence ? job->fence->seqno : 0;
+}
+
+static inline u32 xe_sched_job_lrc_seqno(struct xe_sched_job *job)
+{
+	return job->lrc_seqno;
 }
 
 static inline void

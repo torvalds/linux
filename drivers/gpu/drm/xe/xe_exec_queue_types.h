@@ -103,16 +103,6 @@ struct xe_exec_queue {
 		struct xe_guc_exec_queue *guc;
 	};
 
-	/**
-	 * @parallel: parallel submission state
-	 */
-	struct {
-		/** @parallel.composite_fence_ctx: context composite fence */
-		u64 composite_fence_ctx;
-		/** @parallel.composite_fence_seqno: seqno for composite fence */
-		u32 composite_fence_seqno;
-	} parallel;
-
 	/** @sched_props: scheduling properties */
 	struct {
 		/** @sched_props.timeslice_us: timeslice period in micro-seconds */
@@ -151,8 +141,12 @@ struct xe_exec_queue {
 	 * Protected by @vm's resv. Unused if @vm == NULL.
 	 */
 	u64 tlb_flush_seqno;
+	/** @old_run_ticks: prior hw engine class run time in ticks for this exec queue */
+	u64 old_run_ticks;
+	/** @run_ticks: hw engine class run time in ticks for this exec queue */
+	u64 run_ticks;
 	/** @lrc: logical ring context for this exec queue */
-	struct xe_lrc lrc[];
+	struct xe_lrc *lrc[];
 };
 
 /**

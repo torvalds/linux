@@ -708,7 +708,7 @@ static ssize_t ap_functions_show(struct device *dev,
 
 static DEVICE_ATTR_RO(ap_functions);
 
-#ifdef CONFIG_ZCRYPT_DEBUG
+#ifdef CONFIG_AP_DEBUG
 static ssize_t states_show(struct device *dev,
 			   struct device_attribute *attr, char *buf)
 {
@@ -820,7 +820,7 @@ static struct attribute *ap_queue_dev_attrs[] = {
 	&dev_attr_config.attr,
 	&dev_attr_chkstop.attr,
 	&dev_attr_ap_functions.attr,
-#ifdef CONFIG_ZCRYPT_DEBUG
+#ifdef CONFIG_AP_DEBUG
 	&dev_attr_states.attr,
 	&dev_attr_last_err_rc.attr,
 #endif

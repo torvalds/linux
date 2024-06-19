@@ -128,6 +128,7 @@ int amdgpu_vpe_configure_dpm(struct amdgpu_vpe *vpe)
 		struct dpm_clock *VPEClks;
 		struct dpm_clock *SOCClks;
 		uint32_t idx;
+		uint32_t vpeclk_enalbled_num = 0;
 		uint32_t pratio_vmax_vnorm = 0, pratio_vnorm_vmid = 0, pratio_vmid_vmin = 0;
 		uint16_t pratio_vmin_freq = 0, pratio_vmid_freq = 0, pratio_vnorm_freq = 0, pratio_vmax_freq = 0;
 
@@ -144,6 +145,14 @@ int amdgpu_vpe_configure_dpm(struct amdgpu_vpe *vpe)
 		SOCClks = clock_table.SocClocks;
 		VPEClks = clock_table.VPEClocks;
 
+		/* Comfirm enabled vpe clk num
+		 * Enabled VPE clocks are ordered from low to high in VPEClks
+		 * The highest valid clock index+1 is the number of VPEClks
+		 */
+		for (idx = PP_SMU_NUM_VPECLK_DPM_LEVELS; idx && !vpeclk_enalbled_num; idx--)
+			if (VPEClks[idx-1].Freq)
+				vpeclk_enalbled_num = idx;
+
 		/* vpe dpm only cares 4 levels. */
 		for (idx = 0; idx < VPE_MAX_DPM_LEVEL; idx++) {
 			uint32_t soc_dpm_level;
@@ -155,8 +164,8 @@ int amdgpu_vpe_configure_dpm(struct amdgpu_vpe *vpe)
 				soc_dpm_level = (idx * 2) + 1;
 
 			/* clamp the max level */
-			if (soc_dpm_level > PP_SMU_NUM_VPECLK_DPM_LEVELS - 1)
-				soc_dpm_level = PP_SMU_NUM_VPECLK_DPM_LEVELS - 1;
+			if (soc_dpm_level > vpeclk_enalbled_num - 1)
+				soc_dpm_level = vpeclk_enalbled_num - 1;
 
 			min_freq = (SOCClks[soc_dpm_level].Freq < VPEClks[soc_dpm_level].Freq) ?
 				   SOCClks[soc_dpm_level].Freq : VPEClks[soc_dpm_level].Freq;

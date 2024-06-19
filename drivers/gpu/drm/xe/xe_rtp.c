@@ -323,3 +323,9 @@ bool xe_rtp_match_first_gslice_fused_off(const struct xe_gt *gt,
 
 	return dss >= dss_per_gslice;
 }
+
+bool xe_rtp_match_when_media2000(const struct xe_gt *gt,
+				 const struct xe_hw_engine *hwe)
+{
+	return (gt_to_xe(gt))->info.media_verx100 == 2000;
+}

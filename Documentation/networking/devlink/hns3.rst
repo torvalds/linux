@@ -23,3 +23,8 @@ The ``hns3`` driver reports the following versions
    * - ``fw``
      - running
      - Used to represent the firmware version.
+   * - ``fw.scc``
+     - running
+     - Used to represent the Soft Congestion Control (SSC) firmware version.
+       SCC is a firmware component which provides multiple RDMA congestion
+       control algorithms, including DCQCN.

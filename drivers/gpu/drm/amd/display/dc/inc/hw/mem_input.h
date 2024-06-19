@@ -29,6 +29,7 @@
 #include "include/grph_object_id.h"
 
 #include "dml/display_mode_structs.h"
+#include "dml2/dml21/inc/dml_top_dchub_registers.h"
 
 struct dchub_init_data;
 struct cstate_pstate_watermarks_st {
@@ -45,7 +46,7 @@ struct dcn_watermarks {
 	uint32_t urgent_ns;
 	uint32_t frac_urg_bw_nom;
 	uint32_t frac_urg_bw_flip;
-	int32_t urgent_latency_ns;
+	uint32_t urgent_latency_ns;
 	struct cstate_pstate_watermarks_st cstate_pstate;
 	uint32_t usr_retraining_ns;
 };
@@ -57,6 +58,12 @@ union dcn_watermark_set {
 		struct dcn_watermarks c;
 		struct dcn_watermarks d;
 	}; // legacy
+	struct {
+		struct dml2_dchub_watermark_regs a;
+		struct dml2_dchub_watermark_regs b;
+		struct dml2_dchub_watermark_regs c;
+		struct dml2_dchub_watermark_regs d;
+	} dcn4; //dcn4+
 };
 
 struct dce_watermarks {

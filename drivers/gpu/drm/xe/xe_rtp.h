@@ -341,7 +341,7 @@ struct xe_reg_sr;
  *	};
  */
 #define XE_RTP_RULES(...)							\
-	.n_rules = _XE_COUNT_ARGS(__VA_ARGS__),					\
+	.n_rules = COUNT_ARGS(__VA_ARGS__),					\
 	.rules = (const struct xe_rtp_rule[]) {					\
 		XE_RTP_PASTE_FOREACH(RULE_, COMMA, (__VA_ARGS__))	\
 	}
@@ -366,7 +366,7 @@ struct xe_reg_sr;
  *	};
  */
 #define XE_RTP_ACTIONS(...)							\
-	.n_actions = _XE_COUNT_ARGS(__VA_ARGS__),				\
+	.n_actions = COUNT_ARGS(__VA_ARGS__),					\
 	.actions = (const struct xe_rtp_action[]) {				\
 		XE_RTP_PASTE_FOREACH(ACTION_, COMMA, (__VA_ARGS__))	\
 	}
@@ -427,4 +427,18 @@ bool xe_rtp_match_first_render_or_compute(const struct xe_gt *gt,
 bool xe_rtp_match_first_gslice_fused_off(const struct xe_gt *gt,
 					 const struct xe_hw_engine *hwe);
 
+/*
+ * xe_rtp_match_when_media2000 - Match when media GT version 2000
+ *
+ * @gt: GT structure
+ * @hwe: Engine instance
+ *
+ * Its one of the case where we need to apply workaround on primary GT
+ * based on if media GT version 2000 is present. Thus this API will help
+ * us to match media version 2000.
+ *
+ * Returns: true if media GT version 2000, false otherwise.
+ */
+bool xe_rtp_match_when_media2000(const struct xe_gt *gt,
+				 const struct xe_hw_engine *hwe);
 #endif

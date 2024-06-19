@@ -9,7 +9,7 @@
 
 #define NAME(name, idx) PASTE(name, idx)
 
-#define DEF(name, idx)  int NAME(name, idx)(void) { return 0; }
+#define DEF(name, idx) int __attribute__((weak)) NAME(name, idx)(void) { return 0; }
 #define CALL(name, idx) NAME(name, idx)();
 
 #define F(body, name, idx) body(name, idx)

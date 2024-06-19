@@ -17,8 +17,11 @@
 #include <linux/sh_dma.h>
 #include <linux/sh_intc.h>
 #include <linux/usb/ohci_pdriver.h>
+
 #include <cpu/dma-register.h>
 #include <cpu/sh7757.h>
+
+#include <asm/mmzone.h>
 #include <asm/platform_early.h>
 
 static struct plat_sci_port scif2_platform_data = {

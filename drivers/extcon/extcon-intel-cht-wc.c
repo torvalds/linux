@@ -617,13 +617,11 @@ disable_sw_control:
 	return ret;
 }
 
-static int cht_wc_extcon_remove(struct platform_device *pdev)
+static void cht_wc_extcon_remove(struct platform_device *pdev)
 {
 	struct cht_wc_extcon_data *ext = platform_get_drvdata(pdev);
 
 	cht_wc_extcon_sw_control(ext, false);
-
-	return 0;
 }
 
 static const struct platform_device_id cht_wc_extcon_table[] = {
@@ -634,7 +632,7 @@ MODULE_DEVICE_TABLE(platform, cht_wc_extcon_table);
 
 static struct platform_driver cht_wc_extcon_driver = {
 	.probe = cht_wc_extcon_probe,
-	.remove = cht_wc_extcon_remove,
+	.remove_new = cht_wc_extcon_remove,
 	.id_table = cht_wc_extcon_table,
 	.driver = {
 		.name = "cht_wcove_pwrsrc",

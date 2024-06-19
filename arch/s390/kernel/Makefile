@@ -11,6 +11,8 @@ CFLAGS_REMOVE_ftrace.o		= $(CC_FLAGS_FTRACE)
 # Do not trace early setup code
 CFLAGS_REMOVE_early.o		= $(CC_FLAGS_FTRACE)
 CFLAGS_REMOVE_rethook.o		= $(CC_FLAGS_FTRACE)
+CFLAGS_REMOVE_stacktrace.o	= $(CC_FLAGS_FTRACE)
+CFLAGS_REMOVE_unwind_bc.o	= $(CC_FLAGS_FTRACE)
 
 endif
 
@@ -57,7 +59,6 @@ obj-$(CONFIG_COMPAT)		+= compat_linux.o compat_signal.o
 obj-$(CONFIG_COMPAT)		+= $(compat-obj-y)
 obj-$(CONFIG_EARLY_PRINTK)	+= early_printk.o
 obj-$(CONFIG_KPROBES)		+= kprobes.o
-obj-$(CONFIG_KPROBES)		+= kprobes_insn_page.o
 obj-$(CONFIG_KPROBES)		+= mcount.o
 obj-$(CONFIG_RETHOOK)		+= rethook.o
 obj-$(CONFIG_FUNCTION_TRACER)	+= ftrace.o

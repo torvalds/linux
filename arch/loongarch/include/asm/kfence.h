@@ -10,6 +10,7 @@
 #define _ASM_LOONGARCH_KFENCE_H
 
 #include <linux/kfence.h>
+#include <linux/vmalloc.h>
 #include <asm/pgtable.h>
 #include <asm/tlb.h>
 

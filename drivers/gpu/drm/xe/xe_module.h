@@ -21,6 +21,7 @@ struct xe_modparam {
 #ifdef CONFIG_PCI_IOV
 	unsigned int max_vfs;
 #endif
+	int wedged_mode;
 };
 
 extern struct xe_modparam xe_modparam;

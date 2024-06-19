@@ -15,6 +15,7 @@
 #include "abi/gsc_proxy_commands_abi.h"
 #include "regs/xe_gsc_regs.h"
 #include "xe_bo.h"
+#include "xe_force_wake.h"
 #include "xe_gsc.h"
 #include "xe_gsc_submit.h"
 #include "xe_gt.h"

@@ -544,10 +544,10 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata, bool going_do
 	sdata->vif.bss_conf.csa_active = false;
 	if (sdata->vif.type == NL80211_IFTYPE_STATION)
 		sdata->deflink.u.mgd.csa_waiting_bcn = false;
-	if (sdata->csa_blocked_tx) {
+	if (sdata->csa_blocked_queues) {
 		ieee80211_wake_vif_queues(local, sdata,
 					  IEEE80211_QUEUE_STOP_REASON_CSA);
-		sdata->csa_blocked_tx = false;
+		sdata->csa_blocked_queues = false;
 	}
 
 	wiphy_work_cancel(local->hw.wiphy, &sdata->deflink.csa_finalize_work);
@@ -1699,8 +1699,13 @@ static void ieee80211_activate_links_work(struct wiphy *wiphy,
 	struct ieee80211_sub_if_data *sdata =
 		container_of(work, struct ieee80211_sub_if_data,
 			     activate_links_work);
+	struct ieee80211_local *local = wiphy_priv(wiphy);
+
+	if (local->in_reconfig)
+		return;
 
 	ieee80211_set_active_links(&sdata->vif, sdata->desired_active_links);
+	sdata->desired_active_links = 0;
 }
 
 /*

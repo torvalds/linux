@@ -475,10 +475,8 @@ static int qcom_pmic_typec_pdphy_enable(struct pmic_typec_pdphy *pmic_typec_pdph
 
 	qcom_pmic_typec_pdphy_reset_off(pmic_typec_pdphy);
 done:
-	if (ret) {
-		regulator_disable(pmic_typec_pdphy->vdd_pdphy);
+	if (ret)
 		dev_err(dev, "pdphy_enable fail %d\n", ret);
-	}
 
 	return ret;
 }
@@ -524,12 +522,17 @@ static int qcom_pmic_typec_pdphy_start(struct pmic_typec *tcpm,
 
 	ret = pmic_typec_pdphy_reset(pmic_typec_pdphy);
 	if (ret)
-		return ret;
+		goto err_disable_vdd_pdhy;
 
 	for (i = 0; i < pmic_typec_pdphy->nr_irqs; i++)
 		enable_irq(pmic_typec_pdphy->irq_data[i].irq);
 
 	return 0;
+
+err_disable_vdd_pdhy:
+	regulator_disable(pmic_typec_pdphy->vdd_pdphy);
+
+	return ret;
 }
 
 static void qcom_pmic_typec_pdphy_stop(struct pmic_typec *tcpm)

@@ -78,7 +78,7 @@ nautilus_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 	return irq;
 }
 
-void
+static void
 nautilus_kill_arch(int mode)
 {
 	struct pci_bus *bus = pci_isa_hose->bus;
@@ -127,7 +127,7 @@ naut_sys_machine_check(unsigned long vector, unsigned long la_ptr,
 /* Machine checks can come from two sources - those on the CPU and those
    in the system.  They are analysed separately but all starts here.  */
 
-void
+static void
 nautilus_machine_check(unsigned long vector, unsigned long la_ptr)
 {
 	char *mchk_class;
@@ -184,8 +184,6 @@ nautilus_machine_check(unsigned long vector, unsigned long la_ptr)
 	mb();
 }
 
-extern void pcibios_claim_one_bus(struct pci_bus *);
-
 static struct resource irongate_mem = {
 	.name	= "Irongate PCI MEM",
 	.flags	= IORESOURCE_MEM,
@@ -197,7 +195,7 @@ static struct resource busn_resource = {
 	.flags	= IORESOURCE_BUS,
 };
 
-void __init
+static void __init
 nautilus_init_pci(void)
 {
 	struct pci_controller *hose = hose_head;

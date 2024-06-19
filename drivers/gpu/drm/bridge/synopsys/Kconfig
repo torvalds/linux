@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config DRM_DW_HDMI
-	tristate "Synopsys Designware HDMI TX Controller"
-	depends on DRM_DISPLAY_HDMI_HELPER
-	depends on DRM_DISPLAY_HELPER
+	tristate
+	select DRM_DISPLAY_HDMI_HELPER
+	select DRM_DISPLAY_HELPER
 	select DRM_KMS_HELPER
 	select REGMAP_MMIO
 	select CEC_CORE if CEC_NOTIFIER

@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
 
-/* Copyright (C) 2023 Linaro Ltd. */
+/* Copyright (C) 2023-2024 Linaro Ltd. */
 
-#include <linux/platform_device.h>
 #include <linux/io.h>
+#include <linux/platform_device.h>
 
 #include "gsi.h"
-#include "reg.h"
 #include "gsi_reg.h"
+#include "reg.h"
 
 /* Is this register ID valid for the current GSI version? */
 static bool gsi_reg_id_valid(struct gsi *gsi, enum gsi_reg_id reg_id)

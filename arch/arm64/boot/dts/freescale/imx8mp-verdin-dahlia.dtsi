@@ -10,7 +10,7 @@
 		simple-audio-card,format = "i2s";
 		simple-audio-card,frame-master = <&codec_dai>;
 		simple-audio-card,mclk-fs = <256>;
-		simple-audio-card,name = "imx8mp-wm8904";
+		simple-audio-card,name = "verdin-wm8904";
 		simple-audio-card,routing =
 			"Headphone Jack", "HPOUTL",
 			"Headphone Jack", "HPOUTR",
@@ -31,6 +31,25 @@
 		simple-audio-card,cpu {
 			sound-dai = <&sai1>;
 		};
+	};
+
+	reg_usb_hub: regulator-usb-hub {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		/* Verdin CTRL_SLEEP_MOCI# (SODIMM 256) */
+		gpio = <&gpio4 29 GPIO_ACTIVE_HIGH>;
+		regulator-boot-on;
+		regulator-name = "HUB_PWR_EN";
+	};
+
+	reg_pcie: regulator-pcie {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		/* Verdin CTRL_SLEEP_MOCI# (SODIMM 256) */
+		gpio = <&gpio4 29 GPIO_ACTIVE_HIGH>;
+		regulator-boot-on;
+		regulator-name = "PCIE_1_PWR_EN";
+		startup-delay-us = <100000>;
 	};
 };
 
@@ -68,6 +87,11 @@
 /* Verdin QSPI_1 */
 &flexspi {
 	status = "okay";
+};
+
+&gpio4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ctrl_sleep_moci>;
 };
 
 /* Current measurement into module VCC */
@@ -110,8 +134,14 @@
 	};
 };
 
+/* Verdin I2C_3_HDMI */
+&i2c5 {
+	status = "okay";
+};
+
 /* Verdin PCIE_1 */
 &pcie {
+	vpcie-supply = <&reg_pcie>;
 	status = "okay";
 };
 
@@ -136,6 +166,11 @@
 
 &reg_usdhc2_vmmc {
 	vin-supply = <&reg_3p3v>;
+};
+
+/* We support turning off sleep moci on Dahlia */
+&reg_force_sleep_moci {
+	status = "disabled";
 };
 
 /* Verdin I2S_1 */
@@ -179,6 +214,25 @@
 
 &usb3_phy1 {
 	status = "okay";
+};
+
+&usb_dwc3_1 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	usb_hub_3_0: usb-hub@1 {
+		compatible = "usb424,5744";
+		reg = <1>;
+		peer-hub = <&usb_hub_2_0>;
+		vdd-supply = <&reg_usb_hub>;
+	};
+
+	usb_hub_2_0: usb-hub@2 {
+		compatible = "usb424,2744";
+		reg = <2>;
+		peer-hub = <&usb_hub_3_0>;
+		vdd-supply = <&reg_usb_hub>;
+	};
 };
 
 /* Verdin SD_1 */

@@ -7,7 +7,6 @@
 #ifndef __iwl_fw_api_nvm_reg_h__
 #define __iwl_fw_api_nvm_reg_h__
 
-#include "fw/regulatory.h"
 /**
  * enum iwl_regulatory_and_nvm_subcmd_ids - regulatory/NVM commands
  */
@@ -23,8 +22,9 @@ enum iwl_regulatory_and_nvm_subcmd_ids {
 	 *	&struct iwl_lari_config_change_cmd_v3,
 	 *	&struct iwl_lari_config_change_cmd_v4,
 	 *	&struct iwl_lari_config_change_cmd_v5,
-	 *	&struct iwl_lari_config_change_cmd_v6 or
-	 *	&struct iwl_lari_config_change_cmd_v7
+	 *	&struct iwl_lari_config_change_cmd_v6,
+	 *	&struct iwl_lari_config_change_cmd_v7 or
+	 *	&struct iwl_lari_config_change_cmd
 	 */
 	LARI_CONFIG_CHANGE = 0x1,
 
@@ -46,9 +46,9 @@ enum iwl_regulatory_and_nvm_subcmd_ids {
 	SAR_OFFSET_MAPPING_TABLE_CMD = 0x4,
 
 	/**
-	 * @UATS_TABLE_CMD: &struct iwl_uats_table_cmd
+	 * @MCC_ALLOWED_AP_TYPE_CMD: &struct iwl_mcc_allowed_ap_type_cmd
 	 */
-	UATS_TABLE_CMD = 0x5,
+	MCC_ALLOWED_AP_TYPE_CMD = 0x5,
 
 	/**
 	 * @PNVM_INIT_COMPLETE_NTFY: &struct iwl_pnvm_init_complete_ntfy
@@ -439,6 +439,7 @@ enum iwl_mcc_source {
 	MCC_SOURCE_GETTING_MCC_TEST_MODE = 0x11,
 };
 
+#define IWL_WTAS_BLACK_LIST_MAX		16
 /**
  * struct iwl_tas_config_cmd_common - configures the TAS.
  * This is also the v2 structure.
@@ -609,7 +610,7 @@ struct iwl_lari_config_change_cmd_v6 {
 
 /**
  * struct iwl_lari_config_change_cmd_v7 - change LARI configuration
- * This structure is used also for lari cmd version 8.
+ * This structure is used also for lari cmd version 8 and 9.
  * @config_bitmap: Bitmap of the config commands. Each bit will trigger a
  *     different predefined FW config operation.
  * @oem_uhb_allow_bitmap: Bitmap of UHB enabled MCC sets.
@@ -619,6 +620,8 @@ struct iwl_lari_config_change_cmd_v6 {
  * @oem_unii4_allow_bitmap: Bitmap of unii4 allowed MCCs.There are two bits
  *     per country, one to indicate whether to override and the other to
  *     indicate allow/disallow unii4 channels.
+ *     For LARI cmd version 4 to 8 - bits 0:3 are supported.
+ *     For LARI cmd version 9 - bits 0:5 are supported.
  * @chan_state_active_bitmap: Bitmap to enable different bands per country
  *     or region.
  *     Each bit represents a country or region, and a band to activate
@@ -642,6 +645,46 @@ struct iwl_lari_config_change_cmd_v7 {
 } __packed;
 /* LARI_CHANGE_CONF_CMD_S_VER_7 */
 /* LARI_CHANGE_CONF_CMD_S_VER_8 */
+/* LARI_CHANGE_CONF_CMD_S_VER_9 */
+
+/**
+ * struct iwl_lari_config_change_cmd - change LARI configuration
+ * @config_bitmap: Bitmap of the config commands. Each bit will trigger a
+ *	different predefined FW config operation.
+ * @oem_uhb_allow_bitmap: Bitmap of UHB enabled MCC sets.
+ * @oem_11ax_allow_bitmap: Bitmap of 11ax allowed MCCs. There are two bits
+ *	per country, one to indicate whether to override and the other to
+ *	indicate the value to use.
+ * @oem_unii4_allow_bitmap: Bitmap of unii4 allowed MCCs.There are two bits
+ *	per country, one to indicate whether to override and the other to
+ *	indicate allow/disallow unii4 channels.
+ *	For LARI cmd version 10 - bits 0:5 are supported.
+ * @chan_state_active_bitmap: Bitmap to enable different bands per country
+ *	or region.
+ *	Each bit represents a country or region, and a band to activate
+ *	according to the BIOS definitions.
+ *	For LARI cmd version 10 - bits 0:4 are supported.
+ * @force_disable_channels_bitmap: Bitmap of disabled bands/channels.
+ *	Each bit represents a set of channels in a specific band that should be
+ *	disabled
+ * @edt_bitmap: Bitmap of energy detection threshold table.
+ *	Disable/enable the EDT optimization method for different band.
+ * @oem_320mhz_allow_bitmap: 320Mhz bandwidth enablement bitmap per MCC.
+ *	bit0: enable 320Mhz in Japan.
+ *	bit1: enable 320Mhz in South Korea.
+ *	bit 2 - 31: reserved.
+ */
+struct iwl_lari_config_change_cmd {
+	__le32 config_bitmap;
+	__le32 oem_uhb_allow_bitmap;
+	__le32 oem_11ax_allow_bitmap;
+	__le32 oem_unii4_allow_bitmap;
+	__le32 chan_state_active_bitmap;
+	__le32 force_disable_channels_bitmap;
+	__le32 edt_bitmap;
+	__le32 oem_320mhz_allow_bitmap;
+} __packed;
+/* LARI_CHANGE_CONF_CMD_S_VER_10 */
 
 /* Activate UNII-1 (5.2GHz) for World Wide */
 #define ACTIVATE_5G2_IN_WW_MASK	BIT(4)
@@ -658,13 +701,13 @@ struct iwl_pnvm_init_complete_ntfy {
 #define UATS_TABLE_COL_SIZE	13
 
 /**
- * struct iwl_uats_table_cmd - struct for UATS_TABLE_CMD
+ * struct iwl_mcc_allowed_ap_type_cmd - struct for MCC_ALLOWED_AP_TYPE_CMD
  * @offset_map: mapping a mcc to UHB AP type support (UATS) allowed
  * @reserved: reserved
  */
-struct iwl_uats_table_cmd {
+struct iwl_mcc_allowed_ap_type_cmd {
 	u8 offset_map[UATS_TABLE_ROW_SIZE][UATS_TABLE_COL_SIZE];
 	__le16 reserved;
-} __packed; /* UATS_TABLE_CMD_S_VER_1 */
+} __packed; /* MCC_ALLOWED_AP_TYPE_CMD_API_S_VER_1 */
 
 #endif /* __iwl_fw_api_nvm_reg_h__ */

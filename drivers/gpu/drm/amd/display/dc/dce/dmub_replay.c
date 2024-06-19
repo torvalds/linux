@@ -109,7 +109,6 @@ static void dmub_replay_enable(struct dmub_replay *dmub, bool enable, bool wait,
 		if (retry_count >= 1000)
 			ASSERT(0);
 	}
-
 }
 
 /*

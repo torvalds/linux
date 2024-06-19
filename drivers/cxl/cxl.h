@@ -12,6 +12,8 @@
 #include <linux/node.h>
 #include <linux/io.h>
 
+extern const struct nvdimm_security_ops *cxl_security_ops;
+
 /**
  * DOC: cxl objects
  *
@@ -779,6 +781,11 @@ int cxl_decoder_add(struct cxl_decoder *cxld, int *target_map);
 struct cxl_endpoint_decoder *cxl_endpoint_decoder_alloc(struct cxl_port *port);
 int cxl_decoder_add_locked(struct cxl_decoder *cxld, int *target_map);
 int cxl_decoder_autoremove(struct device *host, struct cxl_decoder *cxld);
+static inline int cxl_root_decoder_autoremove(struct device *host,
+					      struct cxl_root_decoder *cxlrd)
+{
+	return cxl_decoder_autoremove(host, &cxlrd->cxlsd.cxld);
+}
 int cxl_endpoint_autoremove(struct cxl_memdev *cxlmd, struct cxl_port *endpoint);
 
 /**
@@ -890,6 +897,8 @@ void cxl_memdev_update_perf(struct cxl_memdev *cxlmd);
 void cxl_coordinates_combine(struct access_coordinate *out,
 			     struct access_coordinate *c1,
 			     struct access_coordinate *c2);
+
+bool cxl_endpoint_decoder_reset_detected(struct cxl_port *port);
 
 /*
  * Unit test builds overrides this to __weak, find the 'strong' version

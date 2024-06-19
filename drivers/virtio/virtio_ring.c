@@ -2782,7 +2782,7 @@ EXPORT_SYMBOL_GPL(virtqueue_resize);
  *
  * Returns zero or a negative error.
  * 0: success.
- * -EINVAL: vring does not use the dma api, so we can not enable premapped mode.
+ * -EINVAL: too late to enable premapped mode, the vq already contains buffers.
  */
 int virtqueue_set_dma_premapped(struct virtqueue *_vq)
 {
@@ -2794,11 +2794,6 @@ int virtqueue_set_dma_premapped(struct virtqueue *_vq)
 	num = vq->packed_ring ? vq->packed.vring.num : vq->split.vring.num;
 
 	if (num != vq->vq.num_free) {
-		END_USE(vq);
-		return -EINVAL;
-	}
-
-	if (!vq->use_dma_api) {
 		END_USE(vq);
 		return -EINVAL;
 	}

@@ -151,12 +151,6 @@ static int cs5520_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (!host)
 		return -ENOMEM;
 
-	/* Perform set up for DMA */
-	if (pci_enable_device_io(pdev)) {
-		dev_err(&pdev->dev, "unable to configure BAR2.\n");
-		return -ENODEV;
-	}
-
 	if (dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32))) {
 		dev_err(&pdev->dev, "unable to configure DMA mask.\n");
 		return -ENODEV;

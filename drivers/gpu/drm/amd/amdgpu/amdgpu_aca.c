@@ -222,9 +222,9 @@ static struct aca_bank_error *new_bank_error(struct aca_error *aerr, struct aca_
 	INIT_LIST_HEAD(&bank_error->node);
 	memcpy(&bank_error->info, info, sizeof(*info));
 
-	mutex_lock(&aerr->lock);
+	spin_lock(&aerr->lock);
 	list_add_tail(&bank_error->node, &aerr->list);
-	mutex_unlock(&aerr->lock);
+	spin_unlock(&aerr->lock);
 
 	return bank_error;
 }
@@ -235,7 +235,7 @@ static struct aca_bank_error *find_bank_error(struct aca_error *aerr, struct aca
 	struct aca_bank_info *tmp_info;
 	bool found = false;
 
-	mutex_lock(&aerr->lock);
+	spin_lock(&aerr->lock);
 	list_for_each_entry(bank_error, &aerr->list, node) {
 		tmp_info = &bank_error->info;
 		if (tmp_info->socket_id == info->socket_id &&
@@ -246,7 +246,7 @@ static struct aca_bank_error *find_bank_error(struct aca_error *aerr, struct aca
 	}
 
 out_unlock:
-	mutex_unlock(&aerr->lock);
+	spin_unlock(&aerr->lock);
 
 	return found ? bank_error : NULL;
 }
@@ -474,7 +474,7 @@ static int aca_log_aca_error(struct aca_handle *handle, enum aca_error_type type
 	struct aca_error *aerr = &error_cache->errors[type];
 	struct aca_bank_error *bank_error, *tmp;
 
-	mutex_lock(&aerr->lock);
+	spin_lock(&aerr->lock);
 
 	if (list_empty(&aerr->list))
 		goto out_unlock;
@@ -485,7 +485,7 @@ static int aca_log_aca_error(struct aca_handle *handle, enum aca_error_type type
 	}
 
 out_unlock:
-	mutex_unlock(&aerr->lock);
+	spin_unlock(&aerr->lock);
 
 	return 0;
 }
@@ -534,7 +534,7 @@ int amdgpu_aca_get_error_data(struct amdgpu_device *adev, struct aca_handle *han
 	if (aca_handle_is_valid(handle))
 		return -EOPNOTSUPP;
 
-	if (!(BIT(type) & handle->mask))
+	if ((type < 0) || (!(BIT(type) & handle->mask)))
 		return  0;
 
 	return __aca_get_error_data(adev, handle, type, err_data, qctx);
@@ -542,7 +542,7 @@ int amdgpu_aca_get_error_data(struct amdgpu_device *adev, struct aca_handle *han
 
 static void aca_error_init(struct aca_error *aerr, enum aca_error_type type)
 {
-	mutex_init(&aerr->lock);
+	spin_lock_init(&aerr->lock);
 	INIT_LIST_HEAD(&aerr->list);
 	aerr->type = type;
 	aerr->nr_errors = 0;
@@ -561,11 +561,10 @@ static void aca_error_fini(struct aca_error *aerr)
 {
 	struct aca_bank_error *bank_error, *tmp;
 
-	mutex_lock(&aerr->lock);
+	spin_lock(&aerr->lock);
 	list_for_each_entry_safe(bank_error, tmp, &aerr->list, node)
 		aca_bank_error_remove(aerr, bank_error);
-
-	mutex_destroy(&aerr->lock);
+	spin_unlock(&aerr->lock);
 }
 
 static void aca_fini_error_cache(struct aca_handle *handle)
@@ -686,7 +685,8 @@ static void aca_manager_fini(struct aca_handle_manager *mgr)
 
 bool amdgpu_aca_is_enabled(struct amdgpu_device *adev)
 {
-	return adev->aca.is_enabled;
+	return (adev->aca.is_enabled ||
+		adev->debug_enable_ras_aca);
 }
 
 int amdgpu_aca_init(struct amdgpu_device *adev)
@@ -710,13 +710,6 @@ void amdgpu_aca_fini(struct amdgpu_device *adev)
 	aca_manager_fini(&aca->mgr);
 
 	atomic_set(&aca->ue_update_flag, 0);
-}
-
-int amdgpu_aca_reset(struct amdgpu_device *adev)
-{
-	amdgpu_aca_fini(adev);
-
-	return amdgpu_aca_init(adev);
 }
 
 void amdgpu_aca_set_smu_funcs(struct amdgpu_device *adev, const struct aca_smu_funcs *smu_funcs)
@@ -892,7 +885,9 @@ DEFINE_DEBUGFS_ATTRIBUTE(aca_debug_mode_fops, NULL, amdgpu_aca_smu_debug_mode_se
 void amdgpu_aca_smu_debugfs_init(struct amdgpu_device *adev, struct dentry *root)
 {
 #if defined(CONFIG_DEBUG_FS)
-	if (!root || adev->ip_versions[MP1_HWIP][0] != IP_VERSION(13, 0, 6))
+	if (!root ||
+	    (adev->ip_versions[MP1_HWIP][0] != IP_VERSION(13, 0, 6) &&
+	     adev->ip_versions[MP1_HWIP][0] != IP_VERSION(13, 0, 14)))
 		return;
 
 	debugfs_create_file("aca_debug_mode", 0200, root, adev, &aca_debug_mode_fops);

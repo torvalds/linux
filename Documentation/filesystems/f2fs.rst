@@ -774,6 +774,35 @@ In order to identify whether the data in the victim segment are valid or not,
 F2FS manages a bitmap. Each bit represents the validity of a block, and the
 bitmap is composed of a bit stream covering whole blocks in main area.
 
+Write-hint Policy
+-----------------
+
+F2FS sets the whint all the time with the below policy.
+
+===================== ======================== ===================
+User                  F2FS                     Block
+===================== ======================== ===================
+N/A                   META                     WRITE_LIFE_NONE|REQ_META
+N/A                   HOT_NODE                 WRITE_LIFE_NONE
+N/A                   WARM_NODE                WRITE_LIFE_MEDIUM
+N/A                   COLD_NODE                WRITE_LIFE_LONG
+ioctl(COLD)           COLD_DATA                WRITE_LIFE_EXTREME
+extension list        "                        "
+
+-- buffered io
+N/A                   COLD_DATA                WRITE_LIFE_EXTREME
+N/A                   HOT_DATA                 WRITE_LIFE_SHORT
+N/A                   WARM_DATA                WRITE_LIFE_NOT_SET
+
+-- direct io
+WRITE_LIFE_EXTREME    COLD_DATA                WRITE_LIFE_EXTREME
+WRITE_LIFE_SHORT      HOT_DATA                 WRITE_LIFE_SHORT
+WRITE_LIFE_NOT_SET    WARM_DATA                WRITE_LIFE_NOT_SET
+WRITE_LIFE_NONE       "                        WRITE_LIFE_NONE
+WRITE_LIFE_MEDIUM     "                        WRITE_LIFE_MEDIUM
+WRITE_LIFE_LONG       "                        WRITE_LIFE_LONG
+===================== ======================== ===================
+
 Fallocate(2) Policy
 -------------------
 

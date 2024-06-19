@@ -21,7 +21,10 @@ allOf:
 properties:
   compatible:
     const: asus,z00t-tm5p5-n35596
-  reg: true
+
+  reg:
+    maxItems: 1
+
   reset-gpios: true
   vdd-supply:
     description: core voltage supply

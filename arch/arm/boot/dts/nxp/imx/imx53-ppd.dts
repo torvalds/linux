@@ -167,7 +167,7 @@
 
 	pwm_bl: backlight {
 		compatible = "pwm-backlight";
-		pwms = <&pwm2 0 50000>;
+		pwms = <&pwm2 0 50000 0>;
 		brightness-levels = <0 2 5 7 10 12 15 17 20 22 25 28 30 33 35
 				     38 40 43 45 48 51 53 56 58 61 63 66 68 71
 				     73 76 79 81 84 86 89 91 94 96 99 102 104
@@ -187,7 +187,7 @@
 
 		led-1 {
 			label = "alarm-brightness";
-			pwms = <&pwm1 0 100000>;
+			pwms = <&pwm1 0 100000 0>;
 			max-brightness = <255>;
 		};
 	};
@@ -628,14 +628,12 @@
 };
 
 &pwm1 {
-	#pwm-cells = <2>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm1>;
 	status = "okay";
 };
 
 &pwm2 {
-	#pwm-cells = <2>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm2>;
 	status = "okay";

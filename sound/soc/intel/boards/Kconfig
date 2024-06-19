@@ -41,9 +41,6 @@ config SND_SOC_INTEL_SOF_CIRRUS_COMMON
 config SND_SOC_INTEL_SOF_NUVOTON_COMMON
 	tristate
 
-config SND_SOC_INTEL_SOF_SSP_COMMON
-	tristate
-
 config SND_SOC_INTEL_SOF_BOARD_HELPERS
 	tristate
 
@@ -304,26 +301,21 @@ config SND_SOC_INTEL_DA7219_MAX98357A_GENERIC
 	tristate
 	select SND_SOC_DA7219
 	select SND_SOC_MAX98357A
-	select SND_SOC_MAX98390
 	select SND_SOC_DMIC
 	select SND_SOC_HDAC_HDMI
 	select SND_SOC_INTEL_HDA_DSP_COMMON
 
-config SND_SOC_INTEL_BXT_DA7219_MAX98357A_COMMON
-	tristate
-	select SND_SOC_INTEL_DA7219_MAX98357A_GENERIC
-
 if SND_SOC_INTEL_APL
 
 config SND_SOC_INTEL_BXT_DA7219_MAX98357A_MACH
-	tristate "Broxton with DA7219 and MAX98357A/MAX98390 in I2S Mode"
+	tristate "Broxton with DA7219 and MAX98357A in I2S Mode"
 	depends on I2C && ACPI
 	depends on MFD_INTEL_LPSS || COMPILE_TEST
 	depends on SND_HDA_CODEC_HDMI
-	select SND_SOC_INTEL_BXT_DA7219_MAX98357A_COMMON
+	select SND_SOC_INTEL_DA7219_MAX98357A_GENERIC
 	help
 	   This adds support for ASoC machine driver for Broxton-P platforms
-	   with DA7219 + MAX98357A/MAX98390 I2S audio codec.
+	   with DA7219 + MAX98357A I2S audio codec.
 	   Say Y or m if you have such a device. This is a recommended option.
 	   If unsure select "N".
 
@@ -436,30 +428,21 @@ if SND_SOC_SOF_GEMINILAKE
 
 config SND_SOC_INTEL_GLK_DA7219_MAX98357A_MACH
 	tristate "GLK with DA7219 and MAX98357A in I2S Mode"
-	depends on I2C && ACPI
-	depends on MFD_INTEL_LPSS || COMPILE_TEST
-	depends on SND_HDA_CODEC_HDMI && SND_SOC_SOF_HDA_AUDIO_CODEC
-	select SND_SOC_INTEL_BXT_DA7219_MAX98357A_COMMON
+	imply SND_SOC_INTEL_SOF_DA7219_MACH
 	help
 	   This adds support for ASoC machine driver for Geminilake platforms
-	   with DA7219 + MAX98357A I2S audio codec.
+	   with DA7219 + MAX98357A I2S audio codec. This option is deprecated
+	   and please use SND_SOC_INTEL_SOF_DA7219_MACH instead.
 	   Say Y or m if you have such a device. This is a recommended option.
 	   If unsure select "N".
 
 config SND_SOC_INTEL_GLK_RT5682_MAX98357A_MACH
 	tristate "GLK with RT5682 and MAX98357A in I2S Mode"
-	depends on I2C && ACPI
-	depends on MFD_INTEL_LPSS || COMPILE_TEST
-	depends on SND_HDA_CODEC_HDMI && SND_SOC_SOF_HDA_AUDIO_CODEC
-	select SND_SOC_RT5682_I2C
-	select SND_SOC_RT5682S
-	select SND_SOC_MAX98357A
-	select SND_SOC_DMIC
-	select SND_SOC_HDAC_HDMI
-	select SND_SOC_INTEL_HDA_DSP_COMMON
+	imply SND_SOC_INTEL_SOF_RT5682_MACH
 	help
 	   This adds support for ASoC machine driver for Geminilake platforms
-	   with RT5682 + MAX98357A I2S audio codec.
+	   with RT5682 + MAX98357A I2S audio codec. This option is deprecated
+	   and please use SND_SOC_INTEL_SOF_RT5682_MACH instead.
 	   Say Y if you have such a device.
 	   If unsure select "N".
 
@@ -490,6 +473,7 @@ config SND_SOC_INTEL_SOF_RT5682_MACH
 	depends on ((SND_HDA_CODEC_HDMI && SND_SOC_SOF_HDA_AUDIO_CODEC) &&\
 		    (MFD_INTEL_LPSS || COMPILE_TEST)) ||\
 		   (SND_SOC_SOF_BAYTRAIL && (X86_INTEL_LPSS || COMPILE_TEST))
+	select SND_SOC_MAX98357A
 	select SND_SOC_MAX98373_I2C
 	select SND_SOC_MAX98390
 	select SND_SOC_RT1011
@@ -503,7 +487,7 @@ config SND_SOC_INTEL_SOF_RT5682_MACH
 	select SND_SOC_INTEL_SOF_BOARD_HELPERS
 	select SND_SOC_INTEL_SOF_MAXIM_COMMON
 	select SND_SOC_INTEL_SOF_REALTEK_COMMON
-	select SND_SOC_INTEL_SOF_SSP_COMMON
+	select SND_SOC_ACPI_INTEL_MATCH
 	help
 	   This adds support for ASoC machine driver for SOF platforms
 	   with rt5650 or rt5682 codec.
@@ -521,7 +505,7 @@ config SND_SOC_INTEL_SOF_CS42L42_MACH
 	select SND_SOC_INTEL_HDA_DSP_COMMON
 	select SND_SOC_INTEL_SOF_BOARD_HELPERS
 	select SND_SOC_INTEL_SOF_MAXIM_COMMON
-	select SND_SOC_INTEL_SOF_SSP_COMMON
+	select SND_SOC_ACPI_INTEL_MATCH
 	help
 	   This adds support for ASoC machine driver for SOF platforms
 	   with cs42l42 codec.
@@ -574,7 +558,7 @@ config SND_SOC_INTEL_SOF_NAU8825_MACH
 	select SND_SOC_INTEL_SOF_MAXIM_COMMON
 	select SND_SOC_INTEL_SOF_NUVOTON_COMMON
 	select SND_SOC_INTEL_SOF_REALTEK_COMMON
-	select SND_SOC_INTEL_SOF_SSP_COMMON
+	select SND_SOC_ACPI_INTEL_MATCH
 	help
 	   This adds support for ASoC machine driver for SOF platforms
 	   with nau8825 codec.
@@ -587,28 +571,21 @@ if (SND_SOC_SOF_COMETLAKE && SND_SOC_SOF_HDA_LINK)
 
 config SND_SOC_INTEL_CML_LP_DA7219_MAX98357A_MACH
 	tristate "CML_LP with DA7219 and MAX98357A in I2S Mode"
-	depends on I2C && ACPI
-	depends on MFD_INTEL_LPSS || COMPILE_TEST
-	select SND_SOC_INTEL_BXT_DA7219_MAX98357A_COMMON
+	imply SND_SOC_INTEL_SOF_DA7219_MACH
 	help
 	   This adds support for ASoC machine driver for Cometlake platforms
-	   with DA7219 + MAX98357A I2S audio codec.
+	   with DA7219 + MAX98357A I2S audio codec. This option is deprecated
+	   and please use SND_SOC_INTEL_SOF_DA7219_MACH instead.
 	   Say Y or m if you have such a device. This is a recommended option.
 	   If unsure select "N".
 
 config SND_SOC_INTEL_SOF_CML_RT1011_RT5682_MACH
 	tristate "CML with RT1011 and RT5682 in I2S Mode"
-	depends on I2C && ACPI
-	depends on MFD_INTEL_LPSS || COMPILE_TEST
-	depends on SND_HDA_CODEC_HDMI && SND_SOC_SOF_HDA_AUDIO_CODEC
-	select SND_SOC_RT1011
-	select SND_SOC_RT5682_I2C
-	select SND_SOC_DMIC
-	select SND_SOC_HDAC_HDMI
-	select SND_SOC_INTEL_HDA_DSP_COMMON
+	imply SND_SOC_INTEL_SOF_RT5682_MACH
 	help
 	  This adds support for ASoC machine driver for SOF platform with
-	  RT1011 + RT5682 I2S codec.
+	  RT1011 + RT5682 I2S codec. This option is deprecated and please used
+	  SND_SOC_INTEL_SOF_RT5682_MACH instead.
 	  Say Y if you have such a device.
 	  If unsure select "N".
 
@@ -623,9 +600,11 @@ config SND_SOC_INTEL_SOF_DA7219_MACH
 	select SND_SOC_DA7219
 	select SND_SOC_MAX98357A
 	select SND_SOC_MAX98373_I2C
+	select SND_SOC_MAX98390
 	select SND_SOC_DMIC
+	select SND_SOC_INTEL_SOF_BOARD_HELPERS
 	select SND_SOC_INTEL_SOF_MAXIM_COMMON
-	select SND_SOC_INTEL_SOF_SSP_COMMON
+	select SND_SOC_ACPI_INTEL_MATCH
 	help
 	  This adds support for ASoC machine driver for SOF platforms
 	  with Dialog DA7219 I2S audio codec.
@@ -645,7 +624,7 @@ config SND_SOC_INTEL_SOF_SSP_AMP_MACH
 	select SND_SOC_INTEL_SOF_BOARD_HELPERS
 	select SND_SOC_INTEL_SOF_REALTEK_COMMON
 	select SND_SOC_INTEL_SOF_CIRRUS_COMMON
-	select SND_SOC_INTEL_SOF_SSP_COMMON
+	select SND_SOC_ACPI_INTEL_MATCH
 	help
 	   This adds support for ASoC machine driver for SOF platforms
 	   with RT1308/CS35L41 I2S audio codec.
@@ -673,11 +652,10 @@ if SND_SOC_SOF_INTEL_SOUNDWIRE
 
 config SND_SOC_INTEL_SOUNDWIRE_SOF_MACH
 	tristate "SoundWire generic machine driver"
-	depends on I2C && ACPI
+	depends on I2C && SPI_MASTER && ACPI
 	depends on MFD_INTEL_LPSS || COMPILE_TEST
 	depends on SND_SOC_INTEL_USER_FRIENDLY_LONG_NAMES || COMPILE_TEST
 	depends on SOUNDWIRE
-	select SND_SOC_INTEL_SOF_BOARD_HELPERS
 	select SND_SOC_MAX98363
 	select SND_SOC_MAX98373_I2C
 	select SND_SOC_MAX98373_SDW
@@ -699,10 +677,10 @@ config SND_SOC_INTEL_SOUNDWIRE_SOF_MACH
 	select SND_SOC_CS42L43_SDW
 	select MFD_CS42L43
 	select MFD_CS42L43_SDW
+	select SND_SOC_CS35L56_SPI
 	select SND_SOC_CS35L56_SDW
 	select SND_SOC_DMIC
 	select SND_SOC_INTEL_HDA_DSP_COMMON
-	select SND_SOC_INTEL_SOF_MAXIM_COMMON
 	imply SND_SOC_SDW_MOCKUP
 	help
 	  Add support for Intel SoundWire-based platforms connected to

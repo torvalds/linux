@@ -10,7 +10,7 @@
  * Code common to all T2 core logic chips.
  */
 
-#define __EXTERN_INLINE
+#define __EXTERN_INLINE inline
 #include <asm/io.h>
 #include <asm/core_t2.h>
 #undef __EXTERN_INLINE

@@ -825,7 +825,7 @@ static int mlxsw_sp_port_change_mtu(struct net_device *dev, int mtu)
 	err = mlxsw_sp_port_mtu_set(mlxsw_sp_port, mtu);
 	if (err)
 		goto err_port_mtu_set;
-	dev->mtu = mtu;
+	WRITE_ONCE(dev->mtu, mtu);
 	return 0;
 
 err_port_mtu_set:

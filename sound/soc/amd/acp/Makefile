@@ -5,23 +5,23 @@
 # Copyright(c) 2021 Advanced Micro Devices, Inc. All rights reserved.
 
 #common acp driver
-snd-acp-pcm-objs     := acp-platform.o
-snd-acp-i2s-objs     := acp-i2s.o
-snd-acp-pdm-objs     := acp-pdm.o
-snd-acp-legacy-common-objs   := acp-legacy-common.o
-snd-acp-pci-objs     := acp-pci.o
-snd-amd-sdw-acpi-objs := amd-sdw-acpi.o
+snd-acp-pcm-y     := acp-platform.o
+snd-acp-i2s-y     := acp-i2s.o
+snd-acp-pdm-y     := acp-pdm.o
+snd-acp-legacy-common-y   := acp-legacy-common.o
+snd-acp-pci-y     := acp-pci.o
+snd-amd-sdw-acpi-y := amd-sdw-acpi.o
 
 #platform specific driver
-snd-acp-renoir-objs     := acp-renoir.o
-snd-acp-rembrandt-objs  := acp-rembrandt.o
-snd-acp63-objs := acp63.o
-snd-acp70-objs := acp70.o
+snd-acp-renoir-y     := acp-renoir.o
+snd-acp-rembrandt-y  := acp-rembrandt.o
+snd-acp63-y := acp63.o
+snd-acp70-y := acp70.o
 
 #machine specific driver
-snd-acp-mach-objs     := acp-mach-common.o
-snd-acp-legacy-mach-objs     := acp-legacy-mach.o acp3x-es83xx/acp3x-es83xx.o
-snd-acp-sof-mach-objs     := acp-sof-mach.o
+snd-acp-mach-y     := acp-mach-common.o
+snd-acp-legacy-mach-y     := acp-legacy-mach.o acp3x-es83xx/acp3x-es83xx.o
+snd-acp-sof-mach-y     := acp-sof-mach.o
 
 obj-$(CONFIG_SND_SOC_AMD_ACP_PCM) += snd-acp-pcm.o
 obj-$(CONFIG_SND_SOC_AMD_ACP_I2S) += snd-acp-i2s.o

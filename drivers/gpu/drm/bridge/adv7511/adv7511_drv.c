@@ -953,7 +953,8 @@ static int adv7511_bridge_attach(struct drm_bridge *bridge,
 	int ret = 0;
 
 	if (adv->next_bridge) {
-		ret = drm_bridge_attach(bridge->encoder, adv->next_bridge, bridge, flags);
+		ret = drm_bridge_attach(bridge->encoder, adv->next_bridge, bridge,
+					flags | DRM_BRIDGE_ATTACH_NO_CONNECTOR);
 		if (ret)
 			return ret;
 	}

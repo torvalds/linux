@@ -1,0 +1,51 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/rtc/marvell,armada-380-rtc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: RTC controller for the Armada 38x, 7K and 8K SoCs
+
+maintainers:
+  - Javier Carrasco <javier.carrasco.cruz@gmail.com>
+
+allOf:
+  - $ref: rtc.yaml#
+
+properties:
+  compatible:
+    enum:
+      - marvell,armada-380-rtc
+      - marvell,armada-8k-rtc
+
+  reg:
+    items:
+      - description: RTC base address size
+      - description: Base address and size of SoC related registers
+
+  reg-names:
+    items:
+      - const: rtc
+      - const: rtc-soc
+
+  interrupts:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - interrupts
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    rtc@a3800 {
+        compatible = "marvell,armada-380-rtc";
+        reg = <0xa3800 0x20>, <0x184a0 0x0c>;
+        reg-names = "rtc", "rtc-soc";
+        interrupts = <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>;
+    };

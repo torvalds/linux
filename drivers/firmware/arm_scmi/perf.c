@@ -387,8 +387,8 @@ process_response_opp(struct device *dev, struct perf_dom_info *dom,
 
 	ret = xa_insert(&dom->opps_by_lvl, opp->perf, opp, GFP_KERNEL);
 	if (ret)
-		dev_warn(dev, "Failed to add opps_by_lvl at %d - ret:%d\n",
-			 opp->perf, ret);
+		dev_warn(dev, "Failed to add opps_by_lvl at %d for %s - ret:%d\n",
+			 opp->perf, dom->info.name, ret);
 }
 
 static inline void
@@ -405,8 +405,8 @@ process_response_opp_v4(struct device *dev, struct perf_dom_info *dom,
 
 	ret = xa_insert(&dom->opps_by_lvl, opp->perf, opp, GFP_KERNEL);
 	if (ret)
-		dev_warn(dev, "Failed to add opps_by_lvl at %d - ret:%d\n",
-			 opp->perf, ret);
+		dev_warn(dev, "Failed to add opps_by_lvl at %d for %s - ret:%d\n",
+			 opp->perf, dom->info.name, ret);
 
 	/* Note that PERF v4 reports always five 32-bit words */
 	opp->indicative_freq = le32_to_cpu(r->opp[loop_idx].indicative_freq);
@@ -417,8 +417,8 @@ process_response_opp_v4(struct device *dev, struct perf_dom_info *dom,
 				GFP_KERNEL);
 		if (ret)
 			dev_warn(dev,
-				 "Failed to add opps_by_idx at %d - ret:%d\n",
-				 opp->level_index, ret);
+				 "Failed to add opps_by_idx at %d for %s - ret:%d\n",
+				 opp->level_index, dom->info.name, ret);
 
 		hash_add(dom->opps_by_freq, &opp->hash, opp->indicative_freq);
 	}
@@ -879,7 +879,8 @@ static int scmi_dvfs_device_opps_add(const struct scmi_protocol_handle *ph,
 
 		ret = dev_pm_opp_add_dynamic(dev, &data);
 		if (ret) {
-			dev_warn(dev, "failed to add opp %luHz\n", freq);
+			dev_warn(dev, "[%d][%s]: Failed to add OPP[%d] %lu\n",
+				 domain, dom->info.name, idx, freq);
 			dev_pm_opp_remove_all_dynamic(dev);
 			return ret;
 		}

@@ -6,15 +6,9 @@
 #ifndef _XE_DEVICE_H_
 #define _XE_DEVICE_H_
 
-struct xe_exec_queue;
-struct xe_file;
-
 #include <drm/drm_util.h>
 
-#include "regs/xe_gpu_commands.h"
 #include "xe_device_types.h"
-#include "xe_force_wake.h"
-#include "xe_macros.h"
 
 static inline struct xe_device *to_xe_device(const struct drm_device *dev)
 {
@@ -168,5 +162,12 @@ u64 xe_device_canonicalize_addr(struct xe_device *xe, u64 address);
 u64 xe_device_uncanonicalize_addr(struct xe_device *xe, u64 address);
 
 void xe_device_td_flush(struct xe_device *xe);
+
+static inline bool xe_device_wedged(struct xe_device *xe)
+{
+	return atomic_read(&xe->wedged.flag);
+}
+
+void xe_device_declare_wedged(struct xe_device *xe);
 
 #endif

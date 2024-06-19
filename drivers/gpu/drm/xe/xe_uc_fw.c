@@ -14,6 +14,7 @@
 #include "xe_force_wake.h"
 #include "xe_gsc.h"
 #include "xe_gt.h"
+#include "xe_gt_printk.h"
 #include "xe_map.h"
 #include "xe_mmio.h"
 #include "xe_module.h"
@@ -653,6 +654,10 @@ static int uc_fw_request(struct xe_uc_fw *uc_fw, const struct firmware **firmwar
 	uc_fw_auto_select(xe, uc_fw);
 
 	if (IS_SRIOV_VF(xe)) {
+		/* Only GuC/HuC are supported */
+		if (uc_fw->type != XE_UC_FW_TYPE_GUC &&
+		    uc_fw->type != XE_UC_FW_TYPE_HUC)
+			uc_fw->path = NULL;
 		/* VF will support only firmwares that driver can autoselect */
 		xe_uc_fw_change_status(uc_fw, uc_fw->path ?
 				       XE_UC_FIRMWARE_PRELOADED :
