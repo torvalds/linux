@@ -28,6 +28,7 @@
 #include "dbring.h"
 #include "fw.h"
 #include "acpi.h"
+#include "wow.h"
 
 #define SM(_v, _f) (((_v) << _f##_LSB) & _f##_MASK)
 
@@ -607,6 +608,9 @@ struct ath12k {
 	struct work_struct wmi_mgmt_tx_work;
 	struct sk_buff_head wmi_mgmt_tx_queue;
 
+	struct ath12k_wow wow;
+	struct completion target_suspend;
+	bool target_suspend_ack;
 	struct ath12k_per_peer_tx_stats peer_tx_stats;
 	struct list_head ppdu_stats_info;
 	u32 ppdu_stat_list_depth;
@@ -767,6 +771,7 @@ struct ath12k_base {
 
 	struct {
 		struct completion wakeup_completed;
+		u32 wmi_conf_rx_decap_mode;
 	} wow;
 
 	struct ath12k_ce ce;

@@ -15,6 +15,8 @@
 #include "dp_rx.h"
 #include "peer.h"
 #include "debugfs.h"
+#include "hif.h"
+#include "wow.h"
 
 #define CHAN2G(_channel, _freq, _flags) { \
 	.band                   = NL80211_BAND_2GHZ, \
@@ -8578,6 +8580,12 @@ static const struct ieee80211_ops ath12k_ops = {
 	.sta_statistics			= ath12k_mac_op_sta_statistics,
 	.remain_on_channel              = ath12k_mac_op_remain_on_channel,
 	.cancel_remain_on_channel       = ath12k_mac_op_cancel_remain_on_channel,
+
+#ifdef CONFIG_PM
+	.suspend			= ath12k_wow_op_suspend,
+	.resume				= ath12k_wow_op_resume,
+	.set_wakeup			= ath12k_wow_op_set_wakeup,
+#endif
 };
 
 static void ath12k_mac_update_ch_list(struct ath12k *ar,
@@ -9098,6 +9106,12 @@ static int ath12k_mac_hw_register(struct ath12k_hw *ah)
 		hw->netdev_features = NETIF_F_HW_CSUM;
 		ieee80211_hw_set(hw, SW_CRYPTO_CONTROL);
 		ieee80211_hw_set(hw, SUPPORT_FAST_XMIT);
+	}
+
+	ret = ath12k_wow_init(ar);
+	if (ret) {
+		ath12k_warn(ar->ab, "failed to init wow: %d\n", ret);
+		goto err_free_if_combs;
 	}
 
 	ret = ieee80211_register_hw(hw);
