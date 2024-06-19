@@ -45,28 +45,10 @@ static const unsigned int cs42l43_clock_divs[] = {
 	2, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30
 };
 
-static const struct software_node ampl = {
-	.name			= "cs35l56-left",
-};
-
-static const struct software_node ampr = {
-	.name			= "cs35l56-right",
-};
-
-static struct spi_board_info ampl_info = {
+static struct spi_board_info amp_info_template = {
 	.modalias		= "cs35l56",
 	.max_speed_hz		= 11 * HZ_PER_MHZ,
-	.chip_select		= 0,
 	.mode			= SPI_MODE_0,
-	.swnode			= &ampl,
-};
-
-static struct spi_board_info ampr_info = {
-	.modalias		= "cs35l56",
-	.max_speed_hz		= 11 * HZ_PER_MHZ,
-	.chip_select		= 1,
-	.mode			= SPI_MODE_0,
-	.swnode			= &ampr,
 };
 
 static const struct software_node cs42l43_gpiochip_swnode = {
@@ -274,6 +256,39 @@ static struct fwnode_handle *cs42l43_find_xu_node(struct fwnode_handle *fwnode)
 	return NULL;
 }
 
+static struct spi_board_info *cs42l43_create_bridge_amp(struct cs42l43_spi *priv,
+							const char * const name,
+							int cs, int spkid)
+{
+	struct property_entry *props = NULL;
+	struct software_node *swnode;
+	struct spi_board_info *info;
+
+	if (spkid >= 0) {
+		props = devm_kmalloc(priv->dev, sizeof(*props), GFP_KERNEL);
+		if (!props)
+			return NULL;
+
+		*props = PROPERTY_ENTRY_U32("cirrus,speaker-id", spkid);
+	}
+
+	swnode = devm_kmalloc(priv->dev, sizeof(*swnode), GFP_KERNEL);
+	if (!swnode)
+		return NULL;
+
+	*swnode = SOFTWARE_NODE(name, props, NULL);
+
+	info = devm_kmemdup(priv->dev, &amp_info_template,
+			    sizeof(amp_info_template), GFP_KERNEL);
+	if (!info)
+		return NULL;
+
+	info->chip_select = cs;
+	info->swnode = swnode;
+
+	return info;
+}
+
 static void cs42l43_release_of_node(void *data)
 {
 	fwnode_handle_put(data);
@@ -368,11 +383,27 @@ static int cs42l43_spi_probe(struct platform_device *pdev)
 				     "Failed to register SPI controller\n");
 
 	if (nsidecars) {
-		if (!spi_new_device(priv->ctlr, &ampl_info))
+		struct spi_board_info *ampl_info;
+		struct spi_board_info *ampr_info;
+		int spkid = -EINVAL;
+
+		fwnode_property_read_u32(xu_fwnode, "01fa-spk-id-val", &spkid);
+
+		dev_dbg(priv->dev, "Found speaker ID %d\n", spkid);
+
+		ampl_info = cs42l43_create_bridge_amp(priv, "cs35l56-left", 0, spkid);
+		if (!ampl_info)
+			return -ENOMEM;
+
+		ampr_info = cs42l43_create_bridge_amp(priv, "cs35l56-right", 1, spkid);
+		if (!ampr_info)
+			return -ENOMEM;
+
+		if (!spi_new_device(priv->ctlr, ampl_info))
 			return dev_err_probe(priv->dev, -ENODEV,
 					     "Failed to create left amp slave\n");
 
-		if (!spi_new_device(priv->ctlr, &ampr_info))
+		if (!spi_new_device(priv->ctlr, ampr_info))
 			return dev_err_probe(priv->dev, -ENODEV,
 					     "Failed to create right amp slave\n");
 	}
