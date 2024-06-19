@@ -443,7 +443,7 @@ static int q6v5_load(struct rproc *rproc, const struct firmware *fw)
 
 static int q6v5_reset_assert(struct q6v5 *qproc)
 {
-	int ret;
+	int ret = 0;
 
 	if (qproc->has_alt_reset) {
 		reset_control_assert(qproc->pdc_reset);
@@ -468,9 +468,15 @@ static int q6v5_reset_assert(struct q6v5 *qproc)
 				   AXI_GATING_VALID_OVERRIDE, 0);
 		ret = reset_control_deassert(qproc->mss_restart);
 	} else {
-		ret = reset_control_assert(qproc->mss_restart);
-	}
+		if (qproc->version == MSS_MDM9607) {
 
+			if ((qproc->rproc->state == RPROC_CRASHED)
+				&& (qproc->rproc->recovery_disabled == false)) {
+				ret = reset_control_assert(qproc->mss_restart);
+			}
+		} else
+			ret = reset_control_assert(qproc->mss_restart);
+	}
 	return ret;
 }
 
