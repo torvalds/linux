@@ -1246,9 +1246,9 @@ static int may_create_in_sticky(struct mnt_idmap *idmap,
 	umode_t dir_mode = nd->dir_mode;
 	vfsuid_t dir_vfsuid = nd->dir_vfsuid;
 
-	if ((!sysctl_protected_fifos && S_ISFIFO(inode->i_mode)) ||
-	    (!sysctl_protected_regular && S_ISREG(inode->i_mode)) ||
-	    likely(!(dir_mode & S_ISVTX)) ||
+	if (likely(!(dir_mode & S_ISVTX)) ||
+	    (S_ISREG(inode->i_mode) && !sysctl_protected_regular) ||
+	    (S_ISFIFO(inode->i_mode) && !sysctl_protected_fifos) ||
 	    vfsuid_eq(i_uid_into_vfsuid(idmap, inode), dir_vfsuid) ||
 	    vfsuid_eq_kuid(i_uid_into_vfsuid(idmap, inode), current_fsuid()))
 		return 0;
