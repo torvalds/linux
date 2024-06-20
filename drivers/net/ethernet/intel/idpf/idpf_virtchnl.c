@@ -1604,32 +1604,38 @@ setup_rxqs:
 			num_rxq = rx_qgrp->singleq.num_rxq;
 
 		for (j = 0; j < num_rxq; j++, k++) {
+			const struct idpf_bufq_set *sets;
 			struct idpf_rx_queue *rxq;
 
 			if (!idpf_is_queue_model_split(vport->rxq_model)) {
 				rxq = rx_qgrp->singleq.rxqs[j];
 				goto common_qi_fields;
 			}
+
 			rxq = &rx_qgrp->splitq.rxq_sets[j]->rxq;
-			qi[k].rx_bufq1_id =
-			  cpu_to_le16(rxq->bufq_sets[0].bufq.q_id);
+			sets = rxq->bufq_sets;
+
+			qi[k].rx_bufq1_id = cpu_to_le16(sets[0].bufq.q_id);
 			if (vport->num_bufqs_per_qgrp > IDPF_SINGLE_BUFQ_PER_RXQ_GRP) {
 				qi[k].bufq2_ena = IDPF_BUFQ2_ENA;
 				qi[k].rx_bufq2_id =
-				  cpu_to_le16(rxq->bufq_sets[1].bufq.q_id);
+					cpu_to_le16(sets[1].bufq.q_id);
 			}
 			qi[k].rx_buffer_low_watermark =
 				cpu_to_le16(rxq->rx_buffer_low_watermark);
 			if (idpf_is_feature_ena(vport, NETIF_F_GRO_HW))
 				qi[k].qflags |= cpu_to_le16(VIRTCHNL2_RXQ_RSC);
 
-common_qi_fields:
+			rxq->rx_hbuf_size = sets[0].bufq.rx_hbuf_size;
+
 			if (idpf_queue_has(HSPLIT_EN, rxq)) {
 				qi[k].qflags |=
 					cpu_to_le16(VIRTCHNL2_RXQ_HDR_SPLIT);
 				qi[k].hdr_buffer_size =
 					cpu_to_le16(rxq->rx_hbuf_size);
 			}
+
+common_qi_fields:
 			qi[k].queue_id = cpu_to_le32(rxq->q_id);
 			qi[k].model = cpu_to_le16(vport->rxq_model);
 			qi[k].type = cpu_to_le32(VIRTCHNL2_QUEUE_TYPE_RX);

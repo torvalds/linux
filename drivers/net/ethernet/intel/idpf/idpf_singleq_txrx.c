@@ -827,6 +827,7 @@ idpf_rx_singleq_process_skb_fields(struct idpf_rx_queue *rx_q,
 	}
 
 	idpf_rx_singleq_csum(rx_q, skb, csum_bits, decoded);
+	skb_record_rx_queue(skb, rx_q->idx);
 }
 
 /**
