@@ -16,7 +16,6 @@
 
 	cluster0_opp: opp-table-0 {
 		compatible = "operating-points-v2";
-		opp-shared;
 
 		opp-500000000 {
 			opp-hz = /bits/ 64 <500000000>;
