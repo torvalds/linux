@@ -205,18 +205,21 @@ static void pqm_clean_queue_resource(struct process_queue_manager *pqm,
 
 	if (dev->kfd->shared_resources.enable_mes) {
 		amdgpu_amdkfd_free_gtt_mem(dev->adev, &pqn->q->gang_ctx_bo);
-		if (pqn->q->wptr_bo)
-			amdgpu_amdkfd_free_gtt_mem(dev->adev, (void **)&pqn->q->wptr_bo);
+		amdgpu_amdkfd_free_gtt_mem(dev->adev, (void **)&pqn->q->wptr_bo_gart);
 	}
 }
 
 void pqm_uninit(struct process_queue_manager *pqm)
 {
 	struct process_queue_node *pqn, *next;
+	struct kfd_process_device *pdd;
 
 	list_for_each_entry_safe(pqn, next, &pqm->queues, process_queue_list) {
-		if (pqn->q)
+		if (pqn->q) {
+			pdd = kfd_get_process_device_data(pqn->q->device, pqm->process);
+			kfd_queue_release_buffers(pdd, &pqn->q->properties);
 			pqm_clean_queue_resource(pqm, pqn);
+		}
 
 		kfd_procfs_del_queue(pqn->q);
 		uninit_queue(pqn->q);
@@ -231,8 +234,7 @@ void pqm_uninit(struct process_queue_manager *pqm)
 static int init_user_queue(struct process_queue_manager *pqm,
 				struct kfd_node *dev, struct queue **q,
 				struct queue_properties *q_properties,
-				struct file *f, struct amdgpu_bo *wptr_bo,
-				unsigned int qid)
+				struct file *f, unsigned int qid)
 {
 	int retval;
 
@@ -263,12 +265,32 @@ static int init_user_queue(struct process_queue_manager *pqm,
 			goto cleanup;
 		}
 		memset((*q)->gang_ctx_cpu_ptr, 0, AMDGPU_MES_GANG_CTX_SIZE);
-		(*q)->wptr_bo = wptr_bo;
+
+		/* Starting with GFX11, wptr BOs must be mapped to GART for MES to determine work
+		 * on unmapped queues for usermode queue oversubscription (no aggregated doorbell)
+		 */
+		if (((dev->adev->mes.sched_version & AMDGPU_MES_API_VERSION_MASK)
+		    >> AMDGPU_MES_API_VERSION_SHIFT) >= 2) {
+			if (dev->adev != amdgpu_ttm_adev(q_properties->wptr_bo->tbo.bdev)) {
+				pr_err("Queue memory allocated to wrong device\n");
+				retval = -EINVAL;
+				goto free_gang_ctx_bo;
+			}
+
+			retval = amdgpu_amdkfd_map_gtt_bo_to_gart(q_properties->wptr_bo,
+								  &(*q)->wptr_bo_gart);
+			if (retval) {
+				pr_err("Failed to map wptr bo to GART\n");
+				goto free_gang_ctx_bo;
+			}
+		}
 	}
 
 	pr_debug("PQM After init queue");
 	return 0;
 
+free_gang_ctx_bo:
+	amdgpu_amdkfd_free_gtt_mem(dev->adev, (*q)->gang_ctx_bo);
 cleanup:
 	uninit_queue(*q);
 	*q = NULL;
@@ -280,7 +302,6 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 			    struct file *f,
 			    struct queue_properties *properties,
 			    unsigned int *qid,
-			    struct amdgpu_bo *wptr_bo,
 			    const struct kfd_criu_queue_priv_data *q_data,
 			    const void *restore_mqd,
 			    const void *restore_ctl_stack,
@@ -351,7 +372,7 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 		 * allocate_sdma_queue() in create_queue() has the
 		 * corresponding check logic.
 		 */
-		retval = init_user_queue(pqm, dev, &q, properties, f, wptr_bo, *qid);
+		retval = init_user_queue(pqm, dev, &q, properties, f, *qid);
 		if (retval != 0)
 			goto err_create_queue;
 		pqn->q = q;
@@ -372,7 +393,7 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 			goto err_create_queue;
 		}
 
-		retval = init_user_queue(pqm, dev, &q, properties, f, wptr_bo, *qid);
+		retval = init_user_queue(pqm, dev, &q, properties, f, *qid);
 		if (retval != 0)
 			goto err_create_queue;
 		pqn->q = q;
@@ -490,6 +511,10 @@ int pqm_destroy_queue(struct process_queue_manager *pqm, unsigned int qid)
 	}
 
 	if (pqn->q) {
+		retval = kfd_queue_release_buffers(pdd, &pqn->q->properties);
+		if (retval)
+			goto err_destroy_queue;
+
 		kfd_procfs_del_queue(pqn->q);
 		dqm = pqn->q->device->dqm;
 		retval = dqm->ops.destroy_queue(dqm, &pdd->qpd, pqn->q);
@@ -971,7 +996,7 @@ int kfd_criu_restore_queue(struct kfd_process *p,
 
 	print_queue_properties(&qp);
 
-	ret = pqm_create_queue(&p->pqm, pdd->dev, NULL, &qp, &queue_id, NULL, q_data, mqd, ctl_stack,
+	ret = pqm_create_queue(&p->pqm, pdd->dev, NULL, &qp, &queue_id, q_data, mqd, ctl_stack,
 				NULL);
 	if (ret) {
 		pr_err("Failed to create new queue err:%d\n", ret);

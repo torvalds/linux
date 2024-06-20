@@ -2226,11 +2226,12 @@ int amdgpu_amdkfd_gpuvm_sync_memory(
 /**
  * amdgpu_amdkfd_map_gtt_bo_to_gart - Map BO to GART and increment reference count
  * @bo: Buffer object to be mapped
+ * @bo_gart: Return bo reference
  *
  * Before return, bo reference count is incremented. To release the reference and unpin/
  * unmap the BO, call amdgpu_amdkfd_free_gtt_mem.
  */
-int amdgpu_amdkfd_map_gtt_bo_to_gart(struct amdgpu_bo *bo)
+int amdgpu_amdkfd_map_gtt_bo_to_gart(struct amdgpu_bo *bo, struct amdgpu_bo **bo_gart)
 {
 	int ret;
 
@@ -2257,7 +2258,7 @@ int amdgpu_amdkfd_map_gtt_bo_to_gart(struct amdgpu_bo *bo)
 
 	amdgpu_bo_unreserve(bo);
 
-	bo = amdgpu_bo_ref(bo);
+	*bo_gart = amdgpu_bo_ref(bo);
 
 	return 0;
 

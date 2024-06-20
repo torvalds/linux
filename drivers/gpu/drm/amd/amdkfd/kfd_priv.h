@@ -494,8 +494,8 @@ struct queue_properties {
 	uint64_t  queue_size;
 	uint32_t priority;
 	uint32_t queue_percent;
-	uint32_t *read_ptr;
-	uint32_t *write_ptr;
+	void __user *read_ptr;
+	void __user *write_ptr;
 	void __iomem *doorbell_ptr;
 	uint32_t doorbell_off;
 	bool is_interop;
@@ -522,6 +522,8 @@ struct queue_properties {
 	uint64_t tba_addr;
 	uint64_t tma_addr;
 	uint64_t exception_status;
+
+	struct amdgpu_bo *wptr_bo;
 };
 
 #define QUEUE_IS_ACTIVE(q) ((q).queue_size > 0 &&	\
@@ -604,7 +606,7 @@ struct queue {
 	uint64_t gang_ctx_gpu_addr;
 	void *gang_ctx_cpu_ptr;
 
-	struct amdgpu_bo *wptr_bo;
+	struct amdgpu_bo *wptr_bo_gart;
 };
 
 enum KFD_MQD_TYPE {
@@ -1284,6 +1286,10 @@ int init_queue(struct queue **q, const struct queue_properties *properties);
 void uninit_queue(struct queue *q);
 void print_queue_properties(struct queue_properties *q);
 void print_queue(struct queue *q);
+int kfd_queue_buffer_get(struct amdgpu_vm *vm, void __user *addr, struct amdgpu_bo **pbo,
+			 u64 expected_size);
+int kfd_queue_acquire_buffers(struct kfd_process_device *pdd, struct queue_properties *properties);
+int kfd_queue_release_buffers(struct kfd_process_device *pdd, struct queue_properties *properties);
 
 struct mqd_manager *mqd_manager_init_cik(enum KFD_MQD_TYPE type,
 		struct kfd_node *dev);
@@ -1320,7 +1326,6 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 			    struct file *f,
 			    struct queue_properties *properties,
 			    unsigned int *qid,
-			    struct amdgpu_bo *wptr_bo,
 			    const struct kfd_criu_queue_priv_data *q_data,
 			    const void *restore_mqd,
 			    const void *restore_ctl_stack,
