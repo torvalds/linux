@@ -194,6 +194,10 @@ static int sclp_sd_sync(unsigned long page, u8 eq, u8 di, u64 sat, u64 sa,
 	struct sclp_sd_evbuf *evbuf;
 	int rc;
 
+	if (!sclp_sd_register.sclp_send_mask ||
+	    !sclp_sd_register.sclp_receive_mask)
+		return -EIO;
+
 	sclp_sd_listener_init(&listener, __pa(sccb));
 	sclp_sd_listener_add(&listener);
 
