@@ -544,36 +544,6 @@ xlog_assign_atomic_lsn(atomic64_t *lsn, uint cycle, uint block)
 }
 
 /*
- * When we crack the grant head, we sample it first so that the value will not
- * change while we are cracking it into the component values. This means we
- * will always get consistent component values to work from.
- */
-static inline void
-xlog_crack_grant_head_val(int64_t val, int *cycle, int *space)
-{
-	*cycle = val >> 32;
-	*space = val & 0xffffffff;
-}
-
-static inline void
-xlog_crack_grant_head(atomic64_t *head, int *cycle, int *space)
-{
-	xlog_crack_grant_head_val(atomic64_read(head), cycle, space);
-}
-
-static inline int64_t
-xlog_assign_grant_head_val(int cycle, int space)
-{
-	return ((int64_t)cycle << 32) | space;
-}
-
-static inline void
-xlog_assign_grant_head(atomic64_t *head, int cycle, int space)
-{
-	atomic64_set(head, xlog_assign_grant_head_val(cycle, space));
-}
-
-/*
  * Committed Item List interfaces
  */
 int	xlog_cil_init(struct xlog *log);
@@ -638,6 +608,9 @@ xlog_lsn_sub(
 	ASSERT((hi_cycle == lo_cycle + 1) || xlog_is_shutdown(log));
 	return (uint64_t)log->l_logsize - BBTOB(lo_block - hi_block);
 }
+
+void xlog_grant_return_space(struct xlog *log, xfs_lsn_t old_head,
+		xfs_lsn_t new_head);
 
 /*
  * The LSN is valid so long as it is behind the current LSN. If it isn't, this

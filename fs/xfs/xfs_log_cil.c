@@ -764,6 +764,7 @@ xlog_cil_ail_insert(
 	struct xfs_log_item	*log_items[LOG_ITEM_BATCH_SIZE];
 	struct xfs_log_vec	*lv;
 	struct xfs_ail_cursor	cur;
+	xfs_lsn_t		old_head;
 	int			i = 0;
 
 	/*
@@ -780,9 +781,20 @@ xlog_cil_ail_insert(
 			aborted);
 	spin_lock(&ailp->ail_lock);
 	xfs_trans_ail_cursor_last(ailp, &cur, ctx->start_lsn);
+	old_head = ailp->ail_head_lsn;
 	ailp->ail_head_lsn = ctx->commit_lsn;
 	/* xfs_ail_update_finish() drops the ail_lock */
 	xfs_ail_update_finish(ailp, NULLCOMMITLSN);
+
+	/*
+	 * We move the AIL head forwards to account for the space used in the
+	 * log before we remove that space from the grant heads. This prevents a
+	 * transient condition where reservation space appears to become
+	 * available on return, only for it to disappear again immediately as
+	 * the AIL head update accounts in the log tail space.
+	 */
+	smp_wmb();	/* paired with smp_rmb in xlog_grant_space_left */
+	xlog_grant_return_space(ailp->ail_log, old_head, ailp->ail_head_lsn);
 
 	/* unpin all the log items */
 	list_for_each_entry(lv, &ctx->lv_chain, lv_list) {

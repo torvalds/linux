@@ -53,9 +53,6 @@ xlog_sync(
 	struct xlog_ticket	*ticket);
 #if defined(DEBUG)
 STATIC void
-xlog_verify_grant_tail(
-	struct xlog *log);
-STATIC void
 xlog_verify_iclog(
 	struct xlog		*log,
 	struct xlog_in_core	*iclog,
@@ -65,7 +62,6 @@ xlog_verify_tail_lsn(
 	struct xlog		*log,
 	struct xlog_in_core	*iclog);
 #else
-#define xlog_verify_grant_tail(a)
 #define xlog_verify_iclog(a,b,c)
 #define xlog_verify_tail_lsn(a,b)
 #endif
@@ -133,125 +129,64 @@ xlog_prepare_iovec(
 	return buf;
 }
 
-static void
+static inline void
 xlog_grant_sub_space(
-	struct xlog		*log,
 	struct xlog_grant_head	*head,
-	int			bytes)
+	int64_t			bytes)
 {
-	int64_t	head_val = atomic64_read(&head->grant);
-	int64_t new, old;
+	atomic64_sub(bytes, &head->grant);
+}
 
-	do {
-		int	cycle, space;
-
-		xlog_crack_grant_head_val(head_val, &cycle, &space);
-
-		space -= bytes;
-		if (space < 0) {
-			space += log->l_logsize;
-			cycle--;
-		}
-
-		old = head_val;
-		new = xlog_assign_grant_head_val(cycle, space);
-		head_val = atomic64_cmpxchg(&head->grant, old, new);
-	} while (head_val != old);
+static inline void
+xlog_grant_add_space(
+	struct xlog_grant_head	*head,
+	int64_t			bytes)
+{
+	atomic64_add(bytes, &head->grant);
 }
 
 static void
-xlog_grant_add_space(
-	struct xlog		*log,
-	struct xlog_grant_head	*head,
-	int			bytes)
-{
-	int64_t	head_val = atomic64_read(&head->grant);
-	int64_t new, old;
-
-	do {
-		int		tmp;
-		int		cycle, space;
-
-		xlog_crack_grant_head_val(head_val, &cycle, &space);
-
-		tmp = log->l_logsize - space;
-		if (tmp > bytes)
-			space += bytes;
-		else {
-			space = bytes - tmp;
-			cycle++;
-		}
-
-		old = head_val;
-		new = xlog_assign_grant_head_val(cycle, space);
-		head_val = atomic64_cmpxchg(&head->grant, old, new);
-	} while (head_val != old);
-}
-
-STATIC void
 xlog_grant_head_init(
 	struct xlog_grant_head	*head)
 {
-	xlog_assign_grant_head(&head->grant, 1, 0);
+	atomic64_set(&head->grant, 0);
 	INIT_LIST_HEAD(&head->waiters);
 	spin_lock_init(&head->lock);
 }
 
+void
+xlog_grant_return_space(
+	struct xlog	*log,
+	xfs_lsn_t	old_head,
+	xfs_lsn_t	new_head)
+{
+	int64_t		diff = xlog_lsn_sub(log, new_head, old_head);
+
+	xlog_grant_sub_space(&log->l_reserve_head, diff);
+	xlog_grant_sub_space(&log->l_write_head, diff);
+}
+
 /*
- * Return the space in the log between the tail and the head.  The head
- * is passed in the cycle/bytes formal parms.  In the special case where
- * the reserve head has wrapped passed the tail, this calculation is no
- * longer valid.  In this case, just return 0 which means there is no space
- * in the log.  This works for all places where this function is called
- * with the reserve head.  Of course, if the write head were to ever
- * wrap the tail, we should blow up.  Rather than catch this case here,
- * we depend on other ASSERTions in other parts of the code.   XXXmiken
- *
- * If reservation head is behind the tail, we have a problem. Warn about it,
- * but then treat it as if the log is empty.
- *
- * If the log is shut down, the head and tail may be invalid or out of whack, so
- * shortcut invalidity asserts in this case so that we don't trigger them
- * falsely.
+ * Return the space in the log between the tail and the head.  In the case where
+ * we have overrun available reservation space, return 0. The memory barrier
+ * pairs with the smp_wmb() in xlog_cil_ail_insert() to ensure that grant head
+ * vs tail space updates are seen in the correct order and hence avoid
+ * transients as space is transferred from the grant heads to the AIL on commit
+ * completion.
  */
-static int
+static uint64_t
 xlog_grant_space_left(
 	struct xlog		*log,
 	struct xlog_grant_head	*head)
 {
-	int			tail_bytes;
-	int			tail_cycle;
-	int			head_cycle;
-	int			head_bytes;
+	int64_t			free_bytes;
 
-	xlog_crack_grant_head(&head->grant, &head_cycle, &head_bytes);
-	xlog_crack_atomic_lsn(&log->l_tail_lsn, &tail_cycle, &tail_bytes);
-	tail_bytes = BBTOB(tail_bytes);
-	if (tail_cycle == head_cycle && head_bytes >= tail_bytes)
-		return log->l_logsize - (head_bytes - tail_bytes);
-	if (tail_cycle + 1 < head_cycle)
-		return 0;
-
-	/* Ignore potential inconsistency when shutdown. */
-	if (xlog_is_shutdown(log))
-		return log->l_logsize;
-
-	if (tail_cycle < head_cycle) {
-		ASSERT(tail_cycle == (head_cycle - 1));
-		return tail_bytes - head_bytes;
-	}
-
-	/*
-	 * The reservation head is behind the tail. In this case we just want to
-	 * return the size of the log as the amount of space left.
-	 */
-	xfs_alert(log->l_mp, "xlog_grant_space_left: head behind tail");
-	xfs_alert(log->l_mp, "  tail_cycle = %d, tail_bytes = %d",
-		  tail_cycle, tail_bytes);
-	xfs_alert(log->l_mp, "  GH   cycle = %d, GH   bytes = %d",
-		  head_cycle, head_bytes);
-	ASSERT(0);
-	return log->l_logsize;
+	smp_rmb();	/* paired with smp_wmb in xlog_cil_ail_insert() */
+	free_bytes = log->l_logsize - READ_ONCE(log->l_tail_space) -
+			atomic64_read(&head->grant);
+	if (free_bytes > 0)
+		return free_bytes;
+	return 0;
 }
 
 STATIC void
@@ -453,9 +388,8 @@ xfs_log_regrant(
 	if (error)
 		goto out_error;
 
-	xlog_grant_add_space(log, &log->l_write_head, need_bytes);
+	xlog_grant_add_space(&log->l_write_head, need_bytes);
 	trace_xfs_log_regrant_exit(log, tic);
-	xlog_verify_grant_tail(log);
 	return 0;
 
 out_error:
@@ -504,10 +438,9 @@ xfs_log_reserve(
 	if (error)
 		goto out_error;
 
-	xlog_grant_add_space(log, &log->l_reserve_head, need_bytes);
-	xlog_grant_add_space(log, &log->l_write_head, need_bytes);
+	xlog_grant_add_space(&log->l_reserve_head, need_bytes);
+	xlog_grant_add_space(&log->l_write_head, need_bytes);
 	trace_xfs_log_reserve_exit(log, tic);
-	xlog_verify_grant_tail(log);
 	return 0;
 
 out_error:
@@ -1880,8 +1813,8 @@ xlog_sync(
 	if (ticket) {
 		ticket->t_curr_res -= roundoff;
 	} else {
-		xlog_grant_add_space(log, &log->l_reserve_head, roundoff);
-		xlog_grant_add_space(log, &log->l_write_head, roundoff);
+		xlog_grant_add_space(&log->l_reserve_head, roundoff);
+		xlog_grant_add_space(&log->l_write_head, roundoff);
 	}
 
 	/* put cycle number in every block */
@@ -2801,16 +2734,15 @@ xfs_log_ticket_regrant(
 	if (ticket->t_cnt > 0)
 		ticket->t_cnt--;
 
-	xlog_grant_sub_space(log, &log->l_reserve_head, ticket->t_curr_res);
-	xlog_grant_sub_space(log, &log->l_write_head, ticket->t_curr_res);
+	xlog_grant_sub_space(&log->l_reserve_head, ticket->t_curr_res);
+	xlog_grant_sub_space(&log->l_write_head, ticket->t_curr_res);
 	ticket->t_curr_res = ticket->t_unit_res;
 
 	trace_xfs_log_ticket_regrant_sub(log, ticket);
 
 	/* just return if we still have some of the pre-reserved space */
 	if (!ticket->t_cnt) {
-		xlog_grant_add_space(log, &log->l_reserve_head,
-				     ticket->t_unit_res);
+		xlog_grant_add_space(&log->l_reserve_head, ticket->t_unit_res);
 		trace_xfs_log_ticket_regrant_exit(log, ticket);
 
 		ticket->t_curr_res = ticket->t_unit_res;
@@ -2857,8 +2789,8 @@ xfs_log_ticket_ungrant(
 		bytes += ticket->t_unit_res*ticket->t_cnt;
 	}
 
-	xlog_grant_sub_space(log, &log->l_reserve_head, bytes);
-	xlog_grant_sub_space(log, &log->l_write_head, bytes);
+	xlog_grant_sub_space(&log->l_reserve_head, bytes);
+	xlog_grant_sub_space(&log->l_write_head, bytes);
 
 	trace_xfs_log_ticket_ungrant_exit(log, ticket);
 
@@ -3331,42 +3263,27 @@ xlog_ticket_alloc(
 }
 
 #if defined(DEBUG)
-/*
- * Check to make sure the grant write head didn't just over lap the tail.  If
- * the cycles are the same, we can't be overlapping.  Otherwise, make sure that
- * the cycles differ by exactly one and check the byte count.
- *
- * This check is run unlocked, so can give false positives. Rather than assert
- * on failures, use a warn-once flag and a panic tag to allow the admin to
- * determine if they want to panic the machine when such an error occurs. For
- * debug kernels this will have the same effect as using an assert but, unlinke
- * an assert, it can be turned off at runtime.
- */
-STATIC void
-xlog_verify_grant_tail(
-	struct xlog	*log)
+static void
+xlog_verify_dump_tail(
+	struct xlog		*log,
+	struct xlog_in_core	*iclog)
 {
-	int		tail_cycle, tail_blocks;
-	int		cycle, space;
-
-	xlog_crack_grant_head(&log->l_write_head.grant, &cycle, &space);
-	xlog_crack_atomic_lsn(&log->l_tail_lsn, &tail_cycle, &tail_blocks);
-	if (tail_cycle != cycle) {
-		if (cycle - 1 != tail_cycle &&
-		    !test_and_set_bit(XLOG_TAIL_WARN, &log->l_opstate)) {
-			xfs_alert_tag(log->l_mp, XFS_PTAG_LOGRES,
-				"%s: cycle - 1 != tail_cycle", __func__);
-		}
-
-		if (space > BBTOB(tail_blocks) &&
-		    !test_and_set_bit(XLOG_TAIL_WARN, &log->l_opstate)) {
-			xfs_alert_tag(log->l_mp, XFS_PTAG_LOGRES,
-				"%s: space > BBTOB(tail_blocks)", __func__);
-		}
-	}
+	xfs_alert(log->l_mp,
+"ran out of log space tail 0x%llx/0x%llx, head lsn 0x%llx, head 0x%x/0x%x, prev head 0x%x/0x%x",
+			iclog ? be64_to_cpu(iclog->ic_header.h_tail_lsn) : -1,
+			atomic64_read(&log->l_tail_lsn),
+			log->l_ailp->ail_head_lsn,
+			log->l_curr_cycle, log->l_curr_block,
+			log->l_prev_cycle, log->l_prev_block);
+	xfs_alert(log->l_mp,
+"write grant 0x%llx, reserve grant 0x%llx, tail_space 0x%llx, size 0x%x, iclog flags 0x%x",
+			atomic64_read(&log->l_write_head.grant),
+			atomic64_read(&log->l_reserve_head.grant),
+			log->l_tail_space, log->l_logsize,
+			iclog ? iclog->ic_flags : -1);
 }
 
-/* check if it will fit */
+/* Check if the new iclog will fit in the log. */
 STATIC void
 xlog_verify_tail_lsn(
 	struct xlog		*log,
@@ -3375,21 +3292,34 @@ xlog_verify_tail_lsn(
 	xfs_lsn_t	tail_lsn = be64_to_cpu(iclog->ic_header.h_tail_lsn);
 	int		blocks;
 
-    if (CYCLE_LSN(tail_lsn) == log->l_prev_cycle) {
-	blocks =
-	    log->l_logBBsize - (log->l_prev_block - BLOCK_LSN(tail_lsn));
-	if (blocks < BTOBB(iclog->ic_offset)+BTOBB(log->l_iclog_hsize))
-		xfs_emerg(log->l_mp, "%s: ran out of log space", __func__);
-    } else {
-	ASSERT(CYCLE_LSN(tail_lsn)+1 == log->l_prev_cycle);
+	if (CYCLE_LSN(tail_lsn) == log->l_prev_cycle) {
+		blocks = log->l_logBBsize -
+				(log->l_prev_block - BLOCK_LSN(tail_lsn));
+		if (blocks < BTOBB(iclog->ic_offset) +
+					BTOBB(log->l_iclog_hsize)) {
+			xfs_emerg(log->l_mp,
+					"%s: ran out of log space", __func__);
+			xlog_verify_dump_tail(log, iclog);
+		}
+		return;
+	}
 
-	if (BLOCK_LSN(tail_lsn) == log->l_prev_block)
+	if (CYCLE_LSN(tail_lsn) + 1 != log->l_prev_cycle) {
+		xfs_emerg(log->l_mp, "%s: head has wrapped tail.", __func__);
+		xlog_verify_dump_tail(log, iclog);
+		return;
+	}
+	if (BLOCK_LSN(tail_lsn) == log->l_prev_block) {
 		xfs_emerg(log->l_mp, "%s: tail wrapped", __func__);
+		xlog_verify_dump_tail(log, iclog);
+		return;
+	}
 
 	blocks = BLOCK_LSN(tail_lsn) - log->l_prev_block;
-	if (blocks < BTOBB(iclog->ic_offset) + 1)
-		xfs_emerg(log->l_mp, "%s: ran out of log space", __func__);
-    }
+	if (blocks < BTOBB(iclog->ic_offset) + 1) {
+		xfs_emerg(log->l_mp, "%s: ran out of iclog space", __func__);
+		xlog_verify_dump_tail(log, iclog);
+	}
 }
 
 /*

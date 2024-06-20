@@ -1230,6 +1230,7 @@ DECLARE_EVENT_CLASS(xfs_loggrant_class,
 	TP_ARGS(log, tic),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
+		__field(unsigned long, tic)
 		__field(char, ocnt)
 		__field(char, cnt)
 		__field(int, curr_res)
@@ -1237,16 +1238,16 @@ DECLARE_EVENT_CLASS(xfs_loggrant_class,
 		__field(unsigned int, flags)
 		__field(int, reserveq)
 		__field(int, writeq)
-		__field(int, grant_reserve_cycle)
-		__field(int, grant_reserve_bytes)
-		__field(int, grant_write_cycle)
-		__field(int, grant_write_bytes)
+		__field(uint64_t, grant_reserve_bytes)
+		__field(uint64_t, grant_write_bytes)
+		__field(uint64_t, tail_space)
 		__field(int, curr_cycle)
 		__field(int, curr_block)
 		__field(xfs_lsn_t, tail_lsn)
 	),
 	TP_fast_assign(
 		__entry->dev = log->l_mp->m_super->s_dev;
+		__entry->tic = (unsigned long)tic;
 		__entry->ocnt = tic->t_ocnt;
 		__entry->cnt = tic->t_cnt;
 		__entry->curr_res = tic->t_curr_res;
@@ -1254,23 +1255,22 @@ DECLARE_EVENT_CLASS(xfs_loggrant_class,
 		__entry->flags = tic->t_flags;
 		__entry->reserveq = list_empty(&log->l_reserve_head.waiters);
 		__entry->writeq = list_empty(&log->l_write_head.waiters);
-		xlog_crack_grant_head(&log->l_reserve_head.grant,
-				&__entry->grant_reserve_cycle,
-				&__entry->grant_reserve_bytes);
-		xlog_crack_grant_head(&log->l_write_head.grant,
-				&__entry->grant_write_cycle,
-				&__entry->grant_write_bytes);
+		__entry->tail_space = READ_ONCE(log->l_tail_space);
+		__entry->grant_reserve_bytes = __entry->tail_space +
+			atomic64_read(&log->l_reserve_head.grant);
+		__entry->grant_write_bytes = __entry->tail_space +
+			atomic64_read(&log->l_write_head.grant);
 		__entry->curr_cycle = log->l_curr_cycle;
 		__entry->curr_block = log->l_curr_block;
 		__entry->tail_lsn = atomic64_read(&log->l_tail_lsn);
 	),
-	TP_printk("dev %d:%d t_ocnt %u t_cnt %u t_curr_res %u "
-		  "t_unit_res %u t_flags %s reserveq %s "
-		  "writeq %s grant_reserve_cycle %d "
-		  "grant_reserve_bytes %d grant_write_cycle %d "
-		  "grant_write_bytes %d curr_cycle %d curr_block %d "
+	TP_printk("dev %d:%d tic 0x%lx t_ocnt %u t_cnt %u t_curr_res %u "
+		  "t_unit_res %u t_flags %s reserveq %s writeq %s "
+		  "tail space %llu grant_reserve_bytes %llu "
+		  "grant_write_bytes %llu curr_cycle %d curr_block %d "
 		  "tail_cycle %d tail_block %d",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->tic,
 		  __entry->ocnt,
 		  __entry->cnt,
 		  __entry->curr_res,
@@ -1278,9 +1278,8 @@ DECLARE_EVENT_CLASS(xfs_loggrant_class,
 		  __print_flags(__entry->flags, "|", XLOG_TIC_FLAGS),
 		  __entry->reserveq ? "empty" : "active",
 		  __entry->writeq ? "empty" : "active",
-		  __entry->grant_reserve_cycle,
+		  __entry->tail_space,
 		  __entry->grant_reserve_bytes,
-		  __entry->grant_write_cycle,
 		  __entry->grant_write_bytes,
 		  __entry->curr_cycle,
 		  __entry->curr_block,
@@ -1308,6 +1307,7 @@ DEFINE_LOGGRANT_EVENT(xfs_log_ticket_ungrant);
 DEFINE_LOGGRANT_EVENT(xfs_log_ticket_ungrant_sub);
 DEFINE_LOGGRANT_EVENT(xfs_log_ticket_ungrant_exit);
 DEFINE_LOGGRANT_EVENT(xfs_log_cil_wait);
+DEFINE_LOGGRANT_EVENT(xfs_log_cil_return);
 
 DECLARE_EVENT_CLASS(xfs_log_item_class,
 	TP_PROTO(struct xfs_log_item *lip),
