@@ -664,10 +664,10 @@ int bch2_fs_recovery(struct bch_fs *c)
 	if (check_version_upgrade(c))
 		write_sb = true;
 
+	c->recovery_passes_explicit |= bch2_recovery_passes_from_stable(le64_to_cpu(ext->recovery_passes_required[0]));
+
 	if (write_sb)
 		bch2_write_super(c);
-
-	c->recovery_passes_explicit |= bch2_recovery_passes_from_stable(le64_to_cpu(ext->recovery_passes_required[0]));
 	mutex_unlock(&c->sb_lock);
 
 	if (c->opts.fsck && IS_ENABLED(CONFIG_BCACHEFS_DEBUG))
