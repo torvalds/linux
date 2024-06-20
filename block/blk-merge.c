@@ -154,6 +154,11 @@ static struct bio *bio_split_write_zeroes(struct bio *bio,
 	return bio_split(bio, lim->max_write_zeroes_sectors, GFP_NOIO, bs);
 }
 
+static inline unsigned int blk_boundary_sectors(const struct queue_limits *lim)
+{
+	return lim->chunk_sectors;
+}
+
 /*
  * Return the maximum number of sectors from the start of a bio that may be
  * submitted as a single request to a block device. If enough sectors remain,
@@ -167,12 +172,13 @@ static inline unsigned get_max_io_size(struct bio *bio,
 {
 	unsigned pbs = lim->physical_block_size >> SECTOR_SHIFT;
 	unsigned lbs = lim->logical_block_size >> SECTOR_SHIFT;
+	unsigned boundary_sectors = blk_boundary_sectors(lim);
 	unsigned max_sectors = lim->max_sectors, start, end;
 
-	if (lim->chunk_sectors) {
+	if (boundary_sectors) {
 		max_sectors = min(max_sectors,
-			blk_chunk_sectors_left(bio->bi_iter.bi_sector,
-					       lim->chunk_sectors));
+			blk_boundary_sectors_left(bio->bi_iter.bi_sector,
+					      boundary_sectors));
 	}
 
 	start = bio->bi_iter.bi_sector & (pbs - 1);
@@ -588,19 +594,21 @@ static inline unsigned int blk_rq_get_max_sectors(struct request *rq,
 						  sector_t offset)
 {
 	struct request_queue *q = rq->q;
-	unsigned int max_sectors;
+	struct queue_limits *lim = &q->limits;
+	unsigned int max_sectors, boundary_sectors;
 
 	if (blk_rq_is_passthrough(rq))
 		return q->limits.max_hw_sectors;
 
+	boundary_sectors = blk_boundary_sectors(lim);
 	max_sectors = blk_queue_get_max_sectors(rq);
 
-	if (!q->limits.chunk_sectors ||
+	if (!boundary_sectors ||
 	    req_op(rq) == REQ_OP_DISCARD ||
 	    req_op(rq) == REQ_OP_SECURE_ERASE)
 		return max_sectors;
 	return min(max_sectors,
-		   blk_chunk_sectors_left(offset, q->limits.chunk_sectors));
+		   blk_boundary_sectors_left(offset, boundary_sectors));
 }
 
 static inline int ll_new_hw_segment(struct request *req, struct bio *bio,

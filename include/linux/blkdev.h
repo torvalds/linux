@@ -907,14 +907,15 @@ static inline bool bio_straddles_zones(struct bio *bio)
 }
 
 /*
- * Return how much of the chunk is left to be used for I/O at a given offset.
+ * Return how much within the boundary is left to be used for I/O at a given
+ * offset.
  */
-static inline unsigned int blk_chunk_sectors_left(sector_t offset,
-		unsigned int chunk_sectors)
+static inline unsigned int blk_boundary_sectors_left(sector_t offset,
+		unsigned int boundary_sectors)
 {
-	if (unlikely(!is_power_of_2(chunk_sectors)))
-		return chunk_sectors - sector_div(offset, chunk_sectors);
-	return chunk_sectors - (offset & (chunk_sectors - 1));
+	if (unlikely(!is_power_of_2(boundary_sectors)))
+		return boundary_sectors - sector_div(offset, boundary_sectors);
+	return boundary_sectors - (offset & (boundary_sectors - 1));
 }
 
 /**
