@@ -81,6 +81,8 @@ enum spl_pixel_format {
 	SPL_PIXEL_FORMAT_420BPP10,
 	/*end of pixel format definition*/
 	SPL_PIXEL_FORMAT_INVALID,
+	SPL_PIXEL_FORMAT_422BPP8,
+	SPL_PIXEL_FORMAT_422BPP10,
 	SPL_PIXEL_FORMAT_GRPH_BEGIN = SPL_PIXEL_FORMAT_INDEX8,
 	SPL_PIXEL_FORMAT_GRPH_END = SPL_PIXEL_FORMAT_FP16,
 	SPL_PIXEL_FORMAT_VIDEO_BEGIN = SPL_PIXEL_FORMAT_420BPP8,
@@ -120,6 +122,13 @@ enum spl_color_space {
 	SPL_COLOR_SPACE_YCBCR709_BLACK,
 };
 
+enum chroma_cositing {
+	CHROMA_COSITING_NONE,
+	CHROMA_COSITING_LEFT,
+	CHROMA_COSITING_TOPLEFT,
+	CHROMA_COSITING_COUNT
+};
+
 // Scratch space for calculating scaler params
 struct spl_scaler_data {
 	int h_active;
@@ -129,6 +138,7 @@ struct spl_scaler_data {
 	struct spl_rect viewport_c;
 	struct spl_rect recout;
 	struct spl_ratios ratios;
+	struct spl_ratios recip_ratios;
 	struct spl_inits inits;
 };
 
@@ -485,6 +495,8 @@ struct spl_in	{
 	bool prefer_easf;
 	bool disable_easf;
 	struct spl_debug debug;
+	bool is_fullscreen;
+	bool is_hdr_on;
 };
 // end of SPL inputs
 

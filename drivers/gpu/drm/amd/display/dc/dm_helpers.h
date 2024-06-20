@@ -210,4 +210,7 @@ enum adaptive_sync_type dm_get_adaptive_sync_support_type(struct dc_link *link);
 
 enum dc_edid_status dm_helpers_get_sbios_edid(struct dc_link *link, struct dc_edid *edid);
 
+bool dm_helpers_is_fullscreen(struct dc_context *ctx, struct dc_stream_state *stream);
+bool dm_helpers_is_hdr_on(struct dc_context *ctx, struct dc_stream_state *stream);
+
 #endif /* __DM_HELPERS__ */

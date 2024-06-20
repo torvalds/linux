@@ -1286,3 +1286,15 @@ enum adaptive_sync_type dm_get_adaptive_sync_support_type(struct dc_link *link)
 
 	return as_type;
 }
+
+bool dm_helpers_is_fullscreen(struct dc_context *ctx, struct dc_stream_state *stream)
+{
+	// TODO
+	return false;
+}
+
+bool dm_helpers_is_hdr_on(struct dc_context *ctx, struct dc_stream_state *stream)
+{
+	// TODO
+	return false;
+}

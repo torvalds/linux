@@ -1423,3 +1423,29 @@ const uint16_t *spl_get_filter_2tap_64p(void)
 {
 	return filter_2tap_64p;
 }
+
+const uint16_t *spl_dscl_get_filter_coeffs_64p(int taps, struct fixed31_32 ratio)
+{
+	if (taps == 8)
+		return spl_get_filter_8tap_64p(ratio);
+	else if (taps == 7)
+		return spl_get_filter_7tap_64p(ratio);
+	else if (taps == 6)
+		return spl_get_filter_6tap_64p(ratio);
+	else if (taps == 5)
+		return spl_get_filter_5tap_64p(ratio);
+	else if (taps == 4)
+		return spl_get_filter_4tap_64p(ratio);
+	else if (taps == 3)
+		return spl_get_filter_3tap_64p(ratio);
+	else if (taps == 2)
+		return spl_get_filter_2tap_64p();
+	else if (taps == 1)
+		return NULL;
+	else {
+		/* should never happen, bug */
+		BREAK_TO_DEBUGGER();
+		return NULL;
+	}
+}
+
