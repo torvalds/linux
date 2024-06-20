@@ -776,6 +776,7 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 		    !bch2_bucket_is_open_safe(c, new.k->p.inode, new.k->p.offset)) {
 			new_a->gen++;
 			SET_BCH_ALLOC_V4_NEED_INC_GEN(new_a, false);
+			alloc_data_type_set(new_a, new_a->data_type);
 		}
 
 		if (old_a->data_type != new_a->data_type ||
@@ -1796,8 +1797,9 @@ static int bch2_discard_one_bucket(struct btree_trans *trans,
 	}
 
 	SET_BCH_ALLOC_V4_NEED_DISCARD(&a->v, false);
-	alloc_data_type_set(&a->v, a->v.data_type);
 write:
+	alloc_data_type_set(&a->v, a->v.data_type);
+
 	ret =   bch2_trans_update(trans, &iter, &a->k_i, 0) ?:
 		bch2_trans_commit(trans, NULL, NULL,
 				  BCH_WATERMARK_btree|
