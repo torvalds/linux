@@ -20,7 +20,6 @@ struct idpf_vport_max_q;
 #include <linux/dim.h>
 
 #include "virtchnl2.h"
-#include "idpf_lan_txrx.h"
 #include "idpf_txrx.h"
 #include "idpf_controlq.h"
 
