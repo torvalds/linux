@@ -455,3 +455,4 @@
   __break_lease
   __d_lookup_unhash_wake
   __fs_parse
+  __filemap_get_folio
