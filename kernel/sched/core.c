@@ -5907,7 +5907,10 @@ restart:
 	for_each_active_class(class) {
 		p = class->pick_next_task(rq);
 		if (p) {
-			scx_next_task_picked(rq, p, class);
+			const struct sched_class *prev_class = prev->sched_class;
+
+			if (class != prev_class && prev_class->switch_class)
+				prev_class->switch_class(rq, p);
 			return p;
 		}
 	}

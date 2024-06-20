@@ -2749,10 +2749,9 @@ preempt_reason_from_class(const struct sched_class *class)
 	return SCX_CPU_PREEMPT_UNKNOWN;
 }
 
-void scx_next_task_picked(struct rq *rq, struct task_struct *p,
-			  const struct sched_class *active)
+static void switch_class_scx(struct rq *rq, struct task_struct *next)
 {
-	lockdep_assert_rq_held(rq);
+	const struct sched_class *next_class = next->sched_class;
 
 	if (!scx_enabled())
 		return;
@@ -2769,12 +2768,11 @@ void scx_next_task_picked(struct rq *rq, struct task_struct *p,
 
 	/*
 	 * The callback is conceptually meant to convey that the CPU is no
-	 * longer under the control of SCX. Therefore, don't invoke the
-	 * callback if the CPU is is staying on SCX, or going idle (in which
-	 * case the SCX scheduler has actively decided not to schedule any
-	 * tasks on the CPU).
+	 * longer under the control of SCX. Therefore, don't invoke the callback
+	 * if the next class is below SCX (in which case the BPF scheduler has
+	 * actively decided not to schedule any tasks on the CPU).
 	 */
-	if (likely(active >= &ext_sched_class))
+	if (sched_class_above(&ext_sched_class, next_class))
 		return;
 
 	/*
@@ -2789,8 +2787,8 @@ void scx_next_task_picked(struct rq *rq, struct task_struct *p,
 	if (!rq->scx.cpu_released) {
 		if (SCX_HAS_OP(cpu_release)) {
 			struct scx_cpu_release_args args = {
-				.reason = preempt_reason_from_class(active),
-				.task = p,
+				.reason = preempt_reason_from_class(next_class),
+				.task = next,
 			};
 
 			SCX_CALL_OP(SCX_KF_CPU_RELEASE,
@@ -3495,6 +3493,8 @@ DEFINE_SCHED_CLASS(ext) = {
 
 	.put_prev_task		= put_prev_task_scx,
 	.set_next_task		= set_next_task_scx,
+
+	.switch_class		= switch_class_scx,
 
 #ifdef CONFIG_SMP
 	.balance		= balance_scx,
