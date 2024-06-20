@@ -732,6 +732,9 @@ static void _psr_enable_sink(struct intel_dp *intel_dp,
 			val |= DP_PSR_CRC_VERIFICATION;
 	}
 
+	if (crtc_state->req_psr2_sdp_prior_scanline)
+		val |= DP_PSR_SU_REGION_SCANLINE_CAPTURE;
+
 	if (crtc_state->enable_psr2_su_region_et)
 		val |= DP_PANEL_REPLAY_ENABLE_SU_REGION_ET;
 
