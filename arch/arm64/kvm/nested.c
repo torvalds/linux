@@ -41,13 +41,12 @@ static u64 limit_nv_id_reg(u32 id, u64 val)
 		break;
 
 	case SYS_ID_AA64PFR0_EL1:
-		/* No AMU, MPAM, S-EL2, RAS or SVE */
+		/* No AMU, MPAM, S-EL2, or RAS */
 		val &= ~(GENMASK_ULL(55, 52)	|
 			 NV_FTR(PFR0, AMU)	|
 			 NV_FTR(PFR0, MPAM)	|
 			 NV_FTR(PFR0, SEL2)	|
 			 NV_FTR(PFR0, RAS)	|
-			 NV_FTR(PFR0, SVE)	|
 			 NV_FTR(PFR0, EL3)	|
 			 NV_FTR(PFR0, EL2)	|
 			 NV_FTR(PFR0, EL1));
