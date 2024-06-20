@@ -9,6 +9,7 @@
 
 #include <drm/drm_managed.h>
 #include <drm/xe_drm.h>
+#include <generated/xe_wa_oob.h>
 
 #include "instructions/xe_gfxpipe_commands.h"
 #include "instructions/xe_mi_commands.h"
@@ -54,6 +55,7 @@
 #include "xe_sriov.h"
 #include "xe_tuning.h"
 #include "xe_uc.h"
+#include "xe_uc_fw.h"
 #include "xe_vm.h"
 #include "xe_wa.h"
 #include "xe_wopcm.h"
@@ -678,6 +680,9 @@ static int do_gt_restart(struct xe_gt *gt)
 	/* Get CCS mode in sync between sw/hw */
 	xe_gt_apply_ccs_mode(gt);
 
+	/* Restore GT freq to expected values */
+	xe_gt_sanitize_freq(gt);
+
 	return 0;
 }
 
@@ -799,6 +804,25 @@ err_msg:
 	xe_gt_err(gt, "suspend failed (%pe)\n", ERR_PTR(err));
 
 	return err;
+}
+
+/**
+ * xe_gt_sanitize_freq() - Restore saved frequencies if necessary.
+ * @gt: the GT object
+ *
+ * Called after driver init/GSC load completes to restore GT frequencies if we
+ * limited them for any WAs.
+ */
+int xe_gt_sanitize_freq(struct xe_gt *gt)
+{
+	int ret = 0;
+
+	if ((!xe_uc_fw_is_available(&gt->uc.gsc.fw) ||
+	    xe_uc_fw_is_loaded(&gt->uc.gsc.fw)) &&
+	    XE_WA(gt, 22019338487))
+		ret = xe_guc_pc_restore_stashed_freq(&gt->uc.guc.pc);
+
+	return ret;
 }
 
 int xe_gt_resume(struct xe_gt *gt)

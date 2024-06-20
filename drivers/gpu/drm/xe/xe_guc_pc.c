@@ -8,6 +8,7 @@
 #include <linux/delay.h>
 
 #include <drm/drm_managed.h>
+#include <generated/xe_wa_oob.h>
 
 #include "abi/guc_actions_slpc_abi.h"
 #include "regs/xe_gt_regs.h"
@@ -25,6 +26,7 @@
 #include "xe_mmio.h"
 #include "xe_pcode.h"
 #include "xe_pm.h"
+#include "xe_wa.h"
 
 #define MCHBAR_MIRROR_BASE_SNB	0x140000
 
@@ -41,6 +43,8 @@
 
 #define GT_FREQUENCY_MULTIPLIER	50
 #define GT_FREQUENCY_SCALER	3
+
+#define LNL_MERT_FREQ_CAP	800
 
 /**
  * DOC: GuC Power Conservation (PC)
@@ -695,6 +699,16 @@ static void pc_init_fused_rp_values(struct xe_guc_pc *pc)
 		tgl_init_fused_rp_values(pc);
 }
 
+static u32 pc_max_freq_cap(struct xe_guc_pc *pc)
+{
+	struct xe_gt *gt = pc_to_gt(pc);
+
+	if (XE_WA(gt, 22019338487))
+		return min(LNL_MERT_FREQ_CAP, pc->rp0_freq);
+	else
+		return pc->rp0_freq;
+}
+
 /**
  * xe_guc_pc_init_early - Initialize RPx values and request a higher GT
  * frequency to allow faster GuC load times
@@ -706,7 +720,7 @@ void xe_guc_pc_init_early(struct xe_guc_pc *pc)
 
 	xe_force_wake_assert_held(gt_to_fw(gt), XE_FW_GT);
 	pc_init_fused_rp_values(pc);
-	pc_set_cur_freq(pc, pc->rp0_freq);
+	pc_set_cur_freq(pc, pc_max_freq_cap(pc));
 }
 
 static int pc_adjust_freq_bounds(struct xe_guc_pc *pc)
@@ -758,6 +772,53 @@ static int pc_adjust_requested_freq(struct xe_guc_pc *pc)
 		if (ret)
 			return ret;
 	}
+
+	return ret;
+}
+
+static int pc_set_mert_freq_cap(struct xe_guc_pc *pc)
+{
+	int ret = 0;
+
+	if (XE_WA(pc_to_gt(pc), 22019338487)) {
+		/*
+		 * Get updated min/max and stash them.
+		 */
+		ret = xe_guc_pc_get_min_freq(pc, &pc->stashed_min_freq);
+		if (!ret)
+			ret = xe_guc_pc_get_max_freq(pc, &pc->stashed_max_freq);
+		if (ret)
+			return ret;
+
+		/*
+		 * Ensure min and max are bound by MERT_FREQ_CAP until driver loads.
+		 */
+		mutex_lock(&pc->freq_lock);
+		ret = pc_set_min_freq(pc, min(pc->rpe_freq, pc_max_freq_cap(pc)));
+		if (!ret)
+			ret = pc_set_max_freq(pc, min(pc->rp0_freq, pc_max_freq_cap(pc)));
+		mutex_unlock(&pc->freq_lock);
+	}
+
+	return ret;
+}
+
+/**
+ * xe_guc_pc_restore_stashed_freq - Set min/max back to stashed values
+ * @pc: The GuC PC
+ *
+ * Returns: 0 on success,
+ *          error code on failure
+ */
+int xe_guc_pc_restore_stashed_freq(struct xe_guc_pc *pc)
+{
+	int ret = 0;
+
+	mutex_lock(&pc->freq_lock);
+	ret = pc_set_max_freq(pc, pc->stashed_max_freq);
+	if (!ret)
+		ret = pc_set_min_freq(pc, pc->stashed_min_freq);
+	mutex_unlock(&pc->freq_lock);
 
 	return ret;
 }
@@ -911,6 +972,10 @@ int xe_guc_pc_start(struct xe_guc_pc *pc)
 	if (ret)
 		goto out;
 
+	ret = pc_set_mert_freq_cap(pc);
+	if (ret)
+		goto out;
+
 	if (xe->info.platform == XE_PVC) {
 		xe_guc_pc_gucrc_disable(pc);
 		ret = 0;
@@ -959,6 +1024,10 @@ static void xe_guc_pc_fini_hw(void *arg)
 	XE_WARN_ON(xe_force_wake_get(gt_to_fw(pc_to_gt(pc)), XE_FORCEWAKE_ALL));
 	XE_WARN_ON(xe_guc_pc_gucrc_disable(pc));
 	XE_WARN_ON(xe_guc_pc_stop(pc));
+
+	/* Bind requested freq to mert_freq_cap before unload */
+	pc_set_cur_freq(pc, min(pc_max_freq_cap(pc), pc->rpe_freq));
+
 	xe_force_wake_put(gt_to_fw(pc_to_gt(pc)), XE_FORCEWAKE_ALL);
 }
 

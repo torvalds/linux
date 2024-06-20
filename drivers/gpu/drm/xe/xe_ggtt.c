@@ -11,6 +11,7 @@
 #include <drm/drm_drv.h>
 #include <drm/drm_managed.h>
 #include <drm/intel/i915_drm.h>
+#include <generated/xe_wa_oob.h>
 
 #include "regs/xe_gt_regs.h"
 #include "regs/xe_gtt_defs.h"
@@ -23,8 +24,10 @@
 #include "xe_gt_sriov_vf.h"
 #include "xe_gt_tlb_invalidation.h"
 #include "xe_map.h"
+#include "xe_mmio.h"
 #include "xe_pm.h"
 #include "xe_sriov.h"
+#include "xe_wa.h"
 #include "xe_wopcm.h"
 
 static u64 xelp_ggtt_pte_encode_bo(struct xe_bo *bo, u64 bo_offset,
@@ -69,12 +72,33 @@ static unsigned int probe_gsm_size(struct pci_dev *pdev)
 	return ggms ? SZ_1M << ggms : 0;
 }
 
-void xe_ggtt_set_pte(struct xe_ggtt *ggtt, u64 addr, u64 pte)
+static void ggtt_update_access_counter(struct xe_ggtt *ggtt)
+{
+	/*
+	 * Wa_22019338487: GMD_ID is a RO register, a dummy write forces gunit
+	 * to wait for completion of prior GTT writes before letting this through.
+	 * This needs to be done for all GGTT writes originating from the CPU.
+	 */
+	lockdep_assert_held(&ggtt->lock);
+
+	if ((++ggtt->access_count % 63) == 0) {
+		xe_mmio_write32(ggtt->tile->media_gt, GMD_ID, 0x0);
+		ggtt->access_count = 0;
+	}
+}
+
+static void xe_ggtt_set_pte(struct xe_ggtt *ggtt, u64 addr, u64 pte)
 {
 	xe_tile_assert(ggtt->tile, !(addr & XE_PTE_MASK));
 	xe_tile_assert(ggtt->tile, addr < ggtt->size);
 
 	writeq(pte, &ggtt->gsm[addr >> XE_PTE_SHIFT]);
+}
+
+static void xe_ggtt_set_pte_and_flush(struct xe_ggtt *ggtt, u64 addr, u64 pte)
+{
+	xe_ggtt_set_pte(ggtt, addr, pte);
+	ggtt_update_access_counter(ggtt);
 }
 
 static void xe_ggtt_clear(struct xe_ggtt *ggtt, u64 start, u64 size)
@@ -92,7 +116,7 @@ static void xe_ggtt_clear(struct xe_ggtt *ggtt, u64 start, u64 size)
 		scratch_pte = 0;
 
 	while (start < end) {
-		xe_ggtt_set_pte(ggtt, start, scratch_pte);
+		ggtt->pt_ops->ggtt_set_pte(ggtt, start, scratch_pte);
 		start += XE_PAGE_SIZE;
 	}
 }
@@ -124,10 +148,17 @@ static void primelockdep(struct xe_ggtt *ggtt)
 
 static const struct xe_ggtt_pt_ops xelp_pt_ops = {
 	.pte_encode_bo = xelp_ggtt_pte_encode_bo,
+	.ggtt_set_pte = xe_ggtt_set_pte,
 };
 
 static const struct xe_ggtt_pt_ops xelpg_pt_ops = {
 	.pte_encode_bo = xelpg_ggtt_pte_encode_bo,
+	.ggtt_set_pte = xe_ggtt_set_pte,
+};
+
+static const struct xe_ggtt_pt_ops xelpg_pt_wa_ops = {
+	.pte_encode_bo = xelpg_ggtt_pte_encode_bo,
+	.ggtt_set_pte = xe_ggtt_set_pte_and_flush,
 };
 
 /*
@@ -187,7 +218,8 @@ int xe_ggtt_init_early(struct xe_ggtt *ggtt)
 		ggtt->size = GUC_GGTT_TOP;
 
 	if (GRAPHICS_VERx100(xe) >= 1270)
-		ggtt->pt_ops = &xelpg_pt_ops;
+		ggtt->pt_ops = ggtt->tile->media_gt && XE_WA(ggtt->tile->media_gt, 22019338487) ?
+			       &xelpg_pt_wa_ops : &xelpg_pt_ops;
 	else
 		ggtt->pt_ops = &xelp_pt_ops;
 
@@ -394,7 +426,7 @@ void xe_ggtt_map_bo(struct xe_ggtt *ggtt, struct xe_bo *bo)
 
 	for (offset = 0; offset < bo->size; offset += XE_PAGE_SIZE) {
 		pte = ggtt->pt_ops->pte_encode_bo(bo, offset, pat_index);
-		xe_ggtt_set_pte(ggtt, start + offset, pte);
+		ggtt->pt_ops->ggtt_set_pte(ggtt, start + offset, pte);
 	}
 }
 
@@ -502,7 +534,7 @@ static void xe_ggtt_assign_locked(struct xe_ggtt *ggtt, const struct drm_mm_node
 		return;
 
 	while (start < end) {
-		xe_ggtt_set_pte(ggtt, start, pte);
+		ggtt->pt_ops->ggtt_set_pte(ggtt, start, pte);
 		start += XE_PAGE_SIZE;
 	}
 
