@@ -6767,10 +6767,8 @@ int rtw89_fw_h2c_wow_gtk_ofld(struct rtw89_dev *rtwdev,
 	skb_put(skb, len);
 	h2c = (struct rtw89_h2c_wow_gtk_ofld *)skb->data;
 
-	if (!enable) {
-		skb_put_zero(skb, sizeof(*gtk_info));
+	if (!enable)
 		goto hdr;
-	}
 
 	ret = rtw89_fw_h2c_add_general_pkt(rtwdev, rtwvif,
 					   RTW89_PKT_OFLD_TYPE_EAPOL_KEY,
