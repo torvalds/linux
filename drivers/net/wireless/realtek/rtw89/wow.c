@@ -27,16 +27,22 @@ void rtw89_wow_parse_akm(struct rtw89_dev *rtwdev, struct sk_buff *skb)
 	rtw_wow->akm = rsn_ie->akm_cipher_suite.type;
 }
 
+#define RTW89_CIPHER_INFO_DEF(cipher) \
+	{WLAN_CIPHER_SUITE_ ## cipher, .fw_alg = RTW89_WOW_FW_ALG_ ## cipher, \
+	 .len = WLAN_KEY_LEN_ ## cipher}
+
 static const struct rtw89_cipher_info rtw89_cipher_info_defs[] = {
-	{WLAN_CIPHER_SUITE_WEP40,	.fw_alg = 1,	.len = WLAN_KEY_LEN_WEP40,},
-	{WLAN_CIPHER_SUITE_WEP104,	.fw_alg = 2,	.len = WLAN_KEY_LEN_WEP104,},
-	{WLAN_CIPHER_SUITE_TKIP,	.fw_alg = 3,	.len = WLAN_KEY_LEN_TKIP,},
-	{WLAN_CIPHER_SUITE_CCMP,	.fw_alg = 6,	.len = WLAN_KEY_LEN_CCMP,},
-	{WLAN_CIPHER_SUITE_GCMP,	.fw_alg = 8,	.len = WLAN_KEY_LEN_GCMP,},
-	{WLAN_CIPHER_SUITE_CCMP_256,	.fw_alg = 7,	.len = WLAN_KEY_LEN_CCMP_256,},
-	{WLAN_CIPHER_SUITE_GCMP_256,	.fw_alg = 23,	.len = WLAN_KEY_LEN_GCMP_256,},
-	{WLAN_CIPHER_SUITE_AES_CMAC,	.fw_alg = 32,	.len = WLAN_KEY_LEN_AES_CMAC,},
+	RTW89_CIPHER_INFO_DEF(WEP40),
+	RTW89_CIPHER_INFO_DEF(WEP104),
+	RTW89_CIPHER_INFO_DEF(TKIP),
+	RTW89_CIPHER_INFO_DEF(CCMP),
+	RTW89_CIPHER_INFO_DEF(GCMP),
+	RTW89_CIPHER_INFO_DEF(CCMP_256),
+	RTW89_CIPHER_INFO_DEF(GCMP_256),
+	RTW89_CIPHER_INFO_DEF(AES_CMAC),
 };
+
+#undef RTW89_CIPHER_INFO_DEF
 
 static const
 struct rtw89_cipher_info *rtw89_cipher_alg_recognize(u32 cipher)
