@@ -106,11 +106,25 @@ int kfd_queue_buffer_get(struct amdgpu_vm *vm, void __user *addr, struct amdgpu_
 	}
 
 	*pbo = amdgpu_bo_ref(mapping->bo_va->base.bo);
+	mapping->bo_va->queue_refcount++;
 	return 0;
 
 out_err:
 	*pbo = NULL;
 	return -EINVAL;
+}
+
+void kfd_queue_buffer_put(struct amdgpu_vm *vm, struct amdgpu_bo **bo)
+{
+	if (*bo) {
+		struct amdgpu_bo_va *bo_va;
+
+		bo_va = amdgpu_vm_bo_find(vm, *bo);
+		if (bo_va)
+			bo_va->queue_refcount--;
+	}
+
+	amdgpu_bo_unref(bo);
 }
 
 int kfd_queue_acquire_buffers(struct kfd_process_device *pdd, struct queue_properties *properties)
@@ -166,10 +180,20 @@ out_err_unreserve:
 
 int kfd_queue_release_buffers(struct kfd_process_device *pdd, struct queue_properties *properties)
 {
-	amdgpu_bo_unref(&properties->wptr_bo);
-	amdgpu_bo_unref(&properties->rptr_bo);
-	amdgpu_bo_unref(&properties->ring_bo);
-	amdgpu_bo_unref(&properties->eop_buf_bo);
-	amdgpu_bo_unref(&properties->cwsr_bo);
+	struct amdgpu_vm *vm;
+	int err;
+
+	vm = drm_priv_to_vm(pdd->drm_priv);
+	err = amdgpu_bo_reserve(vm->root.bo, false);
+	if (err)
+		return err;
+
+	kfd_queue_buffer_put(vm, &properties->wptr_bo);
+	kfd_queue_buffer_put(vm, &properties->rptr_bo);
+	kfd_queue_buffer_put(vm, &properties->ring_bo);
+	kfd_queue_buffer_put(vm, &properties->eop_buf_bo);
+	kfd_queue_buffer_put(vm, &properties->cwsr_bo);
+
+	amdgpu_bo_unreserve(vm->root.bo);
 	return 0;
 }

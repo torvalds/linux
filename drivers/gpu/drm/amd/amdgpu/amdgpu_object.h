@@ -90,6 +90,12 @@ struct amdgpu_bo_va {
 	bool				cleared;
 
 	bool				is_xgmi;
+
+	/*
+	 * protected by vm reservation lock
+	 * if non-zero, cannot unmap from GPU because user queues may still access it
+	 */
+	unsigned int			queue_refcount;
 };
 
 struct amdgpu_bo {
