@@ -3200,12 +3200,13 @@ int amdgpu_amdkfd_get_tile_config(struct amdgpu_device *adev,
 	return 0;
 }
 
-bool amdgpu_amdkfd_bo_mapped_to_dev(struct amdgpu_device *adev, struct kgd_mem *mem)
+bool amdgpu_amdkfd_bo_mapped_to_dev(void *drm_priv, struct kgd_mem *mem)
 {
+	struct amdgpu_vm *vm = drm_priv_to_vm(drm_priv);
 	struct kfd_mem_attachment *entry;
 
 	list_for_each_entry(entry, &mem->attachments, list) {
-		if (entry->is_mapped && entry->adev == adev)
+		if (entry->is_mapped && entry->bo_va->base.vm == vm)
 			return true;
 	}
 	return false;
