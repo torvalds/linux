@@ -46,7 +46,11 @@
 #include <bcm47xx.h>
 #include <bcm47xx_board.h>
 
-/* CBR addr doesn't change and we can cache it */
+/*
+ * CBR addr doesn't change and we can cache it.
+ * For broken SoC/Bootloader CBR addr might also be provided via DT
+ * with "brcm,bmips-cbr-reg" in the "cpus" node.
+ */
 void __iomem *bmips_cbr_addr __read_mostly;
 
 union bcm47xx_bus bcm47xx_bus;
