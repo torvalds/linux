@@ -19,10 +19,6 @@
 #define L2TP_TUNNEL_MAGIC	0x42114DDA
 #define L2TP_SESSION_MAGIC	0x0C04EB7D
 
-/* Per tunnel session hash table size */
-#define L2TP_HASH_BITS	4
-#define L2TP_HASH_SIZE	BIT(L2TP_HASH_BITS)
-
 struct sk_buff;
 
 struct l2tp_stats {
@@ -65,8 +61,7 @@ struct l2tp_session_coll_list {
 
 /* Represents a session (pseudowire) instance.
  * Tracks runtime state including cookies, dataplane packet sequencing, and IO statistics.
- * Is linked into a per-tunnel session hashlist; and in the case of an L2TPv3 session into
- * an additional per-net ("global") hashlist.
+ * Is linked into a per-tunnel session list and a per-net ("global") IDR tree.
  */
 #define L2TP_SESSION_NAME_MAX 32
 struct l2tp_session {
@@ -90,6 +85,7 @@ struct l2tp_session {
 	u32			nr_oos;		/* NR of last OOS packet */
 	int			nr_oos_count;	/* for OOS recovery */
 	int			nr_oos_count_max;
+	struct list_head	list;		/* per-tunnel list node */
 	refcount_t		ref_count;
 	struct hlist_node	hlist;		/* per-net session hlist */
 	unsigned long		hlist_key;	/* key for session hlist */
@@ -118,7 +114,7 @@ struct l2tp_session {
 	/* Session close handler.
 	 * Each pseudowire implementation may implement this callback in order to carry
 	 * out pseudowire-specific shutdown actions.
-	 * The callback is called by core after unhashing the session and purging its
+	 * The callback is called by core after unlisting the session and purging its
 	 * reorder queue.
 	 */
 	void (*session_close)(struct l2tp_session *session);
@@ -154,7 +150,7 @@ struct l2tp_tunnel_cfg {
 /* Represents a tunnel instance.
  * Tracks runtime state including IO statistics.
  * Holds the tunnel socket (either passed from userspace or directly created by the kernel).
- * Maintains a hashlist of sessions belonging to the tunnel instance.
+ * Maintains a list of sessions belonging to the tunnel instance.
  * Is linked into a per-net list of tunnels.
  */
 #define L2TP_TUNNEL_NAME_MAX 20
@@ -164,12 +160,11 @@ struct l2tp_tunnel {
 	unsigned long		dead;
 
 	struct rcu_head rcu;
-	spinlock_t		hlist_lock;	/* write-protection for session_hlist */
+	spinlock_t		list_lock;	/* write-protection for session_list */
 	bool			acpt_newsess;	/* indicates whether this tunnel accepts
-						 * new sessions. Protected by hlist_lock.
+						 * new sessions. Protected by list_lock.
 						 */
-	struct hlist_head	session_hlist[L2TP_HASH_SIZE];
-						/* hashed list of sessions, hashed by id */
+	struct list_head	session_list;	/* list of sessions */
 	u32			tunnel_id;
 	u32			peer_tunnel_id;
 	int			version;	/* 2=>L2TPv2, 3=>L2TPv3 */
