@@ -819,6 +819,12 @@ static void init_delayed_ref_head(struct btrfs_delayed_ref_head *head_ref,
 	spin_lock_init(&head_ref->lock);
 	mutex_init(&head_ref->mutex);
 
+	/* If not metadata set an impossible level to help debugging. */
+	if (generic_ref->type == BTRFS_REF_METADATA)
+		head_ref->level = generic_ref->tree_ref.level;
+	else
+		head_ref->level = U8_MAX;
+
 	if (qrecord) {
 		if (generic_ref->ref_root && reserved) {
 			qrecord->data_rsv = reserved;
@@ -1072,7 +1078,7 @@ int btrfs_add_delayed_data_ref(struct btrfs_trans_handle *trans,
 }
 
 int btrfs_add_delayed_extent_op(struct btrfs_trans_handle *trans,
-				u64 bytenr, u64 num_bytes,
+				u64 bytenr, u64 num_bytes, u8 level,
 				struct btrfs_delayed_extent_op *extent_op)
 {
 	struct btrfs_delayed_ref_head *head_ref;
@@ -1082,6 +1088,7 @@ int btrfs_add_delayed_extent_op(struct btrfs_trans_handle *trans,
 		.action = BTRFS_UPDATE_DELAYED_HEAD,
 		.bytenr = bytenr,
 		.num_bytes = num_bytes,
+		.tree_ref.level = level,
 	};
 
 	head_ref = kmem_cache_alloc(btrfs_delayed_ref_head_cachep, GFP_NOFS);

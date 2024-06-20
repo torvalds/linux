@@ -108,7 +108,6 @@ struct btrfs_delayed_ref_node {
 
 struct btrfs_delayed_extent_op {
 	struct btrfs_disk_key key;
-	u8 level;
 	bool update_key;
 	bool update_flags;
 	u64 flags_to_set;
@@ -171,6 +170,9 @@ struct btrfs_delayed_ref_head {
 	 * or cleanup, we will need to free the reservation.
 	 */
 	u64 reserved_bytes;
+
+	/* Tree block level, for metadata only. */
+	u8 level;
 
 	/*
 	 * when a new extent is allocated, it is just reserved in memory
@@ -355,7 +357,7 @@ int btrfs_add_delayed_data_ref(struct btrfs_trans_handle *trans,
 			       struct btrfs_ref *generic_ref,
 			       u64 reserved);
 int btrfs_add_delayed_extent_op(struct btrfs_trans_handle *trans,
-				u64 bytenr, u64 num_bytes,
+				u64 bytenr, u64 num_bytes, u8 level,
 				struct btrfs_delayed_extent_op *extent_op);
 void btrfs_merge_delayed_refs(struct btrfs_fs_info *fs_info,
 			      struct btrfs_delayed_ref_root *delayed_refs,
