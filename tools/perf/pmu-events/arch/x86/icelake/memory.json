@@ -1,6 +1,7 @@
 [
     {
         "BriefDescription": "Cycles while L3 cache miss demand load is outstanding.",
+        "Counter": "0,1,2,3",
         "CounterMask": "2",
         "EventCode": "0xA3",
         "EventName": "CYCLE_ACTIVITY.CYCLES_L3_MISS",
@@ -9,6 +10,7 @@
     },
     {
         "BriefDescription": "Execution stalls while L3 cache miss demand load is outstanding.",
+        "Counter": "0,1,2,3",
         "CounterMask": "6",
         "EventCode": "0xa3",
         "EventName": "CYCLE_ACTIVITY.STALLS_L3_MISS",
@@ -17,6 +19,7 @@
     },
     {
         "BriefDescription": "Number of times an HLE execution aborted due to any reasons (multiple categories may count as one).",
+        "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc8",
         "EventName": "HLE_RETIRED.ABORTED",
         "PublicDescription": "Counts the number of times HLE abort was triggered.",
@@ -25,6 +28,7 @@
     },
     {
         "BriefDescription": "Number of times an HLE execution aborted due to unfriendly events (such as interrupts).",
+        "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc8",
         "EventName": "HLE_RETIRED.ABORTED_EVENTS",
         "PublicDescription": "Counts the number of times an HLE execution aborted due to unfriendly events (such as interrupts).",
@@ -33,6 +37,7 @@
     },
     {
         "BriefDescription": "Number of times an HLE execution aborted due to various memory events (e.g., read/write capacity and conflicts).",
+        "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc8",
         "EventName": "HLE_RETIRED.ABORTED_MEM",
         "PublicDescription": "Counts the number of times an HLE execution aborted due to various memory events (e.g., read/write capacity and conflicts).",
@@ -41,6 +46,7 @@
     },
     {
         "BriefDescription": "Number of times an HLE execution aborted due to HLE-unfriendly instructions and certain unfriendly events (such as AD assists etc.).",
+        "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc8",
         "EventName": "HLE_RETIRED.ABORTED_UNFRIENDLY",
         "PublicDescription": "Counts the number of times an HLE execution aborted due to HLE-unfriendly instructions and certain unfriendly events (such as AD assists etc.).",
@@ -49,6 +55,7 @@
     },
     {
         "BriefDescription": "Number of times an HLE execution successfully committed",
+        "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc8",
         "EventName": "HLE_RETIRED.COMMIT",
         "PublicDescription": "Counts the number of times HLE commit succeeded.",
@@ -57,6 +64,7 @@
     },
     {
         "BriefDescription": "Number of times an HLE execution started.",
+        "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc8",
         "EventName": "HLE_RETIRED.START",
         "PublicDescription": "Counts the number of times we entered an HLE region. Does not count nested transactions.",
@@ -65,6 +73,7 @@
     },
     {
         "BriefDescription": "Number of machine clears due to memory ordering conflicts.",
+        "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc3",
         "EventName": "MACHINE_CLEARS.MEMORY_ORDERING",
         "PublicDescription": "Counts the number of Machine Clears detected dye to memory ordering. Memory Ordering Machine Clears may apply when a memory read may not conform to the memory ordering rules of the x86 architecture",
@@ -73,6 +82,7 @@
     },
     {
         "BriefDescription": "Counts randomly selected loads when the latency from first dispatch to completion is greater than 128 cycles.",
+        "Counter": "0,1,2,3,4,5,6,7",
         "Data_LA": "1",
         "EventCode": "0xcd",
         "EventName": "MEM_TRANS_RETIRED.LOAD_LATENCY_GT_128",
@@ -85,6 +95,7 @@
     },
     {
         "BriefDescription": "Counts randomly selected loads when the latency from first dispatch to completion is greater than 16 cycles.",
+        "Counter": "0,1,2,3,4,5,6,7",
         "Data_LA": "1",
         "EventCode": "0xcd",
         "EventName": "MEM_TRANS_RETIRED.LOAD_LATENCY_GT_16",
@@ -97,6 +108,7 @@
     },
     {
         "BriefDescription": "Counts randomly selected loads when the latency from first dispatch to completion is greater than 256 cycles.",
+        "Counter": "0,1,2,3,4,5,6,7",
         "Data_LA": "1",
         "EventCode": "0xcd",
         "EventName": "MEM_TRANS_RETIRED.LOAD_LATENCY_GT_256",
@@ -109,6 +121,7 @@
     },
     {
         "BriefDescription": "Counts randomly selected loads when the latency from first dispatch to completion is greater than 32 cycles.",
+        "Counter": "0,1,2,3,4,5,6,7",
         "Data_LA": "1",
         "EventCode": "0xcd",
         "EventName": "MEM_TRANS_RETIRED.LOAD_LATENCY_GT_32",
@@ -121,6 +134,7 @@
     },
     {
         "BriefDescription": "Counts randomly selected loads when the latency from first dispatch to completion is greater than 4 cycles.",
+        "Counter": "0,1,2,3,4,5,6,7",
         "Data_LA": "1",
         "EventCode": "0xcd",
         "EventName": "MEM_TRANS_RETIRED.LOAD_LATENCY_GT_4",
@@ -133,6 +147,7 @@
     },
     {
         "BriefDescription": "Counts randomly selected loads when the latency from first dispatch to completion is greater than 512 cycles.",
+        "Counter": "0,1,2,3,4,5,6,7",
         "Data_LA": "1",
         "EventCode": "0xcd",
         "EventName": "MEM_TRANS_RETIRED.LOAD_LATENCY_GT_512",
@@ -145,6 +160,7 @@
     },
     {
         "BriefDescription": "Counts randomly selected loads when the latency from first dispatch to completion is greater than 64 cycles.",
+        "Counter": "0,1,2,3,4,5,6,7",
         "Data_LA": "1",
         "EventCode": "0xcd",
         "EventName": "MEM_TRANS_RETIRED.LOAD_LATENCY_GT_64",
@@ -157,6 +173,7 @@
     },
     {
         "BriefDescription": "Counts randomly selected loads when the latency from first dispatch to completion is greater than 8 cycles.",
+        "Counter": "0,1,2,3,4,5,6,7",
         "Data_LA": "1",
         "EventCode": "0xcd",
         "EventName": "MEM_TRANS_RETIRED.LOAD_LATENCY_GT_8",
@@ -169,6 +186,7 @@
     },
     {
         "BriefDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that was not supplied by the L3 cache.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.DEMAND_CODE_RD.L3_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -178,6 +196,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads that was not supplied by the L3 cache.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.DEMAND_DATA_RD.L3_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -187,6 +206,7 @@
     },
     {
         "BriefDescription": "Counts demand reads for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that was not supplied by the L3 cache.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.DEMAND_RFO.L3_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -196,6 +216,7 @@
     },
     {
         "BriefDescription": "Counts L1 data cache prefetch requests and software prefetches (except PREFETCHW) that was not supplied by the L3 cache.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.HWPF_L1D_AND_SWPF.L3_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -205,6 +226,7 @@
     },
     {
         "BriefDescription": "Counts hardware prefetch data reads (which bring data to L2)  that was not supplied by the L3 cache.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.HWPF_L2_DATA_RD.L3_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -214,6 +236,7 @@
     },
     {
         "BriefDescription": "Counts hardware prefetch RFOs (which bring data to L2) that was not supplied by the L3 cache.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.HWPF_L2_RFO.L3_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -223,6 +246,7 @@
     },
     {
         "BriefDescription": "Counts miscellaneous requests, such as I/O and un-cacheable accesses that was not supplied by the L3 cache.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.OTHER.L3_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -232,6 +256,7 @@
     },
     {
         "BriefDescription": "Counts streaming stores that was not supplied by the L3 cache.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.STREAMING_WR.L3_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -241,6 +266,7 @@
     },
     {
         "BriefDescription": "Counts demand data read requests that miss the L3 cache.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xb0",
         "EventName": "OFFCORE_REQUESTS.L3_MISS_DEMAND_DATA_RD",
         "SampleAfterValue": "100003",
@@ -248,6 +274,7 @@
     },
     {
         "BriefDescription": "Cycles where at least one demand data read request known to have missed the L3 cache is pending.",
+        "Counter": "0,1,2,3",
         "CounterMask": "1",
         "EventCode": "0x60",
         "EventName": "OFFCORE_REQUESTS_OUTSTANDING.CYCLES_WITH_L3_MISS_DEMAND_DATA_RD",
@@ -257,6 +284,7 @@
     },
     {
         "BriefDescription": "Number of times an RTM execution aborted.",
+        "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc9",
         "EventName": "RTM_RETIRED.ABORTED",
         "PEBS": "1",
@@ -266,6 +294,7 @@
     },
     {
         "BriefDescription": "Number of times an RTM execution aborted due to none of the previous 4 categories (e.g. interrupt)",
+        "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc9",
         "EventName": "RTM_RETIRED.ABORTED_EVENTS",
         "PublicDescription": "Counts the number of times an RTM execution aborted due to none of the previous 4 categories (e.g. interrupt).",
@@ -274,6 +303,7 @@
     },
     {
         "BriefDescription": "Number of times an RTM execution aborted due to various memory events (e.g. read/write capacity and conflicts)",
+        "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc9",
         "EventName": "RTM_RETIRED.ABORTED_MEM",
         "PublicDescription": "Counts the number of times an RTM execution aborted due to various memory events (e.g. read/write capacity and conflicts).",
@@ -282,6 +312,7 @@
     },
     {
         "BriefDescription": "Number of times an RTM execution aborted due to incompatible memory type",
+        "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc9",
         "EventName": "RTM_RETIRED.ABORTED_MEMTYPE",
         "PublicDescription": "Counts the number of times an RTM execution aborted due to incompatible memory type.",
@@ -290,6 +321,7 @@
     },
     {
         "BriefDescription": "Number of times an RTM execution aborted due to HLE-unfriendly instructions",
+        "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc9",
         "EventName": "RTM_RETIRED.ABORTED_UNFRIENDLY",
         "PublicDescription": "Counts the number of times an RTM execution aborted due to HLE-unfriendly instructions.",
@@ -298,6 +330,7 @@
     },
     {
         "BriefDescription": "Number of times an RTM execution successfully committed",
+        "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc9",
         "EventName": "RTM_RETIRED.COMMIT",
         "PublicDescription": "Counts the number of times RTM commit succeeded.",
@@ -306,6 +339,7 @@
     },
     {
         "BriefDescription": "Number of times an RTM execution started.",
+        "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc9",
         "EventName": "RTM_RETIRED.START",
         "PublicDescription": "Counts the number of times we entered an RTM region. Does not count nested transactions.",
@@ -314,6 +348,7 @@
     },
     {
         "BriefDescription": "Counts the number of times a class of instructions that may cause a transactional abort was executed inside a transactional region",
+        "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0x5d",
         "EventName": "TX_EXEC.MISC2",
         "PublicDescription": "Counts Unfriendly TSX abort triggered by a vzeroupper instruction.",
@@ -322,6 +357,7 @@
     },
     {
         "BriefDescription": "Number of times an instruction execution caused the transactional nest count supported to be exceeded",
+        "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0x5d",
         "EventName": "TX_EXEC.MISC3",
         "PublicDescription": "Counts Unfriendly TSX abort triggered by a nest count that is too deep.",
@@ -330,6 +366,7 @@
     },
     {
         "BriefDescription": "Speculatively counts the number of TSX aborts due to a data capacity limitation for transactional reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0x54",
         "EventName": "TX_MEM.ABORT_CAPACITY_READ",
         "PublicDescription": "Speculatively counts the number of Transactional Synchronization Extensions (TSX) aborts due to a data capacity limitation for transactional reads",
@@ -338,6 +375,7 @@
     },
     {
         "BriefDescription": "Speculatively counts the number of TSX aborts due to a data capacity limitation for transactional writes.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x54",
         "EventName": "TX_MEM.ABORT_CAPACITY_WRITE",
         "PublicDescription": "Speculatively counts the number of Transactional Synchronization Extensions (TSX) aborts due to a data capacity limitation for transactional writes.",
@@ -346,6 +384,7 @@
     },
     {
         "BriefDescription": "Number of times a transactional abort was signaled due to a data conflict on a transactionally accessed address",
+        "Counter": "0,1,2,3",
         "EventCode": "0x54",
         "EventName": "TX_MEM.ABORT_CONFLICT",
         "PublicDescription": "Counts the number of times a TSX line had a cache conflict.",
@@ -354,6 +393,7 @@
     },
     {
         "BriefDescription": "Number of times an HLE transactional execution aborted due to XRELEASE lock not satisfying the address and value requirements in the elision buffer",
+        "Counter": "0,1,2,3",
         "EventCode": "0x54",
         "EventName": "TX_MEM.ABORT_HLE_ELISION_BUFFER_MISMATCH",
         "PublicDescription": "Counts the number of times a TSX Abort was triggered due to release/commit but data and address mismatch.",
@@ -362,6 +402,7 @@
     },
     {
         "BriefDescription": "Number of times an HLE transactional execution aborted due to NoAllocatedElisionBuffer being non-zero.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x54",
         "EventName": "TX_MEM.ABORT_HLE_ELISION_BUFFER_NOT_EMPTY",
         "PublicDescription": "Counts the number of times a TSX Abort was triggered due to commit but Lock Buffer not empty.",
@@ -370,6 +411,7 @@
     },
     {
         "BriefDescription": "Number of times an HLE transactional execution aborted due to an unsupported read alignment from the elision buffer.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x54",
         "EventName": "TX_MEM.ABORT_HLE_ELISION_BUFFER_UNSUPPORTED_ALIGNMENT",
         "PublicDescription": "Counts the number of times a TSX Abort was triggered due to attempting an unsupported alignment from Lock Buffer.",
@@ -378,6 +420,7 @@
     },
     {
         "BriefDescription": "Number of times a HLE transactional region aborted due to a non XRELEASE prefixed instruction writing to an elided lock in the elision buffer",
+        "Counter": "0,1,2,3",
         "EventCode": "0x54",
         "EventName": "TX_MEM.ABORT_HLE_STORE_TO_ELIDED_LOCK",
         "PublicDescription": "Counts the number of times a TSX Abort was triggered due to a non-release/commit store to lock.",
@@ -386,6 +429,7 @@
     },
     {
         "BriefDescription": "Number of times HLE lock could not be elided due to ElisionBufferAvailable being zero.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x54",
         "EventName": "TX_MEM.HLE_ELISION_BUFFER_FULL",
         "PublicDescription": "Counts the number of times we could not allocate Lock Buffer.",
