@@ -10507,7 +10507,7 @@ __init static void enable_instances(void)
 		}
 
 		tr = trace_array_create_systems(name, NULL, addr, size);
-		if (!tr) {
+		if (IS_ERR(tr)) {
 			pr_warn("Tracing: Failed to create instance buffer %s\n", curr_str);
 			continue;
 		}
