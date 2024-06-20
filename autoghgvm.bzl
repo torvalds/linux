@@ -43,6 +43,7 @@ def define_autoghgvm():
         "drivers/soc/qcom/qmi_helpers.ko",
         "drivers/soc/qcom/rename_devices.ko",
         "drivers/soc/qcom/rq_stats.ko",
+        "drivers/soc/qcom/secure_buffer.ko",
         "drivers/soc/qcom/smem.ko",
         "drivers/spi/spi-msm-geni.ko",
         "drivers/spi/spidev.ko",
