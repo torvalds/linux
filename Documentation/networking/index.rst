@@ -105,6 +105,7 @@ Contents:
    seg6-sysctl
    skbuff
    smc-sysctl
+   sriov
    statistics
    strparser
    switchdev
