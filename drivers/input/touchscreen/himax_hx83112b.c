@@ -4,6 +4,9 @@
  *
  * Copyright (C) 2022 Job Noorman <job@noorman.info>
  *
+ * HX83100A support
+ * Copyright (C) 2024 Felix Kaechele <felix@kaechele.ca>
+ *
  * This code is based on "Himax Android Driver Sample Code for QCT platform":
  *
  * Copyright (C) 2017 Himax Corporation.
@@ -34,6 +37,8 @@
 #define HIMAX_AHB_CMD_CONTI			0x31
 
 #define HIMAX_REG_ADDR_ICID			0x900000d0
+
+#define HX83100A_REG_FW_EVENT_STACK		0x90060000
 
 #define HIMAX_INVALID_COORD		0xffff
 
@@ -288,6 +293,12 @@ static int himax_read_events(struct himax_ts_data *ts,
 			       length);
 }
 
+static int hx83100a_read_events(struct himax_ts_data *ts,
+				struct himax_event *event, size_t length)
+{
+	return himax_bus_read(ts, HX83100A_REG_FW_EVENT_STACK, event, length);
+};
+
 static int himax_handle_input(struct himax_ts_data *ts)
 {
 	int error;
@@ -394,6 +405,10 @@ static int himax_resume(struct device *dev)
 
 static DEFINE_SIMPLE_DEV_PM_OPS(himax_pm_ops, himax_suspend, himax_resume);
 
+static const struct himax_chip hx83100a_chip = {
+	.read_events = hx83100a_read_events,
+};
+
 static const struct himax_chip hx83112b_chip = {
 	.id = 0x83112b,
 	.check_id = himax_check_product_id,
@@ -401,6 +416,7 @@ static const struct himax_chip hx83112b_chip = {
 };
 
 static const struct i2c_device_id himax_ts_id[] = {
+	{ "hx83100a", (kernel_ulong_t)&hx83100a_chip },
 	{ "hx83112b", (kernel_ulong_t)&hx83112b_chip },
 	{ /* sentinel */ }
 };
@@ -408,6 +424,7 @@ MODULE_DEVICE_TABLE(i2c, himax_ts_id);
 
 #ifdef CONFIG_OF
 static const struct of_device_id himax_of_match[] = {
+	{ .compatible = "himax,hx83100a", .data = &hx83100a_chip },
 	{ .compatible = "himax,hx83112b", .data = &hx83112b_chip },
 	{ /* sentinel */ }
 };
