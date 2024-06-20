@@ -868,9 +868,6 @@ void ionic_rx_fill(struct ionic_queue *q)
 
 	q->dbell_deadline = IONIC_RX_MIN_DOORBELL_DEADLINE;
 	q->dbell_jiffies = jiffies;
-
-	mod_timer(&q_to_qcq(q)->napi_qcq->napi_deadline,
-		  jiffies + IONIC_NAPI_DEADLINE);
 }
 
 void ionic_rx_empty(struct ionic_queue *q)
@@ -953,8 +950,8 @@ int ionic_tx_napi(struct napi_struct *napi, int budget)
 				   work_done, flags);
 	}
 
-	if (!work_done && ionic_txq_poke_doorbell(&qcq->q))
-		mod_timer(&qcq->napi_deadline, jiffies + IONIC_NAPI_DEADLINE);
+	if (!work_done && cq->bound_q->lif->doorbell_wa)
+		ionic_txq_poke_doorbell(&qcq->q);
 
 	return work_done;
 }
@@ -996,8 +993,8 @@ int ionic_rx_napi(struct napi_struct *napi, int budget)
 				   work_done, flags);
 	}
 
-	if (!work_done && ionic_rxq_poke_doorbell(&qcq->q))
-		mod_timer(&qcq->napi_deadline, jiffies + IONIC_NAPI_DEADLINE);
+	if (!work_done && cq->bound_q->lif->doorbell_wa)
+		ionic_rxq_poke_doorbell(&qcq->q);
 
 	return work_done;
 }
@@ -1010,7 +1007,6 @@ int ionic_txrx_napi(struct napi_struct *napi, int budget)
 	struct ionic_qcq *txqcq;
 	struct ionic_lif *lif;
 	struct ionic_cq *txcq;
-	bool resched = false;
 	u32 rx_work_done = 0;
 	u32 tx_work_done = 0;
 	u32 flags = 0;
@@ -1042,12 +1038,12 @@ int ionic_txrx_napi(struct napi_struct *napi, int budget)
 				   tx_work_done + rx_work_done, flags);
 	}
 
-	if (!rx_work_done && ionic_rxq_poke_doorbell(&rxqcq->q))
-		resched = true;
-	if (!tx_work_done && ionic_txq_poke_doorbell(&txqcq->q))
-		resched = true;
-	if (resched)
-		mod_timer(&rxqcq->napi_deadline, jiffies + IONIC_NAPI_DEADLINE);
+	if (lif->doorbell_wa) {
+		if (!rx_work_done)
+			ionic_rxq_poke_doorbell(&rxqcq->q);
+		if (!tx_work_done)
+			ionic_txq_poke_doorbell(&txqcq->q);
+	}
 
 	return rx_work_done;
 }
