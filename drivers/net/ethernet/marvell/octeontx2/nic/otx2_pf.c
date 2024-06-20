@@ -1714,7 +1714,7 @@ static void otx2_do_set_rx_mode(struct otx2_nic *pf)
 		return;
 
 	if ((netdev->flags & IFF_PROMISC) ||
-	    (netdev_uc_count(netdev) > OTX2_MAX_UNICAST_FLOWS)) {
+	    (netdev_uc_count(netdev) > pf->flow_cfg->ucast_flt_cnt)) {
 		promisc = true;
 	}
 
