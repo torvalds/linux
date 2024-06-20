@@ -32,6 +32,7 @@ Documentation/dev-tools/testing-overview.rst
    kunit/index
    ktap
    checkuapi
+   gpio-sloppy-logic-analyzer
 
 
 .. only::  subproject and html
