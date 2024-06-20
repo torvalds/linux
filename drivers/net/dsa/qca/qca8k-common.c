@@ -614,6 +614,49 @@ void qca8k_port_stp_state_set(struct dsa_switch *ds, int port, u8 state)
 	qca8k_port_configure_learning(ds, port, learning);
 }
 
+static int qca8k_update_port_member(struct qca8k_priv *priv, int port,
+				    const struct net_device *bridge_dev,
+				    bool join)
+{
+	struct dsa_port *dp = dsa_to_port(priv->ds, port), *other_dp;
+	u32 port_mask = BIT(dp->cpu_dp->index);
+	int i, ret;
+
+	for (i = 0; i < QCA8K_NUM_PORTS; i++) {
+		if (i == port)
+			continue;
+		if (dsa_is_cpu_port(priv->ds, i))
+			continue;
+
+		other_dp = dsa_to_port(priv->ds, i);
+		if (!dsa_port_offloads_bridge_dev(other_dp, bridge_dev))
+			continue;
+
+		/* Add/remove this port to/from the portvlan mask of the other
+		 * ports in the bridge
+		 */
+		if (join) {
+			port_mask |= BIT(i);
+			ret = regmap_set_bits(priv->regmap,
+					      QCA8K_PORT_LOOKUP_CTRL(i),
+					      BIT(port));
+		} else {
+			ret = regmap_clear_bits(priv->regmap,
+						QCA8K_PORT_LOOKUP_CTRL(i),
+						BIT(port));
+		}
+
+		if (ret)
+			return ret;
+	}
+
+	/* Add/remove all other ports to/from this port's portvlan mask */
+	ret = qca8k_rmw(priv, QCA8K_PORT_LOOKUP_CTRL(port),
+			QCA8K_PORT_LOOKUP_MEMBER, port_mask);
+
+	return ret;
+}
+
 int qca8k_port_pre_bridge_flags(struct dsa_switch *ds, int port,
 				struct switchdev_brport_flags flags,
 				struct netlink_ext_ack *extack)
@@ -646,65 +689,21 @@ int qca8k_port_bridge_join(struct dsa_switch *ds, int port,
 			   struct netlink_ext_ack *extack)
 {
 	struct qca8k_priv *priv = ds->priv;
-	int port_mask, cpu_port;
-	int i, ret;
 
-	cpu_port = dsa_to_port(ds, port)->cpu_dp->index;
-	port_mask = BIT(cpu_port);
-
-	for (i = 0; i < QCA8K_NUM_PORTS; i++) {
-		if (i == port)
-			continue;
-		if (dsa_is_cpu_port(ds, i))
-			continue;
-		if (!dsa_port_offloads_bridge(dsa_to_port(ds, i), &bridge))
-			continue;
-		/* Add this port to the portvlan mask of the other ports
-		 * in the bridge
-		 */
-		ret = regmap_set_bits(priv->regmap,
-				      QCA8K_PORT_LOOKUP_CTRL(i),
-				      BIT(port));
-		if (ret)
-			return ret;
-		port_mask |= BIT(i);
-	}
-
-	/* Add all other ports to this ports portvlan mask */
-	ret = qca8k_rmw(priv, QCA8K_PORT_LOOKUP_CTRL(port),
-			QCA8K_PORT_LOOKUP_MEMBER, port_mask);
-
-	return ret;
+	return qca8k_update_port_member(priv, port, bridge.dev, true);
 }
 
 void qca8k_port_bridge_leave(struct dsa_switch *ds, int port,
 			     struct dsa_bridge bridge)
 {
 	struct qca8k_priv *priv = ds->priv;
-	int cpu_port, i;
+	int err;
 
-	cpu_port = dsa_to_port(ds, port)->cpu_dp->index;
-
-	for (i = 0; i < QCA8K_NUM_PORTS; i++) {
-		if (i == port)
-			continue;
-		if (dsa_is_cpu_port(ds, i))
-			continue;
-		if (!dsa_port_offloads_bridge(dsa_to_port(ds, i), &bridge))
-			continue;
-		/* Remove this port to the portvlan mask of the other ports
-		 * in the bridge
-		 */
-		regmap_clear_bits(priv->regmap,
-				  QCA8K_PORT_LOOKUP_CTRL(i),
-				  BIT(port));
-	}
-
-	/* Set the cpu port to be the only one in the portvlan mask of
-	 * this port
-	 */
-	qca8k_rmw(priv, QCA8K_PORT_LOOKUP_CTRL(port),
-		  QCA8K_PORT_LOOKUP_MEMBER, BIT(cpu_port));
+	err = qca8k_update_port_member(priv, port, bridge.dev, false);
+	if (err)
+		dev_err(priv->dev,
+			"Failed to update switch config for bridge leave: %d\n",
+			err);
 }
 
 void qca8k_port_fast_age(struct dsa_switch *ds, int port)
