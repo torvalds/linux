@@ -159,6 +159,37 @@ __bpf_kfunc void bpf_kfunc_dynptr_test(struct bpf_dynptr *ptr,
 {
 }
 
+__bpf_kfunc struct bpf_testmod_ctx *
+bpf_testmod_ctx_create(int *err)
+{
+	struct bpf_testmod_ctx *ctx;
+
+	ctx = kzalloc(sizeof(*ctx), GFP_ATOMIC);
+	if (!ctx) {
+		*err = -ENOMEM;
+		return NULL;
+	}
+	refcount_set(&ctx->usage, 1);
+
+	return ctx;
+}
+
+static void testmod_free_cb(struct rcu_head *head)
+{
+	struct bpf_testmod_ctx *ctx;
+
+	ctx = container_of(head, struct bpf_testmod_ctx, rcu);
+	kfree(ctx);
+}
+
+__bpf_kfunc void bpf_testmod_ctx_release(struct bpf_testmod_ctx *ctx)
+{
+	if (!ctx)
+		return;
+	if (refcount_dec_and_test(&ctx->usage))
+		call_rcu(&ctx->rcu, testmod_free_cb);
+}
+
 struct bpf_testmod_btf_type_tag_1 {
 	int a;
 };
@@ -369,7 +400,13 @@ BTF_ID_FLAGS(func, bpf_iter_testmod_seq_next, KF_ITER_NEXT | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_iter_testmod_seq_destroy, KF_ITER_DESTROY)
 BTF_ID_FLAGS(func, bpf_kfunc_common_test)
 BTF_ID_FLAGS(func, bpf_kfunc_dynptr_test)
+BTF_ID_FLAGS(func, bpf_testmod_ctx_create, KF_ACQUIRE | KF_RET_NULL)
+BTF_ID_FLAGS(func, bpf_testmod_ctx_release, KF_RELEASE)
 BTF_KFUNCS_END(bpf_testmod_common_kfunc_ids)
+
+BTF_ID_LIST(bpf_testmod_dtor_ids)
+BTF_ID(struct, bpf_testmod_ctx)
+BTF_ID(func, bpf_testmod_ctx_release)
 
 static const struct btf_kfunc_id_set bpf_testmod_common_kfunc_set = {
 	.owner = THIS_MODULE,
@@ -904,6 +941,12 @@ extern int bpf_fentry_test1(int a);
 
 static int bpf_testmod_init(void)
 {
+	const struct btf_id_dtor_kfunc bpf_testmod_dtors[] = {
+		{
+			.btf_id		= bpf_testmod_dtor_ids[0],
+			.kfunc_btf_id	= bpf_testmod_dtor_ids[1]
+		},
+	};
 	int ret;
 
 	ret = register_btf_kfunc_id_set(BPF_PROG_TYPE_UNSPEC, &bpf_testmod_common_kfunc_set);
@@ -912,6 +955,9 @@ static int bpf_testmod_init(void)
 	ret = ret ?: register_btf_kfunc_id_set(BPF_PROG_TYPE_SYSCALL, &bpf_testmod_kfunc_set);
 	ret = ret ?: register_bpf_struct_ops(&bpf_bpf_testmod_ops, bpf_testmod_ops);
 	ret = ret ?: register_bpf_struct_ops(&bpf_testmod_ops2, bpf_testmod_ops2);
+	ret = ret ?: register_btf_id_dtor_kfuncs(bpf_testmod_dtors,
+						 ARRAY_SIZE(bpf_testmod_dtors),
+						 THIS_MODULE);
 	if (ret < 0)
 		return ret;
 	if (bpf_fentry_test1(0) < 0)
