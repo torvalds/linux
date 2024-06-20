@@ -549,9 +549,39 @@ int pqm_update_queue_properties(struct process_queue_manager *pqm,
 	struct process_queue_node *pqn;
 
 	pqn = get_queue_by_qid(pqm, qid);
-	if (!pqn) {
+	if (!pqn || !pqn->q) {
 		pr_debug("No queue %d exists for update operation\n", qid);
 		return -EFAULT;
+	}
+
+	/*
+	 * Update with NULL ring address is used to disable the queue
+	 */
+	if (p->queue_address && p->queue_size) {
+		struct kfd_process_device *pdd;
+		struct amdgpu_vm *vm;
+		struct queue *q = pqn->q;
+		int err;
+
+		pdd = kfd_get_process_device_data(q->device, q->process);
+		if (!pdd)
+			return -ENODEV;
+		vm = drm_priv_to_vm(pdd->drm_priv);
+		err = amdgpu_bo_reserve(vm->root.bo, false);
+		if (err)
+			return err;
+
+		if (kfd_queue_buffer_get(vm, (void *)p->queue_address, &p->ring_bo,
+					 p->queue_size)) {
+			pr_debug("ring buf 0x%llx size 0x%llx not mapped on GPU\n",
+				 p->queue_address, p->queue_size);
+			return -EFAULT;
+		}
+
+		kfd_queue_buffer_put(vm, &pqn->q->properties.ring_bo);
+		amdgpu_bo_unreserve(vm->root.bo);
+
+		pqn->q->properties.ring_bo = p->ring_bo;
 	}
 
 	pqn->q->properties.queue_address = p->queue_address;
