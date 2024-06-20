@@ -398,6 +398,10 @@ static const u32 rtw8852a_c2h_regs[RTW89_C2HREG_MAX] = {
 	R_AX_C2HREG_DATA3
 };
 
+static const u32 rtw8852a_wow_wakeup_regs[RTW89_WOW_REASON_NUM] = {
+	R_AX_C2HREG_DATA3 + 3, R_AX_C2HREG_DATA3 + 3,
+};
+
 static const struct rtw89_page_regs rtw8852a_page_regs = {
 	.hci_fc_ctrl	= R_AX_HCI_FC_CTRL,
 	.ch_page_ctrl	= R_AX_CH_PAGE_CTRL,
@@ -2225,7 +2229,7 @@ const struct rtw89_chip_info rtw8852a_chip_info = {
 	.c2h_regs		= rtw8852a_c2h_regs,
 	.c2h_counter_reg	= {R_AX_UDM1 + 1, B_AX_UDM1_HALMAC_C2H_ENQ_CNT_MASK >> 8},
 	.page_regs		= &rtw8852a_page_regs,
-	.wow_reason_reg		= R_AX_C2HREG_DATA3 + 3,
+	.wow_reason_reg		= rtw8852a_wow_wakeup_regs,
 	.cfo_src_fd		= false,
 	.cfo_hw_comp            = false,
 	.dcfo_comp		= &rtw8852a_dcfo_comp,

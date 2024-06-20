@@ -723,12 +723,17 @@ static void rtw89_wow_show_wakeup_reason(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
 	struct rtw89_wow_aoac_report *aoac_rpt = &rtw_wow->aoac_rpt;
-	u32 wow_reason_reg = rtwdev->chip->wow_reason_reg;
 	struct cfg80211_wowlan_nd_info nd_info;
 	struct cfg80211_wowlan_wakeup wakeup = {
 		.pattern_idx = -1,
 	};
+	u32 wow_reason_reg;
 	u8 reason;
+
+	if (RTW89_CHK_FW_FEATURE(WOW_REASON_V1, &rtwdev->fw))
+		wow_reason_reg = rtwdev->chip->wow_reason_reg[RTW89_WOW_REASON_V1];
+	else
+		wow_reason_reg = rtwdev->chip->wow_reason_reg[RTW89_WOW_REASON_V0];
 
 	reason = rtw89_read8(rtwdev, wow_reason_reg);
 	switch (reason) {
