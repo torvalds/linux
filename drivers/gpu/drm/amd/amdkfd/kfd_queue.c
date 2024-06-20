@@ -24,6 +24,7 @@
 
 #include <linux/slab.h>
 #include "kfd_priv.h"
+#include "kfd_svm.h"
 
 void print_queue_properties(struct queue_properties *q)
 {
@@ -81,6 +82,100 @@ int init_queue(struct queue **q, const struct queue_properties *properties)
 void uninit_queue(struct queue *q)
 {
 	kfree(q);
+}
+
+static int kfd_queue_buffer_svm_get(struct kfd_process_device *pdd, u64 addr, u64 size)
+{
+	struct kfd_process *p = pdd->process;
+	struct list_head update_list;
+	struct svm_range *prange;
+	int ret = -EINVAL;
+
+	INIT_LIST_HEAD(&update_list);
+	addr >>= PAGE_SHIFT;
+	size >>= PAGE_SHIFT;
+
+	mutex_lock(&p->svms.lock);
+
+	/*
+	 * range may split to multiple svm pranges aligned to granularity boundaery.
+	 */
+	while (size) {
+		uint32_t gpuid, gpuidx;
+		int r;
+
+		prange = svm_range_from_addr(&p->svms, addr, NULL);
+		if (!prange)
+			break;
+
+		if (!prange->mapped_to_gpu)
+			break;
+
+		r = kfd_process_gpuid_from_node(p, pdd->dev, &gpuid, &gpuidx);
+		if (r < 0)
+			break;
+		if (!test_bit(gpuidx, prange->bitmap_access) &&
+		    !test_bit(gpuidx, prange->bitmap_aip))
+			break;
+
+		if (!(prange->flags & KFD_IOCTL_SVM_FLAG_GPU_ALWAYS_MAPPED))
+			break;
+
+		list_add(&prange->update_list, &update_list);
+
+		if (prange->last - prange->start + 1 >= size) {
+			size = 0;
+			break;
+		}
+
+		size -= prange->last - prange->start + 1;
+		addr += prange->last - prange->start + 1;
+	}
+	if (size) {
+		pr_debug("[0x%llx 0x%llx] not registered\n", addr, addr + size - 1);
+		goto out_unlock;
+	}
+
+	list_for_each_entry(prange, &update_list, update_list)
+		atomic_inc(&prange->queue_refcount);
+	ret = 0;
+
+out_unlock:
+	mutex_unlock(&p->svms.lock);
+	return ret;
+}
+
+static void kfd_queue_buffer_svm_put(struct kfd_process_device *pdd, u64 addr, u64 size)
+{
+	struct kfd_process *p = pdd->process;
+	struct svm_range *prange, *pchild;
+	struct interval_tree_node *node;
+	unsigned long last;
+
+	addr >>= PAGE_SHIFT;
+	last = addr + (size >> PAGE_SHIFT) - 1;
+
+	mutex_lock(&p->svms.lock);
+
+	node = interval_tree_iter_first(&p->svms.objects, addr, last);
+	while (node) {
+		struct interval_tree_node *next_node;
+		unsigned long next_start;
+
+		prange = container_of(node, struct svm_range, it_node);
+		next_node = interval_tree_iter_next(node, addr, last);
+		next_start = min(node->last, last) + 1;
+
+		if (atomic_add_unless(&prange->queue_refcount, -1, 0)) {
+			list_for_each_entry(pchild, &prange->child_list, child_list)
+				atomic_add_unless(&pchild->queue_refcount, -1, 0);
+		}
+
+		node = next_node;
+		addr = next_start;
+	}
+
+	mutex_unlock(&p->svms.lock);
 }
 
 int kfd_queue_buffer_get(struct amdgpu_vm *vm, void __user *addr, struct amdgpu_bo **pbo,
@@ -165,8 +260,17 @@ int kfd_queue_acquire_buffers(struct kfd_process_device *pdd, struct queue_prope
 
 	err = kfd_queue_buffer_get(vm, (void *)properties->ctx_save_restore_area_address,
 				   &properties->cwsr_bo, 0);
+	if (!err)
+		goto out_unreserve;
+
+	amdgpu_bo_unreserve(vm->root.bo);
+
+	err = kfd_queue_buffer_svm_get(pdd, properties->ctx_save_restore_area_address,
+				       properties->ctx_save_restore_area_size);
 	if (err)
-		goto out_err_unreserve;
+		goto out_err_release;
+
+	return 0;
 
 out_unreserve:
 	amdgpu_bo_unreserve(vm->root.bo);
@@ -174,6 +278,7 @@ out_unreserve:
 
 out_err_unreserve:
 	amdgpu_bo_unreserve(vm->root.bo);
+out_err_release:
 	kfd_queue_release_buffers(pdd, properties);
 	return err;
 }
@@ -195,5 +300,8 @@ int kfd_queue_release_buffers(struct kfd_process_device *pdd, struct queue_prope
 	kfd_queue_buffer_put(vm, &properties->cwsr_bo);
 
 	amdgpu_bo_unreserve(vm->root.bo);
+
+	kfd_queue_buffer_svm_put(pdd, properties->ctx_save_restore_area_address,
+				 properties->ctx_save_restore_area_size);
 	return 0;
 }
