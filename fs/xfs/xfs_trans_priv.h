@@ -59,6 +59,7 @@ struct xfs_ail {
 	unsigned long		ail_opstate;
 	struct list_head	ail_buf_list;
 	wait_queue_head_t	ail_empty;
+	xfs_lsn_t		ail_target;
 };
 
 /* Push all items out of the AIL immediately. */
@@ -111,15 +112,9 @@ static inline void xfs_ail_push_all(struct xfs_ail *ailp)
 		xfs_ail_push(ailp);
 }
 
-xfs_lsn_t		__xfs_ail_push_target(struct xfs_ail *ailp);
-static inline xfs_lsn_t xfs_ail_push_target(struct xfs_ail *ailp)
+static inline xfs_lsn_t xfs_ail_get_push_target(struct xfs_ail *ailp)
 {
-	xfs_lsn_t	lsn;
-
-	spin_lock(&ailp->ail_lock);
-	lsn = __xfs_ail_push_target(ailp);
-	spin_unlock(&ailp->ail_lock);
-	return lsn;
+	return READ_ONCE(ailp->ail_target);
 }
 
 void			xfs_ail_push_all_sync(struct xfs_ail *ailp);
