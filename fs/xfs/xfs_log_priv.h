@@ -573,8 +573,6 @@ xlog_assign_grant_head(atomic64_t *head, int cycle, int space)
 	atomic64_set(head, xlog_assign_grant_head_val(cycle, space));
 }
 
-int xlog_space_left(struct xlog *log, atomic64_t *head);
-
 /*
  * Committed Item List interfaces
  */
