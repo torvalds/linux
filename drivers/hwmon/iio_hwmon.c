@@ -49,16 +49,17 @@ static ssize_t iio_hwmon_read_val(struct device *dev,
 	struct iio_channel *chan = &state->channels[sattr->index];
 	enum iio_chan_type type;
 
-	ret = iio_read_channel_processed(chan, &result);
-	if (ret < 0)
-		return ret;
-
 	ret = iio_get_channel_type(chan, &type);
 	if (ret < 0)
 		return ret;
 
 	if (type == IIO_POWER)
-		result *= 1000; /* mili-Watts to micro-Watts conversion */
+		/* mili-Watts to micro-Watts conversion */
+		ret = iio_read_channel_processed_scale(chan, &result, 1000);
+	else
+		ret = iio_read_channel_processed(chan, &result);
+	if (ret < 0)
+		return ret;
 
 	return sprintf(buf, "%d\n", result);
 }
