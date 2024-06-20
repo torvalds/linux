@@ -1843,7 +1843,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 
 	/* add interfaces */
 	sdata = wiphy_dereference(local->hw.wiphy, local->monitor_sdata);
-	if (sdata) {
+	if (sdata && ieee80211_hw_check(&local->hw, WANT_MONITOR_VIF)) {
 		/* in HW restart it exists already */
 		WARN_ON(local->resuming);
 		res = drv_add_interface(local, sdata);
