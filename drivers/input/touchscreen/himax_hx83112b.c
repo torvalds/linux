@@ -20,8 +20,6 @@
 #include <linux/kernel.h>
 #include <linux/regmap.h>
 
-#define HIMAX_ID_83112B			0x83112b
-
 #define HIMAX_MAX_POINTS		10
 
 #define HIMAX_AHB_ADDR_BYTE_0			0x00
@@ -55,7 +53,16 @@ struct himax_event {
 
 static_assert(sizeof(struct himax_event) == 56);
 
+struct himax_ts_data;
+struct himax_chip {
+	u32 id;
+	int (*check_id)(struct himax_ts_data *ts);
+	int (*read_events)(struct himax_ts_data *ts, struct himax_event *event,
+			   size_t length);
+};
+
 struct himax_ts_data {
+	const struct himax_chip *chip;
 	struct gpio_desc *gpiod_rst;
 	struct input_dev *input_dev;
 	struct i2c_client *client;
@@ -167,15 +174,12 @@ static int himax_check_product_id(struct himax_ts_data *ts)
 
 	dev_dbg(&ts->client->dev, "Product id: %x\n", product_id);
 
-	switch (product_id) {
-	case HIMAX_ID_83112B:
+	if (product_id == ts->chip->id)
 		return 0;
 
-	default:
-		dev_err(&ts->client->dev,
-			"Unknown product id: %x\n", product_id);
-		return -EINVAL;
-	}
+	dev_err(&ts->client->dev, "Unknown product id: %x\n",
+		product_id);
+	return -EINVAL;
 }
 
 static int himax_input_register(struct himax_ts_data *ts)
@@ -277,13 +281,19 @@ static bool himax_verify_checksum(struct himax_ts_data *ts,
 	return true;
 }
 
+static int himax_read_events(struct himax_ts_data *ts,
+			     struct himax_event *event, size_t length)
+{
+	return regmap_raw_read(ts->regmap, HIMAX_AHB_ADDR_EVENT_STACK, event,
+			       length);
+}
+
 static int himax_handle_input(struct himax_ts_data *ts)
 {
 	int error;
 	struct himax_event event;
 
-	error = regmap_raw_read(ts->regmap, HIMAX_AHB_ADDR_EVENT_STACK, &event,
-				sizeof(event));
+	error = ts->chip->read_events(ts, &event, sizeof(event));
 	if (error) {
 		dev_err(&ts->client->dev, "Failed to read input event: %d\n",
 			error);
@@ -329,6 +339,7 @@ static int himax_probe(struct i2c_client *client)
 
 	i2c_set_clientdata(client, ts);
 	ts->client = client;
+	ts->chip = i2c_get_match_data(client);
 
 	ts->regmap = devm_regmap_init_i2c(client, &himax_regmap_config);
 	error = PTR_ERR_OR_ZERO(ts->regmap);
@@ -346,9 +357,11 @@ static int himax_probe(struct i2c_client *client)
 
 	himax_reset(ts);
 
-	error = himax_check_product_id(ts);
-	if (error)
-		return error;
+	if (ts->chip->check_id) {
+		error = himax_check_product_id(ts);
+		if (error)
+			return error;
+	}
 
 	error = himax_input_register(ts);
 	if (error)
@@ -381,15 +394,21 @@ static int himax_resume(struct device *dev)
 
 static DEFINE_SIMPLE_DEV_PM_OPS(himax_pm_ops, himax_suspend, himax_resume);
 
+static const struct himax_chip hx83112b_chip = {
+	.id = 0x83112b,
+	.check_id = himax_check_product_id,
+	.read_events = himax_read_events,
+};
+
 static const struct i2c_device_id himax_ts_id[] = {
-	{ "hx83112b" },
+	{ "hx83112b", (kernel_ulong_t)&hx83112b_chip },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(i2c, himax_ts_id);
 
 #ifdef CONFIG_OF
 static const struct of_device_id himax_of_match[] = {
-	{ .compatible = "himax,hx83112b" },
+	{ .compatible = "himax,hx83112b", .data = &hx83112b_chip },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, himax_of_match);
