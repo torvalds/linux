@@ -1774,11 +1774,24 @@ static int kvaser_pciefd_probe(struct pci_dev *pdev,
 	if (ret)
 		goto err_teardown_can_ctrls;
 
+	ret = pci_alloc_irq_vectors(pcie->pci, 1, 1, PCI_IRQ_INTX | PCI_IRQ_MSI);
+	if (ret < 0) {
+		dev_err(&pcie->pci->dev, "Failed to allocate IRQ vectors.\n");
+		goto err_teardown_can_ctrls;
+	}
+
+	ret = pci_irq_vector(pcie->pci, 0);
+	if (ret < 0)
+		goto err_pci_free_irq_vectors;
+
+	pcie->pci->irq = ret;
+
 	ret = request_irq(pcie->pci->irq, kvaser_pciefd_irq_handler,
 			  IRQF_SHARED, KVASER_PCIEFD_DRV_NAME, pcie);
-	if (ret)
-		goto err_teardown_can_ctrls;
-
+	if (ret) {
+		dev_err(&pcie->pci->dev, "Failed to request IRQ %d\n", pcie->pci->irq);
+		goto err_pci_free_irq_vectors;
+	}
 	iowrite32(KVASER_PCIEFD_SRB_IRQ_DPD0 | KVASER_PCIEFD_SRB_IRQ_DPD1,
 		  KVASER_PCIEFD_SRB_ADDR(pcie) + KVASER_PCIEFD_SRB_IRQ_REG);
 
@@ -1806,6 +1819,9 @@ err_free_irq:
 	/* Disable PCI interrupts */
 	iowrite32(0, irq_en_base);
 	free_irq(pcie->pci->irq, pcie);
+
+err_pci_free_irq_vectors:
+	pci_free_irq_vectors(pcie->pci);
 
 err_teardown_can_ctrls:
 	kvaser_pciefd_teardown_can_ctrls(pcie);
@@ -1852,7 +1868,7 @@ static void kvaser_pciefd_remove(struct pci_dev *pdev)
 	iowrite32(0, KVASER_PCIEFD_PCI_IEN_ADDR(pcie));
 
 	free_irq(pcie->pci->irq, pcie);
-
+	pci_free_irq_vectors(pcie->pci);
 	pci_iounmap(pdev, pcie->reg_base);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
