@@ -100,7 +100,6 @@ struct tmio_mmc_data {
 	dma_addr_t			dma_rx_offset;
 	unsigned int			max_blk_count;
 	unsigned short			max_segs;
-	void (*set_pwr)(struct platform_device *host, int state);
 };
 
 /*

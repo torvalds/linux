@@ -139,9 +139,6 @@ struct tmio_mmc_host {
 	struct mmc_host         *mmc;
 	struct mmc_host_ops     ops;
 
-	/* Callbacks for clock / power control */
-	void (*set_pwr)(struct platform_device *host, int state);
-
 	/* pio related stuff */
 	struct scatterlist      *sg_ptr;
 	struct scatterlist      *sg_orig;
