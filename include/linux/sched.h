@@ -542,6 +542,7 @@ struct sched_entity {
 	struct rb_node			run_node;
 	u64				deadline;
 	u64				min_vruntime;
+	u64				min_slice;
 
 	struct list_head		group_node;
 	unsigned char			on_rq;
