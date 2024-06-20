@@ -1462,8 +1462,6 @@ int l2tp_tunnel_create(int fd, int version, u32 tunnel_id, u32 peer_tunnel_id,
 	/* Init delete workqueue struct */
 	INIT_WORK(&tunnel->del_work, l2tp_tunnel_del_work);
 
-	INIT_LIST_HEAD(&tunnel->list);
-
 	err = 0;
 err:
 	if (tunnelp)
