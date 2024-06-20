@@ -98,8 +98,8 @@
 
 struct usbtll_omap {
 	void __iomem	*base;
-	int		nch;		/* num. of channels */
-	struct clk	*ch_clk[];	/* must be the last member */
+	int		nch;
+	struct clk	*ch_clk[] __counted_by(nch);
 };
 
 /*-------------------------------------------------------------------------*/
