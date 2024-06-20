@@ -129,6 +129,16 @@ struct page_pool_stats {
 };
 #endif
 
+/* The whole frag API block must stay within one cacheline. On 32-bit systems,
+ * sizeof(long) == sizeof(int), so that the block size is ``3 * sizeof(long)``.
+ * On 64-bit systems, the actual size is ``2 * sizeof(long) + sizeof(int)``.
+ * The closest pow-2 to both of them is ``4 * sizeof(long)``, so just use that
+ * one for simplicity.
+ * Having it aligned to a cacheline boundary may be excessive and doesn't bring
+ * any good.
+ */
+#define PAGE_POOL_FRAG_GROUP_ALIGN	(4 * sizeof(long))
+
 struct page_pool {
 	struct page_pool_params_fast p;
 
@@ -142,19 +152,11 @@ struct page_pool {
 	bool system:1;			/* This is a global percpu pool */
 #endif
 
-	/* The following block must stay within one cacheline. On 32-bit
-	 * systems, sizeof(long) == sizeof(int), so that the block size is
-	 * ``3 * sizeof(long)``. On 64-bit systems, the actual size is
-	 * ``2 * sizeof(long) + sizeof(int)``. The closest pow-2 to both of
-	 * them is ``4 * sizeof(long)``, so just use that one for simplicity.
-	 * Having it aligned to a cacheline boundary may be excessive and
-	 * doesn't bring any good.
-	 */
-	__cacheline_group_begin(frag) __aligned(4 * sizeof(long));
+	__cacheline_group_begin_aligned(frag, PAGE_POOL_FRAG_GROUP_ALIGN);
 	long frag_users;
 	netmem_ref frag_page;
 	unsigned int frag_offset;
-	__cacheline_group_end(frag);
+	__cacheline_group_end_aligned(frag, PAGE_POOL_FRAG_GROUP_ALIGN);
 
 	struct delayed_work release_dw;
 	void (*disconnect)(void *pool);
