@@ -781,7 +781,7 @@ static const char *cmdline_memmap_override;
 static efi_status_t parse_options(const char *cmdline)
 {
 	static const char opts[][14] = {
-		"mem=", "memmap=", "efi_fake_mem=", "hugepages="
+		"mem=", "memmap=", "hugepages="
 	};
 
 	for (int i = 0; i < ARRAY_SIZE(opts); i++) {
