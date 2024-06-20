@@ -143,6 +143,41 @@ static int unix_state_lock_cmp_fn(const struct lockdep_map *_a,
 	a = container_of(_a, struct unix_sock, lock.dep_map);
 	b = container_of(_b, struct unix_sock, lock.dep_map);
 
+	if (a->sk.sk_state == TCP_LISTEN) {
+		/* unix_stream_connect(): Before the 2nd unix_state_lock(),
+		 *
+		 *   1. a is TCP_LISTEN.
+		 *   2. b is not a.
+		 *   3. concurrent connect(b -> a) must fail.
+		 *
+		 * Except for 2. & 3., the b's state can be any possible
+		 * value due to concurrent connect() or listen().
+		 *
+		 * 2. is detected in debug_spin_lock_before(), and 3. cannot
+		 * be expressed as lock_cmp_fn.
+		 */
+		switch (b->sk.sk_state) {
+		case TCP_CLOSE:
+		case TCP_ESTABLISHED:
+		case TCP_LISTEN:
+			return -1;
+		default:
+			/* Invalid case. */
+			return 0;
+		}
+	}
+
+	/* Should never happen.  Just to be symmetric. */
+	if (b->sk.sk_state == TCP_LISTEN) {
+		switch (b->sk.sk_state) {
+		case TCP_CLOSE:
+		case TCP_ESTABLISHED:
+			return 1;
+		default:
+			return 0;
+		}
+	}
+
 	/* unix_state_double_lock(): ascending address order. */
 	return cmp_ptr(a, b);
 }
@@ -1585,7 +1620,7 @@ restart:
 		goto out_unlock;
 	}
 
-	unix_state_lock_nested(sk, U_LOCK_SECOND);
+	unix_state_lock(sk);
 
 	if (unlikely(sk->sk_state != TCP_CLOSE)) {
 		err = sk->sk_state == TCP_ESTABLISHED ? -EISCONN : -EINVAL;
