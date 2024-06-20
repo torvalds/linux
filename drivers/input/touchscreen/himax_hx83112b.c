@@ -24,12 +24,14 @@
 
 #define HIMAX_MAX_POINTS		10
 
-#define HIMAX_REG_CFG_SET_ADDR		0x00
-#define HIMAX_REG_CFG_INIT_READ		0x0c
-#define HIMAX_REG_CFG_READ_VALUE	0x08
-#define HIMAX_REG_READ_EVENT		0x30
+#define HIMAX_AHB_ADDR_BYTE_0			0x00
+#define HIMAX_AHB_ADDR_RDATA_BYTE_0		0x08
+#define HIMAX_AHB_ADDR_ACCESS_DIRECTION		0x0c
+#define HIMAX_AHB_ADDR_EVENT_STACK		0x30
 
-#define HIMAX_CFG_PRODUCT_ID		0x900000d0
+#define HIMAX_AHB_CMD_ACCESS_DIRECTION_READ	0x00
+
+#define HIMAX_REG_ADDR_ICID			0x900000d0
 
 #define HIMAX_INVALID_COORD		0xffff
 
@@ -67,15 +69,16 @@ static int himax_read_config(struct himax_ts_data *ts, u32 address, u32 *dst)
 {
 	int error;
 
-	error = regmap_write(ts->regmap, HIMAX_REG_CFG_SET_ADDR, address);
+	error = regmap_write(ts->regmap, HIMAX_AHB_ADDR_BYTE_0, address);
 	if (error)
 		return error;
 
-	error = regmap_write(ts->regmap, HIMAX_REG_CFG_INIT_READ, 0x0);
+	error = regmap_write(ts->regmap, HIMAX_AHB_ADDR_ACCESS_DIRECTION,
+			     HIMAX_AHB_CMD_ACCESS_DIRECTION_READ);
 	if (error)
 		return error;
 
-	error = regmap_read(ts->regmap, HIMAX_REG_CFG_READ_VALUE, dst);
+	error = regmap_read(ts->regmap, HIMAX_AHB_ADDR_RDATA_BYTE_0, dst);
 	if (error)
 		return error;
 
@@ -101,7 +104,7 @@ static int himax_read_product_id(struct himax_ts_data *ts, u32 *product_id)
 {
 	int error;
 
-	error = himax_read_config(ts, HIMAX_CFG_PRODUCT_ID, product_id);
+	error = himax_read_config(ts, HIMAX_REG_ADDR_ICID, product_id);
 	if (error)
 		return error;
 
@@ -235,7 +238,7 @@ static int himax_handle_input(struct himax_ts_data *ts)
 	int error;
 	struct himax_event event;
 
-	error = regmap_raw_read(ts->regmap, HIMAX_REG_READ_EVENT, &event,
+	error = regmap_raw_read(ts->regmap, HIMAX_AHB_ADDR_EVENT_STACK, &event,
 				sizeof(event));
 	if (error) {
 		dev_err(&ts->client->dev, "Failed to read input event: %d\n",
