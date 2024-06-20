@@ -1658,9 +1658,12 @@ struct bpf_scratchpad {
 		__be32 diff[MAX_BPF_STACK / sizeof(__be32)];
 		u8     buff[MAX_BPF_STACK];
 	};
+	local_lock_t	bh_lock;
 };
 
-static DEFINE_PER_CPU(struct bpf_scratchpad, bpf_sp);
+static DEFINE_PER_CPU(struct bpf_scratchpad, bpf_sp) = {
+	.bh_lock	= INIT_LOCAL_LOCK(bh_lock),
+};
 
 static inline int __bpf_try_make_writable(struct sk_buff *skb,
 					  unsigned int write_len)
@@ -2021,6 +2024,7 @@ BPF_CALL_5(bpf_csum_diff, __be32 *, from, u32, from_size,
 	struct bpf_scratchpad *sp = this_cpu_ptr(&bpf_sp);
 	u32 diff_size = from_size + to_size;
 	int i, j = 0;
+	__wsum ret;
 
 	/* This is quite flexible, some examples:
 	 *
@@ -2034,12 +2038,15 @@ BPF_CALL_5(bpf_csum_diff, __be32 *, from, u32, from_size,
 		     diff_size > sizeof(sp->diff)))
 		return -EINVAL;
 
+	local_lock_nested_bh(&bpf_sp.bh_lock);
 	for (i = 0; i < from_size / sizeof(__be32); i++, j++)
 		sp->diff[j] = ~from[i];
 	for (i = 0; i <   to_size / sizeof(__be32); i++, j++)
 		sp->diff[j] = to[i];
 
-	return csum_partial(sp->diff, diff_size, seed);
+	ret = csum_partial(sp->diff, diff_size, seed);
+	local_unlock_nested_bh(&bpf_sp.bh_lock);
+	return ret;
 }
 
 static const struct bpf_func_proto bpf_csum_diff_proto = {
