@@ -455,7 +455,8 @@ static uint32_t calculate_available_hblank_bw_in_symbols(
 	available_hblank_bw -= crtc_info->dsc_num_slices * 4; /* EOC overhead */
 
 	if (available_hblank_bw < dp_link_info->hblank_min_symbol_width)
-		available_hblank_bw = dp_link_info->hblank_min_symbol_width;
+		/* Each symbol takes 4 frames */
+		available_hblank_bw = 4 * dp_link_info->hblank_min_symbol_width;
 
 	if (available_hblank_bw < 12)
 		available_hblank_bw = 0;
