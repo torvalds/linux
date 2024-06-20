@@ -7818,6 +7818,8 @@
 #define B_UPD_P0_EN BIT(31)
 #define R_EMLSR 0x0044
 #define B_EMLSR_PARM GENMASK(27, 12)
+#define R_CHK_LPS_STAT 0x0058
+#define B_CHK_LPS_STAT BIT(0)
 #define R_SPOOF_CG 0x00B4
 #define B_SPOOF_CG_EN BIT(17)
 #define R_CHINFO_SEG 0x00B4

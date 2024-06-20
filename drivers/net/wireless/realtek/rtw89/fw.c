@@ -2496,6 +2496,7 @@ int rtw89_fw_h2c_lps_ch_info(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 	struct rtw89_h2c_lps_ch_info *h2c;
 	u32 len = sizeof(*h2c);
 	struct sk_buff *skb;
+	u32 done;
 	int ret;
 
 	if (chip->chip_gen != RTW89_CHIP_BE)
@@ -2519,11 +2520,17 @@ int rtw89_fw_h2c_lps_ch_info(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 			      H2C_CAT_OUTSRC, H2C_CL_OUTSRC_DM,
 			      H2C_FUNC_FW_LPS_CH_INFO, 0, 0, len);
 
+	rtw89_phy_write32_mask(rtwdev, R_CHK_LPS_STAT, B_CHK_LPS_STAT, 0);
 	ret = rtw89_h2c_tx(rtwdev, skb, false);
 	if (ret) {
 		rtw89_err(rtwdev, "failed to send h2c\n");
 		goto fail;
 	}
+
+	ret = read_poll_timeout(rtw89_phy_read32_mask, done, done, 50, 5000,
+				true, rtwdev, R_CHK_LPS_STAT, B_CHK_LPS_STAT);
+	if (ret)
+		rtw89_warn(rtwdev, "h2c_lps_ch_info done polling timeout\n");
 
 	return 0;
 fail:
