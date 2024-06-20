@@ -1030,12 +1030,6 @@ EXPORT_SYMBOL_GPL(l2tp_udp_encap_recv);
 static void l2tp_udp_encap_err_recv(struct sock *sk, struct sk_buff *skb, int err,
 				    __be16 port, u32 info, u8 *payload)
 {
-	struct l2tp_tunnel *tunnel;
-
-	tunnel = rcu_dereference_sk_user_data(sk);
-	if (!tunnel || tunnel->fd < 0)
-		return;
-
 	sk->sk_err = err;
 	sk_error_report(sk);
 
