@@ -316,6 +316,16 @@ struct l2tp_session *l2tp_v2_session_get(const struct net *net, u16 tunnel_id, u
 }
 EXPORT_SYMBOL_GPL(l2tp_v2_session_get);
 
+struct l2tp_session *l2tp_session_get(const struct net *net, struct sock *sk, int pver,
+				      u32 tunnel_id, u32 session_id)
+{
+	if (pver == L2TP_HDR_VER_2)
+		return l2tp_v2_session_get(net, tunnel_id, session_id);
+	else
+		return l2tp_v3_session_get(net, sk, session_id);
+}
+EXPORT_SYMBOL_GPL(l2tp_session_get);
+
 struct l2tp_session *l2tp_session_get_nth(struct l2tp_tunnel *tunnel, int nth)
 {
 	int hash;
