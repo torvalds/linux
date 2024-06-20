@@ -160,7 +160,7 @@ static int btf_mark_embedded_composite_type_ids(struct btf_relocate *r, __u32 i)
  */
 static int btf_relocate_map_distilled_base(struct btf_relocate *r)
 {
-	struct btf_name_info *dist_base_info_sorted, *dist_base_info_sorted_end;
+	struct btf_name_info *info, *info_end;
 	struct btf_type *base_t, *dist_t;
 	__u8 *base_name_cnt = NULL;
 	int err = 0;
@@ -169,26 +169,24 @@ static int btf_relocate_map_distilled_base(struct btf_relocate *r)
 	/* generate a sort index array of name/type ids sorted by name for
 	 * distilled base BTF to speed name-based lookups.
 	 */
-	dist_base_info_sorted = calloc(r->nr_dist_base_types, sizeof(*dist_base_info_sorted));
-	if (!dist_base_info_sorted) {
+	info = calloc(r->nr_dist_base_types, sizeof(*info));
+	if (!info) {
 		err = -ENOMEM;
 		goto done;
 	}
-	dist_base_info_sorted_end = dist_base_info_sorted + r->nr_dist_base_types;
+	info_end = info + r->nr_dist_base_types;
 	for (id = 0; id < r->nr_dist_base_types; id++) {
 		dist_t = btf_type_by_id(r->dist_base_btf, id);
-		dist_base_info_sorted[id].name = btf__name_by_offset(r->dist_base_btf,
-								     dist_t->name_off);
-		dist_base_info_sorted[id].id = id;
-		dist_base_info_sorted[id].size = dist_t->size;
-		dist_base_info_sorted[id].needs_size = true;
+		info[id].name = btf__name_by_offset(r->dist_base_btf, dist_t->name_off);
+		info[id].id = id;
+		info[id].size = dist_t->size;
+		info[id].needs_size = true;
 	}
-	qsort(dist_base_info_sorted, r->nr_dist_base_types, sizeof(*dist_base_info_sorted),
-	      cmp_btf_name_size);
+	qsort(info, r->nr_dist_base_types, sizeof(*info), cmp_btf_name_size);
 
 	/* Mark distilled base struct/union members of split BTF structs/unions
 	 * in id_map with BTF_IS_EMBEDDED; this signals that these types
-	 * need to match both name and size, otherwise embeddding the base
+	 * need to match both name and size, otherwise embedding the base
 	 * struct/union in the split type is invalid.
 	 */
 	for (id = r->nr_dist_base_types; id < r->nr_split_types; id++) {
@@ -216,8 +214,7 @@ static int btf_relocate_map_distilled_base(struct btf_relocate *r)
 
 	/* Now search base BTF for matching distilled base BTF types. */
 	for (id = 1; id < r->nr_base_types; id++) {
-		struct btf_name_info *dist_name_info, *dist_name_info_next = NULL;
-		struct btf_name_info base_name_info = {};
+		struct btf_name_info *dist_info, base_info = {};
 		int dist_kind, base_kind;
 
 		base_t = btf_type_by_id(r->base_btf, id);
@@ -225,16 +222,16 @@ static int btf_relocate_map_distilled_base(struct btf_relocate *r)
 		if (!base_t->name_off)
 			continue;
 		base_kind = btf_kind(base_t);
-		base_name_info.id = id;
-		base_name_info.name = btf__name_by_offset(r->base_btf, base_t->name_off);
+		base_info.id = id;
+		base_info.name = btf__name_by_offset(r->base_btf, base_t->name_off);
 		switch (base_kind) {
 		case BTF_KIND_INT:
 		case BTF_KIND_FLOAT:
 		case BTF_KIND_ENUM:
 		case BTF_KIND_ENUM64:
 			/* These types should match both name and size */
-			base_name_info.needs_size = true;
-			base_name_info.size = base_t->size;
+			base_info.needs_size = true;
+			base_info.size = base_t->size;
 			break;
 		case BTF_KIND_FWD:
 			/* No size considerations for fwds. */
@@ -248,31 +245,24 @@ static int btf_relocate_map_distilled_base(struct btf_relocate *r)
 			 * unless corresponding _base_ types to match them are
 			 * missing.
 			 */
-			base_name_info.needs_size = base_name_cnt[base_t->name_off] > 1;
-			base_name_info.size = base_t->size;
+			base_info.needs_size = base_name_cnt[base_t->name_off] > 1;
+			base_info.size = base_t->size;
 			break;
 		default:
 			continue;
 		}
 		/* iterate over all matching distilled base types */
-		for (dist_name_info = search_btf_name_size(&base_name_info, dist_base_info_sorted,
-							   r->nr_dist_base_types);
-		     dist_name_info != NULL; dist_name_info = dist_name_info_next) {
-			/* Are there more distilled matches to process after
-			 * this one?
-			 */
-			dist_name_info_next = dist_name_info + 1;
-			if (dist_name_info_next >= dist_base_info_sorted_end ||
-			    cmp_btf_name_size(&base_name_info, dist_name_info_next))
-				dist_name_info_next = NULL;
-
-			if (!dist_name_info->id || dist_name_info->id > r->nr_dist_base_types) {
+		for (dist_info = search_btf_name_size(&base_info, info, r->nr_dist_base_types);
+		     dist_info != NULL && dist_info < info_end &&
+		     cmp_btf_name_size(&base_info, dist_info) == 0;
+		     dist_info++) {
+			if (!dist_info->id || dist_info->id >= r->nr_dist_base_types) {
 				pr_warn("base BTF id [%d] maps to invalid distilled base BTF id [%d]\n",
-					id, dist_name_info->id);
+					id, dist_info->id);
 				err = -EINVAL;
 				goto done;
 			}
-			dist_t = btf_type_by_id(r->dist_base_btf, dist_name_info->id);
+			dist_t = btf_type_by_id(r->dist_base_btf, dist_info->id);
 			dist_kind = btf_kind(dist_t);
 
 			/* Validate that the found distilled type is compatible.
@@ -319,15 +309,15 @@ static int btf_relocate_map_distilled_base(struct btf_relocate *r)
 				/* size verification is required for embedded
 				 * struct/unions.
 				 */
-				if (r->id_map[dist_name_info->id] == BTF_IS_EMBEDDED &&
+				if (r->id_map[dist_info->id] == BTF_IS_EMBEDDED &&
 				    base_t->size != dist_t->size)
 					continue;
 				break;
 			default:
 				continue;
 			}
-			if (r->id_map[dist_name_info->id] &&
-			    r->id_map[dist_name_info->id] != BTF_IS_EMBEDDED) {
+			if (r->id_map[dist_info->id] &&
+			    r->id_map[dist_info->id] != BTF_IS_EMBEDDED) {
 				/* we already have a match; this tells us that
 				 * multiple base types of the same name
 				 * have the same size, since for cases where
@@ -337,13 +327,13 @@ static int btf_relocate_map_distilled_base(struct btf_relocate *r)
 				 * to in base BTF, so error out.
 				 */
 				pr_warn("distilled base BTF type '%s' [%u], size %u has multiple candidates of the same size (ids [%u, %u]) in base BTF\n",
-					base_name_info.name, dist_name_info->id,
-					base_t->size, id, r->id_map[dist_name_info->id]);
+					base_info.name, dist_info->id,
+					base_t->size, id, r->id_map[dist_info->id]);
 				err = -EINVAL;
 				goto done;
 			}
 			/* map id and name */
-			r->id_map[dist_name_info->id] = id;
+			r->id_map[dist_info->id] = id;
 			r->str_map[dist_t->name_off] = base_t->name_off;
 		}
 	}
@@ -362,7 +352,7 @@ static int btf_relocate_map_distilled_base(struct btf_relocate *r)
 	}
 done:
 	free(base_name_cnt);
-	free(dist_base_info_sorted);
+	free(info);
 	return err;
 }
 
