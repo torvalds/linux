@@ -197,8 +197,13 @@ static bool dml21_mode_check_and_programming(const struct dc *in_dc, struct dc_s
 	memset(&dml_ctx->v21.dml_to_dc_pipe_mapping, 0, sizeof(struct dml2_dml_to_dc_pipe_mapping));
 	memset(&dml_ctx->v21.mode_programming.dml2_instance->scratch.build_mode_programming_locals.mode_programming_params, 0, sizeof(struct dml2_core_mode_programming_in_out));
 
-	if (!context || context->stream_count == 0)
+	if (!context)
 		return true;
+
+	if (context->stream_count == 0) {
+		dml21_build_fams2_programming(in_dc, context, dml_ctx);
+		return true;
+	}
 
 	/* scrub phantom's from current dc_state */
 	dml_ctx->config.svp_pstate.callbacks.remove_phantom_streams_and_planes(in_dc, context);
