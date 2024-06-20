@@ -741,7 +741,9 @@ static bool btrfs_submit_chunk(struct btrfs_bio *bbio, int mirror_num)
 			ret = btrfs_bio_csum(bbio);
 			if (ret)
 				goto fail_put_bio;
-		} else if (use_append) {
+		} else if (use_append ||
+			   (btrfs_is_zoned(fs_info) && inode &&
+			    inode->flags & BTRFS_INODE_NODATASUM)) {
 			ret = btrfs_alloc_dummy_sum(bbio);
 			if (ret)
 				goto fail_put_bio;
