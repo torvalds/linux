@@ -381,7 +381,7 @@ config BROKEN_GAS_INST
 
 config BUILTIN_RETURN_ADDRESS_STRIPS_PAC
 	bool
-	# Clang's __builtin_return_adddress() strips the PAC since 12.0.0
+	# Clang's __builtin_return_address() strips the PAC since 12.0.0
 	# https://github.com/llvm/llvm-project/commit/2a96f47c5ffca84cd774ad402cacd137f4bf45e2
 	default y if CC_IS_CLANG
 	# GCC's __builtin_return_address() strips the PAC since 11.1.0,
