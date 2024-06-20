@@ -188,6 +188,12 @@ static struct bch_inode_info *bch2_inode_insert(struct bch_fs *c, struct bch_ino
 	BUG_ON(!old);
 
 	if (unlikely(old != inode)) {
+		/*
+		 * bcachefs doesn't use I_NEW; we have no use for it since we
+		 * only insert fully created inodes in the inode hash table. But
+		 * discard_new_inode() expects it to be set...
+		 */
+		inode->v.i_flags |= I_NEW;
 		discard_new_inode(&inode->v);
 		inode = old;
 	} else {
@@ -195,8 +201,10 @@ static struct bch_inode_info *bch2_inode_insert(struct bch_fs *c, struct bch_ino
 		list_add(&inode->ei_vfs_inode_list, &c->vfs_inodes_list);
 		mutex_unlock(&c->vfs_inodes_lock);
 		/*
-		 * we really don't want insert_inode_locked2() to be setting
-		 * I_NEW...
+		 * Again, I_NEW makes no sense for bcachefs. This is only needed
+		 * for clearing I_NEW, but since the inode was already fully
+		 * created and initialized we didn't actually want
+		 * inode_insert5() to set it for us.
 		 */
 		unlock_new_inode(&inode->v);
 	}
