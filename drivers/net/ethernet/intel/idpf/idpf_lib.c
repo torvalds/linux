@@ -941,6 +941,9 @@ static void idpf_decfg_netdev(struct idpf_vport *vport)
 {
 	struct idpf_adapter *adapter = vport->adapter;
 
+	kfree(vport->rx_ptype_lkup);
+	vport->rx_ptype_lkup = NULL;
+
 	unregister_netdev(vport->netdev);
 	free_netdev(vport->netdev);
 	vport->netdev = NULL;

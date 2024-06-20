@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (C) 2023 Intel Corporation */
 
+#include <net/libeth/rx.h>
+
 #include "idpf.h"
 
 /**
@@ -601,75 +603,62 @@ static bool idpf_rx_singleq_is_non_eop(const union virtchnl2_rx_desc *rx_desc)
  * @rxq: Rx ring being processed
  * @skb: skb currently being received and modified
  * @csum_bits: checksum bits from descriptor
- * @ptype: the packet type decoded by hardware
+ * @decoded: the packet type decoded by hardware
  *
  * skb->protocol must be set before this function is called
  */
-static void idpf_rx_singleq_csum(struct idpf_rx_queue *rxq, struct sk_buff *skb,
-				 struct idpf_rx_csum_decoded *csum_bits,
-				 u16 ptype)
+static void idpf_rx_singleq_csum(struct idpf_rx_queue *rxq,
+				 struct sk_buff *skb,
+				 struct idpf_rx_csum_decoded csum_bits,
+				 struct libeth_rx_pt decoded)
 {
-	struct idpf_rx_ptype_decoded decoded;
 	bool ipv4, ipv6;
 
 	/* check if Rx checksum is enabled */
-	if (unlikely(!(rxq->netdev->features & NETIF_F_RXCSUM)))
+	if (!libeth_rx_pt_has_checksum(rxq->netdev, decoded))
 		return;
 
 	/* check if HW has decoded the packet and checksum */
-	if (unlikely(!(csum_bits->l3l4p)))
+	if (unlikely(!csum_bits.l3l4p))
 		return;
 
-	decoded = rxq->rx_ptype_lkup[ptype];
-	if (unlikely(!(decoded.known && decoded.outer_ip)))
-		return;
-
-	ipv4 = IDPF_RX_PTYPE_TO_IPV(&decoded, IDPF_RX_PTYPE_OUTER_IPV4);
-	ipv6 = IDPF_RX_PTYPE_TO_IPV(&decoded, IDPF_RX_PTYPE_OUTER_IPV6);
+	ipv4 = libeth_rx_pt_get_ip_ver(decoded) == LIBETH_RX_PT_OUTER_IPV4;
+	ipv6 = libeth_rx_pt_get_ip_ver(decoded) == LIBETH_RX_PT_OUTER_IPV6;
 
 	/* Check if there were any checksum errors */
-	if (unlikely(ipv4 && (csum_bits->ipe || csum_bits->eipe)))
+	if (unlikely(ipv4 && (csum_bits.ipe || csum_bits.eipe)))
 		goto checksum_fail;
 
 	/* Device could not do any checksum offload for certain extension
 	 * headers as indicated by setting IPV6EXADD bit
 	 */
-	if (unlikely(ipv6 && csum_bits->ipv6exadd))
+	if (unlikely(ipv6 && csum_bits.ipv6exadd))
 		return;
 
 	/* check for L4 errors and handle packets that were not able to be
 	 * checksummed due to arrival speed
 	 */
-	if (unlikely(csum_bits->l4e))
+	if (unlikely(csum_bits.l4e))
 		goto checksum_fail;
 
-	if (unlikely(csum_bits->nat && csum_bits->eudpe))
+	if (unlikely(csum_bits.nat && csum_bits.eudpe))
 		goto checksum_fail;
 
 	/* Handle packets that were not able to be checksummed due to arrival
 	 * speed, in this case the stack can compute the csum.
 	 */
-	if (unlikely(csum_bits->pprs))
+	if (unlikely(csum_bits.pprs))
 		return;
 
 	/* If there is an outer header present that might contain a checksum
 	 * we need to bump the checksum level by 1 to reflect the fact that
 	 * we are indicating we validated the inner checksum.
 	 */
-	if (decoded.tunnel_type >= IDPF_RX_PTYPE_TUNNEL_IP_GRENAT)
+	if (decoded.tunnel_type >= LIBETH_RX_PT_TUNNEL_IP_GRENAT)
 		skb->csum_level = 1;
 
-	/* Only report checksum unnecessary for ICMP, TCP, UDP, or SCTP */
-	switch (decoded.inner_prot) {
-	case IDPF_RX_PTYPE_INNER_PROT_ICMP:
-	case IDPF_RX_PTYPE_INNER_PROT_TCP:
-	case IDPF_RX_PTYPE_INNER_PROT_UDP:
-	case IDPF_RX_PTYPE_INNER_PROT_SCTP:
-		skb->ip_summed = CHECKSUM_UNNECESSARY;
-		return;
-	default:
-		return;
-	}
+	skb->ip_summed = CHECKSUM_UNNECESSARY;
+	return;
 
 checksum_fail:
 	u64_stats_update_begin(&rxq->stats_sync);
@@ -679,20 +668,17 @@ checksum_fail:
 
 /**
  * idpf_rx_singleq_base_csum - Indicate in skb if hw indicated a good cksum
- * @rx_q: Rx completion queue
- * @skb: skb currently being received and modified
  * @rx_desc: the receive descriptor
- * @ptype: Rx packet type
  *
  * This function only operates on the VIRTCHNL2_RXDID_1_32B_BASE_M base 32byte
  * descriptor writeback format.
+ *
+ * Return: parsed checksum status.
  **/
-static void idpf_rx_singleq_base_csum(struct idpf_rx_queue *rx_q,
-				      struct sk_buff *skb,
-				      const union virtchnl2_rx_desc *rx_desc,
-				      u16 ptype)
+static struct idpf_rx_csum_decoded
+idpf_rx_singleq_base_csum(const union virtchnl2_rx_desc *rx_desc)
 {
-	struct idpf_rx_csum_decoded csum_bits;
+	struct idpf_rx_csum_decoded csum_bits = { };
 	u32 rx_error, rx_status;
 	u64 qword;
 
@@ -711,28 +697,23 @@ static void idpf_rx_singleq_base_csum(struct idpf_rx_queue *rx_q,
 				    rx_status);
 	csum_bits.ipv6exadd = FIELD_GET(VIRTCHNL2_RX_BASE_DESC_STATUS_IPV6EXADD_M,
 					rx_status);
-	csum_bits.nat = 0;
-	csum_bits.eudpe = 0;
 
-	idpf_rx_singleq_csum(rx_q, skb, &csum_bits, ptype);
+	return csum_bits;
 }
 
 /**
  * idpf_rx_singleq_flex_csum - Indicate in skb if hw indicated a good cksum
- * @rx_q: Rx completion queue
- * @skb: skb currently being received and modified
  * @rx_desc: the receive descriptor
- * @ptype: Rx packet type
  *
  * This function only operates on the VIRTCHNL2_RXDID_2_FLEX_SQ_NIC flexible
  * descriptor writeback format.
+ *
+ * Return: parsed checksum status.
  **/
-static void idpf_rx_singleq_flex_csum(struct idpf_rx_queue *rx_q,
-				      struct sk_buff *skb,
-				      const union virtchnl2_rx_desc *rx_desc,
-				      u16 ptype)
+static struct idpf_rx_csum_decoded
+idpf_rx_singleq_flex_csum(const union virtchnl2_rx_desc *rx_desc)
 {
-	struct idpf_rx_csum_decoded csum_bits;
+	struct idpf_rx_csum_decoded csum_bits = { };
 	u16 rx_status0, rx_status1;
 
 	rx_status0 = le16_to_cpu(rx_desc->flex_nic_wb.status_error0);
@@ -752,9 +733,8 @@ static void idpf_rx_singleq_flex_csum(struct idpf_rx_queue *rx_q,
 					rx_status0);
 	csum_bits.nat = FIELD_GET(VIRTCHNL2_RX_FLEX_DESC_STATUS1_NAT_M,
 				  rx_status1);
-	csum_bits.pprs = 0;
 
-	idpf_rx_singleq_csum(rx_q, skb, &csum_bits, ptype);
+	return csum_bits;
 }
 
 /**
@@ -770,11 +750,11 @@ static void idpf_rx_singleq_flex_csum(struct idpf_rx_queue *rx_q,
 static void idpf_rx_singleq_base_hash(struct idpf_rx_queue *rx_q,
 				      struct sk_buff *skb,
 				      const union virtchnl2_rx_desc *rx_desc,
-				      struct idpf_rx_ptype_decoded *decoded)
+				      struct libeth_rx_pt decoded)
 {
 	u64 mask, qw1;
 
-	if (unlikely(!(rx_q->netdev->features & NETIF_F_RXHASH)))
+	if (!libeth_rx_pt_has_hash(rx_q->netdev, decoded))
 		return;
 
 	mask = VIRTCHNL2_RX_BASE_DESC_FLTSTAT_RSS_HASH_M;
@@ -783,7 +763,7 @@ static void idpf_rx_singleq_base_hash(struct idpf_rx_queue *rx_q,
 	if (FIELD_GET(mask, qw1) == mask) {
 		u32 hash = le32_to_cpu(rx_desc->base_wb.qword0.hi_dword.rss);
 
-		skb_set_hash(skb, hash, idpf_ptype_to_htype(decoded));
+		libeth_rx_pt_set_hash(skb, hash, decoded);
 	}
 }
 
@@ -800,15 +780,17 @@ static void idpf_rx_singleq_base_hash(struct idpf_rx_queue *rx_q,
 static void idpf_rx_singleq_flex_hash(struct idpf_rx_queue *rx_q,
 				      struct sk_buff *skb,
 				      const union virtchnl2_rx_desc *rx_desc,
-				      struct idpf_rx_ptype_decoded *decoded)
+				      struct libeth_rx_pt decoded)
 {
-	if (unlikely(!(rx_q->netdev->features & NETIF_F_RXHASH)))
+	if (!libeth_rx_pt_has_hash(rx_q->netdev, decoded))
 		return;
 
 	if (FIELD_GET(VIRTCHNL2_RX_FLEX_DESC_STATUS0_RSS_VALID_M,
-		      le16_to_cpu(rx_desc->flex_nic_wb.status_error0)))
-		skb_set_hash(skb, le32_to_cpu(rx_desc->flex_nic_wb.rss_hash),
-			     idpf_ptype_to_htype(decoded));
+		      le16_to_cpu(rx_desc->flex_nic_wb.status_error0))) {
+		u32 hash = le32_to_cpu(rx_desc->flex_nic_wb.rss_hash);
+
+		libeth_rx_pt_set_hash(skb, hash, decoded);
+	}
 }
 
 /**
@@ -829,19 +811,22 @@ idpf_rx_singleq_process_skb_fields(struct idpf_rx_queue *rx_q,
 				   const union virtchnl2_rx_desc *rx_desc,
 				   u16 ptype)
 {
-	struct idpf_rx_ptype_decoded decoded = rx_q->rx_ptype_lkup[ptype];
+	struct libeth_rx_pt decoded = rx_q->rx_ptype_lkup[ptype];
+	struct idpf_rx_csum_decoded csum_bits;
 
 	/* modifies the skb - consumes the enet header */
 	skb->protocol = eth_type_trans(skb, rx_q->netdev);
 
 	/* Check if we're using base mode descriptor IDs */
 	if (rx_q->rxdids == VIRTCHNL2_RXDID_1_32B_BASE_M) {
-		idpf_rx_singleq_base_hash(rx_q, skb, rx_desc, &decoded);
-		idpf_rx_singleq_base_csum(rx_q, skb, rx_desc, ptype);
+		idpf_rx_singleq_base_hash(rx_q, skb, rx_desc, decoded);
+		csum_bits = idpf_rx_singleq_base_csum(rx_desc);
 	} else {
-		idpf_rx_singleq_flex_hash(rx_q, skb, rx_desc, &decoded);
-		idpf_rx_singleq_flex_csum(rx_q, skb, rx_desc, ptype);
+		idpf_rx_singleq_flex_hash(rx_q, skb, rx_desc, decoded);
+		csum_bits = idpf_rx_singleq_flex_csum(rx_desc);
 	}
+
+	idpf_rx_singleq_csum(rx_q, skb, csum_bits, decoded);
 }
 
 /**

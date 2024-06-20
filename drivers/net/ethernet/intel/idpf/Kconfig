@@ -5,6 +5,7 @@ config IDPF
 	tristate "Intel(R) Infrastructure Data Path Function Support"
 	depends on PCI_MSI
 	select DIMLIB
+	select LIBETH
 	select PAGE_POOL
 	select PAGE_POOL_STATS
 	help
