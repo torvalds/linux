@@ -4,6 +4,8 @@
 #ifndef _IDPF_TXRX_H_
 #define _IDPF_TXRX_H_
 
+#include <linux/dim.h>
+
 #include <net/page_pool/helpers.h>
 #include <net/tcp.h>
 #include <net/netdev_queues.h>
@@ -84,7 +86,7 @@
 do {								\
 	if (unlikely(++(ntc) == (rxq)->desc_count)) {		\
 		ntc = 0;					\
-		change_bit(__IDPF_Q_GEN_CHK, (rxq)->flags);	\
+		idpf_queue_change(GEN_CHK, rxq);		\
 	}							\
 } while (0)
 
@@ -111,10 +113,9 @@ do {								\
  */
 #define IDPF_TX_SPLITQ_RE_MIN_GAP	64
 
-#define IDPF_RX_BI_BUFID_S		0
-#define IDPF_RX_BI_BUFID_M		GENMASK(14, 0)
-#define IDPF_RX_BI_GEN_S		15
-#define IDPF_RX_BI_GEN_M		BIT(IDPF_RX_BI_GEN_S)
+#define IDPF_RX_BI_GEN_M		BIT(16)
+#define IDPF_RX_BI_BUFID_M		GENMASK(15, 0)
+
 #define IDPF_RXD_EOF_SPLITQ		VIRTCHNL2_RX_FLEX_DESC_ADV_STATUS0_EOF_M
 #define IDPF_RXD_EOF_SINGLEQ		VIRTCHNL2_RX_BASE_DESC_STATUS_EOF_M
 
@@ -122,7 +123,7 @@ do {								\
 	((((txq)->next_to_clean > (txq)->next_to_use) ? 0 : (txq)->desc_count) + \
 	(txq)->next_to_clean - (txq)->next_to_use - 1)
 
-#define IDPF_TX_BUF_RSV_UNUSED(txq)	((txq)->buf_stack.top)
+#define IDPF_TX_BUF_RSV_UNUSED(txq)	((txq)->stash->buf_stack.top)
 #define IDPF_TX_BUF_RSV_LOW(txq)	(IDPF_TX_BUF_RSV_UNUSED(txq) < \
 					 (txq)->desc_count >> 2)
 
@@ -433,22 +434,36 @@ struct idpf_rx_ptype_decoded {
  *		      to 1 and knows that reading a gen bit of 1 in any
  *		      descriptor on the initial pass of the ring indicates a
  *		      writeback. It also flips on every ring wrap.
- * @__IDPF_RFLQ_GEN_CHK: Refill queues are SW only, so Q_GEN acts as the HW bit
- *			 and RFLGQ_GEN is the SW bit.
+ * @__IDPF_Q_RFL_GEN_CHK: Refill queues are SW only, so Q_GEN acts as the HW
+ *			  bit and Q_RFL_GEN is the SW bit.
  * @__IDPF_Q_FLOW_SCH_EN: Enable flow scheduling
  * @__IDPF_Q_SW_MARKER: Used to indicate TX queue marker completions
  * @__IDPF_Q_POLL_MODE: Enable poll mode
+ * @__IDPF_Q_CRC_EN: enable CRC offload in singleq mode
+ * @__IDPF_Q_HSPLIT_EN: enable header split on Rx (splitq)
  * @__IDPF_Q_FLAGS_NBITS: Must be last
  */
 enum idpf_queue_flags_t {
 	__IDPF_Q_GEN_CHK,
-	__IDPF_RFLQ_GEN_CHK,
+	__IDPF_Q_RFL_GEN_CHK,
 	__IDPF_Q_FLOW_SCH_EN,
 	__IDPF_Q_SW_MARKER,
 	__IDPF_Q_POLL_MODE,
+	__IDPF_Q_CRC_EN,
+	__IDPF_Q_HSPLIT_EN,
 
 	__IDPF_Q_FLAGS_NBITS,
 };
+
+#define idpf_queue_set(f, q)		__set_bit(__IDPF_Q_##f, (q)->flags)
+#define idpf_queue_clear(f, q)		__clear_bit(__IDPF_Q_##f, (q)->flags)
+#define idpf_queue_change(f, q)		__change_bit(__IDPF_Q_##f, (q)->flags)
+#define idpf_queue_has(f, q)		test_bit(__IDPF_Q_##f, (q)->flags)
+
+#define idpf_queue_has_clear(f, q)			\
+	__test_and_clear_bit(__IDPF_Q_##f, (q)->flags)
+#define idpf_queue_assign(f, q, v)			\
+	__assign_bit(__IDPF_Q_##f, (q)->flags, v)
 
 /**
  * struct idpf_vec_regs
@@ -495,7 +510,9 @@ struct idpf_intr_reg {
  * @v_idx: Vector index
  * @intr_reg: See struct idpf_intr_reg
  * @num_txq: Number of TX queues
+ * @num_complq: number of completion queues
  * @tx: Array of TX queues to service
+ * @complq: array of completion queues
  * @tx_dim: Data for TX net_dim algorithm
  * @tx_itr_value: TX interrupt throttling rate
  * @tx_intr_mode: Dynamic ITR or not
@@ -519,21 +536,24 @@ struct idpf_q_vector {
 	struct idpf_intr_reg intr_reg;
 
 	u16 num_txq;
-	struct idpf_queue **tx;
+	u16 num_complq;
+	struct idpf_tx_queue **tx;
+	struct idpf_compl_queue **complq;
+
 	struct dim tx_dim;
 	u16 tx_itr_value;
 	bool tx_intr_mode;
 	u32 tx_itr_idx;
 
 	u16 num_rxq;
-	struct idpf_queue **rx;
+	struct idpf_rx_queue **rx;
 	struct dim rx_dim;
 	u16 rx_itr_value;
 	bool rx_intr_mode;
 	u32 rx_itr_idx;
 
 	u16 num_bufq;
-	struct idpf_queue **bufq;
+	struct idpf_buf_queue **bufq;
 
 	u16 total_events;
 	char *name;
@@ -564,11 +584,6 @@ struct idpf_cleaned_stats {
 	u32 bytes;
 };
 
-union idpf_queue_stats {
-	struct idpf_rx_queue_stats rx;
-	struct idpf_tx_queue_stats tx;
-};
-
 #define IDPF_ITR_DYNAMIC	1
 #define IDPF_ITR_MAX		0x1FE0
 #define IDPF_ITR_20K		0x0032
@@ -584,39 +599,114 @@ union idpf_queue_stats {
 #define IDPF_DIM_DEFAULT_PROFILE_IX		1
 
 /**
- * struct idpf_queue
- * @dev: Device back pointer for DMA mapping
- * @vport: Back pointer to associated vport
- * @txq_grp: See struct idpf_txq_group
- * @rxq_grp: See struct idpf_rxq_group
- * @idx: For buffer queue, it is used as group id, either 0 or 1. On clean,
- *	 buffer queue uses this index to determine which group of refill queues
- *	 to clean.
- *	 For TX queue, it is used as index to map between TX queue group and
- *	 hot path TX pointers stored in vport. Used in both singleq/splitq.
- *	 For RX queue, it is used to index to total RX queue across groups and
- *	 used for skb reporting.
- * @tail: Tail offset. Used for both queue models single and split. In splitq
- *	  model relevant only for TX queue and RX queue.
- * @tx_buf: See struct idpf_tx_buf
- * @rx_buf: Struct with RX buffer related members
- * @rx_buf.buf: See struct idpf_rx_buf
- * @rx_buf.hdr_buf_pa: DMA handle
- * @rx_buf.hdr_buf_va: Virtual address
- * @pp: Page pool pointer
- * @skb: Pointer to the skb
- * @q_type: Queue type (TX, RX, TX completion, RX buffer)
- * @q_id: Queue id
- * @desc_count: Number of descriptors
- * @next_to_use: Next descriptor to use. Relevant in both split & single txq
- *		 and bufq.
- * @next_to_clean: Next descriptor to clean. In split queue model, only
- *		   relevant to TX completion queue and RX queue.
- * @next_to_alloc: RX buffer to allocate at. Used only for RX. In splitq model
- *		   only relevant to RX queue.
+ * struct idpf_txq_stash - Tx buffer stash for Flow-based scheduling mode
+ * @buf_stack: Stack of empty buffers to store buffer info for out of order
+ *	       buffer completions. See struct idpf_buf_lifo
+ * @sched_buf_hash: Hash table to store buffers
+ */
+struct idpf_txq_stash {
+	struct idpf_buf_lifo buf_stack;
+	DECLARE_HASHTABLE(sched_buf_hash, 12);
+} ____cacheline_aligned;
+
+/**
+ * struct idpf_rx_queue - software structure representing a receive queue
+ * @rx: universal receive descriptor array
+ * @single_buf: buffer descriptor array in singleq
+ * @desc_ring: virtual descriptor ring address
+ * @bufq_sets: Pointer to the array of buffer queues in splitq mode
+ * @napi: NAPI instance corresponding to this queue (splitq)
+ * @rx_buf: See struct idpf_rx_buf
+ * @pp: Page pool pointer in singleq mode
+ * @netdev: &net_device corresponding to this queue
+ * @tail: Tail offset. Used for both queue models single and split.
  * @flags: See enum idpf_queue_flags_t
- * @q_stats: See union idpf_queue_stats
+ * @idx: For RX queue, it is used to index to total RX queue across groups and
+ *	 used for skb reporting.
+ * @desc_count: Number of descriptors
+ * @next_to_use: Next descriptor to use
+ * @next_to_clean: Next descriptor to clean
+ * @next_to_alloc: RX buffer to allocate at
+ * @rxdids: Supported RX descriptor ids
+ * @rx_ptype_lkup: LUT of Rx ptypes
+ * @skb: Pointer to the skb
  * @stats_sync: See struct u64_stats_sync
+ * @q_stats: See union idpf_rx_queue_stats
+ * @q_id: Queue id
+ * @size: Length of descriptor ring in bytes
+ * @dma: Physical address of ring
+ * @q_vector: Backreference to associated vector
+ * @rx_buffer_low_watermark: RX buffer low watermark
+ * @rx_hbuf_size: Header buffer size
+ * @rx_buf_size: Buffer size
+ * @rx_max_pkt_size: RX max packet size
+ */
+struct idpf_rx_queue {
+	union {
+		union virtchnl2_rx_desc *rx;
+		struct virtchnl2_singleq_rx_buf_desc *single_buf;
+
+		void *desc_ring;
+	};
+	union {
+		struct {
+			struct idpf_bufq_set *bufq_sets;
+			struct napi_struct *napi;
+		};
+		struct {
+			struct idpf_rx_buf *rx_buf;
+			struct page_pool *pp;
+		};
+	};
+	struct net_device *netdev;
+	void __iomem *tail;
+
+	DECLARE_BITMAP(flags, __IDPF_Q_FLAGS_NBITS);
+	u16 idx;
+	u16 desc_count;
+	u16 next_to_use;
+	u16 next_to_clean;
+	u16 next_to_alloc;
+
+	u32 rxdids;
+
+	const struct idpf_rx_ptype_decoded *rx_ptype_lkup;
+	struct sk_buff *skb;
+
+	struct u64_stats_sync stats_sync;
+	struct idpf_rx_queue_stats q_stats;
+
+	/* Slowpath */
+	u32 q_id;
+	u32 size;
+	dma_addr_t dma;
+
+	struct idpf_q_vector *q_vector;
+
+	u16 rx_buffer_low_watermark;
+	u16 rx_hbuf_size;
+	u16 rx_buf_size;
+	u16 rx_max_pkt_size;
+} ____cacheline_aligned;
+
+/**
+ * struct idpf_tx_queue - software structure representing a transmit queue
+ * @base_tx: base Tx descriptor array
+ * @base_ctx: base Tx context descriptor array
+ * @flex_tx: flex Tx descriptor array
+ * @flex_ctx: flex Tx context descriptor array
+ * @desc_ring: virtual descriptor ring address
+ * @tx_buf: See struct idpf_tx_buf
+ * @txq_grp: See struct idpf_txq_group
+ * @dev: Device back pointer for DMA mapping
+ * @tail: Tail offset. Used for both queue models single and split
+ * @flags: See enum idpf_queue_flags_t
+ * @idx: For TX queue, it is used as index to map between TX queue group and
+ *	 hot path TX pointers stored in vport. Used in both singleq/splitq.
+ * @desc_count: Number of descriptors
+ * @next_to_use: Next descriptor to use
+ * @next_to_clean: Next descriptor to clean
+ * @netdev: &net_device corresponding to this queue
  * @cleaned_bytes: Splitq only, TXQ only: When a TX completion is received on
  *		   the TX completion queue, it can be for any TXQ associated
  *		   with that completion queue. This means we can clean up to
@@ -625,34 +715,10 @@ union idpf_queue_stats {
  *		   that single call to clean the completion queue. By doing so,
  *		   we can update BQL with aggregate cleaned stats for each TXQ
  *		   only once at the end of the cleaning routine.
+ * @clean_budget: singleq only, queue cleaning budget
  * @cleaned_pkts: Number of packets cleaned for the above said case
- * @rx_hsplit_en: RX headsplit enable
- * @rx_hbuf_size: Header buffer size
- * @rx_buf_size: Buffer size
- * @rx_max_pkt_size: RX max packet size
- * @rx_buf_stride: RX buffer stride
- * @rx_buffer_low_watermark: RX buffer low watermark
- * @rxdids: Supported RX descriptor ids
- * @q_vector: Backreference to associated vector
- * @size: Length of descriptor ring in bytes
- * @dma: Physical address of ring
- * @rx: universal receive descriptor array
- * @single_buf: Rx buffer descriptor array in singleq
- * @split_buf: Rx buffer descriptor array in splitq
- * @base_tx: basic Tx descriptor array
- * @base_ctx: basic Tx context descriptor array
- * @flex_tx: flex Tx descriptor array
- * @flex_ctx: flex Tx context descriptor array
- * @comp: completion descriptor array
- * @desc_ring: virtual descriptor ring address
  * @tx_max_bufs: Max buffers that can be transmitted with scatter-gather
  * @tx_min_pkt_len: Min supported packet length
- * @num_completions: Only relevant for TX completion queue. It tracks the
- *		     number of completions received to compare against the
- *		     number of completions pending, as accumulated by the
- *		     TX queues.
- * @buf_stack: Stack of empty buffers to store buffer info for out of order
- *	       buffer completions. See struct idpf_buf_lifo.
  * @compl_tag_bufid_m: Completion tag buffer id mask
  * @compl_tag_gen_s: Completion tag generation bit
  *	The format of the completion tag will change based on the TXQ
@@ -676,74 +742,44 @@ union idpf_queue_stats {
  *	This gives us 8*8160 = 65280 possible unique values.
  * @compl_tag_cur_gen: Used to keep track of current completion tag generation
  * @compl_tag_gen_max: To determine when compl_tag_cur_gen should be reset
- * @sched_buf_hash: Hash table to stores buffers
+ * @stash: Tx buffer stash for Flow-based scheduling mode
+ * @stats_sync: See struct u64_stats_sync
+ * @q_stats: See union idpf_tx_queue_stats
+ * @q_id: Queue id
+ * @size: Length of descriptor ring in bytes
+ * @dma: Physical address of ring
+ * @q_vector: Backreference to associated vector
  */
-struct idpf_queue {
-	struct device *dev;
-	struct idpf_vport *vport;
+struct idpf_tx_queue {
 	union {
-		struct idpf_txq_group *txq_grp;
-		struct idpf_rxq_group *rxq_grp;
-	};
-	u16 idx;
-	void __iomem *tail;
-	union {
-		struct idpf_tx_buf *tx_buf;
-		struct {
-			struct idpf_rx_buf *buf;
-			dma_addr_t hdr_buf_pa;
-			void *hdr_buf_va;
-		} rx_buf;
-	};
-	struct page_pool *pp;
-	struct sk_buff *skb;
-	u16 q_type;
-	u32 q_id;
-	u16 desc_count;
-
-	u16 next_to_use;
-	u16 next_to_clean;
-	u16 next_to_alloc;
-	DECLARE_BITMAP(flags, __IDPF_Q_FLAGS_NBITS);
-
-	union idpf_queue_stats q_stats;
-	struct u64_stats_sync stats_sync;
-
-	u32 cleaned_bytes;
-	u16 cleaned_pkts;
-
-	bool rx_hsplit_en;
-	u16 rx_hbuf_size;
-	u16 rx_buf_size;
-	u16 rx_max_pkt_size;
-	u16 rx_buf_stride;
-	u8 rx_buffer_low_watermark;
-	u64 rxdids;
-	struct idpf_q_vector *q_vector;
-	unsigned int size;
-	dma_addr_t dma;
-	union {
-		union virtchnl2_rx_desc *rx;
-
-		struct virtchnl2_singleq_rx_buf_desc *single_buf;
-		struct virtchnl2_splitq_rx_buf_desc *split_buf;
-
 		struct idpf_base_tx_desc *base_tx;
 		struct idpf_base_tx_ctx_desc *base_ctx;
 		union idpf_tx_flex_desc *flex_tx;
 		struct idpf_flex_tx_ctx_desc *flex_ctx;
 
-		struct idpf_splitq_tx_compl_desc *comp;
-
 		void *desc_ring;
 	};
+	struct idpf_tx_buf *tx_buf;
+	struct idpf_txq_group *txq_grp;
+	struct device *dev;
+	void __iomem *tail;
+
+	DECLARE_BITMAP(flags, __IDPF_Q_FLAGS_NBITS);
+	u16 idx;
+	u16 desc_count;
+	u16 next_to_use;
+	u16 next_to_clean;
+
+	struct net_device *netdev;
+
+	union {
+		u32 cleaned_bytes;
+		u32 clean_budget;
+	};
+	u16 cleaned_pkts;
 
 	u16 tx_max_bufs;
-	u8 tx_min_pkt_len;
-
-	u32 num_completions;
-
-	struct idpf_buf_lifo buf_stack;
+	u16 tx_min_pkt_len;
 
 	u16 compl_tag_bufid_m;
 	u16 compl_tag_gen_s;
@@ -751,45 +787,143 @@ struct idpf_queue {
 	u16 compl_tag_cur_gen;
 	u16 compl_tag_gen_max;
 
-	DECLARE_HASHTABLE(sched_buf_hash, 12);
-} ____cacheline_internodealigned_in_smp;
+	struct idpf_txq_stash *stash;
+
+	struct u64_stats_sync stats_sync;
+	struct idpf_tx_queue_stats q_stats;
+
+	/* Slowpath */
+	u32 q_id;
+	u32 size;
+	dma_addr_t dma;
+
+	struct idpf_q_vector *q_vector;
+} ____cacheline_aligned;
+
+/**
+ * struct idpf_buf_queue - software structure representing a buffer queue
+ * @split_buf: buffer descriptor array
+ * @rx_buf: Struct with RX buffer related members
+ * @rx_buf.buf: See struct idpf_rx_buf
+ * @rx_buf.hdr_buf_pa: DMA handle
+ * @rx_buf.hdr_buf_va: Virtual address
+ * @pp: Page pool pointer
+ * @tail: Tail offset
+ * @flags: See enum idpf_queue_flags_t
+ * @desc_count: Number of descriptors
+ * @next_to_use: Next descriptor to use
+ * @next_to_clean: Next descriptor to clean
+ * @next_to_alloc: RX buffer to allocate at
+ * @q_id: Queue id
+ * @size: Length of descriptor ring in bytes
+ * @dma: Physical address of ring
+ * @q_vector: Backreference to associated vector
+ * @rx_buffer_low_watermark: RX buffer low watermark
+ * @rx_hbuf_size: Header buffer size
+ * @rx_buf_size: Buffer size
+ */
+struct idpf_buf_queue {
+	struct virtchnl2_splitq_rx_buf_desc *split_buf;
+	struct {
+		struct idpf_rx_buf *buf;
+		dma_addr_t hdr_buf_pa;
+		void *hdr_buf_va;
+	} rx_buf;
+	struct page_pool *pp;
+	void __iomem *tail;
+
+	DECLARE_BITMAP(flags, __IDPF_Q_FLAGS_NBITS);
+	u16 desc_count;
+	u16 next_to_use;
+	u16 next_to_clean;
+	u16 next_to_alloc;
+
+	/* Slowpath */
+	u32 q_id;
+	u32 size;
+	dma_addr_t dma;
+
+	struct idpf_q_vector *q_vector;
+
+	u16 rx_buffer_low_watermark;
+	u16 rx_hbuf_size;
+	u16 rx_buf_size;
+} ____cacheline_aligned;
+
+/**
+ * struct idpf_compl_queue - software structure representing a completion queue
+ * @comp: completion descriptor array
+ * @txq_grp: See struct idpf_txq_group
+ * @flags: See enum idpf_queue_flags_t
+ * @desc_count: Number of descriptors
+ * @next_to_use: Next descriptor to use. Relevant in both split & single txq
+ *		 and bufq.
+ * @next_to_clean: Next descriptor to clean
+ * @netdev: &net_device corresponding to this queue
+ * @clean_budget: queue cleaning budget
+ * @num_completions: Only relevant for TX completion queue. It tracks the
+ *		     number of completions received to compare against the
+ *		     number of completions pending, as accumulated by the
+ *		     TX queues.
+ * @q_id: Queue id
+ * @size: Length of descriptor ring in bytes
+ * @dma: Physical address of ring
+ * @q_vector: Backreference to associated vector
+ */
+struct idpf_compl_queue {
+	struct idpf_splitq_tx_compl_desc *comp;
+	struct idpf_txq_group *txq_grp;
+
+	DECLARE_BITMAP(flags, __IDPF_Q_FLAGS_NBITS);
+	u16 desc_count;
+	u16 next_to_use;
+	u16 next_to_clean;
+
+	struct net_device *netdev;
+	u32 clean_budget;
+	u32 num_completions;
+
+	/* Slowpath */
+	u32 q_id;
+	u32 size;
+	dma_addr_t dma;
+
+	struct idpf_q_vector *q_vector;
+} ____cacheline_aligned;
 
 /**
  * struct idpf_sw_queue
- * @next_to_clean: Next descriptor to clean
- * @next_to_alloc: Buffer to allocate at
- * @flags: See enum idpf_queue_flags_t
  * @ring: Pointer to the ring
+ * @flags: See enum idpf_queue_flags_t
  * @desc_count: Descriptor count
- * @dev: Device back pointer for DMA mapping
+ * @next_to_use: Buffer to allocate at
+ * @next_to_clean: Next descriptor to clean
  *
  * Software queues are used in splitq mode to manage buffers between rxq
  * producer and the bufq consumer.  These are required in order to maintain a
  * lockless buffer management system and are strictly software only constructs.
  */
 struct idpf_sw_queue {
-	u16 next_to_clean;
-	u16 next_to_alloc;
+	u32 *ring;
+
 	DECLARE_BITMAP(flags, __IDPF_Q_FLAGS_NBITS);
-	u16 *ring;
 	u16 desc_count;
-	struct device *dev;
-} ____cacheline_internodealigned_in_smp;
+	u16 next_to_use;
+	u16 next_to_clean;
+} ____cacheline_aligned;
 
 /**
  * struct idpf_rxq_set
  * @rxq: RX queue
- * @refillq0: Pointer to refill queue 0
- * @refillq1: Pointer to refill queue 1
+ * @refillq: pointers to refill queues
  *
  * Splitq only.  idpf_rxq_set associates an rxq with at an array of refillqs.
  * Each rxq needs a refillq to return used buffers back to the respective bufq.
  * Bufqs then clean these refillqs for buffers to give to hardware.
  */
 struct idpf_rxq_set {
-	struct idpf_queue rxq;
-	struct idpf_sw_queue *refillq0;
-	struct idpf_sw_queue *refillq1;
+	struct idpf_rx_queue rxq;
+	struct idpf_sw_queue *refillq[IDPF_MAX_BUFQS_PER_RXQ_GRP];
 };
 
 /**
@@ -808,7 +942,7 @@ struct idpf_rxq_set {
  * managed by at most two bufqs (depending on performance configuration).
  */
 struct idpf_bufq_set {
-	struct idpf_queue bufq;
+	struct idpf_buf_queue bufq;
 	int num_refillqs;
 	struct idpf_sw_queue *refillqs;
 };
@@ -834,7 +968,7 @@ struct idpf_rxq_group {
 	union {
 		struct {
 			u16 num_rxq;
-			struct idpf_queue *rxqs[IDPF_LARGE_MAX_Q];
+			struct idpf_rx_queue *rxqs[IDPF_LARGE_MAX_Q];
 		} singleq;
 		struct {
 			u16 num_rxq_sets;
@@ -849,6 +983,7 @@ struct idpf_rxq_group {
  * @vport: Vport back pointer
  * @num_txq: Number of TX queues associated
  * @txqs: Array of TX queue pointers
+ * @stashes: array of OOO stashes for the queues
  * @complq: Associated completion queue pointer, split queue only
  * @num_completions_pending: Total number of completions pending for the
  *			     completion queue, acculumated for all TX queues
@@ -862,9 +997,10 @@ struct idpf_txq_group {
 	struct idpf_vport *vport;
 
 	u16 num_txq;
-	struct idpf_queue *txqs[IDPF_LARGE_MAX_Q];
+	struct idpf_tx_queue *txqs[IDPF_LARGE_MAX_Q];
+	struct idpf_txq_stash *stashes;
 
-	struct idpf_queue *complq;
+	struct idpf_compl_queue *complq;
 
 	u32 num_completions_pending;
 };
@@ -1001,28 +1137,26 @@ void idpf_deinit_rss(struct idpf_vport *vport);
 int idpf_rx_bufs_init_all(struct idpf_vport *vport);
 void idpf_rx_add_frag(struct idpf_rx_buf *rx_buf, struct sk_buff *skb,
 		      unsigned int size);
-struct sk_buff *idpf_rx_construct_skb(struct idpf_queue *rxq,
+struct sk_buff *idpf_rx_construct_skb(const struct idpf_rx_queue *rxq,
 				      struct idpf_rx_buf *rx_buf,
 				      unsigned int size);
-bool idpf_init_rx_buf_hw_alloc(struct idpf_queue *rxq, struct idpf_rx_buf *buf);
-void idpf_rx_buf_hw_update(struct idpf_queue *rxq, u32 val);
-void idpf_tx_buf_hw_update(struct idpf_queue *tx_q, u32 val,
+void idpf_tx_buf_hw_update(struct idpf_tx_queue *tx_q, u32 val,
 			   bool xmit_more);
 unsigned int idpf_size_to_txd_count(unsigned int size);
-netdev_tx_t idpf_tx_drop_skb(struct idpf_queue *tx_q, struct sk_buff *skb);
-void idpf_tx_dma_map_error(struct idpf_queue *txq, struct sk_buff *skb,
+netdev_tx_t idpf_tx_drop_skb(struct idpf_tx_queue *tx_q, struct sk_buff *skb);
+void idpf_tx_dma_map_error(struct idpf_tx_queue *txq, struct sk_buff *skb,
 			   struct idpf_tx_buf *first, u16 ring_idx);
-unsigned int idpf_tx_desc_count_required(struct idpf_queue *txq,
+unsigned int idpf_tx_desc_count_required(struct idpf_tx_queue *txq,
 					 struct sk_buff *skb);
 bool idpf_chk_linearize(struct sk_buff *skb, unsigned int max_bufs,
 			unsigned int count);
-int idpf_tx_maybe_stop_common(struct idpf_queue *tx_q, unsigned int size);
+int idpf_tx_maybe_stop_common(struct idpf_tx_queue *tx_q, unsigned int size);
 void idpf_tx_timeout(struct net_device *netdev, unsigned int txqueue);
 netdev_tx_t idpf_tx_splitq_start(struct sk_buff *skb,
 				 struct net_device *netdev);
 netdev_tx_t idpf_tx_singleq_start(struct sk_buff *skb,
 				  struct net_device *netdev);
-bool idpf_rx_singleq_buf_hw_alloc_all(struct idpf_queue *rxq,
+bool idpf_rx_singleq_buf_hw_alloc_all(struct idpf_rx_queue *rxq,
 				      u16 cleaned_count);
 int idpf_tso(struct sk_buff *skb, struct idpf_tx_offload_params *off);
 

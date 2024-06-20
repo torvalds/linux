@@ -186,7 +186,7 @@ static int idpf_tx_singleq_csum(struct sk_buff *skb,
  * and gets a physical address for each memory location and programs
  * it and the length into the transmit base mode descriptor.
  */
-static void idpf_tx_singleq_map(struct idpf_queue *tx_q,
+static void idpf_tx_singleq_map(struct idpf_tx_queue *tx_q,
 				struct idpf_tx_buf *first,
 				struct idpf_tx_offload_params *offloads)
 {
@@ -210,7 +210,7 @@ static void idpf_tx_singleq_map(struct idpf_queue *tx_q,
 	dma = dma_map_single(tx_q->dev, skb->data, size, DMA_TO_DEVICE);
 
 	/* write each descriptor with CRC bit */
-	if (tx_q->vport->crc_enable)
+	if (idpf_queue_has(CRC_EN, tx_q))
 		td_cmd |= IDPF_TX_DESC_CMD_ICRC;
 
 	for (frag = &skb_shinfo(skb)->frags[0];; frag++) {
@@ -285,7 +285,7 @@ static void idpf_tx_singleq_map(struct idpf_queue *tx_q,
 	/* set next_to_watch value indicating a packet is present */
 	first->next_to_watch = tx_desc;
 
-	nq = netdev_get_tx_queue(tx_q->vport->netdev, tx_q->idx);
+	nq = netdev_get_tx_queue(tx_q->netdev, tx_q->idx);
 	netdev_tx_sent_queue(nq, first->bytecount);
 
 	idpf_tx_buf_hw_update(tx_q, i, netdev_xmit_more());
@@ -299,7 +299,7 @@ static void idpf_tx_singleq_map(struct idpf_queue *tx_q,
  * ring entry to reflect that this index is a context descriptor
  */
 static struct idpf_base_tx_ctx_desc *
-idpf_tx_singleq_get_ctx_desc(struct idpf_queue *txq)
+idpf_tx_singleq_get_ctx_desc(struct idpf_tx_queue *txq)
 {
 	struct idpf_base_tx_ctx_desc *ctx_desc;
 	int ntu = txq->next_to_use;
@@ -320,7 +320,7 @@ idpf_tx_singleq_get_ctx_desc(struct idpf_queue *txq)
  * @txq: queue to send buffer on
  * @offload: offload parameter structure
  **/
-static void idpf_tx_singleq_build_ctx_desc(struct idpf_queue *txq,
+static void idpf_tx_singleq_build_ctx_desc(struct idpf_tx_queue *txq,
 					   struct idpf_tx_offload_params *offload)
 {
 	struct idpf_base_tx_ctx_desc *desc = idpf_tx_singleq_get_ctx_desc(txq);
@@ -333,7 +333,7 @@ static void idpf_tx_singleq_build_ctx_desc(struct idpf_queue *txq,
 		qw1 |= FIELD_PREP(IDPF_TXD_CTX_QW1_MSS_M, offload->mss);
 
 		u64_stats_update_begin(&txq->stats_sync);
-		u64_stats_inc(&txq->q_stats.tx.lso_pkts);
+		u64_stats_inc(&txq->q_stats.lso_pkts);
 		u64_stats_update_end(&txq->stats_sync);
 	}
 
@@ -352,7 +352,7 @@ static void idpf_tx_singleq_build_ctx_desc(struct idpf_queue *txq,
  * Returns NETDEV_TX_OK if sent, else an error code
  */
 static netdev_tx_t idpf_tx_singleq_frame(struct sk_buff *skb,
-					 struct idpf_queue *tx_q)
+					 struct idpf_tx_queue *tx_q)
 {
 	struct idpf_tx_offload_params offload = { };
 	struct idpf_tx_buf *first;
@@ -419,7 +419,7 @@ netdev_tx_t idpf_tx_singleq_start(struct sk_buff *skb,
 				  struct net_device *netdev)
 {
 	struct idpf_vport *vport = idpf_netdev_to_vport(netdev);
-	struct idpf_queue *tx_q;
+	struct idpf_tx_queue *tx_q;
 
 	tx_q = vport->txqs[skb_get_queue_mapping(skb)];
 
@@ -442,16 +442,15 @@ netdev_tx_t idpf_tx_singleq_start(struct sk_buff *skb,
  * @cleaned: returns number of packets cleaned
  *
  */
-static bool idpf_tx_singleq_clean(struct idpf_queue *tx_q, int napi_budget,
+static bool idpf_tx_singleq_clean(struct idpf_tx_queue *tx_q, int napi_budget,
 				  int *cleaned)
 {
-	unsigned int budget = tx_q->vport->compln_clean_budget;
 	unsigned int total_bytes = 0, total_pkts = 0;
 	struct idpf_base_tx_desc *tx_desc;
+	u32 budget = tx_q->clean_budget;
 	s16 ntc = tx_q->next_to_clean;
 	struct idpf_netdev_priv *np;
 	struct idpf_tx_buf *tx_buf;
-	struct idpf_vport *vport;
 	struct netdev_queue *nq;
 	bool dont_wake;
 
@@ -550,16 +549,15 @@ fetch_next_txq_desc:
 	*cleaned += total_pkts;
 
 	u64_stats_update_begin(&tx_q->stats_sync);
-	u64_stats_add(&tx_q->q_stats.tx.packets, total_pkts);
-	u64_stats_add(&tx_q->q_stats.tx.bytes, total_bytes);
+	u64_stats_add(&tx_q->q_stats.packets, total_pkts);
+	u64_stats_add(&tx_q->q_stats.bytes, total_bytes);
 	u64_stats_update_end(&tx_q->stats_sync);
 
-	vport = tx_q->vport;
-	np = netdev_priv(vport->netdev);
-	nq = netdev_get_tx_queue(vport->netdev, tx_q->idx);
+	np = netdev_priv(tx_q->netdev);
+	nq = netdev_get_tx_queue(tx_q->netdev, tx_q->idx);
 
 	dont_wake = np->state != __IDPF_VPORT_UP ||
-		    !netif_carrier_ok(vport->netdev);
+		    !netif_carrier_ok(tx_q->netdev);
 	__netif_txq_completed_wake(nq, total_pkts, total_bytes,
 				   IDPF_DESC_UNUSED(tx_q), IDPF_TX_WAKE_THRESH,
 				   dont_wake);
@@ -584,7 +582,7 @@ static bool idpf_tx_singleq_clean_all(struct idpf_q_vector *q_vec, int budget,
 
 	budget_per_q = num_txq ? max(budget / num_txq, 1) : 0;
 	for (i = 0; i < num_txq; i++) {
-		struct idpf_queue *q;
+		struct idpf_tx_queue *q;
 
 		q = q_vec->tx[i];
 		clean_complete &= idpf_tx_singleq_clean(q, budget_per_q,
@@ -614,14 +612,9 @@ static bool idpf_rx_singleq_test_staterr(const union virtchnl2_rx_desc *rx_desc,
 
 /**
  * idpf_rx_singleq_is_non_eop - process handling of non-EOP buffers
- * @rxq: Rx ring being processed
  * @rx_desc: Rx descriptor for current buffer
- * @skb: Current socket buffer containing buffer in progress
- * @ntc: next to clean
  */
-static bool idpf_rx_singleq_is_non_eop(struct idpf_queue *rxq,
-				       union virtchnl2_rx_desc *rx_desc,
-				       struct sk_buff *skb, u16 ntc)
+static bool idpf_rx_singleq_is_non_eop(const union virtchnl2_rx_desc *rx_desc)
 {
 	/* if we are the last buffer then there is nothing else to do */
 	if (likely(idpf_rx_singleq_test_staterr(rx_desc, IDPF_RXD_EOF_SINGLEQ)))
@@ -639,7 +632,7 @@ static bool idpf_rx_singleq_is_non_eop(struct idpf_queue *rxq,
  *
  * skb->protocol must be set before this function is called
  */
-static void idpf_rx_singleq_csum(struct idpf_queue *rxq, struct sk_buff *skb,
+static void idpf_rx_singleq_csum(struct idpf_rx_queue *rxq, struct sk_buff *skb,
 				 struct idpf_rx_csum_decoded *csum_bits,
 				 u16 ptype)
 {
@@ -647,14 +640,14 @@ static void idpf_rx_singleq_csum(struct idpf_queue *rxq, struct sk_buff *skb,
 	bool ipv4, ipv6;
 
 	/* check if Rx checksum is enabled */
-	if (unlikely(!(rxq->vport->netdev->features & NETIF_F_RXCSUM)))
+	if (unlikely(!(rxq->netdev->features & NETIF_F_RXCSUM)))
 		return;
 
 	/* check if HW has decoded the packet and checksum */
 	if (unlikely(!(csum_bits->l3l4p)))
 		return;
 
-	decoded = rxq->vport->rx_ptype_lkup[ptype];
+	decoded = rxq->rx_ptype_lkup[ptype];
 	if (unlikely(!(decoded.known && decoded.outer_ip)))
 		return;
 
@@ -707,7 +700,7 @@ static void idpf_rx_singleq_csum(struct idpf_queue *rxq, struct sk_buff *skb,
 
 checksum_fail:
 	u64_stats_update_begin(&rxq->stats_sync);
-	u64_stats_inc(&rxq->q_stats.rx.hw_csum_err);
+	u64_stats_inc(&rxq->q_stats.hw_csum_err);
 	u64_stats_update_end(&rxq->stats_sync);
 }
 
@@ -721,9 +714,9 @@ checksum_fail:
  * This function only operates on the VIRTCHNL2_RXDID_1_32B_BASE_M base 32byte
  * descriptor writeback format.
  **/
-static void idpf_rx_singleq_base_csum(struct idpf_queue *rx_q,
+static void idpf_rx_singleq_base_csum(struct idpf_rx_queue *rx_q,
 				      struct sk_buff *skb,
-				      union virtchnl2_rx_desc *rx_desc,
+				      const union virtchnl2_rx_desc *rx_desc,
 				      u16 ptype)
 {
 	struct idpf_rx_csum_decoded csum_bits;
@@ -761,9 +754,9 @@ static void idpf_rx_singleq_base_csum(struct idpf_queue *rx_q,
  * This function only operates on the VIRTCHNL2_RXDID_2_FLEX_SQ_NIC flexible
  * descriptor writeback format.
  **/
-static void idpf_rx_singleq_flex_csum(struct idpf_queue *rx_q,
+static void idpf_rx_singleq_flex_csum(struct idpf_rx_queue *rx_q,
 				      struct sk_buff *skb,
-				      union virtchnl2_rx_desc *rx_desc,
+				      const union virtchnl2_rx_desc *rx_desc,
 				      u16 ptype)
 {
 	struct idpf_rx_csum_decoded csum_bits;
@@ -801,14 +794,14 @@ static void idpf_rx_singleq_flex_csum(struct idpf_queue *rx_q,
  * This function only operates on the VIRTCHNL2_RXDID_1_32B_BASE_M base 32byte
  * descriptor writeback format.
  **/
-static void idpf_rx_singleq_base_hash(struct idpf_queue *rx_q,
+static void idpf_rx_singleq_base_hash(struct idpf_rx_queue *rx_q,
 				      struct sk_buff *skb,
-				      union virtchnl2_rx_desc *rx_desc,
+				      const union virtchnl2_rx_desc *rx_desc,
 				      struct idpf_rx_ptype_decoded *decoded)
 {
 	u64 mask, qw1;
 
-	if (unlikely(!(rx_q->vport->netdev->features & NETIF_F_RXHASH)))
+	if (unlikely(!(rx_q->netdev->features & NETIF_F_RXHASH)))
 		return;
 
 	mask = VIRTCHNL2_RX_BASE_DESC_FLTSTAT_RSS_HASH_M;
@@ -831,12 +824,12 @@ static void idpf_rx_singleq_base_hash(struct idpf_queue *rx_q,
  * This function only operates on the VIRTCHNL2_RXDID_2_FLEX_SQ_NIC flexible
  * descriptor writeback format.
  **/
-static void idpf_rx_singleq_flex_hash(struct idpf_queue *rx_q,
+static void idpf_rx_singleq_flex_hash(struct idpf_rx_queue *rx_q,
 				      struct sk_buff *skb,
-				      union virtchnl2_rx_desc *rx_desc,
+				      const union virtchnl2_rx_desc *rx_desc,
 				      struct idpf_rx_ptype_decoded *decoded)
 {
-	if (unlikely(!(rx_q->vport->netdev->features & NETIF_F_RXHASH)))
+	if (unlikely(!(rx_q->netdev->features & NETIF_F_RXHASH)))
 		return;
 
 	if (FIELD_GET(VIRTCHNL2_RX_FLEX_DESC_STATUS0_RSS_VALID_M,
@@ -857,16 +850,16 @@ static void idpf_rx_singleq_flex_hash(struct idpf_queue *rx_q,
  * order to populate the hash, checksum, VLAN, protocol, and
  * other fields within the skb.
  */
-static void idpf_rx_singleq_process_skb_fields(struct idpf_queue *rx_q,
-					       struct sk_buff *skb,
-					       union virtchnl2_rx_desc *rx_desc,
-					       u16 ptype)
+static void
+idpf_rx_singleq_process_skb_fields(struct idpf_rx_queue *rx_q,
+				   struct sk_buff *skb,
+				   const union virtchnl2_rx_desc *rx_desc,
+				   u16 ptype)
 {
-	struct idpf_rx_ptype_decoded decoded =
-					rx_q->vport->rx_ptype_lkup[ptype];
+	struct idpf_rx_ptype_decoded decoded = rx_q->rx_ptype_lkup[ptype];
 
 	/* modifies the skb - consumes the enet header */
-	skb->protocol = eth_type_trans(skb, rx_q->vport->netdev);
+	skb->protocol = eth_type_trans(skb, rx_q->netdev);
 
 	/* Check if we're using base mode descriptor IDs */
 	if (rx_q->rxdids == VIRTCHNL2_RXDID_1_32B_BASE_M) {
@@ -879,13 +872,29 @@ static void idpf_rx_singleq_process_skb_fields(struct idpf_queue *rx_q,
 }
 
 /**
+ * idpf_rx_buf_hw_update - Store the new tail and head values
+ * @rxq: queue to bump
+ * @val: new head index
+ */
+static void idpf_rx_buf_hw_update(struct idpf_rx_queue *rxq, u32 val)
+{
+	rxq->next_to_use = val;
+
+	if (unlikely(!rxq->tail))
+		return;
+
+	/* writel has an implicit memory barrier */
+	writel(val, rxq->tail);
+}
+
+/**
  * idpf_rx_singleq_buf_hw_alloc_all - Replace used receive buffers
  * @rx_q: queue for which the hw buffers are allocated
  * @cleaned_count: number of buffers to replace
  *
  * Returns false if all allocations were successful, true if any fail
  */
-bool idpf_rx_singleq_buf_hw_alloc_all(struct idpf_queue *rx_q,
+bool idpf_rx_singleq_buf_hw_alloc_all(struct idpf_rx_queue *rx_q,
 				      u16 cleaned_count)
 {
 	struct virtchnl2_singleq_rx_buf_desc *desc;
@@ -896,7 +905,7 @@ bool idpf_rx_singleq_buf_hw_alloc_all(struct idpf_queue *rx_q,
 		return false;
 
 	desc = &rx_q->single_buf[nta];
-	buf = &rx_q->rx_buf.buf[nta];
+	buf = &rx_q->rx_buf[nta];
 
 	do {
 		dma_addr_t addr;
@@ -916,7 +925,7 @@ bool idpf_rx_singleq_buf_hw_alloc_all(struct idpf_queue *rx_q,
 		nta++;
 		if (unlikely(nta == rx_q->desc_count)) {
 			desc = &rx_q->single_buf[0];
-			buf = rx_q->rx_buf.buf;
+			buf = rx_q->rx_buf;
 			nta = 0;
 		}
 
@@ -933,7 +942,6 @@ bool idpf_rx_singleq_buf_hw_alloc_all(struct idpf_queue *rx_q,
 
 /**
  * idpf_rx_singleq_extract_base_fields - Extract fields from the Rx descriptor
- * @rx_q: Rx descriptor queue
  * @rx_desc: the descriptor to process
  * @fields: storage for extracted values
  *
@@ -943,9 +951,9 @@ bool idpf_rx_singleq_buf_hw_alloc_all(struct idpf_queue *rx_q,
  * This function only operates on the VIRTCHNL2_RXDID_1_32B_BASE_M base 32byte
  * descriptor writeback format.
  */
-static void idpf_rx_singleq_extract_base_fields(struct idpf_queue *rx_q,
-						union virtchnl2_rx_desc *rx_desc,
-						struct idpf_rx_extracted *fields)
+static void
+idpf_rx_singleq_extract_base_fields(const union virtchnl2_rx_desc *rx_desc,
+				    struct idpf_rx_extracted *fields)
 {
 	u64 qword;
 
@@ -957,7 +965,6 @@ static void idpf_rx_singleq_extract_base_fields(struct idpf_queue *rx_q,
 
 /**
  * idpf_rx_singleq_extract_flex_fields - Extract fields from the Rx descriptor
- * @rx_q: Rx descriptor queue
  * @rx_desc: the descriptor to process
  * @fields: storage for extracted values
  *
@@ -967,9 +974,9 @@ static void idpf_rx_singleq_extract_base_fields(struct idpf_queue *rx_q,
  * This function only operates on the VIRTCHNL2_RXDID_2_FLEX_SQ_NIC flexible
  * descriptor writeback format.
  */
-static void idpf_rx_singleq_extract_flex_fields(struct idpf_queue *rx_q,
-						union virtchnl2_rx_desc *rx_desc,
-						struct idpf_rx_extracted *fields)
+static void
+idpf_rx_singleq_extract_flex_fields(const union virtchnl2_rx_desc *rx_desc,
+				    struct idpf_rx_extracted *fields)
 {
 	fields->size = FIELD_GET(VIRTCHNL2_RX_FLEX_DESC_PKT_LEN_M,
 				 le16_to_cpu(rx_desc->flex_nic_wb.pkt_len));
@@ -984,14 +991,15 @@ static void idpf_rx_singleq_extract_flex_fields(struct idpf_queue *rx_q,
  * @fields: storage for extracted values
  *
  */
-static void idpf_rx_singleq_extract_fields(struct idpf_queue *rx_q,
-					   union virtchnl2_rx_desc *rx_desc,
-					   struct idpf_rx_extracted *fields)
+static void
+idpf_rx_singleq_extract_fields(const struct idpf_rx_queue *rx_q,
+			       const union virtchnl2_rx_desc *rx_desc,
+			       struct idpf_rx_extracted *fields)
 {
 	if (rx_q->rxdids == VIRTCHNL2_RXDID_1_32B_BASE_M)
-		idpf_rx_singleq_extract_base_fields(rx_q, rx_desc, fields);
+		idpf_rx_singleq_extract_base_fields(rx_desc, fields);
 	else
-		idpf_rx_singleq_extract_flex_fields(rx_q, rx_desc, fields);
+		idpf_rx_singleq_extract_flex_fields(rx_desc, fields);
 }
 
 /**
@@ -1001,7 +1009,7 @@ static void idpf_rx_singleq_extract_fields(struct idpf_queue *rx_q,
  *
  * Returns true if there's any budget left (e.g. the clean is finished)
  */
-static int idpf_rx_singleq_clean(struct idpf_queue *rx_q, int budget)
+static int idpf_rx_singleq_clean(struct idpf_rx_queue *rx_q, int budget)
 {
 	unsigned int total_rx_bytes = 0, total_rx_pkts = 0;
 	struct sk_buff *skb = rx_q->skb;
@@ -1036,7 +1044,7 @@ static int idpf_rx_singleq_clean(struct idpf_queue *rx_q, int budget)
 
 		idpf_rx_singleq_extract_fields(rx_q, rx_desc, &fields);
 
-		rx_buf = &rx_q->rx_buf.buf[ntc];
+		rx_buf = &rx_q->rx_buf[ntc];
 		if (!fields.size) {
 			idpf_rx_put_page(rx_buf);
 			goto skip_data;
@@ -1058,7 +1066,7 @@ skip_data:
 		cleaned_count++;
 
 		/* skip if it is non EOP desc */
-		if (idpf_rx_singleq_is_non_eop(rx_q, rx_desc, skb, ntc))
+		if (idpf_rx_singleq_is_non_eop(rx_desc))
 			continue;
 
 #define IDPF_RXD_ERR_S FIELD_PREP(VIRTCHNL2_RX_BASE_DESC_QW1_ERROR_M, \
@@ -1084,7 +1092,7 @@ skip_data:
 						   rx_desc, fields.rx_ptype);
 
 		/* send completed skb up the stack */
-		napi_gro_receive(&rx_q->q_vector->napi, skb);
+		napi_gro_receive(rx_q->pp->p.napi, skb);
 		skb = NULL;
 
 		/* update budget accounting */
@@ -1099,8 +1107,8 @@ skip_data:
 		failure = idpf_rx_singleq_buf_hw_alloc_all(rx_q, cleaned_count);
 
 	u64_stats_update_begin(&rx_q->stats_sync);
-	u64_stats_add(&rx_q->q_stats.rx.packets, total_rx_pkts);
-	u64_stats_add(&rx_q->q_stats.rx.bytes, total_rx_bytes);
+	u64_stats_add(&rx_q->q_stats.packets, total_rx_pkts);
+	u64_stats_add(&rx_q->q_stats.bytes, total_rx_bytes);
 	u64_stats_update_end(&rx_q->stats_sync);
 
 	/* guarantee a trip back through this routine if there was a failure */
@@ -1127,7 +1135,7 @@ static bool idpf_rx_singleq_clean_all(struct idpf_q_vector *q_vec, int budget,
 	 */
 	budget_per_q = num_rxq ? max(budget / num_rxq, 1) : 0;
 	for (i = 0; i < num_rxq; i++) {
-		struct idpf_queue *rxq = q_vec->rx[i];
+		struct idpf_rx_queue *rxq = q_vec->rx[i];
 		int pkts_cleaned_per_q;
 
 		pkts_cleaned_per_q = idpf_rx_singleq_clean(rxq, budget_per_q);

@@ -1318,14 +1318,14 @@ static void idpf_rx_init_buf_tail(struct idpf_vport *vport)
 
 		if (idpf_is_queue_model_split(vport->rxq_model)) {
 			for (j = 0; j < vport->num_bufqs_per_qgrp; j++) {
-				struct idpf_queue *q =
+				const struct idpf_buf_queue *q =
 					&grp->splitq.bufq_sets[j].bufq;
 
 				writel(q->next_to_alloc, q->tail);
 			}
 		} else {
 			for (j = 0; j < grp->singleq.num_rxq; j++) {
-				struct idpf_queue *q =
+				const struct idpf_rx_queue *q =
 					grp->singleq.rxqs[j];
 
 				writel(q->next_to_alloc, q->tail);
@@ -1855,7 +1855,7 @@ int idpf_initiate_soft_reset(struct idpf_vport *vport,
 	enum idpf_vport_state current_state = np->state;
 	struct idpf_adapter *adapter = vport->adapter;
 	struct idpf_vport *new_vport;
-	int err, i;
+	int err;
 
 	/* If the system is low on memory, we can end up in bad state if we
 	 * free all the memory for queue resources and try to allocate them
@@ -1928,46 +1928,6 @@ int idpf_initiate_soft_reset(struct idpf_vport *vport,
 	 * mutexes applies here. We do not want to mess with those if possible.
 	 */
 	memcpy(vport, new_vport, offsetof(struct idpf_vport, link_speed_mbps));
-
-	/* Since idpf_vport_queues_alloc was called with new_port, the queue
-	 * back pointers are currently pointing to the local new_vport. Reset
-	 * the backpointers to the original vport here
-	 */
-	for (i = 0; i < vport->num_txq_grp; i++) {
-		struct idpf_txq_group *tx_qgrp = &vport->txq_grps[i];
-		int j;
-
-		tx_qgrp->vport = vport;
-		for (j = 0; j < tx_qgrp->num_txq; j++)
-			tx_qgrp->txqs[j]->vport = vport;
-
-		if (idpf_is_queue_model_split(vport->txq_model))
-			tx_qgrp->complq->vport = vport;
-	}
-
-	for (i = 0; i < vport->num_rxq_grp; i++) {
-		struct idpf_rxq_group *rx_qgrp = &vport->rxq_grps[i];
-		struct idpf_queue *q;
-		u16 num_rxq;
-		int j;
-
-		rx_qgrp->vport = vport;
-		for (j = 0; j < vport->num_bufqs_per_qgrp; j++)
-			rx_qgrp->splitq.bufq_sets[j].bufq.vport = vport;
-
-		if (idpf_is_queue_model_split(vport->rxq_model))
-			num_rxq = rx_qgrp->splitq.num_rxq_sets;
-		else
-			num_rxq = rx_qgrp->singleq.num_rxq;
-
-		for (j = 0; j < num_rxq; j++) {
-			if (idpf_is_queue_model_split(vport->rxq_model))
-				q = &rx_qgrp->splitq.rxq_sets[j]->rxq;
-			else
-				q = rx_qgrp->singleq.rxqs[j];
-			q->vport = vport;
-		}
-	}
 
 	if (reset_cause == IDPF_SR_Q_CHANGE)
 		idpf_vport_alloc_vec_indexes(vport);
