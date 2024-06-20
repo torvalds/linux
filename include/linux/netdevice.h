@@ -3202,6 +3202,7 @@ static inline bool dev_has_header(const struct net_device *dev)
 struct softnet_data {
 	struct list_head	poll_list;
 	struct sk_buff_head	process_queue;
+	local_lock_t		process_queue_bh_lock;
 
 	/* stats */
 	unsigned int		processed;
