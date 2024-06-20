@@ -653,6 +653,8 @@ int qca8k_port_bridge_join(struct dsa_switch *ds, int port,
 	port_mask = BIT(cpu_port);
 
 	for (i = 0; i < QCA8K_NUM_PORTS; i++) {
+		if (i == port)
+			continue;
 		if (dsa_is_cpu_port(ds, i))
 			continue;
 		if (!dsa_port_offloads_bridge(dsa_to_port(ds, i), &bridge))
@@ -665,8 +667,7 @@ int qca8k_port_bridge_join(struct dsa_switch *ds, int port,
 				      BIT(port));
 		if (ret)
 			return ret;
-		if (i != port)
-			port_mask |= BIT(i);
+		port_mask |= BIT(i);
 	}
 
 	/* Add all other ports to this ports portvlan mask */
@@ -685,6 +686,8 @@ void qca8k_port_bridge_leave(struct dsa_switch *ds, int port,
 	cpu_port = dsa_to_port(ds, port)->cpu_dp->index;
 
 	for (i = 0; i < QCA8K_NUM_PORTS; i++) {
+		if (i == port)
+			continue;
 		if (dsa_is_cpu_port(ds, i))
 			continue;
 		if (!dsa_port_offloads_bridge(dsa_to_port(ds, i), &bridge))
