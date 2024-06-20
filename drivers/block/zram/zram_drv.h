@@ -40,6 +40,13 @@
  */
 #define ZRAM_FLAG_SHIFT (PAGE_SHIFT + 1)
 
+/* Lifted the below from mm/workingset.c calculations */
+#define WORKINGSET_SHIFT 1
+#define EVICTION_SHIFT	((BITS_PER_LONG - BITS_PER_XA_VALUE) +	\
+			WORKINGSET_SHIFT + NODES_SHIFT + \
+			MEM_CGROUP_ID_SHIFT)
+#define EVICTION_MASK	(~0UL >> EVICTION_SHIFT)
+
 /* Flags for zram pages (table[page_no].flags) */
 enum zram_pageflags {
 	/* zram slot is locked */
@@ -125,4 +132,8 @@ struct zram {
 	struct dentry *debugfs_dir;
 #endif
 };
+
+extern void *get_shadow_from_swap_cache(swp_entry_t entry);
+extern void unpack_shadow(void *shadow, int *memcgidp, pg_data_t **pgdat,
+		unsigned long *evictionp, bool *workingsetp);
 #endif
