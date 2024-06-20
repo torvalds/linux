@@ -22,7 +22,6 @@
 
 #define CMDQ_OP_CODE_MASK		(0xff << CMDQ_OP_CODE_SHIFT)
 #define CMDQ_NUM_CMD(t)			(t->cmd_buf_size / CMDQ_INST_SIZE)
-#define CMDQ_GCE_NUM_MAX		(2)
 
 #define CMDQ_CURR_IRQ_STATUS		0x10
 #define CMDQ_SYNC_TOKEN_UPDATE		0x68
@@ -81,7 +80,7 @@ struct cmdq {
 	u32			irq_mask;
 	const struct gce_plat	*pdata;
 	struct cmdq_thread	*thread;
-	struct clk_bulk_data	clocks[CMDQ_GCE_NUM_MAX];
+	struct clk_bulk_data	*clocks;
 	bool			suspended;
 };
 
@@ -583,6 +582,11 @@ static int cmdq_get_clocks(struct device *dev, struct cmdq *cmdq)
 	static const char * const gce_name = "gce";
 	struct device_node *node, *parent = dev->of_node->parent;
 	struct clk_bulk_data *clks;
+
+	cmdq->clocks = devm_kcalloc(dev, cmdq->pdata->gce_num,
+				    sizeof(cmdq->clocks), GFP_KERNEL);
+	if (!cmdq->clocks)
+		return -ENOMEM;
 
 	if (cmdq->pdata->gce_num == 1) {
 		clks = &cmdq->clocks[0];
