@@ -73,20 +73,9 @@ static int sk_diag_dump_icons(struct sock *sk, struct sk_buff *nlskb)
 
 		buf = nla_data(attr);
 		i = 0;
-		skb_queue_walk(&sk->sk_receive_queue, skb) {
-			struct sock *req, *peer;
+		skb_queue_walk(&sk->sk_receive_queue, skb)
+			buf[i++] = sock_i_ino(unix_peer(skb->sk));
 
-			req = skb->sk;
-			/*
-			 * The state lock is outer for the same sk's
-			 * queue lock. With the other's queue locked it's
-			 * OK to lock the state.
-			 */
-			unix_state_lock_nested(req, U_LOCK_DIAG);
-			peer = unix_sk(req)->peer;
-			buf[i++] = (peer ? sock_i_ino(peer) : 0);
-			unix_state_unlock(req);
-		}
 		spin_unlock(&sk->sk_receive_queue.lock);
 	}
 
