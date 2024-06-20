@@ -618,6 +618,7 @@ static int qca8k_update_port_member(struct qca8k_priv *priv, int port,
 				    const struct net_device *bridge_dev,
 				    bool join)
 {
+	bool isolated = !!(priv->port_isolated_map & BIT(port)), other_isolated;
 	struct dsa_port *dp = dsa_to_port(priv->ds, port), *other_dp;
 	u32 port_mask = BIT(dp->cpu_dp->index);
 	int i, ret;
@@ -632,10 +633,12 @@ static int qca8k_update_port_member(struct qca8k_priv *priv, int port,
 		if (!dsa_port_offloads_bridge_dev(other_dp, bridge_dev))
 			continue;
 
+		other_isolated = !!(priv->port_isolated_map & BIT(i));
+
 		/* Add/remove this port to/from the portvlan mask of the other
 		 * ports in the bridge
 		 */
-		if (join) {
+		if (join && !(isolated && other_isolated)) {
 			port_mask |= BIT(i);
 			ret = regmap_set_bits(priv->regmap,
 					      QCA8K_PORT_LOOKUP_CTRL(i),
@@ -661,7 +664,7 @@ int qca8k_port_pre_bridge_flags(struct dsa_switch *ds, int port,
 				struct switchdev_brport_flags flags,
 				struct netlink_ext_ack *extack)
 {
-	if (flags.mask & ~BR_LEARNING)
+	if (flags.mask & ~(BR_LEARNING | BR_ISOLATED))
 		return -EINVAL;
 
 	return 0;
@@ -671,11 +674,26 @@ int qca8k_port_bridge_flags(struct dsa_switch *ds, int port,
 			    struct switchdev_brport_flags flags,
 			    struct netlink_ext_ack *extack)
 {
+	struct qca8k_priv *priv = ds->priv;
 	int ret;
 
 	if (flags.mask & BR_LEARNING) {
 		ret = qca8k_port_configure_learning(ds, port,
 						    flags.val & BR_LEARNING);
+		if (ret)
+			return ret;
+	}
+
+	if (flags.mask & BR_ISOLATED) {
+		struct dsa_port *dp = dsa_to_port(ds, port);
+		struct net_device *bridge_dev = dsa_port_bridge_dev_get(dp);
+
+		if (flags.val & BR_ISOLATED)
+			priv->port_isolated_map |= BIT(port);
+		else
+			priv->port_isolated_map &= ~BIT(port);
+
+		ret = qca8k_update_port_member(priv, port, bridge_dev, true);
 		if (ret)
 			return ret;
 	}

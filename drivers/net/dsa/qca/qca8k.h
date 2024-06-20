@@ -451,6 +451,7 @@ struct qca8k_priv {
 	 * Bit 1: port enabled. Bit 0: port disabled.
 	 */
 	u8 port_enabled_map;
+	u8 port_isolated_map;
 	struct qca8k_ports_config ports_config;
 	struct regmap *regmap;
 	struct mii_bus *bus;
