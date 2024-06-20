@@ -55,6 +55,7 @@ struct xfs_ail {
 	struct list_head	ail_cursors;
 	spinlock_t		ail_lock;
 	xfs_lsn_t		ail_last_pushed_lsn;
+	xfs_lsn_t		ail_head_lsn;
 	int			ail_log_flush;
 	unsigned long		ail_opstate;
 	struct list_head	ail_buf_list;
@@ -129,6 +130,18 @@ struct xfs_log_item *	xfs_trans_ail_cursor_last(struct xfs_ail *ailp,
 struct xfs_log_item *	xfs_trans_ail_cursor_next(struct xfs_ail *ailp,
 					struct xfs_ail_cursor *cur);
 void			xfs_trans_ail_cursor_done(struct xfs_ail_cursor *cur);
+
+void			__xfs_ail_assign_tail_lsn(struct xfs_ail *ailp);
+
+static inline void
+xfs_ail_assign_tail_lsn(
+	struct xfs_ail		*ailp)
+{
+
+	spin_lock(&ailp->ail_lock);
+	__xfs_ail_assign_tail_lsn(ailp);
+	spin_unlock(&ailp->ail_lock);
+}
 
 #if BITS_PER_LONG != 64
 static inline void

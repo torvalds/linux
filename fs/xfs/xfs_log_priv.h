@@ -431,13 +431,10 @@ struct xlog {
 	int			l_prev_block;   /* previous logical log block */
 
 	/*
-	 * l_last_sync_lsn and l_tail_lsn are atomics so they can be set and
-	 * read without needing to hold specific locks. To avoid operations
-	 * contending with other hot objects, place each of them on a separate
-	 * cacheline.
+	 * l_tail_lsn is atomic so it can be set and read without needing to
+	 * hold specific locks. To avoid operations contending with other hot
+	 * objects, it on a separate cacheline.
 	 */
-	/* lsn of last LR on disk */
-	atomic64_t		l_last_sync_lsn ____cacheline_aligned_in_smp;
 	/* lsn of 1st LR with unflushed * buffers */
 	atomic64_t		l_tail_lsn ____cacheline_aligned_in_smp;
 

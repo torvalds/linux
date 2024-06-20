@@ -721,6 +721,24 @@ xlog_cil_ail_insert_batch(
  * items into the AIL. This uses bulk insertion techniques to minimise AIL lock
  * traffic.
  *
+ * The AIL tracks log items via the start record LSN of the checkpoint,
+ * not the commit record LSN. This is because we can pipeline multiple
+ * checkpoints, and so the start record of checkpoint N+1 can be
+ * written before the commit record of checkpoint N. i.e:
+ *
+ *   start N			commit N
+ *	+-------------+------------+----------------+
+ *		  start N+1			commit N+1
+ *
+ * The tail of the log cannot be moved to the LSN of commit N when all
+ * the items of that checkpoint are written back, because then the
+ * start record for N+1 is no longer in the active portion of the log
+ * and recovery will fail/corrupt the filesystem.
+ *
+ * Hence when all the log items in checkpoint N are written back, the
+ * tail of the log most now only move as far forwards as the start LSN
+ * of checkpoint N+1.
+ *
  * If we are called with the aborted flag set, it is because a log write during
  * a CIL checkpoint commit has failed. In this case, all the items in the
  * checkpoint have already gone through iop_committed and iop_committing, which
@@ -738,24 +756,33 @@ xlog_cil_ail_insert_batch(
  */
 static void
 xlog_cil_ail_insert(
-	struct xlog		*log,
-	struct list_head	*lv_chain,
-	xfs_lsn_t		commit_lsn,
+	struct xfs_cil_ctx	*ctx,
 	bool			aborted)
 {
 #define LOG_ITEM_BATCH_SIZE	32
-	struct xfs_ail		*ailp = log->l_ailp;
+	struct xfs_ail		*ailp = ctx->cil->xc_log->l_ailp;
 	struct xfs_log_item	*log_items[LOG_ITEM_BATCH_SIZE];
 	struct xfs_log_vec	*lv;
 	struct xfs_ail_cursor	cur;
 	int			i = 0;
 
+	/*
+	 * Update the AIL head LSN with the commit record LSN of this
+	 * checkpoint. As iclogs are always completed in order, this should
+	 * always be the same (as iclogs can contain multiple commit records) or
+	 * higher LSN than the current head. We do this before insertion of the
+	 * items so that log space checks during insertion will reflect the
+	 * space that this checkpoint has already consumed.
+	 */
+	ASSERT(XFS_LSN_CMP(ctx->commit_lsn, ailp->ail_head_lsn) >= 0 ||
+			aborted);
 	spin_lock(&ailp->ail_lock);
-	xfs_trans_ail_cursor_last(ailp, &cur, commit_lsn);
+	ailp->ail_head_lsn = ctx->commit_lsn;
+	xfs_trans_ail_cursor_last(ailp, &cur, ctx->start_lsn);
 	spin_unlock(&ailp->ail_lock);
 
 	/* unpin all the log items */
-	list_for_each_entry(lv, lv_chain, lv_list) {
+	list_for_each_entry(lv, &ctx->lv_chain, lv_list) {
 		struct xfs_log_item	*lip = lv->lv_item;
 		xfs_lsn_t		item_lsn;
 
@@ -768,9 +795,10 @@ xlog_cil_ail_insert(
 		}
 
 		if (lip->li_ops->iop_committed)
-			item_lsn = lip->li_ops->iop_committed(lip, commit_lsn);
+			item_lsn = lip->li_ops->iop_committed(lip,
+					ctx->start_lsn);
 		else
-			item_lsn = commit_lsn;
+			item_lsn = ctx->start_lsn;
 
 		/* item_lsn of -1 means the item needs no further processing */
 		if (XFS_LSN_CMP(item_lsn, (xfs_lsn_t)-1) == 0)
@@ -787,7 +815,7 @@ xlog_cil_ail_insert(
 			continue;
 		}
 
-		if (item_lsn != commit_lsn) {
+		if (item_lsn != ctx->start_lsn) {
 
 			/*
 			 * Not a bulk update option due to unusual item_lsn.
@@ -810,14 +838,15 @@ xlog_cil_ail_insert(
 		log_items[i++] = lv->lv_item;
 		if (i >= LOG_ITEM_BATCH_SIZE) {
 			xlog_cil_ail_insert_batch(ailp, &cur, log_items,
-					LOG_ITEM_BATCH_SIZE, commit_lsn);
+					LOG_ITEM_BATCH_SIZE, ctx->start_lsn);
 			i = 0;
 		}
 	}
 
 	/* make sure we insert the remainder! */
 	if (i)
-		xlog_cil_ail_insert_batch(ailp, &cur, log_items, i, commit_lsn);
+		xlog_cil_ail_insert_batch(ailp, &cur, log_items, i,
+				ctx->start_lsn);
 
 	spin_lock(&ailp->ail_lock);
 	xfs_trans_ail_cursor_done(&cur);
@@ -863,8 +892,7 @@ xlog_cil_committed(
 		spin_unlock(&ctx->cil->xc_push_lock);
 	}
 
-	xlog_cil_ail_insert(ctx->cil->xc_log, &ctx->lv_chain,
-					ctx->start_lsn, abort);
+	xlog_cil_ail_insert(ctx, abort);
 
 	xfs_extent_busy_sort(&ctx->busy_extents.extent_list);
 	xfs_extent_busy_clear(mp, &ctx->busy_extents.extent_list,

@@ -1231,47 +1231,6 @@ xfs_log_cover(
 }
 
 /*
- * We may be holding the log iclog lock upon entering this routine.
- */
-xfs_lsn_t
-xlog_assign_tail_lsn_locked(
-	struct xfs_mount	*mp)
-{
-	struct xlog		*log = mp->m_log;
-	struct xfs_log_item	*lip;
-	xfs_lsn_t		tail_lsn;
-
-	assert_spin_locked(&mp->m_ail->ail_lock);
-
-	/*
-	 * To make sure we always have a valid LSN for the log tail we keep
-	 * track of the last LSN which was committed in log->l_last_sync_lsn,
-	 * and use that when the AIL was empty.
-	 */
-	lip = xfs_ail_min(mp->m_ail);
-	if (lip)
-		tail_lsn = lip->li_lsn;
-	else
-		tail_lsn = atomic64_read(&log->l_last_sync_lsn);
-	trace_xfs_log_assign_tail_lsn(log, tail_lsn);
-	atomic64_set(&log->l_tail_lsn, tail_lsn);
-	return tail_lsn;
-}
-
-xfs_lsn_t
-xlog_assign_tail_lsn(
-	struct xfs_mount	*mp)
-{
-	xfs_lsn_t		tail_lsn;
-
-	spin_lock(&mp->m_ail->ail_lock);
-	tail_lsn = xlog_assign_tail_lsn_locked(mp);
-	spin_unlock(&mp->m_ail->ail_lock);
-
-	return tail_lsn;
-}
-
-/*
  * Return the space in the log between the tail and the head.  The head
  * is passed in the cycle/bytes formal parms.  In the special case where
  * the reserve head has wrapped passed the tail, this calculation is no
@@ -1501,7 +1460,6 @@ xlog_alloc_log(
 	log->l_prev_block  = -1;
 	/* log->l_tail_lsn = 0x100000000LL; cycle = 1; current block = 0 */
 	xlog_assign_atomic_lsn(&log->l_tail_lsn, 1, 0);
-	xlog_assign_atomic_lsn(&log->l_last_sync_lsn, 1, 0);
 	log->l_curr_cycle  = 1;	    /* 0 is bad since this is initial value */
 
 	if (xfs_has_logv2(mp) && mp->m_sb.sb_logsunit > 1)
@@ -2549,44 +2507,23 @@ xlog_get_lowest_lsn(
 	return lowest_lsn;
 }
 
-/*
- * Completion of a iclog IO does not imply that a transaction has completed, as
- * transactions can be large enough to span many iclogs. We cannot change the
- * tail of the log half way through a transaction as this may be the only
- * transaction in the log and moving the tail to point to the middle of it
- * will prevent recovery from finding the start of the transaction. Hence we
- * should only update the last_sync_lsn if this iclog contains transaction
- * completion callbacks on it.
- *
- * We have to do this before we drop the icloglock to ensure we are the only one
- * that can update it.
- *
- * If we are moving the last_sync_lsn forwards, we also need to ensure we kick
- * the reservation grant head pushing. This is due to the fact that the push
- * target is bound by the current last_sync_lsn value. Hence if we have a large
- * amount of log space bound up in this committing transaction then the
- * last_sync_lsn value may be the limiting factor preventing tail pushing from
- * freeing space in the log. Hence once we've updated the last_sync_lsn we
- * should push the AIL to ensure the push target (and hence the grant head) is
- * no longer bound by the old log head location and can move forwards and make
- * progress again.
- */
 static void
 xlog_state_set_callback(
 	struct xlog		*log,
 	struct xlog_in_core	*iclog,
 	xfs_lsn_t		header_lsn)
 {
+	/*
+	 * If there are no callbacks on this iclog, we can mark it clean
+	 * immediately and return. Otherwise we need to run the
+	 * callbacks.
+	 */
+	if (list_empty(&iclog->ic_callbacks)) {
+		xlog_state_clean_iclog(log, iclog);
+		return;
+	}
 	trace_xlog_iclog_callback(iclog, _RET_IP_);
 	iclog->ic_state = XLOG_STATE_CALLBACK;
-
-	ASSERT(XFS_LSN_CMP(atomic64_read(&log->l_last_sync_lsn),
-			   header_lsn) <= 0);
-
-	if (list_empty_careful(&iclog->ic_callbacks))
-		return;
-
-	atomic64_set(&log->l_last_sync_lsn, header_lsn);
 }
 
 /*

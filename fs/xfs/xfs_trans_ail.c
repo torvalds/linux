@@ -720,6 +720,26 @@ xfs_ail_push_all_sync(
 	finish_wait(&ailp->ail_empty, &wait);
 }
 
+void
+__xfs_ail_assign_tail_lsn(
+	struct xfs_ail		*ailp)
+{
+	struct xlog		*log = ailp->ail_log;
+	xfs_lsn_t		tail_lsn;
+
+	assert_spin_locked(&ailp->ail_lock);
+
+	if (xlog_is_shutdown(log))
+		return;
+
+	tail_lsn = __xfs_ail_min_lsn(ailp);
+	if (!tail_lsn)
+		tail_lsn = ailp->ail_head_lsn;
+
+	trace_xfs_log_assign_tail_lsn(log, tail_lsn);
+	atomic64_set(&log->l_tail_lsn, tail_lsn);
+}
+
 /*
  * Callers should pass the original tail lsn so that we can detect if the tail
  * has moved as a result of the operation that was performed. If the caller
@@ -734,15 +754,13 @@ xfs_ail_update_finish(
 {
 	struct xlog		*log = ailp->ail_log;
 
-	/* if the tail lsn hasn't changed, don't do updates or wakeups. */
+	/* If the tail lsn hasn't changed, don't do updates or wakeups. */
 	if (!old_lsn || old_lsn == __xfs_ail_min_lsn(ailp)) {
 		spin_unlock(&ailp->ail_lock);
 		return;
 	}
 
-	if (!xlog_is_shutdown(log))
-		xlog_assign_tail_lsn_locked(log->l_mp);
-
+	__xfs_ail_assign_tail_lsn(ailp);
 	if (list_empty(&ailp->ail_head))
 		wake_up_all(&ailp->ail_empty);
 	spin_unlock(&ailp->ail_lock);

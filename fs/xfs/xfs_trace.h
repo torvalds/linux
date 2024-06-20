@@ -1407,19 +1407,19 @@ TRACE_EVENT(xfs_log_assign_tail_lsn,
 		__field(dev_t, dev)
 		__field(xfs_lsn_t, new_lsn)
 		__field(xfs_lsn_t, old_lsn)
-		__field(xfs_lsn_t, last_sync_lsn)
+		__field(xfs_lsn_t, head_lsn)
 	),
 	TP_fast_assign(
 		__entry->dev = log->l_mp->m_super->s_dev;
 		__entry->new_lsn = new_lsn;
 		__entry->old_lsn = atomic64_read(&log->l_tail_lsn);
-		__entry->last_sync_lsn = atomic64_read(&log->l_last_sync_lsn);
+		__entry->head_lsn = log->l_ailp->ail_head_lsn;
 	),
-	TP_printk("dev %d:%d new tail lsn %d/%d, old lsn %d/%d, last sync %d/%d",
+	TP_printk("dev %d:%d new tail lsn %d/%d, old lsn %d/%d, head lsn %d/%d",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  CYCLE_LSN(__entry->new_lsn), BLOCK_LSN(__entry->new_lsn),
 		  CYCLE_LSN(__entry->old_lsn), BLOCK_LSN(__entry->old_lsn),
-		  CYCLE_LSN(__entry->last_sync_lsn), BLOCK_LSN(__entry->last_sync_lsn))
+		  CYCLE_LSN(__entry->head_lsn), BLOCK_LSN(__entry->head_lsn))
 )
 
 DECLARE_EVENT_CLASS(xfs_file_class,
