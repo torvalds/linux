@@ -556,10 +556,10 @@ static void imgu_vb2_stop_streaming(struct vb2_queue *vq)
 			imgu->streaming = false;
 	}
 
-	imgu_return_all_buffers(imgu, node, VB2_BUF_STATE_ERROR);
 	mutex_unlock(&imgu->streaming_lock);
 
 	video_device_pipeline_stop(&node->vdev);
+	imgu_return_all_buffers(imgu, node, VB2_BUF_STATE_ERROR);
 }
 
 /******************** v4l2_ioctl_ops ********************/
