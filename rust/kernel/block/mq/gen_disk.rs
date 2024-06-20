@@ -100,6 +100,9 @@ impl GenDiskBuilder {
 
         lim.logical_block_size = self.logical_block_size;
         lim.physical_block_size = self.physical_block_size;
+        if self.rotational {
+            lim.features = bindings::BLK_FEAT_ROTATIONAL;
+        }
 
         // SAFETY: `tagset.raw_tag_set()` points to a valid and initialized tag set
         let gendisk = from_err_ptr(unsafe {
@@ -151,20 +154,6 @@ impl GenDiskBuilder {
         // `struct gendisk`. `set_capacity` takes a lock to synchronize this
         // operation, so we will not race.
         unsafe { bindings::set_capacity(gendisk, self.capacity_sectors) };
-
-        if !self.rotational {
-            // SAFETY: `gendisk` points to a valid and initialized instance of
-            // `struct gendisk`. This operation uses a relaxed atomic bit flip
-            // operation, so there is no race on this field.
-            unsafe { bindings::blk_queue_flag_set(bindings::QUEUE_FLAG_NONROT, (*gendisk).queue) };
-        } else {
-            // SAFETY: `gendisk` points to a valid and initialized instance of
-            // `struct gendisk`. This operation uses a relaxed atomic bit flip
-            // operation, so there is no race on this field.
-            unsafe {
-                bindings::blk_queue_flag_clear(bindings::QUEUE_FLAG_NONROT, (*gendisk).queue)
-            };
-        }
 
         crate::error::to_result(
             // SAFETY: `gendisk` points to a valid and initialized instance of
