@@ -486,6 +486,17 @@ static int wait_for_lmem_ready(struct xe_device *xe)
 	return 0;
 }
 
+static void update_device_info(struct xe_device *xe)
+{
+	/* disable features that are not available/applicable to VFs */
+	if (IS_SRIOV_VF(xe)) {
+		xe->info.enable_display = 0;
+		xe->info.has_heci_gscfi = 0;
+		xe->info.skip_guc_pc = 1;
+		xe->info.skip_pcode = 1;
+	}
+}
+
 /**
  * xe_device_probe_early: Device early probe
  * @xe: xe device instance
@@ -505,6 +516,8 @@ int xe_device_probe_early(struct xe_device *xe)
 		return err;
 
 	xe_sriov_probe_early(xe);
+
+	update_device_info(xe);
 
 	err = xe_pcode_probe_early(xe);
 	if (err)
