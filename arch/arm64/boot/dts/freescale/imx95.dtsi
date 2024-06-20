@@ -462,6 +462,8 @@
 				clocks = <&scmi_clk IMX95_CLK_LPI2C3>,
 					 <&scmi_clk IMX95_CLK_BUSWAKEUP>;
 				clock-names = "per", "ipg";
+				#address-cells = <1>;
+				#size-cells = <0>;
 				status = "disabled";
 			};
 
@@ -472,6 +474,8 @@
 				clocks = <&scmi_clk IMX95_CLK_LPI2C4>,
 					 <&scmi_clk IMX95_CLK_BUSWAKEUP>;
 				clock-names = "per", "ipg";
+				#address-cells = <1>;
+				#size-cells = <0>;
 				status = "disabled";
 			};
 
@@ -566,6 +570,8 @@
 				clocks = <&scmi_clk IMX95_CLK_LPI2C5>,
 					 <&scmi_clk IMX95_CLK_BUSWAKEUP>;
 				clock-names = "per", "ipg";
+				#address-cells = <1>;
+				#size-cells = <0>;
 				status = "disabled";
 			};
 
@@ -576,6 +582,8 @@
 				clocks = <&scmi_clk IMX95_CLK_LPI2C6>,
 					 <&scmi_clk IMX95_CLK_BUSWAKEUP>;
 				clock-names = "per", "ipg";
+				#address-cells = <1>;
+				#size-cells = <0>;
 				status = "disabled";
 			};
 
@@ -586,6 +594,8 @@
 				clocks = <&scmi_clk IMX95_CLK_LPI2C7>,
 					 <&scmi_clk IMX95_CLK_BUSWAKEUP>;
 				clock-names = "per", "ipg";
+				#address-cells = <1>;
+				#size-cells = <0>;
 				status = "disabled";
 			};
 
@@ -596,6 +606,8 @@
 				clocks = <&scmi_clk IMX95_CLK_LPI2C8>,
 					 <&scmi_clk IMX95_CLK_BUSWAKEUP>;
 				clock-names = "per", "ipg";
+				#address-cells = <1>;
+				#size-cells = <0>;
 				status = "disabled";
 			};
 
@@ -816,6 +828,8 @@
 				clocks = <&scmi_clk IMX95_CLK_LPI2C1>,
 					 <&scmi_clk IMX95_CLK_BUSAON>;
 				clock-names = "per", "ipg";
+				#address-cells = <1>;
+				#size-cells = <0>;
 				status = "disabled";
 			};
 
@@ -826,6 +840,8 @@
 				clocks = <&scmi_clk IMX95_CLK_LPI2C2>,
 					 <&scmi_clk IMX95_CLK_BUSAON>;
 				clock-names = "per", "ipg";
+				#address-cells = <1>;
+				#size-cells = <0>;
 				status = "disabled";
 			};
 
