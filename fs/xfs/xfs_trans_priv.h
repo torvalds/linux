@@ -52,15 +52,17 @@ struct xfs_ail {
 	struct xlog		*ail_log;
 	struct task_struct	*ail_task;
 	struct list_head	ail_head;
-	xfs_lsn_t		ail_target;
-	xfs_lsn_t		ail_target_prev;
 	struct list_head	ail_cursors;
 	spinlock_t		ail_lock;
 	xfs_lsn_t		ail_last_pushed_lsn;
 	int			ail_log_flush;
+	unsigned long		ail_opstate;
 	struct list_head	ail_buf_list;
 	wait_queue_head_t	ail_empty;
 };
+
+/* Push all items out of the AIL immediately. */
+#define XFS_AIL_OPSTATE_PUSH_ALL	0u
 
 /*
  * From xfs_trans_ail.c
@@ -98,10 +100,29 @@ void xfs_ail_update_finish(struct xfs_ail *ailp, xfs_lsn_t old_lsn)
 			__releases(ailp->ail_lock);
 void xfs_trans_ail_delete(struct xfs_log_item *lip, int shutdown_type);
 
-void			xfs_ail_push(struct xfs_ail *, xfs_lsn_t);
-void			xfs_ail_push_all(struct xfs_ail *);
-void			xfs_ail_push_all_sync(struct xfs_ail *);
-struct xfs_log_item	*xfs_ail_min(struct xfs_ail  *ailp);
+static inline void xfs_ail_push(struct xfs_ail *ailp)
+{
+	wake_up_process(ailp->ail_task);
+}
+
+static inline void xfs_ail_push_all(struct xfs_ail *ailp)
+{
+	if (!test_and_set_bit(XFS_AIL_OPSTATE_PUSH_ALL, &ailp->ail_opstate))
+		xfs_ail_push(ailp);
+}
+
+xfs_lsn_t		__xfs_ail_push_target(struct xfs_ail *ailp);
+static inline xfs_lsn_t xfs_ail_push_target(struct xfs_ail *ailp)
+{
+	xfs_lsn_t	lsn;
+
+	spin_lock(&ailp->ail_lock);
+	lsn = __xfs_ail_push_target(ailp);
+	spin_unlock(&ailp->ail_lock);
+	return lsn;
+}
+
+void			xfs_ail_push_all_sync(struct xfs_ail *ailp);
 xfs_lsn_t		xfs_ail_min_lsn(struct xfs_ail *ailp);
 
 struct xfs_log_item *	xfs_trans_ail_cursor_first(struct xfs_ail *ailp,

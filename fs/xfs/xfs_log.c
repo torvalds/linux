@@ -30,10 +30,6 @@ xlog_alloc_log(
 	struct xfs_buftarg	*log_target,
 	xfs_daddr_t		blk_offset,
 	int			num_bblks);
-STATIC int
-xlog_space_left(
-	struct xlog		*log,
-	atomic64_t		*head);
 STATIC void
 xlog_dealloc_log(
 	struct xlog		*log);
@@ -50,10 +46,6 @@ xlog_state_get_iclog_space(
 	struct xlog_in_core	**iclog,
 	struct xlog_ticket	*ticket,
 	int			*logoffsetp);
-STATIC void
-xlog_grant_push_ail(
-	struct xlog		*log,
-	int			need_bytes);
 STATIC void
 xlog_sync(
 	struct xlog		*log,
@@ -242,42 +234,15 @@ xlog_grant_head_wake(
 {
 	struct xlog_ticket	*tic;
 	int			need_bytes;
-	bool			woken_task = false;
 
 	list_for_each_entry(tic, &head->waiters, t_queue) {
-
-		/*
-		 * There is a chance that the size of the CIL checkpoints in
-		 * progress at the last AIL push target calculation resulted in
-		 * limiting the target to the log head (l_last_sync_lsn) at the
-		 * time. This may not reflect where the log head is now as the
-		 * CIL checkpoints may have completed.
-		 *
-		 * Hence when we are woken here, it may be that the head of the
-		 * log that has moved rather than the tail. As the tail didn't
-		 * move, there still won't be space available for the
-		 * reservation we require.  However, if the AIL has already
-		 * pushed to the target defined by the old log head location, we
-		 * will hang here waiting for something else to update the AIL
-		 * push target.
-		 *
-		 * Therefore, if there isn't space to wake the first waiter on
-		 * the grant head, we need to push the AIL again to ensure the
-		 * target reflects both the current log tail and log head
-		 * position before we wait for the tail to move again.
-		 */
-
 		need_bytes = xlog_ticket_reservation(log, head, tic);
-		if (*free_bytes < need_bytes) {
-			if (!woken_task)
-				xlog_grant_push_ail(log, need_bytes);
+		if (*free_bytes < need_bytes)
 			return false;
-		}
 
 		*free_bytes -= need_bytes;
 		trace_xfs_log_grant_wake_up(log, tic);
 		wake_up_process(tic->t_task);
-		woken_task = true;
 	}
 
 	return true;
@@ -296,12 +261,14 @@ xlog_grant_head_wait(
 	do {
 		if (xlog_is_shutdown(log))
 			goto shutdown;
-		xlog_grant_push_ail(log, need_bytes);
 
 		__set_current_state(TASK_UNINTERRUPTIBLE);
 		spin_unlock(&head->lock);
 
 		XFS_STATS_INC(log->l_mp, xs_sleep_logspace);
+
+		/* Push on the AIL to free up all the log space. */
+		xfs_ail_push_all(log->l_ailp);
 
 		trace_xfs_log_grant_sleep(log, tic);
 		schedule();
@@ -418,9 +385,6 @@ xfs_log_regrant(
 	 * of rolling transactions in the log easily.
 	 */
 	tic->t_tid++;
-
-	xlog_grant_push_ail(log, tic->t_unit_res);
-
 	tic->t_curr_res = tic->t_unit_res;
 	if (tic->t_cnt > 0)
 		return 0;
@@ -477,12 +441,7 @@ xfs_log_reserve(
 	ASSERT(*ticp == NULL);
 	tic = xlog_ticket_alloc(log, unit_bytes, cnt, permanent);
 	*ticp = tic;
-
-	xlog_grant_push_ail(log, tic->t_cnt ? tic->t_unit_res * tic->t_cnt
-					    : tic->t_unit_res);
-
 	trace_xfs_log_reserve(log, tic);
-
 	error = xlog_grant_head_check(log, &log->l_reserve_head, tic,
 				      &need_bytes);
 	if (error)
@@ -1330,7 +1289,7 @@ xlog_assign_tail_lsn(
  * shortcut invalidity asserts in this case so that we don't trigger them
  * falsely.
  */
-STATIC int
+int
 xlog_space_left(
 	struct xlog	*log,
 	atomic64_t	*head)
@@ -1666,89 +1625,6 @@ out_free_log:
 out:
 	return ERR_PTR(error);
 }	/* xlog_alloc_log */
-
-/*
- * Compute the LSN that we'd need to push the log tail towards in order to have
- * (a) enough on-disk log space to log the number of bytes specified, (b) at
- * least 25% of the log space free, and (c) at least 256 blocks free.  If the
- * log free space already meets all three thresholds, this function returns
- * NULLCOMMITLSN.
- */
-xfs_lsn_t
-xlog_grant_push_threshold(
-	struct xlog	*log,
-	int		need_bytes)
-{
-	xfs_lsn_t	threshold_lsn = 0;
-	xfs_lsn_t	last_sync_lsn;
-	int		free_blocks;
-	int		free_bytes;
-	int		threshold_block;
-	int		threshold_cycle;
-	int		free_threshold;
-
-	ASSERT(BTOBB(need_bytes) < log->l_logBBsize);
-
-	free_bytes = xlog_space_left(log, &log->l_reserve_head.grant);
-	free_blocks = BTOBBT(free_bytes);
-
-	/*
-	 * Set the threshold for the minimum number of free blocks in the
-	 * log to the maximum of what the caller needs, one quarter of the
-	 * log, and 256 blocks.
-	 */
-	free_threshold = BTOBB(need_bytes);
-	free_threshold = max(free_threshold, (log->l_logBBsize >> 2));
-	free_threshold = max(free_threshold, 256);
-	if (free_blocks >= free_threshold)
-		return NULLCOMMITLSN;
-
-	xlog_crack_atomic_lsn(&log->l_tail_lsn, &threshold_cycle,
-						&threshold_block);
-	threshold_block += free_threshold;
-	if (threshold_block >= log->l_logBBsize) {
-		threshold_block -= log->l_logBBsize;
-		threshold_cycle += 1;
-	}
-	threshold_lsn = xlog_assign_lsn(threshold_cycle,
-					threshold_block);
-	/*
-	 * Don't pass in an lsn greater than the lsn of the last
-	 * log record known to be on disk. Use a snapshot of the last sync lsn
-	 * so that it doesn't change between the compare and the set.
-	 */
-	last_sync_lsn = atomic64_read(&log->l_last_sync_lsn);
-	if (XFS_LSN_CMP(threshold_lsn, last_sync_lsn) > 0)
-		threshold_lsn = last_sync_lsn;
-
-	return threshold_lsn;
-}
-
-/*
- * Push the tail of the log if we need to do so to maintain the free log space
- * thresholds set out by xlog_grant_push_threshold.  We may need to adopt a
- * policy which pushes on an lsn which is further along in the log once we
- * reach the high water mark.  In this manner, we would be creating a low water
- * mark.
- */
-STATIC void
-xlog_grant_push_ail(
-	struct xlog	*log,
-	int		need_bytes)
-{
-	xfs_lsn_t	threshold_lsn;
-
-	threshold_lsn = xlog_grant_push_threshold(log, need_bytes);
-	if (threshold_lsn == NULLCOMMITLSN || xlog_is_shutdown(log))
-		return;
-
-	/*
-	 * Get the transaction layer to kick the dirty buffers out to
-	 * disk asynchronously. No point in trying to do this if
-	 * the filesystem is shutting down.
-	 */
-	xfs_ail_push(log->l_ailp, threshold_lsn);
-}
 
 /*
  * Stamp cycle number in every block
@@ -2712,7 +2588,6 @@ xlog_state_set_callback(
 		return;
 
 	atomic64_set(&log->l_last_sync_lsn, header_lsn);
-	xlog_grant_push_ail(log, 0);
 }
 
 /*

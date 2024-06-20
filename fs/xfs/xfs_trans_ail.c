@@ -135,25 +135,6 @@ xfs_ail_min_lsn(
 }
 
 /*
- * Return the maximum lsn held in the AIL, or zero if the AIL is empty.
- */
-static xfs_lsn_t
-xfs_ail_max_lsn(
-	struct xfs_ail		*ailp)
-{
-	xfs_lsn_t       	lsn = 0;
-	struct xfs_log_item	*lip;
-
-	spin_lock(&ailp->ail_lock);
-	lip = xfs_ail_max(ailp);
-	if (lip)
-		lsn = lip->li_lsn;
-	spin_unlock(&ailp->ail_lock);
-
-	return lsn;
-}
-
-/*
  * The cursor keeps track of where our current traversal is up to by tracking
  * the next item in the list for us. However, for this to be safe, removing an
  * object from the AIL needs to invalidate any cursor that points to it. hence
@@ -414,6 +395,56 @@ xfsaild_push_item(
 	return lip->li_ops->iop_push(lip, &ailp->ail_buf_list);
 }
 
+/*
+ * Compute the LSN that we'd need to push the log tail towards in order to have
+ * at least 25% of the log space free.  If the log free space already meets this
+ * threshold, this function returns NULLCOMMITLSN.
+ */
+xfs_lsn_t
+__xfs_ail_push_target(
+	struct xfs_ail		*ailp)
+{
+	struct xlog	*log = ailp->ail_log;
+	xfs_lsn_t	threshold_lsn = 0;
+	xfs_lsn_t	last_sync_lsn;
+	int		free_blocks;
+	int		free_bytes;
+	int		threshold_block;
+	int		threshold_cycle;
+	int		free_threshold;
+
+	free_bytes = xlog_space_left(log, &log->l_reserve_head.grant);
+	free_blocks = BTOBBT(free_bytes);
+
+	/*
+	 * The threshold for the minimum number of free blocks is one quarter of
+	 * the entire log space.
+	 */
+	free_threshold = log->l_logBBsize >> 2;
+	if (free_blocks >= free_threshold)
+		return NULLCOMMITLSN;
+
+	xlog_crack_atomic_lsn(&log->l_tail_lsn, &threshold_cycle,
+						&threshold_block);
+	threshold_block += free_threshold;
+	if (threshold_block >= log->l_logBBsize) {
+		threshold_block -= log->l_logBBsize;
+		threshold_cycle += 1;
+	}
+	threshold_lsn = xlog_assign_lsn(threshold_cycle,
+					threshold_block);
+	/*
+	 * Don't pass in an lsn greater than the lsn of the last
+	 * log record known to be on disk. Use a snapshot of the last sync lsn
+	 * so that it doesn't change between the compare and the set.
+	 */
+	last_sync_lsn = atomic64_read(&log->l_last_sync_lsn);
+	if (XFS_LSN_CMP(threshold_lsn, last_sync_lsn) > 0)
+		threshold_lsn = last_sync_lsn;
+
+	return threshold_lsn;
+}
+
 static long
 xfsaild_push(
 	struct xfs_ail		*ailp)
@@ -454,21 +485,24 @@ xfsaild_push(
 	 * capture updates that occur after the sync push waiter has gone to
 	 * sleep.
 	 */
-	if (waitqueue_active(&ailp->ail_empty)) {
+	if (test_bit(XFS_AIL_OPSTATE_PUSH_ALL, &ailp->ail_opstate) ||
+	    waitqueue_active(&ailp->ail_empty)) {
 		lip = xfs_ail_max(ailp);
 		if (lip)
 			target = lip->li_lsn;
+		else
+			clear_bit(XFS_AIL_OPSTATE_PUSH_ALL, &ailp->ail_opstate);
 	} else {
-		/* barrier matches the ail_target update in xfs_ail_push() */
-		smp_rmb();
-		target = ailp->ail_target;
-		ailp->ail_target_prev = target;
+		target = __xfs_ail_push_target(ailp);
 	}
+
+	if (target == NULLCOMMITLSN)
+		goto out_done;
 
 	/* we're done if the AIL is empty or our push has reached the end */
 	lip = xfs_trans_ail_cursor_first(ailp, &cur, ailp->ail_last_pushed_lsn);
 	if (!lip)
-		goto out_done;
+		goto out_done_cursor;
 
 	XFS_STATS_INC(mp, xs_push_ail);
 
@@ -553,8 +587,9 @@ xfsaild_push(
 		lsn = lip->li_lsn;
 	}
 
-out_done:
+out_done_cursor:
 	xfs_trans_ail_cursor_done(&cur);
+out_done:
 	spin_unlock(&ailp->ail_lock);
 
 	if (xfs_buf_delwri_submit_nowait(&ailp->ail_buf_list))
@@ -603,7 +638,7 @@ xfsaild(
 	set_freezable();
 
 	while (1) {
-		if (tout && tout <= 20)
+		if (tout)
 			set_current_state(TASK_KILLABLE|TASK_FREEZABLE);
 		else
 			set_current_state(TASK_INTERRUPTIBLE|TASK_FREEZABLE);
@@ -639,21 +674,9 @@ xfsaild(
 			break;
 		}
 
+		/* Idle if the AIL is empty. */
 		spin_lock(&ailp->ail_lock);
-
-		/*
-		 * Idle if the AIL is empty and we are not racing with a target
-		 * update. We check the AIL after we set the task to a sleep
-		 * state to guarantee that we either catch an ail_target update
-		 * or that a wake_up resets the state to TASK_RUNNING.
-		 * Otherwise, we run the risk of sleeping indefinitely.
-		 *
-		 * The barrier matches the ail_target update in xfs_ail_push().
-		 */
-		smp_rmb();
-		if (!xfs_ail_min(ailp) &&
-		    ailp->ail_target == ailp->ail_target_prev &&
-		    list_empty(&ailp->ail_buf_list)) {
+		if (!xfs_ail_min(ailp) && list_empty(&ailp->ail_buf_list)) {
 			spin_unlock(&ailp->ail_lock);
 			schedule();
 			tout = 0;
@@ -673,56 +696,6 @@ xfsaild(
 
 	memalloc_noreclaim_restore(noreclaim_flag);
 	return 0;
-}
-
-/*
- * This routine is called to move the tail of the AIL forward.  It does this by
- * trying to flush items in the AIL whose lsns are below the given
- * threshold_lsn.
- *
- * The push is run asynchronously in a workqueue, which means the caller needs
- * to handle waiting on the async flush for space to become available.
- * We don't want to interrupt any push that is in progress, hence we only queue
- * work if we set the pushing bit appropriately.
- *
- * We do this unlocked - we only need to know whether there is anything in the
- * AIL at the time we are called. We don't need to access the contents of
- * any of the objects, so the lock is not needed.
- */
-void
-xfs_ail_push(
-	struct xfs_ail		*ailp,
-	xfs_lsn_t		threshold_lsn)
-{
-	struct xfs_log_item	*lip;
-
-	lip = xfs_ail_min(ailp);
-	if (!lip || xlog_is_shutdown(ailp->ail_log) ||
-	    XFS_LSN_CMP(threshold_lsn, ailp->ail_target) <= 0)
-		return;
-
-	/*
-	 * Ensure that the new target is noticed in push code before it clears
-	 * the XFS_AIL_PUSHING_BIT.
-	 */
-	smp_wmb();
-	xfs_trans_ail_copy_lsn(ailp, &ailp->ail_target, &threshold_lsn);
-	smp_wmb();
-
-	wake_up_process(ailp->ail_task);
-}
-
-/*
- * Push out all items in the AIL immediately
- */
-void
-xfs_ail_push_all(
-	struct xfs_ail  *ailp)
-{
-	xfs_lsn_t       threshold_lsn = xfs_ail_max_lsn(ailp);
-
-	if (threshold_lsn)
-		xfs_ail_push(ailp, threshold_lsn);
 }
 
 /*
@@ -828,6 +801,13 @@ xfs_trans_ail_update_bulk(
 
 	if (!list_empty(&tmp))
 		xfs_ail_splice(ailp, cur, &tmp, lsn);
+
+	/*
+	 * If this is the first insert, wake up the push daemon so it can
+	 * actively scan for items to push.
+	 */
+	if (!mlip)
+		wake_up_process(ailp->ail_task);
 
 	xfs_ail_update_finish(ailp, tail_lsn);
 }
