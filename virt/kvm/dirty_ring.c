@@ -55,6 +55,9 @@ static void kvm_reset_dirty_gfn(struct kvm *kvm, u32 slot, u64 offset, u64 mask)
 	struct kvm_memory_slot *memslot;
 	int as_id, id;
 
+	if (!mask)
+		return;
+
 	as_id = slot >> 16;
 	id = (u16)slot;
 
