@@ -772,14 +772,17 @@ xlog_cil_ail_insert(
 	 * always be the same (as iclogs can contain multiple commit records) or
 	 * higher LSN than the current head. We do this before insertion of the
 	 * items so that log space checks during insertion will reflect the
-	 * space that this checkpoint has already consumed.
+	 * space that this checkpoint has already consumed.  We call
+	 * xfs_ail_update_finish() so that tail space and space-based wakeups
+	 * will be recalculated appropriately.
 	 */
 	ASSERT(XFS_LSN_CMP(ctx->commit_lsn, ailp->ail_head_lsn) >= 0 ||
 			aborted);
 	spin_lock(&ailp->ail_lock);
-	ailp->ail_head_lsn = ctx->commit_lsn;
 	xfs_trans_ail_cursor_last(ailp, &cur, ctx->start_lsn);
-	spin_unlock(&ailp->ail_lock);
+	ailp->ail_head_lsn = ctx->commit_lsn;
+	/* xfs_ail_update_finish() drops the ail_lock */
+	xfs_ail_update_finish(ailp, NULLCOMMITLSN);
 
 	/* unpin all the log items */
 	list_for_each_entry(lv, &ctx->lv_chain, lv_list) {

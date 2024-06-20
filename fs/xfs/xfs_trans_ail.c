@@ -736,6 +736,8 @@ __xfs_ail_assign_tail_lsn(
 	if (!tail_lsn)
 		tail_lsn = ailp->ail_head_lsn;
 
+	WRITE_ONCE(log->l_tail_space,
+			xlog_lsn_sub(log, ailp->ail_head_lsn, tail_lsn));
 	trace_xfs_log_assign_tail_lsn(log, tail_lsn);
 	atomic64_set(&log->l_tail_lsn, tail_lsn);
 }
@@ -743,9 +745,10 @@ __xfs_ail_assign_tail_lsn(
 /*
  * Callers should pass the original tail lsn so that we can detect if the tail
  * has moved as a result of the operation that was performed. If the caller
- * needs to force a tail LSN update, it should pass NULLCOMMITLSN to bypass the
- * "did the tail LSN change?" checks. If the caller wants to avoid a tail update
- * (e.g. it knows the tail did not change) it should pass an @old_lsn of 0.
+ * needs to force a tail space update, it should pass NULLCOMMITLSN to bypass
+ * the "did the tail LSN change?" checks. If the caller wants to avoid a tail
+ * update (e.g. it knows the tail did not change) it should pass an @old_lsn of
+ * 0.
  */
 void
 xfs_ail_update_finish(
