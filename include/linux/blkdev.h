@@ -328,6 +328,9 @@ enum {
 
 	/* bounce all highmem pages */
 	BLK_FEAT_BOUNCE_HIGH			= (1u << 14),
+
+	/* undocumented magic for bcache */
+	BLK_FEAT_RAID_PARTIAL_STRIPES_EXPENSIVE	= (1u << 15),
 };
 
 /*
@@ -335,21 +338,16 @@ enum {
  */
 #define BLK_FEAT_INHERIT_MASK \
 	(BLK_FEAT_WRITE_CACHE | BLK_FEAT_FUA | BLK_FEAT_ROTATIONAL | \
-	 BLK_FEAT_STABLE_WRITES | BLK_FEAT_ZONED | BLK_FEAT_BOUNCE_HIGH)
+	 BLK_FEAT_STABLE_WRITES | BLK_FEAT_ZONED | BLK_FEAT_BOUNCE_HIGH | \
+	 BLK_FEAT_RAID_PARTIAL_STRIPES_EXPENSIVE)
 
 /* internal flags in queue_limits.flags */
 enum {
-	/* do not send FLUSH or FUA command despite advertised write cache */
-	BLK_FLAGS_WRITE_CACHE_DISABLED		= (1u << 31),
-};
+	/* do not send FLUSH/FUA commands despite advertising a write cache */
+	BLK_FLAG_WRITE_CACHE_DISABLED		= (1u << 0),
 
-/*
- * BLK_BOUNCE_NONE:	never bounce (default)
- * BLK_BOUNCE_HIGH:	bounce all highmem pages
- */
-enum blk_bounce {
-	BLK_BOUNCE_NONE,
-	BLK_BOUNCE_HIGH,
+	/* I/O topology is misaligned */
+	BLK_FEAT_MISALIGNED			= (1u << 1),
 };
 
 struct queue_limits {
@@ -383,9 +381,6 @@ struct queue_limits {
 	unsigned short		max_integrity_segments;
 	unsigned short		max_discard_segments;
 
-	unsigned char		misaligned;
-	unsigned char		discard_misaligned;
-	unsigned char		raid_partial_stripes_expensive;
 	unsigned int		max_open_zones;
 	unsigned int		max_active_zones;
 
@@ -1347,7 +1342,7 @@ static inline bool bdev_stable_writes(struct block_device *bdev)
 static inline bool blk_queue_write_cache(struct request_queue *q)
 {
 	return (q->limits.features & BLK_FEAT_WRITE_CACHE) &&
-		!(q->limits.flags & BLK_FLAGS_WRITE_CACHE_DISABLED);
+		!(q->limits.flags & BLK_FLAG_WRITE_CACHE_DISABLED);
 }
 
 static inline bool bdev_write_cache(struct block_device *bdev)

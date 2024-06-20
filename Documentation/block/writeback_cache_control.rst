@@ -70,8 +70,8 @@ flag in the features field of the queue_limits structure.
 Implementation details for bio based block drivers
 --------------------------------------------------
 
-For bio based drivers the REQ_PREFLUSH and REQ_FUA bit are simplify passed on
-to the driver if the drivers sets the BLK_FEAT_WRITE_CACHE flag and the drivers
+For bio based drivers the REQ_PREFLUSH and REQ_FUA bit are simply passed on to
+the driver if the driver sets the BLK_FEAT_WRITE_CACHE flag and the driver
 needs to handle them.
 
 *NOTE*: The REQ_FUA bit also gets passed on when the BLK_FEAT_FUA flags is
@@ -89,7 +89,7 @@ When the BLK_FEAT_WRITE_CACHE flag is set, REQ_OP_WRITE | REQ_PREFLUSH requests
 with a payload are automatically turned into a sequence of a REQ_OP_FLUSH
 request followed by the actual write by the block layer.
 
-When the BLK_FEAT_FUA flags is set, the REQ_FUA bit simplify passed on for the
+When the BLK_FEAT_FUA flags is set, the REQ_FUA bit is simply passed on for the
 REQ_OP_WRITE request, else a REQ_OP_FLUSH request is sent by the block layer
 after the completion of the write request for bio submissions with the REQ_FUA
 bit set.

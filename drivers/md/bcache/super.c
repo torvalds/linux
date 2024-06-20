@@ -1416,8 +1416,8 @@ static int cached_dev_init(struct cached_dev *dc, unsigned int block_size)
 	}
 
 	if (bdev_io_opt(dc->bdev))
-		dc->partial_stripes_expensive =
-			q->limits.raid_partial_stripes_expensive;
+		dc->partial_stripes_expensive = q->limits.features &
+			BLK_FEAT_RAID_PARTIAL_STRIPES_EXPENSIVE;
 
 	ret = bcache_device_init(&dc->disk, block_size,
 			 bdev_nr_sectors(dc->bdev) - dc->sb.data_offset,
