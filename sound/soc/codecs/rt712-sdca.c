@@ -592,20 +592,20 @@ static int rt712_sdca_set_gain_get(struct snd_kcontrol *kcontrol,
 static int rt712_sdca_set_fu0f_capture_ctl(struct rt712_sdca_priv *rt712)
 {
 	int err;
-	unsigned int ch_l, ch_r;
+	unsigned int ch_01, ch_02;
 
-	ch_l = (rt712->fu0f_dapm_mute || rt712->fu0f_mixer_l_mute) ? 0x01 : 0x00;
-	ch_r = (rt712->fu0f_dapm_mute || rt712->fu0f_mixer_r_mute) ? 0x01 : 0x00;
+	ch_01 = (rt712->fu0f_dapm_mute || rt712->fu0f_mixer_l_mute) ? 0x01 : 0x00;
+	ch_02 = (rt712->fu0f_dapm_mute || rt712->fu0f_mixer_r_mute) ? 0x01 : 0x00;
 
 	err = regmap_write(rt712->regmap,
 			SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT712_SDCA_ENT_USER_FU0F,
-			RT712_SDCA_CTL_FU_MUTE, CH_L), ch_l);
+			RT712_SDCA_CTL_FU_MUTE, CH_01), ch_01);
 	if (err < 0)
 		return err;
 
 	err = regmap_write(rt712->regmap,
 			SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT712_SDCA_ENT_USER_FU0F,
-			RT712_SDCA_CTL_FU_MUTE, CH_R), ch_r);
+			RT712_SDCA_CTL_FU_MUTE, CH_02), ch_02);
 	if (err < 0)
 		return err;
 
@@ -649,28 +649,28 @@ static const DECLARE_TLV_DB_SCALE(boost_vol_tlv, 0, 1000, 0);
 
 static const struct snd_kcontrol_new rt712_sdca_controls[] = {
 	SOC_DOUBLE_R_EXT_TLV("FU05 Playback Volume",
-		SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT712_SDCA_ENT_USER_FU05, RT712_SDCA_CTL_FU_VOLUME, CH_L),
-		SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT712_SDCA_ENT_USER_FU05, RT712_SDCA_CTL_FU_VOLUME, CH_R),
+		SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT712_SDCA_ENT_USER_FU05, RT712_SDCA_CTL_FU_VOLUME, CH_01),
+		SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT712_SDCA_ENT_USER_FU05, RT712_SDCA_CTL_FU_VOLUME, CH_02),
 		0, 0x57, 0,
 		rt712_sdca_set_gain_get, rt712_sdca_set_gain_put, out_vol_tlv),
 	SOC_DOUBLE_EXT("FU0F Capture Switch", SND_SOC_NOPM, 0, 1, 1, 0,
 		rt712_sdca_fu0f_capture_get, rt712_sdca_fu0f_capture_put),
 	SOC_DOUBLE_R_EXT_TLV("FU0F Capture Volume",
-		SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT712_SDCA_ENT_USER_FU0F, RT712_SDCA_CTL_FU_VOLUME, CH_L),
-		SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT712_SDCA_ENT_USER_FU0F, RT712_SDCA_CTL_FU_VOLUME, CH_R),
+		SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT712_SDCA_ENT_USER_FU0F, RT712_SDCA_CTL_FU_VOLUME, CH_01),
+		SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT712_SDCA_ENT_USER_FU0F, RT712_SDCA_CTL_FU_VOLUME, CH_02),
 		0, 0x3f, 0,
 		rt712_sdca_set_gain_get, rt712_sdca_set_gain_put, mic_vol_tlv),
 	SOC_DOUBLE_R_EXT_TLV("FU44 Boost Volume",
-		SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT712_SDCA_ENT_PLATFORM_FU44, RT712_SDCA_CTL_FU_CH_GAIN, CH_L),
-		SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT712_SDCA_ENT_PLATFORM_FU44, RT712_SDCA_CTL_FU_CH_GAIN, CH_R),
+		SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT712_SDCA_ENT_PLATFORM_FU44, RT712_SDCA_CTL_FU_CH_GAIN, CH_01),
+		SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT712_SDCA_ENT_PLATFORM_FU44, RT712_SDCA_CTL_FU_CH_GAIN, CH_02),
 		8, 3, 0,
 		rt712_sdca_set_gain_get, rt712_sdca_set_gain_put, boost_vol_tlv),
 };
 
 static const struct snd_kcontrol_new rt712_sdca_spk_controls[] = {
 	SOC_DOUBLE_R_EXT_TLV("FU06 Playback Volume",
-		SDW_SDCA_CTL(FUNC_NUM_AMP, RT712_SDCA_ENT_USER_FU06, RT712_SDCA_CTL_FU_VOLUME, CH_L),
-		SDW_SDCA_CTL(FUNC_NUM_AMP, RT712_SDCA_ENT_USER_FU06, RT712_SDCA_CTL_FU_VOLUME, CH_R),
+		SDW_SDCA_CTL(FUNC_NUM_AMP, RT712_SDCA_ENT_USER_FU06, RT712_SDCA_CTL_FU_VOLUME, CH_01),
+		SDW_SDCA_CTL(FUNC_NUM_AMP, RT712_SDCA_ENT_USER_FU06, RT712_SDCA_CTL_FU_VOLUME, CH_02),
 		0, 0x57, 0,
 		rt712_sdca_set_gain_get, rt712_sdca_set_gain_put, out_vol_tlv),
 };
@@ -763,21 +763,21 @@ static int rt712_sdca_fu05_event(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_POST_PMU:
 		regmap_write(rt712->regmap,
 			SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT712_SDCA_ENT_USER_FU05,
-				RT712_SDCA_CTL_FU_MUTE, CH_L),
+				RT712_SDCA_CTL_FU_MUTE, CH_01),
 				unmute);
 		regmap_write(rt712->regmap,
 			SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT712_SDCA_ENT_USER_FU05,
-				RT712_SDCA_CTL_FU_MUTE, CH_R),
+				RT712_SDCA_CTL_FU_MUTE, CH_02),
 				unmute);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		regmap_write(rt712->regmap,
 			SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT712_SDCA_ENT_USER_FU05,
-				RT712_SDCA_CTL_FU_MUTE, CH_L),
+				RT712_SDCA_CTL_FU_MUTE, CH_01),
 				mute);
 		regmap_write(rt712->regmap,
 			SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT712_SDCA_ENT_USER_FU05,
-				RT712_SDCA_CTL_FU_MUTE, CH_R),
+				RT712_SDCA_CTL_FU_MUTE, CH_02),
 				mute);
 		break;
 	}
@@ -885,8 +885,8 @@ static int rt712_sdca_classd_event(struct snd_soc_dapm_widget *w,
 
 static const struct snd_kcontrol_new rt712_spk_sto_dac =
 	SOC_DAPM_DOUBLE_R("Switch",
-		SDW_SDCA_CTL(FUNC_NUM_AMP, RT712_SDCA_ENT_USER_FU06, RT712_SDCA_CTL_FU_MUTE, CH_L),
-		SDW_SDCA_CTL(FUNC_NUM_AMP, RT712_SDCA_ENT_USER_FU06, RT712_SDCA_CTL_FU_MUTE, CH_R),
+		SDW_SDCA_CTL(FUNC_NUM_AMP, RT712_SDCA_ENT_USER_FU06, RT712_SDCA_CTL_FU_MUTE, CH_01),
+		SDW_SDCA_CTL(FUNC_NUM_AMP, RT712_SDCA_ENT_USER_FU06, RT712_SDCA_CTL_FU_MUTE, CH_02),
 		0, 1, 1);
 
 static const struct snd_soc_dapm_widget rt712_sdca_dapm_widgets[] = {

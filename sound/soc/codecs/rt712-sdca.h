@@ -39,6 +39,12 @@ struct  rt712_sdca_priv {
 	bool fu0f_mixer_r_mute;
 };
 
+/* SDCA (Channel) */
+#define CH_01	0x01
+#define CH_02	0x02
+#define CH_03	0x03
+#define CH_04	0x04
+
 /* NID */
 #define RT712_VENDOR_REG			0x20
 #define RT712_VENDOR_CALI			0x58
@@ -175,10 +181,6 @@ struct  rt712_sdca_priv {
 #define RT712_SDCA_CTL_REQ_POWER_STATE 0x01
 #define RT712_SDCA_CTL_VENDOR_DEF 0x30
 #define RT712_SDCA_CTL_FU_CH_GAIN 0x0b
-
-/* RT712 SDCA channel */
-#define CH_L 0x01
-#define CH_R 0x02
 
 /* sample frequency index */
 #define RT712_SDCA_RATE_16000HZ		0x04
