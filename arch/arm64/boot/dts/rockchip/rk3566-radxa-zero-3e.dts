@@ -10,6 +10,7 @@
 
 	aliases {
 		ethernet0 = &gmac1;
+		mmc0 = &sdmmc0;
 	};
 };
 
