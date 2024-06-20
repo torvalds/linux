@@ -548,7 +548,7 @@ static void imgu_vb2_stop_streaming(struct vb2_queue *vq)
 
 	mutex_lock(&imgu->streaming_lock);
 	/* Was this the first node with streaming disabled? */
-	if (imgu->streaming && imgu_all_nodes_streaming(imgu, node)) {
+	if (imgu->streaming) {
 		/* Yes, really stop streaming now */
 		dev_dbg(dev, "IMGU streaming is ready to stop");
 		r = imgu_s_stream(imgu, false);
