@@ -241,28 +241,6 @@ struct l2tp_tunnel *l2tp_tunnel_get_nth(const struct net *net, int nth)
 }
 EXPORT_SYMBOL_GPL(l2tp_tunnel_get_nth);
 
-struct l2tp_session *l2tp_tunnel_get_session(struct l2tp_tunnel *tunnel,
-					     u32 session_id)
-{
-	struct hlist_head *session_list;
-	struct l2tp_session *session;
-
-	session_list = l2tp_session_id_hash(tunnel, session_id);
-
-	rcu_read_lock_bh();
-	hlist_for_each_entry_rcu(session, session_list, hlist)
-		if (session->session_id == session_id) {
-			l2tp_session_inc_refcount(session);
-			rcu_read_unlock_bh();
-
-			return session;
-		}
-	rcu_read_unlock_bh();
-
-	return NULL;
-}
-EXPORT_SYMBOL_GPL(l2tp_tunnel_get_session);
-
 struct l2tp_session *l2tp_v3_session_get(const struct net *net, struct sock *sk, u32 session_id)
 {
 	const struct l2tp_net *pn = l2tp_pernet(net);

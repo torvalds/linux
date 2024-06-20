@@ -227,8 +227,6 @@ void l2tp_session_dec_refcount(struct l2tp_session *session);
  */
 struct l2tp_tunnel *l2tp_tunnel_get(const struct net *net, u32 tunnel_id);
 struct l2tp_tunnel *l2tp_tunnel_get_nth(const struct net *net, int nth);
-struct l2tp_session *l2tp_tunnel_get_session(struct l2tp_tunnel *tunnel,
-					     u32 session_id);
 
 struct l2tp_session *l2tp_v3_session_get(const struct net *net, struct sock *sk, u32 session_id);
 struct l2tp_session *l2tp_v2_session_get(const struct net *net, u16 tunnel_id, u16 session_id);
