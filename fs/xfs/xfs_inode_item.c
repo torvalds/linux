@@ -965,6 +965,7 @@ xfs_iflush_finish(
 		}
 		iip->ili_last_fields = 0;
 		iip->ili_flush_lsn = 0;
+		clear_bit(XFS_LI_FLUSHING, &lip->li_flags);
 		spin_unlock(&iip->ili_lock);
 		xfs_iflags_clear(iip->ili_inode, XFS_IFLUSHING);
 		if (drop_buffer)
@@ -1023,8 +1024,10 @@ xfs_buf_inode_io_fail(
 {
 	struct xfs_log_item	*lip;
 
-	list_for_each_entry(lip, &bp->b_li_list, li_bio_list)
+	list_for_each_entry(lip, &bp->b_li_list, li_bio_list) {
 		set_bit(XFS_LI_FAILED, &lip->li_flags);
+		clear_bit(XFS_LI_FLUSHING, &lip->li_flags);
+	}
 }
 
 /*
@@ -1043,6 +1046,7 @@ xfs_iflush_abort_clean(
 	iip->ili_flush_lsn = 0;
 	iip->ili_item.li_buf = NULL;
 	list_del_init(&iip->ili_item.li_bio_list);
+	clear_bit(XFS_LI_FLUSHING, &iip->ili_item.li_flags);
 }
 
 /*

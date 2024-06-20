@@ -512,6 +512,9 @@ xfsaild_push(
 	while ((XFS_LSN_CMP(lip->li_lsn, ailp->ail_target) <= 0)) {
 		int	lock_result;
 
+		if (test_bit(XFS_LI_FLUSHING, &lip->li_flags))
+			goto next_item;
+
 		/*
 		 * Note that iop_push may unlock and reacquire the AIL lock.  We
 		 * rely on the AIL cursor implementation to be able to deal with
@@ -581,8 +584,11 @@ xfsaild_push(
 		if (stuck > 100)
 			break;
 
+next_item:
 		lip = xfs_trans_ail_cursor_next(ailp, &cur);
 		if (lip == NULL)
+			break;
+		if (lip->li_lsn != lsn && count > 1000)
 			break;
 		lsn = lip->li_lsn;
 	}
@@ -620,7 +626,7 @@ out_done:
 		/*
 		 * Assume we have more work to do in a short while.
 		 */
-		tout = 10;
+		tout = 0;
 	}
 
 	return tout;
