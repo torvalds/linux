@@ -461,24 +461,18 @@ static __init void armada_xp_ipi_init(struct device_node *node)
 	set_smp_ipi_range(base_ipi, IPI_DOORBELL_END);
 }
 
-static DEFINE_RAW_SPINLOCK(irq_controller_lock);
-
 static int armada_xp_set_affinity(struct irq_data *d,
 				  const struct cpumask *mask_val, bool force)
 {
 	irq_hw_number_t hwirq = irqd_to_hwirq(d);
-	unsigned long reg, mask;
 	int cpu;
 
 	/* Select a single core from the affinity mask which is online */
 	cpu = cpumask_any_and(mask_val, cpu_online_mask);
-	mask = 1UL << cpu_logical_map(cpu);
 
-	raw_spin_lock(&irq_controller_lock);
-	reg = readl(main_int_base + ARMADA_370_XP_INT_SOURCE_CTL(hwirq));
-	reg = (reg & (~ARMADA_370_XP_INT_SOURCE_CPU_MASK)) | mask;
-	writel(reg, main_int_base + ARMADA_370_XP_INT_SOURCE_CTL(hwirq));
-	raw_spin_unlock(&irq_controller_lock);
+	atomic_io_modify(main_int_base + ARMADA_370_XP_INT_SOURCE_CTL(hwirq),
+			 ARMADA_370_XP_INT_SOURCE_CPU_MASK,
+			 BIT(cpu_logical_map(cpu)));
 
 	irq_data_update_effective_affinity(d, cpumask_of(cpu));
 
