@@ -65,6 +65,29 @@ static u64 __compute_hcr(struct kvm_vcpu *vcpu)
 	return hcr | (__vcpu_sys_reg(vcpu, HCR_EL2) & ~NV_HCR_GUEST_EXCLUDE);
 }
 
+static void __activate_cptr_traps(struct kvm_vcpu *vcpu)
+{
+	/*
+	 * With VHE (HCR.E2H == 1), accesses to CPACR_EL1 are routed to
+	 * CPTR_EL2. In general, CPACR_EL1 has the same layout as CPTR_EL2,
+	 * except for some missing controls, such as TAM.
+	 * In this case, CPTR_EL2.TAM has the same position with or without
+	 * VHE (HCR.E2H == 1) which allows us to use here the CPTR_EL2.TAM
+	 * shift value for trapping the AMU accesses.
+	 */
+	u64 val = CPACR_ELx_TTA | CPTR_EL2_TAM;
+
+	if (guest_owns_fp_regs()) {
+		val |= CPACR_ELx_FPEN;
+		if (vcpu_has_sve(vcpu))
+			val |= CPACR_ELx_ZEN;
+	} else {
+		__activate_traps_fpsimd32(vcpu);
+	}
+
+	write_sysreg(val, cpacr_el1);
+}
+
 static void __activate_traps(struct kvm_vcpu *vcpu)
 {
 	u64 val;
@@ -91,30 +114,7 @@ static void __activate_traps(struct kvm_vcpu *vcpu)
 		}
 	}
 
-	val = read_sysreg(cpacr_el1);
-	val |= CPACR_ELx_TTA;
-	val &= ~(CPACR_ELx_ZEN | CPACR_ELx_SMEN);
-
-	/*
-	 * With VHE (HCR.E2H == 1), accesses to CPACR_EL1 are routed to
-	 * CPTR_EL2. In general, CPACR_EL1 has the same layout as CPTR_EL2,
-	 * except for some missing controls, such as TAM.
-	 * In this case, CPTR_EL2.TAM has the same position with or without
-	 * VHE (HCR.E2H == 1) which allows us to use here the CPTR_EL2.TAM
-	 * shift value for trapping the AMU accesses.
-	 */
-
-	val |= CPTR_EL2_TAM;
-
-	if (guest_owns_fp_regs()) {
-		if (vcpu_has_sve(vcpu))
-			val |= CPACR_ELx_ZEN;
-	} else {
-		val &= ~CPACR_ELx_FPEN;
-		__activate_traps_fpsimd32(vcpu);
-	}
-
-	write_sysreg(val, cpacr_el1);
+	__activate_cptr_traps(vcpu);
 
 	write_sysreg(__this_cpu_read(kvm_hyp_vector), vbar_el1);
 }
