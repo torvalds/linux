@@ -5210,8 +5210,6 @@ int numa_migrate_prep(struct folio *folio, struct vm_fault *vmf,
 {
 	struct vm_area_struct *vma = vmf->vma;
 
-	folio_get(folio);
-
 	/* Record the current PID acceesing VMA */
 	vma_set_access_pid_bit(vma);
 
@@ -5348,10 +5346,13 @@ static vm_fault_t do_numa_page(struct vm_fault *vmf)
 	else
 		last_cpupid = folio_last_cpupid(folio);
 	target_nid = numa_migrate_prep(folio, vmf, vmf->address, nid, &flags);
-	if (target_nid == NUMA_NO_NODE) {
-		folio_put(folio);
+	if (target_nid == NUMA_NO_NODE)
+		goto out_map;
+	if (migrate_misplaced_folio_prepare(folio, vma, target_nid)) {
+		flags |= TNF_MIGRATE_FAIL;
 		goto out_map;
 	}
+	/* The folio is isolated and isolation code holds a folio reference. */
 	pte_unmap_unlock(vmf->pte, vmf->ptl);
 	writable = false;
 	ignore_writable = true;

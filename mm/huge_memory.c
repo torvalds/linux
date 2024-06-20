@@ -1689,11 +1689,13 @@ vm_fault_t do_huge_pmd_numa_page(struct vm_fault *vmf)
 	if (node_is_toptier(nid))
 		last_cpupid = folio_last_cpupid(folio);
 	target_nid = numa_migrate_prep(folio, vmf, haddr, nid, &flags);
-	if (target_nid == NUMA_NO_NODE) {
-		folio_put(folio);
+	if (target_nid == NUMA_NO_NODE)
+		goto out_map;
+	if (migrate_misplaced_folio_prepare(folio, vma, target_nid)) {
+		flags |= TNF_MIGRATE_FAIL;
 		goto out_map;
 	}
-
+	/* The folio is isolated and isolation code holds a folio reference. */
 	spin_unlock(vmf->ptl);
 	writable = false;
 
