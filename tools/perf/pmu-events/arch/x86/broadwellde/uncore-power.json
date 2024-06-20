@@ -1,6 +1,7 @@
 [
     {
         "BriefDescription": "pclk Cycles",
+        "Counter": "0,1,2,3",
         "EventName": "UNC_P_CLOCKTICKS",
         "PerPkg": "1",
         "PublicDescription": "The PCU runs off a fixed 1 GHz clock.  This event counts the number of pclk cycles measured while the counter was enabled.  The pclk, like the Memory Controller's dclk, counts at a constant rate making it a good measure of actual wall time.",
@@ -8,6 +9,7 @@
     },
     {
         "BriefDescription": "Core C State Transition Cycles",
+        "Counter": "0,1,2,3",
         "EventCode": "0x60",
         "EventName": "UNC_P_CORE0_TRANSITION_CYCLES",
         "PerPkg": "1",
@@ -16,6 +18,7 @@
     },
     {
         "BriefDescription": "Core C State Transition Cycles",
+        "Counter": "0,1,2,3",
         "EventCode": "0x6A",
         "EventName": "UNC_P_CORE10_TRANSITION_CYCLES",
         "PerPkg": "1",
@@ -24,6 +27,7 @@
     },
     {
         "BriefDescription": "Core C State Transition Cycles",
+        "Counter": "0,1,2,3",
         "EventCode": "0x6B",
         "EventName": "UNC_P_CORE11_TRANSITION_CYCLES",
         "PerPkg": "1",
@@ -32,6 +36,7 @@
     },
     {
         "BriefDescription": "Core C State Transition Cycles",
+        "Counter": "0,1,2,3",
         "EventCode": "0x6C",
         "EventName": "UNC_P_CORE12_TRANSITION_CYCLES",
         "PerPkg": "1",
@@ -40,6 +45,7 @@
     },
     {
         "BriefDescription": "Core C State Transition Cycles",
+        "Counter": "0,1,2,3",
         "EventCode": "0x6D",
         "EventName": "UNC_P_CORE13_TRANSITION_CYCLES",
         "PerPkg": "1",
@@ -48,6 +54,7 @@
     },
     {
         "BriefDescription": "Core C State Transition Cycles",
+        "Counter": "0,1,2,3",
         "EventCode": "0x6E",
         "EventName": "UNC_P_CORE14_TRANSITION_CYCLES",
         "PerPkg": "1",
@@ -56,6 +63,7 @@
     },
     {
         "BriefDescription": "Core C State Transition Cycles",
+        "Counter": "0,1,2,3",
         "EventCode": "0x6F",
         "EventName": "UNC_P_CORE15_TRANSITION_CYCLES",
         "PerPkg": "1",
@@ -64,6 +72,7 @@
     },
     {
         "BriefDescription": "Core C State Transition Cycles",
+        "Counter": "0,1,2,3",
         "EventCode": "0x70",
         "EventName": "UNC_P_CORE16_TRANSITION_CYCLES",
         "PerPkg": "1",
@@ -72,6 +81,7 @@
     },
     {
         "BriefDescription": "Core C State Transition Cycles",
+        "Counter": "0,1,2,3",
         "EventCode": "0x71",
         "EventName": "UNC_P_CORE17_TRANSITION_CYCLES",
         "PerPkg": "1",
@@ -80,6 +90,7 @@
     },
     {
         "BriefDescription": "Core C State Transition Cycles",
+        "Counter": "0,1,2,3",
         "EventCode": "0x61",
         "EventName": "UNC_P_CORE1_TRANSITION_CYCLES",
         "PerPkg": "1",
@@ -88,6 +99,7 @@
     },
     {
         "BriefDescription": "Core C State Transition Cycles",
+        "Counter": "0,1,2,3",
         "EventCode": "0x62",
         "EventName": "UNC_P_CORE2_TRANSITION_CYCLES",
         "PerPkg": "1",
@@ -96,6 +108,7 @@
     },
     {
         "BriefDescription": "Core C State Transition Cycles",
+        "Counter": "0,1,2,3",
         "EventCode": "0x63",
         "EventName": "UNC_P_CORE3_TRANSITION_CYCLES",
         "PerPkg": "1",
@@ -104,6 +117,7 @@
     },
     {
         "BriefDescription": "Core C State Transition Cycles",
+        "Counter": "0,1,2,3",
         "EventCode": "0x64",
         "EventName": "UNC_P_CORE4_TRANSITION_CYCLES",
         "PerPkg": "1",
@@ -112,6 +126,7 @@
     },
     {
         "BriefDescription": "Core C State Transition Cycles",
+        "Counter": "0,1,2,3",
         "EventCode": "0x65",
         "EventName": "UNC_P_CORE5_TRANSITION_CYCLES",
         "PerPkg": "1",
@@ -120,6 +135,7 @@
     },
     {
         "BriefDescription": "Core C State Transition Cycles",
+        "Counter": "0,1,2,3",
         "EventCode": "0x66",
         "EventName": "UNC_P_CORE6_TRANSITION_CYCLES",
         "PerPkg": "1",
@@ -128,6 +144,7 @@
     },
     {
         "BriefDescription": "Core C State Transition Cycles",
+        "Counter": "0,1,2,3",
         "EventCode": "0x67",
         "EventName": "UNC_P_CORE7_TRANSITION_CYCLES",
         "PerPkg": "1",
@@ -136,6 +153,7 @@
     },
     {
         "BriefDescription": "Core C State Transition Cycles",
+        "Counter": "0,1,2,3",
         "EventCode": "0x68",
         "EventName": "UNC_P_CORE8_TRANSITION_CYCLES",
         "PerPkg": "1",
@@ -144,6 +162,7 @@
     },
     {
         "BriefDescription": "Core C State Transition Cycles",
+        "Counter": "0,1,2,3",
         "EventCode": "0x69",
         "EventName": "UNC_P_CORE9_TRANSITION_CYCLES",
         "PerPkg": "1",
@@ -152,6 +171,7 @@
     },
     {
         "BriefDescription": "Core C State Demotions",
+        "Counter": "0,1,2,3",
         "EventCode": "0x30",
         "EventName": "UNC_P_DEMOTIONS_CORE0",
         "PerPkg": "1",
@@ -160,6 +180,7 @@
     },
     {
         "BriefDescription": "Core C State Demotions",
+        "Counter": "0,1,2,3",
         "EventCode": "0x31",
         "EventName": "UNC_P_DEMOTIONS_CORE1",
         "PerPkg": "1",
@@ -168,6 +189,7 @@
     },
     {
         "BriefDescription": "Core C State Demotions",
+        "Counter": "0,1,2,3",
         "EventCode": "0x3A",
         "EventName": "UNC_P_DEMOTIONS_CORE10",
         "PerPkg": "1",
@@ -176,6 +198,7 @@
     },
     {
         "BriefDescription": "Core C State Demotions",
+        "Counter": "0,1,2,3",
         "EventCode": "0x3B",
         "EventName": "UNC_P_DEMOTIONS_CORE11",
         "PerPkg": "1",
@@ -184,6 +207,7 @@
     },
     {
         "BriefDescription": "Core C State Demotions",
+        "Counter": "0,1,2,3",
         "EventCode": "0x3C",
         "EventName": "UNC_P_DEMOTIONS_CORE12",
         "PerPkg": "1",
@@ -192,6 +216,7 @@
     },
     {
         "BriefDescription": "Core C State Demotions",
+        "Counter": "0,1,2,3",
         "EventCode": "0x3D",
         "EventName": "UNC_P_DEMOTIONS_CORE13",
         "PerPkg": "1",
@@ -200,6 +225,7 @@
     },
     {
         "BriefDescription": "Core C State Demotions",
+        "Counter": "0,1,2,3",
         "EventCode": "0x3E",
         "EventName": "UNC_P_DEMOTIONS_CORE14",
         "PerPkg": "1",
@@ -208,6 +234,7 @@
     },
     {
         "BriefDescription": "Core C State Demotions",
+        "Counter": "0,1,2,3",
         "EventCode": "0x3F",
         "EventName": "UNC_P_DEMOTIONS_CORE15",
         "PerPkg": "1",
@@ -216,6 +243,7 @@
     },
     {
         "BriefDescription": "Core C State Demotions",
+        "Counter": "0,1,2,3",
         "EventCode": "0x40",
         "EventName": "UNC_P_DEMOTIONS_CORE16",
         "PerPkg": "1",
@@ -224,6 +252,7 @@
     },
     {
         "BriefDescription": "Core C State Demotions",
+        "Counter": "0,1,2,3",
         "EventCode": "0x41",
         "EventName": "UNC_P_DEMOTIONS_CORE17",
         "PerPkg": "1",
@@ -232,6 +261,7 @@
     },
     {
         "BriefDescription": "Core C State Demotions",
+        "Counter": "0,1,2,3",
         "EventCode": "0x32",
         "EventName": "UNC_P_DEMOTIONS_CORE2",
         "PerPkg": "1",
@@ -240,6 +270,7 @@
     },
     {
         "BriefDescription": "Core C State Demotions",
+        "Counter": "0,1,2,3",
         "EventCode": "0x33",
         "EventName": "UNC_P_DEMOTIONS_CORE3",
         "PerPkg": "1",
@@ -248,6 +279,7 @@
     },
     {
         "BriefDescription": "Core C State Demotions",
+        "Counter": "0,1,2,3",
         "EventCode": "0x34",
         "EventName": "UNC_P_DEMOTIONS_CORE4",
         "PerPkg": "1",
@@ -256,6 +288,7 @@
     },
     {
         "BriefDescription": "Core C State Demotions",
+        "Counter": "0,1,2,3",
         "EventCode": "0x35",
         "EventName": "UNC_P_DEMOTIONS_CORE5",
         "PerPkg": "1",
@@ -264,6 +297,7 @@
     },
     {
         "BriefDescription": "Core C State Demotions",
+        "Counter": "0,1,2,3",
         "EventCode": "0x36",
         "EventName": "UNC_P_DEMOTIONS_CORE6",
         "PerPkg": "1",
@@ -272,6 +306,7 @@
     },
     {
         "BriefDescription": "Core C State Demotions",
+        "Counter": "0,1,2,3",
         "EventCode": "0x37",
         "EventName": "UNC_P_DEMOTIONS_CORE7",
         "PerPkg": "1",
@@ -280,6 +315,7 @@
     },
     {
         "BriefDescription": "Core C State Demotions",
+        "Counter": "0,1,2,3",
         "EventCode": "0x38",
         "EventName": "UNC_P_DEMOTIONS_CORE8",
         "PerPkg": "1",
@@ -288,6 +324,7 @@
     },
     {
         "BriefDescription": "Core C State Demotions",
+        "Counter": "0,1,2,3",
         "EventCode": "0x39",
         "EventName": "UNC_P_DEMOTIONS_CORE9",
         "PerPkg": "1",
@@ -296,6 +333,7 @@
     },
     {
         "BriefDescription": "Thermal Strongest Upper Limit Cycles",
+        "Counter": "0,1,2,3",
         "EventCode": "0x4",
         "EventName": "UNC_P_FREQ_MAX_LIMIT_THERMAL_CYCLES",
         "PerPkg": "1",
@@ -304,6 +342,7 @@
     },
     {
         "BriefDescription": "OS Strongest Upper Limit Cycles",
+        "Counter": "0,1,2,3",
         "EventCode": "0x6",
         "EventName": "UNC_P_FREQ_MAX_OS_CYCLES",
         "PerPkg": "1",
@@ -312,6 +351,7 @@
     },
     {
         "BriefDescription": "Power Strongest Upper Limit Cycles",
+        "Counter": "0,1,2,3",
         "EventCode": "0x5",
         "EventName": "UNC_P_FREQ_MAX_POWER_CYCLES",
         "PerPkg": "1",
@@ -320,6 +360,7 @@
     },
     {
         "BriefDescription": "IO P Limit Strongest Lower Limit Cycles",
+        "Counter": "0,1,2,3",
         "EventCode": "0x73",
         "EventName": "UNC_P_FREQ_MIN_IO_P_CYCLES",
         "PerPkg": "1",
@@ -328,6 +369,7 @@
     },
     {
         "BriefDescription": "Cycles spent changing Frequency",
+        "Counter": "0,1,2,3",
         "EventCode": "0x74",
         "EventName": "UNC_P_FREQ_TRANS_CYCLES",
         "PerPkg": "1",
@@ -336,6 +378,7 @@
     },
     {
         "BriefDescription": "Memory Phase Shedding Cycles",
+        "Counter": "0,1,2,3",
         "EventCode": "0x2F",
         "EventName": "UNC_P_MEMORY_PHASE_SHEDDING_CYCLES",
         "PerPkg": "1",
@@ -344,6 +387,7 @@
     },
     {
         "BriefDescription": "Package C State Residency - C0",
+        "Counter": "0,1,2,3",
         "EventCode": "0x2A",
         "EventName": "UNC_P_PKG_RESIDENCY_C0_CYCLES",
         "PerPkg": "1",
@@ -352,6 +396,7 @@
     },
     {
         "BriefDescription": "Package C State Residency - C1E",
+        "Counter": "0,1,2,3",
         "EventCode": "0x4E",
         "EventName": "UNC_P_PKG_RESIDENCY_C1E_CYCLES",
         "PerPkg": "1",
@@ -360,6 +405,7 @@
     },
     {
         "BriefDescription": "Package C State Residency - C2E",
+        "Counter": "0,1,2,3",
         "EventCode": "0x2B",
         "EventName": "UNC_P_PKG_RESIDENCY_C2E_CYCLES",
         "PerPkg": "1",
@@ -368,6 +414,7 @@
     },
     {
         "BriefDescription": "Package C State Residency - C3",
+        "Counter": "0,1,2,3",
         "EventCode": "0x2C",
         "EventName": "UNC_P_PKG_RESIDENCY_C3_CYCLES",
         "PerPkg": "1",
@@ -376,6 +423,7 @@
     },
     {
         "BriefDescription": "Package C State Residency - C6",
+        "Counter": "0,1,2,3",
         "EventCode": "0x2D",
         "EventName": "UNC_P_PKG_RESIDENCY_C6_CYCLES",
         "PerPkg": "1",
@@ -384,6 +432,7 @@
     },
     {
         "BriefDescription": "Package C7 State Residency",
+        "Counter": "0,1,2,3",
         "EventCode": "0x2E",
         "EventName": "UNC_P_PKG_RESIDENCY_C7_CYCLES",
         "PerPkg": "1",
@@ -392,6 +441,7 @@
     },
     {
         "BriefDescription": "Number of cores in C-State; C0 and C1",
+        "Counter": "0,1,2,3",
         "EventCode": "0x80",
         "EventName": "UNC_P_POWER_STATE_OCCUPANCY.CORES_C0",
         "Filter": "occ_sel=1",
@@ -401,6 +451,7 @@
     },
     {
         "BriefDescription": "Number of cores in C-State; C3",
+        "Counter": "0,1,2,3",
         "EventCode": "0x80",
         "EventName": "UNC_P_POWER_STATE_OCCUPANCY.CORES_C3",
         "Filter": "occ_sel=2",
@@ -410,6 +461,7 @@
     },
     {
         "BriefDescription": "Number of cores in C-State; C6 and C7",
+        "Counter": "0,1,2,3",
         "EventCode": "0x80",
         "EventName": "UNC_P_POWER_STATE_OCCUPANCY.CORES_C6",
         "Filter": "occ_sel=3",
@@ -419,6 +471,7 @@
     },
     {
         "BriefDescription": "External Prochot",
+        "Counter": "0,1,2,3",
         "EventCode": "0xA",
         "EventName": "UNC_P_PROCHOT_EXTERNAL_CYCLES",
         "PerPkg": "1",
@@ -427,6 +480,7 @@
     },
     {
         "BriefDescription": "Internal Prochot",
+        "Counter": "0,1,2,3",
         "EventCode": "0x9",
         "EventName": "UNC_P_PROCHOT_INTERNAL_CYCLES",
         "PerPkg": "1",
@@ -435,6 +489,7 @@
     },
     {
         "BriefDescription": "Total Core C State Transition Cycles",
+        "Counter": "0,1,2,3",
         "EventCode": "0x72",
         "EventName": "UNC_P_TOTAL_TRANSITION_CYCLES",
         "PerPkg": "1",
@@ -443,6 +498,7 @@
     },
     {
         "BriefDescription": "UNC_P_UFS_TRANSITIONS_RING_GV",
+        "Counter": "0,1,2,3",
         "EventCode": "0x79",
         "EventName": "UNC_P_UFS_TRANSITIONS_RING_GV",
         "PerPkg": "1",
@@ -451,6 +507,7 @@
     },
     {
         "BriefDescription": "VR Hot",
+        "Counter": "0,1,2,3",
         "EventCode": "0x42",
         "EventName": "UNC_P_VR_HOT_CYCLES",
         "PerPkg": "1",
