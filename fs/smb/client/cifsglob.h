@@ -1494,6 +1494,7 @@ struct cifs_aio_ctx {
 struct cifs_io_request {
 	struct netfs_io_request		rreq;
 	struct cifsFileInfo		*cfile;
+	struct TCP_Server_Info		*server;
 };
 
 /* asynchronous read support */
