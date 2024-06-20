@@ -27,9 +27,13 @@
 #define HIMAX_AHB_ADDR_BYTE_0			0x00
 #define HIMAX_AHB_ADDR_RDATA_BYTE_0		0x08
 #define HIMAX_AHB_ADDR_ACCESS_DIRECTION		0x0c
+#define HIMAX_AHB_ADDR_INCR4			0x0d
+#define HIMAX_AHB_ADDR_CONTI			0x13
 #define HIMAX_AHB_ADDR_EVENT_STACK		0x30
 
 #define HIMAX_AHB_CMD_ACCESS_DIRECTION_READ	0x00
+#define HIMAX_AHB_CMD_INCR4			0x10
+#define HIMAX_AHB_CMD_CONTI			0x31
 
 #define HIMAX_REG_ADDR_ICID			0x900000d0
 
@@ -65,9 +69,33 @@ static const struct regmap_config himax_regmap_config = {
 	.val_format_endian = REGMAP_ENDIAN_LITTLE,
 };
 
-static int himax_read_config(struct himax_ts_data *ts, u32 address, u32 *dst)
+static int himax_bus_enable_burst(struct himax_ts_data *ts)
 {
 	int error;
+
+	error = regmap_write(ts->regmap, HIMAX_AHB_ADDR_CONTI,
+			     HIMAX_AHB_CMD_CONTI);
+	if (error)
+		return error;
+
+	error = regmap_write(ts->regmap, HIMAX_AHB_ADDR_INCR4,
+			     HIMAX_AHB_CMD_INCR4);
+	if (error)
+		return error;
+
+	return 0;
+}
+
+static int himax_bus_read(struct himax_ts_data *ts, u32 address, void *dst,
+			  size_t length)
+{
+	int error;
+
+	if (length > 4) {
+		error = himax_bus_enable_burst(ts);
+		if (error)
+			return error;
+	}
 
 	error = regmap_write(ts->regmap, HIMAX_AHB_ADDR_BYTE_0, address);
 	if (error)
@@ -78,7 +106,23 @@ static int himax_read_config(struct himax_ts_data *ts, u32 address, u32 *dst)
 	if (error)
 		return error;
 
-	error = regmap_read(ts->regmap, HIMAX_AHB_ADDR_RDATA_BYTE_0, dst);
+	if (length > 4)
+		error = regmap_noinc_read(ts->regmap, HIMAX_AHB_ADDR_RDATA_BYTE_0,
+					  dst, length);
+	else
+		error = regmap_read(ts->regmap, HIMAX_AHB_ADDR_RDATA_BYTE_0,
+				    dst);
+	if (error)
+		return error;
+
+	return 0;
+}
+
+static int himax_read_mcu(struct himax_ts_data *ts, u32 address, u32 *dst)
+{
+	int error;
+
+	error = himax_bus_read(ts, address, dst, sizeof(dst));
 	if (error)
 		return error;
 
@@ -104,7 +148,7 @@ static int himax_read_product_id(struct himax_ts_data *ts, u32 *product_id)
 {
 	int error;
 
-	error = himax_read_config(ts, HIMAX_REG_ADDR_ICID, product_id);
+	error = himax_read_mcu(ts, HIMAX_REG_ADDR_ICID, product_id);
 	if (error)
 		return error;
 
