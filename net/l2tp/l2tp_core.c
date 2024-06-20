@@ -926,19 +926,14 @@ static void l2tp_session_queue_purge(struct l2tp_session *session)
 	}
 }
 
-/* Internal UDP receive frame. Do the real work of receiving an L2TP data frame
- * here. The skb is not on a list when we get here.
- * Returns 0 if the packet was a data packet and was successfully passed on.
- * Returns 1 if the packet was not a good data packet and could not be
- * forwarded.  All such packets are passed up to userspace to deal with.
- */
-static int l2tp_udp_recv_core(struct l2tp_tunnel *tunnel, struct sk_buff *skb)
+/* UDP encapsulation receive handler. See net/ipv4/udp.c for details. */
+int l2tp_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 {
 	struct l2tp_session *session = NULL;
-	struct l2tp_tunnel *orig_tunnel = tunnel;
+	struct l2tp_tunnel *tunnel = NULL;
+	struct net *net = sock_net(sk);
 	unsigned char *ptr, *optr;
 	u16 hdrflags;
-	u32 tunnel_id, session_id;
 	u16 version;
 	int length;
 
@@ -948,11 +943,8 @@ static int l2tp_udp_recv_core(struct l2tp_tunnel *tunnel, struct sk_buff *skb)
 	__skb_pull(skb, sizeof(struct udphdr));
 
 	/* Short packet? */
-	if (!pskb_may_pull(skb, L2TP_HDR_SIZE_MAX)) {
-		pr_debug_ratelimited("%s: recv short packet (len=%d)\n",
-				     tunnel->name, skb->len);
-		goto invalid;
-	}
+	if (!pskb_may_pull(skb, L2TP_HDR_SIZE_MAX))
+		goto pass;
 
 	/* Point to L2TP header */
 	optr = skb->data;
@@ -975,6 +967,8 @@ static int l2tp_udp_recv_core(struct l2tp_tunnel *tunnel, struct sk_buff *skb)
 	ptr += 2;
 
 	if (version == L2TP_HDR_VER_2) {
+		u16 tunnel_id, session_id;
+
 		/* If length is present, skip it */
 		if (hdrflags & L2TP_HDRFLAG_L)
 			ptr += 2;
@@ -982,49 +976,35 @@ static int l2tp_udp_recv_core(struct l2tp_tunnel *tunnel, struct sk_buff *skb)
 		/* Extract tunnel and session ID */
 		tunnel_id = ntohs(*(__be16 *)ptr);
 		ptr += 2;
-
-		if (tunnel_id != tunnel->tunnel_id) {
-			/* We are receiving trafic for another tunnel, probably
-			 * because we have several tunnels between the same
-			 * IP/port quadruple, look it up.
-			 */
-			struct l2tp_tunnel *alt_tunnel;
-
-			alt_tunnel = l2tp_tunnel_get(tunnel->l2tp_net, tunnel_id);
-			if (!alt_tunnel)
-				goto pass;
-			tunnel = alt_tunnel;
-		}
-
 		session_id = ntohs(*(__be16 *)ptr);
 		ptr += 2;
+
+		session = l2tp_v2_session_get(net, tunnel_id, session_id);
 	} else {
+		u32 session_id;
+
 		ptr += 2;	/* skip reserved bits */
-		tunnel_id = tunnel->tunnel_id;
 		session_id = ntohl(*(__be32 *)ptr);
 		ptr += 4;
+
+		session = l2tp_v3_session_get(net, sk, session_id);
 	}
 
-	/* Check protocol version */
-	if (version != tunnel->version) {
-		pr_debug_ratelimited("%s: recv protocol version mismatch: got %d expected %d\n",
-				     tunnel->name, version, tunnel->version);
-		goto invalid;
-	}
-
-	/* Find the session context */
-	session = l2tp_tunnel_get_session(tunnel, session_id);
 	if (!session || !session->recv_skb) {
 		if (session)
 			l2tp_session_dec_refcount(session);
 
 		/* Not found? Pass to userspace to deal with */
-		pr_debug_ratelimited("%s: no session found (%u/%u). Passing up.\n",
-				     tunnel->name, tunnel_id, session_id);
 		goto pass;
 	}
 
-	if (tunnel->version == L2TP_HDR_VER_3 &&
+	tunnel = session->tunnel;
+
+	/* Check protocol version */
+	if (version != tunnel->version)
+		goto invalid;
+
+	if (version == L2TP_HDR_VER_3 &&
 	    l2tp_v3_ensure_opt_in_linear(session, skb, &ptr, &optr)) {
 		l2tp_session_dec_refcount(session);
 		goto invalid;
@@ -1032,9 +1012,6 @@ static int l2tp_udp_recv_core(struct l2tp_tunnel *tunnel, struct sk_buff *skb)
 
 	l2tp_recv_common(session, skb, ptr, optr, hdrflags, length);
 	l2tp_session_dec_refcount(session);
-
-	if (tunnel != orig_tunnel)
-		l2tp_tunnel_dec_refcount(tunnel);
 
 	return 0;
 
@@ -1045,42 +1022,11 @@ pass:
 	/* Put UDP header back */
 	__skb_push(skb, sizeof(struct udphdr));
 
-	if (tunnel != orig_tunnel)
-		l2tp_tunnel_dec_refcount(tunnel);
-
-	return 1;
-}
-
-/* UDP encapsulation receive and error receive handlers.
- * See net/ipv4/udp.c for details.
- *
- * Note that these functions are called from inside an
- * RCU-protected region, but without the socket being locked.
- *
- * Hence we use rcu_dereference_sk_user_data to access the
- * tunnel data structure rather the usual l2tp_sk_to_tunnel
- * accessor function.
- */
-int l2tp_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
-{
-	struct l2tp_tunnel *tunnel;
-
-	tunnel = rcu_dereference_sk_user_data(sk);
-	if (!tunnel)
-		goto pass_up;
-	if (WARN_ON(tunnel->magic != L2TP_TUNNEL_MAGIC))
-		goto pass_up;
-
-	if (l2tp_udp_recv_core(tunnel, skb))
-		goto pass_up;
-
-	return 0;
-
-pass_up:
 	return 1;
 }
 EXPORT_SYMBOL_GPL(l2tp_udp_encap_recv);
 
+/* UDP encapsulation receive error handler. See net/ipv4/udp.c for details. */
 static void l2tp_udp_encap_err_recv(struct sock *sk, struct sk_buff *skb, int err,
 				    __be16 port, u32 info, u8 *payload)
 {
