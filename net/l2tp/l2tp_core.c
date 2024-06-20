@@ -107,11 +107,17 @@ struct l2tp_net {
 	/* Lock for write access to l2tp_tunnel_idr */
 	spinlock_t l2tp_tunnel_idr_lock;
 	struct idr l2tp_tunnel_idr;
-	/* Lock for write access to l2tp_v3_session_idr/htable */
+	/* Lock for write access to l2tp_v[23]_session_idr/htable */
 	spinlock_t l2tp_session_idr_lock;
+	struct idr l2tp_v2_session_idr;
 	struct idr l2tp_v3_session_idr;
 	struct hlist_head l2tp_v3_session_htable[16];
 };
+
+static inline u32 l2tp_v2_session_key(u16 tunnel_id, u16 session_id)
+{
+	return ((u32)tunnel_id) << 16 | session_id;
+}
 
 static inline unsigned long l2tp_v3_session_hashkey(struct sock *sk, u32 session_id)
 {
@@ -291,6 +297,24 @@ struct l2tp_session *l2tp_v3_session_get(const struct net *net, struct sock *sk,
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(l2tp_v3_session_get);
+
+struct l2tp_session *l2tp_v2_session_get(const struct net *net, u16 tunnel_id, u16 session_id)
+{
+	u32 session_key = l2tp_v2_session_key(tunnel_id, session_id);
+	const struct l2tp_net *pn = l2tp_pernet(net);
+	struct l2tp_session *session;
+
+	rcu_read_lock_bh();
+	session = idr_find(&pn->l2tp_v2_session_idr, session_key);
+	if (session && refcount_inc_not_zero(&session->ref_count)) {
+		rcu_read_unlock_bh();
+		return session;
+	}
+	rcu_read_unlock_bh();
+
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(l2tp_v2_session_get);
 
 struct l2tp_session *l2tp_session_get_nth(struct l2tp_tunnel *tunnel, int nth)
 {
@@ -477,23 +501,32 @@ int l2tp_session_register(struct l2tp_session *session,
 			err = l2tp_session_collision_add(pn, session, session2);
 		}
 		spin_unlock_bh(&pn->l2tp_session_idr_lock);
-		if (err == -ENOSPC)
-			err = -EEXIST;
+	} else {
+		session_key = l2tp_v2_session_key(tunnel->tunnel_id,
+						  session->session_id);
+		spin_lock_bh(&pn->l2tp_session_idr_lock);
+		err = idr_alloc_u32(&pn->l2tp_v2_session_idr, NULL,
+				    &session_key, session_key, GFP_ATOMIC);
+		spin_unlock_bh(&pn->l2tp_session_idr_lock);
 	}
 
-	if (err)
+	if (err) {
+		if (err == -ENOSPC)
+			err = -EEXIST;
 		goto err_tlock;
+	}
 
 	l2tp_tunnel_inc_refcount(tunnel);
 
 	hlist_add_head_rcu(&session->hlist, head);
 	spin_unlock_bh(&tunnel->hlist_lock);
 
-	if (tunnel->version == L2TP_HDR_VER_3) {
-		spin_lock_bh(&pn->l2tp_session_idr_lock);
+	spin_lock_bh(&pn->l2tp_session_idr_lock);
+	if (tunnel->version == L2TP_HDR_VER_3)
 		idr_replace(&pn->l2tp_v3_session_idr, session, session_key);
-		spin_unlock_bh(&pn->l2tp_session_idr_lock);
-	}
+	else
+		idr_replace(&pn->l2tp_v2_session_idr, session, session_key);
+	spin_unlock_bh(&pn->l2tp_session_idr_lock);
 
 	trace_register_session(session);
 
@@ -1321,25 +1354,30 @@ static void l2tp_session_unhash(struct l2tp_session *session)
 
 	/* Remove the session from core hashes */
 	if (tunnel) {
+		struct l2tp_net *pn = l2tp_pernet(tunnel->l2tp_net);
+		struct l2tp_session *removed = session;
+
 		/* Remove from the per-tunnel hash */
 		spin_lock_bh(&tunnel->hlist_lock);
 		hlist_del_init_rcu(&session->hlist);
 		spin_unlock_bh(&tunnel->hlist_lock);
 
-		/* For L2TPv3 we have a per-net IDR: remove from there, too */
+		/* Remove from per-net IDR */
+		spin_lock_bh(&pn->l2tp_session_idr_lock);
 		if (tunnel->version == L2TP_HDR_VER_3) {
-			struct l2tp_net *pn = l2tp_pernet(tunnel->l2tp_net);
-			struct l2tp_session *removed = session;
-
-			spin_lock_bh(&pn->l2tp_session_idr_lock);
 			if (hash_hashed(&session->hlist))
 				l2tp_session_collision_del(pn, session);
 			else
 				removed = idr_remove(&pn->l2tp_v3_session_idr,
 						     session->session_id);
-			WARN_ON_ONCE(removed && removed != session);
-			spin_unlock_bh(&pn->l2tp_session_idr_lock);
+		} else {
+			u32 session_key = l2tp_v2_session_key(tunnel->tunnel_id,
+							      session->session_id);
+			removed = idr_remove(&pn->l2tp_v2_session_idr,
+					     session_key);
 		}
+		WARN_ON_ONCE(removed && removed != session);
+		spin_unlock_bh(&pn->l2tp_session_idr_lock);
 
 		synchronize_rcu();
 	}
@@ -1802,6 +1840,7 @@ static __net_init int l2tp_init_net(struct net *net)
 	idr_init(&pn->l2tp_tunnel_idr);
 	spin_lock_init(&pn->l2tp_tunnel_idr_lock);
 
+	idr_init(&pn->l2tp_v2_session_idr);
 	idr_init(&pn->l2tp_v3_session_idr);
 	spin_lock_init(&pn->l2tp_session_idr_lock);
 
@@ -1825,6 +1864,7 @@ static __net_exit void l2tp_exit_net(struct net *net)
 		flush_workqueue(l2tp_wq);
 	rcu_barrier();
 
+	idr_destroy(&pn->l2tp_v2_session_idr);
 	idr_destroy(&pn->l2tp_v3_session_idr);
 	idr_destroy(&pn->l2tp_tunnel_idr);
 }
