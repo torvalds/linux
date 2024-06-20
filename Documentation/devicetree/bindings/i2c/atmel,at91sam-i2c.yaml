@@ -36,12 +36,6 @@ properties:
   interrupts:
     maxItems: 1
 
-  "#address-cells":
-    const: 1
-
-  "#size-cells":
-    const: 0
-
   clocks:
     maxItems: 1
 
@@ -72,8 +66,6 @@ required:
   - compatible
   - reg
   - interrupts
-  - "#address-cells"
-  - "#size-cells"
   - clocks
 
 allOf:
