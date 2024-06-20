@@ -1295,11 +1295,15 @@ static int rtw89_wow_disable_trx_pre(struct rtw89_dev *rtwdev)
 
 static int rtw89_wow_disable_trx_post(struct rtw89_dev *rtwdev)
 {
+	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
+	struct ieee80211_vif *vif = rtw_wow->wow_vif;
 	int ret;
 
 	ret = rtw89_mac_cfg_ppdu_status(rtwdev, RTW89_MAC_0, true);
 	if (ret)
 		rtw89_err(rtwdev, "cfg ppdu status\n");
+
+	rtw89_fw_h2c_set_bcn_fltr_cfg(rtwdev, vif, true);
 
 	return ret;
 }
