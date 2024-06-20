@@ -288,9 +288,36 @@ static bool kvm_hyp_handle_cpacr_el1(struct kvm_vcpu *vcpu, u64 *exit_code)
 	return true;
 }
 
+static bool kvm_hyp_handle_zcr_el2(struct kvm_vcpu *vcpu, u64 *exit_code)
+{
+	u32 sysreg = esr_sys64_to_sysreg(kvm_vcpu_get_esr(vcpu));
+
+	if (!vcpu_has_nv(vcpu))
+		return false;
+
+	if (sysreg != SYS_ZCR_EL2)
+		return false;
+
+	if (guest_owns_fp_regs())
+		return false;
+
+	/*
+	 * ZCR_EL2 traps are handled in the slow path, with the expectation
+	 * that the guest's FP context has already been loaded onto the CPU.
+	 *
+	 * Load the guest's FP context and unconditionally forward to the
+	 * slow path for handling (i.e. return false).
+	 */
+	kvm_hyp_handle_fpsimd(vcpu, exit_code);
+	return false;
+}
+
 static bool kvm_hyp_handle_sysreg_vhe(struct kvm_vcpu *vcpu, u64 *exit_code)
 {
 	if (kvm_hyp_handle_cpacr_el1(vcpu, exit_code))
+		return true;
+
+	if (kvm_hyp_handle_zcr_el2(vcpu, exit_code))
 		return true;
 
 	return kvm_hyp_handle_sysreg(vcpu, exit_code);
