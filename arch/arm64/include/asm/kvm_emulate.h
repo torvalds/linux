@@ -11,6 +11,7 @@
 #ifndef __ARM64_KVM_EMULATE_H__
 #define __ARM64_KVM_EMULATE_H__
 
+#include <linux/bitfield.h>
 #include <linux/kvm_host.h>
 
 #include <asm/debug-monitors.h>
@@ -660,4 +661,46 @@ static __always_inline void kvm_reset_cptr_el2(struct kvm_vcpu *vcpu)
 
 	kvm_write_cptr_el2(val);
 }
+
+/*
+ * Returns a 'sanitised' view of CPTR_EL2, translating from nVHE to the VHE
+ * format if E2H isn't set.
+ */
+static inline u64 vcpu_sanitised_cptr_el2(const struct kvm_vcpu *vcpu)
+{
+	u64 cptr = __vcpu_sys_reg(vcpu, CPTR_EL2);
+
+	if (!vcpu_el2_e2h_is_set(vcpu))
+		cptr = translate_cptr_el2_to_cpacr_el1(cptr);
+
+	return cptr;
+}
+
+static inline bool ____cptr_xen_trap_enabled(const struct kvm_vcpu *vcpu,
+					     unsigned int xen)
+{
+	switch (xen) {
+	case 0b00:
+	case 0b10:
+		return true;
+	case 0b01:
+		return vcpu_el2_tge_is_set(vcpu) && !vcpu_is_el2(vcpu);
+	case 0b11:
+	default:
+		return false;
+	}
+}
+
+#define __guest_hyp_cptr_xen_trap_enabled(vcpu, xen)				\
+	(!vcpu_has_nv(vcpu) ? false :						\
+	 ____cptr_xen_trap_enabled(vcpu,					\
+				   SYS_FIELD_GET(CPACR_ELx, xen,		\
+						 vcpu_sanitised_cptr_el2(vcpu))))
+
+static inline bool guest_hyp_fpsimd_traps_enabled(const struct kvm_vcpu *vcpu)
+{
+	return __guest_hyp_cptr_xen_trap_enabled(vcpu, FPEN);
+}
+
+
 #endif /* __ARM64_KVM_EMULATE_H__ */
