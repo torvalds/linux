@@ -45,6 +45,7 @@
 	no-1-8-v;
 	no-mmc;
 	no-sdio;
+	disable-wp;
 };
 
 &uart0 {
