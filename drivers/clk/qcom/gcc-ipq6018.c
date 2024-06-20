@@ -1617,7 +1617,7 @@ static const struct freq_tbl ftbl_sdcc_apps_clk_src[] = {
 	F(96000000, P_GPLL2, 12, 0, 0),
 	F(177777778, P_GPLL0, 4.5, 0, 0),
 	F(192000000, P_GPLL2, 6, 0, 0),
-	F(384000000, P_GPLL2, 3, 0, 0),
+	F(200000000, P_GPLL0, 4, 0, 0),
 	{ }
 };
 
