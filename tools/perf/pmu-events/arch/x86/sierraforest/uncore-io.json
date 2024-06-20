@@ -1,6 +1,7 @@
 [
     {
         "BriefDescription": "IIO Clockticks",
+        "Counter": "0,1,2,3",
         "EventCode": "0x01",
         "EventName": "UNC_IIO_CLOCKTICKS",
         "PerPkg": "1",
@@ -9,8 +10,10 @@
     },
     {
         "BriefDescription": "PCIE Completion Buffer Inserts.  Counts once per 64 byte read issued from this PCIE device.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xC2",
         "EventName": "UNC_IIO_COMP_BUF_INSERTS.CMPD.ALL_PARTS",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x0FF",
@@ -19,8 +22,10 @@
     },
     {
         "BriefDescription": "PCIE Completion Buffer Inserts.  Counts once per 64 byte read issued from this PCIE device.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xC2",
         "EventName": "UNC_IIO_COMP_BUF_INSERTS.CMPD.PART0",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x001",
@@ -29,8 +34,10 @@
     },
     {
         "BriefDescription": "PCIE Completion Buffer Inserts.  Counts once per 64 byte read issued from this PCIE device.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xC2",
         "EventName": "UNC_IIO_COMP_BUF_INSERTS.CMPD.PART1",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x002",
@@ -39,8 +46,10 @@
     },
     {
         "BriefDescription": "PCIE Completion Buffer Inserts.  Counts once per 64 byte read issued from this PCIE device.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xC2",
         "EventName": "UNC_IIO_COMP_BUF_INSERTS.CMPD.PART2",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x004",
@@ -49,8 +58,10 @@
     },
     {
         "BriefDescription": "PCIE Completion Buffer Inserts.  Counts once per 64 byte read issued from this PCIE device.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xC2",
         "EventName": "UNC_IIO_COMP_BUF_INSERTS.CMPD.PART3",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x008",
@@ -59,8 +70,10 @@
     },
     {
         "BriefDescription": "PCIE Completion Buffer Inserts.  Counts once per 64 byte read issued from this PCIE device.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xC2",
         "EventName": "UNC_IIO_COMP_BUF_INSERTS.CMPD.PART4",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x010",
@@ -69,8 +82,10 @@
     },
     {
         "BriefDescription": "PCIE Completion Buffer Inserts.  Counts once per 64 byte read issued from this PCIE device.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xC2",
         "EventName": "UNC_IIO_COMP_BUF_INSERTS.CMPD.PART5",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x020",
@@ -79,8 +94,10 @@
     },
     {
         "BriefDescription": "PCIE Completion Buffer Inserts.  Counts once per 64 byte read issued from this PCIE device.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xC2",
         "EventName": "UNC_IIO_COMP_BUF_INSERTS.CMPD.PART6",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x040",
@@ -89,8 +106,10 @@
     },
     {
         "BriefDescription": "PCIE Completion Buffer Inserts.  Counts once per 64 byte read issued from this PCIE device.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xC2",
         "EventName": "UNC_IIO_COMP_BUF_INSERTS.CMPD.PART7",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x080",
@@ -99,8 +118,10 @@
     },
     {
         "BriefDescription": "Count of allocations in the completion buffer",
+        "Counter": "2,3",
         "EventCode": "0xD5",
         "EventName": "UNC_IIO_COMP_BUF_OCCUPANCY.CMPD.ALL_PARTS",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x0FF",
@@ -109,8 +130,10 @@
     },
     {
         "BriefDescription": "Count of allocations in the completion buffer",
+        "Counter": "2,3",
         "EventCode": "0xD5",
         "EventName": "UNC_IIO_COMP_BUF_OCCUPANCY.CMPD.PART0",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x001",
@@ -119,8 +142,10 @@
     },
     {
         "BriefDescription": "Count of allocations in the completion buffer",
+        "Counter": "2,3",
         "EventCode": "0xD5",
         "EventName": "UNC_IIO_COMP_BUF_OCCUPANCY.CMPD.PART1",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x002",
@@ -129,8 +154,10 @@
     },
     {
         "BriefDescription": "Count of allocations in the completion buffer",
+        "Counter": "2,3",
         "EventCode": "0xD5",
         "EventName": "UNC_IIO_COMP_BUF_OCCUPANCY.CMPD.PART2",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x004",
@@ -139,8 +166,10 @@
     },
     {
         "BriefDescription": "Count of allocations in the completion buffer",
+        "Counter": "2,3",
         "EventCode": "0xD5",
         "EventName": "UNC_IIO_COMP_BUF_OCCUPANCY.CMPD.PART3",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x008",
@@ -149,8 +178,10 @@
     },
     {
         "BriefDescription": "Count of allocations in the completion buffer",
+        "Counter": "2,3",
         "EventCode": "0xD5",
         "EventName": "UNC_IIO_COMP_BUF_OCCUPANCY.CMPD.PART4",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x010",
@@ -159,8 +190,10 @@
     },
     {
         "BriefDescription": "Count of allocations in the completion buffer",
+        "Counter": "2,3",
         "EventCode": "0xD5",
         "EventName": "UNC_IIO_COMP_BUF_OCCUPANCY.CMPD.PART5",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x020",
@@ -169,8 +202,10 @@
     },
     {
         "BriefDescription": "Count of allocations in the completion buffer",
+        "Counter": "2,3",
         "EventCode": "0xD5",
         "EventName": "UNC_IIO_COMP_BUF_OCCUPANCY.CMPD.PART6",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x040",
@@ -179,8 +214,10 @@
     },
     {
         "BriefDescription": "Count of allocations in the completion buffer",
+        "Counter": "2,3",
         "EventCode": "0xD5",
         "EventName": "UNC_IIO_COMP_BUF_OCCUPANCY.CMPD.PART7",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x080",
@@ -189,8 +226,10 @@
     },
     {
         "BriefDescription": "Data requested by the CPU : Core reporting completion of Card read from Core DRAM",
+        "Counter": "2,3",
         "EventCode": "0xC0",
         "EventName": "UNC_IIO_DATA_REQ_BY_CPU.MEM_READ.ALL_PARTS",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x0FF",
@@ -199,8 +238,10 @@
     },
     {
         "BriefDescription": "Data requested by the CPU : Core reporting completion of Card read from Core DRAM",
+        "Counter": "2,3",
         "EventCode": "0xC0",
         "EventName": "UNC_IIO_DATA_REQ_BY_CPU.MEM_READ.PART0",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x001",
@@ -209,8 +250,10 @@
     },
     {
         "BriefDescription": "Data requested by the CPU : Core reporting completion of Card read from Core DRAM",
+        "Counter": "2,3",
         "EventCode": "0xC0",
         "EventName": "UNC_IIO_DATA_REQ_BY_CPU.MEM_READ.PART1",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x002",
@@ -219,8 +262,10 @@
     },
     {
         "BriefDescription": "Data requested by the CPU : Core reporting completion of Card read from Core DRAM",
+        "Counter": "2,3",
         "EventCode": "0xC0",
         "EventName": "UNC_IIO_DATA_REQ_BY_CPU.MEM_READ.PART2",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x004",
@@ -229,8 +274,10 @@
     },
     {
         "BriefDescription": "Data requested by the CPU : Core reporting completion of Card read from Core DRAM",
+        "Counter": "2,3",
         "EventCode": "0xC0",
         "EventName": "UNC_IIO_DATA_REQ_BY_CPU.MEM_READ.PART3",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x008",
@@ -239,8 +286,10 @@
     },
     {
         "BriefDescription": "Data requested by the CPU : Core reporting completion of Card read from Core DRAM",
+        "Counter": "2,3",
         "EventCode": "0xC0",
         "EventName": "UNC_IIO_DATA_REQ_BY_CPU.MEM_READ.PART4",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x010",
@@ -249,8 +298,10 @@
     },
     {
         "BriefDescription": "Data requested by the CPU : Core reporting completion of Card read from Core DRAM",
+        "Counter": "2,3",
         "EventCode": "0xC0",
         "EventName": "UNC_IIO_DATA_REQ_BY_CPU.MEM_READ.PART5",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x020",
@@ -259,8 +310,10 @@
     },
     {
         "BriefDescription": "Data requested by the CPU : Core reporting completion of Card read from Core DRAM",
+        "Counter": "2,3",
         "EventCode": "0xC0",
         "EventName": "UNC_IIO_DATA_REQ_BY_CPU.MEM_READ.PART6",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x040",
@@ -269,8 +322,10 @@
     },
     {
         "BriefDescription": "Data requested by the CPU : Core reporting completion of Card read from Core DRAM",
+        "Counter": "2,3",
         "EventCode": "0xC0",
         "EventName": "UNC_IIO_DATA_REQ_BY_CPU.MEM_READ.PART7",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x080",
@@ -279,8 +334,10 @@
     },
     {
         "BriefDescription": "Data requested by the CPU : Core writing to Cards MMIO space",
+        "Counter": "2,3",
         "EventCode": "0xC0",
         "EventName": "UNC_IIO_DATA_REQ_BY_CPU.MEM_WRITE.ALL_PARTS",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x0FF",
@@ -289,6 +346,7 @@
     },
     {
         "BriefDescription": "Data requested by the CPU : Core writing to Cards MMIO space",
+        "Counter": "2,3",
         "EventCode": "0xC0",
         "EventName": "UNC_IIO_DATA_REQ_BY_CPU.MEM_WRITE.PART0",
         "FCMask": "0x07",
@@ -299,6 +357,7 @@
     },
     {
         "BriefDescription": "Data requested by the CPU : Core writing to Cards MMIO space",
+        "Counter": "2,3",
         "EventCode": "0xC0",
         "EventName": "UNC_IIO_DATA_REQ_BY_CPU.MEM_WRITE.PART1",
         "FCMask": "0x07",
@@ -309,6 +368,7 @@
     },
     {
         "BriefDescription": "Data requested by the CPU : Core writing to Cards MMIO space",
+        "Counter": "2,3",
         "EventCode": "0xC0",
         "EventName": "UNC_IIO_DATA_REQ_BY_CPU.MEM_WRITE.PART2",
         "FCMask": "0x07",
@@ -319,6 +379,7 @@
     },
     {
         "BriefDescription": "Data requested by the CPU : Core writing to Cards MMIO space",
+        "Counter": "2,3",
         "EventCode": "0xC0",
         "EventName": "UNC_IIO_DATA_REQ_BY_CPU.MEM_WRITE.PART3",
         "FCMask": "0x07",
@@ -329,6 +390,7 @@
     },
     {
         "BriefDescription": "Data requested by the CPU : Core writing to Cards MMIO space",
+        "Counter": "2,3",
         "EventCode": "0xC0",
         "EventName": "UNC_IIO_DATA_REQ_BY_CPU.MEM_WRITE.PART4",
         "FCMask": "0x07",
@@ -339,6 +401,7 @@
     },
     {
         "BriefDescription": "Data requested by the CPU : Core writing to Cards MMIO space",
+        "Counter": "2,3",
         "EventCode": "0xC0",
         "EventName": "UNC_IIO_DATA_REQ_BY_CPU.MEM_WRITE.PART5",
         "FCMask": "0x07",
@@ -349,6 +412,7 @@
     },
     {
         "BriefDescription": "Data requested by the CPU : Core writing to Cards MMIO space",
+        "Counter": "2,3",
         "EventCode": "0xC0",
         "EventName": "UNC_IIO_DATA_REQ_BY_CPU.MEM_WRITE.PART6",
         "FCMask": "0x07",
@@ -359,6 +423,7 @@
     },
     {
         "BriefDescription": "Data requested by the CPU : Core writing to Cards MMIO space",
+        "Counter": "2,3",
         "EventCode": "0xC0",
         "EventName": "UNC_IIO_DATA_REQ_BY_CPU.MEM_WRITE.PART7",
         "FCMask": "0x07",
@@ -369,6 +434,7 @@
     },
     {
         "BriefDescription": "Data requested by the CPU : Another card (different IIO stack) reading from this card.",
+        "Counter": "2,3",
         "EventCode": "0xC0",
         "EventName": "UNC_IIO_DATA_REQ_BY_CPU.PEER_READ.ALL_PARTS",
         "FCMask": "0x07",
@@ -379,6 +445,7 @@
     },
     {
         "BriefDescription": "Data requested by the CPU : Another card (different IIO stack) writing to this card.",
+        "Counter": "2,3",
         "EventCode": "0xC0",
         "EventName": "UNC_IIO_DATA_REQ_BY_CPU.PEER_WRITE.ALL_PARTS",
         "FCMask": "0x07",
@@ -389,6 +456,7 @@
     },
     {
         "BriefDescription": "Counts once for every 4 bytes read from this card to memory.  This event does include reads to IO.",
+        "Counter": "0,1",
         "EventCode": "0x83",
         "EventName": "UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.ALL_PARTS",
         "FCMask": "0x07",
@@ -399,6 +467,7 @@
     },
     {
         "BriefDescription": "Four byte data request of the CPU : Card reading from DRAM",
+        "Counter": "0,1",
         "EventCode": "0x83",
         "EventName": "UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART0",
         "FCMask": "0x07",
@@ -409,6 +478,7 @@
     },
     {
         "BriefDescription": "Four byte data request of the CPU : Card reading from DRAM",
+        "Counter": "0,1",
         "EventCode": "0x83",
         "EventName": "UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART1",
         "FCMask": "0x07",
@@ -419,6 +489,7 @@
     },
     {
         "BriefDescription": "Four byte data request of the CPU : Card reading from DRAM",
+        "Counter": "0,1",
         "EventCode": "0x83",
         "EventName": "UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART2",
         "FCMask": "0x07",
@@ -429,6 +500,7 @@
     },
     {
         "BriefDescription": "Four byte data request of the CPU : Card reading from DRAM",
+        "Counter": "0,1",
         "EventCode": "0x83",
         "EventName": "UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART3",
         "FCMask": "0x07",
@@ -439,6 +511,7 @@
     },
     {
         "BriefDescription": "Four byte data request of the CPU : Card reading from DRAM",
+        "Counter": "0,1",
         "EventCode": "0x83",
         "EventName": "UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART4",
         "FCMask": "0x07",
@@ -449,6 +522,7 @@
     },
     {
         "BriefDescription": "Four byte data request of the CPU : Card reading from DRAM",
+        "Counter": "0,1",
         "EventCode": "0x83",
         "EventName": "UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART5",
         "FCMask": "0x07",
@@ -459,6 +533,7 @@
     },
     {
         "BriefDescription": "Four byte data request of the CPU : Card reading from DRAM",
+        "Counter": "0,1",
         "EventCode": "0x83",
         "EventName": "UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART6",
         "FCMask": "0x07",
@@ -469,6 +544,7 @@
     },
     {
         "BriefDescription": "Four byte data request of the CPU : Card reading from DRAM",
+        "Counter": "0,1",
         "EventCode": "0x83",
         "EventName": "UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART7",
         "FCMask": "0x07",
@@ -479,6 +555,7 @@
     },
     {
         "BriefDescription": "Counts once for every 4 bytes written from this card to memory.  This event does include writes to IO.",
+        "Counter": "0,1",
         "EventCode": "0x83",
         "EventName": "UNC_IIO_DATA_REQ_OF_CPU.MEM_WRITE.ALL_PARTS",
         "FCMask": "0x07",
@@ -489,6 +566,7 @@
     },
     {
         "BriefDescription": "Four byte data request of the CPU : Card writing to DRAM",
+        "Counter": "0,1",
         "EventCode": "0x83",
         "EventName": "UNC_IIO_DATA_REQ_OF_CPU.MEM_WRITE.PART0",
         "FCMask": "0x07",
@@ -499,6 +577,7 @@
     },
     {
         "BriefDescription": "Four byte data request of the CPU : Card writing to DRAM",
+        "Counter": "0,1",
         "EventCode": "0x83",
         "EventName": "UNC_IIO_DATA_REQ_OF_CPU.MEM_WRITE.PART1",
         "FCMask": "0x07",
@@ -509,6 +588,7 @@
     },
     {
         "BriefDescription": "Four byte data request of the CPU : Card writing to DRAM",
+        "Counter": "0,1",
         "EventCode": "0x83",
         "EventName": "UNC_IIO_DATA_REQ_OF_CPU.MEM_WRITE.PART2",
         "FCMask": "0x07",
@@ -519,6 +599,7 @@
     },
     {
         "BriefDescription": "Four byte data request of the CPU : Card writing to DRAM",
+        "Counter": "0,1",
         "EventCode": "0x83",
         "EventName": "UNC_IIO_DATA_REQ_OF_CPU.MEM_WRITE.PART3",
         "FCMask": "0x07",
@@ -529,6 +610,7 @@
     },
     {
         "BriefDescription": "Four byte data request of the CPU : Card writing to DRAM",
+        "Counter": "0,1",
         "EventCode": "0x83",
         "EventName": "UNC_IIO_DATA_REQ_OF_CPU.MEM_WRITE.PART4",
         "FCMask": "0x07",
@@ -539,6 +621,7 @@
     },
     {
         "BriefDescription": "Four byte data request of the CPU : Card writing to DRAM",
+        "Counter": "0,1",
         "EventCode": "0x83",
         "EventName": "UNC_IIO_DATA_REQ_OF_CPU.MEM_WRITE.PART5",
         "FCMask": "0x07",
@@ -549,6 +632,7 @@
     },
     {
         "BriefDescription": "Four byte data request of the CPU : Card writing to DRAM",
+        "Counter": "0,1",
         "EventCode": "0x83",
         "EventName": "UNC_IIO_DATA_REQ_OF_CPU.MEM_WRITE.PART6",
         "FCMask": "0x07",
@@ -559,6 +643,7 @@
     },
     {
         "BriefDescription": "Four byte data request of the CPU : Card writing to DRAM",
+        "Counter": "0,1",
         "EventCode": "0x83",
         "EventName": "UNC_IIO_DATA_REQ_OF_CPU.MEM_WRITE.PART7",
         "FCMask": "0x07",
@@ -569,8 +654,10 @@
     },
     {
         "BriefDescription": "Data requested of the CPU : Card reading from another Card (same or different stack)",
+        "Counter": "0,1",
         "EventCode": "0x83",
         "EventName": "UNC_IIO_DATA_REQ_OF_CPU.PEER_READ.PART0",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x001",
@@ -579,8 +666,10 @@
     },
     {
         "BriefDescription": "Data requested of the CPU : Card reading from another Card (same or different stack)",
+        "Counter": "0,1",
         "EventCode": "0x83",
         "EventName": "UNC_IIO_DATA_REQ_OF_CPU.PEER_READ.PART1",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x002",
@@ -589,8 +678,10 @@
     },
     {
         "BriefDescription": "Data requested of the CPU : Card reading from another Card (same or different stack)",
+        "Counter": "0,1",
         "EventCode": "0x83",
         "EventName": "UNC_IIO_DATA_REQ_OF_CPU.PEER_READ.PART2",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x004",
@@ -599,8 +690,10 @@
     },
     {
         "BriefDescription": "Data requested of the CPU : Card reading from another Card (same or different stack)",
+        "Counter": "0,1",
         "EventCode": "0x83",
         "EventName": "UNC_IIO_DATA_REQ_OF_CPU.PEER_READ.PART3",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x008",
@@ -609,8 +702,10 @@
     },
     {
         "BriefDescription": "Data requested of the CPU : Card reading from another Card (same or different stack)",
+        "Counter": "0,1",
         "EventCode": "0x83",
         "EventName": "UNC_IIO_DATA_REQ_OF_CPU.PEER_READ.PART4",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x010",
@@ -619,8 +714,10 @@
     },
     {
         "BriefDescription": "Data requested of the CPU : Card reading from another Card (same or different stack)",
+        "Counter": "0,1",
         "EventCode": "0x83",
         "EventName": "UNC_IIO_DATA_REQ_OF_CPU.PEER_READ.PART5",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x020",
@@ -629,8 +726,10 @@
     },
     {
         "BriefDescription": "Data requested of the CPU : Card reading from another Card (same or different stack)",
+        "Counter": "0,1",
         "EventCode": "0x83",
         "EventName": "UNC_IIO_DATA_REQ_OF_CPU.PEER_READ.PART6",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x040",
@@ -639,8 +738,10 @@
     },
     {
         "BriefDescription": "Data requested of the CPU : Card reading from another Card (same or different stack)",
+        "Counter": "0,1",
         "EventCode": "0x83",
         "EventName": "UNC_IIO_DATA_REQ_OF_CPU.PEER_READ.PART7",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x080",
@@ -649,8 +750,10 @@
     },
     {
         "BriefDescription": "Counts once for every 4 bytes written from this card to a peer device's IO space.",
+        "Counter": "0,1",
         "EventCode": "0x83",
         "EventName": "UNC_IIO_DATA_REQ_OF_CPU.PEER_WRITE.ALL_PARTS",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x0FF",
@@ -659,8 +762,10 @@
     },
     {
         "BriefDescription": "Data requested of the CPU : Card writing to another Card (same or different stack)",
+        "Counter": "0,1",
         "EventCode": "0x83",
         "EventName": "UNC_IIO_DATA_REQ_OF_CPU.PEER_WRITE.PART0",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x001",
@@ -669,8 +774,10 @@
     },
     {
         "BriefDescription": "Data requested of the CPU : Card writing to another Card (same or different stack)",
+        "Counter": "0,1",
         "EventCode": "0x83",
         "EventName": "UNC_IIO_DATA_REQ_OF_CPU.PEER_WRITE.PART1",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x002",
@@ -679,8 +786,10 @@
     },
     {
         "BriefDescription": "Data requested of the CPU : Card writing to another Card (same or different stack)",
+        "Counter": "0,1",
         "EventCode": "0x83",
         "EventName": "UNC_IIO_DATA_REQ_OF_CPU.PEER_WRITE.PART2",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x004",
@@ -689,8 +798,10 @@
     },
     {
         "BriefDescription": "Data requested of the CPU : Card writing to another Card (same or different stack)",
+        "Counter": "0,1",
         "EventCode": "0x83",
         "EventName": "UNC_IIO_DATA_REQ_OF_CPU.PEER_WRITE.PART3",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x008",
@@ -699,8 +810,10 @@
     },
     {
         "BriefDescription": "Data requested of the CPU : Card writing to another Card (same or different stack)",
+        "Counter": "0,1",
         "EventCode": "0x83",
         "EventName": "UNC_IIO_DATA_REQ_OF_CPU.PEER_WRITE.PART4",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x010",
@@ -709,8 +822,10 @@
     },
     {
         "BriefDescription": "Data requested of the CPU : Card writing to another Card (same or different stack)",
+        "Counter": "0,1",
         "EventCode": "0x83",
         "EventName": "UNC_IIO_DATA_REQ_OF_CPU.PEER_WRITE.PART5",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x020",
@@ -719,8 +834,10 @@
     },
     {
         "BriefDescription": "Data requested of the CPU : Card writing to another Card (same or different stack)",
+        "Counter": "0,1",
         "EventCode": "0x83",
         "EventName": "UNC_IIO_DATA_REQ_OF_CPU.PEER_WRITE.PART6",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x040",
@@ -729,8 +846,10 @@
     },
     {
         "BriefDescription": "Data requested of the CPU : Card writing to another Card (same or different stack)",
+        "Counter": "0,1",
         "EventCode": "0x83",
         "EventName": "UNC_IIO_DATA_REQ_OF_CPU.PEER_WRITE.PART7",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x080",
@@ -739,8 +858,10 @@
     },
     {
         "BriefDescription": "IOTLB Hits to a 1G Page",
+        "Counter": "0,1,2,3",
         "EventCode": "0x40",
         "EventName": "UNC_IIO_IOMMU0.1G_HITS",
+        "Experimental": "1",
         "PerPkg": "1",
         "PortMask": "0x000",
         "UMask": "0x10",
@@ -748,8 +869,10 @@
     },
     {
         "BriefDescription": "IOTLB Hits to a 2M Page",
+        "Counter": "0,1,2,3",
         "EventCode": "0x40",
         "EventName": "UNC_IIO_IOMMU0.2M_HITS",
+        "Experimental": "1",
         "PerPkg": "1",
         "PortMask": "0x000",
         "UMask": "0x8",
@@ -757,8 +880,10 @@
     },
     {
         "BriefDescription": "IOTLB Hits to a 4K Page",
+        "Counter": "0,1,2,3",
         "EventCode": "0x40",
         "EventName": "UNC_IIO_IOMMU0.4K_HITS",
+        "Experimental": "1",
         "PerPkg": "1",
         "PortMask": "0x000",
         "UMask": "0x4",
@@ -766,8 +891,10 @@
     },
     {
         "BriefDescription": "IOTLB lookups all",
+        "Counter": "0,1,2,3",
         "EventCode": "0x40",
         "EventName": "UNC_IIO_IOMMU0.ALL_LOOKUPS",
+        "Experimental": "1",
         "PerPkg": "1",
         "PortMask": "0x000",
         "UMask": "0x2",
@@ -775,8 +902,10 @@
     },
     {
         "BriefDescription": "Context cache hits",
+        "Counter": "0,1,2,3",
         "EventCode": "0x40",
         "EventName": "UNC_IIO_IOMMU0.CTXT_CACHE_HITS",
+        "Experimental": "1",
         "PerPkg": "1",
         "PortMask": "0x000",
         "UMask": "0x80",
@@ -784,8 +913,10 @@
     },
     {
         "BriefDescription": "Context cache lookups",
+        "Counter": "0,1,2,3",
         "EventCode": "0x40",
         "EventName": "UNC_IIO_IOMMU0.CTXT_CACHE_LOOKUPS",
+        "Experimental": "1",
         "PerPkg": "1",
         "PortMask": "0x000",
         "UMask": "0x40",
@@ -793,8 +924,10 @@
     },
     {
         "BriefDescription": "IOTLB lookups first",
+        "Counter": "0,1,2,3",
         "EventCode": "0x40",
         "EventName": "UNC_IIO_IOMMU0.FIRST_LOOKUPS",
+        "Experimental": "1",
         "PerPkg": "1",
         "PortMask": "0x000",
         "UMask": "0x1",
@@ -802,8 +935,10 @@
     },
     {
         "BriefDescription": "IOTLB Fills (same as IOTLB miss)",
+        "Counter": "0,1,2,3",
         "EventCode": "0x40",
         "EventName": "UNC_IIO_IOMMU0.MISSES",
+        "Experimental": "1",
         "PerPkg": "1",
         "PortMask": "0x000",
         "UMask": "0x20",
@@ -811,8 +946,10 @@
     },
     {
         "BriefDescription": "IOMMU memory access (both low and high priority)",
+        "Counter": "0,1,2,3",
         "EventCode": "0x41",
         "EventName": "UNC_IIO_IOMMU1.NUM_MEM_ACCESSES",
+        "Experimental": "1",
         "PerPkg": "1",
         "PortMask": "0x000",
         "UMask": "0xc0",
@@ -820,8 +957,10 @@
     },
     {
         "BriefDescription": "IOMMU high priority memory access",
+        "Counter": "0,1,2,3",
         "EventCode": "0x41",
         "EventName": "UNC_IIO_IOMMU1.NUM_MEM_ACCESSES_HIGH",
+        "Experimental": "1",
         "PerPkg": "1",
         "PortMask": "0x000",
         "UMask": "0x80",
@@ -829,8 +968,10 @@
     },
     {
         "BriefDescription": "IOMMU low priority memory access",
+        "Counter": "0,1,2,3",
         "EventCode": "0x41",
         "EventName": "UNC_IIO_IOMMU1.NUM_MEM_ACCESSES_LOW",
+        "Experimental": "1",
         "PerPkg": "1",
         "PortMask": "0x000",
         "UMask": "0x40",
@@ -838,8 +979,10 @@
     },
     {
         "BriefDescription": "Second Level Page Walk Cache Hit to a 1G page",
+        "Counter": "0,1,2,3",
         "EventCode": "0x41",
         "EventName": "UNC_IIO_IOMMU1.SLPWC_1G_HITS",
+        "Experimental": "1",
         "PerPkg": "1",
         "PortMask": "0x000",
         "UMask": "0x4",
@@ -847,8 +990,10 @@
     },
     {
         "BriefDescription": "Second Level Page Walk Cache Hit to a 256T page",
+        "Counter": "0,1,2,3",
         "EventCode": "0x41",
         "EventName": "UNC_IIO_IOMMU1.SLPWC_256T_HITS",
+        "Experimental": "1",
         "PerPkg": "1",
         "PortMask": "0x000",
         "UMask": "0x10",
@@ -856,8 +1001,10 @@
     },
     {
         "BriefDescription": "Second Level Page Walk Cache Hit to a 2M page",
+        "Counter": "0,1,2,3",
         "EventCode": "0x41",
         "EventName": "UNC_IIO_IOMMU1.SLPWC_2M_HITS",
+        "Experimental": "1",
         "PerPkg": "1",
         "PortMask": "0x000",
         "UMask": "0x2",
@@ -865,8 +1012,10 @@
     },
     {
         "BriefDescription": "Second Level Page Walk Cache Hit to a 512G page",
+        "Counter": "0,1,2,3",
         "EventCode": "0x41",
         "EventName": "UNC_IIO_IOMMU1.SLPWC_512G_HITS",
+        "Experimental": "1",
         "PerPkg": "1",
         "PortMask": "0x000",
         "UMask": "0x8",
@@ -874,8 +1023,10 @@
     },
     {
         "BriefDescription": "Second Level Page Walk Cache fill",
+        "Counter": "0,1,2,3",
         "EventCode": "0x41",
         "EventName": "UNC_IIO_IOMMU1.SLPWC_CACHE_FILLS",
+        "Experimental": "1",
         "PerPkg": "1",
         "PortMask": "0x000",
         "UMask": "0x20",
@@ -883,8 +1034,10 @@
     },
     {
         "BriefDescription": "Second Level Page Walk Cache lookup",
+        "Counter": "0,1,2,3",
         "EventCode": "0x41",
         "EventName": "UNC_IIO_IOMMU1.SLPWC_CACHE_LOOKUPS",
+        "Experimental": "1",
         "PerPkg": "1",
         "PortMask": "0x000",
         "UMask": "0x1",
@@ -892,8 +1045,10 @@
     },
     {
         "BriefDescription": "Cycles PWT full",
+        "Counter": "0,1,2,3",
         "EventCode": "0x43",
         "EventName": "UNC_IIO_IOMMU3.CYC_PWT_FULL",
+        "Experimental": "1",
         "PerPkg": "1",
         "PortMask": "0x000",
         "UMask": "0x2",
@@ -901,8 +1056,10 @@
     },
     {
         "BriefDescription": "Interrupt Entry cache hit",
+        "Counter": "0,1,2,3",
         "EventCode": "0x43",
         "EventName": "UNC_IIO_IOMMU3.INT_CACHE_HITS",
+        "Experimental": "1",
         "PerPkg": "1",
         "PortMask": "0x000",
         "UMask": "0x80",
@@ -910,8 +1067,10 @@
     },
     {
         "BriefDescription": "Interrupt Entry cache lookup",
+        "Counter": "0,1,2,3",
         "EventCode": "0x43",
         "EventName": "UNC_IIO_IOMMU3.INT_CACHE_LOOKUPS",
+        "Experimental": "1",
         "PerPkg": "1",
         "PortMask": "0x000",
         "UMask": "0x40",
@@ -919,8 +1078,10 @@
     },
     {
         "BriefDescription": "Context Cache invalidation events",
+        "Counter": "0,1,2,3",
         "EventCode": "0x43",
         "EventName": "UNC_IIO_IOMMU3.NUM_INVAL_CTXT_CACHE",
+        "Experimental": "1",
         "PerPkg": "1",
         "PortMask": "0x000",
         "UMask": "0x8",
@@ -928,8 +1089,10 @@
     },
     {
         "BriefDescription": "Interrupt Entry Cache invalidation events",
+        "Counter": "0,1,2,3",
         "EventCode": "0x43",
         "EventName": "UNC_IIO_IOMMU3.NUM_INVAL_INT_CACHE",
+        "Experimental": "1",
         "PerPkg": "1",
         "PortMask": "0x000",
         "UMask": "0x20",
@@ -937,8 +1100,10 @@
     },
     {
         "BriefDescription": "IOTLB invalidation events",
+        "Counter": "0,1,2,3",
         "EventCode": "0x43",
         "EventName": "UNC_IIO_IOMMU3.NUM_INVAL_IOTLB",
+        "Experimental": "1",
         "PerPkg": "1",
         "PortMask": "0x000",
         "UMask": "0x4",
@@ -946,8 +1111,10 @@
     },
     {
         "BriefDescription": "PASID Cache invalidation events",
+        "Counter": "0,1,2,3",
         "EventCode": "0x43",
         "EventName": "UNC_IIO_IOMMU3.NUM_INVAL_PASID_CACHE",
+        "Experimental": "1",
         "PerPkg": "1",
         "PortMask": "0x000",
         "UMask": "0x10",
@@ -955,8 +1122,10 @@
     },
     {
         "BriefDescription": "Occupancy of outbound request queue : To device : Counts number of outbound requests/completions IIO is currently processing",
+        "Counter": "2,3",
         "EventCode": "0xc5",
         "EventName": "UNC_IIO_NUM_OUSTANDING_REQ_FROM_CPU.TO_IO",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x0FF",
@@ -965,8 +1134,10 @@
     },
     {
         "BriefDescription": "Passing data to be written",
+        "Counter": "0,1,2,3",
         "EventCode": "0x88",
         "EventName": "UNC_IIO_NUM_OUTSTANDING_REQ_OF_CPU.DATA",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x0FF",
@@ -975,8 +1146,10 @@
     },
     {
         "BriefDescription": "Issuing final read or write of line",
+        "Counter": "0,1,2,3",
         "EventCode": "0x88",
         "EventName": "UNC_IIO_NUM_OUTSTANDING_REQ_OF_CPU.FINAL_RD_WR",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x0FF",
@@ -985,8 +1158,10 @@
     },
     {
         "BriefDescription": "Processing response from IOMMU",
+        "Counter": "0,1,2,3",
         "EventCode": "0x88",
         "EventName": "UNC_IIO_NUM_OUTSTANDING_REQ_OF_CPU.IOMMU_HIT",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x0FF",
@@ -995,8 +1170,10 @@
     },
     {
         "BriefDescription": "Issuing to IOMMU",
+        "Counter": "0,1,2,3",
         "EventCode": "0x88",
         "EventName": "UNC_IIO_NUM_OUTSTANDING_REQ_OF_CPU.IOMMU_REQ",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x0FF",
@@ -1005,8 +1182,10 @@
     },
     {
         "BriefDescription": "Request Ownership",
+        "Counter": "0,1,2,3",
         "EventCode": "0x88",
         "EventName": "UNC_IIO_NUM_OUTSTANDING_REQ_OF_CPU.REQ_OWN",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x0FF",
@@ -1015,8 +1194,10 @@
     },
     {
         "BriefDescription": "Writing line",
+        "Counter": "0,1,2,3",
         "EventCode": "0x88",
         "EventName": "UNC_IIO_NUM_OUTSTANDING_REQ_OF_CPU.WR",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x0FF",
@@ -1025,8 +1206,10 @@
     },
     {
         "BriefDescription": "-",
+        "Counter": "0,1,2,3",
         "EventCode": "0x8e",
         "EventName": "UNC_IIO_NUM_REQ_OF_CPU_BY_TGT.ABORT",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x0FF",
@@ -1035,8 +1218,10 @@
     },
     {
         "BriefDescription": "-",
+        "Counter": "0,1,2,3",
         "EventCode": "0x8e",
         "EventName": "UNC_IIO_NUM_REQ_OF_CPU_BY_TGT.CONFINED_P2P",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x0FF",
@@ -1045,8 +1230,10 @@
     },
     {
         "BriefDescription": "-",
+        "Counter": "0,1,2,3",
         "EventCode": "0x8e",
         "EventName": "UNC_IIO_NUM_REQ_OF_CPU_BY_TGT.LOC_P2P",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x0FF",
@@ -1055,8 +1242,10 @@
     },
     {
         "BriefDescription": "-",
+        "Counter": "0,1,2,3",
         "EventCode": "0x8e",
         "EventName": "UNC_IIO_NUM_REQ_OF_CPU_BY_TGT.MCAST",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x0FF",
@@ -1065,8 +1254,10 @@
     },
     {
         "BriefDescription": "-",
+        "Counter": "0,1,2,3",
         "EventCode": "0x8e",
         "EventName": "UNC_IIO_NUM_REQ_OF_CPU_BY_TGT.MEM",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x0FF",
@@ -1075,8 +1266,10 @@
     },
     {
         "BriefDescription": "-",
+        "Counter": "0,1,2,3",
         "EventCode": "0x8e",
         "EventName": "UNC_IIO_NUM_REQ_OF_CPU_BY_TGT.MSGB",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x0FF",
@@ -1085,8 +1278,10 @@
     },
     {
         "BriefDescription": "-",
+        "Counter": "0,1,2,3",
         "EventCode": "0x8e",
         "EventName": "UNC_IIO_NUM_REQ_OF_CPU_BY_TGT.REM_P2P",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x0FF",
@@ -1095,8 +1290,10 @@
     },
     {
         "BriefDescription": "-",
+        "Counter": "0,1,2,3",
         "EventCode": "0x8e",
         "EventName": "UNC_IIO_NUM_REQ_OF_CPU_BY_TGT.UBOX",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x0FF",
@@ -1105,14 +1302,17 @@
     },
     {
         "BriefDescription": "All 9 bits of Page Walk Tracker Occupancy",
+        "Counter": "0,1,2,3",
         "EventCode": "0x42",
         "EventName": "UNC_IIO_PWT_OCCUPANCY",
+        "Experimental": "1",
         "PerPkg": "1",
         "PortMask": "0x000",
         "Unit": "IIO"
     },
     {
         "BriefDescription": "Number Transactions requested by the CPU : Core reading from Cards MMIO space",
+        "Counter": "2,3",
         "EventCode": "0xC1",
         "EventName": "UNC_IIO_TXN_REQ_BY_CPU.MEM_READ.ALL_PARTS",
         "FCMask": "0x07",
@@ -1123,6 +1323,7 @@
     },
     {
         "BriefDescription": "Number Transactions requested by the CPU : Core reading from Cards MMIO space",
+        "Counter": "2,3",
         "EventCode": "0xC1",
         "EventName": "UNC_IIO_TXN_REQ_BY_CPU.MEM_READ.PART0",
         "FCMask": "0x07",
@@ -1133,6 +1334,7 @@
     },
     {
         "BriefDescription": "Number Transactions requested by the CPU : Core reading from Cards MMIO space",
+        "Counter": "2,3",
         "EventCode": "0xC1",
         "EventName": "UNC_IIO_TXN_REQ_BY_CPU.MEM_READ.PART1",
         "FCMask": "0x07",
@@ -1143,6 +1345,7 @@
     },
     {
         "BriefDescription": "Number Transactions requested by the CPU : Core reading from Cards MMIO space",
+        "Counter": "2,3",
         "EventCode": "0xC1",
         "EventName": "UNC_IIO_TXN_REQ_BY_CPU.MEM_READ.PART2",
         "FCMask": "0x07",
@@ -1153,6 +1356,7 @@
     },
     {
         "BriefDescription": "Number Transactions requested by the CPU : Core reading from Cards MMIO space",
+        "Counter": "2,3",
         "EventCode": "0xC1",
         "EventName": "UNC_IIO_TXN_REQ_BY_CPU.MEM_READ.PART3",
         "FCMask": "0x07",
@@ -1163,6 +1367,7 @@
     },
     {
         "BriefDescription": "Number Transactions requested by the CPU : Core reading from Cards MMIO space",
+        "Counter": "2,3",
         "EventCode": "0xC1",
         "EventName": "UNC_IIO_TXN_REQ_BY_CPU.MEM_READ.PART4",
         "FCMask": "0x07",
@@ -1173,6 +1378,7 @@
     },
     {
         "BriefDescription": "Number Transactions requested by the CPU : Core reading from Cards MMIO space",
+        "Counter": "2,3",
         "EventCode": "0xC1",
         "EventName": "UNC_IIO_TXN_REQ_BY_CPU.MEM_READ.PART5",
         "FCMask": "0x07",
@@ -1183,6 +1389,7 @@
     },
     {
         "BriefDescription": "Number Transactions requested by the CPU : Core reading from Cards MMIO space",
+        "Counter": "2,3",
         "EventCode": "0xC1",
         "EventName": "UNC_IIO_TXN_REQ_BY_CPU.MEM_READ.PART6",
         "FCMask": "0x07",
@@ -1193,6 +1400,7 @@
     },
     {
         "BriefDescription": "Number Transactions requested by the CPU : Core reading from Cards MMIO space",
+        "Counter": "2,3",
         "EventCode": "0xC1",
         "EventName": "UNC_IIO_TXN_REQ_BY_CPU.MEM_READ.PART7",
         "FCMask": "0x07",
@@ -1203,6 +1411,7 @@
     },
     {
         "BriefDescription": "Number Transactions requested by the CPU : Core writing to Cards MMIO space",
+        "Counter": "2,3",
         "EventCode": "0xC1",
         "EventName": "UNC_IIO_TXN_REQ_BY_CPU.MEM_WRITE.ALL_PARTS",
         "FCMask": "0x07",
@@ -1213,6 +1422,7 @@
     },
     {
         "BriefDescription": "Number Transactions requested by the CPU : Core writing to Cards MMIO space",
+        "Counter": "2,3",
         "EventCode": "0xC1",
         "EventName": "UNC_IIO_TXN_REQ_BY_CPU.MEM_WRITE.PART0",
         "FCMask": "0x07",
@@ -1223,6 +1433,7 @@
     },
     {
         "BriefDescription": "Number Transactions requested by the CPU : Core writing to Cards MMIO space",
+        "Counter": "2,3",
         "EventCode": "0xC1",
         "EventName": "UNC_IIO_TXN_REQ_BY_CPU.MEM_WRITE.PART1",
         "FCMask": "0x07",
@@ -1233,6 +1444,7 @@
     },
     {
         "BriefDescription": "Number Transactions requested by the CPU : Core writing to Cards MMIO space",
+        "Counter": "2,3",
         "EventCode": "0xC1",
         "EventName": "UNC_IIO_TXN_REQ_BY_CPU.MEM_WRITE.PART2",
         "FCMask": "0x07",
@@ -1243,6 +1455,7 @@
     },
     {
         "BriefDescription": "Number Transactions requested by the CPU : Core writing to Cards MMIO space",
+        "Counter": "2,3",
         "EventCode": "0xC1",
         "EventName": "UNC_IIO_TXN_REQ_BY_CPU.MEM_WRITE.PART3",
         "FCMask": "0x07",
@@ -1253,6 +1466,7 @@
     },
     {
         "BriefDescription": "Number Transactions requested by the CPU : Core writing to Cards MMIO space",
+        "Counter": "2,3",
         "EventCode": "0xC1",
         "EventName": "UNC_IIO_TXN_REQ_BY_CPU.MEM_WRITE.PART4",
         "FCMask": "0x07",
@@ -1263,6 +1477,7 @@
     },
     {
         "BriefDescription": "Number Transactions requested by the CPU : Core writing to Cards MMIO space",
+        "Counter": "2,3",
         "EventCode": "0xC1",
         "EventName": "UNC_IIO_TXN_REQ_BY_CPU.MEM_WRITE.PART5",
         "FCMask": "0x07",
@@ -1273,6 +1488,7 @@
     },
     {
         "BriefDescription": "Number Transactions requested by the CPU : Core writing to Cards MMIO space",
+        "Counter": "2,3",
         "EventCode": "0xC1",
         "EventName": "UNC_IIO_TXN_REQ_BY_CPU.MEM_WRITE.PART6",
         "FCMask": "0x07",
@@ -1283,6 +1499,7 @@
     },
     {
         "BriefDescription": "Number Transactions requested by the CPU : Core writing to Cards MMIO space",
+        "Counter": "2,3",
         "EventCode": "0xC1",
         "EventName": "UNC_IIO_TXN_REQ_BY_CPU.MEM_WRITE.PART7",
         "FCMask": "0x07",
@@ -1293,6 +1510,7 @@
     },
     {
         "BriefDescription": "Number Transactions requested by the CPU : Another card (different IIO stack) reading from this card.",
+        "Counter": "2,3",
         "EventCode": "0xC1",
         "EventName": "UNC_IIO_TXN_REQ_BY_CPU.PEER_READ.ALL_PARTS",
         "FCMask": "0x07",
@@ -1303,6 +1521,7 @@
     },
     {
         "BriefDescription": "Number Transactions requested by the CPU : Another card (different IIO stack) writing to this card.",
+        "Counter": "2,3",
         "EventCode": "0xC1",
         "EventName": "UNC_IIO_TXN_REQ_BY_CPU.PEER_WRITE.ALL_PARTS",
         "FCMask": "0x07",
@@ -1313,6 +1532,7 @@
     },
     {
         "BriefDescription": "Number Transactions requested of the CPU : Card reading from DRAM",
+        "Counter": "0,1",
         "EventCode": "0x84",
         "EventName": "UNC_IIO_TXN_REQ_OF_CPU.MEM_READ.PART0",
         "FCMask": "0x07",
@@ -1323,6 +1543,7 @@
     },
     {
         "BriefDescription": "Number Transactions requested of the CPU : Card reading from DRAM",
+        "Counter": "0,1",
         "EventCode": "0x84",
         "EventName": "UNC_IIO_TXN_REQ_OF_CPU.MEM_READ.PART1",
         "FCMask": "0x07",
@@ -1333,6 +1554,7 @@
     },
     {
         "BriefDescription": "Number Transactions requested of the CPU : Card reading from DRAM",
+        "Counter": "0,1",
         "EventCode": "0x84",
         "EventName": "UNC_IIO_TXN_REQ_OF_CPU.MEM_READ.PART2",
         "FCMask": "0x07",
@@ -1343,6 +1565,7 @@
     },
     {
         "BriefDescription": "Number Transactions requested of the CPU : Card reading from DRAM",
+        "Counter": "0,1",
         "EventCode": "0x84",
         "EventName": "UNC_IIO_TXN_REQ_OF_CPU.MEM_READ.PART3",
         "FCMask": "0x07",
@@ -1353,6 +1576,7 @@
     },
     {
         "BriefDescription": "Number Transactions requested of the CPU : Card reading from DRAM",
+        "Counter": "0,1",
         "EventCode": "0x84",
         "EventName": "UNC_IIO_TXN_REQ_OF_CPU.MEM_READ.PART4",
         "FCMask": "0x07",
@@ -1363,6 +1587,7 @@
     },
     {
         "BriefDescription": "Number Transactions requested of the CPU : Card reading from DRAM",
+        "Counter": "0,1",
         "EventCode": "0x84",
         "EventName": "UNC_IIO_TXN_REQ_OF_CPU.MEM_READ.PART5",
         "FCMask": "0x07",
@@ -1373,6 +1598,7 @@
     },
     {
         "BriefDescription": "Number Transactions requested of the CPU : Card reading from DRAM",
+        "Counter": "0,1",
         "EventCode": "0x84",
         "EventName": "UNC_IIO_TXN_REQ_OF_CPU.MEM_READ.PART6",
         "FCMask": "0x07",
@@ -1383,6 +1609,7 @@
     },
     {
         "BriefDescription": "Number Transactions requested of the CPU : Card reading from DRAM",
+        "Counter": "0,1",
         "EventCode": "0x84",
         "EventName": "UNC_IIO_TXN_REQ_OF_CPU.MEM_READ.PART7",
         "FCMask": "0x07",
@@ -1393,6 +1620,7 @@
     },
     {
         "BriefDescription": "Number Transactions requested of the CPU : Card writing to DRAM",
+        "Counter": "0,1",
         "EventCode": "0x84",
         "EventName": "UNC_IIO_TXN_REQ_OF_CPU.MEM_WRITE.PART0",
         "FCMask": "0x07",
@@ -1403,6 +1631,7 @@
     },
     {
         "BriefDescription": "Number Transactions requested of the CPU : Card writing to DRAM",
+        "Counter": "0,1",
         "EventCode": "0x84",
         "EventName": "UNC_IIO_TXN_REQ_OF_CPU.MEM_WRITE.PART1",
         "FCMask": "0x07",
@@ -1413,6 +1642,7 @@
     },
     {
         "BriefDescription": "Number Transactions requested of the CPU : Card writing to DRAM",
+        "Counter": "0,1",
         "EventCode": "0x84",
         "EventName": "UNC_IIO_TXN_REQ_OF_CPU.MEM_WRITE.PART2",
         "FCMask": "0x07",
@@ -1423,6 +1653,7 @@
     },
     {
         "BriefDescription": "Number Transactions requested of the CPU : Card writing to DRAM",
+        "Counter": "0,1",
         "EventCode": "0x84",
         "EventName": "UNC_IIO_TXN_REQ_OF_CPU.MEM_WRITE.PART3",
         "FCMask": "0x07",
@@ -1433,6 +1664,7 @@
     },
     {
         "BriefDescription": "Number Transactions requested of the CPU : Card writing to DRAM",
+        "Counter": "0,1",
         "EventCode": "0x84",
         "EventName": "UNC_IIO_TXN_REQ_OF_CPU.MEM_WRITE.PART4",
         "FCMask": "0x07",
@@ -1443,6 +1675,7 @@
     },
     {
         "BriefDescription": "Number Transactions requested of the CPU : Card writing to DRAM",
+        "Counter": "0,1",
         "EventCode": "0x84",
         "EventName": "UNC_IIO_TXN_REQ_OF_CPU.MEM_WRITE.PART5",
         "FCMask": "0x07",
@@ -1453,6 +1686,7 @@
     },
     {
         "BriefDescription": "Number Transactions requested of the CPU : Card writing to DRAM",
+        "Counter": "0,1",
         "EventCode": "0x84",
         "EventName": "UNC_IIO_TXN_REQ_OF_CPU.MEM_WRITE.PART6",
         "FCMask": "0x07",
@@ -1463,6 +1697,7 @@
     },
     {
         "BriefDescription": "Number Transactions requested of the CPU : Card writing to DRAM",
+        "Counter": "0,1",
         "EventCode": "0x84",
         "EventName": "UNC_IIO_TXN_REQ_OF_CPU.MEM_WRITE.PART7",
         "FCMask": "0x07",
@@ -1473,8 +1708,10 @@
     },
     {
         "BriefDescription": "Number Transactions requested of the CPU : Card reading from another Card (same or different stack)",
+        "Counter": "0,1",
         "EventCode": "0x84",
         "EventName": "UNC_IIO_TXN_REQ_OF_CPU.PEER_READ.PART0",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x001",
@@ -1483,8 +1720,10 @@
     },
     {
         "BriefDescription": "Number Transactions requested of the CPU : Card reading from another Card (same or different stack)",
+        "Counter": "0,1",
         "EventCode": "0x84",
         "EventName": "UNC_IIO_TXN_REQ_OF_CPU.PEER_READ.PART1",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x002",
@@ -1493,8 +1732,10 @@
     },
     {
         "BriefDescription": "Number Transactions requested of the CPU : Card reading from another Card (same or different stack)",
+        "Counter": "0,1",
         "EventCode": "0x84",
         "EventName": "UNC_IIO_TXN_REQ_OF_CPU.PEER_READ.PART2",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x004",
@@ -1503,8 +1744,10 @@
     },
     {
         "BriefDescription": "Number Transactions requested of the CPU : Card reading from another Card (same or different stack)",
+        "Counter": "0,1",
         "EventCode": "0x84",
         "EventName": "UNC_IIO_TXN_REQ_OF_CPU.PEER_READ.PART3",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x008",
@@ -1513,8 +1756,10 @@
     },
     {
         "BriefDescription": "Number Transactions requested of the CPU : Card reading from another Card (same or different stack)",
+        "Counter": "0,1",
         "EventCode": "0x84",
         "EventName": "UNC_IIO_TXN_REQ_OF_CPU.PEER_READ.PART4",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x010",
@@ -1523,8 +1768,10 @@
     },
     {
         "BriefDescription": "Number Transactions requested of the CPU : Card reading from another Card (same or different stack)",
+        "Counter": "0,1",
         "EventCode": "0x84",
         "EventName": "UNC_IIO_TXN_REQ_OF_CPU.PEER_READ.PART5",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x020",
@@ -1533,8 +1780,10 @@
     },
     {
         "BriefDescription": "Number Transactions requested of the CPU : Card reading from another Card (same or different stack)",
+        "Counter": "0,1",
         "EventCode": "0x84",
         "EventName": "UNC_IIO_TXN_REQ_OF_CPU.PEER_READ.PART6",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x040",
@@ -1543,8 +1792,10 @@
     },
     {
         "BriefDescription": "Number Transactions requested of the CPU : Card reading from another Card (same or different stack)",
+        "Counter": "0,1",
         "EventCode": "0x84",
         "EventName": "UNC_IIO_TXN_REQ_OF_CPU.PEER_READ.PART7",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x080",
@@ -1553,8 +1804,10 @@
     },
     {
         "BriefDescription": "Number Transactions requested of the CPU : Card writing to another Card (same or different stack)",
+        "Counter": "0,1",
         "EventCode": "0x84",
         "EventName": "UNC_IIO_TXN_REQ_OF_CPU.PEER_WRITE.PART0",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x001",
@@ -1563,8 +1816,10 @@
     },
     {
         "BriefDescription": "Number Transactions requested of the CPU : Card writing to another Card (same or different stack)",
+        "Counter": "0,1",
         "EventCode": "0x84",
         "EventName": "UNC_IIO_TXN_REQ_OF_CPU.PEER_WRITE.PART1",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x002",
@@ -1573,8 +1828,10 @@
     },
     {
         "BriefDescription": "Number Transactions requested of the CPU : Card writing to another Card (same or different stack)",
+        "Counter": "0,1",
         "EventCode": "0x84",
         "EventName": "UNC_IIO_TXN_REQ_OF_CPU.PEER_WRITE.PART2",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x004",
@@ -1583,8 +1840,10 @@
     },
     {
         "BriefDescription": "Number Transactions requested of the CPU : Card writing to another Card (same or different stack)",
+        "Counter": "0,1",
         "EventCode": "0x84",
         "EventName": "UNC_IIO_TXN_REQ_OF_CPU.PEER_WRITE.PART3",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x008",
@@ -1593,8 +1852,10 @@
     },
     {
         "BriefDescription": "Number Transactions requested of the CPU : Card writing to another Card (same or different stack)",
+        "Counter": "0,1",
         "EventCode": "0x84",
         "EventName": "UNC_IIO_TXN_REQ_OF_CPU.PEER_WRITE.PART4",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x010",
@@ -1603,8 +1864,10 @@
     },
     {
         "BriefDescription": "Number Transactions requested of the CPU : Card writing to another Card (same or different stack)",
+        "Counter": "0,1",
         "EventCode": "0x84",
         "EventName": "UNC_IIO_TXN_REQ_OF_CPU.PEER_WRITE.PART5",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x020",
@@ -1613,8 +1876,10 @@
     },
     {
         "BriefDescription": "Number Transactions requested of the CPU : Card writing to another Card (same or different stack)",
+        "Counter": "0,1",
         "EventCode": "0x84",
         "EventName": "UNC_IIO_TXN_REQ_OF_CPU.PEER_WRITE.PART6",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x040",
@@ -1623,8 +1888,10 @@
     },
     {
         "BriefDescription": "Number Transactions requested of the CPU : Card writing to another Card (same or different stack)",
+        "Counter": "0,1",
         "EventCode": "0x84",
         "EventName": "UNC_IIO_TXN_REQ_OF_CPU.PEER_WRITE.PART7",
+        "Experimental": "1",
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x080",
