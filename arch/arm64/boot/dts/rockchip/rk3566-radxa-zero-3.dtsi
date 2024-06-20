@@ -105,6 +105,78 @@
 	cpu-supply = <&vdd_cpu>;
 };
 
+&gpio0 {
+	gpio-line-names =
+		/* GPIO0_A0 - A7 */
+		"", "", "", "", "", "", "", "",
+		/* GPIO0_B0 - B7 */
+		"", "", "", "", "", "", "", "",
+		/* GPIO0_C0 - C7 */
+		"", "", "", "", "", "", "", "",
+		/* GPIO0_D0 - D7 */
+		"pin-10 [GPIO0_D0]", "pin-08 [GPIO0_D1]", "",
+		"", "", "", "", "";
+};
+
+&gpio1 {
+	gpio-line-names =
+		/* GPIO1_A0 - A7 */
+		"pin-03 [GPIO1_A0]", "pin-05 [GPIO1_A1]", "",
+		"",                  "pin-37 [GPIO1_A4]", "",
+		"",                  "",
+		/* GPIO1_B0 - B7 */
+		"", "", "", "", "", "", "", "",
+		/* GPIO1_C0 - C7 */
+		"", "", "", "", "", "", "", "",
+		/* GPIO1_D0 - D7 */
+		"", "", "", "", "", "", "", "";
+};
+
+&gpio2 {
+	gpio-line-names =
+		/* GPIO2_A0 - A7 */
+		"", "", "", "", "", "", "", "",
+		/* GPIO2_B0 - B7 */
+		"", "", "", "", "", "", "", "",
+		/* GPIO2_C0 - C7 */
+		"", "", "", "", "", "", "", "",
+		/* GPIO2_D0 - D7 */
+		"", "", "", "", "", "", "", "";
+};
+
+&gpio3 {
+	gpio-line-names =
+		/* GPIO3_A0 - A7 */
+		"",                  "pin-11 [GPIO3_A1]", "pin-13 [GPIO3_A2]",
+		"pin-12 [GPIO3_A3]", "pin-35 [GPIO3_A4]", "pin-40 [GPIO3_A5]",
+		"pin-38 [GPIO3_A6]", "pin-36 [GPIO3_A7]",
+		/* GPIO3_B0 - B7 */
+		"pin-15 [GPIO3_B0]", "pin-16 [GPIO3_B1]", "pin-18 [GPIO3_B2]",
+		"pin-29 [GPIO3_B3]", "pin-31 [GPIO3_B4]", "",
+		"", "",
+		/* GPIO3_C0 - C7 */
+		"",                  "pin-22 [GPIO3_C1]", "pin-32 [GPIO3_C2]",
+		"pin-33 [GPIO3_C3]", "pin-07 [GPIO3_C4]", "",
+		"", "",
+		/* GPIO3_D0 - D7 */
+		"", "", "", "", "", "", "", "";
+};
+
+&gpio4 {
+	gpio-line-names =
+		/* GPIO4_A0 - A7 */
+		"", "", "", "", "", "", "", "",
+		/* GPIO4_B0 - B7 */
+		"",                  "",                  "pin-27 [GPIO4_B2]",
+		"pin-28 [GPIO4_B3]", "", "", "", "",
+		/* GPIO4_C0 - C7 */
+		"",                  "",                  "pin-23 [GPIO4_C2]",
+		"pin-19 [GPIO4_C3]", "",                  "pin-21 [GPIO4_C5]",
+		"pin-24 [GPIO4_C6]", "",
+		/* GPIO4_D0 - D7 */
+		"", "", "", "", "", "", "", "";
+};
+
 &gpu {
 	mali-supply = <&vdd_gpu_npu>;
 	status = "okay";
