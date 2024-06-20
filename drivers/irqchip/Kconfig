@@ -406,7 +406,8 @@ config PARTITION_PERCPU
 
 config STM32MP_EXTI
 	bool
-	select STM32_EXTI
+	select IRQ_DOMAIN
+	select GENERIC_IRQ_CHIP
 
 config STM32_EXTI
 	bool
