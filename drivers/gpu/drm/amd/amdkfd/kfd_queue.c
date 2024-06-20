@@ -97,7 +97,8 @@ int kfd_queue_buffer_get(struct amdgpu_vm *vm, void __user *addr, struct amdgpu_
 	if (!mapping)
 		goto out_err;
 
-	if (user_addr != mapping->start || user_addr + size - 1 != mapping->last) {
+	if (user_addr != mapping->start ||
+	    (size != 0 && user_addr + size - 1 != mapping->last)) {
 		pr_debug("expected size 0x%llx not equal to mapping addr 0x%llx size 0x%llx\n",
 			expected_size, mapping->start << AMDGPU_GPU_PAGE_SHIFT,
 			(mapping->last - mapping->start + 1) << AMDGPU_GPU_PAGE_SHIFT);
@@ -124,18 +125,51 @@ int kfd_queue_acquire_buffers(struct kfd_process_device *pdd, struct queue_prope
 
 	err = kfd_queue_buffer_get(vm, properties->write_ptr, &properties->wptr_bo, PAGE_SIZE);
 	if (err)
+		goto out_err_unreserve;
+
+	err = kfd_queue_buffer_get(vm, properties->read_ptr, &properties->rptr_bo, PAGE_SIZE);
+	if (err)
+		goto out_err_unreserve;
+
+	err = kfd_queue_buffer_get(vm, (void *)properties->queue_address,
+				   &properties->ring_bo, properties->queue_size);
+	if (err)
+		goto out_err_unreserve;
+
+	/* only compute queue requires EOP buffer and CWSR area */
+	if (properties->type != KFD_QUEUE_TYPE_COMPUTE)
 		goto out_unreserve;
 
-	amdgpu_bo_unreserve(vm->root.bo);
-	return 0;
+	/* EOP buffer is not required for all ASICs */
+	if (properties->eop_ring_buffer_address) {
+		err = kfd_queue_buffer_get(vm, (void *)properties->eop_ring_buffer_address,
+					   &properties->eop_buf_bo,
+					   properties->eop_ring_buffer_size);
+		if (err)
+			goto out_err_unreserve;
+	}
+
+	err = kfd_queue_buffer_get(vm, (void *)properties->ctx_save_restore_area_address,
+				   &properties->cwsr_bo, 0);
+	if (err)
+		goto out_err_unreserve;
 
 out_unreserve:
 	amdgpu_bo_unreserve(vm->root.bo);
+	return 0;
+
+out_err_unreserve:
+	amdgpu_bo_unreserve(vm->root.bo);
+	kfd_queue_release_buffers(pdd, properties);
 	return err;
 }
 
 int kfd_queue_release_buffers(struct kfd_process_device *pdd, struct queue_properties *properties)
 {
 	amdgpu_bo_unref(&properties->wptr_bo);
+	amdgpu_bo_unref(&properties->rptr_bo);
+	amdgpu_bo_unref(&properties->ring_bo);
+	amdgpu_bo_unref(&properties->eop_buf_bo);
+	amdgpu_bo_unref(&properties->cwsr_bo);
 	return 0;
 }

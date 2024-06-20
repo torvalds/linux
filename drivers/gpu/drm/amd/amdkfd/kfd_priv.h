@@ -524,6 +524,10 @@ struct queue_properties {
 	uint64_t exception_status;
 
 	struct amdgpu_bo *wptr_bo;
+	struct amdgpu_bo *rptr_bo;
+	struct amdgpu_bo *ring_bo;
+	struct amdgpu_bo *eop_buf_bo;
+	struct amdgpu_bo *cwsr_bo;
 };
 
 #define QUEUE_IS_ACTIVE(q) ((q).queue_size > 0 &&	\
