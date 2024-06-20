@@ -215,6 +215,11 @@ static inline struct extent_changeset *extent_changeset_alloc(void)
 	return ret;
 }
 
+static inline void extent_changeset_prealloc(struct extent_changeset *changeset, gfp_t gfp_mask)
+{
+	ulist_prealloc(&changeset->range_changed, gfp_mask);
+}
+
 static inline void extent_changeset_release(struct extent_changeset *changeset)
 {
 	if (!changeset)
