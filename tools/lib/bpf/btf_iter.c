@@ -2,8 +2,16 @@
 /* Copyright (c) 2021 Facebook */
 /* Copyright (c) 2024, Oracle and/or its affiliates. */
 
+#ifdef __KERNEL__
+#include <linux/bpf.h>
+#include <linux/btf.h>
+
+#define btf_var_secinfos(t)	(struct btf_var_secinfo *)btf_type_var_secinfo(t)
+
+#else
 #include "btf.h"
 #include "libbpf_internal.h"
+#endif
 
 int btf_field_iter_init(struct btf_field_iter *it, struct btf_type *t,
 			enum btf_field_iter_kind iter_kind)
