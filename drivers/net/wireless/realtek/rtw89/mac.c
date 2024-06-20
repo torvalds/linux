@@ -6320,9 +6320,30 @@ int rtw89_mac_ptk_drop_by_band_and_wait(struct rtw89_dev *rtwdev,
 	return ret;
 }
 
+int rtw89_mac_cpu_io_rx(struct rtw89_dev *rtwdev, bool wow_enable)
+{
+	struct rtw89_mac_h2c_info h2c_info = {};
+	struct rtw89_mac_c2h_info c2h_info = {};
+	u32 ret;
+
+	h2c_info.id = RTW89_FWCMD_H2CREG_FUNC_WOW_CPUIO_RX_CTRL;
+	h2c_info.content_len = sizeof(h2c_info.u.hdr);
+	h2c_info.u.hdr.w0 = u32_encode_bits(wow_enable, RTW89_H2CREG_WOW_CPUIO_RX_CTRL_EN);
+
+	ret = rtw89_fw_msg_reg(rtwdev, &h2c_info, &c2h_info);
+	if (ret)
+		return ret;
+
+	if (c2h_info.id != RTW89_FWCMD_C2HREG_FUNC_WOW_CPUIO_RX_ACK)
+		ret = -EINVAL;
+
+	return ret;
+}
+
 static int rtw89_wow_config_mac_ax(struct rtw89_dev *rtwdev, bool enable_wow)
 {
 	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	const struct rtw89_chip_info *chip = rtwdev->chip;
 	int ret;
 
 	if (enable_wow) {
@@ -6333,12 +6354,19 @@ static int rtw89_wow_config_mac_ax(struct rtw89_dev *rtwdev, bool enable_wow)
 		}
 
 		rtw89_write32_set(rtwdev, R_AX_RX_FUNCTION_STOP, B_AX_HDR_RX_STOP);
+		rtw89_mac_cpu_io_rx(rtwdev, enable_wow);
 		rtw89_write32_clr(rtwdev, mac->rx_fltr, B_AX_SNIFFER_MODE);
 		rtw89_mac_cfg_ppdu_status(rtwdev, RTW89_MAC_0, false);
 		rtw89_write32(rtwdev, R_AX_ACTION_FWD0, 0);
 		rtw89_write32(rtwdev, R_AX_ACTION_FWD1, 0);
 		rtw89_write32(rtwdev, R_AX_TF_FWD, 0);
 		rtw89_write32(rtwdev, R_AX_HW_RPT_FWD, 0);
+
+		if (chip->chip_id == RTL8852A || rtw89_is_rtl885xb(rtwdev))
+			rtw89_write8(rtwdev, R_BE_DBG_WOW_READY, WOWLAN_NOT_READY);
+		else
+			rtw89_write32_set(rtwdev, R_AX_DBG_WOW,
+					  B_AX_DBG_WOW_CPU_IO_RX_EN);
 	} else {
 		ret = rtw89_mac_resize_ple_rx_quota(rtwdev, false);
 		if (ret) {
@@ -6346,6 +6374,7 @@ static int rtw89_wow_config_mac_ax(struct rtw89_dev *rtwdev, bool enable_wow)
 			return ret;
 		}
 
+		rtw89_mac_cpu_io_rx(rtwdev, enable_wow);
 		rtw89_write32_clr(rtwdev, R_AX_RX_FUNCTION_STOP, B_AX_HDR_RX_STOP);
 		rtw89_mac_cfg_ppdu_status(rtwdev, RTW89_MAC_0, true);
 		rtw89_write32(rtwdev, R_AX_ACTION_FWD0, TRXCFG_MPDU_PROC_ACT_FRWD);
