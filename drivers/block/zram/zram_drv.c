@@ -33,6 +33,9 @@
 #include <linux/debugfs.h>
 #include <linux/cpuhotplug.h>
 #include <linux/part_stat.h>
+#include <linux/mm_types.h>
+#include <linux/pgtable.h>
+#include <linux/hugetlb.h>
 
 #include "zram_drv.h"
 
@@ -628,42 +631,35 @@ static int read_from_bdev_async(struct zram *zram, struct bio_vec *bvec,
 }
 
 #define PAGE_WB_SIG "page_index="
+#define PID_WB_SIG  "pid="
+#define LIMIT_WB_SIG "limit="
 
 #define PAGE_WRITEBACK 0
 #define HUGE_WRITEBACK (1<<0)
 #define IDLE_WRITEBACK (1<<1)
+#define PID_WRITEBACK  (1<<15) /* Not much use of this as of today */
 
+struct zram_wb_store_walk {
+	struct zram *zram;
+	u64 limit; /* In page size of 4k */
+	swp_entry_t *entries; /* for batch pte processing */
+	struct mm_struct *mm;
+};
 
-static ssize_t writeback_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t len)
+#define INIT_ZRAM_WRITEBACK_STORE(name, zram)			\
+	struct zram_wb_store_walk name = {			\
+			.zram = zram,				\
+	}
+
+static ssize_t writeback_store_apply(struct zram *zram, unsigned long index,
+					unsigned long nr_pages, int mode)
 {
-	struct zram *zram = dev_to_zram(dev);
-	unsigned long nr_pages = zram->disksize >> PAGE_SHIFT;
-	unsigned long index = 0;
 	struct bio bio;
 	struct bio_vec bio_vec;
 	struct page *page;
-	ssize_t ret = len;
-	int mode, err;
+	ssize_t ret = 0;
+	int err;
 	unsigned long blk_idx = 0;
-
-	if (sysfs_streq(buf, "idle"))
-		mode = IDLE_WRITEBACK;
-	else if (sysfs_streq(buf, "huge"))
-		mode = HUGE_WRITEBACK;
-	else if (sysfs_streq(buf, "huge_idle"))
-		mode = IDLE_WRITEBACK | HUGE_WRITEBACK;
-	else {
-		if (strncmp(buf, PAGE_WB_SIG, sizeof(PAGE_WB_SIG) - 1))
-			return -EINVAL;
-
-		if (kstrtol(buf + sizeof(PAGE_WB_SIG) - 1, 10, &index) ||
-				index >= nr_pages)
-			return -EINVAL;
-
-		nr_pages = 1;
-		mode = PAGE_WRITEBACK;
-	}
 
 	down_read(&zram->init_lock);
 	if (!init_done(zram)) {
@@ -799,6 +795,236 @@ release_init_lock:
 	up_read(&zram->init_lock);
 
 	return ret;
+}
+
+static void walk_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+		struct zram_wb_store_walk *walk)
+{
+	pte_t *pte;
+	spinlock_t *ptl;
+	swp_entry_t *entries = walk->entries;
+	int i, index = 0;
+
+	pte = pte_offset_map_lock(walk->mm, pmd, addr, &ptl);
+	for (; addr < end; pte++, addr += PAGE_SIZE) {
+		swp_entry_t entry;
+
+		if (!walk->limit)
+			break;
+		if (pte_none(*pte))
+			continue;
+		if (is_swap_pte(*pte)) {
+			entry = pte_to_swp_entry(*pte);
+			if (is_pfn_swap_entry(entry))
+				continue;
+			entries[index++] = entry;
+			--walk->limit;
+		}
+	}
+	pte_unmap_unlock(pte, ptl);
+
+	for (i = 0; i < index; ++i)
+		writeback_store_apply(walk->zram, swp_offset(entries[i]), 1, PAGE_WRITEBACK);
+}
+
+static void walk_pmd_range(pud_t *pud, unsigned long addr, unsigned long end,
+		struct zram_wb_store_walk *walk)
+{
+	pmd_t *pmd;
+	unsigned long next;
+
+	pmd = pmd_offset(pud, addr);
+	do {
+		next = pmd_addr_end(addr, end);
+		if (pmd_none(*pmd))
+			continue;
+		if (pmd_leaf(*pmd) || !pmd_present(*pmd))
+			continue;
+		if (pmd_trans_unstable(pmd))
+			continue;
+		if (is_hugepd(__hugepd(pmd_val(*pmd))))
+			continue;
+
+		walk_pte_range(pmd, addr, next, walk);
+	} while (pmd++, addr = next, addr != end);
+}
+
+static void walk_pud_range(p4d_t *p4d, unsigned long addr, unsigned long end,
+		struct zram_wb_store_walk *walk)
+{
+	pud_t *pud;
+	unsigned long next;
+
+	pud = pud_offset(p4d, addr);
+	do {
+		next = pud_addr_end(addr, end);
+		if (pud_none(*pud))
+			continue;
+		if (pud_leaf(*pud) || !pud_present(*pud))
+			continue;
+		if (is_hugepd(__hugepd(pud_val(*pud))))
+			continue;
+
+		walk_pmd_range(pud, addr, next, walk);
+	} while (pud++, addr = next, addr != end);
+}
+
+static void walk_p4d_range(pgd_t *pgd, unsigned long addr, unsigned long end,
+		struct zram_wb_store_walk *walk)
+{
+	p4d_t *p4d;
+	unsigned long next;
+
+	p4d = p4d_offset(pgd, addr);
+	do {
+		next = p4d_addr_end(addr, end);
+		if (p4d_none_or_clear_bad(p4d))
+			continue;
+		if (is_hugepd(__hugepd(p4d_val(*p4d))))
+			continue;
+
+		walk_pud_range(p4d, addr, next, walk);
+	} while (p4d++, addr = next, addr != end);
+}
+
+static void zram_wbstore(struct vm_area_struct *vma, struct zram_wb_store_walk *walk)
+{
+	pgd_t *pgd;
+	unsigned long start = vma->vm_start;
+	unsigned long end = vma->vm_end;
+	unsigned long next;
+
+	mmap_assert_locked(walk->mm);// take read lock.
+
+	pgd = pgd_offset(walk->mm, start);
+	do {
+		next = pgd_addr_end(start, end);
+		if (pgd_none_or_clear_bad(pgd))
+			continue;
+		walk_p4d_range(pgd, start, next, walk);
+	} while (pgd++, start = next, start != end);
+}
+
+static int parse_wb_store(const char *buf, size_t len,
+				pid_t *pid, unsigned long *limit)
+{
+	int ret;
+	char *space;
+
+	space = strnchr(buf, len, ' ');
+	if (!space)
+		return -EINVAL;
+	*space = '\0';
+
+	if (strncmp(buf, PID_WB_SIG, sizeof(PID_WB_SIG) - 1))
+		return -EINVAL;
+	buf += sizeof(PID_WB_SIG) - 1;
+	ret = kstrtoint(buf, 10, pid);
+	if (ret)
+		return ret;
+
+	while (*buf++ != '\0')
+		;
+	if (strncmp(buf, LIMIT_WB_SIG, sizeof(LIMIT_WB_SIG) - 1))
+		return -EINVAL;
+	buf += sizeof(LIMIT_WB_SIG) - 1;
+	ret = kstrtoul(buf, 10, limit);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static ssize_t writeback_pid_store(struct zram *zram, pid_t pid, unsigned long limit)
+{
+	struct task_struct *task;
+	struct mm_struct *mm;
+	struct vm_area_struct *vma;
+	struct vma_iterator vmi;
+	int ret = 0;
+
+	INIT_ZRAM_WRITEBACK_STORE(walk, zram);
+
+	rcu_read_lock();
+	task = find_task_by_vpid(pid);
+	if (task)
+		get_task_struct(task);
+	rcu_read_unlock();
+	if (!task)
+		return -ESRCH;
+
+	mm = get_task_mm(task);
+	if (!mm) {
+		ret = -EINVAL;
+		goto put_task;
+	}
+
+	walk.entries = kmalloc(PTRS_PER_PTE * sizeof(swp_entry_t), GFP_KERNEL);
+	if (!walk.entries) {
+		ret = -ENOMEM;
+		goto put_mm;
+	}
+	walk.mm = mm;
+	walk.limit = limit >> PAGE_SHIFT;
+	vma_iter_init(&vmi, mm, 0);
+	mmap_read_lock(mm);
+	for_each_vma(vmi, vma) {
+		if (!walk.limit)
+			break;
+		if (!vma_is_anonymous(vma))
+			continue;
+
+		zram_wbstore(vma, &walk);
+	}
+	mmap_read_unlock(mm);
+	kfree(walk.entries);
+
+put_mm:
+	mmput(mm);
+put_task:
+	put_task_struct(task);
+
+	return ret;
+}
+
+
+static ssize_t writeback_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t len)
+{
+	struct zram *zram = dev_to_zram(dev);
+	unsigned long nr_pages = zram->disksize >> PAGE_SHIFT;
+	unsigned long index = 0;
+	ssize_t ret = len;
+	pid_t pid;
+	unsigned long limit;
+	int mode;
+
+	if (sysfs_streq(buf, "idle"))
+		mode = IDLE_WRITEBACK;
+	else if (sysfs_streq(buf, "huge"))
+		mode = HUGE_WRITEBACK;
+	else if (sysfs_streq(buf, "huge_idle"))
+		mode = IDLE_WRITEBACK | HUGE_WRITEBACK;
+	else {
+		if (!strncmp(buf, PAGE_WB_SIG, sizeof(PAGE_WB_SIG) - 1)) {
+			if (kstrtol(buf + sizeof(PAGE_WB_SIG) - 1, 10, &index) ||
+					index >= nr_pages)
+				return -EINVAL;
+
+			nr_pages = 1;
+			mode = PAGE_WRITEBACK;
+		} else if (!parse_wb_store(buf, len, &pid, &limit)) {
+			mode = PID_WRITEBACK;
+		} else
+			return -EINVAL;
+	}
+
+	if (mode == PID_WRITEBACK)
+		ret = writeback_pid_store(zram, pid, limit);
+	else
+		ret = writeback_store_apply(zram, index, nr_pages, mode);
+
+	return ret ? : len;
 }
 
 struct zram_work {
