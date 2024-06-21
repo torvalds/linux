@@ -9,6 +9,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/leds.h>
+#include <linux/mfd/core.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -194,13 +195,46 @@ static const __maybe_unused struct keyboard_led_drvdata keyboard_led_drvdata_ec_
 
 #endif /* IS_ENABLED(CONFIG_CROS_EC) */
 
+#if IS_ENABLED(CONFIG_MFD_CROS_EC_DEV)
+static int keyboard_led_init_ec_pwm_mfd(struct platform_device *pdev)
+{
+	struct cros_ec_dev *ec_dev = dev_get_drvdata(pdev->dev.parent);
+	struct cros_ec_device *cros_ec = ec_dev->ec_dev;
+	struct keyboard_led *keyboard_led = platform_get_drvdata(pdev);
+
+	keyboard_led->ec = cros_ec;
+
+	return 0;
+}
+
+static const struct keyboard_led_drvdata keyboard_led_drvdata_ec_pwm_mfd = {
+	.init = keyboard_led_init_ec_pwm_mfd,
+	.brightness_set_blocking = keyboard_led_set_brightness_ec_pwm,
+	.brightness_get = keyboard_led_get_brightness_ec_pwm,
+	.max_brightness = KEYBOARD_BACKLIGHT_MAX,
+};
+
+#else /* IS_ENABLED(CONFIG_MFD_CROS_EC_DEV) */
+
+static const struct keyboard_led_drvdata keyboard_led_drvdata_ec_pwm_mfd = {};
+
+#endif /* IS_ENABLED(CONFIG_MFD_CROS_EC_DEV) */
+
+static int keyboard_led_is_mfd_device(struct platform_device *pdev)
+{
+	return IS_ENABLED(CONFIG_MFD_CROS_EC_DEV) && mfd_get_cell(pdev);
+}
+
 static int keyboard_led_probe(struct platform_device *pdev)
 {
 	const struct keyboard_led_drvdata *drvdata;
 	struct keyboard_led *keyboard_led;
 	int error;
 
-	drvdata = device_get_match_data(&pdev->dev);
+	if (keyboard_led_is_mfd_device(pdev))
+		drvdata = &keyboard_led_drvdata_ec_pwm_mfd;
+	else
+		drvdata = device_get_match_data(&pdev->dev);
 	if (!drvdata)
 		return -EINVAL;
 
@@ -216,13 +250,15 @@ static int keyboard_led_probe(struct platform_device *pdev)
 	}
 
 	keyboard_led->cdev.name = "chromeos::kbd_backlight";
-	keyboard_led->cdev.flags |= LED_CORE_SUSPENDRESUME;
+	keyboard_led->cdev.flags |= LED_CORE_SUSPENDRESUME | LED_REJECT_NAME_CONFLICT;
 	keyboard_led->cdev.max_brightness = drvdata->max_brightness;
 	keyboard_led->cdev.brightness_set = drvdata->brightness_set;
 	keyboard_led->cdev.brightness_set_blocking = drvdata->brightness_set_blocking;
 	keyboard_led->cdev.brightness_get = drvdata->brightness_get;
 
 	error = devm_led_classdev_register(&pdev->dev, &keyboard_led->cdev);
+	if (error == -EEXIST) /* Already bound via other mechanism */
+		return -ENODEV;
 	if (error)
 		return error;
 
