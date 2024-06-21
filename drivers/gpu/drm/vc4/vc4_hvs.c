@@ -456,11 +456,21 @@ int vc4_hvs_atomic_check(struct drm_crtc *crtc, struct drm_atomic_state *state)
 	if (hweight32(crtc_state->connector_mask) > 1)
 		return -EINVAL;
 
-	drm_atomic_crtc_state_for_each_plane_state(plane, plane_state, crtc_state)
-		dlist_count += vc4_plane_dlist_size(plane_state);
+	drm_atomic_crtc_state_for_each_plane_state(plane, plane_state, crtc_state) {
+		u32 plane_dlist_count = vc4_plane_dlist_size(plane_state);
+
+		drm_dbg_driver(dev, "[CRTC:%d:%s] Found [PLANE:%d:%s] with DLIST size: %u\n",
+			       crtc->base.id, crtc->name,
+			       plane->base.id, plane->name,
+			       plane_dlist_count);
+
+		dlist_count += plane_dlist_count;
+	}
 
 	dlist_count++; /* Account for SCALER_CTL0_END. */
 
+	drm_dbg_driver(dev, "[CRTC:%d:%s] Allocating DLIST block with size: %u\n",
+		       crtc->base.id, crtc->name, dlist_count);
 	spin_lock_irqsave(&vc4->hvs->mm_lock, flags);
 	ret = drm_mm_insert_node(&vc4->hvs->dlist_mm, &vc4_state->mm,
 				 dlist_count);
