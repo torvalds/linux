@@ -2382,12 +2382,13 @@ static void virtnet_rx_dim_update(struct virtnet_info *vi, struct receive_queue 
 	if (!rq->packets_in_napi)
 		return;
 
-	u64_stats_update_begin(&rq->stats.syncp);
+	/* Don't need protection when fetching stats, since fetcher and
+	 * updater of the stats are in same context
+	 */
 	dim_update_sample(rq->calls,
 			  u64_stats_read(&rq->stats.packets),
 			  u64_stats_read(&rq->stats.bytes),
 			  &cur_sample);
-	u64_stats_update_end(&rq->stats.syncp);
 
 	net_dim(&rq->dim, cur_sample);
 	rq->packets_in_napi = 0;
