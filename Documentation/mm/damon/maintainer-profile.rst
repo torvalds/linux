@@ -53,6 +53,22 @@ Mon-Fri) in PT (Pacific Time).  The response to patches will occasionally be
 slow.  Do not hesitate to send a ping if you have not heard back within a week
 of sending a patch.
 
+Mailing tool
+------------
+
+Like many other Linux kernel subsystems, DAMON uses the mailing lists
+(damon@lists.linux.dev and linux-mm@kvack.org) as the major communication
+channel.  There is a simple tool called HacKerMaiL (``hkml``) [8]_ , which is
+for people who are not very familiar with the mailing lists based
+communication.  The tool could be particularly helpful for DAMON community
+members since it is developed and maintained by DAMON maintainer.  The tool is
+also officially announced to support DAMON and general Linux kernel development
+workflow.
+
+In other words, ``hkml`` [8]_ is a mailing tool for DAMON community, which
+DAMON maintainer is committed to support.  Please feel free to try and report
+issues or feature requests for the tool to the maintainer.
+
 
 .. [1] https://git.kernel.org/akpm/mm/h/mm-unstable
 .. [2] https://git.kernel.org/sj/h/damon/next
@@ -61,3 +77,4 @@ of sending a patch.
 .. [5] https://github.com/awslabs/damon-tests/blob/master/corr/tests/kunit.sh
 .. [6] https://github.com/awslabs/damon-tests/tree/master/corr
 .. [7] https://github.com/awslabs/damon-tests/tree/master/perf
+.. [8] https://github.com/damonitor/hackermail
