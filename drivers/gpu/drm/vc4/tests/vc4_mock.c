@@ -175,7 +175,7 @@ static struct vc4_dev *__mock_device(struct kunit *test, enum vc4_gen gen)
 	vc4->dev = dev;
 	vc4->gen = gen;
 
-	vc4->hvs = __vc4_hvs_alloc(vc4, NULL);
+	vc4->hvs = __vc4_hvs_alloc(vc4, NULL, NULL);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, vc4->hvs);
 
 	drm = &vc4->base;

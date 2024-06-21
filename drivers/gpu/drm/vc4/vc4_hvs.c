@@ -811,7 +811,9 @@ int vc4_hvs_debugfs_init(struct drm_minor *minor)
 	return 0;
 }
 
-struct vc4_hvs *__vc4_hvs_alloc(struct vc4_dev *vc4, struct platform_device *pdev)
+struct vc4_hvs *__vc4_hvs_alloc(struct vc4_dev *vc4,
+				void __iomem *regs,
+				struct platform_device *pdev)
 {
 	struct drm_device *drm = &vc4->base;
 	struct vc4_hvs *hvs;
@@ -821,6 +823,7 @@ struct vc4_hvs *__vc4_hvs_alloc(struct vc4_dev *vc4, struct platform_device *pde
 		return ERR_PTR(-ENOMEM);
 
 	hvs->vc4 = vc4;
+	hvs->regs = regs;
 	hvs->pdev = pdev;
 
 	spin_lock_init(&hvs->mm_lock);
@@ -1017,15 +1020,16 @@ static int vc4_hvs_bind(struct device *dev, struct device *master, void *data)
 	struct drm_device *drm = dev_get_drvdata(master);
 	struct vc4_dev *vc4 = to_vc4_dev(drm);
 	struct vc4_hvs *hvs = NULL;
+	void __iomem *regs;
 	int ret;
 
-	hvs = __vc4_hvs_alloc(vc4, NULL);
+	regs = vc4_ioremap_regs(pdev, 0);
+	if (IS_ERR(regs))
+		return PTR_ERR(regs);
+
+	hvs = __vc4_hvs_alloc(vc4, regs, pdev);
 	if (IS_ERR(hvs))
 		return PTR_ERR(hvs);
-
-	hvs->regs = vc4_ioremap_regs(pdev, 0);
-	if (IS_ERR(hvs->regs))
-		return PTR_ERR(hvs->regs);
 
 	hvs->regset.base = hvs->regs;
 	hvs->regset.regs = vc4_hvs_regs;
