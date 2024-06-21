@@ -502,6 +502,9 @@ static void armada_xp_mpic_smp_cpu_init(void)
 	for (i = 0; i < nr_irqs; i++)
 		writel(i, per_cpu_int_base + ARMADA_370_XP_INT_SET_MASK_OFFS);
 
+	if (!is_ipi_available())
+		return;
+
 	/* Disable all IPIs */
 	writel(0, per_cpu_int_base + ARMADA_370_XP_IN_DRBEL_MSK_OFFS);
 
@@ -752,7 +755,7 @@ static void armada_370_xp_mpic_resume(void)
 	/* Reconfigure doorbells for IPIs and MSIs */
 	writel(doorbell_mask_reg,
 	       per_cpu_int_base + ARMADA_370_XP_IN_DRBEL_MSK_OFFS);
-	if (doorbell_mask_reg & IPI_DOORBELL_MASK)
+	if (is_ipi_available() && (doorbell_mask_reg & IPI_DOORBELL_MASK))
 		writel(0, per_cpu_int_base + ARMADA_370_XP_INT_CLEAR_MASK_OFFS);
 	if (doorbell_mask_reg & PCI_MSI_DOORBELL_MASK)
 		writel(1, per_cpu_int_base + ARMADA_370_XP_INT_CLEAR_MASK_OFFS);
@@ -803,13 +806,18 @@ static int __init armada_370_xp_mpic_of_init(struct device_node *node,
 	BUG_ON(!armada_370_xp_mpic_domain);
 	irq_domain_update_bus_token(armada_370_xp_mpic_domain, DOMAIN_BUS_WIRED);
 
+	/*
+	 * Initialize parent_irq before calling any other functions, since it is
+	 * used to distinguish between IPI and non-IPI platforms.
+	 */
+	parent_irq = irq_of_parse_and_map(node, 0);
+
 	/* Setup for the boot CPU */
 	armada_xp_mpic_perf_init();
 	armada_xp_mpic_smp_cpu_init();
 
 	armada_370_xp_msi_init(node, main_int_res.start);
 
-	parent_irq = irq_of_parse_and_map(node, 0);
 	if (parent_irq <= 0) {
 		irq_set_default_host(armada_370_xp_mpic_domain);
 		set_handle_irq(armada_370_xp_handle_irq);
