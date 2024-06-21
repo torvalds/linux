@@ -85,5 +85,6 @@ void ath12k_mac_handle_beacon_miss(struct ath12k *ar, u32 vdev_id);
 int ath12k_mac_vif_set_keepalive(struct ath12k_vif *arvif,
 				 enum wmi_sta_keepalive_method method,
 				 u32 interval);
+u8 ath12k_mac_get_target_pdev_id(struct ath12k *ar);
 
 #endif

@@ -673,6 +673,82 @@ static struct ath12k *ath12k_get_ar_by_vif(struct ieee80211_hw *hw,
 	return NULL;
 }
 
+static struct ath12k_vif *ath12k_mac_get_vif_up(struct ath12k *ar)
+{
+	struct ath12k_vif *arvif;
+
+	lockdep_assert_held(&ar->conf_mutex);
+	list_for_each_entry(arvif, &ar->arvifs, list) {
+		if (arvif->is_up)
+			return arvif;
+	}
+
+	return NULL;
+}
+
+static bool ath12k_mac_band_match(enum nl80211_band band1, enum WMI_HOST_WLAN_BAND band2)
+{
+	switch (band1) {
+	case NL80211_BAND_2GHZ:
+		if (band2 & WMI_HOST_WLAN_2G_CAP)
+			return true;
+		break;
+	case NL80211_BAND_5GHZ:
+	case NL80211_BAND_6GHZ:
+		if (band2 & WMI_HOST_WLAN_5G_CAP)
+			return true;
+		break;
+	default:
+		return false;
+	}
+
+	return false;
+}
+
+static u8 ath12k_mac_get_target_pdev_id_from_vif(struct ath12k_vif *arvif)
+{
+	struct ath12k *ar = arvif->ar;
+	struct ath12k_base *ab = ar->ab;
+	struct ieee80211_vif *vif = arvif->vif;
+	struct cfg80211_chan_def def;
+	enum nl80211_band band;
+	u8 pdev_id = ab->fw_pdev[0].pdev_id;
+	int i;
+
+	if (WARN_ON(ath12k_mac_vif_chan(vif, &def)))
+		return pdev_id;
+
+	band = def.chan->band;
+
+	for (i = 0; i < ab->fw_pdev_count; i++) {
+		if (ath12k_mac_band_match(band, ab->fw_pdev[i].supported_bands))
+			return ab->fw_pdev[i].pdev_id;
+	}
+
+	return pdev_id;
+}
+
+u8 ath12k_mac_get_target_pdev_id(struct ath12k *ar)
+{
+	struct ath12k_vif *arvif;
+	struct ath12k_base *ab = ar->ab;
+
+	if (!ab->hw_params->single_pdev_only)
+		return ar->pdev->pdev_id;
+
+	arvif = ath12k_mac_get_vif_up(ar);
+
+	/* fw_pdev array has pdev ids derived from phy capability
+	 * service ready event (pdev_and_hw_link_ids).
+	 * If no vif is active, return default first index.
+	 */
+	if (!arvif)
+		return ar->ab->fw_pdev[0].pdev_id;
+
+	/* If active vif is found, return the pdev id matching chandef band */
+	return ath12k_mac_get_target_pdev_id_from_vif(arvif);
+}
+
 static void ath12k_pdev_caps_update(struct ath12k *ar)
 {
 	struct ath12k_base *ab = ar->ab;
