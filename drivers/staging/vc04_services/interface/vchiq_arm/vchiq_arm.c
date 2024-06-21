@@ -1448,7 +1448,6 @@ vchiq_release_internal(struct vchiq_state *state, struct vchiq_service *service)
 
 	write_lock_bh(&arm_state->susp_res_lock);
 	if (!arm_state->videocore_use_count || !(*entity_uc)) {
-		/* Don't use BUG_ON - don't allow user thread to crash kernel */
 		WARN_ON(!arm_state->videocore_use_count);
 		WARN_ON(!(*entity_uc));
 		ret = -EINVAL;
