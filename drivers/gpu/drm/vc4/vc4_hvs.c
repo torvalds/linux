@@ -475,8 +475,10 @@ int vc4_hvs_atomic_check(struct drm_crtc *crtc, struct drm_atomic_state *state)
 	ret = drm_mm_insert_node(&vc4->hvs->dlist_mm, &vc4_state->mm,
 				 dlist_count);
 	spin_unlock_irqrestore(&vc4->hvs->mm_lock, flags);
-	if (ret)
+	if (ret) {
+		drm_err(dev, "Failed to allocate DLIST entry: %d\n", ret);
 		return ret;
+	}
 
 	return 0;
 }

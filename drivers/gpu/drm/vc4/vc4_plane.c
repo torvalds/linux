@@ -739,7 +739,8 @@ static void vc4_plane_calc_load(struct drm_plane_state *state)
 
 static int vc4_plane_allocate_lbm(struct drm_plane_state *state)
 {
-	struct vc4_dev *vc4 = to_vc4_dev(state->plane->dev);
+	struct drm_device *drm = state->plane->dev;
+	struct vc4_dev *vc4 = to_vc4_dev(drm);
 	struct vc4_plane_state *vc4_state = to_vc4_plane_state(state);
 	unsigned long irqflags;
 	u32 lbm_size;
@@ -765,8 +766,10 @@ static int vc4_plane_allocate_lbm(struct drm_plane_state *state)
 						 0, 0);
 		spin_unlock_irqrestore(&vc4->hvs->mm_lock, irqflags);
 
-		if (ret)
+		if (ret) {
+			drm_err(drm, "Failed to allocate LBM entry: %d\n", ret);
 			return ret;
+		}
 	} else {
 		WARN_ON_ONCE(lbm_size != vc4_state->lbm.size);
 	}
