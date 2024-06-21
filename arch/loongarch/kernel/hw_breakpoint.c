@@ -207,15 +207,15 @@ static int hw_breakpoint_control(struct perf_event *bp,
 	switch (ops) {
 	case HW_BREAKPOINT_INSTALL:
 		/* Set the FWPnCFG/MWPnCFG 1~4 register. */
-		write_wb_reg(CSR_CFG_ADDR, i, 0, info->address);
-		write_wb_reg(CSR_CFG_ADDR, i, 1, info->address);
-		write_wb_reg(CSR_CFG_MASK, i, 0, info->mask);
-		write_wb_reg(CSR_CFG_MASK, i, 1, info->mask);
-		write_wb_reg(CSR_CFG_ASID, i, 0, 0);
-		write_wb_reg(CSR_CFG_ASID, i, 1, 0);
 		if (info->ctrl.type == LOONGARCH_BREAKPOINT_EXECUTE) {
+			write_wb_reg(CSR_CFG_ADDR, i, 0, info->address);
+			write_wb_reg(CSR_CFG_MASK, i, 0, info->mask);
+			write_wb_reg(CSR_CFG_ASID, i, 0, 0);
 			write_wb_reg(CSR_CFG_CTRL, i, 0, privilege);
 		} else {
+			write_wb_reg(CSR_CFG_ADDR, i, 1, info->address);
+			write_wb_reg(CSR_CFG_MASK, i, 1, info->mask);
+			write_wb_reg(CSR_CFG_ASID, i, 1, 0);
 			ctrl = encode_ctrl_reg(info->ctrl);
 			write_wb_reg(CSR_CFG_CTRL, i, 1, ctrl | privilege);
 		}
@@ -226,14 +226,17 @@ static int hw_breakpoint_control(struct perf_event *bp,
 		break;
 	case HW_BREAKPOINT_UNINSTALL:
 		/* Reset the FWPnCFG/MWPnCFG 1~4 register. */
-		write_wb_reg(CSR_CFG_ADDR, i, 0, 0);
-		write_wb_reg(CSR_CFG_ADDR, i, 1, 0);
-		write_wb_reg(CSR_CFG_MASK, i, 0, 0);
-		write_wb_reg(CSR_CFG_MASK, i, 1, 0);
-		write_wb_reg(CSR_CFG_CTRL, i, 0, 0);
-		write_wb_reg(CSR_CFG_CTRL, i, 1, 0);
-		write_wb_reg(CSR_CFG_ASID, i, 0, 0);
-		write_wb_reg(CSR_CFG_ASID, i, 1, 0);
+		if (info->ctrl.type == LOONGARCH_BREAKPOINT_EXECUTE) {
+			write_wb_reg(CSR_CFG_ADDR, i, 0, 0);
+			write_wb_reg(CSR_CFG_MASK, i, 0, 0);
+			write_wb_reg(CSR_CFG_CTRL, i, 0, 0);
+			write_wb_reg(CSR_CFG_ASID, i, 0, 0);
+		} else {
+			write_wb_reg(CSR_CFG_ADDR, i, 1, 0);
+			write_wb_reg(CSR_CFG_MASK, i, 1, 0);
+			write_wb_reg(CSR_CFG_CTRL, i, 1, 0);
+			write_wb_reg(CSR_CFG_ASID, i, 1, 0);
+		}
 		if (bp->hw.target)
 			regs->csr_prmd &= ~CSR_PRMD_PWE;
 		break;
@@ -476,12 +479,15 @@ void breakpoint_handler(struct pt_regs *regs)
 	slots = this_cpu_ptr(bp_on_reg);
 
 	for (i = 0; i < boot_cpu_data.watch_ireg_count; ++i) {
-		bp = slots[i];
-		if (bp == NULL)
-			continue;
-		perf_bp_event(bp, regs);
+		if ((csr_read32(LOONGARCH_CSR_FWPS) & (0x1 << i))) {
+			bp = slots[i];
+			if (bp == NULL)
+				continue;
+			perf_bp_event(bp, regs);
+			csr_write32(0x1 << i, LOONGARCH_CSR_FWPS);
+			update_bp_registers(regs, 0, 0);
+		}
 	}
-	update_bp_registers(regs, 0, 0);
 }
 NOKPROBE_SYMBOL(breakpoint_handler);
 
@@ -493,12 +499,15 @@ void watchpoint_handler(struct pt_regs *regs)
 	slots = this_cpu_ptr(wp_on_reg);
 
 	for (i = 0; i < boot_cpu_data.watch_dreg_count; ++i) {
-		wp = slots[i];
-		if (wp == NULL)
-			continue;
-		perf_bp_event(wp, regs);
+		if ((csr_read32(LOONGARCH_CSR_MWPS) & (0x1 << i))) {
+			wp = slots[i];
+			if (wp == NULL)
+				continue;
+			perf_bp_event(wp, regs);
+			csr_write32(0x1 << i, LOONGARCH_CSR_MWPS);
+			update_bp_registers(regs, 0, 1);
+		}
 	}
-	update_bp_registers(regs, 0, 1);
 }
 NOKPROBE_SYMBOL(watchpoint_handler);
 
