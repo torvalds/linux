@@ -311,38 +311,10 @@ nouveau_fence_wait_legacy(struct dma_fence *f, bool intr, long wait)
 	return timeout - t;
 }
 
-static int
-nouveau_fence_wait_busy(struct nouveau_fence *fence, bool intr)
-{
-	int ret = 0;
-
-	while (!nouveau_fence_done(fence)) {
-		if (time_after_eq(jiffies, fence->timeout)) {
-			ret = -EBUSY;
-			break;
-		}
-
-		__set_current_state(intr ?
-				    TASK_INTERRUPTIBLE :
-				    TASK_UNINTERRUPTIBLE);
-
-		if (intr && signal_pending(current)) {
-			ret = -ERESTARTSYS;
-			break;
-		}
-	}
-
-	__set_current_state(TASK_RUNNING);
-	return ret;
-}
-
 int
-nouveau_fence_wait(struct nouveau_fence *fence, bool lazy, bool intr)
+nouveau_fence_wait(struct nouveau_fence *fence, bool intr)
 {
 	long ret;
-
-	if (!lazy)
-		return nouveau_fence_wait_busy(fence, intr);
 
 	ret = dma_fence_wait_timeout(&fence->base, intr, 15 * HZ);
 	if (ret < 0)

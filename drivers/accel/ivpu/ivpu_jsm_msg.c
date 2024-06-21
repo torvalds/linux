@@ -103,14 +103,10 @@ int ivpu_jsm_register_db(struct ivpu_device *vdev, u32 ctx_id, u32 db_id,
 
 	ret = ivpu_ipc_send_receive(vdev, &req, VPU_JSM_MSG_REGISTER_DB_DONE, &resp,
 				    VPU_IPC_CHAN_ASYNC_CMD, vdev->timeout.jsm);
-	if (ret) {
-		ivpu_err_ratelimited(vdev, "Failed to register doorbell %d: %d\n", db_id, ret);
-		return ret;
-	}
+	if (ret)
+		ivpu_err_ratelimited(vdev, "Failed to register doorbell %u: %d\n", db_id, ret);
 
-	ivpu_dbg(vdev, JSM, "Doorbell %d registered to context %d\n", db_id, ctx_id);
-
-	return 0;
+	return ret;
 }
 
 int ivpu_jsm_unregister_db(struct ivpu_device *vdev, u32 db_id)
@@ -123,14 +119,10 @@ int ivpu_jsm_unregister_db(struct ivpu_device *vdev, u32 db_id)
 
 	ret = ivpu_ipc_send_receive(vdev, &req, VPU_JSM_MSG_UNREGISTER_DB_DONE, &resp,
 				    VPU_IPC_CHAN_ASYNC_CMD, vdev->timeout.jsm);
-	if (ret) {
-		ivpu_warn_ratelimited(vdev, "Failed to unregister doorbell %d: %d\n", db_id, ret);
-		return ret;
-	}
+	if (ret)
+		ivpu_warn_ratelimited(vdev, "Failed to unregister doorbell %u: %d\n", db_id, ret);
 
-	ivpu_dbg(vdev, JSM, "Doorbell %d unregistered\n", db_id);
-
-	return 0;
+	return ret;
 }
 
 int ivpu_jsm_get_heartbeat(struct ivpu_device *vdev, u32 engine, u64 *heartbeat)
@@ -255,11 +247,16 @@ int ivpu_jsm_context_release(struct ivpu_device *vdev, u32 host_ssid)
 {
 	struct vpu_jsm_msg req = { .type = VPU_JSM_MSG_SSID_RELEASE };
 	struct vpu_jsm_msg resp;
+	int ret;
 
 	req.payload.ssid_release.host_ssid = host_ssid;
 
-	return ivpu_ipc_send_receive(vdev, &req, VPU_JSM_MSG_SSID_RELEASE_DONE, &resp,
-				     VPU_IPC_CHAN_ASYNC_CMD, vdev->timeout.jsm);
+	ret = ivpu_ipc_send_receive(vdev, &req, VPU_JSM_MSG_SSID_RELEASE_DONE, &resp,
+				    VPU_IPC_CHAN_ASYNC_CMD, vdev->timeout.jsm);
+	if (ret)
+		ivpu_warn_ratelimited(vdev, "Failed to release context: %d\n", ret);
+
+	return ret;
 }
 
 int ivpu_jsm_pwr_d0i3_enter(struct ivpu_device *vdev)
@@ -537,4 +534,27 @@ int ivpu_jsm_metric_streamer_info(struct ivpu_device *vdev, u64 metric_group_mas
 		*info_size = resp.payload.metric_streamer_done.bytes_written;
 
 	return ret;
+}
+
+int ivpu_jsm_dct_enable(struct ivpu_device *vdev, u32 active_us, u32 inactive_us)
+{
+	struct vpu_jsm_msg req = { .type = VPU_JSM_MSG_DCT_ENABLE };
+	struct vpu_jsm_msg resp;
+
+	req.payload.pwr_dct_control.dct_active_us = active_us;
+	req.payload.pwr_dct_control.dct_inactive_us = inactive_us;
+
+	return ivpu_ipc_send_receive_active(vdev, &req, VPU_JSM_MSG_DCT_ENABLE_DONE,
+					    &resp, VPU_IPC_CHAN_ASYNC_CMD,
+					    vdev->timeout.jsm);
+}
+
+int ivpu_jsm_dct_disable(struct ivpu_device *vdev)
+{
+	struct vpu_jsm_msg req = { .type = VPU_JSM_MSG_DCT_DISABLE };
+	struct vpu_jsm_msg resp;
+
+	return ivpu_ipc_send_receive_active(vdev, &req, VPU_JSM_MSG_DCT_DISABLE_DONE,
+					    &resp, VPU_IPC_CHAN_ASYNC_CMD,
+					    vdev->timeout.jsm);
 }

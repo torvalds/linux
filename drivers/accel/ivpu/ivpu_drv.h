@@ -32,6 +32,8 @@
 #define IVPU_HW_IP_50XX 50
 #define IVPU_HW_IP_60XX 60
 
+#define IVPU_HW_IP_REV_LNL_B0 4
+
 #define IVPU_HW_BTRS_MTL 1
 #define IVPU_HW_BTRS_LNL 2
 
@@ -102,6 +104,7 @@ struct ivpu_wa_table {
 	bool interrupt_clear_with_0;
 	bool disable_clock_relinquish;
 	bool disable_d0i3_msg;
+	bool wp0_during_power_up;
 };
 
 struct ivpu_hw_info;
@@ -147,7 +150,6 @@ struct ivpu_device {
 		int boot;
 		int jsm;
 		int tdr;
-		int reschedule_suspend;
 		int autosuspend;
 		int d0i3_entry_msg;
 	} timeout;
@@ -168,6 +170,7 @@ struct ivpu_file_priv {
 	struct ivpu_bo *ms_info_bo;
 	bool has_mmu_faults;
 	bool bound;
+	bool aborted;
 };
 
 extern int ivpu_dbg_mask;
@@ -184,6 +187,7 @@ extern bool ivpu_force_snoop;
 #define IVPU_TEST_MODE_D0I3_MSG_ENABLE    BIT(5)
 #define IVPU_TEST_MODE_PREEMPTION_DISABLE BIT(6)
 #define IVPU_TEST_MODE_HWS_EXTRA_EVENTS	  BIT(7)
+#define IVPU_TEST_MODE_DISABLE_TIMEOUTS   BIT(8)
 extern int ivpu_test_mode;
 
 struct ivpu_file_priv *ivpu_file_priv_get(struct ivpu_file_priv *file_priv);
