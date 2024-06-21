@@ -532,14 +532,61 @@ static void vc4_write_tpz(struct vc4_plane_state *vc4_state, u32 src, u32 dst)
 			VC4_SET_FIELD(recip, SCALER_TPZ1_RECIP));
 }
 
-static void vc4_write_ppf(struct vc4_plane_state *vc4_state, u32 src, u32 dst)
+/* phase magnitude bits */
+#define PHASE_BITS 6
+
+static void vc4_write_ppf(struct vc4_plane_state *vc4_state, u32 src, u32 dst,
+			  u32 xy, int channel)
 {
-	u32 scale = (1 << 16) * src / dst;
+	u32 scale = src / dst;
+	s32 offset, offset2;
+	s32 phase;
+
+	/*
+	 * Start the phase at 1/2 pixel from the 1st pixel at src_x.
+	 * 1/4 pixel for YUV.
+	 */
+	if (channel) {
+		/*
+		 * The phase is relative to scale_src->x, so shift it for
+		 * display list's x value
+		 */
+		offset = (xy & 0x1ffff) >> (16 - PHASE_BITS) >> 1;
+		offset += -(1 << PHASE_BITS >> 2);
+	} else {
+		/*
+		 * The phase is relative to scale_src->x, so shift it for
+		 * display list's x value
+		 */
+		offset = (xy & 0xffff) >> (16 - PHASE_BITS);
+		offset += -(1 << PHASE_BITS >> 1);
+
+		/*
+		 * This is a kludge to make sure the scaling factors are
+		 * consistent with YUV's luma scaling. We lose 1-bit precision
+		 * because of this.
+		 */
+		scale &= ~1;
+	}
+
+	/*
+	 * There may be a also small error introduced by precision of scale.
+	 * Add half of that as a compromise
+	 */
+	offset2 = src - dst * scale;
+	offset2 >>= 16 - PHASE_BITS;
+	phase = offset + (offset2 >> 1);
+
+	/* Ensure +ve values don't touch the sign bit, then truncate negative values */
+	if (phase >= 1 << PHASE_BITS)
+		phase = (1 << PHASE_BITS) - 1;
+
+	phase &= SCALER_PPF_IPHASE_MASK;
 
 	vc4_dlist_write(vc4_state,
 			SCALER_PPF_AGC |
 			VC4_SET_FIELD(scale, SCALER_PPF_SCALE) |
-			VC4_SET_FIELD(0, SCALER_PPF_IPHASE));
+			VC4_SET_FIELD(phase, SCALER_PPF_IPHASE));
 }
 
 static u32 vc4_lbm_size(struct drm_plane_state *state)
@@ -597,27 +644,27 @@ static void vc4_write_scaling_parameters(struct drm_plane_state *state,
 
 	/* Ch0 H-PPF Word 0: Scaling Parameters */
 	if (vc4_state->x_scaling[channel] == VC4_SCALING_PPF) {
-		vc4_write_ppf(vc4_state,
-			      vc4_state->src_w[channel], vc4_state->crtc_w);
+		vc4_write_ppf(vc4_state, vc4_state->src_w[channel],
+			      vc4_state->crtc_w, vc4_state->src_x, channel);
 	}
 
 	/* Ch0 V-PPF Words 0-1: Scaling Parameters, Context */
 	if (vc4_state->y_scaling[channel] == VC4_SCALING_PPF) {
-		vc4_write_ppf(vc4_state,
-			      vc4_state->src_h[channel], vc4_state->crtc_h);
+		vc4_write_ppf(vc4_state, vc4_state->src_h[channel],
+			      vc4_state->crtc_h, vc4_state->src_y, channel);
 		vc4_dlist_write(vc4_state, 0xc0c0c0c0);
 	}
 
 	/* Ch0 H-TPZ Words 0-1: Scaling Parameters, Recip */
 	if (vc4_state->x_scaling[channel] == VC4_SCALING_TPZ) {
-		vc4_write_tpz(vc4_state,
-			      vc4_state->src_w[channel], vc4_state->crtc_w);
+		vc4_write_tpz(vc4_state, vc4_state->src_w[channel],
+			      vc4_state->crtc_w);
 	}
 
 	/* Ch0 V-TPZ Words 0-2: Scaling Parameters, Recip, Context */
 	if (vc4_state->y_scaling[channel] == VC4_SCALING_TPZ) {
-		vc4_write_tpz(vc4_state,
-			      vc4_state->src_h[channel], vc4_state->crtc_h);
+		vc4_write_tpz(vc4_state, vc4_state->src_h[channel],
+			      vc4_state->crtc_h);
 		vc4_dlist_write(vc4_state, 0xc0c0c0c0);
 	}
 }
@@ -1051,6 +1098,24 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 			      (long long)fb->modifier);
 		return -EINVAL;
 	}
+
+	/* fetch an extra pixel if we don't actually line up with the left edge. */
+	if ((vc4_state->src_x & 0xffff) && vc4_state->src_x < (state->fb->width << 16))
+		width++;
+
+	/* same for the right side */
+	if (((vc4_state->src_x + vc4_state->src_w[0]) & 0xffff) &&
+	    vc4_state->src_x + vc4_state->src_w[0] < (state->fb->width << 16))
+		width++;
+
+	/* now for the top */
+	if ((vc4_state->src_y & 0xffff) && vc4_state->src_y < (state->fb->height << 16))
+		height++;
+
+	/* and the bottom */
+	if (((vc4_state->src_y + vc4_state->src_h[0]) & 0xffff) &&
+	    vc4_state->src_y + vc4_state->src_h[0] < (state->fb->height << 16))
+		height++;
 
 	/* Don't waste cycles mixing with plane alpha if the set alpha
 	 * is opaque or there is no per-pixel alpha information.
