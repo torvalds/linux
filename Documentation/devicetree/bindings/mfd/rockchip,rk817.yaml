@@ -32,6 +32,13 @@ properties:
     minimum: 0
     maximum: 1
 
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    items:
+      - const: mclk
+
   clock-output-names:
     description:
       From common clock binding to override the default output clock name.
@@ -41,6 +48,9 @@ properties:
     deprecated: true
     description:
       Telling whether or not this PMIC is controlling the system power.
+
+  '#sound-dai-cells':
+    const: 0
 
   system-power-controller: true
 
@@ -94,26 +104,7 @@ properties:
         $ref: /schemas/regulator/regulator.yaml#
     unevaluatedProperties: false
 
-  clocks:
-    description:
-      The input clock for the audio codec.
-
-  clock-names:
-    description:
-      The clock name for the codec clock.
-    items:
-      - const: mclk
-
-  '#sound-dai-cells':
-    description:
-      Needed for the interpretation of sound dais.
-    const: 0
-
   codec:
-    description: |
-      The child node for the codec to hold additional properties. If no
-      additional properties are required for the codec, this node can be
-      omitted.
     type: object
     additionalProperties: false
     properties:
@@ -123,9 +114,6 @@ properties:
           Describes if the microphone uses differential mode.
 
   charger:
-    description: |
-      The child node for the charger to hold additional properties. If a
-      battery is not in use, this node can be omitted.
     type: object
     $ref: /schemas/power/supply/power-supply.yaml
 
@@ -168,6 +156,7 @@ properties:
     additionalProperties: false
 
 allOf:
+  - $ref: /schemas/sound/dai-common.yaml#
   - if:
       properties:
         '#clock-cells':
