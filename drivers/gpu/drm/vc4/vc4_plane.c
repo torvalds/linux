@@ -1386,7 +1386,11 @@ static int vc4_plane_atomic_check(struct drm_plane *plane,
 	if (ret)
 		return ret;
 
-	return vc4_plane_allocate_lbm(new_plane_state);
+	ret = vc4_plane_allocate_lbm(new_plane_state);
+	if (ret)
+		return ret;
+
+	return 0;
 }
 
 static void vc4_plane_atomic_update(struct drm_plane *plane,
