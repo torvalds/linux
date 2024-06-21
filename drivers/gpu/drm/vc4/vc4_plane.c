@@ -1256,7 +1256,7 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 	 *
 	 * The pointers may be any byte address.
 	 */
-	vc4_state->ptr0_offset = vc4_state->dlist_count;
+	vc4_state->ptr0_offset[0] = vc4_state->dlist_count;
 	for (i = 0; i < num_planes; i++)
 		vc4_dlist_write(vc4_state, vc4_state->offsets[i]);
 
@@ -1460,13 +1460,13 @@ void vc4_plane_async_set_fb(struct drm_plane *plane, struct drm_framebuffer *fb)
 	 * scanout will start from this address as soon as the FIFO
 	 * needs to refill with pixels.
 	 */
-	writel(addr, &vc4_state->hw_dlist[vc4_state->ptr0_offset]);
+	writel(addr, &vc4_state->hw_dlist[vc4_state->ptr0_offset[0]]);
 
 	/* Also update the CPU-side dlist copy, so that any later
 	 * atomic updates that don't do a new modeset on our plane
 	 * also use our updated address.
 	 */
-	vc4_state->dlist[vc4_state->ptr0_offset] = addr;
+	vc4_state->dlist[vc4_state->ptr0_offset[0]] = addr;
 
 	drm_dev_exit(idx);
 }
@@ -1530,8 +1530,8 @@ static void vc4_plane_atomic_async_update(struct drm_plane *plane,
 		new_vc4_state->dlist[vc4_state->pos0_offset];
 	vc4_state->dlist[vc4_state->pos2_offset] =
 		new_vc4_state->dlist[vc4_state->pos2_offset];
-	vc4_state->dlist[vc4_state->ptr0_offset] =
-		new_vc4_state->dlist[vc4_state->ptr0_offset];
+	vc4_state->dlist[vc4_state->ptr0_offset[0]] =
+		new_vc4_state->dlist[vc4_state->ptr0_offset[0]];
 
 	/* Note that we can't just call vc4_plane_write_dlist()
 	 * because that would smash the context data that the HVS is
@@ -1541,8 +1541,8 @@ static void vc4_plane_atomic_async_update(struct drm_plane *plane,
 	       &vc4_state->hw_dlist[vc4_state->pos0_offset]);
 	writel(vc4_state->dlist[vc4_state->pos2_offset],
 	       &vc4_state->hw_dlist[vc4_state->pos2_offset]);
-	writel(vc4_state->dlist[vc4_state->ptr0_offset],
-	       &vc4_state->hw_dlist[vc4_state->ptr0_offset]);
+	writel(vc4_state->dlist[vc4_state->ptr0_offset[0]],
+	       &vc4_state->hw_dlist[vc4_state->ptr0_offset[0]]);
 
 	drm_dev_exit(idx);
 }
@@ -1569,7 +1569,7 @@ static int vc4_plane_atomic_async_check(struct drm_plane *plane,
 	if (old_vc4_state->dlist_count != new_vc4_state->dlist_count ||
 	    old_vc4_state->pos0_offset != new_vc4_state->pos0_offset ||
 	    old_vc4_state->pos2_offset != new_vc4_state->pos2_offset ||
-	    old_vc4_state->ptr0_offset != new_vc4_state->ptr0_offset ||
+	    old_vc4_state->ptr0_offset[0] != new_vc4_state->ptr0_offset[0] ||
 	    vc4_lbm_size(plane->state) != vc4_lbm_size(new_plane_state))
 		return -EINVAL;
 
@@ -1579,7 +1579,7 @@ static int vc4_plane_atomic_async_check(struct drm_plane *plane,
 	for (i = 0; i < new_vc4_state->dlist_count; i++) {
 		if (i == new_vc4_state->pos0_offset ||
 		    i == new_vc4_state->pos2_offset ||
-		    i == new_vc4_state->ptr0_offset ||
+		    i == new_vc4_state->ptr0_offset[0] ||
 		    (new_vc4_state->lbm_offset &&
 		     i == new_vc4_state->lbm_offset))
 			continue;
