@@ -1025,7 +1025,7 @@ void intel_gt_set_wedged(struct intel_gt *gt)
 
 	if (GEM_SHOW_DEBUG()) {
 		struct drm_printer p = drm_dbg_printer(&gt->i915->drm,
-						       DRM_UT_DRIVER, __func__);
+						       DRM_UT_DRIVER, NULL);
 		struct intel_engine_cs *engine;
 		enum intel_engine_id id;
 

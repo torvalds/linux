@@ -147,4 +147,5 @@ static struct kunit_suite drm_modes_analog_tv_test_suite = {
 kunit_test_suite(drm_modes_analog_tv_test_suite);
 
 MODULE_AUTHOR("Maxime Ripard <maxime@cerno.tech>");
+MODULE_DESCRIPTION("Kunit test for drm_modes functions");
 MODULE_LICENSE("GPL");

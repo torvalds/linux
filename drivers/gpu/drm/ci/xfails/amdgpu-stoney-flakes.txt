@@ -1,1 +1,8 @@
+# Board Name: hp-11A-G6-EE-grunt
+# Bug Report: https://lore.kernel.org/amd-gfx/3542730f-b8d7-404d-a947-b7a5e95d661c@collabora.com/T/#u
+# IGT Version: 1.28-g0df7b9b97
+# Linux Version: 6.9.0-rc7
+# Failure Rate: 50
 kms_async_flips@async-flip-with-page-flip-events
+kms_async_flips@crc
+kms_plane@pixel-format-source-clamping

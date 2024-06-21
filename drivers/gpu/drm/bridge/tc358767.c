@@ -1646,7 +1646,7 @@ tc_edp_mode_valid(struct drm_bridge *bridge,
 	u32 req, avail;
 	u32 bits_per_pixel = 24;
 
-	/* DPI interface clock limitation: upto 154 MHz */
+	/* DPI->(e)DP interface clock limitation: up to 154 MHz */
 	if (mode->clock > 154000)
 		return MODE_CLOCK_HIGH;
 
@@ -2152,7 +2152,7 @@ static irqreturn_t tc_irq_handler(int irq, void *arg)
 		dev_err(tc->dev, "syserr %x\n", stat);
 	}
 
-	if (tc->hpd_pin >= 0 && tc->bridge.dev) {
+	if (tc->hpd_pin >= 0 && tc->bridge.dev && tc->aux.drm_dev) {
 		/*
 		 * H is triggered when the GPIO goes high.
 		 *

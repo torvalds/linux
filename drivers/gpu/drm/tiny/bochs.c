@@ -733,4 +733,5 @@ drm_module_pci_driver_if_modeset(bochs_pci_driver, bochs_modeset);
 
 MODULE_DEVICE_TABLE(pci, bochs_pci_tbl);
 MODULE_AUTHOR("Gerd Hoffmann <kraxel@redhat.com>");
+MODULE_DESCRIPTION("DRM Support for bochs dispi vga interface (qemu stdvga)");
 MODULE_LICENSE("GPL");

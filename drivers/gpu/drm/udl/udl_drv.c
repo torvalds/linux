@@ -160,4 +160,5 @@ static struct usb_driver udl_driver = {
 	.id_table = id_table,
 };
 module_usb_driver(udl_driver);
+MODULE_DESCRIPTION("KMS driver for the USB displaylink video adapters");
 MODULE_LICENSE("GPL");

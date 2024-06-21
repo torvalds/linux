@@ -286,7 +286,7 @@ static int boe_nv110wum_init(struct hx83102 *ctx)
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, HX83102_SETBANK, 0x00);
 	hx83102_enable_extended_cmds(&dsi_ctx, false);
 
-	mipi_dsi_msleep(dsi_ctx, 50);
+	mipi_dsi_msleep(&dsi_ctx, 50);
 
 	return dsi_ctx.accum_err;
 };
@@ -391,7 +391,7 @@ static int ivo_t109nw41_init(struct hx83102 *ctx)
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, HX83102_SETBANK, 0x00);
 	hx83102_enable_extended_cmds(&dsi_ctx, false);
 
-	mipi_dsi_msleep(dsi_ctx, 60);
+	mipi_dsi_msleep(&dsi_ctx, 60);
 
 	return dsi_ctx.accum_err;
 };
@@ -538,7 +538,7 @@ static int hx83102_prepare(struct drm_panel *panel)
 	dsi_ctx.accum_err = ctx->desc->init(ctx);
 
 	mipi_dsi_dcs_exit_sleep_mode_multi(&dsi_ctx);
-	mipi_dsi_msleep(dsi_ctx, 120);
+	mipi_dsi_msleep(&dsi_ctx, 120);
 	mipi_dsi_dcs_set_display_on_multi(&dsi_ctx);
 	if (dsi_ctx.accum_err)
 		goto poweroff;

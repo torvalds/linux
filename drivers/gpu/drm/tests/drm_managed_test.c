@@ -113,4 +113,5 @@ static struct kunit_suite drm_managed_test_suite = {
 kunit_test_suite(drm_managed_test_suite);
 
 MODULE_AUTHOR("Maxime Ripard <maxime@cerno.tech>");
+MODULE_DESCRIPTION("KUnit DRM managed test suite");
 MODULE_LICENSE("GPL");

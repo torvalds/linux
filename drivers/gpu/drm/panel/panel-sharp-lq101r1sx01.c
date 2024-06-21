@@ -24,9 +24,6 @@ struct sharp_panel {
 
 	struct regulator *supply;
 
-	bool prepared;
-	bool enabled;
-
 	const struct drm_display_mode *mode;
 };
 
@@ -85,25 +82,10 @@ static __maybe_unused int sharp_panel_read(struct sharp_panel *sharp,
 	return err;
 }
 
-static int sharp_panel_disable(struct drm_panel *panel)
-{
-	struct sharp_panel *sharp = to_sharp_panel(panel);
-
-	if (!sharp->enabled)
-		return 0;
-
-	sharp->enabled = false;
-
-	return 0;
-}
-
 static int sharp_panel_unprepare(struct drm_panel *panel)
 {
 	struct sharp_panel *sharp = to_sharp_panel(panel);
 	int err;
-
-	if (!sharp->prepared)
-		return 0;
 
 	sharp_wait_frames(sharp, 4);
 
@@ -118,8 +100,6 @@ static int sharp_panel_unprepare(struct drm_panel *panel)
 	msleep(120);
 
 	regulator_disable(sharp->supply);
-
-	sharp->prepared = false;
 
 	return 0;
 }
@@ -163,9 +143,6 @@ static int sharp_panel_prepare(struct drm_panel *panel)
 	struct sharp_panel *sharp = to_sharp_panel(panel);
 	u8 format = MIPI_DCS_PIXEL_FMT_24BIT;
 	int err;
-
-	if (sharp->prepared)
-		return 0;
 
 	err = regulator_enable(sharp->supply);
 	if (err < 0)
@@ -235,8 +212,6 @@ static int sharp_panel_prepare(struct drm_panel *panel)
 		goto poweroff;
 	}
 
-	sharp->prepared = true;
-
 	/* wait for 6 frames before continuing */
 	sharp_wait_frames(sharp, 6);
 
@@ -245,18 +220,6 @@ static int sharp_panel_prepare(struct drm_panel *panel)
 poweroff:
 	regulator_disable(sharp->supply);
 	return err;
-}
-
-static int sharp_panel_enable(struct drm_panel *panel)
-{
-	struct sharp_panel *sharp = to_sharp_panel(panel);
-
-	if (sharp->enabled)
-		return 0;
-
-	sharp->enabled = true;
-
-	return 0;
 }
 
 static const struct drm_display_mode default_mode = {
@@ -295,10 +258,8 @@ static int sharp_panel_get_modes(struct drm_panel *panel,
 }
 
 static const struct drm_panel_funcs sharp_panel_funcs = {
-	.disable = sharp_panel_disable,
 	.unprepare = sharp_panel_unprepare,
 	.prepare = sharp_panel_prepare,
-	.enable = sharp_panel_enable,
 	.get_modes = sharp_panel_get_modes,
 };
 
@@ -396,32 +357,13 @@ static void sharp_panel_remove(struct mipi_dsi_device *dsi)
 	struct sharp_panel *sharp = mipi_dsi_get_drvdata(dsi);
 	int err;
 
-	/* only detach from host for the DSI-LINK2 interface */
-	if (!sharp) {
-		mipi_dsi_detach(dsi);
-		return;
-	}
-
-	err = drm_panel_disable(&sharp->base);
-	if (err < 0)
-		dev_err(&dsi->dev, "failed to disable panel: %d\n", err);
-
 	err = mipi_dsi_detach(dsi);
 	if (err < 0)
 		dev_err(&dsi->dev, "failed to detach from DSI host: %d\n", err);
 
-	sharp_panel_del(sharp);
-}
-
-static void sharp_panel_shutdown(struct mipi_dsi_device *dsi)
-{
-	struct sharp_panel *sharp = mipi_dsi_get_drvdata(dsi);
-
-	/* nothing to do for DSI-LINK2 */
+	/* only detach from host for the DSI-LINK2 interface */
 	if (!sharp)
-		return;
-
-	drm_panel_disable(&sharp->base);
+		sharp_panel_del(sharp);
 }
 
 static struct mipi_dsi_driver sharp_panel_driver = {
@@ -431,7 +373,6 @@ static struct mipi_dsi_driver sharp_panel_driver = {
 	},
 	.probe = sharp_panel_probe,
 	.remove = sharp_panel_remove,
-	.shutdown = sharp_panel_shutdown,
 };
 module_mipi_dsi_driver(sharp_panel_driver);
 

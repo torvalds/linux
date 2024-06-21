@@ -16,6 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/reset.h>
 
+#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_framebuffer.h>
@@ -249,9 +250,72 @@ int sun8i_mixer_drm_format_to_hw(u32 format, u32 *hw_format)
 	return -EINVAL;
 }
 
-static void sun8i_mixer_commit(struct sunxi_engine *engine)
+static void sun8i_layer_enable(struct sun8i_layer *layer, bool enable)
 {
+	u32 ch_base = sun8i_channel_base(layer->mixer, layer->channel);
+	u32 val, reg, mask;
+
+	if (layer->type == SUN8I_LAYER_TYPE_UI) {
+		val = enable ? SUN8I_MIXER_CHAN_UI_LAYER_ATTR_EN : 0;
+		mask = SUN8I_MIXER_CHAN_UI_LAYER_ATTR_EN;
+		reg = SUN8I_MIXER_CHAN_UI_LAYER_ATTR(ch_base, layer->overlay);
+	} else {
+		val = enable ? SUN8I_MIXER_CHAN_VI_LAYER_ATTR_EN : 0;
+		mask = SUN8I_MIXER_CHAN_VI_LAYER_ATTR_EN;
+		reg = SUN8I_MIXER_CHAN_VI_LAYER_ATTR(ch_base, layer->overlay);
+	}
+
+	regmap_update_bits(layer->mixer->engine.regs, reg, mask, val);
+}
+
+static void sun8i_mixer_commit(struct sunxi_engine *engine,
+			       struct drm_crtc *crtc,
+			       struct drm_atomic_state *state)
+{
+	struct sun8i_mixer *mixer = engine_to_sun8i_mixer(engine);
+	u32 bld_base = sun8i_blender_base(mixer);
+	struct drm_plane_state *plane_state;
+	struct drm_plane *plane;
+	u32 route = 0, pipe_en = 0;
+
 	DRM_DEBUG_DRIVER("Committing changes\n");
+
+	drm_for_each_plane(plane, state->dev) {
+		struct sun8i_layer *layer = plane_to_sun8i_layer(plane);
+		bool enable;
+		int zpos;
+
+		if (!(plane->possible_crtcs & drm_crtc_mask(crtc)) || layer->mixer != mixer)
+			continue;
+
+		plane_state = drm_atomic_get_new_plane_state(state, plane);
+		if (!plane_state)
+			plane_state = plane->state;
+
+		enable = plane_state->crtc && plane_state->visible;
+		zpos = plane_state->normalized_zpos;
+
+		DRM_DEBUG_DRIVER("  plane %d: chan=%d ovl=%d en=%d zpos=%d\n",
+				 plane->base.id, layer->channel, layer->overlay,
+				 enable, zpos);
+
+		/*
+		 * We always update the layer enable bit, because it can clear
+		 * spontaneously for unknown reasons.
+		 */
+		sun8i_layer_enable(layer, enable);
+
+		if (!enable)
+			continue;
+
+		/* Route layer to pipe based on zpos */
+		route |= layer->channel << SUN8I_MIXER_BLEND_ROUTE_PIPE_SHIFT(zpos);
+		pipe_en |= SUN8I_MIXER_BLEND_PIPE_CTL_EN(zpos);
+	}
+
+	regmap_write(mixer->engine.regs, SUN8I_MIXER_BLEND_ROUTE(bld_base), route);
+	regmap_write(mixer->engine.regs, SUN8I_MIXER_BLEND_PIPE_CTL(bld_base),
+		     pipe_en | SUN8I_MIXER_BLEND_PIPE_CTL_FC_EN(0));
 
 	regmap_write(engine->regs, SUN8I_MIXER_GLOBAL_DBUFF,
 		     SUN8I_MIXER_GLOBAL_DBUFF_ENABLE);
@@ -271,7 +335,7 @@ static struct drm_plane **sun8i_layers_init(struct drm_device *drm,
 		return ERR_PTR(-ENOMEM);
 
 	for (i = 0; i < mixer->cfg->vi_num; i++) {
-		struct sun8i_vi_layer *layer;
+		struct sun8i_layer *layer;
 
 		layer = sun8i_vi_layer_init_one(drm, mixer, i);
 		if (IS_ERR(layer)) {
@@ -284,7 +348,7 @@ static struct drm_plane **sun8i_layers_init(struct drm_device *drm,
 	}
 
 	for (i = 0; i < mixer->cfg->ui_num; i++) {
-		struct sun8i_ui_layer *layer;
+		struct sun8i_layer *layer;
 
 		layer = sun8i_ui_layer_init_one(drm, mixer, i);
 		if (IS_ERR(layer)) {

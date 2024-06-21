@@ -360,4 +360,5 @@ static struct spi_driver ota5601a_driver = {
 module_spi_driver(ota5601a_driver);
 
 MODULE_AUTHOR("Christophe Branchereau <cbranchereau@gmail.com>");
+MODULE_DESCRIPTION("Orisetech OTA5601A TFT LCD panel driver");
 MODULE_LICENSE("GPL");

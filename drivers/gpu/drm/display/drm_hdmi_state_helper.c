@@ -714,3 +714,39 @@ drm_atomic_helper_connector_hdmi_update_audio_infoframe(struct drm_connector *co
 	return ret;
 }
 EXPORT_SYMBOL(drm_atomic_helper_connector_hdmi_update_audio_infoframe);
+
+/**
+ * drm_atomic_helper_connector_hdmi_disable_audio_infoframe - Stop sending the Audio Infoframe
+ * @connector: A pointer to the HDMI connector
+ *
+ * This function is meant for HDMI connector drivers to stop sending their
+ * audio infoframe. It will typically be used in one of the ALSA hooks
+ * (most likely shutdown).
+ *
+ * Returns:
+ * Zero on success, error code on failure.
+ */
+int
+drm_atomic_helper_connector_hdmi_disable_audio_infoframe(struct drm_connector *connector)
+{
+	struct drm_connector_hdmi_infoframe *infoframe =
+		&connector->hdmi.infoframes.audio;
+	struct drm_display_info *info = &connector->display_info;
+	int ret;
+
+	if (!info->is_hdmi)
+		return 0;
+
+	mutex_lock(&connector->hdmi.infoframes.lock);
+
+	infoframe->set = false;
+
+	ret = clear_infoframe(connector, infoframe);
+
+	memset(&infoframe->data, 0, sizeof(infoframe->data));
+
+	mutex_unlock(&connector->hdmi.infoframes.lock);
+
+	return ret;
+}
+EXPORT_SYMBOL(drm_atomic_helper_connector_hdmi_disable_audio_infoframe);

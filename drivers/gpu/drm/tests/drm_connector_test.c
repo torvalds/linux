@@ -1290,4 +1290,5 @@ kunit_test_suites(
 );
 
 MODULE_AUTHOR("Maxime Ripard <maxime@cerno.tech>");
+MODULE_DESCRIPTION("Kunit test for drm_modes functions");
 MODULE_LICENSE("GPL");
