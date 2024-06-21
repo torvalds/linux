@@ -4764,6 +4764,8 @@ struct rtw89_dpk_info {
 	u8 cur_idx[RTW89_DPK_RF_PATH];
 	u8 cur_k_set;
 	struct rtw89_dpk_bkup_para bp[RTW89_DPK_RF_PATH][RTW89_DPK_BKUP_NUM];
+	u8 max_dpk_txagc[RTW89_DPK_RF_PATH];
+	u32 dpk_order[RTW89_DPK_RF_PATH];
 };
 
 struct rtw89_fem_info {
