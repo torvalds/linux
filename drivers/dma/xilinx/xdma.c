@@ -885,10 +885,10 @@ static irqreturn_t xdma_channel_isr(int irq, void *dev_id)
 	u32 st;
 	bool repeat_tx;
 
+	spin_lock(&xchan->vchan.lock);
+
 	if (xchan->stop_requested)
 		complete(&xchan->last_interrupt);
-
-	spin_lock(&xchan->vchan.lock);
 
 	/* get submitted request */
 	vd = vchan_next_desc(&xchan->vchan);
