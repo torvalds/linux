@@ -17,6 +17,7 @@ properties:
     enum:
       - elan,ektf2127
       - elan,ektf2132
+      - elan,ektf2232
 
   reg:
     maxItems: 1
