@@ -2994,7 +2994,18 @@ static int spi_geni_suspend(struct device *dev)
 		SPI_LOG_DBG(geni_mas->ipc, false, geni_mas->dev,
 			    "%s System suspend not allowed while xfer in progress=%d\n",
 			    __func__, ret);
-		return ret;
+		return -EBUSY;
+	}
+
+	if (geni_mas->is_le_vm || geni_mas->is_la_vm) {
+		if (!pm_runtime_status_suspended(dev)) {
+			SPI_LOG_ERR(geni_mas->ipc, true, geni_mas->dev,
+				    ":%s: Client managed runtime PM is active\n", __func__);
+			return -EBUSY;
+		}
+		SPI_LOG_DBG(geni_mas->ipc, false, geni_mas->dev,
+			    "%s: System suspend bypassed due to le/la vm\n", __func__);
+		return 0;
 	}
 
 	spi_geni_deep_sleep_enable_check(geni_mas);
