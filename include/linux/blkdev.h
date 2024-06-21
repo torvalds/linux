@@ -673,11 +673,21 @@ static inline bool blk_queue_is_zoned(struct request_queue *q)
 }
 
 #ifdef CONFIG_BLK_DEV_ZONED
-
 static inline unsigned int disk_nr_zones(struct gendisk *disk)
 {
-	return blk_queue_is_zoned(disk->queue) ? disk->nr_zones : 0;
+	return disk->nr_zones;
 }
+bool blk_zone_plug_bio(struct bio *bio, unsigned int nr_segs);
+#else /* CONFIG_BLK_DEV_ZONED */
+static inline unsigned int disk_nr_zones(struct gendisk *disk)
+{
+	return 0;
+}
+static inline bool blk_zone_plug_bio(struct bio *bio, unsigned int nr_segs)
+{
+	return false;
+}
+#endif /* CONFIG_BLK_DEV_ZONED */
 
 static inline unsigned int disk_zone_no(struct gendisk *disk, sector_t sector)
 {
@@ -700,36 +710,6 @@ static inline unsigned int bdev_max_active_zones(struct block_device *bdev)
 {
 	return bdev->bd_disk->queue->limits.max_active_zones;
 }
-
-bool blk_zone_plug_bio(struct bio *bio, unsigned int nr_segs);
-#else /* CONFIG_BLK_DEV_ZONED */
-static inline unsigned int bdev_nr_zones(struct block_device *bdev)
-{
-	return 0;
-}
-
-static inline unsigned int disk_nr_zones(struct gendisk *disk)
-{
-	return 0;
-}
-static inline unsigned int disk_zone_no(struct gendisk *disk, sector_t sector)
-{
-	return 0;
-}
-static inline unsigned int bdev_max_open_zones(struct block_device *bdev)
-{
-	return 0;
-}
-
-static inline unsigned int bdev_max_active_zones(struct block_device *bdev)
-{
-	return 0;
-}
-static inline bool blk_zone_plug_bio(struct bio *bio, unsigned int nr_segs)
-{
-	return false;
-}
-#endif /* CONFIG_BLK_DEV_ZONED */
 
 static inline unsigned int blk_queue_depth(struct request_queue *q)
 {
