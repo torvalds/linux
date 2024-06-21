@@ -86,7 +86,7 @@ static const char *perf_pmu__mem_events_name(int i, struct perf_pmu *pmu)
 		return NULL;
 
 	e = &pmu->mem_events[i];
-	if (!e)
+	if (!e || !e->name)
 		return NULL;
 
 	if (i == PERF_MEM_EVENTS__LOAD || i == PERF_MEM_EVENTS__LOAD_STORE) {
