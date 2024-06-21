@@ -152,7 +152,7 @@ config DWMAC_QCOM_ETHQOS
 
 config DWMAC_QCOM_VER3
 	tristate "EMAC ETHQOS support for direwolf"
-	default ARCH_QCOM
+	default n
 	depends on OF && (ARCH_QCOM || COMPILE_TEST)
 	help
 	  Support for the EMAC ETHQOS core 3.
