@@ -29,6 +29,7 @@
 #include <linux/slab.h>
 #include <linux/syscore_ops.h>
 #include <linux/msi.h>
+#include <linux/types.h>
 #include <asm/mach/arch.h>
 #include <asm/exception.h>
 #include <asm/smp_plat.h>
@@ -155,6 +156,17 @@ static DECLARE_BITMAP(msi_used, PCI_MSI_DOORBELL_NR);
 static DEFINE_MUTEX(msi_used_lock);
 static phys_addr_t msi_doorbell_addr;
 #endif
+
+static inline bool is_ipi_available(void)
+{
+	/*
+	 * We distinguish IPI availability in the IC by the IC not having a
+	 * parent irq defined. If a parent irq is defined, there is a parent
+	 * interrupt controller (e.g. GIC) that takes care of inter-processor
+	 * interrupts.
+	 */
+	return parent_irq <= 0;
+}
 
 static inline bool is_percpu_irq(irq_hw_number_t irq)
 {
@@ -521,7 +533,8 @@ static void armada_xp_mpic_reenable_percpu(void)
 		armada_370_xp_irq_unmask(data);
 	}
 
-	ipi_resume();
+	if (is_ipi_available())
+		ipi_resume();
 
 	armada_370_xp_msi_reenable_percpu();
 }
@@ -744,7 +757,8 @@ static void armada_370_xp_mpic_resume(void)
 	if (doorbell_mask_reg & PCI_MSI_DOORBELL_MASK)
 		writel(1, per_cpu_int_base + ARMADA_370_XP_INT_CLEAR_MASK_OFFS);
 
-	ipi_resume();
+	if (is_ipi_available())
+		ipi_resume();
 }
 
 static struct syscore_ops armada_370_xp_mpic_syscore_ops = {
