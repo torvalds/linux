@@ -8,9 +8,34 @@ struct bprm_stack_limits_result {
 };
 
 static const struct bprm_stack_limits_result bprm_stack_limits_results[] = {
-	/* Giant values produce -E2BIG */
+	/* Negative argc/envc counts produce -E2BIG */
+	{ { .p = ULONG_MAX, .rlim_stack.rlim_cur = ULONG_MAX,
+	    .argc = INT_MIN, .envc = INT_MIN }, .expected_rc = -E2BIG },
+	{ { .p = ULONG_MAX, .rlim_stack.rlim_cur = ULONG_MAX,
+	    .argc = 5, .envc = -1 }, .expected_rc = -E2BIG },
+	{ { .p = ULONG_MAX, .rlim_stack.rlim_cur = ULONG_MAX,
+	    .argc = -1, .envc = 10 }, .expected_rc = -E2BIG },
+	/* The max value of argc or envc is MAX_ARG_STRINGS. */
 	{ { .p = ULONG_MAX, .rlim_stack.rlim_cur = ULONG_MAX,
 	    .argc = INT_MAX, .envc = INT_MAX }, .expected_rc = -E2BIG },
+	{ { .p = ULONG_MAX, .rlim_stack.rlim_cur = ULONG_MAX,
+	    .argc = MAX_ARG_STRINGS, .envc = MAX_ARG_STRINGS }, .expected_rc = -E2BIG },
+	{ { .p = ULONG_MAX, .rlim_stack.rlim_cur = ULONG_MAX,
+	    .argc = 0, .envc = MAX_ARG_STRINGS }, .expected_rc = -E2BIG },
+	{ { .p = ULONG_MAX, .rlim_stack.rlim_cur = ULONG_MAX,
+	    .argc = MAX_ARG_STRINGS, .envc = 0 }, .expected_rc = -E2BIG },
+	/*
+	 * On 32-bit system these argc and envc counts, while likely impossible
+	 * to represent within the associated TASK_SIZE, could overflow the
+	 * limit calculation, and bypass the ptr_size <= limit check.
+	 */
+	{ { .p = ULONG_MAX, .rlim_stack.rlim_cur = ULONG_MAX,
+	    .argc = 0x20000001, .envc = 0x20000001 }, .expected_rc = -E2BIG },
+#ifdef CONFIG_MMU
+	/* Make sure a pathological bprm->p doesn't cause an overflow. */
+	{ { .p = sizeof(void *), .rlim_stack.rlim_cur = ULONG_MAX,
+	    .argc = 10, .envc = 10 }, .expected_rc = -E2BIG },
+#endif
 	/*
 	 * 0 rlim_stack will get raised to ARG_MAX. With 1 string pointer,
 	 * we should see p - ARG_MAX + sizeof(void *).
@@ -88,6 +113,7 @@ static void exec_test_bprm_stack_limits(struct kunit *test)
 	/* Double-check the constants. */
 	KUNIT_EXPECT_EQ(test, _STK_LIM, SZ_8M);
 	KUNIT_EXPECT_EQ(test, ARG_MAX, 32 * SZ_4K);
+	KUNIT_EXPECT_EQ(test, MAX_ARG_STRINGS, 0x7FFFFFFF);
 
 	for (int i = 0; i < ARRAY_SIZE(bprm_stack_limits_results); i++) {
 		const struct bprm_stack_limits_result *result = &bprm_stack_limits_results[i];
