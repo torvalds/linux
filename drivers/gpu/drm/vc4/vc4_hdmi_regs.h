@@ -498,8 +498,11 @@ static inline void vc4_hdmi_write(struct vc4_hdmi *hdmi,
 
 	field = &variant->registers[reg];
 	base = __vc4_hdmi_get_field_base(hdmi, field->reg);
-	if (!base)
+	if (!base) {
+		dev_warn(&hdmi->pdev->dev,
+			 "Unknown register ID %u\n", reg);
 		return;
+	}
 
 	writel(value, base + field->offset);
 }
