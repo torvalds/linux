@@ -13,6 +13,8 @@
 #define SERVREG_SET_ACK_REQ				0x23
 #define SERVREG_RESTART_PD_REQ				0x24
 
+#define SERVREG_LOC_PFR_REQ				0x24
+
 #define SERVREG_DOMAIN_LIST_LENGTH			32
 #define SERVREG_RESTART_PD_REQ_MAX_LEN			67
 #define SERVREG_REGISTER_LISTENER_REQ_LEN		71
@@ -20,6 +22,7 @@
 #define SERVREG_GET_DOMAIN_LIST_REQ_MAX_LEN		74
 #define SERVREG_STATE_UPDATED_IND_MAX_LEN		79
 #define SERVREG_GET_DOMAIN_LIST_RESP_MAX_LEN		2389
+#define SERVREG_LOC_PFR_RESP_MAX_LEN			10
 
 struct servreg_location_entry {
 	char name[SERVREG_NAME_LENGTH + 1];
@@ -79,6 +82,15 @@ struct servreg_set_ack_resp {
 	struct qmi_response_type_v01 resp;
 };
 
+struct servreg_loc_pfr_req {
+	char service[SERVREG_NAME_LENGTH + 1];
+	char reason[257];
+};
+
+struct servreg_loc_pfr_resp {
+	struct qmi_response_type_v01 rsp;
+};
+
 extern const struct qmi_elem_info servreg_location_entry_ei[];
 extern const struct qmi_elem_info servreg_get_domain_list_req_ei[];
 extern const struct qmi_elem_info servreg_get_domain_list_resp_ei[];
@@ -89,5 +101,7 @@ extern const struct qmi_elem_info servreg_restart_pd_resp_ei[];
 extern const struct qmi_elem_info servreg_state_updated_ind_ei[];
 extern const struct qmi_elem_info servreg_set_ack_req_ei[];
 extern const struct qmi_elem_info servreg_set_ack_resp_ei[];
+extern const struct qmi_elem_info servreg_loc_pfr_req_ei[];
+extern const struct qmi_elem_info servreg_loc_pfr_resp_ei[];
 
 #endif

@@ -315,5 +315,39 @@ const struct qmi_elem_info servreg_set_ack_resp_ei[] = {
 };
 EXPORT_SYMBOL_GPL(servreg_set_ack_resp_ei);
 
+const struct qmi_elem_info servreg_loc_pfr_req_ei[] = {
+	{
+		.data_type = QMI_STRING,
+		.elem_len = SERVREG_NAME_LENGTH + 1,
+		.elem_size = sizeof(char),
+		.array_type = VAR_LEN_ARRAY,
+		.tlv_type = 0x01,
+		.offset = offsetof(struct servreg_loc_pfr_req, service)
+	},
+	{
+		.data_type = QMI_STRING,
+		.elem_len = SERVREG_NAME_LENGTH + 1,
+		.elem_size = sizeof(char),
+		.array_type = VAR_LEN_ARRAY,
+		.tlv_type = 0x02,
+		.offset = offsetof(struct servreg_loc_pfr_req, reason)
+	},
+	{}
+};
+EXPORT_SYMBOL_GPL(servreg_loc_pfr_req_ei);
+
+const struct qmi_elem_info servreg_loc_pfr_resp_ei[] = {
+	{
+		.data_type = QMI_STRUCT,
+		.elem_len = 1,
+		.elem_size = sizeof_field(struct servreg_loc_pfr_resp, rsp),
+		.tlv_type = 0x02,
+		.offset = offsetof(struct servreg_loc_pfr_resp, rsp),
+		.ei_array = qmi_response_type_v01_ei,
+	},
+	{}
+};
+EXPORT_SYMBOL_GPL(servreg_loc_pfr_resp_ei);
+
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Qualcomm Protection Domain messages data");
