@@ -1540,6 +1540,10 @@ static int igc_ethtool_set_channels(struct net_device *netdev,
 	if (ch->other_count != NON_Q_VECTORS)
 		return -EINVAL;
 
+	/* Do not allow channel reconfiguration when mqprio is enabled */
+	if (adapter->strict_priority_enable)
+		return -EINVAL;
+
 	/* Verify the number of channels doesn't exceed hw limits */
 	max_combined = igc_get_max_rss_queues(adapter);
 	if (count > max_combined)

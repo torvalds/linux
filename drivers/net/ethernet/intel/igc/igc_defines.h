@@ -4,6 +4,8 @@
 #ifndef _IGC_DEFINES_H_
 #define _IGC_DEFINES_H_
 
+#include <linux/bitfield.h>
+
 /* Number of Transmit and Receive Descriptors must be a multiple of 8 */
 #define REQ_TX_DESCRIPTOR_MULTIPLE	8
 #define REQ_RX_DESCRIPTOR_MULTIPLE	8
@@ -552,6 +554,15 @@
 #define IGC_TQAVCC_KEEP_CREDITS		BIT(30)
 
 #define IGC_MAX_SR_QUEUES		2
+
+#define IGC_TXARB_TXQ_PRIO_0_MASK	GENMASK(1, 0)
+#define IGC_TXARB_TXQ_PRIO_1_MASK	GENMASK(3, 2)
+#define IGC_TXARB_TXQ_PRIO_2_MASK	GENMASK(5, 4)
+#define IGC_TXARB_TXQ_PRIO_3_MASK	GENMASK(7, 6)
+#define IGC_TXARB_TXQ_PRIO_0(x)		FIELD_PREP(IGC_TXARB_TXQ_PRIO_0_MASK, (x))
+#define IGC_TXARB_TXQ_PRIO_1(x)		FIELD_PREP(IGC_TXARB_TXQ_PRIO_1_MASK, (x))
+#define IGC_TXARB_TXQ_PRIO_2(x)		FIELD_PREP(IGC_TXARB_TXQ_PRIO_2_MASK, (x))
+#define IGC_TXARB_TXQ_PRIO_3(x)		FIELD_PREP(IGC_TXARB_TXQ_PRIO_3_MASK, (x))
 
 /* Receive Checksum Control */
 #define IGC_RXCSUM_CRCOFL	0x00000800   /* CRC32 offload enable */
