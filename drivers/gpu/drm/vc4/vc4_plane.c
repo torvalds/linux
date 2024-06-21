@@ -110,6 +110,18 @@ static const struct hvs_format {
 		.pixel_order_hvs5 = HVS_PIXEL_ORDER_XYCRCB,
 	},
 	{
+		.drm = DRM_FORMAT_YUV444,
+		.hvs = HVS_PIXEL_FORMAT_YCBCR_YUV422_3PLANE,
+		.pixel_order = HVS_PIXEL_ORDER_XYCBCR,
+		.pixel_order_hvs5 = HVS_PIXEL_ORDER_XYCBCR,
+	},
+	{
+		.drm = DRM_FORMAT_YVU444,
+		.hvs = HVS_PIXEL_FORMAT_YCBCR_YUV422_3PLANE,
+		.pixel_order = HVS_PIXEL_ORDER_XYCRCB,
+		.pixel_order_hvs5 = HVS_PIXEL_ORDER_XYCRCB,
+	},
+	{
 		.drm = DRM_FORMAT_YUV420,
 		.hvs = HVS_PIXEL_FORMAT_YCBCR_YUV420_3PLANE,
 		.pixel_order = HVS_PIXEL_ORDER_XYCBCR,
@@ -1116,6 +1128,12 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 	if (((vc4_state->src_y + vc4_state->src_h[0]) & 0xffff) &&
 	    vc4_state->src_y + vc4_state->src_h[0] < (state->fb->height << 16))
 		height++;
+
+	/* For YUV444 the hardware wants double the width, otherwise it doesn't
+	 * fetch full width of chroma
+	 */
+	if (format->drm == DRM_FORMAT_YUV444 || format->drm == DRM_FORMAT_YVU444)
+		width <<= 1;
 
 	/* Don't waste cycles mixing with plane alpha if the set alpha
 	 * is opaque or there is no per-pixel alpha information.
