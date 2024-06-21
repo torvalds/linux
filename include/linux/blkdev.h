@@ -673,7 +673,6 @@ static inline bool blk_queue_is_zoned(struct request_queue *q)
 }
 
 #ifdef CONFIG_BLK_DEV_ZONED
-unsigned int bdev_nr_zones(struct block_device *bdev);
 
 static inline unsigned int disk_nr_zones(struct gendisk *disk)
 {
@@ -685,6 +684,11 @@ static inline unsigned int disk_zone_no(struct gendisk *disk, sector_t sector)
 	if (!blk_queue_is_zoned(disk->queue))
 		return 0;
 	return sector >> ilog2(disk->queue->limits.chunk_sectors);
+}
+
+static inline unsigned int bdev_nr_zones(struct block_device *bdev)
+{
+	return disk_nr_zones(bdev->bd_disk);
 }
 
 static inline unsigned int bdev_max_open_zones(struct block_device *bdev)
