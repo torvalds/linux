@@ -539,8 +539,6 @@ int vchiq_platform_init_state(struct vchiq_state *state);
 
 int vchiq_check_service(struct vchiq_service *service);
 
-void vchiq_on_remote_use_active(struct vchiq_state *state);
-
 int vchiq_send_remote_use(struct vchiq_state *state);
 
 int vchiq_send_remote_use_active(struct vchiq_state *state);
