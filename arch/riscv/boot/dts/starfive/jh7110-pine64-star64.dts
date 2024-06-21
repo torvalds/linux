@@ -39,6 +39,10 @@
 	};
 };
 
+&pcie1 {
+	status = "okay";
+};
+
 &phy0 {
 	rx-internal-delay-ps = <1900>;
 	tx-internal-delay-ps = <1500>;
