@@ -318,9 +318,8 @@ int connect_to_addr(int type, const struct sockaddr_storage *addr, socklen_t add
 		return -1;
 	}
 
-	if (!opts->noconnect)
-		if (connect_fd_to_addr(fd, addr, addrlen, opts->must_fail))
-			goto error_close;
+	if (connect_fd_to_addr(fd, addr, addrlen, opts->must_fail))
+		goto error_close;
 
 	return fd;
 
