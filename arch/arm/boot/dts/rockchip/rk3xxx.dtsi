@@ -194,17 +194,14 @@
 	};
 
 	emac: ethernet@10204000 {
-		compatible = "snps,arc-emac";
+		compatible = "rockchip,rk3066-emac";
 		reg = <0x10204000 0x3c>;
 		interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
-
-		rockchip,grf = <&grf>;
-
 		clocks = <&cru HCLK_EMAC>, <&cru SCLK_MAC>;
 		clock-names = "hclk", "macref";
 		max-speed = <100>;
 		phy-mode = "rmii";
-
+		rockchip,grf = <&grf>;
 		status = "disabled";
 	};
 
