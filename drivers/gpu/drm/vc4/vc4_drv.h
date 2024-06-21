@@ -421,11 +421,6 @@ struct vc4_plane_state {
 	bool is_unity;
 	bool is_yuv;
 
-	/* Offset to start scanning out from the start of the plane's
-	 * BO.
-	 */
-	u32 offsets[3];
-
 	/* Our allocation in LBM for temporary storage during scaling. */
 	struct drm_mm_node lbm;
 

@@ -450,12 +450,11 @@ static int vc4_plane_setup_clipping_and_scaling(struct drm_plane_state *state)
 {
 	struct vc4_plane_state *vc4_state = to_vc4_plane_state(state);
 	struct drm_framebuffer *fb = state->fb;
-	struct drm_gem_dma_object *bo;
 	int num_planes = fb->format->num_planes;
 	struct drm_crtc_state *crtc_state;
 	u32 h_subsample = fb->format->hsub;
 	u32 v_subsample = fb->format->vsub;
-	int i, ret;
+	int ret;
 
 	crtc_state = drm_atomic_get_existing_crtc_state(state->state,
 							state->crtc);
@@ -468,11 +467,6 @@ static int vc4_plane_setup_clipping_and_scaling(struct drm_plane_state *state)
 						  INT_MAX, true, true);
 	if (ret)
 		return ret;
-
-	for (i = 0; i < num_planes; i++) {
-		bo = drm_fb_dma_get_gem_obj(fb, i);
-		vc4_state->offsets[i] = bo->dma_addr + fb->offsets[i];
-	}
 
 	vc4_state->src_x = state->src.x1;
 	vc4_state->src_y = state->src.y1;
@@ -902,6 +896,7 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 	u32 width, height;
 	u32 hvs_format = format->hvs;
 	unsigned int rotation;
+	u32 offsets[3] = { 0 };
 	int ret, i;
 
 	if (vc4_state->dlist_initialized)
@@ -949,13 +944,8 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 		 * out.
 		 */
 		for (i = 0; i < num_planes; i++) {
-			vc4_state->offsets[i] += src_y /
-						 (i ? v_subsample : 1) *
-						 fb->pitches[i];
-
-			vc4_state->offsets[i] += src_x /
-						 (i ? h_subsample : 1) *
-						 fb->format->cpp[i];
+			offsets[i] += src_y / (i ? v_subsample : 1) * fb->pitches[i];
+			offsets[i] += src_x / (i ? h_subsample : 1) * fb->format->cpp[i];
 		}
 
 		break;
@@ -1010,19 +1000,18 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 			   VC4_SET_FIELD(y_off, SCALER_PITCH0_TILE_Y_OFFSET) |
 			   VC4_SET_FIELD(tiles_l, SCALER_PITCH0_TILE_WIDTH_L) |
 			   VC4_SET_FIELD(tiles_r, SCALER_PITCH0_TILE_WIDTH_R));
-		vc4_state->offsets[0] += tiles_t * (tiles_w << tile_size_shift);
-		vc4_state->offsets[0] += subtile_y << 8;
-		vc4_state->offsets[0] += utile_y << 4;
+		offsets[0] += tiles_t * (tiles_w << tile_size_shift);
+		offsets[0] += subtile_y << 8;
+		offsets[0] += utile_y << 4;
 
 		/* Rows of tiles alternate left-to-right and right-to-left. */
 		if (tiles_t & 1) {
 			pitch0 |= SCALER_PITCH0_TILE_INITIAL_LINE_DIR;
-			vc4_state->offsets[0] += (tiles_w - tiles_l) <<
-						 tile_size_shift;
-			vc4_state->offsets[0] -= (1 + !tile_y) << 10;
+			offsets[0] += (tiles_w - tiles_l) << tile_size_shift;
+			offsets[0] -= (1 + !tile_y) << 10;
 		} else {
-			vc4_state->offsets[0] += tiles_l << tile_size_shift;
-			vc4_state->offsets[0] += tile_y << 10;
+			offsets[0] += tiles_l << tile_size_shift;
+			offsets[0] += tile_y << 10;
 		}
 
 		break;
@@ -1111,11 +1100,9 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 
 			tile = src_x / pix_per_tile;
 
-			vc4_state->offsets[i] += param * tile_w * tile;
-			vc4_state->offsets[i] += src_y /
-						 (i ? v_subsample : 1) *
-						 tile_w;
-			vc4_state->offsets[i] += x_off & ~(i ? 1 : 0);
+			offsets[i] += param * tile_w * tile;
+			offsets[i] += src_y / (i ? v_subsample : 1) * tile_w;
+			offsets[i] += x_off & ~(i ? 1 : 0);
 		}
 
 		pitch0 = VC4_SET_FIELD(param, SCALER_TILE_HEIGHT);
@@ -1261,8 +1248,12 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 	 * The pointers may be any byte address.
 	 */
 	vc4_state->ptr0_offset[0] = vc4_state->dlist_count;
-	for (i = 0; i < num_planes; i++)
-		vc4_dlist_write(vc4_state, vc4_state->offsets[i]);
+
+	for (i = 0; i < num_planes; i++) {
+		struct drm_gem_dma_object *bo = drm_fb_dma_get_gem_obj(fb, i);
+
+		vc4_dlist_write(vc4_state, bo->dma_addr + fb->offsets[i] + offsets[i]);
+	}
 
 	/* Pointer Context Word 0/1/2: Written by the HVS */
 	for (i = 0; i < num_planes; i++)
@@ -1525,8 +1516,6 @@ static void vc4_plane_atomic_async_update(struct drm_plane *plane,
 	       sizeof(vc4_state->y_scaling));
 	vc4_state->is_unity = new_vc4_state->is_unity;
 	vc4_state->is_yuv = new_vc4_state->is_yuv;
-	memcpy(vc4_state->offsets, new_vc4_state->offsets,
-	       sizeof(vc4_state->offsets));
 	vc4_state->needs_bg_fill = new_vc4_state->needs_bg_fill;
 
 	/* Update the current vc4_state pos0, pos2 and ptr0 dlist entries. */
