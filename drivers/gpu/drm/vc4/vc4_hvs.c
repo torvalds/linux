@@ -33,7 +33,7 @@
 #include "vc4_drv.h"
 #include "vc4_regs.h"
 
-static const struct debugfs_reg32 hvs_regs[] = {
+static const struct debugfs_reg32 vc4_hvs_regs[] = {
 	VC4_REG32(SCALER_DISPCTRL),
 	VC4_REG32(SCALER_DISPSTAT),
 	VC4_REG32(SCALER_DISPID),
@@ -1028,8 +1028,8 @@ static int vc4_hvs_bind(struct device *dev, struct device *master, void *data)
 		return PTR_ERR(hvs->regs);
 
 	hvs->regset.base = hvs->regs;
-	hvs->regset.regs = hvs_regs;
-	hvs->regset.nregs = ARRAY_SIZE(hvs_regs);
+	hvs->regset.regs = vc4_hvs_regs;
+	hvs->regset.nregs = ARRAY_SIZE(vc4_hvs_regs);
 
 	if (vc4->gen == VC4_GEN_5) {
 		struct rpi_firmware *firmware;
