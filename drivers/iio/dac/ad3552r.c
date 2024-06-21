@@ -857,15 +857,9 @@ static int ad3552r_configure_custom_gain(struct ad3552r_desc *dac,
 	return 0;
 }
 
-static void ad3552r_reg_disable(void *reg)
-{
-	regulator_disable(reg);
-}
-
 static int ad3552r_configure_device(struct ad3552r_desc *dac)
 {
 	struct device *dev = &dac->spi->dev;
-	struct regulator *vref;
 	int err, cnt = 0, voltage, delta = 100000;
 	u32 vals[2], val, ch;
 
@@ -874,30 +868,16 @@ static int ad3552r_configure_device(struct ad3552r_desc *dac)
 		return dev_err_probe(dev, PTR_ERR(dac->gpio_ldac),
 				     "Error getting gpio ldac");
 
-	vref = devm_regulator_get_optional(dev, "vref");
-	if (IS_ERR(vref)) {
-		if (PTR_ERR(vref) != -ENODEV)
-			return dev_err_probe(dev, PTR_ERR(vref),
-					     "Error getting vref");
+	voltage = devm_regulator_get_enable_read_voltage(dev, "vref");
+	if (voltage < 0 && voltage != -ENODEV)
+		return dev_err_probe(dev, voltage, "Error getting vref voltage\n");
 
+	if (voltage == -ENODEV) {
 		if (device_property_read_bool(dev, "adi,vref-out-en"))
 			val = AD3552R_INTERNAL_VREF_PIN_2P5V;
 		else
 			val = AD3552R_INTERNAL_VREF_PIN_FLOATING;
 	} else {
-		err = regulator_enable(vref);
-		if (err) {
-			dev_err(dev, "Failed to enable external vref supply\n");
-			return err;
-		}
-
-		err = devm_add_action_or_reset(dev, ad3552r_reg_disable, vref);
-		if (err) {
-			regulator_disable(vref);
-			return err;
-		}
-
-		voltage = regulator_get_voltage(vref);
 		if (voltage > 2500000 + delta || voltage < 2500000 - delta) {
 			dev_warn(dev, "vref-supply must be 2.5V");
 			return -EINVAL;
