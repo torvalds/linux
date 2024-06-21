@@ -1659,7 +1659,6 @@ static struct folio *stable_node_dup(struct ksm_stable_node **_stable_node_dup,
 	struct ksm_stable_node *dup, *found = NULL, *stable_node = *_stable_node;
 	struct hlist_node *hlist_safe;
 	struct folio *folio, *tree_folio = NULL;
-	int nr = 0;
 	int found_rmap_hlist_len;
 
 	if (!prune_stale_stable_nodes ||
@@ -1686,33 +1685,26 @@ static struct folio *stable_node_dup(struct ksm_stable_node **_stable_node_dup,
 		folio = ksm_get_folio(dup, KSM_GET_FOLIO_NOLOCK);
 		if (!folio)
 			continue;
-		nr += 1;
-		if (is_page_sharing_candidate(dup)) {
-			if (!found ||
-			    dup->rmap_hlist_len > found_rmap_hlist_len) {
-				if (found)
-					folio_put(tree_folio);
-				found = dup;
-				found_rmap_hlist_len = found->rmap_hlist_len;
-				tree_folio = folio;
-
-				/* skip put_page for found dup */
-				if (!prune_stale_stable_nodes)
-					break;
-				continue;
-			}
+		/* Pick the best candidate if possible. */
+		if (!found || (is_page_sharing_candidate(dup) &&
+		    (!is_page_sharing_candidate(found) ||
+		     dup->rmap_hlist_len > found_rmap_hlist_len))) {
+			if (found)
+				folio_put(tree_folio);
+			found = dup;
+			found_rmap_hlist_len = found->rmap_hlist_len;
+			tree_folio = folio;
+			/* skip put_page for found candidate */
+			if (!prune_stale_stable_nodes &&
+			    is_page_sharing_candidate(found))
+				break;
+			continue;
 		}
 		folio_put(folio);
 	}
 
 	if (found) {
-		/*
-		 * nr is counting all dups in the chain only if
-		 * prune_stale_stable_nodes is true, otherwise we may
-		 * break the loop at nr == 1 even if there are
-		 * multiple entries.
-		 */
-		if (prune_stale_stable_nodes && nr == 1) {
+		if (hlist_is_singular_node(&found->hlist_dup, &stable_node->hlist)) {
 			/*
 			 * If there's not just one entry it would
 			 * corrupt memory, better BUG_ON. In KSM
@@ -1764,23 +1756,13 @@ static struct folio *stable_node_dup(struct ksm_stable_node **_stable_node_dup,
 			hlist_add_head(&found->hlist_dup,
 				       &stable_node->hlist);
 		}
+	} else {
+		/* Its hlist must be empty if no one found. */
+		free_stable_node_chain(stable_node, root);
 	}
 
 	*_stable_node_dup = found;
 	return tree_folio;
-}
-
-static struct ksm_stable_node *stable_node_dup_any(struct ksm_stable_node *stable_node,
-					       struct rb_root *root)
-{
-	if (!is_stable_node_chain(stable_node))
-		return stable_node;
-	if (hlist_empty(&stable_node->hlist)) {
-		free_stable_node_chain(stable_node, root);
-		return NULL;
-	}
-	return hlist_entry(stable_node->hlist.first,
-			   typeof(*stable_node), hlist_dup);
 }
 
 /*
@@ -1803,17 +1785,10 @@ static struct folio *__stable_node_chain(struct ksm_stable_node **_stable_node_d
 					 bool prune_stale_stable_nodes)
 {
 	struct ksm_stable_node *stable_node = *_stable_node;
+
 	if (!is_stable_node_chain(stable_node)) {
-		if (is_page_sharing_candidate(stable_node)) {
-			*_stable_node_dup = stable_node;
-			return ksm_get_folio(stable_node, KSM_GET_FOLIO_NOLOCK);
-		}
-		/*
-		 * _stable_node_dup set to NULL means the stable_node
-		 * reached the ksm_max_page_sharing limit.
-		 */
-		*_stable_node_dup = NULL;
-		return NULL;
+		*_stable_node_dup = stable_node;
+		return ksm_get_folio(stable_node, KSM_GET_FOLIO_NOLOCK);
 	}
 	return stable_node_dup(_stable_node_dup, _stable_node, root,
 			       prune_stale_stable_nodes);
@@ -1827,16 +1802,10 @@ static __always_inline struct folio *chain_prune(struct ksm_stable_node **s_n_d,
 }
 
 static __always_inline struct folio *chain(struct ksm_stable_node **s_n_d,
-					   struct ksm_stable_node *s_n,
+					   struct ksm_stable_node **s_n,
 					   struct rb_root *root)
 {
-	struct ksm_stable_node *old_stable_node = s_n;
-	struct folio *tree_folio;
-
-	tree_folio = __stable_node_chain(s_n_d, &s_n, root, false);
-	/* not pruning dups so s_n cannot have changed */
-	VM_BUG_ON(s_n != old_stable_node);
-	return tree_folio;
+	return __stable_node_chain(s_n_d, s_n, root, false);
 }
 
 /*
@@ -1854,7 +1823,7 @@ static struct page *stable_tree_search(struct page *page)
 	struct rb_root *root;
 	struct rb_node **new;
 	struct rb_node *parent;
-	struct ksm_stable_node *stable_node, *stable_node_dup, *stable_node_any;
+	struct ksm_stable_node *stable_node, *stable_node_dup;
 	struct ksm_stable_node *page_node;
 	struct folio *folio;
 
@@ -1878,45 +1847,7 @@ again:
 
 		cond_resched();
 		stable_node = rb_entry(*new, struct ksm_stable_node, node);
-		stable_node_any = NULL;
 		tree_folio = chain_prune(&stable_node_dup, &stable_node, root);
-		/*
-		 * NOTE: stable_node may have been freed by
-		 * chain_prune() if the returned stable_node_dup is
-		 * not NULL. stable_node_dup may have been inserted in
-		 * the rbtree instead as a regular stable_node (in
-		 * order to collapse the stable_node chain if a single
-		 * stable_node dup was found in it). In such case the
-		 * stable_node is overwritten by the callee to point
-		 * to the stable_node_dup that was collapsed in the
-		 * stable rbtree and stable_node will be equal to
-		 * stable_node_dup like if the chain never existed.
-		 */
-		if (!stable_node_dup) {
-			/*
-			 * Either all stable_node dups were full in
-			 * this stable_node chain, or this chain was
-			 * empty and should be rb_erased.
-			 */
-			stable_node_any = stable_node_dup_any(stable_node,
-							      root);
-			if (!stable_node_any) {
-				/* rb_erase just run */
-				goto again;
-			}
-			/*
-			 * Take any of the stable_node dups page of
-			 * this stable_node chain to let the tree walk
-			 * continue. All KSM pages belonging to the
-			 * stable_node dups in a stable_node chain
-			 * have the same content and they're
-			 * write protected at all times. Any will work
-			 * fine to continue the walk.
-			 */
-			tree_folio = ksm_get_folio(stable_node_any,
-						   KSM_GET_FOLIO_NOLOCK);
-		}
-		VM_BUG_ON(!stable_node_dup ^ !!stable_node_any);
 		if (!tree_folio) {
 			/*
 			 * If we walked over a stale stable_node,
@@ -1954,7 +1885,7 @@ again:
 					goto chain_append;
 			}
 
-			if (!stable_node_dup) {
+			if (!is_page_sharing_candidate(stable_node_dup)) {
 				/*
 				 * If the stable_node is a chain and
 				 * we got a payload match in memcmp
@@ -2063,9 +1994,6 @@ replace:
 	return &folio->page;
 
 chain_append:
-	/* stable_node_dup could be null if it reached the limit */
-	if (!stable_node_dup)
-		stable_node_dup = stable_node_any;
 	/*
 	 * If stable_node was a chain and chain_prune collapsed it,
 	 * stable_node has been updated to be the new regular
@@ -2110,7 +2038,7 @@ static struct ksm_stable_node *stable_tree_insert(struct folio *kfolio)
 	struct rb_root *root;
 	struct rb_node **new;
 	struct rb_node *parent;
-	struct ksm_stable_node *stable_node, *stable_node_dup, *stable_node_any;
+	struct ksm_stable_node *stable_node, *stable_node_dup;
 	bool need_chain = false;
 
 	kpfn = folio_pfn(kfolio);
@@ -2126,33 +2054,7 @@ again:
 
 		cond_resched();
 		stable_node = rb_entry(*new, struct ksm_stable_node, node);
-		stable_node_any = NULL;
-		tree_folio = chain(&stable_node_dup, stable_node, root);
-		if (!stable_node_dup) {
-			/*
-			 * Either all stable_node dups were full in
-			 * this stable_node chain, or this chain was
-			 * empty and should be rb_erased.
-			 */
-			stable_node_any = stable_node_dup_any(stable_node,
-							      root);
-			if (!stable_node_any) {
-				/* rb_erase just run */
-				goto again;
-			}
-			/*
-			 * Take any of the stable_node dups page of
-			 * this stable_node chain to let the tree walk
-			 * continue. All KSM pages belonging to the
-			 * stable_node dups in a stable_node chain
-			 * have the same content and they're
-			 * write protected at all times. Any will work
-			 * fine to continue the walk.
-			 */
-			tree_folio = ksm_get_folio(stable_node_any,
-						   KSM_GET_FOLIO_NOLOCK);
-		}
-		VM_BUG_ON(!stable_node_dup ^ !!stable_node_any);
+		tree_folio = chain(&stable_node_dup, &stable_node, root);
 		if (!tree_folio) {
 			/*
 			 * If we walked over a stale stable_node,
