@@ -303,35 +303,15 @@ error_close:
 	return -1;
 }
 
-int connect_to_fd_opts(int server_fd, const struct network_helper_opts *opts)
+int connect_to_fd_opts(int server_fd, int type, const struct network_helper_opts *opts)
 {
 	struct sockaddr_storage addr;
 	struct sockaddr_in *addr_in;
-	socklen_t addrlen, optlen;
-	int fd, type, protocol;
+	socklen_t addrlen;
+	int fd;
 
 	if (!opts)
 		opts = &default_opts;
-
-	optlen = sizeof(type);
-
-	if (opts->type) {
-		type = opts->type;
-	} else {
-		if (getsockopt(server_fd, SOL_SOCKET, SO_TYPE, &type, &optlen)) {
-			log_err("getsockopt(SOL_TYPE)");
-			return -1;
-		}
-	}
-
-	if (opts->proto) {
-		protocol = opts->proto;
-	} else {
-		if (getsockopt(server_fd, SOL_SOCKET, SO_PROTOCOL, &protocol, &optlen)) {
-			log_err("getsockopt(SOL_PROTOCOL)");
-			return -1;
-		}
-	}
 
 	addrlen = sizeof(addr);
 	if (getsockname(server_fd, (struct sockaddr *)&addr, &addrlen)) {
@@ -340,7 +320,7 @@ int connect_to_fd_opts(int server_fd, const struct network_helper_opts *opts)
 	}
 
 	addr_in = (struct sockaddr_in *)&addr;
-	fd = socket(addr_in->sin_family, type, protocol);
+	fd = socket(addr_in->sin_family, type, opts->proto);
 	if (fd < 0) {
 		log_err("Failed to create client socket");
 		return -1;
@@ -369,8 +349,23 @@ int connect_to_fd(int server_fd, int timeout_ms)
 	struct network_helper_opts opts = {
 		.timeout_ms = timeout_ms,
 	};
+	int type, protocol;
+	socklen_t optlen;
 
-	return connect_to_fd_opts(server_fd, &opts);
+	optlen = sizeof(type);
+	if (getsockopt(server_fd, SOL_SOCKET, SO_TYPE, &type, &optlen)) {
+		log_err("getsockopt(SOL_TYPE)");
+		return -1;
+	}
+
+	optlen = sizeof(protocol);
+	if (getsockopt(server_fd, SOL_SOCKET, SO_PROTOCOL, &protocol, &optlen)) {
+		log_err("getsockopt(SOL_PROTOCOL)");
+		return -1;
+	}
+	opts.proto = protocol;
+
+	return connect_to_fd_opts(server_fd, type, &opts);
 }
 
 int connect_fd_to_fd(int client_fd, int server_fd, int timeout_ms)
