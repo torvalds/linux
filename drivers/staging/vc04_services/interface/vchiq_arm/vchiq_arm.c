@@ -1055,6 +1055,43 @@ add_completion(struct vchiq_instance *instance, enum vchiq_reason reason,
 	return 0;
 }
 
+static int
+service_single_message(struct vchiq_instance *instance,
+		       enum vchiq_reason reason,
+		       struct vchiq_service *service, void *bulk_userdata)
+{
+	struct user_service *user_service;
+
+	user_service = (struct user_service *)service->base.userdata;
+
+	dev_dbg(service->state->dev, "arm: msg queue full\n");
+	/*
+	 * If there is no MESSAGE_AVAILABLE in the completion
+	 * queue, add one
+	 */
+	if ((user_service->message_available_pos -
+	     instance->completion_remove) < 0) {
+		int ret;
+
+		dev_dbg(instance->state->dev,
+			"arm: Inserting extra MESSAGE_AVAILABLE\n");
+		ret = add_completion(instance, reason, NULL, user_service,
+				     bulk_userdata);
+		if (ret)
+			return ret;
+	}
+
+	if (wait_for_completion_interruptible(&user_service->remove_event)) {
+		dev_dbg(instance->state->dev, "arm: interrupted\n");
+		return -EAGAIN;
+	} else if (instance->closing) {
+		dev_dbg(instance->state->dev, "arm: closing\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 int
 service_callback(struct vchiq_instance *instance, enum vchiq_reason reason,
 		 struct vchiq_header *header, unsigned int handle, void *bulk_userdata)
@@ -1104,41 +1141,18 @@ service_callback(struct vchiq_instance *instance, enum vchiq_reason reason,
 		spin_lock(&service->state->msg_queue_spinlock);
 		while (user_service->msg_insert ==
 			(user_service->msg_remove + MSG_QUEUE_SIZE)) {
+			int ret;
+
 			spin_unlock(&service->state->msg_queue_spinlock);
 			DEBUG_TRACE(SERVICE_CALLBACK_LINE);
 			DEBUG_COUNT(MSG_QUEUE_FULL_COUNT);
-			dev_dbg(service->state->dev, "arm: msg queue full\n");
-			/*
-			 * If there is no MESSAGE_AVAILABLE in the completion
-			 * queue, add one
-			 */
-			if ((user_service->message_available_pos -
-				instance->completion_remove) < 0) {
-				int ret;
 
-				dev_dbg(instance->state->dev,
-					"arm: Inserting extra MESSAGE_AVAILABLE\n");
-				DEBUG_TRACE(SERVICE_CALLBACK_LINE);
-				ret = add_completion(instance, reason, NULL, user_service,
-						     bulk_userdata);
-				if (ret) {
-					DEBUG_TRACE(SERVICE_CALLBACK_LINE);
-					vchiq_service_put(service);
-					return ret;
-				}
-			}
-
-			DEBUG_TRACE(SERVICE_CALLBACK_LINE);
-			if (wait_for_completion_interruptible(&user_service->remove_event)) {
-				dev_dbg(instance->state->dev, "arm: interrupted\n");
+			ret = service_single_message(instance, reason,
+						     service, bulk_userdata);
+			if (ret) {
 				DEBUG_TRACE(SERVICE_CALLBACK_LINE);
 				vchiq_service_put(service);
-				return -EAGAIN;
-			} else if (instance->closing) {
-				dev_dbg(instance->state->dev, "arm: closing\n");
-				DEBUG_TRACE(SERVICE_CALLBACK_LINE);
-				vchiq_service_put(service);
-				return -EINVAL;
+				return ret;
 			}
 			DEBUG_TRACE(SERVICE_CALLBACK_LINE);
 			spin_lock(&service->state->msg_queue_spinlock);
