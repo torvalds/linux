@@ -80,7 +80,6 @@ struct hx711_data {
 	struct device		*dev;
 	struct gpio_desc	*gpiod_pd_sck;
 	struct gpio_desc	*gpiod_dout;
-	struct regulator	*reg_avdd;
 	int			gain_set;	/* gain set on device */
 	int			gain_chan_a;	/* gain for channel A */
 	struct mutex		lock;
@@ -497,11 +496,7 @@ static int hx711_probe(struct platform_device *pdev)
 		return PTR_ERR(hx711_data->gpiod_dout);
 	}
 
-	hx711_data->reg_avdd = devm_regulator_get(dev, "avdd");
-	if (IS_ERR(hx711_data->reg_avdd))
-		return PTR_ERR(hx711_data->reg_avdd);
-
-	ret = regulator_enable(hx711_data->reg_avdd);
+	ret = devm_regulator_get_enable_read_voltage(dev, "avdd");
 	if (ret < 0)
 		return ret;
 
@@ -517,9 +512,6 @@ static int hx711_probe(struct platform_device *pdev)
 	 * approximately to fit into a 32 bit number:
 	 * 1 LSB = (AVDD * 100) / GAIN / 1678 [10^-9 mV]
 	 */
-	ret = regulator_get_voltage(hx711_data->reg_avdd);
-	if (ret < 0)
-		goto error_regulator;
 
 	/* we need 10^-9 mV */
 	ret *= 100;
@@ -559,7 +551,7 @@ static int hx711_probe(struct platform_device *pdev)
 							hx711_trigger, NULL);
 	if (ret < 0) {
 		dev_err(dev, "setup of iio triggered buffer failed\n");
-		goto error_regulator;
+		return ret;
 	}
 
 	ret = iio_device_register(indio_dev);
@@ -573,25 +565,17 @@ static int hx711_probe(struct platform_device *pdev)
 error_buffer:
 	iio_triggered_buffer_cleanup(indio_dev);
 
-error_regulator:
-	regulator_disable(hx711_data->reg_avdd);
-
 	return ret;
 }
 
 static void hx711_remove(struct platform_device *pdev)
 {
-	struct hx711_data *hx711_data;
 	struct iio_dev *indio_dev;
 
 	indio_dev = platform_get_drvdata(pdev);
-	hx711_data = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
-
 	iio_triggered_buffer_cleanup(indio_dev);
-
-	regulator_disable(hx711_data->reg_avdd);
 }
 
 static const struct of_device_id of_hx711_match[] = {
