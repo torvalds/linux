@@ -335,6 +335,12 @@ config RESET_ZYNQ
 	help
 	  This enables the reset controller driver for Xilinx Zynq SoCs.
 
+config RESET_ZYNQMP
+	bool "ZYNQMP Reset Driver" if COMPILE_TEST
+	default ARCH_ZYNQMP
+	help
+	  This enables the reset controller driver for Xilinx ZynqMP SoCs.
+
 source "drivers/reset/starfive/Kconfig"
 source "drivers/reset/sti/Kconfig"
 source "drivers/reset/hisilicon/Kconfig"
