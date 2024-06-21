@@ -1817,10 +1817,7 @@ int dso__load(struct dso *dso, struct map *map)
 		goto out;
 	}
 
-	kmod = dso__symtab_type(dso) == DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE ||
-		dso__symtab_type(dso) == DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE_COMP ||
-		dso__symtab_type(dso) == DSO_BINARY_TYPE__GUEST_KMODULE ||
-		dso__symtab_type(dso) == DSO_BINARY_TYPE__GUEST_KMODULE_COMP;
+	kmod = dso__is_kmod(dso);
 
 	if (dso__kernel(dso) && !kmod) {
 		if (dso__kernel(dso) == DSO_SPACE__KERNEL)
