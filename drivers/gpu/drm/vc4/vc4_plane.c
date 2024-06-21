@@ -587,10 +587,10 @@ static u32 vc4_lbm_size(struct drm_plane_state *state)
 	}
 
 	/* Align it to 64 or 128 (hvs5) bytes */
-	lbm = roundup(lbm, vc4->is_vc5 ? 128 : 64);
+	lbm = roundup(lbm, vc4->gen == VC4_GEN_5 ? 128 : 64);
 
 	/* Each "word" of the LBM memory contains 2 or 4 (hvs5) pixels */
-	lbm /= vc4->is_vc5 ? 4 : 2;
+	lbm /= vc4->gen == VC4_GEN_5 ? 4 : 2;
 
 	return lbm;
 }
@@ -706,7 +706,7 @@ static int vc4_plane_allocate_lbm(struct drm_plane_state *state)
 		ret = drm_mm_insert_node_generic(&vc4->hvs->lbm_mm,
 						 &vc4_state->lbm,
 						 lbm_size,
-						 vc4->is_vc5 ? 64 : 32,
+						 vc4->gen == VC4_GEN_5 ? 64 : 32,
 						 0, 0);
 		spin_unlock_irqrestore(&vc4->hvs->mm_lock, irqflags);
 
@@ -1057,7 +1057,7 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 	mix_plane_alpha = state->alpha != DRM_BLEND_ALPHA_OPAQUE &&
 			  fb->format->has_alpha;
 
-	if (!vc4->is_vc5) {
+	if (vc4->gen == VC4_GEN_4) {
 	/* Control word */
 		vc4_dlist_write(vc4_state,
 				SCALER_CTL0_VALID |
@@ -1632,7 +1632,7 @@ struct drm_plane *vc4_plane_init(struct drm_device *dev,
 	};
 
 	for (i = 0; i < ARRAY_SIZE(hvs_formats); i++) {
-		if (!hvs_formats[i].hvs5_only || vc4->is_vc5) {
+		if (!hvs_formats[i].hvs5_only || vc4->gen == VC4_GEN_5) {
 			formats[num_formats] = hvs_formats[i].drm;
 			num_formats++;
 		}
@@ -1647,7 +1647,7 @@ struct drm_plane *vc4_plane_init(struct drm_device *dev,
 		return ERR_CAST(vc4_plane);
 	plane = &vc4_plane->base;
 
-	if (vc4->is_vc5)
+	if (vc4->gen == VC4_GEN_5)
 		drm_plane_helper_add(plane, &vc5_plane_helper_funcs);
 	else
 		drm_plane_helper_add(plane, &vc4_plane_helper_funcs);

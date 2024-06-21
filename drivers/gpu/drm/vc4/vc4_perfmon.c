@@ -23,7 +23,7 @@ void vc4_perfmon_get(struct vc4_perfmon *perfmon)
 		return;
 
 	vc4 = perfmon->dev;
-	if (WARN_ON_ONCE(vc4->is_vc5))
+	if (WARN_ON_ONCE(vc4->gen == VC4_GEN_5))
 		return;
 
 	refcount_inc(&perfmon->refcnt);
@@ -37,7 +37,7 @@ void vc4_perfmon_put(struct vc4_perfmon *perfmon)
 		return;
 
 	vc4 = perfmon->dev;
-	if (WARN_ON_ONCE(vc4->is_vc5))
+	if (WARN_ON_ONCE(vc4->gen == VC4_GEN_5))
 		return;
 
 	if (refcount_dec_and_test(&perfmon->refcnt))
@@ -49,7 +49,7 @@ void vc4_perfmon_start(struct vc4_dev *vc4, struct vc4_perfmon *perfmon)
 	unsigned int i;
 	u32 mask;
 
-	if (WARN_ON_ONCE(vc4->is_vc5))
+	if (WARN_ON_ONCE(vc4->gen == VC4_GEN_5))
 		return;
 
 	if (WARN_ON_ONCE(!perfmon || vc4->active_perfmon))
@@ -69,7 +69,7 @@ void vc4_perfmon_stop(struct vc4_dev *vc4, struct vc4_perfmon *perfmon,
 {
 	unsigned int i;
 
-	if (WARN_ON_ONCE(vc4->is_vc5))
+	if (WARN_ON_ONCE(vc4->gen == VC4_GEN_5))
 		return;
 
 	if (WARN_ON_ONCE(!vc4->active_perfmon ||
@@ -90,7 +90,7 @@ struct vc4_perfmon *vc4_perfmon_find(struct vc4_file *vc4file, int id)
 	struct vc4_dev *vc4 = vc4file->dev;
 	struct vc4_perfmon *perfmon;
 
-	if (WARN_ON_ONCE(vc4->is_vc5))
+	if (WARN_ON_ONCE(vc4->gen == VC4_GEN_5))
 		return NULL;
 
 	mutex_lock(&vc4file->perfmon.lock);
@@ -105,7 +105,7 @@ void vc4_perfmon_open_file(struct vc4_file *vc4file)
 {
 	struct vc4_dev *vc4 = vc4file->dev;
 
-	if (WARN_ON_ONCE(vc4->is_vc5))
+	if (WARN_ON_ONCE(vc4->gen == VC4_GEN_5))
 		return;
 
 	mutex_init(&vc4file->perfmon.lock);
@@ -131,7 +131,7 @@ void vc4_perfmon_close_file(struct vc4_file *vc4file)
 {
 	struct vc4_dev *vc4 = vc4file->dev;
 
-	if (WARN_ON_ONCE(vc4->is_vc5))
+	if (WARN_ON_ONCE(vc4->gen == VC4_GEN_5))
 		return;
 
 	mutex_lock(&vc4file->perfmon.lock);
@@ -151,7 +151,7 @@ int vc4_perfmon_create_ioctl(struct drm_device *dev, void *data,
 	unsigned int i;
 	int ret;
 
-	if (WARN_ON_ONCE(vc4->is_vc5))
+	if (WARN_ON_ONCE(vc4->gen == VC4_GEN_5))
 		return -ENODEV;
 
 	if (!vc4->v3d) {
@@ -205,7 +205,7 @@ int vc4_perfmon_destroy_ioctl(struct drm_device *dev, void *data,
 	struct drm_vc4_perfmon_destroy *req = data;
 	struct vc4_perfmon *perfmon;
 
-	if (WARN_ON_ONCE(vc4->is_vc5))
+	if (WARN_ON_ONCE(vc4->gen == VC4_GEN_5))
 		return -ENODEV;
 
 	if (!vc4->v3d) {
@@ -233,7 +233,7 @@ int vc4_perfmon_get_values_ioctl(struct drm_device *dev, void *data,
 	struct vc4_perfmon *perfmon;
 	int ret;
 
-	if (WARN_ON_ONCE(vc4->is_vc5))
+	if (WARN_ON_ONCE(vc4->gen == VC4_GEN_5))
 		return -ENODEV;
 
 	if (!vc4->v3d) {
