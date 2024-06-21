@@ -741,6 +741,7 @@ static int vc4_plane_allocate_lbm(struct drm_plane_state *state)
 {
 	struct drm_device *drm = state->plane->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(drm);
+	struct drm_plane *plane = state->plane;
 	struct vc4_plane_state *vc4_state = to_vc4_plane_state(state);
 	unsigned long irqflags;
 	u32 lbm_size;
@@ -748,6 +749,9 @@ static int vc4_plane_allocate_lbm(struct drm_plane_state *state)
 	lbm_size = vc4_lbm_size(state);
 	if (!lbm_size)
 		return 0;
+
+	drm_dbg_driver(drm, "[PLANE:%d:%s] LBM Allocation Size: %u\n",
+		       plane->base.id, plane->name, lbm_size);
 
 	if (WARN_ON(!vc4_state->lbm_offset))
 		return -EINVAL;
