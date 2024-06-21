@@ -4,20 +4,21 @@
 $id: http://devicetree.org/schemas/mfd/rockchip,rk817.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: RK817 Power Management Integrated Circuit
+title: RK809/RK817 Power Management Integrated Circuit
 
 maintainers:
   - Chris Zhong <zyw@rock-chips.com>
   - Zhang Qing <zhangqing@rock-chips.com>
 
 description: |
-  Rockchip RK817 series PMIC. This device consists of an i2c controlled MFD
-  that includes regulators, an RTC, a power button, an audio codec, and a
-  battery charger manager.
+  Rockchip RK809/RK817 series PMIC. This device consists of an i2c controlled
+  MFD that includes regulators, an RTC, a power button and an audio codec.
+  The RK817 variant also provides a battery charger manager.
 
 properties:
   compatible:
     enum:
+      - rockchip,rk809
       - rockchip,rk817
 
   reg:
@@ -89,20 +90,20 @@ properties:
 
   vcc8-supply:
     description:
-      The input supply for BOOST.
+      The input supply for BOOST on RK817, or for SWITCH_REG2 on RK809.
 
   vcc9-supply:
     description:
-      The input supply for OTG_SWITCH.
+      The input supply for OTG_SWITCH on RK817,
+      or for DCDC_REG5 and SWITCH_REG1 on RK809.
 
   regulators:
     type: object
     patternProperties:
-      "^(LDO_REG[1-9]|DCDC_REG[1-4]|BOOST|OTG_SWITCH)$":
-        type: object
+      "^(LDO_REG[1-9]|DCDC_REG[1-5]|BOOST|OTG_SWITCH|SWITCH_REG[1-2])$":
+        $ref: /schemas/regulator/regulator.yaml
         unevaluatedProperties: false
-        $ref: /schemas/regulator/regulator.yaml#
-    unevaluatedProperties: false
+    additionalProperties: false
 
   codec:
     type: object
@@ -171,6 +172,22 @@ allOf:
       properties:
         clock-output-names:
           maxItems: 2
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: rockchip,rk817
+    then:
+      properties:
+        regulators:
+          patternProperties:
+            "^(DCDC_REG5|SWITCH_REG[1-2])$": false
+    else:
+      properties:
+        regulators:
+          patternProperties:
+            "^(BOOST|OTG_SWITCH)$": false
 
 required:
   - compatible
