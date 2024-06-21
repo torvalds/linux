@@ -517,6 +517,12 @@ static int vc4_plane_setup_clipping_and_scaling(struct drm_plane_state *state)
 		 */
 		if (vc4_state->x_scaling[1] == VC4_SCALING_NONE)
 			vc4_state->x_scaling[1] = VC4_SCALING_PPF;
+
+		/* Similarly UV needs vertical scaling to be enabled.
+		 * Without this a 1:1 scaled YUV422 plane isn't rendered.
+		 */
+		if (vc4_state->y_scaling[1] == VC4_SCALING_NONE)
+			vc4_state->y_scaling[1] = VC4_SCALING_PPF;
 	} else {
 		vc4_state->is_yuv = false;
 		vc4_state->x_scaling[1] = VC4_SCALING_NONE;
