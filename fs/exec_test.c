@@ -96,7 +96,9 @@ static void exec_test_bprm_stack_limits(struct kunit *test)
 
 		rc = bprm_stack_limits(&bprm);
 		KUNIT_EXPECT_EQ_MSG(test, rc, result->expected_rc, "on loop %d", i);
+#ifdef CONFIG_MMU
 		KUNIT_EXPECT_EQ_MSG(test, bprm.argmin, result->expected_argmin, "on loop %d", i);
+#endif
 	}
 }
 

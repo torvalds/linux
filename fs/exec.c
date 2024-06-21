@@ -486,6 +486,23 @@ static int count_strings_kernel(const char *const *argv)
 	return i;
 }
 
+static inline int bprm_set_stack_limit(struct linux_binprm *bprm,
+				       unsigned long limit)
+{
+#ifdef CONFIG_MMU
+	bprm->argmin = bprm->p - limit;
+#endif
+	return 0;
+}
+static inline bool bprm_hit_stack_limit(struct linux_binprm *bprm)
+{
+#ifdef CONFIG_MMU
+	return bprm->p < bprm->argmin;
+#else
+	return false;
+#endif
+}
+
 /*
  * Calculate bprm->argmin from:
  * - _STK_LIM
@@ -532,8 +549,7 @@ static int bprm_stack_limits(struct linux_binprm *bprm)
 		return -E2BIG;
 	limit -= ptr_size;
 
-	bprm->argmin = bprm->p - limit;
-	return 0;
+	return bprm_set_stack_limit(bprm, limit);
 }
 
 /*
@@ -571,10 +587,8 @@ static int copy_strings(int argc, struct user_arg_ptr argv,
 		pos = bprm->p;
 		str += len;
 		bprm->p -= len;
-#ifdef CONFIG_MMU
-		if (bprm->p < bprm->argmin)
+		if (bprm_hit_stack_limit(bprm))
 			goto out;
-#endif
 
 		while (len > 0) {
 			int offset, bytes_to_copy;
@@ -649,7 +663,7 @@ int copy_string_kernel(const char *arg, struct linux_binprm *bprm)
 	/* We're going to work our way backwards. */
 	arg += len;
 	bprm->p -= len;
-	if (IS_ENABLED(CONFIG_MMU) && bprm->p < bprm->argmin)
+	if (bprm_hit_stack_limit(bprm))
 		return -E2BIG;
 
 	while (len > 0) {
