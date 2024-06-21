@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
+#define _GNU_SOURCE
+#include <fcntl.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -257,8 +260,39 @@ static int lklfuse_open3(const char *path, bool create, mode_t mode,
 	else
 		return -EINVAL;
 
+	/*
+	 * XXX see rules in fuse3/fuse.h:
+	 * Creation (O_CREAT, O_EXCL, O_NOCTTY) flags will be filtered out /
+	 * handled by FUSE kernel...
+	 */
 	if (create)
 		flags |= LKL_O_CREAT;
+	if (fi->flags & O_TRUNC)
+		flags |= LKL_O_TRUNC;
+	if (fi->flags & O_APPEND)
+		flags |= LKL_O_APPEND;
+	if (fi->flags & O_NONBLOCK)
+		flags |= LKL_O_NONBLOCK;
+	if (fi->flags & O_DSYNC)
+		flags |= LKL_O_DSYNC;
+	if (fi->flags & O_DIRECT)
+		flags |= LKL_O_DIRECT;
+	if (fi->flags & O_LARGEFILE)
+		flags |= LKL_O_LARGEFILE;
+	if (fi->flags & O_DIRECTORY)
+		flags |= LKL_O_DIRECTORY;
+	if (fi->flags & O_NOFOLLOW)
+		flags |= LKL_O_NOFOLLOW;
+	if (fi->flags & O_NOATIME)
+		flags |= LKL_O_NOATIME;
+	if (fi->flags & O_CLOEXEC)
+		flags |= LKL_O_CLOEXEC;
+	if (fi->flags & O_SYNC)
+		flags |= LKL_O_SYNC;
+	if (fi->flags & O_PATH)
+		flags |= LKL_O_PATH;
+	if (fi->flags & O_TMPFILE)
+		flags |= LKL_O_TMPFILE;
 
 	ret = lkl_sys_open(path, flags, mode);
 	if (ret < 0)
