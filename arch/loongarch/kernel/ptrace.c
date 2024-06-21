@@ -608,9 +608,14 @@ static int ptrace_hbp_set_ctrl(unsigned int note_type,
 		return -EINVAL;
 	}
 
-	err = ptrace_hbp_fill_attr_ctrl(note_type, ctrl, &attr);
-	if (err)
-		return err;
+	if (uctrl & CTRL_PLV_ENABLE) {
+		err = ptrace_hbp_fill_attr_ctrl(note_type, ctrl, &attr);
+		if (err)
+			return err;
+		attr.disabled = 0;
+	} else {
+		attr.disabled = 1;
+	}
 
 	return modify_user_hw_breakpoint(bp, &attr);
 }
@@ -640,6 +645,10 @@ static int ptrace_hbp_set_addr(unsigned int note_type,
 {
 	struct perf_event *bp;
 	struct perf_event_attr attr;
+
+	/* Kernel-space address cannot be monitored by user-space */
+	if ((unsigned long)addr >= XKPRANGE)
+		return -EINVAL;
 
 	bp = ptrace_hbp_get_initialised_bp(note_type, tsk, idx);
 	if (IS_ERR(bp))
