@@ -1959,6 +1959,54 @@ dma_unprep:
 
 }
 
+/**
+ * spi_geni_check_gsi_transfer_completion: Wait for completion of data transfer for GSI mode.
+ *
+ * @mas: structure to spi geni master.
+ * xfer_timeout: transfer timeout value.
+ *
+ * Return: 0 on success, error code on failure.
+ */
+static int spi_geni_check_gsi_transfer_completion(struct spi_geni_master *mas,
+						  unsigned long xfer_timeout)
+{
+	int i, ret = 0;
+	unsigned long timeout;
+	bool error = false;
+
+	for (i = 0; i < mas->num_tx_eot; i++) {
+		timeout = wait_for_completion_timeout(&mas->tx_cb, xfer_timeout);
+		if (!timeout) {
+			SPI_LOG_ERR(mas->ipc, true, mas->dev,
+				    "Tx[%d] timeout%lu\n", i, timeout);
+			ret = -ETIMEDOUT;
+			error = true;
+			break;
+		}
+	}
+
+	for (i = 0; i < mas->num_rx_eot; i++) {
+		timeout = wait_for_completion_timeout(&mas->rx_cb, xfer_timeout);
+		if (!timeout) {
+			SPI_LOG_ERR(mas->ipc, true, mas->dev,
+				    "Rx[%d] timeout%lu\n", i, timeout);
+			ret = -ETIMEDOUT;
+			error = true;
+			break;
+		}
+	}
+
+	if (error)
+		return ret;
+
+	if (mas->qn_err) {
+		ret = -EIO;
+		mas->qn_err = false;
+	}
+
+	return ret;
+}
+
 static int spi_geni_transfer_one(struct spi_master *spi,
 				struct spi_device *slv,
 				struct spi_transfer *xfer)
@@ -2076,47 +2124,10 @@ static int spi_geni_transfer_one(struct spi_master *spi,
 			mas->cur_xfer = NULL;
 			goto err_gsi_geni_transfer_one;
 		}
-		if ((mas->num_xfers >= NUM_SPI_XFER) ||
-			(list_is_last(&xfer->transfer_list,
-					&spi->cur_msg->transfers))) {
-			int i;
 
-			for (i = 0 ; i < mas->num_tx_eot; i++) {
-				mutex_unlock(&mas->spi_ssr.ssr_lock);
-				timeout =
-				wait_for_completion_timeout(
-					&mas->tx_cb, xfer_timeout_jiffies);
-				mutex_lock(&mas->spi_ssr.ssr_lock);
-				if (mas->spi_ssr.is_ssr_down)
-					goto err_ssr_transfer_one;
-				if (timeout <= 0) {
-					SPI_LOG_ERR(mas->ipc, true, mas->dev,
-					"Tx[%d] timeout%lu\n", i, timeout);
-					ret = -ETIMEDOUT;
-					goto err_gsi_geni_transfer_one;
-				}
-			}
-			for (i = 0 ; i < mas->num_rx_eot; i++) {
-				mutex_unlock(&mas->spi_ssr.ssr_lock);
-				timeout =
-				wait_for_completion_timeout(
-					&mas->rx_cb, xfer_timeout_jiffies);
-				mutex_lock(&mas->spi_ssr.ssr_lock);
-				if (mas->spi_ssr.is_ssr_down)
-					goto err_ssr_transfer_one;
-				if (timeout <= 0) {
-					SPI_LOG_ERR(mas->ipc, true, mas->dev,
-					 "Rx[%d] timeout%lu\n", i, timeout);
-					ret = -ETIMEDOUT;
-					goto err_gsi_geni_transfer_one;
-				}
-			}
-			if (mas->qn_err) {
-				ret = -EIO;
-				mas->qn_err = false;
-				goto err_gsi_geni_transfer_one;
-			}
-		}
+		ret = spi_geni_check_gsi_transfer_completion(mas, xfer_timeout);
+		if (ret)
+			goto err_gsi_geni_transfer_one;
 	}
 
 	mutex_unlock(&mas->spi_ssr.ssr_lock);
