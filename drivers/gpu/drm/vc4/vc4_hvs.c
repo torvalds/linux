@@ -940,6 +940,77 @@ static int vc4_hvs_hw_init(struct vc4_hvs *hvs)
 	return 0;
 }
 
+static int vc4_hvs_cob_init(struct vc4_hvs *hvs)
+{
+	struct vc4_dev *vc4 = hvs->vc4;
+	u32 reg, top;
+
+	/*
+	 * Recompute Composite Output Buffer (COB) allocations for the
+	 * displays
+	 */
+	switch (vc4->gen) {
+	case VC4_GEN_4:
+		/* The COB is 20736 pixels, or just over 10 lines at 2048 wide.
+		 * The bottom 2048 pixels are full 32bpp RGBA (intended for the
+		 * TXP composing RGBA to memory), whilst the remainder are only
+		 * 24bpp RGB.
+		 *
+		 * Assign 3 lines to channels 1 & 2, and just over 4 lines to
+		 * channel 0.
+		 */
+		#define VC4_COB_SIZE		20736
+		#define VC4_COB_LINE_WIDTH	2048
+		#define VC4_COB_NUM_LINES	3
+		reg = 0;
+		top = VC4_COB_LINE_WIDTH * VC4_COB_NUM_LINES;
+		reg |= (top - 1) << 16;
+		HVS_WRITE(SCALER_DISPBASE2, reg);
+		reg = top;
+		top += VC4_COB_LINE_WIDTH * VC4_COB_NUM_LINES;
+		reg |= (top - 1) << 16;
+		HVS_WRITE(SCALER_DISPBASE1, reg);
+		reg = top;
+		top = VC4_COB_SIZE;
+		reg |= (top - 1) << 16;
+		HVS_WRITE(SCALER_DISPBASE0, reg);
+		break;
+
+	case VC4_GEN_5:
+		/* The COB is 44416 pixels, or 10.8 lines at 4096 wide.
+		 * The bottom 4096 pixels are full RGBA (intended for the TXP
+		 * composing RGBA to memory), whilst the remainder are only
+		 * RGB. Addressing is always pixel wide.
+		 *
+		 * Assign 3 lines of 4096 to channels 1 & 2, and just over 4
+		 * lines. to channel 0.
+		 */
+		#define VC5_COB_SIZE		44416
+		#define VC5_COB_LINE_WIDTH	4096
+		#define VC5_COB_NUM_LINES	3
+		reg = 0;
+		top = VC5_COB_LINE_WIDTH * VC5_COB_NUM_LINES;
+		reg |= top << 16;
+		HVS_WRITE(SCALER_DISPBASE2, reg);
+		top += 16;
+		reg = top;
+		top += VC5_COB_LINE_WIDTH * VC5_COB_NUM_LINES;
+		reg |= top << 16;
+		HVS_WRITE(SCALER_DISPBASE1, reg);
+		top += 16;
+		reg = top;
+		top = VC5_COB_SIZE;
+		reg |= top << 16;
+		HVS_WRITE(SCALER_DISPBASE0, reg);
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int vc4_hvs_bind(struct device *dev, struct device *master, void *data)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -947,7 +1018,6 @@ static int vc4_hvs_bind(struct device *dev, struct device *master, void *data)
 	struct vc4_dev *vc4 = to_vc4_dev(drm);
 	struct vc4_hvs *hvs = NULL;
 	int ret;
-	u32 reg, top;
 
 	hvs = __vc4_hvs_alloc(vc4, NULL);
 	if (IS_ERR(hvs))
@@ -1017,59 +1087,9 @@ static int vc4_hvs_bind(struct device *dev, struct device *master, void *data)
 	if (ret)
 		return ret;
 
-	/* Recompute Composite Output Buffer (COB) allocations for the displays
-	 */
-	if (vc4->gen == VC4_GEN_4) {
-		/* The COB is 20736 pixels, or just over 10 lines at 2048 wide.
-		 * The bottom 2048 pixels are full 32bpp RGBA (intended for the
-		 * TXP composing RGBA to memory), whilst the remainder are only
-		 * 24bpp RGB.
-		 *
-		 * Assign 3 lines to channels 1 & 2, and just over 4 lines to
-		 * channel 0.
-		 */
-		#define VC4_COB_SIZE		20736
-		#define VC4_COB_LINE_WIDTH	2048
-		#define VC4_COB_NUM_LINES	3
-		reg = 0;
-		top = VC4_COB_LINE_WIDTH * VC4_COB_NUM_LINES;
-		reg |= (top - 1) << 16;
-		HVS_WRITE(SCALER_DISPBASE2, reg);
-		reg = top;
-		top += VC4_COB_LINE_WIDTH * VC4_COB_NUM_LINES;
-		reg |= (top - 1) << 16;
-		HVS_WRITE(SCALER_DISPBASE1, reg);
-		reg = top;
-		top = VC4_COB_SIZE;
-		reg |= (top - 1) << 16;
-		HVS_WRITE(SCALER_DISPBASE0, reg);
-	} else {
-		/* The COB is 44416 pixels, or 10.8 lines at 4096 wide.
-		 * The bottom 4096 pixels are full RGBA (intended for the TXP
-		 * composing RGBA to memory), whilst the remainder are only
-		 * RGB. Addressing is always pixel wide.
-		 *
-		 * Assign 3 lines of 4096 to channels 1 & 2, and just over 4
-		 * lines. to channel 0.
-		 */
-		#define VC5_COB_SIZE		44416
-		#define VC5_COB_LINE_WIDTH	4096
-		#define VC5_COB_NUM_LINES	3
-		reg = 0;
-		top = VC5_COB_LINE_WIDTH * VC5_COB_NUM_LINES;
-		reg |= top << 16;
-		HVS_WRITE(SCALER_DISPBASE2, reg);
-		top += 16;
-		reg = top;
-		top += VC5_COB_LINE_WIDTH * VC5_COB_NUM_LINES;
-		reg |= top << 16;
-		HVS_WRITE(SCALER_DISPBASE1, reg);
-		top += 16;
-		reg = top;
-		top = VC5_COB_SIZE;
-		reg |= top << 16;
-		HVS_WRITE(SCALER_DISPBASE0, reg);
-	}
+	ret = vc4_hvs_cob_init(hvs);
+	if (ret)
+		return ret;
 
 	ret = devm_request_irq(dev, platform_get_irq(pdev, 0),
 			       vc4_hvs_irq_handler, 0, "vc4 hvs", drm);
