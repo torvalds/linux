@@ -171,8 +171,6 @@ int null_register_zoned_dev(struct nullb *nullb)
 	struct request_queue *q = nullb->q;
 	struct gendisk *disk = nullb->disk;
 
-	disk->nr_zones = bdev_nr_zones(disk->part0);
-
 	pr_info("%s: using %s zone append\n",
 		disk->disk_name,
 		queue_emulates_zone_append(q) ? "emulated" : "native");
