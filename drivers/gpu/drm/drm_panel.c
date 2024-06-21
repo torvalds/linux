@@ -161,6 +161,15 @@ int drm_panel_unprepare(struct drm_panel *panel)
 	if (!panel)
 		return -EINVAL;
 
+	/*
+	 * If you are seeing the warning below it likely means one of two things:
+	 * - Your panel driver incorrectly calls drm_panel_unprepare() in its
+	 *   shutdown routine. You should delete this.
+	 * - You are using panel-edp or panel-simple and your DRM modeset
+	 *   driver's shutdown() callback happened after the panel's shutdown().
+	 *   In this case the warning is harmless though ideally you should
+	 *   figure out how to reverse the order of the shutdown() callbacks.
+	 */
 	if (!panel->prepared) {
 		dev_warn(panel->dev, "Skipping unprepare of already unprepared panel\n");
 		return 0;
@@ -245,6 +254,15 @@ int drm_panel_disable(struct drm_panel *panel)
 	if (!panel)
 		return -EINVAL;
 
+	/*
+	 * If you are seeing the warning below it likely means one of two things:
+	 * - Your panel driver incorrectly calls drm_panel_disable() in its
+	 *   shutdown routine. You should delete this.
+	 * - You are using panel-edp or panel-simple and your DRM modeset
+	 *   driver's shutdown() callback happened after the panel's shutdown().
+	 *   In this case the warning is harmless though ideally you should
+	 *   figure out how to reverse the order of the shutdown() callbacks.
+	 */
 	if (!panel->enabled) {
 		dev_warn(panel->dev, "Skipping disable of already disabled panel\n");
 		return 0;

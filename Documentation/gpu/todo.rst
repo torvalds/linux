@@ -475,25 +475,22 @@ Remove disable/unprepare in remove/shutdown in panel-simple and panel-edp
 As of commit d2aacaf07395 ("drm/panel: Check for already prepared/enabled in
 drm_panel"), we have a check in the drm_panel core to make sure nobody
 double-calls prepare/enable/disable/unprepare. Eventually that should probably
-be turned into a WARN_ON() or somehow made louder, but right now we actually
-expect it to trigger and so we don't want it to be too loud.
+be turned into a WARN_ON() or somehow made louder.
 
-Specifically, that warning will trigger for panel-edp and panel-simple at
-shutdown time because those panels hardcode a call to drm_panel_disable()
-and drm_panel_unprepare() at shutdown and remove time that they call regardless
-of panel state. On systems with a properly coded DRM modeset driver that
-calls drm_atomic_helper_shutdown() this is pretty much guaranteed to cause
-the warning to fire.
+At the moment, we expect that we may still encounter the warnings in the
+drm_panel core when using panel-simple and panel-edp. Since those panel
+drivers are used with a lot of different DRM modeset drivers they still
+make an extra effort to disable/unprepare the panel themsevles at shutdown
+time. Specifically we could still encounter those warnings if the panel
+driver gets shutdown() _before_ the DRM modeset driver and the DRM modeset
+driver properly calls drm_atomic_helper_shutdown() in its own shutdown()
+callback. Warnings could be avoided in such a case by using something like
+device links to ensure that the panel gets shutdown() after the DRM modeset
+driver.
 
-Unfortunately we can't safely remove the calls in panel-edp and panel-simple
-until we're sure that all DRM modeset drivers that are used with those panels
-properly call drm_atomic_helper_shutdown(). This TODO item is to validate
-that all DRM modeset drivers used with panel-edp and panel-simple properly
-call drm_atomic_helper_shutdown() and then remove the calls to
-disable/unprepare from those panels. Alternatively, this TODO item could be
-removed by convincing stakeholders that those calls are fine and downgrading
-the error message in drm_panel_disable() / drm_panel_unprepare() to a
-debug-level message.
+Once all DRM modeset drivers are known to shutdown properly, the extra
+calls to disable/unprepare in remove/shutdown in panel-simple and panel-edp
+should be removed and this TODO item marked complete.
 
 Contact: Douglas Anderson <dianders@chromium.org>
 
