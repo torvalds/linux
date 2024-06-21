@@ -10,6 +10,8 @@
 #include <linux/types.h>
 #include <linux/workqueue.h>
 
+struct net_device;
+
 /* Number of DIM profiles and period mode. */
 #define NET_DIM_PARAMS_NUM_PROFILES 5
 #define NET_DIM_DEFAULT_RX_CQ_PKTS_FROM_EQE 256
@@ -45,12 +47,45 @@
  * @pkts: CQ packet counter suggestion (by DIM)
  * @comps: Completion counter
  * @cq_period_mode: CQ period count mode (from CQE/EQE)
+ * @rcu: for asynchronous kfree_rcu
  */
 struct dim_cq_moder {
 	u16 usec;
 	u16 pkts;
 	u16 comps;
 	u8 cq_period_mode;
+	struct rcu_head rcu;
+};
+
+#define DIM_PROFILE_RX		BIT(0)	/* support rx profile modification */
+#define DIM_PROFILE_TX		BIT(1)	/* support tx profile modification */
+
+#define DIM_COALESCE_USEC	BIT(0)	/* support usec field modification */
+#define DIM_COALESCE_PKTS	BIT(1)	/* support pkts field modification */
+#define DIM_COALESCE_COMPS	BIT(2)	/* support comps field modification */
+
+/**
+ * struct dim_irq_moder - Structure for irq moderation information.
+ * Used to collect irq moderation related information.
+ *
+ * @profile_flags: DIM_PROFILE_*
+ * @coal_flags: DIM_COALESCE_* for Rx and Tx
+ * @dim_rx_mode: Rx DIM period count mode: CQE or EQE
+ * @dim_tx_mode: Tx DIM period count mode: CQE or EQE
+ * @rx_profile: DIM profile list for Rx
+ * @tx_profile: DIM profile list for Tx
+ * @rx_dim_work: Rx DIM worker scheduled by net_dim()
+ * @tx_dim_work: Tx DIM worker scheduled by net_dim()
+ */
+struct dim_irq_moder {
+	u8 profile_flags;
+	u8 coal_flags;
+	u8 dim_rx_mode;
+	u8 dim_tx_mode;
+	struct dim_cq_moder __rcu *rx_profile;
+	struct dim_cq_moder __rcu *tx_profile;
+	void (*rx_dim_work)(struct work_struct *work);
+	void (*tx_dim_work)(struct work_struct *work);
 };
 
 /**
@@ -197,6 +232,29 @@ enum dim_step_result {
 	DIM_TOO_TIRED,
 	DIM_ON_EDGE,
 };
+
+/**
+ * net_dim_init_irq_moder - collect information to initialize irq moderation
+ * @dev: target network device
+ * @profile_flags: Rx or Tx profile modification capability
+ * @coal_flags: irq moderation params flags
+ * @rx_mode: CQ period mode for Rx
+ * @tx_mode: CQ period mode for Tx
+ * @rx_dim_work: Rx worker called after dim decision
+ * @tx_dim_work: Tx worker called after dim decision
+ *
+ * Return: 0 on success or a negative error code.
+ */
+int net_dim_init_irq_moder(struct net_device *dev, u8 profile_flags,
+			   u8 coal_flags, u8 rx_mode, u8 tx_mode,
+			   void (*rx_dim_work)(struct work_struct *work),
+			   void (*tx_dim_work)(struct work_struct *work));
+
+/**
+ * net_dim_free_irq_moder - free fields for irq moderation
+ * @dev: target network device
+ */
+void net_dim_free_irq_moder(struct net_device *dev);
 
 /**
  *	dim_on_top - check if current state is a good place to stop (top location)
