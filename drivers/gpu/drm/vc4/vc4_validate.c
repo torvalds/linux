@@ -109,7 +109,7 @@ vc4_use_bo(struct vc4_exec_info *exec, uint32_t hindex)
 	struct drm_gem_dma_object *obj;
 	struct vc4_bo *bo;
 
-	if (WARN_ON_ONCE(vc4->gen == VC4_GEN_5))
+	if (WARN_ON_ONCE(vc4->gen > VC4_GEN_4))
 		return NULL;
 
 	if (hindex >= exec->bo_count) {
@@ -169,7 +169,7 @@ vc4_check_tex_size(struct vc4_exec_info *exec, struct drm_gem_dma_object *fbo,
 	uint32_t utile_w = utile_width(cpp);
 	uint32_t utile_h = utile_height(cpp);
 
-	if (WARN_ON_ONCE(vc4->gen == VC4_GEN_5))
+	if (WARN_ON_ONCE(vc4->gen > VC4_GEN_4))
 		return false;
 
 	/* The shaded vertex format stores signed 12.4 fixed point
@@ -495,7 +495,7 @@ vc4_validate_bin_cl(struct drm_device *dev,
 	uint32_t dst_offset = 0;
 	uint32_t src_offset = 0;
 
-	if (WARN_ON_ONCE(vc4->gen == VC4_GEN_5))
+	if (WARN_ON_ONCE(vc4->gen > VC4_GEN_4))
 		return -ENODEV;
 
 	while (src_offset < len) {
@@ -942,7 +942,7 @@ vc4_validate_shader_recs(struct drm_device *dev,
 	uint32_t i;
 	int ret = 0;
 
-	if (WARN_ON_ONCE(vc4->gen == VC4_GEN_5))
+	if (WARN_ON_ONCE(vc4->gen > VC4_GEN_4))
 		return -ENODEV;
 
 	for (i = 0; i < exec->shader_state_count; i++) {

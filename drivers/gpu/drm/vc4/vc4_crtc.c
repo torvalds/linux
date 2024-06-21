@@ -1008,7 +1008,7 @@ static int vc4_async_page_flip(struct drm_crtc *crtc,
 	struct vc4_bo *bo = to_vc4_bo(&dma_bo->base);
 	int ret;
 
-	if (WARN_ON_ONCE(vc4->gen == VC4_GEN_5))
+	if (WARN_ON_ONCE(vc4->gen > VC4_GEN_4))
 		return -ENODEV;
 
 	/*
@@ -1051,7 +1051,7 @@ int vc4_page_flip(struct drm_crtc *crtc,
 		struct drm_device *dev = crtc->dev;
 		struct vc4_dev *vc4 = to_vc4_dev(dev);
 
-		if (vc4->gen == VC4_GEN_5)
+		if (vc4->gen > VC4_GEN_4)
 			return vc5_async_page_flip(crtc, fb, event, flags);
 		else
 			return vc4_async_page_flip(crtc, fb, event, flags);
