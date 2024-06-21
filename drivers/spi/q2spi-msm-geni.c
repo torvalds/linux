@@ -710,7 +710,7 @@ static int q2spi_hrf_entry_format_sleep(struct q2spi_geni *q2spi, struct q2spi_r
 					struct q2spi_request **q2spi_hrf_req_ptr)
 {
 	struct q2spi_request *q2spi_hrf_req = NULL;
-	struct q2spi_mc_hrf_entry hrf_entry;
+	struct q2spi_mc_hrf_entry hrf_entry = {0};
 
 	q2spi_hrf_req = q2spi_kzalloc(q2spi, sizeof(struct q2spi_request), __LINE__);
 	if (!q2spi_hrf_req) {
@@ -755,7 +755,7 @@ static int q2spi_hrf_entry_format(struct q2spi_geni *q2spi, struct q2spi_request
 				  struct q2spi_request **q2spi_hrf_req_ptr)
 {
 	struct q2spi_request *q2spi_hrf_req = NULL;
-	struct q2spi_mc_hrf_entry hrf_entry;
+	struct q2spi_mc_hrf_entry hrf_entry = {0};
 	int flow_id;
 
 	q2spi_hrf_req = q2spi_kzalloc(q2spi, sizeof(struct q2spi_request), __LINE__);
@@ -1076,6 +1076,11 @@ static int q2spi_open(struct inode *inode, struct file *filp)
 		return -ERESTARTSYS;
 
 	rc = iminor(inode);
+	if (rc >= Q2SPI_MAX_DEV) {
+		pr_err("%s Err q2spi dev minor:%d\n", __func__, rc);
+		return -ENODEV;
+	}
+
 	cdev = inode->i_cdev;
 	q2spi_cdev = container_of(cdev, struct q2spi_chrdev, cdev[rc]);
 	if (!q2spi_cdev) {
@@ -3307,7 +3312,7 @@ static int q2spi_chardev_create(struct q2spi_geni *q2spi)
 {
 	int ret = 0, i;
 
-	ret = alloc_chrdev_region(&q2spi->chrdev.q2spi_dev, 0, MAX_DEV, "q2spidev");
+	ret = alloc_chrdev_region(&q2spi->chrdev.q2spi_dev, 0, Q2SPI_MAX_DEV, "q2spidev");
 	if (ret < 0) {
 		Q2SPI_DEBUG(q2spi, "%s ret:%d\n", __func__, ret);
 		return ret;
@@ -3320,7 +3325,7 @@ static int q2spi_chardev_create(struct q2spi_geni *q2spi)
 		goto err_class_create;
 	}
 
-	for (i = 0; i < MAX_DEV; i++) {
+	for (i = 0; i < Q2SPI_MAX_DEV; i++) {
 		cdev_init(&q2spi->chrdev.cdev[i], &q2spi_fops);
 		q2spi->chrdev.cdev[i].owner = THIS_MODULE;
 		q2spi->chrdev.major = q2spi_cdev_major;
@@ -3350,7 +3355,7 @@ static int q2spi_chardev_create(struct q2spi_geni *q2spi)
 
 	return 0;
 err_dev_create:
-	for (i = 0; i < MAX_DEV; i++)
+	for (i = 0; i < Q2SPI_MAX_DEV; i++)
 		cdev_del(&q2spi->chrdev.cdev[i]);
 err_cdev_add:
 	class_destroy(q2spi->chrdev.q2spi_class);
@@ -3935,7 +3940,7 @@ static void q2spi_chardev_destroy(struct q2spi_geni *q2spi)
 {
 	int i;
 
-	for (i = 0; i < MAX_DEV; i++) {
+	for (i = 0; i < Q2SPI_MAX_DEV; i++) {
 		device_destroy(q2spi->chrdev.q2spi_class, MKDEV(q2spi_cdev_major, i));
 		cdev_del(&q2spi->chrdev.cdev[i]);
 	}
@@ -4225,8 +4230,9 @@ resources_off:
 chardev_destroy:
 	q2spi_chardev_destroy(q2spi);
 q2spi_err:
-	Q2SPI_ERROR(q2spi, "%s: failed, ret:%d\n", __func__, ret);
-	q2spi->base = NULL;
+	if (q2spi)
+		q2spi->base = NULL;
+	pr_err("%s: failed ret:%d\n", __func__, ret);
 	return ret;
 }
 
