@@ -296,53 +296,60 @@ int vc4_hvs_get_fifo_from_output(struct vc4_hvs *hvs, unsigned int output)
 	u32 reg;
 	int ret;
 
-	if (vc4->gen == VC4_GEN_4)
+	switch (vc4->gen) {
+	case VC4_GEN_4:
 		return output;
 
-	/*
-	 * NOTE: We should probably use drm_dev_enter()/drm_dev_exit()
-	 * here, but this function is only used during the DRM device
-	 * initialization, so we should be fine.
-	 */
+	case VC4_GEN_5:
+		/*
+		 * NOTE: We should probably use
+		 * drm_dev_enter()/drm_dev_exit() here, but this
+		 * function is only used during the DRM device
+		 * initialization, so we should be fine.
+		 */
 
-	switch (output) {
-	case 0:
-		return 0;
+		switch (output) {
+		case 0:
+			return 0;
 
-	case 1:
-		return 1;
+		case 1:
+			return 1;
 
-	case 2:
-		reg = HVS_READ(SCALER_DISPECTRL);
-		ret = FIELD_GET(SCALER_DISPECTRL_DSP2_MUX_MASK, reg);
-		if (ret == 0)
-			return 2;
+		case 2:
+			reg = HVS_READ(SCALER_DISPECTRL);
+			ret = FIELD_GET(SCALER_DISPECTRL_DSP2_MUX_MASK, reg);
+			if (ret == 0)
+				return 2;
 
-		return 0;
+			return 0;
 
-	case 3:
-		reg = HVS_READ(SCALER_DISPCTRL);
-		ret = FIELD_GET(SCALER_DISPCTRL_DSP3_MUX_MASK, reg);
-		if (ret == 3)
+		case 3:
+			reg = HVS_READ(SCALER_DISPCTRL);
+			ret = FIELD_GET(SCALER_DISPCTRL_DSP3_MUX_MASK, reg);
+			if (ret == 3)
+				return -EPIPE;
+
+			return ret;
+
+		case 4:
+			reg = HVS_READ(SCALER_DISPEOLN);
+			ret = FIELD_GET(SCALER_DISPEOLN_DSP4_MUX_MASK, reg);
+			if (ret == 3)
+				return -EPIPE;
+
+			return ret;
+
+		case 5:
+			reg = HVS_READ(SCALER_DISPDITHER);
+			ret = FIELD_GET(SCALER_DISPDITHER_DSP5_MUX_MASK, reg);
+			if (ret == 3)
+				return -EPIPE;
+
+			return ret;
+
+		default:
 			return -EPIPE;
-
-		return ret;
-
-	case 4:
-		reg = HVS_READ(SCALER_DISPEOLN);
-		ret = FIELD_GET(SCALER_DISPEOLN_DSP4_MUX_MASK, reg);
-		if (ret == 3)
-			return -EPIPE;
-
-		return ret;
-
-	case 5:
-		reg = HVS_READ(SCALER_DISPDITHER);
-		ret = FIELD_GET(SCALER_DISPDITHER_DSP5_MUX_MASK, reg);
-		if (ret == 3)
-			return -EPIPE;
-
-		return ret;
+		}
 
 	default:
 		return -EPIPE;
