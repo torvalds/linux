@@ -9017,6 +9017,7 @@
 #define R_IQRSN 0x8220
 #define B_IQRSN_K1 BIT(28)
 #define B_IQRSN_K2 BIT(16)
+#define R_DPD_CH0B 0x82BC
 #define R_RXCFIR_P0C0 0x8D40
 #define R_RXCFIR_P0C1 0x8D84
 #define R_RXCFIR_P0C2 0x8DC8
