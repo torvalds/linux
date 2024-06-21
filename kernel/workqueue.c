@@ -2684,6 +2684,17 @@ static void worker_attach_to_pool(struct worker *worker,
 	mutex_unlock(&wq_pool_attach_mutex);
 }
 
+static void unbind_worker(struct worker *worker)
+{
+	lockdep_assert_held(&wq_pool_attach_mutex);
+
+	kthread_set_per_cpu(worker->task, -1);
+	if (cpumask_intersects(wq_unbound_cpumask, cpu_active_mask))
+		WARN_ON_ONCE(set_cpus_allowed_ptr(worker->task, wq_unbound_cpumask) < 0);
+	else
+		WARN_ON_ONCE(set_cpus_allowed_ptr(worker->task, cpu_possible_mask) < 0);
+}
+
 /**
  * worker_detach_from_pool() - detach a worker from its pool
  * @worker: worker which is attached to its pool
@@ -2701,7 +2712,7 @@ static void worker_detach_from_pool(struct worker *worker)
 
 	mutex_lock(&wq_pool_attach_mutex);
 
-	kthread_set_per_cpu(worker->task, -1);
+	unbind_worker(worker);
 	list_del(&worker->node);
 	worker->pool = NULL;
 
@@ -2794,17 +2805,6 @@ fail:
 	ida_free(&pool->worker_ida, id);
 	kfree(worker);
 	return NULL;
-}
-
-static void unbind_worker(struct worker *worker)
-{
-	lockdep_assert_held(&wq_pool_attach_mutex);
-
-	kthread_set_per_cpu(worker->task, -1);
-	if (cpumask_intersects(wq_unbound_cpumask, cpu_active_mask))
-		WARN_ON_ONCE(set_cpus_allowed_ptr(worker->task, wq_unbound_cpumask) < 0);
-	else
-		WARN_ON_ONCE(set_cpus_allowed_ptr(worker->task, cpu_possible_mask) < 0);
 }
 
 static void wake_dying_workers(struct list_head *cull_list)
