@@ -12,7 +12,7 @@
 #include <asm/smp.h>
 #include "agp.h"
 #include "intel-agp.h"
-#include <drm/intel-gtt.h>
+#include <drm/intel/intel-gtt.h>
 
 static int intel_fetch_size(void)
 {

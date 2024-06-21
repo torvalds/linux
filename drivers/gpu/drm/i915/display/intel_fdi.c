@@ -34,7 +34,8 @@ static void assert_fdi_tx(struct drm_i915_private *dev_priv,
 		 * so pipe->transcoder cast is fine here.
 		 */
 		enum transcoder cpu_transcoder = (enum transcoder)pipe;
-		cur_state = intel_de_read(dev_priv, TRANS_DDI_FUNC_CTL(cpu_transcoder)) & TRANS_DDI_FUNC_ENABLE;
+		cur_state = intel_de_read(dev_priv,
+					  TRANS_DDI_FUNC_CTL(dev_priv, cpu_transcoder)) & TRANS_DDI_FUNC_ENABLE;
 	} else {
 		cur_state = intel_de_read(dev_priv, FDI_TX_CTL(pipe)) & FDI_TX_ENABLE;
 	}
@@ -514,7 +515,7 @@ static void ilk_fdi_link_train(struct intel_crtc *crtc,
 	 * detection works.
 	 */
 	intel_de_write(dev_priv, FDI_RX_TUSIZE1(pipe),
-		       intel_de_read(dev_priv, PIPE_DATA_M1(pipe)) & TU_SIZE_MASK);
+		       intel_de_read(dev_priv, PIPE_DATA_M1(dev_priv, pipe)) & TU_SIZE_MASK);
 
 	/* FDI needs bits from pipe first */
 	assert_transcoder_enabled(dev_priv, crtc_state->cpu_transcoder);
@@ -616,7 +617,7 @@ static void gen6_fdi_link_train(struct intel_crtc *crtc,
 	 * detection works.
 	 */
 	intel_de_write(dev_priv, FDI_RX_TUSIZE1(pipe),
-		       intel_de_read(dev_priv, PIPE_DATA_M1(pipe)) & TU_SIZE_MASK);
+		       intel_de_read(dev_priv, PIPE_DATA_M1(dev_priv, pipe)) & TU_SIZE_MASK);
 
 	/* Train 1: umask FDI RX Interrupt symbol_lock and bit_lock bit
 	   for train result */
@@ -754,7 +755,7 @@ static void ivb_manual_fdi_link_train(struct intel_crtc *crtc,
 	 * detection works.
 	 */
 	intel_de_write(dev_priv, FDI_RX_TUSIZE1(pipe),
-		       intel_de_read(dev_priv, PIPE_DATA_M1(pipe)) & TU_SIZE_MASK);
+		       intel_de_read(dev_priv, PIPE_DATA_M1(dev_priv, pipe)) & TU_SIZE_MASK);
 
 	/* Train 1: umask FDI RX Interrupt symbol_lock and bit_lock bit
 	   for train result */
@@ -1034,7 +1035,7 @@ void ilk_fdi_pll_enable(const struct intel_crtc_state *crtc_state)
 	temp = intel_de_read(dev_priv, reg);
 	temp &= ~(FDI_DP_PORT_WIDTH_MASK | (0x7 << 16));
 	temp |= FDI_DP_PORT_WIDTH(crtc_state->fdi_lanes);
-	temp |= (intel_de_read(dev_priv, TRANSCONF(pipe)) & TRANSCONF_BPC_MASK) << 11;
+	temp |= (intel_de_read(dev_priv, TRANSCONF(dev_priv, pipe)) & TRANSCONF_BPC_MASK) << 11;
 	intel_de_write(dev_priv, reg, temp | FDI_RX_PLL_ENABLE);
 
 	intel_de_posting_read(dev_priv, reg);
@@ -1090,7 +1091,7 @@ void ilk_fdi_disable(struct intel_crtc *crtc)
 	reg = FDI_RX_CTL(pipe);
 	temp = intel_de_read(dev_priv, reg);
 	temp &= ~(0x7 << 16);
-	temp |= (intel_de_read(dev_priv, TRANSCONF(pipe)) & TRANSCONF_BPC_MASK) << 11;
+	temp |= (intel_de_read(dev_priv, TRANSCONF(dev_priv, pipe)) & TRANSCONF_BPC_MASK) << 11;
 	intel_de_write(dev_priv, reg, temp & ~FDI_RX_ENABLE);
 
 	intel_de_posting_read(dev_priv, reg);
@@ -1116,7 +1117,7 @@ void ilk_fdi_disable(struct intel_crtc *crtc)
 	}
 	/* BPC in FDI rx is consistent with that in TRANSCONF */
 	temp &= ~(0x07 << 16);
-	temp |= (intel_de_read(dev_priv, TRANSCONF(pipe)) & TRANSCONF_BPC_MASK) << 11;
+	temp |= (intel_de_read(dev_priv, TRANSCONF(dev_priv, pipe)) & TRANSCONF_BPC_MASK) << 11;
 	intel_de_write(dev_priv, reg, temp);
 
 	intel_de_posting_read(dev_priv, reg);

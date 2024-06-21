@@ -66,5 +66,6 @@ int intel_plane_check_src_coordinates(struct intel_plane_state *plane_state);
 void intel_plane_set_invisible(struct intel_crtc_state *crtc_state,
 			       struct intel_plane_state *plane_state);
 void intel_plane_helper_add(struct intel_plane *plane);
+bool intel_plane_needs_physical(struct intel_plane *plane);
 
 #endif /* __INTEL_ATOMIC_PLANE_H__ */

@@ -68,7 +68,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 
-#include <drm/intel_lpe_audio.h>
+#include <drm/intel/intel_lpe_audio.h>
 
 #include "i915_drv.h"
 #include "i915_irq.h"

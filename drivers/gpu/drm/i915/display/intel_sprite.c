@@ -39,7 +39,6 @@
 #include <drm/drm_rect.h>
 
 #include "i915_drv.h"
-#include "i915_reg.h"
 #include "i9xx_plane.h"
 #include "intel_atomic_plane.h"
 #include "intel_de.h"

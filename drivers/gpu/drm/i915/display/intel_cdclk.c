@@ -23,6 +23,7 @@
 
 #include <linux/time.h>
 
+#include "soc/intel_dram.h"
 #include "hsw_ips.h"
 #include "i915_reg.h"
 #include "intel_atomic.h"
@@ -113,7 +114,7 @@ struct intel_cdclk_funcs {
 	void (*set_cdclk)(struct drm_i915_private *i915,
 			  const struct intel_cdclk_config *cdclk_config,
 			  enum pipe pipe);
-	int (*modeset_calc_cdclk)(struct intel_cdclk_state *state);
+	int (*modeset_calc_cdclk)(struct intel_atomic_state *state);
 	u8 (*calc_voltage_level)(int cdclk);
 };
 
@@ -130,10 +131,11 @@ static void intel_cdclk_set_cdclk(struct drm_i915_private *dev_priv,
 	dev_priv->display.funcs.cdclk->set_cdclk(dev_priv, cdclk_config, pipe);
 }
 
-static int intel_cdclk_modeset_calc_cdclk(struct drm_i915_private *dev_priv,
-					  struct intel_cdclk_state *cdclk_config)
+static int intel_cdclk_modeset_calc_cdclk(struct intel_atomic_state *state)
 {
-	return dev_priv->display.funcs.cdclk->modeset_calc_cdclk(cdclk_config);
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+
+	return dev_priv->display.funcs.cdclk->modeset_calc_cdclk(state);
 }
 
 static u8 intel_cdclk_calc_voltage_level(struct drm_i915_private *dev_priv,
@@ -1443,6 +1445,14 @@ static const struct intel_cdclk_vals xe2lpd_cdclk_table[] = {
 	{}
 };
 
+/*
+ * Xe2_HPD always uses the minimal cdclk table from Wa_15015413771
+ */
+static const struct intel_cdclk_vals xe2hpd_cdclk_table[] = {
+	{ .refclk = 38400, .cdclk = 652800, .ratio = 34, .waveform = 0xffff },
+	{}
+};
+
 static const int cdclk_squash_len = 16;
 
 static int cdclk_squash_divider(u16 waveform)
@@ -2723,7 +2733,7 @@ static int intel_vdsc_min_cdclk(const struct intel_crtc_state *crtc_state)
 	min_cdclk = max_t(int, min_cdclk,
 			  DIV_ROUND_UP(crtc_state->pixel_rate, num_vdsc_instances));
 
-	if (crtc_state->bigjoiner_pipes) {
+	if (crtc_state->joiner_pipes) {
 		int pixel_clock = intel_dp_mode_to_fec_clock(crtc_state->hw.adjusted_mode.clock);
 
 		/*
@@ -2826,10 +2836,11 @@ int intel_crtc_compute_min_cdclk(const struct intel_crtc_state *crtc_state)
 	return min_cdclk;
 }
 
-static int intel_compute_min_cdclk(struct intel_cdclk_state *cdclk_state)
+static int intel_compute_min_cdclk(struct intel_atomic_state *state)
 {
-	struct intel_atomic_state *state = cdclk_state->base.state;
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	struct intel_cdclk_state *cdclk_state =
+		intel_atomic_get_new_cdclk_state(state);
 	const struct intel_bw_state *bw_state;
 	struct intel_crtc *crtc;
 	struct intel_crtc_state *crtc_state;
@@ -2908,10 +2919,11 @@ static int intel_compute_min_cdclk(struct intel_cdclk_state *cdclk_state)
  * future platforms this code will need to be
  * adjusted.
  */
-static int bxt_compute_min_voltage_level(struct intel_cdclk_state *cdclk_state)
+static int bxt_compute_min_voltage_level(struct intel_atomic_state *state)
 {
-	struct intel_atomic_state *state = cdclk_state->base.state;
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	struct intel_cdclk_state *cdclk_state =
+		intel_atomic_get_new_cdclk_state(state);
 	struct intel_crtc *crtc;
 	struct intel_crtc_state *crtc_state;
 	u8 min_voltage_level;
@@ -2944,13 +2956,14 @@ static int bxt_compute_min_voltage_level(struct intel_cdclk_state *cdclk_state)
 	return min_voltage_level;
 }
 
-static int vlv_modeset_calc_cdclk(struct intel_cdclk_state *cdclk_state)
+static int vlv_modeset_calc_cdclk(struct intel_atomic_state *state)
 {
-	struct intel_atomic_state *state = cdclk_state->base.state;
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	struct intel_cdclk_state *cdclk_state =
+		intel_atomic_get_new_cdclk_state(state);
 	int min_cdclk, cdclk;
 
-	min_cdclk = intel_compute_min_cdclk(cdclk_state);
+	min_cdclk = intel_compute_min_cdclk(state);
 	if (min_cdclk < 0)
 		return min_cdclk;
 
@@ -2973,11 +2986,13 @@ static int vlv_modeset_calc_cdclk(struct intel_cdclk_state *cdclk_state)
 	return 0;
 }
 
-static int bdw_modeset_calc_cdclk(struct intel_cdclk_state *cdclk_state)
+static int bdw_modeset_calc_cdclk(struct intel_atomic_state *state)
 {
+	struct intel_cdclk_state *cdclk_state =
+		intel_atomic_get_new_cdclk_state(state);
 	int min_cdclk, cdclk;
 
-	min_cdclk = intel_compute_min_cdclk(cdclk_state);
+	min_cdclk = intel_compute_min_cdclk(state);
 	if (min_cdclk < 0)
 		return min_cdclk;
 
@@ -3000,10 +3015,11 @@ static int bdw_modeset_calc_cdclk(struct intel_cdclk_state *cdclk_state)
 	return 0;
 }
 
-static int skl_dpll0_vco(struct intel_cdclk_state *cdclk_state)
+static int skl_dpll0_vco(struct intel_atomic_state *state)
 {
-	struct intel_atomic_state *state = cdclk_state->base.state;
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	struct intel_cdclk_state *cdclk_state =
+		intel_atomic_get_new_cdclk_state(state);
 	struct intel_crtc *crtc;
 	struct intel_crtc_state *crtc_state;
 	int vco, i;
@@ -3037,15 +3053,17 @@ static int skl_dpll0_vco(struct intel_cdclk_state *cdclk_state)
 	return vco;
 }
 
-static int skl_modeset_calc_cdclk(struct intel_cdclk_state *cdclk_state)
+static int skl_modeset_calc_cdclk(struct intel_atomic_state *state)
 {
+	struct intel_cdclk_state *cdclk_state =
+		intel_atomic_get_new_cdclk_state(state);
 	int min_cdclk, cdclk, vco;
 
-	min_cdclk = intel_compute_min_cdclk(cdclk_state);
+	min_cdclk = intel_compute_min_cdclk(state);
 	if (min_cdclk < 0)
 		return min_cdclk;
 
-	vco = skl_dpll0_vco(cdclk_state);
+	vco = skl_dpll0_vco(state);
 
 	cdclk = skl_calc_cdclk(min_cdclk, vco);
 
@@ -3068,17 +3086,18 @@ static int skl_modeset_calc_cdclk(struct intel_cdclk_state *cdclk_state)
 	return 0;
 }
 
-static int bxt_modeset_calc_cdclk(struct intel_cdclk_state *cdclk_state)
+static int bxt_modeset_calc_cdclk(struct intel_atomic_state *state)
 {
-	struct intel_atomic_state *state = cdclk_state->base.state;
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	struct intel_cdclk_state *cdclk_state =
+		intel_atomic_get_new_cdclk_state(state);
 	int min_cdclk, min_voltage_level, cdclk, vco;
 
-	min_cdclk = intel_compute_min_cdclk(cdclk_state);
+	min_cdclk = intel_compute_min_cdclk(state);
 	if (min_cdclk < 0)
 		return min_cdclk;
 
-	min_voltage_level = bxt_compute_min_voltage_level(cdclk_state);
+	min_voltage_level = bxt_compute_min_voltage_level(state);
 	if (min_voltage_level < 0)
 		return min_voltage_level;
 
@@ -3106,7 +3125,7 @@ static int bxt_modeset_calc_cdclk(struct intel_cdclk_state *cdclk_state)
 	return 0;
 }
 
-static int fixed_modeset_calc_cdclk(struct intel_cdclk_state *cdclk_state)
+static int fixed_modeset_calc_cdclk(struct intel_atomic_state *state)
 {
 	int min_cdclk;
 
@@ -3115,7 +3134,7 @@ static int fixed_modeset_calc_cdclk(struct intel_cdclk_state *cdclk_state)
 	 * check that the required minimum frequency doesn't exceed
 	 * the actual cdclk frequency.
 	 */
-	min_cdclk = intel_compute_min_cdclk(cdclk_state);
+	min_cdclk = intel_compute_min_cdclk(state);
 	if (min_cdclk < 0)
 		return min_cdclk;
 
@@ -3255,7 +3274,7 @@ int intel_modeset_calc_cdclk(struct intel_atomic_state *state)
 	new_cdclk_state->active_pipes =
 		intel_calc_active_pipes(state, old_cdclk_state->active_pipes);
 
-	ret = intel_cdclk_modeset_calc_cdclk(dev_priv, new_cdclk_state);
+	ret = intel_cdclk_modeset_calc_cdclk(state);
 	if (ret)
 		return ret;
 
@@ -3521,60 +3540,10 @@ static int vlv_hrawclk(struct drm_i915_private *dev_priv)
 				      CCK_DISPLAY_REF_CLOCK_CONTROL);
 }
 
-static int i9xx_hrawclk(struct drm_i915_private *dev_priv)
+static int i9xx_hrawclk(struct drm_i915_private *i915)
 {
-	u32 clkcfg;
-
-	/*
-	 * hrawclock is 1/4 the FSB frequency
-	 *
-	 * Note that this only reads the state of the FSB
-	 * straps, not the actual FSB frequency. Some BIOSen
-	 * let you configure each independently. Ideally we'd
-	 * read out the actual FSB frequency but sadly we
-	 * don't know which registers have that information,
-	 * and all the relevant docs have gone to bit heaven :(
-	 */
-	clkcfg = intel_de_read(dev_priv, CLKCFG) & CLKCFG_FSB_MASK;
-
-	if (IS_MOBILE(dev_priv)) {
-		switch (clkcfg) {
-		case CLKCFG_FSB_400:
-			return 100000;
-		case CLKCFG_FSB_533:
-			return 133333;
-		case CLKCFG_FSB_667:
-			return 166667;
-		case CLKCFG_FSB_800:
-			return 200000;
-		case CLKCFG_FSB_1067:
-			return 266667;
-		case CLKCFG_FSB_1333:
-			return 333333;
-		default:
-			MISSING_CASE(clkcfg);
-			return 133333;
-		}
-	} else {
-		switch (clkcfg) {
-		case CLKCFG_FSB_400_ALT:
-			return 100000;
-		case CLKCFG_FSB_533:
-			return 133333;
-		case CLKCFG_FSB_667:
-			return 166667;
-		case CLKCFG_FSB_800:
-			return 200000;
-		case CLKCFG_FSB_1067_ALT:
-			return 266667;
-		case CLKCFG_FSB_1333_ALT:
-			return 333333;
-		case CLKCFG_FSB_1600_ALT:
-			return 400000;
-		default:
-			return 133333;
-		}
-	}
+	/* hrawclock is 1/4 the FSB frequency */
+	return DIV_ROUND_CLOSEST(i9xx_fsb_freq(i915), 4);
 }
 
 /**
@@ -3778,6 +3747,9 @@ void intel_init_cdclk_hooks(struct drm_i915_private *dev_priv)
 	if (DISPLAY_VER(dev_priv) >= 20) {
 		dev_priv->display.funcs.cdclk = &rplu_cdclk_funcs;
 		dev_priv->display.cdclk.table = xe2lpd_cdclk_table;
+	} else if (DISPLAY_VER_FULL(dev_priv) >= IP_VER(14, 1)) {
+		dev_priv->display.funcs.cdclk = &rplu_cdclk_funcs;
+		dev_priv->display.cdclk.table = xe2hpd_cdclk_table;
 	} else if (DISPLAY_VER(dev_priv) >= 14) {
 		dev_priv->display.funcs.cdclk = &rplu_cdclk_funcs;
 		dev_priv->display.cdclk.table = mtl_cdclk_table;

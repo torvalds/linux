@@ -13,7 +13,7 @@
 
 #include <drm/drm_color_mgmt.h>
 #include <drm/drm_drv.h>
-#include <drm/xe_pciids.h>
+#include <drm/intel/xe_pciids.h>
 
 #include "display/xe_display.h"
 #include "regs/xe_gt_regs.h"
@@ -343,6 +343,7 @@ static const struct xe_device_desc lnl_desc = {
 static const struct xe_device_desc bmg_desc __maybe_unused = {
 	DGFX_FEATURES,
 	PLATFORM(BATTLEMAGE),
+	.has_display = true,
 	.require_force_probe = true,
 };
 

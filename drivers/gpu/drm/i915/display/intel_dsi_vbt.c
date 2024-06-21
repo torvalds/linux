@@ -353,14 +353,14 @@ static void icl_native_gpio_set_value(struct drm_i915_private *dev_priv,
 	case MIPI_AVDD_EN_2:
 		index = gpio == MIPI_AVDD_EN_1 ? 0 : 1;
 
-		intel_de_rmw(dev_priv, PP_CONTROL(index), PANEL_POWER_ON,
+		intel_de_rmw(dev_priv, PP_CONTROL(dev_priv, index), PANEL_POWER_ON,
 			     value ? PANEL_POWER_ON : 0);
 		break;
 	case MIPI_BKLT_EN_1:
 	case MIPI_BKLT_EN_2:
 		index = gpio == MIPI_BKLT_EN_1 ? 0 : 1;
 
-		intel_de_rmw(dev_priv, PP_CONTROL(index), EDP_BLC_ENABLE,
+		intel_de_rmw(dev_priv, PP_CONTROL(dev_priv, index), EDP_BLC_ENABLE,
 			     value ? EDP_BLC_ENABLE : 0);
 		break;
 	case MIPI_AVEE_EN_1:
@@ -751,7 +751,7 @@ bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id)
 	struct intel_connector *connector = intel_dsi->attached_connector;
 	struct mipi_config *mipi_config = connector->panel.vbt.dsi.config;
 	struct mipi_pps_data *pps = connector->panel.vbt.dsi.pps;
-	struct drm_display_mode *mode = connector->panel.vbt.lfp_lvds_vbt_mode;
+	struct drm_display_mode *mode = connector->panel.vbt.lfp_vbt_mode;
 	u16 burst_mode_ratio;
 	enum port port;
 

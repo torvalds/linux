@@ -9,6 +9,7 @@
 #include <linux/dma-fence.h>
 #include <linux/dma-resv.h>
 
+#include "gem/i915_gem_object.h"
 #include "i915_drv.h"
 #include "intel_display.h"
 #include "intel_display_types.h"
@@ -805,8 +806,23 @@ unsigned int intel_surf_alignment(const struct drm_framebuffer *fb,
 {
 	struct drm_i915_private *dev_priv = to_i915(fb->dev);
 
-	if (intel_fb_uses_dpt(fb))
+	if (intel_fb_uses_dpt(fb)) {
+		/* AUX_DIST needs only 4K alignment */
+		if (intel_fb_is_ccs_aux_plane(fb, color_plane))
+			return 512 * 4096;
+
+		/*
+		 * FIXME ADL sees GGTT/DMAR faults with async
+		 * flips unless we align to 16k at least.
+		 * Figure out what's going on here...
+		 */
+		if (IS_ALDERLAKE_P(dev_priv) &&
+		    !intel_fb_is_ccs_modifier(fb->modifier) &&
+		    HAS_ASYNC_FLIPS(dev_priv))
+			return 512 * 16 * 1024;
+
 		return 512 * 4096;
+	}
 
 	/* AUX_DIST needs only 4K alignment */
 	if (intel_fb_is_ccs_aux_plane(fb, color_plane))
@@ -1030,7 +1046,7 @@ static u32 intel_compute_aligned_offset(struct drm_i915_private *i915,
 					int color_plane,
 					unsigned int pitch,
 					unsigned int rotation,
-					u32 alignment)
+					unsigned int alignment)
 {
 	unsigned int cpp = fb->format->cpp[color_plane];
 	u32 offset, offset_aligned;
@@ -1087,8 +1103,8 @@ u32 intel_plane_compute_aligned_offset(int *x, int *y,
 	struct drm_i915_private *i915 = to_i915(intel_plane->base.dev);
 	const struct drm_framebuffer *fb = state->hw.fb;
 	unsigned int rotation = state->hw.rotation;
-	int pitch = state->view.color_plane[color_plane].mapping_stride;
-	u32 alignment;
+	unsigned int pitch = state->view.color_plane[color_plane].mapping_stride;
+	unsigned int alignment;
 
 	if (intel_plane->id == PLANE_CURSOR)
 		alignment = intel_cursor_alignment(i915);
@@ -1105,8 +1121,7 @@ static int intel_fb_offset_to_xy(int *x, int *y,
 				 int color_plane)
 {
 	struct drm_i915_private *i915 = to_i915(fb->dev);
-	unsigned int height;
-	u32 alignment, unused;
+	unsigned int height, alignment, unused;
 
 	if (DISPLAY_VER(i915) >= 12 &&
 	    !intel_fb_needs_pot_stride_remap(to_intel_framebuffer(fb)) &&
@@ -1493,8 +1508,8 @@ static u32 calc_plane_remap_info(const struct intel_framebuffer *fb, int color_p
 		check_array_bounds(i915, view->gtt.remapped.plane, color_plane);
 
 		if (view->gtt.remapped.plane_alignment) {
-			unsigned int aligned_offset = ALIGN(gtt_offset,
-							    view->gtt.remapped.plane_alignment);
+			u32 aligned_offset = ALIGN(gtt_offset,
+						   view->gtt.remapped.plane_alignment);
 
 			size += aligned_offset - gtt_offset;
 			gtt_offset = aligned_offset;
@@ -1780,16 +1795,16 @@ u32 intel_fb_max_stride(struct drm_i915_private *dev_priv,
 		return 128 * 1024;
 }
 
-static u32
+static unsigned int
 intel_fb_stride_alignment(const struct drm_framebuffer *fb, int color_plane)
 {
 	struct drm_i915_private *dev_priv = to_i915(fb->dev);
-	u32 tile_width;
+	unsigned int tile_width;
 
 	if (is_surface_linear(fb, color_plane)) {
-		u32 max_stride = intel_plane_fb_max_stride(dev_priv,
-							   fb->format->format,
-							   fb->modifier);
+		unsigned int max_stride = intel_plane_fb_max_stride(dev_priv,
+								    fb->format->format,
+								    fb->modifier);
 
 		/*
 		 * To make remapping with linear generally feasible
@@ -2046,7 +2061,7 @@ int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 	drm_helper_mode_fill_fb_struct(&dev_priv->drm, fb, mode_cmd);
 
 	for (i = 0; i < fb->format->num_planes; i++) {
-		u32 stride_alignment;
+		unsigned int stride_alignment;
 
 		if (mode_cmd->handles[i] != mode_cmd->handles[0]) {
 			drm_dbg_kms(&dev_priv->drm, "bad plane %d handle\n",
@@ -2063,7 +2078,7 @@ int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 		}
 
 		if (intel_fb_is_gen12_ccs_aux_plane(fb, i)) {
-			int ccs_aux_stride = gen12_ccs_aux_stride(intel_fb, i);
+			unsigned int ccs_aux_stride = gen12_ccs_aux_stride(intel_fb, i);
 
 			if (fb->pitches[i] != ccs_aux_stride) {
 				drm_dbg_kms(&dev_priv->drm,

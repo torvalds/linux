@@ -37,8 +37,9 @@
 #include "gem/i915_gem_dmabuf.h"
 
 #include "i915_drv.h"
-#include "i915_reg.h"
 #include "gvt.h"
+
+#include "display/skl_universal_plane_regs.h"
 
 #define GEN8_DECODE_PTE(pte) (pte & GENMASK_ULL(63, 12))
 

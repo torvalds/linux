@@ -641,7 +641,7 @@ u32 lspcon_infoframes_enabled(struct intel_encoder *encoder,
 
 	if (lspcon->hdr_supported) {
 		tmp = intel_de_read(dev_priv,
-				    HSW_TVIDEO_DIP_CTL(pipe_config->cpu_transcoder));
+				    HSW_TVIDEO_DIP_CTL(dev_priv, pipe_config->cpu_transcoder));
 		mask = VIDEO_DIP_ENABLE_GMP_HSW;
 
 		if (tmp & mask)

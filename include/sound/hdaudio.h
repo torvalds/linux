@@ -18,7 +18,7 @@
 #include <sound/pcm.h>
 #include <sound/memalloc.h>
 #include <sound/hda_verbs.h>
-#include <drm/i915_component.h>
+#include <drm/intel/i915_component.h>
 
 /* codec node id */
 typedef u16 hda_nid_t;

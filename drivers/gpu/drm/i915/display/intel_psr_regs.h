@@ -9,7 +9,7 @@
 #include "intel_display_reg_defs.h"
 #include "intel_dp_aux_regs.h"
 
-#define TRANS_EXITLINE(trans)	_MMIO_TRANS2(dev_priv, (trans), _TRANS_EXITLINE_A)
+#define TRANS_EXITLINE(dev_priv, trans)	_MMIO_TRANS2(dev_priv, (trans), _TRANS_EXITLINE_A)
 #define   EXITLINE_ENABLE	REG_BIT(31)
 #define   EXITLINE_MASK		REG_GENMASK(12, 0)
 #define   EXITLINE_SHIFT	0
@@ -23,7 +23,7 @@
 #define HSW_SRD_CTL				_MMIO(0x64800)
 #define _SRD_CTL_A				0x60800
 #define _SRD_CTL_EDP				0x6f800
-#define EDP_PSR_CTL(tran)			_MMIO_TRANS2(dev_priv, tran, _SRD_CTL_A)
+#define EDP_PSR_CTL(dev_priv, tran)			_MMIO_TRANS2(dev_priv, tran, _SRD_CTL_A)
 #define   EDP_PSR_ENABLE			REG_BIT(31)
 #define   BDW_PSR_SINGLE_FRAME			REG_BIT(30)
 #define   EDP_PSR_RESTORE_PSR_ACTIVE_CTX_MASK	REG_BIT(29) /* SW can't modify */
@@ -66,8 +66,8 @@
 #define EDP_PSR_IIR				_MMIO(0x64838)
 #define _PSR_IMR_A				0x60814
 #define _PSR_IIR_A				0x60818
-#define TRANS_PSR_IMR(tran)			_MMIO_TRANS2(dev_priv, tran, _PSR_IMR_A)
-#define TRANS_PSR_IIR(tran)			_MMIO_TRANS2(dev_priv, tran, _PSR_IIR_A)
+#define TRANS_PSR_IMR(dev_priv, tran)			_MMIO_TRANS2(dev_priv, tran, _PSR_IMR_A)
+#define TRANS_PSR_IIR(dev_priv, tran)			_MMIO_TRANS2(dev_priv, tran, _PSR_IIR_A)
 #define   _EDP_PSR_TRANS_SHIFT(trans)		((trans) == TRANSCODER_EDP ? \
 						 0 : ((trans) - TRANSCODER_A + 1) * 8)
 #define   TGL_PSR_MASK			REG_GENMASK(2, 0)
@@ -86,7 +86,7 @@
 #define HSW_SRD_AUX_CTL				_MMIO(0x64810)
 #define _SRD_AUX_CTL_A				0x60810
 #define _SRD_AUX_CTL_EDP			0x6f810
-#define EDP_PSR_AUX_CTL(tran)			_MMIO_TRANS2(dev_priv, tran, _SRD_AUX_CTL_A)
+#define EDP_PSR_AUX_CTL(dev_priv, tran)			_MMIO_TRANS2(dev_priv, tran, _SRD_AUX_CTL_A)
 #define   EDP_PSR_AUX_CTL_TIME_OUT_MASK		DP_AUX_CH_CTL_TIME_OUT_MASK
 #define   EDP_PSR_AUX_CTL_MESSAGE_SIZE_MASK	DP_AUX_CH_CTL_MESSAGE_SIZE_MASK
 #define   EDP_PSR_AUX_CTL_PRECHARGE_2US_MASK	DP_AUX_CH_CTL_PRECHARGE_2US_MASK
@@ -96,12 +96,12 @@
 #define HSW_SRD_AUX_DATA(i)			_MMIO(0x64814 + (i) * 4) /* 5 registers */
 #define _SRD_AUX_DATA_A				0x60814
 #define _SRD_AUX_DATA_EDP			0x6f814
-#define EDP_PSR_AUX_DATA(tran, i)		_MMIO_TRANS2(dev_priv, tran, _SRD_AUX_DATA_A + (i) * 4) /* 5 registers */
+#define EDP_PSR_AUX_DATA(dev_priv, tran, i)		_MMIO_TRANS2(dev_priv, tran, _SRD_AUX_DATA_A + (i) * 4) /* 5 registers */
 
 #define HSW_SRD_STATUS				_MMIO(0x64840)
 #define _SRD_STATUS_A				0x60840
 #define _SRD_STATUS_EDP				0x6f840
-#define EDP_PSR_STATUS(tran)			_MMIO_TRANS2(dev_priv, tran, _SRD_STATUS_A)
+#define EDP_PSR_STATUS(dev_priv, tran)			_MMIO_TRANS2(dev_priv, tran, _SRD_STATUS_A)
 #define   EDP_PSR_STATUS_STATE_MASK		REG_GENMASK(31, 29)
 #define   EDP_PSR_STATUS_STATE_IDLE		REG_FIELD_PREP(EDP_PSR_STATUS_STATE_MASK, 0)
 #define   EDP_PSR_STATUS_STATE_SRDONACK		REG_FIELD_PREP(EDP_PSR_STATUS_STATE_MASK, 1)
@@ -126,14 +126,14 @@
 #define HSW_SRD_PERF_CNT		_MMIO(0x64844)
 #define _SRD_PERF_CNT_A			0x60844
 #define _SRD_PERF_CNT_EDP		0x6f844
-#define EDP_PSR_PERF_CNT(tran)		_MMIO_TRANS2(dev_priv, tran, _SRD_PERF_CNT_A)
+#define EDP_PSR_PERF_CNT(dev_priv, tran)		_MMIO_TRANS2(dev_priv, tran, _SRD_PERF_CNT_A)
 #define   EDP_PSR_PERF_CNT_MASK		REG_GENMASK(23, 0)
 
 /* PSR_MASK on SKL+ */
 #define HSW_SRD_DEBUG				_MMIO(0x64860)
 #define _SRD_DEBUG_A				0x60860
 #define _SRD_DEBUG_EDP				0x6f860
-#define EDP_PSR_DEBUG(tran)			_MMIO_TRANS2(dev_priv, tran, _SRD_DEBUG_A)
+#define EDP_PSR_DEBUG(dev_priv, tran)			_MMIO_TRANS2(dev_priv, tran, _SRD_DEBUG_A)
 #define   EDP_PSR_DEBUG_MASK_MAX_SLEEP		REG_BIT(28)
 #define   EDP_PSR_DEBUG_MASK_LPSP		REG_BIT(27)
 #define   EDP_PSR_DEBUG_MASK_MEMUP		REG_BIT(26)
@@ -153,7 +153,7 @@
 
 #define _PSR2_CTL_A				0x60900
 #define _PSR2_CTL_EDP				0x6f900
-#define EDP_PSR2_CTL(tran)			_MMIO_TRANS2(dev_priv, tran, _PSR2_CTL_A)
+#define EDP_PSR2_CTL(dev_priv, tran)			_MMIO_TRANS2(dev_priv, tran, _PSR2_CTL_A)
 #define   EDP_PSR2_ENABLE			REG_BIT(31)
 #define   EDP_SU_TRACK_ENABLE			REG_BIT(30) /* up to adl-p */
 #define   TGL_EDP_PSR2_BLOCK_COUNT_MASK		REG_BIT(28)
@@ -172,6 +172,10 @@
 #define   TGL_EDP_PSR2_IO_BUFFER_WAKE_MIN_LINES	5
 #define   TGL_EDP_PSR2_IO_BUFFER_WAKE(lines)	REG_FIELD_PREP(TGL_EDP_PSR2_IO_BUFFER_WAKE_MASK, \
 							       (lines) - TGL_EDP_PSR2_IO_BUFFER_WAKE_MIN_LINES)
+#define   LNL_EDP_PSR2_IO_BUFFER_WAKE_MASK	REG_GENMASK(18, 13)
+#define   LNL_EDP_PSR2_IO_BUFFER_WAKE_MIN_LINES	5
+#define   LNL_EDP_PSR2_IO_BUFFER_WAKE(lines)	REG_FIELD_PREP(LNL_EDP_PSR2_IO_BUFFER_WAKE_MASK, \
+							       (lines) - LNL_EDP_PSR2_IO_BUFFER_WAKE_MIN_LINES)
 #define   EDP_PSR2_FAST_WAKE_MASK		REG_GENMASK(12, 11)
 #define   EDP_PSR2_FAST_WAKE_MAX_LINES		8
 #define   EDP_PSR2_FAST_WAKE(lines)		REG_FIELD_PREP(EDP_PSR2_FAST_WAKE_MASK, \
@@ -195,7 +199,7 @@
 #define _PSR_EVENT_TRANS_C			0x62848
 #define _PSR_EVENT_TRANS_D			0x63848
 #define _PSR_EVENT_TRANS_EDP			0x6f848
-#define PSR_EVENT(tran)				_MMIO_TRANS2(dev_priv, tran, _PSR_EVENT_TRANS_A)
+#define PSR_EVENT(dev_priv, tran)				_MMIO_TRANS2(dev_priv, tran, _PSR_EVENT_TRANS_A)
 #define  PSR_EVENT_PSR2_WD_TIMER_EXPIRE		REG_BIT(17)
 #define  PSR_EVENT_PSR2_DISABLED		REG_BIT(16)
 #define  PSR_EVENT_SU_DIRTY_FIFO_UNDERRUN	REG_BIT(15)
@@ -215,21 +219,21 @@
 
 #define _PSR2_STATUS_A				0x60940
 #define _PSR2_STATUS_EDP			0x6f940
-#define EDP_PSR2_STATUS(tran)			_MMIO_TRANS2(dev_priv, tran, _PSR2_STATUS_A)
+#define EDP_PSR2_STATUS(dev_priv, tran)			_MMIO_TRANS2(dev_priv, tran, _PSR2_STATUS_A)
 #define EDP_PSR2_STATUS_STATE_MASK		REG_GENMASK(31, 28)
 #define EDP_PSR2_STATUS_STATE_DEEP_SLEEP	REG_FIELD_PREP(EDP_PSR2_STATUS_STATE_MASK, 0x8)
 
 #define _PSR2_SU_STATUS_A		0x60914
 #define _PSR2_SU_STATUS_EDP		0x6f914
-#define _PSR2_SU_STATUS(tran, index)	_MMIO_TRANS2(dev_priv, tran, _PSR2_SU_STATUS_A + (index) * 4)
-#define PSR2_SU_STATUS(tran, frame)	(_PSR2_SU_STATUS(tran, (frame) / 3))
+#define _PSR2_SU_STATUS(dev_priv, tran, index)	_MMIO_TRANS2(dev_priv, tran, _PSR2_SU_STATUS_A + (index) * 4)
+#define PSR2_SU_STATUS(dev_priv, tran, frame)	(_PSR2_SU_STATUS(dev_priv, tran, (frame) / 3))
 #define PSR2_SU_STATUS_SHIFT(frame)	(((frame) % 3) * 10)
 #define PSR2_SU_STATUS_MASK(frame)	(0x3ff << PSR2_SU_STATUS_SHIFT(frame))
 #define PSR2_SU_STATUS_FRAMES		8
 
 #define _PSR2_MAN_TRK_CTL_A					0x60910
 #define _PSR2_MAN_TRK_CTL_EDP					0x6f910
-#define PSR2_MAN_TRK_CTL(tran)					_MMIO_TRANS2(dev_priv, tran, _PSR2_MAN_TRK_CTL_A)
+#define PSR2_MAN_TRK_CTL(dev_priv, tran)					_MMIO_TRANS2(dev_priv, tran, _PSR2_MAN_TRK_CTL_A)
 #define  PSR2_MAN_TRK_CTL_ENABLE				REG_BIT(31)
 #define  PSR2_MAN_TRK_CTL_SU_REGION_START_ADDR_MASK		REG_GENMASK(30, 21)
 #define  PSR2_MAN_TRK_CTL_SU_REGION_START_ADDR(val)		REG_FIELD_PREP(PSR2_MAN_TRK_CTL_SU_REGION_START_ADDR_MASK, val)
@@ -248,56 +252,11 @@
 
 /* PSR2 Early transport */
 #define _PIPE_SRCSZ_ERLY_TPT_A	0x70074
-
-#define PIPE_SRCSZ_ERLY_TPT(trans)	_MMIO_TRANS2(dev_priv, trans, _PIPE_SRCSZ_ERLY_TPT_A)
-
-#define _SEL_FETCH_PLANE_BASE_1_A		0x70890
-#define _SEL_FETCH_PLANE_BASE_2_A		0x708B0
-#define _SEL_FETCH_PLANE_BASE_3_A		0x708D0
-#define _SEL_FETCH_PLANE_BASE_4_A		0x708F0
-#define _SEL_FETCH_PLANE_BASE_5_A		0x70920
-#define _SEL_FETCH_PLANE_BASE_6_A		0x70940
-#define _SEL_FETCH_PLANE_BASE_7_A		0x70960
-#define _SEL_FETCH_PLANE_BASE_CUR_A		0x70880
-#define _SEL_FETCH_PLANE_BASE_1_B		0x71890
-
-#define _SEL_FETCH_PLANE_BASE_A(plane) _PICK(plane, \
-					     _SEL_FETCH_PLANE_BASE_1_A, \
-					     _SEL_FETCH_PLANE_BASE_2_A, \
-					     _SEL_FETCH_PLANE_BASE_3_A, \
-					     _SEL_FETCH_PLANE_BASE_4_A, \
-					     _SEL_FETCH_PLANE_BASE_5_A, \
-					     _SEL_FETCH_PLANE_BASE_6_A, \
-					     _SEL_FETCH_PLANE_BASE_7_A, \
-					     _SEL_FETCH_PLANE_BASE_CUR_A)
-#define _SEL_FETCH_PLANE_BASE_1(pipe) _PIPE(pipe, _SEL_FETCH_PLANE_BASE_1_A, _SEL_FETCH_PLANE_BASE_1_B)
-#define _SEL_FETCH_PLANE_BASE(pipe, plane) (_SEL_FETCH_PLANE_BASE_1(pipe) - \
-					    _SEL_FETCH_PLANE_BASE_1_A + \
-					    _SEL_FETCH_PLANE_BASE_A(plane))
-
-#define _SEL_FETCH_PLANE_CTL_1_A		0x70890
-#define PLANE_SEL_FETCH_CTL(pipe, plane) _MMIO(_SEL_FETCH_PLANE_BASE(pipe, plane) + \
-					       _SEL_FETCH_PLANE_CTL_1_A - \
-					       _SEL_FETCH_PLANE_BASE_1_A)
-#define PLANE_SEL_FETCH_CTL_ENABLE		REG_BIT(31)
-
-#define _SEL_FETCH_PLANE_POS_1_A		0x70894
-#define PLANE_SEL_FETCH_POS(pipe, plane) _MMIO(_SEL_FETCH_PLANE_BASE(pipe, plane) + \
-					       _SEL_FETCH_PLANE_POS_1_A - \
-					       _SEL_FETCH_PLANE_BASE_1_A)
-
-#define _SEL_FETCH_PLANE_SIZE_1_A		0x70898
-#define PLANE_SEL_FETCH_SIZE(pipe, plane) _MMIO(_SEL_FETCH_PLANE_BASE(pipe, plane) + \
-						_SEL_FETCH_PLANE_SIZE_1_A - \
-						_SEL_FETCH_PLANE_BASE_1_A)
-
-#define _SEL_FETCH_PLANE_OFFSET_1_A		0x7089C
-#define PLANE_SEL_FETCH_OFFSET(pipe, plane) _MMIO(_SEL_FETCH_PLANE_BASE(pipe, plane) + \
-						  _SEL_FETCH_PLANE_OFFSET_1_A - \
-						  _SEL_FETCH_PLANE_BASE_1_A)
+#define _PIPE_SRCSZ_ERLY_TPT_B	0x71074
+#define PIPE_SRCSZ_ERLY_TPT(pipe)	_MMIO_PIPE((pipe), _PIPE_SRCSZ_ERLY_TPT_A, _PIPE_SRCSZ_ERLY_TPT_B)
 
 #define _ALPM_CTL_A	0x60950
-#define ALPM_CTL(tran)	_MMIO_TRANS2(dev_priv, tran, _ALPM_CTL_A)
+#define ALPM_CTL(dev_priv, tran)	_MMIO_TRANS2(dev_priv, tran, _ALPM_CTL_A)
 #define  ALPM_CTL_ALPM_ENABLE				REG_BIT(31)
 #define  ALPM_CTL_ALPM_AUX_LESS_ENABLE			REG_BIT(30)
 #define  ALPM_CTL_LOBF_ENABLE				REG_BIT(29)
@@ -321,7 +280,7 @@
 #define  ALPM_CTL_AUX_LESS_WAKE_TIME(val)		REG_FIELD_PREP(ALPM_CTL_AUX_LESS_WAKE_TIME_MASK, val)
 
 #define _ALPM_CTL2_A	0x60954
-#define ALPM_CTL2(tran)	_MMIO_TRANS2(dev_priv, tran, _ALPM_CTL2_A)
+#define ALPM_CTL2(dev_priv, tran)	_MMIO_TRANS2(dev_priv, tran, _ALPM_CTL2_A)
 #define  ALPM_CTL2_SWITCH_TO_ACTIVE_LATENCY_MASK		REG_GENMASK(28, 24)
 #define  ALPM_CTL2_SWITCH_TO_ACTIVE_LATENCY(val)		REG_FIELD_PREP(ALPM_CTL2_SWITCH_TO_ACTIVE_LATENCY_MASK, val)
 #define  ALPM_CTL2_AUX_LESS_WAKE_TIME_EXTENSION_MASK		REG_GENMASK(19, 16)
@@ -335,7 +294,8 @@
 #define  ALPM_CTL2_NUMBER_AUX_LESS_ML_PHY_SLEEP_SEQUENCES(val)	REG_FIELD_PREP(ALPM_CTL2_NUMBER_AUX_LESS_ML_PHY_SLEEP_SEQUENCES_MASK, val)
 
 #define _PORT_ALPM_CTL_A			0x16fa2c
-#define PORT_ALPM_CTL(tran)			_MMIO_TRANS2(dev_priv, tran, _PORT_ALPM_CTL_A)
+#define _PORT_ALPM_CTL_B			0x16fc2c
+#define PORT_ALPM_CTL(dev_priv, port)		_MMIO_PORT(port, _PORT_ALPM_CTL_A, _PORT_ALPM_CTL_B)
 #define  PORT_ALPM_CTL_ALPM_AUX_LESS_ENABLE	REG_BIT(31)
 #define  PORT_ALPM_CTL_MAX_PHY_SWING_SETUP_MASK	REG_GENMASK(23, 20)
 #define  PORT_ALPM_CTL_MAX_PHY_SWING_SETUP(val)	REG_FIELD_PREP(PORT_ALPM_CTL_MAX_PHY_SWING_SETUP_MASK, val)
@@ -345,7 +305,8 @@
 #define  PORT_ALPM_CTL_SILENCE_PERIOD(val)	REG_FIELD_PREP(PORT_ALPM_CTL_SILENCE_PERIOD_MASK, val)
 
 #define _PORT_ALPM_LFPS_CTL_A					0x16fa30
-#define PORT_ALPM_LFPS_CTL(tran)				_MMIO_TRANS2(dev_priv, tran, _PORT_ALPM_LFPS_CTL_A)
+#define _PORT_ALPM_LFPS_CTL_B					0x16fc30
+#define PORT_ALPM_LFPS_CTL(dev_priv, port)			_MMIO_PORT(port, _PORT_ALPM_LFPS_CTL_A, _PORT_ALPM_LFPS_CTL_B)
 #define  PORT_ALPM_LFPS_CTL_LFPS_START_POLARITY			REG_BIT(31)
 #define  PORT_ALPM_LFPS_CTL_LFPS_CYCLE_COUNT_MASK		REG_GENMASK(27, 24)
 #define  PORT_ALPM_LFPS_CTL_LFPS_CYCLE_COUNT_MIN		7
