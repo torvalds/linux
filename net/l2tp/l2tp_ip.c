@@ -140,7 +140,7 @@ static int l2tp_ip_recv(struct sk_buff *skb)
 	}
 
 	/* Ok, this is a data packet. Lookup the session. */
-	session = l2tp_session_get(net, session_id);
+	session = l2tp_v3_session_get(net, NULL, session_id);
 	if (!session)
 		goto discard;
 
