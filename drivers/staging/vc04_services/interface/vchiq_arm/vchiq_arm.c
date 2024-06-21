@@ -162,7 +162,7 @@ cleanup_pagelistinfo(struct vchiq_instance *instance, struct vchiq_pagelist_info
 }
 
 static inline bool
-is_adjacent_block(u32 *addrs, u32 addr, unsigned int k)
+is_adjacent_block(u32 *addrs, dma_addr_t addr, unsigned int k)
 {
 	u32 tmp;
 
@@ -377,8 +377,8 @@ create_pagelist(struct vchiq_instance *instance, char *buf, char __user *ubuf,
 	/* Combine adjacent blocks for performance */
 	k = 0;
 	for_each_sg(scatterlist, sg, dma_buffers, i) {
-		u32 len = sg_dma_len(sg);
-		u32 addr = sg_dma_address(sg);
+		unsigned int len = sg_dma_len(sg);
+		dma_addr_t addr = sg_dma_address(sg);
 
 		/* Note: addrs is the address + page_count - 1
 		 * The firmware expects blocks after the first to be page-
