@@ -189,6 +189,7 @@ properties:
               - htc,m8
               - oneplus,bacon
               - samsung,klte
+              - sony,xperia-aries
               - sony,xperia-castor
               - sony,xperia-leo
           - const: qcom,msm8974pro
