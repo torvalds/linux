@@ -175,7 +175,6 @@ static void blk_atomic_writes_update_limits(struct queue_limits *lim)
 
 static void blk_validate_atomic_write_limits(struct queue_limits *lim)
 {
-	unsigned int chunk_sectors = lim->chunk_sectors;
 	unsigned int boundary_sectors;
 
 	if (!lim->atomic_write_hw_max)
@@ -197,7 +196,7 @@ static void blk_validate_atomic_write_limits(struct queue_limits *lim)
 		 * Devices which do not conform to these rules can be dealt
 		 * with if and when they show up.
 		 */
-		if (WARN_ON_ONCE(do_div(chunk_sectors, boundary_sectors)))
+		if (WARN_ON_ONCE(lim->chunk_sectors % boundary_sectors))
 			goto unsupported;
 
 		/*
