@@ -852,79 +852,10 @@ struct vc4_hvs *__vc4_hvs_alloc(struct vc4_dev *vc4, struct platform_device *pde
 	return hvs;
 }
 
-static int vc4_hvs_bind(struct device *dev, struct device *master, void *data)
+static int vc4_hvs_hw_init(struct vc4_hvs *hvs)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct drm_device *drm = dev_get_drvdata(master);
-	struct vc4_dev *vc4 = to_vc4_dev(drm);
-	struct vc4_hvs *hvs = NULL;
-	int ret;
-	u32 dispctrl;
-	u32 reg, top;
-
-	hvs = __vc4_hvs_alloc(vc4, NULL);
-	if (IS_ERR(hvs))
-		return PTR_ERR(hvs);
-
-	hvs->regs = vc4_ioremap_regs(pdev, 0);
-	if (IS_ERR(hvs->regs))
-		return PTR_ERR(hvs->regs);
-
-	hvs->regset.base = hvs->regs;
-	hvs->regset.regs = hvs_regs;
-	hvs->regset.nregs = ARRAY_SIZE(hvs_regs);
-
-	if (vc4->gen == VC4_GEN_5) {
-		struct rpi_firmware *firmware;
-		struct device_node *node;
-		unsigned int max_rate;
-
-		node = rpi_firmware_find_node();
-		if (!node)
-			return -EINVAL;
-
-		firmware = rpi_firmware_get(node);
-		of_node_put(node);
-		if (!firmware)
-			return -EPROBE_DEFER;
-
-		hvs->core_clk = devm_clk_get(&pdev->dev, NULL);
-		if (IS_ERR(hvs->core_clk)) {
-			dev_err(&pdev->dev, "Couldn't get core clock\n");
-			return PTR_ERR(hvs->core_clk);
-		}
-
-		max_rate = rpi_firmware_clk_get_max_rate(firmware,
-							 RPI_FIRMWARE_CORE_CLK_ID);
-		rpi_firmware_put(firmware);
-		if (max_rate >= 550000000)
-			hvs->vc5_hdmi_enable_hdmi_20 = true;
-
-		if (max_rate >= 600000000)
-			hvs->vc5_hdmi_enable_4096by2160 = true;
-
-		hvs->max_core_rate = max_rate;
-
-		ret = clk_prepare_enable(hvs->core_clk);
-		if (ret) {
-			dev_err(&pdev->dev, "Couldn't enable the core clock\n");
-			return ret;
-		}
-	}
-
-	if (vc4->gen == VC4_GEN_4)
-		hvs->dlist = hvs->regs + SCALER_DLIST_START;
-	else
-		hvs->dlist = hvs->regs + SCALER5_DLIST_START;
-
-	/* Upload filter kernels.  We only have the one for now, so we
-	 * keep it around for the lifetime of the driver.
-	 */
-	ret = vc4_hvs_upload_linear_kernel(hvs,
-					   &hvs->mitchell_netravali_filter,
-					   mitchell_netravali_1_3_1_3_kernel);
-	if (ret)
-		return ret;
+	struct vc4_dev *vc4 = hvs->vc4;
+	u32 dispctrl, reg;
 
 	reg = HVS_READ(SCALER_DISPECTRL);
 	reg &= ~SCALER_DISPECTRL_DSP2_MUX_MASK;
@@ -1005,6 +936,86 @@ static int vc4_hvs_bind(struct device *dev, struct device *master, void *data)
 	dispctrl |= VC4_SET_FIELD(2, SCALER_DISPCTRL_PANIC2);
 
 	HVS_WRITE(SCALER_DISPCTRL, dispctrl);
+
+	return 0;
+}
+
+static int vc4_hvs_bind(struct device *dev, struct device *master, void *data)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct drm_device *drm = dev_get_drvdata(master);
+	struct vc4_dev *vc4 = to_vc4_dev(drm);
+	struct vc4_hvs *hvs = NULL;
+	int ret;
+	u32 reg, top;
+
+	hvs = __vc4_hvs_alloc(vc4, NULL);
+	if (IS_ERR(hvs))
+		return PTR_ERR(hvs);
+
+	hvs->regs = vc4_ioremap_regs(pdev, 0);
+	if (IS_ERR(hvs->regs))
+		return PTR_ERR(hvs->regs);
+
+	hvs->regset.base = hvs->regs;
+	hvs->regset.regs = hvs_regs;
+	hvs->regset.nregs = ARRAY_SIZE(hvs_regs);
+
+	if (vc4->gen == VC4_GEN_5) {
+		struct rpi_firmware *firmware;
+		struct device_node *node;
+		unsigned int max_rate;
+
+		node = rpi_firmware_find_node();
+		if (!node)
+			return -EINVAL;
+
+		firmware = rpi_firmware_get(node);
+		of_node_put(node);
+		if (!firmware)
+			return -EPROBE_DEFER;
+
+		hvs->core_clk = devm_clk_get(&pdev->dev, NULL);
+		if (IS_ERR(hvs->core_clk)) {
+			dev_err(&pdev->dev, "Couldn't get core clock\n");
+			return PTR_ERR(hvs->core_clk);
+		}
+
+		max_rate = rpi_firmware_clk_get_max_rate(firmware,
+							 RPI_FIRMWARE_CORE_CLK_ID);
+		rpi_firmware_put(firmware);
+		if (max_rate >= 550000000)
+			hvs->vc5_hdmi_enable_hdmi_20 = true;
+
+		if (max_rate >= 600000000)
+			hvs->vc5_hdmi_enable_4096by2160 = true;
+
+		hvs->max_core_rate = max_rate;
+
+		ret = clk_prepare_enable(hvs->core_clk);
+		if (ret) {
+			dev_err(&pdev->dev, "Couldn't enable the core clock\n");
+			return ret;
+		}
+	}
+
+	if (vc4->gen == VC4_GEN_4)
+		hvs->dlist = hvs->regs + SCALER_DLIST_START;
+	else
+		hvs->dlist = hvs->regs + SCALER5_DLIST_START;
+
+	/* Upload filter kernels.  We only have the one for now, so we
+	 * keep it around for the lifetime of the driver.
+	 */
+	ret = vc4_hvs_upload_linear_kernel(hvs,
+					   &hvs->mitchell_netravali_filter,
+					   mitchell_netravali_1_3_1_3_kernel);
+	if (ret)
+		return ret;
+
+	ret = vc4_hvs_hw_init(hvs);
+	if (ret)
+		return ret;
 
 	/* Recompute Composite Output Buffer (COB) allocations for the displays
 	 */
