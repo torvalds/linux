@@ -843,8 +843,8 @@
 
 #define REG_PORT_STATUS_0		0x0030
 
-#define PORT_INTF_SPEED_M		0x3
-#define PORT_INTF_SPEED_S		3
+#define PORT_INTF_SPEED_MASK		GENMASK(4, 3)
+#define PORT_INTF_SPEED_NONE		GENMASK(1, 0)
 #define PORT_INTF_FULL_DUPLEX		BIT(2)
 #define PORT_TX_FLOW_CTRL		BIT(1)
 #define PORT_RX_FLOW_CTRL		BIT(0)
@@ -1167,6 +1167,11 @@
 
 #define PORT_RMII_CLK_SEL		BIT(7)
 #define PORT_MII_SEL_EDGE		BIT(5)
+
+#define REG_PMAVBC			0x03AC
+
+#define PMAVBC_MASK			GENMASK(26, 16)
+#define PMAVBC_MIN			0x580
 
 /* 4 - MAC */
 #define REG_PORT_MAC_CTRL_0		0x0400
@@ -1495,6 +1500,7 @@
 
 #define PORT_QM_TX_CNT_USED_S		0
 #define PORT_QM_TX_CNT_M		(BIT(11) - 1)
+#define PORT_QM_TX_CNT_MAX		0x200
 
 #define REG_PORT_QM_TX_CNT_1__4		0x0A14
 
