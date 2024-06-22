@@ -219,7 +219,7 @@
 
 	bluetooth {
 		compatible = "brcm,bcm4330-bt";
-		shutdown-gpios = <&gpio4 16 GPIO_ACTIVE_HIGH>;
+		shutdown-gpios = <&gpio1 3 GPIO_ACTIVE_HIGH>;
 	};
 };
 
