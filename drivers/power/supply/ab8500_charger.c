@@ -491,7 +491,7 @@ static int ab8500_charger_get_ac_voltage(struct ab8500_charger *di)
 		ret = iio_read_channel_processed_scale(di->adc_main_charger_v,
 						       &vch, 1000);
 		if (ret < 0) {
-			dev_err(di->dev, "%s ADC conv failed,\n", __func__);
+			dev_err(di->dev, "%s ADC conv failed\n", __func__);
 			return ret;
 		}
 	} else {
@@ -546,7 +546,7 @@ static int ab8500_charger_get_vbus_voltage(struct ab8500_charger *di)
 		ret = iio_read_channel_processed_scale(di->adc_vbus_v,
 						       &vch, 1000);
 		if (ret < 0) {
-			dev_err(di->dev, "%s ADC conv failed,\n", __func__);
+			dev_err(di->dev, "%s ADC conv failed\n", __func__);
 			return ret;
 		}
 	} else {
@@ -572,7 +572,7 @@ static int ab8500_charger_get_usb_current(struct ab8500_charger *di)
 		ret = iio_read_channel_processed_scale(di->adc_usb_charger_c,
 						       &ich, 1000);
 		if (ret < 0) {
-			dev_err(di->dev, "%s ADC conv failed,\n", __func__);
+			dev_err(di->dev, "%s ADC conv failed\n", __func__);
 			return ret;
 		}
 	} else {
@@ -598,7 +598,7 @@ static int ab8500_charger_get_ac_current(struct ab8500_charger *di)
 		ret = iio_read_channel_processed_scale(di->adc_main_charger_c,
 						       &ich, 1000);
 		if (ret < 0) {
-			dev_err(di->dev, "%s ADC conv failed,\n", __func__);
+			dev_err(di->dev, "%s ADC conv failed\n", __func__);
 			return ret;
 		}
 	} else {
