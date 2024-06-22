@@ -328,6 +328,7 @@
   __traceiter_android_rvh_migrate_queued_task
   __traceiter_android_rvh_new_task_stats
   __traceiter_android_rvh_panic_unhandled
+  __traceiter_android_rvh_percpu_rwsem_wait_complete
   __traceiter_android_rvh_pick_next_entity
   __traceiter_android_rvh_place_entity
   __traceiter_android_rvh_prepare_prio_fork
@@ -401,6 +402,8 @@
   __traceiter_android_vh_mmap_region
   __traceiter_android_vh_mutex_wait_finish
   __traceiter_android_vh_mutex_wait_start
+  __traceiter_android_vh_percpu_rwsem_down_read
+  __traceiter_android_vh_percpu_rwsem_up_write
   __traceiter_android_vh_printk_hotplug
   __traceiter_android_vh_queue_request_and_unlock
   __traceiter_android_vh_rproc_recovery
@@ -500,6 +503,7 @@
   __tracepoint_android_rvh_migrate_queued_task
   __tracepoint_android_rvh_new_task_stats
   __tracepoint_android_rvh_panic_unhandled
+  __tracepoint_android_rvh_percpu_rwsem_wait_complete
   __tracepoint_android_rvh_pick_next_entity
   __tracepoint_android_rvh_place_entity
   __tracepoint_android_rvh_prepare_prio_fork
@@ -573,6 +577,8 @@
   __tracepoint_android_vh_mmap_region
   __tracepoint_android_vh_mutex_wait_finish
   __tracepoint_android_vh_mutex_wait_start
+  __tracepoint_android_vh_percpu_rwsem_down_read
+  __tracepoint_android_vh_percpu_rwsem_up_write
   __tracepoint_android_vh_printk_hotplug
   __tracepoint_android_vh_queue_request_and_unlock
   __tracepoint_android_vh_rproc_recovery
