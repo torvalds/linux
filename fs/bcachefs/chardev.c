@@ -216,7 +216,8 @@ static long bch2_ioctl_fsck_offline(struct bch_ioctl_fsck_offline __user *user_a
 
 		ret =   PTR_ERR_OR_ZERO(optstr) ?:
 			bch2_parse_mount_opts(NULL, &thr->opts, optstr);
-		kfree(optstr);
+		if (!IS_ERR(optstr))
+			kfree(optstr);
 
 		if (ret)
 			goto err;
@@ -319,7 +320,8 @@ static long bch2_ioctl_disk_add(struct bch_fs *c, struct bch_ioctl_disk arg)
 		return ret;
 
 	ret = bch2_dev_add(c, path);
-	kfree(path);
+	if (!IS_ERR(path))
+		kfree(path);
 
 	return ret;
 }
@@ -850,7 +852,8 @@ static long bch2_ioctl_fsck_online(struct bch_fs *c,
 
 		ret =   PTR_ERR_OR_ZERO(optstr) ?:
 			bch2_parse_mount_opts(c, &thr->opts, optstr);
-		kfree(optstr);
+		if (!IS_ERR(optstr))
+			kfree(optstr);
 
 		if (ret)
 			goto err;
