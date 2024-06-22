@@ -137,7 +137,7 @@ enum fsck_err_opts {
 	x(errors,			u8,				\
 	  OPT_FS|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,			\
 	  OPT_STR(bch2_error_actions),					\
-	  BCH_SB_ERROR_ACTION,		BCH_ON_ERROR_ro,		\
+	  BCH_SB_ERROR_ACTION,		BCH_ON_ERROR_fix_safe,		\
 	  NULL,		"Action to take on filesystem error")		\
 	x(metadata_replicas,		u8,				\
 	  OPT_FS|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,			\

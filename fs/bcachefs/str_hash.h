@@ -300,7 +300,7 @@ not_found:
 	if (!found && (flags & STR_HASH_must_replace)) {
 		ret = -BCH_ERR_ENOENT_str_hash_set_must_replace;
 	} else if (found && (flags & STR_HASH_must_create)) {
-		ret = -EEXIST;
+		ret = -BCH_ERR_EEXIST_str_hash_set;
 	} else {
 		if (!found && slot.path)
 			swap(iter, slot);

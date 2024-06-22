@@ -3161,6 +3161,7 @@ struct btree_trans *__bch2_trans_get(struct bch_fs *c, unsigned fn_idx)
 list_add_done:
 	seqmutex_unlock(&c->btree_trans_lock);
 got_trans:
+	trans->ref.closure_get_happened = false;
 	trans->c		= c;
 	trans->last_begin_time	= local_clock();
 	trans->fn_idx		= fn_idx;
@@ -3235,7 +3236,6 @@ void bch2_trans_put(struct btree_trans *trans)
 	trans_for_each_update(trans, i)
 		__btree_path_put(trans->paths + i->path, true);
 	trans->nr_updates	= 0;
-	trans->locking_wait.task = NULL;
 
 	check_btree_paths_leaked(trans);
 
@@ -3256,6 +3256,13 @@ void bch2_trans_put(struct btree_trans *trans)
 	if (unlikely(trans->journal_replay_not_finished))
 		bch2_journal_keys_put(c);
 
+	/*
+	 * trans->ref protects trans->locking_wait.task, btree_paths arary; used
+	 * by cycle detector
+	 */
+	closure_sync(&trans->ref);
+	trans->locking_wait.task = NULL;
+
 	unsigned long *paths_allocated = trans->paths_allocated;
 	trans->paths_allocated	= NULL;
 	trans->paths		= NULL;
@@ -3273,8 +3280,6 @@ void bch2_trans_put(struct btree_trans *trans)
 		trans = this_cpu_xchg(c->btree_trans_bufs->trans, trans);
 
 	if (trans) {
-		closure_sync(&trans->ref);
-
 		seqmutex_lock(&c->btree_trans_lock);
 		list_del(&trans->list);
 		seqmutex_unlock(&c->btree_trans_lock);

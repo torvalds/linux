@@ -373,7 +373,7 @@ retry:
 	}
 
 	if (dst_dentry->d_inode) {
-		error = -EEXIST;
+		error = -BCH_ERR_EEXIST_subvolume_create;
 		goto err3;
 	}
 
