@@ -487,7 +487,9 @@ static int ab8500_charger_get_ac_voltage(struct ab8500_charger *di)
 
 	/* Only measure voltage if the charger is connected */
 	if (di->ac.charger_connected) {
-		ret = iio_read_channel_processed(di->adc_main_charger_v, &vch);
+		/* Convert to microvolt, IIO returns millivolt */
+		ret = iio_read_channel_processed_scale(di->adc_main_charger_v,
+						       &vch, 1000);
 		if (ret < 0) {
 			dev_err(di->dev, "%s ADC conv failed,\n", __func__);
 			return ret;
@@ -495,8 +497,7 @@ static int ab8500_charger_get_ac_voltage(struct ab8500_charger *di)
 	} else {
 		vch = 0;
 	}
-	/* Convert to microvolt, IIO returns millivolt */
-	return vch * 1000;
+	return vch;
 }
 
 /**
@@ -541,7 +542,9 @@ static int ab8500_charger_get_vbus_voltage(struct ab8500_charger *di)
 
 	/* Only measure voltage if the charger is connected */
 	if (di->usb.charger_connected) {
-		ret = iio_read_channel_processed(di->adc_vbus_v, &vch);
+		/* Convert to microvolt, IIO returns millivolt */
+		ret = iio_read_channel_processed_scale(di->adc_vbus_v,
+						       &vch, 1000);
 		if (ret < 0) {
 			dev_err(di->dev, "%s ADC conv failed,\n", __func__);
 			return ret;
@@ -549,8 +552,7 @@ static int ab8500_charger_get_vbus_voltage(struct ab8500_charger *di)
 	} else {
 		vch = 0;
 	}
-	/* Convert to microvolt, IIO returns millivolt */
-	return vch * 1000;
+	return vch;
 }
 
 /**
@@ -566,7 +568,9 @@ static int ab8500_charger_get_usb_current(struct ab8500_charger *di)
 
 	/* Only measure current if the charger is online */
 	if (di->usb.charger_online) {
-		ret = iio_read_channel_processed(di->adc_usb_charger_c, &ich);
+		/* Return microamperes */
+		ret = iio_read_channel_processed_scale(di->adc_usb_charger_c,
+						       &ich, 1000);
 		if (ret < 0) {
 			dev_err(di->dev, "%s ADC conv failed,\n", __func__);
 			return ret;
@@ -574,8 +578,7 @@ static int ab8500_charger_get_usb_current(struct ab8500_charger *di)
 	} else {
 		ich = 0;
 	}
-	/* Return microamperes */
-	return ich * 1000;
+	return ich;
 }
 
 /**
@@ -591,7 +594,9 @@ static int ab8500_charger_get_ac_current(struct ab8500_charger *di)
 
 	/* Only measure current if the charger is online */
 	if (di->ac.charger_online) {
-		ret = iio_read_channel_processed(di->adc_main_charger_c, &ich);
+		/* Return microamperes */
+		ret = iio_read_channel_processed_scale(di->adc_main_charger_c,
+						       &ich, 1000);
 		if (ret < 0) {
 			dev_err(di->dev, "%s ADC conv failed,\n", __func__);
 			return ret;
@@ -599,8 +604,7 @@ static int ab8500_charger_get_ac_current(struct ab8500_charger *di)
 	} else {
 		ich = 0;
 	}
-	/* Return microamperes */
-	return ich * 1000;
+	return ich;
 }
 
 /**
