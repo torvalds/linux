@@ -573,7 +573,7 @@ int bpf_struct_ops_prepare_trampoline(struct bpf_tramp_links *tlinks,
 	}
 
 	size = arch_prepare_bpf_trampoline(NULL, image + image_off,
-					   image + PAGE_SIZE,
+					   image + image_off + size,
 					   model, flags, tlinks, stub_func);
 	if (size <= 0) {
 		if (image != *_image)
