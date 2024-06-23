@@ -26,7 +26,6 @@
 
 #define WIFI_NULL_STATE		0x00000000
 #define WIFI_ASOC_STATE		0x00000001		/*  Under Linked state... */
-#define WIFI_REASOC_STATE	0x00000002
 #define WIFI_SLEEP_STATE	0x00000004
 #define WIFI_STATION_STATE	0x00000008
 #define	WIFI_AP_STATE			0x00000010
@@ -35,25 +34,8 @@
 #define WIFI_UNDER_LINKING	0x00000080
 
 #define WIFI_UNDER_WPS			0x00000100
-/* define	WIFI_UNDER_CMD			0x00000200 */
-/* define	WIFI_UNDER_P2P			0x00000400 */
 #define	WIFI_STA_ALIVE_CHK_STATE	0x00000400
 #define	WIFI_SITE_MONITOR			0x00000800		/* to indicate the station is under site surveying */
-#ifdef WDS
-#define	WIFI_WDS				0x00001000
-#define	WIFI_WDS_RX_BEACON	0x00002000		/*  already rx WDS AP beacon */
-#endif
-#ifdef AUTO_CONFIG
-#define	WIFI_AUTOCONF			0x00004000
-#define	WIFI_AUTOCONF_IND	0x00008000
-#endif
-
-/**
-*  ========== P2P Section Start ===============
-#define	WIFI_P2P_LISTEN_STATE		0x00010000
-#define	WIFI_P2P_GROUP_FORMATION_STATE		0x00020000
-  ========== P2P Section End ===============
-*/
 
 /* ifdef UNDER_MPTEST */
 #define	WIFI_MP_STATE							0x00010000
@@ -62,7 +44,6 @@
 #define	WIFI_MP_CTX_BACKGROUND_PENDING	0x00080000	/*  pending in continuous tx background due to out of skb */
 #define	WIFI_MP_CTX_CCK_HW					0x00100000	/*  in continuous tx */
 #define	WIFI_MP_CTX_CCK_CS					0x00200000	/*  in continuous tx with carrier suppression */
-#define   WIFI_MP_LPBK_STATE					0x00400000
 /* endif */
 
 /* define _FW_UNDER_CMD		WIFI_UNDER_CMD */
@@ -114,10 +95,6 @@ may be called with the xmit_priv.lock held. In this case the order
 MUST always be first lock xmit_priv.lock and then call any queue functions
 which take __queue.lock.
 */
-
-
-#define traffic_threshold	10
-#define	traffic_scan_period	500
 
 struct sitesurvey_ctrl {
 	u64	last_tx_pkts;
