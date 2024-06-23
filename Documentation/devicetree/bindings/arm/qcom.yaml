@@ -210,6 +210,8 @@ properties:
               - asus,z00l
               - gplus,fl8005a
               - huawei,g7
+              - lg,c50
+              - lg,m216
               - longcheer,l8910
               - longcheer,l8150
               - motorola,harpia
