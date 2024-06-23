@@ -429,7 +429,7 @@
 		compatible = "rockchip,sfc";
 		reg = <0x1020c000 0x8000>;
 		interrupts = <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru SCLK_SFC>, <&cru 479>;
+		clocks = <&cru SCLK_SFC>, <&cru HCLK_SFC>;
 		clock-names = "clk_sfc", "hclk_sfc";
 		status = "disabled";
 	};
