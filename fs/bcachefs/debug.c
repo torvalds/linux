@@ -587,14 +587,10 @@ restart:
 		if (!task || task->pid <= i->iter)
 			continue;
 
-		closure_get(&trans->ref);
-		u32 seq = seqmutex_unlock(&c->btree_trans_lock);
+		if (!closure_get_not_zero(&trans->ref))
+			continue;
 
-		ret = flush_buf(i);
-		if (ret) {
-			closure_put(&trans->ref);
-			goto unlocked;
-		}
+		u32 seq = seqmutex_unlock(&c->btree_trans_lock);
 
 		bch2_btree_trans_to_text(&i->buf, trans);
 
@@ -604,9 +600,11 @@ restart:
 		printbuf_indent_sub(&i->buf, 2);
 		prt_newline(&i->buf);
 
-		i->iter = task->pid;
-
 		closure_put(&trans->ref);
+
+		ret = flush_buf(i);
+		if (ret)
+			goto unlocked;
 
 		if (!seqmutex_relock(&c->btree_trans_lock, seq))
 			goto restart;
@@ -817,7 +815,8 @@ restart:
 
 		iter = task->pid;
 
-		closure_get(&trans->ref);
+		if (!closure_get_not_zero(&trans->ref))
+			continue;
 
 		u32 seq = seqmutex_unlock(&c->btree_trans_lock);
 
