@@ -1310,15 +1310,15 @@ void bch2_sb_to_text(struct printbuf *out, struct bch_sb *sb,
 
 	prt_printf(out, "Device index:\t%u\n", sb->dev_idx);
 
-	prt_str(out, "Label:\t");
+	prt_printf(out, "Label:\t");
 	prt_printf(out, "%.*s", (int) sizeof(sb->label), sb->label);
 	prt_newline(out);
 
-	prt_str(out, "Version:\t");
+	prt_printf(out, "Version:\t");
 	bch2_version_to_text(out, le16_to_cpu(sb->version));
 	prt_newline(out);
 
-	prt_str(out, "Version upgrade complete:\t");
+	prt_printf(out, "Version upgrade complete:\t");
 	bch2_version_to_text(out, BCH_SB_VERSION_UPGRADE_COMPLETE(sb));
 	prt_newline(out);
 

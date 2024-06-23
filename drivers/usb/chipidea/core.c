@@ -1084,6 +1084,10 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	ret = ci_ulpi_init(ci);
+	if (ret)
+		return ret;
+
 	if (ci->platdata->phy) {
 		ci->phy = ci->platdata->phy;
 	} else if (ci->platdata->usb_phy) {
@@ -1137,10 +1141,6 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 		dev_err(dev, "unable to init phy: %d\n", ret);
 		goto ulpi_exit;
 	}
-
-	ret = ci_ulpi_init(ci);
-	if (ret)
-		return ret;
 
 	ci->hw_bank.phys = res->start;
 

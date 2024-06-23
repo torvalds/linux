@@ -136,6 +136,7 @@ config YOGABOOK
 config YT2_1380
 	tristate "Lenovo Yoga Tablet 2 1380 fast charge driver"
 	depends on SERIAL_DEV_BUS
+	depends on EXTCON
 	depends on ACPI
 	help
 	  Say Y here to enable support for the custom fast charging protocol

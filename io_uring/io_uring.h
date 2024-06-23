@@ -433,7 +433,7 @@ static inline bool io_file_can_poll(struct io_kiocb *req)
 {
 	if (req->flags & REQ_F_CAN_POLL)
 		return true;
-	if (file_can_poll(req->file)) {
+	if (req->file && file_can_poll(req->file)) {
 		req->flags |= REQ_F_CAN_POLL;
 		return true;
 	}
