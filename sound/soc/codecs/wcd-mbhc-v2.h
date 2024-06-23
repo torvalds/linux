@@ -279,7 +279,7 @@ int wcd_mbhc_typec_report_unplug(struct wcd_mbhc *mbhc);
 struct wcd_mbhc *wcd_mbhc_init(struct snd_soc_component *component,
 		      const struct wcd_mbhc_cb *mbhc_cb,
 		      const struct wcd_mbhc_intr *mbhc_cdc_intr_ids,
-		      struct wcd_mbhc_field *fields,
+		      const struct wcd_mbhc_field *fields,
 		      bool impedance_det_en);
 int wcd_mbhc_get_impedance(struct wcd_mbhc *mbhc, uint32_t *zl,
 			   uint32_t *zr);
@@ -300,7 +300,7 @@ static inline void wcd_mbhc_stop(struct wcd_mbhc *mbhc)
 static inline struct wcd_mbhc *wcd_mbhc_init(struct snd_soc_component *component,
 		      const struct wcd_mbhc_cb *mbhc_cb,
 		      const struct wcd_mbhc_intr *mbhc_cdc_intr_ids,
-		      struct wcd_mbhc_field *fields,
+		      const struct wcd_mbhc_field *fields,
 		      bool impedance_det_en)
 {
 	return ERR_PTR(-ENOTSUPP);

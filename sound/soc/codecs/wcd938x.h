@@ -642,10 +642,6 @@ enum wcd938x_rx_sdw_channels {
 	WCD938X_DSD_R,
 	WCD938X_DSD_L,
 };
-enum {
-	WCD938X_SDW_DIR_RX,
-	WCD938X_SDW_DIR_TX,
-};
 
 struct wcd938x_priv;
 struct wcd938x_sdw_priv {
@@ -653,10 +649,9 @@ struct wcd938x_sdw_priv {
 	struct sdw_stream_config sconfig;
 	struct sdw_stream_runtime *sruntime;
 	struct sdw_port_config port_config[WCD938X_MAX_SWR_PORTS];
-	struct wcd938x_sdw_ch_info *ch_info;
+	const struct wcd938x_sdw_ch_info *ch_info;
 	bool port_enable[WCD938X_MAX_SWR_CH_IDS];
 	int active_ports;
-	int num_ports;
 	bool is_tx;
 	struct wcd938x_priv *wcd938x;
 	struct irq_domain *slave_irq;

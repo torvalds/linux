@@ -99,11 +99,9 @@ struct wcd937x_priv {
 	s32 pullup_ref[WCD937X_MAX_MICBIAS];
 	u32 hph_mode;
 	int ear_rx_path;
-	u32 chipid;
 	u32 micb1_mv;
 	u32 micb2_mv;
 	u32 micb3_mv;
-	u32 micb4_mv; /* 9375 only */
 	int hphr_pdm_wd_int;
 	int hphl_pdm_wd_int;
 	int aux_pdm_wd_int;
@@ -113,9 +111,6 @@ struct wcd937x_priv {
 	struct gpio_desc *us_euro_gpio;
 	struct gpio_desc *reset_gpio;
 
-	int dmic_0_1_clk_cnt;
-	int dmic_2_3_clk_cnt;
-	int dmic_4_5_clk_cnt;
 	atomic_t rx_clk_cnt;
 	atomic_t ana_clk_count;
 };
@@ -133,7 +128,7 @@ struct wcd937x_mbhc_zdet_param {
 	u16 btn7;
 };
 
-static struct wcd_mbhc_field wcd_mbhc_fields[WCD_MBHC_REG_FUNC_MAX] = {
+static const struct wcd_mbhc_field wcd_mbhc_fields[WCD_MBHC_REG_FUNC_MAX] = {
 	WCD_MBHC_FIELD(WCD_MBHC_L_DET_EN, WCD937X_ANA_MBHC_MECH, 0x80),
 	WCD_MBHC_FIELD(WCD_MBHC_GND_DET_EN, WCD937X_ANA_MBHC_MECH, 0x40),
 	WCD_MBHC_FIELD(WCD_MBHC_MECH_DETECTION_TYPE, WCD937X_ANA_MBHC_MECH, 0x20),
@@ -227,7 +222,7 @@ static const u32 wcd937x_config_regs[] = {
 	WCD937X_DIGITAL_INTR_LEVEL_0,
 };
 
-static struct regmap_irq_chip wcd937x_regmap_irq_chip = {
+static const struct regmap_irq_chip wcd937x_regmap_irq_chip = {
 	.name = "wcd937x",
 	.irqs = wcd937x_irqs,
 	.num_irqs = ARRAY_SIZE(wcd937x_irqs),
@@ -1244,7 +1239,7 @@ static int wcd937x_codec_enable_micbias_pullup(struct snd_soc_dapm_widget *w,
 static int wcd937x_connect_port(struct wcd937x_sdw_priv *wcd, u8 port_idx, u8 ch_id, bool enable)
 {
 	struct sdw_port_config *port_config = &wcd->port_config[port_idx - 1];
-	struct wcd937x_sdw_ch_info *ch_info = &wcd->ch_info[ch_id];
+	const struct wcd937x_sdw_ch_info *ch_info = &wcd->ch_info[ch_id];
 	u8 port_num = ch_info->port_num;
 	u8 ch_mask = ch_info->ch_mask;
 
@@ -2503,7 +2498,7 @@ static irqreturn_t wcd937x_wd_handle_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static struct irq_chip wcd_irq_chip = {
+static const struct irq_chip wcd_irq_chip = {
 	.name = "WCD937x",
 };
 
@@ -2543,6 +2538,7 @@ static int wcd937x_soc_codec_probe(struct snd_soc_component *component)
 	struct device *dev = component->dev;
 	unsigned long time_left;
 	int i, ret;
+	u32 chipid;
 
 	time_left = wait_for_completion_timeout(&tx_sdw_dev->initialization_complete,
 						msecs_to_jiffies(5000));
@@ -2556,11 +2552,10 @@ static int wcd937x_soc_codec_probe(struct snd_soc_component *component)
 	if (ret < 0)
 		return ret;
 
-	wcd937x->chipid = (snd_soc_component_read(component,
-				WCD937X_DIGITAL_EFUSE_REG_0) & 0x1e) >> 1;
-	if (wcd937x->chipid != CHIPID_WCD9370 &&
-	    wcd937x->chipid != CHIPID_WCD9375) {
-		dev_err(dev, "Got unknown chip id: 0x%x\n", wcd937x->chipid);
+	chipid = (snd_soc_component_read(component,
+					 WCD937X_DIGITAL_EFUSE_REG_0) & 0x1e) >> 1;
+	if (chipid != CHIPID_WCD9370 && chipid != CHIPID_WCD9375) {
+		dev_err(dev, "Got unknown chip id: 0x%x\n", chipid);
 		pm_runtime_put(dev);
 		return -EINVAL;
 	}
@@ -2609,7 +2604,7 @@ static int wcd937x_soc_codec_probe(struct snd_soc_component *component)
 	disable_irq_nosync(wcd937x->hphl_pdm_wd_int);
 	disable_irq_nosync(wcd937x->aux_pdm_wd_int);
 
-	if (wcd937x->chipid == CHIPID_WCD9375) {
+	if (chipid == CHIPID_WCD9375) {
 		ret = snd_soc_dapm_new_controls(dapm, wcd9375_dapm_widgets,
 						ARRAY_SIZE(wcd9375_dapm_widgets));
 		if (ret < 0) {
