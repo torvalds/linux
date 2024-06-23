@@ -1921,7 +1921,7 @@ flags:
 
 If KVM_MSI_VALID_DEVID is set, devid contains a unique device identifier
 for the device that wrote the MSI message.  For PCI, this is usually a
-BFD identifier in the lower 16 bits.
+BDF identifier in the lower 16 bits.
 
 On x86, address_hi is ignored unless the KVM_X2APIC_API_USE_32BIT_IDS
 feature of KVM_CAP_X2APIC_API capability is enabled.  If it is enabled,
@@ -2986,7 +2986,7 @@ flags:
 
 If KVM_MSI_VALID_DEVID is set, devid contains a unique device identifier
 for the device that wrote the MSI message.  For PCI, this is usually a
-BFD identifier in the lower 16 bits.
+BDF identifier in the lower 16 bits.
 
 On x86, address_hi is ignored unless the KVM_X2APIC_API_USE_32BIT_IDS
 feature of KVM_CAP_X2APIC_API capability is enabled.  If it is enabled,
