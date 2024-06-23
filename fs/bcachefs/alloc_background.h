@@ -275,6 +275,7 @@ int bch2_trigger_alloc(struct btree_trans *, enum btree_id, unsigned,
 		       enum btree_iter_update_trigger_flags);
 int bch2_check_alloc_info(struct bch_fs *);
 int bch2_check_alloc_to_lru_refs(struct bch_fs *);
+void bch2_dev_do_discards(struct bch_dev *);
 void bch2_do_discards(struct bch_fs *);
 
 static inline u64 should_invalidate_buckets(struct bch_dev *ca,
@@ -289,6 +290,7 @@ static inline u64 should_invalidate_buckets(struct bch_dev *ca,
 	return clamp_t(s64, want_free - free, 0, u.d[BCH_DATA_cached].buckets);
 }
 
+void bch2_dev_do_invalidates(struct bch_dev *);
 void bch2_do_invalidates(struct bch_fs *);
 
 static inline struct bch_backpointer *alloc_v4_backpointers(struct bch_alloc_v4 *a)
@@ -312,7 +314,9 @@ u64 bch2_min_rw_member_capacity(struct bch_fs *);
 void bch2_dev_allocator_remove(struct bch_fs *, struct bch_dev *);
 void bch2_dev_allocator_add(struct bch_fs *, struct bch_dev *);
 
-void bch2_fs_allocator_background_exit(struct bch_fs *);
+void bch2_dev_allocator_background_exit(struct bch_dev *);
+void bch2_dev_allocator_background_init(struct bch_dev *);
+
 void bch2_fs_allocator_background_init(struct bch_fs *);
 
 #endif /* _BCACHEFS_ALLOC_BACKGROUND_H */
