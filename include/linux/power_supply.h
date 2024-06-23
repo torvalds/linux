@@ -736,7 +736,7 @@ struct power_supply_battery_info {
 	int overvoltage_limit_uv;
 	int constant_charge_current_max_ua;
 	int constant_charge_voltage_max_uv;
-	struct power_supply_maintenance_charge_table *maintenance_charge;
+	const struct power_supply_maintenance_charge_table *maintenance_charge;
 	int maintenance_charge_size;
 	int alert_low_temp_charge_current_ua;
 	int alert_low_temp_charge_voltage_uv;
@@ -810,7 +810,7 @@ power_supply_temp2resist_simple(struct power_supply_resistance_temp_table *table
 				int table_len, int temp);
 extern int power_supply_vbat2ri(struct power_supply_battery_info *info,
 				int vbat_uv, bool charging);
-extern struct power_supply_maintenance_charge_table *
+extern const struct power_supply_maintenance_charge_table *
 power_supply_get_maintenance_charging_setting(struct power_supply_battery_info *info, int index);
 extern bool power_supply_battery_bti_in_range(struct power_supply_battery_info *info,
 					      int resistance);
@@ -824,7 +824,7 @@ extern int power_supply_set_battery_charged(struct power_supply *psy);
 static inline bool
 power_supply_supports_maintenance_charging(struct power_supply_battery_info *info)
 {
-	struct power_supply_maintenance_charge_table *mt;
+	const struct power_supply_maintenance_charge_table *mt;
 
 	mt = power_supply_get_maintenance_charging_setting(info, 0);
 

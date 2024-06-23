@@ -613,7 +613,7 @@ static struct power_supply_battery_ocv_table samsung_ocv_cap_eb585157lu[] = {
 	{ .ocv = 3300000, .capacity = 0},
 };
 
-static struct power_supply_maintenance_charge_table samsung_maint_charge_table[] = {
+static const struct power_supply_maintenance_charge_table samsung_maint_charge_table[] = {
 	{
 		/* Maintenance charging phase A, 60 hours */
 		.charge_current_max_ua = 600000,
