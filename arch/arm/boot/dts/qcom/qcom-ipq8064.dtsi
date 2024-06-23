@@ -372,7 +372,7 @@
 			qcom,controller-type = "pmic-arbiter";
 		};
 
-		qfprom: qfprom@700000 {
+		qfprom: efuse@700000 {
 			compatible = "qcom,ipq8064-qfprom", "qcom,qfprom";
 			reg = <0x00700000 0x1000>;
 			#address-cells = <1>;

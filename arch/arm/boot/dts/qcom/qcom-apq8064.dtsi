@@ -666,7 +666,7 @@
 			qcom,controller-type = "pmic-arbiter";
 		};
 
-		qfprom: qfprom@700000 {
+		qfprom: efuse@700000 {
 			compatible = "qcom,apq8064-qfprom", "qcom,qfprom";
 			reg = <0x00700000 0x1000>;
 			#address-cells = <1>;
@@ -992,7 +992,7 @@
 			reg = <0x1a400000 0x100>;
 		};
 
-		gpu: adreno-3xx@4300000 {
+		gpu: gpu@4300000 {
 			compatible = "qcom,adreno-320.2", "qcom,adreno";
 			reg = <0x04300000 0x20000>;
 			reg-names = "kgsl_3d0_reg_memory";
