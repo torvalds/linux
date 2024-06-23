@@ -3149,15 +3149,10 @@ struct btree_trans *__bch2_trans_get(struct bch_fs *c, unsigned fn_idx)
 			BUG_ON(pos_task &&
 			       pid == pos_task->pid &&
 			       pos->locked);
-
-			if (pos_task && pid < pos_task->pid) {
-				list_add_tail(&trans->list, &pos->list);
-				goto list_add_done;
-			}
 		}
 	}
-	list_add_tail(&trans->list, &c->btree_trans_list);
-list_add_done:
+
+	list_add(&trans->list, &c->btree_trans_list);
 	seqmutex_unlock(&c->btree_trans_lock);
 got_trans:
 	trans->c		= c;

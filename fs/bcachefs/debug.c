@@ -568,6 +568,32 @@ static const struct file_operations cached_btree_nodes_ops = {
 	.read		= bch2_cached_btree_nodes_read,
 };
 
+typedef int (*list_cmp_fn)(const struct list_head *l, const struct list_head *r);
+
+static void list_sort(struct list_head *head, list_cmp_fn cmp)
+{
+	struct list_head *pos;
+
+	list_for_each(pos, head)
+		while (!list_is_last(pos, head) &&
+		       cmp(pos, pos->next) > 0) {
+			struct list_head *pos2, *next = pos->next;
+
+			list_del(next);
+			list_for_each(pos2, head)
+				if (cmp(next, pos2) < 0)
+					goto pos_found;
+			BUG();
+pos_found:
+			list_add_tail(next, pos2);
+		}
+}
+
+static int list_ptr_order_cmp(const struct list_head *l, const struct list_head *r)
+{
+	return cmp_int(l, r);
+}
+
 static ssize_t bch2_btree_transactions_read(struct file *file, char __user *buf,
 					    size_t size, loff_t *ppos)
 {
@@ -581,11 +607,13 @@ static ssize_t bch2_btree_transactions_read(struct file *file, char __user *buf,
 	i->ret	= 0;
 restart:
 	seqmutex_lock(&c->btree_trans_lock);
-	list_for_each_entry(trans, &c->btree_trans_list, list) {
-		struct task_struct *task = READ_ONCE(trans->locking_wait.task);
+	list_sort(&c->btree_trans_list, list_ptr_order_cmp);
 
-		if (!task || task->pid <= i->iter)
+	list_for_each_entry(trans, &c->btree_trans_list, list) {
+		if ((ulong) trans < i->iter)
 			continue;
+
+		i->iter = (ulong) trans;
 
 		if (!closure_get_not_zero(&trans->ref))
 			continue;
@@ -596,7 +624,7 @@ restart:
 
 		prt_printf(&i->buf, "backtrace:\n");
 		printbuf_indent_add(&i->buf, 2);
-		bch2_prt_task_backtrace(&i->buf, task, 0, GFP_KERNEL);
+		bch2_prt_task_backtrace(&i->buf, trans->locking_wait.task, 0, GFP_KERNEL);
 		printbuf_indent_sub(&i->buf, 2);
 		prt_newline(&i->buf);
 
