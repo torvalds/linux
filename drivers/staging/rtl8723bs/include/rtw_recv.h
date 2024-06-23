@@ -9,8 +9,6 @@
 
 #define NR_RECVBUFF (8)
 
-#define NR_PREALLOC_RECV_SKB (8)
-
 #define NR_RECVFRAME 256
 
 #define RXFRAME_ALIGN	8
@@ -18,20 +16,10 @@
 
 #define DRVINFO_SZ	4 /*  unit is 8bytes */
 
-#define MAX_RXFRAME_CNT	512
 #define MAX_RX_NUMBLKS		(32)
 #define RECVFRAME_HDR_ALIGN 128
 
-
-#define PHY_RSSI_SLID_WIN_MAX				100
-#define PHY_LINKQUALITY_SLID_WIN_MAX		20
-
-
 #define SNAP_SIZE sizeof(struct ieee80211_snap_hdr)
-
-#define RX_MPDU_QUEUE				0
-#define RX_CMD_QUEUE				1
-#define RX_MAX_QUEUE				2
 
 #define MAX_SUBFRAME_COUNT	64
 
@@ -178,7 +166,6 @@ struct rx_pkt_attrib	{
 #define RECVBUFF_ALIGN_SZ 8
 
 #define RXDESC_SIZE	24
-#define RXDESC_OFFSET RXDESC_SIZE
 
 struct recv_stat {
 	__le32 rxdw0;
@@ -190,8 +177,6 @@ struct recv_stat {
 	__le32 rxdw5;
 #endif /* if BUF_DESC_ARCH is defined, rx_buf_desc occupy 4 double words */
 };
-
-#define EOR BIT(30)
 
 /*
 accesser of recv_priv: rtw_recv_entry(dispatch / passive level); recv_thread(passive) ; returnpkt(dispatch)
@@ -363,7 +348,6 @@ extern union recv_frame *_rtw_alloc_recvframe(struct __queue *pfree_recv_queue);
 extern union recv_frame *rtw_alloc_recvframe(struct __queue *pfree_recv_queue);  /* get a free recv_frame from pfree_recv_queue */
 extern int	 rtw_free_recvframe(union recv_frame *precvframe, struct __queue *pfree_recv_queue);
 
-#define rtw_dequeue_recvframe(queue) rtw_alloc_recvframe(queue)
 extern int _rtw_enqueue_recvframe(union recv_frame *precvframe, struct __queue *queue);
 extern int rtw_enqueue_recvframe(union recv_frame *precvframe, struct __queue *queue);
 
