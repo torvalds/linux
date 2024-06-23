@@ -22,6 +22,8 @@
 
 #include "core.h"
 
+#include <trace/events/firewire.h>
+
 /*
  * Isochronous DMA context management
  */
@@ -148,12 +150,20 @@ struct fw_iso_context *fw_iso_context_create(struct fw_card *card,
 	ctx->callback.sc = callback;
 	ctx->callback_data = callback_data;
 
+	trace_isoc_outbound_allocate(ctx, channel, speed);
+	trace_isoc_inbound_single_allocate(ctx, channel, header_size);
+	trace_isoc_inbound_multiple_allocate(ctx);
+
 	return ctx;
 }
 EXPORT_SYMBOL(fw_iso_context_create);
 
 void fw_iso_context_destroy(struct fw_iso_context *ctx)
 {
+	trace_isoc_outbound_destroy(ctx);
+	trace_isoc_inbound_single_destroy(ctx);
+	trace_isoc_inbound_multiple_destroy(ctx);
+
 	ctx->card->driver->free_iso_context(ctx);
 }
 EXPORT_SYMBOL(fw_iso_context_destroy);

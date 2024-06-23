@@ -436,6 +436,111 @@ TRACE_EVENT(self_id_sequence,
 #undef PHY_PACKET_SELF_ID_GET_POWER_CLASS
 #undef PHY_PACKET_SELF_ID_GET_INITIATED_RESET
 
+TRACE_EVENT_CONDITION(isoc_outbound_allocate,
+	TP_PROTO(const struct fw_iso_context *ctx, unsigned int channel, unsigned int scode),
+	TP_ARGS(ctx, channel, scode),
+	TP_CONDITION(ctx->type == FW_ISO_CONTEXT_TRANSMIT),
+	TP_STRUCT__entry(
+		__field(u64, context)
+		__field(u8, card_index)
+		__field(u8, channel)
+		__field(u8, scode)
+	),
+	TP_fast_assign(
+		__entry->context = (uintptr_t)ctx;
+		__entry->card_index = ctx->card->index;
+		__entry->channel = channel;
+		__entry->scode = scode;
+	),
+	TP_printk(
+		"context=0x%llx card_index=%u channel=%u scode=%u",
+		__entry->context,
+		__entry->card_index,
+		__entry->channel,
+		__entry->scode
+	)
+);
+
+TRACE_EVENT_CONDITION(isoc_inbound_single_allocate,
+	TP_PROTO(const struct fw_iso_context *ctx, unsigned int channel, unsigned int header_size),
+	TP_ARGS(ctx, channel, header_size),
+	TP_CONDITION(ctx->type == FW_ISO_CONTEXT_RECEIVE),
+	TP_STRUCT__entry(
+		__field(u64, context)
+		__field(u8, card_index)
+		__field(u8, channel)
+		__field(u8, header_size)
+	),
+	TP_fast_assign(
+		__entry->context = (uintptr_t)ctx;
+		__entry->card_index = ctx->card->index;
+		__entry->channel = channel;
+		__entry->header_size = header_size;
+	),
+	TP_printk(
+		"context=0x%llx card_index=%u channel=%u header_size=%u",
+		__entry->context,
+		__entry->card_index,
+		__entry->channel,
+		__entry->header_size
+	)
+);
+
+TRACE_EVENT_CONDITION(isoc_inbound_multiple_allocate,
+	TP_PROTO(const struct fw_iso_context *ctx),
+	TP_ARGS(ctx),
+	TP_CONDITION(ctx->type == FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL),
+	TP_STRUCT__entry(
+		__field(u64, context)
+		__field(u8, card_index)
+	),
+	TP_fast_assign(
+		__entry->context = (uintptr_t)ctx;
+		__entry->card_index = ctx->card->index;
+	),
+	TP_printk(
+		"context=0x%llx card_index=%u",
+		__entry->context,
+		__entry->card_index
+	)
+);
+
+DECLARE_EVENT_CLASS(isoc_destroy_template,
+	TP_PROTO(const struct fw_iso_context *ctx),
+	TP_ARGS(ctx),
+	TP_STRUCT__entry(
+		__field(u64, context)
+		__field(u8, card_index)
+	),
+	TP_fast_assign(
+		__entry->context = (uintptr_t)ctx;
+		__entry->card_index = ctx->card->index;
+	),
+	TP_printk(
+		"context=0x%llx card_index=%u",
+		__entry->context,
+		__entry->card_index
+	)
+)
+
+DEFINE_EVENT_CONDITION(isoc_destroy_template, isoc_outbound_destroy,
+	TP_PROTO(const struct fw_iso_context *ctx),
+	TP_ARGS(ctx),
+	TP_CONDITION(ctx->type == FW_ISO_CONTEXT_TRANSMIT)
+);
+
+DEFINE_EVENT_CONDITION(isoc_destroy_template, isoc_inbound_single_destroy,
+	TP_PROTO(const struct fw_iso_context *ctx),
+	TP_ARGS(ctx),
+	TP_CONDITION(ctx->type == FW_ISO_CONTEXT_RECEIVE)
+);
+
+DEFINE_EVENT_CONDITION(isoc_destroy_template, isoc_inbound_multiple_destroy,
+	TP_PROTO(const struct fw_iso_context *ctx),
+	TP_ARGS(ctx),
+	TP_CONDITION(ctx->type == FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL)
+);
+
 #undef QUADLET_SIZE
 
 #endif // _FIREWIRE_TRACE_EVENT_H
