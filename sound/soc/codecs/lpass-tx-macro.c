@@ -1167,7 +1167,7 @@ static int tx_macro_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int tx_macro_get_channel_map(struct snd_soc_dai *dai,
+static int tx_macro_get_channel_map(const struct snd_soc_dai *dai,
 				    unsigned int *tx_num, unsigned int *tx_slot,
 				    unsigned int *rx_num, unsigned int *rx_slot)
 {

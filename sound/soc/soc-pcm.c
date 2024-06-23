@@ -504,7 +504,7 @@ static void soc_pcm_apply_msb(struct snd_pcm_substream *substream)
 	unsigned int bits = 0, cpu_bits = 0;
 
 	for_each_rtd_codec_dais(rtd, i, codec_dai) {
-		struct snd_soc_pcm_stream *pcm_codec = snd_soc_dai_get_pcm_stream(codec_dai, stream);
+		const struct snd_soc_pcm_stream *pcm_codec = snd_soc_dai_get_pcm_stream(codec_dai, stream);
 
 		if (pcm_codec->sig_bits == 0) {
 			bits = 0;
@@ -514,7 +514,7 @@ static void soc_pcm_apply_msb(struct snd_pcm_substream *substream)
 	}
 
 	for_each_rtd_cpu_dais(rtd, i, cpu_dai) {
-		struct snd_soc_pcm_stream *pcm_cpu = snd_soc_dai_get_pcm_stream(cpu_dai, stream);
+		const struct snd_soc_pcm_stream *pcm_cpu = snd_soc_dai_get_pcm_stream(cpu_dai, stream);
 
 		if (pcm_cpu->sig_bits == 0) {
 			cpu_bits = 0;
@@ -538,7 +538,7 @@ static void soc_pcm_hw_init(struct snd_pcm_hardware *hw)
 }
 
 static void soc_pcm_hw_update_rate(struct snd_pcm_hardware *hw,
-				   struct snd_soc_pcm_stream *p)
+				   const struct snd_soc_pcm_stream *p)
 {
 	hw->rates = snd_pcm_rate_mask_intersect(hw->rates, p->rates);
 
@@ -551,20 +551,20 @@ static void soc_pcm_hw_update_rate(struct snd_pcm_hardware *hw,
 }
 
 static void soc_pcm_hw_update_chan(struct snd_pcm_hardware *hw,
-				   struct snd_soc_pcm_stream *p)
+				   const struct snd_soc_pcm_stream *p)
 {
 	hw->channels_min = max(hw->channels_min, p->channels_min);
 	hw->channels_max = min(hw->channels_max, p->channels_max);
 }
 
 static void soc_pcm_hw_update_format(struct snd_pcm_hardware *hw,
-				     struct snd_soc_pcm_stream *p)
+				     const struct snd_soc_pcm_stream *p)
 {
 	hw->formats &= p->formats;
 }
 
 static void soc_pcm_hw_update_subformat(struct snd_pcm_hardware *hw,
-					struct snd_soc_pcm_stream *p)
+					const struct snd_soc_pcm_stream *p)
 {
 	hw->subformats &= p->subformats;
 }
@@ -583,8 +583,8 @@ int snd_soc_runtime_calc_hw(struct snd_soc_pcm_runtime *rtd,
 {
 	struct snd_soc_dai *codec_dai;
 	struct snd_soc_dai *cpu_dai;
-	struct snd_soc_pcm_stream *codec_stream;
-	struct snd_soc_pcm_stream *cpu_stream;
+	const struct snd_soc_pcm_stream *codec_stream;
+	const struct snd_soc_pcm_stream *cpu_stream;
 	unsigned int cpu_chan_min = 0, cpu_chan_max = UINT_MAX;
 	int i;
 
@@ -1712,7 +1712,7 @@ static void dpcm_runtime_setup_fe(struct snd_pcm_substream *substream)
 		hw->formats &= formats;
 
 	for_each_rtd_cpu_dais(fe, i, dai) {
-		struct snd_soc_pcm_stream *cpu_stream;
+		const struct snd_soc_pcm_stream *cpu_stream;
 
 		/*
 		 * Skip CPUs which don't support the current stream
@@ -1750,7 +1750,7 @@ static void dpcm_runtime_setup_be_format(struct snd_pcm_substream *substream)
 
 	for_each_dpcm_be(fe, stream, dpcm) {
 		struct snd_soc_pcm_runtime *be = dpcm->be;
-		struct snd_soc_pcm_stream *codec_stream;
+		const struct snd_soc_pcm_stream *codec_stream;
 		int i;
 
 		for_each_rtd_codec_dais(be, i, dai) {
@@ -1787,7 +1787,7 @@ static void dpcm_runtime_setup_be_chan(struct snd_pcm_substream *substream)
 
 	for_each_dpcm_be(fe, stream, dpcm) {
 		struct snd_soc_pcm_runtime *be = dpcm->be;
-		struct snd_soc_pcm_stream *cpu_stream;
+		const struct snd_soc_pcm_stream *cpu_stream;
 		struct snd_soc_dai *dai;
 		int i;
 
@@ -1809,7 +1809,7 @@ static void dpcm_runtime_setup_be_chan(struct snd_pcm_substream *substream)
 		 * DAIs connected to a single CPU DAI, use CPU DAI's directly
 		 */
 		if (be->dai_link->num_codecs == 1) {
-			struct snd_soc_pcm_stream *codec_stream = snd_soc_dai_get_pcm_stream(
+			const struct snd_soc_pcm_stream *codec_stream = snd_soc_dai_get_pcm_stream(
 				snd_soc_rtd_to_codec(be, 0), stream);
 
 			soc_pcm_hw_update_chan(hw, codec_stream);
@@ -1835,7 +1835,7 @@ static void dpcm_runtime_setup_be_rate(struct snd_pcm_substream *substream)
 
 	for_each_dpcm_be(fe, stream, dpcm) {
 		struct snd_soc_pcm_runtime *be = dpcm->be;
-		struct snd_soc_pcm_stream *pcm;
+		const struct snd_soc_pcm_stream *pcm;
 		struct snd_soc_dai *dai;
 		int i;
 
