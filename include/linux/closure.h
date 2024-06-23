@@ -285,6 +285,21 @@ static inline void closure_get(struct closure *cl)
 }
 
 /**
+ * closure_get_not_zero
+ */
+static inline bool closure_get_not_zero(struct closure *cl)
+{
+	unsigned old = atomic_read(&cl->remaining);
+	do {
+		if (!(old & CLOSURE_REMAINING_MASK))
+			return false;
+
+	} while (!atomic_try_cmpxchg_acquire(&cl->remaining, &old, old + 1));
+
+	return true;
+}
+
+/**
  * closure_init - Initialize a closure, setting the refcount to 1
  * @cl:		closure to initialize
  * @parent:	parent of the new closure. cl will take a refcount on it for its
@@ -308,6 +323,12 @@ static inline void closure_init_stack(struct closure *cl)
 {
 	memset(cl, 0, sizeof(struct closure));
 	atomic_set(&cl->remaining, CLOSURE_REMAINING_INITIALIZER);
+}
+
+static inline void closure_init_stack_release(struct closure *cl)
+{
+	memset(cl, 0, sizeof(struct closure));
+	atomic_set_release(&cl->remaining, CLOSURE_REMAINING_INITIALIZER);
 }
 
 /**
@@ -354,6 +375,8 @@ do {									\
  * thought of as returning to the parent closure.
  */
 #define closure_return(_cl)	continue_at((_cl), NULL, NULL)
+
+void closure_return_sync(struct closure *cl);
 
 /**
  * continue_at_nobarrier - jump to another function without barrier
