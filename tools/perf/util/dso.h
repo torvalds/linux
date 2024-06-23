@@ -809,4 +809,8 @@ void reset_fd_limit(void);
 u64 dso__find_global_type(struct dso *dso, u64 addr);
 u64 dso__findnew_global_type(struct dso *dso, u64 addr, u64 offset);
 
+/* Check if dso name is of format "/tmp/perf-%d.map" */
+bool perf_pid_map_tid(const char *dso_name, int *tid);
+bool is_perf_pid_map_name(const char *dso_name);
+
 #endif /* __PERF_DSO */
