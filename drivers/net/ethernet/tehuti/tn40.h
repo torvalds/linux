@@ -140,6 +140,8 @@ struct tn40_priv {
 	u32 b0_len;
 	dma_addr_t b0_dma; /* Physical address of buffer */
 	char *b0_va; /* Virtual address of buffer */
+
+	struct mii_bus *mdio;
 };
 
 /* RX FREE descriptor - 64bit */
@@ -216,5 +218,7 @@ static inline void tn40_write_reg(struct tn40_priv *priv, u32 reg, u32 val)
 {
 	writel(val, priv->regs + reg);
 }
+
+int tn40_mdiobus_init(struct tn40_priv *priv);
 
 #endif /* _TN40XX_H */
