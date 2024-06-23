@@ -43,6 +43,8 @@
 #include "packet-header-definitions.h"
 #include "phy-packet-definitions.h"
 
+#include <trace/events/firewire.h>
+
 #define ohci_info(ohci, f, args...)	dev_info(ohci->card.device, f, ##args)
 #define ohci_notice(ohci, f, args...)	dev_notice(ohci->card.device, f, ##args)
 #define ohci_err(ohci, f, args...)	dev_err(ohci->card.device, f, ##args)
