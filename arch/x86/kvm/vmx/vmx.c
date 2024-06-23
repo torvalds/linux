@@ -74,6 +74,7 @@
 #include "posted_intr.h"
 
 MODULE_AUTHOR("Qumranet");
+MODULE_DESCRIPTION("KVM support for VMX (Intel VT-x) extensions");
 MODULE_LICENSE("GPL");
 
 #ifdef MODULE
