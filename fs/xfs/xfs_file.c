@@ -213,14 +213,18 @@ xfs_ilock_iocb_for_write(
 	if (ret)
 		return ret;
 
-	if (*lock_mode == XFS_IOLOCK_EXCL)
-		return 0;
-	if (!xfs_iflags_test(ip, XFS_IREMAPPING))
-		return 0;
+	/*
+	 * If a reflink remap is in progress we always need to take the iolock
+	 * exclusively to wait for it to finish.
+	 */
+	if (*lock_mode == XFS_IOLOCK_SHARED &&
+	    xfs_iflags_test(ip, XFS_IREMAPPING)) {
+		xfs_iunlock(ip, *lock_mode);
+		*lock_mode = XFS_IOLOCK_EXCL;
+		return xfs_ilock_iocb(iocb, *lock_mode);
+	}
 
-	xfs_iunlock(ip, *lock_mode);
-	*lock_mode = XFS_IOLOCK_EXCL;
-	return xfs_ilock_iocb(iocb, *lock_mode);
+	return 0;
 }
 
 static unsigned int
