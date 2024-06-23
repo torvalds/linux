@@ -742,6 +742,85 @@ DEFINE_EVENT_CONDITION(isoc_flush_completions_template, isoc_inbound_multiple_fl
 	TP_CONDITION(ctx->type == FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL)
 );
 
+#define TP_STRUCT__entry_iso_packet(ctx, buffer_offset, packet)				\
+	TP_STRUCT__entry(								\
+		__field(u64, context)							\
+		__field(u8, card_index)							\
+		__field(u32, buffer_offset)						\
+		__field(bool, interrupt)						\
+		__field(bool, skip)							\
+		__field(u8, sy)								\
+		__field(u8, tag)							\
+		__dynamic_array(u32, header, packet->header_length / QUADLET_SIZE)	\
+	)
+
+#define TP_fast_assign_iso_packet(ctx, buffer_offset, packet)		\
+	TP_fast_assign(							\
+		__entry->context = (uintptr_t)ctx;			\
+		__entry->card_index = ctx->card->index;			\
+		__entry->buffer_offset = buffer_offset;			\
+		__entry->interrupt = packet->interrupt;			\
+		__entry->skip = packet->skip;				\
+		__entry->sy = packet->sy;				\
+		__entry->tag = packet->tag;				\
+		memcpy(__get_dynamic_array(header), packet->header,	\
+		       __get_dynamic_array_len(header));		\
+	)
+
+TRACE_EVENT_CONDITION(isoc_outbound_queue,
+	TP_PROTO(const struct fw_iso_context *ctx, unsigned long buffer_offset, const struct fw_iso_packet *packet),
+	TP_ARGS(ctx, buffer_offset, packet),
+	TP_CONDITION(ctx->type == FW_ISO_CONTEXT_TRANSMIT),
+	TP_STRUCT__entry_iso_packet(ctx, buffer_offset, packet),
+	TP_fast_assign_iso_packet(ctx, buffer_offset, packet),
+	TP_printk(
+		"context=0x%llx card_index=%u buffer_offset=0x%x interrupt=%s skip=%s sy=%d tag=%u header=%s",
+		__entry->context,
+		__entry->card_index,
+		__entry->buffer_offset,
+		__entry->interrupt ? "true" : "false",
+		__entry->skip ? "true" : "false",
+		__entry->sy,
+		__entry->tag,
+		__print_array(__get_dynamic_array(header),
+			      __get_dynamic_array_len(header) / QUADLET_SIZE, QUADLET_SIZE)
+	)
+);
+
+TRACE_EVENT_CONDITION(isoc_inbound_single_queue,
+	TP_PROTO(const struct fw_iso_context *ctx, unsigned long buffer_offset, const struct fw_iso_packet *packet),
+	TP_ARGS(ctx, buffer_offset, packet),
+	TP_CONDITION(ctx->type == FW_ISO_CONTEXT_RECEIVE),
+	TP_STRUCT__entry_iso_packet(ctx, buffer_offset, packet),
+	TP_fast_assign_iso_packet(ctx, buffer_offset, packet),
+	TP_printk(
+		"context=0x%llx card_index=%u buffer_offset=0x%x interrupt=%s skip=%s",
+		__entry->context,
+		__entry->card_index,
+		__entry->buffer_offset,
+		__entry->interrupt ? "true" : "false",
+		__entry->skip ? "true" : "false"
+	)
+);
+
+TRACE_EVENT_CONDITION(isoc_inbound_multiple_queue,
+	TP_PROTO(const struct fw_iso_context *ctx, unsigned long buffer_offset, const struct fw_iso_packet *packet),
+	TP_ARGS(ctx, buffer_offset, packet),
+	TP_CONDITION(ctx->type == FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL),
+	TP_STRUCT__entry_iso_packet(ctx, buffer_offset, packet),
+	TP_fast_assign_iso_packet(ctx, buffer_offset, packet),
+	TP_printk(
+		"context=0x%llx card_index=%u buffer_offset=0x%x interrupt=%s",
+		__entry->context,
+		__entry->card_index,
+		__entry->buffer_offset,
+		__entry->interrupt ? "true" : "false"
+	)
+);
+
+#undef TP_STRUCT__entry_iso_packet
+#undef TP_fast_assign_iso_packet
+
 #undef QUADLET_SIZE
 
 #endif // _FIREWIRE_TRACE_EVENT_H

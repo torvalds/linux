@@ -191,6 +191,10 @@ int fw_iso_context_queue(struct fw_iso_context *ctx,
 			 struct fw_iso_buffer *buffer,
 			 unsigned long payload)
 {
+	trace_isoc_outbound_queue(ctx, payload, packet);
+	trace_isoc_inbound_single_queue(ctx, payload, packet);
+	trace_isoc_inbound_multiple_queue(ctx, payload, packet);
+
 	return ctx->card->driver->queue_iso(ctx, packet, buffer, payload);
 }
 EXPORT_SYMBOL(fw_iso_context_queue);
