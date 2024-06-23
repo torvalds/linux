@@ -197,6 +197,10 @@ EXPORT_SYMBOL(fw_iso_context_queue);
 
 void fw_iso_context_queue_flush(struct fw_iso_context *ctx)
 {
+	trace_isoc_outbound_flush(ctx);
+	trace_isoc_inbound_single_flush(ctx);
+	trace_isoc_inbound_multiple_flush(ctx);
+
 	ctx->card->driver->flush_queue_iso(ctx);
 }
 EXPORT_SYMBOL(fw_iso_context_queue_flush);
