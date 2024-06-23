@@ -555,6 +555,30 @@ static struct em28xx_reg_seq hauppauge_usb_quadhd_atsc_reg_seq[] = {
 };
 
 /*
+ * MyGica USB TV Box
+ * GPIO_1,0: 00=Composite audio
+ *           01=Tuner audio
+ *           10=Mute audio
+ *           11=FM radio? (if equipped)
+ * GPIO_2-6: Unused
+ * GPIO_7:   ??
+ */
+static const struct em28xx_reg_seq mygica_utv3_composite_audio_gpio[] = {
+	{EM2820_R08_GPIO_CTRL, 0xfc, 0xff, 0},
+	{ -1, -1, -1, -1},
+};
+
+static const struct em28xx_reg_seq mygica_utv3_tuner_audio_gpio[] = {
+	{EM2820_R08_GPIO_CTRL, 0xfd, 0xff, 0},
+	{ -1, -1, -1, -1},
+};
+
+static const struct em28xx_reg_seq mygica_utv3_suspend_gpio[] = {
+	{EM2820_R08_GPIO_CTRL, 0xfe, 0xff, 0},
+	{ -1, -1, -1, -1},
+};
+
+/*
  *  Button definitions
  */
 static const struct em28xx_button std_snapshot_button[] = {
@@ -2578,6 +2602,32 @@ const struct em28xx_board em28xx_boards[] = {
 		.tuner_gpio    = hauppauge_usb_quadhd_atsc_reg_seq,
 		.leds          = hauppauge_usb_quadhd_leds,
 	},
+	/*
+	 * eb1a:2860 MyGica UTV3 Analog USB2.0 TV Box
+	 * Empia EM2860, Philips SAA7113, NXP TDA9801T demod,
+	 * Tena TNF931D-DFDR1 tuner (contains NXP TDA6509A),
+	 * ST HCF4052 demux (switches audio to line out),
+	 * no audio over USB
+	 */
+	[EM2860_BOARD_MYGICA_UTV3] = {
+		.name         = "MyGica UTV3 Analog USB2.0 TV Box",
+		.xclk         = EM28XX_XCLK_IR_RC5_MODE | EM28XX_XCLK_FREQUENCY_12MHZ,
+		.tuner_type   = TUNER_TENA_TNF_931D_DFDR1,
+		.ir_codes     = RC_MAP_MYGICA_UTV3,
+		.decoder      = EM28XX_SAA711X,
+		.suspend_gpio = mygica_utv3_suspend_gpio,
+		.input        = { {
+			.type     = EM28XX_VMUX_COMPOSITE,
+			.vmux     = SAA7115_COMPOSITE0,
+			.amux     = EM28XX_AMUX_VIDEO,
+			.gpio     = mygica_utv3_composite_audio_gpio,
+		}, {
+			.type     = EM28XX_VMUX_TELEVISION,
+			.vmux     = SAA7115_COMPOSITE2,
+			.amux     = EM28XX_AMUX_VIDEO,
+			.gpio     = mygica_utv3_tuner_audio_gpio,
+		} },
+	},
 };
 EXPORT_SYMBOL_GPL(em28xx_boards);
 
@@ -2819,6 +2869,7 @@ static const struct em28xx_hash_table em28xx_eeprom_hash[] = {
 	{0x63f653bd, EM2870_BOARD_REDDO_DVB_C_USB_BOX, TUNER_ABSENT},
 	{0x4e913442, EM2882_BOARD_DIKOM_DK300, TUNER_XC2028},
 	{0x85dd871e, EM2882_BOARD_ZOLID_HYBRID_TV_STICK, TUNER_XC2028},
+	{0x8f597549, EM2860_BOARD_MYGICA_UTV3, TUNER_TENA_TNF_931D_DFDR1},
 };
 
 /* I2C devicelist hash table for devices with generic USB IDs */
@@ -2831,6 +2882,7 @@ static const struct em28xx_hash_table em28xx_i2c_hash[] = {
 	{0x4ba50080, EM2861_BOARD_GADMEI_UTV330PLUS, TUNER_TNF_5335MF},
 	{0x6b800080, EM2874_BOARD_LEADERSHIP_ISDBT, TUNER_ABSENT},
 	{0x27e10080, EM2882_BOARD_ZOLID_HYBRID_TV_STICK, TUNER_XC2028},
+	{0x840d0484, EM2860_BOARD_MYGICA_UTV3, TUNER_TENA_TNF_931D_DFDR1},
 };
 
 /* NOTE: introduce a separate hash table for devices with 16 bit eeproms */
