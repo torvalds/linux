@@ -1252,7 +1252,7 @@ xfs_file_llseek(
 }
 
 static inline vm_fault_t
-xfs_dax_fault(
+xfs_dax_fault_locked(
 	struct vm_fault		*vmf,
 	unsigned int		order,
 	bool			write_fault)
@@ -1273,6 +1273,45 @@ xfs_dax_fault(
 	return ret;
 }
 
+static vm_fault_t
+xfs_dax_read_fault(
+	struct vm_fault		*vmf,
+	unsigned int		order)
+{
+	struct xfs_inode	*ip = XFS_I(file_inode(vmf->vma->vm_file));
+	unsigned int		lock_mode;
+	vm_fault_t		ret;
+
+	lock_mode = xfs_ilock_for_write_fault(ip);
+	ret = xfs_dax_fault_locked(vmf, order, false);
+	xfs_iunlock(ip, lock_mode);
+
+	return ret;
+}
+
+static vm_fault_t
+xfs_write_fault(
+	struct vm_fault		*vmf,
+	unsigned int		order)
+{
+	struct inode		*inode = file_inode(vmf->vma->vm_file);
+	unsigned int		lock_mode;
+	vm_fault_t		ret;
+
+	sb_start_pagefault(inode->i_sb);
+	file_update_time(vmf->vma->vm_file);
+
+	lock_mode = xfs_ilock_for_write_fault(XFS_I(inode));
+	if (IS_DAX(inode))
+		ret = xfs_dax_fault_locked(vmf, order, true);
+	else
+		ret = iomap_page_mkwrite(vmf, &xfs_page_mkwrite_iomap_ops);
+	xfs_iunlock(XFS_I(inode), lock_mode);
+
+	sb_end_pagefault(inode->i_sb);
+	return ret;
+}
+
 /*
  * Locking for serialisation of IO during page faults. This results in a lock
  * ordering of:
@@ -1290,34 +1329,14 @@ __xfs_filemap_fault(
 	bool			write_fault)
 {
 	struct inode		*inode = file_inode(vmf->vma->vm_file);
-	struct xfs_inode	*ip = XFS_I(inode);
-	vm_fault_t		ret;
-	unsigned int		lock_mode = 0;
 
-	trace_xfs_filemap_fault(ip, order, write_fault);
-
-	if (write_fault) {
-		sb_start_pagefault(inode->i_sb);
-		file_update_time(vmf->vma->vm_file);
-	}
-
-	if (IS_DAX(inode) || write_fault)
-		lock_mode = xfs_ilock_for_write_fault(XFS_I(inode));
-
-	if (IS_DAX(inode)) {
-		ret = xfs_dax_fault(vmf, order, write_fault);
-	} else if (write_fault) {
-		ret = iomap_page_mkwrite(vmf, &xfs_page_mkwrite_iomap_ops);
-	} else {
-		ret = filemap_fault(vmf);
-	}
-
-	if (lock_mode)
-		xfs_iunlock(XFS_I(inode), lock_mode);
+	trace_xfs_filemap_fault(XFS_I(inode), order, write_fault);
 
 	if (write_fault)
-		sb_end_pagefault(inode->i_sb);
-	return ret;
+		return xfs_write_fault(vmf, order);
+	if (IS_DAX(inode))
+		return xfs_dax_read_fault(vmf, order);
+	return filemap_fault(vmf);
 }
 
 static inline bool
