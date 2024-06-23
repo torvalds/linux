@@ -26,6 +26,7 @@ config TEHUTI
 config TEHUTI_TN40
 	tristate "Tehuti Networks TN40xx 10G Ethernet adapters"
 	depends on PCI
+	select PAGE_POOL
 	select FW_LOADER
 	help
 	  This driver supports 10G Ethernet adapters using Tehuti Networks
