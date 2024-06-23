@@ -1024,7 +1024,7 @@ EXPORT_SYMBOL_GPL(power_supply_temp2resist_simple);
 int power_supply_vbat2ri(struct power_supply_battery_info *info,
 			 int vbat_uv, bool charging)
 {
-	struct power_supply_vbat_ri_table *vbat2ri;
+	const struct power_supply_vbat_ri_table *vbat2ri;
 	int table_len;
 	int i, high, low;
 

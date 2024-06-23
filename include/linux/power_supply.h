@@ -755,9 +755,9 @@ struct power_supply_battery_info {
 	int ocv_table_size[POWER_SUPPLY_OCV_TEMP_MAX];
 	struct power_supply_resistance_temp_table *resist_table;
 	int resist_table_size;
-	struct power_supply_vbat_ri_table *vbat2ri_discharging;
+	const struct power_supply_vbat_ri_table *vbat2ri_discharging;
 	int vbat2ri_discharging_size;
-	struct power_supply_vbat_ri_table *vbat2ri_charging;
+	const struct power_supply_vbat_ri_table *vbat2ri_charging;
 	int vbat2ri_charging_size;
 	int bti_resistance_ohm;
 	int bti_resistance_tolerance;
