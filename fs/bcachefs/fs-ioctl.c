@@ -308,8 +308,8 @@ static int bch2_ioc_goingdown(struct bch_fs *c, u32 __user *arg)
 	return ret;
 }
 
-static long __bch2_ioctl_subvolume_create(struct bch_fs *c, struct file *filp,
-					  struct bch_ioctl_subvolume arg)
+static long bch2_ioctl_subvolume_create(struct bch_fs *c, struct file *filp,
+					struct bch_ioctl_subvolume arg)
 {
 	struct inode *dir;
 	struct bch_inode_info *inode;
@@ -406,9 +406,12 @@ retry:
 	    !arg.src_ptr)
 		snapshot_src.subvol = inode_inum(to_bch_ei(dir)).subvol;
 
+	down_write(&c->snapshot_create_lock);
 	inode = __bch2_create(file_mnt_idmap(filp), to_bch_ei(dir),
 			      dst_dentry, arg.mode|S_IFDIR,
 			      0, snapshot_src, create_flags);
+	up_write(&c->snapshot_create_lock);
+
 	error = PTR_ERR_OR_ZERO(inode);
 	if (error)
 		goto err3;
@@ -427,16 +430,6 @@ err2:
 	}
 err1:
 	return error;
-}
-
-static long bch2_ioctl_subvolume_create(struct bch_fs *c, struct file *filp,
-					struct bch_ioctl_subvolume arg)
-{
-	down_write(&c->snapshot_create_lock);
-	long ret = __bch2_ioctl_subvolume_create(c, filp, arg);
-	up_write(&c->snapshot_create_lock);
-
-	return ret;
 }
 
 static long bch2_ioctl_subvolume_destroy(struct bch_fs *c, struct file *filp,

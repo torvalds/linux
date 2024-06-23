@@ -137,7 +137,7 @@ int bch2_bkey_pick_read_device(struct bch_fs *c, struct bkey_s_c k,
 
 		struct bch_dev *ca = bch2_dev_rcu(c, p.ptr.dev);
 
-		if (p.ptr.cached && (!ca || dev_ptr_stale(ca, &p.ptr)))
+		if (p.ptr.cached && (!ca || dev_ptr_stale_rcu(ca, &p.ptr)))
 			continue;
 
 		f = failed ? dev_io_failures(failed, p.ptr.dev) : NULL;
@@ -999,7 +999,7 @@ bool bch2_extent_normalize(struct bch_fs *c, struct bkey_s k)
 	bch2_bkey_drop_ptrs(k, ptr,
 		ptr->cached &&
 		(ca = bch2_dev_rcu(c, ptr->dev)) &&
-		dev_ptr_stale_rcu(ca, ptr));
+		dev_ptr_stale_rcu(ca, ptr) > 0);
 	rcu_read_unlock();
 
 	return bkey_deleted(k.k);
@@ -1024,8 +1024,11 @@ void bch2_extent_ptr_to_text(struct printbuf *out, struct bch_fs *c, const struc
 			prt_str(out, " cached");
 		if (ptr->unwritten)
 			prt_str(out, " unwritten");
-		if (bucket_valid(ca, b) && dev_ptr_stale_rcu(ca, ptr))
+		int stale = dev_ptr_stale_rcu(ca, ptr);
+		if (stale > 0)
 			prt_printf(out, " stale");
+		else if (stale)
+			prt_printf(out, " invalid");
 	}
 	rcu_read_unlock();
 	--out->atomic;
