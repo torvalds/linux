@@ -569,7 +569,7 @@ static int bch2_trigger_pointer(struct btree_trans *trans,
 	*sectors = insert ? bp.bucket_len : -((s64) bp.bucket_len);
 
 	if (flags & BTREE_TRIGGER_transactional) {
-		struct bkey_i_alloc_v4 *a = bch2_trans_start_alloc_update(trans, bucket);
+		struct bkey_i_alloc_v4 *a = bch2_trans_start_alloc_update(trans, bucket, 0);
 		ret = PTR_ERR_OR_ZERO(a) ?:
 			__mark_pointer(trans, ca, k, &p, *sectors, bp.data_type, &a->v);
 		if (ret)

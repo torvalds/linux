@@ -477,7 +477,8 @@ err:
 }
 
 __flatten
-struct bkey_i_alloc_v4 *bch2_trans_start_alloc_update(struct btree_trans *trans, struct bpos pos)
+struct bkey_i_alloc_v4 *bch2_trans_start_alloc_update(struct btree_trans *trans, struct bpos pos,
+						      enum btree_iter_update_trigger_flags flags)
 {
 	struct btree_iter iter;
 	struct bkey_i_alloc_v4 *a = bch2_trans_start_alloc_update_noupdate(trans, &iter, pos);
@@ -485,7 +486,7 @@ struct bkey_i_alloc_v4 *bch2_trans_start_alloc_update(struct btree_trans *trans,
 	if (ret)
 		return ERR_PTR(ret);
 
-	ret = bch2_trans_update(trans, &iter, &a->k_i, 0);
+	ret = bch2_trans_update(trans, &iter, &a->k_i, flags);
 	bch2_trans_iter_exit(trans, &iter);
 	return unlikely(ret) ? ERR_PTR(ret) : a;
 }
@@ -2006,7 +2007,7 @@ static int invalidate_one_bucket(struct btree_trans *trans,
 	if (bch2_bucket_is_open_safe(c, bucket.inode, bucket.offset))
 		return 0;
 
-	a = bch2_trans_start_alloc_update(trans, bucket);
+	a = bch2_trans_start_alloc_update(trans, bucket, BTREE_TRIGGER_bucket_invalidate);
 	ret = PTR_ERR_OR_ZERO(a);
 	if (ret)
 		goto out;

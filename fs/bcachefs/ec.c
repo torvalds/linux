@@ -283,7 +283,7 @@ static int mark_stripe_bucket(struct btree_trans *trans,
 
 	if (flags & BTREE_TRIGGER_transactional) {
 		struct bkey_i_alloc_v4 *a =
-			bch2_trans_start_alloc_update(trans, bucket);
+			bch2_trans_start_alloc_update(trans, bucket, 0);
 		ret = PTR_ERR_OR_ZERO(a) ?:
 			__mark_stripe_bucket(trans, ca, s, ptr_idx, deleting, bucket, &a->v, flags);
 	}
