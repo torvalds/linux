@@ -85,7 +85,7 @@ static DEFINE_SPINLOCK(pers_lock);
 
 static const struct kobj_type md_ktype;
 
-struct md_cluster_operations *md_cluster_ops;
+const struct md_cluster_operations *md_cluster_ops;
 EXPORT_SYMBOL(md_cluster_ops);
 static struct module *md_cluster_mod;
 
@@ -8543,7 +8543,7 @@ int unregister_md_personality(struct md_personality *p)
 }
 EXPORT_SYMBOL(unregister_md_personality);
 
-int register_md_cluster_operations(struct md_cluster_operations *ops,
+int register_md_cluster_operations(const struct md_cluster_operations *ops,
 				   struct module *module)
 {
 	int ret = 0;
