@@ -5893,7 +5893,7 @@ __bpf_kfunc u32 scx_bpf_cpuperf_cur(s32 cpu)
  * use. Consult hardware and cpufreq documentation for more information. The
  * current performance level can be monitored using scx_bpf_cpuperf_cur().
  */
-__bpf_kfunc void scx_bpf_cpuperf_set(u32 cpu, u32 perf)
+__bpf_kfunc void scx_bpf_cpuperf_set(s32 cpu, u32 perf)
 {
 	if (unlikely(perf > SCX_CPUPERF_ONE)) {
 		scx_ops_error("Invalid cpuperf target %u for CPU %d", perf, cpu);
