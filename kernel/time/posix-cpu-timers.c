@@ -614,6 +614,8 @@ static void cpu_timer_fire(struct k_itimer *timer)
 	}
 }
 
+static void __posix_cpu_timer_get(struct k_itimer *timer, struct itimerspec64 *itp, u64 now);
+
 /*
  * Guts of sys_timer_settime for CPU timers.
  * This is called with the timer locked and interrupts disabled.
@@ -623,7 +625,6 @@ static void cpu_timer_fire(struct k_itimer *timer)
 static int posix_cpu_timer_set(struct k_itimer *timer, int timer_flags,
 			       struct itimerspec64 *new, struct itimerspec64 *old)
 {
-	bool sigev_none = timer->it_sigev_notify == SIGEV_NONE;
 	clockid_t clkid = CPUCLOCK_WHICH(timer->it_clock);
 	u64 old_expires, new_expires, old_incr, val;
 	struct cpu_timer *ctmr = &timer->it.cpu;
@@ -689,37 +690,11 @@ static int posix_cpu_timer_set(struct k_itimer *timer, int timer_flags,
 	else
 		val = cpu_clock_sample_group(clkid, p, true);
 
+	/* Retrieve the previous expiry value if requested. */
 	if (old) {
-		if (old_expires == 0) {
-			old->it_value.tv_sec = 0;
-			old->it_value.tv_nsec = 0;
-		} else {
-			/*
-			 * Update the timer in case it has overrun already.
-			 * If it has, we'll report it as having overrun and
-			 * with the next reloaded timer already ticking,
-			 * though we are swallowing that pending
-			 * notification here to install the new setting.
-			 */
-			u64 exp = bump_cpu_timer(timer, val);
-
-			if (val < exp) {
-				old_expires = exp - val;
-				old->it_value = ns_to_timespec64(old_expires);
-			} else {
-				/*
-				 * A single shot SIGEV_NONE timer must return 0, when it is
-				 * expired! Timers which have a real signal delivery mode
-				 * must return a remaining time greater than 0 because the
-				 * signal has not yet been delivered.
-				 */
-				if (sigev_none)
-					old->it_value.tv_nsec = 0;
-				else
-					old->it_value.tv_nsec = 1;
-				old->it_value.tv_sec = 0;
-			}
-		}
+		old->it_value = (struct timespec64){ };
+		if (old_expires)
+			__posix_cpu_timer_get(timer, old, val);
 	}
 
 	if (unlikely(ret)) {
