@@ -575,7 +575,6 @@ static ssize_t bch2_btree_transactions_read(struct file *file, char __user *buf,
 	struct bch_fs *c = i->c;
 	struct btree_trans *trans;
 	ssize_t ret = 0;
-	u32 seq;
 
 	i->ubuf = buf;
 	i->size	= size;
@@ -589,8 +588,7 @@ restart:
 			continue;
 
 		closure_get(&trans->ref);
-		seq = seqmutex_seq(&c->btree_trans_lock);
-		seqmutex_unlock(&c->btree_trans_lock);
+		u32 seq = seqmutex_unlock(&c->btree_trans_lock);
 
 		ret = flush_buf(i);
 		if (ret) {
@@ -811,7 +809,6 @@ static ssize_t bch2_btree_deadlock_read(struct file *file, char __user *buf,
 	struct bch_fs *c = i->c;
 	struct btree_trans *trans;
 	ssize_t ret = 0;
-	u32 seq;
 
 	i->ubuf = buf;
 	i->size	= size;
@@ -828,8 +825,7 @@ restart:
 			continue;
 
 		closure_get(&trans->ref);
-		seq = seqmutex_seq(&c->btree_trans_lock);
-		seqmutex_unlock(&c->btree_trans_lock);
+		u32 seq = seqmutex_unlock(&c->btree_trans_lock);
 
 		ret = flush_buf(i);
 		if (ret) {
