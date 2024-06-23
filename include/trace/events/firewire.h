@@ -821,6 +821,84 @@ TRACE_EVENT_CONDITION(isoc_inbound_multiple_queue,
 #undef TP_STRUCT__entry_iso_packet
 #undef TP_fast_assign_iso_packet
 
+#ifndef show_cause
+enum fw_iso_context_completions_cause {
+	FW_ISO_CONTEXT_COMPLETIONS_CAUSE_FLUSH = 0,
+	FW_ISO_CONTEXT_COMPLETIONS_CAUSE_IRQ,
+	FW_ISO_CONTEXT_COMPLETIONS_CAUSE_HEADER_OVERFLOW,
+};
+#define show_cause(cause) 								\
+	__print_symbolic(cause,								\
+		{ FW_ISO_CONTEXT_COMPLETIONS_CAUSE_FLUSH, "FLUSH" },			\
+		{ FW_ISO_CONTEXT_COMPLETIONS_CAUSE_IRQ, "IRQ" },			\
+		{ FW_ISO_CONTEXT_COMPLETIONS_CAUSE_HEADER_OVERFLOW, "HEADER_OVERFLOW" }	\
+	)
+#endif
+
+DECLARE_EVENT_CLASS(isoc_single_completions_template,
+	TP_PROTO(const struct fw_iso_context *ctx, u16 timestamp, enum fw_iso_context_completions_cause cause, const u32 *header, unsigned int header_length),
+	TP_ARGS(ctx, timestamp, cause, header, header_length),
+	TP_STRUCT__entry(
+		__field(u64, context)
+		__field(u8, card_index)
+		__field(u16, timestamp)
+		__field(u8, cause)
+		__dynamic_array(u32, header, header_length / QUADLET_SIZE)
+	),
+	TP_fast_assign(
+		__entry->context = (uintptr_t)ctx;
+		__entry->card_index = ctx->card->index;
+		__entry->timestamp = timestamp;
+		__entry->cause = cause;
+		memcpy(__get_dynamic_array(header), header, __get_dynamic_array_len(header));
+	),
+	TP_printk(
+		"context=0x%llx card_index=%u timestap=0x%04x cause=%s header=%s",
+		__entry->context,
+		__entry->card_index,
+		__entry->timestamp,
+		show_cause(__entry->cause),
+		__print_array(__get_dynamic_array(header),
+			      __get_dynamic_array_len(header) / QUADLET_SIZE, QUADLET_SIZE)
+	)
+)
+
+DEFINE_EVENT_CONDITION(isoc_single_completions_template, isoc_outbound_completions,
+	TP_PROTO(const struct fw_iso_context *ctx, u16 timestamp, enum fw_iso_context_completions_cause cause, const u32 *header, unsigned int header_length),
+	TP_ARGS(ctx, timestamp, cause, header, header_length),
+	TP_CONDITION(ctx->type == FW_ISO_CONTEXT_TRANSMIT)
+);
+
+DEFINE_EVENT_CONDITION(isoc_single_completions_template, isoc_inbound_single_completions,
+	TP_PROTO(const struct fw_iso_context *ctx, u16 timestamp, enum fw_iso_context_completions_cause cause, const u32 *header, unsigned int header_length),
+	TP_ARGS(ctx, timestamp, cause, header, header_length),
+	TP_CONDITION(ctx->type == FW_ISO_CONTEXT_RECEIVE)
+);
+
+TRACE_EVENT(isoc_inbound_multiple_completions,
+	TP_PROTO(const struct fw_iso_context *ctx, unsigned int completed, enum fw_iso_context_completions_cause cause),
+	TP_ARGS(ctx, completed, cause),
+	TP_STRUCT__entry(
+		__field(u64, context)
+		__field(u8, card_index)
+		__field(u16, completed)
+		__field(u8, cause)
+	),
+	TP_fast_assign(
+		__entry->context = (uintptr_t)ctx;
+		__entry->card_index = ctx->card->index;
+		__entry->completed = completed;
+		__entry->cause = cause;
+	),
+	TP_printk(
+		"context=0x%llx card_index=%u comleted=%u cause=%s",
+		__entry->context,
+		__entry->card_index,
+		__entry->completed,
+		show_cause(__entry->cause)
+	)
+);
+
 #undef QUADLET_SIZE
 
 #endif // _FIREWIRE_TRACE_EVENT_H

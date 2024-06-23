@@ -20,4 +20,8 @@ void copy_port_status(u8 *port_status, unsigned int port_capacity,
 			self_id_sequence_get_port_status(self_id_sequence, quadlet_count, port_index);
 	}
 }
+
+EXPORT_TRACEPOINT_SYMBOL_GPL(isoc_inbound_single_completions);
+EXPORT_TRACEPOINT_SYMBOL_GPL(isoc_inbound_multiple_completions);
+EXPORT_TRACEPOINT_SYMBOL_GPL(isoc_outbound_completions);
 #endif
