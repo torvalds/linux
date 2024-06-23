@@ -541,6 +541,27 @@ DEFINE_EVENT_CONDITION(isoc_destroy_template, isoc_inbound_multiple_destroy,
 	TP_CONDITION(ctx->type == FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL)
 );
 
+TRACE_EVENT(isoc_inbound_multiple_channels,
+	TP_PROTO(const struct fw_iso_context *ctx, u64 channels),
+	TP_ARGS(ctx, channels),
+	TP_STRUCT__entry(
+		__field(u64, context)
+		__field(u8, card_index)
+		__field(u64, channels)
+	),
+	TP_fast_assign(
+		__entry->context = (uintptr_t)ctx;
+		__entry->card_index = ctx->card->index;
+		__entry->channels = channels;
+	),
+	TP_printk(
+		"context=0x%llx card_index=%u channels=0x%016llx",
+		__entry->context,
+		__entry->card_index,
+		__entry->channels
+	)
+);
+
 #undef QUADLET_SIZE
 
 #endif // _FIREWIRE_TRACE_EVENT_H

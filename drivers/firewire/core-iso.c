@@ -177,6 +177,8 @@ EXPORT_SYMBOL(fw_iso_context_start);
 
 int fw_iso_context_set_channels(struct fw_iso_context *ctx, u64 *channels)
 {
+	trace_isoc_inbound_multiple_channels(ctx, *channels);
+
 	return ctx->card->driver->set_iso_channels(ctx, channels);
 }
 
