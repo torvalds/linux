@@ -31,6 +31,7 @@ dtb-$(CONFIG_ARCH_QCOM)	+= msm8916-alcatel-idol347.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= msm8916-asus-z00l.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= msm8916-gplus-fl8005a.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= msm8916-huawei-g7.dtb
+dtb-$(CONFIG_ARCH_QCOM)	+= msm8916-lg-c50.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= msm8916-lg-m216.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= msm8916-longcheer-l8150.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= msm8916-longcheer-l8910.dtb
