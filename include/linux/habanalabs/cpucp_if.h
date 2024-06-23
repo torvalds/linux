@@ -1425,9 +1425,11 @@ struct cpucp_monitor_dump {
  * from "pkt_subidx" field in struct cpucp_packet.
  *
  * HL_PASSTHROUGHT_VERSIONS	- Fetch all firmware versions.
+ * HL_GET_ERR_COUNTERS_CMD	- Command to get error counters
  */
 enum hl_passthrough_type {
 	HL_PASSTHROUGH_VERSIONS,
+	HL_GET_ERR_COUNTERS_CMD,
 };
 
 #endif /* CPUCP_IF_H */
