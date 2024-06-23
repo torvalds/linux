@@ -57,6 +57,21 @@ bool msi_lib_init_dev_msi_info(struct device *dev, struct irq_domain *domain,
 			return false;
 
 		break;
+	case DOMAIN_BUS_DEVICE_MSI:
+		/*
+		 * Per device MSI should never have any MSI feature bits
+		 * set. It's sole purpose is to create a dumb interrupt
+		 * chip which has a device specific irq_write_msi_msg()
+		 * callback.
+		 */
+		if (WARN_ON_ONCE(info->flags))
+			return false;
+
+		/* Core managed MSI descriptors */
+		info->flags = MSI_FLAG_ALLOC_SIMPLE_MSI_DESCS | MSI_FLAG_FREE_MSI_DESCS;
+		/* Remove PCI specific flags */
+		required_flags &= ~MSI_FLAG_PCI_MSI_MASK_PARENT;
+		break;
 	default:
 		/*
 		 * This should never be reached. See
