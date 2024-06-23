@@ -802,48 +802,54 @@ static const struct file_operations btree_transaction_stats_op = {
 	.read		= btree_transaction_stats_read,
 };
 
+/* walk btree transactions until we find a deadlock and print it */
+static void btree_deadlock_to_text(struct printbuf *out, struct bch_fs *c)
+{
+	struct btree_trans *trans;
+	pid_t iter = 0;
+restart:
+	seqmutex_lock(&c->btree_trans_lock);
+	list_for_each_entry(trans, &c->btree_trans_list, list) {
+		struct task_struct *task = READ_ONCE(trans->locking_wait.task);
+
+		if (!task || task->pid <= iter)
+			continue;
+
+		iter = task->pid;
+
+		closure_get(&trans->ref);
+
+		u32 seq = seqmutex_unlock(&c->btree_trans_lock);
+
+		bool found = bch2_check_for_deadlock(trans, out) != 0;
+
+		closure_put(&trans->ref);
+
+		if (found)
+			return;
+
+		if (!seqmutex_relock(&c->btree_trans_lock, seq))
+			goto restart;
+	}
+	seqmutex_unlock(&c->btree_trans_lock);
+}
+
 static ssize_t bch2_btree_deadlock_read(struct file *file, char __user *buf,
 					    size_t size, loff_t *ppos)
 {
 	struct dump_iter *i = file->private_data;
 	struct bch_fs *c = i->c;
-	struct btree_trans *trans;
 	ssize_t ret = 0;
 
 	i->ubuf = buf;
 	i->size	= size;
 	i->ret	= 0;
 
-	if (i->iter)
-		goto out;
-restart:
-	seqmutex_lock(&c->btree_trans_lock);
-	list_for_each_entry(trans, &c->btree_trans_list, list) {
-		struct task_struct *task = READ_ONCE(trans->locking_wait.task);
-
-		if (!task || task->pid <= i->iter)
-			continue;
-
-		closure_get(&trans->ref);
-		u32 seq = seqmutex_unlock(&c->btree_trans_lock);
-
-		ret = flush_buf(i);
-		if (ret) {
-			closure_put(&trans->ref);
-			goto out;
-		}
-
-		bch2_check_for_deadlock(trans, &i->buf);
-
-		i->iter = task->pid;
-
-		closure_put(&trans->ref);
-
-		if (!seqmutex_relock(&c->btree_trans_lock, seq))
-			goto restart;
+	if (!i->iter) {
+		btree_deadlock_to_text(&i->buf, c);
+		i->iter++;
 	}
-	seqmutex_unlock(&c->btree_trans_lock);
-out:
+
 	if (i->buf.allocation_failure)
 		ret = -ENOMEM;
 
