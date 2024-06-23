@@ -78,6 +78,7 @@ static enum trans_regime compute_translation_regime(struct kvm_vcpu *vcpu, u32 o
 	switch (op) {
 	case OP_AT_S1E2R:
 	case OP_AT_S1E2W:
+	case OP_AT_S1E2A:
 		return vcpu_el2_e2h_is_set(vcpu) ? TR_EL20 : TR_EL2;
 		break;
 	default:
@@ -852,6 +853,9 @@ static u64 handle_at_slow(struct kvm_vcpu *vcpu, u32 op, u64 vaddr)
 	case OP_AT_S1E0W:
 		perm_fail = !uw;
 		break;
+	case OP_AT_S1E1A:
+	case OP_AT_S1E2A:
+		break;
 	default:
 		BUG();
 	}
@@ -935,6 +939,9 @@ skip_mmu_switch:
 	case OP_AT_S1E0W:
 		fail = __kvm_at(OP_AT_S1E0W, vaddr);
 		break;
+	case OP_AT_S1E1A:
+		fail = __kvm_at(OP_AT_S1E1A, vaddr);
+		break;
 	default:
 		WARN_ON_ONCE(1);
 		fail = true;
@@ -1009,6 +1016,9 @@ void __kvm_at_s1e2(struct kvm_vcpu *vcpu, u32 op, u64 vaddr)
 			break;
 		case OP_AT_S1E2W:
 			fail = __kvm_at(OP_AT_S1E1W, vaddr);
+			break;
+		case OP_AT_S1E2A:
+			fail = __kvm_at(OP_AT_S1E1A, vaddr);
 			break;
 		default:
 			WARN_ON_ONCE(1);
