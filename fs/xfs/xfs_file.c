@@ -1279,12 +1279,11 @@ xfs_dax_read_fault(
 	unsigned int		order)
 {
 	struct xfs_inode	*ip = XFS_I(file_inode(vmf->vma->vm_file));
-	unsigned int		lock_mode;
 	vm_fault_t		ret;
 
-	lock_mode = xfs_ilock_for_write_fault(ip);
+	xfs_ilock(ip, XFS_MMAPLOCK_SHARED);
 	ret = xfs_dax_fault_locked(vmf, order, false);
-	xfs_iunlock(ip, lock_mode);
+	xfs_iunlock(ip, XFS_MMAPLOCK_SHARED);
 
 	return ret;
 }
