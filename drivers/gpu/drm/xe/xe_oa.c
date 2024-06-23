@@ -1684,6 +1684,7 @@ static const xe_oa_user_extension_fn xe_oa_user_extension_funcs[] = {
 	[DRM_XE_OA_EXTENSION_SET_PROPERTY] = xe_oa_user_ext_set_property,
 };
 
+#define MAX_USER_EXTENSIONS	16
 static int xe_oa_user_extensions(struct xe_oa *oa, u64 extension, int ext_number,
 				 struct xe_oa_open_param *param)
 {
@@ -1692,7 +1693,7 @@ static int xe_oa_user_extensions(struct xe_oa *oa, u64 extension, int ext_number
 	int err;
 	u32 idx;
 
-	if (XE_IOCTL_DBG(oa->xe, ext_number >= DRM_XE_OA_PROPERTY_MAX))
+	if (XE_IOCTL_DBG(oa->xe, ext_number >= MAX_USER_EXTENSIONS))
 		return -E2BIG;
 
 	err = __copy_from_user(&ext, address, sizeof(ext));

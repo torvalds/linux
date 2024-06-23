@@ -1379,8 +1379,8 @@ struct drm_xe_wait_user_fence {
  * enum drm_xe_perf_type - Perf stream types
  */
 enum drm_xe_perf_type {
+	/** @DRM_XE_PERF_TYPE_OA: OA perf stream type */
 	DRM_XE_PERF_TYPE_OA,
-	__DRM_XE_PERF_TYPE_MAX, /* non-ABI */
 };
 
 /**
@@ -1611,9 +1611,6 @@ enum drm_xe_oa_property_id {
 	 * pass along with @DRM_XE_OA_PROPERTY_EXEC_QUEUE_ID or will default to 0.
 	 */
 	DRM_XE_OA_PROPERTY_OA_ENGINE_INSTANCE,
-
-	/** @DRM_XE_OA_PROPERTY_MAX: non-ABI */
-	DRM_XE_OA_PROPERTY_MAX
 };
 
 /**
