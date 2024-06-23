@@ -436,6 +436,21 @@
 	};
 };
 
+&i2c4 {
+	i2c-scl-rising-time-ns = <600>;
+	i2c-scl-falling-time-ns = <20>;
+	status = "okay";
+
+	/* Accelerometer/gyroscope */
+	mpu6500@68 {
+		compatible = "invensense,mpu6500";
+		reg = <0x68>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <RK_PC6 IRQ_TYPE_LEVEL_LOW>;
+		vddio-supply = <&vcc_1v8>;
+	};
+};
+
 &cluster0_opp {
 	opp04 {
 		status = "disabled";
