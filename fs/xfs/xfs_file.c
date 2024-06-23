@@ -1251,31 +1251,27 @@ xfs_file_llseek(
 	return vfs_setpos(file, offset, inode->i_sb->s_maxbytes);
 }
 
-#ifdef CONFIG_FS_DAX
 static inline vm_fault_t
 xfs_dax_fault(
 	struct vm_fault		*vmf,
 	unsigned int		order,
-	bool			write_fault,
-	pfn_t			*pfn)
+	bool			write_fault)
 {
-	return dax_iomap_fault(vmf, order, pfn, NULL,
+	vm_fault_t		ret;
+	pfn_t			pfn;
+
+	if (!IS_ENABLED(CONFIG_FS_DAX)) {
+		ASSERT(0);
+		return VM_FAULT_SIGBUS;
+	}
+	ret = dax_iomap_fault(vmf, order, &pfn, NULL,
 			(write_fault && !vmf->cow_page) ?
 				&xfs_dax_write_iomap_ops :
 				&xfs_read_iomap_ops);
+	if (ret & VM_FAULT_NEEDDSYNC)
+		ret = dax_finish_sync_fault(vmf, order, pfn);
+	return ret;
 }
-#else
-static inline vm_fault_t
-xfs_dax_fault(
-	struct vm_fault		*vmf,
-	unsigned int		order,
-	bool			write_fault,
-	pfn_t			*pfn)
-{
-	ASSERT(0);
-	return VM_FAULT_SIGBUS;
-}
-#endif
 
 /*
  * Locking for serialisation of IO during page faults. This results in a lock
@@ -1309,11 +1305,7 @@ __xfs_filemap_fault(
 		lock_mode = xfs_ilock_for_write_fault(XFS_I(inode));
 
 	if (IS_DAX(inode)) {
-		pfn_t pfn;
-
-		ret = xfs_dax_fault(vmf, order, write_fault, &pfn);
-		if (ret & VM_FAULT_NEEDDSYNC)
-			ret = dax_finish_sync_fault(vmf, order, pfn);
+		ret = xfs_dax_fault(vmf, order, write_fault);
 	} else if (write_fault) {
 		ret = iomap_page_mkwrite(vmf, &xfs_page_mkwrite_iomap_ops);
 	} else {
