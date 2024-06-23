@@ -5,11 +5,18 @@
 BPF Instruction Set Architecture (ISA)
 ======================================
 
-eBPF (which is no longer an acronym for anything), also commonly
+eBPF, also commonly
 referred to as BPF, is a technology with origins in the Linux kernel
 that can run untrusted programs in a privileged context such as an
 operating system kernel. This document specifies the BPF instruction
 set architecture (ISA).
+
+As a historical note, BPF originally stood for Berkeley Packet Filter,
+but now that it can do so much more than packet filtering, the acronym
+no longer makes sense. BPF is now considered a standalone term that
+does not stand for anything.  The original BPF is sometimes referred to
+as cBPF (classic BPF) to distinguish it from the now widely deployed
+eBPF (extended BPF).
 
 Documentation conventions
 =========================
@@ -18,7 +25,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
 "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
 "OPTIONAL" in this document are to be interpreted as described in
 BCP 14 `<https://www.rfc-editor.org/info/rfc2119>`_
-`RFC8174 <https://www.rfc-editor.org/info/rfc8174>`_
+`<https://www.rfc-editor.org/info/rfc8174>`_
 when, and only when, they appear in all capitals, as shown here.
 
 For brevity and consistency, this document refers to families
@@ -59,24 +66,18 @@ numbers.
 
 Functions
 ---------
-* htobe16: Takes an unsigned 16-bit number in host-endian format and
-  returns the equivalent number as an unsigned 16-bit number in big-endian
-  format.
-* htobe32: Takes an unsigned 32-bit number in host-endian format and
-  returns the equivalent number as an unsigned 32-bit number in big-endian
-  format.
-* htobe64: Takes an unsigned 64-bit number in host-endian format and
-  returns the equivalent number as an unsigned 64-bit number in big-endian
-  format.
-* htole16: Takes an unsigned 16-bit number in host-endian format and
-  returns the equivalent number as an unsigned 16-bit number in little-endian
-  format.
-* htole32: Takes an unsigned 32-bit number in host-endian format and
-  returns the equivalent number as an unsigned 32-bit number in little-endian
-  format.
-* htole64: Takes an unsigned 64-bit number in host-endian format and
-  returns the equivalent number as an unsigned 64-bit number in little-endian
-  format.
+
+The following byteswap functions are direction-agnostic.  That is,
+the same function is used for conversion in either direction discussed
+below.
+
+* be16: Takes an unsigned 16-bit number and converts it between
+  host byte order and big-endian
+  (`IEN137 <https://www.rfc-editor.org/ien/ien137.txt>`_) byte order.
+* be32: Takes an unsigned 32-bit number and converts it between
+  host byte order and big-endian byte order.
+* be64: Takes an unsigned 64-bit number and converts it between
+  host byte order and big-endian byte order.
 * bswap16: Takes an unsigned 16-bit number in either big- or little-endian
   format and returns the equivalent number with the same bit width but
   opposite endianness.
@@ -86,7 +87,12 @@ Functions
 * bswap64: Takes an unsigned 64-bit number in either big- or little-endian
   format and returns the equivalent number with the same bit width but
   opposite endianness.
-
+* le16: Takes an unsigned 16-bit number and converts it between
+  host byte order and little-endian byte order.
+* le32: Takes an unsigned 32-bit number and converts it between
+  host byte order and little-endian byte order.
+* le64: Takes an unsigned 64-bit number and converts it between
+  host byte order and little-endian byte order.
 
 Definitions
 -----------
@@ -437,8 +443,8 @@ and MUST be set to 0.
   =====  ========  =====  =================================================
   class  source    value  description
   =====  ========  =====  =================================================
-  ALU    TO_LE     0      convert between host byte order and little endian
-  ALU    TO_BE     1      convert between host byte order and big endian
+  ALU    LE        0      convert between host byte order and little endian
+  ALU    BE        1      convert between host byte order and big endian
   ALU64  Reserved  0      do byte swap unconditionally
   =====  ========  =====  =================================================
 
@@ -449,19 +455,19 @@ conformance group.
 
 Examples:
 
-``{END, TO_LE, ALU}`` with 'imm' = 16/32/64 means::
+``{END, LE, ALU}`` with 'imm' = 16/32/64 means::
 
-  dst = htole16(dst)
-  dst = htole32(dst)
-  dst = htole64(dst)
+  dst = le16(dst)
+  dst = le32(dst)
+  dst = le64(dst)
 
-``{END, TO_BE, ALU}`` with 'imm' = 16/32/64 means::
+``{END, BE, ALU}`` with 'imm' = 16/32/64 means::
 
-  dst = htobe16(dst)
-  dst = htobe32(dst)
-  dst = htobe64(dst)
+  dst = be16(dst)
+  dst = be32(dst)
+  dst = be64(dst)
 
-``{END, TO_LE, ALU64}`` with 'imm' = 16/32/64 means::
+``{END, TO, ALU64}`` with 'imm' = 16/32/64 means::
 
   dst = bswap16(dst)
   dst = bswap32(dst)
@@ -541,13 +547,17 @@ Helper functions are a concept whereby BPF programs can call into a
 set of function calls exposed by the underlying platform.
 
 Historically, each helper function was identified by a static ID
-encoded in the 'imm' field.  The available helper functions may differ
-for each program type, but static IDs are unique across all program types.
+encoded in the 'imm' field.  Further documentation of helper functions
+is outside the scope of this document and standardization is left for
+future work, but use is widely deployed and more information can be
+found in platform-specific documentation (e.g., Linux kernel documentation).
 
 Platforms that support the BPF Type Format (BTF) support identifying
 a helper function by a BTF ID encoded in the 'imm' field, where the BTF ID
 identifies the helper name and type.  Further documentation of BTF
-is outside the scope of this document and is left for future work.
+is outside the scope of this document and standardization is left for
+future work, but use is widely deployed and more information can be
+found in platform-specific documentation (e.g., Linux kernel documentation).
 
 Program-local functions
 ~~~~~~~~~~~~~~~~~~~~~~~
