@@ -623,6 +623,7 @@ static void cpu_timer_fire(struct k_itimer *timer)
 static int posix_cpu_timer_set(struct k_itimer *timer, int timer_flags,
 			       struct itimerspec64 *new, struct itimerspec64 *old)
 {
+	bool sigev_none = timer->it_sigev_notify == SIGEV_NONE;
 	clockid_t clkid = CPUCLOCK_WHICH(timer->it_clock);
 	u64 old_expires, new_expires, old_incr, val;
 	struct cpu_timer *ctmr = &timer->it.cpu;
@@ -706,7 +707,16 @@ static int posix_cpu_timer_set(struct k_itimer *timer, int timer_flags,
 				old_expires = exp - val;
 				old->it_value = ns_to_timespec64(old_expires);
 			} else {
-				old->it_value.tv_nsec = 1;
+				/*
+				 * A single shot SIGEV_NONE timer must return 0, when it is
+				 * expired! Timers which have a real signal delivery mode
+				 * must return a remaining time greater than 0 because the
+				 * signal has not yet been delivered.
+				 */
+				if (sigev_none)
+					old->it_value.tv_nsec = 0;
+				else
+					old->it_value.tv_nsec = 1;
 				old->it_value.tv_sec = 0;
 			}
 		}
