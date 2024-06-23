@@ -1529,6 +1529,7 @@ static void __bch2_dev_read_only(struct bch_fs *c, struct bch_dev *ca)
 	 * The allocator thread itself allocates btree nodes, so stop it first:
 	 */
 	bch2_dev_allocator_remove(c, ca);
+	bch2_recalc_capacity(c);
 	bch2_dev_journal_stop(&c->journal, ca);
 }
 
