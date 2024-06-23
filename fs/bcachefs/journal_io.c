@@ -2034,8 +2034,9 @@ CLOSURE_CALLBACK(bch2_journal_write)
 		struct printbuf buf = PRINTBUF;
 		buf.atomic++;
 
-		prt_printf(&buf, bch2_fmt(c, "Unable to allocate journal write: %s"),
-			   bch2_err_str(ret));
+		prt_printf(&buf, bch2_fmt(c, "Unable to allocate journal write at seq %llu: %s"),
+					  le64_to_cpu(w->data->seq),
+					  bch2_err_str(ret));
 		__bch2_journal_debug_to_text(&buf, j);
 		spin_unlock(&j->lock);
 		bch2_print_string_as_lines(KERN_ERR, buf.buf);
