@@ -562,6 +562,114 @@ TRACE_EVENT(isoc_inbound_multiple_channels,
 	)
 );
 
+TRACE_EVENT_CONDITION(isoc_outbound_start,
+	TP_PROTO(const struct fw_iso_context *ctx, int cycle_match),
+	TP_ARGS(ctx, cycle_match),
+	TP_CONDITION(ctx->type == FW_ISO_CONTEXT_TRANSMIT),
+	TP_STRUCT__entry(
+		__field(u64, context)
+		__field(u8, card_index)
+		__field(bool, cycle_match)
+		__field(u16, cycle)
+	),
+	TP_fast_assign(
+		__entry->context = (uintptr_t)ctx;
+		__entry->card_index = ctx->card->index;
+		__entry->cycle_match = cycle_match < 0 ? false : true;
+		__entry->cycle = __entry->cycle_match ? (u16)cycle_match : 0;
+	),
+	TP_printk(
+		"context=0x%llx card_index=%u cycle_match=%s cycle=0x%04x",
+		__entry->context,
+		__entry->card_index,
+		__entry->cycle_match ? "true" : "false",
+		__entry->cycle
+	)
+);
+
+DECLARE_EVENT_CLASS(isoc_inbound_start_template,
+	TP_PROTO(const struct fw_iso_context *ctx, int cycle_match, unsigned int sync, unsigned int tags),
+	TP_ARGS(ctx, cycle_match, sync, tags),
+	TP_STRUCT__entry(
+		__field(u64, context)
+		__field(u8, card_index)
+		__field(bool, cycle_match)
+		__field(u16, cycle)
+		__field(u8, sync)
+		__field(u8, tags)
+	),
+	TP_fast_assign(
+		__entry->context = (uintptr_t)ctx;
+		__entry->card_index = ctx->card->index;
+		__entry->cycle_match = cycle_match < 0 ? false : true;
+		__entry->cycle = __entry->cycle_match ? (u16)cycle_match : 0;
+		__entry->sync = sync;
+		__entry->tags = tags;
+	),
+	TP_printk(
+		"context=0x%llx card_index=%u cycle_match=%s cycle=0x%04x sync=%u tags=%s",
+		__entry->context,
+		__entry->card_index,
+		__entry->cycle_match ? "true" : "false",
+		__entry->cycle,
+		__entry->sync,
+		__print_flags(__entry->tags, "|",
+			{ FW_ISO_CONTEXT_MATCH_TAG0, "0" },
+			{ FW_ISO_CONTEXT_MATCH_TAG1, "1" },
+			{ FW_ISO_CONTEXT_MATCH_TAG2, "2" },
+			{ FW_ISO_CONTEXT_MATCH_TAG3, "3" }
+		)
+	)
+);
+
+DEFINE_EVENT_CONDITION(isoc_inbound_start_template, isoc_inbound_single_start,
+	TP_PROTO(const struct fw_iso_context *ctx, int cycle_match, unsigned int sync, unsigned int tags),
+	TP_ARGS(ctx, cycle_match, sync, tags),
+	TP_CONDITION(ctx->type == FW_ISO_CONTEXT_RECEIVE)
+);
+
+DEFINE_EVENT_CONDITION(isoc_inbound_start_template, isoc_inbound_multiple_start,
+	TP_PROTO(const struct fw_iso_context *ctx, int cycle_match, unsigned int sync, unsigned int tags),
+	TP_ARGS(ctx, cycle_match, sync, tags),
+	TP_CONDITION(ctx->type == FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL)
+);
+
+DECLARE_EVENT_CLASS(isoc_stop_template,
+	TP_PROTO(const struct fw_iso_context *ctx),
+	TP_ARGS(ctx),
+	TP_STRUCT__entry(
+		__field(u64, context)
+		__field(u8, card_index)
+	),
+	TP_fast_assign(
+		__entry->context = (uintptr_t)ctx;
+		__entry->card_index = ctx->card->index;
+	),
+	TP_printk(
+		"context=0x%llx card_index=%u",
+		__entry->context,
+		__entry->card_index
+	)
+)
+
+DEFINE_EVENT_CONDITION(isoc_stop_template, isoc_outbound_stop,
+	TP_PROTO(const struct fw_iso_context *ctx),
+	TP_ARGS(ctx),
+	TP_CONDITION(ctx->type == FW_ISO_CONTEXT_TRANSMIT)
+);
+
+DEFINE_EVENT_CONDITION(isoc_stop_template, isoc_inbound_single_stop,
+	TP_PROTO(const struct fw_iso_context *ctx),
+	TP_ARGS(ctx),
+	TP_CONDITION(ctx->type == FW_ISO_CONTEXT_RECEIVE)
+);
+
+DEFINE_EVENT_CONDITION(isoc_stop_template, isoc_inbound_multiple_stop,
+	TP_PROTO(const struct fw_iso_context *ctx),
+	TP_ARGS(ctx),
+	TP_CONDITION(ctx->type == FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL)
+);
+
 #undef QUADLET_SIZE
 
 #endif // _FIREWIRE_TRACE_EVENT_H

@@ -171,6 +171,10 @@ EXPORT_SYMBOL(fw_iso_context_destroy);
 int fw_iso_context_start(struct fw_iso_context *ctx,
 			 int cycle, int sync, int tags)
 {
+	trace_isoc_outbound_start(ctx, cycle);
+	trace_isoc_inbound_single_start(ctx, cycle, sync, tags);
+	trace_isoc_inbound_multiple_start(ctx, cycle, sync, tags);
+
 	return ctx->card->driver->start_iso(ctx, cycle, sync, tags);
 }
 EXPORT_SYMBOL(fw_iso_context_start);
@@ -205,6 +209,10 @@ EXPORT_SYMBOL(fw_iso_context_flush_completions);
 
 int fw_iso_context_stop(struct fw_iso_context *ctx)
 {
+	trace_isoc_outbound_stop(ctx);
+	trace_isoc_inbound_single_stop(ctx);
+	trace_isoc_inbound_multiple_stop(ctx);
+
 	return ctx->card->driver->stop_iso(ctx);
 }
 EXPORT_SYMBOL(fw_iso_context_stop);
