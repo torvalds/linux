@@ -180,64 +180,6 @@ static int mbigen_domain_translate(struct irq_domain *d, struct irq_fwspec *fwsp
 	return -EINVAL;
 }
 
-/* The following section will go away once ITS provides a MSI parent */
-
-static struct irq_chip mbigen_irq_chip = {
-	.name =			"mbigen-v2",
-	.irq_mask =		irq_chip_mask_parent,
-	.irq_unmask =		irq_chip_unmask_parent,
-	.irq_eoi =		mbigen_eoi_irq,
-	.irq_set_type =		mbigen_set_type,
-	.irq_set_affinity =	irq_chip_set_affinity_parent,
-};
-
-static int mbigen_irq_domain_alloc(struct irq_domain *domain,
-					unsigned int virq,
-					unsigned int nr_irqs,
-					void *args)
-{
-	struct irq_fwspec *fwspec = args;
-	irq_hw_number_t hwirq;
-	unsigned int type;
-	struct mbigen_device *mgn_chip;
-	int i, err;
-
-	err = mbigen_domain_translate(domain, fwspec, &hwirq, &type);
-	if (err)
-		return err;
-
-	err = platform_msi_device_domain_alloc(domain, virq, nr_irqs);
-	if (err)
-		return err;
-
-	mgn_chip = platform_msi_get_host_data(domain);
-
-	for (i = 0; i < nr_irqs; i++)
-		irq_domain_set_hwirq_and_chip(domain, virq + i, hwirq + i,
-				      &mbigen_irq_chip, mgn_chip->base);
-
-	return 0;
-}
-
-static void mbigen_irq_domain_free(struct irq_domain *domain, unsigned int virq,
-				   unsigned int nr_irqs)
-{
-	platform_msi_device_domain_free(domain, virq, nr_irqs);
-}
-
-static const struct irq_domain_ops mbigen_domain_ops = {
-	.translate	= mbigen_domain_translate,
-	.alloc		= mbigen_irq_domain_alloc,
-	.free		= mbigen_irq_domain_free,
-};
-
-static void mbigen_write_msg(struct msi_desc *desc, struct msi_msg *msg)
-{
-	mbigen_write_msi_msg(irq_get_irq_data(desc->irq), msg);
-}
-
-/* End of to be removed section */
-
 static void mbigen_domain_set_desc(msi_alloc_info_t *arg, struct msi_desc *desc)
 {
 	arg->desc = desc;
@@ -268,20 +210,12 @@ static const struct msi_domain_template mbigen_msi_template = {
 static bool mbigen_create_device_domain(struct device *dev, unsigned int size,
 					struct mbigen_device *mgn_chip)
 {
-	struct irq_domain *domain = dev->msi.domain;
-
-	if (WARN_ON_ONCE(!domain))
+	if (WARN_ON_ONCE(!dev->msi.domain))
 		return false;
 
-	if (irq_domain_is_msi_parent(domain)) {
-		return msi_create_device_irq_domain(dev, MSI_DEFAULT_DOMAIN,
-						    &mbigen_msi_template, size,
-						    NULL, mgn_chip->base);
-	}
-
-	/* Remove once ITS provides MSI parent */
-	return !!platform_msi_create_device_domain(dev, size, mbigen_write_msg,
-						   &mbigen_domain_ops, mgn_chip);
+	return msi_create_device_irq_domain(dev, MSI_DEFAULT_DOMAIN,
+					    &mbigen_msi_template, size,
+					    NULL, mgn_chip->base);
 }
 
 static int mbigen_of_create_domain(struct platform_device *pdev,
