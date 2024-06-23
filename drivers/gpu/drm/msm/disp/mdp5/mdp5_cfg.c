@@ -837,8 +837,7 @@ static const struct mdp5_cfg_hw msm8x53_config = {
 	.name = "msm8x53",
 	.mdp = {
 		.count = 1,
-		.caps = MDP_CAP_CDM |
-			MDP_CAP_SRC_SPLIT,
+		.caps = MDP_CAP_CDM,
 	},
 	.ctl = {
 		.count = 3,
