@@ -227,21 +227,6 @@ xfs_ilock_iocb_for_write(
 	return 0;
 }
 
-static unsigned int
-xfs_ilock_for_write_fault(
-	struct xfs_inode	*ip)
-{
-	/* get a shared lock if no remapping in progress */
-	xfs_ilock(ip, XFS_MMAPLOCK_SHARED);
-	if (!xfs_iflags_test(ip, XFS_IREMAPPING))
-		return XFS_MMAPLOCK_SHARED;
-
-	/* wait for remapping to complete */
-	xfs_iunlock(ip, XFS_MMAPLOCK_SHARED);
-	xfs_ilock(ip, XFS_MMAPLOCK_EXCL);
-	return XFS_MMAPLOCK_EXCL;
-}
-
 STATIC ssize_t
 xfs_file_dio_read(
 	struct kiocb		*iocb,
@@ -1294,18 +1279,30 @@ xfs_write_fault(
 	unsigned int		order)
 {
 	struct inode		*inode = file_inode(vmf->vma->vm_file);
-	unsigned int		lock_mode;
+	struct xfs_inode	*ip = XFS_I(inode);
+	unsigned int		lock_mode = XFS_MMAPLOCK_SHARED;
 	vm_fault_t		ret;
 
 	sb_start_pagefault(inode->i_sb);
 	file_update_time(vmf->vma->vm_file);
 
-	lock_mode = xfs_ilock_for_write_fault(XFS_I(inode));
+	/*
+	 * Normally we only need the shared mmaplock, but if a reflink remap is
+	 * in progress we take the exclusive lock to wait for the remap to
+	 * finish before taking a write fault.
+	 */
+	xfs_ilock(ip, XFS_MMAPLOCK_SHARED);
+	if (xfs_iflags_test(ip, XFS_IREMAPPING)) {
+		xfs_iunlock(ip, XFS_MMAPLOCK_SHARED);
+		xfs_ilock(ip, XFS_MMAPLOCK_EXCL);
+		lock_mode = XFS_MMAPLOCK_EXCL;
+	}
+
 	if (IS_DAX(inode))
 		ret = xfs_dax_fault_locked(vmf, order, true);
 	else
 		ret = iomap_page_mkwrite(vmf, &xfs_page_mkwrite_iomap_ops);
-	xfs_iunlock(XFS_I(inode), lock_mode);
+	xfs_iunlock(ip, lock_mode);
 
 	sb_end_pagefault(inode->i_sb);
 	return ret;
