@@ -408,6 +408,13 @@ static void xgpu_ai_ras_poison_handler(struct amdgpu_device *adev,
 	xgpu_ai_send_access_requests(adev, IDH_RAS_POISON);
 }
 
+static bool xgpu_ai_rcvd_ras_intr(struct amdgpu_device *adev)
+{
+	enum idh_event msg = xgpu_ai_mailbox_peek_msg(adev);
+
+	return (msg == IDH_RAS_ERROR_DETECTED || msg == 0xFFFFFFFF);
+}
+
 const struct amdgpu_virt_ops xgpu_ai_virt_ops = {
 	.req_full_gpu	= xgpu_ai_request_full_gpu_access,
 	.rel_full_gpu	= xgpu_ai_release_full_gpu_access,
@@ -417,4 +424,5 @@ const struct amdgpu_virt_ops xgpu_ai_virt_ops = {
 	.trans_msg = xgpu_ai_mailbox_trans_msg,
 	.req_init_data  = xgpu_ai_request_init_data,
 	.ras_poison_handler = xgpu_ai_ras_poison_handler,
+	.rcvd_ras_intr = xgpu_ai_rcvd_ras_intr,
 };
