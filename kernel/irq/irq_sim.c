@@ -17,6 +17,8 @@ struct irq_sim_work_ctx {
 	unsigned int		irq_count;
 	unsigned long		*pending;
 	struct irq_domain	*domain;
+	struct irq_sim_ops	ops;
+	void			*user_data;
 };
 
 struct irq_sim_irq_ctx {
@@ -88,6 +90,31 @@ static int irq_sim_set_irqchip_state(struct irq_data *data,
 	return 0;
 }
 
+static int irq_sim_request_resources(struct irq_data *data)
+{
+	struct irq_sim_irq_ctx *irq_ctx = irq_data_get_irq_chip_data(data);
+	struct irq_sim_work_ctx *work_ctx = irq_ctx->work_ctx;
+	irq_hw_number_t hwirq = irqd_to_hwirq(data);
+
+	if (work_ctx->ops.irq_sim_irq_requested)
+		return work_ctx->ops.irq_sim_irq_requested(work_ctx->domain,
+							   hwirq,
+							   work_ctx->user_data);
+
+	return 0;
+}
+
+static void irq_sim_release_resources(struct irq_data *data)
+{
+	struct irq_sim_irq_ctx *irq_ctx = irq_data_get_irq_chip_data(data);
+	struct irq_sim_work_ctx *work_ctx = irq_ctx->work_ctx;
+	irq_hw_number_t hwirq = irqd_to_hwirq(data);
+
+	if (work_ctx->ops.irq_sim_irq_released)
+		work_ctx->ops.irq_sim_irq_released(work_ctx->domain, hwirq,
+						   work_ctx->user_data);
+}
+
 static struct irq_chip irq_sim_irqchip = {
 	.name			= "irq_sim",
 	.irq_mask		= irq_sim_irqmask,
@@ -95,6 +122,8 @@ static struct irq_chip irq_sim_irqchip = {
 	.irq_set_type		= irq_sim_set_type,
 	.irq_get_irqchip_state	= irq_sim_get_irqchip_state,
 	.irq_set_irqchip_state	= irq_sim_set_irqchip_state,
+	.irq_request_resources	= irq_sim_request_resources,
+	.irq_release_resources	= irq_sim_release_resources,
 };
 
 static void irq_sim_handle_irq(struct irq_work *work)
@@ -164,6 +193,15 @@ static const struct irq_domain_ops irq_sim_domain_ops = {
 struct irq_domain *irq_domain_create_sim(struct fwnode_handle *fwnode,
 					 unsigned int num_irqs)
 {
+	return irq_domain_create_sim_full(fwnode, num_irqs, NULL, NULL);
+}
+EXPORT_SYMBOL_GPL(irq_domain_create_sim);
+
+struct irq_domain *irq_domain_create_sim_full(struct fwnode_handle *fwnode,
+					      unsigned int num_irqs,
+					      const struct irq_sim_ops *ops,
+					      void *data)
+{
 	struct irq_sim_work_ctx *work_ctx __free(kfree) =
 				kmalloc(sizeof(*work_ctx), GFP_KERNEL);
 
@@ -183,10 +221,14 @@ struct irq_domain *irq_domain_create_sim(struct fwnode_handle *fwnode,
 	work_ctx->irq_count = num_irqs;
 	work_ctx->work = IRQ_WORK_INIT_HARD(irq_sim_handle_irq);
 	work_ctx->pending = no_free_ptr(pending);
+	work_ctx->user_data = data;
+
+	if (ops)
+		memcpy(&work_ctx->ops, ops, sizeof(*ops));
 
 	return no_free_ptr(work_ctx)->domain;
 }
-EXPORT_SYMBOL_GPL(irq_domain_create_sim);
+EXPORT_SYMBOL_GPL(irq_domain_create_sim_full);
 
 /**
  * irq_domain_remove_sim - Deinitialize the interrupt simulator domain: free
@@ -228,10 +270,22 @@ struct irq_domain *devm_irq_domain_create_sim(struct device *dev,
 					      struct fwnode_handle *fwnode,
 					      unsigned int num_irqs)
 {
+	return devm_irq_domain_create_sim_full(dev, fwnode, num_irqs,
+					       NULL, NULL);
+}
+EXPORT_SYMBOL_GPL(devm_irq_domain_create_sim);
+
+struct irq_domain *
+devm_irq_domain_create_sim_full(struct device *dev,
+				struct fwnode_handle *fwnode,
+				unsigned int num_irqs,
+				const struct irq_sim_ops *ops,
+				void *data)
+{
 	struct irq_domain *domain;
 	int ret;
 
-	domain = irq_domain_create_sim(fwnode, num_irqs);
+	domain = irq_domain_create_sim_full(fwnode, num_irqs, ops, data);
 	if (IS_ERR(domain))
 		return domain;
 
@@ -241,4 +295,4 @@ struct irq_domain *devm_irq_domain_create_sim(struct device *dev,
 
 	return domain;
 }
-EXPORT_SYMBOL_GPL(devm_irq_domain_create_sim);
+EXPORT_SYMBOL_GPL(devm_irq_domain_create_sim_full);
