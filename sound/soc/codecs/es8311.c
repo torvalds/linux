@@ -943,7 +943,10 @@ static int es8311_i2c_probe(struct i2c_client *i2c_client)
 					       &es8311_dai, 1);
 }
 
-static const struct i2c_device_id es8311_id[] = { { "es8311", 0 }, {} };
+static const struct i2c_device_id es8311_id[] = {
+	{ "es8311" },
+	{ }
+};
 MODULE_DEVICE_TABLE(i2c, es8311_id);
 
 static const struct of_device_id es8311_of_match[] = {
