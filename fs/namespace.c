@@ -4974,10 +4974,8 @@ static int statmount_fs_type(struct kstatmount *s, struct seq_file *seq)
 	return 0;
 }
 
-static void statmount_mnt_ns_id(struct kstatmount *s)
+static void statmount_mnt_ns_id(struct kstatmount *s, struct mnt_namespace *ns)
 {
-	struct mnt_namespace *ns = current->nsproxy->mnt_ns;
-
 	s->sm.mask |= STATMOUNT_MNT_NS_ID;
 	s->sm.mnt_ns_id = ns->seq;
 }
@@ -5079,7 +5077,7 @@ static int do_statmount(struct kstatmount *s)
 		err = statmount_string(s, STATMOUNT_MNT_POINT);
 
 	if (!err && s->mask & STATMOUNT_MNT_NS_ID)
-		statmount_mnt_ns_id(s);
+		statmount_mnt_ns_id(s, ns);
 
 	if (err)
 		return err;
@@ -5196,6 +5194,7 @@ SYSCALL_DEFINE4(statmount, const struct mnt_id_req __user *, req,
 		struct statmount __user *, buf, size_t, bufsize,
 		unsigned int, flags)
 {
+	struct mnt_namespace *ns __free(mnt_ns_release) = NULL;
 	struct vfsmount *mnt;
 	struct mnt_id_req kreq;
 	struct kstatmount ks;
@@ -5210,13 +5209,28 @@ SYSCALL_DEFINE4(statmount, const struct mnt_id_req __user *, req,
 	if (ret)
 		return ret;
 
+	ns = grab_requested_mnt_ns(kreq.mnt_ns_id);
+	if (!ns)
+		return -ENOENT;
+
+	if (kreq.mnt_ns_id && (ns != current->nsproxy->mnt_ns) &&
+	    !ns_capable_noaudit(ns->user_ns, CAP_SYS_ADMIN))
+		return -ENOENT;
+
 retry:
 	ret = prepare_kstatmount(&ks, &kreq, buf, bufsize, seq_size);
 	if (ret)
 		return ret;
 
 	down_read(&namespace_sem);
-	mnt = lookup_mnt_in_ns(kreq.mnt_id, current->nsproxy->mnt_ns);
+	/* Has the namespace already been emptied? */
+	if (kreq.mnt_ns_id && RB_EMPTY_ROOT(&ns->mounts)) {
+		up_read(&namespace_sem);
+		kvfree(ks.seq.buf);
+		return -ENOENT;
+	}
+
+	mnt = lookup_mnt_in_ns(kreq.mnt_id, ns);
 	if (!mnt) {
 		up_read(&namespace_sem);
 		kvfree(ks.seq.buf);
@@ -5224,7 +5238,12 @@ retry:
 	}
 
 	ks.mnt = mnt;
-	get_fs_root(current->fs, &ks.root);
+	ret = grab_requested_root(ns, &ks.root);
+	if (ret) {
+		up_read(&namespace_sem);
+		kvfree(ks.seq.buf);
+		return ret;
+	}
 	ret = do_statmount(&ks);
 	path_put(&ks.root);
 	up_read(&namespace_sem);
