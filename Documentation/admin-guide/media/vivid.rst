@@ -1130,25 +1130,18 @@ Metadata Capture Controls
 
         if set, then the generated metadata stream contains Source Clock information.
 
-Video, VBI and RDS Looping
---------------------------
 
-The vivid driver supports looping of video output to video input, VBI output
-to VBI input and RDS output to RDS input. For video/VBI looping this emulates
-as if a cable was hooked up between the output and input connector. So video
-and VBI looping is only supported between S-Video and HDMI inputs and outputs.
+Video and Sliced VBI Looping
+----------------------------
+
+The vivid driver supports looping of video output to video input, and VBI
+output to VBI input. For video/VBI looping this emulates as if a cable was
+hooked up between the output and input connector. So video and VBI looping
+is only supported between S-Video and HDMI inputs and outputs.
 VBI is only valid for S-Video as it makes no sense for HDMI.
-
-Since radio is wireless this looping always happens if the radio receiver
-frequency is close to the radio transmitter frequency. In that case the radio
-transmitter will 'override' the emulated radio stations.
 
 Looping is currently supported only between devices created by the same
 vivid driver instance.
-
-
-Video and Sliced VBI looping
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The way to enable video/VBI looping is currently fairly crude. A 'Loop Video'
 control is available in the "Vivid" control class of the video
@@ -1198,7 +1191,16 @@ and WSS (50 Hz formats) VBI data is looped. Teletext VBI data is not looped.
 
 
 Radio & RDS Looping
-~~~~~~~~~~~~~~~~~~~
+-------------------
+
+The vivid driver supports looping of RDS output to RDS input.
+
+Since radio is wireless this looping always happens if the radio receiver
+frequency is close to the radio transmitter frequency. In that case the radio
+transmitter will 'override' the emulated radio stations.
+
+RDS looping is currently supported only between devices created by the same
+vivid driver instance.
 
 As mentioned in the "Radio Receiver" section, the radio receiver emulates
 stations at regular frequency intervals. Depending on the frequency of the
