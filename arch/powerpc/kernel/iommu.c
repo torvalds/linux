@@ -1171,7 +1171,7 @@ spapr_tce_platform_iommu_attach_dev(struct iommu_domain *platform_domain,
 	 * The domain being set to PLATFORM from earlier
 	 * BLOCKED. The table_group ownership has to be released.
 	 */
-	table_group->ops->release_ownership(table_group);
+	table_group->ops->release_ownership(table_group, dev);
 	iommu_group_put(grp);
 
 	return 0;
@@ -1199,7 +1199,7 @@ spapr_tce_blocked_iommu_attach_dev(struct iommu_domain *platform_domain,
 	 * also sets the dma_api ops
 	 */
 	table_group = iommu_group_get_iommudata(grp);
-	ret = table_group->ops->take_ownership(table_group);
+	ret = table_group->ops->take_ownership(table_group, dev);
 	iommu_group_put(grp);
 
 	return ret;
