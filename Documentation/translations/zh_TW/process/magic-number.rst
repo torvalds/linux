@@ -4,7 +4,7 @@
 
 .. include:: ../disclaimer-zh_TW.rst
 
-:Original: :ref:`Documentation/process/magic-number.rst <magicnumbers>`
+:Original: :ref:`Documentation/staging/magic-number.rst <magicnumbers>`
 
 如果想評論或更新本文的內容，請直接發信到LKML。如果你使用英文交流有困難的話，也可
 以向中文版維護者求助。如果本翻譯更新不及時或者翻譯存在問題，請聯繫中文版維護者::
