@@ -1633,7 +1633,7 @@ void notify_hwp_interrupt(void)
 	unsigned long flags;
 	u64 value;
 
-	if (!hwp_active || !boot_cpu_has(X86_FEATURE_HWP_NOTIFY))
+	if (!hwp_active || !cpu_feature_enabled(X86_FEATURE_HWP_NOTIFY))
 		return;
 
 	rdmsrl_safe(MSR_HWP_STATUS, &value);
@@ -1661,7 +1661,7 @@ static void intel_pstate_disable_hwp_interrupt(struct cpudata *cpudata)
 {
 	bool cancel_work;
 
-	if (!boot_cpu_has(X86_FEATURE_HWP_NOTIFY))
+	if (!cpu_feature_enabled(X86_FEATURE_HWP_NOTIFY))
 		return;
 
 	/* wrmsrl_on_cpu has to be outside spinlock as this can result in IPC */
