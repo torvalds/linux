@@ -82,7 +82,7 @@ static struct clk_hw *imx_ulp_clk_hw_composite(const char *name,
 	val = readl(reg);
 	if (!(val & PCG_PR_MASK)) {
 		pr_info("PCC PR is 0 for clk:%s, bypass\n", name);
-		return 0;
+		return NULL;
 	}
 
 	if (mux_present) {
