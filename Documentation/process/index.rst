@@ -107,13 +107,6 @@ developers:
    kernel-docs
    deprecated
 
-These are some overall technical guides that have been put here for now for
-lack of a better place.
-
-.. toctree::
-   :maxdepth: 1
-
-
 .. only::  subproject and html
 
    Indices
