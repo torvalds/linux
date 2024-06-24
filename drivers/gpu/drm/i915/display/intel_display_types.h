@@ -1397,7 +1397,7 @@ struct intel_crtc_state {
 	enum transcoder mst_master_transcoder;
 
 	/* For DSB based color LUT updates */
-	struct intel_dsb *dsb_color_vblank;
+	struct intel_dsb *dsb_color_vblank, *dsb_color_commit;
 
 	u32 psr2_man_track_ctl;
 

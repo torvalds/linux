@@ -1890,8 +1890,8 @@ void intel_color_commit_arm(const struct intel_crtc_state *crtc_state)
 
 	i915->display.funcs.color->color_commit_arm(crtc_state);
 
-	if (crtc_state->dsb_color_vblank)
-		intel_dsb_commit(crtc_state->dsb_color_vblank, true);
+	if (crtc_state->dsb_color_commit)
+		intel_dsb_commit(crtc_state->dsb_color_commit, false);
 }
 
 void intel_color_post_update(const struct intel_crtc_state *crtc_state)
@@ -1919,26 +1919,44 @@ void intel_color_prepare_commit(struct intel_atomic_state *state,
 	if (!crtc_state->pre_csc_lut && !crtc_state->post_csc_lut)
 		return;
 
-	crtc_state->dsb_color_vblank = intel_dsb_prepare(state, crtc, INTEL_DSB_0, 1024);
+	crtc_state->dsb_color_vblank = intel_dsb_prepare(state, crtc, INTEL_DSB_1, 1024);
 	if (!crtc_state->dsb_color_vblank)
 		return;
 
 	i915->display.funcs.color->load_luts(crtc_state);
 
 	intel_dsb_finish(crtc_state->dsb_color_vblank);
+
+	crtc_state->dsb_color_commit = intel_dsb_prepare(state, crtc, INTEL_DSB_0, 16);
+	if (!crtc_state->dsb_color_commit) {
+		intel_dsb_cleanup(crtc_state->dsb_color_vblank);
+		crtc_state->dsb_color_vblank = NULL;
+		return;
+	}
+
+	intel_dsb_chain(state, crtc_state->dsb_color_commit,
+			crtc_state->dsb_color_vblank, true);
+
+	intel_dsb_finish(crtc_state->dsb_color_commit);
 }
 
 void intel_color_cleanup_commit(struct intel_crtc_state *crtc_state)
 {
-	if (!crtc_state->dsb_color_vblank)
-		return;
+	if (crtc_state->dsb_color_commit) {
+		intel_dsb_cleanup(crtc_state->dsb_color_commit);
+		crtc_state->dsb_color_commit = NULL;
+	}
 
-	intel_dsb_cleanup(crtc_state->dsb_color_vblank);
-	crtc_state->dsb_color_vblank = NULL;
+	if (crtc_state->dsb_color_vblank) {
+		intel_dsb_cleanup(crtc_state->dsb_color_vblank);
+		crtc_state->dsb_color_vblank = NULL;
+	}
 }
 
 void intel_color_wait_commit(const struct intel_crtc_state *crtc_state)
 {
+	if (crtc_state->dsb_color_commit)
+		intel_dsb_wait(crtc_state->dsb_color_commit);
 	if (crtc_state->dsb_color_vblank)
 		intel_dsb_wait(crtc_state->dsb_color_vblank);
 }
