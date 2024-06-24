@@ -284,13 +284,12 @@ static int __intel_get_crtc_scanline(struct intel_crtc *crtc)
 	return (position + vtotal + crtc->scanline_offset) % vtotal;
 }
 
-int intel_crtc_scanline_to_hw(struct intel_crtc *crtc, int scanline)
+int intel_crtc_scanline_to_hw(const struct intel_crtc_state *crtc_state,
+			      int scanline)
 {
-	const struct drm_vblank_crtc *vblank = drm_crtc_vblank_crtc(&crtc->base);
-	const struct drm_display_mode *mode = &vblank->hwmode;
-	int vtotal = intel_mode_vtotal(mode);
+	int vtotal = intel_mode_vtotal(&crtc_state->hw.adjusted_mode);
 
-	return (scanline + vtotal - crtc->scanline_offset) % vtotal;
+	return (scanline + vtotal - intel_crtc_scanline_offset(crtc_state)) % vtotal;
 }
 
 /*

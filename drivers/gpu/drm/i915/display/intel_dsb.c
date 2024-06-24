@@ -6,6 +6,7 @@
 
 #include "i915_drv.h"
 #include "i915_irq.h"
+#include "i915_reg.h"
 #include "intel_crtc.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
@@ -42,7 +43,7 @@ struct intel_dsb {
 	 */
 	unsigned int ins_start_offset;
 
-	int dewake_scanline;
+	int hw_dewake_scanline;
 };
 
 /**
@@ -374,7 +375,7 @@ static u32 dsb_error_int_en(struct intel_display *display)
 }
 
 static void _intel_dsb_commit(struct intel_dsb *dsb, u32 ctrl,
-			      int dewake_scanline)
+			      int hw_dewake_scanline)
 {
 	struct intel_crtc *crtc = dsb->crtc;
 	struct intel_display *display = to_intel_display(crtc->base.dev);
@@ -404,10 +405,8 @@ static void _intel_dsb_commit(struct intel_dsb *dsb, u32 ctrl,
 	intel_de_write_fw(display, DSB_HEAD(pipe, dsb->id),
 			  intel_dsb_buffer_ggtt_offset(&dsb->dsb_buf));
 
-	if (dewake_scanline >= 0) {
-		int diff, hw_dewake_scanline;
-
-		hw_dewake_scanline = intel_crtc_scanline_to_hw(crtc, dewake_scanline);
+	if (hw_dewake_scanline >= 0) {
+		int diff, position;
 
 		intel_de_write_fw(display, DSB_PMCTRL(pipe, dsb->id),
 				  DSB_ENABLE_DEWAKE |
@@ -417,7 +416,9 @@ static void _intel_dsb_commit(struct intel_dsb *dsb, u32 ctrl,
 		 * Force DEwake immediately if we're already past
 		 * or close to racing past the target scanline.
 		 */
-		diff = dewake_scanline - intel_get_crtc_scanline(crtc);
+		position = intel_de_read_fw(display, PIPEDSL(display, pipe)) & PIPEDSL_LINE_MASK;
+
+		diff = hw_dewake_scanline - position;
 		intel_de_write_fw(display, DSB_PMCTRL_2(pipe, dsb->id),
 				  (diff >= 0 && diff < 5 ? DSB_FORCE_DEWAKE : 0) |
 				  DSB_BLOCK_DEWAKE_EXTENSION);
@@ -439,7 +440,7 @@ void intel_dsb_commit(struct intel_dsb *dsb,
 {
 	_intel_dsb_commit(dsb,
 			  wait_for_vblank ? DSB_WAIT_FOR_VBLANK : 0,
-			  wait_for_vblank ? dsb->dewake_scanline : -1);
+			  wait_for_vblank ? dsb->hw_dewake_scanline : -1);
 }
 
 void intel_dsb_wait(struct intel_dsb *dsb)
@@ -527,7 +528,9 @@ struct intel_dsb *intel_dsb_prepare(struct intel_atomic_state *state,
 	dsb->size = size / 4; /* in dwords */
 	dsb->free_pos = 0;
 	dsb->ins_start_offset = 0;
-	dsb->dewake_scanline = intel_dsb_dewake_scanline(crtc_state);
+
+	dsb->hw_dewake_scanline =
+		intel_crtc_scanline_to_hw(crtc_state, intel_dsb_dewake_scanline(crtc_state));
 
 	return dsb;
 
