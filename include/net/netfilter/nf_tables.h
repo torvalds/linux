@@ -1611,7 +1611,6 @@ static inline int nft_set_elem_is_dead(const struct nft_set_ext *ext)
  * struct nft_trans - nf_tables object update in transaction
  *
  * @list: used internally
- * @binding_list: list of objects with possible bindings
  * @msg_type: message type
  * @put_net: ctx->net needs to be put
  * @ctx: transaction context
@@ -1621,10 +1620,21 @@ static inline int nft_set_elem_is_dead(const struct nft_set_ext *ext)
  */
 struct nft_trans {
 	struct list_head		list;
-	struct list_head		binding_list;
 	int				msg_type;
 	bool				put_net;
 	struct nft_ctx			ctx;
+};
+
+/**
+ * struct nft_trans_binding - nf_tables object with binding support in transaction
+ * @nft_trans:    base structure, MUST be first member
+ * @binding_list: list of objects with possible bindings
+ *
+ * This is the base type used by objects that can be bound to a chain.
+ */
+struct nft_trans_binding {
+	struct nft_trans nft_trans;
+	struct list_head binding_list;
 };
 
 struct nft_trans_rule {
@@ -1647,7 +1657,7 @@ struct nft_trans_rule {
 	nft_trans_container_rule(trans)->bound
 
 struct nft_trans_set {
-	struct nft_trans		nft_trans;
+	struct nft_trans_binding	nft_trans_binding;
 	struct nft_set			*set;
 	u32				set_id;
 	u32				gc_int;
@@ -1657,8 +1667,8 @@ struct nft_trans_set {
 	u32				size;
 };
 
-#define nft_trans_container_set(trans)			\
-	container_of(trans, struct nft_trans_set, nft_trans)
+#define nft_trans_container_set(t)	\
+	container_of(t, struct nft_trans_set, nft_trans_binding.nft_trans)
 #define nft_trans_set(trans)				\
 	nft_trans_container_set(trans)->set
 #define nft_trans_set_id(trans)				\
@@ -1675,7 +1685,7 @@ struct nft_trans_set {
 	nft_trans_container_set(trans)->size
 
 struct nft_trans_chain {
-	struct nft_trans		nft_trans;
+	struct nft_trans_binding	nft_trans_binding;
 	struct nft_chain		*chain;
 	bool				update;
 	char				*name;
@@ -1687,8 +1697,8 @@ struct nft_trans_chain {
 	struct list_head		hook_list;
 };
 
-#define nft_trans_container_chain(trans)		\
-	container_of(trans, struct nft_trans_chain, nft_trans)
+#define nft_trans_container_chain(t)	\
+	container_of(t, struct nft_trans_chain, nft_trans_binding.nft_trans)
 #define nft_trans_chain(trans)				\
 	nft_trans_container_chain(trans)->chain
 #define nft_trans_chain_update(trans)			\

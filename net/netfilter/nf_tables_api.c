@@ -158,7 +158,6 @@ static struct nft_trans *nft_trans_alloc_gfp(const struct nft_ctx *ctx,
 		return NULL;
 
 	INIT_LIST_HEAD(&trans->list);
-	INIT_LIST_HEAD(&trans->binding_list);
 	trans->msg_type = msg_type;
 	trans->ctx	= *ctx;
 
@@ -171,10 +170,26 @@ static struct nft_trans *nft_trans_alloc(const struct nft_ctx *ctx,
 	return nft_trans_alloc_gfp(ctx, msg_type, size, GFP_KERNEL);
 }
 
+static struct nft_trans_binding *nft_trans_get_binding(struct nft_trans *trans)
+{
+	switch (trans->msg_type) {
+	case NFT_MSG_NEWCHAIN:
+	case NFT_MSG_NEWSET:
+		return container_of(trans, struct nft_trans_binding, nft_trans);
+	}
+
+	return NULL;
+}
+
 static void nft_trans_list_del(struct nft_trans *trans)
 {
+	struct nft_trans_binding *trans_binding;
+
 	list_del(&trans->list);
-	list_del(&trans->binding_list);
+
+	trans_binding = nft_trans_get_binding(trans);
+	if (trans_binding)
+		list_del(&trans_binding->binding_list);
 }
 
 static void nft_trans_destroy(struct nft_trans *trans)
@@ -372,21 +387,26 @@ static void nf_tables_unregister_hook(struct net *net,
 static void nft_trans_commit_list_add_tail(struct net *net, struct nft_trans *trans)
 {
 	struct nftables_pernet *nft_net = nft_pernet(net);
+	struct nft_trans_binding *binding;
+
+	list_add_tail(&trans->list, &nft_net->commit_list);
+
+	binding = nft_trans_get_binding(trans);
+	if (!binding)
+		return;
 
 	switch (trans->msg_type) {
 	case NFT_MSG_NEWSET:
 		if (!nft_trans_set_update(trans) &&
 		    nft_set_is_anonymous(nft_trans_set(trans)))
-			list_add_tail(&trans->binding_list, &nft_net->binding_list);
+			list_add_tail(&binding->binding_list, &nft_net->binding_list);
 		break;
 	case NFT_MSG_NEWCHAIN:
 		if (!nft_trans_chain_update(trans) &&
 		    nft_chain_binding(nft_trans_chain(trans)))
-			list_add_tail(&trans->binding_list, &nft_net->binding_list);
+			list_add_tail(&binding->binding_list, &nft_net->binding_list);
 		break;
 	}
-
-	list_add_tail(&trans->list, &nft_net->commit_list);
 }
 
 static int nft_trans_table_add(struct nft_ctx *ctx, int msg_type)
@@ -416,11 +436,27 @@ static int nft_deltable(struct nft_ctx *ctx)
 	return err;
 }
 
+static struct nft_trans *
+nft_trans_alloc_chain(const struct nft_ctx *ctx, int msg_type)
+{
+	struct nft_trans_chain *trans_chain;
+	struct nft_trans *trans;
+
+	trans = nft_trans_alloc(ctx, msg_type, sizeof(struct nft_trans_chain));
+	if (!trans)
+		return NULL;
+
+	trans_chain = nft_trans_container_chain(trans);
+	INIT_LIST_HEAD(&trans_chain->nft_trans_binding.binding_list);
+
+	return trans;
+}
+
 static struct nft_trans *nft_trans_chain_add(struct nft_ctx *ctx, int msg_type)
 {
 	struct nft_trans *trans;
 
-	trans = nft_trans_alloc(ctx, msg_type, sizeof(struct nft_trans_chain));
+	trans = nft_trans_alloc_chain(ctx, msg_type);
 	if (trans == NULL)
 		return ERR_PTR(-ENOMEM);
 
@@ -560,11 +596,15 @@ static int __nft_trans_set_add(const struct nft_ctx *ctx, int msg_type,
 			       struct nft_set *set,
 			       const struct nft_set_desc *desc)
 {
+	struct nft_trans_set *trans_set;
 	struct nft_trans *trans;
 
 	trans = nft_trans_alloc(ctx, msg_type, sizeof(struct nft_trans_set));
 	if (trans == NULL)
 		return -ENOMEM;
+
+	trans_set = nft_trans_container_set(trans);
+	INIT_LIST_HEAD(&trans_set->nft_trans_binding.binding_list);
 
 	if (msg_type == NFT_MSG_NEWSET && ctx->nla[NFTA_SET_ID] && !desc) {
 		nft_trans_set_id(trans) =
@@ -2698,8 +2738,7 @@ static int nf_tables_updchain(struct nft_ctx *ctx, u8 genmask, u8 policy,
 	}
 
 	err = -ENOMEM;
-	trans = nft_trans_alloc(ctx, NFT_MSG_NEWCHAIN,
-				sizeof(struct nft_trans_chain));
+	trans = nft_trans_alloc_chain(ctx, NFT_MSG_NEWCHAIN);
 	if (trans == NULL)
 		goto err_trans;
 
@@ -2915,8 +2954,7 @@ static int nft_delchain_hook(struct nft_ctx *ctx,
 		list_move(&hook->list, &chain_del_list);
 	}
 
-	trans = nft_trans_alloc(ctx, NFT_MSG_DELCHAIN,
-				sizeof(struct nft_trans_chain));
+	trans = nft_trans_alloc_chain(ctx, NFT_MSG_DELCHAIN);
 	if (!trans) {
 		err = -ENOMEM;
 		goto err_chain_del_hook;
@@ -10147,6 +10185,7 @@ static void nft_gc_seq_end(struct nftables_pernet *nft_net, unsigned int gc_seq)
 static int nf_tables_commit(struct net *net, struct sk_buff *skb)
 {
 	struct nftables_pernet *nft_net = nft_pernet(net);
+	struct nft_trans_binding *trans_binding;
 	struct nft_trans *trans, *next;
 	unsigned int base_seq, gc_seq;
 	LIST_HEAD(set_update_list);
@@ -10161,7 +10200,8 @@ static int nf_tables_commit(struct net *net, struct sk_buff *skb)
 		return 0;
 	}
 
-	list_for_each_entry(trans, &nft_net->binding_list, binding_list) {
+	list_for_each_entry(trans_binding, &nft_net->binding_list, binding_list) {
+		trans = &trans_binding->nft_trans;
 		switch (trans->msg_type) {
 		case NFT_MSG_NEWSET:
 			if (!nft_trans_set_update(trans) &&
@@ -10178,6 +10218,9 @@ static int nf_tables_commit(struct net *net, struct sk_buff *skb)
 				pr_warn_once("nftables ruleset with unbound chain\n");
 				return -EINVAL;
 			}
+			break;
+		default:
+			WARN_ONCE(1, "Unhandled bind type %d", trans->msg_type);
 			break;
 		}
 	}
@@ -11589,9 +11632,9 @@ static int __init nf_tables_module_init(void)
 	int err;
 
 	BUILD_BUG_ON(offsetof(struct nft_trans_table, nft_trans) != 0);
-	BUILD_BUG_ON(offsetof(struct nft_trans_chain, nft_trans) != 0);
+	BUILD_BUG_ON(offsetof(struct nft_trans_chain, nft_trans_binding.nft_trans) != 0);
 	BUILD_BUG_ON(offsetof(struct nft_trans_rule, nft_trans) != 0);
-	BUILD_BUG_ON(offsetof(struct nft_trans_set, nft_trans) != 0);
+	BUILD_BUG_ON(offsetof(struct nft_trans_set, nft_trans_binding.nft_trans) != 0);
 	BUILD_BUG_ON(offsetof(struct nft_trans_elem, nft_trans) != 0);
 	BUILD_BUG_ON(offsetof(struct nft_trans_obj, nft_trans) != 0);
 	BUILD_BUG_ON(offsetof(struct nft_trans_flowtable, nft_trans) != 0);
