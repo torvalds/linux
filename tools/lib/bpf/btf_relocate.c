@@ -58,8 +58,8 @@ struct btf_relocate {
 struct btf_name_info {
 	const char *name;
 	/* set when search requires a size match */
-	int needs_size:1,
-	    size:31;
+	bool needs_size: 1;
+	unsigned int size: 31;
 	__u32 id;
 };
 
