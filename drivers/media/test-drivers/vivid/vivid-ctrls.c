@@ -104,6 +104,12 @@
 #define VIVID_CID_META_CAP_GENERATE_PTS	(VIVID_CID_VIVID_BASE + 111)
 #define VIVID_CID_META_CAP_GENERATE_SCR	(VIVID_CID_VIVID_BASE + 112)
 
+/* HDMI inputs are in the range 0-14. The next available CID is VIVID_CID_VIVID_BASE + 128 */
+#define VIVID_CID_HDMI_IS_CONNECTED_TO_OUTPUT(input) (VIVID_CID_VIVID_BASE + 113 + (input))
+
+/* S-Video inputs are in the range 0-15. The next available CID is VIVID_CID_VIVID_BASE + 144 */
+#define VIVID_CID_SVID_IS_CONNECTED_TO_OUTPUT(input) (VIVID_CID_VIVID_BASE + 128 + (input))
+
 /* General User Controls */
 
 static void vivid_unregister_dev(bool valid, struct video_device *vdev)
@@ -454,6 +460,10 @@ static int vivid_vid_cap_s_ctrl(struct v4l2_ctrl *ctrl)
 	};
 	struct vivid_dev *dev = container_of(ctrl->handler, struct vivid_dev, ctrl_hdl_vid_cap);
 	unsigned int i, j;
+	struct vivid_dev *output_inst = NULL;
+	int index = 0;
+	int hdmi_index, svid_index;
+	s32 input_index = 0;
 
 	switch (ctrl->id) {
 	case VIVID_CID_TEST_PATTERN:
@@ -603,6 +613,56 @@ static int vivid_vid_cap_s_ctrl(struct v4l2_ctrl *ctrl)
 		dev->edid_max_blocks = ctrl->val;
 		if (dev->edid_blocks > dev->edid_max_blocks)
 			dev->edid_blocks = dev->edid_max_blocks;
+		break;
+	case VIVID_CID_HDMI_IS_CONNECTED_TO_OUTPUT(0) ... VIVID_CID_HDMI_IS_CONNECTED_TO_OUTPUT(14):
+		hdmi_index = ctrl->id - VIVID_CID_HDMI_IS_CONNECTED_TO_OUTPUT(0);
+		output_inst = vivid_ctrl_hdmi_to_output_instance[ctrl->cur.val];
+		index = vivid_ctrl_hdmi_to_output_index[ctrl->cur.val];
+		input_index = dev->hdmi_index_to_input_index[hdmi_index];
+		dev->input_is_connected_to_output[input_index] = ctrl->val;
+
+		if (output_inst)
+			output_inst->output_to_input_instance[index] = NULL;
+		if (ctrl->val >= FIXED_MENU_ITEMS) {
+			output_inst = vivid_ctrl_hdmi_to_output_instance[ctrl->val];
+			index = vivid_ctrl_hdmi_to_output_index[ctrl->val];
+			output_inst->output_to_input_instance[index] = dev;
+			output_inst->output_to_input_index[index] =
+				dev->hdmi_index_to_input_index[hdmi_index];
+		}
+		spin_lock(&hdmi_output_skip_mask_lock);
+		hdmi_to_output_menu_skip_mask &= ~(1ULL << ctrl->cur.val);
+		if (ctrl->val >= FIXED_MENU_ITEMS)
+			hdmi_to_output_menu_skip_mask |= 1ULL << ctrl->val;
+		spin_unlock(&hdmi_output_skip_mask_lock);
+		if (ctrl->val < FIXED_MENU_ITEMS && ctrl->cur.val < FIXED_MENU_ITEMS)
+			break;
+		queue_work(update_hdmi_ctrls_workqueue, &dev->update_hdmi_ctrl_work);
+		break;
+	case VIVID_CID_SVID_IS_CONNECTED_TO_OUTPUT(0) ... VIVID_CID_SVID_IS_CONNECTED_TO_OUTPUT(15):
+		svid_index = ctrl->id - VIVID_CID_SVID_IS_CONNECTED_TO_OUTPUT(0);
+		output_inst = vivid_ctrl_svid_to_output_instance[ctrl->cur.val];
+		index = vivid_ctrl_svid_to_output_index[ctrl->cur.val];
+		input_index = dev->svid_index_to_input_index[svid_index];
+		dev->input_is_connected_to_output[input_index] = ctrl->val;
+
+		if (output_inst)
+			output_inst->output_to_input_instance[index] = NULL;
+		if (ctrl->val >= FIXED_MENU_ITEMS) {
+			output_inst = vivid_ctrl_svid_to_output_instance[ctrl->val];
+			index = vivid_ctrl_svid_to_output_index[ctrl->val];
+			output_inst->output_to_input_instance[index] = dev;
+			output_inst->output_to_input_index[index] =
+				dev->svid_index_to_input_index[svid_index];
+		}
+		spin_lock(&svid_output_skip_mask_lock);
+		svid_to_output_menu_skip_mask &= ~(1ULL << ctrl->cur.val);
+		if (ctrl->val >= FIXED_MENU_ITEMS)
+			svid_to_output_menu_skip_mask |= 1ULL << ctrl->val;
+		spin_unlock(&svid_output_skip_mask_lock);
+		if (ctrl->val < FIXED_MENU_ITEMS && ctrl->cur.val < FIXED_MENU_ITEMS)
+			break;
+		queue_work(update_svid_ctrls_workqueue, &dev->update_svid_ctrl_work);
 		break;
 	}
 	return 0;
@@ -1710,6 +1770,48 @@ int vivid_create_controls(struct vivid_dev *dev, bool show_ccs_cap,
 		v4l2_ctrl_new_custom(hdl_vid_cap, &vivid_ctrl_insert_eav, NULL);
 		v4l2_ctrl_new_custom(hdl_vid_cap, &vivid_ctrl_insert_hdmi_video_guard_band, NULL);
 		v4l2_ctrl_new_custom(hdl_vid_cap, &vivid_ctrl_reduced_fps, NULL);
+
+		WARN_ON(dev->num_hdmi_inputs > MAX_HDMI_INPUTS);
+		WARN_ON(dev->num_svid_inputs > MAX_SVID_INPUTS);
+
+		for (u8 i = 0; i < dev->num_hdmi_inputs; i++) {
+			snprintf(dev->ctrl_hdmi_to_output_names[i],
+				 sizeof(dev->ctrl_hdmi_to_output_names[i]),
+				 "HDMI %03u-%u Is Connected To", dev->inst, i);
+		}
+
+		for (u8 i = 0; i < dev->num_hdmi_inputs; i++) {
+			struct v4l2_ctrl_config ctrl_config = {
+				.ops = &vivid_vid_cap_ctrl_ops,
+				.id = VIVID_CID_HDMI_IS_CONNECTED_TO_OUTPUT(i),
+				.name = dev->ctrl_hdmi_to_output_names[i],
+				.type = V4L2_CTRL_TYPE_MENU,
+				.max = 1,
+				.qmenu = (const char * const *)vivid_ctrl_hdmi_to_output_strings,
+			};
+			dev->ctrl_hdmi_to_output[i] = v4l2_ctrl_new_custom(hdl_vid_cap,
+									   &ctrl_config, NULL);
+		}
+
+		for (u8 i = 0; i < dev->num_svid_inputs; i++) {
+			snprintf(dev->ctrl_svid_to_output_names[i],
+				 sizeof(dev->ctrl_svid_to_output_names[i]),
+				 "S-Video %03u-%u Is Connected To", dev->inst, i);
+		}
+
+		for (u8 i = 0; i < dev->num_svid_inputs; i++) {
+			struct v4l2_ctrl_config ctrl_config = {
+				.ops = &vivid_vid_cap_ctrl_ops,
+				.id = VIVID_CID_SVID_IS_CONNECTED_TO_OUTPUT(i),
+				.name = dev->ctrl_svid_to_output_names[i],
+				.type = V4L2_CTRL_TYPE_MENU,
+				.max = 1,
+				.qmenu = (const char * const *)vivid_ctrl_svid_to_output_strings,
+			};
+			dev->ctrl_svid_to_output[i] = v4l2_ctrl_new_custom(hdl_vid_cap,
+									   &ctrl_config, NULL);
+		}
+
 		if (show_ccs_cap) {
 			dev->ctrl_has_crop_cap = v4l2_ctrl_new_custom(hdl_vid_cap,
 				&vivid_ctrl_has_crop_cap, NULL);
