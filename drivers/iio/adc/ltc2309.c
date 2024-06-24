@@ -103,7 +103,7 @@ static int ltc2309_read_raw_channel(struct ltc2309 *ltc2309,
 				    unsigned long address, int *val)
 {
 	int ret;
-	u16 buf;
+	__be16 buf;
 	u8 din;
 
 	din = FIELD_PREP(LTC2309_DIN_CH_MASK, address & 0x0f) |
