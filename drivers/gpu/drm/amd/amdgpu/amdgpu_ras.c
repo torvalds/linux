@@ -2105,10 +2105,8 @@ static void amdgpu_ras_interrupt_poison_creation_handler(struct ras_manager *obj
 	if (amdgpu_ip_version(obj->adev, UMC_HWIP, 0) >= IP_VERSION(12, 0, 0)) {
 		struct amdgpu_ras *con = amdgpu_ras_get_context(obj->adev);
 
-		amdgpu_ras_put_poison_req(obj->adev,
-			AMDGPU_RAS_BLOCK__UMC, 0, NULL, NULL, false);
-
 		atomic_inc(&con->page_retirement_req_cnt);
+		atomic_inc(&con->poison_creation_count);
 
 		wake_up(&con->page_retirement_wq);
 	}
@@ -2939,9 +2937,10 @@ static int amdgpu_ras_page_retirement_thread(void *param)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)param;
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+	uint32_t poison_creation_count;
+	int ret;
 	struct ras_poison_msg poison_msg;
 	enum amdgpu_ras_block ras_block;
-	bool poison_creation_is_handled = false;
 
 	while (!kthread_should_stop()) {
 
@@ -2952,7 +2951,18 @@ static int amdgpu_ras_page_retirement_thread(void *param)
 		if (kthread_should_stop())
 			break;
 
-		atomic_dec(&con->page_retirement_req_cnt);
+
+		do {
+			poison_creation_count = atomic_read(&con->poison_creation_count);
+			ret = amdgpu_ras_poison_creation_handler(adev, poison_creation_count);
+			if (ret == -EIO)
+				break;
+
+			if (poison_creation_count) {
+				atomic_sub(poison_creation_count, &con->poison_creation_count);
+				atomic_sub(poison_creation_count, &con->page_retirement_req_cnt);
+			}
+		} while (atomic_read(&con->poison_creation_count));
 
 		if (!amdgpu_ras_get_poison_req(adev, &poison_msg))
 			continue;
@@ -2962,24 +2972,7 @@ static int amdgpu_ras_page_retirement_thread(void *param)
 		dev_dbg(adev->dev, "Start processing ras block %s(%d)\n",
 				ras_block_str(ras_block), ras_block);
 
-		if (ras_block == AMDGPU_RAS_BLOCK__UMC) {
-			amdgpu_ras_poison_creation_handler(adev,
-				MAX_UMC_POISON_POLLING_TIME_ASYNC);
-			poison_creation_is_handled = true;
-		} else {
-			/* poison_creation_is_handled:
-			 *   false: no poison creation interrupt, but it has poison
-			 *          consumption interrupt.
-			 *   true: It has poison creation interrupt at the beginning,
-			 *         but it has no poison creation interrupt later.
-			 */
-			amdgpu_ras_poison_creation_handler(adev,
-					poison_creation_is_handled ?
-					0 : MAX_UMC_POISON_POLLING_TIME_ASYNC);
-
 			amdgpu_ras_poison_consumption_handler(adev, &poison_msg);
-			poison_creation_is_handled = false;
-		}
 	}
 
 	return 0;
@@ -3052,6 +3045,7 @@ int amdgpu_ras_recovery_init(struct amdgpu_device *adev)
 	mutex_init(&con->page_retirement_lock);
 	init_waitqueue_head(&con->page_retirement_wq);
 	atomic_set(&con->page_retirement_req_cnt, 0);
+	atomic_set(&con->poison_creation_count, 0);
 	con->page_retirement_thread =
 		kthread_run(amdgpu_ras_page_retirement_thread, adev, "umc_page_retirement");
 	if (IS_ERR(con->page_retirement_thread)) {
@@ -3100,6 +3094,7 @@ static int amdgpu_ras_recovery_fini(struct amdgpu_device *adev)
 		kthread_stop(con->page_retirement_thread);
 
 	atomic_set(&con->page_retirement_req_cnt, 0);
+	atomic_set(&con->poison_creation_count, 0);
 
 	mutex_destroy(&con->page_rsv_lock);
 
