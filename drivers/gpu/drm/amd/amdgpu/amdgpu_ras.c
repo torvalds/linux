@@ -2911,23 +2911,41 @@ static int amdgpu_ras_poison_creation_handler(struct amdgpu_device *adev,
 }
 
 static int amdgpu_ras_poison_consumption_handler(struct amdgpu_device *adev,
-			struct ras_poison_msg *poison_msg)
+			uint32_t msg_count, uint32_t *gpu_reset)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
-	uint32_t reset = poison_msg->reset;
-	uint16_t pasid = poison_msg->pasid;
+	uint32_t reset_flags = 0, reset = 0;
+	struct ras_poison_msg msg;
+	int ret, i;
 
 	kgd2kfd_set_sram_ecc_flag(adev->kfd.dev);
 
-	if (poison_msg->pasid_fn)
-		poison_msg->pasid_fn(adev, pasid, poison_msg->data);
+	for (i = 0; i < msg_count; i++) {
+		ret = amdgpu_ras_get_poison_req(adev, &msg);
+		if (!ret)
+			continue;
+
+		if (msg.pasid_fn)
+			msg.pasid_fn(adev, msg.pasid, msg.data);
+
+		reset_flags |= msg.reset;
+	}
 
 	/* for RMA, amdgpu_ras_poison_creation_handler will trigger gpu reset */
-	if (reset && !con->is_rma) {
+	if (reset_flags && !con->is_rma) {
+		if (reset_flags & AMDGPU_RAS_GPU_RESET_MODE1_RESET)
+			reset = AMDGPU_RAS_GPU_RESET_MODE1_RESET;
+		else if (reset_flags & AMDGPU_RAS_GPU_RESET_MODE2_RESET)
+			reset = AMDGPU_RAS_GPU_RESET_MODE2_RESET;
+		else
+			reset = reset_flags;
+
 		flush_delayed_work(&con->page_retirement_dwork);
 
 		con->gpu_reset_flags |= reset;
 		amdgpu_ras_reset_gpu(adev);
+
+		*gpu_reset = reset;
 	}
 
 	return 0;
@@ -2937,10 +2955,9 @@ static int amdgpu_ras_page_retirement_thread(void *param)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)param;
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
-	uint32_t poison_creation_count;
+	uint32_t poison_creation_count, msg_count;
+	uint32_t gpu_reset;
 	int ret;
-	struct ras_poison_msg poison_msg;
-	enum amdgpu_ras_block ras_block;
 
 	while (!kthread_should_stop()) {
 
@@ -2951,6 +2968,7 @@ static int amdgpu_ras_page_retirement_thread(void *param)
 		if (kthread_should_stop())
 			break;
 
+		gpu_reset = 0;
 
 		do {
 			poison_creation_count = atomic_read(&con->poison_creation_count);
@@ -2964,15 +2982,16 @@ static int amdgpu_ras_page_retirement_thread(void *param)
 			}
 		} while (atomic_read(&con->poison_creation_count));
 
-		if (!amdgpu_ras_get_poison_req(adev, &poison_msg))
-			continue;
-
-		ras_block = poison_msg.block;
-
-		dev_dbg(adev->dev, "Start processing ras block %s(%d)\n",
-				ras_block_str(ras_block), ras_block);
-
-			amdgpu_ras_poison_consumption_handler(adev, &poison_msg);
+		if (ret != -EIO) {
+			msg_count = kfifo_len(&con->poison_fifo);
+			if (msg_count) {
+				ret = amdgpu_ras_poison_consumption_handler(adev,
+						msg_count, &gpu_reset);
+				if ((ret != -EIO) &&
+				    (gpu_reset != AMDGPU_RAS_GPU_RESET_MODE1_RESET))
+					atomic_sub(msg_count, &con->page_retirement_req_cnt);
+			}
+		}
 	}
 
 	return 0;
