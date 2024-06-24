@@ -83,7 +83,15 @@ extern unsigned vivid_debug;
 extern char *vivid_ctrl_hdmi_to_output_strings[1 + MAX_MENU_ITEMS];
 /* Menu control skip mask of all HDMI outputs that are in use */
 extern u64 hdmi_to_output_menu_skip_mask;
-/* Spinlock for access to hdmi_to_output_menu_skip_mask */
+/*
+ * Bitmask of which vivid instances need to update any connected
+ * HDMI outputs.
+ */
+extern u64 hdmi_input_update_outputs_mask;
+/*
+ * Spinlock for access to hdmi_to_output_menu_skip_mask and
+ * hdmi_input_update_outputs_mask.
+ */
 extern spinlock_t hdmi_output_skip_mask_lock;
 /*
  * Workqueue that updates the menu controls whenever the HDMI menu skip mask
@@ -283,7 +291,6 @@ struct vivid_dev {
 	bool				has_tv_tuner;
 	bool				has_touch_cap;
 
-	bool				can_loop_video;
 	/* Output index (0-MAX_OUTPUTS) to vivid instance of connected input */
 	struct vivid_dev		*output_to_input_instance[MAX_OUTPUTS];
 	/* Output index (0-MAX_OUTPUTS) to input index (0-MAX_INPUTS) of connected input */
@@ -336,7 +343,6 @@ struct vivid_dev {
 		struct v4l2_ctrl	*ctrl_dv_timings_signal_mode;
 		struct v4l2_ctrl	*ctrl_dv_timings;
 	};
-	struct v4l2_ctrl		*ctrl_display_present;
 	struct v4l2_ctrl		*ctrl_has_crop_cap;
 	struct v4l2_ctrl		*ctrl_has_compose_cap;
 	struct v4l2_ctrl		*ctrl_has_scaler_cap;
@@ -463,7 +469,6 @@ struct vivid_dev {
 	u8				*scaled_line;
 	u8				*blended_line;
 	unsigned			cur_scaled_line;
-	bool				display_present[MAX_OUTPUTS];
 
 	/* Output Overlay */
 	void				*fb_vbase_out;
@@ -643,11 +648,10 @@ struct vivid_dev {
 
 	/* CEC */
 	struct cec_adapter		*cec_rx_adap;
-	struct cec_adapter		*cec_tx_adap[MAX_OUTPUTS];
-	u8				cec_output2bus_map[MAX_OUTPUTS];
+	struct cec_adapter		*cec_tx_adap[MAX_HDMI_OUTPUTS];
 	struct task_struct		*kthread_cec;
 	wait_queue_head_t		kthread_waitq_cec;
-	struct vivid_cec_xfer	xfers[MAX_OUTPUTS];
+	struct vivid_cec_xfer		xfers[MAX_OUTPUTS];
 	spinlock_t			cec_xfers_slock; /* read and write cec messages */
 	u32				cec_sft; /* bus signal free time, in bit periods */
 	u8				last_initiator;

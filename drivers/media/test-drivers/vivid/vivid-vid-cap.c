@@ -211,9 +211,6 @@ static int vid_cap_start_streaming(struct vb2_queue *vq, unsigned count)
 	unsigned i;
 	int err;
 
-	if (vb2_is_streaming(&dev->vb_vid_out_q))
-		dev->can_loop_video = vivid_vid_can_loop(dev);
-
 	dev->vid_cap_seq_count = 0;
 	dprintk(dev, 1, "%s\n", __func__);
 	for (i = 0; i < VIDEO_MAX_FRAME; i++)
@@ -243,7 +240,6 @@ static void vid_cap_stop_streaming(struct vb2_queue *vq)
 
 	dprintk(dev, 1, "%s\n", __func__);
 	vivid_stop_generating_vid_cap(dev, &dev->vid_cap_streaming);
-	dev->can_loop_video = false;
 }
 
 static void vid_cap_buf_request_complete(struct vb2_buffer *vb)
@@ -274,7 +270,7 @@ void vivid_update_quality(struct vivid_dev *dev)
 {
 	unsigned freq_modulus;
 
-	if (dev->loop_video && (vivid_is_svid_cap(dev) || vivid_is_hdmi_cap(dev))) {
+	if (dev->input_is_connected_to_output[dev->input]) {
 		/*
 		 * The 'noise' will only be replaced by the actual video
 		 * if the output video matches the input video settings.
@@ -488,35 +484,35 @@ static enum v4l2_field vivid_field_cap(struct vivid_dev *dev, enum v4l2_field fi
 
 static unsigned vivid_colorspace_cap(struct vivid_dev *dev)
 {
-	if (!dev->loop_video || vivid_is_webcam(dev) || vivid_is_tv_cap(dev))
+	if (!vivid_input_is_connected_to(dev))
 		return tpg_g_colorspace(&dev->tpg);
 	return dev->colorspace_out;
 }
 
 static unsigned vivid_xfer_func_cap(struct vivid_dev *dev)
 {
-	if (!dev->loop_video || vivid_is_webcam(dev) || vivid_is_tv_cap(dev))
+	if (!vivid_input_is_connected_to(dev))
 		return tpg_g_xfer_func(&dev->tpg);
 	return dev->xfer_func_out;
 }
 
 static unsigned vivid_ycbcr_enc_cap(struct vivid_dev *dev)
 {
-	if (!dev->loop_video || vivid_is_webcam(dev) || vivid_is_tv_cap(dev))
+	if (!vivid_input_is_connected_to(dev))
 		return tpg_g_ycbcr_enc(&dev->tpg);
 	return dev->ycbcr_enc_out;
 }
 
 static unsigned int vivid_hsv_enc_cap(struct vivid_dev *dev)
 {
-	if (!dev->loop_video || vivid_is_webcam(dev) || vivid_is_tv_cap(dev))
+	if (!vivid_input_is_connected_to(dev))
 		return tpg_g_hsv_enc(&dev->tpg);
 	return dev->hsv_enc_out;
 }
 
 static unsigned vivid_quantization_cap(struct vivid_dev *dev)
 {
-	if (!dev->loop_video || vivid_is_webcam(dev) || vivid_is_tv_cap(dev))
+	if (!vivid_input_is_connected_to(dev))
 		return tpg_g_quantization(&dev->tpg);
 	return dev->quantization_out;
 }
@@ -1538,13 +1534,65 @@ int vidioc_query_dv_timings(struct file *file, void *_fh,
 	return 0;
 }
 
+void vivid_update_outputs(struct vivid_dev *dev)
+{
+	u32 edid_present = 0;
+
+	if (!dev || !dev->num_outputs)
+		return;
+	for (unsigned int i = 0, j = 0; i < dev->num_outputs; i++) {
+		if (dev->output_type[i] != HDMI)
+			continue;
+
+		struct vivid_dev *dev_rx = dev->output_to_input_instance[i];
+
+		if (dev_rx && dev_rx->edid_blocks)
+			edid_present |= 1 << j;
+		j++;
+	}
+	v4l2_ctrl_s_ctrl(dev->ctrl_tx_edid_present, edid_present);
+	v4l2_ctrl_s_ctrl(dev->ctrl_tx_hotplug, edid_present);
+	v4l2_ctrl_s_ctrl(dev->ctrl_tx_rxsense, edid_present);
+}
+
+void vivid_update_connected_outputs(struct vivid_dev *dev)
+{
+	u16 phys_addr = cec_get_edid_phys_addr(dev->edid, dev->edid_blocks * 128, NULL);
+
+	for (unsigned int i = 0, j = 0; i < dev->num_inputs; i++) {
+		unsigned int menu_idx =
+			dev->input_is_connected_to_output[i];
+
+		if (dev->input_type[i] != HDMI)
+			continue;
+		j++;
+		if (menu_idx < FIXED_MENU_ITEMS)
+			continue;
+
+		struct vivid_dev *dev_tx = vivid_ctrl_hdmi_to_output_instance[menu_idx];
+		unsigned int output = vivid_ctrl_hdmi_to_output_index[menu_idx];
+
+		if (!dev_tx)
+			continue;
+
+		unsigned int hdmi_output = dev_tx->output_to_iface_index[output];
+
+		vivid_update_outputs(dev_tx);
+		if (dev->edid_blocks) {
+			cec_s_phys_addr(dev_tx->cec_tx_adap[hdmi_output],
+					v4l2_phys_addr_for_input(phys_addr, j),
+					false);
+		} else {
+			cec_phys_addr_invalidate(dev_tx->cec_tx_adap[hdmi_output]);
+		}
+	}
+}
+
 int vidioc_s_edid(struct file *file, void *_fh,
 			 struct v4l2_edid *edid)
 {
 	struct vivid_dev *dev = video_drvdata(file);
 	u16 phys_addr;
-	u32 display_present = 0;
-	unsigned int i, j;
 	int ret;
 
 	memset(edid->reserved, 0, sizeof(edid->reserved));
@@ -1553,13 +1601,11 @@ int vidioc_s_edid(struct file *file, void *_fh,
 	if (dev->input_type[edid->pad] != HDMI || edid->start_block)
 		return -EINVAL;
 	if (edid->blocks == 0) {
+		if (vb2_is_busy(&dev->vb_vid_cap_q))
+			return -EBUSY;
 		dev->edid_blocks = 0;
-		if (dev->num_outputs) {
-			v4l2_ctrl_s_ctrl(dev->ctrl_tx_edid_present, 0);
-			v4l2_ctrl_s_ctrl(dev->ctrl_tx_hotplug, 0);
-		}
-		phys_addr = CEC_PHYS_ADDR_INVALID;
-		goto set_phys_addr;
+		vivid_update_connected_outputs(dev);
+		return 0;
 	}
 	if (edid->blocks > dev->edid_max_blocks) {
 		edid->blocks = dev->edid_max_blocks;
@@ -1576,26 +1622,7 @@ int vidioc_s_edid(struct file *file, void *_fh,
 	dev->edid_blocks = edid->blocks;
 	memcpy(dev->edid, edid->edid, edid->blocks * 128);
 
-	for (i = 0, j = 0; i < dev->num_outputs; i++)
-		if (dev->output_type[i] == HDMI)
-			display_present |=
-				dev->display_present[i] << j++;
-
-	if (dev->num_outputs) {
-		v4l2_ctrl_s_ctrl(dev->ctrl_tx_edid_present, display_present);
-		v4l2_ctrl_s_ctrl(dev->ctrl_tx_hotplug, display_present);
-	}
-
-set_phys_addr:
-	/* TODO: a proper hotplug detect cycle should be emulated here */
-	cec_s_phys_addr(dev->cec_rx_adap, phys_addr, false);
-
-	for (i = 0; i < MAX_OUTPUTS && dev->cec_tx_adap[i]; i++)
-		cec_s_phys_addr(dev->cec_tx_adap[i],
-				dev->display_present[i] ?
-				v4l2_phys_addr_for_input(phys_addr, i + 1) :
-				CEC_PHYS_ADDR_INVALID,
-				false);
+	vivid_update_connected_outputs(dev);
 	return 0;
 }
 

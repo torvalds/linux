@@ -769,14 +769,55 @@ const struct vivid_fmt *vivid_get_format(struct vivid_dev *dev, u32 pixelformat)
 	return NULL;
 }
 
+struct vivid_dev *vivid_output_is_connected_to(struct vivid_dev *dev)
+{
+	struct vivid_dev *input_inst = dev->output_to_input_instance[dev->output];
+
+	if (!input_inst)
+		return NULL;
+	if (input_inst->input != dev->output_to_input_index[dev->output])
+		return NULL;
+	return input_inst;
+}
+
+struct vivid_dev *vivid_input_is_connected_to(struct vivid_dev *dev)
+{
+	s32 connected_output = dev->input_is_connected_to_output[dev->input];
+
+	if (connected_output < FIXED_MENU_ITEMS)
+		return NULL;
+	struct vivid_dev *output_inst = NULL;
+
+	if (vivid_is_hdmi_cap(dev)) {
+		output_inst = vivid_ctrl_hdmi_to_output_instance[connected_output];
+		if (vivid_ctrl_hdmi_to_output_index[connected_output] != output_inst->output)
+			return NULL;
+		return output_inst;
+	} else if (vivid_is_svid_cap(dev)) {
+		output_inst = vivid_ctrl_svid_to_output_instance[connected_output];
+		if (vivid_ctrl_svid_to_output_index[connected_output] != output_inst->output)
+			return NULL;
+		return output_inst;
+	} else {
+		return NULL;
+	}
+	return output_inst;
+}
+
 bool vivid_vid_can_loop(struct vivid_dev *dev)
 {
-	if (dev->src_rect.width != dev->sink_rect.width ||
-	    dev->src_rect.height != dev->sink_rect.height)
+	struct vivid_dev *output_inst = vivid_input_is_connected_to(dev);
+
+	if (!output_inst)
 		return false;
-	if (dev->fmt_cap->fourcc != dev->fmt_out->fourcc)
+	if (!vb2_is_streaming(&output_inst->vb_vid_out_q))
 		return false;
-	if (dev->field_cap != dev->field_out)
+	if (dev->src_rect.width != output_inst->sink_rect.width ||
+	    dev->src_rect.height != output_inst->sink_rect.height)
+		return false;
+	if (dev->fmt_cap->fourcc != output_inst->fmt_out->fourcc)
+		return false;
+	if (dev->field_cap != output_inst->field_out)
 		return false;
 	/*
 	 * While this can be supported, it is just too much work
@@ -785,34 +826,34 @@ bool vivid_vid_can_loop(struct vivid_dev *dev)
 	if (dev->field_cap == V4L2_FIELD_SEQ_TB ||
 	    dev->field_cap == V4L2_FIELD_SEQ_BT)
 		return false;
-	if (vivid_is_svid_cap(dev) && vivid_is_svid_out(dev)) {
-		if (!(dev->std_cap[dev->input] & V4L2_STD_525_60) !=
-		    !(dev->std_out & V4L2_STD_525_60))
-			return false;
+	if (vivid_is_hdmi_cap(dev))
 		return true;
-	}
-	if (vivid_is_hdmi_cap(dev) && vivid_is_hdmi_out(dev))
-		return true;
-	return false;
+	if (!(dev->std_cap[dev->input] & V4L2_STD_525_60) !=
+	    !(output_inst->std_out & V4L2_STD_525_60))
+		return false;
+	return true;
 }
 
-void vivid_send_source_change(struct vivid_dev *dev, unsigned type)
+void vivid_send_input_source_change(struct vivid_dev *dev, unsigned int input_index)
 {
 	struct v4l2_event ev = {
 		.type = V4L2_EVENT_SOURCE_CHANGE,
 		.u.src_change.changes = V4L2_EVENT_SRC_CH_RESOLUTION,
 	};
-	unsigned i;
+	ev.id = input_index;
 
-	for (i = 0; i < dev->num_inputs; i++) {
-		ev.id = i;
-		if (dev->input_type[i] == type) {
-			if (video_is_registered(&dev->vid_cap_dev) && dev->has_vid_cap)
-				v4l2_event_queue(&dev->vid_cap_dev, &ev);
-			if (video_is_registered(&dev->vbi_cap_dev) && dev->has_vbi_cap)
-				v4l2_event_queue(&dev->vbi_cap_dev, &ev);
-		}
-	}
+	if (video_is_registered(&dev->vid_cap_dev) && dev->has_vid_cap)
+		v4l2_event_queue(&dev->vid_cap_dev, &ev);
+	if (dev->input_type[input_index] == TV || dev->input_type[input_index] == SVID)
+		if (video_is_registered(&dev->vbi_cap_dev) && dev->has_vbi_cap)
+			v4l2_event_queue(&dev->vbi_cap_dev, &ev);
+}
+
+void vivid_send_source_change(struct vivid_dev *dev, unsigned int type)
+{
+	for (int i = 0; i < dev->num_inputs; i++)
+		if (dev->input_type[i] == type)
+			vivid_send_input_source_change(dev, i);
 }
 
 /*
@@ -1036,6 +1077,7 @@ int vidioc_g_edid(struct file *file, void *_fh,
 			 struct v4l2_edid *edid)
 {
 	struct vivid_dev *dev = video_drvdata(file);
+	struct vivid_dev *dev_rx = dev;
 	struct video_device *vdev = video_devdata(file);
 	struct cec_adapter *adap;
 	unsigned int loc;
@@ -1048,31 +1090,33 @@ int vidioc_g_edid(struct file *file, void *_fh,
 			return -EINVAL;
 		adap = dev->cec_rx_adap;
 	} else {
-		unsigned int bus_idx;
-
 		if (edid->pad >= dev->num_outputs)
 			return -EINVAL;
 		if (dev->output_type[edid->pad] != HDMI)
 			return -EINVAL;
-		if (!dev->display_present[edid->pad])
+		dev_rx = dev->output_to_input_instance[edid->pad];
+		if (!dev_rx)
 			return -ENODATA;
-		bus_idx = dev->cec_output2bus_map[edid->pad];
-		adap = dev->cec_tx_adap[bus_idx];
+
+		unsigned int hdmi_output = dev->output_to_iface_index[edid->pad];
+
+		adap = dev->cec_tx_adap[hdmi_output];
 	}
 	if (edid->start_block == 0 && edid->blocks == 0) {
-		edid->blocks = dev->edid_blocks;
+		edid->blocks = dev_rx->edid_blocks;
 		return 0;
 	}
-	if (dev->edid_blocks == 0)
+	if (dev_rx->edid_blocks == 0)
 		return -ENODATA;
-	if (edid->start_block >= dev->edid_blocks)
+	if (edid->start_block >= dev_rx->edid_blocks)
 		return -EINVAL;
-	if (edid->blocks > dev->edid_blocks - edid->start_block)
-		edid->blocks = dev->edid_blocks - edid->start_block;
+	if (edid->blocks > dev_rx->edid_blocks - edid->start_block)
+		edid->blocks = dev_rx->edid_blocks - edid->start_block;
 
-	memcpy(edid->edid, dev->edid + edid->start_block * 128, edid->blocks * 128);
+	memcpy(edid->edid, dev_rx->edid + edid->start_block * 128, edid->blocks * 128);
 
-	loc = cec_get_edid_spa_location(dev->edid, dev->edid_blocks * 128);
+	loc = cec_get_edid_spa_location(dev_rx->edid,
+					dev_rx->edid_blocks * 128);
 	if (vdev->vfl_dir == VFL_DIR_TX && adap && loc &&
 	    loc >= edid->start_block * 128 &&
 	    loc < (edid->start_block + edid->blocks) * 128) {

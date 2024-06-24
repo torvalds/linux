@@ -18,7 +18,6 @@
 #include "vivid-radio-common.h"
 #include "vivid-osd.h"
 #include "vivid-ctrls.h"
-#include "vivid-cec.h"
 
 #define VIVID_CID_CUSTOM_BASE		(V4L2_CID_USER_BASE | 0xf000)
 #define VIVID_CID_BUTTON		(VIVID_CID_CUSTOM_BASE + 0)
@@ -69,14 +68,12 @@
 #define VIVID_CID_HAS_CROP_OUT		(VIVID_CID_VIVID_BASE + 34)
 #define VIVID_CID_HAS_COMPOSE_OUT	(VIVID_CID_VIVID_BASE + 35)
 #define VIVID_CID_HAS_SCALER_OUT	(VIVID_CID_VIVID_BASE + 36)
-#define VIVID_CID_LOOP_VIDEO		(VIVID_CID_VIVID_BASE + 37)
 #define VIVID_CID_SEQ_WRAP		(VIVID_CID_VIVID_BASE + 38)
 #define VIVID_CID_TIME_WRAP		(VIVID_CID_VIVID_BASE + 39)
 #define VIVID_CID_MAX_EDID_BLOCKS	(VIVID_CID_VIVID_BASE + 40)
 #define VIVID_CID_PERCENTAGE_FILL	(VIVID_CID_VIVID_BASE + 41)
 #define VIVID_CID_REDUCED_FPS		(VIVID_CID_VIVID_BASE + 42)
 #define VIVID_CID_HSV_ENC		(VIVID_CID_VIVID_BASE + 43)
-#define VIVID_CID_DISPLAY_PRESENT	(VIVID_CID_VIVID_BASE + 44)
 
 #define VIVID_CID_STD_SIGNAL_MODE	(VIVID_CID_VIVID_BASE + 60)
 #define VIVID_CID_STANDARD		(VIVID_CID_VIVID_BASE + 61)
@@ -445,6 +442,33 @@ static const struct v4l2_ctrl_ops vivid_user_vid_ctrl_ops = {
 
 /* Video Capture Controls */
 
+static void vivid_update_power_present(struct vivid_dev *dev)
+{
+	unsigned int i, j;
+
+	dev->power_present = 0;
+	for (i = 0, j = 0;
+	     i < ARRAY_SIZE(dev->dv_timings_signal_mode); i++) {
+		if (dev->input_type[i] != HDMI)
+			continue;
+		/*
+		 * If connected to TPG or HDMI output, and the signal
+		 * mode is not NO_SIGNAL, then there is power present.
+		 */
+		if (dev->input_is_connected_to_output[i] != 1 &&
+		    dev->dv_timings_signal_mode[i] != NO_SIGNAL)
+			dev->power_present |= (1 << j);
+		j++;
+	}
+
+	__v4l2_ctrl_s_ctrl(dev->ctrl_rx_power_present,
+			   dev->power_present);
+
+	v4l2_ctrl_activate(dev->ctrl_dv_timings,
+			   dev->dv_timings_signal_mode[dev->input] ==
+			   SELECTED_DV_TIMINGS);
+}
+
 static int vivid_vid_cap_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	static const u32 colorspaces[] = {
@@ -459,7 +483,7 @@ static int vivid_vid_cap_s_ctrl(struct v4l2_ctrl *ctrl)
 		V4L2_COLORSPACE_470_SYSTEM_BG,
 	};
 	struct vivid_dev *dev = container_of(ctrl->handler, struct vivid_dev, ctrl_hdl_vid_cap);
-	unsigned int i, j;
+	unsigned int i;
 	struct vivid_dev *output_inst = NULL;
 	int index = 0;
 	int hdmi_index, svid_index;
@@ -579,25 +603,9 @@ static int vivid_vid_cap_s_ctrl(struct v4l2_ctrl *ctrl)
 		dev->dv_timings_signal_mode[dev->input] =
 			dev->ctrl_dv_timings_signal_mode->val;
 		dev->query_dv_timings[dev->input] = dev->ctrl_dv_timings->val;
-
-		dev->power_present = 0;
-		for (i = 0, j = 0;
-		     i < ARRAY_SIZE(dev->dv_timings_signal_mode);
-		     i++)
-			if (dev->input_type[i] == HDMI) {
-				if (dev->dv_timings_signal_mode[i] != NO_SIGNAL)
-					dev->power_present |= (1 << j);
-				j++;
-			}
-		__v4l2_ctrl_s_ctrl(dev->ctrl_rx_power_present,
-				   dev->power_present);
-
-		v4l2_ctrl_activate(dev->ctrl_dv_timings,
-			dev->dv_timings_signal_mode[dev->input] ==
-				SELECTED_DV_TIMINGS);
-
+		vivid_update_power_present(dev);
 		vivid_update_quality(dev);
-		vivid_send_source_change(dev, HDMI);
+		vivid_send_input_source_change(dev, dev->input);
 		break;
 	case VIVID_CID_DV_TIMINGS_ASPECT_RATIO:
 		dev->dv_timings_aspect_ratio[dev->input] = ctrl->val;
@@ -621,8 +629,11 @@ static int vivid_vid_cap_s_ctrl(struct v4l2_ctrl *ctrl)
 		input_index = dev->hdmi_index_to_input_index[hdmi_index];
 		dev->input_is_connected_to_output[input_index] = ctrl->val;
 
-		if (output_inst)
+		if (output_inst) {
 			output_inst->output_to_input_instance[index] = NULL;
+			vivid_update_outputs(output_inst);
+			cec_phys_addr_invalidate(output_inst->cec_tx_adap[index]);
+		}
 		if (ctrl->val >= FIXED_MENU_ITEMS) {
 			output_inst = vivid_ctrl_hdmi_to_output_instance[ctrl->val];
 			index = vivid_ctrl_hdmi_to_output_index[ctrl->val];
@@ -635,8 +646,14 @@ static int vivid_vid_cap_s_ctrl(struct v4l2_ctrl *ctrl)
 		if (ctrl->val >= FIXED_MENU_ITEMS)
 			hdmi_to_output_menu_skip_mask |= 1ULL << ctrl->val;
 		spin_unlock(&hdmi_output_skip_mask_lock);
+		vivid_update_power_present(dev);
+		vivid_update_quality(dev);
+		vivid_send_input_source_change(dev, dev->hdmi_index_to_input_index[hdmi_index]);
 		if (ctrl->val < FIXED_MENU_ITEMS && ctrl->cur.val < FIXED_MENU_ITEMS)
 			break;
+		spin_lock(&hdmi_output_skip_mask_lock);
+		hdmi_input_update_outputs_mask |= 1 << dev->inst;
+		spin_unlock(&hdmi_output_skip_mask_lock);
 		queue_work(update_hdmi_ctrls_workqueue, &dev->update_hdmi_ctrl_work);
 		break;
 	case VIVID_CID_SVID_IS_CONNECTED_TO_OUTPUT(0) ... VIVID_CID_SVID_IS_CONNECTED_TO_OUTPUT(15):
@@ -660,6 +677,8 @@ static int vivid_vid_cap_s_ctrl(struct v4l2_ctrl *ctrl)
 		if (ctrl->val >= FIXED_MENU_ITEMS)
 			svid_to_output_menu_skip_mask |= 1ULL << ctrl->val;
 		spin_unlock(&svid_output_skip_mask_lock);
+		vivid_update_quality(dev);
+		vivid_send_input_source_change(dev, dev->svid_index_to_input_index[svid_index]);
 		if (ctrl->val < FIXED_MENU_ITEMS && ctrl->cur.val < FIXED_MENU_ITEMS)
 			break;
 		queue_work(update_svid_ctrls_workqueue, &dev->update_svid_ctrl_work);
@@ -1026,37 +1045,6 @@ static const struct v4l2_ctrl_config vivid_ctrl_limited_rgb_range = {
 };
 
 
-/* Video Loop Control */
-
-static int vivid_loop_cap_s_ctrl(struct v4l2_ctrl *ctrl)
-{
-	struct vivid_dev *dev = container_of(ctrl->handler, struct vivid_dev, ctrl_hdl_loop_cap);
-
-	switch (ctrl->id) {
-	case VIVID_CID_LOOP_VIDEO:
-		dev->loop_video = ctrl->val;
-		vivid_update_quality(dev);
-		vivid_send_source_change(dev, SVID);
-		vivid_send_source_change(dev, HDMI);
-		break;
-	}
-	return 0;
-}
-
-static const struct v4l2_ctrl_ops vivid_loop_cap_ctrl_ops = {
-	.s_ctrl = vivid_loop_cap_s_ctrl,
-};
-
-static const struct v4l2_ctrl_config vivid_ctrl_loop_video = {
-	.ops = &vivid_loop_cap_ctrl_ops,
-	.id = VIVID_CID_LOOP_VIDEO,
-	.name = "Loop Video",
-	.type = V4L2_CTRL_TYPE_BOOLEAN,
-	.max = 1,
-	.step = 1,
-};
-
-
 /* VBI Capture Control */
 
 static int vivid_vbi_cap_s_ctrl(struct v4l2_ctrl *ctrl)
@@ -1091,8 +1079,6 @@ static int vivid_vid_out_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct vivid_dev *dev = container_of(ctrl->handler, struct vivid_dev, ctrl_hdl_vid_out);
 	struct v4l2_bt_timings *bt = &dev->dv_timings_out.bt;
-	u32 display_present = 0;
-	unsigned int i, j, bus_idx;
 
 	switch (ctrl->id) {
 	case VIVID_CID_HAS_CROP_OUT:
@@ -1123,39 +1109,11 @@ static int vivid_vid_out_s_ctrl(struct v4l2_ctrl *ctrl)
 					V4L2_QUANTIZATION_LIM_RANGE :
 					V4L2_QUANTIZATION_DEFAULT;
 		}
-		if (dev->loop_video)
-			vivid_send_source_change(dev, HDMI);
-		break;
-	case VIVID_CID_DISPLAY_PRESENT:
-		if (dev->output_type[dev->output] != HDMI)
-			break;
+		if (vivid_output_is_connected_to(dev)) {
+			struct vivid_dev *dev_rx = vivid_output_is_connected_to(dev);
 
-		dev->display_present[dev->output] = ctrl->val;
-		for (i = 0, j = 0; i < dev->num_outputs; i++)
-			if (dev->output_type[i] == HDMI)
-				display_present |=
-					dev->display_present[i] << j++;
-
-		__v4l2_ctrl_s_ctrl(dev->ctrl_tx_rxsense, display_present);
-
-		if (dev->edid_blocks) {
-			__v4l2_ctrl_s_ctrl(dev->ctrl_tx_edid_present,
-					   display_present);
-			__v4l2_ctrl_s_ctrl(dev->ctrl_tx_hotplug,
-					   display_present);
+			vivid_send_source_change(dev_rx, HDMI);
 		}
-
-		bus_idx = dev->cec_output2bus_map[dev->output];
-		if (!dev->cec_tx_adap[bus_idx])
-			break;
-
-		if (ctrl->val && dev->edid_blocks)
-			cec_s_phys_addr(dev->cec_tx_adap[bus_idx],
-					dev->cec_tx_adap[bus_idx]->phys_addr,
-					false);
-		else
-			cec_phys_addr_invalidate(dev->cec_tx_adap[bus_idx]);
-
 		break;
 	}
 	return 0;
@@ -1189,16 +1147,6 @@ static const struct v4l2_ctrl_config vivid_ctrl_has_scaler_out = {
 	.ops = &vivid_vid_out_ctrl_ops,
 	.id = VIVID_CID_HAS_SCALER_OUT,
 	.name = "Enable Output Scaler",
-	.type = V4L2_CTRL_TYPE_BOOLEAN,
-	.max = 1,
-	.def = 1,
-	.step = 1,
-};
-
-static const struct v4l2_ctrl_config vivid_ctrl_display_present = {
-	.ops = &vivid_vid_out_ctrl_ops,
-	.id = VIVID_CID_DISPLAY_PRESENT,
-	.name = "Display Present",
 	.type = V4L2_CTRL_TYPE_BOOLEAN,
 	.max = 1,
 	.def = 1,
@@ -1914,21 +1862,13 @@ int vivid_create_controls(struct vivid_dev *dev, bool show_ccs_cap,
 		dev->ctrl_tx_mode = v4l2_ctrl_new_std_menu(hdl_vid_out, NULL,
 			V4L2_CID_DV_TX_MODE, V4L2_DV_TX_MODE_HDMI,
 			0, V4L2_DV_TX_MODE_HDMI);
-		dev->ctrl_display_present = v4l2_ctrl_new_custom(hdl_vid_out,
-			&vivid_ctrl_display_present, NULL);
-		dev->ctrl_tx_hotplug = v4l2_ctrl_new_std(hdl_vid_out,
-			NULL, V4L2_CID_DV_TX_HOTPLUG, 0, hdmi_output_mask,
-			0, hdmi_output_mask);
-		dev->ctrl_tx_rxsense = v4l2_ctrl_new_std(hdl_vid_out,
-			NULL, V4L2_CID_DV_TX_RXSENSE, 0, hdmi_output_mask,
-			0, hdmi_output_mask);
-		dev->ctrl_tx_edid_present = v4l2_ctrl_new_std(hdl_vid_out,
-			NULL, V4L2_CID_DV_TX_EDID_PRESENT, 0, hdmi_output_mask,
-			0, hdmi_output_mask);
+		dev->ctrl_tx_hotplug = v4l2_ctrl_new_std(hdl_vid_out, NULL,
+			V4L2_CID_DV_TX_HOTPLUG, 0, hdmi_output_mask, 0, 0);
+		dev->ctrl_tx_rxsense = v4l2_ctrl_new_std(hdl_vid_out, NULL,
+			V4L2_CID_DV_TX_RXSENSE, 0, hdmi_output_mask, 0, 0);
+		dev->ctrl_tx_edid_present = v4l2_ctrl_new_std(hdl_vid_out, NULL,
+			V4L2_CID_DV_TX_EDID_PRESENT, 0, hdmi_output_mask, 0, 0);
 	}
-	if ((dev->has_vid_cap && dev->has_vid_out) ||
-	    (dev->has_vbi_cap && dev->has_vbi_out))
-		v4l2_ctrl_new_custom(hdl_loop_cap, &vivid_ctrl_loop_video, NULL);
 
 	if (dev->has_fb)
 		v4l2_ctrl_new_custom(hdl_fb, &vivid_ctrl_clear_fb, NULL);

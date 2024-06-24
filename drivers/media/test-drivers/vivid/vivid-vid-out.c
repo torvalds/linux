@@ -157,9 +157,6 @@ static int vid_out_start_streaming(struct vb2_queue *vq, unsigned count)
 	struct vivid_dev *dev = vb2_get_drv_priv(vq);
 	int err;
 
-	if (vb2_is_streaming(&dev->vb_vid_cap_q))
-		dev->can_loop_video = vivid_vid_can_loop(dev);
-
 	dev->vid_out_seq_count = 0;
 	dprintk(dev, 1, "%s\n", __func__);
 	if (dev->start_streaming_error) {
@@ -187,7 +184,6 @@ static void vid_out_stop_streaming(struct vb2_queue *vq)
 
 	dprintk(dev, 1, "%s\n", __func__);
 	vivid_stop_generating_vid_out(dev, &dev->vid_out_streaming);
-	dev->can_loop_video = false;
 }
 
 static void vid_out_buf_request_complete(struct vb2_buffer *vb)
@@ -564,9 +560,11 @@ set_colorspace:
 	dev->xfer_func_out = mp->xfer_func;
 	dev->ycbcr_enc_out = mp->ycbcr_enc;
 	dev->quantization_out = mp->quantization;
-	if (dev->loop_video) {
-		vivid_send_source_change(dev, SVID);
-		vivid_send_source_change(dev, HDMI);
+	struct vivid_dev *in_dev = vivid_output_is_connected_to(dev);
+
+	if (in_dev) {
+		vivid_send_source_change(in_dev, SVID);
+		vivid_send_source_change(in_dev, HDMI);
 	}
 	return 0;
 }
@@ -1015,11 +1013,6 @@ int vidioc_s_output(struct file *file, void *priv, unsigned o)
 	dev->vbi_out_dev.tvnorms = dev->vid_out_dev.tvnorms;
 	dev->meta_out_dev.tvnorms = dev->vid_out_dev.tvnorms;
 	vivid_update_format_out(dev);
-
-	v4l2_ctrl_activate(dev->ctrl_display_present, vivid_is_hdmi_out(dev));
-	if (vivid_is_hdmi_out(dev))
-		v4l2_ctrl_s_ctrl(dev->ctrl_display_present,
-				 dev->display_present[dev->output]);
 
 	return 0;
 }

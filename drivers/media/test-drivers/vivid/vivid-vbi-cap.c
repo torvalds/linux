@@ -14,6 +14,7 @@
 #include "vivid-kthread-cap.h"
 #include "vivid-vbi-cap.h"
 #include "vivid-vbi-gen.h"
+#include "vivid-vid-common.h"
 
 static void vivid_sliced_vbi_cap_fill(struct vivid_dev *dev, unsigned seqnr)
 {
@@ -23,7 +24,7 @@ static void vivid_sliced_vbi_cap_fill(struct vivid_dev *dev, unsigned seqnr)
 	vivid_vbi_gen_sliced(vbi_gen, is_60hz, seqnr);
 
 	if (!is_60hz) {
-		if (dev->loop_video) {
+		if (vivid_vid_can_loop(dev)) {
 			if (dev->vbi_out_have_wss) {
 				vbi_gen->data[12].data[0] = dev->vbi_out_wss[0];
 				vbi_gen->data[12].data[1] = dev->vbi_out_wss[1];
@@ -47,7 +48,7 @@ static void vivid_sliced_vbi_cap_fill(struct vivid_dev *dev, unsigned seqnr)
 				break;
 			}
 		}
-	} else if (dev->loop_video && is_60hz) {
+	} else if (vivid_vid_can_loop(dev) && is_60hz) {
 		if (dev->vbi_out_have_cc[0]) {
 			vbi_gen->data[0].data[0] = dev->vbi_out_cc[0][0];
 			vbi_gen->data[0].data[1] = dev->vbi_out_cc[0][1];

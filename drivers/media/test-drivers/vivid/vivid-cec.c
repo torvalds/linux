@@ -23,7 +23,7 @@ struct xfer_on_bus {
 static bool find_dest_adap(struct vivid_dev *dev,
 			   struct cec_adapter *adap, u8 dest)
 {
-	unsigned int i;
+	unsigned int i, j;
 
 	if (dest >= 0xf)
 		return false;
@@ -33,12 +33,29 @@ static bool find_dest_adap(struct vivid_dev *dev,
 	    cec_has_log_addr(dev->cec_rx_adap, dest))
 		return true;
 
-	for (i = 0; i < MAX_OUTPUTS && dev->cec_tx_adap[i]; i++) {
-		if (adap == dev->cec_tx_adap[i])
+	for (i = 0, j = 0; i < dev->num_inputs; i++) {
+		unsigned int menu_idx =
+			dev->input_is_connected_to_output[i];
+
+		if (dev->input_type[i] != HDMI)
 			continue;
-		if (!dev->cec_tx_adap[i]->is_configured)
+		j++;
+		if (menu_idx < FIXED_MENU_ITEMS)
 			continue;
-		if (cec_has_log_addr(dev->cec_tx_adap[i], dest))
+
+		struct vivid_dev *dev_tx = vivid_ctrl_hdmi_to_output_instance[menu_idx];
+		unsigned int output = vivid_ctrl_hdmi_to_output_index[menu_idx];
+
+		if (!dev_tx)
+			continue;
+
+		unsigned int hdmi_output = dev_tx->output_to_iface_index[output];
+
+		if (adap == dev_tx->cec_tx_adap[hdmi_output])
+			continue;
+		if (!dev_tx->cec_tx_adap[hdmi_output]->is_configured)
+			continue;
+		if (cec_has_log_addr(dev_tx->cec_tx_adap[hdmi_output], dest))
 			return true;
 	}
 	return false;
@@ -96,7 +113,7 @@ static void adjust_sfts(struct vivid_dev *dev)
 int vivid_cec_bus_thread(void *_dev)
 {
 	u32 last_sft;
-	unsigned int i;
+	unsigned int i, j;
 	unsigned int dest;
 	ktime_t start, end;
 	s64 delta_us, retry_us;
@@ -193,9 +210,27 @@ int vivid_cec_bus_thread(void *_dev)
 		if (first_status == CEC_TX_STATUS_OK) {
 			if (xfers_on_bus[first_idx].adap != dev->cec_rx_adap)
 				cec_received_msg(dev->cec_rx_adap, &first_msg);
-			for (i = 0; i < MAX_OUTPUTS && dev->cec_tx_adap[i]; i++)
-				if (xfers_on_bus[first_idx].adap != dev->cec_tx_adap[i])
-					cec_received_msg(dev->cec_tx_adap[i], &first_msg);
+			for (i = 0, j = 0; i < dev->num_inputs; i++) {
+				unsigned int menu_idx =
+					dev->input_is_connected_to_output[i];
+
+				if (dev->input_type[i] != HDMI)
+					continue;
+				j++;
+				if (menu_idx < FIXED_MENU_ITEMS)
+					continue;
+
+				struct vivid_dev *dev_tx = vivid_ctrl_hdmi_to_output_instance[menu_idx];
+				unsigned int output = vivid_ctrl_hdmi_to_output_index[menu_idx];
+
+				if (!dev_tx)
+					continue;
+
+				unsigned int hdmi_output = dev_tx->output_to_iface_index[output];
+
+				if (xfers_on_bus[first_idx].adap != dev_tx->cec_tx_adap[hdmi_output])
+					cec_received_msg(dev_tx->cec_tx_adap[hdmi_output], &first_msg);
+			}
 		}
 		end = ktime_get();
 		/*
@@ -242,21 +277,36 @@ static int vivid_cec_adap_transmit(struct cec_adapter *adap, u8 attempts,
 				   u32 signal_free_time, struct cec_msg *msg)
 {
 	struct vivid_dev *dev = cec_get_drvdata(adap);
+	struct vivid_dev *dev_rx = dev;
 	u8 idx = cec_msg_initiator(msg);
+	u8 output = 0;
 
-	spin_lock(&dev->cec_xfers_slock);
-	dev->xfers[idx].adap = adap;
-	memcpy(dev->xfers[idx].msg, msg->msg, CEC_MAX_MSG_SIZE);
-	dev->xfers[idx].len = msg->len;
-	dev->xfers[idx].sft = CEC_SIGNAL_FREE_TIME_RETRY;
-	if (signal_free_time > CEC_SIGNAL_FREE_TIME_RETRY) {
-		if (idx == dev->last_initiator)
-			dev->xfers[idx].sft = CEC_SIGNAL_FREE_TIME_NEXT_XFER;
-		else
-			dev->xfers[idx].sft = CEC_SIGNAL_FREE_TIME_NEW_INITIATOR;
+	if (dev->cec_rx_adap != adap) {
+		int i;
+
+		for (i = 0; i < dev->num_hdmi_outputs; i++)
+			if (dev->cec_tx_adap[i] == adap)
+				break;
+		if (i == dev->num_hdmi_outputs)
+			return -ENONET;
+		output = dev->hdmi_index_to_output_index[i];
+		dev_rx = dev->output_to_input_instance[output];
+		if (!dev_rx)
+			return -ENONET;
 	}
-	spin_unlock(&dev->cec_xfers_slock);
-	wake_up_interruptible(&dev->kthread_waitq_cec);
+	spin_lock(&dev_rx->cec_xfers_slock);
+	dev_rx->xfers[idx].adap = adap;
+	memcpy(dev_rx->xfers[idx].msg, msg->msg, CEC_MAX_MSG_SIZE);
+	dev_rx->xfers[idx].len = msg->len;
+	dev_rx->xfers[idx].sft = CEC_SIGNAL_FREE_TIME_RETRY;
+	if (signal_free_time > CEC_SIGNAL_FREE_TIME_RETRY) {
+		if (idx == dev_rx->last_initiator)
+			dev_rx->xfers[idx].sft = CEC_SIGNAL_FREE_TIME_NEXT_XFER;
+		else
+			dev_rx->xfers[idx].sft = CEC_SIGNAL_FREE_TIME_NEW_INITIATOR;
+	}
+	spin_unlock(&dev_rx->cec_xfers_slock);
+	wake_up_interruptible(&dev_rx->kthread_waitq_cec);
 
 	return 0;
 }
