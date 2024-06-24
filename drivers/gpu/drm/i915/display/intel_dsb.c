@@ -464,8 +464,10 @@ void intel_dsb_finish(struct intel_dsb *dsb)
 	/*
 	 * DSB_FORCE_DEWAKE remains active even after DSB is
 	 * disabled, so make sure to clear it (if set during
-	 * intel_dsb_commit()).
+	 * intel_dsb_commit()). And clear DSB_ENABLE_DEWAKE as
+	 * well for good measure.
 	 */
+	intel_dsb_reg_write(dsb, DSB_PMCTRL(crtc->pipe, dsb->id), 0);
 	intel_dsb_reg_write_masked(dsb, DSB_PMCTRL_2(crtc->pipe, dsb->id),
 				   DSB_FORCE_DEWAKE, 0);
 
