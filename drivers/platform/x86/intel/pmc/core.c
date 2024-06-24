@@ -623,13 +623,24 @@ static int pmc_core_ltr_show(struct seq_file *s, void *unused)
 	for (i = 0; i < ARRAY_SIZE(pmcdev->pmcs); ++i) {
 		struct pmc *pmc;
 		const struct pmc_bit_map *map;
+		u32 ltr_ign_reg;
 
 		pmc = pmcdev->pmcs[i];
 		if (!pmc)
 			continue;
 
+		scoped_guard(mutex, &pmcdev->lock)
+			ltr_ign_reg = pmc_core_reg_read(pmc, pmc->map->ltr_ignore_offset);
+
 		map = pmc->map->ltr_show_sts;
 		for (index = 0; map[index].name; index++) {
+			bool ltr_ign_data;
+
+			if (index > pmc->map->ltr_ignore_max)
+				ltr_ign_data = false;
+			else
+				ltr_ign_data = ltr_ign_reg & BIT(index);
+
 			decoded_snoop_ltr = decoded_non_snoop_ltr = 0;
 			ltr_raw_data = pmc_core_reg_read(pmc,
 							 map[index].bit_mask);
@@ -647,10 +658,10 @@ static int pmc_core_ltr_show(struct seq_file *s, void *unused)
 				decoded_snoop_ltr = val * convert_ltr_scale(scale);
 			}
 
-			seq_printf(s, "%d\tPMC%d:%-32s\tLTR: RAW: 0x%-16x\tNon-Snoop(ns): %-16llu\tSnoop(ns): %-16llu\n",
+			seq_printf(s, "%d\tPMC%d:%-32s\tLTR: RAW: 0x%-16x\tNon-Snoop(ns): %-16llu\tSnoop(ns): %-16llu\tLTR_IGNORE: %d\n",
 				   ltr_index, i, map[index].name, ltr_raw_data,
 				   decoded_non_snoop_ltr,
-				   decoded_snoop_ltr);
+				   decoded_snoop_ltr, ltr_ign_data);
 			ltr_index++;
 		}
 	}
