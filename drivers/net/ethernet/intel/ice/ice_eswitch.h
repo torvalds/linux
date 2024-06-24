@@ -10,7 +10,6 @@
 void ice_eswitch_detach(struct ice_pf *pf, struct ice_vf *vf);
 int
 ice_eswitch_attach(struct ice_pf *pf, struct ice_vf *vf);
-void ice_eswitch_rebuild(struct ice_pf *pf);
 
 int ice_eswitch_mode_get(struct devlink *devlink, u16 *mode);
 int
@@ -52,11 +51,6 @@ ice_eswitch_update_repr(unsigned long *repr_id, struct ice_vsi *vsi) { }
 static inline int ice_eswitch_configure(struct ice_pf *pf)
 {
 	return 0;
-}
-
-static inline int ice_eswitch_rebuild(struct ice_pf *pf)
-{
-	return -EOPNOTSUPP;
 }
 
 static inline int ice_eswitch_mode_get(struct devlink *devlink, u16 *mode)

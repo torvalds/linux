@@ -7702,8 +7702,6 @@ static void ice_rebuild(struct ice_pf *pf, enum ice_reset_req reset_type)
 		goto err_vsi_rebuild;
 	}
 
-	ice_eswitch_rebuild(pf);
-
 	if (reset_type == ICE_RESET_PFR) {
 		err = ice_rebuild_channels(pf);
 		if (err) {
