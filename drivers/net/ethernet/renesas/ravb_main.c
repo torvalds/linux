@@ -579,6 +579,16 @@ static void ravb_emac_init_rcar(struct net_device *ndev)
 	ravb_write(ndev, ECSIPR_ICDIP | ECSIPR_MPDIP | ECSIPR_LCHNGIP, ECSIPR);
 }
 
+static void ravb_emac_init_rcar_gen4(struct net_device *ndev)
+{
+	struct ravb_private *priv = netdev_priv(ndev);
+	bool mii = priv->phy_interface == PHY_INTERFACE_MODE_MII;
+
+	ravb_modify(ndev, APSR, APSR_MIISELECT, mii ? APSR_MIISELECT : 0);
+
+	ravb_emac_init_rcar(ndev);
+}
+
 /* E-MAC init function */
 static void ravb_emac_init(struct net_device *ndev)
 {
@@ -2699,6 +2709,31 @@ static const struct ravb_hw_info ravb_gen3_hw_info = {
 	.magic_pkt = 1,
 };
 
+static const struct ravb_hw_info ravb_gen4_hw_info = {
+	.receive = ravb_rx_rcar,
+	.set_rate = ravb_set_rate_rcar,
+	.set_feature = ravb_set_features_rcar,
+	.dmac_init = ravb_dmac_init_rcar,
+	.emac_init = ravb_emac_init_rcar_gen4,
+	.gstrings_stats = ravb_gstrings_stats,
+	.gstrings_size = sizeof(ravb_gstrings_stats),
+	.net_hw_features = NETIF_F_RXCSUM,
+	.net_features = NETIF_F_RXCSUM,
+	.stats_len = ARRAY_SIZE(ravb_gstrings_stats),
+	.tccr_mask = TCCR_TSRQ0 | TCCR_TSRQ1 | TCCR_TSRQ2 | TCCR_TSRQ3,
+	.rx_max_frame_size = SZ_2K,
+	.rx_buffer_size = SZ_2K +
+			  SKB_DATA_ALIGN(sizeof(struct skb_shared_info)),
+	.rx_desc_size = sizeof(struct ravb_ex_rx_desc),
+	.internal_delay = 1,
+	.tx_counters = 1,
+	.multi_irqs = 1,
+	.irq_en_dis = 1,
+	.ccc_gac = 1,
+	.nc_queues = 1,
+	.magic_pkt = 1,
+};
+
 static const struct ravb_hw_info ravb_rzv2m_hw_info = {
 	.receive = ravb_rx_rcar,
 	.set_rate = ravb_set_rate_rcar,
@@ -2751,7 +2786,7 @@ static const struct of_device_id ravb_match_table[] = {
 	{ .compatible = "renesas,etheravb-rcar-gen2", .data = &ravb_gen2_hw_info },
 	{ .compatible = "renesas,etheravb-r8a7795", .data = &ravb_gen3_hw_info },
 	{ .compatible = "renesas,etheravb-rcar-gen3", .data = &ravb_gen3_hw_info },
-	{ .compatible = "renesas,etheravb-rcar-gen4", .data = &ravb_gen3_hw_info },
+	{ .compatible = "renesas,etheravb-rcar-gen4", .data = &ravb_gen4_hw_info },
 	{ .compatible = "renesas,etheravb-rzv2m", .data = &ravb_rzv2m_hw_info },
 	{ .compatible = "renesas,rzg2l-gbeth", .data = &gbeth_hw_info },
 	{ }
