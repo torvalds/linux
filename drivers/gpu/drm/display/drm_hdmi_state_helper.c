@@ -716,7 +716,7 @@ drm_atomic_helper_connector_hdmi_update_audio_infoframe(struct drm_connector *co
 EXPORT_SYMBOL(drm_atomic_helper_connector_hdmi_update_audio_infoframe);
 
 /**
- * drm_atomic_helper_connector_hdmi_disable_audio_infoframe - Stop sending the Audio Infoframe
+ * drm_atomic_helper_connector_hdmi_clear_audio_infoframe - Stop sending the Audio Infoframe
  * @connector: A pointer to the HDMI connector
  *
  * This function is meant for HDMI connector drivers to stop sending their
@@ -727,7 +727,7 @@ EXPORT_SYMBOL(drm_atomic_helper_connector_hdmi_update_audio_infoframe);
  * Zero on success, error code on failure.
  */
 int
-drm_atomic_helper_connector_hdmi_disable_audio_infoframe(struct drm_connector *connector)
+drm_atomic_helper_connector_hdmi_clear_audio_infoframe(struct drm_connector *connector)
 {
 	struct drm_connector_hdmi_infoframe *infoframe =
 		&connector->hdmi.infoframes.audio;
@@ -749,4 +749,4 @@ drm_atomic_helper_connector_hdmi_disable_audio_infoframe(struct drm_connector *c
 
 	return ret;
 }
-EXPORT_SYMBOL(drm_atomic_helper_connector_hdmi_disable_audio_infoframe);
+EXPORT_SYMBOL(drm_atomic_helper_connector_hdmi_clear_audio_infoframe);
