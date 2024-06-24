@@ -486,6 +486,7 @@ static int tps6594_pinctrl_probe(struct platform_device *pdev)
 		break;
 	case TPS6593:
 	case TPS6594:
+	case LP8764:
 		pctrl_desc->pins = tps6594_pins;
 		pctrl_desc->npins = ARRAY_SIZE(tps6594_pins);
 
