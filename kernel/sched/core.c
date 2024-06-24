@@ -3959,6 +3959,17 @@ out:
 }
 EXPORT_SYMBOL_GPL(wake_up_if_idle);
 
+bool cpus_equal_capacity(int this_cpu, int that_cpu)
+{
+	if (!sched_asym_cpucap_active())
+		return true;
+
+	if (this_cpu == that_cpu)
+		return true;
+
+	return arch_scale_cpu_capacity(this_cpu) == arch_scale_cpu_capacity(that_cpu);
+}
+
 bool cpus_share_cache(int this_cpu, int that_cpu)
 {
 	if (this_cpu == that_cpu)
@@ -7196,8 +7207,10 @@ void rt_mutex_setprio(struct task_struct *p, struct task_struct *pi_task)
 	} else {
 		if (dl_prio(oldprio))
 			p->dl.pi_se = &p->dl;
-		if (rt_prio(oldprio))
+		else if (rt_prio(oldprio))
 			p->rt.timeout = 0;
+		else if (!task_has_idle_policy(p))
+			reweight_task(p, prio - MAX_RT_PRIO);
 	}
 
 	__setscheduler_prio(p, prio);

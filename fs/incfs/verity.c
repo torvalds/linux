@@ -303,8 +303,8 @@ static int incfs_build_merkle_tree(struct file *f, struct data_file *df,
 	struct mem_range buf = {.len = INCFS_DATA_FILE_BLOCK_SIZE};
 	struct mem_range tmp = {.len = 2 * INCFS_DATA_FILE_BLOCK_SIZE};
 
-	buf.data = (u8 *)__get_free_pages(GFP_NOFS, get_order(buf.len));
-	tmp.data = (u8 *)__get_free_pages(GFP_NOFS, get_order(tmp.len));
+	buf.data = (u8 *)kzalloc(buf.len, GFP_NOFS);
+	tmp.data = (u8 *)kzalloc(tmp.len, GFP_NOFS);
 	if (!buf.data || !tmp.data) {
 		error = -ENOMEM;
 		goto out;
@@ -372,8 +372,8 @@ static int incfs_build_merkle_tree(struct file *f, struct data_file *df,
 	}
 
 out:
-	free_pages((unsigned long)tmp.data, get_order(tmp.len));
-	free_pages((unsigned long)buf.data, get_order(buf.len));
+	kfree(tmp.data);
+	kfree(buf.data);
 	return error;
 }
 
