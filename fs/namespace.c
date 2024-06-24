@@ -4930,6 +4930,7 @@ static int copy_statmount_to_user(struct kstatmount *s)
 static int do_statmount(struct kstatmount *s)
 {
 	struct mount *m = real_mount(s->mnt);
+	struct mnt_namespace *ns = m->mnt_ns;
 	int err;
 
 	/*
@@ -4937,7 +4938,7 @@ static int do_statmount(struct kstatmount *s)
 	 * mounts to show users.
 	 */
 	if (!is_path_reachable(m, m->mnt.mnt_root, &s->root) &&
-	    !ns_capable_noaudit(&init_user_ns, CAP_SYS_ADMIN))
+	    !ns_capable_noaudit(ns->user_ns, CAP_SYS_ADMIN))
 		return -EPERM;
 
 	err = security_sb_statfs(s->mnt->mnt_root);
