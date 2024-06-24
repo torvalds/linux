@@ -313,10 +313,10 @@ Video Capture
 
 This is probably the most frequently used feature. The video capture device
 can be configured by using the module options num_inputs, input_types and
-ccs_cap_mode (see section 1 for more detailed information), but by default
-four inputs are configured: a webcam, a TV tuner, an S-Video and an HDMI
-input, one input for each input type. Those are described in more detail
-below.
+ccs_cap_mode (see "Configuring the driver" for more detailed information),
+but by default four inputs are configured: a webcam, a TV tuner, an S-Video
+and an HDMI input, one input for each input type. Those are described in more
+detail below.
 
 Special attention has been given to the rate at which new frames become
 available. The jitter will be around 1 jiffie (that depends on the HZ
@@ -434,10 +434,10 @@ Video Output
 ------------
 
 The video output device can be configured by using the module options
-num_outputs, output_types and ccs_out_mode (see section 1 for more detailed
-information), but by default two outputs are configured: an S-Video and an
-HDMI input, one output for each output type. Those are described in more detail
-below.
+num_outputs, output_types and ccs_out_mode (see "Configuring the driver"
+for more detailed information), but by default two outputs are configured:
+an S-Video and an HDMI input, one output for each output type. Those are
+described in more detail below.
 
 Like with video capture the framerate is also exact in the long term.
 
@@ -1200,15 +1200,15 @@ and WSS (50 Hz formats) VBI data is looped. Teletext VBI data is not looped.
 Radio & RDS Looping
 ~~~~~~~~~~~~~~~~~~~
 
-As mentioned in section 6 the radio receiver emulates stations are regular
-frequency intervals. Depending on the frequency of the radio receiver a
-signal strength value is calculated (this is returned by VIDIOC_G_TUNER).
-However, it will also look at the frequency set by the radio transmitter and
-if that results in a higher signal strength than the settings of the radio
-transmitter will be used as if it was a valid station. This also includes
-the RDS data (if any) that the transmitter 'transmits'. This is received
-faithfully on the receiver side. Note that when the driver is loaded the
-frequencies of the radio receiver and transmitter are not identical, so
+As mentioned in the "Radio Receiver" section, the radio receiver emulates
+stations at regular frequency intervals. Depending on the frequency of the
+radio receiver a signal strength value is calculated (this is returned by
+VIDIOC_G_TUNER). However, it will also look at the frequency set by the radio
+transmitter and if that results in a higher signal strength than the settings
+of the radio transmitter will be used as if it was a valid station. This also
+includes the RDS data (if any) that the transmitter 'transmits'. This is
+received faithfully on the receiver side. Note that when the driver is loaded
+the frequencies of the radio receiver and transmitter are not identical, so
 initially no looping takes place.
 
 
@@ -1218,8 +1218,8 @@ Cropping, Composing, Scaling
 This driver supports cropping, composing and scaling in any combination. Normally
 which features are supported can be selected through the Vivid controls,
 but it is also possible to hardcode it when the module is loaded through the
-ccs_cap_mode and ccs_out_mode module options. See section 1 on the details of
-these module options.
+ccs_cap_mode and ccs_out_mode module options. See "Configuring the driver" on
+the details of these module options.
 
 This allows you to test your application for all these variations.
 
@@ -1260,7 +1260,8 @@ is set, then the alpha component is only used for the color red and set to
 
 The driver has to be configured to support the multiplanar formats. By default
 the driver instances are single-planar. This can be changed by setting the
-multiplanar module option, see section 1 for more details on that option.
+multiplanar module option, see "Configuring the driver" for more details on that
+option.
 
 If the driver instance is using the multiplanar formats/API, then the first
 single planar format (YUYV) and the multiplanar NV16M and NV61M formats the
