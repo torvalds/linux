@@ -1384,10 +1384,17 @@ int amdgpu_ras_query_error_status(struct amdgpu_device *adev, struct ras_query_i
 	memset(&qctx, 0, sizeof(qctx));
 	qctx.event_id = amdgpu_ras_acquire_event_id(adev, amdgpu_ras_intr_triggered() ?
 						   RAS_EVENT_TYPE_ISR : RAS_EVENT_TYPE_INVALID);
+
+	if (!down_read_trylock(&adev->reset_domain->sem)) {
+		ret = -EIO;
+		goto out_fini_err_data;
+	}
+
 	ret = amdgpu_ras_query_error_status_helper(adev, info,
 						   &err_data,
 						   &qctx,
 						   error_query_mode);
+	up_read(&adev->reset_domain->sem);
 	if (ret)
 		goto out_fini_err_data;
 
@@ -2910,6 +2917,17 @@ static int amdgpu_ras_poison_creation_handler(struct amdgpu_device *adev,
 	return 0;
 }
 
+static void amdgpu_ras_clear_poison_fifo(struct amdgpu_device *adev)
+{
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+	struct ras_poison_msg msg;
+	int ret;
+
+	do {
+		ret = kfifo_get(&con->poison_fifo, &msg);
+	} while (ret);
+}
+
 static int amdgpu_ras_poison_consumption_handler(struct amdgpu_device *adev,
 			uint32_t msg_count, uint32_t *gpu_reset)
 {
@@ -2946,6 +2964,9 @@ static int amdgpu_ras_poison_consumption_handler(struct amdgpu_device *adev,
 		amdgpu_ras_reset_gpu(adev);
 
 		*gpu_reset = reset;
+
+		/* Wait for gpu recovery to complete */
+		flush_work(&con->recovery_work);
 	}
 
 	return 0;
@@ -2991,6 +3012,38 @@ static int amdgpu_ras_page_retirement_thread(void *param)
 				    (gpu_reset != AMDGPU_RAS_GPU_RESET_MODE1_RESET))
 					atomic_sub(msg_count, &con->page_retirement_req_cnt);
 			}
+		}
+
+		if ((ret == -EIO) || (gpu_reset == AMDGPU_RAS_GPU_RESET_MODE1_RESET)) {
+			/* gpu mode-1 reset is ongoing or just completed ras mode-1 reset */
+			/* Clear poison creation request */
+			atomic_set(&con->poison_creation_count, 0);
+
+			/* Clear poison fifo */
+			amdgpu_ras_clear_poison_fifo(adev);
+
+			/* Clear all poison requests */
+			atomic_set(&con->page_retirement_req_cnt, 0);
+
+			if (ret == -EIO) {
+				/* Wait for mode-1 reset to complete */
+				down_read(&adev->reset_domain->sem);
+				up_read(&adev->reset_domain->sem);
+			}
+
+			/* Wake up work to save bad pages to eeprom */
+			schedule_delayed_work(&con->page_retirement_dwork, 0);
+		} else if (gpu_reset) {
+			/* gpu just completed mode-2 reset or other reset */
+			/* Clear poison consumption messages cached in fifo */
+			msg_count = kfifo_len(&con->poison_fifo);
+			if (msg_count) {
+				amdgpu_ras_clear_poison_fifo(adev);
+				atomic_sub(msg_count, &con->page_retirement_req_cnt);
+			}
+
+			/* Wake up work to save bad pages to eeprom */
+			schedule_delayed_work(&con->page_retirement_dwork, 0);
 		}
 	}
 
