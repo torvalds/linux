@@ -507,12 +507,10 @@ int pmc_core_send_ltr_ignore(struct pmc_dev *pmcdev, u32 value, int ignore)
 	return 0;
 }
 
-static ssize_t pmc_core_ltr_ignore_write(struct file *file,
-					 const char __user *userbuf,
-					 size_t count, loff_t *ppos)
+static ssize_t pmc_core_ltr_write(struct pmc_dev *pmcdev,
+				  const char __user *userbuf,
+				  size_t count, int ignore)
 {
-	struct seq_file *s = file->private_data;
-	struct pmc_dev *pmcdev = s->private;
 	u32 value;
 	int err;
 
@@ -520,9 +518,19 @@ static ssize_t pmc_core_ltr_ignore_write(struct file *file,
 	if (err)
 		return err;
 
-	err = pmc_core_send_ltr_ignore(pmcdev, value, 1);
+	err = pmc_core_send_ltr_ignore(pmcdev, value, ignore);
 
 	return err ?: count;
+}
+
+static ssize_t pmc_core_ltr_ignore_write(struct file *file,
+					 const char __user *userbuf,
+					 size_t count, loff_t *ppos)
+{
+	struct seq_file *s = file->private_data;
+	struct pmc_dev *pmcdev = s->private;
+
+	return pmc_core_ltr_write(pmcdev, userbuf, count, 1);
 }
 
 static int pmc_core_ltr_ignore_show(struct seq_file *s, void *unused)
@@ -530,6 +538,22 @@ static int pmc_core_ltr_ignore_show(struct seq_file *s, void *unused)
 	return 0;
 }
 DEFINE_SHOW_STORE_ATTRIBUTE(pmc_core_ltr_ignore);
+
+static ssize_t pmc_core_ltr_restore_write(struct file *file,
+					  const char __user *userbuf,
+					  size_t count, loff_t *ppos)
+{
+	struct seq_file *s = file->private_data;
+	struct pmc_dev *pmcdev = s->private;
+
+	return pmc_core_ltr_write(pmcdev, userbuf, count, 0);
+}
+
+static int pmc_core_ltr_restore_show(struct seq_file *s, void *unused)
+{
+	return 0;
+}
+DEFINE_SHOW_STORE_ATTRIBUTE(pmc_core_ltr_restore);
 
 static void pmc_core_slps0_dbg_latch(struct pmc_dev *pmcdev, bool reset)
 {
@@ -1207,6 +1231,8 @@ static void pmc_core_dbgfs_register(struct pmc_dev *pmcdev)
 
 	debugfs_create_file("ltr_ignore", 0644, dir, pmcdev,
 			    &pmc_core_ltr_ignore_fops);
+
+	debugfs_create_file("ltr_restore", 0200, dir, pmcdev, &pmc_core_ltr_restore_fops);
 
 	debugfs_create_file("ltr_show", 0444, dir, pmcdev, &pmc_core_ltr_fops);
 
