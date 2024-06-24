@@ -1290,7 +1290,7 @@ static void l2tp_session_unhash(struct l2tp_session *session)
 static void l2tp_tunnel_closeall(struct l2tp_tunnel *tunnel)
 {
 	struct l2tp_session *session;
-	struct list_head __rcu *pos;
+	struct list_head *pos;
 	struct list_head *tmp;
 
 	spin_lock_bh(&tunnel->list_lock);
