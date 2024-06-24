@@ -522,7 +522,7 @@ static ssize_t pmc_core_ltr_ignore_write(struct file *file,
 
 	err = pmc_core_send_ltr_ignore(pmcdev, value, 1);
 
-	return err == 0 ? count : err;
+	return err ?: count;
 }
 
 static int pmc_core_ltr_ignore_show(struct seq_file *s, void *unused)
