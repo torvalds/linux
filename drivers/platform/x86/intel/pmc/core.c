@@ -621,9 +621,10 @@ static int pmc_core_ltr_show(struct seq_file *s, void *unused)
 	unsigned int i, index, ltr_index = 0;
 
 	for (i = 0; i < ARRAY_SIZE(pmcdev->pmcs); ++i) {
-		struct pmc *pmc = pmcdev->pmcs[i];
+		struct pmc *pmc;
 		const struct pmc_bit_map *map;
 
+		pmc = pmcdev->pmcs[i];
 		if (!pmc)
 			continue;
 
