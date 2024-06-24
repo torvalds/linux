@@ -83,13 +83,70 @@ struct intel_dsb {
 #define DSB_OPCODE_POLL			0xA
 /* see DSB_REG_VALUE_MASK */
 
-static int dsb_dewake_scanline(const struct intel_crtc_state *crtc_state)
+static bool pre_commit_is_vrr_active(struct intel_atomic_state *state,
+				     struct intel_crtc *crtc)
 {
-	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
+	const struct intel_crtc_state *old_crtc_state =
+		intel_atomic_get_old_crtc_state(state, crtc);
+	const struct intel_crtc_state *new_crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+
+	/* VRR will be enabled afterwards, if necessary */
+	if (intel_crtc_needs_modeset(new_crtc_state))
+		return false;
+
+	/* VRR will have been disabled during intel_pre_plane_update() */
+	return old_crtc_state->vrr.enable && !intel_crtc_vrr_disabling(state, crtc);
+}
+
+static const struct intel_crtc_state *
+pre_commit_crtc_state(struct intel_atomic_state *state,
+		      struct intel_crtc *crtc)
+{
+	const struct intel_crtc_state *old_crtc_state =
+		intel_atomic_get_old_crtc_state(state, crtc);
+	const struct intel_crtc_state *new_crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+
+	/*
+	 * During fastsets/etc. the transcoder is still
+	 * running with the old timings at this point.
+	 */
+	if (intel_crtc_needs_modeset(new_crtc_state))
+		return new_crtc_state;
+	else
+		return old_crtc_state;
+}
+
+static int dsb_vtotal(struct intel_atomic_state *state,
+		      struct intel_crtc *crtc)
+{
+	const struct intel_crtc_state *crtc_state = pre_commit_crtc_state(state, crtc);
+
+	if (pre_commit_is_vrr_active(state, crtc))
+		return crtc_state->vrr.vmax;
+	else
+		return intel_mode_vtotal(&crtc_state->hw.adjusted_mode);
+}
+
+static int dsb_dewake_scanline(struct intel_atomic_state *state,
+			       struct intel_crtc *crtc)
+{
+	const struct intel_crtc_state *crtc_state = pre_commit_crtc_state(state, crtc);
+	struct drm_i915_private *i915 = to_i915(state->base.dev);
 	unsigned int latency = skl_watermark_max_latency(i915, 0);
 
 	return intel_mode_vdisplay(&crtc_state->hw.adjusted_mode) -
 		intel_usecs_to_scanlines(&crtc_state->hw.adjusted_mode, latency);
+}
+
+static int dsb_scanline_to_hw(struct intel_atomic_state *state,
+			      struct intel_crtc *crtc, int scanline)
+{
+	const struct intel_crtc_state *crtc_state = pre_commit_crtc_state(state, crtc);
+	int vtotal = dsb_vtotal(state, crtc);
+
+	return (scanline + vtotal - intel_crtc_scanline_offset(crtc_state)) % vtotal;
 }
 
 static u32 dsb_chicken(struct intel_crtc *crtc)
@@ -487,8 +544,6 @@ struct intel_dsb *intel_dsb_prepare(struct intel_atomic_state *state,
 				    unsigned int max_cmds)
 {
 	struct drm_i915_private *i915 = to_i915(state->base.dev);
-	const struct intel_crtc_state *crtc_state =
-		intel_atomic_get_new_crtc_state(state, crtc);
 	intel_wakeref_t wakeref;
 	struct intel_dsb *dsb;
 	unsigned int size;
@@ -524,7 +579,7 @@ struct intel_dsb *intel_dsb_prepare(struct intel_atomic_state *state,
 	dsb->ins_start_offset = 0;
 
 	dsb->hw_dewake_scanline =
-		intel_crtc_scanline_to_hw(crtc_state, dsb_dewake_scanline(crtc_state));
+		dsb_scanline_to_hw(state, crtc, dsb_dewake_scanline(state, crtc));
 
 	return dsb;
 

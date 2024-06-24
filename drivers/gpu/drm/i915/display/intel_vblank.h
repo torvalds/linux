@@ -40,7 +40,6 @@ void intel_wait_for_pipe_scanline_stopped(struct intel_crtc *crtc);
 void intel_wait_for_pipe_scanline_moving(struct intel_crtc *crtc);
 void intel_crtc_update_active_timings(const struct intel_crtc_state *crtc_state,
 				      bool vrr_enable);
-int intel_crtc_scanline_to_hw(const struct intel_crtc_state *crtc_state,
-			      int scanline);
+int intel_crtc_scanline_offset(const struct intel_crtc_state *crtc_state);
 
 #endif /* __INTEL_VBLANK_H__ */

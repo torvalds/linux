@@ -1032,8 +1032,8 @@ static bool intel_crtc_vrr_enabling(struct intel_atomic_state *state,
 		  vrr_params_changed(old_crtc_state, new_crtc_state)));
 }
 
-static bool intel_crtc_vrr_disabling(struct intel_atomic_state *state,
-				     struct intel_crtc *crtc)
+bool intel_crtc_vrr_disabling(struct intel_atomic_state *state,
+			      struct intel_crtc *crtc)
 {
 	const struct intel_crtc_state *old_crtc_state =
 		intel_atomic_get_old_crtc_state(state, crtc);
