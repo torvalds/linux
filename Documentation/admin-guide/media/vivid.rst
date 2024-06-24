@@ -1135,27 +1135,33 @@ Metadata Capture Controls
         if set, then the generated metadata stream contains Source Clock information.
 
 
-Video and Sliced VBI Looping
-----------------------------
+Video, Sliced VBI and HDMI CEC Looping
+--------------------------------------
 
-The vivid driver supports looping of video output to video input, and VBI
-output to VBI input. For video/VBI looping this emulates as if a cable was
-hooked up between the output and input connector. So video and VBI looping
-is only supported between S-Video and HDMI inputs and outputs.
-VBI is only valid for S-Video as it makes no sense for HDMI.
+Video Looping functionality is supported for devices created by the same
+vivid driver instance, as well as across multiple instances of the vivid driver.
+The vivid driver supports looping of video and Sliced VBI data between an S-Video output
+and an S-Video input. It also supports looping of video and HDMI CEC data between an
+HDMI output and an HDMI input.
 
-Looping is currently supported only between devices created by the same
-vivid driver instance.
+To enable looping, set the 'HDMI/S-Video XXX-N Is Connected To' control(s) to select
+whether an input uses the Test Pattern Generator, or is disconnected, or is connected
+to an output. An input can be connected to an output from any vivid instance.
+The inputs and outputs are numbered XXX-N where XXX is the vivid instance number
+(see module option n_devs). If there is only one vivid instance (the default), then
+XXX will be 000. And N is the Nth S-Video/HDMI input or output of that instance.
+If vivid is loaded without module options, then you can connect the S-Video 000-0 input
+to the S-Video 000-0 output, or the HDMI 000-0 input to the HDMI 000-0 output.
+This is the equivalent of connecting or disconnecting a cable between an input and an
+output in a physical device.
 
-The way to enable video/VBI looping is currently fairly crude. A 'Loop Video'
-control is available in the "Vivid" control class of the video
-capture and VBI capture devices. When checked the video looping will be enabled.
-Once enabled any video S-Video or HDMI input will show a static test pattern
-until the video output has started. At that time the video output will be
-looped to the video input provided that:
+If an 'HDMI/S-Video XXX-N Is Connected To' control selected an output, then the video
+output will be looped to the video input provided that:
 
-- the input type matches the output type. So the HDMI input cannot receive
-  video from the S-Video output.
+- the currently selected input matches the input indicated by the control name.
+
+- in the vivid instance of the output connector, the currently selected output matches
+  the output indicated by the control's value.
 
 - the video resolution of the video input must match that of the video output.
   So it is not possible to loop a 50 Hz (720x576) S-Video output to a 60 Hz
@@ -1181,6 +1187,8 @@ looped to the video input provided that:
 - on the input side the "Standard Signal Mode" for the S-Video input or the
   "DV Timings Signal Mode" for the HDMI input should be configured so that a
   valid signal is passed to the video input.
+
+If any condition is not valid, then the 'Noise' test pattern is shown.
 
 The framerates do not have to match, although this might change in the future.
 
@@ -1344,8 +1352,6 @@ Just as a reminder and in no particular order:
 - Add ARGB888 overlay support: better testing of the alpha channel
 - Improve pixel aspect support in the tpg code by passing a real v4l2_fract
 - Use per-queue locks and/or per-device locks to improve throughput
-- Add support to loop from a specific output to a specific input across
-  vivid instances
 - The SDR radio should use the same 'frequencies' for stations as the normal
   radio receiver, and give back noise if the frequency doesn't match up with
   a station frequency
