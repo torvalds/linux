@@ -302,6 +302,15 @@ all configurable using the following module options:
 		- 0: forbid hints
 		- 1: allow hints
 
+- supports_requests:
+
+	specifies if the device should support the Request API. There are
+	three possible values, default is 1:
+
+		- 0: no request
+		- 1: supports requests
+		- 2: requires requests
+
 Taken together, all these module options allow you to precisely customize
 the driver behavior and test your application with all sorts of permutations.
 It is also very suitable to emulate hardware that is not yet available, e.g.
