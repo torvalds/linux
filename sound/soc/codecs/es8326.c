@@ -329,11 +329,29 @@ static bool es8326_volatile_register(struct device *dev, unsigned int reg)
 	}
 }
 
+static bool es8326_writeable_register(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case ES8326_BIAS_SW1:
+	case ES8326_BIAS_SW2:
+	case ES8326_BIAS_SW3:
+	case ES8326_BIAS_SW4:
+	case ES8326_ADC_HPFS1:
+	case ES8326_ADC_HPFS2:
+		return false;
+	default:
+		return true;
+	}
+}
+
 static const struct regmap_config es8326_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = 0xff,
+	.use_single_read = true,
+	.use_single_write = true,
 	.volatile_reg = es8326_volatile_register,
+	.writeable_reg = es8326_writeable_register,
 	.cache_type = REGCACHE_RBTREE,
 };
 
