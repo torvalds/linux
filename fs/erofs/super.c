@@ -343,7 +343,7 @@ static int erofs_read_superblock(struct super_block *sb)
 	sbi->build_time = le64_to_cpu(dsb->build_time);
 	sbi->build_time_nsec = le32_to_cpu(dsb->build_time_nsec);
 
-	memcpy(&sb->s_uuid, dsb->uuid, sizeof(dsb->uuid));
+	super_set_uuid(sb, (void *)dsb->uuid, sizeof(dsb->uuid));
 
 	ret = strscpy(sbi->volume_name, dsb->volume_name,
 		      sizeof(dsb->volume_name));
