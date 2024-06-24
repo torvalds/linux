@@ -1038,6 +1038,7 @@ int vidioc_g_edid(struct file *file, void *_fh,
 	struct vivid_dev *dev = video_drvdata(file);
 	struct video_device *vdev = video_devdata(file);
 	struct cec_adapter *adap;
+	unsigned int loc;
 
 	memset(edid->reserved, 0, sizeof(edid->reserved));
 	if (vdev->vfl_dir == VFL_DIR_RX) {
@@ -1068,8 +1069,25 @@ int vidioc_g_edid(struct file *file, void *_fh,
 		return -EINVAL;
 	if (edid->blocks > dev->edid_blocks - edid->start_block)
 		edid->blocks = dev->edid_blocks - edid->start_block;
-	if (adap)
-		v4l2_set_edid_phys_addr(dev->edid, dev->edid_blocks * 128, adap->phys_addr);
+
 	memcpy(edid->edid, dev->edid + edid->start_block * 128, edid->blocks * 128);
+
+	loc = cec_get_edid_spa_location(dev->edid, dev->edid_blocks * 128);
+	if (vdev->vfl_dir == VFL_DIR_TX && adap && loc &&
+	    loc >= edid->start_block * 128 &&
+	    loc < (edid->start_block + edid->blocks) * 128) {
+		unsigned int i;
+		u8 sum = 0;
+
+		loc -= edid->start_block * 128;
+		edid->edid[loc] = adap->phys_addr >> 8;
+		edid->edid[loc + 1] = adap->phys_addr & 0xff;
+		loc &= ~0x7f;
+
+		/* update the checksum */
+		for (i = loc; i < loc + 127; i++)
+			sum += edid->edid[i];
+		edid->edid[i] = 256 - sum;
+	}
 	return 0;
 }
