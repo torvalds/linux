@@ -652,7 +652,8 @@ void intel_vblank_evade_init(const struct intel_crtc_state *old_crtc_state,
 	 */
 	if (intel_color_uses_dsb(new_crtc_state) ||
 	    new_crtc_state->update_m_n || new_crtc_state->update_lrr)
-		evade->min -= adjusted_mode->crtc_vblank_start - adjusted_mode->crtc_vdisplay;
+		evade->min -= intel_mode_vblank_start(adjusted_mode) -
+			intel_mode_vdisplay(adjusted_mode);
 }
 
 /* must be called with vblank interrupt already enabled! */
