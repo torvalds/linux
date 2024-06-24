@@ -974,14 +974,10 @@ static int es8326_calibrate(struct snd_soc_component *component)
 	return 0;
 }
 
-static int es8326_resume(struct snd_soc_component *component)
+static void es8326_init(struct snd_soc_component *component)
 {
 	struct es8326_priv *es8326 = snd_soc_component_get_drvdata(component);
 
-	regcache_cache_only(es8326->regmap, false);
-	regcache_sync(es8326->regmap);
-
-	/* reset internal clock state */
 	regmap_write(es8326->regmap, ES8326_RESET, 0x1f);
 	regmap_write(es8326->regmap, ES8326_VMIDSEL, 0x0E);
 	regmap_write(es8326->regmap, ES8326_ANA_LP, 0xf0);
@@ -1037,7 +1033,6 @@ static int es8326_resume(struct snd_soc_component *component)
 	es8326_enable_micbias(es8326->component);
 	usleep_range(50000, 70000);
 	regmap_update_bits(es8326->regmap, ES8326_HPDET_TYPE, 0x03, 0x00);
-	regmap_write(es8326->regmap, ES8326_INT_SOURCE, ES8326_INT_SRC_PIN9);
 	regmap_write(es8326->regmap, ES8326_INTOUT_IO,
 		     es8326->interrupt_clk);
 	regmap_write(es8326->regmap, ES8326_SDINOUT1_IO,
@@ -1053,6 +1048,28 @@ static int es8326_resume(struct snd_soc_component *component)
 			   ES8326_MUTE);
 
 	regmap_write(es8326->regmap, ES8326_ADC_MUTE, 0x0f);
+	regmap_write(es8326->regmap, ES8326_CLK_DIV_LRCK, 0xff);
+
+	msleep(200);
+	regmap_write(es8326->regmap, ES8326_INT_SOURCE, ES8326_INT_SRC_PIN9);
+}
+
+static int es8326_resume(struct snd_soc_component *component)
+{
+	struct es8326_priv *es8326 = snd_soc_component_get_drvdata(component);
+	unsigned int reg;
+
+	regcache_cache_only(es8326->regmap, false);
+	regcache_cache_bypass(es8326->regmap, true);
+	regmap_read(es8326->regmap, ES8326_CLK_RESAMPLE, &reg);
+	regcache_cache_bypass(es8326->regmap, false);
+	/* reset internal clock state */
+	if (reg == 0x05)
+		regmap_write(es8326->regmap, ES8326_CLK_CTL, ES8326_CLK_ON);
+	else
+		es8326_init(component);
+
+	regcache_sync(es8326->regmap);
 
 	es8326_irq(es8326->irq, es8326);
 	return 0;
@@ -1112,7 +1129,7 @@ static int es8326_probe(struct snd_soc_component *component)
 	}
 	dev_dbg(component->dev, "interrupt-clk %x", es8326->interrupt_clk);
 
-	es8326_resume(component);
+	es8326_init(component);
 	return 0;
 }
 
