@@ -682,6 +682,9 @@ int rb_alloc_aux(struct perf_buffer *rb, struct perf_event *event,
 	if (!has_aux(event))
 		return -EOPNOTSUPP;
 
+	if (nr_pages <= 0)
+		return -EINVAL;
+
 	if (!overwrite) {
 		/*
 		 * Watermark defaults to half the buffer, and so does the
