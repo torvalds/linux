@@ -1427,6 +1427,48 @@ static int journal_revoke_records_per_block(journal_t *journal)
 	return space / record_size;
 }
 
+static int jbd2_journal_get_max_txn_bufs(journal_t *journal)
+{
+	return (journal->j_total_len - journal->j_fc_wbufsize) / 4;
+}
+
+/*
+ * Base amount of descriptor blocks we reserve for each transaction.
+ */
+static int jbd2_descriptor_blocks_per_trans(journal_t *journal)
+{
+	int tag_space = journal->j_blocksize - sizeof(journal_header_t);
+	int tags_per_block;
+
+	/* Subtract UUID */
+	tag_space -= 16;
+	if (jbd2_journal_has_csum_v2or3(journal))
+		tag_space -= sizeof(struct jbd2_journal_block_tail);
+	/* Commit code leaves a slack space of 16 bytes at the end of block */
+	tags_per_block = (tag_space - 16) / journal_tag_bytes(journal);
+	/*
+	 * Revoke descriptors are accounted separately so we need to reserve
+	 * space for commit block and normal transaction descriptor blocks.
+	 */
+	return 1 + DIV_ROUND_UP(jbd2_journal_get_max_txn_bufs(journal),
+				tags_per_block);
+}
+
+/*
+ * Initialize number of blocks each transaction reserves for its bookkeeping
+ * and maximum number of blocks a transaction can use. This needs to be called
+ * after the journal size and the fastcommit area size are initialized.
+ */
+static void jbd2_journal_init_transaction_limits(journal_t *journal)
+{
+	journal->j_revoke_records_per_block =
+				journal_revoke_records_per_block(journal);
+	journal->j_transaction_overhead_buffers =
+				jbd2_descriptor_blocks_per_trans(journal);
+	journal->j_max_transaction_buffers =
+				jbd2_journal_get_max_txn_bufs(journal);
+}
+
 /*
  * Load the on-disk journal superblock and read the key fields into the
  * journal_t.
@@ -1468,8 +1510,8 @@ static int journal_load_superblock(journal_t *journal)
 	if (jbd2_journal_has_csum_v2or3(journal))
 		journal->j_csum_seed = jbd2_chksum(journal, ~0, sb->s_uuid,
 						   sizeof(sb->s_uuid));
-	journal->j_revoke_records_per_block =
-				journal_revoke_records_per_block(journal);
+	/* After journal features are set, we can compute transaction limits */
+	jbd2_journal_init_transaction_limits(journal);
 
 	if (jbd2_has_feature_fast_commit(journal)) {
 		journal->j_fc_last = be32_to_cpu(sb->s_maxlen);
@@ -1674,11 +1716,6 @@ journal_t *jbd2_journal_init_inode(struct inode *inode)
 	return journal;
 }
 
-static int jbd2_journal_get_max_txn_bufs(journal_t *journal)
-{
-	return (journal->j_total_len - journal->j_fc_wbufsize) / 4;
-}
-
 /*
  * Given a journal_t structure, initialise the various fields for
  * startup of a new journaling session.  We use this both when creating
@@ -1723,8 +1760,6 @@ static int journal_reset(journal_t *journal)
 	journal->j_tail_sequence = journal->j_transaction_sequence;
 	journal->j_commit_sequence = journal->j_transaction_sequence - 1;
 	journal->j_commit_request = journal->j_commit_sequence;
-
-	journal->j_max_transaction_buffers = jbd2_journal_get_max_txn_bufs(journal);
 
 	/*
 	 * Now that journal recovery is done, turn fast commits off here. This
@@ -2266,8 +2301,6 @@ jbd2_journal_initialize_fast_commit(journal_t *journal)
 	journal->j_fc_first = journal->j_last + 1;
 	journal->j_fc_off = 0;
 	journal->j_free = journal->j_last - journal->j_first;
-	journal->j_max_transaction_buffers =
-		jbd2_journal_get_max_txn_bufs(journal);
 
 	return 0;
 }
@@ -2355,8 +2388,7 @@ int jbd2_journal_set_features(journal_t *journal, unsigned long compat,
 	sb->s_feature_ro_compat |= cpu_to_be32(ro);
 	sb->s_feature_incompat  |= cpu_to_be32(incompat);
 	unlock_buffer(journal->j_sb_buffer);
-	journal->j_revoke_records_per_block =
-				journal_revoke_records_per_block(journal);
+	jbd2_journal_init_transaction_limits(journal);
 
 	return 1;
 #undef COMPAT_FEATURE_ON
@@ -2387,8 +2419,7 @@ void jbd2_journal_clear_features(journal_t *journal, unsigned long compat,
 	sb->s_feature_compat    &= ~cpu_to_be32(compat);
 	sb->s_feature_ro_compat &= ~cpu_to_be32(ro);
 	sb->s_feature_incompat  &= ~cpu_to_be32(incompat);
-	journal->j_revoke_records_per_block =
-				journal_revoke_records_per_block(journal);
+	jbd2_journal_init_transaction_limits(journal);
 }
 EXPORT_SYMBOL(jbd2_journal_clear_features);
 
