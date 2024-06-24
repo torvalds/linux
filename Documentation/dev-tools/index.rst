@@ -16,6 +16,7 @@ Documentation/dev-tools/testing-overview.rst
 
    testing-overview
    checkpatch
+   clang-format
    coccinelle
    sparse
    kcov

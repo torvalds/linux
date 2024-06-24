@@ -113,7 +113,6 @@ lack of a better place.
 .. toctree::
    :maxdepth: 1
 
-   clang-format
 
 .. only::  subproject and html
 
