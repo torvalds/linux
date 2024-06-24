@@ -189,10 +189,12 @@ struct mnt_id_req {
 	__u32 spare;
 	__u64 mnt_id;
 	__u64 param;
+	__u64 mnt_ns_id;
 };
 
 /* List of all mnt_id_req versions. */
 #define MNT_ID_REQ_SIZE_VER0	24 /* sizeof first published struct */
+#define MNT_ID_REQ_SIZE_VER1	32 /* sizeof second published struct */
 
 /*
  * @mask bits for statmount(2)

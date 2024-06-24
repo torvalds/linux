@@ -5122,7 +5122,7 @@ static int copy_mnt_id_req(const struct mnt_id_req __user *req,
 	int ret;
 	size_t usize;
 
-	BUILD_BUG_ON(sizeof(struct mnt_id_req) != MNT_ID_REQ_SIZE_VER0);
+	BUILD_BUG_ON(sizeof(struct mnt_id_req) != MNT_ID_REQ_SIZE_VER1);
 
 	ret = get_user(usize, &req->size);
 	if (ret)
@@ -5138,6 +5138,58 @@ static int copy_mnt_id_req(const struct mnt_id_req __user *req,
 	if (kreq->spare != 0)
 		return -EINVAL;
 	return 0;
+}
+
+static struct mount *listmnt_next(struct mount *curr, bool reverse)
+{
+	struct rb_node *node;
+
+	if (reverse)
+		node = rb_prev(&curr->mnt_node);
+	else
+		node = rb_next(&curr->mnt_node);
+
+	return node_to_mount(node);
+}
+
+static int grab_requested_root(struct mnt_namespace *ns, struct path *root)
+{
+	struct mount *first;
+
+	rwsem_assert_held(&namespace_sem);
+
+	/* We're looking at our own ns, just use get_fs_root. */
+	if (ns == current->nsproxy->mnt_ns) {
+		get_fs_root(current->fs, root);
+		return 0;
+	}
+
+	/*
+	 * We have to find the first mount in our ns and use that, however it
+	 * may not exist, so handle that properly.
+	 */
+	if (RB_EMPTY_ROOT(&ns->mounts))
+		return -ENOENT;
+
+	first = listmnt_next(ns->root, false);
+	if (!first)
+		return -ENOENT;
+	root->mnt = mntget(&first->mnt);
+	root->dentry = dget(root->mnt->mnt_root);
+	return 0;
+}
+
+/*
+ * If the user requested a specific mount namespace id, look that up and return
+ * that, or if not simply grab a passive reference on our mount namespace and
+ * return that.
+ */
+static struct mnt_namespace *grab_requested_mnt_ns(u64 mnt_ns_id)
+{
+	if (mnt_ns_id)
+		return lookup_mnt_ns(mnt_ns_id);
+	refcount_inc(&current->nsproxy->mnt_ns->passive);
+	return current->nsproxy->mnt_ns;
 }
 
 SYSCALL_DEFINE4(statmount, const struct mnt_id_req __user *, req,
@@ -5185,30 +5237,21 @@ retry:
 	return ret;
 }
 
-static struct mount *listmnt_next(struct mount *curr, bool reverse)
-{
-	struct rb_node *node;
-
-	if (reverse)
-		node = rb_prev(&curr->mnt_node);
-	else
-		node = rb_next(&curr->mnt_node);
-
-	return node_to_mount(node);
-}
-
-static ssize_t do_listmount(u64 mnt_parent_id, u64 last_mnt_id, u64 *mnt_ids,
-			    size_t nr_mnt_ids, bool reverse)
+static ssize_t do_listmount(struct mnt_namespace *ns, u64 mnt_parent_id,
+			    u64 last_mnt_id, u64 *mnt_ids, size_t nr_mnt_ids,
+			    bool reverse)
 {
 	struct path root __free(path_put) = {};
-	struct mnt_namespace *ns = current->nsproxy->mnt_ns;
 	struct path orig;
 	struct mount *r, *first;
 	ssize_t ret;
 
 	rwsem_assert_held(&namespace_sem);
 
-	get_fs_root(current->fs, &root);
+	ret = grab_requested_root(ns, &root);
+	if (ret)
+		return ret;
+
 	if (mnt_parent_id == LSMT_ROOT) {
 		orig = root;
 	} else {
@@ -5260,6 +5303,7 @@ SYSCALL_DEFINE4(listmount, const struct mnt_id_req __user *, req,
 {
 	u64 *kmnt_ids __free(kvfree) = NULL;
 	const size_t maxcount = 1000000;
+	struct mnt_namespace *ns __free(mnt_ns_release) = NULL;
 	struct mnt_id_req kreq;
 	ssize_t ret;
 
@@ -5286,8 +5330,16 @@ SYSCALL_DEFINE4(listmount, const struct mnt_id_req __user *, req,
 	if (!kmnt_ids)
 		return -ENOMEM;
 
+	ns = grab_requested_mnt_ns(kreq.mnt_ns_id);
+	if (!ns)
+		return -ENOENT;
+
+	if (kreq.mnt_ns_id && (ns != current->nsproxy->mnt_ns) &&
+	    !ns_capable_noaudit(ns->user_ns, CAP_SYS_ADMIN))
+		return -ENOENT;
+
 	scoped_guard(rwsem_read, &namespace_sem)
-		ret = do_listmount(kreq.mnt_id, kreq.param, kmnt_ids,
+		ret = do_listmount(ns, kreq.mnt_id, kreq.param, kmnt_ids,
 				   nr_mnt_ids, (flags & LISTMOUNT_REVERSE));
 
 	if (copy_to_user(mnt_ids, kmnt_ids, ret * sizeof(*mnt_ids)))
