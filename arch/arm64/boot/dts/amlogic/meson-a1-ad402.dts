@@ -86,7 +86,7 @@
 	};
 
 	thermal-zones {
-		soc_thermal: soc_thermal {
+		soc_thermal: soc-thermal {
 			polling-delay = <1000>;
 			polling-delay-passive = <100>;
 			sustainable-power = <130>;
