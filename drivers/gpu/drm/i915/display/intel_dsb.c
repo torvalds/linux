@@ -362,6 +362,79 @@ void intel_dsb_nonpost_end(struct intel_dsb *dsb)
 	intel_dsb_noop(dsb, 4);
 }
 
+static void intel_dsb_emit_wait_dsl(struct intel_dsb *dsb,
+				    u32 opcode, int lower, int upper)
+{
+	u64 window = ((u64)upper << DSB_SCANLINE_UPPER_SHIFT) |
+		((u64)lower << DSB_SCANLINE_LOWER_SHIFT);
+
+	intel_dsb_emit(dsb, lower_32_bits(window),
+		       (opcode << DSB_OPCODE_SHIFT) |
+		       upper_32_bits(window));
+}
+
+static void intel_dsb_wait_dsl(struct intel_atomic_state *state,
+			       struct intel_dsb *dsb,
+			       int lower_in, int upper_in,
+			       int lower_out, int upper_out)
+{
+	struct intel_crtc *crtc = dsb->crtc;
+
+	lower_in = dsb_scanline_to_hw(state, crtc, lower_in);
+	upper_in = dsb_scanline_to_hw(state, crtc, upper_in);
+
+	lower_out = dsb_scanline_to_hw(state, crtc, lower_out);
+	upper_out = dsb_scanline_to_hw(state, crtc, upper_out);
+
+	if (upper_in >= lower_in)
+		intel_dsb_emit_wait_dsl(dsb, DSB_OPCODE_WAIT_DSL_IN,
+					lower_in, upper_in);
+	else if (upper_out >= lower_out)
+		intel_dsb_emit_wait_dsl(dsb, DSB_OPCODE_WAIT_DSL_OUT,
+					lower_out, upper_out);
+	else
+		drm_WARN_ON(crtc->base.dev, 1); /* assert_dsl_ok() should have caught it already */
+}
+
+static void assert_dsl_ok(struct intel_atomic_state *state,
+			  struct intel_dsb *dsb,
+			  int start, int end)
+{
+	struct intel_crtc *crtc = dsb->crtc;
+	int vtotal = dsb_vtotal(state, crtc);
+
+	/*
+	 * Waiting for the entire frame doesn't make sense,
+	 * (IN==don't wait, OUT=wait forever).
+	 */
+	drm_WARN(crtc->base.dev, (end - start + vtotal) % vtotal == vtotal - 1,
+		 "[CRTC:%d:%s] DSB %d bad scanline window wait: %d-%d (vt=%d)\n",
+		 crtc->base.base.id, crtc->base.name, dsb->id,
+		 start, end, vtotal);
+}
+
+void intel_dsb_wait_scanline_in(struct intel_atomic_state *state,
+				struct intel_dsb *dsb,
+				int start, int end)
+{
+	assert_dsl_ok(state, dsb, start, end);
+
+	intel_dsb_wait_dsl(state, dsb,
+			   start, end,
+			   end + 1, start - 1);
+}
+
+void intel_dsb_wait_scanline_out(struct intel_atomic_state *state,
+				 struct intel_dsb *dsb,
+				 int start, int end)
+{
+	assert_dsl_ok(state, dsb, start, end);
+
+	intel_dsb_wait_dsl(state, dsb,
+			   end + 1, start - 1,
+			   start, end);
+}
+
 static void intel_dsb_align_tail(struct intel_dsb *dsb)
 {
 	u32 aligned_tail, tail;
