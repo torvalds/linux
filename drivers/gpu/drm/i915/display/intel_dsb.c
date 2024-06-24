@@ -86,16 +86,10 @@ struct intel_dsb {
 static int dsb_dewake_scanline(const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
-	const struct drm_display_mode *adjusted_mode = &crtc_state->hw.adjusted_mode;
 	unsigned int latency = skl_watermark_max_latency(i915, 0);
-	int vblank_start;
 
-	if (crtc_state->vrr.enable)
-		vblank_start = intel_vrr_vmin_vblank_start(crtc_state);
-	else
-		vblank_start = intel_mode_vblank_start(adjusted_mode);
-
-	return max(0, vblank_start - intel_usecs_to_scanlines(adjusted_mode, latency));
+	return intel_mode_vdisplay(&crtc_state->hw.adjusted_mode) -
+		intel_usecs_to_scanlines(&crtc_state->hw.adjusted_mode, latency);
 }
 
 static u32 dsb_chicken(struct intel_crtc *crtc)
