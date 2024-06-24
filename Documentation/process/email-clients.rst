@@ -350,3 +350,12 @@ although tab2space problem can be solved with external editor.
 
 Another problem is that Gmail will base64-encode any message that has a
 non-ASCII character. That includes things like European names.
+
+HacKerMaiL (TUI)
+****************
+
+HacKerMaiL (hkml) is a public-inbox based simple mails management tool that
+doesn't require subscription of mailing lists.  It is developed and maintained
+by the DAMON maintainer and aims to support simple development workflows for
+DAMON and general kernel subsystems.  Refer to the README
+(https://github.com/sjp38/hackermail/blob/master/README.md) for details.
