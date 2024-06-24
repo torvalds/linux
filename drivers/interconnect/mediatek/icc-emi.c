@@ -68,7 +68,7 @@ static int mtk_emi_icc_set(struct icc_node *src, struct icc_node *dst)
 	default:
 		dev_err(src->provider->dev, "Unknown endpoint %u\n", node->ep);
 		return -EINVAL;
-	};
+	}
 
 	return 0;
 }
