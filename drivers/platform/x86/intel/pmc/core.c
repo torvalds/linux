@@ -403,18 +403,16 @@ static int pmc_core_mphy_pg_show(struct seq_file *s, void *unused)
 
 	mutex_lock(&pmcdev->lock);
 
-	if (pmc_core_send_msg(pmc, &mphy_core_reg_low) != 0) {
-		err = -EBUSY;
+	err = pmc_core_send_msg(pmc, &mphy_core_reg_low);
+	if (err)
 		goto out_unlock;
-	}
 
 	msleep(10);
 	val_low = pmc_core_reg_read(pmc, SPT_PMC_MFPMC_OFFSET);
 
-	if (pmc_core_send_msg(pmc, &mphy_core_reg_high) != 0) {
-		err = -EBUSY;
+	err = pmc_core_send_msg(pmc, &mphy_core_reg_high);
+	if (err)
 		goto out_unlock;
-	}
 
 	msleep(10);
 	val_high = pmc_core_reg_read(pmc, SPT_PMC_MFPMC_OFFSET);
@@ -455,10 +453,9 @@ static int pmc_core_pll_show(struct seq_file *s, void *unused)
 	mphy_common_reg  = (SPT_PMC_MPHY_COM_STS_0 << 16);
 	mutex_lock(&pmcdev->lock);
 
-	if (pmc_core_send_msg(pmc, &mphy_common_reg) != 0) {
-		err = -EBUSY;
+	err = pmc_core_send_msg(pmc, &mphy_common_reg);
+	if (err)
 		goto out_unlock;
-	}
 
 	/* Observed PMC HW response latency for MTPMC-MFPMC is ~10 ms */
 	msleep(10);
