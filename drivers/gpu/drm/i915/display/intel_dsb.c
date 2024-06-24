@@ -500,6 +500,48 @@ static u32 dsb_error_int_en(struct intel_display *display)
 	return errors;
 }
 
+static void _intel_dsb_chain(struct intel_atomic_state *state,
+			     struct intel_dsb *dsb,
+			     struct intel_dsb *chained_dsb,
+			     u32 ctrl)
+{
+	struct intel_display *display = to_intel_display(state->base.dev);
+	struct intel_crtc *crtc = dsb->crtc;
+	enum pipe pipe = crtc->pipe;
+	u32 tail;
+
+	if (drm_WARN_ON(display->drm, dsb->id == chained_dsb->id))
+		return;
+
+	tail = chained_dsb->free_pos * 4;
+	if (drm_WARN_ON(display->drm, !IS_ALIGNED(tail, CACHELINE_BYTES)))
+		return;
+
+	intel_dsb_reg_write(dsb, DSB_CTRL(pipe, chained_dsb->id),
+			    ctrl | DSB_ENABLE);
+
+	intel_dsb_reg_write(dsb, DSB_CHICKEN(pipe, chained_dsb->id),
+			    dsb_chicken(state, crtc));
+
+	intel_dsb_reg_write(dsb, DSB_INTERRUPT(pipe, chained_dsb->id),
+			    dsb_error_int_status(display) | DSB_PROG_INT_STATUS |
+			    dsb_error_int_en(display));
+
+	intel_dsb_reg_write(dsb, DSB_HEAD(pipe, chained_dsb->id),
+			    intel_dsb_buffer_ggtt_offset(&chained_dsb->dsb_buf));
+
+	intel_dsb_reg_write(dsb, DSB_TAIL(pipe, chained_dsb->id),
+			    intel_dsb_buffer_ggtt_offset(&chained_dsb->dsb_buf) + tail);
+}
+
+void intel_dsb_chain(struct intel_atomic_state *state,
+		     struct intel_dsb *dsb,
+		     struct intel_dsb *chained_dsb)
+{
+	_intel_dsb_chain(state, dsb, chained_dsb,
+			 0);
+}
+
 static void _intel_dsb_commit(struct intel_dsb *dsb, u32 ctrl,
 			      int hw_dewake_scanline)
 {
