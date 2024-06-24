@@ -2460,6 +2460,35 @@ DEFINE_DISCARD_EVENT(xfs_discard_toosmall);
 DEFINE_DISCARD_EVENT(xfs_discard_exclude);
 DEFINE_DISCARD_EVENT(xfs_discard_busy);
 
+DECLARE_EVENT_CLASS(xfs_rtdiscard_class,
+	TP_PROTO(struct xfs_mount *mp,
+		 xfs_rtblock_t rtbno, xfs_rtblock_t len),
+	TP_ARGS(mp, rtbno, len),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_rtblock_t, rtbno)
+		__field(xfs_rtblock_t, len)
+	),
+	TP_fast_assign(
+		__entry->dev = mp->m_rtdev_targp->bt_dev;
+		__entry->rtbno = rtbno;
+		__entry->len = len;
+	),
+	TP_printk("dev %d:%d rtbno 0x%llx rtbcount 0x%llx",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->rtbno,
+		  __entry->len)
+)
+
+#define DEFINE_RTDISCARD_EVENT(name) \
+DEFINE_EVENT(xfs_rtdiscard_class, name, \
+	TP_PROTO(struct xfs_mount *mp, \
+		 xfs_rtblock_t rtbno, xfs_rtblock_t len), \
+	TP_ARGS(mp, rtbno, len))
+DEFINE_RTDISCARD_EVENT(xfs_discard_rtextent);
+DEFINE_RTDISCARD_EVENT(xfs_discard_rttoosmall);
+DEFINE_RTDISCARD_EVENT(xfs_discard_rtrelax);
+
 DECLARE_EVENT_CLASS(xfs_btree_cur_class,
 	TP_PROTO(struct xfs_btree_cur *cur, int level, struct xfs_buf *bp),
 	TP_ARGS(cur, level, bp),
