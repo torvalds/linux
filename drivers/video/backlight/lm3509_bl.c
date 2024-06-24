@@ -157,10 +157,9 @@ static int lm3509_parse_led_sources(struct device_node *node,
 static int lm3509_parse_dt_node(struct device *dev,
 				struct lm3509_bl_led_data *led_data)
 {
-	struct device_node *child;
 	int seen_led_sources = 0;
 
-	for_each_child_of_node(dev->of_node, child) {
+	for_each_child_of_node_scoped(dev->of_node, child) {
 		struct lm3509_bl_led_data *ld;
 		int ret;
 		u32 reg;
