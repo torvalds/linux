@@ -83,6 +83,33 @@ struct intel_dsb {
 #define DSB_OPCODE_POLL			0xA
 /* see DSB_REG_VALUE_MASK */
 
+static int dsb_dewake_scanline(const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
+	const struct drm_display_mode *adjusted_mode = &crtc_state->hw.adjusted_mode;
+	unsigned int latency = skl_watermark_max_latency(i915, 0);
+	int vblank_start;
+
+	if (crtc_state->vrr.enable)
+		vblank_start = intel_vrr_vmin_vblank_start(crtc_state);
+	else
+		vblank_start = intel_mode_vblank_start(adjusted_mode);
+
+	return max(0, vblank_start - intel_usecs_to_scanlines(adjusted_mode, latency));
+}
+
+static u32 dsb_chicken(struct intel_crtc *crtc)
+{
+	if (crtc->mode_flags & I915_MODE_FLAG_VRR)
+		return DSB_SKIP_WAITS_EN |
+			DSB_CTRL_WAIT_SAFE_WINDOW |
+			DSB_CTRL_NO_WAIT_VBLANK |
+			DSB_INST_WAIT_SAFE_WINDOW |
+			DSB_INST_NO_WAIT_VBLANK;
+	else
+		return DSB_SKIP_WAITS_EN;
+}
+
 static bool assert_dsb_has_room(struct intel_dsb *dsb)
 {
 	struct intel_crtc *crtc = dsb->crtc;
@@ -313,33 +340,6 @@ void intel_dsb_finish(struct intel_dsb *dsb)
 	intel_dsb_buffer_flush_map(&dsb->dsb_buf);
 }
 
-static int intel_dsb_dewake_scanline(const struct intel_crtc_state *crtc_state)
-{
-	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
-	const struct drm_display_mode *adjusted_mode = &crtc_state->hw.adjusted_mode;
-	unsigned int latency = skl_watermark_max_latency(i915, 0);
-	int vblank_start;
-
-	if (crtc_state->vrr.enable)
-		vblank_start = intel_vrr_vmin_vblank_start(crtc_state);
-	else
-		vblank_start = intel_mode_vblank_start(adjusted_mode);
-
-	return max(0, vblank_start - intel_usecs_to_scanlines(adjusted_mode, latency));
-}
-
-static u32 dsb_chicken(struct intel_crtc *crtc)
-{
-	if (crtc->mode_flags & I915_MODE_FLAG_VRR)
-		return DSB_SKIP_WAITS_EN |
-			DSB_CTRL_WAIT_SAFE_WINDOW |
-			DSB_CTRL_NO_WAIT_VBLANK |
-			DSB_INST_WAIT_SAFE_WINDOW |
-			DSB_INST_NO_WAIT_VBLANK;
-	else
-		return DSB_SKIP_WAITS_EN;
-}
-
 static u32 dsb_error_int_status(struct intel_display *display)
 {
 	u32 errors;
@@ -530,7 +530,7 @@ struct intel_dsb *intel_dsb_prepare(struct intel_atomic_state *state,
 	dsb->ins_start_offset = 0;
 
 	dsb->hw_dewake_scanline =
-		intel_crtc_scanline_to_hw(crtc_state, intel_dsb_dewake_scanline(crtc_state));
+		intel_crtc_scanline_to_hw(crtc_state, dsb_dewake_scanline(crtc_state));
 
 	return dsb;
 
