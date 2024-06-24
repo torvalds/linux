@@ -984,6 +984,9 @@ static int davinci_spi_probe(struct platform_device *pdev)
 	return ret;
 
 free_dma:
+	/* This bit needs to be cleared to disable dpsi->clk */
+	clear_io_bits(dspi->base + SPIGCR1, SPIGCR1_POWERDOWN_MASK);
+
 	if (dspi->dma_rx) {
 		dma_release_channel(dspi->dma_rx);
 		dma_release_channel(dspi->dma_tx);
@@ -1012,6 +1015,9 @@ static void davinci_spi_remove(struct platform_device *pdev)
 	dspi = spi_controller_get_devdata(host);
 
 	spi_bitbang_stop(&dspi->bitbang);
+
+	/* This bit needs to be cleared to disable dpsi->clk */
+	clear_io_bits(dspi->base + SPIGCR1, SPIGCR1_POWERDOWN_MASK);
 
 	if (dspi->dma_rx) {
 		dma_release_channel(dspi->dma_rx);
