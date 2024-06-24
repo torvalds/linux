@@ -469,7 +469,8 @@ struct ras_ecc_log_info {
 	struct mutex lock;
 	siphash_key_t ecc_key;
 	struct radix_tree_root de_page_tree;
-	bool	de_updated;
+	uint64_t	de_queried_count;
+	uint64_t	prev_de_queried_count;
 };
 
 struct amdgpu_ras {

@@ -120,7 +120,7 @@ const char *get_ras_block_str(struct ras_common_if *ras_block)
 /* typical ECC bad page rate is 1 bad page per 100MB VRAM */
 #define RAS_BAD_PAGE_COVER              (100 * 1024 * 1024ULL)
 
-#define MAX_UMC_POISON_POLLING_TIME_ASYNC  100  //ms
+#define MAX_UMC_POISON_POLLING_TIME_ASYNC  300  //ms
 
 #define AMDGPU_RAS_RETIRE_PAGE_INTERVAL 100  //ms
 
@@ -2799,7 +2799,8 @@ static void amdgpu_ras_ecc_log_init(struct ras_ecc_log_info *ecc_log)
 	memset(&ecc_log->ecc_key, 0xad, sizeof(ecc_log->ecc_key));
 
 	INIT_RADIX_TREE(&ecc_log->de_page_tree, GFP_KERNEL);
-	ecc_log->de_updated = false;
+	ecc_log->de_queried_count = 0;
+	ecc_log->prev_de_queried_count = 0;
 }
 
 static void amdgpu_ras_ecc_log_fini(struct ras_ecc_log_info *ecc_log)
@@ -2818,7 +2819,8 @@ static void amdgpu_ras_ecc_log_fini(struct ras_ecc_log_info *ecc_log)
 	mutex_unlock(&ecc_log->lock);
 
 	mutex_destroy(&ecc_log->lock);
-	ecc_log->de_updated = false;
+	ecc_log->de_queried_count = 0;
+	ecc_log->prev_de_queried_count = 0;
 }
 
 static void amdgpu_ras_do_page_retirement(struct work_struct *work)
@@ -2850,40 +2852,64 @@ static void amdgpu_ras_do_page_retirement(struct work_struct *work)
 	mutex_unlock(&con->umc_ecc_log.lock);
 }
 
-static void amdgpu_ras_poison_creation_handler(struct amdgpu_device *adev,
-				uint32_t timeout_ms)
+static int amdgpu_ras_poison_creation_handler(struct amdgpu_device *adev,
+				uint32_t poison_creation_count)
 {
 	int ret = 0;
 	struct ras_ecc_log_info *ecc_log;
 	struct ras_query_if info;
-	uint32_t timeout = timeout_ms;
+	uint32_t timeout = 0;
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
+	uint64_t de_queried_count;
+	uint32_t new_detect_count, total_detect_count;
+	uint32_t need_query_count = poison_creation_count;
+	bool query_data_timeout = false;
 
 	memset(&info, 0, sizeof(info));
 	info.head.block = AMDGPU_RAS_BLOCK__UMC;
 
 	ecc_log = &ras->umc_ecc_log;
-	ecc_log->de_updated = false;
+	total_detect_count = 0;
 	do {
 		ret = amdgpu_ras_query_error_status(adev, &info);
-		if (ret) {
-			dev_err(adev->dev, "Failed to query ras error! ret:%d\n", ret);
-			return;
+		if (ret)
+			return ret;
+
+		de_queried_count = ecc_log->de_queried_count;
+		if (de_queried_count > ecc_log->prev_de_queried_count) {
+			new_detect_count = de_queried_count - ecc_log->prev_de_queried_count;
+			ecc_log->prev_de_queried_count = de_queried_count;
+			timeout = 0;
+		} else {
+			new_detect_count = 0;
 		}
 
-		if (timeout && !ecc_log->de_updated) {
-			msleep(1);
-			timeout--;
-		}
-	} while (timeout && !ecc_log->de_updated);
+		if (new_detect_count) {
+			total_detect_count += new_detect_count;
+		} else {
+			if (!timeout && need_query_count)
+				timeout = MAX_UMC_POISON_POLLING_TIME_ASYNC;
 
-	if (timeout_ms && !timeout) {
-		dev_warn(adev->dev, "Can't find deferred error\n");
-		return;
+			if (timeout) {
+				if (!--timeout) {
+					query_data_timeout = true;
+					break;
+				}
+				msleep(1);
+			}
+		}
+	} while (total_detect_count < need_query_count);
+
+	if (query_data_timeout) {
+		dev_warn(adev->dev, "Can't find deferred error! count: %u\n",
+			(need_query_count - total_detect_count));
+		return -ENOENT;
 	}
 
-	if (!ret)
+	if (total_detect_count)
 		schedule_delayed_work(&ras->page_retirement_dwork, 0);
+
+	return 0;
 }
 
 static int amdgpu_ras_poison_consumption_handler(struct amdgpu_device *adev,
