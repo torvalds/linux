@@ -1617,7 +1617,6 @@ static journal_t *journal_init_common(struct block_device *bdev,
 
 	journal->j_shrinker->scan_objects = jbd2_journal_shrink_scan;
 	journal->j_shrinker->count_objects = jbd2_journal_shrink_count;
-	journal->j_shrinker->batch = journal->j_max_transaction_buffers;
 	journal->j_shrinker->private_data = journal;
 
 	shrinker_register(journal->j_shrinker);
