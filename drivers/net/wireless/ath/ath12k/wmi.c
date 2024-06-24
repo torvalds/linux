@@ -233,7 +233,7 @@ void ath12k_wmi_init_qcn9274(struct ath12k_base *ab,
 	config->beacon_tx_offload_max_vdev += config->ema_max_vap_cnt;
 
 	if (test_bit(WMI_TLV_SERVICE_PEER_METADATA_V1A_V1B_SUPPORT, ab->wmi_ab.svc_map))
-		config->dp_peer_meta_data_ver = TARGET_RX_PEER_METADATA_VER_V1B;
+		config->peer_metadata_ver = ATH12K_PEER_METADATA_V1B;
 }
 
 void ath12k_wmi_init_wcn7850(struct ath12k_base *ab,
@@ -3498,7 +3498,7 @@ ath12k_wmi_copy_resource_config(struct ath12k_wmi_resource_config_params *wmi_cf
 	wmi_cfg->sched_params = cpu_to_le32(tg_cfg->sched_params);
 	wmi_cfg->twt_ap_pdev_count = cpu_to_le32(tg_cfg->twt_ap_pdev_count);
 	wmi_cfg->twt_ap_sta_count = cpu_to_le32(tg_cfg->twt_ap_sta_count);
-	wmi_cfg->flags2 = le32_encode_bits(tg_cfg->dp_peer_meta_data_ver,
+	wmi_cfg->flags2 = le32_encode_bits(tg_cfg->peer_metadata_ver,
 					   WMI_RSRC_CFG_FLAGS2_RX_PEER_METADATA_VERSION);
 	wmi_cfg->host_service_flags = cpu_to_le32(tg_cfg->is_reg_cc_ext_event_supported <<
 				WMI_RSRC_CFG_HOST_SVC_FLAG_REG_CC_EXT_SUPPORT_BIT);
@@ -3728,6 +3728,8 @@ int ath12k_wmi_cmd_init(struct ath12k_base *ab)
 
 	arg.num_band_to_mac = ab->num_radios;
 	ath12k_fill_band_to_mac_param(ab, arg.band_to_mac);
+
+	ab->dp.peer_metadata_ver = arg.res_cfg.peer_metadata_ver;
 
 	return ath12k_init_cmd_send(&wmi_ab->wmi[0], &arg);
 }

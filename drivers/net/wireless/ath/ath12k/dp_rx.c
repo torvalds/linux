@@ -2583,6 +2583,29 @@ static void ath12k_dp_rx_process_received_packets(struct ath12k_base *ab,
 	rcu_read_unlock();
 }
 
+static u16 ath12k_dp_rx_get_peer_id(struct ath12k_base *ab,
+				    enum ath12k_peer_metadata_version ver,
+				    __le32 peer_metadata)
+{
+	switch (ver) {
+	default:
+		ath12k_warn(ab, "Unknown peer metadata version: %d", ver);
+		fallthrough;
+	case ATH12K_PEER_METADATA_V0:
+		return le32_get_bits(peer_metadata,
+				     RX_MPDU_DESC_META_DATA_V0_PEER_ID);
+	case ATH12K_PEER_METADATA_V1:
+		return le32_get_bits(peer_metadata,
+				     RX_MPDU_DESC_META_DATA_V1_PEER_ID);
+	case ATH12K_PEER_METADATA_V1A:
+		return le32_get_bits(peer_metadata,
+				     RX_MPDU_DESC_META_DATA_V1A_PEER_ID);
+	case ATH12K_PEER_METADATA_V1B:
+		return le32_get_bits(peer_metadata,
+				     RX_MPDU_DESC_META_DATA_V1B_PEER_ID);
+	}
+}
+
 int ath12k_dp_rx_process(struct ath12k_base *ab, int ring_id,
 			 struct napi_struct *napi, int budget)
 {
@@ -2611,6 +2634,8 @@ try_again:
 	ath12k_hal_srng_access_begin(ab, srng);
 
 	while ((desc = ath12k_hal_srng_dst_get_next_entry(ab, srng))) {
+		struct rx_mpdu_desc *mpdu_info;
+		struct rx_msdu_desc *msdu_info;
 		enum hal_reo_dest_ring_push_reason push_reason;
 		u32 cookie;
 
@@ -2658,16 +2683,19 @@ try_again:
 			continue;
 		}
 
-		rxcb->is_first_msdu = !!(le32_to_cpu(desc->rx_msdu_info.info0) &
+		msdu_info = &desc->rx_msdu_info;
+		mpdu_info = &desc->rx_mpdu_info;
+
+		rxcb->is_first_msdu = !!(le32_to_cpu(msdu_info->info0) &
 					 RX_MSDU_DESC_INFO0_FIRST_MSDU_IN_MPDU);
-		rxcb->is_last_msdu = !!(le32_to_cpu(desc->rx_msdu_info.info0) &
+		rxcb->is_last_msdu = !!(le32_to_cpu(msdu_info->info0) &
 					RX_MSDU_DESC_INFO0_LAST_MSDU_IN_MPDU);
-		rxcb->is_continuation = !!(le32_to_cpu(desc->rx_msdu_info.info0) &
+		rxcb->is_continuation = !!(le32_to_cpu(msdu_info->info0) &
 					   RX_MSDU_DESC_INFO0_MSDU_CONTINUATION);
 		rxcb->mac_id = mac_id;
-		rxcb->peer_id = le32_get_bits(desc->rx_mpdu_info.peer_meta_data,
-					      RX_MPDU_DESC_META_DATA_PEER_ID);
-		rxcb->tid = le32_get_bits(desc->rx_mpdu_info.info0,
+		rxcb->peer_id = ath12k_dp_rx_get_peer_id(ab, dp->peer_metadata_ver,
+							 mpdu_info->peer_meta_data);
+		rxcb->tid = le32_get_bits(mpdu_info->info0,
 					  RX_MPDU_DESC_INFO0_TID);
 
 		__skb_queue_tail(&msdu_list, msdu);
