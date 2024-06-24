@@ -47,7 +47,8 @@ void intel_dsb_wait_scanline_out(struct intel_atomic_state *state,
 				 int lower, int upper);
 void intel_dsb_chain(struct intel_atomic_state *state,
 		     struct intel_dsb *dsb,
-		     struct intel_dsb *chained_dsb);
+		     struct intel_dsb *chained_dsb,
+		     bool wait_for_vblank);
 
 void intel_dsb_commit(struct intel_dsb *dsb,
 		      bool wait_for_vblank);

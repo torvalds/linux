@@ -130,8 +130,8 @@ static int dsb_vtotal(struct intel_atomic_state *state,
 		return intel_mode_vtotal(&crtc_state->hw.adjusted_mode);
 }
 
-static int dsb_dewake_scanline(struct intel_atomic_state *state,
-			       struct intel_crtc *crtc)
+static int dsb_dewake_scanline_start(struct intel_atomic_state *state,
+				     struct intel_crtc *crtc)
 {
 	const struct intel_crtc_state *crtc_state = pre_commit_crtc_state(state, crtc);
 	struct drm_i915_private *i915 = to_i915(state->base.dev);
@@ -139,6 +139,14 @@ static int dsb_dewake_scanline(struct intel_atomic_state *state,
 
 	return intel_mode_vdisplay(&crtc_state->hw.adjusted_mode) -
 		intel_usecs_to_scanlines(&crtc_state->hw.adjusted_mode, latency);
+}
+
+static int dsb_dewake_scanline_end(struct intel_atomic_state *state,
+				   struct intel_crtc *crtc)
+{
+	const struct intel_crtc_state *crtc_state = pre_commit_crtc_state(state, crtc);
+
+	return intel_mode_vdisplay(&crtc_state->hw.adjusted_mode);
 }
 
 static int dsb_scanline_to_hw(struct intel_atomic_state *state,
@@ -527,19 +535,44 @@ static void _intel_dsb_chain(struct intel_atomic_state *state,
 			    dsb_error_int_status(display) | DSB_PROG_INT_STATUS |
 			    dsb_error_int_en(display));
 
+	if (ctrl & DSB_WAIT_FOR_VBLANK) {
+		int dewake_scanline = dsb_dewake_scanline_start(state, crtc);
+		int hw_dewake_scanline = dsb_scanline_to_hw(state, crtc, dewake_scanline);
+
+		intel_dsb_reg_write(dsb, DSB_PMCTRL(pipe, chained_dsb->id),
+				    DSB_ENABLE_DEWAKE |
+				    DSB_SCANLINE_FOR_DEWAKE(hw_dewake_scanline));
+	}
+
 	intel_dsb_reg_write(dsb, DSB_HEAD(pipe, chained_dsb->id),
 			    intel_dsb_buffer_ggtt_offset(&chained_dsb->dsb_buf));
 
 	intel_dsb_reg_write(dsb, DSB_TAIL(pipe, chained_dsb->id),
 			    intel_dsb_buffer_ggtt_offset(&chained_dsb->dsb_buf) + tail);
+
+	if (ctrl & DSB_WAIT_FOR_VBLANK) {
+		/*
+		 * Keep DEwake alive via the first DSB, in
+		 * case we're already past dewake_scanline,
+		 * and thus DSB_ENABLE_DEWAKE on the second
+		 * DSB won't do its job.
+		 */
+		intel_dsb_reg_write_masked(dsb, DSB_PMCTRL_2(pipe, dsb->id),
+					   DSB_FORCE_DEWAKE, DSB_FORCE_DEWAKE);
+
+		intel_dsb_wait_scanline_out(state, dsb,
+					    dsb_dewake_scanline_start(state, crtc),
+					    dsb_dewake_scanline_end(state, crtc));
+	}
 }
 
 void intel_dsb_chain(struct intel_atomic_state *state,
 		     struct intel_dsb *dsb,
-		     struct intel_dsb *chained_dsb)
+		     struct intel_dsb *chained_dsb,
+		     bool wait_for_vblank)
 {
 	_intel_dsb_chain(state, dsb, chained_dsb,
-			 0);
+			 wait_for_vblank ? DSB_WAIT_FOR_VBLANK : 0);
 }
 
 static void _intel_dsb_commit(struct intel_dsb *dsb, u32 ctrl,
@@ -697,7 +730,7 @@ struct intel_dsb *intel_dsb_prepare(struct intel_atomic_state *state,
 
 	dsb->chicken = dsb_chicken(state, crtc);
 	dsb->hw_dewake_scanline =
-		dsb_scanline_to_hw(state, crtc, dsb_dewake_scanline(state, crtc));
+		dsb_scanline_to_hw(state, crtc, dsb_dewake_scanline_start(state, crtc));
 
 	return dsb;
 
