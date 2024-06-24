@@ -1163,7 +1163,6 @@ static bool is_config_schedulable(
 	schedulable = true;
 
 	/* sort disallow times from greatest to least */
-	unsigned int temp;
 	for (i = 0; i < s->pmo_dcn4.num_timing_groups; i++) {
 		bool swapped = false;
 
@@ -1172,9 +1171,8 @@ static bool is_config_schedulable(
 			double jp1_disallow_us = s->pmo_dcn4.group_common_fams2_meta[s->pmo_dcn4.sorted_group_gtl_disallow_index[j + 1]].disallow_time_us;
 			if (j_disallow_us < jp1_disallow_us) {
 				/* swap as A < B */
-				temp = s->pmo_dcn4.sorted_group_gtl_disallow_index[j];
-				s->pmo_dcn4.sorted_group_gtl_disallow_index[j] = s->pmo_dcn4.sorted_group_gtl_disallow_index[j + 1];
-				s->pmo_dcn4.sorted_group_gtl_disallow_index[j + 1] = temp;
+				swap(s->pmo_dcn4.sorted_group_gtl_disallow_index[j],
+				     s->pmo_dcn4.sorted_group_gtl_disallow_index[j+1]);
 				swapped = true;
 			}
 		}
@@ -1232,9 +1230,8 @@ static bool is_config_schedulable(
 			double jp1_period_us = s->pmo_dcn4.group_common_fams2_meta[s->pmo_dcn4.sorted_group_gtl_period_index[j + 1]].period_us;
 			if (j_period_us < jp1_period_us) {
 				/* swap as A < B */
-				temp = s->pmo_dcn4.sorted_group_gtl_period_index[j];
-				s->pmo_dcn4.sorted_group_gtl_period_index[j] = s->pmo_dcn4.sorted_group_gtl_period_index[j + 1];
-				s->pmo_dcn4.sorted_group_gtl_period_index[j + 1] = temp;
+				swap(s->pmo_dcn4.sorted_group_gtl_period_index[j],
+				     s->pmo_dcn4.sorted_group_gtl_period_index[j+1]);
 				swapped = true;
 			}
 		}
