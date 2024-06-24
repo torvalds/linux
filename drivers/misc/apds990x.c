@@ -1253,7 +1253,7 @@ static int apds990x_runtime_resume(struct device *dev)
 #endif
 
 static const struct i2c_device_id apds990x_id[] = {
-	{"apds990x", 0 },
+	{ "apds990x" },
 	{}
 };
 

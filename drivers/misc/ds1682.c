@@ -271,7 +271,7 @@ static void ds1682_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ds1682_id[] = {
-	{ "ds1682", 0 },
+	{ "ds1682" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ds1682_id);
