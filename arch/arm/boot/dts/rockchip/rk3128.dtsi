@@ -566,6 +566,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&hdmii2c_xfer &hdmi_hpd &hdmi_cec>;
 		power-domains = <&power RK3128_PD_VIO>;
+		#sound-dai-cells = <0>;
 		status = "disabled";
 
 		ports {
