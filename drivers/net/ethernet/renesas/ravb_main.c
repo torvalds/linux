@@ -2652,6 +2652,28 @@ static int ravb_mdio_release(struct ravb_private *priv)
 	return 0;
 }
 
+static const struct ravb_hw_info ravb_gen2_hw_info = {
+	.receive = ravb_rx_rcar,
+	.set_rate = ravb_set_rate_rcar,
+	.set_feature = ravb_set_features_rcar,
+	.dmac_init = ravb_dmac_init_rcar,
+	.emac_init = ravb_emac_init_rcar,
+	.gstrings_stats = ravb_gstrings_stats,
+	.gstrings_size = sizeof(ravb_gstrings_stats),
+	.net_hw_features = NETIF_F_RXCSUM,
+	.net_features = NETIF_F_RXCSUM,
+	.stats_len = ARRAY_SIZE(ravb_gstrings_stats),
+	.tccr_mask = TCCR_TSRQ0 | TCCR_TSRQ1 | TCCR_TSRQ2 | TCCR_TSRQ3,
+	.rx_max_frame_size = SZ_2K,
+	.rx_buffer_size = SZ_2K +
+			  SKB_DATA_ALIGN(sizeof(struct skb_shared_info)),
+	.rx_desc_size = sizeof(struct ravb_ex_rx_desc),
+	.aligned_tx = 1,
+	.gptp = 1,
+	.nc_queues = 1,
+	.magic_pkt = 1,
+};
+
 static const struct ravb_hw_info ravb_gen3_hw_info = {
 	.receive = ravb_rx_rcar,
 	.set_rate = ravb_set_rate_rcar,
@@ -2673,28 +2695,6 @@ static const struct ravb_hw_info ravb_gen3_hw_info = {
 	.multi_irqs = 1,
 	.irq_en_dis = 1,
 	.ccc_gac = 1,
-	.nc_queues = 1,
-	.magic_pkt = 1,
-};
-
-static const struct ravb_hw_info ravb_gen2_hw_info = {
-	.receive = ravb_rx_rcar,
-	.set_rate = ravb_set_rate_rcar,
-	.set_feature = ravb_set_features_rcar,
-	.dmac_init = ravb_dmac_init_rcar,
-	.emac_init = ravb_emac_init_rcar,
-	.gstrings_stats = ravb_gstrings_stats,
-	.gstrings_size = sizeof(ravb_gstrings_stats),
-	.net_hw_features = NETIF_F_RXCSUM,
-	.net_features = NETIF_F_RXCSUM,
-	.stats_len = ARRAY_SIZE(ravb_gstrings_stats),
-	.tccr_mask = TCCR_TSRQ0 | TCCR_TSRQ1 | TCCR_TSRQ2 | TCCR_TSRQ3,
-	.rx_max_frame_size = SZ_2K,
-	.rx_buffer_size = SZ_2K +
-			  SKB_DATA_ALIGN(sizeof(struct skb_shared_info)),
-	.rx_desc_size = sizeof(struct ravb_ex_rx_desc),
-	.aligned_tx = 1,
-	.gptp = 1,
 	.nc_queues = 1,
 	.magic_pkt = 1,
 };
