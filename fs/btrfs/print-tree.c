@@ -310,6 +310,9 @@ void btrfs_print_leaf(const struct extent_buffer *l)
 		case BTRFS_EXTENT_DATA_KEY:
 			fi = btrfs_item_ptr(l, i,
 					    struct btrfs_file_extent_item);
+			pr_info("\t\tgeneration %llu type %hhu\n",
+				btrfs_file_extent_generation(l, fi),
+				btrfs_file_extent_type(l, fi));
 			if (btrfs_file_extent_type(l, fi) ==
 			    BTRFS_FILE_EXTENT_INLINE) {
 				pr_info("\t\tinline extent data size %llu\n",
