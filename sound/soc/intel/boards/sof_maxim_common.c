@@ -77,18 +77,35 @@ static struct snd_soc_dai_link_component max_98373_components[] = {
  * According to the definition of 'DAI Sel Mux' mixer in max98373.c, rx mask
  * should choose two channels from TDM slots, the LSB of rx mask is left channel
  * and the other one is right channel.
- *
- * For tx mask, each codec requires two channels: one for V-sense and the other
- * one for I-sense. Must match the device property "maxim,vmon-slot-no" and
- * "maxim,imon-slot-no" in ACPI table.
  */
 static const struct {
-	unsigned int tx;
 	unsigned int rx;
 } max_98373_tdm_mask[] = {
-	{.tx = 0x03, .rx = 0x3},
-	{.tx = 0x0c, .rx = 0x3},
+	{.rx = 0x3},
+	{.rx = 0x3},
 };
+
+/*
+ * The tx mask indicates which channel(s) contains output IV-sense data and
+ * others should set to Hi-Z. Here we get the channel number from codec's ACPI
+ * device property "maxim,vmon-slot-no" and "maxim,imon-slot-no" to generate the
+ * mask. Refer to the max98373_slot_config() function in max98373.c codec driver.
+ */
+static unsigned int max_98373_get_tx_mask(struct device *dev)
+{
+	int vmon_slot;
+	int imon_slot;
+
+	if (device_property_read_u32(dev, "maxim,vmon-slot-no", &vmon_slot))
+		vmon_slot = 0;
+
+	if (device_property_read_u32(dev, "maxim,imon-slot-no", &imon_slot))
+		imon_slot = 1;
+
+	dev_dbg(dev, "vmon_slot %d imon_slot %d\n", vmon_slot, imon_slot);
+
+	return (0x1 << vmon_slot) | (0x1 << imon_slot);
+}
 
 static int max_98373_hw_params(struct snd_pcm_substream *substream,
 			       struct snd_pcm_hw_params *params)
@@ -98,6 +115,8 @@ static int max_98373_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *codec_dai;
 	int i;
 	int tdm_slots;
+	unsigned int tx_mask;
+	unsigned int tx_mask_used = 0x0;
 	int ret = 0;
 
 	for_each_rtd_codec_dais(rtd, i, codec_dai) {
@@ -117,13 +136,26 @@ static int max_98373_hw_params(struct snd_pcm_substream *substream,
 				return -EINVAL;
 			}
 
+			/* get the tx mask from ACPI device properties */
+			tx_mask = max_98373_get_tx_mask(codec_dai->dev);
+			if (!tx_mask)
+				return -EINVAL;
+
+			if (tx_mask & tx_mask_used) {
+				dev_err(codec_dai->dev, "invalid tx mask 0x%x, used 0x%x\n",
+					tx_mask, tx_mask_used);
+				return -EINVAL;
+			}
+
+			tx_mask_used |= tx_mask;
+
 			/*
 			 * check if tdm slot number is too small for channel
 			 * allocation
 			 */
-			if (fls(max_98373_tdm_mask[i].tx) > tdm_slots) {
+			if (fls(tx_mask) > tdm_slots) {
 				dev_err(codec_dai->dev, "slot mismatch, tx %d slots %d\n",
-					fls(max_98373_tdm_mask[i].tx), tdm_slots);
+					fls(tx_mask), tdm_slots);
 				return -EINVAL;
 			}
 
@@ -134,12 +166,10 @@ static int max_98373_hw_params(struct snd_pcm_substream *substream,
 			}
 
 			dev_dbg(codec_dai->dev, "set tdm slot: tx 0x%x rx 0x%x slots %d width %d\n",
-				max_98373_tdm_mask[i].tx,
-				max_98373_tdm_mask[i].rx,
+				tx_mask, max_98373_tdm_mask[i].rx,
 				tdm_slots, params_width(params));
 
-			ret = snd_soc_dai_set_tdm_slot(codec_dai,
-						       max_98373_tdm_mask[i].tx,
+			ret = snd_soc_dai_set_tdm_slot(codec_dai, tx_mask,
 						       max_98373_tdm_mask[i].rx,
 						       tdm_slots,
 						       params_width(params));
