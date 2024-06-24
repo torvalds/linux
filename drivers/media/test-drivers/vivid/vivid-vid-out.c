@@ -966,16 +966,16 @@ int vidioc_enum_output(struct file *file, void *priv,
 	out->type = V4L2_OUTPUT_TYPE_ANALOG;
 	switch (dev->output_type[out->index]) {
 	case SVID:
-		snprintf(out->name, sizeof(out->name), "S-Video %u",
-				dev->output_name_counter[out->index]);
+		snprintf(out->name, sizeof(out->name), "S-Video %03u-%u",
+			 dev->inst, dev->output_name_counter[out->index]);
 		out->std = V4L2_STD_ALL;
 		if (dev->has_audio_outputs)
 			out->audioset = (1 << ARRAY_SIZE(vivid_audio_outputs)) - 1;
 		out->capabilities = V4L2_OUT_CAP_STD;
 		break;
 	case HDMI:
-		snprintf(out->name, sizeof(out->name), "HDMI %u",
-				dev->output_name_counter[out->index]);
+		snprintf(out->name, sizeof(out->name), "HDMI %03u-%u",
+			 dev->inst, dev->output_name_counter[out->index]);
 		out->capabilities = V4L2_OUT_CAP_DV_TIMINGS;
 		break;
 	}

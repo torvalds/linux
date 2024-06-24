@@ -1073,13 +1073,13 @@ int vidioc_enum_input(struct file *file, void *priv,
 	inp->type = V4L2_INPUT_TYPE_CAMERA;
 	switch (dev->input_type[inp->index]) {
 	case WEBCAM:
-		snprintf(inp->name, sizeof(inp->name), "Webcam %u",
-				dev->input_name_counter[inp->index]);
+		snprintf(inp->name, sizeof(inp->name), "Webcam %03u-%u",
+			 dev->inst, dev->input_name_counter[inp->index]);
 		inp->capabilities = 0;
 		break;
 	case TV:
-		snprintf(inp->name, sizeof(inp->name), "TV %u",
-				dev->input_name_counter[inp->index]);
+		snprintf(inp->name, sizeof(inp->name), "TV %03u-%u",
+			 dev->inst, dev->input_name_counter[inp->index]);
 		inp->type = V4L2_INPUT_TYPE_TUNER;
 		inp->std = V4L2_STD_ALL;
 		if (dev->has_audio_inputs)
@@ -1087,16 +1087,16 @@ int vidioc_enum_input(struct file *file, void *priv,
 		inp->capabilities = V4L2_IN_CAP_STD;
 		break;
 	case SVID:
-		snprintf(inp->name, sizeof(inp->name), "S-Video %u",
-				dev->input_name_counter[inp->index]);
+		snprintf(inp->name, sizeof(inp->name), "S-Video %03u-%u",
+			 dev->inst, dev->input_name_counter[inp->index]);
 		inp->std = V4L2_STD_ALL;
 		if (dev->has_audio_inputs)
 			inp->audioset = (1 << ARRAY_SIZE(vivid_audio_inputs)) - 1;
 		inp->capabilities = V4L2_IN_CAP_STD;
 		break;
 	case HDMI:
-		snprintf(inp->name, sizeof(inp->name), "HDMI %u",
-				dev->input_name_counter[inp->index]);
+		snprintf(inp->name, sizeof(inp->name), "HDMI %03u-%u",
+			 dev->inst, dev->input_name_counter[inp->index]);
 		inp->capabilities = V4L2_IN_CAP_DV_TIMINGS;
 		if (dev->edid_blocks == 0 ||
 		    dev->dv_timings_signal_mode[dev->input] == NO_SIGNAL)
