@@ -595,8 +595,8 @@ const struct mpm_pin mpm_pitti_gic_chip_data[] = {
 	{86, 183}, /* mpm_wake,spmi_m */
 	{89, 314}, /* tsens0_tsens_0C_int */
 	{90, 315}, /* tsens1_tsens_0C_int */
-	{93, 188}, /* eud_p0_dpse_int_mx */
-	{94, 188}, /* eud_p0_dmse_int_mx */
+	{93, 188}, /* eud_p0_dmse_int_mx */
+	{94, 184}, /* eud_p0_dpse_int_mx */
 	{-1},
 };
 
