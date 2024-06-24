@@ -116,7 +116,6 @@ lack of a better place.
    magic-number
    clang-format
    ../arch/riscv/patch-acceptance
-   ../core-api/unaligned-memory-access
 
 .. only::  subproject and html
 
