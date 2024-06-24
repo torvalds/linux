@@ -23,7 +23,8 @@ static void ionic_tx_desc_unmap_bufs(struct ionic_queue *q,
 
 static void ionic_tx_clean(struct ionic_queue *q,
 			   struct ionic_tx_desc_info *desc_info,
-			   struct ionic_txq_comp *comp);
+			   struct ionic_txq_comp *comp,
+			   bool in_napi);
 
 static inline void ionic_txq_post(struct ionic_queue *q, bool ring_dbell)
 {
@@ -944,7 +945,7 @@ int ionic_tx_napi(struct napi_struct *napi, int budget)
 	u32 work_done = 0;
 	u32 flags = 0;
 
-	work_done = ionic_tx_cq_service(cq, budget);
+	work_done = ionic_tx_cq_service(cq, budget, !!budget);
 
 	if (unlikely(!budget))
 		return budget;
@@ -1028,7 +1029,7 @@ int ionic_txrx_napi(struct napi_struct *napi, int budget)
 	txqcq = lif->txqcqs[qi];
 	txcq = &lif->txqcqs[qi]->cq;
 
-	tx_work_done = ionic_tx_cq_service(txcq, IONIC_TX_BUDGET_DEFAULT);
+	tx_work_done = ionic_tx_cq_service(txcq, IONIC_TX_BUDGET_DEFAULT, !!budget);
 
 	if (unlikely(!budget))
 		return budget;
@@ -1161,7 +1162,8 @@ static void ionic_tx_desc_unmap_bufs(struct ionic_queue *q,
 
 static void ionic_tx_clean(struct ionic_queue *q,
 			   struct ionic_tx_desc_info *desc_info,
-			   struct ionic_txq_comp *comp)
+			   struct ionic_txq_comp *comp,
+			   bool in_napi)
 {
 	struct ionic_tx_stats *stats = q_to_tx_stats(q);
 	struct ionic_qcq *qcq = q_to_qcq(q);
@@ -1213,11 +1215,13 @@ static void ionic_tx_clean(struct ionic_queue *q,
 	desc_info->bytes = skb->len;
 	stats->clean++;
 
-	napi_consume_skb(skb, 1);
+	napi_consume_skb(skb, likely(in_napi) ? 1 : 0);
 }
 
 static bool ionic_tx_service(struct ionic_cq *cq,
-			     unsigned int *total_pkts, unsigned int *total_bytes)
+			     unsigned int *total_pkts,
+			     unsigned int *total_bytes,
+			     bool in_napi)
 {
 	struct ionic_tx_desc_info *desc_info;
 	struct ionic_queue *q = cq->bound_q;
@@ -1239,7 +1243,7 @@ static bool ionic_tx_service(struct ionic_cq *cq,
 		desc_info->bytes = 0;
 		index = q->tail_idx;
 		q->tail_idx = (q->tail_idx + 1) & (q->num_descs - 1);
-		ionic_tx_clean(q, desc_info, comp);
+		ionic_tx_clean(q, desc_info, comp, in_napi);
 		if (desc_info->skb) {
 			pkts++;
 			bytes += desc_info->bytes;
@@ -1253,7 +1257,9 @@ static bool ionic_tx_service(struct ionic_cq *cq,
 	return true;
 }
 
-unsigned int ionic_tx_cq_service(struct ionic_cq *cq, unsigned int work_to_do)
+unsigned int ionic_tx_cq_service(struct ionic_cq *cq,
+				 unsigned int work_to_do,
+				 bool in_napi)
 {
 	unsigned int work_done = 0;
 	unsigned int bytes = 0;
@@ -1262,7 +1268,7 @@ unsigned int ionic_tx_cq_service(struct ionic_cq *cq, unsigned int work_to_do)
 	if (work_to_do == 0)
 		return 0;
 
-	while (ionic_tx_service(cq, &pkts, &bytes)) {
+	while (ionic_tx_service(cq, &pkts, &bytes, in_napi)) {
 		if (cq->tail_idx == cq->num_descs - 1)
 			cq->done_color = !cq->done_color;
 		cq->tail_idx = (cq->tail_idx + 1) & (cq->num_descs - 1);
@@ -1288,7 +1294,7 @@ void ionic_tx_flush(struct ionic_cq *cq)
 {
 	u32 work_done;
 
-	work_done = ionic_tx_cq_service(cq, cq->num_descs);
+	work_done = ionic_tx_cq_service(cq, cq->num_descs, false);
 	if (work_done)
 		ionic_intr_credits(cq->idev->intr_ctrl, cq->bound_intr->index,
 				   work_done, IONIC_INTR_CRED_RESET_COALESCE);
@@ -1305,7 +1311,7 @@ void ionic_tx_empty(struct ionic_queue *q)
 		desc_info = &q->tx_info[q->tail_idx];
 		desc_info->bytes = 0;
 		q->tail_idx = (q->tail_idx + 1) & (q->num_descs - 1);
-		ionic_tx_clean(q, desc_info, NULL);
+		ionic_tx_clean(q, desc_info, NULL, false);
 		if (desc_info->skb) {
 			pkts++;
 			bytes += desc_info->bytes;
