@@ -529,19 +529,7 @@ static int pmc_core_ltr_ignore_show(struct seq_file *s, void *unused)
 {
 	return 0;
 }
-
-static int pmc_core_ltr_ignore_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, pmc_core_ltr_ignore_show, inode->i_private);
-}
-
-static const struct file_operations pmc_core_ltr_ignore_ops = {
-	.open           = pmc_core_ltr_ignore_open,
-	.read           = seq_read,
-	.write          = pmc_core_ltr_ignore_write,
-	.llseek         = seq_lseek,
-	.release        = single_release,
-};
+DEFINE_SHOW_STORE_ATTRIBUTE(pmc_core_ltr_ignore);
 
 static void pmc_core_slps0_dbg_latch(struct pmc_dev *pmcdev, bool reset)
 {
@@ -1218,7 +1206,7 @@ static void pmc_core_dbgfs_register(struct pmc_dev *pmcdev)
 				    pmcdev, &pmc_core_ppfear_fops);
 
 	debugfs_create_file("ltr_ignore", 0644, dir, pmcdev,
-			    &pmc_core_ltr_ignore_ops);
+			    &pmc_core_ltr_ignore_fops);
 
 	debugfs_create_file("ltr_show", 0444, dir, pmcdev, &pmc_core_ltr_fops);
 
