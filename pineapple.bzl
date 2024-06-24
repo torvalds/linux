@@ -158,6 +158,7 @@ def define_pineapple():
         "drivers/soc/qcom/crypto-qti.ko",
         "drivers/soc/qcom/dcc_v2.ko",
         "drivers/soc/qcom/dcvs/bwmon.ko",
+        "drivers/soc/qcom/dcvs/bwprof.ko",
         "drivers/soc/qcom/dcvs/c1dcvs_scmi_v2.ko",
         "drivers/soc/qcom/dcvs/cpufreq_stats_scmi_v2.ko",
         "drivers/soc/qcom/dcvs/dcvs_fp.ko",
