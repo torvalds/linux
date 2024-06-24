@@ -104,6 +104,12 @@
 		compatible = "n25q128a13", "jedec,spi-nor";  /* 16MB */
 		reg = <0>;
 		spi-max-frequency = <1000000>; /* input clock */
+		/*
+		 * Standard CS timing properties replace the deprecated vendor
+		 * variants below.
+		 */
+		spi-cs-setup-delay-ns = <100>;
+		spi-cs-hold-delay-ns = <100>;
 		fsl,spi-cs-sck-delay = <100>;
 		fsl,spi-sck-cs-delay = <100>;
 	};
@@ -112,6 +118,12 @@
 		compatible = "maxim,ds26522";
 		reg = <2>;
 		spi-max-frequency = <2000000>;
+		/*
+		 * Standard CS timing properties replace the deprecated vendor
+		 * variants below.
+		 */
+		spi-cs-setup-delay-ns = <100>;
+		spi-cs-hold-delay-ns = <50>;
 		fsl,spi-cs-sck-delay = <100>;
 		fsl,spi-sck-cs-delay = <50>;
 	};
@@ -120,6 +132,12 @@
 		compatible = "maxim,ds26522";
 		reg = <3>;
 		spi-max-frequency = <2000000>;
+		/*
+		 * Standard CS timing properties replace the deprecated vendor
+		 * variants below.
+		 */
+		spi-cs-setup-delay-ns = <100>;
+		spi-cs-hold-delay-ns = <50>;
 		fsl,spi-cs-sck-delay = <100>;
 		fsl,spi-sck-cs-delay = <50>;
 	};
