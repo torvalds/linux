@@ -1432,6 +1432,7 @@
   __netdev_alloc_skb
   netdev_err
   netdev_info
+  netdev_refcnt_read
   netdev_set_default_ethtool_ops
   netdev_state_change
   netdev_update_features
