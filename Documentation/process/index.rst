@@ -115,7 +115,6 @@ lack of a better place.
 
    magic-number
    clang-format
-   ../arch/riscv/patch-acceptance
 
 .. only::  subproject and html
 
