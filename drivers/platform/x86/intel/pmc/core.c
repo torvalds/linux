@@ -513,12 +513,10 @@ static ssize_t pmc_core_ltr_ignore_write(struct file *file,
 {
 	struct seq_file *s = file->private_data;
 	struct pmc_dev *pmcdev = s->private;
-	u32 buf_size, value;
+	u32 value;
 	int err;
 
-	buf_size = min_t(u32, count, 64);
-
-	err = kstrtou32_from_user(userbuf, buf_size, 10, &value);
+	err = kstrtou32_from_user(userbuf, count, 10, &value);
 	if (err)
 		return err;
 
