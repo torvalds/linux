@@ -42,7 +42,11 @@
 #define DISP_REG_OVL_RDMA_CTRL(n)		(0x00c0 + 0x20 * (n))
 #define DISP_REG_OVL_RDMA_GMC(n)		(0x00c8 + 0x20 * (n))
 #define DISP_REG_OVL_ADDR_MT2701		0x0040
-#define DISP_REG_OVL_CLRFMT_EXT			0x02D0
+#define DISP_REG_OVL_CLRFMT_EXT			0x02d0
+#define OVL_CON_CLRFMT_BIT_DEPTH_MASK(n)		(GENMASK(1, 0) << (4 * (n)))
+#define OVL_CON_CLRFMT_BIT_DEPTH(depth, n)		((depth) << (4 * (n)))
+#define OVL_CON_CLRFMT_8_BIT				(0)
+#define OVL_CON_CLRFMT_10_BIT				(1)
 #define DISP_REG_OVL_ADDR_MT8173		0x0f40
 #define DISP_REG_OVL_ADDR(ovl, n)		((ovl)->data->addr + 0x20 * (n))
 #define DISP_REG_OVL_HDR_ADDR(ovl, n)		((ovl)->data->addr + 0x20 * (n) + 0x04)
@@ -65,10 +69,6 @@
 					0 : OVL_CON_CLRFMT_RGB)
 #define OVL_CON_CLRFMT_RGB888(ovl)	((ovl)->data->fmt_rgb565_is_0 ? \
 					OVL_CON_CLRFMT_RGB : 0)
-#define OVL_CON_CLRFMT_BIT_DEPTH_MASK(ovl)	(0xFF << 4 * (ovl))
-#define OVL_CON_CLRFMT_BIT_DEPTH(depth, ovl)	(depth << 4 * (ovl))
-#define OVL_CON_CLRFMT_8_BIT			0x00
-#define OVL_CON_CLRFMT_10_BIT			0x01
 #define	OVL_CON_AEN		BIT(8)
 #define	OVL_CON_ALPHA		0xff
 #define	OVL_CON_VIRT_FLIP	BIT(9)
@@ -273,22 +273,17 @@ static void mtk_ovl_set_bit_depth(struct device *dev, int idx, u32 format,
 				  struct cmdq_pkt *cmdq_pkt)
 {
 	struct mtk_disp_ovl *ovl = dev_get_drvdata(dev);
-	unsigned int reg;
 	unsigned int bit_depth = OVL_CON_CLRFMT_8_BIT;
 
 	if (!ovl->data->supports_clrfmt_ext)
 		return;
 
-	reg = readl(ovl->regs + DISP_REG_OVL_CLRFMT_EXT);
-	reg &= ~OVL_CON_CLRFMT_BIT_DEPTH_MASK(idx);
-
 	if (is_10bit_rgb(format))
 		bit_depth = OVL_CON_CLRFMT_10_BIT;
 
-	reg |= OVL_CON_CLRFMT_BIT_DEPTH(bit_depth, idx);
-
-	mtk_ddp_write(cmdq_pkt, reg, &ovl->cmdq_reg,
-		      ovl->regs, DISP_REG_OVL_CLRFMT_EXT);
+	mtk_ddp_write_mask(cmdq_pkt, OVL_CON_CLRFMT_BIT_DEPTH(bit_depth, idx),
+			   &ovl->cmdq_reg, ovl->regs, DISP_REG_OVL_CLRFMT_EXT,
+			   OVL_CON_CLRFMT_BIT_DEPTH_MASK(idx));
 }
 
 void mtk_ovl_config(struct device *dev, unsigned int w,
