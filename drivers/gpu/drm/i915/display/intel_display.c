@@ -7513,7 +7513,7 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 		 *
 		 * FIXME get rid of this funny new->old swapping
 		 */
-		old_crtc_state->dsb = fetch_and_zero(&new_crtc_state->dsb);
+		old_crtc_state->dsb_color_vblank = fetch_and_zero(&new_crtc_state->dsb_color_vblank);
 	}
 
 	/* Underruns don't always raise interrupts, so check manually */

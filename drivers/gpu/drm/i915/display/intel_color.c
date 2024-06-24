@@ -1313,8 +1313,8 @@ static void ilk_lut_write(const struct intel_crtc_state *crtc_state,
 {
 	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
 
-	if (crtc_state->dsb)
-		intel_dsb_reg_write(crtc_state->dsb, reg, val);
+	if (crtc_state->dsb_color_vblank)
+		intel_dsb_reg_write(crtc_state->dsb_color_vblank, reg, val);
 	else
 		intel_de_write_fw(i915, reg, val);
 }
@@ -1337,15 +1337,15 @@ static void ilk_load_lut_8(const struct intel_crtc_state *crtc_state,
 	 * unless we either write each entry twice,
 	 * or use non-posted writes
 	 */
-	if (crtc_state->dsb)
-		intel_dsb_nonpost_start(crtc_state->dsb);
+	if (crtc_state->dsb_color_vblank)
+		intel_dsb_nonpost_start(crtc_state->dsb_color_vblank);
 
 	for (i = 0; i < 256; i++)
 		ilk_lut_write(crtc_state, LGC_PALETTE(pipe, i),
 			      i9xx_lut_8(&lut[i]));
 
-	if (crtc_state->dsb)
-		intel_dsb_nonpost_end(crtc_state->dsb);
+	if (crtc_state->dsb_color_vblank)
+		intel_dsb_nonpost_end(crtc_state->dsb_color_vblank);
 }
 
 static void ilk_load_lut_10(const struct intel_crtc_state *crtc_state,
@@ -1870,7 +1870,7 @@ void intel_color_load_luts(const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
 
-	if (crtc_state->dsb)
+	if (crtc_state->dsb_color_vblank)
 		return;
 
 	i915->display.funcs.color->load_luts(crtc_state);
@@ -1890,8 +1890,8 @@ void intel_color_commit_arm(const struct intel_crtc_state *crtc_state)
 
 	i915->display.funcs.color->color_commit_arm(crtc_state);
 
-	if (crtc_state->dsb)
-		intel_dsb_commit(crtc_state->dsb, true);
+	if (crtc_state->dsb_color_vblank)
+		intel_dsb_commit(crtc_state->dsb_color_vblank, true);
 }
 
 void intel_color_post_update(const struct intel_crtc_state *crtc_state)
@@ -1919,33 +1919,33 @@ void intel_color_prepare_commit(struct intel_atomic_state *state,
 	if (!crtc_state->pre_csc_lut && !crtc_state->post_csc_lut)
 		return;
 
-	crtc_state->dsb = intel_dsb_prepare(state, crtc, INTEL_DSB_0, 1024);
-	if (!crtc_state->dsb)
+	crtc_state->dsb_color_vblank = intel_dsb_prepare(state, crtc, INTEL_DSB_0, 1024);
+	if (!crtc_state->dsb_color_vblank)
 		return;
 
 	i915->display.funcs.color->load_luts(crtc_state);
 
-	intel_dsb_finish(crtc_state->dsb);
+	intel_dsb_finish(crtc_state->dsb_color_vblank);
 }
 
 void intel_color_cleanup_commit(struct intel_crtc_state *crtc_state)
 {
-	if (!crtc_state->dsb)
+	if (!crtc_state->dsb_color_vblank)
 		return;
 
-	intel_dsb_cleanup(crtc_state->dsb);
-	crtc_state->dsb = NULL;
+	intel_dsb_cleanup(crtc_state->dsb_color_vblank);
+	crtc_state->dsb_color_vblank = NULL;
 }
 
 void intel_color_wait_commit(const struct intel_crtc_state *crtc_state)
 {
-	if (crtc_state->dsb)
-		intel_dsb_wait(crtc_state->dsb);
+	if (crtc_state->dsb_color_vblank)
+		intel_dsb_wait(crtc_state->dsb_color_vblank);
 }
 
 bool intel_color_uses_dsb(const struct intel_crtc_state *crtc_state)
 {
-	return crtc_state->dsb;
+	return crtc_state->dsb_color_vblank;
 }
 
 static bool intel_can_preload_luts(struct intel_atomic_state *state,

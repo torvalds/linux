@@ -1396,8 +1396,8 @@ struct intel_crtc_state {
 	/* Only valid on TGL+ */
 	enum transcoder mst_master_transcoder;
 
-	/* For DSB related info */
-	struct intel_dsb *dsb;
+	/* For DSB based color LUT updates */
+	struct intel_dsb *dsb_color_vblank;
 
 	u32 psr2_man_track_ctl;
 
