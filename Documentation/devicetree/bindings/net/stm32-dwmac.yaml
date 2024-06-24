@@ -23,12 +23,17 @@ select:
           - st,stm32-dwmac
           - st,stm32mp1-dwmac
           - st,stm32mp13-dwmac
+          - st,stm32mp25-dwmac
   required:
     - compatible
 
 properties:
   compatible:
     oneOf:
+      - items:
+          - enum:
+              - st,stm32mp25-dwmac
+          - const: snps,dwmac-5.20
       - items:
           - enum:
               - st,stm32mp1-dwmac
@@ -121,8 +126,9 @@ allOf:
         compatible:
           contains:
             enum:
-              - st,stm32mp1-dwmac
               - st,stm32-dwmac
+              - st,stm32mp1-dwmac
+              - st,stm32mp25-dwmac
     then:
       properties:
         st,syscon:
