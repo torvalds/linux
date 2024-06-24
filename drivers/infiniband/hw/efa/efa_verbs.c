@@ -26,10 +26,6 @@ enum {
 	EFA_MMAP_IO_NC,
 };
 
-#define EFA_AENQ_ENABLED_GROUPS \
-	(BIT(EFA_ADMIN_FATAL_ERROR) | BIT(EFA_ADMIN_WARNING) | \
-	 BIT(EFA_ADMIN_NOTIFICATION) | BIT(EFA_ADMIN_KEEP_ALIVE))
-
 struct efa_user_mmap_entry {
 	struct rdma_user_mmap_entry rdma_entry;
 	u64 address;
