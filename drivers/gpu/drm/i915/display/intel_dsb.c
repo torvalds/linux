@@ -43,6 +43,7 @@ struct intel_dsb {
 	 */
 	unsigned int ins_start_offset;
 
+	u32 chicken;
 	int hw_dewake_scanline;
 };
 
@@ -149,9 +150,10 @@ static int dsb_scanline_to_hw(struct intel_atomic_state *state,
 	return (scanline + vtotal - intel_crtc_scanline_offset(crtc_state)) % vtotal;
 }
 
-static u32 dsb_chicken(struct intel_crtc *crtc)
+static u32 dsb_chicken(struct intel_atomic_state *state,
+		       struct intel_crtc *crtc)
 {
-	if (crtc->mode_flags & I915_MODE_FLAG_VRR)
+	if (pre_commit_is_vrr_active(state, crtc))
 		return DSB_SKIP_WAITS_EN |
 			DSB_CTRL_WAIT_SAFE_WINDOW |
 			DSB_CTRL_NO_WAIT_VBLANK |
@@ -447,7 +449,7 @@ static void _intel_dsb_commit(struct intel_dsb *dsb, u32 ctrl,
 			  ctrl | DSB_ENABLE);
 
 	intel_de_write_fw(display, DSB_CHICKEN(pipe, dsb->id),
-			  dsb_chicken(crtc));
+			  dsb->chicken);
 
 	intel_de_write_fw(display, DSB_INTERRUPT(pipe, dsb->id),
 			  dsb_error_int_status(display) | DSB_PROG_INT_STATUS |
@@ -578,6 +580,7 @@ struct intel_dsb *intel_dsb_prepare(struct intel_atomic_state *state,
 	dsb->free_pos = 0;
 	dsb->ins_start_offset = 0;
 
+	dsb->chicken = dsb_chicken(state, crtc);
 	dsb->hw_dewake_scanline =
 		dsb_scanline_to_hw(state, crtc, dsb_dewake_scanline(state, crtc));
 
