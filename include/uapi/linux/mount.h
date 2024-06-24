@@ -172,7 +172,8 @@ struct statmount {
 	__u64 propagate_from;	/* Propagation from in current namespace */
 	__u32 mnt_root;		/* [str] Root of mount relative to root of fs */
 	__u32 mnt_point;	/* [str] Mountpoint relative to current root */
-	__u64 __spare2[50];
+	__u64 mnt_ns_id;	/* ID of the mount namespace */
+	__u64 __spare2[49];
 	char str[];		/* Variable size part containing strings */
 };
 
@@ -202,6 +203,7 @@ struct mnt_id_req {
 #define STATMOUNT_MNT_ROOT		0x00000008U	/* Want/got mnt_root  */
 #define STATMOUNT_MNT_POINT		0x00000010U	/* Want/got mnt_point */
 #define STATMOUNT_FS_TYPE		0x00000020U	/* Want/got fs_type */
+#define STATMOUNT_MNT_NS_ID		0x00000040U	/* Want/got mnt_ns_id */
 
 /*
  * Special @mnt_id values that can be passed to listmount

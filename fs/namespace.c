@@ -4974,6 +4974,14 @@ static int statmount_fs_type(struct kstatmount *s, struct seq_file *seq)
 	return 0;
 }
 
+static void statmount_mnt_ns_id(struct kstatmount *s)
+{
+	struct mnt_namespace *ns = current->nsproxy->mnt_ns;
+
+	s->sm.mask |= STATMOUNT_MNT_NS_ID;
+	s->sm.mnt_ns_id = ns->seq;
+}
+
 static int statmount_string(struct kstatmount *s, u64 flag)
 {
 	int ret;
@@ -5069,6 +5077,9 @@ static int do_statmount(struct kstatmount *s)
 
 	if (!err && s->mask & STATMOUNT_MNT_POINT)
 		err = statmount_string(s, STATMOUNT_MNT_POINT);
+
+	if (!err && s->mask & STATMOUNT_MNT_NS_ID)
+		statmount_mnt_ns_id(s);
 
 	if (err)
 		return err;
