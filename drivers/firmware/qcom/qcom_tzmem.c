@@ -324,6 +324,7 @@ devm_qcom_tzmem_pool_new(struct device *dev,
 
 	return pool;
 }
+EXPORT_SYMBOL_GPL(devm_qcom_tzmem_pool_new);
 
 static bool qcom_tzmem_try_grow_pool(struct qcom_tzmem_pool *pool,
 				     size_t requested, gfp_t gfp)
