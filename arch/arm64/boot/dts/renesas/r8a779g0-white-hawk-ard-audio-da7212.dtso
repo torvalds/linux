@@ -155,11 +155,7 @@
 	pinctrl-0 = <&sound_clk_pins>, <&sound_pins>;
 	pinctrl-names = "default";
 
-	/* Single DAI */
-	#sound-dai-cells = <0>;
-
 	/* audio_clkout */
-	#clock-cells = <0>;
 	clock-frequency = <5644800>; /* 44.1kHz groups [(C) clock] */
 //	clock-frequency = <6144000>; /* 48  kHz groups [(C) clock] */
 
