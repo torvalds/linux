@@ -72,7 +72,6 @@ required:
   - interconnects
   - interrupts
   - operating-points-v2
-  - opp-table
   - reg
 
 additionalProperties: false
