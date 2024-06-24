@@ -368,15 +368,6 @@ static inline bool is_dc_timing_adjust_needed(struct dm_crtc_state *old_state,
 		return false;
 }
 
-static inline void reverse_planes_order(struct dc_surface_update *array_of_surface_update,
-					int planes_count)
-{
-	int i, j;
-
-	for (i = 0, j = planes_count - 1; i < j; i++, j--)
-		swap(array_of_surface_update[i], array_of_surface_update[j]);
-}
-
 /*
  * DC will program planes with their z-order determined by their ordering
  * in the dc_surface_updates array. This comparator is used to sort them
