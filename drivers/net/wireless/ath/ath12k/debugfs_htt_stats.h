@@ -127,6 +127,7 @@ enum ath12k_dbg_htt_ext_stats_type {
 	ATH12K_DBG_HTT_EXT_STATS_PDEV_TX	= 1,
 	ATH12K_DBG_HTT_EXT_STATS_PDEV_TX_SCHED	= 4,
 	ATH12K_DBG_HTT_EXT_STATS_PDEV_ERROR	= 5,
+	ATH12K_DBG_HTT_EXT_STATS_PDEV_TQM	= 6,
 
 	/* keep this last */
 	ATH12K_DBG_HTT_NUM_EXT_STATS,
@@ -137,9 +138,15 @@ enum ath12k_dbg_htt_tlv_tag {
 	HTT_STATS_TX_PDEV_UNDERRUN_TAG			= 1,
 	HTT_STATS_TX_PDEV_SIFS_TAG			= 2,
 	HTT_STATS_TX_PDEV_FLUSH_TAG			= 3,
+	HTT_STATS_TX_TQM_GEN_MPDU_TAG			= 11,
+	HTT_STATS_TX_TQM_LIST_MPDU_TAG			= 12,
+	HTT_STATS_TX_TQM_LIST_MPDU_CNT_TAG		= 13,
+	HTT_STATS_TX_TQM_CMN_TAG			= 14,
+	HTT_STATS_TX_TQM_PDEV_TAG			= 15,
 	HTT_STATS_TX_PDEV_SCHEDULER_TXQ_STATS_TAG	= 36,
 	HTT_STATS_TX_SCHED_CMN_TAG			= 37,
 	HTT_STATS_SCHED_TXQ_CMD_POSTED_TAG		= 39,
+	HTT_STATS_TX_TQM_ERROR_STATS_TAG                = 43,
 	HTT_STATS_SCHED_TXQ_CMD_REAPED_TAG		= 44,
 	HTT_STATS_HW_INTR_MISC_TAG			= 54,
 	HTT_STATS_HW_PDEV_ERRS_TAG			= 56,
@@ -460,6 +467,101 @@ struct ath12k_htt_hw_stats_whal_tx_tlv {
 struct ath12k_htt_hw_war_stats_tlv {
 	__le32 mac_id__word;
 	DECLARE_FLEX_ARRAY(__le32, hw_wars);
+} __packed;
+
+struct ath12k_htt_tx_tqm_cmn_stats_tlv {
+	__le32 mac_id__word;
+	__le32 max_cmdq_id;
+	__le32 list_mpdu_cnt_hist_intvl;
+	__le32 add_msdu;
+	__le32 q_empty;
+	__le32 q_not_empty;
+	__le32 drop_notification;
+	__le32 desc_threshold;
+	__le32 hwsch_tqm_invalid_status;
+	__le32 missed_tqm_gen_mpdus;
+	__le32 tqm_active_tids;
+	__le32 tqm_inactive_tids;
+	__le32 tqm_active_msduq_flows;
+	__le32 msduq_timestamp_updates;
+	__le32 msduq_updates_mpdu_head_info_cmd;
+	__le32 msduq_updates_emp_to_nonemp_status;
+	__le32 get_mpdu_head_info_cmds_by_query;
+	__le32 get_mpdu_head_info_cmds_by_tac;
+	__le32 gen_mpdu_cmds_by_query;
+	__le32 high_prio_q_not_empty;
+} __packed;
+
+struct ath12k_htt_tx_tqm_error_stats_tlv {
+	__le32 q_empty_failure;
+	__le32 q_not_empty_failure;
+	__le32 add_msdu_failure;
+	__le32 tqm_cache_ctl_err;
+	__le32 tqm_soft_reset;
+	__le32 tqm_reset_num_in_use_link_descs;
+	__le32 tqm_reset_num_lost_link_descs;
+	__le32 tqm_reset_num_lost_host_tx_buf_cnt;
+	__le32 tqm_reset_num_in_use_internal_tqm;
+	__le32 tqm_reset_num_in_use_idle_link_rng;
+	__le32 tqm_reset_time_to_tqm_hang_delta_ms;
+	__le32 tqm_reset_recovery_time_ms;
+	__le32 tqm_reset_num_peers_hdl;
+	__le32 tqm_reset_cumm_dirty_hw_mpduq_cnt;
+	__le32 tqm_reset_cumm_dirty_hw_msduq_proc;
+	__le32 tqm_reset_flush_cache_cmd_su_cnt;
+	__le32 tqm_reset_flush_cache_cmd_other_cnt;
+	__le32 tqm_reset_flush_cache_cmd_trig_type;
+	__le32 tqm_reset_flush_cache_cmd_trig_cfg;
+	__le32 tqm_reset_flush_cmd_skp_status_null;
+} __packed;
+
+struct ath12k_htt_tx_tqm_gen_mpdu_stats_tlv {
+	DECLARE_FLEX_ARRAY(__le32, gen_mpdu_end_reason);
+} __packed;
+
+#define ATH12K_HTT_TX_TQM_MAX_LIST_MPDU_END_REASON		16
+#define ATH12K_HTT_TX_TQM_MAX_LIST_MPDU_CNT_HISTOGRAM_BINS	16
+
+struct ath12k_htt_tx_tqm_list_mpdu_stats_tlv {
+	DECLARE_FLEX_ARRAY(__le32, list_mpdu_end_reason);
+} __packed;
+
+struct ath12k_htt_tx_tqm_list_mpdu_cnt_tlv {
+	DECLARE_FLEX_ARRAY(__le32, list_mpdu_cnt_hist);
+} __packed;
+
+struct ath12k_htt_tx_tqm_pdev_stats_tlv {
+	__le32 msdu_count;
+	__le32 mpdu_count;
+	__le32 remove_msdu;
+	__le32 remove_mpdu;
+	__le32 remove_msdu_ttl;
+	__le32 send_bar;
+	__le32 bar_sync;
+	__le32 notify_mpdu;
+	__le32 sync_cmd;
+	__le32 write_cmd;
+	__le32 hwsch_trigger;
+	__le32 ack_tlv_proc;
+	__le32 gen_mpdu_cmd;
+	__le32 gen_list_cmd;
+	__le32 remove_mpdu_cmd;
+	__le32 remove_mpdu_tried_cmd;
+	__le32 mpdu_queue_stats_cmd;
+	__le32 mpdu_head_info_cmd;
+	__le32 msdu_flow_stats_cmd;
+	__le32 remove_msdu_cmd;
+	__le32 remove_msdu_ttl_cmd;
+	__le32 flush_cache_cmd;
+	__le32 update_mpduq_cmd;
+	__le32 enqueue;
+	__le32 enqueue_notify;
+	__le32 notify_mpdu_at_head;
+	__le32 notify_mpdu_state_valid;
+	__le32 sched_udp_notify1;
+	__le32 sched_udp_notify2;
+	__le32 sched_nonudp_notify1;
+	__le32 sched_nonudp_notify2;
 } __packed;
 
 #endif
