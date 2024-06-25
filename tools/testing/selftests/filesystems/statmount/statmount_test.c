@@ -4,17 +4,15 @@
 
 #include <assert.h>
 #include <stddef.h>
-#include <stdint.h>
 #include <sched.h>
 #include <fcntl.h>
 #include <sys/param.h>
 #include <sys/mount.h>
 #include <sys/stat.h>
 #include <sys/statfs.h>
-#include <linux/mount.h>
 #include <linux/stat.h>
-#include <asm/unistd.h>
 
+#include "statmount.h"
 #include "../../kselftest.h"
 
 static const char *const known_fs[] = {
@@ -36,18 +34,6 @@ static const char *const known_fs[] = {
 	"ufs", "v7", "vboxsf", "vfat", "virtiofs", "vxfs", "xenfs", "xfs",
 	"zonefs", NULL };
 
-static int statmount(uint64_t mnt_id, uint64_t mask, struct statmount *buf,
-		     size_t bufsize, unsigned int flags)
-{
-	struct mnt_id_req req = {
-		.size = MNT_ID_REQ_SIZE_VER0,
-		.mnt_id = mnt_id,
-		.param = mask,
-	};
-
-	return syscall(__NR_statmount, &req, buf, bufsize, flags);
-}
-
 static struct statmount *statmount_alloc(uint64_t mnt_id, uint64_t mask, unsigned int flags)
 {
 	size_t bufsize = 1 << 15;
@@ -56,7 +42,7 @@ static struct statmount *statmount_alloc(uint64_t mnt_id, uint64_t mask, unsigne
 	int ret;
 
 	for (;;) {
-		ret = statmount(mnt_id, mask, tmp, bufsize, flags);
+		ret = statmount(mnt_id, 0, mask, tmp, bufsize, flags);
 		if (ret != -1)
 			break;
 		if (tofree)
@@ -122,7 +108,6 @@ static int orig_root;
 static uint64_t root_id, parent_id;
 static uint32_t old_root_id, old_parent_id;
 
-
 static void cleanup_namespace(void)
 {
 	fchdir(orig_root);
@@ -138,7 +123,7 @@ static void setup_namespace(void)
 	uid_t uid = getuid();
 	gid_t gid = getgid();
 
-	ret = unshare(CLONE_NEWNS|CLONE_NEWUSER);
+	ret = unshare(CLONE_NEWNS|CLONE_NEWUSER|CLONE_NEWPID);
 	if (ret == -1)
 		ksft_exit_fail_msg("unsharing mountns and userns: %s\n",
 				   strerror(errno));
@@ -208,25 +193,13 @@ static int setup_mount_tree(int log2_num)
 	return 0;
 }
 
-static ssize_t listmount(uint64_t mnt_id, uint64_t last_mnt_id,
-			 uint64_t list[], size_t num, unsigned int flags)
-{
-	struct mnt_id_req req = {
-		.size = MNT_ID_REQ_SIZE_VER0,
-		.mnt_id = mnt_id,
-		.param = last_mnt_id,
-	};
-
-	return syscall(__NR_listmount, &req, list, num, flags);
-}
-
 static void test_listmount_empty_root(void)
 {
 	ssize_t res;
 	const unsigned int size = 32;
 	uint64_t list[size];
 
-	res = listmount(LSMT_ROOT, 0, list, size, 0);
+	res = listmount(LSMT_ROOT, 0, 0, list, size, 0);
 	if (res == -1) {
 		ksft_test_result_fail("listmount: %s\n", strerror(errno));
 		return;
@@ -251,7 +224,7 @@ static void test_statmount_zero_mask(void)
 	struct statmount sm;
 	int ret;
 
-	ret = statmount(root_id, 0, &sm, sizeof(sm), 0);
+	ret = statmount(root_id, 0, 0, &sm, sizeof(sm), 0);
 	if (ret == -1) {
 		ksft_test_result_fail("statmount zero mask: %s\n",
 				      strerror(errno));
@@ -277,7 +250,7 @@ static void test_statmount_mnt_basic(void)
 	int ret;
 	uint64_t mask = STATMOUNT_MNT_BASIC;
 
-	ret = statmount(root_id, mask, &sm, sizeof(sm), 0);
+	ret = statmount(root_id, 0, mask, &sm, sizeof(sm), 0);
 	if (ret == -1) {
 		ksft_test_result_fail("statmount mnt basic: %s\n",
 				      strerror(errno));
@@ -337,7 +310,7 @@ static void test_statmount_sb_basic(void)
 	struct statx sx;
 	struct statfs sf;
 
-	ret = statmount(root_id, mask, &sm, sizeof(sm), 0);
+	ret = statmount(root_id, 0, mask, &sm, sizeof(sm), 0);
 	if (ret == -1) {
 		ksft_test_result_fail("statmount sb basic: %s\n",
 				      strerror(errno));
@@ -498,14 +471,14 @@ static void test_statmount_string(uint64_t mask, size_t off, const char *name)
 	exactsize = sm->size;
 	shortsize = sizeof(*sm) + i;
 
-	ret = statmount(root_id, mask, sm, exactsize, 0);
+	ret = statmount(root_id, 0, mask, sm, exactsize, 0);
 	if (ret == -1) {
 		ksft_test_result_fail("statmount exact size: %s\n",
 				      strerror(errno));
 		goto out;
 	}
 	errno = 0;
-	ret = statmount(root_id, mask, sm, shortsize, 0);
+	ret = statmount(root_id, 0, mask, sm, shortsize, 0);
 	if (ret != -1 || errno != EOVERFLOW) {
 		ksft_test_result_fail("should have failed with EOVERFLOW: %s\n",
 				      strerror(errno));
@@ -533,7 +506,7 @@ static void test_listmount_tree(void)
 	if (res == -1)
 		return;
 
-	num = res = listmount(LSMT_ROOT, 0, list, size, 0);
+	num = res = listmount(LSMT_ROOT, 0, 0, list, size, 0);
 	if (res == -1) {
 		ksft_test_result_fail("listmount: %s\n", strerror(errno));
 		return;
@@ -545,7 +518,7 @@ static void test_listmount_tree(void)
 	}
 
 	for (i = 0; i < size - step;) {
-		res = listmount(LSMT_ROOT, i ? list2[i - 1] : 0, list2 + i, step, 0);
+		res = listmount(LSMT_ROOT, 0, i ? list2[i - 1] : 0, list2 + i, step, 0);
 		if (res == -1)
 			ksft_test_result_fail("short listmount: %s\n",
 					      strerror(errno));
@@ -577,11 +550,11 @@ int main(void)
 	int ret;
 	uint64_t all_mask = STATMOUNT_SB_BASIC | STATMOUNT_MNT_BASIC |
 		STATMOUNT_PROPAGATE_FROM | STATMOUNT_MNT_ROOT |
-		STATMOUNT_MNT_POINT | STATMOUNT_FS_TYPE;
+		STATMOUNT_MNT_POINT | STATMOUNT_FS_TYPE | STATMOUNT_MNT_NS_ID;
 
 	ksft_print_header();
 
-	ret = statmount(0, 0, NULL, 0, 0);
+	ret = statmount(0, 0, 0, NULL, 0, 0);
 	assert(ret == -1);
 	if (errno == ENOSYS)
 		ksft_exit_skip("statmount() syscall not supported\n");
