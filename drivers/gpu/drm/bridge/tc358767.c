@@ -585,9 +585,9 @@ static u32 div64_round_up(u64 v, u32 d)
 	return div_u64(v + d - 1, d);
 }
 
-static int tc_pxl_pll_en(struct tc_data *tc, u32 refclk, u32 pixelclock)
+static int tc_pxl_pll_calc(struct tc_data *tc, u32 refclk, u32 pixelclock,
+			   int *out_best_pixelclock, u32 *out_pxl_pllparam)
 {
-	int ret;
 	int i_pre, best_pre = 1;
 	int i_post, best_post = 1;
 	int div, best_div = 1;
@@ -683,17 +683,35 @@ static int tc_pxl_pll_en(struct tc_data *tc, u32 refclk, u32 pixelclock)
 	if (best_mul == 128)
 		best_mul = 0;
 
-	/* Power up PLL and switch to bypass */
-	ret = regmap_write(tc->regmap, PXL_PLLCTRL, PLLBYP | PLLEN);
-	if (ret)
-		return ret;
-
 	pxl_pllparam  = vco_hi << 24; /* For PLL VCO >= 300 MHz = 1 */
 	pxl_pllparam |= ext_div[best_pre] << 20; /* External Pre-divider */
 	pxl_pllparam |= ext_div[best_post] << 16; /* External Post-divider */
 	pxl_pllparam |= IN_SEL_REFCLK; /* Use RefClk as PLL input */
 	pxl_pllparam |= best_div << 8; /* Divider for PLL RefClk */
 	pxl_pllparam |= best_mul; /* Multiplier for PLL */
+
+	if (out_best_pixelclock)
+		*out_best_pixelclock = best_pixelclock;
+
+	if (out_pxl_pllparam)
+		*out_pxl_pllparam = pxl_pllparam;
+
+	return 0;
+}
+
+static int tc_pxl_pll_en(struct tc_data *tc, u32 refclk, u32 pixelclock)
+{
+	u32 pxl_pllparam = 0;
+	int ret;
+
+	ret = tc_pxl_pll_calc(tc, refclk, pixelclock, NULL, &pxl_pllparam);
+	if (ret)
+		return ret;
+
+	/* Power up PLL and switch to bypass */
+	ret = regmap_write(tc->regmap, PXL_PLLCTRL, PLLBYP | PLLEN);
+	if (ret)
+		return ret;
 
 	ret = regmap_write(tc->regmap, PXL_PLLPARAM, pxl_pllparam);
 	if (ret)
