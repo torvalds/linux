@@ -293,6 +293,7 @@ module_init(sti_cpufreq_init);
 static const struct of_device_id __maybe_unused sti_cpufreq_of_match[] = {
 	{ .compatible = "st,stih407" },
 	{ .compatible = "st,stih410" },
+	{ .compatible = "st,stih418" },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, sti_cpufreq_of_match);
