@@ -802,7 +802,8 @@ int arm_smmu_master_enable_sva(struct arm_smmu_master *master);
 int arm_smmu_master_disable_sva(struct arm_smmu_master *master);
 bool arm_smmu_master_iopf_supported(struct arm_smmu_master *master);
 void arm_smmu_sva_notifier_synchronize(void);
-struct iommu_domain *arm_smmu_sva_domain_alloc(void);
+struct iommu_domain *arm_smmu_sva_domain_alloc(struct device *dev,
+					       struct mm_struct *mm);
 void arm_smmu_sva_remove_dev_pasid(struct iommu_domain *domain,
 				   struct device *dev, ioasid_t id);
 #else /* CONFIG_ARM_SMMU_V3_SVA */
@@ -838,10 +839,7 @@ static inline bool arm_smmu_master_iopf_supported(struct arm_smmu_master *master
 
 static inline void arm_smmu_sva_notifier_synchronize(void) {}
 
-static inline struct iommu_domain *arm_smmu_sva_domain_alloc(void)
-{
-	return NULL;
-}
+#define arm_smmu_sva_domain_alloc NULL
 
 static inline void arm_smmu_sva_remove_dev_pasid(struct iommu_domain *domain,
 						 struct device *dev,
