@@ -1686,3 +1686,27 @@ int test_dynptr_skb_small_buff(struct __sk_buff *skb)
 
 	return !!data;
 }
+
+__noinline long global_call_bpf_dynptr(const struct bpf_dynptr *dynptr)
+{
+	long ret = 0;
+	/* Avoid leaving this global function empty to avoid having the compiler
+	 * optimize away the call to this global function.
+	 */
+	__sink(ret);
+	return ret;
+}
+
+SEC("?raw_tp")
+__failure __msg("arg#1 expected pointer to stack or const struct bpf_dynptr")
+int test_dynptr_reg_type(void *ctx)
+{
+	struct task_struct *current = NULL;
+	/* R1 should be holding a PTR_TO_BTF_ID, so this shouldn't be a
+	 * reg->type that can be passed to a function accepting a
+	 * ARG_PTR_TO_DYNPTR | MEM_RDONLY. process_dynptr_func() should catch
+	 * this.
+	 */
+	global_call_bpf_dynptr((const struct bpf_dynptr *)current);
+	return 0;
+}
