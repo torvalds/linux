@@ -87,9 +87,10 @@ enum res_type {
 bool mem_cgroup_event_ratelimit(struct mem_cgroup *memcg,
 				enum mem_cgroup_events_target target);
 unsigned long mem_cgroup_usage(struct mem_cgroup *memcg, bool swap);
-void mem_cgroup_oom_notify(struct mem_cgroup *memcg);
 ssize_t memcg_write_event_control(struct kernfs_open_file *of,
 				  char *buf, size_t nbytes, loff_t off);
 
+bool memcg1_oom_prepare(struct mem_cgroup *memcg, bool *locked);
+void memcg1_oom_finish(struct mem_cgroup *memcg, bool locked);
 
 #endif	/* __MM_MEMCONTROL_V1_H */
