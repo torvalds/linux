@@ -1180,13 +1180,13 @@ static int ucsi_check_cable(struct ucsi_connector *con)
 		ret = ucsi_register_altmodes(con, UCSI_RECIPIENT_SOP_P);
 		if (ret < 0)
 			return ret;
-	}
 
-	if (con->plug_altmode[0]) {
-		num_plug_am = ucsi_get_num_altmode(con->plug_altmode);
-		typec_plug_set_num_altmodes(con->plug, num_plug_am);
-	} else {
-		typec_plug_set_num_altmodes(con->plug, 0);
+		if (con->plug_altmode[0]) {
+			num_plug_am = ucsi_get_num_altmode(con->plug_altmode);
+			typec_plug_set_num_altmodes(con->plug, num_plug_am);
+		} else {
+			typec_plug_set_num_altmodes(con->plug, 0);
+		}
 	}
 
 	return 0;
