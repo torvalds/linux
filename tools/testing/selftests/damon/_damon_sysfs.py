@@ -406,6 +406,10 @@ class Kdamond:
         err = write_file(os.path.join(self.sysfs_dir(), 'state'), 'on')
         return err
 
+    def stop(self):
+        err = write_file(os.path.join(self.sysfs_dir(), 'state'), 'off')
+        return err
+
     def update_schemes_tried_regions(self):
         err = write_file(os.path.join(self.sysfs_dir(), 'state'),
                          'update_schemes_tried_regions')
@@ -508,6 +512,13 @@ class Kdamonds:
             return err
         for kdamond in self.kdamonds:
             err = kdamond.start()
+            if err is not None:
+                return err
+        return None
+
+    def stop(self):
+        for kdamond in self.kdamonds:
+            err = kdamond.stop()
             if err is not None:
                 return err
         return None
