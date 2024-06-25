@@ -288,4 +288,20 @@ TEST_F(msg_oob, ex_oob_drop_2)
 	}
 }
 
+TEST_F(msg_oob, ex_oob_ahead_break)
+{
+	sendpair("hello", 5, MSG_OOB);
+	sendpair("wor", 3, MSG_OOB);
+
+	recvpair("r", 1, 1, MSG_OOB);
+
+	sendpair("ld", 2, MSG_OOB);
+
+	tcp_incompliant {
+		recvpair("hellowol", 8, 10, 0);	/* TCP recv()s "helloworl", why "r" ?? */
+	}
+
+	recvpair("d", 1, 1, MSG_OOB);
+}
+
 TEST_HARNESS_MAIN
