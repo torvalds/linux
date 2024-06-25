@@ -317,27 +317,6 @@ int serial_base_add_preferred_console(struct uart_driver *drv,
 	return serial_base_add_one_prefcon(port_match, drv->dev_name, port->line);
 }
 
-#ifdef CONFIG_SERIAL_8250_CONSOLE
-
-/*
- * Early ISA ports initialize the console before there is no struct device.
- * This should be only called from serial8250_isa_init_preferred_console(),
- * other callers are likely wrong and should rely on earlycon instead.
- */
-int serial_base_add_isa_preferred_console(const char *name, int idx)
-{
-	return serial_base_add_prefcon(name, idx);
-}
-
-#else
-
-int serial_base_add_isa_preferred_console(const char *name, int idx)
-{
-	return 0;
-}
-
-#endif
-
 #endif
 
 static int serial_base_init(void)
