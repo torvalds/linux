@@ -331,7 +331,7 @@ int vsc_tp_rom_xfer(struct vsc_tp *tp, const void *obuf, void *ibuf, size_t len)
 		return ret;
 	}
 
-	ret = vsc_tp_dev_xfer(tp, tp->tx_buf, tp->rx_buf, len);
+	ret = vsc_tp_dev_xfer(tp, tp->tx_buf, ibuf ? tp->rx_buf : NULL, len);
 	if (ret)
 		return ret;
 
