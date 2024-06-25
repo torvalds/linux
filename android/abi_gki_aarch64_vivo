@@ -388,7 +388,10 @@
   __traceiter_android_vh_cpuidle_psci_enter
   __traceiter_android_vh_cpuidle_psci_exit
   __traceiter_android_vh_disable_thermal_cooling_stats
+  __traceiter_android_vh_do_anonymous_page
+  __traceiter_android_vh_do_swap_page
   __traceiter_android_vh_do_wake_up_sync
+  __traceiter_android_vh_do_wp_page
   __traceiter_android_vh_dump_throttled_rt_tasks
   __traceiter_android_vh_free_task
   __traceiter_android_vh_ftrace_dump_buffer
@@ -421,6 +424,7 @@
   __traceiter_android_vh_sched_show_task
   __traceiter_android_vh_scheduler_tick
   __traceiter_android_vh_setscheduler_uclamp
+  __traceiter_android_vh_shmem_swapin_folio
   __traceiter_android_vh_show_resume_epoch_val
   __traceiter_android_vh_show_suspend_epoch_val
   __traceiter_android_vh_sysrq_crash
@@ -440,6 +444,7 @@
   __traceiter_android_vh_ufs_update_sdev
   __traceiter_android_vh_ufs_update_sysfs
   __traceiter_android_vh_update_topology_flags_workfn
+  __traceiter_android_vh_uprobes_replace_page
   __traceiter_android_vh_watchdog_timer_softlockup
   __traceiter_binder_transaction_received
   __traceiter_block_rq_insert
@@ -568,7 +573,10 @@
   __tracepoint_android_vh_cpuidle_psci_enter
   __tracepoint_android_vh_cpuidle_psci_exit
   __tracepoint_android_vh_disable_thermal_cooling_stats
+  __tracepoint_android_vh_do_anonymous_page
+  __tracepoint_android_vh_do_swap_page
   __tracepoint_android_vh_do_wake_up_sync
+  __tracepoint_android_vh_do_wp_page
   __tracepoint_android_vh_dump_throttled_rt_tasks
   __tracepoint_android_vh_free_task
   __tracepoint_android_vh_ftrace_dump_buffer
@@ -601,6 +609,7 @@
   __tracepoint_android_vh_sched_show_task
   __tracepoint_android_vh_scheduler_tick
   __tracepoint_android_vh_setscheduler_uclamp
+  __tracepoint_android_vh_shmem_swapin_folio
   __tracepoint_android_vh_show_resume_epoch_val
   __tracepoint_android_vh_show_suspend_epoch_val
   __tracepoint_android_vh_sysrq_crash
@@ -620,6 +629,7 @@
   __tracepoint_android_vh_ufs_update_sdev
   __tracepoint_android_vh_ufs_update_sysfs
   __tracepoint_android_vh_update_topology_flags_workfn
+  __tracepoint_android_vh_uprobes_replace_page
   __tracepoint_android_vh_watchdog_timer_softlockup
   __tracepoint_binder_transaction_received
   __tracepoint_block_rq_insert
