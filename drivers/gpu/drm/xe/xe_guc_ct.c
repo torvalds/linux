@@ -882,7 +882,7 @@ retry_same_fence:
 		goto retry;
 	}
 	if (g2h_fence.fail) {
-		xe_gt_err(gt, "H2G send failed, action 0x%04x, error %d, hint %u",
+		xe_gt_err(gt, "H2G request %#x failed: error %#x hint %#x\n",
 			  action[0], g2h_fence.error, g2h_fence.hint);
 		ret = -EIO;
 	}
