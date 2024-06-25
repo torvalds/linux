@@ -382,9 +382,6 @@ struct tc_data {
 
 	/* HPD pin number (0 or 1) or -ENODEV */
 	int			hpd_pin;
-
-	/* Number of pixels to subtract from a line due to pixel clock delta */
-	u32			line_pixel_subtract;
 };
 
 static inline struct tc_data *aux_to_tc(struct drm_dp_aux *a)
@@ -580,11 +577,6 @@ static int tc_pllupdate(struct tc_data *tc, unsigned int pllctrl)
 	return 0;
 }
 
-static u32 div64_round_up(u64 v, u32 d)
-{
-	return div_u64(v + d - 1, d);
-}
-
 static int tc_pxl_pll_calc(struct tc_data *tc, u32 refclk, u32 pixelclock,
 			   int *out_best_pixelclock, u32 *out_pxl_pllparam)
 {
@@ -666,11 +658,7 @@ static int tc_pxl_pll_calc(struct tc_data *tc, u32 refclk, u32 pixelclock,
 		return -EINVAL;
 	}
 
-	tc->line_pixel_subtract = tc->mode.htotal -
-		div64_round_up(tc->mode.htotal * (u64)best_pixelclock, pixelclock);
-
-	dev_dbg(tc->dev, "PLL: got %d, delta %d (subtract %d px)\n", best_pixelclock,
-		best_delta, tc->line_pixel_subtract);
+	dev_dbg(tc->dev, "PLL: got %d, delta %d\n", best_pixelclock, best_delta);
 	dev_dbg(tc->dev, "PLL: %d / %d / %d * %d / %d\n", refclk,
 		ext_div[best_pre], best_div, best_mul, ext_div[best_post]);
 
@@ -913,13 +901,6 @@ static int tc_set_common_video_mode(struct tc_data *tc,
 	dev_dbg(tc->dev, "V margin %d,%d sync %d\n",
 		upper_margin, lower_margin, vsync_len);
 	dev_dbg(tc->dev, "total: %dx%d\n", mode->htotal, mode->vtotal);
-
-	if (right_margin > tc->line_pixel_subtract) {
-		right_margin -= tc->line_pixel_subtract;
-	} else {
-		dev_err(tc->dev, "Bridge pixel clock too slow for mode\n");
-		right_margin = 0;
-	}
 
 	/*
 	 * LCD Ctl Frame Size
