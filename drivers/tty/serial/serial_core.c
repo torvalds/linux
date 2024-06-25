@@ -3422,10 +3422,6 @@ int serial_core_register_port(struct uart_driver *drv, struct uart_port *port)
 	if (ret)
 		goto err_unregister_ctrl_dev;
 
-	ret = serial_base_add_preferred_console(drv, port);
-	if (ret)
-		goto err_unregister_port_dev;
-
 	ret = serial_core_add_one_port(drv, port);
 	if (ret)
 		goto err_unregister_port_dev;
