@@ -532,20 +532,19 @@ void page_cache_sync_ra(struct readahead_control *ractl,
 	}
 
 	max_pages = ractl_max_pages(ractl, req_count);
+	prev_index = (unsigned long long)ra->prev_pos >> PAGE_SHIFT;
 	/*
-	 * start of file or oversized read
-	 */
-	if (!index || req_count > max_pages)
-		goto initial_readahead;
-
-	/*
-	 * sequential cache miss
+	 * A start of file, oversized read, or sequential cache miss:
 	 * trivial case: (index - prev_index) == 1
 	 * unaligned reads: (index - prev_index) == 0
 	 */
-	prev_index = (unsigned long long)ra->prev_pos >> PAGE_SHIFT;
-	if (index - prev_index <= 1UL)
-		goto initial_readahead;
+	if (!index || req_count > max_pages || index - prev_index <= 1UL) {
+		ra->start = index;
+		ra->size = get_init_ra_size(req_count, max_pages);
+		ra->async_size = ra->size > req_count ? ra->size - req_count :
+							ra->size >> 1;
+		goto readit;
+	}
 
 	/*
 	 * Query the page cache and look for the traces(cached history pages)
@@ -572,13 +571,6 @@ void page_cache_sync_ra(struct readahead_control *ractl,
 	ra->start = index;
 	ra->size = min(contig_count + req_count, max_pages);
 	ra->async_size = 1;
-	goto readit;
-
-initial_readahead:
-	ra->start = index;
-	ra->size = get_init_ra_size(req_count, max_pages);
-	ra->async_size = ra->size > req_count ? ra->size - req_count :
-						ra->size >> 1;
 readit:
 	ractl->_index = ra->start;
 	page_cache_ra_order(ractl, ra, 0);
