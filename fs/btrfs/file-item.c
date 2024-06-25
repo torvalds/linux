@@ -1281,7 +1281,6 @@ void btrfs_extent_item_to_extent_map(struct btrfs_inode *inode,
 	const int slot = path->slots[0];
 	struct btrfs_key key;
 	u64 extent_start;
-	u64 bytenr;
 	u8 type = btrfs_file_extent_type(leaf, fi);
 	int compress_type = btrfs_file_extent_compression(leaf, fi);
 
@@ -1291,22 +1290,22 @@ void btrfs_extent_item_to_extent_map(struct btrfs_inode *inode,
 	em->generation = btrfs_file_extent_generation(leaf, fi);
 	if (type == BTRFS_FILE_EXTENT_REG ||
 	    type == BTRFS_FILE_EXTENT_PREALLOC) {
+		const u64 disk_bytenr = btrfs_file_extent_disk_bytenr(leaf, fi);
+
 		em->start = extent_start;
 		em->len = btrfs_file_extent_end(path) - extent_start;
-		bytenr = btrfs_file_extent_disk_bytenr(leaf, fi);
-		if (bytenr == 0) {
+		if (disk_bytenr == 0) {
 			em->disk_bytenr = EXTENT_MAP_HOLE;
 			em->disk_num_bytes = 0;
 			em->offset = 0;
 			return;
 		}
-		em->disk_bytenr = btrfs_file_extent_disk_bytenr(leaf, fi);
+		em->disk_bytenr = disk_bytenr;
 		em->disk_num_bytes = btrfs_file_extent_disk_num_bytes(leaf, fi);
 		em->offset = btrfs_file_extent_offset(leaf, fi);
 		if (compress_type != BTRFS_COMPRESS_NONE) {
 			extent_map_set_compression(em, compress_type);
 		} else {
-			bytenr += btrfs_file_extent_offset(leaf, fi);
 			if (type == BTRFS_FILE_EXTENT_PREALLOC)
 				em->flags |= EXTENT_FLAG_PREALLOC;
 		}
