@@ -125,6 +125,7 @@ struct ath12k_htt_extd_stats_msg {
 enum ath12k_dbg_htt_ext_stats_type {
 	ATH12K_DBG_HTT_EXT_STATS_RESET		= 0,
 	ATH12K_DBG_HTT_EXT_STATS_PDEV_TX	= 1,
+	ATH12K_DBG_HTT_EXT_STATS_PDEV_TX_SCHED	= 4,
 
 	/* keep this last */
 	ATH12K_DBG_HTT_NUM_EXT_STATS,
@@ -135,7 +136,14 @@ enum ath12k_dbg_htt_tlv_tag {
 	HTT_STATS_TX_PDEV_UNDERRUN_TAG			= 1,
 	HTT_STATS_TX_PDEV_SIFS_TAG			= 2,
 	HTT_STATS_TX_PDEV_FLUSH_TAG			= 3,
+	HTT_STATS_TX_PDEV_SCHEDULER_TXQ_STATS_TAG	= 36,
+	HTT_STATS_TX_SCHED_CMN_TAG			= 37,
+	HTT_STATS_SCHED_TXQ_CMD_POSTED_TAG		= 39,
+	HTT_STATS_SCHED_TXQ_CMD_REAPED_TAG		= 44,
 	HTT_STATS_TX_PDEV_SIFS_HIST_TAG			= 67,
+	HTT_STATS_SCHED_TXQ_SCHED_ORDER_SU_TAG		= 86,
+	HTT_STATS_SCHED_TXQ_SCHED_INELIGIBILITY_TAG	= 87,
+	HTT_STATS_SCHED_TXQ_SUPERCYCLE_TRIGGER_TAG	= 100,
 	HTT_STATS_PDEV_CTRL_PATH_TX_STATS_TAG		= 102,
 	HTT_STATS_MU_PPDU_DIST_TAG			= 129,
 
@@ -295,6 +303,79 @@ struct ath12k_htt_tx_pdev_mu_ppdu_dist_stats_tlv {
 	__le32 num_ppdu_cmpl_per_burst[ATH12K_HTT_STATS_MU_PPDU_PER_BURST_WORDS];
 	__le32 num_seq_posted[ATH12K_HTT_STATS_NUM_NR_BINS];
 	__le32 num_ppdu_posted_per_burst[ATH12K_HTT_STATS_MU_PPDU_PER_BURST_WORDS];
+} __packed;
+
+#define ATH12K_HTT_TX_PDEV_STATS_SCHED_PER_TXQ_MAC_ID	GENMASK(7, 0)
+#define ATH12K_HTT_TX_PDEV_STATS_SCHED_PER_TXQ_ID	GENMASK(15, 8)
+
+#define ATH12K_HTT_TX_PDEV_NUM_SCHED_ORDER_LOG	20
+
+struct ath12k_htt_stats_tx_sched_cmn_tlv {
+	__le32 mac_id__word;
+	__le32 current_timestamp;
+} __packed;
+
+struct ath12k_htt_tx_pdev_stats_sched_per_txq_tlv {
+	__le32 mac_id__word;
+	__le32 sched_policy;
+	__le32 last_sched_cmd_posted_timestamp;
+	__le32 last_sched_cmd_compl_timestamp;
+	__le32 sched_2_tac_lwm_count;
+	__le32 sched_2_tac_ring_full;
+	__le32 sched_cmd_post_failure;
+	__le32 num_active_tids;
+	__le32 num_ps_schedules;
+	__le32 sched_cmds_pending;
+	__le32 num_tid_register;
+	__le32 num_tid_unregister;
+	__le32 num_qstats_queried;
+	__le32 qstats_update_pending;
+	__le32 last_qstats_query_timestamp;
+	__le32 num_tqm_cmdq_full;
+	__le32 num_de_sched_algo_trigger;
+	__le32 num_rt_sched_algo_trigger;
+	__le32 num_tqm_sched_algo_trigger;
+	__le32 notify_sched;
+	__le32 dur_based_sendn_term;
+	__le32 su_notify2_sched;
+	__le32 su_optimal_queued_msdus_sched;
+	__le32 su_delay_timeout_sched;
+	__le32 su_min_txtime_sched_delay;
+	__le32 su_no_delay;
+	__le32 num_supercycles;
+	__le32 num_subcycles_with_sort;
+	__le32 num_subcycles_no_sort;
+} __packed;
+
+struct ath12k_htt_sched_txq_cmd_posted_tlv {
+	DECLARE_FLEX_ARRAY(__le32, sched_cmd_posted);
+} __packed;
+
+struct ath12k_htt_sched_txq_cmd_reaped_tlv {
+	DECLARE_FLEX_ARRAY(__le32, sched_cmd_reaped);
+} __packed;
+
+struct ath12k_htt_sched_txq_sched_order_su_tlv {
+	DECLARE_FLEX_ARRAY(__le32, sched_order_su);
+} __packed;
+
+struct ath12k_htt_sched_txq_sched_ineligibility_tlv {
+	DECLARE_FLEX_ARRAY(__le32, sched_ineligibility);
+} __packed;
+
+enum ath12k_htt_sched_txq_supercycle_triggers_tlv_enum {
+	ATH12K_HTT_SCHED_SUPERCYCLE_TRIGGER_NONE = 0,
+	ATH12K_HTT_SCHED_SUPERCYCLE_TRIGGER_FORCED,
+	ATH12K_HTT_SCHED_SUPERCYCLE_TRIGGER_LESS_NUM_TIDQ_ENTRIES,
+	ATH12K_HTT_SCHED_SUPERCYCLE_TRIGGER_LESS_NUM_ACTIVE_TIDS,
+	ATH12K_HTT_SCHED_SUPERCYCLE_TRIGGER_MAX_ITR_REACHED,
+	ATH12K_HTT_SCHED_SUPERCYCLE_TRIGGER_DUR_THRESHOLD_REACHED,
+	ATH12K_HTT_SCHED_SUPERCYCLE_TRIGGER_TWT_TRIGGER,
+	ATH12K_HTT_SCHED_SUPERCYCLE_TRIGGER_MAX,
+};
+
+struct ath12k_htt_sched_txq_supercycle_triggers_tlv {
+	DECLARE_FLEX_ARRAY(__le32, supercycle_triggers);
 } __packed;
 
 #endif

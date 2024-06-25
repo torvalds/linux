@@ -386,6 +386,216 @@ htt_print_pdev_ctrl_path_tx_stats_tlv(const void *tag_buf, u16 tag_len,
 	stats_req->buf_len = len;
 }
 
+static void
+ath12k_htt_print_stats_tx_sched_cmn_tlv(const void *tag_buf,
+					u16 tag_len,
+					struct debug_htt_stats_req *stats_req)
+{
+	const struct ath12k_htt_stats_tx_sched_cmn_tlv *htt_stats_buf = tag_buf;
+	u8 *buf = stats_req->buf;
+	u32 len = stats_req->buf_len;
+	u32 buf_len = ATH12K_HTT_STATS_BUF_SIZE;
+	u32 mac_id_word;
+
+	if (tag_len < sizeof(*htt_stats_buf))
+		return;
+
+	mac_id_word = __le32_to_cpu(htt_stats_buf->mac_id__word);
+
+	len += scnprintf(buf + len, buf_len - len, "HTT_STATS_TX_SCHED_CMN_TLV:\n");
+	len += scnprintf(buf + len, buf_len - len, "mac_id = %u\n",
+			 u32_get_bits(mac_id_word, ATH12K_HTT_STATS_MAC_ID));
+	len += scnprintf(buf + len, buf_len - len, "current_timestamp = %u\n\n",
+			 le32_to_cpu(htt_stats_buf->current_timestamp));
+
+	stats_req->buf_len = len;
+}
+
+static void
+ath12k_htt_print_tx_pdev_stats_sched_per_txq_tlv(const void *tag_buf,
+						 u16 tag_len,
+						 struct debug_htt_stats_req *stats_req)
+{
+	const struct ath12k_htt_tx_pdev_stats_sched_per_txq_tlv *htt_stats_buf = tag_buf;
+	u8 *buf = stats_req->buf;
+	u32 len = stats_req->buf_len;
+	u32 buf_len = ATH12K_HTT_STATS_BUF_SIZE;
+	u32 mac_id_word;
+
+	if (tag_len < sizeof(*htt_stats_buf))
+		return;
+
+	mac_id_word = __le32_to_cpu(htt_stats_buf->mac_id__word);
+
+	len += scnprintf(buf + len, buf_len - len,
+			 "HTT_TX_PDEV_STATS_SCHED_PER_TXQ_TLV:\n");
+	len += scnprintf(buf + len, buf_len - len, "mac_id = %u\n",
+			u32_get_bits(mac_id_word,
+				     ATH12K_HTT_TX_PDEV_STATS_SCHED_PER_TXQ_MAC_ID));
+	len += scnprintf(buf + len, buf_len - len, "txq_id = %u\n",
+			 u32_get_bits(mac_id_word,
+				      ATH12K_HTT_TX_PDEV_STATS_SCHED_PER_TXQ_ID));
+	len += scnprintf(buf + len, buf_len - len, "sched_policy = %u\n",
+			 le32_to_cpu(htt_stats_buf->sched_policy));
+	len += scnprintf(buf + len, buf_len - len,
+			 "last_sched_cmd_posted_timestamp = %u\n",
+			 le32_to_cpu(htt_stats_buf->last_sched_cmd_posted_timestamp));
+	len += scnprintf(buf + len, buf_len - len,
+			 "last_sched_cmd_compl_timestamp = %u\n",
+			 le32_to_cpu(htt_stats_buf->last_sched_cmd_compl_timestamp));
+	len += scnprintf(buf + len, buf_len - len, "sched_2_tac_lwm_count = %u\n",
+			 le32_to_cpu(htt_stats_buf->sched_2_tac_lwm_count));
+	len += scnprintf(buf + len, buf_len - len, "sched_2_tac_ring_full = %u\n",
+			 le32_to_cpu(htt_stats_buf->sched_2_tac_ring_full));
+	len += scnprintf(buf + len, buf_len - len, "sched_cmd_post_failure = %u\n",
+			 le32_to_cpu(htt_stats_buf->sched_cmd_post_failure));
+	len += scnprintf(buf + len, buf_len - len, "num_active_tids = %u\n",
+			 le32_to_cpu(htt_stats_buf->num_active_tids));
+	len += scnprintf(buf + len, buf_len - len, "num_ps_schedules = %u\n",
+			 le32_to_cpu(htt_stats_buf->num_ps_schedules));
+	len += scnprintf(buf + len, buf_len - len, "sched_cmds_pending = %u\n",
+			 le32_to_cpu(htt_stats_buf->sched_cmds_pending));
+	len += scnprintf(buf + len, buf_len - len, "num_tid_register = %u\n",
+			 le32_to_cpu(htt_stats_buf->num_tid_register));
+	len += scnprintf(buf + len, buf_len - len, "num_tid_unregister = %u\n",
+			 le32_to_cpu(htt_stats_buf->num_tid_unregister));
+	len += scnprintf(buf + len, buf_len - len, "num_qstats_queried = %u\n",
+			 le32_to_cpu(htt_stats_buf->num_qstats_queried));
+	len += scnprintf(buf + len, buf_len - len, "qstats_update_pending = %u\n",
+			 le32_to_cpu(htt_stats_buf->qstats_update_pending));
+	len += scnprintf(buf + len, buf_len - len, "last_qstats_query_timestamp = %u\n",
+			 le32_to_cpu(htt_stats_buf->last_qstats_query_timestamp));
+	len += scnprintf(buf + len, buf_len - len, "num_tqm_cmdq_full = %u\n",
+			 le32_to_cpu(htt_stats_buf->num_tqm_cmdq_full));
+	len += scnprintf(buf + len, buf_len - len, "num_de_sched_algo_trigger = %u\n",
+			 le32_to_cpu(htt_stats_buf->num_de_sched_algo_trigger));
+	len += scnprintf(buf + len, buf_len - len, "num_rt_sched_algo_trigger = %u\n",
+			 le32_to_cpu(htt_stats_buf->num_rt_sched_algo_trigger));
+	len += scnprintf(buf + len, buf_len - len, "num_tqm_sched_algo_trigger = %u\n",
+			 le32_to_cpu(htt_stats_buf->num_tqm_sched_algo_trigger));
+	len += scnprintf(buf + len, buf_len - len, "notify_sched = %u\n",
+			 le32_to_cpu(htt_stats_buf->notify_sched));
+	len += scnprintf(buf + len, buf_len - len, "dur_based_sendn_term = %u\n",
+			 le32_to_cpu(htt_stats_buf->dur_based_sendn_term));
+	len += scnprintf(buf + len, buf_len - len, "su_notify2_sched = %u\n",
+			 le32_to_cpu(htt_stats_buf->su_notify2_sched));
+	len += scnprintf(buf + len, buf_len - len, "su_optimal_queued_msdus_sched = %u\n",
+			 le32_to_cpu(htt_stats_buf->su_optimal_queued_msdus_sched));
+	len += scnprintf(buf + len, buf_len - len, "su_delay_timeout_sched = %u\n",
+			 le32_to_cpu(htt_stats_buf->su_delay_timeout_sched));
+	len += scnprintf(buf + len, buf_len - len, "su_min_txtime_sched_delay = %u\n",
+			 le32_to_cpu(htt_stats_buf->su_min_txtime_sched_delay));
+	len += scnprintf(buf + len, buf_len - len, "su_no_delay = %u\n",
+			 le32_to_cpu(htt_stats_buf->su_no_delay));
+	len += scnprintf(buf + len, buf_len - len, "num_supercycles = %u\n",
+			 le32_to_cpu(htt_stats_buf->num_supercycles));
+	len += scnprintf(buf + len, buf_len - len, "num_subcycles_with_sort = %u\n",
+			 le32_to_cpu(htt_stats_buf->num_subcycles_with_sort));
+	len += scnprintf(buf + len, buf_len - len, "num_subcycles_no_sort = %u\n\n",
+			 le32_to_cpu(htt_stats_buf->num_subcycles_no_sort));
+
+	stats_req->buf_len = len;
+}
+
+static void
+ath12k_htt_print_sched_txq_cmd_posted_tlv(const void *tag_buf,
+					  u16 tag_len,
+					  struct debug_htt_stats_req *stats_req)
+{
+	const struct ath12k_htt_sched_txq_cmd_posted_tlv *htt_stats_buf = tag_buf;
+	u8 *buf = stats_req->buf;
+	u32 len = stats_req->buf_len;
+	u32 buf_len = ATH12K_HTT_STATS_BUF_SIZE;
+	u16 num_elements = tag_len >> 2;
+
+	len += scnprintf(buf + len, buf_len - len, "HTT_SCHED_TXQ_CMD_POSTED_TLV:\n");
+	len += print_array_to_buf(buf, len, "sched_cmd_posted",
+				  htt_stats_buf->sched_cmd_posted, num_elements, "\n\n");
+
+	stats_req->buf_len = len;
+}
+
+static void
+ath12k_htt_print_sched_txq_cmd_reaped_tlv(const void *tag_buf,
+					  u16 tag_len,
+					  struct debug_htt_stats_req *stats_req)
+{
+	const struct ath12k_htt_sched_txq_cmd_reaped_tlv *htt_stats_buf = tag_buf;
+	u8 *buf = stats_req->buf;
+	u32 len = stats_req->buf_len;
+	u32 buf_len = ATH12K_HTT_STATS_BUF_SIZE;
+	u16 num_elements = tag_len >> 2;
+
+	len += scnprintf(buf + len, buf_len - len, "HTT_SCHED_TXQ_CMD_REAPED_TLV:\n");
+	len += print_array_to_buf(buf, len, "sched_cmd_reaped",
+				  htt_stats_buf->sched_cmd_reaped, num_elements, "\n\n");
+
+	stats_req->buf_len = len;
+}
+
+static void
+ath12k_htt_print_sched_txq_sched_order_su_tlv(const void *tag_buf,
+					      u16 tag_len,
+					      struct debug_htt_stats_req *stats_req)
+{
+	const struct ath12k_htt_sched_txq_sched_order_su_tlv *htt_stats_buf = tag_buf;
+	u8 *buf = stats_req->buf;
+	u32 len = stats_req->buf_len;
+	u32 buf_len = ATH12K_HTT_STATS_BUF_SIZE;
+	u32 sched_order_su_num_entries = min_t(u32, (tag_len >> 2),
+					       ATH12K_HTT_TX_PDEV_NUM_SCHED_ORDER_LOG);
+
+	len += scnprintf(buf + len, buf_len - len,
+			 "HTT_SCHED_TXQ_SCHED_ORDER_SU_TLV:\n");
+	len += print_array_to_buf(buf, len, "sched_order_su",
+				  htt_stats_buf->sched_order_su,
+				  sched_order_su_num_entries, "\n\n");
+
+	stats_req->buf_len = len;
+}
+
+static void
+ath12k_htt_print_sched_txq_sched_ineligibility_tlv(const void *tag_buf,
+						   u16 tag_len,
+						   struct debug_htt_stats_req *stats_req)
+{
+	const struct ath12k_htt_sched_txq_sched_ineligibility_tlv *htt_stats_buf =
+		     tag_buf;
+	u8 *buf = stats_req->buf;
+	u32 len = stats_req->buf_len;
+	u32 buf_len = ATH12K_HTT_STATS_BUF_SIZE;
+	u32 sched_ineligibility_num_entries = tag_len >> 2;
+
+	len += scnprintf(buf + len, buf_len - len,
+			 "HTT_SCHED_TXQ_SCHED_INELIGIBILITY:\n");
+	len += print_array_to_buf(buf, len, "sched_ineligibility",
+				  htt_stats_buf->sched_ineligibility,
+				  sched_ineligibility_num_entries, "\n\n");
+
+	stats_req->buf_len = len;
+}
+
+static void
+ath12k_htt_print_sched_txq_supercycle_trigger_tlv(const void *tag_buf,
+						  u16 tag_len,
+						  struct debug_htt_stats_req *stats_req)
+{
+	const struct ath12k_htt_sched_txq_supercycle_triggers_tlv *htt_stats_buf =
+		     tag_buf;
+	u8 *buf = stats_req->buf;
+	u32 len = stats_req->buf_len;
+	u32 buf_len = ATH12K_HTT_STATS_BUF_SIZE;
+	u16 num_elems = min_t(u16, (tag_len >> 2),
+			      ATH12K_HTT_SCHED_SUPERCYCLE_TRIGGER_MAX);
+
+	len += scnprintf(buf + len, buf_len - len,
+			 "HTT_SCHED_TXQ_SUPERCYCLE_TRIGGER:\n");
+	len += print_array_to_buf(buf, len, "supercycle_triggers",
+				  htt_stats_buf->supercycle_triggers, num_elems, "\n\n");
+
+	stats_req->buf_len = len;
+}
+
 static int ath12k_dbg_htt_ext_stats_parse(struct ath12k_base *ab,
 					  u16 tag, u16 len, const void *tag_buf,
 					  void *user_data)
@@ -413,6 +623,29 @@ static int ath12k_dbg_htt_ext_stats_parse(struct ath12k_base *ab,
 		break;
 	case HTT_STATS_MU_PPDU_DIST_TAG:
 		htt_print_tx_pdev_mu_ppdu_dist_stats_tlv(tag_buf, len, stats_req);
+		break;
+	case HTT_STATS_TX_SCHED_CMN_TAG:
+		ath12k_htt_print_stats_tx_sched_cmn_tlv(tag_buf, len, stats_req);
+		break;
+	case HTT_STATS_TX_PDEV_SCHEDULER_TXQ_STATS_TAG:
+		ath12k_htt_print_tx_pdev_stats_sched_per_txq_tlv(tag_buf, len, stats_req);
+		break;
+	case HTT_STATS_SCHED_TXQ_CMD_POSTED_TAG:
+		ath12k_htt_print_sched_txq_cmd_posted_tlv(tag_buf, len, stats_req);
+		break;
+	case HTT_STATS_SCHED_TXQ_CMD_REAPED_TAG:
+		ath12k_htt_print_sched_txq_cmd_reaped_tlv(tag_buf, len, stats_req);
+		break;
+	case HTT_STATS_SCHED_TXQ_SCHED_ORDER_SU_TAG:
+		ath12k_htt_print_sched_txq_sched_order_su_tlv(tag_buf, len, stats_req);
+		break;
+	case HTT_STATS_SCHED_TXQ_SCHED_INELIGIBILITY_TAG:
+		ath12k_htt_print_sched_txq_sched_ineligibility_tlv(tag_buf, len,
+								   stats_req);
+		break;
+	case HTT_STATS_SCHED_TXQ_SUPERCYCLE_TRIGGER_TAG:
+		ath12k_htt_print_sched_txq_supercycle_trigger_tlv(tag_buf, len,
+								  stats_req);
 		break;
 	default:
 		break;
