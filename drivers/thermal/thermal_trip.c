@@ -9,6 +9,21 @@
  */
 #include "thermal_core.h"
 
+static const char *trip_type_names[] = {
+	[THERMAL_TRIP_ACTIVE] = "active",
+	[THERMAL_TRIP_PASSIVE] = "passive",
+	[THERMAL_TRIP_HOT] = "hot",
+	[THERMAL_TRIP_CRITICAL] = "critical",
+};
+
+const char *thermal_trip_type_name(enum thermal_trip_type trip_type)
+{
+	if (trip_type < THERMAL_TRIP_ACTIVE || trip_type > THERMAL_TRIP_CRITICAL)
+		return "unknown";
+
+	return trip_type_names[trip_type];
+}
+
 int for_each_thermal_trip(struct thermal_zone_device *tz,
 			  int (*cb)(struct thermal_trip *, void *),
 			  void *data)
@@ -47,7 +62,7 @@ int thermal_zone_get_num_trips(struct thermal_zone_device *tz)
 EXPORT_SYMBOL_GPL(thermal_zone_get_num_trips);
 
 /**
- * __thermal_zone_set_trips - Computes the next trip points for the driver
+ * thermal_zone_set_trips - Computes the next trip points for the driver
  * @tz: a pointer to a thermal zone device structure
  *
  * The function computes the next temperature boundaries by browsing
@@ -61,7 +76,7 @@ EXPORT_SYMBOL_GPL(thermal_zone_get_num_trips);
  *
  * It does not return a value
  */
-void __thermal_zone_set_trips(struct thermal_zone_device *tz)
+void thermal_zone_set_trips(struct thermal_zone_device *tz)
 {
 	const struct thermal_trip_desc *td;
 	int low = -INT_MAX, high = INT_MAX;
@@ -73,17 +88,11 @@ void __thermal_zone_set_trips(struct thermal_zone_device *tz)
 		return;
 
 	for_each_trip_desc(tz, td) {
-		const struct thermal_trip *trip = &td->trip;
-		int trip_low;
+		if (td->threshold < tz->temperature && td->threshold > low)
+			low = td->threshold;
 
-		trip_low = trip->temperature - trip->hysteresis;
-
-		if (trip_low < tz->temperature && trip_low > low)
-			low = trip_low;
-
-		if (trip->temperature > tz->temperature &&
-		    trip->temperature < high)
-			high = trip->temperature;
+		if (td->threshold > tz->temperature && td->threshold < high)
+			high = td->threshold;
 	}
 
 	/* No need to change trip points */
@@ -152,7 +161,7 @@ void thermal_zone_set_trip_temp(struct thermal_zone_device *tz,
 	if (trip->temperature == temp)
 		return;
 
-	trip->temperature = temp;
+	WRITE_ONCE(trip->temperature, temp);
 	thermal_notify_tz_trip_change(tz, trip);
 
 	if (temp == THERMAL_TEMP_INVALID) {
