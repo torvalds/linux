@@ -2185,6 +2185,7 @@ static irqreturn_t irq_handler(int irq, void *data)
 	 */
 	reg_write(ohci, OHCI1394_IntEventClear,
 		  event & ~(OHCI1394_busReset | OHCI1394_postedWriteErr));
+	trace_irqs(ohci->card.index, event);
 	log_irqs(ohci, event);
 	// The flag is masked again at bus_reset_work() scheduled by selfID event.
 	if (event & OHCI1394_busReset)
