@@ -525,11 +525,6 @@ void page_cache_ra_order(struct readahead_control *ractl,
 		index += 1UL << order;
 	}
 
-	if (index > limit) {
-		ra->size += index - limit - 1;
-		ra->async_size += index - limit - 1;
-	}
-
 	read_pages(ractl);
 	filemap_invalidate_unlock_shared(mapping);
 	memalloc_nofs_restore(nofs);
