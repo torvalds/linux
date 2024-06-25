@@ -346,11 +346,7 @@
 	type SYMCLK32_LE3_SRC_SEL;\
 	type SYMCLK32_LE2_EN;\
 	type SYMCLK32_LE3_EN;\
-	type DP_DTO_ENABLE[MAX_PIPES];\
-	type DSCCLK0_DTO_DB_EN;\
-	type DSCCLK1_DTO_DB_EN;\
-	type DSCCLK2_DTO_DB_EN;\
-	type DSCCLK3_DTO_DB_EN;
+	type DP_DTO_ENABLE[MAX_PIPES];
 
 struct dccg_shift {
 	DCCG_REG_FIELD_LIST(uint8_t)

@@ -1542,7 +1542,6 @@ static void update_dsc_for_odm_change(struct dc *dc, struct dc_state *context,
 	struct pipe_ctx *old_pipe;
 	struct pipe_ctx *new_pipe;
 	struct pipe_ctx *old_opp_heads[MAX_PIPES];
-	struct dccg *dccg = dc->res_pool->dccg;
 	struct pipe_ctx *old_otg_master;
 	int old_opp_head_count = 0;
 
@@ -1568,12 +1567,9 @@ static void update_dsc_for_odm_change(struct dc *dc, struct dc_state *context,
 		for (i = 0; i < old_opp_head_count; i++) {
 			old_pipe = old_opp_heads[i];
 			new_pipe = &context->res_ctx.pipe_ctx[old_pipe->pipe_idx];
-			if (old_pipe->stream_res.dsc && !new_pipe->stream_res.dsc) {
-				dccg->funcs->set_dto_dscclk(dccg,
-						old_pipe->stream_res.dsc->inst, false);
+			if (old_pipe->stream_res.dsc && !new_pipe->stream_res.dsc)
 				old_pipe->stream_res.dsc->funcs->dsc_disconnect(
 						old_pipe->stream_res.dsc);
-			}
 		}
 	}
 }

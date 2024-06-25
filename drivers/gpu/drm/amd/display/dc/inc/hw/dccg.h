@@ -211,10 +211,7 @@ struct dccg_funcs {
 			struct dccg *dccg,
 			enum streamclk_source src,
 			uint32_t otg_inst);
-	void (*set_dto_dscclk)(
-			struct dccg *dccg,
-			uint32_t dsc_inst,
-			bool enable);
+	void (*set_dto_dscclk)(struct dccg *dccg, uint32_t dsc_inst);
 	void (*set_ref_dscclk)(struct dccg *dccg, uint32_t dsc_inst);
 };
 

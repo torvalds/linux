@@ -2186,9 +2186,9 @@ static void post_unlock_reset_opp(struct dc *dc,
 			 * yet power gated.
 			 */
 			dsc->funcs->dsc_wait_disconnect_pending_clear(dsc);
+			dsc->funcs->dsc_disable(dsc);
 			if (dccg->funcs->set_ref_dscclk)
 				dccg->funcs->set_ref_dscclk(dccg, dsc->inst);
-			dsc->funcs->dsc_disable(dsc);
 		}
 	}
 }
