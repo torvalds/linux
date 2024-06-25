@@ -506,7 +506,7 @@ static void iwl_mvm_uats_init(struct iwl_mvm *mvm)
 
 	ret = iwl_uefi_get_uats_table(mvm->trans, &mvm->fwrt);
 	if (ret < 0) {
-		IWL_ERR(mvm, "failed to read UATS table (%d)\n", ret);
+		IWL_DEBUG_FW(mvm, "failed to read UATS table (%d)\n", ret);
 		return;
 	}
 
