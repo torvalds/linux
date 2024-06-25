@@ -1090,8 +1090,8 @@ static void __mem_cgroup_clear_mc(void)
 
 		mc.moved_swap = 0;
 	}
-	memcg_oom_recover(from);
-	memcg_oom_recover(to);
+	memcg1_oom_recover(from);
+	memcg1_oom_recover(to);
 	wake_up_all(&mc.waitq);
 }
 
@@ -2067,7 +2067,7 @@ static int memcg_oom_wake_function(wait_queue_entry_t *wait,
 	return autoremove_wake_function(wait, mode, sync, arg);
 }
 
-void memcg_oom_recover(struct mem_cgroup *memcg)
+void memcg1_oom_recover(struct mem_cgroup *memcg)
 {
 	/*
 	 * For the following lockless ->under_oom test, the only required

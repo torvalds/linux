@@ -3165,7 +3165,7 @@ static int mem_cgroup_resize_max(struct mem_cgroup *memcg,
 	} while (true);
 
 	if (!ret && enlarge)
-		memcg_oom_recover(memcg);
+		memcg1_oom_recover(memcg);
 
 	return ret;
 }
@@ -3750,7 +3750,7 @@ static int mem_cgroup_oom_control_write(struct cgroup_subsys_state *css,
 
 	WRITE_ONCE(memcg->oom_kill_disable, val);
 	if (!val)
-		memcg_oom_recover(memcg);
+		memcg1_oom_recover(memcg);
 
 	return 0;
 }
@@ -5444,7 +5444,7 @@ static void uncharge_batch(const struct uncharge_gather *ug)
 			page_counter_uncharge(&ug->memcg->memsw, ug->nr_memory);
 		if (ug->nr_kmem)
 			memcg_account_kmem(ug->memcg, -ug->nr_kmem);
-		memcg_oom_recover(ug->memcg);
+		memcg1_oom_recover(ug->memcg);
 	}
 
 	local_irq_save(flags);
