@@ -1194,8 +1194,8 @@ static void pd692x0_i2c_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id pd692x0_id[] = {
-	{ PD692X0_PSE_NAME, 0 },
-	{ },
+	{ PD692X0_PSE_NAME },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, pd692x0_id);
 

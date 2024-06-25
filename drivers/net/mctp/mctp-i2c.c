@@ -1042,8 +1042,8 @@ static struct notifier_block mctp_i2c_notifier = {
 };
 
 static const struct i2c_device_id mctp_i2c_id[] = {
-	{ "mctp-i2c-interface", 0 },
-	{},
+	{ "mctp-i2c-interface" },
+	{}
 };
 MODULE_DEVICE_TABLE(i2c, mctp_i2c_id);
 
