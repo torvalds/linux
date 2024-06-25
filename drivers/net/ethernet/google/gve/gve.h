@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: (GPL-2.0 OR MIT)
  * Google virtual Ethernet (gve) driver
  *
- * Copyright (C) 2015-2021 Google, Inc.
+ * Copyright (C) 2015-2024 Google LLC
  */
 
 #ifndef _GVE_H_
@@ -1170,6 +1170,12 @@ int gve_adjust_config(struct gve_priv *priv,
 int gve_adjust_queues(struct gve_priv *priv,
 		      struct gve_queue_config new_rx_config,
 		      struct gve_queue_config new_tx_config);
+/* flow steering rule */
+int gve_get_flow_rule_entry(struct gve_priv *priv, struct ethtool_rxnfc *cmd);
+int gve_get_flow_rule_ids(struct gve_priv *priv, struct ethtool_rxnfc *cmd, u32 *rule_locs);
+int gve_add_flow_rule(struct gve_priv *priv, struct ethtool_rxnfc *cmd);
+int gve_del_flow_rule(struct gve_priv *priv, struct ethtool_rxnfc *cmd);
+int gve_flow_rules_reset(struct gve_priv *priv);
 /* report stats handling */
 void gve_handle_report_stats(struct gve_priv *priv);
 /* exported by ethtool.c */

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MIT)
 /* Google virtual Ethernet (gve) driver
  *
- * Copyright (C) 2015-2021 Google, Inc.
+ * Copyright (C) 2015-2024 Google LLC
  */
 
 #include <linux/bpf.h>
@@ -635,6 +635,12 @@ static void gve_teardown_device_resources(struct gve_priv *priv)
 
 	/* Tell device its resources are being freed */
 	if (gve_get_device_resources_ok(priv)) {
+		err = gve_flow_rules_reset(priv);
+		if (err) {
+			dev_err(&priv->pdev->dev,
+				"Failed to reset flow rules: err=%d\n", err);
+			gve_trigger_reset(priv);
+		}
 		/* detach the stats report */
 		err = gve_adminq_report_stats(priv, 0, 0x0, GVE_STATS_REPORT_TIMER_PERIOD);
 		if (err) {
@@ -1779,6 +1785,14 @@ static int gve_xdp(struct net_device *dev, struct netdev_bpf *xdp)
 	}
 }
 
+int gve_flow_rules_reset(struct gve_priv *priv)
+{
+	if (!priv->max_flow_rules)
+		return 0;
+
+	return gve_adminq_reset_flow_rules(priv);
+}
+
 int gve_adjust_config(struct gve_priv *priv,
 		      struct gve_tx_alloc_rings_cfg *tx_alloc_cfg,
 		      struct gve_rx_alloc_rings_cfg *rx_alloc_cfg)
@@ -2052,15 +2066,21 @@ static int gve_set_features(struct net_device *netdev,
 		netdev->features ^= NETIF_F_LRO;
 		if (netif_carrier_ok(netdev)) {
 			err = gve_adjust_config(priv, &tx_alloc_cfg, &rx_alloc_cfg);
-			if (err) {
-				/* Revert the change on error. */
-				netdev->features = orig_features;
-				return err;
-			}
+			if (err)
+				goto revert_features;
 		}
+	}
+	if ((netdev->features & NETIF_F_NTUPLE) && !(features & NETIF_F_NTUPLE)) {
+		err = gve_flow_rules_reset(priv);
+		if (err)
+			goto revert_features;
 	}
 
 	return 0;
+
+revert_features:
+	netdev->features = orig_features;
+	return err;
 }
 
 static const struct net_device_ops gve_netdev_ops = {
