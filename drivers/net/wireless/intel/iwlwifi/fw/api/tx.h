@@ -698,6 +698,7 @@ enum iwl_mvm_ba_resp_flags {
  * @query_frame_cnt: SCD query frame count
  * @txed: number of frames sent in the aggregation (all-TIDs)
  * @done: number of frames that were Acked by the BA (all-TIDs)
+ * @rts_retry_cnt: RTS retry count
  * @reserved: reserved (for alignment)
  * @wireless_time: Wireless-media time
  * @tx_rate: the rate the aggregation was sent at
@@ -718,7 +719,8 @@ struct iwl_mvm_compressed_ba_notif {
 	__le16 query_frame_cnt;
 	__le16 txed;
 	__le16 done;
-	__le16 reserved;
+	u8 rts_retry_cnt;
+	u8 reserved;
 	__le32 wireless_time;
 	__le32 tx_rate;
 	__le16 tfd_cnt;
