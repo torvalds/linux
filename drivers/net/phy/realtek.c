@@ -32,6 +32,15 @@
 #define RTL8211F_PHYCR2				0x19
 #define RTL8211F_INSR				0x1d
 
+#define RTL8211F_LEDCR				0x10
+#define RTL8211F_LEDCR_MODE			BIT(15)
+#define RTL8211F_LEDCR_ACT_TXRX			BIT(4)
+#define RTL8211F_LEDCR_LINK_1000		BIT(3)
+#define RTL8211F_LEDCR_LINK_100			BIT(1)
+#define RTL8211F_LEDCR_LINK_10			BIT(0)
+#define RTL8211F_LEDCR_MASK			GENMASK(4, 0)
+#define RTL8211F_LEDCR_SHIFT			5
+
 #define RTL8211F_TX_DELAY			BIT(8)
 #define RTL8211F_RX_DELAY			BIT(3)
 
@@ -86,6 +95,8 @@
 #define RTL_8221B_VB_CG				0x001cc849
 #define RTL_8221B_VN_CG				0x001cc84a
 #define RTL_8251B				0x001cc862
+
+#define RTL8211F_LED_COUNT			3
 
 MODULE_DESCRIPTION("Realtek PHY driver");
 MODULE_AUTHOR("Johnson Leung");
@@ -474,6 +485,98 @@ static int rtl821x_resume(struct phy_device *phydev)
 	msleep(20);
 
 	return 0;
+}
+
+static int rtl8211f_led_hw_is_supported(struct phy_device *phydev, u8 index,
+					unsigned long rules)
+{
+	const unsigned long mask = BIT(TRIGGER_NETDEV_LINK_10) |
+				   BIT(TRIGGER_NETDEV_LINK_100) |
+				   BIT(TRIGGER_NETDEV_LINK_1000) |
+				   BIT(TRIGGER_NETDEV_RX) |
+				   BIT(TRIGGER_NETDEV_TX);
+
+	/* The RTL8211F PHY supports these LED settings on up to three LEDs:
+	 * - Link: Configurable subset of 10/100/1000 link rates
+	 * - Active: Blink on activity, RX or TX is not differentiated
+	 * The Active option has two modes, A and B:
+	 * - A: Link and Active indication at configurable, but matching,
+	 *      subset of 10/100/1000 link rates
+	 * - B: Link indication at configurable subset of 10/100/1000 link
+	 *      rates and Active indication always at all three 10+100+1000
+	 *      link rates.
+	 * This code currently uses mode B only.
+	 */
+
+	if (index >= RTL8211F_LED_COUNT)
+		return -EINVAL;
+
+	/* Filter out any other unsupported triggers. */
+	if (rules & ~mask)
+		return -EOPNOTSUPP;
+
+	/* RX and TX are not differentiated, either both are set or not set. */
+	if (!(rules & BIT(TRIGGER_NETDEV_RX)) ^ !(rules & BIT(TRIGGER_NETDEV_TX)))
+		return -EOPNOTSUPP;
+
+	return 0;
+}
+
+static int rtl8211f_led_hw_control_get(struct phy_device *phydev, u8 index,
+				       unsigned long *rules)
+{
+	int val;
+
+	val = phy_read_paged(phydev, 0xd04, RTL8211F_LEDCR);
+	if (val < 0)
+		return val;
+
+	val >>= RTL8211F_LEDCR_SHIFT * index;
+	val &= RTL8211F_LEDCR_MASK;
+
+	if (val & RTL8211F_LEDCR_LINK_10)
+		set_bit(TRIGGER_NETDEV_LINK_10, rules);
+
+	if (val & RTL8211F_LEDCR_LINK_100)
+		set_bit(TRIGGER_NETDEV_LINK_100, rules);
+
+	if (val & RTL8211F_LEDCR_LINK_1000)
+		set_bit(TRIGGER_NETDEV_LINK_1000, rules);
+
+	if (val & RTL8211F_LEDCR_ACT_TXRX) {
+		set_bit(TRIGGER_NETDEV_RX, rules);
+		set_bit(TRIGGER_NETDEV_TX, rules);
+	}
+
+	return 0;
+}
+
+static int rtl8211f_led_hw_control_set(struct phy_device *phydev, u8 index,
+				       unsigned long rules)
+{
+	const u16 mask = RTL8211F_LEDCR_MASK << (RTL8211F_LEDCR_SHIFT * index);
+	u16 reg = RTL8211F_LEDCR_MODE;	/* Mode B */
+
+	if (index >= RTL8211F_LED_COUNT)
+		return -EINVAL;
+
+	if (test_bit(TRIGGER_NETDEV_LINK_10, &rules))
+		reg |= RTL8211F_LEDCR_LINK_10;
+
+	if (test_bit(TRIGGER_NETDEV_LINK_100, &rules))
+		reg |= RTL8211F_LEDCR_LINK_100;
+
+	if (test_bit(TRIGGER_NETDEV_LINK_1000, &rules))
+		reg |= RTL8211F_LEDCR_LINK_1000;
+
+	if (test_bit(TRIGGER_NETDEV_RX, &rules) ||
+	    test_bit(TRIGGER_NETDEV_TX, &rules)) {
+		reg |= RTL8211F_LEDCR_ACT_TXRX;
+	}
+
+	reg <<= RTL8211F_LEDCR_SHIFT * index;
+
+	return phy_modify_paged(phydev, 0xd04, RTL8211F_LEDCR, mask, reg);
 }
 
 static int rtl8211e_config_init(struct phy_device *phydev)
@@ -1192,6 +1295,9 @@ static struct phy_driver realtek_drvs[] = {
 		.read_page	= rtl821x_read_page,
 		.write_page	= rtl821x_write_page,
 		.flags		= PHY_ALWAYS_CALL_SUSPEND,
+		.led_hw_is_supported = rtl8211f_led_hw_is_supported,
+		.led_hw_control_get = rtl8211f_led_hw_control_get,
+		.led_hw_control_set = rtl8211f_led_hw_control_set,
 	}, {
 		PHY_ID_MATCH_EXACT(RTL_8211FVD_PHYID),
 		.name		= "RTL8211F-VD Gigabit Ethernet",
