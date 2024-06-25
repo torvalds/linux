@@ -19,6 +19,7 @@ FIXTURE(msg_oob)
 				 * 2: TCP sender
 				 * 3: TCP receiver
 				 */
+	bool tcp_compliant;
 };
 
 FIXTURE_VARIANT(msg_oob)
@@ -88,6 +89,8 @@ FIXTURE_SETUP(msg_oob)
 {
 	create_unix_socketpair(_metadata, self);
 	create_tcp_socketpair(_metadata, self);
+
+	self->tcp_compliant = true;
 }
 
 FIXTURE_TEARDOWN(msg_oob)
@@ -115,6 +118,7 @@ static void __recvpair(struct __test_metadata *_metadata,
 {
 	int i, ret[2], recv_errno[2], expected_errno = 0;
 	char recv_buf[2][BUF_SZ] = {};
+	bool printed = false;
 
 	ASSERT_GE(BUF_SZ, buf_len);
 
@@ -142,8 +146,12 @@ static void __recvpair(struct __test_metadata *_metadata,
 		TH_LOG("AF_UNIX :%s", ret[0] < 0 ? strerror(recv_errno[0]) : recv_buf[0]);
 		TH_LOG("TCP     :%s", ret[1] < 0 ? strerror(recv_errno[1]) : recv_buf[1]);
 
-		ASSERT_EQ(ret[0], ret[1]);
-		ASSERT_EQ(recv_errno[0], recv_errno[1]);
+		printed = true;
+
+		if (self->tcp_compliant) {
+			ASSERT_EQ(ret[0], ret[1]);
+			ASSERT_EQ(recv_errno[0], recv_errno[1]);
+		}
 	}
 
 	if (expected_len >= 0) {
@@ -159,10 +167,13 @@ static void __recvpair(struct __test_metadata *_metadata,
 
 		cmp = strncmp(recv_buf[0], recv_buf[1], expected_len);
 		if (cmp) {
-			TH_LOG("AF_UNIX :%s", ret[0] < 0 ? strerror(recv_errno[0]) : recv_buf[0]);
-			TH_LOG("TCP     :%s", ret[1] < 0 ? strerror(recv_errno[1]) : recv_buf[1]);
+			if (!printed) {
+				TH_LOG("AF_UNIX :%s", ret[0] < 0 ? strerror(recv_errno[0]) : recv_buf[0]);
+				TH_LOG("TCP     :%s", ret[1] < 0 ? strerror(recv_errno[1]) : recv_buf[1]);
+			}
 
-			ASSERT_EQ(cmp, 0);
+			if (self->tcp_compliant)
+				ASSERT_EQ(cmp, 0);
 		}
 	}
 }
@@ -179,6 +190,11 @@ static void __recvpair(struct __test_metadata *_metadata,
 		__recvpair(_metadata, self,				\
 			   expected_buf, expected_len, buf_len, flags);	\
 	} while (0)
+
+#define tcp_incompliant							\
+	for (self->tcp_compliant = false;				\
+	     self->tcp_compliant == false;				\
+	     self->tcp_compliant = true)
 
 TEST_F(msg_oob, non_oob)
 {
@@ -247,6 +263,29 @@ TEST_F(msg_oob, ex_oob_break)
 	recvpair("hellowo", 7, 10, 0);		/* Break at OOB but not at ex-OOB. */
 	recvpair("r", 1, 1, MSG_OOB);
 	recvpair("ld", 2, 2, 0);
+}
+
+TEST_F(msg_oob, ex_oob_drop)
+{
+	sendpair("x", 1, MSG_OOB);
+	sendpair("y", 1, MSG_OOB);		/* TCP drops "x" at this moment. */
+
+	tcp_incompliant {
+		recvpair("x", 1, 1, 0);		/* TCP drops "y" by passing through it. */
+		recvpair("y", 1, 1, MSG_OOB);	/* TCP returns -EINVAL. */
+	}
+}
+
+TEST_F(msg_oob, ex_oob_drop_2)
+{
+	sendpair("x", 1, MSG_OOB);
+	sendpair("y", 1, MSG_OOB);		/* TCP drops "x" at this moment. */
+
+	recvpair("y", 1, 1, MSG_OOB);
+
+	tcp_incompliant {
+		recvpair("x", 1, 1, 0);		/* TCP returns -EAGAIN. */
+	}
 }
 
 TEST_HARNESS_MAIN
