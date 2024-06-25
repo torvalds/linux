@@ -10,6 +10,7 @@
 #include <linux/pr.h>
 
 #include "blocklayout.h"
+#include "../nfs4trace.h"
 
 #define NFSDBG_FACILITY		NFSDBG_PNFS_LD
 
@@ -17,12 +18,16 @@ static void bl_unregister_scsi(struct pnfs_block_dev *dev)
 {
 	struct block_device *bdev = file_bdev(dev->bdev_file);
 	const struct pr_ops *ops = bdev->bd_disk->fops->pr_ops;
+	int status;
 
 	if (!test_and_clear_bit(PNFS_BDEV_REGISTERED, &dev->flags))
 		return;
 
-	if (ops->pr_register(bdev, dev->pr_key, 0, false))
-		pr_err("failed to unregister PR key.\n");
+	status = ops->pr_register(bdev, dev->pr_key, 0, false);
+	if (status)
+		trace_bl_pr_key_unreg_err(bdev, dev->pr_key, status);
+	else
+		trace_bl_pr_key_unreg(bdev, dev->pr_key);
 }
 
 static bool bl_register_scsi(struct pnfs_block_dev *dev)
@@ -36,10 +41,10 @@ static bool bl_register_scsi(struct pnfs_block_dev *dev)
 
 	status = ops->pr_register(bdev, 0, dev->pr_key, true);
 	if (status) {
-		pr_err("pNFS: failed to register key for block device %s.",
-		       bdev->bd_disk->disk_name);
+		trace_bl_pr_key_reg_err(bdev, dev->pr_key, status);
 		return false;
 	}
+	trace_bl_pr_key_reg(bdev, dev->pr_key);
 	return true;
 }
 
@@ -382,8 +387,9 @@ bl_parse_scsi(struct nfs_server *server, struct pnfs_block_dev *d,
 		struct pnfs_block_volume *volumes, int idx, gfp_t gfp_mask)
 {
 	struct pnfs_block_volume *v = &volumes[idx];
-	struct file *bdev_file;
+	struct block_device *bdev;
 	const struct pr_ops *ops;
+	struct file *bdev_file;
 	int error;
 
 	if (!bl_validate_designator(v))
@@ -404,21 +410,19 @@ bl_parse_scsi(struct nfs_server *server, struct pnfs_block_dev *d,
 		return PTR_ERR(bdev_file);
 	}
 	d->bdev_file = bdev_file;
+	bdev = file_bdev(bdev_file);
 
-	d->len = bdev_nr_bytes(file_bdev(d->bdev_file));
+	d->len = bdev_nr_bytes(bdev);
 	d->map = bl_map_simple;
 	d->pr_key = v->scsi.pr_key;
 
 	if (d->len == 0)
 		return -ENODEV;
 
-	pr_info("pNFS: using block device %s (reservation key 0x%llx)\n",
-		file_bdev(d->bdev_file)->bd_disk->disk_name, d->pr_key);
-
-	ops = file_bdev(d->bdev_file)->bd_disk->fops->pr_ops;
+	ops = bdev->bd_disk->fops->pr_ops;
 	if (!ops) {
 		pr_err("pNFS: block device %s does not support reservations.",
-				file_bdev(d->bdev_file)->bd_disk->disk_name);
+				bdev->bd_disk->disk_name);
 		error = -EINVAL;
 		goto out_blkdev_put;
 	}
