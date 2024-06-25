@@ -580,7 +580,7 @@ static void ondemand_readahead(struct readahead_control *ractl,
 	 */
 	expected = round_down(ra->start + ra->size - ra->async_size,
 			1UL << order);
-	if (index == expected || index == (ra->start + ra->size)) {
+	if (folio && index == expected) {
 		ra->start += ra->size;
 		ra->size = get_next_ra_size(ra, max_pages);
 		ra->async_size = ra->size;
