@@ -288,6 +288,26 @@ static void __setinlinepair(struct __test_metadata *_metadata,
 	}
 }
 
+static void __siocatmarkpair(struct __test_metadata *_metadata,
+			     FIXTURE_DATA(msg_oob) *self,
+			     bool oob_head)
+{
+	int answ[2] = {};
+	int i;
+
+	for (i = 0; i < 2; i++) {
+		int ret;
+
+		ret = ioctl(self->fd[i * 2 + 1], SIOCATMARK, &answ[i]);
+		ASSERT_EQ(ret, 0);
+	}
+
+	ASSERT_EQ(answ[0], oob_head);
+
+	if (self->tcp_compliant)
+		ASSERT_EQ(answ[0], answ[1]);
+}
+
 #define sendpair(buf, len, flags)					\
 	__sendpair(_metadata, self, buf, len, flags)
 
@@ -303,6 +323,9 @@ static void __setinlinepair(struct __test_metadata *_metadata,
 
 #define epollpair(oob_remaining)					\
 	__epollpair(_metadata, self, oob_remaining)
+
+#define siocatmarkpair(oob_head)					\
+	__siocatmarkpair(_metadata, self, oob_head)
 
 #define setinlinepair()							\
 	__setinlinepair(_metadata, self)
@@ -325,9 +348,11 @@ TEST_F(msg_oob, oob)
 {
 	sendpair("x", 1, MSG_OOB);
 	epollpair(true);
+	siocatmarkpair(true);
 
 	recvpair("x", 1, 1, MSG_OOB);
 	epollpair(false);
+	siocatmarkpair(true);
 }
 
 TEST_F(msg_oob, oob_drop)
@@ -481,18 +506,40 @@ TEST_F(msg_oob, ex_oob_ahead_break)
 	epollpair(false);
 }
 
+TEST_F(msg_oob, ex_oob_siocatmark)
+{
+	sendpair("hello", 5, MSG_OOB);
+	epollpair(true);
+	siocatmarkpair(false);
+
+	recvpair("o", 1, 1, MSG_OOB);
+	epollpair(false);
+	siocatmarkpair(false);
+
+	sendpair("world", 5, MSG_OOB);
+	epollpair(true);
+	siocatmarkpair(false);
+
+	recvpair("hell", 4, 4, 0);		/* Intentionally stop at ex-OOB. */
+	epollpair(true);
+	siocatmarkpair(false);
+}
+
 TEST_F(msg_oob, inline_oob)
 {
 	setinlinepair();
 
 	sendpair("x", 1, MSG_OOB);
 	epollpair(true);
+	siocatmarkpair(true);
 
 	recvpair("", -EINVAL, 1, MSG_OOB);
 	epollpair(true);
+	siocatmarkpair(true);
 
 	recvpair("x", 1, 1, 0);
 	epollpair(false);
+	siocatmarkpair(false);
 }
 
 TEST_F(msg_oob, inline_oob_break)
@@ -589,6 +636,27 @@ TEST_F(msg_oob, inline_ex_oob_drop)
 		recvpair("y", 1, 1, 0);		/* TCP returns -EAGAIN. */
 		epollpair(false);
 	}
+}
+
+TEST_F(msg_oob, inline_ex_oob_siocatmark)
+{
+	sendpair("hello", 5, MSG_OOB);
+	epollpair(true);
+	siocatmarkpair(false);
+
+	recvpair("o", 1, 1, MSG_OOB);
+	epollpair(false);
+	siocatmarkpair(false);
+
+	setinlinepair();
+
+	sendpair("world", 5, MSG_OOB);
+	epollpair(true);
+	siocatmarkpair(false);
+
+	recvpair("hell", 4, 4, 0);		/* Intentionally stop at ex-OOB. */
+	epollpair(true);
+	siocatmarkpair(false);
 }
 
 TEST_HARNESS_MAIN

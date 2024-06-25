@@ -3107,12 +3107,23 @@ static int unix_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 #if IS_ENABLED(CONFIG_AF_UNIX_OOB)
 	case SIOCATMARK:
 		{
+			struct unix_sock *u = unix_sk(sk);
 			struct sk_buff *skb;
 			int answ = 0;
 
+			mutex_lock(&u->iolock);
+
 			skb = skb_peek(&sk->sk_receive_queue);
-			if (skb && skb == READ_ONCE(unix_sk(sk)->oob_skb))
-				answ = 1;
+			if (skb) {
+				struct sk_buff *oob_skb = READ_ONCE(u->oob_skb);
+
+				if (skb == oob_skb ||
+				    (!oob_skb && !unix_skb_len(skb)))
+					answ = 1;
+			}
+
+			mutex_unlock(&u->iolock);
+
 			err = put_user(answ, (int __user *)arg);
 		}
 		break;
