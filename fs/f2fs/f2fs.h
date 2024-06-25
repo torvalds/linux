@@ -4403,22 +4403,18 @@ static inline int set_compress_context(struct inode *inode)
 {
 #ifdef CONFIG_F2FS_FS_COMPRESSION
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+	struct f2fs_inode_info *fi = F2FS_I(inode);
 
-	F2FS_I(inode)->i_compress_algorithm =
-			F2FS_OPTION(sbi).compress_algorithm;
-	F2FS_I(inode)->i_log_cluster_size =
-			F2FS_OPTION(sbi).compress_log_size;
-	F2FS_I(inode)->i_compress_flag =
-			F2FS_OPTION(sbi).compress_chksum ?
-				BIT(COMPRESS_CHKSUM) : 0;
-	F2FS_I(inode)->i_cluster_size =
-			BIT(F2FS_I(inode)->i_log_cluster_size);
-	if ((F2FS_I(inode)->i_compress_algorithm == COMPRESS_LZ4 ||
-		F2FS_I(inode)->i_compress_algorithm == COMPRESS_ZSTD) &&
+	fi->i_compress_algorithm = F2FS_OPTION(sbi).compress_algorithm;
+	fi->i_log_cluster_size = F2FS_OPTION(sbi).compress_log_size;
+	fi->i_compress_flag = F2FS_OPTION(sbi).compress_chksum ?
+					BIT(COMPRESS_CHKSUM) : 0;
+	fi->i_cluster_size = BIT(fi->i_log_cluster_size);
+	if ((fi->i_compress_algorithm == COMPRESS_LZ4 ||
+		fi->i_compress_algorithm == COMPRESS_ZSTD) &&
 			F2FS_OPTION(sbi).compress_level)
-		F2FS_I(inode)->i_compress_level =
-				F2FS_OPTION(sbi).compress_level;
-	F2FS_I(inode)->i_flags |= F2FS_COMPR_FL;
+		fi->i_compress_level = F2FS_OPTION(sbi).compress_level;
+	fi->i_flags |= F2FS_COMPR_FL;
 	set_inode_flag(inode, FI_COMPRESSED_FILE);
 	stat_inc_compr_inode(inode);
 	inc_compr_inode_stat(inode);
@@ -4433,15 +4429,15 @@ static inline bool f2fs_disable_compressed_file(struct inode *inode)
 {
 	struct f2fs_inode_info *fi = F2FS_I(inode);
 
-	f2fs_down_write(&F2FS_I(inode)->i_sem);
+	f2fs_down_write(&fi->i_sem);
 
 	if (!f2fs_compressed_file(inode)) {
-		f2fs_up_write(&F2FS_I(inode)->i_sem);
+		f2fs_up_write(&fi->i_sem);
 		return true;
 	}
 	if (f2fs_is_mmap_file(inode) ||
 		(S_ISREG(inode->i_mode) && F2FS_HAS_BLOCKS(inode))) {
-		f2fs_up_write(&F2FS_I(inode)->i_sem);
+		f2fs_up_write(&fi->i_sem);
 		return false;
 	}
 
@@ -4450,7 +4446,7 @@ static inline bool f2fs_disable_compressed_file(struct inode *inode)
 	clear_inode_flag(inode, FI_COMPRESSED_FILE);
 	f2fs_mark_inode_dirty_sync(inode, true);
 
-	f2fs_up_write(&F2FS_I(inode)->i_sem);
+	f2fs_up_write(&fi->i_sem);
 	return true;
 }
 
