@@ -78,6 +78,11 @@
 	cpu-supply = <&buck2>;
 };
 
+&audio_blk_ctrl {
+	assigned-clocks = <&clk IMX8MP_AUDIO_PLL1>;
+	assigned-clock-rates = <393216000>;
+};
+
 &ecspi1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi1>;
