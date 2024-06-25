@@ -1624,6 +1624,18 @@ static int tc_dpi_atomic_check(struct drm_bridge *bridge,
 			       struct drm_crtc_state *crtc_state,
 			       struct drm_connector_state *conn_state)
 {
+	struct tc_data *tc = bridge_to_tc(bridge);
+	int adjusted_clock = 0;
+	int ret;
+
+	ret = tc_pxl_pll_calc(tc, clk_get_rate(tc->refclk),
+			      crtc_state->mode.clock * 1000,
+			      &adjusted_clock, NULL);
+	if (ret)
+		return ret;
+
+	crtc_state->adjusted_mode.clock = adjusted_clock / 1000;
+
 	/* DSI->DPI interface clock limitation: upto 100 MHz */
 	if (crtc_state->adjusted_mode.clock > 100000)
 		return -EINVAL;
@@ -1636,6 +1648,18 @@ static int tc_edp_atomic_check(struct drm_bridge *bridge,
 			       struct drm_crtc_state *crtc_state,
 			       struct drm_connector_state *conn_state)
 {
+	struct tc_data *tc = bridge_to_tc(bridge);
+	int adjusted_clock = 0;
+	int ret;
+
+	ret = tc_pxl_pll_calc(tc, clk_get_rate(tc->refclk),
+			      crtc_state->mode.clock * 1000,
+			      &adjusted_clock, NULL);
+	if (ret)
+		return ret;
+
+	crtc_state->adjusted_mode.clock = adjusted_clock / 1000;
+
 	/* DPI->(e)DP interface clock limitation: upto 154 MHz */
 	if (crtc_state->adjusted_mode.clock > 154000)
 		return -EINVAL;
