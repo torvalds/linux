@@ -369,7 +369,7 @@ bl_open_path(struct pnfs_block_volume *v, const char *prefix)
 	bdev_file = bdev_file_open_by_path(devname, BLK_OPEN_READ | BLK_OPEN_WRITE,
 					NULL, NULL);
 	if (IS_ERR(bdev_file)) {
-		pr_warn("pNFS: failed to open device %s (%ld)\n",
+		dprintk("failed to open device %s (%ld)\n",
 			devname, PTR_ERR(bdev_file));
 	}
 
@@ -398,8 +398,11 @@ bl_parse_scsi(struct nfs_server *server, struct pnfs_block_dev *d,
 	bdev_file = bl_open_path(v, "dm-uuid-mpath-0x");
 	if (IS_ERR(bdev_file))
 		bdev_file = bl_open_path(v, "wwn-0x");
-	if (IS_ERR(bdev_file))
+	if (IS_ERR(bdev_file)) {
+		pr_warn("pNFS: no device found for volume %*phN\n",
+			v->scsi.designator_len, v->scsi.designator);
 		return PTR_ERR(bdev_file);
+	}
 	d->bdev_file = bdev_file;
 
 	d->len = bdev_nr_bytes(file_bdev(d->bdev_file));
