@@ -609,7 +609,15 @@ static inline void csp(unsigned int *ptr, unsigned int old, unsigned int new)
 		: "cc");
 }
 
-static inline void cspg(unsigned long *ptr, unsigned long old, unsigned long new)
+/**
+ * cspg() - Compare and Swap and Purge (CSPG)
+ * @ptr: Pointer to the value to be exchanged
+ * @old: The expected old value
+ * @new: The new value
+ *
+ * Return: True if compare and swap was successful, otherwise false.
+ */
+static inline bool cspg(unsigned long *ptr, unsigned long old, unsigned long new)
 {
 	union register_pair r1 = { .even = old, .odd = new, };
 	unsigned long address = (unsigned long)ptr | 1;
@@ -619,6 +627,7 @@ static inline void cspg(unsigned long *ptr, unsigned long old, unsigned long new
 		: [r1] "+&d" (r1.pair), "+m" (*ptr)
 		: [address] "d" (address)
 		: "cc");
+	return old == r1.even;
 }
 
 #define CRDTE_DTT_PAGE		0x00UL
@@ -627,7 +636,18 @@ static inline void cspg(unsigned long *ptr, unsigned long old, unsigned long new
 #define CRDTE_DTT_REGION2	0x18UL
 #define CRDTE_DTT_REGION1	0x1cUL
 
-static inline void crdte(unsigned long old, unsigned long new,
+/**
+ * crdte() - Compare and Replace DAT Table Entry
+ * @old:     The expected old value
+ * @new:     The new value
+ * @table:   Pointer to the value to be exchanged
+ * @dtt:     Table type of the table to be exchanged
+ * @address: The address mapped by the entry to be replaced
+ * @asce:    The ASCE of this entry
+ *
+ * Return: True if compare and replace was successful, otherwise false.
+ */
+static inline bool crdte(unsigned long old, unsigned long new,
 			 unsigned long *table, unsigned long dtt,
 			 unsigned long address, unsigned long asce)
 {
@@ -638,6 +658,7 @@ static inline void crdte(unsigned long old, unsigned long new,
 		     : [r1] "+&d" (r1.pair)
 		     : [r2] "d" (r2.pair), [asce] "a" (asce)
 		     : "memory", "cc");
+	return old == r1.even;
 }
 
 /*
