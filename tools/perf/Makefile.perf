@@ -434,6 +434,9 @@ LIBPERF_TEST := $(OUTPUT)libperf-test.a
 LIBPERF_UI_IN := $(OUTPUT)perf-ui-in.o
 LIBPERF_UI := $(OUTPUT)libperf-ui.a
 
+LIBPERF_UTIL_IN := $(OUTPUT)perf-util-in.o
+LIBPERF_UTIL := $(OUTPUT)libperf-util.a
+
 LIBPMU_EVENTS_IN := $(OUTPUT)pmu-events/pmu-events-in.o
 LIBPMU_EVENTS := $(OUTPUT)libpmu-events.a
 
@@ -441,7 +444,8 @@ PERFLIBS = $(LIBAPI) $(LIBPERF) $(LIBSUBCMD) $(LIBSYMBOL)
 ifdef LIBBPF_STATIC
   PERFLIBS += $(LIBBPF)
 endif
-PERFLIBS += $(LIBPERF_BENCH) $(LIBPERF_TEST) $(LIBPERF_UI) $(LIBPMU_EVENTS)
+PERFLIBS += $(LIBPERF_BENCH) $(LIBPERF_TEST) $(LIBPERF_UI) $(LIBPERF_UTIL)
+PERFLIBS += $(LIBPMU_EVENTS)
 
 # We choose to avoid "if .. else if .. else .. endif endif"
 # because maintaining the nesting to match is a pain.  If
@@ -759,6 +763,12 @@ $(LIBPERF_UI_IN): FORCE prepare
 	$(Q)$(MAKE) $(build)=perf-ui
 
 $(LIBPERF_UI): $(LIBPERF_UI_IN)
+	$(QUIET_AR)$(RM) $@ && $(AR) rcs $@ $<
+
+$(LIBPERF_UTIL_IN): FORCE prepare
+	$(Q)$(MAKE) $(build)=perf-util
+
+$(LIBPERF_UTIL): $(LIBPERF_UTIL_IN)
 	$(QUIET_AR)$(RM) $@ && $(AR) rcs $@ $<
 
 $(OUTPUT)perf: $(PERFLIBS) $(PERF_IN)

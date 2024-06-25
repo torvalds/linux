@@ -53,11 +53,12 @@ CFLAGS_builtin-trace.o	   += -DSTRACE_GROUPS_DIR="BUILD_STR($(STRACE_GROUPS_DIR_
 CFLAGS_builtin-report.o	   += -DTIPDIR="BUILD_STR($(tipdir_SQ))"
 CFLAGS_builtin-report.o	   += -DDOCDIR="BUILD_STR($(srcdir_SQ)/Documentation)"
 
-perf-y += util/
+perf-util-y += util/
+perf-util-y += arch/
 perf-y += arch/
 perf-test-y += arch/
 perf-ui-y += ui/
-perf-y += scripts/
+perf-util-y += scripts/
 
 gtk-y += ui/gtk/
 
