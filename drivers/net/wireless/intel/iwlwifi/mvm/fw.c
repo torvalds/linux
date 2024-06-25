@@ -457,12 +457,14 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 #endif
 
 	/*
+	 * For pre-MLD API (MLD API doesn't use the timestamps):
 	 * All the BSSes in the BSS table include the GP2 in the system
 	 * at the beacon Rx time, this is of course no longer relevant
 	 * since we are resetting the firmware.
 	 * Purge all the BSS table.
 	 */
-	cfg80211_bss_flush(mvm->hw->wiphy);
+	if (!mvm->mld_api_is_used)
+		cfg80211_bss_flush(mvm->hw->wiphy);
 
 	return 0;
 }
