@@ -2613,9 +2613,12 @@ static struct sk_buff *manage_oob(struct sk_buff *skb, struct sock *sk,
 {
 	struct unix_sock *u = unix_sk(sk);
 
-	if (!unix_skb_len(skb) && !(flags & MSG_PEEK)) {
-		skb_unlink(skb, &sk->sk_receive_queue);
-		consume_skb(skb);
+	if (!unix_skb_len(skb)) {
+		if (!(flags & MSG_PEEK)) {
+			skb_unlink(skb, &sk->sk_receive_queue);
+			consume_skb(skb);
+		}
+
 		skb = NULL;
 	} else {
 		struct sk_buff *unlinked_skb = NULL;

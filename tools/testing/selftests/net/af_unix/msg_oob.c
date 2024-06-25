@@ -21,6 +21,21 @@ FIXTURE(msg_oob)
 				 */
 };
 
+FIXTURE_VARIANT(msg_oob)
+{
+	bool peek;
+};
+
+FIXTURE_VARIANT_ADD(msg_oob, no_peek)
+{
+	.peek = false,
+};
+
+FIXTURE_VARIANT_ADD(msg_oob, peek)
+{
+	.peek = true
+};
+
 static void create_unix_socketpair(struct __test_metadata *_metadata,
 				   FIXTURE_DATA(msg_oob) *self)
 {
@@ -156,8 +171,14 @@ static void __recvpair(struct __test_metadata *_metadata,
 	__sendpair(_metadata, self, buf, len, flags)
 
 #define recvpair(expected_buf, expected_len, buf_len, flags)		\
-	__recvpair(_metadata, self,					\
-		   expected_buf, expected_len, buf_len, flags)
+	do {								\
+		if (variant->peek)					\
+			__recvpair(_metadata, self,			\
+				   expected_buf, expected_len,		\
+				   buf_len, (flags) | MSG_PEEK);	\
+		__recvpair(_metadata, self,				\
+			   expected_buf, expected_len, buf_len, flags);	\
+	} while (0)
 
 TEST_F(msg_oob, non_oob)
 {
