@@ -1449,6 +1449,10 @@
   sdio_readw
   sdio_register_driver
   sdio_release_host
+  sdio_retune_crc_disable
+  sdio_retune_crc_enable
+  sdio_retune_hold_now
+  sdio_retune_release
   sdio_set_block_size
   sdio_set_host_pm_flags
   sdio_unregister_driver
