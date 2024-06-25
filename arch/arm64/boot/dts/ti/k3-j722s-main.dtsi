@@ -163,6 +163,15 @@
 		mux-reg-masks = <0x00 0x3>, /* SERDES0 lane0 select */
 				<0x10 0x3>; /* SERDES1 lane0 select */
 	};
+
+	audio_refclk1: clock@82e4 {
+		compatible = "ti,am62-audio-refclk";
+		reg = <0x82e4 0x4>;
+		clocks = <&k3_clks 157 18>;
+		assigned-clocks = <&k3_clks 157 18>;
+		assigned-clock-parents = <&k3_clks 157 33>;
+		#clock-cells = <0>;
+	};
 };
 
 &wkup_conf {
