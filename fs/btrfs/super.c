@@ -34,6 +34,7 @@
 #include "disk-io.h"
 #include "transaction.h"
 #include "btrfs_inode.h"
+#include "direct-io.h"
 #include "props.h"
 #include "xattr.h"
 #include "bio.h"
@@ -2489,6 +2490,9 @@ static const struct init_sequence mod_init_seq[] = {
 	}, {
 		.init_func = btrfs_init_cachep,
 		.exit_func = btrfs_destroy_cachep,
+	}, {
+		.init_func = btrfs_init_dio,
+		.exit_func = btrfs_destroy_dio,
 	}, {
 		.init_func = btrfs_transaction_init,
 		.exit_func = btrfs_transaction_exit,

@@ -44,5 +44,7 @@ void btrfs_check_nocow_unlock(struct btrfs_inode *inode);
 bool btrfs_find_delalloc_in_range(struct btrfs_inode *inode, u64 start, u64 end,
 				  struct extent_state **cached_state,
 				  u64 *delalloc_start_ret, u64 *delalloc_end_ret);
+int btrfs_write_check(struct kiocb *iocb, struct iov_iter *from, size_t count);
+ssize_t btrfs_buffered_write(struct kiocb *iocb, struct iov_iter *i);
 
 #endif

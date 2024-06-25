@@ -17,8 +17,8 @@
 #include <linux/uio.h>
 #include <linux/iversion.h>
 #include <linux/fsverity.h>
-#include <linux/iomap.h>
 #include "ctree.h"
+#include "direct-io.h"
 #include "disk-io.h"
 #include "transaction.h"
 #include "btrfs_inode.h"
@@ -1140,8 +1140,7 @@ static void update_time_for_write(struct inode *inode)
 		inode_inc_iversion(inode);
 }
 
-static int btrfs_write_check(struct kiocb *iocb, struct iov_iter *from,
-			     size_t count)
+int btrfs_write_check(struct kiocb *iocb, struct iov_iter *from, size_t count)
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file_inode(file);
@@ -1187,8 +1186,7 @@ static int btrfs_write_check(struct kiocb *iocb, struct iov_iter *from,
 	return 0;
 }
 
-static noinline ssize_t btrfs_buffered_write(struct kiocb *iocb,
-					       struct iov_iter *i)
+ssize_t btrfs_buffered_write(struct kiocb *iocb, struct iov_iter *i)
 {
 	struct file *file = iocb->ki_filp;
 	loff_t pos;
@@ -1449,194 +1447,6 @@ again:
 out:
 	btrfs_inode_unlock(BTRFS_I(inode), ilock_flags);
 	return num_written ? num_written : ret;
-}
-
-static ssize_t check_direct_IO(struct btrfs_fs_info *fs_info,
-			       const struct iov_iter *iter, loff_t offset)
-{
-	const u32 blocksize_mask = fs_info->sectorsize - 1;
-
-	if (offset & blocksize_mask)
-		return -EINVAL;
-
-	if (iov_iter_alignment(iter) & blocksize_mask)
-		return -EINVAL;
-
-	return 0;
-}
-
-static ssize_t btrfs_direct_write(struct kiocb *iocb, struct iov_iter *from)
-{
-	struct file *file = iocb->ki_filp;
-	struct inode *inode = file_inode(file);
-	struct btrfs_fs_info *fs_info = inode_to_fs_info(inode);
-	loff_t pos;
-	ssize_t written = 0;
-	ssize_t written_buffered;
-	size_t prev_left = 0;
-	loff_t endbyte;
-	ssize_t ret;
-	unsigned int ilock_flags = 0;
-	struct iomap_dio *dio;
-
-	if (iocb->ki_flags & IOCB_NOWAIT)
-		ilock_flags |= BTRFS_ILOCK_TRY;
-
-	/*
-	 * If the write DIO is within EOF, use a shared lock and also only if
-	 * security bits will likely not be dropped by file_remove_privs() called
-	 * from btrfs_write_check(). Either will need to be rechecked after the
-	 * lock was acquired.
-	 */
-	if (iocb->ki_pos + iov_iter_count(from) <= i_size_read(inode) && IS_NOSEC(inode))
-		ilock_flags |= BTRFS_ILOCK_SHARED;
-
-relock:
-	ret = btrfs_inode_lock(BTRFS_I(inode), ilock_flags);
-	if (ret < 0)
-		return ret;
-
-	/* Shared lock cannot be used with security bits set. */
-	if ((ilock_flags & BTRFS_ILOCK_SHARED) && !IS_NOSEC(inode)) {
-		btrfs_inode_unlock(BTRFS_I(inode), ilock_flags);
-		ilock_flags &= ~BTRFS_ILOCK_SHARED;
-		goto relock;
-	}
-
-	ret = generic_write_checks(iocb, from);
-	if (ret <= 0) {
-		btrfs_inode_unlock(BTRFS_I(inode), ilock_flags);
-		return ret;
-	}
-
-	ret = btrfs_write_check(iocb, from, ret);
-	if (ret < 0) {
-		btrfs_inode_unlock(BTRFS_I(inode), ilock_flags);
-		goto out;
-	}
-
-	pos = iocb->ki_pos;
-	/*
-	 * Re-check since file size may have changed just before taking the
-	 * lock or pos may have changed because of O_APPEND in generic_write_check()
-	 */
-	if ((ilock_flags & BTRFS_ILOCK_SHARED) &&
-	    pos + iov_iter_count(from) > i_size_read(inode)) {
-		btrfs_inode_unlock(BTRFS_I(inode), ilock_flags);
-		ilock_flags &= ~BTRFS_ILOCK_SHARED;
-		goto relock;
-	}
-
-	if (check_direct_IO(fs_info, from, pos)) {
-		btrfs_inode_unlock(BTRFS_I(inode), ilock_flags);
-		goto buffered;
-	}
-
-	/*
-	 * The iov_iter can be mapped to the same file range we are writing to.
-	 * If that's the case, then we will deadlock in the iomap code, because
-	 * it first calls our callback btrfs_dio_iomap_begin(), which will create
-	 * an ordered extent, and after that it will fault in the pages that the
-	 * iov_iter refers to. During the fault in we end up in the readahead
-	 * pages code (starting at btrfs_readahead()), which will lock the range,
-	 * find that ordered extent and then wait for it to complete (at
-	 * btrfs_lock_and_flush_ordered_range()), resulting in a deadlock since
-	 * obviously the ordered extent can never complete as we didn't submit
-	 * yet the respective bio(s). This always happens when the buffer is
-	 * memory mapped to the same file range, since the iomap DIO code always
-	 * invalidates pages in the target file range (after starting and waiting
-	 * for any writeback).
-	 *
-	 * So here we disable page faults in the iov_iter and then retry if we
-	 * got -EFAULT, faulting in the pages before the retry.
-	 */
-	from->nofault = true;
-	dio = btrfs_dio_write(iocb, from, written);
-	from->nofault = false;
-
-	/*
-	 * iomap_dio_complete() will call btrfs_sync_file() if we have a dsync
-	 * iocb, and that needs to lock the inode. So unlock it before calling
-	 * iomap_dio_complete() to avoid a deadlock.
-	 */
-	btrfs_inode_unlock(BTRFS_I(inode), ilock_flags);
-
-	if (IS_ERR_OR_NULL(dio))
-		ret = PTR_ERR_OR_ZERO(dio);
-	else
-		ret = iomap_dio_complete(dio);
-
-	/* No increment (+=) because iomap returns a cumulative value. */
-	if (ret > 0)
-		written = ret;
-
-	if (iov_iter_count(from) > 0 && (ret == -EFAULT || ret > 0)) {
-		const size_t left = iov_iter_count(from);
-		/*
-		 * We have more data left to write. Try to fault in as many as
-		 * possible of the remainder pages and retry. We do this without
-		 * releasing and locking again the inode, to prevent races with
-		 * truncate.
-		 *
-		 * Also, in case the iov refers to pages in the file range of the
-		 * file we want to write to (due to a mmap), we could enter an
-		 * infinite loop if we retry after faulting the pages in, since
-		 * iomap will invalidate any pages in the range early on, before
-		 * it tries to fault in the pages of the iov. So we keep track of
-		 * how much was left of iov in the previous EFAULT and fallback
-		 * to buffered IO in case we haven't made any progress.
-		 */
-		if (left == prev_left) {
-			ret = -ENOTBLK;
-		} else {
-			fault_in_iov_iter_readable(from, left);
-			prev_left = left;
-			goto relock;
-		}
-	}
-
-	/*
-	 * If 'ret' is -ENOTBLK or we have not written all data, then it means
-	 * we must fallback to buffered IO.
-	 */
-	if ((ret < 0 && ret != -ENOTBLK) || !iov_iter_count(from))
-		goto out;
-
-buffered:
-	/*
-	 * If we are in a NOWAIT context, then return -EAGAIN to signal the caller
-	 * it must retry the operation in a context where blocking is acceptable,
-	 * because even if we end up not blocking during the buffered IO attempt
-	 * below, we will block when flushing and waiting for the IO.
-	 */
-	if (iocb->ki_flags & IOCB_NOWAIT) {
-		ret = -EAGAIN;
-		goto out;
-	}
-
-	pos = iocb->ki_pos;
-	written_buffered = btrfs_buffered_write(iocb, from);
-	if (written_buffered < 0) {
-		ret = written_buffered;
-		goto out;
-	}
-	/*
-	 * Ensure all data is persisted. We want the next direct IO read to be
-	 * able to read what was just written.
-	 */
-	endbyte = pos + written_buffered - 1;
-	ret = btrfs_fdatawrite_range(BTRFS_I(inode), pos, endbyte);
-	if (ret)
-		goto out;
-	ret = filemap_fdatawait_range(inode->i_mapping, pos, endbyte);
-	if (ret)
-		goto out;
-	written += written_buffered;
-	iocb->ki_pos = pos + written_buffered;
-	invalidate_mapping_pages(file->f_mapping, pos >> PAGE_SHIFT,
-				 endbyte >> PAGE_SHIFT);
-out:
-	return ret < 0 ? ret : written;
 }
 
 static ssize_t btrfs_encoded_write(struct kiocb *iocb, struct iov_iter *from,
@@ -3912,97 +3722,6 @@ static int btrfs_file_open(struct inode *inode, struct file *filp)
 	if (ret)
 		return ret;
 	return generic_file_open(inode, filp);
-}
-
-static int check_direct_read(struct btrfs_fs_info *fs_info,
-			     const struct iov_iter *iter, loff_t offset)
-{
-	int ret;
-	int i, seg;
-
-	ret = check_direct_IO(fs_info, iter, offset);
-	if (ret < 0)
-		return ret;
-
-	if (!iter_is_iovec(iter))
-		return 0;
-
-	for (seg = 0; seg < iter->nr_segs; seg++) {
-		for (i = seg + 1; i < iter->nr_segs; i++) {
-			const struct iovec *iov1 = iter_iov(iter) + seg;
-			const struct iovec *iov2 = iter_iov(iter) + i;
-
-			if (iov1->iov_base == iov2->iov_base)
-				return -EINVAL;
-		}
-	}
-	return 0;
-}
-
-static ssize_t btrfs_direct_read(struct kiocb *iocb, struct iov_iter *to)
-{
-	struct inode *inode = file_inode(iocb->ki_filp);
-	size_t prev_left = 0;
-	ssize_t read = 0;
-	ssize_t ret;
-
-	if (fsverity_active(inode))
-		return 0;
-
-	if (check_direct_read(inode_to_fs_info(inode), to, iocb->ki_pos))
-		return 0;
-
-	btrfs_inode_lock(BTRFS_I(inode), BTRFS_ILOCK_SHARED);
-again:
-	/*
-	 * This is similar to what we do for direct IO writes, see the comment
-	 * at btrfs_direct_write(), but we also disable page faults in addition
-	 * to disabling them only at the iov_iter level. This is because when
-	 * reading from a hole or prealloc extent, iomap calls iov_iter_zero(),
-	 * which can still trigger page fault ins despite having set ->nofault
-	 * to true of our 'to' iov_iter.
-	 *
-	 * The difference to direct IO writes is that we deadlock when trying
-	 * to lock the extent range in the inode's tree during he page reads
-	 * triggered by the fault in (while for writes it is due to waiting for
-	 * our own ordered extent). This is because for direct IO reads,
-	 * btrfs_dio_iomap_begin() returns with the extent range locked, which
-	 * is only unlocked in the endio callback (end_bio_extent_readpage()).
-	 */
-	pagefault_disable();
-	to->nofault = true;
-	ret = btrfs_dio_read(iocb, to, read);
-	to->nofault = false;
-	pagefault_enable();
-
-	/* No increment (+=) because iomap returns a cumulative value. */
-	if (ret > 0)
-		read = ret;
-
-	if (iov_iter_count(to) > 0 && (ret == -EFAULT || ret > 0)) {
-		const size_t left = iov_iter_count(to);
-
-		if (left == prev_left) {
-			/*
-			 * We didn't make any progress since the last attempt,
-			 * fallback to a buffered read for the remainder of the
-			 * range. This is just to avoid any possibility of looping
-			 * for too long.
-			 */
-			ret = read;
-		} else {
-			/*
-			 * We made some progress since the last retry or this is
-			 * the first time we are retrying. Fault in as many pages
-			 * as possible and retry.
-			 */
-			fault_in_iov_iter_writeable(to, left);
-			prev_left = left;
-			goto again;
-		}
-	}
-	btrfs_inode_unlock(BTRFS_I(inode), BTRFS_ILOCK_SHARED);
-	return ret < 0 ? ret : read;
 }
 
 static ssize_t btrfs_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
