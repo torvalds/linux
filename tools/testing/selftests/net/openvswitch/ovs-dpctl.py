@@ -34,7 +34,7 @@ try:
 
 except ModuleNotFoundError:
     print("Need to install the python pyroute2 package >= 0.6.")
-    sys.exit(0)
+    sys.exit(1)
 
 
 OVS_DATAPATH_FAMILY = "ovs_datapath"
