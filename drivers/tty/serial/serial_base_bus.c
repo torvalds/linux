@@ -219,58 +219,9 @@ static int serial_base_add_one_prefcon(const char *match, const char *dev_name,
 	return ret;
 }
 
-#ifdef __sparc__
-
-/* Handle Sparc ttya and ttyb options as done in console_setup() */
-static int serial_base_add_sparc_console(const char *dev_name, int idx)
-{
-	const char *name;
-
-	switch (idx) {
-	case 0:
-		name = "ttya";
-		break;
-	case 1:
-		name = "ttyb";
-		break;
-	default:
-		return 0;
-	}
-
-	return serial_base_add_one_prefcon(name, dev_name, idx);
-}
-
-#else
-
-static inline int serial_base_add_sparc_console(const char *dev_name, int idx)
-{
-	return 0;
-}
-
-#endif
-
 static int serial_base_add_prefcon(const char *name, int idx)
 {
 	const char *char_match __free(kfree) = NULL;
-	const char *nmbr_match __free(kfree) = NULL;
-	int ret;
-
-	/* Handle ttyS specific options */
-	if (strstarts(name, "ttyS")) {
-		/* No name, just a number */
-		nmbr_match = kasprintf(GFP_KERNEL, "%i", idx);
-		if (!nmbr_match)
-			return -ENODEV;
-
-		ret = serial_base_add_one_prefcon(nmbr_match, name, idx);
-		if (ret)
-			return ret;
-
-		/* Sparc ttya and ttyb */
-		ret = serial_base_add_sparc_console(name, idx);
-		if (ret)
-			return ret;
-	}
 
 	/* Handle the traditional character device name style console=ttyS0 */
 	char_match = kasprintf(GFP_KERNEL, "%s%i", name, idx);
