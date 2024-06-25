@@ -423,7 +423,7 @@ struct iwl_lmac_scan_complete_notif {
 } __packed;
 
 /**
- * struct iwl_scan_offload_complete - PERIODIC_SCAN_COMPLETE_NTF_API_S_VER_2
+ * struct iwl_periodic_scan_complete - PERIODIC_SCAN_COMPLETE_NTF_API_S_VER_2
  * @last_schedule_line: last schedule line executed (fast or regular)
  * @last_schedule_iteration: last scan iteration executed before scan abort
  * @status: &enum iwl_scan_offload_complete_status
