@@ -1898,7 +1898,7 @@ static void spi_imx_remove(struct platform_device *pdev)
 	spi_imx_sdma_exit(spi_imx);
 }
 
-static int __maybe_unused spi_imx_runtime_resume(struct device *dev)
+static int spi_imx_runtime_resume(struct device *dev)
 {
 	struct spi_controller *controller = dev_get_drvdata(dev);
 	struct spi_imx_data *spi_imx;
@@ -1919,7 +1919,7 @@ static int __maybe_unused spi_imx_runtime_resume(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused spi_imx_runtime_suspend(struct device *dev)
+static int spi_imx_runtime_suspend(struct device *dev)
 {
 	struct spi_controller *controller = dev_get_drvdata(dev);
 	struct spi_imx_data *spi_imx;
@@ -1932,22 +1932,21 @@ static int __maybe_unused spi_imx_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused spi_imx_suspend(struct device *dev)
+static int spi_imx_suspend(struct device *dev)
 {
 	pinctrl_pm_select_sleep_state(dev);
 	return 0;
 }
 
-static int __maybe_unused spi_imx_resume(struct device *dev)
+static int spi_imx_resume(struct device *dev)
 {
 	pinctrl_pm_select_default_state(dev);
 	return 0;
 }
 
 static const struct dev_pm_ops imx_spi_pm = {
-	SET_RUNTIME_PM_OPS(spi_imx_runtime_suspend,
-				spi_imx_runtime_resume, NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(spi_imx_suspend, spi_imx_resume)
+	RUNTIME_PM_OPS(spi_imx_runtime_suspend,	spi_imx_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(spi_imx_suspend, spi_imx_resume)
 };
 
 static struct platform_driver spi_imx_driver = {
