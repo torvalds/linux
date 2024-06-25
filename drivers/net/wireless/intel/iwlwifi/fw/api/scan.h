@@ -443,10 +443,10 @@ struct iwl_periodic_scan_complete {
 /* UMAC Scan API */
 
 /* The maximum of either of these cannot exceed 8, because we use an
- * 8-bit mask (see IWL_MVM_SCAN_MASK in mvm.h).
+ * 8-bit mask (see enum iwl_scan_status).
  */
-#define IWL_MVM_MAX_UMAC_SCANS 4
-#define IWL_MVM_MAX_LMAC_SCANS 1
+#define IWL_MAX_UMAC_SCANS 4
+#define IWL_MAX_LMAC_SCANS 1
 
 enum scan_config_flags {
 	SCAN_CONFIG_FLAG_ACTIVATE			= BIT(0),

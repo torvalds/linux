@@ -591,13 +591,13 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	hw->wiphy->max_scan_ssids = PROBE_OPTION_MAX;
 
 	BUILD_BUG_ON(IWL_MVM_SCAN_STOPPING_MASK & IWL_MVM_SCAN_MASK);
-	BUILD_BUG_ON(IWL_MVM_MAX_UMAC_SCANS > HWEIGHT32(IWL_MVM_SCAN_MASK) ||
-		     IWL_MVM_MAX_LMAC_SCANS > HWEIGHT32(IWL_MVM_SCAN_MASK));
+	BUILD_BUG_ON(IWL_MAX_UMAC_SCANS > HWEIGHT32(IWL_MVM_SCAN_MASK) ||
+		     IWL_MAX_LMAC_SCANS > HWEIGHT32(IWL_MVM_SCAN_MASK));
 
 	if (fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_UMAC_SCAN))
-		mvm->max_scans = IWL_MVM_MAX_UMAC_SCANS;
+		mvm->max_scans = IWL_MAX_UMAC_SCANS;
 	else
-		mvm->max_scans = IWL_MVM_MAX_LMAC_SCANS;
+		mvm->max_scans = IWL_MAX_LMAC_SCANS;
 
 	if (mvm->nvm_data->bands[NL80211_BAND_2GHZ].n_channels)
 		hw->wiphy->bands[NL80211_BAND_2GHZ] =
