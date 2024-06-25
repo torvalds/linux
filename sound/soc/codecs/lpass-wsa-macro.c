@@ -216,6 +216,47 @@
 #define CDC_WSA_SOFTCLIP1_CRC			(0x0640)
 #define CDC_WSA_SOFTCLIP1_SOFTCLIP_CTRL		(0x0644)
 
+/* LPASS codec version >=2.5 register offsets */
+#define CDC_WSA_TOP_FS_UNGATE			(0x00AC)
+#define CDC_WSA_TOP_GRP_SEL			(0x00B0)
+#define CDC_WSA_TOP_FS_UNGATE2			(0x00DC)
+#define CDC_2_5_WSA_COMPANDER0_CTL8		(0x05A0)
+#define CDC_2_5_WSA_COMPANDER0_CTL9		(0x05A4)
+#define CDC_2_5_WSA_COMPANDER0_CTL10		(0x05A8)
+#define CDC_2_5_WSA_COMPANDER0_CTL11		(0x05AC)
+#define CDC_2_5_WSA_COMPANDER0_CTL12		(0x05B0)
+#define CDC_2_5_WSA_COMPANDER0_CTL13		(0x05B4)
+#define CDC_2_5_WSA_COMPANDER0_CTL14		(0x05B8)
+#define CDC_2_5_WSA_COMPANDER0_CTL15		(0x05BC)
+#define CDC_2_5_WSA_COMPANDER0_CTL16		(0x05C0)
+#define CDC_2_5_WSA_COMPANDER0_CTL17		(0x05C4)
+#define CDC_2_5_WSA_COMPANDER0_CTL18		(0x05C8)
+#define CDC_2_5_WSA_COMPANDER0_CTL19		(0x05CC)
+#define CDC_2_5_WSA_COMPANDER1_CTL0		(0x05E0)
+#define CDC_2_5_WSA_COMPANDER1_CTL1		(0x05E4)
+#define CDC_2_5_WSA_COMPANDER1_CTL2		(0x05E8)
+#define CDC_2_5_WSA_COMPANDER1_CTL3		(0x05EC)
+#define CDC_2_5_WSA_COMPANDER1_CTL4		(0x05F0)
+#define CDC_2_5_WSA_COMPANDER1_CTL5		(0x05F4)
+#define CDC_2_5_WSA_COMPANDER1_CTL6		(0x05F8)
+#define CDC_2_5_WSA_COMPANDER1_CTL7		(0x05FC)
+#define CDC_2_5_WSA_COMPANDER1_CTL8		(0x0600)
+#define CDC_2_5_WSA_COMPANDER1_CTL9		(0x0604)
+#define CDC_2_5_WSA_COMPANDER1_CTL10		(0x0608)
+#define CDC_2_5_WSA_COMPANDER1_CTL11		(0x060C)
+#define CDC_2_5_WSA_COMPANDER1_CTL12		(0x0610)
+#define CDC_2_5_WSA_COMPANDER1_CTL13		(0x0614)
+#define CDC_2_5_WSA_COMPANDER1_CTL14		(0x0618)
+#define CDC_2_5_WSA_COMPANDER1_CTL15		(0x061C)
+#define CDC_2_5_WSA_COMPANDER1_CTL16		(0x0620)
+#define CDC_2_5_WSA_COMPANDER1_CTL17		(0x0624)
+#define CDC_2_5_WSA_COMPANDER1_CTL18		(0x0628)
+#define CDC_2_5_WSA_COMPANDER1_CTL19		(0x062C)
+#define CDC_2_5_WSA_SOFTCLIP0_CRC		(0x0640)
+#define CDC_2_5_WSA_SOFTCLIP0_SOFTCLIP_CTRL	(0x0644)
+#define CDC_2_5_WSA_SOFTCLIP1_CRC		(0x0660)
+#define CDC_2_5_WSA_SOFTCLIP1_SOFTCLIP_CTRL	(0x0664)
+
 #define WSA_MACRO_RX_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000 |\
 			SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_48000 |\
 			SNDRV_PCM_RATE_96000 | SNDRV_PCM_RATE_192000)
@@ -387,14 +428,32 @@ static const struct wsa_reg_layout wsa_codec_v2_1 = {
 	.softclip1_reg_offset			= 0x40,
 };
 
+static const struct wsa_reg_layout wsa_codec_v2_5 = {
+	.rx_intx_1_mix_inp0_sel_mask		= GENMASK(3, 0),
+	.rx_intx_1_mix_inp1_sel_mask		= GENMASK(7, 4),
+	.rx_intx_1_mix_inp2_sel_mask		= GENMASK(7, 4),
+	.rx_intx_2_sel_mask			= GENMASK(3, 0),
+	.compander1_reg_offset			= 0x60,
+	.softclip0_reg_base			= 0x640,
+	.softclip1_reg_offset			= 0x20,
+};
+
 static const DECLARE_TLV_DB_SCALE(digital_gain, -8400, 100, -8400);
 
 static const char *const rx_text_v2_1[] = {
 	"ZERO", "RX0", "RX1", "RX_MIX0", "RX_MIX1", "DEC0", "DEC1"
 };
 
+static const char *const rx_text_v2_5[] = {
+	"ZERO", "RX0", "RX1", "RX_MIX0", "RX_MIX1", "RX4", "RX5", "RX6", "RX7", "RX8", "DEC0", "DEC1"
+};
+
 static const char *const rx_mix_text_v2_1[] = {
 	"ZERO", "RX0", "RX1", "RX_MIX0", "RX_MIX1"
+};
+
+static const char *const rx_mix_text_v2_5[] = {
+	"ZERO", "RX0", "RX1", "RX_MIX0", "RX_MIX1", "RX4", "RX5", "RX6", "RX7", "RX8"
 };
 
 static const char *const rx_mix_ec_text[] = {
@@ -434,6 +493,22 @@ static const struct soc_enum rx0_mix_chain_enum_v2_1 =
 	SOC_ENUM_SINGLE(CDC_WSA_RX_INP_MUX_RX_INT0_CFG1,
 		0, 5, rx_mix_text_v2_1);
 
+static const struct soc_enum rx0_prim_inp0_chain_enum_v2_5 =
+	SOC_ENUM_SINGLE(CDC_WSA_RX_INP_MUX_RX_INT0_CFG0,
+		0, 12, rx_text_v2_5);
+
+static const struct soc_enum rx0_prim_inp1_chain_enum_v2_5 =
+	SOC_ENUM_SINGLE(CDC_WSA_RX_INP_MUX_RX_INT0_CFG0,
+		4, 12, rx_text_v2_5);
+
+static const struct soc_enum rx0_prim_inp2_chain_enum_v2_5 =
+	SOC_ENUM_SINGLE(CDC_WSA_RX_INP_MUX_RX_INT0_CFG1,
+		4, 12, rx_text_v2_5);
+
+static const struct soc_enum rx0_mix_chain_enum_v2_5 =
+	SOC_ENUM_SINGLE(CDC_WSA_RX_INP_MUX_RX_INT0_CFG1,
+		0, 10, rx_mix_text_v2_5);
+
 static const struct soc_enum rx0_sidetone_mix_enum =
 	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, 2, rx_sidetone_mix_text);
 
@@ -448,6 +523,18 @@ static const struct snd_kcontrol_new rx0_prim_inp2_mux_v2_1 =
 
 static const struct snd_kcontrol_new rx0_mix_mux_v2_1 =
 	SOC_DAPM_ENUM("WSA_RX0 MIX Mux", rx0_mix_chain_enum_v2_1);
+
+static const struct snd_kcontrol_new rx0_prim_inp0_mux_v2_5 =
+	SOC_DAPM_ENUM("WSA_RX0 INP0 Mux", rx0_prim_inp0_chain_enum_v2_5);
+
+static const struct snd_kcontrol_new rx0_prim_inp1_mux_v2_5 =
+	SOC_DAPM_ENUM("WSA_RX0 INP1 Mux", rx0_prim_inp1_chain_enum_v2_5);
+
+static const struct snd_kcontrol_new rx0_prim_inp2_mux_v2_5 =
+	SOC_DAPM_ENUM("WSA_RX0 INP2 Mux", rx0_prim_inp2_chain_enum_v2_5);
+
+static const struct snd_kcontrol_new rx0_mix_mux_v2_5 =
+	SOC_DAPM_ENUM("WSA_RX0 MIX Mux", rx0_mix_chain_enum_v2_5);
 
 static const struct snd_kcontrol_new rx0_sidetone_mix_mux =
 	SOC_DAPM_ENUM("WSA_RX0 SIDETONE MIX Mux", rx0_sidetone_mix_enum);
@@ -469,6 +556,22 @@ static const struct soc_enum rx1_mix_chain_enum_v2_1 =
 	SOC_ENUM_SINGLE(CDC_WSA_RX_INP_MUX_RX_INT1_CFG1,
 		0, 5, rx_mix_text_v2_1);
 
+static const struct soc_enum rx1_prim_inp0_chain_enum_v2_5 =
+	SOC_ENUM_SINGLE(CDC_WSA_RX_INP_MUX_RX_INT1_CFG0,
+		0, 12, rx_text_v2_5);
+
+static const struct soc_enum rx1_prim_inp1_chain_enum_v2_5 =
+	SOC_ENUM_SINGLE(CDC_WSA_RX_INP_MUX_RX_INT1_CFG0,
+		4, 12, rx_text_v2_5);
+
+static const struct soc_enum rx1_prim_inp2_chain_enum_v2_5 =
+	SOC_ENUM_SINGLE(CDC_WSA_RX_INP_MUX_RX_INT1_CFG1,
+		4, 12, rx_text_v2_5);
+
+static const struct soc_enum rx1_mix_chain_enum_v2_5 =
+	SOC_ENUM_SINGLE(CDC_WSA_RX_INP_MUX_RX_INT1_CFG1,
+		0, 10, rx_mix_text_v2_5);
+
 static const struct snd_kcontrol_new rx1_prim_inp0_mux_v2_1 =
 	SOC_DAPM_ENUM("WSA_RX1 INP0 Mux", rx1_prim_inp0_chain_enum_v2_1);
 
@@ -480,6 +583,18 @@ static const struct snd_kcontrol_new rx1_prim_inp2_mux_v2_1 =
 
 static const struct snd_kcontrol_new rx1_mix_mux_v2_1 =
 	SOC_DAPM_ENUM("WSA_RX1 MIX Mux", rx1_mix_chain_enum_v2_1);
+
+static const struct snd_kcontrol_new rx1_prim_inp0_mux_v2_5 =
+	SOC_DAPM_ENUM("WSA_RX1 INP0 Mux", rx1_prim_inp0_chain_enum_v2_5);
+
+static const struct snd_kcontrol_new rx1_prim_inp1_mux_v2_5 =
+	SOC_DAPM_ENUM("WSA_RX1 INP1 Mux", rx1_prim_inp1_chain_enum_v2_5);
+
+static const struct snd_kcontrol_new rx1_prim_inp2_mux_v2_5 =
+	SOC_DAPM_ENUM("WSA_RX1 INP2 Mux", rx1_prim_inp2_chain_enum_v2_5);
+
+static const struct snd_kcontrol_new rx1_mix_mux_v2_5 =
+	SOC_DAPM_ENUM("WSA_RX1 MIX Mux", rx1_mix_chain_enum_v2_5);
 
 static const struct soc_enum rx_mix_ec0_enum =
 	SOC_ENUM_SINGLE(CDC_WSA_RX_INP_MUX_RX_MIX_CFG0,
@@ -629,6 +744,56 @@ static const struct reg_default wsa_defaults_v2_1[] = {
 	{ CDC_WSA_SOFTCLIP1_SOFTCLIP_CTRL, 0x38},
 };
 
+static const struct reg_default wsa_defaults_v2_5[] = {
+	{ CDC_WSA_TOP_FS_UNGATE, 0xFF},
+	{ CDC_WSA_TOP_GRP_SEL, 0x08},
+	{ CDC_WSA_TOP_FS_UNGATE2, 0x1F},
+	{ CDC_WSA_TX0_SPKR_PROT_PATH_CTL, 0x04},
+	{ CDC_WSA_TX0_SPKR_PROT_PATH_CFG0, 0x02},
+	{ CDC_WSA_TX1_SPKR_PROT_PATH_CTL, 0x04},
+	{ CDC_WSA_TX1_SPKR_PROT_PATH_CFG0, 0x02},
+	{ CDC_WSA_TX2_SPKR_PROT_PATH_CTL, 0x04},
+	{ CDC_WSA_TX2_SPKR_PROT_PATH_CFG0, 0x02},
+	{ CDC_WSA_TX3_SPKR_PROT_PATH_CTL, 0x04},
+	{ CDC_WSA_TX3_SPKR_PROT_PATH_CFG0, 0x02},
+	{ CDC_2_5_WSA_COMPANDER0_CTL8, 0x00},
+	{ CDC_2_5_WSA_COMPANDER0_CTL9, 0x00},
+	{ CDC_2_5_WSA_COMPANDER0_CTL10, 0x06},
+	{ CDC_2_5_WSA_COMPANDER0_CTL11, 0x12},
+	{ CDC_2_5_WSA_COMPANDER0_CTL12, 0x1E},
+	{ CDC_2_5_WSA_COMPANDER0_CTL13, 0x24},
+	{ CDC_2_5_WSA_COMPANDER0_CTL14, 0x24},
+	{ CDC_2_5_WSA_COMPANDER0_CTL15, 0x24},
+	{ CDC_2_5_WSA_COMPANDER0_CTL16, 0x00},
+	{ CDC_2_5_WSA_COMPANDER0_CTL17, 0x24},
+	{ CDC_2_5_WSA_COMPANDER0_CTL18, 0x2A},
+	{ CDC_2_5_WSA_COMPANDER0_CTL19, 0x16},
+	{ CDC_2_5_WSA_COMPANDER1_CTL0, 0x60},
+	{ CDC_2_5_WSA_COMPANDER1_CTL1, 0xDB},
+	{ CDC_2_5_WSA_COMPANDER1_CTL2, 0xFF},
+	{ CDC_2_5_WSA_COMPANDER1_CTL3, 0x35},
+	{ CDC_2_5_WSA_COMPANDER1_CTL4, 0xFF},
+	{ CDC_2_5_WSA_COMPANDER1_CTL5, 0x00},
+	{ CDC_2_5_WSA_COMPANDER1_CTL6, 0x01},
+	{ CDC_2_5_WSA_COMPANDER1_CTL7, 0x28},
+	{ CDC_2_5_WSA_COMPANDER1_CTL8, 0x00},
+	{ CDC_2_5_WSA_COMPANDER1_CTL9, 0x00},
+	{ CDC_2_5_WSA_COMPANDER1_CTL10, 0x06},
+	{ CDC_2_5_WSA_COMPANDER1_CTL11, 0x12},
+	{ CDC_2_5_WSA_COMPANDER1_CTL12, 0x1E},
+	{ CDC_2_5_WSA_COMPANDER1_CTL13, 0x24},
+	{ CDC_2_5_WSA_COMPANDER1_CTL14, 0x24},
+	{ CDC_2_5_WSA_COMPANDER1_CTL15, 0x24},
+	{ CDC_2_5_WSA_COMPANDER1_CTL16, 0x00},
+	{ CDC_2_5_WSA_COMPANDER1_CTL17, 0x24},
+	{ CDC_2_5_WSA_COMPANDER1_CTL18, 0x2A},
+	{ CDC_2_5_WSA_COMPANDER1_CTL19, 0x16},
+	{ CDC_2_5_WSA_SOFTCLIP0_CRC, 0x00},
+	{ CDC_2_5_WSA_SOFTCLIP0_SOFTCLIP_CTRL, 0x38},
+	{ CDC_2_5_WSA_SOFTCLIP1_CRC, 0x00},
+	{ CDC_2_5_WSA_SOFTCLIP1_SOFTCLIP_CTRL, 0x38},
+};
+
 static bool wsa_is_wronly_register(struct device *dev,
 					unsigned int reg)
 {
@@ -662,8 +827,57 @@ static bool wsa_is_rw_register_v2_1(struct device *dev, unsigned int reg)
 	return false;
 }
 
+static bool wsa_is_rw_register_v2_5(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case CDC_WSA_TOP_FS_UNGATE:
+	case CDC_WSA_TOP_GRP_SEL:
+	case CDC_WSA_TOP_FS_UNGATE2:
+	case CDC_2_5_WSA_COMPANDER0_CTL8:
+	case CDC_2_5_WSA_COMPANDER0_CTL9:
+	case CDC_2_5_WSA_COMPANDER0_CTL10:
+	case CDC_2_5_WSA_COMPANDER0_CTL11:
+	case CDC_2_5_WSA_COMPANDER0_CTL12:
+	case CDC_2_5_WSA_COMPANDER0_CTL13:
+	case CDC_2_5_WSA_COMPANDER0_CTL14:
+	case CDC_2_5_WSA_COMPANDER0_CTL15:
+	case CDC_2_5_WSA_COMPANDER0_CTL16:
+	case CDC_2_5_WSA_COMPANDER0_CTL17:
+	case CDC_2_5_WSA_COMPANDER0_CTL18:
+	case CDC_2_5_WSA_COMPANDER0_CTL19:
+	case CDC_2_5_WSA_COMPANDER1_CTL0:
+	case CDC_2_5_WSA_COMPANDER1_CTL1:
+	case CDC_2_5_WSA_COMPANDER1_CTL2:
+	case CDC_2_5_WSA_COMPANDER1_CTL3:
+	case CDC_2_5_WSA_COMPANDER1_CTL4:
+	case CDC_2_5_WSA_COMPANDER1_CTL5:
+	case CDC_2_5_WSA_COMPANDER1_CTL7:
+	case CDC_2_5_WSA_COMPANDER1_CTL8:
+	case CDC_2_5_WSA_COMPANDER1_CTL9:
+	case CDC_2_5_WSA_COMPANDER1_CTL10:
+	case CDC_2_5_WSA_COMPANDER1_CTL11:
+	case CDC_2_5_WSA_COMPANDER1_CTL12:
+	case CDC_2_5_WSA_COMPANDER1_CTL13:
+	case CDC_2_5_WSA_COMPANDER1_CTL14:
+	case CDC_2_5_WSA_COMPANDER1_CTL15:
+	case CDC_2_5_WSA_COMPANDER1_CTL16:
+	case CDC_2_5_WSA_COMPANDER1_CTL17:
+	case CDC_2_5_WSA_COMPANDER1_CTL18:
+	case CDC_2_5_WSA_COMPANDER1_CTL19:
+	case CDC_2_5_WSA_SOFTCLIP0_CRC:
+	case CDC_2_5_WSA_SOFTCLIP0_SOFTCLIP_CTRL:
+	case CDC_2_5_WSA_SOFTCLIP1_CRC:
+	case CDC_2_5_WSA_SOFTCLIP1_SOFTCLIP_CTRL:
+		return true;
+	}
+
+	return false;
+}
+
 static bool wsa_is_rw_register(struct device *dev, unsigned int reg)
 {
+	struct wsa_macro *wsa = dev_get_drvdata(dev);
+
 	switch (reg) {
 	case CDC_WSA_CLK_RST_CTRL_MCLK_CONTROL:
 	case CDC_WSA_CLK_RST_CTRL_FS_CNT_CONTROL:
@@ -768,6 +982,9 @@ static bool wsa_is_rw_register(struct device *dev, unsigned int reg)
 		return true;
 	}
 
+	if (wsa->codec_version >= LPASS_CODEC_VERSION_2_5)
+		return wsa_is_rw_register_v2_5(dev, reg);
+
 	return wsa_is_rw_register_v2_1(dev, reg);
 }
 
@@ -792,8 +1009,20 @@ static bool wsa_is_readable_register_v2_1(struct device *dev, unsigned int reg)
 	return wsa_is_rw_register(dev, reg);
 }
 
+static bool wsa_is_readable_register_v2_5(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case CDC_2_5_WSA_COMPANDER1_CTL6:
+		return true;
+	}
+
+	return wsa_is_rw_register(dev, reg);
+}
+
 static bool wsa_is_readable_register(struct device *dev, unsigned int reg)
 {
+	struct wsa_macro *wsa = dev_get_drvdata(dev);
+
 	switch (reg) {
 	case CDC_WSA_INTR_CTRL_CLR_COMMIT:
 	case CDC_WSA_INTR_CTRL_PIN1_CLEAR0:
@@ -814,6 +1043,9 @@ static bool wsa_is_readable_register(struct device *dev, unsigned int reg)
 		return true;
 	}
 
+	if (wsa->codec_version >= LPASS_CODEC_VERSION_2_5)
+		return wsa_is_readable_register_v2_5(dev, reg);
+
 	return wsa_is_readable_register_v2_1(dev, reg);
 }
 
@@ -827,8 +1059,20 @@ static bool wsa_is_volatile_register_v2_1(struct device *dev, unsigned int reg)
 	return false;
 }
 
+static bool wsa_is_volatile_register_v2_5(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case CDC_2_5_WSA_COMPANDER1_CTL6:
+		return true;
+	}
+
+	return false;
+}
+
 static bool wsa_is_volatile_register(struct device *dev, unsigned int reg)
 {
+	struct wsa_macro *wsa = dev_get_drvdata(dev);
+
 	/* Update volatile list for rx/tx macros */
 	switch (reg) {
 	case CDC_WSA_INTR_CTRL_PIN1_STATUS0:
@@ -846,6 +1090,9 @@ static bool wsa_is_volatile_register(struct device *dev, unsigned int reg)
 	case CDC_WSA_SPLINE_ASRC1_STATUS_FIFO:
 		return true;
 	}
+
+	if (wsa->codec_version >= LPASS_CODEC_VERSION_2_5)
+		return wsa_is_volatile_register_v2_5(dev, reg);
 
 	return wsa_is_volatile_register_v2_1(dev, reg);
 }
@@ -2198,6 +2445,21 @@ static const struct snd_soc_dapm_widget wsa_macro_dapm_widgets_v2_1[] = {
 			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 };
 
+static const struct snd_soc_dapm_widget wsa_macro_dapm_widgets_v2_5[] = {
+	SND_SOC_DAPM_MUX("WSA_RX0 INP0", SND_SOC_NOPM, 0, 0, &rx0_prim_inp0_mux_v2_5),
+	SND_SOC_DAPM_MUX("WSA_RX0 INP1", SND_SOC_NOPM, 0, 0, &rx0_prim_inp1_mux_v2_5),
+	SND_SOC_DAPM_MUX("WSA_RX0 INP2", SND_SOC_NOPM, 0, 0, &rx0_prim_inp2_mux_v2_5),
+	SND_SOC_DAPM_MUX_E("WSA_RX0 MIX INP", SND_SOC_NOPM, WSA_MACRO_RX_MIX0,
+			   0, &rx0_mix_mux_v2_5, wsa_macro_enable_mix_path,
+			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_MUX("WSA_RX1 INP0", SND_SOC_NOPM, 0, 0, &rx1_prim_inp0_mux_v2_5),
+	SND_SOC_DAPM_MUX("WSA_RX1 INP1", SND_SOC_NOPM, 0, 0, &rx1_prim_inp1_mux_v2_5),
+	SND_SOC_DAPM_MUX("WSA_RX1 INP2", SND_SOC_NOPM, 0, 0, &rx1_prim_inp2_mux_v2_5),
+	SND_SOC_DAPM_MUX_E("WSA_RX1 MIX INP", SND_SOC_NOPM, WSA_MACRO_RX_MIX1,
+			   0, &rx1_mix_mux_v2_5, wsa_macro_enable_mix_path,
+			   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+};
+
 static const struct snd_soc_dapm_route wsa_audio_map[] = {
 	/* VI Feedback */
 	{"WSA_AIF_VI Mixer", "WSA_SPKR_VI_1", "VIINPUT_WSA"},
@@ -2363,8 +2625,25 @@ static int wsa_macro_component_probe(struct snd_soc_component *comp)
 
 	wsa_macro_set_spkr_mode(comp, WSA_MACRO_SPKR_MODE_1);
 
-	widgets = wsa_macro_dapm_widgets_v2_1;
-	num_widgets = ARRAY_SIZE(wsa_macro_dapm_widgets_v2_1);
+	switch (wsa->codec_version) {
+	case LPASS_CODEC_VERSION_1_0:
+	case LPASS_CODEC_VERSION_1_1:
+	case LPASS_CODEC_VERSION_1_2:
+	case LPASS_CODEC_VERSION_2_0:
+	case LPASS_CODEC_VERSION_2_1:
+		widgets = wsa_macro_dapm_widgets_v2_1;
+		num_widgets = ARRAY_SIZE(wsa_macro_dapm_widgets_v2_1);
+		break;
+	case LPASS_CODEC_VERSION_2_5:
+	case LPASS_CODEC_VERSION_2_6:
+	case LPASS_CODEC_VERSION_2_7:
+	case LPASS_CODEC_VERSION_2_8:
+		widgets = wsa_macro_dapm_widgets_v2_5;
+		num_widgets = ARRAY_SIZE(wsa_macro_dapm_widgets_v2_5);
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	return snd_soc_dapm_new_controls(dapm, widgets, num_widgets);
 }
@@ -2487,7 +2766,11 @@ static int wsa_macro_probe(struct platform_device *pdev)
 
 	wsa->codec_version = lpass_macro_get_codec_version();
 	switch (wsa->codec_version) {
-	default:
+	case LPASS_CODEC_VERSION_1_0:
+	case LPASS_CODEC_VERSION_1_1:
+	case LPASS_CODEC_VERSION_1_2:
+	case LPASS_CODEC_VERSION_2_0:
+	case LPASS_CODEC_VERSION_2_1:
 		wsa->reg_layout = &wsa_codec_v2_1;
 		def_count = ARRAY_SIZE(wsa_defaults) + ARRAY_SIZE(wsa_defaults_v2_1);
 		reg_defaults = devm_kmalloc_array(dev, def_count,
@@ -2499,6 +2782,26 @@ static int wsa_macro_probe(struct platform_device *pdev)
 		memcpy(&reg_defaults[ARRAY_SIZE(wsa_defaults)],
 		       wsa_defaults_v2_1, sizeof(wsa_defaults_v2_1));
 		break;
+
+	case LPASS_CODEC_VERSION_2_5:
+	case LPASS_CODEC_VERSION_2_6:
+	case LPASS_CODEC_VERSION_2_7:
+	case LPASS_CODEC_VERSION_2_8:
+		wsa->reg_layout = &wsa_codec_v2_5;
+		def_count = ARRAY_SIZE(wsa_defaults) + ARRAY_SIZE(wsa_defaults_v2_5);
+		reg_defaults = devm_kmalloc_array(dev, def_count,
+						  sizeof(*reg_defaults),
+						  GFP_KERNEL);
+		if (!reg_defaults)
+			return -ENOMEM;
+		memcpy(&reg_defaults[0], wsa_defaults, sizeof(wsa_defaults));
+		memcpy(&reg_defaults[ARRAY_SIZE(wsa_defaults)],
+		       wsa_defaults_v2_5, sizeof(wsa_defaults_v2_5));
+		break;
+
+	default:
+		dev_err(wsa->dev, "Unsupported Codec version (%d)\n", wsa->codec_version);
+		return -EINVAL;
 	}
 
 	reg_config = devm_kmemdup(dev, &wsa_regmap_config,
