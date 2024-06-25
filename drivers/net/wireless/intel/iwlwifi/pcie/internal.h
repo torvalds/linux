@@ -272,7 +272,7 @@ enum iwl_pcie_fw_reset_state {
 };
 
 /**
- * enum wl_pcie_imr_status - imr dma transfer state
+ * enum iwl_pcie_imr_status - imr dma transfer state
  * @IMR_D2S_IDLE: default value of the dma transfer
  * @IMR_D2S_REQUESTED: dma transfer requested
  * @IMR_D2S_COMPLETED: dma transfer completed
@@ -300,6 +300,10 @@ enum iwl_pcie_imr_status {
  * @bc_tbl_size: bytecount table size
  * @tso_hdr_page: page allocated (per CPU) for A-MSDU headers when doing TSO
  *	(and similar usage)
+ * @cmd: command queue data
+ * @cmd.fifo: FIFO number
+ * @cmd.q_id: queue ID
+ * @cmd.wdg_timeout: watchdog timeout
  * @tfd: TFD data
  * @tfd.max_tbs: max number of buffers per TFD
  * @tfd.size: TFD size
