@@ -38,8 +38,8 @@ struct lpass_macro {
 
 struct lpass_macro *lpass_macro_pds_init(struct device *dev);
 void lpass_macro_pds_exit(struct lpass_macro *pds);
-void lpass_macro_set_codec_version(int version);
-int lpass_macro_get_codec_version(void);
+void lpass_macro_set_codec_version(enum lpass_codec_version version);
+enum lpass_codec_version lpass_macro_get_codec_version(void);
 
 static inline const char *lpass_macro_get_codec_version_string(int version)
 {

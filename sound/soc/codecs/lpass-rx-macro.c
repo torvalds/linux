@@ -642,7 +642,7 @@ struct rx_macro {
 	int rx_mclk_users;
 	int clsh_users;
 	int rx_mclk_cnt;
-	int codec_version;
+	enum lpass_codec_version codec_version;
 	int rxn_reg_stride;
 	bool is_ear_mode_on;
 	bool hph_pwr_mode;
