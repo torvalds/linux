@@ -174,10 +174,9 @@ static int snd_p16v_pcm_open_playback_channel(struct snd_pcm_substream *substrea
 	if (err < 0)
                 return err;
 
-	runtime->sync.id32[0] = substream->pcm->card->number;
-	runtime->sync.id32[1] = 'P';
-	runtime->sync.id32[2] = 16;
-	runtime->sync.id32[3] = 'V';
+	*(__u32 *)runtime->sync = cpu_to_le32(substream->pcm->card->number);
+	memset(runtime->sync + 4, 0, sizeof(runtime->sync) - 4);
+	strncpy(runtime->sync + 4, "P16V", 4);
 
 	return 0;
 }

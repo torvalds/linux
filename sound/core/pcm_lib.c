@@ -525,10 +525,8 @@ void snd_pcm_set_sync(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	
-	runtime->sync.id32[0] = substream->pcm->card->number;
-	runtime->sync.id32[1] = -1;
-	runtime->sync.id32[2] = -1;
-	runtime->sync.id32[3] = -1;
+	*(__u32 *)runtime->sync = cpu_to_le32(substream->pcm->card->number);
+	memset(runtime->sync + 4, 0xff, sizeof(runtime->sync) - 4);
 }
 EXPORT_SYMBOL(snd_pcm_set_sync);
 
@@ -1811,6 +1809,25 @@ static int snd_pcm_lib_ioctl_fifo_size(struct snd_pcm_substream *substream,
 }
 
 /**
+ * is sync id (clock id) empty?
+ */
+static inline bool pcm_sync_empty(const unsigned char *sync)
+{
+	return sync[0] == 0 && sync[1] == 0 && sync[2] == 0 && sync[3] == 0 &&
+	       sync[4] == 0 && sync[5] == 0 && sync[6] == 0 && sync[7] == 0;
+}
+
+static int snd_pcm_lib_ioctl_sync_id(struct snd_pcm_substream *substream,
+				     void *arg)
+{
+	struct snd_pcm_hw_params *params = arg;
+
+	if (pcm_sync_empty(params->sync))
+		memcpy(params->sync, substream->runtime->sync, sizeof(params->sync));
+	return 0;
+}
+
+/**
  * snd_pcm_lib_ioctl - a generic PCM ioctl callback
  * @substream: the pcm substream instance
  * @cmd: ioctl command
@@ -1831,6 +1848,8 @@ int snd_pcm_lib_ioctl(struct snd_pcm_substream *substream,
 		return snd_pcm_lib_ioctl_channel_info(substream, arg);
 	case SNDRV_PCM_IOCTL1_FIFO_SIZE:
 		return snd_pcm_lib_ioctl_fifo_size(substream, arg);
+	case SNDRV_PCM_IOCTL1_SYNC_ID:
+		return snd_pcm_lib_ioctl_sync_id(substream, arg);
 	}
 	return -ENXIO;
 }
