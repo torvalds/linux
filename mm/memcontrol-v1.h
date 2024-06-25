@@ -70,7 +70,7 @@ unsigned long memcg_page_state_local_output(struct mem_cgroup *memcg, int item);
 int memory_stat_show(struct seq_file *m, void *v);
 
 /* Cgroup v1-specific declarations */
-
+#ifdef CONFIG_MEMCG_V1
 void memcg1_remove_from_trees(struct mem_cgroup *memcg);
 
 static inline void memcg1_soft_limit_reset(struct mem_cgroup *memcg)
@@ -104,5 +104,24 @@ void memcg1_stat_format(struct mem_cgroup *memcg, struct seq_buf *s);
 
 extern struct cftype memsw_files[];
 extern struct cftype mem_cgroup_legacy_files[];
+
+#else	/* CONFIG_MEMCG_V1 */
+
+static inline void memcg1_remove_from_trees(struct mem_cgroup *memcg) {}
+static inline void memcg1_soft_limit_reset(struct mem_cgroup *memcg) {}
+static inline bool memcg1_wait_acct_move(struct mem_cgroup *memcg) { return false; }
+static inline void memcg1_css_offline(struct mem_cgroup *memcg) {}
+
+static inline bool memcg1_oom_prepare(struct mem_cgroup *memcg, bool *locked) { return true; }
+static inline void memcg1_oom_finish(struct mem_cgroup *memcg, bool locked) {}
+static inline void memcg1_oom_recover(struct mem_cgroup *memcg) {}
+
+static inline void memcg1_check_events(struct mem_cgroup *memcg, int nid) {}
+
+static inline void memcg1_stat_format(struct mem_cgroup *memcg, struct seq_buf *s) {}
+
+extern struct cftype memsw_files[];
+extern struct cftype mem_cgroup_legacy_files[];
+#endif	/* CONFIG_MEMCG_V1 */
 
 #endif	/* __MM_MEMCONTROL_V1_H */
