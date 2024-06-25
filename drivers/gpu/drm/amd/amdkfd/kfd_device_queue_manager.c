@@ -153,6 +153,20 @@ void program_sh_mem_settings(struct device_queue_manager *dqm,
 
 static void kfd_hws_hang(struct device_queue_manager *dqm)
 {
+	struct device_process_node *cur;
+	struct qcm_process_device *qpd;
+	struct queue *q;
+
+	/* Mark all device queues as reset. */
+	list_for_each_entry(cur, &dqm->queues, list) {
+		qpd = cur->qpd;
+		list_for_each_entry(q, &qpd->queues_list, list) {
+			struct kfd_process_device *pdd = qpd_to_pdd(qpd);
+
+			pdd->has_reset_queue = true;
+		}
+	}
+
 	/*
 	 * Issue a GPU reset if HWS is unresponsive
 	 */
@@ -877,6 +891,12 @@ static int update_queue(struct device_queue_manager *dqm, struct queue *q,
 						    KFD_UNMAP_QUEUES_FILTER_DYNAMIC_QUEUES, 0, USE_DEFAULT_GRACE_PERIOD, false);
 		else if (prev_active)
 			retval = remove_queue_mes(dqm, q, &pdd->qpd);
+
+		/* queue is reset so inaccessable  */
+		if (pdd->has_reset_queue) {
+			retval = -EACCES;
+			goto out_unlock;
+		}
 
 		if (retval) {
 			dev_err(dev, "unmap queue failed\n");
@@ -1662,7 +1682,7 @@ static int initialize_cpsch(struct device_queue_manager *dqm)
 static int start_cpsch(struct device_queue_manager *dqm)
 {
 	struct device *dev = dqm->dev->adev->dev;
-	int retval;
+	int retval, num_hw_queue_slots;
 
 	retval = 0;
 
@@ -1715,9 +1735,24 @@ static int start_cpsch(struct device_queue_manager *dqm)
 					&dqm->wait_times);
 	}
 
+	/* setup per-queue reset detection buffer  */
+	num_hw_queue_slots =  dqm->dev->kfd->shared_resources.num_queue_per_pipe *
+			      dqm->dev->kfd->shared_resources.num_pipe_per_mec *
+			      NUM_XCC(dqm->dev->xcc_mask);
+
+	dqm->detect_hang_info_size = num_hw_queue_slots * sizeof(struct dqm_detect_hang_info);
+	dqm->detect_hang_info = kzalloc(dqm->detect_hang_info_size, GFP_KERNEL);
+
+	if (!dqm->detect_hang_info) {
+		retval = -ENOMEM;
+		goto fail_detect_hang_buffer;
+	}
+
 	dqm_unlock(dqm);
 
 	return 0;
+fail_detect_hang_buffer:
+	kfd_gtt_sa_free(dqm->dev, dqm->fence_mem);
 fail_allocate_vidmem:
 fail_set_sched_resources:
 	if (!dqm->dev->kfd->shared_resources.enable_mes)
@@ -1748,6 +1783,8 @@ static int stop_cpsch(struct device_queue_manager *dqm)
 	kfd_gtt_sa_free(dqm->dev, dqm->fence_mem);
 	if (!dqm->dev->kfd->shared_resources.enable_mes)
 		pm_uninit(&dqm->packet_mgr);
+	kfree(dqm->detect_hang_info);
+	dqm->detect_hang_info = NULL;
 	dqm_unlock(dqm);
 
 	return 0;
@@ -1965,6 +2002,135 @@ static int map_queues_cpsch(struct device_queue_manager *dqm)
 	return retval;
 }
 
+static void set_queue_as_reset(struct device_queue_manager *dqm, struct queue *q,
+			       struct qcm_process_device *qpd)
+{
+	struct kfd_process_device *pdd = qpd_to_pdd(qpd);
+
+	dev_err(dqm->dev->adev->dev, "queue id 0x%0x at pasid 0x%0x is reset\n",
+		q->properties.queue_id, q->process->pasid);
+
+	pdd->has_reset_queue = true;
+	if (q->properties.is_active) {
+		q->properties.is_active = false;
+		decrement_queue_count(dqm, qpd, q);
+	}
+}
+
+static int detect_queue_hang(struct device_queue_manager *dqm)
+{
+	int i;
+
+	/* detect should be used only in dqm locked queue reset */
+	if (WARN_ON(dqm->detect_hang_count > 0))
+		return 0;
+
+	memset(dqm->detect_hang_info, 0, dqm->detect_hang_info_size);
+
+	for (i = 0; i < AMDGPU_MAX_QUEUES; ++i) {
+		uint32_t mec, pipe, queue;
+		int xcc_id;
+
+		mec = (i / dqm->dev->kfd->shared_resources.num_queue_per_pipe)
+			/ dqm->dev->kfd->shared_resources.num_pipe_per_mec;
+
+		if (mec || !test_bit(i, dqm->dev->kfd->shared_resources.cp_queue_bitmap))
+			continue;
+
+		amdgpu_queue_mask_bit_to_mec_queue(dqm->dev->adev, i, &mec, &pipe, &queue);
+
+		for_each_inst(xcc_id, dqm->dev->xcc_mask) {
+			uint64_t queue_addr = dqm->dev->kfd2kgd->hqd_get_pq_addr(
+						dqm->dev->adev, pipe, queue, xcc_id);
+			struct dqm_detect_hang_info hang_info;
+
+			if (!queue_addr)
+				continue;
+
+			hang_info.pipe_id = pipe;
+			hang_info.queue_id = queue;
+			hang_info.xcc_id = xcc_id;
+			hang_info.queue_address = queue_addr;
+
+			dqm->detect_hang_info[dqm->detect_hang_count] = hang_info;
+			dqm->detect_hang_count++;
+		}
+	}
+
+	return dqm->detect_hang_count;
+}
+
+static struct queue *find_queue_by_address(struct device_queue_manager *dqm, uint64_t queue_address)
+{
+	struct device_process_node *cur;
+	struct qcm_process_device *qpd;
+	struct queue *q;
+
+	list_for_each_entry(cur, &dqm->queues, list) {
+		qpd = cur->qpd;
+		list_for_each_entry(q, &qpd->queues_list, list) {
+			if (queue_address == q->properties.queue_address)
+				return q;
+		}
+	}
+
+	return NULL;
+}
+
+/* only for compute queue */
+static int reset_queues_on_hws_hang(struct device_queue_manager *dqm)
+{
+	int r = 0, reset_count = 0, i;
+
+	if (!dqm->detect_hang_info || dqm->is_hws_hang)
+		return -EIO;
+
+	/* assume dqm locked. */
+	if (!detect_queue_hang(dqm))
+		return -ENOTRECOVERABLE;
+
+	for (i = 0; i < dqm->detect_hang_count; i++) {
+		struct dqm_detect_hang_info hang_info = dqm->detect_hang_info[i];
+		struct queue *q = find_queue_by_address(dqm, hang_info.queue_address);
+		struct kfd_process_device *pdd;
+		uint64_t queue_addr = 0;
+
+		if (!q) {
+			r = -ENOTRECOVERABLE;
+			goto reset_fail;
+		}
+
+		pdd = kfd_get_process_device_data(dqm->dev, q->process);
+		if (!pdd) {
+			r = -ENOTRECOVERABLE;
+			goto reset_fail;
+		}
+
+		queue_addr = dqm->dev->kfd2kgd->hqd_reset(dqm->dev->adev,
+				hang_info.pipe_id, hang_info.queue_id, hang_info.xcc_id,
+				KFD_UNMAP_LATENCY_MS);
+
+		/* either reset failed or we reset an unexpected queue. */
+		if (queue_addr != q->properties.queue_address) {
+			r = -ENOTRECOVERABLE;
+			goto reset_fail;
+		}
+
+		set_queue_as_reset(dqm, q, &pdd->qpd);
+		reset_count++;
+	}
+
+	if (reset_count == dqm->detect_hang_count)
+		kfd_signal_reset_event(dqm->dev);
+	else
+		r = -ENOTRECOVERABLE;
+
+reset_fail:
+	dqm->detect_hang_count = 0;
+
+	return r;
+}
+
 /* dqm->lock mutex has to be locked before calling this function */
 static int unmap_queues_cpsch(struct device_queue_manager *dqm,
 				enum kfd_unmap_queues_filter filter,
@@ -2015,11 +2181,14 @@ static int unmap_queues_cpsch(struct device_queue_manager *dqm,
 	 */
 	mqd_mgr = dqm->mqd_mgrs[KFD_MQD_TYPE_HIQ];
 	if (mqd_mgr->check_preemption_failed(mqd_mgr, dqm->packet_mgr.priv_queue->queue->mqd)) {
-		while (halt_if_hws_hang)
-			schedule();
-		kfd_hws_hang(dqm);
-		retval = -ETIME;
-		goto out;
+		if (reset_queues_on_hws_hang(dqm)) {
+			while (halt_if_hws_hang)
+				schedule();
+			dqm->is_hws_hang = true;
+			kfd_hws_hang(dqm);
+			retval = -ETIME;
+			goto out;
+		}
 	}
 
 	/* We need to reset the grace period value for this device */
@@ -2038,8 +2207,7 @@ out:
 }
 
 /* only for compute queue */
-static int reset_queues_cpsch(struct device_queue_manager *dqm,
-			uint16_t pasid)
+static int reset_queues_cpsch(struct device_queue_manager *dqm, uint16_t pasid)
 {
 	int retval;
 

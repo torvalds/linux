@@ -1851,6 +1851,8 @@ int kfd_process_evict_queues(struct kfd_process *p, uint32_t trigger)
 			goto fail;
 		}
 		n_evicted++;
+
+		pdd->dev->dqm->is_hws_hang = false;
 	}
 
 	return r;

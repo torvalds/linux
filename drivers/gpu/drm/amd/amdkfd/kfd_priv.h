@@ -846,6 +846,9 @@ struct kfd_process_device {
 	void *proc_ctx_bo;
 	uint64_t proc_ctx_gpu_addr;
 	void *proc_ctx_cpu_ptr;
+
+	/* Tracks queue reset status */
+	bool has_reset_queue;
 };
 
 #define qpd_to_pdd(x) container_of(x, struct kfd_process_device, qpd)

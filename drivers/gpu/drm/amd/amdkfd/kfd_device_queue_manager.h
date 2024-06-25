@@ -210,6 +210,13 @@ struct device_queue_manager_asic_ops {
 				 struct kfd_node *dev);
 };
 
+struct dqm_detect_hang_info {
+	int pipe_id;
+	int queue_id;
+	int xcc_id;
+	uint64_t queue_address;
+};
+
 /**
  * struct device_queue_manager
  *
@@ -264,6 +271,11 @@ struct device_queue_manager {
 	uint32_t		wait_times;
 
 	wait_queue_head_t	destroy_wait;
+
+	/* for per-queue reset support */
+	struct dqm_detect_hang_info *detect_hang_info;
+	size_t detect_hang_info_size;
+	int detect_hang_count;
 };
 
 void device_queue_manager_init_cik(
