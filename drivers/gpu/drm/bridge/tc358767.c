@@ -738,7 +738,7 @@ static int tc_stream_clock_calc(struct tc_data *tc)
 static int tc_set_syspllparam(struct tc_data *tc)
 {
 	unsigned long rate;
-	u32 pllparam = SYSCLK_SEL_LSCLK | LSCLK_DIV_2;
+	u32 pllparam = SYSCLK_SEL_LSCLK | LSCLK_DIV_1;
 
 	rate = clk_get_rate(tc->refclk);
 	switch (rate) {
