@@ -58,8 +58,6 @@ struct perf_sf_sde_regs {
 #define PERF_EVENT_CPUM_CF_DIAG		0xBC000UL /* Event: Counter sets */
 #define PERF_CPUM_SF_BASIC_MODE		0x0001	  /* Basic-sampling flag */
 #define PERF_CPUM_SF_DIAG_MODE		0x0002	  /* Diagnostic-sampling flag */
-#define PERF_CPUM_SF_MODE_MASK		(PERF_CPUM_SF_BASIC_MODE| \
-					 PERF_CPUM_SF_DIAG_MODE)
 #define PERF_CPUM_SF_FREQ_MODE		0x0008	  /* Sampling with frequency */
 
 #define REG_NONE		0
