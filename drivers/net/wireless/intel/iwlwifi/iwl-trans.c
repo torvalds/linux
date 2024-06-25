@@ -108,10 +108,9 @@ int iwl_trans_send_cmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	if (unlikely(test_bit(STATUS_FW_ERROR, &trans->status)))
 		return -EIO;
 
-	if (unlikely(trans->state != IWL_TRANS_FW_ALIVE)) {
-		IWL_ERR(trans, "%s bad state = %d\n", __func__, trans->state);
+	if (WARN_ONCE(trans->state != IWL_TRANS_FW_ALIVE,
+		      "bad state = %d\n", trans->state))
 		return -EIO;
-	}
 
 	if (!(cmd->flags & CMD_ASYNC))
 		lock_map_acquire_read(&trans->sync_cmd_lockdep_map);
@@ -407,10 +406,9 @@ int iwl_trans_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	if (unlikely(test_bit(STATUS_FW_ERROR, &trans->status)))
 		return -EIO;
 
-	if (WARN_ON_ONCE(trans->state != IWL_TRANS_FW_ALIVE)) {
-		IWL_ERR(trans, "%s bad state = %d\n", __func__, trans->state);
+	if (WARN_ONCE(trans->state != IWL_TRANS_FW_ALIVE,
+		      "bad state = %d\n", trans->state))
 		return -EIO;
-	}
 
 	if (trans->trans_cfg->gen2)
 		return iwl_txq_gen2_tx(trans, skb, dev_cmd, queue);
@@ -422,10 +420,9 @@ IWL_EXPORT_SYMBOL(iwl_trans_tx);
 void iwl_trans_reclaim(struct iwl_trans *trans, int queue, int ssn,
 		       struct sk_buff_head *skbs, bool is_flush)
 {
-	if (WARN_ON_ONCE(trans->state != IWL_TRANS_FW_ALIVE)) {
-		IWL_ERR(trans, "%s bad state = %d\n", __func__, trans->state);
+	if (WARN_ONCE(trans->state != IWL_TRANS_FW_ALIVE,
+		      "bad state = %d\n", trans->state))
 		return;
-	}
 
 	iwl_pcie_reclaim(trans, queue, ssn, skbs, is_flush);
 }
@@ -444,10 +441,9 @@ bool iwl_trans_txq_enable_cfg(struct iwl_trans *trans, int queue, u16 ssn,
 {
 	might_sleep();
 
-	if (WARN_ON_ONCE(trans->state != IWL_TRANS_FW_ALIVE)) {
-		IWL_ERR(trans, "%s bad state = %d\n", __func__, trans->state);
+	if (WARN_ONCE(trans->state != IWL_TRANS_FW_ALIVE,
+		      "bad state = %d\n", trans->state))
 		return false;
-	}
 
 	return iwl_trans_pcie_txq_enable(trans, queue, ssn,
 					 cfg, queue_wdg_timeout);
@@ -456,10 +452,9 @@ IWL_EXPORT_SYMBOL(iwl_trans_txq_enable_cfg);
 
 int iwl_trans_wait_txq_empty(struct iwl_trans *trans, int queue)
 {
-	if (WARN_ON_ONCE(trans->state != IWL_TRANS_FW_ALIVE)) {
-		IWL_ERR(trans, "%s bad state = %d\n", __func__, trans->state);
+	if (WARN_ONCE(trans->state != IWL_TRANS_FW_ALIVE,
+		      "bad state = %d\n", trans->state))
 		return -EIO;
-	}
 
 	return iwl_trans_pcie_wait_txq_empty(trans, queue);
 }
@@ -467,11 +462,9 @@ IWL_EXPORT_SYMBOL(iwl_trans_wait_txq_empty);
 
 int iwl_trans_wait_tx_queues_empty(struct iwl_trans *trans, u32 txqs)
 {
-	/* No need to wait if the firmware is not alive */
-	if (trans->state != IWL_TRANS_FW_ALIVE) {
-		IWL_ERR(trans, "%s bad state = %d\n", __func__, trans->state);
+	if (WARN_ONCE(trans->state != IWL_TRANS_FW_ALIVE,
+		      "bad state = %d\n", trans->state))
 		return -EIO;
-	}
 
 	return iwl_trans_pcie_wait_txqs_empty(trans, txqs);
 }
@@ -480,10 +473,9 @@ IWL_EXPORT_SYMBOL(iwl_trans_wait_tx_queues_empty);
 void iwl_trans_freeze_txq_timer(struct iwl_trans *trans,
 				unsigned long txqs, bool freeze)
 {
-	if (WARN_ON_ONCE(trans->state != IWL_TRANS_FW_ALIVE)) {
-		IWL_ERR(trans, "%s bad state = %d\n", __func__, trans->state);
+	if (WARN_ONCE(trans->state != IWL_TRANS_FW_ALIVE,
+		      "bad state = %d\n", trans->state))
 		return;
-	}
 
 	iwl_pcie_freeze_txq_timer(trans, txqs, freeze);
 }
@@ -506,10 +498,9 @@ IWL_EXPORT_SYMBOL(iwl_trans_debugfs_cleanup);
 
 void iwl_trans_set_q_ptrs(struct iwl_trans *trans, int queue, int ptr)
 {
-	if (WARN_ON_ONCE(trans->state != IWL_TRANS_FW_ALIVE)) {
-		IWL_ERR(trans, "%s bad state = %d\n", __func__, trans->state);
+	if (WARN_ONCE(trans->state != IWL_TRANS_FW_ALIVE,
+		      "bad state = %d\n", trans->state))
 		return;
-	}
 
 	iwl_pcie_set_q_ptrs(trans, queue, ptr);
 }
@@ -520,10 +511,9 @@ int iwl_trans_txq_alloc(struct iwl_trans *trans, u32 flags, u32 sta_mask,
 {
 	might_sleep();
 
-	if (WARN_ON_ONCE(trans->state != IWL_TRANS_FW_ALIVE)) {
-		IWL_ERR(trans, "%s bad state = %d\n", __func__, trans->state);
+	if (WARN_ONCE(trans->state != IWL_TRANS_FW_ALIVE,
+		      "bad state = %d\n", trans->state))
 		return -EIO;
-	}
 
 	return iwl_txq_dyn_alloc(trans, flags, sta_mask, tid,
 				 size, wdg_timeout);
