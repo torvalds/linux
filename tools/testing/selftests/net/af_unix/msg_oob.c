@@ -6,6 +6,8 @@
 #include <unistd.h>
 
 #include <netinet/in.h>
+#include <sys/ioctl.h>
+#include <sys/signalfd.h>
 #include <sys/socket.h>
 
 #include "../../kselftest_harness.h"
@@ -19,6 +21,7 @@ FIXTURE(msg_oob)
 				 * 2: TCP sender
 				 * 3: TCP receiver
 				 */
+	int signal_fd;
 	bool tcp_compliant;
 };
 
@@ -77,6 +80,35 @@ static void create_tcp_socketpair(struct __test_metadata *_metadata,
 	ASSERT_EQ(ret, 0);
 }
 
+static void setup_sigurg(struct __test_metadata *_metadata,
+			 FIXTURE_DATA(msg_oob) *self)
+{
+	struct signalfd_siginfo siginfo;
+	int pid = getpid();
+	sigset_t mask;
+	int i, ret;
+
+	for (i = 0; i < 2; i++) {
+		ret = ioctl(self->fd[i * 2 + 1], FIOSETOWN, &pid);
+		ASSERT_EQ(ret, 0);
+	}
+
+	ret = sigemptyset(&mask);
+	ASSERT_EQ(ret, 0);
+
+	ret = sigaddset(&mask, SIGURG);
+	ASSERT_EQ(ret, 0);
+
+	ret = sigprocmask(SIG_BLOCK, &mask, NULL);
+	ASSERT_EQ(ret, 0);
+
+	self->signal_fd = signalfd(-1, &mask, SFD_NONBLOCK);
+	ASSERT_GE(self->signal_fd, 0);
+
+	ret = read(self->signal_fd, &siginfo, sizeof(siginfo));
+	ASSERT_EQ(ret, -1);
+}
+
 static void close_sockets(FIXTURE_DATA(msg_oob) *self)
 {
 	int i;
@@ -89,6 +121,8 @@ FIXTURE_SETUP(msg_oob)
 {
 	create_unix_socketpair(_metadata, self);
 	create_tcp_socketpair(_metadata, self);
+
+	setup_sigurg(_metadata, self);
 
 	self->tcp_compliant = true;
 }
@@ -104,8 +138,23 @@ static void __sendpair(struct __test_metadata *_metadata,
 {
 	int i, ret[2];
 
-	for (i = 0; i < 2; i++)
+	for (i = 0; i < 2; i++) {
+		struct signalfd_siginfo siginfo = {};
+		int bytes;
+
 		ret[i] = send(self->fd[i * 2], buf, len, flags);
+
+		bytes = read(self->signal_fd, &siginfo, sizeof(siginfo));
+
+		if (flags & MSG_OOB) {
+			ASSERT_EQ(bytes, sizeof(siginfo));
+			ASSERT_EQ(siginfo.ssi_signo, SIGURG);
+
+			bytes = read(self->signal_fd, &siginfo, sizeof(siginfo));
+		}
+
+		ASSERT_EQ(bytes, -1);
+	}
 
 	ASSERT_EQ(ret[0], len);
 	ASSERT_EQ(ret[0], ret[1]);
