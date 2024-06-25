@@ -149,7 +149,7 @@ struct iwl_scan_offload_profile_cfg_data {
 } __packed;
 
 /**
- * struct iwl_scan_offload_profile_cfg
+ * struct iwl_scan_offload_profile_cfg_v1 - scan offload profile config
  * @profiles:	profiles to search for match
  * @data:	the rest of the data for profile_cfg
  */
@@ -789,7 +789,7 @@ struct iwl_scan_req_umac_tail_v1 {
 } __packed;
 
 /**
- * struct iwl_scan_req_umac_tail - the rest of the UMAC scan request command
+ * struct iwl_scan_req_umac_tail_v2 - the rest of the UMAC scan request command
  *      parameters following channels configuration array.
  * @schedule: two scheduling plans.
  * @delay: delay in TUs before starting the first scan iteration
@@ -1085,7 +1085,7 @@ struct iwl_scan_req_params_v12 {
 } __packed; /* SCAN_REQUEST_PARAMS_API_S_VER_12 */
 
 /**
- * struct iwl_scan_req_params_v16
+ * struct iwl_scan_req_params_v17 - scan request parameters (v17)
  * @general_params: &struct iwl_scan_general_params_v11
  * @channel_params: &struct iwl_scan_channel_params_v7
  * @periodic_params: &struct iwl_scan_periodic_parms_v1
@@ -1111,7 +1111,7 @@ struct iwl_scan_req_umac_v12 {
 } __packed; /* SCAN_REQUEST_CMD_UMAC_API_S_VER_12 */
 
 /**
- * struct iwl_scan_req_umac_v16
+ * struct iwl_scan_req_umac_v17 - scan request command (v17)
  * @uid: scan id, &enum iwl_umac_scan_uid_offsets
  * @ooc_priority: out of channel priority - &enum iwl_scan_priority
  * @scan_params: scan parameters

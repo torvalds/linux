@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2023 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2024 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  */
@@ -976,7 +976,7 @@ struct iwl_ba_window_status_notif {
 } __packed; /* BA_WINDOW_STATUS_NTFY_API_S_VER_1 */
 
 /**
- * struct iwl_rfh_queue_config - RX queue configuration
+ * struct iwl_rfh_queue_data - RX queue configuration
  * @q_num: Q num
  * @enable: enable queue
  * @reserved: alignment

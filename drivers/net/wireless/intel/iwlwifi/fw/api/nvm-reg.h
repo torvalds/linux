@@ -120,7 +120,7 @@ struct iwl_nvm_access_cmd {
 } __packed; /* NVM_ACCESS_CMD_API_S_VER_2 */
 
 /**
- * struct iwl_nvm_access_resp_ver2 - response to NVM_ACCESS_CMD
+ * struct iwl_nvm_access_resp - response to NVM_ACCESS_CMD
  * @offset: offset in bytes into the section
  * @length: in bytes, either how much was written or read
  * @type: NVM_SECTION_TYPE_*
@@ -212,7 +212,7 @@ struct iwl_nvm_get_info_phy {
 #define IWL_NUM_CHANNELS	110
 
 /**
- * struct iwl_nvm_get_info_regulatory - regulatory information
+ * struct iwl_nvm_get_info_regulatory_v1 - regulatory information
  * @lar_enabled: is LAR enabled
  * @channel_profile: regulatory data of this channel
  * @reserved: reserved

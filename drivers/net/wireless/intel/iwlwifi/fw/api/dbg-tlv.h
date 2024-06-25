@@ -291,7 +291,7 @@ struct iwl_fw_ini_addr_val {
 } __packed; /* FW_TLV_DEBUG_ADDR_VALUE_VER_1 */
 
 /**
- * struct iwl_fw_ini_conf_tlv - configuration TLV to set register/memory.
+ * struct iwl_fw_ini_conf_set_tlv - configuration TLV to set register/memory.
  *
  * @hdr: debug header
  * @time_point: time point to apply config. One of &enum iwl_fw_ini_time_point

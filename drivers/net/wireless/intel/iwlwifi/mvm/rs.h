@@ -3,7 +3,7 @@
  *
  * Copyright(c) 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2017 Intel Deutschland GmbH
- * Copyright (C) 2003 - 2014, 2018 - 2023 Intel Corporation
+ * Copyright (C) 2003 - 2014, 2018 - 2024 Intel Corporation
  *****************************************************************************/
 
 #ifndef __rs_h__
@@ -402,7 +402,7 @@ void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			  int tid, struct ieee80211_tx_info *info, bool ndp);
 
 /**
- * iwl_rate_control_register - Register the rate control algorithm callbacks
+ * iwl_mvm_rate_control_register - Register the rate control algorithm callbacks
  *
  * Since the rate control algorithm is hardware specific, there is no need
  * or reason to place it as a stand alone module.  The driver can call
@@ -414,7 +414,7 @@ void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 int iwl_mvm_rate_control_register(void);
 
 /**
- * iwl_rate_control_unregister - Unregister the rate control callbacks
+ * iwl_mvm_rate_control_unregister - Unregister the rate control callbacks
  *
  * This should be called after calling ieee80211_unregister_hw, but before
  * the driver is unloaded.

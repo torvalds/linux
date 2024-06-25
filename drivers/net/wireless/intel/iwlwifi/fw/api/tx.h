@@ -866,7 +866,7 @@ enum iwl_dump_control {
 };
 
 /**
- * struct iwl_tx_path_flush_cmd -- queue/FIFO flush command
+ * struct iwl_tx_path_flush_cmd_v1 -- queue/FIFO flush command
  * @queues_ctl: bitmap of queues to flush
  * @flush_ctl: control flags
  * @reserved: reserved
