@@ -111,6 +111,7 @@ struct mlxsw_pci {
 	bool cff_support;
 	enum mlxsw_cmd_mbox_config_profile_lag_mode lag_mode;
 	enum mlxsw_cmd_mbox_config_profile_flood_mode flood_mode;
+	u8 num_sg_entries; /* Number of scatter/gather entries for packets. */
 	struct mlxsw_pci_queue_type_group queues[MLXSW_PCI_QUEUE_TYPE_COUNT];
 	u32 doorbell_offset;
 	struct mlxsw_core *core;
@@ -425,6 +426,12 @@ static void mlxsw_pci_rdq_page_free(struct mlxsw_pci_queue *q,
 	struct mlxsw_pci_queue *cq = q->u.rdq.cq;
 
 	page_pool_put_page(cq->u.cq.page_pool, elem_info->page, -1, false);
+}
+
+static u8 mlxsw_pci_num_sg_entries_get(u16 byte_count)
+{
+	return DIV_ROUND_UP(byte_count + MLXSW_PCI_RX_BUF_SW_OVERHEAD,
+			    PAGE_SIZE);
 }
 
 static int mlxsw_pci_rdq_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
@@ -1774,6 +1781,17 @@ static void mlxsw_pci_free_irq_vectors(struct mlxsw_pci *mlxsw_pci)
 	pci_free_irq_vectors(mlxsw_pci->pdev);
 }
 
+static void mlxsw_pci_num_sg_entries_set(struct mlxsw_pci *mlxsw_pci)
+{
+	u8 num_sg_entries;
+
+	num_sg_entries = mlxsw_pci_num_sg_entries_get(MLXSW_PORT_MAX_MTU);
+	mlxsw_pci->num_sg_entries = min(num_sg_entries,
+					MLXSW_PCI_WQE_SG_ENTRIES);
+
+	WARN_ON(num_sg_entries > MLXSW_PCI_WQE_SG_ENTRIES);
+}
+
 static int mlxsw_pci_init(void *bus_priv, struct mlxsw_core *mlxsw_core,
 			  const struct mlxsw_config_profile *profile,
 			  struct mlxsw_res *res)
@@ -1895,6 +1913,8 @@ static int mlxsw_pci_init(void *bus_priv, struct mlxsw_core *mlxsw_core,
 	err = mlxsw_core_resources_query(mlxsw_core, mbox, res);
 	if (err)
 		goto err_requery_resources;
+
+	mlxsw_pci_num_sg_entries_set(mlxsw_pci);
 
 	err = mlxsw_pci_napi_devs_init(mlxsw_pci);
 	if (err)
