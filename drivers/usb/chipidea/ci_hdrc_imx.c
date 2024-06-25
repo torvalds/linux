@@ -557,7 +557,7 @@ static void ci_hdrc_imx_shutdown(struct platform_device *pdev)
 	ci_hdrc_imx_remove(pdev);
 }
 
-static int __maybe_unused imx_controller_suspend(struct device *dev,
+static int imx_controller_suspend(struct device *dev,
 						 pm_message_t msg)
 {
 	struct ci_hdrc_imx_data *data = dev_get_drvdata(dev);
@@ -582,7 +582,7 @@ static int __maybe_unused imx_controller_suspend(struct device *dev,
 	return 0;
 }
 
-static int __maybe_unused imx_controller_resume(struct device *dev,
+static int imx_controller_resume(struct device *dev,
 						pm_message_t msg)
 {
 	struct ci_hdrc_imx_data *data = dev_get_drvdata(dev);
@@ -618,7 +618,7 @@ clk_disable:
 	return ret;
 }
 
-static int __maybe_unused ci_hdrc_imx_suspend(struct device *dev)
+static int ci_hdrc_imx_suspend(struct device *dev)
 {
 	int ret;
 
@@ -636,7 +636,7 @@ static int __maybe_unused ci_hdrc_imx_suspend(struct device *dev)
 	return ret;
 }
 
-static int __maybe_unused ci_hdrc_imx_resume(struct device *dev)
+static int ci_hdrc_imx_resume(struct device *dev)
 {
 	struct ci_hdrc_imx_data *data = dev_get_drvdata(dev);
 	int ret;
@@ -652,7 +652,7 @@ static int __maybe_unused ci_hdrc_imx_resume(struct device *dev)
 	return ret;
 }
 
-static int __maybe_unused ci_hdrc_imx_runtime_suspend(struct device *dev)
+static int ci_hdrc_imx_runtime_suspend(struct device *dev)
 {
 	struct ci_hdrc_imx_data *data = dev_get_drvdata(dev);
 
@@ -664,15 +664,14 @@ static int __maybe_unused ci_hdrc_imx_runtime_suspend(struct device *dev)
 	return imx_controller_suspend(dev, PMSG_AUTO_SUSPEND);
 }
 
-static int __maybe_unused ci_hdrc_imx_runtime_resume(struct device *dev)
+static int ci_hdrc_imx_runtime_resume(struct device *dev)
 {
 	return imx_controller_resume(dev, PMSG_AUTO_RESUME);
 }
 
 static const struct dev_pm_ops ci_hdrc_imx_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(ci_hdrc_imx_suspend, ci_hdrc_imx_resume)
-	SET_RUNTIME_PM_OPS(ci_hdrc_imx_runtime_suspend,
-			ci_hdrc_imx_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(ci_hdrc_imx_suspend, ci_hdrc_imx_resume)
+	RUNTIME_PM_OPS(ci_hdrc_imx_runtime_suspend, ci_hdrc_imx_runtime_resume, NULL)
 };
 static struct platform_driver ci_hdrc_imx_driver = {
 	.probe = ci_hdrc_imx_probe,
@@ -681,7 +680,7 @@ static struct platform_driver ci_hdrc_imx_driver = {
 	.driver = {
 		.name = "imx_usb",
 		.of_match_table = ci_hdrc_imx_dt_ids,
-		.pm = &ci_hdrc_imx_pm_ops,
+		.pm = pm_ptr(&ci_hdrc_imx_pm_ops),
 	 },
 };
 
