@@ -182,6 +182,7 @@
 	eth0_pins: eth0 {
 		txc {
 			pinmux = <RZG2L_PORT_PINMUX(20, 0, 1)>; /* ET0_TXC */
+			power-source = <1800>;
 			output-enable;
 		};
 
@@ -199,14 +200,19 @@
 				 <RZG2L_PORT_PINMUX(25, 0, 1)>, /* ET0_RXD0 */
 				 <RZG2L_PORT_PINMUX(25, 1, 1)>, /* ET0_RXD1 */
 				 <RZG2L_PORT_PINMUX(26, 0, 1)>, /* ET0_RXD2 */
-				 <RZG2L_PORT_PINMUX(26, 1, 1)>, /* ET0_RXD3 */
-				 <RZG2L_PORT_PINMUX(1, 0, 1)>;  /* IRQ2 */
+				 <RZG2L_PORT_PINMUX(26, 1, 1)>; /* ET0_RXD3 */
+			power-source = <1800>;
+		};
+
+		irq {
+			pinmux = <RZG2L_PORT_PINMUX(1, 0, 1)>;  /* IRQ2 */
 		};
 	};
 
 	eth1_pins: eth1 {
 		txc {
 			pinmux = <RZG2L_PORT_PINMUX(29, 0, 1)>; /* ET1_TXC */
+			power-source = <1800>;
 			output-enable;
 		};
 
@@ -224,8 +230,12 @@
 				 <RZG2L_PORT_PINMUX(34, 1, 1)>, /* ET1_RXD0 */
 				 <RZG2L_PORT_PINMUX(35, 0, 1)>, /* ET1_RXD1 */
 				 <RZG2L_PORT_PINMUX(35, 1, 1)>, /* ET1_RXD2 */
-				 <RZG2L_PORT_PINMUX(36, 0, 1)>, /* ET1_RXD3 */
-				 <RZG2L_PORT_PINMUX(1, 1, 1)>;  /* IRQ3 */
+				 <RZG2L_PORT_PINMUX(36, 0, 1)>; /* ET1_RXD3 */
+			power-source = <1800>;
+		};
+
+		irq {
+			pinmux = <RZG2L_PORT_PINMUX(1, 1, 1)>;  /* IRQ3 */
 		};
 	};
 
