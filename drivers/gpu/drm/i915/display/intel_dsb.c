@@ -339,6 +339,40 @@ static u32 dsb_chicken(struct intel_crtc *crtc)
 		return DSB_SKIP_WAITS_EN;
 }
 
+static u32 dsb_error_int_status(struct intel_display *display)
+{
+	u32 errors;
+
+	errors = DSB_GTT_FAULT_INT_STATUS |
+		DSB_RSPTIMEOUT_INT_STATUS |
+		DSB_POLL_ERR_INT_STATUS;
+
+	/*
+	 * All the non-existing status bits operate as
+	 * normal r/w bits, so any attempt to clear them
+	 * will just end up setting them. Never do that so
+	 * we won't mistake them for actual error interrupts.
+	 */
+	if (DISPLAY_VER(display) >= 14)
+		errors |= DSB_ATS_FAULT_INT_STATUS;
+
+	return errors;
+}
+
+static u32 dsb_error_int_en(struct intel_display *display)
+{
+	u32 errors;
+
+	errors = DSB_GTT_FAULT_INT_EN |
+		DSB_RSPTIMEOUT_INT_EN |
+		DSB_POLL_ERR_INT_EN;
+
+	if (DISPLAY_VER(display) >= 14)
+		errors |= DSB_ATS_FAULT_INT_EN;
+
+	return errors;
+}
+
 static void _intel_dsb_commit(struct intel_dsb *dsb, u32 ctrl,
 			      int dewake_scanline)
 {
@@ -362,6 +396,10 @@ static void _intel_dsb_commit(struct intel_dsb *dsb, u32 ctrl,
 
 	intel_de_write_fw(display, DSB_CHICKEN(pipe, dsb->id),
 			  dsb_chicken(crtc));
+
+	intel_de_write_fw(display, DSB_INTERRUPT(pipe, dsb->id),
+			  dsb_error_int_status(display) | DSB_PROG_INT_STATUS |
+			  dsb_error_int_en(display));
 
 	intel_de_write_fw(display, DSB_HEAD(pipe, dsb->id),
 			  intel_dsb_buffer_ggtt_offset(&dsb->dsb_buf));
@@ -430,6 +468,9 @@ void intel_dsb_wait(struct intel_dsb *dsb)
 	dsb->free_pos = 0;
 	dsb->ins_start_offset = 0;
 	intel_de_write_fw(display, DSB_CTRL(pipe, dsb->id), 0);
+
+	intel_de_write_fw(display, DSB_INTERRUPT(pipe, dsb->id),
+			  dsb_error_int_status(display) | DSB_PROG_INT_STATUS);
 }
 
 /**
@@ -512,4 +553,19 @@ void intel_dsb_cleanup(struct intel_dsb *dsb)
 {
 	intel_dsb_buffer_cleanup(&dsb->dsb_buf);
 	kfree(dsb);
+}
+
+void intel_dsb_irq_handler(struct intel_display *display,
+			   enum pipe pipe, enum intel_dsb_id dsb_id)
+{
+	struct intel_crtc *crtc = intel_crtc_for_pipe(to_i915(display->drm), pipe);
+	u32 tmp, errors;
+
+	tmp = intel_de_read_fw(display, DSB_INTERRUPT(pipe, dsb_id));
+	intel_de_write_fw(display, DSB_INTERRUPT(pipe, dsb_id), tmp);
+
+	errors = tmp & dsb_error_int_status(display);
+	if (errors)
+		drm_err(display->drm, "[CRTC:%d:%s] DSB %d error interrupt: 0x%x\n",
+			crtc->base.base.id, crtc->base.name, dsb_id, errors);
 }
