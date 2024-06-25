@@ -798,7 +798,7 @@ static int __hw_perf_event_init_rate(struct perf_event *event,
 	hw_init_period(hwc, SAMPL_RATE(hwc));
 	debug_sprintf_event(sfdbg, 4, "%s: cpu %d period %#llx freq %d,%#lx\n",
 			    __func__, event->cpu, event->attr.sample_period,
-			    event->attr.freq, SAMPLE_FREQ_MODE(hwc));
+			    event->attr.freq, SAMPL_FREQ_MODE(hwc));
 	return 0;
 }
 
@@ -1865,7 +1865,7 @@ static int cpumsf_pmu_check_period(struct perf_event *event, u64 value)
 		si = cpuhw->qsi;
 	}
 
-	do_freq = !!SAMPLE_FREQ_MODE(&event->hw);
+	do_freq = !!SAMPL_FREQ_MODE(&event->hw);
 	rate = getrate(do_freq, value, &si);
 	if (!rate)
 		return -EINVAL;

@@ -66,7 +66,7 @@ struct perf_sf_sde_regs {
 #define SAMPL_RATE(hwc)		((hwc)->event_base)
 #define SAMPL_FLAGS(hwc)	((hwc)->config_base)
 #define SAMPL_DIAG_MODE(hwc)	(SAMPL_FLAGS(hwc) & PERF_CPUM_SF_DIAG_MODE)
-#define SAMPLE_FREQ_MODE(hwc)	(SAMPL_FLAGS(hwc) & PERF_CPUM_SF_FREQ_MODE)
+#define SAMPL_FREQ_MODE(hwc)	(SAMPL_FLAGS(hwc) & PERF_CPUM_SF_FREQ_MODE)
 
 #define perf_arch_fetch_caller_regs(regs, __ip) do {			\
 	(regs)->psw.addr = (__ip);					\
