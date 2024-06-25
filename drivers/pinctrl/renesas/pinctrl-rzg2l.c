@@ -999,7 +999,7 @@ static bool rzg2l_ds_is_supported(struct rzg2l_pinctrl *pctrl, u32 caps,
 	return false;
 }
 
-static bool rzg2l_oen_is_supported(u32 caps, u8 pin, u8 max_pin)
+static bool rzg3s_oen_is_supported(u32 caps, u8 pin, u8 max_pin)
 {
 	if (!(caps & PIN_CFG_OEN))
 		return false;
@@ -1010,7 +1010,7 @@ static bool rzg2l_oen_is_supported(u32 caps, u8 pin, u8 max_pin)
 	return true;
 }
 
-static u8 rzg2l_pin_to_oen_bit(u32 offset, u8 pin, u8 max_port)
+static u8 rzg3s_pin_to_oen_bit(u32 offset, u8 pin, u8 max_port)
 {
 	if (pin)
 		pin *= 2;
@@ -1021,31 +1021,31 @@ static u8 rzg2l_pin_to_oen_bit(u32 offset, u8 pin, u8 max_port)
 	return pin;
 }
 
-static u32 rzg2l_read_oen(struct rzg2l_pinctrl *pctrl, u32 caps, u32 offset, u8 pin)
+static u32 rzg3s_oen_read(struct rzg2l_pinctrl *pctrl, u32 caps, u32 offset, u8 pin)
 {
 	u8 max_port = pctrl->data->hwcfg->oen_max_port;
 	u8 max_pin = pctrl->data->hwcfg->oen_max_pin;
 	u8 bit;
 
-	if (!rzg2l_oen_is_supported(caps, pin, max_pin))
+	if (!rzg3s_oen_is_supported(caps, pin, max_pin))
 		return 0;
 
-	bit = rzg2l_pin_to_oen_bit(offset, pin, max_port);
+	bit = rzg3s_pin_to_oen_bit(offset, pin, max_port);
 
 	return !(readb(pctrl->base + ETH_MODE) & BIT(bit));
 }
 
-static int rzg2l_write_oen(struct rzg2l_pinctrl *pctrl, u32 caps, u32 offset, u8 pin, u8 oen)
+static int rzg3s_oen_write(struct rzg2l_pinctrl *pctrl, u32 caps, u32 offset, u8 pin, u8 oen)
 {
 	u8 max_port = pctrl->data->hwcfg->oen_max_port;
 	u8 max_pin = pctrl->data->hwcfg->oen_max_pin;
 	unsigned long flags;
 	u8 val, bit;
 
-	if (!rzg2l_oen_is_supported(caps, pin, max_pin))
+	if (!rzg3s_oen_is_supported(caps, pin, max_pin))
 		return -EINVAL;
 
-	bit = rzg2l_pin_to_oen_bit(offset, pin, max_port);
+	bit = rzg3s_pin_to_oen_bit(offset, pin, max_port);
 
 	spin_lock_irqsave(&pctrl->lock, flags);
 	val = readb(pctrl->base + ETH_MODE);
@@ -1220,6 +1220,8 @@ static int rzg2l_pinctrl_pinconf_get(struct pinctrl_dev *pctldev,
 		break;
 
 	case PIN_CONFIG_OUTPUT_ENABLE:
+		if (!pctrl->data->oen_read)
+			return -EOPNOTSUPP;
 		arg = pctrl->data->oen_read(pctrl, cfg, _pin, bit);
 		if (!arg)
 			return -EINVAL;
@@ -1359,6 +1361,8 @@ static int rzg2l_pinctrl_pinconf_set(struct pinctrl_dev *pctldev,
 
 		case PIN_CONFIG_OUTPUT_ENABLE:
 			arg = pinconf_to_config_argument(_configs[i]);
+			if (!pctrl->data->oen_write)
+				return -EOPNOTSUPP;
 			ret = pctrl->data->oen_write(pctrl, cfg, _pin, bit, !!arg);
 			if (ret)
 				return ret;
@@ -3070,8 +3074,6 @@ static struct rzg2l_pinctrl_data r9a07g043_data = {
 #endif
 	.pwpr_pfc_lock_unlock = &rzg2l_pwpr_pfc_lock_unlock,
 	.pmc_writeb = &rzg2l_pmc_writeb,
-	.oen_read = &rzg2l_read_oen,
-	.oen_write = &rzg2l_write_oen,
 	.hw_to_bias_param = &rzg2l_hw_to_bias_param,
 	.bias_param_to_hw = &rzg2l_bias_param_to_hw,
 };
@@ -3087,8 +3089,6 @@ static struct rzg2l_pinctrl_data r9a07g044_data = {
 	.hwcfg = &rzg2l_hwcfg,
 	.pwpr_pfc_lock_unlock = &rzg2l_pwpr_pfc_lock_unlock,
 	.pmc_writeb = &rzg2l_pmc_writeb,
-	.oen_read = &rzg2l_read_oen,
-	.oen_write = &rzg2l_write_oen,
 	.hw_to_bias_param = &rzg2l_hw_to_bias_param,
 	.bias_param_to_hw = &rzg2l_bias_param_to_hw,
 };
@@ -3103,8 +3103,8 @@ static struct rzg2l_pinctrl_data r9a08g045_data = {
 	.hwcfg = &rzg3s_hwcfg,
 	.pwpr_pfc_lock_unlock = &rzg2l_pwpr_pfc_lock_unlock,
 	.pmc_writeb = &rzg2l_pmc_writeb,
-	.oen_read = &rzg2l_read_oen,
-	.oen_write = &rzg2l_write_oen,
+	.oen_read = &rzg3s_oen_read,
+	.oen_write = &rzg3s_oen_write,
 	.hw_to_bias_param = &rzg2l_hw_to_bias_param,
 	.bias_param_to_hw = &rzg2l_bias_param_to_hw,
 };
