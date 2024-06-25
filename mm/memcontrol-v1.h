@@ -3,6 +3,8 @@
 #ifndef __MM_MEMCONTROL_V1_H
 #define __MM_MEMCONTROL_V1_H
 
+#include <linux/cgroup-defs.h>
+
 void memcg1_update_tree(struct mem_cgroup *memcg, int nid);
 void memcg1_remove_from_trees(struct mem_cgroup *memcg);
 
@@ -33,12 +35,6 @@ struct cgroup_taskset;
 int memcg1_can_attach(struct cgroup_taskset *tset);
 void memcg1_cancel_attach(struct cgroup_taskset *tset);
 void memcg1_move_task(void);
-
-struct cftype;
-u64 mem_cgroup_move_charge_read(struct cgroup_subsys_state *css,
-				struct cftype *cft);
-int mem_cgroup_move_charge_write(struct cgroup_subsys_state *css,
-				 struct cftype *cft, u64 val);
 
 /*
  * Per memcg event counter is incremented at every pagein/pageout. With THP,
@@ -86,11 +82,23 @@ enum res_type {
 bool mem_cgroup_event_ratelimit(struct mem_cgroup *memcg,
 				enum mem_cgroup_events_target target);
 unsigned long mem_cgroup_usage(struct mem_cgroup *memcg, bool swap);
-ssize_t memcg_write_event_control(struct kernfs_open_file *of,
-				  char *buf, size_t nbytes, loff_t off);
 
 bool memcg1_oom_prepare(struct mem_cgroup *memcg, bool *locked);
 void memcg1_oom_finish(struct mem_cgroup *memcg, bool locked);
 void memcg1_oom_recover(struct mem_cgroup *memcg);
+
+void drain_all_stock(struct mem_cgroup *root_memcg);
+
+unsigned long memcg_events(struct mem_cgroup *memcg, int event);
+unsigned long memcg_events_local(struct mem_cgroup *memcg, int event);
+unsigned long memcg_page_state_local(struct mem_cgroup *memcg, int idx);
+unsigned long memcg_page_state_output(struct mem_cgroup *memcg, int item);
+unsigned long memcg_page_state_local_output(struct mem_cgroup *memcg, int item);
+int memory_stat_show(struct seq_file *m, void *v);
+
+void memcg1_stat_format(struct mem_cgroup *memcg, struct seq_buf *s);
+
+extern struct cftype memsw_files[];
+extern struct cftype mem_cgroup_legacy_files[];
 
 #endif	/* __MM_MEMCONTROL_V1_H */
