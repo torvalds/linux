@@ -2504,10 +2504,6 @@ static int __init console_setup(char *str)
 	if (console_opt_save(str, brl_options))
 		return 1;
 
-	/* Don't attempt to parse a DEVNAME:0.0 style console */
-	if (strchr(str, ':'))
-		return 1;
-
 	/*
 	 * Decode str into name, index, options.
 	 */
