@@ -219,6 +219,8 @@ static int serial_base_add_one_prefcon(const char *match, const char *dev_name,
 	return ret;
 }
 
+#endif
+
 #ifdef __sparc__
 
 /* Handle Sparc ttya and ttyb options as done in console_setup() */
@@ -316,8 +318,6 @@ int serial_base_add_preferred_console(struct uart_driver *drv,
 	/* Translate a hardware addressing style console=DEVNAME:0.0 */
 	return serial_base_add_one_prefcon(port_match, drv->dev_name, port->line);
 }
-
-#endif
 
 #ifdef CONFIG_SERIAL_8250_CONSOLE
 
