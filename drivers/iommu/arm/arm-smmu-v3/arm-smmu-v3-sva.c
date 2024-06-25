@@ -639,7 +639,7 @@ static int arm_smmu_sva_set_dev_pasid(struct iommu_domain *domain,
 	}
 
 	arm_smmu_make_sva_cd(&target, master, mm, bond->smmu_mn->cd->asid);
-	ret = arm_smmu_set_pasid(master, NULL, id, &target);
+	ret = arm_smmu_set_pasid(master, to_smmu_domain(domain), id, &target);
 	if (ret) {
 		list_del(&bond->list);
 		arm_smmu_mmu_notifier_put(bond->smmu_mn);
@@ -653,7 +653,7 @@ static int arm_smmu_sva_set_dev_pasid(struct iommu_domain *domain,
 
 static void arm_smmu_sva_domain_free(struct iommu_domain *domain)
 {
-	kfree(domain);
+	kfree(to_smmu_domain(domain));
 }
 
 static const struct iommu_domain_ops arm_smmu_sva_domain_ops = {
@@ -664,13 +664,16 @@ static const struct iommu_domain_ops arm_smmu_sva_domain_ops = {
 struct iommu_domain *arm_smmu_sva_domain_alloc(struct device *dev,
 					       struct mm_struct *mm)
 {
-	struct iommu_domain *domain;
+	struct arm_smmu_master *master = dev_iommu_priv_get(dev);
+	struct arm_smmu_device *smmu = master->smmu;
+	struct arm_smmu_domain *smmu_domain;
 
-	domain = kzalloc(sizeof(*domain), GFP_KERNEL);
-	if (!domain)
-		return ERR_PTR(-ENOMEM);
-	domain->type = IOMMU_DOMAIN_SVA;
-	domain->ops = &arm_smmu_sva_domain_ops;
+	smmu_domain = arm_smmu_domain_alloc();
+	if (IS_ERR(smmu_domain))
+		return ERR_CAST(smmu_domain);
+	smmu_domain->domain.type = IOMMU_DOMAIN_SVA;
+	smmu_domain->domain.ops = &arm_smmu_sva_domain_ops;
+	smmu_domain->smmu = smmu;
 
-	return domain;
+	return &smmu_domain->domain;
 }
