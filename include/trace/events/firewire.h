@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (c) 2024 Takashi Sakamoto
 
+#undef TRACE_SYSTEM
 #define TRACE_SYSTEM	firewire
 
 #if !defined(_FIREWIRE_TRACE_EVENT_H) || defined(TRACE_HEADER_MULTI_READ)
