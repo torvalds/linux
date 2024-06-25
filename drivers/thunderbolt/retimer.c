@@ -14,7 +14,11 @@
 #include "sb_regs.h"
 #include "tb.h"
 
+#if IS_ENABLED(CONFIG_USB4_DEBUGFS_MARGINING)
 #define TB_MAX_RETIMER_INDEX	6
+#else
+#define TB_MAX_RETIMER_INDEX	2
+#endif
 
 /**
  * tb_retimer_nvm_read() - Read contents of retimer NVM
@@ -319,6 +323,8 @@ static ssize_t nvm_version_show(struct device *dev,
 
 	if (!rt->nvm)
 		ret = -EAGAIN;
+	else if (rt->no_nvm_upgrade)
+		ret = -EOPNOTSUPP;
 	else
 		ret = sysfs_emit(buf, "%x.%x\n", rt->nvm->major, rt->nvm->minor);
 
@@ -366,35 +372,29 @@ const struct device_type tb_retimer_type = {
 	.release = tb_retimer_release,
 };
 
-static int tb_retimer_add(struct tb_port *port, u8 index, u32 auth_status)
+static int tb_retimer_add(struct tb_port *port, u8 index, u32 auth_status,
+			  bool on_board)
 {
 	struct tb_retimer *rt;
 	u32 vendor, device;
 	int ret;
 
-	ret = usb4_port_retimer_read(port, index, USB4_SB_VENDOR_ID, &vendor,
-				     sizeof(vendor));
+	ret = usb4_port_sb_read(port, USB4_SB_TARGET_RETIMER, index,
+				USB4_SB_VENDOR_ID, &vendor, sizeof(vendor));
 	if (ret) {
 		if (ret != -ENODEV)
 			tb_port_warn(port, "failed read retimer VendorId: %d\n", ret);
 		return ret;
 	}
 
-	ret = usb4_port_retimer_read(port, index, USB4_SB_PRODUCT_ID, &device,
-				     sizeof(device));
+	ret = usb4_port_sb_read(port, USB4_SB_TARGET_RETIMER, index,
+				USB4_SB_PRODUCT_ID, &device, sizeof(device));
 	if (ret) {
 		if (ret != -ENODEV)
 			tb_port_warn(port, "failed read retimer ProductId: %d\n", ret);
 		return ret;
 	}
 
-	/*
-	 * Check that it supports NVM operations. If not then don't add
-	 * the device at all.
-	 */
-	ret = usb4_port_retimer_nvm_sector_size(port, index);
-	if (ret < 0)
-		return ret;
 
 	rt = kzalloc(sizeof(*rt), GFP_KERNEL);
 	if (!rt)
@@ -406,6 +406,13 @@ static int tb_retimer_add(struct tb_port *port, u8 index, u32 auth_status)
 	rt->auth_status = auth_status;
 	rt->port = port;
 	rt->tb = port->sw->tb;
+
+	/*
+	 * Only support NVM upgrade for on-board retimers. The retimers
+	 * on the other side of the connection.
+	 */
+	if (!on_board || usb4_port_retimer_nvm_sector_size(port, index) <= 0)
+		rt->no_nvm_upgrade = true;
 
 	rt->dev.parent = &port->usb4->dev;
 	rt->dev.bus = &tb_bus_type;
@@ -437,12 +444,14 @@ static int tb_retimer_add(struct tb_port *port, u8 index, u32 auth_status)
 	pm_runtime_mark_last_busy(&rt->dev);
 	pm_runtime_use_autosuspend(&rt->dev);
 
+	tb_retimer_debugfs_init(rt);
 	return 0;
 }
 
 static void tb_retimer_remove(struct tb_retimer *rt)
 {
 	dev_info(&rt->dev, "retimer disconnected\n");
+	tb_retimer_debugfs_remove(rt);
 	tb_nvm_free(rt->nvm);
 	device_unregister(&rt->dev);
 }
@@ -485,7 +494,7 @@ static struct tb_retimer *tb_port_find_retimer(struct tb_port *port, u8 index)
 int tb_retimer_scan(struct tb_port *port, bool add)
 {
 	u32 status[TB_MAX_RETIMER_INDEX + 1] = {};
-	int ret, i, last_idx = 0;
+	int ret, i, max, last_idx = 0;
 
 	/*
 	 * Send broadcast RT to make sure retimer indices facing this
@@ -520,26 +529,28 @@ int tb_retimer_scan(struct tb_port *port, bool add)
 			break;
 	}
 
-	tb_retimer_unset_inbound_sbtx(port);
-
-	if (!last_idx)
-		return 0;
-
-	/* Add on-board retimers if they do not exist already */
+	max = i;
 	ret = 0;
-	for (i = 1; i <= last_idx; i++) {
+
+	/* Add retimers if they do not exist already */
+	for (i = 1; i <= max; i++) {
 		struct tb_retimer *rt;
+
+		/* Skip cable retimers */
+		if (usb4_port_retimer_is_cable(port, i))
+			continue;
 
 		rt = tb_port_find_retimer(port, i);
 		if (rt) {
 			put_device(&rt->dev);
 		} else if (add) {
-			ret = tb_retimer_add(port, i, status[i]);
+			ret = tb_retimer_add(port, i, status[i], i <= last_idx);
 			if (ret && ret != -EOPNOTSUPP)
 				break;
 		}
 	}
 
+	tb_retimer_unset_inbound_sbtx(port);
 	return ret;
 }
 
