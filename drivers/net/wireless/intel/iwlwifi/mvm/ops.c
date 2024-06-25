@@ -41,12 +41,8 @@ static const struct iwl_op_mode_ops iwl_mvm_ops_mq;
 
 struct iwl_mvm_mod_params iwlmvm_mod_params = {
 	.power_scheme = IWL_POWER_SCHEME_BPS,
-	/* rest of fields are 0 by default */
 };
 
-module_param_named(init_dbg, iwlmvm_mod_params.init_dbg, bool, 0444);
-MODULE_PARM_DESC(init_dbg,
-		 "set to true to debug an ASSERT in INIT fw (default: false");
 module_param_named(power_scheme, iwlmvm_mod_params.power_scheme, int, 0444);
 MODULE_PARM_DESC(power_scheme,
 		 "power management scheme: 1-active, 2-balanced, 3-low power, default: 2");
@@ -864,8 +860,7 @@ get_nvm_from_fw:
 		ret = iwl_mvm_init_mcc(mvm);
 	}
 
-	if (!iwlmvm_mod_params.init_dbg || !ret)
-		iwl_mvm_stop_device(mvm);
+	iwl_mvm_stop_device(mvm);
 
 	mutex_unlock(&mvm->mutex);
 	wiphy_unlock(mvm->hw->wiphy);
@@ -1500,8 +1495,6 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	iwl_fw_flush_dumps(&mvm->fwrt);
 	iwl_fw_runtime_free(&mvm->fwrt);
 
-	if (iwlmvm_mod_params.init_dbg)
-		return op_mode;
 	iwl_phy_db_free(mvm->phy_db);
 	kfree(mvm->scan_cmd);
 	iwl_trans_op_mode_leave(trans);
