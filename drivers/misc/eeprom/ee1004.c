@@ -16,6 +16,7 @@
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/nvmem-provider.h>
 
 /*
  * DDR4 memory modules use special EEPROMs following the Jedec EE1004
@@ -145,13 +146,17 @@ static ssize_t ee1004_eeprom_read(struct i2c_client *client, char *buf,
 	return i2c_smbus_read_i2c_block_data_or_emulated(client, offset, count, buf);
 }
 
-static ssize_t eeprom_read(struct file *filp, struct kobject *kobj,
-			   struct bin_attribute *bin_attr,
-			   char *buf, loff_t off, size_t count)
+static int ee1004_read(void *priv, unsigned int off, void *val, size_t count)
 {
-	struct i2c_client *client = kobj_to_i2c_client(kobj);
-	size_t requested = count;
-	int ret = 0;
+	struct i2c_client *client = priv;
+	char *buf = val;
+	int ret;
+
+	if (unlikely(!count))
+		return count;
+
+	if (off + count > EE1004_EEPROM_SIZE)
+		return -EINVAL;
 
 	/*
 	 * Read data from chip, protecting against concurrent access to
@@ -161,27 +166,20 @@ static ssize_t eeprom_read(struct file *filp, struct kobject *kobj,
 
 	while (count) {
 		ret = ee1004_eeprom_read(client, buf, off, count);
-		if (ret < 0)
-			goto out;
+		if (ret < 0) {
+			mutex_unlock(&ee1004_bus_lock);
+			return ret;
+		}
 
 		buf += ret;
 		off += ret;
 		count -= ret;
 	}
-out:
+
 	mutex_unlock(&ee1004_bus_lock);
 
-	return ret < 0 ? ret : requested;
+	return 0;
 }
-
-static BIN_ATTR_RO(eeprom, EE1004_EEPROM_SIZE);
-
-static struct bin_attribute *ee1004_attrs[] = {
-	&bin_attr_eeprom,
-	NULL
-};
-
-BIN_ATTRIBUTE_GROUPS(ee1004);
 
 static void ee1004_probe_temp_sensor(struct i2c_client *client)
 {
@@ -220,7 +218,24 @@ static void ee1004_cleanup_bus_data(void *data)
 
 static int ee1004_probe(struct i2c_client *client)
 {
+	struct nvmem_config config = {
+		.dev = &client->dev,
+		.name = dev_name(&client->dev),
+		.id = NVMEM_DEVID_NONE,
+		.owner = THIS_MODULE,
+		.type = NVMEM_TYPE_EEPROM,
+		.read_only = true,
+		.root_only = false,
+		.reg_read = ee1004_read,
+		.size = EE1004_EEPROM_SIZE,
+		.word_size = 1,
+		.stride = 1,
+		.priv = client,
+		.compat = true,
+		.base_dev = &client->dev,
+	};
 	struct ee1004_bus_data *bd;
+	struct nvmem_device *ndev;
 	int err, cnr = 0;
 
 	/* Make sure we can operate on this adapter */
@@ -272,6 +287,10 @@ static int ee1004_probe(struct i2c_client *client)
 
 	mutex_unlock(&ee1004_bus_lock);
 
+	ndev = devm_nvmem_register(&client->dev, &config);
+	if (IS_ERR(ndev))
+		return PTR_ERR(ndev);
+
 	dev_info(&client->dev,
 		 "%u byte EE1004-compliant SPD EEPROM, read-only\n",
 		 EE1004_EEPROM_SIZE);
@@ -284,7 +303,6 @@ static int ee1004_probe(struct i2c_client *client)
 static struct i2c_driver ee1004_driver = {
 	.driver = {
 		.name = "ee1004",
-		.dev_groups = ee1004_groups,
 	},
 	.probe = ee1004_probe,
 	.id_table = ee1004_ids,
