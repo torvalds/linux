@@ -972,6 +972,12 @@ int rproc_set_state(struct rproc *rproc, bool state)
 
 		ret = rproc_config_check(adsp, SOCCP_D0);
 		if (ret) {
+			ret = qcom_smem_state_update_bits(adsp->wake_state,
+						    SOCCP_STATE_MASK,
+						    !BIT(adsp->wake_bit));
+			if (ret)
+				dev_err(adsp->dev, "failed to clear smem bits after a failed D0 request\n");
+
 			dsb(sy);
 			dev_err(adsp->dev, "%s requested D3->D0: soccp failed to update tcsr val=%d\n",
 				current->comm, readl(adsp->config_addr));
@@ -995,6 +1001,12 @@ int rproc_set_state(struct rproc *rproc, bool state)
 
 			ret = rproc_config_check(adsp, SOCCP_D3);
 			if (ret) {
+				ret = qcom_smem_state_update_bits(adsp->sleep_state,
+						    SOCCP_STATE_MASK,
+						    !BIT(adsp->sleep_bit));
+				if (ret)
+					dev_err(adsp->dev, "failed to clear smem bits after a failed D3 request\n");
+
 				dsb(sy);
 				dev_err(adsp->dev, "%s requested D0->D3 failed: TCSR value:%d\n",
 					current->comm, readl(adsp->config_addr));
