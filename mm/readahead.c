@@ -410,58 +410,6 @@ static unsigned long get_next_ra_size(struct file_ra_state *ra,
  * it approaches max_readhead.
  */
 
-/*
- * Count contiguously cached pages from @index-1 to @index-@max,
- * this count is a conservative estimation of
- * 	- length of the sequential read sequence, or
- * 	- thrashing threshold in memory tight systems
- */
-static pgoff_t count_history_pages(struct address_space *mapping,
-				   pgoff_t index, unsigned long max)
-{
-	pgoff_t head;
-
-	rcu_read_lock();
-	head = page_cache_prev_miss(mapping, index - 1, max);
-	rcu_read_unlock();
-
-	return index - 1 - head;
-}
-
-/*
- * page cache context based readahead
- */
-static int try_context_readahead(struct address_space *mapping,
-				 struct file_ra_state *ra,
-				 pgoff_t index,
-				 unsigned long req_size,
-				 unsigned long max)
-{
-	pgoff_t size;
-
-	size = count_history_pages(mapping, index, max);
-
-	/*
-	 * not enough history pages:
-	 * it could be a random read
-	 */
-	if (size <= req_size)
-		return 0;
-
-	/*
-	 * starts from beginning of file:
-	 * it is a strong indication of long-run stream (or whole-file-read)
-	 */
-	if (size >= index)
-		size *= 2;
-
-	ra->start = index;
-	ra->size = min(size + req_size, max);
-	ra->async_size = 1;
-
-	return 1;
-}
-
 static inline int ra_alloc_folio(struct readahead_control *ractl, pgoff_t index,
 		pgoff_t mark, unsigned int order, gfp_t gfp)
 {
@@ -561,8 +509,8 @@ void page_cache_sync_ra(struct readahead_control *ractl,
 	pgoff_t index = readahead_index(ractl);
 	bool do_forced_ra = ractl->file && (ractl->file->f_mode & FMODE_RANDOM);
 	struct file_ra_state *ra = ractl->ra;
-	unsigned long max_pages;
-	pgoff_t prev_index;
+	unsigned long max_pages, contig_count;
+	pgoff_t prev_index, miss;
 
 	/*
 	 * Even if readahead is disabled, issue this request as readahead
@@ -603,16 +551,28 @@ void page_cache_sync_ra(struct readahead_control *ractl,
 	 * Query the page cache and look for the traces(cached history pages)
 	 * that a sequential stream would leave behind.
 	 */
-	if (try_context_readahead(ractl->mapping, ra, index, req_count,
-			max_pages))
-		goto readit;
-
+	rcu_read_lock();
+	miss = page_cache_prev_miss(ractl->mapping, index - 1, max_pages);
+	rcu_read_unlock();
+	contig_count = index - miss - 1;
 	/*
-	 * standalone, small random read
-	 * Read as is, and do not pollute the readahead state.
+	 * Standalone, small random read. Read as is, and do not pollute the
+	 * readahead state.
 	 */
-	do_page_cache_ra(ractl, req_count, 0);
-	return;
+	if (contig_count <= req_count) {
+		do_page_cache_ra(ractl, req_count, 0);
+		return;
+	}
+	/*
+	 * File cached from the beginning:
+	 * it is a strong indication of long-run stream (or whole-file-read)
+	 */
+	if (miss == ULONG_MAX)
+		contig_count *= 2;
+	ra->start = index;
+	ra->size = min(contig_count + req_count, max_pages);
+	ra->async_size = 1;
+	goto readit;
 
 initial_readahead:
 	ra->start = index;
