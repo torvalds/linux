@@ -178,6 +178,20 @@ static void __recvpair(struct __test_metadata *_metadata,
 	}
 }
 
+static void __setinlinepair(struct __test_metadata *_metadata,
+			    FIXTURE_DATA(msg_oob) *self)
+{
+	int i, oob_inline = 1;
+
+	for (i = 0; i < 2; i++) {
+		int ret;
+
+		ret = setsockopt(self->fd[i * 2 + 1], SOL_SOCKET, SO_OOBINLINE,
+				 &oob_inline, sizeof(oob_inline));
+		ASSERT_EQ(ret, 0);
+	}
+}
+
 #define sendpair(buf, len, flags)					\
 	__sendpair(_metadata, self, buf, len, flags)
 
@@ -190,6 +204,9 @@ static void __recvpair(struct __test_metadata *_metadata,
 		__recvpair(_metadata, self,				\
 			   expected_buf, expected_len, buf_len, flags);	\
 	} while (0)
+
+#define setinlinepair()							\
+	__setinlinepair(_metadata, self)
 
 #define tcp_incompliant							\
 	for (self->tcp_compliant = false;				\
@@ -302,6 +319,80 @@ TEST_F(msg_oob, ex_oob_ahead_break)
 	}
 
 	recvpair("d", 1, 1, MSG_OOB);
+}
+
+TEST_F(msg_oob, inline_oob)
+{
+	setinlinepair();
+
+	sendpair("x", 1, MSG_OOB);
+
+	recvpair("", -EINVAL, 1, MSG_OOB);
+	recvpair("x", 1, 1, 0);
+}
+
+TEST_F(msg_oob, inline_oob_break)
+{
+	setinlinepair();
+
+	sendpair("hello", 5, MSG_OOB);
+
+	recvpair("", -EINVAL, 1, MSG_OOB);
+	recvpair("hell", 4, 5, 0);		/* Break at OOB but not at ex-OOB. */
+	recvpair("o", 1, 1, 0);
+}
+
+TEST_F(msg_oob, inline_oob_ahead_break)
+{
+	sendpair("hello", 5, MSG_OOB);
+	sendpair("world", 5, 0);
+
+	recvpair("o", 1, 1, MSG_OOB);
+
+	setinlinepair();
+
+	recvpair("hell", 4, 9, 0);		/* Break at OOB even with enough buffer. */
+
+	tcp_incompliant {
+		recvpair("world", 5, 6, 0);	/* TCP recv()s "oworld", ... "o" ??? */
+	}
+}
+
+TEST_F(msg_oob, inline_ex_oob_break)
+{
+	sendpair("hello", 5, MSG_OOB);
+	sendpair("wor", 3, MSG_OOB);
+	sendpair("ld", 2, 0);
+
+	setinlinepair();
+
+	recvpair("hellowo", 7, 10, 0);		/* Break at OOB but not at ex-OOB. */
+	recvpair("rld", 3, 3, 0);
+}
+
+TEST_F(msg_oob, inline_ex_oob_no_drop)
+{
+	sendpair("x", 1, MSG_OOB);
+
+	setinlinepair();
+
+	sendpair("y", 1, MSG_OOB);		/* TCP does NOT drops "x" at this moment. */
+
+	recvpair("x", 1, 1, 0);
+	recvpair("y", 1, 1, 0);
+}
+
+TEST_F(msg_oob, inline_ex_oob_drop)
+{
+	sendpair("x", 1, MSG_OOB);
+	sendpair("y", 1, MSG_OOB);		/* TCP drops "x" at this moment. */
+
+	setinlinepair();
+
+	tcp_incompliant {
+		recvpair("x", 1, 1, 0);		/* TCP recv()s "y". */
+		recvpair("y", 1, 1, 0);		/* TCP returns -EAGAIN. */
+	}
 }
 
 TEST_HARNESS_MAIN
