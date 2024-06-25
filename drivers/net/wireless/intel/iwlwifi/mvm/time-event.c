@@ -127,7 +127,7 @@ static void iwl_mvm_cleanup_roc(struct iwl_mvm *mvm)
 			iwl_mvm_rm_aux_sta(mvm);
 	}
 
-	if (vif && !IS_ERR_OR_NULL(bss_vif))
+	if (!IS_ERR_OR_NULL(bss_vif))
 		iwl_mvm_unblock_esr(mvm, bss_vif, IWL_MVM_ESR_BLOCKED_ROC);
 	mutex_unlock(&mvm->mutex);
 }
