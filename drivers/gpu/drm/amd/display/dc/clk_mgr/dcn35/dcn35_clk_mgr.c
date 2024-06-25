@@ -120,7 +120,6 @@ static int dcn35_get_active_display_cnt_wa(
 
 	return display_count;
 }
-
 static void dcn35_disable_otg_wa(struct clk_mgr *clk_mgr_base, struct dc_state *context,
 		bool safe_to_lower, bool disable)
 {
@@ -128,14 +127,27 @@ static void dcn35_disable_otg_wa(struct clk_mgr *clk_mgr_base, struct dc_state *
 	int i;
 
 	for (i = 0; i < dc->res_pool->pipe_count; ++i) {
+		struct pipe_ctx *old_pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+		struct pipe_ctx *new_pipe = &context->res_ctx.pipe_ctx[i];
 		struct pipe_ctx *pipe = safe_to_lower
 			? &context->res_ctx.pipe_ctx[i]
 			: &dc->current_state->res_ctx.pipe_ctx[i];
-
+		bool stream_changed_otg_dig_on = false;
 		if (pipe->top_pipe || pipe->prev_odm_pipe)
 			continue;
+		stream_changed_otg_dig_on = old_pipe->stream && new_pipe->stream &&
+		old_pipe->stream != new_pipe->stream &&
+		old_pipe->stream_res.tg == new_pipe->stream_res.tg &&
+		new_pipe->stream->link_enc && !new_pipe->stream->dpms_off &&
+		new_pipe->stream->link->link_enc->funcs->is_dig_enabled &&
+		new_pipe->stream->link->link_enc->funcs->is_dig_enabled(
+		new_pipe->stream->link->link_enc) &&
+		new_pipe->stream_res.stream_enc &&
+		new_pipe->stream_res.stream_enc->funcs->is_fifo_enabled &&
+		new_pipe->stream_res.stream_enc->funcs->is_fifo_enabled(new_pipe->stream_res.stream_enc);
 		if (pipe->stream && (pipe->stream->dpms_off || dc_is_virtual_signal(pipe->stream->signal) ||
-				     !pipe->stream->link_enc)) {
+			!pipe->stream->link_enc) && !stream_changed_otg_dig_on) {
+			/* This w/a should not trigger when we have a dig active */
 			if (disable) {
 				if (pipe->stream_res.tg && pipe->stream_res.tg->funcs->disable_crtc)
 					pipe->stream_res.tg->funcs->disable_crtc(pipe->stream_res.tg);
