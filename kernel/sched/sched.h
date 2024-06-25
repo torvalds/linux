@@ -70,7 +70,6 @@
 #include <linux/workqueue_api.h>
 #include <linux/android_vendor.h>
 #include <linux/android_kabi.h>
-#include "android.h"
 
 #include <trace/events/power.h>
 #include <trace/events/sched.h>

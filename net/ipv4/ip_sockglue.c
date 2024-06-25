@@ -1406,12 +1406,13 @@ e_inval:
  * ipv4_pktinfo_prepare - transfer some info from rtable to skb
  * @sk: socket
  * @skb: buffer
+ * @drop_dst: if true, drops skb dst
  *
  * To support IP_CMSG_PKTINFO option, we store rt_iif and specific
  * destination in skb->cb[] before dst drop.
  * This way, receiver doesn't make cache line misses to read rtable.
  */
-void ipv4_pktinfo_prepare(const struct sock *sk, struct sk_buff *skb)
+void ipv4_pktinfo_prepare(const struct sock *sk, struct sk_buff *skb, bool drop_dst)
 {
 	struct in_pktinfo *pktinfo = PKTINFO_SKB_CB(skb);
 	bool prepare = (inet_sk(sk)->cmsg_flags & IP_CMSG_PKTINFO) ||
@@ -1440,7 +1441,8 @@ void ipv4_pktinfo_prepare(const struct sock *sk, struct sk_buff *skb)
 		pktinfo->ipi_ifindex = 0;
 		pktinfo->ipi_spec_dst.s_addr = 0;
 	}
-	skb_dst_drop(skb);
+	if (drop_dst)
+		skb_dst_drop(skb);
 }
 
 int ip_setsockopt(struct sock *sk, int level, int optname, sockptr_t optval,

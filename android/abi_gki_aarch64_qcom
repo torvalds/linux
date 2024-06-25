@@ -3837,6 +3837,8 @@
   usb_free_urb
   usb_function_register
   usb_function_unregister
+  usb_gadget_connect
+  usb_gadget_disconnect
   usb_gadget_wakeup
   usb_get_dev
   usb_get_from_anchor

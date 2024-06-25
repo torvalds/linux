@@ -6,7 +6,6 @@ if ARM_AMBA
 
 config TEGRA_AHB
 	bool
-	default y if ARCH_TEGRA
 	help
 	  Adds AHB configuration functionality for NVIDIA Tegra SoCs,
 	  which controls AHB bus master arbitration and some performance

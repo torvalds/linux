@@ -25,6 +25,10 @@ DECLARE_RESTRICTED_HOOK(android_rvh_set_gfp_zone_flags,
 DECLARE_RESTRICTED_HOOK(android_rvh_set_readahead_gfp_mask,
 			TP_PROTO(unsigned int *flags),	/* gfp_t *flags */
 			TP_ARGS(flags), 1);
+DECLARE_RESTRICTED_HOOK(android_rvh_do_read_fault,
+			TP_PROTO(struct file *file, pgoff_t pgoff,
+				 unsigned long *fault_around_bytes),
+			TP_ARGS(file, pgoff, fault_around_bytes), 1);
 DECLARE_HOOK(android_vh_dm_bufio_shrink_scan_bypass,
 	TP_PROTO(unsigned long dm_bufio_current_allocated, bool *bypass),
 	TP_ARGS(dm_bufio_current_allocated, bypass));
@@ -99,6 +103,15 @@ DECLARE_HOOK(android_vh_madvise_swapin_walk_pmd_entry,
 DECLARE_HOOK(android_vh_process_madvise_end,
 	TP_PROTO(int behavior, ssize_t *ret),
 	TP_ARGS(behavior, ret));
+DECLARE_RESTRICTED_HOOK(android_rvh_madvise_pageout_begin,
+			TP_PROTO(void **private),
+			TP_ARGS(private), 1);
+DECLARE_RESTRICTED_HOOK(android_rvh_madvise_pageout_end,
+			TP_PROTO(void *private, struct list_head *folio_list),
+			TP_ARGS(private, folio_list), 1);
+DECLARE_RESTRICTED_HOOK(android_rvh_reclaim_folio_list,
+			TP_PROTO(struct list_head *folio_list, void *private),
+			TP_ARGS(folio_list, private), 1);
 DECLARE_HOOK(android_vh_smaps_pte_entry,
 	TP_PROTO(swp_entry_t entry, unsigned long *writeback,
 		unsigned long *same, unsigned long *huge),
@@ -208,6 +221,9 @@ DECLARE_HOOK(android_vh_slab_folio_alloced,
 DECLARE_HOOK(android_vh_kmalloc_large_alloced,
 	TP_PROTO(struct page *page, unsigned int order, gfp_t flags),
 	TP_ARGS(page, order, flags));
+DECLARE_HOOK(android_vh_tune_fault_around_bytes,
+	TP_PROTO(unsigned long *fault_around_bytes),
+	TP_ARGS(fault_around_bytes));
 #endif /* _TRACE_HOOK_MM_H */
 
 /* This part must be outside protection */
