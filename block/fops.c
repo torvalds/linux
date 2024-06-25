@@ -394,10 +394,11 @@ static int blkdev_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
 	struct block_device *bdev = I_BDEV(inode);
 	loff_t isize = i_size_read(inode);
 
-	iomap->bdev = bdev;
-	iomap->offset = ALIGN_DOWN(offset, bdev_logical_block_size(bdev));
 	if (offset >= isize)
 		return -EIO;
+
+	iomap->bdev = bdev;
+	iomap->offset = ALIGN_DOWN(offset, bdev_logical_block_size(bdev));
 	iomap->type = IOMAP_MAPPED;
 	iomap->addr = iomap->offset;
 	iomap->length = isize - iomap->offset;
