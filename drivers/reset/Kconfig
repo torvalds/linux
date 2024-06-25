@@ -93,6 +93,7 @@ config RESET_IMX7
 
 config RESET_IMX8MP_AUDIOMIX
 	tristate "i.MX8MP AudioMix Reset Driver"
+	depends on ARCH_MXC || COMPILE_TEST
 	select AUXILIARY_BUS
 	default CLK_IMX8MP
 	help
