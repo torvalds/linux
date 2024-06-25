@@ -234,9 +234,6 @@ static irqreturn_t loongson_ipi_interrupt(int irq, void *dev)
 		per_cpu(irq_stat, cpu).ipi_irqs[IPI_CALL_FUNCTION]++;
 	}
 
-	if (action & SMP_CLEAR_VECT)
-		complete_irq_moving();
-
 	return IRQ_HANDLED;
 }
 
@@ -391,7 +388,6 @@ int loongson_cpu_disable(void)
 	irq_migrate_all_off_this_cpu();
 	clear_csr_ecfg(ECFG0_IM);
 	local_irq_restore(flags);
-	loongarch_avec_offline_cpu(cpu);
 	local_flush_tlb_all();
 
 	return 0;
@@ -570,7 +566,6 @@ asmlinkage void start_secondary(void)
 	 * early is dangerous.
 	 */
 	WARN_ON_ONCE(!irqs_disabled());
-	loongarch_avec_online_cpu(cpu);
 	loongson_smp_finish();
 
 	cpu_startup_entry(CPUHP_AP_ONLINE_IDLE);
