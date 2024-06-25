@@ -596,6 +596,256 @@ ath12k_htt_print_sched_txq_supercycle_trigger_tlv(const void *tag_buf,
 	stats_req->buf_len = len;
 }
 
+static void
+ath12k_htt_print_hw_stats_pdev_errs_tlv(const void *tag_buf, u16 tag_len,
+					struct debug_htt_stats_req *stats_req)
+{
+	const struct ath12k_htt_hw_stats_pdev_errs_tlv *htt_buf = tag_buf;
+	u8 *buf = stats_req->buf;
+	u32 len = stats_req->buf_len;
+	u32 buf_len = ATH12K_HTT_STATS_BUF_SIZE;
+	u32 mac_id_word;
+
+	if (tag_len < sizeof(*htt_buf))
+		return;
+
+	mac_id_word = le32_to_cpu(htt_buf->mac_id__word);
+
+	len += scnprintf(buf + len, buf_len - len, "HTT_HW_STATS_PDEV_ERRS_TLV:\n");
+	len += scnprintf(buf + len, buf_len - len, "mac_id = %u\n",
+			 u32_get_bits(mac_id_word, ATH12K_HTT_STATS_MAC_ID));
+	len += scnprintf(buf + len, buf_len - len, "tx_abort = %u\n",
+			 le32_to_cpu(htt_buf->tx_abort));
+	len += scnprintf(buf + len, buf_len - len, "tx_abort_fail_count = %u\n",
+			 le32_to_cpu(htt_buf->tx_abort_fail_count));
+	len += scnprintf(buf + len, buf_len - len, "rx_abort = %u\n",
+			 le32_to_cpu(htt_buf->rx_abort));
+	len += scnprintf(buf + len, buf_len - len, "rx_abort_fail_count = %u\n",
+			 le32_to_cpu(htt_buf->rx_abort_fail_count));
+	len += scnprintf(buf + len, buf_len - len, "rx_flush_cnt = %u\n",
+			 le32_to_cpu(htt_buf->rx_flush_cnt));
+	len += scnprintf(buf + len, buf_len - len, "warm_reset = %u\n",
+			 le32_to_cpu(htt_buf->warm_reset));
+	len += scnprintf(buf + len, buf_len - len, "cold_reset = %u\n",
+			 le32_to_cpu(htt_buf->cold_reset));
+	len += scnprintf(buf + len, buf_len - len, "mac_cold_reset_restore_cal = %u\n",
+			 le32_to_cpu(htt_buf->mac_cold_reset_restore_cal));
+	len += scnprintf(buf + len, buf_len - len, "mac_cold_reset = %u\n",
+			 le32_to_cpu(htt_buf->mac_cold_reset));
+	len += scnprintf(buf + len, buf_len - len, "mac_warm_reset = %u\n",
+			 le32_to_cpu(htt_buf->mac_warm_reset));
+	len += scnprintf(buf + len, buf_len - len, "mac_only_reset = %u\n",
+			 le32_to_cpu(htt_buf->mac_only_reset));
+	len += scnprintf(buf + len, buf_len - len, "phy_warm_reset = %u\n",
+			 le32_to_cpu(htt_buf->phy_warm_reset));
+	len += scnprintf(buf + len, buf_len - len, "phy_warm_reset_ucode_trig = %u\n",
+			 le32_to_cpu(htt_buf->phy_warm_reset_ucode_trig));
+	len += scnprintf(buf + len, buf_len - len, "mac_warm_reset_restore_cal = %u\n",
+			 le32_to_cpu(htt_buf->mac_warm_reset_restore_cal));
+	len += scnprintf(buf + len, buf_len - len, "mac_sfm_reset = %u\n",
+			 le32_to_cpu(htt_buf->mac_sfm_reset));
+	len += scnprintf(buf + len, buf_len - len, "phy_warm_reset_m3_ssr = %u\n",
+			 le32_to_cpu(htt_buf->phy_warm_reset_m3_ssr));
+	len += scnprintf(buf + len, buf_len - len, "fw_rx_rings_reset = %u\n",
+			 le32_to_cpu(htt_buf->fw_rx_rings_reset));
+	len += scnprintf(buf + len, buf_len - len, "tx_flush = %u\n",
+			 le32_to_cpu(htt_buf->tx_flush));
+	len += scnprintf(buf + len, buf_len - len, "tx_glb_reset = %u\n",
+			 le32_to_cpu(htt_buf->tx_glb_reset));
+	len += scnprintf(buf + len, buf_len - len, "tx_txq_reset = %u\n",
+			 le32_to_cpu(htt_buf->tx_txq_reset));
+	len += scnprintf(buf + len, buf_len - len, "rx_timeout_reset = %u\n\n",
+			 le32_to_cpu(htt_buf->rx_timeout_reset));
+
+	len += scnprintf(buf + len, buf_len - len, "PDEV_PHY_WARM_RESET_REASONS:\n");
+	len += scnprintf(buf + len, buf_len - len, "phy_warm_reset_reason_phy_m3 = %u\n",
+			 le32_to_cpu(htt_buf->phy_warm_reset_reason_phy_m3));
+	len += scnprintf(buf + len, buf_len - len,
+			 "phy_warm_reset_reason_tx_hw_stuck = %u\n",
+			 le32_to_cpu(htt_buf->phy_warm_reset_reason_tx_hw_stuck));
+	len += scnprintf(buf + len, buf_len - len,
+			 "phy_warm_reset_reason_num_cca_rx_frame_stuck = %u\n",
+			 le32_to_cpu(htt_buf->phy_warm_reset_reason_num_rx_frame_stuck));
+	len += scnprintf(buf + len, buf_len - len,
+			 "phy_warm_reset_reason_wal_rx_recovery_rst_rx_busy = %u\n",
+			 le32_to_cpu(htt_buf->phy_warm_reset_reason_wal_rx_rec_rx_busy));
+	len += scnprintf(buf + len, buf_len - len,
+			 "phy_warm_reset_reason_wal_rx_recovery_rst_mac_hang = %u\n",
+			 le32_to_cpu(htt_buf->phy_warm_reset_reason_wal_rx_rec_mac_hng));
+	len += scnprintf(buf + len, buf_len - len,
+			 "phy_warm_reset_reason_mac_reset_converted_phy_reset = %u\n",
+			 le32_to_cpu(htt_buf->phy_warm_reset_reason_mac_conv_phy_reset));
+	len += scnprintf(buf + len, buf_len - len,
+			 "phy_warm_reset_reason_tx_lifetime_expiry_cca_stuck = %u\n",
+			 le32_to_cpu(htt_buf->phy_warm_reset_reason_tx_exp_cca_stuck));
+	len += scnprintf(buf + len, buf_len - len,
+			 "phy_warm_reset_reason_tx_consecutive_flush9_war = %u\n",
+			 le32_to_cpu(htt_buf->phy_warm_reset_reason_tx_consec_flsh_war));
+	len += scnprintf(buf + len, buf_len - len,
+			 "phy_warm_reset_reason_tx_hwsch_reset_war = %u\n",
+			 le32_to_cpu(htt_buf->phy_warm_reset_reason_tx_hwsch_reset_war));
+	len += scnprintf(buf + len, buf_len - len,
+			 "phy_warm_reset_reason_hwsch_wdog_or_cca_wdog_war = %u\n\n",
+			 le32_to_cpu(htt_buf->phy_warm_reset_reason_hwsch_cca_wdog_war));
+
+	len += scnprintf(buf + len, buf_len - len, "WAL_RX_RECOVERY_STATS:\n");
+	len += scnprintf(buf + len, buf_len - len,
+			 "wal_rx_recovery_rst_mac_hang_count = %u\n",
+			 le32_to_cpu(htt_buf->wal_rx_recovery_rst_mac_hang_cnt));
+	len += scnprintf(buf + len, buf_len - len,
+			 "wal_rx_recovery_rst_known_sig_count = %u\n",
+			 le32_to_cpu(htt_buf->wal_rx_recovery_rst_known_sig_cnt));
+	len += scnprintf(buf + len, buf_len - len,
+			 "wal_rx_recovery_rst_no_rx_count = %u\n",
+			 le32_to_cpu(htt_buf->wal_rx_recovery_rst_no_rx_cnt));
+	len += scnprintf(buf + len, buf_len - len,
+			 "wal_rx_recovery_rst_no_rx_consecutive_count = %u\n",
+			 le32_to_cpu(htt_buf->wal_rx_recovery_rst_no_rx_consec_cnt));
+	len += scnprintf(buf + len, buf_len - len,
+			 "wal_rx_recovery_rst_rx_busy_count = %u\n",
+			 le32_to_cpu(htt_buf->wal_rx_recovery_rst_rx_busy_cnt));
+	len += scnprintf(buf + len, buf_len - len,
+			 "wal_rx_recovery_rst_phy_mac_hang_count = %u\n\n",
+			 le32_to_cpu(htt_buf->wal_rx_recovery_rst_phy_mac_hang_cnt));
+
+	len += scnprintf(buf + len, buf_len - len, "HTT_RX_DEST_DRAIN_STATS:\n");
+	len += scnprintf(buf + len, buf_len - len,
+			 "rx_dest_drain_rx_descs_leak_prevention_done = %u\n",
+			 le32_to_cpu(htt_buf->rx_dest_drain_rx_descs_leak_prevented));
+	len += scnprintf(buf + len, buf_len - len,
+			 "rx_dest_drain_rx_descs_saved_cnt = %u\n",
+			 le32_to_cpu(htt_buf->rx_dest_drain_rx_descs_saved_cnt));
+	len += scnprintf(buf + len, buf_len - len,
+			 "rx_dest_drain_rxdma2reo_leak_detected = %u\n",
+			 le32_to_cpu(htt_buf->rx_dest_drain_rxdma2reo_leak_detected));
+	len += scnprintf(buf + len, buf_len - len,
+			 "rx_dest_drain_rxdma2fw_leak_detected = %u\n",
+			 le32_to_cpu(htt_buf->rx_dest_drain_rxdma2fw_leak_detected));
+	len += scnprintf(buf + len, buf_len - len,
+			 "rx_dest_drain_rxdma2wbm_leak_detected = %u\n",
+			 le32_to_cpu(htt_buf->rx_dest_drain_rxdma2wbm_leak_detected));
+	len += scnprintf(buf + len, buf_len - len,
+			 "rx_dest_drain_rxdma1_2sw_leak_detected = %u\n",
+			 le32_to_cpu(htt_buf->rx_dest_drain_rxdma1_2sw_leak_detected));
+	len += scnprintf(buf + len, buf_len - len,
+			 "rx_dest_drain_rx_drain_ok_mac_idle = %u\n",
+			 le32_to_cpu(htt_buf->rx_dest_drain_rx_drain_ok_mac_idle));
+	len += scnprintf(buf + len, buf_len - len,
+			 "rx_dest_drain_ok_mac_not_idle = %u\n",
+			 le32_to_cpu(htt_buf->rx_dest_drain_ok_mac_not_idle));
+	len += scnprintf(buf + len, buf_len - len,
+			 "rx_dest_drain_prerequisite_invld = %u\n",
+			 le32_to_cpu(htt_buf->rx_dest_drain_prerequisite_invld));
+	len += scnprintf(buf + len, buf_len - len,
+			 "rx_dest_drain_skip_for_non_lmac_reset = %u\n",
+			 le32_to_cpu(htt_buf->rx_dest_drain_skip_non_lmac_reset));
+	len += scnprintf(buf + len, buf_len - len,
+			 "rx_dest_drain_hw_fifo_not_empty_post_drain_wait = %u\n\n",
+			 le32_to_cpu(htt_buf->rx_dest_drain_hw_fifo_notempty_post_wait));
+
+	stats_req->buf_len = len;
+}
+
+static void
+ath12k_htt_print_hw_stats_intr_misc_tlv(const void *tag_buf, u16 tag_len,
+					struct debug_htt_stats_req *stats_req)
+{
+	const struct ath12k_htt_hw_stats_intr_misc_tlv *htt_stats_buf = tag_buf;
+	u8 *buf = stats_req->buf;
+	u32 len = stats_req->buf_len;
+	u32 buf_len = ATH12K_HTT_STATS_BUF_SIZE;
+
+	if (tag_len < sizeof(*htt_stats_buf))
+		return;
+
+	len += scnprintf(buf + len, buf_len - len, "HTT_HW_STATS_INTR_MISC_TLV:\n");
+	len += scnprintf(buf + len, buf_len - len, "hw_intr_name = %s\n",
+			 htt_stats_buf->hw_intr_name);
+	len += scnprintf(buf + len, buf_len - len, "mask = %u\n",
+			 le32_to_cpu(htt_stats_buf->mask));
+	len += scnprintf(buf + len, buf_len - len, "count = %u\n\n",
+			 le32_to_cpu(htt_stats_buf->count));
+
+	stats_req->buf_len = len;
+}
+
+static void
+ath12k_htt_print_hw_stats_whal_tx_tlv(const void *tag_buf, u16 tag_len,
+				      struct debug_htt_stats_req *stats_req)
+{
+	const struct ath12k_htt_hw_stats_whal_tx_tlv *htt_stats_buf = tag_buf;
+	u8 *buf = stats_req->buf;
+	u32 len = stats_req->buf_len;
+	u32 buf_len = ATH12K_HTT_STATS_BUF_SIZE;
+	u32 mac_id_word;
+
+	if (tag_len < sizeof(*htt_stats_buf))
+		return;
+
+	mac_id_word = __le32_to_cpu(htt_stats_buf->mac_id__word);
+
+	len += scnprintf(buf + len, buf_len - len, "HTT_HW_STATS_WHAL_TX_TLV:\n");
+	len += scnprintf(buf + len, buf_len - len, "mac_id = %u\n",
+			 u32_get_bits(mac_id_word, ATH12K_HTT_STATS_MAC_ID));
+	len += scnprintf(buf + len, buf_len - len, "last_unpause_ppdu_id = %u\n",
+			 le32_to_cpu(htt_stats_buf->last_unpause_ppdu_id));
+	len += scnprintf(buf + len, buf_len - len, "hwsch_unpause_wait_tqm_write = %u\n",
+			 le32_to_cpu(htt_stats_buf->hwsch_unpause_wait_tqm_write));
+	len += scnprintf(buf + len, buf_len - len, "hwsch_dummy_tlv_skipped = %u\n",
+			 le32_to_cpu(htt_stats_buf->hwsch_dummy_tlv_skipped));
+	len += scnprintf(buf + len, buf_len - len,
+			 "hwsch_misaligned_offset_received = %u\n",
+			 le32_to_cpu(htt_stats_buf->hwsch_misaligned_offset_received));
+	len += scnprintf(buf + len, buf_len - len, "hwsch_reset_count = %u\n",
+			 le32_to_cpu(htt_stats_buf->hwsch_reset_count));
+	len += scnprintf(buf + len, buf_len - len, "hwsch_dev_reset_war = %u\n",
+			 le32_to_cpu(htt_stats_buf->hwsch_dev_reset_war));
+	len += scnprintf(buf + len, buf_len - len, "hwsch_delayed_pause = %u\n",
+			 le32_to_cpu(htt_stats_buf->hwsch_delayed_pause));
+	len += scnprintf(buf + len, buf_len - len, "hwsch_long_delayed_pause = %u\n",
+			 le32_to_cpu(htt_stats_buf->hwsch_long_delayed_pause));
+	len += scnprintf(buf + len, buf_len - len, "sch_rx_ppdu_no_response = %u\n",
+			 le32_to_cpu(htt_stats_buf->sch_rx_ppdu_no_response));
+	len += scnprintf(buf + len, buf_len - len, "sch_selfgen_response = %u\n",
+			 le32_to_cpu(htt_stats_buf->sch_selfgen_response));
+	len += scnprintf(buf + len, buf_len - len, "sch_rx_sifs_resp_trigger= %u\n\n",
+			 le32_to_cpu(htt_stats_buf->sch_rx_sifs_resp_trigger));
+
+	stats_req->buf_len = len;
+}
+
+static void
+ath12k_htt_print_hw_war_tlv(const void *tag_buf, u16 tag_len,
+			    struct debug_htt_stats_req *stats_req)
+{
+	const struct ath12k_htt_hw_war_stats_tlv *htt_stats_buf = tag_buf;
+	u8 *buf = stats_req->buf;
+	u32 len = stats_req->buf_len;
+	u32 buf_len = ATH12K_HTT_STATS_BUF_SIZE;
+	u16 fixed_len, array_len;
+	u8 i, array_words;
+	u32 mac_id;
+
+	if (tag_len < sizeof(*htt_stats_buf))
+		return;
+
+	mac_id = __le32_to_cpu(htt_stats_buf->mac_id__word);
+	fixed_len = sizeof(*htt_stats_buf);
+	array_len = tag_len - fixed_len;
+	array_words = array_len >> 2;
+
+	len += scnprintf(buf + len, buf_len - len, "HTT_HW_WAR_STATS_TLV:\n");
+	len += scnprintf(buf + len, buf_len - len, "mac_id = %u\n",
+			 u32_get_bits(mac_id, ATH12K_HTT_STATS_MAC_ID));
+
+	for (i = 0; i < array_words; i++) {
+		len += scnprintf(buf + len, buf_len - len, "hw_war %u = %u\n\n",
+				 i, le32_to_cpu(htt_stats_buf->hw_wars[i]));
+	}
+
+	stats_req->buf_len = len;
+}
+
 static int ath12k_dbg_htt_ext_stats_parse(struct ath12k_base *ab,
 					  u16 tag, u16 len, const void *tag_buf,
 					  void *user_data)
@@ -646,6 +896,18 @@ static int ath12k_dbg_htt_ext_stats_parse(struct ath12k_base *ab,
 	case HTT_STATS_SCHED_TXQ_SUPERCYCLE_TRIGGER_TAG:
 		ath12k_htt_print_sched_txq_supercycle_trigger_tlv(tag_buf, len,
 								  stats_req);
+		break;
+	case HTT_STATS_HW_PDEV_ERRS_TAG:
+		ath12k_htt_print_hw_stats_pdev_errs_tlv(tag_buf, len, stats_req);
+		break;
+	case HTT_STATS_HW_INTR_MISC_TAG:
+		ath12k_htt_print_hw_stats_intr_misc_tlv(tag_buf, len, stats_req);
+		break;
+	case HTT_STATS_WHAL_TX_TAG:
+		ath12k_htt_print_hw_stats_whal_tx_tlv(tag_buf, len, stats_req);
+		break;
+	case HTT_STATS_HW_WAR_TAG:
+		ath12k_htt_print_hw_war_tlv(tag_buf, len, stats_req);
 		break;
 	default:
 		break;

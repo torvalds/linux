@@ -126,6 +126,7 @@ enum ath12k_dbg_htt_ext_stats_type {
 	ATH12K_DBG_HTT_EXT_STATS_RESET		= 0,
 	ATH12K_DBG_HTT_EXT_STATS_PDEV_TX	= 1,
 	ATH12K_DBG_HTT_EXT_STATS_PDEV_TX_SCHED	= 4,
+	ATH12K_DBG_HTT_EXT_STATS_PDEV_ERROR	= 5,
 
 	/* keep this last */
 	ATH12K_DBG_HTT_NUM_EXT_STATS,
@@ -140,9 +141,13 @@ enum ath12k_dbg_htt_tlv_tag {
 	HTT_STATS_TX_SCHED_CMN_TAG			= 37,
 	HTT_STATS_SCHED_TXQ_CMD_POSTED_TAG		= 39,
 	HTT_STATS_SCHED_TXQ_CMD_REAPED_TAG		= 44,
+	HTT_STATS_HW_INTR_MISC_TAG			= 54,
+	HTT_STATS_HW_PDEV_ERRS_TAG			= 56,
+	HTT_STATS_WHAL_TX_TAG				= 66,
 	HTT_STATS_TX_PDEV_SIFS_HIST_TAG			= 67,
 	HTT_STATS_SCHED_TXQ_SCHED_ORDER_SU_TAG		= 86,
 	HTT_STATS_SCHED_TXQ_SCHED_INELIGIBILITY_TAG	= 87,
+	HTT_STATS_HW_WAR_TAG				= 89,
 	HTT_STATS_SCHED_TXQ_SUPERCYCLE_TRIGGER_TAG	= 100,
 	HTT_STATS_PDEV_CTRL_PATH_TX_STATS_TAG		= 102,
 	HTT_STATS_MU_PPDU_DIST_TAG			= 129,
@@ -376,6 +381,85 @@ enum ath12k_htt_sched_txq_supercycle_triggers_tlv_enum {
 
 struct ath12k_htt_sched_txq_supercycle_triggers_tlv {
 	DECLARE_FLEX_ARRAY(__le32, supercycle_triggers);
+} __packed;
+
+struct ath12k_htt_hw_stats_pdev_errs_tlv {
+	__le32 mac_id__word;
+	__le32 tx_abort;
+	__le32 tx_abort_fail_count;
+	__le32 rx_abort;
+	__le32 rx_abort_fail_count;
+	__le32 warm_reset;
+	__le32 cold_reset;
+	__le32 tx_flush;
+	__le32 tx_glb_reset;
+	__le32 tx_txq_reset;
+	__le32 rx_timeout_reset;
+	__le32 mac_cold_reset_restore_cal;
+	__le32 mac_cold_reset;
+	__le32 mac_warm_reset;
+	__le32 mac_only_reset;
+	__le32 phy_warm_reset;
+	__le32 phy_warm_reset_ucode_trig;
+	__le32 mac_warm_reset_restore_cal;
+	__le32 mac_sfm_reset;
+	__le32 phy_warm_reset_m3_ssr;
+	__le32 phy_warm_reset_reason_phy_m3;
+	__le32 phy_warm_reset_reason_tx_hw_stuck;
+	__le32 phy_warm_reset_reason_num_rx_frame_stuck;
+	__le32 phy_warm_reset_reason_wal_rx_rec_rx_busy;
+	__le32 phy_warm_reset_reason_wal_rx_rec_mac_hng;
+	__le32 phy_warm_reset_reason_mac_conv_phy_reset;
+	__le32 wal_rx_recovery_rst_mac_hang_cnt;
+	__le32 wal_rx_recovery_rst_known_sig_cnt;
+	__le32 wal_rx_recovery_rst_no_rx_cnt;
+	__le32 wal_rx_recovery_rst_no_rx_consec_cnt;
+	__le32 wal_rx_recovery_rst_rx_busy_cnt;
+	__le32 wal_rx_recovery_rst_phy_mac_hang_cnt;
+	__le32 rx_flush_cnt;
+	__le32 phy_warm_reset_reason_tx_exp_cca_stuck;
+	__le32 phy_warm_reset_reason_tx_consec_flsh_war;
+	__le32 phy_warm_reset_reason_tx_hwsch_reset_war;
+	__le32 phy_warm_reset_reason_hwsch_cca_wdog_war;
+	__le32 fw_rx_rings_reset;
+	__le32 rx_dest_drain_rx_descs_leak_prevented;
+	__le32 rx_dest_drain_rx_descs_saved_cnt;
+	__le32 rx_dest_drain_rxdma2reo_leak_detected;
+	__le32 rx_dest_drain_rxdma2fw_leak_detected;
+	__le32 rx_dest_drain_rxdma2wbm_leak_detected;
+	__le32 rx_dest_drain_rxdma1_2sw_leak_detected;
+	__le32 rx_dest_drain_rx_drain_ok_mac_idle;
+	__le32 rx_dest_drain_ok_mac_not_idle;
+	__le32 rx_dest_drain_prerequisite_invld;
+	__le32 rx_dest_drain_skip_non_lmac_reset;
+	__le32 rx_dest_drain_hw_fifo_notempty_post_wait;
+} __packed;
+
+#define ATH12K_HTT_STATS_MAX_HW_INTR_NAME_LEN 8
+struct ath12k_htt_hw_stats_intr_misc_tlv {
+	u8 hw_intr_name[ATH12K_HTT_STATS_MAX_HW_INTR_NAME_LEN];
+	__le32 mask;
+	__le32 count;
+} __packed;
+
+struct ath12k_htt_hw_stats_whal_tx_tlv {
+	__le32 mac_id__word;
+	__le32 last_unpause_ppdu_id;
+	__le32 hwsch_unpause_wait_tqm_write;
+	__le32 hwsch_dummy_tlv_skipped;
+	__le32 hwsch_misaligned_offset_received;
+	__le32 hwsch_reset_count;
+	__le32 hwsch_dev_reset_war;
+	__le32 hwsch_delayed_pause;
+	__le32 hwsch_long_delayed_pause;
+	__le32 sch_rx_ppdu_no_response;
+	__le32 sch_selfgen_response;
+	__le32 sch_rx_sifs_resp_trigger;
+} __packed;
+
+struct ath12k_htt_hw_war_stats_tlv {
+	__le32 mac_id__word;
+	DECLARE_FLEX_ARRAY(__le32, hw_wars);
 } __packed;
 
 #endif
