@@ -198,11 +198,12 @@ struct rs_rate {
 /**
  * struct iwl_lq_sta_rs_fw - rate and related statistics for RS in FW
  * @last_rate_n_flags: last rate reported by FW
+ * @pers: persistent fields
  * @pers.sta_id: the id of the station
- * @chains: bitmask of chains reported in %chain_signal
- * @chain_signal: per chain signal strength
- * @last_rssi: last rssi reported
- * @drv: pointer back to the driver data
+ * @pers.chains: bitmask of chains reported in %chain_signal
+ * @pers.chain_signal: per chain signal strength
+ * @pers.last_rssi: last rssi reported
+ * @pers.drv: pointer back to the driver data
  */
 struct iwl_lq_sta_rs_fw {
 	/* last tx rate_n_flags */
@@ -213,11 +214,11 @@ struct iwl_lq_sta_rs_fw {
 		u32 sta_id;
 #ifdef CONFIG_MAC80211_DEBUGFS
 		/**
-		 * @dbg_fixed_rate: for debug, use fixed rate if not 0
+		 * @pers.dbg_fixed_rate: for debug, use fixed rate if not 0
 		 */
 		u32 dbg_fixed_rate;
 		/**
-		 * @dbg_agg_frame_count_lim: for debug, max number of
+		 * @pers.dbg_agg_frame_count_lim: for debug, max number of
 		 *	frames in A-MPDU
 		 */
 		u16 dbg_agg_frame_count_lim;
