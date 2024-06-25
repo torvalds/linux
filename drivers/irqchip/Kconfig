@@ -145,7 +145,7 @@ config DAVINCI_CP_INTC
 	select IRQ_DOMAIN
 
 config DW_APB_ICTL
-	tristate "DesignWare APB Interrupt Controller"
+	bool
 	select GENERIC_IRQ_CHIP
 	select IRQ_DOMAIN_HIERARCHY
 
