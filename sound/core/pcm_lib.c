@@ -516,19 +516,37 @@ void snd_pcm_set_ops(struct snd_pcm *pcm, int direction,
 EXPORT_SYMBOL(snd_pcm_set_ops);
 
 /**
- * snd_pcm_set_sync - set the PCM sync id
+ * snd_pcm_set_sync_per_card - set the PCM sync id with card number
  * @substream: the pcm substream
+ * @params: modified hardware parameters
+ * @id: identifier (max 12 bytes)
+ * @len: identifier length (max 12 bytes)
  *
- * Sets the PCM sync identifier for the card.
+ * Sets the PCM sync identifier for the card with zero padding.
+ *
+ * User space or any user should use this 16-byte identifier for a comparison only
+ * to check if two IDs are similar or different. Special case is the identifier
+ * containing only zeros. Interpretation for this combination is - empty (not set).
+ * The contents of the identifier should not be interpreted in any other way.
+ *
+ * The synchronization ID must be unique per clock source (usually one sound card,
+ * but multiple soundcard may use one PCM word clock source which means that they
+ * are fully synchronized).
+ *
+ * This routine composes this ID using card number in first four bytes and
+ * 12-byte additional ID. When other ID composition is used (e.g. for multiple
+ * sound cards), make sure that the composition does not clash with this
+ * composition scheme.
  */
-void snd_pcm_set_sync(struct snd_pcm_substream *substream)
+void snd_pcm_set_sync_per_card(struct snd_pcm_substream *substream,
+			       struct snd_pcm_hw_params *params,
+			       const unsigned char *id, unsigned int len)
 {
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	
-	*(__u32 *)runtime->sync = cpu_to_le32(substream->pcm->card->number);
-	memset(runtime->sync + 4, 0xff, sizeof(runtime->sync) - 4);
+	*(__u32 *)params->sync = cpu_to_le32(substream->pcm->card->number);
+	len = max(12, len);
+	strncpy(params->sync + 4, id, len);
+	memset(params->sync + 4 + len, 0, 12 - len);
 }
-EXPORT_SYMBOL(snd_pcm_set_sync);
 
 /*
  *  Standard ioctl routine
@@ -1808,22 +1826,15 @@ static int snd_pcm_lib_ioctl_fifo_size(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-/**
- * is sync id (clock id) empty?
- */
-static inline bool pcm_sync_empty(const unsigned char *sync)
-{
-	return sync[0] == 0 && sync[1] == 0 && sync[2] == 0 && sync[3] == 0 &&
-	       sync[4] == 0 && sync[5] == 0 && sync[6] == 0 && sync[7] == 0;
-}
-
 static int snd_pcm_lib_ioctl_sync_id(struct snd_pcm_substream *substream,
 				     void *arg)
 {
-	struct snd_pcm_hw_params *params = arg;
+	static const unsigned char id[12] = { 0xff, 0xff, 0xff, 0xff,
+					      0xff, 0xff, 0xff, 0xff,
+					      0xff, 0xff, 0xff, 0xff };
 
-	if (pcm_sync_empty(params->sync))
-		memcpy(params->sync, substream->runtime->sync, sizeof(params->sync));
+	if (substream->runtime->std_sync_id)
+		snd_pcm_set_sync_per_card(substream, arg, id, sizeof(id));
 	return 0;
 }
 
