@@ -6,6 +6,7 @@
 #include <unistd.h>
 
 #include <netinet/in.h>
+#include <sys/epoll.h>
 #include <sys/ioctl.h>
 #include <sys/signalfd.h>
 #include <sys/socket.h>
@@ -22,6 +23,9 @@ FIXTURE(msg_oob)
 				 * 3: TCP receiver
 				 */
 	int signal_fd;
+	int epoll_fd[2];	/* 0: AF_UNIX receiver
+				 * 1: TCP receiver
+				 */
 	bool tcp_compliant;
 };
 
@@ -109,6 +113,25 @@ static void setup_sigurg(struct __test_metadata *_metadata,
 	ASSERT_EQ(ret, -1);
 }
 
+static void setup_epollpri(struct __test_metadata *_metadata,
+			   FIXTURE_DATA(msg_oob) *self)
+{
+	struct epoll_event event = {
+		.events = EPOLLPRI,
+	};
+	int i;
+
+	for (i = 0; i < 2; i++) {
+		int ret;
+
+		self->epoll_fd[i] = epoll_create1(0);
+		ASSERT_GE(self->epoll_fd[i], 0);
+
+		ret = epoll_ctl(self->epoll_fd[i], EPOLL_CTL_ADD, self->fd[i * 2 + 1], &event);
+		ASSERT_EQ(ret, 0);
+	}
+}
+
 static void close_sockets(FIXTURE_DATA(msg_oob) *self)
 {
 	int i;
@@ -123,6 +146,7 @@ FIXTURE_SETUP(msg_oob)
 	create_tcp_socketpair(_metadata, self);
 
 	setup_sigurg(_metadata, self);
+	setup_epollpri(_metadata, self);
 
 	self->tcp_compliant = true;
 }
@@ -130,6 +154,29 @@ FIXTURE_SETUP(msg_oob)
 FIXTURE_TEARDOWN(msg_oob)
 {
 	close_sockets(self);
+}
+
+static void __epollpair(struct __test_metadata *_metadata,
+			FIXTURE_DATA(msg_oob) *self,
+			bool oob_remaining)
+{
+	struct epoll_event event[2] = {};
+	int i, ret[2];
+
+	for (i = 0; i < 2; i++)
+		ret[i] = epoll_wait(self->epoll_fd[i], &event[i], 1, 0);
+
+	ASSERT_EQ(ret[0], oob_remaining);
+
+	if (self->tcp_compliant)
+		ASSERT_EQ(ret[0], ret[1]);
+
+	if (oob_remaining) {
+		ASSERT_EQ(event[0].events, EPOLLPRI);
+
+		if (self->tcp_compliant)
+			ASSERT_EQ(event[0].events, event[1].events);
+	}
 }
 
 static void __sendpair(struct __test_metadata *_metadata,
@@ -254,6 +301,9 @@ static void __setinlinepair(struct __test_metadata *_metadata,
 			   expected_buf, expected_len, buf_len, flags);	\
 	} while (0)
 
+#define epollpair(oob_remaining)					\
+	__epollpair(_metadata, self, oob_remaining)
+
 #define setinlinepair()							\
 	__setinlinepair(_metadata, self)
 
@@ -265,109 +315,170 @@ static void __setinlinepair(struct __test_metadata *_metadata,
 TEST_F(msg_oob, non_oob)
 {
 	sendpair("x", 1, 0);
+	epollpair(false);
 
 	recvpair("", -EINVAL, 1, MSG_OOB);
+	epollpair(false);
 }
 
 TEST_F(msg_oob, oob)
 {
 	sendpair("x", 1, MSG_OOB);
+	epollpair(true);
 
 	recvpair("x", 1, 1, MSG_OOB);
+	epollpair(false);
 }
 
 TEST_F(msg_oob, oob_drop)
 {
 	sendpair("x", 1, MSG_OOB);
+	epollpair(true);
 
 	recvpair("", -EAGAIN, 1, 0);		/* Drop OOB. */
+	epollpair(false);
+
 	recvpair("", -EINVAL, 1, MSG_OOB);
+	epollpair(false);
 }
 
 TEST_F(msg_oob, oob_ahead)
 {
 	sendpair("hello", 5, MSG_OOB);
+	epollpair(true);
 
 	recvpair("o", 1, 1, MSG_OOB);
+	epollpair(false);
+
 	recvpair("hell", 4, 4, 0);
+	epollpair(false);
 }
 
 TEST_F(msg_oob, oob_break)
 {
 	sendpair("hello", 5, MSG_OOB);
+	epollpair(true);
 
 	recvpair("hell", 4, 5, 0);		/* Break at OOB even with enough buffer. */
+	epollpair(true);
+
 	recvpair("o", 1, 1, MSG_OOB);
+	epollpair(false);
 }
 
 TEST_F(msg_oob, oob_ahead_break)
 {
 	sendpair("hello", 5, MSG_OOB);
+	epollpair(true);
+
 	sendpair("world", 5, 0);
+	epollpair(true);
 
 	recvpair("o", 1, 1, MSG_OOB);
+	epollpair(false);
+
 	recvpair("hell", 4, 9, 0);		/* Break at OOB even after it's recv()ed. */
+	epollpair(false);
+
 	recvpair("world", 5, 5, 0);
+	epollpair(false);
 }
 
 TEST_F(msg_oob, oob_break_drop)
 {
 	sendpair("hello", 5, MSG_OOB);
+	epollpair(true);
+
 	sendpair("world", 5, 0);
+	epollpair(true);
 
 	recvpair("hell", 4, 10, 0);		/* Break at OOB even with enough buffer. */
+	epollpair(true);
+
 	recvpair("world", 5, 10, 0);		/* Drop OOB and recv() the next skb. */
+	epollpair(false);
+
 	recvpair("", -EINVAL, 1, MSG_OOB);
+	epollpair(false);
 }
 
 TEST_F(msg_oob, ex_oob_break)
 {
 	sendpair("hello", 5, MSG_OOB);
+	epollpair(true);
+
 	sendpair("wor", 3, MSG_OOB);
+	epollpair(true);
+
 	sendpair("ld", 2, 0);
+	epollpair(true);
 
 	recvpair("hellowo", 7, 10, 0);		/* Break at OOB but not at ex-OOB. */
+	epollpair(true);
+
 	recvpair("r", 1, 1, MSG_OOB);
+	epollpair(false);
+
 	recvpair("ld", 2, 2, 0);
+	epollpair(false);
 }
 
 TEST_F(msg_oob, ex_oob_drop)
 {
 	sendpair("x", 1, MSG_OOB);
+	epollpair(true);
+
 	sendpair("y", 1, MSG_OOB);		/* TCP drops "x" at this moment. */
+	epollpair(true);
 
 	tcp_incompliant {
 		recvpair("x", 1, 1, 0);		/* TCP drops "y" by passing through it. */
+		epollpair(true);
+
 		recvpair("y", 1, 1, MSG_OOB);	/* TCP returns -EINVAL. */
+		epollpair(false);
 	}
 }
 
 TEST_F(msg_oob, ex_oob_drop_2)
 {
 	sendpair("x", 1, MSG_OOB);
+	epollpair(true);
+
 	sendpair("y", 1, MSG_OOB);		/* TCP drops "x" at this moment. */
+	epollpair(true);
 
 	recvpair("y", 1, 1, MSG_OOB);
+	epollpair(false);
 
 	tcp_incompliant {
 		recvpair("x", 1, 1, 0);		/* TCP returns -EAGAIN. */
+		epollpair(false);
 	}
 }
 
 TEST_F(msg_oob, ex_oob_ahead_break)
 {
 	sendpair("hello", 5, MSG_OOB);
+	epollpair(true);
+
 	sendpair("wor", 3, MSG_OOB);
+	epollpair(true);
 
 	recvpair("r", 1, 1, MSG_OOB);
+	epollpair(false);
 
 	sendpair("ld", 2, MSG_OOB);
+	epollpair(true);
 
 	tcp_incompliant {
 		recvpair("hellowol", 8, 10, 0);	/* TCP recv()s "helloworl", why "r" ?? */
 	}
 
+	epollpair(true);
+
 	recvpair("d", 1, 1, MSG_OOB);
+	epollpair(false);
 }
 
 TEST_F(msg_oob, inline_oob)
@@ -375,9 +486,13 @@ TEST_F(msg_oob, inline_oob)
 	setinlinepair();
 
 	sendpair("x", 1, MSG_OOB);
+	epollpair(true);
 
 	recvpair("", -EINVAL, 1, MSG_OOB);
+	epollpair(true);
+
 	recvpair("x", 1, 1, 0);
+	epollpair(false);
 }
 
 TEST_F(msg_oob, inline_oob_break)
@@ -385,62 +500,94 @@ TEST_F(msg_oob, inline_oob_break)
 	setinlinepair();
 
 	sendpair("hello", 5, MSG_OOB);
+	epollpair(true);
 
 	recvpair("", -EINVAL, 1, MSG_OOB);
+	epollpair(true);
+
 	recvpair("hell", 4, 5, 0);		/* Break at OOB but not at ex-OOB. */
+	epollpair(true);
+
 	recvpair("o", 1, 1, 0);
+	epollpair(false);
 }
 
 TEST_F(msg_oob, inline_oob_ahead_break)
 {
 	sendpair("hello", 5, MSG_OOB);
+	epollpair(true);
+
 	sendpair("world", 5, 0);
+	epollpair(true);
 
 	recvpair("o", 1, 1, MSG_OOB);
+	epollpair(false);
 
 	setinlinepair();
 
 	recvpair("hell", 4, 9, 0);		/* Break at OOB even with enough buffer. */
+	epollpair(false);
 
 	tcp_incompliant {
 		recvpair("world", 5, 6, 0);	/* TCP recv()s "oworld", ... "o" ??? */
 	}
+
+	epollpair(false);
 }
 
 TEST_F(msg_oob, inline_ex_oob_break)
 {
 	sendpair("hello", 5, MSG_OOB);
+	epollpair(true);
+
 	sendpair("wor", 3, MSG_OOB);
+	epollpair(true);
+
 	sendpair("ld", 2, 0);
+	epollpair(true);
 
 	setinlinepair();
 
 	recvpair("hellowo", 7, 10, 0);		/* Break at OOB but not at ex-OOB. */
+	epollpair(true);
+
 	recvpair("rld", 3, 3, 0);
+	epollpair(false);
 }
 
 TEST_F(msg_oob, inline_ex_oob_no_drop)
 {
 	sendpair("x", 1, MSG_OOB);
+	epollpair(true);
 
 	setinlinepair();
 
 	sendpair("y", 1, MSG_OOB);		/* TCP does NOT drops "x" at this moment. */
+	epollpair(true);
 
 	recvpair("x", 1, 1, 0);
+	epollpair(true);
+
 	recvpair("y", 1, 1, 0);
+	epollpair(false);
 }
 
 TEST_F(msg_oob, inline_ex_oob_drop)
 {
 	sendpair("x", 1, MSG_OOB);
+	epollpair(true);
+
 	sendpair("y", 1, MSG_OOB);		/* TCP drops "x" at this moment. */
+	epollpair(true);
 
 	setinlinepair();
 
 	tcp_incompliant {
 		recvpair("x", 1, 1, 0);		/* TCP recv()s "y". */
+		epollpair(true);
+
 		recvpair("y", 1, 1, 0);		/* TCP returns -EAGAIN. */
+		epollpair(false);
 	}
 }
 
