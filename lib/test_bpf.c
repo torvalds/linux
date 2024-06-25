@@ -15198,6 +15198,7 @@ struct tail_call_test {
 	int flags;
 	int result;
 	int stack_depth;
+	bool has_tail_call;
 };
 
 /* Flags that can be passed to tail call test cases */
@@ -15273,6 +15274,7 @@ static struct tail_call_test tail_call_tests[] = {
 			BPF_EXIT_INSN(),
 		},
 		.result = 3,
+		.has_tail_call = true,
 	},
 	{
 		"Tail call 3",
@@ -15283,6 +15285,7 @@ static struct tail_call_test tail_call_tests[] = {
 			BPF_EXIT_INSN(),
 		},
 		.result = 6,
+		.has_tail_call = true,
 	},
 	{
 		"Tail call 4",
@@ -15293,6 +15296,7 @@ static struct tail_call_test tail_call_tests[] = {
 			BPF_EXIT_INSN(),
 		},
 		.result = 10,
+		.has_tail_call = true,
 	},
 	{
 		"Tail call load/store leaf",
@@ -15323,6 +15327,7 @@ static struct tail_call_test tail_call_tests[] = {
 		},
 		.result = 0,
 		.stack_depth = 16,
+		.has_tail_call = true,
 	},
 	{
 		"Tail call error path, max count reached",
@@ -15335,6 +15340,7 @@ static struct tail_call_test tail_call_tests[] = {
 		},
 		.flags = FLAG_NEED_STATE | FLAG_RESULT_IN_STATE,
 		.result = (MAX_TAIL_CALL_CNT + 1) * MAX_TESTRUNS,
+		.has_tail_call = true,
 	},
 	{
 		"Tail call count preserved across function calls",
@@ -15357,6 +15363,7 @@ static struct tail_call_test tail_call_tests[] = {
 		.stack_depth = 8,
 		.flags = FLAG_NEED_STATE | FLAG_RESULT_IN_STATE,
 		.result = (MAX_TAIL_CALL_CNT + 1) * MAX_TESTRUNS,
+		.has_tail_call = true,
 	},
 	{
 		"Tail call error path, NULL target",
@@ -15369,6 +15376,7 @@ static struct tail_call_test tail_call_tests[] = {
 		},
 		.flags = FLAG_NEED_STATE | FLAG_RESULT_IN_STATE,
 		.result = MAX_TESTRUNS,
+		.has_tail_call = true,
 	},
 	{
 		"Tail call error path, index out of range",
@@ -15381,6 +15389,7 @@ static struct tail_call_test tail_call_tests[] = {
 		},
 		.flags = FLAG_NEED_STATE | FLAG_RESULT_IN_STATE,
 		.result = MAX_TESTRUNS,
+		.has_tail_call = true,
 	},
 };
 
@@ -15430,6 +15439,7 @@ static __init int prepare_tail_call_tests(struct bpf_array **pprogs)
 		fp->len = len;
 		fp->type = BPF_PROG_TYPE_SOCKET_FILTER;
 		fp->aux->stack_depth = test->stack_depth;
+		fp->aux->tail_call_reachable = test->has_tail_call;
 		memcpy(fp->insnsi, test->insns, len * sizeof(struct bpf_insn));
 
 		/* Relocate runtime tail call offsets and addresses */
