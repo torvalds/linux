@@ -119,7 +119,7 @@ static struct aca_regs_dump {
 static void aca_smu_bank_dump(struct amdgpu_device *adev, int idx, int total, struct aca_bank *bank,
 			      struct ras_query_context *qctx)
 {
-	u64 event_id = qctx ? qctx->event_id : 0ULL;
+	u64 event_id = qctx ? qctx->evid.event_id : RAS_EVENT_INVALID_ID;
 	int i;
 
 	RAS_EVENT_LOG(adev, event_id, HW_ERR "Accelerator Check Architecture events logged\n");
