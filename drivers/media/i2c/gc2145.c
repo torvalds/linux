@@ -68,8 +68,7 @@
 #define GC2145_DPHY_CLK_DELAY		BIT(4)
 #define GC2145_DPHY_LANE0_DELAY		BIT(5)
 #define GC2145_DPHY_LANE1_DELAY		BIT(6)
-#define GC2145_REG_FIFO_FULL_LVL_LOW	CCI_REG8(0x04)
-#define GC2145_REG_FIFO_FULL_LVL_HIGH	CCI_REG8(0x05)
+#define GC2145_REG_FIFO_FULL_LVL	CCI_REG16_LE(0x04)
 #define GC2145_REG_FIFO_MODE		CCI_REG8(0x06)
 #define GC2145_FIFO_MODE_READ_GATE	BIT(3)
 #define GC2145_FIFO_MODE_MIPI_CLK_MODULE	BIT(7)
@@ -79,8 +78,7 @@
 #define GC2145_CSI2_MODE_MIPI_EN	BIT(4)
 #define GC2145_CSI2_MODE_EN		BIT(7)
 #define GC2145_REG_MIPI_DT	CCI_REG8(0x11)
-#define GC2145_REG_LWC_LOW	CCI_REG8(0x12)
-#define GC2145_REG_LWC_HIGH	CCI_REG8(0x13)
+#define GC2145_REG_LWC		CCI_REG16_LE(0x12)
 #define GC2145_REG_DPHY_MODE	CCI_REG8(0x15)
 #define GC2145_DPHY_MODE_TRIGGER_PROG	BIT(4)
 #define GC2145_REG_FIFO_GATE_MODE	CCI_REG8(0x17)
@@ -861,8 +859,7 @@ static int gc2145_config_mipi_mode(struct gc2145 *gc2145,
 	else
 		lwc = gc2145->mode->width;
 
-	cci_write(gc2145->regmap, GC2145_REG_LWC_HIGH, lwc >> 8, &ret);
-	cci_write(gc2145->regmap, GC2145_REG_LWC_LOW, lwc & 0xff, &ret);
+	cci_write(gc2145->regmap, GC2145_REG_LWC, lwc, &ret);
 
 	/*
 	 * Adjust the MIPI FIFO Full Level
@@ -879,10 +876,8 @@ static int gc2145_config_mipi_mode(struct gc2145 *gc2145,
 		fifo_full_lvl = 0x0190;
 	}
 
-	cci_write(gc2145->regmap, GC2145_REG_FIFO_FULL_LVL_HIGH,
-		  fifo_full_lvl >> 8, &ret);
-	cci_write(gc2145->regmap, GC2145_REG_FIFO_FULL_LVL_LOW,
-		  fifo_full_lvl & 0xff, &ret);
+	cci_write(gc2145->regmap, GC2145_REG_FIFO_FULL_LVL,
+		  fifo_full_lvl, &ret);
 
 	/*
 	 * Set the FIFO gate mode / MIPI wdiv set:
