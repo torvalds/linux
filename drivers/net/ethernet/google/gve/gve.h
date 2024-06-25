@@ -60,6 +60,11 @@
 
 #define GVE_DEFAULT_RX_BUFFER_OFFSET 2048
 
+#define GVE_FLOW_RULES_CACHE_SIZE \
+	(GVE_ADMINQ_BUFFER_SIZE / sizeof(struct gve_adminq_queried_flow_rule))
+#define GVE_FLOW_RULE_IDS_CACHE_SIZE \
+	(GVE_ADMINQ_BUFFER_SIZE / sizeof(((struct gve_adminq_queried_flow_rule *)0)->location))
+
 #define GVE_XDP_ACTIONS 5
 
 #define GVE_GQ_TX_MIN_PKT_DESC_BYTES 182
@@ -678,6 +683,39 @@ enum gve_queue_format {
 	GVE_DQO_QPL_FORMAT		= 0x4,
 };
 
+struct gve_flow_spec {
+	__be32 src_ip[4];
+	__be32 dst_ip[4];
+	union {
+		struct {
+			__be16 src_port;
+			__be16 dst_port;
+		};
+		__be32 spi;
+	};
+	union {
+		u8 tos;
+		u8 tclass;
+	};
+};
+
+struct gve_flow_rule {
+	u32 location;
+	u16 flow_type;
+	u16 action;
+	struct gve_flow_spec key;
+	struct gve_flow_spec mask;
+};
+
+struct gve_flow_rules_cache {
+	bool rules_cache_synced; /* False if the driver's rules_cache is outdated */
+	struct gve_adminq_queried_flow_rule *rules_cache;
+	__be32 *rule_ids_cache;
+	/* The total number of queried rules that stored in the caches */
+	u32 rules_cache_num;
+	u32 rule_ids_cache_num;
+};
+
 struct gve_priv {
 	struct net_device *dev;
 	struct gve_tx_ring *tx; /* array of tx_cfg.num_queues */
@@ -744,6 +782,8 @@ struct gve_priv {
 	u32 adminq_report_link_speed_cnt;
 	u32 adminq_get_ptype_map_cnt;
 	u32 adminq_verify_driver_compatibility_cnt;
+	u32 adminq_query_flow_rules_cnt;
+	u32 adminq_cfg_flow_rule_cnt;
 
 	/* Global stats */
 	u32 interface_up_cnt; /* count of times interface turned up since last reset */
@@ -788,6 +828,9 @@ struct gve_priv {
 	bool header_split_enabled; /* True if the header split is enabled by the user */
 
 	u32 max_flow_rules;
+	u32 num_flow_rules;
+
+	struct gve_flow_rules_cache flow_rules_cache;
 };
 
 enum gve_service_task_flags_bit {

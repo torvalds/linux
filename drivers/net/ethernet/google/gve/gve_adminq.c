@@ -287,6 +287,8 @@ int gve_adminq_alloc(struct device *dev, struct gve_priv *priv)
 	priv->adminq_report_stats_cnt = 0;
 	priv->adminq_report_link_speed_cnt = 0;
 	priv->adminq_get_ptype_map_cnt = 0;
+	priv->adminq_query_flow_rules_cnt = 0;
+	priv->adminq_cfg_flow_rule_cnt = 0;
 
 	/* Setup Admin queue with the device */
 	if (priv->pdev->revision < 0x1) {
@@ -526,6 +528,12 @@ static int gve_adminq_issue_cmd(struct gve_priv *priv,
 	case GVE_ADMINQ_VERIFY_DRIVER_COMPATIBILITY:
 		priv->adminq_verify_driver_compatibility_cnt++;
 		break;
+	case GVE_ADMINQ_QUERY_FLOW_RULES:
+		priv->adminq_query_flow_rules_cnt++;
+		break;
+	case GVE_ADMINQ_CONFIGURE_FLOW_RULE:
+		priv->adminq_cfg_flow_rule_cnt++;
+		break;
 	default:
 		dev_err(&priv->pdev->dev, "unknown AQ command opcode %d\n", opcode);
 	}
@@ -558,8 +566,8 @@ out:
 	return err;
 }
 
-static int __maybe_unused gve_adminq_execute_extended_cmd(struct gve_priv *priv, u32 opcode,
-							  size_t cmd_size, void *cmd_orig)
+static int gve_adminq_execute_extended_cmd(struct gve_priv *priv, u32 opcode,
+					   size_t cmd_size, void *cmd_orig)
 {
 	union gve_adminq_command cmd;
 	dma_addr_t inner_cmd_bus;
@@ -1188,5 +1196,132 @@ int gve_adminq_get_ptype_map_dqo(struct gve_priv *priv,
 err:
 	dma_free_coherent(&priv->pdev->dev, sizeof(*ptype_map), ptype_map,
 			  ptype_map_bus);
+	return err;
+}
+
+static int
+gve_adminq_configure_flow_rule(struct gve_priv *priv,
+			       struct gve_adminq_configure_flow_rule *flow_rule_cmd)
+{
+	int err = gve_adminq_execute_extended_cmd(priv,
+			GVE_ADMINQ_CONFIGURE_FLOW_RULE,
+			sizeof(struct gve_adminq_configure_flow_rule),
+			flow_rule_cmd);
+
+	if (err) {
+		dev_err(&priv->pdev->dev, "Timeout to configure the flow rule, trigger reset");
+		gve_reset(priv, true);
+	} else {
+		priv->flow_rules_cache.rules_cache_synced = false;
+	}
+
+	return err;
+}
+
+int gve_adminq_add_flow_rule(struct gve_priv *priv, struct gve_adminq_flow_rule *rule, u32 loc)
+{
+	struct gve_adminq_configure_flow_rule flow_rule_cmd = {
+		.opcode = cpu_to_be16(GVE_FLOW_RULE_CFG_ADD),
+		.location = cpu_to_be32(loc),
+		.rule = *rule,
+	};
+
+	return gve_adminq_configure_flow_rule(priv, &flow_rule_cmd);
+}
+
+int gve_adminq_del_flow_rule(struct gve_priv *priv, u32 loc)
+{
+	struct gve_adminq_configure_flow_rule flow_rule_cmd = {
+		.opcode = cpu_to_be16(GVE_FLOW_RULE_CFG_DEL),
+		.location = cpu_to_be32(loc),
+	};
+
+	return gve_adminq_configure_flow_rule(priv, &flow_rule_cmd);
+}
+
+int gve_adminq_reset_flow_rules(struct gve_priv *priv)
+{
+	struct gve_adminq_configure_flow_rule flow_rule_cmd = {
+		.opcode = cpu_to_be16(GVE_FLOW_RULE_CFG_RESET),
+	};
+
+	return gve_adminq_configure_flow_rule(priv, &flow_rule_cmd);
+}
+
+/* In the dma memory that the driver allocated for the device to query the flow rules, the device
+ * will first write it with a struct of gve_query_flow_rules_descriptor. Next to it, the device
+ * will write an array of rules or rule ids with the count that specified in the descriptor.
+ * For GVE_FLOW_RULE_QUERY_STATS, the device will only write the descriptor.
+ */
+static int gve_adminq_process_flow_rules_query(struct gve_priv *priv, u16 query_opcode,
+					       struct gve_query_flow_rules_descriptor *descriptor)
+{
+	struct gve_flow_rules_cache *flow_rules_cache = &priv->flow_rules_cache;
+	u32 num_queried_rules, total_memory_len, rule_info_len;
+	void *rule_info;
+
+	total_memory_len = be32_to_cpu(descriptor->total_length);
+	num_queried_rules = be32_to_cpu(descriptor->num_queried_rules);
+	rule_info = (void *)(descriptor + 1);
+
+	switch (query_opcode) {
+	case GVE_FLOW_RULE_QUERY_RULES:
+		rule_info_len = num_queried_rules * sizeof(*flow_rules_cache->rules_cache);
+		if (sizeof(*descriptor) + rule_info_len != total_memory_len) {
+			dev_err(&priv->dev->dev, "flow rules query is out of memory.\n");
+			return -ENOMEM;
+		}
+
+		memcpy(flow_rules_cache->rules_cache, rule_info, rule_info_len);
+		flow_rules_cache->rules_cache_num = num_queried_rules;
+		break;
+	case GVE_FLOW_RULE_QUERY_IDS:
+		rule_info_len = num_queried_rules * sizeof(*flow_rules_cache->rule_ids_cache);
+		if (sizeof(*descriptor) + rule_info_len != total_memory_len) {
+			dev_err(&priv->dev->dev, "flow rule ids query is out of memory.\n");
+			return -ENOMEM;
+		}
+
+		memcpy(flow_rules_cache->rule_ids_cache, rule_info, rule_info_len);
+		flow_rules_cache->rule_ids_cache_num = num_queried_rules;
+		break;
+	case GVE_FLOW_RULE_QUERY_STATS:
+		priv->num_flow_rules = be32_to_cpu(descriptor->num_flow_rules);
+		priv->max_flow_rules = be32_to_cpu(descriptor->max_flow_rules);
+		return 0;
+	default:
+		return -EINVAL;
+	}
+
+	return  0;
+}
+
+int gve_adminq_query_flow_rules(struct gve_priv *priv, u16 query_opcode, u32 starting_loc)
+{
+	struct gve_query_flow_rules_descriptor *descriptor;
+	union gve_adminq_command cmd;
+	dma_addr_t descriptor_bus;
+	int err = 0;
+
+	memset(&cmd, 0, sizeof(cmd));
+	descriptor = dma_pool_alloc(priv->adminq_pool, GFP_KERNEL, &descriptor_bus);
+	if (!descriptor)
+		return -ENOMEM;
+
+	cmd.opcode = cpu_to_be32(GVE_ADMINQ_QUERY_FLOW_RULES);
+	cmd.query_flow_rules = (struct gve_adminq_query_flow_rules) {
+		.opcode = cpu_to_be16(query_opcode),
+		.starting_rule_id = cpu_to_be32(starting_loc),
+		.available_length = cpu_to_be64(GVE_ADMINQ_BUFFER_SIZE),
+		.rule_descriptor_addr = cpu_to_be64(descriptor_bus),
+	};
+	err = gve_adminq_execute_cmd(priv, &cmd);
+	if (err)
+		goto out;
+
+	err = gve_adminq_process_flow_rules_query(priv, query_opcode, descriptor);
+
+out:
+	dma_pool_free(priv->adminq_pool, descriptor, descriptor_bus);
 	return err;
 }
