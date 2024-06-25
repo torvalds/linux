@@ -129,6 +129,11 @@ enum CMD_MODE {
  * For allocation of the command and tx queues, this establishes the overall
  * size of the largest command we send to uCode, except for commands that
  * aren't fully copied and use other TFD space.
+ *
+ * @hdr: command header
+ * @payload: payload for the command
+ * @hdr_wide: wide command header
+ * @payload_wide: payload for the wide command
  */
 struct iwl_device_cmd {
 	union {
@@ -273,7 +278,7 @@ static inline void iwl_free_rxb(struct iwl_rx_cmd_buffer *r)
 #define IWL_9000_MAX_RX_HW_QUEUES	1
 
 /**
- * enum iwl_wowlan_status - WoWLAN image/device status
+ * enum iwl_d3_status - WoWLAN image/device status
  * @IWL_D3_STATUS_ALIVE: firmware is still running after resume
  * @IWL_D3_STATUS_RESET: device was reset while suspended
  */
