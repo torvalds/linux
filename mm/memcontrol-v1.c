@@ -100,7 +100,7 @@ static unsigned long soft_limit_excess(struct mem_cgroup *memcg)
 	return excess;
 }
 
-void mem_cgroup_update_tree(struct mem_cgroup *memcg, int nid)
+void memcg1_update_tree(struct mem_cgroup *memcg, int nid)
 {
 	unsigned long excess;
 	struct mem_cgroup_per_node *mz;
@@ -143,7 +143,7 @@ void mem_cgroup_update_tree(struct mem_cgroup *memcg, int nid)
 	}
 }
 
-void mem_cgroup_remove_from_trees(struct mem_cgroup *memcg)
+void memcg1_remove_from_trees(struct mem_cgroup *memcg)
 {
 	struct mem_cgroup_tree_per_node *mctz;
 	struct mem_cgroup_per_node *mz;
@@ -243,7 +243,7 @@ static int mem_cgroup_soft_reclaim(struct mem_cgroup *root_memcg,
 	return total;
 }
 
-unsigned long mem_cgroup_soft_limit_reclaim(pg_data_t *pgdat, int order,
+unsigned long memcg1_soft_limit_reclaim(pg_data_t *pgdat, int order,
 					    gfp_t gfp_mask,
 					    unsigned long *total_scanned)
 {

@@ -1011,7 +1011,7 @@ static void memcg_check_events(struct mem_cgroup *memcg, int nid)
 						MEM_CGROUP_TARGET_SOFTLIMIT);
 		mem_cgroup_threshold(memcg);
 		if (unlikely(do_softlimit))
-			mem_cgroup_update_tree(memcg, nid);
+			memcg1_update_tree(memcg, nid);
 	}
 }
 
@@ -5608,7 +5608,7 @@ static void mem_cgroup_css_free(struct cgroup_subsys_state *css)
 
 	vmpressure_cleanup(&memcg->vmpressure);
 	cancel_work_sync(&memcg->high_work);
-	mem_cgroup_remove_from_trees(memcg);
+	memcg1_remove_from_trees(memcg);
 	free_shrinker_info(memcg);
 	mem_cgroup_free(memcg);
 }
