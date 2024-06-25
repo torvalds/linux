@@ -2843,7 +2843,7 @@ static int svm_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 
 	if (sev_es_prevent_msr_access(vcpu, msr_info)) {
 		msr_info->data = 0;
-		return -EINVAL;
+		return vcpu->kvm->arch.has_protected_state ? -EINVAL : 0;
 	}
 
 	switch (msr_info->index) {
@@ -2998,7 +2998,7 @@ static int svm_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr)
 	u64 data = msr->data;
 
 	if (sev_es_prevent_msr_access(vcpu, msr))
-		return -EINVAL;
+		return vcpu->kvm->arch.has_protected_state ? -EINVAL : 0;
 
 	switch (ecx) {
 	case MSR_AMD64_TSC_RATIO:

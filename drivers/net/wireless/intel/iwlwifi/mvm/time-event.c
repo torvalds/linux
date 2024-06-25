@@ -1238,6 +1238,7 @@ void iwl_mvm_stop_roc(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 			if (te_data->id >= SESSION_PROTECT_CONF_MAX_ID) {
 				IWL_DEBUG_TE(mvm,
 					     "No remain on channel event\n");
+				mutex_unlock(&mvm->mutex);
 				return;
 			}
 
@@ -1253,6 +1254,7 @@ void iwl_mvm_stop_roc(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	te_data = iwl_mvm_get_roc_te(mvm);
 	if (!te_data) {
 		IWL_WARN(mvm, "No remain on channel event\n");
+		mutex_unlock(&mvm->mutex);
 		return;
 	}
 
