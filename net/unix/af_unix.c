@@ -2614,12 +2614,23 @@ static struct sk_buff *manage_oob(struct sk_buff *skb, struct sock *sk,
 	struct unix_sock *u = unix_sk(sk);
 
 	if (!unix_skb_len(skb)) {
-		if (!(flags & MSG_PEEK)) {
-			skb_unlink(skb, &sk->sk_receive_queue);
-			consume_skb(skb);
+		struct sk_buff *unlinked_skb = NULL;
+
+		spin_lock(&sk->sk_receive_queue.lock);
+
+		if (copied) {
+			skb = NULL;
+		} else if (flags & MSG_PEEK) {
+			skb = skb_peek_next(skb, &sk->sk_receive_queue);
+		} else {
+			unlinked_skb = skb;
+			skb = skb_peek_next(skb, &sk->sk_receive_queue);
+			__skb_unlink(unlinked_skb, &sk->sk_receive_queue);
 		}
 
-		skb = NULL;
+		spin_unlock(&sk->sk_receive_queue.lock);
+
+		consume_skb(unlinked_skb);
 	} else {
 		struct sk_buff *unlinked_skb = NULL;
 

@@ -238,4 +238,15 @@ TEST_F(msg_oob, oob_break_drop)
 	recvpair("", -EINVAL, 1, MSG_OOB);
 }
 
+TEST_F(msg_oob, ex_oob_break)
+{
+	sendpair("hello", 5, MSG_OOB);
+	sendpair("wor", 3, MSG_OOB);
+	sendpair("ld", 2, 0);
+
+	recvpair("hellowo", 7, 10, 0);		/* Break at OOB but not at ex-OOB. */
+	recvpair("r", 1, 1, MSG_OOB);
+	recvpair("ld", 2, 2, 0);
+}
+
 TEST_HARNESS_MAIN
