@@ -31,6 +31,18 @@ properties:
       - const: core
       - const: aon
 
+  qcom,cmd-crci:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Must contain the ADM command type CRCI block instance number specified for
+      the NAND controller on the given platform
+
+  qcom,data-crci:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Must contain the ADM data type CRCI block instance number specified for
+      the NAND controller on the given platform
+
 patternProperties:
   "^nand@[a-f0-9]$":
     type: object
@@ -83,18 +95,6 @@ allOf:
           items:
             - const: rxtx
 
-        qcom,cmd-crci:
-          $ref: /schemas/types.yaml#/definitions/uint32
-          description:
-            Must contain the ADM command type CRCI block instance number
-            specified for the NAND controller on the given platform
-
-        qcom,data-crci:
-          $ref: /schemas/types.yaml#/definitions/uint32
-          description:
-            Must contain the ADM data type CRCI block instance number
-            specified for the NAND controller on the given platform
-
   - if:
       properties:
         compatible:
@@ -119,19 +119,9 @@ allOf:
             - const: rx
             - const: cmd
 
-  - if:
-      properties:
-        compatible:
-          contains:
-            enum:
-              - qcom,ipq806x-nand
+        qcom,cmd-crci: false
+        qcom,data-crci: false
 
-    then:
-      patternProperties:
-        "^nand@[a-f0-9]$":
-          properties:
-            qcom,boot-partitions: true
-    else:
       patternProperties:
         "^nand@[a-f0-9]$":
           properties:
