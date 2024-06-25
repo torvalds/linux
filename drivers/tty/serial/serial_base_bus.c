@@ -219,8 +219,6 @@ static int serial_base_add_one_prefcon(const char *match, const char *dev_name,
 	return ret;
 }
 
-#endif
-
 #ifdef __sparc__
 
 /* Handle Sparc ttya and ttyb options as done in console_setup() */
@@ -330,6 +328,15 @@ int serial_base_add_isa_preferred_console(const char *name, int idx)
 {
 	return serial_base_add_prefcon(name, idx);
 }
+
+#else
+
+int serial_base_add_isa_preferred_console(const char *name, int idx)
+{
+	return 0;
+}
+
+#endif
 
 #endif
 

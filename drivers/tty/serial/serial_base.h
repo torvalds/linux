@@ -55,6 +55,8 @@ void serial_core_unregister_port(struct uart_driver *drv, struct uart_port *port
 int serial_base_add_preferred_console(struct uart_driver *drv,
 				      struct uart_port *port);
 
+int serial_base_add_isa_preferred_console(const char *name, int idx);
+
 #else
 
 static inline
@@ -63,14 +65,6 @@ int serial_base_add_preferred_console(struct uart_driver *drv,
 {
 	return 0;
 }
-
-#endif
-
-#ifdef CONFIG_SERIAL_8250_CONSOLE
-
-int serial_base_add_isa_preferred_console(const char *name, int idx);
-
-#else
 
 static inline
 int serial_base_add_isa_preferred_console(const char *name, int idx)
