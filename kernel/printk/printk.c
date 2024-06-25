@@ -383,6 +383,9 @@ static int console_locked;
 /*
  *	Array of consoles built from command line options (console=)
  */
+
+#define MAX_CMDLINECONSOLES 8
+
 static struct console_cmdline console_cmdline[MAX_CMDLINECONSOLES];
 
 static int preferred_console = -1;
@@ -2500,10 +2503,6 @@ static int __init console_setup(char *str)
 	if (_braille_console_setup(&str, &brl_options))
 		return 1;
 
-	/* Save the console for driver subsystem use */
-	if (console_opt_save(str, brl_options))
-		return 1;
-
 	/*
 	 * Decode str into name, index, options.
 	 */
@@ -2533,13 +2532,6 @@ static int __init console_setup(char *str)
 	return 1;
 }
 __setup("console=", console_setup);
-
-/* Only called from add_preferred_console_match() */
-int console_opt_add_preferred_console(const char *name, const short idx,
-				      char *options, char *brl_options)
-{
-	return __add_preferred_console(name, idx, options, brl_options, true);
-}
 
 /**
  * add_preferred_console - add a device to the list of preferred consoles.
