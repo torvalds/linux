@@ -9,6 +9,7 @@
  * Copyright (C) 2008 Wolfram Sang, Pengutronix
  */
 
+#include <linux/device.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -207,6 +208,16 @@ static void ee1004_cleanup(int idx, struct ee1004_bus_data *bd)
 	}
 }
 
+static void ee1004_cleanup_bus_data(void *data)
+{
+	struct ee1004_bus_data *bd = data;
+
+	/* Remove page select clients if this is the last device */
+	mutex_lock(&ee1004_bus_lock);
+	ee1004_cleanup(EE1004_NUM_PAGES, bd);
+	mutex_unlock(&ee1004_bus_lock);
+}
+
 static int ee1004_probe(struct i2c_client *client)
 {
 	struct ee1004_bus_data *bd;
@@ -228,6 +239,10 @@ static int ee1004_probe(struct i2c_client *client)
 				     "Only %d busses supported", EE1004_MAX_BUSSES);
 	}
 
+	err = devm_add_action_or_reset(&client->dev, ee1004_cleanup_bus_data, bd);
+	if (err < 0)
+		return err;
+
 	i2c_set_clientdata(client, bd);
 
 	if (++bd->dev_count == 1) {
@@ -237,16 +252,18 @@ static int ee1004_probe(struct i2c_client *client)
 
 			cl = i2c_new_dummy_device(client->adapter, EE1004_ADDR_SET_PAGE + cnr);
 			if (IS_ERR(cl)) {
-				err = PTR_ERR(cl);
-				goto err_clients;
+				mutex_unlock(&ee1004_bus_lock);
+				return PTR_ERR(cl);
 			}
 			bd->set_page[cnr] = cl;
 		}
 
 		/* Remember current page to avoid unneeded page select */
 		err = ee1004_get_current_page(bd);
-		if (err < 0)
-			goto err_clients;
+		if (err < 0) {
+			mutex_unlock(&ee1004_bus_lock);
+			return err;
+		}
 		dev_dbg(&client->dev, "Currently selected page: %d\n", err);
 		bd->current_page = err;
 	}
@@ -260,22 +277,6 @@ static int ee1004_probe(struct i2c_client *client)
 		 EE1004_EEPROM_SIZE);
 
 	return 0;
-
- err_clients:
-	ee1004_cleanup(cnr, bd);
-	mutex_unlock(&ee1004_bus_lock);
-
-	return err;
-}
-
-static void ee1004_remove(struct i2c_client *client)
-{
-	struct ee1004_bus_data *bd = i2c_get_clientdata(client);
-
-	/* Remove page select clients if this is the last device */
-	mutex_lock(&ee1004_bus_lock);
-	ee1004_cleanup(EE1004_NUM_PAGES, bd);
-	mutex_unlock(&ee1004_bus_lock);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -286,7 +287,6 @@ static struct i2c_driver ee1004_driver = {
 		.dev_groups = ee1004_groups,
 	},
 	.probe = ee1004_probe,
-	.remove = ee1004_remove,
 	.id_table = ee1004_ids,
 };
 module_i2c_driver(ee1004_driver);
