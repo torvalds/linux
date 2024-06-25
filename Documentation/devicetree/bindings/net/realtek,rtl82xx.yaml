@@ -18,6 +18,29 @@ allOf:
   - $ref: ethernet-phy.yaml#
 
 properties:
+  compatible:
+    enum:
+      - ethernet-phy-id001c.c800
+      - ethernet-phy-id001c.c816
+      - ethernet-phy-id001c.c838
+      - ethernet-phy-id001c.c840
+      - ethernet-phy-id001c.c848
+      - ethernet-phy-id001c.c849
+      - ethernet-phy-id001c.c84a
+      - ethernet-phy-id001c.c862
+      - ethernet-phy-id001c.c878
+      - ethernet-phy-id001c.c880
+      - ethernet-phy-id001c.c910
+      - ethernet-phy-id001c.c912
+      - ethernet-phy-id001c.c913
+      - ethernet-phy-id001c.c914
+      - ethernet-phy-id001c.c915
+      - ethernet-phy-id001c.c916
+      - ethernet-phy-id001c.c942
+      - ethernet-phy-id001c.c961
+      - ethernet-phy-id001c.cad0
+      - ethernet-phy-id001c.cb00
+
   realtek,clkout-disable:
     type: boolean
     description:
