@@ -1463,7 +1463,8 @@ undefined_rate:
 
 static void va_macro_set_lpass_codec_version(struct va_macro *va)
 {
-	int core_id_0 = 0, core_id_1 = 0, core_id_2 = 0, version;
+	int core_id_0 = 0, core_id_1 = 0, core_id_2 = 0;
+	int version = LPASS_CODEC_VERSION_UNKNOWN;
 
 	regmap_read(va->regmap, CDC_VA_TOP_CSR_CORE_ID_0, &core_id_0);
 	regmap_read(va->regmap, CDC_VA_TOP_CSR_CORE_ID_1, &core_id_1);
