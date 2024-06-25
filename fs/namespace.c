@@ -5040,104 +5040,6 @@ static int copy_statmount_to_user(struct kstatmount *s)
 	return 0;
 }
 
-static int do_statmount(struct kstatmount *s)
-{
-	struct mount *m = real_mount(s->mnt);
-	struct mnt_namespace *ns = m->mnt_ns;
-	int err;
-
-	/*
-	 * Don't trigger audit denials. We just want to determine what
-	 * mounts to show users.
-	 */
-	if (!is_path_reachable(m, m->mnt.mnt_root, &s->root) &&
-	    !ns_capable_noaudit(ns->user_ns, CAP_SYS_ADMIN))
-		return -EPERM;
-
-	err = security_sb_statfs(s->mnt->mnt_root);
-	if (err)
-		return err;
-
-	if (s->mask & STATMOUNT_SB_BASIC)
-		statmount_sb_basic(s);
-
-	if (s->mask & STATMOUNT_MNT_BASIC)
-		statmount_mnt_basic(s);
-
-	if (s->mask & STATMOUNT_PROPAGATE_FROM)
-		statmount_propagate_from(s);
-
-	if (s->mask & STATMOUNT_FS_TYPE)
-		err = statmount_string(s, STATMOUNT_FS_TYPE);
-
-	if (!err && s->mask & STATMOUNT_MNT_ROOT)
-		err = statmount_string(s, STATMOUNT_MNT_ROOT);
-
-	if (!err && s->mask & STATMOUNT_MNT_POINT)
-		err = statmount_string(s, STATMOUNT_MNT_POINT);
-
-	if (!err && s->mask & STATMOUNT_MNT_NS_ID)
-		statmount_mnt_ns_id(s, ns);
-
-	if (err)
-		return err;
-
-	return 0;
-}
-
-static inline bool retry_statmount(const long ret, size_t *seq_size)
-{
-	if (likely(ret != -EAGAIN))
-		return false;
-	if (unlikely(check_mul_overflow(*seq_size, 2, seq_size)))
-		return false;
-	if (unlikely(*seq_size > MAX_RW_COUNT))
-		return false;
-	return true;
-}
-
-static int prepare_kstatmount(struct kstatmount *ks, struct mnt_id_req *kreq,
-			      struct statmount __user *buf, size_t bufsize,
-			      size_t seq_size)
-{
-	if (!access_ok(buf, bufsize))
-		return -EFAULT;
-
-	memset(ks, 0, sizeof(*ks));
-	ks->mask = kreq->param;
-	ks->buf = buf;
-	ks->bufsize = bufsize;
-	ks->seq.size = seq_size;
-	ks->seq.buf = kvmalloc(seq_size, GFP_KERNEL_ACCOUNT);
-	if (!ks->seq.buf)
-		return -ENOMEM;
-	return 0;
-}
-
-static int copy_mnt_id_req(const struct mnt_id_req __user *req,
-			   struct mnt_id_req *kreq)
-{
-	int ret;
-	size_t usize;
-
-	BUILD_BUG_ON(sizeof(struct mnt_id_req) != MNT_ID_REQ_SIZE_VER1);
-
-	ret = get_user(usize, &req->size);
-	if (ret)
-		return -EFAULT;
-	if (unlikely(usize > PAGE_SIZE))
-		return -E2BIG;
-	if (unlikely(usize < MNT_ID_REQ_SIZE_VER0))
-		return -EINVAL;
-	memset(kreq, 0, sizeof(*kreq));
-	ret = copy_struct_from_user(kreq, sizeof(*kreq), req, usize);
-	if (ret)
-		return ret;
-	if (kreq->spare != 0)
-		return -EINVAL;
-	return 0;
-}
-
 static struct mount *listmnt_next(struct mount *curr, bool reverse)
 {
 	struct rb_node *node;
@@ -5177,6 +5079,130 @@ static int grab_requested_root(struct mnt_namespace *ns, struct path *root)
 	return 0;
 }
 
+static int do_statmount(struct kstatmount *s, u64 mnt_id, u64 mnt_ns_id,
+			struct mnt_namespace *ns)
+{
+	struct path root __free(path_put) = {};
+	struct mount *m;
+	int err;
+
+	/* Has the namespace already been emptied? */
+	if (mnt_ns_id && RB_EMPTY_ROOT(&ns->mounts))
+		return -ENOENT;
+
+	s->mnt = lookup_mnt_in_ns(mnt_id, ns);
+	if (!s->mnt)
+		return -ENOENT;
+
+	err = grab_requested_root(ns, &root);
+	if (err)
+		return err;
+
+	/*
+	 * Don't trigger audit denials. We just want to determine what
+	 * mounts to show users.
+	 */
+	m = real_mount(s->mnt);
+	if (!is_path_reachable(m, m->mnt.mnt_root, &root) &&
+	    !ns_capable_noaudit(ns->user_ns, CAP_SYS_ADMIN))
+		return -EPERM;
+
+	err = security_sb_statfs(s->mnt->mnt_root);
+	if (err)
+		return err;
+
+	s->root = root;
+	if (s->mask & STATMOUNT_SB_BASIC)
+		statmount_sb_basic(s);
+
+	if (s->mask & STATMOUNT_MNT_BASIC)
+		statmount_mnt_basic(s);
+
+	if (s->mask & STATMOUNT_PROPAGATE_FROM)
+		statmount_propagate_from(s);
+
+	if (s->mask & STATMOUNT_FS_TYPE)
+		err = statmount_string(s, STATMOUNT_FS_TYPE);
+
+	if (!err && s->mask & STATMOUNT_MNT_ROOT)
+		err = statmount_string(s, STATMOUNT_MNT_ROOT);
+
+	if (!err && s->mask & STATMOUNT_MNT_POINT)
+		err = statmount_string(s, STATMOUNT_MNT_POINT);
+
+	if (!err && s->mask & STATMOUNT_MNT_NS_ID)
+		statmount_mnt_ns_id(s, ns);
+
+	if (err)
+		return err;
+
+	return 0;
+}
+
+static inline bool retry_statmount(const long ret, size_t *seq_size)
+{
+	if (likely(ret != -EAGAIN))
+		return false;
+	if (unlikely(check_mul_overflow(*seq_size, 2, seq_size)))
+		return false;
+	if (unlikely(*seq_size > MAX_RW_COUNT))
+		return false;
+	return true;
+}
+
+#define STATMOUNT_STRING_REQ (STATMOUNT_MNT_ROOT | STATMOUNT_MNT_POINT | \
+			      STATMOUNT_FS_TYPE)
+
+static int prepare_kstatmount(struct kstatmount *ks, struct mnt_id_req *kreq,
+			      struct statmount __user *buf, size_t bufsize,
+			      size_t seq_size)
+{
+	if (!access_ok(buf, bufsize))
+		return -EFAULT;
+
+	memset(ks, 0, sizeof(*ks));
+	ks->mask = kreq->param;
+	ks->buf = buf;
+	ks->bufsize = bufsize;
+
+	if (ks->mask & STATMOUNT_STRING_REQ) {
+		if (bufsize == sizeof(ks->sm))
+			return -EOVERFLOW;
+
+		ks->seq.buf = kvmalloc(seq_size, GFP_KERNEL_ACCOUNT);
+		if (!ks->seq.buf)
+			return -ENOMEM;
+
+		ks->seq.size = seq_size;
+	}
+
+	return 0;
+}
+
+static int copy_mnt_id_req(const struct mnt_id_req __user *req,
+			   struct mnt_id_req *kreq)
+{
+	int ret;
+	size_t usize;
+
+	BUILD_BUG_ON(sizeof(struct mnt_id_req) != MNT_ID_REQ_SIZE_VER1);
+
+	ret = get_user(usize, &req->size);
+	if (ret)
+		return -EFAULT;
+	if (unlikely(usize > PAGE_SIZE))
+		return -E2BIG;
+	if (unlikely(usize < MNT_ID_REQ_SIZE_VER0))
+		return -EINVAL;
+	memset(kreq, 0, sizeof(*kreq));
+	ret = copy_struct_from_user(kreq, sizeof(*kreq), req, usize);
+	if (ret)
+		return ret;
+	if (kreq->spare != 0)
+		return -EINVAL;
+	return 0;
+}
+
 /*
  * If the user requested a specific mount namespace id, look that up and return
  * that, or if not simply grab a passive reference on our mount namespace and
@@ -5195,9 +5221,8 @@ SYSCALL_DEFINE4(statmount, const struct mnt_id_req __user *, req,
 		unsigned int, flags)
 {
 	struct mnt_namespace *ns __free(mnt_ns_release) = NULL;
-	struct vfsmount *mnt;
+	struct kstatmount *ks __free(kfree) = NULL;
 	struct mnt_id_req kreq;
-	struct kstatmount ks;
 	/* We currently support retrieval of 3 strings. */
 	size_t seq_size = 3 * PATH_MAX;
 	int ret;
@@ -5217,40 +5242,21 @@ SYSCALL_DEFINE4(statmount, const struct mnt_id_req __user *, req,
 	    !ns_capable_noaudit(ns->user_ns, CAP_SYS_ADMIN))
 		return -ENOENT;
 
+	ks = kmalloc(sizeof(*ks), GFP_KERNEL_ACCOUNT);
+	if (!ks)
+		return -ENOMEM;
+
 retry:
-	ret = prepare_kstatmount(&ks, &kreq, buf, bufsize, seq_size);
+	ret = prepare_kstatmount(ks, &kreq, buf, bufsize, seq_size);
 	if (ret)
 		return ret;
 
-	down_read(&namespace_sem);
-	/* Has the namespace already been emptied? */
-	if (kreq.mnt_ns_id && RB_EMPTY_ROOT(&ns->mounts)) {
-		up_read(&namespace_sem);
-		kvfree(ks.seq.buf);
-		return -ENOENT;
-	}
-
-	mnt = lookup_mnt_in_ns(kreq.mnt_id, ns);
-	if (!mnt) {
-		up_read(&namespace_sem);
-		kvfree(ks.seq.buf);
-		return -ENOENT;
-	}
-
-	ks.mnt = mnt;
-	ret = grab_requested_root(ns, &ks.root);
-	if (ret) {
-		up_read(&namespace_sem);
-		kvfree(ks.seq.buf);
-		return ret;
-	}
-	ret = do_statmount(&ks);
-	path_put(&ks.root);
-	up_read(&namespace_sem);
+	scoped_guard(rwsem_read, &namespace_sem)
+		ret = do_statmount(ks, kreq.mnt_id, kreq.mnt_ns_id, ns);
 
 	if (!ret)
-		ret = copy_statmount_to_user(&ks);
-	kvfree(ks.seq.buf);
+		ret = copy_statmount_to_user(ks);
+	kvfree(ks->seq.buf);
 	if (retry_statmount(ret, &seq_size))
 		goto retry;
 	return ret;
