@@ -301,4 +301,5 @@ void ttm_test_devices_fini(struct kunit *test)
 }
 EXPORT_SYMBOL_GPL(ttm_test_devices_fini);
 
+MODULE_DESCRIPTION("TTM KUnit test helper functions");
 MODULE_LICENSE("GPL and additional rights");

@@ -1221,4 +1221,5 @@ static struct kunit_suite ttm_bo_validate_test_suite = {
 
 kunit_test_suites(&ttm_bo_validate_test_suite);
 
+MODULE_DESCRIPTION("KUnit tests for ttm_bo APIs");
 MODULE_LICENSE("GPL and additional rights");

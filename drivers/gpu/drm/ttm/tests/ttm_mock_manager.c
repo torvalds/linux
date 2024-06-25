@@ -230,4 +230,5 @@ void ttm_bad_manager_fini(struct ttm_device *bdev, uint32_t mem_type)
 }
 EXPORT_SYMBOL_GPL(ttm_bad_manager_fini);
 
+MODULE_DESCRIPTION("KUnit tests for ttm with mock resource managers");
 MODULE_LICENSE("GPL and additional rights");
