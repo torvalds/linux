@@ -57,11 +57,12 @@ dispatch_hid_bpf_device_event(struct hid_device *hdev, enum hid_report_type type
 			}
 
 			if (ret)
-				ctx_kern.ctx.retval = ret;
+				ctx_kern.ctx.size = ret;
 		}
 	}
 	rcu_read_unlock();
 
+	ret = ctx_kern.ctx.size;
 	if (ret) {
 		if (ret > ctx_kern.ctx.allocated_size)
 			return ERR_PTR(-EINVAL);
