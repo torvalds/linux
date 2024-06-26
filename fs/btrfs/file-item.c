@@ -1306,6 +1306,13 @@ void btrfs_extent_item_to_extent_map(struct btrfs_inode *inode,
 		if (compress_type != BTRFS_COMPRESS_NONE) {
 			extent_map_set_compression(em, compress_type);
 		} else {
+			/*
+			 * Older kernels can create regular non-hole data
+			 * extents with ram_bytes smaller than disk_num_bytes.
+			 * Not a big deal, just always use disk_num_bytes
+			 * for ram_bytes.
+			 */
+			em->ram_bytes = em->disk_num_bytes;
 			if (type == BTRFS_FILE_EXTENT_PREALLOC)
 				em->flags |= EXTENT_FLAG_PREALLOC;
 		}
