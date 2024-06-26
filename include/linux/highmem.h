@@ -352,6 +352,9 @@ static inline int copy_mc_user_highpage(struct page *to, struct page *from,
 	kunmap_local(vto);
 	kunmap_local(vfrom);
 
+	if (ret)
+		memory_failure_queue(page_to_pfn(from), 0);
+
 	return ret;
 }
 
@@ -367,6 +370,9 @@ static inline int copy_mc_highpage(struct page *to, struct page *from)
 		kmsan_copy_page_meta(to, from);
 	kunmap_local(vto);
 	kunmap_local(vfrom);
+
+	if (ret)
+		memory_failure_queue(page_to_pfn(from), 0);
 
 	return ret;
 }
