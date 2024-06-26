@@ -2150,7 +2150,7 @@ void perf_pmu__warn_invalid_config(struct perf_pmu *pmu, __u64 config,
 bool perf_pmu__match(const struct perf_pmu *pmu, const char *tok)
 {
 	const char *name = pmu->name;
-	bool need_fnmatch = strchr(tok, '*') != NULL;
+	bool need_fnmatch = strisglob(tok);
 
 	if (!strncmp(tok, "uncore_", 7))
 		tok += 7;
