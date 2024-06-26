@@ -925,6 +925,7 @@
 				     <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "qdma-error", "qdma-queue0",
 				"qdma-queue1", "qdma-queue2", "qdma-queue3";
+			#dma-cells = <1>;
 			dma-channels = <8>;
 			block-number = <1>;
 			block-offset = <0x10000>;
