@@ -242,6 +242,20 @@ void lp55xx_firmware_loaded_cb(struct lp55xx_chip *chip)
 }
 EXPORT_SYMBOL_GPL(lp55xx_firmware_loaded_cb);
 
+int lp55xx_led_brightness(struct lp55xx_led *led)
+{
+	struct lp55xx_chip *chip = led->chip;
+	const struct lp55xx_device_config *cfg = chip->cfg;
+	int ret;
+
+	mutex_lock(&chip->lock);
+	ret = lp55xx_write(chip, cfg->reg_led_pwm_base.addr + led->chan_nr,
+			   led->brightness);
+	mutex_unlock(&chip->lock);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(lp55xx_led_brightness);
+
 static void lp55xx_reset_device(struct lp55xx_chip *chip)
 {
 	const struct lp55xx_device_config *cfg = chip->cfg;

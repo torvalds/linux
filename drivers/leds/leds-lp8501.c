@@ -137,19 +137,6 @@ static void lp8501_run_engine(struct lp55xx_chip *chip, bool start)
 	lp55xx_run_engine_common(chip);
 }
 
-static int lp8501_led_brightness(struct lp55xx_led *led)
-{
-	struct lp55xx_chip *chip = led->chip;
-	int ret;
-
-	mutex_lock(&chip->lock);
-	ret = lp55xx_write(chip, LP8501_REG_LED_PWM_BASE + led->chan_nr,
-		     led->brightness);
-	mutex_unlock(&chip->lock);
-
-	return ret;
-}
-
 /* Chip specific configurations */
 static struct lp55xx_device_config lp8501_cfg = {
 	.reg_op_mode = {
@@ -173,10 +160,13 @@ static struct lp55xx_device_config lp8501_cfg = {
 	.prog_mem_base = {
 		.addr = LP8501_REG_PROG_MEM,
 	},
+	.reg_led_pwm_base = {
+		.addr = LP8501_REG_LED_PWM_BASE,
+	},
 	.pages_per_engine   = LP8501_PAGES_PER_ENGINE,
 	.max_channel  = LP8501_MAX_LEDS,
 	.post_init_device   = lp8501_post_init_device,
-	.brightness_fn      = lp8501_led_brightness,
+	.brightness_fn      = lp55xx_led_brightness,
 	.set_led_current    = lp8501_set_led_current,
 	.firmware_cb        = lp55xx_firmware_loaded_cb,
 	.run_engine         = lp8501_run_engine,
