@@ -23,6 +23,7 @@
  *
  */
 
+#include <linux/vmalloc.h>
 #include <drm/display/drm_dp_helper.h>
 #include <drm/display/drm_dp_mst_helper.h>
 #include <drm/drm_atomic.h>
@@ -1491,9 +1492,10 @@ int pre_validate_dsc(struct drm_atomic_state *state,
 	 * from dm_state->context.
 	 */
 
-	local_dc_state = kmemdup(dm_state->context, sizeof(struct dc_state), GFP_KERNEL);
+	local_dc_state = vmalloc(sizeof(struct dc_state));
 	if (!local_dc_state)
 		return -ENOMEM;
+	memcpy(local_dc_state, dm_state->context, sizeof(struct dc_state));
 
 	for (i = 0; i < local_dc_state->stream_count; i++) {
 		struct dc_stream_state *stream = dm_state->context->streams[i];
@@ -1563,7 +1565,7 @@ clean_exit:
 			dc_stream_release(local_dc_state->streams[i]);
 	}
 
-	kfree(local_dc_state);
+	vfree(local_dc_state);
 
 	return ret;
 }
