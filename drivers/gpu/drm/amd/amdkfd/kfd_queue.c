@@ -225,8 +225,14 @@ void kfd_queue_buffer_put(struct amdgpu_vm *vm, struct amdgpu_bo **bo)
 
 int kfd_queue_acquire_buffers(struct kfd_process_device *pdd, struct queue_properties *properties)
 {
+	struct kfd_topology_device *topo_dev;
 	struct amdgpu_vm *vm;
+	u32 total_cwsr_size;
 	int err;
+
+	topo_dev = kfd_topology_device_by_id(pdd->dev->id);
+	if (!topo_dev)
+		return -EINVAL;
 
 	vm = drm_priv_to_vm(pdd->drm_priv);
 	err = amdgpu_bo_reserve(vm->root.bo, false);
@@ -252,6 +258,12 @@ int kfd_queue_acquire_buffers(struct kfd_process_device *pdd, struct queue_prope
 
 	/* EOP buffer is not required for all ASICs */
 	if (properties->eop_ring_buffer_address) {
+		if (properties->eop_ring_buffer_size != topo_dev->node_props.eop_buffer_size) {
+			pr_debug("queue eop bo size 0x%lx not equal to node eop buf size 0x%x\n",
+				properties->eop_buf_bo->tbo.base.size,
+				topo_dev->node_props.eop_buffer_size);
+			goto out_err_unreserve;
+		}
 		err = kfd_queue_buffer_get(vm, (void *)properties->eop_ring_buffer_address,
 					   &properties->eop_buf_bo,
 					   properties->eop_ring_buffer_size);
@@ -259,15 +271,33 @@ int kfd_queue_acquire_buffers(struct kfd_process_device *pdd, struct queue_prope
 			goto out_err_unreserve;
 	}
 
+	if (properties->ctl_stack_size != topo_dev->node_props.ctl_stack_size) {
+		pr_debug("queue ctl stack size 0x%x not equal to node ctl stack size 0x%x\n",
+			properties->ctl_stack_size,
+			topo_dev->node_props.ctl_stack_size);
+		goto out_err_unreserve;
+	}
+
+	if (properties->ctx_save_restore_area_size != topo_dev->node_props.cwsr_size) {
+		pr_debug("queue cwsr size 0x%x not equal to node cwsr size 0x%x\n",
+			properties->ctx_save_restore_area_size,
+			topo_dev->node_props.cwsr_size);
+		goto out_err_unreserve;
+	}
+
+	total_cwsr_size = (topo_dev->node_props.cwsr_size + topo_dev->node_props.debug_memory_size)
+			  * NUM_XCC(pdd->dev->xcc_mask);
+	total_cwsr_size = ALIGN(total_cwsr_size, PAGE_SIZE);
+
 	err = kfd_queue_buffer_get(vm, (void *)properties->ctx_save_restore_area_address,
-				   &properties->cwsr_bo, 0);
+				   &properties->cwsr_bo, total_cwsr_size);
 	if (!err)
 		goto out_unreserve;
 
 	amdgpu_bo_unreserve(vm->root.bo);
 
 	err = kfd_queue_buffer_svm_get(pdd, properties->ctx_save_restore_area_address,
-				       properties->ctx_save_restore_area_size);
+				       total_cwsr_size);
 	if (err)
 		goto out_err_release;
 
@@ -286,7 +316,9 @@ out_err_release:
 
 int kfd_queue_release_buffers(struct kfd_process_device *pdd, struct queue_properties *properties)
 {
+	struct kfd_topology_device *topo_dev;
 	struct amdgpu_vm *vm;
+	u32 total_cwsr_size;
 	int err;
 
 	vm = drm_priv_to_vm(pdd->drm_priv);
@@ -302,8 +334,14 @@ int kfd_queue_release_buffers(struct kfd_process_device *pdd, struct queue_prope
 
 	amdgpu_bo_unreserve(vm->root.bo);
 
-	kfd_queue_buffer_svm_put(pdd, properties->ctx_save_restore_area_address,
-				 properties->ctx_save_restore_area_size);
+	topo_dev = kfd_topology_device_by_id(pdd->dev->id);
+	if (!topo_dev)
+		return -EINVAL;
+	total_cwsr_size = (topo_dev->node_props.cwsr_size + topo_dev->node_props.debug_memory_size)
+			  * NUM_XCC(pdd->dev->xcc_mask);
+	total_cwsr_size = ALIGN(total_cwsr_size, PAGE_SIZE);
+
+	kfd_queue_buffer_svm_put(pdd, properties->ctx_save_restore_area_address, total_cwsr_size);
 	return 0;
 }
 
