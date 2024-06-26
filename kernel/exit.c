@@ -440,7 +440,7 @@ static void coredump_task_exit(struct task_struct *tsk)
 
 #ifdef CONFIG_MEMCG
 /* drops tasklist_lock if succeeds */
-static bool try_to_set_owner(struct task_struct *tsk, struct mm_struct *mm)
+static bool __try_to_set_owner(struct task_struct *tsk, struct mm_struct *mm)
 {
 	bool ret = false;
 
@@ -456,12 +456,28 @@ static bool try_to_set_owner(struct task_struct *tsk, struct mm_struct *mm)
 	return ret;
 }
 
+static bool try_to_set_owner(struct task_struct *g, struct mm_struct *mm)
+{
+	struct task_struct *t;
+
+	for_each_thread(g, t) {
+		struct mm_struct *t_mm = READ_ONCE(t->mm);
+		if (t_mm == mm) {
+			if (__try_to_set_owner(t, mm))
+				return true;
+		} else if (t_mm)
+			break;
+	}
+
+	return false;
+}
+
 /*
  * A task is exiting.   If it owned this mm, find a new owner for the mm.
  */
 void mm_update_next_owner(struct mm_struct *mm)
 {
-	struct task_struct *c, *g, *p = current;
+	struct task_struct *g, *p = current;
 
 	/*
 	 * If the exiting or execing task is not the owner, it's
@@ -483,19 +499,17 @@ void mm_update_next_owner(struct mm_struct *mm)
 	/*
 	 * Search in the children
 	 */
-	list_for_each_entry(c, &p->children, sibling) {
-		if (c->mm == mm && try_to_set_owner(c, mm))
+	list_for_each_entry(g, &p->children, sibling) {
+		if (try_to_set_owner(g, mm))
 			goto ret;
 	}
-
 	/*
 	 * Search in the siblings
 	 */
-	list_for_each_entry(c, &p->real_parent->children, sibling) {
-		if (c->mm == mm && try_to_set_owner(c, mm))
+	list_for_each_entry(g, &p->real_parent->children, sibling) {
+		if (try_to_set_owner(g, mm))
 			goto ret;
 	}
-
 	/*
 	 * Search through everything else, we should not get here often.
 	 */
@@ -504,14 +518,8 @@ void mm_update_next_owner(struct mm_struct *mm)
 			break;
 		if (g->flags & PF_KTHREAD)
 			continue;
-		for_each_thread(g, c) {
-			struct mm_struct *c_mm = READ_ONCE(c->mm);
-			if (c_mm == mm) {
-				if (try_to_set_owner(c, mm))
-					goto ret;
-			} else if (c_mm)
-				break;
-		}
+		if (try_to_set_owner(g, mm))
+			goto ret;
 	}
 	read_unlock(&tasklist_lock);
 	/*
