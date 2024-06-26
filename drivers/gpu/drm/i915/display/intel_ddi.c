@@ -4027,14 +4027,12 @@ void intel_ddi_get_clock(struct intel_encoder *encoder,
 static void mtl_ddi_get_config(struct intel_encoder *encoder,
 			       struct intel_crtc_state *crtc_state)
 {
-	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
+	intel_cx0pll_readout_hw_state(encoder, &crtc_state->dpll_hw_state.cx0pll);
 
-	if (intel_tc_port_in_tbt_alt_mode(dig_port)) {
+	if (crtc_state->dpll_hw_state.cx0pll.tbt_mode)
 		crtc_state->port_clock = intel_mtl_tbt_calc_port_clock(encoder);
-	} else {
-		intel_cx0pll_readout_hw_state(encoder, &crtc_state->dpll_hw_state.cx0pll);
+	else
 		crtc_state->port_clock = intel_cx0pll_calc_port_clock(encoder, &crtc_state->dpll_hw_state.cx0pll);
-	}
 
 	intel_ddi_get_config(encoder, crtc_state);
 }
