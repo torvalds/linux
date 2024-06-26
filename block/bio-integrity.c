@@ -465,13 +465,11 @@ bool bio_integrity_prep(struct bio *bio)
 	len = bio_integrity_bytes(bi, bio_sectors(bio));
 	buf = kmalloc(len, gfp);
 	if (unlikely(buf == NULL)) {
-		printk(KERN_ERR "could not allocate integrity buffer\n");
 		goto err_end_io;
 	}
 
 	bip = bio_integrity_alloc(bio, GFP_NOIO, 1);
 	if (IS_ERR(bip)) {
-		printk(KERN_ERR "could not allocate data integrity bioset\n");
 		kfree(buf);
 		goto err_end_io;
 	}
