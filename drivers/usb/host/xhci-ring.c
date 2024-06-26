@@ -2611,7 +2611,6 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 	int status = -EINPROGRESS;
 	struct xhci_ep_ctx *ep_ctx;
 	u32 trb_comp_code;
-	int td_num = 0;
 
 	slot_id = TRB_TO_SLOT_ID(le32_to_cpu(event->flags));
 	ep_index = TRB_TO_EP_ID(le32_to_cpu(event->flags)) - 1;
@@ -2636,10 +2635,6 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 
 	if (!ep_ring)
 		return handle_transferless_tx_event(xhci, ep, trb_comp_code);
-
-	/* Count current td numbers if ep->skip is set */
-	if (ep->skip)
-		td_num += list_count_nodes(&ep_ring->td_list);
 
 	/* Look for common error cases */
 	switch (trb_comp_code) {
@@ -2799,18 +2794,8 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 			return 0;
 		}
 
-		/* We've skipped all the TDs on the ep ring when ep->skip set */
-		if (ep->skip && td_num == 0) {
-			ep->skip = false;
-			xhci_dbg(xhci, "All tds on the ep_ring skipped. Clear skip flag for slot %u ep %u.\n",
-				 slot_id, ep_index);
-			return 0;
-		}
-
 		td = list_first_entry(&ep_ring->td_list, struct xhci_td,
 				      td_list);
-		if (ep->skip)
-			td_num--;
 
 		/* Is this a TRB in the currently executing TD? */
 		ep_seg = trb_in_td(xhci, td, ep_trb_dma, false);
