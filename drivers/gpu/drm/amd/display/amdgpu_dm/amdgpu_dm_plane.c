@@ -688,12 +688,13 @@ static void amdgpu_dm_plane_add_gfx11_modifiers(struct amdgpu_device *adev,
 static void amdgpu_dm_plane_add_gfx12_modifiers(struct amdgpu_device *adev,
 		      uint64_t **mods, uint64_t *size, uint64_t *capacity)
 {
-	uint64_t mod_64K_2D = AMD_FMT_MOD |
-		AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX12) |
-		AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX12_64K_2D);
+	uint64_t ver = AMD_FMT_MOD | AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX12);
 
-	/* 64K without DCC */
-	amdgpu_dm_plane_add_modifier(mods, size, capacity, mod_64K_2D);
+	/* Without DCC: */
+	amdgpu_dm_plane_add_modifier(mods, size, capacity, ver | AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX12_256K_2D));
+	amdgpu_dm_plane_add_modifier(mods, size, capacity, ver | AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX12_64K_2D));
+	amdgpu_dm_plane_add_modifier(mods, size, capacity, ver | AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX12_4K_2D));
+	amdgpu_dm_plane_add_modifier(mods, size, capacity, ver | AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX12_256B_2D));
 	amdgpu_dm_plane_add_modifier(mods, size, capacity, DRM_FORMAT_MOD_LINEAR);
 }
 
