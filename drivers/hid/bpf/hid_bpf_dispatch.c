@@ -24,7 +24,7 @@ EXPORT_SYMBOL(hid_ops);
 
 u8 *
 dispatch_hid_bpf_device_event(struct hid_device *hdev, enum hid_report_type type, u8 *data,
-			      u32 *size, int interrupt, u64 source)
+			      u32 *size, int interrupt, u64 source, bool from_bpf)
 {
 	struct hid_bpf_ctx_kern ctx_kern = {
 		.ctx = {
@@ -33,6 +33,7 @@ dispatch_hid_bpf_device_event(struct hid_device *hdev, enum hid_report_type type
 			.size = *size,
 		},
 		.data = hdev->bpf.device_data,
+		.from_bpf = from_bpf,
 	};
 	struct hid_bpf_ops *e;
 	int ret;
@@ -488,6 +489,50 @@ hid_bpf_hw_output_report(struct hid_bpf_ctx *ctx, __u8 *buf, size_t buf__sz)
 	return ret;
 }
 
+static int
+__hid_bpf_input_report(struct hid_bpf_ctx *ctx, enum hid_report_type type, u8 *buf,
+		       size_t size, bool lock_already_taken)
+{
+	struct hid_bpf_ctx_kern *ctx_kern;
+	int ret;
+
+	ctx_kern = container_of(ctx, struct hid_bpf_ctx_kern, ctx);
+	if (ctx_kern->from_bpf)
+		return -EDEADLOCK;
+
+	/* check arguments */
+	ret = __hid_bpf_hw_check_params(ctx, buf, &size, type);
+	if (ret)
+		return ret;
+
+	return hid_ops->hid_input_report(ctx->hid, type, buf, size, 0, (__u64)ctx, true,
+					 lock_already_taken);
+}
+
+/**
+ * hid_bpf_try_input_report - Inject a HID report in the kernel from a HID device
+ *
+ * @ctx: the HID-BPF context previously allocated in hid_bpf_allocate_context()
+ * @type: the type of the report (%HID_INPUT_REPORT, %HID_FEATURE_REPORT, %HID_OUTPUT_REPORT)
+ * @buf: a %PTR_TO_MEM buffer
+ * @buf__sz: the size of the data to transfer
+ *
+ * Returns %0 on success, a negative error code otherwise. This function will immediately
+ * fail if the device is not available, thus can be safely used in IRQ context.
+ */
+__bpf_kfunc int
+hid_bpf_try_input_report(struct hid_bpf_ctx *ctx, enum hid_report_type type, u8 *buf,
+			 const size_t buf__sz)
+{
+	struct hid_bpf_ctx_kern *ctx_kern;
+	bool from_hid_event_hook;
+
+	ctx_kern = container_of(ctx, struct hid_bpf_ctx_kern, ctx);
+	from_hid_event_hook = ctx_kern->data && ctx_kern->data == ctx->hid->bpf.device_data;
+
+	return __hid_bpf_input_report(ctx, type, buf, buf__sz, from_hid_event_hook);
+}
+
 /**
  * hid_bpf_input_report - Inject a HID report in the kernel from a HID device
  *
@@ -504,7 +549,6 @@ __bpf_kfunc int
 hid_bpf_input_report(struct hid_bpf_ctx *ctx, enum hid_report_type type, u8 *buf,
 		     const size_t buf__sz)
 {
-	size_t size = buf__sz;
 	int ret;
 
 	ret = down_interruptible(&ctx->hid->driver_input_lock);
@@ -512,12 +556,7 @@ hid_bpf_input_report(struct hid_bpf_ctx *ctx, enum hid_report_type type, u8 *buf
 		return ret;
 
 	/* check arguments */
-	ret = __hid_bpf_hw_check_params(ctx, buf, &size, type);
-	if (ret)
-		return ret;
-
-	ret = hid_ops->hid_input_report(ctx->hid, type, buf, size, 0, (__u64)ctx,
-					true /* lock_already_taken */);
+	ret = __hid_bpf_input_report(ctx, type, buf, buf__sz, true /* lock_already_taken */);
 
 	up(&ctx->hid->driver_input_lock);
 
@@ -536,6 +575,7 @@ BTF_ID_FLAGS(func, hid_bpf_release_context, KF_RELEASE | KF_SLEEPABLE)
 BTF_ID_FLAGS(func, hid_bpf_hw_request, KF_SLEEPABLE)
 BTF_ID_FLAGS(func, hid_bpf_hw_output_report, KF_SLEEPABLE)
 BTF_ID_FLAGS(func, hid_bpf_input_report, KF_SLEEPABLE)
+BTF_ID_FLAGS(func, hid_bpf_try_input_report)
 BTF_KFUNCS_END(hid_bpf_kfunc_ids)
 
 static const struct btf_kfunc_id_set hid_bpf_kfunc_set = {

@@ -2027,7 +2027,7 @@ EXPORT_SYMBOL_GPL(hid_report_raw_event);
 
 
 static int __hid_input_report(struct hid_device *hid, enum hid_report_type type,
-			      u8 *data, u32 size, int interrupt, u64 source,
+			      u8 *data, u32 size, int interrupt, u64 source, bool from_bpf,
 			      bool lock_already_taken)
 {
 	struct hid_report_enum *report_enum;
@@ -2053,7 +2053,7 @@ static int __hid_input_report(struct hid_device *hid, enum hid_report_type type,
 	report_enum = hid->report_enum + type;
 	hdrv = hid->driver;
 
-	data = dispatch_hid_bpf_device_event(hid, type, data, &size, interrupt, source);
+	data = dispatch_hid_bpf_device_event(hid, type, data, &size, interrupt, source, from_bpf);
 	if (IS_ERR(data)) {
 		ret = PTR_ERR(data);
 		goto unlock;
@@ -2105,6 +2105,7 @@ int hid_input_report(struct hid_device *hid, enum hid_report_type type, u8 *data
 		     int interrupt)
 {
 	return __hid_input_report(hid, type, data, size, interrupt, 0,
+				  false, /* from_bpf */
 				  false /* lock_already_taken */);
 }
 EXPORT_SYMBOL_GPL(hid_input_report);
