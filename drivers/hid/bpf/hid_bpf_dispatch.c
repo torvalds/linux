@@ -24,7 +24,7 @@ EXPORT_SYMBOL(hid_ops);
 
 u8 *
 dispatch_hid_bpf_device_event(struct hid_device *hdev, enum hid_report_type type, u8 *data,
-			      u32 *size, int interrupt)
+			      u32 *size, int interrupt, u64 source)
 {
 	struct hid_bpf_ctx_kern ctx_kern = {
 		.ctx = {
@@ -50,7 +50,7 @@ dispatch_hid_bpf_device_event(struct hid_device *hdev, enum hid_report_type type
 	rcu_read_lock();
 	list_for_each_entry_rcu(e, &hdev->bpf.prog_list, list) {
 		if (e->hid_device_event) {
-			ret = e->hid_device_event(&ctx_kern.ctx, type);
+			ret = e->hid_device_event(&ctx_kern.ctx, type, source);
 			if (ret < 0) {
 				rcu_read_unlock();
 				return ERR_PTR(ret);
@@ -359,7 +359,8 @@ hid_bpf_hw_request(struct hid_bpf_ctx *ctx, __u8 *buf, size_t buf__sz,
 					      dma_data,
 					      size,
 					      rtype,
-					      reqtype);
+					      reqtype,
+					      (__u64)ctx);
 
 	if (ret > 0)
 		memcpy(buf, dma_data, ret);
@@ -398,7 +399,8 @@ hid_bpf_hw_output_report(struct hid_bpf_ctx *ctx, __u8 *buf, size_t buf__sz)
 
 	ret = hid_ops->hid_hw_output_report(hdev,
 						dma_data,
-						size);
+						size,
+						(__u64)ctx);
 
 	kfree(dma_data);
 	return ret;
@@ -429,7 +431,7 @@ hid_bpf_input_report(struct hid_bpf_ctx *ctx, enum hid_report_type type, u8 *buf
 
 	hdev = (struct hid_device *)ctx->hid; /* discard const */
 
-	return hid_ops->hid_input_report(hdev, type, buf, size, 0);
+	return hid_ops->hid_input_report(hdev, type, buf, size, 0, (__u64)ctx);
 }
 __bpf_kfunc_end_defs();
 
