@@ -2924,7 +2924,8 @@ config BUILTIN_DTB
 	bool
 
 choice
-	prompt "Kernel appended dtb support" if USE_OF
+	prompt "Kernel appended dtb support"
+	depends on USE_OF
 	default MIPS_NO_APPENDED_DTB
 
 	config MIPS_NO_APPENDED_DTB
@@ -2965,7 +2966,8 @@ choice
 endchoice
 
 choice
-	prompt "Kernel command line type" if !CMDLINE_OVERRIDE
+	prompt "Kernel command line type"
+	depends on !CMDLINE_OVERRIDE
 	default MIPS_CMDLINE_FROM_DTB if USE_OF && !ATH79 && !MACH_INGENIC && \
 					 !MACH_LOONGSON64 && !MIPS_MALTA && \
 					 !CAVIUM_OCTEON_SOC
