@@ -769,23 +769,6 @@ incompatible:
 EXPORT_SYMBOL_GPL(queue_limits_stack_integrity);
 
 /**
- * blk_queue_update_dma_pad - update pad mask
- * @q:     the request queue for the device
- * @mask:  pad mask
- *
- * Update dma pad mask.
- *
- * Appending pad buffer to a request modifies the last entry of a
- * scatter list such that it includes the pad buffer.
- **/
-void blk_queue_update_dma_pad(struct request_queue *q, unsigned int mask)
-{
-	if (mask > q->dma_pad_mask)
-		q->dma_pad_mask = mask;
-}
-EXPORT_SYMBOL(blk_queue_update_dma_pad);
-
-/**
  * blk_set_queue_depth - tell the block layer about the device queue depth
  * @q:		the request queue for the device
  * @depth:		queue depth
