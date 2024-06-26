@@ -6909,7 +6909,7 @@ DRM DRIVER FOR LG SW43408 PANELS
 M:	Sumit Semwal <sumit.semwal@linaro.org>
 M:	Caleb Connolly <caleb.connolly@linaro.org>
 S:	Maintained
-T:	git git://anongit.freedesktop.org/drm/drm-misc
+T:	git https://gitlab.freedesktop.org/drm/misc/kernel.git
 F:	Documentation/devicetree/bindings/display/panel/lg,sw43408.yaml
 F:	drivers/gpu/drm/panel/panel-lg-sw43408.c
 
@@ -7196,6 +7196,7 @@ L:	dri-devel@lists.freedesktop.org
 S:	Maintained
 T:	git https://gitlab.freedesktop.org/drm/misc/kernel.git
 F:	Documentation/gpu/vkms.rst
+F:	drivers/gpu/drm/ci/xfails/vkms*
 F:	drivers/gpu/drm/vkms/
 
 DRM DRIVER FOR VIRTUALBOX VIRTUAL GPU
@@ -7566,7 +7567,6 @@ F:	include/drm/gpu_scheduler.h
 DRM PANEL DRIVERS
 M:	Neil Armstrong <neil.armstrong@linaro.org>
 R:	Jessica Zhang <quic_jesszhan@quicinc.com>
-R:	Sam Ravnborg <sam@ravnborg.org>
 L:	dri-devel@lists.freedesktop.org
 S:	Maintained
 T:	git https://gitlab.freedesktop.org/drm/misc/kernel.git
@@ -11012,6 +11012,7 @@ S:	Supported
 F:	drivers/gpu/drm/i915/display/
 F:	drivers/gpu/drm/xe/display/
 F:	drivers/gpu/drm/xe/compat-i915-headers
+F:	include/drm/intel/
 
 INTEL DRM I915 DRIVER (Meteor Lake, DG2 and older excluding Poulsbo, Moorestown and derivative)
 M:	Jani Nikula <jani.nikula@linux.intel.com>
@@ -11024,12 +11025,12 @@ W:	https://drm.pages.freedesktop.org/intel-docs/
 Q:	http://patchwork.freedesktop.org/project/intel-gfx/
 B:	https://drm.pages.freedesktop.org/intel-docs/how-to-file-i915-bugs.html
 C:	irc://irc.oftc.net/intel-gfx
-T:	git git://anongit.freedesktop.org/drm-intel
+T:	git https://gitlab.freedesktop.org/drm/i915/kernel.git
 F:	Documentation/ABI/testing/sysfs-driver-intel-i915-hwmon
 F:	Documentation/gpu/i915.rst
 F:	drivers/gpu/drm/ci/xfails/i915*
 F:	drivers/gpu/drm/i915/
-F:	include/drm/i915*
+F:	include/drm/intel/
 F:	include/uapi/drm/i915_drm.h
 
 INTEL DRM XE DRIVER (Lunar Lake and newer)
@@ -11045,7 +11046,7 @@ T:	git https://gitlab.freedesktop.org/drm/xe/kernel.git
 F:	Documentation/ABI/testing/sysfs-driver-intel-xe-hwmon
 F:	Documentation/gpu/xe/
 F:	drivers/gpu/drm/xe/
-F:	include/drm/xe*
+F:	include/drm/intel/
 F:	include/uapi/drm/xe_drm.h
 
 INTEL ETHERNET DRIVERS

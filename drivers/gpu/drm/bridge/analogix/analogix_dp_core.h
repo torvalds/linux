@@ -213,26 +213,8 @@ void analogix_dp_enable_enhanced_mode(struct analogix_dp_device *dp,
 				      bool enable);
 void analogix_dp_set_training_pattern(struct analogix_dp_device *dp,
 				      enum pattern_set pattern);
-void analogix_dp_set_lane0_pre_emphasis(struct analogix_dp_device *dp,
-					u32 level);
-void analogix_dp_set_lane1_pre_emphasis(struct analogix_dp_device *dp,
-					u32 level);
-void analogix_dp_set_lane2_pre_emphasis(struct analogix_dp_device *dp,
-					u32 level);
-void analogix_dp_set_lane3_pre_emphasis(struct analogix_dp_device *dp,
-					u32 level);
-void analogix_dp_set_lane0_link_training(struct analogix_dp_device *dp,
-					 u32 training_lane);
-void analogix_dp_set_lane1_link_training(struct analogix_dp_device *dp,
-					 u32 training_lane);
-void analogix_dp_set_lane2_link_training(struct analogix_dp_device *dp,
-					 u32 training_lane);
-void analogix_dp_set_lane3_link_training(struct analogix_dp_device *dp,
-					 u32 training_lane);
-u32 analogix_dp_get_lane0_link_training(struct analogix_dp_device *dp);
-u32 analogix_dp_get_lane1_link_training(struct analogix_dp_device *dp);
-u32 analogix_dp_get_lane2_link_training(struct analogix_dp_device *dp);
-u32 analogix_dp_get_lane3_link_training(struct analogix_dp_device *dp);
+void analogix_dp_set_lane_link_training(struct analogix_dp_device *dp);
+u32 analogix_dp_get_lane_link_training(struct analogix_dp_device *dp, u8 lane);
 void analogix_dp_reset_macro(struct analogix_dp_device *dp);
 void analogix_dp_init_video(struct analogix_dp_device *dp);
 

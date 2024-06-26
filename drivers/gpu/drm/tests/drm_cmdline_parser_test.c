@@ -1056,4 +1056,5 @@ static struct kunit_suite drm_cmdline_parser_test_suite = {
 kunit_test_suite(drm_cmdline_parser_test_suite);
 
 MODULE_AUTHOR("Maxime Ripard <maxime.ripard@bootlin.com>");
+MODULE_DESCRIPTION("Kunit test for drm_cmdline_parser functions");
 MODULE_LICENSE("GPL");

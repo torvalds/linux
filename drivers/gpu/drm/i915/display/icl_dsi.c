@@ -784,7 +784,8 @@ gen11_dsi_configure_transcoder(struct intel_encoder *encoder,
 	if (intel_dsi->dual_link) {
 		for_each_dsi_port(port, intel_dsi->ports) {
 			dsi_trans = dsi_port_to_transcoder(port);
-			intel_de_rmw(dev_priv, TRANS_DDI_FUNC_CTL2(dsi_trans),
+			intel_de_rmw(dev_priv,
+				     TRANS_DDI_FUNC_CTL2(dev_priv, dsi_trans),
 				     0, PORT_SYNC_MODE_ENABLE);
 		}
 
@@ -796,7 +797,8 @@ gen11_dsi_configure_transcoder(struct intel_encoder *encoder,
 		dsi_trans = dsi_port_to_transcoder(port);
 
 		/* select data lane width */
-		tmp = intel_de_read(dev_priv, TRANS_DDI_FUNC_CTL(dsi_trans));
+		tmp = intel_de_read(dev_priv,
+				    TRANS_DDI_FUNC_CTL(dev_priv, dsi_trans));
 		tmp &= ~DDI_PORT_WIDTH_MASK;
 		tmp |= DDI_PORT_WIDTH(intel_dsi->lane_count);
 
@@ -822,7 +824,8 @@ gen11_dsi_configure_transcoder(struct intel_encoder *encoder,
 
 		/* enable DDI buffer */
 		tmp |= TRANS_DDI_FUNC_ENABLE;
-		intel_de_write(dev_priv, TRANS_DDI_FUNC_CTL(dsi_trans), tmp);
+		intel_de_write(dev_priv,
+			       TRANS_DDI_FUNC_CTL(dev_priv, dsi_trans), tmp);
 	}
 
 	/* wait for link ready */
@@ -915,7 +918,7 @@ gen11_dsi_set_transcoder_timings(struct intel_encoder *encoder,
 	/* program TRANS_HTOTAL register */
 	for_each_dsi_port(port, intel_dsi->ports) {
 		dsi_trans = dsi_port_to_transcoder(port);
-		intel_de_write(dev_priv, TRANS_HTOTAL(dsi_trans),
+		intel_de_write(dev_priv, TRANS_HTOTAL(dev_priv, dsi_trans),
 			       HACTIVE(hactive - 1) | HTOTAL(htotal - 1));
 	}
 
@@ -938,7 +941,8 @@ gen11_dsi_set_transcoder_timings(struct intel_encoder *encoder,
 
 		for_each_dsi_port(port, intel_dsi->ports) {
 			dsi_trans = dsi_port_to_transcoder(port);
-			intel_de_write(dev_priv, TRANS_HSYNC(dsi_trans),
+			intel_de_write(dev_priv,
+				       TRANS_HSYNC(dev_priv, dsi_trans),
 				       HSYNC_START(hsync_start - 1) | HSYNC_END(hsync_end - 1));
 		}
 	}
@@ -952,7 +956,7 @@ gen11_dsi_set_transcoder_timings(struct intel_encoder *encoder,
 		 * struct drm_display_mode.
 		 * For interlace mode: program required pixel minus 2
 		 */
-		intel_de_write(dev_priv, TRANS_VTOTAL(dsi_trans),
+		intel_de_write(dev_priv, TRANS_VTOTAL(dev_priv, dsi_trans),
 			       VACTIVE(vactive - 1) | VTOTAL(vtotal - 1));
 	}
 
@@ -966,7 +970,8 @@ gen11_dsi_set_transcoder_timings(struct intel_encoder *encoder,
 	if (is_vid_mode(intel_dsi)) {
 		for_each_dsi_port(port, intel_dsi->ports) {
 			dsi_trans = dsi_port_to_transcoder(port);
-			intel_de_write(dev_priv, TRANS_VSYNC(dsi_trans),
+			intel_de_write(dev_priv,
+				       TRANS_VSYNC(dev_priv, dsi_trans),
 				       VSYNC_START(vsync_start - 1) | VSYNC_END(vsync_end - 1));
 		}
 	}
@@ -980,7 +985,8 @@ gen11_dsi_set_transcoder_timings(struct intel_encoder *encoder,
 	if (is_vid_mode(intel_dsi)) {
 		for_each_dsi_port(port, intel_dsi->ports) {
 			dsi_trans = dsi_port_to_transcoder(port);
-			intel_de_write(dev_priv, TRANS_VSYNCSHIFT(dsi_trans),
+			intel_de_write(dev_priv,
+				       TRANS_VSYNCSHIFT(dev_priv, dsi_trans),
 				       vsync_shift);
 		}
 	}
@@ -994,7 +1000,8 @@ gen11_dsi_set_transcoder_timings(struct intel_encoder *encoder,
 	if (DISPLAY_VER(dev_priv) >= 12) {
 		for_each_dsi_port(port, intel_dsi->ports) {
 			dsi_trans = dsi_port_to_transcoder(port);
-			intel_de_write(dev_priv, TRANS_VBLANK(dsi_trans),
+			intel_de_write(dev_priv,
+				       TRANS_VBLANK(dev_priv, dsi_trans),
 				       VBLANK_START(vactive - 1) | VBLANK_END(vtotal - 1));
 		}
 	}
@@ -1009,10 +1016,11 @@ static void gen11_dsi_enable_transcoder(struct intel_encoder *encoder)
 
 	for_each_dsi_port(port, intel_dsi->ports) {
 		dsi_trans = dsi_port_to_transcoder(port);
-		intel_de_rmw(dev_priv, TRANSCONF(dsi_trans), 0, TRANSCONF_ENABLE);
+		intel_de_rmw(dev_priv, TRANSCONF(dev_priv, dsi_trans), 0,
+			     TRANSCONF_ENABLE);
 
 		/* wait for transcoder to be enabled */
-		if (intel_de_wait_for_set(dev_priv, TRANSCONF(dsi_trans),
+		if (intel_de_wait_for_set(dev_priv, TRANSCONF(dev_priv, dsi_trans),
 					  TRANSCONF_STATE_ENABLE, 10))
 			drm_err(&dev_priv->drm,
 				"DSI transcoder not enabled\n");
@@ -1275,10 +1283,11 @@ static void gen11_dsi_disable_transcoder(struct intel_encoder *encoder)
 		dsi_trans = dsi_port_to_transcoder(port);
 
 		/* disable transcoder */
-		intel_de_rmw(dev_priv, TRANSCONF(dsi_trans), TRANSCONF_ENABLE, 0);
+		intel_de_rmw(dev_priv, TRANSCONF(dev_priv, dsi_trans),
+			     TRANSCONF_ENABLE, 0);
 
 		/* wait for transcoder to be disabled */
-		if (intel_de_wait_for_clear(dev_priv, TRANSCONF(dsi_trans),
+		if (intel_de_wait_for_clear(dev_priv, TRANSCONF(dev_priv, dsi_trans),
 					    TRANSCONF_STATE_ENABLE, 50))
 			drm_err(&dev_priv->drm,
 				"DSI trancoder not disabled\n");
@@ -1327,7 +1336,8 @@ static void gen11_dsi_deconfigure_trancoder(struct intel_encoder *encoder)
 	/* disable ddi function */
 	for_each_dsi_port(port, intel_dsi->ports) {
 		dsi_trans = dsi_port_to_transcoder(port);
-		intel_de_rmw(dev_priv, TRANS_DDI_FUNC_CTL(dsi_trans),
+		intel_de_rmw(dev_priv,
+			     TRANS_DDI_FUNC_CTL(dev_priv, dsi_trans),
 			     TRANS_DDI_FUNC_ENABLE, 0);
 	}
 
@@ -1335,7 +1345,8 @@ static void gen11_dsi_deconfigure_trancoder(struct intel_encoder *encoder)
 	if (intel_dsi->dual_link) {
 		for_each_dsi_port(port, intel_dsi->ports) {
 			dsi_trans = dsi_port_to_transcoder(port);
-			intel_de_rmw(dev_priv, TRANS_DDI_FUNC_CTL2(dsi_trans),
+			intel_de_rmw(dev_priv,
+				     TRANS_DDI_FUNC_CTL2(dev_priv, dsi_trans),
 				     PORT_SYNC_MODE_ENABLE, 0);
 		}
 	}
@@ -1691,7 +1702,8 @@ static bool gen11_dsi_get_hw_state(struct intel_encoder *encoder,
 
 	for_each_dsi_port(port, intel_dsi->ports) {
 		dsi_trans = dsi_port_to_transcoder(port);
-		tmp = intel_de_read(dev_priv, TRANS_DDI_FUNC_CTL(dsi_trans));
+		tmp = intel_de_read(dev_priv,
+				    TRANS_DDI_FUNC_CTL(dev_priv, dsi_trans));
 		switch (tmp & TRANS_DDI_EDP_INPUT_MASK) {
 		case TRANS_DDI_EDP_INPUT_A_ON:
 			*pipe = PIPE_A;
@@ -1710,7 +1722,7 @@ static bool gen11_dsi_get_hw_state(struct intel_encoder *encoder,
 			goto out;
 		}
 
-		tmp = intel_de_read(dev_priv, TRANSCONF(dsi_trans));
+		tmp = intel_de_read(dev_priv, TRANSCONF(dev_priv, dsi_trans));
 		ret = tmp & TRANSCONF_ENABLE;
 	}
 out:

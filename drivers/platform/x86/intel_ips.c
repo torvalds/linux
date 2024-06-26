@@ -59,7 +59,7 @@
 #include <linux/tick.h>
 #include <linux/timer.h>
 #include <linux/dmi.h>
-#include <drm/i915_drm.h>
+#include <drm/intel/i915_drm.h>
 #include <asm/msr.h>
 #include <asm/processor.h>
 #include "intel_ips.h"

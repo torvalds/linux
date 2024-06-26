@@ -166,7 +166,7 @@ verify_crtc_state(struct intel_atomic_state *state,
 	const struct intel_crtc_state *sw_crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
 	struct intel_crtc_state *hw_crtc_state;
-	struct intel_crtc *master_crtc;
+	struct intel_crtc *primary_crtc;
 	struct intel_encoder *encoder;
 
 	hw_crtc_state = intel_crtc_state_alloc(crtc);
@@ -193,9 +193,9 @@ verify_crtc_state(struct intel_atomic_state *state,
 			"transitional active state does not match atomic hw state (expected %i, found %i)\n",
 			sw_crtc_state->hw.active, crtc->active);
 
-	master_crtc = intel_master_crtc(sw_crtc_state);
+	primary_crtc = intel_primary_crtc(sw_crtc_state);
 
-	for_each_encoder_on_crtc(dev, &master_crtc->base, encoder) {
+	for_each_encoder_on_crtc(dev, &primary_crtc->base, encoder) {
 		enum pipe pipe;
 		bool active;
 
@@ -205,7 +205,7 @@ verify_crtc_state(struct intel_atomic_state *state,
 				encoder->base.base.id, active,
 				sw_crtc_state->hw.active);
 
-		I915_STATE_WARN(i915, active && master_crtc->pipe != pipe,
+		I915_STATE_WARN(i915, active && primary_crtc->pipe != pipe,
 				"Encoder connected to wrong pipe %c\n",
 				pipe_name(pipe));
 

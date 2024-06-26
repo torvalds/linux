@@ -9,7 +9,11 @@
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_vrr.h"
+#include "intel_vrr_regs.h"
 #include "intel_dp.h"
+
+#define FIXED_POINT_PRECISION		100
+#define CMRR_PRECISION_TOLERANCE	10
 
 bool intel_vrr_is_capable(struct intel_connector *connector)
 {
@@ -106,6 +110,53 @@ int intel_vrr_vmax_vblank_start(const struct intel_crtc_state *crtc_state)
 	return crtc_state->vrr.vmax - intel_vrr_vblank_exit_length(crtc_state);
 }
 
+static bool
+is_cmrr_frac_required(struct intel_crtc_state *crtc_state)
+{
+	int calculated_refresh_k, actual_refresh_k, pixel_clock_per_line;
+	struct drm_display_mode *adjusted_mode = &crtc_state->hw.adjusted_mode;
+	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
+
+	if (!HAS_CMRR(i915))
+		return false;
+
+	actual_refresh_k =
+		drm_mode_vrefresh(adjusted_mode) * FIXED_POINT_PRECISION;
+	pixel_clock_per_line =
+		adjusted_mode->crtc_clock * 1000 / adjusted_mode->crtc_htotal;
+	calculated_refresh_k =
+		pixel_clock_per_line * FIXED_POINT_PRECISION / adjusted_mode->crtc_vtotal;
+
+	if ((actual_refresh_k - calculated_refresh_k) < CMRR_PRECISION_TOLERANCE)
+		return false;
+
+	return true;
+}
+
+static unsigned int
+cmrr_get_vtotal(struct intel_crtc_state *crtc_state, bool video_mode_required)
+{
+	int multiplier_m = 1, multiplier_n = 1, vtotal, desired_refresh_rate;
+	long long adjusted_pixel_rate;
+	struct drm_display_mode *adjusted_mode = &crtc_state->hw.adjusted_mode;
+
+	desired_refresh_rate = drm_mode_vrefresh(adjusted_mode);
+
+	if (video_mode_required) {
+		multiplier_m = 1001;
+		multiplier_n = 1000;
+	}
+
+	crtc_state->cmrr.cmrr_n = mul_u32_u32(desired_refresh_rate * adjusted_mode->crtc_htotal,
+					      multiplier_n);
+	vtotal = DIV_ROUND_UP_ULL(mul_u32_u32(adjusted_mode->crtc_clock * 1000, multiplier_n),
+				  crtc_state->cmrr.cmrr_n);
+	adjusted_pixel_rate = mul_u32_u32(adjusted_mode->crtc_clock * 1000, multiplier_m);
+	crtc_state->cmrr.cmrr_m = do_div(adjusted_pixel_rate, crtc_state->cmrr.cmrr_n);
+
+	return vtotal;
+}
+
 void
 intel_vrr_compute_config(struct intel_crtc_state *crtc_state,
 			 struct drm_connector_state *conn_state)
@@ -115,6 +166,7 @@ intel_vrr_compute_config(struct intel_crtc_state *crtc_state,
 	struct intel_connector *connector =
 		to_intel_connector(conn_state->connector);
 	struct intel_dp *intel_dp = intel_attached_dp(connector);
+	bool is_edp = intel_dp_is_edp(intel_dp);
 	struct drm_display_mode *adjusted_mode = &crtc_state->hw.adjusted_mode;
 	const struct drm_display_info *info = &connector->base.display_info;
 	int vmin, vmax;
@@ -123,7 +175,7 @@ intel_vrr_compute_config(struct intel_crtc_state *crtc_state,
 	 * FIXME all joined pipes share the same transcoder.
 	 * Need to account for that during VRR toggle/push/etc.
 	 */
-	if (crtc_state->bigjoiner_pipes)
+	if (crtc_state->joiner_pipes)
 		return;
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)
@@ -159,6 +211,39 @@ intel_vrr_compute_config(struct intel_crtc_state *crtc_state,
 	crtc_state->vrr.flipline = crtc_state->vrr.vmin + 1;
 
 	/*
+	 * When panel is VRR capable and userspace has
+	 * not enabled adaptive sync mode then Fixed Average
+	 * Vtotal mode should be enabled.
+	 */
+	if (crtc_state->uapi.vrr_enabled) {
+		crtc_state->vrr.enable = true;
+		crtc_state->mode_flags |= I915_MODE_FLAG_VRR;
+	} else if (is_cmrr_frac_required(crtc_state) && is_edp) {
+		crtc_state->vrr.enable = true;
+		crtc_state->cmrr.enable = true;
+		/*
+		 * TODO: Compute precise target refresh rate to determine
+		 * if video_mode_required should be true. Currently set to
+		 * false due to uncertainty about the precise target
+		 * refresh Rate.
+		 */
+		crtc_state->vrr.vmax = cmrr_get_vtotal(crtc_state, false);
+		crtc_state->vrr.vmin = crtc_state->vrr.vmax;
+		crtc_state->vrr.flipline = crtc_state->vrr.vmin;
+		crtc_state->mode_flags |= I915_MODE_FLAG_VRR;
+	}
+
+	if (intel_dp_as_sdp_supported(intel_dp) &&
+	    crtc_state->vrr.enable) {
+		crtc_state->vrr.vsync_start =
+			(crtc_state->hw.adjusted_mode.crtc_vtotal -
+			 crtc_state->hw.adjusted_mode.vsync_start);
+		crtc_state->vrr.vsync_end =
+			(crtc_state->hw.adjusted_mode.crtc_vtotal -
+			 crtc_state->hw.adjusted_mode.vsync_end);
+	}
+
+	/*
 	 * For XE_LPD+, we use guardband and pipeline override
 	 * is deprecated.
 	 */
@@ -169,19 +254,6 @@ intel_vrr_compute_config(struct intel_crtc_state *crtc_state,
 		crtc_state->vrr.pipeline_full =
 			min(255, crtc_state->vrr.vmin - adjusted_mode->crtc_vblank_start -
 			    crtc_state->framestart_delay - 1);
-	}
-
-	if (crtc_state->uapi.vrr_enabled) {
-		crtc_state->vrr.enable = true;
-		crtc_state->mode_flags |= I915_MODE_FLAG_VRR;
-		if (intel_dp_as_sdp_supported(intel_dp)) {
-			crtc_state->vrr.vsync_start =
-				(crtc_state->hw.adjusted_mode.crtc_vtotal -
-					crtc_state->hw.adjusted_mode.vsync_start);
-			crtc_state->vrr.vsync_end =
-				(crtc_state->hw.adjusted_mode.crtc_vtotal -
-					crtc_state->hw.adjusted_mode.vsync_end);
-		}
 	}
 }
 
@@ -213,14 +285,30 @@ void intel_vrr_set_transcoder_timings(const struct intel_crtc_state *crtc_state)
 			     0, PIPE_VBLANK_WITH_DELAY);
 
 	if (!crtc_state->vrr.flipline) {
-		intel_de_write(dev_priv, TRANS_VRR_CTL(cpu_transcoder), 0);
+		intel_de_write(dev_priv,
+			       TRANS_VRR_CTL(dev_priv, cpu_transcoder), 0);
 		return;
 	}
 
-	intel_de_write(dev_priv, TRANS_VRR_VMIN(cpu_transcoder), crtc_state->vrr.vmin - 1);
-	intel_de_write(dev_priv, TRANS_VRR_VMAX(cpu_transcoder), crtc_state->vrr.vmax - 1);
-	intel_de_write(dev_priv, TRANS_VRR_CTL(cpu_transcoder), trans_vrr_ctl(crtc_state));
-	intel_de_write(dev_priv, TRANS_VRR_FLIPLINE(cpu_transcoder), crtc_state->vrr.flipline - 1);
+	if (crtc_state->cmrr.enable) {
+		intel_de_write(dev_priv, TRANS_CMRR_M_HI(dev_priv, cpu_transcoder),
+			       upper_32_bits(crtc_state->cmrr.cmrr_m));
+		intel_de_write(dev_priv, TRANS_CMRR_M_LO(dev_priv, cpu_transcoder),
+			       lower_32_bits(crtc_state->cmrr.cmrr_m));
+		intel_de_write(dev_priv, TRANS_CMRR_N_HI(dev_priv, cpu_transcoder),
+			       upper_32_bits(crtc_state->cmrr.cmrr_n));
+		intel_de_write(dev_priv, TRANS_CMRR_N_LO(dev_priv, cpu_transcoder),
+			       lower_32_bits(crtc_state->cmrr.cmrr_n));
+	}
+
+	intel_de_write(dev_priv, TRANS_VRR_VMIN(dev_priv, cpu_transcoder),
+		       crtc_state->vrr.vmin - 1);
+	intel_de_write(dev_priv, TRANS_VRR_VMAX(dev_priv, cpu_transcoder),
+		       crtc_state->vrr.vmax - 1);
+	intel_de_write(dev_priv, TRANS_VRR_CTL(dev_priv, cpu_transcoder),
+		       trans_vrr_ctl(crtc_state));
+	intel_de_write(dev_priv, TRANS_VRR_FLIPLINE(dev_priv, cpu_transcoder),
+		       crtc_state->vrr.flipline - 1);
 }
 
 void intel_vrr_send_push(const struct intel_crtc_state *crtc_state)
@@ -232,7 +320,7 @@ void intel_vrr_send_push(const struct intel_crtc_state *crtc_state)
 	if (!crtc_state->vrr.enable)
 		return;
 
-	intel_de_write(dev_priv, TRANS_PUSH(cpu_transcoder),
+	intel_de_write(dev_priv, TRANS_PUSH(dev_priv, cpu_transcoder),
 		       TRANS_PUSH_EN | TRANS_PUSH_SEND);
 }
 
@@ -245,7 +333,7 @@ bool intel_vrr_is_push_sent(const struct intel_crtc_state *crtc_state)
 	if (!crtc_state->vrr.enable)
 		return false;
 
-	return intel_de_read(dev_priv, TRANS_PUSH(cpu_transcoder)) & TRANS_PUSH_SEND;
+	return intel_de_read(dev_priv, TRANS_PUSH(dev_priv, cpu_transcoder)) & TRANS_PUSH_SEND;
 }
 
 void intel_vrr_enable(const struct intel_crtc_state *crtc_state)
@@ -256,15 +344,23 @@ void intel_vrr_enable(const struct intel_crtc_state *crtc_state)
 	if (!crtc_state->vrr.enable)
 		return;
 
-	intel_de_write(dev_priv, TRANS_PUSH(cpu_transcoder), TRANS_PUSH_EN);
+	intel_de_write(dev_priv, TRANS_PUSH(dev_priv, cpu_transcoder),
+		       TRANS_PUSH_EN);
 
 	if (HAS_AS_SDP(dev_priv))
-		intel_de_write(dev_priv, TRANS_VRR_VSYNC(cpu_transcoder),
+		intel_de_write(dev_priv,
+			       TRANS_VRR_VSYNC(dev_priv, cpu_transcoder),
 			       VRR_VSYNC_END(crtc_state->vrr.vsync_end) |
 			       VRR_VSYNC_START(crtc_state->vrr.vsync_start));
 
-	intel_de_write(dev_priv, TRANS_VRR_CTL(cpu_transcoder),
-		       VRR_CTL_VRR_ENABLE | trans_vrr_ctl(crtc_state));
+	if (crtc_state->cmrr.enable) {
+		intel_de_write(dev_priv, TRANS_VRR_CTL(dev_priv, cpu_transcoder),
+			       VRR_CTL_VRR_ENABLE | VRR_CTL_CMRR_ENABLE |
+			       trans_vrr_ctl(crtc_state));
+	} else {
+		intel_de_write(dev_priv, TRANS_VRR_CTL(dev_priv, cpu_transcoder),
+			       VRR_CTL_VRR_ENABLE | trans_vrr_ctl(crtc_state));
+	}
 }
 
 void intel_vrr_disable(const struct intel_crtc_state *old_crtc_state)
@@ -276,14 +372,16 @@ void intel_vrr_disable(const struct intel_crtc_state *old_crtc_state)
 	if (!old_crtc_state->vrr.enable)
 		return;
 
-	intel_de_write(dev_priv, TRANS_VRR_CTL(cpu_transcoder),
+	intel_de_write(dev_priv, TRANS_VRR_CTL(dev_priv, cpu_transcoder),
 		       trans_vrr_ctl(old_crtc_state));
-	intel_de_wait_for_clear(dev_priv, TRANS_VRR_STATUS(cpu_transcoder),
+	intel_de_wait_for_clear(dev_priv,
+				TRANS_VRR_STATUS(dev_priv, cpu_transcoder),
 				VRR_STATUS_VRR_EN_LIVE, 1000);
-	intel_de_write(dev_priv, TRANS_PUSH(cpu_transcoder), 0);
+	intel_de_write(dev_priv, TRANS_PUSH(dev_priv, cpu_transcoder), 0);
 
 	if (HAS_AS_SDP(dev_priv))
-		intel_de_write(dev_priv, TRANS_VRR_VSYNC(cpu_transcoder), 0);
+		intel_de_write(dev_priv,
+			       TRANS_VRR_VSYNC(dev_priv, cpu_transcoder), 0);
 }
 
 void intel_vrr_get_config(struct intel_crtc_state *crtc_state)
@@ -292,9 +390,21 @@ void intel_vrr_get_config(struct intel_crtc_state *crtc_state)
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 	u32 trans_vrr_ctl, trans_vrr_vsync;
 
-	trans_vrr_ctl = intel_de_read(dev_priv, TRANS_VRR_CTL(cpu_transcoder));
+	trans_vrr_ctl = intel_de_read(dev_priv,
+				      TRANS_VRR_CTL(dev_priv, cpu_transcoder));
 
 	crtc_state->vrr.enable = trans_vrr_ctl & VRR_CTL_VRR_ENABLE;
+	if (HAS_CMRR(dev_priv))
+		crtc_state->cmrr.enable = (trans_vrr_ctl & VRR_CTL_CMRR_ENABLE);
+
+	if (crtc_state->cmrr.enable) {
+		crtc_state->cmrr.cmrr_n =
+			intel_de_read64_2x32(dev_priv, TRANS_CMRR_N_LO(dev_priv, cpu_transcoder),
+					     TRANS_CMRR_N_HI(dev_priv, cpu_transcoder));
+		crtc_state->cmrr.cmrr_m =
+			intel_de_read64_2x32(dev_priv, TRANS_CMRR_M_LO(dev_priv, cpu_transcoder),
+					     TRANS_CMRR_M_HI(dev_priv, cpu_transcoder));
+	}
 
 	if (DISPLAY_VER(dev_priv) >= 13)
 		crtc_state->vrr.guardband =
@@ -305,9 +415,12 @@ void intel_vrr_get_config(struct intel_crtc_state *crtc_state)
 				REG_FIELD_GET(VRR_CTL_PIPELINE_FULL_MASK, trans_vrr_ctl);
 
 	if (trans_vrr_ctl & VRR_CTL_FLIP_LINE_EN) {
-		crtc_state->vrr.flipline = intel_de_read(dev_priv, TRANS_VRR_FLIPLINE(cpu_transcoder)) + 1;
-		crtc_state->vrr.vmax = intel_de_read(dev_priv, TRANS_VRR_VMAX(cpu_transcoder)) + 1;
-		crtc_state->vrr.vmin = intel_de_read(dev_priv, TRANS_VRR_VMIN(cpu_transcoder)) + 1;
+		crtc_state->vrr.flipline = intel_de_read(dev_priv,
+							 TRANS_VRR_FLIPLINE(dev_priv, cpu_transcoder)) + 1;
+		crtc_state->vrr.vmax = intel_de_read(dev_priv,
+						     TRANS_VRR_VMAX(dev_priv, cpu_transcoder)) + 1;
+		crtc_state->vrr.vmin = intel_de_read(dev_priv,
+						     TRANS_VRR_VMIN(dev_priv, cpu_transcoder)) + 1;
 	}
 
 	if (crtc_state->vrr.enable) {
@@ -315,7 +428,8 @@ void intel_vrr_get_config(struct intel_crtc_state *crtc_state)
 
 		if (HAS_AS_SDP(dev_priv)) {
 			trans_vrr_vsync =
-				intel_de_read(dev_priv, TRANS_VRR_VSYNC(cpu_transcoder));
+				intel_de_read(dev_priv,
+					      TRANS_VRR_VSYNC(dev_priv, cpu_transcoder));
 			crtc_state->vrr.vsync_start =
 				REG_FIELD_GET(VRR_VSYNC_START_MASK, trans_vrr_vsync);
 			crtc_state->vrr.vsync_end =

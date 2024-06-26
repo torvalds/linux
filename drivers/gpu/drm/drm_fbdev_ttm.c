@@ -10,10 +10,10 @@
 #include <drm/drm_gem.h>
 #include <drm/drm_print.h>
 
-#include <drm/drm_fbdev_generic.h>
+#include <drm/drm_fbdev_ttm.h>
 
 /* @user: 1=userspace, 0=fbcon */
-static int drm_fbdev_generic_fb_open(struct fb_info *info, int user)
+static int drm_fbdev_ttm_fb_open(struct fb_info *info, int user)
 {
 	struct drm_fb_helper *fb_helper = info->par;
 
@@ -24,7 +24,7 @@ static int drm_fbdev_generic_fb_open(struct fb_info *info, int user)
 	return 0;
 }
 
-static int drm_fbdev_generic_fb_release(struct fb_info *info, int user)
+static int drm_fbdev_ttm_fb_release(struct fb_info *info, int user)
 {
 	struct drm_fb_helper *fb_helper = info->par;
 
@@ -34,11 +34,11 @@ static int drm_fbdev_generic_fb_release(struct fb_info *info, int user)
 	return 0;
 }
 
-FB_GEN_DEFAULT_DEFERRED_SYSMEM_OPS(drm_fbdev_generic,
+FB_GEN_DEFAULT_DEFERRED_SYSMEM_OPS(drm_fbdev_ttm,
 				   drm_fb_helper_damage_range,
 				   drm_fb_helper_damage_area);
 
-static void drm_fbdev_generic_fb_destroy(struct fb_info *info)
+static void drm_fbdev_ttm_fb_destroy(struct fb_info *info)
 {
 	struct drm_fb_helper *fb_helper = info->par;
 	void *shadow = info->screen_buffer;
@@ -56,19 +56,19 @@ static void drm_fbdev_generic_fb_destroy(struct fb_info *info)
 	kfree(fb_helper);
 }
 
-static const struct fb_ops drm_fbdev_generic_fb_ops = {
+static const struct fb_ops drm_fbdev_ttm_fb_ops = {
 	.owner		= THIS_MODULE,
-	.fb_open	= drm_fbdev_generic_fb_open,
-	.fb_release	= drm_fbdev_generic_fb_release,
-	FB_DEFAULT_DEFERRED_OPS(drm_fbdev_generic),
+	.fb_open	= drm_fbdev_ttm_fb_open,
+	.fb_release	= drm_fbdev_ttm_fb_release,
+	FB_DEFAULT_DEFERRED_OPS(drm_fbdev_ttm),
 	DRM_FB_HELPER_DEFAULT_OPS,
-	.fb_destroy	= drm_fbdev_generic_fb_destroy,
+	.fb_destroy	= drm_fbdev_ttm_fb_destroy,
 };
 
 /*
  * This function uses the client API to create a framebuffer backed by a dumb buffer.
  */
-static int drm_fbdev_generic_helper_fb_probe(struct drm_fb_helper *fb_helper,
+static int drm_fbdev_ttm_helper_fb_probe(struct drm_fb_helper *fb_helper,
 					     struct drm_fb_helper_surface_size *sizes)
 {
 	struct drm_client_dev *client = &fb_helper->client;
@@ -108,7 +108,7 @@ static int drm_fbdev_generic_helper_fb_probe(struct drm_fb_helper *fb_helper,
 
 	drm_fb_helper_fill_info(info, fb_helper, sizes);
 
-	info->fbops = &drm_fbdev_generic_fb_ops;
+	info->fbops = &drm_fbdev_ttm_fb_ops;
 
 	/* screen */
 	info->flags |= FBINFO_VIRTFB | FBINFO_READS_FAST;
@@ -137,9 +137,9 @@ err_drm_client_framebuffer_delete:
 	return ret;
 }
 
-static void drm_fbdev_generic_damage_blit_real(struct drm_fb_helper *fb_helper,
-					       struct drm_clip_rect *clip,
-					       struct iosys_map *dst)
+static void drm_fbdev_ttm_damage_blit_real(struct drm_fb_helper *fb_helper,
+					   struct drm_clip_rect *clip,
+					   struct iosys_map *dst)
 {
 	struct drm_framebuffer *fb = fb_helper->fb;
 	size_t offset = clip->y1 * fb->pitches[0];
@@ -176,8 +176,8 @@ static void drm_fbdev_generic_damage_blit_real(struct drm_fb_helper *fb_helper,
 	}
 }
 
-static int drm_fbdev_generic_damage_blit(struct drm_fb_helper *fb_helper,
-					 struct drm_clip_rect *clip)
+static int drm_fbdev_ttm_damage_blit(struct drm_fb_helper *fb_helper,
+				     struct drm_clip_rect *clip)
 {
 	struct drm_client_buffer *buffer = fb_helper->buffer;
 	struct iosys_map map, dst;
@@ -201,7 +201,7 @@ static int drm_fbdev_generic_damage_blit(struct drm_fb_helper *fb_helper,
 		goto out;
 
 	dst = map;
-	drm_fbdev_generic_damage_blit_real(fb_helper, clip, &dst);
+	drm_fbdev_ttm_damage_blit_real(fb_helper, clip, &dst);
 
 	drm_client_buffer_vunmap_local(buffer);
 
@@ -211,8 +211,8 @@ out:
 	return ret;
 }
 
-static int drm_fbdev_generic_helper_fb_dirty(struct drm_fb_helper *helper,
-					     struct drm_clip_rect *clip)
+static int drm_fbdev_ttm_helper_fb_dirty(struct drm_fb_helper *helper,
+					 struct drm_clip_rect *clip)
 {
 	struct drm_device *dev = helper->dev;
 	int ret;
@@ -221,7 +221,7 @@ static int drm_fbdev_generic_helper_fb_dirty(struct drm_fb_helper *helper,
 	if (!(clip->x1 < clip->x2 && clip->y1 < clip->y2))
 		return 0;
 
-	ret = drm_fbdev_generic_damage_blit(helper, clip);
+	ret = drm_fbdev_ttm_damage_blit(helper, clip);
 	if (drm_WARN_ONCE(dev, ret, "Damage blitter failed: ret=%d\n", ret))
 		return ret;
 
@@ -234,12 +234,12 @@ static int drm_fbdev_generic_helper_fb_dirty(struct drm_fb_helper *helper,
 	return 0;
 }
 
-static const struct drm_fb_helper_funcs drm_fbdev_generic_helper_funcs = {
-	.fb_probe = drm_fbdev_generic_helper_fb_probe,
-	.fb_dirty = drm_fbdev_generic_helper_fb_dirty,
+static const struct drm_fb_helper_funcs drm_fbdev_ttm_helper_funcs = {
+	.fb_probe = drm_fbdev_ttm_helper_fb_probe,
+	.fb_dirty = drm_fbdev_ttm_helper_fb_dirty,
 };
 
-static void drm_fbdev_generic_client_unregister(struct drm_client_dev *client)
+static void drm_fbdev_ttm_client_unregister(struct drm_client_dev *client)
 {
 	struct drm_fb_helper *fb_helper = drm_fb_helper_from_client(client);
 
@@ -252,14 +252,14 @@ static void drm_fbdev_generic_client_unregister(struct drm_client_dev *client)
 	}
 }
 
-static int drm_fbdev_generic_client_restore(struct drm_client_dev *client)
+static int drm_fbdev_ttm_client_restore(struct drm_client_dev *client)
 {
 	drm_fb_helper_lastclose(client->dev);
 
 	return 0;
 }
 
-static int drm_fbdev_generic_client_hotplug(struct drm_client_dev *client)
+static int drm_fbdev_ttm_client_hotplug(struct drm_client_dev *client)
 {
 	struct drm_fb_helper *fb_helper = drm_fb_helper_from_client(client);
 	struct drm_device *dev = client->dev;
@@ -284,32 +284,32 @@ static int drm_fbdev_generic_client_hotplug(struct drm_client_dev *client)
 err_drm_fb_helper_fini:
 	drm_fb_helper_fini(fb_helper);
 err_drm_err:
-	drm_err(dev, "fbdev: Failed to setup generic emulation (ret=%d)\n", ret);
+	drm_err(dev, "fbdev: Failed to setup emulation (ret=%d)\n", ret);
 	return ret;
 }
 
-static const struct drm_client_funcs drm_fbdev_generic_client_funcs = {
+static const struct drm_client_funcs drm_fbdev_ttm_client_funcs = {
 	.owner		= THIS_MODULE,
-	.unregister	= drm_fbdev_generic_client_unregister,
-	.restore	= drm_fbdev_generic_client_restore,
-	.hotplug	= drm_fbdev_generic_client_hotplug,
+	.unregister	= drm_fbdev_ttm_client_unregister,
+	.restore	= drm_fbdev_ttm_client_restore,
+	.hotplug	= drm_fbdev_ttm_client_hotplug,
 };
 
 /**
- * drm_fbdev_generic_setup() - Setup generic fbdev emulation
+ * drm_fbdev_ttm_setup() - Setup fbdev emulation for TTM-based drivers
  * @dev: DRM device
  * @preferred_bpp: Preferred bits per pixel for the device.
  *
- * This function sets up generic fbdev emulation for drivers that supports
+ * This function sets up fbdev emulation for TTM-based drivers that support
  * dumb buffers with a virtual address and that can be mmap'ed.
- * drm_fbdev_generic_setup() shall be called after the DRM driver registered
+ * drm_fbdev_ttm_setup() shall be called after the DRM driver registered
  * the new DRM device with drm_dev_register().
  *
  * Restore, hotplug events and teardown are all taken care of. Drivers that do
  * suspend/resume need to call drm_fb_helper_set_suspend_unlocked() themselves.
  * Simple drivers might use drm_mode_config_helper_suspend().
  *
- * In order to provide fixed mmap-able memory ranges, generic fbdev emulation
+ * In order to provide fixed mmap-able memory ranges, fbdev emulation
  * uses a shadow buffer in system memory. The implementation blits the shadow
  * fbdev buffer onto the real buffer in regular intervals.
  *
@@ -318,7 +318,7 @@ static const struct drm_client_funcs drm_fbdev_generic_client_funcs = {
  *
  * The fbdev is destroyed by drm_dev_unregister().
  */
-void drm_fbdev_generic_setup(struct drm_device *dev, unsigned int preferred_bpp)
+void drm_fbdev_ttm_setup(struct drm_device *dev, unsigned int preferred_bpp)
 {
 	struct drm_fb_helper *fb_helper;
 	int ret;
@@ -329,9 +329,9 @@ void drm_fbdev_generic_setup(struct drm_device *dev, unsigned int preferred_bpp)
 	fb_helper = kzalloc(sizeof(*fb_helper), GFP_KERNEL);
 	if (!fb_helper)
 		return;
-	drm_fb_helper_prepare(dev, fb_helper, preferred_bpp, &drm_fbdev_generic_helper_funcs);
+	drm_fb_helper_prepare(dev, fb_helper, preferred_bpp, &drm_fbdev_ttm_helper_funcs);
 
-	ret = drm_client_init(dev, &fb_helper->client, "fbdev", &drm_fbdev_generic_client_funcs);
+	ret = drm_client_init(dev, &fb_helper->client, "fbdev", &drm_fbdev_ttm_client_funcs);
 	if (ret) {
 		drm_err(dev, "Failed to register client: %d\n", ret);
 		goto err_drm_client_init;
@@ -346,4 +346,4 @@ err_drm_client_init:
 	kfree(fb_helper);
 	return;
 }
-EXPORT_SYMBOL(drm_fbdev_generic_setup);
+EXPORT_SYMBOL(drm_fbdev_ttm_setup);

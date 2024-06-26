@@ -303,6 +303,8 @@ const u8 *drm_edid_find_extension(const struct drm_edid *drm_edid,
 				  int ext_id, int *ext_index);
 void drm_edid_cta_sad_get(const struct cea_sad *cta_sad, u8 *sad);
 void drm_edid_cta_sad_set(struct cea_sad *cta_sad, const u8 *sad);
+ssize_t drm_edid_connector_property_show(struct drm_connector *connector,
+					 char *buf, loff_t off, size_t count);
 
 /* drm_edid_load.c */
 #ifdef CONFIG_DRM_LOAD_EDID_FIRMWARE

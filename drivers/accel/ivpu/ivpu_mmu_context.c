@@ -24,6 +24,7 @@
 #define IVPU_MMU_ENTRY_FLAG_CONT         BIT(52)
 #define IVPU_MMU_ENTRY_FLAG_NG           BIT(11)
 #define IVPU_MMU_ENTRY_FLAG_AF           BIT(10)
+#define IVPU_MMU_ENTRY_FLAG_RO           BIT(7)
 #define IVPU_MMU_ENTRY_FLAG_USER         BIT(6)
 #define IVPU_MMU_ENTRY_FLAG_LLC_COHERENT BIT(2)
 #define IVPU_MMU_ENTRY_FLAG_TYPE_PAGE    BIT(1)
@@ -315,6 +316,91 @@ ivpu_mmu_context_map_pages(struct ivpu_device *vdev, struct ivpu_mmu_context *ct
 		dma_addr += map_size;
 		size -= map_size;
 	}
+
+	return 0;
+}
+
+static void ivpu_mmu_context_set_page_ro(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx,
+					 u64 vpu_addr)
+{
+	int pgd_idx = FIELD_GET(IVPU_MMU_PGD_INDEX_MASK, vpu_addr);
+	int pud_idx = FIELD_GET(IVPU_MMU_PUD_INDEX_MASK, vpu_addr);
+	int pmd_idx = FIELD_GET(IVPU_MMU_PMD_INDEX_MASK, vpu_addr);
+	int pte_idx = FIELD_GET(IVPU_MMU_PTE_INDEX_MASK, vpu_addr);
+
+	ctx->pgtable.pte_ptrs[pgd_idx][pud_idx][pmd_idx][pte_idx] |= IVPU_MMU_ENTRY_FLAG_RO;
+}
+
+static void ivpu_mmu_context_split_page(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx,
+					u64 vpu_addr)
+{
+	int pgd_idx = FIELD_GET(IVPU_MMU_PGD_INDEX_MASK, vpu_addr);
+	int pud_idx = FIELD_GET(IVPU_MMU_PUD_INDEX_MASK, vpu_addr);
+	int pmd_idx = FIELD_GET(IVPU_MMU_PMD_INDEX_MASK, vpu_addr);
+	int pte_idx = FIELD_GET(IVPU_MMU_PTE_INDEX_MASK, vpu_addr);
+
+	ctx->pgtable.pte_ptrs[pgd_idx][pud_idx][pmd_idx][pte_idx] &= ~IVPU_MMU_ENTRY_FLAG_CONT;
+}
+
+static void ivpu_mmu_context_split_64k_page(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx,
+					    u64 vpu_addr)
+{
+	u64 start = ALIGN_DOWN(vpu_addr, IVPU_MMU_CONT_PAGES_SIZE);
+	u64 end = ALIGN(vpu_addr, IVPU_MMU_CONT_PAGES_SIZE);
+	u64 offset = 0;
+
+	ivpu_dbg(vdev, MMU_MAP, "Split 64K page ctx: %u vpu_addr: 0x%llx\n", ctx->id, vpu_addr);
+
+	while (start + offset < end) {
+		ivpu_mmu_context_split_page(vdev, ctx, start + offset);
+		offset += IVPU_MMU_PAGE_SIZE;
+	}
+}
+
+int
+ivpu_mmu_context_set_pages_ro(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx, u64 vpu_addr,
+			      size_t size)
+{
+	u64 end = vpu_addr + size;
+	size_t size_left = size;
+	int ret;
+
+	if (size == 0)
+		return 0;
+
+	if (drm_WARN_ON(&vdev->drm, !IS_ALIGNED(vpu_addr | size, IVPU_MMU_PAGE_SIZE)))
+		return -EINVAL;
+
+	mutex_lock(&ctx->lock);
+
+	ivpu_dbg(vdev, MMU_MAP, "Set read-only pages ctx: %u vpu_addr: 0x%llx size: %lu\n",
+		 ctx->id, vpu_addr, size);
+
+	if (!ivpu_disable_mmu_cont_pages) {
+		/* Split 64K contiguous page at the beginning if needed */
+		if (!IS_ALIGNED(vpu_addr, IVPU_MMU_CONT_PAGES_SIZE))
+			ivpu_mmu_context_split_64k_page(vdev, ctx, vpu_addr);
+
+		/* Split 64K contiguous page at the end if needed */
+		if (!IS_ALIGNED(vpu_addr + size, IVPU_MMU_CONT_PAGES_SIZE))
+			ivpu_mmu_context_split_64k_page(vdev, ctx, vpu_addr + size);
+	}
+
+	while (size_left) {
+		if (vpu_addr < end)
+			ivpu_mmu_context_set_page_ro(vdev, ctx, vpu_addr);
+
+		vpu_addr += IVPU_MMU_PAGE_SIZE;
+		size_left -= IVPU_MMU_PAGE_SIZE;
+	}
+
+	/* Ensure page table modifications are flushed from wc buffers to memory */
+	wmb();
+
+	mutex_unlock(&ctx->lock);
+	ret = ivpu_mmu_invalidate_tlb(vdev, ctx->id);
+	if (ret)
+		ivpu_err(vdev, "Failed to invalidate TLB for ctx %u: %d\n", ctx->id, ret);
 
 	return 0;
 }

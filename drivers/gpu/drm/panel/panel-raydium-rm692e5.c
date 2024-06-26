@@ -23,7 +23,6 @@ struct rm692e5_panel {
 	struct drm_dsc_config dsc;
 	struct regulator_bulk_data supplies[3];
 	struct gpio_desc *reset_gpio;
-	bool prepared;
 };
 
 static inline struct rm692e5_panel *to_rm692e5_panel(struct drm_panel *panel)
@@ -171,9 +170,6 @@ static int rm692e5_prepare(struct drm_panel *panel)
 	struct device *dev = &ctx->dsi->dev;
 	int ret;
 
-	if (ctx->prepared)
-		return 0;
-
 	ret = regulator_bulk_enable(ARRAY_SIZE(ctx->supplies), ctx->supplies);
 	if (ret < 0) {
 		dev_err(dev, "Failed to enable regulators: %d\n", ret);
@@ -213,8 +209,6 @@ static int rm692e5_prepare(struct drm_panel *panel)
 
 	mipi_dsi_generic_write_seq(ctx->dsi, 0xfe, 0x00);
 
-	ctx->prepared = true;
-
 	return 0;
 }
 
@@ -222,13 +216,9 @@ static int rm692e5_unprepare(struct drm_panel *panel)
 {
 	struct rm692e5_panel *ctx = to_rm692e5_panel(panel);
 
-	if (!ctx->prepared)
-		return 0;
-
 	gpiod_set_value_cansleep(ctx->reset_gpio, 1);
 	regulator_bulk_disable(ARRAY_SIZE(ctx->supplies), ctx->supplies);
 
-	ctx->prepared = false;
 	return 0;
 }
 

@@ -25,6 +25,9 @@
 #include "intel_display_types.h"
 #include "intel_dp.h"
 #include "intel_dp_link_training.h"
+#include "intel_encoder.h"
+#include "intel_hotplug.h"
+#include "intel_panel.h"
 
 #define LT_MSG_PREFIX			"[CONNECTOR:%d:%s][ENCODER:%d:%s][%s] "
 #define LT_MSG_ARGS(_intel_dp, _dp_phy)	(_intel_dp)->attached_connector->base.base.id, \
@@ -1091,28 +1094,129 @@ out:
 	return ret;
 }
 
-static void intel_dp_schedule_fallback_link_training(struct intel_dp *intel_dp,
+static bool intel_dp_can_link_train_fallback_for_edp(struct intel_dp *intel_dp,
+						     int link_rate,
+						     u8 lane_count)
+{
+	/* FIXME figure out what we actually want here */
+	const struct drm_display_mode *fixed_mode =
+		intel_panel_preferred_fixed_mode(intel_dp->attached_connector);
+	int mode_rate, max_rate;
+
+	mode_rate = intel_dp_link_required(fixed_mode->clock, 18);
+	max_rate = intel_dp_max_link_data_rate(intel_dp, link_rate, lane_count);
+	if (mode_rate > max_rate)
+		return false;
+
+	return true;
+}
+
+static int reduce_link_rate(struct intel_dp *intel_dp, int current_rate)
+{
+	int rate_index;
+	int new_rate;
+
+	if (intel_dp->link.force_rate)
+		return -1;
+
+	rate_index = intel_dp_rate_index(intel_dp->common_rates,
+					 intel_dp->num_common_rates,
+					 current_rate);
+
+	if (rate_index <= 0)
+		return -1;
+
+	new_rate = intel_dp_common_rate(intel_dp, rate_index - 1);
+
+	/* TODO: Make switching from UHBR to non-UHBR rates work. */
+	if (drm_dp_is_uhbr_rate(current_rate) != drm_dp_is_uhbr_rate(new_rate))
+		return -1;
+
+	return new_rate;
+}
+
+static int reduce_lane_count(struct intel_dp *intel_dp, int current_lane_count)
+{
+	if (intel_dp->link.force_lane_count)
+		return -1;
+
+	if (current_lane_count == 1)
+		return -1;
+
+	return current_lane_count >> 1;
+}
+
+static int intel_dp_get_link_train_fallback_values(struct intel_dp *intel_dp,
+						   const struct intel_crtc_state *crtc_state)
+{
+	int new_link_rate;
+	int new_lane_count;
+
+	if (intel_dp_is_edp(intel_dp) && !intel_dp->use_max_params) {
+		lt_dbg(intel_dp, DP_PHY_DPRX,
+		       "Retrying Link training for eDP with max parameters\n");
+		intel_dp->use_max_params = true;
+		return 0;
+	}
+
+	new_lane_count = crtc_state->lane_count;
+	new_link_rate = reduce_link_rate(intel_dp, crtc_state->port_clock);
+	if (new_link_rate < 0) {
+		new_lane_count = reduce_lane_count(intel_dp, crtc_state->lane_count);
+		new_link_rate = intel_dp_max_common_rate(intel_dp);
+	}
+
+	if (new_lane_count < 0)
+		return -1;
+
+	if (intel_dp_is_edp(intel_dp) &&
+	    !intel_dp_can_link_train_fallback_for_edp(intel_dp, new_link_rate, new_lane_count)) {
+		lt_dbg(intel_dp, DP_PHY_DPRX,
+		       "Retrying Link training for eDP with same parameters\n");
+		return 0;
+	}
+
+	lt_dbg(intel_dp, DP_PHY_DPRX,
+	       "Reducing link parameters from %dx%d to %dx%d\n",
+	       crtc_state->lane_count, crtc_state->port_clock,
+	       new_lane_count, new_link_rate);
+
+	intel_dp->link.max_rate = new_link_rate;
+	intel_dp->link.max_lane_count = new_lane_count;
+
+	return 0;
+}
+
+/* NOTE: @state is only valid for MST links and can be %NULL for SST. */
+static bool intel_dp_schedule_fallback_link_training(struct intel_atomic_state *state,
+						     struct intel_dp *intel_dp,
 						     const struct intel_crtc_state *crtc_state)
 {
-	struct intel_connector *intel_connector = intel_dp->attached_connector;
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
 
 	if (!intel_digital_port_connected(&dp_to_dig_port(intel_dp)->base)) {
 		lt_dbg(intel_dp, DP_PHY_DPRX, "Link Training failed on disconnected sink.\n");
-		return;
+		return true;
 	}
 
 	if (intel_dp->hobl_active) {
 		lt_dbg(intel_dp, DP_PHY_DPRX,
 		       "Link Training failed with HOBL active, not enabling it from now on\n");
 		intel_dp->hobl_failed = true;
-	} else if (intel_dp_get_link_train_fallback_values(intel_dp,
-							   crtc_state->port_clock,
-							   crtc_state->lane_count)) {
-		return;
+	} else if (intel_dp_get_link_train_fallback_values(intel_dp, crtc_state)) {
+		return false;
 	}
 
+	if (drm_WARN_ON(&i915->drm,
+			intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST) &&
+			!state))
+		return false;
+
 	/* Schedule a Hotplug Uevent to userspace to start modeset */
-	intel_dp_queue_modeset_retry_work(intel_connector);
+	intel_dp_queue_modeset_retry_for_link(state, encoder, crtc_state);
+
+	return true;
 }
 
 /* Perform the link training on all LTTPRs and the DPRX on a link. */
@@ -1359,6 +1463,7 @@ intel_dp_128b132b_link_train(struct intel_dp *intel_dp,
 
 /**
  * intel_dp_start_link_train - start link training
+ * @state: Atomic state
  * @intel_dp: DP struct
  * @crtc_state: state for CRTC attached to the encoder
  *
@@ -1366,11 +1471,16 @@ intel_dp_128b132b_link_train(struct intel_dp *intel_dp,
  * retraining with reduced link rate/lane parameters if the link training
  * fails.
  * After calling this function intel_dp_stop_link_train() must be called.
+ *
+ * NOTE: @state is only valid for MST links and can be %NULL for SST.
  */
-void intel_dp_start_link_train(struct intel_dp *intel_dp,
+void intel_dp_start_link_train(struct intel_atomic_state *state,
+			       struct intel_dp *intel_dp,
 			       const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	struct intel_encoder *encoder = &dig_port->base;
 	bool passed;
 
 	/*
@@ -1378,6 +1488,11 @@ void intel_dp_start_link_train(struct intel_dp *intel_dp,
 	 * HW state readout is added.
 	 */
 	int lttpr_count = intel_dp_init_lttpr_and_dprx_caps(intel_dp);
+
+	if (drm_WARN_ON(&i915->drm,
+			intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST) &&
+			!state))
+		return;
 
 	if (lttpr_count < 0)
 		/* Still continue with enabling the port and link training. */
@@ -1389,6 +1504,17 @@ void intel_dp_start_link_train(struct intel_dp *intel_dp,
 		passed = intel_dp_128b132b_link_train(intel_dp, crtc_state, lttpr_count);
 	else
 		passed = intel_dp_link_train_all_phys(intel_dp, crtc_state, lttpr_count);
+
+	if (intel_dp->link.force_train_failure) {
+		intel_dp->link.force_train_failure--;
+		lt_dbg(intel_dp, DP_PHY_DPRX, "Forcing link training failure\n");
+	} else if (passed) {
+		intel_dp->link.seq_train_failures = 0;
+		intel_encoder_link_check_queue_work(encoder, 2000);
+		return;
+	}
+
+	intel_dp->link.seq_train_failures++;
 
 	/*
 	 * Ignore the link failure in CI
@@ -1402,13 +1528,25 @@ void intel_dp_start_link_train(struct intel_dp *intel_dp,
 	 * For test cases which rely on the link training or processing of HPDs
 	 * ignore_long_hpd flag can unset from the testcase.
 	 */
-	if (!passed && i915->display.hotplug.ignore_long_hpd) {
+	if (i915->display.hotplug.ignore_long_hpd) {
 		lt_dbg(intel_dp, DP_PHY_DPRX, "Ignore the link failure\n");
 		return;
 	}
 
+	if (intel_dp->link.seq_train_failures < 2) {
+		intel_encoder_link_check_queue_work(encoder, 0);
+		return;
+	}
+
+	if (intel_dp_schedule_fallback_link_training(state, intel_dp, crtc_state))
+		return;
+
+	intel_dp->link.retrain_disabled = true;
+
 	if (!passed)
-		intel_dp_schedule_fallback_link_training(intel_dp, crtc_state);
+		lt_err(intel_dp, DP_PHY_DPRX, "Can't reduce link training parameters after failure\n");
+	else
+		lt_dbg(intel_dp, DP_PHY_DPRX, "Can't reduce link training parameters after forced failure\n");
 }
 
 void intel_dp_128b132b_sdp_crc16(struct intel_dp *intel_dp,
@@ -1429,4 +1567,382 @@ void intel_dp_128b132b_sdp_crc16(struct intel_dp *intel_dp,
 			   DP_SDP_CRC16_128B132B_EN);
 
 	lt_dbg(intel_dp, DP_PHY_DPRX, "DP2.0 SDP CRC16 for 128b/132b enabled\n");
+}
+
+static struct intel_dp *intel_connector_to_intel_dp(struct intel_connector *connector)
+{
+	if (connector->mst_port)
+		return connector->mst_port;
+	else
+		return enc_to_intel_dp(intel_attached_encoder(connector));
+}
+
+static int i915_dp_force_link_rate_show(struct seq_file *m, void *data)
+{
+	struct intel_connector *connector = to_intel_connector(m->private);
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+	struct intel_dp *intel_dp = intel_connector_to_intel_dp(connector);
+	int current_rate = -1;
+	int force_rate;
+	int err;
+	int i;
+
+	err = drm_modeset_lock_single_interruptible(&i915->drm.mode_config.connection_mutex);
+	if (err)
+		return err;
+
+	if (intel_dp->link_trained)
+		current_rate = intel_dp->link_rate;
+	force_rate = intel_dp->link.force_rate;
+
+	drm_modeset_unlock(&i915->drm.mode_config.connection_mutex);
+
+	seq_printf(m, "%sauto%s",
+		   force_rate == 0 ? "[" : "",
+		   force_rate == 0 ? "]" : "");
+
+	for (i = 0; i < intel_dp->num_source_rates; i++)
+		seq_printf(m, " %s%d%s%s",
+			   intel_dp->source_rates[i] == force_rate ? "[" : "",
+			   intel_dp->source_rates[i],
+			   intel_dp->source_rates[i] == current_rate ? "*" : "",
+			   intel_dp->source_rates[i] == force_rate ? "]" : "");
+
+	seq_putc(m, '\n');
+
+	return 0;
+}
+
+static int parse_link_rate(struct intel_dp *intel_dp, const char __user *ubuf, size_t len)
+{
+	char *kbuf;
+	const char *p;
+	int rate;
+	int ret = 0;
+
+	kbuf = memdup_user_nul(ubuf, len);
+	if (IS_ERR(kbuf))
+		return PTR_ERR(kbuf);
+
+	p = strim(kbuf);
+
+	if (!strcmp(p, "auto")) {
+		rate = 0;
+	} else {
+		ret = kstrtoint(p, 0, &rate);
+		if (ret < 0)
+			goto out_free;
+
+		if (intel_dp_rate_index(intel_dp->source_rates,
+					intel_dp->num_source_rates,
+					rate) < 0)
+			ret = -EINVAL;
+	}
+
+out_free:
+	kfree(kbuf);
+
+	return ret < 0 ? ret : rate;
+}
+
+static ssize_t i915_dp_force_link_rate_write(struct file *file,
+					     const char __user *ubuf,
+					     size_t len, loff_t *offp)
+{
+	struct seq_file *m = file->private_data;
+	struct intel_connector *connector = to_intel_connector(m->private);
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+	struct intel_dp *intel_dp = intel_connector_to_intel_dp(connector);
+	int rate;
+	int err;
+
+	rate = parse_link_rate(intel_dp, ubuf, len);
+	if (rate < 0)
+		return rate;
+
+	err = drm_modeset_lock_single_interruptible(&i915->drm.mode_config.connection_mutex);
+	if (err)
+		return err;
+
+	intel_dp_reset_link_params(intel_dp);
+	intel_dp->link.force_rate = rate;
+
+	drm_modeset_unlock(&i915->drm.mode_config.connection_mutex);
+
+	*offp += len;
+
+	return len;
+}
+DEFINE_SHOW_STORE_ATTRIBUTE(i915_dp_force_link_rate);
+
+static int i915_dp_force_lane_count_show(struct seq_file *m, void *data)
+{
+	struct intel_connector *connector = to_intel_connector(m->private);
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+	struct intel_dp *intel_dp = intel_connector_to_intel_dp(connector);
+	int current_lane_count = -1;
+	int force_lane_count;
+	int err;
+	int i;
+
+	err = drm_modeset_lock_single_interruptible(&i915->drm.mode_config.connection_mutex);
+	if (err)
+		return err;
+
+	if (intel_dp->link_trained)
+		current_lane_count = intel_dp->lane_count;
+	force_lane_count = intel_dp->link.force_lane_count;
+
+	drm_modeset_unlock(&i915->drm.mode_config.connection_mutex);
+
+	seq_printf(m, "%sauto%s",
+		   force_lane_count == 0 ? "[" : "",
+		   force_lane_count == 0 ? "]" : "");
+
+	for (i = 1; i <= 4; i <<= 1)
+		seq_printf(m, " %s%d%s%s",
+			   i == force_lane_count ? "[" : "",
+			   i,
+			   i == current_lane_count ? "*" : "",
+			   i == force_lane_count ? "]" : "");
+
+	seq_putc(m, '\n');
+
+	return 0;
+}
+
+static int parse_lane_count(const char __user *ubuf, size_t len)
+{
+	char *kbuf;
+	const char *p;
+	int lane_count;
+	int ret = 0;
+
+	kbuf = memdup_user_nul(ubuf, len);
+	if (IS_ERR(kbuf))
+		return PTR_ERR(kbuf);
+
+	p = strim(kbuf);
+
+	if (!strcmp(p, "auto")) {
+		lane_count = 0;
+	} else {
+		ret = kstrtoint(p, 0, &lane_count);
+		if (ret < 0)
+			goto out_free;
+
+		switch (lane_count) {
+		case 1:
+		case 2:
+		case 4:
+			break;
+		default:
+			ret = -EINVAL;
+		}
+	}
+
+out_free:
+	kfree(kbuf);
+
+	return ret < 0 ? ret : lane_count;
+}
+
+static ssize_t i915_dp_force_lane_count_write(struct file *file,
+					      const char __user *ubuf,
+					      size_t len, loff_t *offp)
+{
+	struct seq_file *m = file->private_data;
+	struct intel_connector *connector = to_intel_connector(m->private);
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+	struct intel_dp *intel_dp = intel_connector_to_intel_dp(connector);
+	int lane_count;
+	int err;
+
+	lane_count = parse_lane_count(ubuf, len);
+	if (lane_count < 0)
+		return lane_count;
+
+	err = drm_modeset_lock_single_interruptible(&i915->drm.mode_config.connection_mutex);
+	if (err)
+		return err;
+
+	intel_dp_reset_link_params(intel_dp);
+	intel_dp->link.force_lane_count = lane_count;
+
+	drm_modeset_unlock(&i915->drm.mode_config.connection_mutex);
+
+	*offp += len;
+
+	return len;
+}
+DEFINE_SHOW_STORE_ATTRIBUTE(i915_dp_force_lane_count);
+
+static int i915_dp_max_link_rate_show(void *data, u64 *val)
+{
+	struct intel_connector *connector = to_intel_connector(data);
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+	struct intel_dp *intel_dp = intel_connector_to_intel_dp(connector);
+	int err;
+
+	err = drm_modeset_lock_single_interruptible(&i915->drm.mode_config.connection_mutex);
+	if (err)
+		return err;
+
+	*val = intel_dp->link.max_rate;
+
+	drm_modeset_unlock(&i915->drm.mode_config.connection_mutex);
+
+	return 0;
+}
+DEFINE_DEBUGFS_ATTRIBUTE(i915_dp_max_link_rate_fops, i915_dp_max_link_rate_show, NULL, "%llu\n");
+
+static int i915_dp_max_lane_count_show(void *data, u64 *val)
+{
+	struct intel_connector *connector = to_intel_connector(data);
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+	struct intel_dp *intel_dp = intel_connector_to_intel_dp(connector);
+	int err;
+
+	err = drm_modeset_lock_single_interruptible(&i915->drm.mode_config.connection_mutex);
+	if (err)
+		return err;
+
+	*val = intel_dp->link.max_lane_count;
+
+	drm_modeset_unlock(&i915->drm.mode_config.connection_mutex);
+
+	return 0;
+}
+DEFINE_DEBUGFS_ATTRIBUTE(i915_dp_max_lane_count_fops, i915_dp_max_lane_count_show, NULL, "%llu\n");
+
+static int i915_dp_force_link_training_failure_show(void *data, u64 *val)
+{
+	struct intel_connector *connector = to_intel_connector(data);
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+	struct intel_dp *intel_dp = intel_connector_to_intel_dp(connector);
+	int err;
+
+	err = drm_modeset_lock_single_interruptible(&i915->drm.mode_config.connection_mutex);
+	if (err)
+		return err;
+
+	*val = intel_dp->link.force_train_failure;
+
+	drm_modeset_unlock(&i915->drm.mode_config.connection_mutex);
+
+	return 0;
+}
+
+static int i915_dp_force_link_training_failure_write(void *data, u64 val)
+{
+	struct intel_connector *connector = to_intel_connector(data);
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+	struct intel_dp *intel_dp = intel_connector_to_intel_dp(connector);
+	int err;
+
+	if (val > 2)
+		return -EINVAL;
+
+	err = drm_modeset_lock_single_interruptible(&i915->drm.mode_config.connection_mutex);
+	if (err)
+		return err;
+
+	intel_dp->link.force_train_failure = val;
+
+	drm_modeset_unlock(&i915->drm.mode_config.connection_mutex);
+
+	return 0;
+}
+DEFINE_DEBUGFS_ATTRIBUTE(i915_dp_force_link_training_failure_fops,
+			 i915_dp_force_link_training_failure_show,
+			 i915_dp_force_link_training_failure_write, "%llu\n");
+
+static int i915_dp_force_link_retrain_show(void *data, u64 *val)
+{
+	struct intel_connector *connector = to_intel_connector(data);
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+	struct intel_dp *intel_dp = intel_connector_to_intel_dp(connector);
+	int err;
+
+	err = drm_modeset_lock_single_interruptible(&i915->drm.mode_config.connection_mutex);
+	if (err)
+		return err;
+
+	*val = intel_dp->link.force_retrain;
+
+	drm_modeset_unlock(&i915->drm.mode_config.connection_mutex);
+
+	return 0;
+}
+
+static int i915_dp_force_link_retrain_write(void *data, u64 val)
+{
+	struct intel_connector *connector = to_intel_connector(data);
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+	struct intel_dp *intel_dp = intel_connector_to_intel_dp(connector);
+	int err;
+
+	err = drm_modeset_lock_single_interruptible(&i915->drm.mode_config.connection_mutex);
+	if (err)
+		return err;
+
+	intel_dp->link.force_retrain = val;
+
+	drm_modeset_unlock(&i915->drm.mode_config.connection_mutex);
+
+	intel_hpd_trigger_irq(dp_to_dig_port(intel_dp));
+
+	return 0;
+}
+DEFINE_DEBUGFS_ATTRIBUTE(i915_dp_force_link_retrain_fops,
+			 i915_dp_force_link_retrain_show,
+			 i915_dp_force_link_retrain_write, "%llu\n");
+
+static int i915_dp_link_retrain_disabled_show(struct seq_file *m, void *data)
+{
+	struct intel_connector *connector = to_intel_connector(m->private);
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+	struct intel_dp *intel_dp = intel_connector_to_intel_dp(connector);
+	int err;
+
+	err = drm_modeset_lock_single_interruptible(&i915->drm.mode_config.connection_mutex);
+	if (err)
+		return err;
+
+	seq_printf(m, "%s\n", str_yes_no(intel_dp->link.retrain_disabled));
+
+	drm_modeset_unlock(&i915->drm.mode_config.connection_mutex);
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(i915_dp_link_retrain_disabled);
+
+void intel_dp_link_training_debugfs_add(struct intel_connector *connector)
+{
+	struct dentry *root = connector->base.debugfs_entry;
+
+	if (connector->base.connector_type != DRM_MODE_CONNECTOR_DisplayPort &&
+	    connector->base.connector_type != DRM_MODE_CONNECTOR_eDP)
+		return;
+
+	debugfs_create_file("i915_dp_force_link_rate", 0644, root,
+			    connector, &i915_dp_force_link_rate_fops);
+
+	debugfs_create_file("i915_dp_force_lane_count", 0644, root,
+			    connector, &i915_dp_force_lane_count_fops);
+
+	debugfs_create_file("i915_dp_max_link_rate", 0444, root,
+			    connector, &i915_dp_max_link_rate_fops);
+
+	debugfs_create_file("i915_dp_max_lane_count", 0444, root,
+			    connector, &i915_dp_max_lane_count_fops);
+
+	debugfs_create_file("i915_dp_force_link_training_failure", 0644, root,
+			    connector, &i915_dp_force_link_training_failure_fops);
+
+	debugfs_create_file("i915_dp_force_link_retrain", 0644, root,
+			    connector, &i915_dp_force_link_retrain_fops);
+
+	debugfs_create_file("i915_dp_link_retrain_disabled", 0444, root,
+			    connector, &i915_dp_link_retrain_disabled_fops);
 }

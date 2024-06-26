@@ -79,6 +79,7 @@ config DRM_KUNIT_TEST
 	depends on DRM && KUNIT && MMU
 	select DRM_BUDDY
 	select DRM_DISPLAY_DP_HELPER
+	select DRM_DISPLAY_HDMI_STATE_HELPER
 	select DRM_DISPLAY_HELPER
 	select DRM_EXEC
 	select DRM_EXPORT_FOR_TESTS if m
@@ -106,7 +107,7 @@ config DRM_KMS_HELPER
 
 config DRM_PANIC
 	bool "Display a user-friendly message when a kernel panic occurs"
-	depends on DRM && !FRAMEBUFFER_CONSOLE
+	depends on DRM && !(FRAMEBUFFER_CONSOLE && VT_CONSOLE)
 	select DRM_KMS_HELPER
 	select FONT_SUPPORT
 	help
@@ -135,6 +136,19 @@ config DRM_PANIC_DEBUG
 	  panic handler to write the panic message to this plane scanout buffer.
 	  This is unsafe and should not be enabled on a production build.
 	  If in doubt, say "N".
+
+config DRM_PANIC_SCREEN
+	string "Panic screen formater"
+	default "user"
+	depends on DRM_PANIC
+	help
+	  This option enable to choose what will be displayed when a kernel
+	  panic occurs. You can choose between "user", a short message telling
+	  the user to reboot the system, or "kmsg" which will display the last
+	  lines of kmsg.
+	  This can also be overridden by drm.panic_screen=xxxx kernel parameter
+	  or by writing to /sys/module/drm/parameters/panic_screen sysfs entry
+	  Default is "user"
 
 config DRM_DEBUG_DP_MST_TOPOLOGY_REFS
         bool "Enable refcount backtrace history in the DP MST helpers"

@@ -44,6 +44,7 @@
 #include <drm/drm_gem_framebuffer_helper.h>
 
 #include "gem/i915_gem_mman.h"
+#include "gem/i915_gem_object.h"
 
 #include "i915_drv.h"
 #include "intel_display_types.h"
@@ -146,7 +147,7 @@ static void intel_fbdev_fb_destroy(struct fb_info *info)
 	 * the info->screen_base mmaping. Leaking the VMA is simpler than
 	 * trying to rectify all the possible error paths leading here.
 	 */
-	intel_unpin_fb_vma(ifbdev->vma, ifbdev->vma_flags);
+	intel_fb_unpin_vma(ifbdev->vma, ifbdev->vma_flags);
 	drm_framebuffer_remove(&ifbdev->fb->base);
 
 	drm_client_release(&fb_helper->client);
@@ -175,7 +176,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 			  struct drm_fb_helper_surface_size *sizes)
 {
 	struct intel_fbdev *ifbdev = to_intel_fbdev(helper);
-	struct intel_framebuffer *intel_fb = ifbdev->fb;
+	struct intel_framebuffer *fb = ifbdev->fb;
 	struct drm_device *dev = helper->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	const struct i915_gtt_view view = {
@@ -195,30 +196,30 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	if (ret)
 		return ret;
 
-	if (intel_fb &&
-	    (sizes->fb_width > intel_fb->base.width ||
-	     sizes->fb_height > intel_fb->base.height)) {
+	ifbdev->fb = NULL;
+
+	if (fb &&
+	    (sizes->fb_width > fb->base.width ||
+	     sizes->fb_height > fb->base.height)) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "BIOS fb too small (%dx%d), we require (%dx%d),"
 			    " releasing it\n",
-			    intel_fb->base.width, intel_fb->base.height,
+			    fb->base.width, fb->base.height,
 			    sizes->fb_width, sizes->fb_height);
-		drm_framebuffer_put(&intel_fb->base);
-		intel_fb = ifbdev->fb = NULL;
+		drm_framebuffer_put(&fb->base);
+		fb = NULL;
 	}
-	if (!intel_fb || drm_WARN_ON(dev, !intel_fb_obj(&intel_fb->base))) {
-		struct drm_framebuffer *fb;
+	if (!fb || drm_WARN_ON(dev, !intel_fb_obj(&fb->base))) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "no BIOS fb, allocating a new one\n");
 		fb = intel_fbdev_fb_alloc(helper, sizes);
 		if (IS_ERR(fb))
 			return PTR_ERR(fb);
-		intel_fb = ifbdev->fb = to_intel_framebuffer(fb);
 	} else {
 		drm_dbg_kms(&dev_priv->drm, "re-using BIOS fb\n");
 		prealloc = true;
-		sizes->fb_width = intel_fb->base.width;
-		sizes->fb_height = intel_fb->base.height;
+		sizes->fb_width = fb->base.width;
+		sizes->fb_height = fb->base.height;
 	}
 
 	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
@@ -227,8 +228,8 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	 * This also validates that any existing fb inherited from the
 	 * BIOS is suitable for own access.
 	 */
-	vma = intel_pin_and_fence_fb_obj(&ifbdev->fb->base, false,
-					 &view, false, &flags);
+	vma = intel_fb_pin_to_ggtt(&fb->base, false,
+				   &view, false, &flags);
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
 		goto out_unlock;
@@ -241,11 +242,11 @@ static int intelfb_create(struct drm_fb_helper *helper,
 		goto out_unpin;
 	}
 
-	ifbdev->helper.fb = &ifbdev->fb->base;
+	ifbdev->helper.fb = &fb->base;
 
 	info->fbops = &intelfb_ops;
 
-	obj = intel_fb_obj(&intel_fb->base);
+	obj = intel_fb_obj(&fb->base);
 
 	ret = intel_fbdev_fb_fill_info(dev_priv, info, obj, vma);
 	if (ret)
@@ -263,8 +264,9 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	/* Use default scratch pixmap (info->pixmap.flags = FB_PIXMAP_SYSTEM) */
 
 	drm_dbg_kms(&dev_priv->drm, "allocated %dx%d fb: 0x%08x\n",
-		    ifbdev->fb->base.width, ifbdev->fb->base.height,
+		    fb->base.width, fb->base.height,
 		    i915_ggtt_offset(vma));
+	ifbdev->fb = fb;
 	ifbdev->vma = vma;
 	ifbdev->vma_flags = flags;
 
@@ -273,7 +275,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	return 0;
 
 out_unpin:
-	intel_unpin_fb_vma(vma, flags);
+	intel_fb_unpin_vma(vma, flags);
 out_unlock:
 	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
 	return ret;

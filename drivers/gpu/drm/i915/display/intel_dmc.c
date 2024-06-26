@@ -30,6 +30,7 @@
 #include "intel_de.h"
 #include "intel_dmc.h"
 #include "intel_dmc_regs.h"
+#include "intel_step.h"
 
 /**
  * DOC: DMC Firmware Support
@@ -115,6 +116,9 @@ static bool dmc_firmware_param_disabled(struct drm_i915_private *i915)
 #define XE2LPD_DMC_PATH			DMC_PATH(xe2lpd)
 MODULE_FIRMWARE(XE2LPD_DMC_PATH);
 
+#define BMG_DMC_PATH			DMC_PATH(bmg)
+MODULE_FIRMWARE(BMG_DMC_PATH);
+
 #define MTL_DMC_PATH			DMC_PATH(mtl)
 MODULE_FIRMWARE(MTL_DMC_PATH);
 
@@ -166,6 +170,9 @@ static const char *dmc_firmware_default(struct drm_i915_private *i915, u32 *size
 	if (DISPLAY_VER_FULL(i915) == IP_VER(20, 0)) {
 		fw_path = XE2LPD_DMC_PATH;
 		max_fw_size = XE2LPD_DMC_MAX_FW_SIZE;
+	} else if (DISPLAY_VER_FULL(i915) == IP_VER(14, 1)) {
+		fw_path = BMG_DMC_PATH;
+		max_fw_size = XELPDP_DMC_MAX_FW_SIZE;
 	} else if (DISPLAY_VER_FULL(i915) == IP_VER(14, 0)) {
 		fw_path = MTL_DMC_PATH;
 		max_fw_size = XELPDP_DMC_MAX_FW_SIZE;
@@ -1177,7 +1184,7 @@ void intel_dmc_fini(struct drm_i915_private *i915)
 	}
 }
 
-void intel_dmc_print_error_state(struct drm_i915_error_state_buf *m,
+void intel_dmc_print_error_state(struct drm_printer *p,
 				 struct drm_i915_private *i915)
 {
 	struct intel_dmc *dmc = i915_to_dmc(i915);
@@ -1185,13 +1192,13 @@ void intel_dmc_print_error_state(struct drm_i915_error_state_buf *m,
 	if (!HAS_DMC(i915))
 		return;
 
-	i915_error_printf(m, "DMC initialized: %s\n", str_yes_no(dmc));
-	i915_error_printf(m, "DMC loaded: %s\n",
-			  str_yes_no(intel_dmc_has_payload(i915)));
+	drm_printf(p, "DMC initialized: %s\n", str_yes_no(dmc));
+	drm_printf(p, "DMC loaded: %s\n",
+		   str_yes_no(intel_dmc_has_payload(i915)));
 	if (dmc)
-		i915_error_printf(m, "DMC fw version: %d.%d\n",
-				  DMC_VERSION_MAJOR(dmc->version),
-				  DMC_VERSION_MINOR(dmc->version));
+		drm_printf(p, "DMC fw version: %d.%d\n",
+			   DMC_VERSION_MAJOR(dmc->version),
+			   DMC_VERSION_MINOR(dmc->version));
 }
 
 static int intel_dmc_debugfs_status_show(struct seq_file *m, void *unused)

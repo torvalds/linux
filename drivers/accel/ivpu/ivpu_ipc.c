@@ -129,7 +129,7 @@ static void ivpu_ipc_tx_release(struct ivpu_device *vdev, u32 vpu_addr)
 
 static void ivpu_ipc_tx(struct ivpu_device *vdev, u32 vpu_addr)
 {
-	ivpu_hw_reg_ipc_tx_set(vdev, vpu_addr);
+	ivpu_hw_ipc_tx_set(vdev, vpu_addr);
 }
 
 static void
@@ -210,8 +210,7 @@ void ivpu_ipc_consumer_del(struct ivpu_device *vdev, struct ivpu_ipc_consumer *c
 	ivpu_ipc_tx_release(vdev, cons->tx_vpu_addr);
 }
 
-static int
-ivpu_ipc_send(struct ivpu_device *vdev, struct ivpu_ipc_consumer *cons, struct vpu_jsm_msg *req)
+int ivpu_ipc_send(struct ivpu_device *vdev, struct ivpu_ipc_consumer *cons, struct vpu_jsm_msg *req)
 {
 	struct ivpu_ipc_info *ipc = vdev->ipc;
 	int ret;
@@ -378,7 +377,7 @@ ivpu_ipc_match_consumer(struct ivpu_device *vdev, struct ivpu_ipc_consumer *cons
 	return false;
 }
 
-void ivpu_ipc_irq_handler(struct ivpu_device *vdev, bool *wake_thread)
+void ivpu_ipc_irq_handler(struct ivpu_device *vdev)
 {
 	struct ivpu_ipc_info *ipc = vdev->ipc;
 	struct ivpu_ipc_consumer *cons;
@@ -392,8 +391,8 @@ void ivpu_ipc_irq_handler(struct ivpu_device *vdev, bool *wake_thread)
 	 * Driver needs to purge all messages from IPC FIFO to clear IPC interrupt.
 	 * Without purge IPC FIFO to 0 next IPC interrupts won't be generated.
 	 */
-	while (ivpu_hw_reg_ipc_rx_count_get(vdev)) {
-		vpu_addr = ivpu_hw_reg_ipc_rx_addr_get(vdev);
+	while (ivpu_hw_ipc_rx_count_get(vdev)) {
+		vpu_addr = ivpu_hw_ipc_rx_addr_get(vdev);
 		if (vpu_addr == REG_IO_ERROR) {
 			ivpu_err_ratelimited(vdev, "Failed to read IPC rx addr register\n");
 			return;
@@ -442,11 +441,12 @@ void ivpu_ipc_irq_handler(struct ivpu_device *vdev, bool *wake_thread)
 		}
 	}
 
-	if (wake_thread)
-		*wake_thread = !list_empty(&ipc->cb_msg_list);
+	if (!list_empty(&ipc->cb_msg_list))
+		if (!kfifo_put(&vdev->hw->irq.fifo, IVPU_HW_IRQ_SRC_IPC))
+			ivpu_err_ratelimited(vdev, "IRQ FIFO full\n");
 }
 
-irqreturn_t ivpu_ipc_irq_thread_handler(struct ivpu_device *vdev)
+void ivpu_ipc_irq_thread_handler(struct ivpu_device *vdev)
 {
 	struct ivpu_ipc_info *ipc = vdev->ipc;
 	struct ivpu_ipc_rx_msg *rx_msg, *r;
@@ -462,8 +462,6 @@ irqreturn_t ivpu_ipc_irq_thread_handler(struct ivpu_device *vdev)
 		rx_msg->callback(vdev, rx_msg->ipc_hdr, rx_msg->jsm_msg);
 		ivpu_ipc_rx_msg_del(vdev, rx_msg);
 	}
-
-	return IRQ_HANDLED;
 }
 
 int ivpu_ipc_init(struct ivpu_device *vdev)

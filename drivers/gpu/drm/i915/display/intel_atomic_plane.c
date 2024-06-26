@@ -32,6 +32,7 @@
  */
 
 #include <linux/dma-fence-chain.h>
+#include <linux/dma-resv.h>
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_gem_atomic_helper.h>
@@ -39,7 +40,7 @@
 #include <drm/drm_fourcc.h>
 
 #include "i915_config.h"
-#include "i915_reg.h"
+#include "i9xx_plane_regs.h"
 #include "intel_atomic_plane.h"
 #include "intel_cdclk.h"
 #include "intel_display_rps.h"
@@ -142,6 +143,14 @@ intel_plane_destroy_state(struct drm_plane *plane,
 	if (plane_state->hw.fb)
 		drm_framebuffer_put(plane_state->hw.fb);
 	kfree(plane_state);
+}
+
+bool intel_plane_needs_physical(struct intel_plane *plane)
+{
+	struct drm_i915_private *i915 = to_i915(plane->base.dev);
+
+	return plane->id == PLANE_CURSOR &&
+		DISPLAY_INFO(i915)->cursor_needs_physical;
 }
 
 unsigned int intel_adjusted_rate(const struct drm_rect *src,
@@ -327,10 +336,10 @@ void intel_plane_copy_uapi_to_hw_state(struct intel_plane_state *plane_state,
 	intel_plane_clear_hw_state(plane_state);
 
 	/*
-	 * For the bigjoiner slave uapi.crtc will point at
-	 * the master crtc. So we explicitly assign the right
-	 * slave crtc to hw.crtc. uapi.crtc!=NULL simply indicates
-	 * the plane is logically enabled on the uapi level.
+	 * For the joiner secondary uapi.crtc will point at
+	 * the primary crtc. So we explicitly assign the right
+	 * secondary crtc to hw.crtc. uapi.crtc!=NULL simply
+	 * indicates the plane is logically enabled on the uapi level.
 	 */
 	plane_state->hw.crtc = from_plane_state->uapi.crtc ? &crtc->base : NULL;
 
@@ -429,10 +438,16 @@ static bool intel_plane_do_async_flip(struct intel_plane *plane,
 	 * In platforms after DISPLAY13, we might need to override
 	 * first async flip in order to change watermark levels
 	 * as part of optimization.
-	 * So for those, we are checking if this is a first async flip.
-	 * For platforms earlier than DISPLAY13 we always do async flip.
+	 *
+	 * And let's do this for all skl+ so that we can eg. change the
+	 * modifier as well.
+	 *
+	 * TODO: For older platforms there is less reason to do this as
+	 * only X-tile is supported with async flips, though we could
+	 * extend this so other scanout parameters (stride/etc) could
+	 * be changed as well...
 	 */
-	return DISPLAY_VER(i915) < 13 || old_crtc_state->uapi.async_flip;
+	return DISPLAY_VER(i915) < 9 || old_crtc_state->uapi.async_flip;
 }
 
 static bool i9xx_must_disable_cxsr(const struct intel_crtc_state *new_crtc_state,
@@ -594,6 +609,17 @@ static int intel_plane_atomic_calc_changes(const struct intel_crtc_state *old_cr
 	if (intel_plane_do_async_flip(plane, old_crtc_state, new_crtc_state)) {
 		new_crtc_state->do_async_flip = true;
 		new_crtc_state->async_flip_planes |= BIT(plane->id);
+	} else if (plane->need_async_flip_toggle_wa &&
+		   new_crtc_state->uapi.async_flip) {
+		/*
+		 * On platforms with double buffered async flip bit we
+		 * set the bit already one frame early during the sync
+		 * flip (see {i9xx,skl}_plane_update_arm()). The
+		 * hardware will therefore be ready to perform a real
+		 * async flip during the next commit, without having
+		 * to wait yet another frame for the bit to latch.
+		 */
+		new_crtc_state->async_flip_planes |= BIT(plane->id);
 	}
 
 	return 0;
@@ -688,27 +714,27 @@ int intel_plane_atomic_check(struct intel_atomic_state *state,
 		intel_atomic_get_new_plane_state(state, plane);
 	const struct intel_plane_state *old_plane_state =
 		intel_atomic_get_old_plane_state(state, plane);
-	const struct intel_plane_state *new_master_plane_state;
+	const struct intel_plane_state *new_primary_crtc_plane_state;
 	struct intel_crtc *crtc = intel_crtc_for_pipe(i915, plane->pipe);
 	const struct intel_crtc_state *old_crtc_state =
 		intel_atomic_get_old_crtc_state(state, crtc);
 	struct intel_crtc_state *new_crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
 
-	if (new_crtc_state && intel_crtc_is_bigjoiner_slave(new_crtc_state)) {
-		struct intel_crtc *master_crtc =
-			intel_master_crtc(new_crtc_state);
-		struct intel_plane *master_plane =
-			intel_crtc_get_plane(master_crtc, plane->id);
+	if (new_crtc_state && intel_crtc_is_joiner_secondary(new_crtc_state)) {
+		struct intel_crtc *primary_crtc =
+			intel_primary_crtc(new_crtc_state);
+		struct intel_plane *primary_crtc_plane =
+			intel_crtc_get_plane(primary_crtc, plane->id);
 
-		new_master_plane_state =
-			intel_atomic_get_new_plane_state(state, master_plane);
+		new_primary_crtc_plane_state =
+			intel_atomic_get_new_plane_state(state, primary_crtc_plane);
 	} else {
-		new_master_plane_state = new_plane_state;
+		new_primary_crtc_plane_state = new_plane_state;
 	}
 
 	intel_plane_copy_uapi_to_hw_state(new_plane_state,
-					  new_master_plane_state,
+					  new_primary_crtc_plane_state,
 					  crtc);
 
 	new_plane_state->uapi.visible = false;

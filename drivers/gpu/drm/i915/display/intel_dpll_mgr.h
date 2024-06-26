@@ -264,6 +264,7 @@ struct intel_cx0pll_state {
 		struct intel_c20pll_state c20;
 	};
 	bool ssc_enabled;
+	bool use_c10;
 };
 
 struct intel_dpll_hw_state {

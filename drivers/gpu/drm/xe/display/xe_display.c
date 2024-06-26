@@ -96,9 +96,6 @@ int xe_display_create(struct xe_device *xe)
 
 	xe->display.hotplug.dp_wq = alloc_ordered_workqueue("xe-dp", 0);
 
-	drmm_mutex_init(&xe->drm, &xe->sb_lock);
-	xe->enabled_irq_mask = ~0;
-
 	return drmm_add_action_or_reset(&xe->drm, display_destroy, NULL);
 }
 
