@@ -6136,9 +6136,15 @@
 			deployment of the HW BHI control and the SW BHB
 			clearing sequence.
 
-			on   - (default) Enable the HW or SW mitigation
-			       as needed.
-			off  - Disable the mitigation.
+			on     - (default) Enable the HW or SW mitigation as
+				 needed.  This protects the kernel from
+				 both syscalls and VMs.
+			vmexit - On systems which don't have the HW mitigation
+				 available, enable the SW mitigation on vmexit
+				 ONLY.  On such systems, the host kernel is
+				 protected from VM-originated BHI attacks, but
+				 may still be vulnerable to syscall attacks.
+			off    - Disable the mitigation.
 
 	spectre_v2=	[X86,EARLY] Control mitigation of Spectre variant 2
 			(indirect branch speculation) vulnerability.
