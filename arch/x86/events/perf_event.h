@@ -787,6 +787,7 @@ struct x86_pmu {
 	int		(*schedule_events)(struct cpu_hw_events *cpuc, int n, int *assign);
 	unsigned	eventsel;
 	unsigned	perfctr;
+	unsigned	fixedctr;
 	int		(*addr_offset)(int index, bool eventsel);
 	int		(*rdpmc_index)(int index);
 	u64		(*event_map)(int);
@@ -1142,6 +1143,12 @@ static inline unsigned int x86_pmu_event_addr(int index)
 {
 	return x86_pmu.perfctr + (x86_pmu.addr_offset ?
 				  x86_pmu.addr_offset(index, false) : index);
+}
+
+static inline unsigned int x86_pmu_fixed_ctr_addr(int index)
+{
+	return x86_pmu.fixedctr + (x86_pmu.addr_offset ?
+				   x86_pmu.addr_offset(index, false) : index);
 }
 
 static inline int x86_pmu_rdpmc_index(int index)
