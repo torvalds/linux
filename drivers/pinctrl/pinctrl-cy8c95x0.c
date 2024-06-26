@@ -9,6 +9,7 @@
 
 #include <linux/acpi.h>
 #include <linux/bitmap.h>
+#include <linux/cleanup.h>
 #include <linux/dmi.h>
 #include <linux/gpio/driver.h>
 #include <linux/gpio/consumer.h>
@@ -480,8 +481,6 @@ static inline int cy8c95x0_regmap_update_bits_base(struct cy8c95x0_pinctrl *chip
 	if (reg == CY8C95X0_PORTSEL)
 		return -EINVAL;
 
-	mutex_lock(&chip->i2c_lock);
-
 	/* Registers behind the PORTSEL mux have their own range in regmap */
 	if (cy8c95x0_muxed_register(reg)) {
 		off = CY8C95X0_MUX_REGMAP_TO_OFFSET(reg, port);
@@ -492,10 +491,11 @@ static inline int cy8c95x0_regmap_update_bits_base(struct cy8c95x0_pinctrl *chip
 		else
 			off = reg;
 	}
+	guard(mutex)(&chip->i2c_lock);
 
 	ret = regmap_update_bits_base(chip->regmap, off, mask, val, change, async, force);
 	if (ret < 0)
-		goto out;
+		return ret;
 
 	/* Update the cache when a WC bit is written */
 	if (cy8c95x0_wc_register(reg) && (mask & val)) {
@@ -516,8 +516,6 @@ static inline int cy8c95x0_regmap_update_bits_base(struct cy8c95x0_pinctrl *chip
 			regcache_cache_only(chip->regmap, false);
 		}
 	}
-out:
-	mutex_unlock(&chip->i2c_lock);
 
 	return ret;
 }
@@ -591,8 +589,6 @@ static int cy8c95x0_regmap_read(struct cy8c95x0_pinctrl *chip, unsigned int reg,
 {
 	int off, ret;
 
-	mutex_lock(&chip->i2c_lock);
-
 	/* Registers behind the PORTSEL mux have their own range in regmap */
 	if (cy8c95x0_muxed_register(reg)) {
 		off = CY8C95X0_MUX_REGMAP_TO_OFFSET(reg, port);
@@ -603,10 +599,9 @@ static int cy8c95x0_regmap_read(struct cy8c95x0_pinctrl *chip, unsigned int reg,
 		else
 			off = reg;
 	}
+	guard(mutex)(&chip->i2c_lock);
 
 	ret = regmap_read(chip->regmap, off, read_val);
-
-	mutex_unlock(&chip->i2c_lock);
 
 	return ret;
 }
