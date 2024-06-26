@@ -245,8 +245,8 @@ static ssize_t lp5523_selftest(struct device *dev,
 			goto fail;
 
 		if (adc >= vdd || adc < LP5523_ADC_SHORTCIRC_LIM)
-			pos += sprintf(buf + pos, "LED %d FAIL\n",
-				       led->chan_nr);
+			pos += sysfs_emit_at(buf, pos, "LED %d FAIL\n",
+					     led->chan_nr);
 
 		lp55xx_write(chip, LP5523_REG_LED_PWM_BASE + led->chan_nr,
 			     0x00);
@@ -257,10 +257,10 @@ static ssize_t lp5523_selftest(struct device *dev,
 		led++;
 	}
 	if (pos == 0)
-		pos = sprintf(buf, "OK\n");
+		pos = sysfs_emit(buf, "OK\n");
 	goto release_lock;
 fail:
-	pos = sprintf(buf, "FAIL\n");
+	pos = sysfs_emit(buf, "FAIL\n");
 
 release_lock:
 	mutex_unlock(&chip->lock);
