@@ -132,6 +132,8 @@ static int vbi_cap_queue_setup(struct vb2_queue *vq,
 	if (!vivid_is_sdtv_cap(dev))
 		return -EINVAL;
 
+	if (*nplanes)
+		return sizes[0] < size ? -EINVAL : 0;
 	sizes[0] = size;
 
 	*nplanes = 1;
