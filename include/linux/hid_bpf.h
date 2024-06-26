@@ -72,7 +72,8 @@ struct hid_ops {
 	int (*hid_hw_output_report)(struct hid_device *hdev, __u8 *buf, size_t len,
 				    __u64 source, bool from_bpf);
 	int (*hid_input_report)(struct hid_device *hid, enum hid_report_type type,
-				u8 *data, u32 size, int interrupt, u64 source);
+				u8 *data, u32 size, int interrupt, u64 source,
+				bool lock_already_taken);
 	struct module *owner;
 	const struct bus_type *bus_type;
 };

@@ -496,24 +496,32 @@ hid_bpf_hw_output_report(struct hid_bpf_ctx *ctx, __u8 *buf, size_t buf__sz)
  * @buf: a %PTR_TO_MEM buffer
  * @buf__sz: the size of the data to transfer
  *
- * Returns %0 on success, a negative error code otherwise.
+ * Returns %0 on success, a negative error code otherwise. This function will wait for the
+ * device to be available before injecting the event, thus needs to be called in sleepable
+ * context.
  */
 __bpf_kfunc int
 hid_bpf_input_report(struct hid_bpf_ctx *ctx, enum hid_report_type type, u8 *buf,
 		     const size_t buf__sz)
 {
-	struct hid_device *hdev;
 	size_t size = buf__sz;
 	int ret;
+
+	ret = down_interruptible(&ctx->hid->driver_input_lock);
+	if (ret)
+		return ret;
 
 	/* check arguments */
 	ret = __hid_bpf_hw_check_params(ctx, buf, &size, type);
 	if (ret)
 		return ret;
 
-	hdev = (struct hid_device *)ctx->hid; /* discard const */
+	ret = hid_ops->hid_input_report(ctx->hid, type, buf, size, 0, (__u64)ctx,
+					true /* lock_already_taken */);
 
-	return hid_ops->hid_input_report(hdev, type, buf, size, 0, (__u64)ctx);
+	up(&ctx->hid->driver_input_lock);
+
+	return ret;
 }
 __bpf_kfunc_end_defs();
 
