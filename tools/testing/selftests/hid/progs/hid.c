@@ -561,3 +561,40 @@ SEC(".struct_ops.link")
 struct hid_bpf_ops test_multiply_events = {
 	.hid_device_event = (void *)hid_test_multiply_events,
 };
+
+SEC("?struct_ops/hid_device_event")
+int BPF_PROG(hid_test_infinite_loop_input_report, struct hid_bpf_ctx *hctx,
+	     enum hid_report_type report_type, __u64 source)
+{
+	__u8 *data = hid_bpf_get_data(hctx, 0 /* offset */, 6 /* size */);
+	__u8 buf[6];
+
+	if (!data)
+		return 0; /* EPERM check */
+
+	/*
+	 * we have to use an intermediate buffer as hid_bpf_input_report
+	 * will memset data to \0
+	 */
+	__builtin_memcpy(buf, data, sizeof(buf));
+
+	/* always forward the request as-is to the device, hid-bpf should prevent
+	 * infinite loops.
+	 * the return value is ignored so the event is passing to userspace.
+	 */
+
+	hid_bpf_try_input_report(hctx, report_type, buf, sizeof(buf));
+
+	/* each time we process the event, we increment by one data[1]:
+	 * after each successful call to hid_bpf_try_input_report, buf
+	 * has been memcopied into data by the kernel.
+	 */
+	data[1] += 1;
+
+	return 0;
+}
+
+SEC(".struct_ops.link")
+struct hid_bpf_ops test_infinite_loop_input_report = {
+	.hid_device_event = (void *)hid_test_infinite_loop_input_report,
+};
