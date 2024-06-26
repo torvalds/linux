@@ -415,6 +415,26 @@ attribute-sets:
         type: u32
 
   -
+    name: irq-moderation
+    attributes:
+      -
+        name: usec
+        type: u32
+      -
+        name: pkts
+        type: u32
+      -
+        name: comps
+        type: u32
+  -
+    name: profile
+    attributes:
+      -
+        name: irq-moderation
+        type: nest
+        multi-attr: true
+        nested-attributes: irq-moderation
+  -
     name: coalesce
     attributes:
       -
@@ -502,6 +522,15 @@ attribute-sets:
       -
         name: tx-aggr-time-usecs
         type: u32
+      -
+        name: rx-profile
+        type: nest
+        nested-attributes: profile
+      -
+        name: tx-profile
+        type: nest
+        nested-attributes: profile
+
   -
     name: pause-stat
     attributes:
@@ -1325,6 +1354,8 @@ operations:
             - tx-aggr-max-bytes
             - tx-aggr-max-frames
             - tx-aggr-time-usecs
+            - rx-profile
+            - tx-profile
       dump: *coalesce-get-op
     -
       name: coalesce-set
