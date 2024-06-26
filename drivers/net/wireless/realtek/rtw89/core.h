@@ -1330,6 +1330,7 @@ struct rtw89_btc_wl_smap {
 	u32 scan: 1;
 	u32 connecting: 1;
 	u32 roaming: 1;
+	u32 dbccing: 1;
 	u32 transacting: 1;
 	u32 _4way: 1;
 	u32 rf_off: 1;

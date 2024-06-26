@@ -91,7 +91,7 @@ static const struct rtw89_btc_fbtc_slot s_def[] = {
 	[CXST_BLK]	= __DEF_FBTC_SLOT(500, 0x55555555, SLOT_MIX),
 	[CXST_E2G]	= __DEF_FBTC_SLOT(0,   0xea5a5a5a, SLOT_MIX),
 	[CXST_E5G]	= __DEF_FBTC_SLOT(0,   0xffffffff, SLOT_ISO),
-	[CXST_EBT]	= __DEF_FBTC_SLOT(0,   0xe5555555, SLOT_MIX),
+	[CXST_EBT]	= __DEF_FBTC_SLOT(5,   0xe5555555, SLOT_MIX),
 	[CXST_ENULL]	= __DEF_FBTC_SLOT(0,   0xaaaaaaaa, SLOT_ISO),
 	[CXST_WLK]	= __DEF_FBTC_SLOT(250, 0xea5a5a5a, SLOT_MIX),
 	[CXST_W1FDD]	= __DEF_FBTC_SLOT(50,  0xffffffff, SLOT_ISO),
@@ -3617,6 +3617,7 @@ void rtw89_btc_set_policy_v1(struct rtw89_dev *rtwdev, u16 policy_type)
 	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
 	u8 type, null_role;
 	u32 tbl_w1, tbl_b1, tbl_b4;
+	u16 dur_2;
 
 	type = FIELD_GET(BTC_CXP_MASK, policy_type);
 
@@ -3727,7 +3728,21 @@ void rtw89_btc_set_policy_v1(struct rtw89_dev *rtwdev, u16 policy_type)
 		if (hid->exist || hfp->exist)
 			tbl_w1 = cxtbl[16];
 
+		dur_2 = dm->e2g_slot_limit;
+
 		switch (policy_type) {
+		case BTC_CXP_OFFE_2GBWISOB: /* for normal-case */
+			_slot_set(btc, CXST_E2G, 0, tbl_w1, SLOT_ISO);
+			_slot_set_le(btc, CXST_EBT, s_def[CXST_EBT].dur,
+				     s_def[CXST_EBT].cxtbl, s_def[CXST_EBT].cxtype);
+			_slot_set_dur(btc, CXST_EBT, dur_2);
+			break;
+		case BTC_CXP_OFFE_2GISOB: /* for bt no-link */
+			_slot_set(btc, CXST_E2G, 0, cxtbl[1], SLOT_ISO);
+			_slot_set_le(btc, CXST_EBT, s_def[CXST_EBT].dur,
+				     s_def[CXST_EBT].cxtbl, s_def[CXST_EBT].cxtype);
+			_slot_set_dur(btc, CXST_EBT, dur_2);
+			break;
 		case BTC_CXP_OFFE_DEF:
 			_slot_set_le(btc, CXST_E2G, s_def[CXST_E2G].dur,
 				     s_def[CXST_E2G].cxtbl, s_def[CXST_E2G].cxtype);
@@ -3746,6 +3761,15 @@ void rtw89_btc_set_policy_v1(struct rtw89_dev *rtwdev, u16 policy_type)
 				     s_def[CXST_EBT].cxtbl, s_def[CXST_EBT].cxtype);
 			_slot_set_le(btc, CXST_ENULL, s_def[CXST_ENULL].dur,
 				     s_def[CXST_ENULL].cxtbl, s_def[CXST_ENULL].cxtype);
+			break;
+		case BTC_CXP_OFFE_2GBWMIXB:
+			_slot_set(btc, CXST_E2G, 0, 0x55555555, SLOT_MIX);
+			_slot_set_le(btc, CXST_EBT, s_def[CXST_EBT].dur,
+				     cpu_to_le32(0x55555555), s_def[CXST_EBT].cxtype);
+			break;
+		case BTC_CXP_OFFE_WL: /* for 4-way */
+			_slot_set(btc, CXST_E2G, 0, cxtbl[1], SLOT_MIX);
+			_slot_set(btc, CXST_EBT, 0, cxtbl[1], SLOT_MIX);
 			break;
 		default:
 			break;
