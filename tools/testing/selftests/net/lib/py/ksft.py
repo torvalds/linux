@@ -57,6 +57,11 @@ def ksft_ge(a, b, comment=""):
         _fail("Check failed", a, "<", b, comment)
 
 
+def ksft_lt(a, b, comment=""):
+    if a >= b:
+        _fail("Check failed", a, ">=", b, comment)
+
+
 class ksft_raises:
     def __init__(self, expected_type):
         self.exception = None

@@ -5,13 +5,14 @@ import time
 from lib.py import ksft_pr, cmd, ip, rand_port, wait_port_listen
 
 class GenerateTraffic:
-    def __init__(self, env):
+    def __init__(self, env, port=None):
         env.require_cmd("iperf3", remote=True)
 
         self.env = env
 
-        port = rand_port()
-        self._iperf_server = cmd(f"iperf3 -s -p {port}", background=True)
+        if port is None:
+            port = rand_port()
+        self._iperf_server = cmd(f"iperf3 -s -1 -p {port}", background=True)
         wait_port_listen(port)
         time.sleep(0.1)
         self._iperf_client = cmd(f"iperf3 -c {env.addr} -P 16 -p {port} -t 86400",

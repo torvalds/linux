@@ -9,6 +9,10 @@ import subprocess
 import time
 
 
+class CmdExitFailure(Exception):
+    pass
+
+
 class cmd:
     def __init__(self, comm, shell=True, fail=True, ns=None, background=False, host=None, timeout=5):
         if ns:
@@ -43,8 +47,8 @@ class cmd:
         if self.proc.returncode != 0 and fail:
             if len(stderr) > 0 and stderr[-1] == "\n":
                 stderr = stderr[:-1]
-            raise Exception("Command failed: %s\nSTDOUT: %s\nSTDERR: %s" %
-                            (self.proc.args, stdout, stderr))
+            raise CmdExitFailure("Command failed: %s\nSTDOUT: %s\nSTDERR: %s" %
+                                 (self.proc.args, stdout, stderr))
 
 
 class bkg(cmd):
