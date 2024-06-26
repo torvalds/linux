@@ -538,7 +538,7 @@ int btrfs_previous_item(struct btrfs_root *root,
 int btrfs_previous_extent_item(struct btrfs_root *root,
 			struct btrfs_path *path, u64 min_objectid);
 void btrfs_set_item_key_safe(struct btrfs_trans_handle *trans,
-			     struct btrfs_path *path,
+			     const struct btrfs_path *path,
 			     const struct btrfs_key *new_key);
 struct extent_buffer *btrfs_root_node(struct btrfs_root *root);
 int btrfs_find_next_key(struct btrfs_root *root, struct btrfs_path *path,
@@ -572,9 +572,9 @@ bool btrfs_block_can_be_shared(struct btrfs_trans_handle *trans,
 int btrfs_del_ptr(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		  struct btrfs_path *path, int level, int slot);
 void btrfs_extend_item(struct btrfs_trans_handle *trans,
-		       struct btrfs_path *path, u32 data_size);
+		       const struct btrfs_path *path, u32 data_size);
 void btrfs_truncate_item(struct btrfs_trans_handle *trans,
-			 struct btrfs_path *path, u32 new_size, int from_end);
+			 const struct btrfs_path *path, u32 new_size, int from_end);
 int btrfs_split_item(struct btrfs_trans_handle *trans,
 		     struct btrfs_root *root,
 		     struct btrfs_path *path,

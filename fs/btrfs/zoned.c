@@ -2459,7 +2459,7 @@ void btrfs_free_zone_cache(struct btrfs_fs_info *fs_info)
 	mutex_unlock(&fs_devices->device_list_mutex);
 }
 
-bool btrfs_zoned_should_reclaim(struct btrfs_fs_info *fs_info)
+bool btrfs_zoned_should_reclaim(const struct btrfs_fs_info *fs_info)
 {
 	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices;
 	struct btrfs_device *device;

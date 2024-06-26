@@ -1825,7 +1825,7 @@ TRACE_EVENT(qgroup_update_counters,
 
 TRACE_EVENT(qgroup_update_reserve,
 
-	TP_PROTO(struct btrfs_fs_info *fs_info, struct btrfs_qgroup *qgroup,
+	TP_PROTO(const struct btrfs_fs_info *fs_info, const struct btrfs_qgroup *qgroup,
 		 s64 diff, int type),
 
 	TP_ARGS(fs_info, qgroup, diff, type),
@@ -1851,7 +1851,7 @@ TRACE_EVENT(qgroup_update_reserve,
 
 TRACE_EVENT(qgroup_meta_reserve,
 
-	TP_PROTO(struct btrfs_root *root, s64 diff, int type),
+	TP_PROTO(const struct btrfs_root *root, s64 diff, int type),
 
 	TP_ARGS(root, diff, type),
 
@@ -1874,7 +1874,7 @@ TRACE_EVENT(qgroup_meta_reserve,
 
 TRACE_EVENT(qgroup_meta_convert,
 
-	TP_PROTO(struct btrfs_root *root, s64 diff),
+	TP_PROTO(const struct btrfs_root *root, s64 diff),
 
 	TP_ARGS(root, diff),
 
