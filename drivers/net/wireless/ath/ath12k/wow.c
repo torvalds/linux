@@ -1001,8 +1001,8 @@ exit:
 
 int ath12k_wow_init(struct ath12k *ar)
 {
-	if (WARN_ON(!test_bit(WMI_TLV_SERVICE_WOW, ar->wmi->wmi_ab->svc_map)))
-		return -EINVAL;
+	if (!test_bit(WMI_TLV_SERVICE_WOW, ar->wmi->wmi_ab->svc_map))
+		return 0;
 
 	ar->wow.wowlan_support = ath12k_wowlan_support;
 
