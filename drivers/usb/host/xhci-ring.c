@@ -2562,6 +2562,33 @@ finish_td:
 	return finish_td(xhci, ep, ep_ring, td, trb_comp_code);
 }
 
+/* Transfer events which don't point to a transfer TRB, see xhci 4.17.4 */
+static int handle_transferless_tx_event(struct xhci_hcd *xhci, struct xhci_virt_ep *ep,
+					u32 trb_comp_code)
+{
+	switch (trb_comp_code) {
+	case COMP_STALL_ERROR:
+	case COMP_USB_TRANSACTION_ERROR:
+	case COMP_INVALID_STREAM_TYPE_ERROR:
+	case COMP_INVALID_STREAM_ID_ERROR:
+		xhci_dbg(xhci, "Stream transaction error ep %u no id\n", ep->ep_index);
+		if (ep->err_count++ > MAX_SOFT_RETRY)
+			xhci_handle_halted_endpoint(xhci, ep, NULL, EP_HARD_RESET);
+		else
+			xhci_handle_halted_endpoint(xhci, ep, NULL, EP_SOFT_RESET);
+		break;
+	case COMP_RING_UNDERRUN:
+	case COMP_RING_OVERRUN:
+	case COMP_STOPPED_LENGTH_INVALID:
+		break;
+	default:
+		xhci_err(xhci, "ERROR Transfer event for unknown stream ring slot %u ep %u\n",
+			 ep->vdev->slot_id, ep->ep_index);
+		return -ENODEV;
+	}
+	return 0;
+}
+
 /*
  * If this function returns an error condition, it means it got a Transfer
  * event with a corrupted Slot ID, Endpoint ID, or TRB DMA address.
@@ -2605,33 +2632,8 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 		goto err_out;
 	}
 
-	/* Some transfer events don't always point to a trb, see xhci 4.17.4 */
-	if (!ep_ring) {
-		switch (trb_comp_code) {
-		case COMP_STALL_ERROR:
-		case COMP_USB_TRANSACTION_ERROR:
-		case COMP_INVALID_STREAM_TYPE_ERROR:
-		case COMP_INVALID_STREAM_ID_ERROR:
-			xhci_dbg(xhci, "Stream transaction error ep %u no id\n",
-				 ep_index);
-			if (ep->err_count++ > MAX_SOFT_RETRY)
-				xhci_handle_halted_endpoint(xhci, ep, NULL,
-							    EP_HARD_RESET);
-			else
-				xhci_handle_halted_endpoint(xhci, ep, NULL,
-							    EP_SOFT_RESET);
-			break;
-		case COMP_RING_UNDERRUN:
-		case COMP_RING_OVERRUN:
-		case COMP_STOPPED_LENGTH_INVALID:
-			break;
-		default:
-			xhci_err(xhci, "ERROR Transfer event for unknown stream ring slot %u ep %u\n",
-				 slot_id, ep_index);
-			goto err_out;
-		}
-		return 0;
-	}
+	if (!ep_ring)
+		return handle_transferless_tx_event(xhci, ep, trb_comp_code);
 
 	/* Count current td numbers if ep->skip is set */
 	if (ep->skip)
