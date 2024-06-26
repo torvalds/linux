@@ -443,3 +443,82 @@ SEC(".struct_ops.link")
 struct hid_bpf_ops test_infinite_loop_output_report = {
 	.hid_hw_output_report = (void *)hid_test_infinite_loop_output_report,
 };
+
+struct elem {
+	struct bpf_wq work;
+};
+
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__uint(max_entries, 1);
+	__type(key, int);
+	__type(value, struct elem);
+} hmap SEC(".maps");
+
+static int wq_cb_sleepable(void *map, int *key, struct bpf_wq *work)
+{
+	__u8 buf[9] = {2, 3, 4, 5, 6, 7, 8, 9, 10};
+	struct hid_bpf_ctx *hid_ctx;
+
+	hid_ctx = hid_bpf_allocate_context(*key);
+	if (!hid_ctx)
+		return 0; /* EPERM check */
+
+	hid_bpf_input_report(hid_ctx, HID_INPUT_REPORT, buf, sizeof(buf));
+
+	hid_bpf_release_context(hid_ctx);
+
+	return 0;
+}
+
+static int test_inject_input_report_callback(int *key)
+{
+	struct elem init = {}, *val;
+	struct bpf_wq *wq;
+
+	if (bpf_map_update_elem(&hmap, key, &init, 0))
+		return -1;
+
+	val = bpf_map_lookup_elem(&hmap, key);
+	if (!val)
+		return -2;
+
+	wq = &val->work;
+	if (bpf_wq_init(wq, &hmap, 0) != 0)
+		return -3;
+
+	if (bpf_wq_set_callback(wq, wq_cb_sleepable, 0))
+		return -4;
+
+	if (bpf_wq_start(wq, 0))
+		return -5;
+
+	return 0;
+}
+
+SEC("?struct_ops/hid_device_event")
+int BPF_PROG(hid_test_multiply_events_wq, struct hid_bpf_ctx *hid_ctx, enum hid_report_type type)
+{
+	__u8 *data = hid_bpf_get_data(hid_ctx, 0 /* offset */, 9 /* size */);
+	int hid = hid_ctx->hid->id;
+	int ret;
+
+	if (!data)
+		return 0; /* EPERM check */
+
+	if (data[0] != 1)
+		return 0;
+
+	ret = test_inject_input_report_callback(&hid);
+	if (ret)
+		return ret;
+
+	data[1] += 5;
+
+	return 0;
+}
+
+SEC(".struct_ops.link")
+struct hid_bpf_ops test_multiply_events_wq = {
+	.hid_device_event = (void *)hid_test_multiply_events_wq,
+};
