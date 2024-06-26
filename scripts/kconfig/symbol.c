@@ -1111,7 +1111,7 @@ static void sym_check_print_recursive(struct symbol *last_sym)
 				menu->filename, menu->lineno,
 				sym->name ? sym->name : "<choice>",
 				next_sym->name ? next_sym->name : "<choice>");
-		} else if (sym_is_choice_value(sym)) {
+		} else if (sym_is_choice(next_sym)) {
 			fprintf(stderr, "%s:%d:\tsymbol %s is part of choice %s\n",
 				menu->filename, menu->lineno,
 				sym->name ? sym->name : "<choice>",
