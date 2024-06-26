@@ -2582,8 +2582,8 @@ static int handle_transferless_tx_event(struct xhci_hcd *xhci, struct xhci_virt_
 	case COMP_STOPPED_LENGTH_INVALID:
 		break;
 	default:
-		xhci_err(xhci, "ERROR Transfer event for unknown stream ring slot %u ep %u\n",
-			 ep->vdev->slot_id, ep->ep_index);
+		xhci_err(xhci, "Transfer event %u for unknown stream ring slot %u ep %u\n",
+			 trb_comp_code, ep->vdev->slot_id, ep->ep_index);
 		return -ENODEV;
 	}
 	return 0;
