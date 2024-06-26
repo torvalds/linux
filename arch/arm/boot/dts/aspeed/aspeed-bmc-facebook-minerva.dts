@@ -303,6 +303,11 @@
 
 &i2c9 {
 	status = "okay";
+
+	eeprom@50 {
+		compatible = "atmel,24c64";
+		reg = <0x50>;
+	};
 };
 
 &i2c10 {
@@ -338,6 +343,11 @@
 	eeprom@50 {
 		compatible = "atmel,24c128";
 		reg = <0x50>;
+	};
+
+	eeprom@56 {
+		compatible = "atmel,24c64";
+		reg = <0x56>;
 	};
 };
 
