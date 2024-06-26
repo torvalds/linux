@@ -27,7 +27,8 @@
 /* OP MODE require at least 153 us to clear regs */
 #define LP55XX_CMD_SLEEP		200
 
-#define LP55xx_PROGRAM_LENGTH		32
+#define LP55xx_PROGRAM_PAGES		16
+#define LP55xx_MAX_PROGRAM_LENGTH	(LP55xx_BYTES_PER_PAGE * 4) /* 128 bytes (4 pages) */
 
 /*
  * Program Memory Operations
@@ -172,12 +173,16 @@ int lp55xx_update_program_memory(struct lp55xx_chip *chip,
 {
 	enum lp55xx_engine_index idx = chip->engine_idx;
 	const struct lp55xx_device_config *cfg = chip->cfg;
-	u8 pattern[LP55xx_PROGRAM_LENGTH] = { };
+	u8 pattern[LP55xx_MAX_PROGRAM_LENGTH] = { };
 	u8 start_addr = cfg->prog_mem_base.addr;
-	int i = 0, offset = 0;
-	int ret;
+	int page, i = 0, offset = 0;
+	int program_length, ret;
 
-	while ((offset < size - 1) && (i < LP55xx_PROGRAM_LENGTH)) {
+	program_length = LP55xx_BYTES_PER_PAGE;
+	if (cfg->pages_per_engine)
+		program_length *= cfg->pages_per_engine;
+
+	while ((offset < size - 1) && (i < program_length)) {
 		unsigned int cmd;
 		int nrchars;
 		char c[3];
@@ -206,12 +211,20 @@ int lp55xx_update_program_memory(struct lp55xx_chip *chip,
 	 * For LED chip that support page, PAGE is already set in load_engine.
 	 */
 	if (!cfg->pages_per_engine)
-		start_addr += LP55xx_PROGRAM_LENGTH * idx;
+		start_addr += LP55xx_BYTES_PER_PAGE * idx;
 
-	for (i = 0; i < LP55xx_PROGRAM_LENGTH; i++) {
-		ret = lp55xx_write(chip, start_addr + i, pattern[i]);
-		if (ret)
-			return -EINVAL;
+	for (page = 0; page < program_length / LP55xx_BYTES_PER_PAGE; page++) {
+		/* Write to the next page each 32 bytes (if supported) */
+		if (cfg->pages_per_engine)
+			lp55xx_write(chip, LP55xx_REG_PROG_PAGE_SEL,
+				     LP55xx_PAGE_OFFSET(idx, cfg->pages_per_engine) + page);
+
+		for (i = 0; i < LP55xx_BYTES_PER_PAGE; i++) {
+			ret = lp55xx_write(chip, start_addr + i,
+					   pattern[i + (page * LP55xx_BYTES_PER_PAGE)]);
+			if (ret)
+				return -EINVAL;
+		}
 	}
 
 	return size;
@@ -224,13 +237,19 @@ EXPORT_SYMBOL_GPL(lp55xx_update_program_memory);
 
 void lp55xx_firmware_loaded_cb(struct lp55xx_chip *chip)
 {
+	const struct lp55xx_device_config *cfg = chip->cfg;
 	const struct firmware *fw = chip->fw;
+	int program_length;
+
+	program_length = LP55xx_BYTES_PER_PAGE;
+	if (cfg->pages_per_engine)
+		program_length *= cfg->pages_per_engine;
 
 	/*
 	 * the firmware is encoded in ascii hex character, with 2 chars
 	 * per byte
 	 */
-	if (fw->size > LP55xx_PROGRAM_LENGTH * 2) {
+	if (fw->size > program_length * 2) {
 		dev_err(&chip->cl->dev, "firmware data size overflow: %zu\n",
 			fw->size);
 		return;
@@ -1276,7 +1295,7 @@ static struct lp55xx_platform_data *lp55xx_of_populate_pdata(struct device *dev,
 int lp55xx_probe(struct i2c_client *client)
 {
 	const struct i2c_device_id *id = i2c_client_get_device_id(client);
-	int ret;
+	int program_length, ret;
 	struct lp55xx_chip *chip;
 	struct lp55xx_led *led;
 	struct lp55xx_platform_data *pdata = dev_get_platdata(&client->dev);
@@ -1298,6 +1317,17 @@ int lp55xx_probe(struct i2c_client *client)
 			dev_err(&client->dev, "no platform data\n");
 			return -EINVAL;
 		}
+	}
+
+	/* Validate max program page */
+	program_length = LP55xx_BYTES_PER_PAGE;
+	if (chip->cfg->pages_per_engine)
+		program_length *= chip->cfg->pages_per_engine;
+
+	/* support a max of 128bytes */
+	if (program_length > LP55xx_MAX_PROGRAM_LENGTH) {
+		dev_err(&client->dev, "invalid pages_per_engine configured\n");
+		return -EINVAL;
 	}
 
 	led = devm_kcalloc(&client->dev,

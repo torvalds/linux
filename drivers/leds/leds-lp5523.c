@@ -21,7 +21,6 @@
 
 #include "leds-lp55xx-common.h"
 
-#define LP5523_PROGRAM_LENGTH		32	/* bytes */
 /* Memory is used like this:
  * 0x00 engine 1 program
  * 0x10 engine 2 program
@@ -172,7 +171,7 @@ static int lp5523_init_program_engine(struct lp55xx_chip *chip)
 	int ret;
 	u8 status;
 	/* one pattern per engine setting LED MUX start and stop addresses */
-	static const u8 pattern[][LP5523_PROGRAM_LENGTH] =  {
+	static const u8 pattern[][LP55xx_BYTES_PER_PAGE] =  {
 		{ 0x9c, 0x30, 0x9c, 0xb0, 0x9d, 0x80, 0xd8, 0x00, 0},
 		{ 0x9c, 0x40, 0x9c, 0xc0, 0x9d, 0x80, 0xd8, 0x00, 0},
 		{ 0x9c, 0x50, 0x9c, 0xd0, 0x9d, 0x80, 0xd8, 0x00, 0},
@@ -196,7 +195,7 @@ static int lp5523_init_program_engine(struct lp55xx_chip *chip)
 		chip->engine_idx = i;
 		lp55xx_load_engine(chip);
 
-		for (j = 0; j < LP5523_PROGRAM_LENGTH; j++) {
+		for (j = 0; j < LP55xx_BYTES_PER_PAGE; j++) {
 			ret = lp55xx_write(chip, LP5523_REG_PROG_MEM + j,
 					pattern[i - 1][j]);
 			if (ret)
