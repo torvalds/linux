@@ -222,25 +222,6 @@ static int lp5521_run_selftest(struct lp55xx_chip *chip, char *buf)
 	return 0;
 }
 
-static int lp5521_multicolor_brightness(struct lp55xx_led *led)
-{
-	struct lp55xx_chip *chip = led->chip;
-	int ret;
-	int i;
-
-	mutex_lock(&chip->lock);
-	for (i = 0; i < led->mc_cdev.num_colors; i++) {
-		ret = lp55xx_write(chip,
-				   LP5521_REG_LED_PWM_BASE +
-				   led->mc_cdev.subled_info[i].channel,
-				   led->mc_cdev.subled_info[i].brightness);
-		if (ret)
-			break;
-	}
-	mutex_unlock(&chip->lock);
-	return ret;
-}
-
 static ssize_t show_engine_mode(struct device *dev,
 				struct device_attribute *attr,
 				char *buf, int nr)
@@ -381,7 +362,7 @@ static struct lp55xx_device_config lp5521_cfg = {
 	.max_channel  = LP5521_MAX_LEDS,
 	.post_init_device   = lp5521_post_init_device,
 	.brightness_fn      = lp55xx_led_brightness,
-	.multicolor_brightness_fn = lp5521_multicolor_brightness,
+	.multicolor_brightness_fn = lp55xx_multicolor_brightness,
 	.set_led_current    = lp5521_set_led_current,
 	.firmware_cb        = lp55xx_firmware_loaded_cb,
 	.run_engine         = lp5521_run_engine,
