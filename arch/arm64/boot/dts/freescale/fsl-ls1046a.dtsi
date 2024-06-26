@@ -409,11 +409,11 @@
 
 		};
 
-		qportals: qman-portals@500000000 {
+		qportals: qman-portals-bus@500000000 {
 			ranges = <0x0 0x5 0x00000000 0x8000000>;
 		};
 
-		bportals: bman-portals@508000000 {
+		bportals: bman-portals-bus@508000000 {
 			ranges = <0x0 0x5 0x08000000 0x8000000>;
 		};
 
