@@ -579,4 +579,5 @@ static struct kunit_suite packet_serdes_test_suite = {
 };
 kunit_test_suite(packet_serdes_test_suite);
 
+MODULE_DESCRIPTION("FireWire packet serialization/deserialization unit test suite");
 MODULE_LICENSE("GPL");

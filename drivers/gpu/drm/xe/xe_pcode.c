@@ -191,7 +191,7 @@ int xe_pcode_request(struct xe_gt *gt, u32 mbox, u32 request,
 	drm_WARN_ON_ONCE(&gt_to_xe(gt)->drm, timeout_base_ms > 1);
 	preempt_disable();
 	ret = pcode_try_request(gt, mbox, request, reply_mask, reply, &status,
-				true, timeout_base_ms * 1000, true);
+				true, 50 * 1000, true);
 	preempt_enable();
 
 out:
