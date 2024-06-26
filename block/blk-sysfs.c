@@ -288,7 +288,7 @@ static ssize_t queue_dma_alignment_show(struct request_queue *q, char *page)
 }
 
 static ssize_t queue_feature_store(struct request_queue *q, const char *page,
-		size_t count, unsigned int feature)
+		size_t count, blk_features_t feature)
 {
 	struct queue_limits lim;
 	unsigned long val;
@@ -418,7 +418,7 @@ static ssize_t queue_poll_delay_store(struct request_queue *q, const char *page,
 
 static ssize_t queue_poll_show(struct request_queue *q, char *page)
 {
-	return queue_var_show(q->limits.features & BLK_FEAT_POLL, page);
+	return queue_var_show(!!(q->limits.features & BLK_FEAT_POLL), page);
 }
 
 static ssize_t queue_poll_store(struct request_queue *q, const char *page,
@@ -492,7 +492,7 @@ static ssize_t queue_fua_show(struct request_queue *q, char *page)
 
 static ssize_t queue_dax_show(struct request_queue *q, char *page)
 {
-	return queue_var_show(blk_queue_dax(q), page);
+	return queue_var_show(!!blk_queue_dax(q), page);
 }
 
 #define QUEUE_RO_ENTRY(_prefix, _name)			\
