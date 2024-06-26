@@ -760,10 +760,6 @@ static void td_to_noop(struct xhci_hcd *xhci, struct xhci_ring *ep_ring,
 	}
 }
 
-/*
- * Must be called with xhci->lock held in interrupt context,
- * releases and re-acquires xhci->lock
- */
 static void xhci_giveback_urb_in_irq(struct xhci_hcd *xhci,
 				     struct xhci_td *cur_td, int status)
 {
