@@ -146,55 +146,6 @@ static void lp5521_run_engine(struct lp55xx_chip *chip, bool start)
 		lp5521_wait_enable_done();
 }
 
-static int lp5521_update_program_memory(struct lp55xx_chip *chip,
-					const u8 *data, size_t size)
-{
-	enum lp55xx_engine_index idx = chip->engine_idx;
-	u8 pattern[LP5521_PROGRAM_LENGTH] = {0};
-	static const u8 addr[] = {
-		[LP55XX_ENGINE_1] = LP5521_REG_R_PROG_MEM,
-		[LP55XX_ENGINE_2] = LP5521_REG_G_PROG_MEM,
-		[LP55XX_ENGINE_3] = LP5521_REG_B_PROG_MEM,
-	};
-	unsigned cmd;
-	char c[3];
-	int nrchars;
-	int ret;
-	int offset = 0;
-	int i = 0;
-
-	while ((offset < size - 1) && (i < LP5521_PROGRAM_LENGTH)) {
-		/* separate sscanfs because length is working only for %s */
-		ret = sscanf(data + offset, "%2s%n ", c, &nrchars);
-		if (ret != 1)
-			goto err;
-
-		ret = sscanf(c, "%2x", &cmd);
-		if (ret != 1)
-			goto err;
-
-		pattern[i] = (u8)cmd;
-		offset += nrchars;
-		i++;
-	}
-
-	/* Each instruction is 16bit long. Check that length is even */
-	if (i % 2)
-		goto err;
-
-	for (i = 0; i < LP5521_PROGRAM_LENGTH; i++) {
-		ret = lp55xx_write(chip, addr[idx] + i, pattern[i]);
-		if (ret)
-			return -EINVAL;
-	}
-
-	return size;
-
-err:
-	dev_err(&chip->cl->dev, "wrong pattern format\n");
-	return -EINVAL;
-}
-
 static void lp5521_firmware_loaded(struct lp55xx_chip *chip)
 {
 	const struct firmware *fw = chip->fw;
@@ -212,7 +163,7 @@ static void lp5521_firmware_loaded(struct lp55xx_chip *chip)
 	 */
 
 	lp55xx_load_engine(chip);
-	lp5521_update_program_memory(chip, fw->data, fw->size);
+	lp55xx_update_program_memory(chip, fw->data, fw->size);
 }
 
 static int lp5521_post_init_device(struct lp55xx_chip *chip)
@@ -389,7 +340,7 @@ static ssize_t store_engine_load(struct device *dev,
 
 	chip->engine_idx = nr;
 	lp55xx_load_engine(chip);
-	ret = lp5521_update_program_memory(chip, buf, len);
+	ret = lp55xx_update_program_memory(chip, buf, len);
 
 	mutex_unlock(&chip->lock);
 
@@ -453,6 +404,9 @@ static struct lp55xx_device_config lp5521_cfg = {
 	.enable = {
 		.addr = LP5521_REG_ENABLE,
 		.val  = LP5521_ENABLE_DEFAULT,
+	},
+	.prog_mem_base = {
+		.addr = LP5521_REG_R_PROG_MEM,
 	},
 	.max_channel  = LP5521_MAX_LEDS,
 	.post_init_device   = lp5521_post_init_device,

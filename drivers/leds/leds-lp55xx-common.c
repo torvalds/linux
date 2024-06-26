@@ -27,6 +27,8 @@
 /* OP MODE require at least 153 us to clear regs */
 #define LP55XX_CMD_SLEEP		200
 
+#define LP55xx_PROGRAM_LENGTH		32
+
 /*
  * Program Memory Operations
  * Same Mask for each engine for both mode and exec
@@ -159,6 +161,61 @@ int lp55xx_run_engine_common(struct lp55xx_chip *chip)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(lp55xx_run_engine_common);
+
+int lp55xx_update_program_memory(struct lp55xx_chip *chip,
+				 const u8 *data, size_t size)
+{
+	enum lp55xx_engine_index idx = chip->engine_idx;
+	const struct lp55xx_device_config *cfg = chip->cfg;
+	u8 pattern[LP55xx_PROGRAM_LENGTH] = { };
+	u8 start_addr = cfg->prog_mem_base.addr;
+	int i = 0, offset = 0;
+	int ret;
+
+	while ((offset < size - 1) && (i < LP55xx_PROGRAM_LENGTH)) {
+		unsigned int cmd;
+		int nrchars;
+		char c[3];
+
+		/* separate sscanfs because length is working only for %s */
+		ret = sscanf(data + offset, "%2s%n ", c, &nrchars);
+		if (ret != 1)
+			goto err;
+
+		ret = sscanf(c, "%2x", &cmd);
+		if (ret != 1)
+			goto err;
+
+		pattern[i] = (u8)cmd;
+		offset += nrchars;
+		i++;
+	}
+
+	/* Each instruction is 16bit long. Check that length is even */
+	if (i % 2)
+		goto err;
+
+	/*
+	 * For legacy LED chip with no page support, engine base address are
+	 * one after another at offset of 32.
+	 * For LED chip that support page, PAGE is already set in load_engine.
+	 */
+	if (!cfg->pages_per_engine)
+		start_addr += LP55xx_PROGRAM_LENGTH * idx;
+
+	for (i = 0; i < LP55xx_PROGRAM_LENGTH; i++) {
+		ret = lp55xx_write(chip, start_addr + i, pattern[i]);
+		if (ret)
+			return -EINVAL;
+	}
+
+	return size;
+
+err:
+	dev_err(&chip->cl->dev, "wrong pattern format\n");
+	return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(lp55xx_update_program_memory);
 
 static void lp55xx_reset_device(struct lp55xx_chip *chip)
 {

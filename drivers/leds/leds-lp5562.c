@@ -144,59 +144,6 @@ static void lp5562_run_engine(struct lp55xx_chip *chip, bool start)
 		lp5562_wait_enable_done();
 }
 
-static int lp5562_update_firmware(struct lp55xx_chip *chip,
-					const u8 *data, size_t size)
-{
-	enum lp55xx_engine_index idx = chip->engine_idx;
-	u8 pattern[LP5562_PROGRAM_LENGTH] = {0};
-	static const u8 addr[] = {
-		[LP55XX_ENGINE_1] = LP5562_REG_PROG_MEM_ENG1,
-		[LP55XX_ENGINE_2] = LP5562_REG_PROG_MEM_ENG2,
-		[LP55XX_ENGINE_3] = LP5562_REG_PROG_MEM_ENG3,
-	};
-	unsigned cmd;
-	char c[3];
-	int program_size;
-	int nrchars;
-	int offset = 0;
-	int ret;
-	int i;
-
-	/* clear program memory before updating */
-	for (i = 0; i < LP5562_PROGRAM_LENGTH; i++)
-		lp55xx_write(chip, addr[idx] + i, 0);
-
-	i = 0;
-	while ((offset < size - 1) && (i < LP5562_PROGRAM_LENGTH)) {
-		/* separate sscanfs because length is working only for %s */
-		ret = sscanf(data + offset, "%2s%n ", c, &nrchars);
-		if (ret != 1)
-			goto err;
-
-		ret = sscanf(c, "%2x", &cmd);
-		if (ret != 1)
-			goto err;
-
-		pattern[i] = (u8)cmd;
-		offset += nrchars;
-		i++;
-	}
-
-	/* Each instruction is 16bit long. Check that length is even */
-	if (i % 2)
-		goto err;
-
-	program_size = i;
-	for (i = 0; i < program_size; i++)
-		lp55xx_write(chip, addr[idx] + i, pattern[i]);
-
-	return 0;
-
-err:
-	dev_err(&chip->cl->dev, "wrong pattern format\n");
-	return -EINVAL;
-}
-
 static void lp5562_firmware_loaded(struct lp55xx_chip *chip)
 {
 	const struct firmware *fw = chip->fw;
@@ -218,7 +165,7 @@ static void lp5562_firmware_loaded(struct lp55xx_chip *chip)
 	 */
 
 	lp55xx_load_engine(chip);
-	lp5562_update_firmware(chip, fw->data, fw->size);
+	lp55xx_update_program_memory(chip, fw->data, fw->size);
 }
 
 static int lp5562_post_init_device(struct lp55xx_chip *chip)
@@ -449,6 +396,9 @@ static struct lp55xx_device_config lp5562_cfg = {
 	.enable = {
 		.addr = LP5562_REG_ENABLE,
 		.val  = LP5562_ENABLE_DEFAULT,
+	},
+	.prog_mem_base = {
+		.addr = LP5562_REG_PROG_MEM_ENG1,
 	},
 	.post_init_device   = lp5562_post_init_device,
 	.set_led_current    = lp5562_set_led_current,

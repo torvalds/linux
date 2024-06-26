@@ -137,53 +137,6 @@ static void lp8501_run_engine(struct lp55xx_chip *chip, bool start)
 	lp55xx_run_engine_common(chip);
 }
 
-static int lp8501_update_program_memory(struct lp55xx_chip *chip,
-					const u8 *data, size_t size)
-{
-	u8 pattern[LP8501_PROGRAM_LENGTH] = {0};
-	unsigned cmd;
-	char c[3];
-	int update_size;
-	int nrchars;
-	int offset = 0;
-	int ret;
-	int i;
-
-	/* clear program memory before updating */
-	for (i = 0; i < LP8501_PROGRAM_LENGTH; i++)
-		lp55xx_write(chip, LP8501_REG_PROG_MEM + i, 0);
-
-	i = 0;
-	while ((offset < size - 1) && (i < LP8501_PROGRAM_LENGTH)) {
-		/* separate sscanfs because length is working only for %s */
-		ret = sscanf(data + offset, "%2s%n ", c, &nrchars);
-		if (ret != 1)
-			goto err;
-
-		ret = sscanf(c, "%2x", &cmd);
-		if (ret != 1)
-			goto err;
-
-		pattern[i] = (u8)cmd;
-		offset += nrchars;
-		i++;
-	}
-
-	/* Each instruction is 16bit long. Check that length is even */
-	if (i % 2)
-		goto err;
-
-	update_size = i;
-	for (i = 0; i < update_size; i++)
-		lp55xx_write(chip, LP8501_REG_PROG_MEM + i, pattern[i]);
-
-	return 0;
-
-err:
-	dev_err(&chip->cl->dev, "wrong pattern format\n");
-	return -EINVAL;
-}
-
 static void lp8501_firmware_loaded(struct lp55xx_chip *chip)
 {
 	const struct firmware *fw = chip->fw;
@@ -201,7 +154,7 @@ static void lp8501_firmware_loaded(struct lp55xx_chip *chip)
 	 */
 
 	lp55xx_load_engine(chip);
-	lp8501_update_program_memory(chip, fw->data, fw->size);
+	lp55xx_update_program_memory(chip, fw->data, fw->size);
 }
 
 static int lp8501_led_brightness(struct lp55xx_led *led)
@@ -236,6 +189,9 @@ static struct lp55xx_device_config lp8501_cfg = {
 	.enable = {
 		.addr = LP8501_REG_ENABLE,
 		.val  = LP8501_ENABLE,
+	},
+	.prog_mem_base = {
+		.addr = LP8501_REG_PROG_MEM,
 	},
 	.pages_per_engine   = LP8501_PAGES_PER_ENGINE,
 	.max_channel  = LP8501_MAX_LEDS,

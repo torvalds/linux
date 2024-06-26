@@ -99,6 +99,7 @@ struct lp55xx_reg {
  *			 (if not supported 153 us sleep)
  * @reset              : Chip specific reset command
  * @enable             : Chip specific enable command
+ * @prog_mem_base      : Chip specific base reg address for chip SMEM programming
  * @pages_per_engine   : Assigned pages for each engine
  *                       (if not set chip doesn't support pages)
  * @max_channel        : Maximum number of channels
@@ -116,6 +117,7 @@ struct lp55xx_device_config {
 	const struct lp55xx_reg engine_busy; /* addr, mask */
 	const struct lp55xx_reg reset;
 	const struct lp55xx_reg enable;
+	const struct lp55xx_reg prog_mem_base;
 	const int pages_per_engine;
 	const int max_channel;
 
@@ -208,6 +210,8 @@ extern bool lp55xx_is_extclk_used(struct lp55xx_chip *chip);
 extern void lp55xx_stop_all_engine(struct lp55xx_chip *chip);
 extern void lp55xx_load_engine(struct lp55xx_chip *chip);
 extern int lp55xx_run_engine_common(struct lp55xx_chip *chip);
+extern int lp55xx_update_program_memory(struct lp55xx_chip *chip,
+					const u8 *data, size_t size);
 
 /* common probe/remove function */
 extern int lp55xx_probe(struct i2c_client *client);
