@@ -453,9 +453,9 @@ static ssize_t queue_io_timeout_store(struct request_queue *q, const char *page,
 
 static ssize_t queue_wc_show(struct request_queue *q, char *page)
 {
-	if (q->limits.features & BLK_FLAG_WRITE_CACHE_DISABLED)
-		return sprintf(page, "write through\n");
-	return sprintf(page, "write back\n");
+	if (blk_queue_write_cache(q))
+		return sprintf(page, "write back\n");
+	return sprintf(page, "write through\n");
 }
 
 static ssize_t queue_wc_store(struct request_queue *q, const char *page,
