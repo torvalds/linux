@@ -47,6 +47,7 @@
 #include "mpi/mpi30_ioc.h"
 #include "mpi/mpi30_sas.h"
 #include "mpi/mpi30_pci.h"
+#include "mpi/mpi30_tool.h"
 #include "mpi3mr_debug.h"
 
 /* Global list and lock for storing multiple adapters managed by the driver */
@@ -187,6 +188,13 @@ extern atomic64_t event_counter;
 #define MPI3MR_HARD_SECURE_DEVICE		0x08
 #define MPI3MR_TAMPERED_DEVICE			0x0C
 
+#define MPI3MR_DEFAULT_HDB_MAX_SZ       (4 * 1024 * 1024)
+#define MPI3MR_DEFAULT_HDB_DEC_SZ       (1 * 1024 * 1024)
+#define MPI3MR_DEFAULT_HDB_MIN_SZ       (2 * 1024 * 1024)
+#define MPI3MR_MAX_NUM_HDB      2
+
+#define MPI3MR_HDB_TRIGGER_TYPE_GLOBAL          3
+
 /* SGE Flag definition */
 #define MPI3MR_SGEFLAGS_SYSTEM_SIMPLE_END_OF_LIST \
 	(MPI3_SGE_FLAGS_ELEMENT_TYPE_SIMPLE | MPI3_SGE_FLAGS_DLAS_SYSTEM | \
@@ -209,6 +217,7 @@ extern atomic64_t event_counter;
 
 #define MPI3MR_WRITE_SAME_MAX_LEN_256_BLKS 256
 #define MPI3MR_WRITE_SAME_MAX_LEN_2048_BLKS 2048
+
 
 /**
  * struct mpi3mr_nvme_pt_sge -  Structure to store SGEs for NVMe
@@ -289,6 +298,8 @@ enum mpi3mr_reset_reason {
 	MPI3MR_RESET_FROM_PELABORT_TIMEOUT = 22,
 	MPI3MR_RESET_FROM_SYSFS = 23,
 	MPI3MR_RESET_FROM_SYSFS_TIMEOUT = 24,
+	MPI3MR_RESET_FROM_DIAG_BUFFER_POST_TIMEOUT = 25,
+	MPI3MR_RESET_FROM_DIAG_BUFFER_RELEASE_TIMEOUT = 26,
 	MPI3MR_RESET_FROM_FIRMWARE = 27,
 	MPI3MR_RESET_FROM_CFG_REQ_TIMEOUT = 29,
 	MPI3MR_RESET_FROM_SAS_TRANSPORT_TIMEOUT = 30,
@@ -327,6 +338,9 @@ struct mpi3mr_ioc_facts {
 	u32 ioc_capabilities;
 	struct mpi3mr_compimg_ver fw_ver;
 	u32 mpi_version;
+	u32 diag_trace_sz;
+	u32 diag_fw_sz;
+	u32 diag_drvr_sz;
 	u16 max_reqs;
 	u16 product_id;
 	u16 op_req_sz;
@@ -853,6 +867,41 @@ struct mpi3mr_drv_cmd {
 };
 
 /**
+ * union mpi3mr_trigger_data - Trigger data information
+ * @fault: Fault code
+ * @global: Global trigger data
+ * @element: element trigger data
+ */
+union mpi3mr_trigger_data {
+	u16 fault;
+	u64 global;
+	union mpi3_driver2_trigger_element element;
+};
+
+/**
+ * struct diag_buffer_desc - memory descriptor structure to
+ * store virtual, dma addresses, size, buffer status for host
+ * diagnostic buffers.
+ *
+ * @type: Buffer type
+ * @trigger_data: Trigger data
+ * @trigger_type: Trigger type
+ * @status: Buffer status
+ * @size: Buffer size
+ * @addr: Virtual address
+ * @dma_addr: Buffer DMA address
+ */
+struct diag_buffer_desc {
+	u8 type;
+	union mpi3mr_trigger_data trigger_data;
+	u8 trigger_type;
+	u8 status;
+	u32 size;
+	void *addr;
+	dma_addr_t dma_addr;
+};
+
+/**
  * struct dma_memory_desc - memory descriptor structure to store
  * virtual address, dma address and size for any generic dma
  * memory allocations in the driver.
@@ -1054,6 +1103,11 @@ struct scmd_priv {
  * @sas_node_lock: Lock to protect SAS node list
  * @hba_port_table_list: List of HBA Ports
  * @enclosure_list: List of Enclosure objects
+ * @diag_buffers: Host diagnostic buffers
+ * @driver_pg2:  Driver page 2 pointer
+ * @reply_trigger_present: Reply trigger present flag
+ * @event_trigger_present: Event trigger present flag
+ * @scsisense_trigger_present: Scsi sense trigger present flag
  * @ioctl_dma_pool: DMA pool for IOCTL data buffers
  * @ioctl_sge: DMA buffer descriptors for IOCTL data
  * @ioctl_chain_sge: DMA buffer descriptor for IOCTL chain
@@ -1250,6 +1304,12 @@ struct mpi3mr_ioc {
 	struct dma_memory_desc ioctl_chain_sge;
 	struct dma_memory_desc ioctl_resp_sge;
 	bool ioctl_sges_allocated;
+	bool reply_trigger_present;
+	bool event_trigger_present;
+	bool scsisense_trigger_present;
+	struct diag_buffer_desc diag_buffers[MPI3MR_MAX_NUM_HDB];
+	struct mpi3_driver_page2 *driver_pg2;
+	spinlock_t trigger_lock;
 };
 
 /**
@@ -1406,6 +1466,8 @@ int mpi3mr_cfg_set_sas_io_unit_pg1(struct mpi3mr_ioc *mrioc,
 	struct mpi3_sas_io_unit_page1 *sas_io_unit_pg1, u16 pg_sz);
 int mpi3mr_cfg_get_driver_pg1(struct mpi3mr_ioc *mrioc,
 	struct mpi3_driver_page1 *driver_pg1, u16 pg_sz);
+int mpi3mr_cfg_get_driver_pg2(struct mpi3mr_ioc *mrioc,
+	struct mpi3_driver_page2 *driver_pg2, u16 pg_sz, u8 page_type);
 
 u8 mpi3mr_is_expander_device(u16 device_info);
 int mpi3mr_expander_add(struct mpi3mr_ioc *mrioc, u16 handle);
@@ -1439,4 +1501,16 @@ void mpi3mr_free_enclosure_list(struct mpi3mr_ioc *mrioc);
 int mpi3mr_process_admin_reply_q(struct mpi3mr_ioc *mrioc);
 void mpi3mr_expander_node_remove(struct mpi3mr_ioc *mrioc,
 	struct mpi3mr_sas_node *sas_expander);
+void mpi3mr_alloc_diag_bufs(struct mpi3mr_ioc *mrioc);
+int mpi3mr_post_diag_bufs(struct mpi3mr_ioc *mrioc);
+int mpi3mr_issue_diag_buf_release(struct mpi3mr_ioc *mrioc,
+	struct diag_buffer_desc *diag_buffer);
+void mpi3mr_release_diag_bufs(struct mpi3mr_ioc *mrioc, u8 skip_rel_action);
+void mpi3mr_set_trigger_data_in_hdb(struct diag_buffer_desc *hdb,
+	u8 type, union mpi3mr_trigger_data *trigger_data, bool force);
+int mpi3mr_refresh_trigger(struct mpi3mr_ioc *mrioc, u8 page_type);
+struct diag_buffer_desc *mpi3mr_diag_buffer_for_type(struct mpi3mr_ioc *mrioc,
+	u8 buf_type);
+int mpi3mr_issue_diag_buf_post(struct mpi3mr_ioc *mrioc,
+	struct diag_buffer_desc *diag_buffer);
 #endif /*MPI3MR_H_INCLUDED*/

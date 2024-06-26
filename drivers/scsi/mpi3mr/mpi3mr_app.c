@@ -12,6 +12,486 @@
 #include <uapi/scsi/scsi_bsg_mpi3mr.h>
 
 /**
+ * mpi3mr_alloc_trace_buffer:	Allocate trace buffer
+ * @mrioc: Adapter instance reference
+ * @trace_size: Trace buffer size
+ *
+ * Allocate trace buffer
+ * Return: 0 on success, non-zero on failure.
+ */
+static int mpi3mr_alloc_trace_buffer(struct mpi3mr_ioc *mrioc, u32 trace_size)
+{
+	struct diag_buffer_desc *diag_buffer = &mrioc->diag_buffers[0];
+
+	diag_buffer->addr = dma_alloc_coherent(&mrioc->pdev->dev,
+	    trace_size, &diag_buffer->dma_addr, GFP_KERNEL);
+	if (diag_buffer->addr) {
+		dprint_init(mrioc, "trace diag buffer is allocated successfully\n");
+		return 0;
+	}
+	return -1;
+}
+
+/**
+ * mpi3mr_alloc_diag_bufs - Allocate memory for diag buffers
+ * @mrioc: Adapter instance reference
+ *
+ * This functions checks whether the driver defined buffer sizes
+ * are greater than IOCFacts provided controller local buffer
+ * sizes and if the driver defined sizes are more then the
+ * driver allocates the specific buffer by reading driver page1
+ *
+ * Return: Nothing.
+ */
+void mpi3mr_alloc_diag_bufs(struct mpi3mr_ioc *mrioc)
+{
+	struct diag_buffer_desc *diag_buffer;
+	struct mpi3_driver_page1 driver_pg1;
+	u32 trace_dec_size, trace_min_size, fw_dec_size, fw_min_size,
+		trace_size, fw_size;
+	u16 pg_sz = sizeof(driver_pg1);
+	int retval = 0;
+	bool retry = false;
+
+	if (mrioc->diag_buffers[0].addr || mrioc->diag_buffers[1].addr)
+		return;
+
+	retval = mpi3mr_cfg_get_driver_pg1(mrioc, &driver_pg1, pg_sz);
+	if (retval) {
+		ioc_warn(mrioc,
+		    "%s: driver page 1 read failed, allocating trace\n"
+		    "and firmware diag buffers of default size\n", __func__);
+		trace_size = fw_size = MPI3MR_DEFAULT_HDB_MAX_SZ;
+		trace_dec_size = fw_dec_size = MPI3MR_DEFAULT_HDB_DEC_SZ;
+		trace_min_size = fw_min_size = MPI3MR_DEFAULT_HDB_MIN_SZ;
+
+	} else {
+		trace_size = driver_pg1.host_diag_trace_max_size * 1024;
+		trace_dec_size = driver_pg1.host_diag_trace_decrement_size
+			 * 1024;
+		trace_min_size = driver_pg1.host_diag_trace_min_size * 1024;
+		fw_size = driver_pg1.host_diag_fw_max_size * 1024;
+		fw_dec_size = driver_pg1.host_diag_fw_decrement_size * 1024;
+		fw_min_size = driver_pg1.host_diag_fw_min_size * 1024;
+		dprint_init(mrioc,
+		    "%s:trace diag buffer sizes read from driver\n"
+		    "page1: maximum size = %dKB, decrement size = %dKB\n"
+		    ", minimum size = %dKB\n", __func__, driver_pg1.host_diag_trace_max_size,
+		    driver_pg1.host_diag_trace_decrement_size,
+		    driver_pg1.host_diag_trace_min_size);
+		dprint_init(mrioc,
+		    "%s:firmware diag buffer sizes read from driver\n"
+		    "page1: maximum size = %dKB, decrement size = %dKB\n"
+		    ", minimum size = %dKB\n", __func__, driver_pg1.host_diag_fw_max_size,
+		    driver_pg1.host_diag_fw_decrement_size,
+		    driver_pg1.host_diag_fw_min_size);
+		if ((trace_size == 0) && (fw_size == 0))
+			return;
+	}
+
+
+retry_trace:
+	diag_buffer = &mrioc->diag_buffers[0];
+	diag_buffer->type = MPI3_DIAG_BUFFER_TYPE_TRACE;
+	diag_buffer->status = MPI3MR_HDB_BUFSTATUS_NOT_ALLOCATED;
+	if ((mrioc->facts.diag_trace_sz < trace_size) && (trace_size >=
+		trace_min_size)) {
+		if (!retry)
+			dprint_init(mrioc,
+			    "trying to allocate trace diag buffer of size = %dKB\n",
+			    trace_size / 1024);
+		if (mpi3mr_alloc_trace_buffer(mrioc, trace_size)) {
+			retry = true;
+			trace_size -= trace_dec_size;
+			dprint_init(mrioc, "trace diag buffer allocation failed\n"
+			"retrying smaller size %dKB\n", trace_size / 1024);
+			goto retry_trace;
+		} else
+			diag_buffer->size = trace_size;
+	}
+
+	retry = false;
+retry_fw:
+
+	diag_buffer = &mrioc->diag_buffers[1];
+
+	diag_buffer->type = MPI3_DIAG_BUFFER_TYPE_FW;
+	diag_buffer->status = MPI3MR_HDB_BUFSTATUS_NOT_ALLOCATED;
+	if ((mrioc->facts.diag_fw_sz < fw_size) && (fw_size >= fw_min_size)) {
+		diag_buffer->addr = dma_alloc_coherent(&mrioc->pdev->dev,
+		    fw_size, &diag_buffer->dma_addr, GFP_KERNEL);
+		if (!retry)
+			dprint_init(mrioc,
+			    "%s:trying to allocate firmware diag buffer of size = %dKB\n",
+			    __func__, fw_size / 1024);
+		if (diag_buffer->addr) {
+			dprint_init(mrioc, "%s:firmware diag buffer allocated successfully\n",
+			    __func__);
+			diag_buffer->size = fw_size;
+		} else {
+			retry = true;
+			fw_size -= fw_dec_size;
+			dprint_init(mrioc, "%s:trace diag buffer allocation failed,\n"
+					"retrying smaller size %dKB\n",
+					__func__, fw_size / 1024);
+			goto retry_fw;
+		}
+	}
+}
+
+/**
+ * mpi3mr_issue_diag_buf_post - Send diag buffer post req
+ * @mrioc: Adapter instance reference
+ * @diag_buffer: Diagnostic buffer descriptor
+ *
+ * Issue diagnostic buffer post MPI request through admin queue
+ * and wait for the completion of it or time out.
+ *
+ * Return: 0 on success, non-zero on failures.
+ */
+int mpi3mr_issue_diag_buf_post(struct mpi3mr_ioc *mrioc,
+	struct diag_buffer_desc *diag_buffer)
+{
+	struct mpi3_diag_buffer_post_request diag_buf_post_req;
+	u8 prev_status;
+	int retval = 0;
+
+	memset(&diag_buf_post_req, 0, sizeof(diag_buf_post_req));
+	mutex_lock(&mrioc->init_cmds.mutex);
+	if (mrioc->init_cmds.state & MPI3MR_CMD_PENDING) {
+		dprint_bsg_err(mrioc, "%s: command is in use\n", __func__);
+		mutex_unlock(&mrioc->init_cmds.mutex);
+		return -1;
+	}
+	mrioc->init_cmds.state = MPI3MR_CMD_PENDING;
+	mrioc->init_cmds.is_waiting = 1;
+	mrioc->init_cmds.callback = NULL;
+	diag_buf_post_req.host_tag = cpu_to_le16(MPI3MR_HOSTTAG_INITCMDS);
+	diag_buf_post_req.function = MPI3_FUNCTION_DIAG_BUFFER_POST;
+	diag_buf_post_req.type = diag_buffer->type;
+	diag_buf_post_req.address = le64_to_cpu(diag_buffer->dma_addr);
+	diag_buf_post_req.length = le32_to_cpu(diag_buffer->size);
+
+	dprint_bsg_info(mrioc, "%s: posting diag buffer type %d\n", __func__,
+	    diag_buffer->type);
+	prev_status = diag_buffer->status;
+	diag_buffer->status = MPI3MR_HDB_BUFSTATUS_POSTED_UNPAUSED;
+	init_completion(&mrioc->init_cmds.done);
+	retval = mpi3mr_admin_request_post(mrioc, &diag_buf_post_req,
+	    sizeof(diag_buf_post_req), 1);
+	if (retval) {
+		dprint_bsg_err(mrioc, "%s: admin request post failed\n",
+		    __func__);
+		goto out_unlock;
+	}
+	wait_for_completion_timeout(&mrioc->init_cmds.done,
+	    (MPI3MR_INTADMCMD_TIMEOUT * HZ));
+	if (!(mrioc->init_cmds.state & MPI3MR_CMD_COMPLETE)) {
+		mrioc->init_cmds.is_waiting = 0;
+		dprint_bsg_err(mrioc, "%s: command timedout\n", __func__);
+		mpi3mr_check_rh_fault_ioc(mrioc,
+		    MPI3MR_RESET_FROM_DIAG_BUFFER_POST_TIMEOUT);
+		retval = -1;
+		goto out_unlock;
+	}
+	if ((mrioc->init_cmds.ioc_status & MPI3_IOCSTATUS_STATUS_MASK)
+	    != MPI3_IOCSTATUS_SUCCESS) {
+		dprint_bsg_err(mrioc,
+		    "%s: command failed, buffer_type (%d) ioc_status(0x%04x) log_info(0x%08x)\n",
+		    __func__, diag_buffer->type,
+		    (mrioc->init_cmds.ioc_status & MPI3_IOCSTATUS_STATUS_MASK),
+		    mrioc->init_cmds.ioc_loginfo);
+		retval = -1;
+		goto out_unlock;
+	}
+	dprint_bsg_info(mrioc, "%s: diag buffer type %d posted successfully\n",
+	    __func__, diag_buffer->type);
+
+out_unlock:
+	if (retval)
+		diag_buffer->status = prev_status;
+	mrioc->init_cmds.state = MPI3MR_CMD_NOTUSED;
+	mutex_unlock(&mrioc->init_cmds.mutex);
+	return retval;
+}
+
+/**
+ * mpi3mr_post_diag_bufs - Post diag buffers to the controller
+ * @mrioc: Adapter instance reference
+ *
+ * This function calls helper function to post both trace and
+ * firmware buffers to the controller.
+ *
+ * Return: None
+ */
+int mpi3mr_post_diag_bufs(struct mpi3mr_ioc *mrioc)
+{
+	u8 i;
+	struct diag_buffer_desc *diag_buffer;
+
+	for (i = 0; i < MPI3MR_MAX_NUM_HDB; i++) {
+		diag_buffer = &mrioc->diag_buffers[i];
+		if (!(diag_buffer->addr))
+			continue;
+		if (mpi3mr_issue_diag_buf_post(mrioc, diag_buffer))
+			return -1;
+	}
+	return 0;
+}
+
+/**
+ * mpi3mr_issue_diag_buf_release - Send diag buffer release req
+ * @mrioc: Adapter instance reference
+ * @diag_buffer: Diagnostic buffer descriptor
+ *
+ * Issue diagnostic buffer manage MPI request with release
+ * action request through admin queue and wait for the
+ * completion of it or time out.
+ *
+ * Return: 0 on success, non-zero on failures.
+ */
+int mpi3mr_issue_diag_buf_release(struct mpi3mr_ioc *mrioc,
+	struct diag_buffer_desc *diag_buffer)
+{
+	struct mpi3_diag_buffer_manage_request diag_buf_manage_req;
+	int retval = 0;
+
+	if ((diag_buffer->status != MPI3MR_HDB_BUFSTATUS_POSTED_UNPAUSED) &&
+	    (diag_buffer->status != MPI3MR_HDB_BUFSTATUS_POSTED_PAUSED))
+		return retval;
+
+	memset(&diag_buf_manage_req, 0, sizeof(diag_buf_manage_req));
+	mutex_lock(&mrioc->init_cmds.mutex);
+	if (mrioc->init_cmds.state & MPI3MR_CMD_PENDING) {
+		dprint_reset(mrioc, "%s: command is in use\n", __func__);
+		mutex_unlock(&mrioc->init_cmds.mutex);
+		return -1;
+	}
+	mrioc->init_cmds.state = MPI3MR_CMD_PENDING;
+	mrioc->init_cmds.is_waiting = 1;
+	mrioc->init_cmds.callback = NULL;
+	diag_buf_manage_req.host_tag = cpu_to_le16(MPI3MR_HOSTTAG_INITCMDS);
+	diag_buf_manage_req.function = MPI3_FUNCTION_DIAG_BUFFER_MANAGE;
+	diag_buf_manage_req.type = diag_buffer->type;
+	diag_buf_manage_req.action = MPI3_DIAG_BUFFER_ACTION_RELEASE;
+
+
+	dprint_reset(mrioc, "%s: releasing diag buffer type %d\n", __func__,
+	    diag_buffer->type);
+	init_completion(&mrioc->init_cmds.done);
+	retval = mpi3mr_admin_request_post(mrioc, &diag_buf_manage_req,
+	    sizeof(diag_buf_manage_req), 1);
+	if (retval) {
+		dprint_reset(mrioc, "%s: admin request post failed\n", __func__);
+		mpi3mr_set_trigger_data_in_hdb(diag_buffer,
+		    MPI3MR_HDB_TRIGGER_TYPE_UNKNOWN, NULL, 1);
+		goto out_unlock;
+	}
+	wait_for_completion_timeout(&mrioc->init_cmds.done,
+	    (MPI3MR_INTADMCMD_TIMEOUT * HZ));
+	if (!(mrioc->init_cmds.state & MPI3MR_CMD_COMPLETE)) {
+		mrioc->init_cmds.is_waiting = 0;
+		dprint_reset(mrioc, "%s: command timedout\n", __func__);
+		mpi3mr_check_rh_fault_ioc(mrioc,
+		    MPI3MR_RESET_FROM_DIAG_BUFFER_RELEASE_TIMEOUT);
+		retval = -1;
+		goto out_unlock;
+	}
+	if ((mrioc->init_cmds.ioc_status & MPI3_IOCSTATUS_STATUS_MASK)
+	    != MPI3_IOCSTATUS_SUCCESS) {
+		dprint_reset(mrioc,
+		    "%s: command failed, buffer_type (%d) ioc_status(0x%04x) log_info(0x%08x)\n",
+		    __func__, diag_buffer->type,
+		    (mrioc->init_cmds.ioc_status & MPI3_IOCSTATUS_STATUS_MASK),
+		    mrioc->init_cmds.ioc_loginfo);
+		retval = -1;
+		goto out_unlock;
+	}
+	dprint_reset(mrioc, "%s: diag buffer type %d released successfully\n",
+	    __func__, diag_buffer->type);
+
+out_unlock:
+	mrioc->init_cmds.state = MPI3MR_CMD_NOTUSED;
+	mutex_unlock(&mrioc->init_cmds.mutex);
+	return retval;
+}
+
+/**
+ * mpi3mr_get_num_trigger - Gets number of HDB triggers
+ * @mrioc: Adapter instance reference
+ * @num_triggers: Number of triggers
+ * @page_action: Page action
+ *
+ * This function reads number of triggers by reading driver page
+ * 2
+ *
+ * Return: 0 on success and proper error codes on failure
+ */
+static int mpi3mr_get_num_trigger(struct mpi3mr_ioc *mrioc, u8 *num_triggers,
+	u8 page_action)
+{
+	struct mpi3_driver_page2 drvr_page2;
+	int retval = 0;
+
+	*num_triggers = 0;
+
+	retval = mpi3mr_cfg_get_driver_pg2(mrioc, &drvr_page2,
+	    sizeof(struct mpi3_driver_page2), page_action);
+
+	if (retval) {
+		dprint_init(mrioc, "%s: driver page 2 read failed\n", __func__);
+		return retval;
+	}
+	*num_triggers = drvr_page2.num_triggers;
+	return retval;
+}
+
+/**
+ * mpi3mr_refresh_trigger - Handler for Refresh trigger BSG
+ * @mrioc: Adapter instance reference
+ * @page_action: Page action
+ *
+ * This function caches the driver page 2 in the driver's memory
+ * by reading driver page 2 from the controller for a given page
+ * type and updates the HDB trigger values
+ *
+ * Return: 0 on success and proper error codes on failure
+ */
+int mpi3mr_refresh_trigger(struct mpi3mr_ioc *mrioc, u8 page_action)
+{
+	u16 pg_sz = sizeof(struct mpi3_driver_page2);
+	struct mpi3_driver_page2 *drvr_page2 = NULL;
+	u8 trigger_type, num_triggers;
+	int retval;
+	int i = 0;
+	unsigned long flags;
+
+	retval = mpi3mr_get_num_trigger(mrioc, &num_triggers, page_action);
+
+	if (retval)
+		goto out;
+
+	pg_sz = offsetof(struct mpi3_driver_page2, trigger) +
+		(num_triggers * sizeof(union mpi3_driver2_trigger_element));
+	drvr_page2 = kzalloc(pg_sz, GFP_KERNEL);
+	if (!drvr_page2) {
+		retval = -ENOMEM;
+		goto out;
+	}
+
+	retval = mpi3mr_cfg_get_driver_pg2(mrioc, drvr_page2, pg_sz, page_action);
+	if (retval) {
+		dprint_init(mrioc, "%s: driver page 2 read failed\n", __func__);
+		kfree(drvr_page2);
+		goto out;
+	}
+	spin_lock_irqsave(&mrioc->trigger_lock, flags);
+	kfree(mrioc->driver_pg2);
+	mrioc->driver_pg2 = drvr_page2;
+	mrioc->reply_trigger_present = false;
+	mrioc->event_trigger_present = false;
+	mrioc->scsisense_trigger_present = false;
+
+	for (i = 0; (i < mrioc->driver_pg2->num_triggers); i++) {
+		trigger_type = mrioc->driver_pg2->trigger[i].event.type;
+		switch (trigger_type) {
+		case MPI3_DRIVER2_TRIGGER_TYPE_REPLY:
+			mrioc->reply_trigger_present = true;
+			break;
+		case MPI3_DRIVER2_TRIGGER_TYPE_EVENT:
+			mrioc->event_trigger_present = true;
+			break;
+		case MPI3_DRIVER2_TRIGGER_TYPE_SCSI_SENSE:
+			mrioc->scsisense_trigger_present = true;
+			break;
+		default:
+			break;
+		}
+	}
+	spin_unlock_irqrestore(&mrioc->trigger_lock, flags);
+out:
+	return retval;
+}
+
+/**
+ * mpi3mr_release_diag_bufs - Release diag buffers
+ * @mrioc: Adapter instance reference
+ * @skip_rel_action: Skip release action and set buffer state
+ *
+ * This function calls helper function to release both trace and
+ * firmware buffers from the controller.
+ *
+ * Return: None
+ */
+void mpi3mr_release_diag_bufs(struct mpi3mr_ioc *mrioc, u8 skip_rel_action)
+{
+	u8 i;
+	struct diag_buffer_desc *diag_buffer;
+
+	for (i = 0; i < MPI3MR_MAX_NUM_HDB; i++) {
+		diag_buffer = &mrioc->diag_buffers[i];
+		if (!(diag_buffer->addr))
+			continue;
+		if (diag_buffer->status == MPI3MR_HDB_BUFSTATUS_RELEASED)
+			continue;
+		if (!skip_rel_action)
+			mpi3mr_issue_diag_buf_release(mrioc, diag_buffer);
+		diag_buffer->status = MPI3MR_HDB_BUFSTATUS_RELEASED;
+		atomic64_inc(&event_counter);
+	}
+}
+
+/**
+ * mpi3mr_set_trigger_data_in_hdb - Updates HDB trigger type and
+ * trigger data
+ *
+ * @hdb: HDB pointer
+ * @type: Trigger type
+ * @data: Trigger data
+ * @force: Trigger overwrite flag
+ * @trigger_data: pointer to trigger data information
+ *
+ * Updates trigger type and trigger data based on parameter
+ * passed to this function
+ *
+ * Return: Nothing
+ */
+void mpi3mr_set_trigger_data_in_hdb(struct diag_buffer_desc *hdb,
+	u8 type, union mpi3mr_trigger_data *trigger_data, bool force)
+{
+	if ((!force) && (hdb->trigger_type != MPI3MR_HDB_TRIGGER_TYPE_UNKNOWN))
+		return;
+	hdb->trigger_type = type;
+	if (!trigger_data)
+		memset(&hdb->trigger_data, 0, sizeof(*trigger_data));
+	else
+		memcpy(&hdb->trigger_data, trigger_data, sizeof(*trigger_data));
+}
+
+/**
+ * mpi3mr_diag_buffer_for_type - returns buffer desc for type
+ * @mrioc: Adapter instance reference
+ * @buf_type: Diagnostic buffer type
+ *
+ * Identifies matching diag descriptor from mrioc for given diag
+ * buffer type.
+ *
+ * Return: diag buffer descriptor on success, NULL on failures.
+ */
+
+struct diag_buffer_desc *
+mpi3mr_diag_buffer_for_type(struct mpi3mr_ioc *mrioc, u8 buf_type)
+{
+	u8 i;
+
+	for (i = 0; i < MPI3MR_MAX_NUM_HDB; i++) {
+		if (mrioc->diag_buffers[i].type == buf_type)
+			return &mrioc->diag_buffers[i];
+	}
+	return NULL;
+}
+
+/**
  * mpi3mr_bsg_pel_abort - sends PEL abort request
  * @mrioc: Adapter instance reference
  *

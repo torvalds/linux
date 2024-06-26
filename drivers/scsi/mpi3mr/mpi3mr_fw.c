@@ -3003,7 +3003,11 @@ static void mpi3mr_process_factsdata(struct mpi3mr_ioc *mrioc,
 	mrioc->facts.sge_mod_shift = facts_data->sge_modifier_shift;
 	mrioc->facts.shutdown_timeout =
 	    le16_to_cpu(facts_data->shutdown_timeout);
-
+	mrioc->facts.diag_trace_sz =
+	    le32_to_cpu(facts_data->diag_trace_size);
+	mrioc->facts.diag_fw_sz =
+	    le32_to_cpu(facts_data->diag_fw_size);
+	mrioc->facts.diag_drvr_sz = le32_to_cpu(facts_data->diag_driver_size);
 	mrioc->facts.max_dev_per_tg =
 	    facts_data->max_devices_per_throttle_group;
 	mrioc->facts.io_throttle_data_length =
@@ -3682,6 +3686,94 @@ static const struct {
 };
 
 /**
+ * mpi3mr_repost_diag_bufs - repost host diag buffers
+ * @mrioc: Adapter instance reference
+ *
+ * repost firmware and trace diag buffers based on global
+ * trigger flag from driver page 2
+ *
+ * Return: 0 on success, non-zero on failures.
+ */
+static int mpi3mr_repost_diag_bufs(struct mpi3mr_ioc *mrioc)
+{
+	u64 global_trigger;
+	union mpi3mr_trigger_data prev_trigger_data;
+	struct diag_buffer_desc *trace_hdb = NULL;
+	struct diag_buffer_desc *fw_hdb = NULL;
+	int retval = 0;
+	bool trace_repost_needed = false;
+	bool fw_repost_needed = false;
+	u8 prev_trigger_type;
+
+	retval = mpi3mr_refresh_trigger(mrioc, MPI3_CONFIG_ACTION_READ_CURRENT);
+	if (retval)
+		return -1;
+
+	trace_hdb = mpi3mr_diag_buffer_for_type(mrioc,
+	    MPI3_DIAG_BUFFER_TYPE_TRACE);
+
+	if (trace_hdb &&
+	    trace_hdb->status != MPI3MR_HDB_BUFSTATUS_NOT_ALLOCATED &&
+	    trace_hdb->trigger_type != MPI3MR_HDB_TRIGGER_TYPE_GLOBAL &&
+	    trace_hdb->trigger_type != MPI3MR_HDB_TRIGGER_TYPE_ELEMENT)
+		trace_repost_needed = true;
+
+	fw_hdb = mpi3mr_diag_buffer_for_type(mrioc, MPI3_DIAG_BUFFER_TYPE_FW);
+
+	if (fw_hdb && fw_hdb->status != MPI3MR_HDB_BUFSTATUS_NOT_ALLOCATED &&
+	    fw_hdb->trigger_type != MPI3MR_HDB_TRIGGER_TYPE_GLOBAL &&
+	    fw_hdb->trigger_type != MPI3MR_HDB_TRIGGER_TYPE_ELEMENT)
+		fw_repost_needed = true;
+
+	if (trace_repost_needed || fw_repost_needed) {
+		global_trigger = le64_to_cpu(mrioc->driver_pg2->global_trigger);
+		if (global_trigger &
+		      MPI3_DRIVER2_GLOBALTRIGGER_POST_DIAG_TRACE_DISABLED)
+			trace_repost_needed = false;
+		if (global_trigger &
+		     MPI3_DRIVER2_GLOBALTRIGGER_POST_DIAG_FW_DISABLED)
+			fw_repost_needed = false;
+	}
+
+	if (trace_repost_needed) {
+		prev_trigger_type = trace_hdb->trigger_type;
+		memcpy(&prev_trigger_data, &trace_hdb->trigger_data,
+		    sizeof(trace_hdb->trigger_data));
+		retval = mpi3mr_issue_diag_buf_post(mrioc, trace_hdb);
+		if (!retval) {
+			dprint_init(mrioc, "trace diag buffer reposted");
+			mpi3mr_set_trigger_data_in_hdb(trace_hdb,
+				    MPI3MR_HDB_TRIGGER_TYPE_UNKNOWN, NULL, 1);
+		} else {
+			trace_hdb->trigger_type = prev_trigger_type;
+			memcpy(&trace_hdb->trigger_data, &prev_trigger_data,
+			    sizeof(prev_trigger_data));
+			ioc_err(mrioc, "trace diag buffer repost failed");
+			return -1;
+		}
+	}
+
+	if (fw_repost_needed) {
+		prev_trigger_type = fw_hdb->trigger_type;
+		memcpy(&prev_trigger_data, &fw_hdb->trigger_data,
+		    sizeof(fw_hdb->trigger_data));
+		retval = mpi3mr_issue_diag_buf_post(mrioc, fw_hdb);
+		if (!retval) {
+			dprint_init(mrioc, "firmware diag buffer reposted");
+			mpi3mr_set_trigger_data_in_hdb(fw_hdb,
+				    MPI3MR_HDB_TRIGGER_TYPE_UNKNOWN, NULL, 1);
+		} else {
+			fw_hdb->trigger_type = prev_trigger_type;
+			memcpy(&fw_hdb->trigger_data, &prev_trigger_data,
+			    sizeof(prev_trigger_data));
+			ioc_err(mrioc, "firmware diag buffer repost failed");
+			return -1;
+		}
+	}
+	return retval;
+}
+
+/**
  * mpi3mr_print_ioc_info - Display controller information
  * @mrioc: Adapter instance reference
  *
@@ -3989,8 +4081,17 @@ retry_init:
 		}
 	}
 
+	dprint_init(mrioc, "allocating host diag buffers\n");
+	mpi3mr_alloc_diag_bufs(mrioc);
+
 	dprint_init(mrioc, "allocating ioctl dma buffers\n");
 	mpi3mr_alloc_ioctl_dma_memory(mrioc);
+
+	dprint_init(mrioc, "posting host diag buffers\n");
+	retval = mpi3mr_post_diag_bufs(mrioc);
+
+	if (retval)
+		ioc_warn(mrioc, "failed to post host diag buffers\n");
 
 	if (!mrioc->init_cmds.reply) {
 		retval = mpi3mr_alloc_reply_sense_bufs(mrioc);
@@ -4143,6 +4244,17 @@ retry_init:
 	}
 
 	mpi3mr_print_ioc_info(mrioc);
+
+	if (is_resume) {
+		dprint_reset(mrioc, "posting host diag buffers\n");
+		retval = mpi3mr_post_diag_bufs(mrioc);
+		if (retval)
+			ioc_warn(mrioc, "failed to post host diag buffers\n");
+	} else {
+		retval = mpi3mr_repost_diag_bufs(mrioc);
+		if (retval)
+			ioc_warn(mrioc, "failed to re post host diag buffers\n");
+	}
 
 	dprint_reset(mrioc, "sending ioc_init\n");
 	retval = mpi3mr_issue_iocinit(mrioc);
@@ -4409,6 +4521,7 @@ void mpi3mr_free_mem(struct mpi3mr_ioc *mrioc)
 {
 	u16 i;
 	struct mpi3mr_intr_info *intr_info;
+	struct diag_buffer_desc *diag_buffer;
 
 	mpi3mr_free_enclosure_list(mrioc);
 	mpi3mr_free_ioctl_dma_memory(mrioc);
@@ -4541,6 +4654,19 @@ void mpi3mr_free_mem(struct mpi3mr_ioc *mrioc)
 		dma_free_coherent(&mrioc->pdev->dev, mrioc->pel_seqnum_sz,
 		    mrioc->pel_seqnum_virt, mrioc->pel_seqnum_dma);
 		mrioc->pel_seqnum_virt = NULL;
+	}
+
+	for (i = 0; i < MPI3MR_MAX_NUM_HDB; i++) {
+		diag_buffer = &mrioc->diag_buffers[i];
+		if (diag_buffer->addr) {
+			dma_free_coherent(&mrioc->pdev->dev,
+			    diag_buffer->size, diag_buffer->addr,
+			    diag_buffer->dma_addr);
+			diag_buffer->addr = NULL;
+			diag_buffer->size = 0;
+			diag_buffer->type = 0;
+			diag_buffer->status = 0;
+		}
 	}
 
 	kfree(mrioc->throttle_groups);
@@ -5016,6 +5142,9 @@ int mpi3mr_soft_reset_handler(struct mpi3mr_ioc *mrioc,
 	if ((!snapdump) && (reset_reason != MPI3MR_RESET_FROM_FAULT_WATCH) &&
 	    (reset_reason != MPI3MR_RESET_FROM_FIRMWARE) &&
 	    (reset_reason != MPI3MR_RESET_FROM_CIACTIV_FAULT)) {
+		dprint_reset(mrioc,
+		    "soft_reset_handler: releasing host diagnostic buffers\n");
+		mpi3mr_release_diag_bufs(mrioc, 0);
 		for (i = 0; i < MPI3_EVENT_NOTIFY_EVENTMASK_WORDS; i++)
 			mrioc->event_masks[i] = -1;
 
@@ -5075,6 +5204,7 @@ int mpi3mr_soft_reset_handler(struct mpi3mr_ioc *mrioc,
 		mrioc->prepare_for_reset_timeout_counter = 0;
 	}
 	mpi3mr_memset_buffers(mrioc);
+	mpi3mr_release_diag_bufs(mrioc, 1);
 	retval = mpi3mr_reinit_ioc(mrioc, 0);
 	if (retval) {
 		pr_err(IOCNAME "reinit after soft reset failed: reason %d\n",
@@ -5954,3 +6084,64 @@ int mpi3mr_cfg_get_driver_pg1(struct mpi3mr_ioc *mrioc,
 out_failed:
 	return -1;
 }
+
+/**
+ * mpi3mr_cfg_get_driver_pg2 - Read current driver page2
+ * @mrioc: Adapter instance reference
+ * @driver_pg2: Pointer to return driver page 2
+ * @pg_sz: Size of the memory allocated to the page pointer
+ * @page_action: Page action
+ *
+ * This is handler for config page read for the driver page2.
+ * This routine checks ioc_status to decide whether the page
+ * read is success or not.
+ *
+ * Return: 0 on success, non-zero on failure.
+ */
+int mpi3mr_cfg_get_driver_pg2(struct mpi3mr_ioc *mrioc,
+	struct mpi3_driver_page2 *driver_pg2, u16 pg_sz, u8 page_action)
+{
+	struct mpi3_config_page_header cfg_hdr;
+	struct mpi3_config_request cfg_req;
+	u16 ioc_status = 0;
+
+	memset(driver_pg2, 0, pg_sz);
+	memset(&cfg_hdr, 0, sizeof(cfg_hdr));
+	memset(&cfg_req, 0, sizeof(cfg_req));
+
+	cfg_req.function = MPI3_FUNCTION_CONFIG;
+	cfg_req.action = MPI3_CONFIG_ACTION_PAGE_HEADER;
+	cfg_req.page_type = MPI3_CONFIG_PAGETYPE_DRIVER;
+	cfg_req.page_number = 2;
+	cfg_req.page_address = 0;
+	cfg_req.page_version = MPI3_DRIVER2_PAGEVERSION;
+
+	if (mpi3mr_process_cfg_req(mrioc, &cfg_req, NULL,
+	    MPI3MR_INTADMCMD_TIMEOUT, &ioc_status, &cfg_hdr, sizeof(cfg_hdr))) {
+		ioc_err(mrioc, "driver page2 header read failed\n");
+		goto out_failed;
+	}
+	if (ioc_status != MPI3_IOCSTATUS_SUCCESS) {
+		ioc_err(mrioc, "driver page2 header read failed with\n"
+			       "ioc_status(0x%04x)\n",
+		    ioc_status);
+		goto out_failed;
+	}
+	cfg_req.action = page_action;
+
+	if (mpi3mr_process_cfg_req(mrioc, &cfg_req, &cfg_hdr,
+	    MPI3MR_INTADMCMD_TIMEOUT, &ioc_status, driver_pg2, pg_sz)) {
+		ioc_err(mrioc, "driver page2 read failed\n");
+		goto out_failed;
+	}
+	if (ioc_status != MPI3_IOCSTATUS_SUCCESS) {
+		ioc_err(mrioc, "driver page2 read failed with\n"
+			       "ioc_status(0x%04x)\n",
+		    ioc_status);
+		goto out_failed;
+	}
+	return 0;
+out_failed:
+	return -1;
+}
+
