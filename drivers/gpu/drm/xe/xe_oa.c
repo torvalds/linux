@@ -80,6 +80,7 @@ struct xe_oa_open_param {
 	int engine_instance;
 	struct xe_exec_queue *exec_q;
 	struct xe_hw_engine *hwe;
+	bool no_preempt;
 };
 
 struct xe_oa_config_bo {
@@ -1013,10 +1014,54 @@ static void xe_oa_stream_disable(struct xe_oa_stream *stream)
 		hrtimer_cancel(&stream->poll_check_timer);
 }
 
+static int xe_oa_enable_preempt_timeslice(struct xe_oa_stream *stream)
+{
+	struct xe_exec_queue *q = stream->exec_q;
+	int ret1, ret2;
+
+	/* Best effort recovery: try to revert both to original, irrespective of error */
+	ret1 = q->ops->set_timeslice(q, stream->hwe->eclass->sched_props.timeslice_us);
+	ret2 = q->ops->set_preempt_timeout(q, stream->hwe->eclass->sched_props.preempt_timeout_us);
+	if (ret1 || ret2)
+		goto err;
+	return 0;
+err:
+	drm_dbg(&stream->oa->xe->drm, "%s failed ret1 %d ret2 %d\n", __func__, ret1, ret2);
+	return ret1 ?: ret2;
+}
+
+static int xe_oa_disable_preempt_timeslice(struct xe_oa_stream *stream)
+{
+	struct xe_exec_queue *q = stream->exec_q;
+	int ret;
+
+	/* Setting values to 0 will disable timeslice and preempt_timeout */
+	ret = q->ops->set_timeslice(q, 0);
+	if (ret)
+		goto err;
+
+	ret = q->ops->set_preempt_timeout(q, 0);
+	if (ret)
+		goto err;
+
+	return 0;
+err:
+	xe_oa_enable_preempt_timeslice(stream);
+	drm_dbg(&stream->oa->xe->drm, "%s failed %d\n", __func__, ret);
+	return ret;
+}
+
 static int xe_oa_enable_locked(struct xe_oa_stream *stream)
 {
 	if (stream->enabled)
 		return 0;
+
+	if (stream->no_preempt) {
+		int ret = xe_oa_disable_preempt_timeslice(stream);
+
+		if (ret)
+			return ret;
+	}
 
 	xe_oa_stream_enable(stream);
 
@@ -1026,13 +1071,18 @@ static int xe_oa_enable_locked(struct xe_oa_stream *stream)
 
 static int xe_oa_disable_locked(struct xe_oa_stream *stream)
 {
+	int ret = 0;
+
 	if (!stream->enabled)
 		return 0;
 
 	xe_oa_stream_disable(stream);
 
+	if (stream->no_preempt)
+		ret = xe_oa_enable_preempt_timeslice(stream);
+
 	stream->enabled = false;
-	return 0;
+	return ret;
 }
 
 static long xe_oa_config_locked(struct xe_oa_stream *stream, u64 arg)
@@ -1307,6 +1357,7 @@ static int xe_oa_stream_init(struct xe_oa_stream *stream,
 	stream->sample = param->sample;
 	stream->periodic = param->period_exponent > 0;
 	stream->period_exponent = param->period_exponent;
+	stream->no_preempt = param->no_preempt;
 
 	/*
 	 * For Xe2+, when overrun mode is enabled, there are no partial reports at the end
@@ -1651,6 +1702,13 @@ static int xe_oa_set_prop_engine_instance(struct xe_oa *oa, u64 value,
 	return 0;
 }
 
+static int xe_oa_set_no_preempt(struct xe_oa *oa, u64 value,
+				struct xe_oa_open_param *param)
+{
+	param->no_preempt = value;
+	return 0;
+}
+
 typedef int (*xe_oa_set_property_fn)(struct xe_oa *oa, u64 value,
 				     struct xe_oa_open_param *param);
 static const xe_oa_set_property_fn xe_oa_set_property_funcs[] = {
@@ -1662,6 +1720,7 @@ static const xe_oa_set_property_fn xe_oa_set_property_funcs[] = {
 	[DRM_XE_OA_PROPERTY_OA_DISABLED] = xe_oa_set_prop_disabled,
 	[DRM_XE_OA_PROPERTY_EXEC_QUEUE_ID] = xe_oa_set_prop_exec_queue_id,
 	[DRM_XE_OA_PROPERTY_OA_ENGINE_INSTANCE] = xe_oa_set_prop_engine_instance,
+	[DRM_XE_OA_PROPERTY_NO_PREEMPT] = xe_oa_set_no_preempt,
 };
 
 static int xe_oa_user_ext_set_property(struct xe_oa *oa, u64 extension,
@@ -1765,6 +1824,15 @@ int xe_oa_stream_open_ioctl(struct drm_device *dev, u64 data, struct drm_file *f
 	 */
 	if (param.exec_q && !param.sample)
 		privileged_op = false;
+
+	if (param.no_preempt) {
+		if (!param.exec_q) {
+			drm_dbg(&oa->xe->drm, "Preemption disable without exec_q!\n");
+			ret = -EINVAL;
+			goto err_exec_q;
+		}
+		privileged_op = true;
+	}
 
 	if (privileged_op && xe_perf_stream_paranoid && !perfmon_capable()) {
 		drm_dbg(&oa->xe->drm, "Insufficient privileges to open xe perf stream\n");

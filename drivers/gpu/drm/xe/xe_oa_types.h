@@ -235,5 +235,8 @@ struct xe_oa_stream {
 
 	/** @oa_status: temporary storage for oa_status register value */
 	u32 oa_status;
+
+	/** @no_preempt: Whether preemption and timeslicing is disabled for stream exec_q */
+	u32 no_preempt;
 };
 #endif
