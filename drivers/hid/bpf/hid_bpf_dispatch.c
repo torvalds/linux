@@ -78,7 +78,7 @@ int dispatch_hid_bpf_raw_requests(struct hid_device *hdev,
 				  unsigned char reportnum, u8 *buf,
 				  u32 size, enum hid_report_type rtype,
 				  enum hid_class_request reqtype,
-				  u64 source)
+				  u64 source, bool from_bpf)
 {
 	struct hid_bpf_ctx_kern ctx_kern = {
 		.ctx = {
@@ -87,6 +87,7 @@ int dispatch_hid_bpf_raw_requests(struct hid_device *hdev,
 			.size = size,
 		},
 		.data = buf,
+		.from_bpf = from_bpf,
 	};
 	struct hid_bpf_ops *e;
 	int ret, idx;
@@ -364,10 +365,16 @@ __bpf_kfunc int
 hid_bpf_hw_request(struct hid_bpf_ctx *ctx, __u8 *buf, size_t buf__sz,
 		   enum hid_report_type rtype, enum hid_class_request reqtype)
 {
+	struct hid_bpf_ctx_kern *ctx_kern;
 	struct hid_device *hdev;
 	size_t size = buf__sz;
 	u8 *dma_data;
 	int ret;
+
+	ctx_kern = container_of(ctx, struct hid_bpf_ctx_kern, ctx);
+
+	if (ctx_kern->from_bpf)
+		return -EDEADLOCK;
 
 	/* check arguments */
 	ret = __hid_bpf_hw_check_params(ctx, buf, &size, rtype);
@@ -398,7 +405,8 @@ hid_bpf_hw_request(struct hid_bpf_ctx *ctx, __u8 *buf, size_t buf__sz,
 					      size,
 					      rtype,
 					      reqtype,
-					      (__u64)ctx);
+					      (__u64)ctx,
+					      true); /* prevent infinite recursions */
 
 	if (ret > 0)
 		memcpy(buf, dma_data, ret);

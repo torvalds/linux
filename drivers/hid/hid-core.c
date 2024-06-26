@@ -2403,7 +2403,7 @@ int __hid_hw_raw_request(struct hid_device *hdev,
 			 unsigned char reportnum, __u8 *buf,
 			 size_t len, enum hid_report_type rtype,
 			 enum hid_class_request reqtype,
-			 __u64 source)
+			 __u64 source, bool from_bpf)
 {
 	unsigned int max_buffer_size = HID_MAX_BUFFER_SIZE;
 	int ret;
@@ -2415,7 +2415,7 @@ int __hid_hw_raw_request(struct hid_device *hdev,
 		return -EINVAL;
 
 	ret = dispatch_hid_bpf_raw_requests(hdev, reportnum, buf, len, rtype,
-					    reqtype, source);
+					    reqtype, source, from_bpf);
 	if (ret)
 		return ret;
 
@@ -2441,7 +2441,7 @@ int hid_hw_raw_request(struct hid_device *hdev,
 		       unsigned char reportnum, __u8 *buf,
 		       size_t len, enum hid_report_type rtype, enum hid_class_request reqtype)
 {
-	return __hid_hw_raw_request(hdev, reportnum, buf, len, rtype, reqtype, 0);
+	return __hid_hw_raw_request(hdev, reportnum, buf, len, rtype, reqtype, 0, false);
 }
 EXPORT_SYMBOL_GPL(hid_hw_raw_request);
 
