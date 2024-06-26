@@ -108,13 +108,6 @@ static inline void lp5521_wait_enable_done(void)
 	usleep_range(500, 600);
 }
 
-static void lp5521_set_led_current(struct lp55xx_led *led, u8 led_current)
-{
-	led->led_current = led_current;
-	lp55xx_write(led->chip, LP5521_REG_LED_CURRENT_BASE + led->chan_nr,
-		led_current);
-}
-
 static void lp5521_stop_engine(struct lp55xx_chip *chip)
 {
 	enum lp55xx_engine_index idx = chip->engine_idx;
@@ -359,11 +352,14 @@ static struct lp55xx_device_config lp5521_cfg = {
 	.reg_led_pwm_base = {
 		.addr = LP5521_REG_LED_PWM_BASE,
 	},
+	.reg_led_current_base = {
+		.addr = LP5521_REG_LED_CURRENT_BASE,
+	},
 	.max_channel  = LP5521_MAX_LEDS,
 	.post_init_device   = lp5521_post_init_device,
 	.brightness_fn      = lp55xx_led_brightness,
 	.multicolor_brightness_fn = lp55xx_multicolor_brightness,
-	.set_led_current    = lp5521_set_led_current,
+	.set_led_current    = lp55xx_set_led_current,
 	.firmware_cb        = lp55xx_firmware_loaded_cb,
 	.run_engine         = lp5521_run_engine,
 	.dev_attr_group     = &lp5521_group,

@@ -122,13 +122,6 @@ static inline void lp5523_wait_opmode_done(void)
 	usleep_range(1000, 2000);
 }
 
-static void lp5523_set_led_current(struct lp55xx_led *led, u8 led_current)
-{
-	led->led_current = led_current;
-	lp55xx_write(led->chip, LP5523_REG_LED_CURRENT_BASE + led->chan_nr,
-		led_current);
-}
-
 static int lp5523_post_init_device(struct lp55xx_chip *chip)
 {
 	int ret;
@@ -731,12 +724,15 @@ static struct lp55xx_device_config lp5523_cfg = {
 	.reg_led_pwm_base = {
 		.addr = LP5523_REG_LED_PWM_BASE,
 	},
+	.reg_led_current_base = {
+		.addr = LP5523_REG_LED_CURRENT_BASE,
+	},
 	.pages_per_engine   = LP5523_PAGES_PER_ENGINE,
 	.max_channel  = LP5523_MAX_LEDS,
 	.post_init_device   = lp5523_post_init_device,
 	.brightness_fn      = lp55xx_led_brightness,
 	.multicolor_brightness_fn = lp55xx_multicolor_brightness,
-	.set_led_current    = lp5523_set_led_current,
+	.set_led_current    = lp55xx_set_led_current,
 	.firmware_cb        = lp55xx_firmware_loaded_cb,
 	.run_engine         = lp5523_run_engine,
 	.dev_attr_group     = &lp5523_group,

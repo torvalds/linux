@@ -84,13 +84,6 @@ static inline void lp8501_wait_opmode_done(void)
 	usleep_range(1000, 2000);
 }
 
-static void lp8501_set_led_current(struct lp55xx_led *led, u8 led_current)
-{
-	led->led_current = led_current;
-	lp55xx_write(led->chip, LP8501_REG_LED_CURRENT_BASE + led->chan_nr,
-		led_current);
-}
-
 static int lp8501_post_init_device(struct lp55xx_chip *chip)
 {
 	int ret;
@@ -163,11 +156,14 @@ static struct lp55xx_device_config lp8501_cfg = {
 	.reg_led_pwm_base = {
 		.addr = LP8501_REG_LED_PWM_BASE,
 	},
+	.reg_led_current_base = {
+		.addr = LP8501_REG_LED_CURRENT_BASE,
+	},
 	.pages_per_engine   = LP8501_PAGES_PER_ENGINE,
 	.max_channel  = LP8501_MAX_LEDS,
 	.post_init_device   = lp8501_post_init_device,
 	.brightness_fn      = lp55xx_led_brightness,
-	.set_led_current    = lp8501_set_led_current,
+	.set_led_current    = lp55xx_set_led_current,
 	.firmware_cb        = lp55xx_firmware_loaded_cb,
 	.run_engine         = lp8501_run_engine,
 };

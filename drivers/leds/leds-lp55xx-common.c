@@ -277,6 +277,17 @@ int lp55xx_multicolor_brightness(struct lp55xx_led *led)
 }
 EXPORT_SYMBOL_GPL(lp55xx_multicolor_brightness);
 
+void lp55xx_set_led_current(struct lp55xx_led *led, u8 led_current)
+{
+	struct lp55xx_chip *chip = led->chip;
+	const struct lp55xx_device_config *cfg = chip->cfg;
+
+	led->led_current = led_current;
+	lp55xx_write(led->chip, cfg->reg_led_current_base.addr + led->chan_nr,
+		     led_current);
+}
+EXPORT_SYMBOL_GPL(lp55xx_set_led_current);
+
 static void lp55xx_reset_device(struct lp55xx_chip *chip)
 {
 	const struct lp55xx_device_config *cfg = chip->cfg;
