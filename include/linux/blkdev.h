@@ -347,7 +347,7 @@ enum {
 	BLK_FLAG_WRITE_CACHE_DISABLED		= (1u << 0),
 
 	/* I/O topology is misaligned */
-	BLK_FEAT_MISALIGNED			= (1u << 1),
+	BLK_FLAG_MISALIGNED			= (1u << 1),
 };
 
 struct queue_limits {
