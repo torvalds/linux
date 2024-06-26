@@ -41,7 +41,10 @@
 #define LP5523_REG_LED_PWM_BASE		0x16
 #define LP5523_REG_LED_CURRENT_BASE	0x26
 #define LP5523_REG_CONFIG		0x36
+
 #define LP5523_REG_STATUS		0x3A
+#define LP5523_ENGINE_BUSY		BIT(4)
+
 #define LP5523_REG_RESET		0x3D
 #define LP5523_REG_LED_TEST_CTRL	0x41
 #define LP5523_REG_LED_TEST_ADC		0x42
@@ -190,12 +193,6 @@ static void lp5523_load_engine_and_select_page(struct lp55xx_chip *chip)
 	lp55xx_write(chip, LP5523_REG_PROG_PAGE_SEL, page_sel[idx]);
 }
 
-static void lp5523_stop_all_engines(struct lp55xx_chip *chip)
-{
-	lp55xx_write(chip, LP5523_REG_OP_MODE, 0);
-	lp5523_wait_opmode_done();
-}
-
 static void lp5523_stop_engine(struct lp55xx_chip *chip)
 {
 	enum lp55xx_engine_index idx = chip->engine_idx;
@@ -322,7 +319,7 @@ static int lp5523_init_program_engine(struct lp55xx_chip *chip)
 	}
 
 out:
-	lp5523_stop_all_engines(chip);
+	lp55xx_stop_all_engine(chip);
 	return ret;
 }
 
@@ -873,6 +870,13 @@ static const struct attribute_group lp5523_group = {
 
 /* Chip specific configurations */
 static struct lp55xx_device_config lp5523_cfg = {
+	.reg_op_mode = {
+		.addr = LP5523_REG_OP_MODE,
+	},
+	.engine_busy = {
+		.addr = LP5523_REG_STATUS,
+		.mask  = LP5523_ENGINE_BUSY,
+	},
 	.reset = {
 		.addr = LP5523_REG_RESET,
 		.val  = LP5523_RESET,
@@ -959,7 +963,7 @@ static void lp5523_remove(struct i2c_client *client)
 	struct lp55xx_led *led = i2c_get_clientdata(client);
 	struct lp55xx_chip *chip = led->chip;
 
-	lp5523_stop_all_engines(chip);
+	lp55xx_stop_all_engine(chip);
 	lp55xx_unregister_sysfs(chip);
 	lp55xx_deinit_device(chip);
 }

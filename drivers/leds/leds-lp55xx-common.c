@@ -13,6 +13,7 @@
 #include <linux/delay.h>
 #include <linux/firmware.h>
 #include <linux/i2c.h>
+#include <linux/iopoll.h>
 #include <linux/leds.h>
 #include <linux/module.h>
 #include <linux/platform_data/leds-lp55xx.h>
@@ -21,6 +22,12 @@
 #include <dt-bindings/leds/leds-lp55xx.h>
 
 #include "leds-lp55xx-common.h"
+
+/* OP MODE require at least 153 us to clear regs */
+#define LP55XX_CMD_SLEEP		200
+
+/* Program Commands */
+#define LP55xx_MODE_DISABLE_ALL_ENG	0x0
 
 /* External clock rate */
 #define LP55XX_CLK_32K			32768
@@ -39,6 +46,35 @@ static struct lp55xx_led *mcled_cdev_to_led(struct led_classdev_mc *mc_cdev)
 {
 	return container_of(mc_cdev, struct lp55xx_led, mc_cdev);
 }
+
+static void lp55xx_wait_opmode_done(struct lp55xx_chip *chip)
+{
+	struct lp55xx_device_config *cfg = chip->cfg;
+	int __always_unused ret;
+	u8 val;
+
+	/*
+	 * Recent chip supports BUSY bit for engine.
+	 * Check support by checking if val is not 0.
+	 * For legacy device, sleep at least 153 us.
+	 */
+	if (cfg->engine_busy.val) {
+		read_poll_timeout(lp55xx_read, ret, !(val & cfg->engine_busy.mask),
+				  LP55XX_CMD_SLEEP, LP55XX_CMD_SLEEP * 10, false,
+				  chip, cfg->engine_busy.addr, &val);
+	} else {
+		usleep_range(LP55XX_CMD_SLEEP, LP55XX_CMD_SLEEP * 2);
+	}
+}
+
+void lp55xx_stop_all_engine(struct lp55xx_chip *chip)
+{
+	struct lp55xx_device_config *cfg = chip->cfg;
+
+	lp55xx_write(chip, cfg->reg_op_mode.addr, LP55xx_MODE_DISABLE_ALL_ENG);
+	lp55xx_wait_opmode_done(chip);
+}
+EXPORT_SYMBOL_GPL(lp55xx_stop_all_engine);
 
 static void lp55xx_reset_device(struct lp55xx_chip *chip)
 {

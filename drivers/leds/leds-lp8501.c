@@ -58,6 +58,9 @@
 #define LP8501_INT_CLK			BIT(0)
 #define LP8501_DEFAULT_CFG (LP8501_PWM_PSAVE | LP8501_AUTO_INC | LP8501_PWR_SAVE)
 
+#define LP8501_REG_STATUS		0x3A
+#define LP8501_ENGINE_BUSY		BIT(4)
+
 #define LP8501_REG_RESET		0x3D
 #define LP8501_RESET			0xFF
 
@@ -141,12 +144,6 @@ static void lp8501_load_engine(struct lp55xx_chip *chip)
 	lp55xx_write(chip, LP8501_REG_PROG_PAGE_SEL, page_sel[idx]);
 }
 
-static void lp8501_stop_engine(struct lp55xx_chip *chip)
-{
-	lp55xx_write(chip, LP8501_REG_OP_MODE, 0);
-	lp8501_wait_opmode_done();
-}
-
 static void lp8501_turn_off_channels(struct lp55xx_chip *chip)
 {
 	int i;
@@ -163,7 +160,7 @@ static void lp8501_run_engine(struct lp55xx_chip *chip, bool start)
 
 	/* stop engine */
 	if (!start) {
-		lp8501_stop_engine(chip);
+		lp55xx_stop_all_engine(chip);
 		lp8501_turn_off_channels(chip);
 		return;
 	}
@@ -285,6 +282,13 @@ static int lp8501_led_brightness(struct lp55xx_led *led)
 
 /* Chip specific configurations */
 static struct lp55xx_device_config lp8501_cfg = {
+	.reg_op_mode = {
+		.addr = LP8501_REG_OP_MODE,
+	},
+	.engine_busy = {
+		.addr = LP8501_REG_STATUS,
+		.maks = LP8501_ENGINE_BUSY,
+	},
 	.reset = {
 		.addr = LP8501_REG_RESET,
 		.val  = LP8501_RESET,
@@ -369,7 +373,7 @@ static void lp8501_remove(struct i2c_client *client)
 	struct lp55xx_led *led = i2c_get_clientdata(client);
 	struct lp55xx_chip *chip = led->chip;
 
-	lp8501_stop_engine(chip);
+	lp55xx_stop_all_engine(chip);
 	lp55xx_unregister_sysfs(chip);
 	lp55xx_deinit_device(chip);
 }

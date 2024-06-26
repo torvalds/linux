@@ -135,12 +135,6 @@ static void lp5521_load_engine(struct lp55xx_chip *chip)
 	lp5521_wait_opmode_done();
 }
 
-static void lp5521_stop_all_engines(struct lp55xx_chip *chip)
-{
-	lp55xx_write(chip, LP5521_REG_OP_MODE, 0);
-	lp5521_wait_opmode_done();
-}
-
 static void lp5521_stop_engine(struct lp55xx_chip *chip)
 {
 	enum lp55xx_engine_index idx = chip->engine_idx;
@@ -499,6 +493,9 @@ static const struct attribute_group lp5521_group = {
 
 /* Chip specific configurations */
 static struct lp55xx_device_config lp5521_cfg = {
+	.reg_op_mode = {
+		.addr = LP5521_REG_OP_MODE,
+	},
 	.reset = {
 		.addr = LP5521_REG_RESET,
 		.val  = LP5521_RESET,
@@ -585,7 +582,7 @@ static void lp5521_remove(struct i2c_client *client)
 	struct lp55xx_led *led = i2c_get_clientdata(client);
 	struct lp55xx_chip *chip = led->chip;
 
-	lp5521_stop_all_engines(chip);
+	lp55xx_stop_all_engine(chip);
 	lp55xx_unregister_sysfs(chip);
 	lp55xx_deinit_device(chip);
 }
