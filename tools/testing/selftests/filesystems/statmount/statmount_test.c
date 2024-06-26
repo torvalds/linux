@@ -107,6 +107,7 @@ static char root_mntpoint[] = "/tmp/statmount_test_root.XXXXXX";
 static int orig_root;
 static uint64_t root_id, parent_id;
 static uint32_t old_root_id, old_parent_id;
+static FILE *f_mountinfo;
 
 static void cleanup_namespace(void)
 {
@@ -133,6 +134,11 @@ static void setup_namespace(void)
 	write_file("/proc/self/setgroups", "deny");
 	sprintf(buf, "0 %d 1", gid);
 	write_file("/proc/self/gid_map", buf);
+
+	f_mountinfo = fopen("/proc/self/mountinfo", "re");
+	if (!f_mountinfo)
+		ksft_exit_fail_msg("failed to open mountinfo: %s\n",
+				   strerror(errno));
 
 	ret = mount("", "/", NULL, MS_REC|MS_PRIVATE, NULL);
 	if (ret == -1)
@@ -435,6 +441,88 @@ static void test_statmount_fs_type(void)
 	free(sm);
 }
 
+static void test_statmount_mnt_opts(void)
+{
+	struct statmount *sm;
+	const char *statmount_opts;
+	char *line = NULL;
+	size_t len = 0;
+
+	sm = statmount_alloc(root_id, STATMOUNT_MNT_BASIC | STATMOUNT_MNT_OPTS,
+			     0);
+	if (!sm) {
+		ksft_test_result_fail("statmount mnt opts: %s\n",
+				      strerror(errno));
+		return;
+	}
+
+	while (getline(&line, &len, f_mountinfo) != -1) {
+		int i;
+		char *p, *p2;
+		unsigned int old_mnt_id;
+
+		old_mnt_id = atoi(line);
+		if (old_mnt_id != sm->mnt_id_old)
+			continue;
+
+		for (p = line, i = 0; p && i < 5; i++)
+			p = strchr(p + 1, ' ');
+		if (!p)
+			continue;
+
+		p2 = strchr(p + 1, ' ');
+		if (!p2)
+			continue;
+		*p2 = '\0';
+		p = strchr(p2 + 1, '-');
+		if (!p)
+			continue;
+		for (p++, i = 0; p && i < 2; i++)
+			p = strchr(p + 1, ' ');
+		if (!p)
+			continue;
+		p++;
+
+		/* skip generic superblock options */
+		if (strncmp(p, "ro", 2) == 0)
+			p += 2;
+		else if (strncmp(p, "rw", 2) == 0)
+			p += 2;
+		if (*p == ',')
+			p++;
+		if (strncmp(p, "sync", 4) == 0)
+			p += 4;
+		if (*p == ',')
+			p++;
+		if (strncmp(p, "dirsync", 7) == 0)
+			p += 7;
+		if (*p == ',')
+			p++;
+		if (strncmp(p, "lazytime", 8) == 0)
+			p += 8;
+		if (*p == ',')
+			p++;
+		p2 = strrchr(p, '\n');
+		if (p2)
+			*p2 = '\0';
+
+		statmount_opts = sm->str + sm->mnt_opts;
+		if (strcmp(statmount_opts, p) != 0)
+			ksft_test_result_fail(
+				"unexpected mount options: '%s' != '%s'\n",
+				statmount_opts, p);
+		else
+			ksft_test_result_pass("statmount mount options\n");
+		free(sm);
+		free(line);
+		return;
+	}
+
+	ksft_test_result_fail("didnt't find mount entry\n");
+	free(sm);
+	free(line);
+}
+
 static void test_statmount_string(uint64_t mask, size_t off, const char *name)
 {
 	struct statmount *sm;
@@ -561,7 +649,7 @@ int main(void)
 
 	setup_namespace();
 
-	ksft_set_plan(14);
+	ksft_set_plan(15);
 	test_listmount_empty_root();
 	test_statmount_zero_mask();
 	test_statmount_mnt_basic();
@@ -569,6 +657,7 @@ int main(void)
 	test_statmount_mnt_root();
 	test_statmount_mnt_point();
 	test_statmount_fs_type();
+	test_statmount_mnt_opts();
 	test_statmount_string(STATMOUNT_MNT_ROOT, str_off(mnt_root), "mount root");
 	test_statmount_string(STATMOUNT_MNT_POINT, str_off(mnt_point), "mount point");
 	test_statmount_string(STATMOUNT_FS_TYPE, str_off(fs_type), "fs type");

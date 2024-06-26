@@ -4980,6 +4980,34 @@ static void statmount_mnt_ns_id(struct kstatmount *s, struct mnt_namespace *ns)
 	s->sm.mnt_ns_id = ns->seq;
 }
 
+static int statmount_mnt_opts(struct kstatmount *s, struct seq_file *seq)
+{
+	struct vfsmount *mnt = s->mnt;
+	struct super_block *sb = mnt->mnt_sb;
+	int err;
+
+	if (sb->s_op->show_options) {
+		size_t start = seq->count;
+
+		err = sb->s_op->show_options(seq, mnt->mnt_root);
+		if (err)
+			return err;
+
+		if (unlikely(seq_has_overflowed(seq)))
+			return -EAGAIN;
+
+		if (seq->count == start)
+			return 0;
+
+		/* skip leading comma */
+		memmove(seq->buf + start, seq->buf + start + 1,
+			seq->count - start - 1);
+		seq->count--;
+	}
+
+	return 0;
+}
+
 static int statmount_string(struct kstatmount *s, u64 flag)
 {
 	int ret;
@@ -4999,6 +5027,10 @@ static int statmount_string(struct kstatmount *s, u64 flag)
 	case STATMOUNT_MNT_POINT:
 		sm->mnt_point = seq->count;
 		ret = statmount_mnt_point(s, seq);
+		break;
+	case STATMOUNT_MNT_OPTS:
+		sm->mnt_opts = seq->count;
+		ret = statmount_mnt_opts(s, seq);
 		break;
 	default:
 		WARN_ON_ONCE(true);
@@ -5130,6 +5162,9 @@ static int do_statmount(struct kstatmount *s, u64 mnt_id, u64 mnt_ns_id,
 	if (!err && s->mask & STATMOUNT_MNT_POINT)
 		err = statmount_string(s, STATMOUNT_MNT_POINT);
 
+	if (!err && s->mask & STATMOUNT_MNT_OPTS)
+		err = statmount_string(s, STATMOUNT_MNT_OPTS);
+
 	if (!err && s->mask & STATMOUNT_MNT_NS_ID)
 		statmount_mnt_ns_id(s, ns);
 
@@ -5151,7 +5186,7 @@ static inline bool retry_statmount(const long ret, size_t *seq_size)
 }
 
 #define STATMOUNT_STRING_REQ (STATMOUNT_MNT_ROOT | STATMOUNT_MNT_POINT | \
-			      STATMOUNT_FS_TYPE)
+			      STATMOUNT_FS_TYPE | STATMOUNT_MNT_OPTS)
 
 static int prepare_kstatmount(struct kstatmount *ks, struct mnt_id_req *kreq,
 			      struct statmount __user *buf, size_t bufsize,
