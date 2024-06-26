@@ -317,6 +317,263 @@ out_unlock:
 }
 
 /**
+ * mpi3mr_process_trigger - Generic HDB Trigger handler
+ * @mrioc: Adapter instance reference
+ * @trigger_type: Trigger type
+ * @trigger_data: Trigger data
+ * @trigger_flags: Trigger flags
+ *
+ * This function checks validity of HDB, triggers and based on
+ * trigger information, creates an event to be processed in the
+ * firmware event worker thread .
+ *
+ * This function should be called with trigger spinlock held
+ *
+ * Return: Nothing
+ */
+static void mpi3mr_process_trigger(struct mpi3mr_ioc *mrioc, u8 trigger_type,
+	union mpi3mr_trigger_data *trigger_data, u8 trigger_flags)
+{
+	struct trigger_event_data event_data;
+	struct diag_buffer_desc *trace_hdb = NULL;
+	struct diag_buffer_desc *fw_hdb = NULL;
+	u64 global_trigger;
+
+	trace_hdb = mpi3mr_diag_buffer_for_type(mrioc,
+	    MPI3_DIAG_BUFFER_TYPE_TRACE);
+	if (trace_hdb &&
+	    (trace_hdb->status != MPI3MR_HDB_BUFSTATUS_POSTED_UNPAUSED) &&
+	    (trace_hdb->status != MPI3MR_HDB_BUFSTATUS_POSTED_PAUSED))
+		trace_hdb =  NULL;
+
+	fw_hdb = mpi3mr_diag_buffer_for_type(mrioc, MPI3_DIAG_BUFFER_TYPE_FW);
+
+	if (fw_hdb &&
+	    (fw_hdb->status != MPI3MR_HDB_BUFSTATUS_POSTED_UNPAUSED) &&
+	    (fw_hdb->status != MPI3MR_HDB_BUFSTATUS_POSTED_PAUSED))
+		fw_hdb = NULL;
+
+	if (mrioc->snapdump_trigger_active || (mrioc->fw_release_trigger_active
+	    && mrioc->trace_release_trigger_active) ||
+	    (!trace_hdb && !fw_hdb) || (!mrioc->driver_pg2) ||
+	    ((trigger_type == MPI3MR_HDB_TRIGGER_TYPE_ELEMENT)
+	     && (!mrioc->driver_pg2->num_triggers)))
+		return;
+
+	memset(&event_data, 0, sizeof(event_data));
+	event_data.trigger_type = trigger_type;
+	memcpy(&event_data.trigger_specific_data, trigger_data,
+	    sizeof(*trigger_data));
+	global_trigger = le64_to_cpu(mrioc->driver_pg2->global_trigger);
+
+	if (global_trigger & MPI3_DRIVER2_GLOBALTRIGGER_SNAPDUMP_ENABLED) {
+		event_data.snapdump = true;
+		event_data.trace_hdb = trace_hdb;
+		event_data.fw_hdb = fw_hdb;
+		mrioc->snapdump_trigger_active = true;
+	} else if (trigger_type == MPI3MR_HDB_TRIGGER_TYPE_GLOBAL) {
+		if ((trace_hdb) && (global_trigger &
+		    MPI3_DRIVER2_GLOBALTRIGGER_DIAG_TRACE_RELEASE) &&
+		    (!mrioc->trace_release_trigger_active)) {
+			event_data.trace_hdb = trace_hdb;
+			mrioc->trace_release_trigger_active = true;
+		}
+		if ((fw_hdb) && (global_trigger &
+		    MPI3_DRIVER2_GLOBALTRIGGER_DIAG_FW_RELEASE) &&
+		    (!mrioc->fw_release_trigger_active)) {
+			event_data.fw_hdb = fw_hdb;
+			mrioc->fw_release_trigger_active = true;
+		}
+	} else if (trigger_type == MPI3MR_HDB_TRIGGER_TYPE_ELEMENT) {
+		if ((trace_hdb) && (trigger_flags &
+		    MPI3_DRIVER2_TRIGGER_FLAGS_DIAG_TRACE_RELEASE) &&
+		    (!mrioc->trace_release_trigger_active)) {
+			event_data.trace_hdb = trace_hdb;
+			mrioc->trace_release_trigger_active = true;
+		}
+		if ((fw_hdb) && (trigger_flags &
+		    MPI3_DRIVER2_TRIGGER_FLAGS_DIAG_FW_RELEASE) &&
+		    (!mrioc->fw_release_trigger_active)) {
+			event_data.fw_hdb = fw_hdb;
+			mrioc->fw_release_trigger_active = true;
+		}
+	}
+
+	if (event_data.trace_hdb || event_data.fw_hdb)
+		mpi3mr_hdb_trigger_data_event(mrioc, &event_data);
+}
+
+/**
+ * mpi3mr_global_trigger - Global HDB trigger handler
+ * @mrioc: Adapter instance reference
+ * @trigger_data: Trigger data
+ *
+ * This function checks whether the given global trigger is
+ * enabled in the driver page 2 and if so calls generic trigger
+ * handler to queue event for HDB release.
+ *
+ * Return: Nothing
+ */
+void mpi3mr_global_trigger(struct mpi3mr_ioc *mrioc, u64 trigger_data)
+{
+	unsigned long flags;
+	union mpi3mr_trigger_data trigger_specific_data;
+
+	spin_lock_irqsave(&mrioc->trigger_lock, flags);
+	if (le64_to_cpu(mrioc->driver_pg2->global_trigger) & trigger_data) {
+		memset(&trigger_specific_data, 0,
+		    sizeof(trigger_specific_data));
+		trigger_specific_data.global = trigger_data;
+		mpi3mr_process_trigger(mrioc, MPI3MR_HDB_TRIGGER_TYPE_GLOBAL,
+		    &trigger_specific_data, 0);
+	}
+	spin_unlock_irqrestore(&mrioc->trigger_lock, flags);
+}
+
+/**
+ * mpi3mr_scsisense_trigger - SCSI sense HDB trigger handler
+ * @mrioc: Adapter instance reference
+ * @sensekey: Sense Key
+ * @asc: Additional Sense Code
+ * @ascq: Additional Sense Code Qualifier
+ *
+ * This function compares SCSI sense trigger values with driver
+ * page 2 values and calls generic trigger handler to release
+ * HDBs if match found
+ *
+ * Return: Nothing
+ */
+void mpi3mr_scsisense_trigger(struct mpi3mr_ioc *mrioc, u8 sensekey, u8 asc,
+	u8 ascq)
+{
+	struct mpi3_driver2_trigger_scsi_sense *scsi_sense_trigger = NULL;
+	u64 i = 0;
+	unsigned long flags;
+	u8 num_triggers, trigger_flags;
+
+	if (mrioc->scsisense_trigger_present) {
+		spin_lock_irqsave(&mrioc->trigger_lock, flags);
+		scsi_sense_trigger = (struct mpi3_driver2_trigger_scsi_sense *)
+			mrioc->driver_pg2->trigger;
+		num_triggers = mrioc->driver_pg2->num_triggers;
+		for (i = 0; i < num_triggers; i++, scsi_sense_trigger++) {
+			if (scsi_sense_trigger->type !=
+			    MPI3_DRIVER2_TRIGGER_TYPE_SCSI_SENSE)
+				continue;
+			if (!(scsi_sense_trigger->sense_key ==
+			    MPI3_DRIVER2_TRIGGER_SCSI_SENSE_SENSE_KEY_MATCH_ALL
+			      || scsi_sense_trigger->sense_key == sensekey))
+				continue;
+			if (!(scsi_sense_trigger->asc ==
+			    MPI3_DRIVER2_TRIGGER_SCSI_SENSE_ASC_MATCH_ALL ||
+			    scsi_sense_trigger->asc == asc))
+				continue;
+			if (!(scsi_sense_trigger->ascq ==
+			    MPI3_DRIVER2_TRIGGER_SCSI_SENSE_ASCQ_MATCH_ALL ||
+			    scsi_sense_trigger->ascq == ascq))
+				continue;
+			trigger_flags = scsi_sense_trigger->flags;
+			mpi3mr_process_trigger(mrioc,
+			    MPI3MR_HDB_TRIGGER_TYPE_ELEMENT,
+			    (union mpi3mr_trigger_data *)scsi_sense_trigger,
+			    trigger_flags);
+			break;
+		}
+		spin_unlock_irqrestore(&mrioc->trigger_lock, flags);
+	}
+}
+
+/**
+ * mpi3mr_event_trigger - MPI event HDB trigger handler
+ * @mrioc: Adapter instance reference
+ * @event: MPI Event
+ *
+ * This function compares event trigger values with driver page
+ * 2 values and calls generic trigger handler to release
+ * HDBs if match found.
+ *
+ * Return: Nothing
+ */
+void mpi3mr_event_trigger(struct mpi3mr_ioc *mrioc, u8 event)
+{
+	struct mpi3_driver2_trigger_event *event_trigger = NULL;
+	u64 i = 0;
+	unsigned long flags;
+	u8 num_triggers, trigger_flags;
+
+	if (mrioc->event_trigger_present) {
+		spin_lock_irqsave(&mrioc->trigger_lock, flags);
+		event_trigger = (struct mpi3_driver2_trigger_event *)
+			mrioc->driver_pg2->trigger;
+		num_triggers = mrioc->driver_pg2->num_triggers;
+
+		for (i = 0; i < num_triggers; i++, event_trigger++) {
+			if (event_trigger->type !=
+			    MPI3_DRIVER2_TRIGGER_TYPE_EVENT)
+				continue;
+			if (event_trigger->event != event)
+				continue;
+			trigger_flags = event_trigger->flags;
+			mpi3mr_process_trigger(mrioc,
+			    MPI3MR_HDB_TRIGGER_TYPE_ELEMENT,
+			    (union mpi3mr_trigger_data *)event_trigger,
+			    trigger_flags);
+			break;
+		}
+		spin_unlock_irqrestore(&mrioc->trigger_lock, flags);
+	}
+}
+
+/**
+ * mpi3mr_reply_trigger - MPI Reply HDB trigger handler
+ * @mrioc: Adapter instance reference
+ * @ioc_status: Masked value of IOC Status from MPI Reply
+ * @ioc_loginfo: IOC Log Info from MPI Reply
+ *
+ * This function compares IOC status and IOC log info trigger
+ * values with driver page 2 values and calls generic trigger
+ * handler to release HDBs if match found.
+ *
+ * Return: Nothing
+ */
+void mpi3mr_reply_trigger(struct mpi3mr_ioc *mrioc, u16 ioc_status,
+	u32 ioc_loginfo)
+{
+	struct mpi3_driver2_trigger_reply *reply_trigger = NULL;
+	u64 i = 0;
+	unsigned long flags;
+	u8 num_triggers, trigger_flags;
+
+	if (mrioc->reply_trigger_present) {
+		spin_lock_irqsave(&mrioc->trigger_lock, flags);
+		reply_trigger = (struct mpi3_driver2_trigger_reply *)
+			mrioc->driver_pg2->trigger;
+		num_triggers = mrioc->driver_pg2->num_triggers;
+		for (i = 0; i < num_triggers; i++, reply_trigger++) {
+			if (reply_trigger->type !=
+			    MPI3_DRIVER2_TRIGGER_TYPE_REPLY)
+				continue;
+			if ((le16_to_cpu(reply_trigger->ioc_status) !=
+			     ioc_status)
+			    && (le16_to_cpu(reply_trigger->ioc_status) !=
+			    MPI3_DRIVER2_TRIGGER_REPLY_IOCSTATUS_MATCH_ALL))
+				continue;
+			if ((le32_to_cpu(reply_trigger->ioc_log_info) !=
+			    (le32_to_cpu(reply_trigger->ioc_log_info_mask) &
+			     ioc_loginfo)))
+				continue;
+			trigger_flags = reply_trigger->flags;
+			mpi3mr_process_trigger(mrioc,
+			    MPI3MR_HDB_TRIGGER_TYPE_ELEMENT,
+			    (union mpi3mr_trigger_data *)reply_trigger,
+			    trigger_flags);
+			break;
+		}
+		spin_unlock_irqrestore(&mrioc->trigger_lock, flags);
+	}
+}
+
+/**
  * mpi3mr_get_num_trigger - Gets number of HDB triggers
  * @mrioc: Adapter instance reference
  * @num_triggers: Number of triggers
@@ -449,7 +706,7 @@ void mpi3mr_release_diag_bufs(struct mpi3mr_ioc *mrioc, u8 skip_rel_action)
  * @type: Trigger type
  * @data: Trigger data
  * @force: Trigger overwrite flag
- * @trigger_data: pointer to trigger data information
+ * @trigger_data: Pointer to trigger data information
  *
  * Updates trigger type and trigger data based on parameter
  * passed to this function
@@ -466,6 +723,84 @@ void mpi3mr_set_trigger_data_in_hdb(struct diag_buffer_desc *hdb,
 		memset(&hdb->trigger_data, 0, sizeof(*trigger_data));
 	else
 		memcpy(&hdb->trigger_data, trigger_data, sizeof(*trigger_data));
+}
+
+/**
+ * mpi3mr_set_trigger_data_in_all_hdb - Updates HDB trigger type
+ * and trigger data for all HDB
+ *
+ * @mrioc: Adapter instance reference
+ * @type: Trigger type
+ * @data: Trigger data
+ * @force: Trigger overwrite flag
+ * @trigger_data: Pointer to trigger data information
+ *
+ * Updates trigger type and trigger data based on parameter
+ * passed to this function
+ *
+ * Return: Nothing
+ */
+void mpi3mr_set_trigger_data_in_all_hdb(struct mpi3mr_ioc *mrioc,
+	u8 type, union mpi3mr_trigger_data *trigger_data, bool force)
+{
+	struct diag_buffer_desc *hdb = NULL;
+
+	hdb = mpi3mr_diag_buffer_for_type(mrioc, MPI3_DIAG_BUFFER_TYPE_TRACE);
+	if (hdb)
+		mpi3mr_set_trigger_data_in_hdb(hdb, type, trigger_data, force);
+	hdb = mpi3mr_diag_buffer_for_type(mrioc, MPI3_DIAG_BUFFER_TYPE_FW);
+	if (hdb)
+		mpi3mr_set_trigger_data_in_hdb(hdb, type, trigger_data, force);
+}
+
+/**
+ * mpi3mr_hdbstatuschg_evt_th - HDB status change evt tophalf
+ * @mrioc: Adapter instance reference
+ * @event_reply: event data
+ *
+ * Modifies the status of the applicable diag buffer descriptors
+ *
+ * Return: Nothing
+ */
+void mpi3mr_hdbstatuschg_evt_th(struct mpi3mr_ioc *mrioc,
+	struct mpi3_event_notification_reply *event_reply)
+{
+	struct mpi3_event_data_diag_buffer_status_change *evtdata;
+	struct diag_buffer_desc *diag_buffer;
+
+	evtdata = (struct mpi3_event_data_diag_buffer_status_change *)
+	    event_reply->event_data;
+
+	diag_buffer = mpi3mr_diag_buffer_for_type(mrioc, evtdata->type);
+	if (!diag_buffer)
+		return;
+	if ((diag_buffer->status != MPI3MR_HDB_BUFSTATUS_POSTED_UNPAUSED) &&
+	    (diag_buffer->status != MPI3MR_HDB_BUFSTATUS_POSTED_PAUSED))
+		return;
+	switch (evtdata->reason_code) {
+	case MPI3_EVENT_DIAG_BUFFER_STATUS_CHANGE_RC_RELEASED:
+	{
+		diag_buffer->status = MPI3MR_HDB_BUFSTATUS_RELEASED;
+		mpi3mr_set_trigger_data_in_hdb(diag_buffer,
+		    MPI3MR_HDB_TRIGGER_TYPE_FW_RELEASED, NULL, 0);
+		atomic64_inc(&event_counter);
+		break;
+	}
+	case MPI3_EVENT_DIAG_BUFFER_STATUS_CHANGE_RC_RESUMED:
+	{
+		diag_buffer->status = MPI3MR_HDB_BUFSTATUS_POSTED_UNPAUSED;
+		break;
+	}
+	case MPI3_EVENT_DIAG_BUFFER_STATUS_CHANGE_RC_PAUSED:
+	{
+		diag_buffer->status = MPI3MR_HDB_BUFSTATUS_POSTED_PAUSED;
+		break;
+	}
+	default:
+		dprint_event_th(mrioc, "%s: unknown reason_code(%d)\n",
+		    __func__, evtdata->reason_code);
+		break;
+	}
 }
 
 /**
