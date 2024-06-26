@@ -1107,37 +1107,37 @@ static void sym_check_print_recursive(struct symbol *last_sym)
 				prop->filename, prop->lineno);
 
 		if (sym_is_choice(next_sym)) {
-			fprintf(stderr, "%s:%d:\tsymbol %s is part of choice %s\n",
+			choice = list_first_entry(&next_sym->menus, struct menu, link);
+
+			fprintf(stderr, "%s:%d:\tsymbol %s is part of choice block at %s:%d\n",
 				menu->filename, menu->lineno,
 				sym->name ? sym->name : "<choice>",
-				next_sym->name ? next_sym->name : "<choice>");
+				choice->filename, choice->lineno);
 		} else if (stack->expr == &sym->dir_dep.expr) {
 			fprintf(stderr, "%s:%d:\tsymbol %s depends on %s\n",
 				prop->filename, prop->lineno,
 				sym->name ? sym->name : "<choice>",
-				next_sym->name ? next_sym->name : "<choice>");
+				next_sym->name);
 		} else if (stack->expr == &sym->rev_dep.expr) {
 			fprintf(stderr, "%s:%d:\tsymbol %s is selected by %s\n",
 				prop->filename, prop->lineno,
-				sym->name ? sym->name : "<choice>",
-				next_sym->name ? next_sym->name : "<choice>");
+				sym->name, next_sym->name);
 		} else if (stack->expr == &sym->implied.expr) {
 			fprintf(stderr, "%s:%d:\tsymbol %s is implied by %s\n",
 				prop->filename, prop->lineno,
-				sym->name ? sym->name : "<choice>",
-				next_sym->name ? next_sym->name : "<choice>");
+				sym->name, next_sym->name);
 		} else if (stack->expr) {
 			fprintf(stderr, "%s:%d:\tsymbol %s %s value contains %s\n",
 				prop->filename, prop->lineno,
 				sym->name ? sym->name : "<choice>",
 				prop_get_type_name(prop->type),
-				next_sym->name ? next_sym->name : "<choice>");
+				next_sym->name);
 		} else {
 			fprintf(stderr, "%s:%d:\tsymbol %s %s is visible depending on %s\n",
 				prop->filename, prop->lineno,
 				sym->name ? sym->name : "<choice>",
 				prop_get_type_name(prop->type),
-				next_sym->name ? next_sym->name : "<choice>");
+				next_sym->name);
 		}
 	}
 
