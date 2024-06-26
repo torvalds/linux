@@ -685,8 +685,14 @@ struct x86_hybrid_pmu {
 	union perf_capabilities		intel_cap;
 	u64				intel_ctrl;
 	u64				pebs_events_mask;
-	int				num_counters;
-	int				num_counters_fixed;
+	union {
+			u64		cntr_mask64;
+			unsigned long	cntr_mask[BITS_TO_LONGS(X86_PMC_IDX_MAX)];
+	};
+	union {
+			u64		fixed_cntr_mask64;
+			unsigned long	fixed_cntr_mask[BITS_TO_LONGS(X86_PMC_IDX_MAX)];
+	};
 	struct event_constraint		unconstrained;
 
 	u64				hw_cache_event_ids
@@ -774,8 +780,14 @@ struct x86_pmu {
 	int		(*rdpmc_index)(int index);
 	u64		(*event_map)(int);
 	int		max_events;
-	int		num_counters;
-	int		num_counters_fixed;
+	union {
+			u64		cntr_mask64;
+			unsigned long	cntr_mask[BITS_TO_LONGS(X86_PMC_IDX_MAX)];
+	};
+	union {
+			u64		fixed_cntr_mask64;
+			unsigned long	fixed_cntr_mask[BITS_TO_LONGS(X86_PMC_IDX_MAX)];
+	};
 	int		cntval_bits;
 	u64		cntval_mask;
 	union {
@@ -1125,8 +1137,8 @@ static inline int x86_pmu_rdpmc_index(int index)
 	return x86_pmu.rdpmc_index ? x86_pmu.rdpmc_index(index) : index;
 }
 
-bool check_hw_exists(struct pmu *pmu, int num_counters,
-		     int num_counters_fixed);
+bool check_hw_exists(struct pmu *pmu, unsigned long *cntr_mask,
+		     unsigned long *fixed_cntr_mask);
 
 int x86_add_exclusive(unsigned int what);
 
@@ -1197,8 +1209,27 @@ void x86_pmu_enable_event(struct perf_event *event);
 
 int x86_pmu_handle_irq(struct pt_regs *regs);
 
-void x86_pmu_show_pmu_cap(int num_counters, int num_counters_fixed,
-			  u64 intel_ctrl);
+void x86_pmu_show_pmu_cap(struct pmu *pmu);
+
+static inline int x86_pmu_num_counters(struct pmu *pmu)
+{
+	return hweight64(hybrid(pmu, cntr_mask64));
+}
+
+static inline int x86_pmu_max_num_counters(struct pmu *pmu)
+{
+	return fls64(hybrid(pmu, cntr_mask64));
+}
+
+static inline int x86_pmu_num_counters_fixed(struct pmu *pmu)
+{
+	return hweight64(hybrid(pmu, fixed_cntr_mask64));
+}
+
+static inline int x86_pmu_max_num_counters_fixed(struct pmu *pmu)
+{
+	return fls64(hybrid(pmu, fixed_cntr_mask64));
+}
 
 extern struct event_constraint emptyconstraint;
 

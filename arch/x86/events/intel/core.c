@@ -2874,23 +2874,23 @@ static void intel_pmu_reset(void)
 {
 	struct debug_store *ds = __this_cpu_read(cpu_hw_events.ds);
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
-	int num_counters_fixed = hybrid(cpuc->pmu, num_counters_fixed);
-	int num_counters = hybrid(cpuc->pmu, num_counters);
+	unsigned long *cntr_mask = hybrid(cpuc->pmu, cntr_mask);
+	unsigned long *fixed_cntr_mask = hybrid(cpuc->pmu, fixed_cntr_mask);
 	unsigned long flags;
 	int idx;
 
-	if (!num_counters)
+	if (!*(u64 *)cntr_mask)
 		return;
 
 	local_irq_save(flags);
 
 	pr_info("clearing PMU state on CPU#%d\n", smp_processor_id());
 
-	for (idx = 0; idx < num_counters; idx++) {
+	for_each_set_bit(idx, cntr_mask, INTEL_PMC_MAX_GENERIC) {
 		wrmsrl_safe(x86_pmu_config_addr(idx), 0ull);
 		wrmsrl_safe(x86_pmu_event_addr(idx),  0ull);
 	}
-	for (idx = 0; idx < num_counters_fixed; idx++) {
+	for_each_set_bit(idx, fixed_cntr_mask, INTEL_PMC_MAX_FIXED) {
 		if (fixed_counter_disabled(idx, cpuc->pmu))
 			continue;
 		wrmsrl_safe(MSR_ARCH_PERFMON_FIXED_CTR0 + idx, 0ull);
@@ -2940,8 +2940,7 @@ static void x86_pmu_handle_guest_pebs(struct pt_regs *regs,
 	    !guest_pebs_idxs)
 		return;
 
-	for_each_set_bit(bit, (unsigned long *)&guest_pebs_idxs,
-			 INTEL_PMC_IDX_FIXED + x86_pmu.num_counters_fixed) {
+	for_each_set_bit(bit, (unsigned long *)&guest_pebs_idxs, X86_PMC_IDX_MAX) {
 		event = cpuc->events[bit];
 		if (!event->attr.precise_ip)
 			continue;
@@ -4199,7 +4198,7 @@ static struct perf_guest_switch_msr *core_guest_get_msrs(int *nr, void *data)
 	struct perf_guest_switch_msr *arr = cpuc->guest_switch_msrs;
 	int idx;
 
-	for (idx = 0; idx < x86_pmu.num_counters; idx++)  {
+	for_each_set_bit(idx, x86_pmu.cntr_mask, X86_PMC_IDX_MAX) {
 		struct perf_event *event = cpuc->events[idx];
 
 		arr[idx].msr = x86_pmu_config_addr(idx);
@@ -4217,7 +4216,7 @@ static struct perf_guest_switch_msr *core_guest_get_msrs(int *nr, void *data)
 			arr[idx].guest &= ~ARCH_PERFMON_EVENTSEL_ENABLE;
 	}
 
-	*nr = x86_pmu.num_counters;
+	*nr = x86_pmu_max_num_counters(cpuc->pmu);
 	return arr;
 }
 
@@ -4232,7 +4231,7 @@ static void core_pmu_enable_all(int added)
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	int idx;
 
-	for (idx = 0; idx < x86_pmu.num_counters; idx++) {
+	for_each_set_bit(idx, x86_pmu.cntr_mask, X86_PMC_IDX_MAX) {
 		struct hw_perf_event *hwc = &cpuc->events[idx]->hw;
 
 		if (!test_bit(idx, cpuc->active_mask) ||
@@ -4684,13 +4683,33 @@ static void flip_smm_bit(void *data)
 	}
 }
 
-static void intel_pmu_check_num_counters(int *num_counters,
-					 int *num_counters_fixed,
-					 u64 *intel_ctrl, u64 fixed_mask);
+static void intel_pmu_check_counters_mask(u64 *cntr_mask,
+					  u64 *fixed_cntr_mask,
+					  u64 *intel_ctrl)
+{
+	unsigned int bit;
+
+	bit = fls64(*cntr_mask);
+	if (bit > INTEL_PMC_MAX_GENERIC) {
+		WARN(1, KERN_ERR "hw perf events %d > max(%d), clipping!",
+		     bit, INTEL_PMC_MAX_GENERIC);
+		*cntr_mask &= GENMASK_ULL(INTEL_PMC_MAX_GENERIC - 1, 0);
+	}
+	*intel_ctrl = *cntr_mask;
+
+	bit = fls64(*fixed_cntr_mask);
+	if (bit > INTEL_PMC_MAX_FIXED) {
+		WARN(1, KERN_ERR "hw perf events fixed %d > max(%d), clipping!",
+		     bit, INTEL_PMC_MAX_FIXED);
+		*fixed_cntr_mask &= GENMASK_ULL(INTEL_PMC_MAX_FIXED - 1, 0);
+	}
+
+	*intel_ctrl |= *fixed_cntr_mask << INTEL_PMC_IDX_FIXED;
+}
 
 static void intel_pmu_check_event_constraints(struct event_constraint *event_constraints,
-					      int num_counters,
-					      int num_counters_fixed,
+					      u64 cntr_mask,
+					      u64 fixed_cntr_mask,
 					      u64 intel_ctrl);
 
 static void intel_pmu_check_extra_regs(struct extra_reg *extra_regs);
@@ -4713,10 +4732,9 @@ static void update_pmu_cap(struct x86_hybrid_pmu *pmu)
 	if (sub_bitmaps & ARCH_PERFMON_NUM_COUNTER_LEAF_BIT) {
 		cpuid_count(ARCH_PERFMON_EXT_LEAF, ARCH_PERFMON_NUM_COUNTER_LEAF,
 			    &eax, &ebx, &ecx, &edx);
-		pmu->num_counters = fls(eax);
-		pmu->num_counters_fixed = fls(ebx);
+		pmu->cntr_mask64 = eax;
+		pmu->fixed_cntr_mask64 = ebx;
 	}
-
 
 	if (!intel_pmu_broken_perf_cap()) {
 		/* Perf Metric (Bit 15) and PEBS via PT (Bit 16) are hybrid enumeration */
@@ -4726,12 +4744,12 @@ static void update_pmu_cap(struct x86_hybrid_pmu *pmu)
 
 static void intel_pmu_check_hybrid_pmus(struct x86_hybrid_pmu *pmu)
 {
-	intel_pmu_check_num_counters(&pmu->num_counters, &pmu->num_counters_fixed,
-				     &pmu->intel_ctrl, (1ULL << pmu->num_counters_fixed) - 1);
-	pmu->pebs_events_mask = intel_pmu_pebs_mask(GENMASK_ULL(pmu->num_counters - 1, 0));
+	intel_pmu_check_counters_mask(&pmu->cntr_mask64, &pmu->fixed_cntr_mask64,
+				      &pmu->intel_ctrl);
+	pmu->pebs_events_mask = intel_pmu_pebs_mask(pmu->cntr_mask64);
 	pmu->unconstrained = (struct event_constraint)
-			     __EVENT_CONSTRAINT(0, (1ULL << pmu->num_counters) - 1,
-						0, pmu->num_counters, 0, 0);
+			     __EVENT_CONSTRAINT(0, pmu->cntr_mask64,
+						0, x86_pmu_num_counters(&pmu->pmu), 0, 0);
 
 	if (pmu->intel_cap.perf_metrics)
 		pmu->intel_ctrl |= 1ULL << GLOBAL_CTRL_EN_PERF_METRICS;
@@ -4744,8 +4762,8 @@ static void intel_pmu_check_hybrid_pmus(struct x86_hybrid_pmu *pmu)
 		pmu->pmu.capabilities &= ~PERF_PMU_CAP_AUX_OUTPUT;
 
 	intel_pmu_check_event_constraints(pmu->event_constraints,
-					  pmu->num_counters,
-					  pmu->num_counters_fixed,
+					  pmu->cntr_mask64,
+					  pmu->fixed_cntr_mask64,
 					  pmu->intel_ctrl);
 
 	intel_pmu_check_extra_regs(pmu->extra_regs);
@@ -4806,7 +4824,7 @@ static bool init_hybrid_pmu(int cpu)
 
 	intel_pmu_check_hybrid_pmus(pmu);
 
-	if (!check_hw_exists(&pmu->pmu, pmu->num_counters, pmu->num_counters_fixed))
+	if (!check_hw_exists(&pmu->pmu, pmu->cntr_mask, pmu->fixed_cntr_mask))
 		return false;
 
 	pr_info("%s PMU driver: ", pmu->name);
@@ -4816,8 +4834,7 @@ static bool init_hybrid_pmu(int cpu)
 
 	pr_cont("\n");
 
-	x86_pmu_show_pmu_cap(pmu->num_counters, pmu->num_counters_fixed,
-			     pmu->intel_ctrl);
+	x86_pmu_show_pmu_cap(&pmu->pmu);
 
 end:
 	cpumask_set_cpu(cpu, &pmu->supported_cpus);
@@ -5955,29 +5972,9 @@ static const struct attribute_group *hybrid_attr_update[] = {
 
 static struct attribute *empty_attrs;
 
-static void intel_pmu_check_num_counters(int *num_counters,
-					 int *num_counters_fixed,
-					 u64 *intel_ctrl, u64 fixed_mask)
-{
-	if (*num_counters > INTEL_PMC_MAX_GENERIC) {
-		WARN(1, KERN_ERR "hw perf events %d > max(%d), clipping!",
-		     *num_counters, INTEL_PMC_MAX_GENERIC);
-		*num_counters = INTEL_PMC_MAX_GENERIC;
-	}
-	*intel_ctrl = (1ULL << *num_counters) - 1;
-
-	if (*num_counters_fixed > INTEL_PMC_MAX_FIXED) {
-		WARN(1, KERN_ERR "hw perf events fixed %d > max(%d), clipping!",
-		     *num_counters_fixed, INTEL_PMC_MAX_FIXED);
-		*num_counters_fixed = INTEL_PMC_MAX_FIXED;
-	}
-
-	*intel_ctrl |= fixed_mask << INTEL_PMC_IDX_FIXED;
-}
-
 static void intel_pmu_check_event_constraints(struct event_constraint *event_constraints,
-					      int num_counters,
-					      int num_counters_fixed,
+					      u64 cntr_mask,
+					      u64 fixed_cntr_mask,
 					      u64 intel_ctrl)
 {
 	struct event_constraint *c;
@@ -6014,10 +6011,9 @@ static void intel_pmu_check_event_constraints(struct event_constraint *event_con
 			 * generic counters
 			 */
 			if (!use_fixed_pseudo_encoding(c->code))
-				c->idxmsk64 |= (1ULL << num_counters) - 1;
+				c->idxmsk64 |= cntr_mask;
 		}
-		c->idxmsk64 &=
-			~(~0ULL << (INTEL_PMC_IDX_FIXED + num_counters_fixed));
+		c->idxmsk64 &= cntr_mask | (fixed_cntr_mask << INTEL_PMC_IDX_FIXED);
 		c->weight = hweight64(c->idxmsk64);
 	}
 }
@@ -6068,12 +6064,12 @@ static __always_inline int intel_pmu_init_hybrid(enum hybrid_pmu_type pmus)
 		pmu->pmu_type = intel_hybrid_pmu_type_map[bit].id;
 		pmu->name = intel_hybrid_pmu_type_map[bit].name;
 
-		pmu->num_counters = x86_pmu.num_counters;
-		pmu->num_counters_fixed = x86_pmu.num_counters_fixed;
-		pmu->pebs_events_mask = intel_pmu_pebs_mask(GENMASK_ULL(pmu->num_counters - 1, 0));
+		pmu->cntr_mask64 = x86_pmu.cntr_mask64;
+		pmu->fixed_cntr_mask64 = x86_pmu.fixed_cntr_mask64;
+		pmu->pebs_events_mask = intel_pmu_pebs_mask(pmu->cntr_mask64);
 		pmu->unconstrained = (struct event_constraint)
-				     __EVENT_CONSTRAINT(0, (1ULL << pmu->num_counters) - 1,
-							0, pmu->num_counters, 0, 0);
+				     __EVENT_CONSTRAINT(0, pmu->cntr_mask64,
+							0, x86_pmu_num_counters(&pmu->pmu), 0, 0);
 
 		pmu->intel_cap.capabilities = x86_pmu.intel_cap.capabilities;
 		if (pmu->pmu_type & hybrid_small) {
@@ -6186,14 +6182,14 @@ __init int intel_pmu_init(void)
 		x86_pmu = intel_pmu;
 
 	x86_pmu.version			= version;
-	x86_pmu.num_counters		= eax.split.num_counters;
+	x86_pmu.cntr_mask64		= GENMASK_ULL(eax.split.num_counters - 1, 0);
 	x86_pmu.cntval_bits		= eax.split.bit_width;
 	x86_pmu.cntval_mask		= (1ULL << eax.split.bit_width) - 1;
 
 	x86_pmu.events_maskl		= ebx.full;
 	x86_pmu.events_mask_len		= eax.split.mask_length;
 
-	x86_pmu.pebs_events_mask	= intel_pmu_pebs_mask(GENMASK_ULL(x86_pmu.num_counters - 1, 0));
+	x86_pmu.pebs_events_mask	= intel_pmu_pebs_mask(x86_pmu.cntr_mask64);
 	x86_pmu.pebs_capable		= PEBS_COUNTER_MASK;
 
 	/*
@@ -6203,12 +6199,10 @@ __init int intel_pmu_init(void)
 	if (version > 1 && version < 5) {
 		int assume = 3 * !boot_cpu_has(X86_FEATURE_HYPERVISOR);
 
-		x86_pmu.num_counters_fixed =
-			max((int)edx.split.num_counters_fixed, assume);
-
-		fixed_mask = (1L << x86_pmu.num_counters_fixed) - 1;
+		x86_pmu.fixed_cntr_mask64 =
+			GENMASK_ULL(max((int)edx.split.num_counters_fixed, assume) - 1, 0);
 	} else if (version >= 5)
-		x86_pmu.num_counters_fixed = fls(fixed_mask);
+		x86_pmu.fixed_cntr_mask64 = fixed_mask;
 
 	if (boot_cpu_has(X86_FEATURE_PDCM)) {
 		u64 capabilities;
@@ -6803,11 +6797,13 @@ __init int intel_pmu_init(void)
 		pmu = &x86_pmu.hybrid_pmu[X86_HYBRID_PMU_CORE_IDX];
 		intel_pmu_init_glc(&pmu->pmu);
 		if (cpu_feature_enabled(X86_FEATURE_HYBRID_CPU)) {
-			pmu->num_counters = x86_pmu.num_counters + 2;
-			pmu->num_counters_fixed = x86_pmu.num_counters_fixed + 1;
+			pmu->cntr_mask64 <<= 2;
+			pmu->cntr_mask64 |= 0x3;
+			pmu->fixed_cntr_mask64 <<= 1;
+			pmu->fixed_cntr_mask64 |= 0x1;
 		} else {
-			pmu->num_counters = x86_pmu.num_counters;
-			pmu->num_counters_fixed = x86_pmu.num_counters_fixed;
+			pmu->cntr_mask64 = x86_pmu.cntr_mask64;
+			pmu->fixed_cntr_mask64 = x86_pmu.fixed_cntr_mask64;
 		}
 
 		/*
@@ -6817,15 +6813,16 @@ __init int intel_pmu_init(void)
 		 * mistakenly add extra counters for P-cores. Correct the number of
 		 * counters here.
 		 */
-		if ((pmu->num_counters > 8) || (pmu->num_counters_fixed > 4)) {
-			pmu->num_counters = x86_pmu.num_counters;
-			pmu->num_counters_fixed = x86_pmu.num_counters_fixed;
+		if ((x86_pmu_num_counters(&pmu->pmu) > 8) || (x86_pmu_num_counters_fixed(&pmu->pmu) > 4)) {
+			pmu->cntr_mask64 = x86_pmu.cntr_mask64;
+			pmu->fixed_cntr_mask64 = x86_pmu.fixed_cntr_mask64;
 		}
 
-		pmu->pebs_events_mask = intel_pmu_pebs_mask(GENMASK_ULL(pmu->num_counters - 1, 0));
+		pmu->pebs_events_mask = intel_pmu_pebs_mask(pmu->cntr_mask64);
 		pmu->unconstrained = (struct event_constraint)
-					__EVENT_CONSTRAINT(0, (1ULL << pmu->num_counters) - 1,
-							   0, pmu->num_counters, 0, 0);
+				     __EVENT_CONSTRAINT(0, pmu->cntr_mask64,
+				     0, x86_pmu_num_counters(&pmu->pmu), 0, 0);
+
 		pmu->extra_regs = intel_glc_extra_regs;
 
 		/* Initialize Atom core specific PerfMon capabilities.*/
@@ -6892,9 +6889,9 @@ __init int intel_pmu_init(void)
 			 * The constraints may be cut according to the CPUID enumeration
 			 * by inserting the EVENT_CONSTRAINT_END.
 			 */
-			if (x86_pmu.num_counters_fixed > INTEL_PMC_MAX_FIXED)
-				x86_pmu.num_counters_fixed = INTEL_PMC_MAX_FIXED;
-			intel_v5_gen_event_constraints[x86_pmu.num_counters_fixed].weight = -1;
+			if (fls64(x86_pmu.fixed_cntr_mask64) > INTEL_PMC_MAX_FIXED)
+				x86_pmu.fixed_cntr_mask64 &= GENMASK_ULL(INTEL_PMC_MAX_FIXED - 1, 0);
+			intel_v5_gen_event_constraints[fls64(x86_pmu.fixed_cntr_mask64)].weight = -1;
 			x86_pmu.event_constraints = intel_v5_gen_event_constraints;
 			pr_cont("generic architected perfmon, ");
 			name = "generic_arch_v5+";
@@ -6921,18 +6918,17 @@ __init int intel_pmu_init(void)
 		x86_pmu.attr_update = hybrid_attr_update;
 	}
 
-	intel_pmu_check_num_counters(&x86_pmu.num_counters,
-				     &x86_pmu.num_counters_fixed,
-				     &x86_pmu.intel_ctrl,
-				     (u64)fixed_mask);
+	intel_pmu_check_counters_mask(&x86_pmu.cntr_mask64,
+				      &x86_pmu.fixed_cntr_mask64,
+				      &x86_pmu.intel_ctrl);
 
 	/* AnyThread may be deprecated on arch perfmon v5 or later */
 	if (x86_pmu.intel_cap.anythread_deprecated)
 		x86_pmu.format_attrs = intel_arch_formats_attr;
 
 	intel_pmu_check_event_constraints(x86_pmu.event_constraints,
-					  x86_pmu.num_counters,
-					  x86_pmu.num_counters_fixed,
+					  x86_pmu.cntr_mask64,
+					  x86_pmu.fixed_cntr_mask64,
 					  x86_pmu.intel_ctrl);
 	/*
 	 * Access LBR MSR may cause #GP under certain circumstances.
