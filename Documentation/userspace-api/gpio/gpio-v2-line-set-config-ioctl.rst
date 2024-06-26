@@ -35,11 +35,14 @@ Description
 Update the configuration of previously requested lines, without releasing the
 line or introducing potential glitches.
 
-The new configuration must specify the configuration of all requested lines.
+The new configuration must specify a configuration for all requested lines.
 
 The same :ref:`gpio-v2-get-line-config-rules` and
 :ref:`gpio-v2-get-line-config-support` that apply when requesting the lines
-also apply when updating the line configuration.
+also apply when updating the line configuration, with the additional
+restriction that a direction flag must be set to enable reconfiguration.
+If no direction flag is set in the configuration for a given line then the
+configuration for that line is left unchanged.
 
 The motivating use case for this command is changing direction of
 bi-directional lines between input and output, but it may also be used to
