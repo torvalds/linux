@@ -1106,12 +1106,7 @@ static void sym_check_print_recursive(struct symbol *last_sym)
 			fprintf(stderr, "%s:%d:error: recursive dependency detected!\n",
 				prop->filename, prop->lineno);
 
-		if (sym_is_choice(sym)) {
-			fprintf(stderr, "%s:%d:\tchoice %s contains symbol %s\n",
-				menu->filename, menu->lineno,
-				sym->name ? sym->name : "<choice>",
-				next_sym->name ? next_sym->name : "<choice>");
-		} else if (sym_is_choice(next_sym)) {
+		if (sym_is_choice(next_sym)) {
 			fprintf(stderr, "%s:%d:\tsymbol %s is part of choice %s\n",
 				menu->filename, menu->lineno,
 				sym->name ? sym->name : "<choice>",
