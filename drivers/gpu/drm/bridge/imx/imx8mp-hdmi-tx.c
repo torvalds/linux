@@ -111,12 +111,12 @@ static void imx8mp_dw_hdmi_remove(struct platform_device *pdev)
 	dw_hdmi_remove(hdmi->dw_hdmi);
 }
 
-static int __maybe_unused imx8mp_dw_hdmi_pm_suspend(struct device *dev)
+static int imx8mp_dw_hdmi_pm_suspend(struct device *dev)
 {
 	return 0;
 }
 
-static int __maybe_unused imx8mp_dw_hdmi_pm_resume(struct device *dev)
+static int imx8mp_dw_hdmi_pm_resume(struct device *dev)
 {
 	struct imx8mp_hdmi *hdmi = dev_get_drvdata(dev);
 
@@ -126,8 +126,7 @@ static int __maybe_unused imx8mp_dw_hdmi_pm_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops imx8mp_dw_hdmi_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(imx8mp_dw_hdmi_pm_suspend,
-				imx8mp_dw_hdmi_pm_resume)
+	SYSTEM_SLEEP_PM_OPS(imx8mp_dw_hdmi_pm_suspend, imx8mp_dw_hdmi_pm_resume)
 };
 
 static const struct of_device_id imx8mp_dw_hdmi_of_table[] = {
@@ -142,7 +141,7 @@ static struct platform_driver imx8mp_dw_hdmi_platform_driver = {
 	.driver		= {
 		.name	= "imx8mp-dw-hdmi-tx",
 		.of_match_table = imx8mp_dw_hdmi_of_table,
-		.pm = &imx8mp_dw_hdmi_pm_ops,
+		.pm = pm_ptr(&imx8mp_dw_hdmi_pm_ops),
 	},
 };
 
