@@ -3134,18 +3134,41 @@ static void init_group_to_asid_map(struct mlx5_vdpa_dev *mvdev)
 		mvdev->group2asid[i] = 0;
 }
 
+static bool needs_vqs_reset(const struct mlx5_vdpa_dev *mvdev)
+{
+	struct mlx5_vdpa_net *ndev = to_mlx5_vdpa_ndev(mvdev);
+	struct mlx5_vdpa_virtqueue *mvq = &ndev->vqs[0];
+
+	if (mvdev->status & VIRTIO_CONFIG_S_DRIVER_OK)
+		return true;
+
+	if (mvq->fw_state != MLX5_VIRTIO_NET_Q_OBJECT_STATE_INIT)
+		return true;
+
+	return mvq->modified_fields & (
+		MLX5_VIRTQ_MODIFY_MASK_STATE |
+		MLX5_VIRTQ_MODIFY_MASK_VIRTIO_Q_ADDRS |
+		MLX5_VIRTQ_MODIFY_MASK_VIRTIO_Q_AVAIL_IDX |
+		MLX5_VIRTQ_MODIFY_MASK_VIRTIO_Q_USED_IDX
+	);
+}
+
 static int mlx5_vdpa_compat_reset(struct vdpa_device *vdev, u32 flags)
 {
 	struct mlx5_vdpa_dev *mvdev = to_mvdev(vdev);
 	struct mlx5_vdpa_net *ndev = to_mlx5_vdpa_ndev(mvdev);
+	bool vq_reset;
 
 	print_status(mvdev, 0, true);
 	mlx5_vdpa_info(mvdev, "performing device reset\n");
 
 	down_write(&ndev->reslock);
 	unregister_link_notifier(ndev);
-	teardown_vq_resources(ndev);
-	mvqs_set_defaults(ndev);
+	vq_reset = needs_vqs_reset(mvdev);
+	if (vq_reset) {
+		teardown_vq_resources(ndev);
+		mvqs_set_defaults(ndev);
+	}
 
 	if (flags & VDPA_RESET_F_CLEAN_MAP)
 		mlx5_vdpa_destroy_mr_resources(&ndev->mvdev);
@@ -3165,7 +3188,8 @@ static int mlx5_vdpa_compat_reset(struct vdpa_device *vdev, u32 flags)
 		if (mlx5_vdpa_create_dma_mr(mvdev))
 			mlx5_vdpa_warn(mvdev, "create MR failed\n");
 	}
-	setup_vq_resources(ndev, false);
+	if (vq_reset)
+		setup_vq_resources(ndev, false);
 	up_write(&ndev->reslock);
 
 	return 0;
