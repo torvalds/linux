@@ -108,27 +108,13 @@ static inline void lp5521_wait_enable_done(void)
 	usleep_range(500, 600);
 }
 
-static void lp5521_stop_engine(struct lp55xx_chip *chip)
-{
-	enum lp55xx_engine_index idx = chip->engine_idx;
-	static const u8 mask[] = {
-		[LP55XX_ENGINE_1] = LP5521_MODE_R_M,
-		[LP55XX_ENGINE_2] = LP5521_MODE_G_M,
-		[LP55XX_ENGINE_3] = LP5521_MODE_B_M,
-	};
-
-	lp55xx_update_bits(chip, LP5521_REG_OP_MODE, mask[idx], 0);
-
-	lp5521_wait_opmode_done();
-}
-
 static void lp5521_run_engine(struct lp55xx_chip *chip, bool start)
 {
 	int ret;
 
 	/* stop engine */
 	if (!start) {
-		lp5521_stop_engine(chip);
+		lp55xx_stop_engine(chip);
 		lp55xx_write(chip, LP5521_REG_OP_MODE, LP5521_CMD_DIRECT);
 		lp5521_wait_opmode_done();
 		return;
@@ -253,11 +239,11 @@ static ssize_t store_engine_mode(struct device *dev,
 		lp5521_run_engine(chip, true);
 		engine->mode = LP55XX_ENGINE_RUN;
 	} else if (!strncmp(buf, "load", 4)) {
-		lp5521_stop_engine(chip);
+		lp55xx_stop_engine(chip);
 		lp55xx_load_engine(chip);
 		engine->mode = LP55XX_ENGINE_LOAD;
 	} else if (!strncmp(buf, "disabled", 8)) {
-		lp5521_stop_engine(chip);
+		lp55xx_stop_engine(chip);
 		engine->mode = LP55XX_ENGINE_DISABLED;
 	}
 
