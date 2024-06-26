@@ -95,10 +95,6 @@
 	};
 };
 
-&rtc {
-	status = "okay";
-};
-
 &sgpiom0 {
 	status = "okay";
 	ngpios = <128>;
@@ -307,6 +303,11 @@
 	eeprom@50 {
 		compatible = "atmel,24c64";
 		reg = <0x50>;
+	};
+
+	rtc@51 {
+		compatible = "nxp,pcf8563";
+		reg = <0x51>;
 	};
 };
 
