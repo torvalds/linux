@@ -1045,7 +1045,7 @@ static int armv8pmu_set_event_filter(struct hw_perf_event *event,
 		return -EINVAL;
 	}
 
-	if (IS_ENABLED(CONFIG_ARM64) && th) {
+	if (th) {
 		config_base |= FIELD_PREP(ARMV8_PMU_EVTYPE_TH, th);
 		config_base |= FIELD_PREP(ARMV8_PMU_EVTYPE_TC,
 					  armv8pmu_event_threshold_control(attr));
