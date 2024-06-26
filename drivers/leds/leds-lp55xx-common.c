@@ -62,6 +62,8 @@
 /* If supported, each ENGINE have an equal amount of pages offset from page 0 */
 #define LP55xx_PAGE_OFFSET(n, pages)	(((n) - 1) * (pages))
 
+#define LED_ACTIVE(mux, led)		(!!((mux) & (0x0001 << (led))))
+
 /* External clock rate */
 #define LP55XX_CLK_32K			32768
 
@@ -690,6 +692,113 @@ ssize_t lp55xx_store_engine_load(struct device *dev,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(lp55xx_store_engine_load);
+
+static int lp55xx_mux_parse(struct lp55xx_chip *chip, const char *buf,
+			    u16 *mux, size_t len)
+{
+	const struct lp55xx_device_config *cfg = chip->cfg;
+	u16 tmp_mux = 0;
+	int i;
+
+	len = min_t(int, len, cfg->max_channel);
+
+	for (i = 0; i < len; i++) {
+		switch (buf[i]) {
+		case '1':
+			tmp_mux |= (1 << i);
+			break;
+		case '0':
+			break;
+		case '\n':
+			i = len;
+			break;
+		default:
+			return -1;
+		}
+	}
+	*mux = tmp_mux;
+
+	return 0;
+}
+
+ssize_t lp55xx_show_engine_leds(struct device *dev,
+				struct device_attribute *attr,
+				char *buf, int nr)
+{
+	struct lp55xx_led *led = i2c_get_clientdata(to_i2c_client(dev));
+	struct lp55xx_chip *chip = led->chip;
+	const struct lp55xx_device_config *cfg = chip->cfg;
+	unsigned int led_active;
+	int i, pos = 0;
+
+	for (i = 0; i < cfg->max_channel; i++) {
+		led_active = LED_ACTIVE(chip->engines[nr - 1].led_mux, i);
+		pos += sysfs_emit_at(buf, pos, "%x", led_active);
+	}
+
+	pos += sysfs_emit_at(buf, pos, "\n");
+
+	return pos;
+}
+EXPORT_SYMBOL_GPL(lp55xx_show_engine_leds);
+
+static int lp55xx_load_mux(struct lp55xx_chip *chip, u16 mux, int nr)
+{
+	struct lp55xx_engine *engine = &chip->engines[nr - 1];
+	const struct lp55xx_device_config *cfg = chip->cfg;
+	u8 mux_page;
+	int ret;
+
+	lp55xx_load_engine(chip);
+
+	/* Derive the MUX page offset by starting at the end of the ENGINE pages */
+	mux_page = cfg->pages_per_engine * LP55XX_ENGINE_MAX + (nr - 1);
+	ret = lp55xx_write(chip, LP55xx_REG_PROG_PAGE_SEL, mux_page);
+	if (ret)
+		return ret;
+
+	ret = lp55xx_write(chip, cfg->prog_mem_base.addr, (u8)(mux >> 8));
+	if (ret)
+		return ret;
+
+	ret = lp55xx_write(chip, cfg->prog_mem_base.addr + 1, (u8)(mux));
+	if (ret)
+		return ret;
+
+	engine->led_mux = mux;
+	return 0;
+}
+
+ssize_t lp55xx_store_engine_leds(struct device *dev,
+				 struct device_attribute *attr,
+				 const char *buf, size_t len, int nr)
+{
+	struct lp55xx_led *led = i2c_get_clientdata(to_i2c_client(dev));
+	struct lp55xx_chip *chip = led->chip;
+	struct lp55xx_engine *engine = &chip->engines[nr - 1];
+	u16 mux = 0;
+	ssize_t ret;
+
+	if (lp55xx_mux_parse(chip, buf, &mux, len))
+		return -EINVAL;
+
+	mutex_lock(&chip->lock);
+
+	chip->engine_idx = nr;
+	ret = -EINVAL;
+
+	if (engine->mode != LP55XX_ENGINE_LOAD)
+		goto leave;
+
+	if (lp55xx_load_mux(chip, mux, nr))
+		goto leave;
+
+	ret = len;
+leave:
+	mutex_unlock(&chip->lock);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(lp55xx_store_engine_leds);
 
 static struct attribute *lp55xx_engine_attributes[] = {
 	&dev_attr_select_engine.attr,

@@ -225,119 +225,6 @@ out:
 	return ret;
 }
 
-static int lp5523_mux_parse(const char *buf, u16 *mux, size_t len)
-{
-	u16 tmp_mux = 0;
-	int i;
-
-	len = min_t(int, len, LP5523_MAX_LEDS);
-
-	for (i = 0; i < len; i++) {
-		switch (buf[i]) {
-		case '1':
-			tmp_mux |= (1 << i);
-			break;
-		case '0':
-			break;
-		case '\n':
-			i = len;
-			break;
-		default:
-			return -1;
-		}
-	}
-	*mux = tmp_mux;
-
-	return 0;
-}
-
-static void lp5523_mux_to_array(u16 led_mux, char *array)
-{
-	int i, pos = 0;
-
-	for (i = 0; i < LP5523_MAX_LEDS; i++)
-		pos += sprintf(array + pos, "%x", LED_ACTIVE(led_mux, i));
-
-	array[pos] = '\0';
-}
-
-static ssize_t show_engine_leds(struct device *dev,
-			    struct device_attribute *attr,
-			    char *buf, int nr)
-{
-	struct lp55xx_led *led = i2c_get_clientdata(to_i2c_client(dev));
-	struct lp55xx_chip *chip = led->chip;
-	char mux[LP5523_MAX_LEDS + 1];
-
-	lp5523_mux_to_array(chip->engines[nr - 1].led_mux, mux);
-
-	return sprintf(buf, "%s\n", mux);
-}
-show_leds(1)
-show_leds(2)
-show_leds(3)
-
-static int lp5523_load_mux(struct lp55xx_chip *chip, u16 mux, int nr)
-{
-	struct lp55xx_engine *engine = &chip->engines[nr - 1];
-	int ret;
-	static const u8 mux_page[] = {
-		[LP55XX_ENGINE_1] = LP5523_PAGE_MUX1,
-		[LP55XX_ENGINE_2] = LP5523_PAGE_MUX2,
-		[LP55XX_ENGINE_3] = LP5523_PAGE_MUX3,
-	};
-
-	lp55xx_load_engine(chip);
-
-	ret = lp55xx_write(chip, LP5523_REG_PROG_PAGE_SEL, mux_page[nr]);
-	if (ret)
-		return ret;
-
-	ret = lp55xx_write(chip, LP5523_REG_PROG_MEM, (u8)(mux >> 8));
-	if (ret)
-		return ret;
-
-	ret = lp55xx_write(chip, LP5523_REG_PROG_MEM + 1, (u8)(mux));
-	if (ret)
-		return ret;
-
-	engine->led_mux = mux;
-	return 0;
-}
-
-static ssize_t store_engine_leds(struct device *dev,
-			     struct device_attribute *attr,
-			     const char *buf, size_t len, int nr)
-{
-	struct lp55xx_led *led = i2c_get_clientdata(to_i2c_client(dev));
-	struct lp55xx_chip *chip = led->chip;
-	struct lp55xx_engine *engine = &chip->engines[nr - 1];
-	u16 mux = 0;
-	ssize_t ret;
-
-	if (lp5523_mux_parse(buf, &mux, len))
-		return -EINVAL;
-
-	mutex_lock(&chip->lock);
-
-	chip->engine_idx = nr;
-	ret = -EINVAL;
-
-	if (engine->mode != LP55XX_ENGINE_LOAD)
-		goto leave;
-
-	if (lp5523_load_mux(chip, mux, nr))
-		goto leave;
-
-	ret = len;
-leave:
-	mutex_unlock(&chip->lock);
-	return ret;
-}
-store_leds(1)
-store_leds(2)
-store_leds(3)
-
 static ssize_t lp5523_selftest(struct device *dev,
 			       struct device_attribute *attr,
 			       char *buf)
@@ -562,9 +449,9 @@ leave:
 LP55XX_DEV_ATTR_ENGINE_MODE(1);
 LP55XX_DEV_ATTR_ENGINE_MODE(2);
 LP55XX_DEV_ATTR_ENGINE_MODE(3);
-static LP55XX_DEV_ATTR_RW(engine1_leds, show_engine1_leds, store_engine1_leds);
-static LP55XX_DEV_ATTR_RW(engine2_leds, show_engine2_leds, store_engine2_leds);
-static LP55XX_DEV_ATTR_RW(engine3_leds, show_engine3_leds, store_engine3_leds);
+LP55XX_DEV_ATTR_ENGINE_LEDS(1);
+LP55XX_DEV_ATTR_ENGINE_LEDS(2);
+LP55XX_DEV_ATTR_ENGINE_LEDS(3);
 LP55XX_DEV_ATTR_ENGINE_LOAD(1);
 LP55XX_DEV_ATTR_ENGINE_LOAD(2);
 LP55XX_DEV_ATTR_ENGINE_LOAD(3);

@@ -51,21 +51,21 @@ static ssize_t store_engine##nr##_mode(struct device *dev,		\
 static LP55XX_DEV_ATTR_RW(engine##nr##_mode, show_engine##nr##_mode,	\
 			  store_engine##nr##_mode)
 
-#define show_leds(nr)							\
+#define LP55XX_DEV_ATTR_ENGINE_LEDS(nr)					\
 static ssize_t show_engine##nr##_leds(struct device *dev,		\
-			    struct device_attribute *attr,		\
-			    char *buf)					\
+				      struct device_attribute *attr,	\
+				      char *buf)			\
 {									\
-	return show_engine_leds(dev, attr, buf, nr);			\
-}
-
-#define store_leds(nr)						\
-static ssize_t store_engine##nr##_leds(struct device *dev,	\
-			     struct device_attribute *attr,	\
-			     const char *buf, size_t len)	\
-{								\
-	return store_engine_leds(dev, attr, buf, len, nr);	\
-}
+	return lp55xx_show_engine_leds(dev, attr, buf, nr);		\
+}									\
+static ssize_t store_engine##nr##_leds(struct device *dev,		\
+				       struct device_attribute *attr,	\
+				       const char *buf, size_t len)	\
+{									\
+	return lp55xx_store_engine_leds(dev, attr, buf, len, nr);	\
+}									\
+static LP55XX_DEV_ATTR_RW(engine##nr##_leds, show_engine##nr##_leds,	\
+			  store_engine##nr##_leds)
 
 #define LP55XX_DEV_ATTR_ENGINE_LOAD(nr)					\
 static ssize_t store_engine##nr##_load(struct device *dev,		\
@@ -236,6 +236,12 @@ extern ssize_t lp55xx_store_engine_mode(struct device *dev,
 					struct device_attribute *attr,
 					const char *buf, size_t len, int nr);
 extern ssize_t lp55xx_store_engine_load(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t len, int nr);
+extern ssize_t lp55xx_show_engine_leds(struct device *dev,
+				       struct device_attribute *attr,
+				       char *buf, int nr);
+extern ssize_t lp55xx_store_engine_leds(struct device *dev,
 					struct device_attribute *attr,
 					const char *buf, size_t len, int nr);
 
