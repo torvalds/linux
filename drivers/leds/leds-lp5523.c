@@ -167,20 +167,12 @@ static void lp5523_stop_engine(struct lp55xx_chip *chip)
 	lp5523_wait_opmode_done();
 }
 
-static void lp5523_turn_off_channels(struct lp55xx_chip *chip)
-{
-	int i;
-
-	for (i = 0; i < LP5523_MAX_LEDS; i++)
-		lp55xx_write(chip, LP5523_REG_LED_PWM_BASE + i, 0);
-}
-
 static void lp5523_run_engine(struct lp55xx_chip *chip, bool start)
 {
 	/* stop engine */
 	if (!start) {
 		lp5523_stop_engine(chip);
-		lp5523_turn_off_channels(chip);
+		lp55xx_turn_off_channels(chip);
 		return;
 	}
 

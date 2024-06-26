@@ -110,20 +110,12 @@ static int lp8501_post_init_device(struct lp55xx_chip *chip)
 				LP8501_PWR_CONFIG_M, chip->pdata->pwr_sel);
 }
 
-static void lp8501_turn_off_channels(struct lp55xx_chip *chip)
-{
-	int i;
-
-	for (i = 0; i < LP8501_MAX_LEDS; i++)
-		lp55xx_write(chip, LP8501_REG_LED_PWM_BASE + i, 0);
-}
-
 static void lp8501_run_engine(struct lp55xx_chip *chip, bool start)
 {
 	/* stop engine */
 	if (!start) {
 		lp55xx_stop_all_engine(chip);
-		lp8501_turn_off_channels(chip);
+		lp55xx_turn_off_channels(chip);
 		return;
 	}
 

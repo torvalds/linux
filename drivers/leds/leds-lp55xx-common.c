@@ -288,6 +288,16 @@ void lp55xx_set_led_current(struct lp55xx_led *led, u8 led_current)
 }
 EXPORT_SYMBOL_GPL(lp55xx_set_led_current);
 
+void lp55xx_turn_off_channels(struct lp55xx_chip *chip)
+{
+	const struct lp55xx_device_config *cfg = chip->cfg;
+	int i;
+
+	for (i = 0; i < cfg->max_channel; i++)
+		lp55xx_write(chip, cfg->reg_led_pwm_base.addr + i, 0);
+}
+EXPORT_SYMBOL_GPL(lp55xx_turn_off_channels);
+
 static void lp55xx_reset_device(struct lp55xx_chip *chip)
 {
 	const struct lp55xx_device_config *cfg = chip->cfg;
