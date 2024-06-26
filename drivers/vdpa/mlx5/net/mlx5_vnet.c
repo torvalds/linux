@@ -1526,71 +1526,102 @@ err_fwqp:
 	return err;
 }
 
-static void suspend_vq(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtqueue *mvq)
+static int suspend_vq(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtqueue *mvq)
 {
 	struct mlx5_virtq_attr attr;
+	int err;
 
 	if (!mvq->initialized)
-		return;
+		return 0;
 
 	if (mvq->fw_state != MLX5_VIRTIO_NET_Q_OBJECT_STATE_RDY)
-		return;
+		return 0;
 
-	if (modify_virtqueue_state(ndev, mvq, MLX5_VIRTIO_NET_Q_OBJECT_STATE_SUSPEND))
-		mlx5_vdpa_warn(&ndev->mvdev, "modify to suspend failed\n");
-
-	if (query_virtqueue(ndev, mvq, &attr)) {
-		mlx5_vdpa_warn(&ndev->mvdev, "failed to query virtqueue\n");
-		return;
+	err = modify_virtqueue_state(ndev, mvq, MLX5_VIRTIO_NET_Q_OBJECT_STATE_SUSPEND);
+	if (err) {
+		mlx5_vdpa_warn(&ndev->mvdev, "modify to suspend failed, err: %d\n", err);
+		return err;
 	}
+
+	err = query_virtqueue(ndev, mvq, &attr);
+	if (err) {
+		mlx5_vdpa_warn(&ndev->mvdev, "failed to query virtqueue, err: %d\n", err);
+		return err;
+	}
+
 	mvq->avail_idx = attr.available_index;
 	mvq->used_idx = attr.used_index;
+
+	return 0;
 }
 
-static void suspend_vqs(struct mlx5_vdpa_net *ndev)
+static int suspend_vqs(struct mlx5_vdpa_net *ndev)
 {
+	int err = 0;
 	int i;
 
-	for (i = 0; i < ndev->cur_num_vqs; i++)
-		suspend_vq(ndev, &ndev->vqs[i]);
+	for (i = 0; i < ndev->cur_num_vqs; i++) {
+		int local_err = suspend_vq(ndev, &ndev->vqs[i]);
+
+		err = local_err ? local_err : err;
+	}
+
+	return err;
 }
 
-static void resume_vq(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtqueue *mvq)
+static int resume_vq(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtqueue *mvq)
 {
+	int err;
+
 	if (!mvq->initialized)
-		return;
+		return 0;
 
 	switch (mvq->fw_state) {
 	case MLX5_VIRTIO_NET_Q_OBJECT_STATE_INIT:
 		/* Due to a FW quirk we need to modify the VQ fields first then change state.
 		 * This should be fixed soon. After that, a single command can be used.
 		 */
-		if (modify_virtqueue(ndev, mvq, 0))
+		err = modify_virtqueue(ndev, mvq, 0);
+		if (err) {
 			mlx5_vdpa_warn(&ndev->mvdev,
-				"modify vq properties failed for vq %u\n", mvq->index);
+				"modify vq properties failed for vq %u, err: %d\n",
+				mvq->index, err);
+			return err;
+		}
 		break;
 	case MLX5_VIRTIO_NET_Q_OBJECT_STATE_SUSPEND:
 		if (!is_resumable(ndev)) {
 			mlx5_vdpa_warn(&ndev->mvdev, "vq %d is not resumable\n", mvq->index);
-			return;
+			return -EINVAL;
 		}
 		break;
 	case MLX5_VIRTIO_NET_Q_OBJECT_STATE_RDY:
-		return;
+		return 0;
 	default:
 		mlx5_vdpa_warn(&ndev->mvdev, "resume vq %u called from bad state %d\n",
 			       mvq->index, mvq->fw_state);
-		return;
+		return -EINVAL;
 	}
 
-	if (modify_virtqueue_state(ndev, mvq, MLX5_VIRTIO_NET_Q_OBJECT_STATE_RDY))
-		mlx5_vdpa_warn(&ndev->mvdev, "modify to resume failed for vq %u\n", mvq->index);
+	err = modify_virtqueue_state(ndev, mvq, MLX5_VIRTIO_NET_Q_OBJECT_STATE_RDY);
+	if (err)
+		mlx5_vdpa_warn(&ndev->mvdev, "modify to resume failed for vq %u, err: %d\n",
+			       mvq->index, err);
+
+	return err;
 }
 
-static void resume_vqs(struct mlx5_vdpa_net *ndev)
+static int resume_vqs(struct mlx5_vdpa_net *ndev)
 {
-	for (int i = 0; i < ndev->cur_num_vqs; i++)
-		resume_vq(ndev, &ndev->vqs[i]);
+	int err = 0;
+
+	for (int i = 0; i < ndev->cur_num_vqs; i++) {
+		int local_err = resume_vq(ndev, &ndev->vqs[i]);
+
+		err = local_err ? local_err : err;
+	}
+
+	return err;
 }
 
 static void teardown_vq(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtqueue *mvq)
