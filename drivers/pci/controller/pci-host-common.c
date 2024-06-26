@@ -96,4 +96,5 @@ void pci_host_common_remove(struct platform_device *pdev)
 }
 EXPORT_SYMBOL_GPL(pci_host_common_remove);
 
+MODULE_DESCRIPTION("Generic PCI host common driver");
 MODULE_LICENSE("GPL v2");
