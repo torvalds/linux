@@ -1839,7 +1839,7 @@ static void cppc_find_dmi_mhz(const struct dmi_header *dm, void *private)
 	    dm->length >= DMI_ENTRY_PROCESSOR_MIN_LENGTH) {
 		u16 val = (u16)get_unaligned((const u16 *)
 				(dmi_data + DMI_PROCESSOR_MAX_SPEED));
-		*mhz = val > *mhz ? val : *mhz;
+		*mhz = umax(val, *mhz);
 	}
 }
 
