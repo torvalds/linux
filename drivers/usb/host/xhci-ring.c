@@ -1883,9 +1883,7 @@ static void xhci_cavium_reset_phy_quirk(struct xhci_hcd *xhci)
 	} while (!(pll_lock_check & 0x1) && --retry_count);
 }
 
-static void handle_port_status(struct xhci_hcd *xhci,
-			       struct xhci_interrupter *ir,
-			       union xhci_trb *event)
+static void handle_port_status(struct xhci_hcd *xhci, union xhci_trb *event)
 {
 	struct usb_hcd *hcd;
 	u32 port_id;
@@ -2980,7 +2978,7 @@ static int xhci_handle_event_trb(struct xhci_hcd *xhci, struct xhci_interrupter 
 		handle_cmd_completion(xhci, &event->event_cmd);
 		break;
 	case TRB_PORT_STATUS:
-		handle_port_status(xhci, ir, event);
+		handle_port_status(xhci, event);
 		break;
 	case TRB_TRANSFER:
 		handle_tx_event(xhci, ir, &event->trans_event);
