@@ -25,8 +25,6 @@
 #include <linux/smp.h>
 #include <linux/nmi.h>
 
-#include <asm/arm_pmuv3.h>
-
 /* ARMv8 Cortex-A53 specific event types. */
 #define ARMV8_A53_PERFCTR_PREF_LINEFILL				0xC2
 
