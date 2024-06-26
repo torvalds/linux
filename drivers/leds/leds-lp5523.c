@@ -30,6 +30,7 @@
  * 0x40 engine 2 muxing info
  * 0x50 engine 3 muxing info
  */
+#define LP5523_PAGES_PER_ENGINE		1
 #define LP5523_MAX_LEDS			9
 
 /* Registers */
@@ -159,20 +160,6 @@ static int lp5523_post_init_device(struct lp55xx_chip *chip)
 	return lp5523_init_program_engine(chip);
 }
 
-static void lp5523_load_engine_and_select_page(struct lp55xx_chip *chip)
-{
-	enum lp55xx_engine_index idx = chip->engine_idx;
-	static const u8 page_sel[] = {
-		[LP55XX_ENGINE_1] = LP5523_PAGE_ENG1,
-		[LP55XX_ENGINE_2] = LP5523_PAGE_ENG2,
-		[LP55XX_ENGINE_3] = LP5523_PAGE_ENG3,
-	};
-
-	lp55xx_load_engine(chip);
-
-	lp55xx_write(chip, LP5523_REG_PROG_PAGE_SEL, page_sel[idx]);
-}
-
 static void lp5523_stop_engine(struct lp55xx_chip *chip)
 {
 	enum lp55xx_engine_index idx = chip->engine_idx;
@@ -272,7 +259,7 @@ static int lp5523_init_program_engine(struct lp55xx_chip *chip)
 	/* write LED MUX address space for each engine */
 	for (i = LP55XX_ENGINE_1; i <= LP55XX_ENGINE_3; i++) {
 		chip->engine_idx = i;
-		lp5523_load_engine_and_select_page(chip);
+		lp55xx_load_engine(chip);
 
 		for (j = 0; j < LP5523_PROGRAM_LENGTH; j++) {
 			ret = lp55xx_write(chip, LP5523_REG_PROG_MEM + j,
@@ -362,7 +349,7 @@ static void lp5523_firmware_loaded(struct lp55xx_chip *chip)
 	 *  2) write firmware data into program memory
 	 */
 
-	lp5523_load_engine_and_select_page(chip);
+	lp55xx_load_engine(chip);
 	lp5523_update_program_memory(chip, fw->data, fw->size);
 }
 
@@ -544,7 +531,7 @@ static ssize_t store_engine_load(struct device *dev,
 	mutex_lock(&chip->lock);
 
 	chip->engine_idx = nr;
-	lp5523_load_engine_and_select_page(chip);
+	lp55xx_load_engine(chip);
 	ret = lp5523_update_program_memory(chip, buf, len);
 
 	mutex_unlock(&chip->lock);
@@ -865,6 +852,7 @@ static struct lp55xx_device_config lp5523_cfg = {
 		.addr = LP5523_REG_ENABLE,
 		.val  = LP5523_ENABLE,
 	},
+	.pages_per_engine   = LP5523_PAGES_PER_ENGINE,
 	.max_channel  = LP5523_MAX_LEDS,
 	.post_init_device   = lp5523_post_init_device,
 	.brightness_fn      = lp5523_led_brightness,

@@ -46,6 +46,11 @@
 #define   LP55xx_MODE_ENGn_GET(n, mode, shift)        \
 	(((mode) >> LP55xx_MODE_ENGn_SHIFT(n, shift)) & LP55xx_MODE_ENG_MASK)
 
+/* Memory Page Selection */
+#define LP55xx_REG_PROG_PAGE_SEL	0x4f
+/* If supported, each ENGINE have an equal amount of pages offset from page 0 */
+#define LP55xx_PAGE_OFFSET(n, pages)	(((n) - 1) * (pages))
+
 /* External clock rate */
 #define LP55XX_CLK_32K			32768
 
@@ -104,6 +109,11 @@ void lp55xx_load_engine(struct lp55xx_chip *chip)
 
 	lp55xx_update_bits(chip, cfg->reg_op_mode.addr, mask, val);
 	lp55xx_wait_opmode_done(chip);
+
+	/* Setup PAGE if supported (pages_per_engine not 0)*/
+	if (cfg->pages_per_engine)
+		lp55xx_write(chip, LP55xx_REG_PROG_PAGE_SEL,
+			     LP55xx_PAGE_OFFSET(idx, cfg->pages_per_engine));
 }
 EXPORT_SYMBOL_GPL(lp55xx_load_engine);
 

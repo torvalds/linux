@@ -21,6 +21,7 @@
 #include "leds-lp55xx-common.h"
 
 #define LP8501_PROGRAM_LENGTH		32
+#define LP8501_PAGES_PER_ENGINE		1
 #define LP8501_MAX_LEDS			9
 
 /* Registers */
@@ -114,21 +115,6 @@ static int lp8501_post_init_device(struct lp55xx_chip *chip)
 	/* Power selection for each output */
 	return lp55xx_update_bits(chip, LP8501_REG_PWR_CONFIG,
 				LP8501_PWR_CONFIG_M, chip->pdata->pwr_sel);
-}
-
-static void lp8501_load_engine(struct lp55xx_chip *chip)
-{
-	enum lp55xx_engine_index idx = chip->engine_idx;
-
-	static const u8 page_sel[] = {
-		[LP55XX_ENGINE_1] = LP8501_PAGE_ENG1,
-		[LP55XX_ENGINE_2] = LP8501_PAGE_ENG2,
-		[LP55XX_ENGINE_3] = LP8501_PAGE_ENG3,
-	};
-
-	lp55xx_load_engine(chip);
-
-	lp55xx_write(chip, LP8501_REG_PROG_PAGE_SEL, page_sel[idx]);
 }
 
 static void lp8501_turn_off_channels(struct lp55xx_chip *chip)
@@ -250,7 +236,7 @@ static void lp8501_firmware_loaded(struct lp55xx_chip *chip)
 	 *  2) write firmware data into program memory
 	 */
 
-	lp8501_load_engine(chip);
+	lp55xx_load_engine(chip);
 	lp8501_update_program_memory(chip, fw->data, fw->size);
 }
 
@@ -284,6 +270,7 @@ static struct lp55xx_device_config lp8501_cfg = {
 		.addr = LP8501_REG_ENABLE,
 		.val  = LP8501_ENABLE,
 	},
+	.pages_per_engine   = LP8501_PAGES_PER_ENGINE,
 	.max_channel  = LP8501_MAX_LEDS,
 	.post_init_device   = lp8501_post_init_device,
 	.brightness_fn      = lp8501_led_brightness,
