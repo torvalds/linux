@@ -288,6 +288,8 @@ properties:
           - mps,mp2857
             # Monolithic Power Systems Inc. multi-phase controller mp2888
           - mps,mp2888
+            # Monolithic Power Systems Inc. multi-phase controller mp2891
+          - mps,mp2891
             # Monolithic Power Systems Inc. multi-phase controller mp2971
           - mps,mp2971
             # Monolithic Power Systems Inc. multi-phase controller mp2973
