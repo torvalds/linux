@@ -9,6 +9,7 @@
 #include "bpf_kfuncs.h"
 #include "test_siphash.h"
 #include "test_tcp_custom_syncookie.h"
+#include "bpf_misc.h"
 
 #define MAX_PACKET_OFF 0xffff
 
