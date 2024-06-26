@@ -155,7 +155,7 @@ static bool is_index_valid(struct mlx5_vdpa_dev *mvdev, u16 idx)
 }
 
 static void free_fixed_resources(struct mlx5_vdpa_net *ndev);
-static void init_mvqs(struct mlx5_vdpa_net *ndev);
+static void mvqs_set_defaults(struct mlx5_vdpa_net *ndev);
 static int setup_vq_resources(struct mlx5_vdpa_net *ndev);
 static void teardown_vq_resources(struct mlx5_vdpa_net *ndev);
 
@@ -2810,7 +2810,7 @@ static void restore_channels_info(struct mlx5_vdpa_net *ndev)
 	int i;
 
 	mlx5_clear_vqs(ndev);
-	init_mvqs(ndev);
+	mvqs_set_defaults(ndev);
 	for (i = 0; i < ndev->mvdev.max_vqs; i++) {
 		mvq = &ndev->vqs[i];
 		ri = &mvq->ri;
@@ -3023,7 +3023,7 @@ static int mlx5_vdpa_compat_reset(struct vdpa_device *vdev, u32 flags)
 	down_write(&ndev->reslock);
 	unregister_link_notifier(ndev);
 	teardown_vq_resources(ndev);
-	init_mvqs(ndev);
+	mvqs_set_defaults(ndev);
 
 	if (flags & VDPA_RESET_F_CLEAN_MAP)
 		mlx5_vdpa_destroy_mr_resources(&ndev->mvdev);
@@ -3485,7 +3485,7 @@ static void free_fixed_resources(struct mlx5_vdpa_net *ndev)
 	res->valid = false;
 }
 
-static void init_mvqs(struct mlx5_vdpa_net *ndev)
+static void mvqs_set_defaults(struct mlx5_vdpa_net *ndev)
 {
 	struct mlx5_vdpa_virtqueue *mvq;
 	int i;
@@ -3635,7 +3635,7 @@ static int mlx5_vdpa_dev_add(struct vdpa_mgmt_dev *v_mdev, const char *name,
 	}
 	ndev->cur_num_vqs = MLX5V_DEFAULT_VQ_COUNT;
 
-	init_mvqs(ndev);
+	mvqs_set_defaults(ndev);
 	allocate_irqs(ndev);
 	init_rwsem(&ndev->reslock);
 	config = &ndev->config;
