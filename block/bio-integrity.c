@@ -428,10 +428,8 @@ bool bio_integrity_prep(struct bio *bio)
 {
 	struct bio_integrity_payload *bip;
 	struct blk_integrity *bi = blk_get_integrity(bio->bi_bdev->bd_disk);
+	unsigned int len;
 	void *buf;
-	unsigned long start, end;
-	unsigned int len, nr_pages;
-	unsigned int bytes, offset, i;
 	gfp_t gfp = GFP_NOIO;
 
 	if (!bi)
@@ -471,12 +469,7 @@ bool bio_integrity_prep(struct bio *bio)
 		goto err_end_io;
 	}
 
-	end = (((unsigned long) buf) + len + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	start = ((unsigned long) buf) >> PAGE_SHIFT;
-	nr_pages = end - start;
-
-	/* Allocate bio integrity payload and integrity vectors */
-	bip = bio_integrity_alloc(bio, GFP_NOIO, nr_pages);
+	bip = bio_integrity_alloc(bio, GFP_NOIO, 1);
 	if (IS_ERR(bip)) {
 		printk(KERN_ERR "could not allocate data integrity bioset\n");
 		kfree(buf);
@@ -489,23 +482,10 @@ bool bio_integrity_prep(struct bio *bio)
 	if (bi->csum_type == BLK_INTEGRITY_CSUM_IP)
 		bip->bip_flags |= BIP_IP_CHECKSUM;
 
-	/* Map it */
-	offset = offset_in_page(buf);
-	for (i = 0; i < nr_pages && len > 0; i++) {
-		bytes = PAGE_SIZE - offset;
-
-		if (bytes > len)
-			bytes = len;
-
-		if (bio_integrity_add_page(bio, virt_to_page(buf),
-					   bytes, offset) < bytes) {
-			printk(KERN_ERR "could not attach integrity payload\n");
-			goto err_end_io;
-		}
-
-		buf += bytes;
-		len -= bytes;
-		offset = 0;
+	if (bio_integrity_add_page(bio, virt_to_page(buf), len,
+			offset_in_page(buf)) < len) {
+		printk(KERN_ERR "could not attach integrity payload\n");
+		goto err_end_io;
 	}
 
 	/* Auto-generate integrity metadata if this is a write */
