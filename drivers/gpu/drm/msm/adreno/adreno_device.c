@@ -33,7 +33,7 @@ static const struct adreno_gpulist *gpulists[] = {
 	&a4xx_gpulist,
 	&a5xx_gpulist,
 	&a6xx_gpulist,
-	&a6xx_gpulist,
+	&a7xx_gpulist,
 };
 
 static const struct adreno_info *adreno_info(uint32_t chip_id)
