@@ -75,6 +75,8 @@ config QCOM_OCMEM
 config QCOM_PD_MAPPER
 	tristate "Qualcomm Protection Domain Mapper"
 	select QCOM_QMI_HELPERS
+	select QCOM_PDR_MSG
+	select AUXILIARY_BUS
 	depends on NET && QRTR
 	default QCOM_RPROC_COMMON
 	help
