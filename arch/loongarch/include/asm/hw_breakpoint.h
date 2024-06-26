@@ -75,6 +75,8 @@ do {								\
 #define CSR_MWPC_NUM		0x3f
 
 #define CTRL_PLV_ENABLE		0x1e
+#define CTRL_PLV0_ENABLE	0x02
+#define CTRL_PLV3_ENABLE	0x10
 
 #define MWPnCFG3_LoadEn		8
 #define MWPnCFG3_StoreEn	9
@@ -101,7 +103,7 @@ struct perf_event;
 struct perf_event_attr;
 
 extern int arch_bp_generic_fields(struct arch_hw_breakpoint_ctrl ctrl,
-				  int *gen_len, int *gen_type, int *offset);
+				  int *gen_len, int *gen_type);
 extern int arch_check_bp_in_kernelspace(struct arch_hw_breakpoint *hw);
 extern int hw_breakpoint_arch_parse(struct perf_event *bp,
 				    const struct perf_event_attr *attr,

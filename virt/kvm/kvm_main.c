@@ -651,7 +651,7 @@ static __always_inline kvm_mn_ret_t __kvm_handle_hva_range(struct kvm *kvm,
 					range->on_lock(kvm);
 
 				if (IS_KVM_NULL_FN(range->handler))
-					break;
+					goto mmu_unlock;
 			}
 			r.ret |= range->handler(kvm, &gfn_range);
 		}
@@ -660,6 +660,7 @@ static __always_inline kvm_mn_ret_t __kvm_handle_hva_range(struct kvm *kvm,
 	if (range->flush_on_ret && r.ret)
 		kvm_flush_remote_tlbs(kvm);
 
+mmu_unlock:
 	if (r.found_memslot)
 		KVM_MMU_UNLOCK(kvm);
 
@@ -4025,12 +4026,13 @@ void kvm_vcpu_on_spin(struct kvm_vcpu *me, bool yield_to_kernel_mode)
 {
 	struct kvm *kvm = me->kvm;
 	struct kvm_vcpu *vcpu;
-	int last_boosted_vcpu = me->kvm->last_boosted_vcpu;
+	int last_boosted_vcpu;
 	unsigned long i;
 	int yielded = 0;
 	int try = 3;
 	int pass;
 
+	last_boosted_vcpu = READ_ONCE(kvm->last_boosted_vcpu);
 	kvm_vcpu_set_in_spin_loop(me, true);
 	/*
 	 * We boost the priority of a VCPU that is runnable but not
@@ -4068,7 +4070,7 @@ void kvm_vcpu_on_spin(struct kvm_vcpu *me, bool yield_to_kernel_mode)
 
 			yielded = kvm_vcpu_yield_to(vcpu);
 			if (yielded > 0) {
-				kvm->last_boosted_vcpu = i;
+				WRITE_ONCE(kvm->last_boosted_vcpu, i);
 				break;
 			} else if (yielded < 0) {
 				try--;
@@ -4427,7 +4429,7 @@ static long kvm_vcpu_ioctl(struct file *filp,
 		struct kvm_regs *kvm_regs;
 
 		r = -ENOMEM;
-		kvm_regs = kzalloc(sizeof(struct kvm_regs), GFP_KERNEL_ACCOUNT);
+		kvm_regs = kzalloc(sizeof(struct kvm_regs), GFP_KERNEL);
 		if (!kvm_regs)
 			goto out;
 		r = kvm_arch_vcpu_ioctl_get_regs(vcpu, kvm_regs);
@@ -4454,8 +4456,7 @@ out_free1:
 		break;
 	}
 	case KVM_GET_SREGS: {
-		kvm_sregs = kzalloc(sizeof(struct kvm_sregs),
-				    GFP_KERNEL_ACCOUNT);
+		kvm_sregs = kzalloc(sizeof(struct kvm_sregs), GFP_KERNEL);
 		r = -ENOMEM;
 		if (!kvm_sregs)
 			goto out;
@@ -4547,7 +4548,7 @@ out_free1:
 		break;
 	}
 	case KVM_GET_FPU: {
-		fpu = kzalloc(sizeof(struct kvm_fpu), GFP_KERNEL_ACCOUNT);
+		fpu = kzalloc(sizeof(struct kvm_fpu), GFP_KERNEL);
 		r = -ENOMEM;
 		if (!fpu)
 			goto out;
@@ -6210,7 +6211,7 @@ static void kvm_uevent_notify_change(unsigned int type, struct kvm *kvm)
 	active = kvm_active_vms;
 	mutex_unlock(&kvm_lock);
 
-	env = kzalloc(sizeof(*env), GFP_KERNEL_ACCOUNT);
+	env = kzalloc(sizeof(*env), GFP_KERNEL);
 	if (!env)
 		return;
 
@@ -6226,7 +6227,7 @@ static void kvm_uevent_notify_change(unsigned int type, struct kvm *kvm)
 	add_uevent_var(env, "PID=%d", kvm->userspace_pid);
 
 	if (!IS_ERR(kvm->debugfs_dentry)) {
-		char *tmp, *p = kmalloc(PATH_MAX, GFP_KERNEL_ACCOUNT);
+		char *tmp, *p = kmalloc(PATH_MAX, GFP_KERNEL);
 
 		if (p) {
 			tmp = dentry_path_raw(kvm->debugfs_dentry, p, PATH_MAX);
