@@ -456,11 +456,11 @@ bool bio_integrity_prep(struct bio *bio)
 
 		/*
 		 * Zero the memory allocated to not leak uninitialized kernel
-		 * memory to disk.  For PI this only affects the app tag, but
-		 * for non-integrity metadata it affects the entire metadata
-		 * buffer.
+		 * memory to disk for non-integrity metadata where nothing else
+		 * initializes the memory.
 		 */
-		gfp |= __GFP_ZERO;
+		if (bi->csum_type == BLK_INTEGRITY_CSUM_NONE)
+			gfp |= __GFP_ZERO;
 	}
 
 	/* Allocate kernel buffer for protection data */
