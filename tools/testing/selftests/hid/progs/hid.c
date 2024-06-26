@@ -306,3 +306,82 @@ SEC(".struct_ops.link")
 struct hid_bpf_ops test_insert3 = {
 	.hid_device_event = (void *)hid_test_insert3,
 };
+
+SEC("?struct_ops/hid_hw_request")
+int BPF_PROG(hid_test_filter_raw_request, struct hid_bpf_ctx *hctx, unsigned char reportnum,
+	     enum hid_report_type rtype, enum hid_class_request reqtype, __u64 source)
+{
+	return -20;
+}
+
+SEC(".struct_ops.link")
+struct hid_bpf_ops test_filter_raw_request = {
+	.hid_hw_request = (void *)hid_test_filter_raw_request,
+};
+
+static struct file *current_file;
+
+SEC("fentry/hidraw_open")
+int BPF_PROG(hidraw_open, struct inode *inode, struct file *file)
+{
+	current_file = file;
+	return 0;
+}
+
+SEC("?struct_ops.s/hid_hw_request")
+int BPF_PROG(hid_test_hidraw_raw_request, struct hid_bpf_ctx *hctx, unsigned char reportnum,
+	     enum hid_report_type rtype, enum hid_class_request reqtype, __u64 source)
+{
+	__u8 *data = hid_bpf_get_data(hctx, 0 /* offset */, 3 /* size */);
+	int ret;
+
+	if (!data)
+		return 0; /* EPERM check */
+
+	/* check if the incoming request comes from our hidraw operation */
+	if (source == (__u64)current_file) {
+		data[0] = reportnum;
+
+		ret = hid_bpf_hw_request(hctx, data, 2, rtype, reqtype);
+		if (ret != 2)
+			return -1;
+		data[0] = reportnum + 1;
+		data[1] = reportnum + 2;
+		data[2] = reportnum + 3;
+		return 3;
+	}
+
+	return 0;
+}
+
+SEC(".struct_ops.link")
+struct hid_bpf_ops test_hidraw_raw_request = {
+	.hid_hw_request = (void *)hid_test_hidraw_raw_request,
+};
+
+SEC("?struct_ops.s/hid_hw_request")
+int BPF_PROG(hid_test_infinite_loop_raw_request, struct hid_bpf_ctx *hctx, unsigned char reportnum,
+	     enum hid_report_type rtype, enum hid_class_request reqtype, __u64 source)
+{
+	__u8 *data = hid_bpf_get_data(hctx, 0 /* offset */, 3 /* size */);
+	int ret;
+
+	if (!data)
+		return 0; /* EPERM check */
+
+	/* always forward the request as-is to the device, hid-bpf should prevent
+	 * infinite loops.
+	 */
+	data[0] = reportnum;
+
+	ret = hid_bpf_hw_request(hctx, data, 2, rtype, reqtype);
+	if (ret == 2)
+		return 3;
+
+	return 0;
+}
+
+SEC(".struct_ops.link")
+struct hid_bpf_ops test_infinite_loop_raw_request = {
+	.hid_hw_request = (void *)hid_test_infinite_loop_raw_request,
+};

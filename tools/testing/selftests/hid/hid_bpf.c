@@ -470,6 +470,11 @@ static void detach_bpf(FIXTURE_DATA(hid_bpf) * self)
 		close(self->hidraw_fd);
 	self->hidraw_fd = 0;
 
+	if (!self->skel)
+		return;
+
+	hid__detach(self->skel);
+
 	for (i = 0; i < ARRAY_SIZE(self->hid_links); i++) {
 		if (self->hid_links[i])
 			bpf_link__destroy(self->hid_links[i]);
@@ -574,6 +579,8 @@ static void load_programs(const struct test_program programs[],
 		ASSERT_OK_PTR(self->hid_links[i]) TH_LOG("failed to attach struct ops '%s'",
 							 programs[i].name + 4);
 	}
+
+	hid__attach(self->skel);
 
 	self->hidraw_fd = open_hidraw(self->dev_id);
 	ASSERT_GE(self->hidraw_fd, 0) TH_LOG("open_hidraw");
@@ -917,6 +924,108 @@ TEST_F(hid_bpf, test_hid_user_raw_request_call)
 	ASSERT_EQ(args.retval, 2);
 
 	ASSERT_EQ(args.data[1], 2);
+}
+
+/*
+ * Call hid_hw_raw_request against the given uhid device,
+ * check that the program is called and prevents the
+ * call to uhid.
+ */
+TEST_F(hid_bpf, test_hid_filter_raw_request_call)
+{
+	const struct test_program progs[] = {
+		{ .name = "hid_test_filter_raw_request" },
+	};
+	__u8 buf[10] = {0};
+	int err;
+
+	LOAD_PROGRAMS(progs);
+
+	/* first check that we did not attach to device_event */
+
+	/* inject one event */
+	buf[0] = 1;
+	buf[1] = 42;
+	uhid_send_event(_metadata, self->uhid_fd, buf, 6);
+
+	/* read the data from hidraw */
+	memset(buf, 0, sizeof(buf));
+	err = read(self->hidraw_fd, buf, sizeof(buf));
+	ASSERT_EQ(err, 6) TH_LOG("read_hidraw");
+	ASSERT_EQ(buf[0], 1);
+	ASSERT_EQ(buf[1], 42);
+	ASSERT_EQ(buf[2], 0) TH_LOG("leftovers_from_previous_test");
+
+	/* now check that our program is preventing hid_hw_raw_request() */
+
+	/* emit hid_hw_raw_request from hidraw */
+	/* Get Feature */
+	memset(buf, 0, sizeof(buf));
+	buf[0] = 0x1; /* Report Number */
+	err = ioctl(self->hidraw_fd, HIDIOCGFEATURE(sizeof(buf)), buf);
+	ASSERT_LT(err, 0) TH_LOG("unexpected success while reading HIDIOCGFEATURE: %d", err);
+	ASSERT_EQ(errno, 20) TH_LOG("unexpected error code while reading HIDIOCGFEATURE: %d",
+				    errno);
+
+	/* remove our bpf program and check that we can now emit commands */
+
+	/* detach the program */
+	detach_bpf(self);
+
+	self->hidraw_fd = open_hidraw(self->dev_id);
+	ASSERT_GE(self->hidraw_fd, 0) TH_LOG("open_hidraw");
+
+	err = ioctl(self->hidraw_fd, HIDIOCGFEATURE(sizeof(buf)), buf);
+	ASSERT_GE(err, 0) TH_LOG("error while reading HIDIOCGFEATURE: %d", err);
+}
+
+/*
+ * Call hid_hw_raw_request against the given uhid device,
+ * check that the program is called and can issue the call
+ * to uhid and transform the answer.
+ */
+TEST_F(hid_bpf, test_hid_change_raw_request_call)
+{
+	const struct test_program progs[] = {
+		{ .name = "hid_test_hidraw_raw_request" },
+	};
+	__u8 buf[10] = {0};
+	int err;
+
+	LOAD_PROGRAMS(progs);
+
+	/* emit hid_hw_raw_request from hidraw */
+	/* Get Feature */
+	memset(buf, 0, sizeof(buf));
+	buf[0] = 0x1; /* Report Number */
+	err = ioctl(self->hidraw_fd, HIDIOCGFEATURE(sizeof(buf)), buf);
+	ASSERT_EQ(err, 3) TH_LOG("unexpected returned size while reading HIDIOCGFEATURE: %d", err);
+
+	ASSERT_EQ(buf[0], 2);
+	ASSERT_EQ(buf[1], 3);
+	ASSERT_EQ(buf[2], 4);
+}
+
+/*
+ * Call hid_hw_raw_request against the given uhid device,
+ * check that the program is not making infinite loops.
+ */
+TEST_F(hid_bpf, test_hid_infinite_loop_raw_request_call)
+{
+	const struct test_program progs[] = {
+		{ .name = "hid_test_infinite_loop_raw_request" },
+	};
+	__u8 buf[10] = {0};
+	int err;
+
+	LOAD_PROGRAMS(progs);
+
+	/* emit hid_hw_raw_request from hidraw */
+	/* Get Feature */
+	memset(buf, 0, sizeof(buf));
+	buf[0] = 0x1; /* Report Number */
+	err = ioctl(self->hidraw_fd, HIDIOCGFEATURE(sizeof(buf)), buf);
+	ASSERT_EQ(err, 3) TH_LOG("unexpected returned size while reading HIDIOCGFEATURE: %d", err);
 }
 
 /*
