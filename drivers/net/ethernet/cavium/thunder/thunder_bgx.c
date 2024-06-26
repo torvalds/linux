@@ -54,7 +54,7 @@ struct lmac {
 	bool			link_up;
 	int			lmacid; /* ID within BGX */
 	int			lmacid_bd; /* ID on board */
-	struct net_device       netdev;
+	struct net_device       *netdev;
 	struct phy_device       *phydev;
 	unsigned int            last_duplex;
 	unsigned int            last_link;
@@ -590,10 +590,12 @@ static void bgx_sgmii_change_link_state(struct lmac *lmac)
 
 static void bgx_lmac_handler(struct net_device *netdev)
 {
-	struct lmac *lmac = container_of(netdev, struct lmac, netdev);
 	struct phy_device *phydev;
+	struct lmac *lmac, **priv;
 	int link_changed = 0;
 
+	priv = netdev_priv(netdev);
+	lmac = *priv;
 	phydev = lmac->phydev;
 
 	if (!phydev->link && lmac->last_link)
@@ -1052,11 +1054,17 @@ static int phy_interface_mode(u8 lmac_type)
 
 static int bgx_lmac_enable(struct bgx *bgx, u8 lmacid)
 {
-	struct lmac *lmac;
+	struct lmac *lmac, **priv;
 	u64 cfg;
 
 	lmac = &bgx->lmac[lmacid];
 	lmac->bgx = bgx;
+
+	lmac->netdev = alloc_netdev_dummy(sizeof(struct lmac *));
+	if (!lmac->netdev)
+		return -ENOMEM;
+	priv = netdev_priv(lmac->netdev);
+	*priv = lmac;
 
 	if ((lmac->lmac_type == BGX_MODE_SGMII) ||
 	    (lmac->lmac_type == BGX_MODE_QSGMII) ||
@@ -1116,7 +1124,7 @@ static int bgx_lmac_enable(struct bgx *bgx, u8 lmacid)
 		}
 		lmac->phydev->dev_flags = 0;
 
-		if (phy_connect_direct(&lmac->netdev, lmac->phydev,
+		if (phy_connect_direct(lmac->netdev, lmac->phydev,
 				       bgx_lmac_handler,
 				       phy_interface_mode(lmac->lmac_type)))
 			return -ENODEV;
@@ -1183,6 +1191,7 @@ static void bgx_lmac_disable(struct bgx *bgx, u8 lmacid)
 	    (lmac->lmac_type != BGX_MODE_10G_KR) && lmac->phydev)
 		phy_disconnect(lmac->phydev);
 
+	free_netdev(lmac->netdev);
 	lmac->phydev = NULL;
 }
 
@@ -1414,7 +1423,7 @@ static acpi_status bgx_acpi_register_phy(acpi_handle handle,
 
 	acpi_get_mac_address(dev, adev, bgx->lmac[bgx->acpi_lmac_idx].mac);
 
-	SET_NETDEV_DEV(&bgx->lmac[bgx->acpi_lmac_idx].netdev, dev);
+	SET_NETDEV_DEV(bgx->lmac[bgx->acpi_lmac_idx].netdev, dev);
 
 	bgx->lmac[bgx->acpi_lmac_idx].lmacid = bgx->acpi_lmac_idx;
 	bgx->acpi_lmac_idx++; /* move to next LMAC */
@@ -1483,7 +1492,7 @@ static int bgx_init_of_phy(struct bgx *bgx)
 
 		of_get_mac_address(node, bgx->lmac[lmac].mac);
 
-		SET_NETDEV_DEV(&bgx->lmac[lmac].netdev, &bgx->pdev->dev);
+		SET_NETDEV_DEV(bgx->lmac[lmac].netdev, &bgx->pdev->dev);
 		bgx->lmac[lmac].lmacid = lmac;
 
 		phy_np = of_parse_phandle(node, "phy-handle", 0);
