@@ -541,8 +541,8 @@ static int lp55xx_request_firmware(struct lp55xx_chip *chip)
 }
 
 static ssize_t select_engine_show(struct device *dev,
-			    struct device_attribute *attr,
-			    char *buf)
+				  struct device_attribute *attr,
+				  char *buf)
 {
 	struct lp55xx_led *led = i2c_get_clientdata(to_i2c_client(dev));
 	struct lp55xx_chip *chip = led->chip;
@@ -551,8 +551,8 @@ static ssize_t select_engine_show(struct device *dev,
 }
 
 static ssize_t select_engine_store(struct device *dev,
-			     struct device_attribute *attr,
-			     const char *buf, size_t len)
+				   struct device_attribute *attr,
+				   const char *buf, size_t len)
 {
 	struct lp55xx_led *led = i2c_get_clientdata(to_i2c_client(dev));
 	struct lp55xx_chip *chip = led->chip;
@@ -593,8 +593,8 @@ static inline void lp55xx_run_engine(struct lp55xx_chip *chip, bool start)
 }
 
 static ssize_t run_engine_store(struct device *dev,
-			     struct device_attribute *attr,
-			     const char *buf, size_t len)
+				struct device_attribute *attr,
+				const char *buf, size_t len)
 {
 	struct lp55xx_led *led = i2c_get_clientdata(to_i2c_client(dev));
 	struct lp55xx_chip *chip = led->chip;
@@ -619,6 +619,77 @@ static ssize_t run_engine_store(struct device *dev,
 
 static DEVICE_ATTR_RW(select_engine);
 static DEVICE_ATTR_WO(run_engine);
+
+ssize_t lp55xx_show_engine_mode(struct device *dev,
+				struct device_attribute *attr,
+				char *buf, int nr)
+{
+	struct lp55xx_led *led = i2c_get_clientdata(to_i2c_client(dev));
+	struct lp55xx_chip *chip = led->chip;
+	enum lp55xx_engine_mode mode = chip->engines[nr - 1].mode;
+
+	switch (mode) {
+	case LP55XX_ENGINE_RUN:
+		return sysfs_emit(buf, "run\n");
+	case LP55XX_ENGINE_LOAD:
+		return sysfs_emit(buf, "load\n");
+	case LP55XX_ENGINE_DISABLED:
+	default:
+		return sysfs_emit(buf, "disabled\n");
+	}
+}
+EXPORT_SYMBOL_GPL(lp55xx_show_engine_mode);
+
+ssize_t lp55xx_store_engine_mode(struct device *dev,
+				 struct device_attribute *attr,
+				 const char *buf, size_t len, int nr)
+{
+	struct lp55xx_led *led = i2c_get_clientdata(to_i2c_client(dev));
+	struct lp55xx_chip *chip = led->chip;
+	const struct lp55xx_device_config *cfg = chip->cfg;
+	struct lp55xx_engine *engine = &chip->engines[nr - 1];
+
+	mutex_lock(&chip->lock);
+
+	chip->engine_idx = nr;
+
+	if (!strncmp(buf, "run", 3)) {
+		cfg->run_engine(chip, true);
+		engine->mode = LP55XX_ENGINE_RUN;
+	} else if (!strncmp(buf, "load", 4)) {
+		lp55xx_stop_engine(chip);
+		lp55xx_load_engine(chip);
+		engine->mode = LP55XX_ENGINE_LOAD;
+	} else if (!strncmp(buf, "disabled", 8)) {
+		lp55xx_stop_engine(chip);
+		engine->mode = LP55XX_ENGINE_DISABLED;
+	}
+
+	mutex_unlock(&chip->lock);
+
+	return len;
+}
+EXPORT_SYMBOL_GPL(lp55xx_store_engine_mode);
+
+ssize_t lp55xx_store_engine_load(struct device *dev,
+				 struct device_attribute *attr,
+				 const char *buf, size_t len, int nr)
+{
+	struct lp55xx_led *led = i2c_get_clientdata(to_i2c_client(dev));
+	struct lp55xx_chip *chip = led->chip;
+	int ret;
+
+	mutex_lock(&chip->lock);
+
+	chip->engine_idx = nr;
+	lp55xx_load_engine(chip);
+	ret = lp55xx_update_program_memory(chip, buf, len);
+
+	mutex_unlock(&chip->lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(lp55xx_store_engine_load);
 
 static struct attribute *lp55xx_engine_attributes[] = {
 	&dev_attr_select_engine.attr,

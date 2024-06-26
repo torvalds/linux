@@ -201,82 +201,6 @@ static int lp5521_run_selftest(struct lp55xx_chip *chip, char *buf)
 	return 0;
 }
 
-static ssize_t show_engine_mode(struct device *dev,
-				struct device_attribute *attr,
-				char *buf, int nr)
-{
-	struct lp55xx_led *led = i2c_get_clientdata(to_i2c_client(dev));
-	struct lp55xx_chip *chip = led->chip;
-	enum lp55xx_engine_mode mode = chip->engines[nr - 1].mode;
-
-	switch (mode) {
-	case LP55XX_ENGINE_RUN:
-		return sprintf(buf, "run\n");
-	case LP55XX_ENGINE_LOAD:
-		return sprintf(buf, "load\n");
-	case LP55XX_ENGINE_DISABLED:
-	default:
-		return sprintf(buf, "disabled\n");
-	}
-}
-show_mode(1)
-show_mode(2)
-show_mode(3)
-
-static ssize_t store_engine_mode(struct device *dev,
-				 struct device_attribute *attr,
-				 const char *buf, size_t len, int nr)
-{
-	struct lp55xx_led *led = i2c_get_clientdata(to_i2c_client(dev));
-	struct lp55xx_chip *chip = led->chip;
-	struct lp55xx_engine *engine = &chip->engines[nr - 1];
-
-	mutex_lock(&chip->lock);
-
-	chip->engine_idx = nr;
-
-	if (!strncmp(buf, "run", 3)) {
-		lp5521_run_engine(chip, true);
-		engine->mode = LP55XX_ENGINE_RUN;
-	} else if (!strncmp(buf, "load", 4)) {
-		lp55xx_stop_engine(chip);
-		lp55xx_load_engine(chip);
-		engine->mode = LP55XX_ENGINE_LOAD;
-	} else if (!strncmp(buf, "disabled", 8)) {
-		lp55xx_stop_engine(chip);
-		engine->mode = LP55XX_ENGINE_DISABLED;
-	}
-
-	mutex_unlock(&chip->lock);
-
-	return len;
-}
-store_mode(1)
-store_mode(2)
-store_mode(3)
-
-static ssize_t store_engine_load(struct device *dev,
-			     struct device_attribute *attr,
-			     const char *buf, size_t len, int nr)
-{
-	struct lp55xx_led *led = i2c_get_clientdata(to_i2c_client(dev));
-	struct lp55xx_chip *chip = led->chip;
-	int ret;
-
-	mutex_lock(&chip->lock);
-
-	chip->engine_idx = nr;
-	lp55xx_load_engine(chip);
-	ret = lp55xx_update_program_memory(chip, buf, len);
-
-	mutex_unlock(&chip->lock);
-
-	return ret;
-}
-store_load(1)
-store_load(2)
-store_load(3)
-
 static ssize_t lp5521_selftest(struct device *dev,
 			       struct device_attribute *attr,
 			       char *buf)
@@ -293,12 +217,12 @@ static ssize_t lp5521_selftest(struct device *dev,
 }
 
 /* device attributes */
-static LP55XX_DEV_ATTR_RW(engine1_mode, show_engine1_mode, store_engine1_mode);
-static LP55XX_DEV_ATTR_RW(engine2_mode, show_engine2_mode, store_engine2_mode);
-static LP55XX_DEV_ATTR_RW(engine3_mode, show_engine3_mode, store_engine3_mode);
-static LP55XX_DEV_ATTR_WO(engine1_load, store_engine1_load);
-static LP55XX_DEV_ATTR_WO(engine2_load, store_engine2_load);
-static LP55XX_DEV_ATTR_WO(engine3_load, store_engine3_load);
+LP55XX_DEV_ATTR_ENGINE_MODE(1);
+LP55XX_DEV_ATTR_ENGINE_MODE(2);
+LP55XX_DEV_ATTR_ENGINE_MODE(3);
+LP55XX_DEV_ATTR_ENGINE_LOAD(1);
+LP55XX_DEV_ATTR_ENGINE_LOAD(2);
+LP55XX_DEV_ATTR_ENGINE_LOAD(3);
 static LP55XX_DEV_ATTR_RO(selftest, lp5521_selftest);
 
 static struct attribute *lp5521_attributes[] = {
