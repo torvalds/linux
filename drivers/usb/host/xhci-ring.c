@@ -2868,10 +2868,6 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 				return -ESHUTDOWN;
 			}
 		}
-		if (trb_comp_code == COMP_SHORT_PACKET)
-			ep_ring->last_td_was_short = true;
-		else
-			ep_ring->last_td_was_short = false;
 
 		if (ep->skip) {
 			xhci_dbg(xhci,
@@ -2880,34 +2876,6 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 			ep->skip = false;
 		}
 
-		ep_trb = &ep_seg->trbs[(ep_trb_dma - ep_seg->dma) /
-						sizeof(*ep_trb)];
-
-		trace_xhci_handle_transfer(ep_ring,
-				(struct xhci_generic_trb *) ep_trb);
-
-		/*
-		 * No-op TRB could trigger interrupts in a case where
-		 * a URB was killed and a STALL_ERROR happens right
-		 * after the endpoint ring stopped. Reset the halted
-		 * endpoint. Otherwise, the endpoint remains stalled
-		 * indefinitely.
-		 */
-
-		if (trb_is_noop(ep_trb)) {
-			if (xhci_halted_host_endpoint(ep_ctx, trb_comp_code))
-				xhci_handle_halted_endpoint(xhci, ep, td, EP_HARD_RESET);
-		} else {
-			td->status = status;
-
-			/* update the urb's actual_length and give back to the core */
-			if (usb_endpoint_xfer_control(&td->urb->ep->desc))
-				process_ctrl_td(xhci, ep, ep_ring, td, ep_trb, event);
-			else if (usb_endpoint_xfer_isoc(&td->urb->ep->desc))
-				process_isoc_td(xhci, ep, ep_ring, td, ep_trb, event);
-			else
-				process_bulk_intr_td(xhci, ep, ep_ring, td, ep_trb, event);
-		}
 	/*
 	 * If ep->skip is set, it means there are missed tds on the
 	 * endpoint ring need to take care of.
@@ -2915,6 +2883,36 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 	 * the event.
 	 */
 	} while (ep->skip);
+
+	if (trb_comp_code == COMP_SHORT_PACKET)
+		ep_ring->last_td_was_short = true;
+	else
+		ep_ring->last_td_was_short = false;
+
+	ep_trb = &ep_seg->trbs[(ep_trb_dma - ep_seg->dma) / sizeof(*ep_trb)];
+	trace_xhci_handle_transfer(ep_ring, (struct xhci_generic_trb *) ep_trb);
+
+	/*
+	 * No-op TRB could trigger interrupts in a case where a URB was killed
+	 * and a STALL_ERROR happens right after the endpoint ring stopped.
+	 * Reset the halted endpoint. Otherwise, the endpoint remains stalled
+	 * indefinitely.
+	 */
+
+	if (trb_is_noop(ep_trb)) {
+		if (xhci_halted_host_endpoint(ep_ctx, trb_comp_code))
+			xhci_handle_halted_endpoint(xhci, ep, td, EP_HARD_RESET);
+	} else {
+		td->status = status;
+
+		/* update the urb's actual_length and give back to the core */
+		if (usb_endpoint_xfer_control(&td->urb->ep->desc))
+			process_ctrl_td(xhci, ep, ep_ring, td, ep_trb, event);
+		else if (usb_endpoint_xfer_isoc(&td->urb->ep->desc))
+			process_isoc_td(xhci, ep, ep_ring, td, ep_trb, event);
+		else
+			process_bulk_intr_td(xhci, ep, ep_ring, td, ep_trb, event);
+	}
 
 	return 0;
 
