@@ -385,3 +385,61 @@ SEC(".struct_ops.link")
 struct hid_bpf_ops test_infinite_loop_raw_request = {
 	.hid_hw_request = (void *)hid_test_infinite_loop_raw_request,
 };
+
+SEC("?struct_ops/hid_hw_output_report")
+int BPF_PROG(hid_test_filter_output_report, struct hid_bpf_ctx *hctx, unsigned char reportnum,
+	     enum hid_report_type rtype, enum hid_class_request reqtype, __u64 source)
+{
+	return -25;
+}
+
+SEC(".struct_ops.link")
+struct hid_bpf_ops test_filter_output_report = {
+	.hid_hw_output_report = (void *)hid_test_filter_output_report,
+};
+
+SEC("?struct_ops.s/hid_hw_output_report")
+int BPF_PROG(hid_test_hidraw_output_report, struct hid_bpf_ctx *hctx, __u64 source)
+{
+	__u8 *data = hid_bpf_get_data(hctx, 0 /* offset */, 3 /* size */);
+	int ret;
+
+	if (!data)
+		return 0; /* EPERM check */
+
+	/* check if the incoming request comes from our hidraw operation */
+	if (source == (__u64)current_file)
+		return hid_bpf_hw_output_report(hctx, data, 2);
+
+	return 0;
+}
+
+SEC(".struct_ops.link")
+struct hid_bpf_ops test_hidraw_output_report = {
+	.hid_hw_output_report = (void *)hid_test_hidraw_output_report,
+};
+
+SEC("?struct_ops.s/hid_hw_output_report")
+int BPF_PROG(hid_test_infinite_loop_output_report, struct hid_bpf_ctx *hctx, __u64 source)
+{
+	__u8 *data = hid_bpf_get_data(hctx, 0 /* offset */, 3 /* size */);
+	int ret;
+
+	if (!data)
+		return 0; /* EPERM check */
+
+	/* always forward the request as-is to the device, hid-bpf should prevent
+	 * infinite loops.
+	 */
+
+	ret = hid_bpf_hw_output_report(hctx, data, 2);
+	if (ret == 2)
+		return 2;
+
+	return 0;
+}
+
+SEC(".struct_ops.link")
+struct hid_bpf_ops test_infinite_loop_output_report = {
+	.hid_hw_output_report = (void *)hid_test_infinite_loop_output_report,
+};
