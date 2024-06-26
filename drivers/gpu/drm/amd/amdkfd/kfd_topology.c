@@ -2120,6 +2120,8 @@ int kfd_topology_add_device(struct kfd_node *gpu)
 		dev->gpu->adev->gmc.xgmi.connected_to_cpu)
 		dev->node_props.capability |= HSA_CAP_FLAGS_COHERENTHOSTACCESS;
 
+	kfd_queue_ctx_save_restore_size(dev);
+
 	kfd_debug_print_topology();
 
 	kfd_notify_gpu_change(gpu_id, 1);
