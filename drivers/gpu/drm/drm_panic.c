@@ -91,7 +91,7 @@ static const struct drm_panic_line logo_ascii[] = {
 	PANIC_LINE(" \\___)=(___/"),
 };
 
-#ifdef CONFIG_LOGO
+#if defined(CONFIG_LOGO) && !defined(MODULE)
 static const struct linux_logo *logo_mono;
 
 static int drm_panic_setup_logo(void)
