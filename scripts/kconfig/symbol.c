@@ -868,7 +868,7 @@ const char *sym_get_string_value(struct symbol *sym)
 
 bool sym_is_changeable(struct symbol *sym)
 {
-	return sym->visible > sym->rev_dep.tri;
+	return !sym_is_choice(sym) && sym->visible > sym->rev_dep.tri;
 }
 
 HASHTABLE_DEFINE(sym_hashtable, SYMBOL_HASHSIZE);

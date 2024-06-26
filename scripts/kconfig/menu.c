@@ -306,7 +306,7 @@ static void _menu_finalize(struct menu *parent, bool inside_choice)
 	struct menu *menu, *last_menu;
 	struct symbol *sym;
 	struct property *prop;
-	struct expr *parentdep, *basedep, *dep, *dep2;
+	struct expr *basedep, *dep, *dep2;
 
 	sym = parent->sym;
 	if (parent->list) {
@@ -314,24 +314,6 @@ static void _menu_finalize(struct menu *parent, bool inside_choice)
 		 * This menu node has children. We (recursively) process them
 		 * and propagate parent dependencies before moving on.
 		 */
-
-		bool is_choice = false;
-
-		if (sym && sym_is_choice(sym))
-			is_choice = true;
-
-		if (is_choice) {
-			/*
-			 * Use the choice itself as the parent dependency of
-			 * the contained items. This turns the mode of the
-			 * choice into an upper bound on the visibility of the
-			 * choice value symbols.
-			 */
-			parentdep = expr_alloc_symbol(sym);
-		} else {
-			/* Menu node for 'menu', 'if' */
-			parentdep = parent->dep;
-		}
 
 		/* For each child menu node... */
 		for (menu = parent->list; menu; menu = menu->next) {
@@ -341,7 +323,7 @@ static void _menu_finalize(struct menu *parent, bool inside_choice)
 			 */
 			basedep = rewrite_m(menu->dep);
 			basedep = expr_transform(basedep);
-			basedep = expr_alloc_and(expr_copy(parentdep), basedep);
+			basedep = expr_alloc_and(expr_copy(parent->dep), basedep);
 			basedep = expr_eliminate_dups(basedep);
 			menu->dep = basedep;
 
@@ -405,15 +387,12 @@ static void _menu_finalize(struct menu *parent, bool inside_choice)
 			}
 		}
 
-		if (is_choice)
-			expr_free(parentdep);
-
 		/*
 		 * Recursively process children in the same fashion before
 		 * moving on
 		 */
 		for (menu = parent->list; menu; menu = menu->next)
-			_menu_finalize(menu, is_choice);
+			_menu_finalize(menu, sym && sym_is_choice(sym));
 	} else if (!inside_choice && sym) {
 		/*
 		 * Automatic submenu creation. If sym is a symbol and A, B, C,
@@ -540,17 +519,6 @@ static void _menu_finalize(struct menu *parent, bool inside_choice)
 		/* Check properties connected to this symbol */
 		sym_check_prop(sym);
 		sym->flags |= SYMBOL_WARNED;
-	}
-
-	/*
-	 * For choices, add a reverse dependency (corresponding to a select) of
-	 * '<visibility> && y'. This prevents the user from setting the choice
-	 * mode to 'n' when the choice is visible.
-	 */
-	if (sym && sym_is_choice(sym) && parent->prompt) {
-		sym->rev_dep.expr = expr_alloc_or(sym->rev_dep.expr,
-				expr_alloc_and(parent->prompt->visible.expr,
-					expr_alloc_symbol(&symbol_yes)));
 	}
 }
 
