@@ -105,6 +105,9 @@ int ntfs_fileattr_set(struct mnt_idmap *idmap, struct dentry *dentry,
 	return 0;
 }
 
+/*
+ * ntfs_ioctl - file_operations::unlocked_ioctl
+ */
 long ntfs_ioctl(struct file *filp, u32 cmd, unsigned long arg)
 {
 	struct inode *inode = file_inode(filp);
@@ -260,9 +263,9 @@ static int ntfs_zero_range(struct inode *inode, u64 vbo, u64 vbo_to)
 						       PAGE_SIZE;
 		iblock = page_off >> inode->i_blkbits;
 
-		folio = __filemap_get_folio(mapping, idx,
-				FGP_LOCK | FGP_ACCESSED | FGP_CREAT,
-				mapping_gfp_constraint(mapping, ~__GFP_FS));
+		folio = __filemap_get_folio(
+			mapping, idx, FGP_LOCK | FGP_ACCESSED | FGP_CREAT,
+			mapping_gfp_constraint(mapping, ~__GFP_FS));
 		if (IS_ERR(folio))
 			return PTR_ERR(folio);
 
@@ -887,7 +890,8 @@ static int ntfs_get_frame_pages(struct address_space *mapping, pgoff_t index,
 		struct folio *folio;
 
 		folio = __filemap_get_folio(mapping, index,
-				FGP_LOCK | FGP_ACCESSED | FGP_CREAT, gfp_mask);
+					    FGP_LOCK | FGP_ACCESSED | FGP_CREAT,
+					    gfp_mask);
 		if (IS_ERR(folio)) {
 			while (npages--) {
 				folio = page_folio(pages[npages]);
@@ -1258,7 +1262,7 @@ static int ntfs_file_release(struct inode *inode, struct file *file)
 }
 
 /*
- * ntfs_fiemap - file_operations::fiemap
+ * ntfs_fiemap - inode_operations::fiemap
  */
 int ntfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		__u64 start, __u64 len)

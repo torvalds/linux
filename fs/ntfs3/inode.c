@@ -578,6 +578,7 @@ static noinline int ntfs_get_block_vbo(struct inode *inode, u64 vbo,
 		bh->b_blocknr = RESIDENT_LCN;
 		bh->b_size = block_size;
 		if (!folio) {
+			/* direct io (read) or bmap call */
 			err = 0;
 		} else {
 			ni_lock(ni);
@@ -911,9 +912,9 @@ int ntfs_write_begin(struct file *file, struct address_space *mapping,
 
 	*pagep = NULL;
 	if (is_resident(ni)) {
-		struct folio *folio = __filemap_get_folio(mapping,
-				pos >> PAGE_SHIFT, FGP_WRITEBEGIN,
-				mapping_gfp_mask(mapping));
+		struct folio *folio = __filemap_get_folio(
+			mapping, pos >> PAGE_SHIFT, FGP_WRITEBEGIN,
+			mapping_gfp_mask(mapping));
 
 		if (IS_ERR(folio)) {
 			err = PTR_ERR(folio);

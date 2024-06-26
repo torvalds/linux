@@ -291,9 +291,9 @@ int attr_make_nonresident(struct ntfs_inode *ni, struct ATTRIB *attr,
 			struct address_space *mapping = ni->vfs_inode.i_mapping;
 			struct folio *folio;
 
-			folio = __filemap_get_folio(mapping, 0,
-					FGP_LOCK | FGP_ACCESSED | FGP_CREAT,
-					mapping_gfp_mask(mapping));
+			folio = __filemap_get_folio(
+				mapping, 0, FGP_LOCK | FGP_ACCESSED | FGP_CREAT,
+				mapping_gfp_mask(mapping));
 			if (IS_ERR(folio)) {
 				err = PTR_ERR(folio);
 				goto out2;
