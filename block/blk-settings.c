@@ -142,8 +142,7 @@ static int blk_validate_integrity_limits(struct queue_limits *lim)
  * so we assume that we can fit in at least PAGE_SIZE in a segment, apart from
  * the first and last segments.
  */
-static
-unsigned int blk_queue_max_guaranteed_bio(struct queue_limits *lim)
+static unsigned int blk_queue_max_guaranteed_bio(struct queue_limits *lim)
 {
 	unsigned int max_segments = min(BIO_MAX_VECS, lim->max_segments);
 	unsigned int length;
