@@ -522,3 +522,42 @@ SEC(".struct_ops.link")
 struct hid_bpf_ops test_multiply_events_wq = {
 	.hid_device_event = (void *)hid_test_multiply_events_wq,
 };
+
+SEC("?struct_ops/hid_device_event")
+int BPF_PROG(hid_test_multiply_events, struct hid_bpf_ctx *hid_ctx, enum hid_report_type type)
+{
+	__u8 *data = hid_bpf_get_data(hid_ctx, 0 /* offset */, 9 /* size */);
+	__u8 buf[9];
+	int ret;
+
+	if (!data)
+		return 0; /* EPERM check */
+
+	if (data[0] != 1)
+		return 0;
+
+	/*
+	 * we have to use an intermediate buffer as hid_bpf_input_report
+	 * will memset data to \0
+	 */
+	__builtin_memcpy(buf, data, sizeof(buf));
+
+	buf[0] = 2;
+	buf[1] += 5;
+	ret = hid_bpf_try_input_report(hid_ctx, HID_INPUT_REPORT, buf, sizeof(buf));
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * In real world we should reset the original buffer as data might be garbage now,
+	 * but it actually now has the content of 'buf'
+	 */
+	data[1] += 5;
+
+	return 9;
+}
+
+SEC(".struct_ops.link")
+struct hid_bpf_ops test_multiply_events = {
+	.hid_device_event = (void *)hid_test_multiply_events,
+};
