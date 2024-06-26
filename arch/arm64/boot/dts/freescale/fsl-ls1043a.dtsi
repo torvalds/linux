@@ -989,7 +989,7 @@
 			#fsl,rcpm-wakeup-cells = <1>;
 		};
 
-		ftm_alarm0: timer@29d0000 {
+		ftm_alarm0: rtc@29d0000 {
 			compatible = "fsl,ls1043a-ftm-alarm";
 			reg = <0x0 0x29d0000 0x0 0x10000>;
 			fsl,rcpm-wakeup = <&rcpm 0x20000>;
