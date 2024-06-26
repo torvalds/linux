@@ -64,6 +64,9 @@
 
 #define LED_ACTIVE(mux, led)		(!!((mux) & (0x0001 << (led))))
 
+/* MASTER FADER common property */
+#define LP55xx_FADER_MAPPING_MASK	GENMASK(7, 6)
+
 /* External clock rate */
 #define LP55XX_CLK_32K			32768
 
@@ -799,6 +802,116 @@ leave:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(lp55xx_store_engine_leds);
+
+ssize_t lp55xx_show_master_fader(struct device *dev,
+				 struct device_attribute *attr,
+				 char *buf, int nr)
+{
+	struct lp55xx_led *led = i2c_get_clientdata(to_i2c_client(dev));
+	struct lp55xx_chip *chip = led->chip;
+	const struct lp55xx_device_config *cfg = chip->cfg;
+	int ret;
+	u8 val;
+
+	mutex_lock(&chip->lock);
+	ret = lp55xx_read(chip, cfg->reg_master_fader_base.addr + nr - 1, &val);
+	mutex_unlock(&chip->lock);
+
+	return ret ? ret : sysfs_emit(buf, "%u\n", val);
+}
+EXPORT_SYMBOL_GPL(lp55xx_show_master_fader);
+
+ssize_t lp55xx_store_master_fader(struct device *dev,
+				  struct device_attribute *attr,
+				  const char *buf, size_t len, int nr)
+{
+	struct lp55xx_led *led = i2c_get_clientdata(to_i2c_client(dev));
+	struct lp55xx_chip *chip = led->chip;
+	const struct lp55xx_device_config *cfg = chip->cfg;
+	int ret;
+	unsigned long val;
+
+	if (kstrtoul(buf, 0, &val))
+		return -EINVAL;
+
+	if (val > 0xff)
+		return -EINVAL;
+
+	mutex_lock(&chip->lock);
+	ret = lp55xx_write(chip, cfg->reg_master_fader_base.addr + nr - 1,
+			   (u8)val);
+	mutex_unlock(&chip->lock);
+
+	return ret ? ret : len;
+}
+EXPORT_SYMBOL_GPL(lp55xx_store_master_fader);
+
+ssize_t lp55xx_show_master_fader_leds(struct device *dev,
+				      struct device_attribute *attr,
+				      char *buf)
+{
+	struct lp55xx_led *led = i2c_get_clientdata(to_i2c_client(dev));
+	struct lp55xx_chip *chip = led->chip;
+	const struct lp55xx_device_config *cfg = chip->cfg;
+	int i, ret, pos = 0;
+	u8 val;
+
+	mutex_lock(&chip->lock);
+
+	for (i = 0; i < cfg->max_channel; i++) {
+		ret = lp55xx_read(chip, cfg->reg_led_ctrl_base.addr + i, &val);
+		if (ret)
+			goto leave;
+
+		val = FIELD_GET(LP55xx_FADER_MAPPING_MASK, val);
+		if (val > FIELD_MAX(LP55xx_FADER_MAPPING_MASK)) {
+			ret = -EINVAL;
+			goto leave;
+		}
+		buf[pos++] = val + '0';
+	}
+	buf[pos++] = '\n';
+	ret = pos;
+leave:
+	mutex_unlock(&chip->lock);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(lp55xx_show_master_fader_leds);
+
+ssize_t lp55xx_store_master_fader_leds(struct device *dev,
+				       struct device_attribute *attr,
+				       const char *buf, size_t len)
+{
+	struct lp55xx_led *led = i2c_get_clientdata(to_i2c_client(dev));
+	struct lp55xx_chip *chip = led->chip;
+	const struct lp55xx_device_config *cfg = chip->cfg;
+	int i, n, ret;
+	u8 val;
+
+	n = min_t(int, len, cfg->max_channel);
+
+	mutex_lock(&chip->lock);
+
+	for (i = 0; i < n; i++) {
+		if (buf[i] >= '0' && buf[i] <= '3') {
+			val = (buf[i] - '0') << __bf_shf(LP55xx_FADER_MAPPING_MASK);
+			ret = lp55xx_update_bits(chip,
+						 cfg->reg_led_ctrl_base.addr + i,
+						 LP55xx_FADER_MAPPING_MASK,
+						 val);
+			if (ret)
+				goto leave;
+		} else {
+			ret = -EINVAL;
+			goto leave;
+		}
+	}
+	ret = len;
+leave:
+	mutex_unlock(&chip->lock);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(lp55xx_store_master_fader_leds);
 
 static struct attribute *lp55xx_engine_attributes[] = {
 	&dev_attr_select_engine.attr,

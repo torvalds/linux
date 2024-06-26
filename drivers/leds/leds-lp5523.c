@@ -315,137 +315,6 @@ release_lock:
 	return pos;
 }
 
-#define show_fader(nr)						\
-static ssize_t show_master_fader##nr(struct device *dev,	\
-			    struct device_attribute *attr,	\
-			    char *buf)				\
-{								\
-	return show_master_fader(dev, attr, buf, nr);		\
-}
-
-#define store_fader(nr)						\
-static ssize_t store_master_fader##nr(struct device *dev,	\
-			     struct device_attribute *attr,	\
-			     const char *buf, size_t len)	\
-{								\
-	return store_master_fader(dev, attr, buf, len, nr);	\
-}
-
-static ssize_t show_master_fader(struct device *dev,
-				 struct device_attribute *attr,
-				 char *buf, int nr)
-{
-	struct lp55xx_led *led = i2c_get_clientdata(to_i2c_client(dev));
-	struct lp55xx_chip *chip = led->chip;
-	int ret;
-	u8 val;
-
-	mutex_lock(&chip->lock);
-	ret = lp55xx_read(chip, LP5523_REG_MASTER_FADER_BASE + nr - 1, &val);
-	mutex_unlock(&chip->lock);
-
-	if (ret == 0)
-		ret = sprintf(buf, "%u\n", val);
-
-	return ret;
-}
-show_fader(1)
-show_fader(2)
-show_fader(3)
-
-static ssize_t store_master_fader(struct device *dev,
-				  struct device_attribute *attr,
-				  const char *buf, size_t len, int nr)
-{
-	struct lp55xx_led *led = i2c_get_clientdata(to_i2c_client(dev));
-	struct lp55xx_chip *chip = led->chip;
-	int ret;
-	unsigned long val;
-
-	if (kstrtoul(buf, 0, &val))
-		return -EINVAL;
-
-	if (val > 0xff)
-		return -EINVAL;
-
-	mutex_lock(&chip->lock);
-	ret = lp55xx_write(chip, LP5523_REG_MASTER_FADER_BASE + nr - 1,
-			   (u8)val);
-	mutex_unlock(&chip->lock);
-
-	if (ret == 0)
-		ret = len;
-
-	return ret;
-}
-store_fader(1)
-store_fader(2)
-store_fader(3)
-
-static ssize_t show_master_fader_leds(struct device *dev,
-				      struct device_attribute *attr,
-				      char *buf)
-{
-	struct lp55xx_led *led = i2c_get_clientdata(to_i2c_client(dev));
-	struct lp55xx_chip *chip = led->chip;
-	int i, ret, pos = 0;
-	u8 val;
-
-	mutex_lock(&chip->lock);
-
-	for (i = 0; i < LP5523_MAX_LEDS; i++) {
-		ret = lp55xx_read(chip, LP5523_REG_LED_CTRL_BASE + i, &val);
-		if (ret)
-			goto leave;
-
-		val = (val & LP5523_FADER_MAPPING_MASK)
-			>> LP5523_FADER_MAPPING_SHIFT;
-		if (val > 3) {
-			ret = -EINVAL;
-			goto leave;
-		}
-		buf[pos++] = val + '0';
-	}
-	buf[pos++] = '\n';
-	ret = pos;
-leave:
-	mutex_unlock(&chip->lock);
-	return ret;
-}
-
-static ssize_t store_master_fader_leds(struct device *dev,
-				       struct device_attribute *attr,
-				       const char *buf, size_t len)
-{
-	struct lp55xx_led *led = i2c_get_clientdata(to_i2c_client(dev));
-	struct lp55xx_chip *chip = led->chip;
-	int i, n, ret;
-	u8 val;
-
-	n = min_t(int, len, LP5523_MAX_LEDS);
-
-	mutex_lock(&chip->lock);
-
-	for (i = 0; i < n; i++) {
-		if (buf[i] >= '0' && buf[i] <= '3') {
-			val = (buf[i] - '0') << LP5523_FADER_MAPPING_SHIFT;
-			ret = lp55xx_update_bits(chip,
-						 LP5523_REG_LED_CTRL_BASE + i,
-						 LP5523_FADER_MAPPING_MASK,
-						 val);
-			if (ret)
-				goto leave;
-		} else {
-			ret = -EINVAL;
-			goto leave;
-		}
-	}
-	ret = len;
-leave:
-	mutex_unlock(&chip->lock);
-	return ret;
-}
-
 LP55XX_DEV_ATTR_ENGINE_MODE(1);
 LP55XX_DEV_ATTR_ENGINE_MODE(2);
 LP55XX_DEV_ATTR_ENGINE_MODE(3);
@@ -456,14 +325,11 @@ LP55XX_DEV_ATTR_ENGINE_LOAD(1);
 LP55XX_DEV_ATTR_ENGINE_LOAD(2);
 LP55XX_DEV_ATTR_ENGINE_LOAD(3);
 static LP55XX_DEV_ATTR_RO(selftest, lp5523_selftest);
-static LP55XX_DEV_ATTR_RW(master_fader1, show_master_fader1,
-			  store_master_fader1);
-static LP55XX_DEV_ATTR_RW(master_fader2, show_master_fader2,
-			  store_master_fader2);
-static LP55XX_DEV_ATTR_RW(master_fader3, show_master_fader3,
-			  store_master_fader3);
-static LP55XX_DEV_ATTR_RW(master_fader_leds, show_master_fader_leds,
-			  store_master_fader_leds);
+LP55XX_DEV_ATTR_MASTER_FADER(1);
+LP55XX_DEV_ATTR_MASTER_FADER(2);
+LP55XX_DEV_ATTR_MASTER_FADER(3);
+static LP55XX_DEV_ATTR_RW(master_fader_leds, lp55xx_show_master_fader_leds,
+			  lp55xx_store_master_fader_leds);
 
 static struct attribute *lp5523_attributes[] = {
 	&dev_attr_engine1_mode.attr,
@@ -515,6 +381,12 @@ static struct lp55xx_device_config lp5523_cfg = {
 	},
 	.reg_led_current_base = {
 		.addr = LP5523_REG_LED_CURRENT_BASE,
+	},
+	.reg_master_fader_base = {
+		.addr = LP5523_REG_MASTER_FADER_BASE,
+	},
+	.reg_led_ctrl_base = {
+		.addr = LP5523_REG_LED_CTRL_BASE,
 	},
 	.pages_per_engine   = LP5523_PAGES_PER_ENGINE,
 	.max_channel  = LP5523_MAX_LEDS,

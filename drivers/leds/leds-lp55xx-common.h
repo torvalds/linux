@@ -76,6 +76,22 @@ static ssize_t store_engine##nr##_load(struct device *dev,		\
 }									\
 static LP55XX_DEV_ATTR_WO(engine##nr##_load, store_engine##nr##_load)
 
+#define LP55XX_DEV_ATTR_MASTER_FADER(nr)				\
+static ssize_t show_master_fader##nr(struct device *dev,		\
+				     struct device_attribute *attr,	\
+				     char *buf)				\
+{									\
+	return lp55xx_show_master_fader(dev, attr, buf, nr);		\
+}									\
+static ssize_t store_master_fader##nr(struct device *dev,		\
+				      struct device_attribute *attr,	\
+				      const char *buf, size_t len)	\
+{									\
+	return lp55xx_store_master_fader(dev, attr, buf, len, nr);	\
+}									\
+static LP55XX_DEV_ATTR_RW(master_fader##nr, show_master_fader##nr,	\
+			  store_master_fader##nr)
+
 struct lp55xx_led;
 struct lp55xx_chip;
 
@@ -103,6 +119,8 @@ struct lp55xx_reg {
  * @prog_mem_base      : Chip specific base reg address for chip SMEM programming
  * @reg_led_pwm_base   : Chip specific base reg address for LED PWM conf
  * @reg_led_current_base : Chip specific base reg address for LED current conf
+ * @reg_master_fader_base : Chip specific base reg address for master fader base
+ * @reg_led_ctrl_base  : Chip specific base reg address for LED ctrl base
  * @pages_per_engine   : Assigned pages for each engine
  *                       (if not set chip doesn't support pages)
  * @max_channel        : Maximum number of channels
@@ -123,6 +141,8 @@ struct lp55xx_device_config {
 	const struct lp55xx_reg prog_mem_base;
 	const struct lp55xx_reg reg_led_pwm_base;
 	const struct lp55xx_reg reg_led_current_base;
+	const struct lp55xx_reg reg_master_fader_base;
+	const struct lp55xx_reg reg_led_ctrl_base;
 	const int pages_per_engine;
 	const int max_channel;
 
@@ -244,5 +264,17 @@ extern ssize_t lp55xx_show_engine_leds(struct device *dev,
 extern ssize_t lp55xx_store_engine_leds(struct device *dev,
 					struct device_attribute *attr,
 					const char *buf, size_t len, int nr);
+extern ssize_t lp55xx_show_master_fader(struct device *dev,
+					struct device_attribute *attr,
+					char *buf, int nr);
+extern ssize_t lp55xx_store_master_fader(struct device *dev,
+					 struct device_attribute *attr,
+					 const char *buf, size_t len, int nr);
+extern ssize_t lp55xx_show_master_fader_leds(struct device *dev,
+					     struct device_attribute *attr,
+					     char *buf);
+extern ssize_t lp55xx_store_master_fader_leds(struct device *dev,
+					      struct device_attribute *attr,
+					      const char *buf, size_t len);
 
 #endif /* _LEDS_LP55XX_COMMON_H */
