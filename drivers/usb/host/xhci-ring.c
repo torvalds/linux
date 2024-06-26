@@ -2719,18 +2719,12 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 		 * a Ring Overrun Event for IN Isoch endpoint or Ring
 		 * Underrun Event for OUT Isoch endpoint.
 		 */
-		xhci_dbg(xhci, "underrun event on endpoint\n");
-		if (!list_empty(&ep_ring->td_list))
-			xhci_dbg(xhci, "Underrun Event for slot %u ep %d still with TDs queued?\n",
-				 slot_id, ep_index);
+		xhci_dbg(xhci, "Underrun event on slot %u ep %u\n", slot_id, ep_index);
 		if (ep->skip)
 			break;
 		return 0;
 	case COMP_RING_OVERRUN:
-		xhci_dbg(xhci, "overrun event on endpoint\n");
-		if (!list_empty(&ep_ring->td_list))
-			xhci_dbg(xhci, "Overrun Event for slot %u ep %d still with TDs queued?\n",
-				 slot_id, ep_index);
+		xhci_dbg(xhci, "Overrun event on slot %u ep %u\n", slot_id, ep_index);
 		if (ep->skip)
 			break;
 		return 0;
