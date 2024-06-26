@@ -11,6 +11,7 @@
 
 #include <linux/dmaengine.h>
 #include <linux/platform_device.h>
+#include <linux/workqueue.h>
 #include "tmio_mmc.h"
 
 struct renesas_sdhi_scc {
@@ -67,7 +68,7 @@ struct renesas_sdhi_dma {
 	dma_filter_fn filter;
 	void (*enable)(struct tmio_mmc_host *host, bool enable);
 	struct completion dma_dataend;
-	struct tasklet_struct dma_complete;
+	struct work_struct dma_complete;
 };
 
 struct renesas_sdhi {
@@ -93,6 +94,7 @@ struct renesas_sdhi {
 	unsigned int tap_set;
 
 	struct reset_control *rstc;
+	struct tmio_mmc_host *host;
 };
 
 #define host_to_priv(host) \
