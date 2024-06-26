@@ -1172,3 +1172,30 @@ void dml21_get_pipe_mcache_config(
 	mcache_pipe_config->plane1_enabled =
 			dml21_is_plane1_enabled(pln_prog->plane_descriptor->pixel_format);
 }
+
+void dml21_set_dc_p_state_type(
+		struct pipe_ctx *pipe_ctx,
+		struct dml2_per_stream_programming *stream_programming)
+{
+	switch (stream_programming->uclk_pstate_method) {
+	case dml2_uclk_pstate_support_method_vactive:
+	case dml2_uclk_pstate_support_method_fw_vactive_drr:
+		pipe_ctx->p_state_type = P_STATE_V_ACTIVE;
+		break;
+	case dml2_uclk_pstate_support_method_vblank:
+	case dml2_uclk_pstate_support_method_fw_vblank_drr:
+		pipe_ctx->p_state_type = P_STATE_V_BLANK;
+		break;
+	case dml2_uclk_pstate_support_method_fw_subvp_phantom:
+	case dml2_uclk_pstate_support_method_fw_subvp_phantom_drr:
+		pipe_ctx->p_state_type = P_STATE_SUB_VP;
+		break;
+	case dml2_uclk_pstate_support_method_fw_drr:
+		pipe_ctx->p_state_type = P_STATE_FPO;
+		break;
+	default:
+		pipe_ctx->p_state_type = P_STATE_UNKNOWN;
+		break;
+	}
+}
+

@@ -180,6 +180,7 @@ struct clk_state_registers_and_bypass {
 	uint32_t dispclk;
 	uint32_t dppclk;
 	uint32_t dtbclk;
+	uint32_t fclk;
 
 	uint32_t dppclk_bypass;
 	uint32_t dcfclk_bypass;

@@ -316,6 +316,8 @@ void dml21_program_dc_pipe(struct dml2_context *dml_ctx, struct dc_state *contex
 
 	dml21_populate_mall_allocation_size(context, dml_ctx, pln_prog, pipe_ctx);
 	memcpy(&context->bw_ctx.bw.dcn.mcache_allocations[pipe_ctx->pipe_idx], &pln_prog->mcache_allocation, sizeof(struct dml2_mcache_surface_allocation));
+
+	dml21_set_dc_p_state_type(pipe_ctx, stream_prog);
 }
 
 static struct dc_stream_state *dml21_add_phantom_stream(struct dml2_context *dml_ctx,
