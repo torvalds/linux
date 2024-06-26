@@ -1399,32 +1399,32 @@ static u64 tg_prfill_limit(struct seq_file *sf, struct blkg_policy_data *pd,
 	bps_dft = U64_MAX;
 	iops_dft = UINT_MAX;
 
-	if (tg->bps_conf[READ] == bps_dft &&
-	    tg->bps_conf[WRITE] == bps_dft &&
-	    tg->iops_conf[READ] == iops_dft &&
-	    tg->iops_conf[WRITE] == iops_dft)
+	if (tg->bps[READ] == bps_dft &&
+	    tg->bps[WRITE] == bps_dft &&
+	    tg->iops[READ] == iops_dft &&
+	    tg->iops[WRITE] == iops_dft)
 		return 0;
 
 	seq_printf(sf, "%s", dname);
-	if (tg->bps_conf[READ] == U64_MAX)
+	if (tg->bps[READ] == U64_MAX)
 		seq_printf(sf, " rbps=max");
 	else
-		seq_printf(sf, " rbps=%llu", tg->bps_conf[READ]);
+		seq_printf(sf, " rbps=%llu", tg->bps[READ]);
 
-	if (tg->bps_conf[WRITE] == U64_MAX)
+	if (tg->bps[WRITE] == U64_MAX)
 		seq_printf(sf, " wbps=max");
 	else
-		seq_printf(sf, " wbps=%llu", tg->bps_conf[WRITE]);
+		seq_printf(sf, " wbps=%llu", tg->bps[WRITE]);
 
-	if (tg->iops_conf[READ] == UINT_MAX)
+	if (tg->iops[READ] == UINT_MAX)
 		seq_printf(sf, " riops=max");
 	else
-		seq_printf(sf, " riops=%u", tg->iops_conf[READ]);
+		seq_printf(sf, " riops=%u", tg->iops[READ]);
 
-	if (tg->iops_conf[WRITE] == UINT_MAX)
+	if (tg->iops[WRITE] == UINT_MAX)
 		seq_printf(sf, " wiops=max");
 	else
-		seq_printf(sf, " wiops=%u", tg->iops_conf[WRITE]);
+		seq_printf(sf, " wiops=%u", tg->iops[WRITE]);
 
 	seq_printf(sf, "\n");
 	return 0;

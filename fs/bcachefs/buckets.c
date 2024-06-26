@@ -1134,7 +1134,7 @@ static int __trigger_extent(struct btree_trans *trans,
 	r.e.nr_required	= 1;
 
 	bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
-		s64 disk_sectors;
+		s64 disk_sectors = 0;
 		ret = bch2_trigger_pointer(trans, btree_id, level, k, p, entry, &disk_sectors, flags);
 		if (ret < 0)
 			return ret;

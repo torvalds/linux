@@ -1939,8 +1939,7 @@ got_sb:
 
 	if (IS_ERR(sb)) {
 		ret = PTR_ERR(sb);
-		ret = bch2_err_class(ret);
-		return ERR_PTR(ret);
+		goto err;
 	}
 
 	c = sb->s_fs_info;
@@ -2016,6 +2015,15 @@ out:
 err_put_super:
 	__bch2_fs_stop(c);
 	deactivate_locked_super(sb);
+err:
+	/*
+	 * On an inconsistency error in recovery we might see an -EROFS derived
+	 * errorcode (from the journal), but we don't want to return that to
+	 * userspace as that causes util-linux to retry the mount RO - which is
+	 * confusing:
+	 */
+	if (bch2_err_matches(ret, EROFS) && ret != -EROFS)
+		ret = -EIO;
 	return ERR_PTR(bch2_err_class(ret));
 }
 
