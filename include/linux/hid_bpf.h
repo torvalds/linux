@@ -70,7 +70,7 @@ struct hid_ops {
 				  enum hid_class_request reqtype,
 				  __u64 source, bool from_bpf);
 	int (*hid_hw_output_report)(struct hid_device *hdev, __u8 *buf, size_t len,
-				    __u64 source);
+				    __u64 source, bool from_bpf);
 	int (*hid_input_report)(struct hid_device *hid, enum hid_report_type type,
 				u8 *data, u32 size, int interrupt, u64 source);
 	struct module *owner;
@@ -154,6 +154,24 @@ struct hid_bpf_ops {
 			       enum hid_report_type rtype, enum hid_class_request reqtype,
 			       __u64 source);
 
+	/**
+	 * @hid_hw_output_report: called whenever a hid_hw_output_report() call is emitted
+	 * on the HID device
+	 *
+	 * It has the following arguments:
+	 *
+	 * ``ctx``: The HID-BPF context as &struct hid_bpf_ctx
+	 * ``source``: a u64 referring to a uniq but identifiable source. If %0, the
+	 *             kernel itself emitted that call. For hidraw, ``source`` is set
+	 *             to the associated ``struct file *``.
+	 *
+	 * Return: %0 to keep processing the request by hid-core; any other value
+	 * stops hid-core from processing that event. A positive value should be
+	 * returned with the number of bytes written to the device; a negative error
+	 * code interrupts the processing of this call.
+	 */
+	int (*hid_hw_output_report)(struct hid_bpf_ctx *ctx, __u64 source);
+
 
 	/* private: do not show up in the docs */
 	struct hid_device *hdev;
@@ -182,6 +200,8 @@ int dispatch_hid_bpf_raw_requests(struct hid_device *hdev,
 				  u32 size, enum hid_report_type rtype,
 				  enum hid_class_request reqtype,
 				  __u64 source, bool from_bpf);
+int dispatch_hid_bpf_output_report(struct hid_device *hdev, __u8 *buf, u32 size,
+				   __u64 source, bool from_bpf);
 int hid_bpf_connect_device(struct hid_device *hdev);
 void hid_bpf_disconnect_device(struct hid_device *hdev);
 void hid_bpf_destroy_device(struct hid_device *hid);
@@ -196,6 +216,8 @@ static inline int dispatch_hid_bpf_raw_requests(struct hid_device *hdev,
 						u32 size, enum hid_report_type rtype,
 						enum hid_class_request reqtype,
 						u64 source, bool from_bpf) { return 0; }
+static inline int dispatch_hid_bpf_output_report(struct hid_device *hdev, __u8 *buf, u32 size,
+						 __u64 source, bool from_bpf) { return 0; }
 static inline int hid_bpf_connect_device(struct hid_device *hdev) { return 0; }
 static inline void hid_bpf_disconnect_device(struct hid_device *hdev) {}
 static inline void hid_bpf_destroy_device(struct hid_device *hid) {}

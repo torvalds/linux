@@ -45,6 +45,7 @@ static int hid_bpf_ops_check_member(const struct btf_type *t,
 	switch (moff) {
 	case offsetof(struct hid_bpf_ops, hid_rdesc_fixup):
 	case offsetof(struct hid_bpf_ops, hid_hw_request):
+	case offsetof(struct hid_bpf_ops, hid_hw_output_report):
 		break;
 	default:
 		if (prog->sleepable)

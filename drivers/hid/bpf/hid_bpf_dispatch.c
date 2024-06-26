@@ -113,6 +113,40 @@ out:
 }
 EXPORT_SYMBOL_GPL(dispatch_hid_bpf_raw_requests);
 
+int dispatch_hid_bpf_output_report(struct hid_device *hdev,
+				   __u8 *buf, u32 size, __u64 source,
+				   bool from_bpf)
+{
+	struct hid_bpf_ctx_kern ctx_kern = {
+		.ctx = {
+			.hid = hdev,
+			.allocated_size = size,
+			.size = size,
+		},
+		.data = buf,
+		.from_bpf = from_bpf,
+	};
+	struct hid_bpf_ops *e;
+	int ret, idx;
+
+	idx = srcu_read_lock(&hdev->bpf.srcu);
+	list_for_each_entry_srcu(e, &hdev->bpf.prog_list, list,
+				 srcu_read_lock_held(&hdev->bpf.srcu)) {
+		if (!e->hid_hw_output_report)
+			continue;
+
+		ret = e->hid_hw_output_report(&ctx_kern.ctx, source);
+		if (ret)
+			goto out;
+	}
+	ret = 0;
+
+out:
+	srcu_read_unlock(&hdev->bpf.srcu, idx);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(dispatch_hid_bpf_output_report);
+
 u8 *call_hid_bpf_rdesc_fixup(struct hid_device *hdev, u8 *rdesc, unsigned int *size)
 {
 	int ret;
@@ -443,10 +477,7 @@ hid_bpf_hw_output_report(struct hid_bpf_ctx *ctx, __u8 *buf, size_t buf__sz)
 	if (!dma_data)
 		return -ENOMEM;
 
-	ret = hid_ops->hid_hw_output_report(hdev,
-						dma_data,
-						size,
-						(__u64)ctx);
+	ret = hid_ops->hid_hw_output_report(hdev, dma_data, size, (__u64)ctx, true);
 
 	kfree(dma_data);
 	return ret;

@@ -2445,15 +2445,21 @@ int hid_hw_raw_request(struct hid_device *hdev,
 }
 EXPORT_SYMBOL_GPL(hid_hw_raw_request);
 
-int __hid_hw_output_report(struct hid_device *hdev, __u8 *buf, size_t len, __u64 source)
+int __hid_hw_output_report(struct hid_device *hdev, __u8 *buf, size_t len, __u64 source,
+			   bool from_bpf)
 {
 	unsigned int max_buffer_size = HID_MAX_BUFFER_SIZE;
+	int ret;
 
 	if (hdev->ll_driver->max_buffer_size)
 		max_buffer_size = hdev->ll_driver->max_buffer_size;
 
 	if (len < 1 || len > max_buffer_size || !buf)
 		return -EINVAL;
+
+	ret = dispatch_hid_bpf_output_report(hdev, buf, len, source, from_bpf);
+	if (ret)
+		return ret;
 
 	if (hdev->ll_driver->output_report)
 		return hdev->ll_driver->output_report(hdev, buf, len);
@@ -2472,7 +2478,7 @@ int __hid_hw_output_report(struct hid_device *hdev, __u8 *buf, size_t len, __u64
  */
 int hid_hw_output_report(struct hid_device *hdev, __u8 *buf, size_t len)
 {
-	return __hid_hw_output_report(hdev, buf, len, 0);
+	return __hid_hw_output_report(hdev, buf, len, 0, false);
 }
 EXPORT_SYMBOL_GPL(hid_hw_output_report);
 
