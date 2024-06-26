@@ -160,6 +160,7 @@ static void free_fixed_resources(struct mlx5_vdpa_net *ndev);
 static void mvqs_set_defaults(struct mlx5_vdpa_net *ndev);
 static int setup_vq_resources(struct mlx5_vdpa_net *ndev, bool filled);
 static void teardown_vq_resources(struct mlx5_vdpa_net *ndev);
+static int resume_vq(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtqueue *mvq);
 
 static bool mlx5_vdpa_debug;
 
@@ -1500,16 +1501,14 @@ static int setup_vq(struct mlx5_vdpa_net *ndev,
 	if (err)
 		goto err_vq;
 
+	mvq->initialized = true;
+
 	if (mvq->ready) {
-		err = modify_virtqueue_state(ndev, mvq, MLX5_VIRTIO_NET_Q_OBJECT_STATE_RDY);
-		if (err) {
-			mlx5_vdpa_warn(&ndev->mvdev, "failed to modify to ready vq idx %d(%d)\n",
-				       idx, err);
+		err = resume_vq(ndev, mvq);
+		if (err)
 			goto err_modify;
-		}
 	}
 
-	mvq->initialized = true;
 	return 0;
 
 err_modify:
@@ -2422,7 +2421,6 @@ static void mlx5_vdpa_set_vq_ready(struct vdpa_device *vdev, u16 idx, bool ready
 	struct mlx5_vdpa_dev *mvdev = to_mvdev(vdev);
 	struct mlx5_vdpa_net *ndev = to_mlx5_vdpa_ndev(mvdev);
 	struct mlx5_vdpa_virtqueue *mvq;
-	int err;
 
 	if (!mvdev->actual_features)
 		return;
@@ -2439,13 +2437,9 @@ static void mlx5_vdpa_set_vq_ready(struct vdpa_device *vdev, u16 idx, bool ready
 	if (!ready) {
 		suspend_vq(ndev, mvq);
 	} else {
-		err = modify_virtqueue_state(ndev, mvq, MLX5_VIRTIO_NET_Q_OBJECT_STATE_RDY);
-		if (err) {
-			mlx5_vdpa_warn(mvdev, "modify VQ %d to ready failed (%d)\n", idx, err);
+		if (resume_vq(ndev, mvq))
 			ready = false;
-		}
 	}
-
 
 	mvq->ready = ready;
 }
