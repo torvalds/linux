@@ -13,6 +13,15 @@
 #include <asm/unaligned.h>
 #include "blk.h"
 
+struct blk_integrity_iter {
+	void			*prot_buf;
+	void			*data_buf;
+	sector_t		seed;
+	unsigned int		data_size;
+	unsigned short		interval;
+	const char		*disk_name;
+};
+
 static __be16 t10_pi_csum(__be16 csum, void *data, unsigned int len,
 		unsigned char csum_type)
 {
@@ -364,33 +373,77 @@ static void ext_pi_type1_complete(struct request *rq, unsigned int nr_bytes)
 	}
 }
 
-void blk_integrity_generate(struct blk_integrity_iter *iter,
-		struct blk_integrity *bi)
+void blk_integrity_generate(struct bio *bio)
 {
-	switch (bi->csum_type) {
-	case BLK_INTEGRITY_CSUM_CRC64:
-		ext_pi_crc64_generate(iter, bi);
-		break;
-	case BLK_INTEGRITY_CSUM_CRC:
-	case BLK_INTEGRITY_CSUM_IP:
-		t10_pi_generate(iter, bi);
-		break;
-	default:
-		break;
+	struct blk_integrity *bi = blk_get_integrity(bio->bi_bdev->bd_disk);
+	struct bio_integrity_payload *bip = bio_integrity(bio);
+	struct blk_integrity_iter iter;
+	struct bvec_iter bviter;
+	struct bio_vec bv;
+
+	iter.disk_name = bio->bi_bdev->bd_disk->disk_name;
+	iter.interval = 1 << bi->interval_exp;
+	iter.seed = bio->bi_iter.bi_sector;
+	iter.prot_buf = bvec_virt(bip->bip_vec);
+	bio_for_each_segment(bv, bio, bviter) {
+		void *kaddr = bvec_kmap_local(&bv);
+
+		iter.data_buf = kaddr;
+		iter.data_size = bv.bv_len;
+		switch (bi->csum_type) {
+		case BLK_INTEGRITY_CSUM_CRC64:
+			ext_pi_crc64_generate(&iter, bi);
+			break;
+		case BLK_INTEGRITY_CSUM_CRC:
+		case BLK_INTEGRITY_CSUM_IP:
+			t10_pi_generate(&iter, bi);
+			break;
+		default:
+			break;
+		}
+		kunmap_local(kaddr);
 	}
 }
 
-blk_status_t blk_integrity_verify(struct blk_integrity_iter *iter,
-		struct blk_integrity *bi)
+void blk_integrity_verify(struct bio *bio)
 {
-	switch (bi->csum_type) {
-	case BLK_INTEGRITY_CSUM_CRC64:
-		return ext_pi_crc64_verify(iter, bi);
-	case BLK_INTEGRITY_CSUM_CRC:
-	case BLK_INTEGRITY_CSUM_IP:
-		return t10_pi_verify(iter, bi);
-	default:
-		return BLK_STS_OK;
+	struct blk_integrity *bi = blk_get_integrity(bio->bi_bdev->bd_disk);
+	struct bio_integrity_payload *bip = bio_integrity(bio);
+	struct blk_integrity_iter iter;
+	struct bvec_iter bviter;
+	struct bio_vec bv;
+
+	/*
+	 * At the moment verify is called bi_iter has been advanced during split
+	 * and completion, so use the copy created during submission here.
+	 */
+	iter.disk_name = bio->bi_bdev->bd_disk->disk_name;
+	iter.interval = 1 << bi->interval_exp;
+	iter.seed = bip->bio_iter.bi_sector;
+	iter.prot_buf = bvec_virt(bip->bip_vec);
+	__bio_for_each_segment(bv, bio, bviter, bip->bio_iter) {
+		void *kaddr = bvec_kmap_local(&bv);
+		blk_status_t ret = BLK_STS_OK;
+
+		iter.data_buf = kaddr;
+		iter.data_size = bv.bv_len;
+		switch (bi->csum_type) {
+		case BLK_INTEGRITY_CSUM_CRC64:
+			ret = ext_pi_crc64_verify(&iter, bi);
+			break;
+		case BLK_INTEGRITY_CSUM_CRC:
+		case BLK_INTEGRITY_CSUM_IP:
+			ret = t10_pi_verify(&iter, bi);
+			break;
+		default:
+			break;
+		}
+		kunmap_local(kaddr);
+
+		if (ret) {
+			bio->bi_status = ret;
+			return;
+		}
 	}
 }
 

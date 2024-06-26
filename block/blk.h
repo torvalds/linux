@@ -9,7 +9,6 @@
 #include <xen/xen.h>
 #include "blk-crypto-internal.h"
 
-struct blk_integrity_iter;
 struct elevator_type;
 
 /* Max future timer expiry for timeouts */
@@ -681,10 +680,8 @@ int bdev_open(struct block_device *bdev, blk_mode_t mode, void *holder,
 	      const struct blk_holder_ops *hops, struct file *bdev_file);
 int bdev_permission(dev_t dev, blk_mode_t mode, void *holder);
 
-void blk_integrity_generate(struct blk_integrity_iter *iter,
-		struct blk_integrity *bi);
-blk_status_t blk_integrity_verify(struct blk_integrity_iter *iter,
-		struct blk_integrity *bi);
+void blk_integrity_generate(struct bio *bio);
+void blk_integrity_verify(struct bio *bio);
 void blk_integrity_prepare(struct request *rq);
 void blk_integrity_complete(struct request *rq, unsigned int nr_bytes);
 

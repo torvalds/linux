@@ -14,15 +14,6 @@ enum blk_integrity_flags {
 	BLK_INTEGRITY_STACKED		= 1 << 4,
 };
 
-struct blk_integrity_iter {
-	void			*prot_buf;
-	void			*data_buf;
-	sector_t		seed;
-	unsigned int		data_size;
-	unsigned short		interval;
-	const char		*disk_name;
-};
-
 const char *blk_integrity_profile_name(struct blk_integrity *bi);
 bool queue_limits_stack_integrity(struct queue_limits *t,
 		struct queue_limits *b);

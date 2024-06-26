@@ -375,44 +375,6 @@ free_bvec:
 EXPORT_SYMBOL_GPL(bio_integrity_map_user);
 
 /**
- * bio_integrity_process - Process integrity metadata for a bio
- * @bio:	bio to generate/verify integrity metadata for
- * @proc_iter:  iterator to process
- */
-static blk_status_t bio_integrity_process(struct bio *bio,
-		struct bvec_iter *proc_iter)
-{
-	struct blk_integrity *bi = blk_get_integrity(bio->bi_bdev->bd_disk);
-	struct blk_integrity_iter iter;
-	struct bvec_iter bviter;
-	struct bio_vec bv;
-	struct bio_integrity_payload *bip = bio_integrity(bio);
-	blk_status_t ret = BLK_STS_OK;
-
-	iter.disk_name = bio->bi_bdev->bd_disk->disk_name;
-	iter.interval = 1 << bi->interval_exp;
-	iter.seed = proc_iter->bi_sector;
-	iter.prot_buf = bvec_virt(bip->bip_vec);
-
-	__bio_for_each_segment(bv, bio, bviter, *proc_iter) {
-		void *kaddr = bvec_kmap_local(&bv);
-
-		iter.data_buf = kaddr;
-		iter.data_size = bv.bv_len;
-		if (bio_data_dir(bio) == WRITE)
-			blk_integrity_generate(&iter, bi);
-		else
-			ret = blk_integrity_verify(&iter, bi);
-		kunmap_local(kaddr);
-
-		if (ret)
-			break;
-
-	}
-	return ret;
-}
-
-/**
  * bio_integrity_prep - Prepare bio for integrity I/O
  * @bio:	bio to prepare
  *
@@ -490,7 +452,7 @@ bool bio_integrity_prep(struct bio *bio)
 
 	/* Auto-generate integrity metadata if this is a write */
 	if (bio_data_dir(bio) == WRITE)
-		bio_integrity_process(bio, &bio->bi_iter);
+		blk_integrity_generate(bio);
 	else
 		bip->bio_iter = bio->bi_iter;
 	return true;
@@ -516,12 +478,7 @@ static void bio_integrity_verify_fn(struct work_struct *work)
 		container_of(work, struct bio_integrity_payload, bip_work);
 	struct bio *bio = bip->bip_bio;
 
-	/*
-	 * At the moment verify is called bio's iterator was advanced
-	 * during split and completion, we need to rewind iterator to
-	 * it's original position.
-	 */
-	bio->bi_status = bio_integrity_process(bio, &bip->bio_iter);
+	blk_integrity_verify(bio);
 	bio_integrity_free(bio);
 	bio_endio(bio);
 }
