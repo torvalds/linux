@@ -435,9 +435,6 @@ bool bio_integrity_prep(struct bio *bio)
 	if (!bi)
 		return true;
 
-	if (bio_op(bio) != REQ_OP_READ && bio_op(bio) != REQ_OP_WRITE)
-		return true;
-
 	if (!bio_sectors(bio))
 		return true;
 
@@ -445,10 +442,12 @@ bool bio_integrity_prep(struct bio *bio)
 	if (bio_integrity(bio))
 		return true;
 
-	if (bio_data_dir(bio) == READ) {
+	switch (bio_op(bio)) {
+	case REQ_OP_READ:
 		if (bi->flags & BLK_INTEGRITY_NOVERIFY)
 			return true;
-	} else {
+		break;
+	case REQ_OP_WRITE:
 		if (bi->flags & BLK_INTEGRITY_NOGENERATE)
 			return true;
 
@@ -459,6 +458,9 @@ bool bio_integrity_prep(struct bio *bio)
 		 */
 		if (bi->csum_type == BLK_INTEGRITY_CSUM_NONE)
 			gfp |= __GFP_ZERO;
+		break;
+	default:
+		return true;
 	}
 
 	/* Allocate kernel buffer for protection data */
