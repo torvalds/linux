@@ -848,6 +848,23 @@ __weak const struct pmu_metrics_table *pmu_metrics_table__find(void)
 }
 
 /**
+ * Return the length of the PMU name not including the suffix for uncore PMUs.
+ *
+ * We want to deduplicate many similar uncore PMUs by stripping their suffixes,
+ * but there are never going to be too many core PMUs and the suffixes might be
+ * interesting. "arm_cortex_a53" vs "arm_cortex_a57" or "cpum_cf" for example.
+ *
+ * @skip_duplicate_pmus: False in verbose mode so all uncore PMUs are visible
+ */
+static size_t pmu_deduped_name_len(const struct perf_pmu *pmu, const char *name,
+				   bool skip_duplicate_pmus)
+{
+	return skip_duplicate_pmus && !pmu->is_core
+		? pmu_name_len_no_suffix(name)
+		: strlen(name);
+}
+
+/**
  * perf_pmu__match_ignoring_suffix - Does the pmu_name match tok ignoring any
  *                                   trailing suffix? The Suffix must be in form
  *                                   tok_{digits}, or tok{digits}.
@@ -1796,9 +1813,8 @@ static char *format_alias(char *buf, int len, const struct perf_pmu *pmu,
 			  const struct perf_pmu_alias *alias, bool skip_duplicate_pmus)
 {
 	struct parse_events_term *term;
-	size_t pmu_name_len = skip_duplicate_pmus
-		? pmu_name_len_no_suffix(pmu->name)
-		: strlen(pmu->name);
+	size_t pmu_name_len = pmu_deduped_name_len(pmu, pmu->name,
+						   skip_duplicate_pmus);
 	int used = snprintf(buf, len, "%.*s/%s", (int)pmu_name_len, pmu->name, alias->name);
 
 	list_for_each_entry(term, &alias->terms.terms, list) {
@@ -1839,9 +1855,8 @@ int perf_pmu__for_each_event(struct perf_pmu *pmu, bool skip_duplicate_pmus,
 		size_t buf_used, pmu_name_len;
 
 		info.pmu_name = event->pmu_name ?: pmu->name;
-		pmu_name_len = skip_duplicate_pmus
-			? pmu_name_len_no_suffix(info.pmu_name)
-			: strlen(info.pmu_name);
+		pmu_name_len = pmu_deduped_name_len(pmu, info.pmu_name,
+						    skip_duplicate_pmus);
 		info.alias = NULL;
 		if (event->desc) {
 			info.name = event->name;
