@@ -805,7 +805,7 @@
 					    QORIQ_CLK_PLL_DIV(1)>;
 		};
 
-		aux_bus: aux_bus {
+		aux_bus: aux-bus {
 			#address-cells = <2>;
 			#size-cells = <2>;
 			compatible = "simple-bus";
