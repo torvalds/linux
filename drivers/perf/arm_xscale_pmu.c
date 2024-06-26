@@ -13,8 +13,6 @@
  * PMU structures.
  */
 
-#ifdef CONFIG_CPU_XSCALE
-
 #include <asm/cputype.h>
 #include <asm/irq_regs.h>
 
@@ -745,4 +743,3 @@ static struct platform_driver xscale_pmu_driver = {
 };
 
 builtin_platform_driver(xscale_pmu_driver);
-#endif	/* CONFIG_CPU_XSCALE */

@@ -17,8 +17,6 @@
  *  counter and all 4 performance counters together can be reset separately.
  */
 
-#ifdef CONFIG_CPU_V7
-
 #include <asm/cp15.h>
 #include <asm/cputype.h>
 #include <asm/irq_regs.h>
@@ -2002,4 +2000,3 @@ static struct platform_driver armv7_pmu_driver = {
 };
 
 builtin_platform_driver(armv7_pmu_driver);
-#endif	/* CONFIG_CPU_V7 */

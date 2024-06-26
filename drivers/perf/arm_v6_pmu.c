@@ -31,8 +31,6 @@
  * enable the interrupt.
  */
 
-#if defined(CONFIG_CPU_V6) || defined(CONFIG_CPU_V6K)
-
 #include <asm/cputype.h>
 #include <asm/irq_regs.h>
 
@@ -445,4 +443,3 @@ static struct platform_driver armv6_pmu_driver = {
 };
 
 builtin_platform_driver(armv6_pmu_driver);
-#endif	/* CONFIG_CPU_V6 || CONFIG_CPU_V6K */
