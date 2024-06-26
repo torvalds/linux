@@ -127,10 +127,6 @@ static void lp8501_turn_off_channels(struct lp55xx_chip *chip)
 
 static void lp8501_run_engine(struct lp55xx_chip *chip, bool start)
 {
-	int ret;
-	u8 mode;
-	u8 exec;
-
 	/* stop engine */
 	if (!start) {
 		lp55xx_stop_all_engine(chip);
@@ -138,39 +134,7 @@ static void lp8501_run_engine(struct lp55xx_chip *chip, bool start)
 		return;
 	}
 
-	/*
-	 * To run the engine,
-	 * operation mode and enable register should updated at the same time
-	 */
-
-	ret = lp55xx_read(chip, LP8501_REG_OP_MODE, &mode);
-	if (ret)
-		return;
-
-	ret = lp55xx_read(chip, LP8501_REG_ENABLE, &exec);
-	if (ret)
-		return;
-
-	/* change operation mode to RUN only when each engine is loading */
-	if (LP8501_ENG1_IS_LOADING(mode)) {
-		mode = (mode & ~LP8501_MODE_ENG1_M) | LP8501_RUN_ENG1;
-		exec = (exec & ~LP8501_EXEC_ENG1_M) | LP8501_RUN_ENG1;
-	}
-
-	if (LP8501_ENG2_IS_LOADING(mode)) {
-		mode = (mode & ~LP8501_MODE_ENG2_M) | LP8501_RUN_ENG2;
-		exec = (exec & ~LP8501_EXEC_ENG2_M) | LP8501_RUN_ENG2;
-	}
-
-	if (LP8501_ENG3_IS_LOADING(mode)) {
-		mode = (mode & ~LP8501_MODE_ENG3_M) | LP8501_RUN_ENG3;
-		exec = (exec & ~LP8501_EXEC_ENG3_M) | LP8501_RUN_ENG3;
-	}
-
-	lp55xx_write(chip, LP8501_REG_OP_MODE, mode);
-	lp8501_wait_opmode_done();
-
-	lp55xx_update_bits(chip, LP8501_REG_ENABLE, LP8501_EXEC_M, exec);
+	lp55xx_run_engine_common(chip);
 }
 
 static int lp8501_update_program_memory(struct lp55xx_chip *chip,
@@ -257,6 +221,9 @@ static int lp8501_led_brightness(struct lp55xx_led *led)
 static struct lp55xx_device_config lp8501_cfg = {
 	.reg_op_mode = {
 		.addr = LP8501_REG_OP_MODE,
+	},
+	.reg_exec = {
+		.addr = LP8501_REG_ENABLE,
 	},
 	.engine_busy = {
 		.addr = LP8501_REG_STATUS,

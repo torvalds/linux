@@ -132,8 +132,6 @@ static void lp5521_stop_engine(struct lp55xx_chip *chip)
 static void lp5521_run_engine(struct lp55xx_chip *chip, bool start)
 {
 	int ret;
-	u8 mode;
-	u8 exec;
 
 	/* stop engine */
 	if (!start) {
@@ -143,40 +141,9 @@ static void lp5521_run_engine(struct lp55xx_chip *chip, bool start)
 		return;
 	}
 
-	/*
-	 * To run the engine,
-	 * operation mode and enable register should updated at the same time
-	 */
-
-	ret = lp55xx_read(chip, LP5521_REG_OP_MODE, &mode);
-	if (ret)
-		return;
-
-	ret = lp55xx_read(chip, LP5521_REG_ENABLE, &exec);
-	if (ret)
-		return;
-
-	/* change operation mode to RUN only when each engine is loading */
-	if (LP5521_R_IS_LOADING(mode)) {
-		mode = (mode & ~LP5521_MODE_R_M) | LP5521_RUN_R;
-		exec = (exec & ~LP5521_EXEC_R_M) | LP5521_RUN_R;
-	}
-
-	if (LP5521_G_IS_LOADING(mode)) {
-		mode = (mode & ~LP5521_MODE_G_M) | LP5521_RUN_G;
-		exec = (exec & ~LP5521_EXEC_G_M) | LP5521_RUN_G;
-	}
-
-	if (LP5521_B_IS_LOADING(mode)) {
-		mode = (mode & ~LP5521_MODE_B_M) | LP5521_RUN_B;
-		exec = (exec & ~LP5521_EXEC_B_M) | LP5521_RUN_B;
-	}
-
-	lp55xx_write(chip, LP5521_REG_OP_MODE, mode);
-	lp5521_wait_opmode_done();
-
-	lp55xx_update_bits(chip, LP5521_REG_ENABLE, LP5521_EXEC_M, exec);
-	lp5521_wait_enable_done();
+	ret = lp55xx_run_engine_common(chip);
+	if (!ret)
+		lp5521_wait_enable_done();
 }
 
 static int lp5521_update_program_memory(struct lp55xx_chip *chip,
@@ -475,6 +442,9 @@ static const struct attribute_group lp5521_group = {
 static struct lp55xx_device_config lp5521_cfg = {
 	.reg_op_mode = {
 		.addr = LP5521_REG_OP_MODE,
+	},
+	.reg_exec = {
+		.addr = LP5521_REG_ENABLE,
 	},
 	.reset = {
 		.addr = LP5521_REG_RESET,

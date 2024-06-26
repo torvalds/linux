@@ -46,6 +46,15 @@
 #define   LP55xx_MODE_ENGn_GET(n, mode, shift)        \
 	(((mode) >> LP55xx_MODE_ENGn_SHIFT(n, shift)) & LP55xx_MODE_ENG_MASK)
 
+#define   LP55xx_EXEC_ENG_MASK         GENMASK(1, 0)
+#define   LP55xx_EXEC_HOLD_ENG         FIELD_PREP_CONST(LP55xx_EXEC_ENG_MASK, 0x0)
+#define   LP55xx_EXEC_STEP_ENG         FIELD_PREP_CONST(LP55xx_EXEC_ENG_MASK, 0x1)
+#define   LP55xx_EXEC_RUN_ENG          FIELD_PREP_CONST(LP55xx_EXEC_ENG_MASK, 0x2)
+#define   LP55xx_EXEC_ONCE_ENG         FIELD_PREP_CONST(LP55xx_EXEC_ENG_MASK, 0x3)
+
+#define   LP55xx_EXEC_ENGn_SHIFT(n, shift)    ((shift) + (2 * (3 - (n))))
+#define   LP55xx_EXEC_ENGn_MASK(n, shift)     (LP55xx_EXEC_ENG_MASK << LP55xx_EXEC_ENGn_SHIFT(n, shift))
+
 /* Memory Page Selection */
 #define LP55xx_REG_PROG_PAGE_SEL	0x4f
 /* If supported, each ENGINE have an equal amount of pages offset from page 0 */
@@ -116,6 +125,40 @@ void lp55xx_load_engine(struct lp55xx_chip *chip)
 			     LP55xx_PAGE_OFFSET(idx, cfg->pages_per_engine));
 }
 EXPORT_SYMBOL_GPL(lp55xx_load_engine);
+
+int lp55xx_run_engine_common(struct lp55xx_chip *chip)
+{
+	const struct lp55xx_device_config *cfg = chip->cfg;
+	u8 mode, exec;
+	int i, ret;
+
+	/* To run the engine, both OP MODE and EXEC needs to be put in RUN mode */
+	ret = lp55xx_read(chip, cfg->reg_op_mode.addr, &mode);
+	if (ret)
+		return ret;
+
+	ret = lp55xx_read(chip, cfg->reg_exec.addr, &exec);
+	if (ret)
+		return ret;
+
+	/* Switch to RUN only for engine that were put in LOAD previously */
+	for (i = LP55XX_ENGINE_1; i <= LP55XX_ENGINE_3; i++) {
+		if (LP55xx_MODE_ENGn_GET(i, mode, cfg->reg_op_mode.shift) != LP55xx_MODE_LOAD_ENG)
+			continue;
+
+		mode &= ~LP55xx_MODE_ENGn_MASK(i, cfg->reg_op_mode.shift);
+		mode |= LP55xx_MODE_RUN_ENG << LP55xx_MODE_ENGn_SHIFT(i, cfg->reg_op_mode.shift);
+		exec &= ~LP55xx_EXEC_ENGn_MASK(i, cfg->reg_exec.shift);
+		exec |= LP55xx_EXEC_RUN_ENG << LP55xx_EXEC_ENGn_SHIFT(i, cfg->reg_exec.shift);
+	}
+
+	lp55xx_write(chip, cfg->reg_op_mode.addr, mode);
+	lp55xx_wait_opmode_done(chip);
+	lp55xx_write(chip, cfg->reg_exec.addr, exec);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(lp55xx_run_engine_common);
 
 static void lp55xx_reset_device(struct lp55xx_chip *chip)
 {
