@@ -1287,6 +1287,15 @@ static int modify_virtqueue(struct mlx5_vdpa_net *ndev,
 		MLX5_SET(virtio_q, vq_ctx, virtio_version_1_0,
 			!!(ndev->mvdev.actual_features & BIT_ULL(VIRTIO_F_VERSION_1)));
 
+	if (mvq->modified_fields & MLX5_VIRTQ_MODIFY_MASK_QUEUE_FEATURES) {
+		u16 mlx_features = get_features(ndev->mvdev.actual_features);
+
+		MLX5_SET(virtio_net_q_object, obj_context, queue_feature_bit_mask_12_3,
+			 mlx_features >> 3);
+		MLX5_SET(virtio_net_q_object, obj_context, queue_feature_bit_mask_2_0,
+			 mlx_features & 7);
+	}
+
 	if (mvq->modified_fields & MLX5_VIRTQ_MODIFY_MASK_VIRTIO_Q_MKEY) {
 		vq_mr = mvdev->mr[mvdev->group2asid[MLX5_VDPA_DATAVQ_GROUP]];
 
@@ -2734,7 +2743,8 @@ static int mlx5_vdpa_set_driver_features(struct vdpa_device *vdev, u64 features)
 			struct mlx5_vdpa_virtqueue *mvq = &ndev->vqs[i];
 
 			mvq->modified_fields |= (
-				MLX5_VIRTQ_MODIFY_MASK_QUEUE_VIRTIO_VERSION
+				MLX5_VIRTQ_MODIFY_MASK_QUEUE_VIRTIO_VERSION |
+				MLX5_VIRTQ_MODIFY_MASK_QUEUE_FEATURES
 			);
 		}
 	}
