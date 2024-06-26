@@ -137,26 +137,6 @@ static void lp8501_run_engine(struct lp55xx_chip *chip, bool start)
 	lp55xx_run_engine_common(chip);
 }
 
-static void lp8501_firmware_loaded(struct lp55xx_chip *chip)
-{
-	const struct firmware *fw = chip->fw;
-
-	if (fw->size > LP8501_PROGRAM_LENGTH) {
-		dev_err(&chip->cl->dev, "firmware data size overflow: %zu\n",
-			fw->size);
-		return;
-	}
-
-	/*
-	 * Program memory sequence
-	 *  1) set engine mode to "LOAD"
-	 *  2) write firmware data into program memory
-	 */
-
-	lp55xx_load_engine(chip);
-	lp55xx_update_program_memory(chip, fw->data, fw->size);
-}
-
 static int lp8501_led_brightness(struct lp55xx_led *led)
 {
 	struct lp55xx_chip *chip = led->chip;
@@ -198,7 +178,7 @@ static struct lp55xx_device_config lp8501_cfg = {
 	.post_init_device   = lp8501_post_init_device,
 	.brightness_fn      = lp8501_led_brightness,
 	.set_led_current    = lp8501_set_led_current,
-	.firmware_cb        = lp8501_firmware_loaded,
+	.firmware_cb        = lp55xx_firmware_loaded_cb,
 	.run_engine         = lp8501_run_engine,
 };
 

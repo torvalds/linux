@@ -217,6 +217,31 @@ err:
 }
 EXPORT_SYMBOL_GPL(lp55xx_update_program_memory);
 
+void lp55xx_firmware_loaded_cb(struct lp55xx_chip *chip)
+{
+	const struct firmware *fw = chip->fw;
+
+	/*
+	 * the firmware is encoded in ascii hex character, with 2 chars
+	 * per byte
+	 */
+	if (fw->size > LP55xx_PROGRAM_LENGTH * 2) {
+		dev_err(&chip->cl->dev, "firmware data size overflow: %zu\n",
+			fw->size);
+		return;
+	}
+
+	/*
+	 * Program memory sequence
+	 *  1) set engine mode to "LOAD"
+	 *  2) write firmware data into program memory
+	 */
+
+	lp55xx_load_engine(chip);
+	lp55xx_update_program_memory(chip, fw->data, fw->size);
+}
+EXPORT_SYMBOL_GPL(lp55xx_firmware_loaded_cb);
+
 static void lp55xx_reset_device(struct lp55xx_chip *chip)
 {
 	const struct lp55xx_device_config *cfg = chip->cfg;
