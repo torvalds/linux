@@ -338,6 +338,11 @@ static bool armv8pmu_event_want_user_access(struct perf_event *event)
 	return ATTR_CFG_GET_FLD(&event->attr, rdpmc);
 }
 
+static u32 armv8pmu_event_get_threshold(struct perf_event_attr *attr)
+{
+	return ATTR_CFG_GET_FLD(attr, threshold);
+}
+
 static u8 armv8pmu_event_threshold_control(struct perf_event_attr *attr)
 {
 	u8 th_compare = ATTR_CFG_GET_FLD(attr, threshold_compare);
@@ -941,7 +946,8 @@ static int armv8pmu_get_event_idx(struct pmu_hw_events *cpuc,
 	unsigned long evtype = hwc->config_base & ARMV8_PMU_EVTYPE_EVENT;
 
 	/* Always prefer to place a cycle counter into the cycle counter. */
-	if (evtype == ARMV8_PMUV3_PERFCTR_CPU_CYCLES) {
+	if ((evtype == ARMV8_PMUV3_PERFCTR_CPU_CYCLES) &&
+	    !armv8pmu_event_get_threshold(&event->attr)) {
 		if (!test_and_set_bit(ARMV8_IDX_CYCLE_COUNTER, cpuc->used_mask))
 			return ARMV8_IDX_CYCLE_COUNTER;
 		else if (armv8pmu_event_is_64bit(event) &&
@@ -1033,7 +1039,7 @@ static int armv8pmu_set_event_filter(struct hw_perf_event *event,
 	 * If FEAT_PMUv3_TH isn't implemented, then THWIDTH (threshold_max) will
 	 * be 0 and will also trigger this check, preventing it from being used.
 	 */
-	th = ATTR_CFG_GET_FLD(attr, threshold);
+	th = armv8pmu_event_get_threshold(attr);
 	if (th > threshold_max(cpu_pmu)) {
 		pr_debug("PMU event threshold exceeds max value\n");
 		return -EINVAL;
