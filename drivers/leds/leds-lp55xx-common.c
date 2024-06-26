@@ -9,6 +9,7 @@
  * Derived from leds-lp5521.c, leds-lp5523.c
  */
 
+#include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/firmware.h>
@@ -26,8 +27,24 @@
 /* OP MODE require at least 153 us to clear regs */
 #define LP55XX_CMD_SLEEP		200
 
-/* Program Commands */
+/*
+ * Program Memory Operations
+ * Same Mask for each engine for both mode and exec
+ * ENG1        GENMASK(3, 2)
+ * ENG2        GENMASK(5, 4)
+ * ENG3        GENMASK(7, 6)
+ */
 #define LP55xx_MODE_DISABLE_ALL_ENG	0x0
+#define LP55xx_MODE_ENG_MASK           GENMASK(1, 0)
+#define   LP55xx_MODE_DISABLE_ENG      FIELD_PREP_CONST(LP55xx_MODE_ENG_MASK, 0x0)
+#define   LP55xx_MODE_LOAD_ENG         FIELD_PREP_CONST(LP55xx_MODE_ENG_MASK, 0x1)
+#define   LP55xx_MODE_RUN_ENG          FIELD_PREP_CONST(LP55xx_MODE_ENG_MASK, 0x2)
+#define   LP55xx_MODE_HALT_ENG         FIELD_PREP_CONST(LP55xx_MODE_ENG_MASK, 0x3)
+
+#define   LP55xx_MODE_ENGn_SHIFT(n, shift)	((shift) + (2 * (3 - (n))))
+#define   LP55xx_MODE_ENGn_MASK(n, shift)     (LP55xx_MODE_ENG_MASK << LP55xx_MODE_ENGn_SHIFT(n, shift))
+#define   LP55xx_MODE_ENGn_GET(n, mode, shift)        \
+	(((mode) >> LP55xx_MODE_ENGn_SHIFT(n, shift)) & LP55xx_MODE_ENG_MASK)
 
 /* External clock rate */
 #define LP55XX_CLK_32K			32768
@@ -75,6 +92,20 @@ void lp55xx_stop_all_engine(struct lp55xx_chip *chip)
 	lp55xx_wait_opmode_done(chip);
 }
 EXPORT_SYMBOL_GPL(lp55xx_stop_all_engine);
+
+void lp55xx_load_engine(struct lp55xx_chip *chip)
+{
+	enum lp55xx_engine_index idx = chip->engine_idx;
+	const struct lp55xx_device_config *cfg = chip->cfg;
+	u8 mask, val;
+
+	mask = LP55xx_MODE_ENGn_MASK(idx, cfg->reg_op_mode.shift);
+	val = LP55xx_MODE_LOAD_ENG << LP55xx_MODE_ENGn_SHIFT(idx, cfg->reg_op_mode.shift);
+
+	lp55xx_update_bits(chip, cfg->reg_op_mode.addr, mask, val);
+	lp55xx_wait_opmode_done(chip);
+}
+EXPORT_SYMBOL_GPL(lp55xx_load_engine);
 
 static void lp55xx_reset_device(struct lp55xx_chip *chip)
 {

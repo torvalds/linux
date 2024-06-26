@@ -124,26 +124,6 @@ static void lp5562_set_led_current(struct lp55xx_led *led, u8 led_current)
 	lp55xx_write(led->chip, addr[led->chan_nr], led_current);
 }
 
-static void lp5562_load_engine(struct lp55xx_chip *chip)
-{
-	enum lp55xx_engine_index idx = chip->engine_idx;
-	static const u8 mask[] = {
-		[LP55XX_ENGINE_1] = LP5562_MODE_ENG1_M,
-		[LP55XX_ENGINE_2] = LP5562_MODE_ENG2_M,
-		[LP55XX_ENGINE_3] = LP5562_MODE_ENG3_M,
-	};
-
-	static const u8 val[] = {
-		[LP55XX_ENGINE_1] = LP5562_LOAD_ENG1,
-		[LP55XX_ENGINE_2] = LP5562_LOAD_ENG2,
-		[LP55XX_ENGINE_3] = LP5562_LOAD_ENG3,
-	};
-
-	lp55xx_update_bits(chip, LP5562_REG_OP_MODE, mask[idx], val[idx]);
-
-	lp5562_wait_opmode_done();
-}
-
 static void lp5562_run_engine(struct lp55xx_chip *chip, bool start)
 {
 	int ret;
@@ -270,7 +250,7 @@ static void lp5562_firmware_loaded(struct lp55xx_chip *chip)
 	 *  2) write firmware data into program memory
 	 */
 
-	lp5562_load_engine(chip);
+	lp55xx_load_engine(chip);
 	lp5562_update_firmware(chip, fw->data, fw->size);
 }
 
@@ -371,7 +351,7 @@ static int lp5562_run_predef_led_pattern(struct lp55xx_chip *chip, int mode)
 	/* Load engines */
 	for (i = LP55XX_ENGINE_1; i <= LP55XX_ENGINE_3; i++) {
 		chip->engine_idx = i;
-		lp5562_load_engine(chip);
+		lp55xx_load_engine(chip);
 	}
 
 	/* Clear program registers */

@@ -115,26 +115,6 @@ static void lp5521_set_led_current(struct lp55xx_led *led, u8 led_current)
 		led_current);
 }
 
-static void lp5521_load_engine(struct lp55xx_chip *chip)
-{
-	enum lp55xx_engine_index idx = chip->engine_idx;
-	static const u8 mask[] = {
-		[LP55XX_ENGINE_1] = LP5521_MODE_R_M,
-		[LP55XX_ENGINE_2] = LP5521_MODE_G_M,
-		[LP55XX_ENGINE_3] = LP5521_MODE_B_M,
-	};
-
-	static const u8 val[] = {
-		[LP55XX_ENGINE_1] = LP5521_LOAD_R,
-		[LP55XX_ENGINE_2] = LP5521_LOAD_G,
-		[LP55XX_ENGINE_3] = LP5521_LOAD_B,
-	};
-
-	lp55xx_update_bits(chip, LP5521_REG_OP_MODE, mask[idx], val[idx]);
-
-	lp5521_wait_opmode_done();
-}
-
 static void lp5521_stop_engine(struct lp55xx_chip *chip)
 {
 	enum lp55xx_engine_index idx = chip->engine_idx;
@@ -264,7 +244,7 @@ static void lp5521_firmware_loaded(struct lp55xx_chip *chip)
 	 *  2) write firmware data into program memory
 	 */
 
-	lp5521_load_engine(chip);
+	lp55xx_load_engine(chip);
 	lp5521_update_program_memory(chip, fw->data, fw->size);
 }
 
@@ -415,7 +395,7 @@ static ssize_t store_engine_mode(struct device *dev,
 		engine->mode = LP55XX_ENGINE_RUN;
 	} else if (!strncmp(buf, "load", 4)) {
 		lp5521_stop_engine(chip);
-		lp5521_load_engine(chip);
+		lp55xx_load_engine(chip);
 		engine->mode = LP55XX_ENGINE_LOAD;
 	} else if (!strncmp(buf, "disabled", 8)) {
 		lp5521_stop_engine(chip);
@@ -441,7 +421,7 @@ static ssize_t store_engine_load(struct device *dev,
 	mutex_lock(&chip->lock);
 
 	chip->engine_idx = nr;
-	lp5521_load_engine(chip);
+	lp55xx_load_engine(chip);
 	ret = lp5521_update_program_memory(chip, buf, len);
 
 	mutex_unlock(&chip->lock);

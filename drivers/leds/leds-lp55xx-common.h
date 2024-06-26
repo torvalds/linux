@@ -202,6 +202,7 @@ extern bool lp55xx_is_extclk_used(struct lp55xx_chip *chip);
 
 /* common chip functions */
 extern void lp55xx_stop_all_engine(struct lp55xx_chip *chip);
+extern void lp55xx_load_engine(struct lp55xx_chip *chip);
 
 /* common probe/remove function */
 extern int lp55xx_probe(struct i2c_client *client);

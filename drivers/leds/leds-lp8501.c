@@ -119,17 +119,6 @@ static int lp8501_post_init_device(struct lp55xx_chip *chip)
 static void lp8501_load_engine(struct lp55xx_chip *chip)
 {
 	enum lp55xx_engine_index idx = chip->engine_idx;
-	static const u8 mask[] = {
-		[LP55XX_ENGINE_1] = LP8501_MODE_ENG1_M,
-		[LP55XX_ENGINE_2] = LP8501_MODE_ENG2_M,
-		[LP55XX_ENGINE_3] = LP8501_MODE_ENG3_M,
-	};
-
-	static const u8 val[] = {
-		[LP55XX_ENGINE_1] = LP8501_LOAD_ENG1,
-		[LP55XX_ENGINE_2] = LP8501_LOAD_ENG2,
-		[LP55XX_ENGINE_3] = LP8501_LOAD_ENG3,
-	};
 
 	static const u8 page_sel[] = {
 		[LP55XX_ENGINE_1] = LP8501_PAGE_ENG1,
@@ -137,9 +126,7 @@ static void lp8501_load_engine(struct lp55xx_chip *chip)
 		[LP55XX_ENGINE_3] = LP8501_PAGE_ENG3,
 	};
 
-	lp55xx_update_bits(chip, LP8501_REG_OP_MODE, mask[idx], val[idx]);
-
-	lp8501_wait_opmode_done();
+	lp55xx_load_engine(chip);
 
 	lp55xx_write(chip, LP8501_REG_PROG_PAGE_SEL, page_sel[idx]);
 }
@@ -287,7 +274,7 @@ static struct lp55xx_device_config lp8501_cfg = {
 	},
 	.engine_busy = {
 		.addr = LP8501_REG_STATUS,
-		.maks = LP8501_ENGINE_BUSY,
+		.mask = LP8501_ENGINE_BUSY,
 	},
 	.reset = {
 		.addr = LP8501_REG_RESET,
