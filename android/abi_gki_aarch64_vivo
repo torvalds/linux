@@ -378,6 +378,8 @@
   __traceiter_android_vh_build_sched_domains
   __traceiter_android_vh_check_uninterrupt_tasks
   __traceiter_android_vh_check_uninterrupt_tasks_done
+  __traceiter_android_vh_clear_rwsem_reader_owned
+  __traceiter_android_vh_clear_rwsem_writer_owned
   __traceiter_android_vh_cpu_idle_enter
   __traceiter_android_vh_cpu_idle_exit
   __traceiter_android_vh_cpufreq_fast_switch
@@ -406,6 +408,8 @@
   __traceiter_android_vh_percpu_rwsem_up_write
   __traceiter_android_vh_printk_hotplug
   __traceiter_android_vh_queue_request_and_unlock
+  __traceiter_android_vh_record_rwsem_reader_owned
+  __traceiter_android_vh_record_rwsem_writer_owned
   __traceiter_android_vh_rproc_recovery
   __traceiter_android_vh_rproc_recovery_set
   __traceiter_android_vh_rtmutex_wait_finish
@@ -553,6 +557,8 @@
   __tracepoint_android_vh_build_sched_domains
   __tracepoint_android_vh_check_uninterrupt_tasks
   __tracepoint_android_vh_check_uninterrupt_tasks_done
+  __tracepoint_android_vh_clear_rwsem_reader_owned
+  __tracepoint_android_vh_clear_rwsem_writer_owned
   __tracepoint_android_vh_cpu_idle_enter
   __tracepoint_android_vh_cpu_idle_exit
   __tracepoint_android_vh_cpufreq_fast_switch
@@ -581,6 +587,8 @@
   __tracepoint_android_vh_percpu_rwsem_up_write
   __tracepoint_android_vh_printk_hotplug
   __tracepoint_android_vh_queue_request_and_unlock
+  __tracepoint_android_vh_record_rwsem_reader_owned
+  __tracepoint_android_vh_record_rwsem_writer_owned
   __tracepoint_android_vh_rproc_recovery
   __tracepoint_android_vh_rproc_recovery_set
   __tracepoint_android_vh_rtmutex_wait_finish
