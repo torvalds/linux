@@ -710,6 +710,7 @@ config VIDEO_THP7312
 	tristate "THine THP7312 support"
 	depends on I2C
 	select FW_LOADER
+	select FW_UPLOAD
 	select MEDIA_CONTROLLER
 	select V4L2_CCI_I2C
 	select V4L2_FWNODE

@@ -690,7 +690,7 @@ struct v4l2_subdev_pad_config {
  *
  * @pad: pad number
  * @stream: stream number
- * @enabled: has the stream been enabled with v4l2_subdev_enable_stream()
+ * @enabled: has the stream been enabled with v4l2_subdev_enable_streams()
  * @fmt: &struct v4l2_mbus_framefmt
  * @crop: &struct v4l2_rect to be used for crop
  * @compose: &struct v4l2_rect to be used for compose
