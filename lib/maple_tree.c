@@ -1285,7 +1285,10 @@ static inline void mas_alloc_nodes(struct ma_state *mas, gfp_t gfp)
 
 		node->node_count += count;
 		allocated += count;
-		node = node->slot[0];
+		/* find a non-full node*/
+		do {
+			node = node->slot[0];
+		} while (unlikely(node->node_count == MAPLE_ALLOC_SLOTS));
 		requested -= count;
 	}
 	mas->alloc->total = allocated;
