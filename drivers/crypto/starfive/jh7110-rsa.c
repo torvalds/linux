@@ -259,7 +259,7 @@ static int starfive_rsa_enc_core(struct starfive_cryp_ctx *ctx, int enc)
 		memset(rctx->rsa_data, 0, shift);
 	}
 
-	rctx->total = sg_copy_to_buffer(rctx->in_sg, rctx->nents,
+	rctx->total = sg_copy_to_buffer(rctx->in_sg, sg_nents(rctx->in_sg),
 					rctx->rsa_data + shift, rctx->total);
 
 	if (enc) {
@@ -309,7 +309,6 @@ static int starfive_rsa_enc(struct akcipher_request *req)
 	rctx->in_sg = req->src;
 	rctx->out_sg = req->dst;
 	rctx->total = req->src_len;
-	rctx->nents = sg_nents(rctx->in_sg);
 	ctx->rctx = rctx;
 
 	return starfive_rsa_enc_core(ctx, 1);
