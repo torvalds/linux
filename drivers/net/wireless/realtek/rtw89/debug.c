@@ -818,6 +818,28 @@ static const struct dbgfs_txpwr_table *dbgfs_txpwr_tables[RTW89_CHIP_GEN_NUM] = 
 	[RTW89_CHIP_BE] = &dbgfs_txpwr_table_be,
 };
 
+static
+void rtw89_debug_priv_txpwr_table_get_regd(struct seq_file *m,
+					   struct rtw89_dev *rtwdev,
+					   const struct rtw89_chan *chan)
+{
+	const struct rtw89_regulatory_info *regulatory = &rtwdev->regulatory;
+	const struct rtw89_reg_6ghz_tpe *tpe6 = &regulatory->reg_6ghz_tpe;
+
+	seq_printf(m, "[Chanctx] band %u, ch %u, bw %u\n",
+		   chan->band_type, chan->channel, chan->band_width);
+
+	seq_puts(m, "[Regulatory] ");
+	__print_regd(m, rtwdev, chan);
+
+	if (chan->band_type == RTW89_BAND_6G) {
+		seq_printf(m, "[reg6_pwr_type] %u\n", regulatory->reg_6ghz_power);
+
+		if (tpe6->valid)
+			seq_printf(m, "[TPE] %d dBm\n", tpe6->constraint);
+	}
+}
+
 static int rtw89_debug_priv_txpwr_table_get(struct seq_file *m, void *v)
 {
 	struct rtw89_debugfs_priv *debugfs_priv = m->private;
@@ -831,8 +853,7 @@ static int rtw89_debug_priv_txpwr_table_get(struct seq_file *m, void *v)
 	rtw89_leave_ps_mode(rtwdev);
 	chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
 
-	seq_puts(m, "[Regulatory] ");
-	__print_regd(m, rtwdev, chan);
+	rtw89_debug_priv_txpwr_table_get_regd(m, rtwdev, chan);
 
 	seq_puts(m, "[SAR]\n");
 	rtw89_print_sar(m, rtwdev, chan->freq);

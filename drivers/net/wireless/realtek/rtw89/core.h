@@ -746,6 +746,14 @@ enum rtw89_reg_6ghz_power {
 	RTW89_REG_6GHZ_POWER_DFLT = RTW89_REG_6GHZ_POWER_VLP,
 };
 
+#define RTW89_MIN_VALID_POWER_CONSTRAINT (-10) /* unit: dBm */
+
+/* calculate based on ieee80211 Transmit Power Envelope */
+struct rtw89_reg_6ghz_tpe {
+	bool valid;
+	s8 constraint; /* unit: dBm */
+};
+
 enum rtw89_fw_pkt_ofld_type {
 	RTW89_PKT_OFLD_TYPE_PROBE_RSP = 0,
 	RTW89_PKT_OFLD_TYPE_PS_POLL = 1,
@@ -3397,6 +3405,7 @@ struct rtw89_vif {
 	bool chanctx_assigned; /* only valid when running with chanctx_ops */
 	enum rtw89_sub_entity_idx sub_entity_idx;
 	enum rtw89_reg_6ghz_power reg_6ghz_power;
+	struct rtw89_reg_6ghz_tpe reg_6ghz_tpe;
 
 	u8 mac_id;
 	u8 port;
@@ -4941,6 +4950,7 @@ struct rtw89_regd {
 struct rtw89_regulatory_info {
 	const struct rtw89_regd *regd;
 	enum rtw89_reg_6ghz_power reg_6ghz_power;
+	struct rtw89_reg_6ghz_tpe reg_6ghz_tpe;
 	DECLARE_BITMAP(block_unii4, RTW89_REGD_MAX_COUNTRY_NUM);
 	DECLARE_BITMAP(block_6ghz, RTW89_REGD_MAX_COUNTRY_NUM);
 	DECLARE_BITMAP(block_6ghz_sp, RTW89_REGD_MAX_COUNTRY_NUM);
@@ -6535,8 +6545,8 @@ void rtw89_core_scan_start(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 			   const u8 *mac_addr, bool hw_scan);
 void rtw89_core_scan_complete(struct rtw89_dev *rtwdev,
 			      struct ieee80211_vif *vif, bool hw_scan);
-void rtw89_reg_6ghz_power_recalc(struct rtw89_dev *rtwdev,
-				 struct rtw89_vif *rtwvif, bool active);
+int rtw89_reg_6ghz_recalc(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
+			  bool active);
 void rtw89_core_update_p2p_ps(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif);
 void rtw89_core_ntfy_btc_event(struct rtw89_dev *rtwdev, enum rtw89_btc_hmsg event);
 
