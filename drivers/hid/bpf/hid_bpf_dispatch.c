@@ -74,6 +74,44 @@ dispatch_hid_bpf_device_event(struct hid_device *hdev, enum hid_report_type type
 }
 EXPORT_SYMBOL_GPL(dispatch_hid_bpf_device_event);
 
+int dispatch_hid_bpf_raw_requests(struct hid_device *hdev,
+				  unsigned char reportnum, u8 *buf,
+				  u32 size, enum hid_report_type rtype,
+				  enum hid_class_request reqtype,
+				  u64 source)
+{
+	struct hid_bpf_ctx_kern ctx_kern = {
+		.ctx = {
+			.hid = hdev,
+			.allocated_size = size,
+			.size = size,
+		},
+		.data = buf,
+	};
+	struct hid_bpf_ops *e;
+	int ret, idx;
+
+	if (rtype >= HID_REPORT_TYPES)
+		return -EINVAL;
+
+	idx = srcu_read_lock(&hdev->bpf.srcu);
+	list_for_each_entry_srcu(e, &hdev->bpf.prog_list, list,
+				 srcu_read_lock_held(&hdev->bpf.srcu)) {
+		if (!e->hid_hw_request)
+			continue;
+
+		ret = e->hid_hw_request(&ctx_kern.ctx, reportnum, rtype, reqtype, source);
+		if (ret)
+			goto out;
+	}
+	ret = 0;
+
+out:
+	srcu_read_unlock(&hdev->bpf.srcu, idx);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(dispatch_hid_bpf_raw_requests);
+
 u8 *call_hid_bpf_rdesc_fixup(struct hid_device *hdev, u8 *rdesc, unsigned int *size)
 {
 	int ret;

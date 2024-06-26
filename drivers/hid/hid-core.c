@@ -2406,12 +2406,18 @@ int __hid_hw_raw_request(struct hid_device *hdev,
 			 __u64 source)
 {
 	unsigned int max_buffer_size = HID_MAX_BUFFER_SIZE;
+	int ret;
 
 	if (hdev->ll_driver->max_buffer_size)
 		max_buffer_size = hdev->ll_driver->max_buffer_size;
 
 	if (len < 1 || len > max_buffer_size || !buf)
 		return -EINVAL;
+
+	ret = dispatch_hid_bpf_raw_requests(hdev, reportnum, buf, len, rtype,
+					    reqtype, source);
+	if (ret)
+		return ret;
 
 	return hdev->ll_driver->raw_request(hdev, reportnum, buf, len,
 					    rtype, reqtype);
