@@ -1534,12 +1534,14 @@ static long linereq_set_config(struct linereq *lr, void __user *ip)
 		line = &lr->lines[i];
 		desc = lr->lines[i].desc;
 		flags = gpio_v2_line_config_flags(&lc, i);
+		/*
+		 * Lines not explicitly reconfigured as input or output
+		 * are left unchanged.
+		 */
+		if (!(flags & GPIO_V2_LINE_DIRECTION_FLAGS))
+			continue;
 		gpio_v2_line_config_flags_to_desc_flags(flags, &desc->flags);
 		edflags = flags & GPIO_V2_LINE_EDGE_DETECTOR_FLAGS;
-		/*
-		 * Lines have to be requested explicitly for input
-		 * or output, else the line will be treated "as is".
-		 */
 		if (flags & GPIO_V2_LINE_FLAG_OUTPUT) {
 			int val = gpio_v2_line_config_output_value(&lc, i);
 
@@ -1547,7 +1549,7 @@ static long linereq_set_config(struct linereq *lr, void __user *ip)
 			ret = gpiod_direction_output(desc, val);
 			if (ret)
 				return ret;
-		} else if (flags & GPIO_V2_LINE_FLAG_INPUT) {
+		} else {
 			ret = gpiod_direction_input(desc);
 			if (ret)
 				return ret;
