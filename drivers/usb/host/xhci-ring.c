@@ -283,7 +283,7 @@ static void inc_enq(struct xhci_hcd *xhci, struct xhci_ring *ring,
  * Only for transfer and command rings where driver is the producer, not for
  * event rings.
  */
-static unsigned int xhci_num_trbs_free(struct xhci_hcd *xhci, struct xhci_ring *ring)
+static unsigned int xhci_num_trbs_free(struct xhci_ring *ring)
 {
 	struct xhci_segment *enq_seg = ring->enq_seg;
 	union xhci_trb *enq = ring->enqueue;
@@ -1490,8 +1490,8 @@ static void xhci_handle_cmd_reset_ep(struct xhci_hcd *xhci, int slot_id,
 		ring_doorbell_for_active_rings(xhci, slot_id, ep_index);
 }
 
-static void xhci_handle_cmd_enable_slot(struct xhci_hcd *xhci, int slot_id,
-		struct xhci_command *command, u32 cmd_comp_code)
+static void xhci_handle_cmd_enable_slot(int slot_id, struct xhci_command *command,
+					u32 cmd_comp_code)
 {
 	if (cmd_comp_code == COMP_SUCCESS)
 		command->slot_id = slot_id;
@@ -1759,7 +1759,7 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 	cmd_type = TRB_FIELD_TO_TYPE(le32_to_cpu(cmd_trb->generic.field[3]));
 	switch (cmd_type) {
 	case TRB_ENABLE_SLOT:
-		xhci_handle_cmd_enable_slot(xhci, slot_id, cmd, cmd_comp_code);
+		xhci_handle_cmd_enable_slot(slot_id, cmd, cmd_comp_code);
 		break;
 	case TRB_DISABLE_SLOT:
 		xhci_handle_cmd_disable_slot(xhci, slot_id);
@@ -2141,9 +2141,7 @@ static void xhci_clear_hub_tt_buffer(struct xhci_hcd *xhci, struct xhci_td *td,
  * driver won't clear the halt in that case, so we need to issue a Set Transfer
  * Ring Dequeue Pointer command manually.
  */
-static int xhci_requires_manual_halt_cleanup(struct xhci_hcd *xhci,
-		struct xhci_ep_ctx *ep_ctx,
-		unsigned int trb_comp_code)
+static int xhci_requires_manual_halt_cleanup(struct xhci_ep_ctx *ep_ctx, unsigned int trb_comp_code)
 {
 	/* TRB completion codes that may require a manual halt cleanup */
 	if (trb_comp_code == COMP_USB_TRANSACTION_ERROR ||
@@ -2328,8 +2326,7 @@ static int process_ctrl_td(struct xhci_hcd *xhci, struct xhci_virt_ep *ep,
 	case COMP_STOPPED_LENGTH_INVALID:
 		goto finish_td;
 	default:
-		if (!xhci_requires_manual_halt_cleanup(xhci,
-						       ep_ctx, trb_comp_code))
+		if (!xhci_requires_manual_halt_cleanup(ep_ctx, trb_comp_code))
 			break;
 		xhci_dbg(xhci, "TRB error %u, halted endpoint index = %u\n",
 			 trb_comp_code, ep->ep_index);
@@ -2804,8 +2801,7 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 					 slot_id, ep_index);
 			}
 			if (trb_comp_code == COMP_STALL_ERROR ||
-			    xhci_requires_manual_halt_cleanup(xhci, ep_ctx,
-							      trb_comp_code)) {
+			    xhci_requires_manual_halt_cleanup(ep_ctx, trb_comp_code)) {
 				xhci_handle_halted_endpoint(xhci, ep, NULL,
 							    EP_HARD_RESET);
 			}
@@ -2925,8 +2921,7 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 
 		if (trb_is_noop(ep_trb)) {
 			if (trb_comp_code == COMP_STALL_ERROR ||
-			    xhci_requires_manual_halt_cleanup(xhci, ep_ctx,
-							      trb_comp_code))
+			    xhci_requires_manual_halt_cleanup(ep_ctx, trb_comp_code))
 				xhci_handle_halted_endpoint(xhci, ep, td,
 							    EP_HARD_RESET);
 		} else {
@@ -3046,8 +3041,7 @@ static void xhci_update_erst_dequeue(struct xhci_hcd *xhci,
 }
 
 /* Clear the interrupt pending bit for a specific interrupter. */
-static void xhci_clear_interrupt_pending(struct xhci_hcd *xhci,
-					 struct xhci_interrupter *ir)
+static void xhci_clear_interrupt_pending(struct xhci_interrupter *ir)
 {
 	if (!ir->ip_autoclear) {
 		u32 irq_pending;
@@ -3068,7 +3062,7 @@ static int xhci_handle_events(struct xhci_hcd *xhci, struct xhci_interrupter *ir
 	int err;
 	u64 temp;
 
-	xhci_clear_interrupt_pending(xhci, ir);
+	xhci_clear_interrupt_pending(ir);
 
 	/* Event ring hasn't been allocated yet. */
 	if (!ir->event_ring || !ir->event_ring->dequeue) {
@@ -3241,7 +3235,7 @@ static int prepare_ring(struct xhci_hcd *xhci, struct xhci_ring *ep_ring,
 
 	if (ep_ring != xhci->cmd_ring) {
 		new_segs = xhci_ring_expansion_needed(xhci, ep_ring, num_trbs);
-	} else if (xhci_num_trbs_free(xhci, ep_ring) <= num_trbs) {
+	} else if (xhci_num_trbs_free(ep_ring) <= num_trbs) {
 		xhci_err(xhci, "Do not support expand command ring\n");
 		return -ENOMEM;
 	}
@@ -3416,8 +3410,7 @@ static void giveback_first_trb(struct xhci_hcd *xhci, int slot_id,
 	xhci_ring_ep_doorbell(xhci, slot_id, ep_index, stream_id);
 }
 
-static void check_interval(struct xhci_hcd *xhci, struct urb *urb,
-						struct xhci_ep_ctx *ep_ctx)
+static void check_interval(struct urb *urb, struct xhci_ep_ctx *ep_ctx)
 {
 	int xhci_interval;
 	int ep_interval;
@@ -3458,7 +3451,7 @@ int xhci_queue_intr_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	struct xhci_ep_ctx *ep_ctx;
 
 	ep_ctx = xhci_get_ep_ctx(xhci, xhci->devs[slot_id]->out_ctx, ep_index);
-	check_interval(xhci, urb, ep_ctx);
+	check_interval(urb, ep_ctx);
 
 	return xhci_queue_bulk_tx(xhci, mem_flags, urb, slot_id, ep_index);
 }
@@ -4263,7 +4256,7 @@ int xhci_queue_isoc_tx_prepare(struct xhci_hcd *xhci, gfp_t mem_flags,
 	 * Check interval value. This should be done before we start to
 	 * calculate the start frame value.
 	 */
-	check_interval(xhci, urb, ep_ctx);
+	check_interval(urb, ep_ctx);
 
 	/* Calculate the start frame and put it in urb->start_frame. */
 	if (HCC_CFC(xhci->hcc_params) && !list_empty(&ep_ring->td_list)) {
