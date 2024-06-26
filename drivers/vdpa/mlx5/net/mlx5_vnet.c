@@ -3519,12 +3519,6 @@ static void init_mvqs(struct mlx5_vdpa_net *ndev)
 		mvq->fwqp.fw = true;
 		mvq->fw_state = MLX5_VIRTIO_NET_Q_OBJECT_NONE;
 	}
-	for (; i < ndev->mvdev.max_vqs; i++) {
-		mvq = &ndev->vqs[i];
-		memset(mvq, 0, offsetof(struct mlx5_vdpa_virtqueue, ri));
-		mvq->index = i;
-		mvq->ndev = ndev;
-	}
 }
 
 struct mlx5_vdpa_mgmtdev {
