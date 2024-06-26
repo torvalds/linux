@@ -231,6 +231,11 @@
 				reg = <0x45>;
 				shunt-resistor = <1000>;
 			};
+
+			temperature-sensor@4b {
+				compatible = "ti,tmp75";
+				reg = <0x4b>;
+			};
 		};
 
 		imux17: i2c@1 {
@@ -272,6 +277,11 @@
 				compatible = "ti,ina238";
 				reg = <0x45>;
 				shunt-resistor = <1000>;
+			};
+
+			temperature-sensor@4b {
+				compatible = "ti,tmp75";
+				reg = <0x4b>;
 			};
 		};
 
@@ -315,6 +325,11 @@
 				reg = <0x45>;
 				shunt-resistor = <1000>;
 			};
+
+			temperature-sensor@4b {
+				compatible = "ti,tmp75";
+				reg = <0x4b>;
+			};
 		};
 
 		imux19: i2c@3 {
@@ -356,6 +371,11 @@
 				compatible = "ti,ina238";
 				reg = <0x45>;
 				shunt-resistor = <1000>;
+			};
+
+			temperature-sensor@4b {
+				compatible = "ti,tmp75";
+				reg = <0x4b>;
 			};
 		};
 
@@ -399,6 +419,10 @@
 				reg = <0x45>;
 				shunt-resistor = <1000>;
 			};
+			temperature-sensor@4b {
+				compatible = "ti,tmp75";
+				reg = <0x4b>;
+			};
 		};
 
 		imux21: i2c@5 {
@@ -440,6 +464,10 @@
 				compatible = "ti,ina238";
 				reg = <0x45>;
 				shunt-resistor = <1000>;
+			};
+			temperature-sensor@4b {
+				compatible = "ti,tmp75";
+				reg = <0x4b>;
 			};
 		};
 	};
