@@ -268,8 +268,8 @@ static ssize_t lp5569_led_open_test(struct lp55xx_led *led, char *buf)
 	led_tmp = led;
 	for (i = 0; i < pdata->num_channels; i++) {
 		if (leds_fault[led_tmp->chan_nr])
-			pos += sprintf(buf + pos, "LED %d OPEN FAIL\n",
-				       led_tmp->chan_nr);
+			pos += sysfs_emit_at(buf, pos, "LED %d OPEN FAIL\n",
+					     led_tmp->chan_nr);
 
 		led_tmp++;
 	}
@@ -366,8 +366,8 @@ static ssize_t lp5569_led_short_test(struct lp55xx_led *led, char *buf)
 	led_tmp = led;
 	for (i = 0; i < pdata->num_channels; i++) {
 		if (leds_fault[led_tmp->chan_nr])
-			pos += sprintf(buf + pos, "LED %d SHORTED FAIL\n",
-				       led_tmp->chan_nr);
+			pos += sysfs_emit_at(buf, pos, "LED %d SHORTED FAIL\n",
+					     led_tmp->chan_nr);
 
 		led_tmp++;
 	}
@@ -404,7 +404,7 @@ static ssize_t lp5569_selftest(struct device *dev,
 		goto fail;
 
 	/* Test LED Shorted */
-	pos = lp5569_led_short_test(led, buf);
+	pos += lp5569_led_short_test(led, buf);
 	if (pos < 0)
 		goto fail;
 
@@ -420,10 +420,10 @@ static ssize_t lp5569_selftest(struct device *dev,
 	}
 
 	if (pos == 0)
-		pos = sprintf(buf, "OK\n");
+		pos = sysfs_emit(buf, "OK\n");
 	goto release_lock;
 fail:
-	pos = sprintf(buf, "FAIL\n");
+	pos = sysfs_emit(buf, "FAIL\n");
 
 release_lock:
 	mutex_unlock(&chip->lock);
