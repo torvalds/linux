@@ -58,6 +58,8 @@ MODULE_LICENSE("Dual BSD/GPL");
  */
 #define MLX5V_DEFAULT_VQ_COUNT 2
 
+#define MLX5V_DEFAULT_VQ_SIZE 256
+
 struct mlx5_vdpa_cq_buf {
 	struct mlx5_frag_buf_ctrl fbc;
 	struct mlx5_frag_buf frag_buf;
@@ -1444,9 +1446,6 @@ static int setup_vq(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtqueue *mvq)
 {
 	u16 idx = mvq->index;
 	int err;
-
-	if (!mvq->num_ent)
-		return 0;
 
 	if (mvq->initialized)
 		return 0;
@@ -3523,6 +3522,7 @@ static void mvqs_set_defaults(struct mlx5_vdpa_net *ndev)
 		mvq->ndev = ndev;
 		mvq->fwqp.fw = true;
 		mvq->fw_state = MLX5_VIRTIO_NET_Q_OBJECT_NONE;
+		mvq->num_ent = MLX5V_DEFAULT_VQ_SIZE;
 	}
 }
 
