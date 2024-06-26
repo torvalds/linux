@@ -2875,9 +2875,15 @@ struct hid_device *hid_allocate_device(void)
 	mutex_init(&hdev->ll_open_lock);
 	kref_init(&hdev->ref);
 
-	hid_bpf_device_init(hdev);
+	ret = hid_bpf_device_init(hdev);
+	if (ret)
+		goto out_err;
 
 	return hdev;
+
+out_err:
+	hid_destroy_device(hdev);
+	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(hid_allocate_device);
 

@@ -506,13 +506,17 @@ void hid_bpf_destroy_device(struct hid_device *hdev)
 	hdev->bpf.destroyed = true;
 
 	__hid_bpf_ops_destroy_device(hdev);
+
+	synchronize_srcu(&hdev->bpf.srcu);
+	cleanup_srcu_struct(&hdev->bpf.srcu);
 }
 EXPORT_SYMBOL_GPL(hid_bpf_destroy_device);
 
-void hid_bpf_device_init(struct hid_device *hdev)
+int hid_bpf_device_init(struct hid_device *hdev)
 {
 	INIT_LIST_HEAD(&hdev->bpf.prog_list);
 	mutex_init(&hdev->bpf.prog_list_lock);
+	return init_srcu_struct(&hdev->bpf.srcu);
 }
 EXPORT_SYMBOL_GPL(hid_bpf_device_init);
 

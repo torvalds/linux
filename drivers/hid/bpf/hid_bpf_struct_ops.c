@@ -214,6 +214,7 @@ static int hid_bpf_reg(void *kdata)
 		list_add_rcu(&ops->list, &hdev->bpf.prog_list);
 	else
 		list_add_tail_rcu(&ops->list, &hdev->bpf.prog_list);
+	synchronize_srcu(&hdev->bpf.srcu);
 
 out_unlock:
 	mutex_unlock(&hdev->bpf.prog_list_lock);
@@ -244,6 +245,7 @@ static void hid_bpf_unreg(void *kdata)
 	mutex_lock(&hdev->bpf.prog_list_lock);
 
 	list_del_rcu(&ops->list);
+	synchronize_srcu(&hdev->bpf.srcu);
 
 	reconnect = hdev->bpf.rdesc_ops == ops;
 	if (reconnect)

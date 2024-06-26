@@ -5,6 +5,7 @@
 
 #include <linux/bpf.h>
 #include <linux/mutex.h>
+#include <linux/srcu.h>
 #include <uapi/linux/hid.h>
 
 struct hid_device;
@@ -145,6 +146,7 @@ struct hid_bpf {
 	struct hid_bpf_ops *rdesc_ops;
 	struct list_head prog_list;
 	struct mutex prog_list_lock;	/* protects prog_list update */
+	struct srcu_struct srcu;	/* protects prog_list read-only access */
 };
 
 #ifdef CONFIG_HID_BPF
@@ -153,7 +155,7 @@ u8 *dispatch_hid_bpf_device_event(struct hid_device *hid, enum hid_report_type t
 int hid_bpf_connect_device(struct hid_device *hdev);
 void hid_bpf_disconnect_device(struct hid_device *hdev);
 void hid_bpf_destroy_device(struct hid_device *hid);
-void hid_bpf_device_init(struct hid_device *hid);
+int hid_bpf_device_init(struct hid_device *hid);
 u8 *call_hid_bpf_rdesc_fixup(struct hid_device *hdev, u8 *rdesc, unsigned int *size);
 #else /* CONFIG_HID_BPF */
 static inline u8 *dispatch_hid_bpf_device_event(struct hid_device *hid, enum hid_report_type type,
@@ -162,7 +164,7 @@ static inline u8 *dispatch_hid_bpf_device_event(struct hid_device *hid, enum hid
 static inline int hid_bpf_connect_device(struct hid_device *hdev) { return 0; }
 static inline void hid_bpf_disconnect_device(struct hid_device *hdev) {}
 static inline void hid_bpf_destroy_device(struct hid_device *hid) {}
-static inline void hid_bpf_device_init(struct hid_device *hid) {}
+static inline int hid_bpf_device_init(struct hid_device *hid) { return 0; }
 #define call_hid_bpf_rdesc_fixup(_hdev, _rdesc, _size)	\
 		((u8 *)kmemdup(_rdesc, *(_size), GFP_KERNEL))
 
