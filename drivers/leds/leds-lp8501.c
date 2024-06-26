@@ -20,28 +20,14 @@
 
 #include "leds-lp55xx-common.h"
 
-#define LP8501_PROGRAM_LENGTH		32
 #define LP8501_PAGES_PER_ENGINE		1
 #define LP8501_MAX_LEDS			9
 
 /* Registers */
 #define LP8501_REG_ENABLE		0x00
 #define LP8501_ENABLE			BIT(6)
-#define LP8501_EXEC_M			0x3F
-#define LP8501_EXEC_ENG1_M		0x30
-#define LP8501_EXEC_ENG2_M		0x0C
-#define LP8501_EXEC_ENG3_M		0x03
-#define LP8501_RUN_ENG1			0x20
-#define LP8501_RUN_ENG2			0x08
-#define LP8501_RUN_ENG3			0x02
 
 #define LP8501_REG_OP_MODE		0x01
-#define LP8501_MODE_ENG1_M		0x30
-#define LP8501_MODE_ENG2_M		0x0C
-#define LP8501_MODE_ENG3_M		0x03
-#define LP8501_LOAD_ENG1		0x10
-#define LP8501_LOAD_ENG2		0x04
-#define LP8501_LOAD_ENG3		0x01
 
 #define LP8501_REG_PWR_CONFIG		0x05
 #define LP8501_PWR_CONFIG_M		0x03
@@ -65,24 +51,7 @@
 #define LP8501_REG_RESET		0x3D
 #define LP8501_RESET			0xFF
 
-#define LP8501_REG_PROG_PAGE_SEL	0x4F
-#define LP8501_PAGE_ENG1		0
-#define LP8501_PAGE_ENG2		1
-#define LP8501_PAGE_ENG3		2
-
 #define LP8501_REG_PROG_MEM		0x50
-
-#define LP8501_ENG1_IS_LOADING(mode)	\
-	((mode & LP8501_MODE_ENG1_M) == LP8501_LOAD_ENG1)
-#define LP8501_ENG2_IS_LOADING(mode)	\
-	((mode & LP8501_MODE_ENG2_M) == LP8501_LOAD_ENG2)
-#define LP8501_ENG3_IS_LOADING(mode)	\
-	((mode & LP8501_MODE_ENG3_M) == LP8501_LOAD_ENG3)
-
-static inline void lp8501_wait_opmode_done(void)
-{
-	usleep_range(1000, 2000);
-}
 
 static int lp8501_post_init_device(struct lp55xx_chip *chip)
 {

@@ -21,7 +21,6 @@
 
 #include "leds-lp55xx-common.h"
 
-#define LP5521_PROGRAM_LENGTH		32
 #define LP5521_MAX_LEDS			3
 #define LP5521_CMD_DIRECT		0x3F
 
@@ -72,29 +71,6 @@
 
 /* Reset register value */
 #define LP5521_RESET			0xFF
-
-/* Program Memory Operations */
-#define LP5521_MODE_R_M			0x30	/* Operation Mode Register */
-#define LP5521_MODE_G_M			0x0C
-#define LP5521_MODE_B_M			0x03
-#define LP5521_LOAD_R			0x10
-#define LP5521_LOAD_G			0x04
-#define LP5521_LOAD_B			0x01
-
-#define LP5521_R_IS_LOADING(mode)	\
-	((mode & LP5521_MODE_R_M) == LP5521_LOAD_R)
-#define LP5521_G_IS_LOADING(mode)	\
-	((mode & LP5521_MODE_G_M) == LP5521_LOAD_G)
-#define LP5521_B_IS_LOADING(mode)	\
-	((mode & LP5521_MODE_B_M) == LP5521_LOAD_B)
-
-#define LP5521_EXEC_R_M			0x30	/* Enable Register */
-#define LP5521_EXEC_G_M			0x0C
-#define LP5521_EXEC_B_M			0x03
-#define LP5521_EXEC_M			0x3F
-#define LP5521_RUN_R			0x20
-#define LP5521_RUN_G			0x08
-#define LP5521_RUN_B			0x02
 
 static inline void lp5521_wait_opmode_done(void)
 {

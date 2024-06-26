@@ -73,53 +73,7 @@
 #define LP5523_EXT_CLK_USED		0x08
 #define LP5523_ENG_STATUS_MASK		0x07
 
-#define LP5523_FADER_MAPPING_MASK	0xC0
-#define LP5523_FADER_MAPPING_SHIFT	6
-
-/* Memory Page Selection */
-#define LP5523_PAGE_ENG1		0
-#define LP5523_PAGE_ENG2		1
-#define LP5523_PAGE_ENG3		2
-#define LP5523_PAGE_MUX1		3
-#define LP5523_PAGE_MUX2		4
-#define LP5523_PAGE_MUX3		5
-
-/* Program Memory Operations */
-#define LP5523_MODE_ENG1_M		0x30	/* Operation Mode Register */
-#define LP5523_MODE_ENG2_M		0x0C
-#define LP5523_MODE_ENG3_M		0x03
-#define LP5523_LOAD_ENG1		0x10
-#define LP5523_LOAD_ENG2		0x04
-#define LP5523_LOAD_ENG3		0x01
-
-#define LP5523_ENG1_IS_LOADING(mode)	\
-	((mode & LP5523_MODE_ENG1_M) == LP5523_LOAD_ENG1)
-#define LP5523_ENG2_IS_LOADING(mode)	\
-	((mode & LP5523_MODE_ENG2_M) == LP5523_LOAD_ENG2)
-#define LP5523_ENG3_IS_LOADING(mode)	\
-	((mode & LP5523_MODE_ENG3_M) == LP5523_LOAD_ENG3)
-
-#define LP5523_EXEC_ENG1_M		0x30	/* Enable Register */
-#define LP5523_EXEC_ENG2_M		0x0C
-#define LP5523_EXEC_ENG3_M		0x03
-#define LP5523_EXEC_M			0x3F
-#define LP5523_RUN_ENG1			0x20
-#define LP5523_RUN_ENG2			0x08
-#define LP5523_RUN_ENG3			0x02
-
-#define LED_ACTIVE(mux, led)		(!!(mux & (0x0001 << led)))
-
-enum lp5523_chip_id {
-	LP5523,
-	LP55231,
-};
-
 static int lp5523_init_program_engine(struct lp55xx_chip *chip);
-
-static inline void lp5523_wait_opmode_done(void)
-{
-	usleep_range(1000, 2000);
-}
 
 static int lp5523_post_init_device(struct lp55xx_chip *chip)
 {
