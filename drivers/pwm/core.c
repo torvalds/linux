@@ -1705,9 +1705,17 @@ DEFINE_SEQ_ATTRIBUTE(pwm_debugfs);
 
 static int __init pwm_init(void)
 {
+	int ret;
+
+	ret = class_register(&pwm_class);
+	if (ret) {
+		pr_err("Failed to initialize PWM class (%pe)\n", ERR_PTR(ret));
+		return ret;
+	}
+
 	if (IS_ENABLED(CONFIG_DEBUG_FS))
 		debugfs_create_file("pwm", 0444, NULL, NULL, &pwm_debugfs_fops);
 
-	return class_register(&pwm_class);
+	return 0;
 }
 subsys_initcall(pwm_init);
