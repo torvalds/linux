@@ -1471,6 +1471,10 @@ static int ili9881c_get_modes(struct drm_panel *panel,
 
 	connector->display_info.width_mm = mode->width_mm;
 	connector->display_info.height_mm = mode->height_mm;
+	if (ctx->address_mode == 0x3)
+		connector->display_info.subpixel_order = SubPixelHorizontalBGR;
+	else
+		connector->display_info.subpixel_order = SubPixelHorizontalRGB;
 
 	/*
 	 * TODO: Remove once all drm drivers call
