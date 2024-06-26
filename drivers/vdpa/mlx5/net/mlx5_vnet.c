@@ -2559,16 +2559,10 @@ err_vq:
 
 static void teardown_virtqueues(struct mlx5_vdpa_net *ndev)
 {
-	struct mlx5_vdpa_virtqueue *mvq;
 	int i;
 
-	for (i = ndev->mvdev.max_vqs - 1; i >= 0; i--) {
-		mvq = &ndev->vqs[i];
-		if (!mvq->initialized)
-			continue;
-
-		teardown_vq(ndev, mvq);
-	}
+	for (i = ndev->mvdev.max_vqs - 1; i >= 0; i--)
+		teardown_vq(ndev, &ndev->vqs[i]);
 }
 
 static void update_cvq_info(struct mlx5_vdpa_dev *mvdev)
