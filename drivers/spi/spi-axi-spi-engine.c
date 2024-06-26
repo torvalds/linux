@@ -690,13 +690,7 @@ static int spi_engine_probe(struct platform_device *pdev)
 	if (host->max_speed_hz == 0)
 		return dev_err_probe(&pdev->dev, -EINVAL, "spi_clk rate is 0");
 
-	ret = devm_spi_register_controller(&pdev->dev, host);
-	if (ret)
-		return ret;
-
-	platform_set_drvdata(pdev, host);
-
-	return 0;
+	return devm_spi_register_controller(&pdev->dev, host);
 }
 
 static const struct of_device_id spi_engine_match_table[] = {
