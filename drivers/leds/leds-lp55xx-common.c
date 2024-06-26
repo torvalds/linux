@@ -49,7 +49,7 @@ static struct lp55xx_led *mcled_cdev_to_led(struct led_classdev_mc *mc_cdev)
 
 static void lp55xx_wait_opmode_done(struct lp55xx_chip *chip)
 {
-	struct lp55xx_device_config *cfg = chip->cfg;
+	const struct lp55xx_device_config *cfg = chip->cfg;
 	int __always_unused ret;
 	u8 val;
 
@@ -69,7 +69,7 @@ static void lp55xx_wait_opmode_done(struct lp55xx_chip *chip)
 
 void lp55xx_stop_all_engine(struct lp55xx_chip *chip)
 {
-	struct lp55xx_device_config *cfg = chip->cfg;
+	const struct lp55xx_device_config *cfg = chip->cfg;
 
 	lp55xx_write(chip, cfg->reg_op_mode.addr, LP55xx_MODE_DISABLE_ALL_ENG);
 	lp55xx_wait_opmode_done(chip);
@@ -78,7 +78,7 @@ EXPORT_SYMBOL_GPL(lp55xx_stop_all_engine);
 
 static void lp55xx_reset_device(struct lp55xx_chip *chip)
 {
-	struct lp55xx_device_config *cfg = chip->cfg;
+	const struct lp55xx_device_config *cfg = chip->cfg;
 	u8 addr = cfg->reset.addr;
 	u8 val  = cfg->reset.val;
 
@@ -88,7 +88,7 @@ static void lp55xx_reset_device(struct lp55xx_chip *chip)
 
 static int lp55xx_detect_device(struct lp55xx_chip *chip)
 {
-	struct lp55xx_device_config *cfg = chip->cfg;
+	const struct lp55xx_device_config *cfg = chip->cfg;
 	u8 addr = cfg->enable.addr;
 	u8 val  = cfg->enable.val;
 	int ret;
@@ -111,7 +111,7 @@ static int lp55xx_detect_device(struct lp55xx_chip *chip)
 
 static int lp55xx_post_init_device(struct lp55xx_chip *chip)
 {
-	struct lp55xx_device_config *cfg = chip->cfg;
+	const struct lp55xx_device_config *cfg = chip->cfg;
 
 	if (!cfg->post_init_device)
 		return 0;
@@ -176,7 +176,7 @@ static int lp55xx_set_mc_brightness(struct led_classdev *cdev,
 {
 	struct led_classdev_mc *mc_dev = lcdev_to_mccdev(cdev);
 	struct lp55xx_led *led = mcled_cdev_to_led(mc_dev);
-	struct lp55xx_device_config *cfg = led->chip->cfg;
+	const struct lp55xx_device_config *cfg = led->chip->cfg;
 
 	led_mc_calc_color_components(&led->mc_cdev, brightness);
 	return cfg->multicolor_brightness_fn(led);
@@ -187,7 +187,7 @@ static int lp55xx_set_brightness(struct led_classdev *cdev,
 			     enum led_brightness brightness)
 {
 	struct lp55xx_led *led = cdev_to_lp55xx_led(cdev);
-	struct lp55xx_device_config *cfg = led->chip->cfg;
+	const struct lp55xx_device_config *cfg = led->chip->cfg;
 
 	led->brightness = (u8)brightness;
 	return cfg->brightness_fn(led);
@@ -197,7 +197,7 @@ static int lp55xx_init_led(struct lp55xx_led *led,
 			struct lp55xx_chip *chip, int chan)
 {
 	struct lp55xx_platform_data *pdata = chip->pdata;
-	struct lp55xx_device_config *cfg = chip->cfg;
+	const struct lp55xx_device_config *cfg = chip->cfg;
 	struct device *dev = &chip->cl->dev;
 	int max_channel = cfg->max_channel;
 	struct mc_subled *mc_led_info;
@@ -459,10 +459,21 @@ use_internal_clk:
 }
 EXPORT_SYMBOL_GPL(lp55xx_is_extclk_used);
 
-int lp55xx_init_device(struct lp55xx_chip *chip)
+static void lp55xx_deinit_device(struct lp55xx_chip *chip)
+{
+	struct lp55xx_platform_data *pdata = chip->pdata;
+
+	if (chip->clk)
+		clk_disable_unprepare(chip->clk);
+
+	if (pdata->enable_gpiod)
+		gpiod_set_value(pdata->enable_gpiod, 0);
+}
+
+static int lp55xx_init_device(struct lp55xx_chip *chip)
 {
 	struct lp55xx_platform_data *pdata;
-	struct lp55xx_device_config *cfg;
+	const struct lp55xx_device_config *cfg;
 	struct device *dev = &chip->cl->dev;
 	int ret = 0;
 
@@ -512,24 +523,11 @@ err_post_init:
 err:
 	return ret;
 }
-EXPORT_SYMBOL_GPL(lp55xx_init_device);
 
-void lp55xx_deinit_device(struct lp55xx_chip *chip)
+static int lp55xx_register_leds(struct lp55xx_led *led, struct lp55xx_chip *chip)
 {
 	struct lp55xx_platform_data *pdata = chip->pdata;
-
-	if (chip->clk)
-		clk_disable_unprepare(chip->clk);
-
-	if (pdata->enable_gpiod)
-		gpiod_set_value(pdata->enable_gpiod, 0);
-}
-EXPORT_SYMBOL_GPL(lp55xx_deinit_device);
-
-int lp55xx_register_leds(struct lp55xx_led *led, struct lp55xx_chip *chip)
-{
-	struct lp55xx_platform_data *pdata = chip->pdata;
-	struct lp55xx_device_config *cfg = chip->cfg;
+	const struct lp55xx_device_config *cfg = chip->cfg;
 	int num_channels = pdata->num_channels;
 	struct lp55xx_led *each;
 	u8 led_current;
@@ -566,12 +564,11 @@ int lp55xx_register_leds(struct lp55xx_led *led, struct lp55xx_chip *chip)
 err_init_led:
 	return ret;
 }
-EXPORT_SYMBOL_GPL(lp55xx_register_leds);
 
-int lp55xx_register_sysfs(struct lp55xx_chip *chip)
+static int lp55xx_register_sysfs(struct lp55xx_chip *chip)
 {
 	struct device *dev = &chip->cl->dev;
-	struct lp55xx_device_config *cfg = chip->cfg;
+	const struct lp55xx_device_config *cfg = chip->cfg;
 	int ret;
 
 	if (!cfg->run_engine || !cfg->firmware_cb)
@@ -585,19 +582,17 @@ dev_specific_attrs:
 	return cfg->dev_attr_group ?
 		sysfs_create_group(&dev->kobj, cfg->dev_attr_group) : 0;
 }
-EXPORT_SYMBOL_GPL(lp55xx_register_sysfs);
 
-void lp55xx_unregister_sysfs(struct lp55xx_chip *chip)
+static void lp55xx_unregister_sysfs(struct lp55xx_chip *chip)
 {
 	struct device *dev = &chip->cl->dev;
-	struct lp55xx_device_config *cfg = chip->cfg;
+	const struct lp55xx_device_config *cfg = chip->cfg;
 
 	if (cfg->dev_attr_group)
 		sysfs_remove_group(&dev->kobj, cfg->dev_attr_group);
 
 	sysfs_remove_group(&dev->kobj, &lp55xx_engine_attr_group);
 }
-EXPORT_SYMBOL_GPL(lp55xx_unregister_sysfs);
 
 static int lp55xx_parse_common_child(struct device_node *np,
 				     struct lp55xx_led_config *cfg,
@@ -690,9 +685,9 @@ static int lp55xx_parse_logical_led(struct device_node *np,
 	return ret;
 }
 
-struct lp55xx_platform_data *lp55xx_of_populate_pdata(struct device *dev,
-						      struct device_node *np,
-						      struct lp55xx_chip *chip)
+static struct lp55xx_platform_data *lp55xx_of_populate_pdata(struct device *dev,
+							     struct device_node *np,
+							     struct lp55xx_chip *chip)
 {
 	struct device_node *child;
 	struct lp55xx_platform_data *pdata;
@@ -749,7 +744,81 @@ struct lp55xx_platform_data *lp55xx_of_populate_pdata(struct device *dev,
 
 	return pdata;
 }
-EXPORT_SYMBOL_GPL(lp55xx_of_populate_pdata);
+
+int lp55xx_probe(struct i2c_client *client)
+{
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
+	int ret;
+	struct lp55xx_chip *chip;
+	struct lp55xx_led *led;
+	struct lp55xx_platform_data *pdata = dev_get_platdata(&client->dev);
+	struct device_node *np = dev_of_node(&client->dev);
+
+	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
+	if (!chip)
+		return -ENOMEM;
+
+	chip->cfg = i2c_get_match_data(client);
+
+	if (!pdata) {
+		if (np) {
+			pdata = lp55xx_of_populate_pdata(&client->dev, np,
+							 chip);
+			if (IS_ERR(pdata))
+				return PTR_ERR(pdata);
+		} else {
+			dev_err(&client->dev, "no platform data\n");
+			return -EINVAL;
+		}
+	}
+
+	led = devm_kcalloc(&client->dev,
+			   pdata->num_channels, sizeof(*led), GFP_KERNEL);
+	if (!led)
+		return -ENOMEM;
+
+	chip->cl = client;
+	chip->pdata = pdata;
+
+	mutex_init(&chip->lock);
+
+	i2c_set_clientdata(client, led);
+
+	ret = lp55xx_init_device(chip);
+	if (ret)
+		goto err_init;
+
+	dev_info(&client->dev, "%s Programmable led chip found\n", id->name);
+
+	ret = lp55xx_register_leds(led, chip);
+	if (ret)
+		goto err_out;
+
+	ret = lp55xx_register_sysfs(chip);
+	if (ret) {
+		dev_err(&client->dev, "registering sysfs failed\n");
+		goto err_out;
+	}
+
+	return 0;
+
+err_out:
+	lp55xx_deinit_device(chip);
+err_init:
+	return ret;
+}
+EXPORT_SYMBOL_GPL(lp55xx_probe);
+
+void lp55xx_remove(struct i2c_client *client)
+{
+	struct lp55xx_led *led = i2c_get_clientdata(client);
+	struct lp55xx_chip *chip = led->chip;
+
+	lp55xx_stop_all_engine(chip);
+	lp55xx_unregister_sysfs(chip);
+	lp55xx_deinit_device(chip);
+}
+EXPORT_SYMBOL_GPL(lp55xx_remove);
 
 MODULE_AUTHOR("Milo Kim <milo.kim@ti.com>");
 MODULE_DESCRIPTION("LP55xx Common Driver");
