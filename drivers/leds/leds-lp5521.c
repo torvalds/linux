@@ -9,6 +9,7 @@
  *          Milo(Woogyom) Kim <milo.kim@ti.com>
  */
 
+#include <linux/cleanup.h>
 #include <linux/delay.h>
 #include <linux/firmware.h>
 #include <linux/i2c.h>
@@ -185,9 +186,9 @@ static ssize_t lp5521_selftest(struct device *dev,
 	struct lp55xx_chip *chip = led->chip;
 	int ret;
 
-	mutex_lock(&chip->lock);
+	guard(mutex)(&chip->lock);
+
 	ret = lp5521_run_selftest(chip, buf);
-	mutex_unlock(&chip->lock);
 
 	return sysfs_emit(buf, "%s\n", ret ? "FAIL" : "OK");
 }

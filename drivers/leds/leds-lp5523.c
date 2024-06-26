@@ -9,6 +9,7 @@
  *          Milo(Woogyom) Kim <milo.kim@ti.com>
  */
 
+#include <linux/cleanup.h>
 #include <linux/delay.h>
 #include <linux/firmware.h>
 #include <linux/i2c.h>
@@ -188,16 +189,16 @@ static ssize_t lp5523_selftest(struct device *dev,
 	int ret, pos = 0;
 	u8 status, adc, vdd, i;
 
-	mutex_lock(&chip->lock);
+	guard(mutex)(&chip->lock);
 
 	ret = lp55xx_read(chip, LP5523_REG_STATUS, &status);
 	if (ret < 0)
-		goto fail;
+		return sysfs_emit(buf, "FAIL\n");
 
 	/* Check that ext clock is really in use if requested */
 	if (pdata->clock_mode == LP55XX_CLOCK_EXT) {
 		if  ((status & LP5523_EXT_CLK_USED) == 0)
-			goto fail;
+			return sysfs_emit(buf, "FAIL\n");
 	}
 
 	/* Measure VDD (i.e. VBAT) first (channel 16 corresponds to VDD) */
@@ -205,14 +206,14 @@ static ssize_t lp5523_selftest(struct device *dev,
 	usleep_range(3000, 6000); /* ADC conversion time is typically 2.7 ms */
 	ret = lp55xx_read(chip, LP5523_REG_STATUS, &status);
 	if (ret < 0)
-		goto fail;
+		return sysfs_emit(buf, "FAIL\n");
 
 	if (!(status & LP5523_LEDTEST_DONE))
 		usleep_range(3000, 6000); /* Was not ready. Wait little bit */
 
 	ret = lp55xx_read(chip, LP5523_REG_LED_TEST_ADC, &vdd);
 	if (ret < 0)
-		goto fail;
+		return sysfs_emit(buf, "FAIL\n");
 
 	vdd--;	/* There may be some fluctuation in measurement */
 
@@ -235,14 +236,14 @@ static ssize_t lp5523_selftest(struct device *dev,
 		usleep_range(3000, 6000);
 		ret = lp55xx_read(chip, LP5523_REG_STATUS, &status);
 		if (ret < 0)
-			goto fail;
+			return sysfs_emit(buf, "FAIL\n");
 
 		if (!(status & LP5523_LEDTEST_DONE))
 			usleep_range(3000, 6000); /* Was not ready. Wait. */
 
 		ret = lp55xx_read(chip, LP5523_REG_LED_TEST_ADC, &adc);
 		if (ret < 0)
-			goto fail;
+			return sysfs_emit(buf, "FAIL\n");
 
 		if (adc >= vdd || adc < LP5523_ADC_SHORTCIRC_LIM)
 			pos += sysfs_emit_at(buf, pos, "LED %d FAIL\n",
@@ -256,16 +257,8 @@ static ssize_t lp5523_selftest(struct device *dev,
 			     led->led_current);
 		led++;
 	}
-	if (pos == 0)
-		pos = sysfs_emit(buf, "OK\n");
-	goto release_lock;
-fail:
-	pos = sysfs_emit(buf, "FAIL\n");
 
-release_lock:
-	mutex_unlock(&chip->lock);
-
-	return pos;
+	return pos == 0 ? sysfs_emit(buf, "OK\n") : pos;
 }
 
 LP55XX_DEV_ATTR_ENGINE_MODE(1);

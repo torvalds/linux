@@ -10,6 +10,7 @@
  */
 
 #include <linux/bitfield.h>
+#include <linux/cleanup.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/firmware.h>
@@ -272,10 +273,10 @@ int lp55xx_led_brightness(struct lp55xx_led *led)
 	const struct lp55xx_device_config *cfg = chip->cfg;
 	int ret;
 
-	mutex_lock(&chip->lock);
+	guard(mutex)(&chip->lock);
+
 	ret = lp55xx_write(chip, cfg->reg_led_pwm_base.addr + led->chan_nr,
 			   led->brightness);
-	mutex_unlock(&chip->lock);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(lp55xx_led_brightness);
@@ -287,7 +288,8 @@ int lp55xx_multicolor_brightness(struct lp55xx_led *led)
 	int ret;
 	int i;
 
-	mutex_lock(&chip->lock);
+	guard(mutex)(&chip->lock);
+
 	for (i = 0; i < led->mc_cdev.num_colors; i++) {
 		ret = lp55xx_write(chip,
 				   cfg->reg_led_pwm_base.addr +
@@ -296,7 +298,7 @@ int lp55xx_multicolor_brightness(struct lp55xx_led *led)
 		if (ret)
 			break;
 	}
-	mutex_unlock(&chip->lock);
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(lp55xx_multicolor_brightness);
@@ -404,9 +406,9 @@ static ssize_t led_current_store(struct device *dev,
 	if (!chip->cfg->set_led_current)
 		return len;
 
-	mutex_lock(&chip->lock);
+	guard(mutex)(&chip->lock);
+
 	chip->cfg->set_led_current(led, (u8)curr);
-	mutex_unlock(&chip->lock);
 
 	return len;
 }
@@ -541,14 +543,12 @@ static void lp55xx_firmware_loaded(const struct firmware *fw, void *context)
 	}
 
 	/* handling firmware data is chip dependent */
-	mutex_lock(&chip->lock);
-
-	chip->engines[idx - 1].mode = LP55XX_ENGINE_LOAD;
-	chip->fw = fw;
-	if (chip->cfg->firmware_cb)
-		chip->cfg->firmware_cb(chip);
-
-	mutex_unlock(&chip->lock);
+	scoped_guard(mutex, &chip->lock) {
+		chip->engines[idx - 1].mode = LP55XX_ENGINE_LOAD;
+		chip->fw = fw;
+		if (chip->cfg->firmware_cb)
+			chip->cfg->firmware_cb(chip);
+	}
 
 	/* firmware should be released for other channel use */
 	release_firmware(chip->fw);
@@ -592,10 +592,10 @@ static ssize_t select_engine_store(struct device *dev,
 	case LP55XX_ENGINE_1:
 	case LP55XX_ENGINE_2:
 	case LP55XX_ENGINE_3:
-		mutex_lock(&chip->lock);
-		chip->engine_idx = val;
-		ret = lp55xx_request_firmware(chip);
-		mutex_unlock(&chip->lock);
+		scoped_guard(mutex, &chip->lock) {
+			chip->engine_idx = val;
+			ret = lp55xx_request_firmware(chip);
+		}
 		break;
 	default:
 		dev_err(dev, "%lu: invalid engine index. (1, 2, 3)\n", val);
@@ -634,9 +634,9 @@ static ssize_t run_engine_store(struct device *dev,
 		return len;
 	}
 
-	mutex_lock(&chip->lock);
+	guard(mutex)(&chip->lock);
+
 	lp55xx_run_engine(chip, true);
-	mutex_unlock(&chip->lock);
 
 	return len;
 }
@@ -673,7 +673,7 @@ ssize_t lp55xx_store_engine_mode(struct device *dev,
 	const struct lp55xx_device_config *cfg = chip->cfg;
 	struct lp55xx_engine *engine = &chip->engines[nr - 1];
 
-	mutex_lock(&chip->lock);
+	guard(mutex)(&chip->lock);
 
 	chip->engine_idx = nr;
 
@@ -689,8 +689,6 @@ ssize_t lp55xx_store_engine_mode(struct device *dev,
 		engine->mode = LP55XX_ENGINE_DISABLED;
 	}
 
-	mutex_unlock(&chip->lock);
-
 	return len;
 }
 EXPORT_SYMBOL_GPL(lp55xx_store_engine_mode);
@@ -703,13 +701,11 @@ ssize_t lp55xx_store_engine_load(struct device *dev,
 	struct lp55xx_chip *chip = led->chip;
 	int ret;
 
-	mutex_lock(&chip->lock);
+	guard(mutex)(&chip->lock);
 
 	chip->engine_idx = nr;
 	lp55xx_load_engine(chip);
 	ret = lp55xx_update_program_memory(chip, buf, len);
-
-	mutex_unlock(&chip->lock);
 
 	return ret;
 }
@@ -799,26 +795,21 @@ ssize_t lp55xx_store_engine_leds(struct device *dev,
 	struct lp55xx_chip *chip = led->chip;
 	struct lp55xx_engine *engine = &chip->engines[nr - 1];
 	u16 mux = 0;
-	ssize_t ret;
 
 	if (lp55xx_mux_parse(chip, buf, &mux, len))
 		return -EINVAL;
 
-	mutex_lock(&chip->lock);
+	guard(mutex)(&chip->lock);
 
 	chip->engine_idx = nr;
-	ret = -EINVAL;
 
 	if (engine->mode != LP55XX_ENGINE_LOAD)
-		goto leave;
+		return -EINVAL;
 
 	if (lp55xx_load_mux(chip, mux, nr))
-		goto leave;
+		return -EINVAL;
 
-	ret = len;
-leave:
-	mutex_unlock(&chip->lock);
-	return ret;
+	return len;
 }
 EXPORT_SYMBOL_GPL(lp55xx_store_engine_leds);
 
@@ -832,9 +823,9 @@ ssize_t lp55xx_show_master_fader(struct device *dev,
 	int ret;
 	u8 val;
 
-	mutex_lock(&chip->lock);
+	guard(mutex)(&chip->lock);
+
 	ret = lp55xx_read(chip, cfg->reg_master_fader_base.addr + nr - 1, &val);
-	mutex_unlock(&chip->lock);
 
 	return ret ? ret : sysfs_emit(buf, "%u\n", val);
 }
@@ -856,10 +847,10 @@ ssize_t lp55xx_store_master_fader(struct device *dev,
 	if (val > 0xff)
 		return -EINVAL;
 
-	mutex_lock(&chip->lock);
+	guard(mutex)(&chip->lock);
+
 	ret = lp55xx_write(chip, cfg->reg_master_fader_base.addr + nr - 1,
 			   (u8)val);
-	mutex_unlock(&chip->lock);
 
 	return ret ? ret : len;
 }
@@ -875,25 +866,22 @@ ssize_t lp55xx_show_master_fader_leds(struct device *dev,
 	int i, ret, pos = 0;
 	u8 val;
 
-	mutex_lock(&chip->lock);
+	guard(mutex)(&chip->lock);
 
 	for (i = 0; i < cfg->max_channel; i++) {
 		ret = lp55xx_read(chip, cfg->reg_led_ctrl_base.addr + i, &val);
 		if (ret)
-			goto leave;
+			return ret;
 
 		val = FIELD_GET(LP55xx_FADER_MAPPING_MASK, val);
 		if (val > FIELD_MAX(LP55xx_FADER_MAPPING_MASK)) {
-			ret = -EINVAL;
-			goto leave;
+			return -EINVAL;
 		}
 		buf[pos++] = val + '0';
 	}
 	buf[pos++] = '\n';
-	ret = pos;
-leave:
-	mutex_unlock(&chip->lock);
-	return ret;
+
+	return pos;
 }
 EXPORT_SYMBOL_GPL(lp55xx_show_master_fader_leds);
 
@@ -909,7 +897,7 @@ ssize_t lp55xx_store_master_fader_leds(struct device *dev,
 
 	n = min_t(int, len, cfg->max_channel);
 
-	mutex_lock(&chip->lock);
+	guard(mutex)(&chip->lock);
 
 	for (i = 0; i < n; i++) {
 		if (buf[i] >= '0' && buf[i] <= '3') {
@@ -919,16 +907,13 @@ ssize_t lp55xx_store_master_fader_leds(struct device *dev,
 						 LP55xx_FADER_MAPPING_MASK,
 						 val);
 			if (ret)
-				goto leave;
+				return ret;
 		} else {
-			ret = -EINVAL;
-			goto leave;
+			return -EINVAL;
 		}
 	}
-	ret = len;
-leave:
-	mutex_unlock(&chip->lock);
-	return ret;
+
+	return len;
 }
 EXPORT_SYMBOL_GPL(lp55xx_store_master_fader_leds);
 
