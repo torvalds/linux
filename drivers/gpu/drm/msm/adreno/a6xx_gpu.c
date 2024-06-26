@@ -1739,14 +1739,9 @@ static int a7xx_cx_mem_init(struct a6xx_gpu *a6xx_gpu)
 					 REG_A7XX_CX_MISC_SW_FUSE_VALUE);
 		adreno_gpu->has_ray_tracing =
 			!!(fuse_val & A7XX_CX_MISC_SW_FUSE_VALUE_RAYTRACING);
-	} else {
-		if (adreno_is_a740(adreno_gpu)) {
-			/* Raytracing is always enabled on a740 */
-			adreno_gpu->has_ray_tracing = true;
-		}
-
-		if (qcom_scm_is_available())
-			return qcom_scm_gpu_init_regs(QCOM_SCM_GPU_ALWAYS_EN_REQ);
+	} else if (adreno_is_a740(adreno_gpu)) {
+		/* Raytracing is always enabled on a740 */
+		adreno_gpu->has_ray_tracing = true;
 	}
 
 	return 0;
