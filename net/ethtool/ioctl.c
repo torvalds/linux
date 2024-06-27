@@ -1202,6 +1202,7 @@ static noinline_for_stack int ethtool_get_rxfh(struct net_device *dev,
 	const struct ethtool_ops *ops = dev->ethtool_ops;
 	struct ethtool_rxfh_param rxfh_dev = {};
 	u32 user_indir_size, user_key_size;
+	struct ethtool_rxfh_context *ctx;
 	struct ethtool_rxfh rxfh;
 	u32 indir_bytes;
 	u8 *rss_config;
@@ -1249,11 +1250,26 @@ static noinline_for_stack int ethtool_get_rxfh(struct net_device *dev,
 	if (user_key_size)
 		rxfh_dev.key = rss_config + indir_bytes;
 
-	rxfh_dev.rss_context = rxfh.rss_context;
-
-	ret = dev->ethtool_ops->get_rxfh(dev, &rxfh_dev);
-	if (ret)
-		goto out;
+	if (rxfh.rss_context) {
+		ctx = xa_load(&dev->ethtool->rss_ctx, rxfh.rss_context);
+		if (!ctx) {
+			ret = -ENOENT;
+			goto out;
+		}
+		if (rxfh_dev.indir)
+			memcpy(rxfh_dev.indir, ethtool_rxfh_context_indir(ctx),
+			       indir_bytes);
+		if (rxfh_dev.key)
+			memcpy(rxfh_dev.key, ethtool_rxfh_context_key(ctx),
+			       user_key_size);
+		rxfh_dev.hfunc = ctx->hfunc;
+		rxfh_dev.input_xfrm = ctx->input_xfrm;
+		ret = 0;
+	} else {
+		ret = dev->ethtool_ops->get_rxfh(dev, &rxfh_dev);
+		if (ret)
+			goto out;
+	}
 
 	if (copy_to_user(useraddr + offsetof(struct ethtool_rxfh, hfunc),
 			 &rxfh_dev.hfunc, sizeof(rxfh.hfunc))) {
