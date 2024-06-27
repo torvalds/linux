@@ -1343,14 +1343,12 @@ static LIST_HEAD(pwm_lookup_list);
  */
 void pwm_add_table(struct pwm_lookup *table, size_t num)
 {
-	mutex_lock(&pwm_lookup_lock);
+	guard(mutex)(&pwm_lookup_lock);
 
 	while (num--) {
 		list_add_tail(&table->list, &pwm_lookup_list);
 		table++;
 	}
-
-	mutex_unlock(&pwm_lookup_lock);
 }
 
 /**
@@ -1360,14 +1358,12 @@ void pwm_add_table(struct pwm_lookup *table, size_t num)
  */
 void pwm_remove_table(struct pwm_lookup *table, size_t num)
 {
-	mutex_lock(&pwm_lookup_lock);
+	guard(mutex)(&pwm_lookup_lock);
 
 	while (num--) {
 		list_del(&table->list);
 		table++;
 	}
-
-	mutex_unlock(&pwm_lookup_lock);
 }
 
 /**
@@ -1428,36 +1424,33 @@ struct pwm_device *pwm_get(struct device *dev, const char *con_id)
 	 * Then we take the most specific entry - with the following order
 	 * of precedence: dev+con > dev only > con only.
 	 */
-	mutex_lock(&pwm_lookup_lock);
+	scoped_guard(mutex, &pwm_lookup_lock)
+		list_for_each_entry(p, &pwm_lookup_list, list) {
+			match = 0;
 
-	list_for_each_entry(p, &pwm_lookup_list, list) {
-		match = 0;
+			if (p->dev_id) {
+				if (!dev_id || strcmp(p->dev_id, dev_id))
+					continue;
 
-		if (p->dev_id) {
-			if (!dev_id || strcmp(p->dev_id, dev_id))
-				continue;
+				match += 2;
+			}
 
-			match += 2;
+			if (p->con_id) {
+				if (!con_id || strcmp(p->con_id, con_id))
+					continue;
+
+				match += 1;
+			}
+
+			if (match > best) {
+				chosen = p;
+
+				if (match != 3)
+					best = match;
+				else
+					break;
+			}
 		}
-
-		if (p->con_id) {
-			if (!con_id || strcmp(p->con_id, con_id))
-				continue;
-
-			match += 1;
-		}
-
-		if (match > best) {
-			chosen = p;
-
-			if (match != 3)
-				best = match;
-			else
-				break;
-		}
-	}
-
-	mutex_unlock(&pwm_lookup_lock);
 
 	if (!chosen)
 		return ERR_PTR(-ENODEV);
