@@ -642,12 +642,8 @@ static unsigned int get_mocs_settings(struct xe_device *xe,
 	 */
 	xe_assert(xe, info->unused_entries_index != 0);
 
-	xe_assert(xe, !info->ops || info->ops->dump);
-
-	if (XE_WARN_ON(info->size > info->n_entries)) {
-		info->table = NULL;
-		return 0;
-	}
+	xe_assert(xe, info->ops && info->ops->dump);
+	xe_assert(xe, info->size <= info->n_entries);
 
 	if (!IS_DGFX(xe) || GRAPHICS_VER(xe) >= 20)
 		flags |= HAS_GLOBAL_MOCS;
@@ -674,9 +670,6 @@ static void __init_mocs_table(struct xe_gt *gt,
 {
 	unsigned int i;
 	u32 mocs;
-
-	xe_gt_WARN_ONCE(gt, !info->unused_entries_index,
-			"Unused entries index should have been defined\n");
 
 	mocs_dbg(gt, "mocs entries: %d\n", info->n_entries);
 
@@ -778,9 +771,6 @@ void xe_mocs_dump(struct xe_gt *gt, struct drm_printer *p)
 	struct xe_device *xe = gt_to_xe(gt);
 
 	flags = get_mocs_settings(xe, &table);
-
-	if (!table.ops->dump)
-		return;
 
 	xe_pm_runtime_get_noresume(xe);
 	ret = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
