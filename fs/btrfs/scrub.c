@@ -261,7 +261,7 @@ static int init_scrub_stripe(struct btrfs_fs_info *fs_info,
 	atomic_set(&stripe->pending_io, 0);
 	spin_lock_init(&stripe->write_error_lock);
 
-	ret = btrfs_alloc_page_array(SCRUB_STRIPE_PAGES, stripe->pages, 0);
+	ret = btrfs_alloc_page_array(SCRUB_STRIPE_PAGES, stripe->pages, false);
 	if (ret < 0)
 		goto error;
 

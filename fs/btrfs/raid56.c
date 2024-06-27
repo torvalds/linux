@@ -1051,7 +1051,7 @@ static int alloc_rbio_pages(struct btrfs_raid_bio *rbio)
 {
 	int ret;
 
-	ret = btrfs_alloc_page_array(rbio->nr_pages, rbio->stripe_pages, 0);
+	ret = btrfs_alloc_page_array(rbio->nr_pages, rbio->stripe_pages, false);
 	if (ret < 0)
 		return ret;
 	/* Mapping all sectors */
@@ -1066,7 +1066,7 @@ static int alloc_rbio_parity_pages(struct btrfs_raid_bio *rbio)
 	int ret;
 
 	ret = btrfs_alloc_page_array(rbio->nr_pages - data_pages,
-				     rbio->stripe_pages + data_pages, 0);
+				     rbio->stripe_pages + data_pages, false);
 	if (ret < 0)
 		return ret;
 
@@ -1640,7 +1640,7 @@ static int alloc_rbio_data_pages(struct btrfs_raid_bio *rbio)
 	const int data_pages = rbio->nr_data * rbio->stripe_npages;
 	int ret;
 
-	ret = btrfs_alloc_page_array(data_pages, rbio->stripe_pages, 0);
+	ret = btrfs_alloc_page_array(data_pages, rbio->stripe_pages, false);
 	if (ret < 0)
 		return ret;
 
