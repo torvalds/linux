@@ -1404,21 +1404,6 @@ static const struct i3c_master_controller_ops dw_mipi_i3c_ops = {
 	.attach_i2c_dev = dw_i3c_master_attach_i2c_dev,
 	.detach_i2c_dev = dw_i3c_master_detach_i2c_dev,
 	.i2c_xfers = dw_i3c_master_i2c_xfers,
-};
-
-static const struct i3c_master_controller_ops dw_mipi_i3c_ibi_ops = {
-	.bus_init = dw_i3c_master_bus_init,
-	.bus_cleanup = dw_i3c_master_bus_cleanup,
-	.attach_i3c_dev = dw_i3c_master_attach_i3c_dev,
-	.reattach_i3c_dev = dw_i3c_master_reattach_i3c_dev,
-	.detach_i3c_dev = dw_i3c_master_detach_i3c_dev,
-	.do_daa = dw_i3c_master_daa,
-	.supports_ccc_cmd = dw_i3c_master_supports_ccc_cmd,
-	.send_ccc_cmd = dw_i3c_master_send_ccc_cmd,
-	.priv_xfers = dw_i3c_master_priv_xfers,
-	.attach_i2c_dev = dw_i3c_master_attach_i2c_dev,
-	.detach_i2c_dev = dw_i3c_master_detach_i2c_dev,
-	.i2c_xfers = dw_i3c_master_i2c_xfers,
 	.request_ibi = dw_i3c_master_request_ibi,
 	.free_ibi = dw_i3c_master_free_ibi,
 	.enable_ibi = dw_i3c_master_enable_ibi,
@@ -1456,7 +1441,6 @@ static void dw_i3c_hj_work(struct work_struct *work)
 int dw_i3c_common_probe(struct dw_i3c_master *master,
 			struct platform_device *pdev)
 {
-	const struct i3c_master_controller_ops *ops;
 	int ret, irq;
 
 	if (!master->platform_ops)
@@ -1506,12 +1490,9 @@ int dw_i3c_common_probe(struct dw_i3c_master *master,
 	master->maxdevs = ret >> 16;
 	master->free_pos = GENMASK(master->maxdevs - 1, 0);
 
-	ops = &dw_mipi_i3c_ops;
-	if (master->ibi_capable)
-		ops = &dw_mipi_i3c_ibi_ops;
-
 	INIT_WORK(&master->hj_work, dw_i3c_hj_work);
-	ret = i3c_master_register(&master->base, &pdev->dev, ops, false);
+	ret = i3c_master_register(&master->base, &pdev->dev,
+				  &dw_mipi_i3c_ops, false);
 	if (ret)
 		goto err_assert_rst;
 

@@ -38,7 +38,6 @@ struct dw_i3c_master {
 	struct clk *core_clk;
 	char version[5];
 	char type[5];
-	bool ibi_capable;
 	u32 sir_rej_mask;
 	/*
 	 * Per-device hardware data, used to manage the device address table
