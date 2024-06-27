@@ -677,10 +677,12 @@ static int soc_tplg_dbytes_create(struct soc_tplg *tplg, size_t size)
 	kc.access = le32_to_cpu(be->hdr.access);
 
 	sbe->max = le32_to_cpu(be->max);
+
+	INIT_LIST_HEAD(&sbe->dobj.list);
 	sbe->dobj.type = SND_SOC_DOBJ_BYTES;
+	sbe->dobj.index = tplg->index;
 	if (tplg->ops)
 		sbe->dobj.unload = tplg->ops->control_unload;
-	INIT_LIST_HEAD(&sbe->dobj.list);
 
 	/* map io handlers */
 	ret = soc_tplg_kcontrol_bind_io(&be->hdr, &kc, tplg);
@@ -750,11 +752,12 @@ static int soc_tplg_dmixer_create(struct soc_tplg *tplg, size_t size)
 	sm->min = le32_to_cpu(mc->min);
 	sm->invert = le32_to_cpu(mc->invert);
 	sm->platform_max = le32_to_cpu(mc->platform_max);
-	sm->dobj.index = tplg->index;
+
+	INIT_LIST_HEAD(&sm->dobj.list);
 	sm->dobj.type = SND_SOC_DOBJ_MIXER;
+	sm->dobj.index = tplg->index;
 	if (tplg->ops)
 		sm->dobj.unload = tplg->ops->control_unload;
-	INIT_LIST_HEAD(&sm->dobj.list);
 
 	/* map io handlers */
 	ret = soc_tplg_kcontrol_bind_io(&mc->hdr, &kc, tplg);
@@ -894,11 +897,12 @@ static int soc_tplg_denum_create(struct soc_tplg *tplg, size_t size)
 		SNDRV_CHMAP_FR);
 
 	se->mask = le32_to_cpu(ec->mask);
-	se->dobj.index = tplg->index;
+
+	INIT_LIST_HEAD(&se->dobj.list);
 	se->dobj.type = SND_SOC_DOBJ_ENUM;
+	se->dobj.index = tplg->index;
 	if (tplg->ops)
 		se->dobj.unload = tplg->ops->control_unload;
-	INIT_LIST_HEAD(&se->dobj.list);
 
 	switch (le32_to_cpu(ec->hdr.ops.info)) {
 	case SND_SOC_TPLG_DAPM_CTL_ENUM_VALUE:
