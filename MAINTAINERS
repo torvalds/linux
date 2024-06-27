@@ -11066,7 +11066,7 @@ F:	include/linux/net/intel/iidc.h
 
 INTEL ETHERNET PROTOCOL DRIVER FOR RDMA
 M:	Mustafa Ismail <mustafa.ismail@intel.com>
-M:	Shiraz Saleem <shiraz.saleem@intel.com>
+M:	Tatyana Nikolova <tatyana.e.nikolova@intel.com>
 L:	linux-rdma@vger.kernel.org
 S:	Supported
 F:	drivers/infiniband/hw/irdma/
