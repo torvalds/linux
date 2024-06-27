@@ -909,49 +909,21 @@ static int soc_tplg_dbytes_create(struct soc_tplg *tplg, size_t size)
 
 static int soc_tplg_dmixer_create(struct soc_tplg *tplg, size_t size)
 {
-	struct snd_soc_tplg_mixer_control *mc;
+	struct snd_kcontrol_new kc = {0};
 	struct soc_mixer_control *sm;
-	struct snd_kcontrol_new kc;
-	int ret = 0;
+	int ret;
 
 	if (soc_tplg_check_elem_count(tplg,
 				      sizeof(struct snd_soc_tplg_mixer_control),
 				      1, size, "mixers"))
 		return -EINVAL;
 
-	mc = (struct snd_soc_tplg_mixer_control *)tplg->pos;
+	ret = soc_tplg_control_dmixer_create(tplg, &kc);
+	if (ret)
+		return ret;
 
-	/* validate kcontrol */
-	if (strnlen(mc->hdr.name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN) ==
-		SNDRV_CTL_ELEM_ID_NAME_MAXLEN)
-		return -EINVAL;
-
-	sm = devm_kzalloc(tplg->dev, sizeof(*sm), GFP_KERNEL);
-	if (sm == NULL)
-		return -ENOMEM;
-	tplg->pos += (sizeof(struct snd_soc_tplg_mixer_control) +
-		      le32_to_cpu(mc->priv.size));
-
-	dev_dbg(tplg->dev,
-		"ASoC: adding mixer kcontrol %s with access 0x%x\n",
-		mc->hdr.name, mc->hdr.access);
-
-	memset(&kc, 0, sizeof(kc));
-	kc.name = mc->hdr.name;
-	kc.private_value = (long)sm;
-	kc.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
-	kc.access = le32_to_cpu(mc->hdr.access);
-
-	/* we only support FL/FR channel mapping atm */
-	sm->reg = tplg_chan_get_reg(tplg, mc->channel, SNDRV_CHMAP_FL);
-	sm->rreg = tplg_chan_get_reg(tplg, mc->channel, SNDRV_CHMAP_FR);
-	sm->shift = tplg_chan_get_shift(tplg, mc->channel, SNDRV_CHMAP_FL);
-	sm->rshift = tplg_chan_get_shift(tplg, mc->channel, SNDRV_CHMAP_FR);
-
-	sm->max = le32_to_cpu(mc->max);
-	sm->min = le32_to_cpu(mc->min);
-	sm->invert = le32_to_cpu(mc->invert);
-	sm->platform_max = le32_to_cpu(mc->platform_max);
+	/* register dynamic object */
+	sm = (struct soc_mixer_control *)&kc.private_value;
 
 	INIT_LIST_HEAD(&sm->dobj.list);
 	sm->dobj.type = SND_SOC_DOBJ_MIXER;
@@ -959,33 +931,13 @@ static int soc_tplg_dmixer_create(struct soc_tplg *tplg, size_t size)
 	if (tplg->ops)
 		sm->dobj.unload = tplg->ops->control_unload;
 
-	/* map io handlers */
-	ret = soc_tplg_kcontrol_bind_io(&mc->hdr, &kc, tplg);
-	if (ret) {
-		soc_control_err(tplg, &mc->hdr, mc->hdr.name);
-		goto err;
-	}
-
-	/* create any TLV data */
-	ret = soc_tplg_create_tlv(tplg, &kc, &mc->hdr);
-	if (ret < 0) {
-		dev_err(tplg->dev, "ASoC: failed to create TLV %s\n", mc->hdr.name);
-		goto err;
-	}
-
-	/* pass control to driver for optional further init */
-	ret = soc_tplg_control_load(tplg, &kc, &mc->hdr);
-	if (ret < 0)
-		goto err;
-
-	/* register control here */
+	/* create control directly */
 	ret = soc_tplg_add_kcontrol(tplg, &kc, &sm->dobj.control.kcontrol);
 	if (ret < 0)
-		goto err;
+		return ret;
 
 	list_add(&sm->dobj.list, &tplg->comp->dobj_list);
 
-err:
 	return ret;
 }
 
