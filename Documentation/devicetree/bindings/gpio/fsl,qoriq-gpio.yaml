@@ -44,6 +44,10 @@ properties:
   "#interrupt-cells":
     const: 2
 
+  gpio-line-names:
+    minItems: 1
+    maxItems: 32
+
   little-endian:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
