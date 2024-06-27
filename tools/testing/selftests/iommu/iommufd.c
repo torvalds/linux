@@ -1727,6 +1727,12 @@ FIXTURE_SETUP(iommufd_dirty_tracking)
 	void *vrc;
 	int rc;
 
+	if (variant->buffer_size < MOCK_PAGE_SIZE) {
+		SKIP(return,
+		     "Skipping buffer_size=%lu, less than MOCK_PAGE_SIZE=%lu",
+		     variant->buffer_size, MOCK_PAGE_SIZE);
+	}
+
 	self->fd = open("/dev/iommu", O_RDWR);
 	ASSERT_NE(-1, self->fd);
 
@@ -1778,6 +1784,18 @@ FIXTURE_TEARDOWN(iommufd_dirty_tracking)
 	munmap(self->bitmap, DIV_ROUND_UP(self->bitmap_size, BITS_PER_BYTE));
 	teardown_iommufd(self->fd, _metadata);
 }
+
+FIXTURE_VARIANT_ADD(iommufd_dirty_tracking, domain_dirty8k)
+{
+	/* half of an u8 index bitmap */
+	.buffer_size = 8UL * 1024UL,
+};
+
+FIXTURE_VARIANT_ADD(iommufd_dirty_tracking, domain_dirty16k)
+{
+	/* one u8 index bitmap */
+	.buffer_size = 16UL * 1024UL,
+};
 
 FIXTURE_VARIANT_ADD(iommufd_dirty_tracking, domain_dirty128k)
 {
