@@ -1096,7 +1096,7 @@ static int soc_tplg_dapm_graph_elems_load(struct soc_tplg *tplg,
 	return ret;
 }
 
-static int soc_tplg_dapm_widget_dmixer_create(struct soc_tplg *tplg, struct snd_kcontrol_new *kc)
+static int soc_tplg_control_dmixer_create(struct soc_tplg *tplg, struct snd_kcontrol_new *kc)
 {
 	struct snd_soc_tplg_mixer_control *mc;
 	struct soc_mixer_control *sm;
@@ -1153,7 +1153,7 @@ static int soc_tplg_dapm_widget_dmixer_create(struct soc_tplg *tplg, struct snd_
 	return soc_tplg_control_load(tplg, kc, &mc->hdr);
 }
 
-static int soc_tplg_dapm_widget_denum_create(struct soc_tplg *tplg, struct snd_kcontrol_new *kc)
+static int soc_tplg_control_denum_create(struct soc_tplg *tplg, struct snd_kcontrol_new *kc)
 {
 	struct snd_soc_tplg_enum_control *ec;
 	struct soc_enum *se;
@@ -1222,7 +1222,7 @@ static int soc_tplg_dapm_widget_denum_create(struct soc_tplg *tplg, struct snd_k
 	return soc_tplg_control_load(tplg, kc, &ec->hdr);
 }
 
-static int soc_tplg_dapm_widget_dbytes_create(struct soc_tplg *tplg, struct snd_kcontrol_new *kc)
+static int soc_tplg_control_dbytes_create(struct soc_tplg *tplg, struct snd_kcontrol_new *kc)
 {
 	struct snd_soc_tplg_bytes_control *be;
 	struct soc_bytes_ext *sbe;
@@ -1350,7 +1350,7 @@ static int soc_tplg_dapm_widget_create(struct soc_tplg *tplg,
 			kc[i].index = mixer_count;
 			kcontrol_type[i] = SND_SOC_TPLG_TYPE_MIXER;
 			mixer_count++;
-			ret = soc_tplg_dapm_widget_dmixer_create(tplg, &kc[i]);
+			ret = soc_tplg_control_dmixer_create(tplg, &kc[i]);
 			if (ret < 0)
 				goto hdr_err;
 			break;
@@ -1363,7 +1363,7 @@ static int soc_tplg_dapm_widget_create(struct soc_tplg *tplg,
 			kc[i].index = enum_count;
 			kcontrol_type[i] = SND_SOC_TPLG_TYPE_ENUM;
 			enum_count++;
-			ret = soc_tplg_dapm_widget_denum_create(tplg, &kc[i]);
+			ret = soc_tplg_control_denum_create(tplg, &kc[i]);
 			if (ret < 0)
 				goto hdr_err;
 			break;
@@ -1372,7 +1372,7 @@ static int soc_tplg_dapm_widget_create(struct soc_tplg *tplg,
 			kc[i].index = bytes_count;
 			kcontrol_type[i] = SND_SOC_TPLG_TYPE_BYTES;
 			bytes_count++;
-			ret = soc_tplg_dapm_widget_dbytes_create(tplg, &kc[i]);
+			ret = soc_tplg_control_dbytes_create(tplg, &kc[i]);
 			if (ret < 0)
 				goto hdr_err;
 			break;
