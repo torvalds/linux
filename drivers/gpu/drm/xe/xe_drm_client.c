@@ -260,17 +260,20 @@ static void show_run_ticks(struct drm_printer *p, struct drm_file *file)
 
 	/* Get the total GPU cycles */
 	for_each_gt(gt, xe, gt_id) {
+		enum xe_force_wake_domains fw;
+
 		hwe = xe_gt_any_hw_engine(gt);
 		if (!hwe)
 			continue;
 
-		if (xe_force_wake_get(gt_to_fw(gt), XE_FW_GT)) {
+		fw = xe_hw_engine_to_fw_domain(hwe);
+		if (xe_force_wake_get(gt_to_fw(gt), fw)) {
 			hwe = NULL;
 			break;
 		}
 
 		gpu_timestamp = xe_hw_engine_read_timestamp(hwe);
-		XE_WARN_ON(xe_force_wake_put(gt_to_fw(gt), XE_FW_GT));
+		XE_WARN_ON(xe_force_wake_put(gt_to_fw(gt), fw));
 		break;
 	}
 
