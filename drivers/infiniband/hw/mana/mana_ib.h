@@ -429,7 +429,7 @@ void mana_ib_uncfg_vport(struct mana_ib_dev *dev, struct mana_ib_pd *pd,
 			 u32 port);
 
 int mana_ib_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
-		      struct ib_udata *udata);
+		      struct uverbs_attr_bundle *attrs);
 
 int mana_ib_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata);
 
