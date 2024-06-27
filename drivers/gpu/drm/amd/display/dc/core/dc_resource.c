@@ -1917,9 +1917,15 @@ int resource_get_opp_heads_for_otg_master(const struct pipe_ctx *otg_master,
 		struct pipe_ctx *opp_heads[MAX_PIPES])
 {
 	struct pipe_ctx *opp_head = &res_ctx->pipe_ctx[otg_master->pipe_idx];
+	struct dc *dc = otg_master->stream->ctx->dc;
 	int i = 0;
 
+	DC_LOGGER_INIT(dc->ctx->logger);
+
 	if (!resource_is_pipe_type(otg_master, OTG_MASTER)) {
+		DC_LOG_WARNING("%s called from a non OTG master, something "
+			       "is wrong in the pipe configuration",
+			       __func__);
 		ASSERT(0);
 		return 0;
 	}
@@ -2077,17 +2083,32 @@ int resource_get_odm_slice_index(const struct pipe_ctx *pipe_ctx)
 int resource_get_odm_slice_dst_width(struct pipe_ctx *otg_master,
 		bool is_last_segment)
 {
-	const struct dc_crtc_timing *timing = &otg_master->stream->timing;
-	int count = resource_get_odm_slice_count(otg_master);
-	int h_active = timing->h_addressable +
-			timing->h_border_left +
-			timing->h_border_right;
-	int width = h_active / count;
+	const struct dc_crtc_timing *timing;
+	int count;
+	int h_active;
+	int width;
 	bool two_pixel_alignment_required = false;
 
-	if (otg_master && otg_master->stream_res.tg && otg_master->stream)
-		two_pixel_alignment_required = otg_master->stream_res.tg->funcs->is_two_pixels_per_container(timing);
+	if (!otg_master || !otg_master->stream)
+		return 0;
 
+	timing = &otg_master->stream->timing;
+	count = resource_get_odm_slice_count(otg_master);
+	h_active = timing->h_addressable +
+			timing->h_border_left +
+			timing->h_border_right;
+	width = h_active / count;
+
+	if (otg_master->stream_res.tg)
+		two_pixel_alignment_required =
+				otg_master->stream_res.tg->funcs->is_two_pixels_per_container(timing) ||
+				/*
+				 * 422 is sub-sampled horizontally. 1 set of chromas
+				 * (Cb/Cr) is shared for 2 lumas (i.e 2 Y values).
+				 * Therefore even if 422 is still 1 pixel per container,
+				 * ODM segment width still needs to be 2 pixel aligned.
+				 */
+				timing->pixel_encoding == PIXEL_ENCODING_YCBCR422;
 	if ((width % 2) && two_pixel_alignment_required)
 		width++;
 
@@ -2596,6 +2617,17 @@ static void remove_hpo_dp_link_enc_from_ctx(struct resource_context *res_ctx,
 	}
 }
 
+static int get_num_of_free_pipes(const struct resource_pool *pool, const struct dc_state *context)
+{
+	int i;
+	int count = 0;
+
+	for (i = 0; i < pool->pipe_count; i++)
+		if (resource_is_pipe_type(&context->res_ctx.pipe_ctx[i], FREE_PIPE))
+			count++;
+	return count;
+}
+
 enum dc_status resource_add_otg_master_for_stream_output(struct dc_state *new_ctx,
 		const struct resource_pool *pool,
 		struct dc_stream_state *stream)
@@ -2729,37 +2761,33 @@ static bool acquire_secondary_dpp_pipes_and_add_plane(
 		struct dc_state *cur_ctx,
 		struct resource_pool *pool)
 {
-	struct pipe_ctx *opp_head_pipe, *sec_pipe, *tail_pipe;
+	struct pipe_ctx *sec_pipe, *tail_pipe;
+	struct pipe_ctx *opp_heads[MAX_PIPES];
+	int opp_head_count;
+	int i;
 
 	if (!pool->funcs->acquire_free_pipe_as_secondary_dpp_pipe) {
 		ASSERT(0);
 		return false;
 	}
 
-	opp_head_pipe = otg_master_pipe;
-	while (opp_head_pipe) {
+	opp_head_count = resource_get_opp_heads_for_otg_master(otg_master_pipe,
+			&new_ctx->res_ctx, opp_heads);
+	if (get_num_of_free_pipes(pool, new_ctx) < opp_head_count)
+		/* not enough free pipes */
+		return false;
+
+	for (i = 0; i < opp_head_count; i++) {
 		sec_pipe = pool->funcs->acquire_free_pipe_as_secondary_dpp_pipe(
 				cur_ctx,
 				new_ctx,
 				pool,
-				opp_head_pipe);
-		if (!sec_pipe) {
-			/* try tearing down MPCC combine */
-			int pipe_idx = acquire_first_split_pipe(
-					&new_ctx->res_ctx, pool,
-					otg_master_pipe->stream);
-
-			if (pipe_idx >= 0)
-				sec_pipe = &new_ctx->res_ctx.pipe_ctx[pipe_idx];
-		}
-
-		if (!sec_pipe)
-			return false;
-
+				opp_heads[i]);
+		ASSERT(sec_pipe);
 		sec_pipe->plane_state = plane_state;
 
 		/* establish pipe relationship */
-		tail_pipe = get_tail_pipe(opp_head_pipe);
+		tail_pipe = get_tail_pipe(opp_heads[i]);
 		tail_pipe->bottom_pipe = sec_pipe;
 		sec_pipe->top_pipe = tail_pipe;
 		sec_pipe->bottom_pipe = NULL;
@@ -2770,8 +2798,6 @@ static bool acquire_secondary_dpp_pipes_and_add_plane(
 		} else {
 			sec_pipe->prev_odm_pipe = NULL;
 		}
-
-		opp_head_pipe = opp_head_pipe->next_odm_pipe;
 	}
 	return true;
 }
@@ -2784,6 +2810,7 @@ bool resource_append_dpp_pipes_for_plane_composition(
 		struct dc_plane_state *plane_state)
 {
 	bool success;
+
 	if (otg_master_pipe->plane_state == NULL)
 		success = add_plane_to_opp_head_pipes(otg_master_pipe,
 				plane_state, new_ctx);
@@ -2791,10 +2818,15 @@ bool resource_append_dpp_pipes_for_plane_composition(
 		success = acquire_secondary_dpp_pipes_and_add_plane(
 				otg_master_pipe, plane_state, new_ctx,
 				cur_ctx, pool);
-	if (success)
+	if (success) {
 		/* when appending a plane mpc slice count changes from 0 to 1 */
 		success = update_pipe_params_after_mpc_slice_count_change(
 				plane_state, new_ctx, pool);
+		if (!success)
+			resource_remove_dpp_pipes_for_plane_composition(new_ctx,
+					pool, plane_state);
+	}
+
 	return success;
 }
 
@@ -2804,6 +2836,7 @@ void resource_remove_dpp_pipes_for_plane_composition(
 		const struct dc_plane_state *plane_state)
 {
 	int i;
+
 	for (i = pool->pipe_count - 1; i >= 0; i--) {
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 
@@ -3100,8 +3133,13 @@ bool resource_update_pipes_for_stream_with_slice_count(
 	int i;
 	struct pipe_ctx *otg_master = resource_get_otg_master_for_stream(
 			&new_ctx->res_ctx, stream);
-	int cur_slice_count = resource_get_odm_slice_count(otg_master);
+	int cur_slice_count;
 	bool result = true;
+
+	if (!otg_master)
+		return false;
+
+	cur_slice_count = resource_get_odm_slice_count(otg_master);
 
 	if (new_slice_count == cur_slice_count)
 		return result;
@@ -4287,7 +4325,7 @@ static void set_avi_info_frame(
 	}
 
 	if (rid != 0 && fr_ind != 0) {
-		hdmi_info.bits.header.version = 5;
+		hdmi_info.bits.header.version = 4;
 		hdmi_info.bits.header.length = 15;
 
 		hdmi_info.bits.FR0_FR3 = fr_ind & 0xF;
@@ -4749,6 +4787,9 @@ void resource_build_bit_depth_reduction_params(struct dc_stream_state *stream,
 
 enum dc_status dc_validate_stream(struct dc *dc, struct dc_stream_state *stream)
 {
+	if (dc == NULL || stream == NULL)
+		return DC_ERROR_UNEXPECTED;
+
 	struct dc_link *link = stream->link;
 	struct timing_generator *tg = dc->res_pool->timing_generators[0];
 	enum dc_status res = DC_OK;

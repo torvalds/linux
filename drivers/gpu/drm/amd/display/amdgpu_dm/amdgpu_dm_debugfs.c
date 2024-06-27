@@ -1008,6 +1008,7 @@ static int replay_capability_show(struct seq_file *m, void *data)
 
 	seq_printf(m, "Sink support: %s\n", str_yes_no(sink_support_replay));
 	seq_printf(m, "Driver support: %s\n", str_yes_no(driver_support_replay));
+	seq_printf(m, "Config support: %s\n", str_yes_no(link->replay_settings.config.replay_supported));
 
 	return 0;
 }
@@ -1419,7 +1420,7 @@ static ssize_t trigger_hotplug(struct file *f, const char __user *buf,
 	uint8_t param_nums = 0;
 	bool ret = false;
 
-	if (!aconnector || !aconnector->dc_link)
+	if (!aconnector->dc_link)
 		return -EINVAL;
 
 	if (size == 0)
@@ -3074,7 +3075,7 @@ static int psr_read_residency(void *data, u64 *val)
 	struct dc_link *link = connector->dc_link;
 	u32 residency = 0;
 
-	link->dc->link_srv->edp_get_psr_residency(link, &residency);
+	link->dc->link_srv->edp_get_psr_residency(link, &residency, PSR_RESIDENCY_MODE_PHY);
 
 	*val = (u64)residency;
 

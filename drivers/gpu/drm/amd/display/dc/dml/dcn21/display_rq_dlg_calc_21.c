@@ -297,9 +297,6 @@ static void handle_det_buf_split(
 
 		if (swath_height_c > 0)
 			log2_swath_height_c = dml_log2(swath_height_c);
-
-		if (req128_c && log2_swath_height_c > 0)
-			log2_swath_height_c -= 1;
 	}
 
 	rq_param->dlg.rq_l.swath_height = 1 << log2_swath_height_l;
@@ -1207,11 +1204,6 @@ static void dml_rq_dlg_get_dlg_params(
 		swath_width_pixels_ub_l = swath_width_ub_l * 1;
 		swath_width_pixels_ub_c = swath_width_ub_c * 1;
 	}
-
-	hscale_pixel_rate_l = 0.;
-	hscale_pixel_rate_c = 0.;
-	min_hratio_fact_l = 1.0;
-	min_hratio_fact_c = 1.0;
 
 	if (hratio_l <= 1)
 		min_hratio_fact_l = 2.0;

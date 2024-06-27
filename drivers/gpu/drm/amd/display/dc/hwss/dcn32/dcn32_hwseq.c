@@ -271,58 +271,55 @@ bool dcn32_apply_idle_power_optimizations(struct dc *dc, bool enable)
 	}
 
 	if (enable) {
-		if (dc->current_state) {
+		/* 1. Check no memory request case for CAB.
+		 * If no memory request case, send CAB_ACTION NO_DF_REQ DMUB message
+		 */
+		if (dcn32_check_no_memory_request_for_cab(dc)) {
+			/* Enable no-memory-requests case */
+			memset(&cmd, 0, sizeof(cmd));
+			cmd.cab.header.type = DMUB_CMD__CAB_FOR_SS;
+			cmd.cab.header.sub_type = DMUB_CMD__CAB_NO_DCN_REQ;
+			cmd.cab.header.payload_bytes = sizeof(cmd.cab) - sizeof(cmd.cab.header);
 
-			/* 1. Check no memory request case for CAB.
-			 * If no memory request case, send CAB_ACTION NO_DF_REQ DMUB message
-			 */
-			if (dcn32_check_no_memory_request_for_cab(dc)) {
-				/* Enable no-memory-requests case */
-				memset(&cmd, 0, sizeof(cmd));
-				cmd.cab.header.type = DMUB_CMD__CAB_FOR_SS;
-				cmd.cab.header.sub_type = DMUB_CMD__CAB_NO_DCN_REQ;
-				cmd.cab.header.payload_bytes = sizeof(cmd.cab) - sizeof(cmd.cab.header);
+			dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_NO_WAIT);
 
-				dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_NO_WAIT);
-
-				return true;
-			}
-
-			/* 2. Check if all surfaces can fit in CAB.
-			 * If surfaces can fit into CAB, send CAB_ACTION_ALLOW DMUB message
-			 * and configure HUBP's to fetch from MALL
-			 */
-			ways = dcn32_calculate_cab_allocation(dc, dc->current_state);
-
-			/* MALL not supported with Stereo3D or TMZ surface. If any plane is using stereo,
-			 * or TMZ surface, don't try to enter MALL.
-			 */
-			for (i = 0; i < dc->current_state->stream_count; i++) {
-				for (j = 0; j < dc->current_state->stream_status[i].plane_count; j++) {
-					plane = dc->current_state->stream_status[i].plane_states[j];
-
-					if (plane->address.type == PLN_ADDR_TYPE_GRPH_STEREO ||
-							plane->address.tmz_surface) {
-						mall_ss_unsupported = true;
-						break;
-					}
-				}
-				if (mall_ss_unsupported)
-					break;
-			}
-			if (ways <= dc->caps.cache_num_ways && !mall_ss_unsupported) {
-				memset(&cmd, 0, sizeof(cmd));
-				cmd.cab.header.type = DMUB_CMD__CAB_FOR_SS;
-				cmd.cab.header.sub_type = DMUB_CMD__CAB_DCN_SS_FIT_IN_CAB;
-				cmd.cab.header.payload_bytes = sizeof(cmd.cab) - sizeof(cmd.cab.header);
-				cmd.cab.cab_alloc_ways = (uint8_t)ways;
-
-				dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_NO_WAIT);
-
-				return true;
-			}
-
+			return true;
 		}
+
+		/* 2. Check if all surfaces can fit in CAB.
+		 * If surfaces can fit into CAB, send CAB_ACTION_ALLOW DMUB message
+		 * and configure HUBP's to fetch from MALL
+		 */
+		ways = dcn32_calculate_cab_allocation(dc, dc->current_state);
+
+		/* MALL not supported with Stereo3D or TMZ surface. If any plane is using stereo,
+		 * or TMZ surface, don't try to enter MALL.
+		 */
+		for (i = 0; i < dc->current_state->stream_count; i++) {
+			for (j = 0; j < dc->current_state->stream_status[i].plane_count; j++) {
+				plane = dc->current_state->stream_status[i].plane_states[j];
+
+				if (plane->address.type == PLN_ADDR_TYPE_GRPH_STEREO ||
+						plane->address.tmz_surface) {
+					mall_ss_unsupported = true;
+					break;
+				}
+			}
+			if (mall_ss_unsupported)
+				break;
+		}
+		if (ways <= dc->caps.cache_num_ways && !mall_ss_unsupported) {
+			memset(&cmd, 0, sizeof(cmd));
+			cmd.cab.header.type = DMUB_CMD__CAB_FOR_SS;
+			cmd.cab.header.sub_type = DMUB_CMD__CAB_DCN_SS_FIT_IN_CAB;
+			cmd.cab.header.payload_bytes = sizeof(cmd.cab) - sizeof(cmd.cab.header);
+			cmd.cab.cab_alloc_ways = (uint8_t)ways;
+
+			dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_NO_WAIT);
+
+			return true;
+		}
+
 		return false;
 	}
 
@@ -806,7 +803,7 @@ void dcn32_init_hw(struct dc *dc)
 		res_pool->ref_clocks.xtalin_clock_inKhz =
 				dc->ctx->dc_bios->fw_info.pll_info.crystal_frequency;
 
-		if (res_pool->dccg && res_pool->hubbub) {
+		if (res_pool->hubbub) {
 			(res_pool->dccg->funcs->get_dccg_ref_freq)(res_pool->dccg,
 					dc->ctx->dc_bios->fw_info.pll_info.crystal_frequency,
 					&res_pool->ref_clocks.dccg_ref_clock_inKhz);
@@ -1237,8 +1234,25 @@ void dcn32_resync_fifo_dccg_dio(struct dce_hwseq *hws, struct dc *dc, struct dc_
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		pipe = &dc->current_state->res_ctx.pipe_ctx[i];
 
-		if (otg_disabled[i])
+		if (otg_disabled[i]) {
+			int opp_inst[MAX_PIPES] = { pipe->stream_res.opp->inst };
+			int opp_cnt = 1;
+			int last_odm_slice_width = resource_get_odm_slice_dst_width(pipe, true);
+			int odm_slice_width = resource_get_odm_slice_dst_width(pipe, false);
+			struct pipe_ctx *odm_pipe;
+
+			for (odm_pipe = pipe->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe) {
+				opp_inst[opp_cnt] = odm_pipe->stream_res.opp->inst;
+				opp_cnt++;
+			}
+			if (opp_cnt > 1)
+				pipe->stream_res.tg->funcs->set_odm_combine(
+						pipe->stream_res.tg,
+						opp_inst, opp_cnt,
+						odm_slice_width,
+						last_odm_slice_width);
 			pipe->stream_res.tg->funcs->enable_crtc(pipe->stream_res.tg);
+		}
 	}
 }
 

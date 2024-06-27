@@ -359,7 +359,7 @@ void pg_cntl35_mpcc_pg_control(struct pg_cntl *pg_cntl,
 	if (pg_cntl->ctx->dc->idle_optimizations_allowed)
 		return;
 
-	if (mpcc_inst >= 0 && mpcc_inst < MAX_PIPES)
+	if (mpcc_inst < MAX_PIPES)
 		pg_cntl->pg_pipe_res_enable[PG_MPCC][mpcc_inst] = power_on;
 }
 
@@ -369,7 +369,7 @@ void pg_cntl35_opp_pg_control(struct pg_cntl *pg_cntl,
 	if (pg_cntl->ctx->dc->idle_optimizations_allowed)
 		return;
 
-	if (opp_inst >= 0 && opp_inst < MAX_PIPES)
+	if (opp_inst < MAX_PIPES)
 		pg_cntl->pg_pipe_res_enable[PG_OPP][opp_inst] = power_on;
 }
 
@@ -379,7 +379,7 @@ void pg_cntl35_optc_pg_control(struct pg_cntl *pg_cntl,
 	if (pg_cntl->ctx->dc->idle_optimizations_allowed)
 		return;
 
-	if (optc_inst >= 0 && optc_inst < MAX_PIPES)
+	if (optc_inst < MAX_PIPES)
 		pg_cntl->pg_pipe_res_enable[PG_OPTC][optc_inst] = power_on;
 }
 

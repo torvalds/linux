@@ -113,6 +113,12 @@ enum dmub_status dmub_srv_stat_get_notification(struct dmub_srv *dmub,
 				notify->result = DPIA_BW_ALLOC_CAPS_CHANGED;
 		}
 		break;
+	case DMUB_OUT_CMD__HPD_SENSE_NOTIFY:
+		notify->type = DMUB_NOTIFICATION_HPD_SENSE_NOTIFY;
+		dmub_memcpy(&notify->hpd_sense_notify,
+			    &cmd.hpd_sense_notify.data,
+			    sizeof(cmd.hpd_sense_notify.data));
+		break;
 	default:
 		notify->type = DMUB_NOTIFICATION_NO_DATA;
 		break;

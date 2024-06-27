@@ -27,6 +27,7 @@
 #include "dc_bios_types.h"
 #include "dcn30/dcn30_dio_stream_encoder.h"
 #include "dcn32/dcn32_dio_stream_encoder.h"
+#include "dcn35/dcn35_dio_stream_encoder.h"
 
 #include "dcn401_dio_stream_encoder.h"
 #include "reg_helper.h"
@@ -764,7 +765,8 @@ static const struct stream_encoder_funcs dcn401_str_enc_funcs = {
 	.enable_stream = enc401_stream_encoder_enable,
 
 	.set_input_mode = enc401_set_dig_input_mode,
-	.enable_fifo = enc32_enable_fifo,
+	.enable_fifo = enc35_enable_fifo,
+	.disable_fifo = enc35_disable_fifo,
 	.map_stream_to_link = enc401_stream_encoder_map_to_link,
 };
 

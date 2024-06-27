@@ -739,6 +739,7 @@ static void populate_dml_output_cfg_from_stream_state(struct dml_output_cfg_st *
 	out->DSCEnable[location] = (enum dml_dsc_enable)in->timing.flags.DSC;
 	out->OutputLinkDPLanes[location] = 4; // As per code in dcn20_resource.c
 	out->DSCInputBitPerComponent[location] = 12; // As per code in dcn20_resource.c
+	out->DSCSlices[location] = in->timing.dsc_cfg.num_slices_h;
 
 	switch (in->signal) {
 	case SIGNAL_TYPE_DISPLAY_PORT_MST:
@@ -1109,7 +1110,7 @@ static bool get_plane_id(struct dml2_context *dml2, const struct dc_state *conte
 		if (context->streams[i]->stream_id == stream_id) {
 			for (j = 0; j < context->stream_status[i].plane_count; j++) {
 				if (context->stream_status[i].plane_states[j] == plane &&
-					(!is_plane_duplicate || (is_plane_duplicate && (j == plane_index)))) {
+					(!is_plane_duplicate || (j == plane_index))) {
 					*plane_id = (i << 16) | j;
 					return true;
 				}

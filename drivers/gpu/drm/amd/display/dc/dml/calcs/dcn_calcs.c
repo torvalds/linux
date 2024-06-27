@@ -690,7 +690,7 @@ static void hack_disable_optional_pipe_split(struct dcn_bw_internal_vars *v)
 static void hack_force_pipe_split(struct dcn_bw_internal_vars *v,
 		unsigned int pixel_rate_100hz)
 {
-	float pixel_rate_mhz = pixel_rate_100hz / 10000;
+	float pixel_rate_mhz = pixel_rate_100hz / 10000.0;
 
 	/*
 	 * force enabling pipe split by lower dpp clock for DPM0 to just

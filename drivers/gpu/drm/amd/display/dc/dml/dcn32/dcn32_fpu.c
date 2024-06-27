@@ -738,9 +738,9 @@ static bool subvp_subvp_schedulable(struct dc *dc, struct dc_state *context)
 		/* Loop to calculate the maximum microschedule time between the two SubVP pipes,
 		 * and also to store the two main SubVP pipe pointers in subvp_pipes[2].
 		 */
-		if (pipe->stream && pipe->plane_state && !pipe->top_pipe &&
+		phantom = dc_state_get_paired_subvp_stream(context, pipe->stream);
+		if (phantom && pipe->stream && pipe->plane_state && !pipe->top_pipe &&
 			dc_state_get_pipe_subvp_type(context, pipe) == SUBVP_MAIN) {
-			phantom = dc_state_get_paired_subvp_stream(context, pipe->stream);
 			microschedule_lines = (phantom->timing.v_total - phantom->timing.v_front_porch) +
 					phantom->timing.v_addressable;
 
@@ -845,8 +845,8 @@ static bool subvp_drr_schedulable(struct dc *dc, struct dc_state *context)
 		}
 	}
 
-	if (subvp_found && drr_found) {
-		phantom_stream = dc_state_get_paired_subvp_stream(context, pipe->stream);
+	phantom_stream = dc_state_get_paired_subvp_stream(context, pipe->stream);
+	if (phantom_stream && subvp_found && drr_found) {
 		main_timing = &pipe->stream->timing;
 		phantom_timing = &phantom_stream->timing;
 		drr_timing = &drr_pipe->stream->timing;
@@ -1177,6 +1177,9 @@ static void init_pipe_slice_table_from_context(
 		stream = context->streams[i];
 		otg_master = resource_get_otg_master_for_stream(
 				&context->res_ctx, stream);
+		if (!otg_master)
+			continue;
+
 		count = resource_get_odm_slice_count(otg_master);
 		update_slice_table_for_stream(table, stream, count);
 
@@ -2154,6 +2157,8 @@ bool dcn32_internal_validate_bw(struct dc *dc,
 
 	dc->res_pool->funcs->update_soc_for_wm_a(dc, context);
 
+	for (i = 0; i < context->stream_count; i++)
+		resource_update_pipes_for_stream_with_slice_count(context, dc->current_state, dc->res_pool, context->streams[i], 1);
 	pipe_cnt = dc->res_pool->funcs->populate_dml_pipes(dc, context, pipes, fast_validate);
 
 	if (!pipe_cnt) {

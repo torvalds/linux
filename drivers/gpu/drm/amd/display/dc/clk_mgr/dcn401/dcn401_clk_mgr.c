@@ -791,12 +791,14 @@ static unsigned int dcn401_build_update_bandwidth_clocks_sequence(
 				block_sequence[num_steps].func = CLK_MGR401_UPDATE_FCLK_PSTATE_SUPPORT;
 				num_steps++;
 			}
-		} else {
-			/* P-State is not supported so force max clocks */
-			idle_fclk_mhz =
-					clk_mgr_base->bw_params->clk_table.entries[clk_mgr_base->bw_params->clk_table.num_entries_per_clk.num_fclk_levels - 1].fclk_mhz;
-			active_fclk_mhz = idle_fclk_mhz;
 		}
+	}
+
+	if (!clk_mgr_base->clks.fclk_p_state_change_support && dcn401_is_ppclk_dpm_enabled(clk_mgr_internal, PPCLK_FCLK)) {
+		/* when P-State switching disabled, set UCLK min = max */
+		idle_fclk_mhz =
+				clk_mgr_base->bw_params->clk_table.entries[clk_mgr_base->bw_params->clk_table.num_entries_per_clk.num_fclk_levels - 1].fclk_mhz;
+		active_fclk_mhz = idle_fclk_mhz;
 	}
 
 	/* UPDATE DCFCLK */
@@ -872,19 +874,21 @@ static unsigned int dcn401_build_update_bandwidth_clocks_sequence(
 				block_sequence[num_steps].func = CLK_MGR401_UPDATE_UCLK_PSTATE_SUPPORT;
 				num_steps++;
 			}
-		} else {
-			/* when disabling P-State switching, set UCLK min = max */
-			if (dc->clk_mgr->dc_mode_softmax_enabled) {
-				/* will never have the functional UCLK min above the softmax
-				* since we calculate mode support based on softmax being the max UCLK
-				* frequency.
-				*/
-				active_uclk_mhz = clk_mgr_base->bw_params->dc_mode_softmax_memclk;
-			} else {
-				active_uclk_mhz = clk_mgr_base->bw_params->max_memclk_mhz;
-			}
-			idle_uclk_mhz = active_uclk_mhz;
 		}
+	}
+
+	if (!clk_mgr_base->clks.p_state_change_support && dcn401_is_ppclk_dpm_enabled(clk_mgr_internal, PPCLK_UCLK)) {
+		/* when P-State switching disabled, set UCLK min = max */
+		if (dc->clk_mgr->dc_mode_softmax_enabled) {
+			/* will never have the functional UCLK min above the softmax
+			* since we calculate mode support based on softmax being the max UCLK
+			* frequency.
+			*/
+			active_uclk_mhz = clk_mgr_base->bw_params->dc_mode_softmax_memclk;
+		} else {
+			active_uclk_mhz = clk_mgr_base->bw_params->max_memclk_mhz;
+		}
+		idle_uclk_mhz = active_uclk_mhz;
 	}
 
 	/* Always update saved value, even if new value not set due to P-State switching unsupported */
@@ -936,7 +940,7 @@ static unsigned int dcn401_build_update_bandwidth_clocks_sequence(
 	}
 
 	/* CLK_MGR401_UPDATE_IDLE_HARDMINS */
-	if ((update_idle_uclk || update_idle_uclk) && is_idle_dpm_enabled) {
+	if ((update_idle_uclk || update_idle_fclk) && is_idle_dpm_enabled) {
 		block_sequence[num_steps].params.update_idle_hardmin_params.uclk_mhz = idle_uclk_mhz;
 		block_sequence[num_steps].params.update_idle_hardmin_params.fclk_mhz = idle_fclk_mhz;
 		block_sequence[num_steps].func = CLK_MGR401_UPDATE_IDLE_HARDMINS;
@@ -1455,6 +1459,22 @@ static int dcn401_get_dtb_ref_freq_khz(struct clk_mgr *clk_mgr_base)
 	return dtb_ref_clk_khz;
 }
 
+static int dcn401_get_dispclk_from_dentist(struct clk_mgr *clk_mgr_base)
+{
+	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
+	uint32_t dispclk_wdivider;
+	int disp_divider;
+
+	REG_GET(DENTIST_DISPCLK_CNTL, DENTIST_DISPCLK_WDIVIDER, &dispclk_wdivider);
+	disp_divider = dentist_get_divider_from_did(dispclk_wdivider);
+
+	/* Return DISPCLK freq in Khz */
+	if (disp_divider)
+		return (DENTIST_DIVIDER_RANGE_SCALE_FACTOR * clk_mgr->base.dentist_vco_freq_khz) / disp_divider;
+
+	return 0;
+}
+
 static struct clk_mgr_funcs dcn401_funcs = {
 		.get_dp_ref_clk_frequency = dce12_get_dp_ref_freq_khz,
 		.get_dtb_ref_clk_frequency = dcn401_get_dtb_ref_freq_khz,
@@ -1468,6 +1488,7 @@ static struct clk_mgr_funcs dcn401_funcs = {
 		.are_clock_states_equal = dcn401_are_clock_states_equal,
 		.enable_pme_wa = dcn401_enable_pme_wa,
 		.is_smu_present = dcn401_is_smu_present,
+		.get_dispclk_from_dentist = dcn401_get_dispclk_from_dentist,
 };
 
 struct clk_mgr_internal *dcn401_clk_mgr_construct(

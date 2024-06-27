@@ -79,7 +79,7 @@ static const struct hw_sequencer_funcs dcn401_funcs = {
 	.does_plane_fit_in_mall = NULL,
 	.set_backlight_level = dcn21_set_backlight_level,
 	.set_abm_immediate_disable = dcn21_set_abm_immediate_disable,
-	.hardware_release = dcn30_hardware_release,
+	.hardware_release = dcn401_hardware_release,
 	.set_pipe = dcn21_set_pipe,
 	.enable_lvds_link_output = dce110_enable_lvds_link_output,
 	.enable_tmds_link_output = dce110_enable_tmds_link_output,
@@ -98,6 +98,7 @@ static const struct hw_sequencer_funcs dcn401_funcs = {
 	.fams2_global_control_lock = dcn401_fams2_global_control_lock,
 	.fams2_update_config = dcn401_fams2_update_config,
 	.fams2_global_control_lock_fast = dcn401_fams2_global_control_lock_fast,
+	.power_down = dce110_power_down,
 };
 
 static const struct hwseq_private_funcs dcn401_private_funcs = {

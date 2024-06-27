@@ -807,9 +807,6 @@ bool dm_helpers_dp_write_dsc_enable(
 	uint8_t enable_passthrough = enable ? DSC_PASSTHROUGH : DSC_DISABLE;
 	uint8_t ret = 0;
 
-	if (!stream)
-		return false;
-
 	if (stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
 		if (!aconnector->dsc_aux)
 			return false;

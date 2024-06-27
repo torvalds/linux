@@ -249,38 +249,30 @@ static int xgpu_ai_set_mailbox_ack_irq(struct amdgpu_device *adev,
 	return 0;
 }
 
+static void xgpu_ai_ready_to_reset(struct amdgpu_device *adev)
+{
+	xgpu_ai_mailbox_trans_msg(adev, IDH_READY_TO_RESET, 0, 0, 0);
+}
+
+static int xgpu_ai_wait_reset(struct amdgpu_device *adev)
+{
+	int timeout = AI_MAILBOX_POLL_FLR_TIMEDOUT;
+	do {
+		if (xgpu_ai_mailbox_peek_msg(adev) == IDH_FLR_NOTIFICATION_CMPL)
+			return 0;
+		msleep(10);
+		timeout -= 10;
+	} while (timeout > 1);
+	dev_warn(adev->dev, "waiting IDH_FLR_NOTIFICATION_CMPL timeout\n");
+	return -ETIME;
+}
+
 static void xgpu_ai_mailbox_flr_work(struct work_struct *work)
 {
 	struct amdgpu_virt *virt = container_of(work, struct amdgpu_virt, flr_work);
 	struct amdgpu_device *adev = container_of(virt, struct amdgpu_device, virt);
-	int timeout = AI_MAILBOX_POLL_FLR_TIMEDOUT;
-
-	/* block amdgpu_gpu_recover till msg FLR COMPLETE received,
-	 * otherwise the mailbox msg will be ruined/reseted by
-	 * the VF FLR.
-	 */
-	if (atomic_cmpxchg(&adev->reset_domain->in_gpu_reset, 0, 1) != 0)
-		return;
-
-	down_write(&adev->reset_domain->sem);
 
 	amdgpu_virt_fini_data_exchange(adev);
-
-	xgpu_ai_mailbox_trans_msg(adev, IDH_READY_TO_RESET, 0, 0, 0);
-
-	do {
-		if (xgpu_ai_mailbox_peek_msg(adev) == IDH_FLR_NOTIFICATION_CMPL)
-			goto flr_done;
-
-		msleep(10);
-		timeout -= 10;
-	} while (timeout > 1);
-
-	dev_warn(adev->dev, "waiting IDH_FLR_NOTIFICATION_CMPL timeout\n");
-
-flr_done:
-	atomic_set(&adev->reset_domain->in_gpu_reset, 0);
-	up_write(&adev->reset_domain->sem);
 
 	/* Trigger recovery for world switch failure if no TDR */
 	if (amdgpu_device_should_recover_gpu(adev)
@@ -417,7 +409,8 @@ const struct amdgpu_virt_ops xgpu_ai_virt_ops = {
 	.req_full_gpu	= xgpu_ai_request_full_gpu_access,
 	.rel_full_gpu	= xgpu_ai_release_full_gpu_access,
 	.reset_gpu = xgpu_ai_request_reset,
-	.wait_reset = NULL,
+	.ready_to_reset = xgpu_ai_ready_to_reset,
+	.wait_reset = xgpu_ai_wait_reset,
 	.trans_msg = xgpu_ai_mailbox_trans_msg,
 	.req_init_data  = xgpu_ai_request_init_data,
 	.ras_poison_handler = xgpu_ai_ras_poison_handler,

@@ -290,17 +290,35 @@ static int amdgpu_vmid_grab_reserved(struct amdgpu_vm *vm,
 	     !dma_fence_is_signaled((*id)->last_flush))) {
 		struct dma_fence *tmp;
 
-		/* Don't use per engine and per process VMID at the same time */
-		if (adev->vm_manager.concurrent_flush)
-			ring = NULL;
-
-		/* to prevent one context starved by another context */
-		(*id)->pd_gpu_addr = 0;
-		tmp = amdgpu_sync_peek_fence(&(*id)->active, ring);
-		if (tmp) {
+		/* Wait for the gang to be assembled before using a
+		 * reserved VMID or otherwise the gang could deadlock.
+		 */
+		tmp = amdgpu_device_get_gang(adev);
+		if (!dma_fence_is_signaled(tmp) && tmp != job->gang_submit) {
 			*id = NULL;
-			*fence = dma_fence_get(tmp);
+			*fence = tmp;
 			return 0;
+		}
+		dma_fence_put(tmp);
+
+		/* Make sure the id is owned by the gang before proceeding */
+		if (!job->gang_submit ||
+		    (*id)->owner != vm->immediate.fence_context) {
+
+			/* Don't use per engine and per process VMID at the
+			 * same time
+			 */
+			if (adev->vm_manager.concurrent_flush)
+				ring = NULL;
+
+			/* to prevent one context starved by another context */
+			(*id)->pd_gpu_addr = 0;
+			tmp = amdgpu_sync_peek_fence(&(*id)->active, ring);
+			if (tmp) {
+				*id = NULL;
+				*fence = dma_fence_get(tmp);
+				return 0;
+			}
 		}
 		needs_flush = true;
 	}

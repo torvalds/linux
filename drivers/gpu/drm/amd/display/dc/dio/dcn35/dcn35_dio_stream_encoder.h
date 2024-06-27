@@ -322,5 +322,11 @@ void enc3_dp_set_dsc_pps_info_packet(
 	uint8_t *dsc_packed_pps,
 	bool immediate_update);
 
+void enc35_disable_fifo(
+	struct stream_encoder *enc);
+
+void enc35_enable_fifo(
+	struct stream_encoder *enc);
+
 
 #endif /* __DC_DIO_STREAM_ENCODER_DCN35_H__ */

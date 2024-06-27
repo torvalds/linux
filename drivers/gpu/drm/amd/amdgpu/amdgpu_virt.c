@@ -153,6 +153,20 @@ void amdgpu_virt_request_init_data(struct amdgpu_device *adev)
 }
 
 /**
+ * amdgpu_virt_ready_to_reset() - send ready to reset to host
+ * @adev:	amdgpu device.
+ * Send ready to reset message to GPU hypervisor to signal we have stopped GPU
+ * activity and is ready for host FLR
+ */
+void amdgpu_virt_ready_to_reset(struct amdgpu_device *adev)
+{
+	struct amdgpu_virt *virt = &adev->virt;
+
+	if (virt->ops && virt->ops->reset_gpu)
+		virt->ops->ready_to_reset(adev);
+}
+
+/**
  * amdgpu_virt_wait_reset() - wait for reset gpu completed
  * @adev:	amdgpu device.
  * Wait for GPU reset completed.
@@ -979,6 +993,9 @@ u32 amdgpu_virt_rlcg_reg_rw(struct amdgpu_device *adev, u32 offset, u32 v, u32 f
 		return 0;
 	}
 
+	if (amdgpu_device_skip_hw_access(adev))
+		return 0;
+
 	reg_access_ctrl = &adev->gfx.rlc.reg_access_ctrl[xcc_id];
 	scratch_reg0 = (void __iomem *)adev->rmmio + 4 * reg_access_ctrl->scratch_reg0;
 	scratch_reg1 = (void __iomem *)adev->rmmio + 4 * reg_access_ctrl->scratch_reg1;
@@ -1055,6 +1072,9 @@ void amdgpu_sriov_wreg(struct amdgpu_device *adev,
 {
 	u32 rlcg_flag;
 
+	if (amdgpu_device_skip_hw_access(adev))
+		return;
+
 	if (!amdgpu_sriov_runtime(adev) &&
 		amdgpu_virt_get_rlcg_reg_access_flag(adev, acc_flags, hwip, true, &rlcg_flag)) {
 		amdgpu_virt_rlcg_reg_rw(adev, offset, value, rlcg_flag, xcc_id);
@@ -1071,6 +1091,9 @@ u32 amdgpu_sriov_rreg(struct amdgpu_device *adev,
 		      u32 offset, u32 acc_flags, u32 hwip, u32 xcc_id)
 {
 	u32 rlcg_flag;
+
+	if (amdgpu_device_skip_hw_access(adev))
+		return 0;
 
 	if (!amdgpu_sriov_runtime(adev) &&
 		amdgpu_virt_get_rlcg_reg_access_flag(adev, acc_flags, hwip, false, &rlcg_flag))

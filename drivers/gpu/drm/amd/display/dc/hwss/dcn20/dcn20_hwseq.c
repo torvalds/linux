@@ -2051,11 +2051,14 @@ void dcn20_program_front_end_for_ctx(
 
 			if (tg->funcs->enable_crtc) {
 				if (dc->hwss.blank_phantom) {
-					int main_pipe_width, main_pipe_height;
+					int main_pipe_width = 0, main_pipe_height = 0;
 					struct dc_stream_state *phantom_stream = dc_state_get_paired_subvp_stream(dc->current_state, dc->current_state->res_ctx.pipe_ctx[i].stream);
 
-					main_pipe_width = phantom_stream->dst.width;
-					main_pipe_height = phantom_stream->dst.height;
+					if (phantom_stream) {
+						main_pipe_width = phantom_stream->dst.width;
+						main_pipe_height = phantom_stream->dst.height;
+					}
+
 					dc->hwss.blank_phantom(dc, tg, main_pipe_width, main_pipe_height);
 				}
 				tg->funcs->enable_crtc(tg);
@@ -2800,6 +2803,11 @@ void dcn20_reset_back_end_for_pipe(
 	if (i == dc->res_pool->pipe_count)
 		return;
 
+/*
+ * In case of a dangling plane, setting this to NULL unconditionally
+ * causes failures during reset hw ctx where, if stream is NULL,
+ * it is expected that the pipe_ctx pointers to pipes and plane are NULL.
+ */
 	pipe_ctx->stream = NULL;
 	DC_LOG_DEBUG("Reset back end for pipe %d, tg:%d\n",
 					pipe_ctx->pipe_idx, pipe_ctx->stream_res.tg->inst);

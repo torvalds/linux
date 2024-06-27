@@ -295,8 +295,8 @@ int amdgpu_ttm_copy_mem_to_mem(struct amdgpu_device *adev,
 	struct amdgpu_res_cursor src_mm, dst_mm;
 	struct dma_fence *fence = NULL;
 	int r = 0;
-
 	uint32_t copy_flags = 0;
+	struct amdgpu_bo *abo_src, *abo_dst;
 
 	if (!adev->mman.buffer_funcs_enabled) {
 		DRM_ERROR("Trying to move memory with ring turned off.\n");
@@ -325,8 +325,14 @@ int amdgpu_ttm_copy_mem_to_mem(struct amdgpu_device *adev,
 		if (r)
 			goto error;
 
+		abo_src = ttm_to_amdgpu_bo(src->bo);
+		abo_dst = ttm_to_amdgpu_bo(dst->bo);
 		if (tmz)
 			copy_flags |= AMDGPU_COPY_FLAGS_TMZ;
+		if (abo_src->flags & AMDGPU_GEM_CREATE_GFX12_DCC)
+			copy_flags |= AMDGPU_COPY_FLAGS_READ_DECOMPRESSED;
+		if (abo_dst->flags & AMDGPU_GEM_CREATE_GFX12_DCC)
+			copy_flags |= AMDGPU_COPY_FLAGS_WRITE_COMPRESSED;
 
 		r = amdgpu_copy_buffer(ring, from, to, cur_size, resv,
 				       &next, false, true, copy_flags);

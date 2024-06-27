@@ -22,7 +22,7 @@
 #
 # Makefile for Display Core (dc) component.
 
-DC_LIBS = basics bios dml clk_mgr dce gpio hwss irq link virtual dsc resource optc dpp hubbub dccg hubp
+DC_LIBS = basics bios dml clk_mgr dce gpio hwss irq link virtual dsc resource optc dpp hubbub dccg hubp dio dwb hpo mmhubbub mpc opp pg
 
 ifdef CONFIG_DRM_AMD_DC_FP
 
@@ -36,10 +36,6 @@ DC_LIBS += dcn30
 DC_LIBS += dcn301
 DC_LIBS += dcn31
 DC_LIBS += dcn314
-DC_LIBS += dcn32
-DC_LIBS += dcn321
-DC_LIBS += dcn35
-DC_LIBS += dcn401
 DC_LIBS += dml
 DC_LIBS += dml2
 endif

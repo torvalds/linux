@@ -57,7 +57,16 @@ static void dcn401_initialize_min_clocks(struct dc *dc)
 	clocks->socclk_khz = dc->clk_mgr->bw_params->clk_table.entries[0].socclk_mhz * 1000;
 	clocks->dramclk_khz = dc->clk_mgr->bw_params->clk_table.entries[0].memclk_mhz * 1000;
 	clocks->dppclk_khz = dc->clk_mgr->bw_params->clk_table.entries[0].dppclk_mhz * 1000;
-	clocks->dispclk_khz = dc->clk_mgr->bw_params->clk_table.entries[0].dispclk_mhz * 1000;
+	if (dc->debug.disable_boot_optimizations) {
+		clocks->dispclk_khz = dc->clk_mgr->bw_params->clk_table.entries[0].dispclk_mhz * 1000;
+	} else {
+		/* Even though DPG_EN = 1 for the connected display, it still requires the
+		 * correct timing so we cannot set DISPCLK to min freq or it could cause
+		 * audio corruption. Read current DISPCLK from DENTIST and request the same
+		 * freq to ensure that the timing is valid and unchanged.
+		 */
+		clocks->dispclk_khz = dc->clk_mgr->funcs->get_dispclk_from_dentist(dc->clk_mgr);
+	}
 	clocks->ref_dtbclk_khz = dc->clk_mgr->bw_params->clk_table.entries[0].dtbclk_mhz * 1000;
 	clocks->fclk_p_state_change_support = true;
 	clocks->p_state_change_support = true;
@@ -250,7 +259,7 @@ void dcn401_init_hw(struct dc *dc)
 		res_pool->ref_clocks.xtalin_clock_inKhz =
 				dc->ctx->dc_bios->fw_info.pll_info.crystal_frequency;
 
-		if (res_pool->dccg && res_pool->hubbub) {
+		if (res_pool->hubbub) {
 			(res_pool->dccg->funcs->get_dccg_ref_freq)(res_pool->dccg,
 					dc->ctx->dc_bios->fw_info.pll_info.crystal_frequency,
 					&res_pool->ref_clocks.dccg_ref_clock_inKhz);
@@ -304,7 +313,14 @@ void dcn401_init_hw(struct dc *dc)
 	 * everything down.
 	 */
 	if (dcb->funcs->is_accelerated_mode(dcb) || !dc->config.seamless_boot_edp_requested) {
-		hws->funcs.init_pipes(dc, dc->current_state);
+		/* Disable boot optimizations means power down everything including PHY, DIG,
+		 * and OTG (i.e. the boot is not optimized because we do a full power down).
+		 */
+		if (dc->hwss.enable_accelerated_mode && dc->debug.disable_boot_optimizations)
+			dc->hwss.enable_accelerated_mode(dc, dc->current_state);
+		else
+			hws->funcs.init_pipes(dc, dc->current_state);
+
 		if (dc->res_pool->hubbub->funcs->allow_self_refresh_control)
 			dc->res_pool->hubbub->funcs->allow_self_refresh_control(dc->res_pool->hubbub,
 					!dc->res_pool->hubbub->ctx->dc->debug.disable_stutter);
@@ -798,7 +814,7 @@ enum dc_status dcn401_enable_stream_timing(
 	unsigned int event_triggers = 0;
 	int opp_cnt = 1;
 	int opp_inst[MAX_PIPES] = {0};
-	struct pipe_ctx *opp_heads[MAX_PIPES];
+	struct pipe_ctx *opp_heads[MAX_PIPES] = {0};
 	bool manual_mode;
 	unsigned int tmds_div = PIXEL_RATE_DIV_NA;
 	unsigned int unused_div = PIXEL_RATE_DIV_NA;
@@ -1092,6 +1108,8 @@ void dcn401_set_cursor_position(struct pipe_ctx *pipe_ctx)
 	int prev_odm_offset = 0;
 	int next_odm_width = 0;
 	int next_odm_offset = 0;
+	struct pipe_ctx *next_odm_pipe = NULL;
+	struct pipe_ctx *prev_odm_pipe = NULL;
 
 	int x_pos = pos_cpy.x;
 	int y_pos = pos_cpy.y;
@@ -1102,6 +1120,7 @@ void dcn401_set_cursor_position(struct pipe_ctx *pipe_ctx)
 			pipe_split_on = true;
 		}
 	}
+
 
 	/**
 	 * DCN4 moved cursor composition after Scaler, so in HW it is in
@@ -1124,18 +1143,10 @@ void dcn401_set_cursor_position(struct pipe_ctx *pipe_ctx)
 	 * pipe to make sure each pipe enabling cursor on its part of the
 	 * screen.
 	 */
-
-	if (param.rotation == ROTATION_ANGLE_90 || param.rotation == ROTATION_ANGLE_270) {
-		x_pos = pipe_ctx->stream->dst.x + x_pos * pipe_ctx->stream->dst.width /
-			pipe_ctx->stream->src.height;
-		y_pos = pipe_ctx->stream->dst.y + y_pos * pipe_ctx->stream->dst.height /
-			pipe_ctx->stream->src.width;
-	} else {
-		x_pos = pipe_ctx->stream->dst.x + x_pos * pipe_ctx->stream->dst.width /
-			pipe_ctx->stream->src.width;
-		y_pos = pipe_ctx->stream->dst.y + y_pos * pipe_ctx->stream->dst.height /
-			pipe_ctx->stream->src.height;
-	}
+	x_pos = pipe_ctx->stream->dst.x + x_pos * pipe_ctx->stream->dst.width /
+		pipe_ctx->stream->src.width;
+	y_pos = pipe_ctx->stream->dst.y + y_pos * pipe_ctx->stream->dst.height /
+		pipe_ctx->stream->src.height;
 
 	/**
 	 * If the cursor's source viewport is clipped then we need to
@@ -1158,8 +1169,8 @@ void dcn401_set_cursor_position(struct pipe_ctx *pipe_ctx)
 	 * next/prev_odm_offset is to account for scaled modes that have underscan
 	 */
 	if (odm_combine_on) {
-		struct pipe_ctx *next_odm_pipe = pipe_ctx->next_odm_pipe;
-		struct pipe_ctx *prev_odm_pipe = pipe_ctx->prev_odm_pipe;
+		next_odm_pipe = pipe_ctx->next_odm_pipe;
+		prev_odm_pipe = pipe_ctx->prev_odm_pipe;
 
 		while (next_odm_pipe != NULL) {
 			next_odm_width += next_odm_pipe->plane_res.scl_data.recout.width;
@@ -1198,43 +1209,7 @@ void dcn401_set_cursor_position(struct pipe_ctx *pipe_ctx)
 	if (pos_cpy.enable && dcn401_can_pipe_disable_cursor(pipe_ctx))
 		pos_cpy.enable = false;
 
-	if (param.rotation == ROTATION_ANGLE_0) {
-		int recout_width =
-			pipe_ctx->plane_res.scl_data.recout.width;
-		int recout_x =
-			pipe_ctx->plane_res.scl_data.recout.x;
-
-		if (param.mirror) {
-			if (pipe_split_on || odm_combine_on) {
-				if (pos_cpy.x >= recout_width + recout_x) {
-					pos_cpy.x = 2 * recout_width
-						- pos_cpy.x + 2 * recout_x;
-				} else {
-					uint32_t temp_x = pos_cpy.x;
-
-					pos_cpy.x = 2 * recout_x - pos_cpy.x;
-					if (temp_x >= recout_x +
-						(int)hubp->curs_attr.width || pos_cpy.x
-						<= (int)hubp->curs_attr.width +
-						pipe_ctx->plane_state->src_rect.x) {
-						pos_cpy.x = 2 * recout_width - temp_x;
-					}
-				}
-			} else {
-				pos_cpy.x = recout_width - pos_cpy.x + 2 * recout_x;
-			}
-		}
-	} else if (param.rotation == ROTATION_ANGLE_90) {
-		if (!param.mirror) {
-			uint32_t temp_y = pos_cpy.y;
-
-			pos_cpy.y = pipe_ctx->plane_res.scl_data.recout.height - pos_cpy.x;
-			pos_cpy.x = temp_y - prev_odm_width;
-		} else {
-			swap(pos_cpy.x, pos_cpy.y);
-		}
-
-	} else if (param.rotation == ROTATION_ANGLE_270) {
+	if (param.rotation == ROTATION_ANGLE_270) {
 		// Swap axis and mirror vertically
 		uint32_t temp_x = pos_cpy.x;
 
@@ -1283,16 +1258,6 @@ void dcn401_set_cursor_position(struct pipe_ctx *pipe_ctx)
 				pos_cpy.x = pipe_ctx->plane_res.scl_data.recout.width + next_odm_width + next_odm_offset - pos_cpy.y;
 				pos_cpy.y = temp_x;
 			}
-		} else {
-			if (param.mirror) {
-				swap(pos_cpy.x, pos_cpy.y);
-
-				pos_cpy.x = pipe_ctx->plane_res.scl_data.recout.width - pos_cpy.x + 2 * pipe_ctx->plane_res.scl_data.recout.x;
-				pos_cpy.y = (2 * pipe_ctx->plane_res.scl_data.recout.y) + pipe_ctx->plane_res.scl_data.recout.height - pos_cpy.y;
-			} else {
-				pos_cpy.x = pipe_ctx->plane_res.scl_data.recout.width - pos_cpy.y;
-				pos_cpy.y = temp_x;
-			}
 		}
 	} else if (param.rotation == ROTATION_ANGLE_180) {
 		// Mirror horizontally and vertically
@@ -1319,21 +1284,10 @@ void dcn401_set_cursor_position(struct pipe_ctx *pipe_ctx)
 						pos_cpy.x = temp_x + recout_width;
 					}
 				}
-			} else {
-				pos_cpy.x = recout_width - pos_cpy.x + 2 * recout_x;
 			}
+
 		}
 
-		/**
-		 * Display groups that are 1xnY, have pos_cpy.y > recout.height
-		 * Calculation:
-		 *   delta_from_bottom = recout.y + recout.height - pos_cpy.y
-		 *   pos_cpy.y_new = recout.y + delta_from_bottom
-		 * Simplify it as:
-		 *   pos_cpy.y = recout.y * 2 + recout.height - pos_cpy.y
-		 */
-		pos_cpy.y = (2 * pipe_ctx->plane_res.scl_data.recout.y) +
-			pipe_ctx->plane_res.scl_data.recout.height - pos_cpy.y;
 	}
 
 	hubp->funcs->set_cursor_position(hubp, &pos_cpy, &param);
@@ -1607,16 +1561,28 @@ static void update_dsc_for_odm_change(struct dc *dc, struct dc_state *context,
 	struct pipe_ctx *new_pipe;
 	struct pipe_ctx *old_opp_heads[MAX_PIPES];
 	struct dccg *dccg = dc->res_pool->dccg;
-	struct pipe_ctx *old_otg_master =
-			&dc->current_state->res_ctx.pipe_ctx[otg_master->pipe_idx];
-	int old_opp_head_count = resource_get_opp_heads_for_otg_master(
-			old_otg_master, &dc->current_state->res_ctx,
-			old_opp_heads);
+	struct pipe_ctx *old_otg_master;
+	int old_opp_head_count = 0;
+
+	old_otg_master = &dc->current_state->res_ctx.pipe_ctx[otg_master->pipe_idx];
+
+	if (resource_is_pipe_type(old_otg_master, OTG_MASTER)) {
+		old_opp_head_count = resource_get_opp_heads_for_otg_master(old_otg_master,
+									   &dc->current_state->res_ctx,
+									   old_opp_heads);
+	} else {
+		// DC cannot assume that the current state and the new state
+		// share the same OTG pipe since this is not true when called
+		// in the context of a commit stream not checked. Hence, set
+		// old_otg_master to NULL to skip the DSC configuration.
+		old_otg_master = NULL;
+	}
+
 
 	if (otg_master->stream_res.dsc)
 		dcn32_update_dsc_on_stream(otg_master,
 				otg_master->stream->timing.flags.DSC);
-	if (old_otg_master->stream_res.dsc) {
+	if (old_otg_master && old_otg_master->stream_res.dsc) {
 		for (i = 0; i < old_opp_head_count; i++) {
 			old_pipe = old_opp_heads[i];
 			new_pipe = &context->res_ctx.pipe_ctx[old_pipe->pipe_idx];
@@ -1701,3 +1667,23 @@ void dcn401_unblank_stream(struct pipe_ctx *pipe_ctx,
 	if (link->local_sink && link->local_sink->sink_signal == SIGNAL_TYPE_EDP)
 		hws->funcs.edp_backlight_control(link, true);
 }
+
+void dcn401_hardware_release(struct dc *dc)
+{
+	dc_dmub_srv_fams2_update_config(dc, dc->current_state, false);
+
+	/* If pstate unsupported, or still supported
+	 * by firmware, force it supported by dcn
+	 */
+	if (dc->current_state) {
+		if ((!dc->clk_mgr->clks.p_state_change_support ||
+				dc->current_state->bw_ctx.bw.dcn.fams2_stream_count > 0) &&
+				dc->res_pool->hubbub->funcs->force_pstate_change_control)
+			dc->res_pool->hubbub->funcs->force_pstate_change_control(
+					dc->res_pool->hubbub, true, true);
+
+		dc->current_state->bw_ctx.bw.dcn.clk.p_state_change_support = true;
+		dc->clk_mgr->funcs->update_clocks(dc->clk_mgr, dc->current_state, true);
+	}
+}
+

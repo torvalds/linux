@@ -188,7 +188,7 @@ void dcn35_init_hw(struct dc *dc)
 		res_pool->ref_clocks.xtalin_clock_inKhz =
 				dc->ctx->dc_bios->fw_info.pll_info.crystal_frequency;
 
-		if (res_pool->dccg && res_pool->hubbub) {
+		if (res_pool->hubbub) {
 
 			(res_pool->dccg->funcs->get_dccg_ref_freq)(res_pool->dccg,
 				dc->ctx->dc_bios->fw_info.pll_info.crystal_frequency,
@@ -1078,6 +1078,19 @@ void dcn35_calc_blocks_to_gate(struct dc *dc, struct dc_state *context,
 		update_state->pg_pipe_res_update[PG_OPTC][0] = false;
 	}
 
+	if (dc->caps.sequential_ono) {
+		for (i = dc->res_pool->pipe_count - 1; i >= 0; i--) {
+			if (!update_state->pg_pipe_res_update[PG_HUBP][i] &&
+			    !update_state->pg_pipe_res_update[PG_DPP][i]) {
+				for (j = i - 1; j >= 0; j--) {
+					update_state->pg_pipe_res_update[PG_HUBP][j] = false;
+					update_state->pg_pipe_res_update[PG_DPP][j] = false;
+				}
+
+				break;
+			}
+		}
+	}
 }
 
 void dcn35_calc_blocks_to_ungate(struct dc *dc, struct dc_state *context,
@@ -1177,6 +1190,19 @@ void dcn35_calc_blocks_to_ungate(struct dc *dc, struct dc_state *context,
 	if (hpo_frl_stream_enc_acquired)
 		update_state->pg_pipe_res_update[PG_HDMISTREAM][0] = true;
 
+	if (dc->caps.sequential_ono) {
+		for (i = dc->res_pool->pipe_count - 1; i >= 0; i--) {
+			if (update_state->pg_pipe_res_update[PG_HUBP][i] &&
+			    update_state->pg_pipe_res_update[PG_DPP][i]) {
+				for (j = i - 1; j >= 0; j--) {
+					update_state->pg_pipe_res_update[PG_HUBP][j] = true;
+					update_state->pg_pipe_res_update[PG_DPP][j] = true;
+				}
+
+				break;
+			}
+		}
+	}
 }
 
 /**
@@ -1197,6 +1223,8 @@ void dcn35_calc_blocks_to_ungate(struct dc *dc, struct dc_state *context,
  *	ONO Region 2, DCPG 24: mpc opp optc dwb
  *	ONO Region 0, DCPG 22: dccg dio dcio - SKIPPED. will be pwr dwn after lono timer is armed
  *
+ * If sequential ONO is specified the order is modified from ONO Region 11 -> ONO Region 0 descending.
+ *
  * @dc: Current DC state
  * @update_state: update PG sequence states for HW block
  */
@@ -1216,19 +1244,35 @@ void dcn35_hw_block_power_down(struct dc *dc,
 			pg_cntl->funcs->hpo_pg_control(pg_cntl, false);
 	}
 
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		if (update_state->pg_pipe_res_update[PG_HUBP][i] &&
-			update_state->pg_pipe_res_update[PG_DPP][i]) {
-			if (pg_cntl->funcs->hubp_dpp_pg_control)
-				pg_cntl->funcs->hubp_dpp_pg_control(pg_cntl, i, false);
-		}
-	}
-	for (i = 0; i < dc->res_pool->res_cap->num_dsc; i++)
-		if (update_state->pg_pipe_res_update[PG_DSC][i]) {
-			if (pg_cntl->funcs->dsc_pg_control)
-				pg_cntl->funcs->dsc_pg_control(pg_cntl, i, false);
+	if (!dc->caps.sequential_ono) {
+		for (i = 0; i < dc->res_pool->pipe_count; i++) {
+			if (update_state->pg_pipe_res_update[PG_HUBP][i] &&
+			    update_state->pg_pipe_res_update[PG_DPP][i]) {
+				if (pg_cntl->funcs->hubp_dpp_pg_control)
+					pg_cntl->funcs->hubp_dpp_pg_control(pg_cntl, i, false);
+			}
 		}
 
+		for (i = 0; i < dc->res_pool->res_cap->num_dsc; i++) {
+			if (update_state->pg_pipe_res_update[PG_DSC][i]) {
+				if (pg_cntl->funcs->dsc_pg_control)
+					pg_cntl->funcs->dsc_pg_control(pg_cntl, i, false);
+			}
+		}
+	} else {
+		for (i = dc->res_pool->pipe_count - 1; i >= 0; i--) {
+			if (update_state->pg_pipe_res_update[PG_DSC][i]) {
+				if (pg_cntl->funcs->dsc_pg_control)
+					pg_cntl->funcs->dsc_pg_control(pg_cntl, i, false);
+			}
+
+			if (update_state->pg_pipe_res_update[PG_HUBP][i] &&
+			    update_state->pg_pipe_res_update[PG_DPP][i]) {
+				if (pg_cntl->funcs->hubp_dpp_pg_control)
+					pg_cntl->funcs->hubp_dpp_pg_control(pg_cntl, i, false);
+			}
+		}
+	}
 
 	/*this will need all the clients to unregister optc interruts let dmubfw handle this*/
 	if (pg_cntl->funcs->plane_otg_pg_control)
@@ -1256,6 +1300,8 @@ void dcn35_hw_block_power_down(struct dc *dc,
  *	ONO Region 10, DCPG 3: dchubp3, dpp3
  *	ONO Region 3, DCPG 25: hpo - SKIPPED
  *
+ * If sequential ONO is specified the order is modified from ONO Region 0 -> ONO Region 11 ascending.
+ *
  * @dc: Current DC state
  * @update_state: update PG sequence states for HW block
  */
@@ -1274,17 +1320,26 @@ void dcn35_hw_block_power_up(struct dc *dc,
 	if (pg_cntl->funcs->plane_otg_pg_control)
 		pg_cntl->funcs->plane_otg_pg_control(pg_cntl, true);
 
-	for (i = 0; i < dc->res_pool->res_cap->num_dsc; i++)
-		if (update_state->pg_pipe_res_update[PG_DSC][i]) {
-			if (pg_cntl->funcs->dsc_pg_control)
-				pg_cntl->funcs->dsc_pg_control(pg_cntl, i, true);
-		}
+	if (!dc->caps.sequential_ono) {
+		for (i = 0; i < dc->res_pool->res_cap->num_dsc; i++)
+			if (update_state->pg_pipe_res_update[PG_DSC][i]) {
+				if (pg_cntl->funcs->dsc_pg_control)
+					pg_cntl->funcs->dsc_pg_control(pg_cntl, i, true);
+			}
+	}
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		if (update_state->pg_pipe_res_update[PG_HUBP][i] &&
 			update_state->pg_pipe_res_update[PG_DPP][i]) {
 			if (pg_cntl->funcs->hubp_dpp_pg_control)
 				pg_cntl->funcs->hubp_dpp_pg_control(pg_cntl, i, true);
+		}
+
+		if (dc->caps.sequential_ono) {
+			if (update_state->pg_pipe_res_update[PG_DSC][i]) {
+				if (pg_cntl->funcs->dsc_pg_control)
+					pg_cntl->funcs->dsc_pg_control(pg_cntl, i, true);
+			}
 		}
 	}
 	if (update_state->pg_res_update[PG_HPO]) {
@@ -1473,4 +1528,76 @@ void dcn35_set_long_vblank(struct pipe_ctx **pipe_ctx,
 				pipe_ctx[i]->stream_res.tg->funcs->set_long_vtotal(pipe_ctx[i]->stream_res.tg, &params);
 		}
 	}
+}
+
+static bool should_avoid_empty_tu(struct pipe_ctx *pipe_ctx)
+{
+	/* Calculate average pixel count per TU, return false if under ~2.00 to
+	 * avoid empty TUs. This is only required for DPIA tunneling as empty TUs
+	 * are legal to generate for native DP links. Assume TU size 64 as there
+	 * is currently no scenario where it's reprogrammed from HW default.
+	 * MTPs have no such limitation, so this does not affect MST use cases.
+	 */
+	unsigned int pix_clk_mhz;
+	unsigned int symclk_mhz;
+	unsigned int avg_pix_per_tu_x1000;
+	unsigned int tu_size_bytes = 64;
+	struct dc_crtc_timing *timing = &pipe_ctx->stream->timing;
+	struct dc_link_settings *link_settings = &pipe_ctx->link_config.dp_link_settings;
+	const struct dc *dc = pipe_ctx->stream->link->dc;
+
+	if (pipe_ctx->stream->link->ep_type != DISPLAY_ENDPOINT_USB4_DPIA)
+		return false;
+
+	// Not necessary for MST configurations
+	if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST)
+		return false;
+
+	pix_clk_mhz = timing->pix_clk_100hz / 10000;
+
+	// If this is true, can't block due to dynamic ODM
+	if (pix_clk_mhz > dc->clk_mgr->bw_params->clk_table.entries[0].dispclk_mhz)
+		return false;
+
+	switch (link_settings->link_rate) {
+	case LINK_RATE_LOW:
+		symclk_mhz = 162;
+		break;
+	case LINK_RATE_HIGH:
+		symclk_mhz = 270;
+		break;
+	case LINK_RATE_HIGH2:
+		symclk_mhz = 540;
+		break;
+	case LINK_RATE_HIGH3:
+		symclk_mhz = 810;
+		break;
+	default:
+		// We shouldn't be tunneling any other rates, something is wrong
+		ASSERT(0);
+		return false;
+	}
+
+	avg_pix_per_tu_x1000 = (1000 * pix_clk_mhz * tu_size_bytes)
+		/ (symclk_mhz * link_settings->lane_count);
+
+	// Add small empirically-decided margin to account for potential jitter
+	return (avg_pix_per_tu_x1000 < 2020);
+}
+
+bool dcn35_is_dp_dig_pixel_rate_div_policy(struct pipe_ctx *pipe_ctx)
+{
+	struct dc *dc = pipe_ctx->stream->ctx->dc;
+
+	if (!is_h_timing_divisible_by_2(pipe_ctx->stream))
+		return false;
+
+	if (should_avoid_empty_tu(pipe_ctx))
+		return false;
+
+	if (dc_is_dp_signal(pipe_ctx->stream->signal) && !dc->link_srv->dp_is_128b_132b_signal(pipe_ctx) &&
+		dc->debug.enable_dp_dig_pixel_rate_div_policy)
+		return true;
+
+	return false;
 }

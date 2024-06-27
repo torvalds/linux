@@ -1882,10 +1882,10 @@ void dcn20_update_bounding_box(struct dc *dc,
 		bb->clock_limits[i].fabricclk_mhz = (min_fclk_required_by_uclk < min_dcfclk) ?
 				min_dcfclk : min_fclk_required_by_uclk;
 
-		bb->clock_limits[i].socclk_mhz = (bb->clock_limits[i].fabricclk_mhz > max_clocks->socClockInKhz / 1000) ?
+		bb->clock_limits[i].socclk_mhz = (bb->clock_limits[i].fabricclk_mhz > max_clocks->socClockInKhz / 1000.0) ?
 				max_clocks->socClockInKhz / 1000 : bb->clock_limits[i].fabricclk_mhz;
 
-		bb->clock_limits[i].dcfclk_mhz = (bb->clock_limits[i].fabricclk_mhz > max_clocks->dcfClockInKhz / 1000) ?
+		bb->clock_limits[i].dcfclk_mhz = (bb->clock_limits[i].fabricclk_mhz > max_clocks->dcfClockInKhz / 1000.0) ?
 				max_clocks->dcfClockInKhz / 1000 : bb->clock_limits[i].fabricclk_mhz;
 
 		bb->clock_limits[i].dispclk_mhz = max_clocks->displayClockInKhz / 1000;
@@ -1917,35 +1917,35 @@ void dcn20_cap_soc_clocks(struct _vcs_dpi_soc_bounding_box_st *bb,
 
 	// First pass - cap all clocks higher than the reported max
 	for (i = 0; i < bb->num_states; i++) {
-		if ((bb->clock_limits[i].dcfclk_mhz > (max_clocks.dcfClockInKhz / 1000))
+		if ((bb->clock_limits[i].dcfclk_mhz > (max_clocks.dcfClockInKhz / 1000.0))
 				&& max_clocks.dcfClockInKhz != 0)
 			bb->clock_limits[i].dcfclk_mhz = (max_clocks.dcfClockInKhz / 1000);
 
-		if ((bb->clock_limits[i].dram_speed_mts > (max_clocks.uClockInKhz / 1000) * 16)
+		if ((bb->clock_limits[i].dram_speed_mts > (max_clocks.uClockInKhz / 1000.0) * 16)
 						&& max_clocks.uClockInKhz != 0)
 			bb->clock_limits[i].dram_speed_mts = (max_clocks.uClockInKhz / 1000) * 16;
 
-		if ((bb->clock_limits[i].fabricclk_mhz > (max_clocks.fabricClockInKhz / 1000))
+		if ((bb->clock_limits[i].fabricclk_mhz > (max_clocks.fabricClockInKhz / 1000.0))
 						&& max_clocks.fabricClockInKhz != 0)
 			bb->clock_limits[i].fabricclk_mhz = (max_clocks.fabricClockInKhz / 1000);
 
-		if ((bb->clock_limits[i].dispclk_mhz > (max_clocks.displayClockInKhz / 1000))
+		if ((bb->clock_limits[i].dispclk_mhz > (max_clocks.displayClockInKhz / 1000.0))
 						&& max_clocks.displayClockInKhz != 0)
 			bb->clock_limits[i].dispclk_mhz = (max_clocks.displayClockInKhz / 1000);
 
-		if ((bb->clock_limits[i].dppclk_mhz > (max_clocks.dppClockInKhz / 1000))
+		if ((bb->clock_limits[i].dppclk_mhz > (max_clocks.dppClockInKhz / 1000.0))
 						&& max_clocks.dppClockInKhz != 0)
 			bb->clock_limits[i].dppclk_mhz = (max_clocks.dppClockInKhz / 1000);
 
-		if ((bb->clock_limits[i].phyclk_mhz > (max_clocks.phyClockInKhz / 1000))
+		if ((bb->clock_limits[i].phyclk_mhz > (max_clocks.phyClockInKhz / 1000.0))
 						&& max_clocks.phyClockInKhz != 0)
 			bb->clock_limits[i].phyclk_mhz = (max_clocks.phyClockInKhz / 1000);
 
-		if ((bb->clock_limits[i].socclk_mhz > (max_clocks.socClockInKhz / 1000))
+		if ((bb->clock_limits[i].socclk_mhz > (max_clocks.socClockInKhz / 1000.0))
 						&& max_clocks.socClockInKhz != 0)
 			bb->clock_limits[i].socclk_mhz = (max_clocks.socClockInKhz / 1000);
 
-		if ((bb->clock_limits[i].dscclk_mhz > (max_clocks.dscClockInKhz / 1000))
+		if ((bb->clock_limits[i].dscclk_mhz > (max_clocks.dscClockInKhz / 1000.0))
 						&& max_clocks.dscClockInKhz != 0)
 			bb->clock_limits[i].dscclk_mhz = (max_clocks.dscClockInKhz / 1000);
 	}

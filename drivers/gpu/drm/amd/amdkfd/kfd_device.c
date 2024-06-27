@@ -936,7 +936,6 @@ int kgd2kfd_pre_reset(struct kfd_dev *kfd,
 	for (i = 0; i < kfd->num_nodes; i++) {
 		node = kfd->nodes[i];
 		kfd_smi_event_update_gpu_reset(node, false, reset_context);
-		node->dqm->ops.pre_reset(node->dqm);
 	}
 
 	kgd2kfd_suspend(kfd, false);

@@ -1088,11 +1088,15 @@ static bool dcn401_program_pix_clk(
 		dto_params.clk_src = DPREFCLK;
 
 		if (e) {
-			dto_params.pixclk_hz = e->target_pixel_rate_khz * e->mult_factor;
-			dto_params.refclk_hz = dtbclk_p_src_clk_khz * e->div_factor;
+			dto_params.pixclk_hz = e->target_pixel_rate_khz;
+			dto_params.pixclk_hz *= e->mult_factor;
+			dto_params.refclk_hz = dtbclk_p_src_clk_khz;
+			dto_params.refclk_hz *= e->div_factor;
 		} else {
-			dto_params.pixclk_hz = pix_clk_params->requested_pix_clk_100hz * 100;
-			dto_params.refclk_hz = dtbclk_p_src_clk_khz * 1000;
+			dto_params.pixclk_hz = pix_clk_params->requested_pix_clk_100hz;
+			dto_params.pixclk_hz *= 100;
+			dto_params.refclk_hz = dtbclk_p_src_clk_khz;
+			dto_params.refclk_hz *= 1000;
 		}
 
 		/* enable DP DTO */

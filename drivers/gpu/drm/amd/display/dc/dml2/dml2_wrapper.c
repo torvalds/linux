@@ -573,10 +573,7 @@ static bool dml2_validate_and_build_resource(const struct dc *in_dc, struct dc_s
 	bool need_recalculation = false;
 	uint32_t cstate_enter_plus_exit_z8_ns;
 
-	if (!context)
-		return true;
-
-	else if (context->stream_count == 0) {
+	if (context->stream_count == 0) {
 		unsigned int lowest_state_idx = 0;
 
 		out_clks.p_state_supported = true;
@@ -740,6 +737,7 @@ static void dml2_init(const struct dc *in_dc, const struct dml2_configuration_op
 	// TODO : Temporarily add DCN_VERSION_3_2 for N-1 validation. Remove DCN_VERSION_3_2 after N-1 validation phase is complete.
         if ((in_dc->debug.using_dml21) && (in_dc->ctx->dce_version == DCN_VERSION_4_01 || in_dc->ctx->dce_version == DCN_VERSION_3_2)) {
                 dml21_reinit(in_dc, dml2, config);
+		return;
         }
 
 	// Store config options
@@ -841,9 +839,10 @@ void dml2_reinit(const struct dc *in_dc,
 				 struct dml2_context **dml2)
 {
 	// TODO : Temporarily add DCN_VERSION_3_2 for N-1 validation. Remove DCN_VERSION_3_2 after N-1 validation phase is complete.
-        if ((in_dc->debug.using_dml21) && (in_dc->ctx->dce_version == DCN_VERSION_4_01 || in_dc->ctx->dce_version == DCN_VERSION_3_2)) {
-                dml21_reinit(in_dc, dml2, config);
-        }
+	if ((in_dc->debug.using_dml21) && (in_dc->ctx->dce_version == DCN_VERSION_4_01 || in_dc->ctx->dce_version == DCN_VERSION_3_2)) {
+		dml21_reinit(in_dc, dml2, config);
+		return;
+	}
 
 	dml2_init(in_dc, config, dml2);
 }

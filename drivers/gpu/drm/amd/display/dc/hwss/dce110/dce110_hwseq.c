@@ -742,12 +742,10 @@ void dce110_edp_wait_for_hpd_ready(
 		return;
 	}
 
-	if (link != NULL) {
-		if (link->panel_config.pps.extra_t3_ms > 0) {
-			int extra_t3_in_ms = link->panel_config.pps.extra_t3_ms;
+	if (link->panel_config.pps.extra_t3_ms > 0) {
+		int extra_t3_in_ms = link->panel_config.pps.extra_t3_ms;
 
-			msleep(extra_t3_in_ms);
-		}
+		msleep(extra_t3_in_ms);
 	}
 
 	dal_gpio_open(hpd, GPIO_MODE_INTERRUPT);

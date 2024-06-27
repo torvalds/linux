@@ -392,7 +392,7 @@ static void enc35_reset_fifo(struct stream_encoder *enc, bool reset)
 		udelay(10);
 }
 
-static void enc35_disable_fifo(struct stream_encoder *enc)
+void enc35_disable_fifo(struct stream_encoder *enc)
 {
 	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
 
@@ -401,7 +401,7 @@ static void enc35_disable_fifo(struct stream_encoder *enc)
 	REG_UPDATE(DIG_FE_CLK_CNTL, DIG_FE_CLK_EN, 0);
 }
 
-static void enc35_enable_fifo(struct stream_encoder *enc)
+void enc35_enable_fifo(struct stream_encoder *enc)
 {
 	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
 

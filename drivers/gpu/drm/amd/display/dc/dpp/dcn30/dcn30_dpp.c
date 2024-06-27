@@ -64,22 +64,23 @@ void dpp30_read_state(struct dpp *dpp_base, struct dcn_dpp_state *s)
 	}
 
 	// Shaper LUT (RAM), 3D LUT (mode, bit-depth, size)
-	REG_GET(CM_SHAPER_CONTROL,
-		CM_SHAPER_LUT_MODE, &s->shaper_lut_mode);
-	REG_GET(CM_3DLUT_MODE,
-		CM_3DLUT_MODE_CURRENT, &s->lut3d_mode);
-	REG_GET(CM_3DLUT_READ_WRITE_CONTROL,
-		CM_3DLUT_30BIT_EN, &s->lut3d_bit_depth);
-	REG_GET(CM_3DLUT_MODE,
-		CM_3DLUT_SIZE, &s->lut3d_size);
+	if (REG(CM_SHAPER_CONTROL))
+		REG_GET(CM_SHAPER_CONTROL, CM_SHAPER_LUT_MODE, &s->shaper_lut_mode);
+	if (REG(CM_3DLUT_MODE))
+		REG_GET(CM_3DLUT_MODE, CM_3DLUT_MODE_CURRENT, &s->lut3d_mode);
+	if (REG(CM_3DLUT_READ_WRITE_CONTROL))
+		REG_GET(CM_3DLUT_READ_WRITE_CONTROL, CM_3DLUT_30BIT_EN, &s->lut3d_bit_depth);
+	if (REG(CM_3DLUT_MODE))
+		REG_GET(CM_3DLUT_MODE, CM_3DLUT_SIZE, &s->lut3d_size);
 
 	// Blend/Out Gamma (RAM)
-	REG_GET(CM_BLNDGAM_CONTROL,
-		CM_BLNDGAM_MODE_CURRENT, &s->rgam_lut_mode);
-	if (s->rgam_lut_mode){
-		REG_GET(CM_BLNDGAM_CONTROL, CM_BLNDGAM_SELECT_CURRENT, &rgam_lut_mode);
-		if (!rgam_lut_mode)
-			s->rgam_lut_mode = LUT_RAM_A; // Otherwise, LUT_RAM_B
+	if (REG(CM_BLNDGAM_CONTROL)) {
+		REG_GET(CM_BLNDGAM_CONTROL, CM_BLNDGAM_MODE_CURRENT, &s->rgam_lut_mode);
+		if (s->rgam_lut_mode) {
+			REG_GET(CM_BLNDGAM_CONTROL, CM_BLNDGAM_SELECT_CURRENT, &rgam_lut_mode);
+			if (!rgam_lut_mode)
+				s->rgam_lut_mode = LUT_RAM_A; // Otherwise, LUT_RAM_B
+		}
 	}
 }
 
@@ -218,7 +219,6 @@ void dpp3_cnv_setup (
 	uint32_t alpha_plane_enable = 0;
 	uint32_t dealpha_en = 0, dealpha_ablnd_en = 0;
 	uint32_t realpha_en = 0, realpha_ablnd_en = 0;
-	uint32_t program_prealpha_dealpha = 0;
 	struct out_csc_color_matrix tbl_entry;
 	int i;
 
@@ -346,10 +346,6 @@ void dpp3_cnv_setup (
 			CNVC_ALPHA_PLANE_ENABLE, alpha_plane_enable);
 	REG_UPDATE(FORMAT_CONTROL, FORMAT_CONTROL__ALPHA_EN, alpha_en);
 
-	if (program_prealpha_dealpha) {
-		dealpha_en = 1;
-		realpha_en = 1;
-	}
 	REG_SET_2(PRE_DEALPHA, 0,
 			PRE_DEALPHA_EN, dealpha_en,
 			PRE_DEALPHA_ABLND_EN, dealpha_ablnd_en);

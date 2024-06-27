@@ -1389,8 +1389,6 @@ static int navi10_emit_clk_levels(struct smu_context *smu,
 			case 2:
 				curve_settings = &od_table->GfxclkFreq3;
 				break;
-			default:
-				break;
 			}
 			*offset += sysfs_emit_at(buf, *offset, "%d: %uMHz %umV\n",
 						  i, curve_settings[0],
@@ -1593,8 +1591,6 @@ static int navi10_print_clk_levels(struct smu_context *smu,
 				break;
 			case 2:
 				curve_settings = &od_table->GfxclkFreq3;
-				break;
-			default:
 				break;
 			}
 			size += sysfs_emit_at(buf, size, "%d: %uMHz %umV\n",

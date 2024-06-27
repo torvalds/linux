@@ -36,7 +36,7 @@
 #include "link.h"
 #include "dc_state_priv.h"
 #include "atomfirmware.h"
-#include "smu13_driver_if.h"
+#include "dcn32_smu13_driver_if.h"
 
 #include "dcn/dcn_3_2_0_offset.h"
 #include "dcn/dcn_3_2_0_sh_mask.h"
@@ -553,7 +553,7 @@ static void dcn32_auto_dpm_test_log(
 	//
 	//				AutoDPMTest: clk1:%d - clk2:%d - clk3:%d - clk4:%d\n"
 	////////////////////////////////////////////////////////////////////////////
-	if (new_clocks && active_pipe_count > 0 &&
+	if (active_pipe_count > 0 &&
 		new_clocks->dramclk_khz > 0 &&
 		new_clocks->fclk_khz > 0 &&
 		new_clocks->dcfclk_khz > 0 &&

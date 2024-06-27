@@ -738,7 +738,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 			.symclk32_se = true,
 			.symclk32_le = true,
 			.symclk_fe = true,
-			.physymclk = true,
+			.physymclk = false,
 			.dpiasymclk = true,
 		}
 	},
@@ -765,6 +765,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.ips2_entry_delay_us = 800,
 	.disable_dmub_reallow_idle = false,
 	.static_screen_wait_frames = 2,
+	.notify_dpia_hr_bw = true,
 };
 
 static const struct dc_panel_config panel_config_defaults = {

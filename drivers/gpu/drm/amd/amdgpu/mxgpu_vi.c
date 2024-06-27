@@ -515,12 +515,6 @@ static void xgpu_vi_mailbox_flr_work(struct work_struct *work)
 	struct amdgpu_virt *virt = container_of(work, struct amdgpu_virt, flr_work);
 	struct amdgpu_device *adev = container_of(virt, struct amdgpu_device, virt);
 
-	/* wait until RCV_MSG become 3 */
-	if (xgpu_vi_poll_msg(adev, IDH_FLR_NOTIFICATION_CMPL)) {
-		pr_err("failed to receive FLR_CMPL\n");
-		return;
-	}
-
 	/* Trigger recovery due to world switch failure */
 	if (amdgpu_device_should_recover_gpu(adev)) {
 		struct amdgpu_reset_context reset_context;

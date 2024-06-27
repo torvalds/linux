@@ -505,7 +505,7 @@ void set_p_state_switch_method(
 	struct vba_vars_st *vba = &context->bw_ctx.dml.vba;
 	bool enable_subvp;
 
-	if (!dc->ctx || !dc->ctx->dmub_srv || !pipe_ctx || !vba || !context)
+	if (!dc->ctx || !dc->ctx->dmub_srv || !pipe_ctx || !vba)
 		return;
 
 	if (vba->DRAMClockChangeSupport[vba->VoltageLevel][vba->maxMpcComb] !=

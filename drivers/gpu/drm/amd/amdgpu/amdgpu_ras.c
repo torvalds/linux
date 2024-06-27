@@ -1409,11 +1409,8 @@ int amdgpu_ras_reset_error_count(struct amdgpu_device *adev,
 		enum amdgpu_ras_block block)
 {
 	struct amdgpu_ras_block_object *block_obj = amdgpu_ras_get_ras_block(adev, block, 0);
-	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
 	const struct amdgpu_mca_smu_funcs *mca_funcs = adev->mca.mca_funcs;
 	const struct aca_smu_funcs *smu_funcs = adev->aca.smu_funcs;
-	struct amdgpu_hive_info *hive;
-	int hive_ras_recovery = 0;
 
 	if (!block_obj || !block_obj->hw_ops) {
 		dev_dbg_once(adev->dev, "%s doesn't config RAS function\n",
@@ -1425,15 +1422,8 @@ int amdgpu_ras_reset_error_count(struct amdgpu_device *adev,
 	    !amdgpu_ras_get_aca_debug_mode(adev))
 		return -EOPNOTSUPP;
 
-	hive = amdgpu_get_xgmi_hive(adev);
-	if (hive) {
-		hive_ras_recovery = atomic_read(&hive->ras_recovery);
-		amdgpu_put_xgmi_hive(hive);
-	}
-
 	/* skip ras error reset in gpu reset */
-	if ((amdgpu_in_reset(adev) || atomic_read(&ras->in_recovery) ||
-	    hive_ras_recovery) &&
+	if ((amdgpu_in_reset(adev) || amdgpu_ras_in_recovery(adev)) &&
 	    ((smu_funcs && smu_funcs->set_debug_mode) ||
 	     (mca_funcs && mca_funcs->mca_set_debug_mode)))
 		return -EOPNOTSUPP;
@@ -1911,6 +1901,23 @@ static void amdgpu_ras_debugfs_create(struct amdgpu_device *adev,
 			    obj, &amdgpu_ras_debugfs_ops);
 }
 
+static bool amdgpu_ras_aca_is_supported(struct amdgpu_device *adev)
+{
+	bool ret;
+
+	switch (amdgpu_ip_version(adev, MP0_HWIP, 0)) {
+	case IP_VERSION(13, 0, 6):
+	case IP_VERSION(13, 0, 14):
+		ret = true;
+		break;
+	default:
+		ret = false;
+		break;
+	}
+
+	return ret;
+}
+
 void amdgpu_ras_debugfs_create_all(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
@@ -1937,10 +1944,12 @@ void amdgpu_ras_debugfs_create_all(struct amdgpu_device *adev)
 		}
 	}
 
-	if (amdgpu_aca_is_enabled(adev))
-		amdgpu_aca_smu_debugfs_init(adev, dir);
-	else
-		amdgpu_mca_smu_debugfs_init(adev, dir);
+	if (amdgpu_ras_aca_is_supported(adev)) {
+		if (amdgpu_aca_is_enabled(adev))
+			amdgpu_aca_smu_debugfs_init(adev, dir);
+		else
+			amdgpu_mca_smu_debugfs_init(adev, dir);
+	}
 }
 
 /* debugfs end */
@@ -2049,8 +2058,9 @@ static void amdgpu_ras_interrupt_poison_consumption_handler(struct ras_manager *
 	struct amdgpu_device *adev = obj->adev;
 	struct amdgpu_ras_block_object *block_obj =
 		amdgpu_ras_get_ras_block(adev, obj->head.block, 0);
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 
-	if (!block_obj)
+	if (!block_obj || !con)
 		return;
 
 	/* both query_poison_status and handle_poison_consumption are optional,
@@ -2073,14 +2083,17 @@ static void amdgpu_ras_interrupt_poison_consumption_handler(struct ras_manager *
 	if (block_obj->hw_ops && block_obj->hw_ops->handle_poison_consumption)
 		poison_stat = block_obj->hw_ops->handle_poison_consumption(adev);
 
-	/* gpu reset is fallback for failed and default cases */
-	if (poison_stat) {
+	/* gpu reset is fallback for failed and default cases.
+	 * For RMA case, amdgpu_umc_poison_handler will handle gpu reset.
+	 */
+	if (poison_stat && !con->is_rma) {
 		dev_info(adev->dev, "GPU reset for %s RAS poison consumption is issued!\n",
 				block_obj->ras_comm.name);
 		amdgpu_ras_reset_gpu(adev);
-	} else {
-		amdgpu_gfx_poison_consumption_handler(adev, entry);
 	}
+
+	if (!poison_stat)
+		amdgpu_gfx_poison_consumption_handler(adev, entry);
 }
 
 static void amdgpu_ras_interrupt_poison_creation_handler(struct ras_manager *obj,
@@ -2118,6 +2131,7 @@ static void amdgpu_ras_interrupt_umc_handler(struct ras_manager *obj,
 	/* Let IP handle its data, maybe we need get the output
 	 * from the callback to update the error type/count, etc
 	 */
+	amdgpu_ras_set_fed(obj->adev, true);
 	ret = data->cb(obj->adev, &err_data, entry);
 	/* ue will trigger an interrupt, and in that case
 	 * we need do a reset to recovery the whole system.
@@ -2438,6 +2452,23 @@ static void amdgpu_ras_set_fed_all(struct amdgpu_device *adev,
 	}
 }
 
+bool amdgpu_ras_in_recovery(struct amdgpu_device *adev)
+{
+	struct amdgpu_hive_info *hive = amdgpu_get_xgmi_hive(adev);
+	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
+	int hive_ras_recovery = 0;
+
+	if (hive) {
+		hive_ras_recovery = atomic_read(&hive->ras_recovery);
+		amdgpu_put_xgmi_hive(hive);
+	}
+
+	if (ras && (atomic_read(&ras->in_recovery) || hive_ras_recovery))
+		return true;
+
+	return false;
+}
+
 static void amdgpu_ras_do_recovery(struct work_struct *work)
 {
 	struct amdgpu_ras *ras =
@@ -2487,6 +2518,7 @@ static void amdgpu_ras_do_recovery(struct work_struct *work)
 
 		reset_context.method = AMD_RESET_METHOD_NONE;
 		reset_context.reset_req_dev = adev;
+		reset_context.src = AMDGPU_RESET_SRC_RAS;
 
 		/* Perform full reset in fatal error mode */
 		if (!amdgpu_ras_is_poison_mode_supported(ras->adev))
@@ -2795,15 +2827,20 @@ static void amdgpu_ras_do_page_retirement(struct work_struct *work)
 					      page_retirement_dwork.work);
 	struct amdgpu_device *adev = con->adev;
 	struct ras_err_data err_data;
+	unsigned long err_cnt;
 
-	if (amdgpu_in_reset(adev) || atomic_read(&con->in_recovery))
+	if (amdgpu_in_reset(adev) || amdgpu_ras_in_recovery(adev))
 		return;
 
 	amdgpu_ras_error_data_init(&err_data);
 
 	amdgpu_umc_handle_bad_pages(adev, &err_data);
+	err_cnt = err_data.err_addr_cnt;
 
 	amdgpu_ras_error_data_fini(&err_data);
+
+	if (err_cnt && con->is_rma)
+		amdgpu_ras_reset_gpu(adev);
 
 	mutex_lock(&con->umc_ecc_log.lock);
 	if (radix_tree_tagged(&con->umc_ecc_log.de_page_tree,
@@ -2861,7 +2898,8 @@ static int amdgpu_ras_poison_consumption_handler(struct amdgpu_device *adev,
 	if (poison_msg->pasid_fn)
 		poison_msg->pasid_fn(adev, pasid, poison_msg->data);
 
-	if (reset) {
+	/* for RMA, amdgpu_ras_poison_creation_handler will trigger gpu reset */
+	if (reset && !con->is_rma) {
 		flush_delayed_work(&con->page_retirement_dwork);
 
 		con->gpu_reset_flags |= reset;
@@ -3427,6 +3465,15 @@ int amdgpu_ras_init(struct amdgpu_device *adev)
 		goto release_con;
 	}
 
+	if (amdgpu_ras_aca_is_supported(adev)) {
+		if (amdgpu_aca_is_enabled(adev))
+			r = amdgpu_aca_init(adev);
+		else
+			r = amdgpu_mca_init(adev);
+		if (r)
+			goto release_con;
+	}
+
 	dev_info(adev->dev, "RAS INFO: ras initialized successfully, "
 		 "hardware ability[%x] ras_mask[%x]\n",
 		 adev->ras_hw_enabled, adev->ras_enabled);
@@ -3635,25 +3682,22 @@ int amdgpu_ras_late_init(struct amdgpu_device *adev)
 
 	amdgpu_ras_event_mgr_init(adev);
 
-	if (amdgpu_aca_is_enabled(adev)) {
-		if (!amdgpu_in_reset(adev)) {
-			r = amdgpu_aca_init(adev);
+	if (amdgpu_ras_aca_is_supported(adev)) {
+		if (amdgpu_in_reset(adev)) {
+			if (amdgpu_aca_is_enabled(adev))
+				r = amdgpu_aca_reset(adev);
+			else
+				r = amdgpu_mca_reset(adev);
 			if (r)
 				return r;
 		}
 
-		if (!amdgpu_sriov_vf(adev))
-			amdgpu_ras_set_aca_debug_mode(adev, false);
-	} else {
-		if (amdgpu_in_reset(adev))
-			r = amdgpu_mca_reset(adev);
-		else
-			r = amdgpu_mca_init(adev);
-		if (r)
-			return r;
-
-		if (!amdgpu_sriov_vf(adev))
-			amdgpu_ras_set_mca_debug_mode(adev, false);
+		if (!amdgpu_sriov_vf(adev)) {
+			if (amdgpu_aca_is_enabled(adev))
+				amdgpu_ras_set_aca_debug_mode(adev, false);
+			else
+				amdgpu_ras_set_mca_debug_mode(adev, false);
+		}
 	}
 
 	/* Guest side doesn't need init ras feature */
@@ -3727,10 +3771,12 @@ int amdgpu_ras_fini(struct amdgpu_device *adev)
 	amdgpu_ras_fs_fini(adev);
 	amdgpu_ras_interrupt_remove_all(adev);
 
-	if (amdgpu_aca_is_enabled(adev))
-		amdgpu_aca_fini(adev);
-	else
-		amdgpu_mca_fini(adev);
+	if (amdgpu_ras_aca_is_supported(adev)) {
+		if (amdgpu_aca_is_enabled(adev))
+			amdgpu_aca_fini(adev);
+		else
+			amdgpu_mca_fini(adev);
+	}
 
 	WARN(AMDGPU_RAS_GET_FEATURES(con->features), "Feature mask is not cleared");
 
@@ -3981,6 +4027,12 @@ int amdgpu_ras_is_supported(struct amdgpu_device *adev,
 int amdgpu_ras_reset_gpu(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
+
+	/* mode1 is the only selection for RMA status */
+	if (ras->is_rma) {
+		ras->gpu_reset_flags = 0;
+		ras->gpu_reset_flags |= AMDGPU_RAS_GPU_RESET_MODE1_RESET;
+	}
 
 	if (atomic_cmpxchg(&ras->in_recovery, 0, 1) == 0)
 		amdgpu_reset_domain_schedule(ras->adev->reset_domain, &ras->recovery_work);

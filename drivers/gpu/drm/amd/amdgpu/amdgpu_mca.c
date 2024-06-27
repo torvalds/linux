@@ -193,27 +193,26 @@ static int amdgpu_mca_bank_set_merge(struct mca_bank_set *mca_set, struct mca_ba
 	return 0;
 }
 
-static int amdgpu_mca_bank_set_remove_node(struct mca_bank_set *mca_set, struct mca_bank_node *node)
+static void amdgpu_mca_bank_set_remove_node(struct mca_bank_set *mca_set, struct mca_bank_node *node)
 {
 	if (!node)
-		return -EINVAL;
+		return;
 
 	list_del(&node->node);
 	kvfree(node);
 
 	mca_set->nr_entries--;
-
-	return 0;
 }
 
 static void amdgpu_mca_bank_set_release(struct mca_bank_set *mca_set)
 {
 	struct mca_bank_node *node, *tmp;
 
-	list_for_each_entry_safe(node, tmp, &mca_set->list, node) {
-		list_del(&node->node);
-		kvfree(node);
-	}
+	if (list_empty(&mca_set->list))
+		return;
+
+	list_for_each_entry_safe(node, tmp, &mca_set->list, node)
+		amdgpu_mca_bank_set_remove_node(mca_set, node);
 }
 
 void amdgpu_mca_smu_init_funcs(struct amdgpu_device *adev, const struct amdgpu_mca_smu_funcs *mca_funcs)
@@ -233,7 +232,7 @@ int amdgpu_mca_init(struct amdgpu_device *adev)
 
 	for (i = 0; i < ARRAY_SIZE(mca->mca_caches); i++) {
 		mca_cache = &mca->mca_caches[i];
-		spin_lock_init(&mca_cache->lock);
+		mutex_init(&mca_cache->lock);
 		amdgpu_mca_bank_set_init(&mca_cache->mca_set);
 	}
 
@@ -251,6 +250,7 @@ void amdgpu_mca_fini(struct amdgpu_device *adev)
 	for (i = 0; i < ARRAY_SIZE(mca->mca_caches); i++) {
 		mca_cache = &mca->mca_caches[i];
 		amdgpu_mca_bank_set_release(&mca_cache->mca_set);
+		mutex_destroy(&mca_cache->lock);
 	}
 }
 
@@ -455,9 +455,9 @@ static int amdgpu_mca_add_mca_set_to_cache(struct amdgpu_device *adev, enum amdg
 	struct mca_bank_cache *mca_cache = &adev->mca.mca_caches[type];
 	int ret;
 
-	spin_lock(&mca_cache->lock);
+	mutex_lock(&mca_cache->lock);
 	ret = amdgpu_mca_bank_set_merge(&mca_cache->mca_set, new);
-	spin_unlock(&mca_cache->lock);
+	mutex_unlock(&mca_cache->lock);
 
 	return ret;
 }
@@ -487,10 +487,10 @@ int amdgpu_mca_smu_log_ras_error(struct amdgpu_device *adev, enum amdgpu_ras_blo
 	}
 
 	/* dispatch mca set again if mca cache has valid data */
-	spin_lock(&mca_cache->lock);
+	mutex_lock(&mca_cache->lock);
 	if (mca_cache->mca_set.nr_entries)
 		ret = amdgpu_mca_dispatch_mca_set(adev, blk, type, &mca_cache->mca_set, err_data);
-	spin_unlock(&mca_cache->lock);
+	mutex_unlock(&mca_cache->lock);
 
 out_mca_release:
 	amdgpu_mca_bank_set_release(&mca_set);
@@ -608,9 +608,7 @@ DEFINE_DEBUGFS_ATTRIBUTE(mca_debug_mode_fops, NULL, amdgpu_mca_smu_debug_mode_se
 void amdgpu_mca_smu_debugfs_init(struct amdgpu_device *adev, struct dentry *root)
 {
 #if defined(CONFIG_DEBUG_FS)
-	if (!root ||
-	    (amdgpu_ip_version(adev, MP1_HWIP, 0) != IP_VERSION(13, 0, 6) &&
-	     amdgpu_ip_version(adev, MP1_HWIP, 0) != IP_VERSION(13, 0, 14)))
+	if (!root)
 		return;
 
 	debugfs_create_file("mca_debug_mode", 0200, root, adev, &mca_debug_mode_fops);

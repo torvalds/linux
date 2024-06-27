@@ -208,6 +208,11 @@ union abm_flags {
 		 * @abm_new_frame: Indicates if a new frame update needed for ABM to ramp up into steady
 		 */
 		unsigned int abm_new_frame : 1;
+
+		/**
+		 * @vb_scaling_enabled: Indicates variBright Scaling Enable
+		 */
+		unsigned int vb_scaling_enabled : 1;
 	} bitfields;
 
 	unsigned int u32All;
@@ -558,6 +563,7 @@ union dmub_fw_meta {
 //==============================================================================
 //< DMUB Trace Buffer>================================================================
 //==============================================================================
+#if !defined(TENSILICA) && !defined(DMUB_TRACE_ENTRY_DEFINED)
 /**
  * dmub_trace_code_t - firmware trace code, 32-bits
  */
@@ -572,6 +578,7 @@ struct dmcub_trace_buf_entry {
 	uint32_t param0; /**< trace defined parameter 0 */
 	uint32_t param1; /**< trace defined parameter 1 */
 };
+#endif
 
 //==============================================================================
 //< DMUB_STATUS>================================================================
@@ -1285,6 +1292,10 @@ enum dmub_out_cmd_type {
 	 * Command type used for USB4 DPIA notification
 	 */
 	DMUB_OUT_CMD__DPIA_NOTIFICATION = 5,
+	/**
+	 * Command type used for HPD redetect notification
+	 */
+	DMUB_OUT_CMD__HPD_SENSE_NOTIFY = 6,
 };
 
 /* DMUB_CMD__DPIA command sub-types. */
@@ -1829,7 +1840,8 @@ struct dmub_cmd_fams2_global_config {
 	uint32_t lock_wait_time_us; // time to forecast acquisition of lock
 	uint32_t num_streams;
 	union dmub_fams2_global_feature_config features;
-	uint8_t pad[3];
+	uint32_t recovery_timeout_us;
+	uint32_t hwfq_flip_programming_delay_us;
 };
 
 union dmub_cmd_fams2_config {
@@ -1877,7 +1889,8 @@ struct dmub_rb_cmd_idle_opt_dcn_restore {
  */
 struct dmub_dcn_notify_idle_cntl_data {
 	uint8_t driver_idle;
-	uint8_t reserved[59];
+	uint8_t skip_otg_disable;
+	uint8_t reserved[58];
 };
 
 /**
@@ -2468,6 +2481,22 @@ struct dmub_rb_cmd_query_hpd_state {
 	struct dmub_cmd_hpd_state_query_data data;
 };
 
+/**
+ * struct dmub_rb_cmd_hpd_sense_notify - HPD sense notification data.
+ */
+struct dmub_rb_cmd_hpd_sense_notify_data {
+	uint32_t old_hpd_sense_mask; /**< Old HPD sense mask */
+	uint32_t new_hpd_sense_mask; /**< New HPD sense mask */
+};
+
+/**
+ * struct dmub_rb_cmd_hpd_sense_notify - DMUB_OUT_CMD__HPD_SENSE_NOTIFY command.
+ */
+struct dmub_rb_cmd_hpd_sense_notify {
+	struct dmub_cmd_header header; /**< header */
+	struct dmub_rb_cmd_hpd_sense_notify_data data; /**< payload */
+};
+
 /*
  * Command IDs should be treated as stable ABI.
  * Do not reuse or modify IDs.
@@ -2514,6 +2543,18 @@ enum dmub_cmd_psr_type {
 	 * Set PSR power option
 	 */
 	DMUB_CMD__SET_PSR_POWER_OPT = 7,
+};
+
+/**
+ * Different PSR residency modes.
+ * Different modes change the definition of PSR residency.
+ */
+enum psr_residency_mode {
+	PSR_RESIDENCY_MODE_PHY = 0,
+	PSR_RESIDENCY_MODE_ALPM,
+	PSR_RESIDENCY_MODE_ENABLEMENT_PERIOD,
+	/* Do not add below. */
+	PSR_RESIDENCY_MODE_LAST_ELEMENT,
 };
 
 enum dmub_cmd_fams_type {
@@ -2760,9 +2801,9 @@ struct dmub_cmd_psr_copy_settings_data {
 	 */
 	uint8_t relock_delay_frame_cnt;
 	/**
-	 * Explicit padding to 4 byte boundary.
+	 * esd recovery indicate.
 	 */
-	uint8_t pad3;
+	uint8_t esd_recovery;
 	/**
 	 * DSC Slice height.
 	 */
@@ -2982,6 +3023,14 @@ struct dmub_cmd_update_dirty_rect_data {
 	 * Currently the support is only for 0 or 1
 	 */
 	uint8_t panel_inst;
+	/**
+	 * 16-bit value dicated by driver that indicates the coasting vtotal high byte part.
+	 */
+	uint16_t coasting_vtotal_high;
+	/**
+	 * Explicit padding to 4 byte boundary.
+	 */
+	uint8_t pad[2];
 };
 
 /**
@@ -3337,7 +3386,25 @@ enum dmub_cmd_replay_type {
 	 * Set adaptive sync sdp enabled
 	 */
 	DMUB_CMD__REPLAY_DISABLED_ADAPTIVE_SYNC_SDP = 8,
+	/**
+	 * Set Replay General command.
+	 */
+	DMUB_CMD__REPLAY_SET_GENERAL_CMD = 16,
+};
 
+/**
+ * Replay general command sub-types.
+ */
+enum dmub_cmd_replay_general_subtype {
+	REPLAY_GENERAL_CMD_NOT_SUPPORTED = -1,
+	/**
+	 * TODO: For backward compatible, allow new command only.
+	 * REPLAY_GENERAL_CMD_SET_TIMING_SYNC_SUPPORTED,
+	 * REPLAY_GENERAL_CMD_SET_RESIDENCY_FRAMEUPDATE_TIMER,
+	 * REPLAY_GENERAL_CMD_SET_PSEUDO_VTOTAL,
+	 */
+	REPLAY_GENERAL_CMD_DISABLED_ADAPTIVE_SYNC_SDP,
+	REPLAY_GENERAL_CMD_DISABLED_DESYNC_ERROR_DETECTION,
 };
 
 /**
@@ -3553,6 +3620,26 @@ struct dmub_cmd_replay_disabled_adaptive_sync_sdp_data {
 
 	uint8_t pad[2];
 };
+struct dmub_cmd_replay_set_general_cmd_data {
+	/**
+	 * Panel Instance.
+	 * Panel isntance to identify which replay_state to use
+	 * Currently the support is only for 0 or 1
+	 */
+	uint8_t panel_inst;
+	/**
+	 * subtype: replay general cmd sub type
+	 */
+	uint8_t subtype;
+
+	uint8_t pad[2];
+	/**
+	 * config data with param1 and param2
+	 */
+	uint32_t param1;
+
+	uint32_t param2;
+};
 
 /**
  * Definition of a DMUB_CMD__SET_REPLAY_POWER_OPT command.
@@ -3671,6 +3758,20 @@ struct dmub_rb_cmd_replay_disabled_adaptive_sync_sdp {
 };
 
 /**
+ * Definition of a DMUB_CMD__REPLAY_SET_GENERAL_CMD command.
+ */
+struct dmub_rb_cmd_replay_set_general_cmd {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+	/**
+	 * Definition of DMUB_CMD__REPLAY_SET_GENERAL_CMD command.
+	 */
+	struct dmub_cmd_replay_set_general_cmd_data data;
+};
+
+/**
  * Data passed from driver to FW in  DMUB_CMD__REPLAY_SET_RESIDENCY_FRAMEUPDATE_TIMER command.
  */
 struct dmub_cmd_replay_frameupdate_timer_data {
@@ -3729,7 +3830,10 @@ union dmub_replay_cmd_set {
 	 * Definition of DMUB_CMD__REPLAY_DISABLED_ADAPTIVE_SYNC_SDP command data.
 	 */
 	struct dmub_cmd_replay_disabled_adaptive_sync_sdp_data disabled_adaptive_sync_sdp_data;
-
+	/**
+	 * Definition of DMUB_CMD__REPLAY_SET_GENERAL_CMD command data.
+	 */
+	struct dmub_cmd_replay_set_general_cmd_data set_general_cmd_data;
 };
 
 /**
@@ -3916,6 +4020,11 @@ enum dmub_cmd_abm_type {
 	 * Set ABM Events
 	 */
 	DMUB_CMD__ABM_SET_EVENT	= 9,
+
+	/**
+	 * Get the current ACE curve.
+	 */
+	DMUB_CMD__ABM_GET_ACE_CURVE = 10,
 };
 
 struct abm_ace_curve {
@@ -4445,6 +4554,55 @@ struct dmub_rb_cmd_abm_query_caps {
 };
 
 /**
+ * enum dmub_abm_ace_curve_type - ACE curve type.
+ */
+enum dmub_abm_ace_curve_type {
+	/**
+	 * ACE curve as defined by the SW layer.
+	 */
+	ABM_ACE_CURVE_TYPE__SW = 0,
+	/**
+	 * ACE curve as defined by the SW to HW translation interface layer.
+	 */
+	ABM_ACE_CURVE_TYPE__SW_IF = 1,
+};
+
+/**
+ * Definition of a DMUB_CMD__ABM_GET_ACE_CURVE command.
+ */
+struct dmub_rb_cmd_abm_get_ace_curve {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+
+	/**
+	 * Address where ACE curve should be copied.
+	 */
+	union dmub_addr dest;
+
+	/**
+	 * Type of ACE curve being queried.
+	 */
+	enum dmub_abm_ace_curve_type ace_type;
+
+	/**
+	 * Indirect buffer length.
+	 */
+	uint16_t bytes;
+
+	/**
+	 * eDP panel instance.
+	 */
+	uint8_t panel_inst;
+
+	/**
+	 * Explicit padding to 4 byte boundary.
+	 */
+	uint8_t pad;
+};
+
+/**
  * Definition of a DMUB_CMD__ABM_SAVE_RESTORE command.
  */
 struct dmub_rb_cmd_abm_save_restore {
@@ -4477,6 +4635,7 @@ struct dmub_rb_cmd_abm_save_restore {
 /**
  * Data passed from driver to FW in a DMUB_CMD__ABM_SET_EVENT command.
  */
+
 struct dmub_cmd_abm_set_event_data {
 
 	/**
@@ -5059,6 +5218,11 @@ union dmub_rb_cmd {
 	struct dmub_rb_cmd_abm_query_caps abm_query_caps;
 
 	/**
+	 * Definition of a DMUB_CMD__ABM_GET_ACE_CURVE command.
+	 */
+	struct dmub_rb_cmd_abm_get_ace_curve abm_get_ace_curve;
+
+	/**
 	 * Definition of a DMUB_CMD__ABM_SET_EVENT command.
 	 */
 	struct dmub_rb_cmd_abm_set_event abm_set_event;
@@ -5170,6 +5334,10 @@ union dmub_rb_cmd {
 	 */
 	struct dmub_rb_cmd_replay_disabled_adaptive_sync_sdp replay_disabled_adaptive_sync_sdp;
 	/**
+	 * Definition of a DMUB_CMD__REPLAY_SET_GENERAL_CMD command.
+	 */
+	struct dmub_rb_cmd_replay_set_general_cmd replay_set_general_cmd;
+	/**
 	 * Definition of a DMUB_CMD__PSP_ASSR_ENABLE command.
 	 */
 	struct dmub_rb_cmd_assr_enable assr_enable;
@@ -5204,6 +5372,10 @@ union dmub_rb_out_cmd {
 	 * DPIA notification command.
 	 */
 	struct dmub_rb_cmd_dpia_notification dpia_notification;
+	/**
+	 * HPD sense notification command.
+	 */
+	struct dmub_rb_cmd_hpd_sense_notify hpd_sense_notify;
 };
 #pragma pack(pop)
 

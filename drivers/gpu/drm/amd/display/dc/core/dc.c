@@ -1233,11 +1233,14 @@ static void disable_dangling_plane(struct dc *dc, struct dc_state *context)
 			 */
 			if (is_phantom) {
 				if (tg->funcs->enable_crtc) {
-					int main_pipe_width, main_pipe_height;
+					int main_pipe_width = 0, main_pipe_height = 0;
 					struct dc_stream_state *old_paired_stream = dc_state_get_paired_subvp_stream(dc->current_state, old_stream);
 
-					main_pipe_width = old_paired_stream->dst.width;
-					main_pipe_height = old_paired_stream->dst.height;
+					if (old_paired_stream) {
+						main_pipe_width = old_paired_stream->dst.width;
+						main_pipe_height = old_paired_stream->dst.height;
+					}
+
 					if (dc->hwss.blank_phantom)
 						dc->hwss.blank_phantom(dc, tg, main_pipe_width, main_pipe_height);
 					tg->funcs->enable_crtc(tg);
@@ -1627,6 +1630,9 @@ static void program_timing_sync(
 
 		for (k = 0; k < group_size; k++) {
 			struct dc_stream_status *status = dc_state_get_stream_status(ctx, pipe_set[k]->stream);
+
+			if (!status)
+				continue;
 
 			status->timing_sync_info.group_id = num_group;
 			status->timing_sync_info.group_size = group_size;
@@ -2225,6 +2231,9 @@ enum dc_status dc_commit_streams(struct dc *dc, struct dc_commit_streams_params 
 			if (dc_is_embedded_signal(params->streams[i]->signal)) {
 				struct dc_stream_status *status = dc_state_get_stream_status(context, params->streams[i]);
 
+				if (!status)
+					continue;
+
 				if (dc->hwss.is_abm_supported)
 					status->is_abm_supported = dc->hwss.is_abm_supported(dc, context, params->streams[i]);
 				else
@@ -2631,7 +2640,7 @@ static enum surface_update_type det_surface_update(const struct dc *dc,
 
 		if (u->plane_info)
 			format = u->plane_info->format;
-		else if (u->surface)
+		else
 			format = u->surface->format;
 
 		if (dce_use_lut(format))
@@ -2732,7 +2741,7 @@ static enum surface_update_type check_update_surfaces_for_stream(
 		if (stream_update->mst_bw_update)
 			su_flags->bits.mst_bw = 1;
 
-		if (stream_update->stream && stream_update->stream->freesync_on_desktop &&
+		if (stream_update->stream->freesync_on_desktop &&
 			(stream_update->vrr_infopacket || stream_update->allow_freesync ||
 				stream_update->vrr_active_variable || stream_update->vrr_active_fixed))
 			su_flags->bits.fams_changed = 1;
@@ -4023,7 +4032,7 @@ static void commit_planes_for_stream(struct dc *dc,
 			stream_status =
 				stream_get_status(context, pipe_ctx->stream);
 
-			if (dc->hwss.apply_ctx_for_surface)
+			if (dc->hwss.apply_ctx_for_surface && stream_status)
 				dc->hwss.apply_ctx_for_surface(
 					dc, pipe_ctx->stream, stream_status->plane_count, context);
 		}
@@ -5328,6 +5337,16 @@ bool dc_set_replay_allow_active(struct dc *dc, bool active)
 			}
 		}
 	}
+
+	return true;
+}
+
+/* set IPS disable state */
+bool dc_set_ips_disable(struct dc *dc, unsigned int disable_ips)
+{
+	dc_exit_ips_for_hw_access(dc);
+
+	dc->config.disable_ips = disable_ips;
 
 	return true;
 }

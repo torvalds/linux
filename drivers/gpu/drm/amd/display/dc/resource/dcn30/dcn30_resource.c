@@ -1419,10 +1419,7 @@ void dcn30_set_mcif_arb_params(
 			if (dwb_pipe >= MAX_DWB_PIPES)
 				return;
 		}
-		if (dwb_pipe >= MAX_DWB_PIPES)
-			return;
 	}
-
 }
 
 static struct dc_cap_funcs cap_funcs = {
