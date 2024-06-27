@@ -1134,8 +1134,6 @@ static int soc_tplg_dapm_widget_dmixer_create(struct soc_tplg *tplg, struct snd_
 	sm->min = le32_to_cpu(mc->min);
 	sm->invert = le32_to_cpu(mc->invert);
 	sm->platform_max = le32_to_cpu(mc->platform_max);
-	sm->dobj.index = tplg->index;
-	INIT_LIST_HEAD(&sm->dobj.list);
 
 	/* map io handlers */
 	err = soc_tplg_kcontrol_bind_io(&mc->hdr, kc, tplg);
@@ -1198,7 +1196,6 @@ static int soc_tplg_dapm_widget_denum_create(struct soc_tplg *tplg, struct snd_k
 
 	se->items = le32_to_cpu(ec->items);
 	se->mask = le32_to_cpu(ec->mask);
-	se->dobj.index = tplg->index;
 
 	switch (le32_to_cpu(ec->hdr.ops.info)) {
 	case SND_SOC_TPLG_CTL_ENUM_VALUE:
@@ -1273,7 +1270,6 @@ static int soc_tplg_dapm_widget_dbytes_create(struct soc_tplg *tplg, struct snd_
 	kc->access = le32_to_cpu(be->hdr.access);
 
 	sbe->max = le32_to_cpu(be->max);
-	INIT_LIST_HEAD(&sbe->dobj.list);
 
 	/* map standard io handlers and check for external handlers */
 	err = soc_tplg_kcontrol_bind_io(&be->hdr, kc, tplg);
