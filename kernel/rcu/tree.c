@@ -777,7 +777,18 @@ static void rcu_gpnum_ovf(struct rcu_node *rnp, struct rcu_data *rdp)
  */
 static int dyntick_save_progress_counter(struct rcu_data *rdp)
 {
-	rdp->dynticks_snap = rcu_dynticks_snap(rdp->cpu);
+	/*
+	 * Full ordering between remote CPU's post idle accesses and updater's
+	 * accesses prior to current GP (and also the started GP sequence number)
+	 * is enforced by rcu_seq_start() implicit barrier and even further by
+	 * smp_mb__after_unlock_lock() barriers chained all the way throughout the
+	 * rnp locking tree since rcu_gp_init() and up to the current leaf rnp
+	 * locking.
+	 *
+	 * Ordering between remote CPU's pre idle accesses and post grace period
+	 * updater's accesses is enforced by the below acquire semantic.
+	 */
+	rdp->dynticks_snap = ct_dynticks_cpu_acquire(rdp->cpu);
 	if (rcu_dynticks_in_eqs(rdp->dynticks_snap)) {
 		trace_rcu_fqs(rcu_state.name, rdp->gp_seq, rdp->cpu, TPS("dti"));
 		rcu_gpnum_ovf(rdp->mynode, rdp);
