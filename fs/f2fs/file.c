@@ -185,7 +185,7 @@ static int get_parent_ino(struct inode *inode, nid_t *pino)
 	if (!dentry)
 		return 0;
 
-	*pino = parent_ino(dentry);
+	*pino = d_parent_ino(dentry);
 	dput(dentry);
 	return 1;
 }

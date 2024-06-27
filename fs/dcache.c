@@ -3099,6 +3099,34 @@ void d_tmpfile(struct file *file, struct inode *inode)
 }
 EXPORT_SYMBOL(d_tmpfile);
 
+/*
+ * Obtain inode number of the parent dentry.
+ */
+ino_t d_parent_ino(struct dentry *dentry)
+{
+	struct dentry *parent;
+	struct inode *iparent;
+	unsigned seq;
+	ino_t ret;
+
+	scoped_guard(rcu) {
+		seq = raw_seqcount_begin(&dentry->d_seq);
+		parent = READ_ONCE(dentry->d_parent);
+		iparent = d_inode_rcu(parent);
+		if (likely(iparent)) {
+			ret = iparent->i_ino;
+			if (!read_seqcount_retry(&dentry->d_seq, seq))
+				return ret;
+		}
+	}
+
+	spin_lock(&dentry->d_lock);
+	ret = dentry->d_parent->d_inode->i_ino;
+	spin_unlock(&dentry->d_lock);
+	return ret;
+}
+EXPORT_SYMBOL(d_parent_ino);
+
 static __initdata unsigned long dhash_entries;
 static int __init set_dhash_entries(char *str)
 {
