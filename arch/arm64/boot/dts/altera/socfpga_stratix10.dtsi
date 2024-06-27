@@ -34,6 +34,7 @@
 			compatible = "arm,cortex-a53";
 			device_type = "cpu";
 			enable-method = "psci";
+			next-level-cache = <&l2_shared>;
 			reg = <0x0>;
 		};
 
@@ -41,6 +42,7 @@
 			compatible = "arm,cortex-a53";
 			device_type = "cpu";
 			enable-method = "psci";
+			next-level-cache = <&l2_shared>;
 			reg = <0x1>;
 		};
 
@@ -48,6 +50,7 @@
 			compatible = "arm,cortex-a53";
 			device_type = "cpu";
 			enable-method = "psci";
+			next-level-cache = <&l2_shared>;
 			reg = <0x2>;
 		};
 
@@ -55,7 +58,14 @@
 			compatible = "arm,cortex-a53";
 			device_type = "cpu";
 			enable-method = "psci";
+			next-level-cache = <&l2_shared>;
 			reg = <0x3>;
+		};
+
+		l2_shared: cache {
+			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
 		};
 	};
 
