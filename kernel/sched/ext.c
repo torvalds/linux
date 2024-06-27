@@ -4399,6 +4399,12 @@ static int scx_ops_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 	unsigned long timeout;
 	int i, cpu, ret;
 
+	if (!cpumask_equal(housekeeping_cpumask(HK_TYPE_DOMAIN),
+			   cpu_possible_mask)) {
+		pr_err("sched_ext: Not compatible with \"isolcpus=\" domain isolation");
+		return -EINVAL;
+	}
+
 	mutex_lock(&scx_ops_enable_mutex);
 
 	if (!scx_ops_helper) {
