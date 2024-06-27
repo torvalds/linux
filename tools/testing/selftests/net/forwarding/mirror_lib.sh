@@ -88,16 +88,6 @@ quick_test_span_dir_ips()
 			     "$forward_type" "$backward_type"
 }
 
-fail_test_span_dir_ips()
-{
-	local dev=$1; shift
-	local direction=$1; shift
-	local ip1=$1; shift
-	local ip2=$1; shift
-
-	do_test_span_dir_ips 0 "$dev" "$direction" "$ip1" "$ip2"
-}
-
 test_span_dir_ips()
 {
 	local dev=$1; shift
@@ -116,14 +106,6 @@ test_span_dir_ips()
 	icmp_capture_install $dev "type $backward_type"
 	mirror_test v$h2 $ip2 $ip1 $dev 100 10
 	icmp_capture_uninstall $dev
-}
-
-fail_test_span_dir()
-{
-	local dev=$1; shift
-	local direction=$1; shift
-
-	fail_test_span_dir_ips "$dev" "$direction" 192.0.2.1 192.0.2.2
 }
 
 test_span_dir()

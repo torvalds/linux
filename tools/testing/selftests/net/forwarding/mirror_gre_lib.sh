@@ -101,17 +101,6 @@ fail_test_span_gre_dir()
 	fail_test_span_gre_dir_ips "$tundev" 192.0.2.1 192.0.2.2
 }
 
-test_span_gre_dir()
-{
-	local tundev=$1; shift
-	local direction=$1; shift
-	local forward_type=$1; shift
-	local backward_type=$1; shift
-
-	test_span_gre_dir_ips "$tundev" "$direction" "$forward_type" \
-			      "$backward_type" 192.0.2.1 192.0.2.2
-}
-
 full_test_span_gre_dir()
 {
 	local tundev=$1; shift
