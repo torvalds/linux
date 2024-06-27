@@ -610,16 +610,10 @@ fault:
 }
 EXPORT_SYMBOL(skb_copy_datagram_from_iter);
 
-int __zerocopy_sg_from_iter(struct msghdr *msg, struct sock *sk,
-			    struct sk_buff *skb, struct iov_iter *from,
-			    size_t length)
+static int zerocopy_fill_skb_from_iter(struct sock *sk, struct sk_buff *skb,
+					struct iov_iter *from, size_t length)
 {
-	int frag;
-
-	if (msg && msg->msg_ubuf && msg->sg_from_iter)
-		return msg->sg_from_iter(sk, skb, from, length);
-
-	frag = skb_shinfo(skb)->nr_frags;
+	int frag = skb_shinfo(skb)->nr_frags;
 
 	while (length && iov_iter_count(from)) {
 		struct page *head, *last_head = NULL;
@@ -691,6 +685,16 @@ int __zerocopy_sg_from_iter(struct msghdr *msg, struct sock *sk,
 			page_ref_sub(last_head, refs);
 	}
 	return 0;
+}
+
+int __zerocopy_sg_from_iter(struct msghdr *msg, struct sock *sk,
+			    struct sk_buff *skb, struct iov_iter *from,
+			    size_t length)
+{
+	if (msg && msg->msg_ubuf && msg->sg_from_iter)
+		return msg->sg_from_iter(sk, skb, from, length);
+	else
+		return zerocopy_fill_skb_from_iter(sk, skb, from, length);
 }
 EXPORT_SYMBOL(__zerocopy_sg_from_iter);
 
