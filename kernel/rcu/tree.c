@@ -321,7 +321,15 @@ static bool rcu_dynticks_in_eqs(int snap)
  */
 static bool rcu_dynticks_in_eqs_since(struct rcu_data *rdp, int snap)
 {
-	return snap != rcu_dynticks_snap(rdp->cpu);
+	/*
+	 * The first failing snapshot is already ordered against the accesses
+	 * performed by the remote CPU after it exits idle.
+	 *
+	 * The second snapshot therefore only needs to order against accesses
+	 * performed by the remote CPU prior to entering idle and therefore can
+	 * rely solely on acquire semantics.
+	 */
+	return snap != ct_dynticks_cpu_acquire(rdp->cpu);
 }
 
 /*
