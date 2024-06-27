@@ -462,7 +462,7 @@ struct iwl_per_chain_offset {
 } __packed; /* PER_CHAIN_LIMIT_OFFSET_PER_CHAIN_S_VER_1 */
 
 /**
- * struct iwl_geo_tx_power_profile_cmd_v1 - struct for PER_CHAIN_LIMIT_OFFSET_CMD cmd.
+ * struct iwl_geo_tx_power_profiles_cmd_v1 - struct for PER_CHAIN_LIMIT_OFFSET_CMD cmd.
  * @ops: operations, value from &enum iwl_geo_per_chain_offset_operation
  * @table: offset profile per band.
  */
@@ -472,7 +472,7 @@ struct iwl_geo_tx_power_profiles_cmd_v1 {
 } __packed; /* PER_CHAIN_LIMIT_OFFSET_CMD_VER_1 */
 
 /**
- * struct iwl_geo_tx_power_profile_cmd_v2 - struct for PER_CHAIN_LIMIT_OFFSET_CMD cmd.
+ * struct iwl_geo_tx_power_profiles_cmd_v2 - struct for PER_CHAIN_LIMIT_OFFSET_CMD cmd.
  * @ops: operations, value from &enum iwl_geo_per_chain_offset_operation
  * @table: offset profile per band.
  * @table_revision: 0 for not-South Korea, 1 for South Korea (the name is misleading)
@@ -484,7 +484,7 @@ struct iwl_geo_tx_power_profiles_cmd_v2 {
 } __packed; /* PER_CHAIN_LIMIT_OFFSET_CMD_VER_2 */
 
 /**
- * struct iwl_geo_tx_power_profile_cmd_v3 - struct for PER_CHAIN_LIMIT_OFFSET_CMD cmd.
+ * struct iwl_geo_tx_power_profiles_cmd_v3 - struct for PER_CHAIN_LIMIT_OFFSET_CMD cmd.
  * @ops: operations, value from &enum iwl_geo_per_chain_offset_operation
  * @table: offset profile per band.
  * @table_revision: 0 for not-South Korea, 1 for South Korea (the name is misleading)
@@ -496,7 +496,7 @@ struct iwl_geo_tx_power_profiles_cmd_v3 {
 } __packed; /* PER_CHAIN_LIMIT_OFFSET_CMD_VER_3 */
 
 /**
- * struct iwl_geo_tx_power_profile_cmd_v4 - struct for PER_CHAIN_LIMIT_OFFSET_CMD cmd.
+ * struct iwl_geo_tx_power_profiles_cmd_v4 - struct for PER_CHAIN_LIMIT_OFFSET_CMD cmd.
  * @ops: operations, value from &enum iwl_geo_per_chain_offset_operation
  * @table: offset profile per band.
  * @table_revision: 0 for not-South Korea, 1 for South Korea (the name is misleading)
@@ -508,7 +508,7 @@ struct iwl_geo_tx_power_profiles_cmd_v4 {
 } __packed; /* PER_CHAIN_LIMIT_OFFSET_CMD_VER_4 */
 
 /**
- * struct iwl_geo_tx_power_profile_cmd_v5 - struct for PER_CHAIN_LIMIT_OFFSET_CMD cmd.
+ * struct iwl_geo_tx_power_profiles_cmd_v5 - struct for PER_CHAIN_LIMIT_OFFSET_CMD cmd.
  * @ops: operations, value from &enum iwl_geo_per_chain_offset_operation
  * @table: offset profile per band.
  * @table_revision: 0 for not-South Korea, 1 for South Korea (the name is misleading)

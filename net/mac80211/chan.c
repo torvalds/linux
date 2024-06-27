@@ -295,17 +295,24 @@ ieee80211_get_max_required_bw(struct ieee80211_link_data *link)
 static enum nl80211_chan_width
 ieee80211_get_chanctx_max_required_bw(struct ieee80211_local *local,
 				      struct ieee80211_chanctx *ctx,
-				      struct ieee80211_link_data *rsvd_for)
+				      struct ieee80211_link_data *rsvd_for,
+				      bool check_reserved)
 {
 	struct ieee80211_sub_if_data *sdata;
 	struct ieee80211_link_data *link;
 	enum nl80211_chan_width max_bw = NL80211_CHAN_WIDTH_20_NOHT;
 
+	if (WARN_ON(check_reserved && rsvd_for))
+		return ctx->conf.def.width;
+
 	for_each_sdata_link(local, link) {
 		enum nl80211_chan_width width = NL80211_CHAN_WIDTH_20_NOHT;
 
-		if (link != rsvd_for &&
-		    rcu_access_pointer(link->conf->chanctx_conf) != &ctx->conf)
+		if (check_reserved) {
+			if (link->reserved_chanctx != ctx)
+				continue;
+		} else if (link != rsvd_for &&
+			   rcu_access_pointer(link->conf->chanctx_conf) != &ctx->conf)
 			continue;
 
 		switch (link->sdata->vif.type) {
@@ -359,7 +366,8 @@ ieee80211_get_chanctx_max_required_bw(struct ieee80211_local *local,
 static u32
 _ieee80211_recalc_chanctx_min_def(struct ieee80211_local *local,
 				  struct ieee80211_chanctx *ctx,
-				  struct ieee80211_link_data *rsvd_for)
+				  struct ieee80211_link_data *rsvd_for,
+				  bool check_reserved)
 {
 	enum nl80211_chan_width max_bw;
 	struct cfg80211_chan_def min_def;
@@ -379,7 +387,8 @@ _ieee80211_recalc_chanctx_min_def(struct ieee80211_local *local,
 		return 0;
 	}
 
-	max_bw = ieee80211_get_chanctx_max_required_bw(local, ctx, rsvd_for);
+	max_bw = ieee80211_get_chanctx_max_required_bw(local, ctx, rsvd_for,
+						       check_reserved);
 
 	/* downgrade chandef up to max_bw */
 	min_def = ctx->conf.def;
@@ -396,12 +405,9 @@ _ieee80211_recalc_chanctx_min_def(struct ieee80211_local *local,
 	return IEEE80211_CHANCTX_CHANGE_MIN_WIDTH;
 }
 
-/* calling this function is assuming that station vif is updated to
- * lates changes by calling ieee80211_link_update_chanreq
- */
 static void ieee80211_chan_bw_change(struct ieee80211_local *local,
 				     struct ieee80211_chanctx *ctx,
-				     bool narrowed)
+				     bool reserved, bool narrowed)
 {
 	struct sta_info *sta;
 	struct ieee80211_supported_band *sband =
@@ -418,12 +424,16 @@ static void ieee80211_chan_bw_change(struct ieee80211_local *local,
 			continue;
 
 		for (link_id = 0; link_id < ARRAY_SIZE(sta->sdata->link); link_id++) {
-			struct ieee80211_bss_conf *link_conf =
-				rcu_dereference(sdata->vif.link_conf[link_id]);
+			struct ieee80211_link_data *link =
+				rcu_dereference(sdata->link[link_id]);
+			struct ieee80211_bss_conf *link_conf;
+			struct cfg80211_chan_def *new_chandef;
 			struct link_sta_info *link_sta;
 
-			if (!link_conf)
+			if (!link)
 				continue;
+
+			link_conf = link->conf;
 
 			if (rcu_access_pointer(link_conf->chanctx_conf) != &ctx->conf)
 				continue;
@@ -432,7 +442,13 @@ static void ieee80211_chan_bw_change(struct ieee80211_local *local,
 			if (!link_sta)
 				continue;
 
-			new_sta_bw = ieee80211_sta_cur_vht_bw(link_sta);
+			if (reserved)
+				new_chandef = &link->reserved.oper;
+			else
+				new_chandef = &link_conf->chanreq.oper;
+
+			new_sta_bw = _ieee80211_sta_cur_vht_bw(link_sta,
+							       new_chandef);
 
 			/* nothing change */
 			if (new_sta_bw == link_sta->pub->bandwidth)
@@ -458,20 +474,22 @@ static void ieee80211_chan_bw_change(struct ieee80211_local *local,
  */
 void ieee80211_recalc_chanctx_min_def(struct ieee80211_local *local,
 				      struct ieee80211_chanctx *ctx,
-				      struct ieee80211_link_data *rsvd_for)
+				      struct ieee80211_link_data *rsvd_for,
+				      bool check_reserved)
 {
-	u32 changed = _ieee80211_recalc_chanctx_min_def(local, ctx, rsvd_for);
+	u32 changed = _ieee80211_recalc_chanctx_min_def(local, ctx, rsvd_for,
+							check_reserved);
 
 	if (!changed)
 		return;
 
 	/* check is BW narrowed */
-	ieee80211_chan_bw_change(local, ctx, true);
+	ieee80211_chan_bw_change(local, ctx, false, true);
 
 	drv_change_chanctx(local, ctx, changed);
 
 	/* check is BW wider */
-	ieee80211_chan_bw_change(local, ctx, false);
+	ieee80211_chan_bw_change(local, ctx, false, false);
 }
 
 static void _ieee80211_change_chanctx(struct ieee80211_local *local,
@@ -505,10 +523,10 @@ static void _ieee80211_change_chanctx(struct ieee80211_local *local,
 	 * due to maybe not returning from it, e.g in case new context was added
 	 * first time with all parameters up to date.
 	 */
-	ieee80211_chan_bw_change(local, old_ctx, true);
+	ieee80211_chan_bw_change(local, old_ctx, false, true);
 
 	if (ieee80211_chanreq_identical(&ctx_req, chanreq)) {
-		ieee80211_recalc_chanctx_min_def(local, ctx, rsvd_for);
+		ieee80211_recalc_chanctx_min_def(local, ctx, rsvd_for, false);
 		return;
 	}
 
@@ -529,14 +547,14 @@ static void _ieee80211_change_chanctx(struct ieee80211_local *local,
 	ctx->conf.ap = chanreq->ap;
 
 	/* check if min chanctx also changed */
-	changed |= _ieee80211_recalc_chanctx_min_def(local, ctx, rsvd_for);
+	changed |= _ieee80211_recalc_chanctx_min_def(local, ctx, rsvd_for, false);
 
 	ieee80211_add_wbrf(local, &ctx->conf.def);
 
 	drv_change_chanctx(local, ctx, changed);
 
 	/* check if BW is wider */
-	ieee80211_chan_bw_change(local, old_ctx, false);
+	ieee80211_chan_bw_change(local, old_ctx, false, false);
 }
 
 static void ieee80211_change_chanctx(struct ieee80211_local *local,
@@ -656,7 +674,7 @@ ieee80211_alloc_chanctx(struct ieee80211_local *local,
 	ctx->conf.rx_chains_dynamic = 1;
 	ctx->mode = mode;
 	ctx->conf.radar_enabled = false;
-	_ieee80211_recalc_chanctx_min_def(local, ctx, NULL);
+	_ieee80211_recalc_chanctx_min_def(local, ctx, NULL, false);
 
 	return ctx;
 }
@@ -775,11 +793,22 @@ void ieee80211_recalc_chanctx_chantype(struct ieee80211_local *local,
 
 	/* TDLS peers can sometimes affect the chandef width */
 	list_for_each_entry(sta, &local->sta_list, list) {
+		struct ieee80211_sub_if_data *sdata = sta->sdata;
 		struct ieee80211_chan_req tdls_chanreq = {};
+		int tdls_link_id;
+
 		if (!sta->uploaded ||
 		    !test_sta_flag(sta, WLAN_STA_TDLS_WIDER_BW) ||
 		    !test_sta_flag(sta, WLAN_STA_AUTHORIZED) ||
 		    !sta->tdls_chandef.chan)
+			continue;
+
+		tdls_link_id = ieee80211_tdls_sta_link_id(sta);
+		link = sdata_dereference(sdata->link[tdls_link_id], sdata);
+		if (!link)
+			continue;
+
+		if (rcu_access_pointer(link->conf->chanctx_conf) != conf)
 			continue;
 
 		tdls_chanreq.oper = sta->tdls_chandef;
@@ -838,7 +867,7 @@ static int ieee80211_assign_link_chanctx(struct ieee80211_link_data *link,
 
 	if (new_ctx) {
 		/* recalc considering the link we'll use it for now */
-		ieee80211_recalc_chanctx_min_def(local, new_ctx, link);
+		ieee80211_recalc_chanctx_min_def(local, new_ctx, link, false);
 
 		ret = drv_assign_vif_chanctx(local, sdata, link->conf, new_ctx);
 		if (assign_on_failure || !ret) {
@@ -861,12 +890,12 @@ static int ieee80211_assign_link_chanctx(struct ieee80211_link_data *link,
 		ieee80211_recalc_chanctx_chantype(local, curr_ctx);
 		ieee80211_recalc_smps_chanctx(local, curr_ctx);
 		ieee80211_recalc_radar_chanctx(local, curr_ctx);
-		ieee80211_recalc_chanctx_min_def(local, curr_ctx, NULL);
+		ieee80211_recalc_chanctx_min_def(local, curr_ctx, NULL, false);
 	}
 
 	if (new_ctx && ieee80211_chanctx_num_assigned(local, new_ctx) > 0) {
 		ieee80211_recalc_txpower(sdata, false);
-		ieee80211_recalc_chanctx_min_def(local, new_ctx, NULL);
+		ieee80211_recalc_chanctx_min_def(local, new_ctx, NULL, false);
 	}
 
 	if (conf) {
@@ -1279,7 +1308,7 @@ ieee80211_link_use_reserved_reassign(struct ieee80211_link_data *link)
 	if (ieee80211_chanctx_refcount(local, old_ctx) == 0)
 		ieee80211_free_chanctx(local, old_ctx, false);
 
-	ieee80211_recalc_chanctx_min_def(local, new_ctx, NULL);
+	ieee80211_recalc_chanctx_min_def(local, new_ctx, NULL, false);
 	ieee80211_recalc_smps_chanctx(local, new_ctx);
 	ieee80211_recalc_radar_chanctx(local, new_ctx);
 
@@ -1545,6 +1574,31 @@ static int ieee80211_vif_use_reserved_switch(struct ieee80211_local *local)
 		goto err;
 	}
 
+	/* update station rate control and min width before switch */
+	list_for_each_entry(ctx, &local->chanctx_list, list) {
+		struct ieee80211_link_data *link;
+
+		if (ctx->replace_state != IEEE80211_CHANCTX_REPLACES_OTHER)
+			continue;
+
+		if (WARN_ON(!ctx->replace_ctx)) {
+			err = -EINVAL;
+			goto err;
+		}
+
+		list_for_each_entry(link, &ctx->reserved_links,
+				    reserved_chanctx_list) {
+			if (!ieee80211_link_has_in_place_reservation(link))
+				continue;
+
+			ieee80211_chan_bw_change(local,
+						 ieee80211_link_get_chanctx(link),
+						 true, true);
+		}
+
+		ieee80211_recalc_chanctx_min_def(local, ctx, NULL, true);
+	}
+
 	/*
 	 * All necessary vifs are ready. Perform the switch now depending on
 	 * reservations and driver capabilities.
@@ -1612,7 +1666,7 @@ static int ieee80211_vif_use_reserved_switch(struct ieee80211_local *local)
 		ieee80211_recalc_chanctx_chantype(local, ctx);
 		ieee80211_recalc_smps_chanctx(local, ctx);
 		ieee80211_recalc_radar_chanctx(local, ctx);
-		ieee80211_recalc_chanctx_min_def(local, ctx, NULL);
+		ieee80211_recalc_chanctx_min_def(local, ctx, NULL, false);
 
 		list_for_each_entry_safe(link, link_tmp, &ctx->reserved_links,
 					 reserved_chanctx_list) {
@@ -1625,6 +1679,7 @@ static int ieee80211_vif_use_reserved_switch(struct ieee80211_local *local)
 			link->reserved_chanctx = NULL;
 
 			ieee80211_link_chanctx_reservation_complete(link);
+			ieee80211_chan_bw_change(local, ctx, false, false);
 		}
 
 		/*

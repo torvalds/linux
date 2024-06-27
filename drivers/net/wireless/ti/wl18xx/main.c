@@ -1177,8 +1177,49 @@ static int wl18xx_hw_init(struct wl1271 *wl)
 	return ret;
 }
 
-static void wl18xx_convert_fw_status(struct wl1271 *wl, void *raw_fw_status,
-				     struct wl_fw_status *fw_status)
+static void wl18xx_convert_fw_status_8_9_1(struct wl1271 *wl,
+					   void *raw_fw_status,
+					   struct wl_fw_status *fw_status)
+{
+	struct wl18xx_fw_status_8_9_1 *int_fw_status = raw_fw_status;
+
+	fw_status->intr = le32_to_cpu(int_fw_status->intr);
+	fw_status->fw_rx_counter = int_fw_status->fw_rx_counter;
+	fw_status->drv_rx_counter = int_fw_status->drv_rx_counter;
+	fw_status->tx_results_counter = int_fw_status->tx_results_counter;
+	fw_status->rx_pkt_descs = int_fw_status->rx_pkt_descs;
+
+	fw_status->fw_localtime = le32_to_cpu(int_fw_status->fw_localtime);
+	fw_status->link_ps_bitmap = le32_to_cpu(int_fw_status->link_ps_bitmap);
+	fw_status->link_fast_bitmap =
+			le32_to_cpu(int_fw_status->link_fast_bitmap);
+	fw_status->total_released_blks =
+			le32_to_cpu(int_fw_status->total_released_blks);
+	fw_status->tx_total = le32_to_cpu(int_fw_status->tx_total);
+
+	fw_status->counters.tx_released_pkts =
+			int_fw_status->counters.tx_released_pkts;
+	fw_status->counters.tx_lnk_free_pkts =
+			int_fw_status->counters.tx_lnk_free_pkts;
+	fw_status->counters.tx_lnk_sec_pn16 =
+			int_fw_status->counters.tx_lnk_sec_pn16;
+	fw_status->counters.tx_voice_released_blks =
+			int_fw_status->counters.tx_voice_released_blks;
+	fw_status->counters.tx_last_rate =
+			int_fw_status->counters.tx_last_rate;
+	fw_status->counters.tx_last_rate_mbps =
+			int_fw_status->counters.tx_last_rate_mbps;
+	fw_status->counters.hlid =
+			int_fw_status->counters.hlid;
+
+	fw_status->log_start_addr = le32_to_cpu(int_fw_status->log_start_addr);
+
+	fw_status->priv = &int_fw_status->priv;
+}
+
+static void wl18xx_convert_fw_status_8_9_0(struct wl1271 *wl,
+					   void *raw_fw_status,
+					   struct wl_fw_status *fw_status)
 {
 	struct wl18xx_fw_status *int_fw_status = raw_fw_status;
 
@@ -1212,6 +1253,15 @@ static void wl18xx_convert_fw_status(struct wl1271 *wl, void *raw_fw_status,
 	fw_status->log_start_addr = le32_to_cpu(int_fw_status->log_start_addr);
 
 	fw_status->priv = &int_fw_status->priv;
+}
+
+static void wl18xx_convert_fw_status(struct wl1271 *wl, void *raw_fw_status,
+				     struct wl_fw_status *fw_status)
+{
+	if (wl->chip.fw_ver[FW_VER_MAJOR] == 0)
+		wl18xx_convert_fw_status_8_9_0(wl, raw_fw_status, fw_status);
+	else
+		wl18xx_convert_fw_status_8_9_1(wl, raw_fw_status, fw_status);
 }
 
 static void wl18xx_set_tx_desc_csum(struct wl1271 *wl,
@@ -1515,11 +1565,28 @@ static int wl18xx_handle_static_data(struct wl1271 *wl,
 {
 	struct wl18xx_static_data_priv *static_data_priv =
 		(struct wl18xx_static_data_priv *) static_data->priv;
+	size_t fw_status_len;
 
 	strscpy(wl->chip.phy_fw_ver_str, static_data_priv->phy_version,
 		sizeof(wl->chip.phy_fw_ver_str));
 
 	wl1271_info("PHY firmware version: %s", static_data_priv->phy_version);
+
+	/* Adjust the firmware status size according to the firmware version */
+	if (wl->chip.fw_ver[FW_VER_MAJOR] == 0)
+		fw_status_len = sizeof(struct wl18xx_fw_status);
+	else
+		fw_status_len = sizeof(struct wl18xx_fw_status_8_9_1);
+
+	if (wl->fw_status_len != fw_status_len) {
+		void *new_status = krealloc(wl->raw_fw_status, fw_status_len,
+					    GFP_KERNEL | __GFP_ZERO);
+		if (!new_status)
+			return -ENOMEM;
+
+		wl->raw_fw_status = new_status;
+		wl->fw_status_len = fw_status_len;
+	}
 
 	return 0;
 }

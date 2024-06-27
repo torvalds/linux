@@ -2098,7 +2098,7 @@ static int mac80211_hwsim_start(struct ieee80211_hw *hw)
 }
 
 
-static void mac80211_hwsim_stop(struct ieee80211_hw *hw)
+static void mac80211_hwsim_stop(struct ieee80211_hw *hw, bool suspend)
 {
 	struct mac80211_hwsim_data *data = hw->priv;
 	int i;
@@ -2361,6 +2361,7 @@ static const char * const hwsim_chanwidths[] = {
 	[NL80211_CHAN_WIDTH_4] = "4MHz",
 	[NL80211_CHAN_WIDTH_8] = "8MHz",
 	[NL80211_CHAN_WIDTH_16] = "16MHz",
+	[NL80211_CHAN_WIDTH_320] = "eht320",
 };
 
 static int mac80211_hwsim_config(struct ieee80211_hw *hw, u32 changed)

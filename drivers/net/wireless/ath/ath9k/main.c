@@ -895,7 +895,7 @@ static void ath9k_pending_key_del(struct ath_softc *sc, u8 keyix)
 	ath_key_delete(common, keyix);
 }
 
-static void ath9k_stop(struct ieee80211_hw *hw)
+static void ath9k_stop(struct ieee80211_hw *hw, bool suspend)
 {
 	struct ath_softc *sc = hw->priv;
 	struct ath_hw *ah = sc->sc_ah;

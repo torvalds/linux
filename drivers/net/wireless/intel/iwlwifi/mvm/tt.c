@@ -299,7 +299,7 @@ static void check_exit_ctkill(struct work_struct *work)
 
 	ret = iwl_mvm_get_temp(mvm, &temp);
 
-	__iwl_mvm_mac_stop(mvm);
+	__iwl_mvm_mac_stop(mvm, false);
 
 	if (ret)
 		goto reschedule;

@@ -223,7 +223,7 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 				 enum nl80211_band current_band,
 				 u32 vht_cap_info,
 				 struct ieee80211_conn_settings *conn,
-				 u8 *bssid,
+				 u8 *bssid, bool unprot_action,
 				 struct ieee80211_csa_ie *csa_ie)
 {
 	enum nl80211_band new_band = current_band;
@@ -258,8 +258,10 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 
 		if (!ieee80211_operating_class_to_band(new_op_class, &new_band)) {
 			new_op_class = 0;
-			sdata_info(sdata, "cannot understand ECSA IE operating class, %d, ignoring\n",
-				   ext_chansw_elem->new_operating_class);
+			if (!unprot_action)
+				sdata_info(sdata,
+					   "cannot understand ECSA IE operating class, %d, ignoring\n",
+					   ext_chansw_elem->new_operating_class);
 		} else {
 			new_chan_no = ext_chansw_elem->new_ch_num;
 			csa_ie->count = ext_chansw_elem->count;
@@ -293,9 +295,10 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 	new_freq = ieee80211_channel_to_frequency(new_chan_no, new_band);
 	new_chan = ieee80211_get_channel(sdata->local->hw.wiphy, new_freq);
 	if (!new_chan || new_chan->flags & IEEE80211_CHAN_DISABLED) {
-		sdata_info(sdata,
-			   "BSS %pM switches to unsupported channel (%d MHz), disconnecting\n",
-			   bssid, new_freq);
+		if (!unprot_action)
+			sdata_info(sdata,
+				   "BSS %pM switches to unsupported channel (%d MHz), disconnecting\n",
+				   bssid, new_freq);
 		return -EINVAL;
 	}
 

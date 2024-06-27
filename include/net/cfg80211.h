@@ -125,33 +125,36 @@ struct wiphy;
  * @IEEE80211_CHAN_CAN_MONITOR: This channel can be used for monitor
  *	mode even in the presence of other (regulatory) restrictions,
  *	even if it is otherwise disabled.
+ * @IEEE80211_CHAN_ALLOW_6GHZ_VLP_AP: Allow using this channel for AP operation
+ *	with very low power (VLP), even if otherwise set to NO_IR.
  */
 enum ieee80211_channel_flags {
-	IEEE80211_CHAN_DISABLED		= 1<<0,
-	IEEE80211_CHAN_NO_IR		= 1<<1,
-	IEEE80211_CHAN_PSD		= 1<<2,
-	IEEE80211_CHAN_RADAR		= 1<<3,
-	IEEE80211_CHAN_NO_HT40PLUS	= 1<<4,
-	IEEE80211_CHAN_NO_HT40MINUS	= 1<<5,
-	IEEE80211_CHAN_NO_OFDM		= 1<<6,
-	IEEE80211_CHAN_NO_80MHZ		= 1<<7,
-	IEEE80211_CHAN_NO_160MHZ	= 1<<8,
-	IEEE80211_CHAN_INDOOR_ONLY	= 1<<9,
-	IEEE80211_CHAN_IR_CONCURRENT	= 1<<10,
-	IEEE80211_CHAN_NO_20MHZ		= 1<<11,
-	IEEE80211_CHAN_NO_10MHZ		= 1<<12,
-	IEEE80211_CHAN_NO_HE		= 1<<13,
-	IEEE80211_CHAN_1MHZ		= 1<<14,
-	IEEE80211_CHAN_2MHZ		= 1<<15,
-	IEEE80211_CHAN_4MHZ		= 1<<16,
-	IEEE80211_CHAN_8MHZ		= 1<<17,
-	IEEE80211_CHAN_16MHZ		= 1<<18,
-	IEEE80211_CHAN_NO_320MHZ	= 1<<19,
-	IEEE80211_CHAN_NO_EHT		= 1<<20,
-	IEEE80211_CHAN_DFS_CONCURRENT	= 1<<21,
-	IEEE80211_CHAN_NO_6GHZ_VLP_CLIENT = 1<<22,
-	IEEE80211_CHAN_NO_6GHZ_AFC_CLIENT = 1<<23,
-	IEEE80211_CHAN_CAN_MONITOR	= 1<<24,
+	IEEE80211_CHAN_DISABLED			= BIT(0),
+	IEEE80211_CHAN_NO_IR			= BIT(1),
+	IEEE80211_CHAN_PSD			= BIT(2),
+	IEEE80211_CHAN_RADAR			= BIT(3),
+	IEEE80211_CHAN_NO_HT40PLUS		= BIT(4),
+	IEEE80211_CHAN_NO_HT40MINUS		= BIT(5),
+	IEEE80211_CHAN_NO_OFDM			= BIT(6),
+	IEEE80211_CHAN_NO_80MHZ			= BIT(7),
+	IEEE80211_CHAN_NO_160MHZ		= BIT(8),
+	IEEE80211_CHAN_INDOOR_ONLY		= BIT(9),
+	IEEE80211_CHAN_IR_CONCURRENT		= BIT(10),
+	IEEE80211_CHAN_NO_20MHZ			= BIT(11),
+	IEEE80211_CHAN_NO_10MHZ			= BIT(12),
+	IEEE80211_CHAN_NO_HE			= BIT(13),
+	IEEE80211_CHAN_1MHZ			= BIT(14),
+	IEEE80211_CHAN_2MHZ			= BIT(15),
+	IEEE80211_CHAN_4MHZ			= BIT(16),
+	IEEE80211_CHAN_8MHZ			= BIT(17),
+	IEEE80211_CHAN_16MHZ			= BIT(18),
+	IEEE80211_CHAN_NO_320MHZ		= BIT(19),
+	IEEE80211_CHAN_NO_EHT			= BIT(20),
+	IEEE80211_CHAN_DFS_CONCURRENT		= BIT(21),
+	IEEE80211_CHAN_NO_6GHZ_VLP_CLIENT	= BIT(22),
+	IEEE80211_CHAN_NO_6GHZ_AFC_CLIENT	= BIT(23),
+	IEEE80211_CHAN_CAN_MONITOR		= BIT(24),
+	IEEE80211_CHAN_ALLOW_6GHZ_VLP_AP	= BIT(25),
 };
 
 #define IEEE80211_CHAN_NO_HT40 \
@@ -229,13 +232,13 @@ struct ieee80211_channel {
  * @IEEE80211_RATE_SUPPORTS_10MHZ: Rate can be used in 10 MHz mode
  */
 enum ieee80211_rate_flags {
-	IEEE80211_RATE_SHORT_PREAMBLE	= 1<<0,
-	IEEE80211_RATE_MANDATORY_A	= 1<<1,
-	IEEE80211_RATE_MANDATORY_B	= 1<<2,
-	IEEE80211_RATE_MANDATORY_G	= 1<<3,
-	IEEE80211_RATE_ERP_G		= 1<<4,
-	IEEE80211_RATE_SUPPORTS_5MHZ	= 1<<5,
-	IEEE80211_RATE_SUPPORTS_10MHZ	= 1<<6,
+	IEEE80211_RATE_SHORT_PREAMBLE	= BIT(0),
+	IEEE80211_RATE_MANDATORY_A	= BIT(1),
+	IEEE80211_RATE_MANDATORY_B	= BIT(2),
+	IEEE80211_RATE_MANDATORY_G	= BIT(3),
+	IEEE80211_RATE_ERP_G		= BIT(4),
+	IEEE80211_RATE_SUPPORTS_5MHZ	= BIT(5),
+	IEEE80211_RATE_SUPPORTS_10MHZ	= BIT(6),
 };
 
 /**
@@ -1957,9 +1960,9 @@ struct rate_info {
  * @BSS_PARAM_FLAGS_SHORT_SLOT_TIME: whether short slot time is enabled
  */
 enum bss_param_flags {
-	BSS_PARAM_FLAGS_CTS_PROT	= 1<<0,
-	BSS_PARAM_FLAGS_SHORT_PREAMBLE	= 1<<1,
-	BSS_PARAM_FLAGS_SHORT_SLOT_TIME	= 1<<2,
+	BSS_PARAM_FLAGS_CTS_PROT	= BIT(0),
+	BSS_PARAM_FLAGS_SHORT_PREAMBLE	= BIT(1),
+	BSS_PARAM_FLAGS_SHORT_SLOT_TIME	= BIT(2),
 };
 
 /**
@@ -2266,13 +2269,13 @@ static inline int cfg80211_get_station(struct net_device *dev,
  * @MONITOR_FLAG_ACTIVE: active monitor, ACKs frames on its MAC address
  */
 enum monitor_flags {
-	MONITOR_FLAG_CHANGED		= 1<<__NL80211_MNTR_FLAG_INVALID,
-	MONITOR_FLAG_FCSFAIL		= 1<<NL80211_MNTR_FLAG_FCSFAIL,
-	MONITOR_FLAG_PLCPFAIL		= 1<<NL80211_MNTR_FLAG_PLCPFAIL,
-	MONITOR_FLAG_CONTROL		= 1<<NL80211_MNTR_FLAG_CONTROL,
-	MONITOR_FLAG_OTHER_BSS		= 1<<NL80211_MNTR_FLAG_OTHER_BSS,
-	MONITOR_FLAG_COOK_FRAMES	= 1<<NL80211_MNTR_FLAG_COOK_FRAMES,
-	MONITOR_FLAG_ACTIVE		= 1<<NL80211_MNTR_FLAG_ACTIVE,
+	MONITOR_FLAG_CHANGED		= BIT(__NL80211_MNTR_FLAG_INVALID),
+	MONITOR_FLAG_FCSFAIL		= BIT(NL80211_MNTR_FLAG_FCSFAIL),
+	MONITOR_FLAG_PLCPFAIL		= BIT(NL80211_MNTR_FLAG_PLCPFAIL),
+	MONITOR_FLAG_CONTROL		= BIT(NL80211_MNTR_FLAG_CONTROL),
+	MONITOR_FLAG_OTHER_BSS		= BIT(NL80211_MNTR_FLAG_OTHER_BSS),
+	MONITOR_FLAG_COOK_FRAMES	= BIT(NL80211_MNTR_FLAG_COOK_FRAMES),
+	MONITOR_FLAG_ACTIVE		= BIT(NL80211_MNTR_FLAG_ACTIVE),
 };
 
 /**
@@ -3399,15 +3402,15 @@ enum cfg80211_connect_params_changed {
  * @WIPHY_PARAM_TXQ_QUANTUM: TXQ scheduler quantum
  */
 enum wiphy_params_flags {
-	WIPHY_PARAM_RETRY_SHORT		= 1 << 0,
-	WIPHY_PARAM_RETRY_LONG		= 1 << 1,
-	WIPHY_PARAM_FRAG_THRESHOLD	= 1 << 2,
-	WIPHY_PARAM_RTS_THRESHOLD	= 1 << 3,
-	WIPHY_PARAM_COVERAGE_CLASS	= 1 << 4,
-	WIPHY_PARAM_DYN_ACK		= 1 << 5,
-	WIPHY_PARAM_TXQ_LIMIT		= 1 << 6,
-	WIPHY_PARAM_TXQ_MEMORY_LIMIT	= 1 << 7,
-	WIPHY_PARAM_TXQ_QUANTUM		= 1 << 8,
+	WIPHY_PARAM_RETRY_SHORT		= BIT(0),
+	WIPHY_PARAM_RETRY_LONG		= BIT(1),
+	WIPHY_PARAM_FRAG_THRESHOLD	= BIT(2),
+	WIPHY_PARAM_RTS_THRESHOLD	= BIT(3),
+	WIPHY_PARAM_COVERAGE_CLASS	= BIT(4),
+	WIPHY_PARAM_DYN_ACK		= BIT(5),
+	WIPHY_PARAM_TXQ_LIMIT		= BIT(6),
+	WIPHY_PARAM_TXQ_MEMORY_LIMIT	= BIT(7),
+	WIPHY_PARAM_TXQ_QUANTUM		= BIT(8),
 };
 
 #define IEEE80211_DEFAULT_AIRTIME_WEIGHT	256
@@ -6080,6 +6083,21 @@ void wiphy_delayed_work_cancel(struct wiphy *wiphy,
  */
 void wiphy_delayed_work_flush(struct wiphy *wiphy,
 			      struct wiphy_delayed_work *dwork);
+
+/**
+ * enum ieee80211_ap_reg_power - regulatory power for an Access Point
+ *
+ * @IEEE80211_REG_UNSET_AP: Access Point has no regulatory power mode
+ * @IEEE80211_REG_LPI_AP: Indoor Access Point
+ * @IEEE80211_REG_SP_AP: Standard power Access Point
+ * @IEEE80211_REG_VLP_AP: Very low power Access Point
+ */
+enum ieee80211_ap_reg_power {
+	IEEE80211_REG_UNSET_AP,
+	IEEE80211_REG_LPI_AP,
+	IEEE80211_REG_SP_AP,
+	IEEE80211_REG_VLP_AP,
+};
 
 /**
  * struct wireless_dev - wireless device state
@@ -8786,6 +8804,34 @@ static inline void cfg80211_report_obss_beacon(struct wiphy *wiphy,
 }
 
 /**
+ * struct cfg80211_beaconing_check_config - beacon check configuration
+ * @iftype: the interface type to check for
+ * @relax: allow IR-relaxation conditions to apply (e.g. another
+ *	interface connected already on the same channel)
+ *	NOTE: If this is set, wiphy mutex must be held.
+ * @reg_power: &enum ieee80211_ap_reg_power value indicating the
+ *	advertised/used 6 GHz regulatory power setting
+ */
+struct cfg80211_beaconing_check_config {
+	enum nl80211_iftype iftype;
+	enum ieee80211_ap_reg_power reg_power;
+	bool relax;
+};
+
+/**
+ * cfg80211_reg_check_beaconing - check if beaconing is allowed
+ * @wiphy: the wiphy
+ * @chandef: the channel definition
+ * @cfg: additional parameters for the checking
+ *
+ * Return: %true if there is no secondary channel or the secondary channel(s)
+ * can be used for beaconing (i.e. is not a radar channel etc.)
+ */
+bool cfg80211_reg_check_beaconing(struct wiphy *wiphy,
+				  struct cfg80211_chan_def *chandef,
+				  struct cfg80211_beaconing_check_config *cfg);
+
+/**
  * cfg80211_reg_can_beacon - check if beaconing is allowed
  * @wiphy: the wiphy
  * @chandef: the channel definition
@@ -8794,9 +8840,17 @@ static inline void cfg80211_report_obss_beacon(struct wiphy *wiphy,
  * Return: %true if there is no secondary channel or the secondary channel(s)
  * can be used for beaconing (i.e. is not a radar channel etc.)
  */
-bool cfg80211_reg_can_beacon(struct wiphy *wiphy,
-			     struct cfg80211_chan_def *chandef,
-			     enum nl80211_iftype iftype);
+static inline bool
+cfg80211_reg_can_beacon(struct wiphy *wiphy,
+			struct cfg80211_chan_def *chandef,
+			enum nl80211_iftype iftype)
+{
+	struct cfg80211_beaconing_check_config config = {
+		.iftype = iftype,
+	};
+
+	return cfg80211_reg_check_beaconing(wiphy, chandef, &config);
+}
 
 /**
  * cfg80211_reg_can_beacon_relax - check if beaconing is allowed with relaxation
@@ -8811,9 +8865,18 @@ bool cfg80211_reg_can_beacon(struct wiphy *wiphy,
  *
  * Context: Requires the wiphy mutex to be held.
  */
-bool cfg80211_reg_can_beacon_relax(struct wiphy *wiphy,
-				   struct cfg80211_chan_def *chandef,
-				   enum nl80211_iftype iftype);
+static inline bool
+cfg80211_reg_can_beacon_relax(struct wiphy *wiphy,
+			      struct cfg80211_chan_def *chandef,
+			      enum nl80211_iftype iftype)
+{
+	struct cfg80211_beaconing_check_config config = {
+		.iftype = iftype,
+		.relax = true,
+	};
+
+	return cfg80211_reg_check_beaconing(wiphy, chandef, &config);
+}
 
 /**
  * cfg80211_ch_switch_notify - update wdev channel and notify userspace

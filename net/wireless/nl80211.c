@@ -315,8 +315,7 @@ nl80211_pmsr_ftm_req_attr_policy[NL80211_PMSR_FTM_REQ_ATTR_MAX + 1] = {
 	[NL80211_PMSR_FTM_REQ_ATTR_BURST_PERIOD] = { .type = NLA_U16 },
 	[NL80211_PMSR_FTM_REQ_ATTR_BURST_DURATION] =
 		NLA_POLICY_MAX(NLA_U8, 15),
-	[NL80211_PMSR_FTM_REQ_ATTR_FTMS_PER_BURST] =
-		NLA_POLICY_MAX(NLA_U8, 31),
+	[NL80211_PMSR_FTM_REQ_ATTR_FTMS_PER_BURST] = { .type = NLA_U8 },
 	[NL80211_PMSR_FTM_REQ_ATTR_NUM_FTMR_RETRIES] = { .type = NLA_U8 },
 	[NL80211_PMSR_FTM_REQ_ATTR_REQUEST_LCI] = { .type = NLA_FLAG },
 	[NL80211_PMSR_FTM_REQ_ATTR_REQUEST_CIVICLOC] = { .type = NLA_FLAG },
@@ -1207,6 +1206,12 @@ static int nl80211_msg_put_channel(struct sk_buff *msg, struct wiphy *wiphy,
 			goto nla_put_failure;
 		if ((chan->flags & IEEE80211_CHAN_NO_6GHZ_AFC_CLIENT) &&
 		    nla_put_flag(msg, NL80211_FREQUENCY_ATTR_NO_6GHZ_AFC_CLIENT))
+			goto nla_put_failure;
+		if ((chan->flags & IEEE80211_CHAN_CAN_MONITOR) &&
+		    nla_put_flag(msg, NL80211_FREQUENCY_ATTR_CAN_MONITOR))
+			goto nla_put_failure;
+		if ((chan->flags & IEEE80211_CHAN_ALLOW_6GHZ_VLP_AP) &&
+		    nla_put_flag(msg, NL80211_FREQUENCY_ATTR_ALLOW_6GHZ_VLP_AP))
 			goto nla_put_failure;
 	}
 
@@ -3348,7 +3353,7 @@ static int _nl80211_parse_chandef(struct cfg80211_registered_device *rdev,
 
 	if (!_cfg80211_chandef_usable(&rdev->wiphy, chandef,
 				      IEEE80211_CHAN_DISABLED,
-				      monitor)) {
+				      monitor ? IEEE80211_CHAN_CAN_MONITOR : 0)) {
 		NL_SET_ERR_MSG(extack, "(extension) channel is disabled");
 		return -EINVAL;
 	}
@@ -5955,6 +5960,7 @@ static int nl80211_validate_ap_phy_operation(struct cfg80211_ap_settings *params
 static int nl80211_start_ap(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg80211_registered_device *rdev = info->user_ptr[0];
+	struct cfg80211_beaconing_check_config beacon_check = {};
 	unsigned int link_id = nl80211_link_id(info->attrs);
 	struct net_device *dev = info->user_ptr[1];
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
@@ -6104,8 +6110,13 @@ static int nl80211_start_ap(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
-	if (!cfg80211_reg_can_beacon_relax(&rdev->wiphy, &params->chandef,
-					   wdev->iftype)) {
+	beacon_check.iftype = wdev->iftype;
+	beacon_check.relax = true;
+	beacon_check.reg_power =
+		cfg80211_get_6ghz_power_type(params->beacon.tail,
+					     params->beacon.tail_len);
+	if (!cfg80211_reg_check_beaconing(&rdev->wiphy, &params->chandef,
+					  &beacon_check)) {
 		err = -EINVAL;
 		goto out;
 	}
@@ -6262,6 +6273,7 @@ out:
 static int nl80211_set_beacon(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg80211_registered_device *rdev = info->user_ptr[0];
+	struct cfg80211_beaconing_check_config beacon_check = {};
 	unsigned int link_id = nl80211_link_id(info->attrs);
 	struct net_device *dev = info->user_ptr[1];
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
@@ -6287,6 +6299,19 @@ static int nl80211_set_beacon(struct sk_buff *skb, struct genl_info *info)
 				   info->extack);
 	if (err)
 		goto out;
+
+	/* recheck beaconing is permitted with possibly changed power type */
+	beacon_check.iftype = wdev->iftype;
+	beacon_check.relax = true;
+	beacon_check.reg_power =
+		cfg80211_get_6ghz_power_type(params->beacon.tail,
+					     params->beacon.tail_len);
+	if (!cfg80211_reg_check_beaconing(&rdev->wiphy,
+					  &wdev->links[link_id].ap.chandef,
+					  &beacon_check)) {
+		err = -EINVAL;
+		goto out;
+	}
 
 	attr = info->attrs[NL80211_ATTR_FILS_DISCOVERY];
 	if (attr) {

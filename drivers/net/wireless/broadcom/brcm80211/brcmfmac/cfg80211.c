@@ -4071,7 +4071,7 @@ static void brcmf_report_wowl_wakeind(struct wiphy *wiphy, struct brcmf_if *ifp)
 	struct cfg80211_wowlan_wakeup *wakeup;
 	u32 wakeind;
 	s32 err;
-	int timeout;
+	long time_left;
 
 	err = brcmf_fil_iovar_data_get(ifp, "wowl_wakeind", &wake_ind_le,
 				       sizeof(wake_ind_le));
@@ -4113,10 +4113,10 @@ static void brcmf_report_wowl_wakeind(struct wiphy *wiphy, struct brcmf_if *ifp)
 		}
 		if (wakeind & BRCMF_WOWL_PFN_FOUND) {
 			brcmf_dbg(INFO, "WOWL Wake indicator: BRCMF_WOWL_PFN_FOUND\n");
-			timeout = wait_event_timeout(cfg->wowl.nd_data_wait,
-				cfg->wowl.nd_data_completed,
-				BRCMF_ND_INFO_TIMEOUT);
-			if (!timeout)
+			time_left = wait_event_timeout(cfg->wowl.nd_data_wait,
+						       cfg->wowl.nd_data_completed,
+						       BRCMF_ND_INFO_TIMEOUT);
+			if (!time_left)
 				bphy_err(drvr, "No result for wowl net detect\n");
 			else
 				wakeup_data.net_detect = cfg->wowl.nd_info;

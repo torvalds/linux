@@ -223,12 +223,6 @@ static int iwl_dbg_tlv_alloc_region(struct iwl_trans *trans,
 		return -EINVAL;
 	}
 
-	if (type == IWL_FW_INI_REGION_PCI_IOSF_CONFIG &&
-	    !trans->ops->read_config32) {
-		IWL_ERR(trans, "WRT: Unsupported region type %u\n", type);
-		return -EOPNOTSUPP;
-	}
-
 	if (type == IWL_FW_INI_REGION_INTERNAL_BUFFER) {
 		trans->dbg.imr_data.sram_addr =
 			le32_to_cpu(reg->internal_buffer.base_addr);

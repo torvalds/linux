@@ -60,7 +60,7 @@ struct iwl_stored_beacon_notif_common {
 } __packed;
 
 /**
- * struct iwl_stored_beacon_notif - Stored beacon notification
+ * struct iwl_stored_beacon_notif_v2 - Stored beacon notification
  *
  * @common: fields common for all versions
  * @data: beacon data, length in @byte_count

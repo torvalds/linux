@@ -6112,7 +6112,7 @@ static void ath12k_mac_stop(struct ath12k *ar)
 	atomic_set(&ar->num_pending_mgmt_tx, 0);
 }
 
-static void ath12k_mac_op_stop(struct ieee80211_hw *hw)
+static void ath12k_mac_op_stop(struct ieee80211_hw *hw, bool suspend)
 {
 	struct ath12k_hw *ah = ath12k_hw_to_ah(hw);
 	struct ath12k *ar;

@@ -494,7 +494,8 @@ bool cfg80211_wdev_on_sub_chan(struct wireless_dev *wdev,
 			       bool primary_only);
 bool _cfg80211_chandef_usable(struct wiphy *wiphy,
 			      const struct cfg80211_chan_def *chandef,
-			      u32 prohibited_flags, bool monitor);
+			      u32 prohibited_flags,
+			      u32 permitting_flags);
 
 static inline unsigned int elapsed_jiffies_msecs(unsigned long start)
 {
@@ -532,6 +533,10 @@ struct cfg80211_internal_bss *
 cfg80211_bss_update(struct cfg80211_registered_device *rdev,
 		    struct cfg80211_internal_bss *tmp,
 		    bool signal_valid, unsigned long ts);
+
+enum ieee80211_ap_reg_power
+cfg80211_get_6ghz_power_type(const u8 *elems, size_t elems_len);
+
 #ifdef CONFIG_CFG80211_DEVELOPER_WARNINGS
 #define CFG80211_DEV_WARN_ON(cond)	WARN_ON(cond)
 #else

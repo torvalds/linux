@@ -1823,6 +1823,9 @@ ieee80211_have_rx_timestamp(struct ieee80211_rx_status *status)
 void ieee80211_vif_inc_num_mcast(struct ieee80211_sub_if_data *sdata);
 void ieee80211_vif_dec_num_mcast(struct ieee80211_sub_if_data *sdata);
 
+void ieee80211_vif_block_queues_csa(struct ieee80211_sub_if_data *sdata);
+void ieee80211_vif_unblock_queues_csa(struct ieee80211_sub_if_data *sdata);
+
 /* This function returns the number of multicast stations connected to this
  * interface. It returns -1 if that number is not tracked, that is for netdevs
  * not in AP or AP_VLAN mode or when using 4addr.
@@ -2155,9 +2158,21 @@ ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,
 				    const struct ieee80211_vht_cap *vht_cap_ie2,
 				    struct link_sta_info *link_sta);
 enum ieee80211_sta_rx_bandwidth
-ieee80211_sta_cap_rx_bw(struct link_sta_info *link_sta);
+_ieee80211_sta_cap_rx_bw(struct link_sta_info *link_sta,
+			 struct cfg80211_chan_def *chandef);
+static inline enum ieee80211_sta_rx_bandwidth
+ieee80211_sta_cap_rx_bw(struct link_sta_info *link_sta)
+{
+	return _ieee80211_sta_cap_rx_bw(link_sta, NULL);
+}
 enum ieee80211_sta_rx_bandwidth
-ieee80211_sta_cur_vht_bw(struct link_sta_info *link_sta);
+_ieee80211_sta_cur_vht_bw(struct link_sta_info *link_sta,
+			  struct cfg80211_chan_def *chandef);
+static inline enum ieee80211_sta_rx_bandwidth
+ieee80211_sta_cur_vht_bw(struct link_sta_info *link_sta)
+{
+	return _ieee80211_sta_cur_vht_bw(link_sta, NULL);
+}
 void ieee80211_sta_init_nss(struct link_sta_info *link_sta);
 enum ieee80211_sta_rx_bandwidth
 ieee80211_chan_width_to_rx_bw(enum nl80211_chan_width width);
@@ -2215,6 +2230,8 @@ void ieee80211_process_measurement_req(struct ieee80211_sub_if_data *sdata,
  * @conn: contains information about own capabilities and restrictions
  *	to decide which channel switch announcements can be accepted
  * @bssid: the currently connected bssid (for reporting)
+ * @unprot_action: whether the frame was an unprotected frame or not,
+ *	used for reporting
  * @csa_ie: parsed 802.11 csa elements on count, mode, chandef and mesh ttl.
  *	All of them will be filled with if success only.
  * Return: 0 on success, <0 on error and >0 if there is nothing to parse.
@@ -2224,12 +2241,12 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 				 enum nl80211_band current_band,
 				 u32 vht_cap_info,
 				 struct ieee80211_conn_settings *conn,
-				 u8 *bssid,
+				 u8 *bssid, bool unprot_action,
 				 struct ieee80211_csa_ie *csa_ie);
 
 /* Suspend/resume and hw reconfiguration */
 int ieee80211_reconfig(struct ieee80211_local *local);
-void ieee80211_stop_device(struct ieee80211_local *local);
+void ieee80211_stop_device(struct ieee80211_local *local, bool suspend);
 
 int __ieee80211_suspend(struct ieee80211_hw *hw,
 			struct cfg80211_wowlan *wowlan);
@@ -2607,7 +2624,8 @@ void ieee80211_recalc_smps_chanctx(struct ieee80211_local *local,
 				   struct ieee80211_chanctx *chanctx);
 void ieee80211_recalc_chanctx_min_def(struct ieee80211_local *local,
 				      struct ieee80211_chanctx *ctx,
-				      struct ieee80211_link_data *rsvd_for);
+				      struct ieee80211_link_data *rsvd_for,
+				      bool check_reserved);
 bool ieee80211_is_radar_required(struct ieee80211_local *local);
 
 void ieee80211_dfs_cac_timer_work(struct wiphy *wiphy, struct wiphy_work *work);

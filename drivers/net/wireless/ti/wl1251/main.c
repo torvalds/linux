@@ -415,7 +415,7 @@ out:
 	return ret;
 }
 
-static void wl1251_op_stop(struct ieee80211_hw *hw)
+static void wl1251_op_stop(struct ieee80211_hw *hw, bool suspend)
 {
 	struct wl1251 *wl = hw->priv;
 

@@ -2166,7 +2166,6 @@ static void ieee80211_csa_switch_work(struct wiphy *wiphy,
 static void ieee80211_chswitch_post_beacon(struct ieee80211_link_data *link)
 {
 	struct ieee80211_sub_if_data *sdata = link->sdata;
-	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	int ret;
 
@@ -2174,11 +2173,7 @@ static void ieee80211_chswitch_post_beacon(struct ieee80211_link_data *link)
 
 	WARN_ON(!link->conf->csa_active);
 
-	if (sdata->csa_blocked_queues) {
-		ieee80211_wake_vif_queues(local, sdata,
-					  IEEE80211_QUEUE_STOP_REASON_CSA);
-		sdata->csa_blocked_queues = false;
-	}
+	ieee80211_vif_unblock_queues_csa(sdata);
 
 	link->conf->csa_active = false;
 	link->u.mgd.csa.blocked_tx = false;
@@ -2242,11 +2237,7 @@ ieee80211_sta_abort_chanswitch(struct ieee80211_link_data *link)
 
 	ieee80211_link_unreserve_chanctx(link);
 
-	if (sdata->csa_blocked_queues) {
-		ieee80211_wake_vif_queues(local, sdata,
-					  IEEE80211_QUEUE_STOP_REASON_CSA);
-		sdata->csa_blocked_queues = false;
-	}
+	ieee80211_vif_unblock_queues_csa(sdata);
 
 	link->conf->csa_active = false;
 	link->u.mgd.csa.blocked_tx = false;
@@ -2361,7 +2352,8 @@ ieee80211_sta_other_link_csa_disappeared(struct ieee80211_link_data *link,
 enum ieee80211_csa_source {
 	IEEE80211_CSA_SOURCE_BEACON,
 	IEEE80211_CSA_SOURCE_OTHER_LINK,
-	IEEE80211_CSA_SOURCE_ACTION,
+	IEEE80211_CSA_SOURCE_PROT_ACTION,
+	IEEE80211_CSA_SOURCE_UNPROT_ACTION,
 };
 
 static void
@@ -2402,7 +2394,9 @@ ieee80211_sta_process_chanswitch(struct ieee80211_link_data *link,
 						   current_band,
 						   bss->vht_cap_info,
 						   &link->u.mgd.conn,
-						   link->u.mgd.bssid, &csa_ie);
+						   link->u.mgd.bssid,
+						   source == IEEE80211_CSA_SOURCE_UNPROT_ACTION,
+						   &csa_ie);
 		if (res == 0) {
 			ch_switch.block_tx = csa_ie.mode;
 			ch_switch.chandef = csa_ie.chanreq.oper;
@@ -2421,12 +2415,17 @@ ieee80211_sta_process_chanswitch(struct ieee80211_link_data *link,
 		res = 1;
 	}
 
-	if (res < 0)
+	if (res < 0) {
+		/* ignore this case, not a protected frame */
+		if (source == IEEE80211_CSA_SOURCE_UNPROT_ACTION)
+			return;
 		goto drop_connection;
+	}
 
 	if (link->conf->csa_active) {
 		switch (source) {
-		case IEEE80211_CSA_SOURCE_ACTION:
+		case IEEE80211_CSA_SOURCE_PROT_ACTION:
+		case IEEE80211_CSA_SOURCE_UNPROT_ACTION:
 			/* already processing - disregard action frames */
 			return;
 		case IEEE80211_CSA_SOURCE_BEACON:
@@ -2475,9 +2474,35 @@ ieee80211_sta_process_chanswitch(struct ieee80211_link_data *link,
 		}
 	}
 
-	/* nothing to do at all - no active CSA nor a new one */
-	if (res)
+	/* no active CSA nor a new one */
+	if (res) {
+		/*
+		 * However, we may have stopped queues when receiving a public
+		 * action frame that couldn't be protected, if it had the quiet
+		 * bit set. This is a trade-off, we want to be quiet as soon as
+		 * possible, but also don't trust the public action frame much,
+		 * as it can't be protected.
+		 */
+		if (unlikely(link->u.mgd.csa.blocked_tx)) {
+			link->u.mgd.csa.blocked_tx = false;
+			ieee80211_vif_unblock_queues_csa(sdata);
+		}
 		return;
+	}
+
+	/*
+	 * We don't really trust public action frames, but block queues (go to
+	 * quiet mode) for them anyway, we should get a beacon soon to either
+	 * know what the CSA really is, or figure out the public action frame
+	 * was actually an attack.
+	 */
+	if (source == IEEE80211_CSA_SOURCE_UNPROT_ACTION) {
+		if (csa_ie.mode) {
+			link->u.mgd.csa.blocked_tx = true;
+			ieee80211_vif_block_queues_csa(sdata);
+		}
+		return;
+	}
 
 	if (link->conf->chanreq.oper.chan->band !=
 	    csa_ie.chanreq.oper.chan->band) {
@@ -2571,12 +2596,8 @@ ieee80211_sta_process_chanswitch(struct ieee80211_link_data *link,
 	link->u.mgd.beacon_crc_valid = false;
 	link->u.mgd.csa.blocked_tx = csa_ie.mode;
 
-	if (csa_ie.mode &&
-	    !ieee80211_hw_check(&local->hw, HANDLES_QUIET_CSA)) {
-		ieee80211_stop_vif_queues(local, sdata,
-					  IEEE80211_QUEUE_STOP_REASON_CSA);
-		sdata->csa_blocked_queues = true;
-	}
+	if (csa_ie.mode)
+		ieee80211_vif_block_queues_csa(sdata);
 
 	cfg80211_ch_switch_started_notify(sdata->dev, &csa_ie.chanreq.oper,
 					  link->link_id, csa_ie.count,
@@ -3670,11 +3691,7 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	sdata->deflink.u.mgd.csa.blocked_tx = false;
 	sdata->deflink.u.mgd.csa.waiting_bcn = false;
 	sdata->deflink.u.mgd.csa.ignored_same_chan = false;
-	if (sdata->csa_blocked_queues) {
-		ieee80211_wake_vif_queues(local, sdata,
-					  IEEE80211_QUEUE_STOP_REASON_CSA);
-		sdata->csa_blocked_queues = false;
-	}
+	ieee80211_vif_unblock_queues_csa(sdata);
 
 	/* existing TX TSPEC sessions no longer exist */
 	memset(ifmgd->tx_tspec, 0, sizeof(ifmgd->tx_tspec));
@@ -4045,11 +4062,7 @@ static void __ieee80211_disconnect(struct ieee80211_sub_if_data *sdata)
 	sdata->vif.bss_conf.csa_active = false;
 	sdata->deflink.u.mgd.csa.waiting_bcn = false;
 	sdata->deflink.u.mgd.csa.blocked_tx = false;
-	if (sdata->csa_blocked_queues) {
-		ieee80211_wake_vif_queues(local, sdata,
-					  IEEE80211_QUEUE_STOP_REASON_CSA);
-		sdata->csa_blocked_queues = false;
-	}
+	ieee80211_vif_unblock_queues_csa(sdata);
 
 	ieee80211_report_disconnect(sdata, frame_buf, sizeof(frame_buf), tx,
 				    WLAN_REASON_DISASSOC_DUE_TO_INACTIVITY,
@@ -6654,6 +6667,29 @@ handle:
 	}
 }
 
+static bool ieee80211_mgd_ssid_mismatch(struct ieee80211_sub_if_data *sdata,
+					const struct ieee802_11_elems *elems)
+{
+	struct ieee80211_vif_cfg *cfg = &sdata->vif.cfg;
+	static u8 zero_ssid[IEEE80211_MAX_SSID_LEN];
+
+	if (!elems->ssid)
+		return false;
+
+	/* hidden SSID: zero length */
+	if (elems->ssid_len == 0)
+		return false;
+
+	if (elems->ssid_len != cfg->ssid_len)
+		return true;
+
+	/* hidden SSID: zeroed out */
+	if (memcmp(elems->ssid, zero_ssid, elems->ssid_len))
+		return false;
+
+	return memcmp(elems->ssid, cfg->ssid, cfg->ssid_len);
+}
+
 static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 				     struct ieee80211_hdr *hdr, size_t len,
 				     struct ieee80211_rx_status *rx_status)
@@ -6795,6 +6831,15 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 	elems = ieee802_11_parse_elems_full(&parse_params);
 	if (!elems)
 		return;
+
+	if (rx_status->flag & RX_FLAG_DECRYPTED &&
+	    ieee80211_mgd_ssid_mismatch(sdata, elems)) {
+		sdata_info(sdata, "SSID mismatch for AP %pM, disconnect\n",
+			   sdata->vif.cfg.ap_addr);
+		__ieee80211_disconnect(sdata);
+		return;
+	}
+
 	ncrc = elems->crc;
 
 	if (ieee80211_hw_check(&local->hw, PS_NULLFUNC_STACK) &&
@@ -7416,6 +7461,7 @@ void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_link_data *link = &sdata->deflink;
 	struct ieee80211_rx_status *rx_status;
+	struct ieee802_11_elems *elems;
 	struct ieee80211_mgmt *mgmt;
 	u16 fc;
 	int ies_len;
@@ -7459,9 +7505,8 @@ void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 		    !ether_addr_equal(mgmt->bssid, sdata->vif.cfg.ap_addr))
 			break;
 
-		if (mgmt->u.action.category == WLAN_CATEGORY_SPECTRUM_MGMT) {
-			struct ieee802_11_elems *elems;
-
+		switch (mgmt->u.action.category) {
+		case WLAN_CATEGORY_SPECTRUM_MGMT:
 			ies_len = skb->len -
 				  offsetof(struct ieee80211_mgmt,
 					   u.action.u.chan_switch.variable);
@@ -7474,16 +7519,20 @@ void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 					mgmt->u.action.u.chan_switch.variable,
 					ies_len, true, NULL);
 
-			if (elems && !elems->parse_error)
+			if (elems && !elems->parse_error) {
+				enum ieee80211_csa_source src =
+					IEEE80211_CSA_SOURCE_PROT_ACTION;
+
 				ieee80211_sta_process_chanswitch(link,
 								 rx_status->mactime,
 								 rx_status->device_timestamp,
 								 elems, elems,
-								 IEEE80211_CSA_SOURCE_ACTION);
+								 src);
+			}
 			kfree(elems);
-		} else if (mgmt->u.action.category == WLAN_CATEGORY_PUBLIC) {
-			struct ieee802_11_elems *elems;
-
+			break;
+		case WLAN_CATEGORY_PUBLIC:
+		case WLAN_CATEGORY_PROTECTED_DUAL_OF_ACTION:
 			ies_len = skb->len -
 				  offsetof(struct ieee80211_mgmt,
 					   u.action.u.ext_chan_switch.variable);
@@ -7500,6 +7549,14 @@ void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 					ies_len, true, NULL);
 
 			if (elems && !elems->parse_error) {
+				enum ieee80211_csa_source src;
+
+				if (mgmt->u.action.category ==
+						WLAN_CATEGORY_PROTECTED_DUAL_OF_ACTION)
+					src = IEEE80211_CSA_SOURCE_PROT_ACTION;
+				else
+					src = IEEE80211_CSA_SOURCE_UNPROT_ACTION;
+
 				/* for the handling code pretend it was an IE */
 				elems->ext_chansw_ie =
 					&mgmt->u.action.u.ext_chan_switch.data;
@@ -7508,10 +7565,11 @@ void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 								 rx_status->mactime,
 								 rx_status->device_timestamp,
 								 elems, elems,
-								 IEEE80211_CSA_SOURCE_ACTION);
+								 src);
 			}
 
 			kfree(elems);
+			break;
 		}
 		break;
 	}

@@ -785,7 +785,8 @@ ieee80211_ibss_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 	err = ieee80211_parse_ch_switch_ie(sdata, elems,
 					   ifibss->chandef.chan->band,
 					   vht_cap_info, &conn,
-					   ifibss->bssid, &csa_ie);
+					   ifibss->bssid, false,
+					   &csa_ie);
 	/* can't switch to destination channel, fail */
 	if (err < 0)
 		goto disconnect;

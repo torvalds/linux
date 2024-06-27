@@ -410,10 +410,11 @@ static int rsi_mac80211_start(struct ieee80211_hw *hw)
 /**
  * rsi_mac80211_stop() - This is the last handler that 802.11 module calls.
  * @hw: Pointer to the ieee80211_hw structure.
+ * @suspend: true if the this was called from suspend flow.
  *
  * Return: None.
  */
-static void rsi_mac80211_stop(struct ieee80211_hw *hw)
+static void rsi_mac80211_stop(struct ieee80211_hw *hw, bool suspend)
 {
 	struct rsi_hw *adapter = hw->priv;
 	struct rsi_common *common = adapter->priv;

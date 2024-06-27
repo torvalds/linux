@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2019, 2023 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2019, 2023-2024 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -76,7 +76,7 @@ struct iwl_phy_specific_cfg {
 } __packed; /* PHY_SPECIFIC_CONFIGURATION_API_VER_1*/
 
 /**
- * struct iwl_phy_cfg_cmd - Phy configuration command
+ * struct iwl_phy_cfg_cmd_v1 - Phy configuration command
  *
  * @phy_cfg: PHY configuration value, uses &enum iwl_fw_phy_cfg
  * @calib_control: calibration control data

@@ -268,7 +268,7 @@ static int mt7921_start(struct ieee80211_hw *hw)
 	return err;
 }
 
-static void mt7921_stop(struct ieee80211_hw *hw)
+static void mt7921_stop(struct ieee80211_hw *hw, bool suspend)
 {
 	struct mt792x_dev *dev = mt792x_hw_dev(hw);
 	int err = 0;
@@ -281,7 +281,7 @@ static void mt7921_stop(struct ieee80211_hw *hw)
 			return;
 	}
 
-	mt792x_stop(hw);
+	mt792x_stop(hw, false);
 }
 
 static int

@@ -91,7 +91,7 @@ void mt792x_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 }
 EXPORT_SYMBOL_GPL(mt792x_tx);
 
-void mt792x_stop(struct ieee80211_hw *hw)
+void mt792x_stop(struct ieee80211_hw *hw, bool suspend)
 {
 	struct mt792x_dev *dev = mt792x_hw_dev(hw);
 	struct mt792x_phy *phy = mt792x_hw_phy(hw);
