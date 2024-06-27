@@ -616,15 +616,20 @@ static ssize_t fan_store(struct device *dev, struct device_attribute *attr,
 {
 	struct amc6821_data *data = dev_get_drvdata(dev);
 	struct i2c_client *client = data->client;
-	long val;
+	unsigned long val;
 	int ix = to_sensor_dev_attr(attr)->index;
-	int ret = kstrtol(buf, 10, &val);
+	int ret = kstrtoul(buf, 10, &val);
 	if (ret)
 		return ret;
-	val = 1 > val ? 0xFFFF : 6000000/val;
+
+	/* The minimum fan speed must not be unlimited (0) */
+	if (ix == IDX_FAN1_MIN && !val)
+		return -EINVAL;
+
+	val = val > 0 ? 6000000 / clamp_val(val, 1, 6000000) : 0;
 
 	mutex_lock(&data->update_lock);
-	data->fan[ix] = (u16) clamp_val(val, 1, 0xFFFF);
+	data->fan[ix] = clamp_val(val, 0, 0xFFFF);
 	if (i2c_smbus_write_byte_data(client, fan_reg_low[ix],
 			data->fan[ix] & 0xFF)) {
 		dev_err(&client->dev, "Register write error, aborting.\n");
