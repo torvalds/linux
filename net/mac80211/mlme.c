@@ -6696,7 +6696,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 {
 	struct ieee80211_sub_if_data *sdata = link->sdata;
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
-	struct ieee80211_bss_conf *bss_conf = &sdata->vif.bss_conf;
+	struct ieee80211_bss_conf *bss_conf = link->conf;
 	struct ieee80211_vif_cfg *vif_cfg = &sdata->vif.cfg;
 	struct ieee80211_mgmt *mgmt = (void *) hdr;
 	size_t baselen;
@@ -6740,7 +6740,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 	parse_params.len = len - baselen;
 
 	rcu_read_lock();
-	chanctx_conf = rcu_dereference(link->conf->chanctx_conf);
+	chanctx_conf = rcu_dereference(bss_conf->chanctx_conf);
 	if (!chanctx_conf) {
 		rcu_read_unlock();
 		return;
@@ -6770,11 +6770,11 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 		ifmgd->assoc_data->need_beacon = false;
 		if (ieee80211_hw_check(&local->hw, TIMING_BEACON_ONLY) &&
 		    !ieee80211_is_s1g_beacon(hdr->frame_control)) {
-			link->conf->sync_tsf =
+			bss_conf->sync_tsf =
 				le64_to_cpu(mgmt->u.beacon.timestamp);
-			link->conf->sync_device_ts =
+			bss_conf->sync_device_ts =
 				rx_status->device_timestamp;
-			link->conf->sync_dtim_count = elems->dtim_count;
+			bss_conf->sync_dtim_count = elems->dtim_count;
 		}
 
 		if (elems->mbssid_config_ie)
@@ -6798,7 +6798,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 	}
 
 	if (!ifmgd->associated ||
-	    !ieee80211_rx_our_beacon(bssid, link->conf->bss))
+	    !ieee80211_rx_our_beacon(bssid, bss_conf->bss))
 		return;
 	bssid = link->u.mgd.bssid;
 
@@ -6825,7 +6825,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 	 */
 	if (!ieee80211_is_s1g_beacon(hdr->frame_control))
 		ncrc = crc32_be(0, (void *)&mgmt->u.beacon.beacon_int, 4);
-	parse_params.bss = link->conf->bss;
+	parse_params.bss = bss_conf->bss;
 	parse_params.filter = care_about_ies;
 	parse_params.crc = ncrc;
 	elems = ieee802_11_parse_elems_full(&parse_params);
@@ -6906,11 +6906,11 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 	 */
 	if (ieee80211_hw_check(&local->hw, TIMING_BEACON_ONLY) &&
 	    !ieee80211_is_s1g_beacon(hdr->frame_control)) {
-		link->conf->sync_tsf =
+		bss_conf->sync_tsf =
 			le64_to_cpu(mgmt->u.beacon.timestamp);
-		link->conf->sync_device_ts =
+		bss_conf->sync_device_ts =
 			rx_status->device_timestamp;
-		link->conf->sync_dtim_count = elems->dtim_count;
+		bss_conf->sync_dtim_count = elems->dtim_count;
 	}
 
 	if ((ncrc == link->u.mgd.beacon_crc && link->u.mgd.beacon_crc_valid) ||
@@ -6973,10 +6973,10 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 		goto free;
 	}
 
-	if (WARN_ON(!link->conf->chanreq.oper.chan))
+	if (WARN_ON(!bss_conf->chanreq.oper.chan))
 		goto free;
 
-	sband = local->hw.wiphy->bands[link->conf->chanreq.oper.chan->band];
+	sband = local->hw.wiphy->bands[bss_conf->chanreq.oper.chan->band];
 
 	changed |= ieee80211_recalc_twt_req(sdata, sband, link, link_sta, elems);
 
