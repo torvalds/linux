@@ -230,7 +230,13 @@ static inline int folio_ref_dec_return(struct folio *folio)
 
 static inline bool page_ref_add_unless(struct page *page, int nr, int u)
 {
-	bool ret = atomic_add_unless(&page->_refcount, nr, u);
+	bool ret = false;
+
+	rcu_read_lock();
+	/* avoid writing to the vmemmap area being remapped */
+	if (!page_is_fake_head(page) && page_ref_count(page) != u)
+		ret = atomic_add_unless(&page->_refcount, nr, u);
+	rcu_read_unlock();
 
 	if (page_ref_tracepoint_active(page_ref_mod_unless))
 		__page_ref_mod_unless(page, nr, ret);
