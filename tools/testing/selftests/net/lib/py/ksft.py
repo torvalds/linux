@@ -130,29 +130,29 @@ def ksft_run(cases=None, globs=None, case_pfx=None, args=()):
     for case in cases:
         KSFT_RESULT = True
         cnt += 1
+        comment = ""
+        cnt_key = ""
+
         try:
             case(*args)
         except KsftSkipEx as e:
-            ktap_result(True, cnt, case, comment="SKIP " + str(e))
-            totals['skip'] += 1
-            continue
+            comment = "SKIP " + str(e)
+            cnt_key = 'skip'
         except KsftXfailEx as e:
-            ktap_result(True, cnt, case, comment="XFAIL " + str(e))
-            totals['xfail'] += 1
-            continue
+            comment = "XFAIL " + str(e)
+            cnt_key = 'xfail'
         except Exception as e:
             tb = traceback.format_exc()
             for line in tb.strip().split('\n'):
                 ksft_pr("Exception|", line)
-            ktap_result(False, cnt, case)
-            totals['fail'] += 1
-            continue
+            KSFT_RESULT = False
+            cnt_key = 'fail'
 
-        ktap_result(KSFT_RESULT, cnt, case)
-        if KSFT_RESULT:
-            totals['pass'] += 1
-        else:
-            totals['fail'] += 1
+        if not cnt_key:
+            cnt_key = 'pass' if KSFT_RESULT else 'fail'
+
+        ktap_result(KSFT_RESULT, cnt, case, comment=comment)
+        totals[cnt_key] += 1
 
     print(
         f"# Totals: pass:{totals['pass']} fail:{totals['fail']} xfail:{totals['xfail']} xpass:0 skip:{totals['skip']} error:0"
