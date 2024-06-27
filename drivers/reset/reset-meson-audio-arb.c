@@ -129,8 +129,6 @@ static int meson_audio_arb_remove(struct platform_device *pdev)
 	writel(0, arb->regs);
 	spin_unlock(&arb->lock);
 
-	clk_disable_unprepare(arb->clk);
-
 	return 0;
 }
 
@@ -150,7 +148,7 @@ static int meson_audio_arb_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, arb);
 
-	arb->clk = devm_clk_get(dev, NULL);
+	arb->clk = devm_clk_get_enabled(dev, NULL);
 	if (IS_ERR(arb->clk))
 		return dev_err_probe(dev, PTR_ERR(arb->clk), "failed to get clock\n");
 
@@ -170,11 +168,6 @@ static int meson_audio_arb_probe(struct platform_device *pdev)
 	 * In the initial state, all memory interfaces are disabled
 	 * and the general bit is on
 	 */
-	ret = clk_prepare_enable(arb->clk);
-	if (ret) {
-		dev_err(dev, "failed to enable arb clock\n");
-		return ret;
-	}
 	writel(BIT(ARB_GENERAL_BIT), arb->regs);
 
 	/* Register reset controller */
