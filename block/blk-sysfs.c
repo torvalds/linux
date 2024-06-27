@@ -100,103 +100,65 @@ queue_ra_store(struct request_queue *q, const char *page, size_t count)
 	return ret;
 }
 
-static ssize_t queue_max_sectors_show(struct request_queue *q, char *page)
-{
-	int max_sectors_kb = queue_max_sectors(q) >> 1;
-
-	return queue_var_show(max_sectors_kb, page);
+#define QUEUE_SYSFS_LIMIT_SHOW(_field)					\
+static ssize_t queue_##_field##_show(struct request_queue *q, char *page) \
+{									\
+	return queue_var_show(q->limits._field, page);			\
 }
 
-static ssize_t queue_max_segments_show(struct request_queue *q, char *page)
-{
-	return queue_var_show(queue_max_segments(q), page);
+QUEUE_SYSFS_LIMIT_SHOW(max_segments)
+QUEUE_SYSFS_LIMIT_SHOW(max_discard_segments)
+QUEUE_SYSFS_LIMIT_SHOW(max_integrity_segments)
+QUEUE_SYSFS_LIMIT_SHOW(max_segment_size)
+QUEUE_SYSFS_LIMIT_SHOW(logical_block_size)
+QUEUE_SYSFS_LIMIT_SHOW(physical_block_size)
+QUEUE_SYSFS_LIMIT_SHOW(chunk_sectors)
+QUEUE_SYSFS_LIMIT_SHOW(io_min)
+QUEUE_SYSFS_LIMIT_SHOW(io_opt)
+QUEUE_SYSFS_LIMIT_SHOW(discard_granularity)
+QUEUE_SYSFS_LIMIT_SHOW(zone_write_granularity)
+QUEUE_SYSFS_LIMIT_SHOW(virt_boundary_mask)
+QUEUE_SYSFS_LIMIT_SHOW(dma_alignment)
+QUEUE_SYSFS_LIMIT_SHOW(max_open_zones)
+QUEUE_SYSFS_LIMIT_SHOW(max_active_zones)
+QUEUE_SYSFS_LIMIT_SHOW(atomic_write_unit_min)
+QUEUE_SYSFS_LIMIT_SHOW(atomic_write_unit_max)
+
+#define QUEUE_SYSFS_LIMIT_SHOW_SECTORS_TO_BYTES(_field)			\
+static ssize_t queue_##_field##_show(struct request_queue *q, char *page) \
+{									\
+	return sprintf(page, "%llu\n",					\
+		(unsigned long long)q->limits._field << SECTOR_SHIFT);	\
 }
 
-static ssize_t queue_max_discard_segments_show(struct request_queue *q,
-		char *page)
-{
-	return queue_var_show(queue_max_discard_segments(q), page);
+QUEUE_SYSFS_LIMIT_SHOW_SECTORS_TO_BYTES(max_discard_sectors)
+QUEUE_SYSFS_LIMIT_SHOW_SECTORS_TO_BYTES(max_hw_discard_sectors)
+QUEUE_SYSFS_LIMIT_SHOW_SECTORS_TO_BYTES(max_write_zeroes_sectors)
+QUEUE_SYSFS_LIMIT_SHOW_SECTORS_TO_BYTES(atomic_write_max_sectors)
+QUEUE_SYSFS_LIMIT_SHOW_SECTORS_TO_BYTES(atomic_write_boundary_sectors)
+
+#define QUEUE_SYSFS_LIMIT_SHOW_SECTORS_TO_KB(_field)			\
+static ssize_t queue_##_field##_show(struct request_queue *q, char *page) \
+{									\
+	return queue_var_show(q->limits._field >> 1, page);		\
 }
 
-static ssize_t queue_atomic_write_max_bytes_show(struct request_queue *q,
-						char *page)
-{
-	return queue_var_show(queue_atomic_write_max_bytes(q), page);
+QUEUE_SYSFS_LIMIT_SHOW_SECTORS_TO_KB(max_sectors)
+QUEUE_SYSFS_LIMIT_SHOW_SECTORS_TO_KB(max_hw_sectors)
+
+#define QUEUE_SYSFS_SHOW_CONST(_name, _val)				\
+static ssize_t queue_##_name##_show(struct request_queue *q, char *page) \
+{									\
+	return sprintf(page, "%d\n", _val);				\
 }
 
-static ssize_t queue_atomic_write_boundary_show(struct request_queue *q,
-						char *page)
-{
-	return queue_var_show(queue_atomic_write_boundary_bytes(q), page);
-}
+/* deprecated fields */
+QUEUE_SYSFS_SHOW_CONST(discard_zeroes_data, 0)
+QUEUE_SYSFS_SHOW_CONST(write_same_max, 0)
+QUEUE_SYSFS_SHOW_CONST(poll_delay, -1)
 
-static ssize_t queue_atomic_write_unit_min_show(struct request_queue *q,
-						char *page)
-{
-	return queue_var_show(queue_atomic_write_unit_min_bytes(q), page);
-}
-
-static ssize_t queue_atomic_write_unit_max_show(struct request_queue *q,
-						char *page)
-{
-	return queue_var_show(queue_atomic_write_unit_max_bytes(q), page);
-}
-
-static ssize_t queue_max_integrity_segments_show(struct request_queue *q, char *page)
-{
-	return queue_var_show(q->limits.max_integrity_segments, page);
-}
-
-static ssize_t queue_max_segment_size_show(struct request_queue *q, char *page)
-{
-	return queue_var_show(queue_max_segment_size(q), page);
-}
-
-static ssize_t queue_logical_block_size_show(struct request_queue *q, char *page)
-{
-	return queue_var_show(queue_logical_block_size(q), page);
-}
-
-static ssize_t queue_physical_block_size_show(struct request_queue *q, char *page)
-{
-	return queue_var_show(queue_physical_block_size(q), page);
-}
-
-static ssize_t queue_chunk_sectors_show(struct request_queue *q, char *page)
-{
-	return queue_var_show(q->limits.chunk_sectors, page);
-}
-
-static ssize_t queue_io_min_show(struct request_queue *q, char *page)
-{
-	return queue_var_show(queue_io_min(q), page);
-}
-
-static ssize_t queue_io_opt_show(struct request_queue *q, char *page)
-{
-	return queue_var_show(queue_io_opt(q), page);
-}
-
-static ssize_t queue_discard_granularity_show(struct request_queue *q, char *page)
-{
-	return queue_var_show(q->limits.discard_granularity, page);
-}
-
-static ssize_t queue_discard_max_hw_show(struct request_queue *q, char *page)
-{
-
-	return sprintf(page, "%llu\n",
-		(unsigned long long)q->limits.max_hw_discard_sectors << 9);
-}
-
-static ssize_t queue_discard_max_show(struct request_queue *q, char *page)
-{
-	return sprintf(page, "%llu\n",
-		       (unsigned long long)q->limits.max_discard_sectors << 9);
-}
-
-static ssize_t queue_discard_max_store(struct request_queue *q,
-				       const char *page, size_t count)
+static ssize_t queue_max_discard_sectors_store(struct request_queue *q,
+		const char *page, size_t count)
 {
 	unsigned long max_discard_bytes;
 	struct queue_limits lim;
@@ -221,28 +183,11 @@ static ssize_t queue_discard_max_store(struct request_queue *q,
 	return ret;
 }
 
-static ssize_t queue_discard_zeroes_data_show(struct request_queue *q, char *page)
-{
-	return queue_var_show(0, page);
-}
-
-static ssize_t queue_write_same_max_show(struct request_queue *q, char *page)
-{
-	return queue_var_show(0, page);
-}
-
-static ssize_t queue_write_zeroes_max_show(struct request_queue *q, char *page)
-{
-	return sprintf(page, "%llu\n",
-		(unsigned long long)q->limits.max_write_zeroes_sectors << 9);
-}
-
-static ssize_t queue_zone_write_granularity_show(struct request_queue *q,
-						 char *page)
-{
-	return queue_var_show(queue_zone_write_granularity(q), page);
-}
-
+/*
+ * For zone append queue_max_zone_append_sectors does not just return the
+ * underlying queue limits, but actually contains a calculation.  Because of
+ * that we can't simply use QUEUE_SYSFS_LIMIT_SHOW_SECTORS_TO_BYTES here.
+ */
 static ssize_t queue_zone_append_max_show(struct request_queue *q, char *page)
 {
 	unsigned long long max_sectors = queue_max_zone_append_sectors(q);
@@ -268,23 +213,6 @@ queue_max_sectors_store(struct request_queue *q, const char *page, size_t count)
 	if (err)
 		return err;
 	return ret;
-}
-
-static ssize_t queue_max_hw_sectors_show(struct request_queue *q, char *page)
-{
-	int max_hw_sectors_kb = queue_max_hw_sectors(q) >> 1;
-
-	return queue_var_show(max_hw_sectors_kb, page);
-}
-
-static ssize_t queue_virt_boundary_mask_show(struct request_queue *q, char *page)
-{
-	return queue_var_show(q->limits.virt_boundary_mask, page);
-}
-
-static ssize_t queue_dma_alignment_show(struct request_queue *q, char *page)
-{
-	return queue_var_show(queue_dma_alignment(q), page);
 }
 
 static ssize_t queue_feature_store(struct request_queue *q, const char *page,
@@ -325,6 +253,16 @@ QUEUE_SYSFS_FEATURE(add_random, BLK_FEAT_ADD_RANDOM)
 QUEUE_SYSFS_FEATURE(iostats, BLK_FEAT_IO_STAT)
 QUEUE_SYSFS_FEATURE(stable_writes, BLK_FEAT_STABLE_WRITES);
 
+#define QUEUE_SYSFS_FEATURE_SHOW(_name, _feature)			 \
+static ssize_t queue_##_name##_show(struct request_queue *q, char *page) \
+{									 \
+	return sprintf(page, "%u\n", !!(q->limits.features & _feature)); \
+}
+
+QUEUE_SYSFS_FEATURE_SHOW(poll, BLK_FEAT_POLL);
+QUEUE_SYSFS_FEATURE_SHOW(fua, BLK_FEAT_FUA);
+QUEUE_SYSFS_FEATURE_SHOW(dax, BLK_FEAT_DAX);
+
 static ssize_t queue_zoned_show(struct request_queue *q, char *page)
 {
 	if (blk_queue_is_zoned(q))
@@ -335,16 +273,6 @@ static ssize_t queue_zoned_show(struct request_queue *q, char *page)
 static ssize_t queue_nr_zones_show(struct request_queue *q, char *page)
 {
 	return queue_var_show(disk_nr_zones(q->disk), page);
-}
-
-static ssize_t queue_max_open_zones_show(struct request_queue *q, char *page)
-{
-	return queue_var_show(bdev_max_open_zones(q->disk->part0), page);
-}
-
-static ssize_t queue_max_active_zones_show(struct request_queue *q, char *page)
-{
-	return queue_var_show(bdev_max_active_zones(q->disk->part0), page);
 }
 
 static ssize_t queue_nomerges_show(struct request_queue *q, char *page)
@@ -405,20 +333,10 @@ queue_rq_affinity_store(struct request_queue *q, const char *page, size_t count)
 	return ret;
 }
 
-static ssize_t queue_poll_delay_show(struct request_queue *q, char *page)
-{
-	return sprintf(page, "%d\n", -1);
-}
-
 static ssize_t queue_poll_delay_store(struct request_queue *q, const char *page,
 				size_t count)
 {
 	return count;
-}
-
-static ssize_t queue_poll_show(struct request_queue *q, char *page)
-{
-	return queue_var_show(!!(q->limits.features & BLK_FEAT_POLL), page);
 }
 
 static ssize_t queue_poll_store(struct request_queue *q, const char *page,
@@ -485,16 +403,6 @@ static ssize_t queue_wc_store(struct request_queue *q, const char *page,
 	return count;
 }
 
-static ssize_t queue_fua_show(struct request_queue *q, char *page)
-{
-	return sprintf(page, "%u\n", !!(q->limits.features & BLK_FEAT_FUA));
-}
-
-static ssize_t queue_dax_show(struct request_queue *q, char *page)
-{
-	return queue_var_show(!!blk_queue_dax(q), page);
-}
-
 #define QUEUE_RO_ENTRY(_prefix, _name)			\
 static struct queue_sysfs_entry _prefix##_entry = {	\
 	.attr	= { .name = _name, .mode = 0444 },	\
@@ -525,17 +433,18 @@ QUEUE_RO_ENTRY(queue_io_opt, "optimal_io_size");
 
 QUEUE_RO_ENTRY(queue_max_discard_segments, "max_discard_segments");
 QUEUE_RO_ENTRY(queue_discard_granularity, "discard_granularity");
-QUEUE_RO_ENTRY(queue_discard_max_hw, "discard_max_hw_bytes");
-QUEUE_RW_ENTRY(queue_discard_max, "discard_max_bytes");
+QUEUE_RO_ENTRY(queue_max_hw_discard_sectors, "discard_max_hw_bytes");
+QUEUE_RW_ENTRY(queue_max_discard_sectors, "discard_max_bytes");
 QUEUE_RO_ENTRY(queue_discard_zeroes_data, "discard_zeroes_data");
 
-QUEUE_RO_ENTRY(queue_atomic_write_max_bytes, "atomic_write_max_bytes");
-QUEUE_RO_ENTRY(queue_atomic_write_boundary, "atomic_write_boundary_bytes");
+QUEUE_RO_ENTRY(queue_atomic_write_max_sectors, "atomic_write_max_bytes");
+QUEUE_RO_ENTRY(queue_atomic_write_boundary_sectors,
+		"atomic_write_boundary_bytes");
 QUEUE_RO_ENTRY(queue_atomic_write_unit_max, "atomic_write_unit_max_bytes");
 QUEUE_RO_ENTRY(queue_atomic_write_unit_min, "atomic_write_unit_min_bytes");
 
 QUEUE_RO_ENTRY(queue_write_same_max, "write_same_max_bytes");
-QUEUE_RO_ENTRY(queue_write_zeroes_max, "write_zeroes_max_bytes");
+QUEUE_RO_ENTRY(queue_max_write_zeroes_sectors, "write_zeroes_max_bytes");
 QUEUE_RO_ENTRY(queue_zone_append_max, "zone_append_max_bytes");
 QUEUE_RO_ENTRY(queue_zone_write_granularity, "zone_write_granularity");
 
@@ -652,15 +561,15 @@ static struct attribute *queue_attrs[] = {
 	&queue_io_min_entry.attr,
 	&queue_io_opt_entry.attr,
 	&queue_discard_granularity_entry.attr,
-	&queue_discard_max_entry.attr,
-	&queue_discard_max_hw_entry.attr,
+	&queue_max_discard_sectors_entry.attr,
+	&queue_max_hw_discard_sectors_entry.attr,
 	&queue_discard_zeroes_data_entry.attr,
-	&queue_atomic_write_max_bytes_entry.attr,
-	&queue_atomic_write_boundary_entry.attr,
+	&queue_atomic_write_max_sectors_entry.attr,
+	&queue_atomic_write_boundary_sectors_entry.attr,
 	&queue_atomic_write_unit_min_entry.attr,
 	&queue_atomic_write_unit_max_entry.attr,
 	&queue_write_same_max_entry.attr,
-	&queue_write_zeroes_max_entry.attr,
+	&queue_max_write_zeroes_sectors_entry.attr,
 	&queue_zone_append_max_entry.attr,
 	&queue_zone_write_granularity_entry.attr,
 	&queue_rotational_entry.attr,
