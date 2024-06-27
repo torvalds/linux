@@ -383,12 +383,6 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	if (!mvm->mld_api_is_used)
 		ieee80211_hw_set(hw, TIMING_BEACON_ONLY);
 
-	/* We should probably have this, but mac80211
-	 * currently doesn't support it for MLO.
-	 */
-	if (!(hw->wiphy->flags & WIPHY_FLAG_SUPPORTS_MLO))
-		ieee80211_hw_set(hw, DEAUTH_NEED_MGD_TX_PREP);
-
 	/*
 	 * On older devices, enabling TX A-MSDU occasionally leads to
 	 * something getting messed up, the command read from the FIFO
@@ -2853,6 +2847,8 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 
 	if (changes & BSS_CHANGED_ASSOC) {
 		if (vif->cfg.assoc) {
+			mvmvif->session_prot_connection_loss = false;
+
 			/* clear statistics to get clean beacon counter */
 			iwl_mvm_request_statistics(mvm, true);
 			for_each_mvm_vif_valid_link(mvmvif, i)
@@ -4268,7 +4264,11 @@ void iwl_mvm_mac_mgd_prepare_tx(struct ieee80211_hw *hw,
 				struct ieee80211_vif *vif,
 				struct ieee80211_prep_tx_info *info)
 {
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+
+	if (info->was_assoc && !mvmvif->session_prot_connection_loss)
+		return;
 
 	guard(mvm)(mvm);
 	iwl_mvm_protect_assoc(mvm, vif, info->duration, info->link_id);

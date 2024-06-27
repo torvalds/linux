@@ -222,6 +222,8 @@ static bool iwl_mvm_te_check_disconnect(struct iwl_mvm *mvm,
 		iwl_dbg_tlv_time_point(&mvm->fwrt,
 				       IWL_FW_INI_TIME_POINT_ASSOC_FAILED,
 				       NULL);
+
+		mvmvif->session_prot_connection_loss = true;
 	}
 
 	iwl_mvm_connection_loss(mvm, vif, errmsg);

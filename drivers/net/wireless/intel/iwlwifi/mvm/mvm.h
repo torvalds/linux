@@ -450,6 +450,9 @@ struct iwl_mvm_esr_exit {
  * @unblock_esr_tpt_wk: work for unblocking EMLSR when tpt is high enough.
  * @roc_activity: currently running ROC activity for this vif (or
  *	ROC_NUM_ACTIVITIES if no activity is running).
+ * @session_prot_connection_loss: the connection was lost due to session
+ *	protection ending without receiving a beacon, so we need to now
+ *	protect the deauth separately
  */
 struct iwl_mvm_vif {
 	struct iwl_mvm *mvm;
@@ -463,6 +466,7 @@ struct iwl_mvm_vif {
 	bool pm_enabled;
 	bool monitor_active;
 	bool esr_active;
+	bool session_prot_connection_loss;
 
 	u8 low_latency: 6;
 	u8 low_latency_actual: 1;
