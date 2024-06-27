@@ -2838,6 +2838,8 @@ static int add_adev(struct gdma_dev *gd)
 	if (ret)
 		goto init_fail;
 
+	/* madev is owned by the auxiliary device */
+	madev = NULL;
 	ret = auxiliary_device_add(adev);
 	if (ret)
 		goto add_fail;

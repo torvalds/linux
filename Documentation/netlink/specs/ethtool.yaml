@@ -1634,7 +1634,7 @@ operations:
           attributes:
             - header
         reply:
-          attributes: &pse
+          attributes:
             - header
             - podl-pse-admin-state
             - podl-pse-admin-control
@@ -1651,7 +1651,10 @@ operations:
 
       do:
         request:
-          attributes: *pse
+          attributes:
+            - header
+            - podl-pse-admin-control
+            - c33-pse-admin-control
     -
       name: rss-get
       doc: Get RSS params.

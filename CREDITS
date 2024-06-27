@@ -1214,6 +1214,10 @@ D: UDF filesystem
 S: (ask for current address)
 S: USA
 
+N: Larry Finger
+E: Larry.Finger@lwfinger.net
+D: Maintainer of wireless drivers, too many to list here
+
 N: Jürgen Fischer
 E: fischer@norbit.de
 D: Author of Adaptec AHA-152x SCSI driver

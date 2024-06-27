@@ -141,7 +141,13 @@ static inline u64 alloc_lru_idx_fragmentation(struct bch_alloc_v4 a,
 	    !bch2_bucket_sectors_fragmented(ca, a))
 		return 0;
 
-	u64 d = bch2_bucket_sectors_dirty(a);
+	/*
+	 * avoid overflowing LRU_TIME_BITS on a corrupted fs, when
+	 * bucket_sectors_dirty is (much) bigger than bucket_size
+	 */
+	u64 d = min(bch2_bucket_sectors_dirty(a),
+		    ca->mi.bucket_size);
+
 	return div_u64(d * (1ULL << 31), ca->mi.bucket_size);
 }
 
