@@ -19,6 +19,13 @@
 		};
 	};
 
+	adc1_usb_cc_pins_b: adc1-usb-cc-pins-1 {
+		pins {
+			pinmux = <STM32_PINMUX('A', 5, ANALOG)>, /* ADC1_INP2 */
+				 <STM32_PINMUX('F', 13, ANALOG)>; /* ADC1_INP11 */
+		};
+	};
+
 	dcmipp_pins_a: dcmi-0 {
 		pins1 {
 			pinmux = <STM32_PINMUX('H',  8,  AF13)>,/* DCMI_HSYNC */
@@ -49,35 +56,6 @@
 				 <STM32_PINMUX('D',  3,  ANALOG)>,/* DCMI_D5 */
 				 <STM32_PINMUX('B',  8,  ANALOG)>,/* DCMI_D6 */
 				 <STM32_PINMUX('E', 14,  ANALOG)>;/* DCMI_D7 */
-		};
-	};
-
-	goodix_pins_a: goodix-0 {
-		/*
-		 * touchscreen reset needs to be configured
-		 * via the pinctrl not the driver (a pull-down resistor
-		 * has been soldered onto the reset line which forces
-		 * the touchscreen to reset state).
-		 */
-		pins1 {
-			pinmux = <STM32_PINMUX('H', 2, GPIO)>;
-			output-high;
-			bias-pull-up;
-		};
-		/*
-		 * Interrupt line must have a pull-down resistor
-		 * in order to freeze the i2c address at 0x5D
-		 */
-		pins2 {
-			pinmux = <STM32_PINMUX('F', 5, GPIO)>;
-			bias-pull-down;
-		};
-	};
-
-	adc1_usb_cc_pins_b: adc1-usb-cc-pins-1 {
-		pins {
-			pinmux = <STM32_PINMUX('A', 5, ANALOG)>, /* ADC1_INP2 */
-				 <STM32_PINMUX('F', 13, ANALOG)>; /* ADC1_INP11 */
 		};
 	};
 
@@ -127,6 +105,42 @@
 		};
 	};
 
+	eth1_rmii_pins_a: eth1-rmii-0 {
+		pins1 {
+			pinmux = <STM32_PINMUX('G', 13, AF11)>, /* ETH_RMII_TXD0 */
+				 <STM32_PINMUX('G', 14, AF11)>, /* ETH_RMII_TXD1 */
+				 <STM32_PINMUX('B', 11, AF11)>, /* ETH_RMII_TX_EN */
+				 <STM32_PINMUX('A', 1, AF11)>, /* ETH_RMII_REF_CLK */
+				 <STM32_PINMUX('A', 2, AF11)>, /* ETH_MDIO */
+				 <STM32_PINMUX('G', 2, AF11)>; /* ETH_MDC */
+			bias-disable;
+			drive-push-pull;
+			slew-rate = <1>;
+		};
+
+		pins2 {
+			pinmux = <STM32_PINMUX('C', 4, AF11)>, /* ETH_RMII_RXD0 */
+				 <STM32_PINMUX('C', 5, AF11)>, /* ETH_RMII_RXD1 */
+				 <STM32_PINMUX('C', 1, AF10)>; /* ETH_RMII_CRS_DV */
+			bias-disable;
+		};
+
+	};
+
+	eth1_rmii_sleep_pins_a: eth1-rmii-sleep-0 {
+		pins1 {
+			pinmux = <STM32_PINMUX('G', 13, ANALOG)>, /* ETH_RMII_TXD0 */
+				 <STM32_PINMUX('G', 14, ANALOG)>, /* ETH_RMII_TXD1 */
+				 <STM32_PINMUX('B', 11, ANALOG)>, /* ETH_RMII_TX_EN */
+				 <STM32_PINMUX('A', 1, ANALOG)>, /* ETH_RMII_REF_CLK */
+				 <STM32_PINMUX('A', 2, ANALOG)>, /* ETH_MDIO */
+				 <STM32_PINMUX('G', 2, ANALOG)>, /* ETH_MDC */
+				 <STM32_PINMUX('C', 4, ANALOG)>, /* ETH_RMII_RXD0 */
+				 <STM32_PINMUX('C', 5, ANALOG)>, /* ETH_RMII_RXD1 */
+				 <STM32_PINMUX('C', 1, ANALOG)>; /* ETH_RMII_CRS_DV */
+		};
+	};
+
 	eth2_rgmii_pins_a: eth2-rgmii-0 {
 		pins1 {
 			pinmux = <STM32_PINMUX('F', 7, AF11)>, /* ETH_RGMII_TXD0 */
@@ -172,42 +186,6 @@
 		};
 	};
 
-	eth1_rmii_pins_a: eth1-rmii-0 {
-		pins1 {
-			pinmux = <STM32_PINMUX('G', 13, AF11)>, /* ETH_RMII_TXD0 */
-				 <STM32_PINMUX('G', 14, AF11)>, /* ETH_RMII_TXD1 */
-				 <STM32_PINMUX('B', 11, AF11)>, /* ETH_RMII_TX_EN */
-				 <STM32_PINMUX('A', 1, AF11)>, /* ETH_RMII_REF_CLK */
-				 <STM32_PINMUX('A', 2, AF11)>, /* ETH_MDIO */
-				 <STM32_PINMUX('G', 2, AF11)>; /* ETH_MDC */
-			bias-disable;
-			drive-push-pull;
-			slew-rate = <1>;
-		};
-
-		pins2 {
-			pinmux = <STM32_PINMUX('C', 4, AF11)>, /* ETH_RMII_RXD0 */
-				 <STM32_PINMUX('C', 5, AF11)>, /* ETH_RMII_RXD1 */
-				 <STM32_PINMUX('C', 1, AF10)>; /* ETH_RMII_CRS_DV */
-			bias-disable;
-		};
-
-	};
-
-	eth1_rmii_sleep_pins_a: eth1-rmii-sleep-0 {
-		pins1 {
-			pinmux = <STM32_PINMUX('G', 13, ANALOG)>, /* ETH_RMII_TXD0 */
-				 <STM32_PINMUX('G', 14, ANALOG)>, /* ETH_RMII_TXD1 */
-				 <STM32_PINMUX('B', 11, ANALOG)>, /* ETH_RMII_TX_EN */
-				 <STM32_PINMUX('A', 1, ANALOG)>, /* ETH_RMII_REF_CLK */
-				 <STM32_PINMUX('A', 2, ANALOG)>, /* ETH_MDIO */
-				 <STM32_PINMUX('G', 2, ANALOG)>, /* ETH_MDC */
-				 <STM32_PINMUX('C', 4, ANALOG)>, /* ETH_RMII_RXD0 */
-				 <STM32_PINMUX('C', 5, ANALOG)>, /* ETH_RMII_RXD1 */
-				 <STM32_PINMUX('C', 1, ANALOG)>; /* ETH_RMII_CRS_DV */
-		};
-	};
-
 	eth2_rmii_pins_a: eth2-rmii-0 {
 		pins1 {
 			pinmux = <STM32_PINMUX('F', 7, AF11)>, /* ETH_RMII_TXD0 */
@@ -240,6 +218,28 @@
 				 <STM32_PINMUX('F', 4, ANALOG)>, /* ETH_RMII_RXD0 */
 				 <STM32_PINMUX('E', 2, ANALOG)>, /* ETH_RMII_RXD1 */
 				 <STM32_PINMUX('A', 12, ANALOG)>; /* ETH_RMII_CRS_DV */
+		};
+	};
+
+	goodix_pins_a: goodix-0 {
+		/*
+		 * touchscreen reset needs to be configured
+		 * via the pinctrl not the driver (a pull-down resistor
+		 * has been soldered onto the reset line which forces
+		 * the touchscreen to reset state).
+		 */
+		pins1 {
+			pinmux = <STM32_PINMUX('H', 2, GPIO)>;
+			output-high;
+			bias-pull-up;
+		};
+		/*
+		 * Interrupt line must have a pull-down resistor
+		 * in order to freeze the i2c address at 0x5D
+		 */
+		pins2 {
+			pinmux = <STM32_PINMUX('F', 5, GPIO)>;
+			bias-pull-down;
 		};
 	};
 
