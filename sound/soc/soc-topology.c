@@ -875,41 +875,21 @@ static int soc_tplg_control_dbytes_create(struct soc_tplg *tplg, struct snd_kcon
 
 static int soc_tplg_dbytes_create(struct soc_tplg *tplg, size_t size)
 {
-	struct snd_soc_tplg_bytes_control *be;
+	struct snd_kcontrol_new kc = {0};
 	struct soc_bytes_ext *sbe;
-	struct snd_kcontrol_new kc;
-	int ret = 0;
+	int ret;
 
 	if (soc_tplg_check_elem_count(tplg,
 				      sizeof(struct snd_soc_tplg_bytes_control),
 				      1, size, "mixer bytes"))
 		return -EINVAL;
 
-	be = (struct snd_soc_tplg_bytes_control *)tplg->pos;
+	ret = soc_tplg_control_dbytes_create(tplg, &kc);
+	if (ret)
+		return ret;
 
-	/* validate kcontrol */
-	if (strnlen(be->hdr.name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN) ==
-		SNDRV_CTL_ELEM_ID_NAME_MAXLEN)
-		return -EINVAL;
-
-	sbe = devm_kzalloc(tplg->dev, sizeof(*sbe), GFP_KERNEL);
-	if (sbe == NULL)
-		return -ENOMEM;
-
-	tplg->pos += (sizeof(struct snd_soc_tplg_bytes_control) +
-		      le32_to_cpu(be->priv.size));
-
-	dev_dbg(tplg->dev,
-		"ASoC: adding bytes kcontrol %s with access 0x%x\n",
-		be->hdr.name, be->hdr.access);
-
-	memset(&kc, 0, sizeof(kc));
-	kc.name = be->hdr.name;
-	kc.private_value = (long)sbe;
-	kc.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
-	kc.access = le32_to_cpu(be->hdr.access);
-
-	sbe->max = le32_to_cpu(be->max);
+	/* register dynamic object */
+	sbe = (struct soc_bytes_ext *)&kc.private_value;
 
 	INIT_LIST_HEAD(&sbe->dobj.list);
 	sbe->dobj.type = SND_SOC_DOBJ_BYTES;
@@ -917,26 +897,13 @@ static int soc_tplg_dbytes_create(struct soc_tplg *tplg, size_t size)
 	if (tplg->ops)
 		sbe->dobj.unload = tplg->ops->control_unload;
 
-	/* map io handlers */
-	ret = soc_tplg_kcontrol_bind_io(&be->hdr, &kc, tplg);
-	if (ret) {
-		soc_control_err(tplg, &be->hdr, be->hdr.name);
-		goto err;
-	}
-
-	/* pass control to driver for optional further init */
-	ret = soc_tplg_control_load(tplg, &kc, &be->hdr);
-	if (ret < 0)
-		goto err;
-
-	/* register control here */
+	/* create control directly */
 	ret = soc_tplg_add_kcontrol(tplg, &kc, &sbe->dobj.control.kcontrol);
 	if (ret < 0)
-		goto err;
+		return ret;
 
 	list_add(&sbe->dobj.list, &tplg->comp->dobj_list);
 
-err:
 	return ret;
 }
 
