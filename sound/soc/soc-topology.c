@@ -1094,43 +1094,37 @@ static int soc_tplg_dapm_graph_elems_load(struct soc_tplg *tplg,
 
 static int soc_tplg_dapm_widget_dmixer_create(struct soc_tplg *tplg, struct snd_kcontrol_new *kc)
 {
-	struct soc_mixer_control *sm;
 	struct snd_soc_tplg_mixer_control *mc;
+	struct soc_mixer_control *sm;
 	int err;
 
 	mc = (struct snd_soc_tplg_mixer_control *)tplg->pos;
 
 	/* validate kcontrol */
-	if (strnlen(mc->hdr.name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN) ==
-	    SNDRV_CTL_ELEM_ID_NAME_MAXLEN)
+	if (strnlen(mc->hdr.name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN) == SNDRV_CTL_ELEM_ID_NAME_MAXLEN)
 		return -EINVAL;
 
 	sm = devm_kzalloc(tplg->dev, sizeof(*sm), GFP_KERNEL);
 	if (!sm)
 		return -ENOMEM;
 
-	tplg->pos += sizeof(struct snd_soc_tplg_mixer_control) +
-		le32_to_cpu(mc->priv.size);
+	tplg->pos += sizeof(struct snd_soc_tplg_mixer_control) + le32_to_cpu(mc->priv.size);
 
-	dev_dbg(tplg->dev, " adding DAPM widget mixer control %s\n",
-		mc->hdr.name);
+	dev_dbg(tplg->dev, "ASoC: adding mixer kcontrol %s with access 0x%x\n",
+		mc->hdr.name, mc->hdr.access);
 
-	kc->private_value = (long)sm;
 	kc->name = devm_kstrdup(tplg->dev, mc->hdr.name, GFP_KERNEL);
 	if (!kc->name)
 		return -ENOMEM;
+	kc->private_value = (long)sm;
 	kc->iface = SNDRV_CTL_ELEM_IFACE_MIXER;
 	kc->access = le32_to_cpu(mc->hdr.access);
 
 	/* we only support FL/FR channel mapping atm */
-	sm->reg = tplg_chan_get_reg(tplg, mc->channel,
-				    SNDRV_CHMAP_FL);
-	sm->rreg = tplg_chan_get_reg(tplg, mc->channel,
-				     SNDRV_CHMAP_FR);
-	sm->shift = tplg_chan_get_shift(tplg, mc->channel,
-					SNDRV_CHMAP_FL);
-	sm->rshift = tplg_chan_get_shift(tplg, mc->channel,
-					 SNDRV_CHMAP_FR);
+	sm->reg = tplg_chan_get_reg(tplg, mc->channel, SNDRV_CHMAP_FL);
+	sm->rreg = tplg_chan_get_reg(tplg, mc->channel, SNDRV_CHMAP_FR);
+	sm->shift = tplg_chan_get_shift(tplg, mc->channel, SNDRV_CHMAP_FL);
+	sm->rshift = tplg_chan_get_shift(tplg, mc->channel, SNDRV_CHMAP_FR);
 
 	sm->max = le32_to_cpu(mc->max);
 	sm->min = le32_to_cpu(mc->min);
@@ -1147,17 +1141,12 @@ static int soc_tplg_dapm_widget_dmixer_create(struct soc_tplg *tplg, struct snd_
 	/* create any TLV data */
 	err = soc_tplg_create_tlv(tplg, kc, &mc->hdr);
 	if (err < 0) {
-		dev_err(tplg->dev, "ASoC: failed to create TLV %s\n",
-			mc->hdr.name);
+		dev_err(tplg->dev, "ASoC: failed to create TLV %s\n", mc->hdr.name);
 		return err;
 	}
 
 	/* pass control to driver for optional further init */
-	err = soc_tplg_control_load(tplg, kc, &mc->hdr);
-	if (err < 0)
-		return err;
-
-	return 0;
+	return soc_tplg_control_load(tplg, kc, &mc->hdr);
 }
 
 static int soc_tplg_dapm_widget_denum_create(struct soc_tplg *tplg, struct snd_kcontrol_new *kc)
