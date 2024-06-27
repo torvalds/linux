@@ -1306,7 +1306,6 @@ static unsigned long obj_malloc(struct zs_pool *pool,
 	void *vaddr;
 
 	class = pool->size_class[zspage->class];
-	handle |= OBJ_ALLOCATED_TAG;
 	obj = get_freeobj(zspage);
 
 	offset = obj * class->size;
@@ -1322,15 +1321,16 @@ static unsigned long obj_malloc(struct zs_pool *pool,
 	set_freeobj(zspage, link->next >> OBJ_TAG_BITS);
 	if (likely(!ZsHugePage(zspage)))
 		/* record handle in the header of allocated chunk */
-		link->handle = handle;
+		link->handle = handle | OBJ_ALLOCATED_TAG;
 	else
 		/* record handle to page->index */
-		zspage->first_page->index = handle;
+		zspage->first_page->index = handle | OBJ_ALLOCATED_TAG;
 
 	kunmap_atomic(vaddr);
 	mod_zspage_inuse(zspage, 1);
 
 	obj = location_to_obj(m_page, obj);
+	record_obj(handle, obj);
 
 	return obj;
 }
@@ -1348,7 +1348,7 @@ static unsigned long obj_malloc(struct zs_pool *pool,
  */
 unsigned long zs_malloc(struct zs_pool *pool, size_t size, gfp_t gfp)
 {
-	unsigned long handle, obj;
+	unsigned long handle;
 	struct size_class *class;
 	int newfg;
 	struct zspage *zspage;
@@ -1371,10 +1371,9 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size, gfp_t gfp)
 	spin_lock(&class->lock);
 	zspage = find_get_zspage(class);
 	if (likely(zspage)) {
-		obj = obj_malloc(pool, zspage, handle);
+		obj_malloc(pool, zspage, handle);
 		/* Now move the zspage to another fullness group, if required */
 		fix_fullness_group(class, zspage);
-		record_obj(handle, obj);
 		class_stat_inc(class, ZS_OBJS_INUSE, 1);
 
 		goto out;
@@ -1389,10 +1388,9 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size, gfp_t gfp)
 	}
 
 	spin_lock(&class->lock);
-	obj = obj_malloc(pool, zspage, handle);
+	obj_malloc(pool, zspage, handle);
 	newfg = get_fullness_group(class, zspage);
 	insert_zspage(class, zspage, newfg);
-	record_obj(handle, obj);
 	atomic_long_add(class->pages_per_zspage, &pool->pages_allocated);
 	class_stat_inc(class, ZS_OBJS_ALLOCATED, class->objs_per_zspage);
 	class_stat_inc(class, ZS_OBJS_INUSE, 1);
@@ -1591,7 +1589,6 @@ static void migrate_zspage(struct zs_pool *pool, struct zspage *src_zspage,
 		free_obj = obj_malloc(pool, dst_zspage, handle);
 		zs_object_copy(class, free_obj, used_obj);
 		obj_idx++;
-		record_obj(handle, free_obj);
 		obj_free(class->size, used_obj);
 
 		/* Stop if there is no more space */
