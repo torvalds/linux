@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
+#define _GNU_SOURCE
+#include <fcntl.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -49,6 +52,8 @@ static struct fuse_opt lklfuse_opts[] = {
 	FUSE_OPT_KEY("--version",      KEY_VERSION),
 	FUSE_OPT_END
 };
+
+#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
 
 static void usage(void)
 {
@@ -255,8 +260,39 @@ static int lklfuse_open3(const char *path, bool create, mode_t mode,
 	else
 		return -EINVAL;
 
+	/*
+	 * XXX see rules in fuse3/fuse.h:
+	 * Creation (O_CREAT, O_EXCL, O_NOCTTY) flags will be filtered out /
+	 * handled by FUSE kernel...
+	 */
 	if (create)
 		flags |= LKL_O_CREAT;
+	if (fi->flags & O_TRUNC)
+		flags |= LKL_O_TRUNC;
+	if (fi->flags & O_APPEND)
+		flags |= LKL_O_APPEND;
+	if (fi->flags & O_NONBLOCK)
+		flags |= LKL_O_NONBLOCK;
+	if (fi->flags & O_DSYNC)
+		flags |= LKL_O_DSYNC;
+	if (fi->flags & O_DIRECT)
+		flags |= LKL_O_DIRECT;
+	if (fi->flags & O_LARGEFILE)
+		flags |= LKL_O_LARGEFILE;
+	if (fi->flags & O_DIRECTORY)
+		flags |= LKL_O_DIRECTORY;
+	if (fi->flags & O_NOFOLLOW)
+		flags |= LKL_O_NOFOLLOW;
+	if (fi->flags & O_NOATIME)
+		flags |= LKL_O_NOATIME;
+	if (fi->flags & O_CLOEXEC)
+		flags |= LKL_O_CLOEXEC;
+	if (fi->flags & O_SYNC)
+		flags |= LKL_O_SYNC;
+	if (fi->flags & O_PATH)
+		flags |= LKL_O_PATH;
+	if (fi->flags & O_TMPFILE)
+		flags |= LKL_O_TMPFILE;
 
 	ret = lkl_sys_open(path, flags, mode);
 	if (ret < 0)
@@ -545,12 +581,122 @@ const struct fuse_operations lklfuse_ops = {
 	.fallocate = lklfuse_fallocate,
 };
 
+static int lklfuse_parse_vfs_flags(bool ro, const char *opts, int *flags,
+				   char *remain, size_t remlen)
+{
+	size_t optslen;
+	char tokbuf[4096];
+	char *tb = tokbuf;
+	char *tok;
+	char *saveptr = NULL;
+	/* we could consider using libmount for this mapping */
+	struct flagmap {
+		const char *opt;
+		int flag;
+		bool invert;
+	} map[] = {
+		{ "ro", LKL_MS_RDONLY },
+		{ "nosuid", LKL_MS_NOSUID },
+		{ "nodev", LKL_MS_NODEV },
+		{ "noexec", LKL_MS_NOEXEC },
+		{ "sync", LKL_MS_SYNCHRONOUS },
+		{ "remount", LKL_MS_REMOUNT },
+		{ "dirsync", LKL_MS_DIRSYNC },
+		{ "nosymfollow", LKL_MS_NOSYMFOLLOW },
+		{ "noatime", LKL_MS_NOATIME },
+		{ "nodiratime", LKL_MS_NODIRATIME },
+		{ "bind", LKL_MS_BIND },
+		{ "rbind", LKL_MS_BIND | LKL_MS_REC },
+		{ "move", LKL_MS_MOVE },
+		{ "silent", LKL_MS_SILENT },
+
+		{ "relatime", LKL_MS_RELATIME },
+		{ "iversion", LKL_MS_I_VERSION },
+		{ "strictatime", LKL_MS_STRICTATIME },
+		{ "lazytime", LKL_MS_LAZYTIME },
+
+		/* opts below aren't passed to external mount.type helpers */
+		{ "unbindable", LKL_MS_UNBINDABLE },
+		{ "runbindable", LKL_MS_UNBINDABLE | LKL_MS_REC },
+		{ "private", LKL_MS_PRIVATE },
+		{ "rprivate", LKL_MS_PRIVATE | LKL_MS_REC },
+		{ "slave", LKL_MS_SLAVE },
+		{ "rslave", LKL_MS_SLAVE | LKL_MS_REC },
+		{ "shared", LKL_MS_SHARED },
+		{ "rshared", LKL_MS_SHARED | LKL_MS_REC },
+
+		/* opts below invert flags */
+		{ "rw", LKL_MS_RDONLY, true },
+		{ "suid", LKL_MS_NOSUID, true },
+		{ "dev", LKL_MS_NODEV, true },
+		{ "exec", LKL_MS_NOEXEC, true },
+		{ "async", LKL_MS_SYNCHRONOUS, true },
+		{ "symfollow", LKL_MS_NOSYMFOLLOW, true },
+		{ "atime", LKL_MS_NOATIME, true },
+		{ "diratime", LKL_MS_NODIRATIME, true },
+		{ "loud", LKL_MS_SILENT, true },
+		{ "norelatime", LKL_MS_RELATIME, true },
+		{ "noiversion", LKL_MS_I_VERSION, true },
+		{ "nostrictatime", LKL_MS_STRICTATIME, true },
+		{ "nolazytime", LKL_MS_LAZYTIME, true },
+	};
+	*flags = ro ? LKL_MS_RDONLY : 0;
+
+	optslen = opts ? strlen(opts) : 0;
+	/* need enough space in @remain to at most pass through all options */
+	if (optslen >= remlen || optslen >= sizeof(tokbuf))
+		return -EINVAL;
+
+	*remain = '\0';
+	if (optslen == 0)
+		return 0;
+
+	strncpy(tokbuf, opts, sizeof(tokbuf));
+	/*
+	 * '\,' and '\=' escapes for mount options provided via -o opts=... are
+	 * removed by libfuse, so we just need to map and remove any VFS flags.
+	 */
+	while ((tok = strtok_r(tb, ",", &saveptr)) != NULL) {
+		size_t i;
+
+		tb = NULL;
+		for (i = 0; i < ARRAY_SIZE(map); i++) {
+			if (strcmp(tok, map[i].opt))
+				continue;
+			if (map[i].invert)
+				*flags &= ~map[i].flag;
+			else
+				*flags |= map[i].flag;
+			break;
+		}
+		/* opts mapped to a flag shouldn't be retained */
+		if (i < ARRAY_SIZE(map))
+			continue;
+
+		if (*remain != '\0')
+			strcat(remain, ",");
+		strcat(remain, tok);
+	}
+
+	return 0;
+}
+
 static int start_lkl(void)
 {
 	long ret;
 	char mpoint[32];
 	struct timespec walltime;
 	struct lkl_timespec ts;
+	int mount_flags = 0;
+	char remaining_mopts[4096] = { 0 };
+
+	ret = lklfuse_parse_vfs_flags(lklfuse.ro, lklfuse.opts, &mount_flags,
+			remaining_mopts, sizeof(remaining_mopts));
+	if (ret < 0) {
+		fprintf(stderr, "failed to parse mount flags: %s\n",
+			lklfuse.opts);
+		goto out;
+	}
 
 	ret = lkl_start_kernel("mem=%dM", lklfuse.mb);
 	if (ret) {
@@ -574,9 +720,8 @@ static int start_lkl(void)
 	}
 
 	ret = lkl_mount_dev(lklfuse.disk_id, lklfuse.part, lklfuse.type,
-			    lklfuse.ro ? LKL_MS_RDONLY : 0, lklfuse.opts,
+			    mount_flags, remaining_mopts,
 			    mpoint, sizeof(mpoint));
-
 	if (ret) {
 		fprintf(stderr, "can't mount disk: %s\n", lkl_strerror(ret));
 		goto out_halt;
