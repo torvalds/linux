@@ -50,23 +50,7 @@ struct perf_sf_sde_regs {
 
 /* Perf PMU definitions for the counter facility */
 #define PERF_CPUM_CF_MAX_CTR		0xffffUL  /* Max ctr for ECCTR */
-
-/* Perf PMU definitions for the sampling facility */
-#define PERF_CPUM_SF_MAX_CTR		2
-#define PERF_EVENT_CPUM_SF		0xB0000UL /* Event: Basic-sampling */
-#define PERF_EVENT_CPUM_SF_DIAG		0xBD000UL /* Event: Combined-sampling */
 #define PERF_EVENT_CPUM_CF_DIAG		0xBC000UL /* Event: Counter sets */
-#define PERF_CPUM_SF_BASIC_MODE		0x0001	  /* Basic-sampling flag */
-#define PERF_CPUM_SF_DIAG_MODE		0x0002	  /* Diagnostic-sampling flag */
-#define PERF_CPUM_SF_FREQ_MODE		0x0008	  /* Sampling with frequency */
-
-#define OVERFLOW_REG(hwc)	((hwc)->extra_reg.config)
-#define SFB_ALLOC_REG(hwc)	((hwc)->extra_reg.alloc)
-#define TEAR_REG(hwc)		((hwc)->last_tag)
-#define SAMPL_RATE(hwc)		((hwc)->event_base)
-#define SAMPL_FLAGS(hwc)	((hwc)->config_base)
-#define SAMPL_DIAG_MODE(hwc)	(SAMPL_FLAGS(hwc) & PERF_CPUM_SF_DIAG_MODE)
-#define SAMPL_FREQ_MODE(hwc)	(SAMPL_FLAGS(hwc) & PERF_CPUM_SF_FREQ_MODE)
 
 #define perf_arch_fetch_caller_regs(regs, __ip) do {			\
 	(regs)->psw.addr = (__ip);					\
