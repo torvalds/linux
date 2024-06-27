@@ -37,8 +37,6 @@
 #define REG_PCIE1_MEM_MASK		0x0c
 #define REG_PCIE2_MEM			0x10
 #define REG_PCIE2_MEM_MASK		0x14
-#define REG_PCIE_RESET_OPEN_DRAIN	0x018c
-#define REG_PCIE_RESET_OPEN_DRAIN_MASK	GENMASK(2, 0)
 #define REG_NP_SCU_PCIC			0x88
 #define REG_NP_SCU_SSTR			0x9c
 #define REG_PCIE_XSI0_SEL_MASK		GENMASK(14, 13)
@@ -85,8 +83,7 @@ struct en_clk_soc_data {
 		const u16 *idx_map;
 		u16 idx_map_nr;
 	} reset;
-	int (*hw_init)(struct platform_device *pdev, void __iomem *base,
-		       void __iomem *np_base);
+	int (*hw_init)(struct platform_device *pdev, void __iomem *np_base);
 };
 
 static const u32 gsw_base[] = { 400000000, 500000000 };
@@ -411,7 +408,6 @@ static void en7581_pci_disable(struct clk_hw *hw)
 }
 
 static int en7581_clk_hw_init(struct platform_device *pdev,
-			      void __iomem *base,
 			      void __iomem *np_base)
 {
 	void __iomem *pb_base;
@@ -433,10 +429,6 @@ static int en7581_clk_hw_init(struct platform_device *pdev,
 	writel(0xfc000000, pb_base + REG_PCIE1_MEM_MASK);
 	writel(0x28000000, pb_base + REG_PCIE2_MEM);
 	writel(0xfc000000, pb_base + REG_PCIE2_MEM_MASK);
-
-	val = readl(base + REG_PCIE_RESET_OPEN_DRAIN);
-	writel(val | REG_PCIE_RESET_OPEN_DRAIN_MASK,
-	       base + REG_PCIE_RESET_OPEN_DRAIN);
 
 	return 0;
 }
@@ -577,7 +569,7 @@ static int en7523_clk_probe(struct platform_device *pdev)
 
 	soc_data = device_get_match_data(&pdev->dev);
 	if (soc_data->hw_init) {
-		r = soc_data->hw_init(pdev, base, np_base);
+		r = soc_data->hw_init(pdev, np_base);
 		if (r)
 			return r;
 	}
