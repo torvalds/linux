@@ -155,7 +155,7 @@ void i915_ttm_adjust_gem_after_move(struct drm_i915_gem_object *obj)
  * @bo: The ttm buffer object.
  *
  * This function prepares an object for move by removing all GPU bindings,
- * removing all CPU mapings and finally releasing the pages sg-table.
+ * removing all CPU mappings and finally releasing the pages sg-table.
  *
  * Return: 0 if successful, negative error code on error.
  */

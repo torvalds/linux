@@ -27,6 +27,8 @@ static void rcu_context_free(struct rcu_head *rcu)
 	struct intel_context *ce = container_of(rcu, typeof(*ce), rcu);
 
 	trace_intel_context_free(ce);
+	if (intel_context_has_own_state(ce))
+		fput(ce->default_state);
 	kmem_cache_free(slab_ce, ce);
 }
 

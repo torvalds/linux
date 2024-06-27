@@ -375,6 +375,28 @@ intel_context_clear_nopreempt(struct intel_context *ce)
 	clear_bit(CONTEXT_NOPREEMPT, &ce->flags);
 }
 
+#if IS_ENABLED(CONFIG_DRM_I915_REPLAY_GPU_HANGS_API)
+static inline bool intel_context_has_own_state(const struct intel_context *ce)
+{
+	return test_bit(CONTEXT_OWN_STATE, &ce->flags);
+}
+
+static inline bool intel_context_set_own_state(struct intel_context *ce)
+{
+	return test_and_set_bit(CONTEXT_OWN_STATE, &ce->flags);
+}
+#else
+static inline bool intel_context_has_own_state(const struct intel_context *ce)
+{
+	return false;
+}
+
+static inline bool intel_context_set_own_state(struct intel_context *ce)
+{
+	return true;
+}
+#endif
+
 u64 intel_context_get_total_runtime_ns(struct intel_context *ce);
 u64 intel_context_get_avg_runtime_ns(struct intel_context *ce);
 

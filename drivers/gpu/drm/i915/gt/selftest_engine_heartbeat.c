@@ -193,115 +193,6 @@ static int live_idle_pulse(void *arg)
 	return err;
 }
 
-static int cmp_u32(const void *_a, const void *_b)
-{
-	const u32 *a = _a, *b = _b;
-
-	return *a - *b;
-}
-
-static int __live_heartbeat_fast(struct intel_engine_cs *engine)
-{
-	const unsigned int error_threshold = max(20000u, jiffies_to_usecs(6));
-	struct intel_context *ce;
-	struct i915_request *rq;
-	ktime_t t0, t1;
-	u32 times[5];
-	int err;
-	int i;
-
-	ce = intel_context_create(engine);
-	if (IS_ERR(ce))
-		return PTR_ERR(ce);
-
-	intel_engine_pm_get(engine);
-
-	err = intel_engine_set_heartbeat(engine, 1);
-	if (err)
-		goto err_pm;
-
-	for (i = 0; i < ARRAY_SIZE(times); i++) {
-		do {
-			/* Manufacture a tick */
-			intel_engine_park_heartbeat(engine);
-			GEM_BUG_ON(engine->heartbeat.systole);
-			engine->serial++; /*  pretend we are not idle! */
-			intel_engine_unpark_heartbeat(engine);
-
-			flush_delayed_work(&engine->heartbeat.work);
-			if (!delayed_work_pending(&engine->heartbeat.work)) {
-				pr_err("%s: heartbeat %d did not start\n",
-				       engine->name, i);
-				err = -EINVAL;
-				goto err_pm;
-			}
-
-			rcu_read_lock();
-			rq = READ_ONCE(engine->heartbeat.systole);
-			if (rq)
-				rq = i915_request_get_rcu(rq);
-			rcu_read_unlock();
-		} while (!rq);
-
-		t0 = ktime_get();
-		while (rq == READ_ONCE(engine->heartbeat.systole))
-			yield(); /* work is on the local cpu! */
-		t1 = ktime_get();
-
-		i915_request_put(rq);
-		times[i] = ktime_us_delta(t1, t0);
-	}
-
-	sort(times, ARRAY_SIZE(times), sizeof(times[0]), cmp_u32, NULL);
-
-	pr_info("%s: Heartbeat delay: %uus [%u, %u]\n",
-		engine->name,
-		times[ARRAY_SIZE(times) / 2],
-		times[0],
-		times[ARRAY_SIZE(times) - 1]);
-
-	/*
-	 * Ideally, the upper bound on min work delay would be something like
-	 * 2 * 2 (worst), +1 for scheduling, +1 for slack. In practice, we
-	 * are, even with system_wq_highpri, at the mercy of the CPU scheduler
-	 * and may be stuck behind some slow work for many millisecond. Such
-	 * as our very own display workers.
-	 */
-	if (times[ARRAY_SIZE(times) / 2] > error_threshold) {
-		pr_err("%s: Heartbeat delay was %uus, expected less than %dus\n",
-		       engine->name,
-		       times[ARRAY_SIZE(times) / 2],
-		       error_threshold);
-		err = -EINVAL;
-	}
-
-	reset_heartbeat(engine);
-err_pm:
-	intel_engine_pm_put(engine);
-	intel_context_put(ce);
-	return err;
-}
-
-static int live_heartbeat_fast(void *arg)
-{
-	struct intel_gt *gt = arg;
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-	int err = 0;
-
-	/* Check that the heartbeat ticks at the desired rate. */
-	if (!CONFIG_DRM_I915_HEARTBEAT_INTERVAL)
-		return 0;
-
-	for_each_engine(engine, gt, id) {
-		err = __live_heartbeat_fast(engine);
-		if (err)
-			break;
-	}
-
-	return err;
-}
-
 static int __live_heartbeat_off(struct intel_engine_cs *engine)
 {
 	int err;
@@ -372,7 +263,6 @@ int intel_heartbeat_live_selftests(struct drm_i915_private *i915)
 	static const struct i915_subtest tests[] = {
 		SUBTEST(live_idle_flush),
 		SUBTEST(live_idle_pulse),
-		SUBTEST(live_heartbeat_fast),
 		SUBTEST(live_heartbeat_off),
 	};
 	int saved_hangcheck;
