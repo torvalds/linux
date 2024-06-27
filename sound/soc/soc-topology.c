@@ -1249,25 +1249,22 @@ static int soc_tplg_dapm_widget_dbytes_create(struct soc_tplg *tplg, struct snd_
 	be = (struct snd_soc_tplg_bytes_control *)tplg->pos;
 
 	/* validate kcontrol */
-	if (strnlen(be->hdr.name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN) ==
-	    SNDRV_CTL_ELEM_ID_NAME_MAXLEN)
+	if (strnlen(be->hdr.name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN) == SNDRV_CTL_ELEM_ID_NAME_MAXLEN)
 		return -EINVAL;
 
 	sbe = devm_kzalloc(tplg->dev, sizeof(*sbe), GFP_KERNEL);
 	if (!sbe)
 		return -ENOMEM;
 
-	tplg->pos += (sizeof(struct snd_soc_tplg_bytes_control) +
-		      le32_to_cpu(be->priv.size));
+	tplg->pos += (sizeof(struct snd_soc_tplg_bytes_control) + le32_to_cpu(be->priv.size));
 
-	dev_dbg(tplg->dev,
-		"ASoC: adding bytes kcontrol %s with access 0x%x\n",
+	dev_dbg(tplg->dev, "ASoC: adding bytes kcontrol %s with access 0x%x\n",
 		be->hdr.name, be->hdr.access);
 
-	kc->private_value = (long)sbe;
 	kc->name = devm_kstrdup(tplg->dev, be->hdr.name, GFP_KERNEL);
 	if (!kc->name)
 		return -ENOMEM;
+	kc->private_value = (long)sbe;
 	kc->iface = SNDRV_CTL_ELEM_IFACE_MIXER;
 	kc->access = le32_to_cpu(be->hdr.access);
 
@@ -1281,11 +1278,7 @@ static int soc_tplg_dapm_widget_dbytes_create(struct soc_tplg *tplg, struct snd_
 	}
 
 	/* pass control to driver for optional further init */
-	err = soc_tplg_control_load(tplg, kc, &be->hdr);
-	if (err < 0)
-		return err;
-
-	return 0;
+	return soc_tplg_control_load(tplg, kc, &be->hdr);
 }
 
 static int soc_tplg_dapm_widget_create(struct soc_tplg *tplg,
