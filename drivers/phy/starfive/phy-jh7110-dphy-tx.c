@@ -235,11 +235,13 @@ static int stf_dphy_configure(struct phy *phy, union phy_configure_opts *opts)
 	const struct stf_dphy_config *p = reg_configs;
 	unsigned long alignment  = STF_DPHY_BITRATE_ALIGN;
 	u32 bitrate = opts->mipi_dphy.hs_clk_rate;
-	u32 i = stf_dphy_get_config_index(bitrate);
 	u32 tmp;
+	u32 i;
 
 	if (bitrate % alignment)
 		bitrate += alignment - (bitrate % alignment);
+
+	i = stf_dphy_get_config_index(bitrate);
 
 	tmp = readl(dphy->topsys + STF_DPHY_APBIFSAIF_SYSCFG(100));
 	tmp &= ~STF_DPHY_REFCLK_IN_SEL;
