@@ -94,20 +94,6 @@ void blk_queue_flag_clear(unsigned int flag, struct request_queue *q)
 }
 EXPORT_SYMBOL(blk_queue_flag_clear);
 
-/**
- * blk_queue_flag_test_and_set - atomically test and set a queue flag
- * @flag: flag to be set
- * @q: request queue
- *
- * Returns the previous value of @flag - 0 if the flag was not set and 1 if
- * the flag was already set.
- */
-bool blk_queue_flag_test_and_set(unsigned int flag, struct request_queue *q)
-{
-	return test_and_set_bit(flag, &q->queue_flags);
-}
-EXPORT_SYMBOL_GPL(blk_queue_flag_test_and_set);
-
 #define REQ_OP_NAME(name) [REQ_OP_##name] = #name
 static const char *const blk_op_name[] = {
 	REQ_OP_NAME(READ),
