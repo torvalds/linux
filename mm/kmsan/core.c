@@ -249,8 +249,8 @@ struct page *kmsan_vmalloc_to_page_or_null(void *vaddr)
 		return NULL;
 }
 
-void kmsan_internal_check_memory(void *addr, size_t size, const void *user_addr,
-				 int reason)
+void kmsan_internal_check_memory(void *addr, size_t size,
+				 const void __user *user_addr, int reason)
 {
 	depot_stack_handle_t cur_origin = 0, new_origin = 0;
 	unsigned long addr64 = (unsigned long)addr;

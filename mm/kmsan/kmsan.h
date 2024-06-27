@@ -73,7 +73,7 @@ void kmsan_print_origin(depot_stack_handle_t origin);
  * @off_last corresponding to different @origin values.
  */
 void kmsan_report(depot_stack_handle_t origin, void *address, int size,
-		  int off_first, int off_last, const void *user_addr,
+		  int off_first, int off_last, const void __user *user_addr,
 		  enum kmsan_bug_reason reason);
 
 DECLARE_PER_CPU(struct kmsan_ctx, kmsan_percpu_ctx);
@@ -163,8 +163,8 @@ depot_stack_handle_t kmsan_internal_chain_origin(depot_stack_handle_t id);
 void kmsan_internal_task_create(struct task_struct *task);
 
 bool kmsan_metadata_is_contiguous(void *addr, size_t size);
-void kmsan_internal_check_memory(void *addr, size_t size, const void *user_addr,
-				 int reason);
+void kmsan_internal_check_memory(void *addr, size_t size,
+				 const void __user *user_addr, int reason);
 
 struct page *kmsan_vmalloc_to_page_or_null(void *vaddr);
 void kmsan_setup_meta(struct page *page, struct page *shadow,
