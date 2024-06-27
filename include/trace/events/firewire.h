@@ -854,7 +854,7 @@ DECLARE_EVENT_CLASS(isoc_single_completions_template,
 		memcpy(__get_dynamic_array(header), header, __get_dynamic_array_len(header));
 	),
 	TP_printk(
-		"context=0x%llx card_index=%u timestap=0x%04x cause=%s header=%s",
+		"context=0x%llx card_index=%u timestamp=0x%04x cause=%s header=%s",
 		__entry->context,
 		__entry->card_index,
 		__entry->timestamp,
@@ -892,7 +892,7 @@ TRACE_EVENT(isoc_inbound_multiple_completions,
 		__entry->cause = cause;
 	),
 	TP_printk(
-		"context=0x%llx card_index=%u comleted=%u cause=%s",
+		"context=0x%llx card_index=%u completed=%u cause=%s",
 		__entry->context,
 		__entry->card_index,
 		__entry->completed,
