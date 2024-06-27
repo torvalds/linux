@@ -4338,7 +4338,8 @@ static void backup_and_set_minimal_pipe_split_policy(struct dc *dc,
 	dc->debug.force_disable_subvp = true;
 	for (i = 0; i < context->stream_count; i++) {
 		policy->force_odm[i] = context->streams[i]->debug.force_odm_combine_segments;
-		context->streams[i]->debug.force_odm_combine_segments = 0;
+		if (context->streams[i]->debug.allow_transition_for_forced_odm)
+			context->streams[i]->debug.force_odm_combine_segments = 0;
 	}
 }
 

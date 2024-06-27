@@ -159,6 +159,12 @@ struct test_pattern {
 
 struct dc_stream_debug_options {
 	char force_odm_combine_segments;
+	/*
+	 * When force_odm_combine_segments is non zero, allow dc to
+	 * temporarily transition to ODM bypass when minimal transition state
+	 * is required to prevent visual glitches showing on the screen
+	 */
+	char allow_transition_for_forced_odm;
 };
 
 #define LUMINANCE_DATA_TABLE_SIZE 10
