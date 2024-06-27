@@ -382,9 +382,6 @@ struct tc_data {
 
 	/* HPD pin number (0 or 1) or -ENODEV */
 	int			hpd_pin;
-
-	/* Number of pixels to subtract from a line due to pixel clock delta */
-	u32			line_pixel_subtract;
 };
 
 static inline struct tc_data *aux_to_tc(struct drm_dp_aux *a)
@@ -580,14 +577,9 @@ static int tc_pllupdate(struct tc_data *tc, unsigned int pllctrl)
 	return 0;
 }
 
-static u32 div64_round_up(u64 v, u32 d)
+static int tc_pxl_pll_calc(struct tc_data *tc, u32 refclk, u32 pixelclock,
+			   int *out_best_pixelclock, u32 *out_pxl_pllparam)
 {
-	return div_u64(v + d - 1, d);
-}
-
-static int tc_pxl_pll_en(struct tc_data *tc, u32 refclk, u32 pixelclock)
-{
-	int ret;
 	int i_pre, best_pre = 1;
 	int i_post, best_post = 1;
 	int div, best_div = 1;
@@ -666,11 +658,7 @@ static int tc_pxl_pll_en(struct tc_data *tc, u32 refclk, u32 pixelclock)
 		return -EINVAL;
 	}
 
-	tc->line_pixel_subtract = tc->mode.htotal -
-		div64_round_up(tc->mode.htotal * (u64)best_pixelclock, pixelclock);
-
-	dev_dbg(tc->dev, "PLL: got %d, delta %d (subtract %d px)\n", best_pixelclock,
-		best_delta, tc->line_pixel_subtract);
+	dev_dbg(tc->dev, "PLL: got %d, delta %d\n", best_pixelclock, best_delta);
 	dev_dbg(tc->dev, "PLL: %d / %d / %d * %d / %d\n", refclk,
 		ext_div[best_pre], best_div, best_mul, ext_div[best_post]);
 
@@ -683,17 +671,35 @@ static int tc_pxl_pll_en(struct tc_data *tc, u32 refclk, u32 pixelclock)
 	if (best_mul == 128)
 		best_mul = 0;
 
-	/* Power up PLL and switch to bypass */
-	ret = regmap_write(tc->regmap, PXL_PLLCTRL, PLLBYP | PLLEN);
-	if (ret)
-		return ret;
-
 	pxl_pllparam  = vco_hi << 24; /* For PLL VCO >= 300 MHz = 1 */
 	pxl_pllparam |= ext_div[best_pre] << 20; /* External Pre-divider */
 	pxl_pllparam |= ext_div[best_post] << 16; /* External Post-divider */
 	pxl_pllparam |= IN_SEL_REFCLK; /* Use RefClk as PLL input */
 	pxl_pllparam |= best_div << 8; /* Divider for PLL RefClk */
 	pxl_pllparam |= best_mul; /* Multiplier for PLL */
+
+	if (out_best_pixelclock)
+		*out_best_pixelclock = best_pixelclock;
+
+	if (out_pxl_pllparam)
+		*out_pxl_pllparam = pxl_pllparam;
+
+	return 0;
+}
+
+static int tc_pxl_pll_en(struct tc_data *tc, u32 refclk, u32 pixelclock)
+{
+	u32 pxl_pllparam = 0;
+	int ret;
+
+	ret = tc_pxl_pll_calc(tc, refclk, pixelclock, NULL, &pxl_pllparam);
+	if (ret)
+		return ret;
+
+	/* Power up PLL and switch to bypass */
+	ret = regmap_write(tc->regmap, PXL_PLLCTRL, PLLBYP | PLLEN);
+	if (ret)
+		return ret;
 
 	ret = regmap_write(tc->regmap, PXL_PLLPARAM, pxl_pllparam);
 	if (ret)
@@ -732,7 +738,7 @@ static int tc_stream_clock_calc(struct tc_data *tc)
 static int tc_set_syspllparam(struct tc_data *tc)
 {
 	unsigned long rate;
-	u32 pllparam = SYSCLK_SEL_LSCLK | LSCLK_DIV_2;
+	u32 pllparam = SYSCLK_SEL_LSCLK | LSCLK_DIV_1;
 
 	rate = clk_get_rate(tc->refclk);
 	switch (rate) {
@@ -895,13 +901,6 @@ static int tc_set_common_video_mode(struct tc_data *tc,
 	dev_dbg(tc->dev, "V margin %d,%d sync %d\n",
 		upper_margin, lower_margin, vsync_len);
 	dev_dbg(tc->dev, "total: %dx%d\n", mode->htotal, mode->vtotal);
-
-	if (right_margin > tc->line_pixel_subtract) {
-		right_margin -= tc->line_pixel_subtract;
-	} else {
-		dev_err(tc->dev, "Bridge pixel clock too slow for mode\n");
-		right_margin = 0;
-	}
 
 	/*
 	 * LCD Ctl Frame Size
@@ -1357,10 +1356,10 @@ static int tc_dsi_rx_enable(struct tc_data *tc)
 	u32 value;
 	int ret;
 
-	regmap_write(tc->regmap, PPI_D0S_CLRSIPOCOUNT, 25);
-	regmap_write(tc->regmap, PPI_D1S_CLRSIPOCOUNT, 25);
-	regmap_write(tc->regmap, PPI_D2S_CLRSIPOCOUNT, 25);
-	regmap_write(tc->regmap, PPI_D3S_CLRSIPOCOUNT, 25);
+	regmap_write(tc->regmap, PPI_D0S_CLRSIPOCOUNT, 5);
+	regmap_write(tc->regmap, PPI_D1S_CLRSIPOCOUNT, 5);
+	regmap_write(tc->regmap, PPI_D2S_CLRSIPOCOUNT, 5);
+	regmap_write(tc->regmap, PPI_D3S_CLRSIPOCOUNT, 5);
 	regmap_write(tc->regmap, PPI_D0S_ATMR, 0);
 	regmap_write(tc->regmap, PPI_D1S_ATMR, 0);
 	regmap_write(tc->regmap, PPI_TX_RX_TA, TTA_GET | TTA_SURE);
@@ -1606,6 +1605,18 @@ static int tc_dpi_atomic_check(struct drm_bridge *bridge,
 			       struct drm_crtc_state *crtc_state,
 			       struct drm_connector_state *conn_state)
 {
+	struct tc_data *tc = bridge_to_tc(bridge);
+	int adjusted_clock = 0;
+	int ret;
+
+	ret = tc_pxl_pll_calc(tc, clk_get_rate(tc->refclk),
+			      crtc_state->mode.clock * 1000,
+			      &adjusted_clock, NULL);
+	if (ret)
+		return ret;
+
+	crtc_state->adjusted_mode.clock = adjusted_clock / 1000;
+
 	/* DSI->DPI interface clock limitation: upto 100 MHz */
 	if (crtc_state->adjusted_mode.clock > 100000)
 		return -EINVAL;
@@ -1618,6 +1629,18 @@ static int tc_edp_atomic_check(struct drm_bridge *bridge,
 			       struct drm_crtc_state *crtc_state,
 			       struct drm_connector_state *conn_state)
 {
+	struct tc_data *tc = bridge_to_tc(bridge);
+	int adjusted_clock = 0;
+	int ret;
+
+	ret = tc_pxl_pll_calc(tc, clk_get_rate(tc->refclk),
+			      crtc_state->mode.clock * 1000,
+			      &adjusted_clock, NULL);
+	if (ret)
+		return ret;
+
+	crtc_state->adjusted_mode.clock = adjusted_clock / 1000;
+
 	/* DPI->(e)DP interface clock limitation: upto 154 MHz */
 	if (crtc_state->adjusted_mode.clock > 154000)
 		return -EINVAL;
@@ -1820,6 +1843,7 @@ static void tc_edp_bridge_detach(struct drm_bridge *bridge)
 }
 
 #define MAX_INPUT_SEL_FORMATS	1
+#define MAX_OUTPUT_SEL_FORMATS	1
 
 static u32 *
 tc_dpi_atomic_get_input_bus_fmts(struct drm_bridge *bridge,
@@ -1843,6 +1867,28 @@ tc_dpi_atomic_get_input_bus_fmts(struct drm_bridge *bridge,
 	*num_input_fmts = 1;
 
 	return input_fmts;
+}
+
+static u32 *
+tc_edp_atomic_get_output_bus_fmts(struct drm_bridge *bridge,
+				  struct drm_bridge_state *bridge_state,
+				  struct drm_crtc_state *crtc_state,
+				  struct drm_connector_state *conn_state,
+				  unsigned int *num_output_fmts)
+{
+	u32 *output_fmts;
+
+	*num_output_fmts = 0;
+
+	output_fmts = kcalloc(MAX_OUTPUT_SEL_FORMATS, sizeof(*output_fmts),
+			      GFP_KERNEL);
+	if (!output_fmts)
+		return NULL;
+
+	output_fmts[0] = MEDIA_BUS_FMT_RGB888_1X24;
+	*num_output_fmts = 1;
+
+	return output_fmts;
 }
 
 static const struct drm_bridge_funcs tc_dpi_bridge_funcs = {
@@ -1871,6 +1917,8 @@ static const struct drm_bridge_funcs tc_edp_bridge_funcs = {
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
 	.atomic_reset = drm_atomic_helper_bridge_reset,
+	.atomic_get_input_bus_fmts = drm_atomic_helper_bridge_propagate_bus_fmt,
+	.atomic_get_output_bus_fmts = tc_edp_atomic_get_output_bus_fmts,
 };
 
 static bool tc_readable_reg(struct device *dev, unsigned int reg)

@@ -234,6 +234,7 @@ enum vc4_vec_tv_mode_id {
 	VC4_VEC_TV_MODE_PAL_60,
 	VC4_VEC_TV_MODE_PAL_N,
 	VC4_VEC_TV_MODE_SECAM,
+	VC4_VEC_TV_MODE_MONOCHROME,
 };
 
 struct vc4_vec_tv_mode {
@@ -324,6 +325,22 @@ static const struct vc4_vec_tv_mode vc4_vec_tv_modes[] = {
 		.config1 = VEC_CONFIG1_C_CVBS_CVBS,
 		.custom_freq = 0x29c71c72,
 	},
+	{
+		/* 50Hz mono */
+		.mode = DRM_MODE_TV_MODE_MONOCHROME,
+		.expected_htotal = 864,
+		.config0 = VEC_CONFIG0_PAL_BDGHI_STD | VEC_CONFIG0_BURDIS |
+			   VEC_CONFIG0_CHRDIS,
+		.config1 = VEC_CONFIG1_C_CVBS_CVBS,
+	},
+	{
+		/* 60Hz mono */
+		.mode = DRM_MODE_TV_MODE_MONOCHROME,
+		.expected_htotal = 858,
+		.config0 = VEC_CONFIG0_PAL_M_STD | VEC_CONFIG0_BURDIS |
+			   VEC_CONFIG0_CHRDIS,
+		.config1 = VEC_CONFIG1_C_CVBS_CVBS,
+	},
 };
 
 static inline const struct vc4_vec_tv_mode *
@@ -351,6 +368,7 @@ static const struct drm_prop_enum_list legacy_tv_mode_names[] = {
 	{ VC4_VEC_TV_MODE_PAL_M, "PAL-M", },
 	{ VC4_VEC_TV_MODE_PAL_N, "PAL-N", },
 	{ VC4_VEC_TV_MODE_SECAM, "SECAM", },
+	{ VC4_VEC_TV_MODE_MONOCHROME, "Mono", },
 };
 
 static enum drm_connector_status
@@ -406,6 +424,10 @@ vc4_vec_connector_set_property(struct drm_connector *connector,
 		state->tv.mode = DRM_MODE_TV_MODE_SECAM;
 		break;
 
+	case VC4_VEC_TV_MODE_MONOCHROME:
+		state->tv.mode = DRM_MODE_TV_MODE_MONOCHROME;
+		break;
+
 	default:
 		return -EINVAL;
 	}
@@ -451,6 +473,10 @@ vc4_vec_connector_get_property(struct drm_connector *connector,
 
 	case DRM_MODE_TV_MODE_SECAM:
 		*val = VC4_VEC_TV_MODE_SECAM;
+		break;
+
+	case DRM_MODE_TV_MODE_MONOCHROME:
+		*val = VC4_VEC_TV_MODE_MONOCHROME;
 		break;
 
 	default:
@@ -502,6 +528,8 @@ static int vc4_vec_connector_init(struct drm_device *dev, struct vc4_vec *vec)
 	vec->legacy_tv_mode_property = prop;
 
 	drm_object_attach_property(&connector->base, prop, VC4_VEC_TV_MODE_NTSC);
+
+	drm_connector_attach_tv_margin_properties(connector);
 
 	drm_connector_attach_encoder(connector, &vec->encoder.base);
 
@@ -754,7 +782,8 @@ static int vc4_vec_bind(struct device *dev, struct device *master, void *data)
 					    BIT(DRM_MODE_TV_MODE_PAL) |
 					    BIT(DRM_MODE_TV_MODE_PAL_M) |
 					    BIT(DRM_MODE_TV_MODE_PAL_N) |
-					    BIT(DRM_MODE_TV_MODE_SECAM));
+					    BIT(DRM_MODE_TV_MODE_SECAM) |
+					    BIT(DRM_MODE_TV_MODE_MONOCHROME));
 	if (ret)
 		return ret;
 
