@@ -2717,6 +2717,10 @@ static enum surface_update_type check_update_surfaces_for_stream(
 		overall_type = UPDATE_TYPE_FULL;
 	}
 
+	if (stream_update && stream_update->hw_cursor_req) {
+		overall_type = UPDATE_TYPE_FULL;
+	}
+
 	/* some stream updates require passive update */
 	if (stream_update) {
 		union stream_update_flags *su_flags = &stream_update->stream->update_flags;
@@ -3011,6 +3015,9 @@ static void copy_stream_update_to_stream(struct dc *dc,
 
 	if (update->vrr_infopacket)
 		stream->vrr_infopacket = *update->vrr_infopacket;
+
+	if (update->hw_cursor_req)
+		stream->hw_cursor_req = *update->hw_cursor_req;
 
 	if (update->allow_freesync)
 		stream->allow_freesync = *update->allow_freesync;
