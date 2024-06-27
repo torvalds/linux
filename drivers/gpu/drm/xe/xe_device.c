@@ -44,6 +44,7 @@
 #include "xe_module.h"
 #include "xe_pat.h"
 #include "xe_pcode.h"
+#include "xe_perf.h"
 #include "xe_pm.h"
 #include "xe_query.h"
 #include "xe_sriov.h"
@@ -141,6 +142,7 @@ static const struct drm_ioctl_desc xe_ioctls[] = {
 			  DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(XE_WAIT_USER_FENCE, xe_wait_user_fence_ioctl,
 			  DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(XE_PERF, xe_perf_ioctl, DRM_RENDER_ALLOW),
 };
 
 static long xe_drm_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
@@ -484,6 +486,17 @@ static int wait_for_lmem_ready(struct xe_device *xe)
 	return 0;
 }
 
+static void update_device_info(struct xe_device *xe)
+{
+	/* disable features that are not available/applicable to VFs */
+	if (IS_SRIOV_VF(xe)) {
+		xe->info.enable_display = 0;
+		xe->info.has_heci_gscfi = 0;
+		xe->info.skip_guc_pc = 1;
+		xe->info.skip_pcode = 1;
+	}
+}
+
 /**
  * xe_device_probe_early: Device early probe
  * @xe: xe device instance
@@ -503,6 +516,8 @@ int xe_device_probe_early(struct xe_device *xe)
 		return err;
 
 	xe_sriov_probe_early(xe);
+
+	update_device_info(xe);
 
 	err = xe_pcode_probe_early(xe);
 	if (err)
@@ -619,16 +634,16 @@ int xe_device_probe(struct xe_device *xe)
 
 	err = xe_device_set_has_flat_ccs(xe);
 	if (err)
-		goto err_irq_shutdown;
+		goto err;
 
 	err = xe_vram_probe(xe);
 	if (err)
-		goto err_irq_shutdown;
+		goto err;
 
 	for_each_tile(tile, xe, id) {
 		err = xe_tile_init_noalloc(tile);
 		if (err)
-			goto err_irq_shutdown;
+			goto err;
 	}
 
 	/* Allocate and map stolen after potential VRAM resize */
@@ -642,7 +657,7 @@ int xe_device_probe(struct xe_device *xe)
 	 */
 	err = xe_display_init_noaccel(xe);
 	if (err)
-		goto err_irq_shutdown;
+		goto err;
 
 	for_each_gt(gt, xe, id) {
 		last_gt = id;
@@ -654,9 +669,13 @@ int xe_device_probe(struct xe_device *xe)
 
 	xe_heci_gsc_init(xe);
 
-	err = xe_display_init(xe);
+	err = xe_oa_init(xe);
 	if (err)
 		goto err_fini_gt;
+
+	err = xe_display_init(xe);
+	if (err)
+		goto err_fini_oa;
 
 	err = drm_dev_register(&xe->drm, 0);
 	if (err)
@@ -664,14 +683,22 @@ int xe_device_probe(struct xe_device *xe)
 
 	xe_display_register(xe);
 
+	xe_oa_register(xe);
+
 	xe_debugfs_register(xe);
 
 	xe_hwmon_register(xe);
+
+	for_each_gt(gt, xe, id)
+		xe_gt_sanitize_freq(gt);
 
 	return devm_add_action_or_reset(xe->drm.dev, xe_device_sanitize, xe);
 
 err_fini_display:
 	xe_display_driver_remove(xe);
+
+err_fini_oa:
+	xe_oa_fini(xe);
 
 err_fini_gt:
 	for_each_gt(gt, xe, id) {
@@ -681,8 +708,6 @@ err_fini_gt:
 			break;
 	}
 
-err_irq_shutdown:
-	xe_irq_shutdown(xe);
 err:
 	xe_display_fini(xe);
 	return err;
@@ -701,16 +726,18 @@ void xe_device_remove(struct xe_device *xe)
 	struct xe_gt *gt;
 	u8 id;
 
+	xe_oa_unregister(xe);
+
 	xe_device_remove_display(xe);
 
 	xe_display_fini(xe);
+
+	xe_oa_fini(xe);
 
 	xe_heci_gsc_fini(xe);
 
 	for_each_gt(gt, xe, id)
 		xe_gt_remove(gt);
-
-	xe_irq_shutdown(xe);
 }
 
 void xe_device_shutdown(struct xe_device *xe)

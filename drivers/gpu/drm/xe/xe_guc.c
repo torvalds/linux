@@ -476,6 +476,9 @@ static void guc_prepare_xfer(struct xe_guc *guc)
 	xe_mmio_write32(gt, GUC_SHIM_CONTROL, shim_flags);
 
 	xe_mmio_write32(gt, GT_PM_CONFIG, GT_DOORBELL_ENABLE);
+
+	/* Make sure GuC receives ARAT interrupts */
+	xe_mmio_rmw32(gt, PMINTRMSK, ARAT_EXPIRED_INTRMSK, 0);
 }
 
 /*
@@ -699,6 +702,9 @@ static int __xe_guc_upload(struct xe_guc *guc)
 {
 	int ret;
 
+	/* Raise GT freq to speed up HuC/GuC load */
+	xe_guc_pc_raise_unslice(&guc->pc);
+
 	guc_write_params(guc);
 	guc_prepare_xfer(guc);
 
@@ -784,7 +790,6 @@ int xe_guc_min_load_for_hwconfig(struct xe_guc *guc)
 
 	xe_guc_ads_populate_minimal(&guc->ads);
 
-	/* Raise GT freq to speed up HuC/GuC load */
 	xe_guc_pc_init_early(&guc->pc);
 
 	ret = __xe_guc_upload(guc);
@@ -854,8 +859,6 @@ int xe_guc_enable_communication(struct xe_guc *guc)
 	struct xe_device *xe = guc_to_xe(guc);
 	int err;
 
-	guc_enable_irq(guc);
-
 	if (IS_SRIOV_VF(xe) && xe_device_has_memirq(xe)) {
 		struct xe_gt *gt = guc_to_gt(guc);
 		struct xe_tile *tile = gt_to_tile(gt);
@@ -863,10 +866,9 @@ int xe_guc_enable_communication(struct xe_guc *guc)
 		err = xe_memirq_init_guc(&tile->sriov.vf.memirq, guc);
 		if (err)
 			return err;
+	} else {
+		guc_enable_irq(guc);
 	}
-
-	xe_mmio_rmw32(guc_to_gt(guc), PMINTRMSK,
-		      ARAT_EXPIRED_INTRMSK, 0);
 
 	err = xe_guc_ct_enable(&guc->ct);
 	if (err)
@@ -1094,7 +1096,7 @@ void xe_guc_irq_handler(struct xe_guc *guc, const u16 iir)
 
 void xe_guc_sanitize(struct xe_guc *guc)
 {
-	xe_uc_fw_change_status(&guc->fw, XE_UC_FIRMWARE_LOADABLE);
+	xe_uc_fw_sanitize(&guc->fw);
 	xe_guc_ct_disable(&guc->ct);
 	guc->submission_state.enabled = false;
 }
@@ -1111,7 +1113,13 @@ void xe_guc_reset_wait(struct xe_guc *guc)
 
 void xe_guc_stop_prepare(struct xe_guc *guc)
 {
-	XE_WARN_ON(xe_guc_pc_stop(&guc->pc));
+	if (!IS_SRIOV_VF(guc_to_xe(guc))) {
+		int err;
+
+		err = xe_guc_pc_stop(&guc->pc);
+		xe_gt_WARN(guc_to_gt(guc), err, "Failed to stop GuC PC: %pe\n",
+			   ERR_PTR(err));
+	}
 }
 
 void xe_guc_stop(struct xe_guc *guc)
@@ -1123,10 +1131,13 @@ void xe_guc_stop(struct xe_guc *guc)
 
 int xe_guc_start(struct xe_guc *guc)
 {
-	int ret;
+	if (!IS_SRIOV_VF(guc_to_xe(guc))) {
+		int err;
 
-	ret = xe_guc_pc_start(&guc->pc);
-	XE_WARN_ON(ret);
+		err = xe_guc_pc_start(&guc->pc);
+		xe_gt_WARN(guc_to_gt(guc), err, "Failed to start GuC PC: %pe\n",
+			   ERR_PTR(err));
+	}
 
 	return xe_guc_submit_start(guc);
 }

@@ -36,7 +36,7 @@
 #include "xe_pt.h"
 #include "xe_res_cursor.h"
 #include "xe_sync.h"
-#include "xe_trace.h"
+#include "xe_trace_bo.h"
 #include "xe_wa.h"
 #include "xe_hmm.h"
 
@@ -83,10 +83,10 @@ static bool preempt_fences_waiting(struct xe_vm *vm)
 	lockdep_assert_held(&vm->lock);
 	xe_vm_assert_held(vm);
 
-	list_for_each_entry(q, &vm->preempt.exec_queues, compute.link) {
-		if (!q->compute.pfence ||
+	list_for_each_entry(q, &vm->preempt.exec_queues, lr.link) {
+		if (!q->lr.pfence ||
 		    test_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT,
-			     &q->compute.pfence->flags)) {
+			     &q->lr.pfence->flags)) {
 			return true;
 		}
 	}
@@ -129,14 +129,14 @@ static int wait_for_existing_preempt_fences(struct xe_vm *vm)
 
 	xe_vm_assert_held(vm);
 
-	list_for_each_entry(q, &vm->preempt.exec_queues, compute.link) {
-		if (q->compute.pfence) {
-			long timeout = dma_fence_wait(q->compute.pfence, false);
+	list_for_each_entry(q, &vm->preempt.exec_queues, lr.link) {
+		if (q->lr.pfence) {
+			long timeout = dma_fence_wait(q->lr.pfence, false);
 
 			if (timeout < 0)
 				return -ETIME;
-			dma_fence_put(q->compute.pfence);
-			q->compute.pfence = NULL;
+			dma_fence_put(q->lr.pfence);
+			q->lr.pfence = NULL;
 		}
 	}
 
@@ -148,7 +148,7 @@ static bool xe_vm_is_idle(struct xe_vm *vm)
 	struct xe_exec_queue *q;
 
 	xe_vm_assert_held(vm);
-	list_for_each_entry(q, &vm->preempt.exec_queues, compute.link) {
+	list_for_each_entry(q, &vm->preempt.exec_queues, lr.link) {
 		if (!xe_exec_queue_is_idle(q))
 			return false;
 	}
@@ -161,17 +161,17 @@ static void arm_preempt_fences(struct xe_vm *vm, struct list_head *list)
 	struct list_head *link;
 	struct xe_exec_queue *q;
 
-	list_for_each_entry(q, &vm->preempt.exec_queues, compute.link) {
+	list_for_each_entry(q, &vm->preempt.exec_queues, lr.link) {
 		struct dma_fence *fence;
 
 		link = list->next;
 		xe_assert(vm->xe, link != list);
 
 		fence = xe_preempt_fence_arm(to_preempt_fence_from_link(link),
-					     q, q->compute.context,
-					     ++q->compute.seqno);
-		dma_fence_put(q->compute.pfence);
-		q->compute.pfence = fence;
+					     q, q->lr.context,
+					     ++q->lr.seqno);
+		dma_fence_put(q->lr.pfence);
+		q->lr.pfence = fence;
 	}
 }
 
@@ -180,27 +180,23 @@ static int add_preempt_fences(struct xe_vm *vm, struct xe_bo *bo)
 	struct xe_exec_queue *q;
 	int err;
 
+	xe_bo_assert_held(bo);
+
 	if (!vm->preempt.num_exec_queues)
 		return 0;
 
-	err = xe_bo_lock(bo, true);
+	err = dma_resv_reserve_fences(bo->ttm.base.resv, vm->preempt.num_exec_queues);
 	if (err)
 		return err;
 
-	err = dma_resv_reserve_fences(bo->ttm.base.resv, vm->preempt.num_exec_queues);
-	if (err)
-		goto out_unlock;
-
-	list_for_each_entry(q, &vm->preempt.exec_queues, compute.link)
-		if (q->compute.pfence) {
+	list_for_each_entry(q, &vm->preempt.exec_queues, lr.link)
+		if (q->lr.pfence) {
 			dma_resv_add_fence(bo->ttm.base.resv,
-					   q->compute.pfence,
+					   q->lr.pfence,
 					   DMA_RESV_USAGE_BOOKKEEP);
 		}
 
-out_unlock:
-	xe_bo_unlock(bo);
-	return err;
+	return 0;
 }
 
 static void resume_and_reinstall_preempt_fences(struct xe_vm *vm,
@@ -211,10 +207,10 @@ static void resume_and_reinstall_preempt_fences(struct xe_vm *vm,
 	lockdep_assert_held(&vm->lock);
 	xe_vm_assert_held(vm);
 
-	list_for_each_entry(q, &vm->preempt.exec_queues, compute.link) {
+	list_for_each_entry(q, &vm->preempt.exec_queues, lr.link) {
 		q->ops->resume(q);
 
-		drm_gpuvm_resv_add_fence(&vm->gpuvm, exec, q->compute.pfence,
+		drm_gpuvm_resv_add_fence(&vm->gpuvm, exec, q->lr.pfence,
 					 DMA_RESV_USAGE_BOOKKEEP, DMA_RESV_USAGE_BOOKKEEP);
 	}
 }
@@ -238,16 +234,16 @@ int xe_vm_add_compute_exec_queue(struct xe_vm *vm, struct xe_exec_queue *q)
 	if (err)
 		goto out_up_write;
 
-	pfence = xe_preempt_fence_create(q, q->compute.context,
-					 ++q->compute.seqno);
+	pfence = xe_preempt_fence_create(q, q->lr.context,
+					 ++q->lr.seqno);
 	if (!pfence) {
 		err = -ENOMEM;
 		goto out_fini;
 	}
 
-	list_add(&q->compute.link, &vm->preempt.exec_queues);
+	list_add(&q->lr.link, &vm->preempt.exec_queues);
 	++vm->preempt.num_exec_queues;
-	q->compute.pfence = pfence;
+	q->lr.pfence = pfence;
 
 	down_read(&vm->userptr.notifier_lock);
 
@@ -284,12 +280,12 @@ void xe_vm_remove_compute_exec_queue(struct xe_vm *vm, struct xe_exec_queue *q)
 		return;
 
 	down_write(&vm->lock);
-	list_del(&q->compute.link);
+	list_del(&q->lr.link);
 	--vm->preempt.num_exec_queues;
-	if (q->compute.pfence) {
-		dma_fence_enable_sw_signaling(q->compute.pfence);
-		dma_fence_put(q->compute.pfence);
-		q->compute.pfence = NULL;
+	if (q->lr.pfence) {
+		dma_fence_enable_sw_signaling(q->lr.pfence);
+		dma_fence_put(q->lr.pfence);
+		q->lr.pfence = NULL;
 	}
 	up_write(&vm->lock);
 }
@@ -327,7 +323,7 @@ static void xe_vm_kill(struct xe_vm *vm, bool unlocked)
 	vm->flags |= XE_VM_FLAG_BANNED;
 	trace_xe_vm_kill(vm);
 
-	list_for_each_entry(q, &vm->preempt.exec_queues, compute.link)
+	list_for_each_entry(q, &vm->preempt.exec_queues, lr.link)
 		q->ops->kill(q);
 
 	if (unlocked)
@@ -2140,7 +2136,7 @@ static struct xe_vma *new_vma(struct xe_vm *vm, struct drm_gpuva_op_map *op,
 	struct xe_bo *bo = op->gem.obj ? gem_to_xe_bo(op->gem.obj) : NULL;
 	struct drm_exec exec;
 	struct xe_vma *vma;
-	int err;
+	int err = 0;
 
 	lockdep_assert_held_write(&vm->lock);
 
@@ -2165,23 +2161,22 @@ static struct xe_vma *new_vma(struct xe_vm *vm, struct drm_gpuva_op_map *op,
 	vma = xe_vma_create(vm, bo, op->gem.offset,
 			    op->va.addr, op->va.addr +
 			    op->va.range - 1, pat_index, flags);
+	if (IS_ERR(vma))
+		goto err_unlock;
+
+	if (xe_vma_is_userptr(vma))
+		err = xe_vma_userptr_pin_pages(to_userptr_vma(vma));
+	else if (!xe_vma_has_no_bo(vma) && !bo->vm)
+		err = add_preempt_fences(vm, bo);
+
+err_unlock:
 	if (bo)
 		drm_exec_fini(&exec);
 
-	if (xe_vma_is_userptr(vma)) {
-		err = xe_vma_userptr_pin_pages(to_userptr_vma(vma));
-		if (err) {
-			prep_vma_destroy(vm, vma, false);
-			xe_vma_destroy_unlocked(vma);
-			return ERR_PTR(err);
-		}
-	} else if (!xe_vma_has_no_bo(vma) && !bo->vm) {
-		err = add_preempt_fences(vm, bo);
-		if (err) {
-			prep_vma_destroy(vm, vma, false);
-			xe_vma_destroy_unlocked(vma);
-			return ERR_PTR(err);
-		}
+	if (err) {
+		prep_vma_destroy(vm, vma, false);
+		xe_vma_destroy_unlocked(vma);
+		vma = ERR_PTR(err);
 	}
 
 	return vma;

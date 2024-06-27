@@ -17,6 +17,7 @@
 #include "xe_gt_types.h"
 #include "xe_lmtt_types.h"
 #include "xe_memirq_types.h"
+#include "xe_oa.h"
 #include "xe_platform_types.h"
 #include "xe_pt_types.h"
 #include "xe_sriov_types.h"
@@ -461,6 +462,9 @@ struct xe_device {
 
 	/** @heci_gsc: graphics security controller */
 	struct xe_heci_gsc heci_gsc;
+
+	/** @oa: oa perf counter subsystem */
+	struct xe_oa oa;
 
 	/** @needs_flr_on_fini: requests function-reset on fini */
 	bool needs_flr_on_fini;

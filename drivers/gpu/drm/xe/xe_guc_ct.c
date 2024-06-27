@@ -29,7 +29,7 @@
 #include "xe_guc_submit.h"
 #include "xe_map.h"
 #include "xe_pm.h"
-#include "xe_trace.h"
+#include "xe_trace_guc.h"
 
 /* Used when a CT send wants to block and / or receive data */
 struct g2h_fence {
@@ -126,7 +126,9 @@ static void guc_ct_fini(struct drm_device *drm, void *arg)
 	xa_destroy(&ct->fence_lookup);
 }
 
+static void receive_g2h(struct xe_guc_ct *ct);
 static void g2h_worker_func(struct work_struct *w);
+static void safe_mode_worker_func(struct work_struct *w);
 
 static void primelockdep(struct xe_guc_ct *ct)
 {
@@ -155,6 +157,7 @@ int xe_guc_ct_init(struct xe_guc_ct *ct)
 	spin_lock_init(&ct->fast_lock);
 	xa_init(&ct->fence_lookup);
 	INIT_WORK(&ct->g2h_worker, g2h_worker_func);
+	INIT_DELAYED_WORK(&ct->safe_mode_worker,  safe_mode_worker_func);
 	init_waitqueue_head(&ct->wq);
 	init_waitqueue_head(&ct->g2h_fence_wq);
 
@@ -321,6 +324,42 @@ static void xe_guc_ct_set_state(struct xe_guc_ct *ct,
 	mutex_unlock(&ct->lock);
 }
 
+static bool ct_needs_safe_mode(struct xe_guc_ct *ct)
+{
+	return !pci_dev_msi_enabled(to_pci_dev(ct_to_xe(ct)->drm.dev));
+}
+
+static bool ct_restart_safe_mode_worker(struct xe_guc_ct *ct)
+{
+	if (!ct_needs_safe_mode(ct))
+		return false;
+
+	queue_delayed_work(ct->g2h_wq, &ct->safe_mode_worker, HZ / 10);
+	return true;
+}
+
+static void safe_mode_worker_func(struct work_struct *w)
+{
+	struct xe_guc_ct *ct = container_of(w, struct xe_guc_ct, safe_mode_worker.work);
+
+	receive_g2h(ct);
+
+	if (!ct_restart_safe_mode_worker(ct))
+		xe_gt_dbg(ct_to_gt(ct), "GuC CT safe-mode canceled\n");
+}
+
+static void ct_enter_safe_mode(struct xe_guc_ct *ct)
+{
+	if (ct_restart_safe_mode_worker(ct))
+		xe_gt_dbg(ct_to_gt(ct), "GuC CT safe-mode enabled\n");
+}
+
+static void ct_exit_safe_mode(struct xe_guc_ct *ct)
+{
+	if (cancel_delayed_work_sync(&ct->safe_mode_worker))
+		xe_gt_dbg(ct_to_gt(ct), "GuC CT safe-mode disabled\n");
+}
+
 int xe_guc_ct_enable(struct xe_guc_ct *ct)
 {
 	struct xe_device *xe = ct_to_xe(ct);
@@ -350,6 +389,9 @@ int xe_guc_ct_enable(struct xe_guc_ct *ct)
 	wake_up_all(&ct->wq);
 	xe_gt_dbg(gt, "GuC CT communication channel enabled\n");
 
+	if (ct_needs_safe_mode(ct))
+		ct_enter_safe_mode(ct);
+
 	return 0;
 
 err_out:
@@ -373,6 +415,7 @@ static void stop_g2h_handler(struct xe_guc_ct *ct)
 void xe_guc_ct_disable(struct xe_guc_ct *ct)
 {
 	xe_guc_ct_set_state(ct, XE_GUC_CT_STATE_DISABLED);
+	ct_exit_safe_mode(ct);
 	stop_g2h_handler(ct);
 }
 
@@ -528,7 +571,7 @@ static int h2g_write(struct xe_guc_ct *ct, const u32 *action, u32 len,
 	/* Update descriptor */
 	desc_write(xe, h2g, tail, h2g->info.tail);
 
-	trace_xe_guc_ctb_h2g(gt->info.id, *(action - 1), full_len,
+	trace_xe_guc_ctb_h2g(xe, gt->info.id, *(action - 1), full_len,
 			     desc_read(xe, h2g, head), h2g->info.tail);
 
 	return 0;
@@ -641,6 +684,7 @@ static int guc_ct_send_locked(struct xe_guc_ct *ct, const u32 *action, u32 len,
 			      u32 g2h_len, u32 num_g2h,
 			      struct g2h_fence *g2h_fence)
 {
+	struct xe_device *xe = ct_to_xe(ct);
 	struct xe_gt *gt = ct_to_gt(ct);
 	struct drm_printer p = xe_gt_info_printer(gt);
 	unsigned int sleep_period_ms = 1;
@@ -668,7 +712,7 @@ try_again:
 		if (sleep_period_ms == 1024)
 			goto broken;
 
-		trace_xe_guc_ct_h2g_flow_control(h2g->info.head, h2g->info.tail,
+		trace_xe_guc_ct_h2g_flow_control(xe, h2g->info.head, h2g->info.tail,
 						 h2g->info.size,
 						 h2g->info.space,
 						 len + GUC_CTB_HDR_LEN);
@@ -680,7 +724,7 @@ try_again:
 		struct xe_device *xe = ct_to_xe(ct);
 		struct guc_ctb *g2h = &ct->ctbs.g2h;
 
-		trace_xe_guc_ct_g2h_flow_control(g2h->info.head,
+		trace_xe_guc_ct_g2h_flow_control(xe, g2h->info.head,
 						 desc_read(xe, g2h, tail),
 						 g2h->info.size,
 						 g2h->info.space,
@@ -833,12 +877,12 @@ retry_same_fence:
 	}
 
 	if (g2h_fence.retry) {
-		xe_gt_warn(gt, "H2G retry, action 0x%04x, reason %u",
-			   action[0], g2h_fence.reason);
+		xe_gt_dbg(gt, "H2G action %#x retrying: reason %#x\n",
+			  action[0], g2h_fence.reason);
 		goto retry;
 	}
 	if (g2h_fence.fail) {
-		xe_gt_err(gt, "H2G send failed, action 0x%04x, error %d, hint %u",
+		xe_gt_err(gt, "H2G request %#x failed: error %#x hint %#x\n",
 			  action[0], g2h_fence.error, g2h_fence.hint);
 		ret = -EIO;
 	}
@@ -1170,8 +1214,8 @@ static int g2h_read(struct xe_guc_ct *ct, u32 *msg, bool fast_path)
 	g2h->info.head = (head + avail) % g2h->info.size;
 	desc_write(xe, g2h, head, g2h->info.head);
 
-	trace_xe_guc_ctb_g2h(ct_to_gt(ct)->info.id, action, len,
-			     g2h->info.head, tail);
+	trace_xe_guc_ctb_g2h(xe, ct_to_gt(ct)->info.id,
+			     action, len, g2h->info.head, tail);
 
 	return len;
 }
@@ -1260,9 +1304,8 @@ static int dequeue_one_g2h(struct xe_guc_ct *ct)
 	return 1;
 }
 
-static void g2h_worker_func(struct work_struct *w)
+static void receive_g2h(struct xe_guc_ct *ct)
 {
-	struct xe_guc_ct *ct = container_of(w, struct xe_guc_ct, g2h_worker);
 	struct xe_gt *gt = ct_to_gt(ct);
 	bool ongoing;
 	int ret;
@@ -1309,6 +1352,13 @@ static void g2h_worker_func(struct work_struct *w)
 
 	if (ongoing)
 		xe_pm_runtime_put(ct_to_xe(ct));
+}
+
+static void g2h_worker_func(struct work_struct *w)
+{
+	struct xe_guc_ct *ct = container_of(w, struct xe_guc_ct, g2h_worker);
+
+	receive_g2h(ct);
 }
 
 static void guc_ctb_snapshot_capture(struct xe_device *xe, struct guc_ctb *ctb,

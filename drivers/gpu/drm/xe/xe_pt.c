@@ -1137,8 +1137,9 @@ static void invalidation_fence_cb(struct dma_fence *fence,
 {
 	struct invalidation_fence *ifence =
 		container_of(cb, struct invalidation_fence, cb);
+	struct xe_device *xe = gt_to_xe(ifence->gt);
 
-	trace_xe_gt_tlb_invalidation_fence_cb(&ifence->base);
+	trace_xe_gt_tlb_invalidation_fence_cb(xe, &ifence->base);
 	if (!ifence->fence->error) {
 		queue_work(system_wq, &ifence->work);
 	} else {
@@ -1153,8 +1154,9 @@ static void invalidation_fence_work_func(struct work_struct *w)
 {
 	struct invalidation_fence *ifence =
 		container_of(w, struct invalidation_fence, work);
+	struct xe_device *xe = gt_to_xe(ifence->gt);
 
-	trace_xe_gt_tlb_invalidation_fence_work_func(&ifence->base);
+	trace_xe_gt_tlb_invalidation_fence_work_func(xe, &ifence->base);
 	xe_gt_tlb_invalidation_range(ifence->gt, &ifence->base, ifence->start,
 				     ifence->end, ifence->asid);
 }
@@ -1166,7 +1168,7 @@ static int invalidation_fence_init(struct xe_gt *gt,
 {
 	int ret;
 
-	trace_xe_gt_tlb_invalidation_fence_create(&ifence->base);
+	trace_xe_gt_tlb_invalidation_fence_create(gt_to_xe(gt), &ifence->base);
 
 	spin_lock_irq(&gt->tlb_invalidation.lock);
 	dma_fence_init(&ifence->base.base, &invalidation_fence_ops,

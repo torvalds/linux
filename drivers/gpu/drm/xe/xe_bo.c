@@ -25,7 +25,7 @@
 #include "xe_pm.h"
 #include "xe_preempt_fence.h"
 #include "xe_res_cursor.h"
-#include "xe_trace.h"
+#include "xe_trace_bo.h"
 #include "xe_ttm_stolen_mgr.h"
 #include "xe_vm.h"
 
@@ -377,6 +377,15 @@ static struct ttm_tt *xe_ttm_tt_create(struct ttm_buffer_object *ttm_bo,
 	if ((!bo->cpu_caching && bo->flags & XE_BO_FLAG_SCANOUT) ||
 	    (xe->info.graphics_verx100 >= 1270 && bo->flags & XE_BO_FLAG_PAGETABLE))
 		caching = ttm_write_combined;
+
+	if (bo->flags & XE_BO_FLAG_NEEDS_UC) {
+		/*
+		 * Valid only for internally-created buffers only, for
+		 * which cpu_caching is never initialized.
+		 */
+		xe_assert(xe, bo->cpu_caching == 0);
+		caching = ttm_uncached;
+	}
 
 	err = ttm_tt_init(&tt->ttm, &bo->ttm, page_flags, caching, extra_pages);
 	if (err) {

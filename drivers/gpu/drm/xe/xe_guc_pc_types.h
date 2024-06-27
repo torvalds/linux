@@ -25,6 +25,10 @@ struct xe_guc_pc {
 	u32 user_requested_min;
 	/** @user_requested_max: Stash the maximum requested freq by user */
 	u32 user_requested_max;
+	/** @stashed_min_freq: Stash the current minimum freq */
+	u32 stashed_min_freq;
+	/** @stashed_max_freq: Stash the current maximum freq */
+	u32 stashed_max_freq;
 	/** @freq_lock: Let's protect the frequencies */
 	struct mutex freq_lock;
 	/** @freq_ready: Only handle freq changes, if they are really ready */

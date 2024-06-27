@@ -26,6 +26,7 @@
 #include "xe_macros.h"
 #include "xe_mmio.h"
 #include "xe_reg_sr.h"
+#include "xe_reg_whitelist.h"
 #include "xe_rtp.h"
 #include "xe_sched_job.h"
 #include "xe_sriov.h"
@@ -546,7 +547,8 @@ static int hw_engine_init(struct xe_gt *gt, struct xe_hw_engine *hwe,
 		if (hwe->class == XE_ENGINE_CLASS_OTHER)
 			hwe->irq_handler = xe_gsc_hwe_irq_handler;
 
-		xe_hw_engine_enable_ring(hwe);
+		if (!IS_SRIOV_VF(xe))
+			xe_hw_engine_enable_ring(hwe);
 	}
 
 	/* We reserve the highest BCS instance for USM */

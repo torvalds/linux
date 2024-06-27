@@ -21,6 +21,7 @@
 #include "xe_gt_sriov_vf.h"
 #include "xe_macros.h"
 #include "xe_sriov.h"
+#include "xe_trace.h"
 
 static void tiles_fini(void *arg)
 {
@@ -124,16 +125,24 @@ u8 xe_mmio_read8(struct xe_gt *gt, struct xe_reg reg)
 {
 	struct xe_tile *tile = gt_to_tile(gt);
 	u32 addr = xe_mmio_adjusted_addr(gt, reg.addr);
+	u8 val;
 
-	return readb((reg.ext ? tile->mmio_ext.regs : tile->mmio.regs) + addr);
+	val = readb((reg.ext ? tile->mmio_ext.regs : tile->mmio.regs) + addr);
+	trace_xe_reg_rw(gt, false, addr, val, sizeof(val));
+
+	return val;
 }
 
 u16 xe_mmio_read16(struct xe_gt *gt, struct xe_reg reg)
 {
 	struct xe_tile *tile = gt_to_tile(gt);
 	u32 addr = xe_mmio_adjusted_addr(gt, reg.addr);
+	u16 val;
 
-	return readw((reg.ext ? tile->mmio_ext.regs : tile->mmio.regs) + addr);
+	val = readw((reg.ext ? tile->mmio_ext.regs : tile->mmio.regs) + addr);
+	trace_xe_reg_rw(gt, false, addr, val, sizeof(val));
+
+	return val;
 }
 
 void xe_mmio_write32(struct xe_gt *gt, struct xe_reg reg, u32 val)
@@ -141,6 +150,7 @@ void xe_mmio_write32(struct xe_gt *gt, struct xe_reg reg, u32 val)
 	struct xe_tile *tile = gt_to_tile(gt);
 	u32 addr = xe_mmio_adjusted_addr(gt, reg.addr);
 
+	trace_xe_reg_rw(gt, true, addr, val, sizeof(val));
 	writel(val, (reg.ext ? tile->mmio_ext.regs : tile->mmio.regs) + addr);
 }
 
@@ -148,11 +158,16 @@ u32 xe_mmio_read32(struct xe_gt *gt, struct xe_reg reg)
 {
 	struct xe_tile *tile = gt_to_tile(gt);
 	u32 addr = xe_mmio_adjusted_addr(gt, reg.addr);
+	u32 val;
 
 	if (!reg.vf && IS_SRIOV_VF(gt_to_xe(gt)))
-		return xe_gt_sriov_vf_read32(gt, reg);
+		val = xe_gt_sriov_vf_read32(gt, reg);
+	else
+		val = readl((reg.ext ? tile->mmio_ext.regs : tile->mmio.regs) + addr);
 
-	return readl((reg.ext ? tile->mmio_ext.regs : tile->mmio.regs) + addr);
+	trace_xe_reg_rw(gt, false, addr, val, sizeof(val));
+
+	return val;
 }
 
 u32 xe_mmio_rmw32(struct xe_gt *gt, struct xe_reg reg, u32 clr, u32 set)
