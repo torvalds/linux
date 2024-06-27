@@ -233,6 +233,8 @@ int drm_gem_shmem_pin_locked(struct drm_gem_shmem_object *shmem)
 
 	dma_resv_assert_held(shmem->base.resv);
 
+	drm_WARN_ON(shmem->base.dev, shmem->base.import_attach);
+
 	ret = drm_gem_shmem_get_pages(shmem);
 
 	return ret;
@@ -610,6 +612,9 @@ int drm_gem_shmem_mmap(struct drm_gem_shmem_object *shmem, struct vm_area_struct
 
 		return ret;
 	}
+
+	if (is_cow_mapping(vma->vm_flags))
+		return -EINVAL;
 
 	dma_resv_lock(shmem->base.resv, NULL);
 	ret = drm_gem_shmem_get_pages(shmem);

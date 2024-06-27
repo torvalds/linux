@@ -856,7 +856,7 @@ xfs_ioc_scrubv_metadata(
 	if (vec_bytes > PAGE_SIZE)
 		return -ENOMEM;
 
-	uvectors = (void __user *)(uintptr_t)head.svh_vectors;
+	uvectors = u64_to_user_ptr(head.svh_vectors);
 	vectors = memdup_user(uvectors, vec_bytes);
 	if (IS_ERR(vectors))
 		return PTR_ERR(vectors);

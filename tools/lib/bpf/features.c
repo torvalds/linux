@@ -392,11 +392,40 @@ static int probe_uprobe_multi_link(int token_fd)
 	link_fd = bpf_link_create(prog_fd, -1, BPF_TRACE_UPROBE_MULTI, &link_opts);
 	err = -errno; /* close() can clobber errno */
 
+	if (link_fd >= 0 || err != -EBADF) {
+		close(link_fd);
+		close(prog_fd);
+		return 0;
+	}
+
+	/* Initial multi-uprobe support in kernel didn't handle PID filtering
+	 * correctly (it was doing thread filtering, not process filtering).
+	 * So now we'll detect if PID filtering logic was fixed, and, if not,
+	 * we'll pretend multi-uprobes are not supported, if not.
+	 * Multi-uprobes are used in USDT attachment logic, and we need to be
+	 * conservative here, because multi-uprobe selection happens early at
+	 * load time, while the use of PID filtering is known late at
+	 * attachment time, at which point it's too late to undo multi-uprobe
+	 * selection.
+	 *
+	 * Creating uprobe with pid == -1 for (invalid) '/' binary will fail
+	 * early with -EINVAL on kernels with fixed PID filtering logic;
+	 * otherwise -ESRCH would be returned if passed correct binary path
+	 * (but we'll just get -BADF, of course).
+	 */
+	link_opts.uprobe_multi.pid = -1; /* invalid PID */
+	link_opts.uprobe_multi.path = "/"; /* invalid path */
+	link_opts.uprobe_multi.offsets = &offset;
+	link_opts.uprobe_multi.cnt = 1;
+
+	link_fd = bpf_link_create(prog_fd, -1, BPF_TRACE_UPROBE_MULTI, &link_opts);
+	err = -errno; /* close() can clobber errno */
+
 	if (link_fd >= 0)
 		close(link_fd);
 	close(prog_fd);
 
-	return link_fd < 0 && err == -EBADF;
+	return link_fd < 0 && err == -EINVAL;
 }
 
 static int probe_kern_bpf_cookie(int token_fd)

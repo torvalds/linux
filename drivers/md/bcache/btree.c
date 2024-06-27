@@ -1741,18 +1741,20 @@ static void btree_gc_start(struct cache_set *c)
 
 	mutex_lock(&c->bucket_lock);
 
-	c->gc_mark_valid = 0;
 	c->gc_done = ZERO_KEY;
 
 	ca = c->cache;
 	for_each_bucket(b, ca) {
 		b->last_gc = b->gen;
+		if (bch_can_invalidate_bucket(ca, b))
+			b->reclaimable_in_gc = 1;
 		if (!atomic_read(&b->pin)) {
 			SET_GC_MARK(b, 0);
 			SET_GC_SECTORS_USED(b, 0);
 		}
 	}
 
+	c->gc_mark_valid = 0;
 	mutex_unlock(&c->bucket_lock);
 }
 
@@ -1808,6 +1810,9 @@ static void bch_btree_gc_finish(struct cache_set *c)
 
 	for_each_bucket(b, ca) {
 		c->need_gc	= max(c->need_gc, bucket_gc_gen(b));
+
+		if (b->reclaimable_in_gc)
+			b->reclaimable_in_gc = 0;
 
 		if (atomic_read(&b->pin))
 			continue;

@@ -379,7 +379,7 @@ static int non_hda_dai_hw_params_data(struct snd_pcm_substream *substream,
 
 	sdev = widget_to_sdev(w);
 	if (sdev->dspless_mode_selected)
-		goto skip_tlv;
+		return 0;
 
 	/* get stream_id */
 	hext_stream = ops->get_hext_stream(sdev, cpu_dai, substream);
@@ -423,7 +423,6 @@ static int non_hda_dai_hw_params_data(struct snd_pcm_substream *substream,
 	dma_config->dma_stream_channel_map.device_count = 1;
 	dma_config->dma_priv_config_size = 0;
 
-skip_tlv:
 	return 0;
 }
 
@@ -524,6 +523,9 @@ int sdw_hda_dai_hw_params(struct snd_pcm_substream *substream,
 			__func__, ret);
 		return ret;
 	}
+
+	if (sdev->dspless_mode_selected)
+		return 0;
 
 	ipc4_copier = widget_to_copier(w);
 	dma_config_tlv = &ipc4_copier->dma_config_tlv[cpu_dai_id];
