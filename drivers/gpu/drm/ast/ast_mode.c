@@ -1131,6 +1131,33 @@ ast_crtc_helper_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode 
 	return status;
 }
 
+static void ast_crtc_helper_mode_set_nofb(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct ast_device *ast = to_ast_device(dev);
+	struct drm_crtc_state *crtc_state = crtc->state;
+	struct ast_crtc_state *ast_crtc_state = to_ast_crtc_state(crtc_state);
+	struct ast_vbios_mode_info *vbios_mode_info =
+		&ast_crtc_state->vbios_mode_info;
+	struct drm_display_mode *adjusted_mode = &crtc_state->adjusted_mode;
+
+	/*
+	 * Ensure that no scanout takes place before reprogramming mode
+	 * and format registers.
+	 *
+	 * TODO: Get vblank interrupts working and remove this line.
+	 */
+	ast_wait_for_vretrace(ast);
+
+	ast_set_vbios_mode_reg(ast, adjusted_mode, vbios_mode_info);
+	ast_set_index_reg(ast, AST_IO_VGACRI, 0xa1, 0x06);
+	ast_set_std_reg(ast, adjusted_mode, vbios_mode_info);
+	ast_set_crtc_reg(ast, adjusted_mode, vbios_mode_info);
+	ast_set_dclk_reg(ast, adjusted_mode, vbios_mode_info);
+	ast_set_crtthd_reg(ast);
+	ast_set_sync_reg(ast, adjusted_mode, vbios_mode_info);
+}
+
 static int ast_crtc_helper_atomic_check(struct drm_crtc *crtc,
 					struct drm_atomic_state *state)
 {
@@ -1207,30 +1234,12 @@ ast_crtc_helper_atomic_flush(struct drm_crtc *crtc,
 
 static void ast_crtc_helper_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_state *state)
 {
-	struct drm_device *dev = crtc->dev;
-	struct ast_device *ast = to_ast_device(dev);
-	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
-	struct ast_crtc_state *ast_crtc_state = to_ast_crtc_state(crtc_state);
-	struct ast_vbios_mode_info *vbios_mode_info =
-		&ast_crtc_state->vbios_mode_info;
-	struct drm_display_mode *adjusted_mode = &crtc_state->adjusted_mode;
-
-	ast_set_vbios_mode_reg(ast, adjusted_mode, vbios_mode_info);
-	ast_set_index_reg(ast, AST_IO_VGACRI, 0xa1, 0x06);
-	ast_set_std_reg(ast, adjusted_mode, vbios_mode_info);
-	ast_set_crtc_reg(ast, adjusted_mode, vbios_mode_info);
-	ast_set_dclk_reg(ast, adjusted_mode, vbios_mode_info);
-	ast_set_crtthd_reg(ast);
-	ast_set_sync_reg(ast, adjusted_mode, vbios_mode_info);
-
 	ast_crtc_dpms(crtc, DRM_MODE_DPMS_ON);
 }
 
 static void ast_crtc_helper_atomic_disable(struct drm_crtc *crtc, struct drm_atomic_state *state)
 {
 	struct drm_crtc_state *old_crtc_state = drm_atomic_get_old_crtc_state(state, crtc);
-	struct drm_device *dev = crtc->dev;
-	struct ast_device *ast = to_ast_device(dev);
 
 	ast_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
 
@@ -1245,16 +1254,11 @@ static void ast_crtc_helper_atomic_disable(struct drm_crtc *crtc, struct drm_ato
 	 * simple pageflips on the planes.
 	 */
 	drm_atomic_helper_disable_planes_on_crtc(old_crtc_state, false);
-
-	/*
-	 * Ensure that no scanout takes place before reprogramming mode
-	 * and format registers.
-	 */
-	ast_wait_for_vretrace(ast);
 }
 
 static const struct drm_crtc_helper_funcs ast_crtc_helper_funcs = {
 	.mode_valid = ast_crtc_helper_mode_valid,
+	.mode_set_nofb = ast_crtc_helper_mode_set_nofb,
 	.atomic_check = ast_crtc_helper_atomic_check,
 	.atomic_flush = ast_crtc_helper_atomic_flush,
 	.atomic_enable = ast_crtc_helper_atomic_enable,
