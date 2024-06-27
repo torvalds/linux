@@ -463,6 +463,9 @@ static void thermal_governor_trip_crossed(struct thermal_governor *governor,
 					  const struct thermal_trip *trip,
 					  bool crossed_up)
 {
+	if (trip->type == THERMAL_TRIP_HOT || trip->type == THERMAL_TRIP_CRITICAL)
+		return;
+
 	if (governor->trip_crossed)
 		governor->trip_crossed(tz, trip, crossed_up);
 }
@@ -513,12 +516,12 @@ void __thermal_zone_device_update(struct thermal_zone_device *tz,
 	if (tz->temperature == THERMAL_TEMP_INVALID)
 		return;
 
-	__thermal_zone_set_trips(tz);
-
 	tz->notify_event = event;
 
 	for_each_trip_desc(tz, td)
 		handle_thermal_trip(tz, td, &way_up_list, &way_down_list);
+
+	thermal_zone_set_trips(tz);
 
 	list_sort(&way_up_list, &way_up_list, thermal_trip_notify_cmp);
 	list_for_each_entry(td, &way_up_list, notify_list_node)
@@ -1649,6 +1652,7 @@ static void thermal_zone_device_resume(struct work_struct *work)
 
 	tz->suspended = false;
 
+	thermal_debug_tz_resume(tz);
 	thermal_zone_device_init(tz);
 	__thermal_zone_device_update(tz, THERMAL_EVENT_UNSPECIFIED);
 
