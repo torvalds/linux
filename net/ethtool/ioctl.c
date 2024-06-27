@@ -1426,12 +1426,15 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 
 	if (rxfh.rss_context && ops->create_rxfh_context) {
 		if (create)
-			ret = ops->create_rxfh_context(dev, ctx, &rxfh_dev);
+			ret = ops->create_rxfh_context(dev, ctx, &rxfh_dev,
+						       extack);
 		else if (rxfh_dev.rss_delete)
 			ret = ops->remove_rxfh_context(dev, ctx,
-						       rxfh.rss_context);
+						       rxfh.rss_context,
+						       extack);
 		else
-			ret = ops->modify_rxfh_context(dev, ctx, &rxfh_dev);
+			ret = ops->modify_rxfh_context(dev, ctx, &rxfh_dev,
+						       extack);
 	} else {
 		ret = ops->set_rxfh(dev, &rxfh_dev, extack);
 	}
