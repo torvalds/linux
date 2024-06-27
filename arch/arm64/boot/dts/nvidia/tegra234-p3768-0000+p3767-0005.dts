@@ -1,11 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 
-#include <dt-bindings/input/linux-event-codes.h>
-#include <dt-bindings/input/gpio-keys.h>
-
-#include "tegra234-p3767.dtsi"
-#include "tegra234-p3768-0000.dtsi"
+#include "tegra234-p3768-0000+p3767.dtsi"
 
 / {
 	compatible = "nvidia,p3768-0000+p3767-0005", "nvidia,p3767-0005", "nvidia,tegra234";
@@ -17,32 +13,7 @@
 		};
 	};
 
-	pwm-fan {
-		cooling-levels = <0 88 187 255>;
-	};
-
 	sound {
 		label = "NVIDIA Jetson Orin Nano APE";
-	};
-
-	thermal-zones {
-		tj-thermal {
-			cooling-maps {
-				map-active-0 {
-					cooling-device = <&fan 0 1>;
-					trip = <&tj_trip_active0>;
-				};
-
-				map-active-1 {
-					cooling-device = <&fan 1 2>;
-					trip = <&tj_trip_active1>;
-				};
-
-				map-active-2 {
-					cooling-device = <&fan 2 3>;
-					trip = <&tj_trip_active2>;
-				};
-			};
-		};
 	};
 };
