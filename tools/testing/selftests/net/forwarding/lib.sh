@@ -1225,22 +1225,6 @@ trap_uninstall()
 	tc filter del dev $dev $direction pref 1 flower
 }
 
-slow_path_trap_install()
-{
-	# For slow-path testing, we need to install a trap to get to
-	# slow path the packets that would otherwise be switched in HW.
-	if [ "${tcflags/skip_hw}" != "$tcflags" ]; then
-		trap_install "$@"
-	fi
-}
-
-slow_path_trap_uninstall()
-{
-	if [ "${tcflags/skip_hw}" != "$tcflags" ]; then
-		trap_uninstall "$@"
-	fi
-}
-
 __icmp_capture_add_del()
 {
 	local add_del=$1; shift
