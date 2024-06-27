@@ -170,7 +170,8 @@ struct hwseq_private_funcs {
 			unsigned int *k1_div,
 			unsigned int *k2_div);
 	void (*resync_fifo_dccg_dio)(struct dce_hwseq *hws, struct dc *dc,
-			struct dc_state *context);
+			struct dc_state *context,
+			unsigned int current_pipe_idx);
 	enum dc_status (*apply_single_controller_ctx_to_hw)(
 			struct pipe_ctx *pipe_ctx,
 			struct dc_state *context,

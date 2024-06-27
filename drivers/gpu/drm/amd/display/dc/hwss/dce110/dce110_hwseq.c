@@ -2443,7 +2443,7 @@ enum dc_status dce110_apply_ctx_to_hw(
 
 #ifdef CONFIG_DRM_AMD_DC_FP
 		if (hws->funcs.resync_fifo_dccg_dio)
-			hws->funcs.resync_fifo_dccg_dio(hws, dc, context);
+			hws->funcs.resync_fifo_dccg_dio(hws, dc, context, i);
 #endif
 	}
 

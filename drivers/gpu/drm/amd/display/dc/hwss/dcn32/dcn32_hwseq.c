@@ -1201,20 +1201,27 @@ void dcn32_calculate_pix_rate_divider(
 	}
 }
 
-void dcn32_resync_fifo_dccg_dio(struct dce_hwseq *hws, struct dc *dc, struct dc_state *context)
+void dcn32_resync_fifo_dccg_dio(struct dce_hwseq *hws, struct dc *dc, struct dc_state *context, unsigned int current_pipe_idx)
 {
 	unsigned int i;
 	struct pipe_ctx *pipe = NULL;
 	bool otg_disabled[MAX_PIPES] = {false};
+	struct dc_state *dc_state = NULL;
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+		if (i <= current_pipe_idx) {
+			pipe = &context->res_ctx.pipe_ctx[i];
+			dc_state = context;
+		} else {
+			pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+			dc_state = dc->current_state;
+		}
 
 		if (!resource_is_pipe_type(pipe, OTG_MASTER))
 			continue;
 
 		if ((pipe->stream->dpms_off || dc_is_virtual_signal(pipe->stream->signal))
-			&& dc_state_get_pipe_subvp_type(dc->current_state, pipe) != SUBVP_PHANTOM) {
+			&& dc_state_get_pipe_subvp_type(dc_state, pipe) != SUBVP_PHANTOM) {
 			pipe->stream_res.tg->funcs->disable_crtc(pipe->stream_res.tg);
 			reset_sync_context_for_pipe(dc, context, i);
 			otg_disabled[i] = true;
@@ -1224,7 +1231,10 @@ void dcn32_resync_fifo_dccg_dio(struct dce_hwseq *hws, struct dc *dc, struct dc_
 	hws->ctx->dc->res_pool->dccg->funcs->trigger_dio_fifo_resync(hws->ctx->dc->res_pool->dccg);
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+		if (i <= current_pipe_idx)
+			pipe = &context->res_ctx.pipe_ctx[i];
+		else
+			pipe = &dc->current_state->res_ctx.pipe_ctx[i];
 
 		if (otg_disabled[i]) {
 			int opp_inst[MAX_PIPES] = { pipe->stream_res.opp->inst };
@@ -1572,7 +1582,7 @@ void dcn32_enable_phantom_streams(struct dc *dc, struct dc_state *context)
 
 #ifdef CONFIG_DRM_AMD_DC_FP
 		if (hws->funcs.resync_fifo_dccg_dio)
-			hws->funcs.resync_fifo_dccg_dio(hws, dc, context);
+			hws->funcs.resync_fifo_dccg_dio(hws, dc, context, i);
 #endif
 	}
 }
