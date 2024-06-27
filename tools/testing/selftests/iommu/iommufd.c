@@ -1722,6 +1722,7 @@ FIXTURE_VARIANT(iommufd_dirty_tracking)
 
 FIXTURE_SETUP(iommufd_dirty_tracking)
 {
+	unsigned long size;
 	int mmap_flags;
 	void *vrc;
 	int rc;
@@ -1749,12 +1750,11 @@ FIXTURE_SETUP(iommufd_dirty_tracking)
 	assert(vrc == self->buffer);
 
 	self->page_size = MOCK_PAGE_SIZE;
-	self->bitmap_size =
-		variant->buffer_size / self->page_size / BITS_PER_BYTE;
+	self->bitmap_size = variant->buffer_size / self->page_size;
 
 	/* Provision with an extra (PAGE_SIZE) for the unaligned case */
-	rc = posix_memalign(&self->bitmap, PAGE_SIZE,
-			    self->bitmap_size + PAGE_SIZE);
+	size = DIV_ROUND_UP(self->bitmap_size, BITS_PER_BYTE);
+	rc = posix_memalign(&self->bitmap, PAGE_SIZE, size + PAGE_SIZE);
 	assert(!rc);
 	assert(self->bitmap);
 	assert((uintptr_t)self->bitmap % PAGE_SIZE == 0);
@@ -1775,7 +1775,7 @@ FIXTURE_SETUP(iommufd_dirty_tracking)
 FIXTURE_TEARDOWN(iommufd_dirty_tracking)
 {
 	munmap(self->buffer, variant->buffer_size);
-	munmap(self->bitmap, self->bitmap_size);
+	munmap(self->bitmap, DIV_ROUND_UP(self->bitmap_size, BITS_PER_BYTE));
 	teardown_iommufd(self->fd, _metadata);
 }
 
