@@ -269,9 +269,6 @@ struct iova_bitmap *iova_bitmap_alloc(unsigned long iova, size_t length,
 		goto err;
 	}
 
-	rc = iova_bitmap_get(bitmap);
-	if (rc)
-		goto err;
 	return bitmap;
 
 err:
@@ -424,6 +421,10 @@ int iova_bitmap_for_each(struct iova_bitmap *bitmap, void *opaque,
 			 iova_bitmap_fn_t fn)
 {
 	int ret = 0;
+
+	ret = iova_bitmap_get(bitmap);
+	if (ret)
+		return ret;
 
 	for (; !iova_bitmap_done(bitmap) && !ret;
 	     ret = iova_bitmap_advance(bitmap)) {
