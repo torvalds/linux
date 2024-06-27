@@ -465,18 +465,18 @@ void iova_bitmap_set(struct iova_bitmap *bitmap,
 					 last_bit - cur_bit + 1);
 		void *kaddr;
 
-		if (unlikely(page_idx > last_page_idx))
+		if (unlikely(page_idx > last_page_idx)) {
+			unsigned long left =
+				((last_bit - cur_bit + 1) << mapped->pgshift);
+
+			bitmap->set_ahead_length = left;
 			break;
+		}
 
 		kaddr = kmap_local_page(mapped->pages[page_idx]);
 		bitmap_set(kaddr, offset, nbits);
 		kunmap_local(kaddr);
 		cur_bit += nbits;
 	} while (cur_bit <= last_bit);
-
-	if (unlikely(cur_bit <= last_bit)) {
-		bitmap->set_ahead_length =
-			((last_bit - cur_bit + 1) << bitmap->mapped.pgshift);
-	}
 }
 EXPORT_SYMBOL_NS_GPL(iova_bitmap_set, IOMMUFD);
