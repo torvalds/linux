@@ -407,6 +407,41 @@ static void _rx_dck(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy)
 	}
 }
 
+static void _rck(struct rtw89_dev *rtwdev, enum rtw89_rf_path path)
+{
+	u32 rf_reg5;
+	u32 rck_val;
+	u32 val;
+	int ret;
+
+	rtw89_debug(rtwdev, RTW89_DBG_RFK, "[RCK] ====== S%d RCK ======\n", path);
+
+	rf_reg5 = rtw89_read_rf(rtwdev, path, RR_RSV1, RFREG_MASK);
+
+	rtw89_write_rf(rtwdev, path, RR_RSV1, RR_RSV1_RST, 0x0);
+	rtw89_write_rf(rtwdev, path, RR_MOD, RR_MOD_MASK, RR_MOD_V_RX);
+
+	rtw89_debug(rtwdev, RTW89_DBG_RFK, "[RCK] RF0x00 = 0x%05x\n",
+		    rtw89_read_rf(rtwdev, path, RR_MOD, RFREG_MASK));
+
+	/* RCK trigger */
+	rtw89_write_rf(rtwdev, path, RR_RCKC, RFREG_MASK, 0x00240);
+
+	ret = read_poll_timeout_atomic(rtw89_read_rf, val, val, 2, 30,
+				       false, rtwdev, path, RR_RCKS, BIT(3));
+
+	rck_val = rtw89_read_rf(rtwdev, path, RR_RCKC, RR_RCKC_CA);
+
+	rtw89_debug(rtwdev, RTW89_DBG_RFK, "[RCK] rck_val = 0x%x, ret = %d\n",
+		    rck_val, ret);
+
+	rtw89_write_rf(rtwdev, path, RR_RCKC, RFREG_MASK, rck_val);
+	rtw89_write_rf(rtwdev, path, RR_RSV1, RFREG_MASK, rf_reg5);
+
+	rtw89_debug(rtwdev, RTW89_DBG_RFK, "[RCK] RF 0x1b = 0x%x\n",
+		    rtw89_read_rf(rtwdev, path, RR_RCKC, RFREG_MASK));
+}
+
 static void _drck(struct rtw89_dev *rtwdev)
 {
 	u32 rck_d;
@@ -3788,6 +3823,14 @@ void rtw8852bt_dpk_init(struct rtw89_dev *rtwdev)
 	dpk->is_dpk_enable = true;
 	dpk->is_dpk_reload_en = false;
 	_set_dpd_backoff(rtwdev, RTW89_PHY_0);
+}
+
+void rtw8852bt_rck(struct rtw89_dev *rtwdev)
+{
+	u8 path;
+
+	for (path = 0; path < RF_PATH_NUM_8852BT; path++)
+		_rck(rtwdev, path);
 }
 
 void rtw8852bt_dack(struct rtw89_dev *rtwdev)

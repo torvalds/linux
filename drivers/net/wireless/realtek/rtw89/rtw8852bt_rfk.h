@@ -7,6 +7,7 @@
 
 #include "core.h"
 
+void rtw8852bt_rck(struct rtw89_dev *rtwdev);
 void rtw8852bt_dack(struct rtw89_dev *rtwdev);
 void rtw8852bt_iqk(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx);
 void rtw8852bt_rx_dck(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx);
