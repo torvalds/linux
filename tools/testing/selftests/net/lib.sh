@@ -199,10 +199,10 @@ tc_rule_stats_get()
 {
 	local dev=$1; shift
 	local pref=$1; shift
-	local dir=$1; shift
+	local dir=${1:-ingress}; shift
 	local selector=${1:-.packets}; shift
 
-	tc -j -s filter show dev $dev ${dir:-ingress} pref $pref \
+	tc -j -s filter show dev $dev $dir pref $pref \
 	    | jq ".[1].options.actions[].stats$selector"
 }
 
