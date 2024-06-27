@@ -610,8 +610,8 @@ fault:
 }
 EXPORT_SYMBOL(skb_copy_datagram_from_iter);
 
-static int zerocopy_fill_skb_from_iter(struct sk_buff *skb,
-					struct iov_iter *from, size_t length)
+int zerocopy_fill_skb_from_iter(struct sk_buff *skb,
+				struct iov_iter *from, size_t length)
 {
 	int frag = skb_shinfo(skb)->nr_frags;
 
@@ -687,11 +687,11 @@ int __zerocopy_sg_from_iter(struct msghdr *msg, struct sock *sk,
 	int ret;
 
 	if (msg && msg->msg_ubuf && msg->sg_from_iter)
-		return msg->sg_from_iter(sk, skb, from, length);
+		ret = msg->sg_from_iter(skb, from, length);
+	else
+		ret = zerocopy_fill_skb_from_iter(skb, from, length);
 
-	ret = zerocopy_fill_skb_from_iter(skb, from, length);
 	truesize = skb->truesize - orig_size;
-
 	if (sk && sk->sk_type == SOCK_STREAM) {
 		sk_wmem_queued_add(sk, truesize);
 		if (!skb_zcopy_pure(skb))
