@@ -463,6 +463,7 @@
   __traceiter_sched_overutilized_tp
   __traceiter_sched_switch
   __traceiter_suspend_resume
+  __traceiter_sys_exit
   __traceiter_workqueue_execute_start
   __traceiter_xdp_exception
   __tracepoint_android_rvh_account_irq
@@ -642,6 +643,7 @@
   __tracepoint_sched_overutilized_tp
   __tracepoint_sched_switch
   __tracepoint_suspend_resume
+  __tracepoint_sys_exit
   __tracepoint_workqueue_execute_start
   __tracepoint_xdp_exception
   __tty_alloc_driver
