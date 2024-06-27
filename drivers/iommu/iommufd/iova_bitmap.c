@@ -384,8 +384,6 @@ static int iova_bitmap_advance(struct iova_bitmap *bitmap)
 	bitmap->mapped_base_index += count;
 
 	iova_bitmap_put(bitmap);
-	if (iova_bitmap_done(bitmap))
-		return 0;
 
 	/* Iterate, set and skip any bits requested for next iteration */
 	if (bitmap->set_ahead_length) {
@@ -395,6 +393,9 @@ static int iova_bitmap_advance(struct iova_bitmap *bitmap)
 		if (ret)
 			return ret;
 	}
+
+	if (iova_bitmap_done(bitmap))
+		return 0;
 
 	/* When advancing the index we pin the next set of bitmap pages */
 	return iova_bitmap_get(bitmap);
