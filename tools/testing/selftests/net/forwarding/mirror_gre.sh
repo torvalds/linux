@@ -74,7 +74,7 @@ test_span_gre_mac()
 
 	RET=0
 
-	mirror_install $swp1 $direction $tundev "matchall $tcflags"
+	mirror_install $swp1 $direction $tundev "matchall"
 	icmp_capture_install h3-${tundev} "src_mac $src_mac dst_mac $dst_mac"
 
 	mirror_test v$h1 192.0.2.1 192.0.2.2 h3-${tundev} 100 10
@@ -82,15 +82,15 @@ test_span_gre_mac()
 	icmp_capture_uninstall h3-${tundev}
 	mirror_uninstall $swp1 $direction
 
-	log_test "$direction $what: envelope MAC ($tcflags)"
+	log_test "$direction $what: envelope MAC"
 }
 
 test_two_spans()
 {
 	RET=0
 
-	mirror_install $swp1 ingress gt4 "matchall $tcflags"
-	mirror_install $swp1 egress gt6 "matchall $tcflags"
+	mirror_install $swp1 ingress gt4 "matchall"
+	mirror_install $swp1 egress gt6 "matchall"
 	quick_test_span_gre_dir gt4 8 0
 	quick_test_span_gre_dir gt6 0 8
 
@@ -98,13 +98,13 @@ test_two_spans()
 	fail_test_span_gre_dir gt4 8 0
 	quick_test_span_gre_dir gt6 0 8
 
-	mirror_install $swp1 ingress gt4 "matchall $tcflags"
+	mirror_install $swp1 ingress gt4 "matchall"
 	mirror_uninstall $swp1 egress
 	quick_test_span_gre_dir gt4 8 0
 	fail_test_span_gre_dir gt6 0 8
 
 	mirror_uninstall $swp1 ingress
-	log_test "two simultaneously configured mirrors ($tcflags)"
+	log_test "two simultaneously configured mirrors"
 }
 
 test_gretap()
@@ -131,30 +131,11 @@ test_ip6gretap_mac()
 	test_span_gre_mac gt6 egress "mirror to ip6gretap"
 }
 
-test_all()
-{
-	slow_path_trap_install $swp1 ingress
-	slow_path_trap_install $swp1 egress
-
-	tests_run
-
-	slow_path_trap_uninstall $swp1 egress
-	slow_path_trap_uninstall $swp1 ingress
-}
-
 trap cleanup EXIT
 
 setup_prepare
 setup_wait
 
-tcflags="skip_hw"
-test_all
-
-if ! tc_offload_check; then
-	echo "WARN: Could not test offloaded functionality"
-else
-	tcflags="skip_sw"
-	test_all
-fi
+tests_run
 
 exit $EXIT_STATUS

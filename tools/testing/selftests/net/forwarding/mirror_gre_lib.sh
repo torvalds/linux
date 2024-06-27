@@ -47,12 +47,12 @@ full_test_span_gre_dir_ips()
 
 	RET=0
 
-	mirror_install $swp1 $direction $tundev "matchall $tcflags"
+	mirror_install $swp1 $direction $tundev "matchall"
 	test_span_dir_ips "h3-$tundev" "$forward_type" \
 			  "$backward_type" "$ip1" "$ip2"
 	mirror_uninstall $swp1 $direction
 
-	log_test "$direction $what ($tcflags)"
+	log_test "$direction $what"
 }
 
 full_test_span_gre_dir_vlan_ips()
@@ -68,7 +68,7 @@ full_test_span_gre_dir_vlan_ips()
 
 	RET=0
 
-	mirror_install $swp1 $direction $tundev "matchall $tcflags"
+	mirror_install $swp1 $direction $tundev "matchall"
 
 	test_span_dir_ips "h3-$tundev" "$forward_type" \
 			  "$backward_type" "$ip1" "$ip2"
@@ -81,7 +81,7 @@ full_test_span_gre_dir_vlan_ips()
 
 	mirror_uninstall $swp1 $direction
 
-	log_test "$direction $what ($tcflags)"
+	log_test "$direction $what"
 }
 
 quick_test_span_gre_dir()
@@ -151,7 +151,7 @@ full_test_span_gre_stp_ips()
 
 	RET=0
 
-	mirror_install $swp1 ingress $tundev "matchall $tcflags"
+	mirror_install $swp1 ingress $tundev "matchall"
 	quick_test_span_gre_dir_ips $tundev $ip1 $ip2 \
 				    "$forward_type" "$backward_type"
 
@@ -166,7 +166,7 @@ full_test_span_gre_stp_ips()
 
 	mirror_uninstall $swp1 ingress
 
-	log_test "$what: STP state ($tcflags)"
+	log_test "$what: STP state"
 }
 
 full_test_span_gre_stp()

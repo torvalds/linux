@@ -153,7 +153,7 @@ test_span_gre_forbidden_cpu()
 	RET=0
 
 	# Run the pass-test first, to prime neighbor table.
-	mirror_install $swp1 ingress $tundev "matchall $tcflags"
+	mirror_install $swp1 ingress $tundev "matchall"
 	quick_test_span_gre_dir $tundev
 
 	# Now forbid the VLAN at the bridge and see it fail.
@@ -167,7 +167,7 @@ test_span_gre_forbidden_cpu()
 
 	mirror_uninstall $swp1 ingress
 
-	log_test "$what: vlan forbidden at a bridge ($tcflags)"
+	log_test "$what: vlan forbidden at a bridge"
 }
 
 test_gretap_forbidden_cpu()
@@ -187,7 +187,7 @@ test_span_gre_forbidden_egress()
 
 	RET=0
 
-	mirror_install $swp1 ingress $tundev "matchall $tcflags"
+	mirror_install $swp1 ingress $tundev "matchall"
 	quick_test_span_gre_dir $tundev
 
 	bridge vlan del dev $swp3 vid 555
@@ -202,7 +202,7 @@ test_span_gre_forbidden_egress()
 
 	mirror_uninstall $swp1 ingress
 
-	log_test "$what: vlan forbidden at a bridge egress ($tcflags)"
+	log_test "$what: vlan forbidden at a bridge egress"
 }
 
 test_gretap_forbidden_egress()
@@ -223,7 +223,7 @@ test_span_gre_untagged_egress()
 
 	RET=0
 
-	mirror_install $swp1 ingress $tundev "matchall $tcflags"
+	mirror_install $swp1 ingress $tundev "matchall"
 
 	quick_test_span_gre_dir $tundev
 	quick_test_span_vlan_dir $h3 555 "$ul_proto"
@@ -246,7 +246,7 @@ test_span_gre_untagged_egress()
 
 	mirror_uninstall $swp1 ingress
 
-	log_test "$what: vlan untagged at a bridge egress ($tcflags)"
+	log_test "$what: vlan untagged at a bridge egress"
 }
 
 test_gretap_untagged_egress()
@@ -267,7 +267,7 @@ test_span_gre_fdb_roaming()
 
 	RET=0
 
-	mirror_install $swp1 ingress $tundev "matchall $tcflags"
+	mirror_install $swp1 ingress $tundev "matchall"
 	quick_test_span_gre_dir $tundev
 
 	while ((RET == 0)); do
@@ -279,7 +279,7 @@ test_span_gre_fdb_roaming()
 		if ! bridge fdb sh dev $swp2 vlan 555 master \
 		    | grep -q $h3mac; then
 			printf "TEST: %-60s  [RETRY]\n" \
-				"$what: MAC roaming ($tcflags)"
+				"$what: MAC roaming"
 			# ARP or ND probably reprimed the FDB while the test
 			# was running. We would get a spurious failure.
 			RET=0
@@ -296,7 +296,7 @@ test_span_gre_fdb_roaming()
 
 	mirror_uninstall $swp1 ingress
 
-	log_test "$what: MAC roaming ($tcflags)"
+	log_test "$what: MAC roaming"
 }
 
 test_gretap_fdb_roaming()
@@ -319,30 +319,11 @@ test_ip6gretap_stp()
 	full_test_span_gre_stp gt6 $swp3 "mirror to ip6gretap"
 }
 
-test_all()
-{
-	slow_path_trap_install $swp1 ingress
-	slow_path_trap_install $swp1 egress
-
-	tests_run
-
-	slow_path_trap_uninstall $swp1 egress
-	slow_path_trap_uninstall $swp1 ingress
-}
-
 trap cleanup EXIT
 
 setup_prepare
 setup_wait
 
-tcflags="skip_hw"
-test_all
-
-if ! tc_offload_check; then
-	echo "WARN: Could not test offloaded functionality"
-else
-	tcflags="skip_sw"
-	test_all
-fi
+tests_run
 
 exit $EXIT_STATUS

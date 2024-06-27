@@ -118,7 +118,7 @@ test_span_gre_ttl_inherit()
 	RET=0
 
 	ip link set dev $tundev type $type ttl inherit
-	mirror_install $swp1 ingress $tundev "matchall $tcflags"
+	mirror_install $swp1 ingress $tundev "matchall"
 	fail_test_span_gre_dir $tundev
 
 	ip link set dev $tundev type $type ttl 100
@@ -126,7 +126,7 @@ test_span_gre_ttl_inherit()
 	quick_test_span_gre_dir $tundev
 	mirror_uninstall $swp1 ingress
 
-	log_test "$what: no offload on TTL of inherit ($tcflags)"
+	log_test "$what: no offload on TTL of inherit"
 }
 
 test_span_gre_tos_fixed()
@@ -138,14 +138,14 @@ test_span_gre_tos_fixed()
 	RET=0
 
 	ip link set dev $tundev type $type tos 0x10
-	mirror_install $swp1 ingress $tundev "matchall $tcflags"
+	mirror_install $swp1 ingress $tundev "matchall"
 	fail_test_span_gre_dir $tundev
 
 	ip link set dev $tundev type $type tos inherit
 	quick_test_span_gre_dir $tundev
 	mirror_uninstall $swp1 ingress
 
-	log_test "$what: no offload on a fixed TOS ($tcflags)"
+	log_test "$what: no offload on a fixed TOS"
 }
 
 test_span_failable()
@@ -156,7 +156,7 @@ test_span_failable()
 
 	RET=0
 
-	mirror_install $swp1 ingress $tundev "matchall $tcflags"
+	mirror_install $swp1 ingress $tundev "matchall"
 	if ((should_fail)); then
 	    fail_test_span_gre_dir  $tundev
 	else
@@ -164,7 +164,7 @@ test_span_failable()
 	fi
 	mirror_uninstall $swp1 ingress
 
-	log_test "$what: should_fail=$should_fail ($tcflags)"
+	log_test "$what: should_fail=$should_fail"
 }
 
 test_failable()
@@ -173,17 +173,6 @@ test_failable()
 
 	test_span_failable $should_fail gt6-key "mirror to keyful gretap"
 	test_span_failable $should_fail gt6-soft "mirror to gretap w/ soft underlay"
-}
-
-test_sw()
-{
-	slow_path_trap_install $swp1 ingress
-	slow_path_trap_install $swp1 egress
-
-	test_failable 0
-
-	slow_path_trap_uninstall $swp1 egress
-	slow_path_trap_uninstall $swp1 ingress
 }
 
 test_hw()
@@ -202,16 +191,6 @@ trap cleanup EXIT
 setup_prepare
 setup_wait
 
-if ! tc_offload_check; then
-    check_err 1 "Could not test offloaded functionality"
-    log_test "mlxsw-specific tests for mirror to gretap"
-    exit
-fi
-
-tcflags="skip_hw"
-test_sw
-
-tcflags="skip_sw"
 test_hw
 
 exit $EXIT_STATUS
