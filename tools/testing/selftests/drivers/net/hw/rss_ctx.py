@@ -8,7 +8,7 @@ from lib.py import NetDrvEpEnv
 from lib.py import NetdevFamily
 from lib.py import KsftSkipEx
 from lib.py import rand_port
-from lib.py import ethtool, ip, GenerateTraffic, CmdExitFailure
+from lib.py import ethtool, ip, defer, GenerateTraffic, CmdExitFailure
 
 
 def _rss_key_str(key):
@@ -127,64 +127,56 @@ def test_rss_context(cfg, ctx_cnt=1, create_with_cfg=None):
 
     # Try to allocate more queues when necessary
     qcnt = len(_get_rx_cnts(cfg))
-    if qcnt >= 2 + 2 * ctx_cnt:
-        qcnt = None
-    else:
+    if qcnt < 2 + 2 * ctx_cnt:
         try:
             ksft_pr(f"Increasing queue count {qcnt} -> {2 + 2 * ctx_cnt}")
             ethtool(f"-L {cfg.ifname} combined {2 + 2 * ctx_cnt}")
+            defer(ethtool, f"-L {cfg.ifname} combined {qcnt}")
         except:
             raise KsftSkipEx("Not enough queues for the test")
 
-    ntuple = []
-    ctx_id = []
     ports = []
-    try:
-        # Use queues 0 and 1 for normal traffic
-        ethtool(f"-X {cfg.ifname} equal 2")
 
-        for i in range(ctx_cnt):
-            want_cfg = f"start {2 + i * 2} equal 2"
-            create_cfg = want_cfg if create_with_cfg else ""
+    # Use queues 0 and 1 for normal traffic
+    ethtool(f"-X {cfg.ifname} equal 2")
+    defer(ethtool, f"-X {cfg.ifname} default")
 
-            try:
-                ctx_id.append(ethtool_create(cfg, "-X", f"context new {create_cfg}"))
-            except CmdExitFailure:
-                # try to carry on and skip at the end
-                if i == 0:
-                    raise
-                ksft_pr(f"Failed to create context {i + 1}, trying to test what we got")
-                ctx_cnt = i
-                break
+    for i in range(ctx_cnt):
+        want_cfg = f"start {2 + i * 2} equal 2"
+        create_cfg = want_cfg if create_with_cfg else ""
 
-            if not create_with_cfg:
-                ethtool(f"-X {cfg.ifname} context {ctx_id[i]} {want_cfg}")
+        try:
+            ctx_id = ethtool_create(cfg, "-X", f"context new {create_cfg}")
+            defer(ethtool, f"-X {cfg.ifname} context {ctx_id} delete")
+        except CmdExitFailure:
+            # try to carry on and skip at the end
+            if i == 0:
+                raise
+            ksft_pr(f"Failed to create context {i + 1}, trying to test what we got")
+            ctx_cnt = i
+            break
 
-            # Sanity check the context we just created
-            data = get_rss(cfg, ctx_id[i])
-            ksft_eq(min(data['rss-indirection-table']), 2 + i * 2, "Unexpected context cfg: " + str(data))
-            ksft_eq(max(data['rss-indirection-table']), 2 + i * 2 + 1, "Unexpected context cfg: " + str(data))
+        if not create_with_cfg:
+            ethtool(f"-X {cfg.ifname} context {ctx_id} {want_cfg}")
 
-            ports.append(rand_port())
-            flow = f"flow-type tcp{cfg.addr_ipver} dst-port {ports[i]} context {ctx_id[i]}"
-            ntuple.append(ethtool_create(cfg, "-N", flow))
+        # Sanity check the context we just created
+        data = get_rss(cfg, ctx_id)
+        ksft_eq(min(data['rss-indirection-table']), 2 + i * 2, "Unexpected context cfg: " + str(data))
+        ksft_eq(max(data['rss-indirection-table']), 2 + i * 2 + 1, "Unexpected context cfg: " + str(data))
 
-        for i in range(ctx_cnt):
-            cnts = _get_rx_cnts(cfg)
-            GenerateTraffic(cfg, port=ports[i]).wait_pkts_and_stop(20000)
-            cnts = _get_rx_cnts(cfg, prev=cnts)
+        ports.append(rand_port())
+        flow = f"flow-type tcp{cfg.addr_ipver} dst-port {ports[i]} context {ctx_id}"
+        ntuple = ethtool_create(cfg, "-N", flow)
+        defer(ethtool, f"-N {cfg.ifname} delete {ntuple}")
 
-            ksft_lt(sum(cnts[ :2]), 10000, "traffic on main context:" + str(cnts))
-            ksft_ge(sum(cnts[2+i*2:4+i*2]), 20000, f"traffic on context {i}: " + str(cnts))
-            ksft_eq(sum(cnts[2:2+i*2] + cnts[4+i*2:]), 0, "traffic on other contexts: " + str(cnts))
-    finally:
-        for nid in ntuple:
-            ethtool(f"-N {cfg.ifname} delete {nid}")
-        for cid in ctx_id:
-            ethtool(f"-X {cfg.ifname} context {cid} delete")
-        ethtool(f"-X {cfg.ifname} default")
-        if qcnt:
-            ethtool(f"-L {cfg.ifname} combined {qcnt}")
+    for i in range(ctx_cnt):
+        cnts = _get_rx_cnts(cfg)
+        GenerateTraffic(cfg, port=ports[i]).wait_pkts_and_stop(20000)
+        cnts = _get_rx_cnts(cfg, prev=cnts)
+
+        ksft_lt(sum(cnts[ :2]), 10000, "traffic on main context:" + str(cnts))
+        ksft_ge(sum(cnts[2+i*2:4+i*2]), 20000, f"traffic on context {i}: " + str(cnts))
+        ksft_eq(sum(cnts[2:2+i*2] + cnts[4+i*2:]), 0, "traffic on other contexts: " + str(cnts))
 
     if requested_ctx_cnt != ctx_cnt:
         raise KsftSkipEx(f"Tested only {ctx_cnt} contexts, wanted {requested_ctx_cnt}")
@@ -216,24 +208,23 @@ def test_rss_context_out_of_order(cfg, ctx_cnt=4):
 
     # Try to allocate more queues when necessary
     qcnt = len(_get_rx_cnts(cfg))
-    if qcnt >= 2 + 2 * ctx_cnt:
-        qcnt = None
-    else:
+    if qcnt < 2 + 2 * ctx_cnt:
         try:
             ksft_pr(f"Increasing queue count {qcnt} -> {2 + 2 * ctx_cnt}")
             ethtool(f"-L {cfg.ifname} combined {2 + 2 * ctx_cnt}")
+            defer(ethtool, f"-L {cfg.ifname} combined {qcnt}")
         except:
             raise KsftSkipEx("Not enough queues for the test")
 
     ntuple = []
-    ctx_id = []
+    ctx = []
     ports = []
 
     def remove_ctx(idx):
-        ethtool(f"-N {cfg.ifname} delete {ntuple[idx]}")
+        ntuple[idx].exec()
         ntuple[idx] = None
-        ethtool(f"-X {cfg.ifname} context {ctx_id[idx]} delete")
-        ctx_id[idx] = None
+        ctx[idx].exec()
+        ctx[idx] = None
 
     def check_traffic():
         for i in range(ctx_cnt):
@@ -241,7 +232,7 @@ def test_rss_context_out_of_order(cfg, ctx_cnt=4):
             GenerateTraffic(cfg, port=ports[i]).wait_pkts_and_stop(20000)
             cnts = _get_rx_cnts(cfg, prev=cnts)
 
-            if ctx_id[i] is None:
+            if ctx[i]:
                 ksft_lt(sum(cnts[ :2]), 10000, "traffic on main context:" + str(cnts))
                 ksft_ge(sum(cnts[2+i*2:4+i*2]), 20000, f"traffic on context {i}: " + str(cnts))
                 ksft_eq(sum(cnts[2:2+i*2] + cnts[4+i*2:]), 0, "traffic on other contexts: " + str(cnts))
@@ -249,41 +240,32 @@ def test_rss_context_out_of_order(cfg, ctx_cnt=4):
                 ksft_ge(sum(cnts[ :2]), 20000, "traffic on main context:" + str(cnts))
                 ksft_eq(sum(cnts[2: ]),     0, "traffic on other contexts: " + str(cnts))
 
-    try:
-        # Use queues 0 and 1 for normal traffic
-        ethtool(f"-X {cfg.ifname} equal 2")
+    # Use queues 0 and 1 for normal traffic
+    ethtool(f"-X {cfg.ifname} equal 2")
+    defer(ethtool, f"-X {cfg.ifname} default")
 
-        for i in range(ctx_cnt):
-            ctx_id.append(ethtool_create(cfg, "-X", f"context new start {2 + i * 2} equal 2"))
+    for i in range(ctx_cnt):
+        ctx_id = ethtool_create(cfg, "-X", f"context new start {2 + i * 2} equal 2")
+        ctx.append(defer(ethtool, f"-X {cfg.ifname} context {ctx_id} delete"))
 
-            ports.append(rand_port())
-            flow = f"flow-type tcp{cfg.addr_ipver} dst-port {ports[i]} context {ctx_id[i]}"
-            ntuple.append(ethtool_create(cfg, "-N", flow))
+        ports.append(rand_port())
+        flow = f"flow-type tcp{cfg.addr_ipver} dst-port {ports[i]} context {ctx_id}"
+        ntuple_id = ethtool_create(cfg, "-N", flow)
+        ntuple.append(defer(ethtool, f"-N {cfg.ifname} delete {ntuple_id}"))
 
-        check_traffic()
+    check_traffic()
 
-        # Remove middle context
-        remove_ctx(ctx_cnt // 2)
-        check_traffic()
+    # Remove middle context
+    remove_ctx(ctx_cnt // 2)
+    check_traffic()
 
-        # Remove first context
-        remove_ctx(0)
-        check_traffic()
+    # Remove first context
+    remove_ctx(0)
+    check_traffic()
 
-        # Remove last context
-        remove_ctx(-1)
-        check_traffic()
-
-    finally:
-        for nid in ntuple:
-            if nid is not None:
-                ethtool(f"-N {cfg.ifname} delete {nid}")
-        for cid in ctx_id:
-            if cid is not None:
-                ethtool(f"-X {cfg.ifname} context {cid} delete")
-        ethtool(f"-X {cfg.ifname} default")
-        if qcnt:
-            ethtool(f"-L {cfg.ifname} combined {qcnt}")
+    # Remove last context
+    remove_ctx(-1)
+    check_traffic()
 
     if requested_ctx_cnt != ctx_cnt:
         raise KsftSkipEx(f"Tested only {ctx_cnt} contexts, wanted {requested_ctx_cnt}")
@@ -298,69 +280,58 @@ def test_rss_context_overlap(cfg, other_ctx=0):
     require_ntuple(cfg)
 
     queue_cnt = len(_get_rx_cnts(cfg))
-    if queue_cnt >= 4:
-        queue_cnt = None
-    else:
+    if queue_cnt < 4:
         try:
             ksft_pr(f"Increasing queue count {queue_cnt} -> 4")
             ethtool(f"-L {cfg.ifname} combined 4")
+            defer(ethtool, f"-L {cfg.ifname} combined {queue_cnt}")
         except:
             raise KsftSkipEx("Not enough queues for the test")
 
-    ctx_id = None
-    ntuple = None
     if other_ctx == 0:
         ethtool(f"-X {cfg.ifname} equal 4")
+        defer(ethtool, f"-X {cfg.ifname} default")
     else:
         other_ctx = ethtool_create(cfg, "-X", "context new")
         ethtool(f"-X {cfg.ifname} context {other_ctx} equal 4")
+        defer(ethtool, f"-X {cfg.ifname} context {other_ctx} delete")
 
-    try:
-        ctx_id = ethtool_create(cfg, "-X", "context new")
-        ethtool(f"-X {cfg.ifname} context {ctx_id} start 2 equal 2")
+    ctx_id = ethtool_create(cfg, "-X", "context new")
+    ethtool(f"-X {cfg.ifname} context {ctx_id} start 2 equal 2")
+    defer(ethtool, f"-X {cfg.ifname} context {ctx_id} delete")
 
-        port = rand_port()
-        if other_ctx:
-            flow = f"flow-type tcp{cfg.addr_ipver} dst-port {port} context {other_ctx}"
-            ntuple = ethtool_create(cfg, "-N", flow)
+    port = rand_port()
+    if other_ctx:
+        flow = f"flow-type tcp{cfg.addr_ipver} dst-port {port} context {other_ctx}"
+        ntuple_id = ethtool_create(cfg, "-N", flow)
+        ntuple = defer(ethtool, f"-N {cfg.ifname} delete {ntuple_id}")
 
-        # Test the main context
-        cnts = _get_rx_cnts(cfg)
-        GenerateTraffic(cfg, port=port).wait_pkts_and_stop(20000)
-        cnts = _get_rx_cnts(cfg, prev=cnts)
+    # Test the main context
+    cnts = _get_rx_cnts(cfg)
+    GenerateTraffic(cfg, port=port).wait_pkts_and_stop(20000)
+    cnts = _get_rx_cnts(cfg, prev=cnts)
 
-        ksft_ge(sum(cnts[ :4]), 20000, "traffic on main context: " + str(cnts))
-        ksft_ge(sum(cnts[ :2]),  7000, "traffic on main context (1/2): " + str(cnts))
-        ksft_ge(sum(cnts[2:4]),  7000, "traffic on main context (2/2): " + str(cnts))
-        if other_ctx == 0:
-            ksft_eq(sum(cnts[4: ]),     0, "traffic on other queues: " + str(cnts))
+    ksft_ge(sum(cnts[ :4]), 20000, "traffic on main context: " + str(cnts))
+    ksft_ge(sum(cnts[ :2]),  7000, "traffic on main context (1/2): " + str(cnts))
+    ksft_ge(sum(cnts[2:4]),  7000, "traffic on main context (2/2): " + str(cnts))
+    if other_ctx == 0:
+        ksft_eq(sum(cnts[4: ]),     0, "traffic on other queues: " + str(cnts))
 
-        # Now create a rule for context 1 and make sure traffic goes to a subset
-        if other_ctx:
-            ethtool(f"-N {cfg.ifname} delete {ntuple}")
-            ntuple = None
-        flow = f"flow-type tcp{cfg.addr_ipver} dst-port {port} context {ctx_id}"
-        ntuple = ethtool_create(cfg, "-N", flow)
+    # Now create a rule for context 1 and make sure traffic goes to a subset
+    if other_ctx:
+        ntuple.exec()
+    flow = f"flow-type tcp{cfg.addr_ipver} dst-port {port} context {ctx_id}"
+    ntuple_id = ethtool_create(cfg, "-N", flow)
+    defer(ethtool, f"-N {cfg.ifname} delete {ntuple_id}")
 
-        cnts = _get_rx_cnts(cfg)
-        GenerateTraffic(cfg, port=port).wait_pkts_and_stop(20000)
-        cnts = _get_rx_cnts(cfg, prev=cnts)
+    cnts = _get_rx_cnts(cfg)
+    GenerateTraffic(cfg, port=port).wait_pkts_and_stop(20000)
+    cnts = _get_rx_cnts(cfg, prev=cnts)
 
-        ksft_lt(sum(cnts[ :2]),  7000, "traffic on main context: " + str(cnts))
-        ksft_ge(sum(cnts[2:4]), 20000, "traffic on extra context: " + str(cnts))
-        if other_ctx == 0:
-            ksft_eq(sum(cnts[4: ]),     0, "traffic on other queues: " + str(cnts))
-    finally:
-        if ntuple is not None:
-            ethtool(f"-N {cfg.ifname} delete {ntuple}")
-        if ctx_id:
-            ethtool(f"-X {cfg.ifname} context {ctx_id} delete")
-        if other_ctx == 0:
-            ethtool(f"-X {cfg.ifname} default")
-        else:
-            ethtool(f"-X {cfg.ifname} context {other_ctx} delete")
-        if queue_cnt:
-            ethtool(f"-L {cfg.ifname} combined {queue_cnt}")
+    ksft_lt(sum(cnts[ :2]),  7000, "traffic on main context: " + str(cnts))
+    ksft_ge(sum(cnts[2:4]), 20000, "traffic on extra context: " + str(cnts))
+    if other_ctx == 0:
+        ksft_eq(sum(cnts[4: ]),     0, "traffic on other queues: " + str(cnts))
 
 
 def test_rss_context_overlap2(cfg):
