@@ -355,13 +355,13 @@ static ssize_t pwm1_store(struct device *dev,
 {
 	struct amc6821_data *data = dev_get_drvdata(dev);
 	struct i2c_client *client = data->client;
-	long val;
-	int ret = kstrtol(buf, 10, &val);
+	u8 val;
+	int ret = kstrtou8(buf, 10, &val);
 	if (ret)
 		return ret;
 
 	mutex_lock(&data->update_lock);
-	data->pwm1 = clamp_val(val , 0, 255);
+	data->pwm1 = val;
 	i2c_smbus_write_byte_data(client, AMC6821_REG_DCY, data->pwm1);
 	mutex_unlock(&data->update_lock);
 	return count;
@@ -558,13 +558,15 @@ static ssize_t pwm1_auto_point_pwm_store(struct device *dev,
 	struct amc6821_data *data = dev_get_drvdata(dev);
 	struct i2c_client *client = data->client;
 	int dpwm;
-	long val;
-	int ret = kstrtol(buf, 10, &val);
+	u8 val;
+	int ret;
+
+	ret = kstrtou8(buf, 10, &val);
 	if (ret)
 		return ret;
 
 	mutex_lock(&data->update_lock);
-	data->pwm1_auto_point_pwm[1] = clamp_val(val, 0, 254);
+	data->pwm1_auto_point_pwm[1] = val;
 	if (i2c_smbus_write_byte_data(client, AMC6821_REG_DCY_LOW_TEMP,
 			data->pwm1_auto_point_pwm[1])) {
 		dev_err(&client->dev, "Register write error, aborting.\n");
