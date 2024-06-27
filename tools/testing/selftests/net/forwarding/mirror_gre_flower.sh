@@ -65,20 +65,18 @@ cleanup()
 test_span_gre_dir_acl()
 {
 	local tundev=$1; shift
-	local direction=$1; shift
 	local forward_type=$1; shift
 	local backward_type=$1; shift
 
-	test_span_gre_dir_ips "$tundev" "$direction" "$forward_type" \
+	test_span_gre_dir_ips "$tundev" "$forward_type" \
 			      "$backward_type" 192.0.2.3 192.0.2.4
 }
 
 fail_test_span_gre_dir_acl()
 {
 	local tundev=$1; shift
-	local direction=$1; shift
 
-	fail_test_span_gre_dir_ips "$tundev" "$direction" 192.0.2.3 192.0.2.4
+	fail_test_span_gre_dir_ips "$tundev" 192.0.2.3 192.0.2.4
 }
 
 full_test_span_gre_dir_acl()
@@ -94,13 +92,12 @@ full_test_span_gre_dir_acl()
 
 	mirror_install $swp1 $direction $tundev \
 		       "protocol ip flower $tcflags dst_ip $match_dip"
-	fail_test_span_gre_dir $tundev $direction
-	test_span_gre_dir_acl "$tundev" "$direction" \
-			  "$forward_type" "$backward_type"
+	fail_test_span_gre_dir $tundev
+	test_span_gre_dir_acl "$tundev" "$forward_type" "$backward_type"
 	mirror_uninstall $swp1 $direction
 
 	# Test lack of mirroring after ACL mirror is uninstalled.
-	fail_test_span_gre_dir_acl "$tundev" "$direction"
+	fail_test_span_gre_dir_acl "$tundev"
 
 	log_test "$direction $what ($tcflags)"
 }

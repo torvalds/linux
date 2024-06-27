@@ -5,33 +5,30 @@ source "$net_forwarding_dir/mirror_lib.sh"
 quick_test_span_gre_dir_ips()
 {
 	local tundev=$1; shift
-	local direction=$1; shift
 	local ip1=$1; shift
 	local ip2=$1; shift
 
-	do_test_span_dir_ips 10 h3-$tundev "$direction" "$ip1" "$ip2"
+	do_test_span_dir_ips 10 h3-$tundev "$ip1" "$ip2"
 }
 
 fail_test_span_gre_dir_ips()
 {
 	local tundev=$1; shift
-	local direction=$1; shift
 	local ip1=$1; shift
 	local ip2=$1; shift
 
-	do_test_span_dir_ips 0 h3-$tundev "$direction" "$ip1" "$ip2"
+	do_test_span_dir_ips 0 h3-$tundev "$ip1" "$ip2"
 }
 
 test_span_gre_dir_ips()
 {
 	local tundev=$1; shift
-	local direction=$1; shift
 	local forward_type=$1; shift
 	local backward_type=$1; shift
 	local ip1=$1; shift
 	local ip2=$1; shift
 
-	test_span_dir_ips h3-$tundev "$direction" "$forward_type" \
+	test_span_dir_ips h3-$tundev "$forward_type" \
 			  "$backward_type" "$ip1" "$ip2"
 }
 
@@ -48,7 +45,7 @@ full_test_span_gre_dir_ips()
 	RET=0
 
 	mirror_install $swp1 $direction $tundev "matchall $tcflags"
-	test_span_dir_ips "h3-$tundev" "$direction" "$forward_type" \
+	test_span_dir_ips "h3-$tundev" "$forward_type" \
 			  "$backward_type" "$ip1" "$ip2"
 	mirror_uninstall $swp1 $direction
 
@@ -70,7 +67,7 @@ full_test_span_gre_dir_vlan_ips()
 
 	mirror_install $swp1 $direction $tundev "matchall $tcflags"
 
-	test_span_dir_ips "h3-$tundev" "$direction" "$forward_type" \
+	test_span_dir_ips "h3-$tundev" "$forward_type" \
 			  "$backward_type" "$ip1" "$ip2"
 
 	tc filter add dev $h3 ingress pref 77 prot 802.1q \
@@ -87,17 +84,15 @@ full_test_span_gre_dir_vlan_ips()
 quick_test_span_gre_dir()
 {
 	local tundev=$1; shift
-	local direction=$1; shift
 
-	quick_test_span_gre_dir_ips "$tundev" "$direction" 192.0.2.1 192.0.2.2
+	quick_test_span_gre_dir_ips "$tundev" 192.0.2.1 192.0.2.2
 }
 
 fail_test_span_gre_dir()
 {
 	local tundev=$1; shift
-	local direction=$1; shift
 
-	fail_test_span_gre_dir_ips "$tundev" "$direction" 192.0.2.1 192.0.2.2
+	fail_test_span_gre_dir_ips "$tundev" 192.0.2.1 192.0.2.2
 }
 
 test_span_gre_dir()
@@ -149,15 +144,15 @@ full_test_span_gre_stp_ips()
 	RET=0
 
 	mirror_install $swp1 ingress $tundev "matchall $tcflags"
-	quick_test_span_gre_dir_ips $tundev ingress $ip1 $ip2
+	quick_test_span_gre_dir_ips $tundev $ip1 $ip2
 
 	bridge link set dev $nbpdev state disabled
 	sleep 1
-	fail_test_span_gre_dir_ips $tundev ingress $ip1 $ip2
+	fail_test_span_gre_dir_ips $tundev $ip1 $ip2
 
 	bridge link set dev $nbpdev state forwarding
 	sleep 1
-	quick_test_span_gre_dir_ips $tundev ingress $ip1 $ip2
+	quick_test_span_gre_dir_ips $tundev $ip1 $ip2
 
 	mirror_uninstall $swp1 ingress
 

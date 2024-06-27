@@ -154,16 +154,16 @@ test_span_gre_forbidden_cpu()
 
 	# Run the pass-test first, to prime neighbor table.
 	mirror_install $swp1 ingress $tundev "matchall $tcflags"
-	quick_test_span_gre_dir $tundev ingress
+	quick_test_span_gre_dir $tundev
 
 	# Now forbid the VLAN at the bridge and see it fail.
 	bridge vlan del dev br1 vid 555 self
 	sleep 1
-	fail_test_span_gre_dir $tundev ingress
+	fail_test_span_gre_dir $tundev
 
 	bridge vlan add dev br1 vid 555 self
 	sleep 1
-	quick_test_span_gre_dir $tundev ingress
+	quick_test_span_gre_dir $tundev
 
 	mirror_uninstall $swp1 ingress
 
@@ -188,17 +188,17 @@ test_span_gre_forbidden_egress()
 	RET=0
 
 	mirror_install $swp1 ingress $tundev "matchall $tcflags"
-	quick_test_span_gre_dir $tundev ingress
+	quick_test_span_gre_dir $tundev
 
 	bridge vlan del dev $swp3 vid 555
 	sleep 1
-	fail_test_span_gre_dir $tundev ingress
+	fail_test_span_gre_dir $tundev
 
 	bridge vlan add dev $swp3 vid 555
 	# Re-prime FDB
 	$ARPING -I br1.555 192.0.2.130 -fqc 1
 	sleep 1
-	quick_test_span_gre_dir $tundev ingress
+	quick_test_span_gre_dir $tundev
 
 	mirror_uninstall $swp1 ingress
 
@@ -225,24 +225,24 @@ test_span_gre_untagged_egress()
 
 	mirror_install $swp1 ingress $tundev "matchall $tcflags"
 
-	quick_test_span_gre_dir $tundev ingress
-	quick_test_span_vlan_dir $h3 555 ingress "$ul_proto"
+	quick_test_span_gre_dir $tundev
+	quick_test_span_vlan_dir $h3 555 "$ul_proto"
 
 	h3_addr_add_del del $h3.555
 	bridge vlan add dev $swp3 vid 555 pvid untagged
 	h3_addr_add_del add $h3
 	sleep 5
 
-	quick_test_span_gre_dir $tundev ingress
-	fail_test_span_vlan_dir $h3 555 ingress "$ul_proto"
+	quick_test_span_gre_dir $tundev
+	fail_test_span_vlan_dir $h3 555 "$ul_proto"
 
 	h3_addr_add_del del $h3
 	bridge vlan add dev $swp3 vid 555
 	h3_addr_add_del add $h3.555
 	sleep 5
 
-	quick_test_span_gre_dir $tundev ingress
-	quick_test_span_vlan_dir $h3 555 ingress "$ul_proto"
+	quick_test_span_gre_dir $tundev
+	quick_test_span_vlan_dir $h3 555 "$ul_proto"
 
 	mirror_uninstall $swp1 ingress
 
@@ -268,13 +268,13 @@ test_span_gre_fdb_roaming()
 	RET=0
 
 	mirror_install $swp1 ingress $tundev "matchall $tcflags"
-	quick_test_span_gre_dir $tundev ingress
+	quick_test_span_gre_dir $tundev
 
 	while ((RET == 0)); do
 		bridge fdb del dev $swp3 $h3mac vlan 555 master 2>/dev/null
 		bridge fdb add dev $swp2 $h3mac vlan 555 master static
 		sleep 1
-		fail_test_span_gre_dir $tundev ingress
+		fail_test_span_gre_dir $tundev
 
 		if ! bridge fdb sh dev $swp2 vlan 555 master \
 		    | grep -q $h3mac; then
@@ -292,7 +292,7 @@ test_span_gre_fdb_roaming()
 	# Re-prime FDB
 	$ARPING -I br1.555 192.0.2.130 -fqc 1
 	sleep 1
-	quick_test_span_gre_dir $tundev ingress
+	quick_test_span_gre_dir $tundev
 
 	mirror_uninstall $swp1 ingress
 

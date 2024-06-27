@@ -66,9 +66,9 @@ test_span_gre_neigh()
 
 	ip neigh replace dev $swp3 $addr lladdr 00:11:22:33:44:55
 	mirror_install $swp1 $direction $tundev "matchall $tcflags"
-	fail_test_span_gre_dir $tundev ingress
+	fail_test_span_gre_dir $tundev
 	ip neigh del dev $swp3 $addr
-	quick_test_span_gre_dir $tundev ingress
+	quick_test_span_gre_dir $tundev
 	mirror_uninstall $swp1 $direction
 
 	log_test "$direction $what: neighbor change ($tcflags)"

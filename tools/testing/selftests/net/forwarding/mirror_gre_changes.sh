@@ -99,11 +99,11 @@ test_span_gre_tun_up()
 
 	ip link set dev $tundev down
 	mirror_install $swp1 ingress $tundev "matchall $tcflags"
-	fail_test_span_gre_dir $tundev ingress
+	fail_test_span_gre_dir $tundev
 
 	ip link set dev $tundev up
 
-	quick_test_span_gre_dir $tundev ingress
+	quick_test_span_gre_dir $tundev
 	mirror_uninstall $swp1 ingress
 
 	log_test "$what: tunnel down/up ($tcflags)"
@@ -119,7 +119,7 @@ test_span_gre_egress_up()
 
 	ip link set dev $swp3 down
 	mirror_install $swp1 ingress $tundev "matchall $tcflags"
-	fail_test_span_gre_dir $tundev ingress
+	fail_test_span_gre_dir $tundev
 
 	# After setting the device up, wait for neighbor to get resolved so that
 	# we can expect mirroring to work.
@@ -127,7 +127,7 @@ test_span_gre_egress_up()
 	setup_wait_dev $swp3
 	ping -c 1 -I $swp3 $remote_ip &>/dev/null
 
-	quick_test_span_gre_dir $tundev ingress
+	quick_test_span_gre_dir $tundev
 	mirror_uninstall $swp1 ingress
 
 	log_test "$what: egress down/up ($tcflags)"
@@ -145,10 +145,10 @@ test_span_gre_remote_ip()
 
 	ip link set dev $tundev type $type remote $wrong_ip
 	mirror_install $swp1 ingress $tundev "matchall $tcflags"
-	fail_test_span_gre_dir $tundev ingress
+	fail_test_span_gre_dir $tundev
 
 	ip link set dev $tundev type $type remote $correct_ip
-	quick_test_span_gre_dir $tundev ingress
+	quick_test_span_gre_dir $tundev
 	mirror_uninstall $swp1 ingress
 
 	log_test "$what: remote address change ($tcflags)"
@@ -166,9 +166,9 @@ test_span_gre_tun_del()
 	RET=0
 
 	mirror_install $swp1 ingress $tundev "matchall $tcflags"
-	quick_test_span_gre_dir $tundev ingress
+	quick_test_span_gre_dir $tundev
 	ip link del dev $tundev
-	fail_test_span_gre_dir $tundev ingress
+	fail_test_span_gre_dir $tundev
 
 	tunnel_create $tundev $type $local_ip $remote_ip \
 		      ttl 100 tos inherit $flags
@@ -177,7 +177,7 @@ test_span_gre_tun_del()
 	# and verify it works for the follow-up tests.
 	mirror_uninstall $swp1 ingress
 	mirror_install $swp1 ingress $tundev "matchall $tcflags"
-	quick_test_span_gre_dir $tundev ingress
+	quick_test_span_gre_dir $tundev
 	mirror_uninstall $swp1 ingress
 
 	log_test "$what: tunnel deleted ($tcflags)"
@@ -193,13 +193,13 @@ test_span_gre_route_del()
 	RET=0
 
 	mirror_install $swp1 ingress $tundev "matchall $tcflags"
-	quick_test_span_gre_dir $tundev ingress
+	quick_test_span_gre_dir $tundev
 
 	ip route del $route dev $edev
-	fail_test_span_gre_dir $tundev ingress
+	fail_test_span_gre_dir $tundev
 
 	ip route add $route dev $edev
-	quick_test_span_gre_dir $tundev ingress
+	quick_test_span_gre_dir $tundev
 
 	mirror_uninstall $swp1 ingress
 

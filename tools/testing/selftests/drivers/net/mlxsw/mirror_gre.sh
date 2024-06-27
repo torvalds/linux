@@ -119,11 +119,11 @@ test_span_gre_ttl_inherit()
 
 	ip link set dev $tundev type $type ttl inherit
 	mirror_install $swp1 ingress $tundev "matchall $tcflags"
-	fail_test_span_gre_dir $tundev ingress
+	fail_test_span_gre_dir $tundev
 
 	ip link set dev $tundev type $type ttl 100
 
-	quick_test_span_gre_dir $tundev ingress
+	quick_test_span_gre_dir $tundev
 	mirror_uninstall $swp1 ingress
 
 	log_test "$what: no offload on TTL of inherit ($tcflags)"
@@ -139,10 +139,10 @@ test_span_gre_tos_fixed()
 
 	ip link set dev $tundev type $type tos 0x10
 	mirror_install $swp1 ingress $tundev "matchall $tcflags"
-	fail_test_span_gre_dir $tundev ingress
+	fail_test_span_gre_dir $tundev
 
 	ip link set dev $tundev type $type tos inherit
-	quick_test_span_gre_dir $tundev ingress
+	quick_test_span_gre_dir $tundev
 	mirror_uninstall $swp1 ingress
 
 	log_test "$what: no offload on a fixed TOS ($tcflags)"
@@ -158,9 +158,9 @@ test_span_failable()
 
 	mirror_install $swp1 ingress $tundev "matchall $tcflags"
 	if ((should_fail)); then
-	    fail_test_span_gre_dir  $tundev ingress
+	    fail_test_span_gre_dir  $tundev
 	else
-	    quick_test_span_gre_dir $tundev ingress
+	    quick_test_span_gre_dir $tundev
 	fi
 	mirror_uninstall $swp1 ingress
 

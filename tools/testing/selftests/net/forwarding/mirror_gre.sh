@@ -91,17 +91,17 @@ test_two_spans()
 
 	mirror_install $swp1 ingress gt4 "matchall $tcflags"
 	mirror_install $swp1 egress gt6 "matchall $tcflags"
-	quick_test_span_gre_dir gt4 ingress
-	quick_test_span_gre_dir gt6 egress
+	quick_test_span_gre_dir gt4
+	quick_test_span_gre_dir gt6
 
 	mirror_uninstall $swp1 ingress
-	fail_test_span_gre_dir gt4 ingress
-	quick_test_span_gre_dir gt6 egress
+	fail_test_span_gre_dir gt4
+	quick_test_span_gre_dir gt6
 
 	mirror_install $swp1 ingress gt4 "matchall $tcflags"
 	mirror_uninstall $swp1 egress
-	quick_test_span_gre_dir gt4 ingress
-	fail_test_span_gre_dir gt6 egress
+	quick_test_span_gre_dir gt4
+	fail_test_span_gre_dir gt6
 
 	mirror_uninstall $swp1 ingress
 	log_test "two simultaneously configured mirrors ($tcflags)"

@@ -59,7 +59,6 @@ do_test_span_dir_ips()
 {
 	local expect=$1; shift
 	local dev=$1; shift
-	local direction=$1; shift
 	local ip1=$1; shift
 	local ip2=$1; shift
 
@@ -72,11 +71,10 @@ do_test_span_dir_ips()
 quick_test_span_dir_ips()
 {
 	local dev=$1; shift
-	local direction=$1; shift
 	local ip1=$1; shift
 	local ip2=$1; shift
 
-	do_test_span_dir_ips 10 "$dev" "$direction" "$ip1" "$ip2"
+	do_test_span_dir_ips 10 "$dev" "$ip1" "$ip2"
 }
 
 fail_test_span_dir_ips()
@@ -92,13 +90,12 @@ fail_test_span_dir_ips()
 test_span_dir_ips()
 {
 	local dev=$1; shift
-	local direction=$1; shift
 	local forward_type=$1; shift
 	local backward_type=$1; shift
 	local ip1=$1; shift
 	local ip2=$1; shift
 
-	quick_test_span_dir_ips "$dev" "$direction" "$ip1" "$ip2"
+	quick_test_span_dir_ips "$dev" "$ip1" "$ip2"
 
 	icmp_capture_install $dev "type $forward_type"
 	mirror_test v$h1 $ip1 $ip2 $dev 100 10
@@ -120,11 +117,10 @@ fail_test_span_dir()
 test_span_dir()
 {
 	local dev=$1; shift
-	local direction=$1; shift
 	local forward_type=$1; shift
 	local backward_type=$1; shift
 
-	test_span_dir_ips "$dev" "$direction" "$forward_type" "$backward_type" \
+	test_span_dir_ips "$dev" "$forward_type" "$backward_type" \
 			  192.0.2.1 192.0.2.2
 }
 
@@ -133,7 +129,6 @@ do_test_span_vlan_dir_ips()
 	local expect=$1; shift
 	local dev=$1; shift
 	local vid=$1; shift
-	local direction=$1; shift
 	local ul_proto=$1; shift
 	local ip1=$1; shift
 	local ip2=$1; shift
@@ -151,36 +146,31 @@ quick_test_span_vlan_dir_ips()
 {
 	local dev=$1; shift
 	local vid=$1; shift
-	local direction=$1; shift
 	local ul_proto=$1; shift
 	local ip1=$1; shift
 	local ip2=$1; shift
 
-	do_test_span_vlan_dir_ips 10 "$dev" "$vid" "$direction" "$ul_proto" \
-				  "$ip1" "$ip2"
+	do_test_span_vlan_dir_ips 10 "$dev" "$vid" "$ul_proto" "$ip1" "$ip2"
 }
 
 fail_test_span_vlan_dir_ips()
 {
 	local dev=$1; shift
 	local vid=$1; shift
-	local direction=$1; shift
 	local ul_proto=$1; shift
 	local ip1=$1; shift
 	local ip2=$1; shift
 
-	do_test_span_vlan_dir_ips 0 "$dev" "$vid" "$direction" "$ul_proto" \
-				  "$ip1" "$ip2"
+	do_test_span_vlan_dir_ips 0 "$dev" "$vid" "$ul_proto" "$ip1" "$ip2"
 }
 
 quick_test_span_vlan_dir()
 {
 	local dev=$1; shift
 	local vid=$1; shift
-	local direction=$1; shift
 	local ul_proto=$1; shift
 
-	quick_test_span_vlan_dir_ips "$dev" "$vid" "$direction" "$ul_proto" \
+	quick_test_span_vlan_dir_ips "$dev" "$vid" "$ul_proto" \
 				     192.0.2.1 192.0.2.2
 }
 
@@ -188,9 +178,8 @@ fail_test_span_vlan_dir()
 {
 	local dev=$1; shift
 	local vid=$1; shift
-	local direction=$1; shift
 	local ul_proto=$1; shift
 
-	fail_test_span_vlan_dir_ips "$dev" "$vid" "$direction" "$ul_proto" \
+	fail_test_span_vlan_dir_ips "$dev" "$vid" "$ul_proto" \
 				    192.0.2.1 192.0.2.2
 }
