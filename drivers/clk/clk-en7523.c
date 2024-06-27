@@ -361,9 +361,8 @@ static struct clk_hw *en7523_register_pcie_clk(struct device *dev,
 	cg->base = np_base;
 	cg->hw.init = &init;
 
-	if (init.ops->disable)
-		init.ops->disable(&cg->hw);
-	init.ops->unprepare(&cg->hw);
+	if (init.ops->unprepare)
+		init.ops->unprepare(&cg->hw);
 
 	if (clk_hw_register(dev, &cg->hw))
 		return NULL;
@@ -381,23 +380,6 @@ static int en7581_pci_is_enabled(struct clk_hw *hw)
 	return (val & mask) == mask;
 }
 
-static int en7581_pci_prepare(struct clk_hw *hw)
-{
-	struct en_clk_gate *cg = container_of(hw, struct en_clk_gate, hw);
-	void __iomem *np_base = cg->base;
-	u32 val, mask;
-
-	mask = REG_RESET_CONTROL_PCIE1 | REG_RESET_CONTROL_PCIE2 |
-	       REG_RESET_CONTROL_PCIEHB;
-	val = readl(np_base + REG_RESET_CONTROL1);
-	writel(val & ~mask, np_base + REG_RESET_CONTROL1);
-	val = readl(np_base + REG_RESET_CONTROL2);
-	writel(val & ~REG_RESET2_CONTROL_PCIE2, np_base + REG_RESET_CONTROL2);
-	usleep_range(5000, 10000);
-
-	return 0;
-}
-
 static int en7581_pci_enable(struct clk_hw *hw)
 {
 	struct en_clk_gate *cg = container_of(hw, struct en_clk_gate, hw);
@@ -412,23 +394,6 @@ static int en7581_pci_enable(struct clk_hw *hw)
 	msleep(250);
 
 	return 0;
-}
-
-static void en7581_pci_unprepare(struct clk_hw *hw)
-{
-	struct en_clk_gate *cg = container_of(hw, struct en_clk_gate, hw);
-	void __iomem *np_base = cg->base;
-	u32 val, mask;
-
-	mask = REG_RESET_CONTROL_PCIE1 | REG_RESET_CONTROL_PCIE2 |
-	       REG_RESET_CONTROL_PCIEHB;
-	val = readl(np_base + REG_RESET_CONTROL1);
-	writel(val | mask, np_base + REG_RESET_CONTROL1);
-	mask = REG_RESET_CONTROL_PCIE1 | REG_RESET_CONTROL_PCIE2;
-	writel(val | mask, np_base + REG_RESET_CONTROL1);
-	val = readl(np_base + REG_RESET_CONTROL2);
-	writel(val | REG_RESET_CONTROL_PCIE2, np_base + REG_RESET_CONTROL2);
-	msleep(100);
 }
 
 static void en7581_pci_disable(struct clk_hw *hw)
@@ -651,9 +616,7 @@ static const struct en_clk_soc_data en7523_data = {
 static const struct en_clk_soc_data en7581_data = {
 	.pcie_ops = {
 		.is_enabled = en7581_pci_is_enabled,
-		.prepare = en7581_pci_prepare,
 		.enable = en7581_pci_enable,
-		.unprepare = en7581_pci_unprepare,
 		.disable = en7581_pci_disable,
 	},
 	.reset = {
