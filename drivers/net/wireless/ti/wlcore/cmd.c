@@ -1566,13 +1566,6 @@ int wl12xx_cmd_add_peer(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		cpu_to_le32(wl1271_tx_enabled_rates_get(wl, sta_rates,
 							wlvif->band));
 
-	if (!cmd->supported_rates) {
-		wl1271_debug(DEBUG_CMD,
-			     "peer has no supported rates yet, configuring basic rates: 0x%x",
-			     wlvif->basic_rate_set);
-		cmd->supported_rates = cpu_to_le32(wlvif->basic_rate_set);
-	}
-
 	wl1271_debug(DEBUG_CMD, "new peer rates=0x%x queues=0x%x",
 		     cmd->supported_rates, sta->uapsd_queues);
 

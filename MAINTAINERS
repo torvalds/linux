@@ -3601,10 +3601,9 @@ W:	https://wireless.wiki.kernel.org/en/users/Drivers/b43
 F:	drivers/net/wireless/broadcom/b43/
 
 B43LEGACY WIRELESS DRIVER
-M:	Larry Finger <Larry.Finger@lwfinger.net>
 L:	linux-wireless@vger.kernel.org
 L:	b43-dev@lists.infradead.org
-S:	Maintained
+S:	Orphan
 W:	https://wireless.wiki.kernel.org/en/users/Drivers/b43
 F:	drivers/net/wireless/broadcom/b43legacy/
 
@@ -18374,7 +18373,7 @@ M:	Jeff Johnson <jjohnson@kernel.org>
 L:	ath12k@lists.infradead.org
 S:	Supported
 W:	https://wireless.wiki.kernel.org/en/users/Drivers/ath12k
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kvalo/ath.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ath/ath.git
 F:	drivers/net/wireless/ath/ath12k/
 N:	ath12k
 
@@ -18384,7 +18383,7 @@ M:	Jeff Johnson <jjohnson@kernel.org>
 L:	ath10k@lists.infradead.org
 S:	Supported
 W:	https://wireless.wiki.kernel.org/en/users/Drivers/ath10k
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kvalo/ath.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ath/ath.git
 F:	drivers/net/wireless/ath/ath10k/
 N:	ath10k
 
@@ -18395,7 +18394,7 @@ L:	ath11k@lists.infradead.org
 S:	Supported
 W:	https://wireless.wiki.kernel.org/en/users/Drivers/ath11k
 B:	https://wireless.wiki.kernel.org/en/users/Drivers/ath11k/bugreport
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kvalo/ath.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ath/ath.git
 F:	drivers/net/wireless/ath/ath11k/
 N:	ath11k
 
@@ -18404,7 +18403,7 @@ M:	Toke Høiland-Jørgensen <toke@toke.dk>
 L:	linux-wireless@vger.kernel.org
 S:	Maintained
 W:	https://wireless.wiki.kernel.org/en/users/Drivers/ath9k
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kvalo/ath.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ath/ath.git
 F:	Documentation/devicetree/bindings/net/wireless/qca,ath9k.yaml
 F:	drivers/net/wireless/ath/ath9k/
 
@@ -19509,7 +19508,6 @@ F:	drivers/net/wireless/realtek/rtl818x/rtl8180/
 
 RTL8187 WIRELESS DRIVER
 M:	Hin-Tak Leung <hintak.leung@gmail.com>
-M:	Larry Finger <Larry.Finger@lwfinger.net>
 L:	linux-wireless@vger.kernel.org
 S:	Maintained
 T:	git https://github.com/pkshih/rtw.git
@@ -21247,7 +21245,6 @@ W:	http://wiki.laptop.org/go/DCON
 F:	drivers/staging/olpc_dcon/
 
 STAGING - REALTEK RTL8712U DRIVERS
-M:	Larry Finger <Larry.Finger@lwfinger.net>
 M:	Florian Schilhabel <florian.c.schilhabel@googlemail.com>.
 S:	Odd Fixes
 F:	drivers/staging/rtl8712/
