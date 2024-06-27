@@ -56,23 +56,17 @@ static int yoga_c630_ucsi_read(struct ucsi *ucsi, unsigned int offset,
 	}
 }
 
-static int yoga_c630_ucsi_async_write(struct ucsi *ucsi, unsigned int offset,
-				      const void *val, size_t val_len)
+static int yoga_c630_ucsi_async_control(struct ucsi *ucsi, u64 command)
 {
 	struct yoga_c630_ucsi *uec = ucsi_get_drvdata(ucsi);
 
-	if (offset != UCSI_CONTROL ||
-	    val_len != YOGA_C630_UCSI_WRITE_SIZE)
-		return -EINVAL;
-
-	return yoga_c630_ec_ucsi_write(uec->ec, val);
+	return yoga_c630_ec_ucsi_write(uec->ec, (u8*)&command);
 }
 
-static int yoga_c630_ucsi_sync_write(struct ucsi *ucsi, unsigned int offset,
-				     const void *val, size_t val_len)
+static int yoga_c630_ucsi_sync_control(struct ucsi *ucsi, u64 command)
 {
 	struct yoga_c630_ucsi *uec = ucsi_get_drvdata(ucsi);
-	bool ack = UCSI_COMMAND(*(u64 *)val) == UCSI_ACK_CC_CI;
+	bool ack = UCSI_COMMAND(command) == UCSI_ACK_CC_CI;
 	int ret;
 
 	if (ack)
@@ -82,7 +76,7 @@ static int yoga_c630_ucsi_sync_write(struct ucsi *ucsi, unsigned int offset,
 
 	reinit_completion(&uec->complete);
 
-	ret = yoga_c630_ucsi_async_write(ucsi, offset, val, val_len);
+	ret = yoga_c630_ucsi_async_control(ucsi, command);
 	if (ret)
 		goto out_clear_bit;
 
@@ -100,8 +94,8 @@ out_clear_bit:
 
 const struct ucsi_operations yoga_c630_ucsi_ops = {
 	.read = yoga_c630_ucsi_read,
-	.sync_write = yoga_c630_ucsi_sync_write,
-	.async_write = yoga_c630_ucsi_async_write,
+	.sync_control = yoga_c630_ucsi_sync_control,
+	.async_control = yoga_c630_ucsi_async_control,
 };
 
 static void yoga_c630_ucsi_notify_ucsi(struct yoga_c630_ucsi *uec, u32 cci)
