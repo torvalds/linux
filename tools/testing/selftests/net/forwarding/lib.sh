@@ -1257,22 +1257,34 @@ __icmp_capture_add_del()
 
 icmp_capture_install()
 {
-	__icmp_capture_add_del add 100 "" "$@"
+	local tundev=$1; shift
+	local filter=$1; shift
+
+	__icmp_capture_add_del add 100 "" "$tundev" "$filter"
 }
 
 icmp_capture_uninstall()
 {
-	__icmp_capture_add_del del 100 "" "$@"
+	local tundev=$1; shift
+	local filter=$1; shift
+
+	__icmp_capture_add_del del 100 "" "$tundev" "$filter"
 }
 
 icmp6_capture_install()
 {
-	__icmp_capture_add_del add 100 v6 "$@"
+	local tundev=$1; shift
+	local filter=$1; shift
+
+	__icmp_capture_add_del add 100 v6 "$tundev" "$filter"
 }
 
 icmp6_capture_uninstall()
 {
-	__icmp_capture_add_del del 100 v6 "$@"
+	local tundev=$1; shift
+	local filter=$1; shift
+
+	__icmp_capture_add_del del 100 v6 "$tundev" "$filter"
 }
 
 __vlan_capture_add_del()
@@ -1290,12 +1302,18 @@ __vlan_capture_add_del()
 
 vlan_capture_install()
 {
-	__vlan_capture_add_del add 100 "$@"
+	local dev=$1; shift
+	local filter=$1; shift
+
+	__vlan_capture_add_del add 100 "$dev" "$filter"
 }
 
 vlan_capture_uninstall()
 {
-	__vlan_capture_add_del del 100 "$@"
+	local dev=$1; shift
+	local filter=$1; shift
+
+	__vlan_capture_add_del del 100 "$dev" "$filter"
 }
 
 __dscp_capture_add_del()
@@ -1655,34 +1673,61 @@ __start_traffic()
 	local sip=$1; shift
 	local dip=$1; shift
 	local dmac=$1; shift
+	local -a mz_args=("$@")
 
 	$MZ $h_in -p $pktsize -A $sip -B $dip -c 0 \
-		-a own -b $dmac -t "$proto" -q "$@" &
+		-a own -b $dmac -t "$proto" -q "${mz_args[@]}" &
 	sleep 1
 }
 
 start_traffic_pktsize()
 {
 	local pktsize=$1; shift
+	local h_in=$1; shift
+	local sip=$1; shift
+	local dip=$1; shift
+	local dmac=$1; shift
+	local -a mz_args=("$@")
 
-	__start_traffic $pktsize udp "$@"
+	__start_traffic $pktsize udp "$h_in" "$sip" "$dip" "$dmac" \
+			"${mz_args[@]}"
 }
 
 start_tcp_traffic_pktsize()
 {
 	local pktsize=$1; shift
+	local h_in=$1; shift
+	local sip=$1; shift
+	local dip=$1; shift
+	local dmac=$1; shift
+	local -a mz_args=("$@")
 
-	__start_traffic $pktsize tcp "$@"
+	__start_traffic $pktsize tcp "$h_in" "$sip" "$dip" "$dmac" \
+			"${mz_args[@]}"
 }
 
 start_traffic()
 {
-	start_traffic_pktsize 8000 "$@"
+	local h_in=$1; shift
+	local sip=$1; shift
+	local dip=$1; shift
+	local dmac=$1; shift
+	local -a mz_args=("$@")
+
+	start_traffic_pktsize 8000 "$h_in" "$sip" "$dip" "$dmac" \
+			      "${mz_args[@]}"
 }
 
 start_tcp_traffic()
 {
-	start_tcp_traffic_pktsize 8000 "$@"
+	local h_in=$1; shift
+	local sip=$1; shift
+	local dip=$1; shift
+	local dmac=$1; shift
+	local -a mz_args=("$@")
+
+	start_tcp_traffic_pktsize 8000 "$h_in" "$sip" "$dip" "$dmac" \
+				  "${mz_args[@]}"
 }
 
 stop_traffic()

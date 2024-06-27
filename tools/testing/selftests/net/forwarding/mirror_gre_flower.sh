@@ -64,12 +64,21 @@ cleanup()
 
 test_span_gre_dir_acl()
 {
-	test_span_gre_dir_ips "$@" 192.0.2.3 192.0.2.4
+	local tundev=$1; shift
+	local direction=$1; shift
+	local forward_type=$1; shift
+	local backward_type=$1; shift
+
+	test_span_gre_dir_ips "$tundev" "$direction" "$forward_type" \
+			      "$backward_type" 192.0.2.3 192.0.2.4
 }
 
 fail_test_span_gre_dir_acl()
 {
-	fail_test_span_gre_dir_ips "$@" 192.0.2.3 192.0.2.4
+	local tundev=$1; shift
+	local direction=$1; shift
+
+	fail_test_span_gre_dir_ips "$tundev" "$direction" 192.0.2.3 192.0.2.4
 }
 
 full_test_span_gre_dir_acl()
