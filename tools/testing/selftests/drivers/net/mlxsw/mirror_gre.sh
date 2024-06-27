@@ -150,34 +150,27 @@ test_span_gre_tos_fixed()
 
 test_span_failable()
 {
-	local should_fail=$1; shift
 	local tundev=$1; shift
 	local what=$1; shift
 
 	RET=0
 
 	mirror_install $swp1 ingress $tundev "matchall"
-	if ((should_fail)); then
-	    fail_test_span_gre_dir  $tundev
-	else
-	    quick_test_span_gre_dir $tundev
-	fi
+	fail_test_span_gre_dir  $tundev
 	mirror_uninstall $swp1 ingress
 
-	log_test "$what: should_fail=$should_fail"
+	log_test "fail $what"
 }
 
 test_failable()
 {
-	local should_fail=$1; shift
-
-	test_span_failable $should_fail gt6-key "mirror to keyful gretap"
-	test_span_failable $should_fail gt6-soft "mirror to gretap w/ soft underlay"
+	test_span_failable gt6-key "mirror to keyful gretap"
+	test_span_failable gt6-soft "mirror to gretap w/ soft underlay"
 }
 
 test_hw()
 {
-	test_failable 1
+	test_failable
 
 	test_span_gre_tos_fixed gt4 gretap "mirror to gretap"
 	test_span_gre_tos_fixed gt6 ip6gretap "mirror to ip6gretap"
