@@ -257,7 +257,7 @@ enum hwsim_tx_rate_flags {
 };
 
 /**
- * struct hwsim_tx_rate - rate selection/status
+ * struct hwsim_tx_rate_flag - rate selection/status
  *
  * @idx: rate index to attempt to send with
  * @flags: the rate flags according to &enum hwsim_tx_rate_flags
@@ -295,7 +295,7 @@ enum hwsim_vqs {
 };
 
 /**
- * enum hwsim_rate_info -- bitrate information.
+ * enum hwsim_rate_info_attributes - bitrate information.
  *
  * Information about a receiving or transmitting bitrate
  * that can be mapped to struct rate_info
