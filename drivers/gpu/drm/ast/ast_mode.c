@@ -649,12 +649,12 @@ static void ast_primary_plane_helper_atomic_update(struct drm_plane *plane,
 	struct drm_plane_state *old_plane_state = drm_atomic_get_old_plane_state(state, plane);
 	struct drm_framebuffer *old_fb = old_plane_state->fb;
 	struct ast_plane *ast_plane = to_ast_plane(plane);
+	struct drm_crtc *crtc = plane_state->crtc;
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
 	struct drm_rect damage;
 	struct drm_atomic_helper_damage_iter iter;
 
-	if (!old_fb || (fb->format != old_fb->format)) {
-		struct drm_crtc *crtc = plane_state->crtc;
-		struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
+	if (!old_fb || (fb->format != old_fb->format) || crtc_state->mode_changed) {
 		struct ast_crtc_state *ast_crtc_state = to_ast_crtc_state(crtc_state);
 		struct ast_vbios_mode_info *vbios_mode_info = &ast_crtc_state->vbios_mode_info;
 
@@ -1025,7 +1025,6 @@ static void ast_crtc_dpms(struct drm_crtc *crtc, int mode)
 	u8 ch = AST_DPMS_VSYNC_OFF | AST_DPMS_HSYNC_OFF;
 	struct ast_crtc_state *ast_state;
 	const struct drm_format_info *format;
-	struct ast_vbios_mode_info *vbios_mode_info;
 
 	/* TODO: Maybe control display signal generation with
 	 *       Sync Enable (bit CR17.7).
@@ -1039,10 +1038,6 @@ static void ast_crtc_dpms(struct drm_crtc *crtc, int mode)
 		format = ast_state->format;
 
 		if (format) {
-			vbios_mode_info = &ast_state->vbios_mode_info;
-
-			ast_set_color_reg(ast, format);
-			ast_set_vbios_color_reg(ast, format, vbios_mode_info);
 			if (crtc->state->gamma_lut)
 				ast_crtc_set_gamma(ast, format, crtc->state->gamma_lut->data);
 			else
