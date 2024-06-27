@@ -943,46 +943,21 @@ static int soc_tplg_dmixer_create(struct soc_tplg *tplg, size_t size)
 
 static int soc_tplg_denum_create(struct soc_tplg *tplg, size_t size)
 {
-	struct snd_soc_tplg_enum_control *ec;
+	struct snd_kcontrol_new kc = {0};
 	struct soc_enum *se;
-	struct snd_kcontrol_new kc;
-	int ret = 0;
+	int ret;
 
 	if (soc_tplg_check_elem_count(tplg,
 				      sizeof(struct snd_soc_tplg_enum_control),
 				      1, size, "enums"))
 		return -EINVAL;
 
-	ec = (struct snd_soc_tplg_enum_control *)tplg->pos;
+	ret = soc_tplg_control_denum_create(tplg, &kc);
+	if (ret)
+		return ret;
 
-	/* validate kcontrol */
-	if (strnlen(ec->hdr.name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN) ==
-		SNDRV_CTL_ELEM_ID_NAME_MAXLEN)
-		return -EINVAL;
-
-	se = devm_kzalloc(tplg->dev, (sizeof(*se)), GFP_KERNEL);
-	if (se == NULL)
-		return -ENOMEM;
-
-	tplg->pos += (sizeof(struct snd_soc_tplg_enum_control) +
-		      le32_to_cpu(ec->priv.size));
-
-	dev_dbg(tplg->dev, "ASoC: adding enum kcontrol %s size %d\n",
-		ec->hdr.name, ec->items);
-
-	memset(&kc, 0, sizeof(kc));
-	kc.name = ec->hdr.name;
-	kc.private_value = (long)se;
-	kc.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
-	kc.access = le32_to_cpu(ec->hdr.access);
-
-	se->reg = tplg_chan_get_reg(tplg, ec->channel, SNDRV_CHMAP_FL);
-	se->shift_l = tplg_chan_get_shift(tplg, ec->channel,
-		SNDRV_CHMAP_FL);
-	se->shift_r = tplg_chan_get_shift(tplg, ec->channel,
-		SNDRV_CHMAP_FR);
-
-	se->mask = le32_to_cpu(ec->mask);
+	/* register dynamic object */
+	se = (struct soc_enum *)kc.private_value;
 
 	INIT_LIST_HEAD(&se->dobj.list);
 	se->dobj.type = SND_SOC_DOBJ_ENUM;
@@ -990,56 +965,13 @@ static int soc_tplg_denum_create(struct soc_tplg *tplg, size_t size)
 	if (tplg->ops)
 		se->dobj.unload = tplg->ops->control_unload;
 
-	switch (le32_to_cpu(ec->hdr.ops.info)) {
-	case SND_SOC_TPLG_DAPM_CTL_ENUM_VALUE:
-	case SND_SOC_TPLG_CTL_ENUM_VALUE:
-		ret = soc_tplg_denum_create_values(tplg, se, ec);
-		if (ret < 0) {
-			dev_err(tplg->dev,
-				"ASoC: could not create values for %s\n",
-				ec->hdr.name);
-			goto err;
-		}
-		fallthrough;
-	case SND_SOC_TPLG_CTL_ENUM:
-	case SND_SOC_TPLG_DAPM_CTL_ENUM_DOUBLE:
-	case SND_SOC_TPLG_DAPM_CTL_ENUM_VIRT:
-		ret = soc_tplg_denum_create_texts(tplg, se, ec);
-		if (ret < 0) {
-			dev_err(tplg->dev,
-				"ASoC: could not create texts for %s\n",
-				ec->hdr.name);
-			goto err;
-		}
-		break;
-	default:
-		ret = -EINVAL;
-		dev_err(tplg->dev,
-			"ASoC: invalid enum control type %d for %s\n",
-			ec->hdr.ops.info, ec->hdr.name);
-		goto err;
-	}
-
-	/* map io handlers */
-	ret = soc_tplg_kcontrol_bind_io(&ec->hdr, &kc, tplg);
-	if (ret) {
-		soc_control_err(tplg, &ec->hdr, ec->hdr.name);
-		goto err;
-	}
-
-	/* pass control to driver for optional further init */
-	ret = soc_tplg_control_load(tplg, &kc, &ec->hdr);
-	if (ret < 0)
-		goto err;
-
-	/* register control here */
+	/* create control directly */
 	ret = soc_tplg_add_kcontrol(tplg, &kc, &se->dobj.control.kcontrol);
 	if (ret < 0)
-		goto err;
+		return ret;
 
 	list_add(&se->dobj.list, &tplg->comp->dobj_list);
 
-err:
 	return ret;
 }
 
