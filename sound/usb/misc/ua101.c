@@ -1317,7 +1317,7 @@ static void ua101_disconnect(struct usb_interface *interface)
 	snd_card_disconnect(ua->card);
 
 	/* make sure that there are no pending USB requests */
-	list_for_each(midi, &ua->midi_list)
+	list_for_each(midi, &ua->midi_list);
 		snd_usbmidi_disconnect(midi);
 	abort_alsa_playback(ua);
 	abort_alsa_capture(ua);
