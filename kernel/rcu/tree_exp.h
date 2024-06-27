@@ -357,7 +357,21 @@ static void __sync_rcu_exp_select_node_cpus(struct rcu_exp_work *rewp)
 		    !(rnp->qsmaskinitnext & mask)) {
 			mask_ofl_test |= mask;
 		} else {
-			snap = rcu_dynticks_snap(cpu);
+			/*
+			 * Full ordering between remote CPU's post idle accesses
+			 * and updater's accesses prior to current GP (and also
+			 * the started GP sequence number) is enforced by
+			 * rcu_seq_start() implicit barrier, relayed by kworkers
+			 * locking and even further by smp_mb__after_unlock_lock()
+			 * barriers chained all the way throughout the rnp locking
+			 * tree since sync_exp_reset_tree() and up to the current
+			 * leaf rnp locking.
+			 *
+			 * Ordering between remote CPU's pre idle accesses and
+			 * post grace period updater's accesses is enforced by the
+			 * below acquire semantic.
+			 */
+			snap = ct_dynticks_cpu_acquire(cpu);
 			if (rcu_dynticks_in_eqs(snap))
 				mask_ofl_test |= mask;
 			else
