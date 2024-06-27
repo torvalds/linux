@@ -332,6 +332,7 @@
   __traceiter_android_rvh_pick_next_entity
   __traceiter_android_rvh_place_entity
   __traceiter_android_rvh_prepare_prio_fork
+  __traceiter_android_rvh_pr_set_vma_name_bypass
   __traceiter_android_rvh_replace_next_task_fair
   __traceiter_android_rvh_report_bug
   __traceiter_android_rvh_rtmutex_prepare_setprio
@@ -517,6 +518,7 @@
   __tracepoint_android_rvh_pick_next_entity
   __tracepoint_android_rvh_place_entity
   __tracepoint_android_rvh_prepare_prio_fork
+  __tracepoint_android_rvh_pr_set_vma_name_bypass
   __tracepoint_android_rvh_replace_next_task_fair
   __tracepoint_android_rvh_report_bug
   __tracepoint_android_rvh_rtmutex_prepare_setprio
