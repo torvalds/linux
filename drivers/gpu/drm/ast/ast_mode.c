@@ -1023,8 +1023,6 @@ static void ast_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
 	struct ast_device *ast = to_ast_device(crtc->dev);
 	u8 ch = AST_DPMS_VSYNC_OFF | AST_DPMS_HSYNC_OFF;
-	struct ast_crtc_state *ast_state;
-	const struct drm_format_info *format;
 
 	/* TODO: Maybe control display signal generation with
 	 *       Sync Enable (bit CR17.7).
@@ -1033,16 +1031,6 @@ static void ast_crtc_dpms(struct drm_crtc *crtc, int mode)
 	case DRM_MODE_DPMS_ON:
 		ast_set_index_reg_mask(ast, AST_IO_VGASRI,  0x01, 0xdf, 0);
 		ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xb6, 0xfc, 0);
-
-		ast_state = to_ast_crtc_state(crtc->state);
-		format = ast_state->format;
-
-		if (format) {
-			if (crtc->state->gamma_lut)
-				ast_crtc_set_gamma(ast, format, crtc->state->gamma_lut->data);
-			else
-				ast_crtc_set_gamma_linear(ast, format);
-		}
 		break;
 	case DRM_MODE_DPMS_STANDBY:
 	case DRM_MODE_DPMS_SUSPEND:
