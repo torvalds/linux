@@ -332,4 +332,39 @@ uninstall:
 		rm -f $(DESTDIR)${localedir}/$$HLANG/LC_MESSAGES/cpupower.mo; \
 	  done;
 
-.PHONY: all utils libcpupower update-po create-gmo install-lib install-tools install-man install-gmo install uninstall clean
+help:
+	@echo  'Building targets:'
+	@echo  '  all		  - Default target. Could be omitted. Put build artifacts'
+	@echo  '                    to "O" cmdline option dir (default: current dir)'
+	@echo  '  install	  - Install previously built project files from the output'
+	@echo  '                    dir defined by "O" cmdline option (default: current dir)'
+	@echo  '                    to the install dir  defined by "DESTDIR" cmdline or'
+	@echo  '                    Makefile config block option (default: "")'
+	@echo  '  install-lib	  - Install previously built library binary from the output'
+	@echo  '                    dir defined by "O" cmdline option (default: current dir)'
+	@echo  '                    and library headers from "lib/" for userspace to the install'
+	@echo  '                    dir  defined by "DESTDIR" cmdline (default: "")'
+	@echo  '  install-tools	  - Install previously built "cpupower" util from the output'
+	@echo  '                    dir defined by "O" cmdline option (default: current dir) and'
+	@echo  '                    "cpupower-completion.sh" script from the src dir to the'
+	@echo  '                    install dir  defined by "DESTDIR" cmdline or Makefile'
+	@echo  '                    config block option (default: "")'
+	@echo  '  install-man	  - Install man pages from the "man" src subdir to the'
+	@echo  '                    install dir  defined by "DESTDIR" cmdline or Makefile'
+	@echo  '                    config block option (default: "")'
+	@echo  '  install-gmo	  - Install previously built language files from the output'
+	@echo  '                    dir defined by "O" cmdline option (default: current dir)'
+	@echo  '                    to the install dir defined by "DESTDIR" cmdline or Makefile'
+	@echo  '                    config block option (default: "")'
+	@echo  '  install-bench	  - Install previously built "cpufreq-bench" util files from the'
+	@echo  '                    output dir defined by "O" cmdline option (default: current dir)'
+	@echo  '                    to the install dir  defined by "DESTDIR" cmdline or Makefile'
+	@echo  '                    config block option (default: "")'
+	@echo  ''
+	@echo  'Cleaning targets:'
+	@echo  '  clean		  - Clean build artifacts from the dir defined by "O" cmdline'
+	@echo  '                    option (default: current dir)'
+	@echo  '  uninstall	  - Remove previously installed files from the dir defined by "DESTDIR"'
+	@echo  '                    cmdline or Makefile config block option (default: "")'
+
+.PHONY: all utils libcpupower update-po create-gmo install-lib install-tools install-man install-gmo install uninstall clean help
