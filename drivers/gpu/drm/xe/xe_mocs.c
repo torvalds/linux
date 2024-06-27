@@ -47,8 +47,16 @@ struct xe_mocs_ops {
 };
 
 struct xe_mocs_info {
-	unsigned int size;
-	unsigned int n_entries;
+	/*
+	 * Size of the spec's suggested MOCS programming table.  The list of
+	 * table entries from the spec can potentially be smaller than the
+	 * number of hardware registers used to program the MOCS table; in such
+	 * cases the registers for the remaining indices will be programmed to
+	 * match unused_entries_index.
+	 */
+	unsigned int table_size;
+	/* Number of MOCS entries supported by the hardware */
+	unsigned int num_mocs_regs;
 	const struct xe_mocs_entry *table;
 	const struct xe_mocs_ops *ops;
 	u8 uc_index;
@@ -266,7 +274,7 @@ static void xelp_lncf_dump(struct xe_mocs_info *info, struct xe_gt *gt, struct d
 
 	drm_printf(p, "LNCFCMOCS[idx] = [ESC, SCC, L3CC] (value)\n\n");
 
-	for (i = 0, j = 0; i < (info->n_entries + 1) / 2; i++, j++) {
+	for (i = 0, j = 0; i < (info->num_mocs_regs + 1) / 2; i++, j++) {
 		if (regs_are_mcr(gt))
 			reg_val = xe_gt_mcr_unicast_read_any(gt, XEHP_LNCFCMOCS(i));
 		else
@@ -298,7 +306,7 @@ static void xelp_mocs_dump(struct xe_mocs_info *info, unsigned int flags,
 		drm_printf(p, "Global mocs table configuration:\n");
 		drm_printf(p, "GLOB_MOCS[idx] = [LeCC, TC, LRUM, AOM, RSC, SCC, PFM, SCF, CoS, SSE] (value)\n\n");
 
-		for (i = 0; i < info->n_entries; i++) {
+		for (i = 0; i < info->num_mocs_regs; i++) {
 			if (regs_are_mcr(gt))
 				reg_val = xe_gt_mcr_unicast_read_any(gt, XEHP_GLOBAL_MOCS(i));
 			else
@@ -371,7 +379,7 @@ static void xehp_lncf_dump(struct xe_mocs_info *info, unsigned int flags,
 
 	drm_printf(p, "LNCFCMOCS[idx] = [UCL3LOOKUP, GLBGO, L3CC] (value)\n\n");
 
-	for (i = 0, j = 0; i < (info->n_entries + 1) / 2; i++, j++) {
+	for (i = 0, j = 0; i < (info->num_mocs_regs + 1) / 2; i++, j++) {
 		if (regs_are_mcr(gt))
 			reg_val = xe_gt_mcr_unicast_read_any(gt, XEHP_LNCFCMOCS(i));
 		else
@@ -416,7 +424,7 @@ static void pvc_mocs_dump(struct xe_mocs_info *info, unsigned int flags, struct 
 
 	drm_printf(p, "LNCFCMOCS[idx] = [ L3CC ] (value)\n\n");
 
-	for (i = 0, j = 0; i < (info->n_entries + 1) / 2; i++, j++) {
+	for (i = 0, j = 0; i < (info->num_mocs_regs + 1) / 2; i++, j++) {
 		if (regs_are_mcr(gt))
 			reg_val = xe_gt_mcr_unicast_read_any(gt, XEHP_LNCFCMOCS(i));
 		else
@@ -498,7 +506,7 @@ static void mtl_mocs_dump(struct xe_mocs_info *info, unsigned int flags,
 	drm_printf(p, "Global mocs table configuration:\n");
 	drm_printf(p, "GLOB_MOCS[idx] = [IG_PAT, L4_CACHE_POLICY] (value)\n\n");
 
-	for (i = 0; i < info->n_entries; i++) {
+	for (i = 0; i < info->num_mocs_regs; i++) {
 		if (regs_are_mcr(gt))
 			reg_val = xe_gt_mcr_unicast_read_any(gt, XEHP_GLOBAL_MOCS(i));
 		else
@@ -541,7 +549,7 @@ static void xe2_mocs_dump(struct xe_mocs_info *info, unsigned int flags,
 	drm_printf(p, "Global mocs table configuration:\n");
 	drm_printf(p, "GLOB_MOCS[idx] = [IG_PAT, L3_CLOS, L3_CACHE_POLICY, L4_CACHE_POLICY] (value)\n\n");
 
-	for (i = 0; i < info->n_entries; i++) {
+	for (i = 0; i < info->num_mocs_regs; i++) {
 		if (regs_are_mcr(gt))
 			reg_val = xe_gt_mcr_unicast_read_any(gt, XEHP_GLOBAL_MOCS(i));
 		else
@@ -571,48 +579,48 @@ static unsigned int get_mocs_settings(struct xe_device *xe,
 	case XE_LUNARLAKE:
 	case XE_BATTLEMAGE:
 		info->ops = &xe2_mocs_ops;
-		info->size = ARRAY_SIZE(xe2_mocs_table);
+		info->table_size = ARRAY_SIZE(xe2_mocs_table);
 		info->table = xe2_mocs_table;
-		info->n_entries = XE2_NUM_MOCS_ENTRIES;
+		info->num_mocs_regs = XE2_NUM_MOCS_ENTRIES;
 		info->uc_index = 3;
 		info->wb_index = 4;
 		info->unused_entries_index = 4;
 		break;
 	case XE_PVC:
 		info->ops = &pvc_mocs_ops;
-		info->size = ARRAY_SIZE(pvc_mocs_desc);
+		info->table_size = ARRAY_SIZE(pvc_mocs_desc);
 		info->table = pvc_mocs_desc;
-		info->n_entries = PVC_NUM_MOCS_ENTRIES;
+		info->num_mocs_regs = PVC_NUM_MOCS_ENTRIES;
 		info->uc_index = 1;
 		info->wb_index = 2;
 		info->unused_entries_index = 2;
 		break;
 	case XE_METEORLAKE:
 		info->ops = &mtl_mocs_ops;
-		info->size = ARRAY_SIZE(mtl_mocs_desc);
+		info->table_size = ARRAY_SIZE(mtl_mocs_desc);
 		info->table = mtl_mocs_desc;
-		info->n_entries = MTL_NUM_MOCS_ENTRIES;
+		info->num_mocs_regs = MTL_NUM_MOCS_ENTRIES;
 		info->uc_index = 9;
 		info->unused_entries_index = 1;
 		break;
 	case XE_DG2:
 		info->ops = &xehp_mocs_ops;
-		info->size = ARRAY_SIZE(dg2_mocs_desc);
+		info->table_size = ARRAY_SIZE(dg2_mocs_desc);
 		info->table = dg2_mocs_desc;
 		info->uc_index = 1;
 		/*
 		 * Last entry is RO on hardware, don't bother with what was
 		 * written when checking later
 		 */
-		info->n_entries = XELP_NUM_MOCS_ENTRIES - 1;
+		info->num_mocs_regs = XELP_NUM_MOCS_ENTRIES - 1;
 		info->unused_entries_index = 3;
 		break;
 	case XE_DG1:
 		info->ops = &xelp_mocs_ops;
-		info->size = ARRAY_SIZE(dg1_mocs_desc);
+		info->table_size = ARRAY_SIZE(dg1_mocs_desc);
 		info->table = dg1_mocs_desc;
 		info->uc_index = 1;
-		info->n_entries = XELP_NUM_MOCS_ENTRIES;
+		info->num_mocs_regs = XELP_NUM_MOCS_ENTRIES;
 		info->unused_entries_index = 5;
 		break;
 	case XE_TIGERLAKE:
@@ -621,9 +629,9 @@ static unsigned int get_mocs_settings(struct xe_device *xe,
 	case XE_ALDERLAKE_P:
 	case XE_ALDERLAKE_N:
 		info->ops = &xelp_mocs_ops;
-		info->size  = ARRAY_SIZE(gen12_mocs_desc);
+		info->table_size  = ARRAY_SIZE(gen12_mocs_desc);
 		info->table = gen12_mocs_desc;
-		info->n_entries = XELP_NUM_MOCS_ENTRIES;
+		info->num_mocs_regs = XELP_NUM_MOCS_ENTRIES;
 		info->uc_index = 3;
 		info->unused_entries_index = 2;
 		break;
@@ -643,7 +651,7 @@ static unsigned int get_mocs_settings(struct xe_device *xe,
 	xe_assert(xe, info->unused_entries_index != 0);
 
 	xe_assert(xe, info->ops && info->ops->dump);
-	xe_assert(xe, info->size <= info->n_entries);
+	xe_assert(xe, info->table_size <= info->num_mocs_regs);
 
 	if (!IS_DGFX(xe) || GRAPHICS_VER(xe) >= 20)
 		flags |= HAS_GLOBAL_MOCS;
@@ -660,7 +668,7 @@ static unsigned int get_mocs_settings(struct xe_device *xe,
 static u32 get_entry_control(const struct xe_mocs_info *info,
 			     unsigned int index)
 {
-	if (index < info->size && info->table[index].used)
+	if (index < info->table_size && info->table[index].used)
 		return info->table[index].control_value;
 	return info->table[info->unused_entries_index].control_value;
 }
@@ -671,9 +679,9 @@ static void __init_mocs_table(struct xe_gt *gt,
 	unsigned int i;
 	u32 mocs;
 
-	mocs_dbg(gt, "mocs entries: %d\n", info->n_entries);
+	mocs_dbg(gt, "mocs entries: %d\n", info->num_mocs_regs);
 
-	for (i = 0; i < info->n_entries; i++) {
+	for (i = 0; i < info->num_mocs_regs; i++) {
 		mocs = get_entry_control(info, i);
 
 		mocs_dbg(gt, "GLOB_MOCS[%d] 0x%x 0x%x\n", i,
@@ -694,7 +702,7 @@ static void __init_mocs_table(struct xe_gt *gt,
 static u16 get_entry_l3cc(const struct xe_mocs_info *info,
 			  unsigned int index)
 {
-	if (index < info->size && info->table[index].used)
+	if (index < info->table_size && info->table[index].used)
 		return info->table[index].l3cc_value;
 	return info->table[info->unused_entries_index].l3cc_value;
 }
@@ -710,9 +718,9 @@ static void init_l3cc_table(struct xe_gt *gt,
 	unsigned int i;
 	u32 l3cc;
 
-	mocs_dbg(gt, "l3cc entries: %d\n", info->n_entries);
+	mocs_dbg(gt, "l3cc entries: %d\n", info->num_mocs_regs);
 
-	for (i = 0; i < (info->n_entries + 1) / 2; i++) {
+	for (i = 0; i < (info->num_mocs_regs + 1) / 2; i++) {
 		l3cc = l3cc_combine(get_entry_l3cc(info, 2 * i),
 				    get_entry_l3cc(info, 2 * i + 1));
 
