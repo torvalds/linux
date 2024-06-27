@@ -1292,7 +1292,7 @@ struct dc_plane_state {
 
 	struct dc_gamma gamma_correction;
 	struct dc_transfer_func in_transfer_func;
-	struct dc_bias_and_scale *bias_and_scale;
+	struct dc_bias_and_scale bias_and_scale;
 	struct dc_csc_transform input_csc_color_matrix;
 	struct fixed31_32 coeff_reduction_factor;
 	struct fixed31_32 hdr_mult;

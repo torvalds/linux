@@ -901,12 +901,12 @@ void hwss_program_bias_and_scale(union block_sequence_params *params)
 	struct pipe_ctx *pipe_ctx = params->program_bias_and_scale_params.pipe_ctx;
 	struct dpp *dpp = pipe_ctx->plane_res.dpp;
 	struct dc_plane_state *plane_state = pipe_ctx->plane_state;
-	struct dc_bias_and_scale bns_params = {0};
+	struct dc_bias_and_scale bns_params = plane_state->bias_and_scale;
 
 	//TODO :for CNVC set scale and bias registers if necessary
-	build_prescale_params(&bns_params, plane_state);
-	if (dpp->funcs->dpp_program_bias_and_scale)
+	if (dpp->funcs->dpp_program_bias_and_scale) {
 		dpp->funcs->dpp_program_bias_and_scale(dpp, &bns_params);
+	}
 }
 
 void hwss_power_on_mpc_mem_pwr(union block_sequence_params *params)
