@@ -375,11 +375,246 @@ static int pid_maps_open(struct inode *inode, struct file *file)
 	return do_maps_open(inode, file, &proc_pid_maps_op);
 }
 
+#define PROCMAP_QUERY_VMA_FLAGS (				\
+		PROCMAP_QUERY_VMA_READABLE |			\
+		PROCMAP_QUERY_VMA_WRITABLE |			\
+		PROCMAP_QUERY_VMA_EXECUTABLE |			\
+		PROCMAP_QUERY_VMA_SHARED			\
+)
+
+#define PROCMAP_QUERY_VALID_FLAGS_MASK (			\
+		PROCMAP_QUERY_COVERING_OR_NEXT_VMA |		\
+		PROCMAP_QUERY_FILE_BACKED_VMA |			\
+		PROCMAP_QUERY_VMA_FLAGS				\
+)
+
+static int query_vma_setup(struct mm_struct *mm)
+{
+	return mmap_read_lock_killable(mm);
+}
+
+static void query_vma_teardown(struct mm_struct *mm, struct vm_area_struct *vma)
+{
+	mmap_read_unlock(mm);
+}
+
+static struct vm_area_struct *query_vma_find_by_addr(struct mm_struct *mm, unsigned long addr)
+{
+	return find_vma(mm, addr);
+}
+
+static struct vm_area_struct *query_matching_vma(struct mm_struct *mm,
+						 unsigned long addr, u32 flags)
+{
+	struct vm_area_struct *vma;
+
+next_vma:
+	vma = query_vma_find_by_addr(mm, addr);
+	if (!vma)
+		goto no_vma;
+
+	/* user requested only file-backed VMA, keep iterating */
+	if ((flags & PROCMAP_QUERY_FILE_BACKED_VMA) && !vma->vm_file)
+		goto skip_vma;
+
+	/* VMA permissions should satisfy query flags */
+	if (flags & PROCMAP_QUERY_VMA_FLAGS) {
+		u32 perm = 0;
+
+		if (flags & PROCMAP_QUERY_VMA_READABLE)
+			perm |= VM_READ;
+		if (flags & PROCMAP_QUERY_VMA_WRITABLE)
+			perm |= VM_WRITE;
+		if (flags & PROCMAP_QUERY_VMA_EXECUTABLE)
+			perm |= VM_EXEC;
+		if (flags & PROCMAP_QUERY_VMA_SHARED)
+			perm |= VM_MAYSHARE;
+
+		if ((vma->vm_flags & perm) != perm)
+			goto skip_vma;
+	}
+
+	/* found covering VMA or user is OK with the matching next VMA */
+	if ((flags & PROCMAP_QUERY_COVERING_OR_NEXT_VMA) || vma->vm_start <= addr)
+		return vma;
+
+skip_vma:
+	/*
+	 * If the user needs closest matching VMA, keep iterating.
+	 */
+	addr = vma->vm_end;
+	if (flags & PROCMAP_QUERY_COVERING_OR_NEXT_VMA)
+		goto next_vma;
+no_vma:
+	return ERR_PTR(-ENOENT);
+}
+
+static int do_procmap_query(struct proc_maps_private *priv, void __user *uarg)
+{
+	struct procmap_query karg;
+	struct vm_area_struct *vma;
+	struct mm_struct *mm;
+	const char *name = NULL;
+	char *name_buf = NULL;
+	__u64 usize;
+	int err;
+
+	if (copy_from_user(&usize, (void __user *)uarg, sizeof(usize)))
+		return -EFAULT;
+	/* argument struct can never be that large, reject abuse */
+	if (usize > PAGE_SIZE)
+		return -E2BIG;
+	/* argument struct should have at least query_flags and query_addr fields */
+	if (usize < offsetofend(struct procmap_query, query_addr))
+		return -EINVAL;
+	err = copy_struct_from_user(&karg, sizeof(karg), uarg, usize);
+	if (err)
+		return err;
+
+	/* reject unknown flags */
+	if (karg.query_flags & ~PROCMAP_QUERY_VALID_FLAGS_MASK)
+		return -EINVAL;
+	/* either both buffer address and size are set, or both should be zero */
+	if (!!karg.vma_name_size != !!karg.vma_name_addr)
+		return -EINVAL;
+
+	mm = priv->mm;
+	if (!mm || !mmget_not_zero(mm))
+		return -ESRCH;
+
+	err = query_vma_setup(mm);
+	if (err) {
+		mmput(mm);
+		return err;
+	}
+
+	vma = query_matching_vma(mm, karg.query_addr, karg.query_flags);
+	if (IS_ERR(vma)) {
+		err = PTR_ERR(vma);
+		vma = NULL;
+		goto out;
+	}
+
+	karg.vma_start = vma->vm_start;
+	karg.vma_end = vma->vm_end;
+
+	karg.vma_flags = 0;
+	if (vma->vm_flags & VM_READ)
+		karg.vma_flags |= PROCMAP_QUERY_VMA_READABLE;
+	if (vma->vm_flags & VM_WRITE)
+		karg.vma_flags |= PROCMAP_QUERY_VMA_WRITABLE;
+	if (vma->vm_flags & VM_EXEC)
+		karg.vma_flags |= PROCMAP_QUERY_VMA_EXECUTABLE;
+	if (vma->vm_flags & VM_MAYSHARE)
+		karg.vma_flags |= PROCMAP_QUERY_VMA_SHARED;
+
+	karg.vma_page_size = vma_kernel_pagesize(vma);
+
+	if (vma->vm_file) {
+		const struct inode *inode = file_user_inode(vma->vm_file);
+
+		karg.vma_offset = ((__u64)vma->vm_pgoff) << PAGE_SHIFT;
+		karg.dev_major = MAJOR(inode->i_sb->s_dev);
+		karg.dev_minor = MINOR(inode->i_sb->s_dev);
+		karg.inode = inode->i_ino;
+	} else {
+		karg.vma_offset = 0;
+		karg.dev_major = 0;
+		karg.dev_minor = 0;
+		karg.inode = 0;
+	}
+
+	if (karg.build_id_size) {
+		__u32 build_id_sz;
+
+		err = build_id_parse(vma, build_id_buf, &build_id_sz);
+		if (err) {
+			karg.build_id_size = 0;
+		} else {
+			if (karg.build_id_size < build_id_sz) {
+				err = -ENAMETOOLONG;
+				goto out;
+			}
+			karg.build_id_size = build_id_sz;
+		}
+	}
+
+	if (karg.vma_name_size) {
+		size_t name_buf_sz = min_t(size_t, PATH_MAX, karg.vma_name_size);
+		const struct path *path;
+		const char *name_fmt;
+		size_t name_sz = 0;
+
+		get_vma_name(vma, &path, &name, &name_fmt);
+
+		if (path || name_fmt || name) {
+			name_buf = kmalloc(name_buf_sz, GFP_KERNEL);
+			if (!name_buf) {
+				err = -ENOMEM;
+				goto out;
+			}
+		}
+		if (path) {
+			name = d_path(path, name_buf, name_buf_sz);
+			if (IS_ERR(name)) {
+				err = PTR_ERR(name);
+				goto out;
+			}
+			name_sz = name_buf + name_buf_sz - name;
+		} else if (name || name_fmt) {
+			name_sz = 1 + snprintf(name_buf, name_buf_sz, name_fmt ?: "%s", name);
+			name = name_buf;
+		}
+		if (name_sz > name_buf_sz) {
+			err = -ENAMETOOLONG;
+			goto out;
+		}
+		karg.vma_name_size = name_sz;
+	}
+
+	/* unlock vma or mmap_lock, and put mm_struct before copying data to user */
+	query_vma_teardown(mm, vma);
+	mmput(mm);
+
+	if (karg.vma_name_size && copy_to_user((void __user *)karg.vma_name_addr,
+					       name, karg.vma_name_size)) {
+		kfree(name_buf);
+		return -EFAULT;
+	}
+	kfree(name_buf);
+
+	if (copy_to_user(uarg, &karg, min_t(size_t, sizeof(karg), usize)))
+		return -EFAULT;
+
+	return 0;
+
+out:
+	query_vma_teardown(mm, vma);
+	mmput(mm);
+	kfree(name_buf);
+	return err;
+}
+
+static long procfs_procmap_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	struct seq_file *seq = file->private_data;
+	struct proc_maps_private *priv = seq->private;
+
+	switch (cmd) {
+	case PROCMAP_QUERY:
+		return do_procmap_query(priv, (void __user *)arg);
+	default:
+		return -ENOIOCTLCMD;
+	}
+}
+
 const struct file_operations proc_pid_maps_operations = {
 	.open		= pid_maps_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= proc_map_release,
+	.unlocked_ioctl = procfs_procmap_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 };
 
 /*
