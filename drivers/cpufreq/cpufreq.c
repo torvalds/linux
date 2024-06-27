@@ -2873,7 +2873,7 @@ int cpufreq_enable_boost_support(void)
 }
 EXPORT_SYMBOL_GPL(cpufreq_enable_boost_support);
 
-int cpufreq_boost_enabled(void)
+bool cpufreq_boost_enabled(void)
 {
 	return cpufreq_driver->boost_enabled;
 }
