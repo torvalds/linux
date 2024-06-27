@@ -640,6 +640,239 @@ static int soc_tplg_create_tlv(struct soc_tplg *tplg,
 	return 0;
 }
 
+static int soc_tplg_control_dmixer_create(struct soc_tplg *tplg, struct snd_kcontrol_new *kc)
+{
+	struct snd_soc_tplg_mixer_control *mc;
+	struct soc_mixer_control *sm;
+	int err;
+
+	mc = (struct snd_soc_tplg_mixer_control *)tplg->pos;
+
+	/* validate kcontrol */
+	if (strnlen(mc->hdr.name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN) == SNDRV_CTL_ELEM_ID_NAME_MAXLEN)
+		return -EINVAL;
+
+	sm = devm_kzalloc(tplg->dev, sizeof(*sm), GFP_KERNEL);
+	if (!sm)
+		return -ENOMEM;
+
+	tplg->pos += sizeof(struct snd_soc_tplg_mixer_control) + le32_to_cpu(mc->priv.size);
+
+	dev_dbg(tplg->dev, "ASoC: adding mixer kcontrol %s with access 0x%x\n",
+		mc->hdr.name, mc->hdr.access);
+
+	kc->name = devm_kstrdup(tplg->dev, mc->hdr.name, GFP_KERNEL);
+	if (!kc->name)
+		return -ENOMEM;
+	kc->private_value = (long)sm;
+	kc->iface = SNDRV_CTL_ELEM_IFACE_MIXER;
+	kc->access = le32_to_cpu(mc->hdr.access);
+
+	/* we only support FL/FR channel mapping atm */
+	sm->reg = tplg_chan_get_reg(tplg, mc->channel, SNDRV_CHMAP_FL);
+	sm->rreg = tplg_chan_get_reg(tplg, mc->channel, SNDRV_CHMAP_FR);
+	sm->shift = tplg_chan_get_shift(tplg, mc->channel, SNDRV_CHMAP_FL);
+	sm->rshift = tplg_chan_get_shift(tplg, mc->channel, SNDRV_CHMAP_FR);
+
+	sm->max = le32_to_cpu(mc->max);
+	sm->min = le32_to_cpu(mc->min);
+	sm->invert = le32_to_cpu(mc->invert);
+	sm->platform_max = le32_to_cpu(mc->platform_max);
+
+	/* map io handlers */
+	err = soc_tplg_kcontrol_bind_io(&mc->hdr, kc, tplg);
+	if (err) {
+		soc_control_err(tplg, &mc->hdr, mc->hdr.name);
+		return err;
+	}
+
+	/* create any TLV data */
+	err = soc_tplg_create_tlv(tplg, kc, &mc->hdr);
+	if (err < 0) {
+		dev_err(tplg->dev, "ASoC: failed to create TLV %s\n", mc->hdr.name);
+		return err;
+	}
+
+	/* pass control to driver for optional further init */
+	return soc_tplg_control_load(tplg, kc, &mc->hdr);
+}
+
+static int soc_tplg_denum_create_texts(struct soc_tplg *tplg, struct soc_enum *se,
+				       struct snd_soc_tplg_enum_control *ec)
+{
+	int i, ret;
+
+	if (le32_to_cpu(ec->items) > ARRAY_SIZE(ec->texts))
+		return -EINVAL;
+
+	se->dobj.control.dtexts =
+		devm_kcalloc(tplg->dev, le32_to_cpu(ec->items), sizeof(char *), GFP_KERNEL);
+	if (se->dobj.control.dtexts == NULL)
+		return -ENOMEM;
+
+	for (i = 0; i < le32_to_cpu(ec->items); i++) {
+
+		if (strnlen(ec->texts[i], SNDRV_CTL_ELEM_ID_NAME_MAXLEN) ==
+			SNDRV_CTL_ELEM_ID_NAME_MAXLEN) {
+			ret = -EINVAL;
+			goto err;
+		}
+
+		se->dobj.control.dtexts[i] = devm_kstrdup(tplg->dev, ec->texts[i], GFP_KERNEL);
+		if (!se->dobj.control.dtexts[i]) {
+			ret = -ENOMEM;
+			goto err;
+		}
+	}
+
+	se->items = le32_to_cpu(ec->items);
+	se->texts = (const char * const *)se->dobj.control.dtexts;
+	return 0;
+
+err:
+	return ret;
+}
+
+static int soc_tplg_denum_create_values(struct soc_tplg *tplg, struct soc_enum *se,
+					struct snd_soc_tplg_enum_control *ec)
+{
+	int i;
+
+	/*
+	 * Following "if" checks if we have at most SND_SOC_TPLG_NUM_TEXTS
+	 * values instead of using ARRAY_SIZE(ec->values) due to the fact that
+	 * it is oversized for its purpose. Additionally it is done so because
+	 * it is defined in UAPI header where it can't be easily changed.
+	 */
+	if (le32_to_cpu(ec->items) > SND_SOC_TPLG_NUM_TEXTS)
+		return -EINVAL;
+
+	se->dobj.control.dvalues = devm_kcalloc(tplg->dev, le32_to_cpu(ec->items),
+					   sizeof(*se->dobj.control.dvalues),
+					   GFP_KERNEL);
+	if (!se->dobj.control.dvalues)
+		return -ENOMEM;
+
+	/* convert from little-endian */
+	for (i = 0; i < le32_to_cpu(ec->items); i++) {
+		se->dobj.control.dvalues[i] = le32_to_cpu(ec->values[i]);
+	}
+
+	se->items = le32_to_cpu(ec->items);
+	se->values = (const unsigned int *)se->dobj.control.dvalues;
+	return 0;
+}
+
+static int soc_tplg_control_denum_create(struct soc_tplg *tplg, struct snd_kcontrol_new *kc)
+{
+	struct snd_soc_tplg_enum_control *ec;
+	struct soc_enum *se;
+	int err;
+
+	ec = (struct snd_soc_tplg_enum_control *)tplg->pos;
+
+	/* validate kcontrol */
+	if (strnlen(ec->hdr.name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN) == SNDRV_CTL_ELEM_ID_NAME_MAXLEN)
+		return -EINVAL;
+
+	se = devm_kzalloc(tplg->dev, sizeof(*se), GFP_KERNEL);
+	if (!se)
+		return -ENOMEM;
+
+	tplg->pos += (sizeof(struct snd_soc_tplg_enum_control) + le32_to_cpu(ec->priv.size));
+
+	dev_dbg(tplg->dev, "ASoC: adding enum kcontrol %s size %d\n", ec->hdr.name, ec->items);
+
+	kc->name = devm_kstrdup(tplg->dev, ec->hdr.name, GFP_KERNEL);
+	if (!kc->name)
+		return -ENOMEM;
+	kc->private_value = (long)se;
+	kc->iface = SNDRV_CTL_ELEM_IFACE_MIXER;
+	kc->access = le32_to_cpu(ec->hdr.access);
+
+	/* we only support FL/FR channel mapping atm */
+	se->reg = tplg_chan_get_reg(tplg, ec->channel, SNDRV_CHMAP_FL);
+	se->shift_l = tplg_chan_get_shift(tplg, ec->channel, SNDRV_CHMAP_FL);
+	se->shift_r = tplg_chan_get_shift(tplg, ec->channel, SNDRV_CHMAP_FR);
+
+	se->mask = le32_to_cpu(ec->mask);
+
+	switch (le32_to_cpu(ec->hdr.ops.info)) {
+	case SND_SOC_TPLG_CTL_ENUM_VALUE:
+	case SND_SOC_TPLG_DAPM_CTL_ENUM_VALUE:
+		err = soc_tplg_denum_create_values(tplg, se, ec);
+		if (err < 0) {
+			dev_err(tplg->dev, "ASoC: could not create values for %s\n", ec->hdr.name);
+			return err;
+		}
+		fallthrough;
+	case SND_SOC_TPLG_CTL_ENUM:
+	case SND_SOC_TPLG_DAPM_CTL_ENUM_DOUBLE:
+	case SND_SOC_TPLG_DAPM_CTL_ENUM_VIRT:
+		err = soc_tplg_denum_create_texts(tplg, se, ec);
+		if (err < 0) {
+			dev_err(tplg->dev, "ASoC: could not create texts for %s\n", ec->hdr.name);
+			return err;
+		}
+		break;
+	default:
+		dev_err(tplg->dev, "ASoC: invalid enum control type %d for %s\n",
+			ec->hdr.ops.info, ec->hdr.name);
+		return -EINVAL;
+	}
+
+	/* map io handlers */
+	err = soc_tplg_kcontrol_bind_io(&ec->hdr, kc, tplg);
+	if (err) {
+		soc_control_err(tplg, &ec->hdr, ec->hdr.name);
+		return err;
+	}
+
+	/* pass control to driver for optional further init */
+	return soc_tplg_control_load(tplg, kc, &ec->hdr);
+}
+
+static int soc_tplg_control_dbytes_create(struct soc_tplg *tplg, struct snd_kcontrol_new *kc)
+{
+	struct snd_soc_tplg_bytes_control *be;
+	struct soc_bytes_ext *sbe;
+	int err;
+
+	be = (struct snd_soc_tplg_bytes_control *)tplg->pos;
+
+	/* validate kcontrol */
+	if (strnlen(be->hdr.name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN) == SNDRV_CTL_ELEM_ID_NAME_MAXLEN)
+		return -EINVAL;
+
+	sbe = devm_kzalloc(tplg->dev, sizeof(*sbe), GFP_KERNEL);
+	if (!sbe)
+		return -ENOMEM;
+
+	tplg->pos += (sizeof(struct snd_soc_tplg_bytes_control) + le32_to_cpu(be->priv.size));
+
+	dev_dbg(tplg->dev, "ASoC: adding bytes kcontrol %s with access 0x%x\n",
+		be->hdr.name, be->hdr.access);
+
+	kc->name = devm_kstrdup(tplg->dev, be->hdr.name, GFP_KERNEL);
+	if (!kc->name)
+		return -ENOMEM;
+	kc->private_value = (long)sbe;
+	kc->iface = SNDRV_CTL_ELEM_IFACE_MIXER;
+	kc->access = le32_to_cpu(be->hdr.access);
+
+	sbe->max = le32_to_cpu(be->max);
+
+	/* map standard io handlers and check for external handlers */
+	err = soc_tplg_kcontrol_bind_io(&be->hdr, kc, tplg);
+	if (err) {
+		soc_control_err(tplg, &be->hdr, be->hdr.name);
+		return err;
+	}
+
+	/* pass control to driver for optional further init */
+	return soc_tplg_control_load(tplg, kc, &be->hdr);
+}
+
 static int soc_tplg_dbytes_create(struct soc_tplg *tplg, size_t size)
 {
 	struct snd_soc_tplg_bytes_control *be;
@@ -787,72 +1020,6 @@ static int soc_tplg_dmixer_create(struct soc_tplg *tplg, size_t size)
 
 err:
 	return ret;
-}
-
-static int soc_tplg_denum_create_texts(struct soc_tplg *tplg, struct soc_enum *se,
-				       struct snd_soc_tplg_enum_control *ec)
-{
-	int i, ret;
-
-	if (le32_to_cpu(ec->items) > ARRAY_SIZE(ec->texts))
-		return -EINVAL;
-
-	se->dobj.control.dtexts =
-		devm_kcalloc(tplg->dev, le32_to_cpu(ec->items), sizeof(char *), GFP_KERNEL);
-	if (se->dobj.control.dtexts == NULL)
-		return -ENOMEM;
-
-	for (i = 0; i < le32_to_cpu(ec->items); i++) {
-
-		if (strnlen(ec->texts[i], SNDRV_CTL_ELEM_ID_NAME_MAXLEN) ==
-			SNDRV_CTL_ELEM_ID_NAME_MAXLEN) {
-			ret = -EINVAL;
-			goto err;
-		}
-
-		se->dobj.control.dtexts[i] = devm_kstrdup(tplg->dev, ec->texts[i], GFP_KERNEL);
-		if (!se->dobj.control.dtexts[i]) {
-			ret = -ENOMEM;
-			goto err;
-		}
-	}
-
-	se->items = le32_to_cpu(ec->items);
-	se->texts = (const char * const *)se->dobj.control.dtexts;
-	return 0;
-
-err:
-	return ret;
-}
-
-static int soc_tplg_denum_create_values(struct soc_tplg *tplg, struct soc_enum *se,
-					struct snd_soc_tplg_enum_control *ec)
-{
-	int i;
-
-	/*
-	 * Following "if" checks if we have at most SND_SOC_TPLG_NUM_TEXTS
-	 * values instead of using ARRAY_SIZE(ec->values) due to the fact that
-	 * it is oversized for its purpose. Additionally it is done so because
-	 * it is defined in UAPI header where it can't be easily changed.
-	 */
-	if (le32_to_cpu(ec->items) > SND_SOC_TPLG_NUM_TEXTS)
-		return -EINVAL;
-
-	se->dobj.control.dvalues = devm_kcalloc(tplg->dev, le32_to_cpu(ec->items),
-					   sizeof(*se->dobj.control.dvalues),
-					   GFP_KERNEL);
-	if (!se->dobj.control.dvalues)
-		return -ENOMEM;
-
-	/* convert from little-endian */
-	for (i = 0; i < le32_to_cpu(ec->items); i++) {
-		se->dobj.control.dvalues[i] = le32_to_cpu(ec->values[i]);
-	}
-
-	se->items = le32_to_cpu(ec->items);
-	se->values = (const unsigned int *)se->dobj.control.dvalues;
-	return 0;
 }
 
 static int soc_tplg_denum_create(struct soc_tplg *tplg, size_t size)
@@ -1094,173 +1261,6 @@ static int soc_tplg_dapm_graph_elems_load(struct soc_tplg *tplg,
 	}
 
 	return ret;
-}
-
-static int soc_tplg_control_dmixer_create(struct soc_tplg *tplg, struct snd_kcontrol_new *kc)
-{
-	struct snd_soc_tplg_mixer_control *mc;
-	struct soc_mixer_control *sm;
-	int err;
-
-	mc = (struct snd_soc_tplg_mixer_control *)tplg->pos;
-
-	/* validate kcontrol */
-	if (strnlen(mc->hdr.name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN) == SNDRV_CTL_ELEM_ID_NAME_MAXLEN)
-		return -EINVAL;
-
-	sm = devm_kzalloc(tplg->dev, sizeof(*sm), GFP_KERNEL);
-	if (!sm)
-		return -ENOMEM;
-
-	tplg->pos += sizeof(struct snd_soc_tplg_mixer_control) + le32_to_cpu(mc->priv.size);
-
-	dev_dbg(tplg->dev, "ASoC: adding mixer kcontrol %s with access 0x%x\n",
-		mc->hdr.name, mc->hdr.access);
-
-	kc->name = devm_kstrdup(tplg->dev, mc->hdr.name, GFP_KERNEL);
-	if (!kc->name)
-		return -ENOMEM;
-	kc->private_value = (long)sm;
-	kc->iface = SNDRV_CTL_ELEM_IFACE_MIXER;
-	kc->access = le32_to_cpu(mc->hdr.access);
-
-	/* we only support FL/FR channel mapping atm */
-	sm->reg = tplg_chan_get_reg(tplg, mc->channel, SNDRV_CHMAP_FL);
-	sm->rreg = tplg_chan_get_reg(tplg, mc->channel, SNDRV_CHMAP_FR);
-	sm->shift = tplg_chan_get_shift(tplg, mc->channel, SNDRV_CHMAP_FL);
-	sm->rshift = tplg_chan_get_shift(tplg, mc->channel, SNDRV_CHMAP_FR);
-
-	sm->max = le32_to_cpu(mc->max);
-	sm->min = le32_to_cpu(mc->min);
-	sm->invert = le32_to_cpu(mc->invert);
-	sm->platform_max = le32_to_cpu(mc->platform_max);
-
-	/* map io handlers */
-	err = soc_tplg_kcontrol_bind_io(&mc->hdr, kc, tplg);
-	if (err) {
-		soc_control_err(tplg, &mc->hdr, mc->hdr.name);
-		return err;
-	}
-
-	/* create any TLV data */
-	err = soc_tplg_create_tlv(tplg, kc, &mc->hdr);
-	if (err < 0) {
-		dev_err(tplg->dev, "ASoC: failed to create TLV %s\n", mc->hdr.name);
-		return err;
-	}
-
-	/* pass control to driver for optional further init */
-	return soc_tplg_control_load(tplg, kc, &mc->hdr);
-}
-
-static int soc_tplg_control_denum_create(struct soc_tplg *tplg, struct snd_kcontrol_new *kc)
-{
-	struct snd_soc_tplg_enum_control *ec;
-	struct soc_enum *se;
-	int err;
-
-	ec = (struct snd_soc_tplg_enum_control *)tplg->pos;
-
-	/* validate kcontrol */
-	if (strnlen(ec->hdr.name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN) == SNDRV_CTL_ELEM_ID_NAME_MAXLEN)
-		return -EINVAL;
-
-	se = devm_kzalloc(tplg->dev, sizeof(*se), GFP_KERNEL);
-	if (!se)
-		return -ENOMEM;
-
-	tplg->pos += (sizeof(struct snd_soc_tplg_enum_control) + le32_to_cpu(ec->priv.size));
-
-	dev_dbg(tplg->dev, "ASoC: adding enum kcontrol %s size %d\n", ec->hdr.name, ec->items);
-
-	kc->name = devm_kstrdup(tplg->dev, ec->hdr.name, GFP_KERNEL);
-	if (!kc->name)
-		return -ENOMEM;
-	kc->private_value = (long)se;
-	kc->iface = SNDRV_CTL_ELEM_IFACE_MIXER;
-	kc->access = le32_to_cpu(ec->hdr.access);
-
-	/* we only support FL/FR channel mapping atm */
-	se->reg = tplg_chan_get_reg(tplg, ec->channel, SNDRV_CHMAP_FL);
-	se->shift_l = tplg_chan_get_shift(tplg, ec->channel, SNDRV_CHMAP_FL);
-	se->shift_r = tplg_chan_get_shift(tplg, ec->channel, SNDRV_CHMAP_FR);
-
-	se->mask = le32_to_cpu(ec->mask);
-
-	switch (le32_to_cpu(ec->hdr.ops.info)) {
-	case SND_SOC_TPLG_CTL_ENUM_VALUE:
-	case SND_SOC_TPLG_DAPM_CTL_ENUM_VALUE:
-		err = soc_tplg_denum_create_values(tplg, se, ec);
-		if (err < 0) {
-			dev_err(tplg->dev, "ASoC: could not create values for %s\n", ec->hdr.name);
-			return err;
-		}
-		fallthrough;
-	case SND_SOC_TPLG_CTL_ENUM:
-	case SND_SOC_TPLG_DAPM_CTL_ENUM_DOUBLE:
-	case SND_SOC_TPLG_DAPM_CTL_ENUM_VIRT:
-		err = soc_tplg_denum_create_texts(tplg, se, ec);
-		if (err < 0) {
-			dev_err(tplg->dev, "ASoC: could not create texts for %s\n", ec->hdr.name);
-			return err;
-		}
-		break;
-	default:
-		dev_err(tplg->dev, "ASoC: invalid enum control type %d for %s\n",
-			ec->hdr.ops.info, ec->hdr.name);
-		return -EINVAL;
-	}
-
-	/* map io handlers */
-	err = soc_tplg_kcontrol_bind_io(&ec->hdr, kc, tplg);
-	if (err) {
-		soc_control_err(tplg, &ec->hdr, ec->hdr.name);
-		return err;
-	}
-
-	/* pass control to driver for optional further init */
-	return soc_tplg_control_load(tplg, kc, &ec->hdr);
-}
-
-static int soc_tplg_control_dbytes_create(struct soc_tplg *tplg, struct snd_kcontrol_new *kc)
-{
-	struct snd_soc_tplg_bytes_control *be;
-	struct soc_bytes_ext *sbe;
-	int err;
-
-	be = (struct snd_soc_tplg_bytes_control *)tplg->pos;
-
-	/* validate kcontrol */
-	if (strnlen(be->hdr.name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN) == SNDRV_CTL_ELEM_ID_NAME_MAXLEN)
-		return -EINVAL;
-
-	sbe = devm_kzalloc(tplg->dev, sizeof(*sbe), GFP_KERNEL);
-	if (!sbe)
-		return -ENOMEM;
-
-	tplg->pos += (sizeof(struct snd_soc_tplg_bytes_control) + le32_to_cpu(be->priv.size));
-
-	dev_dbg(tplg->dev, "ASoC: adding bytes kcontrol %s with access 0x%x\n",
-		be->hdr.name, be->hdr.access);
-
-	kc->name = devm_kstrdup(tplg->dev, be->hdr.name, GFP_KERNEL);
-	if (!kc->name)
-		return -ENOMEM;
-	kc->private_value = (long)sbe;
-	kc->iface = SNDRV_CTL_ELEM_IFACE_MIXER;
-	kc->access = le32_to_cpu(be->hdr.access);
-
-	sbe->max = le32_to_cpu(be->max);
-
-	/* map standard io handlers and check for external handlers */
-	err = soc_tplg_kcontrol_bind_io(&be->hdr, kc, tplg);
-	if (err) {
-		soc_control_err(tplg, &be->hdr, be->hdr.name);
-		return err;
-	}
-
-	/* pass control to driver for optional further init */
-	return soc_tplg_control_load(tplg, kc, &be->hdr);
 }
 
 static int soc_tplg_dapm_widget_create(struct soc_tplg *tplg,
