@@ -1344,14 +1344,12 @@ static int scp_probe(struct platform_device *pdev)
 
 	/* l1tcm is an optional memory region */
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "l1tcm");
-	scp_cluster->l1tcm_base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(scp_cluster->l1tcm_base)) {
-		ret = PTR_ERR(scp_cluster->l1tcm_base);
-		if (ret != -EINVAL)
-			return dev_err_probe(dev, ret, "Failed to map l1tcm memory\n");
+	if (res) {
+		scp_cluster->l1tcm_base = devm_ioremap_resource(dev, res);
+		if (IS_ERR(scp_cluster->l1tcm_base))
+			return dev_err_probe(dev, PTR_ERR(scp_cluster->l1tcm_base),
+					     "Failed to map l1tcm memory\n");
 
-		scp_cluster->l1tcm_base = NULL;
-	} else {
 		scp_cluster->l1tcm_size = resource_size(res);
 		scp_cluster->l1tcm_phys = res->start;
 	}
