@@ -8626,9 +8626,9 @@ static void __vmx_exit(void)
 static void vmx_exit(void)
 {
 	kvm_exit();
+	__vmx_exit();
 	kvm_x86_vendor_exit();
 
-	__vmx_exit();
 }
 module_exit(vmx_exit);
 
