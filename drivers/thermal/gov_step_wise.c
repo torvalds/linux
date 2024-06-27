@@ -55,7 +55,11 @@ static unsigned long get_target_state(struct thermal_instance *instance,
 		if (cur_state <= instance->lower)
 			return THERMAL_NO_TARGET;
 
-		return clamp(cur_state - 1, instance->lower, instance->upper);
+		/*
+		 * If 'throttle' is false, no mitigation is necessary, so
+		 * request the lower state for this instance.
+		 */
+		return instance->lower;
 	}
 
 	return instance->target;
@@ -92,23 +96,6 @@ static void thermal_zone_trip_update(struct thermal_zone_device *tz,
 
 		if (instance->initialized && old_target == instance->target)
 			continue;
-
-		if (trip->type == THERMAL_TRIP_PASSIVE) {
-			/*
-			 * If the target state for this thermal instance
-			 * changes from THERMAL_NO_TARGET to something else,
-			 * ensure that the zone temperature will be updated
-			 * (assuming enabled passive cooling) until it becomes
-			 * THERMAL_NO_TARGET again, or the cooling device may
-			 * not be reset to its initial state.
-			 */
-			if (old_target == THERMAL_NO_TARGET &&
-			    instance->target != THERMAL_NO_TARGET)
-				tz->passive++;
-			else if (old_target != THERMAL_NO_TARGET &&
-				 instance->target == THERMAL_NO_TARGET)
-				tz->passive--;
-		}
 
 		instance->initialized = true;
 
