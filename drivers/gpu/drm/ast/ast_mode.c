@@ -303,7 +303,7 @@ static void ast_set_std_reg(struct ast_device *ast,
 
 	/* Set SEQ; except Screen Disable field */
 	ast_set_index_reg(ast, AST_IO_VGASRI, 0x00, 0x03);
-	ast_set_index_reg_mask(ast, AST_IO_VGASRI, 0x01, 0xdf, stdtable->seq[0]);
+	ast_set_index_reg_mask(ast, AST_IO_VGASRI, 0x01, 0x20, stdtable->seq[0]);
 	for (i = 1; i < 4; i++) {
 		jreg = stdtable->seq[i];
 		ast_set_index_reg(ast, AST_IO_VGASRI, (i + 1), jreg);
@@ -690,15 +690,15 @@ static void ast_primary_plane_helper_atomic_enable(struct drm_plane *plane,
 	 * Therefore only reprogram the address after enabling the plane.
 	 */
 	ast_set_start_address_crt1(ast, (u32)ast_plane->offset);
-	ast_set_index_reg_mask(ast, AST_IO_VGASRI, 0x1, 0xdf, 0x00);
 }
 
 static void ast_primary_plane_helper_atomic_disable(struct drm_plane *plane,
 						    struct drm_atomic_state *state)
 {
-	struct ast_device *ast = to_ast_device(plane->dev);
-
-	ast_set_index_reg_mask(ast, AST_IO_VGASRI, 0x1, 0xdf, 0x20);
+	/*
+	 * Keep this empty function to avoid calling
+	 * atomic_update when disabling the plane.
+	 */
 }
 
 static int ast_primary_plane_helper_get_scanout_buffer(struct drm_plane *plane,
@@ -1029,14 +1029,14 @@ static void ast_crtc_dpms(struct drm_crtc *crtc, int mode)
 	 */
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
-		ast_set_index_reg_mask(ast, AST_IO_VGASRI,  0x01, 0xdf, 0);
 		ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xb6, 0xfc, 0);
+		ast_set_index_reg_mask(ast, AST_IO_VGASRI, 0x01, 0xdf, 0);
 		break;
 	case DRM_MODE_DPMS_STANDBY:
 	case DRM_MODE_DPMS_SUSPEND:
 	case DRM_MODE_DPMS_OFF:
 		ch = mode;
-		ast_set_index_reg_mask(ast, AST_IO_VGASRI,  0x01, 0xdf, 0x20);
+		ast_set_index_reg_mask(ast, AST_IO_VGASRI, 0x01, 0xdf, AST_IO_VGASR1_SD);
 		ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xb6, 0xfc, ch);
 		break;
 	}

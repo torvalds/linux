@@ -22,6 +22,7 @@
 #define AST_IO_VGAER_VGA_ENABLE		BIT(0)
 
 #define AST_IO_VGASRI			(0x44)
+#define AST_IO_VGASR1_SD		BIT(5)
 #define AST_IO_VGADRR			(0x47)
 #define AST_IO_VGADWR			(0x48)
 #define AST_IO_VGAPDR		        (0x49)
