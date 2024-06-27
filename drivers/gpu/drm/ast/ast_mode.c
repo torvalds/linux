@@ -1034,14 +1034,6 @@ static void ast_crtc_dpms(struct drm_crtc *crtc, int mode)
 	case DRM_MODE_DPMS_ON:
 		ast_set_index_reg_mask(ast, AST_IO_VGASRI,  0x01, 0xdf, 0);
 		ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xb6, 0xfc, 0);
-		if (ast->tx_chip_types & AST_TX_DP501_BIT)
-			ast_set_dp501_video_output(crtc->dev, 1);
-
-		if (ast->tx_chip_types & AST_TX_ASTDP_BIT) {
-			ast_dp_power_on_off(crtc->dev, AST_DP_POWER_ON);
-			ast_wait_for_vretrace(ast);
-			ast_dp_set_on_off(crtc->dev, 1);
-		}
 
 		ast_state = to_ast_crtc_state(crtc->state);
 		format = ast_state->format;
@@ -1061,14 +1053,6 @@ static void ast_crtc_dpms(struct drm_crtc *crtc, int mode)
 	case DRM_MODE_DPMS_SUSPEND:
 	case DRM_MODE_DPMS_OFF:
 		ch = mode;
-		if (ast->tx_chip_types & AST_TX_DP501_BIT)
-			ast_set_dp501_video_output(crtc->dev, 0);
-
-		if (ast->tx_chip_types & AST_TX_ASTDP_BIT) {
-			ast_dp_set_on_off(crtc->dev, 0);
-			ast_dp_power_on_off(crtc->dev, AST_DP_POWER_OFF);
-		}
-
 		ast_set_index_reg_mask(ast, AST_IO_VGASRI,  0x01, 0xdf, 0x20);
 		ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xb6, 0xfc, ch);
 		break;
@@ -1521,6 +1505,27 @@ static const struct drm_encoder_funcs ast_dp501_encoder_funcs = {
 	.destroy = drm_encoder_cleanup,
 };
 
+static void ast_dp501_encoder_helper_atomic_enable(struct drm_encoder *encoder,
+						   struct drm_atomic_state *state)
+{
+	struct drm_device *dev = encoder->dev;
+
+	ast_set_dp501_video_output(dev, 1);
+}
+
+static void ast_dp501_encoder_helper_atomic_disable(struct drm_encoder *encoder,
+						    struct drm_atomic_state *state)
+{
+	struct drm_device *dev = encoder->dev;
+
+	ast_set_dp501_video_output(dev, 0);
+}
+
+static const struct drm_encoder_helper_funcs ast_dp501_encoder_helper_funcs = {
+	.atomic_enable = ast_dp501_encoder_helper_atomic_enable,
+	.atomic_disable = ast_dp501_encoder_helper_atomic_disable,
+};
+
 /*
  * DP501 Connector
  */
@@ -1607,6 +1612,8 @@ static int ast_dp501_output_init(struct ast_device *ast)
 			       DRM_MODE_ENCODER_TMDS, NULL);
 	if (ret)
 		return ret;
+	drm_encoder_helper_add(encoder, &ast_dp501_encoder_helper_funcs);
+
 	encoder->possible_crtcs = drm_crtc_mask(crtc);
 
 	ret = ast_dp501_connector_init(dev, connector);
@@ -1626,6 +1633,31 @@ static int ast_dp501_output_init(struct ast_device *ast)
 
 static const struct drm_encoder_funcs ast_astdp_encoder_funcs = {
 	.destroy = drm_encoder_cleanup,
+};
+
+static void ast_astdp_encoder_helper_atomic_enable(struct drm_encoder *encoder,
+						   struct drm_atomic_state *state)
+{
+	struct drm_device *dev = encoder->dev;
+	struct ast_device *ast = to_ast_device(dev);
+
+	ast_dp_power_on_off(dev, AST_DP_POWER_ON);
+	ast_wait_for_vretrace(ast);
+	ast_dp_set_on_off(dev, 1);
+}
+
+static void ast_astdp_encoder_helper_atomic_disable(struct drm_encoder *encoder,
+						    struct drm_atomic_state *state)
+{
+	struct drm_device *dev = encoder->dev;
+
+	ast_dp_set_on_off(dev, 0);
+	ast_dp_power_on_off(dev, AST_DP_POWER_OFF);
+}
+
+static const struct drm_encoder_helper_funcs ast_astdp_encoder_helper_funcs = {
+	.atomic_enable = ast_astdp_encoder_helper_atomic_enable,
+	.atomic_disable = ast_astdp_encoder_helper_atomic_disable,
 };
 
 /*
@@ -1726,6 +1758,8 @@ static int ast_astdp_output_init(struct ast_device *ast)
 			       DRM_MODE_ENCODER_TMDS, NULL);
 	if (ret)
 		return ret;
+	drm_encoder_helper_add(encoder, &ast_astdp_encoder_helper_funcs);
+
 	encoder->possible_crtcs = drm_crtc_mask(crtc);
 
 	ret = ast_astdp_connector_init(dev, connector);
