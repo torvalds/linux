@@ -116,12 +116,6 @@ struct iova_bitmap {
 
 	/* length of the IOVA range for the whole bitmap */
 	size_t length;
-
-	/* length of the IOVA range set ahead the pinned pages */
-	unsigned long set_ahead_length;
-
-	/* true if it using the iterator otherwise it pins dynamically */
-	bool iterator;
 };
 
 /*
@@ -355,40 +349,6 @@ static bool iova_bitmap_mapped_range(struct iova_bitmap_map *mapped,
 }
 
 /*
- * Returns true if there's not more data to iterate.
- */
-static bool iova_bitmap_done(struct iova_bitmap *bitmap)
-{
-	return bitmap->mapped_base_index >= bitmap->mapped_total_index;
-}
-
-static int iova_bitmap_set_ahead(struct iova_bitmap *bitmap,
-				 size_t set_ahead_length)
-{
-	int ret = 0;
-
-	while (set_ahead_length > 0 && !iova_bitmap_done(bitmap)) {
-		unsigned long length = iova_bitmap_mapped_length(bitmap);
-		unsigned long iova = iova_bitmap_mapped_iova(bitmap);
-
-		ret = iova_bitmap_get(bitmap);
-		if (ret)
-			break;
-
-		length = min(length, set_ahead_length);
-		iova_bitmap_set(bitmap, iova, length);
-
-		set_ahead_length -= length;
-		bitmap->mapped_base_index +=
-			iova_bitmap_offset_to_index(bitmap, length - 1) + 1;
-		iova_bitmap_put(bitmap);
-	}
-
-	bitmap->set_ahead_length = 0;
-	return ret;
-}
-
-/*
  * Advances to a selected range, releases the current pinned
  * pages and pins the next set of bitmap pages.
  * Returns 0 on success or otherwise errno.
@@ -409,36 +369,6 @@ static int iova_bitmap_advance_to(struct iova_bitmap *bitmap,
 	return iova_bitmap_get(bitmap);
 }
 
-/*
- * Advances to the next range, releases the current pinned
- * pages and pins the next set of bitmap pages.
- * Returns 0 on success or otherwise errno.
- */
-static int iova_bitmap_advance(struct iova_bitmap *bitmap)
-{
-	unsigned long iova = iova_bitmap_mapped_length(bitmap) - 1;
-	unsigned long count = iova_bitmap_offset_to_index(bitmap, iova) + 1;
-
-	bitmap->mapped_base_index += count;
-
-	iova_bitmap_put(bitmap);
-
-	/* Iterate, set and skip any bits requested for next iteration */
-	if (bitmap->set_ahead_length) {
-		int ret;
-
-		ret = iova_bitmap_set_ahead(bitmap, bitmap->set_ahead_length);
-		if (ret)
-			return ret;
-	}
-
-	if (iova_bitmap_done(bitmap))
-		return 0;
-
-	/* When advancing the index we pin the next set of bitmap pages */
-	return iova_bitmap_get(bitmap);
-}
-
 /**
  * iova_bitmap_for_each() - Iterates over the bitmap
  * @bitmap: IOVA bitmap to iterate
@@ -455,23 +385,7 @@ static int iova_bitmap_advance(struct iova_bitmap *bitmap)
 int iova_bitmap_for_each(struct iova_bitmap *bitmap, void *opaque,
 			 iova_bitmap_fn_t fn)
 {
-	int ret = 0;
-
-	ret = iova_bitmap_get(bitmap);
-	if (ret)
-		return ret;
-
-	bitmap->iterator = true;
-	for (; !iova_bitmap_done(bitmap) && !ret;
-	     ret = iova_bitmap_advance(bitmap)) {
-		ret = fn(bitmap, iova_bitmap_mapped_iova(bitmap),
-			 iova_bitmap_mapped_length(bitmap), opaque);
-		if (ret)
-			break;
-	}
-	bitmap->iterator = false;
-
-	return ret;
+	return fn(bitmap, bitmap->iova, bitmap->length, opaque);
 }
 EXPORT_SYMBOL_NS_GPL(iova_bitmap_for_each, IOMMUFD);
 
@@ -492,15 +406,12 @@ void iova_bitmap_set(struct iova_bitmap *bitmap,
 	unsigned long cur_bit, last_bit, last_page_idx;
 
 update_indexes:
-	if (unlikely(!bitmap->iterator &&
-		     !iova_bitmap_mapped_range(mapped, iova, length))) {
+	if (unlikely(!iova_bitmap_mapped_range(mapped, iova, length))) {
 
 		/*
 		 * The attempt to advance the base index to @iova
 		 * may fail if it's out of bounds, or pinning the pages
 		 * returns an error.
-		 *
-		 * It is a no-op if within a iova_bitmap_for_each() closure.
 		 */
 		if (iova_bitmap_advance_to(bitmap, iova))
 			return;
@@ -523,10 +434,6 @@ update_indexes:
 			unsigned long left =
 				((last_bit - cur_bit + 1) << mapped->pgshift);
 
-			if (bitmap->iterator) {
-				bitmap->set_ahead_length = left;
-				return;
-			}
 			iova += (length - left);
 			length = left;
 			goto update_indexes;
