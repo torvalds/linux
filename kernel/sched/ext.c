@@ -369,7 +369,7 @@ struct sched_ext_ops {
 	/**
 	 * set_weight - Set task weight
 	 * @p: task to set weight for
-	 * @weight: new eight [1..10000]
+	 * @weight: new weight [1..10000]
 	 *
 	 * Update @p's weight to @weight.
 	 */
