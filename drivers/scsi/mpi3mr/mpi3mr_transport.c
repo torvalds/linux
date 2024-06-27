@@ -1353,7 +1353,7 @@ static struct mpi3mr_sas_port *mpi3mr_sas_port_add(struct mpi3mr_ioc *mrioc,
 	mpi3mr_sas_port_sanity_check(mrioc, mr_sas_node,
 	    mr_sas_port->remote_identify.sas_address, hba_port);
 
-	if (mr_sas_node->num_phys > sizeof(mr_sas_port->phy_mask) * 8)
+	if (mr_sas_node->num_phys >= sizeof(mr_sas_port->phy_mask) * 8)
 		ioc_info(mrioc, "max port count %u could be too high\n",
 		    mr_sas_node->num_phys);
 
@@ -1363,7 +1363,7 @@ static struct mpi3mr_sas_port *mpi3mr_sas_port_add(struct mpi3mr_ioc *mrioc,
 		    (mr_sas_node->phy[i].hba_port != hba_port))
 			continue;
 
-		if (i > sizeof(mr_sas_port->phy_mask) * 8) {
+		if (i >= sizeof(mr_sas_port->phy_mask) * 8) {
 			ioc_warn(mrioc, "skipping port %u, max allowed value is %lu\n",
 			    i, sizeof(mr_sas_port->phy_mask) * 8);
 			goto out_fail;
