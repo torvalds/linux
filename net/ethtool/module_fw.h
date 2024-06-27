@@ -25,6 +25,35 @@ struct ethtool_module_fw_flash_params {
 	u8 password_valid:1;
 };
 
+/**
+ * struct ethtool_cmis_fw_update_params - CMIS firmware update specific
+ *						parameters
+ * @dev: Pointer to the net_device to be flashed.
+ * @params: Module firmware flashing parameters.
+ * @ntf_params: Module firmware flashing notification parameters.
+ * @fw: Firmware to flash.
+ */
+struct ethtool_cmis_fw_update_params {
+	struct net_device *dev;
+	struct ethtool_module_fw_flash_params params;
+	struct ethnl_module_fw_flash_ntf_params ntf_params;
+	const struct firmware *fw;
+};
+
+/**
+ * struct ethtool_module_fw_flash - module firmware flashing
+ * @list: List node for &module_fw_flash_work_list.
+ * @dev_tracker: Refcount tracker for @dev.
+ * @work: The flashing firmware work.
+ * @fw_update: CMIS firmware update specific parameters.
+ */
+struct ethtool_module_fw_flash {
+	struct list_head list;
+	netdevice_tracker dev_tracker;
+	struct work_struct work;
+	struct ethtool_cmis_fw_update_params fw_update;
+};
+
 void
 ethnl_module_fw_flash_ntf_err(struct net_device *dev,
 			      struct ethnl_module_fw_flash_ntf_params *params,
@@ -39,3 +68,5 @@ void
 ethnl_module_fw_flash_ntf_in_progress(struct net_device *dev,
 				      struct ethnl_module_fw_flash_ntf_params *params,
 				      u64 done, u64 total);
+
+void ethtool_cmis_fw_update(struct ethtool_cmis_fw_update_params *params);
