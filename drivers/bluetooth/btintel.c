@@ -2148,7 +2148,7 @@ static void btintel_get_fw_name_tlv(const struct intel_version_tlv *ver,
 	/* Only Blazar  product supports downloading of intermediate loader
 	 * image
 	 */
-	if ((ver->cnvi_top & 0xfff) >= BTINTEL_CNVI_BLAZARI) {
+	if (INTEL_HW_VARIANT(ver->cnvi_bt) >= 0x1e) {
 		u8 zero[BTINTEL_FWID_MAXLEN];
 
 		if (ver->img_type == BTINTEL_IMG_BOOTLOADER) {
@@ -2240,7 +2240,7 @@ static int btintel_prepare_fw_download_tlv(struct hci_dev *hdev,
 		 * firmware image which doesn't exist. Lets compare the version
 		 * of IML image
 		 */
-		if ((ver->cnvi_top & 0xfff) >= BTINTEL_CNVI_BLAZARI)
+		if (INTEL_HW_VARIANT(ver->cnvi_bt) >= 0x1e)
 			btintel_get_iml_tlv(ver, fwname, sizeof(fwname), "sfi");
 		else
 			btintel_get_fw_name_tlv(ver, fwname, sizeof(fwname), "sfi");
