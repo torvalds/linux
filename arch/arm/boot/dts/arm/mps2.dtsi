@@ -78,7 +78,7 @@
 		clock-frequency = <75000000>;
 	};
 
-	sysclk: clk-sys {
+	sysclk: spiclcd: spicon: i2cclcd: i2caud: clock-sys {
 		compatible = "fixed-factor-clock";
 		clocks = <&oscclk0>;
 		#clock-cells = <0>;
@@ -99,38 +99,6 @@
 		clocks = <&oscclk1>;
 		#clock-cells = <0>;
 		clock-div = <8>;
-		clock-mult = <1>;
-	};
-
-	spiclcd: clk-cpiclcd {
-		compatible = "fixed-factor-clock";
-		clocks = <&oscclk0>;
-		#clock-cells = <0>;
-		clock-div = <2>;
-		clock-mult = <1>;
-	};
-
-	spicon: clk-spicon {
-		compatible = "fixed-factor-clock";
-		clocks = <&oscclk0>;
-		#clock-cells = <0>;
-		clock-div = <2>;
-		clock-mult = <1>;
-	};
-
-	i2cclcd: clk-i2cclcd {
-		compatible = "fixed-factor-clock";
-		clocks = <&oscclk0>;
-		#clock-cells = <0>;
-		clock-div = <2>;
-		clock-mult = <1>;
-	};
-
-	i2caud: clk-i2caud {
-		compatible = "fixed-factor-clock";
-		clocks = <&oscclk0>;
-		#clock-cells = <0>;
-		clock-div = <2>;
 		clock-mult = <1>;
 	};
 
