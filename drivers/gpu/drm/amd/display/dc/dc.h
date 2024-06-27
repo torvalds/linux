@@ -1056,6 +1056,7 @@ struct dc_debug_options {
 	unsigned int force_sharpness;
 	unsigned int force_lls;
 	bool notify_dpia_hr_bw;
+	bool enable_ips_visual_confirm;
 };
 
 
