@@ -148,7 +148,7 @@ struct amc6821_data {
 	int temp[TEMP_IDX_LEN];
 
 	u16 fan[FAN1_IDX_LEN];
-	u8 fan1_div;
+	u8 fan1_pulses;
 
 	u8 pwm1;
 	u8 temp1_auto_point_temp[3];
@@ -193,9 +193,9 @@ static struct amc6821_data *amc6821_update_device(struct device *dev)
 					client,
 					fan_reg_hi[i]) << 8;
 		}
-		data->fan1_div = i2c_smbus_read_byte_data(client,
+		data->fan1_pulses = i2c_smbus_read_byte_data(client,
 			AMC6821_REG_CONF4);
-		data->fan1_div = data->fan1_div & AMC6821_CONF4_PSPR ? 4 : 2;
+		data->fan1_pulses = data->fan1_pulses & AMC6821_CONF4_PSPR ? 4 : 2;
 
 		data->pwm1_auto_point_pwm[0] = 0;
 		data->pwm1_auto_point_pwm[2] = 255;
@@ -646,16 +646,16 @@ EXIT:
 	return count;
 }
 
-static ssize_t fan1_div_show(struct device *dev,
-			     struct device_attribute *devattr, char *buf)
+static ssize_t fan1_pulses_show(struct device *dev,
+				struct device_attribute *devattr, char *buf)
 {
 	struct amc6821_data *data = amc6821_update_device(dev);
-	return sprintf(buf, "%d\n", data->fan1_div);
+	return sprintf(buf, "%d\n", data->fan1_pulses);
 }
 
-static ssize_t fan1_div_store(struct device *dev,
-			      struct device_attribute *attr, const char *buf,
-			      size_t count)
+static ssize_t fan1_pulses_store(struct device *dev,
+				 struct device_attribute *attr, const char *buf,
+				 size_t count)
 {
 	struct amc6821_data *data = dev_get_drvdata(dev);
 	struct i2c_client *client = data->client;
@@ -675,11 +675,11 @@ static ssize_t fan1_div_store(struct device *dev,
 	switch (val) {
 	case 2:
 		config &= ~AMC6821_CONF4_PSPR;
-		data->fan1_div = 2;
+		data->fan1_pulses = 2;
 		break;
 	case 4:
 		config |= AMC6821_CONF4_PSPR;
-		data->fan1_div = 4;
+		data->fan1_pulses = 4;
 		break;
 	default:
 		count = -EINVAL;
@@ -714,7 +714,7 @@ static SENSOR_DEVICE_ATTR_RO(fan1_input, fan, IDX_FAN1_INPUT);
 static SENSOR_DEVICE_ATTR_RW(fan1_min, fan, IDX_FAN1_MIN);
 static SENSOR_DEVICE_ATTR_RW(fan1_max, fan, IDX_FAN1_MAX);
 static SENSOR_DEVICE_ATTR_RO(fan1_fault, fan1_fault, 0);
-static SENSOR_DEVICE_ATTR_RW(fan1_div, fan1_div, 0);
+static SENSOR_DEVICE_ATTR_RW(fan1_pulses, fan1_pulses, 0);
 
 static SENSOR_DEVICE_ATTR_RW(pwm1, pwm1, 0);
 static SENSOR_DEVICE_ATTR_RW(pwm1_enable, pwm1_enable, 0);
@@ -757,7 +757,7 @@ static struct attribute *amc6821_attrs[] = {
 	&sensor_dev_attr_fan1_min.dev_attr.attr,
 	&sensor_dev_attr_fan1_max.dev_attr.attr,
 	&sensor_dev_attr_fan1_fault.dev_attr.attr,
-	&sensor_dev_attr_fan1_div.dev_attr.attr,
+	&sensor_dev_attr_fan1_pulses.dev_attr.attr,
 	&sensor_dev_attr_pwm1.dev_attr.attr,
 	&sensor_dev_attr_pwm1_enable.dev_attr.attr,
 	&sensor_dev_attr_pwm1_auto_channels_temp.dev_attr.attr,
