@@ -1397,7 +1397,6 @@ static int rnbd_client_setup_device(struct rnbd_clt_dev *dev,
 	dev->queue = dev->gd->queue;
 	rnbd_init_mq_hw_queues(dev);
 
-	blk_queue_flag_set(QUEUE_FLAG_SAME_FORCE, dev->queue);
 	return rnbd_clt_setup_gen_disk(dev, rsp, idx);
 }
 
