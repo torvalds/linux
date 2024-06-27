@@ -303,7 +303,8 @@ void kmsan_handle_urb(const struct urb *urb, bool is_out)
 	if (is_out)
 		kmsan_internal_check_memory(urb->transfer_buffer,
 					    urb->transfer_buffer_length,
-					    /*user_addr*/ 0, REASON_SUBMIT_URB);
+					    /*user_addr*/ NULL,
+					    REASON_SUBMIT_URB);
 	else
 		kmsan_internal_unpoison_memory(urb->transfer_buffer,
 					       urb->transfer_buffer_length,
@@ -316,14 +317,14 @@ static void kmsan_handle_dma_page(const void *addr, size_t size,
 {
 	switch (dir) {
 	case DMA_BIDIRECTIONAL:
-		kmsan_internal_check_memory((void *)addr, size, /*user_addr*/ 0,
-					    REASON_ANY);
+		kmsan_internal_check_memory((void *)addr, size,
+					    /*user_addr*/ NULL, REASON_ANY);
 		kmsan_internal_unpoison_memory((void *)addr, size,
 					       /*checked*/ false);
 		break;
 	case DMA_TO_DEVICE:
-		kmsan_internal_check_memory((void *)addr, size, /*user_addr*/ 0,
-					    REASON_ANY);
+		kmsan_internal_check_memory((void *)addr, size,
+					    /*user_addr*/ NULL, REASON_ANY);
 		break;
 	case DMA_FROM_DEVICE:
 		kmsan_internal_unpoison_memory((void *)addr, size,
@@ -418,8 +419,8 @@ void kmsan_check_memory(const void *addr, size_t size)
 {
 	if (!kmsan_enabled)
 		return;
-	return kmsan_internal_check_memory((void *)addr, size, /*user_addr*/ 0,
-					   REASON_ANY);
+	return kmsan_internal_check_memory((void *)addr, size,
+					   /*user_addr*/ NULL, REASON_ANY);
 }
 EXPORT_SYMBOL(kmsan_check_memory);
 
