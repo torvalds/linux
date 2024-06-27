@@ -21,12 +21,132 @@
 
 void ath12k_debugfs_htt_stats_register(struct ath12k *ar);
 
+#ifdef CONFIG_ATH12K_DEBUGFS
+void ath12k_debugfs_htt_ext_stats_handler(struct ath12k_base *ab,
+					  struct sk_buff *skb);
+#else /* CONFIG_ATH12K_DEBUGFS */
+static inline void ath12k_debugfs_htt_ext_stats_handler(struct ath12k_base *ab,
+							struct sk_buff *skb)
+{
+}
+#endif
+
+/**
+ * DOC: target -> host extended statistics upload
+ *
+ * The following field definitions describe the format of the HTT
+ * target to host stats upload confirmation message.
+ * The message contains a cookie echoed from the HTT host->target stats
+ * upload request, which identifies which request the confirmation is
+ * for, and a single stats can span over multiple HTT stats indication
+ * due to the HTT message size limitation so every HTT ext stats
+ * indication will have tag-length-value stats information elements.
+ * The tag-length header for each HTT stats IND message also includes a
+ * status field, to indicate whether the request for the stat type in
+ * question was fully met, partially met, unable to be met, or invalid
+ * (if the stat type in question is disabled in the target).
+ * A Done bit 1's indicate the end of the of stats info elements.
+ *
+ *
+ * |31                         16|15    12|11|10 8|7   5|4       0|
+ * |--------------------------------------------------------------|
+ * |                   reserved                   |    msg type   |
+ * |--------------------------------------------------------------|
+ * |                         cookie LSBs                          |
+ * |--------------------------------------------------------------|
+ * |                         cookie MSBs                          |
+ * |--------------------------------------------------------------|
+ * |      stats entry length     | rsvd   | D|  S |   stat type   |
+ * |--------------------------------------------------------------|
+ * |                   type-specific stats info                   |
+ * |                      (see debugfs_htt_stats.h)               |
+ * |--------------------------------------------------------------|
+ * Header fields:
+ *  - MSG_TYPE
+ *    Bits 7:0
+ *    Purpose: Identifies this is a extended statistics upload confirmation
+ *             message.
+ *    Value: 0x1c
+ *  - COOKIE_LSBS
+ *    Bits 31:0
+ *    Purpose: Provide a mechanism to match a target->host stats confirmation
+ *        message with its preceding host->target stats request message.
+ *    Value: MSBs of the opaque cookie specified by the host-side requestor
+ *  - COOKIE_MSBS
+ *    Bits 31:0
+ *    Purpose: Provide a mechanism to match a target->host stats confirmation
+ *        message with its preceding host->target stats request message.
+ *    Value: MSBs of the opaque cookie specified by the host-side requestor
+ *
+ * Stats Information Element tag-length header fields:
+ *  - STAT_TYPE
+ *    Bits 7:0
+ *    Purpose: identifies the type of statistics info held in the
+ *        following information element
+ *    Value: ath12k_dbg_htt_ext_stats_type
+ *  - STATUS
+ *    Bits 10:8
+ *    Purpose: indicate whether the requested stats are present
+ *    Value:
+ *       0 -> The requested stats have been delivered in full
+ *       1 -> The requested stats have been delivered in part
+ *       2 -> The requested stats could not be delivered (error case)
+ *       3 -> The requested stat type is either not recognized (invalid)
+ *  - DONE
+ *    Bits 11
+ *    Purpose:
+ *        Indicates the completion of the stats entry, this will be the last
+ *        stats conf HTT segment for the requested stats type.
+ *    Value:
+ *        0 -> the stats retrieval is ongoing
+ *        1 -> the stats retrieval is complete
+ *  - LENGTH
+ *    Bits 31:16
+ *    Purpose: indicate the stats information size
+ *    Value: This field specifies the number of bytes of stats information
+ *       that follows the element tag-length header.
+ *       It is expected but not required that this length is a multiple of
+ *       4 bytes.
+ */
+
+#define ATH12K_HTT_T2H_EXT_STATS_INFO1_DONE		BIT(11)
+#define ATH12K_HTT_T2H_EXT_STATS_INFO1_LENGTH		GENMASK(31, 16)
+
+struct ath12k_htt_extd_stats_msg {
+	__le32 info0;
+	__le64 cookie;
+	__le32 info1;
+	u8 data[];
+} __packed;
+
 /* htt_dbg_ext_stats_type */
 enum ath12k_dbg_htt_ext_stats_type {
 	ATH12K_DBG_HTT_EXT_STATS_RESET		= 0,
+	ATH12K_DBG_HTT_EXT_STATS_PDEV_TX	= 1,
 
 	/* keep this last */
 	ATH12K_DBG_HTT_NUM_EXT_STATS,
+};
+
+enum ath12k_dbg_htt_tlv_tag {
+	HTT_STATS_TX_PDEV_CMN_TAG			= 0,
+	HTT_STATS_TX_PDEV_UNDERRUN_TAG			= 1,
+	HTT_STATS_TX_PDEV_SIFS_TAG			= 2,
+	HTT_STATS_TX_PDEV_FLUSH_TAG			= 3,
+
+	HTT_STATS_MAX_TAG,
+};
+
+#define ATH12K_HTT_STATS_MAC_ID				GENMASK(7, 0)
+
+#define ATH12K_HTT_TX_PDEV_MAX_SIFS_BURST_STATS		9
+#define ATH12K_HTT_TX_PDEV_MAX_FLUSH_REASON_STATS	150
+
+enum ath12k_htt_tx_pdev_underrun_enum {
+	HTT_STATS_TX_PDEV_NO_DATA_UNDERRUN		= 0,
+	HTT_STATS_TX_PDEV_DATA_UNDERRUN_BETWEEN_MPDU	= 1,
+	HTT_STATS_TX_PDEV_DATA_UNDERRUN_WITHIN_MPDU	= 2,
+	HTT_TX_PDEV_MAX_URRN_STATS			= 3,
 };
 
 enum ath12k_htt_stats_reset_cfg_param_alloc_pos {
@@ -46,5 +166,96 @@ struct debug_htt_stats_req {
 	u32 buf_len;
 	u8 buf[];
 };
+
+struct ath12k_htt_tx_pdev_stats_cmn_tlv {
+	__le32 mac_id__word;
+	__le32 hw_queued;
+	__le32 hw_reaped;
+	__le32 underrun;
+	__le32 hw_paused;
+	__le32 hw_flush;
+	__le32 hw_filt;
+	__le32 tx_abort;
+	__le32 mpdu_requed;
+	__le32 tx_xretry;
+	__le32 data_rc;
+	__le32 mpdu_dropped_xretry;
+	__le32 illgl_rate_phy_err;
+	__le32 cont_xretry;
+	__le32 tx_timeout;
+	__le32 pdev_resets;
+	__le32 phy_underrun;
+	__le32 txop_ovf;
+	__le32 seq_posted;
+	__le32 seq_failed_queueing;
+	__le32 seq_completed;
+	__le32 seq_restarted;
+	__le32 mu_seq_posted;
+	__le32 seq_switch_hw_paused;
+	__le32 next_seq_posted_dsr;
+	__le32 seq_posted_isr;
+	__le32 seq_ctrl_cached;
+	__le32 mpdu_count_tqm;
+	__le32 msdu_count_tqm;
+	__le32 mpdu_removed_tqm;
+	__le32 msdu_removed_tqm;
+	__le32 mpdus_sw_flush;
+	__le32 mpdus_hw_filter;
+	__le32 mpdus_truncated;
+	__le32 mpdus_ack_failed;
+	__le32 mpdus_expired;
+	__le32 mpdus_seq_hw_retry;
+	__le32 ack_tlv_proc;
+	__le32 coex_abort_mpdu_cnt_valid;
+	__le32 coex_abort_mpdu_cnt;
+	__le32 num_total_ppdus_tried_ota;
+	__le32 num_data_ppdus_tried_ota;
+	__le32 local_ctrl_mgmt_enqued;
+	__le32 local_ctrl_mgmt_freed;
+	__le32 local_data_enqued;
+	__le32 local_data_freed;
+	__le32 mpdu_tried;
+	__le32 isr_wait_seq_posted;
+
+	__le32 tx_active_dur_us_low;
+	__le32 tx_active_dur_us_high;
+	__le32 remove_mpdus_max_retries;
+	__le32 comp_delivered;
+	__le32 ppdu_ok;
+	__le32 self_triggers;
+	__le32 tx_time_dur_data;
+	__le32 seq_qdepth_repost_stop;
+	__le32 mu_seq_min_msdu_repost_stop;
+	__le32 seq_min_msdu_repost_stop;
+	__le32 seq_txop_repost_stop;
+	__le32 next_seq_cancel;
+	__le32 fes_offsets_err_cnt;
+	__le32 num_mu_peer_blacklisted;
+	__le32 mu_ofdma_seq_posted;
+	__le32 ul_mumimo_seq_posted;
+	__le32 ul_ofdma_seq_posted;
+
+	__le32 thermal_suspend_cnt;
+	__le32 dfs_suspend_cnt;
+	__le32 tx_abort_suspend_cnt;
+	__le32 tgt_specific_opaque_txq_suspend_info;
+	__le32 last_suspend_reason;
+} __packed;
+
+struct ath12k_htt_tx_pdev_stats_urrn_tlv {
+	DECLARE_FLEX_ARRAY(__le32, urrn_stats);
+} __packed;
+
+struct ath12k_htt_tx_pdev_stats_flush_tlv {
+	DECLARE_FLEX_ARRAY(__le32, flush_errs);
+} __packed;
+
+struct ath12k_htt_tx_pdev_stats_phy_err_tlv {
+	DECLARE_FLEX_ARRAY(__le32, phy_errs);
+} __packed;
+
+struct ath12k_htt_tx_pdev_stats_sifs_tlv {
+	DECLARE_FLEX_ARRAY(__le32, sifs_status);
+} __packed;
 
 #endif
