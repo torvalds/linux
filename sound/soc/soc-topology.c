@@ -1156,36 +1156,31 @@ static int soc_tplg_dapm_widget_denum_create(struct soc_tplg *tplg, struct snd_k
 	int err;
 
 	ec = (struct snd_soc_tplg_enum_control *)tplg->pos;
+
 	/* validate kcontrol */
-	if (strnlen(ec->hdr.name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN) ==
-	    SNDRV_CTL_ELEM_ID_NAME_MAXLEN)
+	if (strnlen(ec->hdr.name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN) == SNDRV_CTL_ELEM_ID_NAME_MAXLEN)
 		return -EINVAL;
 
 	se = devm_kzalloc(tplg->dev, sizeof(*se), GFP_KERNEL);
 	if (!se)
 		return -ENOMEM;
 
-	tplg->pos += (sizeof(struct snd_soc_tplg_enum_control) +
-		      le32_to_cpu(ec->priv.size));
+	tplg->pos += (sizeof(struct snd_soc_tplg_enum_control) + le32_to_cpu(ec->priv.size));
 
-	dev_dbg(tplg->dev, " adding DAPM widget enum control %s\n",
-		ec->hdr.name);
+	dev_dbg(tplg->dev, "ASoC: adding enum kcontrol %s size %d\n", ec->hdr.name, ec->items);
 
-	kc->private_value = (long)se;
 	kc->name = devm_kstrdup(tplg->dev, ec->hdr.name, GFP_KERNEL);
 	if (!kc->name)
 		return -ENOMEM;
+	kc->private_value = (long)se;
 	kc->iface = SNDRV_CTL_ELEM_IFACE_MIXER;
 	kc->access = le32_to_cpu(ec->hdr.access);
 
 	/* we only support FL/FR channel mapping atm */
 	se->reg = tplg_chan_get_reg(tplg, ec->channel, SNDRV_CHMAP_FL);
-	se->shift_l = tplg_chan_get_shift(tplg, ec->channel,
-					  SNDRV_CHMAP_FL);
-	se->shift_r = tplg_chan_get_shift(tplg, ec->channel,
-					  SNDRV_CHMAP_FR);
+	se->shift_l = tplg_chan_get_shift(tplg, ec->channel, SNDRV_CHMAP_FL);
+	se->shift_r = tplg_chan_get_shift(tplg, ec->channel, SNDRV_CHMAP_FR);
 
-	se->items = le32_to_cpu(ec->items);
 	se->mask = le32_to_cpu(ec->mask);
 
 	switch (le32_to_cpu(ec->hdr.ops.info)) {
@@ -1193,8 +1188,7 @@ static int soc_tplg_dapm_widget_denum_create(struct soc_tplg *tplg, struct snd_k
 	case SND_SOC_TPLG_DAPM_CTL_ENUM_VALUE:
 		err = soc_tplg_denum_create_values(tplg, se, ec);
 		if (err < 0) {
-			dev_err(tplg->dev, "ASoC: could not create values for %s\n",
-				ec->hdr.name);
+			dev_err(tplg->dev, "ASoC: could not create values for %s\n", ec->hdr.name);
 			return err;
 		}
 		fallthrough;
@@ -1203,8 +1197,7 @@ static int soc_tplg_dapm_widget_denum_create(struct soc_tplg *tplg, struct snd_k
 	case SND_SOC_TPLG_DAPM_CTL_ENUM_VIRT:
 		err = soc_tplg_denum_create_texts(tplg, se, ec);
 		if (err < 0) {
-			dev_err(tplg->dev, "ASoC: could not create texts for %s\n",
-				ec->hdr.name);
+			dev_err(tplg->dev, "ASoC: could not create texts for %s\n", ec->hdr.name);
 			return err;
 		}
 		break;
@@ -1222,11 +1215,7 @@ static int soc_tplg_dapm_widget_denum_create(struct soc_tplg *tplg, struct snd_k
 	}
 
 	/* pass control to driver for optional further init */
-	err = soc_tplg_control_load(tplg, kc, &ec->hdr);
-	if (err < 0)
-		return err;
-
-	return 0;
+	return soc_tplg_control_load(tplg, kc, &ec->hdr);
 }
 
 static int soc_tplg_dapm_widget_dbytes_create(struct soc_tplg *tplg, struct snd_kcontrol_new *kc)
