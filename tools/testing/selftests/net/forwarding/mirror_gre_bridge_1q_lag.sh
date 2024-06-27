@@ -239,7 +239,7 @@ test_lag_slave()
 	setup_wait_dev $host_dev
 	$ARPING -I br1 192.0.2.130 -qfc 1
 	sleep 2
-	mirror_test vrf-h1 192.0.2.1 192.0.2.18 $host_dev 1 10
+	mirror_test vrf-h1 192.0.2.1 192.0.2.18 $host_dev 1 ">= 10"
 
 	# Test lack of connectivity when both slaves are down.
 	ip link set dev $up_dev down

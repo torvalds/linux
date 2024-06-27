@@ -81,7 +81,7 @@ test_span_gre_ttl()
 
 	ip link set dev $tundev type $type ttl 50
 	sleep 2
-	mirror_test v$h1 192.0.2.1 192.0.2.2 $h3 77 10
+	mirror_test v$h1 192.0.2.1 192.0.2.2 $h3 77 ">= 10"
 
 	ip link set dev $tundev type $type ttl 100
 	tc filter del dev $h3 ingress pref 77

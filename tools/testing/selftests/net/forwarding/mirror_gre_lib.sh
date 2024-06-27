@@ -76,7 +76,7 @@ full_test_span_gre_dir_vlan_ips()
 	tc filter add dev $h3 ingress pref 77 prot 802.1q \
 		flower $vlan_match \
 		action pass
-	mirror_test v$h1 $ip1 $ip2 $h3 77 10
+	mirror_test v$h1 $ip1 $ip2 $h3 77 '>= 10'
 	tc filter del dev $h3 ingress pref 77
 
 	mirror_uninstall $swp1 $direction
