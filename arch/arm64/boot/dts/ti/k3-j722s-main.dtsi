@@ -190,10 +190,28 @@
 	ti,interrupt-ranges = <7 71 21>;
 };
 
+&main_pmx0 {
+	pinctrl-single,gpio-range =
+		<&main_pmx0_range 0 32 PIN_GPIO_RANGE_IOPAD>,
+		<&main_pmx0_range 33 55 PIN_GPIO_RANGE_IOPAD>,
+		<&main_pmx0_range 101 25 PIN_GPIO_RANGE_IOPAD>,
+		<&main_pmx0_range 137 5 PIN_GPIO_RANGE_IOPAD>,
+		<&main_pmx0_range 143 3 PIN_GPIO_RANGE_IOPAD>,
+		<&main_pmx0_range 149 2 PIN_GPIO_RANGE_IOPAD>;
+
+	main_pmx0_range: gpio-range {
+		#pinctrl-single,gpio-range-cells = <3>;
+	};
+};
+
 &main_gpio0 {
+	gpio-ranges = <&main_pmx0 0 0 32>, <&main_pmx0 32 33 38>,
+			<&main_pmx0 70 72 17>;
 	ti,ngpio = <87>;
 };
 
 &main_gpio1 {
+	gpio-ranges = <&main_pmx0 7 101 25>, <&main_pmx0 42 137 5>,
+			<&main_pmx0 47 143 3>, <&main_pmx0 50 149 2>;
 	ti,ngpio = <73>;
 };
