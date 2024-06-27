@@ -66,6 +66,8 @@ enum chips { amc6821 };
 #define AMC6821_REG_TACH_LLIMITH 0x11
 #define AMC6821_REG_TACH_HLIMITL 0x12
 #define AMC6821_REG_TACH_HLIMITH 0x13
+#define AMC6821_REG_TACH_SETTINGL 0x1e
+#define AMC6821_REG_TACH_SETTINGH 0x1f
 
 #define AMC6821_CONF1_START 0x01
 #define AMC6821_CONF1_FAN_INT_EN 0x02
@@ -122,17 +124,18 @@ static const u8 temp_reg[] = {AMC6821_REG_LTEMP_HI,
 			AMC6821_REG_RTEMP_LIMIT_MAX,
 			AMC6821_REG_RTEMP_CRIT, };
 
-enum {IDX_FAN1_INPUT = 0, IDX_FAN1_MIN, IDX_FAN1_MAX,
+enum {IDX_FAN1_INPUT = 0, IDX_FAN1_MIN, IDX_FAN1_MAX, IDX_FAN1_TARGET,
 	FAN1_IDX_LEN, };
 
 static const u8 fan_reg_low[] = {AMC6821_REG_TDATA_LOW,
 			AMC6821_REG_TACH_LLIMITL,
-			AMC6821_REG_TACH_HLIMITL, };
-
+			AMC6821_REG_TACH_HLIMITL,
+			AMC6821_REG_TACH_SETTINGL, };
 
 static const u8 fan_reg_hi[] = {AMC6821_REG_TDATA_HI,
 			AMC6821_REG_TACH_LLIMITH,
-			AMC6821_REG_TACH_HLIMITH, };
+			AMC6821_REG_TACH_HLIMITH,
+			AMC6821_REG_TACH_SETTINGH, };
 
 /*
  * Client data (each client gets its own)
@@ -250,10 +253,10 @@ static struct amc6821_data *amc6821_update_device(struct device *dev)
 			break;
 		case 1: /*
 			 * semi-open loop: software sets rpm, chip controls
-			 * pwm1, currently not implemented
+			 * pwm1
 			 */
 			data->pwm1_auto_channels_temp = 0;
-			data->pwm1_enable = 0;
+			data->pwm1_enable = 4;
 			break;
 		}
 
@@ -406,6 +409,10 @@ static ssize_t pwm1_enable_store(struct device *dev,
 	case 3:
 		config |= AMC6821_CONF1_FDRC0;
 		config |= AMC6821_CONF1_FDRC1;
+		break;
+	case 4:
+		config |= AMC6821_CONF1_FDRC0;
+		config &= ~AMC6821_CONF1_FDRC1;
 		break;
 	default:
 		count = -EINVAL;
@@ -622,8 +629,8 @@ static ssize_t fan_store(struct device *dev, struct device_attribute *attr,
 	if (ret)
 		return ret;
 
-	/* The minimum fan speed must not be unlimited (0) */
-	if (ix == IDX_FAN1_MIN && !val)
+	/* Minimum and target fan speed must not be unlimited (0) */
+	if ((ix == IDX_FAN1_MIN || ix == IDX_FAN1_TARGET) && !val)
 		return -EINVAL;
 
 	val = val > 0 ? 6000000 / clamp_val(val, 1, 6000000) : 0;
@@ -713,6 +720,7 @@ static SENSOR_DEVICE_ATTR_RO(temp2_crit_alarm, temp_alarm, IDX_TEMP2_CRIT);
 static SENSOR_DEVICE_ATTR_RO(fan1_input, fan, IDX_FAN1_INPUT);
 static SENSOR_DEVICE_ATTR_RW(fan1_min, fan, IDX_FAN1_MIN);
 static SENSOR_DEVICE_ATTR_RW(fan1_max, fan, IDX_FAN1_MAX);
+static SENSOR_DEVICE_ATTR_RW(fan1_target, fan, IDX_FAN1_TARGET);
 static SENSOR_DEVICE_ATTR_RO(fan1_fault, fan1_fault, 0);
 static SENSOR_DEVICE_ATTR_RW(fan1_pulses, fan1_pulses, 0);
 
@@ -756,6 +764,7 @@ static struct attribute *amc6821_attrs[] = {
 	&sensor_dev_attr_fan1_input.dev_attr.attr,
 	&sensor_dev_attr_fan1_min.dev_attr.attr,
 	&sensor_dev_attr_fan1_max.dev_attr.attr,
+	&sensor_dev_attr_fan1_target.dev_attr.attr,
 	&sensor_dev_attr_fan1_fault.dev_attr.attr,
 	&sensor_dev_attr_fan1_pulses.dev_attr.attr,
 	&sensor_dev_attr_pwm1.dev_attr.attr,
