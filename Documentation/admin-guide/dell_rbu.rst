@@ -51,21 +51,21 @@ The driver load creates the following directories under the /sys file system::
 	/sys/devices/platform/dell_rbu/data
 	/sys/devices/platform/dell_rbu/packet_size
 
-The driver supports two types of update mechanism; monolithic and packetized.
-These update mechanism depends upon the BIOS currently running on the system.
+The driver supports two types of update mechanisms; monolithic and packetized.
+These update mechanisms depend upon the BIOS currently running on the system.
 Most of the Dell systems support a monolithic update where the BIOS image is
 copied to a single contiguous block of physical memory.
 
-In case of packet mechanism the single memory can be broken in smaller chunks
+In case of packet mechanism, the single memory can be broken in smaller chunks
 of contiguous memory and the BIOS image is scattered in these packets.
 
-By default the driver uses monolithic memory for the update type. This can be
+By default, the driver uses monolithic memory for the update type. This can be
 changed to packets during the driver load time by specifying the load
-parameter image_type=packet.  This can also be changed later as below::
+parameter image_type=packet. This can also be changed later as below::
 
 	echo packet > /sys/devices/platform/dell_rbu/image_type
 
-In packet update mode the packet size has to be given before any packets can
+In packet update mode, the packet size has to be given before any packets can
 be downloaded. It is done as below::
 
 	echo XXXX > /sys/devices/platform/dell_rbu/packet_size
@@ -73,7 +73,7 @@ be downloaded. It is done as below::
 In the packet update mechanism, the user needs to create a new file having
 packets of data arranged back to back. It can be done as follows:
 The user creates packets header, gets the chunk of the BIOS image and
-places it next to the packetheader; now, the packetheader + BIOS image chunk
+places it next to the packetheader; now, the packetheader and BIOS image chunk
 added together should match the specified packet_size. This makes one
 packet, the user needs to create more such packets out of the entire BIOS
 image file and then arrange all these packets back to back in to one single
@@ -107,7 +107,7 @@ Until this step is completed the driver cannot be unloaded.
 Also echoing either mono, packet or init in to image_type will free up the
 memory allocated by the driver.
 
-If a user by accident executes steps 1 and 3 above without executing step 2;
+If a user accidentally executes steps 1 and 3 above without executing step 2;
 it will make the /sys/class/firmware/dell_rbu/ entries disappear.
 
 The entries can be recreated by doing the following::
@@ -121,8 +121,8 @@ read back the image downloaded.
 
 .. note::
 
-   After updating the BIOS image a user mode application needs to execute
-   code which sends the BIOS update request to the BIOS. So on the next reboot
+   After updating the BIOS image, a user mode application needs to execute
+   code which sends the BIOS update request to the BIOS. On the next reboot,
    the BIOS knows about the new image downloaded and it updates itself.
-   Also don't unload the rbu driver if the image has to be updated.
+   Additionally, don't unload the rbu driver if the image has to be updated.
 
