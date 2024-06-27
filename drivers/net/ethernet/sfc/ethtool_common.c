@@ -1163,48 +1163,14 @@ u32 efx_ethtool_get_rxfh_key_size(struct net_device *net_dev)
 	return efx->type->rx_hash_key_size;
 }
 
-static int efx_ethtool_get_rxfh_context(struct net_device *net_dev,
-					struct ethtool_rxfh_param *rxfh)
-{
-	struct efx_nic *efx = efx_netdev_priv(net_dev);
-	struct efx_rss_context_priv *ctx_priv;
-	struct efx_rss_context ctx;
-	int rc = 0;
-
-	if (!efx->type->rx_pull_rss_context_config)
-		return -EOPNOTSUPP;
-
-	mutex_lock(&net_dev->ethtool->rss_lock);
-	ctx_priv = efx_find_rss_context_entry(efx, rxfh->rss_context);
-	if (!ctx_priv) {
-		rc = -ENOENT;
-		goto out_unlock;
-	}
-	ctx.priv = *ctx_priv;
-	rc = efx->type->rx_pull_rss_context_config(efx, &ctx);
-	if (rc)
-		goto out_unlock;
-
-	rxfh->hfunc = ETH_RSS_HASH_TOP;
-	if (rxfh->indir)
-		memcpy(rxfh->indir, ctx.rx_indir_table,
-		       sizeof(ctx.rx_indir_table));
-	if (rxfh->key)
-		memcpy(rxfh->key, ctx.rx_hash_key,
-		       efx->type->rx_hash_key_size);
-out_unlock:
-	mutex_unlock(&net_dev->ethtool->rss_lock);
-	return rc;
-}
-
 int efx_ethtool_get_rxfh(struct net_device *net_dev,
 			 struct ethtool_rxfh_param *rxfh)
 {
 	struct efx_nic *efx = efx_netdev_priv(net_dev);
 	int rc;
 
-	if (rxfh->rss_context)
-		return efx_ethtool_get_rxfh_context(net_dev, rxfh);
+	if (rxfh->rss_context) /* core should never call us for these */
+		return -EINVAL;
 
 	rc = efx->type->rx_pull_rss_config(efx);
 	if (rc)
