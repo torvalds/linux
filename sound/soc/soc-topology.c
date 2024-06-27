@@ -394,13 +394,9 @@ static void soc_tplg_remove_widget(struct snd_soc_component *comp,
 	if (dobj->unload)
 		dobj->unload(comp, dobj);
 
-	if (!w->kcontrols)
-		goto free_news;
-
-	for (i = 0; w->kcontrols && i < w->num_kcontrols; i++)
-		snd_ctl_remove(card, w->kcontrols[i]);
-
-free_news:
+	if (w->kcontrols)
+		for (i = 0; i < w->num_kcontrols; i++)
+			snd_ctl_remove(card, w->kcontrols[i]);
 
 	list_del(&dobj->list);
 
