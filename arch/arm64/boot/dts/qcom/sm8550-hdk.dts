@@ -1106,6 +1106,7 @@
 
 		#sound-dai-cells = <0>;
 		sound-name-prefix = "SpkrLeft";
+		qcom,port-mapping = <1 2 3 7 10 13>;
 	};
 
 	/* WSA8845, Speaker South */
@@ -1123,6 +1124,7 @@
 
 		#sound-dai-cells = <0>;
 		sound-name-prefix = "SpkrRight";
+		qcom,port-mapping = <4 5 6 7 11 13>;
 	};
 };
 
