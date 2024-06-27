@@ -17,6 +17,7 @@ struct fs_context;
 struct pipe_inode_info;
 struct iov_iter;
 struct mnt_idmap;
+struct ns_common;
 
 /*
  * block/bdev.c
@@ -321,3 +322,4 @@ struct stashed_operations {
 int path_from_stashed(struct dentry **stashed, struct vfsmount *mnt, void *data,
 		      struct path *path);
 void stashed_dentry_prune(struct dentry *dentry);
+int open_namespace(struct ns_common *ns);
