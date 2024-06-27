@@ -435,6 +435,7 @@ struct umc_ecc_info {
 enum ras_event_type {
 	RAS_EVENT_TYPE_INVALID = 0,
 	RAS_EVENT_TYPE_FATAL,
+	RAS_EVENT_TYPE_POISON_CREATION,
 	RAS_EVENT_TYPE_COUNT,
 };
 
