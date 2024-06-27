@@ -542,6 +542,7 @@ static int fsl_asoc_card_late_probe(struct snd_soc_card *card)
 static int fsl_asoc_card_probe(struct platform_device *pdev)
 {
 	struct device_node *cpu_np, *codec_np, *asrc_np;
+	struct snd_soc_dai_link_component *codec_comp;
 	struct device_node *np = pdev->dev.of_node;
 	struct platform_device *asrc_pdev = NULL;
 	struct device_node *bitclkprovider = NULL;
@@ -552,6 +553,7 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 	const char *codec_dai_name;
 	const char *codec_dev_name;
 	u32 asrc_fmt = 0;
+	int codec_idx;
 	u32 width;
 	int ret;
 
@@ -816,10 +818,10 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 
 	/* Normal DAI Link */
 	priv->dai_link[0].cpus->of_node = cpu_np;
-	priv->dai_link[0].codecs->dai_name = codec_dai_name;
+	priv->dai_link[0].codecs[0].dai_name = codec_dai_name;
 
 	if (!fsl_asoc_card_is_ac97(priv))
-		priv->dai_link[0].codecs->of_node = codec_np;
+		priv->dai_link[0].codecs[0].of_node = codec_np;
 	else {
 		u32 idx;
 
@@ -830,11 +832,11 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 			goto asrc_fail;
 		}
 
-		priv->dai_link[0].codecs->name =
+		priv->dai_link[0].codecs[0].name =
 				devm_kasprintf(&pdev->dev, GFP_KERNEL,
 					       "ac97-codec.%u",
 					       (unsigned int)idx);
-		if (!priv->dai_link[0].codecs->name) {
+		if (!priv->dai_link[0].codecs[0].name) {
 			ret = -ENOMEM;
 			goto asrc_fail;
 		}
@@ -848,10 +850,11 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 		/* DPCM DAI Links only if ASRC exists */
 		priv->dai_link[1].cpus->of_node = asrc_np;
 		priv->dai_link[1].platforms->of_node = asrc_np;
-		priv->dai_link[2].codecs->dai_name = codec_dai_name;
-		priv->dai_link[2].codecs->of_node = codec_np;
-		priv->dai_link[2].codecs->name =
-				priv->dai_link[0].codecs->name;
+		for_each_link_codecs((&(priv->dai_link[2])), codec_idx, codec_comp) {
+			codec_comp->dai_name = priv->dai_link[0].codecs[codec_idx].dai_name;
+			codec_comp->of_node = priv->dai_link[0].codecs[codec_idx].of_node;
+			codec_comp->name = priv->dai_link[0].codecs[codec_idx].name;
+		}
 		priv->dai_link[2].cpus->of_node = cpu_np;
 		priv->dai_link[2].dai_fmt = priv->dai_fmt;
 		priv->card.num_links = 3;
