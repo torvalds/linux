@@ -610,7 +610,7 @@ fault:
 }
 EXPORT_SYMBOL(skb_copy_datagram_from_iter);
 
-static int zerocopy_fill_skb_from_iter(struct sock *sk, struct sk_buff *skb,
+static int zerocopy_fill_skb_from_iter(struct sk_buff *skb,
 					struct iov_iter *from, size_t length)
 {
 	int frag = skb_shinfo(skb)->nr_frags;
@@ -621,7 +621,6 @@ static int zerocopy_fill_skb_from_iter(struct sock *sk, struct sk_buff *skb,
 		int refs, order, n = 0;
 		size_t start;
 		ssize_t copied;
-		unsigned long truesize;
 
 		if (frag == MAX_SKB_FRAGS)
 			return -EMSGSIZE;
@@ -633,17 +632,9 @@ static int zerocopy_fill_skb_from_iter(struct sock *sk, struct sk_buff *skb,
 
 		length -= copied;
 
-		truesize = PAGE_ALIGN(copied + start);
 		skb->data_len += copied;
 		skb->len += copied;
-		skb->truesize += truesize;
-		if (sk && sk->sk_type == SOCK_STREAM) {
-			sk_wmem_queued_add(sk, truesize);
-			if (!skb_zcopy_pure(skb))
-				sk_mem_charge(sk, truesize);
-		} else {
-			refcount_add(truesize, &skb->sk->sk_wmem_alloc);
-		}
+		skb->truesize += PAGE_ALIGN(copied + start);
 
 		head = compound_head(pages[n]);
 		order = compound_order(head);
@@ -691,10 +682,24 @@ int __zerocopy_sg_from_iter(struct msghdr *msg, struct sock *sk,
 			    struct sk_buff *skb, struct iov_iter *from,
 			    size_t length)
 {
+	unsigned long orig_size = skb->truesize;
+	unsigned long truesize;
+	int ret;
+
 	if (msg && msg->msg_ubuf && msg->sg_from_iter)
 		return msg->sg_from_iter(sk, skb, from, length);
-	else
-		return zerocopy_fill_skb_from_iter(sk, skb, from, length);
+
+	ret = zerocopy_fill_skb_from_iter(skb, from, length);
+	truesize = skb->truesize - orig_size;
+
+	if (sk && sk->sk_type == SOCK_STREAM) {
+		sk_wmem_queued_add(sk, truesize);
+		if (!skb_zcopy_pure(skb))
+			sk_mem_charge(sk, truesize);
+	} else {
+		refcount_add(truesize, &skb->sk->sk_wmem_alloc);
+	}
+	return ret;
 }
 EXPORT_SYMBOL(__zerocopy_sg_from_iter);
 
