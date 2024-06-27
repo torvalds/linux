@@ -11,6 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/msi.h>
+#include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_pci.h>
@@ -442,7 +443,9 @@ static struct qcom_msi *qcom_msi_init(struct device *dev)
 {
 	struct qcom_msi *msi;
 	struct resource cfgres;
+	struct of_phandle_args irq;
 	int ret;
+	int nr = 0;
 
 	msi = devm_kzalloc(dev, sizeof(*msi), GFP_KERNEL);
 	if (!msi)
@@ -454,7 +457,9 @@ static struct qcom_msi *qcom_msi_init(struct device *dev)
 	INIT_LIST_HEAD(&msi->clients);
 
 	msi->msi_db_addr = MSI_DB_ADDR;
-	msi->nr_hwirqs = of_irq_count(dev->of_node);
+	while (of_irq_parse_one(dev->of_node, nr, &irq) == 0)
+		nr++;
+	msi->nr_hwirqs = nr;
 	if (!msi->nr_hwirqs) {
 		dev_err(msi->dev, "no hwirqs found\n");
 		return ERR_PTR(-ENODEV);
