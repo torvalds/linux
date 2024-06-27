@@ -35,6 +35,9 @@ struct iova_bitmap_map {
 	/* base IOVA representing bit 0 of the first page */
 	unsigned long iova;
 
+	/* mapped length */
+	unsigned long length;
+
 	/* page size order that each bit granules to */
 	unsigned long pgshift;
 
@@ -156,6 +159,8 @@ static unsigned long iova_bitmap_mapped_iova(struct iova_bitmap *bitmap)
 	return bitmap->iova + iova_bitmap_index_to_offset(bitmap, skip);
 }
 
+static unsigned long iova_bitmap_mapped_length(struct iova_bitmap *bitmap);
+
 /*
  * Pins the bitmap user pages for the current range window.
  * This is internal to IOVA bitmap and called when advancing the
@@ -206,6 +211,7 @@ static int iova_bitmap_get(struct iova_bitmap *bitmap)
 	 * aligned.
 	 */
 	mapped->pgoff = offset_in_page(addr);
+	mapped->length = iova_bitmap_mapped_length(bitmap);
 	return 0;
 }
 
