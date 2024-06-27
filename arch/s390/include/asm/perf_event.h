@@ -60,8 +60,6 @@ struct perf_sf_sde_regs {
 #define PERF_CPUM_SF_DIAG_MODE		0x0002	  /* Diagnostic-sampling flag */
 #define PERF_CPUM_SF_FREQ_MODE		0x0008	  /* Sampling with frequency */
 
-#define REG_NONE		0
-#define REG_OVERFLOW		1
 #define OVERFLOW_REG(hwc)	((hwc)->extra_reg.config)
 #define SFB_ALLOC_REG(hwc)	((hwc)->extra_reg.alloc)
 #define TEAR_REG(hwc)		((hwc)->last_tag)

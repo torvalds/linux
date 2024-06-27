@@ -876,10 +876,6 @@ static int __hw_perf_event_init(struct perf_event *event)
 	if (err)
 		goto out;
 
-	/* Initialize sample data overflow accounting */
-	hwc->extra_reg.reg = REG_OVERFLOW;
-	OVERFLOW_REG(hwc) = 0;
-
 	/* Use AUX buffer. No need to allocate it by ourself */
 	if (attr->config == PERF_EVENT_CPUM_SF_DIAG)
 		return 0;
