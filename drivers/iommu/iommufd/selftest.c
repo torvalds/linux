@@ -266,8 +266,8 @@ static int mock_domain_read_and_clear_dirty(struct iommu_domain *domain,
 
 		/* Clear dirty */
 		if (mock_test_and_clear_dirty(mock, head, pgsize, flags))
-			iommu_dirty_bitmap_record(dirty, head, pgsize);
-		iova = head + pgsize;
+			iommu_dirty_bitmap_record(dirty, iova, pgsize);
+		iova += pgsize;
 	} while (iova < end);
 
 	return 0;
