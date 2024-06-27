@@ -45,31 +45,18 @@
 #define GAUDI2_ARM_RX_MB_OFFSET		(GAUDI2_ARM_RX_MB_ADDR - \
 					GAUDI2_SP_SRAM_BASE_ADDR)
 
+#define POWER_MODE_LEVELS	{	\
+	150000,		/* 00 */	\
+	250000,		/* 01 */	\
+	400000,		/* 10 */	\
+	/* 11: Normal mode */		\
+}
+
 enum gaudi2_fw_status {
 	GAUDI2_PID_STATUS_UP = 0x1,	/* PID on ARC0 is up */
 	GAUDI2_ARM_STATUS_UP = 0x2,	/* ARM Linux Boot complete */
 	GAUDI2_MGMT_STATUS_UP = 0x3,	/* ARC1 Mgmt is up */
 	GAUDI2_STATUS_LAST = 0xFF
-};
-
-struct gaudi2_cold_rst_data {
-	union {
-		struct {
-			u32 recovery_flag: 1;
-			u32 validation_flag: 1;
-			u32 efuse_read_flag: 1;
-			u32 spsram_init_done : 1;
-			u32 fake_security_enable : 1;
-			u32 fake_sig_validation_en : 1;
-			u32 bist_skip_enable : 1;
-			u32 reserved1 : 1;
-			u32 fake_bis_compliant : 1;
-			u32 wd_rst_cause_arm : 1;
-			u32 wd_rst_cause_arcpid : 1;
-			u32 reserved : 21;
-		};
-		__le32 data;
-	};
 };
 
 enum gaudi2_rst_src {
