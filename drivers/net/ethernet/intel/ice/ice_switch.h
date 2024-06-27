@@ -227,6 +227,8 @@ struct ice_sw_recipe {
 	 */
 	struct ice_fv_word ext_words[ICE_MAX_CHAIN_WORDS];
 	u16 word_masks[ICE_MAX_CHAIN_WORDS];
+	u8 fv_idx[ICE_MAX_CHAIN_WORDS];
+	u16 fv_mask[ICE_MAX_CHAIN_WORDS];
 
 	/* if this recipe is a collection of other recipe */
 	u8 big_recp;

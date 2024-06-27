@@ -7,18 +7,24 @@
 
 /* Each recipe can match up to 5 different fields. Fields to match can be meta-
  * data, values extracted from packet headers, or results from other recipes.
- * One of the 5 fields is reserved for matching the switch ID. So, up to 4
- * recipes can provide intermediate results to another one through chaining,
- * e.g. recipes 0, 1, 2, and 3 can provide intermediate results to recipe 4.
+ * Therefore, up to 5 recipes can provide intermediate results to another one
+ * through chaining, e.g. recipes 0, 1, 2, 3 and 4 can provide intermediate
+ * results to recipe 5. Note that one of the fields in one of the recipes must
+ * always be reserved for matching the switch ID.
  */
-#define ICE_NUM_WORDS_RECIPE 4
+#define ICE_NUM_WORDS_RECIPE 5
 
-/* Max recipes that can be chained */
+/* Max recipes that can be chained, not including the last one, which combines
+ * intermediate results.
+ */
 #define ICE_MAX_CHAIN_RECIPE 5
 
-/* 1 word reserved for switch ID from allowed 5 words.
- * So a recipe can have max 4 words. And you can chain 5 such recipes
- * together. So maximum words that can be programmed for look up is 5 * 4.
+/* Total max recipes in chain recipe (including intermediate results) */
+#define ICE_MAX_CHAIN_RECIPE_RES (ICE_MAX_CHAIN_RECIPE + 1)
+
+/* A recipe can have max 5 words, and 5 recipes can be chained together (using
+ * the 6th one, which would contain only result indexes). So maximum words that
+ * can be programmed for lookup is 5 * 5 (not including intermediate results).
  */
 #define ICE_MAX_CHAIN_WORDS (ICE_NUM_WORDS_RECIPE * ICE_MAX_CHAIN_RECIPE)
 
