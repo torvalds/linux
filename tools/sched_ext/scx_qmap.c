@@ -31,7 +31,7 @@ const char help_fmt[] =
 "  -d PID        Disallow a process from switching into SCHED_EXT (-1 for self)\n"
 "  -D LEN        Set scx_exit_info.dump buffer length\n"
 "  -S            Suppress qmap-specific debug dump\n"
-"  -p            Switch only tasks on SCHED_EXT policy intead of all\n"
+"  -p            Switch only tasks on SCHED_EXT policy instead of all\n"
 "  -v            Print libbpf debug messages\n"
 "  -h            Display this help and exit\n";
 
