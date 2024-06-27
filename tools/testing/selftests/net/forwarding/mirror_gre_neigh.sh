@@ -60,15 +60,17 @@ test_span_gre_neigh()
 	local addr=$1; shift
 	local tundev=$1; shift
 	local direction=$1; shift
+	local forward_type=$1; shift
+	local backward_type=$1; shift
 	local what=$1; shift
 
 	RET=0
 
 	ip neigh replace dev $swp3 $addr lladdr 00:11:22:33:44:55
 	mirror_install $swp1 $direction $tundev "matchall $tcflags"
-	fail_test_span_gre_dir $tundev
+	fail_test_span_gre_dir $tundev "$forward_type" "$backward_type"
 	ip neigh del dev $swp3 $addr
-	quick_test_span_gre_dir $tundev
+	quick_test_span_gre_dir $tundev "$forward_type" "$backward_type"
 	mirror_uninstall $swp1 $direction
 
 	log_test "$direction $what: neighbor change ($tcflags)"
@@ -76,14 +78,14 @@ test_span_gre_neigh()
 
 test_gretap()
 {
-	test_span_gre_neigh 192.0.2.130 gt4 ingress "mirror to gretap"
-	test_span_gre_neigh 192.0.2.130 gt4 egress "mirror to gretap"
+	test_span_gre_neigh 192.0.2.130 gt4 ingress 8 0 "mirror to gretap"
+	test_span_gre_neigh 192.0.2.130 gt4 egress 0 8 "mirror to gretap"
 }
 
 test_ip6gretap()
 {
-	test_span_gre_neigh 2001:db8:2::2 gt6 ingress "mirror to ip6gretap"
-	test_span_gre_neigh 2001:db8:2::2 gt6 egress "mirror to ip6gretap"
+	test_span_gre_neigh 2001:db8:2::2 gt6 ingress 8 0 "mirror to ip6gretap"
+	test_span_gre_neigh 2001:db8:2::2 gt6 egress 0 8 "mirror to ip6gretap"
 }
 
 test_all()
