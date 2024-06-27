@@ -15,6 +15,13 @@ source $lib_dir/mirror_lib.sh
 source $lib_dir/mirror_gre_lib.sh
 source $lib_dir/mirror_gre_topo_lib.sh
 
+ALL_TESTS="
+	test_keyful
+	test_soft
+	test_tos_fixed
+	test_ttl_inherit
+"
+
 setup_keyful()
 {
 	tunnel_create gt6-key ip6gretap 2001:db8:3::1 2001:db8:3::2 \
@@ -162,19 +169,25 @@ test_span_failable()
 	log_test "fail $what"
 }
 
-test_failable()
+test_keyful()
 {
 	test_span_failable gt6-key "mirror to keyful gretap"
+}
+
+test_soft()
+{
 	test_span_failable gt6-soft "mirror to gretap w/ soft underlay"
 }
 
-test_hw()
+test_tos_fixed()
 {
-	test_failable
-
 	test_span_gre_tos_fixed gt4 gretap "mirror to gretap"
 	test_span_gre_tos_fixed gt6 ip6gretap "mirror to ip6gretap"
+}
 
+
+test_ttl_inherit()
+{
 	test_span_gre_ttl_inherit gt4 gretap "mirror to gretap"
 	test_span_gre_ttl_inherit gt6 ip6gretap "mirror to ip6gretap"
 }
@@ -184,6 +197,6 @@ trap cleanup EXIT
 setup_prepare
 setup_wait
 
-test_hw
+tests_run
 
 exit $EXIT_STATUS
