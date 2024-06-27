@@ -891,7 +891,7 @@ static int soc_tplg_denum_create(struct soc_tplg *tplg, size_t size)
 	se->shift_l = tplg_chan_get_shift(tplg, ec->channel,
 		SNDRV_CHMAP_FL);
 	se->shift_r = tplg_chan_get_shift(tplg, ec->channel,
-		SNDRV_CHMAP_FL);
+		SNDRV_CHMAP_FR);
 
 	se->mask = le32_to_cpu(ec->mask);
 	se->dobj.index = tplg->index;
