@@ -1019,29 +1019,6 @@ static int ast_cursor_plane_init(struct ast_device *ast)
  * CRTC
  */
 
-static void ast_crtc_dpms(struct drm_crtc *crtc, int mode)
-{
-	struct ast_device *ast = to_ast_device(crtc->dev);
-	u8 ch = AST_DPMS_VSYNC_OFF | AST_DPMS_HSYNC_OFF;
-
-	/* TODO: Maybe control display signal generation with
-	 *       Sync Enable (bit CR17.7).
-	 */
-	switch (mode) {
-	case DRM_MODE_DPMS_ON:
-		ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xb6, 0xfc, 0);
-		ast_set_index_reg_mask(ast, AST_IO_VGASRI, 0x01, 0xdf, 0);
-		break;
-	case DRM_MODE_DPMS_STANDBY:
-	case DRM_MODE_DPMS_SUSPEND:
-	case DRM_MODE_DPMS_OFF:
-		ch = mode;
-		ast_set_index_reg_mask(ast, AST_IO_VGASRI, 0x01, 0xdf, AST_IO_VGASR1_SD);
-		ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xb6, 0xfc, ch);
-		break;
-	}
-}
-
 static enum drm_mode_status
 ast_crtc_helper_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *mode)
 {
@@ -1217,14 +1194,23 @@ ast_crtc_helper_atomic_flush(struct drm_crtc *crtc,
 
 static void ast_crtc_helper_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_state *state)
 {
-	ast_crtc_dpms(crtc, DRM_MODE_DPMS_ON);
+	struct ast_device *ast = to_ast_device(crtc->dev);
+
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xb6, 0xfc, 0x00);
+	ast_set_index_reg_mask(ast, AST_IO_VGASRI, 0x01, 0xdf, 0x00);
 }
 
 static void ast_crtc_helper_atomic_disable(struct drm_crtc *crtc, struct drm_atomic_state *state)
 {
 	struct drm_crtc_state *old_crtc_state = drm_atomic_get_old_crtc_state(state, crtc);
+	struct ast_device *ast = to_ast_device(crtc->dev);
+	u8 vgacrb6;
 
-	ast_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
+	ast_set_index_reg_mask(ast, AST_IO_VGASRI, 0x01, 0xdf, AST_IO_VGASR1_SD);
+
+	vgacrb6 = AST_IO_VGACRB6_VSYNC_OFF |
+		  AST_IO_VGACRB6_HSYNC_OFF;
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xb6, 0xfc, vgacrb6);
 
 	/*
 	 * HW cursors require the underlying primary plane and CRTC to
