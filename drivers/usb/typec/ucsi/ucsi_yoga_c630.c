@@ -27,8 +27,16 @@ struct yoga_c630_ucsi {
 	u16 version;
 };
 
-static int yoga_c630_ucsi_read(struct ucsi *ucsi, unsigned int offset,
-			       void *val, size_t val_len)
+static int yoga_c630_ucsi_read_version(struct ucsi *ucsi, u16 *version)
+{
+	struct yoga_c630_ucsi *uec = ucsi_get_drvdata(ucsi);
+
+	*version = uec->version;
+
+	return 0;
+}
+
+static int yoga_c630_ucsi_read_cci(struct ucsi *ucsi, u32 *cci)
 {
 	struct yoga_c630_ucsi *uec = ucsi_get_drvdata(ucsi);
 	u8 buf[YOGA_C630_UCSI_READ_SIZE];
@@ -38,22 +46,26 @@ static int yoga_c630_ucsi_read(struct ucsi *ucsi, unsigned int offset,
 	if (ret)
 		return ret;
 
-	if (offset == UCSI_VERSION) {
-		memcpy(val, &uec->version, min(val_len, sizeof(uec->version)));
-		return 0;
-	}
+	memcpy(cci, buf, sizeof(*cci));
 
-	switch (offset) {
-	case UCSI_CCI:
-		memcpy(val, buf, min(val_len, YOGA_C630_UCSI_CCI_SIZE));
-		return 0;
-	case UCSI_MESSAGE_IN:
-		memcpy(val, buf + YOGA_C630_UCSI_CCI_SIZE,
-		       min(val_len, YOGA_C630_UCSI_DATA_SIZE));
-		return 0;
-	default:
-		return -EINVAL;
-	}
+	return 0;
+}
+
+static int yoga_c630_ucsi_read_message_in(struct ucsi *ucsi,
+					  void *val, size_t val_len)
+{
+	struct yoga_c630_ucsi *uec = ucsi_get_drvdata(ucsi);
+	u8 buf[YOGA_C630_UCSI_READ_SIZE];
+	int ret;
+
+	ret = yoga_c630_ec_ucsi_read(uec->ec, buf);
+	if (ret)
+		return ret;
+
+	memcpy(val, buf + YOGA_C630_UCSI_CCI_SIZE,
+	       min(val_len, YOGA_C630_UCSI_DATA_SIZE));
+
+	return 0;
 }
 
 static int yoga_c630_ucsi_async_control(struct ucsi *ucsi, u64 command)
@@ -93,7 +105,9 @@ out_clear_bit:
 }
 
 const struct ucsi_operations yoga_c630_ucsi_ops = {
-	.read = yoga_c630_ucsi_read,
+	.read_version = yoga_c630_ucsi_read_version,
+	.read_cci = yoga_c630_ucsi_read_cci,
+	.read_message_in = yoga_c630_ucsi_read_message_in,
 	.sync_control = yoga_c630_ucsi_sync_control,
 	.async_control = yoga_c630_ucsi_async_control,
 };
@@ -126,7 +140,7 @@ static int yoga_c630_ucsi_notify(struct notifier_block *nb,
 		return NOTIFY_OK;
 
 	case LENOVO_EC_EVENT_UCSI:
-		ret = uec->ucsi->ops->read(uec->ucsi, UCSI_CCI, &cci, sizeof(cci));
+		ret = uec->ucsi->ops->read_cci(uec->ucsi, &cci);
 		if (ret)
 			return NOTIFY_DONE;
 
