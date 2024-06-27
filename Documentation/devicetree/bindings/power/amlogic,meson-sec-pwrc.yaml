@@ -21,6 +21,7 @@ properties:
       - amlogic,meson-a1-pwrc
       - amlogic,meson-s4-pwrc
       - amlogic,a4-pwrc
+      - amlogic,a5-pwrc
       - amlogic,c3-pwrc
       - amlogic,t7-pwrc
 
