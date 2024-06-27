@@ -27,6 +27,22 @@ enum tcp_metric_index {
 
 #define TCP_METRIC_MAX	(__TCP_METRIC_MAX - 1)
 
+/* Re-define enum tcp_metric_index, again, using the values carried
+ * as netlink attribute types.
+ */
+enum {
+	TCP_METRICS_A_METRICS_RTT = 1,
+	TCP_METRICS_A_METRICS_RTTVAR,
+	TCP_METRICS_A_METRICS_SSTHRESH,
+	TCP_METRICS_A_METRICS_CWND,
+	TCP_METRICS_A_METRICS_REODERING,
+	TCP_METRICS_A_METRICS_RTT_US,
+	TCP_METRICS_A_METRICS_RTTVAR_US,
+
+	__TCP_METRICS_A_METRICS_MAX
+};
+#define TCP_METRICS_A_METRICS_MAX (__TCP_METRICS_A_METRICS_MAX - 1)
+
 enum {
 	TCP_METRICS_ATTR_UNSPEC,
 	TCP_METRICS_ATTR_ADDR_IPV4,		/* u32 */
