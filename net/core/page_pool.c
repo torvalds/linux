@@ -1014,7 +1014,7 @@ void page_pool_use_xdp_mem(struct page_pool *pool, void (*disconnect)(void *),
 	pool->xdp_mem_id = mem->id;
 }
 
-static void page_pool_disable_direct_recycling(struct page_pool *pool)
+void page_pool_disable_direct_recycling(struct page_pool *pool)
 {
 	/* Disable direct recycling based on pool->cpuid.
 	 * Paired with READ_ONCE() in page_pool_napi_local().
@@ -1032,6 +1032,7 @@ static void page_pool_disable_direct_recycling(struct page_pool *pool)
 
 	WRITE_ONCE(pool->p.napi, NULL);
 }
+EXPORT_SYMBOL(page_pool_disable_direct_recycling);
 
 void page_pool_destroy(struct page_pool *pool)
 {
