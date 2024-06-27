@@ -239,6 +239,11 @@ void *ethnl_bcastmsg_put(struct sk_buff *skb, u8 cmd)
 			   cmd);
 }
 
+void *ethnl_unicast_put(struct sk_buff *skb, u32 portid, u32 seq, u8 cmd)
+{
+	return genlmsg_put(skb, portid, seq, &ethtool_genl_family, 0, cmd);
+}
+
 int ethnl_multicast(struct sk_buff *skb, struct net_device *dev)
 {
 	return genlmsg_multicast_netns(&ethtool_genl_family, dev_net(dev), skb,

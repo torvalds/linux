@@ -5,6 +5,7 @@
 #include "netlink.h"
 #include "common.h"
 #include "bitset.h"
+#include "module_fw.h"
 
 struct module_req_info {
 	struct ethnl_req_info base;
@@ -158,3 +159,119 @@ const struct ethnl_request_ops ethnl_module_request_ops = {
 	.set			= ethnl_set_module,
 	.set_ntf_cmd		= ETHTOOL_MSG_MODULE_NTF,
 };
+
+/* MODULE_FW_FLASH_NTF */
+
+static int
+ethnl_module_fw_flash_ntf_put_err(struct sk_buff *skb, char *err_msg,
+				  char *sub_err_msg)
+{
+	int err_msg_len, sub_err_msg_len, total_len;
+	struct nlattr *attr;
+
+	if (!err_msg)
+		return 0;
+
+	err_msg_len = strlen(err_msg);
+	total_len = err_msg_len + 2; /* For period and NUL. */
+
+	if (sub_err_msg) {
+		sub_err_msg_len = strlen(sub_err_msg);
+		total_len += sub_err_msg_len + 2; /* For ", ". */
+	}
+
+	attr = nla_reserve(skb, ETHTOOL_A_MODULE_FW_FLASH_STATUS_MSG,
+			   total_len);
+	if (!attr)
+		return -ENOMEM;
+
+	if (sub_err_msg)
+		sprintf(nla_data(attr), "%s, %s.", err_msg, sub_err_msg);
+	else
+		sprintf(nla_data(attr), "%s.", err_msg);
+
+	return 0;
+}
+
+static void
+ethnl_module_fw_flash_ntf(struct net_device *dev,
+			  enum ethtool_module_fw_flash_status status,
+			  struct ethnl_module_fw_flash_ntf_params *ntf_params,
+			  char *err_msg, char *sub_err_msg,
+			  u64 done, u64 total)
+{
+	struct sk_buff *skb;
+	void *hdr;
+	int ret;
+
+	if (ntf_params->closed_sock)
+		return;
+
+	skb = genlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+	if (!skb)
+		return;
+
+	hdr = ethnl_unicast_put(skb, ntf_params->portid, ntf_params->seq,
+				ETHTOOL_MSG_MODULE_FW_FLASH_NTF);
+	if (!hdr)
+		goto err_skb;
+
+	ret = ethnl_fill_reply_header(skb, dev,
+				      ETHTOOL_A_MODULE_FW_FLASH_HEADER);
+	if (ret < 0)
+		goto err_skb;
+
+	if (nla_put_u32(skb, ETHTOOL_A_MODULE_FW_FLASH_STATUS, status))
+		goto err_skb;
+
+	ret = ethnl_module_fw_flash_ntf_put_err(skb, err_msg, sub_err_msg);
+	if (ret < 0)
+		goto err_skb;
+
+	if (nla_put_uint(skb, ETHTOOL_A_MODULE_FW_FLASH_DONE, done))
+		goto err_skb;
+
+	if (nla_put_uint(skb, ETHTOOL_A_MODULE_FW_FLASH_TOTAL, total))
+		goto err_skb;
+
+	genlmsg_end(skb, hdr);
+	genlmsg_unicast(dev_net(dev), skb, ntf_params->portid);
+	return;
+
+err_skb:
+	nlmsg_free(skb);
+}
+
+void ethnl_module_fw_flash_ntf_err(struct net_device *dev,
+				   struct ethnl_module_fw_flash_ntf_params *params,
+				   char *err_msg, char *sub_err_msg)
+{
+	ethnl_module_fw_flash_ntf(dev, ETHTOOL_MODULE_FW_FLASH_STATUS_ERROR,
+				  params, err_msg, sub_err_msg, 0, 0);
+}
+
+void
+ethnl_module_fw_flash_ntf_start(struct net_device *dev,
+				struct ethnl_module_fw_flash_ntf_params *params)
+{
+	ethnl_module_fw_flash_ntf(dev, ETHTOOL_MODULE_FW_FLASH_STATUS_STARTED,
+				  params, NULL, NULL, 0, 0);
+}
+
+void
+ethnl_module_fw_flash_ntf_complete(struct net_device *dev,
+				   struct ethnl_module_fw_flash_ntf_params *params)
+{
+	ethnl_module_fw_flash_ntf(dev, ETHTOOL_MODULE_FW_FLASH_STATUS_COMPLETED,
+				  params, NULL, NULL, 0, 0);
+}
+
+void
+ethnl_module_fw_flash_ntf_in_progress(struct net_device *dev,
+				      struct ethnl_module_fw_flash_ntf_params *params,
+				      u64 done, u64 total)
+{
+	ethnl_module_fw_flash_ntf(dev,
+				  ETHTOOL_MODULE_FW_FLASH_STATUS_IN_PROGRESS,
+				  params, NULL, NULL, done, total);
+}
