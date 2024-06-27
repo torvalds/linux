@@ -477,6 +477,75 @@ static int fsl_asoc_card_audmux_init(struct device_node *np,
 	return 0;
 }
 
+static int fsl_asoc_card_spdif_init(struct device_node *codec_np[],
+				    struct device_node *cpu_np,
+				    const char *codec_dai_name[],
+				    struct fsl_asoc_card_priv *priv)
+{
+	struct device *dev = &priv->pdev->dev;
+	struct device_node *np = dev->of_node;
+
+	if (!of_node_name_eq(cpu_np, "spdif")) {
+		dev_err(dev, "CPU phandle invalid, should be an SPDIF device\n");
+		return -EINVAL;
+	}
+
+	priv->dai_link[0].playback_only = true;
+	priv->dai_link[0].capture_only = true;
+
+	for (int i = 0; i < 2; i++) {
+		if (!codec_np[i])
+			break;
+
+		if (of_device_is_compatible(codec_np[i], "linux,spdif-dit")) {
+			priv->dai_link[0].capture_only = false;
+			codec_dai_name[i] = "dit-hifi";
+		} else if (of_device_is_compatible(codec_np[i], "linux,spdif-dir")) {
+			priv->dai_link[0].playback_only = false;
+			codec_dai_name[i] = "dir-hifi";
+		}
+	}
+
+	// Old SPDIF DT binding
+	if (!codec_np[0]) {
+		codec_dai_name[0] = snd_soc_dummy_dlc.dai_name;
+		if (of_property_read_bool(np, "spdif-out"))
+			priv->dai_link[0].capture_only = false;
+		if (of_property_read_bool(np, "spdif-in"))
+			priv->dai_link[0].playback_only = false;
+	}
+
+	if (priv->dai_link[0].playback_only && priv->dai_link[0].capture_only) {
+		dev_err(dev, "no enabled S/PDIF DAI link\n");
+		return -EINVAL;
+	}
+
+	if (priv->dai_link[0].playback_only) {
+		priv->dai_link[1].dpcm_capture = false;
+		priv->dai_link[2].dpcm_capture = false;
+		priv->card.dapm_routes = audio_map_tx;
+		priv->card.num_dapm_routes = ARRAY_SIZE(audio_map_tx);
+	} else if (priv->dai_link[0].capture_only) {
+		priv->dai_link[1].dpcm_playback = false;
+		priv->dai_link[2].dpcm_playback = false;
+		priv->card.dapm_routes = audio_map_rx;
+		priv->card.num_dapm_routes = ARRAY_SIZE(audio_map_rx);
+	}
+
+	// No DAPM routes with old bindings and dummy codec
+	if (!codec_np[0]) {
+		priv->card.dapm_routes = NULL;
+		priv->card.num_dapm_routes = 0;
+	}
+
+	if (codec_np[0] && codec_np[1]) {
+		priv->dai_link[0].num_codecs = 2;
+		priv->dai_link[2].num_codecs = 2;
+	}
+
+	return 0;
+}
+
 static int hp_jack_event(struct notifier_block *nb, unsigned long event,
 			 void *data)
 {
@@ -582,9 +651,11 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 	priv->pdev = pdev;
 
 	cpu_np = of_parse_phandle(np, "audio-cpu", 0);
-	/* Give a chance to old DT binding */
+	/* Give a chance to old DT bindings */
 	if (!cpu_np)
 		cpu_np = of_parse_phandle(np, "ssi-controller", 0);
+	if (!cpu_np)
+		cpu_np = of_parse_phandle(np, "spdif-controller", 0);
 	if (!cpu_np) {
 		dev_err(&pdev->dev, "CPU phandle missing or invalid\n");
 		ret = -EINVAL;
@@ -748,6 +819,10 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 		priv->codec_priv[0].fll_id = WM8904_CLK_FLL;
 		priv->codec_priv[0].pll_id = WM8904_FLL_MCLK;
 		priv->dai_fmt |= SND_SOC_DAIFMT_CBP_CFP;
+	} else if (of_device_is_compatible(np, "fsl,imx-audio-spdif")) {
+		ret = fsl_asoc_card_spdif_init(codec_np, cpu_np, codec_dai_name, priv);
+		if (ret)
+			goto asrc_fail;
 	} else {
 		dev_err(&pdev->dev, "unknown Device Tree compatible\n");
 		ret = -EINVAL;
@@ -797,7 +872,8 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 	of_node_put(bitclkprovider);
 	of_node_put(frameprovider);
 
-	if (!fsl_asoc_card_is_ac97(priv) && !codec_dev[0]) {
+	if (!fsl_asoc_card_is_ac97(priv) && !codec_dev[0]
+	    && codec_dai_name[0] != snd_soc_dummy_dlc.dai_name) {
 		dev_dbg(&pdev->dev, "failed to find codec device\n");
 		ret = -EPROBE_DEFER;
 		goto asrc_fail;
@@ -861,6 +937,10 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 	for_each_link_codecs((&(priv->dai_link[0])), codec_idx, codec_comp) {
 		codec_comp->dai_name = codec_dai_name[codec_idx];
 	}
+
+	// Old SPDIF DT binding support
+	if (codec_dai_name[0] == snd_soc_dummy_dlc.dai_name)
+		priv->dai_link[0].codecs[0].name = snd_soc_dummy_dlc.name;
 
 	if (!fsl_asoc_card_is_ac97(priv)) {
 		for_each_link_codecs((&(priv->dai_link[0])), codec_idx, codec_comp) {
@@ -992,6 +1072,7 @@ static const struct of_device_id fsl_asoc_card_dt_ids[] = {
 	{ .compatible = "fsl,imx-audio-wm8958", },
 	{ .compatible = "fsl,imx-audio-nau8822", },
 	{ .compatible = "fsl,imx-audio-wm8904", },
+	{ .compatible = "fsl,imx-audio-spdif", },
 	{}
 };
 MODULE_DEVICE_TABLE(of, fsl_asoc_card_dt_ids);
