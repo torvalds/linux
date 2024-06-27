@@ -444,6 +444,7 @@ int bnxt_re_hwrm_qcaps(struct bnxt_re_dev *rdev)
 
 static int bnxt_re_hwrm_dbr_pacing_qcfg(struct bnxt_re_dev *rdev)
 {
+	struct bnxt_qplib_db_pacing_data *pacing_data = rdev->qplib_res.pacing_data;
 	struct hwrm_func_dbr_pacing_qcfg_output resp = {};
 	struct hwrm_func_dbr_pacing_qcfg_input req = {};
 	struct bnxt_en_dev *en_dev = rdev->en_dev;
@@ -465,6 +466,13 @@ static int bnxt_re_hwrm_dbr_pacing_qcfg(struct bnxt_re_dev *rdev)
 		cctx->dbr_stat_db_fifo =
 			le32_to_cpu(resp.dbr_stat_db_fifo_reg) &
 			~FUNC_DBR_PACING_QCFG_RESP_DBR_STAT_DB_FIFO_REG_ADDR_SPACE_MASK;
+
+	pacing_data->fifo_max_depth = le32_to_cpu(resp.dbr_stat_db_max_fifo_depth);
+	if (!pacing_data->fifo_max_depth)
+		pacing_data->fifo_max_depth = BNXT_RE_MAX_FIFO_DEPTH(cctx);
+	pacing_data->fifo_room_mask = le32_to_cpu(resp.dbr_stat_db_fifo_reg_fifo_room_mask);
+	pacing_data->fifo_room_shift = resp.dbr_stat_db_fifo_reg_fifo_room_shift;
+
 	return 0;
 }
 
@@ -481,6 +489,7 @@ static void bnxt_re_set_default_pacing_data(struct bnxt_re_dev *rdev)
 
 static void __wait_for_fifo_occupancy_below_th(struct bnxt_re_dev *rdev)
 {
+	struct bnxt_qplib_db_pacing_data *pacing_data = rdev->qplib_res.pacing_data;
 	u32 read_val, fifo_occup;
 
 	/* loop shouldn't run infintely as the occupancy usually goes
@@ -488,14 +497,14 @@ static void __wait_for_fifo_occupancy_below_th(struct bnxt_re_dev *rdev)
 	 */
 	while (1) {
 		read_val = readl(rdev->en_dev->bar0 + rdev->pacing.dbr_db_fifo_reg_off);
-		fifo_occup = BNXT_RE_MAX_FIFO_DEPTH -
-			((read_val & BNXT_RE_DB_FIFO_ROOM_MASK) >>
-			 BNXT_RE_DB_FIFO_ROOM_SHIFT);
+		fifo_occup = pacing_data->fifo_max_depth -
+			     ((read_val & pacing_data->fifo_room_mask) >>
+			      pacing_data->fifo_room_shift);
 		/* Fifo occupancy cannot be greater the MAX FIFO depth */
-		if (fifo_occup > BNXT_RE_MAX_FIFO_DEPTH)
+		if (fifo_occup > pacing_data->fifo_max_depth)
 			break;
 
-		if (fifo_occup < rdev->qplib_res.pacing_data->pacing_th)
+		if (fifo_occup < pacing_data->pacing_th)
 			break;
 	}
 }
@@ -553,9 +562,9 @@ static void bnxt_re_pacing_timer_exp(struct work_struct *work)
 
 	pacing_data = rdev->qplib_res.pacing_data;
 	read_val = readl(rdev->en_dev->bar0 + rdev->pacing.dbr_db_fifo_reg_off);
-	fifo_occup = BNXT_RE_MAX_FIFO_DEPTH -
-		((read_val & BNXT_RE_DB_FIFO_ROOM_MASK) >>
-		 BNXT_RE_DB_FIFO_ROOM_SHIFT);
+	fifo_occup = pacing_data->fifo_max_depth -
+		     ((read_val & pacing_data->fifo_room_mask) >>
+		      pacing_data->fifo_room_shift);
 
 	if (fifo_occup > pacing_data->pacing_th)
 		goto restart_timer;
@@ -594,7 +603,7 @@ void bnxt_re_pacing_alert(struct bnxt_re_dev *rdev)
 	 * Increase the alarm_th to max so that other user lib instances do not
 	 * keep alerting the driver.
 	 */
-	pacing_data->alarm_th = BNXT_RE_MAX_FIFO_DEPTH;
+	pacing_data->alarm_th = pacing_data->fifo_max_depth;
 	pacing_data->do_pacing = BNXT_RE_MAX_DBR_DO_PACING;
 	cancel_work_sync(&rdev->dbq_fifo_check_work);
 	schedule_work(&rdev->dbq_fifo_check_work);
@@ -603,8 +612,6 @@ void bnxt_re_pacing_alert(struct bnxt_re_dev *rdev)
 
 static int bnxt_re_initialize_dbr_pacing(struct bnxt_re_dev *rdev)
 {
-	if (bnxt_re_hwrm_dbr_pacing_qcfg(rdev))
-		return -EIO;
 
 	/* Allocate a page for app use */
 	rdev->pacing.dbr_page = (void *)__get_free_page(GFP_KERNEL);
@@ -613,6 +620,12 @@ static int bnxt_re_initialize_dbr_pacing(struct bnxt_re_dev *rdev)
 
 	memset((u8 *)rdev->pacing.dbr_page, 0, PAGE_SIZE);
 	rdev->qplib_res.pacing_data = (struct bnxt_qplib_db_pacing_data *)rdev->pacing.dbr_page;
+
+	if (bnxt_re_hwrm_dbr_pacing_qcfg(rdev)) {
+		free_page((u64)rdev->pacing.dbr_page);
+		rdev->pacing.dbr_page = NULL;
+		return -EIO;
+	}
 
 	/* MAP HW window 2 for reading db fifo depth */
 	writel(rdev->chip_ctx->dbr_stat_db_fifo & BNXT_GRC_BASE_MASK,
@@ -627,9 +640,6 @@ static int bnxt_re_initialize_dbr_pacing(struct bnxt_re_dev *rdev)
 	rdev->pacing.dbq_pacing_time = BNXT_RE_DBR_PACING_TIME;
 	rdev->pacing.dbr_def_do_pacing = BNXT_RE_DBR_DO_PACING_NO_CONGESTION;
 	rdev->pacing.do_pacing_save = rdev->pacing.dbr_def_do_pacing;
-	rdev->qplib_res.pacing_data->fifo_max_depth = BNXT_RE_MAX_FIFO_DEPTH;
-	rdev->qplib_res.pacing_data->fifo_room_mask = BNXT_RE_DB_FIFO_ROOM_MASK;
-	rdev->qplib_res.pacing_data->fifo_room_shift = BNXT_RE_DB_FIFO_ROOM_SHIFT;
 	rdev->qplib_res.pacing_data->grc_reg_offset = rdev->pacing.dbr_db_fifo_reg_off;
 	bnxt_re_set_default_pacing_data(rdev);
 	/* Initialize worker for DBR Pacing */
