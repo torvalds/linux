@@ -97,6 +97,26 @@ extern void put_unused_fd(unsigned int fd);
 DEFINE_CLASS(get_unused_fd, int, if (_T >= 0) put_unused_fd(_T),
 	     get_unused_fd_flags(flags), unsigned flags)
 
+/*
+ * take_fd() will take care to set @fd to -EBADF ensuring that
+ * CLASS(get_unused_fd) won't call put_unused_fd(). This makes it
+ * easier to rely on CLASS(get_unused_fd):
+ *
+ * struct file *f;
+ *
+ * CLASS(get_unused_fd, fd)(O_CLOEXEC);
+ * if (fd < 0)
+ *         return fd;
+ *
+ * f = dentry_open(&path, O_RDONLY, current_cred());
+ * if (IS_ERR(f))
+ *         return PTR_ERR(fd);
+ *
+ * fd_install(fd, f);
+ * return take_fd(fd);
+ */
+#define take_fd(fd) __get_and_null(fd, -EBADF)
+
 extern void fd_install(unsigned int fd, struct file *file);
 
 int receive_fd(struct file *file, int __user *ufd, unsigned int o_flags);
