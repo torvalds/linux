@@ -711,9 +711,7 @@ int mlx5_irq_table_get_num_comp(struct mlx5_irq_table *table)
 
 int mlx5_irq_table_create(struct mlx5_core_dev *dev)
 {
-	int num_eqs = MLX5_CAP_GEN(dev, max_num_eqs) ?
-		      MLX5_CAP_GEN(dev, max_num_eqs) :
-		      1 << MLX5_CAP_GEN(dev, log_max_eq);
+	int num_eqs = mlx5_max_eq_cap_get(dev);
 	int total_vec;
 	int pcif_vec;
 	int req_vec;
