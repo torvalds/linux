@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <uapi/linux/ethtool.h>
+#include "netlink.h"
 
 /**
  * struct ethnl_module_fw_flash_ntf_params - module firmware flashing
@@ -53,6 +54,8 @@ struct ethtool_module_fw_flash {
 	struct work_struct work;
 	struct ethtool_cmis_fw_update_params fw_update;
 };
+
+void ethnl_module_fw_flash_sock_destroy(struct ethnl_sock_priv *sk_priv);
 
 void
 ethnl_module_fw_flash_ntf_err(struct net_device *dev,
