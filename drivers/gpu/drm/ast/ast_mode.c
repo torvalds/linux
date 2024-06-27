@@ -1865,7 +1865,7 @@ static void ast_mode_config_helper_atomic_commit_tail(struct drm_atomic_state *s
 	 * the I/O-register lock. Released in atomic_flush().
 	 */
 	mutex_lock(&ast->modeset_lock);
-	drm_atomic_helper_commit_tail_rpm(state);
+	drm_atomic_helper_commit_tail(state);
 	mutex_unlock(&ast->modeset_lock);
 }
 
