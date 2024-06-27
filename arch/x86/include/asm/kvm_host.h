@@ -533,12 +533,16 @@ struct kvm_pmc {
 };
 
 /* More counters may conflict with other existing Architectural MSRs */
-#define KVM_INTEL_PMC_MAX_GENERIC	8
-#define MSR_ARCH_PERFMON_PERFCTR_MAX	(MSR_ARCH_PERFMON_PERFCTR0 + KVM_INTEL_PMC_MAX_GENERIC - 1)
-#define MSR_ARCH_PERFMON_EVENTSEL_MAX	(MSR_ARCH_PERFMON_EVENTSEL0 + KVM_INTEL_PMC_MAX_GENERIC - 1)
-#define KVM_PMC_MAX_FIXED	3
-#define MSR_ARCH_PERFMON_FIXED_CTR_MAX	(MSR_ARCH_PERFMON_FIXED_CTR0 + KVM_PMC_MAX_FIXED - 1)
-#define KVM_AMD_PMC_MAX_GENERIC	6
+#define KVM_MAX(a, b)	((a) >= (b) ? (a) : (b))
+#define KVM_MAX_NR_INTEL_GP_COUNTERS	8
+#define KVM_MAX_NR_AMD_GP_COUNTERS	6
+#define KVM_MAX_NR_GP_COUNTERS		KVM_MAX(KVM_MAX_NR_INTEL_GP_COUNTERS, \
+						KVM_MAX_NR_AMD_GP_COUNTERS)
+
+#define KVM_MAX_NR_INTEL_FIXED_COUTNERS	3
+#define KVM_MAX_NR_AMD_FIXED_COUTNERS	0
+#define KVM_MAX_NR_FIXED_COUNTERS	KVM_MAX(KVM_MAX_NR_INTEL_FIXED_COUTNERS, \
+						KVM_MAX_NR_AMD_FIXED_COUTNERS)
 
 struct kvm_pmu {
 	u8 version;
@@ -554,8 +558,8 @@ struct kvm_pmu {
 	u64 global_status_rsvd;
 	u64 reserved_bits;
 	u64 raw_event_mask;
-	struct kvm_pmc gp_counters[KVM_INTEL_PMC_MAX_GENERIC];
-	struct kvm_pmc fixed_counters[KVM_PMC_MAX_FIXED];
+	struct kvm_pmc gp_counters[KVM_MAX_NR_GP_COUNTERS];
+	struct kvm_pmc fixed_counters[KVM_MAX_NR_FIXED_COUNTERS];
 
 	/*
 	 * Overlay the bitmap with a 64-bit atomic so that all bits can be
