@@ -488,19 +488,40 @@ static void bnxt_re_set_default_pacing_data(struct bnxt_re_dev *rdev)
 		pacing_data->pacing_th * BNXT_RE_PACING_ALARM_TH_MULTIPLE;
 }
 
-static void __wait_for_fifo_occupancy_below_th(struct bnxt_re_dev *rdev)
+static u32 __get_fifo_occupancy(struct bnxt_re_dev *rdev)
 {
 	struct bnxt_qplib_db_pacing_data *pacing_data = rdev->qplib_res.pacing_data;
 	u32 read_val, fifo_occup;
+
+	read_val = readl(rdev->en_dev->bar0 + rdev->pacing.dbr_db_fifo_reg_off);
+	fifo_occup = pacing_data->fifo_max_depth -
+		     ((read_val & pacing_data->fifo_room_mask) >>
+		      pacing_data->fifo_room_shift);
+	return fifo_occup;
+}
+
+static bool is_dbr_fifo_full(struct bnxt_re_dev *rdev)
+{
+	u32 max_occup, fifo_occup;
+
+	fifo_occup = __get_fifo_occupancy(rdev);
+	max_occup = BNXT_RE_MAX_FIFO_DEPTH(rdev->chip_ctx) - 1;
+	if (fifo_occup == max_occup)
+		return true;
+
+	return false;
+}
+
+static void __wait_for_fifo_occupancy_below_th(struct bnxt_re_dev *rdev)
+{
+	struct bnxt_qplib_db_pacing_data *pacing_data = rdev->qplib_res.pacing_data;
+	u32 fifo_occup;
 
 	/* loop shouldn't run infintely as the occupancy usually goes
 	 * below pacing algo threshold as soon as pacing kicks in.
 	 */
 	while (1) {
-		read_val = readl(rdev->en_dev->bar0 + rdev->pacing.dbr_db_fifo_reg_off);
-		fifo_occup = pacing_data->fifo_max_depth -
-			     ((read_val & pacing_data->fifo_room_mask) >>
-			      pacing_data->fifo_room_shift);
+		fifo_occup = __get_fifo_occupancy(rdev);
 		/* Fifo occupancy cannot be greater the MAX FIFO depth */
 		if (fifo_occup > pacing_data->fifo_max_depth)
 			break;
@@ -556,16 +577,13 @@ static void bnxt_re_pacing_timer_exp(struct work_struct *work)
 	struct bnxt_re_dev *rdev = container_of(work, struct bnxt_re_dev,
 			dbq_pacing_work.work);
 	struct bnxt_qplib_db_pacing_data *pacing_data;
-	u32 read_val, fifo_occup;
+	u32 fifo_occup;
 
 	if (!mutex_trylock(&rdev->pacing.dbq_lock))
 		return;
 
 	pacing_data = rdev->qplib_res.pacing_data;
-	read_val = readl(rdev->en_dev->bar0 + rdev->pacing.dbr_db_fifo_reg_off);
-	fifo_occup = pacing_data->fifo_max_depth -
-		     ((read_val & pacing_data->fifo_room_mask) >>
-		      pacing_data->fifo_room_shift);
+	fifo_occup = __get_fifo_occupancy(rdev);
 
 	if (fifo_occup > pacing_data->pacing_th)
 		goto restart_timer;
@@ -613,7 +631,6 @@ void bnxt_re_pacing_alert(struct bnxt_re_dev *rdev)
 
 static int bnxt_re_initialize_dbr_pacing(struct bnxt_re_dev *rdev)
 {
-
 	/* Allocate a page for app use */
 	rdev->pacing.dbr_page = (void *)__get_free_page(GFP_KERNEL);
 	if (!rdev->pacing.dbr_page)
@@ -636,6 +653,12 @@ static int bnxt_re_initialize_dbr_pacing(struct bnxt_re_dev *rdev)
 		 BNXT_RE_GRC_FIFO_REG_BASE;
 	rdev->pacing.dbr_bar_addr =
 		pci_resource_start(rdev->qplib_res.pdev, 0) + rdev->pacing.dbr_db_fifo_reg_off;
+
+	if (is_dbr_fifo_full(rdev)) {
+		free_page((u64)rdev->pacing.dbr_page);
+		rdev->pacing.dbr_page = NULL;
+		return -EIO;
+	}
 
 	rdev->pacing.pacing_algo_th = BNXT_RE_PACING_ALGO_THRESHOLD;
 	rdev->pacing.dbq_pacing_time = BNXT_RE_DBR_PACING_TIME;
