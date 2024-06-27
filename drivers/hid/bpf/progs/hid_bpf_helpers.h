@@ -66,6 +66,7 @@ extern int hid_bpf_hw_request(struct hid_bpf_ctx *ctx,
 #define HID_VID_ANY				0x0000
 #define HID_PID_ANY				0x0000
 
+#define BIT(n) (1UL << (n))
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
 /* Helper macro to convert (foo, __LINE__)  into foo134 so we can use __LINE__ for

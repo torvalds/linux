@@ -78,8 +78,6 @@ static const __u8 fixed_rdesc[] = {
 	0xc0,                          // End Collection                      106
 };
 
-#define BIT(n) (1UL << n)
-
 #define TIP_SWITCH		BIT(0)
 #define BARREL_SWITCH		BIT(1)
 #define ERASER			BIT(2)
