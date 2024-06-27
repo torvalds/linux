@@ -1528,6 +1528,7 @@ extern const struct uapi_definition mlx5_ib_devx_defs[];
 extern const struct uapi_definition mlx5_ib_flow_defs[];
 extern const struct uapi_definition mlx5_ib_qos_defs[];
 extern const struct uapi_definition mlx5_ib_std_types_defs[];
+extern const struct uapi_definition mlx5_ib_create_cq_defs[];
 
 static inline int is_qp1(enum ib_qp_type qp_type)
 {
