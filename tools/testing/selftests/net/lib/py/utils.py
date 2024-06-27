@@ -66,6 +66,40 @@ class bkg(cmd):
         return self.process(terminate=self.terminate, fail=self.check_fail)
 
 
+global_defer_queue = []
+
+
+class defer:
+    def __init__(self, func, *args, **kwargs):
+        global global_defer_queue
+
+        if not callable(func):
+            raise Exception("defer created with un-callable object, did you call the function instead of passing its name?")
+
+        self.func = func
+        self.args = args
+        self.kwargs = kwargs
+
+        self._queue =  global_defer_queue
+        self._queue.append(self)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, ex_type, ex_value, ex_tb):
+        return self.exec()
+
+    def exec_only(self):
+        self.func(*self.args, **self.kwargs)
+
+    def cancel(self):
+        self._queue.remove(self)
+
+    def exec(self):
+        self.cancel()
+        self.exec_only()
+
+
 def tool(name, args, json=None, ns=None, host=None):
     cmd_str = name + ' '
     if json:

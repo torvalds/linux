@@ -6,6 +6,7 @@ import sys
 import time
 import traceback
 from .consts import KSFT_MAIN_NAME
+from .utils import global_defer_queue
 
 KSFT_RESULT = None
 KSFT_RESULT_ALL = True
@@ -108,6 +109,24 @@ def ktap_result(ok, cnt=1, case="", comment=""):
     print(res)
 
 
+def ksft_flush_defer():
+    global KSFT_RESULT
+
+    i = 0
+    qlen_start = len(global_defer_queue)
+    while global_defer_queue:
+        i += 1
+        entry = global_defer_queue.pop()
+        try:
+            entry.exec_only()
+        except:
+            ksft_pr(f"Exception while handling defer / cleanup (callback {i} of {qlen_start})!")
+            tb = traceback.format_exc()
+            for line in tb.strip().split('\n'):
+                ksft_pr("Defer Exception|", line)
+            KSFT_RESULT = False
+
+
 def ksft_run(cases=None, globs=None, case_pfx=None, args=()):
     cases = cases or []
 
@@ -147,6 +166,8 @@ def ksft_run(cases=None, globs=None, case_pfx=None, args=()):
                 ksft_pr("Exception|", line)
             KSFT_RESULT = False
             cnt_key = 'fail'
+
+        ksft_flush_defer()
 
         if not cnt_key:
             cnt_key = 'pass' if KSFT_RESULT else 'fail'
