@@ -780,9 +780,8 @@ static void update_mba_bw(struct rdtgroup *rgrp, struct rdt_mon_domain *dom_mbm)
 static void mbm_update(struct rdt_resource *r, struct rdt_mon_domain *d,
 		       u32 closid, u32 rmid)
 {
-	struct rmid_read rr;
+	struct rmid_read rr = {0};
 
-	rr.first = false;
 	rr.r = r;
 	rr.d = d;
 

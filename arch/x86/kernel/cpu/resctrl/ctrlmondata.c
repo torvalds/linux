@@ -529,7 +529,6 @@ void mon_event_read(struct rmid_read *rr, struct rdt_resource *r,
 	rr->evtid = evtid;
 	rr->r = r;
 	rr->d = d;
-	rr->val = 0;
 	rr->first = first;
 	rr->arch_mon_ctx = resctrl_arch_mon_ctx_alloc(r, evtid);
 	if (IS_ERR(rr->arch_mon_ctx)) {
@@ -557,12 +556,12 @@ int rdtgroup_mondata_show(struct seq_file *m, void *arg)
 {
 	struct kernfs_open_file *of = m->private;
 	struct rdt_domain_hdr *hdr;
+	struct rmid_read rr = {0};
 	struct rdt_mon_domain *d;
 	u32 resid, evtid, domid;
 	struct rdtgroup *rdtgrp;
 	struct rdt_resource *r;
 	union mon_data_bits md;
-	struct rmid_read rr;
 	int ret = 0;
 
 	rdtgrp = rdtgroup_kn_lock_live(of->kn);

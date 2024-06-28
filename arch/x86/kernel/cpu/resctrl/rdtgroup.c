@@ -3029,10 +3029,10 @@ static int mkdir_mondata_subdir(struct kernfs_node *parent_kn,
 				struct rdt_mon_domain *d,
 				struct rdt_resource *r, struct rdtgroup *prgrp)
 {
+	struct rmid_read rr = {0};
 	union mon_data_bits priv;
 	struct kernfs_node *kn;
 	struct mon_evt *mevt;
-	struct rmid_read rr;
 	char name[32];
 	int ret;
 
