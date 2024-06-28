@@ -212,6 +212,8 @@ static inline bool crc_is_encoded(struct bch_extent_crc_unpacked crc)
 	return crc.csum_type != BCH_CSUM_none || crc_is_compressed(crc);
 }
 
+void bch2_extent_crc_unpacked_to_text(struct printbuf *, struct bch_extent_crc_unpacked *);
+
 /* bkey_ptrs: generically over any key type that has ptrs */
 
 struct bkey_ptrs_c {

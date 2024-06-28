@@ -1034,6 +1034,18 @@ void bch2_extent_ptr_to_text(struct printbuf *out, struct bch_fs *c, const struc
 	--out->atomic;
 }
 
+void bch2_extent_crc_unpacked_to_text(struct printbuf *out, struct bch_extent_crc_unpacked *crc)
+{
+	prt_printf(out, "crc: c_size %u size %u offset %u nonce %u csum ",
+		   crc->compressed_size,
+		   crc->uncompressed_size,
+		   crc->offset, crc->nonce);
+	bch2_prt_csum_type(out, crc->csum_type);
+	prt_printf(out, " %0llx:%0llx ", crc->csum.hi, crc->csum.lo);
+	prt_str(out, " compress ");
+	bch2_prt_compression_type(out, crc->compression_type);
+}
+
 void bch2_bkey_ptrs_to_text(struct printbuf *out, struct bch_fs *c,
 			    struct bkey_s_c k)
 {
@@ -1059,13 +1071,7 @@ void bch2_bkey_ptrs_to_text(struct printbuf *out, struct bch_fs *c,
 			struct bch_extent_crc_unpacked crc =
 				bch2_extent_crc_unpack(k.k, entry_to_crc(entry));
 
-			prt_printf(out, "crc: c_size %u size %u offset %u nonce %u csum ",
-			       crc.compressed_size,
-			       crc.uncompressed_size,
-			       crc.offset, crc.nonce);
-			bch2_prt_csum_type(out, crc.csum_type);
-			prt_str(out, " compress ");
-			bch2_prt_compression_type(out, crc.compression_type);
+			bch2_extent_crc_unpacked_to_text(out, &crc);
 			break;
 		}
 		case BCH_EXTENT_ENTRY_stripe_ptr: {
@@ -1095,6 +1101,7 @@ void bch2_bkey_ptrs_to_text(struct printbuf *out, struct bch_fs *c,
 		first = false;
 	}
 }
+
 
 static int extent_ptr_invalid(struct bch_fs *c,
 			      struct bkey_s_c k,
