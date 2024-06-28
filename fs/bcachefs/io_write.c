@@ -1080,7 +1080,10 @@ do_write:
 	*_dst = dst;
 	return more;
 csum_err:
-	bch_err(c, "%s write error: error verifying existing checksum while rewriting existing data (memory corruption?)",
+	bch_err_inum_offset_ratelimited(c,
+		op->pos.inode,
+		op->pos.offset << 9,
+		"%s write error: error verifying existing checksum while rewriting existing data (memory corruption?)",
 		op->flags & BCH_WRITE_MOVE ? "move" : "user");
 	ret = -EIO;
 err:
