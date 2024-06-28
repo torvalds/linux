@@ -100,26 +100,22 @@ static void __init gumstix_mmc_init(void)
 #endif
 
 #ifdef CONFIG_USB_PXA25X
-static struct gpiod_lookup_table gumstix_gpio_vbus_gpiod_table = {
-	.dev_id = "gpio-vbus",
-	.table = {
-		GPIO_LOOKUP("gpio-pxa", GPIO_GUMSTIX_USB_GPIOn,
-			    "vbus", GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP("gpio-pxa", GPIO_GUMSTIX_USB_GPIOx,
-			    "pullup", GPIO_ACTIVE_HIGH),
-		{ },
-	},
+static const struct property_entry spitz_mci_props[] __initconst = {
+	PROPERTY_ENTRY_GPIO("vbus-gpios", &pxa2xx_gpiochip_node,
+			    GPIO_GUMSTIX_USB_GPIOn, GPIO_ACTIVE_HIGH),
+	PROPERTY_ENTRY_GPIO("pullup-gpios", &pxa2xx_gpiochip_node,
+			    GPIO_GUMSTIX_USB_GPIOx, GPIO_ACTIVE_HIGH),
+	{ }
 };
 
-static struct platform_device gumstix_gpio_vbus = {
+static const struct platform_device_info gumstix_gpio_vbus_info __initconst = {
 	.name	= "gpio-vbus",
-	.id	= -1,
+	.id	= PLATFORM_DEVID_NONE,
 };
 
 static void __init gumstix_udc_init(void)
 {
-	gpiod_add_lookup_table(&gumstix_gpio_vbus_gpiod_table);
-	platform_device_register(&gumstix_gpio_vbus);
+	platform_device_register_full(&gumstix_gpio_vbus_info);
 }
 #else
 static void gumstix_udc_init(void)

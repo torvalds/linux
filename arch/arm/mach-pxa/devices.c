@@ -629,6 +629,10 @@ struct platform_device pxa27x_device_pwm1 = {
 };
 #endif /* CONFIG_PXA27x || CONFIG_PXA3xx */
 
+const struct software_node pxa2xx_gpiochip_node = {
+	.name	= "gpio-pxa",
+};
+
 struct resource pxa_resource_gpio[] = {
 	{
 		.start	= 0x40e00000,
