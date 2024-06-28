@@ -38,15 +38,14 @@ static const unsigned char cytp_resolution[] = {0x00, 0x01, 0x02, 0x03};
 static int cypress_ps2_sendbyte(struct psmouse *psmouse, int value)
 {
 	struct ps2dev *ps2dev = &psmouse->ps2dev;
+	int error;
 
-	if (ps2_sendbyte(ps2dev, value & 0xff, CYTP_CMD_TIMEOUT) < 0) {
+	error = ps2_sendbyte(ps2dev, value & 0xff, CYTP_CMD_TIMEOUT);
+	if (error) {
 		psmouse_dbg(psmouse,
-				"sending command 0x%02x failed, resp 0x%02x\n",
-				value & 0xff, ps2dev->nak);
-		if (ps2dev->nak == CYTP_PS2_RETRY)
-			return CYTP_PS2_RETRY;
-		else
-			return CYTP_PS2_ERROR;
+			    "sending command 0x%02x failed, resp 0x%02x, error %d\n",
+			    value & 0xff, ps2dev->nak, error);
+		return error;
 	}
 
 #ifdef CYTP_DEBUG_VERBOSE
@@ -73,21 +72,20 @@ static int cypress_ps2_ext_cmd(struct psmouse *psmouse, unsigned short cmd,
 		 * to make the device return to the ready state.
 		 */
 		rc = cypress_ps2_sendbyte(psmouse, cmd & 0xff);
-		if (rc == CYTP_PS2_RETRY) {
+		if (rc == -EAGAIN) {
 			rc = cypress_ps2_sendbyte(psmouse, 0x00);
-			if (rc == CYTP_PS2_RETRY)
+			if (rc == -EAGAIN)
 				rc = cypress_ps2_sendbyte(psmouse, 0x0a);
 		}
-		if (rc == CYTP_PS2_ERROR)
-			continue;
 
-		rc = cypress_ps2_sendbyte(psmouse, data);
-		if (rc == CYTP_PS2_RETRY)
+		if (!rc) {
 			rc = cypress_ps2_sendbyte(psmouse, data);
-		if (rc == CYTP_PS2_ERROR)
-			continue;
-		else
-			break;
+			if (rc == -EAGAIN)
+				rc = cypress_ps2_sendbyte(psmouse, data);
+
+			if (!rc)
+				break;
+		}
 	} while (--tries > 0);
 
 	ps2_end_command(ps2dev);
