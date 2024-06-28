@@ -580,14 +580,16 @@ static const struct property_entry spitz_spi_properties[] = {
 	{ }
 };
 
-static const struct software_node spitz_spi_node = {
+static const struct platform_device_info spitz_spi_device_info = {
+	.name = "pxa2xx-spi",
+	/* pxa2xx-spi platform-device ID equals respective SSP platform-device ID + 1 */
+	.id = 2,
 	.properties = spitz_spi_properties,
 };
 
 static void __init spitz_spi_init(void)
 {
 	struct platform_device *pd;
-	int id = 2;
 	int err;
 
 	if (machine_is_akita())
@@ -598,19 +600,11 @@ static void __init spitz_spi_init(void)
 	gpiod_add_lookup_table(&spitz_ads7846_gpio_table);
 	gpiod_add_lookup_table(&spitz_spi_gpio_table);
 
-	/* pxa2xx-spi platform-device ID equals respective SSP platform-device ID + 1 */
-	pd = platform_device_alloc("pxa2xx-spi", id);
-	if (pd == NULL) {
-		pr_err("pxa2xx-spi: failed to allocate device id %d\n", id);
-	} else {
-		err = device_add_software_node(&pd->dev, &spitz_spi_node);
-		if (err) {
-			platform_device_put(pd);
-			pr_err("pxa2xx-spi: failed to add software node\n");
-		} else {
-			platform_device_add(pd);
-		}
-	}
+	pd = platform_device_register_full(&spitz_spi_device_info);
+	err = PTR_ERR_OR_ZERO(pd);
+	if (err)
+		pr_err("pxa2xx-spi: failed to instantiate SPI controller: %d\n",
+		       err);
 
 	spi_register_board_info(ARRAY_AND_SIZE(spitz_spi_devices));
 }
