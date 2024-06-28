@@ -2800,7 +2800,7 @@ static int wsa_macro_probe(struct platform_device *pdev)
 		break;
 
 	default:
-		dev_err(wsa->dev, "Unsupported Codec version (%d)\n", wsa->codec_version);
+		dev_err(dev, "Unsupported Codec version (%d)\n", wsa->codec_version);
 		return -EINVAL;
 	}
 
