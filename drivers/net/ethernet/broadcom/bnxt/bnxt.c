@@ -837,12 +837,8 @@ static bool __bnxt_tx_int(struct bnxt *bp, struct bnxt_tx_ring_info *txr,
 		if (unlikely(is_ts_pkt)) {
 			if (BNXT_CHIP_P5(bp)) {
 				/* PTP worker takes ownership of the skb */
-				if (!bnxt_get_tx_ts_p5(bp, skb)) {
-					skb = NULL;
-				} else {
-					atomic64_inc(&bp->ptp_cfg->stats.ts_err);
-					atomic_inc(&bp->ptp_cfg->tx_avail);
-				}
+				bnxt_get_tx_ts_p5(bp, skb);
+				skb = NULL;
 			}
 		}
 

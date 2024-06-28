@@ -750,17 +750,12 @@ static long bnxt_ptp_ts_aux_work(struct ptp_clock_info *ptp_info)
 	return HZ;
 }
 
-int bnxt_get_tx_ts_p5(struct bnxt *bp, struct sk_buff *skb)
+void bnxt_get_tx_ts_p5(struct bnxt *bp, struct sk_buff *skb)
 {
 	struct bnxt_ptp_cfg *ptp = bp->ptp_cfg;
 
-	if (ptp->txts_req.tx_skb) {
-		netdev_err(bp->dev, "deferring skb:one SKB is still outstanding\n");
-		return -EBUSY;
-	}
 	ptp->txts_req.tx_skb = skb;
 	ptp_schedule_worker(ptp->ptp_clock, 0);
-	return 0;
 }
 
 int bnxt_get_rx_ts_p5(struct bnxt *bp, u64 *ts, u32 pkt_ts)
