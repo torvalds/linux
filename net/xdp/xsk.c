@@ -383,9 +383,8 @@ int __xsk_map_redirect(struct xdp_sock *xs, struct xdp_buff *xdp)
 	return 0;
 }
 
-void __xsk_map_flush(void)
+void __xsk_map_flush(struct list_head *flush_list)
 {
-	struct list_head *flush_list = bpf_net_ctx_get_xskmap_flush_list();
 	struct xdp_sock *xs, *tmp;
 
 	list_for_each_entry_safe(xs, tmp, flush_list, flush_node) {
@@ -393,16 +392,6 @@ void __xsk_map_flush(void)
 		__list_del_clearprev(&xs->flush_node);
 	}
 }
-
-#ifdef CONFIG_DEBUG_NET
-bool xsk_map_check_flush(void)
-{
-	if (list_empty(bpf_net_ctx_get_xskmap_flush_list()))
-		return false;
-	__xsk_map_flush();
-	return true;
-}
-#endif
 
 void xsk_tx_completed(struct xsk_buff_pool *pool, u32 nb_entries)
 {

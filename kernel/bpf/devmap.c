@@ -412,9 +412,8 @@ out:
  * driver before returning from its napi->poll() routine. See the comment above
  * xdp_do_flush() in filter.c.
  */
-void __dev_flush(void)
+void __dev_flush(struct list_head *flush_list)
 {
-	struct list_head *flush_list = bpf_net_ctx_get_dev_flush_list();
 	struct xdp_dev_bulk_queue *bq, *tmp;
 
 	list_for_each_entry_safe(bq, tmp, flush_list, flush_node) {
@@ -424,16 +423,6 @@ void __dev_flush(void)
 		__list_del_clearprev(&bq->flush_node);
 	}
 }
-
-#ifdef CONFIG_DEBUG_NET
-bool dev_check_flush(void)
-{
-	if (list_empty(bpf_net_ctx_get_dev_flush_list()))
-		return false;
-	__dev_flush();
-	return true;
-}
-#endif
 
 /* Elements are kept alive by RCU; either by rcu_read_lock() (from syscall) or
  * by local_bh_disable() (from XDP calls inside NAPI). The

@@ -757,9 +757,8 @@ trace:
 	return ret;
 }
 
-void __cpu_map_flush(void)
+void __cpu_map_flush(struct list_head *flush_list)
 {
-	struct list_head *flush_list = bpf_net_ctx_get_cpu_map_flush_list();
 	struct xdp_bulk_queue *bq, *tmp;
 
 	list_for_each_entry_safe(bq, tmp, flush_list, flush_node) {
@@ -769,13 +768,3 @@ void __cpu_map_flush(void)
 		wake_up_process(bq->obj->kthread);
 	}
 }
-
-#ifdef CONFIG_DEBUG_NET
-bool cpu_map_check_flush(void)
-{
-	if (list_empty(bpf_net_ctx_get_cpu_map_flush_list()))
-		return false;
-	__cpu_map_flush();
-	return true;
-}
-#endif
