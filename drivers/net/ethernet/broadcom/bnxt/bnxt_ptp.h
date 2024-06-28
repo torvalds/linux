@@ -85,6 +85,14 @@ struct bnxt_ptp_stats {
 	atomic64_t	ts_err;
 };
 
+struct bnxt_ptp_tx_req {
+	struct sk_buff		*tx_skb;
+	u16			tx_seqid;
+	u16			tx_hdr_off;
+	u8			txts_pending:1;
+	unsigned long		abs_txts_tmo;
+};
+
 struct bnxt_ptp_cfg {
 	struct ptp_clock_info	ptp_info;
 	struct ptp_clock	*ptp_clock;
@@ -93,7 +101,6 @@ struct bnxt_ptp_cfg {
 	struct bnxt_pps		pps_info;
 	/* serialize timecounter access */
 	spinlock_t		ptp_lock;
-	struct sk_buff		*tx_skb;
 	u64			current_time;
 	u64			old_time;
 	unsigned long		next_period;
@@ -102,8 +109,8 @@ struct bnxt_ptp_cfg {
 	/* a 23b shift cyclecounter will overflow in ~36 mins.  Check overflow every 18 mins. */
 	#define BNXT_PHC_OVERFLOW_PERIOD	(18 * 60 * HZ)
 
-	u16			tx_seqid;
-	u16			tx_hdr_off;
+	struct bnxt_ptp_tx_req	txts_req;
+
 	struct bnxt		*bp;
 	atomic_t		tx_avail;
 #define BNXT_MAX_TX_TS	1
@@ -123,14 +130,12 @@ struct bnxt_ptp_cfg {
 					 BNXT_PTP_MSG_PDELAY_REQ |	\
 					 BNXT_PTP_MSG_PDELAY_RESP)
 	u8			tx_tstamp_en:1;
-	u8			txts_pending:1;
 	int			rx_filter;
 	u32			tstamp_filters;
 
 	u32			refclk_regs[2];
 	u32			refclk_mapped_regs[2];
 	u32			txts_tmo;
-	unsigned long		abs_txts_tmo;
 
 	struct bnxt_ptp_stats	stats;
 };

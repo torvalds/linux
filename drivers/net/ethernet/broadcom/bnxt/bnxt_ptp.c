@@ -123,11 +123,12 @@ static int bnxt_hwrm_port_ts_query(struct bnxt *bp, u32 flags, u64 *ts,
 	req->flags = cpu_to_le32(flags);
 	if ((flags & PORT_TS_QUERY_REQ_FLAGS_PATH) ==
 	    PORT_TS_QUERY_REQ_FLAGS_PATH_TX) {
+		struct bnxt_ptp_tx_req *txts_req = &bp->ptp_cfg->txts_req;
 		u32 tmo_us = txts_tmo * 1000;
 
 		req->enables = cpu_to_le16(BNXT_PTP_QTS_TX_ENABLES);
-		req->ptp_seq_id = cpu_to_le32(bp->ptp_cfg->tx_seqid);
-		req->ptp_hdr_offset = cpu_to_le16(bp->ptp_cfg->tx_hdr_off);
+		req->ptp_seq_id = cpu_to_le32(txts_req->tx_seqid);
+		req->ptp_hdr_offset = cpu_to_le16(txts_req->tx_hdr_off);
 		if (!tmo_us)
 			tmo_us = BNXT_PTP_QTS_TIMEOUT;
 		tmo_us = min(tmo_us, BNXT_PTP_QTS_MAX_TMO_US);
@@ -686,15 +687,17 @@ static void bnxt_stamp_tx_skb(struct bnxt *bp, struct sk_buff *skb)
 {
 	struct bnxt_ptp_cfg *ptp = bp->ptp_cfg;
 	struct skb_shared_hwtstamps timestamp;
+	struct bnxt_ptp_tx_req *txts_req;
 	unsigned long now = jiffies;
 	u64 ts = 0, ns = 0;
 	u32 tmo = 0;
 	int rc;
 
-	if (!ptp->txts_pending)
-		ptp->abs_txts_tmo = now + msecs_to_jiffies(ptp->txts_tmo);
-	if (!time_after_eq(now, ptp->abs_txts_tmo))
-		tmo = jiffies_to_msecs(ptp->abs_txts_tmo - now);
+	txts_req = &ptp->txts_req;
+	if (!txts_req->txts_pending)
+		txts_req->abs_txts_tmo = now + msecs_to_jiffies(ptp->txts_tmo);
+	if (!time_after_eq(now, txts_req->abs_txts_tmo))
+		tmo = jiffies_to_msecs(txts_req->abs_txts_tmo - now);
 	rc = bnxt_hwrm_port_ts_query(bp, PORT_TS_QUERY_REQ_FLAGS_PATH_TX, &ts,
 				     tmo);
 	if (!rc) {
@@ -703,11 +706,11 @@ static void bnxt_stamp_tx_skb(struct bnxt *bp, struct sk_buff *skb)
 		ns = timecounter_cyc2time(&ptp->tc, ts);
 		spin_unlock_bh(&ptp->ptp_lock);
 		timestamp.hwtstamp = ns_to_ktime(ns);
-		skb_tstamp_tx(ptp->tx_skb, &timestamp);
+		skb_tstamp_tx(txts_req->tx_skb, &timestamp);
 		ptp->stats.ts_pkts++;
 	} else {
-		if (!time_after_eq(jiffies, ptp->abs_txts_tmo)) {
-			ptp->txts_pending = true;
+		if (!time_after_eq(jiffies, txts_req->abs_txts_tmo)) {
+			txts_req->txts_pending = true;
 			return;
 		}
 		ptp->stats.ts_lost++;
@@ -715,10 +718,10 @@ static void bnxt_stamp_tx_skb(struct bnxt *bp, struct sk_buff *skb)
 				 "TS query for TX timer failed rc = %x\n", rc);
 	}
 
-	dev_kfree_skb_any(ptp->tx_skb);
-	ptp->tx_skb = NULL;
+	dev_kfree_skb_any(txts_req->tx_skb);
+	txts_req->tx_skb = NULL;
 	atomic_inc(&ptp->tx_avail);
-	ptp->txts_pending = false;
+	txts_req->txts_pending = false;
 }
 
 static long bnxt_ptp_ts_aux_work(struct ptp_clock_info *ptp_info)
@@ -728,8 +731,8 @@ static long bnxt_ptp_ts_aux_work(struct ptp_clock_info *ptp_info)
 	unsigned long now = jiffies;
 	struct bnxt *bp = ptp->bp;
 
-	if (ptp->tx_skb)
-		bnxt_stamp_tx_skb(bp, ptp->tx_skb);
+	if (ptp->txts_req.tx_skb)
+		bnxt_stamp_tx_skb(bp, ptp->txts_req.tx_skb);
 
 	if (!time_after_eq(now, ptp->next_period))
 		return ptp->next_period - now;
@@ -742,7 +745,7 @@ static long bnxt_ptp_ts_aux_work(struct ptp_clock_info *ptp_info)
 		spin_unlock_bh(&ptp->ptp_lock);
 		ptp->next_overflow_check = now + BNXT_PHC_OVERFLOW_PERIOD;
 	}
-	if (ptp->txts_pending)
+	if (ptp->txts_req.txts_pending)
 		return 0;
 	return HZ;
 }
@@ -751,11 +754,11 @@ int bnxt_get_tx_ts_p5(struct bnxt *bp, struct sk_buff *skb)
 {
 	struct bnxt_ptp_cfg *ptp = bp->ptp_cfg;
 
-	if (ptp->tx_skb) {
+	if (ptp->txts_req.tx_skb) {
 		netdev_err(bp->dev, "deferring skb:one SKB is still outstanding\n");
 		return -EBUSY;
 	}
-	ptp->tx_skb = skb;
+	ptp->txts_req.tx_skb = skb;
 	ptp_schedule_worker(ptp->ptp_clock, 0);
 	return 0;
 }
@@ -1056,9 +1059,9 @@ void bnxt_ptp_clear(struct bnxt *bp)
 	kfree(ptp->ptp_info.pin_config);
 	ptp->ptp_info.pin_config = NULL;
 
-	if (ptp->tx_skb) {
-		dev_kfree_skb_any(ptp->tx_skb);
-		ptp->tx_skb = NULL;
+	if (ptp->txts_req.tx_skb) {
+		dev_kfree_skb_any(ptp->txts_req.tx_skb);
+		ptp->txts_req.tx_skb = NULL;
 	}
 
 	bnxt_unmap_ptp_regs(bp);

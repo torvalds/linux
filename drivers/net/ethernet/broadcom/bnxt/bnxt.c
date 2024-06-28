@@ -517,14 +517,18 @@ static netdev_tx_t bnxt_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			tx_buf->is_ts_pkt = 1;
 			skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
 		} else if (!skb_is_gso(skb)) {
+			u16 seq_id, hdr_off;
+
 			if (atomic_dec_if_positive(&ptp->tx_avail) < 0) {
 				atomic64_inc(&ptp->stats.ts_err);
 				goto tx_no_ts;
 			}
-			if (!bnxt_ptp_parse(skb, &ptp->tx_seqid,
-					    &ptp->tx_hdr_off)) {
+
+			if (!bnxt_ptp_parse(skb, &seq_id, &hdr_off)) {
 				if (vlan_tag_flags)
-					ptp->tx_hdr_off += VLAN_HLEN;
+					hdr_off += VLAN_HLEN;
+				ptp->txts_req.tx_seqid = seq_id;
+				ptp->txts_req.tx_hdr_off = hdr_off;
 				lflags |= cpu_to_le32(TX_BD_FLAGS_STAMP);
 				tx_buf->is_ts_pkt = 1;
 				skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
