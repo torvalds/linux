@@ -3842,7 +3842,7 @@ static int rx_macro_probe(struct platform_device *pdev)
 				rx_2_5_defaults, sizeof(rx_2_5_defaults));
 		break;
 	default:
-		dev_err(rx->dev, "Unsupported Codec version (%d)\n", rx->codec_version);
+		dev_err(dev, "Unsupported Codec version (%d)\n", rx->codec_version);
 		ret = -EINVAL;
 		goto err;
 	}
