@@ -292,7 +292,7 @@ static void virthab_recv_rxq_task(struct virtqueue *vq)
 	if (!vpc)
 		return;
 
-	tasklet_schedule(&vpc->task);
+	tasklet_hi_schedule(&vpc->task);
 }
 
 static void init_pool_list(void *pool, int buf_size, int buf_num,
