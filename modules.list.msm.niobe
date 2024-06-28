@@ -91,5 +91,6 @@ mem_buf_msgq.ko
 debug_symbol.ko
 minidump.ko
 hwkm.ko
+crm.ko
 crypto-qti.ko
 ufshcd-crypto-qti.ko
