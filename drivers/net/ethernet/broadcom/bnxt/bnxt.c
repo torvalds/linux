@@ -456,6 +456,7 @@ static netdev_tx_t bnxt_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	dma_addr_t mapping;
 	unsigned int length, pad = 0;
 	u32 len, free_size, vlan_tag_flags, cfa_action, flags;
+	struct bnxt_ptp_cfg *ptp = bp->ptp_cfg;
 	u16 prod, last_frag;
 	struct pci_dev *pdev = bp->pdev;
 	struct bnxt_tx_ring_info *txr;
@@ -509,10 +510,13 @@ static netdev_tx_t bnxt_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			vlan_tag_flags |= 1 << TX_BD_CFA_META_TPID_SHIFT;
 	}
 
-	if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP)) {
-		struct bnxt_ptp_cfg *ptp = bp->ptp_cfg;
-
-		if (ptp && ptp->tx_tstamp_en && !skb_is_gso(skb)) {
+	if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) && ptp &&
+	    ptp->tx_tstamp_en) {
+		if (bp->fw_cap & BNXT_FW_CAP_TX_TS_CMP) {
+			lflags |= cpu_to_le32(TX_BD_FLAGS_STAMP);
+			tx_buf->is_ts_pkt = 1;
+			skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
+		} else if (!skb_is_gso(skb)) {
 			if (atomic_dec_if_positive(&ptp->tx_avail) < 0) {
 				atomic64_inc(&ptp->stats.ts_err);
 				goto tx_no_ts;
@@ -780,6 +784,7 @@ static bool __bnxt_tx_int(struct bnxt *bp, struct bnxt_tx_ring_info *txr,
 	unsigned int tx_bytes = 0;
 	u16 cons = txr->tx_cons;
 	int tx_pkts = 0;
+	bool rc = false;
 
 	while (RING_TX(bp, cons) != hw_cons) {
 		struct bnxt_sw_tx_bd *tx_buf;
@@ -788,24 +793,29 @@ static bool __bnxt_tx_int(struct bnxt *bp, struct bnxt_tx_ring_info *txr,
 		int j, last;
 
 		tx_buf = &txr->tx_buf_ring[RING_TX(bp, cons)];
-		cons = NEXT_TX(cons);
 		skb = tx_buf->skb;
-		tx_buf->skb = NULL;
 
 		if (unlikely(!skb)) {
 			bnxt_sched_reset_txr(bp, txr, cons);
-			return false;
+			return rc;
 		}
 
+		is_ts_pkt = tx_buf->is_ts_pkt;
+		if (is_ts_pkt && (bp->fw_cap & BNXT_FW_CAP_TX_TS_CMP)) {
+			rc = true;
+			break;
+		}
+
+		cons = NEXT_TX(cons);
 		tx_pkts++;
 		tx_bytes += skb->len;
+		tx_buf->skb = NULL;
+		tx_buf->is_ts_pkt = 0;
 
 		if (tx_buf->is_push) {
 			tx_buf->is_push = 0;
 			goto next_tx_int;
 		}
-		is_ts_pkt = tx_buf->is_ts_pkt;
-		tx_buf->is_ts_pkt = 0;
 
 		dma_unmap_single(&pdev->dev, dma_unmap_addr(tx_buf, mapping),
 				 skb_headlen(skb), DMA_TO_DEVICE);
@@ -844,7 +854,7 @@ next_tx_int:
 				   bnxt_tx_avail(bp, txr), bp->tx_wake_thresh,
 				   READ_ONCE(txr->dev_state) == BNXT_DEV_STATE_CLOSING);
 
-	return false;
+	return rc;
 }
 
 static void bnxt_tx_int(struct bnxt *bp, struct bnxt_napi *bnapi, int budget)
@@ -2924,6 +2934,8 @@ static int __bnxt_poll_work(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 					cpr->has_more_work = 1;
 				break;
 			}
+		} else if (cmp_type == CMP_TYPE_TX_L2_PKT_TS_CMP) {
+			bnxt_tx_ts_cmp(bp, bnapi, (struct tx_ts_cmp *)txcmp);
 		} else if (cmp_type >= CMP_TYPE_RX_L2_CMP &&
 			   cmp_type <= CMP_TYPE_RX_L2_TPA_START_V3_CMP) {
 			if (likely(budget))
@@ -6802,6 +6814,7 @@ static int hwrm_ring_alloc_send_msg(struct bnxt *bp,
 	switch (ring_type) {
 	case HWRM_RING_ALLOC_TX: {
 		struct bnxt_tx_ring_info *txr;
+		u16 flags = 0;
 
 		txr = container_of(ring, struct bnxt_tx_ring_info,
 				   tx_ring_struct);
@@ -6815,6 +6828,9 @@ static int hwrm_ring_alloc_send_msg(struct bnxt *bp,
 		if (bp->flags & BNXT_FLAG_TX_COAL_CMPL)
 			req->cmpl_coal_cnt =
 				RING_ALLOC_REQ_CMPL_COAL_CNT_COAL_64;
+		if ((bp->fw_cap & BNXT_FW_CAP_TX_TS_CMP) && bp->ptp_cfg)
+			flags |= RING_ALLOC_REQ_FLAGS_TX_PKT_TS_CMPL_ENABLE;
+		req->flags = cpu_to_le16(flags);
 		break;
 	}
 	case HWRM_RING_ALLOC_RX:
@@ -9109,6 +9125,8 @@ static int __bnxt_hwrm_func_qcaps(struct bnxt *bp)
 		bp->fw_cap |= BNXT_FW_CAP_RX_ALL_PKT_TS;
 	if (flags_ext2 & FUNC_QCAPS_RESP_FLAGS_EXT2_UDP_GSO_SUPPORTED)
 		bp->flags |= BNXT_FLAG_UDP_GSO_CAP;
+	if (flags_ext2 & FUNC_QCAPS_RESP_FLAGS_EXT2_TX_PKT_TS_CMPL_SUPPORTED)
+		bp->fw_cap |= BNXT_FW_CAP_TX_TS_CMP;
 
 	bp->tx_push_thresh = 0;
 	if ((flags & FUNC_QCAPS_RESP_FLAGS_PUSH_MODE_SUPPORTED) &&
@@ -12150,7 +12168,7 @@ static int __bnxt_open_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 	/* VF-reps may need to be re-opened after the PF is re-opened */
 	if (BNXT_PF(bp))
 		bnxt_vf_reps_open(bp);
-	if (bp->ptp_cfg)
+	if (bp->ptp_cfg && !(bp->fw_cap & BNXT_FW_CAP_TX_TS_CMP))
 		atomic_set(&bp->ptp_cfg->tx_avail, BNXT_MAX_TX_TS);
 	bnxt_ptp_init_rtc(bp, true);
 	bnxt_ptp_cfg_tstamp_filters(bp);

@@ -768,6 +768,38 @@ int bnxt_get_rx_ts_p5(struct bnxt *bp, u64 *ts, u32 pkt_ts)
 	return 0;
 }
 
+void bnxt_tx_ts_cmp(struct bnxt *bp, struct bnxt_napi *bnapi,
+		    struct tx_ts_cmp *tscmp)
+{
+	struct skb_shared_hwtstamps timestamp = {};
+	struct bnxt_ptp_cfg *ptp = bp->ptp_cfg;
+	u32 opaque = tscmp->tx_ts_cmp_opaque;
+	struct bnxt_tx_ring_info *txr;
+	struct bnxt_sw_tx_bd *tx_buf;
+	u64 ts, ns;
+	u16 cons;
+
+	txr = bnapi->tx_ring[TX_OPAQUE_RING(opaque)];
+	ts = BNXT_GET_TX_TS_48B_NS(tscmp);
+	cons = TX_OPAQUE_IDX(opaque);
+	tx_buf = &txr->tx_buf_ring[RING_TX(bp, cons)];
+	if (tx_buf->is_ts_pkt) {
+		if (BNXT_TX_TS_ERR(tscmp)) {
+			netdev_err(bp->dev,
+				   "timestamp completion error 0x%x 0x%x\n",
+				   le32_to_cpu(tscmp->tx_ts_cmp_flags_type),
+				   le32_to_cpu(tscmp->tx_ts_cmp_errors_v));
+		} else {
+			spin_lock_bh(&ptp->ptp_lock);
+			ns = timecounter_cyc2time(&ptp->tc, ts);
+			spin_unlock_bh(&ptp->ptp_lock);
+			timestamp.hwtstamp = ns_to_ktime(ns);
+			skb_tstamp_tx(tx_buf->skb, &timestamp);
+		}
+		tx_buf->is_ts_pkt = 0;
+	}
+}
+
 static const struct ptp_clock_info bnxt_ptp_caps = {
 	.owner		= THIS_MODULE,
 	.name		= "bnxt clock",
