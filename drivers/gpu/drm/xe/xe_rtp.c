@@ -121,7 +121,7 @@ static bool rule_matches(const struct xe_device *xe,
 			 * Advance rules until we find XE_RTP_MATCH_OR to check
 			 * if there's another set of conditions to check
 			 */
-			while (i < n_rules && rules[++i].match_type != XE_RTP_MATCH_OR)
+			while (++i < n_rules && rules[i].match_type != XE_RTP_MATCH_OR)
 				;
 
 			if (i >= n_rules)
