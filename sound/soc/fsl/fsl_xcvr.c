@@ -529,16 +529,6 @@ static int fsl_xcvr_prepare(struct snd_pcm_substream *substream,
 		break;
 	}
 
-	ret = regmap_update_bits(xcvr->regmap, FSL_XCVR_EXT_IER0,
-				 FSL_XCVR_IRQ_EARC_ALL, FSL_XCVR_IRQ_EARC_ALL);
-	if (ret < 0) {
-		dev_err(dai->dev, "Error while setting IER0: %d\n", ret);
-		return ret;
-	}
-
-	/* set DPATH RESET */
-	m_ctl |= FSL_XCVR_EXT_CTRL_DPTH_RESET(tx);
-	v_ctl |= FSL_XCVR_EXT_CTRL_DPTH_RESET(tx);
 	ret = regmap_update_bits(xcvr->regmap, FSL_XCVR_EXT_CTRL, m_ctl, v_ctl);
 	if (ret < 0) {
 		dev_err(dai->dev, "Error while setting EXT_CTRL: %d\n", ret);
@@ -679,6 +669,15 @@ static int fsl_xcvr_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		/* set DPATH RESET */
+		ret = regmap_update_bits(xcvr->regmap, FSL_XCVR_EXT_CTRL,
+					 FSL_XCVR_EXT_CTRL_DPTH_RESET(tx),
+					 FSL_XCVR_EXT_CTRL_DPTH_RESET(tx));
+		if (ret < 0) {
+			dev_err(dai->dev, "Failed to set DPATH RESET: %d\n", ret);
+			return ret;
+		}
+
 		if (tx) {
 			switch (xcvr->mode) {
 			case FSL_XCVR_MODE_EARC:
@@ -711,6 +710,13 @@ static int fsl_xcvr_trigger(struct snd_pcm_substream *substream, int cmd,
 			return ret;
 		}
 
+		ret = regmap_update_bits(xcvr->regmap, FSL_XCVR_EXT_IER0,
+					 FSL_XCVR_IRQ_EARC_ALL, FSL_XCVR_IRQ_EARC_ALL);
+		if (ret < 0) {
+			dev_err(dai->dev, "Error while setting IER0: %d\n", ret);
+			return ret;
+		}
+
 		/* clear DPATH RESET */
 		ret = regmap_update_bits(xcvr->regmap, FSL_XCVR_EXT_CTRL,
 					 FSL_XCVR_EXT_CTRL_DPTH_RESET(tx),
@@ -730,6 +736,13 @@ static int fsl_xcvr_trigger(struct snd_pcm_substream *substream, int cmd,
 					 FSL_XCVR_EXT_CTRL_DMA_DIS(tx));
 		if (ret < 0) {
 			dev_err(dai->dev, "Failed to disable DMA: %d\n", ret);
+			return ret;
+		}
+
+		ret = regmap_update_bits(xcvr->regmap, FSL_XCVR_EXT_IER0,
+					 FSL_XCVR_IRQ_EARC_ALL, 0);
+		if (ret < 0) {
+			dev_err(dai->dev, "Failed to clear IER0: %d\n", ret);
 			return ret;
 		}
 
@@ -1410,16 +1423,6 @@ static int fsl_xcvr_runtime_suspend(struct device *dev)
 {
 	struct fsl_xcvr *xcvr = dev_get_drvdata(dev);
 	int ret;
-
-	/*
-	 * Clear interrupts, when streams starts or resumes after
-	 * suspend, interrupts are enabled in prepare(), so no need
-	 * to enable interrupts in resume().
-	 */
-	ret = regmap_update_bits(xcvr->regmap, FSL_XCVR_EXT_IER0,
-				 FSL_XCVR_IRQ_EARC_ALL, 0);
-	if (ret < 0)
-		dev_err(dev, "Failed to clear IER0: %d\n", ret);
 
 	if (!xcvr->soc_data->spdif_only) {
 		/* Assert M0+ reset */
