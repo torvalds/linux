@@ -14,6 +14,7 @@
 
 #include <drm/display/drm_dp_helper.h>
 #include <drm/display/drm_dsc_helper.h>
+#include <drm/drm_fixed.h>
 #include <drm/drm_print.h>
 
 /**
@@ -1472,3 +1473,93 @@ u32 drm_dsc_flatness_det_thresh(const struct drm_dsc_config *dsc)
 	return 2 << (dsc->bits_per_component - 8);
 }
 EXPORT_SYMBOL(drm_dsc_flatness_det_thresh);
+
+static void drm_dsc_dump_config_main_params(struct drm_printer *p, int indent,
+					    const struct drm_dsc_config *cfg)
+{
+	drm_printf_indent(p, indent,
+			  "dsc-cfg: version: %d.%d, picture: w=%d, h=%d, slice: count=%d, w=%d, h=%d, size=%d\n",
+			  cfg->dsc_version_major, cfg->dsc_version_minor,
+			  cfg->pic_width, cfg->pic_height,
+			  cfg->slice_count, cfg->slice_width, cfg->slice_height, cfg->slice_chunk_size);
+	drm_printf_indent(p, indent,
+			  "dsc-cfg: mode: block-pred=%s, vbr=%s, rgb=%s, simple-422=%s, native-422=%s, native-420=%s\n",
+			  str_yes_no(cfg->block_pred_enable), str_yes_no(cfg->vbr_enable),
+			  str_yes_no(cfg->convert_rgb),
+			  str_yes_no(cfg->simple_422), str_yes_no(cfg->native_422), str_yes_no(cfg->native_420));
+	drm_printf_indent(p, indent,
+			  "dsc-cfg: color-depth: uncompressed-bpc=%d, compressed-bpp=" FXP_Q4_FMT " line-buf-bpp=%d\n",
+			  cfg->bits_per_component, FXP_Q4_ARGS(cfg->bits_per_pixel), cfg->line_buf_depth);
+	drm_printf_indent(p, indent,
+			  "dsc-cfg: rc-model: size=%d, bits=%d, mux-word-size: %d, initial-delays: xmit=%d, dec=%d\n",
+			  cfg->rc_model_size, cfg->rc_bits, cfg->mux_word_size,
+			  cfg->initial_xmit_delay, cfg->initial_dec_delay);
+	drm_printf_indent(p, indent,
+			  "dsc-cfg: offsets: initial=%d, final=%d, slice-bpg=%d\n",
+			  cfg->initial_offset, cfg->final_offset, cfg->slice_bpg_offset);
+	drm_printf_indent(p, indent,
+			  "dsc-cfg: line-bpg-offsets: first=%d, non-first=%d, second=%d, non-second=%d, second-adj=%d\n",
+			  cfg->first_line_bpg_offset, cfg->nfl_bpg_offset,
+			  cfg->second_line_bpg_offset, cfg->nsl_bpg_offset, cfg->second_line_offset_adj);
+	drm_printf_indent(p, indent,
+			  "dsc-cfg: rc-tgt-offsets: low=%d, high=%d, rc-edge-factor: %d, rc-quant-incr-limits: [0]=%d, [1]=%d\n",
+			  cfg->rc_tgt_offset_low, cfg->rc_tgt_offset_high,
+			  cfg->rc_edge_factor, cfg->rc_quant_incr_limit0, cfg->rc_quant_incr_limit1);
+	drm_printf_indent(p, indent,
+			  "dsc-cfg: initial-scale: %d, scale-intervals: increment=%d, decrement=%d\n",
+			  cfg->initial_scale_value, cfg->scale_increment_interval, cfg->scale_decrement_interval);
+	drm_printf_indent(p, indent,
+			  "dsc-cfg: flatness: min-qp=%d, max-qp=%d\n",
+			  cfg->flatness_min_qp, cfg->flatness_max_qp);
+}
+
+static void drm_dsc_dump_config_rc_params(struct drm_printer *p, int indent,
+					  const struct drm_dsc_config *cfg)
+{
+	const u16 *bt = cfg->rc_buf_thresh;
+	const struct drm_dsc_rc_range_parameters *rp = cfg->rc_range_params;
+
+	BUILD_BUG_ON(ARRAY_SIZE(cfg->rc_buf_thresh) != 14);
+	BUILD_BUG_ON(ARRAY_SIZE(cfg->rc_range_params) != 15);
+
+	drm_printf_indent(p, indent,
+			  "dsc-cfg: rc-level:         0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14\n");
+	drm_printf_indent(p, indent,
+			  "dsc-cfg: rc-buf-thresh:  %3d,%3d,%3d,%3d,%3d,%3d,%3d,%3d,%3d,%3d,%3d,%3d,%3d,%3d\n",
+			  bt[0], bt[1], bt[2],  bt[3],  bt[4],  bt[5], bt[6], bt[7],
+			  bt[8], bt[9], bt[10], bt[11], bt[12], bt[13]);
+	drm_printf_indent(p, indent,
+			  "dsc-cfg: rc-min-qp:      %3d,%3d,%3d,%3d,%3d,%3d,%3d,%3d,%3d,%3d,%3d,%3d,%3d,%3d,%3d\n",
+			  rp[0].range_min_qp,  rp[1].range_min_qp,  rp[2].range_min_qp,  rp[3].range_min_qp,
+			  rp[4].range_min_qp,  rp[5].range_min_qp,  rp[6].range_min_qp,  rp[7].range_min_qp,
+			  rp[8].range_min_qp,  rp[9].range_min_qp,  rp[10].range_min_qp, rp[11].range_min_qp,
+			  rp[12].range_min_qp, rp[13].range_min_qp, rp[14].range_min_qp);
+	drm_printf_indent(p, indent,
+			  "dsc-cfg: rc-max-qp:      %3d,%3d,%3d,%3d,%3d,%3d,%3d,%3d,%3d,%3d,%3d,%3d,%3d,%3d,%3d\n",
+			  rp[0].range_max_qp,  rp[1].range_max_qp,  rp[2].range_max_qp,  rp[3].range_max_qp,
+			  rp[4].range_max_qp,  rp[5].range_max_qp,  rp[6].range_max_qp,  rp[7].range_max_qp,
+			  rp[8].range_max_qp,  rp[9].range_max_qp,  rp[10].range_max_qp, rp[11].range_max_qp,
+			  rp[12].range_max_qp, rp[13].range_max_qp, rp[14].range_max_qp);
+	drm_printf_indent(p, indent,
+			  "dsc-cfg: rc-bpg-offset:  %3d,%3d,%3d,%3d,%3d,%3d,%3d,%3d,%3d,%3d,%3d,%3d,%3d,%3d,%3d\n",
+			  rp[0].range_bpg_offset,  rp[1].range_bpg_offset,  rp[2].range_bpg_offset,  rp[3].range_bpg_offset,
+			  rp[4].range_bpg_offset,  rp[5].range_bpg_offset,  rp[6].range_bpg_offset,  rp[7].range_bpg_offset,
+			  rp[8].range_bpg_offset,  rp[9].range_bpg_offset,  rp[10].range_bpg_offset, rp[11].range_bpg_offset,
+			  rp[12].range_bpg_offset, rp[13].range_bpg_offset, rp[14].range_bpg_offset);
+}
+
+/**
+ * drm_dsc_dump_config - Dump the provided DSC configuration
+ * @p: The printer used for output
+ * @indent: Tab indentation level (max 5)
+ * @cfg: DSC configuration to print
+ *
+ * Print the provided DSC configuration in @cfg.
+ */
+void drm_dsc_dump_config(struct drm_printer *p, int indent,
+			 const struct drm_dsc_config *cfg)
+{
+	drm_dsc_dump_config_main_params(p, indent, cfg);
+	drm_dsc_dump_config_rc_params(p, indent, cfg);
+}
+EXPORT_SYMBOL(drm_dsc_dump_config);
