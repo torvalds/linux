@@ -467,35 +467,64 @@ static inline void spitz_keys_init(void) {}
  * LEDs
  ******************************************************************************/
 #if defined(CONFIG_LEDS_GPIO) || defined(CONFIG_LEDS_GPIO_MODULE)
-static struct gpio_led spitz_gpio_leds[] = {
-	{
-		.name			= "spitz:amber:charge",
-		.default_trigger	= "sharpsl-charge",
-		.gpio			= SPITZ_GPIO_LED_ORANGE,
-	},
-	{
-		.name			= "spitz:green:hddactivity",
-		.default_trigger	= "disk-activity",
-		.gpio			= SPITZ_GPIO_LED_GREEN,
-	},
+static const struct software_node spitz_gpio_leds_node = {
+	.name = "spitz-leds",
 };
 
-static struct gpio_led_platform_data spitz_gpio_leds_info = {
-	.leds		= spitz_gpio_leds,
-	.num_leds	= ARRAY_SIZE(spitz_gpio_leds),
+static const struct property_entry spitz_orange_led_props[] = {
+	PROPERTY_ENTRY_STRING("linux,default-trigger", "sharpsl-charge"),
+	PROPERTY_ENTRY_GPIO("gpios",
+			    &spitz_scoop_1_gpiochip_node, 6, GPIO_ACTIVE_HIGH),
+	{ }
 };
 
-static struct platform_device spitz_led_device = {
-	.name		= "leds-gpio",
-	.id		= -1,
-	.dev		= {
-		.platform_data	= &spitz_gpio_leds_info,
-	},
+static const struct software_node spitz_orange_led_node = {
+	.name = "spitz:amber:charge",
+	.parent = &spitz_gpio_leds_node,
+	.properties = spitz_orange_led_props,
+};
+
+static const struct property_entry spitz_green_led_props[] = {
+	PROPERTY_ENTRY_STRING("linux,default-trigger", "disk-activity"),
+	PROPERTY_ENTRY_GPIO("gpios",
+			    &spitz_scoop_1_gpiochip_node, 0, GPIO_ACTIVE_HIGH),
+	{ }
+};
+
+static const struct software_node spitz_green_led_node = {
+	.name = "spitz:green:hddactivity",
+	.parent = &spitz_gpio_leds_node,
+	.properties = spitz_green_led_props,
+};
+
+static const struct software_node *spitz_gpio_leds_swnodes[] = {
+	&spitz_gpio_leds_node,
+	&spitz_orange_led_node,
+	&spitz_green_led_node,
+	NULL
 };
 
 static void __init spitz_leds_init(void)
 {
-	platform_device_register(&spitz_led_device);
+	struct platform_device_info led_info = {
+		.name	= "leds-gpio",
+		.id	= PLATFORM_DEVID_NONE,
+	};
+	struct platform_device *led_dev;
+	int err;
+
+	err = software_node_register_node_group(spitz_gpio_leds_swnodes);
+	if (err) {
+		pr_err("failed to register LED software nodes: %d\n", err);
+		return;
+	}
+
+	led_info.fwnode = software_node_fwnode(&spitz_gpio_leds_node);
+
+	led_dev = platform_device_register_full(&led_info);
+	err = PTR_ERR_OR_ZERO(led_dev);
+	if (err)
+		pr_err("failed to create LED device: %d\n", err);
 }
 #else
 static inline void spitz_leds_init(void) {}
