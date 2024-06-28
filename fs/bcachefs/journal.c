@@ -1095,7 +1095,7 @@ unlock:
 	return ret;
 }
 
-int bch2_dev_journal_alloc(struct bch_dev *ca)
+int bch2_dev_journal_alloc(struct bch_dev *ca, bool new_fs)
 {
 	unsigned nr;
 	int ret;
@@ -1117,7 +1117,7 @@ int bch2_dev_journal_alloc(struct bch_dev *ca)
 		     min(1 << 13,
 			 (1 << 24) / ca->mi.bucket_size));
 
-	ret = __bch2_set_nr_journal_buckets(ca, nr, true, NULL);
+	ret = __bch2_set_nr_journal_buckets(ca, nr, new_fs, NULL);
 err:
 	bch_err_fn(ca, ret);
 	return ret;
@@ -1129,7 +1129,7 @@ int bch2_fs_journal_alloc(struct bch_fs *c)
 		if (ca->journal.nr)
 			continue;
 
-		int ret = bch2_dev_journal_alloc(ca);
+		int ret = bch2_dev_journal_alloc(ca, true);
 		if (ret) {
 			percpu_ref_put(&ca->io_ref);
 			return ret;

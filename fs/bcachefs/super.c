@@ -1772,7 +1772,7 @@ int bch2_dev_add(struct bch_fs *c, const char *path)
 	if (ret)
 		goto err;
 
-	ret = bch2_dev_journal_alloc(ca);
+	ret = bch2_dev_journal_alloc(ca, true);
 	bch_err_msg(c, ret, "allocating journal");
 	if (ret)
 		goto err;
@@ -1932,7 +1932,7 @@ int bch2_dev_online(struct bch_fs *c, const char *path)
 	}
 
 	if (!ca->journal.nr) {
-		ret = bch2_dev_journal_alloc(ca);
+		ret = bch2_dev_journal_alloc(ca, false);
 		bch_err_msg(ca, ret, "allocating journal");
 		if (ret)
 			goto err;
