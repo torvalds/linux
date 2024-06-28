@@ -136,6 +136,17 @@ struct snd_sof_platform_stream_params {
 	bool cont_update_posn;
 };
 
+/**
+ * struct sof_firmware - Container struct for SOF firmware
+ * @fw:			Pointer to the firmware
+ * @payload_offset:	Offset of the data within the loaded firmware image to be
+ *			loaded to the DSP (skipping for example ext_manifest section)
+ */
+struct sof_firmware {
+	const struct firmware *fw;
+	u32 payload_offset;
+};
+
 /*
  * SOF DSP HW abstraction operations.
  * Used to abstract DSP HW architecture and any IO busses between host CPU
@@ -486,6 +497,9 @@ struct snd_sof_dev {
 	struct device *dev;
 	spinlock_t ipc_lock;	/* lock for IPC users */
 	spinlock_t hw_lock;	/* lock for HW IO access */
+
+	/* Main, Base firmware image */
+	struct sof_firmware basefw;
 
 	/*
 	 * ASoC components. plat_drv fields are set dynamically so

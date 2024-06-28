@@ -22,11 +22,14 @@
  * Return:	status code
  */
 efi_status_t efi_allocate_pages_aligned(unsigned long size, unsigned long *addr,
-					unsigned long max, unsigned long align)
+					unsigned long max, unsigned long align,
+					int memory_type)
 {
 	efi_physical_addr_t alloc_addr;
 	efi_status_t status;
 	int slack;
+
+	max = min(max, EFI_ALLOC_LIMIT);
 
 	if (align < EFI_ALLOC_ALIGN)
 		align = EFI_ALLOC_ALIGN;
@@ -36,7 +39,7 @@ efi_status_t efi_allocate_pages_aligned(unsigned long size, unsigned long *addr,
 	slack = align / EFI_PAGE_SIZE - 1;
 
 	status = efi_bs_call(allocate_pages, EFI_ALLOCATE_MAX_ADDRESS,
-			     EFI_LOADER_DATA, size / EFI_PAGE_SIZE + slack,
+			     memory_type, size / EFI_PAGE_SIZE + slack,
 			     &alloc_addr);
 	if (status != EFI_SUCCESS)
 		return status;
