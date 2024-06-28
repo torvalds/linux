@@ -754,7 +754,7 @@ static void ak4619_hw_constraints(struct ak4619_priv *ak4619,
 		default:
 			break;
 		}
-	};
+	}
 
 	constraint->list	= ak4619_sr;
 	constraint->mask	= ak4619_rate_mask;
