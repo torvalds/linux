@@ -3245,6 +3245,29 @@ static int otx2_sriov_configure(struct pci_dev *pdev, int numvfs)
 		return otx2_sriov_enable(pdev, numvfs);
 }
 
+static void otx2_ndc_sync(struct otx2_nic *pf)
+{
+	struct mbox *mbox = &pf->mbox;
+	struct ndc_sync_op *req;
+
+	mutex_lock(&mbox->lock);
+
+	req = otx2_mbox_alloc_msg_ndc_sync_op(mbox);
+	if (!req) {
+		mutex_unlock(&mbox->lock);
+		return;
+	}
+
+	req->nix_lf_tx_sync = 1;
+	req->nix_lf_rx_sync = 1;
+	req->npa_lf_sync = 1;
+
+	if (!otx2_sync_mbox_msg(mbox))
+		dev_err(pf->dev, "NDC sync operation failed\n");
+
+	mutex_unlock(&mbox->lock);
+}
+
 static void otx2_remove(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
@@ -3293,6 +3316,7 @@ static void otx2_remove(struct pci_dev *pdev)
 	otx2_mcam_flow_del(pf);
 	otx2_shutdown_tc(pf);
 	otx2_shutdown_qos(pf);
+	otx2_ndc_sync(pf);
 	otx2_detach_resources(&pf->mbox);
 	if (pf->hw.lmt_info)
 		free_percpu(pf->hw.lmt_info);
