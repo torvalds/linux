@@ -214,19 +214,6 @@ static long bch2_ioctl_fsck_offline(struct bch_ioctl_fsck_offline __user *user_a
 
 	if (arg.opts) {
 		char *optstr = strndup_user((char __user *)(unsigned long) arg.opts, 1 << 16);
-		char *ro, *rest;
-
-		/*
-		 * If passed a "read_only" mount option, remove it because it is
-		 * no longer a valid mount option, and the filesystem will be
-		 * set "read_only" regardless.
-		 */
-		ro = strstr(optstr, "read_only");
-		if (ro) {
-			rest = ro + strlen("read_only");
-			memmove(ro, rest, strlen(rest) + 1);
-		}
-
 		ret =   PTR_ERR_OR_ZERO(optstr) ?:
 			bch2_parse_mount_opts(NULL, &thr->opts, NULL, optstr);
 		if (!IS_ERR(optstr))

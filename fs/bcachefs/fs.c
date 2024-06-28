@@ -1800,7 +1800,8 @@ static int bch2_show_options(struct seq_file *seq, struct dentry *root)
 		const struct bch_option *opt = &bch2_opt_table[i];
 		u64 v = bch2_opt_get_by_id(&c->opts, i);
 
-		if (!(opt->flags & OPT_MOUNT))
+		if ((opt->flags & OPT_HIDDEN) ||
+		    !(opt->flags & OPT_MOUNT))
 			continue;
 
 		if (v == bch2_opt_get_by_id(&bch2_opts_default, i))

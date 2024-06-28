@@ -63,6 +63,7 @@ enum opt_flags {
 	OPT_MUST_BE_POW_2 = (1 << 7),	/* Must be power of 2 */
 	OPT_SB_FIELD_SECTORS = (1 << 8),/* Superblock field is >> 9 of actual value */
 	OPT_SB_FIELD_ILOG2 = (1 << 9),	/* Superblock field is ilog2 of actual value */
+	OPT_HIDDEN	= (1 << 10),
 };
 
 enum opt_type {
@@ -406,7 +407,7 @@ enum fsck_err_opts {
 	  BCH2_NO_SB_OPT,		BCH_SB_SECTOR,			\
 	  "offset",	"Sector offset of superblock")			\
 	x(read_only,			u8,				\
-	  OPT_FS,							\
+	  OPT_FS|OPT_MOUNT|OPT_HIDDEN,					\
 	  OPT_BOOL(),							\
 	  BCH2_NO_SB_OPT,		false,				\
 	  NULL,		NULL)						\
