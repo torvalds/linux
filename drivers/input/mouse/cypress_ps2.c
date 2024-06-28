@@ -612,6 +612,7 @@ static psmouse_ret_t cypress_protocol_handler(struct psmouse *psmouse)
 static void cypress_set_rate(struct psmouse *psmouse, unsigned int rate)
 {
 	struct cytp_data *cytp = psmouse->private;
+	u8 rate_param;
 
 	if (rate >= 80) {
 		psmouse->rate = 80;
@@ -621,8 +622,8 @@ static void cypress_set_rate(struct psmouse *psmouse, unsigned int rate)
 		cytp->mode &= ~CYTP_BIT_HIGH_RATE;
 	}
 
-	ps2_command(&psmouse->ps2dev, (unsigned char *)&psmouse->rate,
-		    PSMOUSE_CMD_SETRATE);
+	rate_param = (u8)rate;
+	ps2_command(&psmouse->ps2dev, &rate_param, PSMOUSE_CMD_SETRATE);
 }
 
 static void cypress_disconnect(struct psmouse *psmouse)
