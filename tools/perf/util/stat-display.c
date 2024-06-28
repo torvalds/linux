@@ -1186,10 +1186,21 @@ static void print_metric_headers_std(struct perf_stat_config *config,
 static void print_metric_headers_csv(struct perf_stat_config *config,
 				     bool no_indent __maybe_unused)
 {
+	const char *p;
+
 	if (config->interval)
-		fputs("time,", config->output);
-	if (!config->iostat_run)
-		fputs(aggr_header_csv[config->aggr_mode], config->output);
+		fprintf(config->output, "time%s", config->csv_sep);
+	if (config->iostat_run)
+		return;
+
+	p = aggr_header_csv[config->aggr_mode];
+	while (*p) {
+		if (*p == ',')
+			fputs(config->csv_sep, config->output);
+		else
+			fputc(*p, config->output);
+		p++;
+	}
 }
 
 static void print_metric_headers_json(struct perf_stat_config *config __maybe_unused,
