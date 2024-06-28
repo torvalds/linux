@@ -48,7 +48,7 @@ struct platform_device pxa_device_pmu = {
 	.num_resources	= 1,
 };
 
-static struct resource pxamci_resources[] = {
+static const struct resource pxamci_resources[] = {
 	[0] = {
 		.start	= 0x41100000,
 		.end	= 0x41100fff,
@@ -61,22 +61,26 @@ static struct resource pxamci_resources[] = {
 	},
 };
 
-static u64 pxamci_dmamask = 0xffffffffUL;
-
-struct platform_device pxa_device_mci = {
-	.name		= "pxa2xx-mci",
-	.id		= 0,
-	.dev		= {
-		.dma_mask = &pxamci_dmamask,
-		.coherent_dma_mask = 0xffffffff,
-	},
-	.num_resources	= ARRAY_SIZE(pxamci_resources),
-	.resource	= pxamci_resources,
-};
-
-void __init pxa_set_mci_info(struct pxamci_platform_data *info)
+void __init pxa_set_mci_info(const struct pxamci_platform_data *info,
+			     const struct property_entry *props)
 {
-	pxa_register_device(&pxa_device_mci, info);
+	const struct platform_device_info mci_info = {
+		.name		= "pxa2xx-mci",
+		.id		= 0,
+		.res		= pxamci_resources,
+		.num_res	= ARRAY_SIZE(pxamci_resources),
+		.data		= info,
+		.size_data	= sizeof(*info),
+		.dma_mask	= 0xffffffffUL,
+		.properties	= props,
+	};
+	struct platform_device *mci_dev;
+	int err;
+
+	mci_dev = platform_device_register_full(&mci_info);
+	err = PTR_ERR_OR_ZERO(mci_dev);
+	if (err)
+		pr_err("Unable to create mci device: %d\n", err);
 }
 
 static struct pxa2xx_udc_mach_info pxa_udc_info = {

@@ -90,7 +90,7 @@ static struct pxamci_platform_data gumstix_mci_platform_data = {
 
 static void __init gumstix_mmc_init(void)
 {
-	pxa_set_mci_info(&gumstix_mci_platform_data);
+	pxa_set_mci_info(&gumstix_mci_platform_data, NULL);
 }
 #else
 static void __init gumstix_mmc_init(void)

@@ -651,21 +651,17 @@ static struct pxamci_platform_data spitz_mci_platform_data = {
 	.setpower		= spitz_mci_setpower,
 };
 
-static struct gpiod_lookup_table spitz_mci_gpio_table = {
-	.dev_id = "pxa2xx-mci.0",
-	.table = {
-		GPIO_LOOKUP("gpio-pxa", SPITZ_GPIO_nSD_DETECT,
-			    "cd", GPIO_ACTIVE_LOW),
-		GPIO_LOOKUP("gpio-pxa", SPITZ_GPIO_nSD_WP,
-			    "wp", GPIO_ACTIVE_LOW),
-		{ },
-	},
+static const struct property_entry spitz_mci_props[] __initconst = {
+	PROPERTY_ENTRY_GPIO("cd-gpios", &pxa2xx_gpiochip_node,
+			    SPITZ_GPIO_nSD_DETECT, GPIO_ACTIVE_LOW),
+	PROPERTY_ENTRY_GPIO("wp-gpios", &pxa2xx_gpiochip_node,
+			    SPITZ_GPIO_nSD_WP, GPIO_ACTIVE_LOW),
+	{ }
 };
 
 static void __init spitz_mmc_init(void)
 {
-	gpiod_add_lookup_table(&spitz_mci_gpio_table);
-	pxa_set_mci_info(&spitz_mci_platform_data);
+	pxa_set_mci_info(&spitz_mci_platform_data, spitz_mci_props);
 }
 #else
 static inline void spitz_mmc_init(void) {}
