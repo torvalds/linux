@@ -103,6 +103,17 @@ void memcg1_check_events(struct mem_cgroup *memcg, int nid);
 void memcg1_stat_format(struct mem_cgroup *memcg, struct seq_buf *s);
 
 void memcg1_account_kmem(struct mem_cgroup *memcg, int nr_pages);
+static inline bool memcg1_tcpmem_active(struct mem_cgroup *memcg)
+{
+	return memcg->tcpmem_active;
+}
+bool memcg1_charge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages,
+			 gfp_t gfp_mask);
+static inline void memcg1_uncharge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages)
+{
+	page_counter_uncharge(&memcg->tcpmem, nr_pages);
+}
+
 extern struct cftype memsw_files[];
 extern struct cftype mem_cgroup_legacy_files[];
 
@@ -122,6 +133,11 @@ static inline void memcg1_check_events(struct mem_cgroup *memcg, int nid) {}
 static inline void memcg1_stat_format(struct mem_cgroup *memcg, struct seq_buf *s) {}
 
 static inline void memcg1_account_kmem(struct mem_cgroup *memcg, int nr_pages) {}
+static inline bool memcg1_tcpmem_active(struct mem_cgroup *memcg) { return false; }
+static inline bool memcg1_charge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages,
+				       gfp_t gfp_mask) { return true; }
+static inline void memcg1_uncharge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages) {}
+
 extern struct cftype memsw_files[];
 extern struct cftype mem_cgroup_legacy_files[];
 #endif	/* CONFIG_MEMCG_V1 */

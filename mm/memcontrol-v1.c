@@ -2925,6 +2925,23 @@ void memcg1_account_kmem(struct mem_cgroup *memcg, int nr_pages)
 }
 #endif /* CONFIG_MEMCG_KMEM */
 
+bool memcg1_charge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages,
+			 gfp_t gfp_mask)
+{
+	struct page_counter *fail;
+
+	if (page_counter_try_charge(&memcg->tcpmem, nr_pages, &fail)) {
+		memcg->tcpmem_pressure = 0;
+		return true;
+	}
+	memcg->tcpmem_pressure = 1;
+	if (gfp_mask & __GFP_NOFAIL) {
+		page_counter_charge(&memcg->tcpmem, nr_pages);
+		return true;
+	}
+	return false;
+}
+
 static int __init memcg1_init(void)
 {
 	int node;
