@@ -28,7 +28,7 @@
 #include <trace/hooks/ufshcd.h>
 #include <linux/ipc_logging.h>
 #include <soc/qcom/minidump.h>
-#ifdef CONFIG_SCHED_WALT
+#if IS_ENABLED(CONFIG_SCHED_WALT)
 #include <linux/sched/walt.h>
 #endif
 #include <linux/nvmem-consumer.h>
@@ -1667,7 +1667,7 @@ static void ufs_qcom_toggle_pri_affinity(struct ufs_hba *hba, bool on)
 	if (on && atomic_read(&host->therm_mitigation))
 		return;
 
-#ifdef CONFIG_SCHED_WALT
+#if IS_ENABLED(CONFIG_SCHED_WALT)
 	if (on)
 		sched_set_boost(STORAGE_BOOST);
 	else
