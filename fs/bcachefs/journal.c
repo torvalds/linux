@@ -1184,9 +1184,11 @@ void bch2_fs_journal_stop(struct journal *j)
 	journal_quiesce(j);
 	cancel_delayed_work_sync(&j->write_work);
 
-	BUG_ON(!bch2_journal_error(j) &&
-	       test_bit(JOURNAL_replay_done, &j->flags) &&
-	       j->last_empty_seq != journal_cur_seq(j));
+	WARN(!bch2_journal_error(j) &&
+	     test_bit(JOURNAL_replay_done, &j->flags) &&
+	     j->last_empty_seq != journal_cur_seq(j),
+	     "journal shutdown error: cur seq %llu but last empty seq %llu",
+	     journal_cur_seq(j), j->last_empty_seq);
 
 	if (!bch2_journal_error(j))
 		clear_bit(JOURNAL_running, &j->flags);
