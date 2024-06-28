@@ -6,9 +6,8 @@
  */
 
 &cbass_wakeup {
-	wkup_conf: syscon@43000000 {
-		compatible = "ti,j721e-system-controller", "syscon", "simple-mfd";
-		reg = <0x00 0x43000000 0x00 0x20000>;
+	wkup_conf: bus@43000000 {
+		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0x00 0x00 0x43000000 0x20000>;
@@ -16,6 +15,11 @@
 		chipid: chipid@14 {
 			compatible = "ti,am654-chipid";
 			reg = <0x14 0x4>;
+		};
+
+		cpsw_mac_syscon: ethernet-mac-syscon@200 {
+			compatible = "ti,am62p-cpsw-mac-efuse", "syscon";
+			reg = <0x200 0x8>;
 		};
 
 		usb0_phy_ctrl: syscon@4008 {
