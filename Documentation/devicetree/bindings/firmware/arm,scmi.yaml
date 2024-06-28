@@ -145,6 +145,14 @@ properties:
     required:
       - '#power-domain-cells'
 
+  protocol@12:
+    $ref: '#/$defs/protocol-node'
+    unevaluatedProperties: false
+
+    properties:
+      reg:
+        const: 0x12
+
   protocol@13:
     $ref: '#/$defs/protocol-node'
     unevaluatedProperties: false
