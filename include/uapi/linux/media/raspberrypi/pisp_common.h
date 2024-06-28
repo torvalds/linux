@@ -92,51 +92,51 @@ enum pisp_image_format {
 				     PISP_IMAGE_FORMAT_THREE_CHANNEL
 };
 
-#define PISP_IMAGE_FORMAT_bps_8(fmt)                                           \
+#define PISP_IMAGE_FORMAT_BPS_8(fmt)                                           \
 	(((fmt) & PISP_IMAGE_FORMAT_BPS_MASK) == PISP_IMAGE_FORMAT_BPS_8)
-#define PISP_IMAGE_FORMAT_bps_10(fmt)                                          \
+#define PISP_IMAGE_FORMAT_BPS_10(fmt)                                          \
 	(((fmt) & PISP_IMAGE_FORMAT_BPS_MASK) == PISP_IMAGE_FORMAT_BPS_10)
-#define PISP_IMAGE_FORMAT_bps_12(fmt)                                          \
+#define PISP_IMAGE_FORMAT_BPS_12(fmt)                                          \
 	(((fmt) & PISP_IMAGE_FORMAT_BPS_MASK) == PISP_IMAGE_FORMAT_BPS_12)
-#define PISP_IMAGE_FORMAT_bps_16(fmt)                                          \
+#define PISP_IMAGE_FORMAT_BPS_16(fmt)                                          \
 	(((fmt) & PISP_IMAGE_FORMAT_BPS_MASK) == PISP_IMAGE_FORMAT_BPS_16)
-#define PISP_IMAGE_FORMAT_bps(fmt)                                             \
+#define PISP_IMAGE_FORMAT_BPS(fmt)                                             \
 	(((fmt) & PISP_IMAGE_FORMAT_BPS_MASK) ?                                \
 	       8 + (2 << (((fmt) & PISP_IMAGE_FORMAT_BPS_MASK) - 1)) : 8)
-#define PISP_IMAGE_FORMAT_shift(fmt)                                           \
+#define PISP_IMAGE_FORMAT_SHIFT(fmt)                                           \
 	(((fmt) & PISP_IMAGE_FORMAT_SHIFT_MASK) / PISP_IMAGE_FORMAT_SHIFT_1)
-#define PISP_IMAGE_FORMAT_three_channel(fmt)                                   \
+#define PISP_IMAGE_FORMAT_THREE_CHANNEL(fmt)                                   \
 	((fmt) & PISP_IMAGE_FORMAT_THREE_CHANNEL)
-#define PISP_IMAGE_FORMAT_single_channel(fmt)                                  \
+#define PISP_IMAGE_FORMAT_SINGLE_CHANNEL(fmt)                                  \
 	(!((fmt) & PISP_IMAGE_FORMAT_THREE_CHANNEL))
-#define PISP_IMAGE_FORMAT_compressed(fmt)                                      \
+#define PISP_IMAGE_FORMAT_COMPRESSED(fmt)                                      \
 	(((fmt) & PISP_IMAGE_FORMAT_COMPRESSION_MASK) !=                       \
 	 PISP_IMAGE_FORMAT_UNCOMPRESSED)
-#define PISP_IMAGE_FORMAT_sampling_444(fmt)                                    \
+#define PISP_IMAGE_FORMAT_SAMPLING_444(fmt)                                    \
 	(((fmt) & PISP_IMAGE_FORMAT_SAMPLING_MASK) ==                          \
 	 PISP_IMAGE_FORMAT_SAMPLING_444)
-#define PISP_IMAGE_FORMAT_sampling_422(fmt)                                    \
+#define PISP_IMAGE_FORMAT_SAMPLING_422(fmt)                                    \
 	(((fmt) & PISP_IMAGE_FORMAT_SAMPLING_MASK) ==                          \
 	 PISP_IMAGE_FORMAT_SAMPLING_422)
-#define PISP_IMAGE_FORMAT_sampling_420(fmt)                                    \
+#define PISP_IMAGE_FORMAT_SAMPLING_420(fmt)                                    \
 	(((fmt) & PISP_IMAGE_FORMAT_SAMPLING_MASK) ==                          \
 	 PISP_IMAGE_FORMAT_SAMPLING_420)
-#define PISP_IMAGE_FORMAT_order_normal(fmt)                                    \
+#define PISP_IMAGE_FORMAT_ORDER_NORMAL(fmt)                                    \
 	(!((fmt) & PISP_IMAGE_FORMAT_ORDER_SWAPPED))
-#define PISP_IMAGE_FORMAT_order_swapped(fmt)                                   \
+#define PISP_IMAGE_FORMAT_ORDER_SWAPPED(fmt)                                   \
 	((fmt) & PISP_IMAGE_FORMAT_ORDER_SWAPPED)
-#define PISP_IMAGE_FORMAT_interleaved(fmt)                                     \
+#define PISP_IMAGE_FORMAT_INTERLEAVED(fmt)                                     \
 	(((fmt) & PISP_IMAGE_FORMAT_PLANARITY_MASK) ==                         \
 	 PISP_IMAGE_FORMAT_PLANARITY_INTERLEAVED)
-#define PISP_IMAGE_FORMAT_semiplanar(fmt)                                      \
+#define PISP_IMAGE_FORMAT_SEMIPLANAR(fmt)                                      \
 	(((fmt) & PISP_IMAGE_FORMAT_PLANARITY_MASK) ==                         \
 	 PISP_IMAGE_FORMAT_PLANARITY_SEMI_PLANAR)
-#define PISP_IMAGE_FORMAT_planar(fmt)                                          \
+#define PISP_IMAGE_FORMAT_PLANAR(fmt)                                          \
 	(((fmt) & PISP_IMAGE_FORMAT_PLANARITY_MASK) ==                         \
 	 PISP_IMAGE_FORMAT_PLANARITY_PLANAR)
-#define PISP_IMAGE_FORMAT_wallpaper(fmt)                                       \
+#define PISP_IMAGE_FORMAT_WALLPAPER(fmt)                                       \
 	((fmt) & PISP_IMAGE_FORMAT_WALLPAPER_ROLL)
-#define PISP_IMAGE_FORMAT_bpp_32(fmt) ((fmt) & PISP_IMAGE_FORMAT_BPP_32)
+#define PISP_IMAGE_FORMAT_BPP_32(fmt) ((fmt) & PISP_IMAGE_FORMAT_BPP_32)
 #define PISP_IMAGE_FORMAT_HOG(fmt)                                             \
 	((fmt) &                                                               \
 	 (PISP_IMAGE_FORMAT_HOG_SIGNED | PISP_IMAGE_FORMAT_HOG_UNSIGNED))
