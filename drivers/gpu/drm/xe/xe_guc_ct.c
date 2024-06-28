@@ -112,6 +112,23 @@ ct_to_xe(struct xe_guc_ct *ct)
 #define CTB_G2H_BUFFER_SIZE	(4 * CTB_H2G_BUFFER_SIZE)
 #define G2H_ROOM_BUFFER_SIZE	(CTB_G2H_BUFFER_SIZE / 4)
 
+/**
+ * xe_guc_ct_queue_proc_time_jiffies - Return maximum time to process a full
+ * CT command queue
+ * @ct: the &xe_guc_ct. Unused at this moment but will be used in the future.
+ *
+ * Observation is that a 4KiB buffer full of commands takes a little over a
+ * second to process. Use that to calculate maximum time to process a full CT
+ * command queue.
+ *
+ * Return: Maximum time to process a full CT queue in jiffies.
+ */
+long xe_guc_ct_queue_proc_time_jiffies(struct xe_guc_ct *ct)
+{
+	BUILD_BUG_ON(!IS_ALIGNED(CTB_H2G_BUFFER_SIZE, SZ_4));
+	return (CTB_H2G_BUFFER_SIZE / SZ_4K) * HZ;
+}
+
 static size_t guc_ct_size(void)
 {
 	return 2 * CTB_DESC_SIZE + CTB_H2G_BUFFER_SIZE +
