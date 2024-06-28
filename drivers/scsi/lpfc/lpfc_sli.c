@@ -12301,18 +12301,16 @@ lpfc_sli_abort_els_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				goto release_iocb;
 			}
 		}
-
-		lpfc_printf_log(phba, KERN_WARNING, LOG_ELS | LOG_SLI,
-				"0327 Cannot abort els iocb x%px "
-				"with io cmd xri %x abort tag : x%x, "
-				"abort status %x abort code %x\n",
-				cmdiocb, get_job_abtsiotag(phba, cmdiocb),
-				(phba->sli_rev == LPFC_SLI_REV4) ?
-				get_wqe_reqtag(cmdiocb) :
-				cmdiocb->iocb.un.acxri.abortContextTag,
-				ulp_status, ulp_word4);
-
 	}
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_ELS | LOG_SLI,
+			"0327 Abort els iocb complete x%px with io cmd xri %x "
+			"abort tag x%x abort status %x abort code %x\n",
+			cmdiocb, get_job_abtsiotag(phba, cmdiocb),
+			(phba->sli_rev == LPFC_SLI_REV4) ?
+			get_wqe_reqtag(cmdiocb) :
+			cmdiocb->iocb.ulpIoTag,
+			ulp_status, ulp_word4);
 release_iocb:
 	lpfc_sli_release_iocbq(phba, cmdiocb);
 	return;
@@ -12509,10 +12507,10 @@ abort_iotag_exit:
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_SLI,
 			 "0339 Abort IO XRI x%x, Original iotag x%x, "
 			 "abort tag x%x Cmdjob : x%px Abortjob : x%px "
-			 "retval x%x : IA %d\n",
+			 "retval x%x : IA %d cmd_cmpl %ps\n",
 			 ulp_context, (phba->sli_rev == LPFC_SLI_REV4) ?
 			 cmdiocb->iotag : iotag, iotag, cmdiocb, abtsiocbp,
-			 retval, ia);
+			 retval, ia, abtsiocbp->cmd_cmpl);
 	if (retval) {
 		cmdiocb->cmd_flag &= ~LPFC_DRIVER_ABORTED;
 		__lpfc_sli_release_iocbq(phba, abtsiocbp);
