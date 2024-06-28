@@ -116,7 +116,7 @@ struct bnxt_ptp_cfg {
 	struct bnxt_ptp_tx_req	txts_req[BNXT_MAX_TX_TS];
 
 	struct bnxt		*bp;
-	atomic_t		tx_avail;
+	u32			tx_avail;
 	u16			rxctl;
 #define BNXT_PTP_MSG_SYNC			(1 << 0)
 #define BNXT_PTP_MSG_DELAY_REQ			(1 << 1)
@@ -157,6 +157,13 @@ do {						\
 	((dst) = READ_ONCE(src))
 #endif
 
+#define BNXT_PTP_INC_TX_AVAIL(ptp)		\
+do {						\
+	spin_lock_bh(&(ptp)->ptp_tx_lock);	\
+	(ptp)->tx_avail++;			\
+	spin_unlock_bh(&(ptp)->ptp_tx_lock);	\
+} while (0)
+
 int bnxt_ptp_parse(struct sk_buff *skb, u16 *seq_id, u16 *hdr_off);
 void bnxt_ptp_update_current_time(struct bnxt *bp);
 void bnxt_ptp_pps_event(struct bnxt *bp, u32 data1, u32 data2);
@@ -164,6 +171,7 @@ int bnxt_ptp_cfg_tstamp_filters(struct bnxt *bp);
 void bnxt_ptp_reapply_pps(struct bnxt *bp);
 int bnxt_hwtstamp_set(struct net_device *dev, struct ifreq *ifr);
 int bnxt_hwtstamp_get(struct net_device *dev, struct ifreq *ifr);
+int bnxt_ptp_get_txts_prod(struct bnxt_ptp_cfg *ptp, u16 *prod);
 void bnxt_get_tx_ts_p5(struct bnxt *bp, struct sk_buff *skb, u16 prod);
 int bnxt_get_rx_ts_p5(struct bnxt *bp, u64 *ts, u32 pkt_ts);
 void bnxt_tx_ts_cmp(struct bnxt *bp, struct bnxt_napi *bnapi,

@@ -519,34 +519,20 @@ static netdev_tx_t bnxt_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		} else if (!skb_is_gso(skb)) {
 			u16 seq_id, hdr_off;
 
-			if (atomic_dec_if_positive(&ptp->tx_avail) < 0) {
-				atomic64_inc(&ptp->stats.ts_err);
-				goto tx_no_ts;
-			}
-
-			if (!bnxt_ptp_parse(skb, &seq_id, &hdr_off)) {
+			if (!bnxt_ptp_parse(skb, &seq_id, &hdr_off) &&
+			    !bnxt_ptp_get_txts_prod(ptp, &txts_prod)) {
 				if (vlan_tag_flags)
 					hdr_off += VLAN_HLEN;
 				lflags |= cpu_to_le32(TX_BD_FLAGS_STAMP);
 				tx_buf->is_ts_pkt = 1;
 				skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
 
-				spin_lock_bh(&ptp->ptp_tx_lock);
-				txts_prod = ptp->txts_prod;
-				ptp->txts_prod = NEXT_TXTS(txts_prod);
-				spin_unlock_bh(&ptp->ptp_tx_lock);
-
 				ptp->txts_req[txts_prod].tx_seqid = seq_id;
 				ptp->txts_req[txts_prod].tx_hdr_off = hdr_off;
 				tx_buf->txts_prod = txts_prod;
-
-			} else {
-				atomic_inc(&bp->ptp_cfg->tx_avail);
 			}
 		}
 	}
-
-tx_no_ts:
 	if (unlikely(skb->no_fcs))
 		lflags |= cpu_to_le32(TX_BD_FLAGS_NO_CRC);
 
@@ -12183,7 +12169,7 @@ static int __bnxt_open_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 	if (BNXT_PF(bp))
 		bnxt_vf_reps_open(bp);
 	if (bp->ptp_cfg && !(bp->fw_cap & BNXT_FW_CAP_TX_TS_CMP))
-		atomic_set(&bp->ptp_cfg->tx_avail, BNXT_MAX_TX_TS);
+		WRITE_ONCE(bp->ptp_cfg->tx_avail, BNXT_MAX_TX_TS);
 	bnxt_ptp_init_rtc(bp, true);
 	bnxt_ptp_cfg_tstamp_filters(bp);
 	if (BNXT_SUPPORTS_MULTI_RSS_CTX(bp))
