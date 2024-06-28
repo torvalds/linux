@@ -4983,7 +4983,7 @@ static ssize_t thpsize_shmem_enabled_store(struct kobject *kobj,
 		clear_bit(order, &huge_shmem_orders_madvise);
 		set_bit(order, &huge_shmem_orders_within_size);
 		spin_unlock(&huge_shmem_orders_lock);
-	} else if (sysfs_streq(buf, "madvise")) {
+	} else if (sysfs_streq(buf, "advise")) {
 		spin_lock(&huge_shmem_orders_lock);
 		clear_bit(order, &huge_shmem_orders_always);
 		clear_bit(order, &huge_shmem_orders_inherit);
