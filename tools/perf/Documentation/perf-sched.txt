@@ -202,6 +202,13 @@ OPTIONS for 'perf sched timehist'
 --state::
 	Show task state when it switched out.
 
+OPTIONS for 'perf sched replay'
+------------------------------
+
+-r::
+--repeat <n>::
+	repeat the workload n times (0: infinite). Default is 10.
+
 SEE ALSO
 --------
 linkperf:perf-record[1]
