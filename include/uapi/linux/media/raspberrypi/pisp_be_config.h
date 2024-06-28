@@ -919,9 +919,9 @@ struct pisp_tile {
  * @config:	PiSP Back End configuration
  */
 struct pisp_be_tiles_config {
+	struct pisp_be_config config;
 	struct pisp_tile tiles[PISP_BACK_END_NUM_TILES];
 	__u32 num_tiles;
-	struct pisp_be_config config;
 } __attribute__((packed));
 
 #endif /* _UAPI_PISP_BE_CONFIG_H_ */
