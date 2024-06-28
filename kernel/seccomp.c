@@ -502,6 +502,9 @@ static inline pid_t seccomp_can_sync_threads(void)
 		/* Skip current, since it is initiating the sync. */
 		if (thread == caller)
 			continue;
+		/* Skip exited threads. */
+		if (thread->flags & PF_EXITING)
+			continue;
 
 		if (thread->seccomp.mode == SECCOMP_MODE_DISABLED ||
 		    (thread->seccomp.mode == SECCOMP_MODE_FILTER &&
@@ -563,18 +566,21 @@ static void __seccomp_filter_release(struct seccomp_filter *orig)
  * @tsk: task the filter should be released from.
  *
  * This function should only be called when the task is exiting as
- * it detaches it from its filter tree. As such, READ_ONCE() and
- * barriers are not needed here, as would normally be needed.
+ * it detaches it from its filter tree. PF_EXITING has to be set
+ * for the task.
  */
 void seccomp_filter_release(struct task_struct *tsk)
 {
-	struct seccomp_filter *orig = tsk->seccomp.filter;
+	struct seccomp_filter *orig;
 
-	/* We are effectively holding the siglock by not having any sighand. */
-	WARN_ON(tsk->sighand != NULL);
+	if (WARN_ON((tsk->flags & PF_EXITING) == 0))
+		return;
 
+	spin_lock_irq(&tsk->sighand->siglock);
+	orig = tsk->seccomp.filter;
 	/* Detach task from its filter tree. */
 	tsk->seccomp.filter = NULL;
+	spin_unlock_irq(&tsk->sighand->siglock);
 	__seccomp_filter_release(orig);
 }
 
@@ -600,6 +606,13 @@ static inline void seccomp_sync_threads(unsigned long flags)
 	for_each_thread(caller, thread) {
 		/* Skip current, since it needs no changes. */
 		if (thread == caller)
+			continue;
+
+		/*
+		 * Skip exited threads. seccomp_filter_release could have
+		 * been already called for this task.
+		 */
+		if (thread->flags & PF_EXITING)
 			continue;
 
 		/* Get a task reference for the new leaf node. */
