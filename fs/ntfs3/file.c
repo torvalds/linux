@@ -408,6 +408,42 @@ static int ntfs_extend(struct inode *inode, loff_t pos, size_t count,
 		err = 0;
 	}
 
+	if (file && is_sparsed(ni)) {
+		/*
+		 * This code optimizes large writes to sparse file.
+		 * TODO: merge this fragment with fallocate fragment.
+		 */
+		struct ntfs_sb_info *sbi = ni->mi.sbi;
+		CLST vcn = pos >> sbi->cluster_bits;
+		CLST cend = bytes_to_cluster(sbi, end);
+		CLST cend_v = bytes_to_cluster(sbi, ni->i_valid);
+		CLST lcn, clen;
+		bool new;
+
+		if (cend_v > cend)
+			cend_v = cend;
+
+		/*
+		 * Allocate and zero new clusters.
+		 * Zeroing these clusters may be too long.
+		 */
+		for (; vcn < cend_v; vcn += clen) {
+			err = attr_data_get_block(ni, vcn, cend_v - vcn, &lcn,
+						  &clen, &new, true);
+			if (err)
+				goto out;
+		}
+		/*
+		 * Allocate but not zero new clusters.
+		 */
+		for (; vcn < cend; vcn += clen) {
+			err = attr_data_get_block(ni, vcn, cend - vcn, &lcn,
+						  &clen, &new, false);
+			if (err)
+				goto out;
+		}
+	}
+
 	inode_set_mtime_to_ts(inode, inode_set_ctime_current(inode));
 	mark_inode_dirty(inode);
 
