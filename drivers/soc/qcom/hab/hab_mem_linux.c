@@ -989,10 +989,33 @@ int habmem_imp_hyp_map(void *imp_ctx, struct hab_import *param,
 
 int habmm_imp_hyp_unmap(void *imp_ctx, struct export_desc *exp, int kernel)
 {
+	int ret = 0;
+	struct dma_buf *buf;
+
 	/* dma_buf is the only supported format in khab */
-	if (kernel)
-		dma_buf_put((struct dma_buf *)exp->kva);
-	return 0;
+	if (kernel) {
+		buf = (struct dma_buf *)exp->kva;
+		/*
+		 * mmap/sharing fd would increase the file refcnt.
+		 * A file with its refcnt value higher than 1 indicates that there
+		 * is still memory usage alive out there.
+		 * In current design, HAB unimport invoker should ensure the memory
+		 * is not used anymore. Thus, HAB driver is the last one to decrease
+		 * refcnt from 1 to 0 which will trigger dma-buf free, then notify
+		 * the remote OS that the buf is not needed by the local OS.
+		 */
+		if (file_count(buf->file) > 1) {
+			ret = -EBUSY;
+			pr_err("the buf (exp id %d) still in use on %x, refcnt %d\n",
+				exp->export_id, exp->vchan->id, file_count(buf->file));
+		} else {
+			dma_buf_put((struct dma_buf *)exp->kva);
+			pr_debug("dmabuf put for exp id %d on %x\n",
+			    exp->export_id, exp->vchan->id);
+		}
+	}
+
+	return ret;
 }
 
 int habmem_imp_hyp_mmap(struct file *filp, struct vm_area_struct *vma)
