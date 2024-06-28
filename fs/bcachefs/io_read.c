@@ -389,7 +389,6 @@ retry:
 
 	bch2_bkey_buf_reassemble(&sk, c, k);
 	k = bkey_i_to_s_c(sk.k);
-	bch2_trans_unlock(trans);
 
 	if (!bch2_bkey_matches_ptr(c, k,
 				   rbio->pick.ptr,
