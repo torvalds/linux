@@ -281,7 +281,7 @@
 	firmware {
 		scmi {
 			compatible = "arm,scmi";
-			mboxes = <&mu2 5 0>, <&mu2 3 0>, <&mu2 3 1>;
+			mboxes = <&mu2 5 0>, <&mu2 3 0>, <&mu2 3 1>, <&mu2 5 1>;
 			shmem = <&scmi_buf0>, <&scmi_buf1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
