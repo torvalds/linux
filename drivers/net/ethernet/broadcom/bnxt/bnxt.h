@@ -878,7 +878,10 @@ struct bnxt_sw_tx_bd {
 	u8			is_push;
 	u8			action;
 	unsigned short		nr_frags;
-	u16			rx_prod;
+	union {
+		u16			rx_prod;
+		u16			txts_prod;
+	};
 };
 
 struct bnxt_sw_rx_bd {

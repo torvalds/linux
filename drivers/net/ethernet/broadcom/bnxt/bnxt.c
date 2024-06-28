@@ -457,8 +457,8 @@ static netdev_tx_t bnxt_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	unsigned int length, pad = 0;
 	u32 len, free_size, vlan_tag_flags, cfa_action, flags;
 	struct bnxt_ptp_cfg *ptp = bp->ptp_cfg;
-	u16 prod, last_frag;
 	struct pci_dev *pdev = bp->pdev;
+	u16 prod, last_frag, txts_prod;
 	struct bnxt_tx_ring_info *txr;
 	struct bnxt_sw_tx_bd *tx_buf;
 	__le32 lflags = 0;
@@ -527,11 +527,19 @@ static netdev_tx_t bnxt_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			if (!bnxt_ptp_parse(skb, &seq_id, &hdr_off)) {
 				if (vlan_tag_flags)
 					hdr_off += VLAN_HLEN;
-				ptp->txts_req.tx_seqid = seq_id;
-				ptp->txts_req.tx_hdr_off = hdr_off;
 				lflags |= cpu_to_le32(TX_BD_FLAGS_STAMP);
 				tx_buf->is_ts_pkt = 1;
 				skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
+
+				spin_lock_bh(&ptp->ptp_tx_lock);
+				txts_prod = ptp->txts_prod;
+				ptp->txts_prod = NEXT_TXTS(txts_prod);
+				spin_unlock_bh(&ptp->ptp_tx_lock);
+
+				ptp->txts_req[txts_prod].tx_seqid = seq_id;
+				ptp->txts_req[txts_prod].tx_hdr_off = hdr_off;
+				tx_buf->txts_prod = txts_prod;
+
 			} else {
 				atomic_inc(&bp->ptp_cfg->tx_avail);
 			}
@@ -769,7 +777,9 @@ tx_kick_pending:
 	if (BNXT_TX_PTP_IS_SET(lflags)) {
 		txr->tx_buf_ring[txr->tx_prod].is_ts_pkt = 0;
 		atomic64_inc(&bp->ptp_cfg->stats.ts_err);
-		atomic_inc(&bp->ptp_cfg->tx_avail);
+		if (!(bp->fw_cap & BNXT_FW_CAP_TX_TS_CMP))
+			/* set SKB to err so PTP worker will clean up */
+			ptp->txts_req[txts_prod].tx_skb = ERR_PTR(-EIO);
 	}
 	if (txr->kick_pending)
 		bnxt_txr_db_kick(bp, txr, txr->tx_prod);
@@ -837,7 +847,7 @@ static bool __bnxt_tx_int(struct bnxt *bp, struct bnxt_tx_ring_info *txr,
 		if (unlikely(is_ts_pkt)) {
 			if (BNXT_CHIP_P5(bp)) {
 				/* PTP worker takes ownership of the skb */
-				bnxt_get_tx_ts_p5(bp, skb);
+				bnxt_get_tx_ts_p5(bp, skb, tx_buf->txts_prod);
 				skb = NULL;
 			}
 		}
