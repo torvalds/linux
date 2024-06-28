@@ -146,7 +146,7 @@ struct pisp_be_dpc_config {
  */
 struct pisp_be_geq_config {
 	__u16 offset;
-#define PISP_BE_GEQ_SHARPER BIT(15)
+#define PISP_BE_GEQ_SHARPER (1U << 15)
 #define PISP_BE_GEQ_SLOPE ((1 << 10) - 1)
 	/* top bit is the "sharper" flag, slope value is bottom 10 bits */
 	__u16 slope_sharper;
