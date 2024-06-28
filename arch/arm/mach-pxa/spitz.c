@@ -130,6 +130,20 @@ static unsigned long spitz_pin_config[] __initdata = {
 	GPIO1_GPIO | WAKEUP_ON_EDGE_FALL,	/* SPITZ_GPIO_RESET */
 };
 
+static const struct software_node spitz_scoop_1_gpiochip_node = {
+	.name = "sharp-scoop.0",
+};
+
+/* Only on Spitz */
+static const struct software_node spitz_scoop_2_gpiochip_node = {
+	.name = "sharp-scoop.1",
+};
+
+/* Only on Akita */
+static const struct software_node akita_max7310_gpiochip_node = {
+	.name = "i2c-max7310",
+};
+
 /******************************************************************************
  * Scoop GPIO expander
  ******************************************************************************/
@@ -950,24 +964,24 @@ static void __init spitz_i2c_init(void)
 static inline void spitz_i2c_init(void) {}
 #endif
 
-static struct gpiod_lookup_table spitz_audio_gpio_table = {
-	.dev_id = "spitz-audio",
-	.table = {
-		GPIO_LOOKUP("sharp-scoop.0", 3, "mute-l", GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP("sharp-scoop.0", 4, "mute-r", GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP("sharp-scoop.1", 8, "mic", GPIO_ACTIVE_HIGH),
-		{ },
-	},
+static const struct property_entry spitz_audio_props[] = {
+	PROPERTY_ENTRY_GPIO("mute-l-gpios", &spitz_scoop_1_gpiochip_node, 3,
+			    GPIO_ACTIVE_HIGH),
+	PROPERTY_ENTRY_GPIO("mute-r-gpios", &spitz_scoop_1_gpiochip_node, 4,
+			    GPIO_ACTIVE_HIGH),
+	PROPERTY_ENTRY_GPIO("mic-gpios", &spitz_scoop_2_gpiochip_node, 8,
+			    GPIO_ACTIVE_HIGH),
+	{ }
 };
 
-static struct gpiod_lookup_table akita_audio_gpio_table = {
-	.dev_id = "spitz-audio",
-	.table = {
-		GPIO_LOOKUP("sharp-scoop.0", 3, "mute-l", GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP("sharp-scoop.0", 4, "mute-r", GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP("i2c-max7310", 2, "mic", GPIO_ACTIVE_HIGH),
-		{ },
-	},
+static const struct property_entry akita_audio_props[] = {
+	PROPERTY_ENTRY_GPIO("mute-l-gpios", &spitz_scoop_1_gpiochip_node, 3,
+			    GPIO_ACTIVE_HIGH),
+	PROPERTY_ENTRY_GPIO("mute-r-gpios", &spitz_scoop_1_gpiochip_node, 4,
+			    GPIO_ACTIVE_HIGH),
+	PROPERTY_ENTRY_GPIO("mic-gpios", &akita_max7310_gpiochip_node, 2,
+			    GPIO_ACTIVE_HIGH),
+	{ }
 };
 
 /******************************************************************************
@@ -975,12 +989,14 @@ static struct gpiod_lookup_table akita_audio_gpio_table = {
  ******************************************************************************/
 static inline void spitz_audio_init(void)
 {
-	if (machine_is_akita())
-		gpiod_add_lookup_table(&akita_audio_gpio_table);
-	else
-		gpiod_add_lookup_table(&spitz_audio_gpio_table);
+	struct platform_device_info audio_info = {
+		.name = "spitz-audio",
+		.id = PLATFORM_DEVID_NONE,
+		.properties = machine_is_akita() ?
+				akita_audio_props : spitz_audio_props,
+	};
 
-	platform_device_register_simple("spitz-audio", -1, NULL, 0);
+	platform_device_register_full(&audio_info);
 }
 
 /******************************************************************************
@@ -1003,6 +1019,12 @@ static void spitz_restart(enum reboot_mode mode, const char *cmd)
 
 static void __init spitz_init(void)
 {
+	software_node_register(&spitz_scoop_1_gpiochip_node);
+	if (machine_is_akita())
+		software_node_register(&akita_max7310_gpiochip_node);
+	else
+		software_node_register(&spitz_scoop_2_gpiochip_node);
+
 	init_gpio_reset(SPITZ_GPIO_ON_RESET, 1, 0);
 	pm_power_off = spitz_poweroff;
 
