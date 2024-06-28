@@ -2076,8 +2076,15 @@ static void amdgpu_ras_interrupt_poison_consumption_handler(struct ras_manager *
 	struct amdgpu_ras_block_object *block_obj =
 		amdgpu_ras_get_ras_block(adev, obj->head.block, 0);
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+	enum ras_event_type type = RAS_EVENT_TYPE_POISON_CONSUMPTION;
+	u64 event_id;
+	int ret;
 
 	if (!block_obj || !con)
+		return;
+
+	ret = amdgpu_ras_mark_ras_event(adev, type);
+	if (ret)
 		return;
 
 	/* both query_poison_status and handle_poison_consumption are optional,
@@ -2104,8 +2111,10 @@ static void amdgpu_ras_interrupt_poison_consumption_handler(struct ras_manager *
 	 * For RMA case, amdgpu_umc_poison_handler will handle gpu reset.
 	 */
 	if (poison_stat && !con->is_rma) {
-		dev_info(adev->dev, "GPU reset for %s RAS poison consumption is issued!\n",
-				block_obj->ras_comm.name);
+		event_id = amdgpu_ras_acquire_event_id(adev, type);
+		RAS_EVENT_LOG(adev, event_id,
+			      "GPU reset for %s RAS poison consumption is issued!\n",
+			      block_obj->ras_comm.name);
 		amdgpu_ras_reset_gpu(adev);
 	}
 
@@ -2498,7 +2507,7 @@ static enum ras_event_type amdgpu_ras_get_fatal_error_event(struct amdgpu_device
 	if (amdgpu_ras_intr_triggered())
 		return RAS_EVENT_TYPE_FATAL;
 	else
-		return RAS_EVENT_TYPE_INVALID;
+		return RAS_EVENT_TYPE_POISON_CONSUMPTION;
 }
 
 static void amdgpu_ras_do_recovery(struct work_struct *work)
@@ -3986,6 +3995,7 @@ u64 amdgpu_ras_acquire_event_id(struct amdgpu_device *adev, enum ras_event_type 
 	switch (type) {
 	case RAS_EVENT_TYPE_FATAL:
 	case RAS_EVENT_TYPE_POISON_CREATION:
+	case RAS_EVENT_TYPE_POISON_CONSUMPTION:
 		event_mgr = __get_ras_event_mgr(adev);
 		if (!event_mgr)
 			return RAS_EVENT_INVALID_ID;
