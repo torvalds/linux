@@ -376,6 +376,10 @@
 	status = "okay";
 };
 
+&tsadc {
+	status = "okay";
+};
+
 &u2phy2 {
 	status = "okay";
 };
