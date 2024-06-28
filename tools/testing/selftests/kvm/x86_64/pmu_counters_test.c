@@ -13,15 +13,18 @@
 /* Each iteration of the loop retires one branch instruction. */
 #define NUM_BRANCH_INSNS_RETIRED	(NUM_LOOPS)
 
-/* Number of instructions in each loop. */
-#define NUM_INSNS_PER_LOOP		1
+/*
+ * Number of instructions in each loop. 1 CLFLUSH/CLFLUSHOPT/NOP, 1 MFENCE,
+ * 1 LOOP.
+ */
+#define NUM_INSNS_PER_LOOP		3
 
 /*
  * Number of "extra" instructions that will be counted, i.e. the number of
  * instructions that are needed to set up the loop and then disable the
- * counter.  1 CLFLUSH/CLFLUSHOPT/NOP, 1 MFENCE, 2 MOV, 2 XOR, 1 WRMSR.
+ * counter.  2 MOV, 2 XOR, 1 WRMSR.
  */
-#define NUM_EXTRA_INSNS			7
+#define NUM_EXTRA_INSNS			5
 
 /* Total number of instructions retired within the measured section. */
 #define NUM_INSNS_RETIRED		(NUM_LOOPS * NUM_INSNS_PER_LOOP + NUM_EXTRA_INSNS)
@@ -144,8 +147,8 @@ sanity_checks:
  * before the end of the sequence.
  *
  * If CLFUSH{,OPT} is supported, flush the cacheline containing (at least) the
- * start of the loop to force LLC references and misses, i.e. to allow testing
- * that those events actually count.
+ * CLFUSH{,OPT} instruction on each loop iteration to force LLC references and
+ * misses, i.e. to allow testing that those events actually count.
  *
  * If forced emulation is enabled (and specified), force emulation on a subset
  * of the measured code to verify that KVM correctly emulates instructions and
@@ -155,10 +158,11 @@ sanity_checks:
 #define GUEST_MEASURE_EVENT(_msr, _value, clflush, FEP)				\
 do {										\
 	__asm__ __volatile__("wrmsr\n\t"					\
+			     " mov $" __stringify(NUM_LOOPS) ", %%ecx\n\t"	\
+			     "1:\n\t"						\
 			     clflush "\n\t"					\
 			     "mfence\n\t"					\
-			     "1: mov $" __stringify(NUM_LOOPS) ", %%ecx\n\t"	\
-			     FEP "loop .\n\t"					\
+			     FEP "loop 1b\n\t"					\
 			     FEP "mov %%edi, %%ecx\n\t"				\
 			     FEP "xor %%eax, %%eax\n\t"				\
 			     FEP "xor %%edx, %%edx\n\t"				\
@@ -173,9 +177,9 @@ do {										\
 	wrmsr(pmc_msr, 0);							\
 										\
 	if (this_cpu_has(X86_FEATURE_CLFLUSHOPT))				\
-		GUEST_MEASURE_EVENT(_ctrl_msr, _value, "clflushopt 1f", FEP);	\
+		GUEST_MEASURE_EVENT(_ctrl_msr, _value, "clflushopt .", FEP);	\
 	else if (this_cpu_has(X86_FEATURE_CLFLUSH))				\
-		GUEST_MEASURE_EVENT(_ctrl_msr, _value, "clflush 1f", FEP);	\
+		GUEST_MEASURE_EVENT(_ctrl_msr, _value, "clflush .", FEP);	\
 	else									\
 		GUEST_MEASURE_EVENT(_ctrl_msr, _value, "nop", FEP);		\
 										\
