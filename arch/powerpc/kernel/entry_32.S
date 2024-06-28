@@ -211,7 +211,7 @@ start_kernel_thread:
 
 	.globl	fast_exception_return
 fast_exception_return:
-#if !(defined(CONFIG_4xx) || defined(CONFIG_BOOKE))
+#ifndef CONFIG_BOOKE
 	andi.	r10,r9,MSR_RI		/* check for recoverable interrupt */
 	beq	3f			/* if not, we've got problems */
 #endif
@@ -365,7 +365,7 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_STCX_CHECKS_ADDRESS)
 	rfi
 _ASM_NOKPROBE_SYMBOL(interrupt_return)
 
-#if defined(CONFIG_4xx) || defined(CONFIG_BOOKE)
+#ifdef CONFIG_BOOKE
 
 /*
  * Returning from a critical interrupt in user mode doesn't need
@@ -444,7 +444,6 @@ _ASM_NOKPROBE_SYMBOL(interrupt_return)
 #define RESTORE_MMU_REGS
 #endif
 
-#ifdef CONFIG_BOOKE
 	.globl	ret_from_crit_exc
 ret_from_crit_exc:
 	RESTORE_xSRR(SRR0,SRR1);
@@ -469,4 +468,3 @@ ret_from_mcheck_exc:
 	RET_FROM_EXC_LEVEL(SPRN_MCSRR0, SPRN_MCSRR1, PPC_RFMCI)
 _ASM_NOKPROBE_SYMBOL(ret_from_mcheck_exc)
 #endif /* CONFIG_BOOKE */
-#endif /* !(CONFIG_4xx || CONFIG_BOOKE) */

@@ -490,7 +490,7 @@ source "kernel/Kconfig.hz"
 
 config MATH_EMULATION
 	bool "Math emulation"
-	depends on 4xx || PPC_8xx || PPC_MPC832x || BOOKE || PPC_MICROWATT
+	depends on 44x || PPC_8xx || PPC_MPC832x || BOOKE || PPC_MICROWATT
 	select PPC_FPU_REGS
 	help
 	  Some PowerPC chips designed for embedded applications do not have
@@ -1107,9 +1107,6 @@ config PPC4xx_CPM
 	  PPC4xx Clock Power Management (CPM) support (suspend/resume).
 	  It also enables support for two different idle states (idle-wait
 	  and idle-doze).
-
-config 4xx_SOC
-	bool
 
 config FSL_LBC
 	bool "Freescale Local Bus support"
