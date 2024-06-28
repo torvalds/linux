@@ -115,9 +115,12 @@ static int cypress_ps2_read_cmd_status(struct psmouse *psmouse,
 	if (rc < 0)
 		goto out;
 
-	wait_event_timeout(ps2dev->wait,
-			(psmouse->pktcnt >= pktsize),
-			msecs_to_jiffies(CYTP_CMD_TIMEOUT));
+	if (!wait_event_timeout(ps2dev->wait,
+				psmouse->pktcnt >= pktsize,
+				msecs_to_jiffies(CYTP_CMD_TIMEOUT))) {
+		rc = -ETIMEDOUT;
+		goto out;
+	}
 
 	memcpy(param, psmouse->packet, pktsize);
 
