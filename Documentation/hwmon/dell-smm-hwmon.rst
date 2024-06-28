@@ -360,6 +360,8 @@ Firmware Bug                                            Affected Machines
 ======================================================= =================
 Reading of fan states return spurious errors.           Precision 490
 
+                                                        OptiPlex 7060
+
 Reading of fan types causes erratic fan behaviour.      Studio XPS 8000
 
                                                         Studio XPS 8100
