@@ -1015,8 +1015,10 @@ int skb_cow_data_for_xdp(struct page_pool *pool, struct sk_buff **pskb,
 EXPORT_SYMBOL(skb_cow_data_for_xdp);
 
 #if IS_ENABLED(CONFIG_PAGE_POOL)
-bool napi_pp_put_page(struct page *page)
+bool napi_pp_put_page(netmem_ref netmem)
 {
+	struct page *page = netmem_to_page(netmem);
+
 	page = compound_head(page);
 
 	/* page->pp_magic is OR'ed with PP_SIGNATURE after the allocation
@@ -1029,7 +1031,7 @@ bool napi_pp_put_page(struct page *page)
 	if (unlikely(!is_pp_page(page)))
 		return false;
 
-	page_pool_put_full_page(page->pp, page, false);
+	page_pool_put_full_netmem(page->pp, page_to_netmem(page), false);
 
 	return true;
 }
@@ -1040,7 +1042,7 @@ static bool skb_pp_recycle(struct sk_buff *skb, void *data)
 {
 	if (!IS_ENABLED(CONFIG_PAGE_POOL) || !skb->pp_recycle)
 		return false;
-	return napi_pp_put_page(virt_to_page(data));
+	return napi_pp_put_page(page_to_netmem(virt_to_page(data)));
 }
 
 /**
