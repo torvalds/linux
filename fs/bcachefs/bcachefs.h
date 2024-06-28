@@ -493,6 +493,11 @@ struct io_count {
 	u64			sectors[2][BCH_DATA_NR];
 };
 
+struct discard_in_flight {
+	bool			in_progress:1;
+	u64			bucket:63;
+};
+
 struct bch_dev {
 	struct kobject		kobj;
 #ifdef CONFIG_BCACHEFS_DEBUG
@@ -553,6 +558,12 @@ struct bch_dev {
 	size_t			inc_gen_needs_gc;
 	size_t			inc_gen_really_needs_gc;
 	size_t			buckets_waiting_on_journal;
+
+	struct work_struct	invalidate_work;
+	struct work_struct	discard_work;
+	struct mutex		discard_buckets_in_flight_lock;
+	DARRAY(struct discard_in_flight)	discard_buckets_in_flight;
+	struct work_struct	discard_fast_work;
 
 	atomic64_t		rebalance_work;
 
@@ -915,11 +926,6 @@ struct bch_fs {
 	unsigned		write_points_nr;
 
 	struct buckets_waiting_for_journal buckets_waiting_for_journal;
-	struct work_struct	invalidate_work;
-	struct work_struct	discard_work;
-	struct mutex		discard_buckets_in_flight_lock;
-	DARRAY(struct bpos)	discard_buckets_in_flight;
-	struct work_struct	discard_fast_work;
 
 	/* GARBAGE COLLECTION */
 	struct work_struct	gc_gens_work;
