@@ -532,22 +532,24 @@ static struct gpiod_lookup_table spitz_ads7846_gpio_table = {
 	},
 };
 
-static struct gpiod_lookup_table spitz_lcdcon_gpio_table = {
-	.dev_id = "spi2.1",
-	.table = {
-		GPIO_LOOKUP("sharp-scoop.1", 6, "BL_CONT", GPIO_ACTIVE_LOW),
-		GPIO_LOOKUP("sharp-scoop.1", 7, "BL_ON", GPIO_ACTIVE_HIGH),
-		{ },
-	},
+static const struct property_entry spitz_lcdcon_props[] = {
+	PROPERTY_ENTRY_GPIO("BL_CONT-gpios",
+			    &spitz_scoop_2_gpiochip_node, 6, GPIO_ACTIVE_LOW),
+	PROPERTY_ENTRY_GPIO("BL_ON-gpios",
+			    &spitz_scoop_2_gpiochip_node, 7, GPIO_ACTIVE_HIGH),
+	{ }
 };
 
-static struct gpiod_lookup_table akita_lcdcon_gpio_table = {
-	.dev_id = "spi2.1",
-	.table = {
-		GPIO_LOOKUP("i2c-max7310", 3, "BL_ON", GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP("i2c-max7310", 4, "BL_CONT", GPIO_ACTIVE_LOW),
-		{ },
-	},
+static const struct property_entry akita_lcdcon_props[] = {
+	PROPERTY_ENTRY_GPIO("BL_ON-gpios",
+			    &akita_max7310_gpiochip_node, 3, GPIO_ACTIVE_HIGH),
+	PROPERTY_ENTRY_GPIO("BL_CONT-gpios",
+			    &akita_max7310_gpiochip_node, 4, GPIO_ACTIVE_LOW),
+	{ }
+};
+
+static struct software_node spitz_lcdcon_node = {
+	.name = "spitz-lcdcon",
 };
 
 static struct corgi_lcd_platform_data spitz_lcdcon_info = {
@@ -572,6 +574,7 @@ static struct spi_board_info spitz_spi_devices[] = {
 		.bus_num		= 2,
 		.chip_select		= 1,
 		.platform_data		= &spitz_lcdcon_info,
+		.swnode			= &spitz_lcdcon_node,
 	}, {
 		.modalias		= "max1111",
 		.max_speed_hz		= 450000,
@@ -606,11 +609,6 @@ static void __init spitz_spi_init(void)
 	struct platform_device *pd;
 	int err;
 
-	if (machine_is_akita())
-		gpiod_add_lookup_table(&akita_lcdcon_gpio_table);
-	else
-		gpiod_add_lookup_table(&spitz_lcdcon_gpio_table);
-
 	gpiod_add_lookup_table(&spitz_ads7846_gpio_table);
 
 	pd = platform_device_register_full(&spitz_spi_device_info);
@@ -619,6 +617,8 @@ static void __init spitz_spi_init(void)
 		pr_err("pxa2xx-spi: failed to instantiate SPI controller: %d\n",
 		       err);
 
+	spitz_lcdcon_node.properties = machine_is_akita() ?
+					akita_lcdcon_props : spitz_lcdcon_props;
 	spi_register_board_info(ARRAY_AND_SIZE(spitz_spi_devices));
 }
 #else
