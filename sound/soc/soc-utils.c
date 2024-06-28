@@ -144,7 +144,6 @@ static const struct snd_soc_component_driver dummy_codec = {
 	.endianness		= 1,
 };
 
-#define STUB_RATES	SNDRV_PCM_RATE_8000_384000
 #define STUB_FORMATS	(SNDRV_PCM_FMTBIT_S8 | \
 			SNDRV_PCM_FMTBIT_U8 | \
 			SNDRV_PCM_FMTBIT_S16_LE | \
@@ -198,14 +197,18 @@ static struct snd_soc_dai_driver dummy_dai = {
 		.stream_name	= "Playback",
 		.channels_min	= 1,
 		.channels_max	= 384,
-		.rates		= STUB_RATES,
+		.rates		= SNDRV_PCM_RATE_CONTINUOUS,
+		.rate_min	= 5512,
+		.rate_max	= 768000,
 		.formats	= STUB_FORMATS,
 	},
 	.capture = {
 		.stream_name	= "Capture",
 		.channels_min	= 1,
 		.channels_max	= 384,
-		.rates = STUB_RATES,
+		.rates = SNDRV_PCM_RATE_CONTINUOUS,
+		.rate_min	= 5512,
+		.rate_max	= 768000,
 		.formats = STUB_FORMATS,
 	 },
 	.ops = &dummy_dai_ops,
