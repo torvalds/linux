@@ -1875,7 +1875,7 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 #if defined(CONFIG_PPC_BOOK3S_32) && defined(CONFIG_PPC_KUAP)
 	p->thread.kuap = KUAP_NONE;
 #endif
-#if defined(CONFIG_BOOKE_OR_40x) && defined(CONFIG_PPC_KUAP)
+#if defined(CONFIG_BOOKE) && defined(CONFIG_PPC_KUAP)
 	p->thread.pid = MMU_NO_CONTEXT;
 #endif
 

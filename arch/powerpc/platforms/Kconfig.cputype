@@ -335,11 +335,6 @@ config BOOKE
 	depends on PPC_E500 || 44x
 	default y
 
-config BOOKE_OR_40x
-	bool
-	depends on BOOKE
-	default y
-
 config PTE_64BIT
 	bool
 	depends on 44x || PPC_E500 || PPC_86xx

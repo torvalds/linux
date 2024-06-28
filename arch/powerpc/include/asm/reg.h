@@ -18,7 +18,7 @@
 #include <asm/feature-fixups.h>
 
 /* Pickup Book E specific registers. */
-#ifdef CONFIG_BOOKE_OR_40x
+#ifdef CONFIG_BOOKE
 #include <asm/reg_booke.h>
 #endif
 

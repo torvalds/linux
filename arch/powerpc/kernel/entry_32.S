@@ -108,7 +108,7 @@ transfer_to_syscall:
 	stw	r11, 0(r1)
 	mflr	r12
 	stw	r12, _LINK(r1)
-#ifdef CONFIG_BOOKE_OR_40x
+#ifdef CONFIG_BOOKE
 	rlwinm	r9,r9,0,14,12		/* clear MSR_WE (necessary?) */
 #endif
 	lis	r12,STACK_FRAME_REGS_MARKER@ha /* exception frame marker */
