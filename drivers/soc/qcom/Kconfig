@@ -211,6 +211,7 @@ config QCOM_SMP2P
 
 config QCOM_SMSM
 	tristate "Qualcomm Shared Memory State Machine"
+	depends on MAILBOX
 	depends on QCOM_SMEM
 	select QCOM_SMEM_STATE
 	select IRQ_DOMAIN
