@@ -145,10 +145,9 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_EMB_HV)
 	b	transfer_to_syscall	/* jump to handler */
 .endm
 
-/* To handle the additional exception priority levels on 40x and Book-E
+/* To handle the additional exception priority levels on Book-E
  * processors we allocate a stack per additional priority level.
  *
- * On 40x critical is the only additional level
  * On 44x/e500 we have critical and machine check
  *
  * Additionally we reserve a SPRG for each priority level so we can free up a

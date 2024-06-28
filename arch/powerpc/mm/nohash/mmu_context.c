@@ -219,9 +219,6 @@ static void set_context(unsigned long id, pgd_t *pgd)
 		/* sync */
 		mb();
 	} else if (kuap_is_disabled()) {
-		if (IS_ENABLED(CONFIG_40x))
-			mb();	/* sync */
-
 		mtspr(SPRN_PID, id);
 		isync();
 	}

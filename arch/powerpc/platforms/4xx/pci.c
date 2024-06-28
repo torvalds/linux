@@ -1263,102 +1263,6 @@ static struct ppc4xx_pciex_hwops ppc460sx_pcie_hwops __initdata = {
 
 #endif /* CONFIG_44x */
 
-#ifdef CONFIG_40x
-
-static int __init ppc405ex_pciex_core_init(struct device_node *np)
-{
-	/* Nothing to do, return 2 ports */
-	return 2;
-}
-
-static void __init ppc405ex_pcie_phy_reset(struct ppc4xx_pciex_port *port)
-{
-	/* Assert the PE0_PHY reset */
-	mtdcri(SDR0, port->sdr_base + PESDRn_RCSSET, 0x01010000);
-	msleep(1);
-
-	/* deassert the PE0_hotreset */
-	if (port->endpoint)
-		mtdcri(SDR0, port->sdr_base + PESDRn_RCSSET, 0x01111000);
-	else
-		mtdcri(SDR0, port->sdr_base + PESDRn_RCSSET, 0x01101000);
-
-	/* poll for phy !reset */
-	/* XXX FIXME add timeout */
-	while (!(mfdcri(SDR0, port->sdr_base + PESDRn_405EX_PHYSTA) & 0x00001000))
-		;
-
-	/* deassert the PE0_gpl_utl_reset */
-	mtdcri(SDR0, port->sdr_base + PESDRn_RCSSET, 0x00101000);
-}
-
-static int __init ppc405ex_pciex_init_port_hw(struct ppc4xx_pciex_port *port)
-{
-	u32 val;
-
-	if (port->endpoint)
-		val = PTYPE_LEGACY_ENDPOINT;
-	else
-		val = PTYPE_ROOT_PORT;
-
-	mtdcri(SDR0, port->sdr_base + PESDRn_DLPSET,
-	       1 << 24 | val << 20 | LNKW_X1 << 12);
-
-	mtdcri(SDR0, port->sdr_base + PESDRn_UTLSET1, 0x00000000);
-	mtdcri(SDR0, port->sdr_base + PESDRn_UTLSET2, 0x01010000);
-	mtdcri(SDR0, port->sdr_base + PESDRn_405EX_PHYSET1, 0x720F0000);
-	mtdcri(SDR0, port->sdr_base + PESDRn_405EX_PHYSET2, 0x70600003);
-
-	/*
-	 * Only reset the PHY when no link is currently established.
-	 * This is for the Atheros PCIe board which has problems to establish
-	 * the link (again) after this PHY reset. All other currently tested
-	 * PCIe boards don't show this problem.
-	 * This has to be re-tested and fixed in a later release!
-	 */
-	val = mfdcri(SDR0, port->sdr_base + PESDRn_LOOP);
-	if (!(val & 0x00001000))
-		ppc405ex_pcie_phy_reset(port);
-
-	dcr_write(port->dcrs, DCRO_PEGPL_CFG, 0x10000000);  /* guarded on */
-
-	port->has_ibpre = 1;
-
-	return ppc4xx_pciex_port_reset_sdr(port);
-}
-
-static int ppc405ex_pciex_init_utl(struct ppc4xx_pciex_port *port)
-{
-	dcr_write(port->dcrs, DCRO_PEGPL_SPECIAL, 0x0);
-
-	/*
-	 * Set buffer allocations and then assert VRB and TXE.
-	 */
-	out_be32(port->utl_base + PEUTL_OUTTR,   0x02000000);
-	out_be32(port->utl_base + PEUTL_INTR,    0x02000000);
-	out_be32(port->utl_base + PEUTL_OPDBSZ,  0x04000000);
-	out_be32(port->utl_base + PEUTL_PBBSZ,   0x21000000);
-	out_be32(port->utl_base + PEUTL_IPHBSZ,  0x02000000);
-	out_be32(port->utl_base + PEUTL_IPDBSZ,  0x04000000);
-	out_be32(port->utl_base + PEUTL_RCIRQEN, 0x00f00000);
-	out_be32(port->utl_base + PEUTL_PCTL,    0x80800066);
-
-	out_be32(port->utl_base + PEUTL_PBCTL,   0x08000000);
-
-	return 0;
-}
-
-static struct ppc4xx_pciex_hwops ppc405ex_pcie_hwops __initdata =
-{
-	.want_sdr	= true,
-	.core_init	= ppc405ex_pciex_core_init,
-	.port_init_hw	= ppc405ex_pciex_init_port_hw,
-	.setup_utl	= ppc405ex_pciex_init_utl,
-	.check_link	= ppc4xx_pciex_check_link_sdr,
-};
-
-#endif /* CONFIG_40x */
-
 #ifdef CONFIG_476FPE
 static int __init ppc_476fpe_pciex_core_init(struct device_node *np)
 {
@@ -1427,10 +1331,6 @@ static int __init ppc4xx_pciex_check_core_init(struct device_node *np)
 	if (of_device_is_compatible(np, "ibm,plb-pciex-apm821xx"))
 		ppc4xx_pciex_hwops = &apm821xx_pcie_hwops;
 #endif /* CONFIG_44x    */
-#ifdef CONFIG_40x
-	if (of_device_is_compatible(np, "ibm,plb-pciex-405ex"))
-		ppc4xx_pciex_hwops = &ppc405ex_pcie_hwops;
-#endif
 #ifdef CONFIG_476FPE
 	if (of_device_is_compatible(np, "ibm,plb-pciex-476fpe")
 		|| of_device_is_compatible(np, "ibm,plb-pciex-476gtr"))
