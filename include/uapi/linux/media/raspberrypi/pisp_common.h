@@ -72,6 +72,8 @@ enum pisp_image_format {
 	PISP_IMAGE_FORMAT_SHIFT_8 = 0x00080000,
 	PISP_IMAGE_FORMAT_SHIFT_MASK = 0x000f0000,
 
+	PISP_IMAGE_FORMAT_BPP_32 = 0x00100000,
+
 	PISP_IMAGE_FORMAT_UNCOMPRESSED = 0x00000000,
 	PISP_IMAGE_FORMAT_COMPRESSION_MODE_1 = 0x01000000,
 	PISP_IMAGE_FORMAT_COMPRESSION_MODE_2 = 0x02000000,
@@ -134,6 +136,7 @@ enum pisp_image_format {
 	 PISP_IMAGE_FORMAT_PLANARITY_PLANAR)
 #define PISP_IMAGE_FORMAT_wallpaper(fmt)                                       \
 	((fmt) & PISP_IMAGE_FORMAT_WALLPAPER_ROLL)
+#define PISP_IMAGE_FORMAT_bpp_32(fmt) ((fmt) & PISP_IMAGE_FORMAT_BPP_32)
 #define PISP_IMAGE_FORMAT_HOG(fmt)                                             \
 	((fmt) &                                                               \
 	 (PISP_IMAGE_FORMAT_HOG_SIGNED | PISP_IMAGE_FORMAT_HOG_UNSIGNED))
