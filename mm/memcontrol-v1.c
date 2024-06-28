@@ -1961,6 +1961,15 @@ out_kfree:
 	return ret;
 }
 
+void memcg1_memcg_init(struct mem_cgroup *memcg)
+{
+	INIT_LIST_HEAD(&memcg->oom_notify);
+	mutex_init(&memcg->thresholds_lock);
+	spin_lock_init(&memcg->move_lock);
+	INIT_LIST_HEAD(&memcg->event_list);
+	spin_lock_init(&memcg->event_list_lock);
+}
+
 void memcg1_css_offline(struct mem_cgroup *memcg)
 {
 	struct mem_cgroup_event *event, *tmp;
