@@ -7,6 +7,7 @@
 #include <linux/clk-provider.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
+#include <linux/gpio-pxa.h>
 #include <linux/platform_data/i2c-pxa.h>
 #include <linux/soc/pxa/cpu.h>
 
@@ -17,6 +18,7 @@
 #include <linux/platform_data/usb-ohci-pxa27x.h>
 #include <linux/platform_data/mmp_dma.h>
 
+#include "mfp-pxa2xx.h"
 #include "regs-ost.h"
 #include "reset.h"
 #include "devices.h"
@@ -650,11 +652,19 @@ struct resource pxa_resource_gpio[] = {
 	},
 };
 
+static struct pxa_gpio_platform_data pxa2xx_gpio_info = {
+	.irq_base	= PXA_GPIO_TO_IRQ(0),
+	.gpio_set_wake	= gpio_set_wake,
+};
+
 struct platform_device pxa25x_device_gpio = {
 	.name		= "pxa25x-gpio",
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(pxa_resource_gpio),
 	.resource	= pxa_resource_gpio,
+	.dev		= {
+		.platform_data	= &pxa2xx_gpio_info,
+	},
 };
 
 struct platform_device pxa27x_device_gpio = {
@@ -662,6 +672,9 @@ struct platform_device pxa27x_device_gpio = {
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(pxa_resource_gpio),
 	.resource	= pxa_resource_gpio,
+	.dev		= {
+		.platform_data	= &pxa2xx_gpio_info,
+	},
 };
 
 static struct resource pxa_dma_resource[] = {

@@ -276,12 +276,8 @@ void __init pxa27x_set_i2c_power_info(struct i2c_pxa_platform_data *info)
 	pxa_register_device(&pxa27x_device_i2c_power, info);
 }
 
-static struct pxa_gpio_platform_data pxa27x_gpio_info __initdata = {
-	.irq_base	= PXA_GPIO_TO_IRQ(0),
-	.gpio_set_wake	= gpio_set_wake,
-};
-
 static struct platform_device *devices[] __initdata = {
+	&pxa27x_device_gpio,
 	&pxa27x_device_udc,
 	&pxa_device_pmu,
 	&pxa_device_i2s,
@@ -345,8 +341,6 @@ static int __init pxa27x_init(void)
 		register_syscore_ops(&pxa2xx_mfp_syscore_ops);
 
 		if (!of_have_populated_dt()) {
-			pxa_register_device(&pxa27x_device_gpio,
-					    &pxa27x_gpio_info);
 			pxa2xx_set_dmac_info(&pxa27x_dma_pdata);
 			ret = platform_add_devices(devices,
 						   ARRAY_SIZE(devices));
