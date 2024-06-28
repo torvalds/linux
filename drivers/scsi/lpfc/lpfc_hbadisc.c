@@ -5725,7 +5725,7 @@ lpfc_setup_disc_node(struct lpfc_vport *vport, uint32_t did)
 				return ndlp;
 
 			if (ndlp->nlp_state > NLP_STE_UNUSED_NODE &&
-			    ndlp->nlp_state < NLP_STE_PRLI_ISSUE) {
+			    ndlp->nlp_state <= NLP_STE_PRLI_ISSUE) {
 				lpfc_disc_state_machine(vport, ndlp, NULL,
 							NLP_EVT_DEVICE_RECOVERY);
 			}
