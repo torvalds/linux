@@ -1721,8 +1721,8 @@ static const struct fs_parameter_spec ext4_param_specs[] = {
 	fsparam_flag	("bsdgroups",		Opt_grpid),
 	fsparam_flag	("nogrpid",		Opt_nogrpid),
 	fsparam_flag	("sysvgroups",		Opt_nogrpid),
-	fsparam_u32	("resgid",		Opt_resgid),
-	fsparam_u32	("resuid",		Opt_resuid),
+	fsparam_gid	("resgid",		Opt_resgid),
+	fsparam_uid	("resuid",		Opt_resuid),
 	fsparam_u32	("sb",			Opt_sb),
 	fsparam_enum	("errors",		Opt_errors, ext4_param_errors),
 	fsparam_flag	("nouid32",		Opt_nouid32),
@@ -2127,8 +2127,6 @@ static int ext4_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	struct fs_parse_result result;
 	const struct mount_opts *m;
 	int is_remount;
-	kuid_t uid;
-	kgid_t gid;
 	int token;
 
 	token = fs_parse(fc, ext4_param_specs, param, &result);
@@ -2270,23 +2268,11 @@ static int ext4_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		ctx->spec |= EXT4_SPEC_s_stripe;
 		return 0;
 	case Opt_resuid:
-		uid = make_kuid(current_user_ns(), result.uint_32);
-		if (!uid_valid(uid)) {
-			ext4_msg(NULL, KERN_ERR, "Invalid uid value %d",
-				 result.uint_32);
-			return -EINVAL;
-		}
-		ctx->s_resuid = uid;
+		ctx->s_resuid = result.uid;
 		ctx->spec |= EXT4_SPEC_s_resuid;
 		return 0;
 	case Opt_resgid:
-		gid = make_kgid(current_user_ns(), result.uint_32);
-		if (!gid_valid(gid)) {
-			ext4_msg(NULL, KERN_ERR, "Invalid gid value %d",
-				 result.uint_32);
-			return -EINVAL;
-		}
-		ctx->s_resgid = gid;
+		ctx->s_resgid = result.gid;
 		ctx->spec |= EXT4_SPEC_s_resgid;
 		return 0;
 	case Opt_journal_dev:
