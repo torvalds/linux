@@ -5,6 +5,7 @@
 #define _VIRTCHNL2_H_
 
 #include <linux/if_ether.h>
+typedef uint8_t __le8;
 
 /* All opcodes associated with virtchnl2 are prefixed with virtchnl2 or
  * VIRTCHNL2. Any future opcodes, offloads/capabilities, structures,
@@ -68,6 +69,150 @@ enum virtchnl2_op {
 	VIRTCHNL2_OP_ADD_MAC_ADDR		= 535,
 	VIRTCHNL2_OP_DEL_MAC_ADDR		= 536,
 	VIRTCHNL2_OP_CONFIG_PROMISCUOUS_MODE	= 537,
+	VIRTCHNL2_OP_ADD_FLOW_RULE              = 538,
+	VIRTCHNL2_OP_DEL_FLOW_RULE              = 539,
+};
+
+#define VIRTCHNL2_MAX_NUM_PROTO_HDRS           32
+#define VIRTCHNL2_MAX_NUM_PROTO_HDRS_W_MSK     16
+#define VIRTCHNL2_MAX_SIZE_RAW_PACKET          1024
+
+struct virtchnl2_proto_hdr {
+	__le32 hdr_type;
+	u8 pad[4];
+	u8 buffer_spec[64];
+	u8 buffer_mask[64];
+};
+
+struct virtchnl2_proto_hdr_w_msk {
+	/* see VIRTCHNL2_PROTO_HDR_TYPE */
+	__le32 type;
+	__le32 pad;
+	/**
+	 * binary buffer in network order for specific header type.
+	 * For example, if type = VIRTCHNL2_PROTO_HDR_IPV4, a IPv4
+	 * header is expected to be copied into the buffer.
+	 */
+	u8 buffer_spec[64];
+	/* binary buffer for bit-mask applied to specific header type */
+	u8 buffer_mask[64];
+};
+
+struct virtchnl2_proto_hdrs {
+	u8 tunnel_level;
+	/**
+	 * specify where protocol header start from.
+	 * must be 0 when sending a raw packet request.
+	 * 0 - from the outer layer
+	 * 1 - from the first inner layer
+	 * 2 - from the second inner layer
+	 * ....
+	 */
+	__le32 count;
+	/**
+	 * count must <=
+	 * VIRTCHNL2_MAX_NUM_PROTO_HDRS + VIRTCHNL2_MAX_NUM_PROTO_HDRS_W_MSK
+	 * count = 0 :                                  select raw
+	 * 1 < count <= VIRTCHNL2_MAX_NUM_PROTO_HDRS :   select proto_hdr
+	 * count > VIRTCHNL2_MAX_NUM_PROTO_HDRS :        select proto_hdr_w_msk
+	 * last valid index = count - VIRTCHNL2_MAX_NUM_PROTO_HDRS
+	*/
+	union {
+	        struct virtchnl2_proto_hdr
+	                proto_hdr[VIRTCHNL2_MAX_NUM_PROTO_HDRS];
+	        struct virtchnl2_proto_hdr_w_msk
+	                proto_hdr_w_msk[VIRTCHNL2_MAX_NUM_PROTO_HDRS_W_MSK];
+	        struct {
+	                __le16 pkt_len;
+	                u8 spec[VIRTCHNL2_MAX_SIZE_RAW_PACKET];
+	                u8 mask[VIRTCHNL2_MAX_SIZE_RAW_PACKET];
+	        } raw;
+	};
+};
+
+/* action configuration for FLOW and FSUB */
+struct virtchnl2_rule_action {
+	/* see VIRTCHNL_ACTION type */
+	__le32 type;
+	union {
+	        /* used for queue and qgroup action */
+	        struct {
+	        __le16 index;
+	                u8 region;
+	        } queue;
+	        /* used for count action */
+	        struct {
+	                /* share counter ID with other flow rules */
+	                __le8 shared;
+	                __le32 id; /* counter ID */
+	} count;
+	        /* used for mark action */
+	        __le32 mark_id;/* ?? Do we need a larger mark_id than 32 bit */
+	        u8 reserve[32];
+	} act_conf;
+};
+
+#define VIRTCHNL2_MAX_NUM_ACTIONS  8
+
+struct virtchnl2_rule_action_set {
+        /* action number must be less then VIRTCHNL2_MAX_NUM_ACTIONS */
+__le32 count;
+        struct virtchnl2_rule_action actions[VIRTCHNL2_MAX_NUM_ACTIONS];
+};
+
+// VIRTCHNL_CHECK_STRUCT_LEN(292, virtchnl2_rule__action_set);
+
+/* pattern and action for FLOW rule */
+struct virtchnl2_flow_rule {
+	struct virtchnl2_proto_hdrs proto_hdrs;
+	struct virtchnl2_rule_action_set action_set;
+	__le32 user_def;
+	__le32 user_def_msk;
+	__le32 location; /* used as location or priority */
+	/* l4_data is covered by VIRTCHNL2_PROTO_HDR_PAY */
+	u8 pad[8];
+};
+
+enum virtchnl2_flow_rule_status {
+	VIRTCHNL2_FLOW_RULE_SUCCESS                     = 1,
+	VIRTCHNL2_FLOW_RULE_NORESOURCE                  = 2,
+	VIRTCHNL2_FLOW_RULE_EXIST                       = 3,
+	VIRTCHNL2_FLOW_RULE_TIMEOUT                     = 4,
+	VIRTCHNL2_FLOW_RULE_FLOW_TYPE_NOT_SUPPORTED     = 5,
+	VIRTCHNL2_FLOW_RULE_MATCH_KEY_NOT_SUPPORTED     = 6,
+	VIRTCHNL2_FLOW_RULE_ACTION_NOT_SUPPORTED        = 7,
+	VIRTCHNL2_FLOW_RULE_ACTION_COMBINATION_INVALID  = 8,
+	VIRTCHNL2_FLOW_RULE_ACTION_DATA_INVALID         = 9,
+	VIRTCHNL2_FLOW_RULE_NOT_ADDED                   = 10,
+};
+
+struct virtchnl2_flow_rule_add {
+	 __le32 vport_id;  /* INPUT */
+	/*
+	 * 1 for validating a flow rule, 0 for creating a flow rule.
+	 * Validate and create share one ops: VIRTCHNL2_OP_ADD_FLOW_RULE.
+	*/
+	__le16 flags; /* INPUT */
+	__le64 flow_rule_id;       /* OUTPUT */
+	struct virtchnl2_flow_rule rule_cfg; /* INPUT */
+
+	/* see VIRTCHNL2_FLOW_RULE_PRGM_STATUS; OUTPUT */
+	__le32 status;
+};
+
+/**
+ *  enum virtchnl2_action_types - Available actions for sideband flow steering
+ * @VIRTCHNL2_ACTION_QUEUE: Forward the packet to a receive queue
+*/
+
+enum virtchnl2_action_types {
+	VIRTCHNL2_ACTION_QUEUE                  = BIT(2),
+};
+
+/* Flow type capabilities for Flow Steering and Receive-Side Scaling */
+enum virtchnl2_flow_types {
+	VIRTCHNL2_FLOW_IPV4_TCP                 = BIT(0),
+	VIRTCHNL2_FLOW_IPV4_UDP                 = BIT(1),
 };
 
 /**
@@ -613,7 +758,11 @@ struct virtchnl2_create_vport {
 	__le16 pad;
 	__le64 rx_desc_ids;
 	__le64 tx_desc_ids;
-	u8 pad1[72];
+	u8 pad1[48];
+       __le64 inline_flow_types;
+       __le64 sideband_flow_types;
+       __le32 sideband_flow_actions;
+       __le32 flow_steer_max_rules;
 	__le32 rss_algorithm;
 	__le16 rss_key_size;
 	__le16 rss_lut_size;

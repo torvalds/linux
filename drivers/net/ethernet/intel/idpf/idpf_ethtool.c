@@ -2,6 +2,7 @@
 /* Copyright (C) 2023 Intel Corporation */
 
 #include "idpf.h"
+#include "idpf_virtchnl.h"
 
 /**
  * idpf_get_rxnfc - command to get RX flow classification rules
@@ -12,9 +13,10 @@
  * Returns Success if the command is supported.
  */
 static int idpf_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd,
-			  u32 __always_unused *rule_locs)
+			  u32 *rule_locs)
 {
 	struct idpf_vport *vport;
+	int i, ret = 0;
 
 	idpf_vport_ctrl_lock(netdev);
 	vport = idpf_netdev_to_vport(netdev);
@@ -22,17 +24,143 @@ static int idpf_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd,
 	switch (cmd->cmd) {
 	case ETHTOOL_GRXRINGS:
 		cmd->data = vport->num_rxq;
-		idpf_vport_ctrl_unlock(netdev);
-
-		return 0;
+		break;
+	case ETHTOOL_GRXCLSRLCNT:
+		cmd->rule_cnt = vport->num_ntuple_rules;
+		break;
+	case ETHTOOL_GRXCLSRULE:
+		fallthrough;
+	case ETHTOOL_GRXCLSRLALL:
+		/* TODO: Ethtool demands a max. Does IDPF have one?
+	         * If it is HMA defined, need a virtchnl to query the max?
+	         */
+#define IDPF_MAX_FLOW_STEER_RULES      64
+	/* TODO: store rules in vport and list them.
+	* for now just name ethtool_get_max_rxnfc_channel pass,
+	* as that is caleld from ethtool_set_channels.
+	*/
+	cmd->data = IDPF_MAX_FLOW_STEER_RULES;
+		for (i = 0; i < vport->num_ntuple_rules; i++) {
+			if (i == cmd->rule_cnt) {
+				ret = -EMSGSIZE;
+				goto unlock;
+			}
+			rule_locs[i] = i;
+		}
+	cmd->rule_cnt = vport->num_ntuple_rules;
+	break;
+	case ETHTOOL_GRXFH:
+		fallthrough;
 	default:
+		ret = -EOPNOTSUPP;
 		break;
 	}
-
+unlock:
 	idpf_vport_ctrl_unlock(netdev);
 
-	return -EOPNOTSUPP;
+	return ret;
 }
+
+static int idpf_add_flowsteer_tcp4(struct idpf_vport *vport,
+                                  struct ethtool_rxnfc *cmd)
+{
+        /* Static, tool large for stack. Ethtool cmds are serialized by rtnl. */
+        static struct virtchnl2_flow_rule_add rule = {0};
+        struct iphdr iph = {0}, iph_mask = {0};
+        struct tcphdr th = {0}, th_mask = {0};
+        int ret;
+
+        rule.vport_id = vport->vport_id;
+        rule.flags = VIRTCHNL2_OP_ADD_FLOW_RULE;
+
+        rule.rule_cfg.proto_hdrs.tunnel_level = 0;
+        rule.rule_cfg.proto_hdrs.count = 2;
+
+        iph.saddr = htonl(cmd->fs.h_u.tcp_ip4_spec.ip4src);
+        iph.daddr = htonl(cmd->fs.h_u.tcp_ip4_spec.ip4dst);
+        iph_mask.saddr = PTY_MAX;
+        iph_mask.daddr = PTY_MAX;
+
+        rule.rule_cfg.proto_hdrs.proto_hdr[0].hdr_type = VIRTCHNL2_PROTO_HDR_IPV4;
+        memcpy(rule.rule_cfg.proto_hdrs.proto_hdr[0].buffer_spec, &iph, sizeof(iph));
+        memcpy(rule.rule_cfg.proto_hdrs.proto_hdr[0].buffer_mask, &iph_mask, sizeof(iph_mask));
+
+        th.source = htons(cmd->fs.h_u.tcp_ip4_spec.psrc);
+        th.dest = htons(cmd->fs.h_u.tcp_ip4_spec.pdst);
+        th_mask.source = U16_MAX;
+        th_mask.dest = U16_MAX;
+
+        rule.rule_cfg.proto_hdrs.proto_hdr[1].hdr_type = VIRTCHNL2_PROTO_HDR_TCP;
+        memcpy(rule.rule_cfg.proto_hdrs.proto_hdr[0].buffer_spec, &th, sizeof(th));
+        memcpy(rule.rule_cfg.proto_hdrs.proto_hdr[0].buffer_mask, &th_mask, sizeof(th_mask));
+
+        rule.rule_cfg.action_set.count = 1;
+        rule.rule_cfg.action_set.actions[0].type = VIRTCHNL2_ACTION_QUEUE;
+        rule.rule_cfg.action_set.actions[0].act_conf.queue.index = cmd->fs.ring_cookie;
+
+        ret = idpf_add_flow_steering_rule(vport->adapter, &rule);
+        if (ret)
+               return ret;
+
+        if (rule.status != VIRTCHNL2_FLOW_RULE_SUCCESS)
+               return -EIO;
+
+        cmd->fs.location = rule.flow_rule_id;
+        vport->num_ntuple_rules++;
+        return 0;
+}
+
+static int idpf_add_flowsteer_ethtool(struct idpf_vport *vport,
+                                     struct ethtool_rxnfc *cmd)
+{
+        struct ethtool_rx_flow_spec *fs = &cmd->fs;
+
+        /* flow_rule_id is an output param currently */
+        if (fs->location != RX_CLS_LOC_ANY)
+               return -EINVAL;
+
+        /* TODO: support VLAN matching */
+        if (fs->flow_type & (FLOW_EXT | FLOW_MAC_EXT))
+               return -EINVAL;
+
+        switch (fs->flow_type & ~FLOW_EXT) {
+        case TCP_V4_FLOW:
+               return idpf_add_flowsteer_tcp4(vport, cmd);
+        case UDP_V4_FLOW:
+               fallthrough;
+        case TCP_V6_FLOW:
+               fallthrough;
+        case UDP_V6_FLOW:
+               fallthrough;
+        default:
+               return -EOPNOTSUPP;
+        }
+}
+
+static int idpf_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc * cmd)
+{
+        struct idpf_vport *vport;
+        int ret = 0;
+
+        idpf_vport_ctrl_lock(netdev);
+        vport = idpf_netdev_to_vport(netdev);
+
+        switch (cmd->cmd) {
+        case ETHTOOL_SRXCLSRLINS:
+		return idpf_add_flowsteer_ethtool(vport, cmd);
+        case ETHTOOL_SRXCLSRLDEL:
+		fallthrough;
+        case ETHTOOL_SRXFH:
+		fallthrough;
+        default:
+		ret = -EOPNOTSUPP;
+                break;
+        }
+
+        idpf_vport_ctrl_unlock(netdev);
+
+        return ret;
+ }
 
 /**
  * idpf_get_rxfh_key_size - get the RSS hash key size
@@ -1347,6 +1475,7 @@ static const struct ethtool_ops idpf_ethtool_ops = {
 	.get_sset_count		= idpf_get_sset_count,
 	.get_channels		= idpf_get_channels,
 	.get_rxnfc		= idpf_get_rxnfc,
+	.set_rxnfc              = idpf_set_rxnfc,
 	.get_rxfh_key_size	= idpf_get_rxfh_key_size,
 	.get_rxfh_indir_size	= idpf_get_rxfh_indir_size,
 	.get_rxfh		= idpf_get_rxfh,

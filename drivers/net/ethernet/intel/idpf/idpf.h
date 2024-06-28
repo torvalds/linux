@@ -334,6 +334,7 @@ struct idpf_vport {
 	u16 tx_itr_profile[IDPF_DIM_PROFILE_SLOTS];
 	struct idpf_port_stats port_stats;
 
+	u16 num_ntuple_rules;
 	bool link_up;
 	u32 link_speed_mbps;
 

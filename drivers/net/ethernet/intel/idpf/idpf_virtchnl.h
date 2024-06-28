@@ -59,6 +59,8 @@ int idpf_add_del_mac_filters(struct idpf_vport *vport,
 int idpf_set_promiscuous(struct idpf_adapter *adapter,
 			 struct idpf_vport_user_config_data *config_data,
 			 u32 vport_id);
+int idpf_add_flow_steering_rule(struct idpf_adapter *adapter,
+                                struct virtchnl2_flow_rule_add *rule);
 int idpf_check_supported_desc_ids(struct idpf_vport *vport);
 int idpf_send_get_rx_ptype_msg(struct idpf_vport *vport);
 int idpf_send_ena_dis_loopback_msg(struct idpf_vport *vport);

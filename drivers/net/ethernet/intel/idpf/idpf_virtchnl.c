@@ -1368,6 +1368,20 @@ int idpf_send_destroy_vport_msg(struct idpf_vport *vport)
 	return reply_sz < 0 ? reply_sz : 0;
 }
 
+int idpf_add_flow_steering_rule(struct idpf_adapter *adapter,
+                                struct virtchnl2_flow_rule_add *rule)
+{
+        struct idpf_vc_xn_params xn_params = {};
+        ssize_t reply_sz;
+
+        xn_params.vc_op = VIRTCHNL2_OP_ADD_FLOW_RULE;
+        xn_params.timeout_ms = IDPF_VC_XN_DEFAULT_TIMEOUT_MSEC;
+        xn_params.send_buf.iov_base = rule;
+        xn_params.send_buf.iov_len = sizeof(*rule);
+        reply_sz = idpf_vc_xn_exec(adapter, &xn_params);
+        return reply_sz <0 ? reply_sz : 0;
+}
+
 /**
  * idpf_send_enable_vport_msg - Send virtchnl enable vport message
  * @vport: virtual port data structure
