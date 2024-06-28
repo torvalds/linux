@@ -1454,8 +1454,11 @@ unsigned int rdtgroup_cbm_to_size(struct rdt_resource *r,
 	struct cacheinfo *ci;
 	int num_b;
 
+	if (WARN_ON_ONCE(r->scope != RESCTRL_L2_CACHE && r->scope != RESCTRL_L3_CACHE))
+		return size;
+
 	num_b = bitmap_weight(&cbm, r->cache.cbm_len);
-	ci = get_cpu_cacheinfo_level(cpumask_any(&d->cpu_mask), r->cache_level);
+	ci = get_cpu_cacheinfo_level(cpumask_any(&d->cpu_mask), r->scope);
 	if (ci)
 		size = ci->size / r->cache.cbm_len * num_b;
 

@@ -292,8 +292,12 @@ static void pseudo_lock_region_clear(struct pseudo_lock_region *plr)
  */
 static int pseudo_lock_region_init(struct pseudo_lock_region *plr)
 {
+	enum resctrl_scope scope = plr->s->res->scope;
 	struct cacheinfo *ci;
 	int ret;
+
+	if (WARN_ON_ONCE(scope != RESCTRL_L2_CACHE && scope != RESCTRL_L3_CACHE))
+		return -ENODEV;
 
 	/* Pick the first cpu we find that is associated with the cache. */
 	plr->cpu = cpumask_first(&plr->d->cpu_mask);
@@ -305,7 +309,7 @@ static int pseudo_lock_region_init(struct pseudo_lock_region *plr)
 		goto out_region;
 	}
 
-	ci = get_cpu_cacheinfo_level(plr->cpu, plr->s->res->cache_level);
+	ci = get_cpu_cacheinfo_level(plr->cpu, scope);
 	if (ci) {
 		plr->line_size = ci->coherency_line_size;
 		plr->size = rdtgroup_cbm_to_size(plr->s->res, plr->d, plr->cbm);
