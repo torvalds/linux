@@ -835,6 +835,13 @@ static int qmi_wwan_bind(struct usbnet *dev, struct usb_interface *intf)
 	}
 	dev->net->netdev_ops = &qmi_wwan_netdev_ops;
 	dev->net->sysfs_groups[0] = &qmi_wwan_sysfs_attr_group;
+    /* LTE Networks don't always respect their own MTU on receive side;
+	 * e.g. AT&T pushes 1430 MTU but still allows 1500 byte packets from
+	 * far-end network. Make receive buffer large enough to accommodate
+	 * them, and add four bytes so MTU does not equal MRU on network
+	 * with 1500 MTU otherwise usbnet_change_mtu() will change both.
+	 */
+	dev->rx_urb_size = ETH_DATA_LEN + 4;
 err:
 	return status;
 }
