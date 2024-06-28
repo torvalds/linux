@@ -13,6 +13,7 @@
 
 &main_pmx0 {
 	gpmc0_pins_default: gpmc0-pins-default {
+		bootph-all;
 		pinctrl-single,pins = <
 			AM64X_IOPAD(0x0094, PIN_INPUT, 7) /* (T19) GPMC0_BE1n.GPIO0_36 */
 			AM64X_IOPAD(0x003c, PIN_INPUT, 0) /* (T20) GPMC0_AD0 */
@@ -50,6 +51,7 @@
 
 &main_gpio0 {
 	gpio0-36 {
+		bootph-all;
 		gpio-hog;
 		gpios = <36 0>;
 		input;
@@ -58,6 +60,7 @@
 };
 
 &elm0 {
+	bootph-all;
 	status = "okay";
 };
 
@@ -106,30 +109,37 @@
 			#size-cells = <1>;
 
 			partition@0 {
+				bootph-all;
 				label = "NAND.tiboot3";
 				reg = <0x00000000 0x00200000>;	/* 2M */
 			};
 			partition@200000 {
+				bootph-all;
 				label = "NAND.tispl";
 				reg = <0x00200000 0x00200000>;	/* 2M */
 			};
 			partition@400000 {
+				bootph-all;
 				label = "NAND.tiboot3.backup";	/* 2M */
 				reg = <0x00400000 0x00200000>;	/* BootROM looks at 4M */
 			};
 			partition@600000 {
+				bootph-all;
 				label = "NAND.u-boot";
 				reg = <0x00600000 0x00400000>;	/* 4M */
 			};
 			partition@a00000 {
+				bootph-all;
 				label = "NAND.u-boot-env";
 				reg = <0x00a00000 0x00040000>;	/* 256K */
 			};
 			partition@a40000 {
+				bootph-all;
 				label = "NAND.u-boot-env.backup";
 				reg = <0x00a40000 0x00040000>;	/* 256K */
 			};
 			partition@a80000 {
+				bootph-all;
 				label = "NAND.file-system";
 				reg = <0x00a80000 0x3f580000>;
 			};
