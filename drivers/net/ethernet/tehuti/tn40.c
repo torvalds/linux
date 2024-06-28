@@ -1571,6 +1571,19 @@ static const struct net_device_ops tn40_netdev_ops = {
 	.ndo_vlan_rx_kill_vid = tn40_vlan_rx_kill_vid,
 };
 
+static int tn40_ethtool_get_link_ksettings(struct net_device *ndev,
+					   struct ethtool_link_ksettings *cmd)
+{
+	struct tn40_priv *priv = netdev_priv(ndev);
+
+	return phylink_ethtool_ksettings_get(priv->phylink, cmd);
+}
+
+static const struct ethtool_ops tn40_ethtool_ops = {
+	.get_link		= ethtool_op_get_link,
+	.get_link_ksettings	= tn40_ethtool_get_link_ksettings,
+};
+
 static int tn40_priv_init(struct tn40_priv *priv)
 {
 	int ret;
@@ -1599,6 +1612,7 @@ static struct net_device *tn40_netdev_alloc(struct pci_dev *pdev)
 	if (!ndev)
 		return NULL;
 	ndev->netdev_ops = &tn40_netdev_ops;
+	ndev->ethtool_ops = &tn40_ethtool_ops;
 	ndev->tx_queue_len = TN40_NDEV_TXQ_LEN;
 	ndev->mem_start = pci_resource_start(pdev, 0);
 	ndev->mem_end = pci_resource_end(pdev, 0);
