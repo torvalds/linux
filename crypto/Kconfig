@@ -57,6 +57,7 @@ config CRYPTO_FIPS_VERSION
 config CRYPTO_FIPS140_MOD
 	tristate "Enable FIPS 140 cryptographic module"
 	depends on ARM64 && ARM64_MODULE_PLTS
+	depends on CC_IS_CLANG
 	depends on m
 	select CRYPTO_FIPS140_MERGE_MOD_SECTIONS
 	help
