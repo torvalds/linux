@@ -4565,7 +4565,7 @@ static void amdgpu_ras_boot_time_error_reporting(struct amdgpu_device *adev,
 
 	socket_id = AMDGPU_RAS_GPU_ERR_SOCKET_ID(boot_error);
 	aid_id = AMDGPU_RAS_GPU_ERR_AID_ID(boot_error);
-	hbm_id = AMDGPU_RAS_GPU_ERR_HBM_ID(boot_error);
+	hbm_id = ((1 == AMDGPU_RAS_GPU_ERR_HBM_ID(boot_error)) ? 0 : 1);
 
 	if (AMDGPU_RAS_GPU_ERR_MEM_TRAINING(boot_error))
 		dev_info(adev->dev,
