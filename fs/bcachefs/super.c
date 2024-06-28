@@ -563,8 +563,11 @@ static void __bch2_fs_free(struct bch_fs *c)
 	BUG_ON(atomic_read(&c->journal_keys.ref));
 	bch2_fs_btree_write_buffer_exit(c);
 	percpu_free_rwsem(&c->mark_lock);
-	EBUG_ON(c->online_reserved && percpu_u64_get(c->online_reserved));
-	free_percpu(c->online_reserved);
+	if (c->online_reserved) {
+		u64 v = percpu_u64_get(c->online_reserved);
+		WARN(v, "online_reserved not 0 at shutdown: %lli", v);
+		free_percpu(c->online_reserved);
+	}
 
 	darray_exit(&c->btree_roots_extra);
 	free_percpu(c->pcpu);
