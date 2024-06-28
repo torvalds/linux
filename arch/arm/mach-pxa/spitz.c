@@ -14,6 +14,7 @@
 #include <linux/gpio_keys.h>
 #include <linux/gpio.h>
 #include <linux/gpio/machine.h>
+#include <linux/gpio/property.h>
 #include <linux/leds.h>
 #include <linux/i2c.h>
 #include <linux/platform_data/i2c-pxa.h>
@@ -28,6 +29,7 @@
 #include <linux/input/matrix_keypad.h>
 #include <linux/regulator/machine.h>
 #include <linux/io.h>
+#include <linux/property.h>
 #include <linux/reboot.h>
 #include <linux/memblock.h>
 
@@ -127,7 +129,6 @@ static unsigned long spitz_pin_config[] __initdata = {
 	GPIO0_GPIO | WAKEUP_ON_EDGE_RISE,	/* SPITZ_GPIO_KEY_INT */
 	GPIO1_GPIO | WAKEUP_ON_EDGE_FALL,	/* SPITZ_GPIO_RESET */
 };
-
 
 /******************************************************************************
  * Scoop GPIO expander
@@ -565,18 +566,17 @@ static struct spi_board_info spitz_spi_devices[] = {
 	},
 };
 
-static struct gpiod_lookup_table spitz_spi_gpio_table = {
-	.dev_id = "spi2",
-	.table = {
-		GPIO_LOOKUP_IDX("gpio-pxa", SPITZ_GPIO_ADS7846_CS, "cs", 0, GPIO_ACTIVE_LOW),
-		GPIO_LOOKUP_IDX("gpio-pxa", SPITZ_GPIO_LCDCON_CS, "cs", 1, GPIO_ACTIVE_LOW),
-		GPIO_LOOKUP_IDX("gpio-pxa", SPITZ_GPIO_MAX1111_CS, "cs", 2, GPIO_ACTIVE_LOW),
-		{ },
-	},
+static const struct software_node_ref_args spitz_spi_gpio_refs[] = {
+	SOFTWARE_NODE_REFERENCE(&pxa2xx_gpiochip_node, SPITZ_GPIO_ADS7846_CS,
+				GPIO_ACTIVE_LOW),
+	SOFTWARE_NODE_REFERENCE(&pxa2xx_gpiochip_node, SPITZ_GPIO_LCDCON_CS,
+				GPIO_ACTIVE_LOW),
+	SOFTWARE_NODE_REFERENCE(&pxa2xx_gpiochip_node, SPITZ_GPIO_MAX1111_CS,
+				GPIO_ACTIVE_LOW),
 };
 
 static const struct property_entry spitz_spi_properties[] = {
-	PROPERTY_ENTRY_U32("num-cs", 3),
+	PROPERTY_ENTRY_REF_ARRAY("gpios", spitz_spi_gpio_refs),
 	{ }
 };
 
@@ -598,7 +598,6 @@ static void __init spitz_spi_init(void)
 		gpiod_add_lookup_table(&spitz_lcdcon_gpio_table);
 
 	gpiod_add_lookup_table(&spitz_ads7846_gpio_table);
-	gpiod_add_lookup_table(&spitz_spi_gpio_table);
 
 	pd = platform_device_register_full(&spitz_spi_device_info);
 	err = PTR_ERR_OR_ZERO(pd);
