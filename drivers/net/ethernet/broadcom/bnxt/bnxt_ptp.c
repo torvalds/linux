@@ -656,6 +656,14 @@ static int bnxt_map_ptp_regs(struct bnxt *bp)
 				(ptp->refclk_regs[i] & BNXT_GRC_OFFSET_MASK);
 		return 0;
 	}
+	if (bp->flags & BNXT_FLAG_CHIP_P7) {
+		for (i = 0; i < 2; i++) {
+			if (reg_arr[i] & BNXT_GRC_BASE_MASK)
+				return -EINVAL;
+			ptp->refclk_mapped_regs[i] = reg_arr[i];
+		}
+		return 0;
+	}
 	return -ENODEV;
 }
 
@@ -1018,7 +1026,7 @@ int bnxt_ptp_init(struct bnxt *bp, bool phc_cfg)
 	ptp->stats.ts_lost = 0;
 	atomic64_set(&ptp->stats.ts_err, 0);
 
-	if (BNXT_CHIP_P5(bp)) {
+	if (bp->flags & BNXT_FLAG_CHIP_P5_PLUS) {
 		spin_lock_bh(&ptp->ptp_lock);
 		bnxt_refclk_read(bp, NULL, &ptp->current_time);
 		WRITE_ONCE(ptp->old_time, ptp->current_time);
