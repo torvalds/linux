@@ -93,21 +93,24 @@ static const struct rhashtable_params bch_promote_params = {
 static inline int should_promote(struct bch_fs *c, struct bkey_s_c k,
 				  struct bpos pos,
 				  struct bch_io_opts opts,
-				  unsigned flags)
+				  unsigned flags,
+				  struct bch_io_failures *failed)
 {
-	BUG_ON(!opts.promote_target);
+	if (!failed) {
+		BUG_ON(!opts.promote_target);
 
-	if (!(flags & BCH_READ_MAY_PROMOTE))
-		return -BCH_ERR_nopromote_may_not;
+		if (!(flags & BCH_READ_MAY_PROMOTE))
+			return -BCH_ERR_nopromote_may_not;
 
-	if (bch2_bkey_has_target(c, k, opts.promote_target))
-		return -BCH_ERR_nopromote_already_promoted;
+		if (bch2_bkey_has_target(c, k, opts.promote_target))
+			return -BCH_ERR_nopromote_already_promoted;
 
-	if (bkey_extent_is_unwritten(k))
-		return -BCH_ERR_nopromote_unwritten;
+		if (bkey_extent_is_unwritten(k))
+			return -BCH_ERR_nopromote_unwritten;
 
-	if (bch2_target_congested(c, opts.promote_target))
-		return -BCH_ERR_nopromote_congested;
+		if (bch2_target_congested(c, opts.promote_target))
+			return -BCH_ERR_nopromote_congested;
+	}
 
 	if (rhashtable_lookup_fast(&c->promote_table, &pos,
 				   bch_promote_params))
@@ -164,7 +167,8 @@ static struct promote_op *__promote_alloc(struct btree_trans *trans,
 					  struct extent_ptr_decoded *pick,
 					  struct bch_io_opts opts,
 					  unsigned sectors,
-					  struct bch_read_bio **rbio)
+					  struct bch_read_bio **rbio,
+					  struct bch_io_failures *failed)
 {
 	struct bch_fs *c = trans->c;
 	struct promote_op *op = NULL;
@@ -217,14 +221,28 @@ static struct promote_op *__promote_alloc(struct btree_trans *trans,
 	bio = &op->write.op.wbio.bio;
 	bio_init(bio, NULL, bio->bi_inline_vecs, pages, 0);
 
+	struct data_update_opts update_opts = {};
+
+	if (!failed) {
+		update_opts.target = opts.promote_target;
+		update_opts.extra_replicas = 1;
+		update_opts.write_flags = BCH_WRITE_ALLOC_NOWAIT|BCH_WRITE_CACHED;
+	} else {
+		update_opts.target = opts.foreground_target;
+
+		struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
+		unsigned i = 0;
+		bkey_for_each_ptr(ptrs, ptr) {
+			if (bch2_dev_io_failures(failed, ptr->dev))
+				update_opts.rewrite_ptrs |= BIT(i);
+			i++;
+		}
+	}
+
 	ret = bch2_data_update_init(trans, NULL, NULL, &op->write,
 			writepoint_hashed((unsigned long) current),
 			opts,
-			(struct data_update_opts) {
-				.target		= opts.promote_target,
-				.extra_replicas	= 1,
-				.write_flags	= BCH_WRITE_ALLOC_NOWAIT|BCH_WRITE_CACHED,
-			},
+			update_opts,
 			btree_id, k);
 	/*
 	 * possible errors: -BCH_ERR_nocow_lock_blocked,
@@ -258,10 +276,17 @@ static struct promote_op *promote_alloc(struct btree_trans *trans,
 					unsigned flags,
 					struct bch_read_bio **rbio,
 					bool *bounce,
-					bool *read_full)
+					bool *read_full,
+					struct bch_io_failures *failed)
 {
 	struct bch_fs *c = trans->c;
-	bool promote_full = *read_full || READ_ONCE(c->promote_whole_extents);
+	/*
+	 * if failed != NULL we're not actually doing a promote, we're
+	 * recovering from an io/checksum error
+	 */
+	bool promote_full = (failed ||
+			     *read_full ||
+			     READ_ONCE(c->promote_whole_extents));
 	/* data might have to be decompressed in the write path: */
 	unsigned sectors = promote_full
 		? max(pick->crc.compressed_size, pick->crc.live_size)
@@ -272,7 +297,7 @@ static struct promote_op *promote_alloc(struct btree_trans *trans,
 	struct promote_op *promote;
 	int ret;
 
-	ret = should_promote(c, k, pos, opts, flags);
+	ret = should_promote(c, k, pos, opts, flags, failed);
 	if (ret)
 		goto nopromote;
 
@@ -280,7 +305,7 @@ static struct promote_op *promote_alloc(struct btree_trans *trans,
 				  k.k->type == KEY_TYPE_reflink_v
 				  ? BTREE_ID_reflink
 				  : BTREE_ID_extents,
-				  k, pos, pick, opts, sectors, rbio);
+				  k, pos, pick, opts, sectors, rbio, failed);
 	ret = PTR_ERR_OR_ZERO(promote);
 	if (ret)
 		goto nopromote;
@@ -910,9 +935,9 @@ retry_pick:
 		bounce = true;
 	}
 
-	if (orig->opts.promote_target)
+	if (orig->opts.promote_target)// || failed)
 		promote = promote_alloc(trans, iter, k, &pick, orig->opts, flags,
-					&rbio, &bounce, &read_full);
+					&rbio, &bounce, &read_full, failed);
 
 	if (!read_full) {
 		EBUG_ON(crc_is_compressed(pick.crc));
