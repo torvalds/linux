@@ -534,31 +534,23 @@ static inline void spitz_leds_init(void) {}
  * SSP Devices
  ******************************************************************************/
 #if defined(CONFIG_SPI_PXA2XX) || defined(CONFIG_SPI_PXA2XX_MODULE)
-static void spitz_ads7846_wait_for_hsync(void)
-{
-	while (gpio_get_value(SPITZ_GPIO_HSYNC))
-		cpu_relax();
 
-	while (!gpio_get_value(SPITZ_GPIO_HSYNC))
-		cpu_relax();
-}
-
-static struct ads7846_platform_data spitz_ads7846_info = {
-	.model			= 7846,
-	.vref_delay_usecs	= 100,
-	.x_plate_ohms		= 419,
-	.y_plate_ohms		= 486,
-	.pressure_max		= 1024,
-	.wait_for_sync		= spitz_ads7846_wait_for_hsync,
+static const struct property_entry spitz_ads7846_props[] = {
+	PROPERTY_ENTRY_STRING("compatible", "ti,ads7846"),
+	PROPERTY_ENTRY_U32("touchscreen-max-pressure", 1024),
+	PROPERTY_ENTRY_U16("ti,x-plate-ohms", 419),
+	PROPERTY_ENTRY_U16("ti,y-plate-ohms", 486),
+	PROPERTY_ENTRY_U16("ti,vref-delay-usecs", 100),
+	PROPERTY_ENTRY_GPIO("pendown-gpios", &pxa2xx_gpiochip_node,
+			    SPITZ_GPIO_TP_INT, GPIO_ACTIVE_LOW),
+	PROPERTY_ENTRY_GPIO("ti,hsync-gpios", &pxa2xx_gpiochip_node,
+			    SPITZ_GPIO_HSYNC, GPIO_ACTIVE_LOW),
+	{ }
 };
 
-static struct gpiod_lookup_table spitz_ads7846_gpio_table = {
-	.dev_id = "spi2.0",
-	.table = {
-		GPIO_LOOKUP("gpio-pxa", SPITZ_GPIO_TP_INT,
-			    "pendown", GPIO_ACTIVE_LOW),
-		{ }
-	},
+static const struct software_node spitz_ads7846_swnode = {
+	.name = "ads7846",
+	.properties = spitz_ads7846_props,
 };
 
 static const struct property_entry spitz_lcdcon_props[] = {
@@ -595,7 +587,7 @@ static struct spi_board_info spitz_spi_devices[] = {
 		.max_speed_hz		= 1200000,
 		.bus_num		= 2,
 		.chip_select		= 0,
-		.platform_data		= &spitz_ads7846_info,
+		.swnode			= &spitz_ads7846_swnode,
 		.irq			= PXA_GPIO_TO_IRQ(SPITZ_GPIO_TP_INT),
 	}, {
 		.modalias		= "corgi-lcd",
@@ -637,8 +629,6 @@ static void __init spitz_spi_init(void)
 {
 	struct platform_device *pd;
 	int err;
-
-	gpiod_add_lookup_table(&spitz_ads7846_gpio_table);
 
 	pd = platform_device_register_full(&spitz_spi_device_info);
 	err = PTR_ERR_OR_ZERO(pd);
