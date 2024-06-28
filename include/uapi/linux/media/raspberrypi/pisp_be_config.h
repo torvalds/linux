@@ -716,6 +716,13 @@ struct pisp_be_hog_buffer_config {
 /**
  * struct pisp_be_config - RaspberryPi PiSP Back End Processing configuration
  *
+ * @input_buffer:		Input buffer addresses
+ * @tdn_input_buffer:		TDN input buffer addresses
+ * @stitch_input_buffer:	Stitch input buffer addresses
+ * @tdn_output_buffer:		TDN output buffer addresses
+ * @stitch_output_buffer:	Stitch output buffer addresses
+ * @output_buffer:		Output buffers addresses
+ * @hog_buffer:			HOG buffer addresses
  * @global:			Global PiSP configuration
  * @input_format:		Input image format
  * @decompress:			Decompress configuration
@@ -753,8 +760,30 @@ struct pisp_be_hog_buffer_config {
  * @resample:			Resampling configuration
  * @output_format:		Output format configuration
  * @hog:			HOG configuration
+ * @axi:			AXI bus configuration
+ * @lsc_extra:			LSC extra info
+ * @cac_extra:			CAC extra info
+ * @downscale_extra:		Downscaler extra info
+ * @resample_extra:		Resample extra info
+ * @crop:			Crop configuration
+ * @hog_format:			HOG format info
+ * @dirty_flags_bayer:		Bayer enable dirty flags
+ *				(:c:type:`pisp_be_bayer_enable`)
+ * @dirty_flags_rgb:		RGB enable dirty flags
+ *				(:c:type:`pisp_be_rgb_enable`)
+ * @dirty_flags_extra:		Extra dirty flags
  */
 struct pisp_be_config {
+	/* I/O configuration: */
+	struct pisp_be_input_buffer_config input_buffer;
+	struct pisp_be_tdn_input_buffer_config tdn_input_buffer;
+	struct pisp_be_stitch_input_buffer_config stitch_input_buffer;
+	struct pisp_be_tdn_output_buffer_config tdn_output_buffer;
+	struct pisp_be_stitch_output_buffer_config stitch_output_buffer;
+	struct pisp_be_output_buffer_config
+				output_buffer[PISP_BACK_END_NUM_OUTPUTS];
+	struct pisp_be_hog_buffer_config hog_buffer;
+	/* Processing configuration: */
 	struct pisp_be_global_config global;
 	struct pisp_image_format_config input_format;
 	struct pisp_decompress_config decompress;
@@ -793,6 +822,18 @@ struct pisp_be_config {
 	struct pisp_be_output_format_config
 				output_format[PISP_BACK_END_NUM_OUTPUTS];
 	struct pisp_be_hog_config hog;
+	struct pisp_be_axi_config axi;
+	/* Non-register fields: */
+	struct pisp_be_lsc_extra lsc_extra;
+	struct pisp_be_cac_extra cac_extra;
+	struct pisp_be_downscale_extra
+				downscale_extra[PISP_BACK_END_NUM_OUTPUTS];
+	struct pisp_be_resample_extra resample_extra[PISP_BACK_END_NUM_OUTPUTS];
+	struct pisp_be_crop_config crop;
+	struct pisp_image_format_config hog_format;
+	__u32 dirty_flags_bayer; /* these use pisp_be_bayer_enable */
+	__u32 dirty_flags_rgb; /* use pisp_be_rgb_enable */
+	__u32 dirty_flags_extra; /* these use pisp_be_dirty_t */
 } __attribute__((packed));
 
 /**
