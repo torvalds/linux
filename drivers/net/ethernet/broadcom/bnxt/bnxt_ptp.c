@@ -683,7 +683,7 @@ static u64 bnxt_cc_read(const struct cyclecounter *cc)
 	return ns;
 }
 
-static void bnxt_stamp_tx_skb(struct bnxt *bp, struct sk_buff *skb)
+static int bnxt_stamp_tx_skb(struct bnxt *bp, struct sk_buff *skb)
 {
 	struct bnxt_ptp_cfg *ptp = bp->ptp_cfg;
 	struct skb_shared_hwtstamps timestamp;
@@ -711,7 +711,7 @@ static void bnxt_stamp_tx_skb(struct bnxt *bp, struct sk_buff *skb)
 	} else {
 		if (!time_after_eq(jiffies, txts_req->abs_txts_tmo)) {
 			txts_req->txts_pending = true;
-			return;
+			return -EAGAIN;
 		}
 		ptp->stats.ts_lost++;
 		netdev_warn_once(bp->dev,
@@ -722,6 +722,8 @@ static void bnxt_stamp_tx_skb(struct bnxt *bp, struct sk_buff *skb)
 	txts_req->tx_skb = NULL;
 	atomic_inc(&ptp->tx_avail);
 	txts_req->txts_pending = false;
+
+	return 0;
 }
 
 static long bnxt_ptp_ts_aux_work(struct ptp_clock_info *ptp_info)
@@ -730,12 +732,16 @@ static long bnxt_ptp_ts_aux_work(struct ptp_clock_info *ptp_info)
 						ptp_info);
 	unsigned long now = jiffies;
 	struct bnxt *bp = ptp->bp;
+	int rc = 0;
 
 	if (ptp->txts_req.tx_skb)
-		bnxt_stamp_tx_skb(bp, ptp->txts_req.tx_skb);
+		rc = bnxt_stamp_tx_skb(bp, ptp->txts_req.tx_skb);
 
-	if (!time_after_eq(now, ptp->next_period))
+	if (!time_after_eq(now, ptp->next_period)) {
+		if (rc == -EAGAIN)
+			return 0;
 		return ptp->next_period - now;
+	}
 
 	bnxt_ptp_get_current_time(bp);
 	ptp->next_period = now + HZ;
@@ -745,7 +751,7 @@ static long bnxt_ptp_ts_aux_work(struct ptp_clock_info *ptp_info)
 		spin_unlock_bh(&ptp->ptp_lock);
 		ptp->next_overflow_check = now + BNXT_PHC_OVERFLOW_PERIOD;
 	}
-	if (ptp->txts_req.txts_pending)
+	if (rc == -EAGAIN)
 		return 0;
 	return HZ;
 }
