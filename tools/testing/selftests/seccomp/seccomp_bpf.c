@@ -4809,6 +4809,83 @@ TEST(user_notification_wait_killable_fatal)
 	EXPECT_EQ(SIGTERM, WTERMSIG(status));
 }
 
+struct tsync_vs_thread_leader_args {
+	pthread_t leader;
+};
+
+static void *tsync_vs_dead_thread_leader_sibling(void *_args)
+{
+	struct sock_filter allow_filter[] = {
+		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_ALLOW),
+	};
+	struct sock_fprog allow_prog = {
+		.len = (unsigned short)ARRAY_SIZE(allow_filter),
+		.filter = allow_filter,
+	};
+	struct tsync_vs_thread_leader_args *args = _args;
+	void *retval;
+	long ret;
+
+	ret = pthread_join(args->leader, &retval);
+	if (ret)
+		exit(1);
+	if (retval != _args)
+		exit(2);
+	ret = seccomp(SECCOMP_SET_MODE_FILTER, SECCOMP_FILTER_FLAG_TSYNC, &allow_prog);
+	if (ret)
+		exit(3);
+
+	exit(0);
+}
+
+/*
+ * Ensure that a dead thread leader doesn't prevent installing new filters with
+ * SECCOMP_FILTER_FLAG_TSYNC from other threads.
+ */
+TEST(tsync_vs_dead_thread_leader)
+{
+	int status;
+	pid_t pid;
+	long ret;
+
+	ret = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
+	ASSERT_EQ(0, ret) {
+		TH_LOG("Kernel does not support PR_SET_NO_NEW_PRIVS!");
+	}
+
+	pid = fork();
+	ASSERT_GE(pid, 0);
+
+	if (pid == 0) {
+		struct sock_filter allow_filter[] = {
+			BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_ALLOW),
+		};
+		struct sock_fprog allow_prog = {
+			.len = (unsigned short)ARRAY_SIZE(allow_filter),
+			.filter = allow_filter,
+		};
+		struct  tsync_vs_thread_leader_args *args;
+		pthread_t sibling;
+
+		args = malloc(sizeof(*args));
+		ASSERT_NE(NULL, args);
+		args->leader = pthread_self();
+
+		ret = pthread_create(&sibling, NULL,
+				     tsync_vs_dead_thread_leader_sibling, args);
+		ASSERT_EQ(0, ret);
+
+		/* Install a new filter just to the leader thread. */
+		ret = seccomp(SECCOMP_SET_MODE_FILTER, 0, &allow_prog);
+		ASSERT_EQ(0, ret);
+		pthread_exit(args);
+		exit(1);
+	}
+
+	EXPECT_EQ(pid, waitpid(pid, &status, 0));
+	EXPECT_EQ(0, status);
+}
+
 /*
  * TODO:
  * - expand NNP testing
