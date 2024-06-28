@@ -1535,6 +1535,7 @@ void mem_cgroup_print_oom_meminfo(struct mem_cgroup *memcg)
 		pr_info("swap: usage %llukB, limit %llukB, failcnt %lu\n",
 			K((u64)page_counter_read(&memcg->swap)),
 			K((u64)READ_ONCE(memcg->swap.max)), memcg->swap.failcnt);
+#ifdef CONFIG_MEMCG_V1
 	else {
 		pr_info("memory+swap: usage %llukB, limit %llukB, failcnt %lu\n",
 			K((u64)page_counter_read(&memcg->memsw)),
@@ -1543,6 +1544,7 @@ void mem_cgroup_print_oom_meminfo(struct mem_cgroup *memcg)
 			K((u64)page_counter_read(&memcg->kmem)),
 			K((u64)memcg->kmem.max), memcg->kmem.failcnt);
 	}
+#endif
 
 	pr_info("Memory cgroup stats for ");
 	pr_cont_cgroup_path(memcg->css.cgroup);
