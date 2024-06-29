@@ -151,8 +151,6 @@ enum {
 	Opt_mode,
 	Opt_fault_injection,
 	Opt_fault_type,
-	Opt_lazytime,
-	Opt_nolazytime,
 	Opt_quota,
 	Opt_noquota,
 	Opt_usrquota,
@@ -229,8 +227,6 @@ static match_table_t f2fs_tokens = {
 	{Opt_mode, "mode=%s"},
 	{Opt_fault_injection, "fault_injection=%u"},
 	{Opt_fault_type, "fault_type=%u"},
-	{Opt_lazytime, "lazytime"},
-	{Opt_nolazytime, "nolazytime"},
 	{Opt_quota, "quota"},
 	{Opt_noquota, "noquota"},
 	{Opt_usrquota, "usrquota"},
@@ -918,12 +914,6 @@ static int parse_options(struct super_block *sb, char *options, bool is_remount)
 			f2fs_info(sbi, "fault_type options not supported");
 			break;
 #endif
-		case Opt_lazytime:
-			sb->s_flags |= SB_LAZYTIME;
-			break;
-		case Opt_nolazytime:
-			sb->s_flags &= ~SB_LAZYTIME;
-			break;
 #ifdef CONFIG_QUOTA
 		case Opt_quota:
 		case Opt_usrquota:
