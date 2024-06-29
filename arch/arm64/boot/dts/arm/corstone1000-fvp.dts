@@ -21,7 +21,7 @@
 		reg-io-width = <2>;
 	};
 
-	vmmc_v3_3d: fixed_v3_3d {
+	vmmc_v3_3d: regulator-vmmc {
 		compatible = "regulator-fixed";
 		regulator-name = "vmmc_supply";
 		regulator-min-microvolt = <3300000>;
