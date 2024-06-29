@@ -17,6 +17,7 @@
 #include <linux/bpf-cgroup.h>
 #include <linux/mount.h>
 #include <linux/kmemleak.h>
+#include <linux/lockdep.h>
 #include "internal.h"
 
 #define list_for_each_table_entry(entry, header)	\
@@ -109,13 +110,14 @@ static int namecmp(const char *name1, int len1, const char *name2, int len2)
 	return cmp;
 }
 
-/* Called under sysctl_lock */
 static const struct ctl_table *find_entry(struct ctl_table_header **phead,
 	struct ctl_dir *dir, const char *name, int namelen)
 {
 	struct ctl_table_header *head;
 	const struct ctl_table *entry;
 	struct rb_node *node = dir->root.rb_node;
+
+	lockdep_assert_held(&sysctl_lock);
 
 	while (node)
 	{
@@ -263,18 +265,20 @@ fail_links:
 	return err;
 }
 
-/* called under sysctl_lock */
 static int use_table(struct ctl_table_header *p)
 {
+	lockdep_assert_held(&sysctl_lock);
+
 	if (unlikely(p->unregistering))
 		return 0;
 	p->used++;
 	return 1;
 }
 
-/* called under sysctl_lock */
 static void unuse_table(struct ctl_table_header *p)
 {
+	lockdep_assert_held(&sysctl_lock);
+
 	if (!--p->used)
 		if (unlikely(p->unregistering))
 			complete(p->unregistering);
@@ -285,9 +289,11 @@ static void proc_sys_invalidate_dcache(struct ctl_table_header *head)
 	proc_invalidate_siblings_dcache(&head->inodes, &sysctl_lock);
 }
 
-/* called under sysctl_lock, will reacquire if has to wait */
 static void start_unregistering(struct ctl_table_header *p)
 {
+	/* will reacquire if has to wait */
+	lockdep_assert_held(&sysctl_lock);
+
 	/*
 	 * if p->used is 0, nobody will ever touch that entry again;
 	 * we'll eliminate all paths to it before dropping sysctl_lock
