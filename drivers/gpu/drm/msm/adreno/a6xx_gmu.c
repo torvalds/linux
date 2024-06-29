@@ -769,7 +769,7 @@ static int a6xx_gmu_fw_start(struct a6xx_gmu *gmu, unsigned int state)
 	struct adreno_gpu *adreno_gpu = &a6xx_gpu->base;
 	const struct a6xx_info *a6xx_info = adreno_gpu->info->a6xx;
 	u32 fence_range_lower, fence_range_upper;
-	u32 chipid, chipid_min = 0;
+	u32 chipid = 0;
 	int ret;
 
 	/* Vote veto for FAL10 */
@@ -831,27 +831,6 @@ static int a6xx_gmu_fw_start(struct a6xx_gmu *gmu, unsigned int state)
 
 	if (a6xx_info->gmu_chipid) {
 		chipid = a6xx_info->gmu_chipid;
-	/* NOTE: A730 may also fall in this if-condition with a future GMU fw update. */
-	} else if (adreno_is_a7xx(adreno_gpu) && !adreno_is_a730(adreno_gpu)) {
-		/* A7xx GPUs have obfuscated chip IDs. Use constant maj = 7 */
-		chipid = FIELD_PREP(GENMASK(31, 24), 0x7);
-
-		/*
-		 * The min part has a 1-1 mapping for each GPU SKU.
-		 * This chipid that the GMU expects corresponds to the "GENX_Y_Z" naming,
-		 * where X = major, Y = minor, Z = patchlevel, e.g. GEN7_2_1 for prod A740.
-		 */
-		if (adreno_is_a740(adreno_gpu))
-			chipid_min = 2;
-		else if (adreno_is_a750(adreno_gpu))
-			chipid_min = 9;
-		else
-			return -EINVAL;
-
-		chipid |= FIELD_PREP(GENMASK(23, 16), chipid_min);
-
-		/* Get the patchid (which may vary) from the device tree */
-		chipid |= FIELD_PREP(GENMASK(15, 8), adreno_patchid(adreno_gpu));
 	} else {
 		/*
 		 * Note that the GMU has a slightly different layout for

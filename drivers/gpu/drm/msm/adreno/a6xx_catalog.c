@@ -1206,6 +1206,7 @@ static const struct adreno_info a7xx_gpus[] = {
 		.a6xx = &(const struct a6xx_info) {
 			.hwcg = a740_hwcg,
 			.protect = &a730_protect,
+			.gmu_chipid = 0x7020100,
 		},
 		.address_space_size = SZ_16G,
 	}, {
@@ -1241,6 +1242,7 @@ static const struct adreno_info a7xx_gpus[] = {
 		.zapfw = "gen70900_zap.mbn",
 		.a6xx = &(const struct a6xx_info) {
 			.protect = &a730_protect,
+			.gmu_chipid = 0x7090100,
 		},
 		.address_space_size = SZ_16G,
 	}
