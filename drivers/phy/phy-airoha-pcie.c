@@ -31,6 +31,9 @@ enum airoha_pcie_port_gen {
  * @csr_2l: Analogic lane IO mapped register base address
  * @pma0: IO mapped register base address of PMA0-PCIe
  * @pma1: IO mapped register base address of PMA1-PCIe
+ * @p0_xr_dtime: IO mapped register base address of port0 Tx-Rx detection time
+ * @p1_xr_dtime: IO mapped register base address of port1 Tx-Rx detection time
+ * @rx_aeq: IO mapped register base address of Rx AEQ training
  */
 struct airoha_pcie_phy {
 	struct device *dev;
@@ -38,6 +41,9 @@ struct airoha_pcie_phy {
 	void __iomem *csr_2l;
 	void __iomem *pma0;
 	void __iomem *pma1;
+	void __iomem *p0_xr_dtime;
+	void __iomem *p1_xr_dtime;
+	void __iomem *rx_aeq;
 };
 
 static void airoha_phy_clear_bits(void __iomem *reg, u32 mask)
@@ -1101,6 +1107,21 @@ static void airoha_pcie_phy_load_kflow(struct airoha_pcie_phy *pcie_phy)
 static int airoha_pcie_phy_init(struct phy *phy)
 {
 	struct airoha_pcie_phy *pcie_phy = phy_get_drvdata(phy);
+	u32 val;
+
+	/* Setup Tx-Rx detection time */
+	val = FIELD_PREP(PCIE_XTP_RXDET_VCM_OFF_STB_T_SEL, 0x33) |
+	      FIELD_PREP(PCIE_XTP_RXDET_EN_STB_T_SEL, 0x1) |
+	      FIELD_PREP(PCIE_XTP_RXDET_FINISH_STB_T_SEL, 0x2) |
+	      FIELD_PREP(PCIE_XTP_TXPD_TX_DATA_EN_DLY, 0x3) |
+	      FIELD_PREP(PCIE_XTP_RXDET_LATCH_STB_T_SEL, 0x1);
+	writel(val, pcie_phy->p0_xr_dtime + REG_PCIE_PEXTP_DIG_GLB44);
+	writel(val, pcie_phy->p1_xr_dtime + REG_PCIE_PEXTP_DIG_GLB44);
+	/* Setup Rx AEQ training time */
+	val = FIELD_PREP(PCIE_XTP_LN_RX_PDOWN_L1P2_EXIT_WAIT, 0x32) |
+	      FIELD_PREP(PCIE_XTP_LN_RX_PDOWN_E0_AEQEN_WAIT, 0x5050);
+	writel(val, pcie_phy->rx_aeq + REG_PCIE_PEXTP_DIG_LN_RX30_P0);
+	writel(val, pcie_phy->rx_aeq + REG_PCIE_PEXTP_DIG_LN_RX30_P1);
 
 	/* enable load FLL-K flow */
 	airoha_phy_pma0_set_bits(pcie_phy, REG_PCIE_PMA_DIG_RESERVE_14,
@@ -1216,6 +1237,23 @@ static int airoha_pcie_phy_probe(struct platform_device *pdev)
 	if (IS_ERR(pcie_phy->phy))
 		return dev_err_probe(dev, PTR_ERR(pcie_phy->phy),
 				     "Failed to create PCIe phy\n");
+
+	pcie_phy->p0_xr_dtime =
+		devm_platform_ioremap_resource_byname(pdev, "p0-xr-dtime");
+	if (IS_ERR(pcie_phy->p0_xr_dtime))
+		return dev_err_probe(dev, PTR_ERR(pcie_phy->p0_xr_dtime),
+				     "Failed to map P0 Tx-Rx dtime base\n");
+
+	pcie_phy->p1_xr_dtime =
+		devm_platform_ioremap_resource_byname(pdev, "p1-xr-dtime");
+	if (IS_ERR(pcie_phy->p1_xr_dtime))
+		return dev_err_probe(dev, PTR_ERR(pcie_phy->p1_xr_dtime),
+				     "Failed to map P1 Tx-Rx dtime base\n");
+
+	pcie_phy->rx_aeq = devm_platform_ioremap_resource_byname(pdev, "rx-aeq");
+	if (IS_ERR(pcie_phy->rx_aeq))
+		return dev_err_probe(dev, PTR_ERR(pcie_phy->rx_aeq),
+				     "Failed to map Rx AEQ base\n");
 
 	pcie_phy->dev = dev;
 	phy_set_drvdata(pcie_phy->phy, pcie_phy);
