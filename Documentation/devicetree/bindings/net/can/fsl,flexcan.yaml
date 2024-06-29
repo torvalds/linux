@@ -80,6 +80,10 @@ properties:
       node then controller is assumed to be little endian. If this property is
       present then controller is assumed to be big endian.
 
+  can-transceiver:
+    $ref: can-transceiver.yaml#
+    unevaluatedProperties: false
+
   fsl,stop-mode:
     description: |
       Register bits of stop mode control.
