@@ -21,12 +21,18 @@ properties:
       - description: PCIE analog base address
       - description: PCIE lane0 base address
       - description: PCIE lane1 base address
+      - description: PCIE lane0 detection time base address
+      - description: PCIE lane1 detection time base address
+      - description: PCIE Rx AEQ base address
 
   reg-names:
     items:
       - const: csr-2l
       - const: pma0
       - const: pma1
+      - const: p0-xr-dtime
+      - const: p1-xr-dtime
+      - const: rx-aeq
 
   "#phy-cells":
     const: 0
@@ -52,7 +58,12 @@ examples:
             #phy-cells = <0>;
             reg = <0x0 0x1fa5a000 0x0 0xfff>,
                   <0x0 0x1fa5b000 0x0 0xfff>,
-                  <0x0 0x1fa5c000 0x0 0xfff>;
-            reg-names = "csr-2l", "pma0", "pma1";
+                  <0x0 0x1fa5c000 0x0 0xfff>,
+                  <0x0 0x1fc10044 0x0 0x4>,
+                  <0x0 0x1fc30044 0x0 0x4>,
+                  <0x0 0x1fc15030 0x0 0x104>;
+            reg-names = "csr-2l", "pma0", "pma1",
+                        "p0-xr-dtime", "p1-xr-dtime",
+                        "rx-aeq";
         };
     };
