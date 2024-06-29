@@ -140,6 +140,7 @@ write_attribute(trigger_gc);
 write_attribute(trigger_discards);
 write_attribute(trigger_invalidates);
 write_attribute(trigger_journal_flush);
+write_attribute(trigger_journal_writes);
 write_attribute(trigger_btree_cache_shrink);
 write_attribute(trigger_btree_key_cache_shrink);
 rw_attribute(gc_gens_pos);
@@ -497,6 +498,9 @@ STORE(bch2_fs)
 		bch2_journal_meta(&c->journal);
 	}
 
+	if (attr == &sysfs_trigger_journal_writes)
+		bch2_journal_do_writes(&c->journal);
+
 #ifdef CONFIG_BCACHEFS_TESTS
 	if (attr == &sysfs_perf_test) {
 		char *tmp = kstrdup(buf, GFP_KERNEL), *p = tmp;
@@ -615,6 +619,7 @@ struct attribute *bch2_fs_internal_files[] = {
 	&sysfs_trigger_discards,
 	&sysfs_trigger_invalidates,
 	&sysfs_trigger_journal_flush,
+	&sysfs_trigger_journal_writes,
 	&sysfs_trigger_btree_cache_shrink,
 	&sysfs_trigger_btree_key_cache_shrink,
 
