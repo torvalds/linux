@@ -68,7 +68,7 @@ static inline bool zswap_is_enabled(void)
 
 static inline bool zswap_never_enabled(void)
 {
-	return false;
+	return true;
 }
 
 #endif
