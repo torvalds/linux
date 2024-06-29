@@ -968,7 +968,7 @@ static void print_mount_opts(struct bch_fs *c)
 	struct printbuf p = PRINTBUF;
 	bool first = true;
 
-	prt_str(&p, "mounting version ");
+	prt_str(&p, "starting version ");
 	bch2_version_to_text(&p, c->sb.version);
 
 	if (c->opts.read_only) {
