@@ -186,14 +186,31 @@ static void ee1004_probe_temp_sensor(struct i2c_client *client)
 	struct i2c_board_info info = { .type = "jc42" };
 	unsigned short addr = 0x18 | (client->addr & 7);
 	unsigned short addr_list[] = { addr, I2C_CLIENT_END };
-	u8 byte14;
+	u8 data[2];
 	int ret;
 
 	/* byte 14, bit 7 is set if temp sensor is present */
-	ret = ee1004_eeprom_read(client, &byte14, 14, 1);
-	if (ret != 1 || !(byte14 & BIT(7)))
+	ret = ee1004_eeprom_read(client, data, 14, 1);
+	if (ret != 1)
 		return;
 
+	if (!(data[0] & BIT(7))) {
+		/*
+		 * If the SPD data suggests that there is no temperature
+		 * sensor, it may still be there for SPD revision 1.0.
+		 * See SPD Annex L, Revision 1 and 2, for details.
+		 * Check DIMM type and SPD revision; if it is a DDR4
+		 * with SPD revision 1.0, check the thermal sensor address
+		 * and instantiate the jc42 driver if a chip is found at
+		 * that address.
+		 * It is not necessary to check if there is a chip at the
+		 * temperature sensor address since i2c_new_scanned_device()
+		 * will do that and return silently if no chip is found.
+		 */
+		ret = ee1004_eeprom_read(client, data, 1, 2);
+		if (ret != 2 || data[0] != 0x10 || data[1] != 0x0c)
+			return;
+	}
 	i2c_new_scanned_device(client->adapter, &info, addr_list, NULL);
 }
 
