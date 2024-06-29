@@ -1003,6 +1003,9 @@ get_bio:
 	rbio->promote		= promote;
 	INIT_WORK(&rbio->work, NULL);
 
+	if (flags & BCH_READ_NODECODE)
+		orig->pick = pick;
+
 	rbio->bio.bi_opf	= orig->bio.bi_opf;
 	rbio->bio.bi_iter.bi_sector = pick.ptr.offset;
 	rbio->bio.bi_end_io	= bch2_read_endio;
