@@ -61,6 +61,9 @@ int bch2_lru_del(struct btree_trans *, u16, u64, u64);
 int bch2_lru_set(struct btree_trans *, u16, u64, u64);
 int bch2_lru_change(struct btree_trans *, u16, u64, u64, u64);
 
+struct bkey_buf;
+int bch2_lru_check_set(struct btree_trans *, u16, u64, struct bkey_s_c, struct bkey_buf *);
+
 int bch2_check_lrus(struct bch_fs *);
 
 #endif /* _BCACHEFS_LRU_H */
