@@ -305,6 +305,11 @@ struct flow_ports {
 	__be16 source, dest;
 };
 
+struct nf_flowtable *nf_flowtable_by_dev(const struct net_device *dev);
+int nf_flow_offload_xdp_setup(struct nf_flowtable *flowtable,
+			      struct net_device *dev,
+			      enum flow_block_command cmd);
+
 unsigned int nf_flow_offload_ip_hook(void *priv, struct sk_buff *skb,
 				     const struct nf_hook_state *state);
 unsigned int nf_flow_offload_ipv6_hook(void *priv, struct sk_buff *skb,
