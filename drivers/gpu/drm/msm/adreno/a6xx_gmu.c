@@ -767,6 +767,7 @@ static int a6xx_gmu_fw_start(struct a6xx_gmu *gmu, unsigned int state)
 {
 	struct a6xx_gpu *a6xx_gpu = container_of(gmu, struct a6xx_gpu, gmu);
 	struct adreno_gpu *adreno_gpu = &a6xx_gpu->base;
+	const struct a6xx_info *a6xx_info = adreno_gpu->info->a6xx;
 	u32 fence_range_lower, fence_range_upper;
 	u32 chipid, chipid_min = 0;
 	int ret;
@@ -828,8 +829,10 @@ static int a6xx_gmu_fw_start(struct a6xx_gmu *gmu, unsigned int state)
 	 */
 	gmu_write(gmu, REG_A6XX_GMU_CM3_CFG, 0x4052);
 
+	if (a6xx_info->gmu_chipid) {
+		chipid = a6xx_info->gmu_chipid;
 	/* NOTE: A730 may also fall in this if-condition with a future GMU fw update. */
-	if (adreno_is_a7xx(adreno_gpu) && !adreno_is_a730(adreno_gpu)) {
+	} else if (adreno_is_a7xx(adreno_gpu) && !adreno_is_a730(adreno_gpu)) {
 		/* A7xx GPUs have obfuscated chip IDs. Use constant maj = 7 */
 		chipid = FIELD_PREP(GENMASK(31, 24), 0x7);
 
@@ -1327,7 +1330,13 @@ static int a6xx_gmu_rpmh_arc_votes_init(struct device *dev, u32 *votes,
 	if (!pri_count)
 		return -EINVAL;
 
-	sec = cmd_db_read_aux_data("mx.lvl", &sec_count);
+	/*
+	 * Some targets have a separate gfx mxc rail. So try to read that first and then fall back
+	 * to regular mx rail if it is missing
+	 */
+	sec = cmd_db_read_aux_data("gmxc.lvl", &sec_count);
+	if (IS_ERR(sec) && sec != ERR_PTR(-EPROBE_DEFER))
+		sec = cmd_db_read_aux_data("mx.lvl", &sec_count);
 	if (IS_ERR(sec))
 		return PTR_ERR(sec);
 
