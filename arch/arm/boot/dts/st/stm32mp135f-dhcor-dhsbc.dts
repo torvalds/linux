@@ -75,6 +75,8 @@
 };
 
 &ethernet1 {
+	nvmem-cell-names = "mac-address";
+	nvmem-cells = <&ethernet_mac1_address>;
 	phy-handle = <&ethphy1>;
 	phy-mode = "rgmii-id";
 	pinctrl-0 = <&eth1_rgmii_pins_a>;
@@ -103,6 +105,8 @@
 };
 
 &ethernet2 {
+	nvmem-cell-names = "mac-address";
+	nvmem-cells = <&ethernet_mac2_address>;
 	phy-handle = <&ethphy2>;
 	phy-mode = "rgmii-id";
 	pinctrl-0 = <&eth2_rgmii_pins_a>;
