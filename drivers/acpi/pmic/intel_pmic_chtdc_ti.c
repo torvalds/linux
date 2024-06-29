@@ -23,7 +23,7 @@
 #define CHTDC_TI_BPTHERM	0x58
 #define CHTDC_TI_GPADC		0x5a
 
-static struct pmic_table chtdc_ti_power_table[] = {
+static const struct pmic_table chtdc_ti_power_table[] = {
 	{ .address = 0x00, .reg = 0x41 }, /* LDO1 */
 	{ .address = 0x04, .reg = 0x42 }, /* LDO2 */
 	{ .address = 0x08, .reg = 0x43 }, /* LDO3 */
@@ -39,7 +39,7 @@ static struct pmic_table chtdc_ti_power_table[] = {
 	{ .address = 0x30, .reg = 0x4e }, /* LD14 */
 };
 
-static struct pmic_table chtdc_ti_thermal_table[] = {
+static const struct pmic_table chtdc_ti_thermal_table[] = {
 	{
 		.address = 0x00,
 		.reg = CHTDC_TI_GPADC

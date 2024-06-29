@@ -26,7 +26,7 @@
 #define AXP288_ADC_TS_CURRENT_ON_ONDEMAND		(2 << 0)
 #define AXP288_ADC_TS_CURRENT_ON			(3 << 0)
 
-static struct pmic_table power_table[] = {
+static const struct pmic_table power_table[] = {
 	{
 		.address = 0x00,
 		.reg = 0x13,
@@ -129,7 +129,7 @@ static struct pmic_table power_table[] = {
 };
 
 /* TMP0 - TMP5 are the same, all from GPADC */
-static struct pmic_table thermal_table[] = {
+static const struct pmic_table thermal_table[] = {
 	{
 		.address = 0x00,
 		.reg = XPOWER_GPADC_LOW

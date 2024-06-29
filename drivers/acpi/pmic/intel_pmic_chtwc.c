@@ -70,7 +70,7 @@
  * "regulator: whiskey_cove: implements Whiskey Cove pmic VRF support"
  * https://github.com/intel-aero/meta-intel-aero/blob/master/recipes-kernel/linux/linux-yocto/0019-regulator-whiskey_cove-implements-WhiskeyCove-pmic-V.patch
  */
-static struct pmic_table power_table[] = {
+static const struct pmic_table power_table[] = {
 	{
 		.address = 0x0,
 		.reg = CHT_WC_V1P8A_CTRL,
