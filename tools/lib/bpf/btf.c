@@ -5431,7 +5431,7 @@ int btf__distill_base(const struct btf *src_btf, struct btf **new_base_btf,
 	 * BTF available.
 	 */
 	new_split = btf__new_empty_split(new_base);
-	if (!new_split_btf) {
+	if (!new_split) {
 		err = -errno;
 		goto done;
 	}
