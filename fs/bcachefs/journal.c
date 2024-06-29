@@ -1420,8 +1420,8 @@ void __bch2_journal_debug_to_text(struct printbuf *out, struct journal *j)
 	unsigned long now = jiffies;
 	u64 nr_writes = j->nr_flush_writes + j->nr_noflush_writes;
 
-	if (!out->nr_tabstops)
-		printbuf_tabstop_push(out, 28);
+	printbuf_tabstops_reset(out);
+	printbuf_tabstop_push(out, 28);
 	out->atomic++;
 
 	rcu_read_lock();
