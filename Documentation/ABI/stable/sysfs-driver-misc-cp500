@@ -1,0 +1,25 @@
+What:		/sys/devices/pciXXXX:XX/0000:XX:XX.X/0000:XX:XX.X/version
+Date:		June 2024
+KernelVersion:	6.11
+Contact:	Gerhard Engleder <eg@keba.com>
+Description:	Version of the FPGA configuration bitstream as printable string.
+		This file is read only.
+Users:		KEBA
+
+What:		/sys/devices/pciXXXX:XX/0000:XX:XX.X/0000:XX:XX.X/keep_cfg
+Date:		June 2024
+KernelVersion:	6.11
+Contact:	Gerhard Engleder <eg@keba.com>
+Description:	Flag which signals if FPGA shall keep or reload configuration
+		bitstream on reset. Normal FPGA behavior and default is to keep
+		configuration bitstream and to only reset the configured logic.
+
+		Reloading configuration on reset enables an update of the
+		configuration bitstream with a simple reboot. Otherwise it is
+		necessary to power cycle the device to reload the new
+		configuration bitstream.
+
+		This file is read/write. The values are as follows:
+		1 = keep configuration bitstream on reset, default
+		0 = reload configuration bitstream on reset
+Users:		KEBA
