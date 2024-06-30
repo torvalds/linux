@@ -413,7 +413,11 @@ static int jc42_detect(struct i2c_client *client, struct i2c_board_info *info)
 	if (cap < 0 || config < 0 || manid < 0 || devid < 0)
 		return -ENODEV;
 
-	if ((cap & 0xff00) || (config & 0xf800))
+	if ((cap & 0xff00) || (config & 0xf820))
+		return -ENODEV;
+
+	if ((devid & TSE2004_DEVID_MASK) == TSE2004_DEVID &&
+	    (cap & 0x00e7) != 0x00e7)
 		return -ENODEV;
 
 	for (i = 0; i < ARRAY_SIZE(jc42_chips); i++) {
