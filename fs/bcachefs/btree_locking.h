@@ -218,14 +218,12 @@ static inline int __btree_node_lock_nopath(struct btree_trans *trans,
 					 bool lock_may_not_fail,
 					 unsigned long ip)
 {
-	int ret;
-
 	trans->lock_may_not_fail = lock_may_not_fail;
 	trans->lock_must_abort	= false;
 	trans->locking		= b;
 
-	ret = six_lock_ip_waiter(&b->lock, type, &trans->locking_wait,
-				 bch2_six_check_for_deadlock, trans, ip);
+	int ret = six_lock_ip_waiter(&b->lock, type, &trans->locking_wait,
+				     bch2_six_check_for_deadlock, trans, ip);
 	WRITE_ONCE(trans->locking, NULL);
 	WRITE_ONCE(trans->locking_wait.start_time, 0);
 
@@ -284,6 +282,7 @@ static inline int btree_node_lock(struct btree_trans *trans,
 	int ret = 0;
 
 	EBUG_ON(level >= BTREE_MAX_DEPTH);
+	bch2_trans_verify_not_unlocked(trans);
 
 	if (likely(six_trylock_type(&b->lock, type)) ||
 	    btree_node_lock_increment(trans, b, level, (enum btree_node_locked_type) type) ||

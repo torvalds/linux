@@ -732,6 +732,18 @@ static void btree_update_nodes_written(struct btree_update *as)
 			     "%s", bch2_err_str(ret));
 err:
 	/*
+	 * Ensure transaction is unlocked before using btree_node_lock_nopath()
+	 * (the use of which is always suspect, we need to work on removing this
+	 * in the future)
+	 *
+	 * It should be, but bch2_path_get_unlocked_mut() -> bch2_path_get()
+	 * calls bch2_path_upgrade(), before we call path_make_mut(), so we may
+	 * rarely end up with a locked path besides the one we have here:
+	 */
+	bch2_trans_unlock(trans);
+	bch2_trans_begin(trans);
+
+	/*
 	 * We have to be careful because another thread might be getting ready
 	 * to free as->b and calling btree_update_reparent() on us - we'll
 	 * recheck under btree_update_lock below:
@@ -750,18 +762,6 @@ err:
 		 * we're in journal error state:
 		 */
 
-		/*
-		 * Ensure transaction is unlocked before using
-		 * btree_node_lock_nopath() (the use of which is always suspect,
-		 * we need to work on removing this in the future)
-		 *
-		 * It should be, but bch2_path_get_unlocked_mut() -> bch2_path_get()
-		 * calls bch2_path_upgrade(), before we call path_make_mut(), so
-		 * we may rarely end up with a locked path besides the one we
-		 * have here:
-		 */
-		bch2_trans_unlock(trans);
-		bch2_trans_begin(trans);
 		btree_path_idx_t path_idx = bch2_path_get_unlocked_mut(trans,
 						as->btree_id, b->c.level, b->key.k.p);
 		struct btree_path *path = trans->paths + path_idx;
