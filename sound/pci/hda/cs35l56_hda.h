@@ -14,6 +14,7 @@
 #include <linux/firmware/cirrus/cs_dsp.h>
 #include <linux/firmware/cirrus/wmfw.h>
 #include <linux/regulator/consumer.h>
+#include <linux/workqueue.h>
 #include <sound/cs35l56.h>
 
 struct dentry;
@@ -21,6 +22,8 @@ struct dentry;
 struct cs35l56_hda {
 	struct cs35l56_base base;
 	struct hda_codec *codec;
+	struct work_struct dsp_work;
+	struct work_struct control_work;
 
 	int index;
 	const char *system_name;

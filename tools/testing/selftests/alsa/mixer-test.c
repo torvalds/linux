@@ -626,28 +626,41 @@ static int write_and_verify(struct ctl_data *ctl,
 	}
 
 	/*
+	 * We can't verify any specific value for volatile controls
+	 * but we should still check that whatever we read is a valid
+	 * vale for the control.
+	 */
+	if (snd_ctl_elem_info_is_volatile(ctl->info)) {
+		if (!ctl_value_valid(ctl, read_val)) {
+			ksft_print_msg("Volatile control %s has invalid value\n",
+				       ctl->name);
+			return -EINVAL;
+		}
+
+		return 0;
+	}
+
+	/*
 	 * Check for an event if the value changed, or confirm that
 	 * there was none if it didn't.  We rely on the kernel
 	 * generating the notification before it returns from the
 	 * write, this is currently true, should that ever change this
 	 * will most likely break and need updating.
 	 */
-	if (!snd_ctl_elem_info_is_volatile(ctl->info)) {
-		err = wait_for_event(ctl, 0);
-		if (snd_ctl_elem_value_compare(initial_val, read_val)) {
-			if (err < 1) {
-				ksft_print_msg("No event generated for %s\n",
-					       ctl->name);
-				show_values(ctl, initial_val, read_val);
-				ctl->event_missing++;
-			}
-		} else {
-			if (err != 0) {
-				ksft_print_msg("Spurious event generated for %s\n",
-					       ctl->name);
-				show_values(ctl, initial_val, read_val);
-				ctl->event_spurious++;
-			}
+	err = wait_for_event(ctl, 0);
+	if (snd_ctl_elem_value_compare(initial_val, read_val)) {
+		if (err < 1) {
+			ksft_print_msg("No event generated for %s\n",
+				       ctl->name);
+			show_values(ctl, initial_val, read_val);
+			ctl->event_missing++;
+		}
+	} else {
+		if (err != 0) {
+			ksft_print_msg("Spurious event generated for %s\n",
+				       ctl->name);
+			show_values(ctl, initial_val, read_val);
+			ctl->event_spurious++;
 		}
 	}
 
