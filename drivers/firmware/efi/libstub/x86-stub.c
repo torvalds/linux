@@ -225,6 +225,68 @@ static void retrieve_apple_device_properties(struct boot_params *boot_params)
 	}
 }
 
+static bool apple_match_product_name(void)
+{
+	static const char type1_product_matches[][15] = {
+		"MacBookPro11,3",
+		"MacBookPro11,5",
+		"MacBookPro13,3",
+		"MacBookPro14,3",
+		"MacBookPro15,1",
+		"MacBookPro15,3",
+		"MacBookPro16,1",
+		"MacBookPro16,4",
+	};
+	const struct efi_smbios_type1_record *record;
+	const u8 *product;
+
+	record = (struct efi_smbios_type1_record *)efi_get_smbios_record(1);
+	if (!record)
+		return false;
+
+	product = efi_get_smbios_string(record, product_name);
+	if (!product)
+		return false;
+
+	for (int i = 0; i < ARRAY_SIZE(type1_product_matches); i++) {
+		if (!strcmp(product, type1_product_matches[i]))
+			return true;
+	}
+
+	return false;
+}
+
+static void apple_set_os(void)
+{
+	struct {
+		unsigned long version;
+		efi_status_t (__efiapi *set_os_version)(const char *);
+		efi_status_t (__efiapi *set_os_vendor)(const char *);
+	} *set_os;
+	efi_status_t status;
+
+	if (!efi_is_64bit() || !apple_match_product_name())
+		return;
+
+	status = efi_bs_call(locate_protocol, &APPLE_SET_OS_PROTOCOL_GUID, NULL,
+			     (void **)&set_os);
+	if (status != EFI_SUCCESS)
+		return;
+
+	if (set_os->version >= 2) {
+		status = set_os->set_os_vendor("Apple Inc.");
+		if (status != EFI_SUCCESS)
+			efi_err("Failed to set OS vendor via apple_set_os\n");
+	}
+
+	if (set_os->version > 0) {
+		/* The version being set doesn't seem to matter */
+		status = set_os->set_os_version("Mac OS X 10.9");
+		if (status != EFI_SUCCESS)
+			efi_err("Failed to set OS version via apple_set_os\n");
+	}
+}
+
 efi_status_t efi_adjust_memory_range_protection(unsigned long start,
 						unsigned long size)
 {
@@ -335,9 +397,12 @@ static const efi_char16_t apple[] = L"Apple";
 
 static void setup_quirks(struct boot_params *boot_params)
 {
-	if (IS_ENABLED(CONFIG_APPLE_PROPERTIES) &&
-	    !memcmp(efistub_fw_vendor(), apple, sizeof(apple)))
-		retrieve_apple_device_properties(boot_params);
+	if (!memcmp(efistub_fw_vendor(), apple, sizeof(apple))) {
+		if (IS_ENABLED(CONFIG_APPLE_PROPERTIES))
+			retrieve_apple_device_properties(boot_params);
+
+		apple_set_os();
+	}
 }
 
 /*
