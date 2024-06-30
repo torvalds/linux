@@ -756,6 +756,21 @@ end:
 }
 EXPORT_SYMBOL_GPL(battery_hook_register);
 
+static void devm_battery_hook_unregister(void *data)
+{
+	struct acpi_battery_hook *hook = data;
+
+	battery_hook_unregister(hook);
+}
+
+int devm_battery_hook_register(struct device *dev, struct acpi_battery_hook *hook)
+{
+	battery_hook_register(hook);
+
+	return devm_add_action_or_reset(dev, devm_battery_hook_unregister, hook);
+}
+EXPORT_SYMBOL_GPL(devm_battery_hook_register);
+
 /*
  * This function gets called right after the battery sysfs
  * attributes have been added, so that the drivers that
