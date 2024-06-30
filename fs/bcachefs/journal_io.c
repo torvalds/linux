@@ -1762,11 +1762,13 @@ static CLOSURE_CALLBACK(journal_write_preflush)
 
 	if (j->seq_ondisk + 1 != le64_to_cpu(w->data->seq)) {
 		spin_lock(&j->lock);
-		closure_wait(&j->async_wait, cl);
+		if (j->seq_ondisk + 1 != le64_to_cpu(w->data->seq)) {
+			closure_wait(&j->async_wait, cl);
+			spin_unlock(&j->lock);
+			continue_at(cl, journal_write_preflush, j->wq);
+			return;
+		}
 		spin_unlock(&j->lock);
-
-		continue_at(cl, journal_write_preflush, j->wq);
-		return;
 	}
 
 	if (w->separate_flush) {
