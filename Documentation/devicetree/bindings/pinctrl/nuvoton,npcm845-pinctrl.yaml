@@ -85,11 +85,12 @@ patternProperties:
                   smb2c, smb2b, smb1c, smb1b, smb8, smb9, smb10, smb11, sd1,
                   sd1pwr, pwm4, pwm5, pwm6, pwm7, pwm8, pwm9, pwm10, pwm11,
                   mmc8, mmc, mmcwp, mmccd, mmcrst, clkout, serirq, lpcclk,
-                  scipme, smi, smb6, smb7, spi1, faninx, r1, spi3, spi3cs1,
-                  spi3quad, spi3cs2, spi3cs3, nprd_smi, smb0b, smb0c, smb0den,
-                  smb0d, ddc, rg2mdio, wdog1, wdog2, smb12, smb13, spix,
-                  spixcs1, clkreq, hgpio0, hgpio1, hgpio2, hgpio3, hgpio4,
-                  hgpio5, hgpio6, hgpio7 ]
+                  scipme, smi, smb6, smb6b, smb6c, smb6d, smb7, smb7b, smb7c,
+                  smb7d, spi1, faninx, r1, spi3, spi3cs1, spi3quad, spi3cs2,
+                  spi3cs3, nprd_smi, smb0b, smb0c, smb0den, smb0d, ddc, rg2mdio,
+                  wdog1, wdog2, smb12, smb13, spix, spixcs1, clkreq, hgpio0,
+                  hgpio1, hgpio2, hgpio3, hgpio4, hgpio5, hgpio6, hgpio7, bu4,
+                  bu4b, bu5, bu5b, bu6, gpo187 ]
 
       function:
         description:
@@ -109,11 +110,12 @@ patternProperties:
                 smb2c, smb2b, smb1c, smb1b, smb8, smb9, smb10, smb11, sd1,
                 sd1pwr, pwm4, pwm5, pwm6, pwm7, pwm8, pwm9, pwm10, pwm11,
                 mmc8, mmc, mmcwp, mmccd, mmcrst, clkout, serirq, lpcclk,
-                scipme, smi, smb6, smb7, spi1, faninx, r1, spi3, spi3cs1,
-                spi3quad, spi3cs2, spi3cs3, nprd_smi, smb0b, smb0c, smb0den,
-                smb0d, ddc, rg2mdio, wdog1, wdog2, smb12, smb13, spix,
-                spixcs1, clkreq, hgpio0, hgpio1, hgpio2, hgpio3, hgpio4,
-                hgpio5, hgpio6, hgpio7 ]
+                scipme, smi, smb6, smb6b, smb6c, smb6d, smb7, smb7b, smb7c,
+                smb7d, spi1, faninx, r1, spi3, spi3cs1, spi3quad, spi3cs2,
+                spi3cs3, nprd_smi, smb0b, smb0c, smb0den, smb0d, ddc, rg2mdio,
+                wdog1, wdog2, smb12, smb13, spix, spixcs1, clkreq, hgpio0,
+                hgpio1, hgpio2, hgpio3, hgpio4, hgpio5, hgpio6, hgpio7, bu4,
+                bu4b, bu5, bu5b, bu6, gpo187 ]
 
     dependencies:
       groups: [ function ]
