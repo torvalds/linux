@@ -997,7 +997,7 @@
 				compatible = "apm,xgene-mdio";
 				#address-cells = <1>;
 				#size-cells = <0>;
-				menetphy: menetphy@3 {
+				menetphy: ethernet-phy@3 {
 					compatible = "ethernet-phy-id001c.c915";
 					reg = <0x3>;
 				};
