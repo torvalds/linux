@@ -6,6 +6,7 @@
  */
 #include <acpi/battery.h>
 #include <linux/container_of.h>
+#include <linux/dmi.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_data/cros_ec_commands.h>
@@ -256,6 +257,19 @@ static int cros_chctl_remove_battery(struct power_supply *battery, struct acpi_b
 	return 0;
 }
 
+static bool probe_with_fwk_charge_control;
+module_param(probe_with_fwk_charge_control, bool, 0644);
+MODULE_PARM_DESC(probe_with_fwk_charge_control,
+		 "Probe the driver in the presence of the custom Framework EC charge control");
+
+static int cros_chctl_fwk_charge_control_versions(struct cros_ec_device *cros_ec)
+{
+	if (!dmi_match(DMI_SYS_VENDOR, "Framework"))
+		return 0;
+
+	return cros_ec_get_cmd_versions(cros_ec, 0x3E03 /* FW_EC_CMD_CHARGE_LIMIT */);
+}
+
 static int cros_chctl_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -264,6 +278,14 @@ static int cros_chctl_probe(struct platform_device *pdev)
 	struct cros_chctl_priv *priv;
 	size_t i;
 	int ret;
+
+	ret = cros_chctl_fwk_charge_control_versions(cros_ec);
+	if (ret < 0)
+		return ret;
+	if (ret > 0 && !probe_with_fwk_charge_control) {
+		dev_info(dev, "Framework charge control detected, preventing load\n");
+		return -ENODEV;
+	}
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
