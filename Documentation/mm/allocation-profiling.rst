@@ -46,7 +46,6 @@ Example output::
          55M     4887 mm/slub.c:2259 func:alloc_slab_page
         122M    31168 mm/page_ext.c:270 func:alloc_page_ext
 
-===================
 Theory of operation
 ===================
 
