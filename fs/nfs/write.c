@@ -478,6 +478,23 @@ void nfs_join_page_group(struct nfs_page *head, struct nfs_commit_info *cinfo,
 	nfs_destroy_unlinked_subrequests(destroy_list, head, inode);
 }
 
+/**
+ * nfs_wait_on_request - Wait for a request to complete.
+ * @req: request to wait upon.
+ *
+ * Interruptible by fatal signals only.
+ * The user is responsible for holding a count on the request.
+ */
+static int nfs_wait_on_request(struct nfs_page *req)
+{
+	if (!test_bit(PG_BUSY, &req->wb_flags))
+		return 0;
+	set_bit(PG_CONTENDED2, &req->wb_flags);
+	smp_mb__after_atomic();
+	return wait_on_bit_io(&req->wb_flags, PG_BUSY,
+			      TASK_UNINTERRUPTIBLE);
+}
+
 /*
  * nfs_unroll_locks -  unlock all newly locked reqs and wait on @req
  * @head: head request of page group, must be holding head lock
