@@ -178,6 +178,44 @@ static __always_inline int __atomic_cmpxchg(int *ptr, int old, int new)
 	return old;
 }
 
+static __always_inline long __atomic64_cmpxchg(long *ptr, long old, long new)
+{
+	asm volatile(
+		"	csg	%[old],%[new],%[ptr]"
+		: [old] "+d" (old), [ptr] "+QS" (*ptr)
+		: [new] "d" (new)
+		: "cc", "memory");
+	return old;
+}
+
+#ifdef __GCC_ASM_FLAG_OUTPUTS__
+
+static __always_inline bool __atomic_cmpxchg_bool(int *ptr, int old, int new)
+{
+	int cc;
+
+	asm volatile(
+		"	cs	%[old],%[new],%[ptr]"
+		: [old] "+d" (old), [ptr] "+Q" (*ptr), "=@cc" (cc)
+		: [new] "d" (new)
+		: "memory");
+	return cc == 0;
+}
+
+static __always_inline bool __atomic64_cmpxchg_bool(long *ptr, long old, long new)
+{
+	int cc;
+
+	asm volatile(
+		"	csg	%[old],%[new],%[ptr]"
+		: [old] "+d" (old), [ptr] "+QS" (*ptr), "=@cc" (cc)
+		: [new] "d" (new)
+		: "memory");
+	return cc == 0;
+}
+
+#else /* __GCC_ASM_FLAG_OUTPUTS__ */
+
 static __always_inline bool __atomic_cmpxchg_bool(int *ptr, int old, int new)
 {
 	int old_expected = old;
@@ -188,16 +226,6 @@ static __always_inline bool __atomic_cmpxchg_bool(int *ptr, int old, int new)
 		: [new] "d" (new)
 		: "cc", "memory");
 	return old == old_expected;
-}
-
-static __always_inline long __atomic64_cmpxchg(long *ptr, long old, long new)
-{
-	asm volatile(
-		"	csg	%[old],%[new],%[ptr]"
-		: [old] "+d" (old), [ptr] "+QS" (*ptr)
-		: [new] "d" (new)
-		: "cc", "memory");
-	return old;
 }
 
 static __always_inline bool __atomic64_cmpxchg_bool(long *ptr, long old, long new)
@@ -211,5 +239,7 @@ static __always_inline bool __atomic64_cmpxchg_bool(long *ptr, long old, long ne
 		: "cc", "memory");
 	return old == old_expected;
 }
+
+#endif /* __GCC_ASM_FLAG_OUTPUTS__ */
 
 #endif /* __ARCH_S390_ATOMIC_OPS__  */
