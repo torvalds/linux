@@ -3572,8 +3572,12 @@ static const char *open_last_lookups(struct nameidata *nd,
 	else
 		inode_lock_shared(dir->d_inode);
 	dentry = lookup_open(nd, file, op, got_write);
-	if (!IS_ERR(dentry) && (file->f_mode & FMODE_CREATED))
-		fsnotify_create(dir->d_inode, dentry);
+	if (!IS_ERR(dentry)) {
+		if (file->f_mode & FMODE_CREATED)
+			fsnotify_create(dir->d_inode, dentry);
+		if (file->f_mode & FMODE_OPENED)
+			fsnotify_open(file);
+	}
 	if (open_flag & O_CREAT)
 		inode_unlock(dir->d_inode);
 	else
@@ -3700,6 +3704,8 @@ int vfs_tmpfile(struct mnt_idmap *idmap,
 	mode = vfs_prepare_mode(idmap, dir, mode, mode, mode);
 	error = dir->i_op->tmpfile(idmap, dir, file, mode);
 	dput(child);
+	if (file->f_mode & FMODE_OPENED)
+		fsnotify_open(file);
 	if (error)
 		return error;
 	/* Don't check for other permissions, the inode was just created */
