@@ -2756,7 +2756,7 @@ static int mem_cgroup_oom_control_write(struct cgroup_subsys_state *css,
 	return 0;
 }
 
-#if defined(CONFIG_MEMCG_KMEM) && defined(CONFIG_SLUB_DEBUG)
+#ifdef CONFIG_SLUB_DEBUG
 static int mem_cgroup_slab_show(struct seq_file *m, void *p)
 {
 	/*
@@ -2863,7 +2863,7 @@ struct cftype mem_cgroup_legacy_files[] = {
 		.write = mem_cgroup_reset,
 		.read_u64 = mem_cgroup_read_u64,
 	},
-#if defined(CONFIG_MEMCG_KMEM) && defined(CONFIG_SLUB_DEBUG)
+#ifdef CONFIG_SLUB_DEBUG
 	{
 		.name = "kmem.slabinfo",
 		.seq_show = mem_cgroup_slab_show,
@@ -2922,7 +2922,6 @@ struct cftype memsw_files[] = {
 	{ },	/* terminate */
 };
 
-#ifdef CONFIG_MEMCG_KMEM
 void memcg1_account_kmem(struct mem_cgroup *memcg, int nr_pages)
 {
 	if (!cgroup_subsys_on_dfl(memory_cgrp_subsys)) {
@@ -2932,7 +2931,6 @@ void memcg1_account_kmem(struct mem_cgroup *memcg, int nr_pages)
 			page_counter_uncharge(&memcg->kmem, -nr_pages);
 	}
 }
-#endif /* CONFIG_MEMCG_KMEM */
 
 bool memcg1_charge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages,
 			 gfp_t gfp_mask)

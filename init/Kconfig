@@ -986,11 +986,6 @@ config MEMCG_V1
 
 	  San N is unsure.
 
-config MEMCG_KMEM
-	bool
-	depends on MEMCG
-	default y
-
 config BLK_CGROUP
 	bool "IO controller"
 	depends on BLOCK

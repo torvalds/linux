@@ -2020,7 +2020,7 @@ static inline bool need_slab_obj_ext(void)
 		return true;
 
 	/*
-	 * CONFIG_MEMCG_KMEM creates vector of obj_cgroup objects conditionally
+	 * CONFIG_MEMCG creates vector of obj_cgroup objects conditionally
 	 * inside memcg_slab_post_alloc_hook. No other users for now.
 	 */
 	return false;
@@ -2104,7 +2104,7 @@ alloc_tagging_slab_free_hook(struct kmem_cache *s, struct slab *slab, void **p,
 
 #endif /* CONFIG_SLAB_OBJ_EXT */
 
-#ifdef CONFIG_MEMCG_KMEM
+#ifdef CONFIG_MEMCG
 
 static void memcg_alloc_abort_single(struct kmem_cache *s, void *object);
 
@@ -2146,7 +2146,7 @@ void memcg_slab_free_hook(struct kmem_cache *s, struct slab *slab, void **p,
 
 	__memcg_slab_free_hook(s, slab, p, objects, obj_exts);
 }
-#else /* CONFIG_MEMCG_KMEM */
+#else /* CONFIG_MEMCG */
 static inline bool memcg_slab_post_alloc_hook(struct kmem_cache *s,
 					      struct list_lru *lru,
 					      gfp_t flags, size_t size,
@@ -2159,7 +2159,7 @@ static inline void memcg_slab_free_hook(struct kmem_cache *s, struct slab *slab,
 					void **p, int objects)
 {
 }
-#endif /* CONFIG_MEMCG_KMEM */
+#endif /* CONFIG_MEMCG */
 
 /*
  * Hooks for other subsystems that check memory allocations. In a typical
@@ -4456,7 +4456,7 @@ void slab_free(struct kmem_cache *s, struct slab *slab, void *object,
 		do_slab_free(s, slab, object, object, 1, addr);
 }
 
-#ifdef CONFIG_MEMCG_KMEM
+#ifdef CONFIG_MEMCG
 /* Do not inline the rare memcg charging failed path into the allocation path */
 static noinline
 void memcg_alloc_abort_single(struct kmem_cache *s, void *object)
