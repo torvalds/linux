@@ -489,6 +489,8 @@ static SUNXI_CCU_MP_WITH_MUX_GATE(ts_clk, "ts", ts_parents, 0x9b0,
 
 static SUNXI_CCU_GATE(bus_ts_clk, "bus-ts", "ahb3", 0x9bc, BIT(0), 0);
 
+static SUNXI_CCU_GATE(bus_gpadc_clk, "bus-gpadc", "apb1", 0x9ec, BIT(0), 0);
+
 static SUNXI_CCU_GATE(bus_ths_clk, "bus-ths", "apb1", 0x9fc, BIT(0), 0);
 
 static const char * const audio_parents[] = { "pll-audio-1x", "pll-audio-2x",
@@ -807,6 +809,7 @@ static struct ccu_common *sun50i_h616_ccu_clks[] = {
 	&bus_emac1_clk.common,
 	&ts_clk.common,
 	&bus_ts_clk.common,
+	&bus_gpadc_clk.common,
 	&bus_ths_clk.common,
 	&spdif_clk.common,
 	&bus_spdif_clk.common,
@@ -940,6 +943,7 @@ static struct clk_hw_onecell_data sun50i_h616_hw_clks = {
 		[CLK_BUS_EMAC1]		= &bus_emac1_clk.common.hw,
 		[CLK_TS]		= &ts_clk.common.hw,
 		[CLK_BUS_TS]		= &bus_ts_clk.common.hw,
+		[CLK_BUS_GPADC]		= &bus_gpadc_clk.common.hw,
 		[CLK_BUS_THS]		= &bus_ths_clk.common.hw,
 		[CLK_SPDIF]		= &spdif_clk.common.hw,
 		[CLK_BUS_SPDIF]		= &bus_spdif_clk.common.hw,
@@ -1021,6 +1025,7 @@ static struct ccu_reset_map sun50i_h616_ccu_resets[] = {
 	[RST_BUS_EMAC0]		= { 0x97c, BIT(16) },
 	[RST_BUS_EMAC1]		= { 0x97c, BIT(17) },
 	[RST_BUS_TS]		= { 0x9bc, BIT(16) },
+	[RST_BUS_GPADC]		= { 0x9ec, BIT(16) },
 	[RST_BUS_THS]		= { 0x9fc, BIT(16) },
 	[RST_BUS_SPDIF]		= { 0xa2c, BIT(16) },
 	[RST_BUS_DMIC]		= { 0xa4c, BIT(16) },
@@ -1167,4 +1172,5 @@ static struct platform_driver sun50i_h616_ccu_driver = {
 module_platform_driver(sun50i_h616_ccu_driver);
 
 MODULE_IMPORT_NS(SUNXI_CCU);
+MODULE_DESCRIPTION("Support for the Allwinner H616 CCU");
 MODULE_LICENSE("GPL");
