@@ -140,7 +140,7 @@ static ssize_t hidraw_send_report(struct file *file, const char __user *buffer, 
 
 	if ((report_type == HID_OUTPUT_REPORT) &&
 	    !(dev->quirks & HID_QUIRK_NO_OUTPUT_REPORTS_ON_INTR_EP)) {
-		ret = __hid_hw_output_report(dev, buf, count, (__u64)file, false);
+		ret = __hid_hw_output_report(dev, buf, count, (u64)(long)file, false);
 		/*
 		 * compatibility with old implementation of USB-HID and I2C-HID:
 		 * if the device does not support receiving output reports,
@@ -151,7 +151,7 @@ static ssize_t hidraw_send_report(struct file *file, const char __user *buffer, 
 	}
 
 	ret = __hid_hw_raw_request(dev, buf[0], buf, count, report_type,
-				   HID_REQ_SET_REPORT, (__u64)file, false);
+				   HID_REQ_SET_REPORT, (u64)(long)file, false);
 
 out_free:
 	kfree(buf);
@@ -228,7 +228,7 @@ static ssize_t hidraw_get_report(struct file *file, char __user *buffer, size_t 
 	}
 
 	ret = __hid_hw_raw_request(dev, report_number, buf, count, report_type,
-				   HID_REQ_GET_REPORT, (__u64)file, false);
+				   HID_REQ_GET_REPORT, (u64)(long)file, false);
 
 	if (ret < 0)
 		goto out_free;

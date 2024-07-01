@@ -261,7 +261,7 @@ static void hid_bpf_unreg(void *kdata)
 	hid_put_device(hdev);
 }
 
-static int __hid_bpf_device_event(struct hid_bpf_ctx *ctx, enum hid_report_type type, __u64 source)
+static int __hid_bpf_device_event(struct hid_bpf_ctx *ctx, enum hid_report_type type, u64 source)
 {
 	return 0;
 }

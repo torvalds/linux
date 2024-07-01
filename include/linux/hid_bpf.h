@@ -68,9 +68,9 @@ struct hid_ops {
 				  unsigned char reportnum, __u8 *buf,
 				  size_t len, enum hid_report_type rtype,
 				  enum hid_class_request reqtype,
-				  __u64 source, bool from_bpf);
+				  u64 source, bool from_bpf);
 	int (*hid_hw_output_report)(struct hid_device *hdev, __u8 *buf, size_t len,
-				    __u64 source, bool from_bpf);
+				    u64 source, bool from_bpf);
 	int (*hid_input_report)(struct hid_device *hid, enum hid_report_type type,
 				u8 *data, u32 size, int interrupt, u64 source, bool from_bpf,
 				bool lock_already_taken);
@@ -115,7 +115,7 @@ struct hid_bpf_ops {
 	 * Context: Interrupt context.
 	 */
 	int (*hid_device_event)(struct hid_bpf_ctx *ctx, enum hid_report_type report_type,
-				__u64 source);
+				u64 source);
 
 	/**
 	 * @hid_rdesc_fixup: called when the probe function parses the report descriptor

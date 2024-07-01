@@ -2412,7 +2412,7 @@ int __hid_hw_raw_request(struct hid_device *hdev,
 			 unsigned char reportnum, __u8 *buf,
 			 size_t len, enum hid_report_type rtype,
 			 enum hid_class_request reqtype,
-			 __u64 source, bool from_bpf)
+			 u64 source, bool from_bpf)
 {
 	unsigned int max_buffer_size = HID_MAX_BUFFER_SIZE;
 	int ret;
@@ -2454,7 +2454,7 @@ int hid_hw_raw_request(struct hid_device *hdev,
 }
 EXPORT_SYMBOL_GPL(hid_hw_raw_request);
 
-int __hid_hw_output_report(struct hid_device *hdev, __u8 *buf, size_t len, __u64 source,
+int __hid_hw_output_report(struct hid_device *hdev, __u8 *buf, size_t len, u64 source,
 			   bool from_bpf)
 {
 	unsigned int max_buffer_size = HID_MAX_BUFFER_SIZE;
