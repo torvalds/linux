@@ -14,9 +14,15 @@
 	#address-cells = <2>;
 	#size-cells = <2>;
 
+	/* External Audio clock - to be overridden by boards that provide it */
+	audio_clkin: audio_clkin {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <0>;
+	};
+
 	cluster0_opp: opp-table-0 {
 		compatible = "operating-points-v2";
-		opp-shared;
 
 		opp-500000000 {
 			opp-hz = /bits/ 64 <500000000>;
@@ -1459,6 +1465,67 @@
 				 <&ipmmu_ds0 22>, <&ipmmu_ds0 23>;
 		};
 
+		rcar_sound: sound@ec400000 {
+			compatible = "renesas,rcar_sound-r8a779h0", "renesas,rcar_sound-gen4";
+			reg = <0 0xec400000 0 0x40000>,
+			      <0 0xec540000 0 0x1000>,
+			      <0 0xec541000 0 0x050>,
+			      <0 0xec5a0000 0 0x020>;
+			reg-names = "sdmc", "ssiu", "ssi", "adg";
+			clocks = <&cpg CPG_MOD 2926>, <&cpg CPG_MOD 2927>, <&audio_clkin>;
+			clock-names = "ssiu.0", "ssi.0", "clkin";
+			/* #clock-cells is fixed */
+			#clock-cells = <0>;
+			/* #sound-dai-cells is fixed */
+			#sound-dai-cells = <0>;
+
+			power-domains = <&sysc R8A779H0_PD_ALWAYS_ON>;
+			resets = <&cpg 2926>, <&cpg 2927>;
+			reset-names = "ssiu.0", "ssi.0";
+			status = "disabled";
+
+			rcar_sound,ssiu {
+				ssiu00: ssiu-0 {
+					dmas = <&dmac1 0x6e>, <&dmac1 0x6f>;
+					dma-names = "tx", "rx";
+				};
+				ssiu01: ssiu-1 {
+					dmas = <&dmac1 0x6c>, <&dmac1 0x6d>;
+					dma-names = "tx", "rx";
+				};
+				ssiu02: ssiu-2 {
+					dmas = <&dmac1 0x6a>, <&dmac1 0x6b>;
+					dma-names = "tx", "rx";
+				};
+				ssiu03: ssiu-3 {
+					dmas = <&dmac1 0x68>, <&dmac1 0x69>;
+					dma-names = "tx", "rx";
+				};
+				ssiu04: ssiu-4 {
+					dmas = <&dmac1 0x66>, <&dmac1 0x67>;
+					dma-names = "tx", "rx";
+				};
+				ssiu05: ssiu-5 {
+					dmas = <&dmac1 0x64>, <&dmac1 0x65>;
+					dma-names = "tx", "rx";
+				};
+				ssiu06: ssiu-6 {
+					dmas = <&dmac1 0x62>, <&dmac1 0x63>;
+					dma-names = "tx", "rx";
+				};
+				ssiu07: ssiu-7 {
+					dmas = <&dmac1 0x60>, <&dmac1 0x61>;
+					dma-names = "tx", "rx";
+				};
+			};
+
+			rcar_sound,ssi {
+				ssi0: ssi-0 {
+					interrupts = <GIC_SPI 258 IRQ_TYPE_LEVEL_HIGH>;
+				};
+			};
+		};
+
 		mmc0: mmc@ee140000 {
 			compatible = "renesas,sdhi-r8a779h0",
 				     "renesas,rcar-gen4-sdhi";
@@ -1861,5 +1928,7 @@
 				      <&gic GIC_PPI 11 IRQ_TYPE_LEVEL_LOW>,
 				      <&gic GIC_PPI 10 IRQ_TYPE_LEVEL_LOW>,
 				      <&gic GIC_PPI 12 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-names = "sec-phys", "phys", "virt", "hyp-phys",
+				  "hyp-virt";
 	};
 };
