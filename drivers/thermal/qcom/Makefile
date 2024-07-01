@@ -9,6 +9,7 @@ obj-$(CONFIG_QCOM_SPMI_TEMP_ALARM)	+= qcom-spmi-temp-alarm.o
 obj-$(CONFIG_QCOM_LMH)		+= lmh.o
 obj-$(CONFIG_QTI_CPU_PAUSE_COOLING_DEVICE) += thermal_pause.o
 obj-$(CONFIG_QTI_BCL_PMIC5) += bcl_pmic5.o
+bcl_pmic5-y +=  qti_bcl_pmic5.o qti_bcl_stats.o
 obj-$(CONFIG_QTI_BCL_SOC_DRIVER) += bcl_soc.o
 obj-$(CONFIG_QTI_POLICY_ENGINE_SENSOR) += policy_engine.o
 
