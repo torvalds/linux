@@ -52,7 +52,7 @@
 		pinctrl-0 = <&pmx_power_led>;
 		pinctrl-names = "default";
 
-		led@1 {
+		led-1 {
 			label = "power:blue";
 			gpios = <&gpio0 16 GPIO_ACTIVE_LOW>;
 		};

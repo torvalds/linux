@@ -102,22 +102,22 @@
 			     &pmx_led_power>;
 		pinctrl-names = "default";
 
-		alarm {
+		led-alarm {
 			label = "lswsgl:alarm:red";
 			gpios = <&gpio0 2 GPIO_ACTIVE_LOW>;
 		};
 
-		info {
+		led-info {
 			label = "lswsgl:info:amber";
 			gpios = <&gpio0 3 GPIO_ACTIVE_LOW>;
 		};
 
-		func {
+		led-func {
 			label = "lswsgl:func:blue:top";
 			gpios = <&gpio0 9 GPIO_ACTIVE_LOW>;
 		};
 
-		power {
+		led-power {
 			label = "lswsgl:power:blue:bottom";
 			gpios = <&gpio0 14 GPIO_ACTIVE_LOW>;
 			default-state = "on";

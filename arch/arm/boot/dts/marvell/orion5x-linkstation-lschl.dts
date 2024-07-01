@@ -90,7 +90,7 @@
 			gpios = <&gpio0 3 GPIO_ACTIVE_LOW>;
 		};
 
-		func {
+		func-led {
 			label = "lschl:func:blue:top";
 			gpios = <&gpio0 17 GPIO_ACTIVE_LOW>;
 		};
