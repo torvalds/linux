@@ -294,7 +294,7 @@ static int txgbe_open(struct net_device *netdev)
 
 	wx_configure(wx);
 
-	err = txgbe_request_irq(wx);
+	err = txgbe_request_queue_irqs(wx);
 	if (err)
 		goto err_free_isb;
 

@@ -1997,7 +1997,8 @@ void wx_free_irq(struct wx *wx)
 	int vector;
 
 	if (!(pdev->msix_enabled)) {
-		free_irq(pdev->irq, wx);
+		if (!wx->misc_irq_domain)
+			free_irq(pdev->irq, wx);
 		return;
 	}
 
@@ -2012,7 +2013,7 @@ void wx_free_irq(struct wx *wx)
 		free_irq(entry->vector, q_vector);
 	}
 
-	if (wx->mac.type == wx_mac_em)
+	if (!wx->misc_irq_domain)
 		free_irq(wx->msix_entry->vector, wx);
 }
 EXPORT_SYMBOL(wx_free_irq);
