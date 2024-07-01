@@ -48,7 +48,7 @@ static void update_ctx_mem(struct drm_file *file, ssize_t size)
 	uint64_t ctx_mem = atomic64_add_return(size, &ctx->ctx_mem);
 
 	rcu_read_lock(); /* Locks file->pid! */
-	trace_gpu_mem_total(0, pid_nr(file->pid), ctx_mem);
+	trace_gpu_mem_total(0, pid_nr(rcu_dereference(file->pid)), ctx_mem);
 	rcu_read_unlock();
 
 }
