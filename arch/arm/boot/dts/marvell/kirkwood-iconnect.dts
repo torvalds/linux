@@ -89,32 +89,32 @@
 			gpios = <&gpio1 9 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
 		};
-		power-blue {
+		led-power-blue {
 			label = "power:blue";
 			gpios = <&gpio1 10 GPIO_ACTIVE_HIGH>;
 			default-state = "keep";
 		};
-		power-red {
+		led-power-red {
 			label = "power:red";
 			gpios = <&gpio1 11 GPIO_ACTIVE_HIGH>;
 		};
-		usb1 {
+		led-usb1 {
 			label = "usb1:blue";
 			gpios = <&gpio1 12 GPIO_ACTIVE_HIGH>;
 		};
-		usb2 {
+		led-usb2 {
 			label = "usb2:blue";
 			gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;
 		};
-		usb3 {
+		led-usb3 {
 			label = "usb3:blue";
 			gpios = <&gpio1 14 GPIO_ACTIVE_HIGH>;
 		};
-		usb4 {
+		led-usb4 {
 			label = "usb4:blue";
 			gpios = <&gpio1 15 GPIO_ACTIVE_HIGH>;
 		};
-		otb {
+		led-otb {
 			label = "otb:blue";
 			gpios = <&gpio1 16 GPIO_ACTIVE_HIGH>;
 		};

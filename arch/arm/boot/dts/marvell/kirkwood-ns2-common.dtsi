@@ -66,7 +66,7 @@
 	gpio-leds {
 		compatible = "gpio-leds";
 
-		red-fail {
+		led-red-fail {
 			label = "ns2:red:fail";
 			gpios = <&gpio0 12 GPIO_ACTIVE_HIGH>;
 		};

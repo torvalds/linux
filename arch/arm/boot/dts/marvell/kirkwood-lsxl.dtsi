@@ -137,28 +137,28 @@
 			     &pmx_led_function_blue>;
 		pinctrl-names = "default";
 
-		func_blue {
+		led-func-blue {
 			label = "lsxl:blue:func";
 			gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
 		};
 
-		alarm {
+		led-alarm {
 			label = "lsxl:red:alarm";
 			gpios = <&gpio1 5 GPIO_ACTIVE_LOW>;
 		};
 
-		info {
+		led-info {
 			label = "lsxl:amber:info";
 			gpios = <&gpio1 6 GPIO_ACTIVE_LOW>;
 		};
 
-		power {
+		led-power {
 			label = "lsxl:blue:power";
 			gpios = <&gpio1 7 GPIO_ACTIVE_LOW>;
 			default-state = "keep";
 		};
 
-		func_red {
+		led-func-red {
 			label = "lsxl:red:func";
 			gpios = <&gpio1 16 GPIO_ACTIVE_LOW>;
 		};

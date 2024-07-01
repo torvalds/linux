@@ -73,17 +73,17 @@
 		pinctrl-0 = <&pmx_leds &pmx_usb_led>;
 		pinctrl-names = "default";
 
-		green-status {
+		led-green-status {
 			label = "gtw:green:Status";
 			gpios = <&gpio0 20 GPIO_ACTIVE_HIGH>;
 		};
 
-		red-status {
+		led-red-status {
 			label = "gtw:red:Status";
 			gpios = <&gpio0 21 GPIO_ACTIVE_HIGH>;
 		};
 
-		green-usb {
+		led-green-usb {
 			label = "gtw:green:USB";
 			gpios = <&gpio0 12 GPIO_ACTIVE_HIGH>;
 		};

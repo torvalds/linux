@@ -79,16 +79,16 @@
 			     &pmx_led_usb_transfer>;
 		pinctrl-names = "default";
 
-		green-os {
+		led-green-os {
 			label = "ib62x0:green:os";
 			gpios = <&gpio0 25 GPIO_ACTIVE_HIGH>;
 			default-state = "keep";
 		};
-		red-os {
+		led-red-os {
 			label = "ib62x0:red:os";
 			gpios = <&gpio0 22 GPIO_ACTIVE_HIGH>;
 		};
-		usb-copy {
+		led-usb-copy {
 			label = "ib62x0:red:usb_copy";
 			gpios = <&gpio0 27 GPIO_ACTIVE_HIGH>;
 		};

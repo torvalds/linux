@@ -51,7 +51,7 @@
 	gpio-leds {
 		compatible = "gpio-leds";
 
-		blue-power {
+		led-blue-power {
 			label = "nas220:blue:power";
 			gpios = <&gpio0 12 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "default-on";

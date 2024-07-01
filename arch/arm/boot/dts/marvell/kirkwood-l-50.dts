@@ -97,52 +97,52 @@
 	leds {
 		compatible = "gpio-leds";
 
-		status_green {
+		led-status-green {
 			label = "l-50:green:status";
 			gpios = <&gpio1 6 GPIO_ACTIVE_LOW>;
 		};
 
-		status_red {
+		led-status-red {
 			label = "l-50:red:status";
 			gpios = <&gpio3 2 GPIO_ACTIVE_LOW>;
 		};
 
-		wifi {
+		led-wifi {
 			label = "l-50:green:wifi";
 			gpios = <&gpio2 7 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "phy0tpt";
 		};
 
-		internet_green {
+		led-internet-green {
 			label = "l-50:green:internet";
 			gpios = <&gpio2 3 GPIO_ACTIVE_LOW>;
 		};
 
-		internet_red {
+		led-internet-red {
 			label = "l-50:red:internet";
 			gpios = <&gpio2 1 GPIO_ACTIVE_LOW>;
 		};
 
-		usb1_green {
+		led-usb1-green {
 			label = "l-50:green:usb1";
 			gpios = <&gpio2 0 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "usbport";
 			trigger-sources = <&hub_port3>;
 		};
 
-		usb1_red {
+		led-usb1-red {
 			label = "l-50:red:usb1";
 			gpios = <&gpio2 4 GPIO_ACTIVE_LOW>;
 		};
 
-		usb2_green {
+		led-usb2-green {
 			label = "l-50:green:usb2";
 			gpios = <&gpio2 2 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "usbport";
 			trigger-sources = <&hub_port1>;
 		};
 
-		usb2_red {
+		led-usb2-red {
 			label = "l-50:red:usb2";
 			gpios = <&gpio2 5 GPIO_ACTIVE_LOW>;
 		};

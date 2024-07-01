@@ -127,20 +127,20 @@
 			      &pmx_led_rebuild &pmx_led_health >;
 		pinctrl-names = "default";
 
-		power_led {
+		led-power-led {
 			label = "status:white:power_led";
 			gpios = <&gpio0 16 GPIO_ACTIVE_HIGH>;
 			default-state = "keep";
 		};
-		rebuild_led {
+		led-rebuild-led {
 			label = "status:white:rebuild_led";
 			gpios = <&gpio1 4 GPIO_ACTIVE_HIGH>;
 		};
-		health_led {
+		led-health-led {
 			label = "status:red:health_led";
 			gpios = <&gpio1 5 GPIO_ACTIVE_HIGH>;
 		};
-		backup_led {
+		led-backup-led {
 			label = "status:blue:backup_led";
 			gpios = <&gpio0 15 GPIO_ACTIVE_HIGH>;
 		};

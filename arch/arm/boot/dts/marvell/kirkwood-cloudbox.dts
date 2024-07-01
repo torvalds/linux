@@ -69,11 +69,11 @@
 	gpio-leds {
 		compatible = "gpio-leds";
 
-		red-fail {
+		led-red-fail {
 			label = "cloudbox:red:fail";
 			gpios = <&gpio0 14 GPIO_ACTIVE_HIGH>;
 		};
-		blue-sata {
+		led-blue-sata {
 			label = "cloudbox:blue:sata";
 			gpios = <&gpio0 15 GPIO_ACTIVE_HIGH>;
 		};

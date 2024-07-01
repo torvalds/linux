@@ -46,12 +46,12 @@
 		pinctrl-0 = <&pmx_led_green &pmx_led_red>;
 		pinctrl-names = "default";
 
-		health {
+		led-health {
 			label = "pogoplugv4:green:health";
 			gpios = <&gpio0 22 GPIO_ACTIVE_LOW>;
 			default-state = "on";
 		};
-		fault {
+		led-fault {
 			label = "pogoplugv4:red:fault";
 			gpios = <&gpio0 24 GPIO_ACTIVE_LOW>;
 		};

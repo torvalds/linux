@@ -137,38 +137,38 @@
 	gpio-leds {
 		compatible = "gpio-leds";
 
-		blue-usb {
+		led-blue-usb {
 			label = "dir665:blue:usb";
 			gpios = <&gpio0 12 GPIO_ACTIVE_HIGH>;
 		};
-		blue-internet {
+		led-blue-internet {
 			/* Can only be turned on if the Internet
 			 * Ethernet port has Link
 			 */
 			label = "dir665:blue:internet";
 			gpios = <&gpio1 10 GPIO_ACTIVE_LOW>;
 		};
-		amber-internet {
+		led-amber-internet {
 			label = "dir665:amber:internet";
 			gpios = <&gpio1 11 GPIO_ACTIVE_HIGH>;
 		};
-		blue-wifi5g {
+		led-blue-wifi5g {
 			label = "dir665:blue:5g";
 			gpios = <&gpio1 12 GPIO_ACTIVE_LOW>;
 		};
-		blue-status {
+		led-blue-status {
 			label = "dir665:blue:status";
 			gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;
 		};
-		blue-wps {
+		led-blue-wps {
 			label = "dir665:blue:wps";
 			gpios = <&gpio1 15 GPIO_ACTIVE_HIGH>;
 		};
-		amber-status {
+		led-amber-status {
 			label = "dir665:amber:status";
 			gpios = <&gpio1 16 GPIO_ACTIVE_HIGH>;
 		};
-		blue-24g {
+		led-blue-24g {
 			label = "dir665:blue:24g";
 			gpios = <&gpio1 17 GPIO_ACTIVE_LOW>;
 		};

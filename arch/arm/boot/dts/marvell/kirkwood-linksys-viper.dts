@@ -54,12 +54,12 @@
 		pinctrl-0 = < &pmx_led_white_health &pmx_led_white_pulse >;
 		pinctrl-names = "default";
 
-		white-health {
+		led-white-health {
 			label = "viper:white:health";
 			gpios = <&gpio0 7 GPIO_ACTIVE_HIGH>;
 		};
 
-		white-pulse {
+		led-white-pulse {
 			label = "viper:white:pulse";
 			gpios = <&gpio0 14 GPIO_ACTIVE_HIGH>;
 		};
