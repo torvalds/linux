@@ -23,7 +23,7 @@ int ice_check_reset(struct ice_hw *hw);
 int ice_reset(struct ice_hw *hw, enum ice_reset_req req);
 int ice_create_all_ctrlq(struct ice_hw *hw);
 int ice_init_all_ctrlq(struct ice_hw *hw);
-void ice_shutdown_all_ctrlq(struct ice_hw *hw);
+void ice_shutdown_all_ctrlq(struct ice_hw *hw, bool unloading);
 void ice_destroy_all_ctrlq(struct ice_hw *hw);
 int
 ice_clean_rq_elem(struct ice_hw *hw, struct ice_ctl_q_info *cq,
