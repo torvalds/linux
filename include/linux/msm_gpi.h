@@ -287,6 +287,20 @@ struct __packed qup_q2spi_cr_header_event {
 	u8 ch_id : 8;
 };
 
+static const char *const gpi_cb_event_str[MSM_GPI_QUP_MAX_EVENT] = {
+	[MSM_GPI_QUP_NOTIFY] = "NOTIFY",
+	[MSM_GPI_QUP_ERROR] = "GLOBAL ERROR",
+	[MSM_GPI_QUP_CH_ERROR] = "CHAN ERROR",
+	[MSM_GPI_QUP_FW_ERROR] = "UNHANDLED ERROR",
+	[MSM_GPI_QUP_PENDING_EVENT] = "PENDING EVENT",
+	[MSM_GPI_QUP_EOT_DESC_MISMATCH] = "EOT/DESC MISMATCH",
+	[MSM_GPI_QUP_SW_ERROR] = "SW ERROR",
+	[MSM_GPI_QUP_CR_HEADER] = "Doorbell CR EVENT"
+};
+
+#define TO_GPI_CB_EVENT_STR(event) (((event) >= MSM_GPI_QUP_MAX_EVENT) ? \
+				    "INVALID" : gpi_cb_event_str[(event)])
+
 struct msm_gpi_cb {
 	enum msm_gpi_cb_event cb_event;
 	u64 status;
