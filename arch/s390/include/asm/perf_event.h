@@ -48,10 +48,6 @@ struct perf_sf_sde_regs {
 	unsigned long reserved:63;	  /* reserved */
 };
 
-/* Perf PMU definitions for the counter facility */
-#define PERF_CPUM_CF_MAX_CTR		0xffffUL  /* Max ctr for ECCTR */
-#define PERF_EVENT_CPUM_CF_DIAG		0xBC000UL /* Event: Counter sets */
-
 #define perf_arch_fetch_caller_regs(regs, __ip) do {			\
 	(regs)->psw.addr = (__ip);					\
 	(regs)->gprs[15] = (unsigned long)__builtin_frame_address(0) -	\
