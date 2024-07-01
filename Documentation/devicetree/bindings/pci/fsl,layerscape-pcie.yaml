@@ -45,10 +45,15 @@ properties:
       - const: config
 
   fsl,pcie-scfg:
-    $ref: /schemas/types.yaml#/definitions/phandle
+    $ref: /schemas/types.yaml#/definitions/phandle-array
     description: A phandle to the SCFG device node. The second entry is the
       physical PCIe controller index starting from '0'. This is used to get
       SCFG PEXN registers.
+    items:
+      items:
+        - description: A phandle to the SCFG device node
+        - description: PCIe controller index starting from '0'
+    maxItems: 1
 
   big-endian:
     $ref: /schemas/types.yaml#/definitions/flag
