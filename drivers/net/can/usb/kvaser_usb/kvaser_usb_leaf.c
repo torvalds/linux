@@ -936,14 +936,14 @@ static void kvaser_usb_leaf_tx_acknowledge(const struct kvaser_usb *dev,
 
 	/* Sometimes the state change doesn't come after a bus-off event */
 	if (priv->can.restart_ms && priv->can.state == CAN_STATE_BUS_OFF) {
-		struct sk_buff *skb;
+		struct sk_buff *err_skb;
 		struct can_frame *cf;
 
-		skb = alloc_can_err_skb(priv->netdev, &cf);
-		if (skb) {
+		err_skb = alloc_can_err_skb(priv->netdev, &cf);
+		if (err_skb) {
 			cf->can_id |= CAN_ERR_RESTARTED;
 
-			netif_rx(skb);
+			netif_rx(err_skb);
 		} else {
 			netdev_err(priv->netdev,
 				   "No memory left for err_skb\n");
