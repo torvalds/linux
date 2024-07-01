@@ -181,6 +181,32 @@ struct tx_cmp {
 #define TX_CMP_SQ_CONS_IDX(txcmp)					\
 	(le32_to_cpu((txcmp)->sq_cons_idx) & TX_CMP_SQ_CONS_IDX_MASK)
 
+struct tx_ts_cmp {
+	__le32 tx_ts_cmp_flags_type;
+	#define TX_TS_CMP_FLAGS_ERROR				(1 << 6)
+	#define TX_TS_CMP_FLAGS_TS_TYPE				(1 << 7)
+	 #define TX_TS_CMP_FLAGS_TS_TYPE_PM			 (0 << 7)
+	 #define TX_TS_CMP_FLAGS_TS_TYPE_PA			 (1 << 7)
+	#define TX_TS_CMP_FLAGS_TS_FALLBACK			(1 << 8)
+	#define TX_TS_CMP_TS_SUB_NS				(0xf << 12)
+	#define TX_TS_CMP_TS_NS_MID				(0xffff << 16)
+	#define TX_TS_CMP_TS_NS_MID_SFT				16
+	u32 tx_ts_cmp_opaque;
+	__le32 tx_ts_cmp_errors_v;
+	#define TX_TS_CMP_V					(1 << 0)
+	#define TX_TS_CMP_TS_INVALID_ERR			(1 << 10)
+	__le32 tx_ts_cmp_ts_ns_lo;
+};
+
+#define BNXT_GET_TX_TS_48B_NS(tscmp)					\
+	(le32_to_cpu((tscmp)->tx_ts_cmp_ts_ns_lo) |			\
+	 ((u64)(le32_to_cpu((tscmp)->tx_ts_cmp_flags_type) &		\
+	  TX_TS_CMP_TS_NS_MID) << TX_TS_CMP_TS_NS_MID_SFT))
+
+#define BNXT_TX_TS_ERR(tscmp)						\
+	(((tscmp)->tx_ts_cmp_flags_type & cpu_to_le32(TX_TS_CMP_FLAGS_ERROR)) &&\
+	 ((tscmp)->tx_ts_cmp_errors_v & cpu_to_le32(TX_TS_CMP_TS_INVALID_ERR)))
+
 struct rx_cmp {
 	__le32 rx_cmp_len_flags_type;
 	#define RX_CMP_CMP_TYPE					(0x3f << 0)
@@ -848,11 +874,14 @@ struct bnxt_sw_tx_bd {
 	DEFINE_DMA_UNMAP_ADDR(mapping);
 	DEFINE_DMA_UNMAP_LEN(len);
 	struct page		*page;
-	u8			is_gso;
+	u8			is_ts_pkt;
 	u8			is_push;
 	u8			action;
 	unsigned short		nr_frags;
-	u16			rx_prod;
+	union {
+		u16			rx_prod;
+		u16			txts_prod;
+	};
 };
 
 struct bnxt_sw_rx_bd {
@@ -2237,8 +2266,16 @@ struct bnxt {
 	 (BNXT_CHIP_NUM_58700((bp)->chip_num) &&	\
 	  !BNXT_CHIP_TYPE_NITRO_A0(bp)))
 
+/* Chip class phase 3.x */
+#define BNXT_CHIP_P3(bp)			\
+	(BNXT_CHIP_NUM_57X0X((bp)->chip_num) ||	\
+	 BNXT_CHIP_TYPE_NITRO_A0(bp))
+
 #define BNXT_CHIP_P4_PLUS(bp)			\
 	(BNXT_CHIP_P4(bp) || BNXT_CHIP_P5_PLUS(bp))
+
+#define BNXT_CHIP_P5_AND_MINUS(bp)		\
+	(BNXT_CHIP_P3(bp) || BNXT_CHIP_P4(bp) || BNXT_CHIP_P5(bp))
 
 	struct bnxt_aux_priv	*aux_priv;
 	struct bnxt_en_dev	*edev;
@@ -2384,6 +2421,7 @@ struct bnxt {
 	#define BNXT_FW_CAP_CFA_RFS_RING_TBL_IDX_V2	BIT_ULL(16)
 	#define BNXT_FW_CAP_PCIE_STATS_SUPPORTED	BIT_ULL(17)
 	#define BNXT_FW_CAP_EXT_STATS_SUPPORTED		BIT_ULL(18)
+	#define BNXT_FW_CAP_TX_TS_CMP			BIT_ULL(19)
 	#define BNXT_FW_CAP_ERR_RECOVER_RELOAD		BIT_ULL(20)
 	#define BNXT_FW_CAP_HOT_RESET			BIT_ULL(21)
 	#define BNXT_FW_CAP_PTP_RTC			BIT_ULL(22)
