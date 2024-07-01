@@ -1429,7 +1429,7 @@ static int journal_revoke_records_per_block(journal_t *journal)
 
 static int jbd2_journal_get_max_txn_bufs(journal_t *journal)
 {
-	return (journal->j_total_len - journal->j_fc_wbufsize) / 4;
+	return (journal->j_total_len - journal->j_fc_wbufsize) / 3;
 }
 
 /*
