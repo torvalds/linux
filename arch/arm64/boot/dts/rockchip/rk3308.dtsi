@@ -811,7 +811,7 @@
 		clocks = <&cru SCLK_I2S2_8CH_TX_OUT>,
 			 <&cru SCLK_I2S2_8CH_RX_OUT>,
 			 <&cru PCLK_ACODEC>;
-		reset-names = "codec-reset";
+		reset-names = "codec";
 		resets = <&cru SRST_ACODEC_P>;
 		#sound-dai-cells = <0>;
 		status = "disabled";

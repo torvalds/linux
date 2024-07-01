@@ -168,8 +168,13 @@ static u32 ovs_ct_get_mark(const struct nf_conn *ct)
 static void ovs_ct_get_labels(const struct nf_conn *ct,
 			      struct ovs_key_ct_labels *labels)
 {
-	struct nf_conn_labels *cl = ct ? nf_ct_labels_find(ct) : NULL;
+	struct nf_conn_labels *cl = NULL;
 
+	if (ct) {
+		if (ct->master && !nf_ct_is_confirmed(ct))
+			ct = ct->master;
+		cl = nf_ct_labels_find(ct);
+	}
 	if (cl)
 		memcpy(labels, cl->bits, OVS_CT_LABELS_LEN);
 	else

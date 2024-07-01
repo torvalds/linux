@@ -68,6 +68,7 @@ config RESET_BRCMSTB_RESCAL
 
 config RESET_GPIO
 	tristate "GPIO reset controller"
+	depends on GPIOLIB
 	help
 	  This enables a generic reset controller for resets attached via
 	  GPIOs.  Typically for OF platforms this driver expects "reset-gpios"
