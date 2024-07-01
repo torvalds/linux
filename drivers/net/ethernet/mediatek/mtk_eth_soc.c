@@ -3396,7 +3396,7 @@ static int mtk_open(struct net_device *dev)
 
 		for (i = 0; i < MTK_MAX_DEVS; i++) {
 			if (!eth->netdev[i])
-				break;
+				continue;
 
 			target_mac = netdev_priv(eth->netdev[i]);
 			if (!soc->offload_version) {
