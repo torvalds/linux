@@ -279,8 +279,7 @@ static int blk_validate_limits(struct queue_limits *lim)
 	} else if (lim->io_opt) {
 		lim->max_sectors =
 			min(max_hw_sectors, lim->io_opt >> SECTOR_SHIFT);
-	} else if (lim->io_min &&
-		   lim->io_min > (BLK_DEF_MAX_SECTORS_CAP << SECTOR_SHIFT)) {
+	} else if (lim->io_min > (BLK_DEF_MAX_SECTORS_CAP << SECTOR_SHIFT)) {
 		lim->max_sectors =
 			min(max_hw_sectors, lim->io_min >> SECTOR_SHIFT);
 	} else {
