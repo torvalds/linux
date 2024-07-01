@@ -39,9 +39,8 @@
 		compatible = "gpio-keys";
 		pinctrl-0 = <&pmx_power_button>;
 		pinctrl-names = "default";
-		#address-cells = <1>;
-		#size-cells = <0>;
-		button@1 {
+
+		button-1 {
 			label = "Power-on Switch";
 			linux,code = <KEY_POWER>;
 			gpios = <&gpio0 18 GPIO_ACTIVE_HIGH>;

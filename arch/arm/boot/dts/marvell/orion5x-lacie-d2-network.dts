@@ -35,8 +35,6 @@
 		compatible = "gpio-keys";
 		pinctrl-0 = <&pmx_buttons>;
 		pinctrl-names = "default";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
 		button-front {
 			label = "Front Push Button";
