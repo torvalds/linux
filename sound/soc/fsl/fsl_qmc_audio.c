@@ -35,11 +35,16 @@ struct qmc_audio {
 
 struct qmc_dai_prtd {
 	struct qmc_dai *qmc_dai;
-	dma_addr_t dma_buffer_start;
-	dma_addr_t period_ptr_submitted;
-	dma_addr_t period_ptr_ended;
-	dma_addr_t dma_buffer_end;
-	size_t period_size;
+
+	snd_pcm_uframes_t buffer_ended;
+	snd_pcm_uframes_t buffer_size;
+	snd_pcm_uframes_t period_size;
+
+	dma_addr_t ch_dma_addr_start;
+	dma_addr_t ch_dma_addr_current;
+	dma_addr_t ch_dma_addr_end;
+	size_t ch_dma_size;
+
 	struct snd_pcm_substream *substream;
 };
 
@@ -65,12 +70,16 @@ static int qmc_audio_pcm_hw_params(struct snd_soc_component *component,
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct qmc_dai_prtd *prtd = substream->runtime->private_data;
 
-	prtd->dma_buffer_start = runtime->dma_addr;
-	prtd->dma_buffer_end = runtime->dma_addr + params_buffer_bytes(params);
-	prtd->period_size = params_period_bytes(params);
-	prtd->period_ptr_submitted = prtd->dma_buffer_start;
-	prtd->period_ptr_ended = prtd->dma_buffer_start;
 	prtd->substream = substream;
+
+	prtd->buffer_ended = 0;
+	prtd->buffer_size = params_buffer_size(params);
+	prtd->period_size = params_period_size(params);
+
+	prtd->ch_dma_addr_start = runtime->dma_addr;
+	prtd->ch_dma_addr_end = runtime->dma_addr + params_buffer_bytes(params);
+	prtd->ch_dma_addr_current = prtd->ch_dma_addr_start;
+	prtd->ch_dma_size = params_period_bytes(params);
 
 	return 0;
 }
@@ -80,16 +89,16 @@ static void qmc_audio_pcm_write_complete(void *context)
 	struct qmc_dai_prtd *prtd = context;
 	int ret;
 
-	prtd->period_ptr_ended += prtd->period_size;
-	if (prtd->period_ptr_ended >= prtd->dma_buffer_end)
-		prtd->period_ptr_ended = prtd->dma_buffer_start;
+	prtd->buffer_ended += prtd->period_size;
+	if (prtd->buffer_ended >= prtd->buffer_size)
+		prtd->buffer_ended = 0;
 
-	prtd->period_ptr_submitted += prtd->period_size;
-	if (prtd->period_ptr_submitted >= prtd->dma_buffer_end)
-		prtd->period_ptr_submitted = prtd->dma_buffer_start;
+	prtd->ch_dma_addr_current += prtd->ch_dma_size;
+	if (prtd->ch_dma_addr_current >= prtd->ch_dma_addr_end)
+		prtd->ch_dma_addr_current = prtd->ch_dma_addr_start;
 
 	ret = qmc_chan_write_submit(prtd->qmc_dai->qmc_chan,
-				    prtd->period_ptr_submitted, prtd->period_size,
+				    prtd->ch_dma_addr_current, prtd->ch_dma_size,
 				    qmc_audio_pcm_write_complete, prtd);
 	if (ret) {
 		dev_err(prtd->qmc_dai->dev, "write_submit failed %d\n",
@@ -104,21 +113,21 @@ static void qmc_audio_pcm_read_complete(void *context, size_t length, unsigned i
 	struct qmc_dai_prtd *prtd = context;
 	int ret;
 
-	if (length != prtd->period_size) {
+	if (length != prtd->ch_dma_size) {
 		dev_err(prtd->qmc_dai->dev, "read complete length = %zu, exp %zu\n",
-			length, prtd->period_size);
+			length, prtd->ch_dma_size);
 	}
 
-	prtd->period_ptr_ended += prtd->period_size;
-	if (prtd->period_ptr_ended >= prtd->dma_buffer_end)
-		prtd->period_ptr_ended = prtd->dma_buffer_start;
+	prtd->buffer_ended += prtd->period_size;
+	if (prtd->buffer_ended >= prtd->buffer_size)
+		prtd->buffer_ended = 0;
 
-	prtd->period_ptr_submitted += prtd->period_size;
-	if (prtd->period_ptr_submitted >= prtd->dma_buffer_end)
-		prtd->period_ptr_submitted = prtd->dma_buffer_start;
+	prtd->ch_dma_addr_current += prtd->ch_dma_size;
+	if (prtd->ch_dma_addr_current >= prtd->ch_dma_addr_end)
+		prtd->ch_dma_addr_current = prtd->ch_dma_addr_start;
 
 	ret = qmc_chan_read_submit(prtd->qmc_dai->qmc_chan,
-				   prtd->period_ptr_submitted, prtd->period_size,
+				   prtd->ch_dma_addr_current, prtd->ch_dma_size,
 				   qmc_audio_pcm_read_complete, prtd);
 	if (ret) {
 		dev_err(prtd->qmc_dai->dev, "read_submit failed %d\n",
@@ -144,7 +153,7 @@ static int qmc_audio_pcm_trigger(struct snd_soc_component *component,
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 			/* Submit first chunk ... */
 			ret = qmc_chan_write_submit(prtd->qmc_dai->qmc_chan,
-						    prtd->period_ptr_submitted, prtd->period_size,
+						    prtd->ch_dma_addr_current, prtd->ch_dma_size,
 						    qmc_audio_pcm_write_complete, prtd);
 			if (ret) {
 				dev_err(component->dev, "write_submit failed %d\n",
@@ -153,13 +162,13 @@ static int qmc_audio_pcm_trigger(struct snd_soc_component *component,
 			}
 
 			/* ... prepare next one ... */
-			prtd->period_ptr_submitted += prtd->period_size;
-			if (prtd->period_ptr_submitted >= prtd->dma_buffer_end)
-				prtd->period_ptr_submitted = prtd->dma_buffer_start;
+			prtd->ch_dma_addr_current += prtd->ch_dma_size;
+			if (prtd->ch_dma_addr_current >= prtd->ch_dma_addr_end)
+				prtd->ch_dma_addr_current = prtd->ch_dma_addr_start;
 
 			/* ... and send it */
 			ret = qmc_chan_write_submit(prtd->qmc_dai->qmc_chan,
-						    prtd->period_ptr_submitted, prtd->period_size,
+						    prtd->ch_dma_addr_current, prtd->ch_dma_size,
 						    qmc_audio_pcm_write_complete, prtd);
 			if (ret) {
 				dev_err(component->dev, "write_submit failed %d\n",
@@ -169,7 +178,7 @@ static int qmc_audio_pcm_trigger(struct snd_soc_component *component,
 		} else {
 			/* Submit first chunk ... */
 			ret = qmc_chan_read_submit(prtd->qmc_dai->qmc_chan,
-						   prtd->period_ptr_submitted, prtd->period_size,
+						   prtd->ch_dma_addr_current, prtd->ch_dma_size,
 						   qmc_audio_pcm_read_complete, prtd);
 			if (ret) {
 				dev_err(component->dev, "read_submit failed %d\n",
@@ -178,13 +187,13 @@ static int qmc_audio_pcm_trigger(struct snd_soc_component *component,
 			}
 
 			/* ... prepare next one ... */
-			prtd->period_ptr_submitted += prtd->period_size;
-			if (prtd->period_ptr_submitted >= prtd->dma_buffer_end)
-				prtd->period_ptr_submitted = prtd->dma_buffer_start;
+			prtd->ch_dma_addr_current += prtd->ch_dma_size;
+			if (prtd->ch_dma_addr_current >= prtd->ch_dma_addr_end)
+				prtd->ch_dma_addr_current = prtd->ch_dma_addr_start;
 
 			/* ... and send it */
 			ret = qmc_chan_read_submit(prtd->qmc_dai->qmc_chan,
-						   prtd->period_ptr_submitted, prtd->period_size,
+						   prtd->ch_dma_addr_current, prtd->ch_dma_size,
 						   qmc_audio_pcm_read_complete, prtd);
 			if (ret) {
 				dev_err(component->dev, "write_submit failed %d\n",
@@ -215,8 +224,7 @@ static snd_pcm_uframes_t qmc_audio_pcm_pointer(struct snd_soc_component *compone
 {
 	struct qmc_dai_prtd *prtd = substream->runtime->private_data;
 
-	return bytes_to_frames(substream->runtime,
-			       prtd->period_ptr_ended - prtd->dma_buffer_start);
+	return prtd->buffer_ended;
 }
 
 static int qmc_audio_of_xlate_dai_name(struct snd_soc_component *component,
