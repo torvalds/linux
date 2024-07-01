@@ -16,16 +16,16 @@ monitoring :ref:`mechanisms <damon_design_monitoring>` of DAMON make it
    of the size of target workloads).
 
 Using this framework, therefore, the kernel can operate system in an
-access-aware fashion.  Because the features are also exposed to the user space,
-users who have special information about their workloads can write personalized
-applications for better understanding and optimizations of their workloads and
-systems.
+access-aware fashion.  Because the features are also exposed to the :doc:`user
+space </admin-guide/mm/damon/index>`, users who have special information about
+their workloads can write personalized applications for better understanding
+and optimizations of their workloads and systems.
 
 For easier development of such systems, DAMON provides a feature called
 :ref:`DAMOS <damon_design_damos>` (DAMon-based Operation Schemes) in addition
-to the monitoring.  Using the feature, DAMON users in both kernel and user
-spaces can do access-aware system operations with no code but simple
-configurations.
+to the monitoring.  Using the feature, DAMON users in both kernel and :doc:`user
+spaces </admin-guide/mm/damon/index>` can do access-aware system operations
+with no code but simple configurations.
 
 .. toctree::
    :maxdepth: 2
@@ -34,3 +34,6 @@ configurations.
    design
    api
    maintainer-profile
+
+To utilize and control DAMON from the user-space, please refer to the
+administration :doc:`guide </admin-guide/mm/damon/index>`.
