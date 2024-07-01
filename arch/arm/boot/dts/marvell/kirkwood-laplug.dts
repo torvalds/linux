@@ -51,7 +51,7 @@
 	gpio_keys {
 		compatible = "gpio-keys";
 
-		power {
+		button-power {
 			label = "Power push button";
 			linux,code = <KEY_POWER>;
 			gpios = <&gpio1 0 GPIO_ACTIVE_HIGH>;

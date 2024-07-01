@@ -113,18 +113,18 @@
 			     &pmx_power_auto_switch>;
 		pinctrl-names = "default";
 
-		option {
+		button-option {
 			label = "Function Button";
 			linux,code = <KEY_OPTION>;
 			gpios = <&gpio1 9 GPIO_ACTIVE_LOW>;
 		};
-		reserved {
+		button-reserved {
 			label = "Power-on Switch";
 			linux,code = <KEY_RESERVED>;
 			linux,input-type = <5>;
 			gpios = <&gpio1 10 GPIO_ACTIVE_LOW>;
 		};
-		power {
+		button-power {
 			label = "Power-auto Switch";
 			linux,code = <KEY_ESC>;
 			linux,input-type = <5>;

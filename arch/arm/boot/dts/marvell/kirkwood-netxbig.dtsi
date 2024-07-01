@@ -60,19 +60,19 @@
 		 * esc and power represent a three position rocker
 		 * switch. Thus the conventional KEY_POWER does not fit
 		 */
-		exc {
+		button-exc {
 			label = "Back power switch (on|auto)";
 			linux,code = <KEY_ESC>;
 			linux,input-type = <5>;
 			gpios = <&gpio0 13 GPIO_ACTIVE_LOW>;
 		};
-		power {
+		button-power {
 			label = "Back power switch (auto|off)";
 			linux,code = <KEY_1>;
 			linux,input-type = <5>;
 			gpios = <&gpio0 15 GPIO_ACTIVE_LOW>;
 		};
-		option {
+		button-option {
 			label = "Function button";
 			linux,code = <KEY_OPTION>;
 			gpios = <&gpio1 2 GPIO_ACTIVE_LOW>;

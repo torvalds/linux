@@ -154,17 +154,17 @@
 		pinctrl-names = "default";
 
 
-		Power {
+		button-power {
 			label = "Power Button";
 			linux,code = <KEY_POWER>;
 			gpios = <&gpio0 14 GPIO_ACTIVE_LOW>;
 		};
-		Reset {
+		button-reset {
 			label = "Reset Button";
 			linux,code = <KEY_RESTART>;
 			gpios = <&gpio0 12 GPIO_ACTIVE_LOW>;
 		};
-		OTB {
+		button-otb {
 			label = "OTB Button";
 			linux,code = <KEY_COPY>;
 			gpios = <&gpio1 3 GPIO_ACTIVE_LOW>;

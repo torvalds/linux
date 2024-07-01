@@ -161,7 +161,7 @@
 		pinctrl-0 = <&pmx_button_power>;
 		pinctrl-names = "default";
 
-		power {
+		button-power {
 			label = "Power Button";
 			linux,code = <KEY_POWER>;
 			gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;

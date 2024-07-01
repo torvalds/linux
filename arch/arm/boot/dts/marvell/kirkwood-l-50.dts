@@ -193,7 +193,7 @@
 	keys {
 		compatible = "gpio-keys";
 
-		factory_defaults {
+		button-factory-defaults {
 			label = "factory_defaults";
 			gpios = <&gpio0 29 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_RESTART>;

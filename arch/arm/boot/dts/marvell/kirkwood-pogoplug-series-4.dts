@@ -34,7 +34,7 @@
 		pinctrl-0 = <&pmx_button_eject>;
 		pinctrl-names = "default";
 
-		eject {
+		button-eject {
 			debounce-interval = <50>;
 			wakeup-source;
 			linux,code = <KEY_EJECTCD>;
