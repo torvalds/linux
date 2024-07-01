@@ -569,7 +569,7 @@ struct nfs_page *nfs_page_create_from_folio(struct nfs_open_context *ctx,
 
 	if (IS_ERR(l_ctx))
 		return ERR_CAST(l_ctx);
-	ret = nfs_page_create(l_ctx, offset, folio_index(folio), offset, count);
+	ret = nfs_page_create(l_ctx, offset, folio->index, offset, count);
 	if (!IS_ERR(ret)) {
 		nfs_page_assign_folio(ret, folio);
 		nfs_page_group_init(ret, NULL);

@@ -208,8 +208,8 @@ static inline struct inode *nfs_page_to_inode(const struct nfs_page *req)
 	struct folio *folio = nfs_page_to_folio(req);
 
 	if (folio == NULL)
-		return page_file_mapping(req->wb_page)->host;
-	return folio_file_mapping(folio)->host;
+		return req->wb_page->mapping->host;
+	return folio->mapping->host;
 }
 
 /**

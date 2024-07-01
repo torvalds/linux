@@ -427,7 +427,7 @@ static int nfs_write_end(struct file *file, struct address_space *mapping,
 static void nfs_invalidate_folio(struct folio *folio, size_t offset,
 				size_t length)
 {
-	struct inode *inode = folio_file_mapping(folio)->host;
+	struct inode *inode = folio->mapping->host;
 	dfprintk(PAGECACHE, "NFS: invalidate_folio(%lu, %zu, %zu)\n",
 		 folio->index, offset, length);
 
@@ -454,7 +454,7 @@ static bool nfs_release_folio(struct folio *folio, gfp_t gfp)
 		if ((current_gfp_context(gfp) & GFP_KERNEL) != GFP_KERNEL ||
 		    current_is_kswapd())
 			return false;
-		if (nfs_wb_folio(folio_file_mapping(folio)->host, folio) < 0)
+		if (nfs_wb_folio(folio->mapping->host, folio) < 0)
 			return false;
 	}
 	return nfs_fscache_release_folio(folio, gfp);
@@ -606,7 +606,7 @@ static vm_fault_t nfs_vm_page_mkwrite(struct vm_fault *vmf)
 			   TASK_KILLABLE|TASK_FREEZABLE_UNSAFE);
 
 	folio_lock(folio);
-	mapping = folio_file_mapping(folio);
+	mapping = folio->mapping;
 	if (mapping != inode->i_mapping)
 		goto out_unlock;
 

@@ -289,7 +289,7 @@ int nfs_read_add_folio(struct nfs_pageio_descriptor *pgio,
 		       struct nfs_open_context *ctx,
 		       struct folio *folio)
 {
-	struct inode *inode = folio_file_mapping(folio)->host;
+	struct inode *inode = folio->mapping->host;
 	struct nfs_server *server = NFS_SERVER(inode);
 	size_t fsize = folio_size(folio);
 	unsigned int rsize = server->rsize;
