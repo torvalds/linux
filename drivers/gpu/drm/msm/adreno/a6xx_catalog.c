@@ -1249,7 +1249,7 @@ static const struct adreno_info a7xx_gpus[] = {
 };
 DECLARE_ADRENO_GPULIST(a7xx);
 
-static inline void __build_asserts(void)
+static inline __always_unused void __build_asserts(void)
 {
 	BUILD_BUG_ON(a630_protect.count > a630_protect.count_max);
 	BUILD_BUG_ON(a650_protect.count > a650_protect.count_max);
