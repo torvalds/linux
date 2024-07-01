@@ -467,6 +467,97 @@ xfs_alloc_fix_len(
 }
 
 /*
+ * Determine if the cursor points to the block that contains the right-most
+ * block of records in the by-count btree. This block contains the largest
+ * contiguous free extent in the AG, so if we modify a record in this block we
+ * need to call xfs_alloc_fixup_longest() once the modifications are done to
+ * ensure the agf->agf_longest field is kept up to date with the longest free
+ * extent tracked by the by-count btree.
+ */
+static bool
+xfs_alloc_cursor_at_lastrec(
+	struct xfs_btree_cur	*cnt_cur)
+{
+	struct xfs_btree_block	*block;
+	union xfs_btree_ptr	ptr;
+	struct xfs_buf		*bp;
+
+	block = xfs_btree_get_block(cnt_cur, 0, &bp);
+
+	xfs_btree_get_sibling(cnt_cur, block, &ptr, XFS_BB_RIGHTSIB);
+	return xfs_btree_ptr_is_null(cnt_cur, &ptr);
+}
+
+/*
+ * Find the rightmost record of the cntbt, and return the longest free space
+ * recorded in it. Simply set both the block number and the length to their
+ * maximum values before searching.
+ */
+static int
+xfs_cntbt_longest(
+	struct xfs_btree_cur	*cnt_cur,
+	xfs_extlen_t		*longest)
+{
+	struct xfs_alloc_rec_incore irec;
+	union xfs_btree_rec	    *rec;
+	int			    stat = 0;
+	int			    error;
+
+	memset(&cnt_cur->bc_rec, 0xFF, sizeof(cnt_cur->bc_rec));
+	error = xfs_btree_lookup(cnt_cur, XFS_LOOKUP_LE, &stat);
+	if (error)
+		return error;
+	if (!stat) {
+		/* totally empty tree */
+		*longest = 0;
+		return 0;
+	}
+
+	error = xfs_btree_get_rec(cnt_cur, &rec, &stat);
+	if (error)
+		return error;
+	if (XFS_IS_CORRUPT(cnt_cur->bc_mp, !stat)) {
+		xfs_btree_mark_sick(cnt_cur);
+		return -EFSCORRUPTED;
+	}
+
+	xfs_alloc_btrec_to_irec(rec, &irec);
+	*longest = irec.ar_blockcount;
+	return 0;
+}
+
+/*
+ * Update the longest contiguous free extent in the AG from the by-count cursor
+ * that is passed to us. This should be done at the end of any allocation or
+ * freeing operation that touches the longest extent in the btree.
+ *
+ * Needing to update the longest extent can be determined by calling
+ * xfs_alloc_cursor_at_lastrec() after the cursor is positioned for record
+ * modification but before the modification begins.
+ */
+static int
+xfs_alloc_fixup_longest(
+	struct xfs_btree_cur	*cnt_cur)
+{
+	struct xfs_perag	*pag = cnt_cur->bc_ag.pag;
+	struct xfs_buf		*bp = cnt_cur->bc_ag.agbp;
+	struct xfs_agf		*agf = bp->b_addr;
+	xfs_extlen_t		longest = 0;
+	int			error;
+
+	/* Lookup last rec in order to update AGF. */
+	error = xfs_cntbt_longest(cnt_cur, &longest);
+	if (error)
+		return error;
+
+	pag->pagf_longest = longest;
+	agf->agf_longest = cpu_to_be32(pag->pagf_longest);
+	xfs_alloc_log_agf(cnt_cur->bc_tp, bp, XFS_AGF_LONGEST);
+
+	return 0;
+}
+
+/*
  * Update the two btrees, logically removing from freespace the extent
  * starting at rbno, rlen blocks.  The extent is contained within the
  * actual (current) free extent fbno for flen blocks.
@@ -490,6 +581,7 @@ xfs_alloc_fixup_trees(
 	xfs_extlen_t	nflen1=0;	/* first new free length */
 	xfs_extlen_t	nflen2=0;	/* second new free length */
 	struct xfs_mount *mp;
+	bool		fixup_longest = false;
 
 	mp = cnt_cur->bc_mp;
 
@@ -578,6 +670,10 @@ xfs_alloc_fixup_trees(
 		nfbno2 = rbno + rlen;
 		nflen2 = (fbno + flen) - nfbno2;
 	}
+
+	if (xfs_alloc_cursor_at_lastrec(cnt_cur))
+		fixup_longest = true;
+
 	/*
 	 * Delete the entry from the by-size btree.
 	 */
@@ -655,6 +751,10 @@ xfs_alloc_fixup_trees(
 			return -EFSCORRUPTED;
 		}
 	}
+
+	if (fixup_longest)
+		return xfs_alloc_fixup_longest(cnt_cur);
+
 	return 0;
 }
 
@@ -1957,6 +2057,7 @@ xfs_free_ag_extent(
 	int				i;
 	int				error;
 	struct xfs_perag		*pag = agbp->b_pag;
+	bool				fixup_longest = false;
 
 	bno_cur = cnt_cur = NULL;
 	mp = tp->t_mountp;
@@ -2220,8 +2321,13 @@ xfs_free_ag_extent(
 	}
 	xfs_btree_del_cursor(bno_cur, XFS_BTREE_NOERROR);
 	bno_cur = NULL;
+
 	/*
 	 * In all cases we need to insert the new freespace in the by-size tree.
+	 *
+	 * If this new freespace is being inserted in the block that contains
+	 * the largest free space in the btree, make sure we also fix up the
+	 * agf->agf-longest tracker field.
 	 */
 	if ((error = xfs_alloc_lookup_eq(cnt_cur, nbno, nlen, &i)))
 		goto error0;
@@ -2230,6 +2336,8 @@ xfs_free_ag_extent(
 		error = -EFSCORRUPTED;
 		goto error0;
 	}
+	if (xfs_alloc_cursor_at_lastrec(cnt_cur))
+		fixup_longest = true;
 	if ((error = xfs_btree_insert(cnt_cur, &i)))
 		goto error0;
 	if (XFS_IS_CORRUPT(mp, i != 1)) {
@@ -2237,6 +2345,12 @@ xfs_free_ag_extent(
 		error = -EFSCORRUPTED;
 		goto error0;
 	}
+	if (fixup_longest) {
+		error = xfs_alloc_fixup_longest(cnt_cur);
+		if (error)
+			goto error0;
+	}
+
 	xfs_btree_del_cursor(cnt_cur, XFS_BTREE_NOERROR);
 	cnt_cur = NULL;
 

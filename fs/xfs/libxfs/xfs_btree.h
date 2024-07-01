@@ -154,12 +154,6 @@ struct xfs_btree_ops {
 			       int *stat);
 	int	(*free_block)(struct xfs_btree_cur *cur, struct xfs_buf *bp);
 
-	/* update last record information */
-	void	(*update_lastrec)(struct xfs_btree_cur *cur,
-				  const struct xfs_btree_block *block,
-				  const union xfs_btree_rec *rec,
-				  int ptr, int reason);
-
 	/* records in block/level */
 	int	(*get_minrecs)(struct xfs_btree_cur *cur, int level);
 	int	(*get_maxrecs)(struct xfs_btree_cur *cur, int level);
@@ -222,15 +216,7 @@ struct xfs_btree_ops {
 };
 
 /* btree geometry flags */
-#define XFS_BTGEO_LASTREC_UPDATE	(1U << 0) /* track last rec externally */
-#define XFS_BTGEO_OVERLAPPING		(1U << 1) /* overlapping intervals */
-
-/*
- * Reasons for the update_lastrec method to be called.
- */
-#define LASTREC_UPDATE	0
-#define LASTREC_INSREC	1
-#define LASTREC_DELREC	2
+#define XFS_BTGEO_OVERLAPPING		(1U << 0) /* overlapping intervals */
 
 
 union xfs_btree_irec {
