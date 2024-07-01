@@ -224,6 +224,9 @@ DECLARE_HOOK(android_vh_kmalloc_large_alloced,
 DECLARE_HOOK(android_vh_tune_fault_around_bytes,
 	TP_PROTO(unsigned long *fault_around_bytes),
 	TP_ARGS(fault_around_bytes));
+DECLARE_HOOK(android_vh_madvise_cold_or_pageout_page,
+	TP_PROTO(bool pageout, struct page *page),
+	TP_ARGS(pageout, page));
 #endif /* _TRACE_HOOK_MM_H */
 
 /* This part must be outside protection */

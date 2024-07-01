@@ -413,6 +413,7 @@ static int madvise_cold_or_pageout_pte_range(pmd_t *pmd,
 			tlb_remove_pmd_tlb_entry(tlb, pmd, addr);
 		}
 
+		trace_android_vh_madvise_cold_or_pageout_page(pageout, page);
 		ClearPageReferenced(page);
 		test_and_clear_page_young(page);
 		if (pageout) {
@@ -519,6 +520,7 @@ regular_page:
 		 * As a side effect, it makes confuse idle-page tracking
 		 * because they will miss recent referenced history.
 		 */
+		trace_android_vh_madvise_cold_or_pageout_page(pageout, page);
 		ClearPageReferenced(page);
 		test_and_clear_page_young(page);
 		if (pageout) {
