@@ -2024,7 +2024,8 @@ static bool nvme_update_disk_info(struct nvme_ns *ns, struct nvme_id_ns *id,
 		/* NPWG = Namespace Preferred Write Granularity */
 		phys_bs = bs * (1 + le16_to_cpu(id->npwg));
 		/* NOWS = Namespace Optimal Write Size */
-		io_opt = bs * (1 + le16_to_cpu(id->nows));
+		if (id->nows)
+			io_opt = bs * (1 + le16_to_cpu(id->nows));
 	}
 
 	/*
