@@ -419,10 +419,6 @@ irqreturn_t qcom_smmu_context_fault(int irq, void *dev)
 	tmp = report_iommu_fault(&smmu_domain->domain, NULL, iova,
 				 fsynr & ARM_SMMU_CB_FSYNR0_WNR ? IOMMU_FAULT_WRITE : IOMMU_FAULT_READ);
 	if (!tmp || tmp == -EBUSY) {
-		dev_dbg(smmu->dev,
-			"Context fault handled by client: iova=0x%08lx, fsr=0x%x, fsynr=0x%x, cb=%d\n",
-			iova, fsr, fsynr, idx);
-		dev_dbg(smmu->dev, "soft iova-to-phys=%pa\n", &phys_soft);
 		ret = IRQ_HANDLED;
 		resume = ARM_SMMU_RESUME_TERMINATE;
 	} else {
