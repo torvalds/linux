@@ -15,8 +15,10 @@
 #include <linux/types.h>
 #include <linux/workqueue.h>
 #include <asm/byteorder.h>
+#include <asm/unaligned.h>
 
 struct i2c_client;
+struct rtc_device;
 
 struct omnia_mcu {
 	struct i2c_client *client;
@@ -36,6 +38,11 @@ struct omnia_mcu {
 	struct delayed_work button_release_emul_work;
 	unsigned long last_status;
 	bool button_pressed_emul;
+
+	/* RTC device for configuring wake-up */
+	struct rtc_device *rtcdev;
+	u32 rtc_alarm;
+	bool front_button_poweron;
 };
 
 int omnia_cmd_write_read(const struct i2c_client *client,
@@ -46,6 +53,17 @@ static inline int omnia_cmd_write(const struct i2c_client *client, void *cmd,
 				  unsigned int len)
 {
 	return omnia_cmd_write_read(client, cmd, len, NULL, 0);
+}
+
+static inline int omnia_cmd_write_u32(const struct i2c_client *client, u8 cmd,
+				      u32 val)
+{
+	u8 buf[5];
+
+	buf[0] = cmd;
+	put_unaligned_le32(val, &buf[1]);
+
+	return omnia_cmd_write(client, buf, sizeof(buf));
 }
 
 static inline int omnia_cmd_read(const struct i2c_client *client, u8 cmd,
@@ -136,7 +154,9 @@ static inline int omnia_cmd_read_u8(const struct i2c_client *client, u8 cmd,
 }
 
 extern const struct attribute_group omnia_mcu_gpio_group;
+extern const struct attribute_group omnia_mcu_poweroff_group;
 
 int omnia_mcu_register_gpiochip(struct omnia_mcu *mcu);
+int omnia_mcu_register_sys_off_and_wakeup(struct omnia_mcu *mcu);
 
 #endif /* __TURRIS_OMNIA_MCU_H */
