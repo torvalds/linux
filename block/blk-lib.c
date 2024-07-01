@@ -135,6 +135,32 @@ static void __blkdev_issue_write_zeroes(struct block_device *bdev,
 	*biop = bio;
 }
 
+static int blkdev_issue_write_zeroes(struct block_device *bdev, sector_t sector,
+		sector_t nr_sects, gfp_t gfp, unsigned flags)
+{
+	struct bio *bio = NULL;
+	struct blk_plug plug;
+	int ret = 0;
+
+	blk_start_plug(&plug);
+	__blkdev_issue_write_zeroes(bdev, sector, nr_sects, gfp, &bio, flags);
+	if (bio) {
+		ret = submit_bio_wait(bio);
+		bio_put(bio);
+	}
+	blk_finish_plug(&plug);
+
+	/*
+	 * For some devices there is no non-destructive way to verify whether
+	 * WRITE ZEROES is actually supported.  These will clear the capability
+	 * on an I/O error, in which case we'll turn any error into
+	 * "not supported" here.
+	 */
+	if (ret && !bdev_write_zeroes_sectors(bdev))
+		return -EOPNOTSUPP;
+	return ret;
+}
+
 /*
  * Convert a number of 512B sectors to a number of pages.
  * The result is limited to a number of pages that can fit into a BIO.
@@ -173,6 +199,27 @@ static void __blkdev_issue_zero_pages(struct block_device *bdev,
 	}
 
 	*biop = bio;
+}
+
+static int blkdev_issue_zero_pages(struct block_device *bdev, sector_t sector,
+		sector_t nr_sects, gfp_t gfp, unsigned flags)
+{
+	struct bio *bio = NULL;
+	struct blk_plug plug;
+	int ret = 0;
+
+	if (flags & BLKDEV_ZERO_NOFALLBACK)
+		return -EOPNOTSUPP;
+
+	blk_start_plug(&plug);
+	__blkdev_issue_zero_pages(bdev, sector, nr_sects, gfp, &bio);
+	if (bio) {
+		ret = submit_bio_wait(bio);
+		bio_put(bio);
+	}
+	blk_finish_plug(&plug);
+
+	return ret;
 }
 
 /**
@@ -230,52 +277,21 @@ EXPORT_SYMBOL(__blkdev_issue_zeroout);
 int blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
 		sector_t nr_sects, gfp_t gfp_mask, unsigned flags)
 {
-	int ret = 0;
-	sector_t bs_mask;
-	struct bio *bio;
-	struct blk_plug plug;
-	bool try_write_zeroes = !!bdev_write_zeroes_sectors(bdev);
+	int ret;
 
-	bs_mask = (bdev_logical_block_size(bdev) >> 9) - 1;
-	if ((sector | nr_sects) & bs_mask)
+	if ((sector | nr_sects) & ((bdev_logical_block_size(bdev) >> 9) - 1))
 		return -EINVAL;
 	if (bdev_read_only(bdev))
 		return -EPERM;
-	if ((flags & BLKDEV_ZERO_NOFALLBACK) && !try_write_zeroes)
-		return -EOPNOTSUPP;
 
-retry:
-	bio = NULL;
-	blk_start_plug(&plug);
-	if (try_write_zeroes) {
-		__blkdev_issue_write_zeroes(bdev, sector, nr_sects, gfp_mask,
-				&bio, flags);
-	} else {
-		__blkdev_issue_zero_pages(bdev, sector, nr_sects, gfp_mask,
-				&bio);
-	}
-	if (bio) {
-		ret = submit_bio_wait(bio);
-		bio_put(bio);
-	}
-	blk_finish_plug(&plug);
-	if (ret && try_write_zeroes) {
-		if (!(flags & BLKDEV_ZERO_NOFALLBACK)) {
-			try_write_zeroes = false;
-			goto retry;
-		}
-		if (!bdev_write_zeroes_sectors(bdev)) {
-			/*
-			 * Zeroing offload support was indicated, but the
-			 * device reported ILLEGAL REQUEST (for some devices
-			 * there is no non-destructive way to verify whether
-			 * WRITE ZEROES is actually supported).
-			 */
-			ret = -EOPNOTSUPP;
-		}
+	if (bdev_write_zeroes_sectors(bdev)) {
+		ret = blkdev_issue_write_zeroes(bdev, sector, nr_sects,
+				gfp_mask, flags);
+		if (!ret)
+			return ret;
 	}
 
-	return ret;
+	return blkdev_issue_zero_pages(bdev, sector, nr_sects, gfp_mask, flags);
 }
 EXPORT_SYMBOL(blkdev_issue_zeroout);
 
