@@ -1167,6 +1167,9 @@ void bch2_dev_journal_stop(struct journal *j, struct bch_dev *ca)
 
 void bch2_fs_journal_stop(struct journal *j)
 {
+	if (!test_bit(JOURNAL_running, &j->flags))
+		return;
+
 	bch2_journal_reclaim_stop(j);
 	bch2_journal_flush_all_pins(j);
 
@@ -1518,6 +1521,11 @@ bool bch2_journal_seq_pins_to_text(struct printbuf *out, struct journal *j, u64 
 	struct journal_entry_pin *pin;
 
 	spin_lock(&j->lock);
+	if (!test_bit(JOURNAL_running, &j->flags)) {
+		spin_unlock(&j->lock);
+		return true;
+	}
+
 	*seq = max(*seq, j->pin.front);
 
 	if (*seq >= j->pin.back) {

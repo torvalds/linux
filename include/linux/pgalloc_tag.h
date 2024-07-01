@@ -37,6 +37,9 @@ static inline union codetag_ref *get_page_tag_ref(struct page *page)
 
 static inline void put_page_tag_ref(union codetag_ref *ref)
 {
+	if (WARN_ON(!ref))
+		return;
+
 	page_ext_put(page_ext_from_codetag_ref(ref));
 }
 
@@ -102,9 +105,11 @@ static inline struct alloc_tag *pgalloc_tag_get(struct page *page)
 		union codetag_ref *ref = get_page_tag_ref(page);
 
 		alloc_tag_sub_check(ref);
-		if (ref && ref->ct)
-			tag = ct_to_alloc_tag(ref->ct);
-		put_page_tag_ref(ref);
+		if (ref) {
+			if (ref->ct)
+				tag = ct_to_alloc_tag(ref->ct);
+			put_page_tag_ref(ref);
+		}
 	}
 
 	return tag;

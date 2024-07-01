@@ -22,7 +22,7 @@
 #define __SYSCALL(nr, call)	[nr] = (call),
 
 SYSCALL_DEFINE6(mmap, unsigned long, addr, unsigned long, len, unsigned long,
-		prot, unsigned long, flags, unsigned long, fd, off_t, offset)
+		prot, unsigned long, flags, unsigned long, fd, unsigned long, offset)
 {
 	if (offset & ~PAGE_MASK)
 		return -EINVAL;

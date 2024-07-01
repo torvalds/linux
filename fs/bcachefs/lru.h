@@ -2,9 +2,6 @@
 #ifndef _BCACHEFS_LRU_H
 #define _BCACHEFS_LRU_H
 
-#define LRU_TIME_BITS	48
-#define LRU_TIME_MAX	((1ULL << LRU_TIME_BITS) - 1)
-
 static inline u64 lru_pos_id(struct bpos pos)
 {
 	return pos.inode >> LRU_TIME_BITS;

@@ -25,6 +25,7 @@ struct ucsi_acpi {
 	unsigned long flags;
 #define UCSI_ACPI_COMMAND_PENDING	1
 #define UCSI_ACPI_ACK_PENDING		2
+#define UCSI_ACPI_CHECK_BOGUS_EVENT	3
 	guid_t guid;
 	u64 cmd;
 };
@@ -128,6 +129,58 @@ static const struct ucsi_operations ucsi_zenbook_ops = {
 	.async_write = ucsi_acpi_async_write
 };
 
+static int ucsi_gram_read(struct ucsi *ucsi, unsigned int offset,
+			  void *val, size_t val_len)
+{
+	u16 bogus_change = UCSI_CONSTAT_POWER_LEVEL_CHANGE |
+			   UCSI_CONSTAT_PDOS_CHANGE;
+	struct ucsi_acpi *ua = ucsi_get_drvdata(ucsi);
+	struct ucsi_connector_status *status;
+	int ret;
+
+	ret = ucsi_acpi_read(ucsi, offset, val, val_len);
+	if (ret < 0)
+		return ret;
+
+	if (UCSI_COMMAND(ua->cmd) == UCSI_GET_CONNECTOR_STATUS &&
+	    test_bit(UCSI_ACPI_CHECK_BOGUS_EVENT, &ua->flags) &&
+	    offset == UCSI_MESSAGE_IN) {
+		status = (struct ucsi_connector_status *)val;
+
+		/* Clear the bogus change */
+		if (status->change == bogus_change)
+			status->change = 0;
+
+		clear_bit(UCSI_ACPI_CHECK_BOGUS_EVENT, &ua->flags);
+	}
+
+	return ret;
+}
+
+static int ucsi_gram_sync_write(struct ucsi *ucsi, unsigned int offset,
+				const void *val, size_t val_len)
+{
+	struct ucsi_acpi *ua = ucsi_get_drvdata(ucsi);
+	int ret;
+
+	ret = ucsi_acpi_sync_write(ucsi, offset, val, val_len);
+	if (ret < 0)
+		return ret;
+
+	if (UCSI_COMMAND(ua->cmd) == UCSI_GET_PDOS &&
+	    ua->cmd & UCSI_GET_PDOS_PARTNER_PDO(1) &&
+	    ua->cmd & UCSI_GET_PDOS_SRC_PDOS)
+		set_bit(UCSI_ACPI_CHECK_BOGUS_EVENT, &ua->flags);
+
+	return ret;
+}
+
+static const struct ucsi_operations ucsi_gram_ops = {
+	.read = ucsi_gram_read,
+	.sync_write = ucsi_gram_sync_write,
+	.async_write = ucsi_acpi_async_write
+};
+
 static const struct dmi_system_id ucsi_acpi_quirks[] = {
 	{
 		.matches = {
@@ -135,6 +188,14 @@ static const struct dmi_system_id ucsi_acpi_quirks[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "ZenBook UX325UA_UM325UA"),
 		},
 		.driver_data = (void *)&ucsi_zenbook_ops,
+	},
+	{
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LG Electronics"),
+			DMI_MATCH(DMI_PRODUCT_FAMILY, "LG gram PC"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "90Q"),
+		},
+		.driver_data = (void *)&ucsi_gram_ops,
 	},
 	{ }
 };

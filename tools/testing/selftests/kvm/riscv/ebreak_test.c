@@ -6,6 +6,7 @@
  *
  */
 #include "kvm_util.h"
+#include "ucall_common.h"
 
 #define LABEL_ADDRESS(v) ((uint64_t)&(v))
 
