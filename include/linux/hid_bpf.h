@@ -139,12 +139,15 @@ struct hid_bpf_ops {
 	 *
 	 * ``ctx``: The HID-BPF context as &struct hid_bpf_ctx
 	 * ``reportnum``: the report number, as in hid_hw_raw_request()
+	 *
 	 * ``rtype``: the report type (``HID_INPUT_REPORT``, ``HID_FEATURE_REPORT``,
-	 *            ``HID_OUTPUT_REPORT``)
+	 * ``HID_OUTPUT_REPORT``)
+	 *
 	 * ``reqtype``: the request
+	 *
 	 * ``source``: a u64 referring to a uniq but identifiable source. If %0, the
-	 *             kernel itself emitted that call. For hidraw, ``source`` is set
-	 *             to the associated ``struct file *``.
+	 * kernel itself emitted that call. For hidraw, ``source`` is set
+	 * to the associated ``struct file *``.
 	 *
 	 * Return: %0 to keep processing the request by hid-core; any other value
 	 * stops hid-core from processing that event. A positive value should be
@@ -153,7 +156,7 @@ struct hid_bpf_ops {
 	 */
 	int (*hid_hw_request)(struct hid_bpf_ctx *ctx, unsigned char reportnum,
 			       enum hid_report_type rtype, enum hid_class_request reqtype,
-			       __u64 source);
+			       u64 source);
 
 	/**
 	 * @hid_hw_output_report: called whenever a hid_hw_output_report() call is emitted
