@@ -1295,6 +1295,9 @@ ssize_t amdgpu_ras_aca_sysfs_read(struct device *dev, struct device_attribute *a
 		.head = obj->head,
 	};
 
+	if (!amdgpu_ras_get_error_query_ready(obj->adev))
+		return sysfs_emit(buf, "Query currently inaccessible\n");
+
 	if (amdgpu_ras_query_error_status(obj->adev, &info))
 		return -EINVAL;
 
