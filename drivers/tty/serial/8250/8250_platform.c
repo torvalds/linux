@@ -18,7 +18,6 @@
 #include <linux/sunserialcore.h>
 #endif
 
-#include "../serial_base.h"	/* For serial_base_add_isa_preferred_console() */
 #include "8250.h"
 
 /*
@@ -93,8 +92,6 @@ static void __init __serial8250_isa_init_ports(void)
 		port->irqflags |= irqflag;
 		if (serial8250_isa_config != NULL)
 			serial8250_isa_config(i, &up->port, &up->capabilities);
-
-		serial_base_add_isa_preferred_console(serial8250_reg.dev_name, i);
 	}
 }
 
