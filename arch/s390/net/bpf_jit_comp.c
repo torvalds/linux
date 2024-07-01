@@ -693,24 +693,52 @@ bool ex_handler_bpf(const struct exception_table_entry *x, struct pt_regs *regs)
 	return true;
 }
 
+/*
+ * A single BPF probe instruction
+ */
+struct bpf_jit_probe {
+	int prg;	/* JITed instruction offset */
+	int nop_prg;	/* JITed nop offset */
+};
+
+static void bpf_jit_probe_init(struct bpf_jit_probe *probe)
+{
+	probe->prg = -1;
+	probe->nop_prg = -1;
+}
+
+/*
+ * Handlers of certain exceptions leave psw.addr pointing to the instruction
+ * directly after the failing one. Therefore, create two exception table
+ * entries and also add a nop in case two probing instructions come directly
+ * after each other.
+ */
+static void bpf_jit_probe_emit_nop(struct bpf_jit *jit,
+				   struct bpf_jit_probe *probe)
+{
+	probe->nop_prg = jit->prg;
+	/* bcr 0,%0 */
+	_EMIT2(0x0700);
+}
+
 static int bpf_jit_probe_mem(struct bpf_jit *jit, struct bpf_prog *fp,
-			     int probe_prg, int nop_prg)
+			     struct bpf_jit_probe *probe)
 {
 	struct exception_table_entry *ex;
-	int reg, prg;
+	int i, prg, reg;
 	s64 delta;
 	u8 *insn;
-	int i;
 
+	bpf_jit_probe_emit_nop(jit, probe);
 	if (!fp->aux->extable)
 		/* Do nothing during early JIT passes. */
 		return 0;
-	insn = jit->prg_buf + probe_prg;
+	insn = jit->prg_buf + probe->prg;
 	reg = get_probe_mem_regno(insn);
 	if (WARN_ON_ONCE(reg < 0))
 		/* JIT bug - unexpected probe instruction. */
 		return -1;
-	if (WARN_ON_ONCE(probe_prg + insn_length(*insn) != nop_prg))
+	if (WARN_ON_ONCE(probe->prg + insn_length(*insn) != probe->nop_prg))
 		/* JIT bug - gap between probe and nop instructions. */
 		return -1;
 	for (i = 0; i < 2; i++) {
@@ -719,7 +747,7 @@ static int bpf_jit_probe_mem(struct bpf_jit *jit, struct bpf_prog *fp,
 			return -1;
 		ex = &fp->aux->extable[jit->excnt];
 		/* Add extable entries for probe and nop instructions. */
-		prg = i == 0 ? probe_prg : nop_prg;
+		prg = i == 0 ? probe->prg : probe->nop_prg;
 		delta = jit->prg_buf + prg - (u8 *)&ex->insn;
 		if (WARN_ON_ONCE(delta < INT_MIN || delta > INT_MAX))
 			/* JIT bug - code and extable must be close. */
@@ -729,7 +757,7 @@ static int bpf_jit_probe_mem(struct bpf_jit *jit, struct bpf_prog *fp,
 		 * Always land on the nop. Note that extable infrastructure
 		 * ignores fixup field, it is handled by ex_handler_bpf().
 		 */
-		delta = jit->prg_buf + nop_prg - (u8 *)&ex->fixup;
+		delta = jit->prg_buf + probe->nop_prg - (u8 *)&ex->fixup;
 		if (WARN_ON_ONCE(delta < INT_MIN || delta > INT_MAX))
 			/* JIT bug - landing pad and extable must be close. */
 			return -1;
@@ -782,19 +810,19 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 	s32 branch_oc_off = insn->off;
 	u32 dst_reg = insn->dst_reg;
 	u32 src_reg = insn->src_reg;
+	struct bpf_jit_probe probe;
 	int last, insn_count = 1;
 	u32 *addrs = jit->addrs;
 	s32 imm = insn->imm;
 	s16 off = insn->off;
-	int probe_prg = -1;
 	unsigned int mask;
-	int nop_prg;
 	int err;
 
+	bpf_jit_probe_init(&probe);
 	if (BPF_CLASS(insn->code) == BPF_LDX &&
 	    (BPF_MODE(insn->code) == BPF_PROBE_MEM ||
 	     BPF_MODE(insn->code) == BPF_PROBE_MEMSX))
-		probe_prg = jit->prg;
+		probe.prg = jit->prg;
 
 	switch (insn->code) {
 	/*
@@ -1897,18 +1925,8 @@ branch_oc:
 		return -1;
 	}
 
-	if (probe_prg != -1) {
-		/*
-		 * Handlers of certain exceptions leave psw.addr pointing to
-		 * the instruction directly after the failing one. Therefore,
-		 * create two exception table entries and also add a nop in
-		 * case two probing instructions come directly after each
-		 * other.
-		 */
-		nop_prg = jit->prg;
-		/* bcr 0,%0 */
-		_EMIT2(0x0700);
-		err = bpf_jit_probe_mem(jit, fp, probe_prg, nop_prg);
+	if (probe.prg != -1) {
+		err = bpf_jit_probe_mem(jit, fp, &probe);
 		if (err < 0)
 			return err;
 	}
