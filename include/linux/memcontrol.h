@@ -95,14 +95,16 @@ struct mem_cgroup_per_node {
 #ifdef CONFIG_MEMCG_V1
 	/*
 	 * Memcg-v1 only stuff in middle as buffer between read mostly fields
-	 * and update often fields to avoid false sharing. Once v1 stuff is
-	 * moved in a separate struct, an explicit padding is needed.
+	 * and update often fields to avoid false sharing. If v1 stuff is
+	 * not present, an explicit padding is needed.
 	 */
 
 	struct rb_node		tree_node;	/* RB tree node */
 	unsigned long		usage_in_excess;/* Set to the value by which */
 						/* the soft limit is exceeded*/
 	bool			on_tree;
+#else
+	CACHELINE_PADDING(_pad1_);
 #endif
 
 	/* Fields which get updated often at the end. */
