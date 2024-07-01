@@ -5574,6 +5574,9 @@ void dc_mclk_switch_using_fw_based_vblank_stretch_shut_down(struct dc *dc)
  */
 bool dc_is_dmub_outbox_supported(struct dc *dc)
 {
+	if (!dc->caps.dmcub_support)
+		return false;
+
 	switch (dc->ctx->asic_id.chip_family) {
 
 	case FAMILY_YELLOW_CARP:
