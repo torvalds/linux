@@ -57,17 +57,17 @@
 	leds {
 		compatible = "gpio-leds";
 
-		vpn {
+		led-vpn {
 			label = "green:vpn";
 			gpios = <&gpionb 11 GPIO_ACTIVE_LOW>;
 		};
 
-		wan {
+		led-wan {
 			label = "green:wan";
 			gpios = <&gpionb 12 GPIO_ACTIVE_LOW>;
 		};
 
-		led_power: power {
+		led_power: led-power {
 			label = "green:power";
 			gpios = <&gpionb 13 GPIO_ACTIVE_LOW>;
 			default-state = "on";
