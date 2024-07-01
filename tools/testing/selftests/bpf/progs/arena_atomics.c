@@ -169,3 +169,79 @@ int xchg(const void *ctx)
 
 	return 0;
 }
+
+__u64 __arena_global uaf_sink;
+volatile __u64 __arena_global uaf_recovery_fails;
+
+SEC("syscall")
+int uaf(const void *ctx)
+{
+	if (pid != (bpf_get_current_pid_tgid() >> 32))
+		return 0;
+#if defined(ENABLE_ATOMICS_TESTS) && !defined(__TARGET_ARCH_arm64) && \
+    !defined(__TARGET_ARCH_x86)
+	__u32 __arena *page32;
+	__u64 __arena *page64;
+	void __arena *page;
+
+	page = bpf_arena_alloc_pages(&arena, NULL, 1, NUMA_NO_NODE, 0);
+	bpf_arena_free_pages(&arena, page, 1);
+	uaf_recovery_fails = 24;
+
+	page32 = (__u32 __arena *)page;
+	uaf_sink += __sync_fetch_and_add(page32, 1);
+	uaf_recovery_fails -= 1;
+	__sync_add_and_fetch(page32, 1);
+	uaf_recovery_fails -= 1;
+	uaf_sink += __sync_fetch_and_sub(page32, 1);
+	uaf_recovery_fails -= 1;
+	__sync_sub_and_fetch(page32, 1);
+	uaf_recovery_fails -= 1;
+	uaf_sink += __sync_fetch_and_and(page32, 1);
+	uaf_recovery_fails -= 1;
+	__sync_and_and_fetch(page32, 1);
+	uaf_recovery_fails -= 1;
+	uaf_sink += __sync_fetch_and_or(page32, 1);
+	uaf_recovery_fails -= 1;
+	__sync_or_and_fetch(page32, 1);
+	uaf_recovery_fails -= 1;
+	uaf_sink += __sync_fetch_and_xor(page32, 1);
+	uaf_recovery_fails -= 1;
+	__sync_xor_and_fetch(page32, 1);
+	uaf_recovery_fails -= 1;
+	uaf_sink += __sync_val_compare_and_swap(page32, 0, 1);
+	uaf_recovery_fails -= 1;
+	uaf_sink += __sync_lock_test_and_set(page32, 1);
+	uaf_recovery_fails -= 1;
+
+	page64 = (__u64 __arena *)page;
+	uaf_sink += __sync_fetch_and_add(page64, 1);
+	uaf_recovery_fails -= 1;
+	__sync_add_and_fetch(page64, 1);
+	uaf_recovery_fails -= 1;
+	uaf_sink += __sync_fetch_and_sub(page64, 1);
+	uaf_recovery_fails -= 1;
+	__sync_sub_and_fetch(page64, 1);
+	uaf_recovery_fails -= 1;
+	uaf_sink += __sync_fetch_and_and(page64, 1);
+	uaf_recovery_fails -= 1;
+	__sync_and_and_fetch(page64, 1);
+	uaf_recovery_fails -= 1;
+	uaf_sink += __sync_fetch_and_or(page64, 1);
+	uaf_recovery_fails -= 1;
+	__sync_or_and_fetch(page64, 1);
+	uaf_recovery_fails -= 1;
+	uaf_sink += __sync_fetch_and_xor(page64, 1);
+	uaf_recovery_fails -= 1;
+	__sync_xor_and_fetch(page64, 1);
+	uaf_recovery_fails -= 1;
+	uaf_sink += __sync_val_compare_and_swap(page64, 0, 1);
+	uaf_recovery_fails -= 1;
+	uaf_sink += __sync_lock_test_and_set(page64, 1);
+	uaf_recovery_fails -= 1;
+#endif
+
+	return 0;
+}
+
+char _license[] SEC("license") = "GPL";
