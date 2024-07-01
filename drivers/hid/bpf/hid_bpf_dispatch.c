@@ -115,7 +115,7 @@ out:
 EXPORT_SYMBOL_GPL(dispatch_hid_bpf_raw_requests);
 
 int dispatch_hid_bpf_output_report(struct hid_device *hdev,
-				   __u8 *buf, u32 size, __u64 source,
+				   __u8 *buf, u32 size, u64 source,
 				   bool from_bpf)
 {
 	struct hid_bpf_ctx_kern ctx_kern = {
