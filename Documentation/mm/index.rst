@@ -23,7 +23,6 @@ see the :doc:`admin guide <../admin-guide/mm/index>`.
    page_cache
    shmfs
    oom
-   allocation-profiling
 
 Unsorted Documentation
 ======================
@@ -38,6 +37,7 @@ documentation, or deleted if it has served its purpose.
    :maxdepth: 1
 
    active_mm
+   allocation-profiling
    arch_pgtable_helpers
    balance
    damon/index
