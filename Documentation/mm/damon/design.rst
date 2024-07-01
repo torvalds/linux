@@ -22,13 +22,15 @@ Overall Architecture
 
 DAMON subsystem is configured with three layers including
 
-- Operations Set: Implements fundamental operations for DAMON that depends on
-  the given monitoring target address-space and available set of
-  software/hardware primitives,
-- Core: Implements core logics including monitoring overhead/accuracy control
-  and access-aware system operations on top of the operations set layer, and
-- Modules: Implements kernel modules for various purposes that provides
-  interfaces for the user space, on top of the core layer.
+- :ref:`Operations Set <damon_operations_set>`: Implements fundamental
+  operations for DAMON that depends on the given monitoring target
+  address-space and available set of software/hardware primitives,
+- :ref:`Core <damon_core_logic>`: Implements core logics including monitoring
+  overhead/accuracy control and access-aware system operations on top of the
+  operations set layer, and
+- :ref:`Modules <damon_modules>`: Implements kernel modules for various
+  purposes that provides interfaces for the user space, on top of the core
+  layer.
 
 
 .. _damon_design_configurable_operations_set:
@@ -139,6 +141,8 @@ the interference is the responsibility of sysadmins.  However, it solves the
 conflict with the reclaim logic using ``PG_idle`` and ``PG_young`` page flags,
 as Idle page tracking does.
 
+
+.. _damon_core_logic:
 
 Core Logics
 ===========
@@ -511,6 +515,8 @@ its all features to other kernel components via its application programming
 interface, namely ``include/linux/damon.h``.  Please refer to the API
 :doc:`document </mm/damon/api>` for details of the interface.
 
+
+.. _damon_modules:
 
 Modules
 =======
