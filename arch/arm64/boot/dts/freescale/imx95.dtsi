@@ -326,7 +326,7 @@
 		interrupts = <GIC_PPI 7 (GIC_CPU_MASK_SIMPLE(6) | IRQ_TYPE_LEVEL_HIGH)>;
 	};
 
-	thermal-zones {
+	thermal_zones: thermal-zones {
 		a55-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <2000>;
