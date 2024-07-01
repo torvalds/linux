@@ -526,19 +526,17 @@ static ktime_t
 kvaser_usb_hydra_ktime_from_rx_cmd(const struct kvaser_usb_dev_cfg *cfg,
 				   const struct kvaser_cmd *cmd)
 {
-	u64 ticks;
+	ktime_t hwtstamp = 0;
 
 	if (cmd->header.cmd_no == CMD_EXTENDED) {
 		struct kvaser_cmd_ext *cmd_ext = (struct kvaser_cmd_ext *)cmd;
 
-		ticks = le64_to_cpu(cmd_ext->rx_can.timestamp);
+		hwtstamp = kvaser_usb_timestamp64_to_ktime(cfg, cmd_ext->rx_can.timestamp);
 	} else {
-		ticks = le16_to_cpu(cmd->rx_can.timestamp[0]);
-		ticks += (u64)(le16_to_cpu(cmd->rx_can.timestamp[1])) << 16;
-		ticks += (u64)(le16_to_cpu(cmd->rx_can.timestamp[2])) << 32;
+		hwtstamp = kvaser_usb_timestamp48_to_ktime(cfg, cmd->rx_can.timestamp);
 	}
 
-	return ns_to_ktime(div_u64(ticks * 1000, cfg->timestamp_freq));
+	return hwtstamp;
 }
 
 static int kvaser_usb_hydra_send_simple_cmd(struct kvaser_usb *dev,

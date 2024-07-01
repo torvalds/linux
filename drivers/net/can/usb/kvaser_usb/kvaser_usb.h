@@ -22,6 +22,8 @@
  */
 
 #include <linux/completion.h>
+#include <linux/ktime.h>
+#include <linux/math64.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
 #include <linux/usb.h>
@@ -215,5 +217,27 @@ int kvaser_usb_send_cmd_async(struct kvaser_usb_net_priv *priv, void *cmd,
 int kvaser_usb_can_rx_over_error(struct net_device *netdev);
 
 extern const struct can_bittiming_const kvaser_usb_flexc_bittiming_const;
+
+static inline ktime_t kvaser_usb_ticks_to_ktime(const struct kvaser_usb_dev_cfg *cfg,
+						u64 ticks)
+{
+	return ns_to_ktime(div_u64(ticks * 1000, cfg->timestamp_freq));
+}
+
+static inline ktime_t kvaser_usb_timestamp48_to_ktime(const struct kvaser_usb_dev_cfg *cfg,
+						      const __le16 *timestamp)
+{
+	u64 ticks = le16_to_cpu(timestamp[0]) |
+		    (u64)(le16_to_cpu(timestamp[1])) << 16 |
+		    (u64)(le16_to_cpu(timestamp[2])) << 32;
+
+	return kvaser_usb_ticks_to_ktime(cfg, ticks);
+}
+
+static inline ktime_t kvaser_usb_timestamp64_to_ktime(const struct kvaser_usb_dev_cfg *cfg,
+						      __le64 timestamp)
+{
+	return kvaser_usb_ticks_to_ktime(cfg, le64_to_cpu(timestamp));
+}
 
 #endif /* KVASER_USB_H */
