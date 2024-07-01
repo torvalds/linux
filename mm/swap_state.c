@@ -80,6 +80,7 @@ void *get_shadow_from_swap_cache(swp_entry_t entry)
 		return page;
 	return NULL;
 }
+EXPORT_SYMBOL_GPL(get_shadow_from_swap_cache);
 
 /*
  * add_to_swap_cache resembles filemap_add_folio on swapper_space,
