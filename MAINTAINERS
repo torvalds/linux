@@ -19315,7 +19315,7 @@ F:	drivers/perf/riscv_pmu_legacy.c
 F:	drivers/perf/riscv_pmu_sbi.c
 
 RISC-V THEAD SoC SUPPORT
-M:	Jisheng Zhang <jszhang@kernel.org>
+M:	Drew Fustini <drew@pdp7.com>
 M:	Guo Ren <guoren@kernel.org>
 M:	Fu Wei <wefu@redhat.com>
 L:	linux-riscv@lists.infradead.org
