@@ -209,11 +209,6 @@ int __blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
 		unsigned flags)
 {
 	int ret;
-	sector_t bs_mask;
-
-	bs_mask = (bdev_logical_block_size(bdev) >> 9) - 1;
-	if ((sector | nr_sects) & bs_mask)
-		return -EINVAL;
 
 	ret = __blkdev_issue_write_zeroes(bdev, sector, nr_sects, gfp_mask,
 			biop, flags);
