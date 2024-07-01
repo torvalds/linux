@@ -553,6 +553,20 @@
 			status = "disabled";
 		};
 
+		tsn0: ethernet@e6460000 {
+			compatible = "renesas,r8a779g0-ethertsn", "renesas,rcar-gen4-ethertsn";
+			reg = <0 0xe6460000 0 0x7000>,
+			      <0 0xe6449000 0 0x500>;
+			reg-names = "tsnes", "gptp";
+			interrupts = <GIC_SPI 429 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 430 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "tx", "rx";
+			clocks = <&cpg CPG_MOD 2723>;
+			power-domains = <&sysc R8A779G0_PD_ALWAYS_ON>;
+			resets = <&cpg 2723>;
+			status = "disabled";
+		};
+
 		i2c0: i2c@e6500000 {
 			compatible = "renesas,i2c-r8a779g0",
 				     "renesas,rcar-gen4-i2c";
