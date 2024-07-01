@@ -22,6 +22,7 @@
 /* all KSZ switches count ports from 1 */
 #define KSZ_PORT_1 0
 #define KSZ_PORT_2 1
+#define KSZ_PORT_4 3
 
 struct ksz_device;
 struct ksz_port;

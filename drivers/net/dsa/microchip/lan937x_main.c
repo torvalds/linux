@@ -55,6 +55,10 @@ static int lan937x_vphy_ind_addr_wr(struct ksz_device *dev, int addr, int reg)
 	u16 addr_base = REG_PORT_T1_PHY_CTRL_BASE;
 	u16 temp;
 
+	if ((dev->info->chip_id == LAN9371_CHIP_ID ||
+	     dev->info->chip_id == LAN9372_CHIP_ID) && addr == KSZ_PORT_4)
+		addr_base = REG_PORT_TX_PHY_CTRL_BASE;
+
 	/* get register address based on the logical port */
 	temp = PORT_CTRL_ADDR(addr, (addr_base + (reg << 2)));
 
