@@ -312,6 +312,12 @@ static int amc6821_pwm_read(struct device *dev, u32 attr, long *val)
 			break;
 		}
 		return 0;
+	case hwmon_pwm_mode:
+		err = regmap_read(regmap, AMC6821_REG_CONF2, &regval);
+		if (err)
+			return err;
+		*val = !!(regval & AMC6821_CONF2_TACH_MODE);
+		return 0;
 	case hwmon_pwm_auto_channels_temp:
 		err = regmap_read(regmap, AMC6821_REG_CONF1, &regval);
 		if (err)
@@ -367,6 +373,13 @@ static int amc6821_pwm_write(struct device *dev, u32 attr, long val)
 		return regmap_update_bits(regmap, AMC6821_REG_CONF1,
 					  AMC6821_CONF1_FDRC0 | AMC6821_CONF1_FDRC1,
 					  mode);
+	case hwmon_pwm_mode:
+		if (val < 0 || val > 1)
+			return -EINVAL;
+		return regmap_update_bits(regmap, AMC6821_REG_CONF2,
+					  AMC6821_CONF2_TACH_MODE,
+					  val ? AMC6821_CONF2_TACH_MODE : 0);
+		break;
 	case hwmon_pwm_input:
 		if (val < 0 || val > 255)
 			return -EINVAL;
@@ -748,6 +761,7 @@ static umode_t amc6821_is_visible(const void *data,
 		}
 	case hwmon_pwm:
 		switch (attr) {
+		case hwmon_pwm_mode:
 		case hwmon_pwm_enable:
 		case hwmon_pwm_input:
 			return 0644;
@@ -774,7 +788,7 @@ static const struct hwmon_channel_info * const amc6821_info[] = {
 			   HWMON_F_INPUT | HWMON_F_MIN | HWMON_F_MAX |
 			   HWMON_F_TARGET | HWMON_F_PULSES | HWMON_F_FAULT),
 	HWMON_CHANNEL_INFO(pwm,
-			   HWMON_PWM_INPUT | HWMON_PWM_ENABLE |
+			   HWMON_PWM_INPUT | HWMON_PWM_ENABLE | HWMON_PWM_MODE |
 			   HWMON_PWM_AUTO_CHANNELS_TEMP),
 	NULL
 };

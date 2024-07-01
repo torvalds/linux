@@ -58,6 +58,7 @@ pwm1_enable		rw	regulator mode, 1=open loop, 2=fan controlled
 				remote-sensor temperature,
 				4=fan controlled by target rpm set with
 				fan1_target attribute.
+pwm1_mode		rw	Fan duty control mode (0=DC, 1=PWM)
 pwm1_auto_channels_temp ro	1 if pwm_enable==2, 3 if pwm_enable==3
 pwm1_auto_point1_pwm	ro	Hardwired to 0, shared for both
 				temperature channels.
