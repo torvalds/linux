@@ -817,7 +817,7 @@ static struct btrfs_root *create_reloc_root(struct btrfs_trans_handle *trans,
 		goto abort;
 	}
 	set_bit(BTRFS_ROOT_SHAREABLE, &reloc_root->state);
-	reloc_root->last_trans = trans->transid;
+	btrfs_set_root_last_trans(reloc_root, trans->transid);
 	return reloc_root;
 fail:
 	kfree(root_item);
@@ -864,7 +864,7 @@ int btrfs_init_reloc_root(struct btrfs_trans_handle *trans,
 	 */
 	if (root->reloc_root) {
 		reloc_root = root->reloc_root;
-		reloc_root->last_trans = trans->transid;
+		btrfs_set_root_last_trans(reloc_root, trans->transid);
 		return 0;
 	}
 
@@ -1739,7 +1739,7 @@ static noinline_for_stack int merge_reloc_root(struct reloc_control *rc,
 		 * btrfs_update_reloc_root() and update our root item
 		 * appropriately.
 		 */
-		reloc_root->last_trans = trans->transid;
+		btrfs_set_root_last_trans(reloc_root, trans->transid);
 		trans->block_rsv = rc->block_rsv;
 
 		replaced = 0;
@@ -2082,7 +2082,7 @@ static int record_reloc_root_in_trans(struct btrfs_trans_handle *trans,
 	struct btrfs_root *root;
 	int ret;
 
-	if (reloc_root->last_trans == trans->transid)
+	if (btrfs_get_root_last_trans(reloc_root) == trans->transid)
 		return 0;
 
 	root = btrfs_get_fs_root(fs_info, reloc_root->root_key.offset, false);

@@ -356,6 +356,16 @@ static inline void btrfs_set_root_last_log_commit(struct btrfs_root *root, int c
 	WRITE_ONCE(root->last_log_commit, commit_id);
 }
 
+static inline u64 btrfs_get_root_last_trans(const struct btrfs_root *root)
+{
+	return READ_ONCE(root->last_trans);
+}
+
+static inline void btrfs_set_root_last_trans(struct btrfs_root *root, u64 transid)
+{
+	WRITE_ONCE(root->last_trans, transid);
+}
+
 /*
  * Structure that conveys information about an extent that is going to replace
  * all the extents in a file range.
