@@ -237,29 +237,6 @@ int xpcs_write_vpcs(struct dw_xpcs *xpcs, int reg, u16 val)
 	return xpcs_write_vendor(xpcs, MDIO_MMD_PCS, reg, val);
 }
 
-static int xpcs_dev_flag(struct dw_xpcs *xpcs)
-{
-	int ret, oui;
-
-	ret = xpcs_read(xpcs, MDIO_MMD_PMAPMD, MDIO_DEVID1);
-	if (ret < 0)
-		return ret;
-
-	oui = ret;
-
-	ret = xpcs_read(xpcs, MDIO_MMD_PMAPMD, MDIO_DEVID2);
-	if (ret < 0)
-		return ret;
-
-	ret = (ret >> 10) & 0x3F;
-	oui |= ret << 16;
-
-	if (oui == DW_OUI_WX)
-		xpcs->dev_flag = DW_DEV_TXGBE;
-
-	return 0;
-}
-
 static int xpcs_poll_reset(struct dw_xpcs *xpcs, int dev)
 {
 	/* Poll until the reset bit clears (50ms per retry == 0.6 sec) */
@@ -684,7 +661,7 @@ static int xpcs_config_aneg_c37_sgmii(struct dw_xpcs *xpcs,
 {
 	int ret, mdio_ctrl, tx_conf;
 
-	if (xpcs->dev_flag == DW_DEV_TXGBE)
+	if (xpcs->info.pma == WX_TXGBE_XPCS_PMA_10G_ID)
 		xpcs_write_vpcs(xpcs, DW_VR_XS_PCS_DIG_CTRL1, DW_CL37_BP | DW_EN_VSMMD1);
 
 	/* For AN for C37 SGMII mode, the settings are :-
@@ -722,7 +699,7 @@ static int xpcs_config_aneg_c37_sgmii(struct dw_xpcs *xpcs,
 	ret |= (DW_VR_MII_PCS_MODE_C37_SGMII <<
 		DW_VR_MII_AN_CTRL_PCS_MODE_SHIFT &
 		DW_VR_MII_PCS_MODE_MASK);
-	if (xpcs->dev_flag == DW_DEV_TXGBE) {
+	if (xpcs->info.pma == WX_TXGBE_XPCS_PMA_10G_ID) {
 		ret |= DW_VR_MII_AN_CTRL_8BIT;
 		/* Hardware requires it to be PHY side SGMII */
 		tx_conf = DW_VR_MII_TX_CONFIG_PHY_SIDE_SGMII;
@@ -744,7 +721,7 @@ static int xpcs_config_aneg_c37_sgmii(struct dw_xpcs *xpcs,
 	else
 		ret &= ~DW_VR_MII_DIG_CTRL1_MAC_AUTO_SW;
 
-	if (xpcs->dev_flag == DW_DEV_TXGBE)
+	if (xpcs->info.pma == WX_TXGBE_XPCS_PMA_10G_ID)
 		ret |= DW_VR_MII_DIG_CTRL1_PHY_MODE_CTRL;
 
 	ret = xpcs_write(xpcs, MDIO_MMD_VEND2, DW_VR_MII_DIG_CTRL1, ret);
@@ -766,7 +743,7 @@ static int xpcs_config_aneg_c37_1000basex(struct dw_xpcs *xpcs,
 	int ret, mdio_ctrl, adv;
 	bool changed = 0;
 
-	if (xpcs->dev_flag == DW_DEV_TXGBE)
+	if (xpcs->info.pma == WX_TXGBE_XPCS_PMA_10G_ID)
 		xpcs_write_vpcs(xpcs, DW_VR_XS_PCS_DIG_CTRL1, DW_CL37_BP | DW_EN_VSMMD1);
 
 	/* According to Chap 7.12, to set 1000BASE-X C37 AN, AN must
@@ -857,7 +834,7 @@ int xpcs_do_config(struct dw_xpcs *xpcs, phy_interface_t interface,
 	if (!compat)
 		return -ENODEV;
 
-	if (xpcs->dev_flag == DW_DEV_TXGBE) {
+	if (xpcs->info.pma == WX_TXGBE_XPCS_PMA_10G_ID) {
 		ret = txgbe_xpcs_switch_mode(xpcs, interface);
 		if (ret)
 			return ret;
@@ -1229,44 +1206,66 @@ static void xpcs_an_restart(struct phylink_pcs *pcs)
 	}
 }
 
-static u32 xpcs_get_id(struct dw_xpcs *xpcs)
+static int xpcs_get_id(struct dw_xpcs *xpcs)
 {
 	int ret;
 	u32 id;
 
-	/* First, search C73 PCS using PCS MMD */
+	/* First, search C73 PCS using PCS MMD 3. Return ENODEV if communication
+	 * failed indicating that device couldn't be reached.
+	 */
 	ret = xpcs_read(xpcs, MDIO_MMD_PCS, MII_PHYSID1);
 	if (ret < 0)
-		return 0xffffffff;
+		return -ENODEV;
 
 	id = ret << 16;
 
 	ret = xpcs_read(xpcs, MDIO_MMD_PCS, MII_PHYSID2);
 	if (ret < 0)
-		return 0xffffffff;
+		return ret;
 
-	/* If Device IDs are not all zeros or all ones,
-	 * we found C73 AN-type device
+	id |= ret;
+
+	/* If Device IDs are not all zeros or ones, then 10GBase-X/R or C73
+	 * KR/KX4 PCS found. Otherwise fallback to detecting 1000Base-X or C37
+	 * PCS in MII MMD 31.
 	 */
-	if ((id | ret) && (id | ret) != 0xffffffff)
-		return id | ret;
+	if (!id || id == 0xffffffff) {
+		ret = xpcs_read(xpcs, MDIO_MMD_VEND2, MII_PHYSID1);
+		if (ret < 0)
+			return ret;
 
-	/* Next, search C37 PCS using Vendor-Specific MII MMD */
-	ret = xpcs_read(xpcs, MDIO_MMD_VEND2, MII_PHYSID1);
+		id = ret << 16;
+
+		ret = xpcs_read(xpcs, MDIO_MMD_VEND2, MII_PHYSID2);
+		if (ret < 0)
+			return ret;
+
+		id |= ret;
+	}
+
+	xpcs->info.pcs = id;
+
+	/* Find out PMA/PMD ID from MMD 1 device ID registers */
+	ret = xpcs_read(xpcs, MDIO_MMD_PMAPMD, MDIO_DEVID1);
 	if (ret < 0)
-		return 0xffffffff;
+		return ret;
 
-	id = ret << 16;
+	id = ret;
 
-	ret = xpcs_read(xpcs, MDIO_MMD_VEND2, MII_PHYSID2);
+	ret = xpcs_read(xpcs, MDIO_MMD_PMAPMD, MDIO_DEVID2);
 	if (ret < 0)
-		return 0xffffffff;
+		return ret;
 
-	/* If Device IDs are not all zeros, we found C37 AN-type device */
-	if (id | ret)
-		return id | ret;
+	/* Note the inverted dword order and masked out Model/Revision numbers
+	 * with respect to what is done with the PCS ID...
+	 */
+	ret = (ret >> 10) & 0x3F;
+	id |= ret << 16;
 
-	return 0xffffffff;
+	xpcs->info.pma = id;
+
+	return 0;
 }
 
 static const struct dw_xpcs_compat synopsys_xpcs_compat[DW_XPCS_INTERFACE_MAX] = {
@@ -1390,15 +1389,16 @@ static void xpcs_free_data(struct dw_xpcs *xpcs)
 
 static int xpcs_init_id(struct dw_xpcs *xpcs)
 {
-	u32 xpcs_id;
 	int i, ret;
 
-	xpcs_id = xpcs_get_id(xpcs);
+	ret = xpcs_get_id(xpcs);
+	if (ret < 0)
+		return ret;
 
 	for (i = 0; i < ARRAY_SIZE(xpcs_desc_list); i++) {
 		const struct dw_xpcs_desc *desc = &xpcs_desc_list[i];
 
-		if ((xpcs_id & desc->mask) != desc->id)
+		if ((xpcs->info.pcs & desc->mask) != desc->id)
 			continue;
 
 		xpcs->desc = desc;
@@ -1408,10 +1408,6 @@ static int xpcs_init_id(struct dw_xpcs *xpcs)
 
 	if (!xpcs->desc)
 		return -ENODEV;
-
-	ret = xpcs_dev_flag(xpcs);
-	if (ret < 0)
-		return ret;
 
 	return 0;
 }
@@ -1424,7 +1420,7 @@ static int xpcs_init_iface(struct dw_xpcs *xpcs, phy_interface_t interface)
 	if (!compat)
 		return -EINVAL;
 
-	if (xpcs->dev_flag == DW_DEV_TXGBE) {
+	if (xpcs->info.pma == WX_TXGBE_XPCS_PMA_10G_ID) {
 		xpcs->pcs.poll = false;
 		return 0;
 	}

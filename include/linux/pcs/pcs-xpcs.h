@@ -9,11 +9,7 @@
 
 #include <linux/phy.h>
 #include <linux/phylink.h>
-
-#define NXP_SJA1105_XPCS_ID		0x00000010
-#define NXP_SJA1110_XPCS_ID		0x00000020
-#define DW_XPCS_ID			0x7996ced0
-#define DW_XPCS_ID_MASK			0xffffffff
+#include <linux/types.h>
 
 /* AN mode */
 #define DW_AN_C73			1
@@ -22,20 +18,30 @@
 #define DW_AN_C37_1000BASEX		4
 #define DW_10GBASER			5
 
-/* device vendor OUI */
-#define DW_OUI_WX			0x0018fc80
-
-/* dev_flag */
-#define DW_DEV_TXGBE			BIT(0)
-
 struct dw_xpcs_desc;
 
+enum dw_xpcs_pcs_id {
+	NXP_SJA1105_XPCS_ID = 0x00000010,
+	NXP_SJA1110_XPCS_ID = 0x00000020,
+	DW_XPCS_ID = 0x7996ced0,
+	DW_XPCS_ID_MASK = 0xffffffff,
+};
+
+enum dw_xpcs_pma_id {
+	WX_TXGBE_XPCS_PMA_10G_ID = 0x0018fc80,
+};
+
+struct dw_xpcs_info {
+	u32 pcs;
+	u32 pma;
+};
+
 struct dw_xpcs {
+	struct dw_xpcs_info info;
 	const struct dw_xpcs_desc *desc;
 	struct mdio_device *mdiodev;
 	struct phylink_pcs pcs;
 	phy_interface_t interface;
-	int dev_flag;
 };
 
 int xpcs_get_an_mode(struct dw_xpcs *xpcs, phy_interface_t interface);
