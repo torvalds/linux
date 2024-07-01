@@ -2,6 +2,7 @@
 /* Copyright(c) 2024  Realtek Corporation
  */
 
+#include "coex.h"
 #include "debug.h"
 #include "mac.h"
 #include "phy.h"
@@ -1749,6 +1750,167 @@ static u8 __rtw8852bx_get_thermal(struct rtw89_dev *rtwdev, enum rtw89_rf_path r
 	return rtw89_read_rf(rtwdev, rf_path, RR_TM, RR_TM_VAL);
 }
 
+static
+void rtw8852bx_set_trx_mask(struct rtw89_dev *rtwdev, u8 path, u8 group, u32 val)
+{
+	rtw89_write_rf(rtwdev, path, RR_LUTWE, RFREG_MASK, 0x20000);
+	rtw89_write_rf(rtwdev, path, RR_LUTWA, RFREG_MASK, group);
+	rtw89_write_rf(rtwdev, path, RR_LUTWD0, RFREG_MASK, val);
+	rtw89_write_rf(rtwdev, path, RR_LUTWE, RFREG_MASK, 0x0);
+}
+
+static void __rtw8852bx_btc_init_cfg(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_btc *btc = &rtwdev->btc;
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	const struct rtw89_mac_ax_coex coex_params = {
+		.pta_mode = RTW89_MAC_AX_COEX_RTK_MODE,
+		.direction = RTW89_MAC_AX_COEX_INNER,
+	};
+
+	/* PTA init  */
+	rtw89_mac_coex_init(rtwdev, &coex_params);
+
+	/* set WL Tx response = Hi-Pri */
+	chip->ops->btc_set_wl_pri(rtwdev, BTC_PRI_MASK_TX_RESP, true);
+	chip->ops->btc_set_wl_pri(rtwdev, BTC_PRI_MASK_BEACON, true);
+
+	/* set rf gnt debug off */
+	rtw89_write_rf(rtwdev, RF_PATH_A, RR_WLSEL, RFREG_MASK, 0x0);
+	rtw89_write_rf(rtwdev, RF_PATH_B, RR_WLSEL, RFREG_MASK, 0x0);
+
+	/* set WL Tx thru in TRX mask table if GNT_WL = 0 && BT_S1 = ss group */
+	if (btc->ant_type == BTC_ANT_SHARED) {
+		rtw8852bx_set_trx_mask(rtwdev, RF_PATH_A, BTC_BT_SS_GROUP, 0x5ff);
+		rtw8852bx_set_trx_mask(rtwdev, RF_PATH_B, BTC_BT_SS_GROUP, 0x5ff);
+		/* set path-A(S0) Tx/Rx no-mask if GNT_WL=0 && BT_S1=tx group */
+		rtw8852bx_set_trx_mask(rtwdev, RF_PATH_A, BTC_BT_TX_GROUP, 0x5ff);
+		rtw8852bx_set_trx_mask(rtwdev, RF_PATH_B, BTC_BT_TX_GROUP, 0x55f);
+	} else { /* set WL Tx stb if GNT_WL = 0 && BT_S1 = ss group for 3-ant */
+		rtw8852bx_set_trx_mask(rtwdev, RF_PATH_A, BTC_BT_SS_GROUP, 0x5df);
+		rtw8852bx_set_trx_mask(rtwdev, RF_PATH_B, BTC_BT_SS_GROUP, 0x5df);
+		rtw8852bx_set_trx_mask(rtwdev, RF_PATH_A, BTC_BT_TX_GROUP, 0x5ff);
+		rtw8852bx_set_trx_mask(rtwdev, RF_PATH_B, BTC_BT_TX_GROUP, 0x5ff);
+	}
+
+	/* set PTA break table */
+	rtw89_write32(rtwdev, R_BTC_BREAK_TABLE, BTC_BREAK_PARAM);
+
+	 /* enable BT counter 0xda40[16,2] = 2b'11 */
+	rtw89_write32_set(rtwdev, R_AX_CSR_MODE, B_AX_BT_CNT_RST | B_AX_STATIS_BT_EN);
+	btc->cx.wl.status.map.init_ok = true;
+}
+
+static
+void __rtw8852bx_btc_set_wl_pri(struct rtw89_dev *rtwdev, u8 map, bool state)
+{
+	u32 bitmap;
+	u32 reg;
+
+	switch (map) {
+	case BTC_PRI_MASK_TX_RESP:
+		reg = R_BTC_BT_COEX_MSK_TABLE;
+		bitmap = B_BTC_PRI_MASK_TX_RESP_V1;
+		break;
+	case BTC_PRI_MASK_BEACON:
+		reg = R_AX_WL_PRI_MSK;
+		bitmap = B_AX_PTA_WL_PRI_MASK_BCNQ;
+		break;
+	case BTC_PRI_MASK_RX_CCK:
+		reg = R_BTC_BT_COEX_MSK_TABLE;
+		bitmap = B_BTC_PRI_MASK_RXCCK_V1;
+		break;
+	default:
+		return;
+	}
+
+	if (state)
+		rtw89_write32_set(rtwdev, reg, bitmap);
+	else
+		rtw89_write32_clr(rtwdev, reg, bitmap);
+}
+
+static
+s8 __rtw8852bx_btc_get_bt_rssi(struct rtw89_dev *rtwdev, s8 val)
+{
+	/* +6 for compensate offset */
+	return clamp_t(s8, val + 6, -100, 0) + 100;
+}
+
+static
+void __rtw8852bx_btc_update_bt_cnt(struct rtw89_dev *rtwdev)
+{
+	/* Feature move to firmware */
+}
+
+static void __rtw8852bx_btc_wl_s1_standby(struct rtw89_dev *rtwdev, bool state)
+{
+	rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWE, RFREG_MASK, 0x80000);
+	rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWA, RFREG_MASK, 0x1);
+	rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWD1, RFREG_MASK, 0x31);
+
+	/* set WL standby = Rx for GNT_BT_Tx = 1->0 settle issue */
+	if (state)
+		rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWD0, RFREG_MASK, 0x179);
+	else
+		rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWD0, RFREG_MASK, 0x20);
+
+	rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWE, RFREG_MASK, 0x0);
+}
+
+static void rtw8852bx_btc_set_wl_lna2(struct rtw89_dev *rtwdev, u8 level)
+{
+	switch (level) {
+	case 0: /* default */
+		rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWE, RFREG_MASK, 0x1000);
+		rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWA, RFREG_MASK, 0x0);
+		rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWD0, RFREG_MASK, 0x15);
+		rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWA, RFREG_MASK, 0x1);
+		rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWD0, RFREG_MASK, 0x17);
+		rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWA, RFREG_MASK, 0x2);
+		rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWD0, RFREG_MASK, 0x15);
+		rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWA, RFREG_MASK, 0x3);
+		rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWD0, RFREG_MASK, 0x17);
+		rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWE, RFREG_MASK, 0x0);
+		break;
+	case 1: /* Fix LNA2=5  */
+		rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWE, RFREG_MASK, 0x1000);
+		rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWA, RFREG_MASK, 0x0);
+		rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWD0, RFREG_MASK, 0x15);
+		rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWA, RFREG_MASK, 0x1);
+		rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWD0, RFREG_MASK, 0x5);
+		rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWA, RFREG_MASK, 0x2);
+		rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWD0, RFREG_MASK, 0x15);
+		rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWA, RFREG_MASK, 0x3);
+		rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWD0, RFREG_MASK, 0x5);
+		rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWE, RFREG_MASK, 0x0);
+		break;
+	}
+}
+
+static void __rtw8852bx_btc_set_wl_rx_gain(struct rtw89_dev *rtwdev, u32 level)
+{
+	struct rtw89_btc *btc = &rtwdev->btc;
+
+	switch (level) {
+	case 0: /* original */
+	default:
+		rtw8852bx_ctrl_nbtg_bt_tx(rtwdev, false, RTW89_PHY_0);
+		btc->dm.wl_lna2 = 0;
+		break;
+	case 1: /* for FDD free-run */
+		rtw8852bx_ctrl_nbtg_bt_tx(rtwdev, true, RTW89_PHY_0);
+		btc->dm.wl_lna2 = 0;
+		break;
+	case 2: /* for BTG Co-Rx*/
+		rtw8852bx_ctrl_nbtg_bt_tx(rtwdev, false, RTW89_PHY_0);
+		btc->dm.wl_lna2 = 1;
+		break;
+	}
+
+	rtw8852bx_btc_set_wl_lna2(rtwdev, btc->dm.wl_lna2);
+}
+
 static void rtw8852bx_fill_freq_with_ppdu(struct rtw89_dev *rtwdev,
 					  struct rtw89_rx_phy_ppdu *phy_ppdu,
 					  struct ieee80211_rx_status *status)
@@ -1872,6 +2034,12 @@ const struct rtw8852bx_info rtw8852bx_info = {
 	.set_txpwr_ul_tb_offset = __rtw8852bx_set_txpwr_ul_tb_offset,
 	.get_thermal = __rtw8852bx_get_thermal,
 	.adc_cfg = rtw8852bt_adc_cfg,
+	.btc_init_cfg = __rtw8852bx_btc_init_cfg,
+	.btc_set_wl_pri = __rtw8852bx_btc_set_wl_pri,
+	.btc_get_bt_rssi = __rtw8852bx_btc_get_bt_rssi,
+	.btc_update_bt_cnt = __rtw8852bx_btc_update_bt_cnt,
+	.btc_wl_s1_standby = __rtw8852bx_btc_wl_s1_standby,
+	.btc_set_wl_rx_gain = __rtw8852bx_btc_set_wl_rx_gain,
 };
 EXPORT_SYMBOL(rtw8852bx_info);
 

@@ -159,6 +159,12 @@ struct rtw8852bx_info {
 				       s8 pw_ofst, enum rtw89_mac_idx mac_idx);
 	u8 (*get_thermal)(struct rtw89_dev *rtwdev, enum rtw89_rf_path rf_path);
 	void (*adc_cfg)(struct rtw89_dev *rtwdev, u8 bw, u8 path);
+	void (*btc_init_cfg)(struct rtw89_dev *rtwdev);
+	void (*btc_set_wl_pri)(struct rtw89_dev *rtwdev, u8 map, bool state);
+	s8 (*btc_get_bt_rssi)(struct rtw89_dev *rtwdev, s8 val);
+	void (*btc_update_bt_cnt)(struct rtw89_dev *rtwdev);
+	void (*btc_wl_s1_standby)(struct rtw89_dev *rtwdev, bool state);
+	void (*btc_set_wl_rx_gain)(struct rtw89_dev *rtwdev, u32 level);
 };
 
 extern const struct rtw8852bx_info rtw8852bx_info;
@@ -341,6 +347,42 @@ static inline
 void rtw8852bx_adc_cfg(struct rtw89_dev *rtwdev, u8 bw, u8 path)
 {
 	rtw8852bx_info.adc_cfg(rtwdev, bw, path);
+}
+
+static inline
+void rtw8852bx_btc_init_cfg(struct rtw89_dev *rtwdev)
+{
+	rtw8852bx_info.btc_init_cfg(rtwdev);
+}
+
+static inline
+void rtw8852bx_btc_set_wl_pri(struct rtw89_dev *rtwdev, u8 map, bool state)
+{
+	rtw8852bx_info.btc_set_wl_pri(rtwdev, map, state);
+}
+
+static inline
+s8 rtw8852bx_btc_get_bt_rssi(struct rtw89_dev *rtwdev, s8 val)
+{
+	return rtw8852bx_info.btc_get_bt_rssi(rtwdev, val);
+}
+
+static inline
+void rtw8852bx_btc_update_bt_cnt(struct rtw89_dev *rtwdev)
+{
+	rtw8852bx_info.btc_update_bt_cnt(rtwdev);
+}
+
+static inline
+void rtw8852bx_btc_wl_s1_standby(struct rtw89_dev *rtwdev, bool state)
+{
+	rtw8852bx_info.btc_wl_s1_standby(rtwdev, state);
+}
+
+static inline
+void rtw8852bx_btc_set_wl_rx_gain(struct rtw89_dev *rtwdev, u32 level)
+{
+	rtw8852bx_info.btc_set_wl_rx_gain(rtwdev, level);
 }
 
 #endif
