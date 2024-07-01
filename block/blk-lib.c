@@ -111,16 +111,11 @@ static sector_t bio_write_zeroes_limit(struct block_device *bdev)
 		(UINT_MAX >> SECTOR_SHIFT) & ~bs_mask);
 }
 
-static int __blkdev_issue_write_zeroes(struct block_device *bdev,
+static void __blkdev_issue_write_zeroes(struct block_device *bdev,
 		sector_t sector, sector_t nr_sects, gfp_t gfp_mask,
 		struct bio **biop, unsigned flags)
 {
 	struct bio *bio = *biop;
-
-	if (bdev_read_only(bdev))
-		return -EPERM;
-	if (!bdev_write_zeroes_sectors(bdev))
-		return -EOPNOTSUPP;
 
 	while (nr_sects) {
 		unsigned int len = min_t(sector_t, nr_sects,
@@ -138,7 +133,6 @@ static int __blkdev_issue_write_zeroes(struct block_device *bdev,
 	}
 
 	*biop = bio;
-	return 0;
 }
 
 /*
@@ -154,16 +148,13 @@ static unsigned int __blkdev_sectors_to_bio_pages(sector_t nr_sects)
 	return min(pages, (sector_t)BIO_MAX_VECS);
 }
 
-static int __blkdev_issue_zero_pages(struct block_device *bdev,
+static void __blkdev_issue_zero_pages(struct block_device *bdev,
 		sector_t sector, sector_t nr_sects, gfp_t gfp_mask,
 		struct bio **biop)
 {
 	struct bio *bio = *biop;
 	int bi_size = 0;
 	unsigned int sz;
-
-	if (bdev_read_only(bdev))
-		return -EPERM;
 
 	while (nr_sects != 0) {
 		bio = blk_next_bio(bio, bdev, __blkdev_sectors_to_bio_pages(nr_sects),
@@ -182,7 +173,6 @@ static int __blkdev_issue_zero_pages(struct block_device *bdev,
 	}
 
 	*biop = bio;
-	return 0;
 }
 
 /**
@@ -208,15 +198,19 @@ int __blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
 		sector_t nr_sects, gfp_t gfp_mask, struct bio **biop,
 		unsigned flags)
 {
-	int ret;
+	if (bdev_read_only(bdev))
+		return -EPERM;
 
-	ret = __blkdev_issue_write_zeroes(bdev, sector, nr_sects, gfp_mask,
-			biop, flags);
-	if (ret != -EOPNOTSUPP || (flags & BLKDEV_ZERO_NOFALLBACK))
-		return ret;
-
-	return __blkdev_issue_zero_pages(bdev, sector, nr_sects, gfp_mask,
-					 biop);
+	if (bdev_write_zeroes_sectors(bdev)) {
+		__blkdev_issue_write_zeroes(bdev, sector, nr_sects,
+				gfp_mask, biop, flags);
+	} else {
+		if (flags & BLKDEV_ZERO_NOFALLBACK)
+			return -EOPNOTSUPP;
+		__blkdev_issue_zero_pages(bdev, sector, nr_sects, gfp_mask,
+				biop);
+	}
+	return 0;
 }
 EXPORT_SYMBOL(__blkdev_issue_zeroout);
 
@@ -245,21 +239,22 @@ int blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
 	bs_mask = (bdev_logical_block_size(bdev) >> 9) - 1;
 	if ((sector | nr_sects) & bs_mask)
 		return -EINVAL;
+	if (bdev_read_only(bdev))
+		return -EPERM;
+	if ((flags & BLKDEV_ZERO_NOFALLBACK) && !try_write_zeroes)
+		return -EOPNOTSUPP;
 
 retry:
 	bio = NULL;
 	blk_start_plug(&plug);
 	if (try_write_zeroes) {
-		ret = __blkdev_issue_write_zeroes(bdev, sector, nr_sects,
-						  gfp_mask, &bio, flags);
-	} else if (!(flags & BLKDEV_ZERO_NOFALLBACK)) {
-		ret = __blkdev_issue_zero_pages(bdev, sector, nr_sects,
-						gfp_mask, &bio);
+		__blkdev_issue_write_zeroes(bdev, sector, nr_sects, gfp_mask,
+				&bio, flags);
 	} else {
-		/* No zeroing offload support */
-		ret = -EOPNOTSUPP;
+		__blkdev_issue_zero_pages(bdev, sector, nr_sects, gfp_mask,
+				&bio);
 	}
-	if (ret == 0 && bio) {
+	if (bio) {
 		ret = submit_bio_wait(bio);
 		bio_put(bio);
 	}
