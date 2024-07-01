@@ -25,20 +25,13 @@ bool skip_tests = true;
 
 __u32 pid = 0;
 
-#undef __arena
-#if defined(__BPF_FEATURE_ADDR_SPACE_CAST)
-#define __arena __attribute__((address_space(1)))
-#else
-#define __arena SEC(".addr_space.1")
-#endif
-
-__u64 __arena add64_value = 1;
-__u64 __arena add64_result = 0;
-__u32 __arena add32_value = 1;
-__u32 __arena add32_result = 0;
-__u64 __arena add_stack_value_copy = 0;
-__u64 __arena add_stack_result = 0;
-__u64 __arena add_noreturn_value = 1;
+__u64 __arena_global add64_value = 1;
+__u64 __arena_global add64_result = 0;
+__u32 __arena_global add32_value = 1;
+__u32 __arena_global add32_result = 0;
+__u64 __arena_global add_stack_value_copy = 0;
+__u64 __arena_global add_stack_result = 0;
+__u64 __arena_global add_noreturn_value = 1;
 
 SEC("raw_tp/sys_enter")
 int add(const void *ctx)
@@ -58,13 +51,13 @@ int add(const void *ctx)
 	return 0;
 }
 
-__s64 __arena sub64_value = 1;
-__s64 __arena sub64_result = 0;
-__s32 __arena sub32_value = 1;
-__s32 __arena sub32_result = 0;
-__s64 __arena sub_stack_value_copy = 0;
-__s64 __arena sub_stack_result = 0;
-__s64 __arena sub_noreturn_value = 1;
+__s64 __arena_global sub64_value = 1;
+__s64 __arena_global sub64_result = 0;
+__s32 __arena_global sub32_value = 1;
+__s32 __arena_global sub32_result = 0;
+__s64 __arena_global sub_stack_value_copy = 0;
+__s64 __arena_global sub_stack_result = 0;
+__s64 __arena_global sub_noreturn_value = 1;
 
 SEC("raw_tp/sys_enter")
 int sub(const void *ctx)
@@ -84,8 +77,8 @@ int sub(const void *ctx)
 	return 0;
 }
 
-__u64 __arena and64_value = (0x110ull << 32);
-__u32 __arena and32_value = 0x110;
+__u64 __arena_global and64_value = (0x110ull << 32);
+__u32 __arena_global and32_value = 0x110;
 
 SEC("raw_tp/sys_enter")
 int and(const void *ctx)
@@ -101,8 +94,8 @@ int and(const void *ctx)
 	return 0;
 }
 
-__u32 __arena or32_value = 0x110;
-__u64 __arena or64_value = (0x110ull << 32);
+__u32 __arena_global or32_value = 0x110;
+__u64 __arena_global or64_value = (0x110ull << 32);
 
 SEC("raw_tp/sys_enter")
 int or(const void *ctx)
@@ -117,8 +110,8 @@ int or(const void *ctx)
 	return 0;
 }
 
-__u64 __arena xor64_value = (0x110ull << 32);
-__u32 __arena xor32_value = 0x110;
+__u64 __arena_global xor64_value = (0x110ull << 32);
+__u32 __arena_global xor32_value = 0x110;
 
 SEC("raw_tp/sys_enter")
 int xor(const void *ctx)
@@ -133,12 +126,12 @@ int xor(const void *ctx)
 	return 0;
 }
 
-__u32 __arena cmpxchg32_value = 1;
-__u32 __arena cmpxchg32_result_fail = 0;
-__u32 __arena cmpxchg32_result_succeed = 0;
-__u64 __arena cmpxchg64_value = 1;
-__u64 __arena cmpxchg64_result_fail = 0;
-__u64 __arena cmpxchg64_result_succeed = 0;
+__u32 __arena_global cmpxchg32_value = 1;
+__u32 __arena_global cmpxchg32_result_fail = 0;
+__u32 __arena_global cmpxchg32_result_succeed = 0;
+__u64 __arena_global cmpxchg64_value = 1;
+__u64 __arena_global cmpxchg64_result_fail = 0;
+__u64 __arena_global cmpxchg64_result_succeed = 0;
 
 SEC("raw_tp/sys_enter")
 int cmpxchg(const void *ctx)
@@ -156,10 +149,10 @@ int cmpxchg(const void *ctx)
 	return 0;
 }
 
-__u64 __arena xchg64_value = 1;
-__u64 __arena xchg64_result = 0;
-__u32 __arena xchg32_value = 1;
-__u32 __arena xchg32_result = 0;
+__u64 __arena_global xchg64_value = 1;
+__u64 __arena_global xchg64_result = 0;
+__u32 __arena_global xchg32_value = 1;
+__u32 __arena_global xchg32_result = 0;
 
 SEC("raw_tp/sys_enter")
 int xchg(const void *ctx)
