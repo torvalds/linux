@@ -1247,9 +1247,20 @@ unsigned long vm_compute_max_gfn(struct kvm_vm *vm)
 {
 	const unsigned long num_ht_pages = 12 << (30 - vm->page_shift); /* 12 GiB */
 	unsigned long ht_gfn, max_gfn, max_pfn;
-	uint8_t maxphyaddr;
+	uint8_t maxphyaddr, guest_maxphyaddr;
 
-	max_gfn = (1ULL << (vm->pa_bits - vm->page_shift)) - 1;
+	/*
+	 * Use "guest MAXPHYADDR" from KVM if it's available.  Guest MAXPHYADDR
+	 * enumerates the max _mappable_ GPA, which can be less than the raw
+	 * MAXPHYADDR, e.g. if MAXPHYADDR=52, KVM is using TDP, and the CPU
+	 * doesn't support 5-level TDP.
+	 */
+	guest_maxphyaddr = kvm_cpu_property(X86_PROPERTY_GUEST_MAX_PHY_ADDR);
+	guest_maxphyaddr = guest_maxphyaddr ?: vm->pa_bits;
+	TEST_ASSERT(guest_maxphyaddr <= vm->pa_bits,
+		    "Guest MAXPHYADDR should never be greater than raw MAXPHYADDR");
+
+	max_gfn = (1ULL << (guest_maxphyaddr - vm->page_shift)) - 1;
 
 	/* Avoid reserved HyperTransport region on AMD processors.  */
 	if (!host_cpu_is_amd)

@@ -224,6 +224,69 @@ l0_%=:							\
 	: __clobber_all);
 }
 
+SEC("socket")
+__description("MOV32SX, S8, var_off u32_max")
+__failure __msg("infinite loop detected")
+__failure_unpriv __msg_unpriv("back-edge from insn 2 to 0")
+__naked void mov64sx_s32_varoff_1(void)
+{
+	asm volatile ("					\
+l0_%=:							\
+	r3 = *(u8 *)(r10 -387);				\
+	w7 = (s8)w3;					\
+	if w7 >= 0x2533823b goto l0_%=;			\
+	w0 = 0;						\
+	exit;						\
+"	:
+	:
+	: __clobber_all);
+}
+
+SEC("socket")
+__description("MOV32SX, S8, var_off not u32_max, positive after s8 extension")
+__success __retval(0)
+__failure_unpriv __msg_unpriv("frame pointer is read only")
+__naked void mov64sx_s32_varoff_2(void)
+{
+	asm volatile ("					\
+	call %[bpf_get_prandom_u32];			\
+	r3 = r0;					\
+	r3 &= 0xf;					\
+	w7 = (s8)w3;					\
+	if w7 s>= 16 goto l0_%=;			\
+	w0 = 0;						\
+	exit;						\
+l0_%=:							\
+	r10 = 1;					\
+	exit;						\
+"	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+SEC("socket")
+__description("MOV32SX, S8, var_off not u32_max, negative after s8 extension")
+__success __retval(0)
+__failure_unpriv __msg_unpriv("frame pointer is read only")
+__naked void mov64sx_s32_varoff_3(void)
+{
+	asm volatile ("					\
+	call %[bpf_get_prandom_u32];			\
+	r3 = r0;					\
+	r3 &= 0xf;					\
+	r3 |= 0x80;					\
+	w7 = (s8)w3;					\
+	if w7 s>= -5 goto l0_%=;			\
+	w0 = 0;						\
+	exit;						\
+l0_%=:							\
+	r10 = 1;					\
+	exit;						\
+"	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
 #else
 
 SEC("socket")

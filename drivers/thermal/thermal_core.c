@@ -1406,6 +1406,7 @@ thermal_zone_device_register_with_trips(const char *type,
 	ida_init(&tz->ida);
 	mutex_init(&tz->lock);
 	init_completion(&tz->removal);
+	init_completion(&tz->resume);
 	id = ida_alloc(&thermal_tz_ida, GFP_KERNEL);
 	if (id < 0) {
 		result = id;
@@ -1651,6 +1652,9 @@ static void thermal_zone_device_resume(struct work_struct *work)
 	thermal_zone_device_init(tz);
 	__thermal_zone_device_update(tz, THERMAL_EVENT_UNSPECIFIED);
 
+	complete(&tz->resume);
+	tz->resuming = false;
+
 	mutex_unlock(&tz->lock);
 }
 
@@ -1668,6 +1672,20 @@ static int thermal_pm_notify(struct notifier_block *nb,
 		list_for_each_entry(tz, &thermal_tz_list, node) {
 			mutex_lock(&tz->lock);
 
+			if (tz->resuming) {
+				/*
+				 * thermal_zone_device_resume() queued up for
+				 * this zone has not acquired the lock yet, so
+				 * release it to let the function run and wait
+				 * util it has done the work.
+				 */
+				mutex_unlock(&tz->lock);
+
+				wait_for_completion(&tz->resume);
+
+				mutex_lock(&tz->lock);
+			}
+
 			tz->suspended = true;
 
 			mutex_unlock(&tz->lock);
@@ -1684,6 +1702,9 @@ static int thermal_pm_notify(struct notifier_block *nb,
 			mutex_lock(&tz->lock);
 
 			cancel_delayed_work(&tz->poll_queue);
+
+			reinit_completion(&tz->resume);
+			tz->resuming = true;
 
 			/*
 			 * Replace the work function with the resume one, which
@@ -1709,6 +1730,12 @@ static int thermal_pm_notify(struct notifier_block *nb,
 
 static struct notifier_block thermal_pm_nb = {
 	.notifier_call = thermal_pm_notify,
+	/*
+	 * Run at the lowest priority to avoid interference between the thermal
+	 * zone resume work items spawned by thermal_pm_notify() and the other
+	 * PM notifiers.
+	 */
+	.priority = INT_MIN,
 };
 
 static int __init thermal_init(void)
