@@ -3803,11 +3803,14 @@ static int rx_macro_probe(struct platform_device *pdev)
 	if (IS_ERR(rx->pds))
 		return PTR_ERR(rx->pds);
 
+	ret = devm_add_action_or_reset(dev, lpass_macro_pds_exit_action, rx->pds);
+	if (ret)
+		return ret;
+
 	base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(base)) {
-		ret = PTR_ERR(base);
-		goto err;
-	}
+	if (IS_ERR(base))
+		return PTR_ERR(base);
+
 	rx->codec_version = lpass_macro_get_codec_version();
 	switch (rx->codec_version) {
 	case LPASS_CODEC_VERSION_1_0:
@@ -3818,10 +3821,8 @@ static int rx_macro_probe(struct platform_device *pdev)
 		rx->rxn_reg_stride = 0x80;
 		def_count = ARRAY_SIZE(rx_defaults) + ARRAY_SIZE(rx_pre_2_5_defaults);
 		reg_defaults = kmalloc_array(def_count, sizeof(struct reg_default), GFP_KERNEL);
-		if (!reg_defaults) {
-			ret = -ENOMEM;
-			goto err;
-		}
+		if (!reg_defaults)
+			return -ENOMEM;
 		memcpy(&reg_defaults[0], rx_defaults, sizeof(rx_defaults));
 		memcpy(&reg_defaults[ARRAY_SIZE(rx_defaults)],
 				rx_pre_2_5_defaults, sizeof(rx_pre_2_5_defaults));
@@ -3833,18 +3834,15 @@ static int rx_macro_probe(struct platform_device *pdev)
 		rx->rxn_reg_stride = 0xc0;
 		def_count = ARRAY_SIZE(rx_defaults) + ARRAY_SIZE(rx_2_5_defaults);
 		reg_defaults = kmalloc_array(def_count, sizeof(struct reg_default), GFP_KERNEL);
-		if (!reg_defaults) {
-			ret = -ENOMEM;
-			goto err;
-		}
+		if (!reg_defaults)
+			return -ENOMEM;
 		memcpy(&reg_defaults[0], rx_defaults, sizeof(rx_defaults));
 		memcpy(&reg_defaults[ARRAY_SIZE(rx_defaults)],
 				rx_2_5_defaults, sizeof(rx_2_5_defaults));
 		break;
 	default:
 		dev_err(dev, "Unsupported Codec version (%d)\n", rx->codec_version);
-		ret = -EINVAL;
-		goto err;
+		return -EINVAL;
 	}
 
 	rx_regmap_config.reg_defaults = reg_defaults;
@@ -3927,8 +3925,6 @@ err_dcodec:
 	clk_disable_unprepare(rx->macro);
 err_ver:
 	kfree(reg_defaults);
-err:
-	lpass_macro_pds_exit(rx->pds);
 
 	return ret;
 }
@@ -3942,8 +3938,6 @@ static void rx_macro_remove(struct platform_device *pdev)
 	clk_disable_unprepare(rx->fsgen);
 	clk_disable_unprepare(rx->macro);
 	clk_disable_unprepare(rx->dcodec);
-
-	lpass_macro_pds_exit(rx->pds);
 }
 
 static const struct of_device_id rx_macro_dt_match[] = {

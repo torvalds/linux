@@ -41,6 +41,11 @@ void lpass_macro_pds_exit(struct lpass_macro *pds);
 void lpass_macro_set_codec_version(enum lpass_codec_version version);
 enum lpass_codec_version lpass_macro_get_codec_version(void);
 
+static inline void lpass_macro_pds_exit_action(void *pds)
+{
+	lpass_macro_pds_exit(pds);
+}
+
 static inline const char *lpass_macro_get_codec_version_string(int version)
 {
 	switch (version) {
