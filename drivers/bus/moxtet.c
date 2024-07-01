@@ -83,10 +83,10 @@ static const struct attribute_group *moxtet_dev_groups[] = {
 	NULL,
 };
 
-static int moxtet_match(struct device *dev, struct device_driver *drv)
+static int moxtet_match(struct device *dev, const struct device_driver *drv)
 {
 	struct moxtet_device *mdev = to_moxtet_device(dev);
-	struct moxtet_driver *tdrv = to_moxtet_driver(drv);
+	const struct moxtet_driver *tdrv = to_moxtet_driver(drv);
 	const enum turris_mox_module_id *t;
 
 	if (of_driver_match_device(dev, drv))

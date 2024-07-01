@@ -177,7 +177,7 @@ static const struct auxiliary_device_id *auxiliary_match_id(const struct auxilia
 	return NULL;
 }
 
-static int auxiliary_match(struct device *dev, struct device_driver *drv)
+static int auxiliary_match(struct device *dev, const struct device_driver *drv)
 {
 	struct auxiliary_device *auxdev = to_auxiliary_dev(dev);
 	const struct auxiliary_driver *auxdrv = to_auxiliary_drv(drv);

@@ -900,7 +900,7 @@ static inline int pcmcia_devmatch(struct pcmcia_device *dev,
 }
 
 
-static int pcmcia_bus_match(struct device *dev, struct device_driver *drv)
+static int pcmcia_bus_match(struct device *dev, const struct device_driver *drv)
 {
 	struct pcmcia_device *p_dev = to_pcmcia_dev(dev);
 	struct pcmcia_driver *p_drv = to_pcmcia_drv(drv);

@@ -1694,10 +1694,10 @@ static int mhi_ep_uevent(const struct device *dev, struct kobj_uevent_env *env)
 					mhi_dev->name);
 }
 
-static int mhi_ep_match(struct device *dev, struct device_driver *drv)
+static int mhi_ep_match(struct device *dev, const struct device_driver *drv)
 {
 	struct mhi_ep_device *mhi_dev = to_mhi_ep_device(dev);
-	struct mhi_ep_driver *mhi_drv = to_mhi_ep_driver(drv);
+	const struct mhi_ep_driver *mhi_drv = to_mhi_ep_driver(drv);
 	const struct mhi_device_id *id;
 
 	/*

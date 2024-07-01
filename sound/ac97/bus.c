@@ -469,10 +469,10 @@ static struct attribute *ac97_dev_attrs[] = {
 };
 ATTRIBUTE_GROUPS(ac97_dev);
 
-static int ac97_bus_match(struct device *dev, struct device_driver *drv)
+static int ac97_bus_match(struct device *dev, const struct device_driver *drv)
 {
 	struct ac97_codec_device *adev = to_ac97_device(dev);
-	struct ac97_codec_driver *adrv = to_ac97_driver(drv);
+	const struct ac97_codec_driver *adrv = to_ac97_driver(drv);
 	const struct ac97_id *id = adrv->id_table;
 	int i = 0;
 

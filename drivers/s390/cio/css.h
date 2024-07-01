@@ -103,7 +103,7 @@ struct css_driver {
 	int (*settle)(void);
 };
 
-#define to_cssdriver(n) container_of(n, struct css_driver, drv)
+#define to_cssdriver(n) container_of_const(n, struct css_driver, drv)
 
 extern int css_driver_register(struct css_driver *);
 extern void css_driver_unregister(struct css_driver *);

@@ -23,7 +23,7 @@ struct isa_dev {
 
 #define to_isa_dev(x) container_of((x), struct isa_dev, dev)
 
-static int isa_bus_match(struct device *dev, struct device_driver *driver)
+static int isa_bus_match(struct device *dev, const struct device_driver *driver)
 {
 	struct isa_driver *isa_driver = to_isa_driver(driver);
 

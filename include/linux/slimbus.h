@@ -91,7 +91,7 @@ struct slim_driver {
 	struct device_driver		driver;
 	const struct slim_device_id	*id_table;
 };
-#define to_slim_driver(d) container_of(d, struct slim_driver, driver)
+#define to_slim_driver(d) container_of_const(d, struct slim_driver, driver)
 
 /**
  * struct slim_val_inf - Slimbus value or information element

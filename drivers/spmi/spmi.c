@@ -43,7 +43,7 @@ static const struct device_type spmi_ctrl_type = {
 	.release	= spmi_ctrl_release,
 };
 
-static int spmi_device_match(struct device *dev, struct device_driver *drv)
+static int spmi_device_match(struct device *dev, const struct device_driver *drv)
 {
 	if (of_driver_match_device(dev, drv))
 		return 1;

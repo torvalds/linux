@@ -56,7 +56,7 @@ struct fsl_mc_driver {
 };
 
 #define to_fsl_mc_driver(_drv) \
-	container_of(_drv, struct fsl_mc_driver, driver)
+	container_of_const(_drv, struct fsl_mc_driver, driver)
 
 /**
  * enum fsl_mc_pool_type - Types of allocatable MC bus resources

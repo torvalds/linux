@@ -37,7 +37,7 @@ static int hsi_bus_uevent(const struct device *dev, struct kobj_uevent_env *env)
 	return 0;
 }
 
-static int hsi_bus_match(struct device *dev, struct device_driver *driver)
+static int hsi_bus_match(struct device *dev, const struct device_driver *driver)
 {
 	if (of_driver_match_device(dev, driver))
 		return true;

@@ -58,10 +58,10 @@ static const struct bus_type ccw_bus_type;
  * subsystem driver and one channel system per machine, but
  * we still use the abstraction. T.R. says it's a good idea. */
 static int
-ccw_bus_match (struct device * dev, struct device_driver * drv)
+ccw_bus_match (struct device * dev, const struct device_driver * drv)
 {
 	struct ccw_device *cdev = to_ccwdev(dev);
-	struct ccw_driver *cdrv = to_ccwdrv(drv);
+	const struct ccw_driver *cdrv = to_ccwdrv(drv);
 	const struct ccw_device_id *ids = cdrv->ids, *found;
 
 	if (!ids)

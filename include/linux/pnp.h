@@ -383,7 +383,7 @@ struct pnp_driver {
 	struct device_driver driver;
 };
 
-#define	to_pnp_driver(drv) container_of(drv, struct pnp_driver, driver)
+#define	to_pnp_driver(drv) container_of_const(drv, struct pnp_driver, driver)
 
 struct pnp_card_driver {
 	struct list_head global_list;

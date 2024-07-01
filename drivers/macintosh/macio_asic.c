@@ -36,7 +36,7 @@
 
 static struct macio_chip      *macio_on_hold;
 
-static int macio_bus_match(struct device *dev, struct device_driver *drv) 
+static int macio_bus_match(struct device *dev, const struct device_driver *drv)
 {
 	const struct of_device_id * matches = drv->of_match_table;
 

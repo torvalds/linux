@@ -371,7 +371,7 @@ const void *spi_get_device_match_data(const struct spi_device *sdev)
 }
 EXPORT_SYMBOL_GPL(spi_get_device_match_data);
 
-static int spi_match_device(struct device *dev, struct device_driver *drv)
+static int spi_match_device(struct device *dev, const struct device_driver *drv)
 {
 	const struct spi_device	*spi = to_spi_device(dev);
 	const struct spi_driver	*sdrv = to_spi_driver(drv);

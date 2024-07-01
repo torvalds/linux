@@ -17,11 +17,11 @@
 #include "internals.h"
 
 #define to_nvmem_layout_driver(drv) \
-	(container_of((drv), struct nvmem_layout_driver, driver))
+	(container_of_const((drv), struct nvmem_layout_driver, driver))
 #define to_nvmem_layout_device(_dev) \
 	container_of((_dev), struct nvmem_layout, dev)
 
-static int nvmem_layout_bus_match(struct device *dev, struct device_driver *drv)
+static int nvmem_layout_bus_match(struct device *dev, const struct device_driver *drv)
 {
 	return of_driver_match_device(dev, drv);
 }

@@ -26,7 +26,7 @@
 
 static DEFINE_PER_CPU(struct device *, cpu_sys_devices);
 
-static int cpu_subsys_match(struct device *dev, struct device_driver *drv)
+static int cpu_subsys_match(struct device *dev, const struct device_driver *drv)
 {
 	/* ACPI style match is the only one that may succeed. */
 	if (acpi_driver_match_device(dev, drv))

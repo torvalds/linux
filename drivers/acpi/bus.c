@@ -1045,10 +1045,10 @@ EXPORT_SYMBOL(acpi_bus_unregister_driver);
                               ACPI Bus operations
    -------------------------------------------------------------------------- */
 
-static int acpi_bus_match(struct device *dev, struct device_driver *drv)
+static int acpi_bus_match(struct device *dev, const struct device_driver *drv)
 {
 	struct acpi_device *acpi_dev = to_acpi_device(dev);
-	struct acpi_driver *acpi_drv = to_acpi_driver(drv);
+	const struct acpi_driver *acpi_drv = to_acpi_driver(drv);
 
 	return acpi_dev->flags.match_driver
 		&& !acpi_match_device_ids(acpi_dev, acpi_drv->ids);

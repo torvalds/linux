@@ -94,9 +94,9 @@ match_device(const struct xenbus_device_id *arr, struct xenbus_device *dev)
 	return NULL;
 }
 
-int xenbus_match(struct device *_dev, struct device_driver *_drv)
+int xenbus_match(struct device *_dev, const struct device_driver *_drv)
 {
-	struct xenbus_driver *drv = to_xenbus_driver(_drv);
+	const struct xenbus_driver *drv = to_xenbus_driver(_drv);
 
 	if (!drv->ids)
 		return 0;

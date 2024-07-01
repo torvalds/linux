@@ -562,7 +562,7 @@ static inline void *acpi_driver_data(struct acpi_device *d)
 }
 
 #define to_acpi_device(d)	container_of(d, struct acpi_device, dev)
-#define to_acpi_driver(d)	container_of(d, struct acpi_driver, drv)
+#define to_acpi_driver(d)	container_of_const(d, struct acpi_driver, drv)
 
 static inline struct acpi_device *acpi_dev_parent(struct acpi_device *adev)
 {

@@ -1375,9 +1375,9 @@ EXPORT_SYMBOL_GPL(mdiobus_c45_modify_changed);
  *   require calling the devices own match function, since different classes
  *   of MDIO devices have different match criteria.
  */
-static int mdio_bus_match(struct device *dev, struct device_driver *drv)
+static int mdio_bus_match(struct device *dev, const struct device_driver *drv)
 {
-	struct mdio_driver *mdiodrv = to_mdio_driver(drv);
+	const struct mdio_driver *mdiodrv = to_mdio_driver(drv);
 	struct mdio_device *mdio = to_mdio_device(dev);
 
 	/* Both the driver and device must type-match */

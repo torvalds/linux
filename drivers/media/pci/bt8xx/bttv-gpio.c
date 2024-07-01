@@ -28,9 +28,9 @@
 /* ----------------------------------------------------------------------- */
 /* internal: the bttv "bus"                                                */
 
-static int bttv_sub_bus_match(struct device *dev, struct device_driver *drv)
+static int bttv_sub_bus_match(struct device *dev, const struct device_driver *drv)
 {
-	struct bttv_sub_driver *sub = to_bttv_sub_drv(drv);
+	const struct bttv_sub_driver *sub = to_bttv_sub_drv(drv);
 	int len = strlen(sub->wanted);
 
 	if (0 == strncmp(dev_name(dev), sub->wanted, len))

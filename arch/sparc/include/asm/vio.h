@@ -483,11 +483,7 @@ int __vio_register_driver(struct vio_driver *drv, struct module *owner,
 	__vio_register_driver(driver, THIS_MODULE, KBUILD_MODNAME)
 void vio_unregister_driver(struct vio_driver *drv);
 
-static inline struct vio_driver *to_vio_driver(struct device_driver *drv)
-{
-	return container_of(drv, struct vio_driver, driver);
-}
-
+#define to_vio_driver(__drv)	container_of_const(__drv, struct vio_driver, driver)
 #define to_vio_dev(__dev)	container_of_const(__dev, struct vio_dev, dev)
 
 int vio_ldc_send(struct vio_driver_state *vio, void *data, int len);

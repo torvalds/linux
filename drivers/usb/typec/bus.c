@@ -447,7 +447,7 @@ static struct attribute *typec_attrs[] = {
 };
 ATTRIBUTE_GROUPS(typec);
 
-static int typec_match(struct device *dev, struct device_driver *driver)
+static int typec_match(struct device *dev, const struct device_driver *driver)
 {
 	struct typec_altmode_driver *drv = to_altmode_driver(driver);
 	struct typec_altmode *altmode = to_typec_altmode(dev);
