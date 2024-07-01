@@ -53,7 +53,7 @@ enum pool_type_t {
 
 struct vh_buf_header {
 	char *buf; /* buffer starting address */
-	int size; /* total buffer size */
+	int size; /* the maximum payload size */
 	enum pool_type_t pool_type;
 	int index; /* debugging only */
 
@@ -62,6 +62,7 @@ struct vh_buf_header {
 	char padding[GUARD_BAND_SZ];
 };
 
+/* Such below *_BUF_SIZEs are the sizes used to store the payload */
 #define IN_BUF_SIZE         5120
 #define OUT_SMALL_BUF_SIZE  512
 #define OUT_MEDIUM_BUF_SIZE 5120
@@ -74,15 +75,19 @@ struct vh_buf_header {
 
 #define IN_BUF_POOL_SLOT    (GUARD_BAND_SZ + \
 			     sizeof(struct vh_buf_header) + \
+			     sizeof(struct hab_header) + \
 			     IN_BUF_SIZE)
 #define OUT_SMALL_BUF_SLOT  (GUARD_BAND_SZ + \
 			     sizeof(struct vh_buf_header) + \
+			     sizeof(struct hab_header) + \
 			     OUT_SMALL_BUF_SIZE)
 #define OUT_MEDIUM_BUF_SLOT (GUARD_BAND_SZ + \
 			     sizeof(struct vh_buf_header) + \
+			     sizeof(struct hab_header) + \
 			     OUT_MEDIUM_BUF_SIZE)
 #define OUT_LARGE_BUF_SLOT  (GUARD_BAND_SZ + \
 			     sizeof(struct vh_buf_header) + \
+			     sizeof(struct hab_header) + \
 			     OUT_LARGE_BUF_SIZE)
 
 #define IN_POOL_SIZE (IN_BUF_POOL_SLOT * IN_BUF_NUM)
@@ -261,7 +266,7 @@ static void virthab_recv_rxq(unsigned long p)
 		}
 
 		/* return the inbuf to PVM after consuming */
-		sg_init_one(sg, hd->buf, IN_BUF_SIZE);
+		sg_init_one(sg, hd->buf, IN_BUF_SIZE + sizeof(struct hab_header));
 		if (vpc->pchan_ready) {
 			rc = virtqueue_add_inbuf(vq, sg, 1, hd, GFP_ATOMIC);
 			if (rc)
@@ -317,7 +322,7 @@ static void init_pool_list(void *pool, int buf_size, int buf_num,
 		hd->index = i;
 		hd->payload_size = 0;
 		list_add_tail(&hd->node, pool_head);
-		ptr = hd->buf + buf_size;
+		ptr = hd->buf + sizeof(struct hab_header) + buf_size;
 		(*cnt)++;
 	}
 }
@@ -389,7 +394,7 @@ int virthab_queue_inbufs(struct virtio_hab *vh, int alloc)
 
 		list_for_each_entry_safe(hd, hd_tmp, &vpc->in_list, node) {
 			list_del(&hd->node);
-			sg_init_one(sg, hd->buf, IN_BUF_SIZE);
+			sg_init_one(sg, hd->buf, IN_BUF_SIZE + sizeof(struct hab_header));
 			ret = virtqueue_add_inbuf(vpc->vq[HAB_PCHAN_RX_VQ], sg,
 							1, hd, GFP_ATOMIC);
 			if (ret) {
