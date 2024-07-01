@@ -194,38 +194,6 @@ static struct nfs_page *nfs_folio_find_head_request(struct folio *folio)
 	return req;
 }
 
-static struct nfs_page *nfs_folio_find_and_lock_request(struct folio *folio)
-{
-	struct inode *inode = folio->mapping->host;
-	struct nfs_page *head;
-	int ret;
-
-retry:
-	head = nfs_folio_find_head_request(folio);
-	if (!head)
-		return NULL;
-
-	while (!nfs_lock_request(head)) {
-		ret = nfs_wait_on_request(head);
-		if (ret < 0)
-			return ERR_PTR(ret);
-	}
-
-	/* Ensure that nobody removed the request before we locked it */
-	if (head != folio->private) {
-		nfs_unlock_and_release_request(head);
-		goto retry;
-	}
-
-	ret = nfs_cancel_remove_inode(head, inode);
-	if (ret < 0) {
-		nfs_unlock_and_release_request(head);
-		return ERR_PTR(ret);
-	}
-
-	return head;
-}
-
 /* Adjust the file length if we're writing beyond the end */
 static void nfs_grow_file(struct folio *folio, unsigned int offset,
 			  unsigned int count)
@@ -532,26 +500,44 @@ static struct nfs_page *nfs_lock_and_join_requests(struct folio *folio)
 	struct nfs_commit_info cinfo;
 	int ret;
 
-	nfs_init_cinfo_from_inode(&cinfo, inode);
 	/*
 	 * A reference is taken only on the head request which acts as a
 	 * reference to the whole page group - the group will not be destroyed
 	 * until the head reference is released.
 	 */
-	head = nfs_folio_find_and_lock_request(folio);
-	if (IS_ERR_OR_NULL(head))
-		return head;
+retry:
+	head = nfs_folio_find_head_request(folio);
+	if (!head)
+		return NULL;
+
+	while (!nfs_lock_request(head)) {
+		ret = nfs_wait_on_request(head);
+		if (ret < 0)
+			return ERR_PTR(ret);
+	}
+
+	/* Ensure that nobody removed the request before we locked it */
+	if (head != folio->private) {
+		nfs_unlock_and_release_request(head);
+		goto retry;
+	}
+
+	ret = nfs_cancel_remove_inode(head, inode);
+	if (ret < 0)
+		goto out_unlock;
 
 	/* lock each request in the page group */
 	ret = nfs_page_group_lock_subrequests(head);
-	if (ret < 0) {
-		nfs_unlock_and_release_request(head);
-		return ERR_PTR(ret);
-	}
+	if (ret < 0)
+		goto out_unlock;
 
+	nfs_init_cinfo_from_inode(&cinfo, inode);
 	nfs_join_page_group(head, &cinfo, inode);
-
 	return head;
+
+out_unlock:
+	nfs_unlock_and_release_request(head);
+	return ERR_PTR(ret);
 }
 
 static void nfs_write_error(struct nfs_page *req, int error)
