@@ -220,8 +220,6 @@ struct mem_cgroup {
 	/* handle for "memory.swap.events" */
 	struct cgroup_file swap_events_file;
 
-	CACHELINE_PADDING(_pad1_);
-
 	/* memory.stat */
 	struct memcg_vmstats	*vmstats;
 
@@ -304,8 +302,6 @@ struct mem_cgroup {
 	/* Legacy tcp memory accounting */
 	bool tcpmem_active;
 	int tcpmem_pressure;
-
-	CACHELINE_PADDING(_pad2_);
 
 	/*
 	 * set > 0 if pages under this cgroup are moving to other cgroup.
