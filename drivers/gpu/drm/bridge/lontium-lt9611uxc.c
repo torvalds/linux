@@ -23,6 +23,7 @@
 #include <drm/drm_bridge.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_mipi_dsi.h>
+#include <drm/drm_of.h>
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 
@@ -34,6 +35,7 @@
 struct lt9611uxc {
 	struct device *dev;
 	struct drm_bridge bridge;
+	struct drm_bridge *next_bridge;
 	struct drm_connector connector;
 
 	struct regmap *regmap;
@@ -358,6 +360,11 @@ static int lt9611uxc_bridge_attach(struct drm_bridge *bridge,
 	struct lt9611uxc *lt9611uxc = bridge_to_lt9611uxc(bridge);
 	int ret;
 
+	ret = drm_bridge_attach(bridge->encoder, lt9611uxc->next_bridge,
+				 bridge, flags | DRM_BRIDGE_ATTACH_NO_CONNECTOR);
+	if (ret)
+		return ret;
+
 	if (!(flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR)) {
 		ret = lt9611uxc_connector_init(bridge, lt9611uxc);
 		if (ret < 0)
@@ -525,7 +532,7 @@ static int lt9611uxc_parse_dt(struct device *dev,
 
 	lt9611uxc->dsi1_node = of_graph_get_remote_node(dev->of_node, 1, -1);
 
-	return 0;
+	return drm_of_find_panel_or_bridge(dev->of_node, 2, -1, NULL, &lt9611uxc->next_bridge);
 }
 
 static int lt9611uxc_gpio_init(struct lt9611uxc *lt9611uxc)
