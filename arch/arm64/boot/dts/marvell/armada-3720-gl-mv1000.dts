@@ -41,7 +41,7 @@
 	keys {
 		compatible = "gpio-keys";
 
-		reset {
+		button-reset {
 			label = "reset";
 			linux,code = <KEY_RESTART>;
 			gpios = <&gpionb 14 GPIO_ACTIVE_LOW>;
