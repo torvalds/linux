@@ -23,15 +23,8 @@
 /*
  * buffered_read.c
  */
-void netfs_rreq_unlock_folios(struct netfs_io_request *rreq);
 int netfs_prefetch_for_write(struct file *file, struct folio *folio,
 			     size_t offset, size_t len);
-
-/*
- * io.c
- */
-void netfs_rreq_work(struct work_struct *work);
-int netfs_begin_read(struct netfs_io_request *rreq, bool sync);
 
 /*
  * main.c
@@ -91,6 +84,28 @@ static inline void netfs_see_request(struct netfs_io_request *rreq,
 }
 
 /*
+ * read_collect.c
+ */
+void netfs_read_termination_worker(struct work_struct *work);
+void netfs_rreq_terminated(struct netfs_io_request *rreq, bool was_async);
+
+/*
+ * read_pgpriv2.c
+ */
+void netfs_pgpriv2_mark_copy_to_cache(struct netfs_io_subrequest *subreq,
+				      struct netfs_io_request *rreq,
+				      struct folio_queue *folioq,
+				      int slot);
+void netfs_pgpriv2_write_to_the_cache(struct netfs_io_request *rreq);
+bool netfs_pgpriv2_unlock_copied_folios(struct netfs_io_request *wreq);
+
+/*
+ * read_retry.c
+ */
+void netfs_retry_reads(struct netfs_io_request *rreq);
+void netfs_unlock_abandoned_read_pages(struct netfs_io_request *rreq);
+
+/*
  * stats.c
  */
 #ifdef CONFIG_NETFS_STATS
@@ -117,6 +132,7 @@ extern atomic_t netfs_n_wh_buffered_write;
 extern atomic_t netfs_n_wh_writethrough;
 extern atomic_t netfs_n_wh_dio_write;
 extern atomic_t netfs_n_wh_writepages;
+extern atomic_t netfs_n_wh_copy_to_cache;
 extern atomic_t netfs_n_wh_wstream_conflict;
 extern atomic_t netfs_n_wh_upload;
 extern atomic_t netfs_n_wh_upload_done;
@@ -162,6 +178,11 @@ struct netfs_io_request *netfs_create_write_req(struct address_space *mapping,
 void netfs_reissue_write(struct netfs_io_stream *stream,
 			 struct netfs_io_subrequest *subreq,
 			 struct iov_iter *source);
+void netfs_issue_write(struct netfs_io_request *wreq,
+		       struct netfs_io_stream *stream);
+int netfs_advance_write(struct netfs_io_request *wreq,
+			struct netfs_io_stream *stream,
+			loff_t start, size_t len, bool to_eof);
 struct netfs_io_request *netfs_begin_writethrough(struct kiocb *iocb, size_t len);
 int netfs_advance_writethrough(struct netfs_io_request *wreq, struct writeback_control *wbc,
 			       struct folio *folio, size_t copied, bool to_page_end,

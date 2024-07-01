@@ -27,6 +27,7 @@ struct folio_queue {
 	struct folio_queue	*prev;		/* Previous queue segment of NULL */
 	unsigned long		marks;		/* 1-bit mark per folio */
 	unsigned long		marks2;		/* Second 1-bit mark per folio */
+	unsigned long		marks3;		/* Third 1-bit mark per folio */
 #if PAGEVEC_SIZE > BITS_PER_LONG
 #error marks is not big enough
 #endif
@@ -39,6 +40,7 @@ static inline void folioq_init(struct folio_queue *folioq)
 	folioq->prev = NULL;
 	folioq->marks = 0;
 	folioq->marks2 = 0;
+	folioq->marks3 = 0;
 }
 
 static inline unsigned int folioq_nr_slots(const struct folio_queue *folioq)
@@ -87,6 +89,21 @@ static inline void folioq_unmark2(struct folio_queue *folioq, unsigned int slot)
 	clear_bit(slot, &folioq->marks2);
 }
 
+static inline bool folioq_is_marked3(const struct folio_queue *folioq, unsigned int slot)
+{
+	return test_bit(slot, &folioq->marks3);
+}
+
+static inline void folioq_mark3(struct folio_queue *folioq, unsigned int slot)
+{
+	set_bit(slot, &folioq->marks3);
+}
+
+static inline void folioq_unmark3(struct folio_queue *folioq, unsigned int slot)
+{
+	clear_bit(slot, &folioq->marks3);
+}
+
 static inline unsigned int __folio_order(struct folio *folio)
 {
 	if (!folio_test_large(folio))
@@ -133,6 +150,7 @@ static inline void folioq_clear(struct folio_queue *folioq, unsigned int slot)
 	folioq->vec.folios[slot] = NULL;
 	folioq_unmark(folioq, slot);
 	folioq_unmark2(folioq, slot);
+	folioq_unmark3(folioq, slot);
 }
 
 #endif /* _LINUX_FOLIO_QUEUE_H */

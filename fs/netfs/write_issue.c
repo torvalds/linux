@@ -95,7 +95,8 @@ struct netfs_io_request *netfs_create_write_req(struct address_space *mapping,
 	struct netfs_io_request *wreq;
 	struct netfs_inode *ictx;
 	bool is_buffered = (origin == NETFS_WRITEBACK ||
-			    origin == NETFS_WRITETHROUGH);
+			    origin == NETFS_WRITETHROUGH ||
+			    origin == NETFS_PGPRIV2_COPY_TO_CACHE);
 
 	wreq = netfs_alloc_request(mapping, file, start, 0, origin);
 	if (IS_ERR(wreq))
@@ -160,10 +161,6 @@ static void netfs_prepare_write(struct netfs_io_request *wreq,
 	subreq->io_iter		= wreq->io_iter;
 
 	_enter("R=%x[%x]", wreq->debug_id, subreq->debug_index);
-
-	trace_netfs_sreq_ref(wreq->debug_id, subreq->debug_index,
-			     refcount_read(&subreq->ref),
-			     netfs_sreq_trace_new);
 
 	trace_netfs_sreq(subreq, netfs_sreq_trace_prepare);
 
@@ -241,8 +238,8 @@ void netfs_reissue_write(struct netfs_io_stream *stream,
 	netfs_do_issue_write(stream, subreq);
 }
 
-static void netfs_issue_write(struct netfs_io_request *wreq,
-			      struct netfs_io_stream *stream)
+void netfs_issue_write(struct netfs_io_request *wreq,
+		       struct netfs_io_stream *stream)
 {
 	struct netfs_io_subrequest *subreq = stream->construct;
 
@@ -259,9 +256,9 @@ static void netfs_issue_write(struct netfs_io_request *wreq,
  * we can avoid overrunning the credits obtained (cifs) and try to parallelise
  * content-crypto preparation with network writes.
  */
-static int netfs_advance_write(struct netfs_io_request *wreq,
-			       struct netfs_io_stream *stream,
-			       loff_t start, size_t len, bool to_eof)
+int netfs_advance_write(struct netfs_io_request *wreq,
+			struct netfs_io_stream *stream,
+			loff_t start, size_t len, bool to_eof)
 {
 	struct netfs_io_subrequest *subreq = stream->construct;
 	size_t part;

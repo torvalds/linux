@@ -87,6 +87,12 @@ static void netfs_writeback_unlock_folios(struct netfs_io_request *wreq,
 	unsigned long long collected_to = wreq->collected_to;
 	unsigned int slot = wreq->buffer_head_slot;
 
+	if (wreq->origin == NETFS_PGPRIV2_COPY_TO_CACHE) {
+		if (netfs_pgpriv2_unlock_copied_folios(wreq))
+			*notes |= MADE_PROGRESS;
+		return;
+	}
+
 	if (slot >= folioq_nr_slots(folioq)) {
 		folioq = netfs_delete_buffer_head(wreq);
 		slot = 0;
@@ -383,7 +389,8 @@ reassess_streams:
 	smp_rmb();
 	collected_to = ULLONG_MAX;
 	if (wreq->origin == NETFS_WRITEBACK ||
-	    wreq->origin == NETFS_WRITETHROUGH)
+	    wreq->origin == NETFS_WRITETHROUGH ||
+	    wreq->origin == NETFS_PGPRIV2_COPY_TO_CACHE)
 		notes = BUFFERED;
 	else
 		notes = 0;
