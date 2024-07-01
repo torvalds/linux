@@ -8,6 +8,8 @@
 #ifndef __ARCH_S390_ATOMIC_OPS__
 #define __ARCH_S390_ATOMIC_OPS__
 
+#include <linux/limits.h>
+
 static __always_inline int __atomic_read(const atomic_t *v)
 {
 	int c;
@@ -20,9 +22,15 @@ static __always_inline int __atomic_read(const atomic_t *v)
 
 static __always_inline void __atomic_set(atomic_t *v, int i)
 {
-	asm volatile(
-		"	st	%[i],%[counter]\n"
-		: [counter] "=R" (v->counter) : [i] "d" (i));
+	if (__builtin_constant_p(i) && i >= S16_MIN && i <= S16_MAX) {
+		asm volatile(
+			"	mvhi	%[counter], %[i]\n"
+			: [counter] "=Q" (v->counter) : [i] "K" (i));
+	} else {
+		asm volatile(
+			"	st	%[i],%[counter]\n"
+			: [counter] "=R" (v->counter) : [i] "d" (i));
+	}
 }
 
 static __always_inline s64 __atomic64_read(const atomic64_t *v)
@@ -37,9 +45,15 @@ static __always_inline s64 __atomic64_read(const atomic64_t *v)
 
 static __always_inline void __atomic64_set(atomic64_t *v, s64 i)
 {
-	asm volatile(
-		"	stg	%[i],%[counter]\n"
-		: [counter] "=RT" (v->counter) : [i] "d" (i));
+	if (__builtin_constant_p(i) && i >= S16_MIN && i <= S16_MAX) {
+		asm volatile(
+			"	mvghi	%[counter], %[i]\n"
+			: [counter] "=Q" (v->counter) : [i] "K" (i));
+	} else {
+		asm volatile(
+			"	stg	%[i],%[counter]\n"
+			: [counter] "=RT" (v->counter) : [i] "d" (i));
+	}
 }
 
 #ifdef CONFIG_HAVE_MARCH_Z196_FEATURES
