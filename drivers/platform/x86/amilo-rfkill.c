@@ -171,6 +171,7 @@ static void __exit amilo_rfkill_exit(void)
 }
 
 MODULE_AUTHOR("Ben Hutchings <ben@decadent.org.uk>");
+MODULE_DESCRIPTION("Fujitsu-Siemens Amilo rfkill support");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(dmi, amilo_rfkill_id_table);
 
