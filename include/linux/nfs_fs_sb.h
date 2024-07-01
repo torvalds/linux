@@ -140,6 +140,7 @@ struct nfs_server {
 	struct rpc_clnt *	client_acl;	/* ACL RPC client handle */
 	struct nlm_host		*nlm_host;	/* NLM client handle */
 	struct nfs_iostats __percpu *io_stats;	/* I/O statistics */
+	wait_queue_head_t	write_congestion_wait;	/* wait until write congestion eases */
 	atomic_long_t		writeback;	/* number of writeback pages */
 	unsigned int		write_congested;/* flag set when writeback gets too high */
 	unsigned int		flags;		/* various flags */

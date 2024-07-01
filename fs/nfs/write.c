@@ -425,8 +425,10 @@ static void nfs_folio_end_writeback(struct folio *folio)
 
 	folio_end_writeback(folio);
 	if (atomic_long_dec_return(&nfss->writeback) <
-	    NFS_CONGESTION_OFF_THRESH)
+	    NFS_CONGESTION_OFF_THRESH) {
 		nfss->write_congested = 0;
+		wake_up_all(&nfss->write_congestion_wait);
+	}
 }
 
 static void nfs_page_end_writeback(struct nfs_page *req)
@@ -700,12 +702,17 @@ int nfs_writepages(struct address_space *mapping, struct writeback_control *wbc)
 	struct nfs_pageio_descriptor pgio;
 	struct nfs_io_completion *ioc = NULL;
 	unsigned int mntflags = NFS_SERVER(inode)->flags;
+	struct nfs_server *nfss = NFS_SERVER(inode);
 	int priority = 0;
 	int err;
 
-	if (wbc->sync_mode == WB_SYNC_NONE &&
-	    NFS_SERVER(inode)->write_congested)
-		return 0;
+	/* Wait with writeback until write congestion eases */
+	if (wbc->sync_mode == WB_SYNC_NONE && nfss->write_congested) {
+		err = wait_event_killable(nfss->write_congestion_wait,
+					  nfss->write_congested == 0);
+		if (err)
+			return err;
+	}
 
 	nfs_inc_stats(inode, NFSIOS_VFSWRITEPAGES);
 
