@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# For a description of the syntax of this configuration file,
+# see Documentation/kbuild/kconfig-language.rst.
+#
+
+menuconfig CZNIC_PLATFORMS
+	bool "Platform support for CZ.NIC's Turris hardware"
+	help
+	  Say Y here to be able to choose driver support for CZ.NIC's Turris
+	  devices. This option alone does not add any kernel code.
+
+if CZNIC_PLATFORMS
+
+config TURRIS_OMNIA_MCU
+	tristate "Turris Omnia MCU driver"
+	depends on MACH_ARMADA_38X || COMPILE_TEST
+	depends on I2C
+	help
+	  Say Y here to add support for the features implemented by the
+	  microcontroller on the CZ.NIC's Turris Omnia SOHO router.
+	  To compile this driver as a module, choose M here; the module will be
+	  called turris-omnia-mcu.
+
+endif # CZNIC_PLATFORMS
