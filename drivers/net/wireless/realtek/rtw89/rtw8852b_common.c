@@ -1793,6 +1793,11 @@ static void __rtw8852bx_btc_init_cfg(struct rtw89_dev *rtwdev)
 		rtw8852bx_set_trx_mask(rtwdev, RF_PATH_B, BTC_BT_TX_GROUP, 0x5ff);
 	}
 
+	if (rtwdev->chip->chip_id == RTL8852BT) {
+		rtw8852bx_set_trx_mask(rtwdev, RF_PATH_A, BTC_BT_RX_GROUP, 0x5df);
+		rtw8852bx_set_trx_mask(rtwdev, RF_PATH_B, BTC_BT_RX_GROUP, 0x5df);
+	}
+
 	/* set PTA break table */
 	rtw89_write32(rtwdev, R_BTC_BREAK_TABLE, BTC_BREAK_PARAM);
 
