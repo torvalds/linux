@@ -209,11 +209,18 @@ the data access pattern can be dynamically changed.  This will result in low
 monitoring quality.  To keep the assumption as much as possible, DAMON
 adaptively merges and splits each region based on their access frequency.
 
-For each ``aggregation interval``, it compares the access frequencies of
-adjacent regions and merges those if the frequency difference is small.  Then,
-after it reports and clears the aggregated access frequency of each region, it
-splits each region into two or three regions if the total number of regions
-will not exceed the user-specified maximum number of regions after the split.
+For each ``aggregation interval``, it compares the access frequencies
+(``nr_accesses``) of adjacent regions.  If the difference is small, and if the
+sum of the two regions' sizes is smaller than the size of total regions divided
+by the ``minimum number of regions``, DAMON merges the two regions.  If the
+resulting number of total regions is still higher than ``maximum number of
+regions``, it repeats the merging with increasing access frequenceis difference
+threshold until the upper-limit of the number of regions is met, or the
+threshold becomes higher than possible maximum value (``aggregation interval``
+divided by ``sampling interval``).   Then, after it reports and clears the
+aggregated access frequency of each region, it splits each region into two or
+three regions if the total number of regions will not exceed the user-specified
+maximum number of regions after the split.
 
 In this way, DAMON provides its best-effort quality and minimal overhead while
 keeping the bounds users set for their trade-off.
