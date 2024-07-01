@@ -5,6 +5,7 @@
  * ROHM BD96801 watchdog driver
  */
 
+#include <linux/bitfield.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/mfd/rohm-bd96801.h>
