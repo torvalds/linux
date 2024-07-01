@@ -121,6 +121,7 @@
 
 /* USBCanII timestamp */
 #define KVASER_USB_USBCAN_CLK_OVERFLOW_MASK GENMASK(31, 16)
+#define KVASER_USB_USBCAN_TIMESTAMP_FACTOR 10
 
 struct kvaser_cmd_simple {
 	u8 tid;
@@ -535,6 +536,15 @@ static const struct kvaser_usb_dev_cfg kvaser_usb_leaf_imx_dev_cfg_32mhz = {
 	.timestamp_freq = 32,
 	.bittiming_const = &kvaser_usb_flexc_bittiming_const,
 };
+
+static inline ktime_t kvaser_usb_usbcan_timestamp_to_ktime(const struct kvaser_usb *dev,
+							   __le16 timestamp)
+{
+	u64 ticks = le16_to_cpu(timestamp) |
+		    dev->card_data.usbcan_timestamp_msb;
+
+	return kvaser_usb_ticks_to_ktime(dev->cfg, ticks * KVASER_USB_USBCAN_TIMESTAMP_FACTOR);
+}
 
 static int kvaser_usb_leaf_verify_size(const struct kvaser_usb *dev,
 				       const struct kvaser_cmd *cmd)
@@ -978,6 +988,7 @@ static void kvaser_usb_leaf_tx_acknowledge(const struct kvaser_usb *dev,
 		hwtstamp = kvaser_usb_timestamp48_to_ktime(dev->cfg, cmd->u.leaf.tx_ack.time);
 		break;
 	case KVASER_USBCAN:
+		hwtstamp = kvaser_usb_usbcan_timestamp_to_ktime(dev, cmd->u.usbcan.tx_ack.time);
 		break;
 	}
 
@@ -1398,6 +1409,7 @@ static void kvaser_usb_leaf_rx_can_msg(const struct kvaser_usb *dev,
 		break;
 	case KVASER_USBCAN:
 		rx_data = cmd->u.usbcan.rx_can.data;
+		hwtstamp = kvaser_usb_usbcan_timestamp_to_ktime(dev, cmd->u.usbcan.rx_can.time);
 		break;
 	}
 
