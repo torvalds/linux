@@ -89,8 +89,16 @@ allOf:
         compatible:
           contains:
             enum:
-              - fsl,ls1021a-qdma
+              - fsl,ls1028a-qdma
+              - fsl,ls1043a-qdma
+              - fsl,ls1046a-qdma
     then:
+      properties:
+        interrupts:
+          minItems: 5
+        interrupt-names:
+          minItems: 5
+    else:
       properties:
         interrupts:
           maxItems: 3
