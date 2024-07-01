@@ -13,16 +13,16 @@ static __always_inline int __atomic_read(const atomic_t *v)
 	int c;
 
 	asm volatile(
-		"	l	%0,%1\n"
-		: "=d" (c) : "R" (v->counter));
+		"	l	%[c],%[counter]\n"
+		: [c] "=d" (c) : [counter] "R" (v->counter));
 	return c;
 }
 
 static __always_inline void __atomic_set(atomic_t *v, int i)
 {
 	asm volatile(
-		"	st	%1,%0\n"
-		: "=R" (v->counter) : "d" (i));
+		"	st	%[i],%[counter]\n"
+		: [counter] "=R" (v->counter) : [i] "d" (i));
 }
 
 static __always_inline s64 __atomic64_read(const atomic64_t *v)
@@ -30,16 +30,16 @@ static __always_inline s64 __atomic64_read(const atomic64_t *v)
 	s64 c;
 
 	asm volatile(
-		"	lg	%0,%1\n"
-		: "=d" (c) : "RT" (v->counter));
+		"	lg	%[c],%[counter]\n"
+		: [c] "=d" (c) : [counter] "RT" (v->counter));
 	return c;
 }
 
 static __always_inline void __atomic64_set(atomic64_t *v, s64 i)
 {
 	asm volatile(
-		"	stg	%1,%0\n"
-		: "=RT" (v->counter) : "d" (i));
+		"	stg	%[i],%[counter]\n"
+		: [counter] "=RT" (v->counter) : [i] "d" (i));
 }
 
 #ifdef CONFIG_HAVE_MARCH_Z196_FEATURES
