@@ -33,30 +33,6 @@ DAMON subsystem is configured with three layers including
   layer.
 
 
-.. _damon_design_configurable_operations_set:
-
-Configurable Operations Set
----------------------------
-
-For data access monitoring and additional low level work, DAMON needs a set of
-implementations for specific operations that are dependent on and optimized for
-the given target address space.  On the other hand, the accuracy and overhead
-tradeoff mechanism, which is the core logic of DAMON, is in the pure logic
-space.  DAMON separates the two parts in different layers, namely DAMON
-Operations Set and DAMON Core Logics Layers, respectively.  It further defines
-the interface between the layers to allow various operations sets to be
-configured with the core logic.
-
-Due to this design, users can extend DAMON for any address space by configuring
-the core logic to use the appropriate operations set.  If any appropriate set
-is unavailable, users can implement one on their own.
-
-For example, physical memory, virtual memory, swap space, those for specific
-processes, NUMA nodes, files, and backing memory devices would be supportable.
-Also, if some architectures or devices supporting special optimized access
-check primitives, those will be easily configurable.
-
-
 Programmable Modules
 --------------------
 
@@ -72,10 +48,31 @@ used by the user space end users.
 Operations Set Layer
 ====================
 
-The monitoring operations are defined in two parts:
+.. _damon_design_configurable_operations_set:
+
+For data access monitoring and additional low level work, DAMON needs a set of
+implementations for specific operations that are dependent on and optimized for
+the given target address space.  For example, below two operations for access
+monitoring are address-space dependent.
 
 1. Identification of the monitoring target address range for the address space.
 2. Access check of specific address range in the target space.
+
+DAMON consolidates these implementations in a layer called DAMON Operations
+Set, and defines the interface between it and the upper layer.  The upper layer
+is dedicated for DAMON's core logics including the mechanism for control of the
+monitoring accruracy and the overhead.
+
+Hence, DAMON can easily be extended for any address space and/or available
+hardware features by configuring the core logic to use the appropriate
+operations set.  If there is no available operations set for a given purpose, a
+new operations set can be implemented following the interface between the
+layers.
+
+For example, physical memory, virtual memory, swap space, those for specific
+processes, NUMA nodes, files, and backing memory devices would be supportable.
+Also, if some architectures or devices support special optimized access check
+features, those will be easily configurable.
 
 DAMON currently provides below three operation sets.  Below two subsections
 describe how those work.
