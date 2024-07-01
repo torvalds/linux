@@ -667,25 +667,6 @@ static void bpf_jit_epilogue(struct bpf_jit *jit, u32 stack_depth)
 	jit->prg += sizeof(struct bpf_plt);
 }
 
-static int get_probe_mem_regno(const u8 *insn)
-{
-	/*
-	 * insn must point to llgc, llgh, llgf, lg, lgb, lgh or lgf, which have
-	 * destination register at the same position.
-	 */
-	if (insn[0] != 0xe3) /* common prefix */
-		return -1;
-	if (insn[5] != 0x90 && /* llgc */
-	    insn[5] != 0x91 && /* llgh */
-	    insn[5] != 0x16 && /* llgf */
-	    insn[5] != 0x04 && /* lg */
-	    insn[5] != 0x77 && /* lgb */
-	    insn[5] != 0x15 && /* lgh */
-	    insn[5] != 0x14) /* lgf */
-		return -1;
-	return insn[1] >> 4;
-}
-
 bool ex_handler_bpf(const struct exception_table_entry *x, struct pt_regs *regs)
 {
 	regs->psw.addr = extable_fixup(x);
@@ -699,12 +680,14 @@ bool ex_handler_bpf(const struct exception_table_entry *x, struct pt_regs *regs)
 struct bpf_jit_probe {
 	int prg;	/* JITed instruction offset */
 	int nop_prg;	/* JITed nop offset */
+	int reg;	/* Register to clear on exception */
 };
 
 static void bpf_jit_probe_init(struct bpf_jit_probe *probe)
 {
 	probe->prg = -1;
 	probe->nop_prg = -1;
+	probe->reg = -1;
 }
 
 /*
@@ -725,7 +708,7 @@ static int bpf_jit_probe_mem(struct bpf_jit *jit, struct bpf_prog *fp,
 			     struct bpf_jit_probe *probe)
 {
 	struct exception_table_entry *ex;
-	int i, prg, reg;
+	int i, prg;
 	s64 delta;
 	u8 *insn;
 
@@ -734,10 +717,6 @@ static int bpf_jit_probe_mem(struct bpf_jit *jit, struct bpf_prog *fp,
 		/* Do nothing during early JIT passes. */
 		return 0;
 	insn = jit->prg_buf + probe->prg;
-	reg = get_probe_mem_regno(insn);
-	if (WARN_ON_ONCE(reg < 0))
-		/* JIT bug - unexpected probe instruction. */
-		return -1;
 	if (WARN_ON_ONCE(probe->prg + insn_length(*insn) != probe->nop_prg))
 		/* JIT bug - gap between probe and nop instructions. */
 		return -1;
@@ -763,7 +742,7 @@ static int bpf_jit_probe_mem(struct bpf_jit *jit, struct bpf_prog *fp,
 			return -1;
 		ex->fixup = delta;
 		ex->type = EX_TYPE_BPF;
-		ex->data = reg;
+		ex->data = probe->reg;
 		jit->excnt++;
 	}
 	return 0;
@@ -821,8 +800,10 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 	bpf_jit_probe_init(&probe);
 	if (BPF_CLASS(insn->code) == BPF_LDX &&
 	    (BPF_MODE(insn->code) == BPF_PROBE_MEM ||
-	     BPF_MODE(insn->code) == BPF_PROBE_MEMSX))
+	     BPF_MODE(insn->code) == BPF_PROBE_MEMSX)) {
 		probe.prg = jit->prg;
+		probe.reg = reg2hex[dst_reg];
+	}
 
 	switch (insn->code) {
 	/*
