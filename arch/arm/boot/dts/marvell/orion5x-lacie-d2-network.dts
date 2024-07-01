@@ -37,20 +37,21 @@
 		pinctrl-names = "default";
 		#address-cells = <1>;
 		#size-cells = <0>;
-		front_button {
+
+		button-front {
 			label = "Front Push Button";
 			linux,code = <KEY_POWER>;
 			gpios = <&gpio0 18 GPIO_ACTIVE_HIGH>;
 		};
 
-		power_rocker_sw_on {
+		switch-power-rocker-sw-on {
 			label = "Power rocker switch (on|auto)";
 			linux,input-type = <5>; /* EV_SW */
 			linux,code = <1>; /* D2NET_SWITCH_POWER_ON */
 			gpios = <&gpio0 8 GPIO_ACTIVE_HIGH>;
 		};
 
-		power_rocker_sw_off {
+		switch-power-rocker-sw-off {
 			label = "Power rocker switch (auto|off)";
 			linux,input-type = <5>; /* EV_SW */
 			linux,code = <2>; /* D2NET_SWITCH_POWER_OFF */

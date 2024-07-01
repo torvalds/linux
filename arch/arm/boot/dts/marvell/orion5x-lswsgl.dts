@@ -76,20 +76,21 @@
 		pinctrl-names = "default";
 		#address-cells = <1>;
 		#size-cells = <0>;
-		func {
+
+		key-func {
 			label = "Function Button";
 			linux,code = <KEY_OPTION>;
 			gpios = <&gpio0 15 GPIO_ACTIVE_LOW>;
 		};
 
-		power {
+		key-power {
 			label = "Power-on Switch";
 			linux,input-type = <5>; /* EV_SW */
 			linux,code = <KEY_RESERVED>; /* LSMINI_SW_POWER */
 			gpios = <&gpio0 18 GPIO_ACTIVE_LOW>;
 		};
 
-		autopower {
+		key-autopower {
 			label = "Power-auto Switch";
 			linux,input-type = <5>; /* EV_SW */
 			linux,code = <KEY_ESC>; /* LSMINI_SW_AUTOPOWER */

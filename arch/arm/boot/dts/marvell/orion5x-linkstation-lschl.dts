@@ -61,7 +61,7 @@
 	};
 
 	gpio_keys {
-		func {
+		func-button {
 			label = "Function Button";
 			linux,code = <KEY_OPTION>;
 			gpios = <&gpio0 15 GPIO_ACTIVE_LOW>;
