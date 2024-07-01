@@ -1614,6 +1614,7 @@ config SCF_TORTURE_TEST
 config CSD_LOCK_WAIT_DEBUG
 	bool "Debugging for csd_lock_wait(), called from smp_call_function*()"
 	depends on DEBUG_KERNEL
+	depends on SMP
 	depends on 64BIT
 	default n
 	help
