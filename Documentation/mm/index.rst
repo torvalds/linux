@@ -2,9 +2,6 @@
 Memory Management Documentation
 ===============================
 
-Memory Management Guide
-=======================
-
 This is a guide to understanding the memory management subsystem
 of Linux.  If you are looking for advice on simply allocating memory,
 see the :ref:`memory_allocation`.  For controlling and tuning guides,
