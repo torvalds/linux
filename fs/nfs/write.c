@@ -169,11 +169,6 @@ nfs_cancel_remove_inode(struct nfs_page *req, struct inode *inode)
 	return 0;
 }
 
-static struct nfs_page *nfs_folio_private_request(struct folio *folio)
-{
-	return folio_get_private(folio);
-}
-
 /**
  * nfs_folio_find_head_request - find head request associated with a folio
  * @folio: pointer to folio
@@ -190,7 +185,7 @@ static struct nfs_page *nfs_folio_find_head_request(struct folio *folio)
 	if (!folio_test_private(folio))
 		return NULL;
 	spin_lock(&mapping->i_private_lock);
-	req = nfs_folio_private_request(folio);
+	req = folio->private;
 	if (req) {
 		WARN_ON_ONCE(req->wb_head != req);
 		kref_get(&req->wb_kref);
@@ -220,7 +215,7 @@ static struct nfs_page *nfs_folio_find_and_lock_request(struct folio *folio)
 			return ERR_PTR(ret);
 		}
 		/* Ensure that nobody removed the request before we locked it */
-		if (head == nfs_folio_private_request(folio))
+		if (head == folio->private)
 			break;
 		nfs_unlock_and_release_request(head);
 	}
