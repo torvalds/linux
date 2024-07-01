@@ -287,7 +287,7 @@ int blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
 	if (bdev_write_zeroes_sectors(bdev)) {
 		ret = blkdev_issue_write_zeroes(bdev, sector, nr_sects,
 				gfp_mask, flags);
-		if (!ret)
+		if (ret != -EOPNOTSUPP)
 			return ret;
 	}
 
