@@ -7,6 +7,7 @@
 
 /* "undefine" structs and enums in vmlinux.h, because we "override" them below */
 #define hid_bpf_ctx hid_bpf_ctx___not_used
+#define hid_bpf_ops hid_bpf_ops___not_used
 #define hid_report_type hid_report_type___not_used
 #define hid_class_request hid_class_request___not_used
 #define hid_bpf_attach_flags hid_bpf_attach_flags___not_used
@@ -24,6 +25,7 @@
 #include "vmlinux.h"
 
 #undef hid_bpf_ctx
+#undef hid_bpf_ops
 #undef hid_report_type
 #undef hid_class_request
 #undef hid_bpf_attach_flags
@@ -66,6 +68,20 @@ enum hid_class_request {
 	HID_REQ_SET_REPORT		= 0x09,
 	HID_REQ_SET_IDLE		= 0x0A,
 	HID_REQ_SET_PROTOCOL		= 0x0B,
+};
+
+struct hid_bpf_ops {
+	int			hid_id;
+	u32			flags;
+	struct list_head	list;
+	int (*hid_device_event)(struct hid_bpf_ctx *ctx, enum hid_report_type report_type,
+				u64 source);
+	int (*hid_rdesc_fixup)(struct hid_bpf_ctx *ctx);
+	int (*hid_hw_request)(struct hid_bpf_ctx *ctx, unsigned char reportnum,
+			       enum hid_report_type rtype, enum hid_class_request reqtype,
+			       u64 source);
+	int (*hid_hw_output_report)(struct hid_bpf_ctx *ctx, u64 source);
+	struct hid_device *hdev;
 };
 
 #ifndef BPF_F_BEFORE
