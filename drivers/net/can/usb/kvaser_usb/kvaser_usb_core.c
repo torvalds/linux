@@ -94,29 +94,26 @@
 #define USB_MINI_PCIE_1XCAN_PRODUCT_ID 0x011B
 
 static const struct kvaser_usb_driver_info kvaser_usb_driver_info_hydra = {
-	.quirks = KVASER_USB_QUIRK_HAS_HARDWARE_TIMESTAMP,
+	.quirks = 0,
 	.ops = &kvaser_usb_hydra_dev_ops,
 };
 
 static const struct kvaser_usb_driver_info kvaser_usb_driver_info_usbcan = {
 	.quirks = KVASER_USB_QUIRK_HAS_TXRX_ERRORS |
-		  KVASER_USB_QUIRK_HAS_SILENT_MODE |
-		  KVASER_USB_QUIRK_HAS_HARDWARE_TIMESTAMP,
+		  KVASER_USB_QUIRK_HAS_SILENT_MODE,
 	.family = KVASER_USBCAN,
 	.ops = &kvaser_usb_leaf_dev_ops,
 };
 
 static const struct kvaser_usb_driver_info kvaser_usb_driver_info_leaf = {
-	.quirks = KVASER_USB_QUIRK_IGNORE_CLK_FREQ |
-		  KVASER_USB_QUIRK_HAS_HARDWARE_TIMESTAMP,
+	.quirks = KVASER_USB_QUIRK_IGNORE_CLK_FREQ,
 	.family = KVASER_LEAF,
 	.ops = &kvaser_usb_leaf_dev_ops,
 };
 
 static const struct kvaser_usb_driver_info kvaser_usb_driver_info_leaf_err = {
 	.quirks = KVASER_USB_QUIRK_HAS_TXRX_ERRORS |
-		  KVASER_USB_QUIRK_IGNORE_CLK_FREQ |
-		  KVASER_USB_QUIRK_HAS_HARDWARE_TIMESTAMP,
+		  KVASER_USB_QUIRK_IGNORE_CLK_FREQ,
 	.family = KVASER_LEAF,
 	.ops = &kvaser_usb_leaf_dev_ops,
 };
@@ -124,14 +121,13 @@ static const struct kvaser_usb_driver_info kvaser_usb_driver_info_leaf_err = {
 static const struct kvaser_usb_driver_info kvaser_usb_driver_info_leaf_err_listen = {
 	.quirks = KVASER_USB_QUIRK_HAS_TXRX_ERRORS |
 		  KVASER_USB_QUIRK_HAS_SILENT_MODE |
-		  KVASER_USB_QUIRK_IGNORE_CLK_FREQ |
-		  KVASER_USB_QUIRK_HAS_HARDWARE_TIMESTAMP,
+		  KVASER_USB_QUIRK_IGNORE_CLK_FREQ,
 	.family = KVASER_LEAF,
 	.ops = &kvaser_usb_leaf_dev_ops,
 };
 
 static const struct kvaser_usb_driver_info kvaser_usb_driver_info_leafimx = {
-	.quirks = KVASER_USB_QUIRK_HAS_HARDWARE_TIMESTAMP,
+	.quirks = 0,
 	.family = KVASER_LEAF,
 	.ops = &kvaser_usb_leaf_dev_ops,
 };
@@ -862,14 +858,8 @@ static int kvaser_usb_init_one(struct kvaser_usb *dev, int channel)
 
 	netdev->flags |= IFF_ECHO;
 
-	netdev->netdev_ops = &kvaser_usb_netdev_ops;
-	if (driver_info->quirks & KVASER_USB_QUIRK_HAS_HARDWARE_TIMESTAMP) {
-		netdev->netdev_ops = &kvaser_usb_netdev_ops_hwts;
-		netdev->ethtool_ops = &kvaser_usb_ethtool_ops_hwts;
-	} else {
-		netdev->netdev_ops = &kvaser_usb_netdev_ops;
-		netdev->ethtool_ops = &kvaser_usb_ethtool_ops;
-	}
+	netdev->netdev_ops = &kvaser_usb_netdev_ops_hwts;
+	netdev->ethtool_ops = &kvaser_usb_ethtool_ops_hwts;
 	SET_NETDEV_DEV(netdev, &dev->intf->dev);
 	netdev->dev_id = channel;
 
