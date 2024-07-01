@@ -16,9 +16,24 @@ config TURRIS_OMNIA_MCU
 	tristate "Turris Omnia MCU driver"
 	depends on MACH_ARMADA_38X || COMPILE_TEST
 	depends on I2C
+	select GPIOLIB
+	select GPIOLIB_IRQCHIP
 	help
 	  Say Y here to add support for the features implemented by the
 	  microcontroller on the CZ.NIC's Turris Omnia SOHO router.
+	  The features include:
+	  - GPIO pins
+	    - to get front button press events (the front button can be
+	      configured either to generate press events to the CPU or to change
+	      front LEDs panel brightness)
+	    - to enable / disable USB port voltage regulators and to detect
+	      USB overcurrent
+	    - to detect MiniPCIe / mSATA card presence in MiniPCIe port 0
+	    - to configure resets of various peripherals on board revisions 32+
+	    - to enable / disable the VHV voltage regulator to the SOC in order
+	      to be able to program SOC's OTP on board revisions 32+
+	    - to get input from the LED output pins of the WAN ethernet PHY, LAN
+	      switch and MiniPCIe ports
 	  To compile this driver as a module, choose M here; the module will be
 	  called turris-omnia-mcu.
 

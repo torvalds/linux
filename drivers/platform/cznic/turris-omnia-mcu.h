@@ -8,8 +8,12 @@
 #ifndef __TURRIS_OMNIA_MCU_H
 #define __TURRIS_OMNIA_MCU_H
 
+#include <linux/bitops.h>
+#include <linux/gpio/driver.h>
 #include <linux/if_ether.h>
+#include <linux/mutex.h>
 #include <linux/types.h>
+#include <linux/workqueue.h>
 #include <asm/byteorder.h>
 
 struct i2c_client;
@@ -23,16 +27,76 @@ struct omnia_mcu {
 	u64 board_serial_number;
 	u8 board_first_mac[ETH_ALEN];
 	u8 board_revision;
+
+	/* GPIO chip */
+	struct gpio_chip gc;
+	struct mutex lock;
+	unsigned long mask, rising, falling, both, cached, is_cached;
+	/* Old MCU firmware handling needs the following */
+	struct delayed_work button_release_emul_work;
+	unsigned long last_status;
+	bool button_pressed_emul;
 };
 
 int omnia_cmd_write_read(const struct i2c_client *client,
 			 void *cmd, unsigned int cmd_len,
 			 void *reply, unsigned int reply_len);
 
+static inline int omnia_cmd_write(const struct i2c_client *client, void *cmd,
+				  unsigned int len)
+{
+	return omnia_cmd_write_read(client, cmd, len, NULL, 0);
+}
+
 static inline int omnia_cmd_read(const struct i2c_client *client, u8 cmd,
 				 void *reply, unsigned int len)
 {
 	return omnia_cmd_write_read(client, &cmd, 1, reply, len);
+}
+
+static inline unsigned int
+omnia_compute_reply_length(unsigned long mask, bool interleaved,
+			   unsigned int offset)
+{
+	if (!mask)
+		return 0;
+
+	return ((__fls(mask) >> 3) << interleaved) + 1 + offset;
+}
+
+/* Returns 0 on success */
+static inline int omnia_cmd_read_bits(const struct i2c_client *client, u8 cmd,
+				      unsigned long bits, unsigned long *dst)
+{
+	__le32 reply;
+	int err;
+
+	if (!bits) {
+		*dst = 0;
+		return 0;
+	}
+
+	err = omnia_cmd_read(client, cmd, &reply,
+			     omnia_compute_reply_length(bits, false, 0));
+	if (err)
+		return err;
+
+	*dst = le32_to_cpu(reply) & bits;
+
+	return 0;
+}
+
+static inline int omnia_cmd_read_bit(const struct i2c_client *client, u8 cmd,
+				     unsigned long bit)
+{
+	unsigned long reply;
+	int err;
+
+	err = omnia_cmd_read_bits(client, cmd, bit, &reply);
+	if (err)
+		return err;
+
+	return !!reply;
 }
 
 static inline int omnia_cmd_read_u32(const struct i2c_client *client, u8 cmd,
@@ -70,5 +134,9 @@ static inline int omnia_cmd_read_u8(const struct i2c_client *client, u8 cmd,
 {
 	return omnia_cmd_read(client, cmd, reply, sizeof(*reply));
 }
+
+extern const struct attribute_group omnia_mcu_gpio_group;
+
+int omnia_mcu_register_gpiochip(struct omnia_mcu *mcu);
 
 #endif /* __TURRIS_OMNIA_MCU_H */

@@ -197,6 +197,7 @@ static const struct attribute_group omnia_mcu_base_group = {
 
 static const struct attribute_group *omnia_mcu_groups[] = {
 	&omnia_mcu_base_group,
+	&omnia_mcu_gpio_group,
 	NULL
 };
 
@@ -371,7 +372,7 @@ static int omnia_mcu_probe(struct i2c_client *client)
 					     "Cannot read board info\n");
 	}
 
-	return 0;
+	return omnia_mcu_register_gpiochip(mcu);
 }
 
 static const struct of_device_id of_omnia_mcu_match[] = {
