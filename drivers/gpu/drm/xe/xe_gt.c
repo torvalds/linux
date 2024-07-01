@@ -683,6 +683,9 @@ static int do_gt_restart(struct xe_gt *gt)
 	/* Restore GT freq to expected values */
 	xe_gt_sanitize_freq(gt);
 
+	if (IS_SRIOV_PF(gt_to_xe(gt)))
+		xe_gt_sriov_pf_restart(gt);
+
 	return 0;
 }
 

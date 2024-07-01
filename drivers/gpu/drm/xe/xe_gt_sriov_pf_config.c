@@ -1971,6 +1971,36 @@ bool xe_gt_sriov_pf_config_is_empty(struct xe_gt *gt, unsigned int vfid)
 }
 
 /**
+ * xe_gt_sriov_pf_config_restart - Restart SR-IOV configurations after a GT reset.
+ * @gt: the &xe_gt
+ *
+ * Any prior configurations pushed to GuC are lost when the GT is reset.
+ * Push again all non-empty VF configurations to the GuC.
+ *
+ * This function can only be called on PF.
+ */
+void xe_gt_sriov_pf_config_restart(struct xe_gt *gt)
+{
+	unsigned int n, total_vfs = xe_sriov_pf_get_totalvfs(gt_to_xe(gt));
+	unsigned int fail = 0, skip = 0;
+
+	for (n = 1; n <= total_vfs; n++) {
+		if (xe_gt_sriov_pf_config_is_empty(gt, n))
+			skip++;
+		else if (xe_gt_sriov_pf_config_push(gt, n, false))
+			fail++;
+	}
+
+	if (fail)
+		xe_gt_sriov_notice(gt, "Failed to push %u of %u VF%s configurations\n",
+				   fail, total_vfs - skip, str_plural(total_vfs));
+
+	if (fail != total_vfs)
+		xe_gt_sriov_dbg(gt, "pushed %u skip %u of %u VF%s configurations\n",
+				total_vfs - skip - fail, skip, total_vfs, str_plural(total_vfs));
+}
+
+/**
  * xe_gt_sriov_pf_config_print_ggtt - Print GGTT configurations.
  * @gt: the &xe_gt
  * @p: the &drm_printer
