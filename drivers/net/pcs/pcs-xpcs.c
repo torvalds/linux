@@ -6,6 +6,7 @@
  * Author: Jose Abreu <Jose.Abreu@synopsys.com>
  */
 
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/pcs/pcs-xpcs.h>
 #include <linux/mdio.h>
@@ -1244,7 +1245,9 @@ static int xpcs_get_id(struct dw_xpcs *xpcs)
 		id |= ret;
 	}
 
-	xpcs->info.pcs = id;
+	/* Set the PCS ID if it hasn't been pre-initialized */
+	if (xpcs->info.pcs == DW_XPCS_ID_NATIVE)
+		xpcs->info.pcs = id;
 
 	/* Find out PMA/PMD ID from MMD 1 device ID registers */
 	ret = xpcs_read(xpcs, MDIO_MMD_PMAPMD, MDIO_DEVID1);
@@ -1263,7 +1266,9 @@ static int xpcs_get_id(struct dw_xpcs *xpcs)
 	ret = (ret >> 10) & 0x3F;
 	id |= ret << 16;
 
-	xpcs->info.pma = id;
+	/* Set the PMA ID if it hasn't been pre-initialized */
+	if (xpcs->info.pma == DW_XPCS_PMA_ID_NATIVE)
+		xpcs->info.pma = id;
 
 	return 0;
 }
@@ -1387,9 +1392,48 @@ static void xpcs_free_data(struct dw_xpcs *xpcs)
 	kfree(xpcs);
 }
 
+static int xpcs_init_clks(struct dw_xpcs *xpcs)
+{
+	static const char *ids[DW_XPCS_NUM_CLKS] = {
+		[DW_XPCS_CORE_CLK] = "core",
+		[DW_XPCS_PAD_CLK] = "pad",
+	};
+	struct device *dev = &xpcs->mdiodev->dev;
+	int ret, i;
+
+	for (i = 0; i < DW_XPCS_NUM_CLKS; ++i)
+		xpcs->clks[i].id = ids[i];
+
+	ret = clk_bulk_get_optional(dev, DW_XPCS_NUM_CLKS, xpcs->clks);
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to get clocks\n");
+
+	ret = clk_bulk_prepare_enable(DW_XPCS_NUM_CLKS, xpcs->clks);
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to enable clocks\n");
+
+	return 0;
+}
+
+static void xpcs_clear_clks(struct dw_xpcs *xpcs)
+{
+	clk_bulk_disable_unprepare(DW_XPCS_NUM_CLKS, xpcs->clks);
+
+	clk_bulk_put(DW_XPCS_NUM_CLKS, xpcs->clks);
+}
+
 static int xpcs_init_id(struct dw_xpcs *xpcs)
 {
+	const struct dw_xpcs_info *info;
 	int i, ret;
+
+	info = dev_get_platdata(&xpcs->mdiodev->dev);
+	if (!info) {
+		xpcs->info.pcs = DW_XPCS_ID_NATIVE;
+		xpcs->info.pma = DW_XPCS_PMA_ID_NATIVE;
+	} else {
+		xpcs->info = *info;
+	}
 
 	ret = xpcs_get_id(xpcs);
 	if (ret < 0)
@@ -1438,17 +1482,24 @@ static struct dw_xpcs *xpcs_create(struct mdio_device *mdiodev,
 	if (IS_ERR(xpcs))
 		return xpcs;
 
+	ret = xpcs_init_clks(xpcs);
+	if (ret)
+		goto out_free_data;
+
 	ret = xpcs_init_id(xpcs);
 	if (ret)
-		goto out;
+		goto out_clear_clks;
 
 	ret = xpcs_init_iface(xpcs, interface);
 	if (ret)
-		goto out;
+		goto out_clear_clks;
 
 	return xpcs;
 
-out:
+out_clear_clks:
+	xpcs_clear_clks(xpcs);
+
+out_free_data:
 	xpcs_free_data(xpcs);
 
 	return ERR_PTR(ret);
@@ -1482,6 +1533,8 @@ void xpcs_destroy(struct dw_xpcs *xpcs)
 {
 	if (!xpcs)
 		return;
+
+	xpcs_clear_clks(xpcs);
 
 	xpcs_free_data(xpcs);
 }

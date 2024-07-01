@@ -7,6 +7,8 @@
 #ifndef __LINUX_PCS_XPCS_H
 #define __LINUX_PCS_XPCS_H
 
+#include <linux/clk.h>
+#include <linux/mdio.h>
 #include <linux/phy.h>
 #include <linux/phylink.h>
 #include <linux/types.h>
@@ -21,6 +23,7 @@
 struct dw_xpcs_desc;
 
 enum dw_xpcs_pcs_id {
+	DW_XPCS_ID_NATIVE = 0,
 	NXP_SJA1105_XPCS_ID = 0x00000010,
 	NXP_SJA1110_XPCS_ID = 0x00000020,
 	DW_XPCS_ID = 0x7996ced0,
@@ -28,6 +31,14 @@ enum dw_xpcs_pcs_id {
 };
 
 enum dw_xpcs_pma_id {
+	DW_XPCS_PMA_ID_NATIVE = 0,
+	DW_XPCS_PMA_GEN1_3G_ID,
+	DW_XPCS_PMA_GEN2_3G_ID,
+	DW_XPCS_PMA_GEN2_6G_ID,
+	DW_XPCS_PMA_GEN4_3G_ID,
+	DW_XPCS_PMA_GEN4_6G_ID,
+	DW_XPCS_PMA_GEN5_10G_ID,
+	DW_XPCS_PMA_GEN5_12G_ID,
 	WX_TXGBE_XPCS_PMA_10G_ID = 0x0018fc80,
 };
 
@@ -36,10 +47,17 @@ struct dw_xpcs_info {
 	u32 pma;
 };
 
+enum dw_xpcs_clock {
+	DW_XPCS_CORE_CLK,
+	DW_XPCS_PAD_CLK,
+	DW_XPCS_NUM_CLKS,
+};
+
 struct dw_xpcs {
 	struct dw_xpcs_info info;
 	const struct dw_xpcs_desc *desc;
 	struct mdio_device *mdiodev;
+	struct clk_bulk_data clks[DW_XPCS_NUM_CLKS];
 	struct phylink_pcs pcs;
 	phy_interface_t interface;
 };
