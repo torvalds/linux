@@ -103,8 +103,7 @@ Description:
 		provider for TVMs, like SEV-SNP running under an SVSM.
 		Specifying the service provider via this attribute will create
 		an attestation report as specified by the service provider.
-		Currently supported service-providers are:
-			svsm
+		The only currently supported service provider is "svsm".
 
 		For the "svsm" service provider, see the Secure VM Service Module
 		for SEV-SNP Guests v1.00 Section 7. For the doc, search for
