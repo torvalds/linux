@@ -63,8 +63,6 @@
 
 	gpio_keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 		pinctrl-0 = <&pmx_btn_reset &pmx_btn_copy &pmx_btn_power>;
 		pinctrl-names = "default";
 

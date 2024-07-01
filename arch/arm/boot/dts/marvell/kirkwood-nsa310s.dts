@@ -35,8 +35,6 @@
 
 	keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 		pinctrl-0 = <&pmx_buttons>;
 		pinctrl-names = "default";
 
