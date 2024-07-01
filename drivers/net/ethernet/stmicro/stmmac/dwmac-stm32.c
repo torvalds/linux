@@ -206,6 +206,9 @@ static int stm32mp1_validate_ethck_rate(struct plat_stmmacenet_data *plat_dat)
 	struct stm32_dwmac *dwmac = plat_dat->bsp_priv;
 	const u32 clk_rate = clk_get_rate(dwmac->clk_eth_ck);
 
+	if (!dwmac->enable_eth_ck)
+		return 0;
+
 	switch (plat_dat->mac_interface) {
 	case PHY_INTERFACE_MODE_MII:
 	case PHY_INTERFACE_MODE_GMII:
