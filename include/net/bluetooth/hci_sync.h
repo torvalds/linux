@@ -131,6 +131,8 @@ int hci_update_discoverable(struct hci_dev *hdev);
 
 int hci_update_connectable_sync(struct hci_dev *hdev);
 
+int hci_inquiry_sync(struct hci_dev *hdev, u8 length, u8 num_rsp);
+
 int hci_start_discovery_sync(struct hci_dev *hdev);
 int hci_stop_discovery_sync(struct hci_dev *hdev);
 
