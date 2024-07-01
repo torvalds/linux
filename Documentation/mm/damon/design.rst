@@ -141,6 +141,7 @@ as Idle page tracking does.
 Core Logics
 ===========
 
+.. _damon_design_monitoring:
 
 Monitoring
 ----------
