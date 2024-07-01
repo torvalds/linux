@@ -104,22 +104,22 @@
 
 		alarm {
 			label = "lswsgl:alarm:red";
-			gpio = <&gpio0 2 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio0 2 GPIO_ACTIVE_LOW>;
 		};
 
 		info {
 			label = "lswsgl:info:amber";
-			gpio = <&gpio0 3 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio0 3 GPIO_ACTIVE_LOW>;
 		};
 
 		func {
 			label = "lswsgl:func:blue:top";
-			gpio = <&gpio0 9 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio0 9 GPIO_ACTIVE_LOW>;
 		};
 
 		power {
 			label = "lswsgl:power:blue:bottom";
-			gpio = <&gpio0 14 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio0 14 GPIO_ACTIVE_LOW>;
 			default-state = "on";
 		};
 	};
