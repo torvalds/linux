@@ -103,24 +103,28 @@ int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 }
 EXPORT_SYMBOL(blkdev_issue_discard);
 
+static sector_t bio_write_zeroes_limit(struct block_device *bdev)
+{
+	sector_t bs_mask = (bdev_logical_block_size(bdev) >> 9) - 1;
+
+	return min(bdev_write_zeroes_sectors(bdev),
+		(UINT_MAX >> SECTOR_SHIFT) & ~bs_mask);
+}
+
 static int __blkdev_issue_write_zeroes(struct block_device *bdev,
 		sector_t sector, sector_t nr_sects, gfp_t gfp_mask,
 		struct bio **biop, unsigned flags)
 {
 	struct bio *bio = *biop;
-	unsigned int max_sectors;
 
 	if (bdev_read_only(bdev))
 		return -EPERM;
-
-	/* Ensure that max_sectors doesn't overflow bi_size */
-	max_sectors = bdev_write_zeroes_sectors(bdev);
-
-	if (max_sectors == 0)
+	if (!bdev_write_zeroes_sectors(bdev))
 		return -EOPNOTSUPP;
 
 	while (nr_sects) {
-		unsigned int len = min_t(sector_t, nr_sects, max_sectors);
+		unsigned int len = min_t(sector_t, nr_sects,
+				bio_write_zeroes_limit(bdev));
 
 		bio = blk_next_bio(bio, bdev, 0, REQ_OP_WRITE_ZEROES, gfp_mask);
 		bio->bi_iter.bi_sector = sector;
