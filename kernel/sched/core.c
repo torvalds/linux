@@ -6530,10 +6530,15 @@ static void __sched notrace __schedule(unsigned int sched_mode)
 		if (signal_pending_state(prev_state, prev)) {
 			WRITE_ONCE(prev->__state, TASK_RUNNING);
 		} else {
+			int flags = DEQUEUE_NOCLOCK;
+
 			prev->sched_contributes_to_load =
 				(prev_state & TASK_UNINTERRUPTIBLE) &&
 				!(prev_state & TASK_NOLOAD) &&
 				!(prev_state & TASK_FROZEN);
+
+			if (unlikely(is_special_task_state(prev_state)))
+				flags |= DEQUEUE_SPECIAL;
 
 			/*
 			 * __schedule()			ttwu()
@@ -6546,7 +6551,7 @@ static void __sched notrace __schedule(unsigned int sched_mode)
 			 *
 			 * After this, schedule() must not care about p->state any more.
 			 */
-			block_task(rq, prev, DEQUEUE_NOCLOCK);
+			block_task(rq, prev, flags);
 		}
 		switch_count = &prev->nvcsw;
 	}
