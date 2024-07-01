@@ -6,7 +6,7 @@
 
 / {
 	thermal-zones {
-		pm8150-thermal {
+		pm8916-thermal {
 			polling-delay-passive = <100>;
 
 			thermal-sensors = <&pm8916_temp>;
