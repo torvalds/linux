@@ -26,6 +26,7 @@
 #include "xe_mmio.h"
 #include "xe_pcode.h"
 #include "xe_pm.h"
+#include "xe_sriov.h"
 #include "xe_wa.h"
 
 #define MCHBAR_MIRROR_BASE_SNB	0x140000
@@ -824,6 +825,9 @@ static int pc_set_mert_freq_cap(struct xe_guc_pc *pc)
 int xe_guc_pc_restore_stashed_freq(struct xe_guc_pc *pc)
 {
 	int ret = 0;
+
+	if (IS_SRIOV_VF(pc_to_xe(pc)) || pc_to_xe(pc)->info.skip_guc_pc)
+		return 0;
 
 	mutex_lock(&pc->freq_lock);
 	ret = pc_set_max_freq(pc, pc->stashed_max_freq);
