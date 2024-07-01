@@ -25,6 +25,7 @@
 #define MAX96717_PORTS      2
 #define MAX96717_PAD_SINK   0
 #define MAX96717_PAD_SOURCE 1
+#define MAX96717_CSI_NLANES 4
 
 #define MAX96717_DEFAULT_CLKOUT_RATE	24000000UL
 
@@ -495,7 +496,6 @@ static int max96717_enable_streams(struct v4l2_subdev *sd,
 				   u64 streams_mask)
 {
 	struct max96717_priv *priv = sd_to_max96717(sd);
-	struct device *dev = &priv->client->dev;
 	u64 sink_streams;
 	int ret;
 
@@ -516,11 +516,8 @@ static int max96717_enable_streams(struct v4l2_subdev *sd,
 		ret = v4l2_subdev_enable_streams(priv->source_sd,
 						 priv->source_sd_pad,
 						 sink_streams);
-		if (ret) {
-			dev_err(dev, "Fail to start streams:%llu on remote subdev\n",
-				sink_streams);
+		if (ret)
 			goto stop_csi;
-		}
 	}
 
 	priv->enabled_source_streams |= streams_mask;
@@ -530,6 +527,7 @@ static int max96717_enable_streams(struct v4l2_subdev *sd,
 stop_csi:
 	if (!priv->enabled_source_streams)
 		max96717_start_csi(priv, false);
+
 	return ret;
 }
 
@@ -769,11 +767,8 @@ max96717_clk_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 static unsigned int max96717_clk_find_best_index(struct max96717_priv *priv,
 						 unsigned long rate)
 {
-	unsigned int i, idx;
-	unsigned long diff_new, diff_old;
-
-	diff_old = U32_MAX;
-	idx = 0;
+	unsigned int i, idx = 0;
+	unsigned long diff_new, diff_old = U32_MAX;
 
 	for (i = 0; i < ARRAY_SIZE(max96717_predef_freqs); i++) {
 		diff_new = abs(rate - max96717_predef_freqs[i].freq);
@@ -860,8 +855,7 @@ static int max96717_register_clkout(struct max96717_priv *priv)
 	struct clk_init_data init = { .ops = &max96717_clk_ops };
 	int ret;
 
-	init.name = kasprintf(GFP_KERNEL, "max96717.%s.clk_out",
-			      dev_name(dev));
+	init.name = kasprintf(GFP_KERNEL, "max96717.%s.clk_out", dev_name(dev));
 	if (!init.name)
 		return -ENOMEM;
 
@@ -944,8 +938,9 @@ static int max96717_init_csi_lanes(struct max96717_priv *priv)
 	 * Unused lanes need to be mapped as well to not have
 	 * the same lanes mapped twice.
 	 */
-	for (; lane < 4; lane++) {
-		unsigned int idx = find_first_zero_bit(&lanes_used, 4);
+	for (; lane < MAX96717_CSI_NLANES; lane++) {
+		unsigned int idx = find_first_zero_bit(&lanes_used,
+						       MAX96717_CSI_NLANES);
 
 		val |= idx << (lane * 2);
 		lanes_used |= BIT(idx);
@@ -999,9 +994,7 @@ static int max96717_hw_init(struct max96717_priv *priv)
 static int max96717_parse_dt(struct max96717_priv *priv)
 {
 	struct device *dev = &priv->client->dev;
-	struct v4l2_fwnode_endpoint vep = {
-		.bus_type = V4L2_MBUS_CSI2_DPHY
-	};
+	struct v4l2_fwnode_endpoint vep = { .bus_type = V4L2_MBUS_CSI2_DPHY };
 	struct fwnode_handle *ep_fwnode;
 	unsigned char num_data_lanes;
 	int ret;
@@ -1019,11 +1012,11 @@ static int max96717_parse_dt(struct max96717_priv *priv)
 		return dev_err_probe(dev, ret, "Failed to parse sink endpoint");
 
 	num_data_lanes = vep.bus.mipi_csi2.num_data_lanes;
-	if (num_data_lanes < 1 || num_data_lanes > 4)
+	if (num_data_lanes < 1 || num_data_lanes > MAX96717_CSI_NLANES)
 		return dev_err_probe(dev, -EINVAL,
 				     "Invalid data lanes must be 1 to 4\n");
 
-	memcpy(&priv->mipi_csi2, &vep.bus.mipi_csi2, sizeof(priv->mipi_csi2));
+	priv->mipi_csi2 = vep.bus.mipi_csi2;
 
 	return 0;
 }
