@@ -229,7 +229,8 @@ static inline bool efi_is_native(void)
 
 static inline void *efi64_zero_upper(void *p)
 {
-	((u32 *)p)[1] = 0;
+	if (p)
+		((u32 *)p)[1] = 0;
 	return p;
 }
 
@@ -315,6 +316,10 @@ static inline u32 efi64_convert_status(efi_status_t status)
 #define __efi64_argmap_clear_memory_attributes(protocol, phys, size, flags) \
 	((protocol), __efi64_split(phys), __efi64_split(size), __efi64_split(flags))
 
+/* EFI SMBIOS protocol */
+#define __efi64_argmap_get_next(protocol, smbioshandle, type, record, phandle) \
+	((protocol), (smbioshandle), (type), efi64_zero_upper(record), \
+	 efi64_zero_upper(phandle))
 /*
  * The macros below handle the plumbing for the argument mapping. To add a
  * mapping for a specific EFI method, simply define a macro
