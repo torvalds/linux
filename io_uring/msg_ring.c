@@ -82,7 +82,7 @@ static void io_msg_tw_complete(struct io_kiocb *req, struct io_tw_state *ts)
 		spin_unlock(&ctx->msg_lock);
 	}
 	if (req)
-		kfree(req);
+		kmem_cache_free(req_cachep, req);
 	percpu_ref_put(&ctx->refs);
 }
 
