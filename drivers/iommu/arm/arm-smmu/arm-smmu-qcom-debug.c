@@ -141,7 +141,7 @@ static int qcom_tbu_halt(struct qcom_tbu *tbu, struct arm_smmu_domain *smmu_doma
 	writel_relaxed(val, tbu->base + DEBUG_SID_HALT_REG);
 
 	fsr = arm_smmu_cb_read(smmu, idx, ARM_SMMU_CB_FSR);
-	if ((fsr & ARM_SMMU_FSR_FAULT) && (fsr & ARM_SMMU_FSR_SS)) {
+	if ((fsr & ARM_SMMU_CB_FSR_FAULT) && (fsr & ARM_SMMU_CB_FSR_SS)) {
 		u32 sctlr_orig, sctlr;
 
 		/*
@@ -298,7 +298,7 @@ static phys_addr_t qcom_iova_to_phys(struct arm_smmu_domain *smmu_domain,
 	arm_smmu_cb_write(smmu, idx, ARM_SMMU_CB_SCTLR, sctlr);
 
 	fsr = arm_smmu_cb_read(smmu, idx, ARM_SMMU_CB_FSR);
-	if (fsr & ARM_SMMU_FSR_FAULT) {
+	if (fsr & ARM_SMMU_CB_FSR_FAULT) {
 		/* Clear pending interrupts */
 		arm_smmu_cb_write(smmu, idx, ARM_SMMU_CB_FSR, fsr);
 
@@ -306,7 +306,7 @@ static phys_addr_t qcom_iova_to_phys(struct arm_smmu_domain *smmu_domain,
 		 * TBU halt takes care of resuming any stalled transcation.
 		 * Kept it here for completeness sake.
 		 */
-		if (fsr & ARM_SMMU_FSR_SS)
+		if (fsr & ARM_SMMU_CB_FSR_SS)
 			arm_smmu_cb_write(smmu, idx, ARM_SMMU_CB_RESUME,
 					  ARM_SMMU_RESUME_TERMINATE);
 	}
@@ -320,11 +320,11 @@ static phys_addr_t qcom_iova_to_phys(struct arm_smmu_domain *smmu_domain,
 			phys = qcom_tbu_trigger_atos(smmu_domain, tbu, iova, sid);
 
 			fsr = arm_smmu_cb_read(smmu, idx, ARM_SMMU_CB_FSR);
-			if (fsr & ARM_SMMU_FSR_FAULT) {
+			if (fsr & ARM_SMMU_CB_FSR_FAULT) {
 				/* Clear pending interrupts */
 				arm_smmu_cb_write(smmu, idx, ARM_SMMU_CB_FSR, fsr);
 
-				if (fsr & ARM_SMMU_FSR_SS)
+				if (fsr & ARM_SMMU_CB_FSR_SS)
 					arm_smmu_cb_write(smmu, idx, ARM_SMMU_CB_RESUME,
 							  ARM_SMMU_RESUME_TERMINATE);
 			}
@@ -394,7 +394,7 @@ irqreturn_t qcom_smmu_context_fault(int irq, void *dev)
 				      DEFAULT_RATELIMIT_BURST);
 
 	fsr = arm_smmu_cb_read(smmu, idx, ARM_SMMU_CB_FSR);
-	if (!(fsr & ARM_SMMU_FSR_FAULT))
+	if (!(fsr & ARM_SMMU_CB_FSR_FAULT))
 		return IRQ_NONE;
 
 	fsynr = arm_smmu_cb_read(smmu, idx, ARM_SMMU_CB_FSYNR0);
@@ -403,7 +403,7 @@ irqreturn_t qcom_smmu_context_fault(int irq, void *dev)
 
 	if (list_empty(&tbu_list)) {
 		ret = report_iommu_fault(&smmu_domain->domain, NULL, iova,
-					 fsynr & ARM_SMMU_FSYNR0_WNR ? IOMMU_FAULT_WRITE : IOMMU_FAULT_READ);
+					 fsynr & ARM_SMMU_CB_FSYNR0_WNR ? IOMMU_FAULT_WRITE : IOMMU_FAULT_READ);
 
 		if (ret == -ENOSYS)
 			dev_err_ratelimited(smmu->dev,
@@ -417,7 +417,7 @@ irqreturn_t qcom_smmu_context_fault(int irq, void *dev)
 	phys_soft = ops->iova_to_phys(ops, iova);
 
 	tmp = report_iommu_fault(&smmu_domain->domain, NULL, iova,
-				 fsynr & ARM_SMMU_FSYNR0_WNR ? IOMMU_FAULT_WRITE : IOMMU_FAULT_READ);
+				 fsynr & ARM_SMMU_CB_FSYNR0_WNR ? IOMMU_FAULT_WRITE : IOMMU_FAULT_READ);
 	if (!tmp || tmp == -EBUSY) {
 		dev_dbg(smmu->dev,
 			"Context fault handled by client: iova=0x%08lx, fsr=0x%x, fsynr=0x%x, cb=%d\n",
@@ -481,7 +481,7 @@ irqreturn_t qcom_smmu_context_fault(int irq, void *dev)
 		arm_smmu_cb_write(smmu, idx, ARM_SMMU_CB_FSR, fsr);
 
 		/* Retry or terminate any stalled transactions */
-		if (fsr & ARM_SMMU_FSR_SS)
+		if (fsr & ARM_SMMU_CB_FSR_SS)
 			arm_smmu_cb_write(smmu, idx, ARM_SMMU_CB_RESUME, resume);
 	}
 
