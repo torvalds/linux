@@ -35,20 +35,20 @@ static int idpf_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd,
 	         * If it is HMA defined, need a virtchnl to query the max?
 	         */
 #define IDPF_MAX_FLOW_STEER_RULES      64
-	/* TODO: store rules in vport and list them.
-	* for now just name ethtool_get_max_rxnfc_channel pass,
-	* as that is caleld from ethtool_set_channels.
-	*/
-	cmd->data = IDPF_MAX_FLOW_STEER_RULES;
-		for (i = 0; i < vport->num_ntuple_rules; i++) {
-			if (i == cmd->rule_cnt) {
-				ret = -EMSGSIZE;
-				goto unlock;
+		/* TODO: store rules in vport and list them.
+		* for now just name ethtool_get_max_rxnfc_channel pass,
+		* as that is caleld from ethtool_set_channels.
+		*/
+		cmd->data = IDPF_MAX_FLOW_STEER_RULES;
+			for (i = 0; i < vport->num_ntuple_rules; i++) {
+				if (i == cmd->rule_cnt) {
+					ret = -EMSGSIZE;
+					goto unlock;
+				}
+				rule_locs[i] = i;
 			}
-			rule_locs[i] = i;
-		}
-	cmd->rule_cnt = vport->num_ntuple_rules;
-	break;
+		cmd->rule_cnt = vport->num_ntuple_rules;
+		break;
 	case ETHTOOL_GRXFH:
 		fallthrough;
 	default:
