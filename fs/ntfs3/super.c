@@ -259,23 +259,23 @@ enum Opt {
 
 // clang-format off
 static const struct fs_parameter_spec ntfs_fs_parameters[] = {
-	fsparam_uid("uid",			Opt_uid),
-	fsparam_gid("gid",			Opt_gid),
-	fsparam_u32oct("umask",			Opt_umask),
-	fsparam_u32oct("dmask",			Opt_dmask),
-	fsparam_u32oct("fmask",			Opt_fmask),
-	fsparam_flag_no("sys_immutable",	Opt_immutable),
-	fsparam_flag_no("discard",		Opt_discard),
-	fsparam_flag_no("force",		Opt_force),
-	fsparam_flag_no("sparse",		Opt_sparse),
-	fsparam_flag_no("hidden",		Opt_nohidden),
-	fsparam_flag_no("hide_dot_files",	Opt_hide_dot_files),
-	fsparam_flag_no("windows_names",	Opt_windows_names),
-	fsparam_flag_no("showmeta",		Opt_showmeta),
-	fsparam_flag_no("acl",			Opt_acl),
-	fsparam_string("iocharset",		Opt_iocharset),
-	fsparam_flag_no("prealloc",		Opt_prealloc),
-	fsparam_flag_no("case",		Opt_nocase),
+	fsparam_uid("uid",		Opt_uid),
+	fsparam_gid("gid",		Opt_gid),
+	fsparam_u32oct("umask",		Opt_umask),
+	fsparam_u32oct("dmask",		Opt_dmask),
+	fsparam_u32oct("fmask",		Opt_fmask),
+	fsparam_flag("sys_immutable",	Opt_immutable),
+	fsparam_flag("discard",		Opt_discard),
+	fsparam_flag("force",		Opt_force),
+	fsparam_flag("sparse",		Opt_sparse),
+	fsparam_flag("nohidden",	Opt_nohidden),
+	fsparam_flag("hide_dot_files",	Opt_hide_dot_files),
+	fsparam_flag("windows_names",	Opt_windows_names),
+	fsparam_flag("showmeta",	Opt_showmeta),
+	fsparam_flag("acl",		Opt_acl),
+	fsparam_string("iocharset",	Opt_iocharset),
+	fsparam_flag("prealloc",	Opt_prealloc),
+	fsparam_flag("nocase",		Opt_nocase),
 	{}
 };
 // clang-format on
@@ -345,28 +345,28 @@ static int ntfs_fs_parse_param(struct fs_context *fc,
 		opts->fmask = 1;
 		break;
 	case Opt_immutable:
-		opts->sys_immutable = result.negated ? 0 : 1;
+		opts->sys_immutable = 1;
 		break;
 	case Opt_discard:
-		opts->discard = result.negated ? 0 : 1;
+		opts->discard = 1;
 		break;
 	case Opt_force:
-		opts->force = result.negated ? 0 : 1;
+		opts->force = 1;
 		break;
 	case Opt_sparse:
-		opts->sparse = result.negated ? 0 : 1;
+		opts->sparse = 1;
 		break;
 	case Opt_nohidden:
-		opts->nohidden = result.negated ? 1 : 0;
+		opts->nohidden = 1;
 		break;
 	case Opt_hide_dot_files:
-		opts->hide_dot_files = result.negated ? 0 : 1;
+		opts->hide_dot_files = 1;
 		break;
 	case Opt_windows_names:
-		opts->windows_names = result.negated ? 0 : 1;
+		opts->windows_names = 1;
 		break;
 	case Opt_showmeta:
-		opts->showmeta = result.negated ? 0 : 1;
+		opts->showmeta = 1;
 		break;
 	case Opt_acl:
 		if (!result.negated)
@@ -385,10 +385,10 @@ static int ntfs_fs_parse_param(struct fs_context *fc,
 		param->string = NULL;
 		break;
 	case Opt_prealloc:
-		opts->prealloc = result.negated ? 0 : 1;
+		opts->prealloc = 1;
 		break;
 	case Opt_nocase:
-		opts->nocase = result.negated ? 1 : 0;
+		opts->nocase = 1;
 		break;
 	default:
 		/* Should not be here unless we forget add case. */
