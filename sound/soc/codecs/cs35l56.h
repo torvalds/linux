@@ -51,7 +51,6 @@ struct cs35l56_private {
 	u8 asp_slot_count;
 	bool tdm_mode;
 	bool sysclk_set;
-	bool asp1_mixer_widgets_initialized;
 	u8 old_sdw_clock_scale;
 };
 
