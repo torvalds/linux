@@ -47,7 +47,7 @@ struct meson_secure_pwrc_domain_desc {
 
 struct meson_secure_pwrc_domain_data {
 	unsigned int count;
-	struct meson_secure_pwrc_domain_desc *domains;
+	const struct meson_secure_pwrc_domain_desc *domains;
 };
 
 static bool pwrc_secure_is_off(struct meson_secure_pwrc_domain *pwrc_domain)
@@ -111,7 +111,7 @@ static int meson_secure_pwrc_on(struct generic_pm_domain *domain)
 	.parent = __parent,			\
 }
 
-static struct meson_secure_pwrc_domain_desc a1_pwrc_domains[] = {
+static const struct meson_secure_pwrc_domain_desc a1_pwrc_domains[] = {
 	SEC_PD(DSPA,	0),
 	SEC_PD(DSPB,	0),
 	/* UART should keep working in ATF after suspend and before resume */
@@ -138,7 +138,7 @@ static struct meson_secure_pwrc_domain_desc a1_pwrc_domains[] = {
 	SEC_PD(RSA,	0),
 };
 
-static struct meson_secure_pwrc_domain_desc a4_pwrc_domains[] = {
+static const struct meson_secure_pwrc_domain_desc a4_pwrc_domains[] = {
 	SEC_PD(A4_AUDIO,	0),
 	SEC_PD(A4_SDIOA,	0),
 	SEC_PD(A4_EMMC,	0),
@@ -156,7 +156,7 @@ static struct meson_secure_pwrc_domain_desc a4_pwrc_domains[] = {
 	SEC_PD(A4_AO_IR,	GENPD_FLAG_ALWAYS_ON),
 };
 
-static struct meson_secure_pwrc_domain_desc a5_pwrc_domains[] = {
+static const struct meson_secure_pwrc_domain_desc a5_pwrc_domains[] = {
 	SEC_PD(A5_NNA,		0),
 	SEC_PD(A5_AUDIO,	0),
 	SEC_PD(A5_SDIOA,	0),
@@ -172,7 +172,7 @@ static struct meson_secure_pwrc_domain_desc a5_pwrc_domains[] = {
 	SEC_PD(A5_DSPA,		0),
 };
 
-static struct meson_secure_pwrc_domain_desc c3_pwrc_domains[] = {
+static const struct meson_secure_pwrc_domain_desc c3_pwrc_domains[] = {
 	SEC_PD(C3_NNA,		0),
 	SEC_PD(C3_AUDIO,	0),
 	SEC_PD(C3_SDIOA,	0),
@@ -189,7 +189,7 @@ static struct meson_secure_pwrc_domain_desc c3_pwrc_domains[] = {
 	SEC_PD(C3_VCODEC,	0),
 };
 
-static struct meson_secure_pwrc_domain_desc s4_pwrc_domains[] = {
+static const struct meson_secure_pwrc_domain_desc s4_pwrc_domains[] = {
 	SEC_PD(S4_DOS_HEVC,	0),
 	SEC_PD(S4_DOS_VDEC,	0),
 	SEC_PD(S4_VPU_HDMI,	0),
@@ -201,7 +201,7 @@ static struct meson_secure_pwrc_domain_desc s4_pwrc_domains[] = {
 	SEC_PD(S4_AUDIO,	0),
 };
 
-static struct meson_secure_pwrc_domain_desc t7_pwrc_domains[] = {
+static const struct meson_secure_pwrc_domain_desc t7_pwrc_domains[] = {
 	SEC_PD(T7_DSPA,		0),
 	SEC_PD(T7_DSPB,		0),
 	TOP_PD(T7_DOS_HCODEC,	0, PWRC_T7_NIC3_ID),
