@@ -54,6 +54,7 @@ struct bpf_jit {
 	int prologue_plt_ret;	/* Return address for prologue hotpatch PLT */
 	int prologue_plt;	/* Start of prologue hotpatch PLT */
 	int kern_arena;		/* Pool offset of kernel arena address */
+	u64 user_arena;		/* User arena address */
 };
 
 #define SEEN_MEM	BIT(0)		/* use mem[] for temporary storage */
@@ -863,6 +864,22 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 		}
 		break;
 	case BPF_ALU64 | BPF_MOV | BPF_X:
+		if (insn_is_cast_user(insn)) {
+			int patch_brc;
+
+			/* ltgr %dst,%src */
+			EMIT4(0xb9020000, dst_reg, src_reg);
+			/* brc 8,0f */
+			patch_brc = jit->prg;
+			EMIT4_PCREL_RIC(0xa7040000, 8, 0);
+			/* iihf %dst,user_arena>>32 */
+			EMIT6_IMM(0xc0080000, dst_reg, jit->user_arena >> 32);
+			/* 0: */
+			if (jit->prg_buf)
+				*(u16 *)(jit->prg_buf + patch_brc + 2) =
+					(jit->prg - patch_brc) >> 1;
+			break;
+		}
 		switch (insn->off) {
 		case 0: /* DST = SRC */
 			/* lgr %dst,%src */
@@ -2076,6 +2093,7 @@ static int bpf_jit_prog(struct bpf_jit *jit, struct bpf_prog *fp,
 	kern_arena = bpf_arena_get_kern_vm_start(fp->aux->arena);
 	if (kern_arena)
 		jit->kern_arena = _EMIT_CONST_U64(kern_arena);
+	jit->user_arena = bpf_arena_get_user_vm_start(fp->aux->arena);
 
 	bpf_jit_prologue(jit, fp, stack_depth);
 	if (bpf_set_addr(jit, 0) < 0)
