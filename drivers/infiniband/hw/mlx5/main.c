@@ -4198,9 +4198,10 @@ static int mlx5_ib_stage_ib_reg_init(struct mlx5_ib_dev *dev)
 {
 	const char *name;
 
-	if (dev->sub_dev_name)
+	if (dev->sub_dev_name) {
 		name = dev->sub_dev_name;
-	else if (!mlx5_lag_is_active(dev->mdev))
+		ib_mark_name_assigned_by_user(&dev->ib_dev);
+	} else if (!mlx5_lag_is_active(dev->mdev))
 		name = "mlx5_%d";
 	else
 		name = "mlx5_bond_%d";

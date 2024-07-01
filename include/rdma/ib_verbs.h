@@ -2794,6 +2794,8 @@ struct ib_device {
 	enum rdma_nl_dev_type type;
 	struct ib_device *parent;
 	struct list_head subdev_list;
+
+	enum rdma_nl_name_assign_type name_assign_type;
 };
 
 static inline void *rdma_zalloc_obj(struct ib_device *dev, size_t size,
@@ -4867,4 +4869,10 @@ int ib_add_sub_device(struct ib_device *parent,
  * Return 0 on success, an error code otherwise
  */
 int ib_del_sub_device_and_put(struct ib_device *sub);
+
+static inline void ib_mark_name_assigned_by_user(struct ib_device *ibdev)
+{
+	ibdev->name_assign_type = RDMA_NAME_ASSIGN_TYPE_USER;
+}
+
 #endif /* IB_VERBS_H */

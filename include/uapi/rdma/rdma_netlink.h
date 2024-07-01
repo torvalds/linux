@@ -572,6 +572,8 @@ enum rdma_nldev_attr {
 
 	RDMA_NLDEV_ATTR_PARENT_NAME,		/* string */
 
+	RDMA_NLDEV_ATTR_NAME_ASSIGN_TYPE,	/* u8 */
+
 	/*
 	 * Always the end
 	 */
@@ -615,4 +617,11 @@ enum rdma_nl_counter_mask {
 enum rdma_nl_dev_type {
 	RDMA_DEVICE_TYPE_SMI = 1,
 };
+
+/* RDMA device name assignment types */
+enum rdma_nl_name_assign_type {
+	RDMA_NAME_ASSIGN_TYPE_UNKNOWN = 0,
+	RDMA_NAME_ASSIGN_TYPE_USER = 1, /* Provided by user-space */
+};
+
 #endif /* _UAPI_RDMA_NETLINK_H */

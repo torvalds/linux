@@ -169,6 +169,7 @@ static const struct nla_policy nldev_policy[RDMA_NLDEV_ATTR_MAX] = {
 	[RDMA_NLDEV_ATTR_DRIVER_DETAILS]	= { .type = NLA_U8 },
 	[RDMA_NLDEV_ATTR_DEV_TYPE]		= { .type = NLA_U8 },
 	[RDMA_NLDEV_ATTR_PARENT_NAME]		= { .type = NLA_NUL_STRING },
+	[RDMA_NLDEV_ATTR_NAME_ASSIGN_TYPE]	= { .type = NLA_U8 },
 };
 
 static int put_driver_name_print_type(struct sk_buff *msg, const char *name,
@@ -310,6 +311,10 @@ static int fill_dev_info(struct sk_buff *msg, struct ib_device *device)
 	if (device->parent &&
 	    nla_put_string(msg, RDMA_NLDEV_ATTR_PARENT_NAME,
 			   dev_name(&device->parent->dev)))
+		return -EMSGSIZE;
+
+	if (nla_put_u8(msg, RDMA_NLDEV_ATTR_NAME_ASSIGN_TYPE,
+		       device->name_assign_type))
 		return -EMSGSIZE;
 
 	/*
