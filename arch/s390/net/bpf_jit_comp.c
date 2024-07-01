@@ -747,10 +747,11 @@ static int bpf_jit_probe_post(struct bpf_jit *jit, struct bpf_prog *fp,
 			return -1;
 		ex->insn = delta;
 		/*
-		 * Always land on the nop. Note that extable infrastructure
-		 * ignores fixup field, it is handled by ex_handler_bpf().
+		 * Land on the current instruction. Note that the extable
+		 * infrastructure ignores the fixup field; it is handled by
+		 * ex_handler_bpf().
 		 */
-		delta = jit->prg_buf + probe->nop_prg - (u8 *)&ex->fixup;
+		delta = jit->prg_buf + jit->prg - (u8 *)&ex->fixup;
 		if (WARN_ON_ONCE(delta < INT_MIN || delta > INT_MAX))
 			/* JIT bug - landing pad and extable must be close. */
 			return -1;
