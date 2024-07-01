@@ -54,7 +54,7 @@ static int qmc_audio_pcm_construct(struct snd_soc_component *component,
 		return ret;
 
 	snd_pcm_set_managed_buffer_all(rtd->pcm, SNDRV_DMA_TYPE_DEV, card->dev,
-				       64*1024, 64*1024);
+				       64 * 1024, 64 * 1024);
 	return 0;
 }
 
@@ -89,8 +89,8 @@ static void qmc_audio_pcm_write_complete(void *context)
 		prtd->period_ptr_submitted = prtd->dma_buffer_start;
 
 	ret = qmc_chan_write_submit(prtd->qmc_dai->qmc_chan,
-		prtd->period_ptr_submitted, prtd->period_size,
-		qmc_audio_pcm_write_complete, prtd);
+				    prtd->period_ptr_submitted, prtd->period_size,
+				    qmc_audio_pcm_write_complete, prtd);
 	if (ret) {
 		dev_err(prtd->qmc_dai->dev, "write_submit failed %d\n",
 			ret);
@@ -118,8 +118,8 @@ static void qmc_audio_pcm_read_complete(void *context, size_t length, unsigned i
 		prtd->period_ptr_submitted = prtd->dma_buffer_start;
 
 	ret = qmc_chan_read_submit(prtd->qmc_dai->qmc_chan,
-		prtd->period_ptr_submitted, prtd->period_size,
-		qmc_audio_pcm_read_complete, prtd);
+				   prtd->period_ptr_submitted, prtd->period_size,
+				   qmc_audio_pcm_read_complete, prtd);
 	if (ret) {
 		dev_err(prtd->qmc_dai->dev, "read_submit failed %d\n",
 			ret);
@@ -144,8 +144,8 @@ static int qmc_audio_pcm_trigger(struct snd_soc_component *component,
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 			/* Submit first chunk ... */
 			ret = qmc_chan_write_submit(prtd->qmc_dai->qmc_chan,
-				prtd->period_ptr_submitted, prtd->period_size,
-				qmc_audio_pcm_write_complete, prtd);
+						    prtd->period_ptr_submitted, prtd->period_size,
+						    qmc_audio_pcm_write_complete, prtd);
 			if (ret) {
 				dev_err(component->dev, "write_submit failed %d\n",
 					ret);
@@ -159,8 +159,8 @@ static int qmc_audio_pcm_trigger(struct snd_soc_component *component,
 
 			/* ... and send it */
 			ret = qmc_chan_write_submit(prtd->qmc_dai->qmc_chan,
-				prtd->period_ptr_submitted, prtd->period_size,
-				qmc_audio_pcm_write_complete, prtd);
+						    prtd->period_ptr_submitted, prtd->period_size,
+						    qmc_audio_pcm_write_complete, prtd);
 			if (ret) {
 				dev_err(component->dev, "write_submit failed %d\n",
 					ret);
@@ -169,8 +169,8 @@ static int qmc_audio_pcm_trigger(struct snd_soc_component *component,
 		} else {
 			/* Submit first chunk ... */
 			ret = qmc_chan_read_submit(prtd->qmc_dai->qmc_chan,
-				prtd->period_ptr_submitted, prtd->period_size,
-				qmc_audio_pcm_read_complete, prtd);
+						   prtd->period_ptr_submitted, prtd->period_size,
+						   qmc_audio_pcm_read_complete, prtd);
 			if (ret) {
 				dev_err(component->dev, "read_submit failed %d\n",
 					ret);
@@ -184,8 +184,8 @@ static int qmc_audio_pcm_trigger(struct snd_soc_component *component,
 
 			/* ... and send it */
 			ret = qmc_chan_read_submit(prtd->qmc_dai->qmc_chan,
-				prtd->period_ptr_submitted, prtd->period_size,
-				qmc_audio_pcm_read_complete, prtd);
+						   prtd->period_ptr_submitted, prtd->period_size,
+						   qmc_audio_pcm_read_complete, prtd);
 			if (ret) {
 				dev_err(component->dev, "write_submit failed %d\n",
 					ret);
@@ -220,8 +220,8 @@ static snd_pcm_uframes_t qmc_audio_pcm_pointer(struct snd_soc_component *compone
 }
 
 static int qmc_audio_of_xlate_dai_name(struct snd_soc_component *component,
-					const struct of_phandle_args *args,
-					const char **dai_name)
+				       const struct of_phandle_args *args,
+				       const char **dai_name)
 {
 	struct qmc_audio *qmc_audio = dev_get_drvdata(component->dev);
 	struct snd_soc_dai_driver *dai_driver;
@@ -245,10 +245,10 @@ static const struct snd_pcm_hardware qmc_audio_pcm_hardware = {
 				  SNDRV_PCM_INFO_INTERLEAVED |
 				  SNDRV_PCM_INFO_PAUSE,
 	.period_bytes_min	= 32,
-	.period_bytes_max	= 64*1024,
+	.period_bytes_max	= 64 * 1024,
 	.periods_min		= 2,
-	.periods_max		= 2*1024,
-	.buffer_bytes_max	= 64*1024,
+	.periods_max		= 2 * 1024,
+	.buffer_bytes_max	= 64 * 1024,
 };
 
 static int qmc_audio_pcm_open(struct snd_soc_component *component,
@@ -266,7 +266,7 @@ static int qmc_audio_pcm_open(struct snd_soc_component *component,
 		return ret;
 
 	prtd = kzalloc(sizeof(*prtd), GFP_KERNEL);
-	if (prtd == NULL)
+	if (!prtd)
 		return -ENOMEM;
 
 	runtime->private_data = prtd;
@@ -329,13 +329,13 @@ static int qmc_dai_hw_rule_channels_by_format(struct qmc_dai *qmc_dai,
 		ch.max = nb_ts;
 		break;
 	case 16:
-		ch.max = nb_ts/2;
+		ch.max = nb_ts / 2;
 		break;
 	case 32:
-		ch.max = nb_ts/4;
+		ch.max = nb_ts / 4;
 		break;
 	case 64:
-		ch.max = nb_ts/8;
+		ch.max = nb_ts / 8;
 		break;
 	default:
 		dev_err(qmc_dai->dev, "format physical width %u not supported\n",
@@ -356,9 +356,8 @@ static int qmc_dai_hw_rule_playback_channels_by_format(struct snd_pcm_hw_params 
 	return qmc_dai_hw_rule_channels_by_format(qmc_dai, params, qmc_dai->nb_tx_ts);
 }
 
-static int qmc_dai_hw_rule_capture_channels_by_format(
-			struct snd_pcm_hw_params *params,
-			struct snd_pcm_hw_rule *rule)
+static int qmc_dai_hw_rule_capture_channels_by_format(struct snd_pcm_hw_params *params,
+						      struct snd_pcm_hw_rule *rule)
 {
 	struct qmc_dai *qmc_dai = rule->private;
 
@@ -394,18 +393,16 @@ static int qmc_dai_hw_rule_format_by_channels(struct qmc_dai *qmc_dai,
 	return snd_mask_refine(f_old, &f_new);
 }
 
-static int qmc_dai_hw_rule_playback_format_by_channels(
-			struct snd_pcm_hw_params *params,
-			struct snd_pcm_hw_rule *rule)
+static int qmc_dai_hw_rule_playback_format_by_channels(struct snd_pcm_hw_params *params,
+						       struct snd_pcm_hw_rule *rule)
 {
 	struct qmc_dai *qmc_dai = rule->private;
 
 	return qmc_dai_hw_rule_format_by_channels(qmc_dai, params, qmc_dai->nb_tx_ts);
 }
 
-static int qmc_dai_hw_rule_capture_format_by_channels(
-			struct snd_pcm_hw_params *params,
-			struct snd_pcm_hw_rule *rule)
+static int qmc_dai_hw_rule_capture_format_by_channels(struct snd_pcm_hw_params *params,
+						      struct snd_pcm_hw_rule *rule)
 {
 	struct qmc_dai *qmc_dai = rule->private;
 
@@ -413,7 +410,7 @@ static int qmc_dai_hw_rule_capture_format_by_channels(
 }
 
 static int qmc_dai_startup(struct snd_pcm_substream *substream,
-			     struct snd_soc_dai *dai)
+			   struct snd_soc_dai *dai)
 {
 	struct qmc_dai_prtd *prtd = substream->runtime->private_data;
 	snd_pcm_hw_rule_func_t hw_rule_channels_by_format;
@@ -587,7 +584,8 @@ static u64 qmc_audio_formats(u8 nb_ts)
 }
 
 static int qmc_audio_dai_parse(struct qmc_audio *qmc_audio, struct device_node *np,
-	struct qmc_dai *qmc_dai, struct snd_soc_dai_driver *qmc_soc_dai_driver)
+			       struct qmc_dai *qmc_dai,
+			       struct snd_soc_dai_driver *qmc_soc_dai_driver)
 {
 	struct qmc_chan_info info;
 	u32 val;
@@ -703,7 +701,6 @@ static int qmc_audio_probe(struct platform_device *pdev)
 		}
 		i++;
 	}
-
 
 	platform_set_drvdata(pdev, qmc_audio);
 
