@@ -188,25 +188,6 @@ nfs_async_iocounter_wait(struct rpc_task *task, struct nfs_lock_context *l_ctx)
 EXPORT_SYMBOL_GPL(nfs_async_iocounter_wait);
 
 /*
- * nfs_page_lock_head_request - page lock the head of the page group
- * @req: any member of the page group
- */
-struct nfs_page *
-nfs_page_group_lock_head(struct nfs_page *req)
-{
-	struct nfs_page *head = req->wb_head;
-
-	while (!nfs_lock_request(head)) {
-		int ret = nfs_wait_on_request(head);
-		if (ret < 0)
-			return ERR_PTR(ret);
-	}
-	if (head != req)
-		kref_get(&head->wb_kref);
-	return head;
-}
-
-/*
  * nfs_unroll_locks -  unlock all newly locked reqs and wait on @req
  * @head: head request of page group, must be holding head lock
  * @req: request that couldn't lock and needs to wait on the req bit lock

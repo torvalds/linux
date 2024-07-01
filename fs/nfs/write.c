@@ -197,28 +197,32 @@ static struct nfs_page *nfs_folio_find_head_request(struct folio *folio)
 static struct nfs_page *nfs_folio_find_and_lock_request(struct folio *folio)
 {
 	struct inode *inode = folio->mapping->host;
-	struct nfs_page *req, *head;
+	struct nfs_page *head;
 	int ret;
 
-	for (;;) {
-		req = nfs_folio_find_head_request(folio);
-		if (!req)
-			return req;
-		head = nfs_page_group_lock_head(req);
-		if (head != req)
-			nfs_release_request(req);
-		if (IS_ERR(head))
-			return head;
-		ret = nfs_cancel_remove_inode(head, inode);
-		if (ret < 0) {
-			nfs_unlock_and_release_request(head);
+retry:
+	head = nfs_folio_find_head_request(folio);
+	if (!head)
+		return NULL;
+
+	while (!nfs_lock_request(head)) {
+		ret = nfs_wait_on_request(head);
+		if (ret < 0)
 			return ERR_PTR(ret);
-		}
-		/* Ensure that nobody removed the request before we locked it */
-		if (head == folio->private)
-			break;
-		nfs_unlock_and_release_request(head);
 	}
+
+	/* Ensure that nobody removed the request before we locked it */
+	if (head != folio->private) {
+		nfs_unlock_and_release_request(head);
+		goto retry;
+	}
+
+	ret = nfs_cancel_remove_inode(head, inode);
+	if (ret < 0) {
+		nfs_unlock_and_release_request(head);
+		return ERR_PTR(ret);
+	}
+
 	return head;
 }
 
