@@ -32,6 +32,7 @@ config UML
 	select TTY # Needed for line.c
 	select HAVE_ARCH_VMAP_STACK
 	select HAVE_RUST
+	select ARCH_HAS_UBSAN
 
 config MMU
 	bool
