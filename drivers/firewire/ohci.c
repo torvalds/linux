@@ -2003,7 +2003,7 @@ static void bus_reset_work(struct work_struct *work)
 	struct fw_ohci *ohci =
 		container_of(work, struct fw_ohci, bus_reset_work);
 	int self_id_count, generation, new_generation, i, j;
-	u32 reg;
+	u32 reg, quadlet;
 	void *free_rom = NULL;
 	dma_addr_t free_rom_bus = 0;
 	bool is_new_root;
@@ -2028,7 +2028,7 @@ static void bus_reset_work(struct work_struct *work)
 	ohci->is_root = is_new_root;
 
 	reg = reg_read(ohci, OHCI1394_SelfIDCount);
-	if (reg & OHCI1394_SelfIDCount_selfIDError) {
+	if (ohci1394_self_id_count_is_error(reg)) {
 		ohci_notice(ohci, "self ID receive error\n");
 		return;
 	}
@@ -2038,14 +2038,15 @@ static void bus_reset_work(struct work_struct *work)
 	 * the inverted quadlets and a header quadlet, we shift one
 	 * bit extra to get the actual number of self IDs.
 	 */
-	self_id_count = (reg >> 3) & 0xff;
+	self_id_count = ohci1394_self_id_count_get_size(reg) >> 1;
 
 	if (self_id_count > 252) {
 		ohci_notice(ohci, "bad selfIDSize (%08x)\n", reg);
 		return;
 	}
 
-	generation = (cond_le32_to_cpu(ohci->self_id[0], has_be_header_quirk(ohci)) >> 16) & 0xff;
+	quadlet = cond_le32_to_cpu(ohci->self_id[0], has_be_header_quirk(ohci));
+	generation = ohci1394_self_id_receive_q0_get_generation(quadlet);
 	rmb();
 
 	for (i = 1, j = 0; j < self_id_count; i += 2, j++) {
@@ -2102,7 +2103,8 @@ static void bus_reset_work(struct work_struct *work)
 	 * of self IDs.
 	 */
 
-	new_generation = (reg_read(ohci, OHCI1394_SelfIDCount) >> 16) & 0xff;
+	reg = reg_read(ohci, OHCI1394_SelfIDCount);
+	new_generation = ohci1394_self_id_count_get_generation(reg);
 	if (new_generation != generation) {
 		ohci_notice(ohci, "new bus reset, discarding self ids\n");
 		return;
