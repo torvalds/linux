@@ -11,6 +11,7 @@
 #include <linux/iommu.h>
 #include <linux/iova_bitmap.h>
 #include <uapi/linux/iommufd.h>
+#include "../iommu-priv.h"
 
 struct iommu_domain;
 struct iommu_group;
@@ -293,6 +294,7 @@ int iommufd_check_iova_range(struct io_pagetable *iopt,
 struct iommufd_hw_pagetable {
 	struct iommufd_object obj;
 	struct iommu_domain *domain;
+	struct iommufd_fault *fault;
 };
 
 struct iommufd_hwpt_paging {
@@ -396,6 +398,9 @@ struct iommufd_device {
 	/* always the physical device */
 	struct device *dev;
 	bool enforce_cache_coherency;
+	/* protect iopf_enabled counter */
+	struct mutex iopf_lock;
+	unsigned int iopf_enabled;
 };
 
 static inline struct iommufd_device *
@@ -455,6 +460,42 @@ struct iommufd_attach_handle {
 
 int iommufd_fault_alloc(struct iommufd_ucmd *ucmd);
 void iommufd_fault_destroy(struct iommufd_object *obj);
+
+int iommufd_fault_domain_attach_dev(struct iommufd_hw_pagetable *hwpt,
+				    struct iommufd_device *idev);
+void iommufd_fault_domain_detach_dev(struct iommufd_hw_pagetable *hwpt,
+				     struct iommufd_device *idev);
+int iommufd_fault_domain_replace_dev(struct iommufd_device *idev,
+				     struct iommufd_hw_pagetable *hwpt,
+				     struct iommufd_hw_pagetable *old);
+
+static inline int iommufd_hwpt_attach_device(struct iommufd_hw_pagetable *hwpt,
+					     struct iommufd_device *idev)
+{
+	if (hwpt->fault)
+		return iommufd_fault_domain_attach_dev(hwpt, idev);
+
+	return iommu_attach_group(hwpt->domain, idev->igroup->group);
+}
+
+static inline void iommufd_hwpt_detach_device(struct iommufd_hw_pagetable *hwpt,
+					      struct iommufd_device *idev)
+{
+	if (hwpt->fault)
+		iommufd_fault_domain_detach_dev(hwpt, idev);
+
+	iommu_detach_group(hwpt->domain, idev->igroup->group);
+}
+
+static inline int iommufd_hwpt_replace_device(struct iommufd_device *idev,
+					      struct iommufd_hw_pagetable *hwpt,
+					      struct iommufd_hw_pagetable *old)
+{
+	if (old->fault || hwpt->fault)
+		return iommufd_fault_domain_replace_dev(idev, hwpt, old);
+
+	return iommu_group_replace_domain(idev->igroup->group, hwpt->domain);
+}
 
 #ifdef CONFIG_IOMMUFD_TEST
 int iommufd_test(struct iommufd_ucmd *ucmd);
