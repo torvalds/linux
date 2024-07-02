@@ -268,9 +268,7 @@ static irqreturn_t at91_adc_trigger_handler(int irq, void *p)
 	struct iio_chan_spec const *chan;
 	int i, j = 0;
 
-	for (i = 0; i < idev->masklength; i++) {
-		if (!test_bit(i, idev->active_scan_mask))
-			continue;
+	iio_for_each_active_channel(idev, i) {
 		chan = idev->channels + i;
 		st->buffer[j] = at91_adc_readl(st, AT91_ADC_CHAN(st, chan->channel));
 		j++;
