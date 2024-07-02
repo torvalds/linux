@@ -24,6 +24,7 @@
 #include "xfs_inode.h"
 #include "xfs_ag.h"
 #include "xfs_health.h"
+#include "xfs_rmap_item.h"
 
 struct kmem_cache	*xfs_rmap_intent_cache;
 
@@ -2656,10 +2657,7 @@ __xfs_rmap_add(
 	ri->ri_whichfork = whichfork;
 	ri->ri_bmap = *bmap;
 
-	trace_xfs_rmap_defer(tp->t_mountp, ri);
-
-	xfs_rmap_update_get_group(tp->t_mountp, ri);
-	xfs_defer_add(tp, &ri->ri_list, &xfs_rmap_update_defer_type);
+	xfs_rmap_defer_add(tp, ri);
 }
 
 /* Map an extent into a file. */
