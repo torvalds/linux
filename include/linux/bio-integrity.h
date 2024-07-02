@@ -85,7 +85,7 @@ void bio_integrity_init(void);
 
 #else /* CONFIG_BLK_DEV_INTEGRITY */
 
-static inline void *bio_integrity(struct bio *bio)
+static inline struct bio_integrity_payload *bio_integrity(struct bio *bio)
 {
 	return NULL;
 }
@@ -138,8 +138,8 @@ static inline bool bio_integrity_flagged(struct bio *bio, enum bip_flags flag)
 	return false;
 }
 
-static inline void *bio_integrity_alloc(struct bio *bio, gfp_t gfp,
-		unsigned int nr)
+static inline struct bio_integrity_payload *
+bio_integrity_alloc(struct bio *bio, gfp_t gfp, unsigned int nr)
 {
 	return ERR_PTR(-EINVAL);
 }
