@@ -67,6 +67,7 @@ LANGUAGES = 			de fr it cs pt ka
 bindir ?=	/usr/bin
 sbindir ?=	/usr/sbin
 mandir ?=	/usr/man
+libdir ?=	/usr/lib
 includedir ?=	/usr/include
 localedir ?=	/usr/share/locale
 docdir ?=       /usr/share/doc/packages/cpupower
@@ -93,15 +94,6 @@ STRIP = $(CROSS)strip
 RANLIB = $(CROSS)ranlib
 HOSTCC = gcc
 MKDIR = mkdir
-
-# 64bit library detection
-include ../../scripts/Makefile.arch
-
-ifeq ($(IS_64_BIT), 1)
-libdir ?=	/usr/lib64
-else
-libdir ?=	/usr/lib
-endif
 
 # Now we set up the build system
 #
