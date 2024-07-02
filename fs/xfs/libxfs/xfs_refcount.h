@@ -74,9 +74,6 @@ xfs_refcount_check_domain(
 	return true;
 }
 
-void xfs_refcount_update_get_group(struct xfs_mount *mp,
-		struct xfs_refcount_intent *ri);
-
 void xfs_refcount_increase_extent(struct xfs_trans *tp,
 		struct xfs_bmbt_irec *irec);
 void xfs_refcount_decrease_extent(struct xfs_trans *tp,

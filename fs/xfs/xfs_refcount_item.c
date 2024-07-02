@@ -22,6 +22,7 @@
 #include "xfs_log_recover.h"
 #include "xfs_ag.h"
 #include "xfs_btree.h"
+#include "xfs_trace.h"
 
 struct kmem_cache	*xfs_cui_cache;
 struct kmem_cache	*xfs_cud_cache;
@@ -319,21 +320,18 @@ xfs_refcount_update_create_done(
 	return &cudp->cud_item;
 }
 
-/* Take a passive ref to the AG containing the space we're refcounting. */
+/* Add this deferred CUI to the transaction. */
 void
-xfs_refcount_update_get_group(
-	struct xfs_mount		*mp,
+xfs_refcount_defer_add(
+	struct xfs_trans		*tp,
 	struct xfs_refcount_intent	*ri)
 {
-	ri->ri_pag = xfs_perag_intent_get(mp, ri->ri_startblock);
-}
+	struct xfs_mount		*mp = tp->t_mountp;
 
-/* Release a passive AG ref after finishing refcounting work. */
-static inline void
-xfs_refcount_update_put_group(
-	struct xfs_refcount_intent	*ri)
-{
-	xfs_perag_intent_put(ri->ri_pag);
+	trace_xfs_refcount_defer(mp, ri);
+
+	ri->ri_pag = xfs_perag_intent_get(mp, ri->ri_startblock);
+	xfs_defer_add(tp, &ri->ri_list, &xfs_refcount_update_defer_type);
 }
 
 /* Cancel a deferred refcount update. */
@@ -343,7 +341,7 @@ xfs_refcount_update_cancel_item(
 {
 	struct xfs_refcount_intent	*ri = ci_entry(item);
 
-	xfs_refcount_update_put_group(ri);
+	xfs_perag_intent_put(ri->ri_pag);
 	kmem_cache_free(xfs_refcount_intent_cache, ri);
 }
 
@@ -433,7 +431,7 @@ xfs_cui_recover_work(
 	ri->ri_type = pmap->pe_flags & XFS_REFCOUNT_EXTENT_TYPE_MASK;
 	ri->ri_startblock = pmap->pe_startblock;
 	ri->ri_blockcount = pmap->pe_len;
-	xfs_refcount_update_get_group(mp, ri);
+	ri->ri_pag = xfs_perag_intent_get(mp, pmap->pe_startblock);
 
 	xfs_defer_add_item(dfp, &ri->ri_list);
 }
