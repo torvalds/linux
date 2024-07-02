@@ -2934,8 +2934,12 @@ static void amdgpu_ras_do_page_retirement(struct work_struct *work)
 	struct ras_err_data err_data;
 	unsigned long err_cnt;
 
-	if (amdgpu_in_reset(adev) || amdgpu_ras_in_recovery(adev))
+	/* If gpu reset is ongoing, delay retiring the bad pages */
+	if (amdgpu_in_reset(adev) || amdgpu_ras_in_recovery(adev)) {
+		amdgpu_ras_schedule_retirement_dwork(con,
+				AMDGPU_RAS_RETIRE_PAGE_INTERVAL * 3);
 		return;
+	}
 
 	amdgpu_ras_error_data_init(&err_data);
 
