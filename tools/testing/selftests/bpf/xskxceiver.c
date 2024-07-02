@@ -1899,11 +1899,15 @@ static int testapp_validate_traffic(struct test_spec *test)
 	}
 
 	if (test->set_ring) {
-		if (ifobj_tx->hw_ring_size_supp)
-			return set_ring_size(ifobj_tx);
-
-	ksft_test_result_skip("Changing HW ring size not supported.\n");
-	return TEST_SKIP;
+		if (ifobj_tx->hw_ring_size_supp) {
+			if (set_ring_size(ifobj_tx)) {
+				ksft_test_result_skip("Failed to change HW ring size.\n");
+				return TEST_FAILURE;
+			}
+		} else {
+			ksft_test_result_skip("Changing HW ring size not supported.\n");
+			return TEST_SKIP;
+		}
 	}
 
 	xsk_attach_xdp_progs(test, ifobj_rx, ifobj_tx);
