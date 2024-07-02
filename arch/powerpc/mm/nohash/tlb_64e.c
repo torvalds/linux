@@ -244,10 +244,6 @@ static void __init early_init_mmu_global(void)
 		patch_exception(0x1c0, exc_data_tlb_miss_e6500_book3e);
 		patch_exception(0x1e0, exc_instruction_tlb_miss_e6500_book3e);
 		break;
-	case PPC_HTW_NONE:
-		patch_exception(0x1c0, exc_data_tlb_miss_bolted_book3e);
-		patch_exception(0x1e0, exc_instruction_tlb_miss_bolted_book3e);
-		break;
 	}
 
 	pr_info("MMU: Book3E HW tablewalk %s\n",
