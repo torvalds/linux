@@ -357,7 +357,7 @@ static int tcan4x5x_get_gpios(struct m_can_classdev *cdev,
 	return 0;
 }
 
-static struct m_can_ops tcan4x5x_ops = {
+static const struct m_can_ops tcan4x5x_ops = {
 	.init = tcan4x5x_init,
 	.read_reg = tcan4x5x_read_reg,
 	.write_reg = tcan4x5x_write_reg,
