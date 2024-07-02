@@ -91,6 +91,7 @@ struct xfs_getparents;
 struct xfs_parent_irec;
 struct xfs_attrlist_cursor_kern;
 struct xfs_extent_free_item;
+struct xfs_rmap_intent;
 
 #define XFS_ATTR_FILTER_FLAGS \
 	{ XFS_ATTR_ROOT,	"ROOT" }, \
@@ -2958,20 +2959,22 @@ DEFINE_EVENT(xfs_rmapbt_class, name, \
 		 uint64_t owner, uint64_t offset, unsigned int flags), \
 	TP_ARGS(cur, agbno, len, owner, offset, flags))
 
+TRACE_DEFINE_ENUM(XFS_RMAP_MAP);
+TRACE_DEFINE_ENUM(XFS_RMAP_MAP_SHARED);
+TRACE_DEFINE_ENUM(XFS_RMAP_UNMAP);
+TRACE_DEFINE_ENUM(XFS_RMAP_UNMAP_SHARED);
+TRACE_DEFINE_ENUM(XFS_RMAP_CONVERT);
+TRACE_DEFINE_ENUM(XFS_RMAP_CONVERT_SHARED);
+TRACE_DEFINE_ENUM(XFS_RMAP_ALLOC);
+TRACE_DEFINE_ENUM(XFS_RMAP_FREE);
+
 DECLARE_EVENT_CLASS(xfs_rmap_deferred_class,
-	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno,
-		 int op,
-		 xfs_agblock_t agbno,
-		 xfs_ino_t ino,
-		 int whichfork,
-		 xfs_fileoff_t offset,
-		 xfs_filblks_t len,
-		 xfs_exntst_t state),
-	TP_ARGS(mp, agno, op, agbno, ino, whichfork, offset, len, state),
+	TP_PROTO(struct xfs_mount *mp, struct xfs_rmap_intent *ri),
+	TP_ARGS(mp, ri),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
+		__field(unsigned long long, owner)
 		__field(xfs_agnumber_t, agno)
-		__field(xfs_ino_t, ino)
 		__field(xfs_agblock_t, agbno)
 		__field(int, whichfork)
 		__field(xfs_fileoff_t, l_loff)
@@ -2981,21 +2984,22 @@ DECLARE_EVENT_CLASS(xfs_rmap_deferred_class,
 	),
 	TP_fast_assign(
 		__entry->dev = mp->m_super->s_dev;
-		__entry->agno = agno;
-		__entry->ino = ino;
-		__entry->agbno = agbno;
-		__entry->whichfork = whichfork;
-		__entry->l_loff = offset;
-		__entry->l_len = len;
-		__entry->l_state = state;
-		__entry->op = op;
+		__entry->agno = XFS_FSB_TO_AGNO(mp, ri->ri_bmap.br_startblock);
+		__entry->agbno = XFS_FSB_TO_AGBNO(mp,
+					ri->ri_bmap.br_startblock);
+		__entry->owner = ri->ri_owner;
+		__entry->whichfork = ri->ri_whichfork;
+		__entry->l_loff = ri->ri_bmap.br_startoff;
+		__entry->l_len = ri->ri_bmap.br_blockcount;
+		__entry->l_state = ri->ri_bmap.br_state;
+		__entry->op = ri->ri_type;
 	),
-	TP_printk("dev %d:%d op %d agno 0x%x agbno 0x%x owner 0x%llx %s fileoff 0x%llx fsbcount 0x%llx state %d",
+	TP_printk("dev %d:%d op %s agno 0x%x agbno 0x%x owner 0x%llx %s fileoff 0x%llx fsbcount 0x%llx state %d",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __entry->op,
+		  __print_symbolic(__entry->op, XFS_RMAP_INTENT_STRINGS),
 		  __entry->agno,
 		  __entry->agbno,
-		  __entry->ino,
+		  __entry->owner,
 		  __print_symbolic(__entry->whichfork, XFS_WHICHFORK_STRINGS),
 		  __entry->l_loff,
 		  __entry->l_len,
@@ -3003,15 +3007,8 @@ DECLARE_EVENT_CLASS(xfs_rmap_deferred_class,
 );
 #define DEFINE_RMAP_DEFERRED_EVENT(name) \
 DEFINE_EVENT(xfs_rmap_deferred_class, name, \
-	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno, \
-		 int op, \
-		 xfs_agblock_t agbno, \
-		 xfs_ino_t ino, \
-		 int whichfork, \
-		 xfs_fileoff_t offset, \
-		 xfs_filblks_t len, \
-		 xfs_exntst_t state), \
-	TP_ARGS(mp, agno, op, agbno, ino, whichfork, offset, len, state))
+	TP_PROTO(struct xfs_mount *mp, struct xfs_rmap_intent *ri), \
+	TP_ARGS(mp, ri))
 DEFINE_RMAP_DEFERRED_EVENT(xfs_rmap_defer);
 DEFINE_RMAP_DEFERRED_EVENT(xfs_rmap_deferred);
 

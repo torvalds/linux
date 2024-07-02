@@ -41,6 +41,7 @@
 #include "xfs_exchmaps.h"
 #include "xfs_exchrange.h"
 #include "xfs_parent.h"
+#include "xfs_rmap.h"
 
 /*
  * We include this last to have the helpers above available for the trace
