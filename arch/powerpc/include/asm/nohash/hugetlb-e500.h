@@ -2,10 +2,6 @@
 #ifndef _ASM_POWERPC_NOHASH_HUGETLB_E500_H
 #define _ASM_POWERPC_NOHASH_HUGETLB_E500_H
 
-#define __HAVE_ARCH_HUGE_SET_HUGE_PTE_AT
-void set_huge_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep,
-		     pte_t pte, unsigned long sz);
-
 void flush_hugetlb_page(struct vm_area_struct *vma, unsigned long vmaddr);
 
 static inline int check_and_get_huge_psize(int shift)

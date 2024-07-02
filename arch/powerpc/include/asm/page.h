@@ -269,14 +269,6 @@ static inline const void *pfn_to_kaddr(unsigned long pfn)
 #define is_kernel_addr(x)	((x) >= TASK_SIZE)
 #endif
 
-#ifdef CONFIG_PPC_BOOK3S_64
-/*
- * Book3S 64 stores real addresses in the hugepd entries to
- * avoid overlaps with _PAGE_PRESENT and _PAGE_PTE.
- */
-#define HUGEPD_ADDR_MASK	(0x0ffffffffffffffful & ~HUGEPD_SHIFT_MASK)
-#endif /* CONFIG_PPC_BOOK3S_64 */
-
 /*
  * Some number of bits at the level of the page table that points to
  * a hugepte are used to encode the size.  This masks those bits.

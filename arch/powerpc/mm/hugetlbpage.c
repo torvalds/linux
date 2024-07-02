@@ -592,40 +592,14 @@ static int __init hugetlbpage_init(void)
 
 	for (psize = 0; psize < MMU_PAGE_COUNT; ++psize) {
 		unsigned shift;
-		unsigned pdshift;
 
 		if (!mmu_psize_defs[psize].shift)
 			continue;
 
 		shift = mmu_psize_to_shift(psize);
 
-#ifdef CONFIG_PPC_BOOK3S_64
-		if (shift > PGDIR_SHIFT)
-			continue;
-		else if (shift > PUD_SHIFT)
-			pdshift = PGDIR_SHIFT;
-		else if (shift > PMD_SHIFT)
-			pdshift = PUD_SHIFT;
-		else
-			pdshift = PMD_SHIFT;
-#else
-		if (shift < PUD_SHIFT)
-			pdshift = PMD_SHIFT;
-		else if (shift < PGDIR_SHIFT)
-			pdshift = PUD_SHIFT;
-		else
-			pdshift = PGDIR_SHIFT;
-#endif
-
 		if (add_huge_page_size(1ULL << shift) < 0)
 			continue;
-		/*
-		 * if we have pdshift and shift value same, we don't
-		 * use pgt cache for hugepd.
-		 */
-		if (pdshift > shift) {
-			pgtable_cache_add(pdshift - shift);
-		}
 
 		configured = true;
 	}

@@ -331,7 +331,7 @@ void set_huge_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep,
 		__set_huge_pte_at(pmdp, ptep, pte_val(pte));
 	}
 }
-#elif defined(CONFIG_PPC_E500)
+#else
 void set_huge_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep,
 		     pte_t pte, unsigned long sz)
 {
