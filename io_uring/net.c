@@ -827,20 +827,20 @@ static inline bool io_recv_finish(struct io_kiocb *req, int *ret,
 				  bool mshot_finished, unsigned issue_flags)
 {
 	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
-	unsigned int cflags;
-
-	if (sr->flags & IORING_RECVSEND_BUNDLE)
-		cflags = io_put_kbufs(req, io_bundle_nbufs(kmsg, *ret),
-				      issue_flags);
-	else
-		cflags = io_put_kbuf(req, issue_flags);
+	unsigned int cflags = 0;
 
 	if (kmsg->msg.msg_inq > 0)
 		cflags |= IORING_CQE_F_SOCK_NONEMPTY;
 
-	/* bundle with no more immediate buffers, we're done */
-	if (sr->flags & IORING_RECVSEND_BUNDLE && req->flags & REQ_F_BL_EMPTY)
-		goto finish;
+	if (sr->flags & IORING_RECVSEND_BUNDLE) {
+		cflags |= io_put_kbufs(req, io_bundle_nbufs(kmsg, *ret),
+				      issue_flags);
+		/* bundle with no more immediate buffers, we're done */
+		if (req->flags & REQ_F_BL_EMPTY)
+			goto finish;
+	} else {
+		cflags |= io_put_kbuf(req, issue_flags);
+	}
 
 	/*
 	 * Fill CQE for this receive and see if we should keep trying to
