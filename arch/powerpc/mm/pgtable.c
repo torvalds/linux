@@ -409,11 +409,10 @@ unsigned long vmalloc_to_phys(void *va)
 EXPORT_SYMBOL_GPL(vmalloc_to_phys);
 
 /*
- * We have 4 cases for pgds and pmds:
+ * We have 3 cases for pgds and pmds:
  * (1) invalid (all zeroes)
  * (2) pointer to next table, as normal; bottom 6 bits == 0
  * (3) leaf pte for huge page _PAGE_PTE set
- * (4) hugepd pointer, _PAGE_PTE = 0 and bits [2..6] indicate size of table
  *
  * So long as we atomically load page table pointers we are safe against teardown,
  * we can follow the address down to the page and take a ref on it.
@@ -430,7 +429,6 @@ pte_t *__find_linux_pte(pgd_t *pgdir, unsigned long ea,
 #endif
 	pmd_t pmd, *pmdp;
 	pte_t *ret_pte;
-	hugepd_t *hpdp = NULL;
 	unsigned pdshift;
 
 	if (hpage_shift)
@@ -463,11 +461,6 @@ pte_t *__find_linux_pte(pgd_t *pgdir, unsigned long ea,
 		goto out;
 	}
 
-	if (is_hugepd(__hugepd(p4d_val(p4d)))) {
-		hpdp = (hugepd_t *)&p4d;
-		goto out_huge;
-	}
-
 	/*
 	 * Even if we end up with an unmap, the pgtable will not
 	 * be freed, because we do an rcu free and here we are
@@ -483,11 +476,6 @@ pte_t *__find_linux_pte(pgd_t *pgdir, unsigned long ea,
 	if (pud_leaf(pud)) {
 		ret_pte = (pte_t *)pudp;
 		goto out;
-	}
-
-	if (is_hugepd(__hugepd(pud_val(pud)))) {
-		hpdp = (hugepd_t *)&pud;
-		goto out_huge;
 	}
 
 	pmdp = pmd_offset(&pud, ea);
@@ -527,21 +515,8 @@ pte_t *__find_linux_pte(pgd_t *pgdir, unsigned long ea,
 		goto out;
 	}
 
-	if (is_hugepd(__hugepd(pmd_val(pmd)))) {
-		hpdp = (hugepd_t *)&pmd;
-		goto out_huge;
-	}
-
 	return pte_offset_kernel(&pmd, ea);
 
-out_huge:
-	if (!hpdp)
-		return NULL;
-
-#ifdef CONFIG_ARCH_HAS_HUGEPD
-	ret_pte = hugepte_offset(*hpdp, ea, pdshift);
-	pdshift = hugepd_shift(*hpdp);
-#endif
 out:
 	if (hpage_shift)
 		*hpage_shift = pdshift;

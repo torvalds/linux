@@ -269,12 +269,6 @@ static inline const void *pfn_to_kaddr(unsigned long pfn)
 #define is_kernel_addr(x)	((x) >= TASK_SIZE)
 #endif
 
-/*
- * Some number of bits at the level of the page table that points to
- * a hugepte are used to encode the size.  This masks those bits.
- */
-#define HUGEPD_SHIFT_MASK     0x3f
-
 #ifndef __ASSEMBLY__
 
 #ifdef CONFIG_PPC_BOOK3S_64
