@@ -23,7 +23,9 @@ tests="
 	drop_reason				drop: test drop reasons are emitted"
 
 info() {
-    [ $VERBOSE = 0 ] || echo $*
+	[ "${ovs_dir}" != "" ] &&
+		echo "`date +"[%m-%d %H:%M:%S]"` $*" >> ${ovs_dir}/debug.log
+	[ $VERBOSE = 0 ] || echo $*
 }
 
 ovs_base=`pwd`
@@ -65,7 +67,8 @@ ovs_setenv() {
 
 ovs_sbx() {
 	if test "X$2" != X; then
-		(ovs_setenv $1; shift; "$@" >> ${ovs_dir}/debug.log)
+		(ovs_setenv $1; shift;
+		 info "run cmd: $@"; "$@" >> ${ovs_dir}/debug.log)
 	else
 		ovs_setenv $1
 	fi
@@ -139,7 +142,7 @@ ovs_add_flow () {
 	info "Adding flow to DP: sbx:$1 br:$2 flow:$3 act:$4"
 	ovs_sbx "$1" python3 $ovs_base/ovs-dpctl.py add-flow "$2" "$3" "$4"
 	if [ $? -ne 0 ]; then
-		echo "Flow [ $3 : $4 ] failed" >> ${ovs_dir}/debug.log
+		info "Flow [ $3 : $4 ] failed"
 		return 1
 	fi
 	return 0
