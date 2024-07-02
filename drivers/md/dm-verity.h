@@ -91,15 +91,12 @@ struct dm_verity_io {
 
 	char *recheck_buffer;
 
+	u8 real_digest[HASH_MAX_DIGESTSIZE];
+	u8 want_digest[HASH_MAX_DIGESTSIZE];
+
 	/*
-	 * Three variably-size fields follow this struct:
-	 *
-	 * u8 hash_req[v->ahash_reqsize];
-	 * u8 real_digest[v->digest_size];
-	 * u8 want_digest[v->digest_size];
-	 *
-	 * To access them use: verity_io_hash_req(), verity_io_real_digest()
-	 * and verity_io_want_digest().
+	 * This struct is followed by a variable-sized struct ahash_request of
+	 * size v->ahash_reqsize.  To access it, use verity_io_hash_req().
 	 */
 };
 
@@ -112,13 +109,13 @@ static inline struct ahash_request *verity_io_hash_req(struct dm_verity *v,
 static inline u8 *verity_io_real_digest(struct dm_verity *v,
 					struct dm_verity_io *io)
 {
-	return (u8 *)(io + 1) + v->ahash_reqsize;
+	return io->real_digest;
 }
 
 static inline u8 *verity_io_want_digest(struct dm_verity *v,
 					struct dm_verity_io *io)
 {
-	return (u8 *)(io + 1) + v->ahash_reqsize + v->digest_size;
+	return io->want_digest;
 }
 
 extern int verity_for_bv_block(struct dm_verity *v, struct dm_verity_io *io,

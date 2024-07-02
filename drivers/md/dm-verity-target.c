@@ -1529,8 +1529,7 @@ static int verity_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad;
 	}
 
-	ti->per_io_data_size = sizeof(struct dm_verity_io) +
-				v->ahash_reqsize + v->digest_size * 2;
+	ti->per_io_data_size = sizeof(struct dm_verity_io) + v->ahash_reqsize;
 
 	r = verity_fec_ctr(v);
 	if (r)
