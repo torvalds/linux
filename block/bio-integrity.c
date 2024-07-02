@@ -76,7 +76,7 @@ struct bio_integrity_payload *bio_integrity_alloc(struct bio *bio,
 					  &bip->bip_max_vcnt, gfp_mask);
 		if (!bip->bip_vec)
 			goto err;
-	} else {
+	} else if (nr_vecs) {
 		bip->bip_vec = bip->bip_inline_vecs;
 	}
 
@@ -562,14 +562,11 @@ int bio_integrity_clone(struct bio *bio, struct bio *bio_src,
 
 	BUG_ON(bip_src == NULL);
 
-	bip = bio_integrity_alloc(bio, gfp_mask, bip_src->bip_vcnt);
+	bip = bio_integrity_alloc(bio, gfp_mask, 0);
 	if (IS_ERR(bip))
 		return PTR_ERR(bip);
 
-	memcpy(bip->bip_vec, bip_src->bip_vec,
-	       bip_src->bip_vcnt * sizeof(struct bio_vec));
-
-	bip->bip_vcnt = bip_src->bip_vcnt;
+	bip->bip_vec = bip_src->bip_vec;
 	bip->bip_iter = bip_src->bip_iter;
 	bip->bip_flags = bip_src->bip_flags & ~BIP_BLOCK_INTEGRITY;
 
