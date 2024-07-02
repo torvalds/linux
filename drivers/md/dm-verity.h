@@ -89,8 +89,6 @@ struct dm_verity_io {
 	struct work_struct work;
 	struct work_struct bh_work;
 
-	char *recheck_buffer;
-
 	u8 real_digest[HASH_MAX_DIGESTSIZE];
 	u8 want_digest[HASH_MAX_DIGESTSIZE];
 
@@ -117,12 +115,6 @@ static inline u8 *verity_io_want_digest(struct dm_verity *v,
 {
 	return io->want_digest;
 }
-
-extern int verity_for_bv_block(struct dm_verity *v, struct dm_verity_io *io,
-			       struct bvec_iter *iter,
-			       int (*process)(struct dm_verity *v,
-					      struct dm_verity_io *io,
-					      u8 *data, size_t len));
 
 extern int verity_hash(struct dm_verity *v, struct ahash_request *req,
 		       const u8 *data, size_t len, u8 *digest, bool may_sleep);

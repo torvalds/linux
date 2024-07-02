@@ -342,7 +342,7 @@ static int verity_verify_level(struct dm_verity *v, struct dm_verity_io *io,
 			r = -EAGAIN;
 			goto release_ret_r;
 		} else if (verity_fec_decode(v, io, DM_VERITY_BLOCK_TYPE_METADATA,
-					     hash_block, data, NULL) == 0)
+					     hash_block, data) == 0)
 			aux->hash_verified = 1;
 		else if (verity_handle_err(v,
 					   DM_VERITY_BLOCK_TYPE_METADATA,
@@ -404,98 +404,8 @@ out:
 	return r;
 }
 
-/*
- * Calculates the digest for the given bio
- */
-static int verity_for_io_block(struct dm_verity *v, struct dm_verity_io *io,
-			       struct bvec_iter *iter, struct crypto_wait *wait)
-{
-	unsigned int todo = 1 << v->data_dev_block_bits;
-	struct bio *bio = dm_bio_from_per_bio_data(io, v->ti->per_io_data_size);
-	struct scatterlist sg;
-	struct ahash_request *req = verity_io_hash_req(v, io);
-
-	do {
-		int r;
-		unsigned int len;
-		struct bio_vec bv = bio_iter_iovec(bio, *iter);
-
-		sg_init_table(&sg, 1);
-
-		len = bv.bv_len;
-
-		if (likely(len >= todo))
-			len = todo;
-		/*
-		 * Operating on a single page at a time looks suboptimal
-		 * until you consider the typical block size is 4,096B.
-		 * Going through this loops twice should be very rare.
-		 */
-		sg_set_page(&sg, bv.bv_page, len, bv.bv_offset);
-		ahash_request_set_crypt(req, &sg, NULL, len);
-		r = crypto_wait_req(crypto_ahash_update(req), wait);
-
-		if (unlikely(r < 0)) {
-			DMERR("%s crypto op failed: %d", __func__, r);
-			return r;
-		}
-
-		bio_advance_iter(bio, iter, len);
-		todo -= len;
-	} while (todo);
-
-	return 0;
-}
-
-/*
- * Calls function process for 1 << v->data_dev_block_bits bytes in the bio_vec
- * starting from iter.
- */
-int verity_for_bv_block(struct dm_verity *v, struct dm_verity_io *io,
-			struct bvec_iter *iter,
-			int (*process)(struct dm_verity *v,
-				       struct dm_verity_io *io, u8 *data,
-				       size_t len))
-{
-	unsigned int todo = 1 << v->data_dev_block_bits;
-	struct bio *bio = dm_bio_from_per_bio_data(io, v->ti->per_io_data_size);
-
-	do {
-		int r;
-		u8 *page;
-		unsigned int len;
-		struct bio_vec bv = bio_iter_iovec(bio, *iter);
-
-		page = bvec_kmap_local(&bv);
-		len = bv.bv_len;
-
-		if (likely(len >= todo))
-			len = todo;
-
-		r = process(v, io, page, len);
-		kunmap_local(page);
-
-		if (r < 0)
-			return r;
-
-		bio_advance_iter(bio, iter, len);
-		todo -= len;
-	} while (todo);
-
-	return 0;
-}
-
-static int verity_recheck_copy(struct dm_verity *v, struct dm_verity_io *io,
-			       u8 *data, size_t len)
-{
-	memcpy(data, io->recheck_buffer, len);
-	io->recheck_buffer += len;
-
-	return 0;
-}
-
 static noinline int verity_recheck(struct dm_verity *v, struct dm_verity_io *io,
-				   struct bvec_iter start, sector_t cur_block)
+				   sector_t cur_block, u8 *dest)
 {
 	struct page *page;
 	void *buffer;
@@ -530,11 +440,7 @@ static noinline int verity_recheck(struct dm_verity *v, struct dm_verity_io *io,
 		goto free_ret;
 	}
 
-	io->recheck_buffer = buffer;
-	r = verity_for_bv_block(v, io, &start, verity_recheck_copy);
-	if (unlikely(r))
-		goto free_ret;
-
+	memcpy(dest, buffer, 1 << v->data_dev_block_bits);
 	r = 0;
 free_ret:
 	mempool_free(page, &v->recheck_pool);
@@ -545,7 +451,7 @@ free_ret:
 static int verity_handle_data_hash_mismatch(struct dm_verity *v,
 					    struct dm_verity_io *io,
 					    struct bio *bio, sector_t blkno,
-					    struct bvec_iter *start)
+					    u8 *data)
 {
 	if (static_branch_unlikely(&use_bh_wq_enabled) && io->in_bh) {
 		/*
@@ -554,14 +460,14 @@ static int verity_handle_data_hash_mismatch(struct dm_verity *v,
 		 */
 		return -EAGAIN;
 	}
-	if (verity_recheck(v, io, *start, blkno) == 0) {
+	if (verity_recheck(v, io, blkno, data) == 0) {
 		if (v->validated_blocks)
 			set_bit(blkno, v->validated_blocks);
 		return 0;
 	}
 #if defined(CONFIG_DM_VERITY_FEC)
 	if (verity_fec_decode(v, io, DM_VERITY_BLOCK_TYPE_DATA, blkno,
-			      NULL, start) == 0)
+			      data) == 0)
 		return 0;
 #endif
 	if (bio->bi_status)
@@ -574,36 +480,15 @@ static int verity_handle_data_hash_mismatch(struct dm_verity *v,
 	return 0;
 }
 
-static int verity_bv_zero(struct dm_verity *v, struct dm_verity_io *io,
-			  u8 *data, size_t len)
-{
-	memset(data, 0, len);
-	return 0;
-}
-
-/*
- * Moves the bio iter one data block forward.
- */
-static inline void verity_bv_skip_block(struct dm_verity *v,
-					struct dm_verity_io *io,
-					struct bvec_iter *iter)
-{
-	struct bio *bio = dm_bio_from_per_bio_data(io, v->ti->per_io_data_size);
-
-	bio_advance_iter(bio, iter, 1 << v->data_dev_block_bits);
-}
-
 /*
  * Verify one "dm_verity_io" structure.
  */
 static int verity_verify_io(struct dm_verity_io *io)
 {
-	bool is_zero;
 	struct dm_verity *v = io->v;
-	struct bvec_iter start;
+	const unsigned int block_size = 1 << v->data_dev_block_bits;
 	struct bvec_iter iter_copy;
 	struct bvec_iter *iter;
-	struct crypto_wait wait;
 	struct bio *bio = dm_bio_from_per_bio_data(io, v->ti->per_io_data_size);
 	unsigned int b;
 
@@ -617,16 +502,17 @@ static int verity_verify_io(struct dm_verity_io *io)
 	} else
 		iter = &io->iter;
 
-	for (b = 0; b < io->n_blocks; b++) {
+	for (b = 0; b < io->n_blocks;
+	     b++, bio_advance_iter(bio, iter, block_size)) {
 		int r;
 		sector_t cur_block = io->block + b;
-		struct ahash_request *req = verity_io_hash_req(v, io);
+		bool is_zero;
+		struct bio_vec bv;
+		void *data;
 
 		if (v->validated_blocks && bio->bi_status == BLK_STS_OK &&
-		    likely(test_bit(cur_block, v->validated_blocks))) {
-			verity_bv_skip_block(v, io, iter);
+		    likely(test_bit(cur_block, v->validated_blocks)))
 			continue;
-		}
 
 		r = verity_hash_for_block(v, io, cur_block,
 					  verity_io_want_digest(v, io),
@@ -634,41 +520,47 @@ static int verity_verify_io(struct dm_verity_io *io)
 		if (unlikely(r < 0))
 			return r;
 
+		bv = bio_iter_iovec(bio, *iter);
+		if (unlikely(bv.bv_len < block_size)) {
+			/*
+			 * Data block spans pages.  This should not happen,
+			 * since dm-verity sets dma_alignment to the data block
+			 * size minus 1, and dm-verity also doesn't allow the
+			 * data block size to be greater than PAGE_SIZE.
+			 */
+			DMERR_LIMIT("unaligned io (data block spans pages)");
+			return -EIO;
+		}
+
+		data = bvec_kmap_local(&bv);
+
 		if (is_zero) {
 			/*
 			 * If we expect a zero block, don't validate, just
 			 * return zeros.
 			 */
-			r = verity_for_bv_block(v, io, iter,
-						verity_bv_zero);
-			if (unlikely(r < 0))
-				return r;
-
+			memset(data, 0, block_size);
+			kunmap_local(data);
 			continue;
 		}
 
-		r = verity_hash_init(v, req, &wait, !io->in_bh);
-		if (unlikely(r < 0))
+		r = verity_hash(v, verity_io_hash_req(v, io), data, block_size,
+				verity_io_real_digest(v, io), !io->in_bh);
+		if (unlikely(r < 0)) {
+			kunmap_local(data);
 			return r;
-
-		start = *iter;
-		r = verity_for_io_block(v, io, iter, &wait);
-		if (unlikely(r < 0))
-			return r;
-
-		r = verity_hash_final(v, req, verity_io_real_digest(v, io),
-					&wait);
-		if (unlikely(r < 0))
-			return r;
+		}
 
 		if (likely(memcmp(verity_io_real_digest(v, io),
 				  verity_io_want_digest(v, io), v->digest_size) == 0)) {
 			if (v->validated_blocks)
 				set_bit(cur_block, v->validated_blocks);
+			kunmap_local(data);
 			continue;
 		}
 		r = verity_handle_data_hash_mismatch(v, io, bio, cur_block,
-						     &start);
+						     data);
+		kunmap_local(data);
 		if (unlikely(r))
 			return r;
 	}

@@ -404,24 +404,9 @@ static int fec_decode_rsb(struct dm_verity *v, struct dm_verity_io *io,
 	return 0;
 }
 
-static int fec_bv_copy(struct dm_verity *v, struct dm_verity_io *io, u8 *data,
-		       size_t len)
-{
-	struct dm_verity_fec_io *fio = fec_io(io);
-
-	memcpy(data, &fio->output[fio->output_pos], len);
-	fio->output_pos += len;
-
-	return 0;
-}
-
-/*
- * Correct errors in a block. Copies corrected block to dest if non-NULL,
- * otherwise to a bio_vec starting from iter.
- */
+/* Correct errors in a block. Copies corrected block to dest. */
 int verity_fec_decode(struct dm_verity *v, struct dm_verity_io *io,
-		      enum verity_block_type type, sector_t block, u8 *dest,
-		      struct bvec_iter *iter)
+		      enum verity_block_type type, sector_t block, u8 *dest)
 {
 	int r;
 	struct dm_verity_fec_io *fio = fec_io(io);
@@ -471,12 +456,7 @@ int verity_fec_decode(struct dm_verity *v, struct dm_verity_io *io,
 			goto done;
 	}
 
-	if (dest)
-		memcpy(dest, fio->output, 1 << v->data_dev_block_bits);
-	else if (iter) {
-		fio->output_pos = 0;
-		r = verity_for_bv_block(v, io, iter, fec_bv_copy);
-	}
+	memcpy(dest, fio->output, 1 << v->data_dev_block_bits);
 
 done:
 	fio->level--;
