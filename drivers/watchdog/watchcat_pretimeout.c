@@ -7,33 +7,33 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
-#include <linux/watchdog.h>
+#include <linux/watchcat.h>
 
-#include "watchdog_core.h"
-#include "watchdog_pretimeout.h"
+#include "watchcat_core.h"
+#include "watchcat_pretimeout.h"
 
-/* Default watchdog pretimeout governor */
-static struct watchdog_governor *default_gov;
+/* Default watchcat pretimeout governor */
+static struct watchcat_governor *default_gov;
 
 /* The spinlock protects default_gov, wdd->gov and pretimeout_list */
 static DEFINE_SPINLOCK(pretimeout_lock);
 
-/* List of watchdog devices, which can generate a pretimeout event */
+/* List of watchcat devices, which can generate a pretimeout event */
 static LIST_HEAD(pretimeout_list);
 
-struct watchdog_pretimeout {
-	struct watchdog_device		*wdd;
+struct watchcat_pretimeout {
+	struct watchcat_device		*wdd;
 	struct list_head		entry;
 };
 
 /* The mutex protects governor list and serializes external interfaces */
 static DEFINE_MUTEX(governor_lock);
 
-/* List of the registered watchdog pretimeout governors */
+/* List of the registered watchcat pretimeout governors */
 static LIST_HEAD(governor_list);
 
 struct governor_priv {
-	struct watchdog_governor	*gov;
+	struct watchcat_governor	*gov;
 	struct list_head		entry;
 };
 
@@ -48,7 +48,7 @@ static struct governor_priv *find_governor_by_name(const char *gov_name)
 	return NULL;
 }
 
-int watchdog_pretimeout_available_governors_get(char *buf)
+int watchcat_pretimeout_available_governors_get(char *buf)
 {
 	struct governor_priv *priv;
 	int count = 0;
@@ -63,7 +63,7 @@ int watchdog_pretimeout_available_governors_get(char *buf)
 	return count;
 }
 
-int watchdog_pretimeout_governor_get(struct watchdog_device *wdd, char *buf)
+int watchcat_pretimeout_governor_get(struct watchcat_device *wdd, char *buf)
 {
 	int count = 0;
 
@@ -75,7 +75,7 @@ int watchdog_pretimeout_governor_get(struct watchdog_device *wdd, char *buf)
 	return count;
 }
 
-int watchdog_pretimeout_governor_set(struct watchdog_device *wdd,
+int watchcat_pretimeout_governor_set(struct watchcat_device *wdd,
 				     const char *buf)
 {
 	struct governor_priv *priv;
@@ -97,7 +97,7 @@ int watchdog_pretimeout_governor_set(struct watchdog_device *wdd,
 	return 0;
 }
 
-void watchdog_notify_pretimeout(struct watchdog_device *wdd)
+void watchcat_notify_pretimeout(struct watchcat_device *wdd)
 {
 	unsigned long flags;
 
@@ -110,11 +110,11 @@ void watchdog_notify_pretimeout(struct watchdog_device *wdd)
 	wdd->gov->pretimeout(wdd);
 	spin_unlock_irqrestore(&pretimeout_lock, flags);
 }
-EXPORT_SYMBOL_GPL(watchdog_notify_pretimeout);
+EXPORT_SYMBOL_GPL(watchcat_notify_pretimeout);
 
-int watchdog_register_governor(struct watchdog_governor *gov)
+int watchcat_register_governor(struct watchcat_governor *gov)
 {
-	struct watchdog_pretimeout *p;
+	struct watchcat_pretimeout *p;
 	struct governor_priv *priv;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
@@ -132,8 +132,8 @@ int watchdog_register_governor(struct watchdog_governor *gov)
 	priv->gov = gov;
 	list_add(&priv->entry, &governor_list);
 
-	if (!strncmp(gov->name, WATCHDOG_PRETIMEOUT_DEFAULT_GOV,
-		     WATCHDOG_GOV_NAME_MAXLEN)) {
+	if (!strncmp(gov->name, watchcat_PRETIMEOUT_DEFAULT_GOV,
+		     watchcat_GOV_NAME_MAXLEN)) {
 		spin_lock_irq(&pretimeout_lock);
 		default_gov = gov;
 
@@ -147,11 +147,11 @@ int watchdog_register_governor(struct watchdog_governor *gov)
 
 	return 0;
 }
-EXPORT_SYMBOL(watchdog_register_governor);
+EXPORT_SYMBOL(watchcat_register_governor);
 
-void watchdog_unregister_governor(struct watchdog_governor *gov)
+void watchcat_unregister_governor(struct watchcat_governor *gov)
 {
-	struct watchdog_pretimeout *p;
+	struct watchcat_pretimeout *p;
 	struct governor_priv *priv, *t;
 
 	mutex_lock(&governor_lock);
@@ -172,13 +172,13 @@ void watchdog_unregister_governor(struct watchdog_governor *gov)
 
 	mutex_unlock(&governor_lock);
 }
-EXPORT_SYMBOL(watchdog_unregister_governor);
+EXPORT_SYMBOL(watchcat_unregister_governor);
 
-int watchdog_register_pretimeout(struct watchdog_device *wdd)
+int watchcat_register_pretimeout(struct watchcat_device *wdd)
 {
-	struct watchdog_pretimeout *p;
+	struct watchcat_pretimeout *p;
 
-	if (!watchdog_have_pretimeout(wdd))
+	if (!watchcat_have_pretimeout(wdd))
 		return 0;
 
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
@@ -194,11 +194,11 @@ int watchdog_register_pretimeout(struct watchdog_device *wdd)
 	return 0;
 }
 
-void watchdog_unregister_pretimeout(struct watchdog_device *wdd)
+void watchcat_unregister_pretimeout(struct watchcat_device *wdd)
 {
-	struct watchdog_pretimeout *p, *t;
+	struct watchcat_pretimeout *p, *t;
 
-	if (!watchdog_have_pretimeout(wdd))
+	if (!watchcat_have_pretimeout(wdd))
 		return;
 
 	spin_lock_irq(&pretimeout_lock);
