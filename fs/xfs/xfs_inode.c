@@ -2117,63 +2117,6 @@ xfs_sort_inodes(
 	}
 }
 
-static int
-xfs_finish_rename(
-	struct xfs_trans	*tp)
-{
-	/*
-	 * If this is a synchronous mount, make sure that the rename transaction
-	 * goes to disk before returning to the user.
-	 */
-	if (xfs_has_wsync(tp->t_mountp) || xfs_has_dirsync(tp->t_mountp))
-		xfs_trans_set_sync(tp);
-
-	return xfs_trans_commit(tp);
-}
-
-/*
- * xfs_cross_rename()
- *
- * responsible for handling RENAME_EXCHANGE flag in renameat2() syscall
- */
-STATIC int
-xfs_cross_rename(
-	struct xfs_trans	*tp,
-	struct xfs_inode	*dp1,
-	struct xfs_name		*name1,
-	struct xfs_inode	*ip1,
-	struct xfs_parent_args	*ip1_ppargs,
-	struct xfs_inode	*dp2,
-	struct xfs_name		*name2,
-	struct xfs_inode	*ip2,
-	struct xfs_parent_args	*ip2_ppargs,
-	int			spaceres)
-{
-	struct xfs_dir_update	du1 = {
-		.dp		= dp1,
-		.name		= name1,
-		.ip		= ip1,
-		.ppargs		= ip1_ppargs,
-	};
-	struct xfs_dir_update	du2 = {
-		.dp		= dp2,
-		.name		= name2,
-		.ip		= ip2,
-		.ppargs		= ip2_ppargs,
-	};
-	int			error;
-
-	error = xfs_dir_exchange_children(tp, &du1, &du2, spaceres);
-	if (error)
-		goto out_trans_abort;
-
-	return xfs_finish_rename(tp);
-
-out_trans_abort:
-	xfs_trans_cancel(tp);
-	return error;
-}
-
 /*
  * xfs_rename_alloc_whiteout()
  *
@@ -2366,11 +2309,11 @@ retry:
 
 	/* RENAME_EXCHANGE is unique from here on. */
 	if (flags & RENAME_EXCHANGE) {
-		error = xfs_cross_rename(tp, src_dp, src_name, src_ip,
-				du_src.ppargs, target_dp, target_name,
-				target_ip, du_tgt.ppargs, spaceres);
-		nospace_error = 0;
-		goto out_unlock;
+		error = xfs_dir_exchange_children(tp, &du_src, &du_tgt,
+				spaceres);
+		if (error)
+			goto out_trans_cancel;
+		goto out_commit;
 	}
 
 	/*
@@ -2448,7 +2391,15 @@ retry:
 		VFS_I(du_wip.ip)->i_state &= ~I_LINKABLE;
 	}
 
-	error = xfs_finish_rename(tp);
+out_commit:
+	/*
+	 * If this is a synchronous mount, make sure that the rename
+	 * transaction goes to disk before returning to the user.
+	 */
+	if (xfs_has_wsync(tp->t_mountp) || xfs_has_dirsync(tp->t_mountp))
+		xfs_trans_set_sync(tp);
+
+	error = xfs_trans_commit(tp);
 	nospace_error = 0;
 	goto out_unlock;
 
