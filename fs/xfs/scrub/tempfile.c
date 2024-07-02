@@ -47,9 +47,9 @@ xrep_tempfile_create(
 	};
 	struct xfs_mount	*mp = sc->mp;
 	struct xfs_trans	*tp = NULL;
-	struct xfs_dquot	*udqp = NULL;
-	struct xfs_dquot	*gdqp = NULL;
-	struct xfs_dquot	*pdqp = NULL;
+	struct xfs_dquot	*udqp;
+	struct xfs_dquot	*gdqp;
+	struct xfs_dquot	*pdqp;
 	struct xfs_trans_res	*tres;
 	struct xfs_inode	*dp = mp->m_rootip;
 	xfs_ino_t		ino;
@@ -70,8 +70,7 @@ xrep_tempfile_create(
 	 * inode should be completely root owned so that we don't fail due to
 	 * quota limits.
 	 */
-	error = xfs_qm_vop_dqalloc(dp, GLOBAL_ROOT_UID, GLOBAL_ROOT_GID, 0,
-			XFS_QMOPT_QUOTALL, &udqp, &gdqp, &pdqp);
+	error = xfs_icreate_dqalloc(&args, &udqp, &gdqp, &pdqp);
 	if (error)
 		return error;
 

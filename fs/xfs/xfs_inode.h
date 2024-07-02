@@ -660,4 +660,8 @@ void xfs_dir_hook_setup(struct xfs_dir_hook *hook, notifier_fn_t mod_fn);
 # define xfs_dir_update_hook(dp, ip, delta, name)	((void)0)
 #endif /* CONFIG_XFS_LIVE_HOOKS */
 
+int xfs_icreate_dqalloc(const struct xfs_icreate_args *args,
+		struct xfs_dquot **udqpp, struct xfs_dquot **gdqpp,
+		struct xfs_dquot **pdqpp);
+
 #endif	/* __XFS_INODE_H__ */

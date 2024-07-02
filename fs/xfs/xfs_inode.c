@@ -728,6 +728,38 @@ xfs_dir_hook_setup(
 }
 #endif /* CONFIG_XFS_LIVE_HOOKS */
 
+/* Return dquots for the ids that will be assigned to a new file. */
+int
+xfs_icreate_dqalloc(
+	const struct xfs_icreate_args	*args,
+	struct xfs_dquot		**udqpp,
+	struct xfs_dquot		**gdqpp,
+	struct xfs_dquot		**pdqpp)
+{
+	struct inode			*dir = VFS_I(args->pip);
+	kuid_t				uid = GLOBAL_ROOT_UID;
+	kgid_t				gid = GLOBAL_ROOT_GID;
+	prid_t				prid = 0;
+	unsigned int			flags = XFS_QMOPT_QUOTALL;
+
+	if (args->idmap) {
+		/*
+		 * The uid/gid computation code must match what the VFS uses to
+		 * assign i_[ug]id.  INHERIT adjusts the gid computation for
+		 * setgid/grpid systems.
+		 */
+		uid = mapped_fsuid(args->idmap, i_user_ns(dir));
+		gid = mapped_fsgid(args->idmap, i_user_ns(dir));
+		prid = xfs_get_initial_prid(args->pip);
+		flags |= XFS_QMOPT_INHERIT;
+	}
+
+	*udqpp = *gdqpp = *pdqpp = NULL;
+
+	return xfs_qm_vop_dqalloc(args->pip, uid, gid, prid, flags, udqpp,
+			gdqpp, pdqpp);
+}
+
 int
 xfs_create(
 	const struct xfs_icreate_args *args,
@@ -738,13 +770,12 @@ xfs_create(
 	struct xfs_mount	*mp = dp->i_mount;
 	struct xfs_inode	*ip = NULL;
 	struct xfs_trans	*tp = NULL;
-	struct xfs_dquot	*udqp = NULL;
-	struct xfs_dquot	*gdqp = NULL;
-	struct xfs_dquot	*pdqp = NULL;
+	struct xfs_dquot	*udqp;
+	struct xfs_dquot	*gdqp;
+	struct xfs_dquot	*pdqp;
 	struct xfs_trans_res	*tres;
 	struct xfs_parent_args	*ppargs;
 	xfs_ino_t		ino;
-	prid_t			prid;
 	bool			unlock_dp_on_error = false;
 	bool			is_dir = S_ISDIR(args->mode);
 	uint			resblks;
@@ -757,18 +788,8 @@ xfs_create(
 	if (xfs_ifork_zapped(dp, XFS_DATA_FORK))
 		return -EIO;
 
-	prid = xfs_get_initial_prid(dp);
-
-	/*
-	 * Make sure that we have allocated dquot(s) on disk.  The uid/gid
-	 * computation code must match what the VFS uses to assign i_[ug]id.
-	 * INHERIT adjusts the gid computation for setgid/grpid systems.
-	 */
-	error = xfs_qm_vop_dqalloc(dp,
-			mapped_fsuid(args->idmap, i_user_ns(VFS_I(dp))),
-			mapped_fsgid(args->idmap, i_user_ns(VFS_I(dp))), prid,
-			XFS_QMOPT_QUOTALL | XFS_QMOPT_INHERIT,
-			&udqp, &gdqp, &pdqp);
+	/* Make sure that we have allocated dquot(s) on disk. */
+	error = xfs_icreate_dqalloc(args, &udqp, &gdqp, &pdqp);
 	if (error)
 		return error;
 
@@ -920,12 +941,11 @@ xfs_create_tmpfile(
 	struct xfs_mount	*mp = dp->i_mount;
 	struct xfs_inode	*ip = NULL;
 	struct xfs_trans	*tp = NULL;
-	struct xfs_dquot	*udqp = NULL;
-	struct xfs_dquot	*gdqp = NULL;
-	struct xfs_dquot	*pdqp = NULL;
+	struct xfs_dquot	*udqp;
+	struct xfs_dquot	*gdqp;
+	struct xfs_dquot	*pdqp;
 	struct xfs_trans_res	*tres;
 	xfs_ino_t		ino;
-	prid_t			prid;
 	uint			resblks;
 	int			error;
 
@@ -934,18 +954,8 @@ xfs_create_tmpfile(
 	if (xfs_is_shutdown(mp))
 		return -EIO;
 
-	prid = xfs_get_initial_prid(dp);
-
-	/*
-	 * Make sure that we have allocated dquot(s) on disk.  The uid/gid
-	 * computation code must match what the VFS uses to assign i_[ug]id.
-	 * INHERIT adjusts the gid computation for setgid/grpid systems.
-	 */
-	error = xfs_qm_vop_dqalloc(dp,
-			mapped_fsuid(args->idmap, i_user_ns(VFS_I(dp))),
-			mapped_fsgid(args->idmap, i_user_ns(VFS_I(dp))), prid,
-			XFS_QMOPT_QUOTALL | XFS_QMOPT_INHERIT,
-			&udqp, &gdqp, &pdqp);
+	/* Make sure that we have allocated dquot(s) on disk. */
+	error = xfs_icreate_dqalloc(args, &udqp, &gdqp, &pdqp);
 	if (error)
 		return error;
 
