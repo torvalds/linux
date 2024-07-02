@@ -542,6 +542,38 @@ free_ret:
 	return r;
 }
 
+static int verity_handle_data_hash_mismatch(struct dm_verity *v,
+					    struct dm_verity_io *io,
+					    struct bio *bio, sector_t blkno,
+					    struct bvec_iter *start)
+{
+	if (static_branch_unlikely(&use_bh_wq_enabled) && io->in_bh) {
+		/*
+		 * Error handling code (FEC included) cannot be run in the
+		 * BH workqueue, so fallback to a standard workqueue.
+		 */
+		return -EAGAIN;
+	}
+	if (verity_recheck(v, io, *start, blkno) == 0) {
+		if (v->validated_blocks)
+			set_bit(blkno, v->validated_blocks);
+		return 0;
+	}
+#if defined(CONFIG_DM_VERITY_FEC)
+	if (verity_fec_decode(v, io, DM_VERITY_BLOCK_TYPE_DATA, blkno,
+			      NULL, start) == 0)
+		return 0;
+#endif
+	if (bio->bi_status)
+		return -EIO; /* Error correction failed; Just return error */
+
+	if (verity_handle_err(v, DM_VERITY_BLOCK_TYPE_DATA, blkno)) {
+		dm_audit_log_bio(DM_MSG_PREFIX, "verify-data", bio, blkno, 0);
+		return -EIO;
+	}
+	return 0;
+}
+
 static int verity_bv_zero(struct dm_verity *v, struct dm_verity_io *io,
 			  u8 *data, size_t len)
 {
@@ -634,35 +666,11 @@ static int verity_verify_io(struct dm_verity_io *io)
 			if (v->validated_blocks)
 				set_bit(cur_block, v->validated_blocks);
 			continue;
-		} else if (static_branch_unlikely(&use_bh_wq_enabled) && io->in_bh) {
-			/*
-			 * Error handling code (FEC included) cannot be run in a
-			 * tasklet since it may sleep, so fallback to work-queue.
-			 */
-			return -EAGAIN;
-		} else if (verity_recheck(v, io, start, cur_block) == 0) {
-			if (v->validated_blocks)
-				set_bit(cur_block, v->validated_blocks);
-			continue;
-#if defined(CONFIG_DM_VERITY_FEC)
-		} else if (verity_fec_decode(v, io, DM_VERITY_BLOCK_TYPE_DATA,
-					     cur_block, NULL, &start) == 0) {
-			continue;
-#endif
-		} else {
-			if (bio->bi_status) {
-				/*
-				 * Error correction failed; Just return error
-				 */
-				return -EIO;
-			}
-			if (verity_handle_err(v, DM_VERITY_BLOCK_TYPE_DATA,
-					      cur_block)) {
-				dm_audit_log_bio(DM_MSG_PREFIX, "verify-data",
-						 bio, cur_block, 0);
-				return -EIO;
-			}
 		}
+		r = verity_handle_data_hash_mismatch(v, io, bio, cur_block,
+						     &start);
+		if (unlikely(r))
+			return r;
 	}
 
 	return 0;
