@@ -1324,6 +1324,7 @@ static void rcu_torture_write_types(void)
 	} else if (gp_sync && !cur_ops->sync) {
 		pr_alert("%s: gp_sync without primitives.\n", __func__);
 	}
+	pr_alert("%s: Testing %d update types.\n", __func__, nsynctypes);
 }
 
 /*
