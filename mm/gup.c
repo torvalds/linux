@@ -462,7 +462,7 @@ static inline void mm_set_has_pinned_flag(unsigned long *mm_flags)
 
 #ifdef CONFIG_MMU
 
-#if defined(CONFIG_ARCH_HAS_HUGEPD) || defined(CONFIG_HAVE_GUP_FAST)
+#ifdef CONFIG_HAVE_GUP_FAST
 static int record_subpages(struct page *page, unsigned long sz,
 			   unsigned long addr, unsigned long end,
 			   struct page **pages)
@@ -572,154 +572,7 @@ static struct folio *try_grab_folio_fast(struct page *page, int refs,
 
 	return folio;
 }
-#endif	/* CONFIG_ARCH_HAS_HUGEPD || CONFIG_HAVE_GUP_FAST */
-
-#ifdef CONFIG_ARCH_HAS_HUGEPD
-static unsigned long hugepte_addr_end(unsigned long addr, unsigned long end,
-				      unsigned long sz)
-{
-	unsigned long __boundary = (addr + sz) & ~(sz-1);
-	return (__boundary - 1 < end - 1) ? __boundary : end;
-}
-
-/*
- * Returns 1 if succeeded, 0 if failed, -EMLINK if unshare needed.
- *
- * NOTE: for the same entry, gup-fast and gup-slow can return different
- * results (0 v.s. -EMLINK) depending on whether vma is available.  This is
- * the expected behavior, where we simply want gup-fast to fallback to
- * gup-slow to take the vma reference first.
- */
-static int gup_hugepte(struct vm_area_struct *vma, pte_t *ptep, unsigned long sz,
-		       unsigned long addr, unsigned long end, unsigned int flags,
-		       struct page **pages, int *nr, bool fast)
-{
-	unsigned long pte_end;
-	struct page *page;
-	struct folio *folio;
-	pte_t pte;
-	int refs;
-
-	pte_end = (addr + sz) & ~(sz-1);
-	if (pte_end < end)
-		end = pte_end;
-
-	pte = huge_ptep_get(vma->vm_mm, addr, ptep);
-
-	if (!pte_access_permitted(pte, flags & FOLL_WRITE))
-		return 0;
-
-	/* hugepages are never "special" */
-	VM_BUG_ON(!pfn_valid(pte_pfn(pte)));
-
-	page = pte_page(pte);
-	refs = record_subpages(page, sz, addr, end, pages + *nr);
-
-	if (fast) {
-		folio = try_grab_folio_fast(page, refs, flags);
-		if (!folio)
-			return 0;
-	} else {
-		folio = page_folio(page);
-		if (try_grab_folio(folio, refs, flags))
-			return 0;
-	}
-
-	if (unlikely(pte_val(pte) != pte_val(ptep_get(ptep)))) {
-		gup_put_folio(folio, refs, flags);
-		return 0;
-	}
-
-	if (!pte_write(pte) && gup_must_unshare(vma, flags, &folio->page)) {
-		gup_put_folio(folio, refs, flags);
-		return -EMLINK;
-	}
-
-	*nr += refs;
-	folio_set_referenced(folio);
-	return 1;
-}
-
-/*
- * NOTE: currently GUP for a hugepd is only possible on hugetlbfs file
- * systems on Power, which does not have issue with folio writeback against
- * GUP updates.  When hugepd will be extended to support non-hugetlbfs or
- * even anonymous memory, we need to do extra check as what we do with most
- * of the other folios. See writable_file_mapping_allowed() and
- * gup_fast_folio_allowed() for more information.
- */
-static int gup_hugepd(struct vm_area_struct *vma, hugepd_t hugepd,
-		      unsigned long addr, unsigned int pdshift,
-		      unsigned long end, unsigned int flags,
-		      struct page **pages, int *nr, bool fast)
-{
-	pte_t *ptep;
-	unsigned long sz = 1UL << hugepd_shift(hugepd);
-	unsigned long next;
-	int ret;
-
-	ptep = hugepte_offset(hugepd, addr, pdshift);
-	do {
-		next = hugepte_addr_end(addr, end, sz);
-		ret = gup_hugepte(vma, ptep, sz, addr, end, flags, pages, nr,
-				  fast);
-		if (ret != 1)
-			return ret;
-	} while (ptep++, addr = next, addr != end);
-
-	return 1;
-}
-
-static struct page *follow_hugepd(struct vm_area_struct *vma, hugepd_t hugepd,
-				  unsigned long addr, unsigned int pdshift,
-				  unsigned int flags,
-				  struct follow_page_context *ctx)
-{
-	struct page *page;
-	struct hstate *h;
-	spinlock_t *ptl;
-	int nr = 0, ret;
-	pte_t *ptep;
-
-	/* Only hugetlb supports hugepd */
-	if (WARN_ON_ONCE(!is_vm_hugetlb_page(vma)))
-		return ERR_PTR(-EFAULT);
-
-	h = hstate_vma(vma);
-	ptep = hugepte_offset(hugepd, addr, pdshift);
-	ptl = huge_pte_lock(h, vma->vm_mm, ptep);
-	ret = gup_hugepd(vma, hugepd, addr, pdshift, addr + PAGE_SIZE,
-			 flags, &page, &nr, false);
-	spin_unlock(ptl);
-
-	if (ret == 1) {
-		/* GUP succeeded */
-		WARN_ON_ONCE(nr != 1);
-		ctx->page_mask = (1U << huge_page_order(h)) - 1;
-		return page;
-	}
-
-	/* ret can be either 0 (translates to NULL) or negative */
-	return ERR_PTR(ret);
-}
-#else /* CONFIG_ARCH_HAS_HUGEPD */
-static inline int gup_hugepd(struct vm_area_struct *vma, hugepd_t hugepd,
-			     unsigned long addr, unsigned int pdshift,
-			     unsigned long end, unsigned int flags,
-			     struct page **pages, int *nr, bool fast)
-{
-	return 0;
-}
-
-static struct page *follow_hugepd(struct vm_area_struct *vma, hugepd_t hugepd,
-				  unsigned long addr, unsigned int pdshift,
-				  unsigned int flags,
-				  struct follow_page_context *ctx)
-{
-	return NULL;
-}
-#endif /* CONFIG_ARCH_HAS_HUGEPD */
-
+#endif	/* CONFIG_HAVE_GUP_FAST */
 
 static struct page *no_page_table(struct vm_area_struct *vma,
 				  unsigned int flags, unsigned long address)
@@ -1089,9 +942,6 @@ static struct page *follow_pmd_mask(struct vm_area_struct *vma,
 		return no_page_table(vma, flags, address);
 	if (!pmd_present(pmdval))
 		return no_page_table(vma, flags, address);
-	if (unlikely(is_hugepd(__hugepd(pmd_val(pmdval)))))
-		return follow_hugepd(vma, __hugepd(pmd_val(pmdval)),
-				     address, PMD_SHIFT, flags, ctx);
 	if (pmd_devmap(pmdval)) {
 		ptl = pmd_lock(mm, pmd);
 		page = follow_devmap_pmd(vma, address, pmd, flags, &ctx->pgmap);
@@ -1142,9 +992,6 @@ static struct page *follow_pud_mask(struct vm_area_struct *vma,
 	pud = READ_ONCE(*pudp);
 	if (!pud_present(pud))
 		return no_page_table(vma, flags, address);
-	if (unlikely(is_hugepd(__hugepd(pud_val(pud)))))
-		return follow_hugepd(vma, __hugepd(pud_val(pud)),
-				     address, PUD_SHIFT, flags, ctx);
 	if (pud_leaf(pud)) {
 		ptl = pud_lock(mm, pudp);
 		page = follow_huge_pud(vma, address, pudp, flags, ctx);
@@ -1169,10 +1016,6 @@ static struct page *follow_p4d_mask(struct vm_area_struct *vma,
 	p4dp = p4d_offset(pgdp, address);
 	p4d = READ_ONCE(*p4dp);
 	BUILD_BUG_ON(p4d_leaf(p4d));
-
-	if (unlikely(is_hugepd(__hugepd(p4d_val(p4d)))))
-		return follow_hugepd(vma, __hugepd(p4d_val(p4d)),
-				     address, P4D_SHIFT, flags, ctx);
 
 	if (!p4d_present(p4d) || p4d_bad(p4d))
 		return no_page_table(vma, flags, address);
@@ -1217,10 +1060,7 @@ static struct page *follow_page_mask(struct vm_area_struct *vma,
 	ctx->page_mask = 0;
 	pgd = pgd_offset(mm, address);
 
-	if (unlikely(is_hugepd(__hugepd(pgd_val(*pgd)))))
-		page = follow_hugepd(vma, __hugepd(pgd_val(*pgd)),
-				     address, PGDIR_SHIFT, flags, ctx);
-	else if (pgd_none(*pgd) || unlikely(pgd_bad(*pgd)))
+	if (pgd_none(*pgd) || unlikely(pgd_bad(*pgd)))
 		page = no_page_table(vma, flags, address);
 	else
 		page = follow_p4d_mask(vma, address, pgd, flags, ctx);
@@ -3362,15 +3202,6 @@ static int gup_fast_pmd_range(pud_t *pudp, pud_t pud, unsigned long addr,
 				pages, nr))
 				return 0;
 
-		} else if (unlikely(is_hugepd(__hugepd(pmd_val(pmd))))) {
-			/*
-			 * architecture have different format for hugetlbfs
-			 * pmd format and THP pmd format
-			 */
-			if (gup_hugepd(NULL, __hugepd(pmd_val(pmd)), addr,
-				       PMD_SHIFT, next, flags, pages, nr,
-				       true) != 1)
-				return 0;
 		} else if (!gup_fast_pte_range(pmd, pmdp, addr, next, flags,
 					       pages, nr))
 			return 0;
@@ -3397,11 +3228,6 @@ static int gup_fast_pud_range(p4d_t *p4dp, p4d_t p4d, unsigned long addr,
 			if (!gup_fast_pud_leaf(pud, pudp, addr, next, flags,
 					       pages, nr))
 				return 0;
-		} else if (unlikely(is_hugepd(__hugepd(pud_val(pud))))) {
-			if (gup_hugepd(NULL, __hugepd(pud_val(pud)), addr,
-				       PUD_SHIFT, next, flags, pages, nr,
-				       true) != 1)
-				return 0;
 		} else if (!gup_fast_pmd_range(pudp, pud, addr, next, flags,
 					       pages, nr))
 			return 0;
@@ -3425,13 +3251,8 @@ static int gup_fast_p4d_range(pgd_t *pgdp, pgd_t pgd, unsigned long addr,
 		if (!p4d_present(p4d))
 			return 0;
 		BUILD_BUG_ON(p4d_leaf(p4d));
-		if (unlikely(is_hugepd(__hugepd(p4d_val(p4d))))) {
-			if (gup_hugepd(NULL, __hugepd(p4d_val(p4d)), addr,
-				       P4D_SHIFT, next, flags, pages, nr,
-				       true) != 1)
-				return 0;
-		} else if (!gup_fast_pud_range(p4dp, p4d, addr, next, flags,
-					       pages, nr))
+		if (!gup_fast_pud_range(p4dp, p4d, addr, next, flags,
+					pages, nr))
 			return 0;
 	} while (p4dp++, addr = next, addr != end);
 
@@ -3454,11 +3275,6 @@ static void gup_fast_pgd_range(unsigned long addr, unsigned long end,
 		if (unlikely(pgd_leaf(pgd))) {
 			if (!gup_fast_pgd_leaf(pgd, pgdp, addr, next, flags,
 					       pages, nr))
-				return;
-		} else if (unlikely(is_hugepd(__hugepd(pgd_val(pgd))))) {
-			if (gup_hugepd(NULL, __hugepd(pgd_val(pgd)), addr,
-				       PGDIR_SHIFT, next, flags, pages, nr,
-				       true) != 1)
 				return;
 		} else if (!gup_fast_p4d_range(pgdp, pgd, addr, next, flags,
 					       pages, nr))
