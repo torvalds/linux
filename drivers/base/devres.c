@@ -85,7 +85,7 @@ static void group_close_release(struct device *dev, void *res)
 	/* noop */
 }
 
-static struct devres_group * node_to_group(struct devres_node *node)
+static struct devres_group *node_to_group(struct devres_node *node)
 {
 	if (node->release == &group_open_release)
 		return container_of(node, struct devres_group, node[0]);
@@ -107,8 +107,8 @@ static bool check_dr_size(size_t size, size_t *tot_size)
 	return true;
 }
 
-static __always_inline struct devres * alloc_dr(dr_release_t release,
-						size_t size, gfp_t gfp, int nid)
+static __always_inline struct devres *alloc_dr(dr_release_t release,
+					       size_t size, gfp_t gfp, int nid)
 {
 	size_t tot_size;
 	struct devres *dr;
@@ -283,8 +283,8 @@ static struct devres *find_dr(struct device *dev, dr_release_t release,
  * RETURNS:
  * Pointer to found devres, NULL if not found.
  */
-void * devres_find(struct device *dev, dr_release_t release,
-		   dr_match_t match, void *match_data)
+void *devres_find(struct device *dev, dr_release_t release,
+		  dr_match_t match, void *match_data)
 {
 	struct devres *dr;
 	unsigned long flags;
@@ -313,8 +313,8 @@ EXPORT_SYMBOL_GPL(devres_find);
  * RETURNS:
  * Pointer to found or added devres.
  */
-void * devres_get(struct device *dev, void *new_res,
-		  dr_match_t match, void *match_data)
+void *devres_get(struct device *dev, void *new_res,
+		 dr_match_t match, void *match_data)
 {
 	struct devres *new_dr = container_of(new_res, struct devres, data);
 	struct devres *dr;
@@ -349,8 +349,8 @@ EXPORT_SYMBOL_GPL(devres_get);
  * RETURNS:
  * Pointer to removed devres on success, NULL if not found.
  */
-void * devres_remove(struct device *dev, dr_release_t release,
-		     dr_match_t match, void *match_data)
+void *devres_remove(struct device *dev, dr_release_t release,
+		    dr_match_t match, void *match_data)
 {
 	struct devres *dr;
 	unsigned long flags;
@@ -549,7 +549,7 @@ int devres_release_all(struct device *dev)
  * RETURNS:
  * ID of the new group, NULL on failure.
  */
-void * devres_open_group(struct device *dev, void *id, gfp_t gfp)
+void *devres_open_group(struct device *dev, void *id, gfp_t gfp)
 {
 	struct devres_group *grp;
 	unsigned long flags;
@@ -577,7 +577,7 @@ void * devres_open_group(struct device *dev, void *id, gfp_t gfp)
 EXPORT_SYMBOL_GPL(devres_open_group);
 
 /* Find devres group with ID @id.  If @id is NULL, look for the latest. */
-static struct devres_group * find_group(struct device *dev, void *id)
+static struct devres_group *find_group(struct device *dev, void *id)
 {
 	struct devres_node *node;
 
