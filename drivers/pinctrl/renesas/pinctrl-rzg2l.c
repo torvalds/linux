@@ -57,12 +57,14 @@
 #define PIN_CFG_IOLH_C			BIT(13)
 #define PIN_CFG_SOFT_PS			BIT(14)
 #define PIN_CFG_OEN			BIT(15)
-#define PIN_CFG_VARIABLE		BIT(16)
-#define PIN_CFG_NOGPIO_INT		BIT(17)
-#define PIN_CFG_NOD			BIT(18)	/* N-ch Open Drain */
-#define PIN_CFG_SMT			BIT(19)	/* Schmitt-trigger input control */
-#define PIN_CFG_ELC			BIT(20)
-#define PIN_CFG_IOLH_RZV2H		BIT(21)
+#define PIN_CFG_NOGPIO_INT		BIT(16)
+#define PIN_CFG_NOD			BIT(17)	/* N-ch Open Drain */
+#define PIN_CFG_SMT			BIT(18)	/* Schmitt-trigger input control */
+#define PIN_CFG_ELC			BIT(19)
+#define PIN_CFG_IOLH_RZV2H		BIT(20)
+
+#define RZG2L_SINGLE_PIN		BIT_ULL(63)	/* Dedicated pin */
+#define RZG2L_VARIABLE_CFG		BIT_ULL(62)	/* Variable cfg for port pins */
 
 #define RZG2L_MPXED_COMMON_PIN_FUNCS(group) \
 					(PIN_CFG_IOLH_##group | \
@@ -87,9 +89,9 @@
 					 PIN_CFG_FILNUM | \
 					 PIN_CFG_FILCLKSEL)
 
-#define PIN_CFG_PIN_MAP_MASK		GENMASK_ULL(62, 55)
-#define PIN_CFG_PIN_REG_MASK		GENMASK_ULL(54, 47)
-#define PIN_CFG_MASK			GENMASK_ULL(46, 0)
+#define PIN_CFG_PIN_MAP_MASK		GENMASK_ULL(61, 54)
+#define PIN_CFG_PIN_REG_MASK		GENMASK_ULL(53, 46)
+#define PIN_CFG_MASK			GENMASK_ULL(31, 0)
 
 /*
  * m indicates the bitmap of supported pins, a is the register index
@@ -98,22 +100,25 @@
 #define RZG2L_GPIO_PORT_SPARSE_PACK(m, a, f)	(FIELD_PREP_CONST(PIN_CFG_PIN_MAP_MASK, (m)) | \
 						 FIELD_PREP_CONST(PIN_CFG_PIN_REG_MASK, (a)) | \
 						 FIELD_PREP_CONST(PIN_CFG_MASK, (f)))
+#define RZG2L_GPIO_PORT_SPARSE_PACK_VARIABLE(m, a)	\
+						(RZG2L_VARIABLE_CFG | \
+						 RZG2L_GPIO_PORT_SPARSE_PACK(m, a, 0))
 
 /*
  * n indicates number of pins in the port, a is the register index
  * and f is pin configuration capabilities supported.
  */
 #define RZG2L_GPIO_PORT_PACK(n, a, f)	RZG2L_GPIO_PORT_SPARSE_PACK((1ULL << (n)) - 1, (a), (f))
+#define RZG2L_GPIO_PORT_PACK_VARIABLE(n, a)	(RZG2L_VARIABLE_CFG | \
+						 RZG2L_GPIO_PORT_PACK(n, a, 0))
 
-/*
- * BIT(63) indicates dedicated pin, p is the register index while
- * referencing to SR/IEN/IOLH/FILxx registers, b is the register bits
- * (b * 8) and f is the pin configuration capabilities supported.
- */
-#define RZG2L_SINGLE_PIN		BIT_ULL(63)
 #define RZG2L_SINGLE_PIN_INDEX_MASK	GENMASK_ULL(62, 56)
 #define RZG2L_SINGLE_PIN_BITS_MASK	GENMASK_ULL(55, 53)
-
+/*
+ * p is the register index while referencing to SR/IEN/IOLH/FILxx
+ * registers, b is the register bits (b * 8) and f is the pin
+ * configuration capabilities supported.
+ */
 #define RZG2L_SINGLE_PIN_PACK(p, b, f)	(RZG2L_SINGLE_PIN | \
 					 FIELD_PREP_CONST(RZG2L_SINGLE_PIN_INDEX_MASK, (p)) | \
 					 FIELD_PREP_CONST(RZG2L_SINGLE_PIN_BITS_MASK, (b)) | \
@@ -371,7 +376,7 @@ static u64 rzg2l_pinctrl_get_variable_pin_cfg(struct rzg2l_pinctrl *pctrl,
 
 		if (FIELD_GET(VARIABLE_PIN_CFG_PORT_MASK, cfg) == port &&
 		    FIELD_GET(VARIABLE_PIN_CFG_PIN_MASK, cfg) == pin)
-			return (pincfg & ~PIN_CFG_VARIABLE) | FIELD_GET(PIN_CFG_MASK, cfg);
+			return (pincfg & ~RZG2L_VARIABLE_CFG) | FIELD_GET(PIN_CFG_MASK, cfg);
 	}
 
 	return 0;
@@ -1187,7 +1192,7 @@ static int rzg2l_pinctrl_pinconf_get(struct pinctrl_dev *pctldev,
 	u64 *pin_data = pin->drv_data;
 	unsigned int arg = 0;
 	u32 off;
-	u64 cfg;
+	u32 cfg;
 	int ret;
 	u8 bit;
 
@@ -1322,7 +1327,7 @@ static int rzg2l_pinctrl_pinconf_set(struct pinctrl_dev *pctldev,
 	u64 *pin_data = pin->drv_data;
 	unsigned int i, arg, index;
 	u32 off, param;
-	u64 cfg;
+	u32 cfg;
 	int ret;
 	u8 bit;
 
@@ -1835,13 +1840,13 @@ static const u64 r9a07g043_gpio_configs[] = {
 	RZG2L_GPIO_PORT_SPARSE_PACK(0x2, 0x06, PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_PUPD |
 				    PIN_CFG_FILONOFF | PIN_CFG_FILNUM | PIN_CFG_FILCLKSEL |
 				    PIN_CFG_IEN | PIN_CFG_NOGPIO_INT),			/* P19 */
-	RZG2L_GPIO_PORT_PACK(8, 0x07, PIN_CFG_VARIABLE),				/* P20 */
+	RZG2L_GPIO_PORT_PACK_VARIABLE(8, 0x07),						/* P20 */
 	RZG2L_GPIO_PORT_SPARSE_PACK(0x2, 0x08, PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_PUPD |
 				    PIN_CFG_IEN | PIN_CFG_NOGPIO_INT),			/* P21 */
 	RZG2L_GPIO_PORT_PACK(4, 0x09, PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_PUPD |
 			     PIN_CFG_IEN | PIN_CFG_NOGPIO_INT),				/* P22 */
-	RZG2L_GPIO_PORT_SPARSE_PACK(0x3e, 0x0a, PIN_CFG_VARIABLE),			/* P23 */
-	RZG2L_GPIO_PORT_PACK(6, 0x0b, PIN_CFG_VARIABLE),				/* P24 */
+	RZG2L_GPIO_PORT_SPARSE_PACK_VARIABLE(0x3e, 0x0a),				/* P23 */
+	RZG2L_GPIO_PORT_PACK_VARIABLE(6, 0x0b),						/* P24 */
 	RZG2L_GPIO_PORT_SPARSE_PACK(0x2, 0x0c, PIN_CFG_IOLH_B | PIN_CFG_SR | PIN_CFG_FILONOFF |
 				    PIN_CFG_FILNUM | PIN_CFG_FILCLKSEL |
 				    PIN_CFG_NOGPIO_INT),				/* P25 */
@@ -1913,7 +1918,7 @@ static const u64 r9a09g057_gpio_configs[] = {
 				      PIN_CFG_ELC),		/* P8 */
 	RZG2L_GPIO_PORT_PACK(8, 0x29, RZV2H_MPXED_PIN_FUNCS),	/* P9 */
 	RZG2L_GPIO_PORT_PACK(8, 0x2a, RZV2H_MPXED_PIN_FUNCS),	/* PA */
-	RZG2L_GPIO_PORT_PACK(6, 0x2b, PIN_CFG_VARIABLE),	/* PB */
+	RZG2L_GPIO_PORT_PACK_VARIABLE(6, 0x2b),			/* PB */
 };
 
 static const struct {
@@ -2637,7 +2642,7 @@ static int rzg2l_pinctrl_register(struct rzg2l_pinctrl *pctrl)
 		if (i && !(i % RZG2L_PINS_PER_PORT))
 			j++;
 		pin_data[i] = pctrl->data->port_pin_configs[j];
-		if (pin_data[i] & PIN_CFG_VARIABLE)
+		if (pin_data[i] & RZG2L_VARIABLE_CFG)
 			pin_data[i] = rzg2l_pinctrl_get_variable_pin_cfg(pctrl,
 									 pin_data[i],
 									 j,
@@ -2755,9 +2760,9 @@ static void rzg2l_pinctrl_pm_setup_regs(struct rzg2l_pinctrl *pctrl, bool suspen
 
 	for (u32 port = 0; port < nports; port++) {
 		bool has_iolh, has_ien;
-		u64 cfg, caps;
+		u32 off, caps;
 		u8 pincnt;
-		u32 off;
+		u64 cfg;
 
 		cfg = pctrl->data->port_pin_configs[port];
 		off = RZG2L_PIN_CFG_TO_PORT_OFFSET(cfg);
@@ -2801,7 +2806,7 @@ static void rzg2l_pinctrl_pm_setup_regs(struct rzg2l_pinctrl *pctrl, bool suspen
 static void rzg2l_pinctrl_pm_setup_dedicated_regs(struct rzg2l_pinctrl *pctrl, bool suspend)
 {
 	struct rzg2l_pinctrl_reg_cache *cache = pctrl->dedicated_cache;
-	u64 caps;
+	u32 caps;
 	u32 i;
 
 	/*
