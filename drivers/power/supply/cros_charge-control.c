@@ -316,7 +316,6 @@ static int cros_chctl_probe(struct platform_device *pdev)
 		sysfs_attr_init(&priv->device_attrs[i].attr);
 		priv->attributes[i] = &priv->device_attrs[i].attr;
 	}
-	priv->attributes[_CROS_CHCTL_ATTR_COUNT] = NULL;
 	priv->group.is_visible = cros_chtl_attr_is_visible;
 	priv->group.attrs = priv->attributes;
 
