@@ -450,11 +450,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_SMT)
 
 tlb_miss_huge_e6500:
 	beq	tlb_miss_fault_e6500
-	li	r10,1
-	andi.	r15,r14,HUGEPD_SHIFT_MASK@l /* r15 = psize */
-	rldimi	r14,r10,63,0		/* Set PD_HUGE */
-	xor	r14,r14,r15		/* Clear size bits */
-	ldx	r14,0,r14
+	rlwinm	r15,r14,32-_PAGE_PSIZE_SHIFT,0x1e
 
 	/*
 	 * Now we build the MAS for a huge page.
@@ -465,7 +461,6 @@ tlb_miss_huge_e6500:
 	 * MAS 2,3+7:	Needs to be redone similar to non-tablewalk handler
 	 */
 
-	subi	r15,r15,10		/* Convert psize to tsize */
 	mfspr	r10,SPRN_MAS1
 	rlwinm	r10,r10,0,~MAS1_IND
 	rlwimi	r10,r15,MAS1_TSIZE_SHIFT,MAS1_TSIZE_MASK

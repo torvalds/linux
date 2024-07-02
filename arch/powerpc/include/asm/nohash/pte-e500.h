@@ -101,6 +101,39 @@ static inline unsigned long pte_huge_size(pte_t pte)
 }
 #define pte_huge_size pte_huge_size
 
+static inline int pmd_leaf(pmd_t pmd)
+{
+	if (IS_ENABLED(CONFIG_PPC64))
+		return (long)pmd_val(pmd) > 0;
+	else
+		return pmd_val(pmd) & _PAGE_PSIZE_MSK;
+}
+#define pmd_leaf pmd_leaf
+
+static inline unsigned long pmd_leaf_size(pmd_t pmd)
+{
+	return pte_huge_size(__pte(pmd_val(pmd)));
+}
+#define pmd_leaf_size pmd_leaf_size
+
+#ifdef CONFIG_PPC64
+static inline int pud_leaf(pud_t pud)
+{
+	if (IS_ENABLED(CONFIG_PPC64))
+		return (long)pud_val(pud) > 0;
+	else
+		return pud_val(pud) & _PAGE_PSIZE_MSK;
+}
+#define pud_leaf pud_leaf
+
+static inline unsigned long pud_leaf_size(pud_t pud)
+{
+	return pte_huge_size(__pte(pud_val(pud)));
+}
+#define pud_leaf_size pud_leaf_size
+
+#endif
+
 #endif /* __ASSEMBLY__ */
 
 #endif /* __KERNEL__ */

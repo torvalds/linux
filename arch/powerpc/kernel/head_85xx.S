@@ -311,16 +311,14 @@ set_ivor:
 	rlwinm	r12, r13, 14, 18, 28;	/* Compute pgdir/pmd offset */	\
 	add	r12, r11, r12;						\
 	lwz	r11, 4(r12);		/* Get pgd/pmd entry */		\
+	rlwinm.	r10, r11, 32 - _PAGE_PSIZE_SHIFT, 0x1e; /* get tsize*/	\
+	bne	1000f;			/* Huge page (leaf entry) */	\
 	rlwinm.	r12, r11, 0, 0, 20;	/* Extract pt base address */	\
-	blt	1000f;			/* Normal non-huge page */	\
 	beq	2f;			/* Bail if no table */		\
-	oris	r11, r11, PD_HUGE@h;	/* Put back address bit */	\
-	andi.	r10, r11, HUGEPD_SHIFT_MASK@l; /* extract size field */	\
-	xor	r12, r10, r11;		/* drop size bits from pointer */ \
-	b	1001f;							\
-1000:	rlwimi	r12, r13, 23, 20, 28;	/* Compute pte address */	\
+	rlwimi	r12, r13, 23, 20, 28;	/* Compute pte address */	\
 	li	r10, 0;			/* clear r10 */			\
-1001:	lwz	r11, 4(r12);		/* Get pte entry */
+	lwz	r11, 4(r12);		/* Get pte entry */		\
+1000:
 #else
 #define FIND_PTE	\
 	rlwinm	r12, r13, 14, 18, 28;	/* Compute pgdir/pmd offset */	\
@@ -735,17 +733,12 @@ finish_tlb_load:
 	lwz	r15, 0(r14)
 100:	stw	r15, 0(r17)
 
-	/*
-	 * Calc MAS1_TSIZE from r10 (which has pshift encoded)
-	 * tlb_enc = (pshift - 10).
-	 */
-	subi	r15, r10, 10
 	mfspr	r16, SPRN_MAS1
-	rlwimi	r16, r15, 7, 20, 24
+	rlwimi	r16, r10, MAS1_TSIZE_SHIFT, MAS1_TSIZE_MASK
 	mtspr	SPRN_MAS1, r16
 
 	/* copy the pshift for use later */
-	mr	r14, r10
+	addi	r14, r10, _PAGE_PSIZE_SHIFT_OFFSET
 
 	/* fall through */
 

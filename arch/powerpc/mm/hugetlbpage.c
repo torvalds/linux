@@ -625,8 +625,6 @@ static int __init hugetlbpage_init(void)
 		 */
 		if (pdshift > shift) {
 			pgtable_cache_add(pdshift - shift);
-		} else if (IS_ENABLED(CONFIG_PPC_E500)) {
-			pgtable_cache_add(PTE_T_ORDER);
 		}
 
 		configured = true;
