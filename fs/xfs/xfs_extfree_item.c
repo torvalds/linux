@@ -336,6 +336,22 @@ xfs_efd_from_efi(
 	efdp->efd_next_extent = efip->efi_format.efi_nextents;
 }
 
+static void
+xfs_efd_add_extent(
+	struct xfs_efd_log_item		*efdp,
+	struct xfs_extent_free_item	*xefi)
+{
+	struct xfs_extent		*extp;
+
+	ASSERT(efdp->efd_next_extent < efdp->efd_format.efd_nextents);
+
+	extp = &efdp->efd_format.efd_extents[efdp->efd_next_extent];
+	extp->ext_start = xefi->xefi_startblock;
+	extp->ext_len = xefi->xefi_blockcount;
+
+	efdp->efd_next_extent++;
+}
+
 /* Sort bmap items by AG. */
 static int
 xfs_extent_free_diff_items(
@@ -460,8 +476,6 @@ xfs_extent_free_finish_item(
 	struct xfs_extent_free_item	*xefi = xefi_entry(item);
 	struct xfs_efd_log_item		*efdp = EFD_ITEM(done);
 	struct xfs_mount		*mp = tp->t_mountp;
-	struct xfs_extent		*extp;
-	uint				next_extent;
 	xfs_agblock_t			agbno;
 	int				error = 0;
 
@@ -490,14 +504,7 @@ xfs_extent_free_finish_item(
 		return error;
 	}
 
-	/* Add the work we finished to the EFD, even though nobody uses that */
-	next_extent = efdp->efd_next_extent;
-	ASSERT(next_extent < efdp->efd_format.efd_nextents);
-	extp = &(efdp->efd_format.efd_extents[next_extent]);
-	extp->ext_start = xefi->xefi_startblock;
-	extp->ext_len = xefi->xefi_blockcount;
-	efdp->efd_next_extent++;
-
+	xfs_efd_add_extent(efdp, xefi);
 	xfs_extent_free_cancel_item(item);
 	return error;
 }
@@ -525,11 +532,9 @@ xfs_agfl_free_finish_item(
 	struct xfs_mount		*mp = tp->t_mountp;
 	struct xfs_efd_log_item		*efdp = EFD_ITEM(done);
 	struct xfs_extent_free_item	*xefi = xefi_entry(item);
-	struct xfs_extent		*extp;
 	struct xfs_buf			*agbp;
 	int				error;
 	xfs_agblock_t			agbno;
-	uint				next_extent;
 
 	ASSERT(xefi->xefi_blockcount == 1);
 	agbno = XFS_FSB_TO_AGBNO(mp, xefi->xefi_startblock);
@@ -542,13 +547,7 @@ xfs_agfl_free_finish_item(
 		error = xfs_free_ag_extent(tp, agbp, xefi->xefi_pag->pag_agno,
 				agbno, 1, &oinfo, XFS_AG_RESV_AGFL);
 
-	next_extent = efdp->efd_next_extent;
-	ASSERT(next_extent < efdp->efd_format.efd_nextents);
-	extp = &(efdp->efd_format.efd_extents[next_extent]);
-	extp->ext_start = xefi->xefi_startblock;
-	extp->ext_len = xefi->xefi_blockcount;
-	efdp->efd_next_extent++;
-
+	xfs_efd_add_extent(efdp, xefi);
 	xfs_extent_free_cancel_item(&xefi->xefi_list);
 	return error;
 }
