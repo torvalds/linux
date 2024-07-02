@@ -730,35 +730,25 @@ xfs_dir_hook_setup(
 
 int
 xfs_create(
-	struct mnt_idmap	*idmap,
-	struct xfs_inode	*dp,
+	const struct xfs_icreate_args *args,
 	struct xfs_name		*name,
-	umode_t			mode,
-	dev_t			rdev,
-	bool			init_xattrs,
-	xfs_inode_t		**ipp)
+	struct xfs_inode	**ipp)
 {
-	struct xfs_icreate_args	args = {
-		.idmap		= idmap,
-		.pip		= dp,
-		.rdev		= rdev,
-		.mode		= mode,
-		.flags		= init_xattrs ? XFS_ICREATE_INIT_XATTRS : 0,
-	};
-	int			is_dir = S_ISDIR(mode);
+	struct xfs_inode	*dp = args->pip;
 	struct xfs_mount	*mp = dp->i_mount;
 	struct xfs_inode	*ip = NULL;
 	struct xfs_trans	*tp = NULL;
-	int			error;
-	bool			unlock_dp_on_error = false;
-	prid_t			prid;
 	struct xfs_dquot	*udqp = NULL;
 	struct xfs_dquot	*gdqp = NULL;
 	struct xfs_dquot	*pdqp = NULL;
 	struct xfs_trans_res	*tres;
-	uint			resblks;
-	xfs_ino_t		ino;
 	struct xfs_parent_args	*ppargs;
+	xfs_ino_t		ino;
+	prid_t			prid;
+	bool			unlock_dp_on_error = false;
+	bool			is_dir = S_ISDIR(args->mode);
+	uint			resblks;
+	int			error;
 
 	trace_xfs_create(dp, name);
 
@@ -774,8 +764,9 @@ xfs_create(
 	 * computation code must match what the VFS uses to assign i_[ug]id.
 	 * INHERIT adjusts the gid computation for setgid/grpid systems.
 	 */
-	error = xfs_qm_vop_dqalloc(dp, mapped_fsuid(idmap, i_user_ns(VFS_I(dp))),
-			mapped_fsgid(idmap, i_user_ns(VFS_I(dp))), prid,
+	error = xfs_qm_vop_dqalloc(dp,
+			mapped_fsuid(args->idmap, i_user_ns(VFS_I(dp))),
+			mapped_fsgid(args->idmap, i_user_ns(VFS_I(dp))), prid,
 			XFS_QMOPT_QUOTALL | XFS_QMOPT_INHERIT,
 			&udqp, &gdqp, &pdqp);
 	if (error)
@@ -818,9 +809,9 @@ xfs_create(
 	 * entry pointing to them, but a directory also the "." entry
 	 * pointing to itself.
 	 */
-	error = xfs_dialloc(&tp, dp->i_ino, mode, &ino);
+	error = xfs_dialloc(&tp, dp->i_ino, args->mode, &ino);
 	if (!error)
-		error = xfs_icreate(tp, ino, &args, &ip);
+		error = xfs_icreate(tp, ino, args, &ip);
 	if (error)
 		goto out_trans_cancel;
 
@@ -922,44 +913,37 @@ xfs_create(
 
 int
 xfs_create_tmpfile(
-	struct mnt_idmap	*idmap,
-	struct xfs_inode	*dp,
-	umode_t			mode,
-	bool			init_xattrs,
+	const struct xfs_icreate_args *args,
 	struct xfs_inode	**ipp)
 {
-	struct xfs_icreate_args	args = {
-		.idmap		= idmap,
-		.pip		= dp,
-		.mode		= mode,
-		.flags		= XFS_ICREATE_TMPFILE,
-	};
+	struct xfs_inode	*dp = args->pip;
 	struct xfs_mount	*mp = dp->i_mount;
 	struct xfs_inode	*ip = NULL;
 	struct xfs_trans	*tp = NULL;
-	int			error;
-	prid_t			prid;
 	struct xfs_dquot	*udqp = NULL;
 	struct xfs_dquot	*gdqp = NULL;
 	struct xfs_dquot	*pdqp = NULL;
 	struct xfs_trans_res	*tres;
-	uint			resblks;
 	xfs_ino_t		ino;
+	prid_t			prid;
+	uint			resblks;
+	int			error;
+
+	ASSERT(args->flags & XFS_ICREATE_TMPFILE);
 
 	if (xfs_is_shutdown(mp))
 		return -EIO;
 
 	prid = xfs_get_initial_prid(dp);
-	if (init_xattrs)
-		args.flags |= XFS_ICREATE_INIT_XATTRS;
 
 	/*
 	 * Make sure that we have allocated dquot(s) on disk.  The uid/gid
 	 * computation code must match what the VFS uses to assign i_[ug]id.
 	 * INHERIT adjusts the gid computation for setgid/grpid systems.
 	 */
-	error = xfs_qm_vop_dqalloc(dp, mapped_fsuid(idmap, i_user_ns(VFS_I(dp))),
-			mapped_fsgid(idmap, i_user_ns(VFS_I(dp))), prid,
+	error = xfs_qm_vop_dqalloc(dp,
+			mapped_fsuid(args->idmap, i_user_ns(VFS_I(dp))),
+			mapped_fsgid(args->idmap, i_user_ns(VFS_I(dp))), prid,
 			XFS_QMOPT_QUOTALL | XFS_QMOPT_INHERIT,
 			&udqp, &gdqp, &pdqp);
 	if (error)
@@ -973,9 +957,9 @@ xfs_create_tmpfile(
 	if (error)
 		goto out_release_dquots;
 
-	error = xfs_dialloc(&tp, dp->i_ino, mode, &ino);
+	error = xfs_dialloc(&tp, dp->i_ino, args->mode, &ino);
 	if (!error)
-		error = xfs_icreate(tp, ino, &args, &ip);
+		error = xfs_icreate(tp, ino, args, &ip);
 	if (error)
 		goto out_trans_cancel;
 
@@ -2854,12 +2838,20 @@ xfs_rename_alloc_whiteout(
 	struct xfs_inode	*dp,
 	struct xfs_inode	**wip)
 {
+	struct xfs_icreate_args	args = {
+		.idmap		= idmap,
+		.pip		= dp,
+		.mode		= S_IFCHR | WHITEOUT_MODE,
+		.flags		= XFS_ICREATE_TMPFILE,
+	};
 	struct xfs_inode	*tmpfile;
 	struct qstr		name;
 	int			error;
 
-	error = xfs_create_tmpfile(idmap, dp, S_IFCHR | WHITEOUT_MODE,
-			xfs_has_parent(dp->i_mount), &tmpfile);
+	if (xfs_has_parent(dp->i_mount))
+		args.flags |= XFS_ICREATE_INIT_XATTRS;
+
+	error = xfs_create_tmpfile(&args, &tmpfile);
 	if (error)
 		return error;
 
