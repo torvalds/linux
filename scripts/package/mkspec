@@ -9,6 +9,8 @@
 #	Patched for non-x86 by Opencon (L) 2002 <opencon@rio.skydome.net>
 #
 
+set -eu
+
 output=$1
 
 mkdir -p "$(dirname "${output}")"
