@@ -110,6 +110,8 @@ static struct iopf_group *iopf_group_alloc(struct iommu_fault_param *iopf_param,
 	list_add(&group->pending_node, &iopf_param->faults);
 	mutex_unlock(&iopf_param->lock);
 
+	group->fault_count = list_count_nodes(&group->faults);
+
 	return group;
 }
 

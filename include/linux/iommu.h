@@ -124,12 +124,16 @@ struct iopf_fault {
 struct iopf_group {
 	struct iopf_fault last_fault;
 	struct list_head faults;
+	size_t fault_count;
 	/* list node for iommu_fault_param::faults */
 	struct list_head pending_node;
 	struct work_struct work;
 	struct iommu_attach_handle *attach_handle;
 	/* The device's fault data parameter. */
 	struct iommu_fault_param *fault_param;
+	/* Used by handler provider to hook the group on its own lists. */
+	struct list_head node;
+	u32 cookie;
 };
 
 /**
