@@ -553,6 +553,10 @@ static void synchronize_rcu_expedited_stall(unsigned long jiffies_start, unsigne
 	struct rcu_node *rnp;
 	struct rcu_node *rnp_root = rcu_get_root();
 
+	if (READ_ONCE(csd_lock_suppress_rcu_stall) && csd_lock_is_stuck()) {
+		pr_err("INFO: %s detected expedited stalls, but suppressed full report due to a stuck CSD-lock.\n", rcu_state.name);
+		return;
+	}
 	pr_err("INFO: %s detected expedited stalls on CPUs/tasks: {", rcu_state.name);
 	ndetected = 0;
 	rcu_for_each_leaf_node(rnp) {
