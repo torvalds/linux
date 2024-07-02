@@ -239,6 +239,26 @@ static int amd_pstate_get_energy_pref_index(struct amd_cpudata *cpudata)
 	return index;
 }
 
+static void pstate_update_perf(struct amd_cpudata *cpudata, u32 min_perf,
+			       u32 des_perf, u32 max_perf, bool fast_switch)
+{
+	if (fast_switch)
+		wrmsrl(MSR_AMD_CPPC_REQ, READ_ONCE(cpudata->cppc_req_cached));
+	else
+		wrmsrl_on_cpu(cpudata->cpu, MSR_AMD_CPPC_REQ,
+			      READ_ONCE(cpudata->cppc_req_cached));
+}
+
+DEFINE_STATIC_CALL(amd_pstate_update_perf, pstate_update_perf);
+
+static inline void amd_pstate_update_perf(struct amd_cpudata *cpudata,
+					  u32 min_perf, u32 des_perf,
+					  u32 max_perf, bool fast_switch)
+{
+	static_call(amd_pstate_update_perf)(cpudata, min_perf, des_perf,
+					    max_perf, fast_switch);
+}
+
 static int amd_pstate_set_epp(struct amd_cpudata *cpudata, u32 epp)
 {
 	int ret;
@@ -255,6 +275,9 @@ static int amd_pstate_set_epp(struct amd_cpudata *cpudata, u32 epp)
 		if (!ret)
 			cpudata->epp_cached = epp;
 	} else {
+		amd_pstate_update_perf(cpudata, cpudata->min_limit_perf, 0U,
+					     cpudata->max_limit_perf, false);
+
 		perf_ctrls.energy_perf = epp;
 		ret = cppc_set_epp_perf(cpudata->cpu, &perf_ctrls, 1);
 		if (ret) {
@@ -442,16 +465,6 @@ static inline int amd_pstate_init_perf(struct amd_cpudata *cpudata)
 	return static_call(amd_pstate_init_perf)(cpudata);
 }
 
-static void pstate_update_perf(struct amd_cpudata *cpudata, u32 min_perf,
-			       u32 des_perf, u32 max_perf, bool fast_switch)
-{
-	if (fast_switch)
-		wrmsrl(MSR_AMD_CPPC_REQ, READ_ONCE(cpudata->cppc_req_cached));
-	else
-		wrmsrl_on_cpu(cpudata->cpu, MSR_AMD_CPPC_REQ,
-			      READ_ONCE(cpudata->cppc_req_cached));
-}
-
 static void cppc_update_perf(struct amd_cpudata *cpudata,
 			     u32 min_perf, u32 des_perf,
 			     u32 max_perf, bool fast_switch)
@@ -463,16 +476,6 @@ static void cppc_update_perf(struct amd_cpudata *cpudata,
 	perf_ctrls.desired_perf = des_perf;
 
 	cppc_set_perf(cpudata->cpu, &perf_ctrls);
-}
-
-DEFINE_STATIC_CALL(amd_pstate_update_perf, pstate_update_perf);
-
-static inline void amd_pstate_update_perf(struct amd_cpudata *cpudata,
-					  u32 min_perf, u32 des_perf,
-					  u32 max_perf, bool fast_switch)
-{
-	static_call(amd_pstate_update_perf)(cpudata, min_perf, des_perf,
-					    max_perf, fast_switch);
 }
 
 static inline bool amd_pstate_sample(struct amd_cpudata *cpudata)
