@@ -180,9 +180,10 @@ out:
 	return r;
 }
 
-int verity_hash(struct dm_verity *v, struct ahash_request *req,
+int verity_hash(struct dm_verity *v, struct dm_verity_io *io,
 		const u8 *data, size_t len, u8 *digest, bool may_sleep)
 {
+	struct ahash_request *req = verity_io_hash_req(v, io);
 	int r;
 	struct crypto_wait wait;
 
@@ -325,8 +326,7 @@ static int verity_verify_level(struct dm_verity *v, struct dm_verity_io *io,
 			goto release_ret_r;
 		}
 
-		r = verity_hash(v, verity_io_hash_req(v, io),
-				data, 1 << v->hash_dev_block_bits,
+		r = verity_hash(v, io, data, 1 << v->hash_dev_block_bits,
 				verity_io_real_digest(v, io), !io->in_bh);
 		if (unlikely(r < 0))
 			goto release_ret_r;
@@ -428,8 +428,7 @@ static noinline int verity_recheck(struct dm_verity *v, struct dm_verity_io *io,
 	if (unlikely(r))
 		goto free_ret;
 
-	r = verity_hash(v, verity_io_hash_req(v, io), buffer,
-			1 << v->data_dev_block_bits,
+	r = verity_hash(v, io, buffer, 1 << v->data_dev_block_bits,
 			verity_io_real_digest(v, io), true);
 	if (unlikely(r))
 		goto free_ret;
@@ -544,7 +543,7 @@ static int verity_verify_io(struct dm_verity_io *io)
 			continue;
 		}
 
-		r = verity_hash(v, verity_io_hash_req(v, io), data, block_size,
+		r = verity_hash(v, io, data, block_size,
 				verity_io_real_digest(v, io), !io->in_bh);
 		if (unlikely(r < 0)) {
 			kunmap_local(data);
@@ -991,7 +990,7 @@ static int verity_alloc_most_once(struct dm_verity *v)
 static int verity_alloc_zero_digest(struct dm_verity *v)
 {
 	int r = -ENOMEM;
-	struct ahash_request *req;
+	struct dm_verity_io *io;
 	u8 *zero_data;
 
 	v->zero_digest = kmalloc(v->digest_size, GFP_KERNEL);
@@ -999,9 +998,9 @@ static int verity_alloc_zero_digest(struct dm_verity *v)
 	if (!v->zero_digest)
 		return r;
 
-	req = kmalloc(v->ahash_reqsize, GFP_KERNEL);
+	io = kmalloc(sizeof(*io) + v->ahash_reqsize, GFP_KERNEL);
 
-	if (!req)
+	if (!io)
 		return r; /* verity_dtr will free zero_digest */
 
 	zero_data = kzalloc(1 << v->data_dev_block_bits, GFP_KERNEL);
@@ -1009,11 +1008,11 @@ static int verity_alloc_zero_digest(struct dm_verity *v)
 	if (!zero_data)
 		goto out;
 
-	r = verity_hash(v, req, zero_data, 1 << v->data_dev_block_bits,
+	r = verity_hash(v, io, zero_data, 1 << v->data_dev_block_bits,
 			v->zero_digest, true);
 
 out:
-	kfree(req);
+	kfree(io);
 	kfree(zero_data);
 
 	return r;

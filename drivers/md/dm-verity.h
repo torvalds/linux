@@ -116,7 +116,7 @@ static inline u8 *verity_io_want_digest(struct dm_verity *v,
 	return io->want_digest;
 }
 
-extern int verity_hash(struct dm_verity *v, struct ahash_request *req,
+extern int verity_hash(struct dm_verity *v, struct dm_verity_io *io,
 		       const u8 *data, size_t len, u8 *digest, bool may_sleep);
 
 extern int verity_hash_for_block(struct dm_verity *v, struct dm_verity_io *io,
