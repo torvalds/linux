@@ -3461,9 +3461,9 @@ DEFINE_REFCOUNT_EXTENT_EVENT(xfs_refcount_get);
 DEFINE_REFCOUNT_EXTENT_EVENT(xfs_refcount_update);
 DEFINE_REFCOUNT_EXTENT_EVENT(xfs_refcount_insert);
 DEFINE_REFCOUNT_EXTENT_EVENT(xfs_refcount_delete);
-DEFINE_AG_ERROR_EVENT(xfs_refcount_insert_error);
-DEFINE_AG_ERROR_EVENT(xfs_refcount_delete_error);
-DEFINE_AG_ERROR_EVENT(xfs_refcount_update_error);
+DEFINE_BTREE_ERROR_EVENT(xfs_refcount_insert_error);
+DEFINE_BTREE_ERROR_EVENT(xfs_refcount_delete_error);
+DEFINE_BTREE_ERROR_EVENT(xfs_refcount_update_error);
 
 /* refcount adjustment tracepoints */
 DEFINE_AG_EXTENT_EVENT(xfs_refcount_increase);
@@ -3478,20 +3478,20 @@ DEFINE_REFCOUNT_DOUBLE_EXTENT_EVENT(xfs_refcount_merge_left_extent);
 DEFINE_REFCOUNT_DOUBLE_EXTENT_EVENT(xfs_refcount_merge_right_extent);
 DEFINE_REFCOUNT_DOUBLE_EXTENT_AT_EVENT(xfs_refcount_find_left_extent);
 DEFINE_REFCOUNT_DOUBLE_EXTENT_AT_EVENT(xfs_refcount_find_right_extent);
-DEFINE_AG_ERROR_EVENT(xfs_refcount_adjust_error);
-DEFINE_AG_ERROR_EVENT(xfs_refcount_adjust_cow_error);
-DEFINE_AG_ERROR_EVENT(xfs_refcount_merge_center_extents_error);
-DEFINE_AG_ERROR_EVENT(xfs_refcount_modify_extent_error);
-DEFINE_AG_ERROR_EVENT(xfs_refcount_split_extent_error);
-DEFINE_AG_ERROR_EVENT(xfs_refcount_merge_left_extent_error);
-DEFINE_AG_ERROR_EVENT(xfs_refcount_merge_right_extent_error);
-DEFINE_AG_ERROR_EVENT(xfs_refcount_find_left_extent_error);
-DEFINE_AG_ERROR_EVENT(xfs_refcount_find_right_extent_error);
+DEFINE_BTREE_ERROR_EVENT(xfs_refcount_adjust_error);
+DEFINE_BTREE_ERROR_EVENT(xfs_refcount_adjust_cow_error);
+DEFINE_BTREE_ERROR_EVENT(xfs_refcount_merge_center_extents_error);
+DEFINE_BTREE_ERROR_EVENT(xfs_refcount_modify_extent_error);
+DEFINE_BTREE_ERROR_EVENT(xfs_refcount_split_extent_error);
+DEFINE_BTREE_ERROR_EVENT(xfs_refcount_merge_left_extent_error);
+DEFINE_BTREE_ERROR_EVENT(xfs_refcount_merge_right_extent_error);
+DEFINE_BTREE_ERROR_EVENT(xfs_refcount_find_left_extent_error);
+DEFINE_BTREE_ERROR_EVENT(xfs_refcount_find_right_extent_error);
 
 /* reflink helpers */
 DEFINE_AG_EXTENT_EVENT(xfs_refcount_find_shared);
 DEFINE_AG_EXTENT_EVENT(xfs_refcount_find_shared_result);
-DEFINE_AG_ERROR_EVENT(xfs_refcount_find_shared_error);
+DEFINE_BTREE_ERROR_EVENT(xfs_refcount_find_shared_error);
 
 DECLARE_EVENT_CLASS(xfs_refcount_deferred_class,
 	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno,
