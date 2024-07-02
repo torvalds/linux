@@ -54,4 +54,5 @@ static struct kunit_suite of_dtb_suite = {
 kunit_test_suites(
 	&of_dtb_suite,
 );
+MODULE_DESCRIPTION("KUnit tests for OF APIs");
 MODULE_LICENSE("GPL");

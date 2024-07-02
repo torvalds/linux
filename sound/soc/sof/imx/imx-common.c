@@ -75,3 +75,4 @@ void imx8_dump(struct snd_sof_dev *sdev, u32 flags)
 EXPORT_SYMBOL(imx8_dump);
 
 MODULE_LICENSE("Dual BSD/GPL");
+MODULE_DESCRIPTION("SOF helpers for IMX platforms");

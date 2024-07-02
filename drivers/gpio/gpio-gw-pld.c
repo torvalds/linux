@@ -130,5 +130,6 @@ static struct i2c_driver gw_pld_driver = {
 };
 module_i2c_driver(gw_pld_driver);
 
+MODULE_DESCRIPTION("Gateworks I2C PLD GPIO expander");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Linus Walleij <linus.walleij@linaro.org>");

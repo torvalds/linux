@@ -157,7 +157,7 @@ static void ump_system_to_one_param_ev(const union snd_ump_midi1_msg *val,
 static void ump_system_to_songpos_ev(const union snd_ump_midi1_msg *val,
 				     struct snd_seq_event *ev)
 {
-	ev->data.control.value = (val->system.parm1 << 7) | val->system.parm2;
+	ev->data.control.value = (val->system.parm2 << 7) | val->system.parm1;
 }
 
 /* Encoders for 0xf0 - 0xff */
@@ -368,6 +368,7 @@ static int cvt_ump_midi1_to_midi2(struct snd_seq_client *dest,
 	struct snd_seq_ump_event ev_cvt;
 	const union snd_ump_midi1_msg *midi1 = (const union snd_ump_midi1_msg *)event->ump;
 	union snd_ump_midi2_msg *midi2 = (union snd_ump_midi2_msg *)ev_cvt.ump;
+	struct snd_seq_ump_midi2_bank *cc;
 
 	ev_cvt = *event;
 	memset(&ev_cvt.ump, 0, sizeof(ev_cvt.ump));
@@ -387,11 +388,29 @@ static int cvt_ump_midi1_to_midi2(struct snd_seq_client *dest,
 		midi2->paf.data = upscale_7_to_32bit(midi1->paf.data);
 		break;
 	case UMP_MSG_STATUS_CC:
+		cc = &dest_port->midi2_bank[midi1->note.channel];
+		switch (midi1->cc.index) {
+		case UMP_CC_BANK_SELECT:
+			cc->bank_set = 1;
+			cc->cc_bank_msb = midi1->cc.data;
+			return 0; // skip
+		case UMP_CC_BANK_SELECT_LSB:
+			cc->bank_set = 1;
+			cc->cc_bank_lsb = midi1->cc.data;
+			return 0; // skip
+		}
 		midi2->cc.index = midi1->cc.index;
 		midi2->cc.data = upscale_7_to_32bit(midi1->cc.data);
 		break;
 	case UMP_MSG_STATUS_PROGRAM:
 		midi2->pg.program = midi1->pg.program;
+		cc = &dest_port->midi2_bank[midi1->note.channel];
+		if (cc->bank_set) {
+			midi2->pg.bank_valid = 1;
+			midi2->pg.bank_msb = cc->cc_bank_msb;
+			midi2->pg.bank_lsb = cc->cc_bank_lsb;
+			cc->bank_set = 0;
+		}
 		break;
 	case UMP_MSG_STATUS_CHANNEL_PRESSURE:
 		midi2->caf.data = upscale_7_to_32bit(midi1->caf.data);
@@ -419,6 +438,7 @@ static int cvt_ump_midi2_to_midi1(struct snd_seq_client *dest,
 	struct snd_seq_ump_event ev_cvt;
 	union snd_ump_midi1_msg *midi1 = (union snd_ump_midi1_msg *)ev_cvt.ump;
 	const union snd_ump_midi2_msg *midi2 = (const union snd_ump_midi2_msg *)event->ump;
+	int err;
 	u16 v;
 
 	ev_cvt = *event;
@@ -443,6 +463,24 @@ static int cvt_ump_midi2_to_midi1(struct snd_seq_client *dest,
 		midi1->cc.data = downscale_32_to_7bit(midi2->cc.data);
 		break;
 	case UMP_MSG_STATUS_PROGRAM:
+		if (midi2->pg.bank_valid) {
+			midi1->cc.status = UMP_MSG_STATUS_CC;
+			midi1->cc.index = UMP_CC_BANK_SELECT;
+			midi1->cc.data = midi2->pg.bank_msb;
+			err = __snd_seq_deliver_single_event(dest, dest_port,
+							     (struct snd_seq_event *)&ev_cvt,
+							     atomic, hop);
+			if (err < 0)
+				return err;
+			midi1->cc.index = UMP_CC_BANK_SELECT_LSB;
+			midi1->cc.data = midi2->pg.bank_lsb;
+			err = __snd_seq_deliver_single_event(dest, dest_port,
+							     (struct snd_seq_event *)&ev_cvt,
+							     atomic, hop);
+			if (err < 0)
+				return err;
+			midi1->note.status = midi2->note.status;
+		}
 		midi1->pg.program = midi2->pg.program;
 		break;
 	case UMP_MSG_STATUS_CHANNEL_PRESSURE:
@@ -691,6 +729,7 @@ static int system_ev_to_ump_midi1(const struct snd_seq_event *event,
 				  union snd_ump_midi1_msg *data,
 				  unsigned char status)
 {
+	data->system.type = UMP_MSG_TYPE_SYSTEM; // override
 	data->system.status = status;
 	return 1;
 }
@@ -701,6 +740,7 @@ static int system_1p_ev_to_ump_midi1(const struct snd_seq_event *event,
 				     union snd_ump_midi1_msg *data,
 				     unsigned char status)
 {
+	data->system.type = UMP_MSG_TYPE_SYSTEM; // override
 	data->system.status = status;
 	data->system.parm1 = event->data.control.value & 0x7f;
 	return 1;
@@ -712,9 +752,10 @@ static int system_2p_ev_to_ump_midi1(const struct snd_seq_event *event,
 				     union snd_ump_midi1_msg *data,
 				     unsigned char status)
 {
+	data->system.type = UMP_MSG_TYPE_SYSTEM; // override
 	data->system.status = status;
-	data->system.parm1 = (event->data.control.value >> 7) & 0x7f;
-	data->system.parm2 = event->data.control.value & 0x7f;
+	data->system.parm1 = event->data.control.value & 0x7f;
+	data->system.parm2 = (event->data.control.value >> 7) & 0x7f;
 	return 1;
 }
 
@@ -854,7 +895,6 @@ static int pgm_ev_to_ump_midi2(const struct snd_seq_event *event,
 		data->pg.bank_msb = cc->cc_bank_msb;
 		data->pg.bank_lsb = cc->cc_bank_lsb;
 		cc->bank_set = 0;
-		cc->cc_bank_msb = cc->cc_bank_lsb = 0;
 	}
 	return 1;
 }

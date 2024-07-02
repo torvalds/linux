@@ -18,9 +18,12 @@ allOf:
 
 properties:
   compatible:
-    enum:
-      - elan,ekth6915
-      - ilitek,ili2901
+    oneOf:
+      - items:
+          - enum:
+              - elan,ekth5015m
+          - const: elan,ekth6915
+      - const: elan,ekth6915
 
   reg:
     const: 0x10
@@ -32,6 +35,12 @@ properties:
 
   reset-gpios:
     description: Reset GPIO; not all touchscreens using eKTH6915 hook this up.
+
+  no-reset-on-power-off:
+    type: boolean
+    description:
+      Reset line is wired so that it can (and should) be left deasserted when
+      the power supply is off.
 
   vcc33-supply:
     description: The 3.3V supply to the touchscreen.
@@ -58,8 +67,8 @@ examples:
       #address-cells = <1>;
       #size-cells = <0>;
 
-      ap_ts: touchscreen@10 {
-        compatible = "elan,ekth6915";
+      touchscreen@10 {
+        compatible = "elan,ekth5015m", "elan,ekth6915";
         reg = <0x10>;
 
         interrupt-parent = <&tlmm>;

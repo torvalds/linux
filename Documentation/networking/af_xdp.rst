@@ -329,24 +329,23 @@ XDP_SHARED_UMEM option and provide the initial socket's fd in the
 sxdp_shared_umem_fd field as you registered the UMEM on that
 socket. These two sockets will now share one and the same UMEM.
 
-In this case, it is possible to use the NIC's packet steering
-capabilities to steer the packets to the right queue. This is not
-possible in the previous example as there is only one queue shared
-among sockets, so the NIC cannot do this steering as it can only steer
-between queues.
+There is no need to supply an XDP program like the one in the previous
+case where sockets were bound to the same queue id and
+device. Instead, use the NIC's packet steering capabilities to steer
+the packets to the right queue. In the previous example, there is only
+one queue shared among sockets, so the NIC cannot do this steering. It
+can only steer between queues.
 
-In libxdp (or libbpf prior to version 1.0), you need to use the
-xsk_socket__create_shared() API as it takes a reference to a FILL ring
-and a COMPLETION ring that will be created for you and bound to the
-shared UMEM. You can use this function for all the sockets you create,
-or you can use it for the second and following ones and use
-xsk_socket__create() for the first one. Both methods yield the same
-result.
+In libbpf, you need to use the xsk_socket__create_shared() API as it
+takes a reference to a FILL ring and a COMPLETION ring that will be
+created for you and bound to the shared UMEM. You can use this
+function for all the sockets you create, or you can use it for the
+second and following ones and use xsk_socket__create() for the first
+one. Both methods yield the same result.
 
 Note that a UMEM can be shared between sockets on the same queue id
 and device, as well as between queues on the same device and between
-devices at the same time. It is also possible to redirect to any
-socket as long as it is bound to the same umem with XDP_SHARED_UMEM.
+devices at the same time.
 
 XDP_USE_NEED_WAKEUP bind flag
 -----------------------------
@@ -822,10 +821,6 @@ A: The short answer is no, that is not supported at the moment. The
    to the same queue id Y. In zero-copy mode, you should use the
    switch, or other distribution mechanism, in your NIC to direct
    traffic to the correct queue id and socket.
-
-   Note that if you are using the XDP_SHARED_UMEM option, it is
-   possible to switch traffic between any socket bound to the same
-   umem.
 
 Q: My packets are sometimes corrupted. What is wrong?
 

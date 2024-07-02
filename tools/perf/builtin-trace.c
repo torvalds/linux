@@ -765,7 +765,7 @@ static const char *fcntl_cmds[] = {
 static DEFINE_STRARRAY(fcntl_cmds, "F_");
 
 static const char *fcntl_linux_specific_cmds[] = {
-	"SETLEASE", "GETLEASE", "NOTIFY", [5] =	"CANCELLK", "DUPFD_CLOEXEC",
+	"SETLEASE", "GETLEASE", "NOTIFY", "DUPFD_QUERY", [5] = "CANCELLK", "DUPFD_CLOEXEC",
 	"SETPIPE_SZ", "GETPIPE_SZ", "ADD_SEALS", "GET_SEALS",
 	"GET_RW_HINT", "SET_RW_HINT", "GET_FILE_RW_HINT", "SET_FILE_RW_HINT",
 };

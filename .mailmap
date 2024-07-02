@@ -337,10 +337,11 @@ Kalyan Thota <quic_kalyant@quicinc.com> <kalyan_t@codeaurora.org>
 Karthikeyan Periyasamy <quic_periyasa@quicinc.com> <periyasa@codeaurora.org>
 Kathiravan T <quic_kathirav@quicinc.com> <kathirav@codeaurora.org>
 Kay Sievers <kay.sievers@vrfy.org>
-Kees Cook <keescook@chromium.org> <kees.cook@canonical.com>
-Kees Cook <keescook@chromium.org> <keescook@google.com>
-Kees Cook <keescook@chromium.org> <kees@outflux.net>
-Kees Cook <keescook@chromium.org> <kees@ubuntu.com>
+Kees Cook <kees@kernel.org> <kees.cook@canonical.com>
+Kees Cook <kees@kernel.org> <keescook@chromium.org>
+Kees Cook <kees@kernel.org> <keescook@google.com>
+Kees Cook <kees@kernel.org> <kees@outflux.net>
+Kees Cook <kees@kernel.org> <kees@ubuntu.com>
 Keith Busch <kbusch@kernel.org> <keith.busch@intel.com>
 Keith Busch <kbusch@kernel.org> <keith.busch@linux.intel.com>
 Kenneth W Chen <kenneth.w.chen@intel.com>

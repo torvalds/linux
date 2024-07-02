@@ -437,8 +437,8 @@ static void bch2_writepage_io_done(struct bch_write_op *op)
 	 */
 
 	/*
-	 * PageWriteback is effectively our ref on the inode - fixup i_blocks
-	 * before calling end_page_writeback:
+	 * The writeback flag is effectively our ref on the inode -
+	 * fixup i_blocks before calling folio_end_writeback:
 	 */
 	bch2_i_sectors_acct(c, io->inode, NULL, io->op.i_sectors_delta);
 
@@ -898,7 +898,7 @@ static int __bch2_buffered_write(struct bch_inode_info *inode,
 	darray_for_each(fs, fi) {
 		f = *fi;
 		f_len = min(end, folio_end_pos(f)) - f_pos;
-		f_copied = copy_page_from_iter_atomic(&f->page, f_offset, f_len, iter);
+		f_copied = copy_folio_from_iter_atomic(f, f_offset, f_len, iter);
 		if (!f_copied) {
 			folios_trunc(&fs, fi);
 			break;

@@ -1422,13 +1422,14 @@ int main(int ac, char *av[])
 
 	conf_parse(name);
 	fixup_rootmenu(&rootmenu);
-	conf_read(NULL);
 
 	/* Load the interface and connect signals */
 	init_main_window(glade_file);
 	init_tree_model();
 	init_left_tree();
 	init_right_tree();
+
+	conf_read(NULL);
 
 	switch (view_mode) {
 	case SINGLE_VIEW:

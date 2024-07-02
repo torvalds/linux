@@ -84,7 +84,7 @@ int BPF_PROG(trace_tcp_connect, struct sock *sk)
 }
 
 SEC("fexit/inet_csk_accept")
-int BPF_PROG(inet_csk_accept, struct sock *sk, int flags, int *err, bool kern,
+int BPF_PROG(inet_csk_accept, struct sock *sk, struct proto_accept_arg *arg,
 	     struct sock *accepted_sk)
 {
 	set_task_info(accepted_sk);

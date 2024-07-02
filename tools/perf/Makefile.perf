@@ -214,6 +214,7 @@ NON_CONFIG_TARGETS := clean python-clean TAGS tags cscope help
 
 ifdef MAKECMDGOALS
 ifeq ($(filter-out $(NON_CONFIG_TARGETS),$(MAKECMDGOALS)),)
+  VMLINUX_H=$(src-perf)/util/bpf_skel/vmlinux/vmlinux.h
   config := 0
 endif
 endif
