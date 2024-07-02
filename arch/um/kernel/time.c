@@ -60,6 +60,15 @@ enum time_travel_message_handling {
 	TTMH_READ,
 };
 
+static u64 bc_message;
+int time_travel_should_print_bc_msg;
+
+void _time_travel_print_bc_msg(void)
+{
+	time_travel_should_print_bc_msg = 0;
+	printk(KERN_INFO "time-travel: received broadcast 0x%llx\n", bc_message);
+}
+
 static void time_travel_handle_message(struct um_timetravel_msg *msg,
 				       enum time_travel_message_handling mode)
 {
@@ -100,6 +109,10 @@ static void time_travel_handle_message(struct um_timetravel_msg *msg,
 	case UM_TIMETRAVEL_FREE_UNTIL:
 		time_travel_ext_free_until_valid = true;
 		time_travel_ext_free_until = msg->time;
+		break;
+	case UM_TIMETRAVEL_BROADCAST:
+		bc_message = msg->time;
+		time_travel_should_print_bc_msg = 1;
 		break;
 	}
 
@@ -880,4 +893,50 @@ __uml_help(setup_time_travel_start,
 "time-travel-start=<nanoseconds>\n"
 "Configure the UML instance's wall clock to start at this value rather than\n"
 "the host's wall clock at the time of UML boot.\n");
+static struct kobject *bc_time_kobject;
+
+static ssize_t bc_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+{
+	return sprintf(buf, "0x%llx", bc_message);
+}
+
+static ssize_t bc_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
+{
+	int ret;
+	u64 user_bc_message;
+
+	ret = kstrtou64(buf, 0, &user_bc_message);
+	if (ret)
+		return ret;
+
+	bc_message = user_bc_message;
+
+	time_travel_ext_req(UM_TIMETRAVEL_BROADCAST, bc_message);
+	pr_info("um: time: sent broadcast message: 0x%llx\n", bc_message);
+	return count;
+}
+
+static struct kobj_attribute bc_attribute = __ATTR(bc-message, 0660, bc_show, bc_store);
+
+static int __init um_bc_start(void)
+{
+	if (time_travel_mode != TT_MODE_EXTERNAL)
+		return 0;
+
+	bc_time_kobject = kobject_create_and_add("um-ext-time", kernel_kobj);
+	if (!bc_time_kobject)
+		return 0;
+
+	if (sysfs_create_file(bc_time_kobject, &bc_attribute.attr))
+		pr_debug("failed to create the bc file in /sys/kernel/um_time");
+
+	return 0;
+}
+
+void __exit time_exit(void)
+{
+	kobject_put(bc_time_kobject);
+}
+
+late_initcall(um_bc_start);
 #endif

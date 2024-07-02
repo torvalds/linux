@@ -23,6 +23,7 @@
 #include <skas.h>
 #include <sysdep/stub.h>
 #include <linux/threads.h>
+#include <timetravel.h>
 #include "../internal.h"
 
 int is_skas_winch(int pid, int fd, void *data)
@@ -345,6 +346,8 @@ void userspace(struct uml_pt_regs *regs, unsigned long *aux_fp_regs)
 	interrupt_end();
 
 	while (1) {
+		time_travel_print_bc_msg();
+
 		if (kill_userspace_mm[0])
 			fatal_sigsegv();
 

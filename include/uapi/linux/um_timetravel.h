@@ -123,6 +123,17 @@ enum um_timetravel_ops {
 	 *	the simulation.
 	 */
 	UM_TIMETRAVEL_GET_TOD		= 8,
+
+	/**
+	 * @UM_TIMETRAVEL_BROADCAST: Send/Receive a broadcast message.
+	 *	This message can be used to sync all components in the system
+	 *	with a single message, if the calender gets the message, the
+	 *	calender broadcast the message to all components, and if a
+	 *	component receives it it should act based on it e.g print a
+	 *	message to it's log system.
+	 *	(calendar <-> host)
+	 */
+	UM_TIMETRAVEL_BROADCAST		= 9,
 };
 
 #endif /* _UAPI_LINUX_UM_TIMETRAVEL_H */
