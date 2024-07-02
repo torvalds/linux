@@ -15,7 +15,6 @@
 #include <linux/hrtimer.h>
 #include <linux/interrupt.h>
 #include <linux/kvm_types.h>
-#include <linux/kvm_host.h>
 #include <linux/kvm.h>
 #include <linux/seqlock.h>
 #include <linux/module.h>
