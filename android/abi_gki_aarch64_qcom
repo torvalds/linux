@@ -1259,6 +1259,7 @@
   get_random_u32
   __get_random_u32_below
   get_sg_io_hdr
+  get_shadow_from_swap_cache
   get_slabinfo
   get_state_synchronize_rcu
   get_state_synchronize_srcu
@@ -3449,6 +3450,7 @@
   __traceiter_android_vh_ipi_stop
   __traceiter_android_vh_jiffies_update
   __traceiter_android_vh_kswapd_per_node
+  __traceiter_android_vh_madvise_cold_or_pageout_page
   __traceiter_android_vh_mpam_set
   __traceiter_android_vh_post_image_save
   __traceiter_android_vh_printk_hotplug
@@ -3600,6 +3602,7 @@
   __tracepoint_android_vh_ipi_stop
   __tracepoint_android_vh_jiffies_update
   __tracepoint_android_vh_kswapd_per_node
+  __tracepoint_android_vh_madvise_cold_or_pageout_page
   __tracepoint_android_vh_mpam_set
   __tracepoint_android_vh_post_image_save
   __tracepoint_android_vh_printk_hotplug
