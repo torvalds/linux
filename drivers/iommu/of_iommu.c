@@ -17,6 +17,8 @@
 #include <linux/slab.h>
 #include <linux/fsl/mc.h>
 
+#include "iommu-priv.h"
+
 static int of_iommu_xlate(struct device *dev,
 			  struct of_phandle_args *iommu_spec)
 {
@@ -32,7 +34,7 @@ static int of_iommu_xlate(struct device *dev,
 	if (ret)
 		return ret;
 
-	ops = dev_iommu_fwspec_get(dev)->ops;
+	ops = iommu_ops_from_fwnode(&iommu_spec->np->fwnode);
 	if (!ops->of_xlate || !try_module_get(ops->owner))
 		return -ENODEV;
 
