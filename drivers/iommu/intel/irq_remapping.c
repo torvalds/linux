@@ -597,8 +597,8 @@ static int intel_setup_irq_remapping(struct intel_iommu *iommu)
 
 	if (ir_pre_enabled(iommu)) {
 		if (!is_kdump_kernel()) {
-			pr_warn("IRQ remapping was enabled on %s but we are not in kdump mode\n",
-				iommu->name);
+			pr_info_once("IRQ remapping was enabled on %s but we are not in kdump mode\n",
+				     iommu->name);
 			clear_ir_pre_enabled(iommu);
 			iommu_disable_irq_remapping(iommu);
 		} else if (iommu_load_old_irte(iommu))
