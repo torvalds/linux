@@ -1483,13 +1483,13 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 	/* Update rss_ctx tracking */
 	if (create && !ops->create_rxfh_context) {
 		/* driver uses old API, it chose context ID */
-		if (WARN_ON(xa_load(&dev->ethtool->rss_ctx, rxfh.rss_context))) {
+		if (WARN_ON(xa_load(&dev->ethtool->rss_ctx, rxfh_dev.rss_context))) {
 			/* context ID reused, our tracking is screwed */
 			kfree(ctx);
 			goto out;
 		}
 		/* Allocate the exact ID the driver gave us */
-		if (xa_is_err(xa_store(&dev->ethtool->rss_ctx, rxfh.rss_context,
+		if (xa_is_err(xa_store(&dev->ethtool->rss_ctx, rxfh_dev.rss_context,
 				       ctx, GFP_KERNEL))) {
 			kfree(ctx);
 			goto out;
