@@ -5,6 +5,7 @@
 
 #include "i915_drv.h"
 #include "i915_reg.h"
+#include "intel_crtc.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_vblank.h"
@@ -265,6 +266,32 @@ int intel_crtc_scanline_to_hw(struct intel_crtc *crtc, int scanline)
 	return (scanline + vtotal - crtc->scanline_offset) % vtotal;
 }
 
+/*
+ * The uncore version of the spin lock functions is used to decide
+ * whether we need to lock the uncore lock or not.  This is only
+ * needed in i915, not in Xe.
+ *
+ * This lock in i915 is needed because some old platforms (at least
+ * IVB and possibly HSW as well), which are not supported in Xe, need
+ * all register accesses to the same cacheline to be serialized,
+ * otherwise they may hang.
+ */
+static void intel_vblank_section_enter(struct drm_i915_private *i915)
+	__acquires(i915->uncore.lock)
+{
+#ifdef I915
+	spin_lock(&i915->uncore.lock);
+#endif
+}
+
+static void intel_vblank_section_exit(struct drm_i915_private *i915)
+	__releases(i915->uncore.lock)
+{
+#ifdef I915
+	spin_unlock(&i915->uncore.lock);
+#endif
+}
+
 static bool i915_get_crtc_scanoutpos(struct drm_crtc *_crtc,
 				     bool in_vblank_irq,
 				     int *vpos, int *hpos,
@@ -302,11 +329,12 @@ static bool i915_get_crtc_scanoutpos(struct drm_crtc *_crtc,
 	}
 
 	/*
-	 * Lock uncore.lock, as we will do multiple timing critical raw
-	 * register reads, potentially with preemption disabled, so the
-	 * following code must not block on uncore.lock.
+	 * Enter vblank critical section, as we will do multiple
+	 * timing critical raw register reads, potentially with
+	 * preemption disabled, so the following code must not block.
 	 */
-	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
+	local_irq_save(irqflags);
+	intel_vblank_section_enter(dev_priv);
 
 	/* preempt_disable_rt() should go right here in PREEMPT_RT patchset. */
 
@@ -374,7 +402,8 @@ static bool i915_get_crtc_scanoutpos(struct drm_crtc *_crtc,
 
 	/* preempt_enable_rt() should go right here in PREEMPT_RT patchset. */
 
-	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
+	intel_vblank_section_exit(dev_priv);
+	local_irq_restore(irqflags);
 
 	/*
 	 * While in vblank, position will be negative
@@ -412,9 +441,13 @@ int intel_get_crtc_scanline(struct intel_crtc *crtc)
 	unsigned long irqflags;
 	int position;
 
-	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
+	local_irq_save(irqflags);
+	intel_vblank_section_enter(dev_priv);
+
 	position = __intel_get_crtc_scanline(crtc);
-	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
+
+	intel_vblank_section_exit(dev_priv);
+	local_irq_restore(irqflags);
 
 	return position;
 }
@@ -537,7 +570,7 @@ void intel_crtc_update_active_timings(const struct intel_crtc_state *crtc_state,
 	 * Need to audit everything to make sure it's safe.
 	 */
 	spin_lock_irqsave(&i915->drm.vblank_time_lock, irqflags);
-	spin_lock(&i915->uncore.lock);
+	intel_vblank_section_enter(i915);
 
 	drm_calc_timestamping_constants(&crtc->base, &adjusted_mode);
 
@@ -546,7 +579,135 @@ void intel_crtc_update_active_timings(const struct intel_crtc_state *crtc_state,
 	crtc->mode_flags = mode_flags;
 
 	crtc->scanline_offset = intel_crtc_scanline_offset(crtc_state);
-
-	spin_unlock(&i915->uncore.lock);
+	intel_vblank_section_exit(i915);
 	spin_unlock_irqrestore(&i915->drm.vblank_time_lock, irqflags);
+}
+
+static int intel_mode_vblank_start(const struct drm_display_mode *mode)
+{
+	int vblank_start = mode->crtc_vblank_start;
+
+	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
+		vblank_start = DIV_ROUND_UP(vblank_start, 2);
+
+	return vblank_start;
+}
+
+void intel_vblank_evade_init(const struct intel_crtc_state *old_crtc_state,
+			     const struct intel_crtc_state *new_crtc_state,
+			     struct intel_vblank_evade_ctx *evade)
+{
+	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->uapi.crtc);
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	const struct intel_crtc_state *crtc_state;
+	const struct drm_display_mode *adjusted_mode;
+
+	evade->crtc = crtc;
+
+	evade->need_vlv_dsi_wa = (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915)) &&
+		intel_crtc_has_type(new_crtc_state, INTEL_OUTPUT_DSI);
+
+	/*
+	 * During fastsets/etc. the transcoder is still
+	 * running with the old timings at this point.
+	 *
+	 * TODO: maybe just use the active timings here?
+	 */
+	if (intel_crtc_needs_modeset(new_crtc_state))
+		crtc_state = new_crtc_state;
+	else
+		crtc_state = old_crtc_state;
+
+	adjusted_mode = &crtc_state->hw.adjusted_mode;
+
+	if (crtc->mode_flags & I915_MODE_FLAG_VRR) {
+		/* timing changes should happen with VRR disabled */
+		drm_WARN_ON(crtc->base.dev, intel_crtc_needs_modeset(new_crtc_state) ||
+			    new_crtc_state->update_m_n || new_crtc_state->update_lrr);
+
+		if (intel_vrr_is_push_sent(crtc_state))
+			evade->vblank_start = intel_vrr_vmin_vblank_start(crtc_state);
+		else
+			evade->vblank_start = intel_vrr_vmax_vblank_start(crtc_state);
+	} else {
+		evade->vblank_start = intel_mode_vblank_start(adjusted_mode);
+	}
+
+	/* FIXME needs to be calibrated sensibly */
+	evade->min = evade->vblank_start - intel_usecs_to_scanlines(adjusted_mode,
+								    VBLANK_EVASION_TIME_US);
+	evade->max = evade->vblank_start - 1;
+
+	/*
+	 * M/N and TRANS_VTOTAL are double buffered on the transcoder's
+	 * undelayed vblank, so with seamless M/N and LRR we must evade
+	 * both vblanks.
+	 *
+	 * DSB execution waits for the transcoder's undelayed vblank,
+	 * hence we must kick off the commit before that.
+	 */
+	if (new_crtc_state->dsb || new_crtc_state->update_m_n || new_crtc_state->update_lrr)
+		evade->min -= adjusted_mode->crtc_vblank_start - adjusted_mode->crtc_vdisplay;
+}
+
+/* must be called with vblank interrupt already enabled! */
+int intel_vblank_evade(struct intel_vblank_evade_ctx *evade)
+{
+	struct intel_crtc *crtc = evade->crtc;
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	long timeout = msecs_to_jiffies_timeout(1);
+	wait_queue_head_t *wq = drm_crtc_vblank_waitqueue(&crtc->base);
+	DEFINE_WAIT(wait);
+	int scanline;
+
+	if (evade->min <= 0 || evade->max <= 0)
+		return 0;
+
+	for (;;) {
+		/*
+		 * prepare_to_wait() has a memory barrier, which guarantees
+		 * other CPUs can see the task state update by the time we
+		 * read the scanline.
+		 */
+		prepare_to_wait(wq, &wait, TASK_UNINTERRUPTIBLE);
+
+		scanline = intel_get_crtc_scanline(crtc);
+		if (scanline < evade->min || scanline > evade->max)
+			break;
+
+		if (!timeout) {
+			drm_err(&i915->drm,
+				"Potential atomic update failure on pipe %c\n",
+				pipe_name(crtc->pipe));
+			break;
+		}
+
+		local_irq_enable();
+
+		timeout = schedule_timeout(timeout);
+
+		local_irq_disable();
+	}
+
+	finish_wait(wq, &wait);
+
+	/*
+	 * On VLV/CHV DSI the scanline counter would appear to
+	 * increment approx. 1/3 of a scanline before start of vblank.
+	 * The registers still get latched at start of vblank however.
+	 * This means we must not write any registers on the first
+	 * line of vblank (since not the whole line is actually in
+	 * vblank). And unfortunately we can't use the interrupt to
+	 * wait here since it will fire too soon. We could use the
+	 * frame start interrupt instead since it will fire after the
+	 * critical scanline, but that would require more changes
+	 * in the interrupt code. So for now we'll just do the nasty
+	 * thing and poll for the bad scanline to pass us by.
+	 *
+	 * FIXME figure out if BXT+ DSI suffers from this as well
+	 */
+	while (evade->need_vlv_dsi_wa && scanline == evade->vblank_start)
+		scanline = intel_get_crtc_scanline(crtc);
+
+	return scanline;
 }

@@ -41,7 +41,7 @@ u32 rtl8723be_phy_query_rf_reg(struct ieee80211_hw *hw, enum radio_path rfpath,
 	spin_lock(&rtlpriv->locks.rf_lock);
 
 	original_value = rtl8723_phy_rf_serial_read(hw, rfpath, regaddr);
-	bitshift = rtl8723_phy_calculate_bit_shift(bitmask);
+	bitshift = calculate_bit_shift(bitmask);
 	readback_value = (original_value & bitmask) >> bitshift;
 
 	spin_unlock(&rtlpriv->locks.rf_lock);
@@ -68,7 +68,7 @@ void rtl8723be_phy_set_rf_reg(struct ieee80211_hw *hw, enum radio_path path,
 	if (bitmask != RFREG_OFFSET_MASK) {
 			original_value = rtl8723_phy_rf_serial_read(hw, path,
 								    regaddr);
-			bitshift = rtl8723_phy_calculate_bit_shift(bitmask);
+			bitshift = calculate_bit_shift(bitmask);
 			data = ((original_value & (~bitmask)) |
 				(data << bitshift));
 		}
@@ -1110,16 +1110,22 @@ static void _rtl8723be_phy_set_txpower_index(struct ieee80211_hw *hw,
 void rtl8723be_phy_set_txpower_level(struct ieee80211_hw *hw, u8 channel)
 {
 	struct rtl_efuse *rtlefuse = rtl_efuse(rtl_priv(hw));
-	u8 cck_rates[]  = {DESC92C_RATE1M, DESC92C_RATE2M,
-			   DESC92C_RATE5_5M, DESC92C_RATE11M};
-	u8 ofdm_rates[]  = {DESC92C_RATE6M, DESC92C_RATE9M,
-			    DESC92C_RATE12M, DESC92C_RATE18M,
-			    DESC92C_RATE24M, DESC92C_RATE36M,
-			    DESC92C_RATE48M, DESC92C_RATE54M};
-	u8 ht_rates_1t[]  = {DESC92C_RATEMCS0, DESC92C_RATEMCS1,
-			     DESC92C_RATEMCS2, DESC92C_RATEMCS3,
-			     DESC92C_RATEMCS4, DESC92C_RATEMCS5,
-			     DESC92C_RATEMCS6, DESC92C_RATEMCS7};
+	static const u8 cck_rates[]  = {
+		DESC92C_RATE1M, DESC92C_RATE2M,
+		DESC92C_RATE5_5M, DESC92C_RATE11M
+	};
+	static const u8 ofdm_rates[]  = {
+		DESC92C_RATE6M, DESC92C_RATE9M,
+		DESC92C_RATE12M, DESC92C_RATE18M,
+		DESC92C_RATE24M, DESC92C_RATE36M,
+		DESC92C_RATE48M, DESC92C_RATE54M
+	};
+	static const u8 ht_rates_1t[]  = {
+		DESC92C_RATEMCS0, DESC92C_RATEMCS1,
+		DESC92C_RATEMCS2, DESC92C_RATEMCS3,
+		DESC92C_RATEMCS4, DESC92C_RATEMCS5,
+		DESC92C_RATEMCS6, DESC92C_RATEMCS7
+	};
 	u8 i;
 	u8 power_index;
 
@@ -2155,15 +2161,16 @@ static void _rtl8723be_phy_iq_calibrate(struct ieee80211_hw *hw,
 
 static u8 _get_right_chnl_place_for_iqk(u8 chnl)
 {
-	u8 channel_all[TARGET_CHNL_NUM_2G_5G] = {
-			1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
-			13, 14, 36, 38, 40, 42, 44, 46,
-			48, 50, 52, 54, 56, 58, 60, 62, 64,
-			100, 102, 104, 106, 108, 110,
-			112, 114, 116, 118, 120, 122,
-			124, 126, 128, 130, 132, 134, 136,
-			138, 140, 149, 151, 153, 155, 157,
-			159, 161, 163, 165};
+	static const u8 channel_all[TARGET_CHNL_NUM_2G_5G] = {
+		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
+		13, 14, 36, 38, 40, 42, 44, 46,
+		48, 50, 52, 54, 56, 58, 60, 62, 64,
+		100, 102, 104, 106, 108, 110,
+		112, 114, 116, 118, 120, 122,
+		124, 126, 128, 130, 132, 134, 136,
+		138, 140, 149, 151, 153, 155, 157,
+		159, 161, 163, 165
+	};
 	u8 place = chnl;
 
 	if (chnl > 14) {

@@ -7,7 +7,8 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Zynq UltraScale+ MPSoC and Versal reset
 
 maintainers:
-  - Piyush Mehta <piyush.mehta@amd.com>
+  - Mubin Sayyed <mubin.sayyed@amd.com>
+  - Radhey Shyam Pandey <radhey.shyam.pandey@amd.com>
 
 description: |
   The Zynq UltraScale+ MPSoC and Versal has several different resets.

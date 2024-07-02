@@ -293,9 +293,6 @@ static inline int serial8250_in_MCR(struct uart_8250_port *up)
 	return mctrl;
 }
 
-bool alpha_jensen(void);
-void alpha_jensen_set_mctrl(struct uart_port *port, unsigned int mctrl);
-
 #ifdef CONFIG_SERIAL_8250_PNP
 int serial8250_pnp_init(void);
 void serial8250_pnp_exit(void);

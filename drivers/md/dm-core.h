@@ -22,6 +22,8 @@
 #include "dm-ima.h"
 
 #define DM_RESERVED_MAX_IOS		1024
+#define DM_MAX_TARGETS			1048576
+#define DM_MAX_TARGET_PARAMS		1024
 
 struct dm_io;
 
@@ -138,7 +140,7 @@ struct mapped_device {
 
 #ifdef CONFIG_BLK_DEV_ZONED
 	unsigned int nr_zones;
-	unsigned int *zwp_offset;
+	void *zone_revalidate_map;
 #endif
 
 #ifdef CONFIG_IMA

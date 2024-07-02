@@ -96,6 +96,61 @@ bool amdgpu_dm_crtc_vrr_active(struct dm_crtc_state *dm_state)
 	       dm_state->freesync_config.state == VRR_STATE_ACTIVE_FIXED;
 }
 
+/**
+ * amdgpu_dm_crtc_set_panel_sr_feature() - Manage panel self-refresh features.
+ *
+ * @vblank_work:    is a pointer to a struct vblank_control_work object.
+ * @vblank_enabled: indicates whether the DRM vblank counter is currently
+ *                  enabled (true) or disabled (false).
+ * @allow_sr_entry: represents whether entry into the self-refresh mode is
+ *                  allowed (true) or not allowed (false).
+ *
+ * The DRM vblank counter enable/disable action is used as the trigger to enable
+ * or disable various panel self-refresh features:
+ *
+ * Panel Replay and PSR SU
+ * - Enable when:
+ *      - vblank counter is disabled
+ *      - entry is allowed: usermode demonstrates an adequate number of fast
+ *        commits)
+ *     - CRC capture window isn't active
+ * - Keep enabled even when vblank counter gets enabled
+ *
+ * PSR1
+ * - Enable condition same as above
+ * - Disable when vblank counter is enabled
+ */
+static void amdgpu_dm_crtc_set_panel_sr_feature(
+	struct vblank_control_work *vblank_work,
+	bool vblank_enabled, bool allow_sr_entry)
+{
+	struct dc_link *link = vblank_work->stream->link;
+	bool is_sr_active = (link->replay_settings.replay_allow_active ||
+				 link->psr_settings.psr_allow_active);
+	bool is_crc_window_active = false;
+
+#ifdef CONFIG_DRM_AMD_SECURE_DISPLAY
+	is_crc_window_active =
+		amdgpu_dm_crc_window_is_activated(&vblank_work->acrtc->base);
+#endif
+
+	if (link->replay_settings.replay_feature_enabled &&
+		allow_sr_entry && !is_sr_active && !is_crc_window_active) {
+		amdgpu_dm_replay_enable(vblank_work->stream, true);
+	} else if (vblank_enabled) {
+		if (link->psr_settings.psr_version < DC_PSR_VERSION_SU_1 && is_sr_active)
+			amdgpu_dm_psr_disable(vblank_work->stream);
+	} else if (link->psr_settings.psr_feature_enabled &&
+		allow_sr_entry && !is_sr_active && !is_crc_window_active) {
+
+		struct amdgpu_dm_connector *aconn =
+			(struct amdgpu_dm_connector *) vblank_work->stream->dm_stream_context;
+
+		if (!aconn->disallow_edp_enter_psr)
+			amdgpu_dm_psr_enable(vblank_work->stream);
+	}
+}
+
 static void amdgpu_dm_crtc_vblank_control_worker(struct work_struct *work)
 {
 	struct vblank_control_work *vblank_work =
@@ -124,24 +179,10 @@ static void amdgpu_dm_crtc_vblank_control_worker(struct work_struct *work)
 	 * fill_dc_dirty_rects().
 	 */
 	if (vblank_work->stream && vblank_work->stream->link) {
-		/*
-		 * Prioritize replay, instead of psr
-		 */
-		if (vblank_work->stream->link->replay_settings.replay_feature_enabled)
-			amdgpu_dm_replay_enable(vblank_work->stream, false);
-		else if (vblank_work->enable) {
-			if (vblank_work->stream->link->psr_settings.psr_version < DC_PSR_VERSION_SU_1 &&
-			    vblank_work->stream->link->psr_settings.psr_allow_active)
-				amdgpu_dm_psr_disable(vblank_work->stream);
-		} else if (vblank_work->stream->link->psr_settings.psr_feature_enabled &&
-			   !vblank_work->stream->link->psr_settings.psr_allow_active &&
-#ifdef CONFIG_DRM_AMD_SECURE_DISPLAY
-			   !amdgpu_dm_crc_window_is_activated(&vblank_work->acrtc->base) &&
-#endif
-			   vblank_work->stream->link->panel_config.psr.disallow_replay &&
-			   vblank_work->acrtc->dm_irq_params.allow_psr_entry) {
-			amdgpu_dm_psr_enable(vblank_work->stream);
-		}
+		amdgpu_dm_crtc_set_panel_sr_feature(
+			vblank_work, vblank_work->enable,
+			vblank_work->acrtc->dm_irq_params.allow_psr_entry ||
+			vblank_work->stream->link->replay_settings.replay_feature_enabled);
 	}
 
 	mutex_unlock(&dm->dc_lock);
@@ -260,6 +301,7 @@ static struct drm_crtc_state *amdgpu_dm_crtc_duplicate_state(struct drm_crtc *cr
 	state->freesync_config = cur->freesync_config;
 	state->cm_has_degamma = cur->cm_has_degamma;
 	state->cm_is_degamma_srgb = cur->cm_is_degamma_srgb;
+	state->regamma_tf = cur->regamma_tf;
 	state->crc_skip_count = cur->crc_skip_count;
 	state->mpo_requested = cur->mpo_requested;
 	/* TODO Duplicate dc_stream after objects are stream object is flattened */
@@ -296,6 +338,70 @@ static int amdgpu_dm_crtc_late_register(struct drm_crtc *crtc)
 }
 #endif
 
+#ifdef AMD_PRIVATE_COLOR
+/**
+ * dm_crtc_additional_color_mgmt - enable additional color properties
+ * @crtc: DRM CRTC
+ *
+ * This function lets the driver enable post-blending CRTC regamma transfer
+ * function property in addition to DRM CRTC gamma LUT. Default value means
+ * linear transfer function, which is the default CRTC gamma LUT behaviour
+ * without this property.
+ */
+static void
+dm_crtc_additional_color_mgmt(struct drm_crtc *crtc)
+{
+	struct amdgpu_device *adev = drm_to_adev(crtc->dev);
+
+	if (adev->dm.dc->caps.color.mpc.ogam_ram)
+		drm_object_attach_property(&crtc->base,
+					   adev->mode_info.regamma_tf_property,
+					   AMDGPU_TRANSFER_FUNCTION_DEFAULT);
+}
+
+static int
+amdgpu_dm_atomic_crtc_set_property(struct drm_crtc *crtc,
+				   struct drm_crtc_state *state,
+				   struct drm_property *property,
+				   uint64_t val)
+{
+	struct amdgpu_device *adev = drm_to_adev(crtc->dev);
+	struct dm_crtc_state *acrtc_state = to_dm_crtc_state(state);
+
+	if (property == adev->mode_info.regamma_tf_property) {
+		if (acrtc_state->regamma_tf != val) {
+			acrtc_state->regamma_tf = val;
+			acrtc_state->base.color_mgmt_changed |= 1;
+		}
+	} else {
+		drm_dbg_atomic(crtc->dev,
+			       "[CRTC:%d:%s] unknown property [PROP:%d:%s]]\n",
+			       crtc->base.id, crtc->name,
+			       property->base.id, property->name);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int
+amdgpu_dm_atomic_crtc_get_property(struct drm_crtc *crtc,
+				   const struct drm_crtc_state *state,
+				   struct drm_property *property,
+				   uint64_t *val)
+{
+	struct amdgpu_device *adev = drm_to_adev(crtc->dev);
+	struct dm_crtc_state *acrtc_state = to_dm_crtc_state(state);
+
+	if (property == adev->mode_info.regamma_tf_property)
+		*val = acrtc_state->regamma_tf;
+	else
+		return -EINVAL;
+
+	return 0;
+}
+#endif
+
 /* Implemented only the options currently available for the driver */
 static const struct drm_crtc_funcs amdgpu_dm_crtc_funcs = {
 	.reset = amdgpu_dm_crtc_reset_state,
@@ -313,6 +419,10 @@ static const struct drm_crtc_funcs amdgpu_dm_crtc_funcs = {
 	.get_vblank_timestamp = drm_crtc_vblank_helper_get_vblank_timestamp,
 #if defined(CONFIG_DEBUG_FS)
 	.late_register = amdgpu_dm_crtc_late_register,
+#endif
+#ifdef AMD_PRIVATE_COLOR
+	.atomic_set_property = amdgpu_dm_atomic_crtc_set_property,
+	.atomic_get_property = amdgpu_dm_atomic_crtc_get_property,
 #endif
 };
 
@@ -489,6 +599,9 @@ int amdgpu_dm_crtc_init(struct amdgpu_display_manager *dm,
 
 	drm_mode_crtc_set_gamma_size(&acrtc->base, MAX_COLOR_LEGACY_LUT_ENTRIES);
 
+#ifdef AMD_PRIVATE_COLOR
+	dm_crtc_additional_color_mgmt(&acrtc->base);
+#endif
 	return 0;
 
 fail:

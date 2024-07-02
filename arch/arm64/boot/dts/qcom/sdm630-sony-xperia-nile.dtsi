@@ -90,6 +90,8 @@
 
 	gpio-keys {
 		compatible = "gpio-keys";
+		pinctrl-0 = <&gpio_keys_default>;
+		pinctrl-names = "default";
 
 		key-camera-focus {
 			label = "Camera Focus";
@@ -239,6 +241,16 @@
 			color = <LED_COLOR_ID_RED>;
 		};
 	};
+};
+
+&pm660l_wled {
+	status = "okay";
+
+	qcom,switching-freq = <800>;
+	qcom,ovp-millivolt = <29600>;
+	qcom,current-boost-limit = <970>;
+	qcom,current-limit-microamp = <17500>;
+	qcom,num-strings = <2>;
 };
 
 &pon_pwrkey {
@@ -635,6 +647,13 @@
 		bias-disable;
 	};
 
+	gpio_keys_default: gpio-keys-default-state {
+		pins = "gpio64", "gpio113";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-up;
+	};
+
 	imx300_vana_default: imx300-vana-default-state {
 		pins = "gpio50";
 		function = "gpio";
@@ -658,10 +677,16 @@
 };
 
 &usb3 {
+	qcom,select-utmi-as-pipe-clk;
+
 	status = "okay";
 };
 
 &usb3_dwc3 {
+	maximum-speed = "high-speed";
+	phys = <&qusb2phy0>;
+	phy-names = "usb2-phy";
+
 	dr_mode = "peripheral";
 	extcon = <&extcon_usb>;
 };

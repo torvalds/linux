@@ -1,13 +1,13 @@
 [
     {
-        "BriefDescription": "Counts the number of branch instructions retired",
+        "BriefDescription": "Counts the number of branch instructions retired (Precise Event)",
         "EventCode": "0xC4",
         "EventName": "BR_INST_RETIRED.ALL_BRANCHES",
         "PEBS": "1",
         "SampleAfterValue": "200003"
     },
     {
-        "BriefDescription": "Counts the number of near CALL branch instructions retired.",
+        "BriefDescription": "Counts the number of near CALL branch instructions retired. (Precise Event)",
         "EventCode": "0xC4",
         "EventName": "BR_INST_RETIRED.CALL",
         "PEBS": "1",
@@ -15,7 +15,7 @@
         "UMask": "0xf9"
     },
     {
-        "BriefDescription": "Counts the number of far branch instructions retired.",
+        "BriefDescription": "Counts the number of far branch instructions retired. (Precise Event)",
         "EventCode": "0xC4",
         "EventName": "BR_INST_RETIRED.FAR_BRANCH",
         "PEBS": "1",
@@ -23,7 +23,7 @@
         "UMask": "0xbf"
     },
     {
-        "BriefDescription": "Counts the number of near indirect CALL branch instructions retired.",
+        "BriefDescription": "Counts the number of near indirect CALL branch instructions retired. (Precise Event)",
         "EventCode": "0xC4",
         "EventName": "BR_INST_RETIRED.IND_CALL",
         "PEBS": "1",
@@ -31,7 +31,7 @@
         "UMask": "0xfb"
     },
     {
-        "BriefDescription": "Counts the number of branch instructions retired that were conditional jumps.",
+        "BriefDescription": "Counts the number of branch instructions retired that were conditional jumps. (Precise Event)",
         "EventCode": "0xC4",
         "EventName": "BR_INST_RETIRED.JCC",
         "PEBS": "1",
@@ -39,7 +39,7 @@
         "UMask": "0x7e"
     },
     {
-        "BriefDescription": "Counts the number of branch instructions retired that were near indirect CALL or near indirect JMP.",
+        "BriefDescription": "Counts the number of branch instructions retired that were near indirect CALL or near indirect JMP. (Precise Event)",
         "EventCode": "0xC4",
         "EventName": "BR_INST_RETIRED.NON_RETURN_IND",
         "PEBS": "1",
@@ -47,7 +47,7 @@
         "UMask": "0xeb"
     },
     {
-        "BriefDescription": "Counts the number of near relative CALL branch instructions retired.",
+        "BriefDescription": "Counts the number of near relative CALL branch instructions retired. (Precise Event)",
         "EventCode": "0xC4",
         "EventName": "BR_INST_RETIRED.REL_CALL",
         "PEBS": "1",
@@ -55,7 +55,7 @@
         "UMask": "0xfd"
     },
     {
-        "BriefDescription": "Counts the number of near RET branch instructions retired.",
+        "BriefDescription": "Counts the number of near RET branch instructions retired. (Precise Event)",
         "EventCode": "0xC4",
         "EventName": "BR_INST_RETIRED.RETURN",
         "PEBS": "1",
@@ -63,7 +63,7 @@
         "UMask": "0xf7"
     },
     {
-        "BriefDescription": "Counts the number of branch instructions retired that were conditional jumps and predicted taken.",
+        "BriefDescription": "Counts the number of branch instructions retired that were conditional jumps and predicted taken. (Precise Event)",
         "EventCode": "0xC4",
         "EventName": "BR_INST_RETIRED.TAKEN_JCC",
         "PEBS": "1",
@@ -71,14 +71,14 @@
         "UMask": "0xfe"
     },
     {
-        "BriefDescription": "Counts the number of mispredicted branch instructions retired",
+        "BriefDescription": "Counts the number of mispredicted branch instructions retired (Precise Event)",
         "EventCode": "0xC5",
         "EventName": "BR_MISP_RETIRED.ALL_BRANCHES",
         "PEBS": "1",
         "SampleAfterValue": "200003"
     },
     {
-        "BriefDescription": "Counts the number of mispredicted near CALL branch instructions retired.",
+        "BriefDescription": "Counts the number of mispredicted near CALL branch instructions retired. (Precise Event)",
         "EventCode": "0xC5",
         "EventName": "BR_MISP_RETIRED.CALL",
         "PEBS": "1",
@@ -86,7 +86,7 @@
         "UMask": "0xf9"
     },
     {
-        "BriefDescription": "Counts the number of mispredicted far branch instructions retired.",
+        "BriefDescription": "Counts the number of mispredicted far branch instructions retired. (Precise Event)",
         "EventCode": "0xC5",
         "EventName": "BR_MISP_RETIRED.FAR_BRANCH",
         "PEBS": "1",
@@ -94,7 +94,7 @@
         "UMask": "0xbf"
     },
     {
-        "BriefDescription": "Counts the number of mispredicted near indirect CALL branch instructions retired.",
+        "BriefDescription": "Counts the number of mispredicted near indirect CALL branch instructions retired. (Precise Event)",
         "EventCode": "0xC5",
         "EventName": "BR_MISP_RETIRED.IND_CALL",
         "PEBS": "1",
@@ -102,7 +102,7 @@
         "UMask": "0xfb"
     },
     {
-        "BriefDescription": "Counts the number of mispredicted branch instructions retired that were conditional jumps.",
+        "BriefDescription": "Counts the number of mispredicted branch instructions retired that were conditional jumps. (Precise Event)",
         "EventCode": "0xC5",
         "EventName": "BR_MISP_RETIRED.JCC",
         "PEBS": "1",
@@ -110,7 +110,7 @@
         "UMask": "0x7e"
     },
     {
-        "BriefDescription": "Counts the number of mispredicted branch instructions retired that were near indirect CALL or near indirect JMP.",
+        "BriefDescription": "Counts the number of mispredicted branch instructions retired that were near indirect CALL or near indirect JMP. (Precise Event)",
         "EventCode": "0xC5",
         "EventName": "BR_MISP_RETIRED.NON_RETURN_IND",
         "PEBS": "1",
@@ -118,7 +118,7 @@
         "UMask": "0xeb"
     },
     {
-        "BriefDescription": "Counts the number of mispredicted near relative CALL branch instructions retired.",
+        "BriefDescription": "Counts the number of mispredicted near relative CALL branch instructions retired. (Precise Event)",
         "EventCode": "0xC5",
         "EventName": "BR_MISP_RETIRED.REL_CALL",
         "PEBS": "1",
@@ -126,7 +126,7 @@
         "UMask": "0xfd"
     },
     {
-        "BriefDescription": "Counts the number of mispredicted near RET branch instructions retired.",
+        "BriefDescription": "Counts the number of mispredicted near RET branch instructions retired. (Precise Event)",
         "EventCode": "0xC5",
         "EventName": "BR_MISP_RETIRED.RETURN",
         "PEBS": "1",
@@ -134,7 +134,7 @@
         "UMask": "0xf7"
     },
     {
-        "BriefDescription": "Counts the number of mispredicted branch instructions retired that were conditional jumps and predicted taken.",
+        "BriefDescription": "Counts the number of mispredicted branch instructions retired that were conditional jumps and predicted taken. (Precise Event)",
         "EventCode": "0xC5",
         "EventName": "BR_MISP_RETIRED.TAKEN_JCC",
         "PEBS": "1",
@@ -189,7 +189,14 @@
         "SampleAfterValue": "2000003"
     },
     {
-        "BriefDescription": "Counts all nukes",
+        "BriefDescription": "Counts the number of instructions retired (Precise Event)",
+        "EventCode": "0xC0",
+        "EventName": "INST_RETIRED.ANY_PS",
+        "PEBS": "2",
+        "SampleAfterValue": "2000003"
+    },
+    {
+        "BriefDescription": "Counts all machine clears",
         "EventCode": "0xC3",
         "EventName": "MACHINE_CLEARS.ALL",
         "SampleAfterValue": "200003",
@@ -261,20 +268,22 @@
         "UMask": "0x2"
     },
     {
-        "BriefDescription": "Counts the number of occurrences a retired load gets blocked because its address partially overlaps with a store",
+        "BriefDescription": "Counts the number of occurrences a retired load gets blocked because its address partially overlaps with a store  (Precise Event)",
         "Data_LA": "1",
         "EventCode": "0x03",
         "EventName": "RECYCLEQ.LD_BLOCK_ST_FORWARD",
         "PEBS": "1",
+        "PublicDescription": "This event counts the number of retired loads that were prohibited from receiving forwarded data from a previous store because of address mismatch.",
         "SampleAfterValue": "200003",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts the number of occurrences a retired load that is a cache line split. Each split should be counted only once.",
+        "BriefDescription": "Counts the number of occurrences a retired load was pushed into the rehab queue because it sees a cache line split. Each split should be counted only once. (Precise Event)",
         "Data_LA": "1",
         "EventCode": "0x03",
         "EventName": "RECYCLEQ.LD_SPLITS",
         "PEBS": "1",
+        "PublicDescription": "This event counts the number of retired loads which was pushed into the recycled queue that experienced cache line boundary splits (Precise event). Not that each split should be counted only once.",
         "SampleAfterValue": "200003",
         "UMask": "0x8"
     },
@@ -286,7 +295,7 @@
         "UMask": "0x10"
     },
     {
-        "BriefDescription": "Counts the store micro-ops retired that were pushed in the rehad queue because the store address buffer is full",
+        "BriefDescription": "Counts the store micro-ops retired that were pushed in the rehab queue because the store address buffer is full",
         "EventCode": "0x03",
         "EventName": "RECYCLEQ.STA_FULL",
         "SampleAfterValue": "200003",
@@ -301,7 +310,7 @@
         "UMask": "0x4"
     },
     {
-        "BriefDescription": "Counts the total number of core cycles the Alloc pipeline is stalled when any one of the reservation stations is full.",
+        "BriefDescription": "Counts the total number of core cycles allocation pipeline is stalled when any one of the reservation stations is full.",
         "EventCode": "0xCB",
         "EventName": "RS_FULL_STALL.ALL",
         "SampleAfterValue": "200003",

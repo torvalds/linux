@@ -312,7 +312,7 @@ static bool rtmv20_is_volatile_reg(struct device *dev, unsigned int reg)
 static const struct regmap_config rtmv20_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.max_register = RTMV20_REG_LDMASK,
 	.num_reg_defaults_raw = RTMV20_MAX_REGS,
 

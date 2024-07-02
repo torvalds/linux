@@ -41,6 +41,16 @@ config VIDEO_APTINA_PLL
 config VIDEO_CCS_PLL
 	tristate
 
+config VIDEO_ALVIUM_CSI2
+	tristate "Allied Vision ALVIUM MIPI CSI-2 camera support"
+	select V4L2_CCI_I2C
+	help
+	  This is a Video4Linux2 sensor-level driver for the Allied Vision
+	  ALVIUM camera connected via MIPI CSI-2 interface.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called alvium-csi2.
+
 config VIDEO_AR0521
 	tristate "ON Semiconductor AR0521 sensor support"
 	help
@@ -49,6 +59,26 @@ config VIDEO_AR0521
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ar0521.
+
+config VIDEO_GC0308
+	tristate "GalaxyCore GC0308 sensor support"
+	select V4L2_CCI_I2C
+	help
+	  This is a Video4Linux2 sensor driver for the GalaxyCore
+	  GC0308 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gc0308.
+
+config VIDEO_GC2145
+	select V4L2_CCI_I2C
+	tristate "GalaxyCore GC2145 sensor support"
+	help
+	  This is a V4L2 sensor-level driver for GalaxyCore GC2145
+	  2 Mpixel camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gc2145.
 
 config VIDEO_HI556
 	tristate "Hynix Hi-556 sensor support"
@@ -99,6 +129,7 @@ config VIDEO_IMX214
 
 config VIDEO_IMX219
 	tristate "Sony IMX219 sensor support"
+	select V4L2_CCI_I2C
 	help
 	  This is a Video4Linux2 sensor driver for the Sony
 	  IMX219 camera.
@@ -193,6 +224,7 @@ config VIDEO_IMX412
 config VIDEO_IMX415
 	tristate "Sony IMX415 sensor support"
 	depends on OF_GPIO
+	select V4L2_CCI_I2C
 	help
 	  This is a Video4Linux2 sensor driver for the Sony
 	  IMX415 camera.
@@ -214,6 +246,16 @@ config VIDEO_MT9M111
 	help
 	  This driver supports MT9M111, MT9M112 and MT9M131 cameras from
 	  Micron/Aptina
+
+config VIDEO_MT9M114
+	tristate "onsemi MT9M114 sensor support"
+	select V4L2_CCI_I2C
+	help
+	  This is a Video4Linux2 sensor-level driver for the onsemi MT9M114
+	  camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mt9m114.
 
 config VIDEO_MT9P031
 	tristate "Aptina MT9P031 support"
@@ -444,6 +486,16 @@ config VIDEO_OV5695
 	  To compile this driver as a module, choose M here: the
 	  module will be called ov5695.
 
+config VIDEO_OV64A40
+	tristate "OmniVision OV64A40 sensor support"
+	select V4L2_CCI_I2C
+	help
+	  This is a Video4Linux2 sensor driver for the OmniVision
+	  OV64A40 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ov64a40.
+
 config VIDEO_OV6650
 	tristate "OmniVision OV6650 sensor support"
 	help
@@ -607,6 +659,7 @@ config VIDEO_S5K6A3
 
 config VIDEO_ST_VGXY61
 	tristate "ST VGXY61 sensor support"
+	select V4L2_CCI_I2C
 	depends on OF && GPIOLIB
 	help
 	  This is a Video4Linux2 sensor driver for the ST VGXY61
@@ -616,6 +669,23 @@ source "drivers/media/i2c/ccs/Kconfig"
 source "drivers/media/i2c/et8ek8/Kconfig"
 
 endif
+
+menu "Camera ISPs"
+	visible if MEDIA_CAMERA_SUPPORT
+
+config VIDEO_THP7312
+	tristate "THine THP7312 support"
+	depends on I2C
+	select FW_LOADER
+	select MEDIA_CONTROLLER
+	select V4L2_CCI_I2C
+	select V4L2_FWNODE
+	select VIDEO_V4L2_SUBDEV_API
+	help
+	  This is a Video4Linux2 sensor-level driver for the THine
+	  THP7312 ISP.
+
+endmenu
 
 menu "Lens drivers"
 	visible if MEDIA_CAMERA_SUPPORT
@@ -1175,6 +1245,21 @@ config VIDEO_TW2804
 	  To compile this driver as a module, choose M here: the
 	  module will be called tw2804.
 
+config VIDEO_TW9900
+	tristate "Techwell TW9900 video decoder"
+	depends on GPIOLIB
+	depends on VIDEO_DEV && I2C
+	depends on PM
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_ASYNC
+	help
+	  Support for the Techwell TW9900 multi-standard video decoder.
+	  It supports NTSC, PAL standards with auto-detection features.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tw9900.
+
 config VIDEO_TW9903
 	tristate "Techwell TW9903 video decoder"
 	depends on VIDEO_DEV && I2C
@@ -1421,6 +1506,7 @@ config VIDEO_ST_MIPID02
 	depends on I2C && VIDEO_DEV
 	select MEDIA_CONTROLLER
 	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_CCI_I2C
 	select V4L2_FWNODE
 	help
 	  Support for STMicroelectronics MIPID02 CSI-2 to PARALLEL bridge.

@@ -19,7 +19,7 @@
 		status = "okay";
 	};
 
-	hub_5v: regulator-hub_5v {
+	hub_5v: regulator-hub-5v {
 		compatible = "regulator-fixed";
 		regulator-name = "HUB_5V";
 		regulator-min-microvolt = <5000000>;

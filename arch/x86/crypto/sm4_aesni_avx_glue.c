@@ -27,8 +27,6 @@ asmlinkage void sm4_aesni_avx_ctr_enc_blk8(const u32 *rk, u8 *dst,
 				const u8 *src, u8 *iv);
 asmlinkage void sm4_aesni_avx_cbc_dec_blk8(const u32 *rk, u8 *dst,
 				const u8 *src, u8 *iv);
-asmlinkage void sm4_aesni_avx_cfb_dec_blk8(const u32 *rk, u8 *dst,
-				const u8 *src, u8 *iv);
 
 static int sm4_skcipher_setkey(struct crypto_skcipher *tfm, const u8 *key,
 			unsigned int key_len)
@@ -188,116 +186,6 @@ static int cbc_decrypt(struct skcipher_request *req)
 				sm4_aesni_avx_cbc_dec_blk8);
 }
 
-int sm4_cfb_encrypt(struct skcipher_request *req)
-{
-	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
-	struct sm4_ctx *ctx = crypto_skcipher_ctx(tfm);
-	struct skcipher_walk walk;
-	unsigned int nbytes;
-	int err;
-
-	err = skcipher_walk_virt(&walk, req, false);
-
-	while ((nbytes = walk.nbytes) > 0) {
-		u8 keystream[SM4_BLOCK_SIZE];
-		const u8 *iv = walk.iv;
-		const u8 *src = walk.src.virt.addr;
-		u8 *dst = walk.dst.virt.addr;
-
-		while (nbytes >= SM4_BLOCK_SIZE) {
-			sm4_crypt_block(ctx->rkey_enc, keystream, iv);
-			crypto_xor_cpy(dst, src, keystream, SM4_BLOCK_SIZE);
-			iv = dst;
-			src += SM4_BLOCK_SIZE;
-			dst += SM4_BLOCK_SIZE;
-			nbytes -= SM4_BLOCK_SIZE;
-		}
-		if (iv != walk.iv)
-			memcpy(walk.iv, iv, SM4_BLOCK_SIZE);
-
-		/* tail */
-		if (walk.nbytes == walk.total && nbytes > 0) {
-			sm4_crypt_block(ctx->rkey_enc, keystream, walk.iv);
-			crypto_xor_cpy(dst, src, keystream, nbytes);
-			nbytes = 0;
-		}
-
-		err = skcipher_walk_done(&walk, nbytes);
-	}
-
-	return err;
-}
-EXPORT_SYMBOL_GPL(sm4_cfb_encrypt);
-
-int sm4_avx_cfb_decrypt(struct skcipher_request *req,
-			unsigned int bsize, sm4_crypt_func func)
-{
-	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
-	struct sm4_ctx *ctx = crypto_skcipher_ctx(tfm);
-	struct skcipher_walk walk;
-	unsigned int nbytes;
-	int err;
-
-	err = skcipher_walk_virt(&walk, req, false);
-
-	while ((nbytes = walk.nbytes) > 0) {
-		const u8 *src = walk.src.virt.addr;
-		u8 *dst = walk.dst.virt.addr;
-
-		kernel_fpu_begin();
-
-		while (nbytes >= bsize) {
-			func(ctx->rkey_enc, dst, src, walk.iv);
-			dst += bsize;
-			src += bsize;
-			nbytes -= bsize;
-		}
-
-		while (nbytes >= SM4_BLOCK_SIZE) {
-			u8 keystream[SM4_BLOCK_SIZE * 8];
-			unsigned int nblocks = min(nbytes >> 4, 8u);
-
-			memcpy(keystream, walk.iv, SM4_BLOCK_SIZE);
-			if (nblocks > 1)
-				memcpy(&keystream[SM4_BLOCK_SIZE], src,
-					(nblocks - 1) * SM4_BLOCK_SIZE);
-			memcpy(walk.iv, src + (nblocks - 1) * SM4_BLOCK_SIZE,
-				SM4_BLOCK_SIZE);
-
-			sm4_aesni_avx_crypt8(ctx->rkey_enc, keystream,
-						keystream, nblocks);
-
-			crypto_xor_cpy(dst, src, keystream,
-					nblocks * SM4_BLOCK_SIZE);
-			dst += nblocks * SM4_BLOCK_SIZE;
-			src += nblocks * SM4_BLOCK_SIZE;
-			nbytes -= nblocks * SM4_BLOCK_SIZE;
-		}
-
-		kernel_fpu_end();
-
-		/* tail */
-		if (walk.nbytes == walk.total && nbytes > 0) {
-			u8 keystream[SM4_BLOCK_SIZE];
-
-			sm4_crypt_block(ctx->rkey_enc, keystream, walk.iv);
-			crypto_xor_cpy(dst, src, keystream, nbytes);
-			nbytes = 0;
-		}
-
-		err = skcipher_walk_done(&walk, nbytes);
-	}
-
-	return err;
-}
-EXPORT_SYMBOL_GPL(sm4_avx_cfb_decrypt);
-
-static int cfb_decrypt(struct skcipher_request *req)
-{
-	return sm4_avx_cfb_decrypt(req, SM4_CRYPT8_BLOCK_SIZE,
-				sm4_aesni_avx_cfb_dec_blk8);
-}
-
 int sm4_avx_ctr_crypt(struct skcipher_request *req,
 			unsigned int bsize, sm4_crypt_func func)
 {
@@ -406,24 +294,6 @@ static struct skcipher_alg sm4_aesni_avx_skciphers[] = {
 		.setkey		= sm4_skcipher_setkey,
 		.encrypt	= sm4_cbc_encrypt,
 		.decrypt	= cbc_decrypt,
-	}, {
-		.base = {
-			.cra_name		= "__cfb(sm4)",
-			.cra_driver_name	= "__cfb-sm4-aesni-avx",
-			.cra_priority		= 400,
-			.cra_flags		= CRYPTO_ALG_INTERNAL,
-			.cra_blocksize		= 1,
-			.cra_ctxsize		= sizeof(struct sm4_ctx),
-			.cra_module		= THIS_MODULE,
-		},
-		.min_keysize	= SM4_KEY_SIZE,
-		.max_keysize	= SM4_KEY_SIZE,
-		.ivsize		= SM4_BLOCK_SIZE,
-		.chunksize	= SM4_BLOCK_SIZE,
-		.walksize	= 8 * SM4_BLOCK_SIZE,
-		.setkey		= sm4_skcipher_setkey,
-		.encrypt	= sm4_cfb_encrypt,
-		.decrypt	= cfb_decrypt,
 	}, {
 		.base = {
 			.cra_name		= "__ctr(sm4)",

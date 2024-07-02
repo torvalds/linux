@@ -4,8 +4,6 @@
 //!
 //! This module allows Rust code to use the kernel's `spinlock_t`.
 
-use crate::bindings;
-
 /// Creates a [`SpinLock`] initialiser with the given name and a newly-created lock class.
 ///
 /// It uses the name if one is given, otherwise it generates one based on the file name and line
@@ -17,6 +15,7 @@ macro_rules! new_spinlock {
             $inner, $crate::optional_name!($($name)?), $crate::static_lock_class!())
     };
 }
+pub use new_spinlock;
 
 /// A spinlock.
 ///
@@ -33,7 +32,7 @@ macro_rules! new_spinlock {
 /// contains an inner struct (`Inner`) that is protected by a spinlock.
 ///
 /// ```
-/// use kernel::{init::InPlaceInit, init::PinInit, new_spinlock, pin_init, sync::SpinLock};
+/// use kernel::sync::{new_spinlock, SpinLock};
 ///
 /// struct Inner {
 ///     a: u32,
@@ -57,7 +56,7 @@ macro_rules! new_spinlock {
 /// }
 ///
 /// // Allocate a boxed `Example`.
-/// let e = Box::pin_init(Example::new())?;
+/// let e = Box::pin_init(Example::new(), GFP_KERNEL)?;
 /// assert_eq!(e.c, 10);
 /// assert_eq!(e.d.lock().a, 20);
 /// assert_eq!(e.d.lock().b, 30);
@@ -82,7 +81,7 @@ macro_rules! new_spinlock {
 /// }
 /// ```
 ///
-/// [`spinlock_t`]: ../../../../include/linux/spinlock.h
+/// [`spinlock_t`]: srctree/include/linux/spinlock.h
 pub type SpinLock<T> = super::Lock<T, SpinLockBackend>;
 
 /// A kernel `spinlock_t` lock backend.
@@ -112,7 +111,7 @@ unsafe impl super::Backend for SpinLockBackend {
 
     unsafe fn unlock(ptr: *mut Self::State, _guard_state: &Self::GuardState) {
         // SAFETY: The safety requirements of this function ensure that `ptr` is valid and that the
-        // caller is the owner of the mutex.
+        // caller is the owner of the spinlock.
         unsafe { bindings::spin_unlock(ptr) }
     }
 }

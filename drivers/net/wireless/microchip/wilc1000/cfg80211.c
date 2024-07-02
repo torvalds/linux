@@ -105,10 +105,9 @@ struct wilc_ch_list_elem {
 } __packed;
 
 static void cfg_scan_result(enum scan_event scan_event,
-			    struct wilc_rcvd_net_info *info, void *user_void)
+			    struct wilc_rcvd_net_info *info,
+			    struct wilc_priv *priv)
 {
-	struct wilc_priv *priv = user_void;
-
 	if (!priv->cfg_scanning)
 		return;
 
@@ -162,9 +161,8 @@ static void cfg_scan_result(enum scan_event scan_event,
 }
 
 static void cfg_connect_result(enum conn_event conn_disconn_evt, u8 mac_status,
-			       void *priv_data)
+			       struct wilc_priv *priv)
 {
-	struct wilc_priv *priv = priv_data;
 	struct net_device *dev = priv->dev;
 	struct wilc_vif *vif = netdev_priv(dev);
 	struct wilc *wl = vif->wilc;
@@ -239,12 +237,11 @@ static int set_channel(struct wiphy *wiphy,
 	struct wilc_vif *vif;
 	u32 channelnum;
 	int result;
-	int srcu_idx;
 
-	srcu_idx = srcu_read_lock(&wl->srcu);
+	rcu_read_lock();
 	vif = wilc_get_wl_to_vif(wl);
 	if (IS_ERR(vif)) {
-		srcu_read_unlock(&wl->srcu, srcu_idx);
+		rcu_read_unlock();
 		return PTR_ERR(vif);
 	}
 
@@ -255,7 +252,7 @@ static int set_channel(struct wiphy *wiphy,
 	if (result)
 		netdev_err(vif->ndev, "Error in setting channel\n");
 
-	srcu_read_unlock(&wl->srcu, srcu_idx);
+	rcu_read_unlock();
 	return result;
 }
 
@@ -286,9 +283,8 @@ static int scan(struct wiphy *wiphy, struct cfg80211_scan_request *request)
 	else
 		scan_type = WILC_FW_PASSIVE_SCAN;
 
-	ret = wilc_scan(vif, WILC_FW_USER_SCAN, scan_type, scan_ch_list,
-			request->n_channels, cfg_scan_result, (void *)priv,
-			request);
+	ret = wilc_scan(vif, WILC_FW_USER_SCAN, scan_type,
+			scan_ch_list, cfg_scan_result, request);
 
 	if (ret) {
 		priv->scan_req = NULL;
@@ -359,7 +355,7 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 			memcpy(vif->auth.ssid.ssid, sme->ssid, sme->ssid_len);
 			vif->auth.ssid.ssid_len = sme->ssid_len;
 		}
-		vif->auth.key_mgmt_suite = cpu_to_be32(sme->crypto.akm_suites[0]);
+		vif->auth.key_mgmt_suite = sme->crypto.akm_suites[0];
 		ether_addr_copy(vif->auth.bssid, sme->bssid);
 		break;
 
@@ -412,9 +408,8 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 
 	wfi_drv->conn_info.security = security;
 	wfi_drv->conn_info.auth_type = auth_type;
-	wfi_drv->conn_info.ch = ch;
 	wfi_drv->conn_info.conn_result = cfg_connect_result;
-	wfi_drv->conn_info.arg = priv;
+	wfi_drv->conn_info.priv = priv;
 	wfi_drv->conn_info.param = join_params;
 
 	if (sme->mfp == NL80211_MFP_OPTIONAL)
@@ -810,9 +805,8 @@ static int set_wiphy_params(struct wiphy *wiphy, u32 changed)
 	struct wilc *wl = wiphy_priv(wiphy);
 	struct wilc_vif *vif;
 	struct wilc_priv *priv;
-	int srcu_idx;
 
-	srcu_idx = srcu_read_lock(&wl->srcu);
+	rcu_read_lock();
 	vif = wilc_get_wl_to_vif(wl);
 	if (IS_ERR(vif))
 		goto out;
@@ -867,7 +861,7 @@ static int set_wiphy_params(struct wiphy *wiphy, u32 changed)
 		netdev_err(priv->dev, "Error in setting WIPHY PARAMS\n");
 
 out:
-	srcu_read_unlock(&wl->srcu, srcu_idx);
+	rcu_read_unlock();
 	return ret;
 }
 
@@ -1094,9 +1088,8 @@ static void wilc_wfi_mgmt_tx_complete(void *priv, int status)
 	kfree(pv_data);
 }
 
-static void wilc_wfi_remain_on_channel_expired(void *data, u64 cookie)
+static void wilc_wfi_remain_on_channel_expired(struct wilc_vif *vif, u64 cookie)
 {
-	struct wilc_vif *vif = data;
 	struct wilc_priv *priv = &vif->priv;
 	struct wilc_wfi_p2p_listen_params *params = &priv->remain_on_ch_params;
 
@@ -1128,9 +1121,8 @@ static int remain_on_channel(struct wiphy *wiphy,
 	if (id == 0)
 		id = ++priv->inc_roc_cookie;
 
-	ret = wilc_remain_on_channel(vif, id, duration, chan->hw_value,
-				     wilc_wfi_remain_on_channel_expired,
-				     (void *)vif);
+	ret = wilc_remain_on_channel(vif, id, chan->hw_value,
+				     wilc_wfi_remain_on_channel_expired);
 	if (ret)
 		return ret;
 
@@ -1524,7 +1516,7 @@ static struct wilc_vif *wilc_get_vif_from_type(struct wilc *wl, int type)
 {
 	struct wilc_vif *vif;
 
-	list_for_each_entry_rcu(vif, &wl->vif_list, list) {
+	wilc_for_each_vif(wl, vif) {
 		if (vif->iftype == type)
 			return vif;
 	}
@@ -1545,20 +1537,19 @@ static struct wireless_dev *add_virtual_intf(struct wiphy *wiphy,
 
 	if (type == NL80211_IFTYPE_MONITOR) {
 		struct net_device *ndev;
-		int srcu_idx;
 
-		srcu_idx = srcu_read_lock(&wl->srcu);
+		rcu_read_lock();
 		vif = wilc_get_vif_from_type(wl, WILC_AP_MODE);
 		if (!vif) {
 			vif = wilc_get_vif_from_type(wl, WILC_GO_MODE);
 			if (!vif) {
-				srcu_read_unlock(&wl->srcu, srcu_idx);
+				rcu_read_unlock();
 				goto validate_interface;
 			}
 		}
 
 		if (vif->monitor_flag) {
-			srcu_read_unlock(&wl->srcu, srcu_idx);
+			rcu_read_unlock();
 			goto validate_interface;
 		}
 
@@ -1566,12 +1557,12 @@ static struct wireless_dev *add_virtual_intf(struct wiphy *wiphy,
 		if (ndev) {
 			vif->monitor_flag = 1;
 		} else {
-			srcu_read_unlock(&wl->srcu, srcu_idx);
+			rcu_read_unlock();
 			return ERR_PTR(-EINVAL);
 		}
 
 		wdev = &vif->priv.wdev;
-		srcu_read_unlock(&wl->srcu, srcu_idx);
+		rcu_read_unlock();
 		return wdev;
 	}
 
@@ -1615,12 +1606,11 @@ static int del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev)
 	cfg80211_unregister_netdevice(vif->ndev);
 	vif->monitor_flag = 0;
 
-	wilc_set_operation_mode(vif, 0, 0, 0);
 	mutex_lock(&wl->vif_mutex);
 	list_del_rcu(&vif->list);
 	wl->vif_num--;
 	mutex_unlock(&wl->vif_mutex);
-	synchronize_srcu(&wl->srcu);
+	synchronize_rcu();
 	return 0;
 }
 
@@ -1645,25 +1635,23 @@ static void wilc_set_wakeup(struct wiphy *wiphy, bool enabled)
 {
 	struct wilc *wl = wiphy_priv(wiphy);
 	struct wilc_vif *vif;
-	int srcu_idx;
 
-	srcu_idx = srcu_read_lock(&wl->srcu);
+	rcu_read_lock();
 	vif = wilc_get_wl_to_vif(wl);
 	if (IS_ERR(vif)) {
-		srcu_read_unlock(&wl->srcu, srcu_idx);
+		rcu_read_unlock();
 		return;
 	}
 
 	netdev_info(vif->ndev, "cfg set wake up = %d\n", enabled);
 	wilc_set_wowlan_trigger(vif, enabled);
-	srcu_read_unlock(&wl->srcu, srcu_idx);
+	rcu_read_unlock();
 }
 
 static int set_tx_power(struct wiphy *wiphy, struct wireless_dev *wdev,
 			enum nl80211_tx_power_setting type, int mbm)
 {
 	int ret;
-	int srcu_idx;
 	s32 tx_power = MBM_TO_DBM(mbm);
 	struct wilc *wl = wiphy_priv(wiphy);
 	struct wilc_vif *vif;
@@ -1671,10 +1659,10 @@ static int set_tx_power(struct wiphy *wiphy, struct wireless_dev *wdev,
 	if (!wl->initialized)
 		return -EIO;
 
-	srcu_idx = srcu_read_lock(&wl->srcu);
+	rcu_read_lock();
 	vif = wilc_get_wl_to_vif(wl);
 	if (IS_ERR(vif)) {
-		srcu_read_unlock(&wl->srcu, srcu_idx);
+		rcu_read_unlock();
 		return -EINVAL;
 	}
 
@@ -1686,7 +1674,7 @@ static int set_tx_power(struct wiphy *wiphy, struct wireless_dev *wdev,
 	ret = wilc_set_tx_power(vif, tx_power);
 	if (ret)
 		netdev_err(vif->ndev, "Failed to set tx power\n");
-	srcu_read_unlock(&wl->srcu, srcu_idx);
+	rcu_read_unlock();
 
 	return ret;
 }
@@ -1769,7 +1757,6 @@ static void wlan_init_locks(struct wilc *wl)
 	init_completion(&wl->cfg_event);
 	init_completion(&wl->sync_event);
 	init_completion(&wl->txq_thread_started);
-	init_srcu_struct(&wl->srcu);
 }
 
 void wlan_deinit_locks(struct wilc *wilc)
@@ -1780,7 +1767,6 @@ void wlan_deinit_locks(struct wilc *wilc)
 	mutex_destroy(&wilc->txq_add_to_head_cs);
 	mutex_destroy(&wilc->vif_mutex);
 	mutex_destroy(&wilc->deinit_lock);
-	cleanup_srcu_struct(&wilc->srcu);
 }
 
 int wilc_cfg80211_init(struct wilc **wilc, struct device *dev, int io_type,
@@ -1810,14 +1796,23 @@ int wilc_cfg80211_init(struct wilc **wilc, struct device *dev, int io_type,
 	INIT_LIST_HEAD(&wl->rxq_head.list);
 	INIT_LIST_HEAD(&wl->vif_list);
 
+	wl->hif_workqueue = alloc_ordered_workqueue("%s", WQ_MEM_RECLAIM,
+						    wiphy_name(wl->wiphy));
+	if (!wl->hif_workqueue) {
+		ret = -ENOMEM;
+		goto free_cfg;
+	}
 	vif = wilc_netdev_ifc_init(wl, "wlan%d", WILC_STATION_MODE,
 				   NL80211_IFTYPE_STATION, false);
 	if (IS_ERR(vif)) {
 		ret = PTR_ERR(vif);
-		goto free_cfg;
+		goto free_hq;
 	}
 
 	return 0;
+
+free_hq:
+	destroy_workqueue(wl->hif_workqueue);
 
 free_cfg:
 	wilc_wlan_cfg_deinit(wl);

@@ -24,12 +24,12 @@ struct {								\
 	(fifo)->mask	= (fifo)->size					\
 		? roundup_pow_of_two((fifo)->size) - 1			\
 		: 0;							\
-	(fifo)->data	= kvpmalloc(fifo_buf_size(fifo), (_gfp));	\
+	(fifo)->data	= kvmalloc(fifo_buf_size(fifo), (_gfp));	\
 })
 
 #define free_fifo(fifo)							\
 do {									\
-	kvpfree((fifo)->data, fifo_buf_size(fifo));			\
+	kvfree((fifo)->data);						\
 	(fifo)->data = NULL;						\
 } while (0)
 

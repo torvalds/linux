@@ -1,0 +1,28 @@
+/* SPDX-License-Identifier: GPL-2.0 */
+#ifndef _ASM_LOONGARCH_UNWIND_HINTS_H
+#define _ASM_LOONGARCH_UNWIND_HINTS_H
+
+#include <linux/objtool.h>
+#include <asm/orc_types.h>
+
+#ifdef __ASSEMBLY__
+
+.macro UNWIND_HINT_UNDEFINED
+	UNWIND_HINT type=UNWIND_HINT_TYPE_UNDEFINED
+.endm
+
+.macro UNWIND_HINT_END_OF_STACK
+	UNWIND_HINT type=UNWIND_HINT_TYPE_END_OF_STACK
+.endm
+
+.macro UNWIND_HINT_REGS
+	UNWIND_HINT sp_reg=ORC_REG_SP type=UNWIND_HINT_TYPE_REGS
+.endm
+
+.macro UNWIND_HINT_FUNC
+	UNWIND_HINT sp_reg=ORC_REG_SP type=UNWIND_HINT_TYPE_CALL
+.endm
+
+#endif /* __ASSEMBLY__ */
+
+#endif /* _ASM_LOONGARCH_UNWIND_HINTS_H */

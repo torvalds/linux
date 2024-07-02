@@ -28,8 +28,10 @@ bool mlx5e_validate_xsk_param(struct mlx5e_params *params,
 			      struct mlx5e_xsk_param *xsk,
 			      struct mlx5_core_dev *mdev)
 {
-	/* AF_XDP doesn't support frames larger than PAGE_SIZE. */
-	if (xsk->chunk_size > PAGE_SIZE || xsk->chunk_size < MLX5E_MIN_XSK_CHUNK_SIZE) {
+	/* AF_XDP doesn't support frames larger than PAGE_SIZE,
+	 * and xsk->chunk_size is limited to 65535 bytes.
+	 */
+	if ((size_t)xsk->chunk_size > PAGE_SIZE || xsk->chunk_size < MLX5E_MIN_XSK_CHUNK_SIZE) {
 		mlx5_core_err(mdev, "XSK chunk size %u out of bounds [%u, %lu]\n", xsk->chunk_size,
 			      MLX5E_MIN_XSK_CHUNK_SIZE, PAGE_SIZE);
 		return false;
@@ -49,10 +51,9 @@ bool mlx5e_validate_xsk_param(struct mlx5e_params *params,
 static void mlx5e_build_xsk_cparam(struct mlx5_core_dev *mdev,
 				   struct mlx5e_params *params,
 				   struct mlx5e_xsk_param *xsk,
-				   u16 q_counter,
 				   struct mlx5e_channel_param *cparam)
 {
-	mlx5e_build_rq_param(mdev, params, xsk, q_counter, &cparam->rq);
+	mlx5e_build_rq_param(mdev, params, xsk, &cparam->rq);
 	mlx5e_build_xdpsq_param(mdev, params, xsk, &cparam->xdp_sq);
 }
 
@@ -93,6 +94,7 @@ static int mlx5e_open_xsk_rq(struct mlx5e_channel *c, struct mlx5e_params *param
 			     struct mlx5e_rq_param *rq_params, struct xsk_buff_pool *pool,
 			     struct mlx5e_xsk_param *xsk)
 {
+	u16 q_counter = c->priv->q_counter[c->sd_ix];
 	struct mlx5e_rq *xskrq = &c->xskrq;
 	int err;
 
@@ -100,7 +102,7 @@ static int mlx5e_open_xsk_rq(struct mlx5e_channel *c, struct mlx5e_params *param
 	if (err)
 		return err;
 
-	err = mlx5e_open_rq(params, rq_params, xsk, cpu_to_node(c->cpu), xskrq);
+	err = mlx5e_open_rq(params, rq_params, xsk, cpu_to_node(c->cpu), q_counter, xskrq);
 	if (err)
 		return err;
 
@@ -125,9 +127,9 @@ int mlx5e_open_xsk(struct mlx5e_priv *priv, struct mlx5e_params *params,
 	if (!cparam)
 		return -ENOMEM;
 
-	mlx5e_build_xsk_cparam(priv->mdev, params, xsk, priv->q_counter, cparam);
+	mlx5e_build_xsk_cparam(priv->mdev, params, xsk, cparam);
 
-	err = mlx5e_open_cq(c->priv, params->rx_cq_moderation, &cparam->rq.cqp, &ccp,
+	err = mlx5e_open_cq(c->mdev, params->rx_cq_moderation, &cparam->rq.cqp, &ccp,
 			    &c->xskrq.cq);
 	if (unlikely(err))
 		goto err_free_cparam;
@@ -136,7 +138,7 @@ int mlx5e_open_xsk(struct mlx5e_priv *priv, struct mlx5e_params *params,
 	if (unlikely(err))
 		goto err_close_rx_cq;
 
-	err = mlx5e_open_cq(c->priv, params->tx_cq_moderation, &cparam->xdp_sq.cqp, &ccp,
+	err = mlx5e_open_cq(c->mdev, params->tx_cq_moderation, &cparam->xdp_sq.cqp, &ccp,
 			    &c->xsksq.cq);
 	if (unlikely(err))
 		goto err_close_rq;

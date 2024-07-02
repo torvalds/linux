@@ -21,6 +21,7 @@
 #include "mean_and_variance.h"
 
 #include "darray.h"
+#include "time_stats.h"
 
 struct closure;
 
@@ -53,38 +54,6 @@ static inline size_t buf_pages(void *p, size_t len)
 			    PAGE_SIZE);
 }
 
-static inline void vpfree(void *p, size_t size)
-{
-	if (is_vmalloc_addr(p))
-		vfree(p);
-	else
-		free_pages((unsigned long) p, get_order(size));
-}
-
-static inline void *vpmalloc(size_t size, gfp_t gfp_mask)
-{
-	return (void *) __get_free_pages(gfp_mask|__GFP_NOWARN,
-					 get_order(size)) ?:
-		__vmalloc(size, gfp_mask);
-}
-
-static inline void kvpfree(void *p, size_t size)
-{
-	if (size < PAGE_SIZE)
-		kfree(p);
-	else
-		vpfree(p, size);
-}
-
-static inline void *kvpmalloc(size_t size, gfp_t gfp_mask)
-{
-	return size < PAGE_SIZE
-		? kmalloc(size, gfp_mask)
-		: vpmalloc(size, gfp_mask);
-}
-
-int mempool_init_kvpmalloc_pool(mempool_t *, int, size_t);
-
 #define HEAP(type)							\
 struct {								\
 	size_t size, used;						\
@@ -97,13 +66,13 @@ struct {								\
 ({									\
 	(heap)->used = 0;						\
 	(heap)->size = (_size);						\
-	(heap)->data = kvpmalloc((heap)->size * sizeof((heap)->data[0]),\
+	(heap)->data = kvmalloc((heap)->size * sizeof((heap)->data[0]),\
 				 (gfp));				\
 })
 
 #define free_heap(heap)							\
 do {									\
-	kvpfree((heap)->data, (heap)->size * sizeof((heap)->data[0]));	\
+	kvfree((heap)->data);						\
 	(heap)->data = NULL;						\
 } while (0)
 
@@ -243,28 +212,10 @@ do {									\
 #define prt_units_s64(...)		bch2_prt_units_s64(__VA_ARGS__)
 #define prt_string_option(...)		bch2_prt_string_option(__VA_ARGS__)
 #define prt_bitflags(...)		bch2_prt_bitflags(__VA_ARGS__)
+#define prt_bitflags_vector(...)	bch2_prt_bitflags_vector(__VA_ARGS__)
 
 void bch2_pr_time_units(struct printbuf *, u64);
-
-#ifdef __KERNEL__
-static inline void pr_time(struct printbuf *out, u64 time)
-{
-	prt_printf(out, "%llu", time);
-}
-#else
-#include <time.h>
-static inline void pr_time(struct printbuf *out, u64 _time)
-{
-	char time_str[64];
-	time_t time = _time;
-	struct tm *tm = localtime(&time);
-	size_t err = strftime(time_str, sizeof(time_str), "%c", tm);
-	if (!err)
-		prt_printf(out, "(formatting error)");
-	else
-		prt_printf(out, "%s", time_str);
-}
-#endif
+void bch2_prt_datetime(struct printbuf *, time64_t);
 
 #ifdef __KERNEL__
 static inline void uuid_unparse_lower(u8 *uuid, char *out)
@@ -360,67 +311,26 @@ bool bch2_is_zero(const void *, size_t);
 
 u64 bch2_read_flag_list(char *, const char * const[]);
 
-void bch2_prt_u64_binary(struct printbuf *, u64, unsigned);
+void bch2_prt_u64_base2_nbits(struct printbuf *, u64, unsigned);
+void bch2_prt_u64_base2(struct printbuf *, u64);
 
 void bch2_print_string_as_lines(const char *prefix, const char *lines);
 
 typedef DARRAY(unsigned long) bch_stacktrace;
-int bch2_save_backtrace(bch_stacktrace *stack, struct task_struct *);
+int bch2_save_backtrace(bch_stacktrace *stack, struct task_struct *, unsigned, gfp_t);
 void bch2_prt_backtrace(struct printbuf *, bch_stacktrace *);
-int bch2_prt_task_backtrace(struct printbuf *, struct task_struct *);
+int bch2_prt_task_backtrace(struct printbuf *, struct task_struct *, unsigned, gfp_t);
 
-#define NR_QUANTILES	15
-#define QUANTILE_IDX(i)	inorder_to_eytzinger0(i, NR_QUANTILES)
-#define QUANTILE_FIRST	eytzinger0_first(NR_QUANTILES)
-#define QUANTILE_LAST	eytzinger0_last(NR_QUANTILES)
-
-struct bch2_quantiles {
-	struct bch2_quantile_entry {
-		u64	m;
-		u64	step;
-	}		entries[NR_QUANTILES];
-};
-
-struct bch2_time_stat_buffer {
-	unsigned	nr;
-	struct bch2_time_stat_buffer_entry {
-		u64	start;
-		u64	end;
-	}		entries[32];
-};
-
-struct bch2_time_stats {
-	spinlock_t	lock;
-	/* all fields are in nanoseconds */
-	u64		max_duration;
-	u64             min_duration;
-	u64             max_freq;
-	u64             min_freq;
-	u64		last_event;
-	struct bch2_quantiles quantiles;
-
-	struct mean_and_variance	  duration_stats;
-	struct mean_and_variance_weighted duration_stats_weighted;
-	struct mean_and_variance	  freq_stats;
-	struct mean_and_variance_weighted freq_stats_weighted;
-	struct bch2_time_stat_buffer __percpu *buffer;
-};
-
-#ifndef CONFIG_BCACHEFS_NO_LATENCY_ACCT
-void __bch2_time_stats_update(struct bch2_time_stats *stats, u64, u64);
-#else
-static inline void __bch2_time_stats_update(struct bch2_time_stats *stats, u64 start, u64 end) {}
-#endif
-
-static inline void bch2_time_stats_update(struct bch2_time_stats *stats, u64 start)
+static inline void prt_bdevname(struct printbuf *out, struct block_device *bdev)
 {
-	__bch2_time_stats_update(stats, start, local_clock());
+#ifdef __KERNEL__
+	prt_printf(out, "%pg", bdev);
+#else
+	prt_str(out, bdev->name);
+#endif
 }
 
 void bch2_time_stats_to_text(struct printbuf *, struct bch2_time_stats *);
-
-void bch2_time_stats_exit(struct bch2_time_stats *);
-void bch2_time_stats_init(struct bch2_time_stats *);
 
 #define ewma_add(ewma, val, weight)					\
 ({									\
@@ -721,10 +631,6 @@ static inline void memset_u64s_tail(void *s, int c, unsigned bytes)
 	memset(s + bytes, c, rem);
 }
 
-void sort_cmp_size(void *base, size_t num, size_t size,
-	  int (*cmp_func)(const void *, const void *, size_t),
-	  void (*swap_func)(void *, void *, size_t));
-
 /* just the memmove, doesn't update @_nr */
 #define __array_insert_item(_array, _nr, _pos)				\
 	memmove(&(_array)[(_pos) + 1],					\
@@ -771,8 +677,15 @@ static inline void __move_gap(void *array, size_t element_size,
 }
 
 /* Move the gap in a gap buffer: */
-#define move_gap(_array, _nr, _size, _old_gap, _new_gap)	\
-	__move_gap(_array, sizeof(_array[0]), _nr, _size, _old_gap, _new_gap)
+#define move_gap(_d, _new_gap)						\
+do {									\
+	BUG_ON(_new_gap > (_d)->nr);					\
+	BUG_ON((_d)->gap > (_d)->nr);					\
+									\
+	__move_gap((_d)->data, sizeof((_d)->data[0]),			\
+		   (_d)->nr, (_d)->size, (_d)->gap, _new_gap);		\
+	(_d)->gap = _new_gap;						\
+} while (0)
 
 #define bubble_sort(_base, _nr, _cmp)					\
 do {									\
@@ -848,5 +761,54 @@ static inline int cmp_le32(__le32 l, __le32 r)
 }
 
 #include <linux/uuid.h>
+
+#define QSTR(n) { { { .len = strlen(n) } }, .name = n }
+
+static inline bool qstr_eq(const struct qstr l, const struct qstr r)
+{
+	return l.len == r.len && !memcmp(l.name, r.name, l.len);
+}
+
+void bch2_darray_str_exit(darray_str *);
+int bch2_split_devs(const char *, darray_str *);
+
+#ifdef __KERNEL__
+
+__must_check
+static inline int copy_to_user_errcode(void __user *to, const void *from, unsigned long n)
+{
+	return copy_to_user(to, from, n) ? -EFAULT : 0;
+}
+
+__must_check
+static inline int copy_from_user_errcode(void *to, const void __user *from, unsigned long n)
+{
+	return copy_from_user(to, from, n) ? -EFAULT : 0;
+}
+
+#endif
+
+static inline void mod_bit(long nr, volatile unsigned long *addr, bool v)
+{
+	if (v)
+		set_bit(nr, addr);
+	else
+		clear_bit(nr, addr);
+}
+
+static inline void __set_bit_le64(size_t bit, __le64 *addr)
+{
+	addr[bit / 64] |= cpu_to_le64(BIT_ULL(bit % 64));
+}
+
+static inline void __clear_bit_le64(size_t bit, __le64 *addr)
+{
+	addr[bit / 64] &= ~cpu_to_le64(BIT_ULL(bit % 64));
+}
+
+static inline bool test_bit_le64(size_t bit, __le64 *addr)
+{
+	return (addr[bit / 64] & cpu_to_le64(BIT_ULL(bit % 64))) != 0;
+}
 
 #endif /* _BCACHEFS_UTIL_H */

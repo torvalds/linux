@@ -476,7 +476,7 @@ static bool ns2501_init(struct intel_dvo_device *dvo,
 	struct ns2501_priv *ns;
 	unsigned char ch;
 
-	ns = kzalloc(sizeof(struct ns2501_priv), GFP_KERNEL);
+	ns = kzalloc(sizeof(*ns), GFP_KERNEL);
 	if (ns == NULL)
 		return false;
 
@@ -551,7 +551,7 @@ static void ns2501_mode_set(struct intel_dvo_device *dvo,
 			    const struct drm_display_mode *adjusted_mode)
 {
 	const struct ns2501_configuration *conf;
-	struct ns2501_priv *ns = (struct ns2501_priv *)(dvo->dev_priv);
+	struct ns2501_priv *ns = dvo->dev_priv;
 	int mode_idx, i;
 
 	DRM_DEBUG_KMS
@@ -655,7 +655,7 @@ static bool ns2501_get_hw_state(struct intel_dvo_device *dvo)
 /* set the NS2501 power state */
 static void ns2501_dpms(struct intel_dvo_device *dvo, bool enable)
 {
-	struct ns2501_priv *ns = (struct ns2501_priv *)(dvo->dev_priv);
+	struct ns2501_priv *ns = dvo->dev_priv;
 
 	DRM_DEBUG_KMS("Trying set the dpms of the DVO to %i\n", enable);
 

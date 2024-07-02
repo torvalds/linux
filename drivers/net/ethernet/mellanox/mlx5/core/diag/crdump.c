@@ -55,7 +55,10 @@ int mlx5_crdump_collect(struct mlx5_core_dev *dev, u32 *cr_data)
 	ret = mlx5_vsc_sem_set_space(dev, MLX5_SEMAPHORE_SW_RESET,
 				     MLX5_VSC_LOCK);
 	if (ret) {
-		mlx5_core_warn(dev, "Failed to lock SW reset semaphore\n");
+		if (ret == -EBUSY)
+			mlx5_core_info(dev, "SW reset semaphore is already in use\n");
+		else
+			mlx5_core_warn(dev, "Failed to lock SW reset semaphore\n");
 		goto unlock_gw;
 	}
 

@@ -295,8 +295,7 @@ static u64 wfit_delay_ns(struct kvm_vcpu *vcpu)
 	u64 val = vcpu_get_reg(vcpu, kvm_vcpu_sys_get_rt(vcpu));
 	struct arch_timer_context *ctx;
 
-	ctx = (vcpu_has_nv(vcpu) && is_hyp_ctxt(vcpu)) ? vcpu_hvtimer(vcpu)
-						       : vcpu_vtimer(vcpu);
+	ctx = is_hyp_ctxt(vcpu) ? vcpu_hvtimer(vcpu) : vcpu_vtimer(vcpu);
 
 	return kvm_counter_compute_delta(ctx, val);
 }
@@ -746,7 +745,7 @@ static void kvm_timer_vcpu_load_nested_switch(struct kvm_vcpu *vcpu,
 		WARN_ON_ONCE(ret);
 
 		/*
-		 * The virtual offset behaviour is "interresting", as it
+		 * The virtual offset behaviour is "interesting", as it
 		 * always applies when HCR_EL2.E2H==0, but only when
 		 * accessed from EL1 when HCR_EL2.E2H==1. So make sure we
 		 * track E2H when putting the HV timer in "direct" mode.

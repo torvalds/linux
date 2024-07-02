@@ -144,10 +144,10 @@ static inline int usb_disable_usb2_hardware_lpm(struct usb_device *udev)
 extern const struct class usbmisc_class;
 extern const struct bus_type usb_bus_type;
 extern struct mutex usb_port_peer_mutex;
-extern struct device_type usb_device_type;
-extern struct device_type usb_if_device_type;
-extern struct device_type usb_ep_device_type;
-extern struct device_type usb_port_device_type;
+extern const struct device_type usb_device_type;
+extern const struct device_type usb_if_device_type;
+extern const struct device_type usb_ep_device_type;
+extern const struct device_type usb_port_device_type;
 extern struct usb_device_driver usb_generic_driver;
 
 static inline int is_usb_device(const struct device *dev)
@@ -175,13 +175,7 @@ static inline int is_root_hub(struct usb_device *udev)
 	return (udev->parent == NULL);
 }
 
-/* Do the same for device drivers and interface drivers. */
-
-static inline int is_usb_device_driver(struct device_driver *drv)
-{
-	return container_of(drv, struct usbdrv_wrap, driver)->
-			for_devices;
-}
+extern bool is_usb_device_driver(const struct device_driver *drv);
 
 /* for labeling diagnostics */
 extern const char *usbcore_name;

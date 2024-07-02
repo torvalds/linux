@@ -27,6 +27,7 @@
 
 #include "vmwgfx_bo.h"
 #include "vmwgfx_kms.h"
+#include "vmwgfx_vkms.h"
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
@@ -241,33 +242,6 @@ static void vmw_ldu_crtc_mode_set_nofb(struct drm_crtc *crtc)
 {
 }
 
-/**
- * vmw_ldu_crtc_atomic_enable - Noop
- *
- * @crtc: CRTC associated with the new screen
- * @state: Unused
- *
- * This is called after a mode set has been completed.  Here's
- * usually a good place to call vmw_ldu_add_active/vmw_ldu_del_active
- * but since for LDU the display plane is closely tied to the
- * CRTC, it makes more sense to do those at plane update time.
- */
-static void vmw_ldu_crtc_atomic_enable(struct drm_crtc *crtc,
-				       struct drm_atomic_state *state)
-{
-}
-
-/**
- * vmw_ldu_crtc_atomic_disable - Turns off CRTC
- *
- * @crtc: CRTC to be turned off
- * @state: Unused
- */
-static void vmw_ldu_crtc_atomic_disable(struct drm_crtc *crtc,
-					struct drm_atomic_state *state)
-{
-}
-
 static const struct drm_crtc_funcs vmw_legacy_crtc_funcs = {
 	.gamma_set = vmw_du_crtc_gamma_set,
 	.destroy = vmw_ldu_crtc_destroy,
@@ -276,6 +250,9 @@ static const struct drm_crtc_funcs vmw_legacy_crtc_funcs = {
 	.atomic_destroy_state = vmw_du_crtc_destroy_state,
 	.set_config = drm_atomic_helper_set_config,
 	.page_flip = drm_atomic_helper_page_flip,
+	.enable_vblank          = vmw_vkms_enable_vblank,
+	.disable_vblank         = vmw_vkms_disable_vblank,
+	.get_vblank_timestamp   = vmw_vkms_get_vblank_timestamp,
 };
 
 
@@ -304,7 +281,7 @@ static void vmw_ldu_connector_destroy(struct drm_connector *connector)
 static const struct drm_connector_funcs vmw_legacy_connector_funcs = {
 	.dpms = vmw_du_connector_dpms,
 	.detect = vmw_du_connector_detect,
-	.fill_modes = vmw_du_connector_fill_modes,
+	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = vmw_ldu_connector_destroy,
 	.reset = vmw_du_connector_reset,
 	.atomic_duplicate_state = vmw_du_connector_duplicate_state,
@@ -313,6 +290,8 @@ static const struct drm_connector_funcs vmw_legacy_connector_funcs = {
 
 static const struct
 drm_connector_helper_funcs vmw_ldu_connector_helper_funcs = {
+	.get_modes = vmw_connector_get_modes,
+	.mode_valid = vmw_connector_mode_valid
 };
 
 static int vmw_kms_ldu_do_bo_dirty(struct vmw_private *dev_priv,
@@ -416,9 +395,9 @@ static const struct drm_crtc_helper_funcs vmw_ldu_crtc_helper_funcs = {
 	.mode_set_nofb = vmw_ldu_crtc_mode_set_nofb,
 	.atomic_check = vmw_du_crtc_atomic_check,
 	.atomic_begin = vmw_du_crtc_atomic_begin,
-	.atomic_flush = vmw_du_crtc_atomic_flush,
-	.atomic_enable = vmw_ldu_crtc_atomic_enable,
-	.atomic_disable = vmw_ldu_crtc_atomic_disable,
+	.atomic_flush = vmw_vkms_crtc_atomic_flush,
+	.atomic_enable = vmw_vkms_crtc_atomic_enable,
+	.atomic_disable = vmw_vkms_crtc_atomic_disable,
 };
 
 
@@ -449,7 +428,6 @@ static int vmw_ldu_init(struct vmw_private *dev_priv, unsigned unit)
 	ldu->base.pref_active = (unit == 0);
 	ldu->base.pref_width = dev_priv->initial_width;
 	ldu->base.pref_height = dev_priv->initial_height;
-	ldu->base.pref_mode = NULL;
 
 	/*
 	 * Remove this after enabling atomic because property values can
@@ -539,6 +517,8 @@ static int vmw_ldu_init(struct vmw_private *dev_priv, unsigned unit)
 			(&connector->base,
 			 dev_priv->implicit_placement_property,
 			 1);
+
+	vmw_du_init(&ldu->base);
 
 	return 0;
 

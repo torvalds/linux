@@ -142,6 +142,9 @@ static const struct mfd_cell mt6357_devs[] = {
 		.resources = mt6357_rtc_resources,
 		.of_compatible = "mediatek,mt6357-rtc",
 	}, {
+		.name = "mt6357-sound",
+		.of_compatible = "mediatek,mt6357-sound"
+	}, {
 		.name = "mtk-pmic-keys",
 		.num_resources = ARRAY_SIZE(mt6357_keys_resources),
 		.resources = mt6357_keys_resources,

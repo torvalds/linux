@@ -157,7 +157,7 @@ void lan966x_vlan_port_apply(struct lan966x_port *port)
 
 	pvid = lan966x_vlan_port_get_pvid(port);
 
-	/* Ingress clasification (ANA_PORT_VLAN_CFG) */
+	/* Ingress classification (ANA_PORT_VLAN_CFG) */
 	/* Default vlan to classify for untagged frames (may be zero) */
 	val = ANA_VLAN_CFG_VLAN_VID_SET(pvid);
 	if (port->vlan_aware)

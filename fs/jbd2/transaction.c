@@ -1231,10 +1231,24 @@ out:
 int jbd2_journal_get_write_access(handle_t *handle, struct buffer_head *bh)
 {
 	struct journal_head *jh;
+	journal_t *journal;
 	int rc;
 
 	if (is_handle_aborted(handle))
 		return -EROFS;
+
+	journal = handle->h_transaction->t_journal;
+	if (jbd2_check_fs_dev_write_error(journal)) {
+		/*
+		 * If the fs dev has writeback errors, it may have failed
+		 * to async write out metadata buffers in the background.
+		 * In this case, we could read old data from disk and write
+		 * it out again, which may lead to on-disk filesystem
+		 * inconsistency. Aborting journal can avoid it happen.
+		 */
+		jbd2_journal_abort(journal, -EIO);
+		return -EIO;
+	}
 
 	if (jbd2_write_access_granted(handle, bh, false))
 		return 0;

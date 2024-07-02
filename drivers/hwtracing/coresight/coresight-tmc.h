@@ -135,6 +135,7 @@ enum etr_mode {
 	ETR_MODE_FLAT,		/* Uses contiguous flat buffer */
 	ETR_MODE_ETR_SG,	/* Uses in-built TMC ETR SG mechanism */
 	ETR_MODE_CATU,		/* Use SG mechanism in CATU */
+	ETR_MODE_AUTO,		/* Use the default mechanism */
 };
 
 struct etr_buf_operations;
@@ -177,7 +178,6 @@ struct etr_buf {
  * @size:	trace buffer size for this TMC (common for all modes).
  * @max_burst_size: The maximum burst size that can be initiated by
  *		TMC-ETR on AXI bus.
- * @mode:	how this TMC is being used.
  * @config_type: TMC variant, must be of type @tmc_config_type.
  * @memwidth:	width of the memory interface databus, in bytes.
  * @trigger_cntr: amount of words to store after a trigger.
@@ -202,11 +202,11 @@ struct tmc_drvdata {
 	u32			len;
 	u32			size;
 	u32			max_burst_size;
-	u32			mode;
 	enum tmc_config_type	config_type;
 	enum tmc_mem_intf_width	memwidth;
 	u32			trigger_cntr;
 	u32			etr_caps;
+	enum etr_mode		etr_mode;
 	struct idr		idr;
 	struct mutex		idr_mutex;
 	struct etr_buf		*sysfs_buf;
@@ -334,5 +334,6 @@ void tmc_etr_set_catu_ops(const struct etr_buf_operations *catu);
 void tmc_etr_remove_catu_ops(void);
 struct etr_buf *tmc_etr_get_buffer(struct coresight_device *csdev,
 				   enum cs_mode mode, void *data);
+extern const struct attribute_group coresight_etr_group;
 
 #endif

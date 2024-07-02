@@ -460,7 +460,7 @@ static void set_buffers(struct hantro_ctx *ctx, struct vb2_v4l2_buffer *src_buf)
 		vdpu_write_relaxed(vpu, dst_dma + offset, VDPU_REG_DIR_MV_BASE);
 	}
 
-	/* Auxiliary buffer prepared in hantro_g1_h264_dec_prepare_table(). */
+	/* Auxiliary buffer prepared in hantro_h264_dec_init(). */
 	vdpu_write_relaxed(vpu, ctx->h264_dec.priv.dma, VDPU_REG_QTABLE_BASE);
 }
 

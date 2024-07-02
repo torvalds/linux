@@ -14,13 +14,18 @@
 #include <linux/regmap.h>
 #include <net/dsa.h>
 #include <linux/irq.h>
+#include <linux/platform_data/microchip-ksz.h>
 
 #include "ksz_ptp.h"
 
 #define KSZ_MAX_NUM_PORTS 8
+/* all KSZ switches count ports from 1 */
+#define KSZ_PORT_1 0
+#define KSZ_PORT_2 1
 
 struct ksz_device;
 struct ksz_port;
+struct phylink_mac_ops;
 
 enum ksz_regmap_width {
 	KSZ_REGMAP_8,
@@ -57,9 +62,10 @@ struct ksz_chip_data {
 	int port_cnt;
 	u8 port_nirqs;
 	u8 num_tx_queues;
+	u8 num_ipms; /* number of Internal Priority Maps */
 	bool tc_cbs_supported;
-	bool tc_ets_supported;
 	const struct ksz_dev_ops *ops;
+	const struct phylink_mac_ops *phylink_mac_ops;
 	bool ksz87xx_eee_link_erratum;
 	const struct ksz_mib_names *mib_names;
 	int mib_cnt;
@@ -109,6 +115,7 @@ struct ksz_switch_macaddr {
 struct ksz_port {
 	bool remove_tag;		/* Remove Tag flag set, for ksz8795 only */
 	bool learning;
+	bool isolated;
 	int stp_state;
 	struct phy_device phydev;
 
@@ -134,6 +141,7 @@ struct ksz_port {
 	ktime_t tstamp_msg;
 	struct completion tstamp_msg_comp;
 #endif
+	bool manual_flow;
 };
 
 struct ksz_device {
@@ -185,6 +193,7 @@ struct ksz_device {
 /* List of supported models */
 enum ksz_model {
 	KSZ8563,
+	KSZ8567,
 	KSZ8795,
 	KSZ8794,
 	KSZ8765,
@@ -200,25 +209,6 @@ enum ksz_model {
 	LAN9372,
 	LAN9373,
 	LAN9374,
-};
-
-enum ksz_chip_id {
-	KSZ8563_CHIP_ID = 0x8563,
-	KSZ8795_CHIP_ID = 0x8795,
-	KSZ8794_CHIP_ID = 0x8794,
-	KSZ8765_CHIP_ID = 0x8765,
-	KSZ8830_CHIP_ID = 0x8830,
-	KSZ9477_CHIP_ID = 0x00947700,
-	KSZ9896_CHIP_ID = 0x00989600,
-	KSZ9897_CHIP_ID = 0x00989700,
-	KSZ9893_CHIP_ID = 0x00989300,
-	KSZ9563_CHIP_ID = 0x00956300,
-	KSZ9567_CHIP_ID = 0x00956700,
-	LAN9370_CHIP_ID = 0x00937000,
-	LAN9371_CHIP_ID = 0x00937100,
-	LAN9372_CHIP_ID = 0x00937200,
-	LAN9373_CHIP_ID = 0x00937300,
-	LAN9374_CHIP_ID = 0x00937400,
 };
 
 enum ksz_regs {
@@ -364,9 +354,6 @@ struct ksz_dev_ops {
 	int (*change_mtu)(struct ksz_device *dev, int port, int mtu);
 	void (*freeze_mib)(struct ksz_device *dev, int port, bool freeze);
 	void (*port_init_cnt)(struct ksz_device *dev, int port);
-	void (*phylink_mac_config)(struct ksz_device *dev, int port,
-				   unsigned int mode,
-				   const struct phylink_link_state *state);
 	void (*phylink_mac_link_up)(struct ksz_device *dev, int port,
 				    unsigned int mode,
 				    phy_interface_t interface,
@@ -635,6 +622,11 @@ static inline bool ksz_is_ksz88x3(struct ksz_device *dev)
 	return dev->chip_id == KSZ8830_CHIP_ID;
 }
 
+static inline bool is_ksz8(struct ksz_device *dev)
+{
+	return ksz_is_ksz87xx(dev) || ksz_is_ksz88x3(dev);
+}
+
 static inline int is_lan937x(struct ksz_device *dev)
 {
 	return dev->chip_id == LAN9370_CHIP_ID ||
@@ -737,7 +729,6 @@ static inline int is_lan937x(struct ksz_device *dev)
 #define KSZ9477_PORT_MRI_TC_MAP__4	0x0808
 
 #define KSZ9477_PORT_TC_MAP_S		4
-#define KSZ9477_MAX_TC_PRIO		7
 
 /* CBS related registers */
 #define REG_PORT_MTI_QUEUE_INDEX__4	0x0900

@@ -1181,8 +1181,7 @@ static void process_deferred_discards(struct clone *clone)
 	struct bio_list discards = BIO_EMPTY_LIST;
 
 	spin_lock_irq(&clone->lock);
-	bio_list_merge(&discards, &clone->deferred_discard_bios);
-	bio_list_init(&clone->deferred_discard_bios);
+	bio_list_merge_init(&discards, &clone->deferred_discard_bios);
 	spin_unlock_irq(&clone->lock);
 
 	if (bio_list_empty(&discards))
@@ -1215,8 +1214,7 @@ static void process_deferred_bios(struct clone *clone)
 	struct bio_list bios = BIO_EMPTY_LIST;
 
 	spin_lock_irq(&clone->lock);
-	bio_list_merge(&bios, &clone->deferred_bios);
-	bio_list_init(&clone->deferred_bios);
+	bio_list_merge_init(&bios, &clone->deferred_bios);
 	spin_unlock_irq(&clone->lock);
 
 	if (bio_list_empty(&bios))
@@ -1237,11 +1235,9 @@ static void process_deferred_flush_bios(struct clone *clone)
 	 * before issuing them or signaling their completion.
 	 */
 	spin_lock_irq(&clone->lock);
-	bio_list_merge(&bios, &clone->deferred_flush_bios);
-	bio_list_init(&clone->deferred_flush_bios);
-
-	bio_list_merge(&bio_completions, &clone->deferred_flush_completions);
-	bio_list_init(&clone->deferred_flush_completions);
+	bio_list_merge_init(&bios, &clone->deferred_flush_bios);
+	bio_list_merge_init(&bio_completions,
+			    &clone->deferred_flush_completions);
 	spin_unlock_irq(&clone->lock);
 
 	if (bio_list_empty(&bios) && bio_list_empty(&bio_completions) &&

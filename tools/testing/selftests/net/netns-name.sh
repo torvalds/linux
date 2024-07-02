@@ -1,9 +1,9 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
+source lib.sh
 set -o pipefail
 
-NS=netns-name-test
 DEV=dummy-dev0
 DEV2=dummy-dev1
 ALT_NAME=some-alt-name
@@ -11,7 +11,7 @@ ALT_NAME=some-alt-name
 RET_CODE=0
 
 cleanup() {
-    ip netns del $NS
+    cleanup_ns $NS $test_ns
 }
 
 trap cleanup EXIT
@@ -21,50 +21,50 @@ fail() {
     RET_CODE=1
 }
 
-ip netns add $NS
+setup_ns NS test_ns
 
 #
 # Test basic move without a rename
 #
 ip -netns $NS link add name $DEV type dummy || fail
-ip -netns $NS link set dev $DEV netns 1 ||
+ip -netns $NS link set dev $DEV netns $test_ns ||
     fail "Can't perform a netns move"
-ip link show dev $DEV >> /dev/null || fail "Device not found after move"
-ip link del $DEV || fail
+ip -netns $test_ns link show dev $DEV >> /dev/null || fail "Device not found after move"
+ip -netns $test_ns link del $DEV || fail
 
 #
 # Test move with a conflict
 #
-ip link add name $DEV type dummy
+ip -netns $test_ns link add name $DEV type dummy
 ip -netns $NS link add name $DEV type dummy || fail
-ip -netns $NS link set dev $DEV netns 1 2> /dev/null &&
+ip -netns $NS link set dev $DEV netns $test_ns 2> /dev/null &&
     fail "Performed a netns move with a name conflict"
-ip link show dev $DEV >> /dev/null || fail "Device not found after move"
+ip -netns $test_ns link show dev $DEV >> /dev/null || fail "Device not found after move"
 ip -netns $NS link del $DEV || fail
-ip link del $DEV || fail
+ip -netns $test_ns link del $DEV || fail
 
 #
 # Test move with a conflict and rename
 #
-ip link add name $DEV type dummy
+ip -netns $test_ns link add name $DEV type dummy
 ip -netns $NS link add name $DEV type dummy || fail
-ip -netns $NS link set dev $DEV netns 1 name $DEV2 ||
+ip -netns $NS link set dev $DEV netns $test_ns name $DEV2 ||
     fail "Can't perform a netns move with rename"
-ip link del $DEV2 || fail
-ip link del $DEV || fail
+ip -netns $test_ns link del $DEV2 || fail
+ip -netns $test_ns link del $DEV || fail
 
 #
 # Test dup alt-name with netns move
 #
-ip link add name $DEV type dummy || fail
-ip link property add dev $DEV altname $ALT_NAME || fail
+ip -netns $test_ns link add name $DEV type dummy || fail
+ip -netns $test_ns link property add dev $DEV altname $ALT_NAME || fail
 ip -netns $NS link add name $DEV2 type dummy || fail
 ip -netns $NS link property add dev $DEV2 altname $ALT_NAME || fail
 
-ip -netns $NS link set dev $DEV2 netns 1 2> /dev/null &&
+ip -netns $NS link set dev $DEV2 netns $test_ns 2> /dev/null &&
     fail "Moved with alt-name dup"
 
-ip link del $DEV || fail
+ip -netns $test_ns link del $DEV || fail
 ip -netns $NS link del $DEV2 || fail
 
 #
@@ -72,11 +72,11 @@ ip -netns $NS link del $DEV2 || fail
 #
 ip -netns $NS link add name $DEV type dummy || fail
 ip -netns $NS link property add dev $DEV altname $ALT_NAME || fail
-ip -netns $NS link set dev $DEV netns 1 || fail
-ip link show dev $ALT_NAME >> /dev/null || fail "Can't find alt-name after move"
-ip  -netns $NS link show dev $ALT_NAME 2> /dev/null &&
+ip -netns $NS link set dev $DEV netns $test_ns || fail
+ip -netns $test_ns link show dev $ALT_NAME >> /dev/null || fail "Can't find alt-name after move"
+ip -netns $NS link show dev $ALT_NAME 2> /dev/null &&
     fail "Can still find alt-name after move"
-ip link del $DEV || fail
+ip -netns $test_ns link del $DEV || fail
 
 echo -ne "$(basename $0) \t\t\t\t"
 if [ $RET_CODE -eq 0 ]; then

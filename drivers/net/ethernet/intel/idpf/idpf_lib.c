@@ -2,13 +2,10 @@
 /* Copyright (C) 2023 Intel Corporation */
 
 #include "idpf.h"
+#include "idpf_virtchnl.h"
 
 static const struct net_device_ops idpf_netdev_ops_splitq;
 static const struct net_device_ops idpf_netdev_ops_singleq;
-
-const char * const idpf_vport_vc_state_str[] = {
-	IDPF_FOREACH_VPORT_VC_STATE(IDPF_GEN_STRING)
-};
 
 /**
  * idpf_init_vector_stack - Fill the MSIX vector stack with vector index
@@ -82,19 +79,12 @@ static void idpf_mb_intr_rel_irq(struct idpf_adapter *adapter)
  */
 void idpf_intr_rel(struct idpf_adapter *adapter)
 {
-	int err;
-
 	if (!adapter->msix_entries)
 		return;
 
 	idpf_mb_intr_rel_irq(adapter);
 	pci_free_irq_vectors(adapter->pdev);
-
-	err = idpf_send_dealloc_vectors_msg(adapter);
-	if (err)
-		dev_err(&adapter->pdev->dev,
-			"Failed to deallocate vectors: %d\n", err);
-
+	idpf_send_dealloc_vectors_msg(adapter);
 	idpf_deinit_vector_stack(adapter);
 	kfree(adapter->msix_entries);
 	adapter->msix_entries = NULL;
@@ -783,6 +773,8 @@ static int idpf_cfg_netdev(struct idpf_vport *vport)
 	/* setup watchdog timeout value to be 5 second */
 	netdev->watchdog_timeo = 5 * HZ;
 
+	netdev->dev_port = idx;
+
 	/* configure default MTU size */
 	netdev->min_mtu = ETH_MIN_MTU;
 	netdev->max_mtu = vport->max_mtu;
@@ -973,7 +965,6 @@ static void idpf_vport_rel(struct idpf_vport *vport)
 	struct idpf_rss_data *rss_data;
 	struct idpf_vport_max_q max_q;
 	u16 idx = vport->idx;
-	int i;
 
 	vport_config = adapter->vport_config[vport->idx];
 	idpf_deinit_rss(vport);
@@ -982,20 +973,6 @@ static void idpf_vport_rel(struct idpf_vport *vport)
 	rss_data->rss_key = NULL;
 
 	idpf_send_destroy_vport_msg(vport);
-
-	/* Set all bits as we dont know on which vc_state the vport vhnl_wq
-	 * is waiting on and wakeup the virtchnl workqueue even if it is
-	 * waiting for the response as we are going down
-	 */
-	for (i = 0; i < IDPF_VC_NBITS; i++)
-		set_bit(i, vport->vc_state);
-	wake_up(&vport->vchnl_wq);
-
-	mutex_destroy(&vport->vc_buf_lock);
-
-	/* Clear all the bits */
-	for (i = 0; i < IDPF_VC_NBITS; i++)
-		clear_bit(i, vport->vc_state);
 
 	/* Release all max queues allocated to the adapter's pool */
 	max_q.max_rxq = vport_config->max_q.max_rxq;
@@ -1055,6 +1032,71 @@ static void idpf_vport_dealloc(struct idpf_vport *vport)
 
 	adapter->vports[i] = NULL;
 	adapter->next_vport = idpf_get_free_slot(adapter);
+}
+
+/**
+ * idpf_is_hsplit_supported - check whether the header split is supported
+ * @vport: virtual port to check the capability for
+ *
+ * Return: true if it's supported by the HW/FW, false if not.
+ */
+static bool idpf_is_hsplit_supported(const struct idpf_vport *vport)
+{
+	return idpf_is_queue_model_split(vport->rxq_model) &&
+	       idpf_is_cap_ena_all(vport->adapter, IDPF_HSPLIT_CAPS,
+				   IDPF_CAP_HSPLIT);
+}
+
+/**
+ * idpf_vport_get_hsplit - get the current header split feature state
+ * @vport: virtual port to query the state for
+ *
+ * Return: ``ETHTOOL_TCP_DATA_SPLIT_UNKNOWN`` if not supported,
+ *         ``ETHTOOL_TCP_DATA_SPLIT_DISABLED`` if disabled,
+ *         ``ETHTOOL_TCP_DATA_SPLIT_ENABLED`` if active.
+ */
+u8 idpf_vport_get_hsplit(const struct idpf_vport *vport)
+{
+	const struct idpf_vport_user_config_data *config;
+
+	if (!idpf_is_hsplit_supported(vport))
+		return ETHTOOL_TCP_DATA_SPLIT_UNKNOWN;
+
+	config = &vport->adapter->vport_config[vport->idx]->user_config;
+
+	return test_bit(__IDPF_USER_FLAG_HSPLIT, config->user_flags) ?
+	       ETHTOOL_TCP_DATA_SPLIT_ENABLED :
+	       ETHTOOL_TCP_DATA_SPLIT_DISABLED;
+}
+
+/**
+ * idpf_vport_set_hsplit - enable or disable header split on a given vport
+ * @vport: virtual port to configure
+ * @val: Ethtool flag controlling the header split state
+ *
+ * Return: true on success, false if not supported by the HW.
+ */
+bool idpf_vport_set_hsplit(const struct idpf_vport *vport, u8 val)
+{
+	struct idpf_vport_user_config_data *config;
+
+	if (!idpf_is_hsplit_supported(vport))
+		return val == ETHTOOL_TCP_DATA_SPLIT_UNKNOWN;
+
+	config = &vport->adapter->vport_config[vport->idx]->user_config;
+
+	switch (val) {
+	case ETHTOOL_TCP_DATA_SPLIT_UNKNOWN:
+		/* Default is to enable */
+	case ETHTOOL_TCP_DATA_SPLIT_ENABLED:
+		__set_bit(__IDPF_USER_FLAG_HSPLIT, config->user_flags);
+		return true;
+	case ETHTOOL_TCP_DATA_SPLIT_DISABLED:
+		__clear_bit(__IDPF_USER_FLAG_HSPLIT, config->user_flags);
+		return true;
+	default:
+		return false;
+	}
 }
 
 /**
@@ -1186,7 +1228,7 @@ void idpf_mbx_task(struct work_struct *work)
 		queue_delayed_work(adapter->mbx_wq, &adapter->mbx_task,
 				   msecs_to_jiffies(300));
 
-	idpf_recv_mb_msg(adapter, VIRTCHNL2_OP_UNKNOWN, NULL, 0);
+	idpf_recv_mb_msg(adapter);
 }
 
 /**
@@ -1476,9 +1518,7 @@ void idpf_init_task(struct work_struct *work)
 	vport_config = adapter->vport_config[index];
 
 	init_waitqueue_head(&vport->sw_marker_wq);
-	init_waitqueue_head(&vport->vchnl_wq);
 
-	mutex_init(&vport->vc_buf_lock);
 	spin_lock_init(&vport_config->mac_filter_list_lock);
 
 	INIT_LIST_HEAD(&vport_config->user_config.mac_filter_list);
@@ -1756,6 +1796,8 @@ static int idpf_init_hard_reset(struct idpf_adapter *adapter)
 		goto unlock_mutex;
 	}
 
+	queue_delayed_work(adapter->mbx_wq, &adapter->mbx_task, 0);
+
 	/* Initialize the state machine, also allocate memory and request
 	 * resources
 	 */
@@ -1835,7 +1877,7 @@ int idpf_initiate_soft_reset(struct idpf_vport *vport,
 	 * mess with. Nothing below should use those variables from new_vport
 	 * and should instead always refer to them in vport if they need to.
 	 */
-	memcpy(new_vport, vport, offsetof(struct idpf_vport, vc_state));
+	memcpy(new_vport, vport, offsetof(struct idpf_vport, link_speed_mbps));
 
 	/* Adjust resource parameters prior to reallocating resources */
 	switch (reset_cause) {
@@ -1884,7 +1926,7 @@ int idpf_initiate_soft_reset(struct idpf_vport *vport,
 	/* Same comment as above regarding avoiding copying the wait_queues and
 	 * mutexes applies here. We do not want to mess with those if possible.
 	 */
-	memcpy(vport, new_vport, offsetof(struct idpf_vport, vc_state));
+	memcpy(vport, new_vport, offsetof(struct idpf_vport, link_speed_mbps));
 
 	/* Since idpf_vport_queues_alloc was called with new_port, the queue
 	 * back pointers are currently pointing to the local new_vport. Reset
@@ -2192,7 +2234,7 @@ static int idpf_change_mtu(struct net_device *netdev, int new_mtu)
 	idpf_vport_ctrl_lock(netdev);
 	vport = idpf_netdev_to_vport(netdev);
 
-	netdev->mtu = new_mtu;
+	WRITE_ONCE(netdev->mtu, new_mtu);
 
 	err = idpf_initiate_soft_reset(vport, IDPF_SR_MTU_CHANGE);
 

@@ -363,6 +363,12 @@ EDID Helper Functions Reference
 .. kernel-doc:: drivers/gpu/drm/drm_edid.c
    :export:
 
+.. kernel-doc:: include/drm/drm_eld.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_eld.c
+   :export:
+
 SCDC Helper Functions Reference
 ===============================
 

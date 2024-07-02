@@ -113,10 +113,10 @@ examples:
     };
 
     imx7d-cm4 {
-      compatible	= "fsl,imx7d-cm4";
-      memory-region	= <&m4_reserved_sysmem1>, <&m4_reserved_sysmem2>;
-      syscon		= <&src>;
-      clocks		= <&clks IMX7D_ARM_M4_ROOT_CLK>;
+      compatible = "fsl,imx7d-cm4";
+      memory-region = <&m4_reserved_sysmem1>, <&m4_reserved_sysmem2>;
+      syscon = <&src>;
+      clocks = <&clks IMX7D_ARM_M4_ROOT_CLK>;
     };
 
   - |

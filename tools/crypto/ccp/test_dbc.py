@@ -138,12 +138,14 @@ class TestInvalidSignature(DynamicBoostControlTest):
 
     def test_authenticated_nonce(self) -> None:
         """fetch authenticated nonce"""
+        get_nonce(self.d, None)
         with self.assertRaises(OSError) as error:
             get_nonce(self.d, self.signature)
-        self.assertEqual(error.exception.errno, 1)
+        self.assertEqual(error.exception.errno, 22)
 
     def test_set_uid(self) -> None:
         """set uid"""
+        get_nonce(self.d, None)
         with self.assertRaises(OSError) as error:
             set_uid(self.d, self.uid, self.signature)
         self.assertEqual(error.exception.errno, 1)
@@ -152,13 +154,13 @@ class TestInvalidSignature(DynamicBoostControlTest):
         """fetch a parameter"""
         with self.assertRaises(OSError) as error:
             process_param(self.d, PARAM_GET_SOC_PWR_CUR, self.signature)
-        self.assertEqual(error.exception.errno, 1)
+        self.assertEqual(error.exception.errno, 11)
 
     def test_set_param(self) -> None:
         """set a parameter"""
         with self.assertRaises(OSError) as error:
             process_param(self.d, PARAM_SET_PWR_CAP, self.signature, 1000)
-        self.assertEqual(error.exception.errno, 1)
+        self.assertEqual(error.exception.errno, 11)
 
 
 class TestUnFusedSystem(DynamicBoostControlTest):

@@ -358,7 +358,7 @@ static const struct phy_ops ltq_vrx200_pcie_phy_ops = {
 };
 
 static struct phy *ltq_vrx200_pcie_phy_xlate(struct device *dev,
-					     struct of_phandle_args *args)
+					     const struct of_phandle_args *args)
 {
 	struct ltq_vrx200_pcie_phy_priv *priv = dev_get_drvdata(dev);
 	unsigned int mode;

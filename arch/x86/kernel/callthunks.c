@@ -24,6 +24,8 @@
 
 static int __initdata_or_module debug_callthunks;
 
+#define MAX_PATCH_LEN (255-1)
+
 #define prdbg(fmt, args...)					\
 do {								\
 	if (debug_callthunks)					\
@@ -42,8 +44,8 @@ DEFINE_PER_CPU(u64, __x86_call_count);
 DEFINE_PER_CPU(u64, __x86_ret_count);
 DEFINE_PER_CPU(u64, __x86_stuffs_count);
 DEFINE_PER_CPU(u64, __x86_ctxsw_count);
-EXPORT_SYMBOL_GPL(__x86_ctxsw_count);
-EXPORT_SYMBOL_GPL(__x86_call_count);
+EXPORT_PER_CPU_SYMBOL_GPL(__x86_ctxsw_count);
+EXPORT_PER_CPU_SYMBOL_GPL(__x86_call_count);
 #endif
 
 extern s32 __call_sites[], __call_sites_end[];
@@ -179,10 +181,14 @@ static const u8 nops[] = {
 static void *patch_dest(void *dest, bool direct)
 {
 	unsigned int tsize = SKL_TMPL_SIZE;
+	u8 insn_buff[MAX_PATCH_LEN];
 	u8 *pad = dest - tsize;
 
+	memcpy(insn_buff, skl_call_thunk_template, tsize);
+	apply_relocation(insn_buff, pad, tsize, skl_call_thunk_template, tsize);
+
 	/* Already patched? */
-	if (!bcmp(pad, skl_call_thunk_template, tsize))
+	if (!bcmp(pad, insn_buff, tsize))
 		return pad;
 
 	/* Ensure there are nops */
@@ -192,9 +198,9 @@ static void *patch_dest(void *dest, bool direct)
 	}
 
 	if (direct)
-		memcpy(pad, skl_call_thunk_template, tsize);
+		memcpy(pad, insn_buff, tsize);
 	else
-		text_poke_copy_locked(pad, skl_call_thunk_template, tsize, true);
+		text_poke_copy_locked(pad, insn_buff, tsize, true);
 	return pad;
 }
 
@@ -233,14 +239,13 @@ patch_call_sites(s32 *start, s32 *end, const struct core_text *ct)
 }
 
 static __init_or_module void
-patch_paravirt_call_sites(struct paravirt_patch_site *start,
-			  struct paravirt_patch_site *end,
-			  const struct core_text *ct)
+patch_alt_call_sites(struct alt_instr *start, struct alt_instr *end,
+		     const struct core_text *ct)
 {
-	struct paravirt_patch_site *p;
+	struct alt_instr *a;
 
-	for (p = start; p < end; p++)
-		patch_call(p->instr, ct);
+	for (a = start; a < end; a++)
+		patch_call((void *)&a->instr_offset + a->instr_offset, ct);
 }
 
 static __init_or_module void
@@ -248,7 +253,7 @@ callthunks_setup(struct callthunk_sites *cs, const struct core_text *ct)
 {
 	prdbg("Patching call sites %s\n", ct->name);
 	patch_call_sites(cs->call_start, cs->call_end, ct);
-	patch_paravirt_call_sites(cs->pv_start, cs->pv_end, ct);
+	patch_alt_call_sites(cs->alt_start, cs->alt_end, ct);
 	prdbg("Patching call sites done%s\n", ct->name);
 }
 
@@ -257,8 +262,8 @@ void __init callthunks_patch_builtin_calls(void)
 	struct callthunk_sites cs = {
 		.call_start	= __call_sites,
 		.call_end	= __call_sites_end,
-		.pv_start	= __parainstructions,
-		.pv_end		= __parainstructions_end
+		.alt_start	= __alt_instructions,
+		.alt_end	= __alt_instructions_end
 	};
 
 	if (!cpu_feature_enabled(X86_FEATURE_CALL_DEPTH))
@@ -291,20 +296,26 @@ void *callthunks_translate_call_dest(void *dest)
 static bool is_callthunk(void *addr)
 {
 	unsigned int tmpl_size = SKL_TMPL_SIZE;
-	void *tmpl = skl_call_thunk_template;
+	u8 insn_buff[MAX_PATCH_LEN];
 	unsigned long dest;
+	u8 *pad;
 
 	dest = roundup((unsigned long)addr, CONFIG_FUNCTION_ALIGNMENT);
 	if (!thunks_initialized || skip_addr((void *)dest))
 		return false;
 
-	return !bcmp((void *)(dest - tmpl_size), tmpl, tmpl_size);
+	pad = (void *)(dest - tmpl_size);
+
+	memcpy(insn_buff, skl_call_thunk_template, tmpl_size);
+	apply_relocation(insn_buff, pad, tmpl_size, skl_call_thunk_template, tmpl_size);
+
+	return !bcmp(pad, insn_buff, tmpl_size);
 }
 
-int x86_call_depth_emit_accounting(u8 **pprog, void *func)
+int x86_call_depth_emit_accounting(u8 **pprog, void *func, void *ip)
 {
 	unsigned int tmpl_size = SKL_TMPL_SIZE;
-	void *tmpl = skl_call_thunk_template;
+	u8 insn_buff[MAX_PATCH_LEN];
 
 	if (!thunks_initialized)
 		return 0;
@@ -313,7 +324,10 @@ int x86_call_depth_emit_accounting(u8 **pprog, void *func)
 	if (func && is_callthunk(func))
 		return 0;
 
-	memcpy(*pprog, tmpl, tmpl_size);
+	memcpy(insn_buff, skl_call_thunk_template, tmpl_size);
+	apply_relocation(insn_buff, ip, tmpl_size, skl_call_thunk_template, tmpl_size);
+
+	memcpy(*pprog, insn_buff, tmpl_size);
 	*pprog += tmpl_size;
 	return tmpl_size;
 }

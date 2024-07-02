@@ -114,21 +114,6 @@ static enum bfi_ioc_img_ver_cmp_e bfa_ioc_flash_fwver_cmp(
 /*
  * IOC state machine definitions/declarations
  */
-enum ioc_event {
-	IOC_E_RESET		= 1,	/*  IOC reset request		*/
-	IOC_E_ENABLE		= 2,	/*  IOC enable request		*/
-	IOC_E_DISABLE		= 3,	/*  IOC disable request	*/
-	IOC_E_DETACH		= 4,	/*  driver detach cleanup	*/
-	IOC_E_ENABLED		= 5,	/*  f/w enabled		*/
-	IOC_E_FWRSP_GETATTR	= 6,	/*  IOC get attribute response	*/
-	IOC_E_DISABLED		= 7,	/*  f/w disabled		*/
-	IOC_E_PFFAILED		= 8,	/*  failure notice by iocpf sm	*/
-	IOC_E_HBFAIL		= 9,	/*  heartbeat failure		*/
-	IOC_E_HWERROR		= 10,	/*  hardware error interrupt	*/
-	IOC_E_TIMEOUT		= 11,	/*  timeout			*/
-	IOC_E_HWFAILED		= 12,	/*  PCI mapping failure notice	*/
-};
-
 bfa_fsm_state_decl(bfa_ioc, uninit, struct bfa_ioc_s, enum ioc_event);
 bfa_fsm_state_decl(bfa_ioc, reset, struct bfa_ioc_s, enum ioc_event);
 bfa_fsm_state_decl(bfa_ioc, enabling, struct bfa_ioc_s, enum ioc_event);
@@ -140,7 +125,13 @@ bfa_fsm_state_decl(bfa_ioc, disabling, struct bfa_ioc_s, enum ioc_event);
 bfa_fsm_state_decl(bfa_ioc, disabled, struct bfa_ioc_s, enum ioc_event);
 bfa_fsm_state_decl(bfa_ioc, hwfail, struct bfa_ioc_s, enum ioc_event);
 
-static struct bfa_sm_table_s ioc_sm_table[] = {
+struct bfa_ioc_sm_table {
+	bfa_ioc_sm_t	sm;		/*  state machine function	*/
+	enum bfa_ioc_state state;	/*  state machine encoding	*/
+	char		*name;		/*  state name for display	*/
+};
+
+static struct bfa_ioc_sm_table ioc_sm_table[] = {
 	{BFA_SM(bfa_ioc_sm_uninit), BFA_IOC_UNINIT},
 	{BFA_SM(bfa_ioc_sm_reset), BFA_IOC_RESET},
 	{BFA_SM(bfa_ioc_sm_enabling), BFA_IOC_ENABLING},
@@ -152,6 +143,16 @@ static struct bfa_sm_table_s ioc_sm_table[] = {
 	{BFA_SM(bfa_ioc_sm_disabled), BFA_IOC_DISABLED},
 	{BFA_SM(bfa_ioc_sm_hwfail), BFA_IOC_HWFAIL},
 };
+
+static inline enum bfa_ioc_state
+bfa_ioc_sm_to_state(struct bfa_ioc_sm_table *smt, bfa_ioc_sm_t sm)
+{
+	int	i = 0;
+
+	while (smt[i].sm && smt[i].sm != sm)
+		i++;
+	return smt[i].state;
+}
 
 /*
  * IOCPF state machine definitions/declarations
@@ -177,24 +178,6 @@ static struct bfa_sm_table_s ioc_sm_table[] = {
 static void bfa_iocpf_timeout(void *ioc_arg);
 static void bfa_iocpf_sem_timeout(void *ioc_arg);
 static void bfa_iocpf_poll_timeout(void *ioc_arg);
-
-/*
- * IOCPF state machine events
- */
-enum iocpf_event {
-	IOCPF_E_ENABLE		= 1,	/*  IOCPF enable request	*/
-	IOCPF_E_DISABLE		= 2,	/*  IOCPF disable request	*/
-	IOCPF_E_STOP		= 3,	/*  stop on driver detach	*/
-	IOCPF_E_FWREADY		= 4,	/*  f/w initialization done	*/
-	IOCPF_E_FWRSP_ENABLE	= 5,	/*  enable f/w response	*/
-	IOCPF_E_FWRSP_DISABLE	= 6,	/*  disable f/w response	*/
-	IOCPF_E_FAIL		= 7,	/*  failure notice by ioc sm	*/
-	IOCPF_E_INITFAIL	= 8,	/*  init fail notice by ioc sm	*/
-	IOCPF_E_GETATTRFAIL	= 9,	/*  init fail notice by ioc sm	*/
-	IOCPF_E_SEMLOCKED	= 10,	/*  h/w semaphore is locked	*/
-	IOCPF_E_TIMEOUT		= 11,	/*  f/w response timeout	*/
-	IOCPF_E_SEM_ERROR	= 12,	/*  h/w sem mapping error	*/
-};
 
 /*
  * IOCPF states
@@ -228,7 +211,23 @@ bfa_fsm_state_decl(bfa_iocpf, disabling_sync, struct bfa_iocpf_s,
 						enum iocpf_event);
 bfa_fsm_state_decl(bfa_iocpf, disabled, struct bfa_iocpf_s, enum iocpf_event);
 
-static struct bfa_sm_table_s iocpf_sm_table[] = {
+struct bfa_iocpf_sm_table {
+	bfa_iocpf_sm_t	sm;		/*  state machine function	*/
+	enum bfa_iocpf_state state;	/*  state machine encoding	*/
+	char		*name;		/*  state name for display	*/
+};
+
+static inline enum bfa_iocpf_state
+bfa_iocpf_sm_to_state(struct bfa_iocpf_sm_table *smt, bfa_iocpf_sm_t sm)
+{
+	int	i = 0;
+
+	while (smt[i].sm && smt[i].sm != sm)
+		i++;
+	return smt[i].state;
+}
+
+static struct bfa_iocpf_sm_table iocpf_sm_table[] = {
 	{BFA_SM(bfa_iocpf_sm_reset), BFA_IOCPF_RESET},
 	{BFA_SM(bfa_iocpf_sm_fwcheck), BFA_IOCPF_FWMISMATCH},
 	{BFA_SM(bfa_iocpf_sm_mismatch), BFA_IOCPF_FWMISMATCH},
@@ -2815,12 +2814,12 @@ enum bfa_ioc_state
 bfa_ioc_get_state(struct bfa_ioc_s *ioc)
 {
 	enum bfa_iocpf_state iocpf_st;
-	enum bfa_ioc_state ioc_st = bfa_sm_to_state(ioc_sm_table, ioc->fsm);
+	enum bfa_ioc_state ioc_st = bfa_ioc_sm_to_state(ioc_sm_table, ioc->fsm);
 
 	if (ioc_st == BFA_IOC_ENABLING ||
 		ioc_st == BFA_IOC_FAIL || ioc_st == BFA_IOC_INITFAIL) {
 
-		iocpf_st = bfa_sm_to_state(iocpf_sm_table, ioc->iocpf.fsm);
+		iocpf_st = bfa_iocpf_sm_to_state(iocpf_sm_table, ioc->iocpf.fsm);
 
 		switch (iocpf_st) {
 		case BFA_IOCPF_SEMWAIT:
@@ -5804,18 +5803,6 @@ bfa_phy_intr(void *phyarg, struct bfi_mbmsg_s *msg)
 		WARN_ON(1);
 	}
 }
-
-/*
- * DCONF state machine events
- */
-enum bfa_dconf_event {
-	BFA_DCONF_SM_INIT		= 1,	/* dconf Init */
-	BFA_DCONF_SM_FLASH_COMP		= 2,	/* read/write to flash */
-	BFA_DCONF_SM_WR			= 3,	/* binding change, map */
-	BFA_DCONF_SM_TIMEOUT		= 4,	/* Start timer */
-	BFA_DCONF_SM_EXIT		= 5,	/* exit dconf module */
-	BFA_DCONF_SM_IOCDISABLE		= 6,	/* IOC disable event */
-};
 
 /* forward declaration of DCONF state machine */
 static void bfa_dconf_sm_uninit(struct bfa_dconf_mod_s *dconf,

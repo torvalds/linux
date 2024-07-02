@@ -529,6 +529,7 @@ static int ramoops_init_przs(const char *name,
 	}
 
 	zone_sz = mem_sz / *cnt;
+	zone_sz = ALIGN_DOWN(zone_sz, 2);
 	if (!zone_sz) {
 		dev_err(dev, "%s zone size == 0\n", name);
 		goto fail;
@@ -892,6 +893,7 @@ static const struct of_device_id dt_match[] = {
 	{ .compatible = "ramoops" },
 	{}
 };
+MODULE_DEVICE_TABLE(of, dt_match);
 
 static struct platform_driver ramoops_driver = {
 	.probe		= ramoops_probe,

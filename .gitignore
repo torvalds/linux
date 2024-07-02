@@ -52,6 +52,7 @@
 *.xz
 *.zst
 Module.symvers
+dtbs-list
 modules.order
 
 #
@@ -74,7 +75,6 @@ modules.order
 #
 # RPM spec file (make rpm-pkg)
 #
-/kernel.spec
 /rpmbuild/
 
 #
@@ -97,6 +97,7 @@ modules.order
 #
 !.clang-format
 !.cocciconfig
+!.editorconfig
 !.get_maintainer.ignore
 !.gitattributes
 !.gitignore

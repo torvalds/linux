@@ -189,6 +189,8 @@ smb2_find_smb_sess_tcon_unlocked(struct cifs_ses *ses, __u32  tid)
 		if (tcon->tid != tid)
 			continue;
 		++tcon->tc_count;
+		trace_smb3_tcon_ref(tcon->debug_id, tcon->tc_count,
+				    netfs_trace_tcon_ref_get_find_sess_tcon);
 		return tcon;
 	}
 
@@ -413,7 +415,13 @@ generate_smb3signingkey(struct cifs_ses *ses,
 		      ses->ses_status == SES_GOOD);
 
 	chan_index = cifs_ses_get_chan_index(ses, server);
-	/* TODO: introduce ref counting for channels when the can be freed */
+	if (chan_index == CIFS_INVAL_CHAN_INDEX) {
+		spin_unlock(&ses->chan_lock);
+		spin_unlock(&ses->ses_lock);
+
+		return -EINVAL;
+	}
+
 	spin_unlock(&ses->chan_lock);
 	spin_unlock(&ses->ses_lock);
 
@@ -452,6 +460,8 @@ generate_smb3signingkey(struct cifs_ses *ses,
 				  ptriplet->encryption.context,
 				  ses->smb3encryptionkey,
 				  SMB3_ENC_DEC_KEY_SIZE);
+		if (rc)
+			return rc;
 		rc = generate_key(ses, ptriplet->decryption.label,
 				  ptriplet->decryption.context,
 				  ses->smb3decryptionkey,
@@ -459,9 +469,6 @@ generate_smb3signingkey(struct cifs_ses *ses,
 		if (rc)
 			return rc;
 	}
-
-	if (rc)
-		return rc;
 
 #ifdef CONFIG_CIFS_DEBUG_DUMP_KEYS
 	cifs_dbg(VFS, "%s: dumping generated AES session keys\n", __func__);
@@ -654,7 +661,7 @@ smb2_sign_rqst(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 	}
 	spin_unlock(&server->srv_lock);
 	if (!is_binding && !server->session_estab) {
-		strncpy(shdr->Signature, "BSRSPYL", 8);
+		strscpy(shdr->Signature, "BSRSPYL");
 		return 0;
 	}
 

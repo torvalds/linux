@@ -1440,8 +1440,6 @@ static bool gc_worker_can_early_drop(const struct nf_conn *ct)
 	const struct nf_conntrack_l4proto *l4proto;
 	u8 protonum = nf_ct_protonum(ct);
 
-	if (test_bit(IPS_OFFLOAD_BIT, &ct->status) && protonum != IPPROTO_UDP)
-		return false;
 	if (!test_bit(IPS_ASSURED_BIT, &ct->status))
 		return true;
 
@@ -2024,7 +2022,7 @@ repeat:
 			goto repeat;
 
 		NF_CT_STAT_INC_ATOMIC(state->net, invalid);
-		if (ret == -NF_DROP)
+		if (ret == NF_DROP)
 			NF_CT_STAT_INC_ATOMIC(state->net, drop);
 
 		ret = -ret;
@@ -2530,7 +2528,7 @@ void nf_conntrack_cleanup_net_list(struct list_head *net_exit_list)
 	 *  netfilter framework.  Roll on, two-stage module
 	 *  delete...
 	 */
-	synchronize_net();
+	synchronize_rcu_expedited();
 i_see_dead_people:
 	busy = 0;
 	list_for_each_entry(net, net_exit_list, exit_list) {
@@ -2756,6 +2754,7 @@ static const struct nf_ct_hook nf_conntrack_hook = {
 	.get_tuple_skb  = nf_conntrack_get_tuple_skb,
 	.attach		= nf_conntrack_attach,
 	.set_closing	= nf_conntrack_set_closing,
+	.confirm	= __nf_conntrack_confirm,
 };
 
 void nf_conntrack_init_end(void)

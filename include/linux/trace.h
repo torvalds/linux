@@ -51,7 +51,7 @@ int trace_array_printk(struct trace_array *tr, unsigned long ip,
 		       const char *fmt, ...);
 int trace_array_init_printk(struct trace_array *tr);
 void trace_array_put(struct trace_array *tr);
-struct trace_array *trace_array_get_by_name(const char *name);
+struct trace_array *trace_array_get_by_name(const char *name, const char *systems);
 int trace_array_destroy(struct trace_array *tr);
 
 /* For osnoise tracer */
@@ -84,7 +84,7 @@ static inline int trace_array_init_printk(struct trace_array *tr)
 static inline void trace_array_put(struct trace_array *tr)
 {
 }
-static inline struct trace_array *trace_array_get_by_name(const char *name)
+static inline struct trace_array *trace_array_get_by_name(const char *name, const char *systems)
 {
 	return NULL;
 }

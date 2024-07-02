@@ -26,7 +26,6 @@
 #include <linux/percpu_counter.h>
 #include <linux/percpu.h>
 #include <linux/task_work.h>
-#include <linux/ima.h>
 #include <linux/swap.h>
 #include <linux/kmemleak.h>
 
@@ -71,18 +70,6 @@ static inline void file_free(struct file *f)
 		path_put(backing_file_user_path(f));
 		kfree(backing_file(f));
 	} else {
-		kmem_cache_free(filp_cachep, f);
-	}
-}
-
-void release_empty_file(struct file *f)
-{
-	WARN_ON_ONCE(f->f_mode & (FMODE_BACKING | FMODE_OPENED));
-	if (atomic_long_dec_and_test(&f->f_count)) {
-		security_file_free(f);
-		put_cred(f->f_cred);
-		if (likely(!(f->f_mode & FMODE_NOACCOUNT)))
-			percpu_counter_dec(&nr_files);
 		kmem_cache_free(filp_cachep, f);
 	}
 }
@@ -142,7 +129,6 @@ static struct ctl_table fs_stat_sysctls[] = {
 		.extra1		= &sysctl_nr_open_min,
 		.extra2		= &sysctl_nr_open_max,
 	},
-	{ }
 };
 
 static int __init init_fs_stat_sysctls(void)
@@ -289,21 +275,15 @@ struct file *alloc_empty_backing_file(int flags, const struct cred *cred)
 }
 
 /**
- * alloc_file - allocate and initialize a 'struct file'
+ * file_init_path - initialize a 'struct file' based on path
  *
+ * @file: the file to set up
  * @path: the (dentry, vfsmount) pair for the new file
- * @flags: O_... flags with which the new file will be opened
  * @fop: the 'struct file_operations' for the new file
  */
-static struct file *alloc_file(const struct path *path, int flags,
-		const struct file_operations *fop)
+static void file_init_path(struct file *file, const struct path *path,
+			   const struct file_operations *fop)
 {
-	struct file *file;
-
-	file = alloc_empty_file(flags, current_cred());
-	if (IS_ERR(file))
-		return file;
-
 	file->f_path = *path;
 	file->f_inode = path->dentry->d_inode;
 	file->f_mapping = path->dentry->d_inode->i_mapping;
@@ -322,27 +302,51 @@ static struct file *alloc_file(const struct path *path, int flags,
 	file->f_op = fop;
 	if ((file->f_mode & (FMODE_READ | FMODE_WRITE)) == FMODE_READ)
 		i_readcount_inc(path->dentry->d_inode);
+}
+
+/**
+ * alloc_file - allocate and initialize a 'struct file'
+ *
+ * @path: the (dentry, vfsmount) pair for the new file
+ * @flags: O_... flags with which the new file will be opened
+ * @fop: the 'struct file_operations' for the new file
+ */
+static struct file *alloc_file(const struct path *path, int flags,
+		const struct file_operations *fop)
+{
+	struct file *file;
+
+	file = alloc_empty_file(flags, current_cred());
+	if (!IS_ERR(file))
+		file_init_path(file, path, fop);
 	return file;
 }
 
-struct file *alloc_file_pseudo(struct inode *inode, struct vfsmount *mnt,
-				const char *name, int flags,
-				const struct file_operations *fops)
+static inline int alloc_path_pseudo(const char *name, struct inode *inode,
+				    struct vfsmount *mnt, struct path *path)
 {
-	static const struct dentry_operations anon_ops = {
-		.d_dname = simple_dname
-	};
 	struct qstr this = QSTR_INIT(name, strlen(name));
+
+	path->dentry = d_alloc_pseudo(mnt->mnt_sb, &this);
+	if (!path->dentry)
+		return -ENOMEM;
+	path->mnt = mntget(mnt);
+	d_instantiate(path->dentry, inode);
+	return 0;
+}
+
+struct file *alloc_file_pseudo(struct inode *inode, struct vfsmount *mnt,
+			       const char *name, int flags,
+			       const struct file_operations *fops)
+{
+	int ret;
 	struct path path;
 	struct file *file;
 
-	path.dentry = d_alloc_pseudo(mnt->mnt_sb, &this);
-	if (!path.dentry)
-		return ERR_PTR(-ENOMEM);
-	if (!mnt->mnt_sb->s_d_op)
-		d_set_d_op(path.dentry, &anon_ops);
-	path.mnt = mntget(mnt);
-	d_instantiate(path.dentry, inode);
+	ret = alloc_path_pseudo(name, inode, mnt, &path);
+	if (ret)
+		return ERR_PTR(ret);
+
 	file = alloc_file(&path, flags, fops);
 	if (IS_ERR(file)) {
 		ihold(inode);
@@ -351,6 +355,30 @@ struct file *alloc_file_pseudo(struct inode *inode, struct vfsmount *mnt,
 	return file;
 }
 EXPORT_SYMBOL(alloc_file_pseudo);
+
+struct file *alloc_file_pseudo_noaccount(struct inode *inode,
+					 struct vfsmount *mnt, const char *name,
+					 int flags,
+					 const struct file_operations *fops)
+{
+	int ret;
+	struct path path;
+	struct file *file;
+
+	ret = alloc_path_pseudo(name, inode, mnt, &path);
+	if (ret)
+		return ERR_PTR(ret);
+
+	file = alloc_empty_file_noaccount(flags, current_cred());
+	if (IS_ERR(file)) {
+		ihold(inode);
+		path_put(&path);
+		return file;
+	}
+	file_init_path(file, &path, fops);
+	return file;
+}
+EXPORT_SYMBOL_GPL(alloc_file_pseudo_noaccount);
 
 struct file *alloc_file_clone(struct file *base, int flags,
 				const struct file_operations *fops)
@@ -385,7 +413,7 @@ static void __fput(struct file *file)
 	eventpoll_release(file);
 	locks_remove_file(file);
 
-	ima_file_free(file);
+	security_file_release(file);
 	if (unlikely(file->f_flags & FASYNC)) {
 		if (file->f_op->fasync)
 			file->f_op->fasync(-1, file, 0);
@@ -419,7 +447,7 @@ static void delayed_fput(struct work_struct *unused)
 
 static void ____fput(struct callback_head *work)
 {
-	__fput(container_of(work, struct file, f_rcuhead));
+	__fput(container_of(work, struct file, f_task_work));
 }
 
 /*
@@ -445,9 +473,13 @@ void fput(struct file *file)
 	if (atomic_long_dec_and_test(&file->f_count)) {
 		struct task_struct *task = current;
 
+		if (unlikely(!(file->f_mode & (FMODE_BACKING | FMODE_OPENED)))) {
+			file_free(file);
+			return;
+		}
 		if (likely(!in_interrupt() && !(task->flags & PF_KTHREAD))) {
-			init_task_work(&file->f_rcuhead, ____fput);
-			if (!task_work_add(task, &file->f_rcuhead, TWA_RESUME))
+			init_task_work(&file->f_task_work, ____fput);
+			if (!task_work_add(task, &file->f_task_work, TWA_RESUME))
 				return;
 			/*
 			 * After this task has run exit_task_work(),

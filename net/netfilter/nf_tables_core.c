@@ -21,7 +21,7 @@
 #include <net/netfilter/nf_log.h>
 #include <net/netfilter/nft_meta.h>
 
-#if defined(CONFIG_RETPOLINE) && defined(CONFIG_X86)
+#if defined(CONFIG_MITIGATION_RETPOLINE) && defined(CONFIG_X86)
 
 static struct static_key_false nf_tables_skip_direct_calls;
 
@@ -158,7 +158,7 @@ static bool nft_payload_fast_eval(const struct nft_expr *expr,
 	else {
 		if (!(pkt->flags & NFT_PKTINFO_L4PROTO))
 			return false;
-		ptr = skb_network_header(skb) + nft_thoff(pkt);
+		ptr = skb->data + nft_thoff(pkt);
 	}
 
 	ptr += priv->offset;
@@ -207,7 +207,7 @@ static void expr_call_ops_eval(const struct nft_expr *expr,
 			       struct nft_regs *regs,
 			       struct nft_pktinfo *pkt)
 {
-#ifdef CONFIG_RETPOLINE
+#ifdef CONFIG_MITIGATION_RETPOLINE
 	unsigned long e;
 
 	if (nf_skip_indirect_calls())
@@ -236,7 +236,7 @@ static void expr_call_ops_eval(const struct nft_expr *expr,
 	X(e, nft_objref_map_eval);
 #undef  X
 indirect_call:
-#endif /* CONFIG_RETPOLINE */
+#endif /* CONFIG_MITIGATION_RETPOLINE */
 	expr->ops->eval(expr, regs, pkt);
 }
 

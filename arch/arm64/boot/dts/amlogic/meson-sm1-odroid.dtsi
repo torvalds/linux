@@ -28,7 +28,7 @@
 		reset-gpios = <&gpio BOOT_12 GPIO_ACTIVE_LOW>;
 	};
 
-	tflash_vdd: regulator-tflash_vdd {
+	tflash_vdd: regulator-tflash-vdd {
 		compatible = "regulator-fixed";
 
 		regulator-name = "TFLASH_VDD";
@@ -40,7 +40,7 @@
 		regulator-always-on;
 	};
 
-	tf_io: gpio-regulator-tf_io {
+	tf_io: gpio-regulator-tf-io {
 		compatible = "regulator-gpio";
 
 		regulator-name = "TF_IO";
@@ -59,7 +59,7 @@
 			 <1800000 1>;
 	};
 
-	flash_1v8: regulator-flash_1v8 {
+	flash_1v8: regulator-flash-1v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "FLASH_1V8";
 		regulator-min-microvolt = <1800000>;
@@ -68,7 +68,7 @@
 		regulator-always-on;
 	};
 
-	main_12v: regulator-main_12v {
+	main_12v: regulator-main-12v {
 		compatible = "regulator-fixed";
 		regulator-name = "12V";
 		regulator-min-microvolt = <12000000>;
@@ -76,7 +76,7 @@
 		regulator-always-on;
 	};
 
-	vcc_5v: regulator-vcc_5v {
+	vcc_5v: regulator-vcc-5v {
 		compatible = "regulator-fixed";
 		regulator-name = "5V";
 		regulator-min-microvolt = <5000000>;
@@ -87,7 +87,7 @@
 		enable-active-high;
 	};
 
-	vcc_1v8: regulator-vcc_1v8 {
+	vcc_1v8: regulator-vcc-1v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "VCC_1V8";
 		regulator-min-microvolt = <1800000>;
@@ -96,7 +96,7 @@
 		regulator-always-on;
 	};
 
-	vcc_3v3: regulator-vcc_3v3 {
+	vcc_3v3: regulator-vcc-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "VCC_3V3";
 		regulator-min-microvolt = <3300000>;
@@ -125,7 +125,7 @@
 		regulator-always-on;
 	};
 
-	usb_pwr_en: regulator-usb_pwr_en {
+	usb_pwr_en: regulator-usb-pwr-en {
 		compatible = "regulator-fixed";
 		regulator-name = "USB_PWR_EN";
 		regulator-min-microvolt = <5000000>;
@@ -137,7 +137,7 @@
 		enable-active-high;
 	};
 
-	vddao_1v8: regulator-vddao_1v8 {
+	vddao_1v8: regulator-vddao-1v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "VDDAO_1V8";
 		regulator-min-microvolt = <1800000>;
@@ -146,7 +146,7 @@
 		regulator-always-on;
 	};
 
-	vddao_3v3: regulator-vddao_3v3 {
+	vddao_3v3: regulator-vddao-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "VDDAO_3V3";
 		regulator-min-microvolt = <3300000>;

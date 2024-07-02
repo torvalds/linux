@@ -90,7 +90,7 @@ static int rmnet_vnd_change_mtu(struct net_device *rmnet_dev, int new_mtu)
 	    new_mtu > (priv->real_dev->mtu - headroom))
 		return -EINVAL;
 
-	rmnet_dev->mtu = new_mtu;
+	WRITE_ONCE(rmnet_dev->mtu, new_mtu);
 	return 0;
 }
 
@@ -98,7 +98,7 @@ static int rmnet_vnd_get_iflink(const struct net_device *dev)
 {
 	struct rmnet_priv *priv = netdev_priv(dev);
 
-	return priv->real_dev->ifindex;
+	return READ_ONCE(priv->real_dev->ifindex);
 }
 
 static int rmnet_vnd_init(struct net_device *dev)

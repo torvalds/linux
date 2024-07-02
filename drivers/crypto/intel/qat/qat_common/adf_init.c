@@ -11,6 +11,7 @@
 #include "adf_heartbeat.h"
 #include "adf_rl.h"
 #include "adf_sysfs_ras_counters.h"
+#include "adf_telemetry.h"
 
 static LIST_HEAD(service_table);
 static DEFINE_MUTEX(service_lock);
@@ -142,6 +143,10 @@ static int adf_dev_init(struct adf_accel_dev *accel_dev)
 	if (ret && ret != -EOPNOTSUPP)
 		return ret;
 
+	ret = adf_tl_init(accel_dev);
+	if (ret && ret != -EOPNOTSUPP)
+		return ret;
+
 	/*
 	 * Subservice initialisation is divided into two stages: init and start.
 	 * This is to facilitate any ordering dependencies between services
@@ -220,6 +225,10 @@ static int adf_dev_start(struct adf_accel_dev *accel_dev)
 	if (ret && ret != -EOPNOTSUPP)
 		return ret;
 
+	ret = adf_tl_start(accel_dev);
+	if (ret && ret != -EOPNOTSUPP)
+		return ret;
+
 	list_for_each_entry(service, &service_table, list) {
 		if (service->event_hld(accel_dev, ADF_EVENT_START)) {
 			dev_err(&GET_DEV(accel_dev),
@@ -279,6 +288,7 @@ static void adf_dev_stop(struct adf_accel_dev *accel_dev)
 	    !test_bit(ADF_STATUS_STARTING, &accel_dev->status))
 		return;
 
+	adf_tl_stop(accel_dev);
 	adf_rl_stop(accel_dev);
 	adf_dbgfs_rm(accel_dev);
 	adf_sysfs_stop_ras(accel_dev);
@@ -374,6 +384,8 @@ static void adf_dev_shutdown(struct adf_accel_dev *accel_dev)
 
 	adf_heartbeat_shutdown(accel_dev);
 
+	adf_tl_shutdown(accel_dev);
+
 	hw_data->disable_iov(accel_dev);
 
 	if (test_bit(ADF_STATUS_IRQ_ALLOCATED, &accel_dev->status)) {
@@ -419,6 +431,18 @@ int adf_dev_restarted_notify(struct adf_accel_dev *accel_dev)
 				service->name);
 	}
 	return 0;
+}
+
+void adf_error_notifier(struct adf_accel_dev *accel_dev)
+{
+	struct service_hndl *service;
+
+	list_for_each_entry(service, &service_table, list) {
+		if (service->event_hld(accel_dev, ADF_EVENT_FATAL_ERROR))
+			dev_err(&GET_DEV(accel_dev),
+				"Failed to send error event to %s.\n",
+				service->name);
+	}
 }
 
 static int adf_dev_shutdown_cache_cfg(struct adf_accel_dev *accel_dev)

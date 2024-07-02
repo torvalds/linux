@@ -364,8 +364,9 @@ static inline int __idx(struct z3fold_header *zhdr, enum buddy bud)
 }
 
 /*
- * Encodes the handle of a particular buddy within a z3fold page
- * Pool lock should be held as this function accesses first_num
+ * Encodes the handle of a particular buddy within a z3fold page.
+ * Zhdr->page_lock should be held as this function accesses first_num
+ * if bud != HEADLESS.
  */
 static unsigned long __encode_handle(struct z3fold_header *zhdr,
 				struct z3fold_buddy_slots *slots,

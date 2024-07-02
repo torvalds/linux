@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2015 Intel Deutschland GmbH
- * Copyright (C) 2022 Intel Corporation
+ * Copyright (C) 2022-2024 Intel Corporation
  */
 #include <net/mac80211.h>
 #include "ieee80211_i.h"
@@ -75,9 +75,9 @@ int drv_add_interface(struct ieee80211_local *local,
 	if (ret)
 		return ret;
 
-	sdata->flags |= IEEE80211_SDATA_IN_DRIVER;
+	if (!(sdata->flags & IEEE80211_SDATA_IN_DRIVER)) {
+		sdata->flags |= IEEE80211_SDATA_IN_DRIVER;
 
-	if (!local->in_reconfig) {
 		drv_vif_add_debugfs(local, sdata);
 		/* initially vif is not MLD */
 		ieee80211_link_debugfs_drv_add(&sdata->deflink);
@@ -113,9 +113,13 @@ void drv_remove_interface(struct ieee80211_local *local,
 	if (!check_sdata_in_driver(sdata))
 		return;
 
+	sdata->flags &= ~IEEE80211_SDATA_IN_DRIVER;
+
+	/* Remove driver debugfs entries */
+	ieee80211_debugfs_recreate_netdev(sdata, sdata->vif.valid_links);
+
 	trace_drv_remove_interface(local, sdata);
 	local->ops->remove_interface(&local->hw, &sdata->vif);
-	sdata->flags &= ~IEEE80211_SDATA_IN_DRIVER;
 	trace_drv_return_void(local);
 }
 
@@ -210,8 +214,7 @@ int drv_conf_tx(struct ieee80211_local *local,
 	if (!check_sdata_in_driver(sdata))
 		return -EIO;
 
-	if (sdata->vif.active_links &&
-	    !(sdata->vif.active_links & BIT(link->link_id)))
+	if (!ieee80211_vif_link_active(&sdata->vif, link->link_id))
 		return 0;
 
 	if (params->cw_min == 0 || params->cw_min > params->cw_max) {
@@ -311,8 +314,7 @@ int drv_assign_vif_chanctx(struct ieee80211_local *local,
 	if (!check_sdata_in_driver(sdata))
 		return -EIO;
 
-	if (sdata->vif.active_links &&
-	    !(sdata->vif.active_links & BIT(link_conf->link_id)))
+	if (!ieee80211_vif_link_active(&sdata->vif, link_conf->link_id))
 		return 0;
 
 	trace_drv_assign_vif_chanctx(local, sdata, link_conf, ctx);
@@ -339,8 +341,7 @@ void drv_unassign_vif_chanctx(struct ieee80211_local *local,
 	if (!check_sdata_in_driver(sdata))
 		return;
 
-	if (sdata->vif.active_links &&
-	    !(sdata->vif.active_links & BIT(link_conf->link_id)))
+	if (!ieee80211_vif_link_active(&sdata->vif, link_conf->link_id))
 		return;
 
 	trace_drv_unassign_vif_chanctx(local, sdata, link_conf, ctx);
@@ -457,8 +458,7 @@ void drv_link_info_changed(struct ieee80211_local *local,
 	if (!check_sdata_in_driver(sdata))
 		return;
 
-	if (sdata->vif.active_links &&
-	    !(sdata->vif.active_links & BIT(link_id)))
+	if (!ieee80211_vif_link_active(&sdata->vif, link_id))
 		return;
 
 	trace_drv_link_info_changed(local, sdata, info, changed);
@@ -534,7 +534,7 @@ int drv_change_vif_links(struct ieee80211_local *local,
 	if (ret)
 		return ret;
 
-	if (!local->in_reconfig) {
+	if (!local->in_reconfig && !local->resuming) {
 		for_each_set_bit(link_id, &links_to_add,
 				 IEEE80211_MLD_MAX_NUM_LINKS) {
 			link = rcu_access_pointer(sdata->link[link_id]);
@@ -588,6 +588,10 @@ int drv_change_sta_links(struct ieee80211_local *local,
 
 	if (ret)
 		return ret;
+
+	/* during reconfig don't add it to debugfs again */
+	if (local->in_reconfig || local->resuming)
+		return 0;
 
 	for_each_set_bit(link_id, &links_to_add, IEEE80211_MLD_MAX_NUM_LINKS) {
 		link_sta = rcu_dereference_protected(info->link[link_id],

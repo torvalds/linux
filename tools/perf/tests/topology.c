@@ -215,7 +215,7 @@ static int test__session_topology(struct test_suite *test __maybe_unused, int su
 	if (session_write_header(path))
 		goto free_path;
 
-	map = perf_cpu_map__new(NULL);
+	map = perf_cpu_map__new_online_cpus();
 	if (map == NULL) {
 		pr_debug("failed to get system cpumap\n");
 		goto free_path;

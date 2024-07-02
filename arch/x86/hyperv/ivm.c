@@ -15,6 +15,7 @@
 #include <asm/io.h>
 #include <asm/coco.h>
 #include <asm/mem_encrypt.h>
+#include <asm/set_memory.h>
 #include <asm/mshyperv.h>
 #include <asm/hypervisor.h>
 #include <asm/mtrr.h>
@@ -144,7 +145,7 @@ void __noreturn hv_ghcb_terminate(unsigned int set, unsigned int reason)
 	/* Tell the hypervisor what went wrong. */
 	val |= GHCB_SEV_TERM_REASON(set, reason);
 
-	/* Request Guest Termination from Hypvervisor */
+	/* Request Guest Termination from Hypervisor */
 	wr_ghcb_msr(val);
 	VMGEXIT();
 
@@ -503,6 +504,31 @@ static int hv_mark_gpa_visibility(u16 count, const u64 pfn[],
 }
 
 /*
+ * When transitioning memory between encrypted and decrypted, the caller
+ * of set_memory_encrypted() or set_memory_decrypted() is responsible for
+ * ensuring that the memory isn't in use and isn't referenced while the
+ * transition is in progress.  The transition has multiple steps, and the
+ * memory is in an inconsistent state until all steps are complete. A
+ * reference while the state is inconsistent could result in an exception
+ * that can't be cleanly fixed up.
+ *
+ * But the Linux kernel load_unaligned_zeropad() mechanism could cause a
+ * stray reference that can't be prevented by the caller, so Linux has
+ * specific code to handle this case. But when the #VC and #VE exceptions
+ * routed to a paravisor, the specific code doesn't work. To avoid this
+ * problem, mark the pages as "not present" while the transition is in
+ * progress. If load_unaligned_zeropad() causes a stray reference, a normal
+ * page fault is generated instead of #VC or #VE, and the page-fault-based
+ * handlers for load_unaligned_zeropad() resolve the reference.  When the
+ * transition is complete, hv_vtom_set_host_visibility() marks the pages
+ * as "present" again.
+ */
+static bool hv_vtom_clear_present(unsigned long kbuffer, int pagecount, bool enc)
+{
+	return !set_memory_np(kbuffer, pagecount);
+}
+
+/*
  * hv_vtom_set_host_visibility - Set specified memory visible to host.
  *
  * In Isolation VM, all guest memory is encrypted from host and guest
@@ -515,16 +541,28 @@ static bool hv_vtom_set_host_visibility(unsigned long kbuffer, int pagecount, bo
 	enum hv_mem_host_visibility visibility = enc ?
 			VMBUS_PAGE_NOT_VISIBLE : VMBUS_PAGE_VISIBLE_READ_WRITE;
 	u64 *pfn_array;
+	phys_addr_t paddr;
+	void *vaddr;
 	int ret = 0;
 	bool result = true;
 	int i, pfn;
 
 	pfn_array = kmalloc(HV_HYP_PAGE_SIZE, GFP_KERNEL);
-	if (!pfn_array)
-		return false;
+	if (!pfn_array) {
+		result = false;
+		goto err_set_memory_p;
+	}
 
 	for (i = 0, pfn = 0; i < pagecount; i++) {
-		pfn_array[pfn] = virt_to_hvpfn((void *)kbuffer + i * HV_HYP_PAGE_SIZE);
+		/*
+		 * Use slow_virt_to_phys() because the PRESENT bit has been
+		 * temporarily cleared in the PTEs.  slow_virt_to_phys() works
+		 * without the PRESENT bit while virt_to_hvpfn() or similar
+		 * does not.
+		 */
+		vaddr = (void *)kbuffer + (i * HV_HYP_PAGE_SIZE);
+		paddr = slow_virt_to_phys(vaddr);
+		pfn_array[pfn] = paddr >> HV_HYP_PAGE_SHIFT;
 		pfn++;
 
 		if (pfn == HV_MAX_MODIFY_GPA_REP_COUNT || i == pagecount - 1) {
@@ -538,14 +576,30 @@ static bool hv_vtom_set_host_visibility(unsigned long kbuffer, int pagecount, bo
 		}
 	}
 
- err_free_pfn_array:
+err_free_pfn_array:
 	kfree(pfn_array);
+
+err_set_memory_p:
+	/*
+	 * Set the PTE PRESENT bits again to revert what hv_vtom_clear_present()
+	 * did. Do this even if there is an error earlier in this function in
+	 * order to avoid leaving the memory range in a "broken" state. Setting
+	 * the PRESENT bits shouldn't fail, but return an error if it does.
+	 */
+	if (set_memory_p(kbuffer, pagecount))
+		result = false;
+
 	return result;
 }
 
 static bool hv_vtom_tlb_flush_required(bool private)
 {
-	return true;
+	/*
+	 * Since hv_vtom_clear_present() marks the PTEs as "not present"
+	 * and flushes the TLB, they can't be in the TLB. That makes the
+	 * flush controlled by this function redundant, so return "false".
+	 */
+	return false;
 }
 
 static bool hv_vtom_cache_flush_required(void)
@@ -608,6 +662,7 @@ void __init hv_vtom_init(void)
 	x86_platform.hyper.is_private_mmio = hv_is_private_mmio;
 	x86_platform.guest.enc_cache_flush_required = hv_vtom_cache_flush_required;
 	x86_platform.guest.enc_tlb_flush_required = hv_vtom_tlb_flush_required;
+	x86_platform.guest.enc_status_change_prepare = hv_vtom_clear_present;
 	x86_platform.guest.enc_status_change_finish = hv_vtom_set_host_visibility;
 
 	/* Set WB as the default cache mode. */

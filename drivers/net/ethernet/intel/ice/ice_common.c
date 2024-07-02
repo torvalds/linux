@@ -154,10 +154,22 @@ static int ice_set_mac_type(struct ice_hw *hw)
 	case ICE_DEV_ID_E823L_SFP:
 		hw->mac_type = ICE_MAC_GENERIC;
 		break;
-	case ICE_DEV_ID_E830_BACKPLANE:
-	case ICE_DEV_ID_E830_QSFP56:
-	case ICE_DEV_ID_E830_SFP:
-	case ICE_DEV_ID_E830_SFP_DD:
+	case ICE_DEV_ID_E825C_BACKPLANE:
+	case ICE_DEV_ID_E825C_QSFP:
+	case ICE_DEV_ID_E825C_SFP:
+	case ICE_DEV_ID_E825C_SGMII:
+		hw->mac_type = ICE_MAC_GENERIC_3K_E825;
+		break;
+	case ICE_DEV_ID_E830CC_BACKPLANE:
+	case ICE_DEV_ID_E830CC_QSFP56:
+	case ICE_DEV_ID_E830CC_SFP:
+	case ICE_DEV_ID_E830CC_SFP_DD:
+	case ICE_DEV_ID_E830C_BACKPLANE:
+	case ICE_DEV_ID_E830_XXV_BACKPLANE:
+	case ICE_DEV_ID_E830C_QSFP:
+	case ICE_DEV_ID_E830_XXV_QSFP:
+	case ICE_DEV_ID_E830C_SFP:
+	case ICE_DEV_ID_E830_XXV_SFP:
 		hw->mac_type = ICE_MAC_E830;
 		break;
 	default:
@@ -167,6 +179,18 @@ static int ice_set_mac_type(struct ice_hw *hw)
 
 	ice_debug(hw, ICE_DBG_INIT, "mac_type: %d\n", hw->mac_type);
 	return 0;
+}
+
+/**
+ * ice_is_generic_mac - check if device's mac_type is generic
+ * @hw: pointer to the hardware structure
+ *
+ * Return: true if mac_type is generic (with SBQ support), false if not
+ */
+bool ice_is_generic_mac(struct ice_hw *hw)
+{
+	return (hw->mac_type == ICE_MAC_GENERIC ||
+		hw->mac_type == ICE_MAC_GENERIC_3K_E825);
 }
 
 /**
@@ -234,6 +258,25 @@ bool ice_is_e823(struct ice_hw *hw)
 	case ICE_DEV_ID_E823C_SFP:
 	case ICE_DEV_ID_E823C_10G_BASE_T:
 	case ICE_DEV_ID_E823C_SGMII:
+		return true;
+	default:
+		return false;
+	}
+}
+
+/**
+ * ice_is_e825c - Check if a device is E825C family device
+ * @hw: pointer to the hardware structure
+ *
+ * Return: true if the device is E825-C based, false if not.
+ */
+bool ice_is_e825c(struct ice_hw *hw)
+{
+	switch (hw->device_id) {
+	case ICE_DEV_ID_E825C_BACKPLANE:
+	case ICE_DEV_ID_E825C_QSFP:
+	case ICE_DEV_ID_E825C_SFP:
+	case ICE_DEV_ID_E825C_SGMII:
 		return true;
 	default:
 		return false;
@@ -934,216 +977,6 @@ static void ice_cleanup_fltr_mgmt_struct(struct ice_hw *hw)
 }
 
 /**
- * ice_get_fw_log_cfg - get FW logging configuration
- * @hw: pointer to the HW struct
- */
-static int ice_get_fw_log_cfg(struct ice_hw *hw)
-{
-	struct ice_aq_desc desc;
-	__le16 *config;
-	int status;
-	u16 size;
-
-	size = sizeof(*config) * ICE_AQC_FW_LOG_ID_MAX;
-	config = kzalloc(size, GFP_KERNEL);
-	if (!config)
-		return -ENOMEM;
-
-	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_fw_logging_info);
-
-	status = ice_aq_send_cmd(hw, &desc, config, size, NULL);
-	if (!status) {
-		u16 i;
-
-		/* Save FW logging information into the HW structure */
-		for (i = 0; i < ICE_AQC_FW_LOG_ID_MAX; i++) {
-			u16 v, m, flgs;
-
-			v = le16_to_cpu(config[i]);
-			m = (v & ICE_AQC_FW_LOG_ID_M) >> ICE_AQC_FW_LOG_ID_S;
-			flgs = (v & ICE_AQC_FW_LOG_EN_M) >> ICE_AQC_FW_LOG_EN_S;
-
-			if (m < ICE_AQC_FW_LOG_ID_MAX)
-				hw->fw_log.evnts[m].cur = flgs;
-		}
-	}
-
-	kfree(config);
-
-	return status;
-}
-
-/**
- * ice_cfg_fw_log - configure FW logging
- * @hw: pointer to the HW struct
- * @enable: enable certain FW logging events if true, disable all if false
- *
- * This function enables/disables the FW logging via Rx CQ events and a UART
- * port based on predetermined configurations. FW logging via the Rx CQ can be
- * enabled/disabled for individual PF's. However, FW logging via the UART can
- * only be enabled/disabled for all PFs on the same device.
- *
- * To enable overall FW logging, the "cq_en" and "uart_en" enable bits in
- * hw->fw_log need to be set accordingly, e.g. based on user-provided input,
- * before initializing the device.
- *
- * When re/configuring FW logging, callers need to update the "cfg" elements of
- * the hw->fw_log.evnts array with the desired logging event configurations for
- * modules of interest. When disabling FW logging completely, the callers can
- * just pass false in the "enable" parameter. On completion, the function will
- * update the "cur" element of the hw->fw_log.evnts array with the resulting
- * logging event configurations of the modules that are being re/configured. FW
- * logging modules that are not part of a reconfiguration operation retain their
- * previous states.
- *
- * Before resetting the device, it is recommended that the driver disables FW
- * logging before shutting down the control queue. When disabling FW logging
- * ("enable" = false), the latest configurations of FW logging events stored in
- * hw->fw_log.evnts[] are not overridden to allow them to be reconfigured after
- * a device reset.
- *
- * When enabling FW logging to emit log messages via the Rx CQ during the
- * device's initialization phase, a mechanism alternative to interrupt handlers
- * needs to be used to extract FW log messages from the Rx CQ periodically and
- * to prevent the Rx CQ from being full and stalling other types of control
- * messages from FW to SW. Interrupts are typically disabled during the device's
- * initialization phase.
- */
-static int ice_cfg_fw_log(struct ice_hw *hw, bool enable)
-{
-	struct ice_aqc_fw_logging *cmd;
-	u16 i, chgs = 0, len = 0;
-	struct ice_aq_desc desc;
-	__le16 *data = NULL;
-	u8 actv_evnts = 0;
-	void *buf = NULL;
-	int status = 0;
-
-	if (!hw->fw_log.cq_en && !hw->fw_log.uart_en)
-		return 0;
-
-	/* Disable FW logging only when the control queue is still responsive */
-	if (!enable &&
-	    (!hw->fw_log.actv_evnts || !ice_check_sq_alive(hw, &hw->adminq)))
-		return 0;
-
-	/* Get current FW log settings */
-	status = ice_get_fw_log_cfg(hw);
-	if (status)
-		return status;
-
-	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_fw_logging);
-	cmd = &desc.params.fw_logging;
-
-	/* Indicate which controls are valid */
-	if (hw->fw_log.cq_en)
-		cmd->log_ctrl_valid |= ICE_AQC_FW_LOG_AQ_VALID;
-
-	if (hw->fw_log.uart_en)
-		cmd->log_ctrl_valid |= ICE_AQC_FW_LOG_UART_VALID;
-
-	if (enable) {
-		/* Fill in an array of entries with FW logging modules and
-		 * logging events being reconfigured.
-		 */
-		for (i = 0; i < ICE_AQC_FW_LOG_ID_MAX; i++) {
-			u16 val;
-
-			/* Keep track of enabled event types */
-			actv_evnts |= hw->fw_log.evnts[i].cfg;
-
-			if (hw->fw_log.evnts[i].cfg == hw->fw_log.evnts[i].cur)
-				continue;
-
-			if (!data) {
-				data = devm_kcalloc(ice_hw_to_dev(hw),
-						    ICE_AQC_FW_LOG_ID_MAX,
-						    sizeof(*data),
-						    GFP_KERNEL);
-				if (!data)
-					return -ENOMEM;
-			}
-
-			val = i << ICE_AQC_FW_LOG_ID_S;
-			val |= hw->fw_log.evnts[i].cfg << ICE_AQC_FW_LOG_EN_S;
-			data[chgs++] = cpu_to_le16(val);
-		}
-
-		/* Only enable FW logging if at least one module is specified.
-		 * If FW logging is currently enabled but all modules are not
-		 * enabled to emit log messages, disable FW logging altogether.
-		 */
-		if (actv_evnts) {
-			/* Leave if there is effectively no change */
-			if (!chgs)
-				goto out;
-
-			if (hw->fw_log.cq_en)
-				cmd->log_ctrl |= ICE_AQC_FW_LOG_AQ_EN;
-
-			if (hw->fw_log.uart_en)
-				cmd->log_ctrl |= ICE_AQC_FW_LOG_UART_EN;
-
-			buf = data;
-			len = sizeof(*data) * chgs;
-			desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
-		}
-	}
-
-	status = ice_aq_send_cmd(hw, &desc, buf, len, NULL);
-	if (!status) {
-		/* Update the current configuration to reflect events enabled.
-		 * hw->fw_log.cq_en and hw->fw_log.uart_en indicate if the FW
-		 * logging mode is enabled for the device. They do not reflect
-		 * actual modules being enabled to emit log messages. So, their
-		 * values remain unchanged even when all modules are disabled.
-		 */
-		u16 cnt = enable ? chgs : (u16)ICE_AQC_FW_LOG_ID_MAX;
-
-		hw->fw_log.actv_evnts = actv_evnts;
-		for (i = 0; i < cnt; i++) {
-			u16 v, m;
-
-			if (!enable) {
-				/* When disabling all FW logging events as part
-				 * of device's de-initialization, the original
-				 * configurations are retained, and can be used
-				 * to reconfigure FW logging later if the device
-				 * is re-initialized.
-				 */
-				hw->fw_log.evnts[i].cur = 0;
-				continue;
-			}
-
-			v = le16_to_cpu(data[i]);
-			m = (v & ICE_AQC_FW_LOG_ID_M) >> ICE_AQC_FW_LOG_ID_S;
-			hw->fw_log.evnts[m].cur = hw->fw_log.evnts[m].cfg;
-		}
-	}
-
-out:
-	devm_kfree(ice_hw_to_dev(hw), data);
-
-	return status;
-}
-
-/**
- * ice_output_fw_log
- * @hw: pointer to the HW struct
- * @desc: pointer to the AQ message descriptor
- * @buf: pointer to the buffer accompanying the AQ message
- *
- * Formats a FW Log message and outputs it via the standard driver logs.
- */
-void ice_output_fw_log(struct ice_hw *hw, struct ice_aq_desc *desc, void *buf)
-{
-	ice_debug(hw, ICE_DBG_FW_LOG, "[ FW Log Msg Start ]\n");
-	ice_debug_array(hw, ICE_DBG_FW_LOG, 16, 1, (u8 *)buf,
-			le16_to_cpu(desc->datalen));
-	ice_debug(hw, ICE_DBG_FW_LOG, "[ FW Log Msg End ]\n");
-}
-
-/**
  * ice_get_itr_intrl_gran
  * @hw: pointer to the HW struct
  *
@@ -1152,9 +985,8 @@ void ice_output_fw_log(struct ice_hw *hw, struct ice_aq_desc *desc, void *buf)
  */
 static void ice_get_itr_intrl_gran(struct ice_hw *hw)
 {
-	u8 max_agg_bw = (rd32(hw, GL_PWR_MODE_CTL) &
-			 GL_PWR_MODE_CTL_CAR_MAX_BW_M) >>
-			GL_PWR_MODE_CTL_CAR_MAX_BW_S;
+	u8 max_agg_bw = FIELD_GET(GL_PWR_MODE_CTL_CAR_MAX_BW_M,
+				  rd32(hw, GL_PWR_MODE_CTL));
 
 	switch (max_agg_bw) {
 	case ICE_MAX_AGG_BW_200G:
@@ -1176,9 +1008,9 @@ static void ice_get_itr_intrl_gran(struct ice_hw *hw)
  */
 int ice_init_hw(struct ice_hw *hw)
 {
-	struct ice_aqc_get_phy_caps_data *pcaps;
+	struct ice_aqc_get_phy_caps_data *pcaps __free(kfree) = NULL;
+	void *mac_buf __free(kfree) = NULL;
 	u16 mac_buf_len;
-	void *mac_buf;
 	int status;
 
 	/* Set MAC type based on DeviceID */
@@ -1186,9 +1018,7 @@ int ice_init_hw(struct ice_hw *hw)
 	if (status)
 		return status;
 
-	hw->pf_id = (u8)(rd32(hw, PF_FUNC_RID) &
-			 PF_FUNC_RID_FUNC_NUM_M) >>
-		PF_FUNC_RID_FUNC_NUM_S;
+	hw->pf_id = FIELD_GET(PF_FUNC_RID_FUNC_NUM_M, rd32(hw, PF_FUNC_RID));
 
 	status = ice_reset(hw, ICE_RESET_PFR);
 	if (status)
@@ -1200,10 +1030,10 @@ int ice_init_hw(struct ice_hw *hw)
 	if (status)
 		goto err_unroll_cqinit;
 
-	/* Enable FW logging. Not fatal if this fails. */
-	status = ice_cfg_fw_log(hw, true);
+	status = ice_fwlog_init(hw);
 	if (status)
-		ice_debug(hw, ICE_DBG_INIT, "Failed to enable FW logging.\n");
+		ice_debug(hw, ICE_DBG_FW_LOG, "Error initializing FW logging: %d\n",
+			  status);
 
 	status = ice_clear_pf_cfg(hw);
 	if (status)
@@ -1258,7 +1088,7 @@ int ice_init_hw(struct ice_hw *hw)
 	if (status)
 		goto err_unroll_sched;
 
-	pcaps = devm_kzalloc(ice_hw_to_dev(hw), sizeof(*pcaps), GFP_KERNEL);
+	pcaps = kzalloc(sizeof(*pcaps), GFP_KERNEL);
 	if (!pcaps) {
 		status = -ENOMEM;
 		goto err_unroll_sched;
@@ -1268,7 +1098,6 @@ int ice_init_hw(struct ice_hw *hw)
 	status = ice_aq_get_phy_caps(hw->port_info, false,
 				     ICE_AQC_REPORT_TOPO_CAP_MEDIA, pcaps,
 				     NULL);
-	devm_kfree(ice_hw_to_dev(hw), pcaps);
 	if (status)
 		dev_warn(ice_hw_to_dev(hw), "Get PHY capabilities failed status = %d, continuing anyway\n",
 			 status);
@@ -1295,18 +1124,15 @@ int ice_init_hw(struct ice_hw *hw)
 
 	/* Get MAC information */
 	/* A single port can report up to two (LAN and WoL) addresses */
-	mac_buf = devm_kcalloc(ice_hw_to_dev(hw), 2,
-			       sizeof(struct ice_aqc_manage_mac_read_resp),
-			       GFP_KERNEL);
-	mac_buf_len = 2 * sizeof(struct ice_aqc_manage_mac_read_resp);
-
+	mac_buf = kcalloc(2, sizeof(struct ice_aqc_manage_mac_read_resp),
+			  GFP_KERNEL);
 	if (!mac_buf) {
 		status = -ENOMEM;
 		goto err_unroll_fltr_mgmt_struct;
 	}
 
+	mac_buf_len = 2 * sizeof(struct ice_aqc_manage_mac_read_resp);
 	status = ice_aq_manage_mac_read(hw, mac_buf, mac_buf_len, NULL);
-	devm_kfree(ice_hw_to_dev(hw), mac_buf);
 
 	if (status)
 		goto err_unroll_fltr_mgmt_struct;
@@ -1322,6 +1148,8 @@ int ice_init_hw(struct ice_hw *hw)
 	if (status)
 		goto err_unroll_fltr_mgmt_struct;
 	mutex_init(&hw->tnl_lock);
+	ice_init_chk_recipe_reuse_support(hw);
+
 	return 0;
 
 err_unroll_fltr_mgmt_struct:
@@ -1354,8 +1182,7 @@ void ice_deinit_hw(struct ice_hw *hw)
 	ice_free_hw_tbls(hw);
 	mutex_destroy(&hw->tnl_lock);
 
-	/* Attempt to disable FW logging before shutting down control queues */
-	ice_cfg_fw_log(hw, false);
+	ice_fwlog_deinit(hw);
 	ice_destroy_all_ctrlq(hw);
 
 	/* Clear VSI contexts if not already cleared */
@@ -1374,8 +1201,8 @@ int ice_check_reset(struct ice_hw *hw)
 	 * or EMPR has occurred. The grst delay value is in 100ms units.
 	 * Add 1sec for outstanding AQ commands that can take a long time.
 	 */
-	grst_timeout = ((rd32(hw, GLGEN_RSTCTL) & GLGEN_RSTCTL_GRSTDEL_M) >>
-			GLGEN_RSTCTL_GRSTDEL_S) + 10;
+	grst_timeout = FIELD_GET(GLGEN_RSTCTL_GRSTDEL_M,
+				 rd32(hw, GLGEN_RSTCTL)) + 10;
 
 	for (cnt = 0; cnt < grst_timeout; cnt++) {
 		mdelay(100);
@@ -1576,9 +1403,8 @@ static const struct ice_ctx_ele ice_rlan_ctx_info[] = {
  * it to HW register space and enables the hardware to prefetch descriptors
  * instead of only fetching them on demand
  */
-int
-ice_write_rxq_ctx(struct ice_hw *hw, struct ice_rlan_ctx *rlan_ctx,
-		  u32 rxq_index)
+int ice_write_rxq_ctx(struct ice_hw *hw, struct ice_rlan_ctx *rlan_ctx,
+		      u32 rxq_index)
 {
 	u8 ctx_buf[ICE_RXQ_CTX_SZ] = { 0 };
 
@@ -1797,6 +1623,8 @@ ice_aq_send_cmd(struct ice_hw *hw, struct ice_aq_desc *desc, void *buf,
 	case ice_aqc_opc_set_port_params:
 	case ice_aqc_opc_get_vlan_mode_parameters:
 	case ice_aqc_opc_set_vlan_mode_parameters:
+	case ice_aqc_opc_set_tx_topo:
+	case ice_aqc_opc_get_tx_topo:
 	case ice_aqc_opc_add_recipe:
 	case ice_aqc_opc_recipe_to_profile:
 	case ice_aqc_opc_get_recipe:
@@ -2353,6 +2181,9 @@ ice_parse_common_caps(struct ice_hw *hw, struct ice_hw_common_caps *caps,
 		ice_debug(hw, ICE_DBG_INIT, "%s: sriov_lag = %u\n",
 			  prefix, caps->sriov_lag);
 		break;
+	case ICE_AQC_CAPS_TX_SCHED_TOPO_COMP_MODE:
+		caps->tx_sched_topo_comp_mode_en = (number == 1);
+		break;
 	default:
 		/* Not one of the recognized common capabilities */
 		found = false;
@@ -2459,7 +2290,7 @@ ice_parse_1588_func_caps(struct ice_hw *hw, struct ice_hw_func_caps *func_p,
 	info->tmr_index_owned = ((number & ICE_TS_TMR_IDX_OWND_M) != 0);
 	info->tmr_index_assoc = ((number & ICE_TS_TMR_IDX_ASSOC_M) != 0);
 
-	info->clk_freq = (number & ICE_TS_CLK_FREQ_M) >> ICE_TS_CLK_FREQ_S;
+	info->clk_freq = FIELD_GET(ICE_TS_CLK_FREQ_M, number);
 	info->clk_src = ((number & ICE_TS_CLK_SRC_M) != 0);
 
 	if (info->clk_freq < NUM_ICE_TIME_REF_FREQ) {
@@ -2660,11 +2491,12 @@ ice_parse_1588_dev_caps(struct ice_hw *hw, struct ice_hw_dev_caps *dev_p,
 	info->tmr0_owned = ((number & ICE_TS_TMR0_OWND_M) != 0);
 	info->tmr0_ena = ((number & ICE_TS_TMR0_ENA_M) != 0);
 
-	info->tmr1_owner = (number & ICE_TS_TMR1_OWNR_M) >> ICE_TS_TMR1_OWNR_S;
+	info->tmr1_owner = FIELD_GET(ICE_TS_TMR1_OWNR_M, number);
 	info->tmr1_owned = ((number & ICE_TS_TMR1_OWND_M) != 0);
 	info->tmr1_ena = ((number & ICE_TS_TMR1_ENA_M) != 0);
 
 	info->ts_ll_read = ((number & ICE_TS_LL_TX_TS_READ_M) != 0);
+	info->ts_ll_int_read = ((number & ICE_TS_LL_TX_TS_INT_READ_M) != 0);
 
 	info->ena_ports = logical_id;
 	info->tmr_own_map = phys_id;
@@ -2685,6 +2517,8 @@ ice_parse_1588_dev_caps(struct ice_hw *hw, struct ice_hw_dev_caps *dev_p,
 		  info->tmr1_ena);
 	ice_debug(hw, ICE_DBG_INIT, "dev caps: ts_ll_read = %u\n",
 		  info->ts_ll_read);
+	ice_debug(hw, ICE_DBG_INIT, "dev caps: ts_ll_int_read = %u\n",
+		  info->ts_ll_int_read);
 	ice_debug(hw, ICE_DBG_INIT, "dev caps: ieee_1588 ena_ports = %u\n",
 		  info->ena_ports);
 	ice_debug(hw, ICE_DBG_INIT, "dev caps: tmr_own_map = %u\n",
@@ -2708,6 +2542,26 @@ ice_parse_fdir_dev_caps(struct ice_hw *hw, struct ice_hw_dev_caps *dev_p,
 	dev_p->num_flow_director_fltr = number;
 	ice_debug(hw, ICE_DBG_INIT, "dev caps: num_flow_director_fltr = %d\n",
 		  dev_p->num_flow_director_fltr);
+}
+
+/**
+ * ice_parse_sensor_reading_cap - Parse ICE_AQC_CAPS_SENSOR_READING cap
+ * @hw: pointer to the HW struct
+ * @dev_p: pointer to device capabilities structure
+ * @cap: capability element to parse
+ *
+ * Parse ICE_AQC_CAPS_SENSOR_READING for device capability for reading
+ * enabled sensors.
+ */
+static void
+ice_parse_sensor_reading_cap(struct ice_hw *hw, struct ice_hw_dev_caps *dev_p,
+			     struct ice_aqc_list_caps_elem *cap)
+{
+	dev_p->supported_sensors = le32_to_cpu(cap->number);
+
+	ice_debug(hw, ICE_DBG_INIT,
+		  "dev caps: supported sensors (bitmap) = 0x%x\n",
+		  dev_p->supported_sensors);
 }
 
 /**
@@ -2755,8 +2609,11 @@ ice_parse_dev_caps(struct ice_hw *hw, struct ice_hw_dev_caps *dev_p,
 		case ICE_AQC_CAPS_1588:
 			ice_parse_1588_dev_caps(hw, dev_p, &cap_resp[i]);
 			break;
-		case  ICE_AQC_CAPS_FD:
+		case ICE_AQC_CAPS_FD:
 			ice_parse_fdir_dev_caps(hw, dev_p, &cap_resp[i]);
+			break;
+		case ICE_AQC_CAPS_SENSOR_READING:
+			ice_parse_sensor_reading_cap(hw, dev_p, &cap_resp[i]);
 			break;
 		default:
 			/* Don't list common capabilities as unknown */
@@ -3428,19 +3285,14 @@ int ice_update_link_info(struct ice_port_info *pi)
 		return status;
 
 	if (li->link_info & ICE_AQ_MEDIA_AVAILABLE) {
-		struct ice_aqc_get_phy_caps_data *pcaps;
-		struct ice_hw *hw;
+		struct ice_aqc_get_phy_caps_data *pcaps __free(kfree) = NULL;
 
-		hw = pi->hw;
-		pcaps = devm_kzalloc(ice_hw_to_dev(hw), sizeof(*pcaps),
-				     GFP_KERNEL);
+		pcaps = kzalloc(sizeof(*pcaps), GFP_KERNEL);
 		if (!pcaps)
 			return -ENOMEM;
 
 		status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_TOPO_CAP_MEDIA,
 					     pcaps, NULL);
-
-		devm_kfree(ice_hw_to_dev(hw), pcaps);
 	}
 
 	return status;
@@ -3581,8 +3433,8 @@ ice_cfg_phy_fc(struct ice_port_info *pi, struct ice_aqc_set_phy_cfg_data *cfg,
 int
 ice_set_fc(struct ice_port_info *pi, u8 *aq_failures, bool ena_auto_link_update)
 {
+	struct ice_aqc_get_phy_caps_data *pcaps __free(kfree) = NULL;
 	struct ice_aqc_set_phy_cfg_data cfg = { 0 };
-	struct ice_aqc_get_phy_caps_data *pcaps;
 	struct ice_hw *hw;
 	int status;
 
@@ -3592,7 +3444,7 @@ ice_set_fc(struct ice_port_info *pi, u8 *aq_failures, bool ena_auto_link_update)
 	*aq_failures = 0;
 	hw = pi->hw;
 
-	pcaps = devm_kzalloc(ice_hw_to_dev(hw), sizeof(*pcaps), GFP_KERNEL);
+	pcaps = kzalloc(sizeof(*pcaps), GFP_KERNEL);
 	if (!pcaps)
 		return -ENOMEM;
 
@@ -3644,7 +3496,6 @@ ice_set_fc(struct ice_port_info *pi, u8 *aq_failures, bool ena_auto_link_update)
 	}
 
 out:
-	devm_kfree(ice_hw_to_dev(hw), pcaps);
 	return status;
 }
 
@@ -3723,7 +3574,7 @@ int
 ice_cfg_phy_fec(struct ice_port_info *pi, struct ice_aqc_set_phy_cfg_data *cfg,
 		enum ice_fec_mode fec)
 {
-	struct ice_aqc_get_phy_caps_data *pcaps;
+	struct ice_aqc_get_phy_caps_data *pcaps __free(kfree) = NULL;
 	struct ice_hw *hw;
 	int status;
 
@@ -3792,8 +3643,6 @@ ice_cfg_phy_fec(struct ice_port_info *pi, struct ice_aqc_set_phy_cfg_data *cfg,
 	}
 
 out:
-	kfree(pcaps);
-
 	return status;
 }
 
@@ -4072,6 +3921,7 @@ ice_aq_sff_eeprom(struct ice_hw *hw, u16 lport, u8 bus_addr,
 {
 	struct ice_aqc_sff_eeprom *cmd;
 	struct ice_aq_desc desc;
+	u16 i2c_bus_addr;
 	int status;
 
 	if (!data || (mem_addr & 0xff00))
@@ -4082,15 +3932,13 @@ ice_aq_sff_eeprom(struct ice_hw *hw, u16 lport, u8 bus_addr,
 	desc.flags = cpu_to_le16(ICE_AQ_FLAG_RD);
 	cmd->lport_num = (u8)(lport & 0xff);
 	cmd->lport_num_valid = (u8)((lport >> 8) & 0x01);
-	cmd->i2c_bus_addr = cpu_to_le16(((bus_addr >> 1) &
-					 ICE_AQC_SFF_I2CBUS_7BIT_M) |
-					((set_page <<
-					  ICE_AQC_SFF_SET_EEPROM_PAGE_S) &
-					 ICE_AQC_SFF_SET_EEPROM_PAGE_M));
-	cmd->i2c_mem_addr = cpu_to_le16(mem_addr & 0xff);
-	cmd->eeprom_page = cpu_to_le16((u16)page << ICE_AQC_SFF_EEPROM_PAGE_S);
+	i2c_bus_addr = FIELD_PREP(ICE_AQC_SFF_I2CBUS_7BIT_M, bus_addr >> 1) |
+		       FIELD_PREP(ICE_AQC_SFF_SET_EEPROM_PAGE_M, set_page);
 	if (write)
-		cmd->i2c_bus_addr |= cpu_to_le16(ICE_AQC_SFF_IS_WRITE);
+		i2c_bus_addr |= ICE_AQC_SFF_IS_WRITE;
+	cmd->i2c_bus_addr = cpu_to_le16(i2c_bus_addr);
+	cmd->i2c_mem_addr = cpu_to_le16(mem_addr & 0xff);
+	cmd->eeprom_page = le16_encode_bits(page, ICE_AQC_SFF_EEPROM_PAGE_M);
 
 	status = ice_aq_send_cmd(hw, &desc, data, length, cd);
 	return status;
@@ -4345,6 +4193,7 @@ ice_aq_dis_lan_txq(struct ice_hw *hw, u8 num_qgrps,
 	struct ice_aqc_dis_txq_item *item;
 	struct ice_aqc_dis_txqs *cmd;
 	struct ice_aq_desc desc;
+	u16 vmvf_and_timeout;
 	u16 i, sz = 0;
 	int status;
 
@@ -4360,26 +4209,25 @@ ice_aq_dis_lan_txq(struct ice_hw *hw, u8 num_qgrps,
 
 	cmd->num_entries = num_qgrps;
 
-	cmd->vmvf_and_timeout = cpu_to_le16((5 << ICE_AQC_Q_DIS_TIMEOUT_S) &
-					    ICE_AQC_Q_DIS_TIMEOUT_M);
+	vmvf_and_timeout = FIELD_PREP(ICE_AQC_Q_DIS_TIMEOUT_M, 5);
 
 	switch (rst_src) {
 	case ICE_VM_RESET:
 		cmd->cmd_type = ICE_AQC_Q_DIS_CMD_VM_RESET;
-		cmd->vmvf_and_timeout |=
-			cpu_to_le16(vmvf_num & ICE_AQC_Q_DIS_VMVF_NUM_M);
+		vmvf_and_timeout |= vmvf_num & ICE_AQC_Q_DIS_VMVF_NUM_M;
 		break;
 	case ICE_VF_RESET:
 		cmd->cmd_type = ICE_AQC_Q_DIS_CMD_VF_RESET;
 		/* In this case, FW expects vmvf_num to be absolute VF ID */
-		cmd->vmvf_and_timeout |=
-			cpu_to_le16((vmvf_num + hw->func_caps.vf_base_id) &
-				    ICE_AQC_Q_DIS_VMVF_NUM_M);
+		vmvf_and_timeout |= (vmvf_num + hw->func_caps.vf_base_id) &
+				    ICE_AQC_Q_DIS_VMVF_NUM_M;
 		break;
 	case ICE_NO_RESET:
 	default:
 		break;
 	}
+
+	cmd->vmvf_and_timeout = cpu_to_le16(vmvf_and_timeout);
 
 	/* flush pipe on time out */
 	cmd->cmd_type |= ICE_AQC_Q_DIS_CMD_FLUSH_PIPE;
@@ -4455,10 +4303,8 @@ ice_aq_cfg_lan_txq(struct ice_hw *hw, struct ice_aqc_cfg_txqs_buf *buf,
 	cmd->cmd_type = ICE_AQC_Q_CFG_TC_CHNG;
 	cmd->num_qs = num_qs;
 	cmd->port_num_chng = (oldport & ICE_AQC_Q_CFG_SRC_PRT_M);
-	cmd->port_num_chng |= (newport << ICE_AQC_Q_CFG_DST_PRT_S) &
-			      ICE_AQC_Q_CFG_DST_PRT_M;
-	cmd->time_out = (5 << ICE_AQC_Q_CFG_TIMEOUT_S) &
-			ICE_AQC_Q_CFG_TIMEOUT_M;
+	cmd->port_num_chng |= FIELD_PREP(ICE_AQC_Q_CFG_DST_PRT_M, newport);
+	cmd->time_out = FIELD_PREP(ICE_AQC_Q_CFG_TIMEOUT_M, 5);
 	cmd->blocked_cgds = 0;
 
 	status = ice_aq_send_cmd(hw, &desc, buf, buf_size, cd);
@@ -4516,13 +4362,13 @@ ice_aq_add_rdma_qsets(struct ice_hw *hw, u8 num_qset_grps,
 /* End of FW Admin Queue command wrappers */
 
 /**
- * ice_write_byte - write a byte to a packed context structure
- * @src_ctx:  the context structure to read from
- * @dest_ctx: the context to be written to
- * @ce_info:  a description of the struct to be filled
+ * ice_pack_ctx_byte - write a byte to a packed context structure
+ * @src_ctx: unpacked source context structure
+ * @dest_ctx: packed destination context data
+ * @ce_info: context element description
  */
-static void
-ice_write_byte(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info)
+static void ice_pack_ctx_byte(u8 *src_ctx, u8 *dest_ctx,
+			      const struct ice_ctx_ele *ce_info)
 {
 	u8 src_byte, dest_byte, mask;
 	u8 *from, *dest;
@@ -4533,14 +4379,11 @@ ice_write_byte(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info)
 
 	/* prepare the bits and mask */
 	shift_width = ce_info->lsb % 8;
-	mask = (u8)(BIT(ce_info->width) - 1);
+	mask = GENMASK(ce_info->width - 1 + shift_width, shift_width);
 
 	src_byte = *from;
-	src_byte &= mask;
-
-	/* shift to correct alignment */
-	mask <<= shift_width;
 	src_byte <<= shift_width;
+	src_byte &= mask;
 
 	/* get the current bits from the target bit string */
 	dest = dest_ctx + (ce_info->lsb / 8);
@@ -4555,13 +4398,13 @@ ice_write_byte(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info)
 }
 
 /**
- * ice_write_word - write a word to a packed context structure
- * @src_ctx:  the context structure to read from
- * @dest_ctx: the context to be written to
- * @ce_info:  a description of the struct to be filled
+ * ice_pack_ctx_word - write a word to a packed context structure
+ * @src_ctx: unpacked source context structure
+ * @dest_ctx: packed destination context data
+ * @ce_info: context element description
  */
-static void
-ice_write_word(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info)
+static void ice_pack_ctx_word(u8 *src_ctx, u8 *dest_ctx,
+			      const struct ice_ctx_ele *ce_info)
 {
 	u16 src_word, mask;
 	__le16 dest_word;
@@ -4573,17 +4416,14 @@ ice_write_word(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info)
 
 	/* prepare the bits and mask */
 	shift_width = ce_info->lsb % 8;
-	mask = BIT(ce_info->width) - 1;
+	mask = GENMASK(ce_info->width - 1 + shift_width, shift_width);
 
 	/* don't swizzle the bits until after the mask because the mask bits
 	 * will be in a different bit position on big endian machines
 	 */
 	src_word = *(u16 *)from;
-	src_word &= mask;
-
-	/* shift to correct alignment */
-	mask <<= shift_width;
 	src_word <<= shift_width;
+	src_word &= mask;
 
 	/* get the current bits from the target bit string */
 	dest = dest_ctx + (ce_info->lsb / 8);
@@ -4598,13 +4438,13 @@ ice_write_word(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info)
 }
 
 /**
- * ice_write_dword - write a dword to a packed context structure
- * @src_ctx:  the context structure to read from
- * @dest_ctx: the context to be written to
- * @ce_info:  a description of the struct to be filled
+ * ice_pack_ctx_dword - write a dword to a packed context structure
+ * @src_ctx: unpacked source context structure
+ * @dest_ctx: packed destination context data
+ * @ce_info: context element description
  */
-static void
-ice_write_dword(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info)
+static void ice_pack_ctx_dword(u8 *src_ctx, u8 *dest_ctx,
+			       const struct ice_ctx_ele *ce_info)
 {
 	u32 src_dword, mask;
 	__le32 dest_dword;
@@ -4616,25 +4456,14 @@ ice_write_dword(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info)
 
 	/* prepare the bits and mask */
 	shift_width = ce_info->lsb % 8;
-
-	/* if the field width is exactly 32 on an x86 machine, then the shift
-	 * operation will not work because the SHL instructions count is masked
-	 * to 5 bits so the shift will do nothing
-	 */
-	if (ce_info->width < 32)
-		mask = BIT(ce_info->width) - 1;
-	else
-		mask = (u32)~0;
+	mask = GENMASK(ce_info->width - 1 + shift_width, shift_width);
 
 	/* don't swizzle the bits until after the mask because the mask bits
 	 * will be in a different bit position on big endian machines
 	 */
 	src_dword = *(u32 *)from;
-	src_dword &= mask;
-
-	/* shift to correct alignment */
-	mask <<= shift_width;
 	src_dword <<= shift_width;
+	src_dword &= mask;
 
 	/* get the current bits from the target bit string */
 	dest = dest_ctx + (ce_info->lsb / 8);
@@ -4649,13 +4478,13 @@ ice_write_dword(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info)
 }
 
 /**
- * ice_write_qword - write a qword to a packed context structure
- * @src_ctx:  the context structure to read from
- * @dest_ctx: the context to be written to
- * @ce_info:  a description of the struct to be filled
+ * ice_pack_ctx_qword - write a qword to a packed context structure
+ * @src_ctx: unpacked source context structure
+ * @dest_ctx: packed destination context data
+ * @ce_info: context element description
  */
-static void
-ice_write_qword(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info)
+static void ice_pack_ctx_qword(u8 *src_ctx, u8 *dest_ctx,
+			       const struct ice_ctx_ele *ce_info)
 {
 	u64 src_qword, mask;
 	__le64 dest_qword;
@@ -4667,25 +4496,14 @@ ice_write_qword(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info)
 
 	/* prepare the bits and mask */
 	shift_width = ce_info->lsb % 8;
-
-	/* if the field width is exactly 64 on an x86 machine, then the shift
-	 * operation will not work because the SHL instructions count is masked
-	 * to 6 bits so the shift will do nothing
-	 */
-	if (ce_info->width < 64)
-		mask = BIT_ULL(ce_info->width) - 1;
-	else
-		mask = (u64)~0;
+	mask = GENMASK_ULL(ce_info->width - 1 + shift_width, shift_width);
 
 	/* don't swizzle the bits until after the mask because the mask bits
 	 * will be in a different bit position on big endian machines
 	 */
 	src_qword = *(u64 *)from;
-	src_qword &= mask;
-
-	/* shift to correct alignment */
-	mask <<= shift_width;
 	src_qword <<= shift_width;
+	src_qword &= mask;
 
 	/* get the current bits from the target bit string */
 	dest = dest_ctx + (ce_info->lsb / 8);
@@ -4704,11 +4522,10 @@ ice_write_qword(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info)
  * @hw: pointer to the hardware structure
  * @src_ctx:  pointer to a generic non-packed context structure
  * @dest_ctx: pointer to memory for the packed structure
- * @ce_info:  a description of the structure to be transformed
+ * @ce_info: List of Rx context elements
  */
-int
-ice_set_ctx(struct ice_hw *hw, u8 *src_ctx, u8 *dest_ctx,
-	    const struct ice_ctx_ele *ce_info)
+int ice_set_ctx(struct ice_hw *hw, u8 *src_ctx, u8 *dest_ctx,
+		const struct ice_ctx_ele *ce_info)
 {
 	int f;
 
@@ -4724,16 +4541,16 @@ ice_set_ctx(struct ice_hw *hw, u8 *src_ctx, u8 *dest_ctx,
 		}
 		switch (ce_info[f].size_of) {
 		case sizeof(u8):
-			ice_write_byte(src_ctx, dest_ctx, &ce_info[f]);
+			ice_pack_ctx_byte(src_ctx, dest_ctx, &ce_info[f]);
 			break;
 		case sizeof(u16):
-			ice_write_word(src_ctx, dest_ctx, &ce_info[f]);
+			ice_pack_ctx_word(src_ctx, dest_ctx, &ce_info[f]);
 			break;
 		case sizeof(u32):
-			ice_write_dword(src_ctx, dest_ctx, &ce_info[f]);
+			ice_pack_ctx_dword(src_ctx, dest_ctx, &ce_info[f]);
 			break;
 		case sizeof(u64):
-			ice_write_qword(src_ctx, dest_ctx, &ce_info[f]);
+			ice_pack_ctx_qword(src_ctx, dest_ctx, &ce_info[f]);
 			break;
 		default:
 			return -EINVAL;
@@ -4891,7 +4708,7 @@ ice_dis_vsi_txq(struct ice_port_info *pi, u16 vsi_handle, u8 tc, u8 num_queues,
 		enum ice_disq_rst_src rst_src, u16 vmvf_num,
 		struct ice_sq_cd *cd)
 {
-	DEFINE_FLEX(struct ice_aqc_dis_txq_item, qg_list, q_id, 1);
+	DEFINE_RAW_FLEX(struct ice_aqc_dis_txq_item, qg_list, q_id, 1);
 	u16 i, buf_size = __struct_size(qg_list);
 	struct ice_q_ctx *q_ctx;
 	int status = -ENOENT;
@@ -5113,7 +4930,7 @@ int
 ice_dis_vsi_rdma_qset(struct ice_port_info *pi, u16 count, u32 *qset_teid,
 		      u16 *q_id)
 {
-	DEFINE_FLEX(struct ice_aqc_dis_txq_item, qg_list, q_id, 1);
+	DEFINE_RAW_FLEX(struct ice_aqc_dis_txq_item, qg_list, q_id, 1);
 	u16 qg_size = __struct_size(qg_list);
 	struct ice_hw *hw;
 	int status = 0;
@@ -5332,7 +5149,6 @@ ice_aq_get_cgu_dpll_status(struct ice_hw *hw, u8 dpll_num, u8 *ref_state,
 			   u8 *eec_mode)
 {
 	struct ice_aqc_get_cgu_dpll_status *cmd;
-	const s64 nsec_per_psec = 1000LL;
 	struct ice_aq_desc desc;
 	int status;
 
@@ -5348,8 +5164,7 @@ ice_aq_get_cgu_dpll_status(struct ice_hw *hw, u8 dpll_num, u8 *ref_state,
 		*phase_offset = le32_to_cpu(cmd->phase_offset_h);
 		*phase_offset <<= 32;
 		*phase_offset += le32_to_cpu(cmd->phase_offset_l);
-		*phase_offset = div64_s64(sign_extend64(*phase_offset, 47),
-					  nsec_per_psec);
+		*phase_offset = sign_extend64(*phase_offset, 47);
 		*eec_mode = cmd->eec_mode;
 	}
 
@@ -5536,6 +5351,35 @@ ice_aq_get_phy_rec_clk_out(struct ice_hw *hw, u8 *phy_output, u8 *port_num,
 		if (node_handle)
 			*node_handle = le16_to_cpu(cmd->node_handle);
 	}
+
+	return status;
+}
+
+/**
+ * ice_aq_get_sensor_reading
+ * @hw: pointer to the HW struct
+ * @data: pointer to data to be read from the sensor
+ *
+ * Get sensor reading (0x0632)
+ */
+int ice_aq_get_sensor_reading(struct ice_hw *hw,
+			      struct ice_aqc_get_sensor_reading_resp *data)
+{
+	struct ice_aqc_get_sensor_reading *cmd;
+	struct ice_aq_desc desc;
+	int status;
+
+	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_get_sensor_reading);
+	cmd = &desc.params.get_sensor_reading;
+#define ICE_INTERNAL_TEMP_SENSOR_FORMAT	0
+#define ICE_INTERNAL_TEMP_SENSOR	0
+	cmd->sensor = ICE_INTERNAL_TEMP_SENSOR;
+	cmd->format = ICE_INTERNAL_TEMP_SENSOR_FORMAT;
+
+	status = ice_aq_send_cmd(hw, &desc, NULL, 0, NULL);
+	if (!status)
+		memcpy(data, &desc.params.get_sensor_reading_resp,
+		       sizeof(*data));
 
 	return status;
 }
@@ -5935,7 +5779,7 @@ ice_get_link_default_override(struct ice_link_default_override_tlv *ldo,
 		ice_debug(hw, ICE_DBG_INIT, "Failed to read override link options.\n");
 		return status;
 	}
-	ldo->options = buf & ICE_LINK_OVERRIDE_OPT_M;
+	ldo->options = FIELD_GET(ICE_LINK_OVERRIDE_OPT_M, buf);
 	ldo->phy_config = (buf & ICE_LINK_OVERRIDE_PHY_CFG_M) >>
 		ICE_LINK_OVERRIDE_PHY_CFG_S;
 

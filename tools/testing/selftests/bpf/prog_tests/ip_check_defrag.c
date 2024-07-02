@@ -59,9 +59,9 @@ static int setup_topology(bool ipv6)
 	/* Wait for up to 5s for links to come up */
 	for (i = 0; i < 5; ++i) {
 		if (ipv6)
-			up = !system("ip netns exec " NS0 " ping -6 -c 1 -W 1 " VETH1_ADDR6 " &>/dev/null");
+			up = !SYS_NOFAIL("ip netns exec " NS0 " ping -6 -c 1 -W 1 " VETH1_ADDR6);
 		else
-			up = !system("ip netns exec " NS0 " ping -c 1 -W 1 " VETH1_ADDR " &>/dev/null");
+			up = !SYS_NOFAIL("ip netns exec " NS0 " ping -c 1 -W 1 " VETH1_ADDR);
 
 		if (up)
 			break;
@@ -88,6 +88,8 @@ static int attach(struct ip_check_defrag *skel, bool ipv6)
 	int err = -1;
 
 	nstoken = open_netns(NS1);
+	if (!ASSERT_OK_PTR(nstoken, "setns"))
+		goto out;
 
 	skel->links.defrag = bpf_program__attach_netfilter(skel->progs.defrag, &opts);
 	if (!ASSERT_OK_PTR(skel->links.defrag, "program attach"))

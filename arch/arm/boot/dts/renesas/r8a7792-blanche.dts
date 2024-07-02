@@ -30,6 +30,15 @@
 		reg = <0 0x40000000 0 0x40000000>;
 	};
 
+	d1_8v: regulator-1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "D1.8V";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
 	d3_3v: regulator-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "D3.3V";
@@ -182,6 +191,35 @@
 };
 
 &lbsc {
+	flash@0 {
+		compatible = "cfi-flash";
+		reg = <0x00000000 0x04000000>;
+		pinctrl-0 = <&flash_pins>;
+		pinctrl-names = "default";
+		bank-width = <2>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "uboot";
+				reg = <0x00000000 0x00040000>;
+				read-only;
+			};
+			partition@40000 {
+				label = "uboot-env";
+				reg = <0x00040000 0x00040000>;
+				read-only;
+			};
+			partition@80000 {
+				label = "flash";
+				reg = <0x00080000 0x03f80000>;
+			};
+		};
+	};
+
 	ethernet@18000000 {
 		compatible = "smsc,lan89218", "smsc,lan9115";
 		reg = <0x18000000 0x100>;
@@ -240,6 +278,11 @@
 		function = "du1";
 	};
 
+	flash_pins: flash {
+		groups = "lbsc_cs0";
+		function = "lbsc";
+	};
+
 	keyboard_pins: keyboard {
 		pins = "GP_3_10", "GP_3_11", "GP_3_12", "GP_3_15", "GP_11_2";
 		bias-pull-up;
@@ -296,6 +339,12 @@
 		interrupt-parent = <&irqc>;
 		interrupts = <3 IRQ_TYPE_EDGE_FALLING>;
 
+		avdd-supply = <&d1_8v>;
+		dvdd-supply = <&d1_8v>;
+		pvdd-supply = <&d1_8v>;
+		dvdd-3v-supply = <&d3_3v>;
+		bgvdd-supply = <&d1_8v>;
+
 		adi,input-depth = <8>;
 		adi,input-colorspace = "rgb";
 		adi,input-clock = "1x";
@@ -332,6 +381,7 @@
 		interrupt-parent = <&irqc>;
 		interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
 		interrupt-controller;
+		#interrupt-cells = <2>;
 
 		rtc {
 			compatible = "dlg,da9063-rtc";

@@ -17,7 +17,23 @@ properties:
   compatible:
     oneOf:
       - items:
-          - const: fsl,imx8mq-iomuxc-gpr
+          - enum:
+              - fsl,imx6q-iomuxc-gpr
+              - fsl,imx8mq-iomuxc-gpr
+          - const: syscon
+          - const: simple-mfd
+      - items:
+          - enum:
+              - fsl,imx6sl-iomuxc-gpr
+              - fsl,imx6sll-iomuxc-gpr
+              - fsl,imx6ul-iomuxc-gpr
+          - const: fsl,imx6q-iomuxc-gpr
+          - const: syscon
+      - items:
+          - enum:
+              - fsl,imx6sx-iomuxc-gpr
+              - fsl,imx7d-iomuxc-gpr
+          - const: fsl,imx6q-iomuxc-gpr
           - const: syscon
           - const: simple-mfd
       - items:

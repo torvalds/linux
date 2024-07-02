@@ -32,22 +32,68 @@ DECLARE_EVENT_CLASS(bpos,
 	TP_printk("%llu:%llu:%u", __entry->p_inode, __entry->p_offset, __entry->p_snapshot)
 );
 
-DECLARE_EVENT_CLASS(bkey,
-	TP_PROTO(struct bch_fs *c, const char *k),
-	TP_ARGS(c, k),
+DECLARE_EVENT_CLASS(fs_str,
+	TP_PROTO(struct bch_fs *c, const char *str),
+	TP_ARGS(c, str),
 
 	TP_STRUCT__entry(
-		__string(k,	k				)
+		__field(dev_t,		dev			)
+		__string(str,		str			)
 	),
 
 	TP_fast_assign(
-		__assign_str(k, k);
+		__entry->dev		= c->dev;
+		__assign_str(str, str);
 	),
 
-	TP_printk("%s", __get_str(k))
+	TP_printk("%d,%d\n%s", MAJOR(__entry->dev), MINOR(__entry->dev), __get_str(str))
 );
 
-DECLARE_EVENT_CLASS(btree_node,
+DECLARE_EVENT_CLASS(trans_str,
+	TP_PROTO(struct btree_trans *trans, unsigned long caller_ip, const char *str),
+	TP_ARGS(trans, caller_ip, str),
+
+	TP_STRUCT__entry(
+		__field(dev_t,		dev			)
+		__array(char,		trans_fn, 32		)
+		__field(unsigned long,	caller_ip		)
+		__string(str,		str			)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= trans->c->dev;
+		strscpy(__entry->trans_fn, trans->fn, sizeof(__entry->trans_fn));
+		__entry->caller_ip		= caller_ip;
+		__assign_str(str, str);
+	),
+
+	TP_printk("%d,%d %s %pS %s",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->trans_fn, (void *) __entry->caller_ip, __get_str(str))
+);
+
+DECLARE_EVENT_CLASS(trans_str_nocaller,
+	TP_PROTO(struct btree_trans *trans, const char *str),
+	TP_ARGS(trans, str),
+
+	TP_STRUCT__entry(
+		__field(dev_t,		dev			)
+		__array(char,		trans_fn, 32		)
+		__string(str,		str			)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= trans->c->dev;
+		strscpy(__entry->trans_fn, trans->fn, sizeof(__entry->trans_fn));
+		__assign_str(str, str);
+	),
+
+	TP_printk("%d,%d %s %s",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->trans_fn, __get_str(str))
+);
+
+DECLARE_EVENT_CLASS(btree_node_nofs,
 	TP_PROTO(struct bch_fs *c, struct btree *b),
 	TP_ARGS(c, b),
 
@@ -68,7 +114,34 @@ DECLARE_EVENT_CLASS(btree_node,
 	TP_printk("%d,%d %u %s %llu:%llu:%u",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->level,
-		  bch2_btree_ids[__entry->btree_id],
+		  bch2_btree_id_str(__entry->btree_id),
+		  __entry->pos_inode, __entry->pos_offset, __entry->pos_snapshot)
+);
+
+DECLARE_EVENT_CLASS(btree_node,
+	TP_PROTO(struct btree_trans *trans, struct btree *b),
+	TP_ARGS(trans, b),
+
+	TP_STRUCT__entry(
+		__field(dev_t,		dev			)
+		__array(char,		trans_fn, 32		)
+		__field(u8,		level			)
+		__field(u8,		btree_id		)
+		TRACE_BPOS_entries(pos)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= trans->c->dev;
+		strscpy(__entry->trans_fn, trans->fn, sizeof(__entry->trans_fn));
+		__entry->level		= b->c.level;
+		__entry->btree_id	= b->c.btree_id;
+		TRACE_BPOS_assign(pos, b->key.k.p);
+	),
+
+	TP_printk("%d,%d %s %u %s %llu:%llu:%u",
+		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->trans_fn,
+		  __entry->level,
+		  bch2_btree_id_str(__entry->btree_id),
 		  __entry->pos_inode, __entry->pos_offset, __entry->pos_snapshot)
 );
 
@@ -85,6 +158,23 @@ DECLARE_EVENT_CLASS(bch_fs,
 	),
 
 	TP_printk("%d,%d", MAJOR(__entry->dev), MINOR(__entry->dev))
+);
+
+DECLARE_EVENT_CLASS(btree_trans,
+	TP_PROTO(struct btree_trans *trans),
+	TP_ARGS(trans),
+
+	TP_STRUCT__entry(
+		__field(dev_t,		dev			)
+		__array(char,		trans_fn, 32		)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= trans->c->dev;
+		strscpy(__entry->trans_fn, trans->fn, sizeof(__entry->trans_fn));
+	),
+
+	TP_printk("%d,%d %s", MAJOR(__entry->dev), MINOR(__entry->dev), __entry->trans_fn)
 );
 
 DECLARE_EVENT_CLASS(bio,
@@ -183,9 +273,14 @@ DEFINE_EVENT(bch_fs, journal_full,
 	TP_ARGS(c)
 );
 
-DEFINE_EVENT(bch_fs, journal_entry_full,
-	TP_PROTO(struct bch_fs *c),
-	TP_ARGS(c)
+DEFINE_EVENT(fs_str, journal_entry_full,
+	TP_PROTO(struct bch_fs *c, const char *str),
+	TP_ARGS(c, str)
+);
+
+DEFINE_EVENT(fs_str, journal_entry_close,
+	TP_PROTO(struct bch_fs *c, const char *str),
+	TP_ARGS(c, str)
 );
 
 DEFINE_EVENT(bio, journal_write,
@@ -196,10 +291,9 @@ DEFINE_EVENT(bio, journal_write,
 TRACE_EVENT(journal_reclaim_start,
 	TP_PROTO(struct bch_fs *c, bool direct, bool kicked,
 		 u64 min_nr, u64 min_key_cache,
-		 u64 prereserved, u64 prereserved_total,
 		 u64 btree_cache_dirty, u64 btree_cache_total,
 		 u64 btree_key_cache_dirty, u64 btree_key_cache_total),
-	TP_ARGS(c, direct, kicked, min_nr, min_key_cache, prereserved, prereserved_total,
+	TP_ARGS(c, direct, kicked, min_nr, min_key_cache,
 		btree_cache_dirty, btree_cache_total,
 		btree_key_cache_dirty, btree_key_cache_total),
 
@@ -209,8 +303,6 @@ TRACE_EVENT(journal_reclaim_start,
 		__field(bool,		kicked			)
 		__field(u64,		min_nr			)
 		__field(u64,		min_key_cache		)
-		__field(u64,		prereserved		)
-		__field(u64,		prereserved_total	)
 		__field(u64,		btree_cache_dirty	)
 		__field(u64,		btree_cache_total	)
 		__field(u64,		btree_key_cache_dirty	)
@@ -223,22 +315,18 @@ TRACE_EVENT(journal_reclaim_start,
 		__entry->kicked			= kicked;
 		__entry->min_nr			= min_nr;
 		__entry->min_key_cache		= min_key_cache;
-		__entry->prereserved		= prereserved;
-		__entry->prereserved_total	= prereserved_total;
 		__entry->btree_cache_dirty	= btree_cache_dirty;
 		__entry->btree_cache_total	= btree_cache_total;
 		__entry->btree_key_cache_dirty	= btree_key_cache_dirty;
 		__entry->btree_key_cache_total	= btree_key_cache_total;
 	),
 
-	TP_printk("%d,%d direct %u kicked %u min %llu key cache %llu prereserved %llu/%llu btree cache %llu/%llu key cache %llu/%llu",
+	TP_printk("%d,%d direct %u kicked %u min %llu key cache %llu btree cache %llu/%llu key cache %llu/%llu",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->direct,
 		  __entry->kicked,
 		  __entry->min_nr,
 		  __entry->min_key_cache,
-		  __entry->prereserved,
-		  __entry->prereserved_total,
 		  __entry->btree_cache_dirty,
 		  __entry->btree_cache_total,
 		  __entry->btree_key_cache_dirty,
@@ -293,36 +381,36 @@ TRACE_EVENT(btree_cache_scan,
 		  __entry->nr_to_scan, __entry->can_free, __entry->ret)
 );
 
-DEFINE_EVENT(btree_node, btree_cache_reap,
+DEFINE_EVENT(btree_node_nofs, btree_cache_reap,
 	TP_PROTO(struct bch_fs *c, struct btree *b),
 	TP_ARGS(c, b)
 );
 
-DEFINE_EVENT(bch_fs, btree_cache_cannibalize_lock_fail,
-	TP_PROTO(struct bch_fs *c),
-	TP_ARGS(c)
+DEFINE_EVENT(btree_trans, btree_cache_cannibalize_lock_fail,
+	TP_PROTO(struct btree_trans *trans),
+	TP_ARGS(trans)
 );
 
-DEFINE_EVENT(bch_fs, btree_cache_cannibalize_lock,
-	TP_PROTO(struct bch_fs *c),
-	TP_ARGS(c)
+DEFINE_EVENT(btree_trans, btree_cache_cannibalize_lock,
+	TP_PROTO(struct btree_trans *trans),
+	TP_ARGS(trans)
 );
 
-DEFINE_EVENT(bch_fs, btree_cache_cannibalize,
-	TP_PROTO(struct bch_fs *c),
-	TP_ARGS(c)
+DEFINE_EVENT(btree_trans, btree_cache_cannibalize,
+	TP_PROTO(struct btree_trans *trans),
+	TP_ARGS(trans)
 );
 
-DEFINE_EVENT(bch_fs, btree_cache_cannibalize_unlock,
-	TP_PROTO(struct bch_fs *c),
-	TP_ARGS(c)
+DEFINE_EVENT(btree_trans, btree_cache_cannibalize_unlock,
+	TP_PROTO(struct btree_trans *trans),
+	TP_ARGS(trans)
 );
 
 /* Btree */
 
 DEFINE_EVENT(btree_node, btree_node_read,
-	TP_PROTO(struct bch_fs *c, struct btree *b),
-	TP_ARGS(c, b)
+	TP_PROTO(struct btree_trans *trans, struct btree *b),
+	TP_ARGS(trans, b)
 );
 
 TRACE_EVENT(btree_node_write,
@@ -346,13 +434,13 @@ TRACE_EVENT(btree_node_write,
 );
 
 DEFINE_EVENT(btree_node, btree_node_alloc,
-	TP_PROTO(struct bch_fs *c, struct btree *b),
-	TP_ARGS(c, b)
+	TP_PROTO(struct btree_trans *trans, struct btree *b),
+	TP_ARGS(trans, b)
 );
 
 DEFINE_EVENT(btree_node, btree_node_free,
-	TP_PROTO(struct bch_fs *c, struct btree *b),
-	TP_ARGS(c, b)
+	TP_PROTO(struct btree_trans *trans, struct btree *b),
+	TP_ARGS(trans, b)
 );
 
 TRACE_EVENT(btree_reserve_get_fail,
@@ -384,28 +472,28 @@ TRACE_EVENT(btree_reserve_get_fail,
 );
 
 DEFINE_EVENT(btree_node, btree_node_compact,
-	TP_PROTO(struct bch_fs *c, struct btree *b),
-	TP_ARGS(c, b)
+	TP_PROTO(struct btree_trans *trans, struct btree *b),
+	TP_ARGS(trans, b)
 );
 
 DEFINE_EVENT(btree_node, btree_node_merge,
-	TP_PROTO(struct bch_fs *c, struct btree *b),
-	TP_ARGS(c, b)
+	TP_PROTO(struct btree_trans *trans, struct btree *b),
+	TP_ARGS(trans, b)
 );
 
 DEFINE_EVENT(btree_node, btree_node_split,
-	TP_PROTO(struct bch_fs *c, struct btree *b),
-	TP_ARGS(c, b)
+	TP_PROTO(struct btree_trans *trans, struct btree *b),
+	TP_ARGS(trans, b)
 );
 
 DEFINE_EVENT(btree_node, btree_node_rewrite,
-	TP_PROTO(struct bch_fs *c, struct btree *b),
-	TP_ARGS(c, b)
+	TP_PROTO(struct btree_trans *trans, struct btree *b),
+	TP_ARGS(trans, b)
 );
 
 DEFINE_EVENT(btree_node, btree_node_set_root,
-	TP_PROTO(struct bch_fs *c, struct btree *b),
-	TP_ARGS(c, b)
+	TP_PROTO(struct btree_trans *trans, struct btree *b),
+	TP_ARGS(trans, b)
 );
 
 TRACE_EVENT(btree_path_relock_fail,
@@ -440,7 +528,7 @@ TRACE_EVENT(btree_path_relock_fail,
 		__entry->level			= path->level;
 		TRACE_BPOS_assign(pos, path->pos);
 
-		c = bch2_btree_node_lock_counts(trans, NULL, &path->l[level].b->c, level),
+		c = bch2_btree_node_lock_counts(trans, NULL, &path->l[level].b->c, level);
 		__entry->self_read_count	= c.n[SIX_LOCK_read];
 		__entry->self_intent_count	= c.n[SIX_LOCK_intent];
 
@@ -461,7 +549,7 @@ TRACE_EVENT(btree_path_relock_fail,
 	TP_printk("%s %pS btree %s pos %llu:%llu:%u level %u node %s held %u:%u lock count %u:%u iter seq %u lock seq %u",
 		  __entry->trans_fn,
 		  (void *) __entry->caller_ip,
-		  bch2_btree_ids[__entry->btree_id],
+		  bch2_btree_id_str(__entry->btree_id),
 		  __entry->pos_inode,
 		  __entry->pos_offset,
 		  __entry->pos_snapshot,
@@ -522,7 +610,7 @@ TRACE_EVENT(btree_path_upgrade_fail,
 	TP_printk("%s %pS btree %s pos %llu:%llu:%u level %u locked %u held %u:%u lock count %u:%u iter seq %u lock seq %u",
 		  __entry->trans_fn,
 		  (void *) __entry->caller_ip,
-		  bch2_btree_ids[__entry->btree_id],
+		  bch2_btree_id_str(__entry->btree_id),
 		  __entry->pos_inode,
 		  __entry->pos_offset,
 		  __entry->pos_snapshot,
@@ -724,68 +812,67 @@ TRACE_EVENT(bucket_evacuate,
 		  __entry->dev_idx, __entry->bucket)
 );
 
-DEFINE_EVENT(bkey, move_extent,
-	TP_PROTO(struct bch_fs *c, const char *k),
-	TP_ARGS(c, k)
+DEFINE_EVENT(fs_str, move_extent,
+	TP_PROTO(struct bch_fs *c, const char *str),
+	TP_ARGS(c, str)
 );
 
-DEFINE_EVENT(bkey, move_extent_read,
-	TP_PROTO(struct bch_fs *c, const char *k),
-	TP_ARGS(c, k)
+DEFINE_EVENT(fs_str, move_extent_read,
+	TP_PROTO(struct bch_fs *c, const char *str),
+	TP_ARGS(c, str)
 );
 
-DEFINE_EVENT(bkey, move_extent_write,
-	TP_PROTO(struct bch_fs *c, const char *k),
-	TP_ARGS(c, k)
+DEFINE_EVENT(fs_str, move_extent_write,
+	TP_PROTO(struct bch_fs *c, const char *str),
+	TP_ARGS(c, str)
 );
 
-DEFINE_EVENT(bkey, move_extent_finish,
-	TP_PROTO(struct bch_fs *c, const char *k),
-	TP_ARGS(c, k)
+DEFINE_EVENT(fs_str, move_extent_finish,
+	TP_PROTO(struct bch_fs *c, const char *str),
+	TP_ARGS(c, str)
 );
 
-TRACE_EVENT(move_extent_fail,
-	TP_PROTO(struct bch_fs *c, const char *msg),
-	TP_ARGS(c, msg),
+DEFINE_EVENT(fs_str, move_extent_fail,
+	TP_PROTO(struct bch_fs *c, const char *str),
+	TP_ARGS(c, str)
+);
+
+DEFINE_EVENT(fs_str, move_extent_start_fail,
+	TP_PROTO(struct bch_fs *c, const char *str),
+	TP_ARGS(c, str)
+);
+
+TRACE_EVENT(move_data,
+	TP_PROTO(struct bch_fs *c,
+		 struct bch_move_stats *stats),
+	TP_ARGS(c, stats),
 
 	TP_STRUCT__entry(
-		__field(dev_t,		dev			)
-		__string(msg,		msg			)
+		__field(dev_t,		dev		)
+		__field(u64,		keys_moved	)
+		__field(u64,		keys_raced	)
+		__field(u64,		sectors_seen	)
+		__field(u64,		sectors_moved	)
+		__field(u64,		sectors_raced	)
 	),
 
 	TP_fast_assign(
 		__entry->dev		= c->dev;
-		__assign_str(msg, msg);
+		__entry->keys_moved	= atomic64_read(&stats->keys_moved);
+		__entry->keys_raced	= atomic64_read(&stats->keys_raced);
+		__entry->sectors_seen	= atomic64_read(&stats->sectors_seen);
+		__entry->sectors_moved	= atomic64_read(&stats->sectors_moved);
+		__entry->sectors_raced	= atomic64_read(&stats->sectors_raced);
 	),
 
-	TP_printk("%d:%d %s", MAJOR(__entry->dev), MINOR(__entry->dev), __get_str(msg))
-);
-
-DEFINE_EVENT(bkey, move_extent_alloc_mem_fail,
-	TP_PROTO(struct bch_fs *c, const char *k),
-	TP_ARGS(c, k)
-);
-
-TRACE_EVENT(move_data,
-	TP_PROTO(struct bch_fs *c, u64 sectors_moved,
-		 u64 keys_moved),
-	TP_ARGS(c, sectors_moved, keys_moved),
-
-	TP_STRUCT__entry(
-		__field(dev_t,		dev			)
-		__field(u64,		sectors_moved	)
-		__field(u64,		keys_moved	)
-	),
-
-	TP_fast_assign(
-		__entry->dev			= c->dev;
-		__entry->sectors_moved = sectors_moved;
-		__entry->keys_moved = keys_moved;
-	),
-
-	TP_printk("%d,%d sectors_moved %llu keys_moved %llu",
+	TP_printk("%d,%d keys moved %llu raced %llu"
+		  "sectors seen %llu moved %llu raced %llu",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __entry->sectors_moved, __entry->keys_moved)
+		  __entry->keys_moved,
+		  __entry->keys_raced,
+		  __entry->sectors_seen,
+		  __entry->sectors_moved,
+		  __entry->sectors_raced)
 );
 
 TRACE_EVENT(evacuate_bucket,
@@ -926,7 +1013,7 @@ TRACE_EVENT(trans_restart_split_race,
 		__entry->level		= b->c.level;
 		__entry->written	= b->written;
 		__entry->blocks		= btree_blocks(trans->c);
-		__entry->u64s_remaining	= bch_btree_keys_u64s_remaining(trans->c, b);
+		__entry->u64s_remaining	= bch2_btree_keys_u64s_remaining(b);
 	),
 
 	TP_printk("%s %pS l=%u written %u/%u u64s remaining %u",
@@ -983,10 +1070,11 @@ DEFINE_EVENT(transaction_event,	trans_restart_key_cache_raced,
 	TP_ARGS(trans, caller_ip)
 );
 
-DEFINE_EVENT(transaction_event,	trans_restart_too_many_iters,
+DEFINE_EVENT(trans_str, trans_restart_too_many_iters,
 	TP_PROTO(struct btree_trans *trans,
-		 unsigned long caller_ip),
-	TP_ARGS(trans, caller_ip)
+		 unsigned long caller_ip,
+		 const char *paths),
+	TP_ARGS(trans, caller_ip, paths)
 );
 
 DECLARE_EVENT_CLASS(transaction_restart_iter,
@@ -1012,7 +1100,7 @@ DECLARE_EVENT_CLASS(transaction_restart_iter,
 	TP_printk("%s %pS btree %s pos %llu:%llu:%u",
 		  __entry->trans_fn,
 		  (void *) __entry->caller_ip,
-		  bch2_btree_ids[__entry->btree_id],
+		  bch2_btree_id_str(__entry->btree_id),
 		  __entry->pos_inode,
 		  __entry->pos_offset,
 		  __entry->pos_snapshot)
@@ -1037,8 +1125,9 @@ TRACE_EVENT(trans_restart_upgrade,
 		 unsigned long caller_ip,
 		 struct btree_path *path,
 		 unsigned old_locks_want,
-		 unsigned new_locks_want),
-	TP_ARGS(trans, caller_ip, path, old_locks_want, new_locks_want),
+		 unsigned new_locks_want,
+		 struct get_locks_fail *f),
+	TP_ARGS(trans, caller_ip, path, old_locks_want, new_locks_want, f),
 
 	TP_STRUCT__entry(
 		__array(char,			trans_fn, 32	)
@@ -1046,6 +1135,9 @@ TRACE_EVENT(trans_restart_upgrade,
 		__field(u8,			btree_id	)
 		__field(u8,			old_locks_want	)
 		__field(u8,			new_locks_want	)
+		__field(u8,			level		)
+		__field(u32,			path_seq	)
+		__field(u32,			node_seq	)
 		TRACE_BPOS_entries(pos)
 	),
 
@@ -1055,25 +1147,29 @@ TRACE_EVENT(trans_restart_upgrade,
 		__entry->btree_id		= path->btree_id;
 		__entry->old_locks_want		= old_locks_want;
 		__entry->new_locks_want		= new_locks_want;
+		__entry->level			= f->l;
+		__entry->path_seq		= path->l[f->l].lock_seq;
+		__entry->node_seq		= IS_ERR_OR_NULL(f->b) ? 0 : f->b->c.lock.seq;
 		TRACE_BPOS_assign(pos, path->pos)
 	),
 
-	TP_printk("%s %pS btree %s pos %llu:%llu:%u locks_want %u -> %u",
+	TP_printk("%s %pS btree %s pos %llu:%llu:%u locks_want %u -> %u level %u path seq %u node seq %u",
 		  __entry->trans_fn,
 		  (void *) __entry->caller_ip,
-		  bch2_btree_ids[__entry->btree_id],
+		  bch2_btree_id_str(__entry->btree_id),
 		  __entry->pos_inode,
 		  __entry->pos_offset,
 		  __entry->pos_snapshot,
 		  __entry->old_locks_want,
-		  __entry->new_locks_want)
+		  __entry->new_locks_want,
+		  __entry->level,
+		  __entry->path_seq,
+		  __entry->node_seq)
 );
 
-DEFINE_EVENT(transaction_restart_iter,	trans_restart_relock,
-	TP_PROTO(struct btree_trans *trans,
-		 unsigned long caller_ip,
-		 struct btree_path *path),
-	TP_ARGS(trans, caller_ip, path)
+DEFINE_EVENT(trans_str,	trans_restart_relock,
+	TP_PROTO(struct btree_trans *trans, unsigned long caller_ip, const char *str),
+	TP_ARGS(trans, caller_ip, str)
 );
 
 DEFINE_EVENT(transaction_restart_iter,	trans_restart_relock_next_node,
@@ -1138,10 +1234,10 @@ DEFINE_EVENT(transaction_restart_iter,	trans_restart_memory_allocation_failure,
 	TP_ARGS(trans, caller_ip, path)
 );
 
-DEFINE_EVENT(transaction_event,	trans_restart_would_deadlock,
+DEFINE_EVENT(trans_str_nocaller, trans_restart_would_deadlock,
 	TP_PROTO(struct btree_trans *trans,
-		 unsigned long caller_ip),
-	TP_ARGS(trans, caller_ip)
+		 const char *cycle),
+	TP_ARGS(trans, cycle)
 );
 
 DEFINE_EVENT(transaction_event,	trans_restart_would_deadlock_recursion_limit,
@@ -1219,12 +1315,48 @@ TRACE_EVENT(trans_restart_key_cache_key_realloced,
 	TP_printk("%s %pS btree %s pos %llu:%llu:%u old_u64s %u new_u64s %u",
 		  __entry->trans_fn,
 		  (void *) __entry->caller_ip,
-		  bch2_btree_ids[__entry->btree_id],
+		  bch2_btree_id_str(__entry->btree_id),
 		  __entry->pos_inode,
 		  __entry->pos_offset,
 		  __entry->pos_snapshot,
 		  __entry->old_u64s,
 		  __entry->new_u64s)
+);
+
+TRACE_EVENT(path_downgrade,
+	TP_PROTO(struct btree_trans *trans,
+		 unsigned long caller_ip,
+		 struct btree_path *path,
+		 unsigned old_locks_want),
+	TP_ARGS(trans, caller_ip, path, old_locks_want),
+
+	TP_STRUCT__entry(
+		__array(char,			trans_fn, 32	)
+		__field(unsigned long,		caller_ip	)
+		__field(unsigned,		old_locks_want	)
+		__field(unsigned,		new_locks_want	)
+		__field(unsigned,		btree		)
+		TRACE_BPOS_entries(pos)
+	),
+
+	TP_fast_assign(
+		strscpy(__entry->trans_fn, trans->fn, sizeof(__entry->trans_fn));
+		__entry->caller_ip		= caller_ip;
+		__entry->old_locks_want		= old_locks_want;
+		__entry->new_locks_want		= path->locks_want;
+		__entry->btree			= path->btree_id;
+		TRACE_BPOS_assign(pos, path->pos);
+	),
+
+	TP_printk("%s %pS locks_want %u -> %u %s %llu:%llu:%u",
+		  __entry->trans_fn,
+		  (void *) __entry->caller_ip,
+		  __entry->old_locks_want,
+		  __entry->new_locks_want,
+		  bch2_btree_id_str(__entry->btree),
+		  __entry->pos_inode,
+		  __entry->pos_offset,
+		  __entry->pos_snapshot)
 );
 
 DEFINE_EVENT(transaction_event,	trans_restart_write_buffer_flush,
@@ -1255,21 +1387,67 @@ TRACE_EVENT(write_buffer_flush,
 		  __entry->nr, __entry->size, __entry->skipped, __entry->fast)
 );
 
-TRACE_EVENT(write_buffer_flush_slowpath,
-	TP_PROTO(struct btree_trans *trans, size_t nr, size_t size),
-	TP_ARGS(trans, nr, size),
+TRACE_EVENT(write_buffer_flush_sync,
+	TP_PROTO(struct btree_trans *trans, unsigned long caller_ip),
+	TP_ARGS(trans, caller_ip),
 
 	TP_STRUCT__entry(
-		__field(size_t,		nr		)
-		__field(size_t,		size		)
+		__array(char,			trans_fn, 32	)
+		__field(unsigned long,		caller_ip	)
 	),
 
 	TP_fast_assign(
-		__entry->nr	= nr;
-		__entry->size	= size;
+		strscpy(__entry->trans_fn, trans->fn, sizeof(__entry->trans_fn));
+		__entry->caller_ip		= caller_ip;
 	),
 
-	TP_printk("%zu/%zu", __entry->nr, __entry->size)
+	TP_printk("%s %pS", __entry->trans_fn, (void *) __entry->caller_ip)
+);
+
+TRACE_EVENT(write_buffer_flush_slowpath,
+	TP_PROTO(struct btree_trans *trans, size_t slowpath, size_t total),
+	TP_ARGS(trans, slowpath, total),
+
+	TP_STRUCT__entry(
+		__field(size_t,		slowpath	)
+		__field(size_t,		total		)
+	),
+
+	TP_fast_assign(
+		__entry->slowpath	= slowpath;
+		__entry->total		= total;
+	),
+
+	TP_printk("%zu/%zu", __entry->slowpath, __entry->total)
+);
+
+DEFINE_EVENT(fs_str, rebalance_extent,
+	TP_PROTO(struct bch_fs *c, const char *str),
+	TP_ARGS(c, str)
+);
+
+DEFINE_EVENT(fs_str, data_update,
+	TP_PROTO(struct bch_fs *c, const char *str),
+	TP_ARGS(c, str)
+);
+
+TRACE_EVENT(error_downcast,
+	TP_PROTO(int bch_err, int std_err, unsigned long ip),
+	TP_ARGS(bch_err, std_err, ip),
+
+	TP_STRUCT__entry(
+		__array(char,		bch_err, 32		)
+		__array(char,		std_err, 32		)
+		__array(char,		ip, 32			)
+	),
+
+	TP_fast_assign(
+		strscpy(__entry->bch_err, bch2_err_str(bch_err), sizeof(__entry->bch_err));
+		strscpy(__entry->std_err, bch2_err_str(std_err), sizeof(__entry->std_err));
+		snprintf(__entry->ip, sizeof(__entry->ip), "%ps", (void *) ip);
+	),
+
+	TP_printk("%s -> %s %s", __entry->bch_err, __entry->std_err, __entry->ip)
 );
 
 #endif /* _TRACE_BCACHEFS_H */

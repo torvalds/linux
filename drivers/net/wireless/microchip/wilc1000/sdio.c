@@ -106,9 +106,10 @@ static int wilc_sdio_cmd53(struct wilc *wilc, struct sdio_cmd53 *cmd)
 		size = cmd->count;
 
 	if (cmd->use_global_buf) {
-		if (size > sizeof(u32))
-			return -EINVAL;
-
+		if (size > sizeof(u32)) {
+			ret = -EINVAL;
+			goto out;
+		}
 		buf = sdio_priv->cmd53_buf;
 	}
 
@@ -123,7 +124,7 @@ static int wilc_sdio_cmd53(struct wilc *wilc, struct sdio_cmd53 *cmd)
 		if (cmd->use_global_buf)
 			memcpy(cmd->buffer, buf, size);
 	}
-
+out:
 	sdio_release_host(func);
 
 	if (ret)
@@ -980,7 +981,7 @@ static struct sdio_driver wilc_sdio_driver = {
 		.of_match_table = wilc_of_match,
 	}
 };
-module_driver(wilc_sdio_driver,
-	      sdio_register_driver,
-	      sdio_unregister_driver);
+module_sdio_driver(wilc_sdio_driver);
+
+MODULE_DESCRIPTION("Atmel WILC1000 SDIO wireless driver");
 MODULE_LICENSE("GPL");

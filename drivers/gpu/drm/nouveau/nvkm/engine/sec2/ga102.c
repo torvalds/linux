@@ -21,6 +21,7 @@
  */
 #include "priv.h"
 #include <subdev/acr.h>
+#include <subdev/gsp.h>
 #include <subdev/vfn.h>
 
 #include <nvfw/flcn.h>
@@ -193,5 +194,10 @@ ga102_sec2_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	/* TOP info wasn't updated on Turing to reflect the PRI
 	 * address change for some reason.  We override it here.
 	 */
-	return nvkm_sec2_new_(ga102_sec2_fwif, device, type, inst, 0x840000, psec2);
+	const u32 addr = 0x840000;
+
+	if (nvkm_gsp_rm(device->gsp))
+		return r535_sec2_new(&ga102_sec2, device, type, inst, addr, psec2);
+
+	return nvkm_sec2_new_(ga102_sec2_fwif, device, type, inst, addr, psec2);
 }

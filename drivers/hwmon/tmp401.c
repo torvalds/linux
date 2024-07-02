@@ -256,7 +256,7 @@ static int tmp401_reg_write(void *context, unsigned int reg, unsigned int val)
 static const struct regmap_config tmp401_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 16,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.volatile_reg = tmp401_regmap_is_volatile,
 	.reg_read = tmp401_reg_read,
 	.reg_write = tmp401_reg_write,

@@ -272,7 +272,7 @@
 		};
 	};
 
-	pinctrl_i2c1_gpio: i2c1-gpio {
+	pinctrl_i2c1_gpio: i2c1-gpio-grp {
 		mux {
 			groups = "gpio0_16_grp", "gpio0_17_grp";
 			function = "gpio0";

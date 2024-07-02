@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2023 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2024 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -872,7 +872,7 @@ __lpfc_nvme_xmt_ls_rsp(struct lpfc_async_xchg_ctx *axchg,
 	struct ulp_bde64 bpl;
 	int rc;
 
-	if (phba->pport->load_flag & FC_UNLOADING)
+	if (test_bit(FC_UNLOADING, &phba->pport->load_flag))
 		return -ENODEV;
 
 	lpfc_printf_log(phba, KERN_INFO, LOG_NVME_DISC,
@@ -984,7 +984,7 @@ lpfc_nvmet_xmt_ls_rsp(struct nvmet_fc_target_port *tgtport,
 	struct lpfc_nvmet_tgtport *nvmep = tgtport->private;
 	int rc;
 
-	if (axchg->phba->pport->load_flag & FC_UNLOADING)
+	if (test_bit(FC_UNLOADING, &axchg->phba->pport->load_flag))
 		return -ENODEV;
 
 	rc = __lpfc_nvme_xmt_ls_rsp(axchg, ls_rsp, lpfc_nvmet_xmt_ls_rsp_cmp);
@@ -1022,7 +1022,7 @@ lpfc_nvmet_xmt_fcp_op(struct nvmet_fc_target_port *tgtport,
 	int id;
 #endif
 
-	if (phba->pport->load_flag & FC_UNLOADING) {
+	if (test_bit(FC_UNLOADING, &phba->pport->load_flag)) {
 		rc = -ENODEV;
 		goto aerr;
 	}
@@ -1145,7 +1145,7 @@ lpfc_nvmet_xmt_fcp_abort(struct nvmet_fc_target_port *tgtport,
 	struct lpfc_queue *wq;
 	unsigned long flags;
 
-	if (phba->pport->load_flag & FC_UNLOADING)
+	if (test_bit(FC_UNLOADING, &phba->pport->load_flag))
 		return;
 
 	if (!ctxp->hdwq)
@@ -1317,7 +1317,7 @@ lpfc_nvmet_ls_req(struct nvmet_fc_target_port *targetport,
 		return -EINVAL;
 
 	phba = lpfc_nvmet->phba;
-	if (phba->pport->load_flag & FC_UNLOADING)
+	if (test_bit(FC_UNLOADING, &phba->pport->load_flag))
 		return -EINVAL;
 
 	hstate = atomic_read(&lpfc_nvmet->state);
@@ -1353,7 +1353,7 @@ lpfc_nvmet_ls_abort(struct nvmet_fc_target_port *targetport,
 	int ret;
 
 	phba = lpfc_nvmet->phba;
-	if (phba->pport->load_flag & FC_UNLOADING)
+	if (test_bit(FC_UNLOADING, &phba->pport->load_flag))
 		return;
 
 	ndlp = (struct lpfc_nodelist *)hosthandle;
@@ -1586,7 +1586,7 @@ lpfc_nvmet_setup_io_context(struct lpfc_hba *phba)
 		wqe = &nvmewqe->wqe;
 
 		/* Initialize WQE */
-		memset(wqe, 0, sizeof(union lpfc_wqe));
+		memset(wqe, 0, sizeof(*wqe));
 
 		ctx_buf->iocbq->cmd_dmabuf = NULL;
 		spin_lock(&phba->sli4_hba.sgl_list_lock);
@@ -1811,7 +1811,9 @@ lpfc_sli4_nvmet_xri_aborted(struct lpfc_hba *phba,
 		ctxp->flag &= ~LPFC_NVME_XBUSY;
 		spin_unlock_irqrestore(&ctxp->ctxlock, iflag);
 
+		spin_lock_irqsave(&phba->rrq_list_lock, iflag);
 		rrq_empty = list_empty(&phba->active_rrq_list);
+		spin_unlock_irqrestore(&phba->rrq_list_lock, iflag);
 		ndlp = lpfc_findnode_did(phba->pport, ctxp->sid);
 		if (ndlp &&
 		    (ndlp->nlp_state == NLP_STE_UNMAPPED_NODE ||
@@ -3393,14 +3395,12 @@ lpfc_nvmet_sol_fcp_issue_abort(struct lpfc_hba *phba,
 	/* If the hba is getting reset, this flag is set.  It is
 	 * cleared when the reset is complete and rings reestablished.
 	 */
-	spin_lock_irqsave(&phba->hbalock, flags);
 	/* driver queued commands are in process of being flushed */
-	if (phba->hba_flag & HBA_IOQ_FLUSH) {
-		spin_unlock_irqrestore(&phba->hbalock, flags);
+	if (test_bit(HBA_IOQ_FLUSH, &phba->hba_flag)) {
 		atomic_inc(&tgtp->xmt_abort_rsp_error);
 		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"6163 Driver in reset cleanup - flushing "
-				"NVME Req now. hba_flag x%x oxid x%x\n",
+				"NVME Req now. hba_flag x%lx oxid x%x\n",
 				phba->hba_flag, ctxp->oxid);
 		lpfc_sli_release_iocbq(phba, abts_wqeq);
 		spin_lock_irqsave(&ctxp->ctxlock, flags);
@@ -3409,6 +3409,7 @@ lpfc_nvmet_sol_fcp_issue_abort(struct lpfc_hba *phba,
 		return 0;
 	}
 
+	spin_lock_irqsave(&phba->hbalock, flags);
 	/* Outstanding abort is in progress */
 	if (abts_wqeq->cmd_flag & LPFC_DRIVER_ABORTED) {
 		spin_unlock_irqrestore(&phba->hbalock, flags);

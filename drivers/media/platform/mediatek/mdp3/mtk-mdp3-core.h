@@ -19,10 +19,22 @@
 #define MDP_PHANDLE_NAME	"mediatek,mdp3"
 
 enum mdp_infra_id {
+	/*
+	 * Due to the sequential nature of function "mdp_mm_subsys_deploy",
+	 * adding new enum. necessitates careful consideration.
+	 */
 	MDP_INFRA_MMSYS,
+	MDP_INFRA_MMSYS2,
 	MDP_INFRA_MUTEX,
+	MDP_INFRA_MUTEX2,
 	MDP_INFRA_SCP,
 	MDP_INFRA_MAX
+};
+
+enum mdp_mm_subsys_id {
+	MDP_MM_SUBSYS_0,
+	MDP_MM_SUBSYS_1,
+	MDP_MM_SUBSYS_MAX,
 };
 
 enum mdp_buffer_usage {
@@ -37,8 +49,16 @@ struct mdp_platform_config {
 	bool	rdma_support_10bit;
 	bool	rdma_rsz1_sram_sharing;
 	bool	rdma_upsample_repeat_only;
+	bool	rdma_esl_setting;
+	u32	rdma_event_num;
 	bool	rsz_disable_dcm_small_sample;
+	bool	rsz_etc_control;
 	bool	wrot_filter_constraint;
+	bool	wrot_support_10bit;
+	u32	wrot_event_num;
+	u32	tdshp_hist_num;
+	bool	tdshp_constrain;
+	bool	tdshp_contour;
 };
 
 /* indicate which mutex is used by each pipepline */
@@ -47,11 +67,27 @@ enum mdp_pipe_id {
 	MDP_PIPE_WPEI2,
 	MDP_PIPE_IMGI,
 	MDP_PIPE_RDMA0,
+	MDP_PIPE_RDMA1,
+	MDP_PIPE_RDMA2,
+	MDP_PIPE_RDMA3,
+	MDP_PIPE_SPLIT,
+	MDP_PIPE_SPLIT2,
+	MDP_PIPE_VPP0_SOUT,
+	MDP_PIPE_VPP1_SOUT,
 	MDP_PIPE_MAX
 };
 
+/* MDP parallel pipe control */
+enum {
+	MDP_PP_USED_1 = 1,
+	MDP_PP_USED_2 = 2,
+};
+
+#define MDP_PP_MAX MDP_PP_USED_2
+
 struct mtk_mdp_driver_data {
 	const int mdp_plat_id;
+	const resource_size_t mdp_con_res;
 	const struct of_device_id *mdp_probe_infra;
 	const struct mdp_platform_config *mdp_cfg;
 	const u32 *mdp_mutex_table_idx;
@@ -63,12 +99,19 @@ struct mtk_mdp_driver_data {
 	const struct mdp_limit *def_limit;
 	const struct mdp_pipe_info *pipe_info;
 	unsigned int pipe_info_len;
+	const struct v4l2_rect *pp_criteria;
+	const u8 pp_used;
+};
+
+struct mdp_mm_subsys {
+	struct device *mmsys;
+	struct device *mutex;
+	struct mtk_mutex *mdp_mutex[MDP_PIPE_MAX];
 };
 
 struct mdp_dev {
 	struct platform_device			*pdev;
-	struct device				*mdp_mmsys;
-	struct mtk_mutex			*mdp_mutex[MDP_PIPE_MAX];
+	struct mdp_mm_subsys			mm_subsys[MDP_MM_SUBSYS_MAX];
 	struct mdp_comp				*comp[MDP_MAX_COMP_COUNT];
 	const struct mtk_mdp_driver_data	*mdp_data;
 
@@ -82,7 +125,7 @@ struct mdp_dev {
 	s32					vpu_count;
 	u32					id_count;
 	struct ida				mdp_ida;
-	struct cmdq_client			*cmdq_clt;
+	struct cmdq_client			*cmdq_clt[MDP_PP_MAX];
 	wait_queue_head_t			callback_wq;
 
 	struct v4l2_device			v4l2_dev;
@@ -96,6 +139,7 @@ struct mdp_dev {
 
 struct mdp_pipe_info {
 	enum mdp_pipe_id pipe_id;
+	enum mdp_mm_subsys_id sub_id;
 	u32 mutex_id;
 };
 

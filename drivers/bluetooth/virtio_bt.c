@@ -274,7 +274,6 @@ static int virtbt_probe(struct virtio_device *vdev)
 
 	switch (type) {
 	case VIRTIO_BT_CONFIG_TYPE_PRIMARY:
-	case VIRTIO_BT_CONFIG_TYPE_AMP:
 		break;
 	default:
 		return -EINVAL;
@@ -303,7 +302,6 @@ static int virtbt_probe(struct virtio_device *vdev)
 	vbt->hdev = hdev;
 
 	hdev->bus = HCI_VIRTIO;
-	hdev->dev_type = type;
 	hci_set_drvdata(hdev, vbt);
 
 	hdev->open  = virtbt_open;

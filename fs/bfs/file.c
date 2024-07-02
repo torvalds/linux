@@ -11,6 +11,7 @@
  */
 
 #include <linux/fs.h>
+#include <linux/mpage.h>
 #include <linux/buffer_head.h>
 #include "bfs.h"
 
@@ -150,9 +151,10 @@ out:
 	return err;
 }
 
-static int bfs_writepage(struct page *page, struct writeback_control *wbc)
+static int bfs_writepages(struct address_space *mapping,
+		struct writeback_control *wbc)
 {
-	return block_write_full_page(page, bfs_get_block, wbc);
+	return mpage_writepages(mapping, wbc, bfs_get_block);
 }
 
 static int bfs_read_folio(struct file *file, struct folio *folio)
@@ -190,9 +192,10 @@ const struct address_space_operations bfs_aops = {
 	.dirty_folio	= block_dirty_folio,
 	.invalidate_folio = block_invalidate_folio,
 	.read_folio	= bfs_read_folio,
-	.writepage	= bfs_writepage,
+	.writepages	= bfs_writepages,
 	.write_begin	= bfs_write_begin,
 	.write_end	= generic_write_end,
+	.migrate_folio	= buffer_migrate_folio,
 	.bmap		= bfs_bmap,
 };
 

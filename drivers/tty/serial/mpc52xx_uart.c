@@ -1096,14 +1096,14 @@ static void
 mpc52xx_uart_break_ctl(struct uart_port *port, int ctl)
 {
 	unsigned long flags;
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	if (ctl == -1)
 		psc_ops->command(port, MPC52xx_PSC_START_BRK);
 	else
 		psc_ops->command(port, MPC52xx_PSC_STOP_BRK);
 
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 }
 
 static int
@@ -1214,7 +1214,7 @@ mpc52xx_uart_set_termios(struct uart_port *port, struct ktermios *new,
 	}
 
 	/* Get the lock */
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	/* Do our best to flush TX & RX, so we don't lose anything */
 	/* But we don't wait indefinitely ! */
@@ -1250,7 +1250,7 @@ mpc52xx_uart_set_termios(struct uart_port *port, struct ktermios *new,
 	psc_ops->command(port, MPC52xx_PSC_RX_ENABLE);
 
 	/* We're all set, release the lock */
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 }
 
 static const char *
@@ -1477,11 +1477,11 @@ mpc52xx_uart_int(int irq, void *dev_id)
 	struct uart_port *port = dev_id;
 	irqreturn_t ret;
 
-	spin_lock(&port->lock);
+	uart_port_lock(port);
 
 	ret = psc_ops->handle_irq(port);
 
-	spin_unlock(&port->lock);
+	uart_port_unlock(port);
 
 	return ret;
 }
@@ -1765,15 +1765,12 @@ static int mpc52xx_uart_of_probe(struct platform_device *op)
 	return 0;
 }
 
-static int
-mpc52xx_uart_of_remove(struct platform_device *op)
+static void mpc52xx_uart_of_remove(struct platform_device *op)
 {
 	struct uart_port *port = platform_get_drvdata(op);
 
 	if (port)
 		uart_remove_one_port(&mpc52xx_uart_driver, port);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -1846,7 +1843,7 @@ MODULE_DEVICE_TABLE(of, mpc52xx_uart_of_match);
 
 static struct platform_driver mpc52xx_uart_of_driver = {
 	.probe		= mpc52xx_uart_of_probe,
-	.remove		= mpc52xx_uart_of_remove,
+	.remove_new	= mpc52xx_uart_of_remove,
 #ifdef CONFIG_PM
 	.suspend	= mpc52xx_uart_of_suspend,
 	.resume		= mpc52xx_uart_of_resume,

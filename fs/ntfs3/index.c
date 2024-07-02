@@ -1456,13 +1456,13 @@ static int indx_create_allocate(struct ntfs_index *indx, struct ntfs_inode *ni,
 
 	alloc->nres.valid_size = alloc->nres.data_size = cpu_to_le64(data_size);
 
-	err = ni_insert_resident(ni, bitmap_size(1), ATTR_BITMAP, in->name,
-				 in->name_len, &bitmap, NULL, NULL);
+	err = ni_insert_resident(ni, ntfs3_bitmap_size(1), ATTR_BITMAP,
+				 in->name, in->name_len, &bitmap, NULL, NULL);
 	if (err)
 		goto out2;
 
 	if (in->name == I30_NAME) {
-		ni->vfs_inode.i_size = data_size;
+		i_size_write(&ni->vfs_inode, data_size);
 		inode_set_bytes(&ni->vfs_inode, alloc_size);
 	}
 
@@ -1518,8 +1518,9 @@ static int indx_add_allocate(struct ntfs_index *indx, struct ntfs_inode *ni,
 	if (bmp) {
 		/* Increase bitmap. */
 		err = attr_set_size(ni, ATTR_BITMAP, in->name, in->name_len,
-				    &indx->bitmap_run, bitmap_size(bit + 1),
-				    NULL, true, NULL);
+				    &indx->bitmap_run,
+				    ntfs3_bitmap_size(bit + 1), NULL, true,
+				    NULL);
 		if (err)
 			goto out1;
 	}
@@ -1544,7 +1545,7 @@ static int indx_add_allocate(struct ntfs_index *indx, struct ntfs_inode *ni,
 	}
 
 	if (in->name == I30_NAME)
-		ni->vfs_inode.i_size = data_size;
+		i_size_write(&ni->vfs_inode, data_size);
 
 	*vbn = bit << indx->idx2vbn_bits;
 
@@ -2090,9 +2091,9 @@ static int indx_shrink(struct ntfs_index *indx, struct ntfs_inode *ni,
 		return err;
 
 	if (in->name == I30_NAME)
-		ni->vfs_inode.i_size = new_data;
+		i_size_write(&ni->vfs_inode, new_data);
 
-	bpb = bitmap_size(bit);
+	bpb = ntfs3_bitmap_size(bit);
 	if (bpb * 8 == nbits)
 		return 0;
 
@@ -2576,7 +2577,7 @@ int indx_delete_entry(struct ntfs_index *indx, struct ntfs_inode *ni,
 		err = attr_set_size(ni, ATTR_ALLOC, in->name, in->name_len,
 				    &indx->alloc_run, 0, NULL, false, NULL);
 		if (in->name == I30_NAME)
-			ni->vfs_inode.i_size = 0;
+			i_size_write(&ni->vfs_inode, 0);
 
 		err = ni_remove_attr(ni, ATTR_ALLOC, in->name, in->name_len,
 				     false, NULL);

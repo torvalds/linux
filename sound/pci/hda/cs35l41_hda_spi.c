@@ -26,7 +26,7 @@ static int cs35l41_hda_spi_probe(struct spi_device *spi)
 		return -ENODEV;
 
 	return cs35l41_hda_probe(&spi->dev, device_name, spi_get_chipselect(spi, 0), spi->irq,
-				 devm_regmap_init_spi(spi, &cs35l41_regmap_spi));
+				 devm_regmap_init_spi(spi, &cs35l41_regmap_spi), SPI);
 }
 
 static void cs35l41_hda_spi_remove(struct spi_device *spi)

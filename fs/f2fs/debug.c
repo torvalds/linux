@@ -41,7 +41,7 @@ void f2fs_update_sit_info(struct f2fs_sb_info *sbi)
 	total_vblocks = 0;
 	blks_per_sec = CAP_BLKS_PER_SEC(sbi);
 	hblks_per_sec = blks_per_sec / 2;
-	for (segno = 0; segno < MAIN_SEGS(sbi); segno += sbi->segs_per_sec) {
+	for (segno = 0; segno < MAIN_SEGS(sbi); segno += SEGS_PER_SEC(sbi)) {
 		vblocks = get_valid_blocks(sbi, segno, true);
 		dist = abs(vblocks - hblks_per_sec);
 		bimodal += dist * dist;
@@ -135,7 +135,7 @@ static void update_general_status(struct f2fs_sb_info *sbi)
 	si->cur_ckpt_time = sbi->cprc_info.cur_time;
 	si->peak_ckpt_time = sbi->cprc_info.peak_time;
 	spin_unlock(&sbi->cprc_info.stat_lock);
-	si->total_count = (int)sbi->user_block_count / sbi->blocks_per_seg;
+	si->total_count = BLKS_TO_SEGS(sbi, (int)sbi->user_block_count);
 	si->rsvd_segs = reserved_segments(sbi);
 	si->overp_segs = overprovision_segments(sbi);
 	si->valid_count = valid_user_blocks(sbi);
@@ -176,11 +176,10 @@ static void update_general_status(struct f2fs_sb_info *sbi)
 	si->alloc_nids = NM_I(sbi)->nid_cnt[PREALLOC_NID];
 	si->io_skip_bggc = sbi->io_skip_bggc;
 	si->other_skip_bggc = sbi->other_skip_bggc;
-	si->util_free = (int)(free_user_blocks(sbi) >> sbi->log_blocks_per_seg)
+	si->util_free = (int)(BLKS_TO_SEGS(sbi, free_user_blocks(sbi)))
 		* 100 / (int)(sbi->user_block_count >> sbi->log_blocks_per_seg)
 		/ 2;
-	si->util_valid = (int)(written_block_count(sbi) >>
-						sbi->log_blocks_per_seg)
+	si->util_valid = (int)(BLKS_TO_SEGS(sbi, written_block_count(sbi)))
 		* 100 / (int)(sbi->user_block_count >> sbi->log_blocks_per_seg)
 		/ 2;
 	si->util_invalid = 50 - si->util_free - si->util_valid;
@@ -208,7 +207,7 @@ static void update_general_status(struct f2fs_sb_info *sbi)
 		if (!blks)
 			continue;
 
-		if (blks == sbi->blocks_per_seg)
+		if (blks == BLKS_PER_SEG(sbi))
 			si->full_seg[type]++;
 		else
 			si->dirty_seg[type]++;

@@ -61,6 +61,8 @@ Storage interfaces
    scsi/index
    target/index
 
+Other subsystems
+----------------
 **Fixme**: much more organizational work is needed here.
 
 .. toctree::
@@ -86,3 +88,4 @@ Storage interfaces
    misc-devices/index
    peci/index
    wmi/index
+   tee/index

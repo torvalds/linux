@@ -79,6 +79,7 @@ static struct vfsmount *shm_mnt __ro_after_init;
 #include <linux/rmap.h>
 #include <linux/uuid.h>
 #include <linux/quotaops.h>
+#include <linux/rcupdate_wait.h>
 
 #include <linux/uaccess.h>
 
@@ -253,7 +254,7 @@ static void shmem_inode_unacct_blocks(struct inode *inode, long pages)
 }
 
 static const struct super_operations shmem_ops;
-const struct address_space_operations shmem_aops;
+static const struct address_space_operations shmem_aops;
 static const struct file_operations shmem_file_operations;
 static const struct inode_operations shmem_inode_operations;
 static const struct inode_operations shmem_dir_inode_operations;
@@ -261,6 +262,12 @@ static const struct inode_operations shmem_special_inode_operations;
 static const struct vm_operations_struct shmem_vm_ops;
 static const struct vm_operations_struct shmem_anon_vm_ops;
 static struct file_system_type shmem_fs_type;
+
+bool shmem_mapping(struct address_space *mapping)
+{
+	return mapping->a_ops == &shmem_aops;
+}
+EXPORT_SYMBOL_GPL(shmem_mapping);
 
 bool vma_is_anon_shmem(struct vm_area_struct *vma)
 {
@@ -310,7 +317,7 @@ static void shmem_disable_quotas(struct super_block *sb)
 		dquot_quota_off(sb, type);
 }
 
-static struct dquot **shmem_get_dquots(struct inode *inode)
+static struct dquot __rcu **shmem_get_dquots(struct inode *inode)
 {
 	return SHMEM_I(inode)->i_dquot;
 }
@@ -741,12 +748,6 @@ static long shmem_unused_huge_count(struct super_block *sb,
 
 #define shmem_huge SHMEM_HUGE_DENY
 
-bool shmem_is_huge(struct inode *inode, pgoff_t index, bool shmem_huge_force,
-		   struct mm_struct *mm, unsigned long vm_flags)
-{
-	return false;
-}
-
 static unsigned long shmem_unused_huge_shrink(struct shmem_sb_info *sbinfo,
 		struct shrink_control *sc, unsigned long nr_to_split)
 {
@@ -1080,7 +1081,24 @@ whole_folios:
 				}
 				VM_BUG_ON_FOLIO(folio_test_writeback(folio),
 						folio);
-				truncate_inode_folio(mapping, folio);
+
+				if (!folio_test_large(folio)) {
+					truncate_inode_folio(mapping, folio);
+				} else if (truncate_inode_partial_folio(folio, lstart, lend)) {
+					/*
+					 * If we split a page, reset the loop so
+					 * that we pick up the new sub pages.
+					 * Otherwise the THP was entirely
+					 * dropped or the target range was
+					 * zeroed, so just continue the loop as
+					 * is.
+					 */
+					if (!folio_test_large(folio)) {
+						folio_unlock(folio);
+						index = start;
+						break;
+					}
+				}
 			}
 			folio_unlock(folio);
 		}
@@ -1497,8 +1515,7 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
 
 		mutex_unlock(&shmem_swaplist_mutex);
 		BUG_ON(folio_mapped(folio));
-		swap_writepage(&folio->page, wbc);
-		return 0;
+		return swap_writepage(&folio->page, wbc);
 	}
 
 	mutex_unlock(&shmem_swaplist_mutex);
@@ -1553,15 +1570,13 @@ static struct folio *shmem_swapin_cluster(swp_entry_t swap, gfp_t gfp,
 {
 	struct mempolicy *mpol;
 	pgoff_t ilx;
-	struct page *page;
+	struct folio *folio;
 
 	mpol = shmem_get_pgoff_policy(info, index, 0, &ilx);
-	page = swap_cluster_readahead(swap, gfp, mpol, ilx);
+	folio = swap_cluster_readahead(swap, gfp, mpol, ilx);
 	mpol_cond_put(mpol);
 
-	if (!page)
-		return NULL;
-	return page_folio(page);
+	return folio;
 }
 
 /*
@@ -1951,6 +1966,9 @@ static int shmem_get_folio_gfp(struct inode *inode, pgoff_t index,
 	int error;
 	bool alloced;
 
+	if (WARN_ON_ONCE(!shmem_mapping(inode->i_mapping)))
+		return -EINVAL;
+
 	if (index > (MAX_LFS_FILESIZE >> PAGE_SHIFT))
 		return -EFBIG;
 repeat:
@@ -2113,12 +2131,36 @@ unlock:
 	return error;
 }
 
+/**
+ * shmem_get_folio - find, and lock a shmem folio.
+ * @inode:	inode to search
+ * @index:	the page index.
+ * @foliop:	pointer to the folio if found
+ * @sgp:	SGP_* flags to control behavior
+ *
+ * Looks up the page cache entry at @inode & @index.  If a folio is
+ * present, it is returned locked with an increased refcount.
+ *
+ * If the caller modifies data in the folio, it must call folio_mark_dirty()
+ * before unlocking the folio to ensure that the folio is not reclaimed.
+ * There is no need to reserve space before calling folio_mark_dirty().
+ *
+ * When no folio is found, the behavior depends on @sgp:
+ *  - for SGP_READ, *@foliop is %NULL and 0 is returned
+ *  - for SGP_NOALLOC, *@foliop is %NULL and -ENOENT is returned
+ *  - for all other flags a new folio is allocated, inserted into the
+ *    page cache and returned locked in @foliop.
+ *
+ * Context: May sleep.
+ * Return: 0 if successful, else a negative error code.
+ */
 int shmem_get_folio(struct inode *inode, pgoff_t index, struct folio **foliop,
 		enum sgp_type sgp)
 {
 	return shmem_get_folio_gfp(inode, index, foliop, sgp,
 			mapping_gfp_mask(inode->i_mapping), NULL, NULL);
 }
+EXPORT_SYMBOL_GPL(shmem_get_folio);
 
 /*
  * This is like autoremove_wake_function, but it removes the wait queue
@@ -3359,7 +3401,7 @@ static int shmem_unlink(struct inode *dir, struct dentry *dentry)
 
 static int shmem_rmdir(struct inode *dir, struct dentry *dentry)
 {
-	if (!simple_empty(dentry))
+	if (!simple_offset_empty(dentry))
 		return -ENOTEMPTY;
 
 	drop_nlink(d_inode(dentry));
@@ -3416,7 +3458,7 @@ static int shmem_rename2(struct mnt_idmap *idmap,
 		return simple_offset_rename_exchange(old_dir, old_dentry,
 						     new_dir, new_dentry);
 
-	if (!simple_empty(new_dentry))
+	if (!simple_offset_empty(new_dentry))
 		return -ENOTEMPTY;
 
 	if (flags & RENAME_WHITEOUT) {
@@ -3425,8 +3467,7 @@ static int shmem_rename2(struct mnt_idmap *idmap,
 			return error;
 	}
 
-	simple_offset_remove(shmem_get_offset_ctx(old_dir), old_dentry);
-	error = simple_offset_add(shmem_get_offset_ctx(new_dir), old_dentry);
+	error = simple_offset_rename(old_dir, old_dentry, new_dir, new_dentry);
 	if (error)
 		return error;
 
@@ -3485,10 +3526,10 @@ static int shmem_symlink(struct mnt_idmap *idmap, struct inode *dir,
 		inode->i_op = &shmem_short_symlink_operations;
 	} else {
 		inode_nohighmem(inode);
+		inode->i_mapping->a_ops = &shmem_aops;
 		error = shmem_get_folio(inode, 0, &folio, SGP_WRITE);
 		if (error)
 			goto out_remove_offset;
-		inode->i_mapping->a_ops = &shmem_aops;
 		inode->i_op = &shmem_symlink_inode_operations;
 		memcpy(folio_address(folio), symname, len);
 		folio_mark_uptodate(folio);
@@ -4250,6 +4291,24 @@ static int shmem_show_options(struct seq_file *seq, struct dentry *root)
 	mpol_put(mpol);
 	if (sbinfo->noswap)
 		seq_printf(seq, ",noswap");
+#ifdef CONFIG_TMPFS_QUOTA
+	if (sb_has_quota_active(root->d_sb, USRQUOTA))
+		seq_printf(seq, ",usrquota");
+	if (sb_has_quota_active(root->d_sb, GRPQUOTA))
+		seq_printf(seq, ",grpquota");
+	if (sbinfo->qlimits.usrquota_bhardlimit)
+		seq_printf(seq, ",usrquota_block_hardlimit=%lld",
+			   sbinfo->qlimits.usrquota_bhardlimit);
+	if (sbinfo->qlimits.grpquota_bhardlimit)
+		seq_printf(seq, ",grpquota_block_hardlimit=%lld",
+			   sbinfo->qlimits.grpquota_bhardlimit);
+	if (sbinfo->qlimits.usrquota_ihardlimit)
+		seq_printf(seq, ",usrquota_inode_hardlimit=%lld",
+			   sbinfo->qlimits.usrquota_ihardlimit);
+	if (sbinfo->qlimits.grpquota_ihardlimit)
+		seq_printf(seq, ",grpquota_inode_hardlimit=%lld",
+			   sbinfo->qlimits.grpquota_ihardlimit);
+#endif
 	return 0;
 }
 
@@ -4340,7 +4399,9 @@ static int shmem_fill_super(struct super_block *sb, struct fs_context *fc)
 #ifdef CONFIG_TMPFS_POSIX_ACL
 	sb->s_flags |= SB_POSIXACL;
 #endif
-	uuid_gen(&sb->s_uuid);
+	uuid_t uuid;
+	uuid_gen(&uuid);
+	super_set_uuid(sb, uuid.b, sizeof(uuid));
 
 #ifdef CONFIG_TMPFS_QUOTA
 	if (ctx->seen & SHMEM_SEEN_QUOTA) {
@@ -4445,13 +4506,13 @@ static void __init shmem_destroy_inodecache(void)
 }
 
 /* Keep the page in page cache instead of truncating it */
-static int shmem_error_remove_page(struct address_space *mapping,
-				   struct page *page)
+static int shmem_error_remove_folio(struct address_space *mapping,
+				   struct folio *folio)
 {
 	return 0;
 }
 
-const struct address_space_operations shmem_aops = {
+static const struct address_space_operations shmem_aops = {
 	.writepage	= shmem_writepage,
 	.dirty_folio	= noop_dirty_folio,
 #ifdef CONFIG_TMPFS
@@ -4461,9 +4522,8 @@ const struct address_space_operations shmem_aops = {
 #ifdef CONFIG_MIGRATION
 	.migrate_folio	= migrate_folio,
 #endif
-	.error_remove_page = shmem_error_remove_page,
+	.error_remove_folio = shmem_error_remove_folio,
 };
-EXPORT_SYMBOL(shmem_aops);
 
 static const struct file_operations shmem_file_operations = {
 	.mmap		= shmem_mmap,
@@ -4818,6 +4878,7 @@ struct file *shmem_kernel_file_setup(const char *name, loff_t size, unsigned lon
 {
 	return __shmem_file_setup(shm_mnt, name, size, flags, S_PRIVATE);
 }
+EXPORT_SYMBOL_GPL(shmem_kernel_file_setup);
 
 /**
  * shmem_file_setup - get an unlinked file living in tmpfs
@@ -4895,7 +4956,6 @@ struct folio *shmem_read_folio_gfp(struct address_space *mapping,
 	struct folio *folio;
 	int error;
 
-	BUG_ON(!shmem_mapping(mapping));
 	error = shmem_get_folio_gfp(inode, index, &folio, SGP_CACHE,
 				    gfp, NULL, NULL);
 	if (error)

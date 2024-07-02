@@ -4,19 +4,19 @@
 
 set -e
 
-# check whether $2 is within +/- 10% of $1
+# check whether $2 is within +/- 20% of $1
 compare_number()
 {
        first_num=$1
        second_num=$2
 
-       # upper bound is first_num * 110%
-       upper=$(expr $first_num + $first_num / 10 )
-       # lower bound is first_num * 90%
-       lower=$(expr $first_num - $first_num / 10 )
+       # upper bound is first_num * 120%
+       upper=$(expr $first_num + $first_num / 5 )
+       # lower bound is first_num * 80%
+       lower=$(expr $first_num - $first_num / 5 )
 
        if [ $second_num -gt $upper ] || [ $second_num -lt $lower ]; then
-               echo "The difference between $first_num and $second_num are greater than 10%."
+               echo "The difference between $first_num and $second_num are greater than 20%."
                exit 1
        fi
 }

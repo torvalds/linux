@@ -69,6 +69,7 @@ struct rt722_sdca_dmic_kctrl_priv {
 #define RT722_COMBO_JACK_AUTO_CTL2		0x46
 #define RT722_COMBO_JACK_AUTO_CTL3		0x47
 #define RT722_DIGITAL_MISC_CTRL4		0x4a
+#define RT722_VREFO_GAT				0x63
 #define RT722_FSM_CTL				0x67
 #define RT722_SDCA_INTR_REC			0x82
 #define RT722_SW_CONFIG1			0x8a
@@ -127,6 +128,8 @@ struct rt722_sdca_dmic_kctrl_priv {
 #define RT722_UMP_HID_CTL6			0x66
 #define RT722_UMP_HID_CTL7			0x67
 #define RT722_UMP_HID_CTL8			0x68
+#define RT722_FLOAT_CTRL_1			0x70
+#define RT722_ENT_FLOAT_CTRL_1		0x76
 
 /* Parameter & Verb control 01 (0x1a)(NID:20h) */
 #define RT722_HIDDEN_REG_SW_RESET (0x1 << 14)

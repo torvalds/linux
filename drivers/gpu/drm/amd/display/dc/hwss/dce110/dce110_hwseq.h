@@ -39,6 +39,10 @@ enum dc_status dce110_apply_ctx_to_hw(
 		struct dc *dc,
 		struct dc_state *context);
 
+enum dc_status dce110_apply_single_controller_ctx_to_hw(
+		struct pipe_ctx *pipe_ctx,
+		struct dc_state *context,
+		struct dc *dc);
 
 void dce110_enable_stream(struct pipe_ctx *pipe_ctx);
 

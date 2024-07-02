@@ -165,6 +165,19 @@ config APPLE_MFI_FASTCHARGE
 
 	  It is safe to say M here.
 
+config USB_LJCA
+	tristate "Intel La Jolla Cove Adapter support"
+	select AUXILIARY_BUS
+	depends on USB && ACPI
+	help
+	  This adds support for Intel La Jolla Cove USB-I2C/SPI/GPIO
+	  Master Adapter (LJCA). Additional drivers such as I2C_LJCA,
+	  GPIO_LJCA and SPI_LJCA must be enabled in order to use the
+	  functionality of the device.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called usb-ljca.
+
 source "drivers/usb/misc/sisusbvga/Kconfig"
 
 config USB_LD

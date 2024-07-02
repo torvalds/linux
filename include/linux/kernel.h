@@ -13,6 +13,7 @@
 
 #include <linux/stdarg.h>
 #include <linux/align.h>
+#include <linux/array_size.h>
 #include <linux/limits.h>
 #include <linux/linkage.h>
 #include <linux/stddef.h>
@@ -32,29 +33,17 @@
 #include <linux/sprintf.h>
 #include <linux/static_call_types.h>
 #include <linux/instruction_pointer.h>
+#include <linux/wordpart.h>
+
 #include <asm/byteorder.h>
 
 #include <uapi/linux/kernel.h>
 
 #define STACK_MAGIC	0xdeadbeef
 
-/**
- * REPEAT_BYTE - repeat the value @x multiple times as an unsigned long value
- * @x: value to repeat
- *
- * NOTE: @x is not checked for > 0xff; larger values produce odd results.
- */
-#define REPEAT_BYTE(x)	((~0ul / 0xff) * (x))
-
 /* generic data direction definitions */
 #define READ			0
 #define WRITE			1
-
-/**
- * ARRAY_SIZE - get the number of elements in array @arr
- * @arr: array to be sized
- */
-#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]) + __must_be_array(arr))
 
 #define PTR_IF(cond, ptr)	((cond) ? (ptr) : NULL)
 
@@ -64,34 +53,6 @@
 	(void __user *)(uintptr_t)(x);	\
 }					\
 )
-
-/**
- * upper_32_bits - return bits 32-63 of a number
- * @n: the number we're accessing
- *
- * A basic shift-right of a 64- or 32-bit quantity.  Use this to suppress
- * the "right shift count >= width of type" warning when that quantity is
- * 32-bits.
- */
-#define upper_32_bits(n) ((u32)(((n) >> 16) >> 16))
-
-/**
- * lower_32_bits - return bits 0-31 of a number
- * @n: the number we're accessing
- */
-#define lower_32_bits(n) ((u32)((n) & 0xffffffff))
-
-/**
- * upper_16_bits - return bits 16-31 of a number
- * @n: the number we're accessing
- */
-#define upper_16_bits(n) ((u16)((n) >> 16))
-
-/**
- * lower_16_bits - return bits 0-15 of a number
- * @n: the number we're accessing
- */
-#define lower_16_bits(n) ((u16)((n) & 0xffff))
 
 struct completion;
 struct user;
@@ -204,12 +165,6 @@ static inline void might_fault(void) { }
 
 void do_exit(long error_code) __noreturn;
 
-extern int get_option(char **str, int *pint);
-extern char *get_options(const char *str, int nints, int *ints);
-extern unsigned long long memparse(const char *ptr, char **retptr);
-extern bool parse_option_str(const char *str, const char *option);
-extern char *next_arg(char *args, char **param, char **val);
-
 extern int core_kernel_text(unsigned long addr);
 extern int __kernel_text_address(unsigned long addr);
 extern int kernel_text_address(unsigned long addr);
@@ -260,6 +215,7 @@ enum ftrace_dump_mode {
 	DUMP_NONE,
 	DUMP_ALL,
 	DUMP_ORIG,
+	DUMP_PARAM,
 };
 
 #ifdef CONFIG_TRACING

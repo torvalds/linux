@@ -76,7 +76,7 @@ xchk_inobt_xref_finobt(
 	int			has_record;
 	int			error;
 
-	ASSERT(cur->bc_btnum == XFS_BTNUM_FINO);
+	ASSERT(xfs_btree_is_fino(cur->bc_ops));
 
 	error = xfs_inobt_lookup(cur, agino, XFS_LOOKUP_LE, &has_record);
 	if (error)
@@ -179,7 +179,7 @@ xchk_finobt_xref_inobt(
 	int			has_record;
 	int			error;
 
-	ASSERT(cur->bc_btnum == XFS_BTNUM_INO);
+	ASSERT(xfs_btree_is_ino(cur->bc_ops));
 
 	error = xfs_inobt_lookup(cur, agino, XFS_LOOKUP_LE, &has_record);
 	if (error)
@@ -514,7 +514,7 @@ xchk_iallocbt_rec_alignment(
 	 * Otherwise, we expect that the finobt record is aligned to the
 	 * cluster alignment as told by the superblock.
 	 */
-	if (bs->cur->bc_btnum == XFS_BTNUM_FINO) {
+	if (xfs_btree_is_fino(bs->cur->bc_ops)) {
 		unsigned int	imask;
 
 		imask = min_t(unsigned int, XFS_INODES_PER_CHUNK,
@@ -585,7 +585,7 @@ xchk_iallocbt_rec(
 	uint16_t			holemask;
 
 	xfs_inobt_btrec_to_irec(mp, rec, &irec);
-	if (xfs_inobt_check_irec(bs->cur, &irec) != NULL) {
+	if (xfs_inobt_check_irec(bs->cur->bc_ag.pag, &irec) != NULL) {
 		xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
 		return 0;
 	}
@@ -649,8 +649,7 @@ out:
  */
 STATIC void
 xchk_iallocbt_xref_rmap_btreeblks(
-	struct xfs_scrub	*sc,
-	int			which)
+	struct xfs_scrub	*sc)
 {
 	xfs_filblks_t		blocks;
 	xfs_extlen_t		inobt_blocks = 0;
@@ -688,7 +687,6 @@ xchk_iallocbt_xref_rmap_btreeblks(
 STATIC void
 xchk_iallocbt_xref_rmap_inodes(
 	struct xfs_scrub	*sc,
-	int			which,
 	unsigned long long	inodes)
 {
 	xfs_filblks_t		blocks;
@@ -708,11 +706,10 @@ xchk_iallocbt_xref_rmap_inodes(
 		xchk_btree_xref_set_corrupt(sc, sc->sa.rmap_cur, 0);
 }
 
-/* Scrub the inode btrees for some AG. */
-STATIC int
+/* Scrub one of the inode btrees for some AG. */
+int
 xchk_iallocbt(
-	struct xfs_scrub	*sc,
-	xfs_btnum_t		which)
+	struct xfs_scrub	*sc)
 {
 	struct xfs_btree_cur	*cur;
 	struct xchk_iallocbt	iabt = {
@@ -722,13 +719,24 @@ xchk_iallocbt(
 	};
 	int			error;
 
-	cur = which == XFS_BTNUM_INO ? sc->sa.ino_cur : sc->sa.fino_cur;
+	switch (sc->sm->sm_type) {
+	case XFS_SCRUB_TYPE_INOBT:
+		cur = sc->sa.ino_cur;
+		break;
+	case XFS_SCRUB_TYPE_FINOBT:
+		cur = sc->sa.fino_cur;
+		break;
+	default:
+		ASSERT(0);
+		return -EIO;
+	}
+
 	error = xchk_btree(sc, cur, xchk_iallocbt_rec, &XFS_RMAP_OINFO_INOBT,
 			&iabt);
 	if (error)
 		return error;
 
-	xchk_iallocbt_xref_rmap_btreeblks(sc, which);
+	xchk_iallocbt_xref_rmap_btreeblks(sc);
 
 	/*
 	 * If we're scrubbing the inode btree, inode_blocks is the number of
@@ -737,24 +745,9 @@ xchk_iallocbt(
 	 * knows about.  We can't do this for the finobt since it only points
 	 * to inode chunks with free inodes.
 	 */
-	if (which == XFS_BTNUM_INO)
-		xchk_iallocbt_xref_rmap_inodes(sc, which, iabt.inodes);
-
+	if (sc->sm->sm_type == XFS_SCRUB_TYPE_INOBT)
+		xchk_iallocbt_xref_rmap_inodes(sc, iabt.inodes);
 	return error;
-}
-
-int
-xchk_inobt(
-	struct xfs_scrub	*sc)
-{
-	return xchk_iallocbt(sc, XFS_BTNUM_INO);
-}
-
-int
-xchk_finobt(
-	struct xfs_scrub	*sc)
-{
-	return xchk_iallocbt(sc, XFS_BTNUM_FINO);
 }
 
 /* See if an inode btree has (or doesn't have) an inode chunk record. */

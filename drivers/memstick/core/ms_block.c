@@ -2078,6 +2078,12 @@ static const struct blk_mq_ops msb_mq_ops = {
 static int msb_init_disk(struct memstick_dev *card)
 {
 	struct msb_data *msb = memstick_get_drvdata(card);
+	struct queue_limits lim = {
+		.logical_block_size	= msb->page_size,
+		.max_hw_sectors		= MS_BLOCK_MAX_PAGES,
+		.max_segments		= MS_BLOCK_MAX_SEGS,
+		.max_segment_size	= MS_BLOCK_MAX_PAGES * msb->page_size,
+	};
 	int rc;
 	unsigned long capacity;
 
@@ -2093,18 +2099,12 @@ static int msb_init_disk(struct memstick_dev *card)
 	if (rc)
 		goto out_release_id;
 
-	msb->disk = blk_mq_alloc_disk(&msb->tag_set, card);
+	msb->disk = blk_mq_alloc_disk(&msb->tag_set, &lim, card);
 	if (IS_ERR(msb->disk)) {
 		rc = PTR_ERR(msb->disk);
 		goto out_free_tag_set;
 	}
 	msb->queue = msb->disk->queue;
-
-	blk_queue_max_hw_sectors(msb->queue, MS_BLOCK_MAX_PAGES);
-	blk_queue_max_segments(msb->queue, MS_BLOCK_MAX_SEGS);
-	blk_queue_max_segment_size(msb->queue,
-				   MS_BLOCK_MAX_PAGES * msb->page_size);
-	blk_queue_logical_block_size(msb->queue, msb->page_size);
 
 	sprintf(msb->disk->disk_name, "msblk%d", msb->disk_id);
 	msb->disk->fops = &msb_bdops;

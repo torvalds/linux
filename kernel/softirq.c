@@ -27,6 +27,7 @@
 #include <linux/tick.h>
 #include <linux/irq.h>
 #include <linux/wait_bit.h>
+#include <linux/workqueue.h>
 
 #include <asm/softirq_stack.h>
 
@@ -507,7 +508,7 @@ static inline bool lockdep_softirq_start(void) { return false; }
 static inline void lockdep_softirq_end(bool in_hardirq) { }
 #endif
 
-asmlinkage __visible void __softirq_entry __do_softirq(void)
+static void handle_softirqs(bool ksirqd)
 {
 	unsigned long end = jiffies + MAX_SOFTIRQ_TIME;
 	unsigned long old_flags = current->flags;
@@ -562,8 +563,7 @@ restart:
 		pending >>= softirq_bit;
 	}
 
-	if (!IS_ENABLED(CONFIG_PREEMPT_RT) &&
-	    __this_cpu_read(ksoftirqd) == current)
+	if (!IS_ENABLED(CONFIG_PREEMPT_RT) && ksirqd)
 		rcu_softirq_qs();
 
 	local_irq_disable();
@@ -581,6 +581,11 @@ restart:
 	lockdep_softirq_end(in_hardirq);
 	softirq_handle_end();
 	current_restore_flags(old_flags, PF_MEMALLOC);
+}
+
+asmlinkage __visible void __softirq_entry __do_softirq(void)
+{
+	handle_softirqs(false);
 }
 
 /**
@@ -802,11 +807,13 @@ static void tasklet_action_common(struct softirq_action *a,
 
 static __latent_entropy void tasklet_action(struct softirq_action *a)
 {
+	workqueue_softirq_action(false);
 	tasklet_action_common(a, this_cpu_ptr(&tasklet_vec), TASKLET_SOFTIRQ);
 }
 
 static __latent_entropy void tasklet_hi_action(struct softirq_action *a)
 {
+	workqueue_softirq_action(true);
 	tasklet_action_common(a, this_cpu_ptr(&tasklet_hi_vec), HI_SOFTIRQ);
 }
 
@@ -918,7 +925,7 @@ static void run_ksoftirqd(unsigned int cpu)
 		 * We can safely run softirq on inline stack, as we are not deep
 		 * in the task stack here.
 		 */
-		__do_softirq();
+		handle_softirqs(true);
 		ksoftirqd_run_end();
 		cond_resched();
 		return;
@@ -929,6 +936,8 @@ static void run_ksoftirqd(unsigned int cpu)
 #ifdef CONFIG_HOTPLUG_CPU
 static int takeover_tasklets(unsigned int cpu)
 {
+	workqueue_softirq_dead(cpu);
+
 	/* CPU is dead, so no lock needed. */
 	local_irq_disable();
 

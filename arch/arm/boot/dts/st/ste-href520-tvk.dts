@@ -5,6 +5,7 @@
 
 /dts-v1/;
 #include "ste-db8520.dtsi"
+#include "ste-href-ab8505.dtsi"
 #include "ste-hrefv60plus.dtsi"
 #include "ste-href-tvk1281618-r3.dtsi"
 

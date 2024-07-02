@@ -14,39 +14,30 @@
 #include <drm/drm_connector.h>
 #include <drm/drm_encoder.h>
 
-struct backlight_device;
+#include <linux/wait.h>
+
+#include <video/videomode.h>
+
 struct drm_pending_vblank_event;
 struct shmob_drm_device;
 struct shmob_drm_format_info;
 
 struct shmob_drm_crtc {
-	struct drm_crtc crtc;
+	struct drm_crtc base;
 
 	struct drm_pending_vblank_event *event;
-	int dpms;
-
-	const struct shmob_drm_format_info *format;
-	unsigned long dma[2];
-	unsigned int line_size;
-	bool started;
+	wait_queue_head_t flip_wait;
 };
 
-struct shmob_drm_encoder {
-	struct drm_encoder encoder;
-	int dpms;
-};
-
+/* Legacy connector */
 struct shmob_drm_connector {
-	struct drm_connector connector;
+	struct drm_connector base;
 	struct drm_encoder *encoder;
-
-	struct backlight_device *backlight;
+	const struct videomode *mode;
 };
 
 int shmob_drm_crtc_create(struct shmob_drm_device *sdev);
 void shmob_drm_crtc_finish_page_flip(struct shmob_drm_crtc *scrtc);
-void shmob_drm_crtc_suspend(struct shmob_drm_crtc *scrtc);
-void shmob_drm_crtc_resume(struct shmob_drm_crtc *scrtc);
 
 int shmob_drm_encoder_create(struct shmob_drm_device *sdev);
 int shmob_drm_connector_create(struct shmob_drm_device *sdev,

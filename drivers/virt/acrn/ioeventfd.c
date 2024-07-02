@@ -223,7 +223,7 @@ static int acrn_ioeventfd_handler(struct acrn_ioreq_client *client,
 	mutex_lock(&client->vm->ioeventfds_lock);
 	p = hsm_ioeventfd_match(client->vm, addr, val, size, req->type);
 	if (p)
-		eventfd_signal(p->eventfd, 1);
+		eventfd_signal(p->eventfd);
 	mutex_unlock(&client->vm->ioeventfds_lock);
 
 	return 0;

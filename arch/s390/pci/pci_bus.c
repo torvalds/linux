@@ -47,11 +47,6 @@ static int zpci_bus_prepare_device(struct zpci_dev *zdev)
 		rc = zpci_enable_device(zdev);
 		if (rc)
 			return rc;
-		rc = zpci_dma_init_device(zdev);
-		if (rc) {
-			zpci_disable_device(zdev);
-			return rc;
-		}
 	}
 
 	if (!zdev->has_resources) {

@@ -369,12 +369,11 @@ static void ath_tid_drain(struct ath_softc *sc, struct ath_txq *txq,
 	struct list_head bf_head;
 	struct ath_tx_status ts;
 	struct ath_frame_info *fi;
-	int ret;
 
 	memset(&ts, 0, sizeof(ts));
 	INIT_LIST_HEAD(&bf_head);
 
-	while ((ret = ath_tid_dequeue(tid, &skb)) == 0) {
+	while (ath_tid_dequeue(tid, &skb) == 0) {
 		fi = get_frame_info(skb);
 		bf = fi->bf;
 
@@ -1675,8 +1674,14 @@ static void
 ath9k_set_moredata(struct ath_softc *sc, struct ath_buf *bf, bool val)
 {
 	struct ieee80211_hdr *hdr;
-	u16 mask = cpu_to_le16(IEEE80211_FCTL_MOREDATA);
-	u16 mask_val = mask * val;
+	__le16 mask, mask_val;
+
+	mask = cpu_to_le16(IEEE80211_FCTL_MOREDATA);
+
+	if (val)
+		mask_val = mask;
+	else
+		mask_val = 0;
 
 	hdr = (struct ieee80211_hdr *) bf->bf_mpdu->data;
 	if ((hdr->frame_control & mask) != mask_val) {

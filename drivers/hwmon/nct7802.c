@@ -1051,7 +1051,7 @@ static bool nct7802_regmap_is_volatile(struct device *dev, unsigned int reg)
 static const struct regmap_config nct7802_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.volatile_reg = nct7802_regmap_is_volatile,
 };
 
@@ -1212,7 +1212,7 @@ static const unsigned short nct7802_address_list[] = {
 };
 
 static const struct i2c_device_id nct7802_idtable[] = {
-	{ "nct7802", 0 },
+	{ "nct7802" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, nct7802_idtable);

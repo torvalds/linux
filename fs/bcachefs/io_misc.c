@@ -16,13 +16,14 @@
 #include "io_misc.h"
 #include "io_write.h"
 #include "logged_ops.h"
+#include "rebalance.h"
 #include "subvolume.h"
 
 /* Overwrites whatever was present with zeroes: */
 int bch2_extent_fallocate(struct btree_trans *trans,
 			  subvol_inum inum,
 			  struct btree_iter *iter,
-			  unsigned sectors,
+			  u64 sectors,
 			  struct bch_io_opts opts,
 			  s64 *i_sectors_delta,
 			  struct write_point_specifier write_point)
@@ -33,8 +34,7 @@ int bch2_extent_fallocate(struct btree_trans *trans,
 	struct open_buckets open_buckets = { 0 };
 	struct bkey_s_c k;
 	struct bkey_buf old, new;
-	unsigned sectors_allocated = 0;
-	bool have_reservation = false;
+	unsigned sectors_allocated = 0, new_replicas;
 	bool unwritten = opts.nocow &&
 	    c->sb.version >= bcachefs_metadata_version_unwritten_extents;
 	int ret;
@@ -49,28 +49,20 @@ int bch2_extent_fallocate(struct btree_trans *trans,
 		return ret;
 
 	sectors = min_t(u64, sectors, k.k->p.offset - iter->pos.offset);
+	new_replicas = max(0, (int) opts.data_replicas -
+			   (int) bch2_bkey_nr_ptrs_fully_allocated(k));
 
-	if (!have_reservation) {
-		unsigned new_replicas =
-			max(0, (int) opts.data_replicas -
-			    (int) bch2_bkey_nr_ptrs_fully_allocated(k));
-		/*
-		 * Get a disk reservation before (in the nocow case) calling
-		 * into the allocator:
-		 */
-		ret = bch2_disk_reservation_get(c, &disk_res, sectors, new_replicas, 0);
-		if (unlikely(ret))
-			goto err;
+	/*
+	 * Get a disk reservation before (in the nocow case) calling
+	 * into the allocator:
+	 */
+	ret = bch2_disk_reservation_get(c, &disk_res, sectors, new_replicas, 0);
+	if (unlikely(ret))
+		goto err_noprint;
 
-		bch2_bkey_buf_reassemble(&old, c, k);
-	}
+	bch2_bkey_buf_reassemble(&old, c, k);
 
-	if (have_reservation) {
-		if (!bch2_extents_match(k, bkey_i_to_s_c(old.k)))
-			goto err;
-
-		bch2_key_resize(&new.k->k, sectors);
-	} else if (!unwritten) {
+	if (!unwritten) {
 		struct bkey_i_reservation *reservation;
 
 		bch2_bkey_buf_realloc(&new, c, sizeof(*reservation) / sizeof(u64));
@@ -82,7 +74,6 @@ int bch2_extent_fallocate(struct btree_trans *trans,
 		struct bkey_i_extent *e;
 		struct bch_devs_list devs_have;
 		struct write_point *wp;
-		struct bch_extent_ptr *ptr;
 
 		devs_have.nr = 0;
 
@@ -104,7 +95,7 @@ int bch2_extent_fallocate(struct btree_trans *trans,
 		if (ret)
 			goto err;
 
-		sectors = min(sectors, wp->sectors_free);
+		sectors = min_t(u64, sectors, wp->sectors_free);
 		sectors_allocated = sectors;
 
 		bch2_key_resize(&e->k, sectors);
@@ -117,14 +108,17 @@ int bch2_extent_fallocate(struct btree_trans *trans,
 			ptr->unwritten = true;
 	}
 
-	have_reservation = true;
-
 	ret = bch2_extent_update(trans, inum, iter, new.k, &disk_res,
 				 0, i_sectors_delta, true);
 err:
 	if (!ret && sectors_allocated)
 		bch2_increment_clock(c, sectors_allocated, WRITE);
-
+	if (should_print_err(ret))
+		bch_err_inum_offset_ratelimited(c,
+			inum.inum,
+			iter->pos.offset << 9,
+			"%s(): error: %s", __func__, bch2_err_str(ret));
+err_noprint:
 	bch2_open_buckets_put(c, &open_buckets);
 	bch2_disk_reservation_put(c, &disk_res);
 	bch2_bkey_buf_exit(&new, c);
@@ -255,7 +249,7 @@ static int __bch2_resume_logged_op_truncate(struct btree_trans *trans,
 	u64 new_i_size = le64_to_cpu(op->v.new_i_size);
 	int ret;
 
-	ret = commit_do(trans, NULL, NULL, BTREE_INSERT_NOFAIL,
+	ret = commit_do(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 			truncate_set_isize(trans, inum, new_i_size));
 	if (ret)
 		goto err;
@@ -270,6 +264,7 @@ static int __bch2_resume_logged_op_truncate(struct btree_trans *trans,
 		ret = 0;
 err:
 	bch2_logged_op_finish(trans, op_k);
+	bch_err_fn(c, ret);
 	return ret;
 }
 
@@ -355,6 +350,7 @@ static int __bch2_resume_logged_op_finsert(struct btree_trans *trans,
 	struct btree_iter iter;
 	struct bkey_i_logged_op_finsert *op = bkey_i_to_logged_op_finsert(op_k);
 	subvol_inum inum = { le32_to_cpu(op->v.subvol), le64_to_cpu(op->v.inum) };
+	struct bch_io_opts opts;
 	u64 dst_offset = le64_to_cpu(op->v.dst_offset);
 	u64 src_offset = le64_to_cpu(op->v.src_offset);
 	s64 shift = dst_offset - src_offset;
@@ -362,6 +358,10 @@ static int __bch2_resume_logged_op_finsert(struct btree_trans *trans,
 	u64 pos = le64_to_cpu(op->v.pos);
 	bool insert = shift > 0;
 	int ret = 0;
+
+	ret = bch2_inum_opts_get(trans, inum, &opts);
+	if (ret)
+		return ret;
 
 	bch2_trans_iter_init(trans, &iter, BTREE_ID_extents,
 			     POS(inum.inum, 0),
@@ -372,7 +372,7 @@ case LOGGED_OP_FINSERT_start:
 	op->v.state = LOGGED_OP_FINSERT_shift_extents;
 
 	if (insert) {
-		ret = commit_do(trans, NULL, NULL, BTREE_INSERT_NOFAIL,
+		ret = commit_do(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 				adjust_i_size(trans, inum, src_offset, len) ?:
 				bch2_logged_op_update(trans, &op->k_i));
 		if (ret)
@@ -384,7 +384,7 @@ case LOGGED_OP_FINSERT_start:
 		if (ret && !bch2_err_matches(ret, BCH_ERR_transaction_restart))
 			goto err;
 
-		ret = commit_do(trans, NULL, NULL, BTREE_INSERT_NOFAIL,
+		ret = commit_do(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 				bch2_logged_op_update(trans, &op->k_i));
 	}
 
@@ -443,10 +443,11 @@ case LOGGED_OP_FINSERT_shift_extents:
 
 		op->v.pos = cpu_to_le64(insert ? bkey_start_offset(&delete.k) : delete.k.p.offset);
 
-		ret =   bch2_btree_insert_trans(trans, BTREE_ID_extents, &delete, 0) ?:
+		ret =   bch2_bkey_set_needs_rebalance(c, copy, &opts) ?:
+			bch2_btree_insert_trans(trans, BTREE_ID_extents, &delete, 0) ?:
 			bch2_btree_insert_trans(trans, BTREE_ID_extents, copy, 0) ?:
 			bch2_logged_op_update(trans, &op->k_i) ?:
-			bch2_trans_commit(trans, &disk_res, NULL, BTREE_INSERT_NOFAIL);
+			bch2_trans_commit(trans, &disk_res, NULL, BCH_TRANS_COMMIT_no_enospc);
 btree_err:
 		bch2_disk_reservation_put(c, &disk_res);
 
@@ -461,12 +462,12 @@ btree_err:
 	op->v.state = LOGGED_OP_FINSERT_finish;
 
 	if (!insert) {
-		ret = commit_do(trans, NULL, NULL, BTREE_INSERT_NOFAIL,
+		ret = commit_do(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 				adjust_i_size(trans, inum, src_offset, shift) ?:
 				bch2_logged_op_update(trans, &op->k_i));
 	} else {
 		/* We need an inode update to update bi_journal_seq for fsync: */
-		ret = commit_do(trans, NULL, NULL, BTREE_INSERT_NOFAIL,
+		ret = commit_do(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 				adjust_i_size(trans, inum, 0, 0) ?:
 				bch2_logged_op_update(trans, &op->k_i));
 	}
@@ -476,6 +477,7 @@ case LOGGED_OP_FINSERT_finish:
 	break;
 	}
 err:
+	bch_err_fn(c, ret);
 	bch2_logged_op_finish(trans, op_k);
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;

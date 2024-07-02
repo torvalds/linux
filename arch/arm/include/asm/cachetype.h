@@ -20,6 +20,8 @@ extern unsigned int cacheid;
 #define icache_is_vipt_aliasing()	cacheid_is(CACHEID_VIPT_I_ALIASING)
 #define icache_is_pipt()		cacheid_is(CACHEID_PIPT)
 
+#define cpu_dcache_is_aliasing()	(cache_is_vivt() || cache_is_vipt_aliasing())
+
 /*
  * __LINUX_ARM_ARCH__ is the minimum supported CPU architecture
  * Mask out support which will never be present on newer CPUs.

@@ -56,6 +56,16 @@ config REGULATOR_USERSPACE_CONSUMER
 
 	  If unsure, say no.
 
+config REGULATOR_NETLINK_EVENTS
+	bool "Enable support for receiving regulator events via netlink"
+	depends on NET
+	help
+	  Enabling this option allows the kernel to broadcast regulator events using
+	  the netlink mechanism. User-space applications can subscribe to these events
+	  for real-time updates on various regulator events.
+
+	  If unsure, say no.
+
 config REGULATOR_88PG86X
 	tristate "Marvell 88PG86X voltage regulators"
 	depends on I2C
@@ -278,7 +288,7 @@ config REGULATOR_CROS_EC
 config REGULATOR_DA903X
 	tristate "Dialog Semiconductor DA9030/DA9034 regulators"
 	depends on PMIC_DA903X
-	depends on !CC_IS_CLANG # https://bugs.llvm.org/show_bug.cgi?id=38789
+	depends on !CC_IS_CLANG # https://llvm.org/pr38789
 	help
 	  Say y here to support the BUCKs and LDOs regulators found on
 	  Dialog Semiconductor DA9030/DA9034 PMIC.
@@ -1404,6 +1414,14 @@ config REGULATOR_STW481X_VMMC
 	help
 	  This driver supports the internal VMMC regulator in the STw481x
 	  PMIC chips.
+
+config REGULATOR_SUN20I
+	tristate "Allwinner D1 internal LDOs"
+	depends on ARCH_SUNXI || COMPILE_TEST
+	select MFD_SYSCON
+	default ARCH_SUNXI
+	help
+	  This driver supports the internal LDOs in the Allwinner D1 SoC.
 
 config REGULATOR_SY7636A
 	tristate "Silergy SY7636A voltage regulator"

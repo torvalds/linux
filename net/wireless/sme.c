@@ -209,7 +209,8 @@ static int cfg80211_conn_do_work(struct wireless_dev *wdev,
 		if (!req.bss) {
 			err = -ENOENT;
 		} else {
-			err = cfg80211_mlme_assoc(rdev, wdev->netdev, &req);
+			err = cfg80211_mlme_assoc(rdev, wdev->netdev,
+						  &req, NULL);
 			cfg80211_put_bss(&rdev->wiphy, req.bss);
 		}
 
@@ -1352,6 +1353,7 @@ void __cfg80211_disconnected(struct net_device *dev, const u8 *ie,
 		return;
 
 	cfg80211_wdev_release_bsses(wdev);
+	wdev->valid_links = 0;
 	wdev->connected = false;
 	wdev->u.client.ssid_len = 0;
 	wdev->conn_owner_nlportid = 0;
@@ -1394,6 +1396,8 @@ void __cfg80211_disconnected(struct net_device *dev, const u8 *ie,
 #endif
 
 	schedule_work(&cfg80211_disconnect_work);
+
+	cfg80211_schedule_channels_check(wdev);
 }
 
 void cfg80211_disconnected(struct net_device *dev, u16 reason,

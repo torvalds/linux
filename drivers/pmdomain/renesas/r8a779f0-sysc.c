@@ -5,19 +5,7 @@
  * Copyright (C) 2021 Renesas Electronics Corp.
  */
 
-#include <linux/bits.h>
-#include <linux/clk/renesas.h>
-#include <linux/delay.h>
-#include <linux/err.h>
-#include <linux/io.h>
-#include <linux/iopoll.h>
 #include <linux/kernel.h>
-#include <linux/mm.h>
-#include <linux/of_address.h>
-#include <linux/pm_domain.h>
-#include <linux/slab.h>
-#include <linux/spinlock.h>
-#include <linux/types.h>
 
 #include <dt-bindings/power/r8a779f0-sysc.h>
 

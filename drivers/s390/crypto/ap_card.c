@@ -34,7 +34,7 @@ static ssize_t raw_hwtype_show(struct device *dev,
 {
 	struct ap_card *ac = to_ap_card(dev);
 
-	return sysfs_emit(buf, "%d\n", ac->raw_hwtype);
+	return sysfs_emit(buf, "%d\n", ac->hwinfo.at);
 }
 
 static DEVICE_ATTR_RO(raw_hwtype);
@@ -44,7 +44,7 @@ static ssize_t depth_show(struct device *dev, struct device_attribute *attr,
 {
 	struct ap_card *ac = to_ap_card(dev);
 
-	return sysfs_emit(buf, "%d\n", ac->queue_depth);
+	return sysfs_emit(buf, "%d\n", ac->hwinfo.qd);
 }
 
 static DEVICE_ATTR_RO(depth);
@@ -54,7 +54,7 @@ static ssize_t ap_functions_show(struct device *dev,
 {
 	struct ap_card *ac = to_ap_card(dev);
 
-	return sysfs_emit(buf, "0x%08X\n", ac->functions);
+	return sysfs_emit(buf, "0x%08X\n", ac->hwinfo.fac);
 }
 
 static DEVICE_ATTR_RO(ap_functions);
@@ -229,8 +229,8 @@ static void ap_card_device_release(struct device *dev)
 	kfree(ac);
 }
 
-struct ap_card *ap_card_create(int id, int queue_depth, int raw_type,
-			       int comp_type, unsigned int functions, int ml)
+struct ap_card *ap_card_create(int id, struct ap_tapq_hwinfo hwinfo,
+			       int comp_type)
 {
 	struct ap_card *ac;
 
@@ -240,12 +240,10 @@ struct ap_card *ap_card_create(int id, int queue_depth, int raw_type,
 	ac->ap_dev.device.release = ap_card_device_release;
 	ac->ap_dev.device.type = &ap_card_type;
 	ac->ap_dev.device_type = comp_type;
-	ac->raw_hwtype = raw_type;
-	ac->queue_depth = queue_depth;
-	ac->functions = functions;
+	ac->hwinfo = hwinfo;
 	ac->id = id;
-	ac->maxmsgsize = ml > 0 ?
-		ml * AP_TAPQ_ML_FIELD_CHUNK_SIZE : AP_DEFAULT_MAX_MSG_SIZE;
+	ac->maxmsgsize = hwinfo.ml > 0 ?
+		hwinfo.ml * AP_TAPQ_ML_FIELD_CHUNK_SIZE : AP_DEFAULT_MAX_MSG_SIZE;
 
 	return ac;
 }

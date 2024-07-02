@@ -14,6 +14,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/log2.h>
+#include <linux/mod_devicetable.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/of_graph.h>
@@ -355,8 +356,7 @@ __mt9v032_get_pad_format(struct mt9v032 *mt9v032,
 {
 	switch (which) {
 	case V4L2_SUBDEV_FORMAT_TRY:
-		return v4l2_subdev_get_try_format(&mt9v032->subdev, sd_state,
-						  pad);
+		return v4l2_subdev_state_get_format(sd_state, pad);
 	case V4L2_SUBDEV_FORMAT_ACTIVE:
 		return &mt9v032->format;
 	default:
@@ -371,8 +371,7 @@ __mt9v032_get_pad_crop(struct mt9v032 *mt9v032,
 {
 	switch (which) {
 	case V4L2_SUBDEV_FORMAT_TRY:
-		return v4l2_subdev_get_try_crop(&mt9v032->subdev, sd_state,
-						pad);
+		return v4l2_subdev_state_get_crop(sd_state, pad);
 	case V4L2_SUBDEV_FORMAT_ACTIVE:
 		return &mt9v032->crop;
 	default:
@@ -930,13 +929,13 @@ static int mt9v032_open(struct v4l2_subdev *subdev, struct v4l2_subdev_fh *fh)
 	struct v4l2_mbus_framefmt *format;
 	struct v4l2_rect *crop;
 
-	crop = v4l2_subdev_get_try_crop(subdev, fh->state, 0);
+	crop = v4l2_subdev_state_get_crop(fh->state, 0);
 	crop->left = MT9V032_COLUMN_START_DEF;
 	crop->top = MT9V032_ROW_START_DEF;
 	crop->width = MT9V032_WINDOW_WIDTH_DEF;
 	crop->height = MT9V032_WINDOW_HEIGHT_DEF;
 
-	format = v4l2_subdev_get_try_format(subdev, fh->state, 0);
+	format = v4l2_subdev_state_get_format(fh->state, 0);
 
 	if (mt9v032->model->color)
 		format->code = MEDIA_BUS_FMT_SGRBG10_1X10;
@@ -989,7 +988,7 @@ static const struct regmap_config mt9v032_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 16,
 	.max_register = 0xff,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 /* -----------------------------------------------------------------------------
@@ -1007,7 +1006,7 @@ mt9v032_get_pdata(struct i2c_client *client)
 	if (!IS_ENABLED(CONFIG_OF) || !client->dev.of_node)
 		return client->dev.platform_data;
 
-	np = of_graph_get_next_endpoint(client->dev.of_node, NULL);
+	np = of_graph_get_endpoint_by_regs(client->dev.of_node, 0, -1);
 	if (!np)
 		return NULL;
 
@@ -1046,7 +1045,6 @@ done:
 
 static int mt9v032_probe(struct i2c_client *client)
 {
-	const struct i2c_device_id *did = i2c_client_get_device_id(client);
 	struct mt9v032_platform_data *pdata = mt9v032_get_pdata(client);
 	struct mt9v032 *mt9v032;
 	unsigned int i;
@@ -1076,7 +1074,7 @@ static int mt9v032_probe(struct i2c_client *client)
 
 	mutex_init(&mt9v032->power_lock);
 	mt9v032->pdata = pdata;
-	mt9v032->model = (const void *)did->driver_data;
+	mt9v032->model = i2c_get_match_data(client);
 
 	v4l2_ctrl_handler_init(&mt9v032->ctrls, 11 +
 			       ARRAY_SIZE(mt9v032_aegc_controls));
@@ -1272,29 +1270,27 @@ static const struct i2c_device_id mt9v032_id[] = {
 	{ "mt9v032m", (kernel_ulong_t)&mt9v032_models[MT9V032_MODEL_V032_MONO] },
 	{ "mt9v034", (kernel_ulong_t)&mt9v032_models[MT9V032_MODEL_V034_COLOR] },
 	{ "mt9v034m", (kernel_ulong_t)&mt9v032_models[MT9V032_MODEL_V034_MONO] },
-	{ }
+	{ /* Sentinel */ }
 };
 MODULE_DEVICE_TABLE(i2c, mt9v032_id);
 
-#if IS_ENABLED(CONFIG_OF)
 static const struct of_device_id mt9v032_of_match[] = {
-	{ .compatible = "aptina,mt9v022" },
-	{ .compatible = "aptina,mt9v022m" },
-	{ .compatible = "aptina,mt9v024" },
-	{ .compatible = "aptina,mt9v024m" },
-	{ .compatible = "aptina,mt9v032" },
-	{ .compatible = "aptina,mt9v032m" },
-	{ .compatible = "aptina,mt9v034" },
-	{ .compatible = "aptina,mt9v034m" },
+	{ .compatible = "aptina,mt9v022", .data = &mt9v032_models[MT9V032_MODEL_V022_COLOR] },
+	{ .compatible = "aptina,mt9v022m", .data = &mt9v032_models[MT9V032_MODEL_V022_MONO] },
+	{ .compatible = "aptina,mt9v024", .data = &mt9v032_models[MT9V032_MODEL_V024_COLOR] },
+	{ .compatible = "aptina,mt9v024m", .data = &mt9v032_models[MT9V032_MODEL_V024_MONO] },
+	{ .compatible = "aptina,mt9v032", .data = &mt9v032_models[MT9V032_MODEL_V032_COLOR] },
+	{ .compatible = "aptina,mt9v032m", .data = &mt9v032_models[MT9V032_MODEL_V032_MONO] },
+	{ .compatible = "aptina,mt9v034", .data = &mt9v032_models[MT9V032_MODEL_V034_COLOR] },
+	{ .compatible = "aptina,mt9v034m", .data = &mt9v032_models[MT9V032_MODEL_V034_MONO] },
 	{ /* Sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, mt9v032_of_match);
-#endif
 
 static struct i2c_driver mt9v032_driver = {
 	.driver = {
 		.name = "mt9v032",
-		.of_match_table = of_match_ptr(mt9v032_of_match),
+		.of_match_table = mt9v032_of_match,
 	},
 	.probe		= mt9v032_probe,
 	.remove		= mt9v032_remove,

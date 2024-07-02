@@ -2155,7 +2155,7 @@ module_init(smscore_module_init);
 module_exit(smscore_module_exit);
 
 MODULE_DESCRIPTION("Siano MDTV Core module");
-MODULE_AUTHOR("Siano Mobile Silicon, Inc. (uris@siano-ms.com)");
+MODULE_AUTHOR("Siano Mobile Silicon, Inc. <uris@siano-ms.com>");
 MODULE_LICENSE("GPL");
 
 /* This should match what's defined at smscoreapi.h */

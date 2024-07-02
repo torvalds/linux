@@ -65,10 +65,8 @@ static const struct regmap_config meson_mx_sdhc_regmap_config = {
 	.max_register = MESON_SDHC_CLK2,
 };
 
-static void meson_mx_sdhc_hw_reset(struct mmc_host *mmc)
+static void meson_mx_sdhc_reset(struct meson_mx_sdhc_host *host)
 {
-	struct meson_mx_sdhc_host *host = mmc_priv(mmc);
-
 	regmap_write(host->regmap, MESON_SDHC_SRST, MESON_SDHC_SRST_MAIN_CTRL |
 		     MESON_SDHC_SRST_RXFIFO | MESON_SDHC_SRST_TXFIFO |
 		     MESON_SDHC_SRST_DPHY_RX | MESON_SDHC_SRST_DPHY_TX |
@@ -116,7 +114,7 @@ static void meson_mx_sdhc_wait_cmd_ready(struct mmc_host *mmc)
 		dev_warn(mmc_dev(mmc),
 			 "Failed to poll for CMD_BUSY while processing CMD%d\n",
 			 host->cmd->opcode);
-		meson_mx_sdhc_hw_reset(mmc);
+		meson_mx_sdhc_reset(host);
 	}
 
 	ret = regmap_read_poll_timeout(host->regmap, MESON_SDHC_ESTA, esta,
@@ -127,7 +125,7 @@ static void meson_mx_sdhc_wait_cmd_ready(struct mmc_host *mmc)
 		dev_warn(mmc_dev(mmc),
 			 "Failed to poll for ESTA[13:11] while processing CMD%d\n",
 			 host->cmd->opcode);
-		meson_mx_sdhc_hw_reset(mmc);
+		meson_mx_sdhc_reset(host);
 	}
 }
 
@@ -269,7 +267,7 @@ static int meson_mx_sdhc_enable_clks(struct mmc_host *mmc)
 static int meson_mx_sdhc_set_clk(struct mmc_host *mmc, struct mmc_ios *ios)
 {
 	struct meson_mx_sdhc_host *host = mmc_priv(mmc);
-	u32 rx_clk_phase;
+	u32 val, rx_clk_phase;
 	int ret;
 
 	meson_mx_sdhc_disable_clks(mmc);
@@ -290,27 +288,11 @@ static int meson_mx_sdhc_set_clk(struct mmc_host *mmc, struct mmc_ios *ios)
 		mmc->actual_clock = clk_get_rate(host->sd_clk);
 
 		/*
-		 * according to Amlogic the following latching points are
-		 * selected with empirical values, there is no (known) formula
-		 * to calculate these.
+		 * Phase 90 should work in most cases. For data transmission,
+		 * meson_mx_sdhc_execute_tuning() will find a accurate value
 		 */
-		if (mmc->actual_clock > 100000000) {
-			rx_clk_phase = 1;
-		} else if (mmc->actual_clock > 45000000) {
-			if (ios->signal_voltage == MMC_SIGNAL_VOLTAGE_330)
-				rx_clk_phase = 15;
-			else
-				rx_clk_phase = 11;
-		} else if (mmc->actual_clock >= 25000000) {
-			rx_clk_phase = 15;
-		} else if (mmc->actual_clock > 5000000) {
-			rx_clk_phase = 23;
-		} else if (mmc->actual_clock > 1000000) {
-			rx_clk_phase = 55;
-		} else {
-			rx_clk_phase = 1061;
-		}
-
+		regmap_read(host->regmap, MESON_SDHC_CLKC, &val);
+		rx_clk_phase = FIELD_GET(MESON_SDHC_CLKC_CLK_DIV, val) / 4;
 		regmap_update_bits(host->regmap, MESON_SDHC_CLK2,
 				   MESON_SDHC_CLK2_RX_CLK_PHASE,
 				   FIELD_PREP(MESON_SDHC_CLK2_RX_CLK_PHASE,
@@ -511,7 +493,6 @@ static int meson_mx_sdhc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 }
 
 static const struct mmc_host_ops meson_mx_sdhc_ops = {
-	.card_hw_reset			= meson_mx_sdhc_hw_reset,
 	.request			= meson_mx_sdhc_request,
 	.set_ios			= meson_mx_sdhc_set_ios,
 	.card_busy			= meson_mx_sdhc_card_busy,
@@ -634,7 +615,7 @@ static irqreturn_t meson_mx_sdhc_irq_thread(int irq, void *irq_data)
 	}
 
 	if (cmd->error == -EIO || cmd->error == -ETIMEDOUT)
-		meson_mx_sdhc_hw_reset(host->mmc);
+		meson_mx_sdhc_reset(host);
 	else if (cmd->data)
 		/*
 		 * Clear the FIFOs after completing data transfers to prevent
@@ -744,7 +725,7 @@ static void meson_mx_sdhc_init_hw(struct mmc_host *mmc)
 {
 	struct meson_mx_sdhc_host *host = mmc_priv(mmc);
 
-	meson_mx_sdhc_hw_reset(mmc);
+	meson_mx_sdhc_reset(host);
 
 	regmap_write(host->regmap, MESON_SDHC_CTRL,
 		     FIELD_PREP(MESON_SDHC_CTRL_RX_PERIOD, 0xf) |

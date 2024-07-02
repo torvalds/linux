@@ -619,6 +619,8 @@ static int hclge_setup_tc(struct hnae3_handle *h,
 		return ret;
 	}
 
+	kinfo->tc_info.mqprio_destroy = !tc;
+
 	ret = hclge_notify_down_uinit(hdev);
 	if (ret)
 		return ret;

@@ -144,7 +144,7 @@ class SpecEnumSet(SpecElement):
 
 
 class SpecAttr(SpecElement):
-    """ Single Netlink atttribute type
+    """ Single Netlink attribute type
 
     Represents a single attribute type within an attr space.
 
@@ -158,6 +158,9 @@ class SpecAttr(SpecElement):
         len           integer, optional byte length of binary types
         display_hint  string, hint to help choose format specifier
                       when displaying the value
+        sub_message   string, name of sub message type
+        selector      string, name of attribute used to select
+                      sub-message type
 
         is_auto_scalar bool, attr is a variable-size scalar
     """
@@ -173,6 +176,8 @@ class SpecAttr(SpecElement):
         self.byte_order = yaml.get('byte-order')
         self.len = yaml.get('len')
         self.display_hint = yaml.get('display-hint')
+        self.sub_message = yaml.get('sub-message')
+        self.selector = yaml.get('selector')
 
         self.is_auto_scalar = self.type == "sint" or self.type == "uint"
 
@@ -243,6 +248,7 @@ class SpecStructMember(SpecElement):
         len         integer, optional byte length of binary types
         display_hint  string, hint to help choose format specifier
                       when displaying the value
+        struct      string, name of nested struct type
     """
     def __init__(self, family, yaml):
         super().__init__(family, yaml)
@@ -251,6 +257,7 @@ class SpecStructMember(SpecElement):
         self.enum = yaml.get('enum')
         self.len = yaml.get('len')
         self.display_hint = yaml.get('display-hint')
+        self.struct = yaml.get('struct')
 
 
 class SpecStruct(SpecElement):
@@ -278,6 +285,46 @@ class SpecStruct(SpecElement):
         return self.members.items()
 
 
+class SpecSubMessage(SpecElement):
+    """ Netlink sub-message definition
+
+    Represents a set of sub-message formats for polymorphic nlattrs
+    that contain type-specific sub messages.
+
+    Attributes:
+        name     string, name of sub-message definition
+        formats  dict of sub-message formats indexed by match value
+    """
+    def __init__(self, family, yaml):
+        super().__init__(family, yaml)
+
+        self.formats = collections.OrderedDict()
+        for elem in self.yaml['formats']:
+            format = self.new_format(family, elem)
+            self.formats[format.value] = format
+
+    def new_format(self, family, format):
+        return SpecSubMessageFormat(family, format)
+
+
+class SpecSubMessageFormat(SpecElement):
+    """ Netlink sub-message format definition
+
+    Represents a single format for a sub-message.
+
+    Attributes:
+        value         attribute value to match against type selector
+        fixed_header  string, name of fixed header, or None
+        attr_set      string, name of attribute set, or None
+    """
+    def __init__(self, family, yaml):
+        super().__init__(family, yaml)
+
+        self.value = yaml.get('value')
+        self.fixed_header = yaml.get('fixed-header')
+        self.attr_set = yaml.get('attribute-set')
+
+
 class SpecOperation(SpecElement):
     """Netlink Operation
 
@@ -288,6 +335,7 @@ class SpecOperation(SpecElement):
 
         req_value       numerical ID when serialized, user -> kernel
         rsp_value       numerical ID when serialized, user <- kernel
+        modes           supported operation modes (do, dump, event etc.)
         is_call         bool, whether the operation is a call
         is_async        bool, whether the operation is a notification
         is_resv         bool, whether the operation does not exist (it's just a reserved ID)
@@ -303,6 +351,7 @@ class SpecOperation(SpecElement):
         self.req_value = req_value
         self.rsp_value = rsp_value
 
+        self.modes = yaml.keys() & {'do', 'dump', 'event', 'notify'}
         self.is_call = 'do' in yaml or 'dump' in yaml
         self.is_async = 'notify' in yaml or 'event' in yaml
         self.is_resv = not self.is_async and not self.is_call
@@ -365,11 +414,13 @@ class SpecFamily(SpecElement):
 
         attr_sets  dict of attribute sets
         msgs       dict of all messages (index by name)
+        sub_msgs   dict of all sub messages (index by name)
         ops        dict of all valid requests / responses
         ntfs       dict of all async events
         consts     dict of all constants/enums
         fixed_header  string, optional name of family default fixed header struct
         mcast_groups  dict of all multicast groups (index by name)
+        kernel_family   dict of kernel family attributes
     """
     def __init__(self, spec_path, schema_path=None, exclude_ops=None):
         with open(spec_path, "r") as stream:
@@ -405,6 +456,7 @@ class SpecFamily(SpecElement):
             jsonschema.validate(self.yaml, schema)
 
         self.attr_sets = collections.OrderedDict()
+        self.sub_msgs = collections.OrderedDict()
         self.msgs = collections.OrderedDict()
         self.req_by_value = collections.OrderedDict()
         self.rsp_by_value = collections.OrderedDict()
@@ -412,6 +464,7 @@ class SpecFamily(SpecElement):
         self.ntfs = collections.OrderedDict()
         self.consts = collections.OrderedDict()
         self.mcast_groups = collections.OrderedDict()
+        self.kernel_family = collections.OrderedDict(self.yaml.get('kernel-family', {}))
 
         last_exception = None
         while len(self._resolution_list) > 0:
@@ -440,6 +493,9 @@ class SpecFamily(SpecElement):
 
     def new_struct(self, elem):
         return SpecStruct(self, elem)
+
+    def new_sub_message(self, elem):
+        return SpecSubMessage(self, elem);
 
     def new_operation(self, elem, req_val, rsp_val):
         return SpecOperation(self, elem, req_val, rsp_val)
@@ -528,6 +584,10 @@ class SpecFamily(SpecElement):
         for elem in self.yaml['attribute-sets']:
             attr_set = self.new_attr_set(elem)
             self.attr_sets[elem['name']] = attr_set
+
+        for elem in self.yaml.get('sub-messages', []):
+            sub_message = self.new_sub_message(elem)
+            self.sub_msgs[sub_message.name] = sub_message
 
         if self.msg_id_model == 'unified':
             self._dictify_ops_unified()

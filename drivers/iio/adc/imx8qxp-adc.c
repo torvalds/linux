@@ -404,7 +404,7 @@ error_regulator_disable:
 	return ret;
 }
 
-static int imx8qxp_adc_remove(struct platform_device *pdev)
+static void imx8qxp_adc_remove(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
 	struct imx8qxp_adc *adc = iio_priv(indio_dev);
@@ -422,8 +422,6 @@ static int imx8qxp_adc_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(dev);
 	pm_runtime_put_noidle(dev);
-
-	return 0;
 }
 
 static int imx8qxp_adc_runtime_suspend(struct device *dev)
@@ -489,7 +487,7 @@ MODULE_DEVICE_TABLE(of, imx8qxp_adc_match);
 
 static struct platform_driver imx8qxp_adc_driver = {
 	.probe		= imx8qxp_adc_probe,
-	.remove		= imx8qxp_adc_remove,
+	.remove_new	= imx8qxp_adc_remove,
 	.driver		= {
 		.name	= ADC_DRIVER_NAME,
 		.of_match_table = imx8qxp_adc_match,

@@ -48,10 +48,6 @@ enum {
 	NFSD_MaxBlkSize,
 	NFSD_MaxConnections,
 	NFSD_Filecache,
-	/*
-	 * The below MUST come last.  Otherwise we leave a hole in nfsd_files[]
-	 * with !CONFIG_NFSD_V4 and simple_fill_super() goes oops
-	 */
 #ifdef CONFIG_NFSD_V4
 	NFSD_Leasetime,
 	NFSD_Gracetime,
@@ -76,7 +72,9 @@ static ssize_t write_maxconn(struct file *file, char *buf, size_t size);
 #ifdef CONFIG_NFSD_V4
 static ssize_t write_leasetime(struct file *file, char *buf, size_t size);
 static ssize_t write_gracetime(struct file *file, char *buf, size_t size);
+#ifdef CONFIG_NFSD_LEGACY_CLIENT_TRACKING
 static ssize_t write_recoverydir(struct file *file, char *buf, size_t size);
+#endif
 static ssize_t write_v4_end_grace(struct file *file, char *buf, size_t size);
 #endif
 
@@ -93,7 +91,9 @@ static ssize_t (*const write_op[])(struct file *, char *, size_t) = {
 #ifdef CONFIG_NFSD_V4
 	[NFSD_Leasetime] = write_leasetime,
 	[NFSD_Gracetime] = write_gracetime,
+#ifdef CONFIG_NFSD_LEGACY_CLIENT_TRACKING
 	[NFSD_RecoveryDir] = write_recoverydir,
+#endif
 	[NFSD_V4EndGrace] = write_v4_end_grace,
 #endif
 };
@@ -179,7 +179,7 @@ static const struct file_operations pool_stats_operations = {
 	.open		= nfsd_pool_stats_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= nfsd_pool_stats_release,
+	.release	= seq_release,
 };
 
 DEFINE_SHOW_ATTRIBUTE(nfsd_reply_cache_stats);
@@ -281,6 +281,7 @@ static ssize_t write_unlock_fs(struct file *file, char *buf, size_t size)
 	 * 3.  Is that directory the root of an exported file system?
 	 */
 	error = nlmsvc_unlock_all_by_sb(path.dentry->d_sb);
+	nfsd4_revoke_states(netns(file), path.dentry->d_sb);
 
 	path_put(&path);
 	return error;
@@ -693,6 +694,7 @@ static ssize_t __write_ports_addfd(char *buf, struct net *net, const struct cred
 	char *mesg = buf;
 	int fd, err;
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+	struct svc_serv *serv;
 
 	err = get_int(&mesg, &fd);
 	if (err != 0 || fd < 0)
@@ -703,13 +705,12 @@ static ssize_t __write_ports_addfd(char *buf, struct net *net, const struct cred
 	if (err != 0)
 		return err;
 
-	err = svc_addsock(nn->nfsd_serv, net, fd, buf, SIMPLE_TRANSACTION_LIMIT, cred);
+	serv = nn->nfsd_serv;
+	err = svc_addsock(serv, net, fd, buf, SIMPLE_TRANSACTION_LIMIT, cred);
 
-	if (err >= 0 &&
-	    !nn->nfsd_serv->sv_nrthreads && !xchg(&nn->keep_active, 1))
-		svc_get(nn->nfsd_serv);
+	if (!serv->sv_nrthreads && list_empty(&nn->nfsd_serv->sv_permsocks))
+		nfsd_destroy_serv(net);
 
-	nfsd_put(net);
 	return err;
 }
 
@@ -723,6 +724,7 @@ static ssize_t __write_ports_addxprt(char *buf, struct net *net, const struct cr
 	struct svc_xprt *xprt;
 	int port, err;
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+	struct svc_serv *serv;
 
 	if (sscanf(buf, "%15s %5u", transport, &port) != 2)
 		return -EINVAL;
@@ -735,29 +737,28 @@ static ssize_t __write_ports_addxprt(char *buf, struct net *net, const struct cr
 	if (err != 0)
 		return err;
 
-	err = svc_xprt_create(nn->nfsd_serv, transport, net,
+	serv = nn->nfsd_serv;
+	err = svc_xprt_create(serv, transport, net,
 			      PF_INET, port, SVC_SOCK_ANONYMOUS, cred);
 	if (err < 0)
 		goto out_err;
 
-	err = svc_xprt_create(nn->nfsd_serv, transport, net,
+	err = svc_xprt_create(serv, transport, net,
 			      PF_INET6, port, SVC_SOCK_ANONYMOUS, cred);
 	if (err < 0 && err != -EAFNOSUPPORT)
 		goto out_close;
 
-	if (!nn->nfsd_serv->sv_nrthreads && !xchg(&nn->keep_active, 1))
-		svc_get(nn->nfsd_serv);
-
-	nfsd_put(net);
 	return 0;
 out_close:
-	xprt = svc_find_xprt(nn->nfsd_serv, transport, net, PF_INET, port);
+	xprt = svc_find_xprt(serv, transport, net, PF_INET, port);
 	if (xprt != NULL) {
 		svc_xprt_close(xprt);
 		svc_xprt_put(xprt);
 	}
 out_err:
-	nfsd_put(net);
+	if (!serv->sv_nrthreads && list_empty(&nn->nfsd_serv->sv_permsocks))
+		nfsd_destroy_serv(net);
+
 	return err;
 }
 
@@ -1013,6 +1014,7 @@ static ssize_t write_gracetime(struct file *file, char *buf, size_t size)
 	return nfsd4_write_time(file, buf, size, &nn->nfsd4_grace, nn);
 }
 
+#ifdef CONFIG_NFSD_LEGACY_CLIENT_TRACKING
 static ssize_t __write_recoverydir(struct file *file, char *buf, size_t size,
 				   struct nfsd_net *nn)
 {
@@ -1073,6 +1075,7 @@ static ssize_t write_recoverydir(struct file *file, char *buf, size_t size)
 	mutex_unlock(&nfsd_mutex);
 	return rv;
 }
+#endif
 
 /*
  * write_v4_end_grace - release grace period for nfsd's v4.x lock manager
@@ -1236,63 +1239,34 @@ static inline void _nfsd_symlink(struct dentry *parent, const char *name,
 
 #endif
 
-static void clear_ncl(struct inode *inode)
+static void clear_ncl(struct dentry *dentry)
 {
+	struct inode *inode = d_inode(dentry);
 	struct nfsdfs_client *ncl = inode->i_private;
 
+	spin_lock(&inode->i_lock);
 	inode->i_private = NULL;
+	spin_unlock(&inode->i_lock);
 	kref_put(&ncl->cl_ref, ncl->cl_release);
-}
-
-static struct nfsdfs_client *__get_nfsdfs_client(struct inode *inode)
-{
-	struct nfsdfs_client *nc = inode->i_private;
-
-	if (nc)
-		kref_get(&nc->cl_ref);
-	return nc;
 }
 
 struct nfsdfs_client *get_nfsdfs_client(struct inode *inode)
 {
 	struct nfsdfs_client *nc;
 
-	inode_lock_shared(inode);
-	nc = __get_nfsdfs_client(inode);
-	inode_unlock_shared(inode);
+	spin_lock(&inode->i_lock);
+	nc = inode->i_private;
+	if (nc)
+		kref_get(&nc->cl_ref);
+	spin_unlock(&inode->i_lock);
 	return nc;
-}
-/* from __rpc_unlink */
-static void nfsdfs_remove_file(struct inode *dir, struct dentry *dentry)
-{
-	int ret;
-
-	clear_ncl(d_inode(dentry));
-	dget(dentry);
-	ret = simple_unlink(dir, dentry);
-	d_drop(dentry);
-	fsnotify_unlink(dir, dentry);
-	dput(dentry);
-	WARN_ON_ONCE(ret);
-}
-
-static void nfsdfs_remove_files(struct dentry *root)
-{
-	struct dentry *dentry, *tmp;
-
-	list_for_each_entry_safe(dentry, tmp, &root->d_subdirs, d_child) {
-		if (!simple_positive(dentry)) {
-			WARN_ON_ONCE(1); /* I think this can't happen? */
-			continue;
-		}
-		nfsdfs_remove_file(d_inode(root), dentry);
-	}
 }
 
 /* XXX: cut'n'paste from simple_fill_super; figure out if we could share
  * code instead. */
 static  int nfsdfs_create_files(struct dentry *root,
 				const struct tree_descr *files,
+				struct nfsdfs_client *ncl,
 				struct dentry **fdentries)
 {
 	struct inode *dir = d_inode(root);
@@ -1311,8 +1285,9 @@ static  int nfsdfs_create_files(struct dentry *root,
 			dput(dentry);
 			goto out;
 		}
+		kref_get(&ncl->cl_ref);
 		inode->i_fop = files->ops;
-		inode->i_private = __get_nfsdfs_client(dir);
+		inode->i_private = ncl;
 		d_add(dentry, inode);
 		fsnotify_create(dir, dentry);
 		if (fdentries)
@@ -1321,7 +1296,6 @@ static  int nfsdfs_create_files(struct dentry *root,
 	inode_unlock(dir);
 	return 0;
 out:
-	nfsdfs_remove_files(root);
 	inode_unlock(dir);
 	return -ENOMEM;
 }
@@ -1341,7 +1315,7 @@ struct dentry *nfsd_client_mkdir(struct nfsd_net *nn,
 	dentry = nfsd_mkdir(nn->nfsd_client_dir, ncl, name);
 	if (IS_ERR(dentry)) /* XXX: tossing errors? */
 		return NULL;
-	ret = nfsdfs_create_files(dentry, files, fdentries);
+	ret = nfsdfs_create_files(dentry, files, ncl, fdentries);
 	if (ret) {
 		nfsd_client_rmdir(dentry);
 		return NULL;
@@ -1352,20 +1326,7 @@ struct dentry *nfsd_client_mkdir(struct nfsd_net *nn,
 /* Taken from __rpc_rmdir: */
 void nfsd_client_rmdir(struct dentry *dentry)
 {
-	struct inode *dir = d_inode(dentry->d_parent);
-	struct inode *inode = d_inode(dentry);
-	int ret;
-
-	inode_lock(dir);
-	nfsdfs_remove_files(dentry);
-	clear_ncl(inode);
-	dget(dentry);
-	ret = simple_rmdir(dir, dentry);
-	WARN_ON_ONCE(ret);
-	d_drop(dentry);
-	fsnotify_rmdir(dir, dentry);
-	dput(dentry);
-	inode_unlock(dir);
+	simple_recursive_removal(dentry, clear_ncl);
 }
 
 static int nfsd_fill_super(struct super_block *sb, struct fs_context *fc)
@@ -1510,11 +1471,10 @@ int nfsd_nl_rpc_status_get_start(struct netlink_callback *cb)
 	int ret = -ENODEV;
 
 	mutex_lock(&nfsd_mutex);
-	if (nn->nfsd_serv) {
-		svc_get(nn->nfsd_serv);
+	if (nn->nfsd_serv)
 		ret = 0;
-	}
-	mutex_unlock(&nfsd_mutex);
+	else
+		mutex_unlock(&nfsd_mutex);
 
 	return ret;
 }
@@ -1686,8 +1646,6 @@ out:
  */
 int nfsd_nl_rpc_status_get_done(struct netlink_callback *cb)
 {
-	mutex_lock(&nfsd_mutex);
-	nfsd_put(sock_net(cb->skb->sk));
 	mutex_unlock(&nfsd_mutex);
 
 	return 0;
@@ -1714,14 +1672,17 @@ static __net_init int nfsd_net_init(struct net *net)
 	retval = nfsd_idmap_init(net);
 	if (retval)
 		goto out_idmap_error;
-	retval = nfsd_net_reply_cache_init(nn);
+	retval = nfsd_stat_counters_init(nn);
 	if (retval)
 		goto out_repcache_error;
+	memset(&nn->nfsd_svcstats, 0, sizeof(nn->nfsd_svcstats));
+	nn->nfsd_svcstats.program = &nfsd_program;
 	nn->nfsd_versions = NULL;
 	nn->nfsd4_minorversions = NULL;
 	nfsd4_init_leases_net(nn);
 	get_random_bytes(&nn->siphash_key, sizeof(nn->siphash_key));
 	seqlock_init(&nn->writeverf_lock);
+	nfsd_proc_stat_init(net);
 
 	return 0;
 
@@ -1742,7 +1703,8 @@ static __net_exit void nfsd_net_exit(struct net *net)
 {
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 
-	nfsd_net_reply_cache_destroy(nn);
+	nfsd_proc_stat_shutdown(net);
+	nfsd_stat_counters_destroy(nn);
 	nfsd_idmap_shutdown(net);
 	nfsd_export_shutdown(net);
 	nfsd_netns_free_versions(nn);
@@ -1765,12 +1727,9 @@ static int __init init_nfsd(void)
 	retval = nfsd4_init_pnfs();
 	if (retval)
 		goto out_free_slabs;
-	retval = nfsd_stat_init();	/* Statistics */
-	if (retval)
-		goto out_free_pnfs;
 	retval = nfsd_drc_slab_create();
 	if (retval)
-		goto out_free_stat;
+		goto out_free_pnfs;
 	nfsd_lockd_init();	/* lockd->nfsd callbacks */
 	retval = create_proc_exports_entry();
 	if (retval)
@@ -1804,8 +1763,6 @@ out_free_exports:
 out_free_lockd:
 	nfsd_lockd_shutdown();
 	nfsd_drc_slab_free();
-out_free_stat:
-	nfsd_stat_shutdown();
 out_free_pnfs:
 	nfsd4_exit_pnfs();
 out_free_slabs:
@@ -1823,7 +1780,6 @@ static void __exit exit_nfsd(void)
 	nfsd_drc_slab_free();
 	remove_proc_entry("fs/nfs/exports", NULL);
 	remove_proc_entry("fs/nfs", NULL);
-	nfsd_stat_shutdown();
 	nfsd_lockd_shutdown();
 	nfsd4_free_slabs();
 	nfsd4_exit_pnfs();

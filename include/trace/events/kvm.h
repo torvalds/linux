@@ -62,7 +62,7 @@ TRACE_EVENT(kvm_vcpu_wakeup,
 		  __entry->valid ? "valid" : "invalid")
 );
 
-#if defined(CONFIG_HAVE_KVM_IRQFD)
+#if defined(CONFIG_HAVE_KVM_IRQCHIP)
 TRACE_EVENT(kvm_set_irq,
 	TP_PROTO(unsigned int gsi, int level, int irq_source_id),
 	TP_ARGS(gsi, level, irq_source_id),
@@ -82,7 +82,7 @@ TRACE_EVENT(kvm_set_irq,
 	TP_printk("gsi %u level %d source %d",
 		  __entry->gsi, __entry->level, __entry->irq_source_id)
 );
-#endif /* defined(CONFIG_HAVE_KVM_IRQFD) */
+#endif /* defined(CONFIG_HAVE_KVM_IRQCHIP) */
 
 #if defined(__KVM_HAVE_IOAPIC)
 #define kvm_deliver_mode		\
@@ -170,7 +170,7 @@ TRACE_EVENT(kvm_msi_set_irq,
 
 #endif /* defined(__KVM_HAVE_IOAPIC) */
 
-#if defined(CONFIG_HAVE_KVM_IRQFD)
+#if defined(CONFIG_HAVE_KVM_IRQCHIP)
 
 #ifdef kvm_irqchips
 #define kvm_ack_irq_string "irqchip %s pin %u"
@@ -197,7 +197,7 @@ TRACE_EVENT(kvm_ack_irq,
 	TP_printk(kvm_ack_irq_string, kvm_ack_irq_parm)
 );
 
-#endif /* defined(CONFIG_HAVE_KVM_IRQFD) */
+#endif /* defined(CONFIG_HAVE_KVM_IRQCHIP) */
 
 
 

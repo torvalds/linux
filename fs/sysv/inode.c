@@ -336,7 +336,7 @@ int __init sysv_init_icache(void)
 {
 	sysv_inode_cachep = kmem_cache_create("sysv_inode_cache",
 			sizeof(struct sysv_inode_info), 0,
-			SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD|SLAB_ACCOUNT,
+			SLAB_RECLAIM_ACCOUNT|SLAB_ACCOUNT,
 			init_once);
 	if (!sysv_inode_cachep)
 		return -ENOMEM;

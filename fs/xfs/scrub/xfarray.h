@@ -45,6 +45,25 @@ int xfarray_store(struct xfarray *array, xfarray_idx_t idx, const void *ptr);
 int xfarray_store_anywhere(struct xfarray *array, const void *ptr);
 bool xfarray_element_is_null(struct xfarray *array, const void *ptr);
 
+/*
+ * Load an array element, but zero the buffer if there's no data because we
+ * haven't stored to that array element yet.
+ */
+static inline int
+xfarray_load_sparse(
+	struct xfarray	*array,
+	uint64_t	idx,
+	void		*rec)
+{
+	int		error = xfarray_load(array, idx, rec);
+
+	if (error == -ENODATA) {
+		memset(rec, 0, array->obj_size);
+		return 0;
+	}
+	return error;
+}
+
 /* Append an element to the array. */
 static inline int xfarray_append(struct xfarray *array, const void *ptr)
 {
@@ -53,6 +72,28 @@ static inline int xfarray_append(struct xfarray *array, const void *ptr)
 
 uint64_t xfarray_length(struct xfarray *array);
 int xfarray_load_next(struct xfarray *array, xfarray_idx_t *idx, void *rec);
+
+/*
+ * Iterate the non-null elements in a sparse xfarray.  Callers should
+ * initialize *idx to XFARRAY_CURSOR_INIT before the first call; on return, it
+ * will be set to one more than the index of the record that was retrieved.
+ * Returns 1 if a record was retrieved, 0 if there weren't any more records, or
+ * a negative errno.
+ */
+static inline int
+xfarray_iter(
+	struct xfarray	*array,
+	xfarray_idx_t	*idx,
+	void		*rec)
+{
+	int ret = xfarray_load_next(array, idx, rec);
+
+	if (ret == -ENODATA)
+		return 0;
+	if (ret == 0)
+		return 1;
+	return ret;
+}
 
 /* Declarations for xfile array sort functionality. */
 
@@ -83,9 +124,14 @@ struct xfarray_sortinfo {
 	/* XFARRAY_SORT_* flags; see below. */
 	unsigned int		flags;
 
-	/* Cache a page here for faster access. */
-	struct xfile_page	xfpage;
-	void			*page_kaddr;
+	/* Cache a folio here for faster scanning for pivots */
+	struct folio		*folio;
+
+	/* First array index in folio that is completely readable */
+	xfarray_idx_t		first_folio_idx;
+
+	/* Last array index in folio that is completely readable */
+	xfarray_idx_t		last_folio_idx;
 
 #ifdef DEBUG
 	/* Performance statistics. */

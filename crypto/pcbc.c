@@ -71,7 +71,7 @@ static int crypto_pcbc_encrypt(struct skcipher_request *req)
 
 	err = skcipher_walk_virt(&walk, req, false);
 
-	while ((nbytes = walk.nbytes)) {
+	while (walk.nbytes) {
 		if (walk.src.virt.addr == walk.dst.virt.addr)
 			nbytes = crypto_pcbc_encrypt_inplace(req, &walk,
 							     cipher);
@@ -138,7 +138,7 @@ static int crypto_pcbc_decrypt(struct skcipher_request *req)
 
 	err = skcipher_walk_virt(&walk, req, false);
 
-	while ((nbytes = walk.nbytes)) {
+	while (walk.nbytes) {
 		if (walk.src.virt.addr == walk.dst.virt.addr)
 			nbytes = crypto_pcbc_decrypt_inplace(req, &walk,
 							     cipher);

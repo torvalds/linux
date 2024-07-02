@@ -30,6 +30,7 @@ static int ima_dump_measurement_list(unsigned long *buffer_size, void **buffer,
 		goto out;
 	}
 
+	file.file = NULL;
 	file.size = segment_size;
 	file.read_pos = 0;
 	file.count = sizeof(khdr);	/* reserved space */
@@ -129,8 +130,8 @@ void ima_add_kexec_buffer(struct kimage *image)
 	image->ima_buffer_size = kexec_segment_size;
 	image->ima_buffer = kexec_buffer;
 
-	pr_debug("kexec measurement buffer for the loaded kernel at 0x%lx.\n",
-		 kbuf.mem);
+	kexec_dprintk("kexec measurement buffer for the loaded kernel at 0x%lx.\n",
+		      kbuf.mem);
 }
 #endif /* IMA_KEXEC */
 

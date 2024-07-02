@@ -599,7 +599,7 @@ fail_irq:
 	return ret;
 }
 
-static int pruss_intc_remove(struct platform_device *pdev)
+static void pruss_intc_remove(struct platform_device *pdev)
 {
 	struct pruss_intc *intc = platform_get_drvdata(pdev);
 	u8 max_system_events = intc->soc_config->num_system_events;
@@ -616,8 +616,6 @@ static int pruss_intc_remove(struct platform_device *pdev)
 		irq_dispose_mapping(irq_find_mapping(intc->domain, hwirq));
 
 	irq_domain_remove(intc->domain);
-
-	return 0;
 }
 
 static const struct pruss_intc_match_data pruss_intc_data = {
@@ -645,12 +643,12 @@ MODULE_DEVICE_TABLE(of, pruss_intc_of_match);
 
 static struct platform_driver pruss_intc_driver = {
 	.driver = {
-		.name = "pruss-intc",
-		.of_match_table = pruss_intc_of_match,
-		.suppress_bind_attrs = true,
+		.name			= "pruss-intc",
+		.of_match_table		= pruss_intc_of_match,
+		.suppress_bind_attrs	= true,
 	},
-	.probe  = pruss_intc_probe,
-	.remove = pruss_intc_remove,
+	.probe		= pruss_intc_probe,
+	.remove_new	= pruss_intc_remove,
 };
 module_platform_driver(pruss_intc_driver);
 

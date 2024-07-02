@@ -934,11 +934,11 @@ static u32 lan743x_ethtool_get_rxfh_indir_size(struct net_device *netdev)
 }
 
 static int lan743x_ethtool_get_rxfh(struct net_device *netdev,
-				    u32 *indir, u8 *key, u8 *hfunc)
+				    struct ethtool_rxfh_param *rxfh)
 {
 	struct lan743x_adapter *adapter = netdev_priv(netdev);
 
-	if (indir) {
+	if (rxfh->indir) {
 		int dw_index;
 		int byte_index = 0;
 
@@ -947,17 +947,17 @@ static int lan743x_ethtool_get_rxfh(struct net_device *netdev,
 				lan743x_csr_read(adapter, RFE_INDX(dw_index));
 
 			byte_index = dw_index << 2;
-			indir[byte_index + 0] =
+			rxfh->indir[byte_index + 0] =
 				((four_entries >> 0) & 0x000000FF);
-			indir[byte_index + 1] =
+			rxfh->indir[byte_index + 1] =
 				((four_entries >> 8) & 0x000000FF);
-			indir[byte_index + 2] =
+			rxfh->indir[byte_index + 2] =
 				((four_entries >> 16) & 0x000000FF);
-			indir[byte_index + 3] =
+			rxfh->indir[byte_index + 3] =
 				((four_entries >> 24) & 0x000000FF);
 		}
 	}
-	if (key) {
+	if (rxfh->key) {
 		int dword_index;
 		int byte_index = 0;
 
@@ -967,28 +967,30 @@ static int lan743x_ethtool_get_rxfh(struct net_device *netdev,
 						 RFE_HASH_KEY(dword_index));
 
 			byte_index = dword_index << 2;
-			key[byte_index + 0] =
+			rxfh->key[byte_index + 0] =
 				((four_entries >> 0) & 0x000000FF);
-			key[byte_index + 1] =
+			rxfh->key[byte_index + 1] =
 				((four_entries >> 8) & 0x000000FF);
-			key[byte_index + 2] =
+			rxfh->key[byte_index + 2] =
 				((four_entries >> 16) & 0x000000FF);
-			key[byte_index + 3] =
+			rxfh->key[byte_index + 3] =
 				((four_entries >> 24) & 0x000000FF);
 		}
 	}
-	if (hfunc)
-		(*hfunc) = ETH_RSS_HASH_TOP;
+	rxfh->hfunc = ETH_RSS_HASH_TOP;
 	return 0;
 }
 
 static int lan743x_ethtool_set_rxfh(struct net_device *netdev,
-				    const u32 *indir, const u8 *key,
-				    const u8 hfunc)
+				    struct ethtool_rxfh_param *rxfh,
+				    struct netlink_ext_ack *extack)
 {
 	struct lan743x_adapter *adapter = netdev_priv(netdev);
+	u32 *indir = rxfh->indir;
+	u8 *key = rxfh->key;
 
-	if (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP)
+	if (rxfh->hfunc != ETH_RSS_HASH_NO_CHANGE &&
+	    rxfh->hfunc != ETH_RSS_HASH_TOP)
 		return -EOPNOTSUPP;
 
 	if (indir) {
@@ -1053,7 +1055,7 @@ static int lan743x_ethtool_get_ts_info(struct net_device *netdev,
 }
 
 static int lan743x_ethtool_get_eee(struct net_device *netdev,
-				   struct ethtool_eee *eee)
+				   struct ethtool_keee *eee)
 {
 	struct lan743x_adapter *adapter = netdev_priv(netdev);
 	struct phy_device *phydev = netdev->phydev;
@@ -1074,16 +1076,10 @@ static int lan743x_ethtool_get_eee(struct net_device *netdev,
 
 	buf = lan743x_csr_read(adapter, MAC_CR);
 	if (buf & MAC_CR_EEE_EN_) {
-		eee->eee_enabled = true;
-		eee->eee_active = !!(eee->advertised & eee->lp_advertised);
-		eee->tx_lpi_enabled = true;
 		/* EEE_TX_LPI_REQ_DLY & tx_lpi_timer are same uSec unit */
 		buf = lan743x_csr_read(adapter, MAC_EEE_TX_LPI_REQ_DLY_CNT);
 		eee->tx_lpi_timer = buf;
 	} else {
-		eee->eee_enabled = false;
-		eee->eee_active = false;
-		eee->tx_lpi_enabled = false;
 		eee->tx_lpi_timer = 0;
 	}
 
@@ -1091,12 +1087,11 @@ static int lan743x_ethtool_get_eee(struct net_device *netdev,
 }
 
 static int lan743x_ethtool_set_eee(struct net_device *netdev,
-				   struct ethtool_eee *eee)
+				   struct ethtool_keee *eee)
 {
 	struct lan743x_adapter *adapter;
 	struct phy_device *phydev;
 	u32 buf = 0;
-	int ret = 0;
 
 	if (!netdev)
 		return -EINVAL;
@@ -1113,23 +1108,8 @@ static int lan743x_ethtool_set_eee(struct net_device *netdev,
 	}
 
 	if (eee->eee_enabled) {
-		ret = phy_init_eee(phydev, false);
-		if (ret) {
-			netif_err(adapter, drv, adapter->netdev,
-				  "EEE initialization failed\n");
-			return ret;
-		}
-
 		buf = (u32)eee->tx_lpi_timer;
 		lan743x_csr_write(adapter, MAC_EEE_TX_LPI_REQ_DLY_CNT, buf);
-
-		buf = lan743x_csr_read(adapter, MAC_CR);
-		buf |= MAC_CR_EEE_EN_;
-		lan743x_csr_write(adapter, MAC_CR, buf);
-	} else {
-		buf = lan743x_csr_read(adapter, MAC_CR);
-		buf &= ~MAC_CR_EEE_EN_;
-		lan743x_csr_write(adapter, MAC_CR, buf);
 	}
 
 	return phy_ethtool_set_eee(phydev, eee);

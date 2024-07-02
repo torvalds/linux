@@ -577,8 +577,6 @@ static int uvd_v3_1_sw_init(void *handle)
 	ptr += ucode_len;
 	memcpy(&adev->uvd.keyselect, ptr, 4);
 
-	r = amdgpu_uvd_entity_init(adev);
-
 	return r;
 }
 
@@ -821,6 +819,8 @@ static const struct amd_ip_funcs uvd_v3_1_ip_funcs = {
 	.soft_reset = uvd_v3_1_soft_reset,
 	.set_clockgating_state = uvd_v3_1_set_clockgating_state,
 	.set_powergating_state = uvd_v3_1_set_powergating_state,
+	.dump_ip_state = NULL,
+	.print_ip_state = NULL,
 };
 
 const struct amdgpu_ip_block_version uvd_v3_1_ip_block = {

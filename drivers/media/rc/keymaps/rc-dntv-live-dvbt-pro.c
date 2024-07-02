@@ -91,3 +91,4 @@ module_exit(exit_rc_map_dntv_live_dvbt_pro)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Mauro Carvalho Chehab");
+MODULE_DESCRIPTION("DigitalNow DNTV Live DVB-T Remote controller keytable");

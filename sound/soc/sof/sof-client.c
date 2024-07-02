@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 //
-// Copyright(c) 2022 Intel Corporation. All rights reserved.
+// Copyright(c) 2022 Intel Corporation
 //
 // Authors: Ranjani Sridharan <ranjani.sridharan@linux.intel.com>
 //	    Peter Ujfalusi <peter.ujfalusi@linux.intel.com>
@@ -176,7 +176,7 @@ int sof_register_clients(struct snd_sof_dev *sdev)
 		goto err_kernel_injector;
 	}
 
-	/* Platform depndent client device registration */
+	/* Platform dependent client device registration */
 
 	if (sof_ops(sdev) && sof_ops(sdev)->register_ipc_clients)
 		ret = sof_ops(sdev)->register_ipc_clients(sdev);

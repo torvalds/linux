@@ -63,6 +63,8 @@ void kill_dax(struct dax_device *dax_dev);
 void dax_write_cache(struct dax_device *dax_dev, bool wc);
 bool dax_write_cache_enabled(struct dax_device *dax_dev);
 bool dax_synchronous(struct dax_device *dax_dev);
+void set_dax_nocache(struct dax_device *dax_dev);
+void set_dax_nomc(struct dax_device *dax_dev);
 void set_dax_synchronous(struct dax_device *dax_dev);
 size_t dax_recovery_write(struct dax_device *dax_dev, pgoff_t pgoff,
 		void *addr, size_t bytes, struct iov_iter *i);
@@ -86,11 +88,7 @@ static inline void *dax_holder(struct dax_device *dax_dev)
 static inline struct dax_device *alloc_dax(void *private,
 		const struct dax_operations *ops)
 {
-	/*
-	 * Callers should check IS_ENABLED(CONFIG_DAX) to know if this
-	 * NULL is an error or expected.
-	 */
-	return NULL;
+	return ERR_PTR(-EOPNOTSUPP);
 }
 static inline void put_dax(struct dax_device *dax_dev)
 {
@@ -109,6 +107,12 @@ static inline bool dax_synchronous(struct dax_device *dax_dev)
 {
 	return true;
 }
+static inline void set_dax_nocache(struct dax_device *dax_dev)
+{
+}
+static inline void set_dax_nomc(struct dax_device *dax_dev)
+{
+}
 static inline void set_dax_synchronous(struct dax_device *dax_dev)
 {
 }
@@ -123,9 +127,6 @@ static inline size_t dax_recovery_write(struct dax_device *dax_dev,
 	return 0;
 }
 #endif
-
-void set_dax_nocache(struct dax_device *dax_dev);
-void set_dax_nomc(struct dax_device *dax_dev);
 
 struct writeback_control;
 #if defined(CONFIG_BLOCK) && defined(CONFIG_FS_DAX)

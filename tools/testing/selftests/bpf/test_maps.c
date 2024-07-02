@@ -1190,7 +1190,11 @@ static void test_map_in_map(void)
 		goto out_map_in_map;
 	}
 
-	bpf_object__load(obj);
+	err = bpf_object__load(obj);
+	if (err) {
+		printf("Failed to load test prog\n");
+		goto out_map_in_map;
+	}
 
 	map = bpf_object__find_map_by_name(obj, "mim_array");
 	if (!map) {
@@ -1396,13 +1400,18 @@ static void test_map_stress(void)
 #define MAX_DELAY_US 50000
 #define MIN_DELAY_RANGE_US 5000
 
-static int map_update_retriable(int map_fd, const void *key, const void *value,
-				int flags, int attempts)
+static bool retry_for_again_or_busy(int err)
+{
+	return (err == EAGAIN || err == EBUSY);
+}
+
+int map_update_retriable(int map_fd, const void *key, const void *value, int flags, int attempts,
+			 retry_for_error_fn need_retry)
 {
 	int delay = rand() % MIN_DELAY_RANGE_US;
 
 	while (bpf_map_update_elem(map_fd, key, value, flags)) {
-		if (!attempts || (errno != EAGAIN && errno != EBUSY))
+		if (!attempts || !need_retry(errno))
 			return -errno;
 
 		if (delay <= MAX_DELAY_US / 2)
@@ -1445,11 +1454,13 @@ static void test_update_delete(unsigned int fn, void *data)
 		key = value = i;
 
 		if (do_update) {
-			err = map_update_retriable(fd, &key, &value, BPF_NOEXIST, MAP_RETRIES);
+			err = map_update_retriable(fd, &key, &value, BPF_NOEXIST, MAP_RETRIES,
+						   retry_for_again_or_busy);
 			if (err)
 				printf("error %d %d\n", err, errno);
 			assert(err == 0);
-			err = map_update_retriable(fd, &key, &value, BPF_EXIST, MAP_RETRIES);
+			err = map_update_retriable(fd, &key, &value, BPF_EXIST, MAP_RETRIES,
+						   retry_for_again_or_busy);
 			if (err)
 				printf("error %d %d\n", err, errno);
 			assert(err == 0);

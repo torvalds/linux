@@ -151,10 +151,6 @@ void sfp_parse_support(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 	unsigned int br_min, br_nom, br_max;
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(modes) = { 0, };
 
-	phylink_set(modes, Autoneg);
-	phylink_set(modes, Pause);
-	phylink_set(modes, Asym_Pause);
-
 	/* Decode the bitrate information to MBd */
 	br_min = br_nom = br_max = 0;
 	if (id->base.br_nominal) {
@@ -328,7 +324,7 @@ void sfp_parse_support(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 	 * modules use 2500Mbaud rather than 3100 or 3200Mbaud for
 	 * 2500BASE-X, so we allow some slack here.
 	 */
-	if (bitmap_empty(modes, __ETHTOOL_LINK_MODE_MASK_NBITS) && br_nom) {
+	if (linkmode_empty(modes) && br_nom) {
 		if (br_min <= 1300 && br_max >= 1200) {
 			phylink_set(modes, 1000baseX_Full);
 			__set_bit(PHY_INTERFACE_MODE_1000BASEX, interfaces);
@@ -338,6 +334,10 @@ void sfp_parse_support(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 			__set_bit(PHY_INTERFACE_MODE_2500BASEX, interfaces);
 		}
 	}
+
+	phylink_set(modes, Autoneg);
+	phylink_set(modes, Pause);
+	phylink_set(modes, Asym_Pause);
 
 	if (bus->sfp_quirk && bus->sfp_quirk->modes)
 		bus->sfp_quirk->modes(id, modes, interfaces);
@@ -355,7 +355,7 @@ EXPORT_SYMBOL_GPL(sfp_parse_support);
  * modes mask.
  */
 phy_interface_t sfp_select_interface(struct sfp_bus *bus,
-				     unsigned long *link_modes)
+				     const unsigned long *link_modes)
 {
 	if (phylink_test(link_modes, 25000baseCR_Full) ||
 	    phylink_test(link_modes, 25000baseKR_Full) ||
@@ -373,7 +373,8 @@ phy_interface_t sfp_select_interface(struct sfp_bus *bus,
 	if (phylink_test(link_modes, 5000baseT_Full))
 		return PHY_INTERFACE_MODE_5GBASER;
 
-	if (phylink_test(link_modes, 2500baseX_Full))
+	if (phylink_test(link_modes, 2500baseX_Full) ||
+	    phylink_test(link_modes, 2500baseT_Full))
 		return PHY_INTERFACE_MODE_2500BASEX;
 
 	if (phylink_test(link_modes, 1000baseT_Half) ||

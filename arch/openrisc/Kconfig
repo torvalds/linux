@@ -25,6 +25,7 @@ config OPENRISC
 	select GENERIC_CPU_DEVICES
 	select HAVE_PCI
 	select HAVE_UID16
+	select HAVE_PAGE_SIZE_8KB
 	select GENERIC_ATOMIC64
 	select GENERIC_CLOCKEVENTS_BROADCAST
 	select GENERIC_SMP_IDLE_THREAD
@@ -186,6 +187,15 @@ config SMP
 	  than one CPU, say Y.
 
 	  If you don't know what to do here, say N.
+
+config FPU
+	bool "FPU support"
+	default y
+	help
+	  Say N here if you want to disable all floating-point related procedures
+	  in the kernel and reduce binary size.
+
+	  If you don't know what to do here, say Y.
 
 source "kernel/Kconfig.hz"
 

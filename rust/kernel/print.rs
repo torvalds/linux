@@ -2,7 +2,7 @@
 
 //! Printing facilities.
 //!
-//! C header: [`include/linux/printk.h`](../../../../include/linux/printk.h)
+//! C header: [`include/linux/printk.h`](srctree/include/linux/printk.h)
 //!
 //! Reference: <https://www.kernel.org/doc/html/latest/core-api/printk-basics.html>
 
@@ -12,9 +12,6 @@ use core::{
 };
 
 use crate::str::RawFormatter;
-
-#[cfg(CONFIG_PRINTK)]
-use crate::bindings;
 
 // Called from `vsprintf` with format specifier `%pA`.
 #[no_mangle]
@@ -35,8 +32,6 @@ unsafe extern "C" fn rust_fmt_argument(
 /// Public but hidden since it should only be used from public macros.
 #[doc(hidden)]
 pub mod format_strings {
-    use crate::bindings;
-
     /// The length we copy from the `KERN_*` kernel prefixes.
     const LENGTH_PREFIX: usize = 2;
 
@@ -48,7 +43,7 @@ pub mod format_strings {
     /// The format string is always the same for a given level, i.e. for a
     /// given `prefix`, which are the kernel's `KERN_*` constants.
     ///
-    /// [`_printk`]: ../../../../include/linux/printk.h
+    /// [`_printk`]: srctree/include/linux/printk.h
     const fn generate(is_cont: bool, prefix: &[u8; 3]) -> [u8; LENGTH] {
         // Ensure the `KERN_*` macros are what we expect.
         assert!(prefix[0] == b'\x01');
@@ -97,7 +92,7 @@ pub mod format_strings {
 /// The format string must be one of the ones in [`format_strings`], and
 /// the module name must be null-terminated.
 ///
-/// [`_printk`]: ../../../../include/linux/_printk.h
+/// [`_printk`]: srctree/include/linux/_printk.h
 #[doc(hidden)]
 #[cfg_attr(not(CONFIG_PRINTK), allow(unused_variables))]
 pub unsafe fn call_printk(
@@ -120,7 +115,7 @@ pub unsafe fn call_printk(
 ///
 /// Public but hidden since it should only be used from public macros.
 ///
-/// [`_printk`]: ../../../../include/linux/printk.h
+/// [`_printk`]: srctree/include/linux/printk.h
 #[doc(hidden)]
 #[cfg_attr(not(CONFIG_PRINTK), allow(unused_variables))]
 pub fn call_printk_cont(args: fmt::Arguments<'_>) {

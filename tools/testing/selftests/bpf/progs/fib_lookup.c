@@ -3,8 +3,8 @@
 
 #include <linux/types.h>
 #include <linux/bpf.h>
+#include <linux/pkt_cls.h>
 #include <bpf/bpf_helpers.h>
-#include "bpf_tracing_net.h"
 
 struct bpf_fib_lookup fib_params = {};
 int fib_lookup_ret = 0;

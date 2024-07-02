@@ -158,8 +158,8 @@ static void k3_dsp_rproc_kick(struct rproc *rproc, int vqid)
 	/* send the index of the triggered virtqueue in the mailbox payload */
 	ret = mbox_send_message(kproc->mbox, (void *)msg);
 	if (ret < 0)
-		dev_err(dev, "failed to send mailbox message, status = %d\n",
-			ret);
+		dev_err(dev, "failed to send mailbox message (%pe)\n",
+			ERR_PTR(ret));
 }
 
 /* Put the DSP processor into reset */
@@ -170,7 +170,7 @@ static int k3_dsp_rproc_reset(struct k3_dsp_rproc *kproc)
 
 	ret = reset_control_assert(kproc->reset);
 	if (ret) {
-		dev_err(dev, "local-reset assert failed, ret = %d\n", ret);
+		dev_err(dev, "local-reset assert failed (%pe)\n", ERR_PTR(ret));
 		return ret;
 	}
 
@@ -180,7 +180,7 @@ static int k3_dsp_rproc_reset(struct k3_dsp_rproc *kproc)
 	ret = kproc->ti_sci->ops.dev_ops.put_device(kproc->ti_sci,
 						    kproc->ti_sci_id);
 	if (ret) {
-		dev_err(dev, "module-reset assert failed, ret = %d\n", ret);
+		dev_err(dev, "module-reset assert failed (%pe)\n", ERR_PTR(ret));
 		if (reset_control_deassert(kproc->reset))
 			dev_warn(dev, "local-reset deassert back failed\n");
 	}
@@ -200,14 +200,14 @@ static int k3_dsp_rproc_release(struct k3_dsp_rproc *kproc)
 	ret = kproc->ti_sci->ops.dev_ops.get_device(kproc->ti_sci,
 						    kproc->ti_sci_id);
 	if (ret) {
-		dev_err(dev, "module-reset deassert failed, ret = %d\n", ret);
+		dev_err(dev, "module-reset deassert failed (%pe)\n", ERR_PTR(ret));
 		return ret;
 	}
 
 lreset:
 	ret = reset_control_deassert(kproc->reset);
 	if (ret) {
-		dev_err(dev, "local-reset deassert failed, ret = %d\n", ret);
+		dev_err(dev, "local-reset deassert failed, (%pe)\n", ERR_PTR(ret));
 		if (kproc->ti_sci->ops.dev_ops.put_device(kproc->ti_sci,
 							  kproc->ti_sci_id))
 			dev_warn(dev, "module-reset assert back failed\n");
@@ -246,7 +246,7 @@ static int k3_dsp_rproc_request_mbox(struct rproc *rproc)
 	 */
 	ret = mbox_send_message(kproc->mbox, (void *)RP_MBOX_ECHO_REQUEST);
 	if (ret < 0) {
-		dev_err(dev, "mbox_send_message failed: %d\n", ret);
+		dev_err(dev, "mbox_send_message failed (%pe)\n", ERR_PTR(ret));
 		mbox_free_channel(kproc->mbox);
 		return ret;
 	}
@@ -272,8 +272,8 @@ static int k3_dsp_rproc_prepare(struct rproc *rproc)
 	ret = kproc->ti_sci->ops.dev_ops.get_device(kproc->ti_sci,
 						    kproc->ti_sci_id);
 	if (ret)
-		dev_err(dev, "module-reset deassert failed, cannot enable internal RAM loading, ret = %d\n",
-			ret);
+		dev_err(dev, "module-reset deassert failed, cannot enable internal RAM loading (%pe)\n",
+			ERR_PTR(ret));
 
 	return ret;
 }
@@ -296,7 +296,7 @@ static int k3_dsp_rproc_unprepare(struct rproc *rproc)
 	ret = kproc->ti_sci->ops.dev_ops.put_device(kproc->ti_sci,
 						    kproc->ti_sci_id);
 	if (ret)
-		dev_err(dev, "module-reset assert failed, ret = %d\n", ret);
+		dev_err(dev, "module-reset assert failed (%pe)\n", ERR_PTR(ret));
 
 	return ret;
 }
@@ -550,6 +550,13 @@ static int k3_dsp_rproc_of_get_memories(struct platform_device *pdev,
 	return 0;
 }
 
+static void k3_dsp_mem_release(void *data)
+{
+	struct device *dev = data;
+
+	of_reserved_mem_device_release(dev);
+}
+
 static int k3_dsp_reserved_mem_init(struct k3_dsp_rproc *kproc)
 {
 	struct device *dev = kproc->dev;
@@ -561,9 +568,9 @@ static int k3_dsp_reserved_mem_init(struct k3_dsp_rproc *kproc)
 
 	num_rmems = of_property_count_elems_of_size(np, "memory-region",
 						    sizeof(phandle));
-	if (num_rmems <= 0) {
-		dev_err(dev, "device does not reserved memory regions, ret = %d\n",
-			num_rmems);
+	if (num_rmems < 0) {
+		dev_err(dev, "device does not reserved memory regions (%pe)\n",
+			ERR_PTR(num_rmems));
 		return -EINVAL;
 	}
 	if (num_rmems < 2) {
@@ -575,31 +582,29 @@ static int k3_dsp_reserved_mem_init(struct k3_dsp_rproc *kproc)
 	/* use reserved memory region 0 for vring DMA allocations */
 	ret = of_reserved_mem_device_init_by_idx(dev, np, 0);
 	if (ret) {
-		dev_err(dev, "device cannot initialize DMA pool, ret = %d\n",
-			ret);
+		dev_err(dev, "device cannot initialize DMA pool (%pe)\n",
+			ERR_PTR(ret));
 		return ret;
 	}
+	ret = devm_add_action_or_reset(dev, k3_dsp_mem_release, dev);
+	if (ret)
+		return ret;
 
 	num_rmems--;
-	kproc->rmem = kcalloc(num_rmems, sizeof(*kproc->rmem), GFP_KERNEL);
-	if (!kproc->rmem) {
-		ret = -ENOMEM;
-		goto release_rmem;
-	}
+	kproc->rmem = devm_kcalloc(dev, num_rmems, sizeof(*kproc->rmem), GFP_KERNEL);
+	if (!kproc->rmem)
+		return -ENOMEM;
 
 	/* use remaining reserved memory regions for static carveouts */
 	for (i = 0; i < num_rmems; i++) {
 		rmem_np = of_parse_phandle(np, "memory-region", i + 1);
-		if (!rmem_np) {
-			ret = -EINVAL;
-			goto unmap_rmem;
-		}
+		if (!rmem_np)
+			return -EINVAL;
 
 		rmem = of_reserved_mem_lookup(rmem_np);
 		if (!rmem) {
 			of_node_put(rmem_np);
-			ret = -EINVAL;
-			goto unmap_rmem;
+			return -EINVAL;
 		}
 		of_node_put(rmem_np);
 
@@ -607,12 +612,11 @@ static int k3_dsp_reserved_mem_init(struct k3_dsp_rproc *kproc)
 		/* 64-bit address regions currently not supported */
 		kproc->rmem[i].dev_addr = (u32)rmem->base;
 		kproc->rmem[i].size = rmem->size;
-		kproc->rmem[i].cpu_addr = ioremap_wc(rmem->base, rmem->size);
+		kproc->rmem[i].cpu_addr = devm_ioremap_wc(dev, rmem->base, rmem->size);
 		if (!kproc->rmem[i].cpu_addr) {
 			dev_err(dev, "failed to map reserved memory#%d at %pa of size %pa\n",
 				i + 1, &rmem->base, &rmem->size);
-			ret = -ENOMEM;
-			goto unmap_rmem;
+			return -ENOMEM;
 		}
 
 		dev_dbg(dev, "reserved memory%d: bus addr %pa size 0x%zx va %pK da 0x%x\n",
@@ -623,25 +627,13 @@ static int k3_dsp_reserved_mem_init(struct k3_dsp_rproc *kproc)
 	kproc->num_rmems = num_rmems;
 
 	return 0;
-
-unmap_rmem:
-	for (i--; i >= 0; i--)
-		iounmap(kproc->rmem[i].cpu_addr);
-	kfree(kproc->rmem);
-release_rmem:
-	of_reserved_mem_device_release(kproc->dev);
-	return ret;
 }
 
-static void k3_dsp_reserved_mem_exit(struct k3_dsp_rproc *kproc)
+static void k3_dsp_release_tsp(void *data)
 {
-	int i;
+	struct ti_sci_proc *tsp = data;
 
-	for (i = 0; i < kproc->num_rmems; i++)
-		iounmap(kproc->rmem[i].cpu_addr);
-	kfree(kproc->rmem);
-
-	of_reserved_mem_device_release(kproc->dev);
+	ti_sci_proc_release(tsp);
 }
 
 static
@@ -657,7 +649,7 @@ struct ti_sci_proc *k3_dsp_rproc_of_get_tsp(struct device *dev,
 	if (ret < 0)
 		return ERR_PTR(ret);
 
-	tsp = kzalloc(sizeof(*tsp), GFP_KERNEL);
+	tsp = devm_kzalloc(dev, sizeof(*tsp), GFP_KERNEL);
 	if (!tsp)
 		return ERR_PTR(-ENOMEM);
 
@@ -680,21 +672,17 @@ static int k3_dsp_rproc_probe(struct platform_device *pdev)
 	const char *fw_name;
 	bool p_state = false;
 	int ret = 0;
-	int ret1;
 
 	data = of_device_get_match_data(dev);
 	if (!data)
 		return -ENODEV;
 
 	ret = rproc_of_parse_firmware(dev, 0, &fw_name);
-	if (ret) {
-		dev_err(dev, "failed to parse firmware-name property, ret = %d\n",
-			ret);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to parse firmware-name property\n");
 
-	rproc = rproc_alloc(dev, dev_name(dev), &k3_dsp_rproc_ops, fw_name,
-			    sizeof(*kproc));
+	rproc = devm_rproc_alloc(dev, dev_name(dev), &k3_dsp_rproc_ops,
+				 fw_name, sizeof(*kproc));
 	if (!rproc)
 		return -ENOMEM;
 
@@ -709,61 +697,46 @@ static int k3_dsp_rproc_probe(struct platform_device *pdev)
 	kproc->dev = dev;
 	kproc->data = data;
 
-	kproc->ti_sci = ti_sci_get_by_phandle(np, "ti,sci");
-	if (IS_ERR(kproc->ti_sci)) {
-		ret = PTR_ERR(kproc->ti_sci);
-		if (ret != -EPROBE_DEFER) {
-			dev_err(dev, "failed to get ti-sci handle, ret = %d\n",
-				ret);
-		}
-		kproc->ti_sci = NULL;
-		goto free_rproc;
-	}
+	kproc->ti_sci = devm_ti_sci_get_by_phandle(dev, "ti,sci");
+	if (IS_ERR(kproc->ti_sci))
+		return dev_err_probe(dev, PTR_ERR(kproc->ti_sci),
+				     "failed to get ti-sci handle\n");
 
 	ret = of_property_read_u32(np, "ti,sci-dev-id", &kproc->ti_sci_id);
-	if (ret) {
-		dev_err(dev, "missing 'ti,sci-dev-id' property\n");
-		goto put_sci;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "missing 'ti,sci-dev-id' property\n");
 
 	kproc->reset = devm_reset_control_get_exclusive(dev, NULL);
-	if (IS_ERR(kproc->reset)) {
-		ret = PTR_ERR(kproc->reset);
-		dev_err(dev, "failed to get reset, status = %d\n", ret);
-		goto put_sci;
-	}
+	if (IS_ERR(kproc->reset))
+		return dev_err_probe(dev, PTR_ERR(kproc->reset),
+				     "failed to get reset\n");
 
 	kproc->tsp = k3_dsp_rproc_of_get_tsp(dev, kproc->ti_sci);
-	if (IS_ERR(kproc->tsp)) {
-		dev_err(dev, "failed to construct ti-sci proc control, ret = %d\n",
-			ret);
-		ret = PTR_ERR(kproc->tsp);
-		goto put_sci;
-	}
+	if (IS_ERR(kproc->tsp))
+		return dev_err_probe(dev, PTR_ERR(kproc->tsp),
+				     "failed to construct ti-sci proc control\n");
 
 	ret = ti_sci_proc_request(kproc->tsp);
 	if (ret < 0) {
-		dev_err(dev, "ti_sci_proc_request failed, ret = %d\n", ret);
-		goto free_tsp;
+		dev_err_probe(dev, ret, "ti_sci_proc_request failed\n");
+		return ret;
 	}
+	ret = devm_add_action_or_reset(dev, k3_dsp_release_tsp, kproc->tsp);
+	if (ret)
+		return ret;
 
 	ret = k3_dsp_rproc_of_get_memories(pdev, kproc);
 	if (ret)
-		goto release_tsp;
+		return ret;
 
 	ret = k3_dsp_reserved_mem_init(kproc);
-	if (ret) {
-		dev_err(dev, "reserved memory init failed, ret = %d\n", ret);
-		goto release_tsp;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "reserved memory init failed\n");
 
 	ret = kproc->ti_sci->ops.dev_ops.is_on(kproc->ti_sci, kproc->ti_sci_id,
 					       NULL, &p_state);
-	if (ret) {
-		dev_err(dev, "failed to get initial state, mode cannot be determined, ret = %d\n",
-			ret);
-		goto release_mem;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to get initial state, mode cannot be determined\n");
 
 	/* configure J721E devices for either remoteproc or IPC-only mode */
 	if (p_state) {
@@ -787,9 +760,7 @@ static int k3_dsp_rproc_probe(struct platform_device *pdev)
 		if (data->uses_lreset) {
 			ret = reset_control_status(kproc->reset);
 			if (ret < 0) {
-				dev_err(dev, "failed to get reset status, status = %d\n",
-					ret);
-				goto release_mem;
+				return dev_err_probe(dev, ret, "failed to get reset status\n");
 			} else if (ret == 0) {
 				dev_warn(dev, "local reset is deasserted for device\n");
 				k3_dsp_rproc_reset(kproc);
@@ -797,35 +768,16 @@ static int k3_dsp_rproc_probe(struct platform_device *pdev)
 		}
 	}
 
-	ret = rproc_add(rproc);
-	if (ret) {
-		dev_err(dev, "failed to add register device with remoteproc core, status = %d\n",
-			ret);
-		goto release_mem;
-	}
+	ret = devm_rproc_add(dev, rproc);
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to add register device with remoteproc core\n");
 
 	platform_set_drvdata(pdev, kproc);
 
 	return 0;
-
-release_mem:
-	k3_dsp_reserved_mem_exit(kproc);
-release_tsp:
-	ret1 = ti_sci_proc_release(kproc->tsp);
-	if (ret1)
-		dev_err(dev, "failed to release proc, ret = %d\n", ret1);
-free_tsp:
-	kfree(kproc->tsp);
-put_sci:
-	ret1 = ti_sci_put_handle(kproc->ti_sci);
-	if (ret1)
-		dev_err(dev, "failed to put ti_sci handle, ret = %d\n", ret1);
-free_rproc:
-	rproc_free(rproc);
-	return ret;
 }
 
-static int k3_dsp_rproc_remove(struct platform_device *pdev)
+static void k3_dsp_rproc_remove(struct platform_device *pdev)
 {
 	struct k3_dsp_rproc *kproc = platform_get_drvdata(pdev);
 	struct rproc *rproc = kproc->rproc;
@@ -834,28 +786,9 @@ static int k3_dsp_rproc_remove(struct platform_device *pdev)
 
 	if (rproc->state == RPROC_ATTACHED) {
 		ret = rproc_detach(rproc);
-		if (ret) {
-			dev_err(dev, "failed to detach proc, ret = %d\n", ret);
-			return ret;
-		}
+		if (ret)
+			dev_err(dev, "failed to detach proc (%pe)\n", ERR_PTR(ret));
 	}
-
-	rproc_del(kproc->rproc);
-
-	ret = ti_sci_proc_release(kproc->tsp);
-	if (ret)
-		dev_err(dev, "failed to release proc, ret = %d\n", ret);
-
-	kfree(kproc->tsp);
-
-	ret = ti_sci_put_handle(kproc->ti_sci);
-	if (ret)
-		dev_err(dev, "failed to put ti_sci handle, ret = %d\n", ret);
-
-	k3_dsp_reserved_mem_exit(kproc);
-	rproc_free(kproc->rproc);
-
-	return 0;
 }
 
 static const struct k3_dsp_mem_data c66_mems[] = {
@@ -906,7 +839,7 @@ MODULE_DEVICE_TABLE(of, k3_dsp_of_match);
 
 static struct platform_driver k3_dsp_rproc_driver = {
 	.probe	= k3_dsp_rproc_probe,
-	.remove	= k3_dsp_rproc_remove,
+	.remove_new = k3_dsp_rproc_remove,
 	.driver	= {
 		.name = "k3-dsp-rproc",
 		.of_match_table = k3_dsp_of_match,

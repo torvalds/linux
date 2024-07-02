@@ -64,6 +64,12 @@ struct drr_params {
 	bool immediate_flip;
 };
 
+struct long_vtotal_params {
+	uint32_t vertical_total_min;
+	uint32_t vertical_total_max;
+	uint32_t vertical_blank_start;
+};
+
 #define LEFT_EYE_3D_PRIMARY_SURFACE 1
 #define RIGHT_EYE_3D_PRIMARY_SURFACE 0
 
@@ -182,9 +188,7 @@ struct timing_generator_funcs {
 
 	bool (*enable_crtc)(struct timing_generator *tg);
 	bool (*disable_crtc)(struct timing_generator *tg);
-#ifdef CONFIG_DRM_AMD_DC_FP
 	void (*phantom_crtc_post_enable)(struct timing_generator *tg);
-#endif
 	void (*disable_phantom_crtc)(struct timing_generator *tg);
 	bool (*immediate_disable_crtc)(struct timing_generator *tg);
 	bool (*is_counter_moving)(struct timing_generator *tg);
@@ -333,6 +337,8 @@ struct timing_generator_funcs {
 
 	void (*init_odm)(struct timing_generator *tg);
 	void (*wait_drr_doublebuffer_pending_clear)(struct timing_generator *tg);
+	void (*set_long_vtotal)(struct timing_generator *optc, const struct long_vtotal_params *params);
+	void (*wait_odm_doublebuffer_pending_clear)(struct timing_generator *tg);
 };
 
 #endif

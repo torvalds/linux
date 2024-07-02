@@ -710,12 +710,6 @@ static inline void name at					\
 #define memcpy_toio memcpy_toio
 
 /*
- * Convert a physical pointer to a virtual kernel pointer for /dev/mem
- * access
- */
-#define xlate_dev_mem_ptr(p)	__va(p)
-
-/*
  * We don't do relaxed operations yet, at least not with this semantic
  */
 #define readb_relaxed(addr)	readb(addr)
@@ -900,7 +894,6 @@ void __iomem *ioremap_wt(phys_addr_t address, unsigned long size);
 #endif
 
 void __iomem *ioremap_coherent(phys_addr_t address, unsigned long size);
-#define ioremap_uc(addr, size)		ioremap((addr), (size))
 #define ioremap_cache(addr, size) \
 	ioremap_prot((addr), (size), pgprot_val(PAGE_KERNEL))
 
@@ -950,7 +943,7 @@ extern void __iomem *__ioremap_caller(phys_addr_t, unsigned long size,
  *	almost all conceivable cases a device driver should not be using
  *	this function
  */
-static inline unsigned long virt_to_phys(volatile void * address)
+static inline unsigned long virt_to_phys(const volatile void * address)
 {
 	WARN_ON(IS_ENABLED(CONFIG_DEBUG_VIRTUAL) && !virt_addr_valid(address));
 

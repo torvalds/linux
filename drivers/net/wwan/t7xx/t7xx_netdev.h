@@ -48,7 +48,7 @@ struct t7xx_ccmni_ctrl {
 	unsigned int			md_sta;
 	struct t7xx_fsm_notifier	md_status_notify;
 	bool				wwan_is_registered;
-	struct net_device		dummy_dev;
+	struct net_device		*dummy_dev;
 	struct napi_struct		*napi[RXQ_NUM];
 	atomic_t			napi_usr_refcnt;
 	bool				is_napi_en;

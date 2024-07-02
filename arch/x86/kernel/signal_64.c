@@ -175,9 +175,6 @@ int x64_setup_rt_frame(struct ksignal *ksig, struct pt_regs *regs)
 	frame = get_sigframe(ksig, regs, sizeof(struct rt_sigframe), &fp);
 	uc_flags = frame_uc_flags(regs);
 
-	if (setup_signal_shadow_stack(ksig))
-		return -EFAULT;
-
 	if (!user_access_begin(frame, sizeof(*frame)))
 		return -EFAULT;
 
@@ -197,6 +194,9 @@ int x64_setup_rt_frame(struct ksignal *ksig, struct pt_regs *regs)
 		if (copy_siginfo_to_user(&frame->info, &ksig->info))
 			return -EFAULT;
 	}
+
+	if (setup_signal_shadow_stack(ksig))
+		return -EFAULT;
 
 	/* Set up registers for signal handler */
 	regs->di = ksig->sig;
@@ -315,6 +315,9 @@ int x32_setup_rt_frame(struct ksignal *ksig, struct pt_regs *regs)
 
 	uc_flags = frame_uc_flags(regs);
 
+	if (setup_signal_shadow_stack(ksig))
+		return -EFAULT;
+
 	if (!user_access_begin(frame, sizeof(*frame)))
 		return -EFAULT;
 
@@ -375,6 +378,9 @@ COMPAT_SYSCALL_DEFINE0(x32_rt_sigreturn)
 	set_current_blocked(&set);
 
 	if (!restore_sigcontext(regs, &frame->uc.uc_mcontext, uc_flags))
+		goto badframe;
+
+	if (restore_signal_shadow_stack())
 		goto badframe;
 
 	if (compat_restore_altstack(&frame->uc.uc_stack))

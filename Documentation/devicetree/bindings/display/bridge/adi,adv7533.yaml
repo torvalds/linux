@@ -9,6 +9,9 @@ title: Analog Devices ADV7533/35 HDMI Encoders
 maintainers:
   - Laurent Pinchart <laurent.pinchart@ideasonboard.com>
 
+allOf:
+  - $ref: /schemas/sound/dai-common.yaml#
+
 description: |
   The ADV7533 and ADV7535 are HDMI audio and video transmitters
   compatible with HDMI 1.4 and DVI 1.0. They support color space
@@ -88,6 +91,9 @@ properties:
     description: Number of DSI data lanes connected to the DSI host.
     $ref: /schemas/types.yaml#/definitions/uint32
     enum: [ 1, 2, 3, 4 ]
+
+  "#sound-dai-cells":
+    const: 0
 
   ports:
     description:

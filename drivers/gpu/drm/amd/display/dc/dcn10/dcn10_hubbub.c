@@ -130,7 +130,7 @@ bool hubbub1_verify_allow_pstate_change_high(
 	static unsigned int max_sampled_pstate_wait_us; /* data collection */
 	static bool forced_pstate_allow; /* help with revert wa */
 
-	unsigned int debug_data;
+	unsigned int debug_data = 0;
 	unsigned int i;
 
 	if (forced_pstate_allow) {
@@ -242,7 +242,7 @@ void hubbub1_wm_change_req_wa(struct hubbub *hubbub)
 
 bool hubbub1_program_urgent_watermarks(
 		struct hubbub *hubbub,
-		struct dcn_watermark_set *watermarks,
+		union dcn_watermark_set *watermarks,
 		unsigned int refclk_mhz,
 		bool safe_to_lower)
 {
@@ -356,7 +356,7 @@ bool hubbub1_program_urgent_watermarks(
 
 bool hubbub1_program_stutter_watermarks(
 		struct hubbub *hubbub,
-		struct dcn_watermark_set *watermarks,
+		union dcn_watermark_set *watermarks,
 		unsigned int refclk_mhz,
 		bool safe_to_lower)
 {
@@ -501,7 +501,7 @@ bool hubbub1_program_stutter_watermarks(
 
 bool hubbub1_program_pstate_watermarks(
 		struct hubbub *hubbub,
-		struct dcn_watermark_set *watermarks,
+		union dcn_watermark_set *watermarks,
 		unsigned int refclk_mhz,
 		bool safe_to_lower)
 {
@@ -582,7 +582,7 @@ bool hubbub1_program_pstate_watermarks(
 
 bool hubbub1_program_watermarks(
 		struct hubbub *hubbub,
-		struct dcn_watermark_set *watermarks,
+		union dcn_watermark_set *watermarks,
 		unsigned int refclk_mhz,
 		bool safe_to_lower)
 {

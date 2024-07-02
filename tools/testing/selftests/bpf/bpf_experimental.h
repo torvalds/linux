@@ -254,6 +254,200 @@ extern void bpf_throw(u64 cookie) __ksym;
 		}									\
 	 })
 
+#define __cmp_cannot_be_signed(x) \
+	__builtin_strcmp(#x, "==") == 0 || __builtin_strcmp(#x, "!=") == 0 || \
+	__builtin_strcmp(#x, "&") == 0
+
+#define __is_signed_type(type) (((type)(-1)) < (type)1)
+
+#define __bpf_cmp(LHS, OP, PRED, RHS, DEFAULT)						\
+	({											\
+		__label__ l_true;								\
+		bool ret = DEFAULT;								\
+		asm volatile goto("if %[lhs] " OP " %[rhs] goto %l[l_true]"		\
+				  :: [lhs] "r"((short)LHS), [rhs] PRED (RHS) :: l_true);	\
+		ret = !DEFAULT;									\
+l_true:												\
+		ret;										\
+       })
+
+/* C type conversions coupled with comparison operator are tricky.
+ * Make sure BPF program is compiled with -Wsign-compare then
+ * __lhs OP __rhs below will catch the mistake.
+ * Be aware that we check only __lhs to figure out the sign of compare.
+ */
+#define _bpf_cmp(LHS, OP, RHS, UNLIKELY)								\
+	({											\
+		typeof(LHS) __lhs = (LHS);							\
+		typeof(RHS) __rhs = (RHS);							\
+		bool ret;									\
+		_Static_assert(sizeof(&(LHS)), "1st argument must be an lvalue expression");	\
+		(void)(__lhs OP __rhs);								\
+		if (__cmp_cannot_be_signed(OP) || !__is_signed_type(typeof(__lhs))) {		\
+			if (sizeof(__rhs) == 8)							\
+				/* "i" will truncate 64-bit constant into s32,			\
+				 * so we have to use extra register via "r".			\
+				 */								\
+				ret = __bpf_cmp(__lhs, #OP, "r", __rhs, UNLIKELY);		\
+			else									\
+				ret = __bpf_cmp(__lhs, #OP, "ri", __rhs, UNLIKELY);		\
+		} else {									\
+			if (sizeof(__rhs) == 8)							\
+				ret = __bpf_cmp(__lhs, "s"#OP, "r", __rhs, UNLIKELY);		\
+			else									\
+				ret = __bpf_cmp(__lhs, "s"#OP, "ri", __rhs, UNLIKELY);		\
+		}										\
+		ret;										\
+       })
+
+#ifndef bpf_cmp_unlikely
+#define bpf_cmp_unlikely(LHS, OP, RHS) _bpf_cmp(LHS, OP, RHS, true)
+#endif
+
+#ifndef bpf_cmp_likely
+#define bpf_cmp_likely(LHS, OP, RHS)								\
+	({											\
+		bool ret = 0;									\
+		if (__builtin_strcmp(#OP, "==") == 0)						\
+			ret = _bpf_cmp(LHS, !=, RHS, false);					\
+		else if (__builtin_strcmp(#OP, "!=") == 0)					\
+			ret = _bpf_cmp(LHS, ==, RHS, false);					\
+		else if (__builtin_strcmp(#OP, "<=") == 0)					\
+			ret = _bpf_cmp(LHS, >, RHS, false);					\
+		else if (__builtin_strcmp(#OP, "<") == 0)					\
+			ret = _bpf_cmp(LHS, >=, RHS, false);					\
+		else if (__builtin_strcmp(#OP, ">") == 0)					\
+			ret = _bpf_cmp(LHS, <=, RHS, false);					\
+		else if (__builtin_strcmp(#OP, ">=") == 0)					\
+			ret = _bpf_cmp(LHS, <, RHS, false);					\
+		else										\
+			asm volatile("r0 " #OP " invalid compare");				\
+		ret;										\
+       })
+#endif
+
+/*
+ * Note that cond_break can only be portably used in the body of a breakable
+ * construct, whereas can_loop can be used anywhere.
+ */
+#ifdef __BPF_FEATURE_MAY_GOTO
+#define can_loop					\
+	({ __label__ l_break, l_continue;		\
+	bool ret = true;				\
+	asm volatile goto("may_goto %l[l_break]"	\
+		      :::: l_break);			\
+	goto l_continue;				\
+	l_break: ret = false;				\
+	l_continue:;					\
+	ret;						\
+	})
+
+#define cond_break					\
+	({ __label__ l_break, l_continue;		\
+	asm volatile goto("may_goto %l[l_break]"	\
+		      :::: l_break);			\
+	goto l_continue;				\
+	l_break: break;					\
+	l_continue:;					\
+	})
+#else
+#define can_loop					\
+	({ __label__ l_break, l_continue;		\
+	bool ret = true;				\
+	asm volatile goto("1:.byte 0xe5;		\
+		      .byte 0;				\
+		      .long ((%l[l_break] - 1b - 8) / 8) & 0xffff;	\
+		      .short 0"				\
+		      :::: l_break);			\
+	goto l_continue;				\
+	l_break: ret = false;				\
+	l_continue:;					\
+	ret;						\
+	})
+
+#define cond_break					\
+	({ __label__ l_break, l_continue;		\
+	asm volatile goto("1:.byte 0xe5;		\
+		      .byte 0;				\
+		      .long ((%l[l_break] - 1b - 8) / 8) & 0xffff;	\
+		      .short 0"				\
+		      :::: l_break);			\
+	goto l_continue;				\
+	l_break: break;					\
+	l_continue:;					\
+	})
+#endif
+
+#ifndef bpf_nop_mov
+#define bpf_nop_mov(var) \
+	asm volatile("%[reg]=%[reg]"::[reg]"r"((short)var))
+#endif
+
+/* emit instruction:
+ * rX = rX .off = BPF_ADDR_SPACE_CAST .imm32 = (dst_as << 16) | src_as
+ */
+#ifndef bpf_addr_space_cast
+#define bpf_addr_space_cast(var, dst_as, src_as)\
+	asm volatile(".byte 0xBF;		\
+		     .ifc %[reg], r0;		\
+		     .byte 0x00;		\
+		     .endif;			\
+		     .ifc %[reg], r1;		\
+		     .byte 0x11;		\
+		     .endif;			\
+		     .ifc %[reg], r2;		\
+		     .byte 0x22;		\
+		     .endif;			\
+		     .ifc %[reg], r3;		\
+		     .byte 0x33;		\
+		     .endif;			\
+		     .ifc %[reg], r4;		\
+		     .byte 0x44;		\
+		     .endif;			\
+		     .ifc %[reg], r5;		\
+		     .byte 0x55;		\
+		     .endif;			\
+		     .ifc %[reg], r6;		\
+		     .byte 0x66;		\
+		     .endif;			\
+		     .ifc %[reg], r7;		\
+		     .byte 0x77;		\
+		     .endif;			\
+		     .ifc %[reg], r8;		\
+		     .byte 0x88;		\
+		     .endif;			\
+		     .ifc %[reg], r9;		\
+		     .byte 0x99;		\
+		     .endif;			\
+		     .short %[off];		\
+		     .long %[as]"		\
+		     : [reg]"+r"(var)		\
+		     : [off]"i"(BPF_ADDR_SPACE_CAST) \
+		     , [as]"i"((dst_as << 16) | src_as));
+#endif
+
+void bpf_preempt_disable(void) __weak __ksym;
+void bpf_preempt_enable(void) __weak __ksym;
+
+typedef struct {
+} __bpf_preempt_t;
+
+static inline __bpf_preempt_t __bpf_preempt_constructor(void)
+{
+	__bpf_preempt_t ret = {};
+
+	bpf_preempt_disable();
+	return ret;
+}
+static inline void __bpf_preempt_destructor(__bpf_preempt_t *t)
+{
+	bpf_preempt_enable();
+}
+#define bpf_guard_preempt() \
+	__bpf_preempt_t ___bpf_apply(preempt, __COUNTER__)			\
+	__attribute__((__unused__, __cleanup__(__bpf_preempt_destructor))) =	\
+	__bpf_preempt_constructor()
+
 /* Description
  *	Assert that a conditional expression is true.
  * Returns
@@ -271,156 +465,6 @@ extern void bpf_throw(u64 cookie) __ksym;
  *	An exception with the specified value when the assertion fails.
  */
 #define bpf_assert_with(cond, value) if (!(cond)) bpf_throw(value);
-
-/* Description
- *	Assert that LHS is equal to RHS. This statement updates the known value
- *	of LHS during verification. Note that RHS must be a constant value, and
- *	must fit within the data type of LHS.
- * Returns
- *	Void.
- * Throws
- *	An exception with the value zero when the assertion fails.
- */
-#define bpf_assert_eq(LHS, RHS)						\
-	({								\
-		barrier_var(LHS);					\
-		__bpf_assert_op(LHS, ==, RHS, 0, true);			\
-	})
-
-/* Description
- *	Assert that LHS is equal to RHS. This statement updates the known value
- *	of LHS during verification. Note that RHS must be a constant value, and
- *	must fit within the data type of LHS.
- * Returns
- *	Void.
- * Throws
- *	An exception with the specified value when the assertion fails.
- */
-#define bpf_assert_eq_with(LHS, RHS, value)				\
-	({								\
-		barrier_var(LHS);					\
-		__bpf_assert_op(LHS, ==, RHS, value, true);		\
-	})
-
-/* Description
- *	Assert that LHS is less than RHS. This statement updates the known
- *	bounds of LHS during verification. Note that RHS must be a constant
- *	value, and must fit within the data type of LHS.
- * Returns
- *	Void.
- * Throws
- *	An exception with the value zero when the assertion fails.
- */
-#define bpf_assert_lt(LHS, RHS)						\
-	({								\
-		barrier_var(LHS);					\
-		__bpf_assert_op(LHS, <, RHS, 0, false);			\
-	})
-
-/* Description
- *	Assert that LHS is less than RHS. This statement updates the known
- *	bounds of LHS during verification. Note that RHS must be a constant
- *	value, and must fit within the data type of LHS.
- * Returns
- *	Void.
- * Throws
- *	An exception with the specified value when the assertion fails.
- */
-#define bpf_assert_lt_with(LHS, RHS, value)				\
-	({								\
-		barrier_var(LHS);					\
-		__bpf_assert_op(LHS, <, RHS, value, false);		\
-	})
-
-/* Description
- *	Assert that LHS is greater than RHS. This statement updates the known
- *	bounds of LHS during verification. Note that RHS must be a constant
- *	value, and must fit within the data type of LHS.
- * Returns
- *	Void.
- * Throws
- *	An exception with the value zero when the assertion fails.
- */
-#define bpf_assert_gt(LHS, RHS)						\
-	({								\
-		barrier_var(LHS);					\
-		__bpf_assert_op(LHS, >, RHS, 0, false);			\
-	})
-
-/* Description
- *	Assert that LHS is greater than RHS. This statement updates the known
- *	bounds of LHS during verification. Note that RHS must be a constant
- *	value, and must fit within the data type of LHS.
- * Returns
- *	Void.
- * Throws
- *	An exception with the specified value when the assertion fails.
- */
-#define bpf_assert_gt_with(LHS, RHS, value)				\
-	({								\
-		barrier_var(LHS);					\
-		__bpf_assert_op(LHS, >, RHS, value, false);		\
-	})
-
-/* Description
- *	Assert that LHS is less than or equal to RHS. This statement updates the
- *	known bounds of LHS during verification. Note that RHS must be a
- *	constant value, and must fit within the data type of LHS.
- * Returns
- *	Void.
- * Throws
- *	An exception with the value zero when the assertion fails.
- */
-#define bpf_assert_le(LHS, RHS)						\
-	({								\
-		barrier_var(LHS);					\
-		__bpf_assert_op(LHS, <=, RHS, 0, false);		\
-	})
-
-/* Description
- *	Assert that LHS is less than or equal to RHS. This statement updates the
- *	known bounds of LHS during verification. Note that RHS must be a
- *	constant value, and must fit within the data type of LHS.
- * Returns
- *	Void.
- * Throws
- *	An exception with the specified value when the assertion fails.
- */
-#define bpf_assert_le_with(LHS, RHS, value)				\
-	({								\
-		barrier_var(LHS);					\
-		__bpf_assert_op(LHS, <=, RHS, value, false);		\
-	})
-
-/* Description
- *	Assert that LHS is greater than or equal to RHS. This statement updates
- *	the known bounds of LHS during verification. Note that RHS must be a
- *	constant value, and must fit within the data type of LHS.
- * Returns
- *	Void.
- * Throws
- *	An exception with the value zero when the assertion fails.
- */
-#define bpf_assert_ge(LHS, RHS)						\
-	({								\
-		barrier_var(LHS);					\
-		__bpf_assert_op(LHS, >=, RHS, 0, false);		\
-	})
-
-/* Description
- *	Assert that LHS is greater than or equal to RHS. This statement updates
- *	the known bounds of LHS during verification. Note that RHS must be a
- *	constant value, and must fit within the data type of LHS.
- * Returns
- *	Void.
- * Throws
- *	An exception with the specified value when the assertion fails.
- */
-#define bpf_assert_ge_with(LHS, RHS, value)				\
-	({								\
-		barrier_var(LHS);					\
-		__bpf_assert_op(LHS, >=, RHS, value, false);		\
-	})
 
 /* Description
  *	Assert that LHS is in the range [BEG, END] (inclusive of both). This
@@ -477,4 +521,11 @@ extern int bpf_iter_css_new(struct bpf_iter_css *it,
 extern struct cgroup_subsys_state *bpf_iter_css_next(struct bpf_iter_css *it) __weak __ksym;
 extern void bpf_iter_css_destroy(struct bpf_iter_css *it) __weak __ksym;
 
+extern int bpf_wq_init(struct bpf_wq *wq, void *p__map, unsigned int flags) __weak __ksym;
+extern int bpf_wq_start(struct bpf_wq *wq, unsigned int flags) __weak __ksym;
+extern int bpf_wq_set_callback_impl(struct bpf_wq *wq,
+		int (callback_fn)(void *map, int *key, struct bpf_wq *wq),
+		unsigned int flags__k, void *aux__ign) __ksym;
+#define bpf_wq_set_callback(timer, cb, flags) \
+	bpf_wq_set_callback_impl(timer, cb, flags, NULL)
 #endif

@@ -234,6 +234,177 @@ static void test_attach_api_syms(void)
 	test_attach_api("/proc/self/exe", NULL, &opts);
 }
 
+static void test_attach_api_fails(void)
+{
+	LIBBPF_OPTS(bpf_link_create_opts, opts);
+	const char *path = "/proc/self/exe";
+	struct uprobe_multi *skel = NULL;
+	int prog_fd, link_fd = -1;
+	unsigned long offset = 0;
+
+	skel = uprobe_multi__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "uprobe_multi__open_and_load"))
+		goto cleanup;
+
+	prog_fd = bpf_program__fd(skel->progs.uprobe_extra);
+
+	/* abnormal cnt */
+	opts.uprobe_multi.path = path;
+	opts.uprobe_multi.offsets = &offset;
+	opts.uprobe_multi.cnt = INT_MAX;
+	link_fd = bpf_link_create(prog_fd, 0, BPF_TRACE_UPROBE_MULTI, &opts);
+	if (!ASSERT_ERR(link_fd, "link_fd"))
+		goto cleanup;
+	if (!ASSERT_EQ(link_fd, -E2BIG, "big cnt"))
+		goto cleanup;
+
+	/* cnt is 0 */
+	LIBBPF_OPTS_RESET(opts,
+		.uprobe_multi.path = path,
+		.uprobe_multi.offsets = (unsigned long *) &offset,
+	);
+
+	link_fd = bpf_link_create(prog_fd, 0, BPF_TRACE_UPROBE_MULTI, &opts);
+	if (!ASSERT_ERR(link_fd, "link_fd"))
+		goto cleanup;
+	if (!ASSERT_EQ(link_fd, -EINVAL, "cnt_is_zero"))
+		goto cleanup;
+
+	/* negative offset */
+	offset = -1;
+	opts.uprobe_multi.path = path;
+	opts.uprobe_multi.offsets = (unsigned long *) &offset;
+	opts.uprobe_multi.cnt = 1;
+
+	link_fd = bpf_link_create(prog_fd, 0, BPF_TRACE_UPROBE_MULTI, &opts);
+	if (!ASSERT_ERR(link_fd, "link_fd"))
+		goto cleanup;
+	if (!ASSERT_EQ(link_fd, -EINVAL, "offset_is_negative"))
+		goto cleanup;
+
+	/* offsets is NULL */
+	LIBBPF_OPTS_RESET(opts,
+		.uprobe_multi.path = path,
+		.uprobe_multi.cnt = 1,
+	);
+
+	link_fd = bpf_link_create(prog_fd, 0, BPF_TRACE_UPROBE_MULTI, &opts);
+	if (!ASSERT_ERR(link_fd, "link_fd"))
+		goto cleanup;
+	if (!ASSERT_EQ(link_fd, -EINVAL, "offsets_is_null"))
+		goto cleanup;
+
+	/* wrong offsets pointer */
+	LIBBPF_OPTS_RESET(opts,
+		.uprobe_multi.path = path,
+		.uprobe_multi.offsets = (unsigned long *) 1,
+		.uprobe_multi.cnt = 1,
+	);
+
+	link_fd = bpf_link_create(prog_fd, 0, BPF_TRACE_UPROBE_MULTI, &opts);
+	if (!ASSERT_ERR(link_fd, "link_fd"))
+		goto cleanup;
+	if (!ASSERT_EQ(link_fd, -EFAULT, "offsets_is_wrong"))
+		goto cleanup;
+
+	/* path is NULL */
+	offset = 1;
+	LIBBPF_OPTS_RESET(opts,
+		.uprobe_multi.offsets = (unsigned long *) &offset,
+		.uprobe_multi.cnt = 1,
+	);
+
+	link_fd = bpf_link_create(prog_fd, 0, BPF_TRACE_UPROBE_MULTI, &opts);
+	if (!ASSERT_ERR(link_fd, "link_fd"))
+		goto cleanup;
+	if (!ASSERT_EQ(link_fd, -EINVAL, "path_is_null"))
+		goto cleanup;
+
+	/* wrong path pointer  */
+	LIBBPF_OPTS_RESET(opts,
+		.uprobe_multi.path = (const char *) 1,
+		.uprobe_multi.offsets = (unsigned long *) &offset,
+		.uprobe_multi.cnt = 1,
+	);
+
+	link_fd = bpf_link_create(prog_fd, 0, BPF_TRACE_UPROBE_MULTI, &opts);
+	if (!ASSERT_ERR(link_fd, "link_fd"))
+		goto cleanup;
+	if (!ASSERT_EQ(link_fd, -EFAULT, "path_is_wrong"))
+		goto cleanup;
+
+	/* wrong path type */
+	LIBBPF_OPTS_RESET(opts,
+		.uprobe_multi.path = "/",
+		.uprobe_multi.offsets = (unsigned long *) &offset,
+		.uprobe_multi.cnt = 1,
+	);
+
+	link_fd = bpf_link_create(prog_fd, 0, BPF_TRACE_UPROBE_MULTI, &opts);
+	if (!ASSERT_ERR(link_fd, "link_fd"))
+		goto cleanup;
+	if (!ASSERT_EQ(link_fd, -EBADF, "path_is_wrong_type"))
+		goto cleanup;
+
+	/* wrong cookies pointer */
+	LIBBPF_OPTS_RESET(opts,
+		.uprobe_multi.path = path,
+		.uprobe_multi.offsets = (unsigned long *) &offset,
+		.uprobe_multi.cookies = (__u64 *) 1ULL,
+		.uprobe_multi.cnt = 1,
+	);
+
+	link_fd = bpf_link_create(prog_fd, 0, BPF_TRACE_UPROBE_MULTI, &opts);
+	if (!ASSERT_ERR(link_fd, "link_fd"))
+		goto cleanup;
+	if (!ASSERT_EQ(link_fd, -EFAULT, "cookies_is_wrong"))
+		goto cleanup;
+
+	/* wrong ref_ctr_offsets pointer */
+	LIBBPF_OPTS_RESET(opts,
+		.uprobe_multi.path = path,
+		.uprobe_multi.offsets = (unsigned long *) &offset,
+		.uprobe_multi.cookies = (__u64 *) &offset,
+		.uprobe_multi.ref_ctr_offsets = (unsigned long *) 1,
+		.uprobe_multi.cnt = 1,
+	);
+
+	link_fd = bpf_link_create(prog_fd, 0, BPF_TRACE_UPROBE_MULTI, &opts);
+	if (!ASSERT_ERR(link_fd, "link_fd"))
+		goto cleanup;
+	if (!ASSERT_EQ(link_fd, -EFAULT, "ref_ctr_offsets_is_wrong"))
+		goto cleanup;
+
+	/* wrong flags */
+	LIBBPF_OPTS_RESET(opts,
+		.uprobe_multi.flags = 1 << 31,
+	);
+
+	link_fd = bpf_link_create(prog_fd, 0, BPF_TRACE_UPROBE_MULTI, &opts);
+	if (!ASSERT_ERR(link_fd, "link_fd"))
+		goto cleanup;
+	if (!ASSERT_EQ(link_fd, -EINVAL, "wrong_flags"))
+		goto cleanup;
+
+	/* wrong pid */
+	LIBBPF_OPTS_RESET(opts,
+		.uprobe_multi.path = path,
+		.uprobe_multi.offsets = (unsigned long *) &offset,
+		.uprobe_multi.cnt = 1,
+		.uprobe_multi.pid = -2,
+	);
+
+	link_fd = bpf_link_create(prog_fd, 0, BPF_TRACE_UPROBE_MULTI, &opts);
+	if (!ASSERT_ERR(link_fd, "link_fd"))
+		goto cleanup;
+	ASSERT_EQ(link_fd, -ESRCH, "pid_is_wrong");
+
+cleanup:
+	if (link_fd >= 0)
+		close(link_fd);
+	uprobe_multi__destroy(skel);
+}
+
 static void __test_link_api(struct child *child)
 {
 	int prog_fd, link1_fd = -1, link2_fd = -1, link3_fd = -1, link4_fd = -1;
@@ -249,7 +420,7 @@ static void __test_link_api(struct child *child)
 	int link_extra_fd = -1;
 	int err;
 
-	err = elf_resolve_syms_offsets(path, 3, syms, (unsigned long **) &offsets);
+	err = elf_resolve_syms_offsets(path, 3, syms, (unsigned long **) &offsets, STT_FUNC);
 	if (!ASSERT_OK(err, "elf_resolve_syms_offsets"))
 		return;
 
@@ -311,7 +482,7 @@ cleanup:
 	free(offsets);
 }
 
-void test_link_api(void)
+static void test_link_api(void)
 {
 	struct child *child;
 
@@ -412,4 +583,6 @@ void test_uprobe_multi_test(void)
 		test_bench_attach_uprobe();
 	if (test__start_subtest("bench_usdt"))
 		test_bench_attach_usdt();
+	if (test__start_subtest("attach_api_fails"))
+		test_attach_api_fails();
 }

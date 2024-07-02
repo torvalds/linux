@@ -28,8 +28,7 @@
 #include "r600_dpm.h"
 
 /* Represents a single SCLK step. */
-struct rv6xx_sclk_stepping
-{
+struct rv6xx_sclk_stepping {
     u32 vco_frequency;
     u32 post_divider;
 };

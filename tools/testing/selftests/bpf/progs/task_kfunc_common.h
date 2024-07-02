@@ -13,7 +13,7 @@ struct __tasks_kfunc_map_value {
 	struct task_struct __kptr * task;
 };
 
-struct hash_map {
+struct {
 	__uint(type, BPF_MAP_TYPE_HASH);
 	__type(key, int);
 	__type(value, struct __tasks_kfunc_map_value);

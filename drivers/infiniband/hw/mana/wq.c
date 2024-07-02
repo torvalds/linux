@@ -46,7 +46,7 @@ struct ib_wq *mana_ib_create_wq(struct ib_pd *pd,
 	wq->wq_buf_size = ucmd.wq_buf_size;
 	wq->rx_object = INVALID_MANA_HANDLE;
 
-	err = mana_ib_gd_create_dma_region(mdev, wq->umem, &wq->gdma_region);
+	err = mana_ib_create_zero_offset_dma_region(mdev, wq->umem, &wq->gdma_region);
 	if (err) {
 		ibdev_dbg(&mdev->ib_dev,
 			  "Failed to create dma region for create wq, %d\n",
@@ -55,7 +55,7 @@ struct ib_wq *mana_ib_create_wq(struct ib_pd *pd,
 	}
 
 	ibdev_dbg(&mdev->ib_dev,
-		  "mana_ib_gd_create_dma_region ret %d gdma_region 0x%llx\n",
+		  "create_dma_region ret %d gdma_region 0x%llx\n",
 		  err, wq->gdma_region);
 
 	/* WQ ID is returned at wq_create time, doesn't know the value yet */

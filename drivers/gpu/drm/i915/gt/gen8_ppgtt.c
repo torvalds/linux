@@ -5,6 +5,7 @@
 
 #include <linux/log2.h>
 
+#include "gem/i915_gem_internal.h"
 #include "gem/i915_gem_lmem.h"
 
 #include "gen8_ppgtt.h"
@@ -221,6 +222,9 @@ static void __gen8_ppgtt_cleanup(struct i915_address_space *vm,
 static void gen8_ppgtt_cleanup(struct i915_address_space *vm)
 {
 	struct i915_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
+
+	if (vm->rsvd.obj)
+		i915_gem_object_put(vm->rsvd.obj);
 
 	if (intel_vgpu_active(vm->i915))
 		gen8_ppgtt_notify_vgt(ppgtt, false);
@@ -496,11 +500,11 @@ gen8_ppgtt_insert_pte(struct i915_ppgtt *ppgtt,
 }
 
 static void
-xehpsdv_ppgtt_insert_huge(struct i915_address_space *vm,
-			  struct i915_vma_resource *vma_res,
-			  struct sgt_dma *iter,
-			  unsigned int pat_index,
-			  u32 flags)
+xehp_ppgtt_insert_huge(struct i915_address_space *vm,
+		       struct i915_vma_resource *vma_res,
+		       struct sgt_dma *iter,
+		       unsigned int pat_index,
+		       u32 flags)
 {
 	const gen8_pte_t pte_encode = vm->pte_encode(0, pat_index, flags);
 	unsigned int rem = sg_dma_len(iter->sg);
@@ -737,8 +741,8 @@ static void gen8_ppgtt_insert(struct i915_address_space *vm,
 	struct sgt_dma iter = sgt_dma(vma_res);
 
 	if (vma_res->bi.page_sizes.sg > I915_GTT_PAGE_SIZE) {
-		if (GRAPHICS_VER_FULL(vm->i915) >= IP_VER(12, 50))
-			xehpsdv_ppgtt_insert_huge(vm, vma_res, &iter, pat_index, flags);
+		if (GRAPHICS_VER_FULL(vm->i915) >= IP_VER(12, 55))
+			xehp_ppgtt_insert_huge(vm, vma_res, &iter, pat_index, flags);
 		else
 			gen8_ppgtt_insert_huge(vm, vma_res, &iter, pat_index, flags);
 	} else  {
@@ -777,11 +781,11 @@ static void gen8_ppgtt_insert_entry(struct i915_address_space *vm,
 	drm_clflush_virt_range(&vaddr[gen8_pd_index(idx, 0)], sizeof(*vaddr));
 }
 
-static void __xehpsdv_ppgtt_insert_entry_lm(struct i915_address_space *vm,
-					    dma_addr_t addr,
-					    u64 offset,
-					    unsigned int pat_index,
-					    u32 flags)
+static void xehp_ppgtt_insert_entry_lm(struct i915_address_space *vm,
+				       dma_addr_t addr,
+				       u64 offset,
+				       unsigned int pat_index,
+				       u32 flags)
 {
 	u64 idx = offset >> GEN8_PTE_SHIFT;
 	struct i915_page_directory * const pdp =
@@ -806,15 +810,15 @@ static void __xehpsdv_ppgtt_insert_entry_lm(struct i915_address_space *vm,
 	vaddr[gen8_pd_index(idx, 0) / 16] = vm->pte_encode(addr, pat_index, flags);
 }
 
-static void xehpsdv_ppgtt_insert_entry(struct i915_address_space *vm,
-				       dma_addr_t addr,
-				       u64 offset,
-				       unsigned int pat_index,
-				       u32 flags)
+static void xehp_ppgtt_insert_entry(struct i915_address_space *vm,
+				    dma_addr_t addr,
+				    u64 offset,
+				    unsigned int pat_index,
+				    u32 flags)
 {
 	if (flags & PTE_LM)
-		return __xehpsdv_ppgtt_insert_entry_lm(vm, addr, offset,
-						       pat_index, flags);
+		return xehp_ppgtt_insert_entry_lm(vm, addr, offset,
+						  pat_index, flags);
 
 	return gen8_ppgtt_insert_entry(vm, addr, offset, pat_index, flags);
 }
@@ -950,6 +954,44 @@ err_pd:
 	return ERR_PTR(err);
 }
 
+static int gen8_init_rsvd(struct i915_address_space *vm)
+{
+	struct drm_i915_private *i915 = vm->i915;
+	struct drm_i915_gem_object *obj;
+	struct i915_vma *vma;
+	int ret;
+
+	if (!intel_gt_needs_wa_16018031267(vm->gt))
+		return 0;
+
+	/* The memory will be used only by GPU. */
+	obj = i915_gem_object_create_lmem(i915, PAGE_SIZE,
+					  I915_BO_ALLOC_VOLATILE |
+					  I915_BO_ALLOC_GPU_ONLY);
+	if (IS_ERR(obj))
+		obj = i915_gem_object_create_internal(i915, PAGE_SIZE);
+	if (IS_ERR(obj))
+		return PTR_ERR(obj);
+
+	vma = i915_vma_instance(obj, vm, NULL);
+	if (IS_ERR(vma)) {
+		ret = PTR_ERR(vma);
+		goto unref;
+	}
+
+	ret = i915_vma_pin(vma, 0, 0, PIN_USER | PIN_HIGH);
+	if (ret)
+		goto unref;
+
+	vm->rsvd.vma = i915_vma_make_unshrinkable(vma);
+	vm->rsvd.obj = obj;
+	vm->total -= vma->node.size;
+	return 0;
+unref:
+	i915_gem_object_put(obj);
+	return ret;
+}
+
 /*
  * GEN8 legacy ppgtt programming is accomplished through a max 4 PDP registers
  * with a net effect resembling a 2-level page table in normal x86 terms. Each
@@ -1003,7 +1045,7 @@ struct i915_ppgtt *gen8_ppgtt_create(struct intel_gt *gt,
 	ppgtt->vm.bind_async_flags = I915_VMA_LOCAL_BIND;
 	ppgtt->vm.insert_entries = gen8_ppgtt_insert;
 	if (HAS_64K_PAGES(gt->i915))
-		ppgtt->vm.insert_page = xehpsdv_ppgtt_insert_entry;
+		ppgtt->vm.insert_page = xehp_ppgtt_insert_entry;
 	else
 		ppgtt->vm.insert_page = gen8_ppgtt_insert_entry;
 	ppgtt->vm.allocate_va_range = gen8_ppgtt_alloc;
@@ -1030,6 +1072,10 @@ struct i915_ppgtt *gen8_ppgtt_create(struct intel_gt *gt,
 
 	if (intel_vgpu_active(gt->i915))
 		gen8_ppgtt_notify_vgt(ppgtt, true);
+
+	err = gen8_init_rsvd(&ppgtt->vm);
+	if (err)
+		goto err_put;
 
 	return ppgtt;
 

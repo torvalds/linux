@@ -84,7 +84,6 @@
 
 struct ad5933_state {
 	struct i2c_client		*client;
-	struct regulator		*reg;
 	struct clk			*mclk;
 	struct delayed_work		work;
 	struct mutex			lock; /* Protect sensor state */
@@ -608,7 +607,7 @@ static void ad5933_work(struct work_struct *work)
 		struct ad5933_state, work.work);
 	struct iio_dev *indio_dev = i2c_get_clientdata(st->client);
 	__be16 buf[2];
-	int val[2];
+	u16 val[2];
 	unsigned char status;
 	int ret;
 
@@ -660,20 +659,6 @@ static void ad5933_work(struct work_struct *work)
 	}
 }
 
-static void ad5933_reg_disable(void *data)
-{
-	struct ad5933_state *st = data;
-
-	regulator_disable(st->reg);
-}
-
-static void ad5933_clk_disable(void *data)
-{
-	struct ad5933_state *st = data;
-
-	clk_disable_unprepare(st->mclk);
-}
-
 static int ad5933_probe(struct i2c_client *client)
 {
 	const struct i2c_device_id *id = i2c_client_get_device_id(client);
@@ -692,43 +677,18 @@ static int ad5933_probe(struct i2c_client *client)
 
 	mutex_init(&st->lock);
 
-	st->reg = devm_regulator_get(&client->dev, "vdd");
-	if (IS_ERR(st->reg))
-		return PTR_ERR(st->reg);
-
-	ret = regulator_enable(st->reg);
-	if (ret) {
-		dev_err(&client->dev, "Failed to enable specified VDD supply\n");
-		return ret;
-	}
-
-	ret = devm_add_action_or_reset(&client->dev, ad5933_reg_disable, st);
-	if (ret)
-		return ret;
-
-	ret = regulator_get_voltage(st->reg);
+	ret = devm_regulator_get_enable_read_voltage(&client->dev, "vdd");
 	if (ret < 0)
-		return ret;
+		return dev_err_probe(&client->dev, ret, "failed to get vdd voltage\n");
 
 	st->vref_mv = ret / 1000;
 
-	st->mclk = devm_clk_get(&client->dev, "mclk");
+	st->mclk = devm_clk_get_enabled(&client->dev, "mclk");
 	if (IS_ERR(st->mclk) && PTR_ERR(st->mclk) != -ENOENT)
 		return PTR_ERR(st->mclk);
 
-	if (!IS_ERR(st->mclk)) {
-		ret = clk_prepare_enable(st->mclk);
-		if (ret < 0)
-			return ret;
-
-		ret = devm_add_action_or_reset(&client->dev,
-					       ad5933_clk_disable,
-					       st);
-		if (ret)
-			return ret;
-
+	if (!IS_ERR(st->mclk))
 		ext_clk_hz = clk_get_rate(st->mclk);
-	}
 
 	if (ext_clk_hz) {
 		st->mclk_hz = ext_clk_hz;

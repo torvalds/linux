@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 //
-// Copyright(c) 2021-2022 Intel Corporation. All rights reserved.
+// Copyright(c) 2021-2022 Intel Corporation
 //
 // Authors: Cezary Rojewski <cezary.rojewski@intel.com>
 //          Amadeusz Slawinski <amadeuszx.slawinski@linux.intel.com>
@@ -54,7 +54,7 @@ static int avs_create_dai_links(struct device *dev, struct hda_codec *codec, int
 		if (!dl[i].cpus->dai_name)
 			return -ENOMEM;
 
-		dl[i].codecs->name = devm_kstrdup(dev, cname, GFP_KERNEL);
+		dl[i].codecs->name = devm_kstrdup_const(dev, cname, GFP_KERNEL);
 		if (!dl[i].codecs->name)
 			return -ENOMEM;
 
@@ -155,17 +155,15 @@ static int avs_probing_link_init(struct snd_soc_pcm_runtime *rtm)
 	return 0;
 }
 
-SND_SOC_DAILINK_DEF(dummy, DAILINK_COMP_ARRAY(COMP_DUMMY()));
-
-static struct snd_soc_dai_link probing_link = {
+static const struct snd_soc_dai_link probing_link = {
 	.name = "probing-LINK",
 	.id = -1,
 	.nonatomic = 1,
 	.no_pcm = 1,
 	.dpcm_playback = 1,
 	.dpcm_capture = 1,
-	.cpus = dummy,
-	.num_cpus = ARRAY_SIZE(dummy),
+	.cpus = &snd_soc_dummy_dlc,
+	.num_cpus = 1,
 	.init = avs_probing_link_init,
 };
 
@@ -193,7 +191,7 @@ static int avs_hdaudio_probe(struct platform_device *pdev)
 	if (!binder->platforms || !binder->codecs)
 		return -ENOMEM;
 
-	binder->codecs->name = devm_kstrdup(dev, dev_name(&codec->core.dev), GFP_KERNEL);
+	binder->codecs->name = devm_kstrdup_const(dev, dev_name(&codec->core.dev), GFP_KERNEL);
 	if (!binder->codecs->name)
 		return -ENOMEM;
 
@@ -218,12 +216,21 @@ static int avs_hdaudio_probe(struct platform_device *pdev)
 	return devm_snd_soc_register_card(dev, card);
 }
 
+static const struct platform_device_id avs_hdaudio_driver_ids[] = {
+	{
+		.name = "avs_hdaudio",
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(platform, avs_hdaudio_driver_ids);
+
 static struct platform_driver avs_hdaudio_driver = {
 	.probe = avs_hdaudio_probe,
 	.driver = {
 		.name = "avs_hdaudio",
 		.pm = &snd_soc_pm_ops,
 	},
+	.id_table = avs_hdaudio_driver_ids,
 };
 
 module_platform_driver(avs_hdaudio_driver)
@@ -231,4 +238,3 @@ module_platform_driver(avs_hdaudio_driver)
 MODULE_DESCRIPTION("Intel HD-Audio machine driver");
 MODULE_AUTHOR("Cezary Rojewski <cezary.rojewski@intel.com>");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:avs_hdaudio");

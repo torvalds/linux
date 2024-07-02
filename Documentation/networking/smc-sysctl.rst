@@ -44,18 +44,30 @@ smcr_testlink_time - INTEGER
 
 wmem - INTEGER
 	Initial size of send buffer used by SMC sockets.
-	The default value inherits from net.ipv4.tcp_wmem[1].
 
 	The minimum value is 16KiB and there is no hard limit for max value, but
 	only allowed 512KiB for SMC-R and 1MiB for SMC-D.
 
-	Default: 16K
+	Default: 64KiB
 
 rmem - INTEGER
 	Initial size of receive buffer (RMB) used by SMC sockets.
-	The default value inherits from net.ipv4.tcp_rmem[1].
 
 	The minimum value is 16KiB and there is no hard limit for max value, but
 	only allowed 512KiB for SMC-R and 1MiB for SMC-D.
 
-	Default: 128K
+	Default: 64KiB
+
+smcr_max_links_per_lgr - INTEGER
+	Controls the max number of links can be added to a SMC-R link group. Notice that
+	the actual number of the links added to a SMC-R link group depends on the number
+	of RDMA devices exist in the system. The acceptable value ranges from 1 to 2. Only
+	for SMC-R v2.1 and later.
+
+	Default: 2
+
+smcr_max_conns_per_lgr - INTEGER
+	Controls the max number of connections can be added to a SMC-R link group. The
+	acceptable value ranges from 16 to 255. Only for SMC-R v2.1 and later.
+
+	Default: 255

@@ -687,7 +687,7 @@ static struct usb_driver mwifiex_usb_driver = {
 	.suspend = mwifiex_usb_suspend,
 	.resume = mwifiex_usb_resume,
 	.soft_unbind = 1,
-	.drvwrap.driver = {
+	.driver = {
 		.coredump = mwifiex_usb_coredump,
 	},
 };

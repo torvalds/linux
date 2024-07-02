@@ -179,6 +179,12 @@ properties:
           - const: microchip,sama7g5
           - const: microchip,sama7
 
+      - description: Microchip SAMA7G54 Curiosity Board
+        items:
+          - const: microchip,sama7g54-curiosity
+          - const: microchip,sama7g5
+          - const: microchip,sama7
+
       - description: Microchip LAN9662 Evaluation Boards.
         items:
           - enum:

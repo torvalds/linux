@@ -1494,6 +1494,9 @@ bool amdgpu_acpi_is_s0ix_active(struct amdgpu_device *adev)
 	if (adev->asic_type < CHIP_RAVEN)
 		return false;
 
+	if (!(adev->pm.pp_feature & PP_GFXOFF_MASK))
+		return false;
+
 	/*
 	 * If ACPI_FADT_LOW_POWER_S0 is not set in the FADT, it is generally
 	 * risky to do any special firmware-related preparations for entering
@@ -1514,6 +1517,24 @@ bool amdgpu_acpi_is_s0ix_active(struct amdgpu_device *adev)
 #else
 	return true;
 #endif /* CONFIG_AMD_PMC */
+}
+
+/**
+ * amdgpu_choose_low_power_state
+ *
+ * @adev: amdgpu_device_pointer
+ *
+ * Choose the target low power state for the GPU
+ */
+void amdgpu_choose_low_power_state(struct amdgpu_device *adev)
+{
+	if (adev->in_runpm)
+		return;
+
+	if (amdgpu_acpi_is_s0ix_active(adev))
+		adev->in_s0ix = true;
+	else if (amdgpu_acpi_is_s3_active(adev))
+		adev->in_s3 = true;
 }
 
 #endif /* CONFIG_SUSPEND */

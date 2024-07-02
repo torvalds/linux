@@ -10,10 +10,11 @@
 #include <linux/interrupt.h>
 #include <linux/input.h>
 #include <linux/leds.h>
-#include <linux/of_irq.h>
+#include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/i2c.h>
 #include <linux/gpio/consumer.h>
+#include <linux/bitfield.h>
 
 #define CAP11XX_REG_MAIN_CONTROL	0x00
 #define CAP11XX_REG_MAIN_CONTROL_GAIN_SHIFT	(6)
@@ -24,6 +25,7 @@
 #define CAP11XX_REG_NOISE_FLAG_STATUS	0x0a
 #define CAP11XX_REG_SENOR_DELTA(X)	(0x10 + (X))
 #define CAP11XX_REG_SENSITIVITY_CONTROL	0x1f
+#define CAP11XX_REG_SENSITIVITY_CONTROL_DELTA_SENSE_MASK	0x70
 #define CAP11XX_REG_CONFIG		0x20
 #define CAP11XX_REG_SENSOR_ENABLE	0x21
 #define CAP11XX_REG_SENSOR_CONFIG	0x22
@@ -32,6 +34,7 @@
 #define CAP11XX_REG_CALIBRATION		0x26
 #define CAP11XX_REG_INT_ENABLE		0x27
 #define CAP11XX_REG_REPEAT_RATE		0x28
+#define CAP11XX_REG_SIGNAL_GUARD_ENABLE	0x29
 #define CAP11XX_REG_MT_CONFIG		0x2a
 #define CAP11XX_REG_MT_PATTERN_CONFIG	0x2b
 #define CAP11XX_REG_MT_PATTERN		0x2d
@@ -47,6 +50,8 @@
 #define CAP11XX_REG_SENSOR_BASE_CNT(X)	(0x50 + (X))
 #define CAP11XX_REG_LED_POLARITY	0x73
 #define CAP11XX_REG_LED_OUTPUT_CONTROL	0x74
+#define CAP11XX_REG_CALIB_SENSITIVITY_CONFIG	0x80
+#define CAP11XX_REG_CALIB_SENSITIVITY_CONFIG2	0x81
 
 #define CAP11XX_REG_LED_DUTY_CYCLE_1	0x90
 #define CAP11XX_REG_LED_DUTY_CYCLE_2	0x91
@@ -78,12 +83,20 @@ struct cap11xx_led {
 
 struct cap11xx_priv {
 	struct regmap *regmap;
+	struct device *dev;
 	struct input_dev *idev;
+	const struct cap11xx_hw_model *model;
+	u8 id;
 
 	struct cap11xx_led *leds;
 	int num_leds;
 
 	/* config */
+	u8 analog_gain;
+	u8 sensitivity_delta_sense;
+	u8 signal_guard_inputs_mask;
+	u32 thresholds[8];
+	u32 calib_sensitivities[8];
 	u32 keycodes[];
 };
 
@@ -160,9 +173,6 @@ static bool cap11xx_volatile_reg(struct device *dev, unsigned int reg)
 	case CAP11XX_REG_SENOR_DELTA(3):
 	case CAP11XX_REG_SENOR_DELTA(4):
 	case CAP11XX_REG_SENOR_DELTA(5):
-	case CAP11XX_REG_PRODUCT_ID:
-	case CAP11XX_REG_MANUFACTURER_ID:
-	case CAP11XX_REG_REVISION:
 		return true;
 	}
 
@@ -177,9 +187,178 @@ static const struct regmap_config cap11xx_regmap_config = {
 	.reg_defaults = cap11xx_reg_defaults,
 
 	.num_reg_defaults = ARRAY_SIZE(cap11xx_reg_defaults),
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.volatile_reg = cap11xx_volatile_reg,
 };
+
+static int cap11xx_write_calib_sens_config_1(struct cap11xx_priv *priv)
+{
+	return regmap_write(priv->regmap,
+			    CAP11XX_REG_CALIB_SENSITIVITY_CONFIG,
+			    (priv->calib_sensitivities[3] << 6) |
+			    (priv->calib_sensitivities[2] << 4) |
+			    (priv->calib_sensitivities[1] << 2) |
+			    priv->calib_sensitivities[0]);
+}
+
+static int cap11xx_write_calib_sens_config_2(struct cap11xx_priv *priv)
+{
+	return regmap_write(priv->regmap,
+			    CAP11XX_REG_CALIB_SENSITIVITY_CONFIG2,
+			    (priv->calib_sensitivities[7] << 6) |
+			    (priv->calib_sensitivities[6] << 4) |
+			    (priv->calib_sensitivities[5] << 2) |
+			    priv->calib_sensitivities[4]);
+}
+
+static int cap11xx_init_keys(struct cap11xx_priv *priv)
+{
+	struct device_node *node = priv->dev->of_node;
+	struct device *dev = priv->dev;
+	int i, error;
+	u32 u32_val;
+
+	if (!node) {
+		dev_err(dev, "Corresponding DT entry is not available\n");
+		return -ENODEV;
+	}
+
+	if (!of_property_read_u32(node, "microchip,sensor-gain", &u32_val)) {
+		if (priv->model->no_gain) {
+			dev_warn(dev,
+				 "This model doesn't support 'sensor-gain'\n");
+		} else if (is_power_of_2(u32_val) && u32_val <= 8) {
+			priv->analog_gain = (u8)ilog2(u32_val);
+
+			error = regmap_update_bits(priv->regmap,
+				CAP11XX_REG_MAIN_CONTROL,
+				CAP11XX_REG_MAIN_CONTROL_GAIN_MASK,
+				priv->analog_gain << CAP11XX_REG_MAIN_CONTROL_GAIN_SHIFT);
+			if (error)
+				return error;
+		} else {
+			dev_err(dev, "Invalid sensor-gain value %u\n", u32_val);
+			return -EINVAL;
+		}
+	}
+
+	if (of_property_read_bool(node, "microchip,irq-active-high")) {
+		if (priv->id == CAP1106 ||
+		    priv->id == CAP1126 ||
+		    priv->id == CAP1188) {
+			error = regmap_update_bits(priv->regmap,
+						   CAP11XX_REG_CONFIG2,
+						   CAP11XX_REG_CONFIG2_ALT_POL,
+						   0);
+			if (error)
+				return error;
+		} else {
+			dev_warn(dev,
+				 "This model doesn't support 'irq-active-high'\n");
+		}
+	}
+
+	if (!of_property_read_u32(node, "microchip,sensitivity-delta-sense", &u32_val)) {
+		if (!is_power_of_2(u32_val) || u32_val > 128) {
+			dev_err(dev, "Invalid sensitivity-delta-sense value %u\n", u32_val);
+			return -EINVAL;
+		}
+
+		priv->sensitivity_delta_sense = (u8)ilog2(u32_val);
+		u32_val = ~(FIELD_PREP(CAP11XX_REG_SENSITIVITY_CONTROL_DELTA_SENSE_MASK,
+					priv->sensitivity_delta_sense));
+
+		error = regmap_update_bits(priv->regmap,
+					   CAP11XX_REG_SENSITIVITY_CONTROL,
+					   CAP11XX_REG_SENSITIVITY_CONTROL_DELTA_SENSE_MASK,
+					   u32_val);
+		if (error)
+			return error;
+	}
+
+	if (!of_property_read_u32_array(node, "microchip,input-threshold",
+					priv->thresholds, priv->model->num_channels)) {
+		for (i = 0; i < priv->model->num_channels; i++) {
+			if (priv->thresholds[i] > 127) {
+				dev_err(dev, "Invalid input-threshold value %u\n",
+					priv->thresholds[i]);
+				return -EINVAL;
+			}
+
+			error = regmap_write(priv->regmap,
+					     CAP11XX_REG_SENSOR_THRESH(i),
+					     priv->thresholds[i]);
+			if (error)
+				return error;
+		}
+	}
+
+	if (!of_property_read_u32_array(node, "microchip,calib-sensitivity",
+					priv->calib_sensitivities,
+					priv->model->num_channels)) {
+		if (priv->id == CAP1293 || priv->id == CAP1298) {
+			for (i = 0; i < priv->model->num_channels; i++) {
+				if (!is_power_of_2(priv->calib_sensitivities[i]) ||
+				    priv->calib_sensitivities[i] > 4) {
+					dev_err(dev, "Invalid calib-sensitivity value %u\n",
+						priv->calib_sensitivities[i]);
+					return -EINVAL;
+				}
+				priv->calib_sensitivities[i] = ilog2(priv->calib_sensitivities[i]);
+			}
+
+			error = cap11xx_write_calib_sens_config_1(priv);
+			if (error)
+				return error;
+
+			if (priv->id == CAP1298) {
+				error = cap11xx_write_calib_sens_config_2(priv);
+				if (error)
+					return error;
+			}
+		} else {
+			dev_warn(dev,
+				 "This model doesn't support 'calib-sensitivity'\n");
+		}
+	}
+
+	for (i = 0; i < priv->model->num_channels; i++) {
+		if (!of_property_read_u32_index(node, "microchip,signal-guard",
+						i, &u32_val)) {
+			if (u32_val > 1)
+				return -EINVAL;
+			if (u32_val)
+				priv->signal_guard_inputs_mask |= 0x01 << i;
+		}
+	}
+
+	if (priv->signal_guard_inputs_mask) {
+		if (priv->id == CAP1293 || priv->id == CAP1298) {
+			error = regmap_write(priv->regmap,
+					     CAP11XX_REG_SIGNAL_GUARD_ENABLE,
+					     priv->signal_guard_inputs_mask);
+			if (error)
+				return error;
+		} else {
+			dev_warn(dev,
+				 "This model doesn't support 'signal-guard'\n");
+		}
+	}
+
+	/* Provide some useful defaults */
+	for (i = 0; i < priv->model->num_channels; i++)
+		priv->keycodes[i] = KEY_A + i;
+
+	of_property_read_u32_array(node, "linux,keycodes",
+				   priv->keycodes, priv->model->num_channels);
+
+	/* Disable autorepeat. The Linux input system has its own handling. */
+	error = regmap_write(priv->regmap, CAP11XX_REG_REPEAT_RATE, 0);
+	if (error)
+		return error;
+
+	return 0;
+}
 
 static irqreturn_t cap11xx_thread_func(int irq_num, void *data)
 {
@@ -332,11 +511,9 @@ static int cap11xx_i2c_probe(struct i2c_client *i2c_client)
 	const struct i2c_device_id *id = i2c_client_get_device_id(i2c_client);
 	struct device *dev = &i2c_client->dev;
 	struct cap11xx_priv *priv;
-	struct device_node *node;
 	const struct cap11xx_hw_model *cap;
-	int i, error, irq, gain = 0;
+	int i, error;
 	unsigned int val, rev;
-	u32 gain32;
 
 	if (id->driver_data >= ARRAY_SIZE(cap11xx_devices)) {
 		dev_err(dev, "Invalid device ID %lu\n", id->driver_data);
@@ -354,6 +531,8 @@ static int cap11xx_i2c_probe(struct i2c_client *i2c_client)
 			    GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
+
+	priv->dev = dev;
 
 	priv->regmap = devm_regmap_init_i2c(i2c_client, &cap11xx_regmap_config);
 	if (IS_ERR(priv->regmap))
@@ -384,50 +563,15 @@ static int cap11xx_i2c_probe(struct i2c_client *i2c_client)
 		return error;
 
 	dev_info(dev, "CAP11XX detected, model %s, revision 0x%02x\n",
+			 id->name, rev);
+
+	priv->model = cap;
+	priv->id = id->driver_data;
+
+	dev_info(dev, "CAP11XX device detected, model %s, revision 0x%02x\n",
 		 id->name, rev);
-	node = dev->of_node;
 
-	if (!of_property_read_u32(node, "microchip,sensor-gain", &gain32)) {
-		if (cap->no_gain)
-			dev_warn(dev,
-				 "This version doesn't support sensor gain\n");
-		else if (is_power_of_2(gain32) && gain32 <= 8)
-			gain = ilog2(gain32);
-		else
-			dev_err(dev, "Invalid sensor-gain value %d\n", gain32);
-	}
-
-	if (id->driver_data == CAP1106 ||
-	    id->driver_data == CAP1126 ||
-	    id->driver_data == CAP1188) {
-		if (of_property_read_bool(node, "microchip,irq-active-high")) {
-			error = regmap_update_bits(priv->regmap,
-						   CAP11XX_REG_CONFIG2,
-						   CAP11XX_REG_CONFIG2_ALT_POL,
-						   0);
-			if (error)
-				return error;
-		}
-	}
-
-	/* Provide some useful defaults */
-	for (i = 0; i < cap->num_channels; i++)
-		priv->keycodes[i] = KEY_A + i;
-
-	of_property_read_u32_array(node, "linux,keycodes",
-				   priv->keycodes, cap->num_channels);
-
-	if (!cap->no_gain) {
-		error = regmap_update_bits(priv->regmap,
-				CAP11XX_REG_MAIN_CONTROL,
-				CAP11XX_REG_MAIN_CONTROL_GAIN_MASK,
-				gain << CAP11XX_REG_MAIN_CONTROL_GAIN_SHIFT);
-		if (error)
-			return error;
-	}
-
-	/* Disable autorepeat. The Linux input system has its own handling. */
-	error = regmap_write(priv->regmap, CAP11XX_REG_REPEAT_RATE, 0);
+	error = cap11xx_init_keys(priv);
 	if (error)
 		return error;
 
@@ -439,7 +583,7 @@ static int cap11xx_i2c_probe(struct i2c_client *i2c_client)
 	priv->idev->id.bustype = BUS_I2C;
 	priv->idev->evbit[0] = BIT_MASK(EV_KEY);
 
-	if (of_property_read_bool(node, "autorepeat"))
+	if (of_property_read_bool(dev->of_node, "autorepeat"))
 		__set_bit(EV_REP, priv->idev->evbit);
 
 	for (i = 0; i < cap->num_channels; i++)
@@ -474,13 +618,8 @@ static int cap11xx_i2c_probe(struct i2c_client *i2c_client)
 	if (error)
 		return error;
 
-	irq = irq_of_parse_and_map(node, 0);
-	if (!irq) {
-		dev_err(dev, "Unable to parse or map IRQ\n");
-		return -ENXIO;
-	}
-
-	error = devm_request_threaded_irq(dev, irq, NULL, cap11xx_thread_func,
+	error = devm_request_threaded_irq(dev, i2c_client->irq,
+					  NULL, cap11xx_thread_func,
 					  IRQF_ONESHOT, dev_name(dev), priv);
 	if (error)
 		return error;

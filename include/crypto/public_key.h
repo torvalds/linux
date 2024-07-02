@@ -10,6 +10,7 @@
 #ifndef _LINUX_PUBLIC_KEY_H
 #define _LINUX_PUBLIC_KEY_H
 
+#include <linux/errno.h>
 #include <linux/keyctl.h>
 #include <linux/oid_registry.h>
 

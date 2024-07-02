@@ -33,6 +33,7 @@
 #include <asm/msgbuf.h>
 #include <asm/sparsemem.h>
 #include <asm/asm-offsets.h>
+#include <asm/shmbuf.h>
 
 extern int  data_start;
 extern void parisc_kernel_start(void);	/* Kernel entry point in head.S */

@@ -900,8 +900,19 @@ static void zfcp_fc_rspn(struct zfcp_adapter *adapter,
 	zfcp_fc_ct_ns_init(&rspn_req->ct_hdr, FC_NS_RSPN_ID,
 			   FC_SYMBOLIC_NAME_SIZE);
 	hton24(rspn_req->rspn.fr_fid.fp_fid, fc_host_port_id(shost));
-	len = strlcpy(rspn_req->rspn.fr_name, fc_host_symbolic_name(shost),
-		      FC_SYMBOLIC_NAME_SIZE);
+
+	BUILD_BUG_ON(sizeof(rspn_req->name) !=
+			sizeof(fc_host_symbolic_name(shost)));
+	BUILD_BUG_ON(sizeof(rspn_req->name) !=
+			type_max(typeof(rspn_req->rspn.fr_name_len)) + 1);
+	len = strscpy(rspn_req->name, fc_host_symbolic_name(shost),
+		      sizeof(rspn_req->name));
+	/*
+	 * It should be impossible for this to truncate (see BUILD_BUG_ON()
+	 * above), but be robust anyway.
+	 */
+	if (WARN_ON(len < 0))
+		len = sizeof(rspn_req->name) - 1;
 	rspn_req->rspn.fr_name_len = len;
 
 	sg_init_one(&fc_req->sg_req, rspn_req, sizeof(*rspn_req));

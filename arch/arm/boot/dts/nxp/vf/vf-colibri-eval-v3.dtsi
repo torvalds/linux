@@ -55,7 +55,7 @@
 	brightness-levels = <0 4 8 16 32 64 128 255>;
 	default-brightness-level = <6>;
 	power-supply = <&reg_3v3>;
-	status  = "okay";
+	status = "okay";
 };
 
 &dcu0 {

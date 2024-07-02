@@ -5,7 +5,7 @@
  * Copyright 2008-2011	Luis R. Rodriguez <mcgrof@qca.qualcomm.com>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright      2017  Intel Deutschland GmbH
- * Copyright (C) 2018 - 2023 Intel Corporation
+ * Copyright (C) 2018 - 2024 Intel Corporation
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -57,6 +57,8 @@
 #include <linux/verification.h>
 #include <linux/moduleparam.h>
 #include <linux/firmware.h>
+#include <linux/units.h>
+
 #include <net/cfg80211.h>
 #include "core.h"
 #include "reg.h"
@@ -1289,20 +1291,17 @@ static bool is_valid_rd(const struct ieee80211_regdomain *rd)
 static bool freq_in_rule_band(const struct ieee80211_freq_range *freq_range,
 			      u32 freq_khz)
 {
-#define ONE_GHZ_IN_KHZ	1000000
 	/*
 	 * From 802.11ad: directional multi-gigabit (DMG):
 	 * Pertaining to operation in a frequency band containing a channel
 	 * with the Channel starting frequency above 45 GHz.
 	 */
-	u32 limit = freq_khz > 45 * ONE_GHZ_IN_KHZ ?
-			20 * ONE_GHZ_IN_KHZ : 2 * ONE_GHZ_IN_KHZ;
+	u32 limit = freq_khz > 45 * KHZ_PER_GHZ ? 20 * KHZ_PER_GHZ : 2 * KHZ_PER_GHZ;
 	if (abs(freq_khz - freq_range->start_freq_khz) <= limit)
 		return true;
 	if (abs(freq_khz - freq_range->end_freq_khz) <= limit)
 		return true;
 	return false;
-#undef ONE_GHZ_IN_KHZ
 }
 
 /*
@@ -1593,6 +1592,12 @@ static u32 map_regdom_flags(u32 rd_flags)
 		channel_flags |= IEEE80211_CHAN_NO_320MHZ;
 	if (rd_flags & NL80211_RRF_NO_EHT)
 		channel_flags |= IEEE80211_CHAN_NO_EHT;
+	if (rd_flags & NL80211_RRF_DFS_CONCURRENT)
+		channel_flags |= IEEE80211_CHAN_DFS_CONCURRENT;
+	if (rd_flags & NL80211_RRF_NO_6GHZ_VLP_CLIENT)
+		channel_flags |= IEEE80211_CHAN_NO_6GHZ_VLP_CLIENT;
+	if (rd_flags & NL80211_RRF_NO_6GHZ_AFC_CLIENT)
+		channel_flags |= IEEE80211_CHAN_NO_6GHZ_AFC_CLIENT;
 	if (rd_flags & NL80211_RRF_PSD)
 		channel_flags |= IEEE80211_CHAN_PSD;
 	return channel_flags;
@@ -2478,7 +2483,7 @@ static void reg_check_chans_work(struct work_struct *work)
 	rtnl_unlock();
 }
 
-static void reg_check_channels(void)
+void reg_check_channels(void)
 {
 	/*
 	 * Give usermode a chance to do something nicer (move to another
@@ -3279,7 +3284,7 @@ int regulatory_hint_user(const char *alpha2,
 	return 0;
 }
 
-int regulatory_hint_indoor(bool is_indoor, u32 portid)
+void regulatory_hint_indoor(bool is_indoor, u32 portid)
 {
 	spin_lock(&reg_indoor_lock);
 
@@ -3302,8 +3307,6 @@ int regulatory_hint_indoor(bool is_indoor, u32 portid)
 
 	if (!is_indoor)
 		reg_check_channels();
-
-	return 0;
 }
 
 void regulatory_netlink_notify(u32 portid)
@@ -3661,9 +3664,9 @@ static bool pending_reg_beacon(struct ieee80211_channel *beacon_chan)
 	return false;
 }
 
-int regulatory_hint_found_beacon(struct wiphy *wiphy,
-				 struct ieee80211_channel *beacon_chan,
-				 gfp_t gfp)
+void regulatory_hint_found_beacon(struct wiphy *wiphy,
+				  struct ieee80211_channel *beacon_chan,
+				  gfp_t gfp)
 {
 	struct reg_beacon *reg_beacon;
 	bool processing;
@@ -3672,18 +3675,18 @@ int regulatory_hint_found_beacon(struct wiphy *wiphy,
 	    beacon_chan->flags & IEEE80211_CHAN_RADAR ||
 	    (beacon_chan->band == NL80211_BAND_2GHZ &&
 	     !freq_is_chan_12_13_14(beacon_chan->center_freq)))
-		return 0;
+		return;
 
 	spin_lock_bh(&reg_pending_beacons_lock);
 	processing = pending_reg_beacon(beacon_chan);
 	spin_unlock_bh(&reg_pending_beacons_lock);
 
 	if (processing)
-		return 0;
+		return;
 
 	reg_beacon = kzalloc(sizeof(struct reg_beacon), gfp);
 	if (!reg_beacon)
-		return -ENOMEM;
+		return;
 
 	pr_debug("Found new beacon on frequency: %d.%03d MHz (Ch %d) on %s\n",
 		 beacon_chan->center_freq, beacon_chan->freq_offset,
@@ -3703,8 +3706,6 @@ int regulatory_hint_found_beacon(struct wiphy *wiphy,
 	spin_unlock_bh(&reg_pending_beacons_lock);
 
 	schedule_work(&reg_work);
-
-	return 0;
 }
 
 static void print_rd_rules(const struct ieee80211_regdomain *rd)

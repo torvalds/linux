@@ -3022,8 +3022,7 @@ static int dma_convert_to_hda_format(struct hda_codec *codec,
 {
 	unsigned int format_val;
 
-	format_val = snd_hdac_calc_stream_format(sample_rate,
-				channels, SNDRV_PCM_FORMAT_S32_LE, 32, 0);
+	format_val = snd_hdac_stream_format(channels, 32, sample_rate);
 
 	if (hda_format)
 		*hda_format = (unsigned short)format_val;
@@ -9683,7 +9682,6 @@ static void dbpro_free(struct hda_codec *codec)
 	kfree(codec->spec);
 }
 
-#ifdef CONFIG_PM
 static int ca0132_suspend(struct hda_codec *codec)
 {
 	struct ca0132_spec *spec = codec->spec;
@@ -9691,7 +9689,6 @@ static int ca0132_suspend(struct hda_codec *codec)
 	cancel_delayed_work_sync(&spec->unsol_hp_work);
 	return 0;
 }
-#endif
 
 static const struct hda_codec_ops ca0132_patch_ops = {
 	.build_controls = ca0132_build_controls,
@@ -9699,9 +9696,7 @@ static const struct hda_codec_ops ca0132_patch_ops = {
 	.init = ca0132_init,
 	.free = ca0132_free,
 	.unsol_event = snd_hda_jack_unsol_event,
-#ifdef CONFIG_PM
 	.suspend = ca0132_suspend,
-#endif
 };
 
 static const struct hda_codec_ops dbpro_patch_ops = {

@@ -23,12 +23,11 @@
  *
  */
 
-#include <linux/slab.h>
-
 #include "dal_asic_id.h"
 #include "dc_types.h"
 #include "dccg.h"
 #include "clk_mgr_internal.h"
+#include "dc_state_priv.h"
 #include "link.h"
 
 #include "dce100/dce_clk_mgr.h"
@@ -63,7 +62,7 @@ int clk_mgr_helper_get_active_display_cnt(
 		/* Don't count SubVP phantom pipes as part of active
 		 * display count
 		 */
-		if (stream->mall_stream_config.type == SUBVP_PHANTOM)
+		if (dc_state_get_stream_subvp_type(context, stream) == SUBVP_PHANTOM)
 			continue;
 
 		/*
@@ -273,7 +272,7 @@ struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *p
 			dcn3_clk_mgr_construct(ctx, clk_mgr, pp_smu, dccg);
 			return &clk_mgr->base;
 		}
-		if (asic_id.chip_id == DEVICE_ID_NV_13FE) {
+		if (ctx->dce_version == DCN_VERSION_2_01) {
 			dcn201_clk_mgr_construct(ctx, clk_mgr, pp_smu, dccg);
 			return &clk_mgr->base;
 		}
@@ -330,16 +329,14 @@ struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *p
 	}
 		break;
 	case AMDGPU_FAMILY_GC_11_0_0: {
-	    struct clk_mgr_internal *clk_mgr = kzalloc(sizeof(*clk_mgr), GFP_KERNEL);
+		struct clk_mgr_internal *clk_mgr = kzalloc(sizeof(*clk_mgr), GFP_KERNEL);
 
-	    if (clk_mgr == NULL) {
-		BREAK_TO_DEBUGGER();
-		return NULL;
-	    }
-
-	    dcn32_clk_mgr_construct(ctx, clk_mgr, pp_smu, dccg);
-	    return &clk_mgr->base;
-	    break;
+		if (clk_mgr == NULL) {
+			BREAK_TO_DEBUGGER();
+			return NULL;
+		}
+		dcn32_clk_mgr_construct(ctx, clk_mgr, pp_smu, dccg);
+		return &clk_mgr->base;
 	}
 
 	case AMDGPU_FAMILY_GC_11_0_1: {
@@ -368,7 +365,7 @@ struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *p
 	}
 	break;
 
-#endif /* CONFIG_DRM_AMD_DC_FP - Family RV */
+#endif	/* CONFIG_DRM_AMD_DC_FP */
 	default:
 		ASSERT(0); /* Unknown Asic */
 		break;

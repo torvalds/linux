@@ -437,9 +437,9 @@ static int xcrb_msg_to_type6cprb_msgx(bool userspace, struct ap_message *ap_msg,
 		ap_msg->flags |= AP_MSG_FLAG_ADMIN;
 		break;
 	default:
-		ZCRYPT_DBF_DBG("%s unknown CPRB minor version '%c%c'\n",
-			       __func__, msg->cprbx.func_id[0],
-			       msg->cprbx.func_id[1]);
+		pr_debug("%s unknown CPRB minor version '%c%c'\n",
+			 __func__, msg->cprbx.func_id[0],
+			 msg->cprbx.func_id[1]);
 	}
 
 	/* copy data block */
@@ -629,9 +629,9 @@ static int convert_type86_xcrb(bool userspace, struct zcrypt_queue *zq,
 
 	/* Copy CPRB to user */
 	if (xcrb->reply_control_blk_length < msg->fmt2.count1) {
-		ZCRYPT_DBF_DBG("%s reply_control_blk_length %u < required %u => EMSGSIZE\n",
-			       __func__, xcrb->reply_control_blk_length,
-			       msg->fmt2.count1);
+		pr_debug("%s reply_control_blk_length %u < required %u => EMSGSIZE\n",
+			 __func__, xcrb->reply_control_blk_length,
+			 msg->fmt2.count1);
 		return -EMSGSIZE;
 	}
 	if (z_copy_to_user(userspace, xcrb->reply_control_blk_addr,
@@ -642,9 +642,9 @@ static int convert_type86_xcrb(bool userspace, struct zcrypt_queue *zq,
 	/* Copy data buffer to user */
 	if (msg->fmt2.count2) {
 		if (xcrb->reply_data_length < msg->fmt2.count2) {
-			ZCRYPT_DBF_DBG("%s reply_data_length %u < required %u => EMSGSIZE\n",
-				       __func__, xcrb->reply_data_length,
-				       msg->fmt2.count2);
+			pr_debug("%s reply_data_length %u < required %u => EMSGSIZE\n",
+				 __func__, xcrb->reply_data_length,
+				 msg->fmt2.count2);
 			return -EMSGSIZE;
 		}
 		if (z_copy_to_user(userspace, xcrb->reply_data_addr,
@@ -673,9 +673,9 @@ static int convert_type86_ep11_xcrb(bool userspace, struct zcrypt_queue *zq,
 	char *data = reply->msg;
 
 	if (xcrb->resp_len < msg->fmt2.count1) {
-		ZCRYPT_DBF_DBG("%s resp_len %u < required %u => EMSGSIZE\n",
-			       __func__, (unsigned int)xcrb->resp_len,
-			       msg->fmt2.count1);
+		pr_debug("%s resp_len %u < required %u => EMSGSIZE\n",
+			 __func__, (unsigned int)xcrb->resp_len,
+			 msg->fmt2.count1);
 		return -EMSGSIZE;
 	}
 
@@ -875,7 +875,8 @@ static void zcrypt_msgtype6_receive(struct ap_queue *aq,
 			len = sizeof(struct type86x_reply) + t86r->length;
 			if (len > reply->bufsize || len > msg->bufsize ||
 			    len != reply->len) {
-				ZCRYPT_DBF_DBG("%s len mismatch => EMSGSIZE\n", __func__);
+				pr_debug("%s len mismatch => EMSGSIZE\n",
+					 __func__);
 				msg->rc = -EMSGSIZE;
 				goto out;
 			}
@@ -889,7 +890,8 @@ static void zcrypt_msgtype6_receive(struct ap_queue *aq,
 				len = t86r->fmt2.offset1 + t86r->fmt2.count1;
 			if (len > reply->bufsize || len > msg->bufsize ||
 			    len != reply->len) {
-				ZCRYPT_DBF_DBG("%s len mismatch => EMSGSIZE\n", __func__);
+				pr_debug("%s len mismatch => EMSGSIZE\n",
+					 __func__);
 				msg->rc = -EMSGSIZE;
 				goto out;
 			}
@@ -939,7 +941,8 @@ static void zcrypt_msgtype6_receive_ep11(struct ap_queue *aq,
 			len = t86r->fmt2.offset1 + t86r->fmt2.count1;
 			if (len > reply->bufsize || len > msg->bufsize ||
 			    len != reply->len) {
-				ZCRYPT_DBF_DBG("%s len mismatch => EMSGSIZE\n", __func__);
+				pr_debug("%s len mismatch => EMSGSIZE\n",
+					 __func__);
 				msg->rc = -EMSGSIZE;
 				goto out;
 			}
@@ -1151,9 +1154,9 @@ static long zcrypt_msgtype6_send_cprb(bool userspace, struct zcrypt_queue *zq,
 
 out:
 	if (rc)
-		ZCRYPT_DBF_DBG("%s send cprb at dev=%02x.%04x rc=%d\n",
-			       __func__, AP_QID_CARD(zq->queue->qid),
-			       AP_QID_QUEUE(zq->queue->qid), rc);
+		pr_debug("%s send cprb at dev=%02x.%04x rc=%d\n",
+			 __func__, AP_QID_CARD(zq->queue->qid),
+			 AP_QID_QUEUE(zq->queue->qid), rc);
 	return rc;
 }
 
@@ -1274,9 +1277,9 @@ static long zcrypt_msgtype6_send_ep11_cprb(bool userspace, struct zcrypt_queue *
 
 out:
 	if (rc)
-		ZCRYPT_DBF_DBG("%s send cprb at dev=%02x.%04x rc=%d\n",
-			       __func__, AP_QID_CARD(zq->queue->qid),
-			       AP_QID_QUEUE(zq->queue->qid), rc);
+		pr_debug("%s send cprb at dev=%02x.%04x rc=%d\n",
+			 __func__, AP_QID_CARD(zq->queue->qid),
+			 AP_QID_QUEUE(zq->queue->qid), rc);
 	return rc;
 }
 

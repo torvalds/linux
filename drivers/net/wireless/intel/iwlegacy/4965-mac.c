@@ -4231,8 +4231,6 @@ il4965_rx_handle(struct il_priv *il)
 		fill_rx = 1;
 
 	while (i != r) {
-		int len;
-
 		rxb = rxq->queue[i];
 
 		/* If an RXB doesn't have a Rx queue slot associated with it,
@@ -4246,10 +4244,6 @@ il4965_rx_handle(struct il_priv *il)
 			       PAGE_SIZE << il->hw_params.rx_page_order,
 			       DMA_FROM_DEVICE);
 		pkt = rxb_addr(rxb);
-
-		len = le32_to_cpu(pkt->len_n_flags) & IL_RX_FRAME_SIZE_MSK;
-		len += sizeof(u32);	/* account for status word */
-
 		reclaim = il_need_reclaim(il, pkt);
 
 		/* Based on type of command response or notification,
@@ -6307,6 +6301,10 @@ il4965_tx_queue_set_status(struct il_priv *il, struct il_tx_queue *txq,
 }
 
 static const struct ieee80211_ops il4965_mac_ops = {
+	.add_chanctx = ieee80211_emulate_add_chanctx,
+	.remove_chanctx = ieee80211_emulate_remove_chanctx,
+	.change_chanctx = ieee80211_emulate_change_chanctx,
+	.switch_vif_chanctx = ieee80211_emulate_switch_vif_chanctx,
 	.tx = il4965_mac_tx,
 	.wake_tx_queue = ieee80211_handle_wake_tx_queue,
 	.start = il4965_mac_start,

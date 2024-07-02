@@ -6,6 +6,12 @@
 #ifndef BTRFS_RCU_STRING_H
 #define BTRFS_RCU_STRING_H
 
+#include <linux/types.h>
+#include <linux/string.h>
+#include <linux/slab.h>
+#include <linux/rcupdate.h>
+#include <linux/printk.h>
+
 struct rcu_string {
 	struct rcu_head rcu;
 	char str[];

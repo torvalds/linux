@@ -2,6 +2,7 @@
 config XTENSA
 	def_bool y
 	select ARCH_32BIT_OFF_T
+	select ARCH_HAS_CPU_CACHE_ALIASING
 	select ARCH_HAS_BINFMT_FLAT if !MMU
 	select ARCH_HAS_CURRENT_STACK_POINTER
 	select ARCH_HAS_DEBUG_VM_PGTABLE
@@ -44,6 +45,7 @@ config XTENSA
 	select HAVE_GCC_PLUGINS if GCC_VERSION >= 120000
 	select HAVE_HW_BREAKPOINT if PERF_EVENTS
 	select HAVE_IRQ_TIME_ACCOUNTING
+	select HAVE_PAGE_SIZE_4KB
 	select HAVE_PCI
 	select HAVE_PERF_EVENTS
 	select HAVE_STACKPROTECTOR
@@ -144,7 +146,7 @@ config XTENSA_VARIANT_CUSTOM_NAME
 	depends on XTENSA_VARIANT_CUSTOM
 	help
 	  Provide the name of a custom Xtensa processor variant.
-	  This CORENAME selects arch/xtensa/variant/CORENAME.
+	  This CORENAME selects arch/xtensa/variants/CORENAME.
 	  Don't forget you have to select MMU if you have one.
 
 config XTENSA_VARIANT_NAME
@@ -793,7 +795,7 @@ config ARCH_FORCE_MAX_ORDER
 	default "10"
 	help
 	  The kernel page allocator limits the size of maximal physically
-	  contiguous allocations. The limit is called MAX_ORDER and it
+	  contiguous allocations. The limit is called MAX_PAGE_ORDER and it
 	  defines the maximal power of two of number of pages that can be
 	  allocated as a single contiguous block. This option allows
 	  overriding the default setting when ability to allocate very

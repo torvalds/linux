@@ -6,7 +6,17 @@
 #ifndef BTRFS_DELAYED_REF_H
 #define BTRFS_DELAYED_REF_H
 
+#include <linux/types.h>
 #include <linux/refcount.h>
+#include <linux/list.h>
+#include <linux/rbtree.h>
+#include <linux/mutex.h>
+#include <linux/spinlock.h>
+#include <linux/slab.h>
+#include <uapi/linux/btrfs_tree.h>
+
+struct btrfs_trans_handle;
+struct btrfs_fs_info;
 
 /* these are the possible values of struct btrfs_delayed_ref_node->action */
 enum btrfs_delayed_ref_action {
@@ -19,6 +29,32 @@ enum btrfs_delayed_ref_action {
 	/* Not changing ref count on head ref */
 	BTRFS_UPDATE_DELAYED_HEAD,
 } __packed;
+
+struct btrfs_data_ref {
+	/* For EXTENT_DATA_REF */
+
+	/* Inode which refers to this data extent */
+	u64 objectid;
+
+	/*
+	 * file_offset - extent_offset
+	 *
+	 * file_offset is the key.offset of the EXTENT_DATA key.
+	 * extent_offset is btrfs_file_extent_offset() of the EXTENT_DATA data.
+	 */
+	u64 offset;
+};
+
+struct btrfs_tree_ref {
+	/*
+	 * Level of this tree block.
+	 *
+	 * Shared for skinny (TREE_BLOCK_REF) and normal tree ref.
+	 */
+	int level;
+
+	/* For non-skinny metadata, no special member needed */
+};
 
 struct btrfs_delayed_ref_node {
 	struct rb_node ref_node;
@@ -38,6 +74,15 @@ struct btrfs_delayed_ref_node {
 	/* seq number to keep track of insertion order */
 	u64 seq;
 
+	/* The ref_root for this ref */
+	u64 ref_root;
+
+	/*
+	 * The parent for this ref, if this isn't set the ref_root is the
+	 * reference owner.
+	 */
+	u64 parent;
+
 	/* ref count on this data structure */
 	refcount_t refs;
 
@@ -54,6 +99,11 @@ struct btrfs_delayed_ref_node {
 
 	unsigned int action:8;
 	unsigned int type:8;
+
+	union {
+		struct btrfs_tree_ref tree_ref;
+		struct btrfs_data_ref data_ref;
+	};
 };
 
 struct btrfs_delayed_extent_op {
@@ -141,21 +191,6 @@ struct btrfs_delayed_ref_head {
 	bool processing;
 };
 
-struct btrfs_delayed_tree_ref {
-	struct btrfs_delayed_ref_node node;
-	u64 root;
-	u64 parent;
-	int level;
-};
-
-struct btrfs_delayed_data_ref {
-	struct btrfs_delayed_ref_node node;
-	u64 root;
-	u64 parent;
-	u64 objectid;
-	u64 offset;
-};
-
 enum btrfs_delayed_ref_flags {
 	/* Indicate that we are flushing delayed refs for the commit */
 	BTRFS_DELAYED_REFS_FLUSHING,
@@ -204,42 +239,6 @@ enum btrfs_ref_type {
 	BTRFS_REF_LAST,
 } __packed;
 
-struct btrfs_data_ref {
-	/* For EXTENT_DATA_REF */
-
-	/* Root which owns this data reference. */
-	u64 ref_root;
-
-	/* Inode which refers to this data extent */
-	u64 ino;
-
-	/*
-	 * file_offset - extent_offset
-	 *
-	 * file_offset is the key.offset of the EXTENT_DATA key.
-	 * extent_offset is btrfs_file_extent_offset() of the EXTENT_DATA data.
-	 */
-	u64 offset;
-};
-
-struct btrfs_tree_ref {
-	/*
-	 * Level of this tree block
-	 *
-	 * Shared for skinny (TREE_BLOCK_REF) and normal tree ref.
-	 */
-	int level;
-
-	/*
-	 * Root which owns this tree block reference.
-	 *
-	 * For TREE_BLOCK_REF (skinny metadata, either inline or keyed)
-	 */
-	u64 ref_root;
-
-	/* For non-skinny metadata, no special member needed */
-};
-
 struct btrfs_ref {
 	enum btrfs_ref_type type;
 	enum btrfs_delayed_ref_action action;
@@ -257,8 +256,14 @@ struct btrfs_ref {
 	u64 real_root;
 #endif
 	u64 bytenr;
-	u64 len;
+	u64 num_bytes;
 	u64 owning_root;
+
+	/*
+	 * The root that owns the reference for this reference, this will be set
+	 * or ->parent will be set, depending on what type of reference this is.
+	 */
+	u64 ref_root;
 
 	/* Bytenr of the parent tree block */
 	u64 parent;
@@ -269,8 +274,7 @@ struct btrfs_ref {
 };
 
 extern struct kmem_cache *btrfs_delayed_ref_head_cachep;
-extern struct kmem_cache *btrfs_delayed_tree_ref_cachep;
-extern struct kmem_cache *btrfs_delayed_data_ref_cachep;
+extern struct kmem_cache *btrfs_delayed_ref_node_cachep;
 extern struct kmem_cache *btrfs_delayed_extent_op_cachep;
 
 int __init btrfs_delayed_ref_init(void);
@@ -308,53 +312,10 @@ static inline u64 btrfs_calc_delayed_ref_csum_bytes(const struct btrfs_fs_info *
 	return btrfs_calc_metadata_size(fs_info, num_csum_items);
 }
 
-static inline void btrfs_init_generic_ref(struct btrfs_ref *generic_ref,
-					  int action, u64 bytenr, u64 len,
-					  u64 parent, u64 owning_root)
-{
-	generic_ref->action = action;
-	generic_ref->bytenr = bytenr;
-	generic_ref->len = len;
-	generic_ref->parent = parent;
-	generic_ref->owning_root = owning_root;
-}
-
-static inline void btrfs_init_tree_ref(struct btrfs_ref *generic_ref, int level,
-				       u64 root, u64 mod_root, bool skip_qgroup)
-{
-#ifdef CONFIG_BTRFS_FS_REF_VERIFY
-	/* If @real_root not set, use @root as fallback */
-	generic_ref->real_root = mod_root ?: root;
-#endif
-	generic_ref->tree_ref.level = level;
-	generic_ref->tree_ref.ref_root = root;
-	generic_ref->type = BTRFS_REF_METADATA;
-	if (skip_qgroup || !(is_fstree(root) &&
-			     (!mod_root || is_fstree(mod_root))))
-		generic_ref->skip_qgroup = true;
-	else
-		generic_ref->skip_qgroup = false;
-
-}
-
-static inline void btrfs_init_data_ref(struct btrfs_ref *generic_ref,
-				u64 ref_root, u64 ino, u64 offset, u64 mod_root,
-				bool skip_qgroup)
-{
-#ifdef CONFIG_BTRFS_FS_REF_VERIFY
-	/* If @real_root not set, use @root as fallback */
-	generic_ref->real_root = mod_root ?: ref_root;
-#endif
-	generic_ref->data_ref.ref_root = ref_root;
-	generic_ref->data_ref.ino = ino;
-	generic_ref->data_ref.offset = offset;
-	generic_ref->type = BTRFS_REF_DATA;
-	if (skip_qgroup || !(is_fstree(ref_root) &&
-			     (!mod_root || is_fstree(mod_root))))
-		generic_ref->skip_qgroup = true;
-	else
-		generic_ref->skip_qgroup = false;
-}
+void btrfs_init_tree_ref(struct btrfs_ref *generic_ref, int level, u64 mod_root,
+			 bool skip_qgroup);
+void btrfs_init_data_ref(struct btrfs_ref *generic_ref, u64 ino, u64 offset,
+			 u64 mod_root, bool skip_qgroup);
 
 static inline struct btrfs_delayed_extent_op *
 btrfs_alloc_delayed_extent_op(void)
@@ -369,24 +330,7 @@ btrfs_free_delayed_extent_op(struct btrfs_delayed_extent_op *op)
 		kmem_cache_free(btrfs_delayed_extent_op_cachep, op);
 }
 
-static inline void btrfs_put_delayed_ref(struct btrfs_delayed_ref_node *ref)
-{
-	if (refcount_dec_and_test(&ref->refs)) {
-		WARN_ON(!RB_EMPTY_NODE(&ref->ref_node));
-		switch (ref->type) {
-		case BTRFS_TREE_BLOCK_REF_KEY:
-		case BTRFS_SHARED_BLOCK_REF_KEY:
-			kmem_cache_free(btrfs_delayed_tree_ref_cachep, ref);
-			break;
-		case BTRFS_EXTENT_DATA_REF_KEY:
-		case BTRFS_SHARED_DATA_REF_KEY:
-			kmem_cache_free(btrfs_delayed_data_ref_cachep, ref);
-			break;
-		default:
-			BUG();
-		}
-	}
-}
+void btrfs_put_delayed_ref(struct btrfs_delayed_ref_node *ref);
 
 static inline u64 btrfs_ref_head_to_space_flags(
 				struct btrfs_delayed_ref_head *head_ref)
@@ -446,19 +390,39 @@ void btrfs_migrate_to_delayed_refs_rsv(struct btrfs_fs_info *fs_info,
 				       u64 num_bytes);
 bool btrfs_check_space_for_delayed_refs(struct btrfs_fs_info *fs_info);
 
-/*
- * helper functions to cast a node into its container
- */
-static inline struct btrfs_delayed_tree_ref *
-btrfs_delayed_node_to_tree_ref(struct btrfs_delayed_ref_node *node)
+static inline u64 btrfs_delayed_ref_owner(struct btrfs_delayed_ref_node *node)
 {
-	return container_of(node, struct btrfs_delayed_tree_ref, node);
+	if (node->type == BTRFS_EXTENT_DATA_REF_KEY ||
+	    node->type == BTRFS_SHARED_DATA_REF_KEY)
+		return node->data_ref.objectid;
+	return node->tree_ref.level;
 }
 
-static inline struct btrfs_delayed_data_ref *
-btrfs_delayed_node_to_data_ref(struct btrfs_delayed_ref_node *node)
+static inline u64 btrfs_delayed_ref_offset(struct btrfs_delayed_ref_node *node)
 {
-	return container_of(node, struct btrfs_delayed_data_ref, node);
+	if (node->type == BTRFS_EXTENT_DATA_REF_KEY ||
+	    node->type == BTRFS_SHARED_DATA_REF_KEY)
+		return node->data_ref.offset;
+	return 0;
+}
+
+static inline u8 btrfs_ref_type(struct btrfs_ref *ref)
+{
+	ASSERT(ref->type == BTRFS_REF_DATA || ref->type == BTRFS_REF_METADATA);
+
+	if (ref->type == BTRFS_REF_DATA) {
+		if (ref->parent)
+			return BTRFS_SHARED_DATA_REF_KEY;
+		else
+			return BTRFS_EXTENT_DATA_REF_KEY;
+	} else {
+		if (ref->parent)
+			return BTRFS_SHARED_BLOCK_REF_KEY;
+		else
+			return BTRFS_TREE_BLOCK_REF_KEY;
+	}
+
+	return 0;
 }
 
 #endif

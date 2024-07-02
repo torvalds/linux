@@ -276,6 +276,8 @@ static void xgpu_ai_mailbox_flr_work(struct work_struct *work)
 		timeout -= 10;
 	} while (timeout > 1);
 
+	dev_warn(adev->dev, "waiting IDH_FLR_NOTIFICATION_CMPL timeout\n");
+
 flr_done:
 	atomic_set(&adev->reset_domain->in_gpu_reset, 0);
 	up_write(&adev->reset_domain->sem);
@@ -404,7 +406,8 @@ static int xgpu_ai_request_init_data(struct amdgpu_device *adev)
 	return xgpu_ai_send_access_requests(adev, IDH_REQ_GPU_INIT_DATA);
 }
 
-static void xgpu_ai_ras_poison_handler(struct amdgpu_device *adev)
+static void xgpu_ai_ras_poison_handler(struct amdgpu_device *adev,
+					enum amdgpu_ras_block block)
 {
 	xgpu_ai_send_access_requests(adev, IDH_RAS_POISON);
 }

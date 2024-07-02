@@ -618,7 +618,7 @@ static int smsc47m192_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id smsc47m192_id[] = {
-	{ "smsc47m192", 0 },
+	{ "smsc47m192" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, smsc47m192_id);

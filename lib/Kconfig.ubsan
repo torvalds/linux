@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-only
-config ARCH_HAS_UBSAN_SANITIZE_ALL
+config ARCH_HAS_UBSAN
 	bool
 
 menuconfig UBSAN
@@ -87,7 +87,6 @@ config UBSAN_LOCAL_BOUNDS
 
 config UBSAN_SHIFT
 	bool "Perform checking for bit-shift overflows"
-	default UBSAN
 	depends on $(cc-option,-fsanitize=shift)
 	help
 	  This option enables -fsanitize=shift which checks for bit-shift
@@ -116,6 +115,22 @@ config UBSAN_UNREACHABLE
 	  This option enables -fsanitize=unreachable which checks for control
 	  flow reaching an expected-to-be-unreachable position.
 
+config UBSAN_SIGNED_WRAP
+	bool "Perform checking for signed arithmetic wrap-around"
+	default UBSAN
+	depends on !COMPILE_TEST
+	# The no_sanitize attribute was introduced in GCC with version 8.
+	depends on !CC_IS_GCC || GCC_VERSION >= 80000
+	depends on $(cc-option,-fsanitize=signed-integer-overflow)
+	help
+	  This option enables -fsanitize=signed-integer-overflow which checks
+	  for wrap-around of any arithmetic operations with signed integers.
+	  This currently performs nearly no instrumentation due to the
+	  kernel's use of -fno-strict-overflow which converts all would-be
+	  arithmetic undefined behavior into wrap-around arithmetic. Future
+	  sanitizer versions will allow for wrap-around checking (rather than
+	  exclusively undefined behavior).
+
 config UBSAN_BOOL
 	bool "Perform checking for non-boolean values used as boolean"
 	default UBSAN
@@ -141,17 +156,6 @@ config UBSAN_ALIGNMENT
 	  This option enables the check of unaligned memory accesses.
 	  Enabling this option on architectures that support unaligned
 	  accesses may produce a lot of false positives.
-
-config UBSAN_SANITIZE_ALL
-	bool "Enable instrumentation for the entire kernel"
-	depends on ARCH_HAS_UBSAN_SANITIZE_ALL
-	default y
-	help
-	  This option activates instrumentation for the entire kernel.
-	  If you don't enable this option, you have to explicitly specify
-	  UBSAN_SANITIZE := y for the files/directories you want to check for UB.
-	  Enabling this option will get kernel image size increased
-	  significantly.
 
 config TEST_UBSAN
 	tristate "Module for testing for undefined behavior detection"

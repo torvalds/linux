@@ -147,71 +147,6 @@ test_add_proc()
 }
 
 #
-# Testing the new "isolated" partition root type
-#
-test_isolated()
-{
-	cd $CGROUP2/test
-	echo 2-3 > cpuset.cpus
-	TYPE=$(cat cpuset.cpus.partition)
-	[[ $TYPE = member ]] || echo member > cpuset.cpus.partition
-
-	console_msg "Change from member to root"
-	test_partition root
-
-	console_msg "Change from root to isolated"
-	test_partition isolated
-
-	console_msg "Change from isolated to member"
-	test_partition member
-
-	console_msg "Change from member to isolated"
-	test_partition isolated
-
-	console_msg "Change from isolated to root"
-	test_partition root
-
-	console_msg "Change from root to member"
-	test_partition member
-
-	#
-	# Testing partition root with no cpu
-	#
-	console_msg "Distribute all cpus to child partition"
-	echo +cpuset > cgroup.subtree_control
-	test_partition root
-
-	mkdir A1
-	cd A1
-	echo 2-3 > cpuset.cpus
-	test_partition root
-	test_effective_cpus 2-3
-	cd ..
-	test_effective_cpus ""
-
-	console_msg "Moving task to partition test"
-	test_add_proc "No space left"
-	cd A1
-	test_add_proc ""
-	cd ..
-
-	console_msg "Shrink and expand child partition"
-	cd A1
-	echo 2 > cpuset.cpus
-	cd ..
-	test_effective_cpus 3
-	cd A1
-	echo 2-3 > cpuset.cpus
-	cd ..
-	test_effective_cpus ""
-
-	# Cleaning up
-	console_msg "Cleaning up"
-	echo $$ > $CGROUP2/cgroup.procs
-	[[ -d A1 ]] && rmdir A1
-}
-
-#
 # Cpuset controller state transition test matrix.
 #
 # Cgroup test hierarchy
@@ -297,14 +232,14 @@ TEST_MATRIX=(
 	" C0-3:S+ C1-3:S+ C2-3   C4-5   X2-3  X2-3:P1   P2     P1    0 A1:0-1,A2:,A3:2-3,B1:4-5 \
 								       A1:P0,A2:P1,A3:P2,B1:P1 2-3"
 	" C0-3:S+ C1-3:S+ C2-3    C4    X2-3  X2-3:P1   P2     P1    0 A1:0-1,A2:,A3:2-3,B1:4 \
-								       A1:P0,A2:P1,A3:P2,B1:P1 2-4"
+								       A1:P0,A2:P1,A3:P2,B1:P1 2-4,2-3"
 	" C0-3:S+ C1-3:S+  C3     C4    X2-3  X2-3:P1   P2     P1    0 A1:0-1,A2:2,A3:3,B1:4 \
-								       A1:P0,A2:P1,A3:P2,B1:P1 2-4"
+								       A1:P0,A2:P1,A3:P2,B1:P1 2-4,3"
 	" C0-4:S+ C1-4:S+ C2-4     .    X2-4  X2-4:P2  X4:P1    .    0 A1:0-1,A2:2-3,A3:4 \
-								       A1:P0,A2:P2,A3:P1 2-4"
+								       A1:P0,A2:P2,A3:P1 2-4,2-3"
 	" C0-4:X2-4:S+ C1-4:X2-4:S+:P2 C2-4:X4:P1 \
 				   .      .      X5      .      .    0 A1:0-4,A2:1-4,A3:2-4 \
-								       A1:P0,A2:P-2,A3:P-1 ."
+								       A1:P0,A2:P-2,A3:P-1"
 	" C0-4:X2-4:S+ C1-4:X2-4:S+:P2 C2-4:X4:P1 \
 				   .      .      .      X1      .    0 A1:0-1,A2:2-4,A3:2-4 \
 								       A1:P0,A2:P2,A3:P-1 2-4"
@@ -313,7 +248,7 @@ TEST_MATRIX=(
 	" C0-3:S+ C1-3:S+ C2-3     .    X2-3   X2-3 X2-3:P2:O2=0 .   0 A1:0-1,A2:1,A3:3 A1:P0,A3:P2 2-3"
 	" C0-3:S+ C1-3:S+ C2-3     .    X2-3   X2-3 X2-3:P2:O2=0 O2=1 0 A1:0-1,A2:1,A3:2-3 A1:P0,A3:P2 2-3"
 	" C0-3:S+ C1-3:S+  C3      .    X2-3   X2-3    P2:O3=0   .   0 A1:0-2,A2:1-2,A3: A1:P0,A3:P2 3"
-	" C0-3:S+ C1-3:S+  C3      .    X2-3   X2-3   T:P2:O3=0  .   0 A1:0-2,A2:1-2,A3:1-2 A1:P0,A3:P-2 3"
+	" C0-3:S+ C1-3:S+  C3      .    X2-3   X2-3   T:P2:O3=0  .   0 A1:0-2,A2:1-2,A3:1-2 A1:P0,A3:P-2 3,"
 
 	# An invalidated remote partition cannot self-recover from hotplug
 	" C0-3:S+ C1-3:S+  C2      .    X2-3   X2-3   T:P2:O2=0 O2=1 0 A1:0-3,A2:1-3,A3:2 A1:P0,A3:P-2"
@@ -347,10 +282,10 @@ TEST_MATRIX=(
 	# cpus_allowed/exclusive_cpus update tests
 	" C0-3:X2-3:S+ C1-3:X2-3:S+ C2-3:X2-3 \
 				   .     C4      .      P2     .     0 A1:4,A2:4,XA2:,XA3:,A3:4 \
-								       A1:P0,A3:P-2 ."
+								       A1:P0,A3:P-2"
 	" C0-3:X2-3:S+ C1-3:X2-3:S+ C2-3:X2-3 \
 				   .     X1      .      P2     .     0 A1:0-3,A2:1-3,XA1:1,XA2:,XA3:,A3:2-3 \
-								       A1:P0,A3:P-2 ."
+								       A1:P0,A3:P-2"
 	" C0-3:X2-3:S+ C1-3:X2-3:S+ C2-3:X2-3 \
 				   .      .     C3      P2     .     0 A1:0-2,A2:0-2,XA2:3,XA3:3,A3:3 \
 								       A1:P0,A3:P2 3"
@@ -359,13 +294,13 @@ TEST_MATRIX=(
 								       A1:P0,A3:P2 3"
 	" C0-3:X2-3:S+ C1-3:X2-3:S+ C2-3:X2-3:P2 \
 				   .      .     X3      .      .     0 A1:0-3,A2:1-3,XA2:3,XA3:3,A3:2-3 \
-								       A1:P0,A3:P-2 ."
+								       A1:P0,A3:P-2"
 	" C0-3:X2-3:S+ C1-3:X2-3:S+ C2-3:X2-3:P2 \
 				   .      .     C3      .      .     0 A1:0-3,A2:3,XA2:3,XA3:3,A3:3 \
-								       A1:P0,A3:P-2 ."
+								       A1:P0,A3:P-2"
 	" C0-3:X2-3:S+ C1-3:X2-3:S+ C2-3:X2-3:P2 \
 				   .     C4      .      .      .     0 A1:4,A2:4,A3:4,XA1:,XA2:,XA3 \
-								       A1:P0,A3:P-2 ."
+								       A1:P0,A3:P-2"
 
 	#  old-A1 old-A2 old-A3 old-B1 new-A1 new-A2 new-A3 new-B1 fail ECPUs Pstate ISOLCPUS
 	#  ------ ------ ------ ------ ------ ------ ------ ------ ---- ----- ------ --------
@@ -441,7 +376,7 @@ write_cpu_online()
 		}
 	fi
 	echo $VAL > $CPUFILE
-	pause 0.01
+	pause 0.05
 }
 
 #
@@ -573,12 +508,14 @@ dump_states()
 		XECPUS=$DIR/cpuset.cpus.exclusive.effective
 		PRS=$DIR/cpuset.cpus.partition
 		PCPUS=$DIR/.__DEBUG__.cpuset.cpus.subpartitions
+		ISCPUS=$DIR/cpuset.cpus.isolated
 		[[ -e $CPUS   ]] && echo "$CPUS: $(cat $CPUS)"
 		[[ -e $XCPUS  ]] && echo "$XCPUS: $(cat $XCPUS)"
 		[[ -e $ECPUS  ]] && echo "$ECPUS: $(cat $ECPUS)"
 		[[ -e $XECPUS ]] && echo "$XECPUS: $(cat $XECPUS)"
 		[[ -e $PRS    ]] && echo "$PRS: $(cat $PRS)"
 		[[ -e $PCPUS  ]] && echo "$PCPUS: $(cat $PCPUS)"
+		[[ -e $ISCPUS ]] && echo "$ISCPUS: $(cat $ISCPUS)"
 	done
 }
 
@@ -656,11 +593,17 @@ check_cgroup_states()
 
 #
 # Get isolated (including offline) CPUs by looking at
-# /sys/kernel/debug/sched/domains and compare that with the expected value.
+# /sys/kernel/debug/sched/domains and cpuset.cpus.isolated control file,
+# if available, and compare that with the expected value.
 #
-# Note that a sched domain of just 1 CPU will be considered isolated.
+# Note that isolated CPUs from the sched/domains context include offline
+# CPUs as well as CPUs in non-isolated 1-CPU partition. Those CPUs may
+# not be included in the cpuset.cpus.isolated control file which contains
+# only CPUs in isolated partitions.
 #
-# $1 - expected isolated cpu list
+# $1 - expected isolated cpu list(s) <isolcpus1>{,<isolcpus2>}
+# <isolcpus1> - expected sched/domains value
+# <isolcpus2> - cpuset.cpus.isolated value = <isolcpus1> if not defined
 #
 check_isolcpus()
 {
@@ -668,8 +611,38 @@ check_isolcpus()
 	ISOLCPUS=
 	LASTISOLCPU=
 	SCHED_DOMAINS=/sys/kernel/debug/sched/domains
+	ISCPUS=${CGROUP2}/cpuset.cpus.isolated
+	if [[ $EXPECT_VAL = . ]]
+	then
+		EXPECT_VAL=
+		EXPECT_VAL2=
+	elif [[ $(expr $EXPECT_VAL : ".*,.*") > 0 ]]
+	then
+		set -- $(echo $EXPECT_VAL | sed -e "s/,/ /g")
+		EXPECT_VAL=$1
+		EXPECT_VAL2=$2
+	else
+		EXPECT_VAL2=$EXPECT_VAL
+	fi
+
+	#
+	# Check the debug isolated cpumask, if present
+	#
+	[[ -f $ISCPUS ]] && {
+		ISOLCPUS=$(cat $ISCPUS)
+		[[ "$EXPECT_VAL2" != "$ISOLCPUS" ]] && {
+			# Take a 50ms pause and try again
+			pause 0.05
+			ISOLCPUS=$(cat $ISCPUS)
+		}
+		[[ "$EXPECT_VAL2" != "$ISOLCPUS" ]] && return 1
+		ISOLCPUS=
+	}
+
+	#
+	# Use the sched domain in debugfs to check isolated CPUs, if available
+	#
 	[[ -d $SCHED_DOMAINS ]] || return 0
-	[[ $EXPECT_VAL = . ]] && EXPECT_VAL=
 
 	for ((CPU=0; CPU < $NR_CPUS; CPU++))
 	do
@@ -709,6 +682,26 @@ test_fail()
 	[[ -n "$ADDINFO" ]] && echo "*** $ADDINFO ***"
 	eval echo \${$TEST[$I]}
 	echo
+	dump_states
+	exit 1
+}
+
+#
+# Check to see if there are unexpected isolated CPUs left
+#
+null_isolcpus_check()
+{
+	[[ $VERBOSE -gt 0 ]] || return 0
+	# Retry a few times before printing error
+	RETRY=0
+	while [[ $RETRY -lt 5 ]]
+	do
+		pause 0.01
+		check_isolcpus "."
+		[[ $? -eq 0 ]] && return 0
+		((RETRY++))
+	done
+	echo "Unexpected isolated CPUs: $ISOLCPUS"
 	dump_states
 	exit 1
 }
@@ -787,7 +780,7 @@ run_state_test()
 		#
 		NEWLIST=$(cat cpuset.cpus.effective)
 		RETRY=0
-		while [[ $NEWLIST != $CPULIST && $RETRY -lt 5 ]]
+		while [[ $NEWLIST != $CPULIST && $RETRY -lt 8 ]]
 		do
 			# Wait a bit longer & recheck a few times
 			pause 0.01
@@ -798,10 +791,77 @@ run_state_test()
 			echo "Effective cpus changed to $NEWLIST after test $I!"
 			exit 1
 		}
+		null_isolcpus_check
 		[[ $VERBOSE -gt 0 ]] && echo "Test $I done."
 		((I++))
 	done
 	echo "All $I tests of $TEST PASSED."
+}
+
+#
+# Testing the new "isolated" partition root type
+#
+test_isolated()
+{
+	cd $CGROUP2/test
+	echo 2-3 > cpuset.cpus
+	TYPE=$(cat cpuset.cpus.partition)
+	[[ $TYPE = member ]] || echo member > cpuset.cpus.partition
+
+	console_msg "Change from member to root"
+	test_partition root
+
+	console_msg "Change from root to isolated"
+	test_partition isolated
+
+	console_msg "Change from isolated to member"
+	test_partition member
+
+	console_msg "Change from member to isolated"
+	test_partition isolated
+
+	console_msg "Change from isolated to root"
+	test_partition root
+
+	console_msg "Change from root to member"
+	test_partition member
+
+	#
+	# Testing partition root with no cpu
+	#
+	console_msg "Distribute all cpus to child partition"
+	echo +cpuset > cgroup.subtree_control
+	test_partition root
+
+	mkdir A1
+	cd A1
+	echo 2-3 > cpuset.cpus
+	test_partition root
+	test_effective_cpus 2-3
+	cd ..
+	test_effective_cpus ""
+
+	console_msg "Moving task to partition test"
+	test_add_proc "No space left"
+	cd A1
+	test_add_proc ""
+	cd ..
+
+	console_msg "Shrink and expand child partition"
+	cd A1
+	echo 2 > cpuset.cpus
+	cd ..
+	test_effective_cpus 3
+	cd A1
+	echo 2-3 > cpuset.cpus
+	cd ..
+	test_effective_cpus ""
+
+	# Cleaning up
+	console_msg "Cleaning up"
+	echo $$ > $CGROUP2/cgroup.procs
+	[[ -d A1 ]] && rmdir A1
+	null_isolcpus_check
 }
 
 #

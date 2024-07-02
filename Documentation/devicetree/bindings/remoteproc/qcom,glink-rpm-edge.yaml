@@ -18,7 +18,6 @@ properties:
     const: qcom,glink-rpm
 
   label:
-    $ref: /schemas/types.yaml#/definitions/string
     description:
       Name of the edge, used for debugging and identification purposes. The
       node name will be used if this is not present.

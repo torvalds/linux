@@ -426,8 +426,7 @@ static int check_export(struct path *path, int *flags, unsigned char *uuid)
 		return -EINVAL;
 	}
 
-	if (!inode->i_sb->s_export_op ||
-	    !inode->i_sb->s_export_op->fh_to_dentry) {
+	if (!exportfs_can_decode_fh(inode->i_sb->s_export_op)) {
 		dprintk("exp_export: export of invalid fs type.\n");
 		return -EINVAL;
 	}

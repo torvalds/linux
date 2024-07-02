@@ -64,6 +64,7 @@ struct phy_gmii_sel_priv {
 	u32 num_ports;
 	u32 reg_offset;
 	u32 qsgmii_main_ports;
+	bool no_offset;
 };
 
 static int phy_gmii_sel_mode(struct phy *phy, enum phy_mode mode, int submode)
@@ -247,7 +248,7 @@ static const
 struct phy_gmii_sel_soc_data phy_gmii_sel_cpsw9g_soc_j784s4 = {
 	.use_of_data = true,
 	.regfields = phy_gmii_sel_fields_am654,
-	.extra_modes = BIT(PHY_INTERFACE_MODE_QSGMII) |
+	.extra_modes = BIT(PHY_INTERFACE_MODE_QSGMII) | BIT(PHY_INTERFACE_MODE_SGMII) |
 		       BIT(PHY_INTERFACE_MODE_USXGMII),
 	.num_ports = 8,
 	.num_qsgmii_main_ports = 2,
@@ -296,7 +297,7 @@ static const struct phy_ops phy_gmii_sel_ops = {
 };
 
 static struct phy *phy_gmii_sel_of_xlate(struct device *dev,
-					 struct of_phandle_args *args)
+					 const struct of_phandle_args *args)
 {
 	struct phy_gmii_sel_priv *priv = dev_get_drvdata(dev);
 	int phy_id = args->args[0];
@@ -402,7 +403,8 @@ static int phy_gmii_sel_init_ports(struct phy_gmii_sel_priv *priv)
 		priv->num_ports = size / sizeof(u32);
 		if (!priv->num_ports)
 			return -EINVAL;
-		priv->reg_offset = __be32_to_cpu(*offset);
+		if (!priv->no_offset)
+			priv->reg_offset = __be32_to_cpu(*offset);
 	}
 
 	if_phys = devm_kcalloc(dev, priv->num_ports,
@@ -471,6 +473,7 @@ static int phy_gmii_sel_probe(struct platform_device *pdev)
 			dev_err(dev, "Failed to get syscon %d\n", ret);
 			return ret;
 		}
+		priv->no_offset = true;
 	}
 
 	ret = phy_gmii_sel_init_ports(priv);
@@ -491,11 +494,35 @@ static int phy_gmii_sel_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static int phy_gmii_sel_resume_noirq(struct device *dev)
+{
+	struct phy_gmii_sel_priv *priv = dev_get_drvdata(dev);
+	struct phy_gmii_sel_phy_priv *if_phys = priv->if_phys;
+	int ret, i;
+
+	for (i = 0; i < priv->num_ports; i++) {
+		if (if_phys[i].phy_if_mode) {
+			ret = phy_gmii_sel_mode(if_phys[i].if_phy,
+						PHY_MODE_ETHERNET, if_phys[i].phy_if_mode);
+			if (ret) {
+				dev_err(dev, "port%u: restore mode fail %d\n",
+					if_phys[i].if_phy->id, ret);
+				return ret;
+			}
+		}
+	}
+
+	return 0;
+}
+
+static DEFINE_NOIRQ_DEV_PM_OPS(phy_gmii_sel_pm_ops, NULL, phy_gmii_sel_resume_noirq);
+
 static struct platform_driver phy_gmii_sel_driver = {
 	.probe		= phy_gmii_sel_probe,
 	.driver		= {
 		.name	= "phy-gmii-sel",
 		.of_match_table = phy_gmii_sel_id_table,
+		.pm = pm_sleep_ptr(&phy_gmii_sel_pm_ops),
 	},
 };
 module_platform_driver(phy_gmii_sel_driver);

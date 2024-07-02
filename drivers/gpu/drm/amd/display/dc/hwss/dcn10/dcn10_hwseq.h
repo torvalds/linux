@@ -75,7 +75,7 @@ void dcn10_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx);
 void dcn10_reset_hw_ctx_wrap(
 		struct dc *dc,
 		struct dc_state *context);
-void dcn10_disable_plane(struct dc *dc, struct pipe_ctx *pipe_ctx);
+void dcn10_disable_plane(struct dc *dc, struct dc_state *state, struct pipe_ctx *pipe_ctx);
 void dcn10_lock_all_pipes(
 		struct dc *dc,
 		struct dc_state *context,
@@ -108,13 +108,16 @@ void dcn10_power_down_on_boot(struct dc *dc);
 enum dc_status dce110_apply_ctx_to_hw(
 		struct dc *dc,
 		struct dc_state *context);
-void dcn10_plane_atomic_disconnect(struct dc *dc, struct pipe_ctx *pipe_ctx);
+void dcn10_plane_atomic_disconnect(struct dc *dc,
+		struct dc_state *state,
+		struct pipe_ctx *pipe_ctx);
 void dcn10_update_dchub(struct dce_hwseq *hws, struct dchub_init_data *dh_data);
 void dcn10_update_pending_status(struct pipe_ctx *pipe_ctx);
 void dce110_power_down(struct dc *dc);
 void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context);
 void dcn10_enable_timing_synchronization(
 		struct dc *dc,
+		struct dc_state *state,
 		int group_index,
 		int group_size,
 		struct pipe_ctx *grouped_pipes[]);

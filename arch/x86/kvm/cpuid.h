@@ -47,11 +47,6 @@ static inline bool kvm_vcpu_is_legal_gpa(struct kvm_vcpu *vcpu, gpa_t gpa)
 	return !(gpa & vcpu->arch.reserved_gpa_bits);
 }
 
-static inline bool kvm_vcpu_is_illegal_gpa(struct kvm_vcpu *vcpu, gpa_t gpa)
-{
-	return !kvm_vcpu_is_legal_gpa(vcpu, gpa);
-}
-
 static inline bool kvm_vcpu_is_legal_aligned_gpa(struct kvm_vcpu *vcpu,
 						 gpa_t gpa, gpa_t alignment)
 {
@@ -123,6 +118,16 @@ static inline bool guest_cpuid_is_intel(struct kvm_vcpu *vcpu)
 
 	best = kvm_find_cpuid_entry(vcpu, 0);
 	return best && is_guest_vendor_intel(best->ebx, best->ecx, best->edx);
+}
+
+static inline bool guest_cpuid_is_amd_compatible(struct kvm_vcpu *vcpu)
+{
+	return vcpu->arch.is_amd_compatible;
+}
+
+static inline bool guest_cpuid_is_intel_compatible(struct kvm_vcpu *vcpu)
+{
+	return !guest_cpuid_is_amd_compatible(vcpu);
 }
 
 static inline int guest_cpuid_family(struct kvm_vcpu *vcpu)
@@ -277,6 +282,14 @@ static __always_inline bool guest_can_use(struct kvm_vcpu *vcpu,
 
 	return test_bit(kvm_governed_feature_index(x86_feature),
 			vcpu->arch.governed_features.enabled);
+}
+
+static inline bool kvm_vcpu_is_legal_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
+{
+	if (guest_can_use(vcpu, X86_FEATURE_LAM))
+		cr3 &= ~(X86_CR3_LAM_U48 | X86_CR3_LAM_U57);
+
+	return kvm_vcpu_is_legal_gpa(vcpu, cr3);
 }
 
 #endif

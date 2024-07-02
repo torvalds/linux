@@ -95,9 +95,7 @@ static const struct genl_split_ops dpll_nl_ops[] = {
 	},
 	{
 		.cmd	= DPLL_CMD_DEVICE_GET,
-		.start	= dpll_lock_dumpit,
 		.dumpit	= dpll_nl_device_get_dumpit,
-		.done	= dpll_unlock_dumpit,
 		.flags	= GENL_ADMIN_PERM | GENL_CMD_CAP_DUMP,
 	},
 	{
@@ -129,9 +127,7 @@ static const struct genl_split_ops dpll_nl_ops[] = {
 	},
 	{
 		.cmd		= DPLL_CMD_PIN_GET,
-		.start		= dpll_lock_dumpit,
 		.dumpit		= dpll_nl_pin_get_dumpit,
-		.done		= dpll_unlock_dumpit,
 		.policy		= dpll_pin_get_dump_nl_policy,
 		.maxattr	= DPLL_A_PIN_ID,
 		.flags		= GENL_ADMIN_PERM | GENL_CMD_CAP_DUMP,

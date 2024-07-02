@@ -299,9 +299,8 @@ static void esdhc_mcf_pltfm_set_bus_width(struct sdhci_host *host, int width)
 static void esdhc_mcf_request_done(struct sdhci_host *host,
 				   struct mmc_request *mrq)
 {
-	struct scatterlist *sg;
+	struct sg_mapping_iter sgm;
 	u32 *buffer;
-	int i;
 
 	if (!mrq->data || !mrq->data->bytes_xfered)
 		goto exit_done;
@@ -313,10 +312,13 @@ static void esdhc_mcf_request_done(struct sdhci_host *host,
 	 * On mcf5441x there is no hw sdma option/flag to select the dma
 	 * transfer endiannes. A swap after the transfer is needed.
 	 */
-	for_each_sg(mrq->data->sg, sg, mrq->data->sg_len, i) {
-		buffer = (u32 *)sg_virt(sg);
-		esdhc_mcf_buffer_swap32(buffer, sg->length);
+	sg_miter_start(&sgm, mrq->data->sg, mrq->data->sg_len,
+		       SG_MITER_ATOMIC | SG_MITER_TO_SG | SG_MITER_FROM_SG);
+	while (sg_miter_next(&sgm)) {
+		buffer = sgm.addr;
+		esdhc_mcf_buffer_swap32(buffer, sgm.length);
 	}
+	sg_miter_stop(&sgm);
 
 exit_done:
 	mmc_request_done(host->mmc, mrq);

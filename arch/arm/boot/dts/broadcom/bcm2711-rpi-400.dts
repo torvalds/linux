@@ -30,15 +30,14 @@
 
 &genet_mdio {
 	clock-frequency = <1950000>;
+	/delete-node/ leds;
 };
 
 &led_pwr {
 	gpios = <&gpio 42 GPIO_ACTIVE_HIGH>;
 };
 
-&leds {
-	/delete-node/ led_act;
-};
+/delete-node/ &led_act;
 
 &pm {
 	/delete-property/ system-power-controller;

@@ -132,6 +132,7 @@ struct mlx5_flow_handle;
 
 enum {
 	FLOW_CONTEXT_HAS_TAG = BIT(0),
+	FLOW_CONTEXT_UPLINK_HAIRPIN_EN = BIT(1),
 };
 
 struct mlx5_flow_context {

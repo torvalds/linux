@@ -123,12 +123,6 @@ void __init arm_efi_init(void)
 {
 	efi_init();
 
-	if (screen_info.orig_video_isVGA == VIDEO_TYPE_EFI) {
-		/* dummycon on ARM needs non-zero values for columns/lines */
-		screen_info.orig_video_cols = 80;
-		screen_info.orig_video_lines = 25;
-	}
-
 	/* ARM does not permit early mappings to persist across paging_init() */
 	efi_memmap_unmap();
 

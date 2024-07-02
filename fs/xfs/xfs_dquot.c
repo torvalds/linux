@@ -24,6 +24,7 @@
 #include "xfs_log.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_error.h"
+#include "xfs_health.h"
 
 /*
  * Lock order:
@@ -44,6 +45,29 @@ static struct kmem_cache	*xfs_dquot_cache;
 static struct lock_class_key xfs_dquot_group_class;
 static struct lock_class_key xfs_dquot_project_class;
 
+/* Record observations of quota corruption with the health tracking system. */
+static void
+xfs_dquot_mark_sick(
+	struct xfs_dquot	*dqp)
+{
+	struct xfs_mount	*mp = dqp->q_mount;
+
+	switch (dqp->q_type) {
+	case XFS_DQTYPE_USER:
+		xfs_fs_mark_sick(mp, XFS_SICK_FS_UQUOTA);
+		break;
+	case XFS_DQTYPE_GROUP:
+		xfs_fs_mark_sick(mp, XFS_SICK_FS_GQUOTA);
+		break;
+	case XFS_DQTYPE_PROJ:
+		xfs_fs_mark_sick(mp, XFS_SICK_FS_PQUOTA);
+		break;
+	default:
+		ASSERT(0);
+		break;
+	}
+}
+
 /*
  * This is called to free all the memory associated with a dquot
  */
@@ -53,7 +77,7 @@ xfs_qm_dqdestroy(
 {
 	ASSERT(list_empty(&dqp->q_lru));
 
-	kmem_free(dqp->q_logitem.qli_item.li_lv_shadow);
+	kvfree(dqp->q_logitem.qli_item.li_lv_shadow);
 	mutex_destroy(&dqp->q_qlock);
 
 	XFS_STATS_DEC(dqp->q_mount, xs_qm_dquot);
@@ -172,14 +196,14 @@ xfs_qm_adjust_dqtimers(
 /*
  * initialize a buffer full of dquots and log the whole thing
  */
-STATIC void
+void
 xfs_qm_init_dquot_blk(
 	struct xfs_trans	*tp,
-	struct xfs_mount	*mp,
 	xfs_dqid_t		id,
 	xfs_dqtype_t		type,
 	struct xfs_buf		*bp)
 {
+	struct xfs_mount	*mp = tp->t_mountp;
 	struct xfs_quotainfo	*q = mp->m_quotainfo;
 	struct xfs_dqblk	*d;
 	xfs_dqid_t		curid;
@@ -353,7 +377,7 @@ xfs_dquot_disk_alloc(
 	 * Make a chunk of dquots out of this buffer and log
 	 * the entire thing.
 	 */
-	xfs_qm_init_dquot_blk(tp, mp, dqp->q_id, qtype, bp);
+	xfs_qm_init_dquot_blk(tp, dqp->q_id, qtype, bp);
 	xfs_buf_set_ref(bp, XFS_DQUOT_REF);
 
 	/*
@@ -451,6 +475,8 @@ xfs_dquot_disk_read(
 	error = xfs_trans_read_buf(mp, NULL, mp->m_ddev_targp, dqp->q_blkno,
 			mp->m_quotainfo->qi_dqchunklen, 0, &bp,
 			&xfs_dquot_buf_ops);
+	if (xfs_metadata_is_sick(error))
+		xfs_dquot_mark_sick(dqp);
 	if (error) {
 		ASSERT(bp == NULL);
 		return error;
@@ -562,7 +588,8 @@ xfs_dquot_from_disk(
 	struct xfs_dquot	*dqp,
 	struct xfs_buf		*bp)
 {
-	struct xfs_disk_dquot	*ddqp = bp->b_addr + dqp->q_bufoffset;
+	struct xfs_dqblk	*dqb = xfs_buf_offset(bp, dqp->q_bufoffset);
+	struct xfs_disk_dquot	*ddqp = &dqb->dd_diskdq;
 
 	/*
 	 * Ensure that we got the type and ID we were looking for.
@@ -573,6 +600,7 @@ xfs_dquot_from_disk(
 			  "Metadata corruption detected at %pS, quota %u",
 			  __this_address, dqp->q_id);
 		xfs_alert(bp->b_mount, "Unmount and run xfs_repair");
+		xfs_dquot_mark_sick(dqp);
 		return -EFSCORRUPTED;
 	}
 
@@ -783,6 +811,12 @@ restart:
  * caller should throw away the dquot and start over.  Otherwise, the dquot
  * is returned locked (and held by the cache) as if there had been a cache
  * hit.
+ *
+ * The insert needs to be done under memalloc_nofs context because the radix
+ * tree can do memory allocation during insert. The qi->qi_tree_lock is taken in
+ * memory reclaim when freeing unused dquots, so we cannot have the radix tree
+ * node allocation recursing into filesystem reclaim whilst we hold the
+ * qi_tree_lock.
  */
 static int
 xfs_qm_dqget_cache_insert(
@@ -792,25 +826,27 @@ xfs_qm_dqget_cache_insert(
 	xfs_dqid_t		id,
 	struct xfs_dquot	*dqp)
 {
+	unsigned int		nofs_flags;
 	int			error;
 
+	nofs_flags = memalloc_nofs_save();
 	mutex_lock(&qi->qi_tree_lock);
 	error = radix_tree_insert(tree, id, dqp);
 	if (unlikely(error)) {
 		/* Duplicate found!  Caller must try again. */
-		mutex_unlock(&qi->qi_tree_lock);
 		trace_xfs_dqget_dup(dqp);
-		return error;
+		goto out_unlock;
 	}
 
 	/* Return a locked dquot to the caller, with a reference taken. */
 	xfs_dqlock(dqp);
 	dqp->q_nrefs = 1;
-
 	qi->qi_dquots++;
-	mutex_unlock(&qi->qi_tree_lock);
 
-	return 0;
+out_unlock:
+	mutex_unlock(&qi->qi_tree_lock);
+	memalloc_nofs_restore(nofs_flags);
+	return error;
 }
 
 /* Check our input parameters. */
@@ -949,7 +985,7 @@ xfs_qm_dqget_inode(
 	if (error)
 		return error;
 
-	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
+	xfs_assert_ilocked(ip, XFS_ILOCK_EXCL);
 	ASSERT(xfs_inode_dquot(ip, type) == NULL);
 
 	id = xfs_qm_id_for_quotatype(ip, type);
@@ -1006,7 +1042,7 @@ restart:
 	}
 
 dqret:
-	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
+	xfs_assert_ilocked(ip, XFS_ILOCK_EXCL);
 	trace_xfs_dqget_miss(dqp);
 	*O_dqpp = dqp;
 	return 0;
@@ -1064,7 +1100,7 @@ xfs_qm_dqput(
 		struct xfs_quotainfo	*qi = dqp->q_mount->m_quotainfo;
 		trace_xfs_dqput_free(dqp);
 
-		if (list_lru_add(&qi->qi_lru, &dqp->q_lru))
+		if (list_lru_add_obj(&qi->qi_lru, &dqp->q_lru))
 			XFS_STATS_INC(dqp->q_mount, xs_qm_dquot_unused);
 	}
 	xfs_dqunlock(dqp);
@@ -1237,6 +1273,8 @@ xfs_qm_dqflush(
 				   &bp, &xfs_dquot_buf_ops);
 	if (error == -EAGAIN)
 		goto out_unlock;
+	if (xfs_metadata_is_sick(error))
+		xfs_dquot_mark_sick(dqp);
 	if (error)
 		goto out_abort;
 
@@ -1245,12 +1283,13 @@ xfs_qm_dqflush(
 		xfs_alert(mp, "corrupt dquot ID 0x%x in memory at %pS",
 				dqp->q_id, fa);
 		xfs_buf_relse(bp);
+		xfs_dquot_mark_sick(dqp);
 		error = -EFSCORRUPTED;
 		goto out_abort;
 	}
 
 	/* Flush the incore dquot to the ondisk buffer. */
-	dqblk = bp->b_addr + dqp->q_bufoffset;
+	dqblk = xfs_buf_offset(bp, dqp->q_bufoffset);
 	xfs_dquot_to_disk(&dqblk->dd_diskdq, dqp);
 
 	/*
@@ -1360,35 +1399,4 @@ xfs_qm_exit(void)
 {
 	kmem_cache_destroy(xfs_dqtrx_cache);
 	kmem_cache_destroy(xfs_dquot_cache);
-}
-
-/*
- * Iterate every dquot of a particular type.  The caller must ensure that the
- * particular quota type is active.  iter_fn can return negative error codes,
- * or -ECANCELED to indicate that it wants to stop iterating.
- */
-int
-xfs_qm_dqiterate(
-	struct xfs_mount	*mp,
-	xfs_dqtype_t		type,
-	xfs_qm_dqiterate_fn	iter_fn,
-	void			*priv)
-{
-	struct xfs_dquot	*dq;
-	xfs_dqid_t		id = 0;
-	int			error;
-
-	do {
-		error = xfs_qm_dqget_next(mp, id, type, &dq);
-		if (error == -ENOENT)
-			return 0;
-		if (error)
-			return error;
-
-		error = iter_fn(dq, type, priv);
-		id = dq->q_id + 1;
-		xfs_qm_dqput(dq);
-	} while (error == 0 && id != 0);
-
-	return error;
 }

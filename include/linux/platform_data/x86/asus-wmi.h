@@ -114,6 +114,9 @@
 /* Charging mode - 1=Barrel, 2=USB */
 #define ASUS_WMI_DEVID_CHARGE_MODE	0x0012006C
 
+/* MCU powersave mode */
+#define ASUS_WMI_DEVID_MCU_POWERSAVE   0x001200E2
+
 /* epu is connected? 1 == true */
 #define ASUS_WMI_DEVID_EGPU_CONNECTED	0x00090018
 /* egpu on/off */

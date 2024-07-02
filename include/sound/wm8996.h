@@ -33,8 +33,6 @@ struct wm8996_retune_mobile_config {
 struct wm8996_pdata {
 	int irq_flags;  /** Set IRQ trigger flags; default active low */
 
-	int ldo_ena;  /** GPIO for LDO1; -1 for none */
-
 	int micdet_def;  /** Default MICDET_SRC/HP1FB_SRC/MICD_BIAS */
 
 	enum wm8996_inmode inl_mode;
@@ -42,7 +40,6 @@ struct wm8996_pdata {
 
 	u32 spkmute_seq;  /** Value for register 0x802 */
 
-	int gpio_base;
 	u32 gpio_default[5];
 
 	int num_retune_mobile_cfgs;

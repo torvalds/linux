@@ -14,37 +14,33 @@ struct guest_mode guest_modes[NUM_VM_MODES];
 void guest_modes_append_default(void)
 {
 #ifndef __aarch64__
-	guest_mode_append(VM_MODE_DEFAULT, true, true);
+	guest_mode_append(VM_MODE_DEFAULT, true);
 #else
 	{
 		unsigned int limit = kvm_check_cap(KVM_CAP_ARM_VM_IPA_SIZE);
-		bool ps4k, ps16k, ps64k;
+		uint32_t ipa4k, ipa16k, ipa64k;
 		int i;
 
-		aarch64_get_supported_page_sizes(limit, &ps4k, &ps16k, &ps64k);
+		aarch64_get_supported_page_sizes(limit, &ipa4k, &ipa16k, &ipa64k);
 
-		vm_mode_default = NUM_VM_MODES;
+		guest_mode_append(VM_MODE_P52V48_4K, ipa4k >= 52);
+		guest_mode_append(VM_MODE_P52V48_16K, ipa16k >= 52);
+		guest_mode_append(VM_MODE_P52V48_64K, ipa64k >= 52);
 
-		if (limit >= 52)
-			guest_mode_append(VM_MODE_P52V48_64K, ps64k, ps64k);
-		if (limit >= 48) {
-			guest_mode_append(VM_MODE_P48V48_4K, ps4k, ps4k);
-			guest_mode_append(VM_MODE_P48V48_16K, ps16k, ps16k);
-			guest_mode_append(VM_MODE_P48V48_64K, ps64k, ps64k);
-		}
-		if (limit >= 40) {
-			guest_mode_append(VM_MODE_P40V48_4K, ps4k, ps4k);
-			guest_mode_append(VM_MODE_P40V48_16K, ps16k, ps16k);
-			guest_mode_append(VM_MODE_P40V48_64K, ps64k, ps64k);
-			if (ps4k)
-				vm_mode_default = VM_MODE_P40V48_4K;
-		}
-		if (limit >= 36) {
-			guest_mode_append(VM_MODE_P36V48_4K, ps4k, ps4k);
-			guest_mode_append(VM_MODE_P36V48_16K, ps16k, ps16k);
-			guest_mode_append(VM_MODE_P36V48_64K, ps64k, ps64k);
-			guest_mode_append(VM_MODE_P36V47_16K, ps16k, ps16k);
-		}
+		guest_mode_append(VM_MODE_P48V48_4K, ipa4k >= 48);
+		guest_mode_append(VM_MODE_P48V48_16K, ipa16k >= 48);
+		guest_mode_append(VM_MODE_P48V48_64K, ipa64k >= 48);
+
+		guest_mode_append(VM_MODE_P40V48_4K, ipa4k >= 40);
+		guest_mode_append(VM_MODE_P40V48_16K, ipa16k >= 40);
+		guest_mode_append(VM_MODE_P40V48_64K, ipa64k >= 40);
+
+		guest_mode_append(VM_MODE_P36V48_4K, ipa4k >= 36);
+		guest_mode_append(VM_MODE_P36V48_16K, ipa16k >= 36);
+		guest_mode_append(VM_MODE_P36V48_64K, ipa64k >= 36);
+		guest_mode_append(VM_MODE_P36V47_16K, ipa16k >= 36);
+
+		vm_mode_default = ipa4k >= 40 ? VM_MODE_P40V48_4K : NUM_VM_MODES;
 
 		/*
 		 * Pick the first supported IPA size if the default
@@ -72,7 +68,7 @@ void guest_modes_append_default(void)
 		close(kvm_fd);
 		/* Starting with z13 we have 47bits of physical address */
 		if (info.ibc >= 0x30)
-			guest_mode_append(VM_MODE_P47V64_4K, true, true);
+			guest_mode_append(VM_MODE_P47V64_4K, true);
 	}
 #endif
 #ifdef __riscv
@@ -80,9 +76,9 @@ void guest_modes_append_default(void)
 		unsigned int sz = kvm_check_cap(KVM_CAP_VM_GPA_BITS);
 
 		if (sz >= 52)
-			guest_mode_append(VM_MODE_P52V48_4K, true, true);
+			guest_mode_append(VM_MODE_P52V48_4K, true);
 		if (sz >= 48)
-			guest_mode_append(VM_MODE_P48V48_4K, true, true);
+			guest_mode_append(VM_MODE_P48V48_4K, true);
 	}
 #endif
 }

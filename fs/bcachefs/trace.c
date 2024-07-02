@@ -7,6 +7,7 @@
 #include "btree_locking.h"
 #include "btree_update_interior.h"
 #include "keylist.h"
+#include "move_types.h"
 #include "opts.h"
 #include "six.h"
 

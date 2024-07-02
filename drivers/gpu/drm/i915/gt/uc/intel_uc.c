@@ -50,10 +50,6 @@ static void uc_expand_default_options(struct intel_uc *uc)
 
 	/* Default: enable HuC authentication and GuC submission */
 	i915->params.enable_guc = ENABLE_GUC_LOAD_HUC | ENABLE_GUC_SUBMISSION;
-
-	/* XEHPSDV and PVC do not use HuC */
-	if (IS_XEHPSDV(i915) || IS_PONTEVECCHIO(i915))
-		i915->params.enable_guc &= ~ENABLE_GUC_LOAD_HUC;
 }
 
 /* Reset GuC providing us with fresh state for both GuC and HuC.
@@ -105,11 +101,6 @@ static void __confirm_options(struct intel_uc *uc)
 	if (!intel_uc_supports_guc(uc))
 		gt_info(gt,  "Incompatible option enable_guc=%d - %s\n",
 			i915->params.enable_guc, "GuC is not supported!");
-
-	if (i915->params.enable_guc & ENABLE_GUC_LOAD_HUC &&
-	    !intel_uc_supports_huc(uc))
-		gt_info(gt, "Incompatible option enable_guc=%d - %s\n",
-			i915->params.enable_guc, "HuC is not supported!");
 
 	if (i915->params.enable_guc & ENABLE_GUC_SUBMISSION &&
 	    !intel_uc_supports_guc_submission(uc))
@@ -642,10 +633,14 @@ void intel_uc_reset_finish(struct intel_uc *uc)
 {
 	struct intel_guc *guc = &uc->guc;
 
+	/*
+	 * NB: The wedge code path results in prepare -> prepare -> finish -> finish.
+	 * So this function is sometimes called with the in-progress flag not set.
+	 */
 	uc->reset_in_progress = false;
 
 	/* Firmware expected to be running when this function is called */
-	if (intel_guc_is_fw_running(guc) && intel_uc_uses_guc_submission(uc))
+	if (intel_uc_uses_guc_submission(uc))
 		intel_guc_submission_reset_finish(guc);
 }
 
@@ -694,6 +689,8 @@ void intel_uc_suspend(struct intel_uc *uc)
 		guc->interrupts.enabled = false;
 		return;
 	}
+
+	intel_guc_submission_flush_work(guc);
 
 	with_intel_runtime_pm(&uc_to_gt(uc)->i915->runtime_pm, wakeref) {
 		err = intel_guc_suspend(guc);

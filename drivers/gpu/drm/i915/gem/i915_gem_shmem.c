@@ -485,11 +485,13 @@ shmem_pwrite(struct drm_i915_gem_object *obj,
 		if (err < 0)
 			return err;
 
-		vaddr = kmap_atomic(page);
+		vaddr = kmap_local_page(page);
+		pagefault_disable();
 		unwritten = __copy_from_user_inatomic(vaddr + pg,
 						      user_data,
 						      len);
-		kunmap_atomic(vaddr);
+		pagefault_enable();
+		kunmap_local(vaddr);
 
 		err = aops->write_end(obj->base.filp, mapping, offset, len,
 				      len - unwritten, page, data);
@@ -652,7 +654,7 @@ i915_gem_object_create_shmem(struct drm_i915_private *i915,
 
 /* Allocate a new GEM object and fill it with the supplied data */
 struct drm_i915_gem_object *
-i915_gem_object_create_shmem_from_data(struct drm_i915_private *dev_priv,
+i915_gem_object_create_shmem_from_data(struct drm_i915_private *i915,
 				       const void *data, resource_size_t size)
 {
 	struct drm_i915_gem_object *obj;
@@ -661,8 +663,8 @@ i915_gem_object_create_shmem_from_data(struct drm_i915_private *dev_priv,
 	resource_size_t offset;
 	int err;
 
-	GEM_WARN_ON(IS_DGFX(dev_priv));
-	obj = i915_gem_object_create_shmem(dev_priv, round_up(size, PAGE_SIZE));
+	GEM_WARN_ON(IS_DGFX(i915));
+	obj = i915_gem_object_create_shmem(i915, round_up(size, PAGE_SIZE));
 	if (IS_ERR(obj))
 		return obj;
 

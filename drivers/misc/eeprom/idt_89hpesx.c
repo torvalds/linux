@@ -129,7 +129,7 @@ struct idt_smb_seq {
 struct idt_eeprom_seq {
 	u8 cmd;
 	u8 eeaddr;
-	u16 memaddr;
+	__le16 memaddr;
 	u8 data;
 } __packed;
 
@@ -141,8 +141,8 @@ struct idt_eeprom_seq {
  */
 struct idt_csr_seq {
 	u8 cmd;
-	u16 csraddr;
-	u32 data;
+	__le16 csraddr;
+	__le32 data;
 } __packed;
 
 /*
@@ -905,7 +905,7 @@ static ssize_t idt_dbgfs_csr_write(struct file *filep, const char __user *ubuf,
 {
 	struct idt_89hpesx_dev *pdev = filep->private_data;
 	char *colon_ch, *csraddr_str, *csrval_str;
-	int ret, csraddr_len;
+	int ret;
 	u32 csraddr, csrval;
 	char *buf;
 
@@ -927,21 +927,16 @@ static ssize_t idt_dbgfs_csr_write(struct file *filep, const char __user *ubuf,
 	 * no new CSR value
 	 */
 	if (colon_ch != NULL) {
-		csraddr_len = colon_ch - buf;
-		csraddr_str =
-			kmalloc(csraddr_len + 1, GFP_KERNEL);
+		/* Copy the register address to the substring buffer */
+		csraddr_str = kmemdup_nul(buf, colon_ch - buf, GFP_KERNEL);
 		if (csraddr_str == NULL) {
 			ret = -ENOMEM;
 			goto free_buf;
 		}
-		/* Copy the register address to the substring buffer */
-		strncpy(csraddr_str, buf, csraddr_len);
-		csraddr_str[csraddr_len] = '\0';
 		/* Register value must follow the colon */
 		csrval_str = colon_ch + 1;
 	} else /* if (str_colon == NULL) */ {
 		csraddr_str = (char *)buf; /* Just to shut warning up */
-		csraddr_len = strnlen(csraddr_str, count);
 		csrval_str = NULL;
 	}
 

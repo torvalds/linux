@@ -4,6 +4,7 @@
  */
 
 #include <linux/hashtable.h>
+#include <linux/xattr.h>
 #include "messages.h"
 #include "props.h"
 #include "btrfs_inode.h"
@@ -267,7 +268,7 @@ static void inode_prop_iterator(void *ctx,
 		btrfs_warn(root->fs_info,
 			   "error applying prop %s to ino %llu (root %llu): %d",
 			   handler->xattr_name, btrfs_ino(BTRFS_I(inode)),
-			   root->root_key.objectid, ret);
+			   btrfs_root_id(root), ret);
 	else
 		set_bit(BTRFS_INODE_HAS_PROPS, &BTRFS_I(inode)->runtime_flags);
 }
@@ -302,7 +303,7 @@ static int prop_compression_validate(const struct btrfs_inode *inode,
 static int prop_compression_apply(struct inode *inode, const char *value,
 				  size_t len)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	struct btrfs_fs_info *fs_info = inode_to_fs_info(inode);
 	int type;
 
 	/* Reset to defaults */

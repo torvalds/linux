@@ -528,9 +528,9 @@ replaced by copy-on-write) part of the underlying shmem object out on swap.
 does not take into account swapped out page of underlying shmem objects.
 "Locked" indicates whether the mapping is locked in memory or not.
 
-"THPeligible" indicates whether the mapping is eligible for allocating THP
-pages as well as the THP is PMD mappable or not - 1 if true, 0 otherwise.
-It just shows the current status.
+"THPeligible" indicates whether the mapping is eligible for allocating
+naturally aligned THP pages of any currently enabled size. 1 if true, 0
+otherwise.
 
 "VmFlags" field deserves a separate description. This member represents the
 kernel flags associated with the particular virtual memory area in two letter
@@ -1899,8 +1899,8 @@ For more information on mount propagation see:
 These files provide a method to access a task's comm value. It also allows for
 a task to set its own or one of its thread siblings comm value. The comm value
 is limited in size compared to the cmdline value, so writing anything longer
-then the kernel's TASK_COMM_LEN (currently 16 chars) will result in a truncated
-comm value.
+then the kernel's TASK_COMM_LEN (currently 16 chars, including the NUL
+terminator) will result in a truncated comm value.
 
 
 3.7	/proc/<pid>/task/<tid>/children - Information about task children

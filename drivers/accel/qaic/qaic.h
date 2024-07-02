@@ -30,6 +30,16 @@
 #define to_qaic_drm_device(dev) container_of(dev, struct qaic_drm_device, drm)
 #define to_drm(qddev) (&(qddev)->drm)
 #define to_accel_kdev(qddev) (to_drm(qddev)->accel->kdev) /* Return Linux device of accel node */
+#define to_qaic_device(dev) (to_qaic_drm_device((dev))->qdev)
+
+enum __packed dev_states {
+	/* Device is offline or will be very soon */
+	QAIC_OFFLINE,
+	/* Device is booting, not clear if it's in a usable state */
+	QAIC_BOOT,
+	/* Device is fully operational */
+	QAIC_ONLINE,
+};
 
 extern bool datapath_polling;
 
@@ -121,8 +131,10 @@ struct qaic_device {
 	struct workqueue_struct	*cntl_wq;
 	/* Synchronizes all the users of device during cleanup */
 	struct srcu_struct	dev_lock;
-	/* true: Device under reset; false: Device not under reset */
-	bool			in_reset;
+	/* Track the state of the device during resets */
+	enum dev_states		dev_state;
+	/* true: single MSI is used to operate device */
+	bool			single_msi;
 	/*
 	 * true: A tx MHI transaction has failed and a rx buffer is still queued
 	 * in control device. Such a buffer is considered lost rx buffer
@@ -137,6 +149,18 @@ struct qaic_device {
 	u32 (*gen_crc)(void *msg);
 	/* Validate the CRC of a control message */
 	bool (*valid_crc)(void *msg);
+	/* MHI "QAIC_TIMESYNC" channel device */
+	struct mhi_device	*qts_ch;
+	/* Work queue for tasks related to MHI "QAIC_TIMESYNC" channel */
+	struct workqueue_struct	*qts_wq;
+	/* Head of list of page allocated by MHI bootlog device */
+	struct list_head        bootlog;
+	/* MHI bootlog channel device */
+	struct mhi_device       *bootlog_ch;
+	/* Work queue for tasks related to MHI bootlog device */
+	struct workqueue_struct *bootlog_wq;
+	/* Synchronizes access of pages in MHI bootlog device */
+	struct mutex            bootlog_mutex;
 };
 
 struct qaic_drm_device {
@@ -176,8 +200,6 @@ struct qaic_bo {
 	u32			nr_slice;
 	/* Number of slice that have been transferred by DMA engine */
 	u32			nr_slice_xfer_done;
-	/* true = BO is queued for execution, true = BO is not queued */
-	bool			queued;
 	/*
 	 * If true then user has attached slicing information to this BO by
 	 * calling DRM_IOCTL_QAIC_ATTACH_SLICE_BO ioctl.
@@ -266,9 +288,10 @@ int disable_dbc(struct qaic_device *qdev, u32 dbc_id, struct qaic_user *usr);
 void enable_dbc(struct qaic_device *qdev, u32 dbc_id, struct qaic_user *usr);
 void wakeup_dbc(struct qaic_device *qdev, u32 dbc_id);
 void release_dbc(struct qaic_device *qdev, u32 dbc_id);
+void qaic_data_get_fifo_info(struct dma_bridge_chan *dbc, u32 *head, u32 *tail);
 
 void wake_all_cntl(struct qaic_device *qdev);
-void qaic_dev_reset_clean_local_state(struct qaic_device *qdev, bool exit_reset);
+void qaic_dev_reset_clean_local_state(struct qaic_device *qdev);
 
 struct drm_gem_object *qaic_gem_prime_import(struct drm_device *dev, struct dma_buf *dma_buf);
 

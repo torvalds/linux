@@ -24,6 +24,11 @@ bool rseq_validate_cpu_id(void)
 {
 	return rseq_mm_cid_available();
 }
+static
+bool rseq_use_cpu_index(void)
+{
+	return false;	/* Use mm_cid */
+}
 #else
 # define RSEQ_PERCPU	RSEQ_PERCPU_CPU_ID
 static
@@ -35,6 +40,11 @@ static
 bool rseq_validate_cpu_id(void)
 {
 	return rseq_current_cpu_raw() >= 0;
+}
+static
+bool rseq_use_cpu_index(void)
+{
+	return true;	/* Use cpu_id as index. */
 }
 #endif
 
@@ -274,7 +284,7 @@ void test_percpu_list(void)
 	/* Generate list entries for every usable cpu. */
 	sched_getaffinity(0, sizeof(allowed_cpus), &allowed_cpus);
 	for (i = 0; i < CPU_SETSIZE; i++) {
-		if (!CPU_ISSET(i, &allowed_cpus))
+		if (rseq_use_cpu_index() && !CPU_ISSET(i, &allowed_cpus))
 			continue;
 		for (j = 1; j <= 100; j++) {
 			struct percpu_list_node *node;
@@ -299,7 +309,7 @@ void test_percpu_list(void)
 	for (i = 0; i < CPU_SETSIZE; i++) {
 		struct percpu_list_node *node;
 
-		if (!CPU_ISSET(i, &allowed_cpus))
+		if (rseq_use_cpu_index() && !CPU_ISSET(i, &allowed_cpus))
 			continue;
 
 		while ((node = __percpu_list_pop(&list, i))) {

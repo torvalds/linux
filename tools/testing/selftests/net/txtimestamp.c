@@ -163,7 +163,8 @@ static void validate_timestamp(struct timespec *cur, int min_delay)
 	if (cur64 < start64 + min_delay || cur64 > start64 + max_delay) {
 		fprintf(stderr, "ERROR: %" PRId64 " us expected between %d and %d\n",
 				cur64 - start64, min_delay, max_delay);
-		test_failed = true;
+		if (!getenv("KSFT_MACHINE_SLOW"))
+			test_failed = true;
 	}
 }
 

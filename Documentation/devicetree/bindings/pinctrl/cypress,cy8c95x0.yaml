@@ -45,7 +45,8 @@ properties:
     maxItems: 1
 
   gpio-reserved-ranges:
-    maxItems: 1
+    minItems: 1
+    maxItems: 60
 
   vdd-supply:
     description:
@@ -84,6 +85,8 @@ patternProperties:
       bias-pull-up: true
 
       bias-disable: true
+
+      input-enable: true
 
       output-high: true
 
@@ -133,6 +136,23 @@ examples:
         interrupts = <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>;
         interrupt-controller;
         vdd-supply = <&p3v3>;
-        gpio-reserved-ranges = <5 1>;
+        gpio-reserved-ranges = <1 2>, <6 1>, <10 1>, <15 1>;
+
+        pinctrl-0 = <&U62160_pins>, <&U62160_ipins>;
+        pinctrl-names = "default";
+
+        U62160_pins: cfg-pins {
+          pins = "gp03", "gp16", "gp20", "gp50", "gp51";
+          function = "gpio";
+          input-enable;
+          bias-pull-up;
+        };
+
+        U62160_ipins: icfg-pins {
+          pins = "gp04", "gp17", "gp21", "gp52", "gp53";
+          function = "gpio";
+          input-enable;
+          bias-pull-up;
+        };
       };
     };

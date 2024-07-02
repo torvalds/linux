@@ -52,17 +52,16 @@
         ],
         "plugins": {
             "requires": [
-               "buildebpfPlugin",
                "nsPlugin"
             ]
         },
         "setup": [
             "$TC qdisc add dev $DEV1 ingress"
         ],
-        "cmdUnderTest": "$TC filter add dev $DEV1 parent ffff: handle 1 protocol ip prio 100 bpf object-file $EBPFDIR/action.o section action-ok",
+        "cmdUnderTest": "$TC filter add dev $DEV1 parent ffff: handle 1 protocol ip prio 100 bpf object-file $EBPFDIR/action-ebpf section action-ok",
         "expExitCode": "0",
         "verifyCmd": "$TC filter get dev $DEV1 parent ffff: handle 1 protocol ip prio 100 bpf",
-        "matchPattern": "filter parent ffff: protocol ip pref 100 bpf chain [0-9]+ handle 0x1 action.o:\\[action-ok\\].*tag [0-9a-f]{16}( jited)?",
+        "matchPattern": "filter parent ffff: protocol ip pref 100 bpf chain [0-9]+ handle 0x1 action-ebpf:\\[action-ok\\].*tag [0-9a-f]{16}( jited)?",
         "matchCount": "1",
         "teardown": [
             "$TC qdisc del dev $DEV1 ingress"
@@ -77,17 +76,16 @@
         ],
         "plugins": {
             "requires": [
-               "buildebpfPlugin",
                "nsPlugin"
             ]
         },
         "setup": [
             "$TC qdisc add dev $DEV1 ingress"
         ],
-        "cmdUnderTest": "$TC filter add dev $DEV1 parent ffff: handle 1 protocol ip prio 100 bpf object-file $EBPFDIR/action.o section action-ko",
+        "cmdUnderTest": "$TC filter add dev $DEV1 parent ffff: handle 1 protocol ip prio 100 bpf object-file $EBPFDIR/action-ebpf section action-ko",
         "expExitCode": "1",
         "verifyCmd": "$TC filter get dev $DEV1 parent ffff: handle 1 protocol ip prio 100 bpf",
-        "matchPattern": "filter parent ffff: protocol ip pref 100 bpf chain [0-9]+ handle 0x1 action.o:\\[action-ko\\].*tag [0-9a-f]{16}( jited)?",
+        "matchPattern": "filter parent ffff: protocol ip pref 100 bpf chain [0-9]+ handle 0x1 action-ebpf:\\[action-ko\\].*tag [0-9a-f]{16}( jited)?",
         "matchCount": "0",
         "teardown": [
             "$TC qdisc del dev $DEV1 ingress"

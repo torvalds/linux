@@ -193,6 +193,7 @@
 #include <linux/mutex.h>
 #include <linux/percpu-refcount.h>
 #include <linux/percpu-rwsem.h>
+#include <linux/refcount.h>
 #include <linux/rhashtable.h>
 #include <linux/rwsem.h>
 #include <linux/semaphore.h>
@@ -208,8 +209,10 @@
 #include "fifo.h"
 #include "nocow_locking_types.h"
 #include "opts.h"
-#include "recovery_types.h"
+#include "recovery_passes_types.h"
+#include "sb-errors_types.h"
 #include "seqmutex.h"
+#include "time_stats.h"
 #include "util.h"
 
 #ifdef CONFIG_BCACHEFS_DEBUG
@@ -222,9 +225,11 @@
 
 #define race_fault(...)			dynamic_fault("bcachefs:race")
 
+#define count_event(_c, _name)	this_cpu_inc((_c)->counters[BCH_COUNTER_##_name])
+
 #define trace_and_count(_c, _name, ...)					\
 do {									\
-	this_cpu_inc((_c)->counters[BCH_COUNTER_##_name]);		\
+	count_event(_c, _name);						\
 	trace_##_name(__VA_ARGS__);					\
 } while (0)
 
@@ -261,46 +266,79 @@ do {									\
 
 #define bch2_fmt(_c, fmt)		bch2_log_msg(_c, fmt "\n")
 
+__printf(2, 3)
+void bch2_print_opts(struct bch_opts *, const char *, ...);
+
+__printf(2, 3)
+void __bch2_print(struct bch_fs *c, const char *fmt, ...);
+
+#define maybe_dev_to_fs(_c)	_Generic((_c),				\
+	struct bch_dev *:	((struct bch_dev *) (_c))->fs,		\
+	struct bch_fs *:	(_c))
+
+#define bch2_print(_c, ...) __bch2_print(maybe_dev_to_fs(_c), __VA_ARGS__)
+
+#define bch2_print_ratelimited(_c, ...)					\
+do {									\
+	static DEFINE_RATELIMIT_STATE(_rs,				\
+				      DEFAULT_RATELIMIT_INTERVAL,	\
+				      DEFAULT_RATELIMIT_BURST);		\
+									\
+	if (__ratelimit(&_rs))						\
+		bch2_print(_c, __VA_ARGS__);				\
+} while (0)
+
 #define bch_info(c, fmt, ...) \
-	printk(KERN_INFO bch2_fmt(c, fmt), ##__VA_ARGS__)
+	bch2_print(c, KERN_INFO bch2_fmt(c, fmt), ##__VA_ARGS__)
 #define bch_notice(c, fmt, ...) \
-	printk(KERN_NOTICE bch2_fmt(c, fmt), ##__VA_ARGS__)
+	bch2_print(c, KERN_NOTICE bch2_fmt(c, fmt), ##__VA_ARGS__)
 #define bch_warn(c, fmt, ...) \
-	printk(KERN_WARNING bch2_fmt(c, fmt), ##__VA_ARGS__)
+	bch2_print(c, KERN_WARNING bch2_fmt(c, fmt), ##__VA_ARGS__)
 #define bch_warn_ratelimited(c, fmt, ...) \
-	printk_ratelimited(KERN_WARNING bch2_fmt(c, fmt), ##__VA_ARGS__)
+	bch2_print_ratelimited(c, KERN_WARNING bch2_fmt(c, fmt), ##__VA_ARGS__)
 
 #define bch_err(c, fmt, ...) \
-	printk(KERN_ERR bch2_fmt(c, fmt), ##__VA_ARGS__)
+	bch2_print(c, KERN_ERR bch2_fmt(c, fmt), ##__VA_ARGS__)
 #define bch_err_dev(ca, fmt, ...) \
-	printk(KERN_ERR bch2_fmt_dev(ca, fmt), ##__VA_ARGS__)
+	bch2_print(c, KERN_ERR bch2_fmt_dev(ca, fmt), ##__VA_ARGS__)
 #define bch_err_dev_offset(ca, _offset, fmt, ...) \
-	printk(KERN_ERR bch2_fmt_dev_offset(ca, _offset, fmt), ##__VA_ARGS__)
+	bch2_print(c, KERN_ERR bch2_fmt_dev_offset(ca, _offset, fmt), ##__VA_ARGS__)
 #define bch_err_inum(c, _inum, fmt, ...) \
-	printk(KERN_ERR bch2_fmt_inum(c, _inum, fmt), ##__VA_ARGS__)
+	bch2_print(c, KERN_ERR bch2_fmt_inum(c, _inum, fmt), ##__VA_ARGS__)
 #define bch_err_inum_offset(c, _inum, _offset, fmt, ...) \
-	printk(KERN_ERR bch2_fmt_inum_offset(c, _inum, _offset, fmt), ##__VA_ARGS__)
+	bch2_print(c, KERN_ERR bch2_fmt_inum_offset(c, _inum, _offset, fmt), ##__VA_ARGS__)
 
 #define bch_err_ratelimited(c, fmt, ...) \
-	printk_ratelimited(KERN_ERR bch2_fmt(c, fmt), ##__VA_ARGS__)
+	bch2_print_ratelimited(c, KERN_ERR bch2_fmt(c, fmt), ##__VA_ARGS__)
 #define bch_err_dev_ratelimited(ca, fmt, ...) \
-	printk_ratelimited(KERN_ERR bch2_fmt_dev(ca, fmt), ##__VA_ARGS__)
+	bch2_print_ratelimited(ca, KERN_ERR bch2_fmt_dev(ca, fmt), ##__VA_ARGS__)
 #define bch_err_dev_offset_ratelimited(ca, _offset, fmt, ...) \
-	printk_ratelimited(KERN_ERR bch2_fmt_dev_offset(ca, _offset, fmt), ##__VA_ARGS__)
+	bch2_print_ratelimited(ca, KERN_ERR bch2_fmt_dev_offset(ca, _offset, fmt), ##__VA_ARGS__)
 #define bch_err_inum_ratelimited(c, _inum, fmt, ...) \
-	printk_ratelimited(KERN_ERR bch2_fmt_inum(c, _inum, fmt), ##__VA_ARGS__)
+	bch2_print_ratelimited(c, KERN_ERR bch2_fmt_inum(c, _inum, fmt), ##__VA_ARGS__)
 #define bch_err_inum_offset_ratelimited(c, _inum, _offset, fmt, ...) \
-	printk_ratelimited(KERN_ERR bch2_fmt_inum_offset(c, _inum, _offset, fmt), ##__VA_ARGS__)
+	bch2_print_ratelimited(c, KERN_ERR bch2_fmt_inum_offset(c, _inum, _offset, fmt), ##__VA_ARGS__)
+
+static inline bool should_print_err(int err)
+{
+	return err && !bch2_err_matches(err, BCH_ERR_transaction_restart);
+}
 
 #define bch_err_fn(_c, _ret)						\
 do {									\
-	if (_ret && !bch2_err_matches(_ret, BCH_ERR_transaction_restart))\
+	if (should_print_err(_ret))					\
 		bch_err(_c, "%s(): error %s", __func__, bch2_err_str(_ret));\
+} while (0)
+
+#define bch_err_fn_ratelimited(_c, _ret)				\
+do {									\
+	if (should_print_err(_ret))					\
+		bch_err_ratelimited(_c, "%s(): error %s", __func__, bch2_err_str(_ret));\
 } while (0)
 
 #define bch_err_msg(_c, _ret, _msg, ...)				\
 do {									\
-	if (_ret && !bch2_err_matches(_ret, BCH_ERR_transaction_restart))\
+	if (should_print_err(_ret))					\
 		bch_err(_c, "%s(): error " _msg " %s", __func__,	\
 			##__VA_ARGS__, bch2_err_str(_ret));		\
 } while (0)
@@ -391,6 +429,7 @@ BCH_DEBUG_PARAMS_DEBUG()
 	x(btree_node_merge)			\
 	x(btree_node_sort)			\
 	x(btree_node_read)			\
+	x(btree_node_read_done)			\
 	x(btree_interior_update_foreground)	\
 	x(btree_interior_update_total)		\
 	x(btree_gc)				\
@@ -400,9 +439,12 @@ BCH_DEBUG_PARAMS_DEBUG()
 	x(journal_flush_write)			\
 	x(journal_noflush_write)		\
 	x(journal_flush_seq)			\
-	x(blocked_journal)			\
+	x(blocked_journal_low_on_space)		\
+	x(blocked_journal_low_on_pin)		\
+	x(blocked_journal_max_in_flight)	\
 	x(blocked_allocate)			\
 	x(blocked_allocate_open_bucket)		\
+	x(blocked_write_buffer_full)		\
 	x(nocow_lock_contended)
 
 enum bch_time_stats {
@@ -414,10 +456,12 @@ enum bch_time_stats {
 
 #include "alloc_types.h"
 #include "btree_types.h"
+#include "btree_node_scan_types.h"
 #include "btree_write_buffer_types.h"
 #include "buckets_types.h"
 #include "buckets_waiting_for_journal_types.h"
 #include "clock_types.h"
+#include "disk_groups_types.h"
 #include "ec_types.h"
 #include "journal_types.h"
 #include "keylist_types.h"
@@ -426,6 +470,7 @@ enum bch_time_stats {
 #include "replicas_types.h"
 #include "subvolume_types.h"
 #include "super_types.h"
+#include "thread_with_file_types.h"
 
 /* Number of nodes btree coalesce will try to coalesce at once */
 #define GC_MERGE_NODES		4U
@@ -463,6 +508,8 @@ enum gc_phase {
 	GC_PHASE_BTREE_snapshot_trees,
 	GC_PHASE_BTREE_deleted_inodes,
 	GC_PHASE_BTREE_logged_ops,
+	GC_PHASE_BTREE_rebalance_work,
+	GC_PHASE_BTREE_subvolume_children,
 
 	GC_PHASE_PENDING_DELETE,
 };
@@ -500,6 +547,8 @@ struct bch_dev {
 	 * Committed by bch2_write_super() -> bch_fs_mi_update()
 	 */
 	struct bch_member_cpu	mi;
+	atomic64_t		errors[BCH_MEMBER_ERROR_NR];
+
 	__uuid_t		uuid;
 	char			name[BDEVNAME_SIZE];
 
@@ -550,7 +599,7 @@ struct bch_dev {
 
 	/* The rest of this all shows up in sysfs */
 	atomic64_t		cur_latency[2];
-	struct bch2_time_stats	io_latency[2];
+	struct bch2_time_stats_quantiles io_latency[2];
 
 #define CONGESTED_MAX		1024
 	atomic_t		congested;
@@ -559,32 +608,36 @@ struct bch_dev {
 	struct io_count __percpu *io_done;
 };
 
-enum {
-	/* startup: */
-	BCH_FS_STARTED,
-	BCH_FS_MAY_GO_RW,
-	BCH_FS_RW,
-	BCH_FS_WAS_RW,
+/*
+ * initial_gc_unfixed
+ * error
+ * topology error
+ */
 
-	/* shutdown: */
-	BCH_FS_STOPPING,
-	BCH_FS_EMERGENCY_RO,
-	BCH_FS_GOING_RO,
-	BCH_FS_WRITE_DISABLE_COMPLETE,
-	BCH_FS_CLEAN_SHUTDOWN,
+#define BCH_FS_FLAGS()			\
+	x(new_fs)			\
+	x(started)			\
+	x(may_go_rw)			\
+	x(rw)				\
+	x(was_rw)			\
+	x(stopping)			\
+	x(emergency_ro)			\
+	x(going_ro)			\
+	x(write_disable_complete)	\
+	x(clean_shutdown)		\
+	x(fsck_running)			\
+	x(initial_gc_unfixed)		\
+	x(need_another_gc)		\
+	x(need_delete_dead_snapshots)	\
+	x(error)			\
+	x(topology_error)		\
+	x(errors_fixed)			\
+	x(errors_not_fixed)
 
-	/* fsck passes: */
-	BCH_FS_FSCK_DONE,
-	BCH_FS_INITIAL_GC_UNFIXED,	/* kill when we enumerate fsck errors */
-	BCH_FS_NEED_ANOTHER_GC,
-
-	BCH_FS_HAVE_DELETED_SNAPSHOTS,
-
-	/* errors: */
-	BCH_FS_ERROR,
-	BCH_FS_TOPOLOGY_ERROR,
-	BCH_FS_ERRORS_FIXED,
-	BCH_FS_ERRORS_NOT_FIXED,
+enum bch_fs_flags {
+#define x(n)		BCH_FS_##n,
+	BCH_FS_FLAGS()
+#undef x
 };
 
 struct btree_debug {
@@ -594,10 +647,11 @@ struct btree_debug {
 #define BCH_TRANSACTIONS_NR 128
 
 struct btree_transaction_stats {
+	struct bch2_time_stats	duration;
 	struct bch2_time_stats	lock_hold_times;
 	struct mutex		lock;
 	unsigned		nr_max_paths;
-	unsigned		wb_updates_size;
+	unsigned		journal_entries_size;
 	unsigned		max_mem;
 	char			*max_paths_text;
 };
@@ -612,10 +666,12 @@ struct journal_seq_blacklist_table {
 		u64		start;
 		u64		end;
 		bool		dirty;
-	}			entries[0];
+	}			entries[];
 };
 
 struct journal_keys {
+	/* must match layout in darray_types.h */
+	size_t			nr, size;
 	struct journal_key {
 		u64		journal_seq;
 		u32		journal_offset;
@@ -624,15 +680,15 @@ struct journal_keys {
 		bool		allocated;
 		bool		overwritten;
 		struct bkey_i	*k;
-	}			*d;
+	}			*data;
 	/*
 	 * Gap buffer: instead of all the empty space in the array being at the
 	 * end of the buffer - from @nr to @size - the empty space is at @gap.
 	 * This means that sequential insertions are O(n) instead of O(n^2).
 	 */
 	size_t			gap;
-	size_t			nr;
-	size_t			size;
+	atomic_t		ref;
+	bool			initial_ref_held;
 };
 
 struct btree_trans_buf {
@@ -653,11 +709,15 @@ struct btree_trans_buf {
 	x(stripe_delete)						\
 	x(reflink)							\
 	x(fallocate)							\
+	x(fsync)							\
+	x(dio_write)							\
 	x(discard)							\
+	x(discard_fast)							\
 	x(invalidate)							\
 	x(delete_dead_snapshots)					\
 	x(snapshot_delete_pagecache)					\
-	x(sysfs)
+	x(sysfs)							\
+	x(btree_write_buffer)
 
 enum bch_write_ref {
 #define x(n) BCH_WRITE_REF_##n,
@@ -682,6 +742,8 @@ struct bch_fs {
 	struct super_block	*vfs_sb;
 	dev_t			dev;
 	char			name[40];
+	struct stdio_redirect	*stdio;
+	struct task_struct	*stdio_filter;
 
 	/* ro/rw, add/remove/resize devices: */
 	struct rw_semaphore	state_lock;
@@ -692,6 +754,13 @@ struct bch_fs {
 #else
 	struct percpu_ref	writes;
 #endif
+	/*
+	 * Analagous to c->writes, for asynchronous ops that don't necessarily
+	 * need fs to be read-write
+	 */
+	refcount_t		ro_ref;
+	wait_queue_head_t	ro_ref_wait;
+
 	struct work_struct	read_only_work;
 
 	struct bch_dev __rcu	*devs[BCH_SB_MEMBERS_MAX];
@@ -730,6 +799,8 @@ struct bch_fs {
 		unsigned	nsec_per_time_unit;
 		u64		features;
 		u64		compat;
+		unsigned long	errors_silent[BITS_TO_LONGS(BCH_SB_ERR_MAX)];
+		u64		btrees_lost_data;
 	}			sb;
 
 
@@ -744,7 +815,6 @@ struct bch_fs {
 
 	/* snapshot.c: */
 	struct snapshot_table __rcu *snapshots;
-	size_t			snapshot_table_size;
 	struct mutex		snapshot_table_lock;
 	struct rw_semaphore	snapshot_create_lock;
 
@@ -782,6 +852,8 @@ struct bch_fs {
 
 	struct workqueue_struct	*btree_interior_update_worker;
 	struct work_struct	btree_interior_update_work;
+
+	struct workqueue_struct	*btree_node_rewrite_worker;
 
 	struct list_head	pending_node_rewrites;
 	struct mutex		pending_node_rewrites_lock;
@@ -859,8 +931,6 @@ struct bch_fs {
 	/* ALLOCATOR */
 	spinlock_t		freelist_lock;
 	struct closure_waitlist	freelist_wait;
-	u64			blocked_allocate;
-	u64			blocked_allocate_open_bucket;
 
 	open_bucket_idx_t	open_buckets_freelist;
 	open_bucket_idx_t	open_buckets_nr_free;
@@ -880,8 +950,11 @@ struct bch_fs {
 	unsigned		write_points_nr;
 
 	struct buckets_waiting_for_journal buckets_waiting_for_journal;
-	struct work_struct	discard_work;
 	struct work_struct	invalidate_work;
+	struct work_struct	discard_work;
+	struct mutex		discard_buckets_in_flight_lock;
+	DARRAY(struct bpos)	discard_buckets_in_flight;
+	struct work_struct	discard_fast_work;
 
 	/* GARBAGE COLLECTION */
 	struct task_struct	*gc_thread;
@@ -924,7 +997,7 @@ struct bch_fs {
 	mempool_t		compression_bounce[2];
 	mempool_t		compress_workspace[BCH_COMPRESSION_TYPE_NR];
 	mempool_t		decompress_workspace;
-	ZSTD_parameters		zstd_params;
+	size_t			zstd_workspace_size;
 
 	struct crypto_shash	*sha256;
 	struct crypto_sync_skcipher *chacha20;
@@ -937,9 +1010,6 @@ struct bch_fs {
 	/* MOVE.C */
 	struct list_head	moving_context_list;
 	struct mutex		moving_context_lock;
-
-	struct list_head	data_progress_list;
-	struct mutex		data_progress_lock;
 
 	/* REBALANCE */
 	struct bch_fs_rebalance	rebalance;
@@ -991,21 +1061,27 @@ struct bch_fs {
 	struct bio_set		dio_read_bioset;
 	struct bio_set		nocow_flush_bioset;
 
-	/* ERRORS */
-	struct list_head	fsck_errors;
-	struct mutex		fsck_error_lock;
-	bool			fsck_alloc_err;
-
 	/* QUOTAS */
 	struct bch_memquota_type quotas[QTYP_NR];
 
 	/* RECOVERY */
 	u64			journal_replay_seq_start;
 	u64			journal_replay_seq_end;
+	/*
+	 * Two different uses:
+	 * "Has this fsck pass?" - i.e. should this type of error be an
+	 * emergency read-only
+	 * And, in certain situations fsck will rewind to an earlier pass: used
+	 * for signaling to the toplevel code which pass we want to run now.
+	 */
 	enum bch_recovery_pass	curr_recovery_pass;
 	/* bitmap of explicitly enabled recovery passes: */
 	u64			recovery_passes_explicit;
+	/* bitmask of recovery passes that we actually ran */
 	u64			recovery_passes_complete;
+	/* never rewinds version of curr_recovery_pass */
+	enum bch_recovery_pass	recovery_pass_done;
+	struct semaphore	online_fsck_mutex;
 
 	/* DEBUG JUNK */
 	struct dentry		*fs_debug_dir;
@@ -1032,6 +1108,8 @@ struct bch_fs {
 	struct journal_keys	journal_keys;
 	struct list_head	journal_iters;
 
+	struct find_btree_nodes	found_btree_nodes;
+
 	u64			last_bucket_seq_cleanup;
 
 	u64			counters_on_mount[BCH_COUNTER_NR];
@@ -1044,6 +1122,14 @@ struct bch_fs {
 	struct bch2_time_stats	times[BCH_TIME_STAT_NR];
 
 	struct btree_transaction_stats btree_transaction_stats[BCH_TRANSACTIONS_NR];
+
+	/* ERRORS */
+	struct list_head	fsck_error_msgs;
+	struct mutex		fsck_error_msgs_lock;
+	bool			fsck_alloc_msgs_err;
+
+	bch_sb_errors_cpu	fsck_error_counts;
+	struct mutex		fsck_error_counts_lock;
 };
 
 extern struct wait_queue_head bch2_read_only_wait;
@@ -1057,10 +1143,20 @@ static inline void bch2_write_ref_get(struct bch_fs *c, enum bch_write_ref ref)
 #endif
 }
 
+static inline bool __bch2_write_ref_tryget(struct bch_fs *c, enum bch_write_ref ref)
+{
+#ifdef BCH_WRITE_REF_DEBUG
+	return !test_bit(BCH_FS_going_ro, &c->flags) &&
+		atomic_long_inc_not_zero(&c->writes[ref]);
+#else
+	return percpu_ref_tryget(&c->writes);
+#endif
+}
+
 static inline bool bch2_write_ref_tryget(struct bch_fs *c, enum bch_write_ref ref)
 {
 #ifdef BCH_WRITE_REF_DEBUG
-	return !test_bit(BCH_FS_GOING_RO, &c->flags) &&
+	return !test_bit(BCH_FS_going_ro, &c->flags) &&
 		atomic_long_inc_not_zero(&c->writes[ref]);
 #else
 	return percpu_ref_tryget_live(&c->writes);
@@ -1079,11 +1175,25 @@ static inline void bch2_write_ref_put(struct bch_fs *c, enum bch_write_ref ref)
 		if (atomic_long_read(&c->writes[i]))
 			return;
 
-	set_bit(BCH_FS_WRITE_DISABLE_COMPLETE, &c->flags);
+	set_bit(BCH_FS_write_disable_complete, &c->flags);
 	wake_up(&bch2_read_only_wait);
 #else
 	percpu_ref_put(&c->writes);
 #endif
+}
+
+static inline bool bch2_ro_ref_tryget(struct bch_fs *c)
+{
+	if (test_bit(BCH_FS_stopping, &c->flags))
+		return false;
+
+	return refcount_inc_not_zero(&c->ro_ref);
+}
+
+static inline void bch2_ro_ref_put(struct bch_fs *c)
+{
+	if (refcount_dec_and_test(&c->ro_ref))
+		wake_up(&c->ro_ref_wait);
 }
 
 static inline void bch2_set_ra_pages(struct bch_fs *c, unsigned ra_pages)
@@ -1107,11 +1217,6 @@ static inline unsigned block_bytes(const struct bch_fs *c)
 static inline unsigned block_sectors(const struct bch_fs *c)
 {
 	return c->opts.block_size >> 9;
-}
-
-static inline size_t btree_sectors(const struct bch_fs *c)
-{
-	return c->opts.btree_node_size >> 9;
 }
 
 static inline bool btree_id_cached(const struct bch_fs *c, enum btree_id btree)
@@ -1148,6 +1253,27 @@ static inline s64 bch2_current_time(const struct bch_fs *c)
 static inline bool bch2_dev_exists2(const struct bch_fs *c, unsigned dev)
 {
 	return dev < c->sb.nr_devices && c->devs[dev];
+}
+
+static inline struct stdio_redirect *bch2_fs_stdio_redirect(struct bch_fs *c)
+{
+	struct stdio_redirect *stdio = c->stdio;
+
+	if (c->stdio_filter && c->stdio_filter != current)
+		stdio = NULL;
+	return stdio;
+}
+
+static inline unsigned metadata_replicas_required(struct bch_fs *c)
+{
+	return min(c->opts.metadata_replicas,
+		   c->opts.metadata_replicas_required);
+}
+
+static inline unsigned data_replicas_required(struct bch_fs *c)
+{
+	return min(c->opts.data_replicas,
+		   c->opts.data_replicas_required);
 }
 
 #define BKEY_PADDED_ONSTACK(key, pad)				\

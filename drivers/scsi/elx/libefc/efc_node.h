@@ -26,13 +26,13 @@ efc_node_evt_set(struct efc_sm_ctx *ctx, enum efc_sm_event evt,
 	struct efc_node *node = ctx->app;
 
 	if (evt == EFC_EVT_ENTER) {
-		strncpy(node->current_state_name, handler,
-			sizeof(node->current_state_name));
+		strscpy_pad(node->current_state_name, handler,
+			    sizeof(node->current_state_name));
 	} else if (evt == EFC_EVT_EXIT) {
-		strncpy(node->prev_state_name, node->current_state_name,
-			sizeof(node->prev_state_name));
-		strncpy(node->current_state_name, "invalid",
-			sizeof(node->current_state_name));
+		memcpy(node->prev_state_name, node->current_state_name,
+		       sizeof(node->prev_state_name));
+		strscpy_pad(node->current_state_name, "invalid",
+			    sizeof(node->current_state_name));
 	}
 	node->prev_evt = node->current_evt;
 	node->current_evt = evt;

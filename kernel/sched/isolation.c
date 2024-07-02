@@ -46,7 +46,16 @@ int housekeeping_any_cpu(enum hk_type type)
 			if (cpu < nr_cpu_ids)
 				return cpu;
 
-			return cpumask_any_and(housekeeping.cpumasks[type], cpu_online_mask);
+			cpu = cpumask_any_and(housekeeping.cpumasks[type], cpu_online_mask);
+			if (likely(cpu < nr_cpu_ids))
+				return cpu;
+			/*
+			 * Unless we have another problem this can only happen
+			 * at boot time before start_secondary() brings the 1st
+			 * housekeeping CPU up.
+			 */
+			WARN_ON_ONCE(system_state == SYSTEM_RUNNING ||
+				     type != HK_TYPE_TIMER);
 		}
 	}
 	return smp_processor_id();
@@ -109,6 +118,7 @@ static void __init housekeeping_setup_type(enum hk_type type,
 static int __init housekeeping_setup(char *str, unsigned long flags)
 {
 	cpumask_var_t non_housekeeping_mask, housekeeping_staging;
+	unsigned int first_cpu;
 	int err = 0;
 
 	if ((flags & HK_FLAG_TICK) && !(housekeeping.flags & HK_FLAG_TICK)) {
@@ -129,7 +139,8 @@ static int __init housekeeping_setup(char *str, unsigned long flags)
 	cpumask_andnot(housekeeping_staging,
 		       cpu_possible_mask, non_housekeeping_mask);
 
-	if (!cpumask_intersects(cpu_present_mask, housekeeping_staging)) {
+	first_cpu = cpumask_first_and(cpu_present_mask, housekeeping_staging);
+	if (first_cpu >= nr_cpu_ids || first_cpu >= setup_max_cpus) {
 		__cpumask_set_cpu(smp_processor_id(), housekeeping_staging);
 		__cpumask_clear_cpu(smp_processor_id(), non_housekeeping_mask);
 		if (!housekeeping.flags) {
@@ -137,6 +148,9 @@ static int __init housekeeping_setup(char *str, unsigned long flags)
 				"using boot CPU:%d\n", smp_processor_id());
 		}
 	}
+
+	if (cpumask_empty(non_housekeeping_mask))
+		goto free_housekeeping_staging;
 
 	if (!housekeeping.flags) {
 		/* First setup call ("nohz_full=" or "isolcpus=") */

@@ -126,7 +126,7 @@ static DEFINE_MUTEX(acpi_gpio_deferred_req_irqs_lock);
 static LIST_HEAD(acpi_gpio_deferred_req_irqs_list);
 static bool acpi_gpio_deferred_req_irqs_done;
 
-static int acpi_gpiochip_find(struct gpio_chip *gc, void *data)
+static int acpi_gpiochip_find(struct gpio_chip *gc, const void *data)
 {
 	return device_match_acpi_handle(&gc->gpiodev->dev, data);
 }
@@ -873,9 +873,6 @@ static struct gpio_desc *acpi_get_gpiod_by_index(struct acpi_device *adev,
 	struct acpi_gpio_lookup lookup;
 	int ret;
 
-	if (!adev)
-		return ERR_PTR(-ENODEV);
-
 	memset(&lookup, 0, sizeof(lookup));
 	lookup.index = index;
 
@@ -948,14 +945,11 @@ static bool acpi_can_fallback_to_crs(struct acpi_device *adev,
 	return con_id == NULL;
 }
 
-struct gpio_desc *acpi_find_gpio(struct fwnode_handle *fwnode,
-				 const char *con_id,
-				 unsigned int idx,
-				 enum gpiod_flags *dflags,
-				 unsigned long *lookupflags)
+static struct gpio_desc *
+__acpi_find_gpio(struct fwnode_handle *fwnode, const char *con_id, unsigned int idx,
+		 bool can_fallback, struct acpi_gpio_info *info)
 {
 	struct acpi_device *adev = to_acpi_device_node(fwnode);
-	struct acpi_gpio_info info;
 	struct gpio_desc *desc;
 	char propname[32];
 	int i;
@@ -972,25 +966,38 @@ struct gpio_desc *acpi_find_gpio(struct fwnode_handle *fwnode,
 
 		if (adev)
 			desc = acpi_get_gpiod_by_index(adev,
-						       propname, idx, &info);
+						       propname, idx, info);
 		else
 			desc = acpi_get_gpiod_from_data(fwnode,
-						        propname, idx, &info);
-		if (!IS_ERR(desc))
-			break;
+							propname, idx, info);
 		if (PTR_ERR(desc) == -EPROBE_DEFER)
 			return ERR_CAST(desc);
+
+		if (!IS_ERR(desc))
+			return desc;
 	}
 
 	/* Then from plain _CRS GPIOs */
-	if (IS_ERR(desc)) {
-		if (!adev || !acpi_can_fallback_to_crs(adev, con_id))
-			return ERR_PTR(-ENOENT);
+	if (!adev || !can_fallback)
+		return ERR_PTR(-ENOENT);
 
-		desc = acpi_get_gpiod_by_index(adev, NULL, idx, &info);
-		if (IS_ERR(desc))
-			return desc;
-	}
+	return acpi_get_gpiod_by_index(adev, NULL, idx, info);
+}
+
+struct gpio_desc *acpi_find_gpio(struct fwnode_handle *fwnode,
+				 const char *con_id,
+				 unsigned int idx,
+				 enum gpiod_flags *dflags,
+				 unsigned long *lookupflags)
+{
+	struct acpi_device *adev = to_acpi_device_node(fwnode);
+	bool can_fallback = acpi_can_fallback_to_crs(adev, con_id);
+	struct acpi_gpio_info info;
+	struct gpio_desc *desc;
+
+	desc = __acpi_find_gpio(fwnode, con_id, idx, can_fallback, &info);
+	if (IS_ERR(desc))
+		return desc;
 
 	if (info.gpioint &&
 	    (*dflags == GPIOD_OUT_LOW || *dflags == GPIOD_OUT_HIGH)) {
@@ -1006,7 +1013,7 @@ struct gpio_desc *acpi_find_gpio(struct fwnode_handle *fwnode,
 /**
  * acpi_dev_gpio_irq_wake_get_by() - Find GpioInt and translate it to Linux IRQ number
  * @adev: pointer to a ACPI device to get IRQ from
- * @name: optional name of GpioInt resource
+ * @con_id: optional name of GpioInt resource
  * @index: index of GpioInt resource (starting from %0)
  * @wake_capable: Set to true if the IRQ is wake capable
  *
@@ -1017,17 +1024,18 @@ struct gpio_desc *acpi_find_gpio(struct fwnode_handle *fwnode,
  * The function is idempotent, though each time it runs it will configure GPIO
  * pin direction according to the flags in GpioInt resource.
  *
- * The function takes optional @name parameter. If the resource has a property
- * name, then only those will be taken into account.
+ * The function takes optional @con_id parameter. If the resource has
+ * a @con_id in a property, then only those will be taken into account.
  *
  * The GPIO is considered wake capable if the GpioInt resource specifies
  * SharedAndWake or ExclusiveAndWake.
  *
  * Return: Linux IRQ number (> %0) on success, negative errno on failure.
  */
-int acpi_dev_gpio_irq_wake_get_by(struct acpi_device *adev, const char *name, int index,
+int acpi_dev_gpio_irq_wake_get_by(struct acpi_device *adev, const char *con_id, int index,
 				  bool *wake_capable)
 {
+	struct fwnode_handle *fwnode = acpi_fwnode_handle(adev);
 	int idx, i;
 	unsigned int irq_flags;
 	int ret;
@@ -1036,9 +1044,8 @@ int acpi_dev_gpio_irq_wake_get_by(struct acpi_device *adev, const char *name, in
 		struct acpi_gpio_info info;
 		struct gpio_desc *desc;
 
-		desc = acpi_get_gpiod_by_index(adev, name, i, &info);
-
 		/* Ignore -EPROBE_DEFER, it only matters if idx matches */
+		desc = __acpi_find_gpio(fwnode, con_id, i, true, &info);
 		if (IS_ERR(desc) && PTR_ERR(desc) != -EPROBE_DEFER)
 			return PTR_ERR(desc);
 
@@ -1058,7 +1065,11 @@ int acpi_dev_gpio_irq_wake_get_by(struct acpi_device *adev, const char *name, in
 			acpi_gpio_update_gpiod_flags(&dflags, &info);
 			acpi_gpio_update_gpiod_lookup_flags(&lflags, &info);
 
-			snprintf(label, sizeof(label), "GpioInt() %d", index);
+			snprintf(label, sizeof(label), "%pfwP GpioInt(%d)", fwnode, index);
+			ret = gpiod_set_consumer_name(desc, con_id ?: label);
+			if (ret)
+				return ret;
+
 			ret = gpiod_configure_flags(desc, label, lflags, dflags);
 			if (ret < 0)
 				return ret;
@@ -1402,17 +1413,17 @@ static int acpi_find_gpio_count(struct acpi_resource *ares, void *data)
 }
 
 /**
- * acpi_gpio_count - count the GPIOs associated with a device / function
- * @dev:	GPIO consumer, can be %NULL for system-global GPIOs
+ * acpi_gpio_count - count the GPIOs associated with a firmware node / function
+ * @fwnode:	firmware node of the GPIO consumer
  * @con_id:	function within the GPIO consumer
  *
  * Return:
- * The number of GPIOs associated with a device / function or %-ENOENT,
+ * The number of GPIOs associated with a firmware node / function or %-ENOENT,
  * if no GPIO has been assigned to the requested function.
  */
-int acpi_gpio_count(struct device *dev, const char *con_id)
+int acpi_gpio_count(const struct fwnode_handle *fwnode, const char *con_id)
 {
-	struct acpi_device *adev = ACPI_COMPANION(dev);
+	struct acpi_device *adev = to_acpi_device_node(fwnode);
 	const union acpi_object *obj;
 	const struct acpi_gpio_mapping *gm;
 	int count = -ENOENT;
@@ -1429,8 +1440,7 @@ int acpi_gpio_count(struct device *dev, const char *con_id)
 			snprintf(propname, sizeof(propname), "%s",
 				 gpio_suffixes[i]);
 
-		ret = acpi_dev_get_property(adev, propname, ACPI_TYPE_ANY,
-					    &obj);
+		ret = acpi_dev_get_property(adev, propname, ACPI_TYPE_ANY, &obj);
 		if (ret == 0) {
 			if (obj->type == ACPI_TYPE_LOCAL_REFERENCE)
 				count = 1;
@@ -1649,6 +1659,20 @@ static const struct dmi_system_id gpiolib_acpi_quirks[] __initconst = {
 		},
 		.driver_data = &(struct acpi_gpiolib_dmi_quirk) {
 			.ignore_interrupt = "INT33FC:00@3",
+		},
+	},
+	{
+		/*
+		 * Spurious wakeups from TP_ATTN# pin
+		 * Found in BIOS 0.35
+		 * https://gitlab.freedesktop.org/drm/amd/-/issues/3073
+		 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "GPD"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "G1619-04"),
+		},
+		.driver_data = &(struct acpi_gpiolib_dmi_quirk) {
+			.ignore_wake = "PNP0C50:00@8",
 		},
 	},
 	{} /* Terminating entry */

@@ -190,6 +190,10 @@ vm_fault_t kvm_arch_vcpu_fault(struct kvm_vcpu *vcpu, struct vm_fault *vmf)
 	return VM_FAULT_SIGBUS;
 }
 
+void kvm_arch_create_vm_debugfs(struct kvm *kvm)
+{
+	kvm_sys_regs_create_debugfs(kvm);
+}
 
 /**
  * kvm_arch_destroy_vm - destroy the VM data structure
@@ -206,6 +210,7 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 		pkvm_destroy_hyp_vm(kvm);
 
 	kfree(kvm->arch.mpidr_data);
+	kfree(kvm->arch.sysreg_masks);
 	kvm_destroy_vcpus(kvm);
 
 	kvm_unshare_hyp(kvm, kvm + 1);
@@ -221,7 +226,6 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		r = vgic_present;
 		break;
 	case KVM_CAP_IOEVENTFD:
-	case KVM_CAP_DEVICE_CTRL:
 	case KVM_CAP_USER_MEMORY:
 	case KVM_CAP_SYNC_MMU:
 	case KVM_CAP_DESTROY_MEMORY_REGION_WORKS:
@@ -410,7 +414,7 @@ void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
 	kvm_mmu_free_memory_cache(&vcpu->arch.mmu_page_cache);
 	kvm_timer_vcpu_terminate(vcpu);
 	kvm_pmu_vcpu_destroy(vcpu);
-
+	kvm_vgic_vcpu_destroy(vcpu);
 	kvm_arm_vcpu_destroy(vcpu);
 }
 
@@ -668,6 +672,18 @@ int kvm_arch_vcpu_run_pid_change(struct kvm_vcpu *vcpu)
 		if (ret)
 			return ret;
 	}
+
+	if (vcpu_has_nv(vcpu)) {
+		ret = kvm_init_nv_sysregs(vcpu->kvm);
+		if (ret)
+			return ret;
+	}
+
+	/*
+	 * This needs to happen after NV has imposed its own restrictions on
+	 * the feature set
+	 */
+	kvm_init_sysreg(vcpu);
 
 	ret = kvm_timer_enable(vcpu);
 	if (ret)
@@ -1837,6 +1853,7 @@ static int kvm_init_vector_slots(void)
 static void __init cpu_prepare_hyp_mode(int cpu, u32 hyp_va_bits)
 {
 	struct kvm_nvhe_init_params *params = per_cpu_ptr_nvhe_sym(kvm_init_params, cpu);
+	u64 mmfr0 = read_sanitised_ftr_reg(SYS_ID_AA64MMFR0_EL1);
 	unsigned long tcr;
 
 	/*
@@ -1859,6 +1876,10 @@ static void __init cpu_prepare_hyp_mode(int cpu, u32 hyp_va_bits)
 	}
 	tcr &= ~TCR_T0SZ_MASK;
 	tcr |= TCR_T0SZ(hyp_va_bits);
+	tcr &= ~TCR_EL2_PS_MASK;
+	tcr |= FIELD_PREP(TCR_EL2_PS_MASK, kvm_get_parange(mmfr0));
+	if (kvm_lpa2_is_enabled())
+		tcr |= TCR_EL2_DS;
 	params->tcr_el2 = tcr;
 
 	params->pgd_pa = kvm_mmu_get_httbr();
@@ -2576,13 +2597,11 @@ static __init int kvm_arm_init(void)
 	if (err)
 		goto out_hyp;
 
-	if (is_protected_kvm_enabled()) {
-		kvm_info("Protected nVHE mode initialized successfully\n");
-	} else if (in_hyp_mode) {
-		kvm_info("VHE mode initialized successfully\n");
-	} else {
-		kvm_info("Hyp mode initialized successfully\n");
-	}
+	kvm_info("%s%sVHE mode initialized successfully\n",
+		 in_hyp_mode ? "" : (is_protected_kvm_enabled() ?
+				     "Protected " : "Hyp "),
+		 in_hyp_mode ? "" : (cpus_have_final_cap(ARM64_KVM_HVHE) ?
+				     "h" : "n"));
 
 	/*
 	 * FIXME: Do something reasonable if kvm_init() fails after pKVM

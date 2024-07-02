@@ -405,6 +405,7 @@ static void __exit mip6_fini(void)
 module_init(mip6_init);
 module_exit(mip6_fini);
 
+MODULE_DESCRIPTION("IPv6 Mobility driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_XFRM_TYPE(AF_INET6, XFRM_PROTO_DSTOPTS);
 MODULE_ALIAS_XFRM_TYPE(AF_INET6, XFRM_PROTO_ROUTING);

@@ -208,7 +208,7 @@ static int ftpm_tee_match(struct tee_ioctl_version_data *ver, const void *data)
 
 /**
  * ftpm_tee_probe() - initialize the fTPM
- * @pdev: the platform_device description.
+ * @dev: the device description.
  *
  * Return:
  *	On success, 0. On failure, -errno.
@@ -304,7 +304,7 @@ static int ftpm_plat_tee_probe(struct platform_device *pdev)
 
 /**
  * ftpm_tee_remove() - remove the TPM device
- * @pdev: the platform_device description.
+ * @dev: the device description.
  *
  * Return:
  *	0 always.
@@ -341,7 +341,7 @@ static void ftpm_plat_tee_remove(struct platform_device *pdev)
 }
 
 /**
- * ftpm_tee_shutdown() - shutdown the TPM device
+ * ftpm_plat_tee_shutdown() - shutdown the TPM device
  * @pdev: the platform_device description.
  */
 static void ftpm_plat_tee_shutdown(struct platform_device *pdev)

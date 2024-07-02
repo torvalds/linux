@@ -165,7 +165,6 @@ struct ov9282_mode {
  * @cur_mode: Pointer to current selected sensor mode
  * @code: Mbus code currently selected
  * @mutex: Mutex for serializing sensor controls
- * @streaming: Flag indicating streaming state
  */
 struct ov9282 {
 	struct device *dev;
@@ -188,7 +187,6 @@ struct ov9282 {
 	const struct ov9282_mode *cur_mode;
 	u32 code;
 	struct mutex mutex;
-	bool streaming;
 };
 
 static const s64 link_freq[] = {
@@ -816,7 +814,7 @@ static int ov9282_get_pad_format(struct v4l2_subdev *sd,
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 		struct v4l2_mbus_framefmt *framefmt;
 
-		framefmt = v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
+		framefmt = v4l2_subdev_state_get_format(sd_state, fmt->pad);
 		fmt->format = *framefmt;
 	} else {
 		ov9282_fill_pad_format(ov9282, ov9282->cur_mode, ov9282->code,
@@ -862,7 +860,7 @@ static int ov9282_set_pad_format(struct v4l2_subdev *sd,
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 		struct v4l2_mbus_framefmt *framefmt;
 
-		framefmt = v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
+		framefmt = v4l2_subdev_state_get_format(sd_state, fmt->pad);
 		*framefmt = fmt->format;
 	} else {
 		ret = ov9282_update_controls(ov9282, mode, fmt);
@@ -878,14 +876,14 @@ static int ov9282_set_pad_format(struct v4l2_subdev *sd,
 }
 
 /**
- * ov9282_init_pad_cfg() - Initialize sub-device pad configuration
+ * ov9282_init_state() - Initialize sub-device state
  * @sd: pointer to ov9282 V4L2 sub-device structure
  * @sd_state: V4L2 sub-device configuration
  *
  * Return: 0 if successful, error code otherwise.
  */
-static int ov9282_init_pad_cfg(struct v4l2_subdev *sd,
-			       struct v4l2_subdev_state *sd_state)
+static int ov9282_init_state(struct v4l2_subdev *sd,
+			     struct v4l2_subdev_state *sd_state)
 {
 	struct ov9282 *ov9282 = to_ov9282(sd);
 	struct v4l2_subdev_format fmt = { 0 };
@@ -904,7 +902,7 @@ __ov9282_get_pad_crop(struct ov9282 *ov9282,
 {
 	switch (which) {
 	case V4L2_SUBDEV_FORMAT_TRY:
-		return v4l2_subdev_get_try_crop(&ov9282->sd, sd_state, pad);
+		return v4l2_subdev_state_get_crop(sd_state, pad);
 	case V4L2_SUBDEV_FORMAT_ACTIVE:
 		return &ov9282->cur_mode->crop;
 	}
@@ -1037,11 +1035,6 @@ static int ov9282_set_stream(struct v4l2_subdev *sd, int enable)
 
 	mutex_lock(&ov9282->mutex);
 
-	if (ov9282->streaming == enable) {
-		mutex_unlock(&ov9282->mutex);
-		return 0;
-	}
-
 	if (enable) {
 		ret = pm_runtime_resume_and_get(ov9282->dev);
 		if (ret)
@@ -1054,8 +1047,6 @@ static int ov9282_set_stream(struct v4l2_subdev *sd, int enable)
 		ov9282_stop_streaming(ov9282);
 		pm_runtime_put(ov9282->dev);
 	}
-
-	ov9282->streaming = enable;
 
 	mutex_unlock(&ov9282->mutex);
 
@@ -1201,7 +1192,6 @@ static const struct v4l2_subdev_video_ops ov9282_video_ops = {
 };
 
 static const struct v4l2_subdev_pad_ops ov9282_pad_ops = {
-	.init_cfg = ov9282_init_pad_cfg,
 	.enum_mbus_code = ov9282_enum_mbus_code,
 	.enum_frame_size = ov9282_enum_frame_size,
 	.get_fmt = ov9282_get_pad_format,
@@ -1213,6 +1203,10 @@ static const struct v4l2_subdev_ops ov9282_subdev_ops = {
 	.core = &ov9282_core_ops,
 	.video = &ov9282_video_ops,
 	.pad = &ov9282_pad_ops,
+};
+
+static const struct v4l2_subdev_internal_ops ov9282_internal_ops = {
+	.init_state = ov9282_init_state,
 };
 
 /**
@@ -1403,6 +1397,7 @@ static int ov9282_probe(struct i2c_client *client)
 
 	/* Initialize subdev */
 	v4l2_i2c_subdev_init(&ov9282->sd, client, &ov9282_subdev_ops);
+	ov9282->sd.internal_ops = &ov9282_internal_ops;
 	v4l2_i2c_subdev_set_name(&ov9282->sd, client,
 				 device_get_match_data(ov9282->dev), NULL);
 

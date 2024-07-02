@@ -159,8 +159,7 @@ static int __init do_mount_root(const char *name, const char *fs,
 		if (!p)
 			return -ENOMEM;
 		data_page = page_address(p);
-		/* zero-pad. init_mount() will make sure it's terminated */
-		strncpy(data_page, data, PAGE_SIZE);
+		strscpy_pad(data_page, data, PAGE_SIZE);
 	}
 
 	ret = init_mount(name, "/root", fs, flags, data_page);
@@ -208,6 +207,9 @@ retry:
 				goto out;
 			case -EACCES:
 			case -EINVAL:
+#ifdef CONFIG_BLOCK
+				init_flush_fput();
+#endif
 				continue;
 		}
 	        /*
@@ -510,7 +512,10 @@ struct file_system_type rootfs_fs_type = {
 
 void __init init_rootfs(void)
 {
-	if (IS_ENABLED(CONFIG_TMPFS) && !saved_root_name[0] &&
-		(!root_fs_names || strstr(root_fs_names, "tmpfs")))
-		is_tmpfs = true;
+	if (IS_ENABLED(CONFIG_TMPFS)) {
+		if (!saved_root_name[0] && !root_fs_names)
+			is_tmpfs = true;
+		else if (root_fs_names && !!strstr(root_fs_names, "tmpfs"))
+			is_tmpfs = true;
+	}
 }

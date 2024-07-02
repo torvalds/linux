@@ -2,7 +2,19 @@
 # Check Arm64 callgraphs are complete in fp mode
 # SPDX-License-Identifier: GPL-2.0
 
+shelldir=$(dirname "$0")
+# shellcheck source=lib/perf_has_symbol.sh
+. "${shelldir}"/lib/perf_has_symbol.sh
+
 lscpu | grep -q "aarch64" || exit 2
+
+if perf version --build-options | grep HAVE_DWARF_UNWIND_SUPPORT | grep -q OFF
+then
+  echo "Skipping, no dwarf unwind support"
+  exit 2
+fi
+
+skip_test_missing_symbol leafloop
 
 PERF_DATA=$(mktemp /tmp/__perf_test.perf.data.XXXXX)
 TEST_PROGRAM="perf test -w leafloop"

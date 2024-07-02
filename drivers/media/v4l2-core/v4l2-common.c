@@ -195,9 +195,9 @@ int v4l2_g_parm_cap(struct video_device *vdev,
 
 	if (vdev->device_caps & V4L2_CAP_READWRITE)
 		a->parm.capture.readbuffers = 2;
-	if (v4l2_subdev_has_op(sd, video, g_frame_interval))
+	if (v4l2_subdev_has_op(sd, pad, get_frame_interval))
 		a->parm.capture.capability = V4L2_CAP_TIMEPERFRAME;
-	ret = v4l2_subdev_call(sd, video, g_frame_interval, &ival);
+	ret = v4l2_subdev_call_state_active(sd, pad, get_frame_interval, &ival);
 	if (!ret)
 		a->parm.capture.timeperframe = ival.interval;
 	return ret;
@@ -222,9 +222,9 @@ int v4l2_s_parm_cap(struct video_device *vdev,
 	else
 		a->parm.capture.readbuffers = 0;
 
-	if (v4l2_subdev_has_op(sd, video, g_frame_interval))
+	if (v4l2_subdev_has_op(sd, pad, get_frame_interval))
 		a->parm.capture.capability = V4L2_CAP_TIMEPERFRAME;
-	ret = v4l2_subdev_call(sd, video, s_frame_interval, &ival);
+	ret = v4l2_subdev_call_state_active(sd, pad, set_frame_interval, &ival);
 	if (!ret)
 		a->parm.capture.timeperframe = ival.interval;
 	return ret;
@@ -254,6 +254,9 @@ const struct v4l2_format_info *v4l2_format_info(u32 format)
 		{ .format = V4L2_PIX_FMT_BGR666,  .pixel_enc = V4L2_PIXEL_ENC_RGB, .mem_planes = 1, .comp_planes = 1, .bpp = { 4, 0, 0, 0 }, .bpp_div = { 1, 1, 1, 1 }, .hdiv = 1, .vdiv = 1 },
 		{ .format = V4L2_PIX_FMT_BGR48_12, .pixel_enc = V4L2_PIXEL_ENC_RGB, .mem_planes = 1, .comp_planes = 1, .bpp = { 6, 0, 0, 0 }, .bpp_div = { 1, 1, 1, 1 }, .hdiv = 1, .vdiv = 1 },
 		{ .format = V4L2_PIX_FMT_ABGR64_12, .pixel_enc = V4L2_PIXEL_ENC_RGB, .mem_planes = 1, .comp_planes = 1, .bpp = { 8, 0, 0, 0 }, .bpp_div = { 1, 1, 1, 1 }, .hdiv = 1, .vdiv = 1 },
+		{ .format = V4L2_PIX_FMT_RGBA1010102, .pixel_enc = V4L2_PIXEL_ENC_RGB, .mem_planes = 1, .comp_planes = 1, .bpp = { 4, 0, 0, 0 }, .bpp_div = { 1, 1, 1, 1 }, .hdiv = 1, .vdiv = 1 },
+		{ .format = V4L2_PIX_FMT_RGBX1010102, .pixel_enc = V4L2_PIXEL_ENC_RGB, .mem_planes = 1, .comp_planes = 1, .bpp = { 4, 0, 0, 0 }, .bpp_div = { 1, 1, 1, 1 }, .hdiv = 1, .vdiv = 1 },
+		{ .format = V4L2_PIX_FMT_ARGB2101010, .pixel_enc = V4L2_PIXEL_ENC_RGB, .mem_planes = 1, .comp_planes = 1, .bpp = { 4, 0, 0, 0 }, .bpp_div = { 1, 1, 1, 1 }, .hdiv = 1, .vdiv = 1 },
 
 		/* YUV packed formats */
 		{ .format = V4L2_PIX_FMT_YUYV,    .pixel_enc = V4L2_PIXEL_ENC_YUV, .mem_planes = 1, .comp_planes = 1, .bpp = { 2, 0, 0, 0 }, .bpp_div = { 1, 1, 1, 1 }, .hdiv = 2, .vdiv = 1 },
@@ -582,3 +585,50 @@ u32 v4l2_fraction_to_interval(u32 numerator, u32 denominator)
 	return denominator ? numerator * multiplier / denominator : 0;
 }
 EXPORT_SYMBOL_GPL(v4l2_fraction_to_interval);
+
+int v4l2_link_freq_to_bitmap(struct device *dev, const u64 *fw_link_freqs,
+			     unsigned int num_of_fw_link_freqs,
+			     const s64 *driver_link_freqs,
+			     unsigned int num_of_driver_link_freqs,
+			     unsigned long *bitmap)
+{
+	unsigned int i;
+
+	*bitmap = 0;
+
+	if (!num_of_fw_link_freqs) {
+		dev_err(dev, "no link frequencies in firmware\n");
+		return -ENODATA;
+	}
+
+	for (i = 0; i < num_of_fw_link_freqs; i++) {
+		unsigned int j;
+
+		for (j = 0; j < num_of_driver_link_freqs; j++) {
+			if (fw_link_freqs[i] != driver_link_freqs[j])
+				continue;
+
+			dev_dbg(dev, "enabling link frequency %lld Hz\n",
+				driver_link_freqs[j]);
+			*bitmap |= BIT(j);
+			break;
+		}
+	}
+
+	if (!*bitmap) {
+		dev_err(dev, "no matching link frequencies found\n");
+
+		dev_dbg(dev, "specified in firmware:\n");
+		for (i = 0; i < num_of_fw_link_freqs; i++)
+			dev_dbg(dev, "\t%llu Hz\n", fw_link_freqs[i]);
+
+		dev_dbg(dev, "driver supported:\n");
+		for (i = 0; i < num_of_driver_link_freqs; i++)
+			dev_dbg(dev, "\t%lld Hz\n", driver_link_freqs[i]);
+
+		return -ENOENT;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(v4l2_link_freq_to_bitmap);

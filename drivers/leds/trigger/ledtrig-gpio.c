@@ -41,33 +41,30 @@ static irqreturn_t gpio_trig_irq(int irq, void *_led)
 	return IRQ_HANDLED;
 }
 
-static ssize_t gpio_trig_brightness_show(struct device *dev,
+static ssize_t desired_brightness_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct gpio_trig_data *gpio_data = led_trigger_get_drvdata(dev);
 
-	return sprintf(buf, "%u\n", gpio_data->desired_brightness);
+	return sysfs_emit(buf, "%u\n", gpio_data->desired_brightness);
 }
 
-static ssize_t gpio_trig_brightness_store(struct device *dev,
+static ssize_t desired_brightness_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t n)
 {
 	struct gpio_trig_data *gpio_data = led_trigger_get_drvdata(dev);
-	unsigned desired_brightness;
+	u8 desired_brightness;
 	int ret;
 
-	ret = sscanf(buf, "%u", &desired_brightness);
-	if (ret < 1 || desired_brightness > 255) {
-		dev_err(dev, "invalid value\n");
-		return -EINVAL;
-	}
+	ret = kstrtou8(buf, 10, &desired_brightness);
+	if (ret)
+		return ret;
 
 	gpio_data->desired_brightness = desired_brightness;
 
 	return n;
 }
-static DEVICE_ATTR(desired_brightness, 0644, gpio_trig_brightness_show,
-		gpio_trig_brightness_store);
+static DEVICE_ATTR_RW(desired_brightness);
 
 static struct attribute *gpio_trig_attrs[] = {
 	&dev_attr_desired_brightness.attr,
@@ -89,10 +86,7 @@ static int gpio_trig_activate(struct led_classdev *led)
 	 * The generic property "trigger-sources" is followed,
 	 * and we hope that this is a GPIO.
 	 */
-	gpio_data->gpiod = fwnode_gpiod_get_index(dev->fwnode,
-						  "trigger-sources",
-						  0, GPIOD_IN,
-						  "led-trigger");
+	gpio_data->gpiod = gpiod_get_optional(dev, "trigger-sources", GPIOD_IN);
 	if (IS_ERR(gpio_data->gpiod)) {
 		ret = PTR_ERR(gpio_data->gpiod);
 		kfree(gpio_data);
@@ -103,6 +97,8 @@ static int gpio_trig_activate(struct led_classdev *led)
 		kfree(gpio_data);
 		return -EINVAL;
 	}
+
+	gpiod_set_consumer_name(gpio_data->gpiod, "led-trigger");
 
 	gpio_data->led = led;
 	led_set_trigger_data(led, gpio_data);

@@ -7,6 +7,7 @@
 #include <linux/errno.h>
 #include <linux/minmax.h>
 #include <linux/tty.h>
+#include <linux/tty_buffer.h>
 #include <linux/tty_driver.h>
 #include <linux/tty_flip.h>
 #include <linux/timer.h>
@@ -69,12 +70,11 @@ EXPORT_SYMBOL_GPL(tty_buffer_lock_exclusive);
 void tty_buffer_unlock_exclusive(struct tty_port *port)
 {
 	struct tty_bufhead *buf = &port->buf;
-	int restart;
-
-	restart = buf->head->commit != buf->head->read;
+	bool restart = buf->head->commit != buf->head->read;
 
 	atomic_dec(&buf->priority);
 	mutex_unlock(&buf->lock);
+
 	if (restart)
 		queue_work(system_unbound_wq, &buf->work);
 }

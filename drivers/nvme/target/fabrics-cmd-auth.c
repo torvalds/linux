@@ -163,11 +163,11 @@ static u16 nvmet_auth_reply(struct nvmet_req *req, void *d)
 		pr_debug("%s: ctrl %d qid %d challenge %*ph\n",
 			 __func__, ctrl->cntlid, req->sq->qid, data->hl,
 			 req->sq->dhchap_c2);
-		req->sq->dhchap_s2 = le32_to_cpu(data->seqnum);
 	} else {
 		req->sq->authenticated = true;
 		req->sq->dhchap_c2 = NULL;
 	}
+	req->sq->dhchap_s2 = le32_to_cpu(data->seqnum);
 
 	return 0;
 }

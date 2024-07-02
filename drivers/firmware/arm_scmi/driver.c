@@ -33,6 +33,7 @@
 #include <linux/processor.h>
 #include <linux/refcount.h>
 #include <linux/slab.h>
+#include <linux/xarray.h>
 
 #include "common.h"
 #include "notify.h"
@@ -44,8 +45,7 @@
 
 static DEFINE_IDA(scmi_id);
 
-static DEFINE_IDR(scmi_protocols);
-static DEFINE_SPINLOCK(protocol_lock);
+static DEFINE_XARRAY(scmi_protocols);
 
 /* List of all SCMI devices active in system */
 static LIST_HEAD(scmi_list);
@@ -85,6 +85,13 @@ struct scmi_xfers_info {
  * @gid: A reference for per-protocol devres management.
  * @users: A refcount to track effective users of this protocol.
  * @priv: Reference for optional protocol private data.
+ * @version: Protocol version supported by the platform as detected at runtime.
+ * @negotiated_version: When the platform supports a newer protocol version,
+ *			the agent will try to negotiate with the platform the
+ *			usage of the newest version known to it, since
+ *			backward compatibility is NOT automatically assured.
+ *			This field is NON-zero when a successful negotiation
+ *			has completed.
  * @ph: An embedded protocol handle that will be passed down to protocol
  *	initialization code to identify this instance.
  *
@@ -97,6 +104,8 @@ struct scmi_protocol_instance {
 	void				*gid;
 	refcount_t			users;
 	void				*priv;
+	unsigned int			version;
+	unsigned int			negotiated_version;
 	struct scmi_protocol_handle	ph;
 };
 
@@ -185,11 +194,94 @@ struct scmi_info {
 #define bus_nb_to_scmi_info(nb)	container_of(nb, struct scmi_info, bus_nb)
 #define req_nb_to_scmi_info(nb)	container_of(nb, struct scmi_info, dev_req_nb)
 
-static const struct scmi_protocol *scmi_protocol_get(int protocol_id)
+static unsigned long
+scmi_vendor_protocol_signature(unsigned int protocol_id, char *vendor_id,
+			       char *sub_vendor_id, u32 impl_ver)
 {
-	const struct scmi_protocol *proto;
+	char *signature, *p;
+	unsigned long hash = 0;
 
-	proto = idr_find(&scmi_protocols, protocol_id);
+	/* vendor_id/sub_vendor_id guaranteed <= SCMI_SHORT_NAME_MAX_SIZE */
+	signature = kasprintf(GFP_KERNEL, "%02X|%s|%s|0x%08X", protocol_id,
+			      vendor_id ?: "", sub_vendor_id ?: "", impl_ver);
+	if (!signature)
+		return 0;
+
+	p = signature;
+	while (*p)
+		hash = partial_name_hash(tolower(*p++), hash);
+	hash = end_name_hash(hash);
+
+	kfree(signature);
+
+	return hash;
+}
+
+static unsigned long
+scmi_protocol_key_calculate(int protocol_id, char *vendor_id,
+			    char *sub_vendor_id, u32 impl_ver)
+{
+	if (protocol_id < SCMI_PROTOCOL_VENDOR_BASE)
+		return protocol_id;
+	else
+		return scmi_vendor_protocol_signature(protocol_id, vendor_id,
+						      sub_vendor_id, impl_ver);
+}
+
+static const struct scmi_protocol *
+__scmi_vendor_protocol_lookup(int protocol_id, char *vendor_id,
+			      char *sub_vendor_id, u32 impl_ver)
+{
+	unsigned long key;
+	struct scmi_protocol *proto = NULL;
+
+	key = scmi_protocol_key_calculate(protocol_id, vendor_id,
+					  sub_vendor_id, impl_ver);
+	if (key)
+		proto = xa_load(&scmi_protocols, key);
+
+	return proto;
+}
+
+static const struct scmi_protocol *
+scmi_vendor_protocol_lookup(int protocol_id, char *vendor_id,
+			    char *sub_vendor_id, u32 impl_ver)
+{
+	const struct scmi_protocol *proto = NULL;
+
+	/* Searching for closest match ...*/
+	proto = __scmi_vendor_protocol_lookup(protocol_id, vendor_id,
+					      sub_vendor_id, impl_ver);
+	if (proto)
+		return proto;
+
+	/* Any match just on vendor/sub_vendor ? */
+	if (impl_ver) {
+		proto = __scmi_vendor_protocol_lookup(protocol_id, vendor_id,
+						      sub_vendor_id, 0);
+		if (proto)
+			return proto;
+	}
+
+	/* Any match just on the vendor ? */
+	if (sub_vendor_id)
+		proto = __scmi_vendor_protocol_lookup(protocol_id, vendor_id,
+						      NULL, 0);
+	return proto;
+}
+
+static const struct scmi_protocol *
+scmi_protocol_get(int protocol_id, struct scmi_revision_info *version)
+{
+	const struct scmi_protocol *proto = NULL;
+
+	if (protocol_id < SCMI_PROTOCOL_VENDOR_BASE)
+		proto = xa_load(&scmi_protocols, protocol_id);
+	else
+		proto = scmi_vendor_protocol_lookup(protocol_id,
+						    version->vendor_id,
+						    version->sub_vendor_id,
+						    version->impl_ver);
 	if (!proto || !try_module_get(proto->owner)) {
 		pr_warn("SCMI Protocol 0x%x not found!\n", protocol_id);
 		return NULL;
@@ -197,21 +289,46 @@ static const struct scmi_protocol *scmi_protocol_get(int protocol_id)
 
 	pr_debug("Found SCMI Protocol 0x%x\n", protocol_id);
 
+	if (protocol_id >= SCMI_PROTOCOL_VENDOR_BASE)
+		pr_info("Loaded SCMI Vendor Protocol 0x%x - %s %s %X\n",
+			protocol_id, proto->vendor_id ?: "",
+			proto->sub_vendor_id ?: "", proto->impl_ver);
+
 	return proto;
 }
 
-static void scmi_protocol_put(int protocol_id)
+static void scmi_protocol_put(const struct scmi_protocol *proto)
 {
-	const struct scmi_protocol *proto;
-
-	proto = idr_find(&scmi_protocols, protocol_id);
 	if (proto)
 		module_put(proto->owner);
+}
+
+static int scmi_vendor_protocol_check(const struct scmi_protocol *proto)
+{
+	if (!proto->vendor_id) {
+		pr_err("missing vendor_id for protocol 0x%x\n", proto->id);
+		return -EINVAL;
+	}
+
+	if (strlen(proto->vendor_id) >= SCMI_SHORT_NAME_MAX_SIZE) {
+		pr_err("malformed vendor_id for protocol 0x%x\n", proto->id);
+		return -EINVAL;
+	}
+
+	if (proto->sub_vendor_id &&
+	    strlen(proto->sub_vendor_id) >= SCMI_SHORT_NAME_MAX_SIZE) {
+		pr_err("malformed sub_vendor_id for protocol 0x%x\n",
+		       proto->id);
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 int scmi_protocol_register(const struct scmi_protocol *proto)
 {
 	int ret;
+	unsigned long key;
 
 	if (!proto) {
 		pr_err("invalid protocol\n");
@@ -223,12 +340,23 @@ int scmi_protocol_register(const struct scmi_protocol *proto)
 		return -EINVAL;
 	}
 
-	spin_lock(&protocol_lock);
-	ret = idr_alloc(&scmi_protocols, (void *)proto,
-			proto->id, proto->id + 1, GFP_ATOMIC);
-	spin_unlock(&protocol_lock);
-	if (ret != proto->id) {
-		pr_err("unable to allocate SCMI idr slot for 0x%x - err %d\n",
+	if (proto->id >= SCMI_PROTOCOL_VENDOR_BASE &&
+	    scmi_vendor_protocol_check(proto))
+		return -EINVAL;
+
+	/*
+	 * Calculate a protocol key to register this protocol with the core;
+	 * key value 0 is considered invalid.
+	 */
+	key = scmi_protocol_key_calculate(proto->id, proto->vendor_id,
+					  proto->sub_vendor_id,
+					  proto->impl_ver);
+	if (!key)
+		return -EINVAL;
+
+	ret = xa_insert(&scmi_protocols, key, (void *)proto, GFP_KERNEL);
+	if (ret) {
+		pr_err("unable to allocate SCMI protocol slot for 0x%x - err %d\n",
 		       proto->id, ret);
 		return ret;
 	}
@@ -241,9 +369,15 @@ EXPORT_SYMBOL_GPL(scmi_protocol_register);
 
 void scmi_protocol_unregister(const struct scmi_protocol *proto)
 {
-	spin_lock(&protocol_lock);
-	idr_remove(&scmi_protocols, proto->id);
-	spin_unlock(&protocol_lock);
+	unsigned long key;
+
+	key = scmi_protocol_key_calculate(proto->id, proto->vendor_id,
+					  proto->sub_vendor_id,
+					  proto->impl_ver);
+	if (!key)
+		return;
+
+	xa_erase(&scmi_protocols, key);
 
 	pr_debug("Unregistered SCMI Protocol 0x%x\n", proto->id);
 }
@@ -688,6 +822,45 @@ scmi_xfer_lookup_unlocked(struct scmi_xfers_info *minfo, u16 xfer_id)
 }
 
 /**
+ * scmi_bad_message_trace  - A helper to trace weird messages
+ *
+ * @cinfo: A reference to the channel descriptor on which the message was
+ *	   received
+ * @msg_hdr: Message header to track
+ * @err: A specific error code used as a status value in traces.
+ *
+ * This helper can be used to trace any kind of weird, incomplete, unexpected,
+ * timed-out message that arrives and as such, can be traced only referring to
+ * the header content, since the payload is missing/unreliable.
+ */
+void scmi_bad_message_trace(struct scmi_chan_info *cinfo, u32 msg_hdr,
+			    enum scmi_bad_msg err)
+{
+	char *tag;
+	struct scmi_info *info = handle_to_scmi_info(cinfo->handle);
+
+	switch (MSG_XTRACT_TYPE(msg_hdr)) {
+	case MSG_TYPE_COMMAND:
+		tag = "!RESP";
+		break;
+	case MSG_TYPE_DELAYED_RESP:
+		tag = "!DLYD";
+		break;
+	case MSG_TYPE_NOTIFICATION:
+		tag = "!NOTI";
+		break;
+	default:
+		tag = "!UNKN";
+		break;
+	}
+
+	trace_scmi_msg_dump(info->id, cinfo->id,
+			    MSG_XTRACT_PROT_ID(msg_hdr),
+			    MSG_XTRACT_ID(msg_hdr), tag,
+			    MSG_XTRACT_TOKEN(msg_hdr), err, NULL, 0);
+}
+
+/**
  * scmi_msg_response_validate  - Validate message type against state of related
  * xfer
  *
@@ -813,6 +986,9 @@ scmi_xfer_command_acquire(struct scmi_chan_info *cinfo, u32 msg_hdr)
 			"Message for %d type %d is not expected!\n",
 			xfer_id, msg_type);
 		spin_unlock_irqrestore(&minfo->xfer_lock, flags);
+
+		scmi_bad_message_trace(cinfo, msg_hdr, MSG_UNEXPECTED);
+
 		return xfer;
 	}
 	refcount_inc(&xfer->users);
@@ -837,6 +1013,9 @@ scmi_xfer_command_acquire(struct scmi_chan_info *cinfo, u32 msg_hdr)
 		dev_err(cinfo->dev,
 			"Invalid message type:%d for %d - HDR:0x%X  state:%d\n",
 			msg_type, xfer_id, msg_hdr, xfer->state);
+
+		scmi_bad_message_trace(cinfo, msg_hdr, MSG_INVALID);
+
 		/* On error the refcount incremented above has to be dropped */
 		__scmi_xfer_put(minfo, xfer);
 		xfer = ERR_PTR(-EINVAL);
@@ -873,6 +1052,9 @@ static void scmi_handle_notification(struct scmi_chan_info *cinfo,
 	if (IS_ERR(xfer)) {
 		dev_err(dev, "failed to get free message slot (%ld)\n",
 			PTR_ERR(xfer));
+
+		scmi_bad_message_trace(cinfo, msg_hdr, MSG_NOMEM);
+
 		scmi_clear_channel(info, cinfo);
 		return;
 	}
@@ -992,6 +1174,7 @@ void scmi_rx_callback(struct scmi_chan_info *cinfo, u32 msg_hdr, void *priv)
 		break;
 	default:
 		WARN_ONCE(1, "received unknown msg_type:%d\n", msg_type);
+		scmi_bad_message_trace(cinfo, msg_hdr, MSG_UNKNOWN);
 		break;
 	}
 }
@@ -1392,15 +1575,17 @@ static int version_get(const struct scmi_protocol_handle *ph, u32 *version)
  *
  * @ph: A reference to the protocol handle.
  * @priv: The private data to set.
+ * @version: The detected protocol version for the core to register.
  *
  * Return: 0 on Success
  */
 static int scmi_set_protocol_priv(const struct scmi_protocol_handle *ph,
-				  void *priv)
+				  void *priv, u32 version)
 {
 	struct scmi_protocol_instance *pi = ph_to_pi(ph);
 
 	pi->priv = priv;
+	pi->version = version;
 
 	return 0;
 }
@@ -1438,6 +1623,7 @@ struct scmi_msg_resp_domain_name_get {
  * @ph: A protocol handle reference.
  * @cmd_id: The specific command ID to use.
  * @res_id: The specific resource ID to use.
+ * @flags: A pointer to specific flags to use, if any.
  * @name: A pointer to the preallocated area where the retrieved name will be
  *	  stored as a NULL terminated string.
  * @len: The len in bytes of the @name char array.
@@ -1445,19 +1631,22 @@ struct scmi_msg_resp_domain_name_get {
  * Return: 0 on Succcess
  */
 static int scmi_common_extended_name_get(const struct scmi_protocol_handle *ph,
-					 u8 cmd_id, u32 res_id, char *name,
-					 size_t len)
+					 u8 cmd_id, u32 res_id, u32 *flags,
+					 char *name, size_t len)
 {
 	int ret;
+	size_t txlen;
 	struct scmi_xfer *t;
 	struct scmi_msg_resp_domain_name_get *resp;
 
-	ret = ph->xops->xfer_get_init(ph, cmd_id, sizeof(res_id),
-				      sizeof(*resp), &t);
+	txlen = !flags ? sizeof(res_id) : sizeof(res_id) + sizeof(*flags);
+	ret = ph->xops->xfer_get_init(ph, cmd_id, txlen, sizeof(*resp), &t);
 	if (ret)
 		goto out;
 
 	put_unaligned_le32(res_id, t->tx.buf);
+	if (flags)
+		put_unaligned_le32(*flags, t->tx.buf + sizeof(res_id));
 	resp = t->rx.buf;
 
 	ret = ph->xops->do_xfer(ph, t);
@@ -1471,6 +1660,20 @@ out:
 			 "Failed to get extended name - id:%u (ret:%d). Using %s\n",
 			 res_id, ret, name);
 	return ret;
+}
+
+/**
+ * scmi_common_get_max_msg_size  - Get maximum message size
+ * @ph: A protocol handle reference.
+ *
+ * Return: Maximum message size for the current protocol.
+ */
+static int scmi_common_get_max_msg_size(const struct scmi_protocol_handle *ph)
+{
+	const struct scmi_protocol_instance *pi = ph_to_pi(ph);
+	struct scmi_info *info = handle_to_scmi_info(pi->handle);
+
+	return info->desc->max_msg_size;
 }
 
 /**
@@ -1609,7 +1812,7 @@ static void
 scmi_common_fastchannel_init(const struct scmi_protocol_handle *ph,
 			     u8 describe_id, u32 message_id, u32 valid_size,
 			     u32 domain, void __iomem **p_addr,
-			     struct scmi_fc_db_info **p_db)
+			     struct scmi_fc_db_info **p_db, u32 *rate_limit)
 {
 	int ret;
 	u32 flags;
@@ -1652,6 +1855,9 @@ scmi_common_fastchannel_init(const struct scmi_protocol_handle *ph,
 		ret = -EINVAL;
 		goto err_xfer;
 	}
+
+	if (rate_limit)
+		*rate_limit = le32_to_cpu(resp->rate_limit) & GENMASK(19, 0);
 
 	phys_addr = le32_to_cpu(resp->chan_addr_low);
 	phys_addr |= (u64)le32_to_cpu(resp->chan_addr_high) << 32;
@@ -1746,10 +1952,45 @@ static void scmi_common_fastchannel_db_ring(struct scmi_fc_db_info *db)
 #endif
 }
 
+/**
+ * scmi_protocol_msg_check  - Check protocol message attributes
+ *
+ * @ph: A reference to the protocol handle.
+ * @message_id: The ID of the message to check.
+ * @attributes: A parameter to optionally return the retrieved message
+ *		attributes, in case of Success.
+ *
+ * An helper to check protocol message attributes for a specific protocol
+ * and message pair.
+ *
+ * Return: 0 on SUCCESS
+ */
+static int scmi_protocol_msg_check(const struct scmi_protocol_handle *ph,
+				   u32 message_id, u32 *attributes)
+{
+	int ret;
+	struct scmi_xfer *t;
+
+	ret = xfer_get_init(ph, PROTOCOL_MESSAGE_ATTRIBUTES,
+			    sizeof(__le32), 0, &t);
+	if (ret)
+		return ret;
+
+	put_unaligned_le32(message_id, t->tx.buf);
+	ret = do_xfer(ph, t);
+	if (!ret && attributes)
+		*attributes = get_unaligned_le32(t->rx.buf);
+	xfer_put(ph, t);
+
+	return ret;
+}
+
 static const struct scmi_proto_helpers_ops helpers_ops = {
 	.extended_name_get = scmi_common_extended_name_get,
+	.get_max_msg_size = scmi_common_get_max_msg_size,
 	.iter_response_init = scmi_iterator_init,
 	.iter_response_run = scmi_iterator_run,
+	.protocol_msg_check = scmi_protocol_msg_check,
 	.fastchannel_init = scmi_common_fastchannel_init,
 	.fastchannel_db_ring = scmi_common_fastchannel_db_ring,
 };
@@ -1771,6 +2012,44 @@ scmi_revision_area_get(const struct scmi_protocol_handle *ph)
 	const struct scmi_protocol_instance *pi = ph_to_pi(ph);
 
 	return pi->handle->version;
+}
+
+/**
+ * scmi_protocol_version_negotiate  - Negotiate protocol version
+ *
+ * @ph: A reference to the protocol handle.
+ *
+ * An helper to negotiate a protocol version different from the latest
+ * advertised as supported from the platform: on Success backward
+ * compatibility is assured by the platform.
+ *
+ * Return: 0 on Success
+ */
+static int scmi_protocol_version_negotiate(struct scmi_protocol_handle *ph)
+{
+	int ret;
+	struct scmi_xfer *t;
+	struct scmi_protocol_instance *pi = ph_to_pi(ph);
+
+	/* At first check if NEGOTIATE_PROTOCOL_VERSION is supported ... */
+	ret = scmi_protocol_msg_check(ph, NEGOTIATE_PROTOCOL_VERSION, NULL);
+	if (ret)
+		return ret;
+
+	/* ... then attempt protocol version negotiation */
+	ret = xfer_get_init(ph, NEGOTIATE_PROTOCOL_VERSION,
+			    sizeof(__le32), 0, &t);
+	if (ret)
+		return ret;
+
+	put_unaligned_le32(pi->proto->supported_version, t->tx.buf);
+	ret = do_xfer(ph, t);
+	if (!ret)
+		pi->negotiated_version = pi->proto->supported_version;
+
+	xfer_put(ph, t);
+
+	return ret;
 }
 
 /**
@@ -1801,7 +2080,7 @@ scmi_alloc_init_protocol_instance(struct scmi_info *info,
 	/* Protocol specific devres group */
 	gid = devres_open_group(handle->dev, NULL, GFP_KERNEL);
 	if (!gid) {
-		scmi_protocol_put(proto->id);
+		scmi_protocol_put(proto);
 		goto out;
 	}
 
@@ -1845,11 +2124,27 @@ scmi_alloc_init_protocol_instance(struct scmi_info *info,
 	devres_close_group(handle->dev, pi->gid);
 	dev_dbg(handle->dev, "Initialized protocol: 0x%X\n", pi->proto->id);
 
+	if (pi->version > proto->supported_version) {
+		ret = scmi_protocol_version_negotiate(&pi->ph);
+		if (!ret) {
+			dev_info(handle->dev,
+				 "Protocol 0x%X successfully negotiated version 0x%X\n",
+				 proto->id, pi->negotiated_version);
+		} else {
+			dev_warn(handle->dev,
+				 "Detected UNSUPPORTED higher version 0x%X for protocol 0x%X.\n",
+				 pi->version, pi->proto->id);
+			dev_warn(handle->dev,
+				 "Trying version 0x%X. Backward compatibility is NOT assured.\n",
+				 pi->proto->supported_version);
+		}
+	}
+
 	return pi;
 
 clean:
 	/* Take care to put the protocol module's owner before releasing all */
-	scmi_protocol_put(proto->id);
+	scmi_protocol_put(proto);
 	devres_release_group(handle->dev, gid);
 out:
 	return ERR_PTR(ret);
@@ -1883,7 +2178,7 @@ scmi_get_protocol_instance(const struct scmi_handle *handle, u8 protocol_id)
 		const struct scmi_protocol *proto;
 
 		/* Fails if protocol not registered on bus */
-		proto = scmi_protocol_get(protocol_id);
+		proto = scmi_protocol_get(protocol_id, &info->version);
 		if (proto)
 			pi = scmi_alloc_init_protocol_instance(info, proto);
 		else
@@ -1938,7 +2233,7 @@ void scmi_protocol_release(const struct scmi_handle *handle, u8 protocol_id)
 
 		idr_remove(&info->protocols, protocol_id);
 
-		scmi_protocol_put(protocol_id);
+		scmi_protocol_put(pi->proto);
 
 		devres_release_group(handle->dev, gid);
 		dev_dbg(handle->dev, "De-Initialized protocol: 0x%X\n",
@@ -2385,6 +2680,10 @@ scmi_txrx_setup(struct scmi_info *info, struct device_node *of_node,
 			ret = 0;
 	}
 
+	if (ret)
+		dev_err(info->dev,
+			"failed to setup channel for protocol:0x%X\n", prot_id);
+
 	return ret;
 }
 
@@ -2654,6 +2953,7 @@ static int scmi_debugfs_raw_mode_setup(struct scmi_info *info)
 static int scmi_probe(struct platform_device *pdev)
 {
 	int ret;
+	char *err_str = "probe failure\n";
 	struct scmi_handle *handle;
 	const struct scmi_desc *desc;
 	struct scmi_info *info;
@@ -2704,27 +3004,37 @@ static int scmi_probe(struct platform_device *pdev)
 
 	if (desc->ops->link_supplier) {
 		ret = desc->ops->link_supplier(dev);
-		if (ret)
+		if (ret) {
+			err_str = "transport not ready\n";
 			goto clear_ida;
+		}
 	}
 
 	/* Setup all channels described in the DT at first */
 	ret = scmi_channels_setup(info);
-	if (ret)
+	if (ret) {
+		err_str = "failed to setup channels\n";
 		goto clear_ida;
+	}
 
 	ret = bus_register_notifier(&scmi_bus_type, &info->bus_nb);
-	if (ret)
+	if (ret) {
+		err_str = "failed to register bus notifier\n";
 		goto clear_txrx_setup;
+	}
 
 	ret = blocking_notifier_chain_register(&scmi_requested_devices_nh,
 					       &info->dev_req_nb);
-	if (ret)
+	if (ret) {
+		err_str = "failed to register device notifier\n";
 		goto clear_bus_notifier;
+	}
 
 	ret = scmi_xfer_info_init(info);
-	if (ret)
+	if (ret) {
+		err_str = "failed to init xfers pool\n";
 		goto clear_dev_req_notifier;
+	}
 
 	if (scmi_top_dentry) {
 		info->dbg = scmi_debugfs_common_setup(info);
@@ -2761,9 +3071,11 @@ static int scmi_probe(struct platform_device *pdev)
 	 */
 	ret = scmi_protocol_acquire(handle, SCMI_PROTOCOL_BASE);
 	if (ret) {
-		dev_err(dev, "unable to communicate with SCMI\n");
-		if (coex)
+		err_str = "unable to communicate with SCMI\n";
+		if (coex) {
+			dev_err(dev, "%s", err_str);
 			return 0;
+		}
 		goto notification_exit;
 	}
 
@@ -2817,10 +3129,11 @@ clear_txrx_setup:
 	scmi_cleanup_txrx_channels(info);
 clear_ida:
 	ida_free(&scmi_id, info->id);
-	return ret;
+
+	return dev_err_probe(dev, ret, "%s", err_str);
 }
 
-static int scmi_remove(struct platform_device *pdev)
+static void scmi_remove(struct platform_device *pdev)
 {
 	int id;
 	struct scmi_info *info = platform_get_drvdata(pdev);
@@ -2854,8 +3167,6 @@ static int scmi_remove(struct platform_device *pdev)
 	scmi_cleanup_txrx_channels(info);
 
 	ida_free(&scmi_id, info->id);
-
-	return 0;
 }
 
 static ssize_t protocol_version_show(struct device *dev,
@@ -2933,7 +3244,7 @@ static struct platform_driver scmi_driver = {
 		   .dev_groups = versions_groups,
 		   },
 	.probe = scmi_probe,
-	.remove = scmi_remove,
+	.remove_new = scmi_remove,
 };
 
 /**
@@ -3023,6 +3334,7 @@ static int __init scmi_driver_init(void)
 	scmi_voltage_register();
 	scmi_system_register();
 	scmi_powercap_register();
+	scmi_pinctrl_register();
 
 	return platform_driver_register(&scmi_driver);
 }
@@ -3040,6 +3352,7 @@ static void __exit scmi_driver_exit(void)
 	scmi_voltage_unregister();
 	scmi_system_unregister();
 	scmi_powercap_unregister();
+	scmi_pinctrl_unregister();
 
 	scmi_transports_exit();
 

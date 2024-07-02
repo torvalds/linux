@@ -7,6 +7,10 @@
 
 #include "core.h"
 
+#define BTC_H2C_MAXLEN 2020
+#define BTC_TLV_SLOT_ID_LEN_V7 1
+#define BTC_SLOT_REQ_TH 2
+
 enum btc_mode {
 	BTC_MODE_NORMAL,
 	BTC_MODE_WL,
@@ -23,6 +27,7 @@ enum btc_wl_rfk_type {
 	BTC_WRFKT_DACK = 4,
 	BTC_WRFKT_RXDCK = 5,
 	BTC_WRFKT_TSSI = 6,
+	BTC_WRFKT_CHLK = 7,
 };
 
 #define NM_EXEC false
@@ -142,6 +147,116 @@ enum btc_lps_state {
 	BTC_LPS_RF_ON = 2
 };
 
+#define R_BTC_BB_BTG_RX 0x980
+#define R_BTC_BB_PRE_AGC_S1 0x476C
+#define R_BTC_BB_PRE_AGC_S0 0x4688
+
+#define B_BTC_BB_GNT_MUX GENMASK(20, 17)
+#define B_BTC_BB_PRE_AGC_MASK GENMASK(31, 24)
+#define B_BTC_BB_PRE_AGC_VAL BIT(31)
+
+#define BTC_REG_NOTFOUND 0xff
+
+#define R_BTC_ZB_COEX_TBL_0 0xE328
+#define R_BTC_ZB_COEX_TBL_1 0xE32c
+#define R_BTC_ZB_BREAK_TBL  0xE350
+
+enum btc_ant_div_pos {
+	BTC_ANT_DIV_MAIN = 0,
+	BTC_ANT_DIV_AUX = 1,
+};
+
+enum btc_get_reg_status {
+	BTC_CSTATUS_TXDIV_POS = 0,
+	BTC_CSTATUS_RXDIV_POS = 1,
+	BTC_CSTATUS_BB_GNT_MUX = 2,
+	BTC_CSTATUS_BB_GNT_MUX_MON = 3,
+	BTC_CSTATUS_BB_PRE_AGC = 4,
+	BTC_CSTATUS_BB_PRE_AGC_MON = 5,
+};
+
+enum btc_preagc_type {
+	BTC_PREAGC_DISABLE,
+	BTC_PREAGC_ENABLE,
+	BTC_PREAGC_BB_FWCTRL,
+	BTC_PREAGC_NOTFOUND,
+};
+
+enum btc_btgctrl_type {
+	BTC_BTGCTRL_DISABLE,
+	BTC_BTGCTRL_ENABLE,
+	BTC_BTGCTRL_BB_GNT_FWCTRL,
+	BTC_BTGCTRL_BB_GNT_NOTFOUND,
+};
+
+enum btc_wa_type {
+	BTC_WA_5G_HI_CH_RX = BIT(0),
+	BTC_WA_NULL_AP = BIT(1),
+	BTC_WA_HFP_ZB = BIT(2),  /* HFP PTA req bit4 define issue */
+};
+
+enum btc_3cx_type {
+	BTC_3CX_NONE = 0,
+	BTC_3CX_BT2 = BIT(0),
+	BTC_3CX_ZB = BIT(1),
+	BTC_3CX_LTE = BIT(2),
+	BTC_3CX_MAX,
+};
+
+enum btc_chip_feature {
+	BTC_FEAT_PTA_ONOFF_CTRL  = BIT(0), /* on/off ctrl by HW (not 0x73[2]) */
+	BTC_FEAT_NONBTG_GWL_THRU = BIT(1), /* non-BTG GNT_WL!=0 if GNT_BT = 1 */
+	BTC_FEAT_WLAN_ACT_MUX = BIT(2), /* separate wlan_act/gnt mux */
+	BTC_FEAT_NEW_BBAPI_FLOW = BIT(3), /* new btg_ctrl/pre_agc_ctrl */
+	BTC_FEAT_MLO_SUPPORT = BIT(4),
+	BTC_FEAT_H2C_MACRO = BIT(5),
+};
+
+enum btc_wl_mode {
+	BTC_WL_MODE_11B = 0,
+	BTC_WL_MODE_11A = 1,
+	BTC_WL_MODE_11G = 2,
+	BTC_WL_MODE_HT = 3,
+	BTC_WL_MODE_VHT = 4,
+	BTC_WL_MODE_HE = 5,
+	BTC_WL_MODE_NUM,
+};
+
+enum btc_wl_gpio_debug {
+	BTC_DBG_GNT_BT = 0,
+	BTC_DBG_GNT_WL = 1,
+	BTC_DBG_BCN_EARLY = 2,
+	BTC_DBG_WL_NULL0 = 3,
+	BTC_DBG_WL_NULL1 = 4,
+	BTC_DBG_WL_RXISR = 5,
+	BTC_DBG_TDMA_ENTRY = 6,
+	BTC_DBG_A2DP_EMPTY = 7,
+	BTC_DBG_BT_RETRY = 8,
+	BTC_DBG_BT_RELINK = 9,
+	BTC_DBG_SLOT_WL = 10,
+	BTC_DBG_SLOT_BT = 11,
+	BTC_DBG_WL_ERR = 12,
+	BTC_DBG_WL_OK = 13,
+	BTC_DBG_SLOT_B2W = 14,
+	BTC_DBG_SLOT_W1 = 15,
+	BTC_DBG_SLOT_W2 = 16,
+	BTC_DBG_SLOT_W2B = 17,
+	BTC_DBG_SLOT_B1 = 18,
+	BTC_DBG_SLOT_B2 = 19,
+	BTC_DBG_SLOT_B3 = 20,
+	BTC_DBG_SLOT_B4 = 21,
+	BTC_DBG_SLOT_LK = 22,
+	BTC_DBG_SLOT_E2G = 23,
+	BTC_DBG_SLOT_E5G = 24,
+	BTC_DBG_SLOT_EBT = 25,
+	BTC_DBG_SLOT_WLK = 26,
+	BTC_DBG_SLOT_B1FDD = 27,
+	BTC_DBG_BT_CHANGE = 28,
+	BTC_DBG_WL_CCA = 29,
+	BTC_DBG_BT_LEAUDIO = 30,
+	BTC_DBG_USER_DEF = 31,
+};
+
 void rtw89_btc_ntfy_poweron(struct rtw89_dev *rtwdev);
 void rtw89_btc_ntfy_poweroff(struct rtw89_dev *rtwdev);
 void rtw89_btc_ntfy_init(struct rtw89_dev *rtwdev, u8 mode);
@@ -200,6 +315,58 @@ static inline u16 rtw89_coex_query_bt_req_len(struct rtw89_dev *rtwdev,
 	struct rtw89_btc *btc = &rtwdev->btc;
 
 	return btc->bt_req_len;
+}
+
+static inline u32 rtw89_get_antpath_type(u8 phy_map, u8 type)
+{
+	return ((phy_map << 8) + type);
+}
+
+static inline
+void _slot_set_le(struct rtw89_btc *btc, u8 sid, __le16 dura, __le32 tbl, __le16 type)
+{
+	if (btc->ver->fcxslots == 1) {
+		btc->dm.slot.v1[sid].dur = dura;
+		btc->dm.slot.v1[sid].cxtbl = tbl;
+		btc->dm.slot.v1[sid].cxtype = type;
+	} else if (btc->ver->fcxslots == 7) {
+		btc->dm.slot.v7[sid].dur = dura;
+		btc->dm.slot.v7[sid].cxtype = type;
+		btc->dm.slot.v7[sid].cxtbl = tbl;
+	}
+}
+
+static inline
+void _slot_set(struct rtw89_btc *btc, u8 sid, u16 dura, u32 tbl, u16 type)
+{
+	_slot_set_le(btc, sid, cpu_to_le16(dura), cpu_to_le32(tbl), cpu_to_le16(type));
+}
+
+static inline
+void _slot_set_dur(struct rtw89_btc *btc, u8 sid, u16 dura)
+{
+	if (btc->ver->fcxslots == 1)
+		btc->dm.slot.v1[sid].dur = cpu_to_le16(dura);
+	else if (btc->ver->fcxslots == 7)
+		btc->dm.slot.v7[sid].dur = cpu_to_le16(dura);
+}
+
+static inline
+void _slot_set_type(struct rtw89_btc *btc, u8 sid, u16 type)
+{
+	if (btc->ver->fcxslots == 1)
+		btc->dm.slot.v1[sid].cxtype = cpu_to_le16(type);
+	else if (btc->ver->fcxslots == 7)
+		btc->dm.slot.v7[sid].cxtype = cpu_to_le16(type);
+}
+
+static inline
+void _slot_set_tbl(struct rtw89_btc *btc, u8 sid, u32 tbl)
+{
+	if (btc->ver->fcxslots == 1)
+		btc->dm.slot.v1[sid].cxtbl = cpu_to_le32(tbl);
+	else if (btc->ver->fcxslots == 7)
+		btc->dm.slot.v7[sid].cxtbl = cpu_to_le32(tbl);
 }
 
 #endif

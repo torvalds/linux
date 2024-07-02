@@ -210,7 +210,7 @@ static void slave_event(struct mlx4_dev *dev, u8 slave, struct mlx4_eqe *eqe)
 
 	memcpy(s_eqe, eqe, sizeof(struct mlx4_eqe) - 1);
 	s_eqe->slave_id = slave;
-	/* ensure all information is written before setting the ownersip bit */
+	/* ensure all information is written before setting the ownership bit */
 	dma_wmb();
 	s_eqe->owner = !!(slave_eq->prod & SLAVE_EVENT_EQ_SIZE) ? 0x0 : 0x80;
 	++slave_eq->prod;

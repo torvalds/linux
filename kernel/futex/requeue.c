@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <linux/plist.h>
 #include <linux/sched/signal.h>
 
 #include "futex.h"

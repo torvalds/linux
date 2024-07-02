@@ -1537,7 +1537,7 @@ static int ibmveth_change_mtu(struct net_device *dev, int new_mtu)
 		adapter->rx_buff_pool[i].active = 1;
 
 		if (new_mtu_oh <= adapter->rx_buff_pool[i].buff_size) {
-			dev->mtu = new_mtu;
+			WRITE_ONCE(dev->mtu, new_mtu);
 			vio_cmo_set_dev_desired(viodev,
 						ibmveth_get_desired_dma
 						(viodev));

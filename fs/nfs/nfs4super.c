@@ -145,6 +145,7 @@ static int do_nfs4_mount(struct nfs_server *server,
 			 const char *export_path)
 {
 	struct nfs_fs_context *root_ctx;
+	struct nfs_fs_context *ctx;
 	struct fs_context *root_fc;
 	struct vfsmount *root_mnt;
 	struct dentry *dentry;
@@ -153,6 +154,12 @@ static int do_nfs4_mount(struct nfs_server *server,
 
 	struct fs_parameter param = {
 		.key	= "source",
+		.type	= fs_value_is_string,
+		.dirfd	= -1,
+	};
+
+	struct fs_parameter param_fsc = {
+		.key	= "fsc",
 		.type	= fs_value_is_string,
 		.dirfd	= -1,
 	};
@@ -168,9 +175,26 @@ static int do_nfs4_mount(struct nfs_server *server,
 	kfree(root_fc->source);
 	root_fc->source = NULL;
 
+	ctx = nfs_fc2context(fc);
 	root_ctx = nfs_fc2context(root_fc);
 	root_ctx->internal = true;
 	root_ctx->server = server;
+
+	if (ctx->fscache_uniq) {
+		len = strlen(ctx->fscache_uniq);
+		param_fsc.size = len;
+		param_fsc.string = kmemdup_nul(ctx->fscache_uniq, len, GFP_KERNEL);
+		if (param_fsc.string == NULL) {
+			put_fs_context(root_fc);
+			return -ENOMEM;
+		}
+		ret = vfs_parse_fs_param(root_fc, &param_fsc);
+		kfree(param_fsc.string);
+		if (ret < 0) {
+			put_fs_context(root_fc);
+			return ret;
+		}
+	}
 	/* We leave export_path unset as it's not used to find the root. */
 
 	len = strlen(hostname) + 5;

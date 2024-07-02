@@ -673,7 +673,7 @@ int btrfs_ref_tree_mod(struct btrfs_fs_info *fs_info,
 	int ret = 0;
 	bool metadata;
 	u64 bytenr = generic_ref->bytenr;
-	u64 num_bytes = generic_ref->len;
+	u64 num_bytes = generic_ref->num_bytes;
 	u64 parent = generic_ref->parent;
 	u64 ref_root = 0;
 	u64 owner = 0;
@@ -684,11 +684,11 @@ int btrfs_ref_tree_mod(struct btrfs_fs_info *fs_info,
 
 	if (generic_ref->type == BTRFS_REF_METADATA) {
 		if (!parent)
-			ref_root = generic_ref->tree_ref.ref_root;
+			ref_root = generic_ref->ref_root;
 		owner = generic_ref->tree_ref.level;
 	} else if (!parent) {
-		ref_root = generic_ref->data_ref.ref_root;
-		owner = generic_ref->data_ref.ino;
+		ref_root = generic_ref->ref_root;
+		owner = generic_ref->data_ref.objectid;
 		offset = generic_ref->data_ref.offset;
 	}
 	metadata = owner < BTRFS_FIRST_FREE_OBJECTID;
@@ -794,6 +794,7 @@ int btrfs_ref_tree_mod(struct btrfs_fs_info *fs_info,
 			dump_ref_action(fs_info, ra);
 			kfree(ref);
 			kfree(ra);
+			kfree(re);
 			goto out_unlock;
 		} else if (be->num_refs == 0) {
 			btrfs_err(fs_info,
@@ -803,6 +804,7 @@ int btrfs_ref_tree_mod(struct btrfs_fs_info *fs_info,
 			dump_ref_action(fs_info, ra);
 			kfree(ref);
 			kfree(ra);
+			kfree(re);
 			goto out_unlock;
 		}
 
@@ -887,8 +889,10 @@ int btrfs_ref_tree_mod(struct btrfs_fs_info *fs_info,
 out_unlock:
 	spin_unlock(&fs_info->ref_verify_lock);
 out:
-	if (ret)
+	if (ret) {
+		btrfs_free_ref_cache(fs_info);
 		btrfs_clear_opt(fs_info->mount_opt, REF_VERIFY);
+	}
 	return ret;
 }
 
@@ -1019,8 +1023,8 @@ int btrfs_build_ref_tree(struct btrfs_fs_info *fs_info)
 		}
 	}
 	if (ret) {
-		btrfs_clear_opt(fs_info->mount_opt, REF_VERIFY);
 		btrfs_free_ref_cache(fs_info);
+		btrfs_clear_opt(fs_info->mount_opt, REF_VERIFY);
 	}
 	btrfs_free_path(path);
 	return ret;

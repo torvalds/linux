@@ -35,7 +35,7 @@ scmi_pd_set_perf_state(struct generic_pm_domain *genpd, unsigned int state)
 	if (!state)
 		return -EINVAL;
 
-	ret = pd->perf_ops->level_set(pd->ph, pd->domain_id, state, true);
+	ret = pd->perf_ops->level_set(pd->ph, pd->domain_id, state, false);
 	if (ret)
 		dev_warn(&genpd->dev, "Failed with %d when trying to set %d perf level",
 			 ret, state);
@@ -158,6 +158,9 @@ static void scmi_perf_domain_remove(struct scmi_device *sdev)
 	struct device *dev = &sdev->dev;
 	struct genpd_onecell_data *scmi_pd_data = dev_get_drvdata(dev);
 	int i;
+
+	if (!scmi_pd_data)
+		return;
 
 	of_genpd_del_provider(dev->of_node);
 

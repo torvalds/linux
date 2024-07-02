@@ -14,9 +14,11 @@
 struct perf_mem_event {
 	bool		record;
 	bool		supported;
+	bool		ldlat;
+	u32		aux_event;
 	const char	*tag;
 	const char	*name;
-	const char	*sysfs_name;
+	const char	*event_name;
 };
 
 struct mem_info {
@@ -34,17 +36,18 @@ enum {
 };
 
 extern unsigned int perf_mem_events__loads_ldlat;
+extern struct perf_mem_event perf_mem_events[PERF_MEM_EVENTS__MAX];
 
-int perf_mem_events__parse(const char *str);
-int perf_mem_events__init(void);
+int perf_pmu__mem_events_parse(struct perf_pmu *pmu, const char *str);
+int perf_pmu__mem_events_init(struct perf_pmu *pmu);
 
-const char *perf_mem_events__name(int i, const char *pmu_name);
-struct perf_mem_event *perf_mem_events__ptr(int i);
+struct perf_mem_event *perf_pmu__mem_events_ptr(struct perf_pmu *pmu, int i);
+struct perf_pmu *perf_mem_events_find_pmu(void);
+int perf_pmu__mem_events_num_mem_pmus(struct perf_pmu *pmu);
 bool is_mem_loads_aux_event(struct evsel *leader);
 
-void perf_mem_events__list(void);
-int perf_mem_events__record_args(const char **rec_argv, int *argv_nr,
-				 char **rec_tmp, int *tmp_nr);
+void perf_pmu__mem_events_list(struct perf_pmu *pmu);
+int perf_mem_events__record_args(const char **rec_argv, int *argv_nr);
 
 int perf_mem__tlb_scnprintf(char *out, size_t sz, struct mem_info *mem_info);
 int perf_mem__lvl_scnprintf(char *out, size_t sz, struct mem_info *mem_info);

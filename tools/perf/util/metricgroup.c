@@ -44,6 +44,8 @@ struct metric_event *metricgroup__lookup(struct rblist *metric_events,
 	if (!metric_events)
 		return NULL;
 
+	if (evsel && evsel->metric_leader)
+		me.evsel = evsel->metric_leader;
 	nd = rblist__find(metric_events, &me);
 	if (nd)
 		return container_of(nd, struct metric_event, nd);
@@ -225,7 +227,7 @@ static struct metric *metric__new(const struct pmu_metric *pm,
 
 	m->pmu = pm->pmu ?: "cpu";
 	m->metric_name = pm->metric_name;
-	m->default_metricgroup_name = pm->default_metricgroup_name;
+	m->default_metricgroup_name = pm->default_metricgroup_name ?: "";
 	m->modifier = NULL;
 	if (modifier) {
 		m->modifier = strdup(modifier);
@@ -286,7 +288,7 @@ static int setup_metric_events(const char *pmu, struct hashmap *ids,
 	*out_metric_events = NULL;
 	ids_size = hashmap__size(ids);
 
-	metric_events = calloc(sizeof(void *), ids_size + 1);
+	metric_events = calloc(ids_size + 1, sizeof(void *));
 	if (!metric_events)
 		return -ENOMEM;
 
@@ -350,25 +352,23 @@ static int setup_metric_events(const char *pmu, struct hashmap *ids,
 	return 0;
 }
 
-static bool match_metric(const char *n, const char *list)
+static bool match_metric(const char *metric_or_groups, const char *sought)
 {
 	int len;
 	char *m;
 
-	if (!list)
+	if (!sought)
 		return false;
-	if (!strcmp(list, "all"))
+	if (!strcmp(sought, "all"))
 		return true;
-	if (!n)
-		return !strcasecmp(list, "No_group");
-	len = strlen(list);
-	m = strcasestr(n, list);
-	if (!m)
-		return false;
-	if ((m == n || m[-1] == ';' || m[-1] == ' ') &&
-	    (m[len] == 0 || m[len] == ';'))
+	if (!metric_or_groups)
+		return !strcasecmp(sought, "No_group");
+	len = strlen(sought);
+	if (!strncasecmp(metric_or_groups, sought, len) &&
+	    (metric_or_groups[len] == 0 || metric_or_groups[len] == ';'))
 		return true;
-	return false;
+	m = strchr(metric_or_groups, ';');
+	return m && match_metric(m + 1, sought);
 }
 
 static bool match_pm_metric(const struct pmu_metric *pm, const char *pmu, const char *metric)
@@ -498,7 +498,7 @@ static int metricgroup__sys_event_iter(const struct pmu_metric *pm,
 
 	while ((pmu = perf_pmus__scan(pmu))) {
 
-		if (!pmu->id || strcmp(pmu->id, pm->compat))
+		if (!pmu->id || !pmu_uncore_identifier_match(pm->compat, pmu->id))
 			continue;
 
 		return d->fn(pm, table, d->data);

@@ -520,7 +520,7 @@ static const struct snd_soc_dapm_route rt1017_sdca_dapm_routes[] = {
 	{ "DP2TX", NULL, "V Sense" },
 };
 
-static struct sdw_slave_ops rt1017_sdca_slave_ops = {
+static const struct sdw_slave_ops rt1017_sdca_slave_ops = {
 	.read_prop = rt1017_sdca_read_prop,
 	.update_status = rt1017_sdca_update_status,
 };
@@ -809,7 +809,6 @@ static const struct dev_pm_ops rt1017_sdca_pm = {
 static struct sdw_driver rt1017_sdca_sdw_driver = {
 	.driver = {
 		.name = "rt1017-sdca",
-		.owner = THIS_MODULE,
 		.pm = &rt1017_sdca_pm,
 	},
 	.probe = rt1017_sdca_sdw_probe,

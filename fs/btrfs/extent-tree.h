@@ -3,11 +3,21 @@
 #ifndef BTRFS_EXTENT_TREE_H
 #define BTRFS_EXTENT_TREE_H
 
+#include <linux/types.h>
 #include "misc.h"
 #include "block-group.h"
+#include "locking.h"
 
+struct extent_buffer;
 struct btrfs_free_cluster;
+struct btrfs_fs_info;
+struct btrfs_root;
+struct btrfs_path;
+struct btrfs_ref;
+struct btrfs_disk_key;
 struct btrfs_delayed_ref_head;
+struct btrfs_delayed_ref_root;
+struct btrfs_extent_inline_ref;
 
 enum btrfs_extent_allocation_policy {
 	BTRFS_EXTENT_ALLOC_CLUSTERED,
@@ -99,7 +109,8 @@ u64 btrfs_cleanup_ref_head_accounting(struct btrfs_fs_info *fs_info,
 int btrfs_lookup_data_extent(struct btrfs_fs_info *fs_info, u64 start, u64 len);
 int btrfs_lookup_extent_info(struct btrfs_trans_handle *trans,
 			     struct btrfs_fs_info *fs_info, u64 bytenr,
-			     u64 offset, int metadata, u64 *refs, u64 *flags);
+			     u64 offset, int metadata, u64 *refs, u64 *flags,
+			     u64 *owner_root);
 int btrfs_pin_extent(struct btrfs_trans_handle *trans, u64 bytenr, u64 num,
 		     int reserved);
 int btrfs_pin_extent_for_log_replay(struct btrfs_trans_handle *trans,

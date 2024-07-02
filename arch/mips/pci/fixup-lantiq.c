@@ -4,20 +4,11 @@
  *  Copyright (C) 2012 John Crispin <john@phrozen.org>
  */
 
-#include <linux/of_irq.h>
 #include <linux/of_pci.h>
-
-int (*ltq_pci_plat_arch_init)(struct pci_dev *dev) = NULL;
-int (*ltq_pci_plat_dev_init)(struct pci_dev *dev) = NULL;
+#include <linux/pci.h>
 
 int pcibios_plat_dev_init(struct pci_dev *dev)
 {
-	if (ltq_pci_plat_arch_init)
-		return ltq_pci_plat_arch_init(dev);
-
-	if (ltq_pci_plat_dev_init)
-		return ltq_pci_plat_dev_init(dev);
-
 	return 0;
 }
 

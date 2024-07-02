@@ -97,6 +97,8 @@ static inline void flush_cache_vmap(unsigned long start, unsigned long end)
 		__flush_cache_vmap();
 }
 
+#define flush_cache_vmap_early(start, end)     do { } while (0)
+
 extern void (*__flush_cache_vunmap)(void);
 
 static inline void flush_cache_vunmap(unsigned long start, unsigned long end)

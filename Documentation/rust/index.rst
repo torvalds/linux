@@ -40,6 +40,7 @@ configurations.
     general-information
     coding-guidelines
     arch-support
+    testing
 
 .. only::  subproject and html
 

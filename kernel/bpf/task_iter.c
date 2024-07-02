@@ -70,15 +70,13 @@ static struct task_struct *task_group_seq_get_next(struct bpf_iter_seq_task_comm
 		return NULL;
 
 retry:
-	task = next_thread(task);
+	task = __next_thread(task);
+	if (!task)
+		return NULL;
 
 	next_tid = __task_pid_nr_ns(task, PIDTYPE_PID, common->ns);
-	if (!next_tid || next_tid == common->pid) {
-		/* Run out of tasks of a process.  The tasks of a
-		 * thread_group are linked as circular linked list.
-		 */
-		return NULL;
-	}
+	if (!next_tid)
+		goto retry;
 
 	if (skip_if_dup_files && task->files == task->group_leader->files)
 		goto retry;
@@ -704,7 +702,7 @@ static struct bpf_iter_reg task_reg_info = {
 	.ctx_arg_info_size	= 1,
 	.ctx_arg_info		= {
 		{ offsetof(struct bpf_iter__task, task),
-		  PTR_TO_BTF_ID_OR_NULL },
+		  PTR_TO_BTF_ID_OR_NULL | PTR_TRUSTED },
 	},
 	.seq_info		= &task_seq_info,
 	.fill_link_info		= bpf_iter_fill_link_info,
@@ -822,9 +820,7 @@ struct bpf_iter_task_vma_kern {
 	struct bpf_iter_task_vma_kern_data *data;
 } __attribute__((aligned(8)));
 
-__diag_push();
-__diag_ignore_all("-Wmissing-prototypes",
-		  "Global functions as their definitions will be in vmlinux BTF");
+__bpf_kfunc_start_defs();
 
 __bpf_kfunc int bpf_iter_task_vma_new(struct bpf_iter_task_vma *it,
 				      struct task_struct *task, u64 addr)
@@ -890,7 +886,9 @@ __bpf_kfunc void bpf_iter_task_vma_destroy(struct bpf_iter_task_vma *it)
 	}
 }
 
-__diag_pop();
+__bpf_kfunc_end_defs();
+
+#ifdef CONFIG_CGROUPS
 
 struct bpf_iter_css_task {
 	__u64 __opaque[1];
@@ -900,9 +898,7 @@ struct bpf_iter_css_task_kern {
 	struct css_task_iter *css_it;
 } __attribute__((aligned(8)));
 
-__diag_push();
-__diag_ignore_all("-Wmissing-prototypes",
-		  "Global functions as their definitions will be in vmlinux BTF");
+__bpf_kfunc_start_defs();
 
 __bpf_kfunc int bpf_iter_css_task_new(struct bpf_iter_css_task *it,
 		struct cgroup_subsys_state *css, unsigned int flags)
@@ -948,7 +944,9 @@ __bpf_kfunc void bpf_iter_css_task_destroy(struct bpf_iter_css_task *it)
 	bpf_mem_free(&bpf_global_ma, kit->css_it);
 }
 
-__diag_pop();
+__bpf_kfunc_end_defs();
+
+#endif /* CONFIG_CGROUPS */
 
 struct bpf_iter_task {
 	__u64 __opaque[3];
@@ -969,9 +967,7 @@ enum {
 	BPF_TASK_ITER_PROC_THREADS
 };
 
-__diag_push();
-__diag_ignore_all("-Wmissing-prototypes",
-		  "Global functions as their definitions will be in vmlinux BTF");
+__bpf_kfunc_start_defs();
 
 __bpf_kfunc int bpf_iter_task_new(struct bpf_iter_task *it,
 		struct task_struct *task__nullable, unsigned int flags)
@@ -982,7 +978,8 @@ __bpf_kfunc int bpf_iter_task_new(struct bpf_iter_task *it,
 	BUILD_BUG_ON(__alignof__(struct bpf_iter_task_kern) !=
 					__alignof__(struct bpf_iter_task));
 
-	kit->task = kit->pos = NULL;
+	kit->pos = NULL;
+
 	switch (flags) {
 	case BPF_TASK_ITER_ALL_THREADS:
 	case BPF_TASK_ITER_ALL_PROCS:
@@ -1019,20 +1016,16 @@ __bpf_kfunc struct task_struct *bpf_iter_task_next(struct bpf_iter_task *it)
 	if (flags == BPF_TASK_ITER_ALL_PROCS)
 		goto get_next_task;
 
-	kit->pos = next_thread(kit->pos);
-	if (kit->pos == kit->task) {
-		if (flags == BPF_TASK_ITER_PROC_THREADS) {
-			kit->pos = NULL;
-			return pos;
-		}
-	} else
+	kit->pos = __next_thread(kit->pos);
+	if (kit->pos || flags == BPF_TASK_ITER_PROC_THREADS)
 		return pos;
 
 get_next_task:
-	kit->pos = next_task(kit->pos);
-	kit->task = kit->pos;
-	if (kit->pos == &init_task)
+	kit->task = next_task(kit->task);
+	if (kit->task == &init_task)
 		kit->pos = NULL;
+	else
+		kit->pos = kit->task;
 
 	return pos;
 }
@@ -1041,7 +1034,7 @@ __bpf_kfunc void bpf_iter_task_destroy(struct bpf_iter_task *it)
 {
 }
 
-__diag_pop();
+__bpf_kfunc_end_defs();
 
 DEFINE_PER_CPU(struct mmap_unlock_irq_work, mmap_unlock_work);
 

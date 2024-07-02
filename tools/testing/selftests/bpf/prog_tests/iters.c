@@ -193,6 +193,7 @@ static void subtest_task_iters(void)
 	ASSERT_EQ(skel->bss->procs_cnt, 1, "procs_cnt");
 	ASSERT_EQ(skel->bss->threads_cnt, thread_num + 1, "threads_cnt");
 	ASSERT_EQ(skel->bss->proc_threads_cnt, thread_num + 1, "proc_threads_cnt");
+	ASSERT_EQ(skel->bss->invalid_cnt, 0, "invalid_cnt");
 	pthread_mutex_unlock(&do_nothing_mutex);
 	for (int i = 0; i < thread_num; i++)
 		ASSERT_OK(pthread_join(thread_ids[i], &ret), "pthread_join");
@@ -294,6 +295,7 @@ void test_iters(void)
 	RUN_TESTS(iters_state_safety);
 	RUN_TESTS(iters_looping);
 	RUN_TESTS(iters);
+	RUN_TESTS(iters_css_task);
 
 	if (env.has_testmod)
 		RUN_TESTS(iters_testmod_seq);

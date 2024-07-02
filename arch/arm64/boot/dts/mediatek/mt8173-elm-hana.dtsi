@@ -13,8 +13,7 @@
 	touchscreen2: touchscreen@34 {
 		compatible = "melfas,mip4_ts";
 		reg = <0x34>;
-		interrupt-parent = <&pio>;
-		interrupts = <88 IRQ_TYPE_LEVEL_LOW>;
+		interrupts-extended = <&pio 88 IRQ_TYPE_LEVEL_LOW>;
 	};
 
 	/*
@@ -26,8 +25,7 @@
 		compatible = "hid-over-i2c";
 		reg = <0x20>;
 		hid-descr-addr = <0x0020>;
-		interrupt-parent = <&pio>;
-		interrupts = <88 IRQ_TYPE_LEVEL_LOW>;
+		interrupts-extended = <&pio 88 IRQ_TYPE_LEVEL_LOW>;
 	};
 };
 
@@ -39,8 +37,7 @@
 	 */
 	trackpad2: trackpad@2c {
 		compatible = "hid-over-i2c";
-		interrupt-parent = <&pio>;
-		interrupts = <117 IRQ_TYPE_LEVEL_LOW>;
+		interrupts-extended = <&pio 117 IRQ_TYPE_LEVEL_LOW>;
 		reg = <0x2c>;
 		hid-descr-addr = <0x0020>;
 		wakeup-source;

@@ -4,7 +4,7 @@
 
 :Original: :ref:`Documentation/process/embargoed-hardware-issues.rst <embargoed_hardware_issues>`
 :Translator: Alex Shi <alex.shi@linux.alibaba.com>
-             Hu Haowen <src.res.211@gmail.com>
+             Hu Haowen <2023002089@link.tyut.edu.cn>
 
 被限制的硬件問題
 ================
@@ -180,7 +180,7 @@ CVE分配
   AMD		Tom Lendacky <thomas.lendacky@amd.com>
   IBM
   Intel		Tony Luck <tony.luck@intel.com>
-  Qualcomm	Trilok Soni <tsoni@codeaurora.org>
+  Qualcomm	Trilok Soni <quic_tsoni@quicinc.com>
 
   Microsoft	Sasha Levin <sashal@kernel.org>
   VMware

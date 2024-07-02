@@ -340,14 +340,11 @@ int amdgpu_display_crtc_set_config(struct drm_mode_set *set,
 		adev->have_disp_power_ref = true;
 		return ret;
 	}
-	/* if we have no active crtcs, then drop the power ref
-	 * we got before
+	/* if we have no active crtcs, then go to
+	 * drop the power ref we got before
 	 */
-	if (!active && adev->have_disp_power_ref) {
-		pm_runtime_put_autosuspend(dev->dev);
+	if (!active && adev->have_disp_power_ref)
 		adev->have_disp_power_ref = false;
-	}
-
 out:
 	/* drop the power reference we got coming in here */
 	pm_runtime_put_autosuspend(dev->dev);
@@ -1352,14 +1349,6 @@ int amdgpu_display_modeset_create_props(struct amdgpu_device *adev)
 		drm_property_create_enum(adev_to_drm(adev), 0,
 					 "dither",
 					 amdgpu_dither_enum_list, sz);
-
-	if (adev->dc_enabled) {
-		adev->mode_info.abm_level_property =
-			drm_property_create_range(adev_to_drm(adev), 0,
-						  "abm level", 0, 4);
-		if (!adev->mode_info.abm_level_property)
-			return -ENOMEM;
-	}
 
 	return 0;
 }

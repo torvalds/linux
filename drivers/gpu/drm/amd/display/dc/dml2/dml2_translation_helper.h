@@ -34,7 +34,7 @@ void dml2_init_soc_states(struct dml2_context *dml2, const struct dc *in_dc,
 void dml2_translate_ip_params(const struct dc *in_dc, struct ip_params_st *out);
 void dml2_translate_socbb_params(const struct dc *in_dc, struct soc_bounding_box_st *out);
 void dml2_translate_soc_states(const struct dc *in_dc, struct soc_states_st *out, int num_states);
-void map_dc_state_into_dml_display_cfg(struct dml2_context *dml2, const struct dc_state *context, struct dml_display_cfg_st *dml_dispcfg);
+void map_dc_state_into_dml_display_cfg(struct dml2_context *dml2, struct dc_state *context, struct dml_display_cfg_st *dml_dispcfg);
 void dml2_update_pipe_ctx_dchub_regs(struct _vcs_dpi_dml_display_rq_regs_st *rq_regs, struct _vcs_dpi_dml_display_dlg_regs_st *disp_dlg_regs, struct _vcs_dpi_dml_display_ttu_regs_st *disp_ttu_regs, struct pipe_ctx *out);
 bool is_dp2p0_output_encoder(const struct pipe_ctx *pipe);
 

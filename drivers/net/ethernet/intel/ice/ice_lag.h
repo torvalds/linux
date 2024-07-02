@@ -17,6 +17,9 @@ enum ice_lag_role {
 #define ICE_LAG_INVALID_PORT 0xFF
 
 #define ICE_LAG_RESET_RETRIES		5
+#define ICE_SW_DEFAULT_PROFILE		0
+#define ICE_FV_PROT_MDID		255
+#define ICE_LP_EXT_BUF_OFFSET		32
 
 struct ice_pf;
 struct ice_vf;
@@ -40,7 +43,8 @@ struct ice_lag {
 	u8 primary:1; /* this is primary */
 	u16 pf_recipe;
 	u16 lport_recipe;
-	u16 pf_rule_id;
+	u16 pf_rx_rule_id;
+	u16 pf_tx_rule_id;
 	u16 cp_rule_idx;
 	u16 lport_rule_idx;
 	u8 role;
@@ -65,4 +69,5 @@ int ice_init_lag(struct ice_pf *pf);
 void ice_deinit_lag(struct ice_pf *pf);
 void ice_lag_rebuild(struct ice_pf *pf);
 bool ice_lag_is_switchdev_running(struct ice_pf *pf);
+void ice_lag_move_vf_nodes_cfg(struct ice_lag *lag, u8 src_prt, u8 dst_prt);
 #endif /* _ICE_LAG_H_ */

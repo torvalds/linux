@@ -1712,6 +1712,10 @@ static bool carl9170_tx_frames_pending(struct ieee80211_hw *hw)
 }
 
 static const struct ieee80211_ops carl9170_ops = {
+	.add_chanctx = ieee80211_emulate_add_chanctx,
+	.remove_chanctx = ieee80211_emulate_remove_chanctx,
+	.change_chanctx = ieee80211_emulate_change_chanctx,
+	.switch_vif_chanctx = ieee80211_emulate_switch_vif_chanctx,
 	.start			= carl9170_op_start,
 	.stop			= carl9170_op_stop,
 	.tx			= carl9170_op_tx,

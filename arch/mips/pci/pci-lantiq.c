@@ -152,7 +152,7 @@ static int ltq_pci_startup(struct platform_device *pdev)
 		temp_buffer &= ~0xf0000;
 	/* enable internal arbiter */
 	temp_buffer |= (1 << INTERNAL_ARB_ENABLE_BIT);
-	/* enable internal PCI master reqest */
+	/* enable internal PCI master request */
 	temp_buffer &= (~(3 << PCI_MASTER0_REQ_MASK_2BITS));
 
 	/* enable EBU request */

@@ -16,12 +16,10 @@ struct extent_map;
 struct btrfs_file_extent_item;
 struct btrfs_ordered_extent;
 struct btrfs_delayed_ref_node;
-struct btrfs_delayed_tree_ref;
-struct btrfs_delayed_data_ref;
 struct btrfs_delayed_ref_head;
 struct btrfs_block_group;
 struct btrfs_free_cluster;
-struct map_lookup;
+struct btrfs_chunk_map;
 struct extent_buffer;
 struct btrfs_work;
 struct btrfs_workqueue;
@@ -265,20 +263,19 @@ DEFINE_EVENT(btrfs__inode, btrfs_inode_evict,
 	__print_symbolic_u64(type,					\
 		{ EXTENT_MAP_LAST_BYTE, "LAST_BYTE" 	},		\
 		{ EXTENT_MAP_HOLE, 	"HOLE" 		},		\
-		{ EXTENT_MAP_INLINE, 	"INLINE" 	},		\
-		{ EXTENT_MAP_DELALLOC,	"DELALLOC" 	})
+		{ EXTENT_MAP_INLINE,	"INLINE"	})
 
 #define show_map_type(type)			\
 	type, (type >= EXTENT_MAP_LAST_BYTE) ? "-" :  __show_map_type(type)
 
 #define show_map_flags(flag)						\
 	__print_flags(flag, "|",					\
-		{ (1 << EXTENT_FLAG_PINNED), 		"PINNED" 	},\
-		{ (1 << EXTENT_FLAG_COMPRESSED), 	"COMPRESSED" 	},\
-		{ (1 << EXTENT_FLAG_PREALLOC), 		"PREALLOC" 	},\
-		{ (1 << EXTENT_FLAG_LOGGING),	 	"LOGGING" 	},\
-		{ (1 << EXTENT_FLAG_FILLING),	 	"FILLING" 	},\
-		{ (1 << EXTENT_FLAG_FS_MAPPING),	"FS_MAPPING"	})
+		{ EXTENT_FLAG_PINNED,		"PINNED"	},\
+		{ EXTENT_FLAG_COMPRESS_ZLIB,	"COMPRESS_ZLIB"	},\
+		{ EXTENT_FLAG_COMPRESS_LZO,	"COMPRESS_LZO"	},\
+		{ EXTENT_FLAG_COMPRESS_ZSTD,	"COMPRESS_ZSTD"	},\
+		{ EXTENT_FLAG_PREALLOC,		"PREALLOC"	},\
+		{ EXTENT_FLAG_LOGGING,		"LOGGING"	})
 
 TRACE_EVENT_CONDITION(btrfs_get_extent,
 
@@ -297,9 +294,8 @@ TRACE_EVENT_CONDITION(btrfs_get_extent,
 		__field(	u64,  orig_start	)
 		__field(	u64,  block_start	)
 		__field(	u64,  block_len		)
-		__field(	unsigned long,  flags	)
+		__field(	u32,  flags		)
 		__field(	int,  refs		)
-		__field(	unsigned int,  compress_type	)
 	),
 
 	TP_fast_assign_btrfs(root->fs_info,
@@ -312,13 +308,11 @@ TRACE_EVENT_CONDITION(btrfs_get_extent,
 		__entry->block_len	= map->block_len;
 		__entry->flags		= map->flags;
 		__entry->refs		= refcount_read(&map->refs);
-		__entry->compress_type	= map->compress_type;
 	),
 
 	TP_printk_btrfs("root=%llu(%s) ino=%llu start=%llu len=%llu "
 		  "orig_start=%llu block_start=%llu(%s) "
-		  "block_len=%llu flags=%s refs=%u "
-		  "compress_type=%u",
+		  "block_len=%llu flags=%s refs=%u",
 		  show_root_type(__entry->root_objectid),
 		  __entry->ino,
 		  __entry->start,
@@ -327,7 +321,7 @@ TRACE_EVENT_CONDITION(btrfs_get_extent,
 		  show_map_type(__entry->block_start),
 		  __entry->block_len,
 		  show_map_flags(__entry->flags),
-		  __entry->refs, __entry->compress_type)
+		  __entry->refs)
 );
 
 TRACE_EVENT(btrfs_handle_em_exist,
@@ -872,11 +866,9 @@ TRACE_EVENT(btrfs_add_block_group,
 DECLARE_EVENT_CLASS(btrfs_delayed_tree_ref,
 
 	TP_PROTO(const struct btrfs_fs_info *fs_info,
-		 const struct btrfs_delayed_ref_node *ref,
-		 const struct btrfs_delayed_tree_ref *full_ref,
-		 int action),
+		 const struct btrfs_delayed_ref_node *ref),
 
-	TP_ARGS(fs_info, ref, full_ref, action),
+	TP_ARGS(fs_info, ref),
 
 	TP_STRUCT__entry_btrfs(
 		__field(	u64,  bytenr		)
@@ -892,10 +884,10 @@ DECLARE_EVENT_CLASS(btrfs_delayed_tree_ref,
 	TP_fast_assign_btrfs(fs_info,
 		__entry->bytenr		= ref->bytenr;
 		__entry->num_bytes	= ref->num_bytes;
-		__entry->action		= action;
-		__entry->parent		= full_ref->parent;
-		__entry->ref_root	= full_ref->root;
-		__entry->level		= full_ref->level;
+		__entry->action		= ref->action;
+		__entry->parent		= ref->parent;
+		__entry->ref_root	= ref->ref_root;
+		__entry->level		= ref->tree_ref.level;
 		__entry->type		= ref->type;
 		__entry->seq		= ref->seq;
 	),
@@ -915,31 +907,25 @@ DECLARE_EVENT_CLASS(btrfs_delayed_tree_ref,
 DEFINE_EVENT(btrfs_delayed_tree_ref,  add_delayed_tree_ref,
 
 	TP_PROTO(const struct btrfs_fs_info *fs_info,
-		 const struct btrfs_delayed_ref_node *ref,
-		 const struct btrfs_delayed_tree_ref *full_ref,
-		 int action),
+		 const struct btrfs_delayed_ref_node *ref),
 
-	TP_ARGS(fs_info, ref, full_ref, action)
+	TP_ARGS(fs_info, ref)
 );
 
 DEFINE_EVENT(btrfs_delayed_tree_ref,  run_delayed_tree_ref,
 
 	TP_PROTO(const struct btrfs_fs_info *fs_info,
-		 const struct btrfs_delayed_ref_node *ref,
-		 const struct btrfs_delayed_tree_ref *full_ref,
-		 int action),
+		 const struct btrfs_delayed_ref_node *ref),
 
-	TP_ARGS(fs_info, ref, full_ref, action)
+	TP_ARGS(fs_info, ref)
 );
 
 DECLARE_EVENT_CLASS(btrfs_delayed_data_ref,
 
 	TP_PROTO(const struct btrfs_fs_info *fs_info,
-		 const struct btrfs_delayed_ref_node *ref,
-		 const struct btrfs_delayed_data_ref *full_ref,
-		 int action),
+		 const struct btrfs_delayed_ref_node *ref),
 
-	TP_ARGS(fs_info, ref, full_ref, action),
+	TP_ARGS(fs_info, ref),
 
 	TP_STRUCT__entry_btrfs(
 		__field(	u64,  bytenr		)
@@ -956,11 +942,11 @@ DECLARE_EVENT_CLASS(btrfs_delayed_data_ref,
 	TP_fast_assign_btrfs(fs_info,
 		__entry->bytenr		= ref->bytenr;
 		__entry->num_bytes	= ref->num_bytes;
-		__entry->action		= action;
-		__entry->parent		= full_ref->parent;
-		__entry->ref_root	= full_ref->root;
-		__entry->owner		= full_ref->objectid;
-		__entry->offset		= full_ref->offset;
+		__entry->action		= ref->action;
+		__entry->parent		= ref->parent;
+		__entry->ref_root	= ref->ref_root;
+		__entry->owner		= ref->data_ref.objectid;
+		__entry->offset		= ref->data_ref.offset;
 		__entry->type		= ref->type;
 		__entry->seq		= ref->seq;
 	),
@@ -982,21 +968,17 @@ DECLARE_EVENT_CLASS(btrfs_delayed_data_ref,
 DEFINE_EVENT(btrfs_delayed_data_ref,  add_delayed_data_ref,
 
 	TP_PROTO(const struct btrfs_fs_info *fs_info,
-		 const struct btrfs_delayed_ref_node *ref,
-		 const struct btrfs_delayed_data_ref *full_ref,
-		 int action),
+		 const struct btrfs_delayed_ref_node *ref),
 
-	TP_ARGS(fs_info, ref, full_ref, action)
+	TP_ARGS(fs_info, ref)
 );
 
 DEFINE_EVENT(btrfs_delayed_data_ref,  run_delayed_data_ref,
 
 	TP_PROTO(const struct btrfs_fs_info *fs_info,
-		 const struct btrfs_delayed_ref_node *ref,
-		 const struct btrfs_delayed_data_ref *full_ref,
-		 int action),
+		 const struct btrfs_delayed_ref_node *ref),
 
-	TP_ARGS(fs_info, ref, full_ref, action)
+	TP_ARGS(fs_info, ref)
 );
 
 DECLARE_EVENT_CLASS(btrfs_delayed_ref_head,
@@ -1061,7 +1043,7 @@ DEFINE_EVENT(btrfs_delayed_ref_head,  run_delayed_ref_head,
 DECLARE_EVENT_CLASS(btrfs__chunk,
 
 	TP_PROTO(const struct btrfs_fs_info *fs_info,
-		 const struct map_lookup *map, u64 offset, u64 size),
+		 const struct btrfs_chunk_map *map, u64 offset, u64 size),
 
 	TP_ARGS(fs_info, map, offset, size),
 
@@ -1095,7 +1077,7 @@ DECLARE_EVENT_CLASS(btrfs__chunk,
 DEFINE_EVENT(btrfs__chunk,  btrfs_chunk_alloc,
 
 	TP_PROTO(const struct btrfs_fs_info *fs_info,
-		 const struct map_lookup *map, u64 offset, u64 size),
+		 const struct btrfs_chunk_map *map, u64 offset, u64 size),
 
 	TP_ARGS(fs_info, map, offset, size)
 );
@@ -1103,7 +1085,7 @@ DEFINE_EVENT(btrfs__chunk,  btrfs_chunk_alloc,
 DEFINE_EVENT(btrfs__chunk,  btrfs_chunk_free,
 
 	TP_PROTO(const struct btrfs_fs_info *fs_info,
-		 const struct map_lookup *map, u64 offset, u64 size),
+		 const struct btrfs_chunk_map *map, u64 offset, u64 size),
 
 	TP_ARGS(fs_info, map, offset, size)
 );
@@ -2099,17 +2081,12 @@ TRACE_EVENT(btrfs_set_extent_bit,
 		__field(	unsigned,	set_bits)
 	),
 
-	TP_fast_assign_btrfs(tree->fs_info,
-		__entry->owner = tree->owner;
-		if (tree->inode) {
-			const struct btrfs_inode *inode = tree->inode;
+	TP_fast_assign_btrfs(extent_io_tree_to_fs_info(tree),
+		const struct btrfs_inode *inode = extent_io_tree_to_inode_const(tree);
 
-			__entry->ino	= btrfs_ino(inode);
-			__entry->rootid	= inode->root->root_key.objectid;
-		} else {
-			__entry->ino	= 0;
-			__entry->rootid	= 0;
-		}
+		__entry->owner		= tree->owner;
+		__entry->ino		= inode ? btrfs_ino(inode) : 0;
+		__entry->rootid		= inode ? inode->root->root_key.objectid : 0;
 		__entry->start		= start;
 		__entry->len		= len;
 		__entry->set_bits	= set_bits;
@@ -2137,17 +2114,12 @@ TRACE_EVENT(btrfs_clear_extent_bit,
 		__field(	unsigned,	clear_bits)
 	),
 
-	TP_fast_assign_btrfs(tree->fs_info,
-		__entry->owner = tree->owner;
-		if (tree->inode) {
-			const struct btrfs_inode *inode = tree->inode;
+	TP_fast_assign_btrfs(extent_io_tree_to_fs_info(tree),
+		const struct btrfs_inode *inode = extent_io_tree_to_inode_const(tree);
 
-			__entry->ino	= btrfs_ino(inode);
-			__entry->rootid	= inode->root->root_key.objectid;
-		} else {
-			__entry->ino	= 0;
-			__entry->rootid	= 0;
-		}
+		__entry->owner		= tree->owner;
+		__entry->ino		= inode ? btrfs_ino(inode) : 0;
+		__entry->rootid		= inode ? inode->root->root_key.objectid : 0;
 		__entry->start		= start;
 		__entry->len		= len;
 		__entry->clear_bits	= clear_bits;
@@ -2176,17 +2148,12 @@ TRACE_EVENT(btrfs_convert_extent_bit,
 		__field(	unsigned,	clear_bits)
 	),
 
-	TP_fast_assign_btrfs(tree->fs_info,
-		__entry->owner = tree->owner;
-		if (tree->inode) {
-			const struct btrfs_inode *inode = tree->inode;
+	TP_fast_assign_btrfs(extent_io_tree_to_fs_info(tree),
+		const struct btrfs_inode *inode = extent_io_tree_to_inode_const(tree);
 
-			__entry->ino	= btrfs_ino(inode);
-			__entry->rootid	= inode->root->root_key.objectid;
-		} else {
-			__entry->ino	= 0;
-			__entry->rootid	= 0;
-		}
+		__entry->owner		= tree->owner;
+		__entry->ino		= inode ? btrfs_ino(inode) : 0;
+		__entry->rootid		= inode ? inode->root->root_key.objectid : 0;
 		__entry->start		= start;
 		__entry->len		= len;
 		__entry->set_bits	= set_bits;
@@ -2568,6 +2535,105 @@ TRACE_EVENT(btrfs_get_raid_extent_offset,
 	TP_printk_btrfs("logical=%llu length=%llu physical=%llu devid=%llu",
 			__entry->logical, __entry->length, __entry->physical,
 			__entry->devid)
+);
+
+TRACE_EVENT(btrfs_extent_map_shrinker_count,
+
+	TP_PROTO(const struct btrfs_fs_info *fs_info, long nr),
+
+	TP_ARGS(fs_info, nr),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	long,	nr	)
+	),
+
+	TP_fast_assign_btrfs(fs_info,
+		__entry->nr		= nr;
+	),
+
+	TP_printk_btrfs("nr=%ld", __entry->nr)
+);
+
+TRACE_EVENT(btrfs_extent_map_shrinker_scan_enter,
+
+	TP_PROTO(const struct btrfs_fs_info *fs_info, long nr_to_scan, long nr),
+
+	TP_ARGS(fs_info, nr_to_scan, nr),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	long,	nr_to_scan	)
+		__field(	long,	nr		)
+		__field(	u64,	last_root_id	)
+		__field(	u64,	last_ino	)
+	),
+
+	TP_fast_assign_btrfs(fs_info,
+		__entry->nr_to_scan	= nr_to_scan;
+		__entry->nr		= nr;
+		__entry->last_root_id	= fs_info->extent_map_shrinker_last_root;
+		__entry->last_ino	= fs_info->extent_map_shrinker_last_ino;
+	),
+
+	TP_printk_btrfs("nr_to_scan=%ld nr=%ld last_root=%llu(%s) last_ino=%llu",
+			__entry->nr_to_scan, __entry->nr,
+			show_root_type(__entry->last_root_id), __entry->last_ino)
+);
+
+TRACE_EVENT(btrfs_extent_map_shrinker_scan_exit,
+
+	TP_PROTO(const struct btrfs_fs_info *fs_info, long nr_dropped, long nr),
+
+	TP_ARGS(fs_info, nr_dropped, nr),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	long,	nr_dropped	)
+		__field(	long,	nr		)
+		__field(	u64,	last_root_id	)
+		__field(	u64,	last_ino	)
+	),
+
+	TP_fast_assign_btrfs(fs_info,
+		__entry->nr_dropped	= nr_dropped;
+		__entry->nr		= nr;
+		__entry->last_root_id	= fs_info->extent_map_shrinker_last_root;
+		__entry->last_ino	= fs_info->extent_map_shrinker_last_ino;
+	),
+
+	TP_printk_btrfs("nr_dropped=%ld nr=%ld last_root=%llu(%s) last_ino=%llu",
+			__entry->nr_dropped, __entry->nr,
+			show_root_type(__entry->last_root_id), __entry->last_ino)
+);
+
+TRACE_EVENT(btrfs_extent_map_shrinker_remove_em,
+
+	TP_PROTO(const struct btrfs_inode *inode, const struct extent_map *em),
+
+	TP_ARGS(inode, em),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	u64,	ino		)
+		__field(	u64,	root_id		)
+		__field(	u64,	start		)
+		__field(	u64,	len		)
+		__field(	u64,	block_start	)
+		__field(	u32,	flags		)
+	),
+
+	TP_fast_assign_btrfs(inode->root->fs_info,
+		__entry->ino		= btrfs_ino(inode);
+		__entry->root_id	= inode->root->root_key.objectid;
+		__entry->start		= em->start;
+		__entry->len		= em->len;
+		__entry->block_start	= em->block_start;
+		__entry->flags		= em->flags;
+	),
+
+	TP_printk_btrfs(
+"ino=%llu root=%llu(%s) start=%llu len=%llu block_start=%llu(%s) flags=%s",
+			__entry->ino, show_root_type(__entry->root_id),
+			__entry->start, __entry->len,
+			show_map_type(__entry->block_start),
+			show_map_flags(__entry->flags))
 );
 
 #endif /* _TRACE_BTRFS_H */

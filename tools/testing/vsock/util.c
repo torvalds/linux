@@ -33,8 +33,7 @@ void init_signals(void)
 	signal(SIGPIPE, SIG_IGN);
 }
 
-/* Parse a CID in string representation */
-unsigned int parse_cid(const char *str)
+static unsigned int parse_uint(const char *str, const char *err_str)
 {
 	char *endptr = NULL;
 	unsigned long n;
@@ -42,10 +41,22 @@ unsigned int parse_cid(const char *str)
 	errno = 0;
 	n = strtoul(str, &endptr, 10);
 	if (errno || *endptr != '\0') {
-		fprintf(stderr, "malformed CID \"%s\"\n", str);
+		fprintf(stderr, "malformed %s \"%s\"\n", err_str, str);
 		exit(EXIT_FAILURE);
 	}
 	return n;
+}
+
+/* Parse a CID in string representation */
+unsigned int parse_cid(const char *str)
+{
+	return parse_uint(str, "CID");
+}
+
+/* Parse a port in string representation */
+unsigned int parse_port(const char *str)
+{
+	return parse_uint(str, "port");
 }
 
 /* Wait for the remote to close the connection */
@@ -85,6 +96,48 @@ void vsock_wait_remote_close(int fd)
 	close(epollfd);
 }
 
+/* Bind to <bind_port>, connect to <cid, port> and return the file descriptor. */
+int vsock_bind_connect(unsigned int cid, unsigned int port, unsigned int bind_port, int type)
+{
+	struct sockaddr_vm sa_client = {
+		.svm_family = AF_VSOCK,
+		.svm_cid = VMADDR_CID_ANY,
+		.svm_port = bind_port,
+	};
+	struct sockaddr_vm sa_server = {
+		.svm_family = AF_VSOCK,
+		.svm_cid = cid,
+		.svm_port = port,
+	};
+
+	int client_fd, ret;
+
+	client_fd = socket(AF_VSOCK, type, 0);
+	if (client_fd < 0) {
+		perror("socket");
+		exit(EXIT_FAILURE);
+	}
+
+	if (bind(client_fd, (struct sockaddr *)&sa_client, sizeof(sa_client))) {
+		perror("bind");
+		exit(EXIT_FAILURE);
+	}
+
+	timeout_begin(TIMEOUT);
+	do {
+		ret = connect(client_fd, (struct sockaddr *)&sa_server, sizeof(sa_server));
+		timeout_check("connect");
+	} while (ret < 0 && errno == EINTR);
+	timeout_end();
+
+	if (ret < 0) {
+		perror("connect");
+		exit(EXIT_FAILURE);
+	}
+
+	return client_fd;
+}
+
 /* Connect to <cid, port> and return the file descriptor. */
 static int vsock_connect(unsigned int cid, unsigned int port, int type)
 {
@@ -104,6 +157,10 @@ static int vsock_connect(unsigned int cid, unsigned int port, int type)
 	control_expectln("LISTENING");
 
 	fd = socket(AF_VSOCK, type, 0);
+	if (fd < 0) {
+		perror("socket");
+		exit(EXIT_FAILURE);
+	}
 
 	timeout_begin(TIMEOUT);
 	do {
@@ -132,11 +189,8 @@ int vsock_seqpacket_connect(unsigned int cid, unsigned int port)
 	return vsock_connect(cid, port, SOCK_SEQPACKET);
 }
 
-/* Listen on <cid, port> and return the first incoming connection.  The remote
- * address is stored to clientaddrp.  clientaddrp may be NULL.
- */
-static int vsock_accept(unsigned int cid, unsigned int port,
-			struct sockaddr_vm *clientaddrp, int type)
+/* Listen on <cid, port> and return the file descriptor. */
+static int vsock_listen(unsigned int cid, unsigned int port, int type)
 {
 	union {
 		struct sockaddr sa;
@@ -148,16 +202,13 @@ static int vsock_accept(unsigned int cid, unsigned int port,
 			.svm_cid = cid,
 		},
 	};
-	union {
-		struct sockaddr sa;
-		struct sockaddr_vm svm;
-	} clientaddr;
-	socklen_t clientaddr_len = sizeof(clientaddr.svm);
 	int fd;
-	int client_fd;
-	int old_errno;
 
 	fd = socket(AF_VSOCK, type, 0);
+	if (fd < 0) {
+		perror("socket");
+		exit(EXIT_FAILURE);
+	}
 
 	if (bind(fd, &addr.sa, sizeof(addr.svm)) < 0) {
 		perror("bind");
@@ -168,6 +219,24 @@ static int vsock_accept(unsigned int cid, unsigned int port,
 		perror("listen");
 		exit(EXIT_FAILURE);
 	}
+
+	return fd;
+}
+
+/* Listen on <cid, port> and return the first incoming connection.  The remote
+ * address is stored to clientaddrp.  clientaddrp may be NULL.
+ */
+static int vsock_accept(unsigned int cid, unsigned int port,
+			struct sockaddr_vm *clientaddrp, int type)
+{
+	union {
+		struct sockaddr sa;
+		struct sockaddr_vm svm;
+	} clientaddr;
+	socklen_t clientaddr_len = sizeof(clientaddr.svm);
+	int fd, client_fd, old_errno;
+
+	fd = vsock_listen(cid, port, type);
 
 	control_writeln("LISTENING");
 
@@ -205,6 +274,11 @@ int vsock_stream_accept(unsigned int cid, unsigned int port,
 			struct sockaddr_vm *clientaddrp)
 {
 	return vsock_accept(cid, port, clientaddrp, SOCK_STREAM);
+}
+
+int vsock_stream_listen(unsigned int cid, unsigned int port)
+{
+	return vsock_listen(cid, port, SOCK_STREAM);
 }
 
 int vsock_seqpacket_accept(unsigned int cid, unsigned int port,

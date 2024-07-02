@@ -2184,9 +2184,6 @@ struct hi847 {
 
 	/* To serialize asynchronus callbacks */
 	struct mutex mutex;
-
-	/* Streaming on/off */
-	bool streaming;
 };
 
 static u64 to_pixel_rate(u32 f_index)
@@ -2618,14 +2615,10 @@ static int hi847_set_stream(struct v4l2_subdev *sd, int enable)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret = 0;
 
-	if (hi847->streaming == enable)
-		return 0;
-
 	mutex_lock(&hi847->mutex);
 	if (enable) {
-		ret = pm_runtime_get_sync(&client->dev);
-		if (ret < 0) {
-			pm_runtime_put_noidle(&client->dev);
+		ret = pm_runtime_resume_and_get(&client->dev);
+		if (ret) {
 			mutex_unlock(&hi847->mutex);
 			return ret;
 		}
@@ -2641,49 +2634,8 @@ static int hi847_set_stream(struct v4l2_subdev *sd, int enable)
 		pm_runtime_put(&client->dev);
 	}
 
-	hi847->streaming = enable;
 	mutex_unlock(&hi847->mutex);
 
-	return ret;
-}
-
-static int __maybe_unused hi847_suspend(struct device *dev)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct hi847 *hi847 = to_hi847(sd);
-
-	mutex_lock(&hi847->mutex);
-	if (hi847->streaming)
-		hi847_stop_streaming(hi847);
-
-	mutex_unlock(&hi847->mutex);
-
-	return 0;
-}
-
-static int __maybe_unused hi847_resume(struct device *dev)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct hi847 *hi847 = to_hi847(sd);
-	int ret;
-
-	mutex_lock(&hi847->mutex);
-	if (hi847->streaming) {
-		ret = hi847_start_streaming(hi847);
-		if (ret)
-			goto error;
-	}
-
-	mutex_unlock(&hi847->mutex);
-
-	return 0;
-
-error:
-	hi847_stop_streaming(hi847);
-	hi847->streaming = 0;
-	mutex_unlock(&hi847->mutex);
 	return ret;
 }
 
@@ -2703,7 +2655,7 @@ static int hi847_set_format(struct v4l2_subdev *sd,
 	mutex_lock(&hi847->mutex);
 	hi847_assign_pad_format(mode, &fmt->format);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		*v4l2_subdev_get_try_format(sd, sd_state, fmt->pad) =
+		*v4l2_subdev_state_get_format(sd_state, fmt->pad) =
 			fmt->format;
 	} else {
 		hi847->cur_mode = mode;
@@ -2738,9 +2690,8 @@ static int hi847_get_format(struct v4l2_subdev *sd,
 
 	mutex_lock(&hi847->mutex);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY)
-		fmt->format = *v4l2_subdev_get_try_format(&hi847->sd,
-							  sd_state,
-							  fmt->pad);
+		fmt->format = *v4l2_subdev_state_get_format(sd_state,
+							    fmt->pad);
 	else
 		hi847_assign_pad_format(hi847->cur_mode, &fmt->format);
 
@@ -2785,7 +2736,7 @@ static int hi847_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 
 	mutex_lock(&hi847->mutex);
 	hi847_assign_pad_format(&supported_modes[0],
-				v4l2_subdev_get_try_format(sd, fh->state, 0));
+				v4l2_subdev_state_get_format(fh->state, 0));
 	mutex_unlock(&hi847->mutex);
 
 	return 0;
@@ -2980,10 +2931,6 @@ probe_error_v4l2_ctrl_handler_free:
 	return ret;
 }
 
-static const struct dev_pm_ops hi847_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(hi847_suspend, hi847_resume)
-};
-
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id hi847_acpi_ids[] = {
 	{"HYV0847"},
@@ -2996,7 +2943,6 @@ MODULE_DEVICE_TABLE(acpi, hi847_acpi_ids);
 static struct i2c_driver hi847_i2c_driver = {
 	.driver = {
 		.name = "hi847",
-		.pm = &hi847_pm_ops,
 		.acpi_match_table = ACPI_PTR(hi847_acpi_ids),
 	},
 	.probe = hi847_probe,

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef ATH12K_CORE_H
@@ -13,6 +13,7 @@
 #include <linux/bitfield.h>
 #include <linux/dmi.h>
 #include <linux/ctype.h>
+#include <linux/firmware.h>
 #include "qmi.h"
 #include "htc.h"
 #include "wmi.h"
@@ -24,6 +25,8 @@
 #include "hal_rx.h"
 #include "reg.h"
 #include "dbring.h"
+#include "fw.h"
+#include "acpi.h"
 
 #define SM(_v, _f) (((_v) << _f##_LSB) & _f##_MASK)
 
@@ -44,6 +47,7 @@
 #define ATH12K_SMBIOS_BDF_EXT_MAGIC "BDF_"
 
 #define ATH12K_INVALID_HW_MAC_ID	0xFF
+#define ATH12K_CONNECTION_LOSS_HZ	(3 * HZ)
 #define	ATH12K_RX_RATE_TABLE_NUM	320
 #define	ATH12K_RX_RATE_TABLE_11AX_NUM	576
 
@@ -54,6 +58,11 @@
 #define ATH12K_RESET_FAIL_TIMEOUT_HZ		(20 * HZ)
 #define ATH12K_RECONFIGURE_TIMEOUT_HZ		(10 * HZ)
 #define ATH12K_RECOVER_START_TIMEOUT_HZ		(20 * HZ)
+
+enum ath12k_bdf_search {
+	ATH12K_BDF_SEARCH_DEFAULT,
+	ATH12K_BDF_SEARCH_BUS_AND_BOARD,
+};
 
 enum wme_ac {
 	WME_AC_BE,
@@ -199,10 +208,30 @@ enum ath12k_dev_flags {
 	ATH12K_FLAG_REGISTERED,
 	ATH12K_FLAG_QMI_FAIL,
 	ATH12K_FLAG_HTC_SUSPEND_COMPLETE,
+	ATH12K_FLAG_CE_IRQ_ENABLED,
+	ATH12K_FLAG_EXT_IRQ_ENABLED,
 };
 
 enum ath12k_monitor_flags {
 	ATH12K_FLAG_MONITOR_ENABLED,
+};
+
+struct ath12k_tx_conf {
+	bool changed;
+	u16 ac;
+	struct ieee80211_tx_queue_params tx_queue_params;
+};
+
+struct ath12k_key_conf {
+	bool changed;
+	enum set_key_cmd cmd;
+	struct ieee80211_key_conf *key;
+};
+
+struct ath12k_vif_cache {
+	struct ath12k_tx_conf tx_conf;
+	struct ath12k_key_conf key_conf;
+	u32 bss_conf_changed;
 };
 
 struct ath12k_vif {
@@ -242,11 +271,13 @@ struct ath12k_vif {
 		} ap;
 	} u;
 
+	bool is_created;
 	bool is_started;
 	bool is_up;
 	u32 aid;
 	u8 bssid[ETH_ALEN];
 	struct cfg80211_bitrate_mask bitrate_mask;
+	struct delayed_work connection_loss_work;
 	int num_legacy_stations;
 	int rtscts_prot_mode;
 	int txpower;
@@ -257,10 +288,13 @@ struct ath12k_vif {
 	u8 tx_encap_type;
 	u8 vdev_stats_id;
 	u32 punct_bitmap;
+	bool ps;
+	struct ath12k_vif_cache *cache;
 };
 
 struct ath12k_vif_iter {
 	u32 vdev_id;
+	struct ath12k *ar;
 	struct ath12k_vif *arvif;
 };
 
@@ -418,7 +452,7 @@ struct ath12k_sta {
 };
 
 #define ATH12K_MIN_5G_FREQ 4150
-#define ATH12K_MIN_6G_FREQ 5945
+#define ATH12K_MIN_6G_FREQ 5925
 #define ATH12K_MAX_6G_FREQ 7115
 #define ATH12K_NUM_CHANS 100
 #define ATH12K_MAX_5G_CHAN 173
@@ -441,6 +475,10 @@ struct ath12k_fw_stats {
 	struct list_head pdevs;
 	struct list_head vdevs;
 	struct list_head bcn;
+};
+
+struct ath12k_debug {
+	struct dentry *debugfs_pdev;
 };
 
 struct ath12k_per_peer_tx_stats {
@@ -466,8 +504,7 @@ struct ath12k_per_peer_tx_stats {
 struct ath12k {
 	struct ath12k_base *ab;
 	struct ath12k_pdev *pdev;
-	struct ieee80211_hw *hw;
-	struct ieee80211_ops *ops;
+	struct ath12k_hw *ah;
 	struct ath12k_wmi_pdev *wmi;
 	struct ath12k_pdev_dp dp;
 	u8 mac_addr[ETH_ALEN];
@@ -531,6 +568,7 @@ struct ath12k {
 	/* pdev_idx starts from 0 whereas pdev->pdev_id starts with 1 */
 	u8 pdev_idx;
 	u8 lmac_id;
+	u8 hw_link_id;
 
 	struct completion peer_assoc_done;
 	struct completion peer_delete_done;
@@ -582,12 +620,27 @@ struct ath12k {
 	struct ath12k_per_peer_tx_stats cached_stats;
 	u32 last_ppdu_id;
 	u32 cached_ppdu_id;
+#ifdef CONFIG_ATH12K_DEBUGFS
+	struct ath12k_debug debug;
+#endif
 
 	bool dfs_block_radar_events;
 	bool monitor_conf_enabled;
 	bool monitor_vdev_created;
 	bool monitor_started;
 	int monitor_vdev_id;
+
+	u32 freq_low;
+	u32 freq_high;
+};
+
+struct ath12k_hw {
+	struct ieee80211_hw *hw;
+	bool regd_updated;
+	bool use_6ghz_regd;
+
+	u8 num_radio;
+	struct ath12k radio[] __aligned(sizeof(void *));
 };
 
 struct ath12k_band_cap {
@@ -671,6 +724,21 @@ struct ath12k_soc_dp_stats {
 	struct ath12k_soc_dp_tx_err_stats tx_err;
 };
 
+/**
+ * enum ath12k_link_capable_flags - link capable flags
+ *
+ * Single/Multi link capability information
+ *
+ * @ATH12K_INTRA_DEVICE_MLO_SUPPORT: SLO/MLO form between the radio, where all
+ *	the links (radios) present within a device.
+ * @ATH12K_INTER_DEVICE_MLO_SUPPORT: SLO/MLO form between the radio, where all
+ *	the links (radios) present across the devices.
+ */
+enum ath12k_link_capable_flags {
+	ATH12K_INTRA_DEVICE_MLO_SUPPORT	= BIT(0),
+	ATH12K_INTER_DEVICE_MLO_SUPPORT	= BIT(1),
+};
+
 /* Master structure to hold the hw data which may be used in core module */
 struct ath12k_base {
 	enum ath12k_hw_rev hw_rev;
@@ -723,6 +791,16 @@ struct ath12k_base {
 	u8 fw_pdev_count;
 
 	struct ath12k_pdev __rcu *pdevs_active[MAX_RADIOS];
+
+	/* Holds information of wiphy (hw) registration.
+	 *
+	 * In Multi/Single Link Operation case, all pdevs are registered as
+	 * a single wiphy. In other (legacy/Non-MLO) cases, each pdev is
+	 * registered as separate wiphys.
+	 */
+	struct ath12k_hw *ah[MAX_RADIOS];
+	u8 num_hw;
+
 	struct ath12k_wmi_hal_reg_capabilities_ext_arg hal_reg_cap[MAX_RADIOS];
 	unsigned long long free_vdev_map;
 	unsigned long long free_vdev_stats_id_map;
@@ -755,6 +833,9 @@ struct ath12k_base {
 	/* Current DFS Regulatory */
 	enum ath12k_dfs_region dfs_region;
 	struct ath12k_soc_dp_stats soc_stats;
+#ifdef CONFIG_ATH12K_DEBUGFS
+	struct dentry *debugfs_soc;
+#endif
 
 	unsigned long dev_flags;
 	struct completion driver_recovery;
@@ -792,8 +873,63 @@ struct ath12k_base {
 	/* true means radio is on */
 	bool rfkill_radio_on;
 
+	struct {
+		enum ath12k_bdf_search bdf_search;
+		u32 vendor;
+		u32 device;
+		u32 subsystem_vendor;
+		u32 subsystem_device;
+	} id;
+
+	struct {
+		u32 api_version;
+
+		const struct firmware *fw;
+		const u8 *amss_data;
+		size_t amss_len;
+		const u8 *amss_dualmac_data;
+		size_t amss_dualmac_len;
+		const u8 *m3_data;
+		size_t m3_len;
+
+		DECLARE_BITMAP(fw_features, ATH12K_FW_FEATURE_COUNT);
+	} fw;
+
+	const struct hal_rx_ops *hal_rx_ops;
+
+	/* mlo_capable_flags denotes the single/multi link operation
+	 * capabilities of the Device.
+	 *
+	 * See enum ath12k_link_capable_flags
+	 */
+	u8 mlo_capable_flags;
+
+	struct completion restart_completed;
+
+#ifdef CONFIG_ACPI
+
+	struct {
+		bool started;
+		u32 func_bit;
+		bool acpi_tas_enable;
+		bool acpi_bios_sar_enable;
+		u8 tas_cfg[ATH12K_ACPI_DSM_TAS_CFG_SIZE];
+		u8 tas_sar_power_table[ATH12K_ACPI_DSM_TAS_DATA_SIZE];
+		u8 bios_sar_data[ATH12K_ACPI_DSM_BIOS_SAR_DATA_SIZE];
+		u8 geo_offset_data[ATH12K_ACPI_DSM_GEO_OFFSET_DATA_SIZE];
+		u8 cca_data[ATH12K_ACPI_DSM_CCA_DATA_SIZE];
+		u8 band_edge_power[ATH12K_ACPI_DSM_BAND_EDGE_DATA_SIZE];
+	} acpi;
+
+#endif /* CONFIG_ACPI */
+
 	/* must be last */
 	u8 drv_priv[] __aligned(sizeof(void *));
+};
+
+struct ath12k_pdev_map {
+	struct ath12k_base *ab;
+	u8 pdev_idx;
 };
 
 int ath12k_core_qmi_firmware_ready(struct ath12k_base *ab);
@@ -809,14 +945,20 @@ int ath12k_core_fetch_board_data_api_1(struct ath12k_base *ab,
 int ath12k_core_fetch_bdf(struct ath12k_base *ath12k,
 			  struct ath12k_board_data *bd);
 void ath12k_core_free_bdf(struct ath12k_base *ab, struct ath12k_board_data *bd);
+int ath12k_core_fetch_regdb(struct ath12k_base *ab, struct ath12k_board_data *bd);
 int ath12k_core_check_dt(struct ath12k_base *ath12k);
 int ath12k_core_check_smbios(struct ath12k_base *ab);
 void ath12k_core_halt(struct ath12k *ar);
+int ath12k_core_resume_early(struct ath12k_base *ab);
 int ath12k_core_resume(struct ath12k_base *ab);
 int ath12k_core_suspend(struct ath12k_base *ab);
+int ath12k_core_suspend_late(struct ath12k_base *ab);
 
 const struct firmware *ath12k_core_firmware_request(struct ath12k_base *ab,
 						    const char *filename);
+u32 ath12k_core_get_max_station_per_radio(struct ath12k_base *ab);
+u32 ath12k_core_get_max_peers_per_radio(struct ath12k_base *ab);
+u32 ath12k_core_get_max_num_tids(struct ath12k_base *ab);
 
 static inline const char *ath12k_scan_state_str(enum ath12k_scan_state state)
 {
@@ -881,4 +1023,26 @@ static inline const char *ath12k_bus_str(enum ath12k_bus bus)
 	return "unknown";
 }
 
+static inline struct ath12k_hw *ath12k_hw_to_ah(struct ieee80211_hw  *hw)
+{
+	return hw->priv;
+}
+
+static inline struct ath12k *ath12k_ah_to_ar(struct ath12k_hw *ah, u8 hw_link_id)
+{
+	if (WARN(hw_link_id >= ah->num_radio,
+		 "bad hw link id %d, so switch to default link\n", hw_link_id))
+		hw_link_id = 0;
+
+	return &ah->radio[hw_link_id];
+}
+
+static inline struct ieee80211_hw *ath12k_ar_to_hw(struct ath12k *ar)
+{
+	return ar->ah->hw;
+}
+
+#define for_each_ar(ah, ar, index) \
+	for ((index) = 0; ((index) < (ah)->num_radio && \
+	     ((ar) = &(ah)->radio[(index)])); (index)++)
 #endif /* _CORE_H_ */

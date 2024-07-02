@@ -10,6 +10,7 @@
 #include "i915_request.h"
 #include "intel_engine_types.h"
 #include "intel_wakeref.h"
+#include "intel_gt.h"
 #include "intel_gt_pm.h"
 
 static inline bool

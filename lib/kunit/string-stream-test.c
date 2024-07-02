@@ -22,18 +22,10 @@ struct string_stream_test_priv {
 };
 
 /* Avoids a cast warning if kfree() is passed direct to kunit_add_action(). */
-static void kfree_wrapper(void *p)
-{
-	kfree(p);
-}
+KUNIT_DEFINE_ACTION_WRAPPER(kfree_wrapper, kfree, const void *);
 
 /* Avoids a cast warning if string_stream_destroy() is passed direct to kunit_add_action(). */
-static void cleanup_raw_stream(void *p)
-{
-	struct string_stream *stream = p;
-
-	string_stream_destroy(stream);
-}
+KUNIT_DEFINE_ACTION_WRAPPER(cleanup_raw_stream, string_stream_destroy, struct string_stream *);
 
 static char *get_concatenated_string(struct kunit *test, struct string_stream *stream)
 {
@@ -72,7 +64,7 @@ static void string_stream_unmanaged_init_test(struct kunit *test)
 
 	KUNIT_EXPECT_EQ(test, stream->length, 0);
 	KUNIT_EXPECT_TRUE(test, list_empty(&stream->fragments));
-	KUNIT_EXPECT_EQ(test, stream->gfp, GFP_KERNEL);
+	KUNIT_EXPECT_TRUE(test, (stream->gfp == GFP_KERNEL));
 	KUNIT_EXPECT_FALSE(test, stream->append_newlines);
 
 	KUNIT_EXPECT_TRUE(test, string_stream_is_empty(stream));

@@ -18,6 +18,7 @@ properties:
           - const: brcm,gisb-arb
       - items:
           - enum:
+              - brcm,bcm74165-gisb-arb  # for V7 new style 16nm chips
               - brcm,bcm7278-gisb-arb  # for V7 28nm chips
               - brcm,bcm7435-gisb-arb  # for newer 40nm chips
               - brcm,bcm7400-gisb-arb  # for older 40nm chips and all 65nm chips

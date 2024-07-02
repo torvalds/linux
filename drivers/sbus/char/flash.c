@@ -187,11 +187,9 @@ static int flash_probe(struct platform_device *op)
 	return misc_register(&flash_dev);
 }
 
-static int flash_remove(struct platform_device *op)
+static void flash_remove(struct platform_device *op)
 {
 	misc_deregister(&flash_dev);
-
-	return 0;
 }
 
 static const struct of_device_id flash_match[] = {
@@ -208,7 +206,7 @@ static struct platform_driver flash_driver = {
 		.of_match_table = flash_match,
 	},
 	.probe		= flash_probe,
-	.remove		= flash_remove,
+	.remove_new	= flash_remove,
 };
 
 module_platform_driver(flash_driver);

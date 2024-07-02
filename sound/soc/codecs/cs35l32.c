@@ -13,7 +13,6 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
-#include <linux/gpio.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
 #include <linux/platform_device.h>
@@ -559,7 +558,7 @@ MODULE_DEVICE_TABLE(of, cs35l32_of_match);
 
 
 static const struct i2c_device_id cs35l32_id[] = {
-	{"cs35l32", 0},
+	{"cs35l32"},
 	{}
 };
 

@@ -20,6 +20,7 @@ struct blk_integrity_iter {
 	unsigned int		data_size;
 	unsigned short		interval;
 	unsigned char		tuple_size;
+	unsigned char		pi_offset;
 	const char		*disk_name;
 };
 

@@ -286,7 +286,7 @@ static int sl_realloc_bufs(struct slip *sl, int mtu)
 		}
 	}
 	sl->mtu      = mtu;
-	dev->mtu      = mtu;
+	WRITE_ONCE(dev->mtu, mtu);
 	sl->buffsize = len;
 	err = 0;
 
@@ -1437,5 +1437,6 @@ out:
 }
 
 #endif
+MODULE_DESCRIPTION("SLIP (serial line) protocol module");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_LDISC(N_SLIP);

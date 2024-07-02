@@ -157,7 +157,7 @@ static int die_owner = -1;
 static unsigned int die_nest_count;
 static int die_counter;
 
-extern void panic_flush_kmsg_start(void)
+void panic_flush_kmsg_start(void)
 {
 	/*
 	 * These are mostly taken from kernel/panic.c, but tries to do
@@ -170,7 +170,7 @@ extern void panic_flush_kmsg_start(void)
 	bust_spinlocks(1);
 }
 
-extern void panic_flush_kmsg_end(void)
+void panic_flush_kmsg_end(void)
 {
 	kmsg_dump(KMSG_DUMP_PANIC);
 	bust_spinlocks(0);
@@ -404,7 +404,7 @@ noinstr void hv_nmi_check_nonrecoverable(struct pt_regs *regs)
 		return;
 	if (!(regs->msr & MSR_HV))
 		return;
-	if (regs->msr & MSR_PR)
+	if (user_mode(regs))
 		return;
 
 	/*
@@ -1164,6 +1164,7 @@ void emulate_single_step(struct pt_regs *regs)
 		__single_step_exception(regs);
 }
 
+#ifdef CONFIG_PPC_FPU_REGS
 static inline int __parse_fpscr(unsigned long fpscr)
 {
 	int ret = FPE_FLTUNK;
@@ -1190,6 +1191,7 @@ static inline int __parse_fpscr(unsigned long fpscr)
 
 	return ret;
 }
+#endif
 
 static void parse_fpe(struct pt_regs *regs)
 {
@@ -1437,10 +1439,12 @@ static int emulate_instruction(struct pt_regs *regs)
 	return -EINVAL;
 }
 
+#ifdef CONFIG_GENERIC_BUG
 int is_valid_bugaddr(unsigned long addr)
 {
 	return is_kernel_addr(addr);
 }
+#endif
 
 #ifdef CONFIG_MATH_EMULATION
 static int emulate_math(struct pt_regs *regs)
@@ -1506,7 +1510,7 @@ static void do_program_check(struct pt_regs *regs)
 		if (!is_kernel_addr(bugaddr) && !(regs->msr & MSR_IR))
 			bugaddr += PAGE_OFFSET;
 
-		if (!(regs->msr & MSR_PR) &&  /* not user-mode */
+		if (!user_mode(regs) &&
 		    report_bug(bugaddr, regs) == BUG_TRAP_TYPE_WARN) {
 			regs_add_return_ip(regs, 4);
 			return;

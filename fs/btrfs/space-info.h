@@ -4,7 +4,16 @@
 #define BTRFS_SPACE_INFO_H
 
 #include <trace/events/btrfs.h>
+#include <linux/spinlock.h>
+#include <linux/list.h>
+#include <linux/kobject.h>
+#include <linux/lockdep.h>
+#include <linux/wait.h>
+#include <linux/rwsem.h>
 #include "volumes.h"
+
+struct btrfs_fs_info;
+struct btrfs_block_group;
 
 /*
  * Different levels for to flush space when doing space reservations.

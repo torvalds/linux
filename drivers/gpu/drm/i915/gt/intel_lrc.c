@@ -546,47 +546,6 @@ static const u8 gen12_rcs_offsets[] = {
 	END
 };
 
-static const u8 xehp_rcs_offsets[] = {
-	NOP(1),
-	LRI(13, POSTED),
-	REG16(0x244),
-	REG(0x034),
-	REG(0x030),
-	REG(0x038),
-	REG(0x03c),
-	REG(0x168),
-	REG(0x140),
-	REG(0x110),
-	REG(0x1c0),
-	REG(0x1c4),
-	REG(0x1c8),
-	REG(0x180),
-	REG16(0x2b4),
-
-	NOP(5),
-	LRI(9, POSTED),
-	REG16(0x3a8),
-	REG16(0x28c),
-	REG16(0x288),
-	REG16(0x284),
-	REG16(0x280),
-	REG16(0x27c),
-	REG16(0x278),
-	REG16(0x274),
-	REG16(0x270),
-
-	LRI(3, POSTED),
-	REG(0x1b0),
-	REG16(0x5a8),
-	REG16(0x5ac),
-
-	NOP(6),
-	LRI(1, 0),
-	REG(0x0c8),
-
-	END
-};
-
 static const u8 dg2_rcs_offsets[] = {
 	NOP(1),
 	LRI(15, POSTED),
@@ -695,8 +654,6 @@ static const u8 *reg_offsets(const struct intel_engine_cs *engine)
 			return mtl_rcs_offsets;
 		else if (GRAPHICS_VER_FULL(engine->i915) >= IP_VER(12, 55))
 			return dg2_rcs_offsets;
-		else if (GRAPHICS_VER_FULL(engine->i915) >= IP_VER(12, 50))
-			return xehp_rcs_offsets;
 		else if (GRAPHICS_VER(engine->i915) >= 12)
 			return gen12_rcs_offsets;
 		else if (GRAPHICS_VER(engine->i915) >= 11)
@@ -719,7 +676,7 @@ static const u8 *reg_offsets(const struct intel_engine_cs *engine)
 
 static int lrc_ring_mi_mode(const struct intel_engine_cs *engine)
 {
-	if (GRAPHICS_VER_FULL(engine->i915) >= IP_VER(12, 50))
+	if (GRAPHICS_VER_FULL(engine->i915) >= IP_VER(12, 55))
 		return 0x70;
 	else if (GRAPHICS_VER(engine->i915) >= 12)
 		return 0x60;
@@ -733,7 +690,7 @@ static int lrc_ring_mi_mode(const struct intel_engine_cs *engine)
 
 static int lrc_ring_bb_offset(const struct intel_engine_cs *engine)
 {
-	if (GRAPHICS_VER_FULL(engine->i915) >= IP_VER(12, 50))
+	if (GRAPHICS_VER_FULL(engine->i915) >= IP_VER(12, 55))
 		return 0x80;
 	else if (GRAPHICS_VER(engine->i915) >= 12)
 		return 0x70;
@@ -748,7 +705,7 @@ static int lrc_ring_bb_offset(const struct intel_engine_cs *engine)
 
 static int lrc_ring_gpr0(const struct intel_engine_cs *engine)
 {
-	if (GRAPHICS_VER_FULL(engine->i915) >= IP_VER(12, 50))
+	if (GRAPHICS_VER_FULL(engine->i915) >= IP_VER(12, 55))
 		return 0x84;
 	else if (GRAPHICS_VER(engine->i915) >= 12)
 		return 0x74;
@@ -795,7 +752,7 @@ static int lrc_ring_indirect_offset(const struct intel_engine_cs *engine)
 static int lrc_ring_cmd_buf_cctl(const struct intel_engine_cs *engine)
 {
 
-	if (GRAPHICS_VER_FULL(engine->i915) >= IP_VER(12, 50))
+	if (GRAPHICS_VER_FULL(engine->i915) >= IP_VER(12, 55))
 		/*
 		 * Note that the CSFE context has a dummy slot for CMD_BUF_CCTL
 		 * simply to match the RCS context image layout.
@@ -826,6 +783,18 @@ lrc_ring_indirect_offset_default(const struct intel_engine_cs *engine)
 	GEM_BUG_ON(GRAPHICS_VER(engine->i915) < 8);
 
 	return 0;
+}
+
+static void
+lrc_setup_bb_per_ctx(u32 *regs,
+		     const struct intel_engine_cs *engine,
+		     u32 ctx_bb_ggtt_addr)
+{
+	GEM_BUG_ON(lrc_ring_wa_bb_per_ctx(engine) == -1);
+	regs[lrc_ring_wa_bb_per_ctx(engine) + 1] =
+		ctx_bb_ggtt_addr |
+		PER_CTX_BB_FORCE |
+		PER_CTX_BB_VALID;
 }
 
 static void
@@ -1020,7 +989,13 @@ static u32 context_wa_bb_offset(const struct intel_context *ce)
 	return PAGE_SIZE * ce->wa_bb_page;
 }
 
-static u32 *context_indirect_bb(const struct intel_context *ce)
+/*
+ * per_ctx below determines which WABB section is used.
+ * When true, the function returns the location of the
+ * PER_CTX_BB.  When false, the function returns the
+ * location of the INDIRECT_CTX.
+ */
+static u32 *context_wabb(const struct intel_context *ce, bool per_ctx)
 {
 	void *ptr;
 
@@ -1029,6 +1004,7 @@ static u32 *context_indirect_bb(const struct intel_context *ce)
 	ptr = ce->lrc_reg_state;
 	ptr -= LRC_STATE_OFFSET; /* back to start of context image */
 	ptr += context_wa_bb_offset(ce);
+	ptr += per_ctx ? PAGE_SIZE : 0;
 
 	return ptr;
 }
@@ -1105,7 +1081,8 @@ __lrc_alloc_state(struct intel_context *ce, struct intel_engine_cs *engine)
 
 	if (GRAPHICS_VER(engine->i915) >= 12) {
 		ce->wa_bb_page = context_size / PAGE_SIZE;
-		context_size += PAGE_SIZE;
+		/* INDIRECT_CTX and PER_CTX_BB need separate pages. */
+		context_size += PAGE_SIZE * 2;
 	}
 
 	if (intel_context_is_parent(ce) && intel_engine_uses_guc(engine)) {
@@ -1407,12 +1384,85 @@ gen12_emit_indirect_ctx_xcs(const struct intel_context *ce, u32 *cs)
 	return gen12_emit_aux_table_inv(ce->engine, cs);
 }
 
+static u32 *xehp_emit_fastcolor_blt_wabb(const struct intel_context *ce, u32 *cs)
+{
+	struct intel_gt *gt = ce->engine->gt;
+	int mocs = gt->mocs.uc_index << 1;
+
+	/**
+	 * Wa_16018031267 / Wa_16018063123 requires that SW forces the
+	 * main copy engine arbitration into round robin mode.  We
+	 * additionally need to submit the following WABB blt command
+	 * to produce 4 subblits with each subblit generating 0 byte
+	 * write requests as WABB:
+	 *
+	 * XY_FASTCOLOR_BLT
+	 *  BG0    -> 5100000E
+	 *  BG1    -> 0000003F (Dest pitch)
+	 *  BG2    -> 00000000 (X1, Y1) = (0, 0)
+	 *  BG3    -> 00040001 (X2, Y2) = (1, 4)
+	 *  BG4    -> scratch
+	 *  BG5    -> scratch
+	 *  BG6-12 -> 00000000
+	 *  BG13   -> 20004004 (Surf. Width= 2,Surf. Height = 5 )
+	 *  BG14   -> 00000010 (Qpitch = 4)
+	 *  BG15   -> 00000000
+	 */
+	*cs++ = XY_FAST_COLOR_BLT_CMD | (16 - 2);
+	*cs++ = FIELD_PREP(XY_FAST_COLOR_BLT_MOCS_MASK, mocs) | 0x3f;
+	*cs++ = 0;
+	*cs++ = 4 << 16 | 1;
+	*cs++ = lower_32_bits(i915_vma_offset(ce->vm->rsvd.vma));
+	*cs++ = upper_32_bits(i915_vma_offset(ce->vm->rsvd.vma));
+	*cs++ = 0;
+	*cs++ = 0;
+	*cs++ = 0;
+	*cs++ = 0;
+	*cs++ = 0;
+	*cs++ = 0;
+	*cs++ = 0;
+	*cs++ = 0x20004004;
+	*cs++ = 0x10;
+	*cs++ = 0;
+
+	return cs;
+}
+
+static u32 *
+xehp_emit_per_ctx_bb(const struct intel_context *ce, u32 *cs)
+{
+	/* Wa_16018031267, Wa_16018063123 */
+	if (NEEDS_FASTCOLOR_BLT_WABB(ce->engine))
+		cs = xehp_emit_fastcolor_blt_wabb(ce, cs);
+
+	return cs;
+}
+
+static void
+setup_per_ctx_bb(const struct intel_context *ce,
+		 const struct intel_engine_cs *engine,
+		 u32 *(*emit)(const struct intel_context *, u32 *))
+{
+	/* Place PER_CTX_BB on next page after INDIRECT_CTX */
+	u32 * const start = context_wabb(ce, true);
+	u32 *cs;
+
+	cs = emit(ce, start);
+
+	/* PER_CTX_BB must manually terminate */
+	*cs++ = MI_BATCH_BUFFER_END;
+
+	GEM_BUG_ON(cs - start > I915_GTT_PAGE_SIZE / sizeof(*cs));
+	lrc_setup_bb_per_ctx(ce->lrc_reg_state, engine,
+			     lrc_indirect_bb(ce) + PAGE_SIZE);
+}
+
 static void
 setup_indirect_ctx_bb(const struct intel_context *ce,
 		      const struct intel_engine_cs *engine,
 		      u32 *(*emit)(const struct intel_context *, u32 *))
 {
-	u32 * const start = context_indirect_bb(ce);
+	u32 * const start = context_wabb(ce, false);
 	u32 *cs;
 
 	cs = emit(ce, start);
@@ -1511,6 +1561,7 @@ u32 lrc_update_regs(const struct intel_context *ce,
 		/* Mutually exclusive wrt to global indirect bb */
 		GEM_BUG_ON(engine->wa_ctx.indirect_ctx.size);
 		setup_indirect_ctx_bb(ce, engine, fn);
+		setup_per_ctx_bb(ce, engine, xehp_emit_per_ctx_bb);
 	}
 
 	return lrc_descriptor(ce) | CTX_DESC_FORCE_RESTORE;

@@ -140,8 +140,15 @@ static void mt7915_mac_sta_poll(struct mt7915_dev *dev)
 			msta->airtime_ac[i] = mt76_rr(dev, addr);
 			msta->airtime_ac[i + 4] = mt76_rr(dev, addr + 4);
 
-			tx_time[i] = msta->airtime_ac[i] - tx_last;
-			rx_time[i] = msta->airtime_ac[i + 4] - rx_last;
+			if (msta->airtime_ac[i] <= tx_last)
+				tx_time[i] = 0;
+			else
+				tx_time[i] = msta->airtime_ac[i] - tx_last;
+
+			if (msta->airtime_ac[i + 4] <= rx_last)
+				rx_time[i] = 0;
+			else
+				rx_time[i] = msta->airtime_ac[i + 4] - rx_last;
 
 			if ((tx_last | rx_last) & BIT(30))
 				clear = true;
@@ -1247,7 +1254,7 @@ mt7915_phy_get_nf(struct mt7915_phy *phy, int idx)
 
 void mt7915_update_channel(struct mt76_phy *mphy)
 {
-	struct mt7915_phy *phy = (struct mt7915_phy *)mphy->priv;
+	struct mt7915_phy *phy = mphy->priv;
 	struct mt76_channel_state *state = mphy->chan_state;
 	int nf;
 
@@ -1338,10 +1345,8 @@ mt7915_mac_restart(struct mt7915_dev *dev)
 	set_bit(MT76_RESET, &dev->mphy.state);
 	set_bit(MT76_MCU_RESET, &dev->mphy.state);
 	wake_up(&dev->mt76.mcu.wait);
-	if (ext_phy) {
+	if (ext_phy)
 		set_bit(MT76_RESET, &ext_phy->state);
-		set_bit(MT76_MCU_RESET, &ext_phy->state);
-	}
 
 	/* lock/unlock all queues to ensure that no tx is pending */
 	mt76_txq_schedule_all(&dev->mphy);
@@ -1401,8 +1406,8 @@ mt7915_mac_restart(struct mt7915_dev *dev)
 		goto out;
 
 	mt7915_mac_init(dev);
-	mt7915_init_txpower(dev, &dev->mphy.sband_2g.sband);
-	mt7915_init_txpower(dev, &dev->mphy.sband_5g.sband);
+	mt7915_init_txpower(&dev->phy);
+	mt7915_init_txpower(phy2);
 	ret = mt7915_txbf_init(dev);
 
 	if (test_bit(MT76_STATE_RUNNING, &dev->mphy.state)) {
@@ -1520,12 +1525,6 @@ void mt7915_mac_reset_work(struct work_struct *work)
 	if (!(READ_ONCE(dev->recovery.state) & MT_MCU_CMD_STOP_DMA))
 		return;
 
-	if (mtk_wed_device_active(&dev->mt76.mmio.wed)) {
-		mtk_wed_device_stop(&dev->mt76.mmio.wed);
-		if (!is_mt798x(&dev->mt76))
-			mt76_wr(dev, MT_INT_WED_MASK_CSR, 0);
-	}
-
 	ieee80211_stop_queues(mt76_hw(dev));
 	if (ext_phy)
 		ieee80211_stop_queues(ext_phy->hw);
@@ -1544,6 +1543,9 @@ void mt7915_mac_reset_work(struct work_struct *work)
 	napi_disable(&dev->mt76.tx_napi);
 
 	mutex_lock(&dev->mt76.mutex);
+
+	if (mtk_wed_device_active(&dev->mt76.mmio.wed))
+		mtk_wed_device_stop(&dev->mt76.mmio.wed);
 
 	mt76_wr(dev, MT_MCU_INT_EVENT, MT_MCU_INT_EVENT_DMA_STOPPED);
 

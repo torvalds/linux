@@ -51,14 +51,12 @@ static int grant_dma_iommu_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int grant_dma_iommu_remove(struct platform_device *pdev)
+static void grant_dma_iommu_remove(struct platform_device *pdev)
 {
 	struct grant_dma_iommu_device *mmu = platform_get_drvdata(pdev);
 
 	platform_set_drvdata(pdev, NULL);
 	iommu_device_unregister(&mmu->iommu);
-
-	return 0;
 }
 
 static struct platform_driver grant_dma_iommu_driver = {
@@ -67,7 +65,7 @@ static struct platform_driver grant_dma_iommu_driver = {
 		.of_match_table = grant_dma_iommu_of_match,
 	},
 	.probe = grant_dma_iommu_probe,
-	.remove = grant_dma_iommu_remove,
+	.remove_new = grant_dma_iommu_remove,
 };
 
 static int __init grant_dma_iommu_init(void)

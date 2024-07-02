@@ -14,8 +14,6 @@
  * Some parts derived from the x86 version of this file.
  */
 
-#define __KVM_HAVE_READONLY_MEM
-
 #define KVM_COALESCED_MMIO_PAGE_OFFSET	1
 #define KVM_DIRTY_LOG_PAGE_OFFSET	64
 
@@ -79,6 +77,7 @@ struct kvm_fpu {
 #define LOONGARCH_REG_64(TYPE, REG)	(TYPE | KVM_REG_SIZE_U64 | (REG << LOONGARCH_REG_SHIFT))
 #define KVM_IOC_CSRID(REG)		LOONGARCH_REG_64(KVM_REG_LOONGARCH_CSR, REG)
 #define KVM_IOC_CPUCFG(REG)		LOONGARCH_REG_64(KVM_REG_LOONGARCH_CPUCFG, REG)
+#define KVM_LOONGARCH_VCPU_CPUCFG	0
 
 struct kvm_debug_exit_arch {
 };

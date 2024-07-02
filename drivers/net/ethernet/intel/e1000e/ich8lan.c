@@ -222,10 +222,17 @@ out:
 	if (hw->mac.type >= e1000_pch_lpt) {
 		/* Only unforce SMBus if ME is not active */
 		if (!(er32(FWSM) & E1000_ICH_FWSM_FW_VALID)) {
+			/* Switching PHY interface always returns MDI error
+			 * so disable retry mechanism to avoid wasting time
+			 */
+			e1000e_disable_phy_retry(hw);
+
 			/* Unforce SMBus mode in PHY */
 			e1e_rphy_locked(hw, CV_SMB_CTRL, &phy_reg);
 			phy_reg &= ~CV_SMB_CTRL_FORCE_SMBUS;
 			e1e_wphy_locked(hw, CV_SMB_CTRL, phy_reg);
+
+			e1000e_enable_phy_retry(hw);
 
 			/* Unforce SMBus mode in MAC */
 			mac_reg = er32(CTRL_EXT);
@@ -310,6 +317,11 @@ static s32 e1000_init_phy_workarounds_pchlan(struct e1000_hw *hw)
 		goto out;
 	}
 
+	/* There is no guarantee that the PHY is accessible at this time
+	 * so disable retry mechanism to avoid wasting time
+	 */
+	e1000e_disable_phy_retry(hw);
+
 	/* The MAC-PHY interconnect may be in SMBus mode.  If the PHY is
 	 * inaccessible and resetting the PHY is not blocked, toggle the
 	 * LANPHYPC Value bit to force the interconnect to PCIe mode.
@@ -380,6 +392,8 @@ static s32 e1000_init_phy_workarounds_pchlan(struct e1000_hw *hw)
 		break;
 	}
 
+	e1000e_enable_phy_retry(hw);
+
 	hw->phy.ops.release(hw);
 	if (!ret_val) {
 
@@ -448,6 +462,11 @@ static s32 e1000_init_phy_params_pchlan(struct e1000_hw *hw)
 	phy->autoneg_mask = AUTONEG_ADVERTISE_SPEED_DEFAULT;
 
 	phy->id = e1000_phy_unknown;
+
+	if (hw->mac.type == e1000_pch_mtp) {
+		phy->retry_count = 2;
+		e1000e_enable_phy_retry(hw);
+	}
 
 	ret_val = e1000_init_phy_workarounds_pchlan(hw);
 	if (ret_val)
@@ -1072,13 +1091,11 @@ static s32 e1000_platform_pm_pch_lpt(struct e1000_hw *hw, bool link)
 
 		lat_enc_d = (lat_enc & E1000_LTRV_VALUE_MASK) *
 			     (1U << (E1000_LTRV_SCALE_FACTOR *
-			     ((lat_enc & E1000_LTRV_SCALE_MASK)
-			     >> E1000_LTRV_SCALE_SHIFT)));
+			     FIELD_GET(E1000_LTRV_SCALE_MASK, lat_enc)));
 
 		max_ltr_enc_d = (max_ltr_enc & E1000_LTRV_VALUE_MASK) *
-				 (1U << (E1000_LTRV_SCALE_FACTOR *
-				 ((max_ltr_enc & E1000_LTRV_SCALE_MASK)
-				 >> E1000_LTRV_SCALE_SHIFT)));
+			(1U << (E1000_LTRV_SCALE_FACTOR *
+				FIELD_GET(E1000_LTRV_SCALE_MASK, max_ltr_enc)));
 
 		if (lat_enc_d > max_ltr_enc_d)
 			lat_enc = max_ltr_enc;
@@ -1147,18 +1164,6 @@ s32 e1000_enable_ulp_lpt_lp(struct e1000_hw *hw, bool to_sx)
 	ret_val = hw->phy.ops.acquire(hw);
 	if (ret_val)
 		goto out;
-
-	/* Force SMBus mode in PHY */
-	ret_val = e1000_read_phy_reg_hv_locked(hw, CV_SMB_CTRL, &phy_reg);
-	if (ret_val)
-		goto release;
-	phy_reg |= CV_SMB_CTRL_FORCE_SMBUS;
-	e1000_write_phy_reg_hv_locked(hw, CV_SMB_CTRL, phy_reg);
-
-	/* Force SMBus mode in MAC */
-	mac_reg = er32(CTRL_EXT);
-	mac_reg |= E1000_CTRL_EXT_FORCE_SMBUS;
-	ew32(CTRL_EXT, mac_reg);
 
 	/* Si workaround for ULP entry flow on i127/rev6 h/w.  Enable
 	 * LPLU and disable Gig speed when entering ULP
@@ -1315,6 +1320,11 @@ static s32 e1000_disable_ulp_lpt_lp(struct e1000_hw *hw, bool force)
 		/* Toggle LANPHYPC Value bit */
 		e1000_toggle_lanphypc_pch_lpt(hw);
 
+	/* Switching PHY interface always returns MDI error
+	 * so disable retry mechanism to avoid wasting time
+	 */
+	e1000e_disable_phy_retry(hw);
+
 	/* Unforce SMBus mode in PHY */
 	ret_val = e1000_read_phy_reg_hv_locked(hw, CV_SMB_CTRL, &phy_reg);
 	if (ret_val) {
@@ -1334,6 +1344,8 @@ static s32 e1000_disable_ulp_lpt_lp(struct e1000_hw *hw, bool force)
 	}
 	phy_reg &= ~CV_SMB_CTRL_FORCE_SMBUS;
 	e1000_write_phy_reg_hv_locked(hw, CV_SMB_CTRL, phy_reg);
+
+	e1000e_enable_phy_retry(hw);
 
 	/* Unforce SMBus mode in MAC */
 	mac_reg = er32(CTRL_EXT);
@@ -2075,8 +2087,7 @@ static s32 e1000_write_smbus_addr(struct e1000_hw *hw)
 {
 	u16 phy_data;
 	u32 strap = er32(STRAP);
-	u32 freq = (strap & E1000_STRAP_SMT_FREQ_MASK) >>
-	    E1000_STRAP_SMT_FREQ_SHIFT;
+	u32 freq = FIELD_GET(E1000_STRAP_SMT_FREQ_MASK, strap);
 	s32 ret_val;
 
 	strap &= E1000_STRAP_SMBUS_ADDRESS_MASK;
@@ -2562,8 +2573,7 @@ void e1000_copy_rx_addrs_to_phy_ich8lan(struct e1000_hw *hw)
 		hw->phy.ops.write_reg_page(hw, BM_RAR_H(i),
 					   (u16)(mac_reg & 0xFFFF));
 		hw->phy.ops.write_reg_page(hw, BM_RAR_CTRL(i),
-					   (u16)((mac_reg & E1000_RAH_AV)
-						 >> 16));
+					   (u16)((mac_reg & E1000_RAH_AV) >> 16));
 	}
 
 	e1000_disable_phy_wakeup_reg_access_bm(hw, &phy_reg);
@@ -3205,7 +3215,7 @@ static s32 e1000_valid_nvm_bank_detect_ich8lan(struct e1000_hw *hw, u32 *bank)
 							 &nvm_dword);
 		if (ret_val)
 			return ret_val;
-		sig_byte = (u8)((nvm_dword & 0xFF00) >> 8);
+		sig_byte = FIELD_GET(0xFF00, nvm_dword);
 		if ((sig_byte & E1000_ICH_NVM_VALID_SIG_MASK) ==
 		    E1000_ICH_NVM_SIG_VALUE) {
 			*bank = 0;
@@ -3218,7 +3228,7 @@ static s32 e1000_valid_nvm_bank_detect_ich8lan(struct e1000_hw *hw, u32 *bank)
 							 &nvm_dword);
 		if (ret_val)
 			return ret_val;
-		sig_byte = (u8)((nvm_dword & 0xFF00) >> 8);
+		sig_byte = FIELD_GET(0xFF00, nvm_dword);
 		if ((sig_byte & E1000_ICH_NVM_VALID_SIG_MASK) ==
 		    E1000_ICH_NVM_SIG_VALUE) {
 			*bank = 1;

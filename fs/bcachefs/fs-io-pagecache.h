@@ -7,7 +7,7 @@
 typedef DARRAY(struct folio *) folios;
 
 int bch2_filemap_get_contig_folios_d(struct address_space *, loff_t,
-				     u64, int, gfp_t, folios *);
+				     u64, fgf_t, gfp_t, folios *);
 int bch2_write_invalidate_inode_pages_range(struct address_space *, loff_t, loff_t);
 
 /*
@@ -51,13 +51,10 @@ enum bch_folio_sector_state {
 
 struct bch_folio_sector {
 	/* Uncompressed, fully allocated replicas (or on disk reservation): */
-	unsigned		nr_replicas:4;
-
+	u8			nr_replicas:4,
 	/* Owns PAGE_SECTORS * replicas_reserved sized in memory reservation: */
-	unsigned		replicas_reserved:4;
-
-	/* i_sectors: */
-	enum bch_folio_sector_state state:8;
+				replicas_reserved:4;
+	u8			state;
 };
 
 struct bch_folio {
@@ -143,7 +140,7 @@ int bch2_folio_set(struct bch_fs *, subvol_inum, struct folio **, unsigned);
 void bch2_bio_page_state_set(struct bio *, struct bkey_s_c);
 
 void bch2_mark_pagecache_unallocated(struct bch_inode_info *, u64, u64);
-void bch2_mark_pagecache_reserved(struct bch_inode_info *, u64, u64);
+int bch2_mark_pagecache_reserved(struct bch_inode_info *, u64 *, u64, bool);
 
 int bch2_get_folio_disk_reservation(struct bch_fs *,
 				struct bch_inode_info *,

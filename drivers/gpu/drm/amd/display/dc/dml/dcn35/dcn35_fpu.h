@@ -39,4 +39,6 @@ int dcn35_populate_dml_pipes_from_context_fpu(struct dc *dc,
 					      display_e2e_pipe_params_st *pipes,
 					      bool fast_validate);
 
+void dcn35_decide_zstate_support(struct dc *dc, struct dc_state *context);
+
 #endif

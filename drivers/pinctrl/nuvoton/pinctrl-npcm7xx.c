@@ -171,7 +171,7 @@ static int npcmgpio_direction_input(struct gpio_chip *chip, unsigned int offset)
 	struct npcm7xx_gpio *bank = gpiochip_get_data(chip);
 	int ret;
 
-	ret = pinctrl_gpio_direction_input(offset + chip->base);
+	ret = pinctrl_gpio_direction_input(chip, offset);
 	if (ret)
 		return ret;
 
@@ -188,7 +188,7 @@ static int npcmgpio_direction_output(struct gpio_chip *chip,
 	dev_dbg(chip->parent, "gpio_direction_output: offset%d = %x\n", offset,
 		value);
 
-	ret = pinctrl_gpio_direction_output(offset + chip->base);
+	ret = pinctrl_gpio_direction_output(chip, offset);
 	if (ret)
 		return ret;
 
@@ -201,17 +201,11 @@ static int npcmgpio_gpio_request(struct gpio_chip *chip, unsigned int offset)
 	int ret;
 
 	dev_dbg(chip->parent, "gpio_request: offset%d\n", offset);
-	ret = pinctrl_gpio_request(offset + chip->base);
+	ret = pinctrl_gpio_request(chip, offset);
 	if (ret)
 		return ret;
 
 	return bank->request(chip, offset);
-}
-
-static void npcmgpio_gpio_free(struct gpio_chip *chip, unsigned int offset)
-{
-	dev_dbg(chip->parent, "gpio_free: offset%d\n", offset);
-	pinctrl_gpio_free(offset + chip->base);
 }
 
 static void npcmgpio_irq_handler(struct irq_desc *desc)
@@ -1588,19 +1582,6 @@ static int npcm7xx_get_group_pins(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static int npcm7xx_dt_node_to_map(struct pinctrl_dev *pctldev,
-				  struct device_node *np_config,
-				  struct pinctrl_map **map,
-				  u32 *num_maps)
-{
-	struct npcm7xx_pinctrl *npcm = pinctrl_dev_get_drvdata(pctldev);
-
-	dev_dbg(npcm->dev, "dt_node_to_map: %s\n", np_config->name);
-	return pinconf_generic_dt_node_to_map(pctldev, np_config,
-					      map, num_maps,
-					      PIN_MAP_TYPE_INVALID);
-}
-
 static void npcm7xx_dt_free_map(struct pinctrl_dev *pctldev,
 				struct pinctrl_map *map, u32 num_maps)
 {
@@ -1612,7 +1593,7 @@ static const struct pinctrl_ops npcm7xx_pinctrl_ops = {
 	.get_group_name = npcm7xx_get_group_name,
 	.get_group_pins = npcm7xx_get_group_pins,
 	.pin_dbg_show = npcm7xx_pin_dbg_show,
-	.dt_node_to_map = npcm7xx_dt_node_to_map,
+	.dt_node_to_map = pinconf_generic_dt_node_to_map_all,
 	.dt_free_map = npcm7xx_dt_free_map,
 };
 
@@ -1809,8 +1790,8 @@ static int npcm7xx_config_set_one(struct npcm7xx_pinctrl *npcm,
 		bank->direction_input(&bank->gc, pin % bank->gc.ngpio);
 		break;
 	case PIN_CONFIG_OUTPUT:
-		iowrite32(gpio, bank->base + NPCM7XX_GP_N_OES);
 		bank->direction_output(&bank->gc, pin % bank->gc.ngpio, arg);
+		iowrite32(gpio, bank->base + NPCM7XX_GP_N_OES);
 		break;
 	case PIN_CONFIG_DRIVE_PUSH_PULL:
 		npcm_gpio_clr(&bank->gc, bank->base + NPCM7XX_GP_N_OTYP, gpio);
@@ -1929,7 +1910,7 @@ static int npcm7xx_gpio_of(struct npcm7xx_pinctrl *pctrl)
 		pctrl->gpio_bank[id].gc.direction_output = npcmgpio_direction_output;
 		pctrl->gpio_bank[id].request = pctrl->gpio_bank[id].gc.request;
 		pctrl->gpio_bank[id].gc.request = npcmgpio_gpio_request;
-		pctrl->gpio_bank[id].gc.free = npcmgpio_gpio_free;
+		pctrl->gpio_bank[id].gc.free = pinctrl_gpio_free;
 		id++;
 	}
 

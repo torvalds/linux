@@ -487,9 +487,14 @@ int gdsc_register(struct gdsc_desc *desc,
 		if (!scs[i] || !scs[i]->supply)
 			continue;
 
-		scs[i]->rsupply = devm_regulator_get(dev, scs[i]->supply);
-		if (IS_ERR(scs[i]->rsupply))
-			return PTR_ERR(scs[i]->rsupply);
+		scs[i]->rsupply = devm_regulator_get_optional(dev, scs[i]->supply);
+		if (IS_ERR(scs[i]->rsupply)) {
+			ret = PTR_ERR(scs[i]->rsupply);
+			if (ret != -ENODEV)
+				return ret;
+
+			scs[i]->rsupply = NULL;
+		}
 	}
 
 	data->num_domains = num;
@@ -557,7 +562,15 @@ void gdsc_unregister(struct gdsc_desc *desc)
  */
 int gdsc_gx_do_nothing_enable(struct generic_pm_domain *domain)
 {
-	/* Do nothing but give genpd the impression that we were successful */
-	return 0;
+	struct gdsc *sc = domain_to_gdsc(domain);
+	int ret = 0;
+
+	/* Enable the parent supply, when controlled through the regulator framework. */
+	if (sc->rsupply)
+		ret = regulator_enable(sc->rsupply);
+
+	/* Do nothing with the GDSC itself */
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(gdsc_gx_do_nothing_enable);

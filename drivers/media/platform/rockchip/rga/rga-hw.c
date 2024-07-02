@@ -16,12 +16,6 @@ enum e_rga_start_pos {
 	RB = 3,
 };
 
-struct rga_addr_offset {
-	unsigned int y_off;
-	unsigned int u_off;
-	unsigned int v_off;
-};
-
 struct rga_corners_addr_offset {
 	struct rga_addr_offset left_top;
 	struct rga_addr_offset right_top;
@@ -43,13 +37,13 @@ static unsigned int rga_get_scaling(unsigned int src, unsigned int dst)
 }
 
 static struct rga_corners_addr_offset
-rga_get_addr_offset(struct rga_frame *frm, unsigned int x, unsigned int y,
-		    unsigned int w, unsigned int h)
+rga_get_addr_offset(struct rga_frame *frm, struct rga_addr_offset *offset,
+		    unsigned int x, unsigned int y, unsigned int w, unsigned int h)
 {
 	struct rga_corners_addr_offset offsets;
 	struct rga_addr_offset *lt, *lb, *rt, *rb;
 	unsigned int x_div = 0,
-		     y_div = 0, uv_stride = 0, pixel_width = 0, uv_factor = 0;
+		     y_div = 0, uv_stride = 0, pixel_width = 0;
 
 	lt = &offsets.left_top;
 	lb = &offsets.left_bottom;
@@ -58,14 +52,12 @@ rga_get_addr_offset(struct rga_frame *frm, unsigned int x, unsigned int y,
 
 	x_div = frm->fmt->x_div;
 	y_div = frm->fmt->y_div;
-	uv_factor = frm->fmt->uv_factor;
 	uv_stride = frm->stride / x_div;
 	pixel_width = frm->stride / frm->width;
 
-	lt->y_off = y * frm->stride + x * pixel_width;
-	lt->u_off =
-		frm->width * frm->height + (y / y_div) * uv_stride + x / x_div;
-	lt->v_off = lt->u_off + frm->width * frm->height / uv_factor;
+	lt->y_off = offset->y_off + y * frm->stride + x * pixel_width;
+	lt->u_off = offset->u_off + (y / y_div) * uv_stride + x / x_div;
+	lt->v_off = offset->v_off + (y / y_div) * uv_stride + x / x_div;
 
 	lb->y_off = lt->y_off + (h - 1) * frm->stride;
 	lb->u_off = lt->u_off + (h / y_div - 1) * uv_stride;
@@ -119,40 +111,40 @@ static struct rga_addr_offset *rga_lookup_draw_pos(struct
 	return NULL;
 }
 
-static void rga_cmd_set_src_addr(struct rga_ctx *ctx, void *mmu_pages)
+static void rga_cmd_set_src_addr(struct rga_ctx *ctx, dma_addr_t dma_addr)
 {
 	struct rockchip_rga *rga = ctx->rga;
 	u32 *dest = rga->cmdbuf_virt;
 	unsigned int reg;
 
 	reg = RGA_MMU_SRC_BASE - RGA_MODE_BASE_REG;
-	dest[reg >> 2] = virt_to_phys(mmu_pages) >> 4;
+	dest[reg >> 2] = dma_addr >> 4;
 
 	reg = RGA_MMU_CTRL1 - RGA_MODE_BASE_REG;
 	dest[reg >> 2] |= 0x7;
 }
 
-static void rga_cmd_set_src1_addr(struct rga_ctx *ctx, void *mmu_pages)
+static void rga_cmd_set_src1_addr(struct rga_ctx *ctx, dma_addr_t dma_addr)
 {
 	struct rockchip_rga *rga = ctx->rga;
 	u32 *dest = rga->cmdbuf_virt;
 	unsigned int reg;
 
 	reg = RGA_MMU_SRC1_BASE - RGA_MODE_BASE_REG;
-	dest[reg >> 2] = virt_to_phys(mmu_pages) >> 4;
+	dest[reg >> 2] = dma_addr >> 4;
 
 	reg = RGA_MMU_CTRL1 - RGA_MODE_BASE_REG;
 	dest[reg >> 2] |= 0x7 << 4;
 }
 
-static void rga_cmd_set_dst_addr(struct rga_ctx *ctx, void *mmu_pages)
+static void rga_cmd_set_dst_addr(struct rga_ctx *ctx, dma_addr_t dma_addr)
 {
 	struct rockchip_rga *rga = ctx->rga;
 	u32 *dest = rga->cmdbuf_virt;
 	unsigned int reg;
 
 	reg = RGA_MMU_DST_BASE - RGA_MODE_BASE_REG;
-	dest[reg >> 2] = virt_to_phys(mmu_pages) >> 4;
+	dest[reg >> 2] = dma_addr >> 4;
 
 	reg = RGA_MMU_CTRL1 - RGA_MODE_BASE_REG;
 	dest[reg >> 2] |= 0x7 << 8;
@@ -163,7 +155,7 @@ static void rga_cmd_set_trans_info(struct rga_ctx *ctx)
 	struct rockchip_rga *rga = ctx->rga;
 	u32 *dest = rga->cmdbuf_virt;
 	unsigned int scale_dst_w, scale_dst_h;
-	unsigned int src_h, src_w, src_x, src_y, dst_h, dst_w, dst_x, dst_y;
+	unsigned int src_h, src_w, dst_h, dst_w;
 	union rga_src_info src_info;
 	union rga_dst_info dst_info;
 	union rga_src_x_factor x_factor;
@@ -173,18 +165,10 @@ static void rga_cmd_set_trans_info(struct rga_ctx *ctx)
 	union rga_dst_vir_info dst_vir_info;
 	union rga_dst_act_info dst_act_info;
 
-	struct rga_addr_offset *dst_offset;
-	struct rga_corners_addr_offset offsets;
-	struct rga_corners_addr_offset src_offsets;
-
 	src_h = ctx->in.crop.height;
 	src_w = ctx->in.crop.width;
-	src_x = ctx->in.crop.left;
-	src_y = ctx->in.crop.top;
 	dst_h = ctx->out.crop.height;
 	dst_w = ctx->out.crop.width;
-	dst_x = ctx->out.crop.left;
-	dst_y = ctx->out.crop.top;
 
 	src_info.val = dest[(RGA_SRC_INFO - RGA_MODE_BASE_REG) >> 2];
 	dst_info.val = dest[(RGA_DST_INFO - RGA_MODE_BASE_REG) >> 2];
@@ -312,26 +296,6 @@ static void rga_cmd_set_trans_info(struct rga_ctx *ctx)
 	dst_act_info.data.act_height = dst_h - 1;
 	dst_act_info.data.act_width = dst_w - 1;
 
-	/*
-	 * Calculate the source framebuffer base address with offset pixel.
-	 */
-	src_offsets = rga_get_addr_offset(&ctx->in, src_x, src_y,
-					  src_w, src_h);
-
-	/*
-	 * Configure the dest framebuffer base address with pixel offset.
-	 */
-	offsets = rga_get_addr_offset(&ctx->out, dst_x, dst_y, dst_w, dst_h);
-	dst_offset = rga_lookup_draw_pos(&offsets, src_info.data.rot_mode,
-					 src_info.data.mir_mode);
-
-	dest[(RGA_SRC_Y_RGB_BASE_ADDR - RGA_MODE_BASE_REG) >> 2] =
-		src_offsets.left_top.y_off;
-	dest[(RGA_SRC_CB_BASE_ADDR - RGA_MODE_BASE_REG) >> 2] =
-		src_offsets.left_top.u_off;
-	dest[(RGA_SRC_CR_BASE_ADDR - RGA_MODE_BASE_REG) >> 2] =
-		src_offsets.left_top.v_off;
-
 	dest[(RGA_SRC_X_FACTOR - RGA_MODE_BASE_REG) >> 2] = x_factor.val;
 	dest[(RGA_SRC_Y_FACTOR - RGA_MODE_BASE_REG) >> 2] = y_factor.val;
 	dest[(RGA_SRC_VIR_INFO - RGA_MODE_BASE_REG) >> 2] = src_vir_info.val;
@@ -339,17 +303,87 @@ static void rga_cmd_set_trans_info(struct rga_ctx *ctx)
 
 	dest[(RGA_SRC_INFO - RGA_MODE_BASE_REG) >> 2] = src_info.val;
 
+	dest[(RGA_DST_VIR_INFO - RGA_MODE_BASE_REG) >> 2] = dst_vir_info.val;
+	dest[(RGA_DST_ACT_INFO - RGA_MODE_BASE_REG) >> 2] = dst_act_info.val;
+
+	dest[(RGA_DST_INFO - RGA_MODE_BASE_REG) >> 2] = dst_info.val;
+}
+
+static void rga_cmd_set_src_info(struct rga_ctx *ctx,
+				 struct rga_addr_offset *offset)
+{
+	struct rga_corners_addr_offset src_offsets;
+	struct rockchip_rga *rga = ctx->rga;
+	u32 *dest = rga->cmdbuf_virt;
+	unsigned int src_h, src_w, src_x, src_y;
+
+	src_h = ctx->in.crop.height;
+	src_w = ctx->in.crop.width;
+	src_x = ctx->in.crop.left;
+	src_y = ctx->in.crop.top;
+
+	/*
+	 * Calculate the source framebuffer base address with offset pixel.
+	 */
+	src_offsets = rga_get_addr_offset(&ctx->in, offset,
+					  src_x, src_y, src_w, src_h);
+
+	dest[(RGA_SRC_Y_RGB_BASE_ADDR - RGA_MODE_BASE_REG) >> 2] =
+		src_offsets.left_top.y_off;
+	dest[(RGA_SRC_CB_BASE_ADDR - RGA_MODE_BASE_REG) >> 2] =
+		src_offsets.left_top.u_off;
+	dest[(RGA_SRC_CR_BASE_ADDR - RGA_MODE_BASE_REG) >> 2] =
+		src_offsets.left_top.v_off;
+}
+
+static void rga_cmd_set_dst_info(struct rga_ctx *ctx,
+				 struct rga_addr_offset *offset)
+{
+	struct rga_addr_offset *dst_offset;
+	struct rga_corners_addr_offset offsets;
+	struct rockchip_rga *rga = ctx->rga;
+	u32 *dest = rga->cmdbuf_virt;
+	unsigned int dst_h, dst_w, dst_x, dst_y;
+	unsigned int mir_mode = 0;
+	unsigned int rot_mode = 0;
+
+	dst_h = ctx->out.crop.height;
+	dst_w = ctx->out.crop.width;
+	dst_x = ctx->out.crop.left;
+	dst_y = ctx->out.crop.top;
+
+	if (ctx->vflip)
+		mir_mode |= RGA_SRC_MIRR_MODE_X;
+	if (ctx->hflip)
+		mir_mode |= RGA_SRC_MIRR_MODE_Y;
+
+	switch (ctx->rotate) {
+	case 90:
+		rot_mode = RGA_SRC_ROT_MODE_90_DEGREE;
+		break;
+	case 180:
+		rot_mode = RGA_SRC_ROT_MODE_180_DEGREE;
+		break;
+	case 270:
+		rot_mode = RGA_SRC_ROT_MODE_270_DEGREE;
+		break;
+	default:
+		rot_mode = RGA_SRC_ROT_MODE_0_DEGREE;
+		break;
+	}
+
+	/*
+	 * Configure the dest framebuffer base address with pixel offset.
+	 */
+	offsets = rga_get_addr_offset(&ctx->out, offset, dst_x, dst_y, dst_w, dst_h);
+	dst_offset = rga_lookup_draw_pos(&offsets, mir_mode, rot_mode);
+
 	dest[(RGA_DST_Y_RGB_BASE_ADDR - RGA_MODE_BASE_REG) >> 2] =
 		dst_offset->y_off;
 	dest[(RGA_DST_CB_BASE_ADDR - RGA_MODE_BASE_REG) >> 2] =
 		dst_offset->u_off;
 	dest[(RGA_DST_CR_BASE_ADDR - RGA_MODE_BASE_REG) >> 2] =
 		dst_offset->v_off;
-
-	dest[(RGA_DST_VIR_INFO - RGA_MODE_BASE_REG) >> 2] = dst_vir_info.val;
-	dest[(RGA_DST_ACT_INFO - RGA_MODE_BASE_REG) >> 2] = dst_act_info.val;
-
-	dest[(RGA_DST_INFO - RGA_MODE_BASE_REG) >> 2] = dst_info.val;
 }
 
 static void rga_cmd_set_mode(struct rga_ctx *ctx)
@@ -375,22 +409,25 @@ static void rga_cmd_set_mode(struct rga_ctx *ctx)
 	dest[(RGA_MODE_CTRL - RGA_MODE_BASE_REG) >> 2] = mode.val;
 }
 
-static void rga_cmd_set(struct rga_ctx *ctx)
+static void rga_cmd_set(struct rga_ctx *ctx,
+			struct rga_vb_buffer *src, struct rga_vb_buffer *dst)
 {
 	struct rockchip_rga *rga = ctx->rga;
 
 	memset(rga->cmdbuf_virt, 0, RGA_CMDBUF_SIZE * 4);
 
-	rga_cmd_set_src_addr(ctx, rga->src_mmu_pages);
+	rga_cmd_set_src_addr(ctx, src->dma_desc_pa);
 	/*
 	 * Due to hardware bug,
 	 * src1 mmu also should be configured when using alpha blending.
 	 */
-	rga_cmd_set_src1_addr(ctx, rga->dst_mmu_pages);
+	rga_cmd_set_src1_addr(ctx, dst->dma_desc_pa);
 
-	rga_cmd_set_dst_addr(ctx, rga->dst_mmu_pages);
+	rga_cmd_set_dst_addr(ctx, dst->dma_desc_pa);
 	rga_cmd_set_mode(ctx);
 
+	rga_cmd_set_src_info(ctx, &src->offset);
+	rga_cmd_set_dst_info(ctx, &dst->offset);
 	rga_cmd_set_trans_info(ctx);
 
 	rga_write(rga, RGA_CMD_BASE, rga->cmdbuf_phy);
@@ -400,11 +437,12 @@ static void rga_cmd_set(struct rga_ctx *ctx)
 		PAGE_SIZE, DMA_BIDIRECTIONAL);
 }
 
-void rga_hw_start(struct rockchip_rga *rga)
+void rga_hw_start(struct rockchip_rga *rga,
+		  struct rga_vb_buffer *src, struct rga_vb_buffer *dst)
 {
 	struct rga_ctx *ctx = rga->curr;
 
-	rga_cmd_set(ctx);
+	rga_cmd_set(ctx, src, dst);
 
 	rga_write(rga, RGA_SYS_CTRL, 0x00);
 

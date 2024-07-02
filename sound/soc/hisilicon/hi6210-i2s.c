@@ -15,7 +15,6 @@
 #include <linux/clk.h>
 #include <linux/jiffies.h>
 #include <linux/io.h>
-#include <linux/gpio.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>

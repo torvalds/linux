@@ -4,6 +4,12 @@ PCI Support Library
 .. kernel-doc:: drivers/pci/pci.c
    :export:
 
+.. kernel-doc:: drivers/pci/iomap.c
+   :export:
+
+.. kernel-doc:: drivers/pci/devres.c
+   :export:
+
 .. kernel-doc:: drivers/pci/pci-driver.c
    :export:
 

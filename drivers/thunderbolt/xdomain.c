@@ -997,12 +997,12 @@ static void tb_service_release(struct device *dev)
 	struct tb_xdomain *xd = tb_service_parent(svc);
 
 	tb_service_debugfs_remove(svc);
-	ida_simple_remove(&xd->service_ids, svc->id);
+	ida_free(&xd->service_ids, svc->id);
 	kfree(svc->key);
 	kfree(svc);
 }
 
-struct device_type tb_service_type = {
+const struct device_type tb_service_type = {
 	.name = "thunderbolt_service",
 	.groups = tb_service_attr_groups,
 	.uevent = tb_service_uevent,
@@ -1099,7 +1099,7 @@ static void enumerate_services(struct tb_xdomain *xd)
 			break;
 		}
 
-		id = ida_simple_get(&xd->service_ids, 0, 0, GFP_KERNEL);
+		id = ida_alloc(&xd->service_ids, GFP_KERNEL);
 		if (id < 0) {
 			kfree(svc->key);
 			kfree(svc);
@@ -1462,6 +1462,11 @@ static int tb_xdomain_get_properties(struct tb_xdomain *xd)
 				tb_port_disable(port->dual_link_port);
 		}
 
+		dev_dbg(&xd->dev, "current link speed %u.0 Gb/s\n",
+			xd->link_speed);
+		dev_dbg(&xd->dev, "current link width %s\n",
+			tb_width_name(xd->link_width));
+
 		if (device_add(&xd->dev)) {
 			dev_err(&xd->dev, "failed to add XDomain device\n");
 			return -ENODEV;
@@ -1786,13 +1791,13 @@ static ssize_t rx_lanes_show(struct device *dev, struct device_attribute *attr,
 
 	switch (xd->link_width) {
 	case TB_LINK_WIDTH_SINGLE:
-	case TB_LINK_WIDTH_ASYM_RX:
+	case TB_LINK_WIDTH_ASYM_TX:
 		width = 1;
 		break;
 	case TB_LINK_WIDTH_DUAL:
 		width = 2;
 		break;
-	case TB_LINK_WIDTH_ASYM_TX:
+	case TB_LINK_WIDTH_ASYM_RX:
 		width = 3;
 		break;
 	default:
@@ -1812,13 +1817,13 @@ static ssize_t tx_lanes_show(struct device *dev, struct device_attribute *attr,
 
 	switch (xd->link_width) {
 	case TB_LINK_WIDTH_SINGLE:
-	case TB_LINK_WIDTH_ASYM_TX:
+	case TB_LINK_WIDTH_ASYM_RX:
 		width = 1;
 		break;
 	case TB_LINK_WIDTH_DUAL:
 		width = 2;
 		break;
-	case TB_LINK_WIDTH_ASYM_RX:
+	case TB_LINK_WIDTH_ASYM_TX:
 		width = 3;
 		break;
 	default:
@@ -1888,12 +1893,56 @@ static const struct dev_pm_ops tb_xdomain_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(tb_xdomain_suspend, tb_xdomain_resume)
 };
 
-struct device_type tb_xdomain_type = {
+const struct device_type tb_xdomain_type = {
 	.name = "thunderbolt_xdomain",
 	.release = tb_xdomain_release,
 	.pm = &tb_xdomain_pm_ops,
 };
 EXPORT_SYMBOL_GPL(tb_xdomain_type);
+
+static void tb_xdomain_link_init(struct tb_xdomain *xd, struct tb_port *down)
+{
+	if (!down->dual_link_port)
+		return;
+
+	/*
+	 * Gen 4 links come up already as bonded so only update the port
+	 * structures here.
+	 */
+	if (tb_port_get_link_generation(down) >= 4) {
+		down->bonded = true;
+		down->dual_link_port->bonded = true;
+	} else {
+		xd->bonding_possible = true;
+	}
+}
+
+static void tb_xdomain_link_exit(struct tb_xdomain *xd)
+{
+	struct tb_port *down = tb_xdomain_downstream_port(xd);
+
+	if (!down->dual_link_port)
+		return;
+
+	if (tb_port_get_link_generation(down) >= 4) {
+		down->bonded = false;
+		down->dual_link_port->bonded = false;
+	} else if (xd->link_width > TB_LINK_WIDTH_SINGLE) {
+		/*
+		 * Just return port structures back to way they were and
+		 * update credits. No need to update userspace because
+		 * the XDomain is removed soon anyway.
+		 */
+		tb_port_lane_bonding_disable(down);
+		tb_port_update_credits(down);
+	} else if (down->dual_link_port) {
+		/*
+		 * Re-enable the lane 1 adapter we disabled at the end
+		 * of tb_xdomain_get_properties().
+		 */
+		tb_port_enable(down->dual_link_port);
+	}
+}
 
 /**
  * tb_xdomain_alloc() - Allocate new XDomain object
@@ -1945,7 +1994,8 @@ struct tb_xdomain *tb_xdomain_alloc(struct tb *tb, struct device *parent,
 			goto err_free_local_uuid;
 	} else {
 		xd->needs_uuid = true;
-		xd->bonding_possible = !!down->dual_link_port;
+
+		tb_xdomain_link_init(xd, down);
 	}
 
 	device_initialize(&xd->dev);
@@ -2013,6 +2063,8 @@ void tb_xdomain_remove(struct tb_xdomain *xd)
 	stop_handshake(xd);
 
 	device_for_each_child_reverse(&xd->dev, xd, unregister_service);
+
+	tb_xdomain_link_exit(xd);
 
 	/*
 	 * Undo runtime PM here explicitly because it is possible that

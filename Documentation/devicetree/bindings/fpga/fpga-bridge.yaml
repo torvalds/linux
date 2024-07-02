@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/fpga/fpga-bridge.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: FPGA Bridge
+
+maintainers:
+  - Michal Simek <michal.simek@amd.com>
+
+properties:
+  $nodename:
+    pattern: "^fpga-bridge(@.*|-([0-9]|[1-9][0-9]+))?$"
+
+  bridge-enable:
+    description: |
+      0 if driver should disable bridge at startup
+      1 if driver should enable bridge at startup
+      Default is to leave bridge in current state.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [ 0, 1 ]
+
+additionalProperties: true
+
+examples:
+  - |
+    fpga-bridge {
+        bridge-enable = <0>;
+    };

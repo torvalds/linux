@@ -34,8 +34,8 @@ static int rt712_sdca_index_write(struct rt712_sdca_priv *rt712,
 	ret = regmap_write(regmap, addr, value);
 	if (ret < 0)
 		dev_err(&rt712->slave->dev,
-			"Failed to set private value: %06x <= %04x ret=%d\n",
-			addr, value, ret);
+			"%s: Failed to set private value: %06x <= %04x ret=%d\n",
+			__func__, addr, value, ret);
 
 	return ret;
 }
@@ -50,8 +50,8 @@ static int rt712_sdca_index_read(struct rt712_sdca_priv *rt712,
 	ret = regmap_read(regmap, addr, value);
 	if (ret < 0)
 		dev_err(&rt712->slave->dev,
-			"Failed to get private value: %06x => %04x ret=%d\n",
-			addr, *value, ret);
+			"%s: Failed to get private value: %06x => %04x ret=%d\n",
+			__func__, addr, *value, ret);
 
 	return ret;
 }
@@ -963,13 +963,6 @@ static int rt712_sdca_probe(struct snd_soc_component *component)
 	rt712_sdca_parse_dt(rt712, &rt712->slave->dev);
 	rt712->component = component;
 
-	if (!rt712->first_hw_init)
-		return 0;
-
-	ret = pm_runtime_resume(component->dev);
-	if (ret < 0 && ret != -EACCES)
-		return ret;
-
 	/* add SPK route */
 	if (rt712->hw_id != RT712_DEV_ID_713) {
 		snd_soc_add_component_controls(component,
@@ -979,6 +972,13 @@ static int rt712_sdca_probe(struct snd_soc_component *component)
 		snd_soc_dapm_add_routes(dapm,
 			rt712_sdca_spk_dapm_routes, ARRAY_SIZE(rt712_sdca_spk_dapm_routes));
 	}
+
+	if (!rt712->first_hw_init)
+		return 0;
+
+	ret = pm_runtime_resume(component->dev);
+	if (ret < 0 && ret != -EACCES)
+		return ret;
 
 	return 0;
 }
@@ -1060,13 +1060,13 @@ static int rt712_sdca_pcm_hw_params(struct snd_pcm_substream *substream,
 	retval = sdw_stream_add_slave(rt712->slave, &stream_config,
 					&port_config, 1, sdw_stream);
 	if (retval) {
-		dev_err(dai->dev, "Unable to configure port\n");
+		dev_err(dai->dev, "%s: Unable to configure port\n", __func__);
 		return retval;
 	}
 
 	if (params_channels(params) > 16) {
-		dev_err(component->dev, "Unsupported channels %d\n",
-			params_channels(params));
+		dev_err(component->dev, "%s: Unsupported channels %d\n",
+			__func__, params_channels(params));
 		return -EINVAL;
 	}
 
@@ -1085,8 +1085,8 @@ static int rt712_sdca_pcm_hw_params(struct snd_pcm_substream *substream,
 		sampling_rate = RT712_SDCA_RATE_192000HZ;
 		break;
 	default:
-		dev_err(component->dev, "Rate %d is not supported\n",
-			params_rate(params));
+		dev_err(component->dev, "%s: Rate %d is not supported\n",
+			__func__, params_rate(params));
 		return -EINVAL;
 	}
 
@@ -1106,7 +1106,7 @@ static int rt712_sdca_pcm_hw_params(struct snd_pcm_substream *substream,
 			sampling_rate);
 		break;
 	default:
-		dev_err(component->dev, "Wrong DAI id\n");
+		dev_err(component->dev, "%s: Wrong DAI id\n", __func__);
 		return -EINVAL;
 	}
 

@@ -4,27 +4,6 @@
 include $(srctree)/scripts/Kbuild.include
 include $(srctree)/scripts/Makefile.lib
 
-KERNELPATH := kernel-$(subst -,_,$(KERNELRELEASE))
-# Include only those top-level files that are needed by make, plus the GPL copy
-TAR_CONTENT := Documentation LICENSES arch block certs crypto drivers fs \
-               include init io_uring ipc kernel lib mm net rust \
-               samples scripts security sound tools usr virt \
-               .config Makefile \
-               Kbuild Kconfig COPYING $(wildcard localversion*)
-
-quiet_cmd_src_tar = TAR     $(2).tar.gz
-      cmd_src_tar = \
-if test "$(objtree)" != "$(srctree)"; then \
-	echo >&2; \
-	echo >&2 "  ERROR:"; \
-	echo >&2 "  Building source tarball is not possible outside the"; \
-	echo >&2 "  kernel source tree. Don't set KBUILD_OUTPUT"; \
-	echo >&2; \
-	false; \
-fi ; \
-tar -I $(KGZIP) -c $(RCS_TAR_IGNORE) -f $(2).tar.gz \
-	--transform 's:^:$(2)/:S' $(TAR_CONTENT) $(3)
-
 # Git
 # ---------------------------------------------------------------------------
 
@@ -69,9 +48,9 @@ $(linux-tarballs): .tmp_HEAD FORCE
 # ---------------------------------------------------------------------------
 
 quiet_cmd_mkspec = GEN     $@
-      cmd_mkspec = $(srctree)/scripts/package/mkspec > $@
+      cmd_mkspec = $(srctree)/scripts/package/mkspec $@
 
-kernel.spec: FORCE
+rpmbuild/SPECS/kernel.spec: FORCE
 	$(call cmd,mkspec)
 
 PHONY += rpm-sources
@@ -88,14 +67,12 @@ srcrpm-pkg: private build-type := s
 binrpm-pkg: private build-type := b
 
 rpm-pkg srcrpm-pkg: rpm-sources
-rpm-pkg srcrpm-pkg binrpm-pkg: kernel.spec
-	+$(strip rpmbuild -b$(build-type) kernel.spec \
+rpm-pkg srcrpm-pkg binrpm-pkg: rpmbuild/SPECS/kernel.spec
+	+$(strip rpmbuild -b$(build-type) rpmbuild/SPECS/kernel.spec \
 	--define='_topdir $(abspath rpmbuild)' \
 	$(if $(filter a b, $(build-type)), \
 		--target $(UTS_MACHINE)-linux --build-in-place --noprep --define='_smp_mflags %{nil}' \
 		$$(rpm -q rpm >/dev/null 2>&1 || echo --nodeps)) \
-	$(if $(filter b, $(build-type)), \
-		--without devel) \
 	$(RPMOPTS))
 
 # deb-pkg srcdeb-pkg bindeb-pkg
@@ -132,8 +109,6 @@ debian-orig: linux.tar$(debian-orig-suffix) debian
 		cp $< ../$(orig-name); \
 	fi
 
-KBUILD_PKG_ROOTCMD ?= 'fakeroot -u'
-
 PHONY += deb-pkg srcdeb-pkg bindeb-pkg
 
 deb-pkg:    private build-type := source,binary
@@ -148,7 +123,7 @@ deb-pkg srcdeb-pkg bindeb-pkg:
 	$(if $(findstring source, $(build-type)), \
 		--unsigned-source --compression=$(KDEB_SOURCE_COMPRESS)) \
 	$(if $(findstring binary, $(build-type)), \
-		--rules-file='$(MAKE) -f debian/rules' --jobs=1 -r$(KBUILD_PKG_ROOTCMD) -a$$(cat debian/arch), \
+		-R'$(MAKE) -f debian/rules' -j1 -a$$(cat debian/arch), \
 		--no-check-builddeps) \
 	$(DPKG_FLAGS))
 
@@ -159,9 +134,8 @@ snap-pkg:
 	rm -rf $(objtree)/snap
 	mkdir $(objtree)/snap
 	$(MAKE) clean
-	$(call cmd,src_tar,$(KERNELPATH))
 	sed "s@KERNELRELEASE@$(KERNELRELEASE)@; \
-		s@SRCTREE@$(shell realpath $(KERNELPATH).tar.gz)@" \
+		s@SRCTREE@$(realpath $(srctree))@" \
 		$(srctree)/scripts/package/snapcraft.template > \
 		$(objtree)/snap/snapcraft.yaml
 	cd $(objtree)/snap && \

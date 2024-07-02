@@ -220,7 +220,7 @@ mlx5_devcom_register_component(struct mlx5_devcom_dev *devc,
 	struct mlx5_devcom_comp *comp;
 
 	if (IS_ERR_OR_NULL(devc))
-		return NULL;
+		return ERR_PTR(-EINVAL);
 
 	mutex_lock(&comp_list_lock);
 	comp = devcom_component_get(devc, id, key, handler);
@@ -254,6 +254,13 @@ void mlx5_devcom_unregister_component(struct mlx5_devcom_comp_dev *devcom)
 {
 	if (!IS_ERR_OR_NULL(devcom))
 		devcom_free_comp_dev(devcom);
+}
+
+int mlx5_devcom_comp_get_size(struct mlx5_devcom_comp_dev *devcom)
+{
+	struct mlx5_devcom_comp *comp = devcom->comp;
+
+	return kref_read(&comp->ref);
 }
 
 int mlx5_devcom_send_event(struct mlx5_devcom_comp_dev *devcom,

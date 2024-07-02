@@ -32,6 +32,7 @@
 struct snd_pcm_hardware {
 	unsigned int info;		/* SNDRV_PCM_INFO_* */
 	u64 formats;			/* SNDRV_PCM_FMTBIT_* */
+	u32 subformats;			/* for S32_LE, SNDRV_PCM_SUBFMTBIT_* */
 	unsigned int rates;		/* SNDRV_PCM_RATE_* */
 	unsigned int rate_min;		/* min rate */
 	unsigned int rate_max;		/* max rate */
@@ -119,6 +120,8 @@ struct snd_pcm_ops {
 #define SNDRV_PCM_RATE_192000		(1U<<12)	/* 192000Hz */
 #define SNDRV_PCM_RATE_352800		(1U<<13)	/* 352800Hz */
 #define SNDRV_PCM_RATE_384000		(1U<<14)	/* 384000Hz */
+#define SNDRV_PCM_RATE_705600		(1U<<15)	/* 705600Hz */
+#define SNDRV_PCM_RATE_768000		(1U<<16)	/* 768000Hz */
 
 #define SNDRV_PCM_RATE_CONTINUOUS	(1U<<30)	/* continuous range */
 #define SNDRV_PCM_RATE_KNOT		(1U<<31)	/* supports more non-continuos rates */
@@ -134,6 +137,9 @@ struct snd_pcm_ops {
 #define SNDRV_PCM_RATE_8000_384000	(SNDRV_PCM_RATE_8000_192000|\
 					 SNDRV_PCM_RATE_352800|\
 					 SNDRV_PCM_RATE_384000)
+#define SNDRV_PCM_RATE_8000_768000	(SNDRV_PCM_RATE_8000_384000|\
+					 SNDRV_PCM_RATE_705600|\
+					 SNDRV_PCM_RATE_768000)
 #define _SNDRV_PCM_FMTBIT(fmt)		(1ULL << (__force int)SNDRV_PCM_FORMAT_##fmt)
 #define SNDRV_PCM_FMTBIT_S8		_SNDRV_PCM_FMTBIT(S8)
 #define SNDRV_PCM_FMTBIT_U8		_SNDRV_PCM_FMTBIT(U8)
@@ -216,6 +222,12 @@ struct snd_pcm_ops {
 #define SNDRV_PCM_FMTBIT_S20		SNDRV_PCM_FMTBIT_S20_BE
 #define SNDRV_PCM_FMTBIT_U20		SNDRV_PCM_FMTBIT_U20_BE
 #endif
+
+#define _SNDRV_PCM_SUBFMTBIT(fmt)	BIT((__force int)SNDRV_PCM_SUBFORMAT_##fmt)
+#define SNDRV_PCM_SUBFMTBIT_STD		_SNDRV_PCM_SUBFMTBIT(STD)
+#define SNDRV_PCM_SUBFMTBIT_MSBITS_MAX	_SNDRV_PCM_SUBFMTBIT(MSBITS_MAX)
+#define SNDRV_PCM_SUBFMTBIT_MSBITS_20	_SNDRV_PCM_SUBFMTBIT(MSBITS_20)
+#define SNDRV_PCM_SUBFMTBIT_MSBITS_24	_SNDRV_PCM_SUBFMTBIT(MSBITS_24)
 
 struct snd_pcm_file {
 	struct snd_pcm_substream *substream;
@@ -651,6 +663,18 @@ void snd_pcm_stream_unlock_irqrestore(struct snd_pcm_substream *substream,
 		typecheck(unsigned long, flags);			\
 		flags = _snd_pcm_stream_lock_irqsave_nested(substream); \
 	} while (0)
+
+/* definitions for guard(); use like guard(pcm_stream_lock) */
+DEFINE_LOCK_GUARD_1(pcm_stream_lock, struct snd_pcm_substream,
+		    snd_pcm_stream_lock(_T->lock),
+		    snd_pcm_stream_unlock(_T->lock))
+DEFINE_LOCK_GUARD_1(pcm_stream_lock_irq, struct snd_pcm_substream,
+		    snd_pcm_stream_lock_irq(_T->lock),
+		    snd_pcm_stream_unlock_irq(_T->lock))
+DEFINE_LOCK_GUARD_1(pcm_stream_lock_irqsave, struct snd_pcm_substream,
+		    snd_pcm_stream_lock_irqsave(_T->lock, _T->flags),
+		    snd_pcm_stream_unlock_irqrestore(_T->lock, _T->flags),
+		    unsigned long flags)
 
 /**
  * snd_pcm_group_for_each_entry - iterate over the linked substreams

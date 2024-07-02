@@ -118,7 +118,6 @@ static inline struct ov5645 *to_ov5645(struct v4l2_subdev *sd)
 
 static const struct reg_value ov5645_global_init_setting[] = {
 	{ 0x3103, 0x11 },
-	{ 0x3008, 0x82 },
 	{ 0x3008, 0x42 },
 	{ 0x3103, 0x03 },
 	{ 0x3503, 0x07 },
@@ -627,6 +626,10 @@ static int ov5645_set_register_array(struct ov5645 *ov5645,
 		ret = ov5645_write_reg(ov5645, settings->reg, settings->val);
 		if (ret < 0)
 			return ret;
+
+		if (settings->reg == OV5645_SYSTEM_CTRL0 &&
+		    settings->val == OV5645_SYSTEM_CTRL0_START)
+			usleep_range(1000, 2000);
 	}
 
 	return 0;
@@ -851,7 +854,7 @@ __ov5645_get_pad_format(struct ov5645 *ov5645,
 {
 	switch (which) {
 	case V4L2_SUBDEV_FORMAT_TRY:
-		return v4l2_subdev_get_try_format(&ov5645->sd, sd_state, pad);
+		return v4l2_subdev_state_get_format(sd_state, pad);
 	case V4L2_SUBDEV_FORMAT_ACTIVE:
 		return &ov5645->fmt;
 	default:
@@ -878,7 +881,7 @@ __ov5645_get_pad_crop(struct ov5645 *ov5645,
 {
 	switch (which) {
 	case V4L2_SUBDEV_FORMAT_TRY:
-		return v4l2_subdev_get_try_crop(&ov5645->sd, sd_state, pad);
+		return v4l2_subdev_state_get_crop(sd_state, pad);
 	case V4L2_SUBDEV_FORMAT_ACTIVE:
 		return &ov5645->crop;
 	default:
@@ -934,8 +937,8 @@ static int ov5645_set_format(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int ov5645_entity_init_cfg(struct v4l2_subdev *subdev,
-				  struct v4l2_subdev_state *sd_state)
+static int ov5645_init_state(struct v4l2_subdev *subdev,
+			     struct v4l2_subdev_state *sd_state)
 {
 	struct v4l2_subdev_format fmt = { 0 };
 
@@ -1023,7 +1026,6 @@ static const struct v4l2_subdev_video_ops ov5645_video_ops = {
 };
 
 static const struct v4l2_subdev_pad_ops ov5645_subdev_pad_ops = {
-	.init_cfg = ov5645_entity_init_cfg,
 	.enum_mbus_code = ov5645_enum_mbus_code,
 	.enum_frame_size = ov5645_enum_frame_size,
 	.get_fmt = ov5645_get_format,
@@ -1034,6 +1036,10 @@ static const struct v4l2_subdev_pad_ops ov5645_subdev_pad_ops = {
 static const struct v4l2_subdev_ops ov5645_subdev_ops = {
 	.video = &ov5645_video_ops,
 	.pad = &ov5645_subdev_pad_ops,
+};
+
+static const struct v4l2_subdev_internal_ops ov5645_internal_ops = {
+	.init_state = ov5645_init_state,
 };
 
 static int ov5645_probe(struct i2c_client *client)
@@ -1053,7 +1059,7 @@ static int ov5645_probe(struct i2c_client *client)
 	ov5645->i2c_client = client;
 	ov5645->dev = dev;
 
-	endpoint = of_graph_get_next_endpoint(dev->of_node, NULL);
+	endpoint = of_graph_get_endpoint_by_regs(dev->of_node, 0, -1);
 	if (!endpoint) {
 		dev_err(dev, "endpoint node not found\n");
 		return -EINVAL;
@@ -1162,6 +1168,7 @@ static int ov5645_probe(struct i2c_client *client)
 	}
 
 	v4l2_i2c_subdev_init(&ov5645->sd, client, &ov5645_subdev_ops);
+	ov5645->sd.internal_ops = &ov5645_internal_ops;
 	ov5645->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	ov5645->pad.flags = MEDIA_PAD_FL_SOURCE;
 	ov5645->sd.dev = &client->dev;
@@ -1220,7 +1227,7 @@ static int ov5645_probe(struct i2c_client *client)
 	pm_runtime_get_noresume(dev);
 	pm_runtime_enable(dev);
 
-	ov5645_entity_init_cfg(&ov5645->sd, NULL);
+	ov5645_init_state(&ov5645->sd, NULL);
 
 	ret = v4l2_async_register_subdev(&ov5645->sd);
 	if (ret < 0) {

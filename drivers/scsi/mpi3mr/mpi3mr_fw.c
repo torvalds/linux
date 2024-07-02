@@ -11,7 +11,7 @@
 #include <linux/io-64-nonatomic-lo-hi.h>
 
 static int
-mpi3mr_issue_reset(struct mpi3mr_ioc *mrioc, u16 reset_type, u32 reset_reason);
+mpi3mr_issue_reset(struct mpi3mr_ioc *mrioc, u16 reset_type, u16 reset_reason);
 static int mpi3mr_setup_admin_qpair(struct mpi3mr_ioc *mrioc);
 static void mpi3mr_process_factsdata(struct mpi3mr_ioc *mrioc,
 	struct mpi3_ioc_facts_data *facts_data);
@@ -475,7 +475,7 @@ int mpi3mr_process_admin_reply_q(struct mpi3mr_ioc *mrioc)
  * @op_reply_q: op_reply_qinfo object
  * @reply_ci: operational reply descriptor's queue consumer index
  *
- * Returns reply descriptor frame address
+ * Returns: reply descriptor frame address
  */
 static inline struct mpi3_default_reply_descriptor *
 mpi3mr_get_reply_desc(struct op_reply_qinfo *op_reply_q, u32 reply_ci)
@@ -1059,6 +1059,112 @@ enum mpi3mr_iocstate mpi3mr_get_iocstate(struct mpi3mr_ioc *mrioc)
 }
 
 /**
+ * mpi3mr_free_ioctl_dma_memory - free memory for ioctl dma
+ * @mrioc: Adapter instance reference
+ *
+ * Free the DMA memory allocated for IOCTL handling purpose.
+ *
+ * Return: None
+ */
+static void mpi3mr_free_ioctl_dma_memory(struct mpi3mr_ioc *mrioc)
+{
+	struct dma_memory_desc *mem_desc;
+	u16 i;
+
+	if (!mrioc->ioctl_dma_pool)
+		return;
+
+	for (i = 0; i < MPI3MR_NUM_IOCTL_SGE; i++) {
+		mem_desc = &mrioc->ioctl_sge[i];
+		if (mem_desc->addr) {
+			dma_pool_free(mrioc->ioctl_dma_pool,
+				      mem_desc->addr,
+				      mem_desc->dma_addr);
+			mem_desc->addr = NULL;
+		}
+	}
+	dma_pool_destroy(mrioc->ioctl_dma_pool);
+	mrioc->ioctl_dma_pool = NULL;
+	mem_desc = &mrioc->ioctl_chain_sge;
+
+	if (mem_desc->addr) {
+		dma_free_coherent(&mrioc->pdev->dev, mem_desc->size,
+				  mem_desc->addr, mem_desc->dma_addr);
+		mem_desc->addr = NULL;
+	}
+	mem_desc = &mrioc->ioctl_resp_sge;
+	if (mem_desc->addr) {
+		dma_free_coherent(&mrioc->pdev->dev, mem_desc->size,
+				  mem_desc->addr, mem_desc->dma_addr);
+		mem_desc->addr = NULL;
+	}
+
+	mrioc->ioctl_sges_allocated = false;
+}
+
+/**
+ * mpi3mr_alloc_ioctl_dma_memory - Alloc memory for ioctl dma
+ * @mrioc: Adapter instance reference
+ *
+ * This function allocates dmaable memory required to handle the
+ * application issued MPI3 IOCTL requests.
+ *
+ * Return: None
+ */
+static void mpi3mr_alloc_ioctl_dma_memory(struct mpi3mr_ioc *mrioc)
+
+{
+	struct dma_memory_desc *mem_desc;
+	u16 i;
+
+	mrioc->ioctl_dma_pool = dma_pool_create("ioctl dma pool",
+						&mrioc->pdev->dev,
+						MPI3MR_IOCTL_SGE_SIZE,
+						MPI3MR_PAGE_SIZE_4K, 0);
+
+	if (!mrioc->ioctl_dma_pool) {
+		ioc_err(mrioc, "ioctl_dma_pool: dma_pool_create failed\n");
+		goto out_failed;
+	}
+
+	for (i = 0; i < MPI3MR_NUM_IOCTL_SGE; i++) {
+		mem_desc = &mrioc->ioctl_sge[i];
+		mem_desc->size = MPI3MR_IOCTL_SGE_SIZE;
+		mem_desc->addr = dma_pool_zalloc(mrioc->ioctl_dma_pool,
+						 GFP_KERNEL,
+						 &mem_desc->dma_addr);
+		if (!mem_desc->addr)
+			goto out_failed;
+	}
+
+	mem_desc = &mrioc->ioctl_chain_sge;
+	mem_desc->size = MPI3MR_PAGE_SIZE_4K;
+	mem_desc->addr = dma_alloc_coherent(&mrioc->pdev->dev,
+					    mem_desc->size,
+					    &mem_desc->dma_addr,
+					    GFP_KERNEL);
+	if (!mem_desc->addr)
+		goto out_failed;
+
+	mem_desc = &mrioc->ioctl_resp_sge;
+	mem_desc->size = MPI3MR_PAGE_SIZE_4K;
+	mem_desc->addr = dma_alloc_coherent(&mrioc->pdev->dev,
+					    mem_desc->size,
+					    &mem_desc->dma_addr,
+					    GFP_KERNEL);
+	if (!mem_desc->addr)
+		goto out_failed;
+
+	mrioc->ioctl_sges_allocated = true;
+
+	return;
+out_failed:
+	ioc_warn(mrioc, "cannot allocate DMA memory for the mpt commands\n"
+		 "from the applications, application interface for MPT command is disabled\n");
+	mpi3mr_free_ioctl_dma_memory(mrioc);
+}
+
+/**
  * mpi3mr_clear_reset_history - clear reset history
  * @mrioc: Adapter instance reference
  *
@@ -1089,7 +1195,7 @@ static inline void mpi3mr_clear_reset_history(struct mpi3mr_ioc *mrioc)
 static int mpi3mr_issue_and_process_mur(struct mpi3mr_ioc *mrioc,
 	u32 reset_reason)
 {
-	u32 ioc_config, timeout, ioc_status;
+	u32 ioc_config, timeout, ioc_status, scratch_pad0;
 	int retval = -1;
 
 	ioc_info(mrioc, "Issuing Message unit Reset(MUR)\n");
@@ -1098,7 +1204,11 @@ static int mpi3mr_issue_and_process_mur(struct mpi3mr_ioc *mrioc,
 		return retval;
 	}
 	mpi3mr_clear_reset_history(mrioc);
-	writel(reset_reason, &mrioc->sysif_regs->scratchpad[0]);
+	scratch_pad0 = ((MPI3MR_RESET_REASON_OSTYPE_LINUX <<
+			 MPI3MR_RESET_REASON_OSTYPE_SHIFT) |
+			(mrioc->facts.ioc_num <<
+			 MPI3MR_RESET_REASON_IOCNUM_SHIFT) | reset_reason);
+	writel(scratch_pad0, &mrioc->sysif_regs->scratchpad[0]);
 	ioc_config = readl(&mrioc->sysif_regs->ioc_configuration);
 	ioc_config &= ~MPI3_SYSIF_IOC_CONFIG_ENABLE_IOC;
 	writel(ioc_config, &mrioc->sysif_regs->ioc_configuration);
@@ -1133,7 +1243,7 @@ static int mpi3mr_issue_and_process_mur(struct mpi3mr_ioc *mrioc,
  * during reset/resume
  * @mrioc: Adapter instance reference
  *
- * Return zero if the new IOCFacts parameters value is compatible with
+ * Return: zero if the new IOCFacts parameters value is compatible with
  * older values else return -EPERM
  */
 static int
@@ -1170,7 +1280,7 @@ mpi3mr_revalidate_factsdata(struct mpi3mr_ioc *mrioc)
 			    mrioc->shost->max_sectors * 512, mrioc->facts.max_data_length);
 
 	if ((mrioc->sas_transport_enabled) && (mrioc->facts.ioc_capabilities &
-	    MPI3_IOCFACTS_CAPABILITY_MULTIPATH_ENABLED))
+	    MPI3_IOCFACTS_CAPABILITY_MULTIPATH_SUPPORTED))
 		ioc_err(mrioc,
 		    "critical error: multipath capability is enabled at the\n"
 		    "\tcontroller while sas transport support is enabled at the\n"
@@ -1414,11 +1524,11 @@ static inline void mpi3mr_set_diagsave(struct mpi3mr_ioc *mrioc)
  * Return: 0 on success, non-zero on failure.
  */
 static int mpi3mr_issue_reset(struct mpi3mr_ioc *mrioc, u16 reset_type,
-	u32 reset_reason)
+	u16 reset_reason)
 {
 	int retval = -1;
 	u8 unlock_retry_count = 0;
-	u32 host_diagnostic, ioc_status, ioc_config;
+	u32 host_diagnostic, ioc_status, ioc_config, scratch_pad0;
 	u32 timeout = MPI3MR_RESET_ACK_TIMEOUT * 10;
 
 	if ((reset_type != MPI3_SYSIF_HOST_DIAG_RESET_ACTION_SOFT_RESET) &&
@@ -1470,6 +1580,9 @@ static int mpi3mr_issue_reset(struct mpi3mr_ioc *mrioc, u16 reset_type,
 		    unlock_retry_count, host_diagnostic);
 	} while (!(host_diagnostic & MPI3_SYSIF_HOST_DIAG_DIAG_WRITE_ENABLE));
 
+	scratch_pad0 = ((MPI3MR_RESET_REASON_OSTYPE_LINUX <<
+	    MPI3MR_RESET_REASON_OSTYPE_SHIFT) | (mrioc->facts.ioc_num <<
+	    MPI3MR_RESET_REASON_IOCNUM_SHIFT) | reset_reason);
 	writel(reset_reason, &mrioc->sysif_regs->scratchpad[0]);
 	writel(host_diagnostic | reset_type,
 	    &mrioc->sysif_regs->host_diagnostic);
@@ -1892,7 +2005,8 @@ static int mpi3mr_create_op_reply_q(struct mpi3mr_ioc *mrioc, u16 qidx)
 
 	reply_qid = qidx + 1;
 	op_reply_q->num_replies = MPI3MR_OP_REP_Q_QD;
-	if (!mrioc->pdev->revision)
+	if ((mrioc->pdev->device == MPI3_MFGPAGE_DEVID_SAS4116) &&
+		!mrioc->pdev->revision)
 		op_reply_q->num_replies = MPI3MR_OP_REP_Q_QD4K;
 	op_reply_q->ci = 0;
 	op_reply_q->ephase = 1;
@@ -2474,7 +2588,7 @@ static void mpi3mr_watchdog_work(struct work_struct *work)
 	unsigned long flags;
 	enum mpi3mr_iocstate ioc_state;
 	u32 fault, host_diagnostic, ioc_status;
-	u32 reset_reason = MPI3MR_RESET_FROM_FAULT_WATCH;
+	u16 reset_reason = MPI3MR_RESET_FROM_FAULT_WATCH;
 
 	if (mrioc->reset_in_progress)
 		return;
@@ -3193,6 +3307,11 @@ static int mpi3mr_issue_iocinit(struct mpi3mr_ioc *mrioc)
 	current_time = ktime_get_real();
 	iocinit_req.time_stamp = cpu_to_le64(ktime_to_ms(current_time));
 
+	iocinit_req.msg_flags |=
+	    MPI3_IOCINIT_MSGFLAGS_SCSIIOSTATUSREPLY_SUPPORTED;
+	iocinit_req.msg_flags |=
+		MPI3_IOCINIT_MSGFLAGS_WRITESAMEDIVERT_SUPPORTED;
+
 	init_completion(&mrioc->init_cmds.done);
 	retval = mpi3mr_admin_request_post(mrioc, &iocinit_req,
 	    sizeof(iocinit_req), 1);
@@ -3558,15 +3677,15 @@ static const struct {
 	u32 capability;
 	char *name;
 } mpi3mr_capabilities[] = {
-	{ MPI3_IOCFACTS_CAPABILITY_RAID_CAPABLE, "RAID" },
-	{ MPI3_IOCFACTS_CAPABILITY_MULTIPATH_ENABLED, "MultiPath" },
+	{ MPI3_IOCFACTS_CAPABILITY_RAID_SUPPORTED, "RAID" },
+	{ MPI3_IOCFACTS_CAPABILITY_MULTIPATH_SUPPORTED, "MultiPath" },
 };
 
 /**
  * mpi3mr_print_ioc_info - Display controller information
  * @mrioc: Adapter instance reference
  *
- * Display controller personalit, capability, supported
+ * Display controller personality, capability, supported
  * protocols etc.
  *
  * Return: Nothing
@@ -3575,20 +3694,20 @@ static void
 mpi3mr_print_ioc_info(struct mpi3mr_ioc *mrioc)
 {
 	int i = 0, bytes_written = 0;
-	char personality[16];
+	const char *personality;
 	char protocol[50] = {0};
 	char capabilities[100] = {0};
 	struct mpi3mr_compimg_ver *fwver = &mrioc->facts.fw_ver;
 
 	switch (mrioc->facts.personality) {
 	case MPI3_IOCFACTS_FLAGS_PERSONALITY_EHBA:
-		strncpy(personality, "Enhanced HBA", sizeof(personality));
+		personality = "Enhanced HBA";
 		break;
 	case MPI3_IOCFACTS_FLAGS_PERSONALITY_RAID_DDR:
-		strncpy(personality, "RAID", sizeof(personality));
+		personality = "RAID";
 		break;
 	default:
-		strncpy(personality, "Unknown", sizeof(personality));
+		personality = "Unknown";
 		break;
 	}
 
@@ -3841,7 +3960,7 @@ retry_init:
 		    MPI3MR_HOST_IOS_KDUMP);
 
 	if (!(mrioc->facts.ioc_capabilities &
-	    MPI3_IOCFACTS_CAPABILITY_MULTIPATH_ENABLED)) {
+	    MPI3_IOCFACTS_CAPABILITY_MULTIPATH_SUPPORTED)) {
 		mrioc->sas_transport_enabled = 1;
 		mrioc->scsi_device_channel = 1;
 		mrioc->shost->max_channel = 1;
@@ -3869,6 +3988,9 @@ retry_init:
 			goto out_failed_noretry;
 		}
 	}
+
+	dprint_init(mrioc, "allocating ioctl dma buffers\n");
+	mpi3mr_alloc_ioctl_dma_memory(mrioc);
 
 	if (!mrioc->init_cmds.reply) {
 		retval = mpi3mr_alloc_reply_sense_bufs(mrioc);
@@ -4289,6 +4411,7 @@ void mpi3mr_free_mem(struct mpi3mr_ioc *mrioc)
 	struct mpi3mr_intr_info *intr_info;
 
 	mpi3mr_free_enclosure_list(mrioc);
+	mpi3mr_free_ioctl_dma_memory(mrioc);
 
 	if (mrioc->sense_buf_pool) {
 		if (mrioc->sense_buf)
@@ -4852,7 +4975,7 @@ cleanup_drv_cmd:
  * Return: 0 on success, non-zero on failure.
  */
 int mpi3mr_soft_reset_handler(struct mpi3mr_ioc *mrioc,
-	u32 reset_reason, u8 snapdump)
+	u16 reset_reason, u8 snapdump)
 {
 	int retval = 0, i;
 	unsigned long flags;
@@ -4988,6 +5111,7 @@ out:
 		mrioc->device_refresh_on = 0;
 		mrioc->unrecoverable = 1;
 		mrioc->reset_in_progress = 0;
+		mrioc->stop_bsgs = 0;
 		retval = -1;
 		mpi3mr_flush_cmds_for_unrecovered_controller(mrioc);
 	}

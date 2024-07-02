@@ -371,7 +371,6 @@ static u16 initio_se2_rd(unsigned long base, u8 addr)
  */
 static void initio_se2_wr(unsigned long base, u8 addr, u16 val)
 {
-	u8 rb;
 	u8 instr;
 	int i;
 
@@ -400,7 +399,7 @@ static void initio_se2_wr(unsigned long base, u8 addr, u16 val)
 		udelay(30);
 		outb(SE2CS, base + TUL_NVRAM);			/* -CLK */
 		udelay(30);
-		if ((rb = inb(base + TUL_NVRAM)) & SE2DI)
+		if (inb(base + TUL_NVRAM) & SE2DI)
 			break;	/* write complete */
 	}
 	outb(0, base + TUL_NVRAM);				/* -CS */

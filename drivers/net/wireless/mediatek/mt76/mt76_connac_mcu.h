@@ -416,6 +416,14 @@ struct sta_rec_he_6g_capa {
 	u8 rsv[2];
 } __packed;
 
+struct sta_rec_pn_info {
+	__le16 tag;
+	__le16 len;
+	u8 pn[6];
+	u8 tsc_type;
+	u8 rsv;
+} __packed;
+
 struct sec_key {
 	u8 cipher_id;
 	u8 cipher_len;
@@ -602,6 +610,12 @@ struct sta_rec_ra_fixed {
 	u8 mmps_mode;
 } __packed;
 
+struct sta_rec_tx_proc {
+	__le16 tag;
+	__le16 len;
+	__le32 flag;
+} __packed;
+
 /* wtbl_rec */
 
 struct wtbl_req_hdr {
@@ -768,6 +782,8 @@ struct wtbl_raw {
 					 sizeof(struct sta_rec_sec) +	\
 					 sizeof(struct sta_rec_ra_fixed) + \
 					 sizeof(struct sta_rec_he_6g_capa) + \
+					 sizeof(struct sta_rec_pn_info) + \
+					 sizeof(struct sta_rec_tx_proc) + \
 					 sizeof(struct tlv) +		\
 					 MT76_CONNAC_WTBL_UPDATE_MAX_SIZE)
 
@@ -798,6 +814,8 @@ enum {
 	STA_REC_HE_V2 = 0x19,
 	STA_REC_MLD = 0x20,
 	STA_REC_EHT = 0x22,
+	STA_REC_PN_INFO = 0x26,
+	STA_REC_KEY_V3 = 0x27,
 	STA_REC_HDRT = 0x28,
 	STA_REC_HDR_TRANS = 0x2B,
 	STA_REC_MAX_NUM
@@ -925,6 +943,9 @@ enum {
 	PHY_TYPE_INDEX_NUM
 };
 
+#define HR_DSSS_ERP_BASIC_RATE			GENMASK(3, 0)
+#define OFDM_BASIC_RATE				(BIT(6) | BIT(8) | BIT(10))
+
 #define PHY_TYPE_BIT_HR_DSSS			BIT(PHY_TYPE_HR_DSSS_INDEX)
 #define PHY_TYPE_BIT_ERP			BIT(PHY_TYPE_ERP_INDEX)
 #define PHY_TYPE_BIT_OFDM			BIT(PHY_TYPE_OFDM_INDEX)
@@ -990,6 +1011,7 @@ enum {
 	MCU_EVENT_CH_PRIVILEGE = 0x18,
 	MCU_EVENT_SCHED_SCAN_DONE = 0x23,
 	MCU_EVENT_DBG_MSG = 0x27,
+	MCU_EVENT_RSSI_NOTIFY = 0x96,
 	MCU_EVENT_TXPWR = 0xd0,
 	MCU_EVENT_EXT = 0xed,
 	MCU_EVENT_RESTART_DL = 0xef,
@@ -1021,7 +1043,9 @@ enum {
 	MCU_UNI_EVENT_RDD_REPORT = 0x11,
 	MCU_UNI_EVENT_ROC = 0x27,
 	MCU_UNI_EVENT_TX_DONE = 0x2d,
+	MCU_UNI_EVENT_THERMAL = 0x35,
 	MCU_UNI_EVENT_NIC_CAPAB = 0x43,
+	MCU_UNI_EVENT_WED_RRO = 0x57,
 	MCU_UNI_EVENT_PER_STA_INFO = 0x6d,
 	MCU_UNI_EVENT_ALL_STA_INFO = 0x6e,
 };
@@ -1088,6 +1112,13 @@ enum mcu_cipher_type {
 	MCU_CIPHER_GCMP_256,
 	MCU_CIPHER_WAPI,
 	MCU_CIPHER_BIP_CMAC_128,
+	MCU_CIPHER_BIP_CMAC_256,
+	MCU_CIPHER_BCN_PROT_CMAC_128,
+	MCU_CIPHER_BCN_PROT_CMAC_256,
+	MCU_CIPHER_BCN_PROT_GMAC_128,
+	MCU_CIPHER_BCN_PROT_GMAC_256,
+	MCU_CIPHER_BIP_GMAC_128,
+	MCU_CIPHER_BIP_GMAC_256,
 };
 
 enum {
@@ -1159,6 +1190,7 @@ enum {
 	MCU_EXT_CMD_EFUSE_ACCESS = 0x01,
 	MCU_EXT_CMD_RF_REG_ACCESS = 0x02,
 	MCU_EXT_CMD_RF_TEST = 0x04,
+	MCU_EXT_CMD_ID_RADIO_ON_OFF_CTRL = 0x05,
 	MCU_EXT_CMD_PM_STATE_CTRL = 0x07,
 	MCU_EXT_CMD_CHANNEL_SWITCH = 0x08,
 	MCU_EXT_CMD_SET_TX_POWER_CTRL = 0x11,
@@ -1190,6 +1222,7 @@ enum {
 	MCU_EXT_CMD_TXDPD_CAL = 0x60,
 	MCU_EXT_CMD_CAL_CACHE = 0x67,
 	MCU_EXT_CMD_RED_ENABLE = 0x68,
+	MCU_EXT_CMD_CP_SUPPORT = 0x75,
 	MCU_EXT_CMD_SET_RADAR_TH = 0x7c,
 	MCU_EXT_CMD_SET_RDD_PATTERN = 0x7d,
 	MCU_EXT_CMD_MWDS_SUPPORT = 0x80,
@@ -1240,6 +1273,7 @@ enum {
 	MCU_UNI_CMD_CHANNEL_SWITCH = 0x34,
 	MCU_UNI_CMD_THERMAL = 0x35,
 	MCU_UNI_CMD_VOW = 0x37,
+	MCU_UNI_CMD_FIXED_RATE_TABLE = 0x40,
 	MCU_UNI_CMD_RRO = 0x57,
 	MCU_UNI_CMD_OFFCH_SCAN_CTRL = 0x58,
 	MCU_UNI_CMD_PER_STA_INFO = 0x6d,
@@ -1279,6 +1313,7 @@ enum {
 	MCU_CE_CMD_SCHED_SCAN_ENABLE = 0x61,
 	MCU_CE_CMD_SCHED_SCAN_REQ = 0x62,
 	MCU_CE_CMD_GET_NIC_CAPAB = 0x8a,
+	MCU_CE_CMD_RSSI_MONITOR = 0xa1,
 	MCU_CE_CMD_SET_MU_EDCA_PARMS = 0xb0,
 	MCU_CE_CMD_REG_WRITE = 0xc0,
 	MCU_CE_CMD_REG_READ = 0xc0,
@@ -1307,6 +1342,7 @@ enum {
 	UNI_BSS_INFO_RATE = 11,
 	UNI_BSS_INFO_QBSS = 15,
 	UNI_BSS_INFO_SEC = 16,
+	UNI_BSS_INFO_BCN_PROT = 17,
 	UNI_BSS_INFO_TXCMD = 18,
 	UNI_BSS_INFO_UAPSD = 19,
 	UNI_BSS_INFO_PS = 21,
@@ -1325,7 +1361,7 @@ enum {
 };
 
 enum UNI_ALL_STA_INFO_TAG {
-	UNI_ALL_STA_TX_RATE,
+	UNI_ALL_STA_TXRX_RATE,
 	UNI_ALL_STA_TX_STAT,
 	UNI_ALL_STA_TXRX_ADM_STAT,
 	UNI_ALL_STA_TXRX_AIR_TIME,
@@ -1421,6 +1457,10 @@ struct mt76_connac_beacon_loss_event {
 	u8 bss_idx;
 	u8 reason;
 	u8 pad[2];
+} __packed;
+
+struct mt76_connac_rssi_notify_event {
+	__le32 rssi[4];
 } __packed;
 
 struct mt76_connac_mcu_bss_event {
@@ -1768,6 +1808,12 @@ mt76_connac_mcu_get_cipher(int cipher)
 		return MCU_CIPHER_GCMP;
 	case WLAN_CIPHER_SUITE_GCMP_256:
 		return MCU_CIPHER_GCMP_256;
+	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
+		return MCU_CIPHER_BIP_GMAC_128;
+	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
+		return MCU_CIPHER_BIP_GMAC_256;
+	case WLAN_CIPHER_SUITE_BIP_CMAC_256:
+		return MCU_CIPHER_BIP_CMAC_256;
 	case WLAN_CIPHER_SUITE_SMS4:
 		return MCU_CIPHER_WAPI;
 	default:

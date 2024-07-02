@@ -517,10 +517,7 @@ static struct attribute *stmfts_sysfs_attrs[] = {
 	&dev_attr_hover_enable.attr,
 	NULL
 };
-
-static struct attribute_group stmfts_attribute_group = {
-	.attrs = stmfts_sysfs_attrs
-};
+ATTRIBUTE_GROUPS(stmfts_sysfs);
 
 static int stmfts_power_on(struct stmfts_data *sdata)
 {
@@ -727,10 +724,6 @@ static int stmfts_probe(struct i2c_client *client)
 		}
 	}
 
-	err = devm_device_add_group(&client->dev, &stmfts_attribute_group);
-	if (err)
-		return err;
-
 	pm_runtime_enable(&client->dev);
 	device_enable_async_suspend(&client->dev);
 
@@ -804,6 +797,7 @@ MODULE_DEVICE_TABLE(i2c, stmfts_id);
 static struct i2c_driver stmfts_driver = {
 	.driver = {
 		.name = STMFTS_DEV_NAME,
+		.dev_groups = stmfts_sysfs_groups,
 		.of_match_table = of_match_ptr(stmfts_of_match),
 		.pm = pm_ptr(&stmfts_pm_ops),
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,

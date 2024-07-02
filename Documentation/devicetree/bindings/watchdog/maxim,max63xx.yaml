@@ -6,13 +6,13 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Maxim 63xx Watchdog Timers
 
-allOf:
-  - $ref: watchdog.yaml#
-  - $ref: /schemas/memory-controllers/mc-peripheral-props.yaml#
-
 maintainers:
   - Marc Zyngier <maz@kernel.org>
   - Linus Walleij <linus.walleij@linaro.org>
+
+allOf:
+  - $ref: watchdog.yaml#
+  - $ref: /schemas/memory-controllers/mc-peripheral-props.yaml#
 
 properties:
   compatible:

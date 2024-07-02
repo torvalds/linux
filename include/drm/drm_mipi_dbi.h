@@ -12,6 +12,7 @@
 #include <drm/drm_device.h>
 #include <drm/drm_simple_kms_helper.h>
 
+struct drm_format_conv_state;
 struct drm_rect;
 struct gpio_desc;
 struct iosys_map;
@@ -192,7 +193,8 @@ int mipi_dbi_command_buf(struct mipi_dbi *dbi, u8 cmd, u8 *data, size_t len);
 int mipi_dbi_command_stackbuf(struct mipi_dbi *dbi, u8 cmd, const u8 *data,
 			      size_t len);
 int mipi_dbi_buf_copy(void *dst, struct iosys_map *src, struct drm_framebuffer *fb,
-		      struct drm_rect *clip, bool swap);
+		      struct drm_rect *clip, bool swap,
+		      struct drm_format_conv_state *fmtcnv_state);
 
 /**
  * mipi_dbi_command - MIPI DCS command with optional parameter(s)

@@ -177,7 +177,6 @@ enum intel_gvt_irq_type {
 /* per-event information */
 struct intel_gvt_event_info {
 	int bit;				/* map to register bit */
-	int policy;				/* forwarding policy */
 	struct intel_gvt_irq_info *info;	/* register info */
 	gvt_event_virt_handler_t v_handler;	/* for v_event */
 };
@@ -188,7 +187,6 @@ struct intel_gvt_irq {
 	struct intel_gvt_irq_info *info[INTEL_GVT_IRQ_INFO_MAX];
 	DECLARE_BITMAP(irq_info_bitmap, INTEL_GVT_IRQ_INFO_MAX);
 	struct intel_gvt_event_info events[INTEL_GVT_EVENT_MAX];
-	DECLARE_BITMAP(pending_events, INTEL_GVT_EVENT_MAX);
 	struct intel_gvt_irq_map *irq_map;
 };
 

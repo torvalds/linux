@@ -3,7 +3,7 @@
 // This file is provided under a dual BSD/GPLv2 license.  When using or
 // redistributing this file, you may do so under either license.
 //
-// Copyright(c) 2022 Intel Corporation. All rights reserved.
+// Copyright(c) 2022 Intel Corporation
 
 #include <linux/firmware.h>
 #include <sound/sof/ext_manifest4.h>
@@ -79,6 +79,14 @@ static ssize_t sof_ipc4_fw_parse_ext_man(struct snd_sof_dev *sdev,
 		 fw_header->hotfix_version, fw_header->build_version);
 	dev_dbg(sdev->dev, "Header length: %u, module count: %u\n",
 		fw_header->len, fw_header->num_module_entries);
+
+	/* copy the fw_version of basefw into debugfs at first boot */
+	if (fw == sdev->basefw.fw) {
+		sdev->fw_version.major = fw_header->major_version;
+		sdev->fw_version.minor = fw_header->minor_version;
+		sdev->fw_version.micro = fw_header->hotfix_version;
+		sdev->fw_version.build = fw_header->build_version;
+	}
 
 	fw_lib->modules = devm_kmalloc_array(sdev->dev, fw_header->num_module_entries,
 					     sizeof(*fw_module), GFP_KERNEL);
@@ -391,6 +399,9 @@ int sof_ipc4_query_fw_configuration(struct snd_sof_dev *sdev)
 				goto out;
 			}
 			break;
+		case SOF_IPC4_FW_CONTEXT_SAVE:
+			ipc4_data->fw_context_save = *tuple->value;
+			break;
 		default:
 			break;
 		}
@@ -479,13 +490,10 @@ void sof_ipc4_update_cpc_from_manifest(struct snd_sof_dev *sdev,
 		msg = "No CPC match in the firmware file's manifest";
 
 no_cpc:
-	dev_warn(sdev->dev, "%s (UUID: %pUL): %s (ibs/obs: %u/%u)\n",
-		 fw_module->man4_module_entry.name,
-		 &fw_module->man4_module_entry.uuid, msg, basecfg->ibs,
-		 basecfg->obs);
-	dev_warn_once(sdev->dev, "Please try to update the firmware.\n");
-	dev_warn_once(sdev->dev, "If the issue persists, file a bug at\n");
-	dev_warn_once(sdev->dev, "https://github.com/thesofproject/sof/issues/\n");
+	dev_dbg(sdev->dev, "%s (UUID: %pUL): %s (ibs/obs: %u/%u)\n",
+		fw_module->man4_module_entry.name,
+		&fw_module->man4_module_entry.uuid, msg, basecfg->ibs,
+		basecfg->obs);
 }
 
 const struct sof_ipc_fw_loader_ops ipc4_loader_ops = {

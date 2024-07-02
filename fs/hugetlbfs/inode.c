@@ -40,7 +40,7 @@
 #include <linux/sched/mm.h>
 
 static const struct address_space_operations hugetlbfs_aops;
-const struct file_operations hugetlbfs_file_operations;
+static const struct file_operations hugetlbfs_file_operations;
 static const struct inode_operations hugetlbfs_dir_inode_operations;
 static const struct inode_operations hugetlbfs_inode_operations;
 
@@ -100,6 +100,7 @@ static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
 	loff_t len, vma_len;
 	int ret;
 	struct hstate *h = hstate_file(file);
+	vm_flags_t vm_flags;
 
 	/*
 	 * vma address alignment (but not the pgoff alignment) has
@@ -141,10 +142,20 @@ static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
 	file_accessed(file);
 
 	ret = -ENOMEM;
+
+	vm_flags = vma->vm_flags;
+	/*
+	 * for SHM_HUGETLB, the pages are reserved in the shmget() call so skip
+	 * reserving here. Note: only for SHM hugetlbfs file, the inode
+	 * flag S_PRIVATE is set.
+	 */
+	if (inode->i_flags & S_PRIVATE)
+		vm_flags |= VM_NORESERVE;
+
 	if (!hugetlb_reserve_pages(inode,
 				vma->vm_pgoff >> huge_page_order(h),
 				len >> huge_page_shift(h), vma,
-				vma->vm_flags))
+				vm_flags))
 		goto out;
 
 	ret = 0;
@@ -340,7 +351,7 @@ static ssize_t hugetlbfs_read_iter(struct kiocb *iocb, struct iov_iter *to)
 		} else {
 			folio_unlock(folio);
 
-			if (!folio_test_has_hwpoisoned(folio))
+			if (!folio_test_hwpoison(folio))
 				want = nr;
 			else {
 				/*
@@ -686,7 +697,7 @@ static void hugetlbfs_evict_inode(struct inode *inode)
 	 * at inode creation time.  If this is a device special inode,
 	 * i_mapping may not point to the original address space.
 	 */
-	resv_map = (struct resv_map *)(&inode->i_data)->private_data;
+	resv_map = (struct resv_map *)(&inode->i_data)->i_private_data;
 	/* Only regular and link inodes have associated reserve maps */
 	if (resv_map)
 		resv_map_release(&resv_map->refs);
@@ -922,7 +933,7 @@ static int hugetlbfs_setattr(struct mnt_idmap *idmap,
 	unsigned int ia_valid = attr->ia_valid;
 	struct hugetlbfs_inode_info *info = HUGETLBFS_I(inode);
 
-	error = setattr_prepare(&nop_mnt_idmap, dentry, attr);
+	error = setattr_prepare(idmap, dentry, attr);
 	if (error)
 		return error;
 
@@ -939,7 +950,7 @@ static int hugetlbfs_setattr(struct mnt_idmap *idmap,
 		hugetlb_vmtruncate(inode, newsize);
 	}
 
-	setattr_copy(&nop_mnt_idmap, inode, attr);
+	setattr_copy(idmap, inode, attr);
 	mark_inode_dirty(inode);
 	return 0;
 }
@@ -974,6 +985,7 @@ static struct inode *hugetlbfs_get_root(struct super_block *sb,
 static struct lock_class_key hugetlbfs_i_mmap_rwsem_key;
 
 static struct inode *hugetlbfs_get_inode(struct super_block *sb,
+					struct mnt_idmap *idmap,
 					struct inode *dir,
 					umode_t mode, dev_t dev)
 {
@@ -995,12 +1007,12 @@ static struct inode *hugetlbfs_get_inode(struct super_block *sb,
 		struct hugetlbfs_inode_info *info = HUGETLBFS_I(inode);
 
 		inode->i_ino = get_next_ino();
-		inode_init_owner(&nop_mnt_idmap, inode, dir, mode);
+		inode_init_owner(idmap, inode, dir, mode);
 		lockdep_set_class(&inode->i_mapping->i_mmap_rwsem,
 				&hugetlbfs_i_mmap_rwsem_key);
 		inode->i_mapping->a_ops = &hugetlbfs_aops;
 		simple_inode_init_ts(inode);
-		inode->i_mapping->private_data = resv_map;
+		inode->i_mapping->i_private_data = resv_map;
 		info->seals = F_SEAL_SEAL;
 		switch (mode & S_IFMT) {
 		default:
@@ -1039,7 +1051,7 @@ static int hugetlbfs_mknod(struct mnt_idmap *idmap, struct inode *dir,
 {
 	struct inode *inode;
 
-	inode = hugetlbfs_get_inode(dir->i_sb, dir, mode, dev);
+	inode = hugetlbfs_get_inode(dir->i_sb, idmap, dir, mode, dev);
 	if (!inode)
 		return -ENOSPC;
 	inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
@@ -1051,7 +1063,7 @@ static int hugetlbfs_mknod(struct mnt_idmap *idmap, struct inode *dir,
 static int hugetlbfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 			   struct dentry *dentry, umode_t mode)
 {
-	int retval = hugetlbfs_mknod(&nop_mnt_idmap, dir, dentry,
+	int retval = hugetlbfs_mknod(idmap, dir, dentry,
 				     mode | S_IFDIR, 0);
 	if (!retval)
 		inc_nlink(dir);
@@ -1062,7 +1074,7 @@ static int hugetlbfs_create(struct mnt_idmap *idmap,
 			    struct inode *dir, struct dentry *dentry,
 			    umode_t mode, bool excl)
 {
-	return hugetlbfs_mknod(&nop_mnt_idmap, dir, dentry, mode | S_IFREG, 0);
+	return hugetlbfs_mknod(idmap, dir, dentry, mode | S_IFREG, 0);
 }
 
 static int hugetlbfs_tmpfile(struct mnt_idmap *idmap,
@@ -1071,7 +1083,7 @@ static int hugetlbfs_tmpfile(struct mnt_idmap *idmap,
 {
 	struct inode *inode;
 
-	inode = hugetlbfs_get_inode(dir->i_sb, dir, mode | S_IFREG, 0);
+	inode = hugetlbfs_get_inode(dir->i_sb, idmap, dir, mode | S_IFREG, 0);
 	if (!inode)
 		return -ENOSPC;
 	inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
@@ -1083,10 +1095,11 @@ static int hugetlbfs_symlink(struct mnt_idmap *idmap,
 			     struct inode *dir, struct dentry *dentry,
 			     const char *symname)
 {
+	const umode_t mode = S_IFLNK|S_IRWXUGO;
 	struct inode *inode;
 	int error = -ENOSPC;
 
-	inode = hugetlbfs_get_inode(dir->i_sb, dir, S_IFLNK|S_IRWXUGO, 0);
+	inode = hugetlbfs_get_inode(dir->i_sb, idmap, dir, mode, 0);
 	if (inode) {
 		int l = strlen(symname)+1;
 		error = page_symlink(inode, symname, l);
@@ -1129,8 +1142,8 @@ static int hugetlbfs_migrate_folio(struct address_space *mapping,
 #define hugetlbfs_migrate_folio NULL
 #endif
 
-static int hugetlbfs_error_remove_page(struct address_space *mapping,
-				struct page *page)
+static int hugetlbfs_error_remove_folio(struct address_space *mapping,
+				struct folio *folio)
 {
 	return 0;
 }
@@ -1179,7 +1192,9 @@ static int hugetlbfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct hugetlbfs_sb_info *sbinfo = HUGETLBFS_SB(dentry->d_sb);
 	struct hstate *h = hstate_inode(d_inode(dentry));
+	u64 id = huge_encode_dev(dentry->d_sb->s_dev);
 
+	buf->f_fsid = u64_to_fsid(id);
 	buf->f_type = HUGETLBFS_MAGIC;
 	buf->f_bsize = huge_page_size(h);
 	if (sbinfo) {
@@ -1275,7 +1290,7 @@ static const struct address_space_operations hugetlbfs_aops = {
 	.write_end	= hugetlbfs_write_end,
 	.dirty_folio	= noop_dirty_folio,
 	.migrate_folio  = hugetlbfs_migrate_folio,
-	.error_remove_page	= hugetlbfs_error_remove_page,
+	.error_remove_folio	= hugetlbfs_error_remove_folio,
 };
 
 
@@ -1286,13 +1301,14 @@ static void init_once(void *foo)
 	inode_init_once(&ei->vfs_inode);
 }
 
-const struct file_operations hugetlbfs_file_operations = {
+static const struct file_operations hugetlbfs_file_operations = {
 	.read_iter		= hugetlbfs_read_iter,
 	.mmap			= hugetlbfs_file_mmap,
 	.fsync			= noop_fsync,
 	.get_unmapped_area	= hugetlb_get_unmapped_area,
 	.llseek			= default_llseek,
 	.fallocate		= hugetlbfs_fallocate,
+	.fop_flags		= FOP_HUGE_PAGES,
 };
 
 static const struct inode_operations hugetlbfs_dir_inode_operations = {
@@ -1352,6 +1368,7 @@ static int hugetlbfs_parse_param(struct fs_context *fc, struct fs_parameter *par
 {
 	struct hugetlbfs_fs_context *ctx = fc->fs_private;
 	struct fs_parse_result result;
+	struct hstate *h;
 	char *rest;
 	unsigned long ps;
 	int opt;
@@ -1396,11 +1413,12 @@ static int hugetlbfs_parse_param(struct fs_context *fc, struct fs_parameter *par
 
 	case Opt_pagesize:
 		ps = memparse(param->string, &rest);
-		ctx->hstate = size_to_hstate(ps);
-		if (!ctx->hstate) {
+		h = size_to_hstate(ps);
+		if (!h) {
 			pr_err("Unsupported page size %lu MB\n", ps / SZ_1M);
 			return -EINVAL;
 		}
+		ctx->hstate = h;
 		return 0;
 
 	case Opt_min_size:
@@ -1551,6 +1569,7 @@ static struct file_system_type hugetlbfs_fs_type = {
 	.init_fs_context	= hugetlbfs_init_fs_context,
 	.parameters		= hugetlb_fs_parameters,
 	.kill_sb		= kill_litter_super,
+	.fs_flags               = FS_ALLOW_IDMAP,
 };
 
 static struct vfsmount *hugetlbfs_vfsmount[HUGE_MAX_HSTATE];
@@ -1604,7 +1623,9 @@ struct file *hugetlb_file_setup(const char *name, size_t size,
 	}
 
 	file = ERR_PTR(-ENOSPC);
-	inode = hugetlbfs_get_inode(mnt->mnt_sb, NULL, S_IFREG | S_IRWXUGO, 0);
+	/* hugetlbfs_vfsmount[] mounts do not use idmapped mounts.  */
+	inode = hugetlbfs_get_inode(mnt->mnt_sb, &nop_mnt_idmap, NULL,
+				    S_IFREG | S_IRWXUGO, 0);
 	if (!inode)
 		goto out;
 	if (creat_flags == HUGETLB_SHMFS_INODE)

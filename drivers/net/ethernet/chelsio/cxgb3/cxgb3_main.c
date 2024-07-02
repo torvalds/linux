@@ -380,19 +380,18 @@ static irqreturn_t t3_async_intr_handler(int irq, void *cookie)
  */
 static void name_msix_vecs(struct adapter *adap)
 {
-	int i, j, msi_idx = 1, n = sizeof(adap->msix_info[0].desc) - 1;
+	int i, j, msi_idx = 1;
 
-	snprintf(adap->msix_info[0].desc, n, "%s", adap->name);
-	adap->msix_info[0].desc[n] = 0;
+	strscpy(adap->msix_info[0].desc, adap->name, sizeof(adap->msix_info[0].desc));
 
 	for_each_port(adap, j) {
 		struct net_device *d = adap->port[j];
 		const struct port_info *pi = netdev_priv(d);
 
 		for (i = 0; i < pi->nqsets; i++, msi_idx++) {
-			snprintf(adap->msix_info[msi_idx].desc, n,
+			snprintf(adap->msix_info[msi_idx].desc,
+				 sizeof(adap->msix_info[0].desc),
 				 "%s-%d", d->name, pi->first_qset + i);
-			adap->msix_info[msi_idx].desc[n] = 0;
 		}
 	}
 }
@@ -2560,7 +2559,7 @@ static int cxgb_change_mtu(struct net_device *dev, int new_mtu)
 
 	if ((ret = t3_mac_set_mtu(&pi->mac, new_mtu)))
 		return ret;
-	dev->mtu = new_mtu;
+	WRITE_ONCE(dev->mtu, new_mtu);
 	init_port_mtus(adapter);
 	if (adapter->params.rev == 0 && offload_running(adapter))
 		t3_load_mtus(adapter, adapter->params.mtus,

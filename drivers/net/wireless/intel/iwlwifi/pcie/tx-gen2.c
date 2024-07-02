@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
  * Copyright (C) 2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2020, 2023 Intel Corporation
  */
 #include <net/tso.h>
 #include <linux/tcp.h>
@@ -41,6 +41,9 @@ int iwl_pcie_gen2_enqueue_hcmd(struct iwl_trans *trans,
 	u16 cmdlen[IWL_MAX_CMD_TBS_PER_TFD];
 	struct iwl_tfh_tfd *tfd;
 	unsigned long flags;
+
+	if (WARN_ON(cmd->flags & CMD_BLOCK_TXQS))
+		return -EINVAL;
 
 	copy_size = sizeof(struct iwl_cmd_header_wide);
 	cmd_size = sizeof(struct iwl_cmd_header_wide);

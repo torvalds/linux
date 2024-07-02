@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2005-2014, 2018-2023 Intel Corporation
+ * Copyright (C) 2005-2014, 2018-2024 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  */
@@ -19,7 +19,6 @@
  * @fwrt_ptr: pointer to the buffer coming from fwrt
  * @trans_ptr: pointer to struct %iwl_trans_dump_data which contains the
  *	transport's data.
- * @trans_len: length of the valid data in trans_ptr
  * @fwrt_len: length of the valid data in fwrt_ptr
  */
 struct iwl_fw_dump_ptrs {
@@ -880,10 +879,10 @@ iwl_fw_error_dump_file(struct iwl_fw_runtime *fwrt,
 			cpu_to_le32(fwrt->trans->hw_rev_step);
 		memcpy(dump_info->fw_human_readable, fwrt->fw->human_readable,
 		       sizeof(dump_info->fw_human_readable));
-		strncpy(dump_info->dev_human_readable, fwrt->trans->name,
-			sizeof(dump_info->dev_human_readable) - 1);
-		strncpy(dump_info->bus_human_readable, fwrt->dev->bus->name,
-			sizeof(dump_info->bus_human_readable) - 1);
+		strscpy_pad(dump_info->dev_human_readable, fwrt->trans->name,
+			sizeof(dump_info->dev_human_readable));
+		strscpy_pad(dump_info->bus_human_readable, fwrt->dev->bus->name,
+			sizeof(dump_info->bus_human_readable));
 		dump_info->num_of_lmacs = fwrt->smem_cfg.num_lmacs;
 		dump_info->lmac_err_id[0] =
 			cpu_to_le32(fwrt->dump.lmac_err_id[0]);
@@ -1027,17 +1026,12 @@ static int iwl_dump_ini_prph_mac_iter_common(struct iwl_fw_runtime *fwrt,
 {
 	struct iwl_fw_ini_error_dump_range *range = range_ptr;
 	__le32 *val = range->data;
-	u32 prph_val;
 	int i;
 
 	range->internal_base_addr = cpu_to_le32(addr);
 	range->range_data_size = size;
-	for (i = 0; i < le32_to_cpu(size); i += 4) {
-		prph_val = iwl_read_prph(fwrt->trans, addr + i);
-		if (iwl_trans_is_hw_error_value(prph_val))
-			return -EBUSY;
-		*val++ = cpu_to_le32(prph_val);
-	}
+	for (i = 0; i < le32_to_cpu(size); i += 4)
+		*val++ = cpu_to_le32(iwl_read_prph(fwrt->trans, addr + i));
 
 	return sizeof(*range) + le32_to_cpu(range->range_data_size);
 }
@@ -1728,10 +1722,12 @@ iwl_dump_ini_mem_fill_header(struct iwl_fw_runtime *fwrt,
 /**
  * mask_apply_and_normalize - applies mask on val and normalize the result
  *
- * The normalization is based on the first set bit in the mask
- *
  * @val: value
  * @mask: mask to apply and to normalize with
+ *
+ * The normalization is based on the first set bit in the mask
+ *
+ * Returns: the extracted value
  */
 static u32 mask_apply_and_normalize(u32 val, u32 mask)
 {
@@ -2200,15 +2196,16 @@ struct iwl_dump_ini_mem_ops {
 };
 
 /**
- * iwl_dump_ini_mem
- *
- * Creates a dump tlv and copy a memory region into it.
- * Returns the size of the current dump tlv or 0 if failed
+ * iwl_dump_ini_mem - dump memory region
  *
  * @fwrt: fw runtime struct
  * @list: list to add the dump tlv to
  * @reg_data: memory region
  * @ops: memory dump operations
+ *
+ * Creates a dump tlv and copy a memory region into it.
+ *
+ * Returns: the size of the current dump tlv or 0 if failed
  */
 static u32 iwl_dump_ini_mem(struct iwl_fw_runtime *fwrt, struct list_head *list,
 			    struct iwl_dump_ini_region_data *reg_data,
@@ -2427,9 +2424,12 @@ static u32 iwl_dump_ini_info(struct iwl_fw_runtime *fwrt,
 		struct iwl_fw_ini_debug_info_tlv *debug_info =
 			(void *)node->tlv.data;
 
+		BUILD_BUG_ON(sizeof(cfg_name->cfg_name) !=
+			     sizeof(debug_info->debug_cfg_name));
+
 		cfg_name->image_type = debug_info->image_type;
 		cfg_name->cfg_name_len =
-			cpu_to_le32(IWL_FW_INI_MAX_CFG_NAME);
+			cpu_to_le32(sizeof(cfg_name->cfg_name));
 		memcpy(cfg_name->cfg_name, debug_info->debug_cfg_name,
 		       sizeof(cfg_name->cfg_name));
 		cfg_name++;
@@ -2873,7 +2873,8 @@ int iwl_fw_dbg_collect_desc(struct iwl_fw_runtime *fwrt,
 	IWL_WARN(fwrt, "Collecting data: trigger %d fired.\n",
 		 le32_to_cpu(desc->trig_desc.type));
 
-	schedule_delayed_work(&wk_data->wk, usecs_to_jiffies(delay));
+	queue_delayed_work(system_unbound_wq, &wk_data->wk,
+			   usecs_to_jiffies(delay));
 
 	return 0;
 }
@@ -3075,11 +3076,10 @@ static void iwl_fw_dbg_collect_sync(struct iwl_fw_runtime *fwrt, u8 wk_idx)
 	struct iwl_fw_dbg_params params = {0};
 	struct iwl_fwrt_dump_data *dump_data =
 		&fwrt->dump.wks[wk_idx].dump_data;
-	u32 policy;
-	u32 time_point;
 	if (!test_bit(wk_idx, &fwrt->dump.active_wks))
 		return;
 
+	/* also checks 'desc' for pre-ini mode, since that shadows in union */
 	if (!dump_data->trig) {
 		IWL_ERR(fwrt, "dump trigger data is not set\n");
 		goto out;
@@ -3107,13 +3107,16 @@ static void iwl_fw_dbg_collect_sync(struct iwl_fw_runtime *fwrt, u8 wk_idx)
 
 	iwl_fw_dbg_stop_restart_recording(fwrt, &params, false);
 
-	policy = le32_to_cpu(dump_data->trig->apply_policy);
-	time_point = le32_to_cpu(dump_data->trig->time_point);
+	if (iwl_trans_dbg_ini_valid(fwrt->trans)) {
+		u32 policy = le32_to_cpu(dump_data->trig->apply_policy);
+		u32 time_point = le32_to_cpu(dump_data->trig->time_point);
 
-	if (policy & IWL_FW_INI_APPLY_POLICY_DUMP_COMPLETE_CMD) {
-		IWL_DEBUG_FW_INFO(fwrt, "WRT: sending dump complete\n");
-		iwl_send_dbg_dump_complete_cmd(fwrt, time_point, 0);
+		if (policy & IWL_FW_INI_APPLY_POLICY_DUMP_COMPLETE_CMD) {
+			IWL_DEBUG_FW_INFO(fwrt, "WRT: sending dump complete\n");
+			iwl_send_dbg_dump_complete_cmd(fwrt, time_point, 0);
+		}
 	}
+
 	if (fwrt->trans->dbg.last_tp_resetfw == IWL_FW_INI_RESET_FW_MODE_STOP_FW_ONLY)
 		iwl_force_nmi(fwrt->trans);
 
@@ -3175,7 +3178,9 @@ int iwl_fw_dbg_ini_collect(struct iwl_fw_runtime *fwrt,
 	if (sync)
 		iwl_fw_dbg_collect_sync(fwrt, idx);
 	else
-		schedule_delayed_work(&fwrt->dump.wks[idx].wk, usecs_to_jiffies(delay));
+		queue_delayed_work(system_unbound_wq,
+				   &fwrt->dump.wks[idx].wk,
+				   usecs_to_jiffies(delay));
 
 	return 0;
 }
@@ -3395,3 +3400,22 @@ void iwl_fw_disable_dbg_asserts(struct iwl_fw_runtime *fwrt)
 	iwl_trans_send_cmd(fwrt->trans, &hcmd);
 }
 IWL_EXPORT_SYMBOL(iwl_fw_disable_dbg_asserts);
+
+void iwl_fw_dbg_clear_monitor_buf(struct iwl_fw_runtime *fwrt)
+{
+	struct iwl_fw_dbg_params params = {0};
+
+	iwl_fw_dbg_stop_sync(fwrt);
+
+	if (fw_has_api(&fwrt->fw->ucode_capa,
+		       IWL_UCODE_TLV_API_INT_DBG_BUF_CLEAR)) {
+		struct iwl_host_cmd hcmd = {
+			.id = WIDE_ID(DEBUG_GROUP, FW_CLEAR_BUFFER),
+		};
+		iwl_trans_send_cmd(fwrt->trans, &hcmd);
+	}
+
+	iwl_dbg_tlv_init_cfg(fwrt);
+	iwl_fw_dbg_stop_restart_recording(fwrt, &params, false);
+}
+IWL_EXPORT_SYMBOL(iwl_fw_dbg_clear_monitor_buf);

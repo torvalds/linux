@@ -65,6 +65,9 @@ int snd_ak4531_mixer(struct snd_card *card, struct snd_ak4531 *_ak4531,
 #ifdef CONFIG_PM
 void snd_ak4531_suspend(struct snd_ak4531 *ak4531);
 void snd_ak4531_resume(struct snd_ak4531 *ak4531);
+#else
+static inline void snd_ak4531_suspend(struct snd_ak4531 *ak4531) {}
+static inline void snd_ak4531_resume(struct snd_ak4531 *ak4531) {}
 #endif
 
 #endif /* __SOUND_AK4531_CODEC_H */

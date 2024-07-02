@@ -96,6 +96,10 @@ int iterate_dir(struct file *file, struct dir_context *ctx)
 	if (res)
 		goto out;
 
+	res = fsnotify_file_perm(file, MAY_READ);
+	if (res)
+		goto out;
+
 	res = down_read_killable(&inode->i_rwsem);
 	if (res)
 		goto out;

@@ -1026,49 +1026,50 @@
 			reg = <0x0 0x1f80000 0x0 0x10000>;
 			interrupts = <0 23 0x4>;
 			fsl,tmu-range = <0xb0000 0xa0026 0x80048 0x70061>;
-			fsl,tmu-calibration = <0x00000000 0x00000024
-					       0x00000001 0x0000002b
-					       0x00000002 0x00000031
-					       0x00000003 0x00000038
-					       0x00000004 0x0000003f
-					       0x00000005 0x00000045
-					       0x00000006 0x0000004c
-					       0x00000007 0x00000053
-					       0x00000008 0x00000059
-					       0x00000009 0x00000060
-					       0x0000000a 0x00000066
-					       0x0000000b 0x0000006d
+			fsl,tmu-calibration =
+					<0x00000000 0x00000024>,
+					<0x00000001 0x0000002b>,
+					<0x00000002 0x00000031>,
+					<0x00000003 0x00000038>,
+					<0x00000004 0x0000003f>,
+					<0x00000005 0x00000045>,
+					<0x00000006 0x0000004c>,
+					<0x00000007 0x00000053>,
+					<0x00000008 0x00000059>,
+					<0x00000009 0x00000060>,
+					<0x0000000a 0x00000066>,
+					<0x0000000b 0x0000006d>,
 
-					       0x00010000 0x0000001c
-					       0x00010001 0x00000024
-					       0x00010002 0x0000002c
-					       0x00010003 0x00000035
-					       0x00010004 0x0000003d
-					       0x00010005 0x00000045
-					       0x00010006 0x0000004d
-					       0x00010007 0x00000055
-					       0x00010008 0x0000005e
-					       0x00010009 0x00000066
-					       0x0001000a 0x0000006e
+					<0x00010000 0x0000001c>,
+					<0x00010001 0x00000024>,
+					<0x00010002 0x0000002c>,
+					<0x00010003 0x00000035>,
+					<0x00010004 0x0000003d>,
+					<0x00010005 0x00000045>,
+					<0x00010006 0x0000004d>,
+					<0x00010007 0x00000055>,
+					<0x00010008 0x0000005e>,
+					<0x00010009 0x00000066>,
+					<0x0001000a 0x0000006e>,
 
-					       0x00020000 0x00000018
-					       0x00020001 0x00000022
-					       0x00020002 0x0000002d
-					       0x00020003 0x00000038
-					       0x00020004 0x00000043
-					       0x00020005 0x0000004d
-					       0x00020006 0x00000058
-					       0x00020007 0x00000063
-					       0x00020008 0x0000006e
+					<0x00020000 0x00000018>,
+					<0x00020001 0x00000022>,
+					<0x00020002 0x0000002d>,
+					<0x00020003 0x00000038>,
+					<0x00020004 0x00000043>,
+					<0x00020005 0x0000004d>,
+					<0x00020006 0x00000058>,
+					<0x00020007 0x00000063>,
+					<0x00020008 0x0000006e>,
 
-					       0x00030000 0x00000010
-					       0x00030001 0x0000001c
-					       0x00030002 0x00000029
-					       0x00030003 0x00000036
-					       0x00030004 0x00000042
-					       0x00030005 0x0000004f
-					       0x00030006 0x0000005b
-					       0x00030007 0x00000068>;
+					<0x00030000 0x00000010>,
+					<0x00030001 0x0000001c>,
+					<0x00030002 0x00000029>,
+					<0x00030003 0x00000036>,
+					<0x00030004 0x00000042>,
+					<0x00030005 0x0000004f>,
+					<0x00030006 0x0000005b>,
+					<0x00030007 0x00000068>;
 			little-endian;
 			#thermal-sensor-cells = <1>;
 		};
@@ -1098,21 +1099,25 @@
 				  0xc2000000 0x1 0xf8230000  0x1 0xf8230000  0x0 0x020000
 				  /* BAR4 (PF5) - non-prefetchable memory */
 				  0x82000000 0x1 0xfc000000  0x1 0xfc000000  0x0 0x400000>;
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0 0 0 7>;
+			interrupt-map = <0000 0 0 1 &gic 0 0 GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>,
+					<0000 0 0 2 &gic 0 0 GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>;
 
 			enetc_port0: ethernet@0,0 {
-				compatible = "fsl,enetc";
+				compatible = "pci1957,e100", "fsl,enetc";
 				reg = <0x000000 0 0 0 0>;
 				status = "disabled";
 			};
 
 			enetc_port1: ethernet@0,1 {
-				compatible = "fsl,enetc";
+				compatible = "pci1957,e100", "fsl,enetc";
 				reg = <0x000100 0 0 0 0>;
 				status = "disabled";
 			};
 
 			enetc_port2: ethernet@0,2 {
-				compatible = "fsl,enetc";
+				compatible = "pci1957,e100", "fsl,enetc";
 				reg = <0x000200 0 0 0 0>;
 				phy-mode = "internal";
 				status = "disabled";
@@ -1125,14 +1130,14 @@
 			};
 
 			enetc_mdio_pf3: mdio@0,3 {
-				compatible = "fsl,enetc-mdio";
+				compatible = "pci1957,ee01", "fsl,enetc-mdio";
 				reg = <0x000300 0 0 0 0>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 			};
 
 			ethernet@0,4 {
-				compatible = "fsl,enetc-ptp";
+				compatible = "pci1957,ee02", "fsl,enetc-ptp";
 				reg = <0x000400 0 0 0 0>;
 				clocks = <&clockgen QORIQ_CLK_HWACCEL 3>;
 				little-endian;
@@ -1142,7 +1147,7 @@
 			mscc_felix: ethernet-switch@0,5 {
 				reg = <0x000500 0 0 0 0>;
 				/* IEP INT_B */
-				interrupts = <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts = <2>;
 				status = "disabled";
 
 				mscc_felix_ports: ports {
@@ -1200,7 +1205,7 @@
 			};
 
 			enetc_port3: ethernet@0,6 {
-				compatible = "fsl,enetc";
+				compatible = "pci1957,e100", "fsl,enetc";
 				reg = <0x000600 0 0 0 0>;
 				phy-mode = "internal";
 				status = "disabled";
@@ -1215,7 +1220,7 @@
 			rcec@1f,0 {
 				reg = <0x00f800 0 0 0 0>;
 				/* IEP INT_A */
-				interrupts = <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts = <1>;
 			};
 		};
 

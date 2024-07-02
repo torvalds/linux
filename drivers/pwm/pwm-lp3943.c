@@ -20,14 +20,14 @@
 #define LP3943_MAX_PERIOD		1600000
 
 struct lp3943_pwm {
-	struct pwm_chip chip;
 	struct lp3943 *lp3943;
 	struct lp3943_platform_data *pdata;
+	struct lp3943_pwm_map pwm_map[LP3943_NUM_PWMS];
 };
 
 static inline struct lp3943_pwm *to_lp3943_pwm(struct pwm_chip *chip)
 {
-	return container_of(chip, struct lp3943_pwm, chip);
+	return pwmchip_get_drvdata(chip);
 }
 
 static struct lp3943_pwm_map *
@@ -35,12 +35,8 @@ lp3943_pwm_request_map(struct lp3943_pwm *lp3943_pwm, int hwpwm)
 {
 	struct lp3943_platform_data *pdata = lp3943_pwm->pdata;
 	struct lp3943 *lp3943 = lp3943_pwm->lp3943;
-	struct lp3943_pwm_map *pwm_map;
+	struct lp3943_pwm_map *pwm_map = &lp3943_pwm->pwm_map[hwpwm];
 	int i, offset;
-
-	pwm_map = kzalloc(sizeof(*pwm_map), GFP_KERNEL);
-	if (!pwm_map)
-		return ERR_PTR(-ENOMEM);
 
 	pwm_map->output = pdata->pwms[hwpwm]->output;
 	pwm_map->num_outputs = pdata->pwms[hwpwm]->num_outputs;
@@ -49,10 +45,8 @@ lp3943_pwm_request_map(struct lp3943_pwm *lp3943_pwm, int hwpwm)
 		offset = pwm_map->output[i];
 
 		/* Return an error if the pin is already assigned */
-		if (test_and_set_bit(offset, &lp3943->pin_used)) {
-			kfree(pwm_map);
+		if (test_and_set_bit(offset, &lp3943->pin_used))
 			return ERR_PTR(-EBUSY);
-		}
 	}
 
 	return pwm_map;
@@ -67,7 +61,7 @@ static int lp3943_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
 	if (IS_ERR(pwm_map))
 		return PTR_ERR(pwm_map);
 
-	return pwm_set_chip_data(pwm, pwm_map);
+	return 0;
 }
 
 static void lp3943_pwm_free_map(struct lp3943_pwm *lp3943_pwm,
@@ -80,14 +74,12 @@ static void lp3943_pwm_free_map(struct lp3943_pwm *lp3943_pwm,
 		offset = pwm_map->output[i];
 		clear_bit(offset, &lp3943->pin_used);
 	}
-
-	kfree(pwm_map);
 }
 
 static void lp3943_pwm_free(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct lp3943_pwm *lp3943_pwm = to_lp3943_pwm(chip);
-	struct lp3943_pwm_map *pwm_map = pwm_get_chip_data(pwm);
+	struct lp3943_pwm_map *pwm_map = &lp3943_pwm->pwm_map[pwm->hwpwm];
 
 	lp3943_pwm_free_map(lp3943_pwm, pwm_map);
 }
@@ -159,7 +151,7 @@ static int lp3943_pwm_set_mode(struct lp3943_pwm *lp3943_pwm,
 static int lp3943_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct lp3943_pwm *lp3943_pwm = to_lp3943_pwm(chip);
-	struct lp3943_pwm_map *pwm_map = pwm_get_chip_data(pwm);
+	struct lp3943_pwm_map *pwm_map = &lp3943_pwm->pwm_map[pwm->hwpwm];
 	u8 val;
 
 	if (pwm->hwpwm == 0)
@@ -178,7 +170,7 @@ static int lp3943_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 static void lp3943_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct lp3943_pwm *lp3943_pwm = to_lp3943_pwm(chip);
-	struct lp3943_pwm_map *pwm_map = pwm_get_chip_data(pwm);
+	struct lp3943_pwm_map *pwm_map = &lp3943_pwm->pwm_map[pwm->hwpwm];
 
 	/*
 	 * LP3943 outputs are open-drain, so the pin should be configured
@@ -216,7 +208,6 @@ static const struct pwm_ops lp3943_pwm_ops = {
 	.request	= lp3943_pwm_request,
 	.free		= lp3943_pwm_free,
 	.apply		= lp3943_pwm_apply,
-	.owner		= THIS_MODULE,
 };
 
 static int lp3943_pwm_parse_dt(struct device *dev,
@@ -281,12 +272,14 @@ static int lp3943_pwm_parse_dt(struct device *dev,
 static int lp3943_pwm_probe(struct platform_device *pdev)
 {
 	struct lp3943 *lp3943 = dev_get_drvdata(pdev->dev.parent);
+	struct pwm_chip *chip;
 	struct lp3943_pwm *lp3943_pwm;
 	int ret;
 
-	lp3943_pwm = devm_kzalloc(&pdev->dev, sizeof(*lp3943_pwm), GFP_KERNEL);
-	if (!lp3943_pwm)
-		return -ENOMEM;
+	chip = devm_pwmchip_alloc(&pdev->dev, LP3943_NUM_PWMS, sizeof(*lp3943_pwm));
+	if (IS_ERR(chip))
+		return PTR_ERR(chip);
+	lp3943_pwm = to_lp3943_pwm(chip);
 
 	lp3943_pwm->pdata = lp3943->pdata;
 	if (!lp3943_pwm->pdata) {
@@ -300,11 +293,9 @@ static int lp3943_pwm_probe(struct platform_device *pdev)
 	}
 
 	lp3943_pwm->lp3943 = lp3943;
-	lp3943_pwm->chip.dev = &pdev->dev;
-	lp3943_pwm->chip.ops = &lp3943_pwm_ops;
-	lp3943_pwm->chip.npwm = LP3943_NUM_PWMS;
+	chip->ops = &lp3943_pwm_ops;
 
-	return devm_pwmchip_add(&pdev->dev, &lp3943_pwm->chip);
+	return devm_pwmchip_add(&pdev->dev, chip);
 }
 
 #ifdef CONFIG_OF

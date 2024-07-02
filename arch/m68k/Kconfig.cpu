@@ -30,6 +30,7 @@ config COLDFIRE
 	select GENERIC_CSUM
 	select GPIOLIB
 	select HAVE_LEGACY_CLK
+	select HAVE_PAGE_SIZE_8KB if !MMU
 
 endchoice
 
@@ -45,6 +46,7 @@ config M68000
 	select GENERIC_CSUM
 	select CPU_NO_EFFICIENT_FFS
 	select HAVE_ARCH_HASH
+	select HAVE_PAGE_SIZE_4KB
 	select LEGACY_TIMER_TICK
 	help
 	  The Freescale (was Motorola) 68000 CPU is the first generation of
@@ -402,7 +404,7 @@ config ARCH_FORCE_MAX_ORDER
 	default "10"
 	help
 	  The kernel page allocator limits the size of maximal physically
-	  contiguous allocations. The limit is called MAX_ORDER and it
+	  contiguous allocations. The limit is called MAX_PAGE_ORDER and it
 	  defines the maximal power of two of number of pages that can be
 	  allocated as a single contiguous block. This option allows
 	  overriding the default setting when ability to allocate very

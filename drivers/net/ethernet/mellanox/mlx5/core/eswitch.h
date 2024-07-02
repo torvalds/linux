@@ -383,6 +383,7 @@ struct mlx5_eswitch {
 	struct xarray paired;
 	struct mlx5_devcom_comp_dev *devcom;
 	u16 enabled_ipsec_vf_count;
+	bool eswitch_operation_in_progress;
 };
 
 void esw_offloads_disable(struct mlx5_eswitch *esw);
@@ -525,7 +526,8 @@ struct mlx5_esw_flow_attr {
 	u8	total_vlan;
 	struct {
 		u32 flags;
-		struct mlx5_eswitch_rep *rep;
+		bool vport_valid;
+		u16 vport;
 		struct mlx5_pkt_reformat *pkt_reformat;
 		struct mlx5_core_dev *mdev;
 		struct mlx5_termtbl_handle *termtbl;
@@ -571,6 +573,13 @@ int mlx5_devlink_port_fn_ipsec_packet_get(struct devlink_port *port, bool *is_en
 int mlx5_devlink_port_fn_ipsec_packet_set(struct devlink_port *port, bool enable,
 					  struct netlink_ext_ack *extack);
 #endif /* CONFIG_XFRM_OFFLOAD */
+int mlx5_devlink_port_fn_max_io_eqs_get(struct devlink_port *port,
+					u32 *max_io_eqs,
+					struct netlink_ext_ack *extack);
+int mlx5_devlink_port_fn_max_io_eqs_set(struct devlink_port *port,
+					u32 max_io_eqs,
+					struct netlink_ext_ack *extack);
+
 void *mlx5_eswitch_get_uplink_priv(struct mlx5_eswitch *esw, u8 rep_type);
 
 int __mlx5_eswitch_set_vport_vlan(struct mlx5_eswitch *esw,
@@ -614,13 +623,6 @@ const u32 *mlx5_esw_query_functions(struct mlx5_core_dev *dev);
 static inline bool mlx5_esw_allowed(const struct mlx5_eswitch *esw)
 {
 	return esw && MLX5_ESWITCH_MANAGER(esw->dev);
-}
-
-/* The returned number is valid only when the dev is eswitch manager. */
-static inline u16 mlx5_eswitch_manager_vport(struct mlx5_core_dev *dev)
-{
-	return mlx5_core_is_ecpf_esw_manager(dev) ?
-		MLX5_VPORT_ECPF : MLX5_VPORT_PF;
 }
 
 static inline bool
@@ -827,6 +829,7 @@ void mlx5_esw_release(struct mlx5_core_dev *dev);
 void mlx5_esw_get(struct mlx5_core_dev *dev);
 void mlx5_esw_put(struct mlx5_core_dev *dev);
 int mlx5_esw_try_lock(struct mlx5_eswitch *esw);
+int mlx5_esw_lock(struct mlx5_eswitch *esw);
 void mlx5_esw_unlock(struct mlx5_eswitch *esw);
 
 void esw_vport_change_handle_locked(struct mlx5_vport *vport);
@@ -837,7 +840,7 @@ int mlx5_eswitch_offloads_single_fdb_add_one(struct mlx5_eswitch *master_esw,
 					     struct mlx5_eswitch *slave_esw, int max_slaves);
 void mlx5_eswitch_offloads_single_fdb_del_one(struct mlx5_eswitch *master_esw,
 					      struct mlx5_eswitch *slave_esw);
-int mlx5_eswitch_reload_reps(struct mlx5_eswitch *esw);
+int mlx5_eswitch_reload_ib_reps(struct mlx5_eswitch *esw);
 
 bool mlx5_eswitch_block_encap(struct mlx5_core_dev *dev);
 void mlx5_eswitch_unblock_encap(struct mlx5_core_dev *dev);
@@ -929,7 +932,7 @@ mlx5_eswitch_offloads_single_fdb_del_one(struct mlx5_eswitch *master_esw,
 static inline int mlx5_eswitch_get_npeers(struct mlx5_eswitch *esw) { return 0; }
 
 static inline int
-mlx5_eswitch_reload_reps(struct mlx5_eswitch *esw)
+mlx5_eswitch_reload_ib_reps(struct mlx5_eswitch *esw)
 {
 	return 0;
 }

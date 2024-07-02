@@ -67,7 +67,7 @@ static void sparx5_xtr_grp(struct sparx5 *sparx5, u8 grp, bool byte_swap)
 	for (i = 0; i < IFH_LEN; i++)
 		ifh[i] = spx5_rd(sparx5, QS_XTR_RD(grp));
 
-	/* Decode IFH (whats needed) */
+	/* Decode IFH (what's needed) */
 	sparx5_ifh_parse(ifh, &fi);
 
 	/* Map to port netdev */
@@ -244,10 +244,12 @@ netdev_tx_t sparx5_port_xmit_impl(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	skb_tx_timestamp(skb);
+	spin_lock(&sparx5->tx_lock);
 	if (sparx5->fdma_irq > 0)
 		ret = sparx5_fdma_xmit(sparx5, ifh, skb);
 	else
 		ret = sparx5_inject(sparx5, ifh, skb, dev);
+	spin_unlock(&sparx5->tx_lock);
 
 	if (ret == -EBUSY)
 		goto busy;

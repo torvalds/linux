@@ -83,16 +83,16 @@ static u32 scale_hw_to_user(struct intel_connector *connector,
 
 u32 intel_backlight_invert_pwm_level(struct intel_connector *connector, u32 val)
 {
-	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+	struct intel_display *display = to_intel_display(connector);
 	struct intel_panel *panel = &connector->panel;
 
-	drm_WARN_ON(&i915->drm, panel->backlight.pwm_level_max == 0);
+	drm_WARN_ON(display->drm, panel->backlight.pwm_level_max == 0);
 
-	if (i915->params.invert_brightness < 0)
+	if (display->params.invert_brightness < 0)
 		return val;
 
-	if (i915->params.invert_brightness > 0 ||
-	    intel_has_quirk(i915, QUIRK_INVERT_BRIGHTNESS)) {
+	if (display->params.invert_brightness > 0 ||
+	    intel_has_quirk(display, QUIRK_INVERT_BRIGHTNESS)) {
 		return panel->backlight.pwm_level_max - val + panel->backlight.pwm_level_min;
 	}
 
@@ -126,14 +126,15 @@ u32 intel_backlight_level_to_pwm(struct intel_connector *connector, u32 val)
 
 u32 intel_backlight_level_from_pwm(struct intel_connector *connector, u32 val)
 {
-	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+	struct intel_display *display = to_intel_display(connector);
 	struct intel_panel *panel = &connector->panel;
 
-	drm_WARN_ON_ONCE(&i915->drm,
+	drm_WARN_ON_ONCE(display->drm,
 			 panel->backlight.max == 0 || panel->backlight.pwm_level_max == 0);
 
-	if (i915->params.invert_brightness > 0 ||
-	    (i915->params.invert_brightness == 0 && intel_has_quirk(i915, QUIRK_INVERT_BRIGHTNESS)))
+	if (display->params.invert_brightness > 0 ||
+	    (display->params.invert_brightness == 0 &&
+	     intel_has_quirk(display, QUIRK_INVERT_BRIGHTNESS)))
 		val = panel->backlight.pwm_level_max - (val - panel->backlight.pwm_level_min);
 
 	return scale(val, panel->backlight.pwm_level_min, panel->backlight.pwm_level_max,
@@ -274,7 +275,7 @@ static void ext_pwm_set_backlight(const struct drm_connector_state *conn_state, 
 	struct intel_panel *panel = &to_intel_connector(conn_state->connector)->panel;
 
 	pwm_set_relative_duty_cycle(&panel->backlight.pwm_state, level, 100);
-	pwm_apply_state(panel->backlight.pwm, &panel->backlight.pwm_state);
+	pwm_apply_might_sleep(panel->backlight.pwm, &panel->backlight.pwm_state);
 }
 
 static void
@@ -427,7 +428,7 @@ static void ext_pwm_disable_backlight(const struct drm_connector_state *old_conn
 	intel_backlight_set_pwm_level(old_conn_state, level);
 
 	panel->backlight.pwm_state.enabled = false;
-	pwm_apply_state(panel->backlight.pwm, &panel->backlight.pwm_state);
+	pwm_apply_might_sleep(panel->backlight.pwm, &panel->backlight.pwm_state);
 }
 
 void intel_backlight_disable(const struct drm_connector_state *old_conn_state)
@@ -749,7 +750,7 @@ static void ext_pwm_enable_backlight(const struct intel_crtc_state *crtc_state,
 
 	pwm_set_relative_duty_cycle(&panel->backlight.pwm_state, level, 100);
 	panel->backlight.pwm_state.enabled = true;
-	pwm_apply_state(panel->backlight.pwm, &panel->backlight.pwm_state);
+	pwm_apply_might_sleep(panel->backlight.pwm, &panel->backlight.pwm_state);
 }
 
 static void __intel_backlight_enable(const struct intel_crtc_state *crtc_state,
@@ -760,8 +761,8 @@ static void __intel_backlight_enable(const struct intel_crtc_state *crtc_state,
 
 	WARN_ON(panel->backlight.max == 0);
 
-	if (panel->backlight.level <= panel->backlight.min) {
-		panel->backlight.level = panel->backlight.max;
+	if (panel->backlight.level < panel->backlight.min) {
+		panel->backlight.level = panel->backlight.min;
 		if (panel->backlight.device)
 			panel->backlight.device->props.brightness =
 				scale_hw_to_user(connector,
@@ -948,7 +949,7 @@ int intel_backlight_device_register(struct intel_connector *connector)
 	else
 		props.power = FB_BLANK_POWERDOWN;
 
-	name = kstrdup("intel_backlight", GFP_KERNEL);
+	name = kstrdup_const("intel_backlight", GFP_KERNEL);
 	if (!name)
 		return -ENOMEM;
 
@@ -962,7 +963,7 @@ int intel_backlight_device_register(struct intel_connector *connector)
 		 * compatibility. Use unique names for subsequent backlight devices as a
 		 * fallback when the default name already exists.
 		 */
-		kfree(name);
+		kfree_const(name);
 		name = kasprintf(GFP_KERNEL, "card%d-%s-backlight",
 				 i915->drm.primary->index, connector->base.name);
 		if (!name)
@@ -986,7 +987,7 @@ int intel_backlight_device_register(struct intel_connector *connector)
 		    connector->base.base.id, connector->base.name, name);
 
 out:
-	kfree(name);
+	kfree_const(name);
 
 	return ret;
 }
@@ -1464,7 +1465,7 @@ static bool cnp_backlight_controller_is_valid(struct drm_i915_private *i915, int
 
 	if (controller == 1 &&
 	    INTEL_PCH_TYPE(i915) >= PCH_ICP &&
-	    INTEL_PCH_TYPE(i915) < PCH_MTP)
+	    INTEL_PCH_TYPE(i915) <= PCH_ADP)
 		return intel_de_read(i915, SOUTH_CHICKEN1) & ICP_SECOND_PPS_IO_SELECT;
 
 	return true;
@@ -1641,17 +1642,17 @@ void intel_backlight_update(struct intel_atomic_state *state,
 
 int intel_backlight_setup(struct intel_connector *connector, enum pipe pipe)
 {
-	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+	struct intel_display *display = to_intel_display(connector);
 	struct intel_panel *panel = &connector->panel;
 	int ret;
 
 	if (!connector->panel.vbt.backlight.present) {
-		if (intel_has_quirk(i915, QUIRK_BACKLIGHT_PRESENT)) {
-			drm_dbg_kms(&i915->drm,
+		if (intel_has_quirk(display, QUIRK_BACKLIGHT_PRESENT)) {
+			drm_dbg_kms(display->drm,
 				    "[CONNECTOR:%d:%s] no backlight present per VBT, but present per quirk\n",
 				    connector->base.base.id, connector->base.name);
 		} else {
-			drm_dbg_kms(&i915->drm,
+			drm_dbg_kms(display->drm,
 				    "[CONNECTOR:%d:%s] no backlight present per VBT\n",
 				    connector->base.base.id, connector->base.name);
 			return 0;
@@ -1659,16 +1660,16 @@ int intel_backlight_setup(struct intel_connector *connector, enum pipe pipe)
 	}
 
 	/* ensure intel_panel has been initialized first */
-	if (drm_WARN_ON(&i915->drm, !panel->backlight.funcs))
+	if (drm_WARN_ON(display->drm, !panel->backlight.funcs))
 		return -ENODEV;
 
 	/* set level and max in panel struct */
-	mutex_lock(&i915->display.backlight.lock);
+	mutex_lock(&display->backlight.lock);
 	ret = panel->backlight.funcs->setup(connector, pipe);
-	mutex_unlock(&i915->display.backlight.lock);
+	mutex_unlock(&display->backlight.lock);
 
 	if (ret) {
-		drm_dbg_kms(&i915->drm,
+		drm_dbg_kms(display->drm,
 			    "[CONNECTOR:%d:%s] failed to setup backlight\n",
 			    connector->base.base.id, connector->base.name);
 		return ret;
@@ -1676,7 +1677,7 @@ int intel_backlight_setup(struct intel_connector *connector, enum pipe pipe)
 
 	panel->backlight.present = true;
 
-	drm_dbg_kms(&i915->drm,
+	drm_dbg_kms(display->drm,
 		    "[CONNECTOR:%d:%s] backlight initialized, %s, brightness %u/%u\n",
 		    connector->base.base.id, connector->base.name,
 		    str_enabled_disabled(panel->backlight.enabled),
@@ -1820,7 +1821,7 @@ void intel_backlight_init_funcs(struct intel_panel *panel)
 		if (intel_dp_aux_init_backlight_funcs(connector) == 0)
 			return;
 
-		if (!intel_has_quirk(i915, QUIRK_NO_PPS_BACKLIGHT_POWER_HOOK))
+		if (!intel_has_quirk(&i915->display, QUIRK_NO_PPS_BACKLIGHT_POWER_HOOK))
 			connector->panel.backlight.power = intel_pps_backlight_power;
 	}
 

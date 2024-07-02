@@ -77,29 +77,31 @@ int mlx5e_open_qos_sq(struct mlx5e_priv *priv, struct mlx5e_channels *chs,
 	struct mlx5e_params *params;
 	struct mlx5e_channel *c;
 	struct mlx5e_txqsq *sq;
+	u32 tisn;
 
 	params = &chs->params;
 
 	txq_ix = mlx5e_qid_from_qos(chs, node_qid);
 
-	WARN_ON(node_qid > priv->htb_max_qos_sqs);
-	if (node_qid == priv->htb_max_qos_sqs) {
-		struct mlx5e_sq_stats *stats, **stats_list = NULL;
+	WARN_ON(node_qid >= mlx5e_htb_cur_leaf_nodes(priv->htb));
+	if (!priv->htb_qos_sq_stats) {
+		struct mlx5e_sq_stats **stats_list;
 
-		if (priv->htb_max_qos_sqs == 0) {
-			stats_list = kvcalloc(mlx5e_qos_max_leaf_nodes(priv->mdev),
-					      sizeof(*stats_list),
-					      GFP_KERNEL);
-			if (!stats_list)
-				return -ENOMEM;
-		}
-		stats = kzalloc(sizeof(*stats), GFP_KERNEL);
-		if (!stats) {
-			kvfree(stats_list);
+		stats_list = kvcalloc(mlx5e_qos_max_leaf_nodes(priv->mdev),
+				      sizeof(*stats_list), GFP_KERNEL);
+		if (!stats_list)
 			return -ENOMEM;
-		}
-		if (stats_list)
-			WRITE_ONCE(priv->htb_qos_sq_stats, stats_list);
+
+		WRITE_ONCE(priv->htb_qos_sq_stats, stats_list);
+	}
+
+	if (!priv->htb_qos_sq_stats[node_qid]) {
+		struct mlx5e_sq_stats *stats;
+
+		stats = kzalloc(sizeof(*stats), GFP_KERNEL);
+		if (!stats)
+			return -ENOMEM;
+
 		WRITE_ONCE(priv->htb_qos_sq_stats[node_qid], stats);
 		/* Order htb_max_qos_sqs increment after writing the array pointer.
 		 * Pairs with smp_load_acquire in en_stats.c.
@@ -121,13 +123,15 @@ int mlx5e_open_qos_sq(struct mlx5e_priv *priv, struct mlx5e_channels *chs,
 
 	memset(&param_sq, 0, sizeof(param_sq));
 	memset(&param_cq, 0, sizeof(param_cq));
-	mlx5e_build_sq_param(priv->mdev, params, &param_sq);
-	mlx5e_build_tx_cq_param(priv->mdev, params, &param_cq);
-	err = mlx5e_open_cq(priv, params->tx_cq_moderation, &param_cq, &ccp, &sq->cq);
+	mlx5e_build_sq_param(c->mdev, params, &param_sq);
+	mlx5e_build_tx_cq_param(c->mdev, params, &param_cq);
+	err = mlx5e_open_cq(c->mdev, params->tx_cq_moderation, &param_cq, &ccp, &sq->cq);
 	if (err)
 		goto err_free_sq;
-	err = mlx5e_open_txqsq(c, priv->tisn[c->lag_port][0], txq_ix, params,
-			       &param_sq, sq, 0, hw_id,
+
+	tisn = mlx5e_profile_get_tisn(c->mdev, c->priv, c->priv->profile,
+				      c->lag_port, 0);
+	err = mlx5e_open_txqsq(c, tisn, txq_ix, params, &param_sq, sq, 0, hw_id,
 			       priv->htb_qos_sq_stats[node_qid]);
 	if (err)
 		goto err_close_cq;
@@ -173,7 +177,7 @@ int mlx5e_activate_qos_sq(void *data, u16 node_qid, u32 hw_id)
 	 */
 	smp_wmb();
 
-	qos_dbg(priv->mdev, "Activate QoS SQ qid %u\n", node_qid);
+	qos_dbg(sq->mdev, "Activate QoS SQ qid %u\n", node_qid);
 	mlx5e_activate_txqsq(sq);
 
 	return 0;
@@ -187,7 +191,7 @@ void mlx5e_deactivate_qos_sq(struct mlx5e_priv *priv, u16 qid)
 	if (!sq) /* Handle the case when the SQ failed to open. */
 		return;
 
-	qos_dbg(priv->mdev, "Deactivate QoS SQ qid %u\n", qid);
+	qos_dbg(sq->mdev, "Deactivate QoS SQ qid %u\n", qid);
 	mlx5e_deactivate_txqsq(sq);
 
 	priv->txq2sq[mlx5e_qid_from_qos(&priv->channels, qid)] = NULL;

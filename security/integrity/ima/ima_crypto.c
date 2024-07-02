@@ -38,7 +38,7 @@ static int param_set_bufsize(const char *val, const struct kernel_param *kp)
 
 	size = memparse(val, NULL);
 	order = get_order(size);
-	if (order > MAX_ORDER)
+	if (order > MAX_PAGE_ORDER)
 		return -EINVAL;
 	ima_maxorder = order;
 	ima_bufsize = PAGE_SIZE << order;
@@ -57,11 +57,6 @@ MODULE_PARM_DESC(ahash_bufsize, "Maximum ahash buffer size");
 static struct crypto_shash *ima_shash_tfm;
 static struct crypto_ahash *ima_ahash_tfm;
 
-struct ima_algo_desc {
-	struct crypto_shash *tfm;
-	enum hash_algo algo;
-};
-
 int ima_sha1_idx __ro_after_init;
 int ima_hash_algo_idx __ro_after_init;
 /*
@@ -70,7 +65,7 @@ int ima_hash_algo_idx __ro_after_init;
  */
 int ima_extra_slots __ro_after_init;
 
-static struct ima_algo_desc *ima_algo_array;
+struct ima_algo_desc *ima_algo_array __ro_after_init;
 
 static int __init ima_init_ima_crypto(void)
 {

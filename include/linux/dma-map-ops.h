@@ -11,6 +11,7 @@
 #include <linux/slab.h>
 
 struct cma;
+struct iommu_ops;
 
 /*
  * Values for struct dma_map_ops.flags:
@@ -426,10 +427,10 @@ bool arch_dma_unmap_sg_direct(struct device *dev, struct scatterlist *sg,
 
 #ifdef CONFIG_ARCH_HAS_SETUP_DMA_OPS
 void arch_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
-		const struct iommu_ops *iommu, bool coherent);
+		bool coherent);
 #else
 static inline void arch_setup_dma_ops(struct device *dev, u64 dma_base,
-		u64 size, const struct iommu_ops *iommu, bool coherent)
+		u64 size, bool coherent)
 {
 }
 #endif /* CONFIG_ARCH_HAS_SETUP_DMA_OPS */
@@ -443,10 +444,10 @@ static inline void arch_teardown_dma_ops(struct device *dev)
 #endif /* CONFIG_ARCH_HAS_TEARDOWN_DMA_OPS */
 
 #ifdef CONFIG_DMA_API_DEBUG
-void dma_debug_add_bus(struct bus_type *bus);
+void dma_debug_add_bus(const struct bus_type *bus);
 void debug_dma_dump_mappings(struct device *dev);
 #else
-static inline void dma_debug_add_bus(struct bus_type *bus)
+static inline void dma_debug_add_bus(const struct bus_type *bus)
 {
 }
 static inline void debug_dma_dump_mappings(struct device *dev)

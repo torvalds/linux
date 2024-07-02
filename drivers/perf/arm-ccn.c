@@ -1265,6 +1265,7 @@ static int arm_ccn_pmu_init(struct arm_ccn *ccn)
 	/* Perf driver registration */
 	ccn->dt.pmu = (struct pmu) {
 		.module = THIS_MODULE,
+		.parent = ccn->dev,
 		.attr_groups = arm_ccn_pmu_attr_groups,
 		.task_ctx_nr = perf_invalid_context,
 		.event_init = arm_ccn_pmu_event_init,
@@ -1515,13 +1516,11 @@ static int arm_ccn_probe(struct platform_device *pdev)
 	return arm_ccn_pmu_init(ccn);
 }
 
-static int arm_ccn_remove(struct platform_device *pdev)
+static void arm_ccn_remove(struct platform_device *pdev)
 {
 	struct arm_ccn *ccn = platform_get_drvdata(pdev);
 
 	arm_ccn_pmu_cleanup(ccn);
-
-	return 0;
 }
 
 static const struct of_device_id arm_ccn_match[] = {
@@ -1539,7 +1538,7 @@ static struct platform_driver arm_ccn_driver = {
 		.suppress_bind_attrs = true,
 	},
 	.probe = arm_ccn_probe,
-	.remove = arm_ccn_remove,
+	.remove_new = arm_ccn_remove,
 };
 
 static int __init arm_ccn_init(void)

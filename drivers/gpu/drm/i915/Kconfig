@@ -94,7 +94,7 @@ config DRM_I915_CAPTURE_ERROR
 	  This option enables capturing the GPU state when a hang is detected.
 	  This information is vital for triaging hangs and assists in debugging.
 	  Please report any hang for triaging according to:
-	    https://gitlab.freedesktop.org/drm/intel/-/wikis/How-to-file-i915-bugs
+	    https://drm.pages.freedesktop.org/intel-docs/how-to-file-i915-bugs.html
 
 	  If in doubt, say "Y".
 
@@ -140,7 +140,7 @@ config DRM_I915_GVT_KVMGT
 
 	  Note that this driver only supports newer device from Broadwell on.
 	  For further information and setup guide, you can visit:
-	  http://01.org/igvt-g.
+	  https://github.com/intel/gvt-linux/wiki.
 
 	  If in doubt, say "N".
 
@@ -154,6 +154,20 @@ config DRM_I915_PXP
 	  version 12 and newer GPUs, that helps to establish the hardware
 	  protected session and manage the status of the alive software session,
 	  as well as its life cycle.
+
+config DRM_I915_DP_TUNNEL
+	bool "Enable DP tunnel support"
+	depends on DRM_I915
+	depends on USB4
+	select DRM_DISPLAY_DP_TUNNEL
+	default y
+	help
+	  Choose this option to detect DP tunnels and enable the Bandwidth
+	  Allocation mode for such tunnels. This allows using the maximum
+	  resolution allowed by the link BW on all displays sharing the
+	  link BW, for instance on a Thunderbolt link.
+
+	  If in doubt, say "Y".
 
 menu "drm/i915 Debugging"
 depends on DRM_I915

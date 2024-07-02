@@ -22,6 +22,7 @@
 #include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/debugfs.h>
+#include <linux/units.h>
 
 #include "8250.h"
 
@@ -187,21 +188,19 @@
 #define TX_BUF_SIZE 4096
 #define RX_BUF_SIZE 4096
 #define RX_BUFS_COUNT 2
-#define KHZ    1000
-#define MHZ(x) ((x) * KHZ * KHZ)
 
 static const u32 brcmstb_rate_table[] = {
-	MHZ(81),
-	MHZ(108),
-	MHZ(64),		/* Actually 64285715 for some chips */
-	MHZ(48),
+	81 * HZ_PER_MHZ,
+	108 * HZ_PER_MHZ,
+	64 * HZ_PER_MHZ,		/* Actually 64285715 for some chips */
+	48 * HZ_PER_MHZ,
 };
 
 static const u32 brcmstb_rate_table_7278[] = {
-	MHZ(81),
-	MHZ(108),
+	81 * HZ_PER_MHZ,
+	108 * HZ_PER_MHZ,
 	0,
-	MHZ(48),
+	48 * HZ_PER_MHZ,
 };
 
 struct brcmuart_priv {
@@ -567,7 +566,7 @@ static irqreturn_t brcmuart_isr(int irq, void *dev_id)
 	if (interrupts == 0)
 		return IRQ_NONE;
 
-	spin_lock_irqsave(&up->lock, flags);
+	uart_port_lock_irqsave(up, &flags);
 
 	/* Clear all interrupts */
 	udma_writel(priv, REGS_DMA_ISR, UDMA_INTR_CLEAR, interrupts);
@@ -581,7 +580,7 @@ static irqreturn_t brcmuart_isr(int irq, void *dev_id)
 	if ((rval | tval) == 0)
 		dev_warn(dev, "Spurious interrupt: 0x%x\n", interrupts);
 
-	spin_unlock_irqrestore(&up->lock, flags);
+	uart_port_unlock_irqrestore(up, flags);
 	return IRQ_HANDLED;
 }
 
@@ -608,10 +607,10 @@ static int brcmuart_startup(struct uart_port *port)
 	 *
 	 * Synchronize UART_IER access against the console.
 	 */
-	spin_lock_irq(&port->lock);
+	uart_port_lock_irq(port);
 	up->ier &= ~UART_IER_RDI;
 	serial_port_out(port, UART_IER, up->ier);
-	spin_unlock_irq(&port->lock);
+	uart_port_unlock_irq(port);
 
 	priv->tx_running = false;
 	priv->dma.rx_dma = NULL;
@@ -629,7 +628,7 @@ static void brcmuart_shutdown(struct uart_port *port)
 	struct brcmuart_priv *priv = up->port.private_data;
 	unsigned long flags;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 	priv->shutdown = true;
 	if (priv->dma_enabled) {
 		stop_rx_dma(up);
@@ -645,7 +644,7 @@ static void brcmuart_shutdown(struct uart_port *port)
 	 */
 	up->dma = NULL;
 
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 	serial8250_do_shutdown(port);
 }
 
@@ -788,7 +787,7 @@ static int brcmuart_handle_irq(struct uart_port *p)
 	 * interrupt but there is no data ready.
 	 */
 	if (((iir & UART_IIR_ID) == UART_IIR_RX_TIMEOUT) && !(priv->shutdown)) {
-		spin_lock_irqsave(&p->lock, flags);
+		uart_port_lock_irqsave(p, &flags);
 		status = serial_port_in(p, UART_LSR);
 		if ((status & UART_LSR_DR) == 0) {
 
@@ -813,7 +812,7 @@ static int brcmuart_handle_irq(struct uart_port *p)
 
 			handled = 1;
 		}
-		spin_unlock_irqrestore(&p->lock, flags);
+		uart_port_unlock_irqrestore(p, flags);
 		if (handled)
 			return 1;
 	}
@@ -831,7 +830,7 @@ static enum hrtimer_restart brcmuart_hrtimer_func(struct hrtimer *t)
 	if (priv->shutdown)
 		return HRTIMER_NORESTART;
 
-	spin_lock_irqsave(&p->lock, flags);
+	uart_port_lock_irqsave(p, &flags);
 	status = serial_port_in(p, UART_LSR);
 
 	/*
@@ -855,7 +854,7 @@ static enum hrtimer_restart brcmuart_hrtimer_func(struct hrtimer *t)
 		status |= UART_MCR_RTS;
 		serial_port_out(p, UART_MCR, status);
 	}
-	spin_unlock_irqrestore(&p->lock, flags);
+	uart_port_unlock_irqrestore(p, flags);
 	return HRTIMER_NORESTART;
 }
 
@@ -936,17 +935,14 @@ static void brcmuart_init_debugfs(struct brcmuart_priv *priv,
 static int brcmuart_probe(struct platform_device *pdev)
 {
 	struct resource *regs;
-	struct device_node *np = pdev->dev.of_node;
 	const struct of_device_id *of_id = NULL;
 	struct uart_8250_port *new_port;
 	struct device *dev = &pdev->dev;
 	struct brcmuart_priv *priv;
 	struct clk *baud_mux_clk;
 	struct uart_8250_port up;
-	int irq;
 	void __iomem *membase = NULL;
 	resource_size_t mapbase = 0;
-	u32 clk_rate = 0;
 	int ret;
 	int x;
 	int dma_irq;
@@ -954,15 +950,12 @@ static int brcmuart_probe(struct platform_device *pdev)
 		"uart", "dma_rx", "dma_tx", "dma_intr2", "dma_arb"
 	};
 
-	irq = platform_get_irq(pdev, 0);
-	if (irq < 0)
-		return irq;
 	priv = devm_kzalloc(dev, sizeof(struct brcmuart_priv),
 			GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
-	of_id = of_match_node(brcmuart_dt_ids, np);
+	of_id = of_match_node(brcmuart_dt_ids, dev->of_node);
 	if (!of_id || !of_id->data)
 		priv->rate_table = brcmstb_rate_table;
 	else
@@ -984,10 +977,9 @@ static int brcmuart_probe(struct platform_device *pdev)
 	}
 
 	/* We should have just the uart base registers or all the registers */
-	if (x != 1 && x != REGS_MAX) {
-		dev_warn(dev, "%s registers not specified\n", reg_names[x]);
-		return -EINVAL;
-	}
+	if (x != 1 && x != REGS_MAX)
+		return dev_err_probe(dev, -EINVAL, "%s registers not specified\n",
+				     reg_names[x]);
 
 	/* if the DMA registers were specified, try to enable DMA */
 	if (x > REGS_DMA_RX) {
@@ -1013,54 +1005,38 @@ static int brcmuart_probe(struct platform_device *pdev)
 		}
 	}
 
-	of_property_read_u32(np, "clock-frequency", &clk_rate);
-
-	/* See if a Baud clock has been specified */
-	baud_mux_clk = devm_clk_get(dev, "sw_baud");
-	if (IS_ERR(baud_mux_clk)) {
-		if (PTR_ERR(baud_mux_clk) == -EPROBE_DEFER) {
-			ret = -EPROBE_DEFER;
-			goto release_dma;
-		}
-		dev_dbg(dev, "BAUD MUX clock not specified\n");
-	} else {
-		dev_dbg(dev, "BAUD MUX clock found\n");
-		ret = clk_prepare_enable(baud_mux_clk);
-		if (ret)
-			goto release_dma;
-		priv->baud_mux_clk = baud_mux_clk;
-		init_real_clk_rates(dev, priv);
-		clk_rate = priv->default_mux_rate;
-	}
-
-	if (clk_rate == 0) {
-		dev_err(dev, "clock-frequency or clk not defined\n");
-		ret = -EINVAL;
-		goto err_clk_disable;
-	}
-
 	dev_dbg(dev, "DMA is %senabled\n", priv->dma_enabled ? "" : "not ");
 
 	memset(&up, 0, sizeof(up));
 	up.port.type = PORT_BCM7271;
-	up.port.uartclk = clk_rate;
 	up.port.dev = dev;
 	up.port.mapbase = mapbase;
 	up.port.membase = membase;
-	up.port.irq = irq;
 	up.port.handle_irq = brcmuart_handle_irq;
-	up.port.regshift = 2;
-	up.port.iotype = of_device_is_big_endian(np) ?
-		UPIO_MEM32BE : UPIO_MEM32;
-	up.port.flags = UPF_SHARE_IRQ | UPF_BOOT_AUTOCONF
-		| UPF_FIXED_PORT | UPF_FIXED_TYPE;
-	up.port.dev = dev;
+	up.port.flags = UPF_BOOT_AUTOCONF | UPF_FIXED_PORT | UPF_FIXED_TYPE;
 	up.port.private_data = priv;
 
-	/* Check for a fixed line number */
-	ret = of_alias_get_id(np, "serial");
-	if (ret >= 0)
-		up.port.line = ret;
+	ret = uart_read_port_properties(&up.port);
+	if (ret)
+		goto release_dma;
+
+	up.port.regshift = 2;
+	up.port.iotype = device_is_big_endian(dev) ? UPIO_MEM32BE : UPIO_MEM32;
+
+	/* See if a Baud clock has been specified */
+	baud_mux_clk = devm_clk_get_optional_enabled(dev, "sw_baud");
+	ret = PTR_ERR_OR_ZERO(baud_mux_clk);
+	if (ret)
+		goto release_dma;
+	if (baud_mux_clk) {
+		dev_dbg(dev, "BAUD MUX clock found\n");
+
+		priv->baud_mux_clk = baud_mux_clk;
+		init_real_clk_rates(dev, priv);
+		up.port.uartclk = priv->default_mux_rate;
+	} else {
+		dev_dbg(dev, "BAUD MUX clock not specified\n");
+	}
 
 	/* setup HR timer */
 	hrtimer_init(&priv->hrt, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
@@ -1093,7 +1069,7 @@ static int brcmuart_probe(struct platform_device *pdev)
 
 	ret = serial8250_register_8250_port(&up);
 	if (ret < 0) {
-		dev_err(dev, "unable to register 8250 port\n");
+		dev_err_probe(dev, ret, "unable to register 8250 port\n");
 		goto err;
 	}
 	priv->line = ret;
@@ -1102,14 +1078,13 @@ static int brcmuart_probe(struct platform_device *pdev)
 	if (priv->dma_enabled) {
 		dma_irq = platform_get_irq_byname(pdev,  "dma");
 		if (dma_irq < 0) {
-			ret = dma_irq;
-			dev_err(dev, "no IRQ resource info\n");
+			ret = dev_err_probe(dev, dma_irq, "no IRQ resource info\n");
 			goto err1;
 		}
 		ret = devm_request_irq(dev, dma_irq, brcmuart_isr,
 				IRQF_SHARED, "uart DMA irq", &new_port->port);
 		if (ret) {
-			dev_err(dev, "unable to register IRQ handler\n");
+			dev_err_probe(dev, ret, "unable to register IRQ handler\n");
 			goto err1;
 		}
 	}
@@ -1121,15 +1096,13 @@ err1:
 	serial8250_unregister_port(priv->line);
 err:
 	brcmuart_free_bufs(dev, priv);
-err_clk_disable:
-	clk_disable_unprepare(baud_mux_clk);
 release_dma:
 	if (priv->dma_enabled)
 		brcmuart_arbitration(priv, 0);
 	return ret;
 }
 
-static int brcmuart_remove(struct platform_device *pdev)
+static void brcmuart_remove(struct platform_device *pdev)
 {
 	struct brcmuart_priv *priv = platform_get_drvdata(pdev);
 
@@ -1137,10 +1110,8 @@ static int brcmuart_remove(struct platform_device *pdev)
 	hrtimer_cancel(&priv->hrt);
 	serial8250_unregister_port(priv->line);
 	brcmuart_free_bufs(&pdev->dev, priv);
-	clk_disable_unprepare(priv->baud_mux_clk);
 	if (priv->dma_enabled)
 		brcmuart_arbitration(priv, 0);
-	return 0;
 }
 
 static int __maybe_unused brcmuart_suspend(struct device *dev)
@@ -1154,10 +1125,10 @@ static int __maybe_unused brcmuart_suspend(struct device *dev)
 	 * This will prevent resume from enabling RTS before the
 	 *  baud rate has been restored.
 	 */
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 	priv->saved_mctrl = port->mctrl;
 	port->mctrl &= ~TIOCM_RTS;
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 
 	serial8250_suspend_port(priv->line);
 	clk_disable_unprepare(priv->baud_mux_clk);
@@ -1196,10 +1167,10 @@ static int __maybe_unused brcmuart_resume(struct device *dev)
 
 	if (priv->saved_mctrl & TIOCM_RTS) {
 		/* Restore RTS */
-		spin_lock_irqsave(&port->lock, flags);
+		uart_port_lock_irqsave(port, &flags);
 		port->mctrl |= TIOCM_RTS;
 		port->ops->set_mctrl(port, port->mctrl);
-		spin_unlock_irqrestore(&port->lock, flags);
+		uart_port_unlock_irqrestore(port, flags);
 	}
 
 	return 0;
@@ -1216,7 +1187,7 @@ static struct platform_driver brcmuart_platform_driver = {
 		.of_match_table = brcmuart_dt_ids,
 	},
 	.probe		= brcmuart_probe,
-	.remove		= brcmuart_remove,
+	.remove_new	= brcmuart_remove,
 };
 
 static int __init brcmuart_init(void)

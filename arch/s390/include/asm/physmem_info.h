@@ -169,4 +169,7 @@ static inline unsigned long get_physmem_reserved(enum reserved_range_type type,
 	return *size;
 }
 
+#define AMODE31_START	(physmem_info.reserved[RR_AMODE31].start)
+#define AMODE31_END	(physmem_info.reserved[RR_AMODE31].end)
+
 #endif

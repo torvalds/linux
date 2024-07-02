@@ -1966,3 +1966,45 @@ ssize_t vfio_pci_config_rw(struct vfio_pci_core_device *vdev, char __user *buf,
 
 	return done;
 }
+
+/**
+ * vfio_pci_core_range_intersect_range() - Determine overlap between a buffer
+ *					   and register offset ranges.
+ * @buf_start:		start offset of the buffer
+ * @buf_cnt:		number of buffer bytes
+ * @reg_start:		start register offset
+ * @reg_cnt:		number of register bytes
+ * @buf_offset:	start offset of overlap in the buffer
+ * @intersect_count:	number of overlapping bytes
+ * @register_offset:	start offset of overlap in register
+ *
+ * Returns: true if there is overlap, false if not.
+ * The overlap start and size is returned through function args.
+ */
+bool vfio_pci_core_range_intersect_range(loff_t buf_start, size_t buf_cnt,
+					 loff_t reg_start, size_t reg_cnt,
+					 loff_t *buf_offset,
+					 size_t *intersect_count,
+					 size_t *register_offset)
+{
+	if (buf_start <= reg_start &&
+	    buf_start + buf_cnt > reg_start) {
+		*buf_offset = reg_start - buf_start;
+		*intersect_count = min_t(size_t, reg_cnt,
+					 buf_start + buf_cnt - reg_start);
+		*register_offset = 0;
+		return true;
+	}
+
+	if (buf_start > reg_start &&
+	    buf_start < reg_start + reg_cnt) {
+		*buf_offset = 0;
+		*intersect_count = min_t(size_t, buf_cnt,
+					 reg_start + reg_cnt - buf_start);
+		*register_offset = buf_start - reg_start;
+		return true;
+	}
+
+	return false;
+}
+EXPORT_SYMBOL_GPL(vfio_pci_core_range_intersect_range);

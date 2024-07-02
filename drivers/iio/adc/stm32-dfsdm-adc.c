@@ -1620,7 +1620,7 @@ err_cleanup:
 	return ret;
 }
 
-static int stm32_dfsdm_adc_remove(struct platform_device *pdev)
+static void stm32_dfsdm_adc_remove(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
 	struct stm32_dfsdm_adc *adc = iio_priv(indio_dev);
@@ -1629,8 +1629,6 @@ static int stm32_dfsdm_adc_remove(struct platform_device *pdev)
 		of_platform_depopulate(&pdev->dev);
 	iio_device_unregister(indio_dev);
 	stm32_dfsdm_dma_release(indio_dev);
-
-	return 0;
 }
 
 static int stm32_dfsdm_adc_suspend(struct device *dev)
@@ -1677,7 +1675,7 @@ static struct platform_driver stm32_dfsdm_adc_driver = {
 		.pm = pm_sleep_ptr(&stm32_dfsdm_adc_pm_ops),
 	},
 	.probe = stm32_dfsdm_adc_probe,
-	.remove = stm32_dfsdm_adc_remove,
+	.remove_new = stm32_dfsdm_adc_remove,
 };
 module_platform_driver(stm32_dfsdm_adc_driver);
 

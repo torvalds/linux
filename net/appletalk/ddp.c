@@ -88,6 +88,7 @@ static inline void atalk_remove_socket(struct sock *sk)
 static struct sock *atalk_search_socket(struct sockaddr_at *to,
 					struct atalk_iface *atif)
 {
+	struct sock *def_socket = NULL;
 	struct sock *s;
 
 	read_lock_bh(&atalk_sockets_lock);
@@ -98,8 +99,20 @@ static struct sock *atalk_search_socket(struct sockaddr_at *to,
 			continue;
 
 		if (to->sat_addr.s_net == ATADDR_ANYNET &&
-		    to->sat_addr.s_node == ATADDR_BCAST)
-			goto found;
+		    to->sat_addr.s_node == ATADDR_BCAST) {
+			if (atif->address.s_node == at->src_node &&
+			    atif->address.s_net == at->src_net) {
+				/* This socket's address matches the address of the interface
+				 * that received the packet -- use it
+				 */
+				goto found;
+			}
+
+			/* Continue searching for a socket matching the interface address,
+			 * but use this socket by default if no other one is found
+			 */
+			def_socket = s;
+		}
 
 		if (to->sat_addr.s_net == at->src_net &&
 		    (to->sat_addr.s_node == at->src_node ||
@@ -116,7 +129,7 @@ static struct sock *atalk_search_socket(struct sockaddr_at *to,
 			goto found;
 		}
 	}
-	s = NULL;
+	s = def_socket;
 found:
 	read_unlock_bh(&atalk_sockets_lock);
 	return s;
@@ -1581,7 +1594,7 @@ static int atalk_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 	}
 
 	/* Build a packet */
-	SOCK_DEBUG(sk, "SK %p: Got address.\n", sk);
+	net_dbg_ratelimited("SK %p: Got address.\n", sk);
 
 	/* For headers */
 	size = sizeof(struct ddpehdr) + len + ddp_dl->header_length;
@@ -1602,7 +1615,7 @@ static int atalk_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 
 	dev = rt->dev;
 
-	SOCK_DEBUG(sk, "SK %p: Size needed %d, device %s\n",
+	net_dbg_ratelimited("SK %p: Size needed %d, device %s\n",
 			sk, size, dev->name);
 
 	hard_header_len = dev->hard_header_len;
@@ -1631,7 +1644,7 @@ static int atalk_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 	skb_reserve(skb, hard_header_len);
 	skb->dev = dev;
 
-	SOCK_DEBUG(sk, "SK %p: Begin build.\n", sk);
+	net_dbg_ratelimited("SK %p: Begin build.\n", sk);
 
 	ddp = skb_put(skb, sizeof(struct ddpehdr));
 	ddp->deh_len_hops  = htons(len + sizeof(*ddp));
@@ -1642,7 +1655,7 @@ static int atalk_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 	ddp->deh_dport = usat->sat_port;
 	ddp->deh_sport = at->src_port;
 
-	SOCK_DEBUG(sk, "SK %p: Copy user data (%zd bytes).\n", sk, len);
+	net_dbg_ratelimited("SK %p: Copy user data (%zd bytes).\n", sk, len);
 
 	err = memcpy_from_msg(skb_put(skb, len), msg, len);
 	if (err) {
@@ -1666,7 +1679,7 @@ static int atalk_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 
 		if (skb2) {
 			loopback = 1;
-			SOCK_DEBUG(sk, "SK %p: send out(copy).\n", sk);
+			net_dbg_ratelimited("SK %p: send out(copy).\n", sk);
 			/*
 			 * If it fails it is queued/sent above in the aarp queue
 			 */
@@ -1675,7 +1688,7 @@ static int atalk_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 	}
 
 	if (dev->flags & IFF_LOOPBACK || loopback) {
-		SOCK_DEBUG(sk, "SK %p: Loop back.\n", sk);
+		net_dbg_ratelimited("SK %p: Loop back.\n", sk);
 		/* loop back */
 		skb_orphan(skb);
 		if (ddp->deh_dnode == ATADDR_BCAST) {
@@ -1689,7 +1702,7 @@ static int atalk_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 		}
 		ddp_dl->request(ddp_dl, skb, dev->dev_addr);
 	} else {
-		SOCK_DEBUG(sk, "SK %p: send out.\n", sk);
+		net_dbg_ratelimited("SK %p: send out.\n", sk);
 		if (rt->flags & RTF_GATEWAY) {
 		    gsat.sat_addr = rt->gateway;
 		    usat = &gsat;
@@ -1700,7 +1713,7 @@ static int atalk_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 		 */
 		aarp_send_ddp(dev, skb, &usat->sat_addr, NULL);
 	}
-	SOCK_DEBUG(sk, "SK %p: Done write (%zd).\n", sk, len);
+	net_dbg_ratelimited("SK %p: Done write (%zd).\n", sk, len);
 
 out:
 	release_sock(sk);
@@ -1775,15 +1788,14 @@ static int atalk_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		break;
 	}
 	case TIOCINQ: {
-		/*
-		 * These two are safe on a single CPU system as only
-		 * user tasks fiddle here
-		 */
-		struct sk_buff *skb = skb_peek(&sk->sk_receive_queue);
+		struct sk_buff *skb;
 		long amount = 0;
 
+		spin_lock_irq(&sk->sk_receive_queue.lock);
+		skb = skb_peek(&sk->sk_receive_queue);
 		if (skb)
 			amount = skb->len - sizeof(struct ddpehdr);
+		spin_unlock_irq(&sk->sk_receive_queue.lock);
 		rc = put_user(amount, (int __user *)argp);
 		break;
 	}

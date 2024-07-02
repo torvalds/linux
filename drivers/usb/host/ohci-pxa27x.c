@@ -27,7 +27,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of_platform.h>
-#include <linux/of_gpio.h>
 #include <linux/platform_data/usb-ohci-pxa27x.h>
 #include <linux/platform_data/pxa2xx_udc.h>
 #include <linux/platform_device.h>

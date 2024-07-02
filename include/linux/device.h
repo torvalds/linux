@@ -42,7 +42,6 @@ struct class;
 struct subsys_private;
 struct device_node;
 struct fwnode_handle;
-struct iommu_ops;
 struct iommu_group;
 struct dev_pin_info;
 struct dev_iommu;
@@ -63,7 +62,7 @@ struct msi_device_data;
  */
 struct subsys_interface {
 	const char *name;
-	struct bus_type *subsys;
+	const struct bus_type *subsys;
 	struct list_head node;
 	int (*add_dev)(struct device *dev, struct subsys_interface *sif);
 	void (*remove_dev)(struct device *dev, struct subsys_interface *sif);
@@ -72,9 +71,9 @@ struct subsys_interface {
 int subsys_interface_register(struct subsys_interface *sif);
 void subsys_interface_unregister(struct subsys_interface *sif);
 
-int subsys_system_register(struct bus_type *subsys,
+int subsys_system_register(const struct bus_type *subsys,
 			   const struct attribute_group **groups);
-int subsys_virtual_register(struct bus_type *subsys,
+int subsys_virtual_register(const struct bus_type *subsys,
 			    const struct attribute_group **groups);
 
 /*
@@ -389,8 +388,8 @@ void devm_remove_action(struct device *dev, void (*action)(void *), void *data);
 void devm_release_action(struct device *dev, void (*action)(void *), void *data);
 
 int __devm_add_action(struct device *dev, void (*action)(void *), void *data, const char *name);
-#define devm_add_action(release, action, data) \
-	__devm_add_action(release, action, data, #action)
+#define devm_add_action(dev, action, data) \
+	__devm_add_action(dev, action, data, #action)
 
 static inline int __devm_add_action_or_reset(struct device *dev, void (*action)(void *),
 					     void *data, const char *name)
@@ -403,8 +402,8 @@ static inline int __devm_add_action_or_reset(struct device *dev, void (*action)(
 
 	return ret;
 }
-#define devm_add_action_or_reset(release, action, data) \
-	__devm_add_action_or_reset(release, action, data, #action)
+#define devm_add_action_or_reset(dev, action, data) \
+	__devm_add_action_or_reset(dev, action, data, #action)
 
 /**
  * devm_alloc_percpu - Resource-managed alloc_percpu
@@ -662,7 +661,6 @@ struct device_physical_location {
  * @id:		device instance
  * @devres_lock: Spinlock to protect the resource of the device.
  * @devres_head: The resources list of the device.
- * @knode_class: The node used to add the device to the class list.
  * @class:	The class of the device.
  * @groups:	Optional attribute groups.
  * @release:	Callback to free the device after all references have
@@ -1007,6 +1005,8 @@ static inline void device_unlock(struct device *dev)
 	mutex_unlock(&dev->mutex);
 }
 
+DEFINE_GUARD(device, struct device *, device_lock(_T), device_unlock(_T))
+
 static inline void device_lock_assert(struct device *dev)
 {
 	lockdep_assert_held(&dev->mutex);
@@ -1071,7 +1071,6 @@ int device_rename(struct device *dev, const char *new_name);
 int device_move(struct device *dev, struct device *new_parent,
 		enum dpm_order dpm_order);
 int device_change_owner(struct device *dev, kuid_t kuid, kgid_t kgid);
-int device_is_dependent(struct device *dev, void *target);
 
 static inline bool device_supports_offline(struct device *dev)
 {
@@ -1248,6 +1247,7 @@ void device_link_del(struct device_link *link);
 void device_link_remove(void *consumer, struct device *supplier);
 void device_links_supplier_sync_state_pause(void);
 void device_links_supplier_sync_state_resume(void);
+void device_link_wait_removal(void);
 
 /* Create alias, so I can be autoloaded. */
 #define MODULE_ALIAS_CHARDEV(major,minor) \

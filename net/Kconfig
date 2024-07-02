@@ -60,6 +60,9 @@ config NET_XGRESS
 config NET_REDIRECT
 	bool
 
+config SKB_DECRYPTED
+	bool
+
 config SKB_EXTENSIONS
 	bool
 
@@ -233,8 +236,6 @@ source "net/bridge/netfilter/Kconfig"
 
 endif
 
-source "net/bpfilter/Kconfig"
-
 source "net/dccp/Kconfig"
 source "net/sctp/Kconfig"
 source "net/rds/Kconfig"
@@ -333,6 +334,7 @@ config NET_RX_BUSY_POLL
 
 config BQL
 	bool
+	prompt "Enable Byte Queue Limits"
 	depends on SYSFS
 	select DQL
 	default y
@@ -448,6 +450,9 @@ config GRO_CELLS
 	default n
 
 config SOCK_VALIDATE_XMIT
+	bool
+
+config NET_IEEE8021Q_HELPERS
 	bool
 
 config NET_SELFTESTS

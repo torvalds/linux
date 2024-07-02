@@ -12,30 +12,28 @@
 #include "nouveau_abi16.h"
 #include "nouveau_sched.h"
 
-/* FIXME
- *
- * We want to make sure that jobs currently executing can't be deferred by
- * other jobs competing for the hardware. Otherwise we might end up with job
- * timeouts just because of too many clients submitting too many jobs. We don't
- * want jobs to time out because of system load, but because of the job being
- * too bulky.
- *
- * For now allow for up to 16 concurrent jobs in flight until we know how many
- * rings the hardware can process in parallel.
- */
-#define NOUVEAU_SCHED_HW_SUBMISSIONS		16
 #define NOUVEAU_SCHED_JOB_TIMEOUT_MS		10000
+
+/* Starts at 0, since the DRM scheduler interprets those parameters as (initial)
+ * index to the run-queue array.
+ */
+enum nouveau_sched_priority {
+	NOUVEAU_SCHED_PRIORITY_SINGLE = DRM_SCHED_PRIORITY_KERNEL,
+	NOUVEAU_SCHED_PRIORITY_COUNT,
+};
 
 int
 nouveau_job_init(struct nouveau_job *job,
 		 struct nouveau_job_args *args)
 {
-	struct nouveau_sched_entity *entity = args->sched_entity;
+	struct nouveau_sched *sched = args->sched;
 	int ret;
+
+	INIT_LIST_HEAD(&job->entry);
 
 	job->file_priv = args->file_priv;
 	job->cli = nouveau_cli(args->file_priv);
-	job->entity = entity;
+	job->sched = sched;
 
 	job->sync = args->sync;
 	job->resv_usage = args->resv_usage;
@@ -86,10 +84,10 @@ nouveau_job_init(struct nouveau_job *job,
 			ret = -ENOMEM;
 			goto err_free_objs;
 		}
-
 	}
 
-	ret = drm_sched_job_init(&job->base, &entity->base, NULL);
+	ret = drm_sched_job_init(&job->base, &sched->entity,
+				 args->credits, NULL);
 	if (ret)
 		goto err_free_chains;
 
@@ -109,19 +107,33 @@ return ret;
 }
 
 void
+nouveau_job_fini(struct nouveau_job *job)
+{
+	dma_fence_put(job->done_fence);
+	drm_sched_job_cleanup(&job->base);
+
+	job->ops->free(job);
+}
+
+void
+nouveau_job_done(struct nouveau_job *job)
+{
+	struct nouveau_sched *sched = job->sched;
+
+	spin_lock(&sched->job.list.lock);
+	list_del(&job->entry);
+	spin_unlock(&sched->job.list.lock);
+
+	wake_up(&sched->job.wq);
+}
+
+void
 nouveau_job_free(struct nouveau_job *job)
 {
 	kfree(job->in_sync.data);
 	kfree(job->out_sync.data);
 	kfree(job->out_sync.objs);
 	kfree(job->out_sync.chains);
-}
-
-void nouveau_job_fini(struct nouveau_job *job)
-{
-	dma_fence_put(job->done_fence);
-	drm_sched_job_cleanup(&job->base);
-	job->ops->free(job);
 }
 
 static int
@@ -261,8 +273,13 @@ nouveau_job_fence_attach(struct nouveau_job *job)
 int
 nouveau_job_submit(struct nouveau_job *job)
 {
-	struct nouveau_sched_entity *entity = to_nouveau_sched_entity(job->base.entity);
+	struct nouveau_sched *sched = job->sched;
 	struct dma_fence *done_fence = NULL;
+	struct drm_gpuvm_exec vm_exec = {
+		.vm = &nouveau_cli_uvmm(job->cli)->base,
+		.flags = DRM_EXEC_IGNORE_DUPLICATES,
+		.num_fences = 1,
+	};
 	int ret;
 
 	ret = nouveau_job_add_deps(job);
@@ -276,46 +293,29 @@ nouveau_job_submit(struct nouveau_job *job)
 	/* Make sure the job appears on the sched_entity's queue in the same
 	 * order as it was submitted.
 	 */
-	mutex_lock(&entity->mutex);
+	mutex_lock(&sched->mutex);
 
 	/* Guarantee we won't fail after the submit() callback returned
 	 * successfully.
 	 */
 	if (job->ops->submit) {
-		ret = job->ops->submit(job);
+		ret = job->ops->submit(job, &vm_exec);
 		if (ret)
 			goto err_cleanup;
 	}
+
+	/* Submit was successful; add the job to the schedulers job list. */
+	spin_lock(&sched->job.list.lock);
+	list_add(&job->entry, &sched->job.list.head);
+	spin_unlock(&sched->job.list.lock);
 
 	drm_sched_job_arm(&job->base);
 	job->done_fence = dma_fence_get(&job->base.s_fence->finished);
 	if (job->sync)
 		done_fence = dma_fence_get(job->done_fence);
 
-	/* If a sched job depends on a dma-fence from a job from the same GPU
-	 * scheduler instance, but a different scheduler entity, the GPU
-	 * scheduler does only wait for the particular job to be scheduled,
-	 * rather than for the job to fully complete. This is due to the GPU
-	 * scheduler assuming that there is a scheduler instance per ring.
-	 * However, the current implementation, in order to avoid arbitrary
-	 * amounts of kthreads, has a single scheduler instance while scheduler
-	 * entities represent rings.
-	 *
-	 * As a workaround, set the DRM_SCHED_FENCE_DONT_PIPELINE for all
-	 * out-fences in order to force the scheduler to wait for full job
-	 * completion for dependent jobs from different entities and same
-	 * scheduler instance.
-	 *
-	 * There is some work in progress [1] to address the issues of firmware
-	 * schedulers; once it is in-tree the scheduler topology in Nouveau
-	 * should be re-worked accordingly.
-	 *
-	 * [1] https://lore.kernel.org/dri-devel/20230801205103.627779-1-matthew.brost@intel.com/
-	 */
-	set_bit(DRM_SCHED_FENCE_DONT_PIPELINE, &job->done_fence->flags);
-
 	if (job->ops->armed_submit)
-		job->ops->armed_submit(job);
+		job->ops->armed_submit(job, &vm_exec);
 
 	nouveau_job_fence_attach(job);
 
@@ -326,7 +326,7 @@ nouveau_job_submit(struct nouveau_job *job)
 
 	drm_sched_entity_push_job(&job->base);
 
-	mutex_unlock(&entity->mutex);
+	mutex_unlock(&sched->mutex);
 
 	if (done_fence) {
 		dma_fence_wait(done_fence, true);
@@ -336,18 +336,11 @@ nouveau_job_submit(struct nouveau_job *job)
 	return 0;
 
 err_cleanup:
-	mutex_unlock(&entity->mutex);
+	mutex_unlock(&sched->mutex);
 	nouveau_job_fence_attach_cleanup(job);
 err:
 	job->state = NOUVEAU_JOB_SUBMIT_FAILED;
 	return ret;
-}
-
-bool
-nouveau_sched_entity_qwork(struct nouveau_sched_entity *entity,
-			   struct work_struct *work)
-{
-	return queue_work(entity->sched_wq, work);
 }
 
 static struct dma_fence *
@@ -399,50 +392,116 @@ nouveau_sched_free_job(struct drm_sched_job *sched_job)
 	nouveau_job_fini(job);
 }
 
-int nouveau_sched_entity_init(struct nouveau_sched_entity *entity,
-			      struct drm_gpu_scheduler *sched,
-			      struct workqueue_struct *sched_wq)
-{
-	mutex_init(&entity->mutex);
-	spin_lock_init(&entity->job.list.lock);
-	INIT_LIST_HEAD(&entity->job.list.head);
-	init_waitqueue_head(&entity->job.wq);
-
-	entity->sched_wq = sched_wq;
-	return drm_sched_entity_init(&entity->base,
-				     DRM_SCHED_PRIORITY_NORMAL,
-				     &sched, 1, NULL);
-}
-
-void
-nouveau_sched_entity_fini(struct nouveau_sched_entity *entity)
-{
-	drm_sched_entity_destroy(&entity->base);
-}
-
 static const struct drm_sched_backend_ops nouveau_sched_ops = {
 	.run_job = nouveau_sched_run_job,
 	.timedout_job = nouveau_sched_timedout_job,
 	.free_job = nouveau_sched_free_job,
 };
 
-int nouveau_sched_init(struct nouveau_drm *drm)
+static int
+nouveau_sched_init(struct nouveau_sched *sched, struct nouveau_drm *drm,
+		   struct workqueue_struct *wq, u32 credit_limit)
 {
-	struct drm_gpu_scheduler *sched = &drm->sched;
+	struct drm_gpu_scheduler *drm_sched = &sched->base;
+	struct drm_sched_entity *entity = &sched->entity;
 	long job_hang_limit = msecs_to_jiffies(NOUVEAU_SCHED_JOB_TIMEOUT_MS);
+	int ret;
 
-	drm->sched_wq = create_singlethread_workqueue("nouveau_sched_wq");
-	if (!drm->sched_wq)
-		return -ENOMEM;
+	if (!wq) {
+		wq = alloc_workqueue("nouveau_sched_wq_%d", 0, WQ_MAX_ACTIVE,
+				     current->pid);
+		if (!wq)
+			return -ENOMEM;
 
-	return drm_sched_init(sched, &nouveau_sched_ops,
-			      DRM_SCHED_PRIORITY_COUNT,
-			      NOUVEAU_SCHED_HW_SUBMISSIONS, 0, job_hang_limit,
-			      NULL, NULL, "nouveau_sched", drm->dev->dev);
+		sched->wq = wq;
+	}
+
+	ret = drm_sched_init(drm_sched, &nouveau_sched_ops, wq,
+			     NOUVEAU_SCHED_PRIORITY_COUNT,
+			     credit_limit, 0, job_hang_limit,
+			     NULL, NULL, "nouveau_sched", drm->dev->dev);
+	if (ret)
+		goto fail_wq;
+
+	/* Using DRM_SCHED_PRIORITY_KERNEL, since that's what we're required to use
+	 * when we want to have a single run-queue only.
+	 *
+	 * It's not documented, but one will find out when trying to use any
+	 * other priority running into faults, because the scheduler uses the
+	 * priority as array index.
+	 *
+	 * Can't use NOUVEAU_SCHED_PRIORITY_SINGLE either, because it's not
+	 * matching the enum type used in drm_sched_entity_init().
+	 */
+	ret = drm_sched_entity_init(entity, DRM_SCHED_PRIORITY_KERNEL,
+				    &drm_sched, 1, NULL);
+	if (ret)
+		goto fail_sched;
+
+	mutex_init(&sched->mutex);
+	spin_lock_init(&sched->job.list.lock);
+	INIT_LIST_HEAD(&sched->job.list.head);
+	init_waitqueue_head(&sched->job.wq);
+
+	return 0;
+
+fail_sched:
+	drm_sched_fini(drm_sched);
+fail_wq:
+	if (sched->wq)
+		destroy_workqueue(sched->wq);
+	return ret;
 }
 
-void nouveau_sched_fini(struct nouveau_drm *drm)
+int
+nouveau_sched_create(struct nouveau_sched **psched, struct nouveau_drm *drm,
+		     struct workqueue_struct *wq, u32 credit_limit)
 {
-	destroy_workqueue(drm->sched_wq);
-	drm_sched_fini(&drm->sched);
+	struct nouveau_sched *sched;
+	int ret;
+
+	sched = kzalloc(sizeof(*sched), GFP_KERNEL);
+	if (!sched)
+		return -ENOMEM;
+
+	ret = nouveau_sched_init(sched, drm, wq, credit_limit);
+	if (ret) {
+		kfree(sched);
+		return ret;
+	}
+
+	*psched = sched;
+
+	return 0;
+}
+
+
+static void
+nouveau_sched_fini(struct nouveau_sched *sched)
+{
+	struct drm_gpu_scheduler *drm_sched = &sched->base;
+	struct drm_sched_entity *entity = &sched->entity;
+
+	rmb(); /* for list_empty to work without lock */
+	wait_event(sched->job.wq, list_empty(&sched->job.list.head));
+
+	drm_sched_entity_fini(entity);
+	drm_sched_fini(drm_sched);
+
+	/* Destroy workqueue after scheduler tear down, otherwise it might still
+	 * be in use.
+	 */
+	if (sched->wq)
+		destroy_workqueue(sched->wq);
+}
+
+void
+nouveau_sched_destroy(struct nouveau_sched **psched)
+{
+	struct nouveau_sched *sched = *psched;
+
+	nouveau_sched_fini(sched);
+	kfree(sched);
+
+	*psched = NULL;
 }

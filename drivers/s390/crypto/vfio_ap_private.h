@@ -75,11 +75,11 @@ extern struct ap_matrix_dev *matrix_dev;
  */
 struct ap_matrix {
 	unsigned long apm_max;
-	DECLARE_BITMAP(apm, 256);
+	DECLARE_BITMAP(apm, AP_DEVICES);
 	unsigned long aqm_max;
-	DECLARE_BITMAP(aqm, 256);
+	DECLARE_BITMAP(aqm, AP_DOMAINS);
 	unsigned long adm_max;
-	DECLARE_BITMAP(adm, 256);
+	DECLARE_BITMAP(adm, AP_DOMAINS);
 };
 
 /**
@@ -133,6 +133,8 @@ struct ap_matrix_mdev {
  * @apqn: the APQN of the AP queue device
  * @saved_isc: the guest ISC registered with the GIB interface
  * @mdev_qnode: allows the vfio_ap_queue struct to be added to a hashtable
+ * @reset_qnode: allows the vfio_ap_queue struct to be added to a list of queues
+ *		 that need to be reset
  * @reset_status: the status from the last reset of the queue
  * @reset_work: work to wait for queue reset to complete
  */
@@ -143,6 +145,7 @@ struct vfio_ap_queue {
 #define VFIO_AP_ISC_INVALID 0xff
 	unsigned char saved_isc;
 	struct hlist_node mdev_qnode;
+	struct list_head reset_qnode;
 	struct ap_queue_status reset_status;
 	struct work_struct reset_work;
 };

@@ -30,17 +30,6 @@
 #define RPC_MAXCWND(xprt)	((xprt)->max_reqs << RPC_CWNDSHIFT)
 #define RPCXPRT_CONGESTED(xprt) ((xprt)->cong >= (xprt)->cwnd)
 
-/*
- * This describes a timeout strategy
- */
-struct rpc_timeout {
-	unsigned long		to_initval,		/* initial timeout */
-				to_maxval,		/* max timeout */
-				to_increment;		/* if !exponential */
-	unsigned int		to_retries;		/* max # of retries */
-	unsigned char		to_exponential;
-};
-
 enum rpc_display_format_t {
 	RPC_DISPLAY_ADDR = 0,
 	RPC_DISPLAY_PORT,
@@ -163,6 +152,7 @@ struct rpc_xprt_ops {
 	int		(*prepare_request)(struct rpc_rqst *req,
 					   struct xdr_buf *buf);
 	int		(*send_request)(struct rpc_rqst *req);
+	void		(*abort_send_request)(struct rpc_rqst *req);
 	void		(*wait_for_reply_request)(struct rpc_task *task);
 	void		(*timer)(struct rpc_xprt *xprt, struct rpc_task *task);
 	void		(*release_request)(struct rpc_task *task);

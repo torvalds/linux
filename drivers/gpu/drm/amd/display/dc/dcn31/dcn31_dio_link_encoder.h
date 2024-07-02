@@ -89,6 +89,7 @@
 	SRI(RDPCSTX_PHY_FUSE1, RDPCSTX, id), \
 	SRI(RDPCSTX_PHY_FUSE2, RDPCSTX, id), \
 	SRI(RDPCSTX_PHY_FUSE3, RDPCSTX, id), \
+	SRI(RDPCSTX_DEBUG_CONFIG, RDPCSTX, id), \
 	SR(RDPCSTX0_RDPCSTX_SCRATCH), \
 	SRI(RDPCSTX_PHY_RX_LD_VAL, RDPCSTX, id),\
 	SRI(RDPCSTX_DMCU_DPALT_DIS_BLOCK_REG, RDPCSTX, id)
@@ -222,6 +223,7 @@
 	SRI(RDPCSTX_PHY_FUSE1, RDPCSTX, id), \
 	SRI(RDPCSTX_PHY_FUSE2, RDPCSTX, id), \
 	SRI(RDPCSTX_PHY_FUSE3, RDPCSTX, id), \
+	SRI(RDPCSTX_DEBUG_CONFIG, RDPCSTX, id), \
 	SR(RDPCSTX0_RDPCSTX_SCRATCH), \
 	SRI(RDPCSTX_PHY_RX_LD_VAL, RDPCSTX, id),\
 	SRI(RDPCSTX_DMCU_DPALT_DIS_BLOCK_REG, RDPCSTX, id)
@@ -282,5 +284,7 @@ bool dcn31_link_encoder_is_in_alt_mode(
 
 void dcn31_link_encoder_get_max_link_cap(struct link_encoder *enc,
 	struct dc_link_settings *link_settings);
+
+void enc31_hw_init(struct link_encoder *enc);
 
 #endif /* __DC_LINK_ENCODER__DCN31_H__ */

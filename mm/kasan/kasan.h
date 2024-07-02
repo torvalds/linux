@@ -48,6 +48,7 @@ DECLARE_PER_CPU(long, kasan_page_alloc_skip);
 
 static inline bool kasan_vmalloc_enabled(void)
 {
+	/* Static branch is never enabled with CONFIG_KASAN_VMALLOC disabled. */
 	return static_branch_likely(&kasan_flag_vmalloc);
 }
 
@@ -81,6 +82,11 @@ static inline bool kasan_sample_page_alloc(unsigned int order)
 
 #else /* CONFIG_KASAN_HW_TAGS */
 
+static inline bool kasan_vmalloc_enabled(void)
+{
+	return IS_ENABLED(CONFIG_KASAN_VMALLOC);
+}
+
 static inline bool kasan_async_fault_possible(void)
 {
 	return false;
@@ -100,21 +106,21 @@ static inline bool kasan_sample_page_alloc(unsigned int order)
 
 #ifdef CONFIG_KASAN_GENERIC
 
-/* Generic KASAN uses per-object metadata to store stack traces. */
+/*
+ * Generic KASAN uses per-object metadata to store alloc and free stack traces
+ * and the quarantine link.
+ */
 static inline bool kasan_requires_meta(void)
 {
-	/*
-	 * Technically, Generic KASAN always collects stack traces right now.
-	 * However, let's use kasan_stack_collection_enabled() in case the
-	 * kasan.stacktrace command-line argument is changed to affect
-	 * Generic KASAN.
-	 */
-	return kasan_stack_collection_enabled();
+	return true;
 }
 
 #else /* CONFIG_KASAN_GENERIC */
 
-/* Tag-based KASAN modes do not use per-object metadata. */
+/*
+ * Tag-based KASAN modes do not use per-object metadata: they use the stack
+ * ring to store alloc and free stack traces and do not use qurantine.
+ */
 static inline bool kasan_requires_meta(void)
 {
 	return false;
@@ -149,7 +155,7 @@ static inline bool kasan_requires_meta(void)
 
 #ifdef CONFIG_KASAN_GENERIC
 
-#define KASAN_SLAB_FREETRACK	0xFA  /* freed slab object with free track */
+#define KASAN_SLAB_FREE_META	0xFA  /* freed slab object with free meta */
 #define KASAN_GLOBAL_REDZONE	0xF9  /* redzone for global variable */
 
 /* Stack redzone shadow values. Compiler ABI, do not change. */
@@ -187,6 +193,10 @@ static inline bool kasan_requires_meta(void)
 struct kasan_track {
 	u32 pid;
 	depot_stack_handle_t stack;
+#ifdef CONFIG_KASAN_EXTRA_INFO
+	u64 cpu:20;
+	u64 timestamp:44;
+#endif /* CONFIG_KASAN_EXTRA_INFO */
 };
 
 enum kasan_report_type {
@@ -242,6 +252,15 @@ struct kasan_global {
 
 #ifdef CONFIG_KASAN_GENERIC
 
+/*
+ * Alloc meta contains the allocation-related information about a slab object.
+ * Alloc meta is saved when an object is allocated and is kept until either the
+ * object returns to the slab freelist (leaves quarantine for quarantined
+ * objects or gets freed for the non-quarantined ones) or reallocated via
+ * krealloc or through a mempool.
+ * Alloc meta is stored inside of the object's redzone.
+ * Alloc meta is considered valid whenever it contains non-zero data.
+ */
 struct kasan_alloc_meta {
 	struct kasan_track alloc_track;
 	/* Free track is stored in kasan_free_meta. */
@@ -260,8 +279,12 @@ struct qlist_node {
 #define KASAN_NO_FREE_META INT_MAX
 
 /*
- * Free meta is only used by Generic mode while the object is in quarantine.
- * After that, slab allocator stores the freelist pointer in the object.
+ * Free meta contains the freeing-related information about a slab object.
+ * Free meta is only kept for quarantined objects and for mempool objects until
+ * the object gets allocated again.
+ * Free meta is stored within the object's memory.
+ * Free meta is considered valid whenever the value of the shadow byte that
+ * corresponds to the first 8 bytes of the object is KASAN_SLAB_FREE_META.
  */
 struct kasan_free_meta {
 	struct qlist_node quarantine_link;
@@ -275,8 +298,7 @@ struct kasan_free_meta {
 struct kasan_stack_ring_entry {
 	void *ptr;
 	size_t size;
-	u32 pid;
-	depot_stack_handle_t stack;
+	struct kasan_track track;
 	bool is_free;
 };
 
@@ -290,6 +312,12 @@ struct kasan_stack_ring {
 #endif /* CONFIG_KASAN_SW_TAGS || CONFIG_KASAN_HW_TAGS */
 
 #if defined(CONFIG_KASAN_GENERIC) || defined(CONFIG_KASAN_SW_TAGS)
+
+static __always_inline bool addr_in_shadow(const void *addr)
+{
+	return addr >= (void *)KASAN_SHADOW_START &&
+		addr < (void *)KASAN_SHADOW_END;
+}
 
 #ifndef kasan_shadow_to_mem
 static inline const void *kasan_shadow_to_mem(const void *shadow_addr)
@@ -357,24 +385,22 @@ void kasan_report_invalid_free(void *object, unsigned long ip, enum kasan_report
 struct slab *kasan_addr_to_slab(const void *addr);
 
 #ifdef CONFIG_KASAN_GENERIC
-void kasan_init_cache_meta(struct kmem_cache *cache, unsigned int *size);
-void kasan_init_object_meta(struct kmem_cache *cache, const void *object);
 struct kasan_alloc_meta *kasan_get_alloc_meta(struct kmem_cache *cache,
 						const void *object);
 struct kasan_free_meta *kasan_get_free_meta(struct kmem_cache *cache,
 						const void *object);
+void kasan_init_object_meta(struct kmem_cache *cache, const void *object);
 #else
-static inline void kasan_init_cache_meta(struct kmem_cache *cache, unsigned int *size) { }
 static inline void kasan_init_object_meta(struct kmem_cache *cache, const void *object) { }
 #endif
 
-depot_stack_handle_t kasan_save_stack(gfp_t flags, bool can_alloc);
-void kasan_set_track(struct kasan_track *track, gfp_t flags);
+depot_stack_handle_t kasan_save_stack(gfp_t flags, depot_flags_t depot_flags);
+void kasan_set_track(struct kasan_track *track, depot_stack_handle_t stack);
+void kasan_save_track(struct kasan_track *track, gfp_t flags);
 void kasan_save_alloc_info(struct kmem_cache *cache, void *object, gfp_t flags);
 void kasan_save_free_info(struct kmem_cache *cache, void *object);
 
-#if defined(CONFIG_KASAN_GENERIC) && \
-	(defined(CONFIG_SLAB) || defined(CONFIG_SLUB))
+#ifdef CONFIG_KASAN_GENERIC
 bool kasan_quarantine_put(struct kmem_cache *cache, void *object);
 void kasan_quarantine_reduce(void);
 void kasan_quarantine_remove_cache(struct kmem_cache *cache);
@@ -444,35 +470,23 @@ static inline u8 kasan_random_tag(void) { return 0; }
 
 static inline void kasan_poison(const void *addr, size_t size, u8 value, bool init)
 {
-	addr = kasan_reset_tag(addr);
-
-	/* Skip KFENCE memory if called explicitly outside of sl*b. */
-	if (is_kfence_address(addr))
-		return;
-
 	if (WARN_ON((unsigned long)addr & KASAN_GRANULE_MASK))
 		return;
 	if (WARN_ON(size & KASAN_GRANULE_MASK))
 		return;
 
-	hw_set_mem_tag_range((void *)addr, size, value, init);
+	hw_set_mem_tag_range(kasan_reset_tag(addr), size, value, init);
 }
 
 static inline void kasan_unpoison(const void *addr, size_t size, bool init)
 {
 	u8 tag = get_tag(addr);
 
-	addr = kasan_reset_tag(addr);
-
-	/* Skip KFENCE memory if called explicitly outside of sl*b. */
-	if (is_kfence_address(addr))
-		return;
-
 	if (WARN_ON((unsigned long)addr & KASAN_GRANULE_MASK))
 		return;
 	size = round_up(size, KASAN_GRANULE_SIZE);
 
-	hw_set_mem_tag_range((void *)addr, size, tag, init);
+	hw_set_mem_tag_range(kasan_reset_tag(addr), size, tag, init);
 }
 
 static inline bool kasan_byte_accessible(const void *addr)
@@ -491,8 +505,6 @@ static inline bool kasan_byte_accessible(const void *addr)
  * @size - range size, must be aligned to KASAN_GRANULE_SIZE
  * @value - value that's written to metadata for the range
  * @init - whether to initialize the memory range (only for hardware tag-based)
- *
- * The size gets aligned to KASAN_GRANULE_SIZE before marking the range.
  */
 void kasan_poison(const void *addr, size_t size, u8 value, bool init);
 

@@ -11,8 +11,6 @@
 #include "libbpf_internal.h"
 #include "str_error.h"
 
-#define STRERR_BUFSIZE  128
-
 /* A SHT_GNU_versym section holds 16-bit words. This bit is set if
  * the symbol is hidden and can only be seen when referenced using an
  * explicit version number. This is a GNU extension.
@@ -407,7 +405,8 @@ static int symbol_cmp(const void *a, const void *b)
  * size, that needs to be released by the caller.
  */
 int elf_resolve_syms_offsets(const char *binary_path, int cnt,
-			     const char **syms, unsigned long **poffsets)
+			     const char **syms, unsigned long **poffsets,
+			     int st_type)
 {
 	int sh_types[2] = { SHT_DYNSYM, SHT_SYMTAB };
 	int err = 0, i, cnt_done = 0;
@@ -438,7 +437,7 @@ int elf_resolve_syms_offsets(const char *binary_path, int cnt,
 		struct elf_sym_iter iter;
 		struct elf_sym *sym;
 
-		err = elf_sym_iter_new(&iter, elf_fd.elf, binary_path, sh_types[i], STT_FUNC);
+		err = elf_sym_iter_new(&iter, elf_fd.elf, binary_path, sh_types[i], st_type);
 		if (err == -ENOENT)
 			continue;
 		if (err)

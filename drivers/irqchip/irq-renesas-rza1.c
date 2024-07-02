@@ -244,12 +244,11 @@ out_put_node:
 	return ret;
 }
 
-static int rza1_irqc_remove(struct platform_device *pdev)
+static void rza1_irqc_remove(struct platform_device *pdev)
 {
 	struct rza1_irqc_priv *priv = platform_get_drvdata(pdev);
 
 	irq_domain_remove(priv->irq_domain);
-	return 0;
 }
 
 static const struct of_device_id rza1_irqc_dt_ids[] = {
@@ -260,9 +259,9 @@ MODULE_DEVICE_TABLE(of, rza1_irqc_dt_ids);
 
 static struct platform_driver rza1_irqc_device_driver = {
 	.probe		= rza1_irqc_probe,
-	.remove		= rza1_irqc_remove,
+	.remove_new	= rza1_irqc_remove,
 	.driver		= {
-		.name	= "renesas_rza1_irqc",
+		.name		= "renesas_rza1_irqc",
 		.of_match_table	= rza1_irqc_dt_ids,
 	}
 };

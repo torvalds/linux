@@ -191,9 +191,10 @@ enum HLCGE_PORT_TYPE {
 #define HCLGE_SUPPORT_40G_BIT		BIT(5)
 #define HCLGE_SUPPORT_100M_BIT		BIT(6)
 #define HCLGE_SUPPORT_10M_BIT		BIT(7)
-#define HCLGE_SUPPORT_200G_BIT		BIT(8)
+#define HCLGE_SUPPORT_200G_R4_EXT_BIT	BIT(8)
 #define HCLGE_SUPPORT_50G_R1_BIT	BIT(9)
 #define HCLGE_SUPPORT_100G_R2_BIT	BIT(10)
+#define HCLGE_SUPPORT_200G_R4_BIT	BIT(11)
 
 #define HCLGE_SUPPORT_GE \
 	(HCLGE_SUPPORT_1G_BIT | HCLGE_SUPPORT_100M_BIT | HCLGE_SUPPORT_10M_BIT)
@@ -201,6 +202,8 @@ enum HLCGE_PORT_TYPE {
 	(HCLGE_SUPPORT_50G_R2_BIT | HCLGE_SUPPORT_50G_R1_BIT)
 #define HCLGE_SUPPORT_100G_BITS \
 	(HCLGE_SUPPORT_100G_R4_BIT | HCLGE_SUPPORT_100G_R2_BIT)
+#define HCLGE_SUPPORT_200G_BITS \
+	(HCLGE_SUPPORT_200G_R4_EXT_BIT | HCLGE_SUPPORT_200G_R4_BIT)
 
 enum HCLGE_DEV_STATE {
 	HCLGE_STATE_REINITING,
@@ -253,6 +256,12 @@ enum HCLGE_MAC_DUPLEX {
 	HCLGE_MAC_FULL
 };
 
+/* hilink version */
+enum hclge_hilink_version {
+	HCLGE_HILINK_H32 = 0,
+	HCLGE_HILINK_H60 = 1,
+};
+
 #define QUERY_SFP_SPEED		0
 #define QUERY_ACTIVE_SPEED	1
 
@@ -270,11 +279,14 @@ struct hclge_mac {
 	u8 media_type;	/* port media type, e.g. fibre/copper/backplane */
 	u8 mac_addr[ETH_ALEN];
 	u8 autoneg;
+	u8 req_autoneg;
 	u8 duplex;
+	u8 req_duplex;
 	u8 support_autoneg;
 	u8 speed_type;	/* 0: sfp speed, 1: active speed */
 	u8 lane_num;
 	u32 speed;
+	u32 req_speed;
 	u32 max_speed;
 	u32 speed_ability; /* speed ability supported by current media */
 	u32 module_type; /* sub media type, e.g. kr/cr/sr/lr */
@@ -882,7 +894,7 @@ struct hclge_dev {
 
 	u16 fdir_pf_filter_count; /* Num of guaranteed filters for this PF */
 	u16 num_alloc_vport;		/* Num vports this driver supports */
-	u32 numa_node_mask;
+	nodemask_t numa_node_mask;
 	u16 rx_buf_len;
 	u16 num_tx_desc;		/* desc num of per tx queue */
 	u16 num_rx_desc;		/* desc num of per rx queue */
@@ -1160,4 +1172,5 @@ int hclge_enable_vport_vlan_filter(struct hclge_vport *vport, bool request_en);
 int hclge_mac_update_stats(struct hclge_dev *hdev);
 struct hclge_vport *hclge_get_vf_vport(struct hclge_dev *hdev, int vf);
 int hclge_inform_vf_reset(struct hclge_vport *vport, u16 reset_type);
+int hclge_query_scc_version(struct hclge_dev *hdev, u32 *scc_version);
 #endif

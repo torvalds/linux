@@ -754,7 +754,7 @@ static int ext2_get_blocks(struct inode *inode,
 		 */
 		err = sb_issue_zeroout(inode->i_sb,
 				le32_to_cpu(chain[depth-1].key), count,
-				GFP_NOFS);
+				GFP_KERNEL);
 		if (err) {
 			mutex_unlock(&ei->truncate_mutex);
 			goto cleanup;
@@ -969,7 +969,7 @@ const struct address_space_operations ext2_aops = {
 	.writepages		= ext2_writepages,
 	.migrate_folio		= buffer_migrate_folio,
 	.is_partially_uptodate	= block_is_partially_uptodate,
-	.error_remove_page	= generic_error_remove_page,
+	.error_remove_folio	= generic_error_remove_folio,
 };
 
 static const struct address_space_operations ext2_dax_aops = {

@@ -54,7 +54,7 @@ enum hdcp_ddi {
 };
 
 /**
- * enum hdcp_tc - ME/GSC Firmware defined index for transcoders
+ * enum hdcp_transcoder - ME/GSC Firmware defined index for transcoders
  * @HDCP_INVALID_TRANSCODER: Index for Invalid transcoder
  * @HDCP_TRANSCODER_EDP: Index for EDP Transcoder
  * @HDCP_TRANSCODER_DSI0: Index for DSI0 Transcoder
@@ -106,7 +106,7 @@ struct hdcp_port_data {
  *			    And Prepare AKE_Init.
  * @verify_receiver_cert_prepare_km: Verify the Receiver Certificate
  *				     AKE_Send_Cert and prepare
-				     AKE_Stored_Km/AKE_No_Stored_Km
+ *				     AKE_Stored_Km/AKE_No_Stored_Km
  * @verify_hprime: Verify AKE_Send_H_prime
  * @store_pairing_info: Store pairing info received
  * @initiate_locality_check: Prepare LC_Init
@@ -170,14 +170,22 @@ struct i915_hdcp_ops {
 /**
  * struct i915_hdcp_arbiter - Used for communication between i915
  * and hdcp drivers for the HDCP2.2 services
- * @hdcp_dev: device that provide the HDCP2.2 service from MEI Bus.
- * @hdcp_ops: Ops implemented by hdcp driver or intel_hdcp_gsc , used by i915 driver.
  */
 struct i915_hdcp_arbiter {
+	/**
+	 * @hdcp_dev: device that provides the HDCP2.2 service from MEI Bus.
+	 */
 	struct device *hdcp_dev;
+
+	/**
+	 * @ops: Ops implemented by hdcp driver or intel_hdcp_gsc, used by i915
+	 * driver.
+	 */
 	const struct i915_hdcp_ops *ops;
 
-	/* To protect the above members. */
+	/**
+	 * @mutex: To protect the above members.
+	 */
 	struct mutex mutex;
 };
 

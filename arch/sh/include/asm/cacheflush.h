@@ -90,6 +90,7 @@ extern void copy_from_user_page(struct vm_area_struct *vma,
 	unsigned long len);
 
 #define flush_cache_vmap(start, end)		local_flush_cache_all(NULL)
+#define flush_cache_vmap_early(start, end)	do { } while (0)
 #define flush_cache_vunmap(start, end)		local_flush_cache_all(NULL)
 
 #define flush_dcache_mmap_lock(mapping)		do { } while (0)
@@ -102,6 +103,18 @@ void kunmap_coherent(void *kvaddr);
 #define PG_dcache_clean	PG_arch_1
 
 void cpu_cache_init(void);
+
+void __weak l2_cache_init(void);
+
+void __weak j2_cache_init(void);
+void __weak sh2_cache_init(void);
+void __weak sh2a_cache_init(void);
+void __weak sh3_cache_init(void);
+void __weak shx3_cache_init(void);
+void __weak sh4_cache_init(void);
+void __weak sh7705_cache_init(void);
+
+void __weak sh4__flush_region_init(void);
 
 static inline void *sh_cacheop_vaddr(void *vaddr)
 {

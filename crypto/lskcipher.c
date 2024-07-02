@@ -29,25 +29,6 @@ static inline struct lskcipher_alg *__crypto_lskcipher_alg(
 	return container_of(alg, struct lskcipher_alg, co.base);
 }
 
-static inline struct crypto_istat_cipher *lskcipher_get_stat(
-	struct lskcipher_alg *alg)
-{
-	return skcipher_get_stat_common(&alg->co);
-}
-
-static inline int crypto_lskcipher_errstat(struct lskcipher_alg *alg, int err)
-{
-	struct crypto_istat_cipher *istat = lskcipher_get_stat(alg);
-
-	if (!IS_ENABLED(CONFIG_CRYPTO_STATS))
-		return err;
-
-	if (err)
-		atomic64_inc(&istat->err_cnt);
-
-	return err;
-}
-
 static int lskcipher_setkey_unaligned(struct crypto_lskcipher *tfm,
 				      const u8 *key, unsigned int keylen)
 {
@@ -88,8 +69,9 @@ EXPORT_SYMBOL_GPL(crypto_lskcipher_setkey);
 static int crypto_lskcipher_crypt_unaligned(
 	struct crypto_lskcipher *tfm, const u8 *src, u8 *dst, unsigned len,
 	u8 *iv, int (*crypt)(struct crypto_lskcipher *tfm, const u8 *src,
-			     u8 *dst, unsigned len, u8 *iv, bool final))
+			     u8 *dst, unsigned len, u8 *iv, u32 flags))
 {
+	unsigned statesize = crypto_lskcipher_statesize(tfm);
 	unsigned ivsize = crypto_lskcipher_ivsize(tfm);
 	unsigned bs = crypto_lskcipher_blocksize(tfm);
 	unsigned cs = crypto_lskcipher_chunksize(tfm);
@@ -104,7 +86,7 @@ static int crypto_lskcipher_crypt_unaligned(
 	if (!tiv)
 		return -ENOMEM;
 
-	memcpy(tiv, iv, ivsize);
+	memcpy(tiv, iv, ivsize + statesize);
 
 	p = kmalloc(PAGE_SIZE, GFP_ATOMIC);
 	err = -ENOMEM;
@@ -119,7 +101,7 @@ static int crypto_lskcipher_crypt_unaligned(
 			chunk &= ~(cs - 1);
 
 		memcpy(p, src, chunk);
-		err = crypt(tfm, p, p, chunk, tiv, true);
+		err = crypt(tfm, p, p, chunk, tiv, CRYPTO_LSKCIPHER_FLAG_FINAL);
 		if (err)
 			goto out;
 
@@ -132,7 +114,7 @@ static int crypto_lskcipher_crypt_unaligned(
 	err = len ? -EINVAL : 0;
 
 out:
-	memcpy(iv, tiv, ivsize);
+	memcpy(iv, tiv, ivsize + statesize);
 	kfree_sensitive(p);
 	kfree_sensitive(tiv);
 	return err;
@@ -143,36 +125,22 @@ static int crypto_lskcipher_crypt(struct crypto_lskcipher *tfm, const u8 *src,
 				  int (*crypt)(struct crypto_lskcipher *tfm,
 					       const u8 *src, u8 *dst,
 					       unsigned len, u8 *iv,
-					       bool final))
+					       u32 flags))
 {
 	unsigned long alignmask = crypto_lskcipher_alignmask(tfm);
-	struct lskcipher_alg *alg = crypto_lskcipher_alg(tfm);
-	int ret;
 
 	if (((unsigned long)src | (unsigned long)dst | (unsigned long)iv) &
-	    alignmask) {
-		ret = crypto_lskcipher_crypt_unaligned(tfm, src, dst, len, iv,
-						       crypt);
-		goto out;
-	}
+	    alignmask)
+		return crypto_lskcipher_crypt_unaligned(tfm, src, dst, len, iv,
+							crypt);
 
-	ret = crypt(tfm, src, dst, len, iv, true);
-
-out:
-	return crypto_lskcipher_errstat(alg, ret);
+	return crypt(tfm, src, dst, len, iv, CRYPTO_LSKCIPHER_FLAG_FINAL);
 }
 
 int crypto_lskcipher_encrypt(struct crypto_lskcipher *tfm, const u8 *src,
 			     u8 *dst, unsigned len, u8 *iv)
 {
 	struct lskcipher_alg *alg = crypto_lskcipher_alg(tfm);
-
-	if (IS_ENABLED(CONFIG_CRYPTO_STATS)) {
-		struct crypto_istat_cipher *istat = lskcipher_get_stat(alg);
-
-		atomic64_inc(&istat->encrypt_cnt);
-		atomic64_add(len, &istat->encrypt_tlen);
-	}
 
 	return crypto_lskcipher_crypt(tfm, src, dst, len, iv, alg->encrypt);
 }
@@ -183,13 +151,6 @@ int crypto_lskcipher_decrypt(struct crypto_lskcipher *tfm, const u8 *src,
 {
 	struct lskcipher_alg *alg = crypto_lskcipher_alg(tfm);
 
-	if (IS_ENABLED(CONFIG_CRYPTO_STATS)) {
-		struct crypto_istat_cipher *istat = lskcipher_get_stat(alg);
-
-		atomic64_inc(&istat->decrypt_cnt);
-		atomic64_add(len, &istat->decrypt_tlen);
-	}
-
 	return crypto_lskcipher_crypt(tfm, src, dst, len, iv, alg->decrypt);
 }
 EXPORT_SYMBOL_GPL(crypto_lskcipher_decrypt);
@@ -197,22 +158,42 @@ EXPORT_SYMBOL_GPL(crypto_lskcipher_decrypt);
 static int crypto_lskcipher_crypt_sg(struct skcipher_request *req,
 				     int (*crypt)(struct crypto_lskcipher *tfm,
 						  const u8 *src, u8 *dst,
-						  unsigned len, u8 *iv,
-						  bool final))
+						  unsigned len, u8 *ivs,
+						  u32 flags))
 {
 	struct crypto_skcipher *skcipher = crypto_skcipher_reqtfm(req);
 	struct crypto_lskcipher **ctx = crypto_skcipher_ctx(skcipher);
+	u8 *ivs = skcipher_request_ctx(req);
 	struct crypto_lskcipher *tfm = *ctx;
 	struct skcipher_walk walk;
+	unsigned ivsize;
+	u32 flags;
 	int err;
+
+	ivsize = crypto_lskcipher_ivsize(tfm);
+	ivs = PTR_ALIGN(ivs, crypto_skcipher_alignmask(skcipher) + 1);
+	memcpy(ivs, req->iv, ivsize);
+
+	flags = req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP;
+
+	if (req->base.flags & CRYPTO_SKCIPHER_REQ_CONT)
+		flags |= CRYPTO_LSKCIPHER_FLAG_CONT;
+
+	if (!(req->base.flags & CRYPTO_SKCIPHER_REQ_NOTFINAL))
+		flags |= CRYPTO_LSKCIPHER_FLAG_FINAL;
 
 	err = skcipher_walk_virt(&walk, req, false);
 
 	while (walk.nbytes) {
 		err = crypt(tfm, walk.src.virt.addr, walk.dst.virt.addr,
-			    walk.nbytes, walk.iv, walk.nbytes == walk.total);
+			    walk.nbytes, ivs,
+			    flags & ~(walk.nbytes == walk.total ?
+			    0 : CRYPTO_LSKCIPHER_FLAG_FINAL));
 		err = skcipher_walk_done(&walk, err);
+		flags |= CRYPTO_LSKCIPHER_FLAG_CONT;
 	}
+
+	memcpy(req->iv, ivs, ivsize);
 
 	return err;
 }
@@ -276,6 +257,7 @@ static void __maybe_unused crypto_lskcipher_show(
 	seq_printf(m, "max keysize  : %u\n", skcipher->co.max_keysize);
 	seq_printf(m, "ivsize       : %u\n", skcipher->co.ivsize);
 	seq_printf(m, "chunksize    : %u\n", skcipher->co.chunksize);
+	seq_printf(m, "statesize    : %u\n", skcipher->co.statesize);
 }
 
 static int __maybe_unused crypto_lskcipher_report(
@@ -298,28 +280,6 @@ static int __maybe_unused crypto_lskcipher_report(
 		       sizeof(rblkcipher), &rblkcipher);
 }
 
-static int __maybe_unused crypto_lskcipher_report_stat(
-	struct sk_buff *skb, struct crypto_alg *alg)
-{
-	struct lskcipher_alg *skcipher = __crypto_lskcipher_alg(alg);
-	struct crypto_istat_cipher *istat;
-	struct crypto_stat_cipher rcipher;
-
-	istat = lskcipher_get_stat(skcipher);
-
-	memset(&rcipher, 0, sizeof(rcipher));
-
-	strscpy(rcipher.type, "cipher", sizeof(rcipher.type));
-
-	rcipher.stat_encrypt_cnt = atomic64_read(&istat->encrypt_cnt);
-	rcipher.stat_encrypt_tlen = atomic64_read(&istat->encrypt_tlen);
-	rcipher.stat_decrypt_cnt =  atomic64_read(&istat->decrypt_cnt);
-	rcipher.stat_decrypt_tlen = atomic64_read(&istat->decrypt_tlen);
-	rcipher.stat_err_cnt =  atomic64_read(&istat->err_cnt);
-
-	return nla_put(skb, CRYPTOCFGA_STAT_CIPHER, sizeof(rcipher), &rcipher);
-}
-
 static const struct crypto_type crypto_lskcipher_type = {
 	.extsize = crypto_alg_extsize,
 	.init_tfm = crypto_lskcipher_init_tfm,
@@ -329,9 +289,6 @@ static const struct crypto_type crypto_lskcipher_type = {
 #endif
 #if IS_ENABLED(CONFIG_CRYPTO_USER)
 	.report = crypto_lskcipher_report,
-#endif
-#ifdef CONFIG_CRYPTO_STATS
-	.report_stat = crypto_lskcipher_report_stat,
 #endif
 	.maskclear = ~CRYPTO_ALG_TYPE_MASK,
 	.maskset = CRYPTO_ALG_TYPE_MASK,
@@ -618,6 +575,7 @@ struct lskcipher_instance *lskcipher_alloc_instance_simple(
 	inst->alg.co.min_keysize = cipher_alg->co.min_keysize;
 	inst->alg.co.max_keysize = cipher_alg->co.max_keysize;
 	inst->alg.co.ivsize = cipher_alg->co.base.cra_blocksize;
+	inst->alg.co.statesize = cipher_alg->co.statesize;
 
 	/* Use struct crypto_lskcipher * by default, can be overridden */
 	inst->alg.co.base.cra_ctxsize = sizeof(struct crypto_lskcipher *);

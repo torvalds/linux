@@ -561,7 +561,7 @@ static int gc2235_set_fmt(struct v4l2_subdev *sd,
 
 	fmt->code = MEDIA_BUS_FMT_SGRBG10_1X10;
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-		sd_state->pads->try_fmt = *fmt;
+		*v4l2_subdev_state_get_format(sd_state, 0) = *fmt;
 		mutex_unlock(&dev->input_lock);
 		return 0;
 	}
@@ -698,10 +698,18 @@ fail_power_off:
 	return ret;
 }
 
-static int gc2235_g_frame_interval(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_frame_interval *interval)
+static int gc2235_get_frame_interval(struct v4l2_subdev *sd,
+				     struct v4l2_subdev_state *sd_state,
+				     struct v4l2_subdev_frame_interval *interval)
 {
 	struct gc2235_device *dev = to_gc2235_sensor(sd);
+
+	/*
+	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
+	 * subdev active state API.
+	 */
+	if (interval->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
 
 	interval->interval.numerator = 1;
 	interval->interval.denominator = dev->res->fps;
@@ -754,7 +762,6 @@ static const struct v4l2_subdev_sensor_ops gc2235_sensor_ops = {
 
 static const struct v4l2_subdev_video_ops gc2235_video_ops = {
 	.s_stream = gc2235_s_stream,
-	.g_frame_interval = gc2235_g_frame_interval,
 };
 
 static const struct v4l2_subdev_core_ops gc2235_core_ops = {
@@ -767,6 +774,7 @@ static const struct v4l2_subdev_pad_ops gc2235_pad_ops = {
 	.enum_frame_size = gc2235_enum_frame_size,
 	.get_fmt = gc2235_get_fmt,
 	.set_fmt = gc2235_set_fmt,
+	.get_frame_interval = gc2235_get_frame_interval,
 };
 
 static const struct v4l2_subdev_ops gc2235_ops = {

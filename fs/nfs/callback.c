@@ -187,7 +187,7 @@ static struct svc_serv *nfs_callback_create_svc(int minorversion)
 	 * Check whether we're already up and running.
 	 */
 	if (cb_info->serv)
-		return svc_get(cb_info->serv);
+		return cb_info->serv;
 
 	/*
 	 * Sanity check: if there's no task,
@@ -245,9 +245,10 @@ int nfs_callback_up(u32 minorversion, struct rpc_xprt *xprt)
 
 	cb_info->users++;
 err_net:
-	if (!cb_info->users)
-		cb_info->serv = NULL;
-	svc_put(serv);
+	if (!cb_info->users) {
+		svc_set_num_threads(cb_info->serv, NULL, 0);
+		svc_destroy(&cb_info->serv);
+	}
 err_create:
 	mutex_unlock(&nfs_callback_mutex);
 	return ret;
@@ -271,11 +272,9 @@ void nfs_callback_down(int minorversion, struct net *net)
 	nfs_callback_down_net(minorversion, serv, net);
 	cb_info->users--;
 	if (cb_info->users == 0) {
-		svc_get(serv);
 		svc_set_num_threads(serv, NULL, 0);
-		svc_put(serv);
 		dprintk("nfs_callback_down: service destroyed\n");
-		cb_info->serv = NULL;
+		svc_destroy(&cb_info->serv);
 	}
 	mutex_unlock(&nfs_callback_mutex);
 }
@@ -357,15 +356,12 @@ static const struct svc_version *nfs4_callback_version[] = {
 	[4] = &nfs4_callback_version4,
 };
 
-static struct svc_stat nfs4_callback_stats;
-
 static struct svc_program nfs4_callback_program = {
 	.pg_prog = NFS4_CALLBACK,			/* RPC service number */
 	.pg_nvers = ARRAY_SIZE(nfs4_callback_version),	/* Number of entries */
 	.pg_vers = nfs4_callback_version,		/* version table */
 	.pg_name = "NFSv4 callback",			/* service name */
 	.pg_class = "nfs",				/* authentication class */
-	.pg_stats = &nfs4_callback_stats,
 	.pg_authenticate = nfs_callback_authenticate,
 	.pg_init_request = svc_generic_init_request,
 	.pg_rpcbind_set	= svc_generic_rpcbind_set,

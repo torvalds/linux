@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/**
+/*
  * cdns3-starfive.c - StarFive specific Glue layer for Cadence USB Controller
  *
  * Copyright (C) 2023 StarFive Technology Co., Ltd.

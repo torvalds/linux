@@ -32,7 +32,6 @@
 		compatible = "dmic-codec";
 		num-channels = <2>;
 		wakeup-delay-ms = <50>;
-		status = "okay";
 		sound-name-prefix = "MIC";
 	};
 
@@ -128,7 +127,7 @@
 		reg = <0x0 0x0 0x0 0x40000000>;
 	};
 
-	ao_5v: regulator-ao_5v {
+	ao_5v: regulator-ao-5v {
 		compatible = "regulator-fixed";
 		regulator-name = "AO_5V";
 		regulator-min-microvolt = <5000000>;
@@ -137,7 +136,7 @@
 		regulator-always-on;
 	};
 
-	dc_in: regulator-dc_in {
+	dc_in: regulator-dc-in {
 		compatible = "regulator-fixed";
 		regulator-name = "DC_IN";
 		regulator-min-microvolt = <5000000>;
@@ -145,7 +144,7 @@
 		regulator-always-on;
 	};
 
-	emmc_1v8: regulator-emmc_1v8 {
+	emmc_1v8: regulator-emmc-1v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "EMMC_1V8";
 		regulator-min-microvolt = <1800000>;
@@ -154,7 +153,7 @@
 		regulator-always-on;
 	};
 
-	vddao_3v3: regulator-vddao_3v3 {
+	vddao_3v3: regulator-vddao-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "VDDAO_3V3";
 		regulator-min-microvolt = <3300000>;
@@ -164,7 +163,7 @@
 	};
 
 	/* Used by Tuner, RGB Led & IR Emitter LED array */
-	vddao_3v3_t: regulator-vddao_3v3_t {
+	vddao_3v3_t: regulator-vddao-3v3-t {
 		compatible = "regulator-fixed";
 		regulator-name = "VDDAO_3V3_T";
 		regulator-min-microvolt = <3300000>;
@@ -193,7 +192,7 @@
 		regulator-always-on;
 	};
 
-	vddio_ao1v8: regulator-vddio_ao1v8 {
+	vddio_ao1v8: regulator-vddio-ao1v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "VDDIO_AO1V8";
 		regulator-min-microvolt = <1800000>;

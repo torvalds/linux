@@ -2,6 +2,7 @@
 #include <linux/sizes.h>
 #include <asm/asm-offsets.h>
 #include <asm/thread_info.h>
+#include <asm/orc_lookup.h>
 
 #define PAGE_SIZE _PAGE_SIZE
 #define RO_EXCEPTION_TABLE_ALIGN	4
@@ -122,6 +123,8 @@ SECTIONS
 	}
 #endif
 
+	ORC_UNWIND_TABLE
+
 	.sdata : {
 		*(.sdata)
 	}
@@ -143,7 +146,6 @@ SECTIONS
 	_kernel_fsize = _edata - _text;
 	_kernel_vsize = _end - __initdata_begin;
 	_kernel_rsize = _edata - __initdata_begin;
-	_kernel_offset = kernel_offset - _text;
 #endif
 
 	.gptab.sdata : {

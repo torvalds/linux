@@ -125,8 +125,6 @@ static int uvd_v5_0_sw_init(void *handle)
 	if (r)
 		return r;
 
-	r = amdgpu_uvd_entity_init(adev);
-
 	return r;
 }
 
@@ -879,6 +877,8 @@ static const struct amd_ip_funcs uvd_v5_0_ip_funcs = {
 	.set_clockgating_state = uvd_v5_0_set_clockgating_state,
 	.set_powergating_state = uvd_v5_0_set_powergating_state,
 	.get_clockgating_state = uvd_v5_0_get_clockgating_state,
+	.dump_ip_state = NULL,
+	.print_ip_state = NULL,
 };
 
 static const struct amdgpu_ring_funcs uvd_v5_0_ring_funcs = {

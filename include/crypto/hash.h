@@ -24,26 +24,7 @@ struct crypto_ahash;
  */
 
 /*
- * struct crypto_istat_hash - statistics for has algorithm
- * @hash_cnt:		number of hash requests
- * @hash_tlen:		total data size hashed
- * @err_cnt:		number of error for hash requests
- */
-struct crypto_istat_hash {
-	atomic64_t hash_cnt;
-	atomic64_t hash_tlen;
-	atomic64_t err_cnt;
-};
-
-#ifdef CONFIG_CRYPTO_STATS
-#define HASH_ALG_COMMON_STAT struct crypto_istat_hash stat;
-#else
-#define HASH_ALG_COMMON_STAT
-#endif
-
-/*
  * struct hash_alg_common - define properties of message digest
- * @stat: Statistics for hash algorithm.
  * @digestsize: Size of the result of the transformation. A buffer of this size
  *	        must be available to the @final and @finup calls, so they can
  *	        store the resulting hash into it. For various predefined sizes,
@@ -60,8 +41,6 @@ struct crypto_istat_hash {
  *	  information.
  */
 #define HASH_ALG_COMMON {		\
-	HASH_ALG_COMMON_STAT		\
-					\
 	unsigned int digestsize;	\
 	unsigned int statesize;		\
 					\
@@ -212,13 +191,9 @@ struct shash_desc {
  *	      This is a counterpart to @init_tfm, used to remove
  *	      various changes set in @init_tfm.
  * @clone_tfm: Copy transform into new object, may allocate memory.
- * @digestsize: see struct ahash_alg
- * @statesize: see struct ahash_alg
  * @descsize: Size of the operational state for the message digest. This state
  * 	      size is the memory size that needs to be allocated for
  *	      shash_desc.__ctx
- * @stat: Statistics for hash algorithm.
- * @base: internally used
  * @halg: see struct hash_alg_common
  * @HASH_ALG_COMMON: see struct hash_alg_common
  */
@@ -247,7 +222,6 @@ struct shash_alg {
 	};
 };
 #undef HASH_ALG_COMMON
-#undef HASH_ALG_COMMON_STAT
 
 struct crypto_ahash {
 	bool using_shash; /* Underlying algorithm is shash, not ahash */

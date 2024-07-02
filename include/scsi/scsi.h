@@ -7,8 +7,9 @@
 #define _SCSI_SCSI_H
 
 #include <linux/types.h>
-#include <linux/scatterlist.h>
-#include <linux/kernel.h>
+
+#include <asm/param.h>
+
 #include <scsi/scsi_common.h>
 #include <scsi/scsi_proto.h>
 #include <scsi/scsi_status.h>
@@ -69,7 +70,7 @@ static inline int scsi_is_wlun(u64 lun)
  * @status: the status passed up from the driver (including host and
  *          driver components)
  *
- * This returns true if the status code is SAM_STAT_CHECK_CONDITION.
+ * Returns: %true if the status code is SAM_STAT_CHECK_CONDITION.
  */
 static inline int scsi_status_is_check_condition(int status)
 {
@@ -189,12 +190,13 @@ enum scsi_disposition {
 /* Used to obtain the PCI location of a device */
 #define SCSI_IOCTL_GET_PCI		0x5387
 
-/** scsi_status_is_good - check the status return.
+/**
+ * scsi_status_is_good - check the status return.
  *
  * @status: the status passed up from the driver (including host and
  *          driver components)
  *
- * This returns true for known good conditions that may be treated as
+ * Returns: %true for known good conditions that may be treated as
  * command completed normally
  */
 static inline bool scsi_status_is_good(int status)

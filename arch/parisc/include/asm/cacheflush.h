@@ -41,6 +41,7 @@ void flush_kernel_vmap_range(void *vaddr, int size);
 void invalidate_kernel_vmap_range(void *vaddr, int size);
 
 #define flush_cache_vmap(start, end)		flush_cache_all()
+#define flush_cache_vmap_early(start, end)	do { } while (0)
 #define flush_cache_vunmap(start, end)		flush_cache_all()
 
 void flush_dcache_folio(struct folio *folio);

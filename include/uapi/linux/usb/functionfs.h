@@ -73,8 +73,10 @@ struct usb_os_desc_header {
 struct usb_ext_compat_desc {
 	__u8	bFirstInterfaceNumber;
 	__u8	Reserved1;
-	__u8	CompatibleID[8];
-	__u8	SubCompatibleID[8];
+	__struct_group(/* no tag */, IDs, /* no attrs */,
+		__u8	CompatibleID[8];
+		__u8	SubCompatibleID[8];
+	);
 	__u8	Reserved2[6];
 };
 
@@ -82,6 +84,22 @@ struct usb_ext_prop_desc {
 	__le32	dwSize;
 	__le32	dwPropertyDataType;
 	__le16	wPropertyNameLength;
+} __attribute__((packed));
+
+/* Flags for usb_ffs_dmabuf_transfer_req->flags (none for now) */
+#define USB_FFS_DMABUF_TRANSFER_MASK	0x0
+
+/**
+ * struct usb_ffs_dmabuf_transfer_req - Transfer request for a DMABUF object
+ * @fd:		file descriptor of the DMABUF object
+ * @flags:	one or more USB_FFS_DMABUF_TRANSFER_* flags
+ * @length:	number of bytes used in this DMABUF for the data transfer.
+ *		Should generally be set to the DMABUF's size.
+ */
+struct usb_ffs_dmabuf_transfer_req {
+	int fd;
+	__u32 flags;
+	__u64 length;
 } __attribute__((packed));
 
 #ifndef __KERNEL__
@@ -288,6 +306,31 @@ struct usb_functionfs_event {
 #define	FUNCTIONFS_ENDPOINT_DESC	_IOR('g', 130, \
 					     struct usb_endpoint_descriptor)
 
+/*
+ * Attach the DMABUF object, identified by its file descriptor, to the
+ * data endpoint. Returns zero on success, and a negative errno value
+ * on error.
+ */
+#define FUNCTIONFS_DMABUF_ATTACH	_IOW('g', 131, int)
 
+
+/*
+ * Detach the given DMABUF object, identified by its file descriptor,
+ * from the data endpoint. Returns zero on success, and a negative
+ * errno value on error. Note that closing the endpoint's file
+ * descriptor will automatically detach all attached DMABUFs.
+ */
+#define FUNCTIONFS_DMABUF_DETACH	_IOW('g', 132, int)
+
+/*
+ * Enqueue the previously attached DMABUF to the transfer queue.
+ * The argument is a structure that packs the DMABUF's file descriptor,
+ * the size in bytes to transfer (which should generally correspond to
+ * the size of the DMABUF), and a 'flags' field which is unused
+ * for now. Returns zero on success, and a negative errno value on
+ * error.
+ */
+#define FUNCTIONFS_DMABUF_TRANSFER	_IOW('g', 133, \
+					     struct usb_ffs_dmabuf_transfer_req)
 
 #endif /* _UAPI__LINUX_FUNCTIONFS_H__ */

@@ -145,10 +145,11 @@ spufs_evict_inode(struct inode *inode)
 
 static void spufs_prune_dir(struct dentry *dir)
 {
-	struct dentry *dentry, *tmp;
+	struct dentry *dentry;
+	struct hlist_node *n;
 
 	inode_lock(d_inode(dir));
-	list_for_each_entry_safe(dentry, tmp, &dir->d_subdirs, d_child) {
+	hlist_for_each_entry_safe(dentry, n, &dir->d_children, d_sib) {
 		spin_lock(&dentry->d_lock);
 		if (simple_positive(dentry)) {
 			dget_dlock(dentry);

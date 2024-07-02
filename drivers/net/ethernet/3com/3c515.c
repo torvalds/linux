@@ -31,9 +31,6 @@
    Setting to > 1512 effectively disables this feature. */
 static int rx_copybreak = 200;
 
-/* Allow setting MTU to a larger size, bypassing the normal ethernet setup. */
-static const int mtu = 1500;
-
 /* Maximum events (Rx packets, etc.) to handle at each interrupt. */
 static int max_interrupt_work = 20;
 

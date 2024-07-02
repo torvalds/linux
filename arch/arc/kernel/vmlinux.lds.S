@@ -41,8 +41,8 @@ SECTIONS
 #endif
 
 	/*
-	 * The reason for having a seperate subsection .init.ramfs is to
-	 * prevent objump from including it in kernel dumps
+	 * The reason for having a separate subsection .init.ramfs is to
+	 * prevent objdump from including it in kernel dumps
 	 *
 	 * Reason for having .init.ramfs above .init is to make sure that the
 	 * binary blob is tucked away to one side, reducing the displacement

@@ -295,7 +295,6 @@ struct snd_azf3328 {
 	 * CONFIG_PM register storage below, but that's slightly difficult. */
 	u16 shadow_reg_ctrl_6AH;
 
-#ifdef CONFIG_PM_SLEEP
 	/* register value containers for power management
 	 * Note: not always full I/O range preserved (similar to Win driver!) */
 	u32 saved_regs_ctrl[AZF_ALIGN(AZF_IO_SIZE_CTRL_PM) / 4];
@@ -303,7 +302,6 @@ struct snd_azf3328 {
 	u32 saved_regs_mpu[AZF_ALIGN(AZF_IO_SIZE_MPU_PM) / 4];
 	u32 saved_regs_opl3[AZF_ALIGN(AZF_IO_SIZE_OPL3_PM) / 4];
 	u32 saved_regs_mixer[AZF_ALIGN(AZF_IO_SIZE_MIXER_PM) / 4];
-#endif
 };
 
 static const struct pci_device_id snd_azf3328_ids[] = {
@@ -2517,7 +2515,6 @@ snd_azf3328_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 	return snd_card_free_on_error(&pci->dev, __snd_azf3328_probe(pci, pci_id));
 }
 
-#ifdef CONFIG_PM_SLEEP
 static inline void
 snd_azf3328_suspend_regs(const struct snd_azf3328 *chip,
 			 unsigned long io_addr, unsigned count, u32 *saved_regs)
@@ -2633,18 +2630,14 @@ snd_azf3328_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(snd_azf3328_pm, snd_azf3328_suspend, snd_azf3328_resume);
-#define SND_AZF3328_PM_OPS	&snd_azf3328_pm
-#else
-#define SND_AZF3328_PM_OPS	NULL
-#endif /* CONFIG_PM_SLEEP */
+static DEFINE_SIMPLE_DEV_PM_OPS(snd_azf3328_pm, snd_azf3328_suspend, snd_azf3328_resume);
 
 static struct pci_driver azf3328_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_azf3328_ids,
 	.probe = snd_azf3328_probe,
 	.driver = {
-		.pm = SND_AZF3328_PM_OPS,
+		.pm = &snd_azf3328_pm,
 	},
 };
 

@@ -928,7 +928,7 @@ void omap3_core_dpll_restore_context(struct clk_hw *hw)
 }
 
 /**
- * omap3_non_core_dpll_save_context - Save the m and n values of the divider
+ * omap3_noncore_dpll_save_context - Save the m and n values of the divider
  * @hw: pointer  struct clk_hw
  *
  * Before the dpll registers are lost save the last rounded rate m and n
@@ -957,7 +957,7 @@ int omap3_noncore_dpll_save_context(struct clk_hw *hw)
 }
 
 /**
- * omap3_core_dpll_restore_context - restore the m and n values of the divider
+ * omap3_noncore_dpll_restore_context - restore the m and n values of the divider
  * @hw: pointer  struct clk_hw
  *
  * Restore the last rounded rate m and n

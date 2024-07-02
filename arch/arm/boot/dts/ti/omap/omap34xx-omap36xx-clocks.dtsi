@@ -17,46 +17,47 @@
 		compatible = "ti,clksel";
 		reg = <0xa14>;
 		#clock-cells = <2>;
-		#address-cells = <0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-		aes1_ick: clock-aes1-ick {
+		aes1_ick: clock-aes1-ick@3 {
+			reg = <3>;
 			#clock-cells = <0>;
 			compatible = "ti,omap3-interface-clock";
 			clock-output-names = "aes1_ick";
 			clocks = <&security_l4_ick2>;
-			ti,bit-shift = <3>;
 		};
 
-		rng_ick: clock-rng-ick {
+		rng_ick: clock-rng-ick@2 {
+			reg = <2>;
 			#clock-cells = <0>;
 			compatible = "ti,omap3-interface-clock";
 			clock-output-names = "rng_ick";
 			clocks = <&security_l4_ick2>;
-			ti,bit-shift = <2>;
 		};
 
-		sha11_ick: clock-sha11-ick {
+		sha11_ick: clock-sha11-ick@1 {
+			reg = <1>;
 			#clock-cells = <0>;
 			compatible = "ti,omap3-interface-clock";
 			clock-output-names = "sha11_ick";
 			clocks = <&security_l4_ick2>;
-			ti,bit-shift = <1>;
 		};
 
-		des1_ick: clock-des1-ick {
+		des1_ick: clock-des1-ick@0 {
+			reg = <0>;
 			#clock-cells = <0>;
 			compatible = "ti,omap3-interface-clock";
 			clock-output-names = "des1_ick";
 			clocks = <&security_l4_ick2>;
-			ti,bit-shift = <0>;
 		};
 
-		pka_ick: clock-pka-ick {
+		pka_ick: clock-pka-ick@4 {
+			reg = <4>;
 			#clock-cells = <0>;
 			compatible = "ti,omap3-interface-clock";
 			clock-output-names = "pka_ick";
 			clocks = <&security_l3_ick>;
-			ti,bit-shift = <4>;
 		};
 	};
 
@@ -65,23 +66,24 @@
 		compatible = "ti,clksel";
 		reg = <0xf00>;
 		#clock-cells = <2>;
-		#address-cells = <0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-		cam_mclk: clock-cam-mclk {
+		cam_mclk: clock-cam-mclk@0 {
+			reg = <0>;
 			#clock-cells = <0>;
 			compatible = "ti,gate-clock";
 			clock-output-names = "cam_mclk";
 			clocks = <&dpll4_m5x2_ck>;
-			ti,bit-shift = <0>;
 			ti,set-rate-parent;
 		};
 
-		csi2_96m_fck: clock-csi2-96m-fck {
+		csi2_96m_fck: clock-csi2-96m-fck@1 {
+			reg = <1>;
 			#clock-cells = <0>;
 			compatible = "ti,gate-clock";
 			clock-output-names = "csi2_96m_fck";
 			clocks = <&core_96m_fck>;
-			ti,bit-shift = <1>;
 		};
 	};
 
@@ -105,46 +107,47 @@
 		compatible = "ti,clksel";
 		reg = <0xa10>;
 		#clock-cells = <2>;
-		#address-cells = <0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-		icr_ick: clock-icr-ick {
+		icr_ick: clock-icr-ick@29 {
+			reg = <29>;
 			#clock-cells = <0>;
 			compatible = "ti,omap3-interface-clock";
 			clock-output-names = "icr_ick";
 			clocks = <&core_l4_ick>;
-			ti,bit-shift = <29>;
 		};
 
-		des2_ick: clock-des2-ick {
+		des2_ick: clock-des2-ick@26 {
+			reg = <26>;
 			#clock-cells = <0>;
 			compatible = "ti,omap3-interface-clock";
 			clock-output-names = "des2_ick";
 			clocks = <&core_l4_ick>;
-			ti,bit-shift = <26>;
 		};
 
-		mspro_ick: clock-mspro-ick {
+		mspro_ick: clock-mspro-ick@23 {
+			reg = <23>;
 			#clock-cells = <0>;
 			compatible = "ti,omap3-interface-clock";
 			clock-output-names = "mspro_ick";
 			clocks = <&core_l4_ick>;
-			ti,bit-shift = <23>;
 		};
 
-		mailboxes_ick: clock-mailboxes-ick {
+		mailboxes_ick: clock-mailboxes-ick@7 {
+			reg = <7>;
 			#clock-cells = <0>;
 			compatible = "ti,omap3-interface-clock";
 			clock-output-names = "mailboxes_ick";
 			clocks = <&core_l4_ick>;
-			ti,bit-shift = <7>;
 		};
 
-		sad2d_ick: clock-sad2d-ick {
+		sad2d_ick: clock-sad2d-ick@3 {
+			reg = <3>;
 			#clock-cells = <0>;
 			compatible = "ti,omap3-interface-clock";
 			clock-output-names = "sad2d_ick";
 			clocks = <&l3_ick>;
-			ti,bit-shift = <3>;
 		};
 	};
 
@@ -160,22 +163,23 @@
 		compatible = "ti,clksel";
 		reg = <0xc00>;
 		#clock-cells = <2>;
-		#address-cells = <0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-		sr1_fck: clock-sr1-fck {
+		sr1_fck: clock-sr1-fck@6 {
+			reg = <6>;
 			#clock-cells = <0>;
 			compatible = "ti,wait-gate-clock";
 			clock-output-names = "sr1_fck";
 			clocks = <&sys_ck>;
-			ti,bit-shift = <6>;
 		};
 
-		sr2_fck: clock-sr2-fck {
+		sr2_fck: clock-sr2-fck@7 {
+			reg = <7>;
 			#clock-cells = <0>;
 			compatible = "ti,wait-gate-clock";
 			clock-output-names = "sr2_fck";
 			clocks = <&sys_ck>;
-			ti,bit-shift = <7>;
 		};
 	};
 
@@ -228,22 +232,23 @@
 		compatible = "ti,clksel";
 		reg = <0xa00>;
 		#clock-cells = <2>;
-		#address-cells = <0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-		modem_fck: clock-modem-fck {
+		modem_fck: clock-modem-fck@31 {
+			reg = <31>;
 			#clock-cells = <0>;
 			compatible = "ti,omap3-interface-clock";
 			clock-output-names = "modem_fck";
 			clocks = <&sys_ck>;
-			ti,bit-shift = <31>;
 		};
 
-		mspro_fck: clock-mspro-fck {
+		mspro_fck: clock-mspro-fck@23 {
+			reg = <23>;
 			#clock-cells = <0>;
 			compatible = "ti,wait-gate-clock";
 			clock-output-names = "mspro_fck";
 			clocks = <&core_96m_fck>;
-			ti,bit-shift = <23>;
 		};
 	};
 
@@ -252,14 +257,15 @@
 		compatible = "ti,clksel";
 		reg = <0xa18>;
 		#clock-cells = <2>;
-		#address-cells = <0>;
+		#address-cells = <1>;
+		#ssize-cells = <0>;
 
-		mad2d_ick: clock-mad2d-ick {
+		mad2d_ick: clock-mad2d-ick@3 {
+			reg = <3>;
 			#clock-cells = <0>;
 			compatible = "ti,omap3-interface-clock";
 			clock-output-names = "mad2d_ick";
 			clocks = <&l3_ick>;
-			ti,bit-shift = <3>;
 		};
 	};
 

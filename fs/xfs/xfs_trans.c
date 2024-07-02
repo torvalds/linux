@@ -24,6 +24,7 @@
 #include "xfs_dquot_item.h"
 #include "xfs_dquot.h"
 #include "xfs_icache.h"
+#include "xfs_rtbitmap.h"
 
 struct kmem_cache	*xfs_trans_cache;
 
@@ -655,6 +656,10 @@ xfs_trans_unreserve_and_mod_sb(
 	mp->m_sb.sb_agcount += tp->t_agcount_delta;
 	mp->m_sb.sb_imax_pct += tp->t_imaxpct_delta;
 	mp->m_sb.sb_rextsize += tp->t_rextsize_delta;
+	if (tp->t_rextsize_delta) {
+		mp->m_rtxblklog = log2_if_power2(mp->m_sb.sb_rextsize);
+		mp->m_rtxblkmask = mask64_if_power2(mp->m_sb.sb_rextsize);
+	}
 	mp->m_sb.sb_rbmblocks += tp->t_rbmblocks_delta;
 	mp->m_sb.sb_rblocks += tp->t_rblocks_delta;
 	mp->m_sb.sb_rextents += tp->t_rextents_delta;
@@ -1196,7 +1201,7 @@ xfs_trans_alloc_inode(
 
 retry:
 	error = xfs_trans_alloc(mp, resv, dblocks,
-			rblocks / mp->m_sb.sb_rextsize,
+			xfs_extlen_to_rtxlen(mp, rblocks),
 			force ? XFS_TRANS_RESERVE : 0, &tp);
 	if (error)
 		return error;
@@ -1228,6 +1233,68 @@ retry:
 out_cancel:
 	xfs_trans_cancel(tp);
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
+	return error;
+}
+
+/*
+ * Try to reserve more blocks for a transaction.
+ *
+ * This is for callers that need to attach resources to a transaction, scan
+ * those resources to determine the space reservation requirements, and then
+ * modify the attached resources.  In other words, online repair.  This can
+ * fail due to ENOSPC, so the caller must be able to cancel the transaction
+ * without shutting down the fs.
+ */
+int
+xfs_trans_reserve_more(
+	struct xfs_trans	*tp,
+	unsigned int		blocks,
+	unsigned int		rtextents)
+{
+	struct xfs_trans_res	resv = { };
+
+	return xfs_trans_reserve(tp, &resv, blocks, rtextents);
+}
+
+/*
+ * Try to reserve more blocks and file quota for a transaction.  Same
+ * conditions of usage as xfs_trans_reserve_more.
+ */
+int
+xfs_trans_reserve_more_inode(
+	struct xfs_trans	*tp,
+	struct xfs_inode	*ip,
+	unsigned int		dblocks,
+	unsigned int		rblocks,
+	bool			force_quota)
+{
+	struct xfs_trans_res	resv = { };
+	struct xfs_mount	*mp = ip->i_mount;
+	unsigned int		rtx = xfs_extlen_to_rtxlen(mp, rblocks);
+	int			error;
+
+	xfs_assert_ilocked(ip, XFS_ILOCK_EXCL);
+
+	error = xfs_trans_reserve(tp, &resv, dblocks, rtx);
+	if (error)
+		return error;
+
+	if (!XFS_IS_QUOTA_ON(mp) || xfs_is_quota_inode(&mp->m_sb, ip->i_ino))
+		return 0;
+
+	if (tp->t_flags & XFS_TRANS_RESERVE)
+		force_quota = true;
+
+	error = xfs_trans_reserve_quota_nblks(tp, ip, dblocks, rblocks,
+			force_quota);
+	if (!error)
+		return 0;
+
+	/* Quota failed, give back the new reservation. */
+	xfs_mod_fdblocks(mp, dblocks, tp->t_flags & XFS_TRANS_RESERVE);
+	tp->t_blk_res -= dblocks;
+	xfs_mod_frextents(mp, rtx);
+	tp->t_rtx_res -= rtx;
 	return error;
 }
 

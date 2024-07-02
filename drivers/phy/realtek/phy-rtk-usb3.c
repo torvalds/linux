@@ -8,8 +8,8 @@
 
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/of_address.h>
+#include <linux/platform_device.h>
 #include <linux/uaccess.h>
 #include <linux/debugfs.h>
 #include <linux/nvmem-consumer.h>
@@ -18,8 +18,6 @@
 #include <linux/mfd/syscon.h>
 #include <linux/phy/phy.h>
 #include <linux/usb.h>
-#include <linux/usb/hcd.h>
-#include <linux/usb/phy.h>
 
 #define USB_MDIO_CTRL_PHY_BUSY BIT(7)
 #define USB_MDIO_CTRL_PHY_WRITE BIT(0)
@@ -85,7 +83,6 @@ struct phy_parameter {
 };
 
 struct rtk_phy {
-	struct usb_phy phy;
 	struct device *dev;
 
 	struct phy_cfg *phy_cfg;
@@ -303,18 +300,9 @@ static int rtk_phy_exit(struct phy *phy)
 	return 0;
 }
 
-static const struct phy_ops ops = {
-	.init		= rtk_phy_init,
-	.exit		= rtk_phy_exit,
-	.owner		= THIS_MODULE,
-};
-
-static void rtk_phy_toggle(struct usb_phy *usb3_phy, bool connect, int port)
+static void rtk_phy_toggle(struct rtk_phy *rtk_phy, bool connect, int port)
 {
 	int index = port;
-	struct rtk_phy *rtk_phy = NULL;
-
-	rtk_phy = dev_get_drvdata(usb3_phy->dev);
 
 	if (index > rtk_phy->num_phy) {
 		dev_err(rtk_phy->dev, "%s: The port=%d is not in usb phy (num_phy=%d)\n",
@@ -325,21 +313,33 @@ static void rtk_phy_toggle(struct usb_phy *usb3_phy, bool connect, int port)
 	do_rtk_usb3_phy_toggle(rtk_phy, index, connect);
 }
 
-static int rtk_phy_notify_port_status(struct usb_phy *x, int port,
-				      u16 portstatus, u16 portchange)
+static int rtk_phy_connect(struct phy *phy, int port)
 {
-	bool connect = false;
+	struct rtk_phy *rtk_phy = phy_get_drvdata(phy);
 
-	pr_debug("%s port=%d portstatus=0x%x portchange=0x%x\n",
-		 __func__, port, (int)portstatus, (int)portchange);
-	if (portstatus & USB_PORT_STAT_CONNECTION)
-		connect = true;
-
-	if (portchange & USB_PORT_STAT_C_CONNECTION)
-		rtk_phy_toggle(x, connect, port);
+	dev_dbg(rtk_phy->dev, "%s port=%d\n", __func__, port);
+	rtk_phy_toggle(rtk_phy, true, port);
 
 	return 0;
 }
+
+static int rtk_phy_disconnect(struct phy *phy, int port)
+{
+	struct rtk_phy *rtk_phy = phy_get_drvdata(phy);
+
+	dev_dbg(rtk_phy->dev, "%s port=%d\n", __func__, port);
+	rtk_phy_toggle(rtk_phy, false, port);
+
+	return 0;
+}
+
+static const struct phy_ops ops = {
+	.init		= rtk_phy_init,
+	.exit		= rtk_phy_exit,
+	.connect	= rtk_phy_connect,
+	.disconnect	= rtk_phy_disconnect,
+	.owner		= THIS_MODULE,
+};
 
 #ifdef CONFIG_DEBUG_FS
 static struct dentry *create_phy_debug_root(void)
@@ -419,8 +419,6 @@ static inline void create_debug_files(struct rtk_phy *rtk_phy)
 
 	debugfs_create_file("parameter", 0444, rtk_phy->debug_dir, rtk_phy,
 			    &rtk_usb3_parameter_fops);
-
-	return;
 }
 
 static inline void remove_debug_files(struct rtk_phy *rtk_phy)
@@ -578,10 +576,6 @@ static int rtk_usb3phy_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	rtk_phy->dev			= &pdev->dev;
-	rtk_phy->phy.dev		= rtk_phy->dev;
-	rtk_phy->phy.label		= "rtk-usb3phy";
-	rtk_phy->phy.notify_port_status = rtk_phy_notify_port_status;
-
 	rtk_phy->phy_cfg = devm_kzalloc(dev, sizeof(*phy_cfg), GFP_KERNEL);
 
 	memcpy(rtk_phy->phy_cfg, phy_cfg, sizeof(*phy_cfg));
@@ -604,10 +598,6 @@ static int rtk_usb3phy_probe(struct platform_device *pdev)
 	if (IS_ERR(phy_provider))
 		return PTR_ERR(phy_provider);
 
-	ret = usb_add_phy_dev(&rtk_phy->phy);
-	if (ret)
-		goto err;
-
 	create_debug_files(rtk_phy);
 
 err:
@@ -619,8 +609,6 @@ static void rtk_usb3phy_remove(struct platform_device *pdev)
 	struct rtk_phy *rtk_phy = platform_get_drvdata(pdev);
 
 	remove_debug_files(rtk_phy);
-
-	usb_remove_phy(&rtk_phy->phy);
 }
 
 static const struct phy_cfg rtd1295_phy_cfg = {
@@ -756,6 +744,5 @@ static struct platform_driver rtk_usb3phy_driver = {
 module_platform_driver(rtk_usb3phy_driver);
 
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform: rtk-usb3phy");
 MODULE_AUTHOR("Stanley Chang <stanley_chang@realtek.com>");
 MODULE_DESCRIPTION("Realtek usb 3.0 phy driver");

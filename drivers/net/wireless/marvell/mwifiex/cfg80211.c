@@ -2047,6 +2047,8 @@ static int mwifiex_cfg80211_start_ap(struct wiphy *wiphy,
 
 	mwifiex_set_sys_config_invalid_data(bss_cfg);
 
+	memcpy(bss_cfg->mac_addr, priv->curr_addr, ETH_ALEN);
+
 	if (params->beacon_interval)
 		bss_cfg->beacon_period = params->beacon_interval;
 	if (params->dtim_period)
@@ -3357,7 +3359,7 @@ static int mwifiex_set_wowlan_mef_entry(struct mwifiex_private *priv,
 		}
 
 		if (!wowlan->patterns[i].pkt_offset) {
-			if (!(byte_seq[0] & 0x01) &&
+			if (is_unicast_ether_addr(byte_seq) &&
 			    (byte_seq[MWIFIEX_MEF_MAX_BYTESEQ] == 1)) {
 				mef_cfg->criteria |= MWIFIEX_CRITERIA_UNICAST;
 				continue;

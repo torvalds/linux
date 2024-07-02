@@ -2,7 +2,7 @@
 /*
  * DAMON api
  *
- * Author: SeongJae Park <sjpark@amazon.de>
+ * Author: SeongJae Park <sj@kernel.org>
  */
 
 #ifndef _DAMON_H_
@@ -127,10 +127,55 @@ enum damos_action {
 };
 
 /**
+ * enum damos_quota_goal_metric - Represents the metric to be used as the goal
+ *
+ * @DAMOS_QUOTA_USER_INPUT:	User-input value.
+ * @DAMOS_QUOTA_SOME_MEM_PSI_US:	System level some memory PSI in us.
+ * @NR_DAMOS_QUOTA_GOAL_METRICS:	Number of DAMOS quota goal metrics.
+ *
+ * Metrics equal to larger than @NR_DAMOS_QUOTA_GOAL_METRICS are unsupported.
+ */
+enum damos_quota_goal_metric {
+	DAMOS_QUOTA_USER_INPUT,
+	DAMOS_QUOTA_SOME_MEM_PSI_US,
+	NR_DAMOS_QUOTA_GOAL_METRICS,
+};
+
+/**
+ * struct damos_quota_goal - DAMOS scheme quota auto-tuning goal.
+ * @metric:		Metric to be used for representing the goal.
+ * @target_value:	Target value of @metric to achieve with the tuning.
+ * @current_value:	Current value of @metric.
+ * @last_psi_total:	Last measured total PSI
+ * @list:		List head for siblings.
+ *
+ * Data structure for getting the current score of the quota tuning goal.  The
+ * score is calculated by how close @current_value and @target_value are.  Then
+ * the score is entered to DAMON's internal feedback loop mechanism to get the
+ * auto-tuned quota.
+ *
+ * If @metric is DAMOS_QUOTA_USER_INPUT, @current_value should be manually
+ * entered by the user, probably inside the kdamond callbacks.  Otherwise,
+ * DAMON sets @current_value with self-measured value of @metric.
+ */
+struct damos_quota_goal {
+	enum damos_quota_goal_metric metric;
+	unsigned long target_value;
+	unsigned long current_value;
+	/* metric-dependent fields */
+	union {
+		u64 last_psi_total;
+	};
+	struct list_head list;
+};
+
+/**
  * struct damos_quota - Controls the aggressiveness of the given scheme.
+ * @reset_interval:	Charge reset interval in milliseconds.
  * @ms:			Maximum milliseconds that the scheme can use.
  * @sz:			Maximum bytes of memory that the action can be applied.
- * @reset_interval:	Charge reset interval in milliseconds.
+ * @goals:		Head of quota tuning goals (&damos_quota_goal) list.
+ * @esz:		Effective size quota in bytes.
  *
  * @weight_sz:		Weight of the region's size for prioritization.
  * @weight_nr_accesses:	Weight of the region's nr_accesses for prioritization.
@@ -148,6 +193,13 @@ enum damos_action {
  * throughput of the scheme's action.  DAMON then compares it against &sz and
  * uses smaller one as the effective quota.
  *
+ * If @goals is not empt, DAMON calculates yet another size quota based on the
+ * goals using its internal feedback loop algorithm, for every @reset_interval.
+ * Then, if the new size quota is smaller than the effective quota, it uses the
+ * new size quota as the effective quota.
+ *
+ * The resulting effective size quota in bytes is set to @esz.
+ *
  * For selecting regions within the quota, DAMON prioritizes current scheme's
  * target memory regions using the &struct damon_operations->get_scheme_score.
  * You could customize the prioritization logic by setting &weight_sz,
@@ -155,9 +207,11 @@ enum damos_action {
  * encouraged to respect those.
  */
 struct damos_quota {
+	unsigned long reset_interval;
 	unsigned long ms;
 	unsigned long sz;
-	unsigned long reset_interval;
+	struct list_head goals;
+	unsigned long esz;
 
 	unsigned int weight_sz;
 	unsigned int weight_nr_accesses;
@@ -168,8 +222,6 @@ struct damos_quota {
 	unsigned long total_charged_sz;
 	unsigned long total_charged_ns;
 
-	unsigned long esz;	/* Effective size quota in bytes */
-
 	/* For charging the quota */
 	unsigned long charged_sz;
 	unsigned long charged_from;
@@ -179,6 +231,9 @@ struct damos_quota {
 	/* For prioritization */
 	unsigned long histogram[DAMOS_MAX_SCORE + 1];
 	unsigned int min_score;
+
+	/* For feedback loop */
+	unsigned long esz_bp;
 };
 
 /**
@@ -559,6 +614,8 @@ struct damon_ctx {
 	 * update
 	 */
 	unsigned long next_ops_update_sis;
+	/* for waiting until the execution of the kdamond_fn is started */
+	struct completion kdamond_started;
 
 /* public: */
 	struct task_struct *kdamond;
@@ -618,6 +675,12 @@ static inline unsigned long damon_sz_region(struct damon_region *r)
 #define damon_for_each_scheme_safe(s, next, ctx) \
 	list_for_each_entry_safe(s, next, &(ctx)->schemes, list)
 
+#define damos_for_each_quota_goal(goal, quota) \
+	list_for_each_entry(goal, &quota->goals, list)
+
+#define damos_for_each_quota_goal_safe(goal, next, quota) \
+	list_for_each_entry_safe(goal, next, &(quota)->goals, list)
+
 #define damos_for_each_filter(f, scheme) \
 	list_for_each_entry(f, &(scheme)->filters, list)
 
@@ -650,6 +713,12 @@ struct damos_filter *damos_new_filter(enum damos_filter_type type,
 		bool matching);
 void damos_add_filter(struct damos *s, struct damos_filter *f);
 void damos_destroy_filter(struct damos_filter *f);
+
+struct damos_quota_goal *damos_new_quota_goal(
+		enum damos_quota_goal_metric metric,
+		unsigned long target_value);
+void damos_add_quota_goal(struct damos_quota *q, struct damos_quota_goal *g);
+void damos_destroy_quota_goal(struct damos_quota_goal *goal);
 
 struct damos *damon_new_scheme(struct damos_access_pattern *pattern,
 			enum damos_action action,

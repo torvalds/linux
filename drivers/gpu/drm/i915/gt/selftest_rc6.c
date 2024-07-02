@@ -62,12 +62,12 @@ int live_rc6_manual(void *arg)
 
 	dt = ktime_get();
 	rc0_power = librapl_energy_uJ();
-	msleep(250);
+	msleep(1000);
 	rc0_power = librapl_energy_uJ() - rc0_power;
 	dt = ktime_sub(ktime_get(), dt);
 	res[1] = rc6_residency(rc6);
 	if ((res[1] - res[0]) >> 10) {
-		pr_err("RC6 residency increased by %lldus while disabled for 250ms!\n",
+		pr_err("RC6 residency increased by %lldus while disabled for 1000ms!\n",
 		       (res[1] - res[0]) >> 10);
 		err = -EINVAL;
 		goto out_unlock;

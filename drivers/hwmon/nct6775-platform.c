@@ -23,19 +23,19 @@
 enum sensor_access { access_direct, access_asuswmi };
 
 static const char * const nct6775_sio_names[] __initconst = {
-	"NCT6106D",
-	"NCT6116D",
-	"NCT6775F",
-	"NCT6776D/F",
-	"NCT6779D",
-	"NCT6791D",
-	"NCT6792D",
-	"NCT6793D",
-	"NCT6795D",
-	"NCT6796D",
-	"NCT6797D",
-	"NCT6798D",
-	"NCT6796D-S/NCT6799D-R",
+	[nct6106] = "NCT6106D",
+	[nct6116] = "NCT6116D",
+	[nct6775] = "NCT6775F",
+	[nct6776] = "NCT6776D/F",
+	[nct6779] = "NCT6779D",
+	[nct6791] = "NCT6791D",
+	[nct6792] = "NCT6792D",
+	[nct6793] = "NCT6793D",
+	[nct6795] = "NCT6795D",
+	[nct6796] = "NCT6796D",
+	[nct6797] = "NCT6797D",
+	[nct6798] = "NCT6798D",
+	[nct6799] = "NCT6796D-S/NCT6799D-R",
 };
 
 static unsigned short force_id;

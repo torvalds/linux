@@ -432,8 +432,8 @@
 		};
 	};
 
-	arm-pmu {
-		compatible = "arm,cortex-a72-pmu", "arm,armv8-pmuv3";
+	pmu {
+		compatible = "arm,cortex-a72-pmu";
 		interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>,
 			<GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>,
 			<GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>,
@@ -602,6 +602,20 @@
 				#address-cells = <0x1>;
 				#size-cells = <0x0>;
 			};
+		};
+
+		xhci: usb@7e9c0000 {
+			compatible = "brcm,bcm2711-xhci", "brcm,xhci-brcm-v2";
+			reg = <0x0 0x7e9c0000 0x100000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts = <GIC_SPI 176 IRQ_TYPE_LEVEL_HIGH>;
+			/* DWC2 and this IP block share the same USB PHY,
+			 * enabling both at the same time results in lockups.
+			 * So keep this node disabled and let the bootloader
+			 * decide which interface should be enabled.
+			 */
+			status = "disabled";
 		};
 
 		v3d: gpu@7ec00000 {
@@ -1098,6 +1112,14 @@
 
 &rmem {
 	#address-cells = <2>;
+};
+
+&csi0 {
+	interrupts = <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+&csi1 {
+	interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
 };
 
 &cma {

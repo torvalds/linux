@@ -36,7 +36,7 @@ static int imgu_subdev_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	/* Initialize try_fmt */
 	for (i = 0; i < IMGU_NODE_NUM; i++) {
 		struct v4l2_mbus_framefmt *try_fmt =
-			v4l2_subdev_get_try_format(sd, fh->state, i);
+			v4l2_subdev_state_get_format(fh->state, i);
 
 		try_fmt->width = try_crop.width;
 		try_fmt->height = try_crop.height;
@@ -44,8 +44,8 @@ static int imgu_subdev_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 		try_fmt->field = V4L2_FIELD_NONE;
 	}
 
-	*v4l2_subdev_get_try_crop(sd, fh->state, IMGU_NODE_IN) = try_crop;
-	*v4l2_subdev_get_try_compose(sd, fh->state, IMGU_NODE_IN) = try_crop;
+	*v4l2_subdev_state_get_crop(fh->state, IMGU_NODE_IN) = try_crop;
+	*v4l2_subdev_state_get_compose(fh->state, IMGU_NODE_IN) = try_crop;
 
 	return 0;
 }
@@ -136,7 +136,7 @@ static int imgu_subdev_get_fmt(struct v4l2_subdev *sd,
 	if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
 		fmt->format = imgu_pipe->nodes[pad].pad_fmt;
 	} else {
-		mf = v4l2_subdev_get_try_format(sd, sd_state, pad);
+		mf = v4l2_subdev_state_get_format(sd_state, pad);
 		fmt->format = *mf;
 	}
 
@@ -161,7 +161,7 @@ static int imgu_subdev_set_fmt(struct v4l2_subdev *sd,
 
 	imgu_pipe = &imgu->imgu_pipe[pipe];
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY)
-		mf = v4l2_subdev_get_try_format(sd, sd_state, pad);
+		mf = v4l2_subdev_state_get_format(sd_state, pad);
 	else
 		mf = &imgu_pipe->nodes[pad].pad_fmt;
 
@@ -194,7 +194,7 @@ imgu_subdev_get_crop(struct imgu_v4l2_subdev *sd,
 		     enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_crop(&sd->subdev, sd_state, pad);
+		return v4l2_subdev_state_get_crop(sd_state, pad);
 	else
 		return &sd->rect.eff;
 }
@@ -205,7 +205,7 @@ imgu_subdev_get_compose(struct imgu_v4l2_subdev *sd,
 			enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_compose(&sd->subdev, sd_state, pad);
+		return v4l2_subdev_state_get_compose(sd_state, pad);
 	else
 		return &sd->rect.bds;
 }
@@ -1069,17 +1069,17 @@ static int imgu_v4l2_subdev_register(struct imgu_device *imgu,
 	struct imgu_media_pipe *imgu_pipe = &imgu->imgu_pipe[pipe];
 
 	/* Initialize subdev media entity */
+	imgu_sd->subdev.entity.ops = &imgu_media_ops;
+	for (i = 0; i < IMGU_NODE_NUM; i++) {
+		imgu_sd->subdev_pads[i].flags = imgu_pipe->nodes[i].output ?
+			MEDIA_PAD_FL_SINK : MEDIA_PAD_FL_SOURCE;
+	}
 	r = media_entity_pads_init(&imgu_sd->subdev.entity, IMGU_NODE_NUM,
 				   imgu_sd->subdev_pads);
 	if (r) {
 		dev_err(&imgu->pci_dev->dev,
 			"failed initialize subdev media entity (%d)\n", r);
 		return r;
-	}
-	imgu_sd->subdev.entity.ops = &imgu_media_ops;
-	for (i = 0; i < IMGU_NODE_NUM; i++) {
-		imgu_sd->subdev_pads[i].flags = imgu_pipe->nodes[i].output ?
-			MEDIA_PAD_FL_SINK : MEDIA_PAD_FL_SOURCE;
 	}
 
 	/* Initialize subdev */
@@ -1177,15 +1177,15 @@ static int imgu_v4l2_node_setup(struct imgu_device *imgu, unsigned int pipe,
 	}
 
 	/* Initialize media entities */
+	node->vdev_pad.flags = node->output ?
+		MEDIA_PAD_FL_SOURCE : MEDIA_PAD_FL_SINK;
+	vdev->entity.ops = NULL;
 	r = media_entity_pads_init(&vdev->entity, 1, &node->vdev_pad);
 	if (r) {
 		dev_err(dev, "failed initialize media entity (%d)\n", r);
 		mutex_destroy(&node->lock);
 		return r;
 	}
-	node->vdev_pad.flags = node->output ?
-		MEDIA_PAD_FL_SOURCE : MEDIA_PAD_FL_SINK;
-	vdev->entity.ops = NULL;
 
 	/* Initialize vbq */
 	vbq->type = node->vdev_fmt.type;
@@ -1198,7 +1198,7 @@ static int imgu_v4l2_node_setup(struct imgu_device *imgu, unsigned int pipe,
 	vbq->buf_struct_size = imgu->buf_struct_size;
 	vbq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	/* can streamon w/o buffers */
-	vbq->min_buffers_needed = 0;
+	vbq->min_queued_buffers = 0;
 	vbq->drv_priv = imgu;
 	vbq->lock = &node->lock;
 	r = vb2_queue_init(vbq);

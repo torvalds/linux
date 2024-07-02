@@ -156,7 +156,7 @@ struct atom_context {
 extern int amdgpu_atom_debug;
 
 struct atom_context *amdgpu_atom_parse(struct card_info *card, void *bios);
-int amdgpu_atom_execute_table(struct atom_context *ctx, int index, uint32_t *params);
+int amdgpu_atom_execute_table(struct atom_context *ctx, int index, uint32_t *params, int params_size);
 int amdgpu_atom_asic_init(struct atom_context *ctx);
 void amdgpu_atom_destroy(struct atom_context *ctx);
 bool amdgpu_atom_parse_data_header(struct atom_context *ctx, int index, uint16_t *size,

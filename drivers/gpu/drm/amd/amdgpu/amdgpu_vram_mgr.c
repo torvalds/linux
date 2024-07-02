@@ -77,7 +77,16 @@ static inline bool amdgpu_is_vram_mgr_blocks_contiguous(struct list_head *head)
 	return true;
 }
 
+static inline u64 amdgpu_vram_mgr_blocks_size(struct list_head *head)
+{
+	struct drm_buddy_block *block;
+	u64 size = 0;
 
+	list_for_each_entry(block, head, link)
+		size += amdgpu_vram_mgr_block_size(block);
+
+	return size;
+}
 
 /**
  * DOC: mem_info_vram_total
@@ -212,8 +221,23 @@ static struct attribute *amdgpu_vram_mgr_attributes[] = {
 	NULL
 };
 
+static umode_t amdgpu_vram_attrs_is_visible(struct kobject *kobj,
+					    struct attribute *attr, int i)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+
+	if (attr == &dev_attr_mem_info_vram_vendor.attr &&
+	    !adev->gmc.vram_vendor)
+		return 0;
+
+	return attr->mode;
+}
+
 const struct attribute_group amdgpu_vram_mgr_attr_group = {
-	.attrs = amdgpu_vram_mgr_attributes
+	.attrs = amdgpu_vram_mgr_attributes,
+	.is_visible = amdgpu_vram_attrs_is_visible
 };
 
 /**
@@ -426,6 +450,7 @@ static int amdgpu_vram_mgr_new(struct ttm_resource_manager *man,
 {
 	struct amdgpu_vram_mgr *mgr = to_vram_mgr(man);
 	struct amdgpu_device *adev = to_amdgpu_device(mgr);
+	struct amdgpu_bo *bo = ttm_to_amdgpu_bo(tbo);
 	u64 vis_usage = 0, max_bytes, min_block_size;
 	struct amdgpu_vram_mgr_resource *vres;
 	u64 size, remaining_size, lpfn, fpfn;
@@ -444,7 +469,7 @@ static int amdgpu_vram_mgr_new(struct ttm_resource_manager *man,
 	if (tbo->type != ttm_bo_type_kernel)
 		max_bytes -= AMDGPU_VM_RESERVED_VRAM;
 
-	if (place->flags & TTM_PL_FLAG_CONTIGUOUS) {
+	if (bo->flags & AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS) {
 		pages_per_block = ~0ul;
 	} else {
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
@@ -453,7 +478,7 @@ static int amdgpu_vram_mgr_new(struct ttm_resource_manager *man,
 		/* default to 2MB */
 		pages_per_block = 2UL << (20UL - PAGE_SHIFT);
 #endif
-		pages_per_block = max_t(uint32_t, pages_per_block,
+		pages_per_block = max_t(u32, pages_per_block,
 					tbo->page_alignment);
 	}
 
@@ -474,8 +499,11 @@ static int amdgpu_vram_mgr_new(struct ttm_resource_manager *man,
 	if (place->flags & TTM_PL_FLAG_TOPDOWN)
 		vres->flags |= DRM_BUDDY_TOPDOWN_ALLOCATION;
 
-	if (place->flags & TTM_PL_FLAG_CONTIGUOUS)
+	if (bo->flags & AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS)
 		vres->flags |= DRM_BUDDY_CONTIGUOUS_ALLOCATION;
+
+	if (bo->flags & AMDGPU_GEM_CREATE_VRAM_CLEARED)
+		vres->flags |= DRM_BUDDY_CLEAR_ALLOCATION;
 
 	if (fpfn || lpfn != mgr->mm.size)
 		/* Allocate blocks in desired range */
@@ -490,14 +518,14 @@ static int amdgpu_vram_mgr_new(struct ttm_resource_manager *man,
 		else
 			min_block_size = mgr->default_page_size;
 
-		BUG_ON(min_block_size < mm->chunk_size);
-
 		/* Limit maximum size to 2GiB due to SG table limitations */
 		size = min(remaining_size, 2ULL << 30);
 
 		if ((size >= (u64)pages_per_block << PAGE_SHIFT) &&
-				!(size & (((u64)pages_per_block << PAGE_SHIFT) - 1)))
+		    !(size & (((u64)pages_per_block << PAGE_SHIFT) - 1)))
 			min_block_size = (u64)pages_per_block << PAGE_SHIFT;
+
+		BUG_ON(min_block_size < mm->chunk_size);
 
 		r = drm_buddy_alloc_blocks(mm, fpfn,
 					   lpfn,
@@ -505,6 +533,16 @@ static int amdgpu_vram_mgr_new(struct ttm_resource_manager *man,
 					   min_block_size,
 					   &vres->blocks,
 					   vres->flags);
+
+		if (unlikely(r == -ENOSPC) && pages_per_block == ~0ul &&
+		    !(place->flags & TTM_PL_FLAG_CONTIGUOUS)) {
+			vres->flags &= ~DRM_BUDDY_CONTIGUOUS_ALLOCATION;
+			pages_per_block = max_t(u32, 2UL << (20UL - PAGE_SHIFT),
+						tbo->page_alignment);
+
+			continue;
+		}
+
 		if (unlikely(r))
 			goto error_free_blocks;
 
@@ -516,6 +554,8 @@ static int amdgpu_vram_mgr_new(struct ttm_resource_manager *man,
 	mutex_unlock(&mgr->lock);
 
 	vres->base.start = 0;
+	size = max_t(u64, amdgpu_vram_mgr_blocks_size(&vres->blocks),
+		     vres->base.size);
 	list_for_each_entry(block, &vres->blocks, link) {
 		unsigned long start;
 
@@ -523,8 +563,8 @@ static int amdgpu_vram_mgr_new(struct ttm_resource_manager *man,
 			amdgpu_vram_mgr_block_size(block);
 		start >>= PAGE_SHIFT;
 
-		if (start > PFN_UP(vres->base.size))
-			start -= PFN_UP(vres->base.size);
+		if (start > PFN_UP(size))
+			start -= PFN_UP(size);
 		else
 			start = 0;
 		vres->base.start = max(vres->base.start, start);
@@ -545,7 +585,7 @@ static int amdgpu_vram_mgr_new(struct ttm_resource_manager *man,
 	return 0;
 
 error_free_blocks:
-	drm_buddy_free_list(mm, &vres->blocks);
+	drm_buddy_free_list(mm, &vres->blocks, 0);
 	mutex_unlock(&mgr->lock);
 error_fini:
 	ttm_resource_fini(man, &vres->base);
@@ -578,7 +618,7 @@ static void amdgpu_vram_mgr_del(struct ttm_resource_manager *man,
 
 	amdgpu_vram_mgr_do_reserve(man);
 
-	drm_buddy_free_list(mm, &vres->blocks);
+	drm_buddy_free_list(mm, &vres->blocks, vres->flags);
 	mutex_unlock(&mgr->lock);
 
 	atomic64_sub(vis_usage, &mgr->vis_usage);
@@ -886,7 +926,7 @@ void amdgpu_vram_mgr_fini(struct amdgpu_device *adev)
 		kfree(rsv);
 
 	list_for_each_entry_safe(rsv, temp, &mgr->reserved_pages, blocks) {
-		drm_buddy_free_list(&mgr->mm, &rsv->allocated);
+		drm_buddy_free_list(&mgr->mm, &rsv->allocated, 0);
 		kfree(rsv);
 	}
 	if (!adev->gmc.is_app_apu)

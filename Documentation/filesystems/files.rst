@@ -116,7 +116,7 @@ before and after the reference count increment. This pattern can be seen
 in get_file_rcu() and __files_get_rcu().
 
 In addition, it isn't possible to access or check fields in struct file
-without first aqcuiring a reference on it under rcu lookup. Not doing
+without first acquiring a reference on it under rcu lookup. Not doing
 that was always very dodgy and it was only usable for non-pointer data
 in struct file. With SLAB_TYPESAFE_BY_RCU it is necessary that callers
 either first acquire a reference or they must hold the files_lock of the

@@ -26,12 +26,8 @@ static long do_sys_name_to_handle(const struct path *path,
 	/*
 	 * We need to make sure whether the file system support decoding of
 	 * the file handle if decodeable file handle was requested.
-	 * Otherwise, even empty export_operations are sufficient to opt-in
-	 * to encoding FIDs.
 	 */
-	if (!path->dentry->d_sb->s_export_op ||
-	    (!(fh_flags & EXPORT_FH_FID) &&
-	     !path->dentry->d_sb->s_export_op->fh_to_dentry))
+	if (!exportfs_can_encode_fh(path->dentry->d_sb->s_export_op, fh_flags))
 		return -EOPNOTSUPP;
 
 	if (copy_from_user(&f_handle, ufh, sizeof(struct file_handle)))
@@ -40,7 +36,7 @@ static long do_sys_name_to_handle(const struct path *path,
 	if (f_handle.handle_bytes > MAX_HANDLE_SZ)
 		return -EINVAL;
 
-	handle = kmalloc(sizeof(struct file_handle) + f_handle.handle_bytes,
+	handle = kzalloc(struct_size(handle, f_handle, f_handle.handle_bytes),
 			 GFP_KERNEL);
 	if (!handle)
 		return -ENOMEM;
@@ -75,7 +71,7 @@ static long do_sys_name_to_handle(const struct path *path,
 	/* copy the mount id */
 	if (put_user(real_mount(path->mnt)->mnt_id, mnt_id) ||
 	    copy_to_user(ufh, handle,
-			 sizeof(struct file_handle) + handle_bytes))
+			 struct_size(handle, f_handle, handle_bytes)))
 		retval = -EFAULT;
 	kfree(handle);
 	return retval;
@@ -196,7 +192,7 @@ static int handle_to_path(int mountdirfd, struct file_handle __user *ufh,
 		retval = -EINVAL;
 		goto out_err;
 	}
-	handle = kmalloc(sizeof(struct file_handle) + f_handle.handle_bytes,
+	handle = kmalloc(struct_size(handle, f_handle, f_handle.handle_bytes),
 			 GFP_KERNEL);
 	if (!handle) {
 		retval = -ENOMEM;

@@ -345,8 +345,8 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 		/* Adhoc mode */
 		/* If the requested SSID matches current SSID, return */
 		if (bss_desc && bss_desc->ssid.ssid_len &&
-		    (!mwifiex_ssid_cmp(&priv->curr_bss_params.bss_descriptor.
-				       ssid, &bss_desc->ssid))) {
+		    cfg80211_ssid_eq(&priv->curr_bss_params.bss_descriptor.ssid,
+				     &bss_desc->ssid)) {
 			ret = 0;
 			goto done;
 		}

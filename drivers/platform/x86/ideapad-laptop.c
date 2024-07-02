@@ -1091,6 +1091,8 @@ static const struct key_entry ideapad_keymap[] = {
 	{ KE_KEY,	0x07 | IDEAPAD_WMI_KEY, { KEY_HELP } },
 	{ KE_KEY,	0x0e | IDEAPAD_WMI_KEY, { KEY_PICKUP_PHONE } },
 	{ KE_KEY,	0x0f | IDEAPAD_WMI_KEY, { KEY_HANGUP_PHONE } },
+	/* Refresh Rate Toggle (Fn+R) */
+	{ KE_KEY,	0x10 | IDEAPAD_WMI_KEY, { KEY_REFRESH_RATE_TOGGLE } },
 	/* Dark mode toggle */
 	{ KE_KEY,	0x13 | IDEAPAD_WMI_KEY, { KEY_PROG1 } },
 	/* Sound profile switch */
@@ -1100,7 +1102,7 @@ static const struct key_entry ideapad_keymap[] = {
 	/* Lenovo Support */
 	{ KE_KEY,	0x27 | IDEAPAD_WMI_KEY, { KEY_HELP } },
 	/* Refresh Rate Toggle */
-	{ KE_KEY,	0x0a | IDEAPAD_WMI_KEY, { KEY_DISPLAYTOGGLE } },
+	{ KE_KEY,	0x0a | IDEAPAD_WMI_KEY, { KEY_REFRESH_RATE_TOGGLE } },
 
 	{ KE_END },
 };
@@ -1425,18 +1427,17 @@ static int ideapad_kbd_bl_init(struct ideapad_private *priv)
 	if (WARN_ON(priv->kbd_bl.initialized))
 		return -EEXIST;
 
-	brightness = ideapad_kbd_bl_brightness_get(priv);
-	if (brightness < 0)
-		return brightness;
-
-	priv->kbd_bl.last_brightness = brightness;
-
 	if (ideapad_kbd_bl_check_tristate(priv->kbd_bl.type)) {
 		priv->kbd_bl.led.max_brightness = 2;
 	} else {
 		priv->kbd_bl.led.max_brightness = 1;
 	}
 
+	brightness = ideapad_kbd_bl_brightness_get(priv);
+	if (brightness < 0)
+		return brightness;
+
+	priv->kbd_bl.last_brightness = brightness;
 	priv->kbd_bl.led.name                    = "platform::" LED_FUNCTION_KBD_BACKLIGHT;
 	priv->kbd_bl.led.brightness_get          = ideapad_kbd_bl_led_cdev_brightness_get;
 	priv->kbd_bl.led.brightness_set_blocking = ideapad_kbd_bl_led_cdev_brightness_set;

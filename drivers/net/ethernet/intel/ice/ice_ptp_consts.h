@@ -9,17 +9,17 @@
  */
 /* Constants defined for the PTP 1588 clock hardware. */
 
-/* struct ice_time_ref_info_e822
+/* struct ice_time_ref_info_e82x
  *
  * E822 hardware can use different sources as the reference for the PTP
  * hardware clock. Each clock has different characteristics such as a slightly
  * different frequency, etc.
  *
  * This lookup table defines several constants that depend on the current time
- * reference. See the struct ice_time_ref_info_e822 for information about the
+ * reference. See the struct ice_time_ref_info_e82x for information about the
  * meaning of each constant.
  */
-const struct ice_time_ref_info_e822 e822_time_ref[NUM_ICE_TIME_REF_FREQ] = {
+const struct ice_time_ref_info_e82x e822_time_ref[NUM_ICE_TIME_REF_FREQ] = {
 	/* ICE_TIME_REF_FREQ_25_000 -> 25 MHz */
 	{
 		/* pll_freq */
@@ -81,7 +81,7 @@ const struct ice_time_ref_info_e822 e822_time_ref[NUM_ICE_TIME_REF_FREQ] = {
 	},
 };
 
-const struct ice_cgu_pll_params_e822 e822_cgu_params[NUM_ICE_TIME_REF_FREQ] = {
+const struct ice_cgu_pll_params_e82x e822_cgu_params[NUM_ICE_TIME_REF_FREQ] = {
 	/* ICE_TIME_REF_FREQ_25_000 -> 25 MHz */
 	{
 		/* refclk_pre_div */
@@ -155,7 +155,7 @@ const struct ice_cgu_pll_params_e822 e822_cgu_params[NUM_ICE_TIME_REF_FREQ] = {
 	},
 };
 
-/* struct ice_vernier_info_e822
+/* struct ice_vernier_info_e82x
  *
  * E822 hardware calibrates the delay of the timestamp indication from the
  * actual packet transmission or reception during the initialization of the
@@ -168,7 +168,7 @@ const struct ice_cgu_pll_params_e822 e822_cgu_params[NUM_ICE_TIME_REF_FREQ] = {
  * used by this link speed, and that the register should be cleared by writing
  * 0. Other values specify the clock frequency in Hz.
  */
-const struct ice_vernier_info_e822 e822_vernier[NUM_ICE_PTP_LNK_SPD] = {
+const struct ice_vernier_info_e82x e822_vernier[NUM_ICE_PTP_LNK_SPD] = {
 	/* ICE_PTP_LNK_SPD_1G */
 	{
 		/* tx_par_clk */

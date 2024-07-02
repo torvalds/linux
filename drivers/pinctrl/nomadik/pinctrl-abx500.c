@@ -6,7 +6,9 @@
  *
  * Driver allows to use AxB5xx unused pins to be used as GPIO
  */
+
 #include <linux/bitops.h>
+#include <linux/cleanup.h>
 #include <linux/err.h>
 #include <linux/gpio/driver.h>
 #include <linux/init.h>
@@ -17,6 +19,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/types.h>
@@ -452,12 +455,11 @@ static void abx500_gpio_dbg_show_one(struct seq_file *s,
 				     unsigned offset, unsigned gpio)
 {
 	struct abx500_pinctrl *pct = pinctrl_dev_get_drvdata(pctldev);
-	const char *label = gpiochip_is_requested(chip, offset - 1);
 	u8 gpio_offset = offset - 1;
 	int mode = -1;
 	bool is_out;
 	bool pd;
-	int ret;
+	int ret = -ENOMEM;
 
 	const char *modes[] = {
 		[ABX500_DEFAULT]	= "default",
@@ -472,6 +474,10 @@ static void abx500_gpio_dbg_show_one(struct seq_file *s,
 		[ABX500_GPIO_PULL_NONE + 1]	= "pull none",
 		[ABX500_GPIO_PULL_UP]		= "pull up",
 	};
+
+	char *label __free(kfree) = gpiochip_dup_line_label(chip, offset - 1);
+	if (IS_ERR(label))
+		goto out;
 
 	ret = abx500_gpio_get_bit(chip, AB8500_GPIO_DIR1_REG,
 			gpio_offset, &is_out);
@@ -985,7 +991,6 @@ static const struct of_device_id abx500_gpio_match[] = {
 static int abx500_gpio_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
-	const struct of_device_id *match;
 	struct abx500_pinctrl *pct;
 	unsigned int id = -1;
 	int ret;
@@ -1006,12 +1011,7 @@ static int abx500_gpio_probe(struct platform_device *pdev)
 	pct->chip.parent = &pdev->dev;
 	pct->chip.base = -1; /* Dynamic allocation */
 
-	match = of_match_device(abx500_gpio_match, &pdev->dev);
-	if (!match) {
-		dev_err(&pdev->dev, "gpio dt not matching\n");
-		return -ENODEV;
-	}
-	id = (unsigned long)match->data;
+	id = (unsigned long)device_get_match_data(&pdev->dev);
 
 	/* Poke in other ASIC variants here */
 	switch (id) {
@@ -1079,12 +1079,11 @@ out_rem_chip:
  * abx500_gpio_remove() - remove Ab8500-gpio driver
  * @pdev:	Platform device registered
  */
-static int abx500_gpio_remove(struct platform_device *pdev)
+static void abx500_gpio_remove(struct platform_device *pdev)
 {
 	struct abx500_pinctrl *pct = platform_get_drvdata(pdev);
 
 	gpiochip_remove(&pct->chip);
-	return 0;
 }
 
 static struct platform_driver abx500_gpio_driver = {
@@ -1093,7 +1092,7 @@ static struct platform_driver abx500_gpio_driver = {
 		.of_match_table = abx500_gpio_match,
 	},
 	.probe = abx500_gpio_probe,
-	.remove = abx500_gpio_remove,
+	.remove_new = abx500_gpio_remove,
 };
 
 static int __init abx500_gpio_init(void)

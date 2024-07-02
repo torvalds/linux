@@ -15,7 +15,9 @@ description:
 
 properties:
   compatible:
-    const: asahi-kasei,ak7375
+    enum:
+      - asahi-kasei,ak7345
+      - asahi-kasei,ak7375
 
   reg:
     maxItems: 1

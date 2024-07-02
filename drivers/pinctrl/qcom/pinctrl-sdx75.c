@@ -1124,7 +1124,7 @@ static struct platform_driver sdx75_pinctrl_driver = {
 		.of_match_table = sdx75_pinctrl_of_match,
 	},
 	.probe = sdx75_pinctrl_probe,
-	.remove = msm_pinctrl_remove,
+	.remove_new = msm_pinctrl_remove,
 };
 
 static int __init sdx75_pinctrl_init(void)

@@ -43,6 +43,7 @@
 #define QM_MB_CMD_CQC_BT                0x5
 #define QM_MB_CMD_SQC_VFT_V2            0x6
 #define QM_MB_CMD_STOP_QP               0x8
+#define QM_MB_CMD_FLUSH_QM		0x9
 #define QM_MB_CMD_SRC                   0xc
 #define QM_MB_CMD_DST                   0xd
 
@@ -108,17 +109,13 @@ enum qm_stop_reason {
 };
 
 enum qm_state {
-	QM_INIT = 0,
-	QM_START,
-	QM_CLOSE,
+	QM_WORK = 0,
 	QM_STOP,
 };
 
 enum qp_state {
-	QP_INIT = 1,
-	QP_START,
+	QP_START = 1,
 	QP_STOP,
-	QP_CLOSE,
 };
 
 enum qm_hw_ver {
@@ -155,9 +152,20 @@ enum qm_cap_bits {
 	QM_SUPPORT_DB_ISOLATION = 0x0,
 	QM_SUPPORT_FUNC_QOS,
 	QM_SUPPORT_STOP_QP,
+	QM_SUPPORT_STOP_FUNC,
 	QM_SUPPORT_MB_COMMAND,
 	QM_SUPPORT_SVA_PREFETCH,
 	QM_SUPPORT_RPM,
+};
+
+struct qm_dev_alg {
+	u64 alg_msk;
+	const char *alg;
+};
+
+struct qm_dev_dfx {
+	u32 dev_state;
+	u32 dev_timeout;
 };
 
 struct dfx_diff_registers {
@@ -188,6 +196,7 @@ struct qm_debug {
 	struct dentry *debug_root;
 	struct dentry *qm_d;
 	struct debugfs_file files[DEBUG_FILE_NUM];
+	struct qm_dev_dfx dev_dfx;
 	unsigned int *qm_last_words;
 	/* ACC engines recoreding last regs */
 	unsigned int *last_words;
@@ -263,6 +272,16 @@ struct hisi_qm_cap_info {
 	u32 v1_val;
 	u32 v2_val;
 	u32 v3_val;
+};
+
+struct hisi_qm_cap_record {
+	u32 type;
+	u32 cap_val;
+};
+
+struct hisi_qm_cap_tables {
+	struct hisi_qm_cap_record *qm_cap_table;
+	struct hisi_qm_cap_record *dev_cap_table;
 };
 
 struct hisi_qm_list {
@@ -365,7 +384,6 @@ struct hisi_qm {
 	struct work_struct rst_work;
 	struct work_struct cmd_process;
 
-	const char *algs;
 	bool use_sva;
 
 	resource_size_t phys_base;
@@ -376,6 +394,8 @@ struct hisi_qm {
 	u32 mb_qos;
 	u32 type_rate;
 	struct qm_err_isolate isolate_data;
+
+	struct hisi_qm_cap_tables cap_tables;
 };
 
 struct hisi_qp_status {
@@ -511,7 +531,7 @@ void hisi_qm_uninit(struct hisi_qm *qm);
 int hisi_qm_start(struct hisi_qm *qm);
 int hisi_qm_stop(struct hisi_qm *qm, enum qm_stop_reason r);
 int hisi_qm_start_qp(struct hisi_qp *qp, unsigned long arg);
-int hisi_qm_stop_qp(struct hisi_qp *qp);
+void hisi_qm_stop_qp(struct hisi_qp *qp);
 int hisi_qp_send(struct hisi_qp *qp, const void *msg);
 void hisi_qm_debug_init(struct hisi_qm *qm);
 void hisi_qm_debug_regs_clear(struct hisi_qm *qm);
@@ -563,6 +583,8 @@ void hisi_qm_regs_dump(struct seq_file *s, struct debugfs_regset32 *regset);
 u32 hisi_qm_get_hw_info(struct hisi_qm *qm,
 			const struct hisi_qm_cap_info *info_table,
 			u32 index, bool is_read);
+int hisi_qm_set_algs(struct hisi_qm *qm, u64 alg_msk, const struct qm_dev_alg *dev_algs,
+		     u32 dev_algs_size);
 
 /* Used by VFIO ACC live migration driver */
 struct pci_driver *hisi_sec_get_pf_driver(void);

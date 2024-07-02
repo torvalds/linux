@@ -178,7 +178,7 @@ pte_t *huge_pmd_share(struct mm_struct *mm, struct vm_area_struct *vma,
 struct address_space *hugetlb_page_mapping_lock_write(struct page *hpage);
 
 extern int sysctl_hugetlb_shm_group;
-extern struct list_head huge_boot_pages;
+extern struct list_head huge_boot_pages[MAX_NUMNODES];
 
 /* arch callbacks */
 
@@ -554,17 +554,13 @@ static inline struct hugetlbfs_inode_info *HUGETLBFS_I(struct inode *inode)
 	return container_of(inode, struct hugetlbfs_inode_info, vfs_inode);
 }
 
-extern const struct file_operations hugetlbfs_file_operations;
 extern const struct vm_operations_struct hugetlb_vm_ops;
 struct file *hugetlb_file_setup(const char *name, size_t size, vm_flags_t acct,
 				int creat_flags, int page_size_log);
 
-static inline bool is_file_hugepages(struct file *file)
+static inline bool is_file_hugepages(const struct file *file)
 {
-	if (file->f_op == &hugetlbfs_file_operations)
-		return true;
-
-	return is_file_shm_hugepages(file);
+	return file->f_op->fop_flags & FOP_HUGE_PAGES;
 }
 
 static inline struct hstate *hstate_inode(struct inode *i)
@@ -829,7 +825,7 @@ static inline unsigned huge_page_shift(struct hstate *h)
 
 static inline bool hstate_is_gigantic(struct hstate *h)
 {
-	return huge_page_order(h) > MAX_ORDER;
+	return huge_page_order(h) > MAX_PAGE_ORDER;
 }
 
 static inline unsigned int pages_per_huge_page(const struct hstate *h)
@@ -1268,10 +1264,7 @@ static inline bool __vma_shareable_lock(struct vm_area_struct *vma)
 	return (vma->vm_flags & VM_MAYSHARE) && vma->vm_private_data;
 }
 
-static inline bool __vma_private_lock(struct vm_area_struct *vma)
-{
-	return (!(vma->vm_flags & VM_MAYSHARE)) && vma->vm_private_data;
-}
+bool __vma_private_lock(struct vm_area_struct *vma);
 
 /*
  * Safe version of huge_pte_offset() to check the locks.  See comments

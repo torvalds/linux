@@ -29,7 +29,7 @@ static inline char *rtl819x_translate_scan(struct rtllib_device *ieee,
 					   struct iw_request_info *info)
 {
 	char custom[MAX_CUSTOM_LEN];
-	char proto_name[IFNAMSIZ];
+	char proto_name[6];
 	char *pname = proto_name;
 	char *p;
 	struct iw_event iwe;
@@ -134,7 +134,7 @@ static inline char *rtl819x_translate_scan(struct rtllib_device *ieee,
 				((ht_cap->ShortGI40Mhz) ? 1 : 0) :
 				((ht_cap->ShortGI20Mhz) ? 1 : 0);
 
-		max_mcs = HTGetHighestMCSRate(ieee, ht_cap->MCS,
+		max_mcs = ht_get_highest_mcs_rate(ieee, ht_cap->MCS,
 					      MCS_FILTER_ALL);
 		rate = MCS_DATA_RATE[is40M][isShortGI][max_mcs & 0x7f];
 		if (rate > max_rate)
@@ -636,7 +636,7 @@ int rtllib_wx_set_mlme(struct rtllib_device *ieee,
 
 		ieee->cannot_notify = true;
 
-		SendDisassociation(ieee, deauth, mlme->reason_code);
+		send_disassociation(ieee, deauth, mlme->reason_code);
 		rtllib_disassociate(ieee);
 
 		ieee->wap_set = 0;

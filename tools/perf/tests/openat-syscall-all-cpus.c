@@ -37,7 +37,7 @@ static int test__openat_syscall_event_on_all_cpus(struct test_suite *test __mayb
 		return -1;
 	}
 
-	cpus = perf_cpu_map__new(NULL);
+	cpus = perf_cpu_map__new_online_cpus();
 	if (cpus == NULL) {
 		pr_debug("perf_cpu_map__new\n");
 		goto out_thread_map_delete;

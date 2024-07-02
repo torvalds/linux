@@ -1948,8 +1948,7 @@ __ccdc_get_format(struct isp_ccdc_device *ccdc,
 		  unsigned int pad, enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_format(&ccdc->subdev, sd_state,
-						  pad);
+		return v4l2_subdev_state_get_format(sd_state, pad);
 	else
 		return &ccdc->formats[pad];
 }
@@ -1960,8 +1959,8 @@ __ccdc_get_crop(struct isp_ccdc_device *ccdc,
 		enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_crop(&ccdc->subdev, sd_state,
-						CCDC_PAD_SOURCE_OF);
+		return v4l2_subdev_state_get_crop(sd_state,
+						  CCDC_PAD_SOURCE_OF);
 	else
 		return &ccdc->crop;
 }
@@ -1969,7 +1968,7 @@ __ccdc_get_crop(struct isp_ccdc_device *ccdc,
 /*
  * ccdc_try_format - Try video format on a pad
  * @ccdc: ISP CCDC device
- * @cfg : V4L2 subdev pad configuration
+ * @sd_state: V4L2 subdev state
  * @pad: Pad number
  * @fmt: Format
  */
@@ -2127,7 +2126,7 @@ static void ccdc_try_crop(struct isp_ccdc_device *ccdc,
 /*
  * ccdc_enum_mbus_code - Handle pixel format enumeration
  * @sd     : pointer to v4l2 subdev structure
- * @cfg : V4L2 subdev pad configuration
+ * @sd_state: V4L2 subdev state
  * @code   : pointer to v4l2_subdev_mbus_code_enum structure
  * return -EINVAL or zero on success
  */
@@ -2230,7 +2229,7 @@ static int ccdc_enum_frame_size(struct v4l2_subdev *sd,
 /*
  * ccdc_get_selection - Retrieve a selection rectangle on a pad
  * @sd: ISP CCDC V4L2 subdevice
- * @cfg: V4L2 subdev pad configuration
+ * @sd_state: V4L2 subdev state
  * @sel: Selection rectangle
  *
  * The only supported rectangles are the crop rectangles on the output formatter
@@ -2274,7 +2273,7 @@ static int ccdc_get_selection(struct v4l2_subdev *sd,
 /*
  * ccdc_set_selection - Set a selection rectangle on a pad
  * @sd: ISP CCDC V4L2 subdevice
- * @cfg: V4L2 subdev pad configuration
+ * @sd_state: V4L2 subdev state
  * @sel: Selection rectangle
  *
  * The only supported rectangle is the actual crop rectangle on the output
@@ -2322,7 +2321,7 @@ static int ccdc_set_selection(struct v4l2_subdev *sd,
 /*
  * ccdc_get_format - Retrieve the video format on a pad
  * @sd : ISP CCDC V4L2 subdevice
- * @cfg: V4L2 subdev pad configuration
+ * @sd_state: V4L2 subdev state
  * @fmt: Format
  *
  * Return 0 on success or -EINVAL if the pad is invalid or doesn't correspond
@@ -2346,7 +2345,7 @@ static int ccdc_get_format(struct v4l2_subdev *sd,
 /*
  * ccdc_set_format - Set the video format on a pad
  * @sd : ISP CCDC V4L2 subdevice
- * @cfg: V4L2 subdev pad configuration
+ * @sd_state: V4L2 subdev state
  * @fmt: Format
  *
  * Return 0 on success or -EINVAL if the pad is invalid or doesn't correspond

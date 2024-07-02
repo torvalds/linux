@@ -218,7 +218,7 @@ lcs_setup_read_ccws(struct lcs_card *card)
 		 * we do not need to do set_normalized_cda.
 		 */
 		card->read.ccws[cnt].cda =
-			(__u32)virt_to_phys(card->read.iob[cnt].data);
+			virt_to_dma32(card->read.iob[cnt].data);
 		((struct lcs_header *)
 		 card->read.iob[cnt].data)->offset = LCS_ILLEGAL_OFFSET;
 		card->read.iob[cnt].callback = lcs_get_frames_cb;
@@ -230,8 +230,7 @@ lcs_setup_read_ccws(struct lcs_card *card)
 	card->read.ccws[LCS_NUM_BUFFS - 1].flags |= CCW_FLAG_SUSPEND;
 	/* Last ccw is a tic (transfer in channel). */
 	card->read.ccws[LCS_NUM_BUFFS].cmd_code = LCS_CCW_TRANSFER;
-	card->read.ccws[LCS_NUM_BUFFS].cda =
-		(__u32)virt_to_phys(card->read.ccws);
+	card->read.ccws[LCS_NUM_BUFFS].cda = virt_to_dma32(card->read.ccws);
 	/* Setg initial state of the read channel. */
 	card->read.state = LCS_CH_STATE_INIT;
 
@@ -273,12 +272,11 @@ lcs_setup_write_ccws(struct lcs_card *card)
 		 * we do not need to do set_normalized_cda.
 		 */
 		card->write.ccws[cnt].cda =
-			(__u32)virt_to_phys(card->write.iob[cnt].data);
+			virt_to_dma32(card->write.iob[cnt].data);
 	}
 	/* Last ccw is a tic (transfer in channel). */
 	card->write.ccws[LCS_NUM_BUFFS].cmd_code = LCS_CCW_TRANSFER;
-	card->write.ccws[LCS_NUM_BUFFS].cda =
-		(__u32)virt_to_phys(card->write.ccws);
+	card->write.ccws[LCS_NUM_BUFFS].cda = virt_to_dma32(card->write.ccws);
 	/* Set initial state of the write channel. */
 	card->read.state = LCS_CH_STATE_INIT;
 
@@ -1399,7 +1397,7 @@ lcs_irq(struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 	if ((channel->state != LCS_CH_STATE_INIT) &&
 	    (irb->scsw.cmd.fctl & SCSW_FCTL_START_FUNC) &&
 	    (irb->scsw.cmd.cpa != 0)) {
-		index = (struct ccw1 *) __va((addr_t) irb->scsw.cmd.cpa)
+		index = (struct ccw1 *)dma32_to_virt(irb->scsw.cmd.cpa)
 			- channel->ccws;
 		if ((irb->scsw.cmd.actl & SCSW_ACTL_SUSPENDED) ||
 		    (irb->scsw.cmd.cstat & SCHN_STAT_PCI))

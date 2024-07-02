@@ -34,9 +34,6 @@
 #include <net/arp.h>
 #include "rtllib.h"
 
-u32 rt_global_debug_component = COMP_ERR;
-EXPORT_SYMBOL(rt_global_debug_component);
-
 static inline int rtllib_networks_allocate(struct rtllib_device *ieee)
 {
 	if (ieee->networks)
@@ -114,7 +111,6 @@ struct net_device *alloc_rtllib(int sizeof_priv)
 	ieee->drop_unencrypted = 0;
 	ieee->privacy_invoked = 0;
 	ieee->ieee802_1x = 1;
-	ieee->raw_tx = 0;
 	ieee->hwsec_active = 0;
 
 	memset(ieee->swcamtable, 0, sizeof(struct sw_cam_table) * 32);
@@ -126,9 +122,9 @@ struct net_device *alloc_rtllib(int sizeof_priv)
 	if (!ieee->ht_info)
 		goto free_softmac;
 
-	HTUpdateDefaultSetting(ieee);
-	HTInitializeHTInfo(ieee);
-	TSInitialize(ieee);
+	ht_update_default_setting(ieee);
+	ht_initialize_ht_info(ieee);
+	rtllib_ts_init(ieee);
 	for (i = 0; i < IEEE_IBSS_MAC_HASH_SIZE; i++)
 		INIT_LIST_HEAD(&ieee->ibss_mac_hash[i]);
 

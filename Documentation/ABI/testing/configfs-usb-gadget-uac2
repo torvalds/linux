@@ -35,4 +35,6 @@ Description:
 		req_number		the number of pre-allocated requests
 					for both capture and playback
 		function_name		name of the interface
+		c_terminal_type		code of the capture terminal type
+		p_terminal_type		code of the playback terminal type
 		=====================	=======================================

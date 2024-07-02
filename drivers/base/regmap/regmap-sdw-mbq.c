@@ -97,5 +97,5 @@ struct regmap *__devm_regmap_init_sdw_mbq(struct sdw_slave *sdw,
 }
 EXPORT_SYMBOL_GPL(__devm_regmap_init_sdw_mbq);
 
-MODULE_DESCRIPTION("Regmap SoundWire MBQ Module");
+MODULE_DESCRIPTION("regmap SoundWire MBQ Module");
 MODULE_LICENSE("GPL");

@@ -131,8 +131,20 @@ static inline bool local_try_cmpxchg(local_t *l, long *old, long new)
 				 (typeof(l->a.counter) *) old, new);
 }
 
-/* Always has a lock prefix */
-#define local_xchg(l, n) (xchg(&((l)->a.counter), (n)))
+/*
+ * Implement local_xchg using CMPXCHG instruction without the LOCK prefix.
+ * XCHG is expensive due to the implied LOCK prefix.  The processor
+ * cannot prefetch cachelines if XCHG is used.
+ */
+static __always_inline long
+local_xchg(local_t *l, long n)
+{
+	long c = local_read(l);
+
+	do { } while (!local_try_cmpxchg(l, &c, n));
+
+	return c;
+}
 
 /**
  * local_add_unless - add unless the number is already a given value

@@ -169,7 +169,8 @@ static inline void cmf_activate(void *area, unsigned int onoff)
 		"	lgr	2,%[mbo]\n"
 		"	schm\n"
 		:
-		: [r1] "d" ((unsigned long)onoff), [mbo] "d" (area)
+		: [r1] "d" ((unsigned long)onoff),
+		  [mbo] "d" (virt_to_phys(area))
 		: "1", "2");
 }
 
@@ -501,8 +502,7 @@ static int alloc_cmb(struct ccw_device *cdev)
 		WARN_ON(!list_empty(&cmb_area.list));
 
 		spin_unlock(&cmb_area.lock);
-		mem = (void*)__get_free_pages(GFP_KERNEL | GFP_DMA,
-				 get_order(size));
+		mem = (void *)__get_free_pages(GFP_KERNEL, get_order(size));
 		spin_lock(&cmb_area.lock);
 
 		if (cmb_area.mem) {

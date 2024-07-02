@@ -30,7 +30,7 @@ struct aa_task_ctx {
 };
 
 int aa_replace_current_label(struct aa_label *label);
-int aa_set_current_onexec(struct aa_label *label, bool stack);
+void aa_set_current_onexec(struct aa_label *label, bool stack);
 int aa_set_current_hat(struct aa_label *label, u64 token);
 int aa_restore_previous_label(u64 cookie);
 struct aa_label *aa_get_task_label(struct task_struct *task);
@@ -91,8 +91,15 @@ static inline void aa_clear_task_ctx_trans(struct aa_task_ctx *ctx)
 	"segv usr2 pipe alrm term stkflt chld cont stop stp ttin ttou urg " \
 	"xcpu xfsz vtalrm prof winch io pwr sys emt lost"
 
-int aa_may_ptrace(struct aa_label *tracer, struct aa_label *tracee,
+int aa_may_ptrace(const struct cred *tracer_cred, struct aa_label *tracer,
+		  const struct cred *tracee_cred, struct aa_label *tracee,
 		  u32 request);
 
+
+
+#define AA_USERNS_CREATE	8
+
+int aa_profile_ns_perm(struct aa_profile *profile,
+		       struct apparmor_audit_data *ad, u32 request);
 
 #endif /* __AA_TASK_H */

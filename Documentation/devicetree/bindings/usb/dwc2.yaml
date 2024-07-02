@@ -172,6 +172,10 @@ properties:
 
   tpl-support: true
 
+  access-controllers:
+    minItems: 1
+    maxItems: 2
+
 dependencies:
   port: [ usb-role-switch ]
   role-switch-default-mode: [ usb-role-switch ]

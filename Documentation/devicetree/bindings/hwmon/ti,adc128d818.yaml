@@ -1,0 +1,63 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+
+$id: http://devicetree.org/schemas/hwmon/ti,adc128d818.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments ADC128D818 ADC System Monitor With Temperature Sensor
+
+maintainers:
+  - Javier Carrasco <javier.carrasco.cruz@gmail.com>
+
+description: |
+  The ADC128D818 is a 12-Bit, 8-Channel Analog to Digital Converter (ADC)
+  with a temperature sensor and an I2C interface.
+
+  Datasheets:
+    https://www.ti.com/product/ADC128D818
+
+properties:
+  compatible:
+    const: ti,adc128d818
+
+  reg:
+    maxItems: 1
+
+  ti,mode:
+    $ref: /schemas/types.yaml#/definitions/uint8
+    description: |
+      Operation mode.
+      Mode 0  - 7 single-ended voltage readings (IN0-IN6), 1 temperature
+      reading (internal).
+      Mode 1 - 8 single-ended voltage readings (IN0-IN7), no temperature.
+      Mode 2 - 4 pseudo-differential voltage readings
+      (IN0-IN1, IN3-IN2, IN4-IN5, IN7-IN6), 1 temperature reading (internal).
+      Mode 3 - 4 single-ended voltage readings (IN0-IN3), 2 pseudo-differential
+      voltage readings (IN4-IN5, IN7-IN6), 1 temperature reading (internal).
+    default: 0
+
+  vref-supply:
+    description:
+      The regulator to use as an external reference. If it does not exist, the
+      internal reference will be used.
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        adc@1d {
+            compatible = "ti,adc128d818";
+            reg = <0x1d>;
+            vref-supply = <&vref>;
+            ti,mode = /bits/ 8 <2>;
+        };
+    };

@@ -41,6 +41,7 @@
 #include "protocols/link_dp_dpia.h"
 #include "protocols/link_dp_phy.h"
 #include "protocols/link_dp_training.h"
+#include "protocols/link_dp_dpia_bw.h"
 #include "accessories/link_dp_trace.h"
 
 #include "link_enc_cfg.h"
@@ -515,8 +516,8 @@ static void query_hdcp_capability(enum signal_type signal, struct dc_link *link)
 static void read_current_link_settings_on_detect(struct dc_link *link)
 {
 	union lane_count_set lane_count_set = {0};
-	uint8_t link_bw_set;
-	uint8_t link_rate_set;
+	uint8_t link_bw_set = 0;
+	uint8_t link_rate_set = 0;
 	uint32_t read_dpcd_retry_cnt = 10;
 	enum dc_status status = DC_ERROR_UNEXPECTED;
 	int i;
@@ -879,7 +880,7 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 			(link->dpcd_sink_ext_caps.bits.oled == 1)) {
 			dpcd_set_source_specific_data(link);
 			msleep(post_oui_delay);
-			set_cached_brightness_aux(link);
+			set_default_brightness_aux(link);
 		}
 
 		return true;
@@ -991,6 +992,23 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 			if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA &&
 					link->reported_link_cap.link_rate > LINK_RATE_HIGH3)
 				link->reported_link_cap.link_rate = LINK_RATE_HIGH3;
+
+			/*
+			 * If this is DP over USB4 link then we need to:
+			 * - Enable BW ALLOC support on DPtx if applicable
+			 */
+			if (dc->config.usb4_bw_alloc_support) {
+				if (link_dp_dpia_set_dptx_usb4_bw_alloc_support(link)) {
+					/* update with non reduced link cap if bw allocation mode is supported */
+					if (link->dpia_bw_alloc_config.nrd_max_link_rate &&
+						link->dpia_bw_alloc_config.nrd_max_lane_count) {
+						link->reported_link_cap.link_rate =
+							link->dpia_bw_alloc_config.nrd_max_link_rate;
+						link->reported_link_cap.lane_count =
+							link->dpia_bw_alloc_config.nrd_max_lane_count;
+					}
+				}
+			}
 			break;
 		}
 
@@ -1087,6 +1105,9 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 
 		if (sink->edid_caps.panel_patch.skip_scdc_overwrite)
 			link->ctx->dc->debug.hdmi20_disable = true;
+
+		if (sink->edid_caps.panel_patch.remove_sink_ext_caps)
+			link->dpcd_sink_ext_caps.raw = 0;
 
 		if (dc_is_hdmi_signal(link->connector_signal))
 			read_scdc_caps(link->ddc, link->local_sink);

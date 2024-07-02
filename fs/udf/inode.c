@@ -357,7 +357,7 @@ int udf_expand_file_adinicb(struct inode *inode)
 		return 0;
 	}
 
-	page = find_or_create_page(inode->i_mapping, 0, GFP_NOFS);
+	page = find_or_create_page(inode->i_mapping, 0, GFP_KERNEL);
 	if (!page)
 		return -ENOMEM;
 

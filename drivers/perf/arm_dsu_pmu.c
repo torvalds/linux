@@ -230,15 +230,6 @@ static const struct attribute_group *dsu_pmu_attr_groups[] = {
 	NULL,
 };
 
-static int dsu_pmu_get_online_cpu_any_but(struct dsu_pmu *dsu_pmu, int cpu)
-{
-	struct cpumask online_supported;
-
-	cpumask_and(&online_supported,
-			 &dsu_pmu->associated_cpus, cpu_online_mask);
-	return cpumask_any_but(&online_supported, cpu);
-}
-
 static inline bool dsu_pmu_counter_valid(struct dsu_pmu *dsu_pmu, u32 idx)
 {
 	return (idx < dsu_pmu->num_counters) ||
@@ -371,7 +362,7 @@ static inline u32 dsu_pmu_get_reset_overflow(void)
 	return __dsu_pmu_get_reset_overflow();
 }
 
-/**
+/*
  * dsu_pmu_set_event_period: Set the period for the counter.
  *
  * All DSU PMU event counters, except the cycle counter are 32bit
@@ -602,7 +593,7 @@ static struct dsu_pmu *dsu_pmu_alloc(struct platform_device *pdev)
 	return dsu_pmu;
 }
 
-/**
+/*
  * dsu_pmu_dt_get_cpus: Get the list of CPUs in the cluster
  * from device tree.
  */
@@ -632,7 +623,7 @@ static int dsu_pmu_dt_get_cpus(struct device *dev, cpumask_t *mask)
 	return 0;
 }
 
-/**
+/*
  * dsu_pmu_acpi_get_cpus: Get the list of CPUs in the cluster
  * from ACPI.
  */
@@ -751,6 +742,7 @@ static int dsu_pmu_device_probe(struct platform_device *pdev)
 
 	dsu_pmu->pmu = (struct pmu) {
 		.task_ctx_nr	= perf_invalid_context,
+		.parent		= &pdev->dev,
 		.module		= THIS_MODULE,
 		.pmu_enable	= dsu_pmu_enable,
 		.pmu_disable	= dsu_pmu_disable,
@@ -774,14 +766,12 @@ static int dsu_pmu_device_probe(struct platform_device *pdev)
 	return rc;
 }
 
-static int dsu_pmu_device_remove(struct platform_device *pdev)
+static void dsu_pmu_device_remove(struct platform_device *pdev)
 {
 	struct dsu_pmu *dsu_pmu = platform_get_drvdata(pdev);
 
 	perf_pmu_unregister(&dsu_pmu->pmu);
 	cpuhp_state_remove_instance(dsu_pmu_cpuhp_state, &dsu_pmu->cpuhp_node);
-
-	return 0;
 }
 
 static const struct of_device_id dsu_pmu_of_match[] = {
@@ -806,7 +796,7 @@ static struct platform_driver dsu_pmu_driver = {
 		.suppress_bind_attrs = true,
 	},
 	.probe = dsu_pmu_device_probe,
-	.remove = dsu_pmu_device_remove,
+	.remove_new = dsu_pmu_device_remove,
 };
 
 static int dsu_pmu_cpu_online(unsigned int cpu, struct hlist_node *node)
@@ -829,14 +819,16 @@ static int dsu_pmu_cpu_online(unsigned int cpu, struct hlist_node *node)
 
 static int dsu_pmu_cpu_teardown(unsigned int cpu, struct hlist_node *node)
 {
-	int dst;
-	struct dsu_pmu *dsu_pmu = hlist_entry_safe(node, struct dsu_pmu,
-						   cpuhp_node);
+	struct dsu_pmu *dsu_pmu;
+	unsigned int dst;
+
+	dsu_pmu = hlist_entry_safe(node, struct dsu_pmu, cpuhp_node);
 
 	if (!cpumask_test_and_clear_cpu(cpu, &dsu_pmu->active_cpu))
 		return 0;
 
-	dst = dsu_pmu_get_online_cpu_any_but(dsu_pmu, cpu);
+	dst = cpumask_any_and_but(&dsu_pmu->associated_cpus,
+				  cpu_online_mask, cpu);
 	/* If there are no active CPUs in the DSU, leave IRQ disabled */
 	if (dst >= nr_cpu_ids)
 		return 0;

@@ -1542,9 +1542,10 @@ int drbd_bitmap_io_from_worker(struct drbd_device *device,
 
 int notify_resource_state_change(struct sk_buff *skb,
 				  unsigned int seq,
-				  struct drbd_resource_state_change *resource_state_change,
+				  void *state_change,
 				  enum drbd_notification_type type)
 {
+	struct drbd_resource_state_change *resource_state_change = state_change;
 	struct drbd_resource *resource = resource_state_change->resource;
 	struct resource_info resource_info = {
 		.res_role = resource_state_change->role[NEW],
@@ -1558,13 +1559,14 @@ int notify_resource_state_change(struct sk_buff *skb,
 
 int notify_connection_state_change(struct sk_buff *skb,
 				    unsigned int seq,
-				    struct drbd_connection_state_change *connection_state_change,
+				    void *state_change,
 				    enum drbd_notification_type type)
 {
-	struct drbd_connection *connection = connection_state_change->connection;
+	struct drbd_connection_state_change *p = state_change;
+	struct drbd_connection *connection = p->connection;
 	struct connection_info connection_info = {
-		.conn_connection_state = connection_state_change->cstate[NEW],
-		.conn_role = connection_state_change->peer_role[NEW],
+		.conn_connection_state = p->cstate[NEW],
+		.conn_role = p->peer_role[NEW],
 	};
 
 	return notify_connection_state(skb, seq, connection, &connection_info, type);
@@ -1572,9 +1574,10 @@ int notify_connection_state_change(struct sk_buff *skb,
 
 int notify_device_state_change(struct sk_buff *skb,
 				unsigned int seq,
-				struct drbd_device_state_change *device_state_change,
+				void *state_change,
 				enum drbd_notification_type type)
 {
+	struct drbd_device_state_change *device_state_change = state_change;
 	struct drbd_device *device = device_state_change->device;
 	struct device_info device_info = {
 		.dev_disk_state = device_state_change->disk_state[NEW],
@@ -1585,9 +1588,10 @@ int notify_device_state_change(struct sk_buff *skb,
 
 int notify_peer_device_state_change(struct sk_buff *skb,
 				     unsigned int seq,
-				     struct drbd_peer_device_state_change *p,
+				     void *state_change,
 				     enum drbd_notification_type type)
 {
+	struct drbd_peer_device_state_change *p = state_change;
 	struct drbd_peer_device *peer_device = p->peer_device;
 	struct peer_device_info peer_device_info = {
 		.peer_repl_state = p->repl_state[NEW],
@@ -1605,8 +1609,8 @@ static void broadcast_state_change(struct drbd_state_change *state_change)
 	struct drbd_resource_state_change *resource_state_change = &state_change->resource[0];
 	bool resource_state_has_changed;
 	unsigned int n_device, n_connection, n_peer_device, n_peer_devices;
-	int (*last_func)(struct sk_buff *, unsigned int, void *,
-			  enum drbd_notification_type) = NULL;
+	int (*last_func)(struct sk_buff *, unsigned int,
+		void *, enum drbd_notification_type) = NULL;
 	void *last_arg = NULL;
 
 #define HAS_CHANGED(state) ((state)[OLD] != (state)[NEW])
@@ -1616,7 +1620,7 @@ static void broadcast_state_change(struct drbd_state_change *state_change)
 	})
 #define REMEMBER_STATE_CHANGE(func, arg, type) \
 	({ FINAL_STATE_CHANGE(type | NOTIFY_CONTINUES); \
-	   last_func = (typeof(last_func))func; \
+	   last_func = func; \
 	   last_arg = arg; \
 	 })
 

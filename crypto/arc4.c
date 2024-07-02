@@ -14,6 +14,8 @@
 #include <linux/module.h>
 #include <linux/sched.h>
 
+#define ARC4_ALIGN __alignof__(struct arc4_ctx)
+
 static int crypto_arc4_setkey(struct crypto_lskcipher *tfm, const u8 *in_key,
 			      unsigned int key_len)
 {
@@ -23,9 +25,14 @@ static int crypto_arc4_setkey(struct crypto_lskcipher *tfm, const u8 *in_key,
 }
 
 static int crypto_arc4_crypt(struct crypto_lskcipher *tfm, const u8 *src,
-			     u8 *dst, unsigned nbytes, u8 *iv, bool final)
+			     u8 *dst, unsigned nbytes, u8 *siv, u32 flags)
 {
 	struct arc4_ctx *ctx = crypto_lskcipher_ctx(tfm);
+
+	if (!(flags & CRYPTO_LSKCIPHER_FLAG_CONT))
+		memcpy(siv, ctx, sizeof(*ctx));
+
+	ctx = (struct arc4_ctx *)siv;
 
 	arc4_crypt(ctx, dst, src, nbytes);
 	return 0;
@@ -45,9 +52,11 @@ static struct lskcipher_alg arc4_alg = {
 	.co.base.cra_priority		=	100,
 	.co.base.cra_blocksize		=	ARC4_BLOCK_SIZE,
 	.co.base.cra_ctxsize		=	sizeof(struct arc4_ctx),
+	.co.base.cra_alignmask		=	ARC4_ALIGN - 1,
 	.co.base.cra_module		=	THIS_MODULE,
 	.co.min_keysize			=	ARC4_MIN_KEY_SIZE,
 	.co.max_keysize			=	ARC4_MAX_KEY_SIZE,
+	.co.statesize			=	sizeof(struct arc4_ctx),
 	.setkey				=	crypto_arc4_setkey,
 	.encrypt			=	crypto_arc4_crypt,
 	.decrypt			=	crypto_arc4_crypt,

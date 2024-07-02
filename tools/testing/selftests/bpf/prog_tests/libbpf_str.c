@@ -87,7 +87,7 @@ static void test_libbpf_bpf_link_type_str(void)
 		const char *link_type_str;
 		char buf[256];
 
-		if (link_type == MAX_BPF_LINK_TYPE)
+		if (link_type == __MAX_BPF_LINK_TYPE)
 			continue;
 
 		link_type_name = btf__str_by_offset(btf, e->name_off);
@@ -131,6 +131,9 @@ static void test_libbpf_bpf_map_type_str(void)
 		const char *map_type_name;
 		const char *map_type_str;
 		char buf[256];
+
+		if (map_type == __MAX_BPF_MAP_TYPE)
+			continue;
 
 		map_type_name = btf__str_by_offset(btf, e->name_off);
 		map_type_str = libbpf_bpf_map_type_str(map_type);
@@ -185,6 +188,9 @@ static void test_libbpf_bpf_prog_type_str(void)
 		const char *prog_type_name;
 		const char *prog_type_str;
 		char buf[256];
+
+		if (prog_type == __MAX_BPF_PROG_TYPE)
+			continue;
 
 		prog_type_name = btf__str_by_offset(btf, e->name_off);
 		prog_type_str = libbpf_bpf_prog_type_str(prog_type);

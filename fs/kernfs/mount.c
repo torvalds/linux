@@ -125,9 +125,6 @@ static struct dentry *__kernfs_fh_to_dentry(struct super_block *sb,
 
 	inode = kernfs_get_inode(sb, kn);
 	kernfs_put(kn);
-	if (!inode)
-		return ERR_PTR(-ESTALE);
-
 	return d_obtain_alias(inode);
 }
 
@@ -361,7 +358,9 @@ int kernfs_get_tree(struct fs_context *fc)
 		}
 		sb->s_flags |= SB_ACTIVE;
 
-		uuid_gen(&sb->s_uuid);
+		uuid_t uuid;
+		uuid_gen(&uuid);
+		super_set_uuid(sb, uuid.b, sizeof(uuid));
 
 		down_write(&root->kernfs_supers_rwsem);
 		list_add(&info->node, &info->root->supers);

@@ -2,7 +2,7 @@
 /*
  * Intel Broxton-P I2S Machine Driver
  *
- * Copyright (C) 2014-2016, Intel Corporation. All rights reserved.
+ * Copyright (C) 2014-2016, Intel Corporation
  *
  * Modified from:
  *   Intel Skylake I2S Machine driver
@@ -574,6 +574,7 @@ static struct snd_soc_card broxton_rt298 = {
 	.dapm_routes = broxton_rt298_map,
 	.num_dapm_routes = ARRAY_SIZE(broxton_rt298_map),
 	.fully_routed = true,
+	.disable_route_checks = true,
 	.late_probe = bxt_card_late_probe,
 
 };
@@ -604,7 +605,8 @@ static int broxton_audio_probe(struct platform_device *pdev)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(broxton_rt298_dais); i++) {
-		if (!strncmp(card->dai_link[i].codecs->name, "i2c-INT343A:00",
+		if (card->dai_link[i].codecs->name &&
+		    !strncmp(card->dai_link[i].codecs->name, "i2c-INT343A:00",
 			     I2C_NAME_SIZE)) {
 			if (!strncmp(card->name, "broxton-rt298",
 				     PLATFORM_NAME_SIZE)) {

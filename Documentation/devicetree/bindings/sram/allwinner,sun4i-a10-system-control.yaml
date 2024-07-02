@@ -56,7 +56,7 @@ properties:
   ranges: true
 
 patternProperties:
-  "^sram@[a-z0-9]+":
+  "^sram@[a-f0-9]+":
     $ref: /schemas/sram/sram.yaml#
     unevaluatedProperties: false
 

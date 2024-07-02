@@ -125,32 +125,23 @@ static inline pte_t ptep_flush_lazy(struct mm_struct *mm,
 
 static inline pgste_t pgste_get_lock(pte_t *ptep)
 {
-	unsigned long new = 0;
+	unsigned long value = 0;
 #ifdef CONFIG_PGSTE
-	unsigned long old;
+	unsigned long *ptr = (unsigned long *)(ptep + PTRS_PER_PTE);
 
-	asm(
-		"	lg	%0,%2\n"
-		"0:	lgr	%1,%0\n"
-		"	nihh	%0,0xff7f\n"	/* clear PCL bit in old */
-		"	oihh	%1,0x0080\n"	/* set PCL bit in new */
-		"	csg	%0,%1,%2\n"
-		"	jl	0b\n"
-		: "=&d" (old), "=&d" (new), "=Q" (ptep[PTRS_PER_PTE])
-		: "Q" (ptep[PTRS_PER_PTE]) : "cc", "memory");
+	do {
+		value = __atomic64_or_barrier(PGSTE_PCL_BIT, ptr);
+	} while (value & PGSTE_PCL_BIT);
+	value |= PGSTE_PCL_BIT;
 #endif
-	return __pgste(new);
+	return __pgste(value);
 }
 
 static inline void pgste_set_unlock(pte_t *ptep, pgste_t pgste)
 {
 #ifdef CONFIG_PGSTE
-	asm(
-		"	nihh	%1,0xff7f\n"	/* clear PCL bit */
-		"	stg	%1,%0\n"
-		: "=Q" (ptep[PTRS_PER_PTE])
-		: "d" (pgste_val(pgste)), "Q" (ptep[PTRS_PER_PTE])
-		: "cc", "memory");
+	barrier();
+	WRITE_ONCE(*(unsigned long *)(ptep + PTRS_PER_PTE), pgste_val(pgste) & ~PGSTE_PCL_BIT);
 #endif
 }
 
@@ -479,7 +470,7 @@ static int pmd_lookup(struct mm_struct *mm, unsigned long addr, pmd_t **pmdp)
 		return -ENOENT;
 
 	/* Large PUDs are not supported yet. */
-	if (pud_large(*pud))
+	if (pud_leaf(*pud))
 		return -EFAULT;
 
 	*pmdp = pmd_offset(pud, addr);
@@ -730,9 +721,9 @@ static void ptep_zap_swap_entry(struct mm_struct *mm, swp_entry_t entry)
 	if (!non_swap_entry(entry))
 		dec_mm_counter(mm, MM_SWAPENTS);
 	else if (is_migration_entry(entry)) {
-		struct page *page = pfn_swap_entry_to_page(entry);
+		struct folio *folio = pfn_swap_entry_folio(entry);
 
-		dec_mm_counter(mm, mm_counter(page));
+		dec_mm_counter(mm, mm_counter(folio));
 	}
 	free_swap_and_cache(entry);
 }
@@ -756,7 +747,7 @@ void ptep_zap_unused(struct mm_struct *mm, unsigned long addr,
 		pte_clear(mm, addr, ptep);
 	}
 	if (reset)
-		pgste_val(pgste) &= ~_PGSTE_GPS_USAGE_MASK;
+		pgste_val(pgste) &= ~(_PGSTE_GPS_USAGE_MASK | _PGSTE_GPS_NODAT);
 	pgste_set_unlock(ptep, pgste);
 	preempt_enable();
 }
@@ -836,7 +827,7 @@ again:
 		return key ? -EFAULT : 0;
 	}
 
-	if (pmd_large(*pmdp)) {
+	if (pmd_leaf(*pmdp)) {
 		paddr = pmd_val(*pmdp) & HPAGE_MASK;
 		paddr |= addr & ~HPAGE_MASK;
 		/*
@@ -947,7 +938,7 @@ again:
 		return 0;
 	}
 
-	if (pmd_large(*pmdp)) {
+	if (pmd_leaf(*pmdp)) {
 		paddr = pmd_val(*pmdp) & HPAGE_MASK;
 		paddr |= addr & ~HPAGE_MASK;
 		cc = page_reset_referenced(paddr);
@@ -1011,7 +1002,7 @@ again:
 		return 0;
 	}
 
-	if (pmd_large(*pmdp)) {
+	if (pmd_leaf(*pmdp)) {
 		paddr = pmd_val(*pmdp) & HPAGE_MASK;
 		paddr |= addr & ~HPAGE_MASK;
 		*key = page_get_storage_key(paddr);

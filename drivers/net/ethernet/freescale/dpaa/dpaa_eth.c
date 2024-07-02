@@ -2995,7 +2995,7 @@ static int dpaa_change_mtu(struct net_device *net_dev, int new_mtu)
 	if (priv->xdp_prog && !xdp_validate_mtu(priv, new_mtu))
 		return -EINVAL;
 
-	net_dev->mtu = new_mtu;
+	WRITE_ONCE(net_dev->mtu, new_mtu);
 	return 0;
 }
 

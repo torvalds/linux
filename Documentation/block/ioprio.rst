@@ -6,17 +6,16 @@ Block io priorities
 Intro
 -----
 
-With the introduction of cfq v3 (aka cfq-ts or time sliced cfq), basic io
-priorities are supported for reads on files.  This enables users to io nice
-processes or process groups, similar to what has been possible with cpu
-scheduling for ages.  This document mainly details the current possibilities
-with cfq; other io schedulers do not support io priorities thus far.
+The io priority feature enables users to io nice processes or process groups,
+similar to what has been possible with cpu scheduling for ages. Support for io
+priorities is io scheduler dependent and currently supported by bfq and
+mq-deadline.
 
 Scheduling classes
 ------------------
 
-CFQ implements three generic scheduling classes that determine how io is
-served for a process.
+Three generic scheduling classes are implemented for io priorities that
+determine how io is served for a process.
 
 IOPRIO_CLASS_RT: This is the realtime io class. This scheduling class is given
 higher priority than any other in the system, processes from this class are

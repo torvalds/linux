@@ -26,16 +26,26 @@ keystone_netcp_ethss-y := netcp_ethss.o netcp_sgmii.o netcp_xgbepcsr.o cpsw_ale.
 obj-$(CONFIG_TI_K3_CPPI_DESC_POOL) += k3-cppi-desc-pool.o
 
 obj-$(CONFIG_TI_K3_AM65_CPSW_NUSS) += ti-am65-cpsw-nuss.o
-ti-am65-cpsw-nuss-y := am65-cpsw-nuss.o cpsw_sl.o am65-cpsw-ethtool.o cpsw_ale.o am65-cpsw-qos.o
+ti-am65-cpsw-nuss-y := am65-cpsw-nuss.o cpsw_sl.o am65-cpsw-ethtool.o cpsw_ale.o
+ti-am65-cpsw-nuss-$(CONFIG_TI_AM65_CPSW_QOS) += am65-cpsw-qos.o
 ti-am65-cpsw-nuss-$(CONFIG_TI_K3_AM65_CPSW_SWITCHDEV) += am65-cpsw-switchdev.o
 obj-$(CONFIG_TI_K3_AM65_CPTS) += am65-cpts.o
 
 obj-$(CONFIG_TI_ICSSG_PRUETH) += icssg-prueth.o
 icssg-prueth-y := icssg/icssg_prueth.o \
+		  icssg/icssg_common.o \
 		  icssg/icssg_classifier.o \
 		  icssg/icssg_queues.o \
 		  icssg/icssg_config.o \
 		  icssg/icssg_mii_cfg.o \
 		  icssg/icssg_stats.o \
 		  icssg/icssg_ethtool.o
+obj-$(CONFIG_TI_ICSSG_PRUETH_SR1) += icssg-prueth-sr1.o
+icssg-prueth-sr1-y := icssg/icssg_prueth_sr1.o \
+		      icssg/icssg_common.o \
+		      icssg/icssg_classifier.o \
+		      icssg/icssg_config.o \
+		      icssg/icssg_mii_cfg.o \
+		      icssg/icssg_stats.o \
+		      icssg/icssg_ethtool.o
 obj-$(CONFIG_TI_ICSS_IEP) += icssg/icss_iep.o

@@ -51,11 +51,26 @@ struct hccs_mbox_client_info {
 	struct pcc_mbox_chan *pcc_chan;
 	u64 deadline_us;
 	void __iomem *pcc_comm_addr;
+	struct completion done;
+};
+
+struct hccs_desc;
+
+struct hccs_verspecific_data {
+	void (*rx_callback)(struct mbox_client *cl, void *mssg);
+	int (*wait_cmd_complete)(struct hccs_dev *hdev);
+	void (*fill_pcc_shared_mem)(struct hccs_dev *hdev,
+				    u8 cmd, struct hccs_desc *desc,
+				    void __iomem *comm_space,
+				    u16 space_size);
+	u16 shared_mem_size;
+	bool has_txdone_irq;
 };
 
 struct hccs_dev {
 	struct device *dev;
 	struct acpi_device *acpi_dev;
+	const struct hccs_verspecific_data *verspec_data;
 	u64 caps;
 	u8 chip_num;
 	struct hccs_chip_info *chips;

@@ -284,7 +284,7 @@ static void a7xx_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit)
 
 	a6xx_set_pagetable(a6xx_gpu, ring, submit->queue->ctx);
 
-	get_stats_counter(ring, REG_A6XX_RBBM_PERFCTR_CP(0),
+	get_stats_counter(ring, REG_A7XX_RBBM_PERFCTR_CP(0),
 		rbmemptr_stats(ring, index, cpcycles_start));
 	get_stats_counter(ring, REG_A6XX_CP_ALWAYS_ON_COUNTER,
 		rbmemptr_stats(ring, index, alwayson_start));
@@ -330,7 +330,7 @@ static void a7xx_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit)
 	OUT_PKT7(ring, CP_SET_MARKER, 1);
 	OUT_RING(ring, 0x00e); /* IB1LIST end */
 
-	get_stats_counter(ring, REG_A6XX_RBBM_PERFCTR_CP(0),
+	get_stats_counter(ring, REG_A7XX_RBBM_PERFCTR_CP(0),
 		rbmemptr_stats(ring, index, cpcycles_end));
 	get_stats_counter(ring, REG_A6XX_CP_ALWAYS_ON_COUNTER,
 		rbmemptr_stats(ring, index, alwayson_end));
@@ -837,6 +837,65 @@ const struct adreno_reglist a690_hwcg[] = {
 	{}
 };
 
+const struct adreno_reglist a702_hwcg[] = {
+	{ REG_A6XX_RBBM_CLOCK_CNTL_SP0, 0x22222222 },
+	{ REG_A6XX_RBBM_CLOCK_CNTL2_SP0, 0x02222220 },
+	{ REG_A6XX_RBBM_CLOCK_DELAY_SP0, 0x00000081 },
+	{ REG_A6XX_RBBM_CLOCK_HYST_SP0, 0x0000f3cf },
+	{ REG_A6XX_RBBM_CLOCK_CNTL_TP0, 0x22222222 },
+	{ REG_A6XX_RBBM_CLOCK_CNTL2_TP0, 0x22222222 },
+	{ REG_A6XX_RBBM_CLOCK_CNTL3_TP0, 0x22222222 },
+	{ REG_A6XX_RBBM_CLOCK_CNTL4_TP0, 0x00022222 },
+	{ REG_A6XX_RBBM_CLOCK_DELAY_TP0, 0x11111111 },
+	{ REG_A6XX_RBBM_CLOCK_DELAY2_TP0, 0x11111111 },
+	{ REG_A6XX_RBBM_CLOCK_DELAY3_TP0, 0x11111111 },
+	{ REG_A6XX_RBBM_CLOCK_DELAY4_TP0, 0x00011111 },
+	{ REG_A6XX_RBBM_CLOCK_HYST_TP0, 0x77777777 },
+	{ REG_A6XX_RBBM_CLOCK_HYST2_TP0, 0x77777777 },
+	{ REG_A6XX_RBBM_CLOCK_HYST3_TP0, 0x77777777 },
+	{ REG_A6XX_RBBM_CLOCK_HYST4_TP0, 0x00077777 },
+	{ REG_A6XX_RBBM_CLOCK_CNTL_RB0, 0x22222222 },
+	{ REG_A6XX_RBBM_CLOCK_CNTL2_RB0, 0x01202222 },
+	{ REG_A6XX_RBBM_CLOCK_CNTL_CCU0, 0x00002220 },
+	{ REG_A6XX_RBBM_CLOCK_HYST_RB_CCU0, 0x00040f00 },
+	{ REG_A6XX_RBBM_CLOCK_CNTL_RAC, 0x05522022 },
+	{ REG_A6XX_RBBM_CLOCK_CNTL2_RAC, 0x00005555 },
+	{ REG_A6XX_RBBM_CLOCK_DELAY_RAC, 0x00000011 },
+	{ REG_A6XX_RBBM_CLOCK_HYST_RAC, 0x00445044 },
+	{ REG_A6XX_RBBM_CLOCK_CNTL_TSE_RAS_RBBM, 0x04222222 },
+	{ REG_A6XX_RBBM_CLOCK_MODE_VFD, 0x00002222 },
+	{ REG_A6XX_RBBM_CLOCK_MODE_GPC, 0x02222222 },
+	{ REG_A6XX_RBBM_CLOCK_DELAY_HLSQ_2, 0x00000002 },
+	{ REG_A6XX_RBBM_CLOCK_MODE_HLSQ, 0x00002222 },
+	{ REG_A6XX_RBBM_CLOCK_DELAY_TSE_RAS_RBBM, 0x00004000 },
+	{ REG_A6XX_RBBM_CLOCK_DELAY_VFD, 0x00002222 },
+	{ REG_A6XX_RBBM_CLOCK_DELAY_GPC, 0x00000200 },
+	{ REG_A6XX_RBBM_CLOCK_DELAY_HLSQ, 0x00000000 },
+	{ REG_A6XX_RBBM_CLOCK_HYST_TSE_RAS_RBBM, 0x00000000 },
+	{ REG_A6XX_RBBM_CLOCK_HYST_VFD, 0x00000000 },
+	{ REG_A6XX_RBBM_CLOCK_HYST_GPC, 0x04104004 },
+	{ REG_A6XX_RBBM_CLOCK_HYST_HLSQ, 0x00000000 },
+	{ REG_A6XX_RBBM_CLOCK_CNTL_UCHE, 0x22222222 },
+	{ REG_A6XX_RBBM_CLOCK_HYST_UCHE, 0x00000004 },
+	{ REG_A6XX_RBBM_CLOCK_DELAY_UCHE, 0x00000002 },
+	{ REG_A6XX_RBBM_ISDB_CNT, 0x00000182 },
+	{ REG_A6XX_RBBM_RAC_THRESHOLD_CNT, 0x00000000 },
+	{ REG_A6XX_RBBM_SP_HYST_CNT, 0x00000000 },
+	{ REG_A6XX_RBBM_CLOCK_CNTL_GMU_GX, 0x00000222 },
+	{ REG_A6XX_RBBM_CLOCK_DELAY_GMU_GX, 0x00000111 },
+	{ REG_A6XX_RBBM_CLOCK_HYST_GMU_GX, 0x00000555 },
+	{ REG_A6XX_RBBM_CLOCK_CNTL_FCHE, 0x00000222 },
+	{ REG_A6XX_RBBM_CLOCK_DELAY_FCHE, 0x00000000 },
+	{ REG_A6XX_RBBM_CLOCK_HYST_FCHE, 0x00000000 },
+	{ REG_A6XX_RBBM_CLOCK_CNTL_GLC, 0x00222222 },
+	{ REG_A6XX_RBBM_CLOCK_DELAY_GLC, 0x00000000 },
+	{ REG_A6XX_RBBM_CLOCK_HYST_GLC, 0x00000000 },
+	{ REG_A6XX_RBBM_CLOCK_CNTL_MHUB, 0x00000002 },
+	{ REG_A6XX_RBBM_CLOCK_DELAY_MHUB, 0x00000000 },
+	{ REG_A6XX_RBBM_CLOCK_HYST_MHUB, 0x00000000 },
+	{}
+};
+
 const struct adreno_reglist a730_hwcg[] = {
 	{ REG_A6XX_RBBM_CLOCK_CNTL_SP0, 0x02222222 },
 	{ REG_A6XX_RBBM_CLOCK_CNTL2_SP0, 0x02022222 },
@@ -961,13 +1020,15 @@ static void a6xx_set_hwcg(struct msm_gpu *gpu, bool state)
 	unsigned int i;
 	u32 val, clock_cntl_on, cgc_mode;
 
-	if (!adreno_gpu->info->hwcg)
+	if (!(adreno_gpu->info->hwcg || adreno_is_a7xx(adreno_gpu)))
 		return;
 
 	if (adreno_is_a630(adreno_gpu))
 		clock_cntl_on = 0x8aa8aa02;
 	else if (adreno_is_a610(adreno_gpu))
 		clock_cntl_on = 0xaaa8aa82;
+	else if (adreno_is_a702(adreno_gpu))
+		clock_cntl_on = 0xaaaaaa82;
 	else
 		clock_cntl_on = 0x8aa8aa82;
 
@@ -982,6 +1043,25 @@ static void a6xx_set_hwcg(struct msm_gpu *gpu, bool state)
 			  state ? 0x5555 : 0);
 	}
 
+	if (!adreno_gpu->info->hwcg) {
+		gpu_write(gpu, REG_A7XX_RBBM_CLOCK_CNTL_GLOBAL, 1);
+		gpu_write(gpu, REG_A7XX_RBBM_CGC_GLOBAL_LOAD_CMD, state ? 1 : 0);
+
+		if (state) {
+			gpu_write(gpu, REG_A7XX_RBBM_CGC_P2S_TRIG_CMD, 1);
+
+			if (gpu_poll_timeout(gpu, REG_A7XX_RBBM_CGC_P2S_STATUS, val,
+					     val & A7XX_RBBM_CGC_P2S_STATUS_TXDONE, 1, 10)) {
+				dev_err(&gpu->pdev->dev, "RBBM_CGC_P2S_STATUS TXDONE Poll failed\n");
+				return;
+			}
+
+			gpu_write(gpu, REG_A7XX_RBBM_CLOCK_CNTL_GLOBAL, 0);
+		}
+
+		return;
+	}
+
 	val = gpu_read(gpu, REG_A6XX_RBBM_CLOCK_CNTL);
 
 	/* Don't re-program the registers if they are already correct */
@@ -989,14 +1069,14 @@ static void a6xx_set_hwcg(struct msm_gpu *gpu, bool state)
 		return;
 
 	/* Disable SP clock before programming HWCG registers */
-	if (!adreno_is_a610(adreno_gpu) && !adreno_is_a7xx(adreno_gpu))
+	if (!adreno_is_a610_family(adreno_gpu) && !adreno_is_a7xx(adreno_gpu))
 		gmu_rmw(gmu, REG_A6XX_GPU_GMU_GX_SPTPRAC_CLOCK_CONTROL, 1, 0);
 
 	for (i = 0; (reg = &adreno_gpu->info->hwcg[i], reg->offset); i++)
 		gpu_write(gpu, reg->offset, state ? reg->value : 0);
 
 	/* Enable SP clock */
-	if (!adreno_is_a610(adreno_gpu) && !adreno_is_a7xx(adreno_gpu))
+	if (!adreno_is_a610_family(adreno_gpu) && !adreno_is_a7xx(adreno_gpu))
 		gmu_rmw(gmu, REG_A6XX_GPU_GMU_GX_SPTPRAC_CLOCK_CONTROL, 0, 1);
 
 	gpu_write(gpu, REG_A6XX_RBBM_CLOCK_CNTL, state ? clock_cntl_on : 0);
@@ -1175,8 +1255,9 @@ static const u32 a730_protect[] = {
 	A6XX_PROTECT_NORDWR(0x00699, 0x01e9),
 	A6XX_PROTECT_NORDWR(0x008a0, 0x0008),
 	A6XX_PROTECT_NORDWR(0x008ab, 0x0024),
-	/* 0x008d0-0x008dd are unprotected on purpose for tools like perfetto */
-	A6XX_PROTECT_RDONLY(0x008de, 0x0154),
+	/* 0x008d0-0x008dd and 0x008e0-0x008e6 are unprotected on purpose for tools like perfetto */
+	A6XX_PROTECT_NORDWR(0x008de, 0x0001),
+	A6XX_PROTECT_RDONLY(0x008e7, 0x014b),
 	A6XX_PROTECT_NORDWR(0x00900, 0x004d),
 	A6XX_PROTECT_NORDWR(0x0098d, 0x00b2),
 	A6XX_PROTECT_NORDWR(0x00a41, 0x01be),
@@ -1211,8 +1292,7 @@ static const u32 a730_protect[] = {
 	A6XX_PROTECT_RDONLY(0x1f844, 0x007b),
 	A6XX_PROTECT_NORDWR(0x1f860, 0x0000),
 	A6XX_PROTECT_NORDWR(0x1f878, 0x002a),
-	/* CP_PROTECT_REG[44, 46] are left untouched! */
-	0,
+	/* CP_PROTECT_REG[45, 46] are left untouched! */
 	0,
 	0,
 	A6XX_PROTECT_NORDWR(0x1f8c0, 0x00000),
@@ -1224,7 +1304,7 @@ static void a6xx_set_cp_protect(struct msm_gpu *gpu)
 	const u32 *regs = a6xx_protect;
 	unsigned i, count, count_max;
 
-	if (adreno_is_a650(adreno_gpu)) {
+	if (adreno_is_a650(adreno_gpu) || adreno_is_a702(adreno_gpu)) {
 		regs = a650_protect;
 		count = ARRAY_SIZE(a650_protect);
 		count_max = 48;
@@ -1239,7 +1319,9 @@ static void a6xx_set_cp_protect(struct msm_gpu *gpu)
 		count = ARRAY_SIZE(a660_protect);
 		count_max = 48;
 		BUILD_BUG_ON(ARRAY_SIZE(a660_protect) > 48);
-	} else if (adreno_is_a730(adreno_gpu) || adreno_is_a740(adreno_gpu)) {
+	} else if (adreno_is_a730(adreno_gpu) ||
+		   adreno_is_a740(adreno_gpu) ||
+		   adreno_is_a750(adreno_gpu)) {
 		regs = a730_protect;
 		count = ARRAY_SIZE(a730_protect);
 		count_max = 48;
@@ -1270,87 +1352,101 @@ static void a6xx_set_cp_protect(struct msm_gpu *gpu)
 	gpu_write(gpu, REG_A6XX_CP_PROTECT(count_max - 1), regs[i]);
 }
 
+static void a6xx_calc_ubwc_config(struct adreno_gpu *gpu)
+{
+	/* Unknown, introduced with A650 family, related to UBWC mode/ver 4 */
+	gpu->ubwc_config.rgb565_predicator = 0;
+	/* Unknown, introduced with A650 family */
+	gpu->ubwc_config.uavflagprd_inv = 0;
+	/* Whether the minimum access length is 64 bits */
+	gpu->ubwc_config.min_acc_len = 0;
+	/* Entirely magic, per-GPU-gen value */
+	gpu->ubwc_config.ubwc_mode = 0;
+	/*
+	 * The Highest Bank Bit value represents the bit of the highest DDR bank.
+	 * This should ideally use DRAM type detection.
+	 */
+	gpu->ubwc_config.highest_bank_bit = 15;
+
+	if (adreno_is_a610(gpu)) {
+		gpu->ubwc_config.highest_bank_bit = 13;
+		gpu->ubwc_config.min_acc_len = 1;
+		gpu->ubwc_config.ubwc_mode = 1;
+	}
+
+	if (adreno_is_a618(gpu))
+		gpu->ubwc_config.highest_bank_bit = 14;
+
+	if (adreno_is_a619(gpu))
+		/* TODO: Should be 14 but causes corruption at e.g. 1920x1200 on DP */
+		gpu->ubwc_config.highest_bank_bit = 13;
+
+	if (adreno_is_a619_holi(gpu))
+		gpu->ubwc_config.highest_bank_bit = 13;
+
+	if (adreno_is_a640_family(gpu))
+		gpu->ubwc_config.amsbc = 1;
+
+	if (adreno_is_a650(gpu) ||
+	    adreno_is_a660(gpu) ||
+	    adreno_is_a690(gpu) ||
+	    adreno_is_a730(gpu) ||
+	    adreno_is_a740_family(gpu)) {
+		/* TODO: get ddr type from bootloader and use 2 for LPDDR4 */
+		gpu->ubwc_config.highest_bank_bit = 16;
+		gpu->ubwc_config.amsbc = 1;
+		gpu->ubwc_config.rgb565_predicator = 1;
+		gpu->ubwc_config.uavflagprd_inv = 2;
+	}
+
+	if (adreno_is_7c3(gpu)) {
+		gpu->ubwc_config.highest_bank_bit = 14;
+		gpu->ubwc_config.amsbc = 1;
+		gpu->ubwc_config.rgb565_predicator = 1;
+		gpu->ubwc_config.uavflagprd_inv = 2;
+	}
+
+	if (adreno_is_a702(gpu)) {
+		gpu->ubwc_config.highest_bank_bit = 14;
+		gpu->ubwc_config.min_acc_len = 1;
+		gpu->ubwc_config.ubwc_mode = 2;
+	}
+}
+
 static void a6xx_set_ubwc_config(struct msm_gpu *gpu)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	/* Unknown, introduced with A650 family, related to UBWC mode/ver 4 */
-	u32 rgb565_predicator = 0;
-	/* Unknown, introduced with A650 family */
-	u32 uavflagprd_inv = 0;
-	/* Whether the minimum access length is 64 bits */
-	u32 min_acc_len = 0;
-	/* Entirely magic, per-GPU-gen value */
-	u32 ubwc_mode = 0;
 	/*
-	 * The Highest Bank Bit value represents the bit of the highest DDR bank.
-	 * We then subtract 13 from it (13 is the minimum value allowed by hw) and
-	 * write the lowest two bits of the remaining value as hbb_lo and the
-	 * one above it as hbb_hi to the hardware. This should ideally use DRAM
-	 * type detection.
+	 * We subtract 13 from the highest bank bit (13 is the minimum value
+	 * allowed by hw) and write the lowest two bits of the remaining value
+	 * as hbb_lo and the one above it as hbb_hi to the hardware.
 	 */
-	u32 hbb_hi = 0;
-	u32 hbb_lo = 2;
-	/* Unknown, introduced with A640/680 */
-	u32 amsbc = 0;
-
-	if (adreno_is_a610(adreno_gpu)) {
-		/* HBB = 14 */
-		hbb_lo = 1;
-		min_acc_len = 1;
-		ubwc_mode = 1;
-	}
-
-	/* a618 is using the hw default values */
-	if (adreno_is_a618(adreno_gpu))
-		return;
-
-	if (adreno_is_a619_holi(adreno_gpu))
-		hbb_lo = 0;
-
-	if (adreno_is_a640_family(adreno_gpu))
-		amsbc = 1;
-
-	if (adreno_is_a650(adreno_gpu) ||
-	    adreno_is_a660(adreno_gpu) ||
-	    adreno_is_a730(adreno_gpu) ||
-	    adreno_is_a740_family(adreno_gpu)) {
-		/* TODO: get ddr type from bootloader and use 2 for LPDDR4 */
-		hbb_lo = 3;
-		amsbc = 1;
-		rgb565_predicator = 1;
-		uavflagprd_inv = 2;
-	}
-
-	if (adreno_is_a690(adreno_gpu)) {
-		hbb_lo = 2;
-		amsbc = 1;
-		rgb565_predicator = 1;
-		uavflagprd_inv = 2;
-	}
-
-	if (adreno_is_7c3(adreno_gpu)) {
-		hbb_lo = 1;
-		amsbc = 1;
-		rgb565_predicator = 1;
-		uavflagprd_inv = 2;
-	}
+	BUG_ON(adreno_gpu->ubwc_config.highest_bank_bit < 13);
+	u32 hbb = adreno_gpu->ubwc_config.highest_bank_bit - 13;
+	u32 hbb_hi = hbb >> 2;
+	u32 hbb_lo = hbb & 3;
 
 	gpu_write(gpu, REG_A6XX_RB_NC_MODE_CNTL,
-		  rgb565_predicator << 11 | hbb_hi << 10 | amsbc << 4 |
-		  min_acc_len << 3 | hbb_lo << 1 | ubwc_mode);
+		  adreno_gpu->ubwc_config.rgb565_predicator << 11 |
+		  hbb_hi << 10 | adreno_gpu->ubwc_config.amsbc << 4 |
+		  adreno_gpu->ubwc_config.min_acc_len << 3 |
+		  hbb_lo << 1 | adreno_gpu->ubwc_config.ubwc_mode);
 
 	gpu_write(gpu, REG_A6XX_TPL1_NC_MODE_CNTL, hbb_hi << 4 |
-		  min_acc_len << 3 | hbb_lo << 1 | ubwc_mode);
+		  adreno_gpu->ubwc_config.min_acc_len << 3 |
+		  hbb_lo << 1 | adreno_gpu->ubwc_config.ubwc_mode);
 
 	gpu_write(gpu, REG_A6XX_SP_NC_MODE_CNTL, hbb_hi << 10 |
-		  uavflagprd_inv << 4 | min_acc_len << 3 |
-		  hbb_lo << 1 | ubwc_mode);
+		  adreno_gpu->ubwc_config.uavflagprd_inv << 4 |
+		  adreno_gpu->ubwc_config.min_acc_len << 3 |
+		  hbb_lo << 1 | adreno_gpu->ubwc_config.ubwc_mode);
 
 	if (adreno_is_a7xx(adreno_gpu))
 		gpu_write(gpu, REG_A7XX_GRAS_NC_MODE_CNTL,
 			  FIELD_PREP(GENMASK(8, 5), hbb_lo));
 
-	gpu_write(gpu, REG_A6XX_UCHE_MODE_CNTL, min_acc_len << 23 | hbb_lo << 21);
+	gpu_write(gpu, REG_A6XX_UCHE_MODE_CNTL,
+		  adreno_gpu->ubwc_config.min_acc_len << 23 | hbb_lo << 21);
 }
 
 static int a6xx_cp_init(struct msm_gpu *gpu)
@@ -1448,7 +1544,7 @@ static bool a6xx_ucode_check_version(struct a6xx_gpu *a6xx_gpu,
 		return false;
 
 	/* A7xx is safe! */
-	if (adreno_is_a7xx(adreno_gpu))
+	if (adreno_is_a7xx(adreno_gpu) || adreno_is_a702(adreno_gpu))
 		return true;
 
 	/*
@@ -1666,7 +1762,7 @@ static int hw_init(struct msm_gpu *gpu)
 	a6xx_set_hwcg(gpu, true);
 
 	/* VBIF/GBIF start*/
-	if (adreno_is_a610(adreno_gpu) ||
+	if (adreno_is_a610_family(adreno_gpu) ||
 	    adreno_is_a640_family(adreno_gpu) ||
 	    adreno_is_a650_family(adreno_gpu) ||
 	    adreno_is_a7xx(adreno_gpu)) {
@@ -1700,6 +1796,7 @@ static int hw_init(struct msm_gpu *gpu)
 	}
 
 	if (!(adreno_is_a650_family(adreno_gpu) ||
+	      adreno_is_a702(adreno_gpu) ||
 	      adreno_is_a730(adreno_gpu))) {
 		gmem_range_min = adreno_is_a740_family(adreno_gpu) ? SZ_16M : SZ_1M;
 
@@ -1720,7 +1817,7 @@ static int hw_init(struct msm_gpu *gpu)
 	if (adreno_is_a640_family(adreno_gpu) || adreno_is_a650_family(adreno_gpu)) {
 		gpu_write(gpu, REG_A6XX_CP_ROQ_THRESHOLDS_2, 0x02000140);
 		gpu_write(gpu, REG_A6XX_CP_ROQ_THRESHOLDS_1, 0x8040362c);
-	} else if (adreno_is_a610(adreno_gpu)) {
+	} else if (adreno_is_a610_family(adreno_gpu)) {
 		gpu_write(gpu, REG_A6XX_CP_ROQ_THRESHOLDS_2, 0x00800060);
 		gpu_write(gpu, REG_A6XX_CP_ROQ_THRESHOLDS_1, 0x40201b16);
 	} else if (!adreno_is_a7xx(adreno_gpu)) {
@@ -1735,13 +1832,20 @@ static int hw_init(struct msm_gpu *gpu)
 	if (adreno_is_a610(adreno_gpu)) {
 		gpu_write(gpu, REG_A6XX_CP_MEM_POOL_SIZE, 48);
 		gpu_write(gpu, REG_A6XX_CP_MEM_POOL_DBG_ADDR, 47);
+	} else if (adreno_is_a702(adreno_gpu)) {
+		gpu_write(gpu, REG_A6XX_CP_MEM_POOL_SIZE, 64);
+		gpu_write(gpu, REG_A6XX_CP_MEM_POOL_DBG_ADDR, 63);
 	} else if (!adreno_is_a7xx(adreno_gpu))
 		gpu_write(gpu, REG_A6XX_CP_MEM_POOL_SIZE, 128);
 
 	/* Setting the primFifo thresholds default values,
 	 * and vccCacheSkipDis=1 bit (0x200) for A640 and newer
 	*/
-	if (adreno_is_a650(adreno_gpu) || adreno_is_a660(adreno_gpu) || adreno_is_a690(adreno_gpu))
+	if (adreno_is_a702(adreno_gpu))
+		gpu_write(gpu, REG_A6XX_PC_DBG_ECO_CNTL, 0x0000c000);
+	else if (adreno_is_a690(adreno_gpu))
+		gpu_write(gpu, REG_A6XX_PC_DBG_ECO_CNTL, 0x00800200);
+	else if (adreno_is_a650(adreno_gpu) || adreno_is_a660(adreno_gpu))
 		gpu_write(gpu, REG_A6XX_PC_DBG_ECO_CNTL, 0x00300200);
 	else if (adreno_is_a640_family(adreno_gpu) || adreno_is_7c3(adreno_gpu))
 		gpu_write(gpu, REG_A6XX_PC_DBG_ECO_CNTL, 0x00200200);
@@ -1775,14 +1879,16 @@ static int hw_init(struct msm_gpu *gpu)
 	if (adreno_is_a730(adreno_gpu) ||
 	    adreno_is_a740_family(adreno_gpu))
 		gpu_write(gpu, REG_A6XX_RBBM_INTERFACE_HANG_INT_CNTL, (1 << 30) | 0xcfffff);
+	else if (adreno_is_a690(adreno_gpu))
+		gpu_write(gpu, REG_A6XX_RBBM_INTERFACE_HANG_INT_CNTL, (1 << 30) | 0x4fffff);
 	else if (adreno_is_a619(adreno_gpu))
 		gpu_write(gpu, REG_A6XX_RBBM_INTERFACE_HANG_INT_CNTL, (1 << 30) | 0x3fffff);
-	else if (adreno_is_a610(adreno_gpu))
+	else if (adreno_is_a610(adreno_gpu) || adreno_is_a702(adreno_gpu))
 		gpu_write(gpu, REG_A6XX_RBBM_INTERFACE_HANG_INT_CNTL, (1 << 30) | 0x3ffff);
 	else
 		gpu_write(gpu, REG_A6XX_RBBM_INTERFACE_HANG_INT_CNTL, (1 << 30) | 0x1fffff);
 
-	gpu_write(gpu, REG_A6XX_UCHE_CLIENT_PF, 1);
+	gpu_write(gpu, REG_A6XX_UCHE_CLIENT_PF, BIT(7) | 0x1);
 
 	/* Set weights for bicubic filtering */
 	if (adreno_is_a650_family(adreno_gpu)) {
@@ -1808,12 +1914,20 @@ static int hw_init(struct msm_gpu *gpu)
 	a6xx_set_cp_protect(gpu);
 
 	if (adreno_is_a660_family(adreno_gpu)) {
-		gpu_write(gpu, REG_A6XX_CP_CHICKEN_DBG, 0x1);
+		if (adreno_is_a690(adreno_gpu))
+			gpu_write(gpu, REG_A6XX_CP_CHICKEN_DBG, 0x00028801);
+		else
+			gpu_write(gpu, REG_A6XX_CP_CHICKEN_DBG, 0x1);
 		gpu_write(gpu, REG_A6XX_RBBM_GBIF_CLIENT_QOS_CNTL, 0x0);
+	} else if (adreno_is_a702(adreno_gpu)) {
+		/* Something to do with the HLSQ cluster */
+		gpu_write(gpu, REG_A6XX_CP_CHICKEN_DBG, BIT(24));
 	}
 
+	if (adreno_is_a690(adreno_gpu))
+		gpu_write(gpu, REG_A6XX_UCHE_CMDQ_CONFIG, 0x90);
 	/* Set dualQ + disable afull for A660 GPU */
-	if (adreno_is_a660(adreno_gpu))
+	else if (adreno_is_a660(adreno_gpu))
 		gpu_write(gpu, REG_A6XX_UCHE_CMDQ_CONFIG, 0x66906);
 	else if (adreno_is_a7xx(adreno_gpu))
 		gpu_write(gpu, REG_A6XX_UCHE_CMDQ_CONFIG,
@@ -2029,13 +2143,19 @@ static void a6xx_recover(struct msm_gpu *gpu)
 
 static const char *a6xx_uche_fault_block(struct msm_gpu *gpu, u32 mid)
 {
+	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
 	static const char *uche_clients[7] = {
 		"VFD", "SP", "VSC", "VPC", "HLSQ", "PC", "LRZ",
 	};
 	u32 val;
 
-	if (mid < 1 || mid > 3)
-		return "UNKNOWN";
+	if (adreno_is_a7xx(adreno_gpu)) {
+		if (mid != 1 && mid != 2 && mid != 3 && mid != 8)
+			return "UNKNOWN";
+	} else {
+		if (mid < 1 || mid > 3)
+			return "UNKNOWN";
+	}
 
 	/*
 	 * The source of the data depends on the mid ID read from FSYNR1.
@@ -2043,26 +2163,95 @@ static const char *a6xx_uche_fault_block(struct msm_gpu *gpu, u32 mid)
 	 */
 	val = gpu_read(gpu, REG_A6XX_UCHE_CLIENT_PF);
 
-	/* mid = 3 is most precise and refers to only one block per client */
-	if (mid == 3)
-		return uche_clients[val & 7];
+	if (adreno_is_a7xx(adreno_gpu)) {
+		/* Bit 3 for mid=3 indicates BR or BV */
+		static const char *uche_clients_a7xx[16] = {
+			"BR_VFD", "BR_SP", "BR_VSC", "BR_VPC",
+			"BR_HLSQ", "BR_PC", "BR_LRZ", "BR_TP",
+			"BV_VFD", "BV_SP", "BV_VSC", "BV_VPC",
+			"BV_HLSQ", "BV_PC", "BV_LRZ", "BV_TP",
+		};
 
-	/* For mid=2 the source is TP or VFD except when the client id is 0 */
-	if (mid == 2)
-		return ((val & 7) == 0) ? "TP" : "TP|VFD";
+		/* LPAC has the same clients as BR and BV, but because it is
+		 * compute-only some of them do not exist and there are holes
+		 * in the array.
+		 */
+		static const char *uche_clients_lpac_a7xx[8] = {
+			"-", "LPAC_SP", "-", "-",
+			"LPAC_HLSQ", "-", "-", "LPAC_TP",
+		};
 
-	/* For mid=1 just return "UCHE" as a catchall for everything else */
-	return "UCHE";
+		val &= GENMASK(6, 0);
+
+		/* mid=3 refers to BR or BV */
+		if (mid == 3) {
+			if (val < ARRAY_SIZE(uche_clients_a7xx))
+				return uche_clients_a7xx[val];
+			else
+				return "UCHE";
+		}
+
+		/* mid=8 refers to LPAC */
+		if (mid == 8) {
+			if (val < ARRAY_SIZE(uche_clients_lpac_a7xx))
+				return uche_clients_lpac_a7xx[val];
+			else
+				return "UCHE_LPAC";
+		}
+
+		/* mid=2 is a catchall for everything else in LPAC */
+		if (mid == 2)
+			return "UCHE_LPAC";
+
+		/* mid=1 is a catchall for everything else in BR/BV */
+		return "UCHE";
+	} else if (adreno_is_a660_family(adreno_gpu)) {
+		static const char *uche_clients_a660[8] = {
+			"VFD", "SP", "VSC", "VPC", "HLSQ", "PC", "LRZ", "TP",
+		};
+
+		static const char *uche_clients_a660_not[8] = {
+			"not VFD", "not SP", "not VSC", "not VPC",
+			"not HLSQ", "not PC", "not LRZ", "not TP",
+		};
+
+		val &= GENMASK(6, 0);
+
+		if (mid == 3 && val < ARRAY_SIZE(uche_clients_a660))
+			return uche_clients_a660[val];
+
+		if (mid == 1 && val < ARRAY_SIZE(uche_clients_a660_not))
+			return uche_clients_a660_not[val];
+
+		return "UCHE";
+	} else {
+		/* mid = 3 is most precise and refers to only one block per client */
+		if (mid == 3)
+			return uche_clients[val & 7];
+
+		/* For mid=2 the source is TP or VFD except when the client id is 0 */
+		if (mid == 2)
+			return ((val & 7) == 0) ? "TP" : "TP|VFD";
+
+		/* For mid=1 just return "UCHE" as a catchall for everything else */
+		return "UCHE";
+	}
 }
 
 static const char *a6xx_fault_block(struct msm_gpu *gpu, u32 id)
 {
+	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+
 	if (id == 0)
 		return "CP";
 	else if (id == 4)
 		return "CCU";
 	else if (id == 6)
 		return "CDP Prefetch";
+	else if (id == 7)
+		return "GMU";
+	else if (id == 5 && adreno_is_a7xx(adreno_gpu))
+		return "Flag cache";
 
 	return a6xx_uche_fault_block(gpu, id);
 }
@@ -2413,7 +2602,7 @@ static int a6xx_gmu_pm_resume(struct msm_gpu *gpu)
 
 	msm_devfreq_resume(gpu);
 
-	adreno_is_a7xx(adreno_gpu) ? a7xx_llc_activate : a6xx_llc_activate(a6xx_gpu);
+	adreno_is_a7xx(adreno_gpu) ? a7xx_llc_activate(a6xx_gpu) : a6xx_llc_activate(a6xx_gpu);
 
 	return ret;
 }
@@ -2866,13 +3055,15 @@ struct msm_gpu *a6xx_gpu_init(struct drm_device *dev)
 
 	/* gpu->info only gets assigned in adreno_gpu_init() */
 	is_a7xx = config->info->family == ADRENO_7XX_GEN1 ||
-		  config->info->family == ADRENO_7XX_GEN2;
+		  config->info->family == ADRENO_7XX_GEN2 ||
+		  config->info->family == ADRENO_7XX_GEN3;
 
 	a6xx_llc_slices_init(pdev, a6xx_gpu, is_a7xx);
 
 	ret = a6xx_set_supported_hw(&pdev->dev, config->info);
 	if (ret) {
-		a6xx_destroy(&(a6xx_gpu->base.base));
+		a6xx_llc_slices_destroy(a6xx_gpu);
+		kfree(a6xx_gpu);
 		return ERR_PTR(ret);
 	}
 
@@ -2907,6 +3098,8 @@ struct msm_gpu *a6xx_gpu_init(struct drm_device *dev)
 	if (gpu->aspace)
 		msm_mmu_set_fault_handler(gpu->aspace->mmu, gpu,
 				a6xx_fault_handler);
+
+	a6xx_calc_ubwc_config(adreno_gpu);
 
 	return gpu;
 }

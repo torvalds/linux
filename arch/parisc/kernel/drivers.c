@@ -618,7 +618,7 @@ static struct attribute *parisc_device_attrs[] = {
 };
 ATTRIBUTE_GROUPS(parisc_device);
 
-struct bus_type parisc_bus_type = {
+const struct bus_type parisc_bus_type = {
 	.name = "parisc",
 	.match = parisc_generic_match,
 	.uevent = parisc_uevent,
@@ -742,7 +742,7 @@ parse_tree_node(struct device *parent, int index, struct hardware_path *modpath)
 	};
 
 	if (device_for_each_child(parent, &recurse_data, descend_children))
-		{ /* nothing */ };
+		{ /* nothing */ }
 
 	return d.dev;
 }
@@ -1003,6 +1003,9 @@ static __init int qemu_print_iodc_data(struct device *lin_dev, void *data)
 	}
 
 	pr_info("\n");
+
+	/* Prevent hung task messages when printing on serial console */
+	cond_resched();
 
 	pr_info("#define HPA_%08lx_DESCRIPTION \"%s\"\n",
 		hpa, parisc_hardware_description(&dev->id));

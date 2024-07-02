@@ -804,20 +804,6 @@ static inline unsigned int calc_tx_flits(const struct sk_buff *skb,
 }
 
 /**
- *	calc_tx_descs - calculate the number of Tx descriptors for a packet
- *	@skb: the packet
- *	@chip_ver: chip version
- *
- *	Returns the number of Tx descriptors needed for the given Ethernet
- *	packet, including the needed WR and CPL headers.
- */
-static inline unsigned int calc_tx_descs(const struct sk_buff *skb,
-					 unsigned int chip_ver)
-{
-	return flits_to_desc(calc_tx_flits(skb, chip_ver));
-}
-
-/**
  *	cxgb4_write_sgl - populate a scatter/gather list for a packet
  *	@skb: the packet
  *	@q: the Tx queue we are writing into
@@ -2684,12 +2670,12 @@ int cxgb4_selftest_lb_pkt(struct net_device *netdev)
 	lb->loopback = 1;
 
 	q = &adap->sge.ethtxq[pi->first_qset];
-	__netif_tx_lock(q->txq, smp_processor_id());
+	__netif_tx_lock_bh(q->txq);
 
 	reclaim_completed_tx(adap, &q->q, -1, true);
 	credits = txq_avail(&q->q) - ndesc;
 	if (unlikely(credits < 0)) {
-		__netif_tx_unlock(q->txq);
+		__netif_tx_unlock_bh(q->txq);
 		return -ENOMEM;
 	}
 
@@ -2724,7 +2710,7 @@ int cxgb4_selftest_lb_pkt(struct net_device *netdev)
 	init_completion(&lb->completion);
 	txq_advance(&q->q, ndesc);
 	cxgb4_ring_tx_db(adap, &q->q, ndesc);
-	__netif_tx_unlock(q->txq);
+	__netif_tx_unlock_bh(q->txq);
 
 	/* wait for the pkt to return */
 	ret = wait_for_completion_timeout(&lb->completion, 10 * HZ);

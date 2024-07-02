@@ -53,13 +53,15 @@ struct in_device {
 };
 
 #define IPV4_DEVCONF(cnf, attr) ((cnf).data[IPV4_DEVCONF_ ## attr - 1])
+#define IPV4_DEVCONF_RO(cnf, attr) READ_ONCE(IPV4_DEVCONF(cnf, attr))
 #define IPV4_DEVCONF_ALL(net, attr) \
 	IPV4_DEVCONF((*(net)->ipv4.devconf_all), attr)
+#define IPV4_DEVCONF_ALL_RO(net, attr) READ_ONCE(IPV4_DEVCONF_ALL(net, attr))
 
-static inline int ipv4_devconf_get(struct in_device *in_dev, int index)
+static inline int ipv4_devconf_get(const struct in_device *in_dev, int index)
 {
 	index--;
-	return in_dev->cnf.data[index];
+	return READ_ONCE(in_dev->cnf.data[index]);
 }
 
 static inline void ipv4_devconf_set(struct in_device *in_dev, int index,
@@ -67,7 +69,7 @@ static inline void ipv4_devconf_set(struct in_device *in_dev, int index,
 {
 	index--;
 	set_bit(index, in_dev->cnf.state);
-	in_dev->cnf.data[index] = val;
+	WRITE_ONCE(in_dev->cnf.data[index], val);
 }
 
 static inline void ipv4_devconf_setall(struct in_device *in_dev)
@@ -81,18 +83,18 @@ static inline void ipv4_devconf_setall(struct in_device *in_dev)
 	ipv4_devconf_set((in_dev), IPV4_DEVCONF_ ## attr, (val))
 
 #define IN_DEV_ANDCONF(in_dev, attr) \
-	(IPV4_DEVCONF_ALL(dev_net(in_dev->dev), attr) && \
+	(IPV4_DEVCONF_ALL_RO(dev_net(in_dev->dev), attr) && \
 	 IN_DEV_CONF_GET((in_dev), attr))
 
 #define IN_DEV_NET_ORCONF(in_dev, net, attr) \
-	(IPV4_DEVCONF_ALL(net, attr) || \
+	(IPV4_DEVCONF_ALL_RO(net, attr) || \
 	 IN_DEV_CONF_GET((in_dev), attr))
 
 #define IN_DEV_ORCONF(in_dev, attr) \
 	IN_DEV_NET_ORCONF(in_dev, dev_net(in_dev->dev), attr)
 
 #define IN_DEV_MAXCONF(in_dev, attr) \
-	(max(IPV4_DEVCONF_ALL(dev_net(in_dev->dev), attr), \
+	(max(IPV4_DEVCONF_ALL_RO(dev_net(in_dev->dev), attr), \
 	     IN_DEV_CONF_GET((in_dev), attr)))
 
 #define IN_DEV_FORWARD(in_dev)		IN_DEV_CONF_GET((in_dev), FORWARDING)

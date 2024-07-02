@@ -3194,7 +3194,7 @@ static void hfa384x_usbin_txcompl(struct wlandevice *wlandev,
 
 	/* Was there an error? */
 	if (HFA384x_TXSTATUS_ISERROR(status))
-		prism2sta_ev_txexc(wlandev, status);
+		netdev_dbg(wlandev->netdev, "TxExc status=0x%x.\n", status);
 	else
 		prism2sta_ev_tx(wlandev, status);
 }

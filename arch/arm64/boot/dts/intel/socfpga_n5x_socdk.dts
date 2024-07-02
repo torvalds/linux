@@ -25,12 +25,11 @@
 		reg = <0 0x80000000 0 0>;
 	};
 
-	soc {
+	soc@0 {
 		sdram_edac: memory-controller@f87f8000 {
 			compatible = "snps,ddrc-3.80a";
 			reg = <0xf87f8000 0x400>;
 			interrupts = <0 175 4>;
-			status = "okay";
 		};
 	};
 };
@@ -91,8 +90,6 @@
 		spi-max-frequency = <100000000>;
 
 		m25p,fast-read;
-		cdns,page-size = <256>;
-		cdns,block-size = <16>;
 		cdns,read-delay = <2>;
 		cdns,tshsl-ns = <50>;
 		cdns,tsd2d-ns = <50>;

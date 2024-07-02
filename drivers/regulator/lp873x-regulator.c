@@ -5,6 +5,7 @@
  * Copyright (C) 2016 Texas Instruments Incorporated - https://www.ti.com/
  */
 
+#include <linux/bitfield.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
@@ -93,7 +94,7 @@ static int lp873x_buck_set_ramp_delay(struct regulator_dev *rdev,
 
 	ret = regmap_update_bits(lp873->regmap, regulators[id].ctrl2_reg,
 				 LP873X_BUCK0_CTRL_2_BUCK0_SLEW_RATE,
-				 reg << __ffs(LP873X_BUCK0_CTRL_2_BUCK0_SLEW_RATE));
+				 FIELD_PREP(LP873X_BUCK0_CTRL_2_BUCK0_SLEW_RATE, reg));
 	if (ret) {
 		dev_err(lp873->dev, "SLEW RATE write failed: %d\n", ret);
 		return ret;

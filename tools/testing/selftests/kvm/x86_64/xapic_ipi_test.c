@@ -216,7 +216,7 @@ static void *vcpu_thread(void *arg)
 			    "Halting vCPU halted %lu times, woke %lu times, received %lu IPIs.\n"
 			    "Halter TPR=%#x PPR=%#x LVR=%#x\n"
 			    "Migrations attempted: %lu\n"
-			    "Migrations completed: %lu\n",
+			    "Migrations completed: %lu",
 			    vcpu->id, (const char *)uc.args[0],
 			    params->data->ipis_sent, params->data->hlt_count,
 			    params->data->wake_count,
@@ -288,7 +288,7 @@ void do_migrations(struct test_data_page *data, int run_secs, int delay_usecs,
 	}
 
 	TEST_ASSERT(nodes > 1,
-		    "Did not find at least 2 numa nodes. Can't do migration\n");
+		    "Did not find at least 2 numa nodes. Can't do migration");
 
 	fprintf(stderr, "Migrating amongst %d nodes found\n", nodes);
 
@@ -347,7 +347,7 @@ void do_migrations(struct test_data_page *data, int run_secs, int delay_usecs,
 				    wake_count != data->wake_count,
 				    "IPI, HLT and wake count have not increased "
 				    "in the last %lu seconds. "
-				    "HLTer is likely hung.\n", interval_secs);
+				    "HLTer is likely hung.", interval_secs);
 
 			ipis_sent = data->ipis_sent;
 			hlt_count = data->hlt_count;
@@ -381,7 +381,7 @@ void get_cmdline_args(int argc, char *argv[], int *run_secs,
 				    "-m adds calls to migrate_pages while vCPUs are running."
 				    " Default is no migrations.\n"
 				    "-d <delay microseconds> - delay between migrate_pages() calls."
-				    " Default is %d microseconds.\n",
+				    " Default is %d microseconds.",
 				    DEFAULT_RUN_SECS, DEFAULT_DELAY_USECS);
 		}
 	}

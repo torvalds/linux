@@ -17,22 +17,12 @@
 #include <sound/jack.h>
 #include "sof_sdw_common.h"
 
-static const struct snd_soc_dapm_widget cs42l42_widgets[] = {
-	SND_SOC_DAPM_HP("Headphone", NULL),
-	SND_SOC_DAPM_MIC("Headset Mic", NULL),
-};
-
 static const struct snd_soc_dapm_route cs42l42_map[] = {
 	/* HP jack connectors - unknown if we have jack detection */
 	{"Headphone", NULL, "cs42l42 HP"},
 
 	/* other jacks */
 	{"cs42l42 HS", NULL, "Headset Mic"},
-};
-
-static const struct snd_kcontrol_new cs42l42_controls[] = {
-	SOC_DAPM_PIN_SWITCH("Headphone"),
-	SOC_DAPM_PIN_SWITCH("Headset Mic"),
 };
 
 static struct snd_soc_jack_pin cs42l42_jack_pins[] = {
@@ -46,34 +36,29 @@ static struct snd_soc_jack_pin cs42l42_jack_pins[] = {
 	},
 };
 
-static int cs42l42_rtd_init(struct snd_soc_pcm_runtime *rtd)
+static const char * const jack_codecs[] = {
+	"cs42l42"
+};
+
+int cs42l42_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *dai)
 {
 	struct snd_soc_card *card = rtd->card;
 	struct mc_private *ctx = snd_soc_card_get_drvdata(card);
-	struct snd_soc_dai *codec_dai = snd_soc_rtd_to_codec(rtd, 0);
-	struct snd_soc_component *component = codec_dai->component;
+	struct snd_soc_dai *codec_dai;
+	struct snd_soc_component *component;
 	struct snd_soc_jack *jack;
 	int ret;
 
+	codec_dai = get_codec_dai_by_name(rtd, jack_codecs, ARRAY_SIZE(jack_codecs));
+	if (!codec_dai)
+		return -EINVAL;
+
+	component = codec_dai->component;
 	card->components = devm_kasprintf(card->dev, GFP_KERNEL,
 					  "%s hs:cs42l42",
 					  card->components);
 	if (!card->components)
 		return -ENOMEM;
-
-	ret = snd_soc_add_card_controls(card, cs42l42_controls,
-					ARRAY_SIZE(cs42l42_controls));
-	if (ret) {
-		dev_err(card->dev, "cs42l42 control addition failed: %d\n", ret);
-		return ret;
-	}
-
-	ret = snd_soc_dapm_new_controls(&card->dapm, cs42l42_widgets,
-					ARRAY_SIZE(cs42l42_widgets));
-	if (ret) {
-		dev_err(card->dev, "cs42l42 widgets addition failed: %d\n", ret);
-		return ret;
-	}
 
 	ret = snd_soc_dapm_add_routes(&card->dapm, cs42l42_map,
 				      ARRAY_SIZE(cs42l42_map));
@@ -111,21 +96,4 @@ static int cs42l42_rtd_init(struct snd_soc_pcm_runtime *rtd)
 
 	return ret;
 }
-
-int sof_sdw_cs42l42_init(struct snd_soc_card *card,
-			 const struct snd_soc_acpi_link_adr *link,
-			 struct snd_soc_dai_link *dai_links,
-			 struct sof_sdw_codec_info *info,
-			 bool playback)
-{
-	/*
-	 * headset should be initialized once.
-	 * Do it with dai link for playback.
-	 */
-	if (!playback)
-		return 0;
-
-	dai_links->init = cs42l42_rtd_init;
-
-	return 0;
-}
+MODULE_IMPORT_NS(SND_SOC_INTEL_SOF_BOARD_HELPERS);

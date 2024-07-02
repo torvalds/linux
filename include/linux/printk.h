@@ -71,7 +71,7 @@ extern void console_verbose(void);
 
 /* strlen("ratelimit") + 1 */
 #define DEVKMSG_STR_MAX_SIZE 10
-extern char devkmsg_log_str[];
+extern char devkmsg_log_str[DEVKMSG_STR_MAX_SIZE];
 struct ctl_table;
 
 extern int suppress_printk;
@@ -126,7 +126,7 @@ struct va_format {
 #define no_printk(fmt, ...)				\
 ({							\
 	if (0)						\
-		printk(fmt, ##__VA_ARGS__);		\
+		_printk(fmt, ##__VA_ARGS__);		\
 	0;						\
 })
 
@@ -272,6 +272,8 @@ static inline void printk_trigger_flush(void)
 {
 }
 #endif
+
+bool this_cpu_in_panic(void);
 
 #ifdef CONFIG_SMP
 extern int __printk_cpu_sync_try_get(void);

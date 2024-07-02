@@ -28,8 +28,7 @@
 #include "r600_dpm.h"
 #include "atom.h"
 
-const u32 r600_utc[R600_PM_NUMBER_OF_TC] =
-{
+const u32 r600_utc[R600_PM_NUMBER_OF_TC] = {
 	R600_UTC_DFLT_00,
 	R600_UTC_DFLT_01,
 	R600_UTC_DFLT_02,
@@ -47,8 +46,7 @@ const u32 r600_utc[R600_PM_NUMBER_OF_TC] =
 	R600_UTC_DFLT_14,
 };
 
-const u32 r600_dtc[R600_PM_NUMBER_OF_TC] =
-{
+const u32 r600_dtc[R600_PM_NUMBER_OF_TC] = {
 	R600_DTC_DFLT_00,
 	R600_DTC_DFLT_01,
 	R600_DTC_DFLT_02,

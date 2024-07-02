@@ -1521,6 +1521,7 @@ static struct Qdisc_ops qfq_qdisc_ops __read_mostly = {
 	.destroy	= qfq_destroy_qdisc,
 	.owner		= THIS_MODULE,
 };
+MODULE_ALIAS_NET_SCH("qfq");
 
 static int __init qfq_init(void)
 {
@@ -1535,3 +1536,4 @@ static void __exit qfq_exit(void)
 module_init(qfq_init);
 module_exit(qfq_exit);
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Quick Fair Queueing Plus qdisc");

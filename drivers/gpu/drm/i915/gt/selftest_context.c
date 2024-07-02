@@ -285,7 +285,8 @@ out_engine:
 	intel_engine_pm_flush(engine);
 
 	if (intel_engine_pm_is_awake(engine)) {
-		struct drm_printer p = drm_debug_printer(__func__);
+		struct drm_printer p = drm_dbg_printer(&engine->i915->drm,
+						       DRM_UT_DRIVER, __func__);
 
 		intel_engine_dump(engine, &p,
 				  "%s is still awake:%d after idle-barriers\n",

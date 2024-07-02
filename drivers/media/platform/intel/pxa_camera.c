@@ -2207,7 +2207,7 @@ static int pxa_camera_pdata_from_dt(struct device *dev,
 		pcdev->mclk = mclk_rate;
 	}
 
-	np = of_graph_get_next_endpoint(np, NULL);
+	np = of_graph_get_endpoint_by_regs(np, 0, -1);
 	if (!np) {
 		dev_err(dev, "could not find endpoint\n");
 		return -EINVAL;

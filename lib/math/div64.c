@@ -22,6 +22,7 @@
 #include <linux/export.h>
 #include <linux/math.h>
 #include <linux/math64.h>
+#include <linux/minmax.h>
 #include <linux/log2.h>
 
 /* Not needed on 64bit architectures */
@@ -190,6 +191,20 @@ u64 mul_u64_u64_div_u64(u64 a, u64 b, u64 c)
 
 	/* can a * b overflow ? */
 	if (ilog2(a) + ilog2(b) > 62) {
+		/*
+		 * Note that the algorithm after the if block below might lose
+		 * some precision and the result is more exact for b > a. So
+		 * exchange a and b if a is bigger than b.
+		 *
+		 * For example with a = 43980465100800, b = 100000000, c = 1000000000
+		 * the below calculation doesn't modify b at all because div == 0
+		 * and then shift becomes 45 + 26 - 62 = 9 and so the result
+		 * becomes 4398035251080. However with a and b swapped the exact
+		 * result is calculated (i.e. 4398046510080).
+		 */
+		if (a > b)
+			swap(a, b);
+
 		/*
 		 * (b * a) / c is equal to
 		 *

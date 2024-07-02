@@ -85,7 +85,7 @@ enum mlx5_sqp_t {
 };
 
 enum {
-	MLX5_MAX_PORTS	= 4,
+	MLX5_MAX_PORTS	= 8,
 };
 
 enum {
@@ -150,6 +150,7 @@ enum {
 	MLX5_REG_MTPPSE		 = 0x9054,
 	MLX5_REG_MTUTC		 = 0x9055,
 	MLX5_REG_MPEGC		 = 0x9056,
+	MLX5_REG_MPIR		 = 0x9059,
 	MLX5_REG_MCQS		 = 0x9060,
 	MLX5_REG_MCQI		 = 0x9061,
 	MLX5_REG_MCC		 = 0x9062,
@@ -678,6 +679,9 @@ struct mlx5e_resources {
 		struct mlx5_td             td;
 		u32			   mkey;
 		struct mlx5_sq_bfreg       bfreg;
+#define MLX5_MAX_NUM_TC 8
+		u32                        tisn[MLX5_MAX_PORTS][MLX5_MAX_NUM_TC];
+		bool			   tisn_valid;
 	} hw_objs;
 	struct net_device *uplink_netdev;
 	struct mutex uplink_netdev_lock;
@@ -688,6 +692,7 @@ enum mlx5_sw_icm_type {
 	MLX5_SW_ICM_TYPE_STEERING,
 	MLX5_SW_ICM_TYPE_HEADER_MODIFY,
 	MLX5_SW_ICM_TYPE_HEADER_MODIFY_PATTERN,
+	MLX5_SW_ICM_TYPE_SW_ENCAP,
 };
 
 #define MLX5_MAX_RESERVED_GIDS 8
@@ -818,6 +823,7 @@ struct mlx5_core_dev {
 	struct blocking_notifier_head macsec_nh;
 #endif
 	u64 num_ipsec_offloads;
+	struct mlx5_sd          *sd;
 };
 
 struct mlx5_db {
@@ -856,6 +862,7 @@ struct mlx5_cmd_work_ent {
 	void		       *context;
 	int			idx;
 	struct completion	handling;
+	struct completion	slotted;
 	struct completion	done;
 	struct mlx5_cmd        *cmd;
 	struct work_struct	work;
@@ -1368,11 +1375,4 @@ static inline bool mlx5_is_macsec_roce_supported(struct mlx5_core_dev *mdev)
 enum {
 	MLX5_OCTWORD = 16,
 };
-
-struct msi_map mlx5_msix_alloc(struct mlx5_core_dev *dev,
-			       irqreturn_t (*handler)(int, void *),
-			       const struct irq_affinity_desc *affdesc,
-			       const char *name);
-void mlx5_msix_free(struct mlx5_core_dev *dev, struct msi_map map);
-
 #endif /* MLX5_DRIVER_H */

@@ -7,6 +7,7 @@
  * set of CPUs in a system, one bit position per CPU number.  In general,
  * only nr_cpu_ids (<= NR_CPUS) bits are valid.
  */
+#include <linux/cleanup.h>
 #include <linux/kernel.h>
 #include <linux/threads.h>
 #include <linux/bitmap.h>
@@ -184,6 +185,23 @@ static inline
 unsigned int cpumask_first_and(const struct cpumask *srcp1, const struct cpumask *srcp2)
 {
 	return find_first_and_bit(cpumask_bits(srcp1), cpumask_bits(srcp2), small_cpumask_bits);
+}
+
+/**
+ * cpumask_first_and_and - return the first cpu from *srcp1 & *srcp2 & *srcp3
+ * @srcp1: the first input
+ * @srcp2: the second input
+ * @srcp3: the third input
+ *
+ * Return: >= nr_cpu_ids if no cpus set in all.
+ */
+static inline
+unsigned int cpumask_first_and_and(const struct cpumask *srcp1,
+				   const struct cpumask *srcp2,
+				   const struct cpumask *srcp3)
+{
+	return find_first_and_and_bit(cpumask_bits(srcp1), cpumask_bits(srcp2),
+				      cpumask_bits(srcp3), small_cpumask_bits);
 }
 
 /**
@@ -385,6 +403,29 @@ unsigned int cpumask_any_but(const struct cpumask *mask, unsigned int cpu)
 		if (i != cpu)
 			break;
 	return i;
+}
+
+/**
+ * cpumask_any_and_but - pick a "random" cpu from *mask1 & *mask2, but not this one.
+ * @mask1: the first input cpumask
+ * @mask2: the second input cpumask
+ * @cpu: the cpu to ignore
+ *
+ * Returns >= nr_cpu_ids if no cpus set.
+ */
+static inline
+unsigned int cpumask_any_and_but(const struct cpumask *mask1,
+				 const struct cpumask *mask2,
+				 unsigned int cpu)
+{
+	unsigned int i;
+
+	cpumask_check(cpu);
+	i = cpumask_first_and(mask1, mask2);
+	if (i != cpu)
+		return i;
+
+	return cpumask_next_and(cpu, mask1, mask2);
 }
 
 /**
@@ -720,6 +761,19 @@ static inline unsigned int cpumask_weight_and(const struct cpumask *srcp1,
 }
 
 /**
+ * cpumask_weight_andnot - Count of bits in (*srcp1 & ~*srcp2)
+ * @srcp1: the cpumask to count bits (< nr_cpu_ids) in.
+ * @srcp2: the cpumask to count bits (< nr_cpu_ids) in.
+ *
+ * Return: count of bits set in both *srcp1 and *srcp2
+ */
+static inline unsigned int cpumask_weight_andnot(const struct cpumask *srcp1,
+						const struct cpumask *srcp2)
+{
+	return bitmap_weight_andnot(cpumask_bits(srcp1), cpumask_bits(srcp2), small_cpumask_bits);
+}
+
+/**
  * cpumask_shift_right - *dstp = *srcp >> n
  * @dstp: the cpumask result
  * @srcp: the input to shift
@@ -839,7 +893,7 @@ static inline int cpulist_parse(const char *buf, struct cpumask *dstp)
  */
 static inline unsigned int cpumask_size(void)
 {
-	return BITS_TO_LONGS(large_cpumask_bits) * sizeof(long);
+	return bitmap_size(large_cpumask_bits);
 }
 
 /*
@@ -976,6 +1030,8 @@ static inline bool cpumask_available(cpumask_var_t mask)
 	return true;
 }
 #endif /* CONFIG_CPUMASK_OFFSTACK */
+
+DEFINE_FREE(free_cpumask_var, struct cpumask *, if (_T) free_cpumask_var(_T));
 
 /* It's common to want to use cpu_all_mask in struct member initializers,
  * so it has to refer to an address rather than a pointer. */

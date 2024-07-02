@@ -27,6 +27,7 @@
 #define FILE_LOCK_DEFERRED 1
 
 struct file_lock;
+struct file_lease;
 
 struct file_lock_operations {
 	void (*fl_copy_lock)(struct file_lock *, struct file_lock *);
@@ -39,12 +40,15 @@ struct lock_manager_operations {
 	void (*lm_put_owner)(fl_owner_t);
 	void (*lm_notify)(struct file_lock *);	/* unblock callback */
 	int (*lm_grant)(struct file_lock *, int);
-	bool (*lm_break)(struct file_lock *);
-	int (*lm_change)(struct file_lock *, int, struct list_head *);
-	void (*lm_setup)(struct file_lock *, void **);
-	bool (*lm_breaker_owns_lease)(struct file_lock *);
 	bool (*lm_lock_expirable)(struct file_lock *cfl);
 	void (*lm_expire_lock)(void);
+};
+
+struct lease_manager_operations {
+	bool (*lm_break)(struct file_lease *);
+	int (*lm_change)(struct file_lease *, int, struct list_head *);
+	void (*lm_setup)(struct file_lease *, void **);
+	bool (*lm_breaker_owns_lease)(struct file_lease *);
 };
 
 struct lock_manager {
@@ -85,30 +89,30 @@ bool opens_in_grace(struct net *);
  *
  * Obviously, the last two criteria only matter for POSIX locks.
  */
-struct file_lock {
-	struct file_lock *fl_blocker;	/* The lock, that is blocking us */
-	struct list_head fl_list;	/* link into file_lock_context */
-	struct hlist_node fl_link;	/* node in global lists */
-	struct list_head fl_blocked_requests;	/* list of requests with
+
+struct file_lock_core {
+	struct file_lock_core *flc_blocker;	/* The lock that is blocking us */
+	struct list_head flc_list;	/* link into file_lock_context */
+	struct hlist_node flc_link;	/* node in global lists */
+	struct list_head flc_blocked_requests;	/* list of requests with
 						 * ->fl_blocker pointing here
 						 */
-	struct list_head fl_blocked_member;	/* node in
+	struct list_head flc_blocked_member;	/* node in
 						 * ->fl_blocker->fl_blocked_requests
 						 */
-	fl_owner_t fl_owner;
-	unsigned int fl_flags;
-	unsigned char fl_type;
-	unsigned int fl_pid;
-	int fl_link_cpu;		/* what cpu's list is this on? */
-	wait_queue_head_t fl_wait;
-	struct file *fl_file;
+	fl_owner_t flc_owner;
+	unsigned int flc_flags;
+	unsigned char flc_type;
+	pid_t flc_pid;
+	int flc_link_cpu;		/* what cpu's list is this on? */
+	wait_queue_head_t flc_wait;
+	struct file *flc_file;
+};
+
+struct file_lock {
+	struct file_lock_core c;
 	loff_t fl_start;
 	loff_t fl_end;
-
-	struct fasync_struct *	fl_fasync; /* for lease break notifications */
-	/* for lease breaks: */
-	unsigned long fl_break_time;
-	unsigned long fl_downgrade_time;
 
 	const struct file_lock_operations *fl_ops;	/* Callbacks for filesystems */
 	const struct lock_manager_operations *fl_lmops;	/* Callbacks for lockmanagers */
@@ -124,6 +128,15 @@ struct file_lock {
 			struct inode *inode;
 		} ceph;
 	} fl_u;
+} __randomize_layout;
+
+struct file_lease {
+	struct file_lock_core c;
+	struct fasync_struct *	fl_fasync; /* for lease break notifications */
+	/* for lease breaks: */
+	unsigned long fl_break_time;
+	unsigned long fl_downgrade_time;
+	const struct lease_manager_operations *fl_lmops; /* Callbacks for lease managers */
 } __randomize_layout;
 
 struct file_lock_context {
@@ -147,11 +160,31 @@ int fcntl_setlk64(unsigned int, struct file *, unsigned int,
 int fcntl_setlease(unsigned int fd, struct file *filp, int arg);
 int fcntl_getlease(struct file *filp);
 
+static inline bool lock_is_unlock(struct file_lock *fl)
+{
+	return fl->c.flc_type == F_UNLCK;
+}
+
+static inline bool lock_is_read(struct file_lock *fl)
+{
+	return fl->c.flc_type == F_RDLCK;
+}
+
+static inline bool lock_is_write(struct file_lock *fl)
+{
+	return fl->c.flc_type == F_WRLCK;
+}
+
+static inline void locks_wake_up(struct file_lock *fl)
+{
+	wake_up(&fl->c.flc_wait);
+}
+
 /* fs/locks.c */
 void locks_free_lock_context(struct inode *inode);
 void locks_free_lock(struct file_lock *fl);
 void locks_init_lock(struct file_lock *);
-struct file_lock * locks_alloc_lock(void);
+struct file_lock *locks_alloc_lock(void);
 void locks_copy_lock(struct file_lock *, struct file_lock *);
 void locks_copy_conflock(struct file_lock *, struct file_lock *);
 void locks_remove_posix(struct file *, fl_owner_t);
@@ -165,11 +198,16 @@ int vfs_lock_file(struct file *, unsigned int, struct file_lock *, struct file_l
 int vfs_cancel_lock(struct file *filp, struct file_lock *fl);
 bool vfs_inode_has_locks(struct inode *inode);
 int locks_lock_inode_wait(struct inode *inode, struct file_lock *fl);
+
+void locks_init_lease(struct file_lease *);
+void locks_free_lease(struct file_lease *fl);
+struct file_lease *locks_alloc_lease(void);
 int __break_lease(struct inode *inode, unsigned int flags, unsigned int type);
 void lease_get_mtime(struct inode *, struct timespec64 *time);
-int generic_setlease(struct file *, int, struct file_lock **, void **priv);
-int vfs_setlease(struct file *, int, struct file_lock **, void **);
-int lease_modify(struct file_lock *, int, struct list_head *);
+int generic_setlease(struct file *, int, struct file_lease **, void **priv);
+int kernel_setlease(struct file *, int, struct file_lease **, void **);
+int vfs_setlease(struct file *, int, struct file_lease **, void **);
+int lease_modify(struct file_lease *, int, struct list_head *);
 
 struct notifier_block;
 int lease_register_notifier(struct notifier_block *);
@@ -223,12 +261,36 @@ static inline int fcntl_getlease(struct file *filp)
 	return F_UNLCK;
 }
 
+static inline bool lock_is_unlock(struct file_lock *fl)
+{
+	return false;
+}
+
+static inline bool lock_is_read(struct file_lock *fl)
+{
+	return false;
+}
+
+static inline bool lock_is_write(struct file_lock *fl)
+{
+	return false;
+}
+
+static inline void locks_wake_up(struct file_lock *fl)
+{
+}
+
 static inline void
 locks_free_lock_context(struct inode *inode)
 {
 }
 
 static inline void locks_init_lock(struct file_lock *fl)
+{
+	return;
+}
+
+static inline void locks_init_lease(struct file_lease *fl)
 {
 	return;
 }
@@ -307,18 +369,24 @@ static inline void lease_get_mtime(struct inode *inode,
 }
 
 static inline int generic_setlease(struct file *filp, int arg,
-				    struct file_lock **flp, void **priv)
+				    struct file_lease **flp, void **priv)
+{
+	return -EINVAL;
+}
+
+static inline int kernel_setlease(struct file *filp, int arg,
+			       struct file_lease **lease, void **priv)
 {
 	return -EINVAL;
 }
 
 static inline int vfs_setlease(struct file *filp, int arg,
-			       struct file_lock **lease, void **priv)
+			       struct file_lease **lease, void **priv)
 {
 	return -EINVAL;
 }
 
-static inline int lease_modify(struct file_lock *fl, int arg,
+static inline int lease_modify(struct file_lease *fl, int arg,
 			       struct list_head *dispose)
 {
 	return -EINVAL;
@@ -340,6 +408,9 @@ locks_inode_context(const struct inode *inode)
 }
 
 #endif /* !CONFIG_FILE_LOCKING */
+
+/* for walking lists of file_locks linked by fl_list */
+#define for_each_file_lock(_fl, _head)	list_for_each_entry(_fl, _head, c.flc_list)
 
 static inline int locks_lock_file_wait(struct file *filp, struct file_lock *fl)
 {

@@ -71,6 +71,7 @@
 #define __retval_unpriv(val)	__attribute__((btf_decl_tag("comment:test_retval_unpriv="#val)))
 #define __auxiliary		__attribute__((btf_decl_tag("comment:test_auxiliary")))
 #define __auxiliary_unpriv	__attribute__((btf_decl_tag("comment:test_auxiliary_unpriv")))
+#define __btf_path(path)	__attribute__((btf_decl_tag("comment:test_btf_path=" path)))
 
 /* Convenience macro for use with 'asm volatile' blocks */
 #define __naked __attribute__((naked))
@@ -79,7 +80,7 @@
 #define __imm(name) [name]"i"(name)
 #define __imm_const(name, expr) [name]"i"(expr)
 #define __imm_addr(name) [name]"i"(&name)
-#define __imm_ptr(name) [name]"p"(&name)
+#define __imm_ptr(name) [name]"r"(&name)
 #define __imm_insn(name, expr) [name]"i"(*(long *)&(expr))
 
 /* Magic constants used with __retval() */

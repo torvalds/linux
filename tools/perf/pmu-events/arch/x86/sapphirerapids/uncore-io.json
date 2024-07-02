@@ -1250,6 +1250,36 @@
         "Unit": "IIO"
     },
     {
+        "BriefDescription": ": IOTLB Hits to a 1G Page",
+        "EventCode": "0x40",
+        "EventName": "UNC_IIO_IOMMU0.1G_HITS",
+        "PerPkg": "1",
+        "PortMask": "0x0000",
+        "PublicDescription": ": IOTLB Hits to a 1G Page : Counts if a transaction to a 1G page, on its first lookup, hits the IOTLB.",
+        "UMask": "0x10",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": ": IOTLB Hits to a 2M Page",
+        "EventCode": "0x40",
+        "EventName": "UNC_IIO_IOMMU0.2M_HITS",
+        "PerPkg": "1",
+        "PortMask": "0x0000",
+        "PublicDescription": ": IOTLB Hits to a 2M Page : Counts if a transaction to a 2M page, on its first lookup, hits the IOTLB.",
+        "UMask": "0x8",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": ": IOTLB Hits to a 4K Page",
+        "EventCode": "0x40",
+        "EventName": "UNC_IIO_IOMMU0.4K_HITS",
+        "PerPkg": "1",
+        "PortMask": "0x0000",
+        "PublicDescription": ": IOTLB Hits to a 4K Page : Counts if a transaction to a 4K page, on its first lookup, hits the IOTLB.",
+        "UMask": "0x4",
+        "Unit": "IIO"
+    },
+    {
         "BriefDescription": ": Context cache hits",
         "EventCode": "0x40",
         "EventName": "UNC_IIO_IOMMU0.CTXT_CACHE_HITS",

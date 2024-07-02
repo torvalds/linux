@@ -159,6 +159,8 @@ void opp2_program_dpg_dimensions(
 
 bool opp2_dpg_is_blanked(struct output_pixel_processor *opp);
 
+bool opp2_dpg_is_pending(struct output_pixel_processor *opp);
+
 void opp2_dpg_set_blank_color(
 		struct output_pixel_processor *opp,
 		const struct tg_color *color);

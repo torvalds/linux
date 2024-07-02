@@ -545,7 +545,7 @@ In such scenario, dpll device input signal shall be also configurable
 to drive dpll with signal recovered from the PHY netdevice.
 This is done by exposing a pin to the netdevice - attaching pin to the
 netdevice itself with
-``netdev_dpll_pin_set(struct net_device *dev, struct dpll_pin *dpll_pin)``.
+``dpll_netdev_pin_set(struct net_device *dev, struct dpll_pin *dpll_pin)``.
 Exposed pin id handle ``DPLL_A_PIN_ID`` is then identifiable by the user
 as it is attached to rtnetlink respond to get ``RTM_NEWLINK`` command in
 nested attribute ``IFLA_DPLL_PIN``.

@@ -4,8 +4,8 @@
 # Copyright (c) 2001 by Jaroslav Kysela <perex@perex.cz>
 #
 
-snd-mpu401-objs := mpu401.o
-snd-mpu401-uart-objs := mpu401_uart.o
+snd-mpu401-y := mpu401.o
+snd-mpu401-uart-y := mpu401_uart.o
 
 obj-$(CONFIG_SND_MPU401_UART) += snd-mpu401-uart.o
 

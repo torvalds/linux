@@ -34,6 +34,7 @@ union firmware_info {
 	struct atom_firmware_info_v3_2 v32;
 	struct atom_firmware_info_v3_3 v33;
 	struct atom_firmware_info_v3_4 v34;
+	struct atom_firmware_info_v3_5 v35;
 };
 
 /*
@@ -872,6 +873,10 @@ int amdgpu_atomfirmware_get_fw_reserved_fb_size(struct amdgpu_device *adev)
 		fw_reserved_fb_size =
 			(firmware_info->v34.fw_reserved_size_in_kb << 10);
 		break;
+	case 5:
+		fw_reserved_fb_size =
+			(firmware_info->v35.fw_reserved_size_in_kb << 10);
+		break;
 	default:
 		fw_reserved_fb_size = 0;
 		break;
@@ -941,5 +946,6 @@ int amdgpu_atomfirmware_asic_init(struct amdgpu_device *adev, bool fb_reset)
 		return -EINVAL;
 	}
 
-	return amdgpu_atom_execute_table(ctx, ATOM_CMD_INIT, (uint32_t *)&asic_init_ps_v2_1);
+	return amdgpu_atom_execute_table(ctx, ATOM_CMD_INIT, (uint32_t *)&asic_init_ps_v2_1,
+		sizeof(asic_init_ps_v2_1));
 }

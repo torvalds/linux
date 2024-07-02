@@ -1,5 +1,3 @@
-Status: Unstable - ABI compatibility may be broken in the future
-
 Binding for keystone PLLs. The main PLL IP typically has a multiplier,
 a divider and a post divider. The additional PLL IPs like ARMPLL, DDRPLL
 and PAPLL are controlled by the memory mapped register where as the Main

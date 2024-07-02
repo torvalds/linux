@@ -230,18 +230,30 @@
 
 &uart0 {
 	clocks = <&zynqmp_clk UART0_REF>, <&zynqmp_clk LPD_LSBUS>;
+	assigned-clocks = <&zynqmp_clk UART0_REF>;
 };
 
 &uart1 {
 	clocks = <&zynqmp_clk UART1_REF>, <&zynqmp_clk LPD_LSBUS>;
+	assigned-clocks = <&zynqmp_clk UART1_REF>;
+};
+
+&usb0 {
+	clocks = <&zynqmp_clk USB0_BUS_REF>, <&zynqmp_clk USB3_DUAL_REF>;
+	assigned-clocks = <&zynqmp_clk USB0_BUS_REF>, <&zynqmp_clk USB3_DUAL_REF>;
 };
 
 &dwc3_0 {
-	clocks = <&zynqmp_clk USB0_BUS_REF>, <&zynqmp_clk USB3_DUAL_REF>;
+	clocks = <&zynqmp_clk USB3_DUAL_REF>;
+};
+
+&usb1 {
+	clocks = <&zynqmp_clk USB1_BUS_REF>, <&zynqmp_clk USB3_DUAL_REF>;
+	assigned-clocks = <&zynqmp_clk USB1_BUS_REF>, <&zynqmp_clk USB3_DUAL_REF>;
 };
 
 &dwc3_1 {
-	clocks = <&zynqmp_clk USB1_BUS_REF>, <&zynqmp_clk USB3_DUAL_REF>;
+	clocks = <&zynqmp_clk USB3_DUAL_REF>;
 };
 
 &watchdog0 {

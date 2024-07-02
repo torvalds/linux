@@ -84,7 +84,7 @@ static int fsl_ifc_ctrl_init(struct fsl_ifc_ctrl *ctrl)
 	return 0;
 }
 
-static int fsl_ifc_ctrl_remove(struct platform_device *dev)
+static void fsl_ifc_ctrl_remove(struct platform_device *dev)
 {
 	struct fsl_ifc_ctrl *ctrl = dev_get_drvdata(&dev->dev);
 
@@ -98,8 +98,6 @@ static int fsl_ifc_ctrl_remove(struct platform_device *dev)
 	iounmap(ctrl->gregs);
 
 	dev_set_drvdata(&dev->dev, NULL);
-
-	return 0;
 }
 
 /*
@@ -318,7 +316,7 @@ static struct platform_driver fsl_ifc_ctrl_driver = {
 		.of_match_table = fsl_ifc_match,
 	},
 	.probe       = fsl_ifc_ctrl_probe,
-	.remove      = fsl_ifc_ctrl_remove,
+	.remove_new  = fsl_ifc_ctrl_remove,
 };
 
 static int __init fsl_ifc_init(void)

@@ -19,6 +19,12 @@ definitions:
     properties:
       mclk-fs:
         $ref: simple-card.yaml#/definitions/mclk-fs
+      playback-only:
+        description: port connection used only for playback
+        $ref: /schemas/types.yaml#/definitions/flag
+      capture-only:
+        description: port connection used only for capture
+        $ref: /schemas/types.yaml#/definitions/flag
 
   endpoint-base:
     allOf:
@@ -45,7 +51,7 @@ definitions:
           - $ref: /schemas/types.yaml#/definitions/phandle
       clocks:
         description: Indicates system clock
-        $ref: /schemas/types.yaml#/definitions/phandle
+        maxItems: 1
       system-clock-frequency:
         $ref: simple-card.yaml#/definitions/system-clock-frequency
       system-clock-direction-out:

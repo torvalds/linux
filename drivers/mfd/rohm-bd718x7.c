@@ -87,7 +87,7 @@ static const struct regmap_config bd718xx_regmap_config = {
 	.val_bits = 8,
 	.volatile_table = &volatile_regs,
 	.max_register = BD718XX_MAX_REGISTER - 1,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static int bd718xx_init_press_duration(struct regmap *regmap,

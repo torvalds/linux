@@ -17,6 +17,7 @@ tests="
 	ct_connect_v4				ip4-ct-xon: Basic ipv4 tcp connection using ct
 	connect_v4				ip4-xon: Basic ipv4 ping between two NS
 	nat_connect_v4				ip4-nat-xon: Basic ipv4 tcp connection via NAT
+	nat_related_v4				ip4-nat-related: ICMP related matches work with SNAT
 	netlink_checks				ovsnl: validate netlink attrs and settings
 	upcall_interfaces			ovs: test the upcall interfaces
 	drop_reason				drop: test drop reasons are emitted"
@@ -473,6 +474,67 @@ test_nat_connect_v4 () {
 	return 0
 }
 
+# nat_related_v4 test
+#  - client->server ip packets go via SNAT
+#  - client solicits ICMP destination unreachable packet from server
+#  - undo NAT for ICMP reply and test dst ip has been updated
+test_nat_related_v4 () {
+	which nc >/dev/null 2>/dev/null || return $ksft_skip
+
+	sbx_add "test_nat_related_v4" || return $?
+
+	ovs_add_dp "test_nat_related_v4" natrelated4 || return 1
+	info "create namespaces"
+	for ns in client server; do
+		ovs_add_netns_and_veths "test_nat_related_v4" "natrelated4" "$ns" \
+			"${ns:0:1}0" "${ns:0:1}1" || return 1
+	done
+
+	ip netns exec client ip addr add 172.31.110.10/24 dev c1
+	ip netns exec client ip link set c1 up
+	ip netns exec server ip addr add 172.31.110.20/24 dev s1
+	ip netns exec server ip link set s1 up
+
+	ip netns exec server ip route add 192.168.0.20/32 via 172.31.110.10
+
+	# Allow ARP
+	ovs_add_flow "test_nat_related_v4" natrelated4 \
+		"in_port(1),eth(),eth_type(0x0806),arp()" "2" || return 1
+	ovs_add_flow "test_nat_related_v4" natrelated4 \
+		"in_port(2),eth(),eth_type(0x0806),arp()" "1" || return 1
+
+	# Allow IP traffic from client->server, rewrite source IP with SNAT to 192.168.0.20
+	ovs_add_flow "test_nat_related_v4" natrelated4 \
+		"ct_state(-trk),in_port(1),eth(),eth_type(0x0800),ipv4(dst=172.31.110.20)" \
+		"ct(commit,nat(src=192.168.0.20)),recirc(0x1)" || return 1
+	ovs_add_flow "test_nat_related_v4" natrelated4 \
+		"recirc_id(0x1),ct_state(+trk-inv),in_port(1),eth(),eth_type(0x0800),ipv4()" \
+		"2" || return 1
+
+	# Allow related ICMP responses back from server and undo NAT to restore original IP
+	# Drop any ICMP related packets where dst ip hasn't been restored back to original IP
+	ovs_add_flow "test_nat_related_v4" natrelated4 \
+		"ct_state(-trk),in_port(2),eth(),eth_type(0x0800),ipv4()" \
+		"ct(commit,nat),recirc(0x2)" || return 1
+	ovs_add_flow "test_nat_related_v4" natrelated4 \
+		"recirc_id(0x2),ct_state(+rel+trk),in_port(2),eth(),eth_type(0x0800),ipv4(src=172.31.110.20,dst=172.31.110.10,proto=1),icmp()" \
+		"1" || return 1
+	ovs_add_flow "test_nat_related_v4" natrelated4 \
+		"recirc_id(0x2),ct_state(+rel+trk),in_port(2),eth(),eth_type(0x0800),ipv4(dst=192.168.0.20,proto=1),icmp()" \
+		"drop" || return 1
+
+	# Solicit destination unreachable response from server
+	ovs_sbx "test_nat_related_v4" ip netns exec client \
+		bash -c "echo a | nc -u -w 1 172.31.110.20 10000"
+
+	# Check to make sure no packets matched the drop rule with incorrect dst ip
+	python3 "$ovs_base/ovs-dpctl.py" dump-flows natrelated4 \
+		| grep "drop" | grep "packets:0" >/dev/null || return 1
+
+	info "done..."
+	return 0
+}
+
 # netlink_validation
 # - Create a dp
 # - check no warning with "old version" simulation
@@ -502,7 +564,20 @@ test_netlink_checks () {
 	    wc -l) == 2 ] || \
 	      return 1
 
+	info "Checking clone depth"
 	ERR_MSG="Flow actions may not be safe on all matching packets"
+	PRE_TEST=$(dmesg | grep -c "${ERR_MSG}")
+	ovs_add_flow "test_netlink_checks" nv0 \
+		'in_port(1),eth(),eth_type(0x800),ipv4()' \
+		'clone(clone(clone(clone(clone(clone(clone(clone(clone(clone(clone(clone(clone(clone(clone(clone(clone(drop)))))))))))))))))' \
+		>/dev/null 2>&1 && return 1
+	POST_TEST=$(dmesg | grep -c "${ERR_MSG}")
+
+	if [ "$PRE_TEST" == "$POST_TEST" ]; then
+		info "failed - clone depth too large"
+		return 1
+	fi
+
 	PRE_TEST=$(dmesg | grep -c "${ERR_MSG}")
 	ovs_add_flow "test_netlink_checks" nv0 \
 		'in_port(1),eth(),eth_type(0x0806),arp()' 'drop(0),2' \

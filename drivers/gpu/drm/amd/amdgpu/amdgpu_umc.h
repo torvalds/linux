@@ -21,7 +21,7 @@
 #ifndef __AMDGPU_UMC_H__
 #define __AMDGPU_UMC_H__
 #include "amdgpu_ras.h"
-
+#include "amdgpu_mca.h"
 /*
  * (addr / 256) * 4096, the higher 26 bits in ErrorAddr
  * is the index of 4KB block
@@ -52,6 +52,8 @@
 #define LOOP_UMC_EACH_NODE_INST_AND_CH(node_inst, umc_inst, ch_inst) \
 		LOOP_UMC_NODE_INST((node_inst)) LOOP_UMC_INST_AND_CH((umc_inst), (ch_inst))
 
+/* Page retirement tag */
+#define UMC_ECC_NEW_DETECTED_TAG       0x1
 
 typedef int (*umc_func)(struct amdgpu_device *adev, uint32_t node_inst,
 			uint32_t umc_inst, uint32_t ch_inst, void *data);
@@ -64,8 +66,10 @@ struct amdgpu_umc_ras {
 				      void *ras_error_status);
 	void (*ecc_info_query_ras_error_address)(struct amdgpu_device *adev,
 					void *ras_error_status);
-	/* support different eeprom table version for different asic */
-	void (*set_eeprom_table_version)(struct amdgpu_ras_eeprom_table_header *hdr);
+	bool (*check_ecc_err_status)(struct amdgpu_device *adev,
+			enum amdgpu_mca_error_type type, void *ras_error_status);
+	int (*update_ecc_status)(struct amdgpu_device *adev,
+			uint64_t status, uint64_t ipid, uint64_t addr);
 };
 
 struct amdgpu_umc_funcs {
@@ -100,11 +104,15 @@ struct amdgpu_umc {
 
 int amdgpu_umc_ras_sw_init(struct amdgpu_device *adev);
 int amdgpu_umc_ras_late_init(struct amdgpu_device *adev, struct ras_common_if *ras_block);
-int amdgpu_umc_poison_handler(struct amdgpu_device *adev, bool reset);
+int amdgpu_umc_poison_handler(struct amdgpu_device *adev,
+			enum amdgpu_ras_block block, uint32_t reset);
+int amdgpu_umc_pasid_poison_handler(struct amdgpu_device *adev,
+			enum amdgpu_ras_block block, uint16_t pasid,
+			pasid_notify pasid_fn, void *data, uint32_t reset);
 int amdgpu_umc_process_ecc_irq(struct amdgpu_device *adev,
 		struct amdgpu_irq_src *source,
 		struct amdgpu_iv_entry *entry);
-void amdgpu_umc_fill_error_record(struct ras_err_data *err_data,
+int amdgpu_umc_fill_error_record(struct ras_err_data *err_data,
 		uint64_t err_addr,
 		uint64_t retired_page,
 		uint32_t channel_index,
@@ -118,4 +126,17 @@ int amdgpu_umc_page_retirement_mca(struct amdgpu_device *adev,
 
 int amdgpu_umc_loop_channels(struct amdgpu_device *adev,
 			umc_func func, void *data);
+
+int amdgpu_umc_bad_page_polling_timeout(struct amdgpu_device *adev,
+			uint32_t reset, uint32_t timeout_ms);
+
+int amdgpu_umc_update_ecc_status(struct amdgpu_device *adev,
+				uint64_t status, uint64_t ipid, uint64_t addr);
+int amdgpu_umc_build_pages_hash(struct amdgpu_device *adev,
+		uint64_t *pfns, int len, uint64_t *val);
+int amdgpu_umc_logs_ecc_err(struct amdgpu_device *adev,
+		struct radix_tree_root *ecc_tree, struct ras_ecc_err *ecc_err);
+
+void amdgpu_umc_handle_bad_pages(struct amdgpu_device *adev,
+			void *ras_error_status);
 #endif

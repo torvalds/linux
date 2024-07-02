@@ -156,8 +156,8 @@ static int nfs_delegation_claim_locks(struct nfs4_state *state, const nfs4_state
 	list = &flctx->flc_posix;
 	spin_lock(&flctx->flc_lock);
 restart:
-	list_for_each_entry(fl, list, fl_list) {
-		if (nfs_file_open_context(fl->fl_file)->state != state)
+	for_each_file_lock(fl, list) {
+		if (nfs_file_open_context(fl->c.flc_file)->state != state)
 			continue;
 		spin_unlock(&flctx->flc_lock);
 		status = nfs4_lock_delegation_recall(fl, state, stateid);
@@ -181,7 +181,6 @@ static int nfs_delegation_claim_opens(struct inode *inode,
 	struct nfs_open_context *ctx;
 	struct nfs4_state_owner *sp;
 	struct nfs4_state *state;
-	unsigned int seq;
 	int err;
 
 again:
@@ -202,12 +201,9 @@ again:
 		sp = state->owner;
 		/* Block nfs4_proc_unlck */
 		mutex_lock(&sp->so_delegreturn_mutex);
-		seq = raw_seqcount_begin(&sp->so_reclaim_seqcount);
 		err = nfs4_open_delegation_recall(ctx, state, stateid);
 		if (!err)
 			err = nfs_delegation_claim_locks(state, stateid);
-		if (!err && read_seqcount_retry(&sp->so_reclaim_seqcount, seq))
-			err = -EAGAIN;
 		mutex_unlock(&sp->so_delegreturn_mutex);
 		put_nfs_open_context(ctx);
 		if (err != 0)
@@ -448,6 +444,7 @@ int nfs_inode_set_delegation(struct inode *inode, const struct cred *cred,
 	delegation->cred = get_cred(cred);
 	delegation->inode = inode;
 	delegation->flags = 1<<NFS_DELEGATION_REFERENCED;
+	delegation->test_gen = 0;
 	spin_lock_init(&delegation->lock);
 
 	spin_lock(&clp->cl_lock);
@@ -1294,6 +1291,8 @@ static int nfs_server_reap_expired_delegations(struct nfs_server *server,
 	struct inode *inode;
 	const struct cred *cred;
 	nfs4_stateid stateid;
+	unsigned long gen = ++server->delegation_gen;
+
 restart:
 	rcu_read_lock();
 restart_locked:
@@ -1303,7 +1302,8 @@ restart_locked:
 		    test_bit(NFS_DELEGATION_RETURNING,
 					&delegation->flags) ||
 		    test_bit(NFS_DELEGATION_TEST_EXPIRED,
-					&delegation->flags) == 0)
+					&delegation->flags) == 0 ||
+			delegation->test_gen == gen)
 			continue;
 		inode = nfs_delegation_grab_inode(delegation);
 		if (inode == NULL)
@@ -1312,6 +1312,7 @@ restart_locked:
 		cred = get_cred_rcu(delegation->cred);
 		nfs4_stateid_copy(&stateid, &delegation->stateid);
 		spin_unlock(&delegation->lock);
+		delegation->test_gen = gen;
 		clear_bit(NFS_DELEGATION_TEST_EXPIRED, &delegation->flags);
 		rcu_read_unlock();
 		nfs_delegation_test_free_expired(inode, &stateid, cred);

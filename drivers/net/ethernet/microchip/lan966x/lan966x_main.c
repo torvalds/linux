@@ -276,7 +276,7 @@ static int lan966x_port_ifh_xmit(struct sk_buff *skb,
 		++i;
 	}
 
-	/* Inidcate EOF and valid bytes in the last word */
+	/* Indicate EOF and valid bytes in the last word */
 	lan_wr(QS_INJ_CTRL_GAP_SIZE_SET(1) |
 	       QS_INJ_CTRL_VLD_BYTES_SET(skb->len < LAN966X_BUFFER_MIN_SZ ?
 				     0 : last) |
@@ -402,7 +402,7 @@ static int lan966x_port_change_mtu(struct net_device *dev, int new_mtu)
 
 	lan_wr(DEV_MAC_MAXLEN_CFG_MAX_LEN_SET(LAN966X_HW_MTU(new_mtu)),
 	       lan966x, DEV_MAC_MAXLEN_CFG(port->chip_port));
-	dev->mtu = new_mtu;
+	WRITE_ONCE(dev->mtu, new_mtu);
 
 	if (!lan966x->fdma)
 		return 0;
@@ -520,7 +520,7 @@ bool lan966x_hw_offload(struct lan966x *lan966x, u32 port, struct sk_buff *skb)
 	u32 val;
 
 	/* The IGMP and MLD frames are not forward by the HW if
-	 * multicast snooping is enabled, therefor don't mark as
+	 * multicast snooping is enabled, therefore don't mark as
 	 * offload to allow the SW to forward the frames accordingly.
 	 */
 	val = lan_rd(lan966x, ANA_CPU_FWD_CFG(port));

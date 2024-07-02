@@ -363,9 +363,6 @@ static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *pt
 extern pgd_t swapper_pg_dir[];
 extern pgd_t invalid_pg_dir[];
 
-struct page *dmw_virt_to_page(unsigned long kaddr);
-struct page *tlb_virt_to_page(unsigned long kaddr);
-
 /*
  * The following only work if pte_present() is true.
  * Undefined behaviour if not..
@@ -523,6 +520,7 @@ static inline pmd_t pmd_wrprotect(pmd_t pmd)
 	return pmd;
 }
 
+#define pmd_dirty pmd_dirty
 static inline int pmd_dirty(pmd_t pmd)
 {
 	return !!(pmd_val(pmd) & (_PAGE_DIRTY | _PAGE_MODIFIED));

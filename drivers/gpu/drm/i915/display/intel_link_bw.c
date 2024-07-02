@@ -6,24 +6,41 @@
 #include "i915_drv.h"
 
 #include "intel_atomic.h"
+#include "intel_crtc.h"
 #include "intel_display_types.h"
+#include "intel_dp_mst.h"
+#include "intel_dp_tunnel.h"
 #include "intel_fdi.h"
 #include "intel_link_bw.h"
 
 /**
  * intel_link_bw_init_limits - initialize BW limits
- * @i915: device instance
+ * @state: Atomic state
  * @limits: link BW limits
  *
  * Initialize @limits.
  */
-void intel_link_bw_init_limits(struct drm_i915_private *i915, struct intel_link_bw_limits *limits)
+void intel_link_bw_init_limits(struct intel_atomic_state *state,
+			       struct intel_link_bw_limits *limits)
 {
+	struct drm_i915_private *i915 = to_i915(state->base.dev);
 	enum pipe pipe;
 
+	limits->force_fec_pipes = 0;
 	limits->bpp_limit_reached_pipes = 0;
-	for_each_pipe(i915, pipe)
-		limits->max_bpp_x16[pipe] = INT_MAX;
+	for_each_pipe(i915, pipe) {
+		const struct intel_crtc_state *crtc_state =
+			intel_atomic_get_new_crtc_state(state,
+							intel_crtc_for_pipe(i915, pipe));
+
+		if (state->base.duplicated && crtc_state) {
+			limits->max_bpp_x16[pipe] = crtc_state->max_link_bpp_x16;
+			if (crtc_state->fec_enable)
+				limits->force_fec_pipes |= BIT(pipe);
+		} else {
+			limits->max_bpp_x16[pipe] = INT_MAX;
+		}
+	}
 }
 
 /**
@@ -53,11 +70,11 @@ int intel_link_bw_reduce_bpp(struct intel_atomic_state *state,
 	struct drm_i915_private *i915 = to_i915(state->base.dev);
 	enum pipe max_bpp_pipe = INVALID_PIPE;
 	struct intel_crtc *crtc;
-	int max_bpp = 0;
+	int max_bpp_x16 = 0;
 
 	for_each_intel_crtc_in_pipe_mask(&i915->drm, crtc, pipe_mask) {
 		struct intel_crtc_state *crtc_state;
-		int link_bpp;
+		int link_bpp_x16;
 
 		if (limits->bpp_limit_reached_pipes & BIT(crtc->pipe))
 			continue;
@@ -68,7 +85,7 @@ int intel_link_bw_reduce_bpp(struct intel_atomic_state *state,
 			return PTR_ERR(crtc_state);
 
 		if (crtc_state->dsc.compression_enable)
-			link_bpp = crtc_state->dsc.compressed_bpp;
+			link_bpp_x16 = crtc_state->dsc.compressed_bpp_x16;
 		else
 			/*
 			 * TODO: for YUV420 the actual link bpp is only half
@@ -76,10 +93,10 @@ int intel_link_bw_reduce_bpp(struct intel_atomic_state *state,
 			 * is based on the pipe bpp value, set the actual link bpp
 			 * limit here once the MST BW allocation is fixed.
 			 */
-			link_bpp = crtc_state->pipe_bpp;
+			link_bpp_x16 = to_bpp_x16(crtc_state->pipe_bpp);
 
-		if (link_bpp > max_bpp) {
-			max_bpp = link_bpp;
+		if (link_bpp_x16 > max_bpp_x16) {
+			max_bpp_x16 = link_bpp_x16;
 			max_bpp_pipe = crtc->pipe;
 		}
 	}
@@ -87,7 +104,7 @@ int intel_link_bw_reduce_bpp(struct intel_atomic_state *state,
 	if (max_bpp_pipe == INVALID_PIPE)
 		return -ENOSPC;
 
-	limits->max_bpp_x16[max_bpp_pipe] = to_bpp_x16(max_bpp) - 1;
+	limits->max_bpp_x16[max_bpp_pipe] = max_bpp_x16 - 1;
 
 	return intel_modeset_pipes_in_mask_early(state, reason,
 						 BIT(max_bpp_pipe));
@@ -143,6 +160,14 @@ static int check_all_link_config(struct intel_atomic_state *state,
 	/* TODO: Check additional shared display link configurations like MST */
 	int ret;
 
+	ret = intel_dp_mst_atomic_check_link(state, limits);
+	if (ret)
+		return ret;
+
+	ret = intel_dp_tunnel_atomic_check_link(state, limits);
+	if (ret)
+		return ret;
+
 	ret = intel_fdi_atomic_check_link(state, limits);
 	if (ret)
 		return ret;
@@ -158,6 +183,12 @@ assert_link_limit_change_valid(struct drm_i915_private *i915,
 	bool bpps_changed = false;
 	enum pipe pipe;
 
+	/* FEC can't be forced off after it was forced on. */
+	if (drm_WARN_ON(&i915->drm,
+			(old_limits->force_fec_pipes & new_limits->force_fec_pipes) !=
+			old_limits->force_fec_pipes))
+		return false;
+
 	for_each_pipe(i915, pipe) {
 		/* The bpp limit can only decrease. */
 		if (drm_WARN_ON(&i915->drm,
@@ -172,7 +203,9 @@ assert_link_limit_change_valid(struct drm_i915_private *i915,
 
 	/* At least one limit must change. */
 	if (drm_WARN_ON(&i915->drm,
-			!bpps_changed))
+			!bpps_changed &&
+			new_limits->force_fec_pipes ==
+			old_limits->force_fec_pipes))
 		return false;
 
 	return true;

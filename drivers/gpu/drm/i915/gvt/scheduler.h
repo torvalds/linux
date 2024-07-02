@@ -104,10 +104,8 @@ struct intel_vgpu_workload {
 
 	/* execlist context information */
 	struct execlist_ctx_descriptor_format ctx_desc;
-	struct execlist_ring_context *ring_context;
 	unsigned long rb_head, rb_tail, rb_ctl, rb_start, rb_len;
 	unsigned long guest_rb_head;
-	bool restore_inhibit;
 	struct intel_vgpu_elsp_dwords elsp_dwords;
 	bool emulate_schedule_in;
 	atomic_t shadow_ctx_active;

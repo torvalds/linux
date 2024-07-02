@@ -3,6 +3,15 @@
 #ifndef BTRFS_RELOCATION_H
 #define BTRFS_RELOCATION_H
 
+#include <linux/types.h>
+
+struct extent_buffer;
+struct btrfs_fs_info;
+struct btrfs_root;
+struct btrfs_trans_handle;
+struct btrfs_ordered_extent;
+struct btrfs_pending_snapshot;
+
 int btrfs_relocate_block_group(struct btrfs_fs_info *fs_info, u64 group_start);
 int btrfs_init_reloc_root(struct btrfs_trans_handle *trans, struct btrfs_root *root);
 int btrfs_update_reloc_root(struct btrfs_trans_handle *trans,

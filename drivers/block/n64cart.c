@@ -114,6 +114,10 @@ static const struct block_device_operations n64cart_fops = {
  */
 static int __init n64cart_probe(struct platform_device *pdev)
 {
+	struct queue_limits lim = {
+		.physical_block_size	= 4096,
+		.logical_block_size	= 4096,
+	};
 	struct gendisk *disk;
 	int err = -ENOMEM;
 
@@ -131,9 +135,11 @@ static int __init n64cart_probe(struct platform_device *pdev)
 	if (IS_ERR(reg_base))
 		return PTR_ERR(reg_base);
 
-	disk = blk_alloc_disk(NUMA_NO_NODE);
-	if (!disk)
+	disk = blk_alloc_disk(&lim, NUMA_NO_NODE);
+	if (IS_ERR(disk)) {
+		err = PTR_ERR(disk);
 		goto out;
+	}
 
 	disk->first_minor = 0;
 	disk->flags = GENHD_FL_NO_PART;
@@ -145,8 +151,6 @@ static int __init n64cart_probe(struct platform_device *pdev)
 	set_disk_ro(disk, 1);
 
 	blk_queue_flag_set(QUEUE_FLAG_NONROT, disk->queue);
-	blk_queue_physical_block_size(disk->queue, 4096);
-	blk_queue_logical_block_size(disk->queue, 4096);
 
 	err = add_disk(disk);
 	if (err)

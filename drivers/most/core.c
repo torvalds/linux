@@ -499,7 +499,7 @@ static int most_match(struct device *dev, struct device_driver *drv)
 		return 1;
 }
 
-static struct bus_type mostbus = {
+static const struct bus_type mostbus = {
 	.name = "most",
 	.match = most_match,
 };

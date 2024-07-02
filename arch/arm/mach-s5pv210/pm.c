@@ -47,7 +47,7 @@ static void s3c_pm_do_save(struct sleep_save *ptr, int count)
 }
 
 /**
- * s3c_pm_do_restore() - restore register values from the save list.
+ * s3c_pm_do_restore_core() - restore register values from the save list.
  * @ptr: Pointer to an array of registers.
  * @count: Size of the ptr array.
  *

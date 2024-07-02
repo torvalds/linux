@@ -27,8 +27,9 @@
 #include <linux/mutex.h>
 
 #include <drm/drm_atomic_state_helper.h>
-#include <drm/drm_debugfs.h>
 #include <drm/drm_bridge.h>
+#include <drm/drm_debugfs.h>
+#include <drm/drm_edid.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_file.h>
 #include <drm/drm_of.h>
@@ -656,6 +657,13 @@ static void drm_atomic_bridge_call_post_disable(struct drm_bridge *bridge,
  * bridge will be called before the previous one to reverse the @pre_enable
  * calling direction.
  *
+ * Example:
+ * Bridge A ---> Bridge B ---> Bridge C ---> Bridge D ---> Bridge E
+ *
+ * With pre_enable_prev_first flag enable in Bridge B, D, E then the resulting
+ * @post_disable order would be,
+ * Bridge B, Bridge A, Bridge E, Bridge D, Bridge C.
+ *
  * Note: the bridge passed should be the one closest to the encoder
  */
 void drm_atomic_bridge_chain_post_disable(struct drm_bridge *bridge,
@@ -686,8 +694,14 @@ void drm_atomic_bridge_chain_post_disable(struct drm_bridge *bridge,
 				 */
 				list_for_each_entry_from(next, &encoder->bridge_chain,
 							 chain_node) {
-					if (next->pre_enable_prev_first) {
+					if (!next->pre_enable_prev_first) {
 						next = list_prev_entry(next, chain_node);
+						limit = next;
+						break;
+					}
+
+					if (list_is_last(&next->chain_node,
+							 &encoder->bridge_chain)) {
 						limit = next;
 						break;
 					}
@@ -746,6 +760,13 @@ static void drm_atomic_bridge_call_pre_enable(struct drm_bridge *bridge,
  * If a bridge sets @pre_enable_prev_first, then the pre_enable for the
  * prev bridge will be called before pre_enable of this bridge.
  *
+ * Example:
+ * Bridge A ---> Bridge B ---> Bridge C ---> Bridge D ---> Bridge E
+ *
+ * With pre_enable_prev_first flag enable in Bridge B, D, E then the resulting
+ * @pre_enable order would be,
+ * Bridge C, Bridge D, Bridge E, Bridge A, Bridge B.
+ *
  * Note: the bridge passed should be the one closest to the encoder
  */
 void drm_atomic_bridge_chain_pre_enable(struct drm_bridge *bridge,
@@ -773,7 +794,7 @@ void drm_atomic_bridge_chain_pre_enable(struct drm_bridge *bridge,
 					/* Found first bridge that does NOT
 					 * request prev to be enabled first
 					 */
-					limit = list_prev_entry(next, chain_node);
+					limit = next;
 					break;
 				}
 			}
@@ -1207,26 +1228,26 @@ int drm_bridge_get_modes(struct drm_bridge *bridge,
 EXPORT_SYMBOL_GPL(drm_bridge_get_modes);
 
 /**
- * drm_bridge_get_edid - get the EDID data of the connected display
+ * drm_bridge_edid_read - read the EDID data of the connected display
  * @bridge: bridge control structure
  * @connector: the connector to read EDID for
  *
  * If the bridge supports output EDID retrieval, as reported by the
- * DRM_BRIDGE_OP_EDID bridge ops flag, call &drm_bridge_funcs.get_edid to
- * get the EDID and return it. Otherwise return NULL.
+ * DRM_BRIDGE_OP_EDID bridge ops flag, call &drm_bridge_funcs.edid_read to get
+ * the EDID and return it. Otherwise return NULL.
  *
  * RETURNS:
  * The retrieved EDID on success, or NULL otherwise.
  */
-struct edid *drm_bridge_get_edid(struct drm_bridge *bridge,
-				 struct drm_connector *connector)
+const struct drm_edid *drm_bridge_edid_read(struct drm_bridge *bridge,
+					    struct drm_connector *connector)
 {
 	if (!(bridge->ops & DRM_BRIDGE_OP_EDID))
 		return NULL;
 
-	return bridge->funcs->get_edid(bridge, connector);
+	return bridge->funcs->edid_read(bridge, connector);
 }
-EXPORT_SYMBOL_GPL(drm_bridge_get_edid);
+EXPORT_SYMBOL_GPL(drm_bridge_edid_read);
 
 /**
  * drm_bridge_hpd_enable - enable hot plug detection for the bridge
@@ -1345,50 +1366,6 @@ struct drm_bridge *of_drm_find_bridge(struct device_node *np)
 	return NULL;
 }
 EXPORT_SYMBOL(of_drm_find_bridge);
-#endif
-
-#ifdef CONFIG_DEBUG_FS
-static int drm_bridge_chains_info(struct seq_file *m, void *data)
-{
-	struct drm_debugfs_entry *entry = m->private;
-	struct drm_device *dev = entry->dev;
-	struct drm_printer p = drm_seq_file_printer(m);
-	struct drm_mode_config *config = &dev->mode_config;
-	struct drm_encoder *encoder;
-	unsigned int bridge_idx = 0;
-
-	list_for_each_entry(encoder, &config->encoder_list, head) {
-		struct drm_bridge *bridge;
-
-		drm_printf(&p, "encoder[%u]\n", encoder->base.id);
-
-		drm_for_each_bridge_in_chain(encoder, bridge) {
-			drm_printf(&p, "\tbridge[%u] type: %u, ops: %#x",
-				   bridge_idx, bridge->type, bridge->ops);
-
-#ifdef CONFIG_OF
-			if (bridge->of_node)
-				drm_printf(&p, ", OF: %pOFfc", bridge->of_node);
-#endif
-
-			drm_printf(&p, "\n");
-
-			bridge_idx++;
-		}
-	}
-
-	return 0;
-}
-
-static const struct drm_debugfs_info drm_bridge_debugfs_list[] = {
-	{ "bridge_chains", drm_bridge_chains_info, 0 },
-};
-
-void drm_bridge_debugfs_init(struct drm_device *dev)
-{
-	drm_debugfs_add_files(dev, drm_bridge_debugfs_list,
-			      ARRAY_SIZE(drm_bridge_debugfs_list));
-}
 #endif
 
 MODULE_AUTHOR("Ajay Kumar <ajaykumar.rs@samsung.com>");

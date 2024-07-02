@@ -459,7 +459,7 @@ static int l2tp_ip_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 
 	fl4 = &inet->cork.fl.u.ip4;
 	if (connected)
-		rt = (struct rtable *)__sk_dst_check(sk, 0);
+		rt = dst_rtable(__sk_dst_check(sk, 0));
 
 	rcu_read_lock();
 	if (!rt) {
@@ -478,7 +478,7 @@ static int l2tp_ip_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		rt = ip_route_output_ports(sock_net(sk), fl4, sk,
 					   daddr, inet->inet_saddr,
 					   inet->inet_dport, inet->inet_sport,
-					   sk->sk_protocol, RT_CONN_FLAGS(sk),
+					   sk->sk_protocol, ip_sock_rt_tos(sk),
 					   sk->sk_bound_dev_if);
 		if (IS_ERR(rt))
 			goto no_route;

@@ -223,6 +223,9 @@ Userspace to kernel:
   ``ETHTOOL_MSG_PSE_SET``               set PSE parameters
   ``ETHTOOL_MSG_PSE_GET``               get PSE parameters
   ``ETHTOOL_MSG_RSS_GET``               get RSS settings
+  ``ETHTOOL_MSG_PLCA_GET_CFG``          get PLCA RS parameters
+  ``ETHTOOL_MSG_PLCA_SET_CFG``          set PLCA RS parameters
+  ``ETHTOOL_MSG_PLCA_GET_STATUS``       get PLCA RS status
   ``ETHTOOL_MSG_MM_GET``                get MAC merge layer state
   ``ETHTOOL_MSG_MM_SET``                set MAC merge layer parameters
   ===================================== =================================
@@ -267,6 +270,9 @@ Kernel to userspace:
   ``ETHTOOL_MSG_MODULE_GET_REPLY``         transceiver module parameters
   ``ETHTOOL_MSG_PSE_GET_REPLY``            PSE parameters
   ``ETHTOOL_MSG_RSS_GET_REPLY``            RSS settings
+  ``ETHTOOL_MSG_PLCA_GET_CFG_REPLY``       PLCA RS parameters
+  ``ETHTOOL_MSG_PLCA_GET_STATUS_REPLY``    PLCA RS status
+  ``ETHTOOL_MSG_PLCA_NTF``                 PLCA RS parameters
   ``ETHTOOL_MSG_MM_GET_REPLY``             MAC merge layer status
   ======================================== =================================
 
@@ -1231,11 +1237,20 @@ Kernel response contents:
   ``ETHTOOL_A_TSINFO_TX_TYPES``          bitset  supported Tx types
   ``ETHTOOL_A_TSINFO_RX_FILTERS``        bitset  supported Rx filters
   ``ETHTOOL_A_TSINFO_PHC_INDEX``         u32     PTP hw clock index
+  ``ETHTOOL_A_TSINFO_STATS``             nested  HW timestamping statistics
   =====================================  ======  ==========================
 
 ``ETHTOOL_A_TSINFO_PHC_INDEX`` is absent if there is no associated PHC (there
 is no special value for this case). The bitset attributes are omitted if they
 would be empty (no bit set).
+
+Additional hardware timestamping statistics response contents:
+
+  =====================================  ======  ===================================
+  ``ETHTOOL_A_TS_STAT_TX_PKTS``          uint    Packets with Tx HW timestamps
+  ``ETHTOOL_A_TS_STAT_TX_LOST``          uint    Tx HW timestamp not arrived count
+  ``ETHTOOL_A_TS_STAT_TX_ERR``           uint    HW error request Tx timestamp count
+  =====================================  ======  ===================================
 
 CABLE_TEST
 ==========
@@ -1711,6 +1726,10 @@ Kernel response contents:
                                                   PSE functions
   ``ETHTOOL_A_PODL_PSE_PW_D_STATUS``         u32  power detection status of the
                                                   PoDL PSE.
+  ``ETHTOOL_A_C33_PSE_ADMIN_STATE``          u32  Operational state of the PoE
+                                                  PSE functions.
+  ``ETHTOOL_A_C33_PSE_PW_D_STATUS``          u32  power detection status of the
+                                                  PoE PSE.
   ======================================  ======  =============================
 
 When set, the optional ``ETHTOOL_A_PODL_PSE_ADMIN_STATE`` attribute identifies
@@ -1722,6 +1741,12 @@ aPoDLPSEAdminState. Possible values are:
 .. kernel-doc:: include/uapi/linux/ethtool.h
     :identifiers: ethtool_podl_pse_admin_state
 
+The same goes for ``ETHTOOL_A_C33_PSE_ADMIN_STATE`` implementing
+``IEEE 802.3-2022`` 30.9.1.1.2 aPSEAdminState.
+
+.. kernel-doc:: include/uapi/linux/ethtool.h
+    :identifiers: ethtool_c33_pse_admin_state
+
 When set, the optional ``ETHTOOL_A_PODL_PSE_PW_D_STATUS`` attribute identifies
 the power detection status of the PoDL PSE.  The status depend on internal PSE
 state machine and automatic PD classification support. This option is
@@ -1730,6 +1755,12 @@ Possible values are:
 
 .. kernel-doc:: include/uapi/linux/ethtool.h
     :identifiers: ethtool_podl_pse_pw_d_status
+
+The same goes for ``ETHTOOL_A_C33_PSE_ADMIN_PW_D_STATUS`` implementing
+``IEEE 802.3-2022`` 30.9.1.1.5 aPSEPowerDetectionStatus.
+
+.. kernel-doc:: include/uapi/linux/ethtool.h
+    :identifiers: ethtool_c33_pse_pw_d_status
 
 PSE_SET
 =======
@@ -1741,12 +1772,16 @@ Request contents:
   ======================================  ======  =============================
   ``ETHTOOL_A_PSE_HEADER``                nested  request header
   ``ETHTOOL_A_PODL_PSE_ADMIN_CONTROL``       u32  Control PoDL PSE Admin state
+  ``ETHTOOL_A_C33_PSE_ADMIN_CONTROL``        u32  Control PSE Admin state
   ======================================  ======  =============================
 
 When set, the optional ``ETHTOOL_A_PODL_PSE_ADMIN_CONTROL`` attribute is used
 to control PoDL PSE Admin functions. This option is implementing
 ``IEEE 802.3-2018`` 30.15.1.2.1 acPoDLPSEAdminControl. See
 ``ETHTOOL_A_PODL_PSE_ADMIN_STATE`` for supported values.
+
+The same goes for ``ETHTOOL_A_C33_PSE_ADMIN_CONTROL`` implementing
+``IEEE 802.3-2022`` 30.9.1.2.1 acPSEAdminControl.
 
 RSS_GET
 =======
@@ -1768,12 +1803,16 @@ Kernel response contents:
   ``ETHTOOL_A_RSS_HFUNC``              u32     RSS hash func
   ``ETHTOOL_A_RSS_INDIR``              binary  Indir table bytes
   ``ETHTOOL_A_RSS_HKEY``               binary  Hash key bytes
+  ``ETHTOOL_A_RSS_INPUT_XFRM``         u32     RSS input data transformation
 =====================================  ======  ==========================
 
 ETHTOOL_A_RSS_HFUNC attribute is bitmap indicating the hash function
 being used. Current supported options are toeplitz, xor or crc32.
-ETHTOOL_A_RSS_INDIR attribute returns RSS indrection table where each byte
+ETHTOOL_A_RSS_INDIR attribute returns RSS indirection table where each byte
 indicates queue number.
+ETHTOOL_A_RSS_INPUT_XFRM attribute is a bitmap indicating the type of
+transformation applied to the input protocol fields before given to the RSS
+hfunc. Current supported option is symmetric-xor.
 
 PLCA_GET_CFG
 ============

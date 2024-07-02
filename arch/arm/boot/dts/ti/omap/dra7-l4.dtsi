@@ -80,7 +80,7 @@
 						};
 					};
 
-					phy_gmii_sel: phy-gmii-sel {
+					phy_gmii_sel: phy-gmii-sel@554 {
 						compatible = "ti,dra7xx-phy-gmii-sel";
 						reg = <0x554 0x4>;
 						#phy-cells = <1>;

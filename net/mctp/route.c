@@ -73,13 +73,50 @@ static struct mctp_sock *mctp_lookup_bind(struct net *net, struct sk_buff *skb)
 	return NULL;
 }
 
-static bool mctp_key_match(struct mctp_sk_key *key, mctp_eid_t local,
-			   mctp_eid_t peer, u8 tag)
+/* A note on the key allocations.
+ *
+ * struct net->mctp.keys contains our set of currently-allocated keys for
+ * MCTP tag management. The lookup tuple for these is the peer EID,
+ * local EID and MCTP tag.
+ *
+ * In some cases, the peer EID may be MCTP_EID_ANY: for example, when a
+ * broadcast message is sent, we may receive responses from any peer EID.
+ * Because the broadcast dest address is equivalent to ANY, we create
+ * a key with (local = local-eid, peer = ANY). This allows a match on the
+ * incoming broadcast responses from any peer.
+ *
+ * We perform lookups when packets are received, and when tags are allocated
+ * in two scenarios:
+ *
+ *  - when a packet is sent, with a locally-owned tag: we need to find an
+ *    unused tag value for the (local, peer) EID pair.
+ *
+ *  - when a tag is manually allocated: we need to find an unused tag value
+ *    for the peer EID, but don't have a specific local EID at that stage.
+ *
+ * in the latter case, on successful allocation, we end up with a tag with
+ * (local = ANY, peer = peer-eid).
+ *
+ * So, the key set allows both a local EID of ANY, as well as a peer EID of
+ * ANY in the lookup tuple. Both may be ANY if we prealloc for a broadcast.
+ * The matching (in mctp_key_match()) during lookup allows the match value to
+ * be ANY in either the dest or source addresses.
+ *
+ * When allocating (+ inserting) a tag, we need to check for conflicts amongst
+ * the existing tag set. This requires macthing either exactly on the local
+ * and peer addresses, or either being ANY.
+ */
+
+static bool mctp_key_match(struct mctp_sk_key *key, unsigned int net,
+			   mctp_eid_t local, mctp_eid_t peer, u8 tag)
 {
+	if (key->net != net)
+		return false;
+
 	if (!mctp_address_matches(key->local_addr, local))
 		return false;
 
-	if (key->peer_addr != peer)
+	if (!mctp_address_matches(key->peer_addr, peer))
 		return false;
 
 	if (key->tag != tag)
@@ -92,7 +129,7 @@ static bool mctp_key_match(struct mctp_sk_key *key, mctp_eid_t local,
  * key exists.
  */
 static struct mctp_sk_key *mctp_lookup_key(struct net *net, struct sk_buff *skb,
-					   mctp_eid_t peer,
+					   unsigned int netid, mctp_eid_t peer,
 					   unsigned long *irqflags)
 	__acquires(&key->lock)
 {
@@ -108,7 +145,7 @@ static struct mctp_sk_key *mctp_lookup_key(struct net *net, struct sk_buff *skb,
 	spin_lock_irqsave(&net->mctp.keys_lock, flags);
 
 	hlist_for_each_entry(key, &net->mctp.keys, hlist) {
-		if (!mctp_key_match(key, mh->dest, peer, tag))
+		if (!mctp_key_match(key, netid, mh->dest, peer, tag))
 			continue;
 
 		spin_lock(&key->lock);
@@ -131,6 +168,7 @@ static struct mctp_sk_key *mctp_lookup_key(struct net *net, struct sk_buff *skb,
 }
 
 static struct mctp_sk_key *mctp_key_alloc(struct mctp_sock *msk,
+					  unsigned int net,
 					  mctp_eid_t local, mctp_eid_t peer,
 					  u8 tag, gfp_t gfp)
 {
@@ -140,6 +178,7 @@ static struct mctp_sk_key *mctp_key_alloc(struct mctp_sock *msk,
 	if (!key)
 		return NULL;
 
+	key->net = net;
 	key->peer_addr = peer;
 	key->local_addr = local;
 	key->tag = tag;
@@ -185,8 +224,8 @@ static int mctp_key_add(struct mctp_sk_key *key, struct mctp_sock *msk)
 	}
 
 	hlist_for_each_entry(tmp, &net->mctp.keys, hlist) {
-		if (mctp_key_match(tmp, key->local_addr, key->peer_addr,
-				   key->tag)) {
+		if (mctp_key_match(tmp, key->net, key->local_addr,
+				   key->peer_addr, key->tag)) {
 			spin_lock(&tmp->lock);
 			if (tmp->valid)
 				rc = -EEXIST;
@@ -327,6 +366,7 @@ static int mctp_route_input(struct mctp_route *route, struct sk_buff *skb)
 	struct net *net = dev_net(skb->dev);
 	struct mctp_sock *msk;
 	struct mctp_hdr *mh;
+	unsigned int netid;
 	unsigned long f;
 	u8 tag, flags;
 	int rc;
@@ -345,6 +385,7 @@ static int mctp_route_input(struct mctp_route *route, struct sk_buff *skb)
 
 	/* grab header, advance data ptr */
 	mh = mctp_hdr(skb);
+	netid = mctp_cb(skb)->net;
 	skb_pull(skb, sizeof(struct mctp_hdr));
 
 	if (mh->ver != 1)
@@ -358,7 +399,7 @@ static int mctp_route_input(struct mctp_route *route, struct sk_buff *skb)
 	/* lookup socket / reasm context, exactly matching (src,dest,tag).
 	 * we hold a ref on the key, and key->lock held.
 	 */
-	key = mctp_lookup_key(net, skb, mh->src, &f);
+	key = mctp_lookup_key(net, skb, netid, mh->src, &f);
 
 	if (flags & MCTP_HDR_FLAG_SOM) {
 		if (key) {
@@ -368,8 +409,12 @@ static int mctp_route_input(struct mctp_route *route, struct sk_buff *skb)
 			 * key lookup to find the socket, but don't use this
 			 * key for reassembly - we'll create a more specific
 			 * one for future packets if required (ie, !EOM).
+			 *
+			 * this lookup requires key->peer to be MCTP_ADDR_ANY,
+			 * it doesn't match just any key->peer.
 			 */
-			any_key = mctp_lookup_key(net, skb, MCTP_ADDR_ANY, &f);
+			any_key = mctp_lookup_key(net, skb, netid,
+						  MCTP_ADDR_ANY, &f);
 			if (any_key) {
 				msk = container_of(any_key->sk,
 						   struct mctp_sock, sk);
@@ -406,7 +451,7 @@ static int mctp_route_input(struct mctp_route *route, struct sk_buff *skb)
 		 * packets for this message
 		 */
 		if (!key) {
-			key = mctp_key_alloc(msk, mh->dest, mh->src,
+			key = mctp_key_alloc(msk, netid, mh->dest, mh->src,
 					     tag, GFP_ATOMIC);
 			if (!key) {
 				rc = -ENOMEM;
@@ -596,11 +641,12 @@ static void mctp_reserve_tag(struct net *net, struct mctp_sk_key *key,
 	refcount_inc(&key->refs);
 }
 
-/* Allocate a locally-owned tag value for (saddr, daddr), and reserve
+/* Allocate a locally-owned tag value for (local, peer), and reserve
  * it for the socket msk
  */
 struct mctp_sk_key *mctp_alloc_local_tag(struct mctp_sock *msk,
-					 mctp_eid_t daddr, mctp_eid_t saddr,
+					 unsigned int netid,
+					 mctp_eid_t local, mctp_eid_t peer,
 					 bool manual, u8 *tagp)
 {
 	struct net *net = sock_net(&msk->sk);
@@ -610,11 +656,11 @@ struct mctp_sk_key *mctp_alloc_local_tag(struct mctp_sock *msk,
 	u8 tagbits;
 
 	/* for NULL destination EIDs, we may get a response from any peer */
-	if (daddr == MCTP_ADDR_NULL)
-		daddr = MCTP_ADDR_ANY;
+	if (peer == MCTP_ADDR_NULL)
+		peer = MCTP_ADDR_ANY;
 
 	/* be optimistic, alloc now */
-	key = mctp_key_alloc(msk, saddr, daddr, 0, GFP_KERNEL);
+	key = mctp_key_alloc(msk, netid, local, peer, 0, GFP_KERNEL);
 	if (!key)
 		return ERR_PTR(-ENOMEM);
 
@@ -631,12 +677,24 @@ struct mctp_sk_key *mctp_alloc_local_tag(struct mctp_sock *msk,
 		 * lock held, they don't change over the lifetime of the key.
 		 */
 
+		/* tags are net-specific */
+		if (tmp->net != netid)
+			continue;
+
 		/* if we don't own the tag, it can't conflict */
 		if (tmp->tag & MCTP_HDR_FLAG_TO)
 			continue;
 
-		if (!(mctp_address_matches(tmp->peer_addr, daddr) &&
-		      mctp_address_matches(tmp->local_addr, saddr)))
+		/* Since we're avoiding conflicting entries, match peer and
+		 * local addresses, including with a wildcard on ANY. See
+		 * 'A note on key allocations' for background.
+		 */
+		if (peer != MCTP_ADDR_ANY &&
+		    !mctp_address_matches(tmp->peer_addr, peer))
+			continue;
+
+		if (local != MCTP_ADDR_ANY &&
+		    !mctp_address_matches(tmp->local_addr, local))
 			continue;
 
 		spin_lock(&tmp->lock);
@@ -663,7 +721,7 @@ struct mctp_sk_key *mctp_alloc_local_tag(struct mctp_sock *msk,
 	spin_unlock_irqrestore(&mns->keys_lock, flags);
 
 	if (!tagbits) {
-		kfree(key);
+		mctp_key_unref(key);
 		return ERR_PTR(-EBUSY);
 	}
 
@@ -671,6 +729,7 @@ struct mctp_sk_key *mctp_alloc_local_tag(struct mctp_sock *msk,
 }
 
 static struct mctp_sk_key *mctp_lookup_prealloc_tag(struct mctp_sock *msk,
+						    unsigned int netid,
 						    mctp_eid_t daddr,
 						    u8 req_tag, u8 *tagp)
 {
@@ -685,6 +744,9 @@ static struct mctp_sk_key *mctp_lookup_prealloc_tag(struct mctp_sock *msk,
 	spin_lock_irqsave(&mns->keys_lock, flags);
 
 	hlist_for_each_entry(tmp, &mns->keys, hlist) {
+		if (tmp->net != netid)
+			continue;
+
 		if (tmp->tag != req_tag)
 			continue;
 
@@ -843,6 +905,9 @@ static int mctp_do_fragment_route(struct mctp_route *rt, struct sk_buff *skb,
 		/* copy message payload */
 		skb_copy_bits(skb, pos, skb_transport_header(skb2), size);
 
+		/* we need to copy the extensions, for MCTP flow data */
+		skb_ext_copy(skb2, skb);
+
 		/* do route */
 		rc = rt->output(rt, skb2);
 		if (rc)
@@ -865,6 +930,7 @@ int mctp_local_output(struct sock *sk, struct mctp_route *rt,
 	struct mctp_sk_key *key;
 	struct mctp_hdr *hdr;
 	unsigned long flags;
+	unsigned int netid;
 	unsigned int mtu;
 	mctp_eid_t saddr;
 	bool ext_rt;
@@ -888,7 +954,7 @@ int mctp_local_output(struct sock *sk, struct mctp_route *rt,
 		dev = dev_get_by_index_rcu(sock_net(sk), cb->ifindex);
 		if (!dev) {
 			rcu_read_unlock();
-			return rc;
+			goto out_free;
 		}
 		rt->dev = __mctp_dev_get(dev);
 		rcu_read_unlock();
@@ -903,7 +969,8 @@ int mctp_local_output(struct sock *sk, struct mctp_route *rt,
 		rt->mtu = 0;
 
 	} else {
-		return -EINVAL;
+		rc = -EINVAL;
+		goto out_free;
 	}
 
 	spin_lock_irqsave(&rt->dev->addrs_lock, flags);
@@ -915,16 +982,17 @@ int mctp_local_output(struct sock *sk, struct mctp_route *rt,
 		rc = 0;
 	}
 	spin_unlock_irqrestore(&rt->dev->addrs_lock, flags);
+	netid = READ_ONCE(rt->dev->net);
 
 	if (rc)
 		goto out_release;
 
 	if (req_tag & MCTP_TAG_OWNER) {
 		if (req_tag & MCTP_TAG_PREALLOC)
-			key = mctp_lookup_prealloc_tag(msk, daddr,
+			key = mctp_lookup_prealloc_tag(msk, netid, daddr,
 						       req_tag, &tag);
 		else
-			key = mctp_alloc_local_tag(msk, daddr, saddr,
+			key = mctp_alloc_local_tag(msk, netid, saddr, daddr,
 						   false, &tag);
 
 		if (IS_ERR(key)) {
@@ -966,12 +1034,17 @@ int mctp_local_output(struct sock *sk, struct mctp_route *rt,
 		rc = mctp_do_fragment_route(rt, skb, mtu, tag);
 	}
 
+	/* route output functions consume the skb, even on error */
+	skb = NULL;
+
 out_release:
 	if (!ext_rt)
 		mctp_route_release(rt);
 
 	mctp_dev_put(tmp_rt.dev);
 
+out_free:
+	kfree_skb(skb);
 	return rc;
 }
 

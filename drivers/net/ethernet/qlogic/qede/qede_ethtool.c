@@ -1026,7 +1026,7 @@ static int qede_get_regs_len(struct net_device *ndev)
 static void qede_update_mtu(struct qede_dev *edev,
 			    struct qede_reload_args *args)
 {
-	edev->ndev->mtu = args->u.mtu;
+	WRITE_ONCE(edev->ndev->mtu, args->u.mtu);
 }
 
 /* Netdevice NDOs */
@@ -1370,28 +1370,29 @@ static u32 qede_get_rxfh_key_size(struct net_device *dev)
 	return sizeof(edev->rss_key);
 }
 
-static int qede_get_rxfh(struct net_device *dev, u32 *indir, u8 *key, u8 *hfunc)
+static int qede_get_rxfh(struct net_device *dev,
+			 struct ethtool_rxfh_param *rxfh)
 {
 	struct qede_dev *edev = netdev_priv(dev);
 	int i;
 
-	if (hfunc)
-		*hfunc = ETH_RSS_HASH_TOP;
+	rxfh->hfunc = ETH_RSS_HASH_TOP;
 
-	if (!indir)
+	if (!rxfh->indir)
 		return 0;
 
 	for (i = 0; i < QED_RSS_IND_TABLE_SIZE; i++)
-		indir[i] = edev->rss_ind_table[i];
+		rxfh->indir[i] = edev->rss_ind_table[i];
 
-	if (key)
-		memcpy(key, edev->rss_key, qede_get_rxfh_key_size(dev));
+	if (rxfh->key)
+		memcpy(rxfh->key, edev->rss_key, qede_get_rxfh_key_size(dev));
 
 	return 0;
 }
 
-static int qede_set_rxfh(struct net_device *dev, const u32 *indir,
-			 const u8 *key, const u8 hfunc)
+static int qede_set_rxfh(struct net_device *dev,
+			 struct ethtool_rxfh_param *rxfh,
+			 struct netlink_ext_ack *extack)
 {
 	struct qed_update_vport_params *vport_update_params;
 	struct qede_dev *edev = netdev_priv(dev);
@@ -1403,20 +1404,21 @@ static int qede_set_rxfh(struct net_device *dev, const u32 *indir,
 		return -EOPNOTSUPP;
 	}
 
-	if (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP)
+	if (rxfh->hfunc != ETH_RSS_HASH_NO_CHANGE &&
+	    rxfh->hfunc != ETH_RSS_HASH_TOP)
 		return -EOPNOTSUPP;
 
-	if (!indir && !key)
+	if (!rxfh->indir && !rxfh->key)
 		return 0;
 
-	if (indir) {
+	if (rxfh->indir) {
 		for (i = 0; i < QED_RSS_IND_TABLE_SIZE; i++)
-			edev->rss_ind_table[i] = indir[i];
+			edev->rss_ind_table[i] = rxfh->indir[i];
 		edev->rss_params_inited |= QEDE_RSS_INDIR_INITED;
 	}
 
-	if (key) {
-		memcpy(&edev->rss_key, key, qede_get_rxfh_key_size(dev));
+	if (rxfh->key) {
+		memcpy(&edev->rss_key, rxfh->key, qede_get_rxfh_key_size(dev));
 		edev->rss_params_inited |= QEDE_RSS_KEY_INITED;
 	}
 
@@ -1774,7 +1776,7 @@ static int qede_get_tunable(struct net_device *dev,
 	return 0;
 }
 
-static int qede_get_eee(struct net_device *dev, struct ethtool_eee *edata)
+static int qede_get_eee(struct net_device *dev, struct ethtool_keee *edata)
 {
 	struct qede_dev *edev = netdev_priv(dev);
 	struct qed_link_output current_link;
@@ -1787,18 +1789,26 @@ static int qede_get_eee(struct net_device *dev, struct ethtool_eee *edata)
 		return -EOPNOTSUPP;
 	}
 
-	if (current_link.eee.adv_caps & QED_EEE_1G_ADV)
-		edata->advertised = ADVERTISED_1000baseT_Full;
-	if (current_link.eee.adv_caps & QED_EEE_10G_ADV)
-		edata->advertised |= ADVERTISED_10000baseT_Full;
-	if (current_link.sup_caps & QED_EEE_1G_ADV)
-		edata->supported = ADVERTISED_1000baseT_Full;
-	if (current_link.sup_caps & QED_EEE_10G_ADV)
-		edata->supported |= ADVERTISED_10000baseT_Full;
-	if (current_link.eee.lp_adv_caps & QED_EEE_1G_ADV)
-		edata->lp_advertised = ADVERTISED_1000baseT_Full;
-	if (current_link.eee.lp_adv_caps & QED_EEE_10G_ADV)
-		edata->lp_advertised |= ADVERTISED_10000baseT_Full;
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
+			 edata->advertised,
+			 current_link.eee.adv_caps & QED_EEE_1G_ADV);
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
+			 edata->advertised,
+			 current_link.eee.adv_caps & QED_EEE_10G_ADV);
+
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
+			 edata->supported,
+			 current_link.sup_caps & QED_EEE_1G_ADV);
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
+			 edata->supported,
+			 current_link.sup_caps & QED_EEE_10G_ADV);
+
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
+			 edata->lp_advertised,
+			 current_link.eee.lp_adv_caps & QED_EEE_1G_ADV);
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
+			 edata->lp_advertised,
+			 current_link.eee.lp_adv_caps & QED_EEE_10G_ADV);
 
 	edata->tx_lpi_timer = current_link.eee.tx_lpi_timer;
 	edata->eee_enabled = current_link.eee.enable;
@@ -1808,11 +1818,14 @@ static int qede_get_eee(struct net_device *dev, struct ethtool_eee *edata)
 	return 0;
 }
 
-static int qede_set_eee(struct net_device *dev, struct ethtool_eee *edata)
+static int qede_set_eee(struct net_device *dev, struct ethtool_keee *edata)
 {
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(supported) = {};
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(tmp) = {};
 	struct qede_dev *edev = netdev_priv(dev);
 	struct qed_link_output current_link;
 	struct qed_link_params params;
+	bool unsupp;
 
 	if (!edev->ops->common->can_link_change(edev->cdev)) {
 		DP_INFO(edev, "Link settings are not allowed to be changed\n");
@@ -1830,21 +1843,26 @@ static int qede_set_eee(struct net_device *dev, struct ethtool_eee *edata)
 	memset(&params, 0, sizeof(params));
 	params.override_flags |= QED_LINK_OVERRIDE_EEE_CONFIG;
 
-	if (!(edata->advertised & (ADVERTISED_1000baseT_Full |
-				   ADVERTISED_10000baseT_Full)) ||
-	    ((edata->advertised & (ADVERTISED_1000baseT_Full |
-				   ADVERTISED_10000baseT_Full)) !=
-	     edata->advertised)) {
+	linkmode_set_bit(ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
+			 supported);
+	linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
+			 supported);
+
+	unsupp = linkmode_andnot(tmp, edata->advertised, supported);
+	if (unsupp) {
 		DP_VERBOSE(edev, QED_MSG_DEBUG,
-			   "Invalid advertised capabilities %d\n",
-			   edata->advertised);
+			   "Invalid advertised capabilities %*pb\n",
+			   __ETHTOOL_LINK_MODE_MASK_NBITS, edata->advertised);
 		return -EINVAL;
 	}
 
-	if (edata->advertised & ADVERTISED_1000baseT_Full)
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
+			      edata->advertised))
 		params.eee.adv_caps = QED_EEE_1G_ADV;
-	if (edata->advertised & ADVERTISED_10000baseT_Full)
-		params.eee.adv_caps |= QED_EEE_10G_ADV;
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
+			      edata->advertised))
+		params.eee.adv_caps = QED_EEE_10G_ADV;
+
 	params.eee.enable = edata->eee_enabled;
 	params.eee.tx_lpi_enable = edata->tx_lpi_enabled;
 	params.eee.tx_lpi_timer = edata->tx_lpi_timer;

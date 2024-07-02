@@ -3,7 +3,7 @@
 
 #include "ice_dcb_lib.h"
 #include "ice_dcb_nl.h"
-#include "ice_devlink.h"
+#include "devlink/devlink.h"
 
 /**
  * ice_dcb_get_ena_tc - return bitmap of enabled TCs
@@ -291,7 +291,6 @@ static void ice_dcb_ena_dis_vsi(struct ice_pf *pf, bool ena, bool locked)
 
 		switch (vsi->type) {
 		case ICE_VSI_CHNL:
-		case ICE_VSI_SWITCHDEV_CTRL:
 		case ICE_VSI_PF:
 			if (ena)
 				ice_ena_vsi(vsi, locked);
@@ -776,8 +775,7 @@ void ice_pf_dcb_recfg(struct ice_pf *pf, bool locked)
 		/* no need to proceed with remaining cfg if it is CHNL
 		 * or switchdev VSI
 		 */
-		if (vsi->type == ICE_VSI_CHNL ||
-		    vsi->type == ICE_VSI_SWITCHDEV_CTRL)
+		if (vsi->type == ICE_VSI_CHNL)
 			continue;
 
 		ice_vsi_map_rings_to_vectors(vsi);
@@ -934,7 +932,7 @@ ice_tx_prepare_vlan_flags_dcb(struct ice_tx_ring *tx_ring,
 	    skb->priority != TC_PRIO_CONTROL) {
 		first->vid &= ~VLAN_PRIO_MASK;
 		/* Mask the lower 3 bits to set the 802.1p priority */
-		first->vid |= (skb->priority << VLAN_PRIO_SHIFT) & VLAN_PRIO_MASK;
+		first->vid |= FIELD_PREP(VLAN_PRIO_MASK, skb->priority);
 		/* if this is not already set it means a VLAN 0 + priority needs
 		 * to be offloaded
 		 */

@@ -21,6 +21,7 @@
 #include <linux/interrupt.h>
 #include <linux/sysctl.h>
 #include <linux/list.h>
+#include <linux/rcupdate_wait.h>
 
 #include <net/ip_vs.h>
 

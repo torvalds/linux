@@ -5,8 +5,10 @@
  * Copyright (c) 2022, Google LLC
  */
 
+#include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/export.h>
+#include <linux/err.h>
 #include <linux/gpio/consumer.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -60,16 +62,23 @@ struct onboard_hub {
 	bool going_away;
 	struct list_head udev_list;
 	struct mutex lock;
+	struct clk *clk;
 };
 
 static int onboard_hub_power_on(struct onboard_hub *hub)
 {
 	int err;
 
+	err = clk_prepare_enable(hub->clk);
+	if (err) {
+		dev_err(hub->dev, "failed to enable clock: %pe\n", ERR_PTR(err));
+		return err;
+	}
+
 	err = regulator_bulk_enable(hub->pdata->num_supplies, hub->supplies);
 	if (err) {
-		dev_err(hub->dev, "failed to enable supplies: %d\n", err);
-		return err;
+		dev_err(hub->dev, "failed to enable supplies: %pe\n", ERR_PTR(err));
+		goto disable_clk;
 	}
 
 	fsleep(hub->pdata->reset_us);
@@ -78,6 +87,10 @@ static int onboard_hub_power_on(struct onboard_hub *hub)
 	hub->is_powered_on = true;
 
 	return 0;
+
+disable_clk:
+	clk_disable_unprepare(hub->clk);
+	return err;
 }
 
 static int onboard_hub_power_off(struct onboard_hub *hub)
@@ -88,9 +101,11 @@ static int onboard_hub_power_off(struct onboard_hub *hub)
 
 	err = regulator_bulk_disable(hub->pdata->num_supplies, hub->supplies);
 	if (err) {
-		dev_err(hub->dev, "failed to disable supplies: %d\n", err);
+		dev_err(hub->dev, "failed to disable supplies: %pe\n", ERR_PTR(err));
 		return err;
 	}
+
+	clk_disable_unprepare(hub->clk);
 
 	hub->is_powered_on = false;
 
@@ -233,14 +248,13 @@ static void onboard_hub_attach_usb_driver(struct work_struct *work)
 {
 	int err;
 
-	err = driver_attach(&onboard_hub_usbdev_driver.drvwrap.driver);
+	err = driver_attach(&onboard_hub_usbdev_driver.driver);
 	if (err)
-		pr_err("Failed to attach USB driver: %d\n", err);
+		pr_err("Failed to attach USB driver: %pe\n", ERR_PTR(err));
 }
 
 static int onboard_hub_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *of_id;
 	struct device *dev = &pdev->dev;
 	struct onboard_hub *hub;
 	unsigned int i;
@@ -250,11 +264,7 @@ static int onboard_hub_probe(struct platform_device *pdev)
 	if (!hub)
 		return -ENOMEM;
 
-	of_id = of_match_device(onboard_hub_match, &pdev->dev);
-	if (!of_id)
-		return -ENODEV;
-
-	hub->pdata = of_id->data;
+	hub->pdata = device_get_match_data(dev);
 	if (!hub->pdata)
 		return -EINVAL;
 
@@ -267,9 +277,13 @@ static int onboard_hub_probe(struct platform_device *pdev)
 
 	err = devm_regulator_bulk_get(dev, hub->pdata->num_supplies, hub->supplies);
 	if (err) {
-		dev_err(dev, "Failed to get regulator supplies: %d\n", err);
+		dev_err(dev, "Failed to get regulator supplies: %pe\n", ERR_PTR(err));
 		return err;
 	}
+
+	hub->clk = devm_clk_get_optional(dev, NULL);
+	if (IS_ERR(hub->clk))
+		return dev_err_probe(dev, PTR_ERR(hub->clk), "failed to get clock\n");
 
 	hub->reset_gpio = devm_gpiod_get_optional(dev, "reset",
 						  GPIOD_OUT_HIGH);
@@ -431,16 +445,21 @@ static void onboard_hub_usbdev_disconnect(struct usb_device *udev)
 static const struct usb_device_id onboard_hub_id_table[] = {
 	{ USB_DEVICE(VENDOR_ID_CYPRESS, 0x6504) }, /* CYUSB33{0,1,2}x/CYUSB230x 3.0 */
 	{ USB_DEVICE(VENDOR_ID_CYPRESS, 0x6506) }, /* CYUSB33{0,1,2}x/CYUSB230x 2.0 */
+	{ USB_DEVICE(VENDOR_ID_CYPRESS, 0x6570) }, /* CY7C6563x 2.0 */
 	{ USB_DEVICE(VENDOR_ID_GENESYS, 0x0608) }, /* Genesys Logic GL850G USB 2.0 */
 	{ USB_DEVICE(VENDOR_ID_GENESYS, 0x0610) }, /* Genesys Logic GL852G USB 2.0 */
 	{ USB_DEVICE(VENDOR_ID_GENESYS, 0x0620) }, /* Genesys Logic GL3523 USB 3.1 */
 	{ USB_DEVICE(VENDOR_ID_MICROCHIP, 0x2412) }, /* USB2412 USB 2.0 */
 	{ USB_DEVICE(VENDOR_ID_MICROCHIP, 0x2514) }, /* USB2514B USB 2.0 */
 	{ USB_DEVICE(VENDOR_ID_MICROCHIP, 0x2517) }, /* USB2517 USB 2.0 */
+	{ USB_DEVICE(VENDOR_ID_MICROCHIP, 0x2744) }, /* USB5744 USB 2.0 */
+	{ USB_DEVICE(VENDOR_ID_MICROCHIP, 0x5744) }, /* USB5744 USB 3.0 */
 	{ USB_DEVICE(VENDOR_ID_REALTEK, 0x0411) }, /* RTS5411 USB 3.1 */
 	{ USB_DEVICE(VENDOR_ID_REALTEK, 0x5411) }, /* RTS5411 USB 2.1 */
 	{ USB_DEVICE(VENDOR_ID_REALTEK, 0x0414) }, /* RTS5414 USB 3.2 */
 	{ USB_DEVICE(VENDOR_ID_REALTEK, 0x5414) }, /* RTS5414 USB 2.1 */
+	{ USB_DEVICE(VENDOR_ID_TI, 0x8025) }, /* TI USB8020B 3.0 */
+	{ USB_DEVICE(VENDOR_ID_TI, 0x8027) }, /* TI USB8020B 2.0 */
 	{ USB_DEVICE(VENDOR_ID_TI, 0x8140) }, /* TI USB8041 3.0 */
 	{ USB_DEVICE(VENDOR_ID_TI, 0x8142) }, /* TI USB8041 2.0 */
 	{ USB_DEVICE(VENDOR_ID_VIA, 0x0817) }, /* VIA VL817 3.1 */

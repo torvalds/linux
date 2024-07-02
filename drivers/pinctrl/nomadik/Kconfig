@@ -18,15 +18,15 @@ config PINCTRL_AB8505
 
 endif
 
-if (ARCH_U8500 || ARCH_NOMADIK)
+if (ARCH_U8500 || ARCH_NOMADIK || COMPILE_TEST)
 
 config PINCTRL_NOMADIK
 	bool "Nomadik pin controller driver"
-	depends on OF && GPIOLIB
+	depends on OF
 	select PINMUX
 	select PINCONF
-	select OF_GPIO
-	select GPIOLIB_IRQCHIP
+	select GPIOLIB
+	select GPIO_NOMADIK
 
 config PINCTRL_STN8815
 	bool "STN8815 pin controller driver"

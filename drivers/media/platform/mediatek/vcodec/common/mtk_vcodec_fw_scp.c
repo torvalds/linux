@@ -68,7 +68,7 @@ struct mtk_vcodec_fw *mtk_vcodec_fw_scp_init(void *priv, enum mtk_vcodec_fw_use 
 
 		plat_dev = dec_dev->plat_dev;
 	} else {
-		pr_err("Invalid fw_use %d (use a resonable fw id here)\n", fw_use);
+		pr_err("Invalid fw_use %d (use a reasonable fw id here)\n", fw_use);
 		return ERR_PTR(-EINVAL);
 	}
 

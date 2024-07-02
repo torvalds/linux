@@ -29,7 +29,6 @@
 #include <linux/uaccess.h>
 #include <linux/user_namespace.h>
 #include <linux/xarray.h>
-#include <uapi/asm-generic/errno-base.h>
 #include <uapi/linux/android/binder.h>
 #include <uapi/linux/android/binderfs.h>
 
@@ -93,7 +92,7 @@ bool is_binderfs_device(const struct inode *inode)
 /**
  * binderfs_binder_device_create - allocate inode from super block of a
  *                                 binderfs mount
- * @ref_inode: inode from wich the super block will be taken
+ * @ref_inode: inode from which the super block will be taken
  * @userp:     buffer to copy information about new device for userspace to
  * @req:       struct binderfs_device as copied from userspace
  *

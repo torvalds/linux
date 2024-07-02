@@ -27,7 +27,7 @@
 
 #include "mpc85xx.h"
 
-void __init mpc8536_ds_pic_init(void)
+static void __init mpc8536_ds_pic_init(void)
 {
 	struct mpic *mpic = mpic_alloc(NULL, 0, MPIC_BIG_ENDIAN,
 			0, 256, " OpenPIC  ");

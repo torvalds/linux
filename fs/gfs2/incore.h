@@ -838,6 +838,7 @@ struct gfs2_sbd {
 	/* For quiescing the filesystem */
 	struct gfs2_holder sd_freeze_gh;
 	struct mutex sd_freeze_mutex;
+	struct list_head sd_dead_glocks;
 
 	char sd_fsname[GFS2_FSNAME_LEN + 3 * sizeof(int) + 2];
 	char sd_table_name[GFS2_FSNAME_LEN];
@@ -863,7 +864,7 @@ static inline void gfs2_sbstats_inc(const struct gfs2_glock *gl, int which)
 	preempt_enable();
 }
 
-extern struct gfs2_rgrpd *gfs2_glock2rgrp(struct gfs2_glock *gl);
+struct gfs2_rgrpd *gfs2_glock2rgrp(struct gfs2_glock *gl);
 
 static inline unsigned gfs2_max_stuffed_size(const struct gfs2_inode *ip)
 {

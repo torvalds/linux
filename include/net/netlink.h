@@ -41,7 +41,8 @@
  *   nlmsg_get_pos()			return current position in message
  *   nlmsg_trim()			trim part of message
  *   nlmsg_cancel()			cancel message construction
- *   nlmsg_free()			free a netlink message
+ *   nlmsg_consume()			free a netlink message (expected)
+ *   nlmsg_free()			free a netlink message (drop)
  *
  * Message Sending:
  *   nlmsg_multicast()			multicast message to several groups
@@ -157,7 +158,11 @@
  *   nla_parse()			parse and validate stream of attrs
  *   nla_parse_nested()			parse nested attributes
  *   nla_for_each_attr()		loop over all attributes
+ *   nla_for_each_attr_type()		loop over all attributes with the
+ *					given type
  *   nla_for_each_nested()		loop over the nested attributes
+ *   nla_for_each_nested_type()		loop over the nested attributes with
+ *					the given type
  *=========================================================================
  */
 
@@ -1011,6 +1016,20 @@ static inline struct sk_buff *nlmsg_new(size_t payload, gfp_t flags)
 }
 
 /**
+ * nlmsg_new_large - Allocate a new netlink message with non-contiguous
+ * physical memory
+ * @payload: size of the message payload
+ *
+ * The allocated skb is unable to have frag page for shinfo->frags*,
+ * as the NULL setting for skb->head in netlink_skb_destructor() will
+ * bypass most of the handling in skb_release_data()
+ */
+static inline struct sk_buff *nlmsg_new_large(size_t payload)
+{
+	return netlink_alloc_large_skb(nlmsg_total_size(payload), 0);
+}
+
+/**
  * nlmsg_end - Finalize a netlink message
  * @skb: socket buffer the message is stored in
  * @nlh: netlink message header
@@ -1064,12 +1083,51 @@ static inline void nlmsg_cancel(struct sk_buff *skb, struct nlmsghdr *nlh)
 }
 
 /**
- * nlmsg_free - free a netlink message
+ * nlmsg_free - drop a netlink message
  * @skb: socket buffer of netlink message
  */
 static inline void nlmsg_free(struct sk_buff *skb)
 {
 	kfree_skb(skb);
+}
+
+/**
+ * nlmsg_consume - free a netlink message
+ * @skb: socket buffer of netlink message
+ */
+static inline void nlmsg_consume(struct sk_buff *skb)
+{
+	consume_skb(skb);
+}
+
+/**
+ * nlmsg_multicast_filtered - multicast a netlink message with filter function
+ * @sk: netlink socket to spread messages to
+ * @skb: netlink message as socket buffer
+ * @portid: own netlink portid to avoid sending to yourself
+ * @group: multicast group id
+ * @flags: allocation flags
+ * @filter: filter function
+ * @filter_data: filter function private data
+ *
+ * Return: 0 on success, negative error code for failure.
+ */
+static inline int nlmsg_multicast_filtered(struct sock *sk, struct sk_buff *skb,
+					   u32 portid, unsigned int group,
+					   gfp_t flags,
+					   netlink_filter_fn filter,
+					   void *filter_data)
+{
+	int err;
+
+	NETLINK_CB(skb).dst_group = group;
+
+	err = netlink_broadcast_filtered(sk, skb, portid, group, flags,
+					 filter, filter_data);
+	if (err > 0)
+		err = 0;
+
+	return err;
 }
 
 /**
@@ -1083,15 +1141,8 @@ static inline void nlmsg_free(struct sk_buff *skb)
 static inline int nlmsg_multicast(struct sock *sk, struct sk_buff *skb,
 				  u32 portid, unsigned int group, gfp_t flags)
 {
-	int err;
-
-	NETLINK_CB(skb).dst_group = group;
-
-	err = netlink_broadcast(sk, skb, portid, group, flags);
-	if (err > 0)
-		err = 0;
-
-	return err;
+	return nlmsg_multicast_filtered(sk, skb, portid, group, flags,
+					NULL, NULL);
 }
 
 /**
@@ -1200,7 +1251,7 @@ static inline void *nla_data(const struct nlattr *nla)
  * nla_len - length of payload
  * @nla: netlink attribute
  */
-static inline int nla_len(const struct nlattr *nla)
+static inline u16 nla_len(const struct nlattr *nla)
 {
 	return nla->nla_len - NLA_HDRLEN;
 }
@@ -2034,6 +2085,18 @@ static inline int nla_total_size_64bit(int payload)
 	     pos = nla_next(pos, &(rem)))
 
 /**
+ * nla_for_each_attr_type - iterate over a stream of attributes
+ * @pos: loop counter, set to current attribute
+ * @type: required attribute type for @pos
+ * @head: head of attribute stream
+ * @len: length of attribute stream
+ * @rem: initialized to len, holds bytes currently remaining in stream
+ */
+#define nla_for_each_attr_type(pos, type, head, len, rem) \
+	nla_for_each_attr(pos, head, len, rem) \
+		if (nla_type(pos) == type)
+
+/**
  * nla_for_each_nested - iterate over nested attributes
  * @pos: loop counter, set to current attribute
  * @nla: attribute containing the nested attributes
@@ -2041,6 +2104,17 @@ static inline int nla_total_size_64bit(int payload)
  */
 #define nla_for_each_nested(pos, nla, rem) \
 	nla_for_each_attr(pos, nla_data(nla), nla_len(nla), rem)
+
+/**
+ * nla_for_each_nested_type - iterate over nested attributes
+ * @pos: loop counter, set to current attribute
+ * @type: required attribute type for @pos
+ * @nla: attribute containing the nested attributes
+ * @rem: initialized to len, holds bytes currently remaining in stream
+ */
+#define nla_for_each_nested_type(pos, type, nla, rem) \
+	nla_for_each_nested(pos, nla, rem) \
+		if (nla_type(pos) == type)
 
 /**
  * nla_is_last - Test if attribute is last in stream

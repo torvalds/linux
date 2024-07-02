@@ -1000,6 +1000,8 @@ static int gbefb_mmap(struct fb_info *info,
 	unsigned long phys_addr, phys_size;
 	u16 *tile;
 
+	vma->vm_page_prot = pgprot_decrypted(vma->vm_page_prot);
+
 	/* check range */
 	if (vma->vm_pgoff > (~0UL >> PAGE_SHIFT))
 		return -EINVAL;

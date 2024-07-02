@@ -178,13 +178,16 @@ static int x2apic_prepare_cpu(unsigned int cpu)
 	u32 phys_apicid = apic->cpu_present_to_apicid(cpu);
 	u32 cluster = apic_cluster(phys_apicid);
 	u32 logical_apicid = (cluster << 16) | (1 << (phys_apicid & 0xf));
+	int node = cpu_to_node(cpu);
 
 	x86_cpu_to_logical_apicid[cpu] = logical_apicid;
 
-	if (alloc_clustermask(cpu, cluster, cpu_to_node(cpu)) < 0)
+	if (alloc_clustermask(cpu, cluster, node) < 0)
 		return -ENOMEM;
-	if (!zalloc_cpumask_var(&per_cpu(ipi_mask, cpu), GFP_KERNEL))
+
+	if (!zalloc_cpumask_var_node(&per_cpu(ipi_mask, cpu), GFP_KERNEL, node))
 		return -ENOMEM;
+
 	return 0;
 }
 
@@ -227,21 +230,16 @@ static struct apic apic_x2apic_cluster __ro_after_init = {
 	.probe				= x2apic_cluster_probe,
 	.acpi_madt_oem_check		= x2apic_acpi_madt_oem_check,
 
-	.delivery_mode			= APIC_DELIVERY_MODE_FIXED,
 	.dest_mode_logical		= true,
 
 	.disable_esr			= 0,
 
-	.check_apicid_used		= NULL,
 	.init_apic_ldr			= init_x2apic_ldr,
-	.ioapic_phys_id_map		= NULL,
 	.cpu_present_to_apicid		= default_cpu_present_to_apicid,
-	.phys_pkg_id			= x2apic_phys_pkg_id,
 
 	.max_apic_id			= UINT_MAX,
 	.x2apic_set_max_apicid		= true,
 	.get_apic_id			= x2apic_get_apic_id,
-	.set_apic_id			= x2apic_set_apic_id,
 
 	.calc_dest_apicid		= x2apic_calc_apicid,
 
@@ -251,6 +249,7 @@ static struct apic apic_x2apic_cluster __ro_after_init = {
 	.send_IPI_allbutself		= x2apic_send_IPI_allbutself,
 	.send_IPI_all			= x2apic_send_IPI_all,
 	.send_IPI_self			= x2apic_send_IPI_self,
+	.nmi_to_offline_cpu		= true,
 
 	.read				= native_apic_msr_read,
 	.write				= native_apic_msr_write,

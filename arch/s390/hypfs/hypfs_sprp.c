@@ -25,7 +25,7 @@
 
 static inline unsigned long __hypfs_sprp_diag304(void *data, unsigned long cmd)
 {
-	union register_pair r1 = { .even = (unsigned long)data, };
+	union register_pair r1 = { .even = virt_to_phys(data), };
 
 	asm volatile("diag %[r1],%[r3],0x304\n"
 		     : [r1] "+&d" (r1.pair)
@@ -74,7 +74,7 @@ static int __hypfs_sprp_ioctl(void __user *user_area)
 	int rc;
 
 	rc = -ENOMEM;
-	data = (void *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
+	data = (void *)get_zeroed_page(GFP_KERNEL);
 	diag304 = kzalloc(sizeof(*diag304), GFP_KERNEL);
 	if (!data || !diag304)
 		goto out;

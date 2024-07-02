@@ -191,7 +191,8 @@ void dmub_dcn20_setup_windows(struct dmub_srv *dmub,
 			      const struct dmub_window *cw3,
 			      const struct dmub_window *cw4,
 			      const struct dmub_window *cw5,
-			      const struct dmub_window *cw6)
+			      const struct dmub_window *cw6,
+			      const struct dmub_window *region6)
 {
 	union dmub_addr offset;
 	uint64_t fb_base, fb_offset;
@@ -471,4 +472,5 @@ void dmub_dcn20_get_diagnostic_data(struct dmub_srv *dmub, struct dmub_diagnosti
 
 	REG_GET(DMCUB_REGION3_CW6_TOP_ADDRESS, DMCUB_REGION3_CW6_ENABLE, &is_cw6_enabled);
 	diag_data->is_cw6_enabled = is_cw6_enabled;
+	diag_data->timeout_info = dmub->debug;
 }

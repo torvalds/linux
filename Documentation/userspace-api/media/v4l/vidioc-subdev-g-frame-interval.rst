@@ -58,8 +58,9 @@ struct
 contains the current frame interval as would be returned by a
 ``VIDIOC_SUBDEV_G_FRAME_INTERVAL`` call.
 
-Calling ``VIDIOC_SUBDEV_S_FRAME_INTERVAL`` on a subdev device node that has been
-registered in read-only mode is not allowed. An error is returned and the errno
+If the subdev device node has been registered in read-only mode, calls to
+``VIDIOC_SUBDEV_S_FRAME_INTERVAL`` are only valid if the ``which`` field is set
+to ``V4L2_SUBDEV_FORMAT_TRY``, otherwise an error is returned and the errno
 variable is set to ``-EPERM``.
 
 Drivers must not return an error solely because the requested interval
@@ -93,7 +94,11 @@ the same sub-device is not defined.
       - ``stream``
       - Stream identifier.
     * - __u32
-      - ``reserved``\ [8]
+      - ``which``
+      - Active or try frame interval, from enum
+	:ref:`v4l2_subdev_format_whence <v4l2-subdev-format-whence>`.
+    * - __u32
+      - ``reserved``\ [7]
       - Reserved for future extensions. Applications and drivers must set
 	the array to zero.
 
@@ -112,11 +117,10 @@ EBUSY
     ``VIDIOC_SUBDEV_S_FRAME_INTERVAL``
 
 EINVAL
-    The struct
-    :c:type:`v4l2_subdev_frame_interval`
-    ``pad`` references a non-existing pad, or the pad doesn't support
-    frame intervals.
+    The struct :c:type:`v4l2_subdev_frame_interval` ``pad`` references a
+    non-existing pad, the ``which`` field has an unsupported value, or the pad
+    doesn't support frame intervals.
 
 EPERM
     The ``VIDIOC_SUBDEV_S_FRAME_INTERVAL`` ioctl has been called on a read-only
-    subdevice.
+    subdevice and the ``which`` field is set to ``V4L2_SUBDEV_FORMAT_ACTIVE``.

@@ -52,26 +52,20 @@ struct readpages_iter {
 static int readpages_iter_init(struct readpages_iter *iter,
 			       struct readahead_control *ractl)
 {
-	struct folio **fi;
-	int ret;
+	struct folio *folio;
 
-	memset(iter, 0, sizeof(*iter));
+	*iter = (struct readpages_iter) { ractl->mapping };
 
-	iter->mapping = ractl->mapping;
+	while ((folio = __readahead_folio(ractl))) {
+		if (!bch2_folio_create(folio, GFP_KERNEL) ||
+		    darray_push(&iter->folios, folio)) {
+			bch2_folio_release(folio);
+			ractl->_nr_pages += folio_nr_pages(folio);
+			ractl->_index -= folio_nr_pages(folio);
+			return iter->folios.nr ? 0 : -ENOMEM;
+		}
 
-	ret = bch2_filemap_get_contig_folios_d(iter->mapping,
-				ractl->_index << PAGE_SHIFT,
-				(ractl->_index + ractl->_nr_pages) << PAGE_SHIFT,
-				0, mapping_gfp_mask(iter->mapping),
-				&iter->folios);
-	if (ret)
-		return ret;
-
-	darray_for_each(iter->folios, fi) {
-		ractl->_nr_pages -= 1U << folio_order(*fi);
-		__bch2_folio_create(*fi, __GFP_NOFAIL|GFP_KERNEL);
-		folio_put(*fi);
-		folio_put(*fi);
+		folio_put(folio);
 	}
 
 	return 0;
@@ -273,12 +267,12 @@ void bch2_readahead(struct readahead_control *ractl)
 	struct btree_trans *trans = bch2_trans_get(c);
 	struct folio *folio;
 	struct readpages_iter readpages_iter;
-	int ret;
 
 	bch2_inode_opts_get(&opts, c, &inode->ei_inode);
 
-	ret = readpages_iter_init(&readpages_iter, ractl);
-	BUG_ON(ret);
+	int ret = readpages_iter_init(&readpages_iter, ractl);
+	if (ret)
+		return;
 
 	bch2_pagecache_add_get(inode);
 
@@ -309,18 +303,6 @@ void bch2_readahead(struct readahead_control *ractl)
 	darray_exit(&readpages_iter.folios);
 }
 
-static void __bchfs_readfolio(struct bch_fs *c, struct bch_read_bio *rbio,
-			     subvol_inum inum, struct folio *folio)
-{
-	bch2_folio_create(folio, __GFP_NOFAIL);
-
-	rbio->bio.bi_opf = REQ_OP_READ|REQ_SYNC;
-	rbio->bio.bi_iter.bi_sector = folio_sector(folio);
-	BUG_ON(!bio_add_folio(&rbio->bio, folio, folio_size(folio), 0));
-
-	bch2_trans_run(c, (bchfs_read(trans, rbio, inum, NULL), 0));
-}
-
 static void bch2_read_single_folio_end_io(struct bio *bio)
 {
 	complete(bio->bi_private);
@@ -335,6 +317,9 @@ int bch2_read_single_folio(struct folio *folio, struct address_space *mapping)
 	int ret;
 	DECLARE_COMPLETION_ONSTACK(done);
 
+	if (!bch2_folio_create(folio, GFP_KERNEL))
+		return -ENOMEM;
+
 	bch2_inode_opts_get(&opts, c, &inode->ei_inode);
 
 	rbio = rbio_init(bio_alloc_bioset(NULL, 1, REQ_OP_READ, GFP_KERNEL, &c->bio_read),
@@ -342,7 +327,11 @@ int bch2_read_single_folio(struct folio *folio, struct address_space *mapping)
 	rbio->bio.bi_private = &done;
 	rbio->bio.bi_end_io = bch2_read_single_folio_end_io;
 
-	__bchfs_readfolio(c, rbio, inode_inum(inode), folio);
+	rbio->bio.bi_opf = REQ_OP_READ|REQ_SYNC;
+	rbio->bio.bi_iter.bi_sector = folio_sector(folio);
+	BUG_ON(!bio_add_folio(&rbio->bio, folio, folio_size(folio), 0));
+
+	bch2_trans_run(c, (bchfs_read(trans, rbio, inode_inum(inode), NULL), 0));
 	wait_for_completion(&done);
 
 	ret = blk_status_to_errno(rbio->bio.bi_status);
@@ -387,6 +376,21 @@ static inline struct bch_writepage_state bch_writepage_state_init(struct bch_fs 
 
 	bch2_inode_opts_get(&ret.opts, c, &inode->ei_inode);
 	return ret;
+}
+
+/*
+ * Determine when a writepage io is full. We have to limit writepage bios to a
+ * single page per bvec (i.e. 1MB with 4k pages) because that is the limit to
+ * what the bounce path in bch2_write_extent() can handle. In theory we could
+ * loosen this restriction for non-bounce I/O, but we don't have that context
+ * here. Ideally, we can up this limit and make it configurable in the future
+ * when the bounce path can be enhanced to accommodate larger source bios.
+ */
+static inline bool bch_io_full(struct bch_writepage_io *io, unsigned len)
+{
+	struct bio *bio = &io->op.wbio.bio;
+	return bio_full(bio, len) ||
+		(bio->bi_iter.bi_size + len > BIO_MAX_VECS * PAGE_SIZE);
 }
 
 static void bch2_writepage_io_done(struct bch_write_op *op)
@@ -606,9 +610,7 @@ do_io:
 
 		if (w->io &&
 		    (w->io->op.res.nr_replicas != nr_replicas_this_write ||
-		     bio_full(&w->io->op.wbio.bio, sectors << 9) ||
-		     w->io->op.wbio.bio.bi_iter.bi_size + (sectors << 9) >=
-		     (BIO_MAX_VECS * PAGE_SIZE) ||
+		     bch_io_full(w->io, sectors << 9) ||
 		     bio_end_sector(&w->io->op.wbio.bio) != sector))
 			bch2_writepage_do_io(w);
 
@@ -625,7 +627,7 @@ do_io:
 		/* Check for writing past i_size: */
 		WARN_ONCE((bio_end_sector(&w->io->op.wbio.bio) << 9) >
 			  round_up(i_size, block_bytes(c)) &&
-			  !test_bit(BCH_FS_EMERGENCY_RO, &c->flags),
+			  !test_bit(BCH_FS_emergency_ro, &c->flags),
 			  "writing past i_size: %llu > %llu (unrounded %llu)\n",
 			  bio_end_sector(&w->io->op.wbio.bio) << 9,
 			  round_up(i_size, block_bytes(c)),
@@ -808,12 +810,13 @@ static noinline void folios_trunc(folios *fs, struct folio **fi)
 static int __bch2_buffered_write(struct bch_inode_info *inode,
 				 struct address_space *mapping,
 				 struct iov_iter *iter,
-				 loff_t pos, unsigned len)
+				 loff_t pos, unsigned len,
+				 bool inode_locked)
 {
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	struct bch2_folio_reservation res;
 	folios fs;
-	struct folio **fi, *f;
+	struct folio *f;
 	unsigned copied = 0, f_offset, f_copied;
 	u64 end = pos + len, f_pos, f_len;
 	loff_t last_folio_pos = inode->v.i_size;
@@ -832,6 +835,15 @@ static int __bch2_buffered_write(struct bch_inode_info *inode,
 		goto out;
 
 	BUG_ON(!fs.nr);
+
+	/*
+	 * If we're not using the inode lock, we need to lock all the folios for
+	 * atomiticity of writes vs. other writes:
+	 */
+	if (!inode_locked && folio_end_pos(darray_last(fs)) < end) {
+		ret = -BCH_ERR_need_inode_lock;
+		goto out;
+	}
 
 	f = darray_first(fs);
 	if (pos != folio_pos(f) && !folio_test_uptodate(f)) {
@@ -927,8 +939,10 @@ static int __bch2_buffered_write(struct bch_inode_info *inode,
 	end = pos + copied;
 
 	spin_lock(&inode->v.i_lock);
-	if (end > inode->v.i_size)
+	if (end > inode->v.i_size) {
+		BUG_ON(!inode_locked);
 		i_size_write(&inode->v, end);
+	}
 	spin_unlock(&inode->v.i_lock);
 
 	f_pos = pos;
@@ -972,11 +986,67 @@ static ssize_t bch2_buffered_write(struct kiocb *iocb, struct iov_iter *iter)
 	struct file *file = iocb->ki_filp;
 	struct address_space *mapping = file->f_mapping;
 	struct bch_inode_info *inode = file_bch_inode(file);
-	loff_t pos = iocb->ki_pos;
-	ssize_t written = 0;
-	int ret = 0;
+	loff_t pos;
+	bool inode_locked = false;
+	ssize_t written = 0, written2 = 0, ret = 0;
+
+	/*
+	 * We don't take the inode lock unless i_size will be changing. Folio
+	 * locks provide exclusion with other writes, and the pagecache add lock
+	 * provides exclusion with truncate and hole punching.
+	 *
+	 * There is one nasty corner case where atomicity would be broken
+	 * without great care: when copying data from userspace to the page
+	 * cache, we do that with faults disable - a page fault would recurse
+	 * back into the filesystem, taking filesystem locks again, and
+	 * deadlock; so it's done with faults disabled, and we fault in the user
+	 * buffer when we aren't holding locks.
+	 *
+	 * If we do part of the write, but we then race and in the userspace
+	 * buffer have been evicted and are no longer resident, then we have to
+	 * drop our folio locks to re-fault them in, breaking write atomicity.
+	 *
+	 * To fix this, we restart the write from the start, if we weren't
+	 * holding the inode lock.
+	 *
+	 * There is another wrinkle after that; if we restart the write from the
+	 * start, and then get an unrecoverable error, we _cannot_ claim to
+	 * userspace that we did not write data we actually did - so we must
+	 * track (written2) the most we ever wrote.
+	 */
+
+	if ((iocb->ki_flags & IOCB_APPEND) ||
+	    (iocb->ki_pos + iov_iter_count(iter) > i_size_read(&inode->v))) {
+		inode_lock(&inode->v);
+		inode_locked = true;
+	}
+
+	ret = generic_write_checks(iocb, iter);
+	if (ret <= 0)
+		goto unlock;
+
+	ret = file_remove_privs_flags(file, !inode_locked ? IOCB_NOWAIT : 0);
+	if (ret) {
+		if (!inode_locked) {
+			inode_lock(&inode->v);
+			inode_locked = true;
+			ret = file_remove_privs_flags(file, 0);
+		}
+		if (ret)
+			goto unlock;
+	}
+
+	ret = file_update_time(file);
+	if (ret)
+		goto unlock;
+
+	pos = iocb->ki_pos;
 
 	bch2_pagecache_add_get(inode);
+
+	if (!inode_locked &&
+	    (iocb->ki_pos + iov_iter_count(iter) > i_size_read(&inode->v)))
+		goto get_inode_lock;
 
 	do {
 		unsigned offset = pos & (PAGE_SIZE - 1);
@@ -1002,12 +1072,17 @@ again:
 			}
 		}
 
+		if (unlikely(bytes != iov_iter_count(iter) && !inode_locked))
+			goto get_inode_lock;
+
 		if (unlikely(fatal_signal_pending(current))) {
 			ret = -EINTR;
 			break;
 		}
 
-		ret = __bch2_buffered_write(inode, mapping, iter, pos, bytes);
+		ret = __bch2_buffered_write(inode, mapping, iter, pos, bytes, inode_locked);
+		if (ret == -BCH_ERR_need_inode_lock)
+			goto get_inode_lock;
 		if (unlikely(ret < 0))
 			break;
 
@@ -1028,50 +1103,46 @@ again:
 		}
 		pos += ret;
 		written += ret;
+		written2 = max(written, written2);
+
+		if (ret != bytes && !inode_locked)
+			goto get_inode_lock;
 		ret = 0;
 
 		balance_dirty_pages_ratelimited(mapping);
+
+		if (0) {
+get_inode_lock:
+			bch2_pagecache_add_put(inode);
+			inode_lock(&inode->v);
+			inode_locked = true;
+			bch2_pagecache_add_get(inode);
+
+			iov_iter_revert(iter, written);
+			pos -= written;
+			written = 0;
+			ret = 0;
+		}
 	} while (iov_iter_count(iter));
-
 	bch2_pagecache_add_put(inode);
-
-	return written ? written : ret;
-}
-
-ssize_t bch2_write_iter(struct kiocb *iocb, struct iov_iter *from)
-{
-	struct file *file = iocb->ki_filp;
-	struct bch_inode_info *inode = file_bch_inode(file);
-	ssize_t ret;
-
-	if (iocb->ki_flags & IOCB_DIRECT) {
-		ret = bch2_direct_write(iocb, from);
-		goto out;
-	}
-
-	inode_lock(&inode->v);
-
-	ret = generic_write_checks(iocb, from);
-	if (ret <= 0)
-		goto unlock;
-
-	ret = file_remove_privs(file);
-	if (ret)
-		goto unlock;
-
-	ret = file_update_time(file);
-	if (ret)
-		goto unlock;
-
-	ret = bch2_buffered_write(iocb, from);
-	if (likely(ret > 0))
-		iocb->ki_pos += ret;
 unlock:
-	inode_unlock(&inode->v);
+	if (inode_locked)
+		inode_unlock(&inode->v);
 
+	iocb->ki_pos += written;
+
+	ret = max(written, written2) ?: ret;
 	if (ret > 0)
 		ret = generic_write_sync(iocb, ret);
-out:
+	return ret;
+}
+
+ssize_t bch2_write_iter(struct kiocb *iocb, struct iov_iter *iter)
+{
+	ssize_t ret = iocb->ki_flags & IOCB_DIRECT
+		? bch2_direct_write(iocb, iter)
+		: bch2_buffered_write(iocb, iter);
+
 	return bch2_err_class(ret);
 }
 

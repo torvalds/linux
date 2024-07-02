@@ -40,7 +40,6 @@ struct iov_iter_state {
 
 struct iov_iter {
 	u8 iter_type;
-	bool copy_mc;
 	bool nofault;
 	bool data_source;
 	size_t iov_offset;
@@ -207,6 +206,16 @@ size_t copy_from_iter(void *addr, size_t bytes, struct iov_iter *i)
 }
 
 static __always_inline __must_check
+bool copy_to_iter_full(const void *addr, size_t bytes, struct iov_iter *i)
+{
+	size_t copied = copy_to_iter(addr, bytes, i);
+	if (likely(copied == bytes))
+		return true;
+	iov_iter_revert(i, copied);
+	return false;
+}
+
+static __always_inline __must_check
 bool copy_from_iter_full(void *addr, size_t bytes, struct iov_iter *i)
 {
 	size_t copied = copy_from_iter(addr, bytes, i);
@@ -248,22 +257,8 @@ size_t _copy_from_iter_flushcache(void *addr, size_t bytes, struct iov_iter *i);
 
 #ifdef CONFIG_ARCH_HAS_COPY_MC
 size_t _copy_mc_to_iter(const void *addr, size_t bytes, struct iov_iter *i);
-static inline void iov_iter_set_copy_mc(struct iov_iter *i)
-{
-	i->copy_mc = true;
-}
-
-static inline bool iov_iter_is_copy_mc(const struct iov_iter *i)
-{
-	return i->copy_mc;
-}
 #else
 #define _copy_mc_to_iter _copy_to_iter
-static inline void iov_iter_set_copy_mc(struct iov_iter *i) { }
-static inline bool iov_iter_is_copy_mc(const struct iov_iter *i)
-{
-	return false;
-}
 #endif
 
 size_t iov_iter_zero(size_t bytes, struct iov_iter *);
@@ -347,8 +342,6 @@ ssize_t import_iovec(int type, const struct iovec __user *uvec,
 ssize_t __import_iovec(int type, const struct iovec __user *uvec,
 		 unsigned nr_segs, unsigned fast_segs, struct iovec **iovp,
 		 struct iov_iter *i, bool compat);
-int import_single_range(int type, void __user *buf, size_t len,
-		 struct iovec *iov, struct iov_iter *i);
 int import_ubuf(int type, void __user *buf, size_t len, struct iov_iter *i);
 
 static inline void iov_iter_ubuf(struct iov_iter *i, unsigned int direction,
@@ -357,7 +350,6 @@ static inline void iov_iter_ubuf(struct iov_iter *i, unsigned int direction,
 	WARN_ON(direction & ~(READ | WRITE));
 	*i = (struct iov_iter) {
 		.iter_type = ITER_UBUF,
-		.copy_mc = false,
 		.data_source = direction,
 		.ubuf = buf,
 		.count = count,

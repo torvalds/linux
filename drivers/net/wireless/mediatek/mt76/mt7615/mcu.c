@@ -353,7 +353,7 @@ static void
 mt7615_mcu_csa_finish(void *priv, u8 *mac, struct ieee80211_vif *vif)
 {
 	if (vif->bss_conf.csa_active)
-		ieee80211_csa_finish(vif);
+		ieee80211_csa_finish(vif, 0);
 }
 
 static void
@@ -453,7 +453,7 @@ mt7615_mcu_scan_event(struct mt7615_dev *dev, struct sk_buff *skb)
 	else
 		mphy = &dev->mt76.phy;
 
-	phy = (struct mt7615_phy *)mphy->priv;
+	phy = mphy->priv;
 
 	spin_lock_bh(&dev->mt76.lock);
 	__skb_queue_tail(&phy->scan_event_list, skb);
@@ -481,7 +481,7 @@ mt7615_mcu_roc_event(struct mt7615_dev *dev, struct sk_buff *skb)
 
 	ieee80211_ready_on_channel(mphy->hw);
 
-	phy = (struct mt7615_phy *)mphy->priv;
+	phy = mphy->priv;
 	phy->roc_grant = true;
 	wake_up(&phy->roc_wait);
 

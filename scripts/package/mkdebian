@@ -26,7 +26,7 @@ set_debarch() {
 
 	# Attempt to find the correct Debian architecture
 	case "$UTS_MACHINE" in
-	i386|ia64|alpha|m68k|riscv*)
+	i386|alpha|m68k|riscv*)
 		debarch="$UTS_MACHINE" ;;
 	x86_64)
 		debarch=amd64 ;;
@@ -176,8 +176,6 @@ else
 fi
 
 echo $debarch > debian/arch
-extra_build_depends=", $(if_enabled_echo CONFIG_UNWINDER_ORC libelf-dev:native)"
-extra_build_depends="$extra_build_depends, $(if_enabled_echo CONFIG_SYSTEM_TRUSTED_KEYRING libssl-dev:native)"
 
 # Generate a simple changelog template
 cat <<EOF > debian/changelog
@@ -188,26 +186,6 @@ $sourcename ($packageversion) $distribution; urgency=low
  -- $maintainer  $(date -R)
 EOF
 
-# Generate copyright file
-cat <<EOF > debian/copyright
-This is a packaged upstream version of the Linux kernel.
-
-The sources may be found at most Linux archive sites, including:
-https://www.kernel.org/pub/linux/kernel
-
-Copyright: 1991 - 2018 Linus Torvalds and others.
-
-The git repository for mainline kernel development is at:
-git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; version 2 dated June, 1991.
-
-On Debian GNU/Linux systems, the complete text of the GNU General Public
-License version 2 can be found in \`/usr/share/common-licenses/GPL-2'.
-EOF
-
 # Generate a control file
 cat <<EOF > debian/control
 Source: $sourcename
@@ -215,7 +193,8 @@ Section: kernel
 Priority: optional
 Maintainer: $maintainer
 Rules-Requires-Root: no
-Build-Depends: bc, debhelper, rsync, kmod, cpio, bison, flex $extra_build_depends
+Build-Depends: debhelper-compat (= 12)
+Build-Depends-Arch: bc, bison, cpio, flex, kmod, libelf-dev:native, libssl-dev:native, rsync
 Homepage: https://www.kernel.org/
 
 Package: $packagename-$version
@@ -268,6 +247,7 @@ ARCH := ${ARCH}
 KERNELRELEASE := ${KERNELRELEASE}
 EOF
 
+cp "${srctree}/scripts/package/debian/copyright" debian/
 cp "${srctree}/scripts/package/debian/rules" debian/
 
 exit 0

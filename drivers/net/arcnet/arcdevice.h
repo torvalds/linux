@@ -16,6 +16,7 @@
 
 #ifdef __KERNEL__
 #include <linux/interrupt.h>
+#include <linux/workqueue.h>
 
 /*
  * RECON_THRESHOLD is the maximum number of RECON messages to receive
@@ -186,6 +187,8 @@ do {									\
 #define ARC_IS_5MBIT    1   /* card default speed is 5MBit */
 #define ARC_CAN_10MBIT  2   /* card uses COM20022, supporting 10MBit,
 				 but default is 2.5MBit. */
+#define ARC_HAS_LED     4   /* card has software controlled LEDs */
+#define ARC_HAS_ROTARY  8   /* card has rotary encoder */
 
 /* information needed to define an encapsulation driver */
 struct ArcProto {
@@ -266,7 +269,7 @@ struct arcnet_local {
 
 	struct net_device *dev;
 	int reply_status;
-	struct tasklet_struct reply_tasklet;
+	struct work_struct reply_work;
 
 	/*
 	 * Buffer management: an ARCnet card has 4 x 512-byte buffers, each of

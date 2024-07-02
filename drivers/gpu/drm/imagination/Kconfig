@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: GPL-2.0-only OR MIT
+# Copyright (c) 2023 Imagination Technologies Ltd.
+
+config DRM_POWERVR
+	tristate "Imagination Technologies PowerVR (Series 6 and later) & IMG Graphics"
+	depends on ARM64
+	depends on DRM
+	depends on PM
+	select DRM_EXEC
+	select DRM_GEM_SHMEM_HELPER
+	select DRM_SCHED
+	select DRM_GPUVM
+	select FW_LOADER
+	help
+	  Choose this option if you have a system that has an Imagination
+	  Technologies PowerVR (Series 6 or later) or IMG GPU.
+
+	  If "M" is selected, the module will be called powervr.

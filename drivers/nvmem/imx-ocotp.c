@@ -583,16 +583,11 @@ static const struct of_device_id imx_ocotp_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, imx_ocotp_dt_ids);
 
-static void imx_ocotp_fixup_cell_info(struct nvmem_device *nvmem,
-				      struct nvmem_layout *layout,
-				      struct nvmem_cell_info *cell)
+static void imx_ocotp_fixup_dt_cell_info(struct nvmem_device *nvmem,
+					 struct nvmem_cell_info *cell)
 {
 	cell->read_post_process = imx_ocotp_cell_pp;
 }
-
-static struct nvmem_layout imx_ocotp_layout = {
-	.fixup_cell_info = imx_ocotp_fixup_cell_info,
-};
 
 static int imx_ocotp_probe(struct platform_device *pdev)
 {
@@ -615,10 +610,11 @@ static int imx_ocotp_probe(struct platform_device *pdev)
 		return PTR_ERR(priv->clk);
 
 	priv->params = of_device_get_match_data(&pdev->dev);
+	imx_ocotp_nvmem_config.add_legacy_fixed_of_cells = true;
 	imx_ocotp_nvmem_config.size = 4 * priv->params->nregs;
 	imx_ocotp_nvmem_config.dev = dev;
 	imx_ocotp_nvmem_config.priv = priv;
-	imx_ocotp_nvmem_config.layout = &imx_ocotp_layout;
+	imx_ocotp_nvmem_config.fixup_dt_cell_info = &imx_ocotp_fixup_dt_cell_info;
 
 	priv->config = &imx_ocotp_nvmem_config;
 

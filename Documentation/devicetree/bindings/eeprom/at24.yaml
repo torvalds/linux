@@ -12,6 +12,7 @@ maintainers:
 
 allOf:
   - $ref: /schemas/nvmem/nvmem.yaml
+  - $ref: /schemas/nvmem/nvmem-deprecated-cells.yaml
 
 select:
   properties:
@@ -118,6 +119,7 @@ properties:
           - enum:
               - onnn,cat24c04
               - onnn,cat24c05
+              - rohm,br24g04
           - const: atmel,24c04
       - items:
           - const: renesas,r1ex24016
@@ -130,6 +132,7 @@ properties:
               - renesas,r1ex24128
               - samsung,s524ad0xd1
           - const: atmel,24c128
+      - pattern: '^atmel,24c(32|64)d-wl$' # Actual vendor is st
 
   label:
     description: Descriptive name of the EEPROM.

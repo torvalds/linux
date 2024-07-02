@@ -1,12 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 agpgart-y := backend.o generic.o isoch.o
 
-ifeq ($(CONFIG_DRM_LEGACY),y)
-agpgart-$(CONFIG_COMPAT)	+= compat_ioctl.o
-agpgart-y			+= frontend.o
-endif
-
-
 obj-$(CONFIG_AGP)		+= agpgart.o
 obj-$(CONFIG_AGP_ALI)		+= ali-agp.o
 obj-$(CONFIG_AGP_ATI)		+= ati-agp.o

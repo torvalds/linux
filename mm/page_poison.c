@@ -21,13 +21,13 @@ early_param("page_poison", early_page_poison_param);
 
 static void poison_page(struct page *page)
 {
-	void *addr = kmap_atomic(page);
+	void *addr = kmap_local_page(page);
 
 	/* KASAN still think the page is in-use, so skip it. */
 	kasan_disable_current();
 	memset(kasan_reset_tag(addr), PAGE_POISON, PAGE_SIZE);
 	kasan_enable_current();
-	kunmap_atomic(addr);
+	kunmap_local(addr);
 }
 
 void __kernel_poison_pages(struct page *page, int n)
@@ -77,7 +77,7 @@ static void unpoison_page(struct page *page)
 {
 	void *addr;
 
-	addr = kmap_atomic(page);
+	addr = kmap_local_page(page);
 	kasan_disable_current();
 	/*
 	 * Page poisoning when enabled poisons each and every page
@@ -86,7 +86,7 @@ static void unpoison_page(struct page *page)
 	 */
 	check_poison_mem(page, kasan_reset_tag(addr), PAGE_SIZE);
 	kasan_enable_current();
-	kunmap_atomic(addr);
+	kunmap_local(addr);
 }
 
 void __kernel_unpoison_pages(struct page *page, int n)

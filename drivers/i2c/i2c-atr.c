@@ -94,7 +94,7 @@ struct i2c_atr {
 
 	struct notifier_block i2c_nb;
 
-	struct i2c_adapter *adapter[];
+	struct i2c_adapter *adapter[] __counted_by(max_adapters);
 };
 
 static struct i2c_atr_alias_pair *

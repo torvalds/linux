@@ -3,6 +3,8 @@
   * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved
   */
 
+#include <drm/drm_managed.h>
+
 #include "dpu_hw_mdss.h"
 #include "dpu_hwio.h"
 #include "dpu_hw_catalog.h"
@@ -65,7 +67,7 @@ static void dpu_hw_wb_setup_format(struct dpu_hw_wb *ctx,
 		struct dpu_hw_wb_cfg *data)
 {
 	struct dpu_hw_blk_reg_map *c = &ctx->hw;
-	const struct dpu_format *fmt = data->dest.format;
+	const struct msm_format *fmt = data->dest.format;
 	u32 dst_format, pattern, ystride0, ystride1, outsize, chroma_samp;
 	u32 write_config = 0;
 	u32 opmode = 0;
@@ -74,26 +76,29 @@ static void dpu_hw_wb_setup_format(struct dpu_hw_wb *ctx,
 	chroma_samp = fmt->chroma_sample;
 
 	dst_format = (chroma_samp << 23) |
-		(fmt->fetch_planes << 19) |
-		(fmt->bits[C3_ALPHA] << 6) |
-		(fmt->bits[C2_R_Cr] << 4) |
-		(fmt->bits[C1_B_Cb] << 2) |
-		(fmt->bits[C0_G_Y] << 0);
+		(fmt->fetch_type << 19) |
+		(fmt->bpc_a << 6) |
+		(fmt->bpc_r_cr << 4) |
+		(fmt->bpc_b_cb << 2) |
+		(fmt->bpc_g_y << 0);
 
-	if (fmt->bits[C3_ALPHA] || fmt->alpha_enable) {
+	if (fmt->bpc_a || fmt->alpha_enable) {
 		dst_format |= BIT(8); /* DSTC3_EN */
 		if (!fmt->alpha_enable ||
 			!(ctx->caps->features & BIT(DPU_WB_PIPE_ALPHA)))
 			dst_format |= BIT(14); /* DST_ALPHA_X */
 	}
 
+	if (MSM_FORMAT_IS_YUV(fmt))
+		dst_format |= BIT(15);
+
 	pattern = (fmt->element[3] << 24) |
 		(fmt->element[2] << 16) |
 		(fmt->element[1] << 8)  |
 		(fmt->element[0] << 0);
 
-	dst_format |= (fmt->unpack_align_msb << 18) |
-		(fmt->unpack_tight << 17) |
+	dst_format |= ((fmt->flags & MSM_FORMAT_FLAG_UNPACK_ALIGN_MSB ? 1 : 0) << 18) |
+		((fmt->flags & MSM_FORMAT_FLAG_UNPACK_TIGHT ? 1 : 0) << 17) |
 		((fmt->unpack_count - 1) << 12) |
 		((fmt->bpp - 1) << 9);
 
@@ -144,7 +149,7 @@ static void dpu_hw_wb_setup_qos_lut(struct dpu_hw_wb *ctx,
 }
 
 static void dpu_hw_wb_setup_cdp(struct dpu_hw_wb *ctx,
-				const struct dpu_format *fmt,
+				const struct msm_format *fmt,
 				bool enable)
 {
 	if (!ctx)
@@ -208,15 +213,17 @@ static void _setup_wb_ops(struct dpu_hw_wb_ops *ops,
 		ops->setup_clk_force_ctrl = dpu_hw_wb_setup_clk_force_ctrl;
 }
 
-struct dpu_hw_wb *dpu_hw_wb_init(const struct dpu_wb_cfg *cfg,
-		void __iomem *addr, const struct dpu_mdss_version *mdss_rev)
+struct dpu_hw_wb *dpu_hw_wb_init(struct drm_device *dev,
+				 const struct dpu_wb_cfg *cfg,
+				 void __iomem *addr,
+				 const struct dpu_mdss_version *mdss_rev)
 {
 	struct dpu_hw_wb *c;
 
 	if (!addr)
 		return ERR_PTR(-EINVAL);
 
-	c = kzalloc(sizeof(*c), GFP_KERNEL);
+	c = drmm_kzalloc(dev, sizeof(*c), GFP_KERNEL);
 	if (!c)
 		return ERR_PTR(-ENOMEM);
 
@@ -229,9 +236,4 @@ struct dpu_hw_wb *dpu_hw_wb_init(const struct dpu_wb_cfg *cfg,
 	_setup_wb_ops(&c->ops, c->caps->features, mdss_rev);
 
 	return c;
-}
-
-void dpu_hw_wb_destroy(struct dpu_hw_wb *hw_wb)
-{
-	kfree(hw_wb);
 }

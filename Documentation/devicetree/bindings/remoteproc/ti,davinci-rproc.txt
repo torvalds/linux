@@ -1,9 +1,6 @@
 TI Davinci DSP devices
 =======================
 
-Binding status: Unstable - Subject to changes for DT representation of clocks
-			   and resets
-
 The TI Davinci family of SoCs usually contains a TI DSP Core sub-system that
 is used to offload some of the processor-intensive tasks or algorithms, for
 achieving various system level goals.

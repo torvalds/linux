@@ -228,7 +228,7 @@ static int bnxt_queue_remap(struct bnxt *bp, unsigned int lltc_mask)
 		}
 	}
 	if (bp->ieee_ets) {
-		int tc = netdev_get_num_tc(bp->dev);
+		int tc = bp->num_tc;
 
 		if (!tc)
 			tc = 1;

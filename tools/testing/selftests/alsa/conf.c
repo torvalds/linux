@@ -105,7 +105,7 @@ static struct card_cfg_data *conf_data_by_card(int card, bool msg)
 	return NULL;
 }
 
-static int dump_config_tree(snd_config_t *top)
+static void dump_config_tree(snd_config_t *top)
 {
 	snd_output_t *out;
 	int err;
@@ -179,7 +179,7 @@ static char *sysfs_get(const char *sysfs_root, const char *id)
 	close(fd);
 	if (len < 0)
 		ksft_exit_fail_msg("sysfs: unable to read value '%s': %s\n",
-				   path, errno);
+				   path, strerror(errno));
 	while (len > 0 && path[len-1] == '\n')
 		len--;
 	path[len] = '\0';

@@ -120,7 +120,7 @@
 	};
 
 	tpm: tpm@1 {
-		compatible = "tcg,tpm_tis-spi";
+		compatible = "infineon,slb9670", "tcg,tpm_tis-spi";
 		interrupts = <11 IRQ_TYPE_LEVEL_LOW>;
 		interrupt-parent = <&gpio2>;
 		pinctrl-names = "default";

@@ -71,6 +71,24 @@ static inline enum bch_data_type bucket_data_type(enum bch_data_type data_type)
 	return data_type == BCH_DATA_stripe ? BCH_DATA_user : data_type;
 }
 
+static inline unsigned bch2_bucket_sectors(struct bch_alloc_v4 a)
+{
+	return a.dirty_sectors + a.cached_sectors;
+}
+
+static inline unsigned bch2_bucket_sectors_dirty(struct bch_alloc_v4 a)
+{
+	return a.dirty_sectors;
+}
+
+static inline unsigned bch2_bucket_sectors_fragmented(struct bch_dev *ca,
+						 struct bch_alloc_v4 a)
+{
+	int d = bch2_bucket_sectors_dirty(a);
+
+	return d ? max(0, ca->mi.bucket_size - d) : 0;
+}
+
 static inline u64 alloc_lru_idx_read(struct bch_alloc_v4 a)
 {
 	return a.data_type == BCH_DATA_cached ? a.io_time[READ] : 0;
@@ -90,10 +108,11 @@ static inline u64 alloc_lru_idx_fragmentation(struct bch_alloc_v4 a,
 					      struct bch_dev *ca)
 {
 	if (!data_type_movable(a.data_type) ||
-	    a.dirty_sectors >= ca->mi.bucket_size)
+	    !bch2_bucket_sectors_fragmented(ca, a))
 		return 0;
 
-	return div_u64((u64) a.dirty_sectors * (1ULL << 31), ca->mi.bucket_size);
+	u64 d = bch2_bucket_sectors_dirty(a);
+	return div_u64(d * (1ULL << 31), ca->mi.bucket_size);
 }
 
 static inline u64 alloc_freespace_genbits(struct bch_alloc_v4 a)
@@ -107,13 +126,17 @@ static inline struct bpos alloc_freespace_pos(struct bpos pos, struct bch_alloc_
 	return pos;
 }
 
-static inline unsigned alloc_v4_u64s(const struct bch_alloc_v4 *a)
+static inline unsigned alloc_v4_u64s_noerror(const struct bch_alloc_v4 *a)
 {
-	unsigned ret = (BCH_ALLOC_V4_BACKPOINTERS_START(a) ?:
+	return (BCH_ALLOC_V4_BACKPOINTERS_START(a) ?:
 			BCH_ALLOC_V4_U64s_V0) +
 		BCH_ALLOC_V4_NR_BACKPOINTERS(a) *
 		(sizeof(struct bch_backpointer) / sizeof(u64));
+}
 
+static inline unsigned alloc_v4_u64s(const struct bch_alloc_v4 *a)
+{
+	unsigned ret = alloc_v4_u64s_noerror(a);
 	BUG_ON(ret > U8_MAX - BKEY_U64s);
 	return ret;
 }
@@ -149,13 +172,13 @@ struct bkey_i_alloc_v4 *bch2_alloc_to_v4_mut(struct btree_trans *, struct bkey_s
 
 int bch2_bucket_io_time_reset(struct btree_trans *, unsigned, size_t, int);
 
-int bch2_alloc_v1_invalid(const struct bch_fs *, struct bkey_s_c,
+int bch2_alloc_v1_invalid(struct bch_fs *, struct bkey_s_c,
 			  enum bkey_invalid_flags, struct printbuf *);
-int bch2_alloc_v2_invalid(const struct bch_fs *, struct bkey_s_c,
+int bch2_alloc_v2_invalid(struct bch_fs *, struct bkey_s_c,
 			  enum bkey_invalid_flags, struct printbuf *);
-int bch2_alloc_v3_invalid(const struct bch_fs *, struct bkey_s_c,
+int bch2_alloc_v3_invalid(struct bch_fs *, struct bkey_s_c,
 			  enum bkey_invalid_flags, struct printbuf *);
-int bch2_alloc_v4_invalid(const struct bch_fs *, struct bkey_s_c,
+int bch2_alloc_v4_invalid(struct bch_fs *, struct bkey_s_c,
 			  enum bkey_invalid_flags, struct printbuf *);
 void bch2_alloc_v4_swab(struct bkey_s);
 void bch2_alloc_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
@@ -163,24 +186,21 @@ void bch2_alloc_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 #define bch2_bkey_ops_alloc ((struct bkey_ops) {	\
 	.key_invalid	= bch2_alloc_v1_invalid,	\
 	.val_to_text	= bch2_alloc_to_text,		\
-	.trans_trigger	= bch2_trans_mark_alloc,	\
-	.atomic_trigger	= bch2_mark_alloc,		\
+	.trigger	= bch2_trigger_alloc,		\
 	.min_val_size	= 8,				\
 })
 
 #define bch2_bkey_ops_alloc_v2 ((struct bkey_ops) {	\
 	.key_invalid	= bch2_alloc_v2_invalid,	\
 	.val_to_text	= bch2_alloc_to_text,		\
-	.trans_trigger	= bch2_trans_mark_alloc,	\
-	.atomic_trigger	= bch2_mark_alloc,		\
+	.trigger	= bch2_trigger_alloc,		\
 	.min_val_size	= 8,				\
 })
 
 #define bch2_bkey_ops_alloc_v3 ((struct bkey_ops) {	\
 	.key_invalid	= bch2_alloc_v3_invalid,	\
 	.val_to_text	= bch2_alloc_to_text,		\
-	.trans_trigger	= bch2_trans_mark_alloc,	\
-	.atomic_trigger	= bch2_mark_alloc,		\
+	.trigger	= bch2_trigger_alloc,		\
 	.min_val_size	= 16,				\
 })
 
@@ -188,12 +208,11 @@ void bch2_alloc_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 	.key_invalid	= bch2_alloc_v4_invalid,	\
 	.val_to_text	= bch2_alloc_to_text,		\
 	.swab		= bch2_alloc_v4_swab,		\
-	.trans_trigger	= bch2_trans_mark_alloc,	\
-	.atomic_trigger	= bch2_mark_alloc,		\
+	.trigger	= bch2_trigger_alloc,		\
 	.min_val_size	= 48,				\
 })
 
-int bch2_bucket_gens_invalid(const struct bch_fs *, struct bkey_s_c,
+int bch2_bucket_gens_invalid(struct bch_fs *, struct bkey_s_c,
 			     enum bkey_invalid_flags, struct printbuf *);
 void bch2_bucket_gens_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 
@@ -213,8 +232,8 @@ static inline bool bkey_is_alloc(const struct bkey *k)
 
 int bch2_alloc_read(struct bch_fs *);
 
-int bch2_trans_mark_alloc(struct btree_trans *, enum btree_id, unsigned,
-			  struct bkey_s_c, struct bkey_i *, unsigned);
+int bch2_trigger_alloc(struct btree_trans *, enum btree_id, unsigned,
+		       struct bkey_s_c, struct bkey_s, unsigned);
 int bch2_check_alloc_info(struct bch_fs *);
 int bch2_check_alloc_to_lru_refs(struct bch_fs *);
 void bch2_do_discards(struct bch_fs *);
@@ -249,10 +268,12 @@ int bch2_dev_freespace_init(struct bch_fs *, struct bch_dev *, u64, u64);
 int bch2_fs_freespace_init(struct bch_fs *);
 
 void bch2_recalc_capacity(struct bch_fs *);
+u64 bch2_min_rw_member_capacity(struct bch_fs *);
 
 void bch2_dev_allocator_remove(struct bch_fs *, struct bch_dev *);
 void bch2_dev_allocator_add(struct bch_fs *, struct bch_dev *);
 
+void bch2_fs_allocator_background_exit(struct bch_fs *);
 void bch2_fs_allocator_background_init(struct bch_fs *);
 
 #endif /* _BCACHEFS_ALLOC_BACKGROUND_H */

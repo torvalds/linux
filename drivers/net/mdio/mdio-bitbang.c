@@ -263,3 +263,4 @@ void free_mdio_bitbang(struct mii_bus *bus)
 EXPORT_SYMBOL(free_mdio_bitbang);
 
 MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("Bitbanged MDIO buses");

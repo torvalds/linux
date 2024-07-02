@@ -201,7 +201,8 @@ ssize_t splice_to_pipe(struct pipe_inode_info *pipe,
 	unsigned int tail = pipe->tail;
 	unsigned int head = pipe->head;
 	unsigned int mask = pipe->ring_size - 1;
-	int ret = 0, page_nr = 0;
+	ssize_t ret = 0;
+	int page_nr = 0;
 
 	if (!spd_pages)
 		return 0;
@@ -673,10 +674,13 @@ iter_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 		.u.file = out,
 	};
 	int nbufs = pipe->max_usage;
-	struct bio_vec *array = kcalloc(nbufs, sizeof(struct bio_vec),
-					GFP_KERNEL);
+	struct bio_vec *array;
 	ssize_t ret;
 
+	if (!out->f_op->write_iter)
+		return -EINVAL;
+
+	array = kcalloc(nbufs, sizeof(struct bio_vec), GFP_KERNEL);
 	if (unlikely(!array))
 		return -ENOMEM;
 
@@ -684,6 +688,7 @@ iter_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 
 	splice_from_pipe_begin(&sd);
 	while (sd.total_len) {
+		struct kiocb kiocb;
 		struct iov_iter from;
 		unsigned int head, tail, mask;
 		size_t left;
@@ -733,7 +738,10 @@ iter_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 		}
 
 		iov_iter_bvec(&from, ITER_SOURCE, array, n, sd.total_len - left);
-		ret = vfs_iter_write(out, &from, &sd.pos, 0);
+		init_sync_kiocb(&kiocb, out);
+		kiocb.ki_pos = sd.pos;
+		ret = call_write_iter(out, &kiocb, &from);
+		sd.pos = kiocb.ki_pos;
 		if (ret <= 0)
 			break;
 
@@ -925,8 +933,8 @@ static int warn_unsupported(struct file *file, const char *op)
 /*
  * Attempt to initiate a splice from pipe to file.
  */
-static long do_splice_from(struct pipe_inode_info *pipe, struct file *out,
-			   loff_t *ppos, size_t len, unsigned int flags)
+static ssize_t do_splice_from(struct pipe_inode_info *pipe, struct file *out,
+			      loff_t *ppos, size_t len, unsigned int flags)
 {
 	if (unlikely(!out->f_op->splice_write))
 		return warn_unsupported(out, "write");
@@ -944,6 +952,39 @@ static void do_splice_eof(struct splice_desc *sd)
 		sd->splice_eof(sd);
 }
 
+/*
+ * Callers already called rw_verify_area() on the entire range.
+ * No need to call it for sub ranges.
+ */
+static ssize_t do_splice_read(struct file *in, loff_t *ppos,
+			      struct pipe_inode_info *pipe, size_t len,
+			      unsigned int flags)
+{
+	unsigned int p_space;
+
+	if (unlikely(!(in->f_mode & FMODE_READ)))
+		return -EBADF;
+	if (!len)
+		return 0;
+
+	/* Don't try to read more the pipe has space for. */
+	p_space = pipe->max_usage - pipe_occupancy(pipe->head, pipe->tail);
+	len = min_t(size_t, len, p_space << PAGE_SHIFT);
+
+	if (unlikely(len > MAX_RW_COUNT))
+		len = MAX_RW_COUNT;
+
+	if (unlikely(!in->f_op->splice_read))
+		return warn_unsupported(in, "read");
+	/*
+	 * O_DIRECT and DAX don't deal with the pagecache, so we allocate a
+	 * buffer, copy into it and splice that into the pipe.
+	 */
+	if ((in->f_flags & O_DIRECT) || IS_DAX(in->f_mapping->host))
+		return copy_splice_read(in, ppos, pipe, len, flags);
+	return in->f_op->splice_read(in, ppos, pipe, len, flags);
+}
+
 /**
  * vfs_splice_read - Read data from a file and splice it into a pipe
  * @in:		File to splice from
@@ -959,38 +1000,17 @@ static void do_splice_eof(struct splice_desc *sd)
  * If successful, it returns the amount of data spliced, 0 if it hit the EOF or
  * a hole and a negative error code otherwise.
  */
-long vfs_splice_read(struct file *in, loff_t *ppos,
-		     struct pipe_inode_info *pipe, size_t len,
-		     unsigned int flags)
+ssize_t vfs_splice_read(struct file *in, loff_t *ppos,
+			struct pipe_inode_info *pipe, size_t len,
+			unsigned int flags)
 {
-	unsigned int p_space;
-	int ret;
-
-	if (unlikely(!(in->f_mode & FMODE_READ)))
-		return -EBADF;
-	if (!len)
-		return 0;
-
-	/* Don't try to read more the pipe has space for. */
-	p_space = pipe->max_usage - pipe_occupancy(pipe->head, pipe->tail);
-	len = min_t(size_t, len, p_space << PAGE_SHIFT);
+	ssize_t ret;
 
 	ret = rw_verify_area(READ, in, ppos, len);
 	if (unlikely(ret < 0))
 		return ret;
 
-	if (unlikely(len > MAX_RW_COUNT))
-		len = MAX_RW_COUNT;
-
-	if (unlikely(!in->f_op->splice_read))
-		return warn_unsupported(in, "read");
-	/*
-	 * O_DIRECT and DAX don't deal with the pagecache, so we allocate a
-	 * buffer, copy into it and splice that into the pipe.
-	 */
-	if ((in->f_flags & O_DIRECT) || IS_DAX(in->f_mapping->host))
-		return copy_splice_read(in, ppos, pipe, len, flags);
-	return in->f_op->splice_read(in, ppos, pipe, len, flags);
+	return do_splice_read(in, ppos, pipe, len, flags);
 }
 EXPORT_SYMBOL_GPL(vfs_splice_read);
 
@@ -1011,7 +1031,7 @@ ssize_t splice_direct_to_actor(struct file *in, struct splice_desc *sd,
 			       splice_direct_actor *actor)
 {
 	struct pipe_inode_info *pipe;
-	long ret, bytes;
+	ssize_t ret, bytes;
 	size_t len;
 	int i, flags, more;
 
@@ -1066,7 +1086,7 @@ ssize_t splice_direct_to_actor(struct file *in, struct splice_desc *sd,
 		size_t read_len;
 		loff_t pos = sd->pos, prev_pos = pos;
 
-		ret = vfs_splice_read(in, &pos, pipe, len, flags);
+		ret = do_splice_read(in, &pos, pipe, len, flags);
 		if (unlikely(ret <= 0))
 			goto read_failure;
 
@@ -1138,9 +1158,20 @@ static int direct_splice_actor(struct pipe_inode_info *pipe,
 			       struct splice_desc *sd)
 {
 	struct file *file = sd->u.file;
+	long ret;
 
-	return do_splice_from(pipe, file, sd->opos, sd->total_len,
-			      sd->flags);
+	file_start_write(file);
+	ret = do_splice_from(pipe, file, sd->opos, sd->total_len, sd->flags);
+	file_end_write(file);
+	return ret;
+}
+
+static int splice_file_range_actor(struct pipe_inode_info *pipe,
+					struct splice_desc *sd)
+{
+	struct file *file = sd->u.file;
+
+	return do_splice_from(pipe, file, sd->opos, sd->total_len, sd->flags);
 }
 
 static void direct_file_splice_eof(struct splice_desc *sd)
@@ -1151,6 +1182,34 @@ static void direct_file_splice_eof(struct splice_desc *sd)
 		file->f_op->splice_eof(file);
 }
 
+static ssize_t do_splice_direct_actor(struct file *in, loff_t *ppos,
+				      struct file *out, loff_t *opos,
+				      size_t len, unsigned int flags,
+				      splice_direct_actor *actor)
+{
+	struct splice_desc sd = {
+		.len		= len,
+		.total_len	= len,
+		.flags		= flags,
+		.pos		= *ppos,
+		.u.file		= out,
+		.splice_eof	= direct_file_splice_eof,
+		.opos		= opos,
+	};
+	ssize_t ret;
+
+	if (unlikely(!(out->f_mode & FMODE_WRITE)))
+		return -EBADF;
+
+	if (unlikely(out->f_flags & O_APPEND))
+		return -EINVAL;
+
+	ret = splice_direct_to_actor(in, &sd, actor);
+	if (ret > 0)
+		*ppos = sd.pos;
+
+	return ret;
+}
 /**
  * do_splice_direct - splices data directly between two files
  * @in:		file to splice from
@@ -1166,38 +1225,41 @@ static void direct_file_splice_eof(struct splice_desc *sd)
  *    (splice in + splice out, as compared to just sendfile()). So this helper
  *    can splice directly through a process-private pipe.
  *
+ * Callers already called rw_verify_area() on the entire range.
  */
-long do_splice_direct(struct file *in, loff_t *ppos, struct file *out,
-		      loff_t *opos, size_t len, unsigned int flags)
+ssize_t do_splice_direct(struct file *in, loff_t *ppos, struct file *out,
+			 loff_t *opos, size_t len, unsigned int flags)
 {
-	struct splice_desc sd = {
-		.len		= len,
-		.total_len	= len,
-		.flags		= flags,
-		.pos		= *ppos,
-		.u.file		= out,
-		.splice_eof	= direct_file_splice_eof,
-		.opos		= opos,
-	};
-	long ret;
-
-	if (unlikely(!(out->f_mode & FMODE_WRITE)))
-		return -EBADF;
-
-	if (unlikely(out->f_flags & O_APPEND))
-		return -EINVAL;
-
-	ret = rw_verify_area(WRITE, out, opos, len);
-	if (unlikely(ret < 0))
-		return ret;
-
-	ret = splice_direct_to_actor(in, &sd, direct_splice_actor);
-	if (ret > 0)
-		*ppos = sd.pos;
-
-	return ret;
+	return do_splice_direct_actor(in, ppos, out, opos, len, flags,
+				      direct_splice_actor);
 }
 EXPORT_SYMBOL(do_splice_direct);
+
+/**
+ * splice_file_range - splices data between two files for copy_file_range()
+ * @in:		file to splice from
+ * @ppos:	input file offset
+ * @out:	file to splice to
+ * @opos:	output file offset
+ * @len:	number of bytes to splice
+ *
+ * Description:
+ *    For use by ->copy_file_range() methods.
+ *    Like do_splice_direct(), but vfs_copy_file_range() already holds
+ *    start_file_write() on @out file.
+ *
+ * Callers already called rw_verify_area() on the entire range.
+ */
+ssize_t splice_file_range(struct file *in, loff_t *ppos, struct file *out,
+			  loff_t *opos, size_t len)
+{
+	lockdep_assert(file_write_started(out));
+
+	return do_splice_direct_actor(in, ppos, out, opos,
+				      min_t(size_t, len, MAX_RW_COUNT),
+				      0, splice_file_range_actor);
+}
+EXPORT_SYMBOL(splice_file_range);
 
 static int wait_for_space(struct pipe_inode_info *pipe, unsigned flags)
 {
@@ -1220,17 +1282,17 @@ static int splice_pipe_to_pipe(struct pipe_inode_info *ipipe,
 			       struct pipe_inode_info *opipe,
 			       size_t len, unsigned int flags);
 
-long splice_file_to_pipe(struct file *in,
-			 struct pipe_inode_info *opipe,
-			 loff_t *offset,
-			 size_t len, unsigned int flags)
+ssize_t splice_file_to_pipe(struct file *in,
+			    struct pipe_inode_info *opipe,
+			    loff_t *offset,
+			    size_t len, unsigned int flags)
 {
-	long ret;
+	ssize_t ret;
 
 	pipe_lock(opipe);
 	ret = wait_for_space(opipe, flags);
 	if (!ret)
-		ret = vfs_splice_read(in, offset, opipe, len, flags);
+		ret = do_splice_read(in, offset, opipe, len, flags);
 	pipe_unlock(opipe);
 	if (ret > 0)
 		wakeup_pipe_readers(opipe);
@@ -1240,13 +1302,13 @@ long splice_file_to_pipe(struct file *in,
 /*
  * Determine where to splice to/from.
  */
-long do_splice(struct file *in, loff_t *off_in, struct file *out,
-	       loff_t *off_out, size_t len, unsigned int flags)
+ssize_t do_splice(struct file *in, loff_t *off_in, struct file *out,
+		  loff_t *off_out, size_t len, unsigned int flags)
 {
 	struct pipe_inode_info *ipipe;
 	struct pipe_inode_info *opipe;
 	loff_t offset;
-	long ret;
+	ssize_t ret;
 
 	if (unlikely(!(in->f_mode & FMODE_READ) ||
 		     !(out->f_mode & FMODE_WRITE)))
@@ -1307,6 +1369,10 @@ long do_splice(struct file *in, loff_t *off_in, struct file *out,
 			offset = in->f_pos;
 		}
 
+		ret = rw_verify_area(READ, in, &offset, len);
+		if (unlikely(ret < 0))
+			return ret;
+
 		if (out->f_flags & O_NONBLOCK)
 			flags |= SPLICE_F_NONBLOCK;
 
@@ -1333,14 +1399,14 @@ long do_splice(struct file *in, loff_t *off_in, struct file *out,
 	return ret;
 }
 
-static long __do_splice(struct file *in, loff_t __user *off_in,
-			struct file *out, loff_t __user *off_out,
-			size_t len, unsigned int flags)
+static ssize_t __do_splice(struct file *in, loff_t __user *off_in,
+			   struct file *out, loff_t __user *off_out,
+			   size_t len, unsigned int flags)
 {
 	struct pipe_inode_info *ipipe;
 	struct pipe_inode_info *opipe;
 	loff_t offset, *__off_in = NULL, *__off_out = NULL;
-	long ret;
+	ssize_t ret;
 
 	ipipe = get_pipe_info(in, true);
 	opipe = get_pipe_info(out, true);
@@ -1379,16 +1445,16 @@ static long __do_splice(struct file *in, loff_t __user *off_in,
 	return ret;
 }
 
-static int iter_to_pipe(struct iov_iter *from,
-			struct pipe_inode_info *pipe,
-			unsigned flags)
+static ssize_t iter_to_pipe(struct iov_iter *from,
+			    struct pipe_inode_info *pipe,
+			    unsigned int flags)
 {
 	struct pipe_buffer buf = {
 		.ops = &user_page_pipe_buf_ops,
 		.flags = flags
 	};
 	size_t total = 0;
-	int ret = 0;
+	ssize_t ret = 0;
 
 	while (iov_iter_count(from)) {
 		struct page *pages[16];
@@ -1437,8 +1503,8 @@ static int pipe_to_user(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
  * For lack of a better implementation, implement vmsplice() to userspace
  * as a simple copy of the pipes pages to the user iov.
  */
-static long vmsplice_to_user(struct file *file, struct iov_iter *iter,
-			     unsigned int flags)
+static ssize_t vmsplice_to_user(struct file *file, struct iov_iter *iter,
+				unsigned int flags)
 {
 	struct pipe_inode_info *pipe = get_pipe_info(file, true);
 	struct splice_desc sd = {
@@ -1446,7 +1512,7 @@ static long vmsplice_to_user(struct file *file, struct iov_iter *iter,
 		.flags = flags,
 		.u.data = iter
 	};
-	long ret = 0;
+	ssize_t ret = 0;
 
 	if (!pipe)
 		return -EBADF;
@@ -1470,11 +1536,11 @@ static long vmsplice_to_user(struct file *file, struct iov_iter *iter,
  * as splice-from-memory, where the regular splice is splice-from-file (or
  * to file). In both cases the output is a pipe, naturally.
  */
-static long vmsplice_to_pipe(struct file *file, struct iov_iter *iter,
-			     unsigned int flags)
+static ssize_t vmsplice_to_pipe(struct file *file, struct iov_iter *iter,
+				unsigned int flags)
 {
 	struct pipe_inode_info *pipe;
-	long ret = 0;
+	ssize_t ret = 0;
 	unsigned buf_flag = 0;
 
 	if (flags & SPLICE_F_GIFT)
@@ -1570,7 +1636,7 @@ SYSCALL_DEFINE6(splice, int, fd_in, loff_t __user *, off_in,
 		size_t, len, unsigned int, flags)
 {
 	struct fd in, out;
-	long error;
+	ssize_t error;
 
 	if (unlikely(!len))
 		return 0;
@@ -1584,7 +1650,7 @@ SYSCALL_DEFINE6(splice, int, fd_in, loff_t __user *, off_in,
 		out = fdget(fd_out);
 		if (out.file) {
 			error = __do_splice(in.file, off_in, out.file, off_out,
-						len, flags);
+					    len, flags);
 			fdput(out);
 		}
 		fdput(in);
@@ -1807,15 +1873,15 @@ retry:
 /*
  * Link contents of ipipe to opipe.
  */
-static int link_pipe(struct pipe_inode_info *ipipe,
-		     struct pipe_inode_info *opipe,
-		     size_t len, unsigned int flags)
+static ssize_t link_pipe(struct pipe_inode_info *ipipe,
+			 struct pipe_inode_info *opipe,
+			 size_t len, unsigned int flags)
 {
 	struct pipe_buffer *ibuf, *obuf;
 	unsigned int i_head, o_head;
 	unsigned int i_tail, o_tail;
 	unsigned int i_mask, o_mask;
-	int ret = 0;
+	ssize_t ret = 0;
 
 	/*
 	 * Potential ABBA deadlock, work around it by ordering lock
@@ -1898,11 +1964,12 @@ static int link_pipe(struct pipe_inode_info *ipipe,
  * The 'flags' used are the SPLICE_F_* variants, currently the only
  * applicable one is SPLICE_F_NONBLOCK.
  */
-long do_tee(struct file *in, struct file *out, size_t len, unsigned int flags)
+ssize_t do_tee(struct file *in, struct file *out, size_t len,
+	       unsigned int flags)
 {
 	struct pipe_inode_info *ipipe = get_pipe_info(in, true);
 	struct pipe_inode_info *opipe = get_pipe_info(out, true);
-	int ret = -EINVAL;
+	ssize_t ret = -EINVAL;
 
 	if (unlikely(!(in->f_mode & FMODE_READ) ||
 		     !(out->f_mode & FMODE_WRITE)))
@@ -1939,7 +2006,7 @@ long do_tee(struct file *in, struct file *out, size_t len, unsigned int flags)
 SYSCALL_DEFINE4(tee, int, fdin, int, fdout, size_t, len, unsigned int, flags)
 {
 	struct fd in, out;
-	int error;
+	ssize_t error;
 
 	if (unlikely(flags & ~SPLICE_F_ALL))
 		return -EINVAL;

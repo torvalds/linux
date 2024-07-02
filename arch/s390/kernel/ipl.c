@@ -666,6 +666,7 @@ static int __init ipl_init(void)
 						&ipl_ccw_attr_group_lpar);
 		break;
 	case IPL_TYPE_ECKD:
+	case IPL_TYPE_ECKD_DUMP:
 		rc = sysfs_create_group(&ipl_kset->kobj, &ipl_eckd_attr_group);
 		break;
 	case IPL_TYPE_FCP:
@@ -1208,8 +1209,8 @@ static struct attribute_group reipl_nss_attr_group = {
 
 void set_os_info_reipl_block(void)
 {
-	os_info_entry_add(OS_INFO_REIPL_BLOCK, reipl_block_actual,
-			  reipl_block_actual->hdr.len);
+	os_info_entry_add_data(OS_INFO_REIPL_BLOCK, reipl_block_actual,
+			       reipl_block_actual->hdr.len);
 }
 
 /* reipl type */
@@ -1939,9 +1940,8 @@ static void dump_reipl_run(struct shutdown_trigger *trigger)
 	    reipl_type == IPL_TYPE_NSS ||
 	    reipl_type == IPL_TYPE_UNKNOWN)
 		os_info_flags |= OS_INFO_FLAG_REIPL_CLEAR;
-	os_info_entry_add(OS_INFO_FLAGS_ENTRY, &os_info_flags, sizeof(os_info_flags));
-	csum = (__force unsigned int)
-	       csum_partial(reipl_block_actual, reipl_block_actual->hdr.len, 0);
+	os_info_entry_add_data(OS_INFO_FLAGS_ENTRY, &os_info_flags, sizeof(os_info_flags));
+	csum = (__force unsigned int)cksm(reipl_block_actual, reipl_block_actual->hdr.len, 0);
 	abs_lc = get_abs_lowcore();
 	abs_lc->ipib = __pa(reipl_block_actual);
 	abs_lc->ipib_checksum = csum;
@@ -2381,7 +2381,7 @@ void s390_reset_system(void)
 	set_prefix(0);
 
 	/* Disable lowcore protection */
-	__ctl_clear_bit(0, 28);
+	local_ctl_clear_bit(0, CR0_LOW_ADDRESS_PROTECTION_BIT);
 	diag_amode31_ops.diag308_reset();
 }
 

@@ -3,13 +3,11 @@
 #include "fs.h"
 #include "messages.h"
 #include "discard.h"
-#include "transaction.h"
-#include "space-info.h"
 #include "super.h"
 
 #ifdef CONFIG_PRINTK
 
-#define STATE_STRING_PREFACE	": state "
+#define STATE_STRING_PREFACE	" state "
 #define STATE_STRING_BUF_LEN	(sizeof(STATE_STRING_PREFACE) + BTRFS_FS_STATE_COUNT + 1)
 
 /*
@@ -287,7 +285,7 @@ void __cold btrfs_err_32bit_limit(struct btrfs_fs_info *fs_info)
  * panic or BUGs, depending on mount options.
  */
 __cold
-void __btrfs_panic(struct btrfs_fs_info *fs_info, const char *function,
+void __btrfs_panic(const struct btrfs_fs_info *fs_info, const char *function,
 		   unsigned int line, int error, const char *fmt, ...)
 {
 	char *s_id = "<unknown>";

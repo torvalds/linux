@@ -1098,12 +1098,11 @@
 
 static __always_inline u64 drdtime(void)
 {
-	int rID = 0;
 	u64 val = 0;
 
 	__asm__ __volatile__(
-		"rdtime.d %0, %1 \n\t"
-		: "=r"(val), "=r"(rID)
+		"rdtime.d %0, $zero\n\t"
+		: "=r"(val)
 		:
 		);
 	return val;

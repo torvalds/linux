@@ -665,19 +665,6 @@ static int atomisp_s_input(struct file *file, void *fh, unsigned int input)
 		dev_err(isp->dev, "Failed to power-on sensor\n");
 		return ret;
 	}
-	/*
-	 * Some sensor driver resets the run mode during power-on, thus force
-	 * update the run mode to sensor after power-on.
-	 */
-	atomisp_update_run_mode(asd);
-
-	/* select operating sensor */
-	ret = v4l2_subdev_call(isp->inputs[input].camera, video, s_routing,
-			       0, 0, 0);
-	if (ret && (ret != -ENOIOCTLCMD)) {
-		dev_err(isp->dev, "Failed to select sensor\n");
-		return ret;
-	}
 
 	if (!IS_ISP2401) {
 		motor = isp->inputs[input].motor;
@@ -708,6 +695,9 @@ static int atomisp_enum_framesizes_crop_inner(struct atomisp_device *isp,
 					      int *valid_sizes)
 {
 	static const struct v4l2_frmsize_discrete frame_sizes[] = {
+		{ 1920, 1440 },
+		{ 1920, 1200 },
+		{ 1920, 1080 },
 		{ 1600, 1200 },
 		{ 1600, 1080 },
 		{ 1600,  900 },
@@ -729,11 +719,11 @@ static int atomisp_enum_framesizes_crop_inner(struct atomisp_device *isp,
 			continue;
 
 		/*
-		 * Skip sizes where width and height are less then 2/3th of the
+		 * Skip sizes where width and height are less then 5/8th of the
 		 * sensor size to avoid sizes with a too small field of view.
 		 */
-		if (frame_sizes[i].width < (active->width * 2 / 3) &&
-		    frame_sizes[i].height < (active->height * 2 / 3))
+		if (frame_sizes[i].width < (active->width * 5 / 8) &&
+		    frame_sizes[i].height < (active->height * 5 / 8))
 			continue;
 
 		if (*valid_sizes == fsize->index) {
@@ -783,12 +773,20 @@ static int atomisp_enum_framesizes(struct file *file, void *priv,
 		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
 		.code = input->code,
 	};
+	struct v4l2_subdev_state *act_sd_state;
 	int ret;
+
+	if (!input->camera)
+		return -EINVAL;
 
 	if (input->crop_support)
 		return atomisp_enum_framesizes_crop(isp, fsize);
 
-	ret = v4l2_subdev_call(input->camera, pad, enum_frame_size, NULL, &fse);
+	act_sd_state = v4l2_subdev_lock_and_get_active_state(input->camera);
+	ret = v4l2_subdev_call(input->camera, pad, enum_frame_size,
+			       act_sd_state, &fse);
+	if (act_sd_state)
+		v4l2_subdev_unlock_state(act_sd_state);
 	if (ret)
 		return ret;
 
@@ -805,18 +803,25 @@ static int atomisp_enum_frameintervals(struct file *file, void *priv,
 	struct video_device *vdev = video_devdata(file);
 	struct atomisp_device *isp = video_get_drvdata(vdev);
 	struct atomisp_sub_device *asd = atomisp_to_video_pipe(vdev)->asd;
+	struct atomisp_input_subdev *input = &isp->inputs[asd->input_curr];
 	struct v4l2_subdev_frame_interval_enum fie = {
-		.code	= atomisp_in_fmt_conv[0].code,
+		.code = atomisp_in_fmt_conv[0].code,
 		.index = fival->index,
 		.width = fival->width,
 		.height = fival->height,
 		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
 	};
+	struct v4l2_subdev_state *act_sd_state;
 	int ret;
 
-	ret = v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
-			       pad, enum_frame_interval, NULL,
-			       &fie);
+	if (!input->camera)
+		return -EINVAL;
+
+	act_sd_state = v4l2_subdev_lock_and_get_active_state(input->camera);
+	ret = v4l2_subdev_call(input->camera, pad, enum_frame_interval,
+			       act_sd_state, &fie);
+	if (act_sd_state)
+		v4l2_subdev_unlock_state(act_sd_state);
 	if (ret)
 		return ret;
 
@@ -832,30 +837,25 @@ static int atomisp_enum_fmt_cap(struct file *file, void *fh,
 	struct video_device *vdev = video_devdata(file);
 	struct atomisp_device *isp = video_get_drvdata(vdev);
 	struct atomisp_sub_device *asd = atomisp_to_video_pipe(vdev)->asd;
+	struct atomisp_input_subdev *input = &isp->inputs[asd->input_curr];
 	struct v4l2_subdev_mbus_code_enum code = {
 		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
 	};
 	const struct atomisp_format_bridge *format;
-	struct v4l2_subdev *camera;
+	struct v4l2_subdev_state *act_sd_state;
 	unsigned int i, fi = 0;
-	int rval;
+	int ret;
 
-	camera = isp->inputs[asd->input_curr].camera;
-	if(!camera) {
-		dev_err(isp->dev, "%s(): camera is NULL, device is %s\n",
-			__func__, vdev->name);
+	if (!input->camera)
 		return -EINVAL;
-	}
 
-	rval = v4l2_subdev_call(camera, pad, enum_mbus_code, NULL, &code);
-	if (rval == -ENOIOCTLCMD) {
-		dev_warn(isp->dev,
-			 "enum_mbus_code pad op not supported by %s. Please fix your sensor driver!\n",
-			 camera->name);
-	}
-
-	if (rval)
-		return rval;
+	act_sd_state = v4l2_subdev_lock_and_get_active_state(input->camera);
+	ret = v4l2_subdev_call(input->camera, pad, enum_mbus_code,
+			       act_sd_state, &code);
+	if (act_sd_state)
+		v4l2_subdev_unlock_state(act_sd_state);
+	if (ret)
+		return ret;
 
 	for (i = 0; i < ARRAY_SIZE(atomisp_output_fmts); i++) {
 		format = &atomisp_output_fmts[i];
@@ -1030,7 +1030,7 @@ static int atomisp_qbuf_wrapper(struct file *file, void *fh, struct v4l2_buffer 
 	struct atomisp_device *isp = video_get_drvdata(vdev);
 	struct atomisp_video_pipe *pipe = atomisp_to_video_pipe(vdev);
 
-	if (buf->index >= vdev->queue->num_buffers)
+	if (buf->index >= vb2_get_num_buffers(vdev->queue))
 		return -EINVAL;
 
 	if (buf->reserved2 & ATOMISP_BUFFER_HAS_PER_FRAME_SETTING) {
@@ -1061,7 +1061,7 @@ static int atomisp_dqbuf_wrapper(struct file *file, void *fh, struct v4l2_buffer
 	if (ret)
 		return ret;
 
-	vb = pipe->vb_queue.bufs[buf->index];
+	vb = vb2_get_buffer(&pipe->vb_queue, buf->index);
 	frame = vb_to_frame(vb);
 
 	buf->reserved = asd->frame_status[buf->index];
@@ -1741,8 +1741,8 @@ static int atomisp_s_parm(struct file *file, void *fh,
 
 		fi.interval = parm->parm.capture.timeperframe;
 
-		rval = v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
-					video, s_frame_interval, &fi);
+		rval = v4l2_subdev_call_state_active(isp->inputs[asd->input_curr].camera,
+						     pad, set_frame_interval, &fi);
 		if (!rval)
 			parm->parm.capture.timeperframe = fi.interval;
 
@@ -1781,13 +1781,6 @@ static long atomisp_vidioc_default(struct file *file, void *fh,
 	int err;
 
 	switch (cmd) {
-	case ATOMISP_IOC_S_SENSOR_RUNMODE:
-		if (IS_ISP2401)
-			err = atomisp_set_sensor_runmode(asd, arg);
-		else
-			err = -EINVAL;
-		break;
-
 	case ATOMISP_IOC_G_XNR:
 		err = atomisp_xnr(asd, 0, arg);
 		break;

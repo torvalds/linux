@@ -89,10 +89,10 @@ void efuse_force_write_vendor_id(struct ieee80211_hw *hw);
 void efuse_re_pg_section(struct ieee80211_hw *hw, u8 section_idx);
 void efuse_power_switch(struct ieee80211_hw *hw, u8 write, u8 pwrstate);
 int rtl_get_hwinfo(struct ieee80211_hw *hw, struct rtl_priv *rtlpriv,
-		   int max_size, u8 *hwinfo, int *params);
+		   int max_size, u8 *hwinfo, const int *params);
 void rtl_fill_dummy(u8 *pfwbuf, u32 *pfwlen);
-void rtl_fw_page_write(struct ieee80211_hw *hw, u32 page, const u8 *buffer,
+void rtl_fw_page_write(struct ieee80211_hw *hw, u32 page, u8 *buffer,
 		       u32 size);
-void rtl_fw_block_write(struct ieee80211_hw *hw, const u8 *buffer, u32 size);
+void rtl_fw_block_write(struct ieee80211_hw *hw, u8 *buffer, u32 size);
 void rtl_efuse_ops_init(struct ieee80211_hw *hw);
 #endif

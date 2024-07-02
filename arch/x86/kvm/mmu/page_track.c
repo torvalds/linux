@@ -20,10 +20,23 @@
 #include "mmu_internal.h"
 #include "page_track.h"
 
+static bool kvm_external_write_tracking_enabled(struct kvm *kvm)
+{
+#ifdef CONFIG_KVM_EXTERNAL_WRITE_TRACKING
+	/*
+	 * Read external_write_tracking_enabled before related pointers.  Pairs
+	 * with the smp_store_release in kvm_page_track_write_tracking_enable().
+	 */
+	return smp_load_acquire(&kvm->arch.external_write_tracking_enabled);
+#else
+	return false;
+#endif
+}
+
 bool kvm_page_track_write_tracking_enabled(struct kvm *kvm)
 {
-	return IS_ENABLED(CONFIG_KVM_EXTERNAL_WRITE_TRACKING) ||
-	       !tdp_enabled || kvm_shadow_root_allocated(kvm);
+	return kvm_external_write_tracking_enabled(kvm) ||
+	       kvm_shadow_root_allocated(kvm) || !tdp_enabled;
 }
 
 void kvm_page_track_free_memslot(struct kvm_memory_slot *slot)
@@ -153,6 +166,50 @@ int kvm_page_track_init(struct kvm *kvm)
 	return init_srcu_struct(&head->track_srcu);
 }
 
+static int kvm_enable_external_write_tracking(struct kvm *kvm)
+{
+	struct kvm_memslots *slots;
+	struct kvm_memory_slot *slot;
+	int r = 0, i, bkt;
+
+	mutex_lock(&kvm->slots_arch_lock);
+
+	/*
+	 * Check for *any* write tracking user (not just external users) under
+	 * lock.  This avoids unnecessary work, e.g. if KVM itself is using
+	 * write tracking, or if two external users raced when registering.
+	 */
+	if (kvm_page_track_write_tracking_enabled(kvm))
+		goto out_success;
+
+	for (i = 0; i < kvm_arch_nr_memslot_as_ids(kvm); i++) {
+		slots = __kvm_memslots(kvm, i);
+		kvm_for_each_memslot(slot, bkt, slots) {
+			/*
+			 * Intentionally do NOT free allocations on failure to
+			 * avoid having to track which allocations were made
+			 * now versus when the memslot was created.  The
+			 * metadata is guaranteed to be freed when the slot is
+			 * freed, and will be kept/used if userspace retries
+			 * the failed ioctl() instead of killing the VM.
+			 */
+			r = kvm_page_track_write_tracking_alloc(slot);
+			if (r)
+				goto out_unlock;
+		}
+	}
+
+out_success:
+	/*
+	 * Ensure that external_write_tracking_enabled becomes true strictly
+	 * after all the related pointers are set.
+	 */
+	smp_store_release(&kvm->arch.external_write_tracking_enabled, true);
+out_unlock:
+	mutex_unlock(&kvm->slots_arch_lock);
+	return r;
+}
+
 /*
  * register the notifier so that event interception for the tracked guest
  * pages can be received.
@@ -161,9 +218,16 @@ int kvm_page_track_register_notifier(struct kvm *kvm,
 				     struct kvm_page_track_notifier_node *n)
 {
 	struct kvm_page_track_notifier_head *head;
+	int r;
 
 	if (!kvm || kvm->mm != current->mm)
 		return -ESRCH;
+
+	if (!kvm_external_write_tracking_enabled(kvm)) {
+		r = kvm_enable_external_write_tracking(kvm);
+		if (r)
+			return r;
+	}
 
 	kvm_get_kvm(kvm);
 

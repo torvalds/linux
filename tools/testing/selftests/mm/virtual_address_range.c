@@ -12,6 +12,7 @@
 #include <errno.h>
 #include <sys/mman.h>
 #include <sys/time.h>
+#include "../kselftest.h"
 
 /*
  * Maximum address range mapped with a single mmap()
@@ -68,23 +69,15 @@ static char *hind_addr(void)
 	return (char *) (1UL << bits);
 }
 
-static int validate_addr(char *ptr, int high_addr)
+static void validate_addr(char *ptr, int high_addr)
 {
 	unsigned long addr = (unsigned long) ptr;
 
-	if (high_addr) {
-		if (addr < HIGH_ADDR_MARK) {
-			printf("Bad address %lx\n", addr);
-			return 1;
-		}
-		return 0;
-	}
+	if (high_addr && addr < HIGH_ADDR_MARK)
+		ksft_exit_fail_msg("Bad address %lx\n", addr);
 
-	if (addr > HIGH_ADDR_MARK) {
-		printf("Bad address %lx\n", addr);
-		return 1;
-	}
-	return 0;
+	if (addr > HIGH_ADDR_MARK)
+		ksft_exit_fail_msg("Bad address %lx\n", addr);
 }
 
 static int validate_lower_address_hint(void)
@@ -107,23 +100,29 @@ int main(int argc, char *argv[])
 	char *hint;
 	unsigned long i, lchunks, hchunks;
 
+	ksft_print_header();
+	ksft_set_plan(1);
+
 	for (i = 0; i < NR_CHUNKS_LOW; i++) {
 		ptr[i] = mmap(NULL, MAP_CHUNK_SIZE, PROT_READ | PROT_WRITE,
 					MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
 		if (ptr[i] == MAP_FAILED) {
-			if (validate_lower_address_hint())
-				return 1;
+			if (validate_lower_address_hint()) {
+				ksft_test_result_skip("Memory constraint not fulfilled\n");
+				ksft_finished();
+			}
 			break;
 		}
 
-		if (validate_addr(ptr[i], 0))
-			return 1;
+		validate_addr(ptr[i], 0);
 	}
 	lchunks = i;
 	hptr = (char **) calloc(NR_CHUNKS_HIGH, sizeof(char *));
-	if (hptr == NULL)
-		return 1;
+	if (hptr == NULL) {
+		ksft_test_result_skip("Memory constraint not fulfilled\n");
+		ksft_finished();
+	}
 
 	for (i = 0; i < NR_CHUNKS_HIGH; i++) {
 		hint = hind_addr();
@@ -133,8 +132,7 @@ int main(int argc, char *argv[])
 		if (hptr[i] == MAP_FAILED)
 			break;
 
-		if (validate_addr(hptr[i], 1))
-			return 1;
+		validate_addr(hptr[i], 1);
 	}
 	hchunks = i;
 
@@ -145,5 +143,7 @@ int main(int argc, char *argv[])
 		munmap(hptr[i], MAP_CHUNK_SIZE);
 
 	free(hptr);
-	return 0;
+
+	ksft_test_result_pass("Test\n");
+	ksft_finished();
 }

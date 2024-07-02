@@ -3,10 +3,12 @@
 #include "bkey_buf.h"
 #include "btree_update.h"
 #include "buckets.h"
+#include "error.h"
 #include "extents.h"
 #include "inode.h"
 #include "io_misc.h"
 #include "io_write.h"
+#include "rebalance.h"
 #include "reflink.h"
 #include "subvolume.h"
 #include "super-io.h"
@@ -27,20 +29,19 @@ static inline unsigned bkey_type_to_indirect(const struct bkey *k)
 
 /* reflink pointers */
 
-int bch2_reflink_p_invalid(const struct bch_fs *c, struct bkey_s_c k,
+int bch2_reflink_p_invalid(struct bch_fs *c, struct bkey_s_c k,
 			   enum bkey_invalid_flags flags,
 			   struct printbuf *err)
 {
 	struct bkey_s_c_reflink_p p = bkey_s_c_to_reflink_p(k);
+	int ret = 0;
 
-	if (c->sb.version >= bcachefs_metadata_version_reflink_p_fix &&
-	    le64_to_cpu(p.v->idx) < le32_to_cpu(p.v->front_pad)) {
-		prt_printf(err, "idx < front_pad (%llu < %u)",
-		       le64_to_cpu(p.v->idx), le32_to_cpu(p.v->front_pad));
-		return -EINVAL;
-	}
-
-	return 0;
+	bkey_fsck_err_on(le64_to_cpu(p.v->idx) < le32_to_cpu(p.v->front_pad),
+			 c, err, reflink_p_front_pad_bad,
+			 "idx < front_pad (%llu < %u)",
+			 le64_to_cpu(p.v->idx), le32_to_cpu(p.v->front_pad));
+fsck_err:
+	return ret;
 }
 
 void bch2_reflink_p_to_text(struct printbuf *out, struct bch_fs *c,
@@ -72,9 +73,186 @@ bool bch2_reflink_p_merge(struct bch_fs *c, struct bkey_s _l, struct bkey_s_c _r
 	return true;
 }
 
+static int trans_trigger_reflink_p_segment(struct btree_trans *trans,
+			struct bkey_s_c_reflink_p p,
+			u64 *idx, unsigned flags)
+{
+	struct bch_fs *c = trans->c;
+	struct btree_iter iter;
+	struct bkey_i *k;
+	__le64 *refcount;
+	int add = !(flags & BTREE_TRIGGER_OVERWRITE) ? 1 : -1;
+	struct printbuf buf = PRINTBUF;
+	int ret;
+
+	k = bch2_bkey_get_mut_noupdate(trans, &iter,
+			BTREE_ID_reflink, POS(0, *idx),
+			BTREE_ITER_WITH_UPDATES);
+	ret = PTR_ERR_OR_ZERO(k);
+	if (ret)
+		goto err;
+
+	refcount = bkey_refcount(bkey_i_to_s(k));
+	if (!refcount) {
+		bch2_bkey_val_to_text(&buf, c, p.s_c);
+		bch2_trans_inconsistent(trans,
+			"nonexistent indirect extent at %llu while marking\n  %s",
+			*idx, buf.buf);
+		ret = -EIO;
+		goto err;
+	}
+
+	if (!*refcount && (flags & BTREE_TRIGGER_OVERWRITE)) {
+		bch2_bkey_val_to_text(&buf, c, p.s_c);
+		bch2_trans_inconsistent(trans,
+			"indirect extent refcount underflow at %llu while marking\n  %s",
+			*idx, buf.buf);
+		ret = -EIO;
+		goto err;
+	}
+
+	if (flags & BTREE_TRIGGER_INSERT) {
+		struct bch_reflink_p *v = (struct bch_reflink_p *) p.v;
+		u64 pad;
+
+		pad = max_t(s64, le32_to_cpu(v->front_pad),
+			    le64_to_cpu(v->idx) - bkey_start_offset(&k->k));
+		BUG_ON(pad > U32_MAX);
+		v->front_pad = cpu_to_le32(pad);
+
+		pad = max_t(s64, le32_to_cpu(v->back_pad),
+			    k->k.p.offset - p.k->size - le64_to_cpu(v->idx));
+		BUG_ON(pad > U32_MAX);
+		v->back_pad = cpu_to_le32(pad);
+	}
+
+	le64_add_cpu(refcount, add);
+
+	bch2_btree_iter_set_pos_to_extent_start(&iter);
+	ret = bch2_trans_update(trans, &iter, k, 0);
+	if (ret)
+		goto err;
+
+	*idx = k->k.p.offset;
+err:
+	bch2_trans_iter_exit(trans, &iter);
+	printbuf_exit(&buf);
+	return ret;
+}
+
+static s64 gc_trigger_reflink_p_segment(struct btree_trans *trans,
+				struct bkey_s_c_reflink_p p,
+				u64 *idx, unsigned flags, size_t r_idx)
+{
+	struct bch_fs *c = trans->c;
+	struct reflink_gc *r;
+	int add = !(flags & BTREE_TRIGGER_OVERWRITE) ? 1 : -1;
+	u64 start = le64_to_cpu(p.v->idx);
+	u64 end = le64_to_cpu(p.v->idx) + p.k->size;
+	u64 next_idx = end + le32_to_cpu(p.v->back_pad);
+	s64 ret = 0;
+	struct printbuf buf = PRINTBUF;
+
+	if (r_idx >= c->reflink_gc_nr)
+		goto not_found;
+
+	r = genradix_ptr(&c->reflink_gc_table, r_idx);
+	next_idx = min(next_idx, r->offset - r->size);
+	if (*idx < next_idx)
+		goto not_found;
+
+	BUG_ON((s64) r->refcount + add < 0);
+
+	r->refcount += add;
+	*idx = r->offset;
+	return 0;
+not_found:
+	if (fsck_err(c, reflink_p_to_missing_reflink_v,
+		     "pointer to missing indirect extent\n"
+		     "  %s\n"
+		     "  missing range %llu-%llu",
+		     (bch2_bkey_val_to_text(&buf, c, p.s_c), buf.buf),
+		     *idx, next_idx)) {
+		struct bkey_i *update = bch2_bkey_make_mut_noupdate(trans, p.s_c);
+		ret = PTR_ERR_OR_ZERO(update);
+		if (ret)
+			goto err;
+
+		if (next_idx <= start) {
+			bkey_i_to_reflink_p(update)->v.front_pad = cpu_to_le32(start - next_idx);
+		} else if (*idx >= end) {
+			bkey_i_to_reflink_p(update)->v.back_pad = cpu_to_le32(*idx - end);
+		} else {
+			bkey_error_init(update);
+			update->k.p		= p.k->p;
+			update->k.size		= p.k->size;
+			set_bkey_val_u64s(&update->k, 0);
+		}
+
+		ret = bch2_btree_insert_trans(trans, BTREE_ID_extents, update, BTREE_TRIGGER_NORUN);
+	}
+
+	*idx = next_idx;
+err:
+fsck_err:
+	printbuf_exit(&buf);
+	return ret;
+}
+
+static int __trigger_reflink_p(struct btree_trans *trans,
+			    enum btree_id btree_id, unsigned level,
+			    struct bkey_s_c k, unsigned flags)
+{
+	struct bch_fs *c = trans->c;
+	struct bkey_s_c_reflink_p p = bkey_s_c_to_reflink_p(k);
+	int ret = 0;
+
+	u64 idx = le64_to_cpu(p.v->idx) - le32_to_cpu(p.v->front_pad);
+	u64 end = le64_to_cpu(p.v->idx) + p.k->size + le32_to_cpu(p.v->back_pad);
+
+	if (flags & BTREE_TRIGGER_TRANSACTIONAL) {
+		while (idx < end && !ret)
+			ret = trans_trigger_reflink_p_segment(trans, p, &idx, flags);
+	}
+
+	if (flags & BTREE_TRIGGER_GC) {
+		size_t l = 0, r = c->reflink_gc_nr;
+
+		while (l < r) {
+			size_t m = l + (r - l) / 2;
+			struct reflink_gc *ref = genradix_ptr(&c->reflink_gc_table, m);
+			if (ref->offset <= idx)
+				l = m + 1;
+			else
+				r = m;
+		}
+
+		while (idx < end && !ret)
+			ret = gc_trigger_reflink_p_segment(trans, p, &idx, flags, l++);
+	}
+
+	return ret;
+}
+
+int bch2_trigger_reflink_p(struct btree_trans *trans,
+			   enum btree_id btree_id, unsigned level,
+			   struct bkey_s_c old,
+			   struct bkey_s new,
+			   unsigned flags)
+{
+	if ((flags & BTREE_TRIGGER_TRANSACTIONAL) &&
+	    (flags & BTREE_TRIGGER_INSERT)) {
+		struct bch_reflink_p *v = bkey_s_to_reflink_p(new).v;
+
+		v->front_pad = v->back_pad = 0;
+	}
+
+	return trigger_run_overwrite_then_insert(__trigger_reflink_p, trans, btree_id, level, old, new, flags);
+}
+
 /* indirect extents */
 
-int bch2_reflink_v_invalid(const struct bch_fs *c, struct bkey_s_c k,
+int bch2_reflink_v_invalid(struct bch_fs *c, struct bkey_s_c k,
 			   enum bkey_invalid_flags flags,
 			   struct printbuf *err)
 {
@@ -103,28 +281,31 @@ bool bch2_reflink_v_merge(struct bch_fs *c, struct bkey_s _l, struct bkey_s_c _r
 }
 #endif
 
-int bch2_trans_mark_reflink_v(struct btree_trans *trans,
-			      enum btree_id btree_id, unsigned level,
-			      struct bkey_s_c old, struct bkey_i *new,
-			      unsigned flags)
+static inline void check_indirect_extent_deleting(struct bkey_s new, unsigned *flags)
 {
-	if (!(flags & BTREE_TRIGGER_OVERWRITE)) {
-		struct bkey_i_reflink_v *r = bkey_i_to_reflink_v(new);
-
-		if (!r->v.refcount) {
-			r->k.type = KEY_TYPE_deleted;
-			r->k.size = 0;
-			set_bkey_val_u64s(&r->k, 0);
-			return 0;
-		}
+	if ((*flags & BTREE_TRIGGER_INSERT) && !*bkey_refcount(new)) {
+		new.k->type = KEY_TYPE_deleted;
+		new.k->size = 0;
+		set_bkey_val_u64s(new.k, 0);
+		*flags &= ~BTREE_TRIGGER_INSERT;
 	}
+}
 
-	return bch2_trans_mark_extent(trans, btree_id, level, old, new, flags);
+int bch2_trigger_reflink_v(struct btree_trans *trans,
+			   enum btree_id btree_id, unsigned level,
+			   struct bkey_s_c old, struct bkey_s new,
+			   unsigned flags)
+{
+	if ((flags & BTREE_TRIGGER_TRANSACTIONAL) &&
+	    (flags & BTREE_TRIGGER_INSERT))
+		check_indirect_extent_deleting(new, &flags);
+
+	return bch2_trigger_extent(trans, btree_id, level, old, new, flags);
 }
 
 /* indirect inline data */
 
-int bch2_indirect_inline_data_invalid(const struct bch_fs *c, struct bkey_s_c k,
+int bch2_indirect_inline_data_invalid(struct bch_fs *c, struct bkey_s_c k,
 				      enum bkey_invalid_flags flags,
 				      struct printbuf *err)
 {
@@ -132,7 +313,7 @@ int bch2_indirect_inline_data_invalid(const struct bch_fs *c, struct bkey_s_c k,
 }
 
 void bch2_indirect_inline_data_to_text(struct printbuf *out,
-					struct bch_fs *c, struct bkey_s_c k)
+				       struct bch_fs *c, struct bkey_s_c k)
 {
 	struct bkey_s_c_indirect_inline_data d = bkey_s_c_to_indirect_inline_data(k);
 	unsigned datalen = bkey_inline_data_bytes(k.k);
@@ -142,21 +323,12 @@ void bch2_indirect_inline_data_to_text(struct printbuf *out,
 	       min(datalen, 32U), d.v->data);
 }
 
-int bch2_trans_mark_indirect_inline_data(struct btree_trans *trans,
+int bch2_trigger_indirect_inline_data(struct btree_trans *trans,
 			      enum btree_id btree_id, unsigned level,
-			      struct bkey_s_c old, struct bkey_i *new,
+			      struct bkey_s_c old, struct bkey_s new,
 			      unsigned flags)
 {
-	if (!(flags & BTREE_TRIGGER_OVERWRITE)) {
-		struct bkey_i_indirect_inline_data *r =
-			bkey_i_to_indirect_inline_data(new);
-
-		if (!r->v.refcount) {
-			r->k.type = KEY_TYPE_deleted;
-			r->k.size = 0;
-			set_bkey_val_u64s(&r->k, 0);
-		}
-	}
+	check_indirect_extent_deleting(new, &flags);
 
 	return 0;
 }
@@ -196,7 +368,7 @@ static int bch2_make_extent_indirect(struct btree_trans *trans,
 
 	set_bkey_val_bytes(&r_v->k, sizeof(__le64) + bkey_val_bytes(&orig->k));
 
-	refcount	= bkey_refcount(r_v);
+	refcount	= bkey_refcount(bkey_i_to_s(r_v));
 	*refcount	= 0;
 	memcpy(refcount + 1, &orig->v, bkey_val_bytes(&orig->k));
 
@@ -260,8 +432,9 @@ s64 bch2_remap_range(struct bch_fs *c,
 	struct bpos dst_start = POS(dst_inum.inum, dst_offset);
 	struct bpos src_start = POS(src_inum.inum, src_offset);
 	struct bpos dst_end = dst_start, src_end = src_start;
+	struct bch_io_opts opts;
 	struct bpos src_want;
-	u64 dst_done;
+	u64 dst_done = 0;
 	u32 dst_snapshot, src_snapshot;
 	int ret = 0, ret2 = 0;
 
@@ -276,6 +449,10 @@ s64 bch2_remap_range(struct bch_fs *c,
 	bch2_bkey_buf_init(&new_dst);
 	bch2_bkey_buf_init(&new_src);
 	trans = bch2_trans_get(c);
+
+	ret = bch2_inum_opts_get(trans, src_inum, &opts);
+	if (ret)
+		goto err;
 
 	bch2_trans_iter_init(trans, &src_iter, BTREE_ID_extents, src_start,
 			     BTREE_ITER_INTENT);
@@ -307,6 +484,13 @@ s64 bch2_remap_range(struct bch_fs *c,
 			continue;
 
 		bch2_btree_iter_set_snapshot(&dst_iter, dst_snapshot);
+
+		if (dst_inum.inum < src_inum.inum) {
+			/* Avoid some lock cycle transaction restarts */
+			ret = bch2_btree_iter_traverse(&dst_iter);
+			if (ret)
+				continue;
+		}
 
 		dst_done = dst_iter.pos.offset - dst_start.offset;
 		src_want = POS(src_start.inode, src_start.offset + dst_done);
@@ -360,10 +544,11 @@ s64 bch2_remap_range(struct bch_fs *c,
 				min(src_k.k->p.offset - src_want.offset,
 				    dst_end.offset - dst_iter.pos.offset));
 
-		ret = bch2_extent_update(trans, dst_inum, &dst_iter,
-					 new_dst.k, &disk_res,
-					 new_i_size, i_sectors_delta,
-					 true);
+		ret =   bch2_bkey_set_needs_rebalance(c, new_dst.k, &opts) ?:
+			bch2_extent_update(trans, dst_inum, &dst_iter,
+					new_dst.k, &disk_res,
+					new_i_size, i_sectors_delta,
+					true);
 		bch2_disk_reservation_put(c, &disk_res);
 	}
 	bch2_trans_iter_exit(trans, &dst_iter);
@@ -389,12 +574,12 @@ s64 bch2_remap_range(struct bch_fs *c,
 			inode_u.bi_size = new_i_size;
 			ret2  = bch2_inode_write(trans, &inode_iter, &inode_u) ?:
 				bch2_trans_commit(trans, NULL, NULL,
-						  BTREE_INSERT_NOFAIL);
+						  BCH_TRANS_COMMIT_no_enospc);
 		}
 
 		bch2_trans_iter_exit(trans, &inode_iter);
 	} while (bch2_err_matches(ret2, BCH_ERR_transaction_restart));
-
+err:
 	bch2_trans_put(trans);
 	bch2_bkey_buf_exit(&new_src, c);
 	bch2_bkey_buf_exit(&new_dst, c);

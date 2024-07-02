@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/*
+ * Device Tree Source for the R-Car V4H ES2.0 White Hawk Single board
+ *
+ * Copyright (C) 2023 Glider bv
+ */
+
+/dts-v1/;
+#include "r8a779g2.dtsi"
+#include "white-hawk-cpu-common.dtsi"
+#include "white-hawk-common.dtsi"
+
+/ {
+	model = "Renesas White Hawk Single board based on r8a779g2";
+	compatible = "renesas,white-hawk-single", "renesas,r8a779g2",
+		     "renesas,r8a779g0";
+};
+
+&hscif0 {
+	uart-has-rtscts;
+};
+
+&hscif0_pins {
+	groups = "hscif0_data", "hscif0_ctrl";
+	function = "hscif0";
+};

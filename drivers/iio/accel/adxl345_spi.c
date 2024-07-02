@@ -36,22 +36,32 @@ static int adxl345_spi_probe(struct spi_device *spi)
 	return adxl345_core_probe(&spi->dev, regmap);
 }
 
+static const struct adxl345_chip_info adxl345_spi_info = {
+	.name = "adxl345",
+	.uscale = ADXL345_USCALE,
+};
+
+static const struct adxl345_chip_info adxl375_spi_info = {
+	.name = "adxl375",
+	.uscale = ADXL375_USCALE,
+};
+
 static const struct spi_device_id adxl345_spi_id[] = {
-	{ "adxl345", ADXL345 },
-	{ "adxl375", ADXL375 },
+	{ "adxl345", (kernel_ulong_t)&adxl345_spi_info },
+	{ "adxl375", (kernel_ulong_t)&adxl375_spi_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, adxl345_spi_id);
 
 static const struct of_device_id adxl345_of_match[] = {
-	{ .compatible = "adi,adxl345", .data = (const void *)ADXL345 },
-	{ .compatible = "adi,adxl375", .data = (const void *)ADXL375 },
+	{ .compatible = "adi,adxl345", .data = &adxl345_spi_info },
+	{ .compatible = "adi,adxl375", .data = &adxl375_spi_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, adxl345_of_match);
 
 static const struct acpi_device_id adxl345_acpi_match[] = {
-	{ "ADS0345", ADXL345 },
+	{ "ADS0345", (kernel_ulong_t)&adxl345_spi_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, adxl345_acpi_match);

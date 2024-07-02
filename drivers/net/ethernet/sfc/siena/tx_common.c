@@ -317,11 +317,10 @@ static int efx_tx_tso_header_length(struct sk_buff *skb)
 	size_t header_len;
 
 	if (skb->encapsulation)
-		header_len = skb_inner_transport_header(skb) -
-				skb->data +
+		header_len = skb_inner_transport_offset(skb) +
 				(inner_tcp_hdr(skb)->doff << 2u);
 	else
-		header_len = skb_transport_header(skb) - skb->data +
+		header_len = skb_transport_offset(skb) +
 				(tcp_hdr(skb)->doff << 2u);
 	return header_len;
 }

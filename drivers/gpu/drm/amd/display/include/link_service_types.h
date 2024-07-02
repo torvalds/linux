@@ -73,7 +73,6 @@ struct link_training_settings {
 	enum dc_pre_emphasis *pre_emphasis;
 	enum dc_post_cursor2 *post_cursor2;
 	bool should_set_fec_ready;
-	/* TODO - factor lane_settings out because it changes during LT */
 	union dc_dp_ffe_preset *ffe_preset;
 
 	uint16_t cr_pattern_time;
@@ -168,6 +167,15 @@ enum dp_test_pattern {
 
 	DP_TEST_PATTERN_UNSUPPORTED
 };
+
+#define IS_DP_PHY_SQUARE_PATTERN(test_pattern)\
+		(DP_TEST_PATTERN_SQUARE_BEGIN <= test_pattern &&\
+		test_pattern <= DP_TEST_PATTERN_SQUARE_END)
+
+#define IS_DP_PHY_PATTERN(test_pattern)\
+		((DP_TEST_PATTERN_PHY_PATTERN_BEGIN <= test_pattern &&\
+		test_pattern <= DP_TEST_PATTERN_PHY_PATTERN_END) ||\
+		test_pattern == DP_TEST_PATTERN_VIDEO_MODE)
 
 enum dp_test_pattern_color_space {
 	DP_TEST_PATTERN_COLOR_SPACE_RGB,

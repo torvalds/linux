@@ -128,7 +128,7 @@ static void gfs2_qd_dispose(struct gfs2_quota_data *qd)
 	hlist_bl_del_rcu(&qd->qd_hlist);
 	spin_unlock_bucket(qd->qd_hash);
 
-	if (!gfs2_withdrawn(sdp)) {
+	if (!gfs2_withdrawing_or_withdrawn(sdp)) {
 		gfs2_assert_warn(sdp, !qd->qd_change);
 		gfs2_assert_warn(sdp, !qd->qd_slot_ref);
 		gfs2_assert_warn(sdp, !qd->qd_bh_count);
@@ -271,7 +271,7 @@ static struct gfs2_quota_data *gfs2_qd_search_bucket(unsigned int hash,
 		if (qd->qd_sbd != sdp)
 			continue;
 		if (lockref_get_not_dead(&qd->qd_lockref)) {
-			list_lru_del(&gfs2_qd_lru, &qd->qd_lru);
+			list_lru_del_obj(&gfs2_qd_lru, &qd->qd_lru);
 			return qd;
 		}
 	}
@@ -344,7 +344,7 @@ static void qd_put(struct gfs2_quota_data *qd)
 	}
 
 	qd->qd_lockref.count = 0;
-	list_lru_add(&gfs2_qd_lru, &qd->qd_lru);
+	list_lru_add_obj(&gfs2_qd_lru, &qd->qd_lru);
 	spin_unlock(&qd->qd_lockref.lock);
 }
 
@@ -469,6 +469,17 @@ static int qd_check_sync(struct gfs2_sbd *sdp, struct gfs2_quota_data *qd,
 	    !test_bit(QDF_CHANGE, &qd->qd_flags) ||
 	    (sync_gen && (qd->qd_sync_gen >= *sync_gen)))
 		return 0;
+
+	/*
+	 * If qd_change is 0 it means a pending quota change was negated.
+	 * We should not sync it, but we still have a qd reference and slot
+	 * reference taken by gfs2_quota_change -> do_qc that need to be put.
+	 */
+	if (!qd->qd_change && test_and_clear_bit(QDF_CHANGE, &qd->qd_flags)) {
+		slot_put(qd);
+		qd_put(qd);
+		return 0;
+	}
 
 	if (!lockref_get_not_dead(&qd->qd_lockref))
 		return 0;
@@ -912,7 +923,7 @@ static int do_sync(unsigned int num_qd, struct gfs2_quota_data **qda)
 {
 	struct gfs2_sbd *sdp = (*qda)->qd_sbd;
 	struct gfs2_inode *ip = GFS2_I(sdp->sd_quota_inode);
-	struct gfs2_alloc_parms ap = { .aflags = 0, };
+	struct gfs2_alloc_parms ap = {};
 	unsigned int data_blocks, ind_blocks;
 	struct gfs2_holder *ghs, i_gh;
 	unsigned int qx, x;
@@ -1086,8 +1097,7 @@ int gfs2_quota_lock(struct gfs2_inode *ip, kuid_t uid, kgid_t gid)
 	u32 x;
 	int error;
 
-	if (sdp->sd_args.ar_quota != GFS2_QUOTA_ON &&
-	    sdp->sd_args.ar_quota != GFS2_QUOTA_QUIET)
+	if (sdp->sd_args.ar_quota == GFS2_QUOTA_OFF)
 		return 0;
 
 	error = gfs2_quota_hold(ip, uid, gid);
@@ -1194,17 +1204,16 @@ void gfs2_quota_unlock(struct gfs2_inode *ip)
 
 #define MAX_LINE 256
 
-static int print_message(struct gfs2_quota_data *qd, char *type)
+static void print_message(struct gfs2_quota_data *qd, char *type)
 {
 	struct gfs2_sbd *sdp = qd->qd_sbd;
 
-	if (sdp->sd_args.ar_quota != GFS2_QUOTA_QUIET)
+	if (sdp->sd_args.ar_quota != GFS2_QUOTA_QUIET) {
 		fs_info(sdp, "quota %s for %s %u\n",
 			type,
 			(qd->qd_id.type == USRQUOTA) ? "user" : "group",
 			from_kqid(&init_user_ns, qd->qd_id));
-
-	return 0;
+	}
 }
 
 /**
@@ -1274,7 +1283,8 @@ int gfs2_quota_check(struct gfs2_inode *ip, kuid_t uid, kgid_t gid,
 					 * HZ)) {
 			quota_send_warning(qd->qd_id,
 					   sdp->sd_vfs->s_dev, QUOTA_NL_BSOFTWARN);
-			error = print_message(qd, "warning");
+			print_message(qd, "warning");
+			error = 0;
 			qd->qd_last_warn = jiffies;
 		}
 	}
@@ -1288,8 +1298,7 @@ void gfs2_quota_change(struct gfs2_inode *ip, s64 change,
 	u32 x;
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 
-	if ((sdp->sd_args.ar_quota != GFS2_QUOTA_ON &&
-	    sdp->sd_args.ar_quota != GFS2_QUOTA_QUIET) ||
+	if (sdp->sd_args.ar_quota == GFS2_QUOTA_OFF ||
 	    gfs2_assert_warn(sdp, change))
 		return;
 	if (ip->i_diskflags & GFS2_DIF_SYSTEM)
@@ -1496,7 +1505,8 @@ void gfs2_quota_cleanup(struct gfs2_sbd *sdp)
 	LIST_HEAD(dispose);
 	int count;
 
-	BUG_ON(test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags));
+	BUG_ON(!test_bit(SDF_NORECOVERY, &sdp->sd_flags) &&
+		test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags));
 
 	spin_lock(&qd_lock);
 	list_for_each_entry(qd, &sdp->sd_quota_list, qd_list) {
@@ -1508,7 +1518,7 @@ void gfs2_quota_cleanup(struct gfs2_sbd *sdp)
 		lockref_mark_dead(&qd->qd_lockref);
 		spin_unlock(&qd->qd_lockref.lock);
 
-		list_lru_del(&gfs2_qd_lru, &qd->qd_lru);
+		list_lru_del_obj(&gfs2_qd_lru, &qd->qd_lru);
 		list_add(&qd->qd_lru, &dispose);
 	}
 	spin_unlock(&qd_lock);
@@ -1530,7 +1540,7 @@ static void quotad_error(struct gfs2_sbd *sdp, const char *msg, int error)
 {
 	if (error == 0 || error == -EROFS)
 		return;
-	if (!gfs2_withdrawn(sdp)) {
+	if (!gfs2_withdrawing_or_withdrawn(sdp)) {
 		if (!cmpxchg(&sdp->sd_log_error, 0, error))
 			fs_err(sdp, "gfs2_quotad: %s error %d\n", msg, error);
 		wake_up(&sdp->sd_logd_waitq);
@@ -1573,8 +1583,9 @@ int gfs2_quotad(void *data)
 	unsigned long quotad_timeo = 0;
 	unsigned long t = 0;
 
+	set_freezable();
 	while (!kthread_should_stop()) {
-		if (gfs2_withdrawn(sdp))
+		if (gfs2_withdrawing_or_withdrawn(sdp))
 			break;
 
 		/* Update the master statfs file */
@@ -1592,13 +1603,11 @@ int gfs2_quotad(void *data)
 		quotad_check_timeo(sdp, "sync", gfs2_quota_sync, t,
 				   &quotad_timeo, &tune->gt_quota_quantum);
 
-		try_to_freeze();
-
 		t = min(quotad_timeo, statfs_timeo);
 
-		t = wait_event_interruptible_timeout(sdp->sd_quota_wait,
+		t = wait_event_freezable_timeout(sdp->sd_quota_wait,
 				sdp->sd_statfs_force_sync ||
-				gfs2_withdrawn(sdp) ||
+				gfs2_withdrawing_or_withdrawn(sdp) ||
 				kthread_should_stop(),
 				t);
 
@@ -1746,7 +1755,7 @@ static int gfs2_set_dqblk(struct super_block *sb, struct kqid qid,
 	if (gfs2_is_stuffed(ip))
 		alloc_required = 1;
 	if (alloc_required) {
-		struct gfs2_alloc_parms ap = { .aflags = 0, };
+		struct gfs2_alloc_parms ap = {};
 		gfs2_write_calc_reserv(ip, sizeof(struct gfs2_quota),
 				       &data_blocks, &ind_blocks);
 		blocks = 1 + data_blocks + ind_blocks;

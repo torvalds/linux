@@ -320,30 +320,20 @@ void __init cpu_cache_init(void)
 		goto skip;
 
 	if (boot_cpu_data.type == CPU_J2) {
-		extern void __weak j2_cache_init(void);
-
 		j2_cache_init();
 	} else if (boot_cpu_data.family == CPU_FAMILY_SH2) {
-		extern void __weak sh2_cache_init(void);
-
 		sh2_cache_init();
 	}
 
 	if (boot_cpu_data.family == CPU_FAMILY_SH2A) {
-		extern void __weak sh2a_cache_init(void);
-
 		sh2a_cache_init();
 	}
 
 	if (boot_cpu_data.family == CPU_FAMILY_SH3) {
-		extern void __weak sh3_cache_init(void);
-
 		sh3_cache_init();
 
 		if ((boot_cpu_data.type == CPU_SH7705) &&
 		    (boot_cpu_data.dcache.sets == 512)) {
-			extern void __weak sh7705_cache_init(void);
-
 			sh7705_cache_init();
 		}
 	}
@@ -351,14 +341,10 @@ void __init cpu_cache_init(void)
 	if ((boot_cpu_data.family == CPU_FAMILY_SH4) ||
 	    (boot_cpu_data.family == CPU_FAMILY_SH4A) ||
 	    (boot_cpu_data.family == CPU_FAMILY_SH4AL_DSP)) {
-		extern void __weak sh4_cache_init(void);
-
 		sh4_cache_init();
 
 		if ((boot_cpu_data.type == CPU_SH7786) ||
 		    (boot_cpu_data.type == CPU_SHX3)) {
-			extern void __weak shx3_cache_init(void);
-
 			shx3_cache_init();
 		}
 	}

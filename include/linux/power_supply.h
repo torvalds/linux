@@ -242,6 +242,7 @@ struct power_supply_config {
 struct power_supply_desc {
 	const char *name;
 	enum power_supply_type type;
+	u8 charge_behaviours;
 	const enum power_supply_usb_type *usb_types;
 	size_t num_usb_types;
 	const enum power_supply_property *properties;
@@ -894,8 +895,7 @@ extern int power_supply_powers(struct power_supply *psy, struct device *dev);
 #define to_power_supply(device) container_of(device, struct power_supply, dev)
 
 extern void *power_supply_get_drvdata(struct power_supply *psy);
-/* For APM emulation, think legacy userspace. */
-extern struct class *power_supply_class;
+extern int power_supply_for_each_device(void *data, int (*fn)(struct device *dev, void *data));
 
 static inline bool power_supply_is_amp_property(enum power_supply_property psp)
 {

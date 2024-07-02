@@ -645,6 +645,7 @@
 #define OP_AT_S1E0W	sys_insn(AT_Op0, 0, AT_CRn, 8, 3)
 #define OP_AT_S1E1RP	sys_insn(AT_Op0, 0, AT_CRn, 9, 0)
 #define OP_AT_S1E1WP	sys_insn(AT_Op0, 0, AT_CRn, 9, 1)
+#define OP_AT_S1E1A	sys_insn(AT_Op0, 0, AT_CRn, 9, 2)
 #define OP_AT_S1E2R	sys_insn(AT_Op0, 4, AT_CRn, 8, 0)
 #define OP_AT_S1E2W	sys_insn(AT_Op0, 4, AT_CRn, 8, 1)
 #define OP_AT_S12E1R	sys_insn(AT_Op0, 4, AT_CRn, 8, 4)
@@ -781,10 +782,16 @@
 #define OP_TLBI_VMALLS12E1NXS		sys_insn(1, 4, 9, 7, 6)
 
 /* Misc instructions */
+#define OP_GCSPUSHX			sys_insn(1, 0, 7, 7, 4)
+#define OP_GCSPOPCX			sys_insn(1, 0, 7, 7, 5)
+#define OP_GCSPOPX			sys_insn(1, 0, 7, 7, 6)
+#define OP_GCSPUSHM			sys_insn(1, 3, 7, 7, 0)
+
 #define OP_BRB_IALL			sys_insn(1, 1, 7, 2, 4)
 #define OP_BRB_INJ			sys_insn(1, 1, 7, 2, 5)
 #define OP_CFP_RCTX			sys_insn(1, 3, 7, 3, 4)
 #define OP_DVP_RCTX			sys_insn(1, 3, 7, 3, 5)
+#define OP_COSP_RCTX			sys_insn(1, 3, 7, 3, 6)
 #define OP_CPP_RCTX			sys_insn(1, 3, 7, 3, 7)
 
 /* Common SCTLR_ELx flags. */
@@ -871,10 +878,12 @@
 
 /* id_aa64mmfr0 */
 #define ID_AA64MMFR0_EL1_TGRAN4_SUPPORTED_MIN	0x0
+#define ID_AA64MMFR0_EL1_TGRAN4_LPA2		ID_AA64MMFR0_EL1_TGRAN4_52_BIT
 #define ID_AA64MMFR0_EL1_TGRAN4_SUPPORTED_MAX	0x7
 #define ID_AA64MMFR0_EL1_TGRAN64_SUPPORTED_MIN	0x0
 #define ID_AA64MMFR0_EL1_TGRAN64_SUPPORTED_MAX	0x7
 #define ID_AA64MMFR0_EL1_TGRAN16_SUPPORTED_MIN	0x1
+#define ID_AA64MMFR0_EL1_TGRAN16_LPA2		ID_AA64MMFR0_EL1_TGRAN16_52_BIT
 #define ID_AA64MMFR0_EL1_TGRAN16_SUPPORTED_MAX	0xf
 
 #define ARM64_MIN_PARANGE_BITS		32
@@ -882,6 +891,7 @@
 #define ID_AA64MMFR0_EL1_TGRAN_2_SUPPORTED_DEFAULT	0x0
 #define ID_AA64MMFR0_EL1_TGRAN_2_SUPPORTED_NONE		0x1
 #define ID_AA64MMFR0_EL1_TGRAN_2_SUPPORTED_MIN		0x2
+#define ID_AA64MMFR0_EL1_TGRAN_2_SUPPORTED_LPA2		0x3
 #define ID_AA64MMFR0_EL1_TGRAN_2_SUPPORTED_MAX		0x7
 
 #ifdef CONFIG_ARM64_PA_BITS_52
@@ -892,11 +902,13 @@
 
 #if defined(CONFIG_ARM64_4K_PAGES)
 #define ID_AA64MMFR0_EL1_TGRAN_SHIFT		ID_AA64MMFR0_EL1_TGRAN4_SHIFT
+#define ID_AA64MMFR0_EL1_TGRAN_LPA2		ID_AA64MMFR0_EL1_TGRAN4_52_BIT
 #define ID_AA64MMFR0_EL1_TGRAN_SUPPORTED_MIN	ID_AA64MMFR0_EL1_TGRAN4_SUPPORTED_MIN
 #define ID_AA64MMFR0_EL1_TGRAN_SUPPORTED_MAX	ID_AA64MMFR0_EL1_TGRAN4_SUPPORTED_MAX
 #define ID_AA64MMFR0_EL1_TGRAN_2_SHIFT		ID_AA64MMFR0_EL1_TGRAN4_2_SHIFT
 #elif defined(CONFIG_ARM64_16K_PAGES)
 #define ID_AA64MMFR0_EL1_TGRAN_SHIFT		ID_AA64MMFR0_EL1_TGRAN16_SHIFT
+#define ID_AA64MMFR0_EL1_TGRAN_LPA2		ID_AA64MMFR0_EL1_TGRAN16_52_BIT
 #define ID_AA64MMFR0_EL1_TGRAN_SUPPORTED_MIN	ID_AA64MMFR0_EL1_TGRAN16_SUPPORTED_MIN
 #define ID_AA64MMFR0_EL1_TGRAN_SUPPORTED_MAX	ID_AA64MMFR0_EL1_TGRAN16_SUPPORTED_MAX
 #define ID_AA64MMFR0_EL1_TGRAN_2_SHIFT		ID_AA64MMFR0_EL1_TGRAN16_2_SHIFT
@@ -1024,20 +1036,33 @@
  * Permission Indirection Extension (PIE) permission encodings.
  * Encodings with the _O suffix, have overlays applied (Permission Overlay Extension).
  */
-#define PIE_NONE_O	0x0
-#define PIE_R_O		0x1
-#define PIE_X_O		0x2
-#define PIE_RX_O	0x3
-#define PIE_RW_O	0x5
-#define PIE_RWnX_O	0x6
-#define PIE_RWX_O	0x7
-#define PIE_R		0x8
-#define PIE_GCS		0x9
-#define PIE_RX		0xa
-#define PIE_RW		0xc
-#define PIE_RWX		0xe
+#define PIE_NONE_O	UL(0x0)
+#define PIE_R_O		UL(0x1)
+#define PIE_X_O		UL(0x2)
+#define PIE_RX_O	UL(0x3)
+#define PIE_RW_O	UL(0x5)
+#define PIE_RWnX_O	UL(0x6)
+#define PIE_RWX_O	UL(0x7)
+#define PIE_R		UL(0x8)
+#define PIE_GCS		UL(0x9)
+#define PIE_RX		UL(0xa)
+#define PIE_RW		UL(0xc)
+#define PIE_RWX		UL(0xe)
 
 #define PIRx_ELx_PERM(idx, perm)	((perm) << ((idx) * 4))
+
+/*
+ * Permission Overlay Extension (POE) permission encodings.
+ */
+#define POE_NONE	UL(0x0)
+#define POE_R		UL(0x1)
+#define POE_X		UL(0x2)
+#define POE_RX		UL(0x3)
+#define POE_W		UL(0x4)
+#define POE_RW		UL(0x5)
+#define POE_XW		UL(0x6)
+#define POE_RXW		UL(0x7)
+#define POE_MASK	UL(0xf)
 
 #define ARM64_FEATURE_FIELD_BITS	4
 
@@ -1156,6 +1181,8 @@
 	par;								\
 })
 
+#define SYS_FIELD_VALUE(reg, field, val)	reg##_##field##_##val
+
 #define SYS_FIELD_GET(reg, field, val)		\
 		 FIELD_GET(reg##_##field##_MASK, val)
 
@@ -1163,7 +1190,8 @@
 		 FIELD_PREP(reg##_##field##_MASK, val)
 
 #define SYS_FIELD_PREP_ENUM(reg, field, val)		\
-		 FIELD_PREP(reg##_##field##_MASK, reg##_##field##_##val)
+		 FIELD_PREP(reg##_##field##_MASK,	\
+			    SYS_FIELD_VALUE(reg, field, val))
 
 #endif
 

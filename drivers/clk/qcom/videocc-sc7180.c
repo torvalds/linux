@@ -237,17 +237,7 @@ static struct platform_driver video_cc_sc7180_driver = {
 	},
 };
 
-static int __init video_cc_sc7180_init(void)
-{
-	return platform_driver_register(&video_cc_sc7180_driver);
-}
-subsys_initcall(video_cc_sc7180_init);
-
-static void __exit video_cc_sc7180_exit(void)
-{
-	platform_driver_unregister(&video_cc_sc7180_driver);
-}
-module_exit(video_cc_sc7180_exit);
+module_platform_driver(video_cc_sc7180_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("QTI VIDEOCC SC7180 Driver");

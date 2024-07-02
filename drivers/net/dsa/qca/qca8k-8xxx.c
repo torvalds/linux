@@ -947,36 +947,48 @@ static int
 qca8k_mdio_register(struct qca8k_priv *priv)
 {
 	struct dsa_switch *ds = priv->ds;
+	struct device *dev = ds->dev;
 	struct device_node *mdio;
 	struct mii_bus *bus;
+	int ret = 0;
 
-	bus = devm_mdiobus_alloc(ds->dev);
-	if (!bus)
-		return -ENOMEM;
+	mdio = of_get_child_by_name(dev->of_node, "mdio");
+	if (mdio && !of_device_is_available(mdio))
+		goto out_put_node;
 
+	bus = devm_mdiobus_alloc(dev);
+	if (!bus) {
+		ret = -ENOMEM;
+		goto out_put_node;
+	}
+
+	priv->internal_mdio_bus = bus;
 	bus->priv = (void *)priv;
 	snprintf(bus->id, MII_BUS_ID_SIZE, "qca8k-%d.%d",
 		 ds->dst->index, ds->index);
-	bus->parent = ds->dev;
-	bus->phy_mask = ~ds->phys_mii_mask;
-	ds->user_mii_bus = bus;
+	bus->parent = dev;
 
-	/* Check if the devicetree declare the port:phy mapping */
-	mdio = of_get_child_by_name(priv->dev->of_node, "mdio");
-	if (of_device_is_available(mdio)) {
+	if (mdio) {
+		/* Check if the device tree declares the port:phy mapping */
 		bus->name = "qca8k user mii";
 		bus->read = qca8k_internal_mdio_read;
 		bus->write = qca8k_internal_mdio_write;
-		return devm_of_mdiobus_register(priv->dev, bus, mdio);
+	} else {
+		/* If a mapping can't be found, the legacy mapping is used,
+		 * using qca8k_port_to_phy()
+		 */
+		ds->user_mii_bus = bus;
+		bus->phy_mask = ~ds->phys_mii_mask;
+		bus->name = "qca8k-legacy user mii";
+		bus->read = qca8k_legacy_mdio_read;
+		bus->write = qca8k_legacy_mdio_write;
 	}
 
-	/* If a mapping can't be found the legacy mapping is used,
-	 * using the qca8k_port_to_phy function
-	 */
-	bus->name = "qca8k-legacy user mii";
-	bus->read = qca8k_legacy_mdio_read;
-	bus->write = qca8k_legacy_mdio_write;
-	return devm_mdiobus_register(priv->dev, bus);
+	ret = devm_of_mdiobus_register(dev, bus, mdio);
+
+out_put_node:
+	of_node_put(mdio);
+	return ret;
 }
 
 static int
@@ -985,7 +997,7 @@ qca8k_setup_mdio_bus(struct qca8k_priv *priv)
 	u32 internal_mdio_mask = 0, external_mdio_mask = 0, reg;
 	struct device_node *ports, *port;
 	phy_interface_t mode;
-	int err;
+	int ret;
 
 	ports = of_get_child_by_name(priv->dev->of_node, "ports");
 	if (!ports)
@@ -995,11 +1007,11 @@ qca8k_setup_mdio_bus(struct qca8k_priv *priv)
 		return -EINVAL;
 
 	for_each_available_child_of_node(ports, port) {
-		err = of_property_read_u32(port, "reg", &reg);
-		if (err) {
+		ret = of_property_read_u32(port, "reg", &reg);
+		if (ret) {
 			of_node_put(port);
 			of_node_put(ports);
-			return err;
+			return ret;
 		}
 
 		if (!dsa_is_user_port(priv->ds, reg))
@@ -1271,11 +1283,13 @@ qca8k_mac_config_setup_internal_delay(struct qca8k_priv *priv, int cpu_port_inde
 }
 
 static struct phylink_pcs *
-qca8k_phylink_mac_select_pcs(struct dsa_switch *ds, int port,
+qca8k_phylink_mac_select_pcs(struct phylink_config *config,
 			     phy_interface_t interface)
 {
-	struct qca8k_priv *priv = ds->priv;
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct qca8k_priv *priv = dp->ds->priv;
 	struct phylink_pcs *pcs = NULL;
+	int port = dp->index;
 
 	switch (interface) {
 	case PHY_INTERFACE_MODE_SGMII:
@@ -1299,12 +1313,17 @@ qca8k_phylink_mac_select_pcs(struct dsa_switch *ds, int port,
 }
 
 static void
-qca8k_phylink_mac_config(struct dsa_switch *ds, int port, unsigned int mode,
+qca8k_phylink_mac_config(struct phylink_config *config, unsigned int mode,
 			 const struct phylink_link_state *state)
 {
-	struct qca8k_priv *priv = ds->priv;
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct dsa_switch *ds = dp->ds;
+	struct qca8k_priv *priv;
+	int port = dp->index;
 	int cpu_port_index;
 	u32 reg;
+
+	priv = ds->priv;
 
 	switch (port) {
 	case 0: /* 1st CPU port */
@@ -1414,20 +1433,24 @@ static void qca8k_phylink_get_caps(struct dsa_switch *ds, int port,
 }
 
 static void
-qca8k_phylink_mac_link_down(struct dsa_switch *ds, int port, unsigned int mode,
+qca8k_phylink_mac_link_down(struct phylink_config *config, unsigned int mode,
 			    phy_interface_t interface)
 {
-	struct qca8k_priv *priv = ds->priv;
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct qca8k_priv *priv = dp->ds->priv;
 
-	qca8k_port_set_status(priv, port, 0);
+	qca8k_port_set_status(priv, dp->index, 0);
 }
 
 static void
-qca8k_phylink_mac_link_up(struct dsa_switch *ds, int port, unsigned int mode,
-			  phy_interface_t interface, struct phy_device *phydev,
-			  int speed, int duplex, bool tx_pause, bool rx_pause)
+qca8k_phylink_mac_link_up(struct phylink_config *config,
+			  struct phy_device *phydev, unsigned int mode,
+			  phy_interface_t interface, int speed, int duplex,
+			  bool tx_pause, bool rx_pause)
 {
-	struct qca8k_priv *priv = ds->priv;
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct qca8k_priv *priv = dp->ds->priv;
+	int port = dp->index;
 	u32 reg;
 
 	if (phylink_autoneg_inband(mode)) {
@@ -1451,10 +1474,10 @@ qca8k_phylink_mac_link_up(struct dsa_switch *ds, int port, unsigned int mode,
 		if (duplex == DUPLEX_FULL)
 			reg |= QCA8K_PORT_STATUS_DUPLEX;
 
-		if (rx_pause || dsa_is_cpu_port(ds, port))
+		if (rx_pause || dsa_port_is_cpu(dp))
 			reg |= QCA8K_PORT_STATUS_RXFLOW;
 
-		if (tx_pause || dsa_is_cpu_port(ds, port))
+		if (tx_pause || dsa_port_is_cpu(dp))
 			reg |= QCA8K_PORT_STATUS_TXFLOW;
 	}
 
@@ -1979,6 +2002,13 @@ qca8k_setup(struct dsa_switch *ds)
 	return 0;
 }
 
+static const struct phylink_mac_ops qca8k_phylink_mac_ops = {
+	.mac_select_pcs	= qca8k_phylink_mac_select_pcs,
+	.mac_config	= qca8k_phylink_mac_config,
+	.mac_link_down	= qca8k_phylink_mac_link_down,
+	.mac_link_up	= qca8k_phylink_mac_link_up,
+};
+
 static const struct dsa_switch_ops qca8k_switch_ops = {
 	.get_tag_protocol	= qca8k_get_tag_protocol,
 	.setup			= qca8k_setup,
@@ -2009,10 +2039,6 @@ static const struct dsa_switch_ops qca8k_switch_ops = {
 	.port_vlan_add		= qca8k_port_vlan_add,
 	.port_vlan_del		= qca8k_port_vlan_del,
 	.phylink_get_caps	= qca8k_phylink_get_caps,
-	.phylink_mac_select_pcs	= qca8k_phylink_mac_select_pcs,
-	.phylink_mac_config	= qca8k_phylink_mac_config,
-	.phylink_mac_link_down	= qca8k_phylink_mac_link_down,
-	.phylink_mac_link_up	= qca8k_phylink_mac_link_up,
 	.get_phy_flags		= qca8k_get_phy_flags,
 	.port_lag_join		= qca8k_port_lag_join,
 	.port_lag_leave		= qca8k_port_lag_leave,
@@ -2038,12 +2064,11 @@ qca8k_sw_probe(struct mdio_device *mdiodev)
 	priv->info = of_device_get_match_data(priv->dev);
 
 	priv->reset_gpio = devm_gpiod_get_optional(priv->dev, "reset",
-						   GPIOD_ASIS);
+						   GPIOD_OUT_HIGH);
 	if (IS_ERR(priv->reset_gpio))
 		return PTR_ERR(priv->reset_gpio);
 
 	if (priv->reset_gpio) {
-		gpiod_set_value_cansleep(priv->reset_gpio, 1);
 		/* The active low duration must be greater than 10 ms
 		 * and checkpatch.pl wants 20 ms.
 		 */
@@ -2080,6 +2105,7 @@ qca8k_sw_probe(struct mdio_device *mdiodev)
 	priv->ds->num_ports = QCA8K_NUM_PORTS;
 	priv->ds->priv = priv;
 	priv->ds->ops = &qca8k_switch_ops;
+	priv->ds->phylink_mac_ops = &qca8k_phylink_mac_ops;
 	mutex_init(&priv->reg_mutex);
 	dev_set_drvdata(&mdiodev->dev, priv);
 

@@ -9,17 +9,19 @@
 #define DRIVER_NAME "stm32-usart"
 
 struct stm32_usart_offsets {
-	u8 cr1;
-	u8 cr2;
-	u8 cr3;
-	u8 brr;
-	u8 gtpr;
-	u8 rtor;
-	u8 rqr;
-	u8 isr;
-	u8 icr;
-	u8 rdr;
-	u8 tdr;
+	u16 cr1;
+	u16 cr2;
+	u16 cr3;
+	u16 brr;
+	u16 gtpr;
+	u16 rtor;
+	u16 rqr;
+	u16 isr;
+	u16 icr;
+	u16 rdr;
+	u16 tdr;
+	u16 presc;
+	u16 hwcfgr1;
 };
 
 struct stm32_usart_config {
@@ -28,7 +30,6 @@ struct stm32_usart_config {
 	bool has_swap;
 	bool has_wakeup;
 	bool has_fifo;
-	int fifosize;
 };
 
 struct stm32_usart_info {
@@ -36,7 +37,7 @@ struct stm32_usart_info {
 	struct stm32_usart_config cfg;
 };
 
-#define UNDEF_REG 0xff
+#define UNDEF_REG 0xffff
 
 /* USART_SR (F4) / USART_ISR (F7) */
 #define USART_SR_PE		BIT(0)
@@ -71,6 +72,7 @@ struct stm32_usart_info {
 #define USART_BRR_DIV_M_MASK	GENMASK(15, 4)
 #define USART_BRR_DIV_M_SHIFT	4
 #define USART_BRR_04_R_SHIFT	1
+#define USART_BRR_MASK		(USART_BRR_DIV_M_MASK | USART_BRR_DIV_F_MASK)
 
 /* USART_CR1 */
 #define USART_CR1_SBK		BIT(0)
@@ -176,8 +178,16 @@ struct stm32_usart_info {
 #define USART_ICR_CMCF		BIT(17)		/* F7 */
 #define USART_ICR_WUCF		BIT(20)		/* H7 */
 
+/* USART_PRESC */
+#define USART_PRESC		GENMASK(3, 0)	/* H7 */
+#define USART_PRESC_MAX		0b1011
+
+/* USART_HWCFCR1 */
+#define USART_HWCFGR1_CFG8	GENMASK(31, 28)	/* MP1 */
+
 #define STM32_SERIAL_NAME "ttySTM"
-#define STM32_MAX_PORTS 8
+#define STM32_MAX_PORTS 9
+#define STM32H7_USART_FIFO_SIZE 16
 
 #define RX_BUF_L 4096		 /* dma rx buffer length     */
 #define RX_BUF_P (RX_BUF_L / 2)	 /* dma rx buffer period     */

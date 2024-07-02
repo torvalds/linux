@@ -83,7 +83,7 @@ bool arch_support_alt_relocation(struct special_alt *special_alt,
  *    TODO: Once we have DWARF CFI and smarter instruction decoding logic,
  *    ensure the same register is used in the mov and jump instructions.
  *
- *    NOTE: RETPOLINE made it harder still to decode dynamic jumps.
+ *    NOTE: MITIGATION_RETPOLINE made it harder still to decode dynamic jumps.
  */
 struct reloc *arch_find_switch_table(struct objtool_file *file,
 				    struct instruction *insn)

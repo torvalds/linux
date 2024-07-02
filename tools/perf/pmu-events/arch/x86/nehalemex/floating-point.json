@@ -8,7 +8,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "X87 Floating poiint assists for invalid input value (Precise Event)",
+        "BriefDescription": "X87 Floating point assists for invalid input value (Precise Event)",
         "EventCode": "0xF7",
         "EventName": "FP_ASSIST.INPUT",
         "PEBS": "1",

@@ -76,7 +76,7 @@ struct nfp_fl_lag_group {
 /* Use this ID with zero members to ack a batch config */
 #define NFP_FL_LAG_SYNC_ID		0
 #define NFP_FL_LAG_GROUP_MIN		1 /* ID 0 reserved */
-#define NFP_FL_LAG_GROUP_MAX		32 /* IDs 1 to 31 are valid */
+#define NFP_FL_LAG_GROUP_MAX		31 /* IDs 1 to 31 are valid */
 
 /* wait for more config */
 #define NFP_FL_LAG_DELAY		(msecs_to_jiffies(2))
@@ -111,8 +111,8 @@ nfp_fl_lag_group_create(struct nfp_fl_lag *lag, struct net_device *master)
 
 	priv = container_of(lag, struct nfp_flower_priv, nfp_lag);
 
-	id = ida_simple_get(&lag->ida_handle, NFP_FL_LAG_GROUP_MIN,
-			    NFP_FL_LAG_GROUP_MAX, GFP_KERNEL);
+	id = ida_alloc_range(&lag->ida_handle, NFP_FL_LAG_GROUP_MIN,
+			     NFP_FL_LAG_GROUP_MAX, GFP_KERNEL);
 	if (id < 0) {
 		nfp_flower_cmsg_warn(priv->app,
 				     "No more bonding groups available\n");
@@ -121,7 +121,7 @@ nfp_fl_lag_group_create(struct nfp_fl_lag *lag, struct net_device *master)
 
 	group = kmalloc(sizeof(*group), GFP_KERNEL);
 	if (!group) {
-		ida_simple_remove(&lag->ida_handle, id);
+		ida_free(&lag->ida_handle, id);
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -328,8 +328,7 @@ static void nfp_fl_lag_do_work(struct work_struct *work)
 			}
 
 			if (entry->to_destroy) {
-				ida_simple_remove(&lag->ida_handle,
-						  entry->group_id);
+				ida_free(&lag->ida_handle, entry->group_id);
 				list_del(&entry->list);
 				kfree(entry);
 			}
@@ -338,6 +337,11 @@ static void nfp_fl_lag_do_work(struct work_struct *work)
 
 		acti_netdevs = kmalloc_array(entry->slave_cnt,
 					     sizeof(*acti_netdevs), GFP_KERNEL);
+		if (!acti_netdevs) {
+			schedule_delayed_work(&lag->work,
+					      NFP_FL_LAG_DELAY);
+			continue;
+		}
 
 		/* Include sanity check in the loop. It may be that a bond has
 		 * changed between processing the last notification and the
@@ -415,7 +419,7 @@ nfp_fl_lag_put_unprocessed(struct nfp_fl_lag *lag, struct sk_buff *skb)
 	struct nfp_flower_cmsg_lag_config *cmsg_payload;
 
 	cmsg_payload = nfp_flower_cmsg_get_data(skb);
-	if (be32_to_cpu(cmsg_payload->group_id) >= NFP_FL_LAG_GROUP_MAX)
+	if (be32_to_cpu(cmsg_payload->group_id) > NFP_FL_LAG_GROUP_MAX)
 		return -EINVAL;
 
 	/* Drop cmsg retrans if storage limit is exceeded to prevent

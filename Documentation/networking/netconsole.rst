@@ -15,6 +15,8 @@ Extended console support by Tejun Heo <tj@kernel.org>, May 1 2015
 
 Release prepend support by Breno Leitao <leitao@debian.org>, Jul 7 2023
 
+Userdata append support by Matthew Wood <thepacketgeek@gmail.com>, Jan 22 2024
+
 Please send bug reports to Matt Mackall <mpm@selenic.com>
 Satyam Sharma <satyam.sharma@gmail.com>, and Cong Wang <xiyou.wangcong@gmail.com>
 
@@ -170,6 +172,70 @@ You can modify these targets in runtime by creating the following targets::
  mkdir cmdline1
  cat cmdline1/remote_ip
  10.0.0.3
+
+Append User Data
+----------------
+
+Custom user data can be appended to the end of messages with netconsole
+dynamic configuration enabled. User data entries can be modified without
+changing the "enabled" attribute of a target.
+
+Directories (keys) under `userdata` are limited to 53 character length, and
+data in `userdata/<key>/value` are limited to 200 bytes::
+
+ cd /sys/kernel/config/netconsole && mkdir cmdline0
+ cd cmdline0
+ mkdir userdata/foo
+ echo bar > userdata/foo/value
+ mkdir userdata/qux
+ echo baz > userdata/qux/value
+
+Messages will now include this additional user data::
+
+ echo "This is a message" > /dev/kmsg
+
+Sends::
+
+ 12,607,22085407756,-;This is a message
+  foo=bar
+  qux=baz
+
+Preview the userdata that will be appended with::
+
+ cd /sys/kernel/config/netconsole/cmdline0/userdata
+ for f in `ls userdata`; do echo $f=$(cat userdata/$f/value); done
+
+If a `userdata` entry is created but no data is written to the `value` file,
+the entry will be omitted from netconsole messages::
+
+ cd /sys/kernel/config/netconsole && mkdir cmdline0
+ cd cmdline0
+ mkdir userdata/foo
+ echo bar > userdata/foo/value
+ mkdir userdata/qux
+
+The `qux` key is omitted since it has no value::
+
+ echo "This is a message" > /dev/kmsg
+ 12,607,22085407756,-;This is a message
+  foo=bar
+
+Delete `userdata` entries with `rmdir`::
+
+ rmdir /sys/kernel/config/netconsole/cmdline0/userdata/qux
+
+.. warning::
+   When writing strings to user data values, input is broken up per line in
+   configfs store calls and this can cause confusing behavior::
+
+     mkdir userdata/testing
+     printf "val1\nval2" > userdata/testing/value
+     # userdata store value is called twice, first with "val1\n" then "val2"
+     # so "val2" is stored, being the last value stored
+     cat userdata/testing/value
+     val2
+
+   It is recommended to not write user data values with newlines.
 
 Extended console:
 =================

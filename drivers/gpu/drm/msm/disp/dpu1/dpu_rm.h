@@ -22,6 +22,7 @@ struct dpu_global_state;
  * @hw_wb: array of wb hardware resources
  * @dspp_blks: array of dspp hardware resources
  * @hw_sspp: array of sspp hardware resources
+ * @cdm_blk: cdm hardware resource
  */
 struct dpu_rm {
 	struct dpu_hw_blk *pingpong_blks[PINGPONG_MAX - PINGPONG_0];
@@ -33,28 +34,24 @@ struct dpu_rm {
 	struct dpu_hw_blk *merge_3d_blks[MERGE_3D_MAX - MERGE_3D_0];
 	struct dpu_hw_blk *dsc_blks[DSC_MAX - DSC_0];
 	struct dpu_hw_sspp *hw_sspp[SSPP_MAX - SSPP_NONE];
+	struct dpu_hw_blk *cdm_blk;
 };
 
 /**
  * dpu_rm_init - Read hardware catalog and create reservation tracking objects
  *	for all HW blocks.
+ * @dev:  Corresponding device for devres management
  * @rm: DPU Resource Manager handle
  * @cat: Pointer to hardware catalog
  * @mdss_data: Pointer to MDSS / UBWC configuration
  * @mmio: mapped register io address of MDP
  * @Return: 0 on Success otherwise -ERROR
  */
-int dpu_rm_init(struct dpu_rm *rm,
+int dpu_rm_init(struct drm_device *dev,
+		struct dpu_rm *rm,
 		const struct dpu_mdss_cfg *cat,
 		const struct msm_mdss_data *mdss_data,
 		void __iomem *mmio);
-
-/**
- * dpu_rm_destroy - Free all memory allocated by dpu_rm_init
- * @rm: DPU Resource Manager handle
- * @Return: 0 on Success otherwise -ERROR
- */
-int dpu_rm_destroy(struct dpu_rm *rm);
 
 /**
  * dpu_rm_reserve - Given a CRTC->Encoder->Connector display chain, analyze
@@ -91,6 +88,14 @@ void dpu_rm_release(struct dpu_global_state *global_state,
 int dpu_rm_get_assigned_resources(struct dpu_rm *rm,
 	struct dpu_global_state *global_state, uint32_t enc_id,
 	enum dpu_hw_blk_type type, struct dpu_hw_blk **blks, int blks_size);
+
+/**
+ * dpu_rm_print_state - output the RM private state
+ * @p: DRM printer
+ * @global_state: global state
+ */
+void dpu_rm_print_state(struct drm_printer *p,
+			const struct dpu_global_state *global_state);
 
 /**
  * dpu_rm_get_intf - Return a struct dpu_hw_intf instance given it's index.

@@ -821,7 +821,7 @@ static int max98373_bus_config(struct sdw_slave *slave,
  * slave_ops: callbacks for get_clock_stop_mode, clock_stop and
  * port_prep are not defined for now
  */
-static struct sdw_slave_ops max98373_slave_ops = {
+static const struct sdw_slave_ops max98373_slave_ops = {
 	.read_prop = max98373_read_prop,
 	.update_status = max98373_update_status,
 	.bus_config = max98373_bus_config,
@@ -872,7 +872,6 @@ MODULE_DEVICE_TABLE(sdw, max98373_id);
 static struct sdw_driver max98373_sdw_driver = {
 	.driver = {
 		.name = "max98373",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(max98373_of_match),
 		.acpi_match_table = ACPI_PTR(max98373_acpi_match),
 		.pm = &max98373_pm,

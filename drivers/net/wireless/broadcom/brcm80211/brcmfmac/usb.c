@@ -117,13 +117,6 @@ struct bootrom_id_le {
 	__le32 boardrev;	/* Board revision */
 };
 
-struct brcmf_usb_image {
-	struct list_head list;
-	s8 *fwname;
-	u8 *image;
-	int image_len;
-};
-
 struct brcmf_usbdev_info {
 	struct brcmf_usbdev bus_pub; /* MUST BE FIRST */
 	spinlock_t qlock;
@@ -1581,7 +1574,7 @@ static int brcmf_usb_reset_device(struct device *dev, void *notused)
 
 void brcmf_usb_exit(void)
 {
-	struct device_driver *drv = &brcmf_usbdrvr.drvwrap.driver;
+	struct device_driver *drv = &brcmf_usbdrvr.driver;
 	int ret;
 
 	brcmf_dbg(USB, "Enter\n");

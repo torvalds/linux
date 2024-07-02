@@ -19,9 +19,10 @@ static inline bool bch2_version_compatible(u16 version)
 void bch2_version_to_text(struct printbuf *, unsigned);
 unsigned bch2_latest_compatible_version(unsigned);
 
-u64 bch2_upgrade_recovery_passes(struct bch_fs *c,
-				 unsigned,
-				 unsigned);
+static inline size_t bch2_sb_field_bytes(struct bch_sb_field *f)
+{
+	return le32_to_cpu(f->u64s) * sizeof(u64);
+}
 
 #define field_to_type(_f, _name)					\
 	container_of_or_null(_f, struct bch_sb_field_##_name, field)
@@ -34,6 +35,16 @@ struct bch_sb_field *bch2_sb_field_resize_id(struct bch_sb_handle *,
 					     enum bch_sb_field_type, unsigned);
 #define bch2_sb_field_resize(_sb, _name, _u64s)				\
 	field_to_type(bch2_sb_field_resize_id(_sb, BCH_SB_FIELD_##_name, _u64s), _name)
+
+struct bch_sb_field *bch2_sb_field_get_minsize_id(struct bch_sb_handle *,
+					enum bch_sb_field_type, unsigned);
+#define bch2_sb_field_get_minsize(_sb, _name, _u64s)				\
+	field_to_type(bch2_sb_field_get_minsize_id(_sb, BCH_SB_FIELD_##_name, _u64s), _name)
+
+#define bch2_sb_field_nr_entries(_f)					\
+	(_f ? ((bch2_sb_field_bytes(&_f->field) - sizeof(*_f)) /	\
+	       sizeof(_f->entries[0]))					\
+	    : 0)
 
 void bch2_sb_field_delete(struct bch_sb_handle *, enum bch_sb_field_type);
 
@@ -69,6 +80,7 @@ void bch2_free_super(struct bch_sb_handle *);
 int bch2_sb_realloc(struct bch_sb_handle *, unsigned);
 
 int bch2_read_super(const char *, struct bch_opts *, struct bch_sb_handle *);
+int bch2_read_super_silent(const char *, struct bch_opts *, struct bch_sb_handle *);
 int bch2_write_super(struct bch_fs *);
 void __bch2_check_set_feature(struct bch_fs *, unsigned);
 
@@ -78,44 +90,11 @@ static inline void bch2_check_set_feature(struct bch_fs *c, unsigned feat)
 		__bch2_check_set_feature(c, feat);
 }
 
-/* BCH_SB_FIELD_members_v1: */
-
-static inline bool bch2_member_exists(struct bch_member *m)
-{
-	return !bch2_is_zero(&m->uuid, sizeof(m->uuid));
-}
-
-static inline bool bch2_dev_exists(struct bch_sb *sb,
-				   unsigned dev)
-{
-	if (dev < sb->nr_devices) {
-	struct bch_member m = bch2_sb_member_get(sb, dev);
-		return bch2_member_exists(&m);
-	}
-	return false;
-}
-
-static inline struct bch_member_cpu bch2_mi_to_cpu(struct bch_member *mi)
-{
-	return (struct bch_member_cpu) {
-		.nbuckets	= le64_to_cpu(mi->nbuckets),
-		.first_bucket	= le16_to_cpu(mi->first_bucket),
-		.bucket_size	= le16_to_cpu(mi->bucket_size),
-		.group		= BCH_MEMBER_GROUP(mi),
-		.state		= BCH_MEMBER_STATE(mi),
-		.discard	= BCH_MEMBER_DISCARD(mi),
-		.data_allowed	= BCH_MEMBER_DATA_ALLOWED(mi),
-		.durability	= BCH_MEMBER_DURABILITY(mi)
-			? BCH_MEMBER_DURABILITY(mi) - 1
-			: 1,
-		.freespace_initialized = BCH_MEMBER_FREESPACE_INITIALIZED(mi),
-		.valid		= bch2_member_exists(mi),
-	};
-}
-
-void bch2_sb_maybe_downgrade(struct bch_fs *);
+bool bch2_check_version_downgrade(struct bch_fs *);
 void bch2_sb_upgrade(struct bch_fs *, unsigned);
 
+void __bch2_sb_field_to_text(struct printbuf *, struct bch_sb *,
+			     struct bch_sb_field *);
 void bch2_sb_field_to_text(struct printbuf *, struct bch_sb *,
 			   struct bch_sb_field *);
 void bch2_sb_layout_to_text(struct printbuf *, struct bch_sb_layout *);

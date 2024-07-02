@@ -2086,6 +2086,7 @@ module_param_named(num_rx_desc, num_rx_desc_param, int, 0400);
 MODULE_PARM_DESC(num_rx_desc_param,
 		 "Number of Rx descriptors: u8 (default is 32)");
 
+MODULE_DESCRIPTION("TI WiLink 8 wireless driver");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Luciano Coelho <coelho@ti.com>");
 MODULE_FIRMWARE(WL18XX_FW_NAME);

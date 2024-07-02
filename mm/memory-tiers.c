@@ -39,7 +39,7 @@ static LIST_HEAD(memory_tiers);
 static struct node_memory_type_map node_memory_types[MAX_NUMNODES];
 struct memory_dev_type *default_dram_type;
 
-static struct bus_type memory_tier_subsys = {
+static const struct bus_type memory_tier_subsys = {
 	.name = "memory_tiering",
 	.dev_name = "memory_tier",
 };
@@ -109,7 +109,7 @@ static struct demotion_nodes *node_demotion __read_mostly;
 static BLOCKING_NOTIFIER_HEAD(mt_adistance_algorithms);
 
 static bool default_dram_perf_error;
-static struct node_hmem_attrs default_dram_perf;
+static struct access_coordinate default_dram_perf;
 static int default_dram_perf_ref_nid = NUMA_NO_NODE;
 static const char *default_dram_perf_ref_source;
 
@@ -359,6 +359,26 @@ static void disable_all_demotion_targets(void)
 	synchronize_rcu();
 }
 
+static void dump_demotion_targets(void)
+{
+	int node;
+
+	for_each_node_state(node, N_MEMORY) {
+		struct memory_tier *memtier = __node_get_memory_tier(node);
+		nodemask_t preferred = node_demotion[node].preferred;
+
+		if (!memtier)
+			continue;
+
+		if (nodes_empty(preferred))
+			pr_info("Demotion targets for Node %d: null\n", node);
+		else
+			pr_info("Demotion targets for Node %d: preferred: %*pbl, fallback: %*pbl\n",
+				node, nodemask_pr_args(&preferred),
+				nodemask_pr_args(&memtier->lower_tier_mask));
+	}
+}
+
 /*
  * Find an automatic demotion target for all memory
  * nodes. Failing here is OK.  It might just indicate
@@ -443,7 +463,7 @@ static void establish_demotion_targets(void)
 	 * Now build the lower_tier mask for each node collecting node mask from
 	 * all memory tier below it. This allows us to fallback demotion page
 	 * allocation to a set of nodes that is closer the above selected
-	 * perferred node.
+	 * preferred node.
 	 */
 	lower_tier = node_states[N_MEMORY];
 	list_for_each_entry(memtier, &memory_tiers, list) {
@@ -456,6 +476,8 @@ static void establish_demotion_targets(void)
 		nodes_andnot(lower_tier, lower_tier, tier_nodes);
 		memtier->lower_tier_mask = lower_tier;
 	}
+
+	dump_demotion_targets();
 }
 
 #else
@@ -601,15 +623,15 @@ void clear_node_memory_type(int node, struct memory_dev_type *memtype)
 }
 EXPORT_SYMBOL_GPL(clear_node_memory_type);
 
-static void dump_hmem_attrs(struct node_hmem_attrs *attrs, const char *prefix)
+static void dump_hmem_attrs(struct access_coordinate *coord, const char *prefix)
 {
 	pr_info(
 "%sread_latency: %u, write_latency: %u, read_bandwidth: %u, write_bandwidth: %u\n",
-		prefix, attrs->read_latency, attrs->write_latency,
-		attrs->read_bandwidth, attrs->write_bandwidth);
+		prefix, coord->read_latency, coord->write_latency,
+		coord->read_bandwidth, coord->write_bandwidth);
 }
 
-int mt_set_default_dram_perf(int nid, struct node_hmem_attrs *perf,
+int mt_set_default_dram_perf(int nid, struct access_coordinate *perf,
 			     const char *source)
 {
 	int rc = 0;
@@ -666,7 +688,7 @@ out:
 	return rc;
 }
 
-int mt_perf_to_adistance(struct node_hmem_attrs *perf, int *adist)
+int mt_perf_to_adistance(struct access_coordinate *perf, int *adist)
 {
 	if (default_dram_perf_error)
 		return -EIO;

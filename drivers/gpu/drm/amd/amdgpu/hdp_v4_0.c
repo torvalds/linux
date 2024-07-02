@@ -129,6 +129,11 @@ static void hdp_v4_0_get_clockgating_state(struct amdgpu_device *adev,
 {
 	int data;
 
+	if (amdgpu_ip_version(adev, HDP_HWIP, 0) == IP_VERSION(4, 4, 2)) {
+		/* Default enabled */
+		*flags |= AMD_CG_SUPPORT_HDP_MGCG;
+		return;
+	}
 	/* AMD_CG_SUPPORT_HDP_LS */
 	data = RREG32(SOC15_REG_OFFSET(HDP, 0, mmHDP_MEM_POWER_LS));
 	if (data & HDP_MEM_POWER_LS__LS_ENABLE_MASK)
@@ -144,6 +149,10 @@ static void hdp_v4_0_init_registers(struct amdgpu_device *adev)
 	default:
 		break;
 	}
+
+	/* Do not program registers if VF */
+	if (amdgpu_sriov_vf(adev))
+		return;
 
 	WREG32_FIELD15(HDP, 0, HDP_MISC_CNTL, FLUSH_INVALIDATE_CACHE, 1);
 

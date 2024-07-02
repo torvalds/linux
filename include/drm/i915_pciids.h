@@ -672,7 +672,9 @@
 #define INTEL_ADLN_IDS(info) \
 	INTEL_VGA_DEVICE(0x46D0, info), \
 	INTEL_VGA_DEVICE(0x46D1, info), \
-	INTEL_VGA_DEVICE(0x46D2, info)
+	INTEL_VGA_DEVICE(0x46D2, info), \
+	INTEL_VGA_DEVICE(0x46D3, info), \
+	INTEL_VGA_DEVICE(0x46D4, info)
 
 /* RPL-S */
 #define INTEL_RPLS_IDS(info) \
@@ -709,7 +711,9 @@
 	INTEL_VGA_DEVICE(0x5692, info), \
 	INTEL_VGA_DEVICE(0x56A0, info), \
 	INTEL_VGA_DEVICE(0x56A1, info), \
-	INTEL_VGA_DEVICE(0x56A2, info)
+	INTEL_VGA_DEVICE(0x56A2, info), \
+	INTEL_VGA_DEVICE(0x56BE, info), \
+	INTEL_VGA_DEVICE(0x56BF, info)
 
 #define INTEL_DG2_G11_IDS(info) \
 	INTEL_VGA_DEVICE(0x5693, info), \
@@ -738,7 +742,8 @@
 	INTEL_DG2_G12_IDS(info)
 
 #define INTEL_ATS_M150_IDS(info) \
-	INTEL_VGA_DEVICE(0x56C0, info)
+	INTEL_VGA_DEVICE(0x56C0, info), \
+	INTEL_VGA_DEVICE(0x56C2, info)
 
 #define INTEL_ATS_M75_IDS(info) \
 	INTEL_VGA_DEVICE(0x56C1, info)
@@ -750,10 +755,13 @@
 /* MTL */
 #define INTEL_MTL_IDS(info) \
 	INTEL_VGA_DEVICE(0x7D40, info), \
+	INTEL_VGA_DEVICE(0x7D41, info), \
 	INTEL_VGA_DEVICE(0x7D45, info), \
+	INTEL_VGA_DEVICE(0x7D51, info), \
 	INTEL_VGA_DEVICE(0x7D55, info), \
 	INTEL_VGA_DEVICE(0x7D60, info), \
 	INTEL_VGA_DEVICE(0x7D67, info), \
+	INTEL_VGA_DEVICE(0x7DD1, info), \
 	INTEL_VGA_DEVICE(0x7DD5, info)
 
 #endif /* _I915_PCIIDS_H */

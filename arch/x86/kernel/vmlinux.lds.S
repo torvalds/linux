@@ -15,11 +15,7 @@
  * put it inside the section definition.
  */
 
-#ifdef CONFIG_X86_32
-#define LOAD_OFFSET __PAGE_OFFSET
-#else
 #define LOAD_OFFSET __START_KERNEL_map
-#endif
 
 #define RUNTIME_DISCARD_EXIT
 #define EMITS_PT_NOTE
@@ -46,6 +42,7 @@ ENTRY(phys_startup_64)
 #endif
 
 jiffies = jiffies_64;
+const_pcpu_hot = pcpu_hot;
 
 #if defined(CONFIG_X86_64)
 /*
@@ -113,11 +110,10 @@ PHDRS {
 
 SECTIONS
 {
+	. = __START_KERNEL;
 #ifdef CONFIG_X86_32
-	. = LOAD_OFFSET + LOAD_PHYSICAL_ADDR;
 	phys_startup_32 = ABSOLUTE(startup_32 - LOAD_OFFSET);
 #else
-	. = __START_KERNEL;
 	phys_startup_64 = ABSOLUTE(startup_64 - LOAD_OFFSET);
 #endif
 
@@ -132,7 +128,7 @@ SECTIONS
 		LOCK_TEXT
 		KPROBES_TEXT
 		SOFTIRQENTRY_TEXT
-#ifdef CONFIG_RETPOLINE
+#ifdef CONFIG_MITIGATION_RETPOLINE
 		*(.text..__x86.indirect_thunk)
 		*(.text..__x86.return_thunk)
 #endif
@@ -142,7 +138,7 @@ SECTIONS
 		*(.text..__x86.rethunk_untrain)
 		ENTRY_TEXT
 
-#ifdef CONFIG_CPU_SRSO
+#ifdef CONFIG_MITIGATION_SRSO
 		/*
 		 * See the comment above srso_alias_untrain_ret()'s
 		 * definition.
@@ -170,6 +166,9 @@ SECTIONS
 
 		/* init_task */
 		INIT_TASK_DATA(THREAD_SIZE)
+
+		/* equivalent to task_pt_regs(&init_task) */
+		__top_init_kernel_stack = __end_init_stack - TOP_OF_KERNEL_STACK_PADDING - PTREGS_SIZE;
 
 #ifdef CONFIG_X86_32
 		/* 32 bit has nosave before _edata */
@@ -267,20 +266,7 @@ SECTIONS
 	}
 #endif
 
-	/*
-	 * start address and size of operations which during runtime
-	 * can be patched with virtualization friendly instructions or
-	 * baremetal native ones. Think page table operations.
-	 * Details in paravirt_types.h
-	 */
-	. = ALIGN(8);
-	.parainstructions : AT(ADDR(.parainstructions) - LOAD_OFFSET) {
-		__parainstructions = .;
-		*(.parainstructions)
-		__parainstructions_end = .;
-	}
-
-#ifdef CONFIG_RETPOLINE
+#ifdef CONFIG_MITIGATION_RETPOLINE
 	/*
 	 * List of instructions that call/jmp/jcc to retpoline thunks
 	 * __x86_indirect_thunk_*(). These instructions can be patched along
@@ -517,11 +503,11 @@ INIT_PER_CPU(irq_stack_backing_store);
            "fixed_percpu_data is not at start of per-cpu area");
 #endif
 
-#ifdef CONFIG_CPU_UNRET_ENTRY
+#ifdef CONFIG_MITIGATION_UNRET_ENTRY
 . = ASSERT((retbleed_return_thunk & 0x3f) == 0, "retbleed_return_thunk not cacheline-aligned");
 #endif
 
-#ifdef CONFIG_CPU_SRSO
+#ifdef CONFIG_MITIGATION_SRSO
 . = ASSERT((srso_safe_ret & 0x3f) == 0, "srso_safe_ret not cacheline-aligned");
 /*
  * GNU ld cannot do XOR until 2.41.

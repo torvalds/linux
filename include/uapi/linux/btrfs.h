@@ -92,6 +92,7 @@ struct btrfs_qgroup_limit {
  * struct btrfs_qgroup_inherit.flags
  */
 #define BTRFS_QGROUP_INHERIT_SET_LIMITS	(1ULL << 0)
+#define BTRFS_QGROUP_INHERIT_FLAGS_SUPP (BTRFS_QGROUP_INHERIT_SET_LIMITS)
 
 struct btrfs_qgroup_inherit {
 	__u64	flags;
@@ -614,6 +615,9 @@ struct btrfs_ioctl_clone_range_args {
  */
 #define BTRFS_DEFRAG_RANGE_COMPRESS 1
 #define BTRFS_DEFRAG_RANGE_START_IO 2
+#define BTRFS_DEFRAG_RANGE_FLAGS_SUPP	(BTRFS_DEFRAG_RANGE_COMPRESS |		\
+					 BTRFS_DEFRAG_RANGE_START_IO)
+
 struct btrfs_ioctl_defrag_range_args {
 	/* start of the defrag operation */
 	__u64 start;

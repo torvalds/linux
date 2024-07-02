@@ -45,3 +45,5 @@ mdwe_test
 gup_longterm
 mkdirty
 va_high_addr_switch
+hugetlb_fault_after_madv
+hugetlb_madv_vs_map

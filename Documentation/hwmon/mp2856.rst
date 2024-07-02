@@ -1,0 +1,98 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+Kernel driver mp2856
+====================
+
+Supported chips:
+
+  * MPS MP2856
+
+    Prefix: 'mp2856'
+
+  * MPS MP2857
+
+    Prefix: 'mp2857'
+
+Author:
+
+	Peter Yin <peter.yin@quantatw.com>
+
+Description
+-----------
+
+This driver implements support for Monolithic Power Systems, Inc. (MPS)
+vendor dual-loop, digital, multi-phase controller MP2856/MP2857
+
+This device:
+
+- Supports up to two power rail.
+- Supports two pages 0 and 1 for and also pages 2 for configuration.
+- Can configured VOUT readout in direct or VID format and allows
+  setting of different formats on rails 1 and 2. For VID the following
+  protocols are available: AMD SVI3 mode with 5-mV/LSB.
+
+Device supports:
+
+- SVID interface.
+- AVSBus interface.
+
+Device compliant with:
+
+- PMBus rev 1.3 interface.
+
+Device supports direct format for reading output current, output voltage,
+input and output power and temperature.
+Device supports linear format for reading input voltage and input power.
+Device supports VID and direct formats for reading output voltage.
+The below VID modes are supported: AMD SVI3.
+
+The driver provides the following sysfs attributes for current measurements:
+
+- indexes 1  for "iin";
+- indexes 2, 3 for "iout";
+
+**curr[1-3]_alarm**
+
+**curr[1-3]_input**
+
+**curr[1-3]_label**
+
+The driver provides the following sysfs attributes for voltage measurements.
+
+- indexes 1 for "vin";
+- indexes 2, 3 for "vout";
+
+**in[1-3]_crit**
+
+**in[1-3]_crit_alarm**
+
+**in[1-3]_input**
+
+**in[1-3]_label**
+
+**in[1-3]_lcrit**
+
+**in[1-3]_lcrit_alarm**
+
+The driver provides the following sysfs attributes for power measurements.
+
+- indexes 1 for "pin";
+- indexes 2, 3 for "pout";
+
+**power[1-3]_alarm**
+
+**power[1-3]_input**
+
+**power[1-3]_label**
+
+The driver provides the following sysfs attributes for temperature measurements.
+
+**temp[1-2]_crit**
+
+**temp[1-2]_crit_alarm**
+
+**temp[1-2]_input**
+
+**temp[1-2]_max**
+
+**temp[1-2]_max_alarm**

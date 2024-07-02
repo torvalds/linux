@@ -2,7 +2,7 @@
 config ATH12K
 	tristate "Qualcomm Technologies Wi-Fi 7 support (ath12k)"
 	depends on MAC80211 && HAS_DMA && PCI
-	depends on CRYPTO_MICHAEL_MIC
+	select CRYPTO_MICHAEL_MIC
 	select QCOM_QMI_HELPERS
 	select MHI_BUS
 	select QRTR
@@ -20,6 +20,15 @@ config ATH12K_DEBUG
 	help
 	  Enable debug support, for example debug messages which must
 	  be enabled separately using the debug_mask module parameter.
+
+	  If unsure, say Y to make it easier to debug problems. But if
+	  you want optimal performance choose N.
+
+config ATH12K_DEBUGFS
+	bool "QTI ath12k debugfs support"
+	depends on ATH12K && MAC80211_DEBUGFS
+	help
+	  Enable ath12k debugfs support
 
 	  If unsure, say Y to make it easier to debug problems. But if
 	  you want optimal performance choose N.

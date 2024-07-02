@@ -31,6 +31,12 @@ struct landlock_ruleset_attr {
 	 * this access right.
 	 */
 	__u64 handled_access_fs;
+	/**
+	 * @handled_access_net: Bitmask of actions (cf. `Network flags`_)
+	 * that is handled by this ruleset and should then be forbidden if no
+	 * rule explicitly allow them.
+	 */
+	__u64 handled_access_net;
 };
 
 /*
@@ -54,6 +60,11 @@ enum landlock_rule_type {
 	 * landlock_path_beneath_attr .
 	 */
 	LANDLOCK_RULE_PATH_BENEATH = 1,
+	/**
+	 * @LANDLOCK_RULE_NET_PORT: Type of a &struct
+	 * landlock_net_port_attr .
+	 */
+	LANDLOCK_RULE_NET_PORT,
 };
 
 /**
@@ -78,6 +89,31 @@ struct landlock_path_beneath_attr {
 	 * Cf. security/landlock/syscalls.c:build_check_abi()
 	 */
 } __attribute__((packed));
+
+/**
+ * struct landlock_net_port_attr - Network port definition
+ *
+ * Argument of sys_landlock_add_rule().
+ */
+struct landlock_net_port_attr {
+	/**
+	 * @allowed_access: Bitmask of allowed access network for a port
+	 * (cf. `Network flags`_).
+	 */
+	__u64 allowed_access;
+	/**
+	 * @port: Network port in host endianness.
+	 *
+	 * It should be noted that port 0 passed to :manpage:`bind(2)` will
+	 * bind to an available port from a specific port range. This can be
+	 * configured thanks to the ``/proc/sys/net/ipv4/ip_local_port_range``
+	 * sysctl (also used for IPv6). A Landlock rule with port 0 and the
+	 * ``LANDLOCK_ACCESS_NET_BIND_TCP`` right means that requesting to bind
+	 * on port 0 is allowed and it will automatically translate to binding
+	 * on the related port range.
+	 */
+	__u64 port;
+};
 
 /**
  * DOC: fs_access
@@ -189,4 +225,23 @@ struct landlock_path_beneath_attr {
 #define LANDLOCK_ACCESS_FS_TRUNCATE			(1ULL << 14)
 /* clang-format on */
 
+/**
+ * DOC: net_access
+ *
+ * Network flags
+ * ~~~~~~~~~~~~~~~~
+ *
+ * These flags enable to restrict a sandboxed process to a set of network
+ * actions. This is supported since the Landlock ABI version 4.
+ *
+ * TCP sockets with allowed actions:
+ *
+ * - %LANDLOCK_ACCESS_NET_BIND_TCP: Bind a TCP socket to a local port.
+ * - %LANDLOCK_ACCESS_NET_CONNECT_TCP: Connect an active TCP socket to
+ *   a remote port.
+ */
+/* clang-format off */
+#define LANDLOCK_ACCESS_NET_BIND_TCP			(1ULL << 0)
+#define LANDLOCK_ACCESS_NET_CONNECT_TCP			(1ULL << 1)
+/* clang-format on */
 #endif /* _UAPI_LINUX_LANDLOCK_H */

@@ -129,6 +129,7 @@ static const struct scsi_host_template mptfc_driver_template = {
 	.sg_tablesize			= MPT_SCSI_SG_DEPTH,
 	.max_sectors			= 8192,
 	.cmd_per_lun			= 7,
+	.dma_alignment			= 511,
 	.shost_groups			= mptscsih_host_attr_groups,
 };
 
@@ -1401,7 +1402,6 @@ static struct pci_driver mptfc_driver = {
 static int
 mptfc_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *pEvReply)
 {
-	MPT_SCSI_HOST *hd;
 	u8 event = le32_to_cpu(pEvReply->Event) & 0xFF;
 	unsigned long flags;
 	int rc=1;
@@ -1412,8 +1412,7 @@ mptfc_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *pEvReply)
 	devtverboseprintk(ioc, printk(MYIOC_s_DEBUG_FMT "MPT event (=%02Xh) routed to SCSI host driver!\n",
 			ioc->name, event));
 
-	if (ioc->sh == NULL ||
-		((hd = shost_priv(ioc->sh)) == NULL))
+	if (ioc->sh == NULL || shost_priv(ioc->sh) == NULL)
 		return 1;
 
 	switch (event) {

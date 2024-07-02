@@ -165,6 +165,8 @@ static void snd_emu10k1_proc_spdif_read(struct snd_info_entry *entry,
 	u32 value2;
 
 	if (emu->card_capabilities->emu_model) {
+		snd_emu1010_fpga_lock(emu);
+
 		// This represents the S/PDIF lock status on 0404b, which is
 		// kinda weird and unhelpful, because monitoring it via IRQ is
 		// impractical (one gets an IRQ flood as long as it is desynced).
@@ -197,6 +199,8 @@ static void snd_emu10k1_proc_spdif_read(struct snd_info_entry *entry,
 			snd_iprintf(buffer, "\nS/PDIF mode: %s%s\n",
 				    value & EMU_HANA_SPDIF_MODE_RX_PRO ? "professional" : "consumer",
 				    value & EMU_HANA_SPDIF_MODE_RX_NOCOPY ? ", no copy" : "");
+
+		snd_emu1010_fpga_unlock(emu);
 	} else {
 		snd_emu10k1_proc_spdif_status(emu, buffer, "CD-ROM S/PDIF In", CDCS, CDSRCS);
 		snd_emu10k1_proc_spdif_status(emu, buffer, "Optical or Coax S/PDIF In", GPSCS, GPSRCS);
@@ -458,6 +462,9 @@ static void snd_emu_proc_emu1010_reg_read(struct snd_info_entry *entry,
 	struct snd_emu10k1 *emu = entry->private_data;
 	u32 value;
 	int i;
+
+	snd_emu1010_fpga_lock(emu);
+
 	snd_iprintf(buffer, "EMU1010 Registers:\n\n");
 
 	for(i = 0; i < 0x40; i+=1) {
@@ -496,6 +503,8 @@ static void snd_emu_proc_emu1010_reg_read(struct snd_info_entry *entry,
 			snd_emu_proc_emu1010_link_read(emu, buffer, 0x701);
 		}
 	}
+
+	snd_emu1010_fpga_unlock(emu);
 }
 
 static void snd_emu_proc_io_reg_read(struct snd_info_entry *entry,

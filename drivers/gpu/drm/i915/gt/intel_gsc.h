@@ -21,8 +21,11 @@ struct mei_aux_device;
 /**
  * struct intel_gsc - graphics security controller
  *
- * @gem_obj: scratch memory GSC operations
- * @intf : gsc interface
+ * @intf: gsc interface
+ * @intf.adev: MEI aux. device for this @intf
+ * @intf.gem_obj: scratch memory GSC operations
+ * @intf.irq: IRQ for this device (%-1 for no IRQ)
+ * @intf.id: this interface's id number/index
  */
 struct intel_gsc {
 	struct intel_gsc_intf {

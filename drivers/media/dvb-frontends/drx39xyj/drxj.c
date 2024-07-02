@@ -4779,8 +4779,8 @@ set_frequency(struct drx_demod_instance *demod,
 	bool image_to_select;
 	s32 fm_frequency_shift = 0;
 
-	rf_mirror = (ext_attr->mirror == DRX_MIRROR_YES) ? true : false;
-	tuner_mirror = demod->my_common_attr->mirror_freq_spect ? false : true;
+	rf_mirror = ext_attr->mirror == DRX_MIRROR_YES;
+	tuner_mirror = !demod->my_common_attr->mirror_freq_spect;
 	/*
 	   Program frequency shifter
 	   No need to account for mirroring on RF
@@ -8765,7 +8765,7 @@ static int qam_flip_spec(struct drx_demod_instance *demod, struct drx_channel *c
 		goto rw_error;
 	}
 	ext_attr->iqm_fs_rate_ofs = iqm_fs_rate_ofs;
-	ext_attr->pos_image = (ext_attr->pos_image) ? false : true;
+	ext_attr->pos_image = !ext_attr->pos_image;
 
 	/* freeze dq/fq updating */
 	rc = drxj_dap_read_reg16(dev_addr, QAM_DQ_MODE__A, &data, 0);

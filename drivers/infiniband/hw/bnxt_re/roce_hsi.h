@@ -555,7 +555,12 @@ struct cmdq_modify_qp {
 	__le16	flags;
 	__le16	cookie;
 	u8	resp_size;
-	u8	reserved8;
+	u8	qp_type;
+	#define CMDQ_MODIFY_QP_QP_TYPE_RC            0x2UL
+	#define CMDQ_MODIFY_QP_QP_TYPE_UD            0x4UL
+	#define CMDQ_MODIFY_QP_QP_TYPE_RAW_ETHERTYPE 0x6UL
+	#define CMDQ_MODIFY_QP_QP_TYPE_GSI           0x7UL
+	#define CMDQ_MODIFY_QP_QP_TYPE_LAST         CMDQ_MODIFY_QP_QP_TYPE_GSI
 	__le64	resp_addr;
 	__le32	modify_mask;
 	#define CMDQ_MODIFY_QP_MODIFY_MASK_STATE                   0x1UL
@@ -611,14 +616,12 @@ struct cmdq_modify_qp {
 	#define CMDQ_MODIFY_QP_NETWORK_TYPE_ROCEV2_IPV6  (0x3UL << 6)
 	#define CMDQ_MODIFY_QP_NETWORK_TYPE_LAST        CMDQ_MODIFY_QP_NETWORK_TYPE_ROCEV2_IPV6
 	u8	access;
-	#define CMDQ_MODIFY_QP_ACCESS_REMOTE_ATOMIC_REMOTE_READ_REMOTE_WRITE_LOCAL_WRITE_MASK \
-		0xffUL
-	#define CMDQ_MODIFY_QP_ACCESS_REMOTE_ATOMIC_REMOTE_READ_REMOTE_WRITE_LOCAL_WRITE_SFT	\
-		0
-	#define CMDQ_MODIFY_QP_ACCESS_LOCAL_WRITE	0x1UL
-	#define CMDQ_MODIFY_QP_ACCESS_REMOTE_WRITE	0x2UL
-	#define CMDQ_MODIFY_QP_ACCESS_REMOTE_READ	0x4UL
-	#define CMDQ_MODIFY_QP_ACCESS_REMOTE_ATOMIC	0x8UL
+	#define CMDQ_MODIFY_QP_ACCESS_REMOTE_ATOMIC_REMOTE_READ_REMOTE_WRITE_LOCAL_WRITE_MASK 0xffUL
+	#define CMDQ_MODIFY_QP_ACCESS_REMOTE_ATOMIC_REMOTE_READ_REMOTE_WRITE_LOCAL_WRITE_SFT 0
+	#define CMDQ_MODIFY_QP_ACCESS_LOCAL_WRITE   0x1UL
+	#define CMDQ_MODIFY_QP_ACCESS_REMOTE_WRITE  0x2UL
+	#define CMDQ_MODIFY_QP_ACCESS_REMOTE_READ   0x4UL
+	#define CMDQ_MODIFY_QP_ACCESS_REMOTE_ATOMIC 0x8UL
 	__le16	pkey;
 	__le32	qkey;
 	__le32	dgid[4];
@@ -673,6 +676,13 @@ struct cmdq_modify_qp {
 	#define CMDQ_MODIFY_QP_VLAN_PCP_SFT 13
 	__le64	irrq_addr;
 	__le64	orrq_addr;
+	__le32	ext_modify_mask;
+	#define CMDQ_MODIFY_QP_EXT_MODIFY_MASK_EXT_STATS_CTX     0x1UL
+	#define CMDQ_MODIFY_QP_EXT_MODIFY_MASK_SCHQ_ID_VALID     0x2UL
+	__le32	ext_stats_ctx_id;
+	__le16	schq_id;
+	__le16	unused_0;
+	__le32	reserved32;
 };
 
 /* creq_modify_qp_resp (size:128b/16B) */
@@ -3075,6 +3085,17 @@ struct sq_psn_search_ext {
 	__le32	reserved32;
 };
 
+/* sq_msn_search (size:64b/8B) */
+struct sq_msn_search {
+	__le64	start_idx_next_psn_start_psn;
+	#define SQ_MSN_SEARCH_START_PSN_MASK 0xffffffUL
+	#define SQ_MSN_SEARCH_START_PSN_SFT 0
+	#define SQ_MSN_SEARCH_NEXT_PSN_MASK 0xffffff000000ULL
+	#define SQ_MSN_SEARCH_NEXT_PSN_SFT  24
+	#define SQ_MSN_SEARCH_START_IDX_MASK 0xffff000000000000ULL
+	#define SQ_MSN_SEARCH_START_IDX_SFT 48
+};
+
 /* sq_send (size:1024b/128B) */
 struct sq_send {
 	u8	wqe_type;
@@ -3763,13 +3784,35 @@ struct cq_base {
 	#define CQ_BASE_CQE_TYPE_RES_UD          (0x2UL << 1)
 	#define CQ_BASE_CQE_TYPE_RES_RAWETH_QP1  (0x3UL << 1)
 	#define CQ_BASE_CQE_TYPE_RES_UD_CFA      (0x4UL << 1)
+	#define CQ_BASE_CQE_TYPE_REQ_V3             (0x8UL << 1)
+	#define CQ_BASE_CQE_TYPE_RES_RC_V3          (0x9UL << 1)
+	#define CQ_BASE_CQE_TYPE_RES_UD_V3          (0xaUL << 1)
+	#define CQ_BASE_CQE_TYPE_RES_RAWETH_QP1_V3  (0xbUL << 1)
+	#define CQ_BASE_CQE_TYPE_RES_UD_CFA_V3      (0xcUL << 1)
 	#define CQ_BASE_CQE_TYPE_NO_OP           (0xdUL << 1)
 	#define CQ_BASE_CQE_TYPE_TERMINAL        (0xeUL << 1)
 	#define CQ_BASE_CQE_TYPE_CUT_OFF         (0xfUL << 1)
 	#define CQ_BASE_CQE_TYPE_LAST           CQ_BASE_CQE_TYPE_CUT_OFF
 	u8	status;
+	#define CQ_BASE_STATUS_OK                         0x0UL
+	#define CQ_BASE_STATUS_BAD_RESPONSE_ERR           0x1UL
+	#define CQ_BASE_STATUS_LOCAL_LENGTH_ERR           0x2UL
+	#define CQ_BASE_STATUS_HW_LOCAL_LENGTH_ERR        0x3UL
+	#define CQ_BASE_STATUS_LOCAL_QP_OPERATION_ERR     0x4UL
+	#define CQ_BASE_STATUS_LOCAL_PROTECTION_ERR       0x5UL
+	#define CQ_BASE_STATUS_LOCAL_ACCESS_ERROR         0x6UL
+	#define CQ_BASE_STATUS_MEMORY_MGT_OPERATION_ERR   0x7UL
+	#define CQ_BASE_STATUS_REMOTE_INVALID_REQUEST_ERR 0x8UL
+	#define CQ_BASE_STATUS_REMOTE_ACCESS_ERR          0x9UL
+	#define CQ_BASE_STATUS_REMOTE_OPERATION_ERR       0xaUL
+	#define CQ_BASE_STATUS_RNR_NAK_RETRY_CNT_ERR      0xbUL
+	#define CQ_BASE_STATUS_TRANSPORT_RETRY_CNT_ERR    0xcUL
+	#define CQ_BASE_STATUS_WORK_REQUEST_FLUSHED_ERR   0xdUL
+	#define CQ_BASE_STATUS_HW_FLUSH_ERR               0xeUL
+	#define CQ_BASE_STATUS_OVERFLOW_ERR               0xfUL
+	#define CQ_BASE_STATUS_LAST                      CQ_BASE_STATUS_OVERFLOW_ERR
 	__le16	reserved16;
-	__le32	reserved32;
+	__le32	opaque;
 };
 
 /* cq_req (size:256b/32B) */
@@ -4384,6 +4427,8 @@ struct cq_cutoff {
 	#define CQ_CUTOFF_CQE_TYPE_SFT    1
 	#define CQ_CUTOFF_CQE_TYPE_CUT_OFF  (0xfUL << 1)
 	#define CQ_CUTOFF_CQE_TYPE_LAST    CQ_CUTOFF_CQE_TYPE_CUT_OFF
+	#define CQ_CUTOFF_RESIZE_TOGGLE_MASK 0x60UL
+	#define CQ_CUTOFF_RESIZE_TOGGLE_SFT 5
 	u8	status;
 	#define CQ_CUTOFF_STATUS_OK 0x0UL
 	#define CQ_CUTOFF_STATUS_LAST CQ_CUTOFF_STATUS_OK
@@ -4435,6 +4480,8 @@ struct nq_srq_event {
 	#define NQ_SRQ_EVENT_TYPE_SFT      0
 	#define NQ_SRQ_EVENT_TYPE_SRQ_EVENT  0x32UL
 	#define NQ_SRQ_EVENT_TYPE_LAST      NQ_SRQ_EVENT_TYPE_SRQ_EVENT
+	#define NQ_SRQ_EVENT_TOGGLE_MASK   0xc0UL
+	#define NQ_SRQ_EVENT_TOGGLE_SFT    6
 	u8	event;
 	#define NQ_SRQ_EVENT_EVENT_SRQ_THRESHOLD_EVENT 0x1UL
 	#define NQ_SRQ_EVENT_EVENT_LAST               NQ_SRQ_EVENT_EVENT_SRQ_THRESHOLD_EVENT

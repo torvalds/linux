@@ -302,7 +302,11 @@ static int ddebug_tokenize(char *buf, char *words[], int maxwords)
 		} else {
 			for (end = buf; *end && !isspace(*end); end++)
 				;
-			BUG_ON(end == buf);
+			if (end == buf) {
+				pr_err("parse err after word:%d=%s\n", nwords,
+				       nwords ? words[nwords - 1] : "<none>");
+				return -EINVAL;
+			}
 		}
 
 		/* `buf' is start of word, `end' is one past its end */
@@ -640,10 +644,9 @@ static int param_set_dyndbg_classnames(const char *instr, const struct kernel_pa
 	int cls_id, totct = 0;
 	bool wanted;
 
-	cl_str = tmp = kstrdup(instr, GFP_KERNEL);
-	p = strchr(cl_str, '\n');
-	if (p)
-		*p = '\0';
+	cl_str = tmp = kstrdup_and_replace(instr, '\n', '\0', GFP_KERNEL);
+	if (!tmp)
+		return -ENOMEM;
 
 	/* start with previously set state-bits, then modify */
 	curr_bits = old_bits = *dcp->bits;

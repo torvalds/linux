@@ -1305,7 +1305,7 @@ static void encode_link(struct xdr_stream *xdr, const struct qstr *name, struct 
 
 static inline int nfs4_lock_type(struct file_lock *fl, int block)
 {
-	if (fl->fl_type == F_RDLCK)
+	if (lock_is_read(fl))
 		return block ? NFS4_READW_LT : NFS4_READ_LT;
 	return block ? NFS4_WRITEW_LT : NFS4_WRITE_LT;
 }
@@ -1602,7 +1602,8 @@ static void encode_read(struct xdr_stream *xdr, const struct nfs_pgio_args *args
 static void encode_readdir(struct xdr_stream *xdr, const struct nfs4_readdir_arg *readdir, struct rpc_rqst *req, struct compound_hdr *hdr)
 {
 	uint32_t attrs[3] = {
-		FATTR4_WORD0_RDATTR_ERROR,
+		FATTR4_WORD0_TYPE
+		| FATTR4_WORD0_RDATTR_ERROR,
 		FATTR4_WORD1_MOUNTED_ON_FILEID,
 	};
 	uint32_t dircount = readdir->count;
@@ -1612,12 +1613,20 @@ static void encode_readdir(struct xdr_stream *xdr, const struct nfs4_readdir_arg
 	unsigned int i;
 
 	if (readdir->plus) {
-		attrs[0] |= FATTR4_WORD0_TYPE|FATTR4_WORD0_CHANGE|FATTR4_WORD0_SIZE|
-			FATTR4_WORD0_FSID|FATTR4_WORD0_FILEHANDLE|FATTR4_WORD0_FILEID;
-		attrs[1] |= FATTR4_WORD1_MODE|FATTR4_WORD1_NUMLINKS|FATTR4_WORD1_OWNER|
-			FATTR4_WORD1_OWNER_GROUP|FATTR4_WORD1_RAWDEV|
-			FATTR4_WORD1_SPACE_USED|FATTR4_WORD1_TIME_ACCESS|
-			FATTR4_WORD1_TIME_METADATA|FATTR4_WORD1_TIME_MODIFY;
+		attrs[0] |= FATTR4_WORD0_CHANGE
+			| FATTR4_WORD0_SIZE
+			| FATTR4_WORD0_FSID
+			| FATTR4_WORD0_FILEHANDLE
+			| FATTR4_WORD0_FILEID;
+		attrs[1] |= FATTR4_WORD1_MODE
+			| FATTR4_WORD1_NUMLINKS
+			| FATTR4_WORD1_OWNER
+			| FATTR4_WORD1_OWNER_GROUP
+			| FATTR4_WORD1_RAWDEV
+			| FATTR4_WORD1_SPACE_USED
+			| FATTR4_WORD1_TIME_ACCESS
+			| FATTR4_WORD1_TIME_METADATA
+			| FATTR4_WORD1_TIME_MODIFY;
 		attrs[2] |= FATTR4_WORD2_SECURITY_LABEL;
 	}
 	/* Use mounted_on_fileid only if the server supports it */
@@ -5043,10 +5052,10 @@ static int decode_lock_denied (struct xdr_stream *xdr, struct file_lock *fl)
 		fl->fl_end = fl->fl_start + (loff_t)length - 1;
 		if (length == ~(uint64_t)0)
 			fl->fl_end = OFFSET_MAX;
-		fl->fl_type = F_WRLCK;
+		fl->c.flc_type = F_WRLCK;
 		if (type & 1)
-			fl->fl_type = F_RDLCK;
-		fl->fl_pid = 0;
+			fl->c.flc_type = F_RDLCK;
+		fl->c.flc_pid = 0;
 	}
 	p = xdr_decode_hyper(p, &clientid); /* read 8 bytes */
 	namelen = be32_to_cpup(p); /* read 4 bytes */  /* have read all 32 bytes now */

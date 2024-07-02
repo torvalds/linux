@@ -16,6 +16,7 @@ config HYPERV
 config HYPERV_VTL_MODE
 	bool "Enable Linux to boot in VTL context"
 	depends on X86_64 && HYPERV
+	depends on SMP
 	default n
 	help
 	  Virtual Secure Mode (VSM) is a set of hypervisor capabilities and

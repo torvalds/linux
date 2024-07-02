@@ -250,18 +250,17 @@ static irqreturn_t dlh_trigger_handler(int irq, void *private)
 	struct dlh_state *st = iio_priv(indio_dev);
 	int ret;
 	unsigned int chn, i = 0;
-	__be32 tmp_buf[2];
+	__be32 tmp_buf[2] = { };
 
 	ret = dlh_start_capture_and_read(st);
 	if (ret)
 		goto out;
 
 	for_each_set_bit(chn, indio_dev->active_scan_mask,
-		indio_dev->masklength) {
-		memcpy(tmp_buf + i,
+			 indio_dev->masklength) {
+		memcpy(&tmp_buf[i++],
 			&st->rx_buf[1] + chn * DLH_NUM_DATA_BYTES,
 			DLH_NUM_DATA_BYTES);
-		i++;
 	}
 
 	iio_push_to_buffers(indio_dev, tmp_buf);

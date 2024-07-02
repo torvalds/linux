@@ -3,6 +3,7 @@
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
  * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/skbuff.h>
@@ -1762,12 +1763,32 @@ void ath10k_wmi_put_wmi_channel(struct ath10k *ar, struct wmi_channel *ch,
 
 int ath10k_wmi_wait_for_service_ready(struct ath10k *ar)
 {
-	unsigned long time_left;
+	unsigned long time_left, i;
 
 	time_left = wait_for_completion_timeout(&ar->wmi.service_ready,
 						WMI_SERVICE_READY_TIMEOUT_HZ);
-	if (!time_left)
-		return -ETIMEDOUT;
+	if (!time_left) {
+		/* Sometimes the PCI HIF doesn't receive interrupt
+		 * for the service ready message even if the buffer
+		 * was completed. PCIe sniffer shows that it's
+		 * because the corresponding CE ring doesn't fires
+		 * it. Workaround here by polling CE rings once.
+		 */
+		ath10k_warn(ar, "failed to receive service ready completion, polling..\n");
+
+		for (i = 0; i < CE_COUNT; i++)
+			ath10k_hif_send_complete_check(ar, i, 1);
+
+		time_left = wait_for_completion_timeout(&ar->wmi.service_ready,
+							WMI_SERVICE_READY_TIMEOUT_HZ);
+		if (!time_left) {
+			ath10k_warn(ar, "polling timed out\n");
+			return -ETIMEDOUT;
+		}
+
+		ath10k_warn(ar, "service ready completion received, continuing normally\n");
+	}
+
 	return 0;
 }
 
@@ -3883,8 +3904,8 @@ void ath10k_wmi_event_host_swba(struct ath10k *ar, struct sk_buff *skb)
 		 * actual channel switch is done
 		 */
 		if (arvif->vif->bss_conf.csa_active &&
-		    ieee80211_beacon_cntdwn_is_complete(arvif->vif)) {
-			ieee80211_csa_finish(arvif->vif);
+		    ieee80211_beacon_cntdwn_is_complete(arvif->vif, 0)) {
+			ieee80211_csa_finish(arvif->vif, 0);
 			continue;
 		}
 
@@ -6926,14 +6947,14 @@ void ath10k_wmi_put_start_scan_common(struct wmi_start_scan_common *cmn,
 }
 
 static void
-ath10k_wmi_put_start_scan_tlvs(struct wmi_start_scan_tlvs *tlvs,
+ath10k_wmi_put_start_scan_tlvs(u8 *tlvs,
 			       const struct wmi_start_scan_arg *arg)
 {
 	struct wmi_ie_data *ie;
 	struct wmi_chan_list *channels;
 	struct wmi_ssid_list *ssids;
 	struct wmi_bssid_list *bssids;
-	void *ptr = tlvs->tlvs;
+	void *ptr = tlvs;
 	int i;
 
 	if (arg->n_channels) {
@@ -7011,7 +7032,7 @@ ath10k_wmi_op_gen_start_scan(struct ath10k *ar,
 	cmd = (struct wmi_start_scan_cmd *)skb->data;
 
 	ath10k_wmi_put_start_scan_common(&cmd->common, arg);
-	ath10k_wmi_put_start_scan_tlvs(&cmd->tlvs, arg);
+	ath10k_wmi_put_start_scan_tlvs(cmd->tlvs, arg);
 
 	cmd->burst_duration_ms = __cpu_to_le32(0);
 
@@ -7040,7 +7061,7 @@ ath10k_wmi_10x_op_gen_start_scan(struct ath10k *ar,
 	cmd = (struct wmi_10x_start_scan_cmd *)skb->data;
 
 	ath10k_wmi_put_start_scan_common(&cmd->common, arg);
-	ath10k_wmi_put_start_scan_tlvs(&cmd->tlvs, arg);
+	ath10k_wmi_put_start_scan_tlvs(cmd->tlvs, arg);
 
 	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi 10x start scan\n");
 	return skb;
@@ -8732,9 +8753,9 @@ int ath10k_wmi_op_get_vdev_subtype(struct ath10k *ar,
 		return WMI_VDEV_SUBTYPE_LEGACY_PROXY_STA;
 	case WMI_VDEV_SUBTYPE_MESH_11S:
 	case WMI_VDEV_SUBTYPE_MESH_NON_11S:
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	}
-	return -ENOTSUPP;
+	return -EOPNOTSUPP;
 }
 
 static int ath10k_wmi_10_2_4_op_get_vdev_subtype(struct ath10k *ar,
@@ -8754,9 +8775,9 @@ static int ath10k_wmi_10_2_4_op_get_vdev_subtype(struct ath10k *ar,
 	case WMI_VDEV_SUBTYPE_MESH_11S:
 		return WMI_VDEV_SUBTYPE_10_2_4_MESH_11S;
 	case WMI_VDEV_SUBTYPE_MESH_NON_11S:
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	}
-	return -ENOTSUPP;
+	return -EOPNOTSUPP;
 }
 
 static int ath10k_wmi_10_4_op_get_vdev_subtype(struct ath10k *ar,
@@ -8778,7 +8799,7 @@ static int ath10k_wmi_10_4_op_get_vdev_subtype(struct ath10k *ar,
 	case WMI_VDEV_SUBTYPE_MESH_NON_11S:
 		return WMI_VDEV_SUBTYPE_10_4_MESH_NON_11S;
 	}
-	return -ENOTSUPP;
+	return -EOPNOTSUPP;
 }
 
 static struct sk_buff *
@@ -8916,8 +8937,6 @@ ath10k_wmi_10_4_gen_tdls_peer_update(struct ath10k *ar,
 	skb = ath10k_wmi_alloc_skb(ar, len);
 	if (!skb)
 		return ERR_PTR(-ENOMEM);
-
-	memset(skb->data, 0, sizeof(*cmd));
 
 	cmd = (struct wmi_10_4_tdls_peer_update_cmd *)skb->data;
 	cmd->vdev_id = __cpu_to_le32(arg->vdev_id);

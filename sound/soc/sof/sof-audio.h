@@ -3,7 +3,7 @@
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
- * Copyright(c) 2019 Intel Corporation. All rights reserved.
+ * Copyright(c) 2019 Intel Corporation
  *
  * Author: Ranjani Sridharan <ranjani.sridharan@linux.intel.com>
  */
@@ -91,6 +91,7 @@ struct snd_sof_pcm;
 struct snd_sof_dai_config_data {
 	int dai_index;
 	int dai_data; /* contains DAI-specific information */
+	int dai_node_id; /* contains DAI-specific information for Gateway configuration */
 };
 
 /**
@@ -103,7 +104,10 @@ struct snd_sof_dai_config_data {
  *	       additional memory in the SOF PCM stream structure
  * @pcm_free: Function pointer for PCM free that can be used for freeing any
  *	       additional memory in the SOF PCM stream structure
- * @delay: Function pointer for pcm delay calculation
+ * @pointer: Function pointer for pcm pointer
+ *	     Note: the @pointer callback may return -EOPNOTSUPP which should be
+ *		   handled in a same way as if the callback is not provided
+ * @delay: Function pointer for pcm delay reporting
  * @reset_hw_params_during_stop: Flag indicating whether the hw_params should be reset during the
  *				 STOP pcm trigger
  * @ipc_first_on_start: Send IPC before invoking platform trigger during
@@ -113,6 +117,7 @@ struct snd_sof_dai_config_data {
  *				  triggers. The FW keeps the host DMA running in this case and
  *				  therefore the host must do the same and should stop the DMA during
  *				  hw_free.
+ * @d0i3_supported_in_s0ix: Allow DSP D0I3 during S0iX
  */
 struct sof_ipc_pcm_ops {
 	int (*hw_params)(struct snd_soc_component *component, struct snd_pcm_substream *substream,
@@ -124,11 +129,15 @@ struct sof_ipc_pcm_ops {
 	int (*dai_link_fixup)(struct snd_soc_pcm_runtime *rtd, struct snd_pcm_hw_params *params);
 	int (*pcm_setup)(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm);
 	void (*pcm_free)(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm);
+	int (*pointer)(struct snd_soc_component *component,
+		       struct snd_pcm_substream *substream,
+		       snd_pcm_uframes_t *pointer);
 	snd_pcm_sframes_t (*delay)(struct snd_soc_component *component,
 				   struct snd_pcm_substream *substream);
 	bool reset_hw_params_during_stop;
 	bool ipc_first_on_start;
 	bool platform_stop_during_hw_free;
+	bool d0i3_supported_in_s0ix;
 };
 
 /**
@@ -275,6 +284,8 @@ enum sof_tokens {
 	SOF_GAIN_TOKENS,
 	SOF_ACPDMIC_TOKENS,
 	SOF_ACPI2S_TOKENS,
+	SOF_MICFIL_TOKENS,
+	SOF_ACP_SDW_TOKENS,
 
 	/* this should be the last */
 	SOF_TOKEN_COUNT,
@@ -320,6 +331,7 @@ struct snd_sof_pcm_stream {
 	struct work_struct period_elapsed_work;
 	struct snd_soc_dapm_widget_list *list; /* list of connected DAPM widgets */
 	bool d0i3_compatible; /* DSP can be in D0I3 when this pcm is opened */
+	unsigned int dsp_max_burst_size_in_ms; /* The maximum size of the host DMA burst in ms */
 	/*
 	 * flag to indicate that the DSP pipelines should be kept
 	 * active or not while suspending the stream
@@ -339,6 +351,7 @@ struct snd_sof_pcm {
 	struct list_head list;	/* list in sdev pcm list */
 	struct snd_pcm_hw_params params[2];
 	bool prepared[2]; /* PCM_PARAMS set successfully */
+	bool pending_stop[2]; /* only used if (!pcm_ops->platform_stop_during_hw_free) */
 };
 
 struct snd_sof_led_control {
@@ -480,6 +493,7 @@ struct snd_sof_widget {
  * @paused_count: Count of number of PCM's that have started and have currently paused this
 		  pipeline
  * @complete: flag used to indicate that pipeline set up is complete.
+ * @core_mask: Mask containing target cores for all modules in the pipeline
  * @list: List item in sdev pipeline_list
  */
 struct snd_sof_pipeline {
@@ -487,6 +501,7 @@ struct snd_sof_pipeline {
 	int started_count;
 	int paused_count;
 	int complete;
+	unsigned long core_mask;
 	struct list_head list;
 };
 
@@ -510,6 +525,7 @@ struct snd_sof_route {
 struct snd_sof_dai {
 	struct snd_soc_component *scomp;
 	const char *name;
+	u32 type;
 
 	int number_configs;
 	int current_config;

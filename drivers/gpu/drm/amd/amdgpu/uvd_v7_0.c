@@ -480,10 +480,6 @@ static int uvd_v7_0_sw_init(void *handle)
 	if (r)
 		return r;
 
-	r = amdgpu_uvd_entity_init(adev);
-	if (r)
-		return r;
-
 	r = amdgpu_virt_alloc_mm_table(adev);
 	if (r)
 		return r;

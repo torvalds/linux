@@ -144,13 +144,12 @@ static int hi655x_pmic_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int hi655x_pmic_remove(struct platform_device *pdev)
+static void hi655x_pmic_remove(struct platform_device *pdev)
 {
 	struct hi655x_pmic *pmic = platform_get_drvdata(pdev);
 
 	regmap_del_irq_chip(gpiod_to_irq(pmic->gpio), pmic->irq_data);
 	mfd_remove_devices(&pdev->dev);
-	return 0;
 }
 
 static const struct of_device_id hi655x_pmic_match[] = {
@@ -165,7 +164,7 @@ static struct platform_driver hi655x_pmic_driver = {
 		.of_match_table = hi655x_pmic_match,
 	},
 	.probe  = hi655x_pmic_probe,
-	.remove = hi655x_pmic_remove,
+	.remove_new = hi655x_pmic_remove,
 };
 module_platform_driver(hi655x_pmic_driver);
 

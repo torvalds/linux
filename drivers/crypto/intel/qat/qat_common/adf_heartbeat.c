@@ -23,12 +23,6 @@
 
 #define ADF_HB_EMPTY_SIG 0xA5A5A5A5
 
-/* Heartbeat counter pair */
-struct hb_cnt_pair {
-	__u16 resp_heartbeat_cnt;
-	__u16 req_heartbeat_cnt;
-};
-
 static int adf_hb_check_polling_freq(struct adf_accel_dev *accel_dev)
 {
 	u64 curr_time = adf_clock_get_current_time();
@@ -211,6 +205,19 @@ static int adf_hb_get_status(struct adf_accel_dev *accel_dev)
 	return ret;
 }
 
+static void adf_heartbeat_reset(struct adf_accel_dev *accel_dev)
+{
+	u64 curr_time = adf_clock_get_current_time();
+	u64 time_since_reset = curr_time - accel_dev->heartbeat->last_hb_reset_time;
+
+	if (time_since_reset < ADF_CFG_HB_RESET_MS)
+		return;
+
+	accel_dev->heartbeat->last_hb_reset_time = curr_time;
+	if (adf_notify_fatal_error(accel_dev))
+		dev_err(&GET_DEV(accel_dev), "Failed to notify fatal error\n");
+}
+
 void adf_heartbeat_status(struct adf_accel_dev *accel_dev,
 			  enum adf_device_heartbeat_status *hb_status)
 {
@@ -235,6 +242,7 @@ void adf_heartbeat_status(struct adf_accel_dev *accel_dev,
 			"Heartbeat ERROR: QAT is not responding.\n");
 		*hb_status = HB_DEV_UNRESPONSIVE;
 		hb->hb_failed_counter++;
+		adf_heartbeat_reset(accel_dev);
 		return;
 	}
 

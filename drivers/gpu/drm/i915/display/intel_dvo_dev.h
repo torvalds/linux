@@ -54,12 +54,6 @@ struct intel_dvo_dev_ops {
 		     struct i2c_adapter *i2cbus);
 
 	/*
-	 * Called to allow the output a chance to create properties after the
-	 * RandR objects have been created.
-	 */
-	void (*create_resources)(struct intel_dvo_device *dvo);
-
-	/*
 	 * Turn on/off output.
 	 *
 	 * Because none of our dvo drivers support an intermediate power levels,
@@ -78,16 +72,6 @@ struct intel_dvo_dev_ops {
 	 */
 	enum drm_mode_status (*mode_valid)(struct intel_dvo_device *dvo,
 					   struct drm_display_mode *mode);
-
-	/*
-	 * Callback for preparing mode changes on an output
-	 */
-	void (*prepare)(struct intel_dvo_device *dvo);
-
-	/*
-	 * Callback for committing mode changes on an output
-	 */
-	void (*commit)(struct intel_dvo_device *dvo);
 
 	/*
 	 * Callback for setting up a video mode after fixups have been made.
@@ -110,15 +94,6 @@ struct intel_dvo_dev_ops {
 	 * is active.
 	 */
 	bool (*get_hw_state)(struct intel_dvo_device *dev);
-
-	/**
-	 * Query the device for the modes it provides.
-	 *
-	 * This function may also update MonInfo, mm_width, and mm_height.
-	 *
-	 * \return singly-linked list of modes or NULL if no modes found.
-	 */
-	struct drm_display_mode *(*get_modes)(struct intel_dvo_device *dvo);
 
 	/**
 	 * Clean up driver-specific bits of the output

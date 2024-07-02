@@ -79,6 +79,7 @@
  * Meteor Lake-P (SOC)		0x7e22	32	hard	yes	yes	yes
  * Meteor Lake SoC-S (SOC)	0xae22	32	hard	yes	yes	yes
  * Meteor Lake PCH-S (PCH)	0x7f23	32	hard	yes	yes	yes
+ * Birch Stream (SOC)		0x5796	32	hard	yes	yes	yes
  *
  * Features supported by this driver:
  * Software PEC				no
@@ -204,6 +205,8 @@
 #define STATUS_FLAGS		(SMBHSTSTS_BYTE_DONE | SMBHSTSTS_INTR | \
 				 STATUS_ERROR_FLAGS)
 
+#define SMBUS_LEN_SENTINEL (I2C_SMBUS_BLOCK_MAX + 1)
+
 /* Older devices have their ID defined in <linux/pci_ids.h> */
 #define PCI_DEVICE_ID_INTEL_COMETLAKE_SMBUS		0x02a3
 #define PCI_DEVICE_ID_INTEL_COMETLAKE_H_SMBUS		0x06a3
@@ -231,6 +234,7 @@
 #define PCI_DEVICE_ID_INTEL_JASPER_LAKE_SMBUS		0x4da3
 #define PCI_DEVICE_ID_INTEL_ALDER_LAKE_P_SMBUS		0x51a3
 #define PCI_DEVICE_ID_INTEL_ALDER_LAKE_M_SMBUS		0x54a3
+#define PCI_DEVICE_ID_INTEL_BIRCH_STREAM_SMBUS		0x5796
 #define PCI_DEVICE_ID_INTEL_BROXTON_SMBUS		0x5ad4
 #define PCI_DEVICE_ID_INTEL_RAPTOR_LAKE_S_SMBUS		0x7a23
 #define PCI_DEVICE_ID_INTEL_ALDER_LAKE_S_SMBUS		0x7aa3
@@ -285,7 +289,6 @@ struct i801_priv {
 	u8 *data;
 
 #if IS_ENABLED(CONFIG_I2C_MUX_GPIO) && defined CONFIG_DMI
-	const struct i801_mux_config *mux_drvdata;
 	struct platform_device *mux_pdev;
 	struct gpiod_lookup_table *lookup;
 #endif
@@ -293,10 +296,9 @@ struct i801_priv {
 
 	/*
 	 * If set to true the host controller registers are reserved for
-	 * ACPI AML use. Protected by acpi_lock.
+	 * ACPI AML use.
 	 */
 	bool acpi_reserved;
-	struct mutex acpi_lock;
 };
 
 #define FEATURE_SMBUS_PEC	BIT(0)
@@ -328,11 +330,39 @@ MODULE_PARM_DESC(disable_features, "Disable selected driver features:\n"
 	"\t\t  0x10  don't use interrupts\n"
 	"\t\t  0x20  disable SMBus Host Notify ");
 
+static int i801_get_block_len(struct i801_priv *priv)
+{
+	u8 len = inb_p(SMBHSTDAT0(priv));
+
+	if (len < 1 || len > I2C_SMBUS_BLOCK_MAX) {
+		pci_err(priv->pci_dev, "Illegal SMBus block read size %u\n", len);
+		return -EPROTO;
+	}
+
+	return len;
+}
+
+static int i801_check_and_clear_pec_error(struct i801_priv *priv)
+{
+	u8 status;
+
+	if (!(priv->features & FEATURE_SMBUS_PEC))
+		return 0;
+
+	status = inb_p(SMBAUXSTS(priv)) & SMBAUXSTS_CRCE;
+	if (status) {
+		outb_p(status, SMBAUXSTS(priv));
+		return -EBADMSG;
+	}
+
+	return 0;
+}
+
 /* Make sure the SMBus host is ready to start transmitting.
    Return 0 if it is, -EBUSY if it is not. */
 static int i801_check_pre(struct i801_priv *priv)
 {
-	int status;
+	int status, result;
 
 	status = inb_p(SMBHSTSTS(priv));
 	if (status & SMBHSTSTS_HOST_BUSY) {
@@ -353,13 +383,9 @@ static int i801_check_pre(struct i801_priv *priv)
 	 * the hardware was already in this state when the driver
 	 * started.
 	 */
-	if (priv->features & FEATURE_SMBUS_PEC) {
-		status = inb_p(SMBAUXSTS(priv)) & SMBAUXSTS_CRCE;
-		if (status) {
-			pci_dbg(priv->pci_dev, "Clearing aux status flags (%02x)\n", status);
-			outb_p(status, SMBAUXSTS(priv));
-		}
-	}
+	result = i801_check_and_clear_pec_error(priv);
+	if (result)
+		pci_dbg(priv->pci_dev, "Clearing aux status flag CRCE\n");
 
 	return 0;
 }
@@ -408,14 +434,12 @@ static int i801_check_post(struct i801_priv *priv, int status)
 		 * bit is harmless as long as it's cleared before
 		 * the next operation.
 		 */
-		if ((priv->features & FEATURE_SMBUS_PEC) &&
-		    (inb_p(SMBAUXSTS(priv)) & SMBAUXSTS_CRCE)) {
-			outb_p(SMBAUXSTS_CRCE, SMBAUXSTS(priv));
-			result = -EBADMSG;
-			dev_dbg(&priv->pci_dev->dev, "PEC error\n");
+		result = i801_check_and_clear_pec_error(priv);
+		if (result) {
+			pci_dbg(priv->pci_dev, "PEC error\n");
 		} else {
 			result = -ENXIO;
-			dev_dbg(&priv->pci_dev->dev, "No response\n");
+			pci_dbg(priv->pci_dev, "No response\n");
 		}
 	}
 	if (status & SMBHSTSTS_BUS_ERR) {
@@ -498,11 +522,10 @@ static int i801_block_transaction_by_block(struct i801_priv *priv,
 	/* Set block buffer mode */
 	outb_p(inb_p(SMBAUXCTL(priv)) | SMBAUXCTL_E32B, SMBAUXCTL(priv));
 
-	inb_p(SMBHSTCNT(priv)); /* reset the data buffer index */
-
 	if (read_write == I2C_SMBUS_WRITE) {
 		len = data->block[0];
 		outb_p(len, SMBHSTDAT0(priv));
+		inb_p(SMBHSTCNT(priv));	/* reset the data buffer index */
 		for (i = 0; i < len; i++)
 			outb_p(data->block[i+1], SMBBLKDAT(priv));
 	}
@@ -513,13 +536,14 @@ static int i801_block_transaction_by_block(struct i801_priv *priv,
 
 	if (read_write == I2C_SMBUS_READ ||
 	    command == I2C_SMBUS_BLOCK_PROC_CALL) {
-		len = inb_p(SMBHSTDAT0(priv));
-		if (len < 1 || len > I2C_SMBUS_BLOCK_MAX) {
-			status = -EPROTO;
+		len = i801_get_block_len(priv);
+		if (len < 0) {
+			status = len;
 			goto out;
 		}
 
 		data->block[0] = len;
+		inb_p(SMBHSTCNT(priv));	/* reset the data buffer index */
 		for (i = 0; i < len; i++)
 			data->block[i + 1] = inb_p(SMBBLKDAT(priv));
 	}
@@ -531,17 +555,17 @@ out:
 static void i801_isr_byte_done(struct i801_priv *priv)
 {
 	if (priv->is_read) {
-		/* For SMBus block reads, length is received with first byte */
-		if (((priv->cmd & 0x1c) == I801_BLOCK_DATA) &&
-		    (priv->count == 0)) {
-			priv->len = inb_p(SMBHSTDAT0(priv));
-			if (priv->len < 1 || priv->len > I2C_SMBUS_BLOCK_MAX) {
-				dev_err(&priv->pci_dev->dev,
-					"Illegal SMBus block read size %d\n",
-					priv->len);
+		/*
+		 * At transfer start i801_smbus_block_transaction() marks
+		 * the block length as invalid. Check for this sentinel value
+		 * and read the block length from SMBHSTDAT0.
+		 */
+		if (priv->len == SMBUS_LEN_SENTINEL) {
+			priv->len = i801_get_block_len(priv);
+			if (priv->len < 0)
 				/* FIXME: Recover */
 				priv->len = I2C_SMBUS_BLOCK_MAX;
-			}
+
 			priv->data[-1] = priv->len;
 		}
 
@@ -679,26 +703,23 @@ static int i801_block_transaction_byte_by_byte(struct i801_priv *priv,
 		return result ? priv->status : -ETIMEDOUT;
 	}
 
+	if (len == 1 && read_write == I2C_SMBUS_READ)
+		smbcmd |= SMBHSTCNT_LAST_BYTE;
+	outb_p(smbcmd | SMBHSTCNT_START, SMBHSTCNT(priv));
+
 	for (i = 1; i <= len; i++) {
-		if (i == len && read_write == I2C_SMBUS_READ)
-			smbcmd |= SMBHSTCNT_LAST_BYTE;
-		outb_p(smbcmd, SMBHSTCNT(priv));
-
-		if (i == 1)
-			outb_p(inb(SMBHSTCNT(priv)) | SMBHSTCNT_START,
-			       SMBHSTCNT(priv));
-
 		status = i801_wait_byte_done(priv);
 		if (status)
 			return status;
 
-		if (i == 1 && read_write == I2C_SMBUS_READ
-		 && command != I2C_SMBUS_I2C_BLOCK_DATA) {
-			len = inb_p(SMBHSTDAT0(priv));
-			if (len < 1 || len > I2C_SMBUS_BLOCK_MAX) {
-				dev_err(&priv->pci_dev->dev,
-					"Illegal SMBus block read size %d\n",
-					len);
+		/*
+		 * At transfer start i801_smbus_block_transaction() marks
+		 * the block length as invalid. Check for this sentinel value
+		 * and read the block length from SMBHSTDAT0.
+		 */
+		if (len == SMBUS_LEN_SENTINEL) {
+			len = i801_get_block_len(priv);
+			if (len < 0) {
 				/* Recover */
 				while (inb_p(SMBHSTSTS(priv)) &
 				       SMBHSTSTS_HOST_BUSY)
@@ -710,9 +731,12 @@ static int i801_block_transaction_byte_by_byte(struct i801_priv *priv,
 			data->block[0] = len;
 		}
 
-		/* Retrieve/store value in SMBBLKDAT */
-		if (read_write == I2C_SMBUS_READ)
+		if (read_write == I2C_SMBUS_READ) {
 			data->block[i] = inb_p(SMBBLKDAT(priv));
+			if (i == len - 1)
+				outb_p(smbcmd | SMBHSTCNT_LAST_BYTE, SMBHSTCNT(priv));
+		}
+
 		if (read_write == I2C_SMBUS_WRITE && i+1 <= len)
 			outb_p(data->block[i+1], SMBBLKDAT(priv));
 
@@ -793,77 +817,66 @@ static int i801_simple_transaction(struct i801_priv *priv, union i2c_smbus_data 
 	return 0;
 }
 
-/* Block transaction function */
-static int i801_block_transaction(struct i801_priv *priv, union i2c_smbus_data *data,
-				  u8 addr, u8 hstcmd, char read_write, int command)
+static int i801_smbus_block_transaction(struct i801_priv *priv, union i2c_smbus_data *data,
+					u8 addr, u8 hstcmd, char read_write, int command)
 {
-	int result = 0;
-	unsigned char hostc;
-
 	if (read_write == I2C_SMBUS_READ && command == I2C_SMBUS_BLOCK_DATA)
-		data->block[0] = I2C_SMBUS_BLOCK_MAX;
+		/* Mark block length as invalid */
+		data->block[0] = SMBUS_LEN_SENTINEL;
 	else if (data->block[0] < 1 || data->block[0] > I2C_SMBUS_BLOCK_MAX)
 		return -EPROTO;
 
-	switch (command) {
-	case I2C_SMBUS_BLOCK_DATA:
-		i801_set_hstadd(priv, addr, read_write);
-		outb_p(hstcmd, SMBHSTCMD(priv));
-		break;
-	case I2C_SMBUS_I2C_BLOCK_DATA:
-		/*
-		 * NB: page 240 of ICH5 datasheet shows that the R/#W
-		 * bit should be cleared here, even when reading.
-		 * However if SPD Write Disable is set (Lynx Point and later),
-		 * the read will fail if we don't set the R/#W bit.
-		 */
-		i801_set_hstadd(priv, addr,
-				priv->original_hstcfg & SMBHSTCFG_SPD_WD ?
-				read_write : I2C_SMBUS_WRITE);
-		if (read_write == I2C_SMBUS_READ) {
-			/* NB: page 240 of ICH5 datasheet also shows
-			 * that DATA1 is the cmd field when reading
-			 */
-			outb_p(hstcmd, SMBHSTDAT1(priv));
-		} else
-			outb_p(hstcmd, SMBHSTCMD(priv));
-
-		if (read_write == I2C_SMBUS_WRITE) {
-			/* set I2C_EN bit in configuration register */
-			pci_read_config_byte(priv->pci_dev, SMBHSTCFG, &hostc);
-			pci_write_config_byte(priv->pci_dev, SMBHSTCFG,
-					      hostc | SMBHSTCFG_I2C_EN);
-		} else if (!(priv->features & FEATURE_I2C_BLOCK_READ)) {
-			dev_err(&priv->pci_dev->dev,
-				"I2C block read is unsupported!\n");
-			return -EOPNOTSUPP;
-		}
-		break;
-	case I2C_SMBUS_BLOCK_PROC_CALL:
+	if (command == I2C_SMBUS_BLOCK_PROC_CALL)
 		/* Needs to be flagged as write transaction */
 		i801_set_hstadd(priv, addr, I2C_SMBUS_WRITE);
-		outb_p(hstcmd, SMBHSTCMD(priv));
-		break;
-	}
-
-	/* Experience has shown that the block buffer can only be used for
-	   SMBus (not I2C) block transactions, even though the datasheet
-	   doesn't mention this limitation. */
-	if ((priv->features & FEATURE_BLOCK_BUFFER) &&
-	    command != I2C_SMBUS_I2C_BLOCK_DATA)
-		result = i801_block_transaction_by_block(priv, data,
-							 read_write,
-							 command);
 	else
-		result = i801_block_transaction_byte_by_byte(priv, data,
-							     read_write,
-							     command);
+		i801_set_hstadd(priv, addr, read_write);
+	outb_p(hstcmd, SMBHSTCMD(priv));
 
-	if (command == I2C_SMBUS_I2C_BLOCK_DATA
-	 && read_write == I2C_SMBUS_WRITE) {
-		/* restore saved configuration register value */
-		pci_write_config_byte(priv->pci_dev, SMBHSTCFG, hostc);
+	if (priv->features & FEATURE_BLOCK_BUFFER)
+		return i801_block_transaction_by_block(priv, data, read_write, command);
+	else
+		return i801_block_transaction_byte_by_byte(priv, data, read_write, command);
+}
+
+static int i801_i2c_block_transaction(struct i801_priv *priv, union i2c_smbus_data *data,
+				      u8 addr, u8 hstcmd, char read_write, int command)
+{
+	int result;
+	u8 hostc;
+
+	if (data->block[0] < 1 || data->block[0] > I2C_SMBUS_BLOCK_MAX)
+		return -EPROTO;
+	/*
+	 * NB: page 240 of ICH5 datasheet shows that the R/#W bit should be cleared here,
+	 * even when reading. However if SPD Write Disable is set (Lynx Point and later),
+	 * the read will fail if we don't set the R/#W bit.
+	 */
+	i801_set_hstadd(priv, addr,
+			priv->original_hstcfg & SMBHSTCFG_SPD_WD ? read_write : I2C_SMBUS_WRITE);
+
+	/* NB: page 240 of ICH5 datasheet shows that DATA1 is the cmd field when reading */
+	if (read_write == I2C_SMBUS_READ)
+		outb_p(hstcmd, SMBHSTDAT1(priv));
+	else
+		outb_p(hstcmd, SMBHSTCMD(priv));
+
+	if (read_write == I2C_SMBUS_WRITE) {
+		/* set I2C_EN bit in configuration register */
+		pci_read_config_byte(priv->pci_dev, SMBHSTCFG, &hostc);
+		pci_write_config_byte(priv->pci_dev, SMBHSTCFG, hostc | SMBHSTCFG_I2C_EN);
+	} else if (!(priv->features & FEATURE_I2C_BLOCK_READ)) {
+		pci_err(priv->pci_dev, "I2C block read is unsupported!\n");
+		return -EOPNOTSUPP;
 	}
+
+	/* Block buffer isn't supported for I2C block transactions */
+	result = i801_block_transaction_byte_by_byte(priv, data, read_write, command);
+
+	/* restore saved configuration register value */
+	if (read_write == I2C_SMBUS_WRITE)
+		pci_write_config_byte(priv->pci_dev, SMBHSTCFG, hostc);
+
 	return result;
 }
 
@@ -875,11 +888,8 @@ static s32 i801_access(struct i2c_adapter *adap, u16 addr,
 	int hwpec, ret;
 	struct i801_priv *priv = i2c_get_adapdata(adap);
 
-	mutex_lock(&priv->acpi_lock);
-	if (priv->acpi_reserved) {
-		mutex_unlock(&priv->acpi_lock);
+	if (priv->acpi_reserved)
 		return -EBUSY;
-	}
 
 	pm_runtime_get_sync(&priv->pci_dev->dev);
 
@@ -897,10 +907,10 @@ static s32 i801_access(struct i2c_adapter *adap, u16 addr,
 		outb_p(inb_p(SMBAUXCTL(priv)) & (~SMBAUXCTL_CRC),
 		       SMBAUXCTL(priv));
 
-	if (size == I2C_SMBUS_BLOCK_DATA ||
-	    size == I2C_SMBUS_I2C_BLOCK_DATA ||
-	    size == I2C_SMBUS_BLOCK_PROC_CALL)
-		ret = i801_block_transaction(priv, data, addr, command, read_write, size);
+	if (size == I2C_SMBUS_BLOCK_DATA || size == I2C_SMBUS_BLOCK_PROC_CALL)
+		ret = i801_smbus_block_transaction(priv, data, addr, command, read_write, size);
+	else if (size == I2C_SMBUS_I2C_BLOCK_DATA)
+		ret = i801_i2c_block_transaction(priv, data, addr, command, read_write, size);
 	else
 		ret = i801_simple_transaction(priv, data, addr, command, read_write, size);
 
@@ -920,7 +930,6 @@ out:
 
 	pm_runtime_mark_last_busy(&priv->pci_dev->dev);
 	pm_runtime_put_autosuspend(&priv->pci_dev->dev);
-	mutex_unlock(&priv->acpi_lock);
 	return ret;
 }
 
@@ -974,11 +983,10 @@ static const struct i2c_algorithm smbus_algorithm = {
 	.functionality	= i801_func,
 };
 
-#define FEATURES_ICH5	(FEATURE_BLOCK_PROC | FEATURE_I2C_BLOCK_READ	| \
-			 FEATURE_IRQ | FEATURE_SMBUS_PEC		| \
-			 FEATURE_BLOCK_BUFFER | FEATURE_HOST_NOTIFY)
 #define FEATURES_ICH4	(FEATURE_SMBUS_PEC | FEATURE_BLOCK_BUFFER | \
 			 FEATURE_HOST_NOTIFY)
+#define FEATURES_ICH5	(FEATURES_ICH4 | FEATURE_BLOCK_PROC | \
+			 FEATURE_I2C_BLOCK_READ | FEATURE_IRQ)
 
 static const struct pci_device_id i801_ids[] = {
 	{ PCI_DEVICE_DATA(INTEL, 82801AA_3,			0)				 },
@@ -1044,6 +1052,7 @@ static const struct pci_device_id i801_ids[] = {
 	{ PCI_DEVICE_DATA(INTEL, METEOR_LAKE_P_SMBUS,		FEATURES_ICH5 | FEATURE_TCO_CNL) },
 	{ PCI_DEVICE_DATA(INTEL, METEOR_LAKE_SOC_S_SMBUS,	FEATURES_ICH5 | FEATURE_TCO_CNL) },
 	{ PCI_DEVICE_DATA(INTEL, METEOR_LAKE_PCH_S_SMBUS,	FEATURES_ICH5 | FEATURE_TCO_CNL) },
+	{ PCI_DEVICE_DATA(INTEL, BIRCH_STREAM_SMBUS,		FEATURES_ICH5 | FEATURE_TCO_CNL) },
 	{ 0, }
 };
 
@@ -1121,7 +1130,7 @@ static void dmi_check_onboard_devices(const struct dmi_header *dm, void *adap)
 {
 	int i, count;
 
-	if (dm->type != 10)
+	if (dm->type != DMI_ENTRY_ONBOARD_DEVICE)
 		return;
 
 	count = (dm->length - sizeof(struct dmi_header)) / 2;
@@ -1234,8 +1243,10 @@ static const struct {
 	 * Additional individual entries were added after verification.
 	 */
 	{ "Latitude 5480",      0x29 },
+	{ "Precision 3540",     0x29 },
 	{ "Vostro V131",        0x1d },
 	{ "Vostro 5568",        0x29 },
+	{ "XPS 15 7590",        0x29 },
 };
 
 static void register_dell_lis3lv02d_i2c_device(struct i801_priv *priv)
@@ -1288,7 +1299,7 @@ static void i801_probe_optional_slaves(struct i801_priv *priv)
 
 	/* Instantiate SPD EEPROMs unless the SMBus is multiplexed */
 #if IS_ENABLED(CONFIG_I2C_MUX_GPIO)
-	if (!priv->mux_drvdata)
+	if (!priv->mux_pdev)
 #endif
 		i2c_register_spd(&priv->adapter);
 }
@@ -1390,11 +1401,14 @@ static void i801_add_mux(struct i801_priv *priv)
 	const struct i801_mux_config *mux_config;
 	struct i2c_mux_gpio_platform_data gpio_data;
 	struct gpiod_lookup_table *lookup;
+	const struct dmi_system_id *id;
 	int i;
 
-	if (!priv->mux_drvdata)
+	id = dmi_first_match(mux_dmi_table);
+	if (!id)
 		return;
-	mux_config = priv->mux_drvdata;
+
+	mux_config = id->driver_data;
 
 	/* Prepare the platform data */
 	memset(&gpio_data, 0, sizeof(struct i2c_mux_gpio_platform_data));
@@ -1415,7 +1429,6 @@ static void i801_add_mux(struct i801_priv *priv)
 		lookup->table[i] = GPIO_LOOKUP(mux_config->gpio_chip,
 					       mux_config->gpios[i], "mux", 0);
 	gpiod_add_lookup_table(lookup);
-	priv->lookup = lookup;
 
 	/*
 	 * Register the mux device, we use PLATFORM_DEVID_NONE here
@@ -1429,7 +1442,10 @@ static void i801_add_mux(struct i801_priv *priv)
 				sizeof(struct i2c_mux_gpio_platform_data));
 	if (IS_ERR(priv->mux_pdev)) {
 		gpiod_remove_lookup_table(lookup);
+		devm_kfree(dev, lookup);
 		dev_err(dev, "Failed to register i2c-mux-gpio device\n");
+	} else {
+		priv->lookup = lookup;
 	}
 }
 
@@ -1438,40 +1454,13 @@ static void i801_del_mux(struct i801_priv *priv)
 	platform_device_unregister(priv->mux_pdev);
 	gpiod_remove_lookup_table(priv->lookup);
 }
-
-static unsigned int i801_get_adapter_class(struct i801_priv *priv)
-{
-	const struct dmi_system_id *id;
-	const struct i801_mux_config *mux_config;
-	unsigned int class = I2C_CLASS_HWMON | I2C_CLASS_SPD;
-	int i;
-
-	id = dmi_first_match(mux_dmi_table);
-	if (id) {
-		/* Remove branch classes from trunk */
-		mux_config = id->driver_data;
-		for (i = 0; i < mux_config->n_values; i++)
-			class &= ~mux_config->classes[i];
-
-		/* Remember for later */
-		priv->mux_drvdata = mux_config;
-	}
-
-	return class;
-}
 #else
 static inline void i801_add_mux(struct i801_priv *priv) { }
 static inline void i801_del_mux(struct i801_priv *priv) { }
-
-static inline unsigned int i801_get_adapter_class(struct i801_priv *priv)
-{
-	return I2C_CLASS_HWMON | I2C_CLASS_SPD;
-}
 #endif
 
 static struct platform_device *
-i801_add_tco_spt(struct i801_priv *priv, struct pci_dev *pci_dev,
-		 struct resource *tco_res)
+i801_add_tco_spt(struct pci_dev *pci_dev, struct resource *tco_res)
 {
 	static const struct itco_wdt_platform_data pldata = {
 		.name = "Intel PCH",
@@ -1502,8 +1491,7 @@ i801_add_tco_spt(struct i801_priv *priv, struct pci_dev *pci_dev,
 }
 
 static struct platform_device *
-i801_add_tco_cnl(struct i801_priv *priv, struct pci_dev *pci_dev,
-		 struct resource *tco_res)
+i801_add_tco_cnl(struct pci_dev *pci_dev, struct resource *tco_res)
 {
 	static const struct itco_wdt_platform_data pldata = {
 		.name = "Intel PCH",
@@ -1543,9 +1531,9 @@ static void i801_add_tco(struct i801_priv *priv)
 	res->flags = IORESOURCE_IO;
 
 	if (priv->features & FEATURE_TCO_CNL)
-		priv->tco_pdev = i801_add_tco_cnl(priv, pci_dev, tco_res);
+		priv->tco_pdev = i801_add_tco_cnl(pci_dev, tco_res);
 	else
-		priv->tco_pdev = i801_add_tco_spt(priv, pci_dev, tco_res);
+		priv->tco_pdev = i801_add_tco_spt(pci_dev, tco_res);
 
 	if (IS_ERR(priv->tco_pdev))
 		dev_warn(&pci_dev->dev, "failed to create iTCO device\n");
@@ -1572,7 +1560,7 @@ i801_acpi_io_handler(u32 function, acpi_physical_address address, u32 bits,
 	 * further access from the driver itself. This device is now owned
 	 * by the system firmware.
 	 */
-	mutex_lock(&priv->acpi_lock);
+	i2c_lock_bus(&priv->adapter, I2C_LOCK_SEGMENT);
 
 	if (!priv->acpi_reserved && i801_acpi_is_smbus_ioport(priv, address)) {
 		priv->acpi_reserved = true;
@@ -1592,7 +1580,7 @@ i801_acpi_io_handler(u32 function, acpi_physical_address address, u32 bits,
 	else
 		status = acpi_os_write_port(address, (u32)*value, bits);
 
-	mutex_unlock(&priv->acpi_lock);
+	i2c_unlock_bus(&priv->adapter, I2C_LOCK_SEGMENT);
 
 	return status;
 }
@@ -1630,6 +1618,12 @@ static void i801_setup_hstcfg(struct i801_priv *priv)
 	pci_write_config_byte(priv->pci_dev, SMBHSTCFG, hstcfg);
 }
 
+static void i801_restore_regs(struct i801_priv *priv)
+{
+	outb_p(priv->original_hstcnt, SMBHSTCNT(priv));
+	pci_write_config_byte(priv->pci_dev, SMBHSTCFG, priv->original_hstcfg);
+}
+
 static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	int err, i;
@@ -1641,12 +1635,11 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	i2c_set_adapdata(&priv->adapter, priv);
 	priv->adapter.owner = THIS_MODULE;
-	priv->adapter.class = i801_get_adapter_class(priv);
+	priv->adapter.class = I2C_CLASS_HWMON;
 	priv->adapter.algo = &smbus_algorithm;
 	priv->adapter.dev.parent = &dev->dev;
-	ACPI_COMPANION_SET(&priv->adapter.dev, ACPI_COMPANION(&dev->dev));
+	acpi_use_parent_companion(&priv->adapter.dev);
 	priv->adapter.retries = 3;
-	mutex_init(&priv->acpi_lock);
 
 	priv->pci_dev = dev;
 	priv->features = id->driver_data;
@@ -1756,14 +1749,15 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	if (err) {
 		platform_device_unregister(priv->tco_pdev);
 		i801_acpi_remove(priv);
+		i801_restore_regs(priv);
 		return err;
 	}
 
 	i801_enable_host_notify(&priv->adapter);
 
-	i801_probe_optional_slaves(priv);
 	/* We ignore errors - multiplexing is optional */
 	i801_add_mux(priv);
+	i801_probe_optional_slaves(priv);
 
 	pci_set_drvdata(dev, priv);
 
@@ -1780,18 +1774,18 @@ static void i801_remove(struct pci_dev *dev)
 {
 	struct i801_priv *priv = pci_get_drvdata(dev);
 
-	outb_p(priv->original_hstcnt, SMBHSTCNT(priv));
 	i801_disable_host_notify(priv);
 	i801_del_mux(priv);
 	i2c_del_adapter(&priv->adapter);
 	i801_acpi_remove(priv);
-	pci_write_config_byte(dev, SMBHSTCFG, priv->original_hstcfg);
 
 	platform_device_unregister(priv->tco_pdev);
 
 	/* if acpi_reserved is set then usage_count is incremented already */
 	if (!priv->acpi_reserved)
 		pm_runtime_get_noresume(&dev->dev);
+
+	i801_restore_regs(priv);
 
 	/*
 	 * do not call pci_disable_device(dev) since it can cause hard hangs on
@@ -1803,18 +1797,18 @@ static void i801_shutdown(struct pci_dev *dev)
 {
 	struct i801_priv *priv = pci_get_drvdata(dev);
 
-	/* Restore config registers to avoid hard hang on some systems */
-	outb_p(priv->original_hstcnt, SMBHSTCNT(priv));
 	i801_disable_host_notify(priv);
-	pci_write_config_byte(dev, SMBHSTCFG, priv->original_hstcfg);
+	/* Restore config registers to avoid hard hang on some systems */
+	i801_restore_regs(priv);
 }
 
 static int i801_suspend(struct device *dev)
 {
 	struct i801_priv *priv = dev_get_drvdata(dev);
 
-	outb_p(priv->original_hstcnt, SMBHSTCNT(priv));
-	pci_write_config_byte(priv->pci_dev, SMBHSTCFG, priv->original_hstcfg);
+	i2c_mark_adapter_suspended(&priv->adapter);
+	i801_restore_regs(priv);
+
 	return 0;
 }
 
@@ -1824,6 +1818,7 @@ static int i801_resume(struct device *dev)
 
 	i801_setup_hstcfg(priv);
 	i801_enable_host_notify(&priv->adapter);
+	i2c_mark_adapter_resumed(&priv->adapter);
 
 	return 0;
 }
@@ -1842,16 +1837,11 @@ static struct pci_driver i801_driver = {
 	},
 };
 
-static int __init i2c_i801_init(void)
+static int __init i2c_i801_init(struct pci_driver *drv)
 {
 	if (dmi_name_in_vendors("FUJITSU"))
 		input_apanel_init();
-	return pci_register_driver(&i801_driver);
-}
-
-static void __exit i2c_i801_exit(void)
-{
-	pci_unregister_driver(&i801_driver);
+	return pci_register_driver(drv);
 }
 
 MODULE_AUTHOR("Mark D. Studebaker <mdsxyz123@yahoo.com>");
@@ -1859,5 +1849,4 @@ MODULE_AUTHOR("Jean Delvare <jdelvare@suse.de>");
 MODULE_DESCRIPTION("I801 SMBus driver");
 MODULE_LICENSE("GPL");
 
-module_init(i2c_i801_init);
-module_exit(i2c_i801_exit);
+module_driver(i801_driver, i2c_i801_init, pci_unregister_driver);

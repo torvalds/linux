@@ -16,6 +16,44 @@
 /dts-v1/;
 /plugin/;
 
+&{/} {
+	si5332_0: si5332-0 { /* u17 */
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <125000000>;
+	};
+
+	si5332_1: si5332-1 { /* u17 */
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <25000000>;
+	};
+
+	si5332_2: si5332-2 { /* u17 */
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <48000000>;
+	};
+
+	si5332_3: si5332-3 { /* u17 */
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <24000000>;
+	};
+
+	si5332_4: si5332-4 { /* u17 */
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <26000000>;
+	};
+
+	si5332_5: si5332-5 { /* u17 */
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <27000000>;
+	};
+};
+
 &i2c1 { /* I2C_SCK C23/C24 - MIO from SOM */
 	#address-cells = <1>;
 	#size-cells = <0>;
@@ -28,44 +66,6 @@
 	/* u14 - 0x40 - ina260 */
 	/* u43 - 0x2d - usb5744 */
 	/* u27 - 0xe0 - STDP4320 DP/HDMI splitter */
-};
-
-&amba {
-	si5332_0: si5332_0 { /* u17 */
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <125000000>;
-	};
-
-	si5332_1: si5332_1 { /* u17 */
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <25000000>;
-	};
-
-	si5332_2: si5332_2 { /* u17 */
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <48000000>;
-	};
-
-	si5332_3: si5332_3 { /* u17 */
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <24000000>;
-	};
-
-	si5332_4: si5332_4 { /* u17 */
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <26000000>;
-	};
-
-	si5332_5: si5332_5 { /* u17 */
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <27000000>;
-	};
 };
 
 /* DP/USB 3.0 */
@@ -94,6 +94,7 @@
 	pinctrl-0 = <&pinctrl_usb0_default>;
 	phy-names = "usb3-phy";
 	phys = <&psgtr 2 PHY_TYPE_USB3 0 1>;
+	assigned-clock-rates = <250000000>, <20000000>;
 };
 
 &dwc3_0 {
@@ -122,7 +123,7 @@
 	bus-width = <4>;
 };
 
-&gem3 { /* required by spec */
+&gem3 {
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_gem3_default>;
@@ -149,8 +150,27 @@
 	};
 };
 
-&pinctrl0 { /* required by spec */
+&pinctrl0 {
 	status = "okay";
+
+	pinctrl_gpio0_default: gpio0-default {
+		conf {
+			groups = "gpio0_38_grp";
+			bias-pull-up;
+			power-source = <IO_STANDARD_LVCMOS18>;
+		};
+
+		mux {
+			groups = "gpio0_38_grp";
+			function = "gpio0";
+		};
+
+		conf-tx {
+			pins = "MIO38";
+			bias-disable;
+			output-enable;
+		};
+	};
 
 	pinctrl_uart1_default: uart1-default {
 		conf {
@@ -168,6 +188,7 @@
 		conf-tx {
 			pins = "MIO36";
 			bias-disable;
+			output-enable;
 		};
 
 		mux {
@@ -190,7 +211,7 @@
 		};
 	};
 
-	pinctrl_i2c1_gpio: i2c1-gpio {
+	pinctrl_i2c1_gpio: i2c1-gpio-grp {
 		conf {
 			groups = "gpio0_24_grp", "gpio0_25_grp";
 			slew-rate = <SLEW_RATE_SLOW>;
@@ -219,6 +240,7 @@
 		conf-bootstrap {
 			pins = "MIO71", "MIO73", "MIO75";
 			bias-disable;
+			output-enable;
 			low-power-disable;
 		};
 
@@ -226,6 +248,7 @@
 			pins = "MIO64", "MIO65", "MIO66",
 				"MIO67", "MIO68", "MIO69";
 			bias-disable;
+			output-enable;
 			low-power-enable;
 		};
 
@@ -234,6 +257,7 @@
 			slew-rate = <SLEW_RATE_SLOW>;
 			power-source = <IO_STANDARD_LVCMOS18>;
 			bias-disable;
+			output-enable;
 		};
 
 		mux-mdio {
@@ -264,6 +288,7 @@
 			pins = "MIO54", "MIO56", "MIO57", "MIO58", "MIO59",
 			"MIO60", "MIO61", "MIO62", "MIO63";
 			bias-disable;
+			output-enable;
 			drive-strength = <4>;
 			slew-rate = <SLEW_RATE_SLOW>;
 		};
@@ -300,6 +325,12 @@
 			function = "sdio1";
 		};
 	};
+};
+
+&gpio {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_gpio0_default>;
 };
 
 &uart1 {

@@ -45,7 +45,7 @@
 #define mmUVD_DPG_LMA_DATA_BASE_IDX					regUVD_DPG_LMA_DATA_BASE_IDX
 
 #define VCN_VID_SOC_ADDRESS_2_0						0x1fb00
-#define VCN1_VID_SOC_ADDRESS_3_0					0x48300
+#define VCN1_VID_SOC_ADDRESS_3_0					(0x48300 + 0x38000)
 
 #define VCN_HARVEST_MMSCH							0
 
@@ -237,6 +237,7 @@ static int vcn_v4_0_5_hw_init(void *handle)
 			goto done;
 	}
 
+	return 0;
 done:
 	if (!r)
 		DRM_INFO("VCN decode and encode initialized successfully(under %s).\n",
@@ -269,8 +270,6 @@ static int vcn_v4_0_5_hw_fini(void *handle)
 				vcn_v4_0_5_set_powergating_state(adev, AMD_PG_STATE_GATE);
 			}
 		}
-
-		amdgpu_irq_put(adev, &adev->vcn.inst[i].irq, 0);
 	}
 
 	return 0;
@@ -331,7 +330,7 @@ static void vcn_v4_0_5_mc_resume(struct amdgpu_device *adev, int inst)
 	uint32_t offset, size;
 	const struct common_firmware_header *hdr;
 
-	hdr = (const struct common_firmware_header *)adev->vcn.fw->data;
+	hdr = (const struct common_firmware_header *)adev->vcn.fw[inst]->data;
 	size = AMDGPU_GPU_PAGE_ALIGN(le32_to_cpu(hdr->ucode_size_bytes) + 8);
 
 	/* cache window 0: fw */
@@ -392,7 +391,7 @@ static void vcn_v4_0_5_mc_resume_dpg_mode(struct amdgpu_device *adev, int inst_i
 	uint32_t offset, size;
 	const struct common_firmware_header *hdr;
 
-	hdr = (const struct common_firmware_header *)adev->vcn.fw->data;
+	hdr = (const struct common_firmware_header *)adev->vcn.fw[inst_idx]->data;
 	size = AMDGPU_GPU_PAGE_ALIGN(le32_to_cpu(hdr->ucode_size_bytes) + 8);
 
 	/* cache window 0: fw */
@@ -488,7 +487,8 @@ static void vcn_v4_0_5_mc_resume_dpg_mode(struct amdgpu_device *adev, int inst_i
 
 	/* VCN global tiling registers */
 	WREG32_SOC15_DPG_MODE(inst_idx, SOC15_DPG_MODE_OFFSET(
-		VCN, 0, regUVD_GFX10_ADDR_CONFIG), adev->gfx.config.gb_addr_config, 0, indirect);
+		VCN, inst_idx, regUVD_GFX10_ADDR_CONFIG),
+		adev->gfx.config.gb_addr_config, 0, indirect);
 }
 
 /**
@@ -912,7 +912,6 @@ static int vcn_v4_0_5_start_dpg_mode(struct amdgpu_device *adev, int inst_idx, b
 	WREG32_SOC15_DPG_MODE(inst_idx, SOC15_DPG_MODE_OFFSET(
 		VCN, inst_idx, regUVD_MASTINT_EN),
 		UVD_MASTINT_EN__VCPU_EN_MASK, 0, indirect);
-
 
 	if (indirect)
 		amdgpu_vcn_psp_update_sram(adev, inst_idx, 0);
@@ -1669,22 +1668,6 @@ static int vcn_v4_0_5_set_powergating_state(void *handle, enum amd_powergating_s
 }
 
 /**
- * vcn_v4_0_5_set_interrupt_state - set VCN block interrupt state
- *
- * @adev: amdgpu_device pointer
- * @source: interrupt sources
- * @type: interrupt types
- * @state: interrupt states
- *
- * Set VCN block interrupt state
- */
-static int vcn_v4_0_5_set_interrupt_state(struct amdgpu_device *adev, struct amdgpu_irq_src *source,
-		unsigned type, enum amdgpu_interrupt_state state)
-{
-	return 0;
-}
-
-/**
  * vcn_v4_0_5_process_interrupt - process VCN block interrupt
  *
  * @adev: amdgpu_device pointer
@@ -1701,6 +1684,9 @@ static int vcn_v4_0_5_process_interrupt(struct amdgpu_device *adev, struct amdgp
 	switch (entry->client_id) {
 	case SOC15_IH_CLIENTID_VCN:
 		ip_instance = 0;
+		break;
+	case SOC15_IH_CLIENTID_VCN1:
+		ip_instance = 1;
 		break;
 	default:
 		DRM_ERROR("Unhandled client id: %d\n", entry->client_id);
@@ -1726,7 +1712,6 @@ static int vcn_v4_0_5_process_interrupt(struct amdgpu_device *adev, struct amdgp
 }
 
 static const struct amdgpu_irq_src_funcs vcn_v4_0_5_irq_funcs = {
-	.set = vcn_v4_0_5_set_interrupt_state,
 	.process = vcn_v4_0_5_process_interrupt,
 };
 
@@ -1768,6 +1753,8 @@ static const struct amd_ip_funcs vcn_v4_0_5_ip_funcs = {
 	.post_soft_reset = NULL,
 	.set_clockgating_state = vcn_v4_0_5_set_clockgating_state,
 	.set_powergating_state = vcn_v4_0_5_set_powergating_state,
+	.dump_ip_state = NULL,
+	.print_ip_state = NULL,
 };
 
 const struct amdgpu_ip_block_version vcn_v4_0_5_ip_block = {

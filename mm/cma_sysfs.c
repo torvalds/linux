@@ -24,6 +24,11 @@ void cma_sysfs_account_fail_pages(struct cma *cma, unsigned long nr_pages)
 	atomic64_add(nr_pages, &cma->nr_pages_failed);
 }
 
+void cma_sysfs_account_release_pages(struct cma *cma, unsigned long nr_pages)
+{
+	atomic64_add(nr_pages, &cma->nr_pages_released);
+}
+
 static inline struct cma *cma_from_kobj(struct kobject *kobj)
 {
 	return container_of(kobj, struct cma_kobject, kobj)->cma;
@@ -48,6 +53,15 @@ static ssize_t alloc_pages_fail_show(struct kobject *kobj,
 }
 CMA_ATTR_RO(alloc_pages_fail);
 
+static ssize_t release_pages_success_show(struct kobject *kobj,
+					  struct kobj_attribute *attr, char *buf)
+{
+	struct cma *cma = cma_from_kobj(kobj);
+
+	return sysfs_emit(buf, "%llu\n", atomic64_read(&cma->nr_pages_released));
+}
+CMA_ATTR_RO(release_pages_success);
+
 static void cma_kobj_release(struct kobject *kobj)
 {
 	struct cma *cma = cma_from_kobj(kobj);
@@ -60,6 +74,7 @@ static void cma_kobj_release(struct kobject *kobj)
 static struct attribute *cma_attrs[] = {
 	&alloc_pages_success_attr.attr,
 	&alloc_pages_fail_attr.attr,
+	&release_pages_success_attr.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(cma);

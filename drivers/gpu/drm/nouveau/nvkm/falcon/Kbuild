@@ -8,5 +8,6 @@ nvkm-y += nvkm/falcon/v1.o
 
 nvkm-y += nvkm/falcon/gm200.o
 nvkm-y += nvkm/falcon/gp102.o
+nvkm-y += nvkm/falcon/tu102.o
 nvkm-y += nvkm/falcon/ga100.o
 nvkm-y += nvkm/falcon/ga102.o

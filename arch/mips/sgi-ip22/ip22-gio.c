@@ -12,7 +12,7 @@
 #include <asm/sgi/mc.h>
 #include <asm/sgi/ip22.h>
 
-static struct bus_type gio_bus_type;
+static const struct bus_type gio_bus_type;
 
 static struct {
 	const char *name;
@@ -378,7 +378,7 @@ static void ip22_check_gio(int slotno, unsigned long addr, int irq)
 		printk(KERN_INFO "GIO: slot %d : Empty\n", slotno);
 }
 
-static struct bus_type gio_bus_type = {
+static const struct bus_type gio_bus_type = {
 	.name	   = "gio",
 	.dev_groups = gio_dev_groups,
 	.match	   = gio_bus_match,

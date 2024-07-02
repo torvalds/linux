@@ -29,7 +29,6 @@
 #include <linux/audit.h>
 #include <linux/falloc.h>
 #include <linux/fs_struct.h>
-#include <linux/ima.h>
 #include <linux/dnotify.h>
 #include <linux/compat.h>
 #include <linux/mnt_idmapping.h>
@@ -154,49 +153,52 @@ COMPAT_SYSCALL_DEFINE2(truncate, const char __user *, path, compat_off_t, length
 }
 #endif
 
-long do_sys_ftruncate(unsigned int fd, loff_t length, int small)
+long do_ftruncate(struct file *file, loff_t length, int small)
 {
 	struct inode *inode;
 	struct dentry *dentry;
+	int error;
+
+	/* explicitly opened as large or we are on 64-bit box */
+	if (file->f_flags & O_LARGEFILE)
+		small = 0;
+
+	dentry = file->f_path.dentry;
+	inode = dentry->d_inode;
+	if (!S_ISREG(inode->i_mode) || !(file->f_mode & FMODE_WRITE))
+		return -EINVAL;
+
+	/* Cannot ftruncate over 2^31 bytes without large file support */
+	if (small && length > MAX_NON_LFS)
+		return -EINVAL;
+
+	/* Check IS_APPEND on real upper inode */
+	if (IS_APPEND(file_inode(file)))
+		return -EPERM;
+	sb_start_write(inode->i_sb);
+	error = security_file_truncate(file);
+	if (!error)
+		error = do_truncate(file_mnt_idmap(file), dentry, length,
+				    ATTR_MTIME | ATTR_CTIME, file);
+	sb_end_write(inode->i_sb);
+
+	return error;
+}
+
+long do_sys_ftruncate(unsigned int fd, loff_t length, int small)
+{
 	struct fd f;
 	int error;
 
-	error = -EINVAL;
 	if (length < 0)
-		goto out;
-	error = -EBADF;
+		return -EINVAL;
 	f = fdget(fd);
 	if (!f.file)
-		goto out;
+		return -EBADF;
 
-	/* explicitly opened as large or we are on 64-bit box */
-	if (f.file->f_flags & O_LARGEFILE)
-		small = 0;
+	error = do_ftruncate(f.file, length, small);
 
-	dentry = f.file->f_path.dentry;
-	inode = dentry->d_inode;
-	error = -EINVAL;
-	if (!S_ISREG(inode->i_mode) || !(f.file->f_mode & FMODE_WRITE))
-		goto out_putf;
-
-	error = -EINVAL;
-	/* Cannot ftruncate over 2^31 bytes without large file support */
-	if (small && length > MAX_NON_LFS)
-		goto out_putf;
-
-	error = -EPERM;
-	/* Check IS_APPEND on real upper inode */
-	if (IS_APPEND(file_inode(f.file)))
-		goto out_putf;
-	sb_start_write(inode->i_sb);
-	error = security_file_truncate(f.file);
-	if (!error)
-		error = do_truncate(file_mnt_idmap(f.file), dentry, length,
-				    ATTR_MTIME | ATTR_CTIME, f.file);
-	sb_end_write(inode->i_sb);
-out_putf:
 	fdput(f);
-out:
 	return error;
 }
 
@@ -301,6 +303,10 @@ int vfs_fallocate(struct file *file, int mode, loff_t offset, loff_t len)
 	 * changed since the files were opened.
 	 */
 	ret = security_file_permission(file, MAY_WRITE);
+	if (ret)
+		return ret;
+
+	ret = fsnotify_file_area_perm(file, MAY_WRITE, &offset, len);
 	if (ret)
 		return ret;
 
@@ -442,7 +448,8 @@ static const struct cred *access_override_creds(void)
 	 * 'get_current_cred()' function), that will clear the
 	 * non_rcu field, because now that other user may be
 	 * expecting RCU freeing. But normal thread-synchronous
-	 * cred accesses will keep things non-RCY.
+	 * cred accesses will keep things non-racy to avoid RCU
+	 * freeing.
 	 */
 	override_cred->non_rcu = 1;
 
@@ -1088,8 +1095,6 @@ struct file *dentry_open(const struct path *path, int flags,
 	int error;
 	struct file *f;
 
-	validate_creds(cred);
-
 	/* We must always pass in a valid mount pointer. */
 	BUG_ON(!path->mnt);
 
@@ -1128,7 +1133,6 @@ struct file *dentry_create(const struct path *path, int flags, umode_t mode,
 	struct file *f;
 	int error;
 
-	validate_creds(cred);
 	f = alloc_empty_file(flags, cred);
 	if (IS_ERR(f))
 		return f;
@@ -1179,44 +1183,6 @@ struct file *kernel_file_open(const struct path *path, int flags,
 	return f;
 }
 EXPORT_SYMBOL_GPL(kernel_file_open);
-
-/**
- * backing_file_open - open a backing file for kernel internal use
- * @user_path:	path that the user reuqested to open
- * @flags:	open flags
- * @real_path:	path of the backing file
- * @cred:	credentials for open
- *
- * Open a backing file for a stackable filesystem (e.g., overlayfs).
- * @user_path may be on the stackable filesystem and @real_path on the
- * underlying filesystem.  In this case, we want to be able to return the
- * @user_path of the stackable filesystem. This is done by embedding the
- * returned file into a container structure that also stores the stacked
- * file's path, which can be retrieved using backing_file_user_path().
- */
-struct file *backing_file_open(const struct path *user_path, int flags,
-			       const struct path *real_path,
-			       const struct cred *cred)
-{
-	struct file *f;
-	int error;
-
-	f = alloc_empty_backing_file(flags, cred);
-	if (IS_ERR(f))
-		return f;
-
-	path_get(user_path);
-	*backing_file_user_path(f) = *user_path;
-	f->f_path = *real_path;
-	error = do_dentry_open(f, d_inode(real_path->dentry), NULL);
-	if (error) {
-		fput(f);
-		f = ERR_PTR(error);
-	}
-
-	return f;
-}
-EXPORT_SYMBOL_GPL(backing_file_open);
 
 #define WILL_CREATE(flags)	(flags & (O_CREAT | __O_TMPFILE))
 #define O_PATH_FLAGS		(O_DIRECTORY | O_NOFOLLOW | O_PATH | O_CLOEXEC)
@@ -1400,7 +1366,7 @@ struct file *filp_open(const char *filename, int flags, umode_t mode)
 {
 	struct filename *name = getname_kernel(filename);
 	struct file *file = ERR_CAST(name);
-	
+
 	if (!IS_ERR(name)) {
 		file = file_open_name(name, flags, mode);
 		putname(name);
@@ -1577,7 +1543,7 @@ SYSCALL_DEFINE1(close, unsigned int, fd)
 	int retval;
 	struct file *file;
 
-	file = close_fd_get_file(fd);
+	file = file_close_fd(fd);
 	if (!file)
 		return -EBADF;
 

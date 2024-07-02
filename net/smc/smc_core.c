@@ -506,6 +506,7 @@ static int smc_nl_fill_smcd_lgr(struct smc_link_group *lgr,
 {
 	char smc_pnet[SMC_MAX_PNETID_LEN + 1];
 	struct smcd_dev *smcd = lgr->smcd;
+	struct smcd_gid smcd_gid;
 	struct nlattr *attrs;
 	void *nlh;
 
@@ -521,12 +522,18 @@ static int smc_nl_fill_smcd_lgr(struct smc_link_group *lgr,
 
 	if (nla_put_u32(skb, SMC_NLA_LGR_D_ID, *((u32 *)&lgr->id)))
 		goto errattr;
+	smcd->ops->get_local_gid(smcd, &smcd_gid);
 	if (nla_put_u64_64bit(skb, SMC_NLA_LGR_D_GID,
-			      smcd->ops->get_local_gid(smcd),
-				  SMC_NLA_LGR_D_PAD))
+			      smcd_gid.gid, SMC_NLA_LGR_D_PAD))
 		goto errattr;
-	if (nla_put_u64_64bit(skb, SMC_NLA_LGR_D_PEER_GID, lgr->peer_gid,
+	if (nla_put_u64_64bit(skb, SMC_NLA_LGR_D_EXT_GID,
+			      smcd_gid.gid_ext, SMC_NLA_LGR_D_PAD))
+		goto errattr;
+	if (nla_put_u64_64bit(skb, SMC_NLA_LGR_D_PEER_GID, lgr->peer_gid.gid,
 			      SMC_NLA_LGR_D_PAD))
+		goto errattr;
+	if (nla_put_u64_64bit(skb, SMC_NLA_LGR_D_PEER_EXT_GID,
+			      lgr->peer_gid.gid_ext, SMC_NLA_LGR_D_PAD))
 		goto errattr;
 	if (nla_put_u8(skb, SMC_NLA_LGR_D_VLAN_ID, lgr->vlan_id))
 		goto errattr;
@@ -876,7 +883,10 @@ static int smc_lgr_create(struct smc_sock *smc, struct smc_init_info *ini)
 		/* SMC-D specific settings */
 		smcd = ini->ism_dev[ini->ism_selected];
 		get_device(smcd->ops->get_dev(smcd));
-		lgr->peer_gid = ini->ism_peer_gid[ini->ism_selected];
+		lgr->peer_gid.gid =
+			ini->ism_peer_gid[ini->ism_selected].gid;
+		lgr->peer_gid.gid_ext =
+			ini->ism_peer_gid[ini->ism_selected].gid_ext;
 		lgr->smcd = ini->ism_dev[ini->ism_selected];
 		lgr_list = &ini->ism_dev[ini->ism_selected]->lgr_list;
 		lgr_lock = &lgr->smcd->lgr_lock;
@@ -1139,6 +1149,20 @@ static void smcr_buf_unuse(struct smc_buf_desc *buf_desc, bool is_rmb,
 	}
 }
 
+static void smcd_buf_detach(struct smc_connection *conn)
+{
+	struct smcd_dev *smcd = conn->lgr->smcd;
+	u64 peer_token = conn->peer_token;
+
+	if (!conn->sndbuf_desc)
+		return;
+
+	smc_ism_detach_dmb(smcd, peer_token);
+
+	kfree(conn->sndbuf_desc);
+	conn->sndbuf_desc = NULL;
+}
+
 static void smc_buf_unuse(struct smc_connection *conn,
 			  struct smc_link_group *lgr)
 {
@@ -1182,6 +1206,8 @@ void smc_conn_free(struct smc_connection *conn)
 	if (lgr->is_smcd) {
 		if (!list_empty(&lgr->list))
 			smc_ism_unset_conn(conn);
+		if (smc_ism_support_dmb_nocopy(lgr->smcd))
+			smcd_buf_detach(conn);
 		tasklet_kill(&conn->rx_tsklet);
 	} else {
 		smc_cdc_wait_pend_tx_wr(conn);
@@ -1435,6 +1461,8 @@ static void smc_conn_kill(struct smc_connection *conn, bool soft)
 	smc_sk_wake_ups(smc);
 	if (conn->lgr->is_smcd) {
 		smc_ism_unset_conn(conn);
+		if (smc_ism_support_dmb_nocopy(conn->lgr->smcd))
+			smcd_buf_detach(conn);
 		if (soft)
 			tasklet_kill(&conn->rx_tsklet);
 		else
@@ -1514,7 +1542,8 @@ void smc_lgr_terminate_sched(struct smc_link_group *lgr)
 }
 
 /* Called when peer lgr shutdown (regularly or abnormally) is received */
-void smc_smcd_terminate(struct smcd_dev *dev, u64 peer_gid, unsigned short vlan)
+void smc_smcd_terminate(struct smcd_dev *dev, struct smcd_gid *peer_gid,
+			unsigned short vlan)
 {
 	struct smc_link_group *lgr, *l;
 	LIST_HEAD(lgr_free_list);
@@ -1522,9 +1551,12 @@ void smc_smcd_terminate(struct smcd_dev *dev, u64 peer_gid, unsigned short vlan)
 	/* run common cleanup function and build free list */
 	spin_lock_bh(&dev->lgr_lock);
 	list_for_each_entry_safe(lgr, l, &dev->lgr_list, list) {
-		if ((!peer_gid || lgr->peer_gid == peer_gid) &&
+		if ((!peer_gid->gid ||
+		     (lgr->peer_gid.gid == peer_gid->gid &&
+		      !smc_ism_is_emulated(dev) ? 1 :
+		      lgr->peer_gid.gid_ext == peer_gid->gid_ext)) &&
 		    (vlan == VLAN_VID_MASK || lgr->vlan_id == vlan)) {
-			if (peer_gid) /* peer triggered termination */
+			if (peer_gid->gid) /* peer triggered termination */
 				lgr->peer_shutdown = 1;
 			list_move(&lgr->list, &lgr_free_list);
 			lgr->freeing = 1;
@@ -1860,9 +1892,18 @@ static bool smcr_lgr_match(struct smc_link_group *lgr, u8 smcr_version,
 }
 
 static bool smcd_lgr_match(struct smc_link_group *lgr,
-			   struct smcd_dev *smcismdev, u64 peer_gid)
+			   struct smcd_dev *smcismdev,
+			   struct smcd_gid *peer_gid)
 {
-	return lgr->peer_gid == peer_gid && lgr->smcd == smcismdev;
+	if (lgr->peer_gid.gid != peer_gid->gid ||
+	    lgr->smcd != smcismdev)
+		return false;
+
+	if (smc_ism_is_emulated(smcismdev) &&
+	    lgr->peer_gid.gid_ext != peer_gid->gid_ext)
+		return false;
+
+	return true;
 }
 
 /* create a new SMC connection (and a new link group if necessary) */
@@ -1892,7 +1933,7 @@ int smc_conn_create(struct smc_sock *smc, struct smc_init_info *ini)
 		write_lock_bh(&lgr->conns_lock);
 		if ((ini->is_smcd ?
 		     smcd_lgr_match(lgr, ini->ism_dev[ini->ism_selected],
-				    ini->ism_peer_gid[ini->ism_selected]) :
+				    &ini->ism_peer_gid[ini->ism_selected]) :
 		     smcr_lgr_match(lgr, ini->smcr_version,
 				    ini->peer_systemid,
 				    ini->peer_gid, ini->peer_mac, role,
@@ -2441,18 +2482,59 @@ int smc_buf_create(struct smc_sock *smc, bool is_smcd)
 	int rc;
 
 	/* create send buffer */
+	if (is_smcd &&
+	    smc_ism_support_dmb_nocopy(smc->conn.lgr->smcd))
+		goto create_rmb;
+
 	rc = __smc_buf_create(smc, is_smcd, false);
 	if (rc)
 		return rc;
+
+create_rmb:
 	/* create rmb */
 	rc = __smc_buf_create(smc, is_smcd, true);
-	if (rc) {
+	if (rc && smc->conn.sndbuf_desc) {
 		down_write(&smc->conn.lgr->sndbufs_lock);
 		list_del(&smc->conn.sndbuf_desc->list);
 		up_write(&smc->conn.lgr->sndbufs_lock);
 		smc_buf_free(smc->conn.lgr, false, smc->conn.sndbuf_desc);
 		smc->conn.sndbuf_desc = NULL;
 	}
+	return rc;
+}
+
+int smcd_buf_attach(struct smc_sock *smc)
+{
+	struct smc_connection *conn = &smc->conn;
+	struct smcd_dev *smcd = conn->lgr->smcd;
+	u64 peer_token = conn->peer_token;
+	struct smc_buf_desc *buf_desc;
+	int rc;
+
+	buf_desc = kzalloc(sizeof(*buf_desc), GFP_KERNEL);
+	if (!buf_desc)
+		return -ENOMEM;
+
+	/* The ghost sndbuf_desc describes the same memory region as
+	 * peer RMB. Its lifecycle is consistent with the connection's
+	 * and it will be freed with the connections instead of the
+	 * link group.
+	 */
+	rc = smc_ism_attach_dmb(smcd, peer_token, buf_desc);
+	if (rc)
+		goto free;
+
+	smc->sk.sk_sndbuf = buf_desc->len;
+	buf_desc->cpu_addr =
+		(u8 *)buf_desc->cpu_addr + sizeof(struct smcd_cdc_msg);
+	buf_desc->len -= sizeof(struct smcd_cdc_msg);
+	conn->sndbuf_desc = buf_desc;
+	conn->sndbuf_desc->used = 1;
+	atomic_set(&conn->sndbuf_space, conn->sndbuf_desc->len);
+	return 0;
+
+free:
+	kfree(buf_desc);
 	return rc;
 }
 

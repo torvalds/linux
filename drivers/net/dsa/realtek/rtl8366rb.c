@@ -15,6 +15,7 @@
 #include <linux/bitops.h>
 #include <linux/etherdevice.h>
 #include <linux/if_bridge.h>
+#include <linux/if_vlan.h>
 #include <linux/interrupt.h>
 #include <linux/irqdomain.h>
 #include <linux/irqchip/chained_irq.h>
@@ -22,6 +23,9 @@
 #include <linux/regmap.h>
 
 #include "realtek.h"
+#include "realtek-smi.h"
+#include "realtek-mdio.h"
+#include "rtl83xx.h"
 
 #define RTL8366RB_PORT_NUM_CPU		5
 #define RTL8366RB_NUM_PORTS		6
@@ -117,10 +121,11 @@
 	RTL8366RB_STP_STATE((port), RTL8366RB_STP_MASK)
 
 /* CPU port control reg */
-#define RTL8368RB_CPU_CTRL_REG		0x0061
-#define RTL8368RB_CPU_PORTS_MSK		0x00FF
+#define RTL8366RB_CPU_CTRL_REG		0x0061
+#define RTL8366RB_CPU_PORTS_MSK		0x00FF
 /* Disables inserting custom tag length/type 0x8899 */
-#define RTL8368RB_CPU_NO_TAG		BIT(15)
+#define RTL8366RB_CPU_NO_TAG		BIT(15)
+#define RTL8366RB_CPU_TAG_SIZE		4
 
 #define RTL8366RB_SMAR0			0x0070 /* bits 0..15 */
 #define RTL8366RB_SMAR1			0x0071 /* bits 16..31 */
@@ -171,6 +176,7 @@
 #define RTL8366RB_VLAN_INGRESS_CTRL2_REG	0x037f
 
 /* LED control registers */
+/* The LED blink rate is global; it is used by all triggers in all groups. */
 #define RTL8366RB_LED_BLINKRATE_REG		0x0430
 #define RTL8366RB_LED_BLINKRATE_MASK		0x0007
 #define RTL8366RB_LED_BLINKRATE_28MS		0x0000
@@ -180,27 +186,27 @@
 #define RTL8366RB_LED_BLINKRATE_222MS		0x0004
 #define RTL8366RB_LED_BLINKRATE_446MS		0x0005
 
+/* LED trigger event for each group */
 #define RTL8366RB_LED_CTRL_REG			0x0431
-#define RTL8366RB_LED_OFF			0x0
-#define RTL8366RB_LED_DUP_COL			0x1
-#define RTL8366RB_LED_LINK_ACT			0x2
-#define RTL8366RB_LED_SPD1000			0x3
-#define RTL8366RB_LED_SPD100			0x4
-#define RTL8366RB_LED_SPD10			0x5
-#define RTL8366RB_LED_SPD1000_ACT		0x6
-#define RTL8366RB_LED_SPD100_ACT		0x7
-#define RTL8366RB_LED_SPD10_ACT			0x8
-#define RTL8366RB_LED_SPD100_10_ACT		0x9
-#define RTL8366RB_LED_FIBER			0xa
-#define RTL8366RB_LED_AN_FAULT			0xb
-#define RTL8366RB_LED_LINK_RX			0xc
-#define RTL8366RB_LED_LINK_TX			0xd
-#define RTL8366RB_LED_MASTER			0xe
-#define RTL8366RB_LED_FORCE			0xf
+#define RTL8366RB_LED_CTRL_OFFSET(led_group)	\
+	(4 * (led_group))
+#define RTL8366RB_LED_CTRL_MASK(led_group)	\
+	(0xf << RTL8366RB_LED_CTRL_OFFSET(led_group))
+
+/* The RTL8366RB_LED_X_X registers are used to manually set the LED state only
+ * when the corresponding LED group in RTL8366RB_LED_CTRL_REG is
+ * RTL8366RB_LEDGROUP_FORCE. Otherwise, it is ignored.
+ */
 #define RTL8366RB_LED_0_1_CTRL_REG		0x0432
-#define RTL8366RB_LED_1_OFFSET			6
 #define RTL8366RB_LED_2_3_CTRL_REG		0x0433
-#define RTL8366RB_LED_3_OFFSET			6
+#define RTL8366RB_LED_X_X_CTRL_REG(led_group)	\
+	((led_group) <= 1 ? \
+		RTL8366RB_LED_0_1_CTRL_REG : \
+		RTL8366RB_LED_2_3_CTRL_REG)
+#define RTL8366RB_LED_0_X_CTRL_MASK		GENMASK(5, 0)
+#define RTL8366RB_LED_X_1_CTRL_MASK		GENMASK(11, 6)
+#define RTL8366RB_LED_2_X_CTRL_MASK		GENMASK(5, 0)
+#define RTL8366RB_LED_X_3_CTRL_MASK		GENMASK(11, 6)
 
 #define RTL8366RB_MIB_COUNT			33
 #define RTL8366RB_GLOBAL_MIB_COUNT		1
@@ -344,14 +350,44 @@
 #define RTL8366RB_GREEN_FEATURE_TX	BIT(0)
 #define RTL8366RB_GREEN_FEATURE_RX	BIT(2)
 
+enum rtl8366_ledgroup_mode {
+	RTL8366RB_LEDGROUP_OFF			= 0x0,
+	RTL8366RB_LEDGROUP_DUP_COL		= 0x1,
+	RTL8366RB_LEDGROUP_LINK_ACT		= 0x2,
+	RTL8366RB_LEDGROUP_SPD1000		= 0x3,
+	RTL8366RB_LEDGROUP_SPD100		= 0x4,
+	RTL8366RB_LEDGROUP_SPD10		= 0x5,
+	RTL8366RB_LEDGROUP_SPD1000_ACT		= 0x6,
+	RTL8366RB_LEDGROUP_SPD100_ACT		= 0x7,
+	RTL8366RB_LEDGROUP_SPD10_ACT		= 0x8,
+	RTL8366RB_LEDGROUP_SPD100_10_ACT	= 0x9,
+	RTL8366RB_LEDGROUP_FIBER		= 0xa,
+	RTL8366RB_LEDGROUP_AN_FAULT		= 0xb,
+	RTL8366RB_LEDGROUP_LINK_RX		= 0xc,
+	RTL8366RB_LEDGROUP_LINK_TX		= 0xd,
+	RTL8366RB_LEDGROUP_MASTER		= 0xe,
+	RTL8366RB_LEDGROUP_FORCE		= 0xf,
+
+	__RTL8366RB_LEDGROUP_MODE_MAX
+};
+
+struct rtl8366rb_led {
+	u8 port_num;
+	u8 led_group;
+	struct realtek_priv *priv;
+	struct led_classdev cdev;
+};
+
 /**
  * struct rtl8366rb - RTL8366RB-specific data
  * @max_mtu: per-port max MTU setting
  * @pvid_enabled: if PVID is set for respective port
+ * @leds: per-port and per-ledgroup led info
  */
 struct rtl8366rb {
 	unsigned int max_mtu[RTL8366RB_NUM_PORTS];
 	bool pvid_enabled[RTL8366RB_NUM_PORTS];
+	struct rtl8366rb_led leds[RTL8366RB_NUM_PORTS][RTL8366RB_NUM_LEDGROUPS];
 };
 
 static struct rtl8366_mib_counter rtl8366rb_mib_counters[] = {
@@ -794,6 +830,217 @@ static int rtl8366rb_jam_table(const struct rtl8366rb_jam_tbl_entry *jam_table,
 	return 0;
 }
 
+static int rb8366rb_set_ledgroup_mode(struct realtek_priv *priv,
+				      u8 led_group,
+				      enum rtl8366_ledgroup_mode mode)
+{
+	int ret;
+	u32 val;
+
+	val = mode << RTL8366RB_LED_CTRL_OFFSET(led_group);
+
+	ret = regmap_update_bits(priv->map,
+				 RTL8366RB_LED_CTRL_REG,
+				 RTL8366RB_LED_CTRL_MASK(led_group),
+				 val);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static inline u32 rtl8366rb_led_group_port_mask(u8 led_group, u8 port)
+{
+	switch (led_group) {
+	case 0:
+		return FIELD_PREP(RTL8366RB_LED_0_X_CTRL_MASK, BIT(port));
+	case 1:
+		return FIELD_PREP(RTL8366RB_LED_0_X_CTRL_MASK, BIT(port));
+	case 2:
+		return FIELD_PREP(RTL8366RB_LED_0_X_CTRL_MASK, BIT(port));
+	case 3:
+		return FIELD_PREP(RTL8366RB_LED_0_X_CTRL_MASK, BIT(port));
+	default:
+		return 0;
+	}
+}
+
+static int rb8366rb_get_port_led(struct rtl8366rb_led *led)
+{
+	struct realtek_priv *priv = led->priv;
+	u8 led_group = led->led_group;
+	u8 port_num = led->port_num;
+	int ret;
+	u32 val;
+
+	ret = regmap_read(priv->map, RTL8366RB_LED_X_X_CTRL_REG(led_group),
+			  &val);
+	if (ret) {
+		dev_err(priv->dev, "error reading LED on port %d group %d\n",
+			led_group, port_num);
+		return ret;
+	}
+
+	return !!(val & rtl8366rb_led_group_port_mask(led_group, port_num));
+}
+
+static int rb8366rb_set_port_led(struct rtl8366rb_led *led, bool enable)
+{
+	struct realtek_priv *priv = led->priv;
+	u8 led_group = led->led_group;
+	u8 port_num = led->port_num;
+	int ret;
+
+	ret = regmap_update_bits(priv->map,
+				 RTL8366RB_LED_X_X_CTRL_REG(led_group),
+				 rtl8366rb_led_group_port_mask(led_group,
+							       port_num),
+				 enable ? 0xffff : 0);
+	if (ret) {
+		dev_err(priv->dev, "error updating LED on port %d group %d\n",
+			led_group, port_num);
+		return ret;
+	}
+
+	/* Change the LED group to manual controlled LEDs if required */
+	ret = rb8366rb_set_ledgroup_mode(priv, led_group,
+					 RTL8366RB_LEDGROUP_FORCE);
+
+	if (ret) {
+		dev_err(priv->dev, "error updating LED GROUP group %d\n",
+			led_group);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int
+rtl8366rb_cled_brightness_set_blocking(struct led_classdev *ldev,
+				       enum led_brightness brightness)
+{
+	struct rtl8366rb_led *led = container_of(ldev, struct rtl8366rb_led,
+						 cdev);
+
+	return rb8366rb_set_port_led(led, brightness == LED_ON);
+}
+
+static int rtl8366rb_setup_led(struct realtek_priv *priv, struct dsa_port *dp,
+			       struct fwnode_handle *led_fwnode)
+{
+	struct rtl8366rb *rb = priv->chip_data;
+	struct led_init_data init_data = { };
+	enum led_default_state state;
+	struct rtl8366rb_led *led;
+	u32 led_group;
+	int ret;
+
+	ret = fwnode_property_read_u32(led_fwnode, "reg", &led_group);
+	if (ret)
+		return ret;
+
+	if (led_group >= RTL8366RB_NUM_LEDGROUPS) {
+		dev_warn(priv->dev, "Invalid LED reg %d defined for port %d",
+			 led_group, dp->index);
+		return -EINVAL;
+	}
+
+	led = &rb->leds[dp->index][led_group];
+	led->port_num = dp->index;
+	led->led_group = led_group;
+	led->priv = priv;
+
+	state = led_init_default_state_get(led_fwnode);
+	switch (state) {
+	case LEDS_DEFSTATE_ON:
+		led->cdev.brightness = 1;
+		rb8366rb_set_port_led(led, 1);
+		break;
+	case LEDS_DEFSTATE_KEEP:
+		led->cdev.brightness =
+			rb8366rb_get_port_led(led);
+		break;
+	case LEDS_DEFSTATE_OFF:
+	default:
+		led->cdev.brightness = 0;
+		rb8366rb_set_port_led(led, 0);
+	}
+
+	led->cdev.max_brightness = 1;
+	led->cdev.brightness_set_blocking =
+		rtl8366rb_cled_brightness_set_blocking;
+	init_data.fwnode = led_fwnode;
+	init_data.devname_mandatory = true;
+
+	init_data.devicename = kasprintf(GFP_KERNEL, "Realtek-%d:0%d:%d",
+					 dp->ds->index, dp->index, led_group);
+	if (!init_data.devicename)
+		return -ENOMEM;
+
+	ret = devm_led_classdev_register_ext(priv->dev, &led->cdev, &init_data);
+	if (ret) {
+		dev_warn(priv->dev, "Failed to init LED %d for port %d",
+			 led_group, dp->index);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int rtl8366rb_setup_all_leds_off(struct realtek_priv *priv)
+{
+	int ret = 0;
+	int i;
+
+	regmap_update_bits(priv->map,
+			   RTL8366RB_INTERRUPT_CONTROL_REG,
+			   RTL8366RB_P4_RGMII_LED,
+			   0);
+
+	for (i = 0; i < RTL8366RB_NUM_LEDGROUPS; i++) {
+		ret = rb8366rb_set_ledgroup_mode(priv, i,
+						 RTL8366RB_LEDGROUP_OFF);
+		if (ret)
+			return ret;
+	}
+
+	return ret;
+}
+
+static int rtl8366rb_setup_leds(struct realtek_priv *priv)
+{
+	struct device_node *leds_np, *led_np;
+	struct dsa_switch *ds = &priv->ds;
+	struct dsa_port *dp;
+	int ret = 0;
+
+	dsa_switch_for_each_port(dp, ds) {
+		if (!dp->dn)
+			continue;
+
+		leds_np = of_get_child_by_name(dp->dn, "leds");
+		if (!leds_np) {
+			dev_dbg(priv->dev, "No leds defined for port %d",
+				dp->index);
+			continue;
+		}
+
+		for_each_child_of_node(leds_np, led_np) {
+			ret = rtl8366rb_setup_led(priv, dp,
+						  of_fwnode_handle(led_np));
+			if (ret) {
+				of_node_put(led_np);
+				break;
+			}
+		}
+
+		of_node_put(leds_np);
+		if (ret)
+			return ret;
+	}
+	return 0;
+}
+
 static int rtl8366rb_setup(struct dsa_switch *ds)
 {
 	struct realtek_priv *priv = ds->priv;
@@ -802,7 +1049,6 @@ static int rtl8366rb_setup(struct dsa_switch *ds)
 	u32 chip_ver = 0;
 	u32 chip_id = 0;
 	int jam_size;
-	u32 val;
 	int ret;
 	int i;
 
@@ -912,10 +1158,10 @@ static int rtl8366rb_setup(struct dsa_switch *ds)
 
 	/* Enable CPU port with custom DSA tag 8899.
 	 *
-	 * If you set RTL8368RB_CPU_NO_TAG (bit 15) in this registers
+	 * If you set RTL8366RB_CPU_NO_TAG (bit 15) in this register
 	 * the custom tag is turned off.
 	 */
-	ret = regmap_update_bits(priv->map, RTL8368RB_CPU_CTRL_REG,
+	ret = regmap_update_bits(priv->map, RTL8366RB_CPU_CTRL_REG,
 				 0xFFFF,
 				 BIT(priv->cpu_port));
 	if (ret)
@@ -928,15 +1174,19 @@ static int rtl8366rb_setup(struct dsa_switch *ds)
 	if (ret)
 		return ret;
 
-	/* Set maximum packet length to 1536 bytes */
+	/* Set default maximum packet length to 1536 bytes */
 	ret = regmap_update_bits(priv->map, RTL8366RB_SGCR,
 				 RTL8366RB_SGCR_MAX_LENGTH_MASK,
 				 RTL8366RB_SGCR_MAX_LENGTH_1536);
 	if (ret)
 		return ret;
-	for (i = 0; i < RTL8366RB_NUM_PORTS; i++)
-		/* layer 2 size, see rtl8366rb_change_mtu() */
-		rb->max_mtu[i] = 1532;
+	for (i = 0; i < RTL8366RB_NUM_PORTS; i++) {
+		if (i == priv->cpu_port)
+			/* CPU port need to also accept the tag */
+			rb->max_mtu[i] = ETH_DATA_LEN + RTL8366RB_CPU_TAG_SIZE;
+		else
+			rb->max_mtu[i] = ETH_DATA_LEN;
+	}
 
 	/* Disable learning for all ports */
 	ret = regmap_write(priv->map, RTL8366RB_PORT_LEARNDIS_CTRL,
@@ -978,7 +1228,9 @@ static int rtl8366rb_setup(struct dsa_switch *ds)
 	if (ret)
 		return ret;
 
-	/* Set blinking, TODO: make this configurable */
+	/* Set blinking, used by all LED groups using HW triggers.
+	 * TODO: make this configurable
+	 */
 	ret = regmap_update_bits(priv->map, RTL8366RB_LED_BLINKRATE_REG,
 				 RTL8366RB_LED_BLINKRATE_MASK,
 				 RTL8366RB_LED_BLINKRATE_56MS);
@@ -986,32 +1238,17 @@ static int rtl8366rb_setup(struct dsa_switch *ds)
 		return ret;
 
 	/* Set up LED activity:
-	 * Each port has 4 LEDs, we configure all ports to the same
-	 * behaviour (no individual config) but we can set up each
-	 * LED separately.
+	 * Each port has 4 LEDs on fixed groups. Each group shares the same
+	 * hardware trigger across all ports. LEDs can only be indiviually
+	 * controlled setting the LED group to fixed mode and using the driver
+	 * to toggle them LEDs on/off.
 	 */
 	if (priv->leds_disabled) {
-		/* Turn everything off */
-		regmap_update_bits(priv->map,
-				   RTL8366RB_LED_0_1_CTRL_REG,
-				   0x0FFF, 0);
-		regmap_update_bits(priv->map,
-				   RTL8366RB_LED_2_3_CTRL_REG,
-				   0x0FFF, 0);
-		regmap_update_bits(priv->map,
-				   RTL8366RB_INTERRUPT_CONTROL_REG,
-				   RTL8366RB_P4_RGMII_LED,
-				   0);
-		val = RTL8366RB_LED_OFF;
+		ret = rtl8366rb_setup_all_leds_off(priv);
+		if (ret)
+			return ret;
 	} else {
-		/* TODO: make this configurable per LED */
-		val = RTL8366RB_LED_FORCE;
-	}
-	for (i = 0; i < 4; i++) {
-		ret = regmap_update_bits(priv->map,
-					 RTL8366RB_LED_CTRL_REG,
-					 0xf << (i * 4),
-					 val << (i * 4));
+		ret = rtl8366rb_setup_leds(priv);
 		if (ret)
 			return ret;
 	}
@@ -1024,12 +1261,10 @@ static int rtl8366rb_setup(struct dsa_switch *ds)
 	if (ret)
 		dev_info(priv->dev, "no interrupt support\n");
 
-	if (priv->setup_interface) {
-		ret = priv->setup_interface(ds);
-		if (ret) {
-			dev_err(priv->dev, "could not set up MDIO bus\n");
-			return -ENODEV;
-		}
+	ret = rtl83xx_setup_user_mdio(ds);
+	if (ret) {
+		dev_err(priv->dev, "could not set up MDIO bus\n");
+		return -ENODEV;
 	}
 
 	return 0;
@@ -1070,11 +1305,19 @@ static void rtl8366rb_phylink_get_caps(struct dsa_switch *ds, int port,
 }
 
 static void
-rtl8366rb_mac_link_up(struct dsa_switch *ds, int port, unsigned int mode,
-		      phy_interface_t interface, struct phy_device *phydev,
+rtl8366rb_mac_config(struct phylink_config *config, unsigned int mode,
+		     const struct phylink_link_state *state)
+{
+}
+
+static void
+rtl8366rb_mac_link_up(struct phylink_config *config, struct phy_device *phydev,
+		      unsigned int mode, phy_interface_t interface,
 		      int speed, int duplex, bool tx_pause, bool rx_pause)
 {
-	struct realtek_priv *priv = ds->priv;
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct realtek_priv *priv = dp->ds->priv;
+	int port = dp->index;
 	unsigned int val;
 	int ret;
 
@@ -1140,10 +1383,12 @@ rtl8366rb_mac_link_up(struct dsa_switch *ds, int port, unsigned int mode,
 }
 
 static void
-rtl8366rb_mac_link_down(struct dsa_switch *ds, int port, unsigned int mode,
+rtl8366rb_mac_link_down(struct phylink_config *config, unsigned int mode,
 			phy_interface_t interface)
 {
-	struct realtek_priv *priv = ds->priv;
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct realtek_priv *priv = dp->ds->priv;
+	int port = dp->index;
 	int ret;
 
 	if (port != priv->cpu_port)
@@ -1160,52 +1405,6 @@ rtl8366rb_mac_link_down(struct dsa_switch *ds, int port, unsigned int mode,
 	}
 }
 
-static void rb8366rb_set_port_led(struct realtek_priv *priv,
-				  int port, bool enable)
-{
-	u16 val = enable ? 0x3f : 0;
-	int ret;
-
-	if (priv->leds_disabled)
-		return;
-
-	switch (port) {
-	case 0:
-		ret = regmap_update_bits(priv->map,
-					 RTL8366RB_LED_0_1_CTRL_REG,
-					 0x3F, val);
-		break;
-	case 1:
-		ret = regmap_update_bits(priv->map,
-					 RTL8366RB_LED_0_1_CTRL_REG,
-					 0x3F << RTL8366RB_LED_1_OFFSET,
-					 val << RTL8366RB_LED_1_OFFSET);
-		break;
-	case 2:
-		ret = regmap_update_bits(priv->map,
-					 RTL8366RB_LED_2_3_CTRL_REG,
-					 0x3F, val);
-		break;
-	case 3:
-		ret = regmap_update_bits(priv->map,
-					 RTL8366RB_LED_2_3_CTRL_REG,
-					 0x3F << RTL8366RB_LED_3_OFFSET,
-					 val << RTL8366RB_LED_3_OFFSET);
-		break;
-	case 4:
-		ret = regmap_update_bits(priv->map,
-					 RTL8366RB_INTERRUPT_CONTROL_REG,
-					 RTL8366RB_P4_RGMII_LED,
-					 enable ? RTL8366RB_P4_RGMII_LED : 0);
-		break;
-	default:
-		dev_err(priv->dev, "no LED for port %d\n", port);
-		return;
-	}
-	if (ret)
-		dev_err(priv->dev, "error updating LED on port %d\n", port);
-}
-
 static int
 rtl8366rb_port_enable(struct dsa_switch *ds, int port,
 		      struct phy_device *phy)
@@ -1219,7 +1418,6 @@ rtl8366rb_port_enable(struct dsa_switch *ds, int port,
 	if (ret)
 		return ret;
 
-	rb8366rb_set_port_led(priv, port, true);
 	return 0;
 }
 
@@ -1234,8 +1432,6 @@ rtl8366rb_port_disable(struct dsa_switch *ds, int port)
 				 BIT(port));
 	if (ret)
 		return;
-
-	rb8366rb_set_port_led(priv, port, false);
 }
 
 static int
@@ -1441,24 +1637,29 @@ static int rtl8366rb_change_mtu(struct dsa_switch *ds, int port, int new_mtu)
 	/* Roof out the MTU for the entire switch to the greatest
 	 * common denominator: the biggest set for any one port will
 	 * be the biggest MTU for the switch.
-	 *
-	 * The first setting, 1522 bytes, is max IP packet 1500 bytes,
-	 * plus ethernet header, 1518 bytes, plus CPU tag, 4 bytes.
-	 * This function should consider the parameter an SDU, so the
-	 * MTU passed for this setting is 1518 bytes. The same logic
-	 * of subtracting the DSA tag of 4 bytes apply to the other
-	 * settings.
 	 */
-	max_mtu = 1518;
+	max_mtu = ETH_DATA_LEN;
 	for (i = 0; i < RTL8366RB_NUM_PORTS; i++) {
 		if (rb->max_mtu[i] > max_mtu)
 			max_mtu = rb->max_mtu[i];
 	}
-	if (max_mtu <= 1518)
+
+	/* Translate to layer 2 size.
+	 * Add ethernet and (possible) VLAN headers, and checksum to the size.
+	 * For ETH_DATA_LEN (1500 bytes) this will add up to 1522 bytes.
+	 */
+	max_mtu += VLAN_ETH_HLEN;
+	max_mtu += ETH_FCS_LEN;
+
+	if (max_mtu <= 1522)
 		len = RTL8366RB_SGCR_MAX_LENGTH_1522;
-	else if (max_mtu > 1518 && max_mtu <= 1532)
+	else if (max_mtu > 1522 && max_mtu <= 1536)
+		/* This will be the most common default if using VLAN and
+		 * CPU tagging on a port as both VLAN and CPU tag will
+		 * result in 1518 + 4 + 4 = 1526 bytes.
+		 */
 		len = RTL8366RB_SGCR_MAX_LENGTH_1536;
-	else if (max_mtu > 1532 && max_mtu <= 1548)
+	else if (max_mtu > 1536 && max_mtu <= 1552)
 		len = RTL8366RB_SGCR_MAX_LENGTH_1552;
 	else
 		len = RTL8366RB_SGCR_MAX_LENGTH_16000;
@@ -1470,10 +1671,12 @@ static int rtl8366rb_change_mtu(struct dsa_switch *ds, int port, int new_mtu)
 
 static int rtl8366rb_max_mtu(struct dsa_switch *ds, int port)
 {
-	/* The max MTU is 16000 bytes, so we subtract the CPU tag
-	 * and the max presented to the system is 15996 bytes.
+	/* The max MTU is 16000 bytes, so we subtract the ethernet
+	 * headers with VLAN and checksum and arrive at
+	 * 16000 - 18 - 4 = 15978. This does not include the CPU tag
+	 * since that is added to the requested MTU by the DSA framework.
 	 */
-	return 15996;
+	return 16000 - VLAN_ETH_HLEN - ETH_FCS_LEN;
 }
 
 static int rtl8366rb_get_vlan_4k(struct realtek_priv *priv, u32 vid,
@@ -1637,6 +1840,7 @@ static int rtl8366rb_get_mc_index(struct realtek_priv *priv, int port, int *val)
 
 static int rtl8366rb_set_mc_index(struct realtek_priv *priv, int port, int index)
 {
+	struct dsa_switch *ds = &priv->ds;
 	struct rtl8366rb *rb;
 	bool pvid_enabled;
 	int ret;
@@ -1661,7 +1865,7 @@ static int rtl8366rb_set_mc_index(struct realtek_priv *priv, int port, int index
 	 * not drop any untagged or C-tagged frames. Make sure to update the
 	 * filtering setting.
 	 */
-	if (dsa_port_is_vlan_filtering(dsa_to_port(priv->ds, port)))
+	if (dsa_port_is_vlan_filtering(dsa_to_port(ds, port)))
 		ret = rtl8366rb_drop_untagged(priv, port, !pvid_enabled);
 
 	return ret;
@@ -1705,7 +1909,7 @@ static int rtl8366rb_phy_read(struct realtek_priv *priv, int phy, int regnum)
 	if (phy > RTL8366RB_PHY_NO_MAX)
 		return -EINVAL;
 
-	mutex_lock(&priv->map_lock);
+	rtl83xx_lock(priv);
 
 	ret = regmap_write(priv->map_nolock, RTL8366RB_PHY_ACCESS_CTRL_REG,
 			   RTL8366RB_PHY_CTRL_READ);
@@ -1733,7 +1937,7 @@ static int rtl8366rb_phy_read(struct realtek_priv *priv, int phy, int regnum)
 		phy, regnum, reg, val);
 
 out:
-	mutex_unlock(&priv->map_lock);
+	rtl83xx_unlock(priv);
 
 	return ret;
 }
@@ -1747,7 +1951,7 @@ static int rtl8366rb_phy_write(struct realtek_priv *priv, int phy, int regnum,
 	if (phy > RTL8366RB_PHY_NO_MAX)
 		return -EINVAL;
 
-	mutex_lock(&priv->map_lock);
+	rtl83xx_lock(priv);
 
 	ret = regmap_write(priv->map_nolock, RTL8366RB_PHY_ACCESS_CTRL_REG,
 			   RTL8366RB_PHY_CTRL_WRITE);
@@ -1764,20 +1968,9 @@ static int rtl8366rb_phy_write(struct realtek_priv *priv, int phy, int regnum,
 		goto out;
 
 out:
-	mutex_unlock(&priv->map_lock);
+	rtl83xx_unlock(priv);
 
 	return ret;
-}
-
-static int rtl8366rb_dsa_phy_read(struct dsa_switch *ds, int phy, int regnum)
-{
-	return rtl8366rb_phy_read(ds->priv, phy, regnum);
-}
-
-static int rtl8366rb_dsa_phy_write(struct dsa_switch *ds, int phy, int regnum,
-				   u16 val)
-{
-	return rtl8366rb_phy_write(ds->priv, phy, regnum, val);
 }
 
 static int rtl8366rb_reset_chip(struct realtek_priv *priv)
@@ -1845,38 +2038,16 @@ static int rtl8366rb_detect(struct realtek_priv *priv)
 	return 0;
 }
 
-static const struct dsa_switch_ops rtl8366rb_switch_ops_smi = {
-	.get_tag_protocol = rtl8366_get_tag_protocol,
-	.setup = rtl8366rb_setup,
-	.phylink_get_caps = rtl8366rb_phylink_get_caps,
-	.phylink_mac_link_up = rtl8366rb_mac_link_up,
-	.phylink_mac_link_down = rtl8366rb_mac_link_down,
-	.get_strings = rtl8366_get_strings,
-	.get_ethtool_stats = rtl8366_get_ethtool_stats,
-	.get_sset_count = rtl8366_get_sset_count,
-	.port_bridge_join = rtl8366rb_port_bridge_join,
-	.port_bridge_leave = rtl8366rb_port_bridge_leave,
-	.port_vlan_filtering = rtl8366rb_vlan_filtering,
-	.port_vlan_add = rtl8366_vlan_add,
-	.port_vlan_del = rtl8366_vlan_del,
-	.port_enable = rtl8366rb_port_enable,
-	.port_disable = rtl8366rb_port_disable,
-	.port_pre_bridge_flags = rtl8366rb_port_pre_bridge_flags,
-	.port_bridge_flags = rtl8366rb_port_bridge_flags,
-	.port_stp_state_set = rtl8366rb_port_stp_state_set,
-	.port_fast_age = rtl8366rb_port_fast_age,
-	.port_change_mtu = rtl8366rb_change_mtu,
-	.port_max_mtu = rtl8366rb_max_mtu,
+static const struct phylink_mac_ops rtl8366rb_phylink_mac_ops = {
+	.mac_config = rtl8366rb_mac_config,
+	.mac_link_down = rtl8366rb_mac_link_down,
+	.mac_link_up = rtl8366rb_mac_link_up,
 };
 
-static const struct dsa_switch_ops rtl8366rb_switch_ops_mdio = {
+static const struct dsa_switch_ops rtl8366rb_switch_ops = {
 	.get_tag_protocol = rtl8366_get_tag_protocol,
 	.setup = rtl8366rb_setup,
-	.phy_read = rtl8366rb_dsa_phy_read,
-	.phy_write = rtl8366rb_dsa_phy_write,
 	.phylink_get_caps = rtl8366rb_phylink_get_caps,
-	.phylink_mac_link_up = rtl8366rb_mac_link_up,
-	.phylink_mac_link_down = rtl8366rb_mac_link_down,
 	.get_strings = rtl8366_get_strings,
 	.get_ethtool_stats = rtl8366_get_ethtool_stats,
 	.get_sset_count = rtl8366_get_sset_count,
@@ -1912,16 +2083,67 @@ static const struct realtek_ops rtl8366rb_ops = {
 };
 
 const struct realtek_variant rtl8366rb_variant = {
-	.ds_ops_smi = &rtl8366rb_switch_ops_smi,
-	.ds_ops_mdio = &rtl8366rb_switch_ops_mdio,
+	.ds_ops = &rtl8366rb_switch_ops,
 	.ops = &rtl8366rb_ops,
+	.phylink_mac_ops = &rtl8366rb_phylink_mac_ops,
 	.clk_delay = 10,
 	.cmd_read = 0xa9,
 	.cmd_write = 0xa8,
 	.chip_data_sz = sizeof(struct rtl8366rb),
 };
-EXPORT_SYMBOL_GPL(rtl8366rb_variant);
+
+static const struct of_device_id rtl8366rb_of_match[] = {
+	{ .compatible = "realtek,rtl8366rb", .data = &rtl8366rb_variant, },
+	{ /* sentinel */ },
+};
+MODULE_DEVICE_TABLE(of, rtl8366rb_of_match);
+
+static struct platform_driver rtl8366rb_smi_driver = {
+	.driver = {
+		.name = "rtl8366rb-smi",
+		.of_match_table = rtl8366rb_of_match,
+	},
+	.probe  = realtek_smi_probe,
+	.remove_new = realtek_smi_remove,
+	.shutdown = realtek_smi_shutdown,
+};
+
+static struct mdio_driver rtl8366rb_mdio_driver = {
+	.mdiodrv.driver = {
+		.name = "rtl8366rb-mdio",
+		.of_match_table = rtl8366rb_of_match,
+	},
+	.probe  = realtek_mdio_probe,
+	.remove = realtek_mdio_remove,
+	.shutdown = realtek_mdio_shutdown,
+};
+
+static int rtl8366rb_init(void)
+{
+	int ret;
+
+	ret = realtek_mdio_driver_register(&rtl8366rb_mdio_driver);
+	if (ret)
+		return ret;
+
+	ret = realtek_smi_driver_register(&rtl8366rb_smi_driver);
+	if (ret) {
+		realtek_mdio_driver_unregister(&rtl8366rb_mdio_driver);
+		return ret;
+	}
+
+	return 0;
+}
+module_init(rtl8366rb_init);
+
+static void __exit rtl8366rb_exit(void)
+{
+	realtek_smi_driver_unregister(&rtl8366rb_smi_driver);
+	realtek_mdio_driver_unregister(&rtl8366rb_mdio_driver);
+}
+module_exit(rtl8366rb_exit);
 
 MODULE_AUTHOR("Linus Walleij <linus.walleij@linaro.org>");
 MODULE_DESCRIPTION("Driver for RTL8366RB ethernet switch");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(REALTEK_DSA);

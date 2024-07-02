@@ -11,8 +11,8 @@ struct guest_mode {
 
 extern struct guest_mode guest_modes[NUM_VM_MODES];
 
-#define guest_mode_append(mode, supported, enabled) ({ \
-	guest_modes[mode] = (struct guest_mode){ supported, enabled }; \
+#define guest_mode_append(mode, enabled) ({ \
+	guest_modes[mode] = (struct guest_mode){ (enabled), (enabled) }; \
 })
 
 void guest_modes_append_default(void);

@@ -160,6 +160,18 @@
 	status = "okay";
 };
 
+&ssusb0 {
+	status = "okay";
+};
+
+&ssusb2 {
+	status = "okay";
+};
+
+&ssusb3 {
+	status = "okay";
+};
+
 &xhci0 {
 	status = "okay";
 };

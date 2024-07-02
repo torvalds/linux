@@ -398,21 +398,22 @@ int amdgpu_uvd_sw_fini(struct amdgpu_device *adev)
  * amdgpu_uvd_entity_init - init entity
  *
  * @adev: amdgpu_device pointer
+ * @ring: amdgpu_ring pointer to check
  *
+ * Initialize the entity used for handle management in the kernel driver.
  */
-int amdgpu_uvd_entity_init(struct amdgpu_device *adev)
+int amdgpu_uvd_entity_init(struct amdgpu_device *adev, struct amdgpu_ring *ring)
 {
-	struct amdgpu_ring *ring;
-	struct drm_gpu_scheduler *sched;
-	int r;
+	if (ring == &adev->uvd.inst[0].ring) {
+		struct drm_gpu_scheduler *sched = &ring->sched;
+		int r;
 
-	ring = &adev->uvd.inst[0].ring;
-	sched = &ring->sched;
-	r = drm_sched_entity_init(&adev->uvd.entity, DRM_SCHED_PRIORITY_NORMAL,
-				  &sched, 1, NULL);
-	if (r) {
-		DRM_ERROR("Failed setting up UVD kernel entity.\n");
-		return r;
+		r = drm_sched_entity_init(&adev->uvd.entity, DRM_SCHED_PRIORITY_NORMAL,
+					  &sched, 1, NULL);
+		if (r) {
+			DRM_ERROR("Failed setting up UVD kernel entity.\n");
+			return r;
+		}
 	}
 
 	return 0;

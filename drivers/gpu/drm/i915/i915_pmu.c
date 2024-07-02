@@ -31,6 +31,16 @@
 static cpumask_t i915_pmu_cpumask;
 static unsigned int i915_pmu_target_cpu = -1;
 
+static struct i915_pmu *event_to_pmu(struct perf_event *event)
+{
+	return container_of(event->pmu, struct i915_pmu, base);
+}
+
+static struct drm_i915_private *pmu_to_i915(struct i915_pmu *pmu)
+{
+	return container_of(pmu, struct drm_i915_private, pmu);
+}
+
 static u8 engine_config_sample(u64 config)
 {
 	return config & I915_PMU_SAMPLE_MASK;
@@ -141,7 +151,7 @@ static u32 frequency_enabled_mask(void)
 
 static bool pmu_needs_timer(struct i915_pmu *pmu)
 {
-	struct drm_i915_private *i915 = container_of(pmu, typeof(*i915), pmu);
+	struct drm_i915_private *i915 = pmu_to_i915(pmu);
 	u32 enable;
 
 	/*
@@ -213,19 +223,19 @@ static u64 get_rc6(struct intel_gt *gt)
 	struct drm_i915_private *i915 = gt->i915;
 	const unsigned int gt_id = gt->info.id;
 	struct i915_pmu *pmu = &i915->pmu;
+	intel_wakeref_t wakeref;
 	unsigned long flags;
-	bool awake = false;
 	u64 val;
 
-	if (intel_gt_pm_get_if_awake(gt)) {
+	wakeref = intel_gt_pm_get_if_awake(gt);
+	if (wakeref) {
 		val = __get_rc6(gt);
-		intel_gt_pm_put_async(gt);
-		awake = true;
+		intel_gt_pm_put_async(gt, wakeref);
 	}
 
 	spin_lock_irqsave(&pmu->lock, flags);
 
-	if (awake) {
+	if (wakeref) {
 		store_sample(pmu, gt_id, __I915_SAMPLE_RC6, val);
 	} else {
 		/*
@@ -251,7 +261,7 @@ static u64 get_rc6(struct intel_gt *gt)
 
 static void init_rc6(struct i915_pmu *pmu)
 {
-	struct drm_i915_private *i915 = container_of(pmu, typeof(*i915), pmu);
+	struct drm_i915_private *i915 = pmu_to_i915(pmu);
 	struct intel_gt *gt;
 	unsigned int i;
 
@@ -429,12 +439,14 @@ frequency_sample(struct intel_gt *gt, unsigned int period_ns)
 	const unsigned int gt_id = gt->info.id;
 	struct i915_pmu *pmu = &i915->pmu;
 	struct intel_rps *rps = &gt->rps;
+	intel_wakeref_t wakeref;
 
 	if (!frequency_sampling_enabled(pmu, gt_id))
 		return;
 
 	/* Report 0/0 (actual/requested) frequency while parked. */
-	if (!intel_gt_pm_get_if_awake(gt))
+	wakeref = intel_gt_pm_get_if_awake(gt);
+	if (!wakeref)
 		return;
 
 	if (pmu->enable & config_mask(__I915_PMU_ACTUAL_FREQUENCY(gt_id))) {
@@ -463,14 +475,13 @@ frequency_sample(struct intel_gt *gt, unsigned int period_ns)
 				period_ns / 1000);
 	}
 
-	intel_gt_pm_put_async(gt);
+	intel_gt_pm_put_async(gt, wakeref);
 }
 
 static enum hrtimer_restart i915_sample(struct hrtimer *hrtimer)
 {
-	struct drm_i915_private *i915 =
-		container_of(hrtimer, struct drm_i915_private, pmu.timer);
-	struct i915_pmu *pmu = &i915->pmu;
+	struct i915_pmu *pmu = container_of(hrtimer, struct i915_pmu, timer);
+	struct drm_i915_private *i915 = pmu_to_i915(pmu);
 	unsigned int period_ns;
 	struct intel_gt *gt;
 	unsigned int i;
@@ -505,8 +516,8 @@ static enum hrtimer_restart i915_sample(struct hrtimer *hrtimer)
 
 static void i915_pmu_event_destroy(struct perf_event *event)
 {
-	struct drm_i915_private *i915 =
-		container_of(event->pmu, typeof(*i915), pmu.base);
+	struct i915_pmu *pmu = event_to_pmu(event);
+	struct drm_i915_private *i915 = pmu_to_i915(pmu);
 
 	drm_WARN_ON(&i915->drm, event->parent);
 
@@ -572,8 +583,8 @@ config_status(struct drm_i915_private *i915, u64 config)
 
 static int engine_event_init(struct perf_event *event)
 {
-	struct drm_i915_private *i915 =
-		container_of(event->pmu, typeof(*i915), pmu.base);
+	struct i915_pmu *pmu = event_to_pmu(event);
+	struct drm_i915_private *i915 = pmu_to_i915(pmu);
 	struct intel_engine_cs *engine;
 
 	engine = intel_engine_lookup_user(i915, engine_event_class(event),
@@ -586,9 +597,8 @@ static int engine_event_init(struct perf_event *event)
 
 static int i915_pmu_event_init(struct perf_event *event)
 {
-	struct drm_i915_private *i915 =
-		container_of(event->pmu, typeof(*i915), pmu.base);
-	struct i915_pmu *pmu = &i915->pmu;
+	struct i915_pmu *pmu = event_to_pmu(event);
+	struct drm_i915_private *i915 = pmu_to_i915(pmu);
 	int ret;
 
 	if (pmu->closed)
@@ -628,9 +638,8 @@ static int i915_pmu_event_init(struct perf_event *event)
 
 static u64 __i915_pmu_event_read(struct perf_event *event)
 {
-	struct drm_i915_private *i915 =
-		container_of(event->pmu, typeof(*i915), pmu.base);
-	struct i915_pmu *pmu = &i915->pmu;
+	struct i915_pmu *pmu = event_to_pmu(event);
+	struct drm_i915_private *i915 = pmu_to_i915(pmu);
 	u64 val = 0;
 
 	if (is_engine_event(event)) {
@@ -686,10 +695,8 @@ static u64 __i915_pmu_event_read(struct perf_event *event)
 
 static void i915_pmu_event_read(struct perf_event *event)
 {
-	struct drm_i915_private *i915 =
-		container_of(event->pmu, typeof(*i915), pmu.base);
+	struct i915_pmu *pmu = event_to_pmu(event);
 	struct hw_perf_event *hwc = &event->hw;
-	struct i915_pmu *pmu = &i915->pmu;
 	u64 prev, new;
 
 	if (pmu->closed) {
@@ -707,10 +714,9 @@ static void i915_pmu_event_read(struct perf_event *event)
 
 static void i915_pmu_enable(struct perf_event *event)
 {
-	struct drm_i915_private *i915 =
-		container_of(event->pmu, typeof(*i915), pmu.base);
+	struct i915_pmu *pmu = event_to_pmu(event);
+	struct drm_i915_private *i915 = pmu_to_i915(pmu);
 	const unsigned int bit = event_bit(event);
-	struct i915_pmu *pmu = &i915->pmu;
 	unsigned long flags;
 
 	if (bit == -1)
@@ -771,10 +777,9 @@ update:
 
 static void i915_pmu_disable(struct perf_event *event)
 {
-	struct drm_i915_private *i915 =
-		container_of(event->pmu, typeof(*i915), pmu.base);
+	struct i915_pmu *pmu = event_to_pmu(event);
+	struct drm_i915_private *i915 = pmu_to_i915(pmu);
 	const unsigned int bit = event_bit(event);
-	struct i915_pmu *pmu = &i915->pmu;
 	unsigned long flags;
 
 	if (bit == -1)
@@ -818,9 +823,7 @@ static void i915_pmu_disable(struct perf_event *event)
 
 static void i915_pmu_event_start(struct perf_event *event, int flags)
 {
-	struct drm_i915_private *i915 =
-		container_of(event->pmu, typeof(*i915), pmu.base);
-	struct i915_pmu *pmu = &i915->pmu;
+	struct i915_pmu *pmu = event_to_pmu(event);
 
 	if (pmu->closed)
 		return;
@@ -848,9 +851,7 @@ out:
 
 static int i915_pmu_event_add(struct perf_event *event, int flags)
 {
-	struct drm_i915_private *i915 =
-		container_of(event->pmu, typeof(*i915), pmu.base);
-	struct i915_pmu *pmu = &i915->pmu;
+	struct i915_pmu *pmu = event_to_pmu(event);
 
 	if (pmu->closed)
 		return -ENODEV;
@@ -982,7 +983,7 @@ add_pmu_attr(struct perf_pmu_events_attr *attr, const char *name,
 static struct attribute **
 create_event_attributes(struct i915_pmu *pmu)
 {
-	struct drm_i915_private *i915 = container_of(pmu, typeof(*i915), pmu);
+	struct drm_i915_private *i915 = pmu_to_i915(pmu);
 	static const struct {
 		unsigned int counter;
 		const char *name;

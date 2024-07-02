@@ -257,8 +257,11 @@ static int aldebaran_tables_init(struct smu_context *smu)
 	}
 
 	smu_table->ecc_table = kzalloc(tables[SMU_TABLE_ECCINFO].size, GFP_KERNEL);
-	if (!smu_table->ecc_table)
+	if (!smu_table->ecc_table) {
+		kfree(smu_table->metrics_table);
+		kfree(smu_table->gpu_metrics_table);
 		return -ENOMEM;
+	}
 
 	return 0;
 }
@@ -756,8 +759,11 @@ static int aldebaran_emit_clk_levels(struct smu_context *smu,
 	switch (type) {
 
 	case SMU_OD_SCLK:
-		*offset += sysfs_emit_at(buf, *offset, "%s:\n", "GFXCLK");
-		fallthrough;
+		*offset += sysfs_emit_at(buf, *offset, "%s:\n", "OD_SCLK");
+		*offset += sysfs_emit_at(buf, *offset, "0: %uMhz\n1: %uMhz\n",
+				      pstate_table->gfxclk_pstate.curr.min,
+				      pstate_table->gfxclk_pstate.curr.max);
+		return 0;
 	case SMU_SCLK:
 		ret = aldebaran_get_current_clk_freq_by_table(smu, SMU_GFXCLK, &cur_value);
 		if (ret) {
@@ -785,8 +791,11 @@ static int aldebaran_emit_clk_levels(struct smu_context *smu,
 		break;
 
 	case SMU_OD_MCLK:
-		*offset += sysfs_emit_at(buf, *offset, "%s:\n", "MCLK");
-		fallthrough;
+		*offset += sysfs_emit_at(buf, *offset, "%s:\n", "OD_MCLK");
+		*offset += sysfs_emit_at(buf, *offset, "0: %uMhz\n1: %uMhz\n",
+				      pstate_table->uclk_pstate.curr.min,
+				      pstate_table->uclk_pstate.curr.max);
+		return 0;
 	case SMU_MCLK:
 		ret = aldebaran_get_current_clk_freq_by_table(smu, SMU_UCLK, &cur_value);
 		if (ret) {
@@ -847,7 +856,6 @@ static int aldebaran_emit_clk_levels(struct smu_context *smu,
 	}
 
 	switch (type) {
-	case SMU_OD_SCLK:
 	case SMU_SCLK:
 		for (i = 0; i < display_levels; i++) {
 			clock_mhz = freq_values[i];
@@ -860,7 +868,6 @@ static int aldebaran_emit_clk_levels(struct smu_context *smu,
 		}
 		break;
 
-	case SMU_OD_MCLK:
 	case SMU_MCLK:
 	case SMU_SOCCLK:
 	case SMU_FCLK:
@@ -1527,7 +1534,6 @@ static int aldebaran_i2c_control_init(struct smu_context *smu)
 	smu_i2c->port = 0;
 	mutex_init(&smu_i2c->mutex);
 	control->owner = THIS_MODULE;
-	control->class = I2C_CLASS_SPD;
 	control->dev.parent = &adev->pdev->dev;
 	control->algo = &aldebaran_i2c_algo;
 	snprintf(control->name, sizeof(control->name), "AMDGPU SMU 0");
@@ -1579,11 +1585,11 @@ out:
 	adev->unique_id = ((uint64_t)upper32 << 32) | lower32;
 }
 
-static bool aldebaran_is_baco_supported(struct smu_context *smu)
+static int aldebaran_get_bamaco_support(struct smu_context *smu)
 {
 	/* aldebaran is not support baco */
 
-	return false;
+	return 0;
 }
 
 static int aldebaran_set_df_cstate(struct smu_context *smu,
@@ -1680,8 +1686,8 @@ static int aldebaran_get_current_pcie_link_speed(struct smu_context *smu)
 
 	/* TODO: confirm this on real target */
 	esm_ctrl = RREG32_PCIE(smnPCIE_ESM_CTRL);
-	if ((esm_ctrl >> 15) & 0x1FFFF)
-		return (((esm_ctrl >> 8) & 0x3F) + 128);
+	if ((esm_ctrl >> 15) & 0x1)
+		return (((esm_ctrl >> 8) & 0x7F) + 128);
 
 	return smu_v13_0_get_current_pcie_link_speed(smu);
 }
@@ -1744,10 +1750,12 @@ static ssize_t aldebaran_get_gpu_metrics(struct smu_context *smu,
 
 	gpu_metrics->current_fan_speed = 0;
 
-	gpu_metrics->pcie_link_width =
-		smu_v13_0_get_current_pcie_link_width(smu);
-	gpu_metrics->pcie_link_speed =
-		aldebaran_get_current_pcie_link_speed(smu);
+	if (!amdgpu_sriov_vf(smu->adev)) {
+		gpu_metrics->pcie_link_width =
+			smu_v13_0_get_current_pcie_link_width(smu);
+		gpu_metrics->pcie_link_speed =
+			aldebaran_get_current_pcie_link_speed(smu);
+	}
 
 	gpu_metrics->system_clock_counter = ktime_get_boottime_ns();
 
@@ -2055,7 +2063,7 @@ static const struct pptable_funcs aldebaran_ppt_funcs = {
 	.register_irq_handler = smu_v13_0_register_irq_handler,
 	.set_azalia_d3_pme = smu_v13_0_set_azalia_d3_pme,
 	.get_max_sustainable_clocks_by_dc = smu_v13_0_get_max_sustainable_clocks_by_dc,
-	.baco_is_support = aldebaran_is_baco_supported,
+	.get_bamaco_support = aldebaran_get_bamaco_support,
 	.get_dpm_ultimate_freq = smu_v13_0_get_dpm_ultimate_freq,
 	.set_soft_freq_limited_range = aldebaran_set_soft_freq_limited_range,
 	.od_edit_dpm_table = aldebaran_usr_edit_dpm_table,

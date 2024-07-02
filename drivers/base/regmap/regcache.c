@@ -187,8 +187,10 @@ int regcache_init(struct regmap *map, const struct regmap_config *config)
 			return 0;
 	}
 
-	if (!map->max_register && map->num_reg_defaults_raw)
+	if (!map->max_register_is_set && map->num_reg_defaults_raw) {
 		map->max_register = (map->num_reg_defaults_raw  - 1) * map->reg_stride;
+		map->max_register_is_set = true;
+	}
 
 	if (map->cache_ops->init) {
 		dev_dbg(map->dev, "Initializing %s cache\n",
@@ -410,8 +412,7 @@ out:
 			rb_entry(node, struct regmap_range_node, node);
 
 		/* If there's nothing in the cache there's nothing to sync */
-		ret = regcache_read(map, this->selector_reg, &i);
-		if (ret != 0)
+		if (regcache_read(map, this->selector_reg, &i) != 0)
 			continue;
 
 		ret = _regmap_write(map, this->selector_reg, i);

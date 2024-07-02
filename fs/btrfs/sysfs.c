@@ -421,7 +421,7 @@ BTRFS_ATTR(static_feature, supported_sectorsizes,
 
 static ssize_t acl_show(struct kobject *kobj, struct kobj_attribute *a, char *buf)
 {
-	return sysfs_emit(buf, "%d\n", !!IS_ENABLED(CONFIG_BTRFS_FS_POSIX_ACL));
+	return sysfs_emit(buf, "%d\n", IS_ENABLED(CONFIG_BTRFS_FS_POSIX_ACL));
 }
 BTRFS_ATTR(static_feature, acl, acl_show);
 
@@ -1228,11 +1228,12 @@ static ssize_t btrfs_read_policy_show(struct kobject *kobj,
 				      struct kobj_attribute *a, char *buf)
 {
 	struct btrfs_fs_devices *fs_devices = to_fs_devs(kobj);
+	const enum btrfs_read_policy policy = READ_ONCE(fs_devices->read_policy);
 	ssize_t ret = 0;
 	int i;
 
 	for (i = 0; i < BTRFS_NR_READ_POLICY; i++) {
-		if (fs_devices->read_policy == i)
+		if (policy == i)
 			ret += sysfs_emit_at(buf, ret, "%s[%s]",
 					 (ret == 0 ? "" : " "),
 					 btrfs_read_policy_name[i]);
@@ -1256,8 +1257,8 @@ static ssize_t btrfs_read_policy_store(struct kobject *kobj,
 
 	for (i = 0; i < BTRFS_NR_READ_POLICY; i++) {
 		if (sysfs_streq(buf, btrfs_read_policy_name[i])) {
-			if (i != fs_devices->read_policy) {
-				fs_devices->read_policy = i;
+			if (i != READ_ONCE(fs_devices->read_policy)) {
+				WRITE_ONCE(fs_devices->read_policy, i);
 				btrfs_info(fs_devices->fs_info,
 					   "read policy set to '%s'",
 					   btrfs_read_policy_name[i]);
@@ -1306,6 +1307,47 @@ static ssize_t btrfs_bg_reclaim_threshold_store(struct kobject *kobj,
 BTRFS_ATTR_RW(, bg_reclaim_threshold, btrfs_bg_reclaim_threshold_show,
 	      btrfs_bg_reclaim_threshold_store);
 
+#ifdef CONFIG_BTRFS_DEBUG
+static ssize_t btrfs_offload_csum_show(struct kobject *kobj,
+				       struct kobj_attribute *a, char *buf)
+{
+	struct btrfs_fs_devices *fs_devices = to_fs_devs(kobj);
+
+	switch (READ_ONCE(fs_devices->offload_csum_mode)) {
+	case BTRFS_OFFLOAD_CSUM_AUTO:
+		return sysfs_emit(buf, "auto\n");
+	case BTRFS_OFFLOAD_CSUM_FORCE_ON:
+		return sysfs_emit(buf, "1\n");
+	case BTRFS_OFFLOAD_CSUM_FORCE_OFF:
+		return sysfs_emit(buf, "0\n");
+	default:
+		WARN_ON(1);
+		return -EINVAL;
+	}
+}
+
+static ssize_t btrfs_offload_csum_store(struct kobject *kobj,
+					struct kobj_attribute *a, const char *buf,
+					size_t len)
+{
+	struct btrfs_fs_devices *fs_devices = to_fs_devs(kobj);
+	int ret;
+	bool val;
+
+	ret = kstrtobool(buf, &val);
+	if (ret == 0)
+		WRITE_ONCE(fs_devices->offload_csum_mode,
+			   val ? BTRFS_OFFLOAD_CSUM_FORCE_ON : BTRFS_OFFLOAD_CSUM_FORCE_OFF);
+	else if (ret == -EINVAL && sysfs_streq(buf, "auto"))
+		WRITE_ONCE(fs_devices->offload_csum_mode, BTRFS_OFFLOAD_CSUM_AUTO);
+	else
+		return -EINVAL;
+
+	return len;
+}
+BTRFS_ATTR_RW(, offload_csum, btrfs_offload_csum_show, btrfs_offload_csum_store);
+#endif
+
 /*
  * Per-filesystem information and stats.
  *
@@ -1325,6 +1367,9 @@ static const struct attribute *btrfs_attrs[] = {
 	BTRFS_ATTR_PTR(, bg_reclaim_threshold),
 	BTRFS_ATTR_PTR(, commit_stats),
 	BTRFS_ATTR_PTR(, temp_fsid),
+#ifdef CONFIG_BTRFS_DEBUG
+	BTRFS_ATTR_PTR(, offload_csum),
+#endif
 	NULL,
 };
 
@@ -1783,6 +1828,10 @@ static ssize_t btrfs_devinfo_scrub_speed_max_store(struct kobject *kobj,
 	unsigned long long limit;
 
 	limit = memparse(buf, &endptr);
+	/* There could be trailing '\n', also catch any typos after the value. */
+	endptr = skip_spaces(endptr);
+	if (*endptr != 0)
+		return -EINVAL;
 	WRITE_ONCE(device->scrub_speed_max, limit);
 	return len;
 }
@@ -2290,7 +2339,7 @@ int btrfs_sysfs_add_one_qgroup(struct btrfs_fs_info *fs_info,
 	struct kobject *qgroups_kobj = fs_info->qgroups_kobj;
 	int ret;
 
-	if (test_bit(BTRFS_FS_STATE_DUMMY_FS_INFO, &fs_info->fs_state))
+	if (btrfs_is_testing(fs_info))
 		return 0;
 	if (qgroup->kobj.state_initialized)
 		return 0;
@@ -2311,7 +2360,7 @@ void btrfs_sysfs_del_qgroups(struct btrfs_fs_info *fs_info)
 	struct btrfs_qgroup *qgroup;
 	struct btrfs_qgroup *next;
 
-	if (test_bit(BTRFS_FS_STATE_DUMMY_FS_INFO, &fs_info->fs_state))
+	if (btrfs_is_testing(fs_info))
 		return;
 
 	rbtree_postorder_for_each_entry_safe(qgroup, next,
@@ -2332,7 +2381,7 @@ int btrfs_sysfs_add_qgroups(struct btrfs_fs_info *fs_info)
 	struct btrfs_qgroup *next;
 	int ret = 0;
 
-	if (test_bit(BTRFS_FS_STATE_DUMMY_FS_INFO, &fs_info->fs_state))
+	if (btrfs_is_testing(fs_info))
 		return 0;
 
 	ASSERT(fsid_kobj);
@@ -2364,7 +2413,7 @@ out:
 void btrfs_sysfs_del_one_qgroup(struct btrfs_fs_info *fs_info,
 				struct btrfs_qgroup *qgroup)
 {
-	if (test_bit(BTRFS_FS_STATE_DUMMY_FS_INFO, &fs_info->fs_state))
+	if (btrfs_is_testing(fs_info))
 		return;
 
 	if (qgroup->kobj.state_initialized) {

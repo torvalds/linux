@@ -94,6 +94,7 @@ static struct wmi_driver wmi_bmof_driver = {
 	.probe = wmi_bmof_probe,
 	.remove = wmi_bmof_remove,
 	.id_table = wmi_bmof_id_table,
+	.no_singleton = true,
 };
 
 module_wmi_driver(wmi_bmof_driver);

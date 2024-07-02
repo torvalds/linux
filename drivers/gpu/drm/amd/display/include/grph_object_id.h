@@ -226,8 +226,8 @@ enum dp_alt_mode {
 
 struct graphics_object_id {
 	uint32_t  id:8;
-	uint32_t  enum_id:4;
-	uint32_t  type:4;
+	enum object_enum_id  enum_id;
+	enum object_type  type;
 	uint32_t  reserved:16; /* for padding. total size should be u32 */
 };
 

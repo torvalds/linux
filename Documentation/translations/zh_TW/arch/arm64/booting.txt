@@ -10,7 +10,7 @@ or if there is a problem with the translation.
 
 M:	Will Deacon <will.deacon@arm.com>
 zh_CN:	Fu Wei <wefu@redhat.com>
-zh_TW:	Hu Haowen <src.res.211@gmail.com>
+zh_TW:	Hu Haowen <2023002089@link.tyut.edu.cn>
 C:	55f058e7574c3615dea4615573a19bdb258696c6
 ---------------------------------------------------------------------
 Documentation/arch/arm64/booting.rst 的中文翻譯
@@ -23,7 +23,7 @@ Documentation/arch/arm64/booting.rst 的中文翻譯
 中文版維護者： 傅煒  Fu Wei <wefu@redhat.com>
 中文版翻譯者： 傅煒  Fu Wei <wefu@redhat.com>
 中文版校譯者： 傅煒  Fu Wei <wefu@redhat.com>
-繁體中文版校譯者： 胡皓文  Hu Haowen <src.res.211@gmail.com>
+繁體中文版校譯者： 胡皓文  Hu Haowen <2023002089@link.tyut.edu.cn>
 本文翻譯提交時的 Git 檢出點爲： 55f058e7574c3615dea4615573a19bdb258696c6
 
 以下爲正文

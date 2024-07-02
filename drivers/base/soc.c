@@ -28,7 +28,7 @@ struct soc_device {
 	int soc_dev_num;
 };
 
-static struct bus_type soc_bus_type = {
+static const struct bus_type soc_bus_type = {
 	.name  = "soc",
 };
 static bool soc_bus_registered;
@@ -106,7 +106,7 @@ static void soc_release(struct device *dev)
 {
 	struct soc_device *soc_dev = container_of(dev, struct soc_device, dev);
 
-	ida_simple_remove(&soc_ida, soc_dev->soc_dev_num);
+	ida_free(&soc_ida, soc_dev->soc_dev_num);
 	kfree(soc_dev->dev.groups);
 	kfree(soc_dev);
 }
@@ -155,7 +155,7 @@ struct soc_device *soc_device_register(struct soc_device_attribute *soc_dev_attr
 	soc_attr_groups[1] = soc_dev_attr->custom_attr_group;
 
 	/* Fetch a unique (reclaimable) SOC ID. */
-	ret = ida_simple_get(&soc_ida, 0, 0, GFP_KERNEL);
+	ret = ida_alloc(&soc_ida, GFP_KERNEL);
 	if (ret < 0)
 		goto out3;
 	soc_dev->soc_dev_num = ret;

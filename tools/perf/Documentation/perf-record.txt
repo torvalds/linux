@@ -374,6 +374,9 @@ comma-separated list with no space: 0,1. Ranges of CPUs are specified with -: 0-
 In per-thread mode with inheritance mode on (default), samples are captured only when
 the thread executes on the designated CPUs. Default is to monitor all CPUs.
 
+User space tasks can migrate between CPUs, so when tracing selected CPUs,
+a dummy event is created to track sideband for all CPUs.
+
 -B::
 --no-buildid::
 Do not save the build ids of binaries in the perf.data files. This skips
@@ -442,6 +445,10 @@ following filters are defined:
 		     4th-Gen Xeon+ server), the save branch type is unconditionally enabled
 		     when the taken branch stack sampling is enabled.
 	- priv: save privilege state during sampling in case binary is not available later
+	- counter: save occurrences of the event since the last branch entry. Currently, the
+		   feature is only supported by a newer CPU, e.g., Intel Sierra Forest and
+		   later platforms. An error out is expected if it's used on the unsupported
+		   kernel or CPUs.
 
 +
 The option requires at least one branch type among any, any_call, any_ret, ind_call, cond.

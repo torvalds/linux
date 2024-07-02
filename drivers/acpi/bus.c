@@ -112,6 +112,17 @@ int acpi_bus_get_status(struct acpi_device *device)
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
+	if (!device->status.present && device->status.enabled) {
+		pr_info(FW_BUG "Device [%s] status [%08x]: not present and enabled\n",
+			device->pnp.bus_id, (u32)sta);
+		device->status.enabled = 0;
+		/*
+		 * The status is clearly invalid, so clear the functional bit as
+		 * well to avoid attempting to use the device.
+		 */
+		device->status.functional = 0;
+	}
+
 	acpi_set_device_status(device, sta);
 
 	if (device->status.functional && !device->status.present) {
@@ -316,9 +327,14 @@ static void acpi_bus_osc_negotiate_platform_control(void)
 		capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_PAD_SUPPORT;
 	if (IS_ENABLED(CONFIG_ACPI_PROCESSOR))
 		capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_PPC_OST_SUPPORT;
+	if (IS_ENABLED(CONFIG_ACPI_THERMAL))
+		capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_FAST_THERMAL_SAMPLING_SUPPORT;
 
 	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_HOTPLUG_OST_SUPPORT;
 	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_PCLPI_SUPPORT;
+	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_OVER_16_PSTATES_SUPPORT;
+	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_GED_SUPPORT;
+	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_IRQ_RESOURCE_SOURCE_SUPPORT;
 	if (IS_ENABLED(CONFIG_ACPI_PRMT))
 		capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_PRM_SUPPORT;
 	if (IS_ENABLED(CONFIG_ACPI_FFH))
@@ -408,7 +424,7 @@ static void acpi_bus_decode_usb_osc(const char *msg, u32 bits)
 static u8 sb_usb_uuid_str[] = "23A0D13A-26AB-486C-9C5F-0FFA525A575A";
 static void acpi_bus_osc_negotiate_usb_control(void)
 {
-	u32 capbuf[3];
+	u32 capbuf[3], *capbuf_ret;
 	struct acpi_osc_context context = {
 		.uuid_str = sb_usb_uuid_str,
 		.rev = 1,
@@ -428,7 +444,12 @@ static void acpi_bus_osc_negotiate_usb_control(void)
 	control = OSC_USB_USB3_TUNNELING | OSC_USB_DP_TUNNELING |
 		  OSC_USB_PCIE_TUNNELING | OSC_USB_XDOMAIN;
 
-	capbuf[OSC_QUERY_DWORD] = 0;
+	/*
+	 * Run _OSC first with query bit set, trying to get control over
+	 * all tunneling. The platform can then clear out bits in the
+	 * control dword that it does not want to grant to the OS.
+	 */
+	capbuf[OSC_QUERY_DWORD] = OSC_QUERY_ENABLE;
 	capbuf[OSC_SUPPORT_DWORD] = 0;
 	capbuf[OSC_CONTROL_DWORD] = control;
 
@@ -441,8 +462,29 @@ static void acpi_bus_osc_negotiate_usb_control(void)
 		goto out_free;
 	}
 
+	/*
+	 * Run _OSC again now with query bit clear and the control dword
+	 * matching what the platform granted (which may not have all
+	 * the control bits set).
+	 */
+	capbuf_ret = context.ret.pointer;
+
+	capbuf[OSC_QUERY_DWORD] = 0;
+	capbuf[OSC_CONTROL_DWORD] = capbuf_ret[OSC_CONTROL_DWORD];
+
+	kfree(context.ret.pointer);
+
+	status = acpi_run_osc(handle, &context);
+	if (ACPI_FAILURE(status))
+		return;
+
+	if (context.ret.length != sizeof(capbuf)) {
+		pr_info("USB4 _OSC: returned invalid length buffer\n");
+		goto out_free;
+	}
+
 	osc_sb_native_usb4_control =
-		control &  acpi_osc_ctx_get_pci_control(&context);
+		control & acpi_osc_ctx_get_pci_control(&context);
 
 	acpi_bus_decode_usb_osc("USB4 _OSC: OS supports", control);
 	acpi_bus_decode_usb_osc("USB4 _OSC: OS controls",
@@ -964,25 +1006,26 @@ EXPORT_SYMBOL_GPL(acpi_driver_match_device);
    -------------------------------------------------------------------------- */
 
 /**
- * acpi_bus_register_driver - register a driver with the ACPI bus
+ * __acpi_bus_register_driver - register a driver with the ACPI bus
  * @driver: driver being registered
+ * @owner: owning module/driver
  *
  * Registers a driver with the ACPI bus.  Searches the namespace for all
  * devices that match the driver's criteria and binds.  Returns zero for
  * success or a negative error status for failure.
  */
-int acpi_bus_register_driver(struct acpi_driver *driver)
+int __acpi_bus_register_driver(struct acpi_driver *driver, struct module *owner)
 {
 	if (acpi_disabled)
 		return -ENODEV;
 	driver->drv.name = driver->name;
 	driver->drv.bus = &acpi_bus_type;
-	driver->drv.owner = driver->owner;
+	driver->drv.owner = owner;
 
 	return driver_register(&driver->drv);
 }
 
-EXPORT_SYMBOL(acpi_bus_register_driver);
+EXPORT_SYMBOL(__acpi_bus_register_driver);
 
 /**
  * acpi_bus_unregister_driver - unregisters a driver with the ACPI bus
@@ -1071,7 +1114,7 @@ static void acpi_device_remove(struct device *dev)
 	put_device(dev);
 }
 
-struct bus_type acpi_bus_type = {
+const struct bus_type acpi_bus_type = {
 	.name		= "acpi",
 	.match		= acpi_bus_match,
 	.probe		= acpi_device_probe,

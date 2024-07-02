@@ -130,7 +130,7 @@ static uint32_t dpcd_get_next_partition_size(const uint32_t address, const uint3
  * XXX: Do not allow any two address ranges in this array to overlap
  */
 static const struct dpcd_address_range mandatory_dpcd_blocks[] = {
-	{ DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV, DP_PHY_REPEATER_EXTENDED_WAIT_TIMEOUT }};
+	{ DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV, DP_PHY_REPEATER_128B132B_RATES }};
 
 /*
  * extend addresses to read all mandatory blocks together
@@ -164,7 +164,7 @@ static void dpcd_extend_address_range(
 	if (new_addr_range.start != in_address || new_addr_range.end != end_address) {
 		*out_address = new_addr_range.start;
 		*out_size = ADDRESS_RANGE_SIZE(new_addr_range.start, new_addr_range.end);
-		*out_data = kzalloc(*out_size * sizeof(**out_data), GFP_KERNEL);
+		*out_data = kcalloc(*out_size, sizeof(**out_data), GFP_KERNEL);
 	}
 }
 
@@ -205,7 +205,7 @@ enum dc_status core_link_read_dpcd(
 	uint32_t extended_size;
 	/* size of the remaining partitioned address space */
 	uint32_t size_left_to_read;
-	enum dc_status status;
+	enum dc_status status = DC_ERROR_UNEXPECTED;
 	/* size of the next partition to be read from */
 	uint32_t partition_size;
 	uint32_t data_index = 0;
@@ -234,7 +234,7 @@ enum dc_status core_link_write_dpcd(
 {
 	uint32_t partition_size;
 	uint32_t data_index = 0;
-	enum dc_status status;
+	enum dc_status status = DC_ERROR_UNEXPECTED;
 
 	while (size) {
 		partition_size = dpcd_get_next_partition_size(address, size);

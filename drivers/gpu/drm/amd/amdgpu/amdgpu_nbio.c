@@ -53,14 +53,6 @@ u64 amdgpu_nbio_get_pcie_replay_count(struct amdgpu_device *adev)
 	return 0;
 }
 
-void amdgpu_nbio_get_pcie_usage(struct amdgpu_device *adev, uint64_t *count0,
-				uint64_t *count1)
-{
-	if (adev->nbio.funcs->get_pcie_usage)
-		adev->nbio.funcs->get_pcie_usage(adev, count0, count1);
-
-}
-
 int amdgpu_nbio_ras_late_init(struct amdgpu_device *adev, struct ras_common_if *ras_block)
 {
 	int r;

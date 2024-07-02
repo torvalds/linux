@@ -250,7 +250,7 @@ static void pchan_update(struct owl_dma_pchan *pchan, u32 reg,
 	else
 		regval &= ~val;
 
-	writel(val, pchan->base + reg);
+	writel(regval, pchan->base + reg);
 }
 
 static void pchan_writel(struct owl_dma_pchan *pchan, u32 reg, u32 data)
@@ -274,7 +274,7 @@ static void dma_update(struct owl_dma *od, u32 reg, u32 val, bool state)
 	else
 		regval &= ~val;
 
-	writel(val, od->base + reg);
+	writel(regval, od->base + reg);
 }
 
 static void dma_writel(struct owl_dma *od, u32 reg, u32 data)
@@ -1231,7 +1231,7 @@ err_pool_free:
 	return ret;
 }
 
-static int owl_dma_remove(struct platform_device *pdev)
+static void owl_dma_remove(struct platform_device *pdev)
 {
 	struct owl_dma *od = platform_get_drvdata(pdev);
 
@@ -1248,13 +1248,11 @@ static int owl_dma_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(od->clk);
 	dma_pool_destroy(od->lli_pool);
-
-	return 0;
 }
 
 static struct platform_driver owl_dma_driver = {
 	.probe	= owl_dma_probe,
-	.remove	= owl_dma_remove,
+	.remove_new = owl_dma_remove,
 	.driver = {
 		.name = "dma-owl",
 		.of_match_table = of_match_ptr(owl_dma_match),

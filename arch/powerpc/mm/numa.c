@@ -1111,7 +1111,7 @@ static void __init setup_node_data(int nid, u64 start_pfn, u64 end_pfn)
 
 static void __init find_possible_nodes(void)
 {
-	struct device_node *rtas;
+	struct device_node *rtas, *root;
 	const __be32 *domains = NULL;
 	int prop_length, max_nodes;
 	u32 i;
@@ -1132,10 +1132,12 @@ static void __init find_possible_nodes(void)
 	 * If the LPAR is migratable, new nodes might be activated after a LPM,
 	 * so we should consider the max number in that case.
 	 */
-	if (!of_get_property(of_root, "ibm,migratable-partition", NULL))
+	root = of_find_node_by_path("/");
+	if (!of_get_property(root, "ibm,migratable-partition", NULL))
 		domains = of_get_property(rtas,
 					  "ibm,current-associativity-domains",
 					  &prop_length);
+	of_node_put(root);
 	if (!domains) {
 		domains = of_get_property(rtas, "ibm,max-associativity-domains",
 					&prop_length);

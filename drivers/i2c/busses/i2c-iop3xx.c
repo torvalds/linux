@@ -478,7 +478,7 @@ iop3xx_i2c_probe(struct platform_device *pdev)
 
 	memcpy(new_adapter->name, pdev->name, strlen(pdev->name));
 	new_adapter->owner = THIS_MODULE;
-	new_adapter->class = I2C_CLASS_HWMON | I2C_CLASS_SPD;
+	new_adapter->class = I2C_CLASS_HWMON;
 	new_adapter->dev.parent = &pdev->dev;
 	new_adapter->dev.of_node = pdev->dev.of_node;
 	new_adapter->nr = pdev->id;

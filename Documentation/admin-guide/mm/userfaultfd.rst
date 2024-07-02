@@ -113,6 +113,9 @@ events, except page fault notifications, may be generated:
   areas. ``UFFD_FEATURE_MINOR_SHMEM`` is the analogous feature indicating
   support for shmem virtual memory areas.
 
+- ``UFFD_FEATURE_MOVE`` indicates that the kernel supports moving an
+  existing page contents from userspace.
+
 The userland application should set the feature flags it intends to use
 when invoking the ``UFFDIO_API`` ioctl, to request that those features be
 enabled if supported.

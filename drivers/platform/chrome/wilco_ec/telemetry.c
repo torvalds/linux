@@ -30,6 +30,7 @@
 #include <linux/cdev.h>
 #include <linux/device.h>
 #include <linux/fs.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_data/wilco-ec.h>
 #include <linux/platform_device.h>
@@ -372,7 +373,7 @@ static int telem_device_probe(struct platform_device *pdev)
 
 	dev_data = kzalloc(sizeof(*dev_data), GFP_KERNEL);
 	if (!dev_data) {
-		ida_simple_remove(&telem_ida, minor);
+		ida_free(&telem_ida, minor);
 		return -ENOMEM;
 	}
 
@@ -393,7 +394,7 @@ static int telem_device_probe(struct platform_device *pdev)
 	error = cdev_device_add(&dev_data->cdev, &dev_data->dev);
 	if (error) {
 		put_device(&dev_data->dev);
-		ida_simple_remove(&telem_ida, minor);
+		ida_free(&telem_ida, minor);
 		return error;
 	}
 
@@ -405,9 +406,15 @@ static void telem_device_remove(struct platform_device *pdev)
 	struct telem_device_data *dev_data = platform_get_drvdata(pdev);
 
 	cdev_device_del(&dev_data->cdev, &dev_data->dev);
-	ida_simple_remove(&telem_ida, MINOR(dev_data->dev.devt));
+	ida_free(&telem_ida, MINOR(dev_data->dev.devt));
 	put_device(&dev_data->dev);
 }
+
+static const struct platform_device_id telem_id[] = {
+	{ DRV_NAME, 0 },
+	{}
+};
+MODULE_DEVICE_TABLE(platform, telem_id);
 
 static struct platform_driver telem_driver = {
 	.probe = telem_device_probe,
@@ -415,6 +422,7 @@ static struct platform_driver telem_driver = {
 	.driver = {
 		.name = DRV_NAME,
 	},
+	.id_table = telem_id,
 };
 
 static int __init telem_module_init(void)
@@ -466,4 +474,3 @@ module_exit(telem_module_exit);
 MODULE_AUTHOR("Nick Crews <ncrews@chromium.org>");
 MODULE_DESCRIPTION("Wilco EC telemetry driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:" DRV_NAME);

@@ -13,6 +13,7 @@
 #define QM_DFX_COMMON_LEN		0xC3
 #define QM_DFX_REGS_LEN			4UL
 #define QM_DBG_TMP_BUF_LEN		22
+#define QM_XQC_ADDR_MASK		GENMASK(31, 0)
 #define CURRENT_FUN_MASK		GENMASK(5, 0)
 #define CURRENT_Q_MASK			GENMASK(31, 16)
 #define QM_SQE_ADDR_MASK		GENMASK(7, 0)
@@ -24,11 +25,17 @@
 #define QM_DFX_QN_SHIFT			16
 #define QM_DFX_CNT_CLR_CE		0x100118
 #define QM_DBG_WRITE_LEN		1024
+#define QM_IN_IDLE_ST_REG		0x1040e4
+#define QM_IN_IDLE_STATE		0x1
 
 static const char * const qm_debug_file_name[] = {
 	[CURRENT_QM]   = "current_qm",
 	[CURRENT_Q]    = "current_q",
 	[CLEAR_ENABLE] = "clear_enable",
+};
+
+static const char * const qm_s[] = {
+	"work", "stop",
 };
 
 struct qm_dfx_item {
@@ -53,34 +60,58 @@ static struct qm_dfx_item qm_dfx_files[] = {
 #define CNT_CYC_REGS_NUM		10
 static const struct debugfs_reg32 qm_dfx_regs[] = {
 	/* XXX_CNT are reading clear register */
-	{"QM_ECC_1BIT_CNT               ",  0x104000ull},
-	{"QM_ECC_MBIT_CNT               ",  0x104008ull},
-	{"QM_DFX_MB_CNT                 ",  0x104018ull},
-	{"QM_DFX_DB_CNT                 ",  0x104028ull},
-	{"QM_DFX_SQE_CNT                ",  0x104038ull},
-	{"QM_DFX_CQE_CNT                ",  0x104048ull},
-	{"QM_DFX_SEND_SQE_TO_ACC_CNT    ",  0x104050ull},
-	{"QM_DFX_WB_SQE_FROM_ACC_CNT    ",  0x104058ull},
-	{"QM_DFX_ACC_FINISH_CNT         ",  0x104060ull},
-	{"QM_DFX_CQE_ERR_CNT            ",  0x1040b4ull},
-	{"QM_DFX_FUNS_ACTIVE_ST         ",  0x200ull},
-	{"QM_ECC_1BIT_INF               ",  0x104004ull},
-	{"QM_ECC_MBIT_INF               ",  0x10400cull},
-	{"QM_DFX_ACC_RDY_VLD0           ",  0x1040a0ull},
-	{"QM_DFX_ACC_RDY_VLD1           ",  0x1040a4ull},
-	{"QM_DFX_AXI_RDY_VLD            ",  0x1040a8ull},
-	{"QM_DFX_FF_ST0                 ",  0x1040c8ull},
-	{"QM_DFX_FF_ST1                 ",  0x1040ccull},
-	{"QM_DFX_FF_ST2                 ",  0x1040d0ull},
-	{"QM_DFX_FF_ST3                 ",  0x1040d4ull},
-	{"QM_DFX_FF_ST4                 ",  0x1040d8ull},
-	{"QM_DFX_FF_ST5                 ",  0x1040dcull},
-	{"QM_DFX_FF_ST6                 ",  0x1040e0ull},
-	{"QM_IN_IDLE_ST                 ",  0x1040e4ull},
+	{"QM_ECC_1BIT_CNT               ",  0x104000},
+	{"QM_ECC_MBIT_CNT               ",  0x104008},
+	{"QM_DFX_MB_CNT                 ",  0x104018},
+	{"QM_DFX_DB_CNT                 ",  0x104028},
+	{"QM_DFX_SQE_CNT                ",  0x104038},
+	{"QM_DFX_CQE_CNT                ",  0x104048},
+	{"QM_DFX_SEND_SQE_TO_ACC_CNT    ",  0x104050},
+	{"QM_DFX_WB_SQE_FROM_ACC_CNT    ",  0x104058},
+	{"QM_DFX_ACC_FINISH_CNT         ",  0x104060},
+	{"QM_DFX_CQE_ERR_CNT            ",  0x1040b4},
+	{"QM_DFX_FUNS_ACTIVE_ST         ",  0x200},
+	{"QM_ECC_1BIT_INF               ",  0x104004},
+	{"QM_ECC_MBIT_INF               ",  0x10400c},
+	{"QM_DFX_ACC_RDY_VLD0           ",  0x1040a0},
+	{"QM_DFX_ACC_RDY_VLD1           ",  0x1040a4},
+	{"QM_DFX_AXI_RDY_VLD            ",  0x1040a8},
+	{"QM_DFX_FF_ST0                 ",  0x1040c8},
+	{"QM_DFX_FF_ST1                 ",  0x1040cc},
+	{"QM_DFX_FF_ST2                 ",  0x1040d0},
+	{"QM_DFX_FF_ST3                 ",  0x1040d4},
+	{"QM_DFX_FF_ST4                 ",  0x1040d8},
+	{"QM_DFX_FF_ST5                 ",  0x1040dc},
+	{"QM_DFX_FF_ST6                 ",  0x1040e0},
+	{"QM_IN_IDLE_ST                 ",  0x1040e4},
+	{"QM_CACHE_CTL                  ",  0x100050},
+	{"QM_TIMEOUT_CFG                ",  0x100070},
+	{"QM_DB_TIMEOUT_CFG             ",  0x100074},
+	{"QM_FLR_PENDING_TIME_CFG       ",  0x100078},
+	{"QM_ARUSR_MCFG1                ",  0x100088},
+	{"QM_AWUSR_MCFG1                ",  0x100098},
+	{"QM_AXI_M_CFG_ENABLE           ",  0x1000B0},
+	{"QM_RAS_CE_THRESHOLD           ",  0x1000F8},
+	{"QM_AXI_TIMEOUT_CTRL           ",  0x100120},
+	{"QM_AXI_TIMEOUT_STATUS         ",  0x100124},
+	{"QM_CQE_AGGR_TIMEOUT_CTRL      ",  0x100144},
+	{"ACC_RAS_MSI_INT_SEL           ",  0x1040fc},
+	{"QM_CQE_OUT                    ",  0x104100},
+	{"QM_EQE_OUT                    ",  0x104104},
+	{"QM_AEQE_OUT                   ",  0x104108},
+	{"QM_DB_INFO0                   ",  0x104180},
+	{"QM_DB_INFO1                   ",  0x104184},
+	{"QM_AM_CTRL_GLOBAL             ",  0x300000},
+	{"QM_AM_CURR_PORT_STS           ",  0x300100},
+	{"QM_AM_CURR_TRANS_RETURN       ",  0x300150},
+	{"QM_AM_CURR_RD_MAX_TXID        ",  0x300154},
+	{"QM_AM_CURR_WR_MAX_TXID        ",  0x300158},
+	{"QM_AM_ALARM_RRESP             ",  0x300180},
+	{"QM_AM_ALARM_BRESP             ",  0x300184},
 };
 
 static const struct debugfs_reg32 qm_vf_dfx_regs[] = {
-	{"QM_DFX_FUNS_ACTIVE_ST         ",  0x200ull},
+	{"QM_DFX_FUNS_ACTIVE_ST         ",  0x200},
 };
 
 /* define the QM's dfx regs region and region length */
@@ -137,7 +168,6 @@ static void dump_show(struct hisi_qm *qm, void *info,
 static int qm_sqc_dump(struct hisi_qm *qm, char *s, char *name)
 {
 	struct device *dev = &qm->pdev->dev;
-	struct qm_sqc *sqc_curr;
 	struct qm_sqc sqc;
 	u32 qp_id;
 	int ret;
@@ -153,6 +183,8 @@ static int qm_sqc_dump(struct hisi_qm *qm, char *s, char *name)
 
 	ret = qm_set_and_get_xqc(qm, QM_MB_CMD_SQC, &sqc, qp_id, 1);
 	if (!ret) {
+		sqc.base_h = cpu_to_le32(QM_XQC_ADDR_MASK);
+		sqc.base_l = cpu_to_le32(QM_XQC_ADDR_MASK);
 		dump_show(qm, &sqc, sizeof(struct qm_sqc), name);
 
 		return 0;
@@ -160,9 +192,10 @@ static int qm_sqc_dump(struct hisi_qm *qm, char *s, char *name)
 
 	down_read(&qm->qps_lock);
 	if (qm->sqc) {
-		sqc_curr = qm->sqc + qp_id;
-
-		dump_show(qm, sqc_curr, sizeof(*sqc_curr), "SOFT SQC");
+		memcpy(&sqc, qm->sqc + qp_id * sizeof(struct qm_sqc), sizeof(struct qm_sqc));
+		sqc.base_h = cpu_to_le32(QM_XQC_ADDR_MASK);
+		sqc.base_l = cpu_to_le32(QM_XQC_ADDR_MASK);
+		dump_show(qm, &sqc, sizeof(struct qm_sqc), "SOFT SQC");
 	}
 	up_read(&qm->qps_lock);
 
@@ -172,7 +205,6 @@ static int qm_sqc_dump(struct hisi_qm *qm, char *s, char *name)
 static int qm_cqc_dump(struct hisi_qm *qm, char *s, char *name)
 {
 	struct device *dev = &qm->pdev->dev;
-	struct qm_cqc *cqc_curr;
 	struct qm_cqc cqc;
 	u32 qp_id;
 	int ret;
@@ -188,6 +220,8 @@ static int qm_cqc_dump(struct hisi_qm *qm, char *s, char *name)
 
 	ret = qm_set_and_get_xqc(qm, QM_MB_CMD_CQC, &cqc, qp_id, 1);
 	if (!ret) {
+		cqc.base_h = cpu_to_le32(QM_XQC_ADDR_MASK);
+		cqc.base_l = cpu_to_le32(QM_XQC_ADDR_MASK);
 		dump_show(qm, &cqc, sizeof(struct qm_cqc), name);
 
 		return 0;
@@ -195,9 +229,10 @@ static int qm_cqc_dump(struct hisi_qm *qm, char *s, char *name)
 
 	down_read(&qm->qps_lock);
 	if (qm->cqc) {
-		cqc_curr = qm->cqc + qp_id;
-
-		dump_show(qm, cqc_curr, sizeof(*cqc_curr), "SOFT CQC");
+		memcpy(&cqc, qm->cqc + qp_id * sizeof(struct qm_cqc), sizeof(struct qm_cqc));
+		cqc.base_h = cpu_to_le32(QM_XQC_ADDR_MASK);
+		cqc.base_l = cpu_to_le32(QM_XQC_ADDR_MASK);
+		dump_show(qm, &cqc, sizeof(struct qm_cqc), "SOFT CQC");
 	}
 	up_read(&qm->qps_lock);
 
@@ -233,6 +268,10 @@ static int qm_eqc_aeqc_dump(struct hisi_qm *qm, char *s, char *name)
 	if (ret)
 		return ret;
 
+	aeqc.base_h = cpu_to_le32(QM_XQC_ADDR_MASK);
+	aeqc.base_l = cpu_to_le32(QM_XQC_ADDR_MASK);
+	eqc.base_h = cpu_to_le32(QM_XQC_ADDR_MASK);
+	eqc.base_l = cpu_to_le32(QM_XQC_ADDR_MASK);
 	dump_show(qm, xeqc, size, name);
 
 	return ret;
@@ -280,27 +319,26 @@ static int q_dump_param_parse(struct hisi_qm *qm, char *s,
 
 static int qm_sq_dump(struct hisi_qm *qm, char *s, char *name)
 {
-	u16 sq_depth = qm->qp_array->cq_depth;
-	void *sqe, *sqe_curr;
+	u16 sq_depth = qm->qp_array->sq_depth;
 	struct hisi_qp *qp;
 	u32 qp_id, sqe_id;
+	void *sqe;
 	int ret;
 
 	ret = q_dump_param_parse(qm, s, &sqe_id, &qp_id, sq_depth);
 	if (ret)
 		return ret;
 
-	sqe = kzalloc(qm->sqe_size * sq_depth, GFP_KERNEL);
+	sqe = kzalloc(qm->sqe_size, GFP_KERNEL);
 	if (!sqe)
 		return -ENOMEM;
 
 	qp = &qm->qp_array[qp_id];
-	memcpy(sqe, qp->sqe, qm->sqe_size * sq_depth);
-	sqe_curr = sqe + (u32)(sqe_id * qm->sqe_size);
-	memset(sqe_curr + qm->debug.sqe_mask_offset, QM_SQE_ADDR_MASK,
+	memcpy(sqe, qp->sqe + sqe_id * qm->sqe_size, qm->sqe_size);
+	memset(sqe + qm->debug.sqe_mask_offset, QM_SQE_ADDR_MASK,
 	       qm->debug.sqe_mask_len);
 
-	dump_show(qm, sqe_curr, qm->sqe_size, name);
+	dump_show(qm, sqe, qm->sqe_size, name);
 
 	kfree(sqe);
 
@@ -779,8 +817,14 @@ static void dfx_regs_uninit(struct hisi_qm *qm,
 {
 	int i;
 
+	if (!dregs)
+		return;
+
 	/* Setting the pointer is NULL to prevent double free */
 	for (i = 0; i < reg_len; i++) {
+		if (!dregs[i].regs)
+			continue;
+
 		kfree(dregs[i].regs);
 		dregs[i].regs = NULL;
 	}
@@ -830,14 +874,21 @@ alloc_error:
 static int qm_diff_regs_init(struct hisi_qm *qm,
 		struct dfx_diff_registers *dregs, u32 reg_len)
 {
+	int ret;
+
 	qm->debug.qm_diff_regs = dfx_regs_init(qm, qm_diff_regs, ARRAY_SIZE(qm_diff_regs));
-	if (IS_ERR(qm->debug.qm_diff_regs))
-		return PTR_ERR(qm->debug.qm_diff_regs);
+	if (IS_ERR(qm->debug.qm_diff_regs)) {
+		ret = PTR_ERR(qm->debug.qm_diff_regs);
+		qm->debug.qm_diff_regs = NULL;
+		return ret;
+	}
 
 	qm->debug.acc_diff_regs = dfx_regs_init(qm, dregs, reg_len);
 	if (IS_ERR(qm->debug.acc_diff_regs)) {
 		dfx_regs_uninit(qm, qm->debug.qm_diff_regs, ARRAY_SIZE(qm_diff_regs));
-		return PTR_ERR(qm->debug.acc_diff_regs);
+		ret = PTR_ERR(qm->debug.acc_diff_regs);
+		qm->debug.acc_diff_regs = NULL;
+		return ret;
 	}
 
 	return 0;
@@ -878,7 +929,9 @@ static int qm_last_regs_init(struct hisi_qm *qm)
 static void qm_diff_regs_uninit(struct hisi_qm *qm, u32 reg_len)
 {
 	dfx_regs_uninit(qm, qm->debug.acc_diff_regs, reg_len);
+	qm->debug.acc_diff_regs = NULL;
 	dfx_regs_uninit(qm, qm->debug.qm_diff_regs, ARRAY_SIZE(qm_diff_regs));
+	qm->debug.qm_diff_regs = NULL;
 }
 
 /**
@@ -997,6 +1050,30 @@ static int qm_diff_regs_show(struct seq_file *s, void *unused)
 }
 DEFINE_SHOW_ATTRIBUTE(qm_diff_regs);
 
+static int qm_state_show(struct seq_file *s, void *unused)
+{
+	struct hisi_qm *qm = s->private;
+	u32 val;
+	int ret;
+
+	/* If device is in suspended, directly return the idle state. */
+	ret = hisi_qm_get_dfx_access(qm);
+	if (!ret) {
+		val = readl(qm->io_base + QM_IN_IDLE_ST_REG);
+		hisi_qm_put_dfx_access(qm);
+	} else if (ret == -EAGAIN) {
+		val = QM_IN_IDLE_STATE;
+	} else {
+		return ret;
+	}
+
+	seq_printf(s, "%u\n", val);
+
+	return 0;
+}
+
+DEFINE_SHOW_ATTRIBUTE(qm_state);
+
 static ssize_t qm_status_read(struct file *filp, char __user *buffer,
 			      size_t count, loff_t *pos)
 {
@@ -1021,12 +1098,12 @@ static void qm_create_debugfs_file(struct hisi_qm *qm, struct dentry *dir,
 {
 	struct debugfs_file *file = qm->debug.files + index;
 
-	debugfs_create_file(qm_debug_file_name[index], 0600, dir, file,
-			    &qm_debug_fops);
-
 	file->index = index;
 	mutex_init(&file->lock);
 	file->debug = &qm->debug;
+
+	debugfs_create_file(qm_debug_file_name[index], 0600, dir, file,
+			    &qm_debug_fops);
 }
 
 static int qm_debugfs_atomic64_set(void *data, u64 val)
@@ -1058,6 +1135,7 @@ DEFINE_DEBUGFS_ATTRIBUTE(qm_atomic64_ops, qm_debugfs_atomic64_get,
 void hisi_qm_debug_init(struct hisi_qm *qm)
 {
 	struct dfx_diff_registers *qm_regs = qm->debug.qm_diff_regs;
+	struct qm_dev_dfx *dev_dfx = &qm->debug.dev_dfx;
 	struct qm_dfx *dfx = &qm->debug.dfx;
 	struct dentry *qm_d;
 	void *data;
@@ -1068,6 +1146,9 @@ void hisi_qm_debug_init(struct hisi_qm *qm)
 
 	/* only show this in PF */
 	if (qm->fun_type == QM_HW_PF) {
+		debugfs_create_file("qm_state", 0444, qm->debug.qm_d,
+					qm, &qm_state_fops);
+
 		qm_create_debugfs_file(qm, qm->debug.debug_root, CURRENT_QM);
 		for (i = CURRENT_Q; i < DEBUG_FILE_NUM; i++)
 			qm_create_debugfs_file(qm, qm->debug.qm_d, i);
@@ -1083,6 +1164,10 @@ void hisi_qm_debug_init(struct hisi_qm *qm)
 
 	debugfs_create_file("status", 0444, qm->debug.qm_d, qm,
 			&qm_status_fops);
+
+	debugfs_create_u32("dev_state", 0444, qm->debug.qm_d, &dev_dfx->dev_state);
+	debugfs_create_u32("dev_timeout", 0644, qm->debug.qm_d, &dev_dfx->dev_timeout);
+
 	for (i = 0; i < ARRAY_SIZE(qm_dfx_files); i++) {
 		data = (atomic64_t *)((uintptr_t)dfx + qm_dfx_files[i].offset);
 		debugfs_create_file(qm_dfx_files[i].name,

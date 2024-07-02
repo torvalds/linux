@@ -284,7 +284,7 @@ struct video_device {
 	struct v4l2_prio_state *prio;
 
 	/* device info */
-	char name[32];
+	char name[64];
 	enum vfl_devnode_type vfl_type;
 	enum vfl_devnode_direction vfl_dir;
 	int minor;

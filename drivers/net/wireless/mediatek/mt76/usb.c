@@ -767,7 +767,7 @@ static void mt76u_status_worker(struct mt76_worker *w)
 	if (!test_bit(MT76_STATE_RUNNING, &dev->phy.state))
 		return;
 
-	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
+	for (i = 0; i <= MT_TXQ_PSD; i++) {
 		q = dev->phy.q_tx[i];
 		if (!q)
 			continue;
@@ -850,13 +850,14 @@ mt76u_tx_setup_buffers(struct mt76_dev *dev, struct sk_buff *skb,
 }
 
 static int
-mt76u_tx_queue_skb(struct mt76_dev *dev, struct mt76_queue *q,
+mt76u_tx_queue_skb(struct mt76_phy *phy, struct mt76_queue *q,
 		   enum mt76_txq_id qid, struct sk_buff *skb,
 		   struct mt76_wcid *wcid, struct ieee80211_sta *sta)
 {
 	struct mt76_tx_info tx_info = {
 		.skb = skb,
 	};
+	struct mt76_dev *dev = phy->dev;
 	u16 idx = q->head;
 	int err;
 
@@ -872,9 +873,8 @@ mt76u_tx_queue_skb(struct mt76_dev *dev, struct mt76_queue *q,
 	if (err < 0)
 		return err;
 
-	mt76u_fill_bulk_urb(dev, USB_DIR_OUT, q2ep(q->hw_idx),
-			    q->entry[idx].urb, mt76u_complete_tx,
-			    &q->entry[idx]);
+	mt76u_fill_bulk_urb(dev, USB_DIR_OUT, q->ep, q->entry[idx].urb,
+			    mt76u_complete_tx, &q->entry[idx]);
 
 	q->head = (q->head + 1) % q->ndesc;
 	q->entry[idx].skb = tx_info.skb;
@@ -906,9 +906,13 @@ static void mt76u_tx_kick(struct mt76_dev *dev, struct mt76_queue *q)
 	}
 }
 
-static u8 mt76u_ac_to_hwq(struct mt76_dev *dev, u8 ac)
+static void
+mt76u_ac_to_hwq(struct mt76_dev *dev, struct mt76_queue *q, u8 qid)
 {
-	if (mt76_chip(dev) == 0x7663) {
+	u8 ac = qid < IEEE80211_NUM_ACS ? qid : IEEE80211_AC_BE;
+
+	switch (mt76_chip(dev)) {
+	case 0x7663: {
 		static const u8 lmac_queue_map[] = {
 			/* ac to lmac mapping */
 			[IEEE80211_AC_BK] = 0,
@@ -917,33 +921,36 @@ static u8 mt76u_ac_to_hwq(struct mt76_dev *dev, u8 ac)
 			[IEEE80211_AC_VO] = 4,
 		};
 
-		if (WARN_ON(ac >= ARRAY_SIZE(lmac_queue_map)))
-			return 1; /* BE */
-
-		return lmac_queue_map[ac];
+		q->hw_idx = lmac_queue_map[ac];
+		q->ep = q->hw_idx + 1;
+		break;
 	}
-
-	return mt76_ac_to_hwq(ac);
+	case 0x7961:
+	case 0x7925:
+		q->hw_idx = mt76_ac_to_hwq(ac);
+		q->ep = qid == MT_TXQ_PSD ? MT_EP_OUT_HCCA : q->hw_idx + 1;
+		break;
+	default:
+		q->hw_idx = mt76_ac_to_hwq(ac);
+		q->ep = q->hw_idx + 1;
+		break;
+	}
 }
 
 static int mt76u_alloc_tx(struct mt76_dev *dev)
 {
-	struct mt76_queue *q;
-	int i, j, err;
+	int i;
 
 	for (i = 0; i <= MT_TXQ_PSD; i++) {
-		if (i >= IEEE80211_NUM_ACS) {
-			dev->phy.q_tx[i] = dev->phy.q_tx[0];
-			continue;
-		}
+		struct mt76_queue *q;
+		int j, err;
 
 		q = devm_kzalloc(dev->dev, sizeof(*q), GFP_KERNEL);
 		if (!q)
 			return -ENOMEM;
 
 		spin_lock_init(&q->lock);
-		q->hw_idx = mt76u_ac_to_hwq(dev, i);
-
+		mt76u_ac_to_hwq(dev, q, i);
 		dev->phy.q_tx[i] = q;
 
 		q->entry = devm_kcalloc(dev->dev,
@@ -969,7 +976,7 @@ static void mt76u_free_tx(struct mt76_dev *dev)
 
 	mt76_worker_teardown(&dev->usb.status_worker);
 
-	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
+	for (i = 0; i <= MT_TXQ_PSD; i++) {
 		struct mt76_queue *q;
 		int j;
 
@@ -999,7 +1006,7 @@ void mt76u_stop_tx(struct mt76_dev *dev)
 
 		dev_err(dev->dev, "timed out waiting for pending tx\n");
 
-		for (i = 0; i < IEEE80211_NUM_ACS; i++) {
+		for (i = 0; i <= MT_TXQ_PSD; i++) {
 			q = dev->phy.q_tx[i];
 			if (!q)
 				continue;
@@ -1013,7 +1020,7 @@ void mt76u_stop_tx(struct mt76_dev *dev)
 		/* On device removal we maight queue skb's, but mt76u_tx_kick()
 		 * will fail to submit urb, cleanup those skb's manually.
 		 */
-		for (i = 0; i < IEEE80211_NUM_ACS; i++) {
+		for (i = 0; i <= MT_TXQ_PSD; i++) {
 			q = dev->phy.q_tx[i];
 			if (!q)
 				continue;
@@ -1128,4 +1135,5 @@ int mt76u_init(struct mt76_dev *dev, struct usb_interface *intf)
 EXPORT_SYMBOL_GPL(mt76u_init);
 
 MODULE_AUTHOR("Lorenzo Bianconi <lorenzo.bianconi83@gmail.com>");
+MODULE_DESCRIPTION("MediaTek MT76x USB helpers");
 MODULE_LICENSE("Dual BSD/GPL");

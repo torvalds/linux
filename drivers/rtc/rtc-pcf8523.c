@@ -370,6 +370,30 @@ static int pcf8523_rtc_set_offset(struct device *dev, long offset)
 	return regmap_write(pcf8523->regmap, PCF8523_REG_OFFSET, value);
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int pcf8523_suspend(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+
+	if (client->irq > 0 && device_may_wakeup(dev))
+		enable_irq_wake(client->irq);
+
+	return 0;
+}
+
+static int pcf8523_resume(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+
+	if (client->irq > 0 && device_may_wakeup(dev))
+		disable_irq_wake(client->irq);
+
+	return 0;
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(pcf8523_pm, pcf8523_suspend, pcf8523_resume);
+
 static const struct rtc_class_ops pcf8523_rtc_ops = {
 	.read_time = pcf8523_rtc_read_time,
 	.set_time = pcf8523_rtc_set_time,
@@ -487,6 +511,7 @@ static struct i2c_driver pcf8523_driver = {
 	.driver = {
 		.name = "rtc-pcf8523",
 		.of_match_table = pcf8523_of_match,
+		.pm = &pcf8523_pm,
 	},
 	.probe = pcf8523_probe,
 	.id_table = pcf8523_id,

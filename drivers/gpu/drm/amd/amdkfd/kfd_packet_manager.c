@@ -288,7 +288,7 @@ int pm_send_set_resources(struct packet_manager *pm,
 
 	retval = pm->pmf->set_resources(pm, buffer, res);
 	if (!retval)
-		kq_submit_packet(pm->priv_queue);
+		retval = kq_submit_packet(pm->priv_queue);
 	else
 		kq_rollback_packet(pm->priv_queue);
 
@@ -325,7 +325,7 @@ int pm_send_runlist(struct packet_manager *pm, struct list_head *dqm_queues)
 	if (retval)
 		goto fail_create_runlist;
 
-	kq_submit_packet(pm->priv_queue);
+	retval = kq_submit_packet(pm->priv_queue);
 
 	mutex_unlock(&pm->lock);
 
@@ -361,7 +361,7 @@ int pm_send_query_status(struct packet_manager *pm, uint64_t fence_address,
 
 	retval = pm->pmf->query_status(pm, buffer, fence_address, fence_value);
 	if (!retval)
-		kq_submit_packet(pm->priv_queue);
+		retval = kq_submit_packet(pm->priv_queue);
 	else
 		kq_rollback_packet(pm->priv_queue);
 
@@ -392,7 +392,7 @@ int pm_update_grace_period(struct packet_manager *pm, uint32_t grace_period)
 
 		retval = pm->pmf->set_grace_period(pm, buffer, grace_period);
 		if (!retval)
-			kq_submit_packet(pm->priv_queue);
+			retval = kq_submit_packet(pm->priv_queue);
 		else
 			kq_rollback_packet(pm->priv_queue);
 	}
@@ -421,7 +421,7 @@ int pm_send_unmap_queue(struct packet_manager *pm,
 
 	retval = pm->pmf->unmap_queues(pm, buffer, filter, filter_param, reset);
 	if (!retval)
-		kq_submit_packet(pm->priv_queue);
+		retval = kq_submit_packet(pm->priv_queue);
 	else
 		kq_rollback_packet(pm->priv_queue);
 

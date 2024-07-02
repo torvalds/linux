@@ -183,7 +183,7 @@ expected time it takes to run a test. If you have control over the systems
 which will run the tests you can configure a test runner on those systems to
 use a greater or lower timeout on the command line as with the `-o` or
 the `--override-timeout` argument. For example to use 165 seconds instead
-one would use:
+one would use::
 
    $ ./run_kselftest.sh --override-timeout 165
 
@@ -245,6 +245,10 @@ Contributing new tests (details)
    TEST_PROGS, TEST_GEN_PROGS mean it is the executable tested by
    default.
 
+   TEST_GEN_MODS_DIR should be used by tests that require modules to be built
+   before the test starts. The variable will contain the name of the directory
+   containing the modules.
+
    TEST_CUSTOM_PROGS should be used by tests that require custom build
    rules and prevent common build rule use.
 
@@ -255,8 +259,20 @@ Contributing new tests (details)
 
    TEST_PROGS_EXTENDED, TEST_GEN_PROGS_EXTENDED mean it is the
    executable which is not tested by default.
+
    TEST_FILES, TEST_GEN_FILES mean it is the file which is used by
    test.
+
+   TEST_INCLUDES is similar to TEST_FILES, it lists files which should be
+   included when exporting or installing the tests, with the following
+   differences:
+
+    * symlinks to files in other directories are preserved
+    * the part of paths below tools/testing/selftests/ is preserved when
+      copying the files to the output directory
+
+   TEST_INCLUDES is meant to list dependencies located in other directories of
+   the selftests hierarchy.
 
  * First use the headers inside the kernel source and/or git repo, and then the
    system headers.  Headers for the kernel release as opposed to headers

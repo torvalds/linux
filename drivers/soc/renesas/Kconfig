@@ -24,6 +24,7 @@ config ARCH_RCAR_GEN2
 	select RENESAS_IRQC
 	select RST_RCAR
 	select SYS_SUPPORTS_SH_CMT
+	select SYS_SUPPORTS_SH_TMU
 
 config ARCH_RCAR_GEN3
 	bool
@@ -33,6 +34,10 @@ config ARCH_RCAR_GEN3
 	select RST_RCAR
 	select SYS_SUPPORTS_SH_CMT
 	select SYS_SUPPORTS_SH_TMU
+
+config ARCH_RCAR_GEN4
+	bool
+	select ARCH_RCAR_GEN3
 
 config ARCH_RMOBILE
 	bool
@@ -240,7 +245,7 @@ config ARCH_R8A77961
 
 config ARCH_R8A779F0
 	bool "ARM64 Platform support for R-Car S4-8"
-	select ARCH_RCAR_GEN3
+	select ARCH_RCAR_GEN4
 	select SYSC_R8A779F0
 	help
 	  This enables support for the Renesas R-Car S4-8 SoC.
@@ -261,17 +266,24 @@ config ARCH_R8A77970
 
 config ARCH_R8A779A0
 	bool "ARM64 Platform support for R-Car V3U"
-	select ARCH_RCAR_GEN3
+	select ARCH_RCAR_GEN4
 	select SYSC_R8A779A0
 	help
 	  This enables support for the Renesas R-Car V3U SoC.
 
 config ARCH_R8A779G0
 	bool "ARM64 Platform support for R-Car V4H"
-	select ARCH_RCAR_GEN3
+	select ARCH_RCAR_GEN4
 	select SYSC_R8A779G0
 	help
 	  This enables support for the Renesas R-Car V4H SoC.
+
+config ARCH_R8A779H0
+	bool "ARM64 Platform support for R-Car V4M"
+	select ARCH_RCAR_GEN4
+	select SYSC_R8A779H0
+	help
+	  This enables support for the Renesas R-Car V4M SoC.
 
 config ARCH_R8A774C0
 	bool "ARM64 Platform support for RZ/G2E"
@@ -333,6 +345,11 @@ config ARCH_R9A09G011
 	help
 	  This enables support for the Renesas RZ/V2M SoC.
 
+config ARCH_R9A09G057
+	bool "ARM64 Platform support for RZ/V2H(P)"
+	help
+	  This enables support for the Renesas RZ/V2H(P) SoC variants.
+
 endif # ARM64
 
 if RISCV
@@ -340,6 +357,7 @@ if RISCV
 config ARCH_R9A07G043
 	bool "RISC-V Platform support for RZ/Five"
 	depends on NONPORTABLE
+	depends on !DMA_DIRECT_REMAP
 	depends on RISCV_ALTERNATIVE
 	depends on !RISCV_ISA_ZICBOM
 	depends on RISCV_SBI

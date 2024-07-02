@@ -42,13 +42,12 @@ struct pmreg_sets {
 
 static uint64_t get_pmcr_n(uint64_t pmcr)
 {
-	return (pmcr >> ARMV8_PMU_PMCR_N_SHIFT) & ARMV8_PMU_PMCR_N_MASK;
+	return FIELD_GET(ARMV8_PMU_PMCR_N, pmcr);
 }
 
 static void set_pmcr_n(uint64_t *pmcr, uint64_t pmcr_n)
 {
-	*pmcr = *pmcr & ~(ARMV8_PMU_PMCR_N_MASK << ARMV8_PMU_PMCR_N_SHIFT);
-	*pmcr |= (pmcr_n << ARMV8_PMU_PMCR_N_SHIFT);
+	u64p_replace_bits((__u64 *) pmcr, pmcr_n, ARMV8_PMU_PMCR_N);
 }
 
 static uint64_t get_counters_mask(uint64_t n)
@@ -91,22 +90,6 @@ static inline void write_sel_evtyper(int sel, unsigned long val)
 	write_sysreg(sel, pmselr_el0);
 	isb();
 	write_sysreg(val, pmxevtyper_el0);
-	isb();
-}
-
-static inline void enable_counter(int idx)
-{
-	uint64_t v = read_sysreg(pmcntenset_el0);
-
-	write_sysreg(BIT(idx) | v, pmcntenset_el0);
-	isb();
-}
-
-static inline void disable_counter(int idx)
-{
-	uint64_t v = read_sysreg(pmcntenset_el0);
-
-	write_sysreg(BIT(idx) | v, pmcntenclr_el0);
 	isb();
 }
 
@@ -196,11 +179,11 @@ struct pmc_accessor pmc_accessors[] = {
 										 \
 	if (set_expected)							 \
 		__GUEST_ASSERT((_tval & mask),					 \
-				"tval: 0x%lx; mask: 0x%lx; set_expected: 0x%lx", \
+				"tval: 0x%lx; mask: 0x%lx; set_expected: %u",	 \
 				_tval, mask, set_expected);			 \
 	else									 \
 		__GUEST_ASSERT(!(_tval & mask),					 \
-				"tval: 0x%lx; mask: 0x%lx; set_expected: 0x%lx", \
+				"tval: 0x%lx; mask: 0x%lx; set_expected: %u",	 \
 				_tval, mask, set_expected);			 \
 }
 
@@ -287,7 +270,7 @@ static void test_access_pmc_regs(struct pmc_accessor *acc, int pmc_idx)
 	acc->write_typer(pmc_idx, write_data);
 	read_data = acc->read_typer(pmc_idx);
 	__GUEST_ASSERT(read_data == write_data,
-		       "pmc_idx: 0x%lx; acc_idx: 0x%lx; read_data: 0x%lx; write_data: 0x%lx",
+		       "pmc_idx: 0x%x; acc_idx: 0x%lx; read_data: 0x%lx; write_data: 0x%lx",
 		       pmc_idx, PMC_ACC_TO_IDX(acc), read_data, write_data);
 
 	/*
@@ -298,14 +281,14 @@ static void test_access_pmc_regs(struct pmc_accessor *acc, int pmc_idx)
 
 	/* The count value must be 0, as it is disabled and reset */
 	__GUEST_ASSERT(read_data == 0,
-		       "pmc_idx: 0x%lx; acc_idx: 0x%lx; read_data: 0x%lx",
+		       "pmc_idx: 0x%x; acc_idx: 0x%lx; read_data: 0x%lx",
 		       pmc_idx, PMC_ACC_TO_IDX(acc), read_data);
 
 	write_data = read_data + pmc_idx + 0x12345;
 	acc->write_cntr(pmc_idx, write_data);
 	read_data = acc->read_cntr(pmc_idx);
 	__GUEST_ASSERT(read_data == write_data,
-		       "pmc_idx: 0x%lx; acc_idx: 0x%lx; read_data: 0x%lx; write_data: 0x%lx",
+		       "pmc_idx: 0x%x; acc_idx: 0x%lx; read_data: 0x%lx; write_data: 0x%lx",
 		       pmc_idx, PMC_ACC_TO_IDX(acc), read_data, write_data);
 }
 
@@ -380,7 +363,7 @@ static void guest_code(uint64_t expected_pmcr_n)
 	int i, pmc;
 
 	__GUEST_ASSERT(expected_pmcr_n <= ARMV8_PMU_MAX_GENERAL_COUNTERS,
-			"Expected PMCR.N: 0x%lx; ARMv8 general counters: 0x%lx",
+			"Expected PMCR.N: 0x%lx; ARMv8 general counters: 0x%x",
 			expected_pmcr_n, ARMV8_PMU_MAX_GENERAL_COUNTERS);
 
 	pmcr = read_sysreg(pmcr_el0);
@@ -518,11 +501,11 @@ static void test_create_vpmu_vm_with_pmcr_n(uint64_t pmcr_n, bool expect_fail)
 
 	if (expect_fail)
 		TEST_ASSERT(pmcr_orig == pmcr,
-			    "PMCR.N modified by KVM to a larger value (PMCR: 0x%lx) for pmcr_n: 0x%lx\n",
+			    "PMCR.N modified by KVM to a larger value (PMCR: 0x%lx) for pmcr_n: 0x%lx",
 			    pmcr, pmcr_n);
 	else
 		TEST_ASSERT(pmcr_n == get_pmcr_n(pmcr),
-			    "Failed to update PMCR.N to %lu (received: %lu)\n",
+			    "Failed to update PMCR.N to %lu (received: %lu)",
 			    pmcr_n, get_pmcr_n(pmcr));
 }
 
@@ -595,12 +578,12 @@ static void run_pmregs_validity_test(uint64_t pmcr_n)
 		 */
 		vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(set_reg_id), &reg_val);
 		TEST_ASSERT((reg_val & (~valid_counters_mask)) == 0,
-			    "Initial read of set_reg: 0x%llx has unimplemented counters enabled: 0x%lx\n",
+			    "Initial read of set_reg: 0x%llx has unimplemented counters enabled: 0x%lx",
 			    KVM_ARM64_SYS_REG(set_reg_id), reg_val);
 
 		vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(clr_reg_id), &reg_val);
 		TEST_ASSERT((reg_val & (~valid_counters_mask)) == 0,
-			    "Initial read of clr_reg: 0x%llx has unimplemented counters enabled: 0x%lx\n",
+			    "Initial read of clr_reg: 0x%llx has unimplemented counters enabled: 0x%lx",
 			    KVM_ARM64_SYS_REG(clr_reg_id), reg_val);
 
 		/*
@@ -612,12 +595,12 @@ static void run_pmregs_validity_test(uint64_t pmcr_n)
 
 		vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(set_reg_id), &reg_val);
 		TEST_ASSERT((reg_val & (~valid_counters_mask)) == 0,
-			    "Read of set_reg: 0x%llx has unimplemented counters enabled: 0x%lx\n",
+			    "Read of set_reg: 0x%llx has unimplemented counters enabled: 0x%lx",
 			    KVM_ARM64_SYS_REG(set_reg_id), reg_val);
 
 		vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(clr_reg_id), &reg_val);
 		TEST_ASSERT((reg_val & (~valid_counters_mask)) == 0,
-			    "Read of clr_reg: 0x%llx has unimplemented counters enabled: 0x%lx\n",
+			    "Read of clr_reg: 0x%llx has unimplemented counters enabled: 0x%lx",
 			    KVM_ARM64_SYS_REG(clr_reg_id), reg_val);
 	}
 

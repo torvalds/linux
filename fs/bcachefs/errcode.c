@@ -2,6 +2,7 @@
 
 #include "bcachefs.h"
 #include "errcode.h"
+#include "trace.h"
 
 #include <linux/errname.h>
 
@@ -49,15 +50,17 @@ bool __bch2_err_matches(int err, int class)
 	return err == class;
 }
 
-int __bch2_err_class(int err)
+int __bch2_err_class(int bch_err)
 {
-	err = -err;
-	BUG_ON((unsigned) err >= BCH_ERR_MAX);
+	int std_err = -bch_err;
+	BUG_ON((unsigned) std_err >= BCH_ERR_MAX);
 
-	while (err >= BCH_ERR_START && bch2_errcode_parents[err - BCH_ERR_START])
-		err = bch2_errcode_parents[err - BCH_ERR_START];
+	while (std_err >= BCH_ERR_START && bch2_errcode_parents[std_err - BCH_ERR_START])
+		std_err = bch2_errcode_parents[std_err - BCH_ERR_START];
 
-	return -err;
+	trace_error_downcast(bch_err, std_err, _RET_IP_);
+
+	return -std_err;
 }
 
 const char *bch2_blk_status_to_str(blk_status_t status)

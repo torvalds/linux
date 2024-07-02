@@ -264,8 +264,7 @@ static inline struct bset *bset_next_set(struct btree *b,
 void bch2_btree_keys_init(struct btree *);
 
 void bch2_bset_init_first(struct btree *, struct bset *);
-void bch2_bset_init_next(struct bch_fs *, struct btree *,
-			 struct btree_node_entry *);
+void bch2_bset_init_next(struct btree *, struct btree_node_entry *);
 void bch2_bset_build_aux_tree(struct btree *, struct bset_tree *, bool);
 
 void bch2_bset_insert(struct btree *, struct btree_node_iter *,
@@ -458,6 +457,8 @@ struct bkey_s_c bch2_btree_node_iter_peek_unpack(struct btree_node_iter *,
 	     bch2_btree_node_iter_advance(iter, b))
 
 /* Accounting: */
+
+struct btree_nr_keys bch2_btree_node_count_keys(struct btree *);
 
 static inline void btree_keys_account_key(struct btree_nr_keys *n,
 					  unsigned bset,

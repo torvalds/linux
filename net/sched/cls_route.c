@@ -671,6 +671,7 @@ static struct tcf_proto_ops cls_route4_ops __read_mostly = {
 	.bind_class	=	route4_bind_class,
 	.owner		=	THIS_MODULE,
 };
+MODULE_ALIAS_NET_CLS("route");
 
 static int __init init_route4(void)
 {
@@ -684,4 +685,5 @@ static void __exit exit_route4(void)
 
 module_init(init_route4)
 module_exit(exit_route4)
+MODULE_DESCRIPTION("Routing table realm based TC classifier");
 MODULE_LICENSE("GPL");

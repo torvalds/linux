@@ -23,7 +23,9 @@ properties:
   compatible:
     enum:
       - st,stm32f4-spi
+      - st,stm32f7-spi
       - st,stm32h7-spi
+      - st,stm32mp25-spi
 
   reg:
     maxItems: 1
@@ -49,6 +51,10 @@ properties:
     items:
       - const: rx
       - const: tx
+
+  access-controllers:
+    minItems: 1
+    maxItems: 2
 
 required:
   - compatible

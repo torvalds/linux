@@ -212,7 +212,7 @@ genpd_err:
 	return ret;
 }
 
-static int imx_pgc_power_domain_remove(struct platform_device *pdev)
+static void imx_pgc_power_domain_remove(struct platform_device *pdev)
 {
 	struct imx_pm_domain *domain = pdev->dev.platform_data;
 
@@ -221,8 +221,6 @@ static int imx_pgc_power_domain_remove(struct platform_device *pdev)
 		pm_genpd_remove(&domain->base);
 		imx_pgc_put_clocks(domain);
 	}
-
-	return 0;
 }
 
 static const struct platform_device_id imx_pgc_power_domain_id[] = {
@@ -235,7 +233,7 @@ static struct platform_driver imx_pgc_power_domain_driver = {
 		.name = "imx-pgc-pd",
 	},
 	.probe = imx_pgc_power_domain_probe,
-	.remove = imx_pgc_power_domain_remove,
+	.remove_new = imx_pgc_power_domain_remove,
 	.id_table = imx_pgc_power_domain_id,
 };
 builtin_platform_driver(imx_pgc_power_domain_driver)
@@ -511,7 +509,7 @@ static int imx_gpc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int imx_gpc_remove(struct platform_device *pdev)
+static void imx_gpc_remove(struct platform_device *pdev)
 {
 	struct device_node *pgc_node;
 	int ret;
@@ -521,7 +519,7 @@ static int imx_gpc_remove(struct platform_device *pdev)
 	/* bail out if DT too old and doesn't provide the necessary info */
 	if (!of_property_read_bool(pdev->dev.of_node, "#power-domain-cells") &&
 	    !pgc_node)
-		return 0;
+		return;
 
 	/*
 	 * If the old DT binding is used the toplevel driver needs to
@@ -531,16 +529,20 @@ static int imx_gpc_remove(struct platform_device *pdev)
 		of_genpd_del_provider(pdev->dev.of_node);
 
 		ret = pm_genpd_remove(&imx_gpc_domains[GPC_PGC_DOMAIN_PU].base);
-		if (ret)
-			return ret;
+		if (ret) {
+			dev_err(&pdev->dev, "Failed to remove PU power domain (%pe)\n",
+				ERR_PTR(ret));
+			return;
+		}
 		imx_pgc_put_clocks(&imx_gpc_domains[GPC_PGC_DOMAIN_PU]);
 
 		ret = pm_genpd_remove(&imx_gpc_domains[GPC_PGC_DOMAIN_ARM].base);
-		if (ret)
-			return ret;
+		if (ret) {
+			dev_err(&pdev->dev, "Failed to remove ARM power domain (%pe)\n",
+				ERR_PTR(ret));
+			return;
+		}
 	}
-
-	return 0;
 }
 
 static struct platform_driver imx_gpc_driver = {
@@ -549,6 +551,6 @@ static struct platform_driver imx_gpc_driver = {
 		.of_match_table = imx_gpc_dt_ids,
 	},
 	.probe = imx_gpc_probe,
-	.remove = imx_gpc_remove,
+	.remove_new = imx_gpc_remove,
 };
 builtin_platform_driver(imx_gpc_driver)

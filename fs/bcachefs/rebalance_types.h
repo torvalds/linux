@@ -2,25 +2,36 @@
 #ifndef _BCACHEFS_REBALANCE_TYPES_H
 #define _BCACHEFS_REBALANCE_TYPES_H
 
+#include "bbpos_types.h"
 #include "move_types.h"
 
-enum rebalance_state {
-	REBALANCE_WAITING,
-	REBALANCE_THROTTLED,
-	REBALANCE_RUNNING,
+#define BCH_REBALANCE_STATES()		\
+	x(waiting)			\
+	x(working)			\
+	x(scanning)
+
+enum bch_rebalance_states {
+#define x(t)	BCH_REBALANCE_##t,
+	BCH_REBALANCE_STATES()
+#undef x
 };
 
 struct bch_fs_rebalance {
-	struct task_struct __rcu *thread;
+	struct task_struct __rcu	*thread;
 	struct bch_pd_controller pd;
 
-	atomic64_t		work_unknown_dev;
+	enum bch_rebalance_states	state;
+	u64				wait_iotime_start;
+	u64				wait_iotime_end;
+	u64				wait_wallclock_start;
 
-	enum rebalance_state	state;
-	u64			throttled_until_iotime;
-	unsigned long		throttled_until_cputime;
+	struct bch_move_stats		work_stats;
 
-	unsigned		enabled:1;
+	struct bbpos			scan_start;
+	struct bbpos			scan_end;
+	struct bch_move_stats		scan_stats;
+
+	unsigned			enabled:1;
 };
 
 #endif /* _BCACHEFS_REBALANCE_TYPES_H */

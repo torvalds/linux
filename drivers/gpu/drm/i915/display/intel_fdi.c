@@ -10,6 +10,7 @@
 #include "intel_crtc.h"
 #include "intel_ddi.h"
 #include "intel_de.h"
+#include "intel_dp.h"
 #include "intel_display_types.h"
 #include "intel_fdi.h"
 #include "intel_fdi_regs.h"
@@ -338,8 +339,11 @@ int ilk_fdi_compute_config(struct intel_crtc *crtc,
 
 	pipe_config->fdi_lanes = lane;
 
-	intel_link_compute_m_n(pipe_config->pipe_bpp, lane, fdi_dotclock,
-			       link_bw, &pipe_config->fdi_m_n, false);
+	intel_link_compute_m_n(to_bpp_x16(pipe_config->pipe_bpp),
+			       lane, fdi_dotclock,
+			       link_bw,
+			       intel_dp_bw_fec_overhead(false),
+			       &pipe_config->fdi_m_n);
 
 	return 0;
 }

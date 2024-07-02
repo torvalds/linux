@@ -164,7 +164,7 @@ static struct i2c_board_info vision_i2c_info[] __initdata = {
  * SPI CS4271 Audio Codec
  *************************************************************************/
 static struct cs4271_platform_data vision_cs4271_data = {
-	.gpio_nreset	= EP93XX_GPIO_LINE_H(2),
+	/* Intentionally left blank */
 };
 
 /*************************************************************************
@@ -241,6 +241,15 @@ static struct spi_board_info vision_spi_board_info[] __initdata = {
 	},
 };
 
+static struct gpiod_lookup_table vision_spi_cs4271_gpio_table = {
+	.dev_id = "spi0.0", /* cs4271 @ CS0 */
+	.table = {
+		/* RESET */
+		GPIO_LOOKUP_IDX("H", 2, NULL, 0, GPIO_ACTIVE_LOW),
+		{ },
+	},
+};
+
 static struct gpiod_lookup_table vision_spi_cs_gpio_table = {
 	.dev_id = "spi0",
 	.table = {
@@ -292,6 +301,7 @@ static void __init vision_init_machine(void)
 
 	ep93xx_register_i2c(vision_i2c_info,
 				ARRAY_SIZE(vision_i2c_info));
+	gpiod_add_lookup_table(&vision_spi_cs4271_gpio_table);
 	gpiod_add_lookup_table(&vision_spi_mmc_gpio_table);
 	gpiod_add_lookup_table(&vision_spi_cs_gpio_table);
 	ep93xx_register_spi(&vision_spi_master, vision_spi_board_info,

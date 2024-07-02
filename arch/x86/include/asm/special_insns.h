@@ -2,11 +2,11 @@
 #ifndef _ASM_X86_SPECIAL_INSNS_H
 #define _ASM_X86_SPECIAL_INSNS_H
 
-
 #ifdef __KERNEL__
-
 #include <asm/nops.h>
 #include <asm/processor-flags.h>
+
+#include <linux/errno.h>
 #include <linux/irqflags.h>
 #include <linux/jump_label.h>
 
@@ -182,8 +182,8 @@ static __always_inline void clflush(volatile void *__p)
 
 static inline void clflushopt(volatile void *__p)
 {
-	alternative_io(".byte 0x3e; clflush %P0",
-		       ".byte 0x66; clflush %P0",
+	alternative_io(".byte 0x3e; clflush %0",
+		       ".byte 0x66; clflush %0",
 		       X86_FEATURE_CLFLUSHOPT,
 		       "+m" (*(volatile char __force *)__p));
 }
@@ -205,9 +205,9 @@ static inline void clwb(volatile void *__p)
 #ifdef CONFIG_X86_USER_SHADOW_STACK
 static inline int write_user_shstk_64(u64 __user *addr, u64 val)
 {
-	asm_volatile_goto("1: wrussq %[val], (%[addr])\n"
+	asm goto("1: wrussq %[val], %[addr]\n"
 			  _ASM_EXTABLE(1b, %l[fail])
-			  :: [addr] "r" (addr), [val] "r" (val)
+			  :: [addr] "m" (*addr), [val] "r" (val)
 			  :: fail);
 	return 0;
 fail:
@@ -224,10 +224,10 @@ static inline void serialize(void)
 }
 
 /* The dst parameter must be 64-bytes aligned */
-static inline void movdir64b(void __iomem *dst, const void *src)
+static inline void movdir64b(void *dst, const void *src)
 {
 	const struct { char _[64]; } *__src = src;
-	struct { char _[64]; } __iomem *__dst = dst;
+	struct { char _[64]; } *__dst = dst;
 
 	/*
 	 * MOVDIR64B %(rdx), rax.
@@ -243,6 +243,11 @@ static inline void movdir64b(void __iomem *dst, const void *src)
 	asm volatile(".byte 0x66, 0x0f, 0x38, 0xf8, 0x02"
 		     : "+m" (*__dst)
 		     :  "m" (*__src), "a" (__dst), "d" (__src));
+}
+
+static inline void movdir64b_io(void __iomem *dst, const void *src)
+{
+	movdir64b((void __force *)dst, src);
 }
 
 /**

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: ISC
 /*
  * Copyright (c) 2014-2015 Qualcomm Atheros, Inc.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/device.h>
@@ -99,7 +100,7 @@ static ssize_t ath10k_thermal_show_temp(struct device *dev,
 	spin_unlock_bh(&ar->data_lock);
 
 	/* display in millidegree celsius */
-	ret = snprintf(buf, PAGE_SIZE, "%d\n", temperature * 1000);
+	ret = sysfs_emit(buf, "%d\n", temperature * 1000);
 out:
 	mutex_unlock(&ar->conf_mutex);
 	return ret;

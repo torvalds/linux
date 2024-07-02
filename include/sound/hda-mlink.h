@@ -3,7 +3,7 @@
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
- * Copyright(c) 2022-2023 Intel Corporation. All rights reserved.
+ * Copyright(c) 2022-2023 Intel Corporation
  */
 
 struct hdac_bus;
@@ -181,4 +181,4 @@ hdac_bus_eml_enable_offload(struct hdac_bus *bus, bool alt, int elid, bool enabl
 {
 	return 0;
 }
-#endif /* CONFIG_SND_SOC_SOF_HDA */
+#endif /* CONFIG_SND_SOC_SOF_HDA_MLINK */

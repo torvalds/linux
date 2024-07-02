@@ -2,9 +2,10 @@
 /* Copyright (c) 2021 Facebook */
 #include <linux/bpf.h>
 #include <time.h>
+#include <stdbool.h>
 #include <errno.h>
 #include <bpf/bpf_helpers.h>
-#include "bpf_tcp_helpers.h"
+#include <bpf/bpf_tracing.h>
 
 char _license[] SEC("license") = "GPL";
 struct hmap_elem {
@@ -51,7 +52,8 @@ struct {
 	__uint(max_entries, 1);
 	__type(key, int);
 	__type(value, struct elem);
-} abs_timer SEC(".maps"), soft_timer_pinned SEC(".maps"), abs_timer_pinned SEC(".maps");
+} abs_timer SEC(".maps"), soft_timer_pinned SEC(".maps"), abs_timer_pinned SEC(".maps"),
+	race_array SEC(".maps");
 
 __u64 bss_data;
 __u64 abs_data;
@@ -387,6 +389,37 @@ int BPF_PROG2(test5, int, a)
 {
 	bpf_printk("test5");
 	test_pinned_timer(false);
+
+	return 0;
+}
+
+static int race_timer_callback(void *race_array, int *race_key, struct bpf_timer *timer)
+{
+	bpf_timer_start(timer, 1000000, 0);
+	return 0;
+}
+
+SEC("syscall")
+int race(void *ctx)
+{
+	struct bpf_timer *timer;
+	int err, race_key = 0;
+	struct elem init;
+
+	__builtin_memset(&init, 0, sizeof(struct elem));
+	bpf_map_update_elem(&race_array, &race_key, &init, BPF_ANY);
+
+	timer = bpf_map_lookup_elem(&race_array, &race_key);
+	if (!timer)
+		return 1;
+
+	err = bpf_timer_init(timer, &race_array, CLOCK_MONOTONIC);
+	if (err && err != -EBUSY)
+		return 1;
+
+	bpf_timer_set_callback(timer, race_timer_callback);
+	bpf_timer_start(timer, 0, 0);
+	bpf_timer_cancel(timer);
 
 	return 0;
 }

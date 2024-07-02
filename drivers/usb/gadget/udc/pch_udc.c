@@ -274,7 +274,6 @@ struct pch_udc_cfg_data {
  * @td_data:		for data request
  * @dev:		reference to device struct
  * @offset_addr:	offset address of ep register
- * @desc:		for this ep
  * @queue:		queue for requests
  * @num:		endpoint number
  * @in:			endpoint is IN

@@ -1102,6 +1102,7 @@ static int xgene_init_perf(struct xgene_pmu_dev *pmu_dev, char *name)
 
 	/* Perf driver registration */
 	pmu_dev->pmu = (struct pmu) {
+		.parent		= pmu_dev->parent->dev,
 		.attr_groups	= pmu_dev->attr_groups,
 		.task_ctx_nr	= perf_invalid_context,
 		.pmu_enable	= xgene_perf_pmu_enable,
@@ -1937,7 +1938,7 @@ xgene_pmu_dev_cleanup(struct xgene_pmu *xgene_pmu, struct list_head *pmus)
 	}
 }
 
-static int xgene_pmu_remove(struct platform_device *pdev)
+static void xgene_pmu_remove(struct platform_device *pdev)
 {
 	struct xgene_pmu *xgene_pmu = dev_get_drvdata(&pdev->dev);
 
@@ -1947,13 +1948,11 @@ static int xgene_pmu_remove(struct platform_device *pdev)
 	xgene_pmu_dev_cleanup(xgene_pmu, &xgene_pmu->mcpmus);
 	cpuhp_state_remove_instance(CPUHP_AP_PERF_ARM_APM_XGENE_ONLINE,
 				    &xgene_pmu->node);
-
-	return 0;
 }
 
 static struct platform_driver xgene_pmu_driver = {
 	.probe = xgene_pmu_probe,
-	.remove = xgene_pmu_remove,
+	.remove_new = xgene_pmu_remove,
 	.driver = {
 		.name		= "xgene-pmu",
 		.of_match_table = xgene_pmu_of_match,

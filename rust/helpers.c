@@ -4,7 +4,7 @@
  * cannot be called either. This file explicitly creates functions ("helpers")
  * that wrap those so that they can be called from Rust.
  *
- * Even though Rust kernel modules should never use directly the bindings, some
+ * Even though Rust kernel modules should never use the bindings directly, some
  * of these helpers need to be exported because Rust generics and inlined
  * functions may not get their code generated in the crate where they are
  * defined. Other helpers, called from non-inline functions, may not be

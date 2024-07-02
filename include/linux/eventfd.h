@@ -35,8 +35,7 @@ void eventfd_ctx_put(struct eventfd_ctx *ctx);
 struct file *eventfd_fget(int fd);
 struct eventfd_ctx *eventfd_ctx_fdget(int fd);
 struct eventfd_ctx *eventfd_ctx_fileget(struct file *file);
-__u64 eventfd_signal(struct eventfd_ctx *ctx, __u64 n);
-__u64 eventfd_signal_mask(struct eventfd_ctx *ctx, __u64 n, __poll_t mask);
+void eventfd_signal_mask(struct eventfd_ctx *ctx, __poll_t mask);
 int eventfd_ctx_remove_wait_queue(struct eventfd_ctx *ctx, wait_queue_entry_t *wait,
 				  __u64 *cnt);
 void eventfd_ctx_do_read(struct eventfd_ctx *ctx, __u64 *cnt);
@@ -58,15 +57,8 @@ static inline struct eventfd_ctx *eventfd_ctx_fdget(int fd)
 	return ERR_PTR(-ENOSYS);
 }
 
-static inline int eventfd_signal(struct eventfd_ctx *ctx, __u64 n)
+static inline void eventfd_signal_mask(struct eventfd_ctx *ctx, __poll_t mask)
 {
-	return -ENOSYS;
-}
-
-static inline int eventfd_signal_mask(struct eventfd_ctx *ctx, __u64 n,
-				      unsigned mask)
-{
-	return -ENOSYS;
 }
 
 static inline void eventfd_ctx_put(struct eventfd_ctx *ctx)
@@ -91,6 +83,11 @@ static inline void eventfd_ctx_do_read(struct eventfd_ctx *ctx, __u64 *cnt)
 }
 
 #endif
+
+static inline void eventfd_signal(struct eventfd_ctx *ctx)
+{
+	eventfd_signal_mask(ctx, 0);
+}
 
 #endif /* _LINUX_EVENTFD_H */
 

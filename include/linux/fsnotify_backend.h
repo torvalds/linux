@@ -31,8 +31,8 @@
 #define FS_ACCESS		0x00000001	/* File was accessed */
 #define FS_MODIFY		0x00000002	/* File was modified */
 #define FS_ATTRIB		0x00000004	/* Metadata changed */
-#define FS_CLOSE_WRITE		0x00000008	/* Writtable file was closed */
-#define FS_CLOSE_NOWRITE	0x00000010	/* Unwrittable file closed */
+#define FS_CLOSE_WRITE		0x00000008	/* Writable file was closed */
+#define FS_CLOSE_NOWRITE	0x00000010	/* Unwritable file closed */
 #define FS_OPEN			0x00000020	/* File was opened */
 #define FS_MOVED_FROM		0x00000040	/* File was moved from X */
 #define FS_MOVED_TO		0x00000080	/* File was moved to Y */
@@ -472,10 +472,8 @@ typedef struct fsnotify_mark_connector __rcu *fsnotify_connp_t;
 struct fsnotify_mark_connector {
 	spinlock_t lock;
 	unsigned short type;	/* Type of object [lock] */
-#define FSNOTIFY_CONN_FLAG_HAS_FSID	0x01
 #define FSNOTIFY_CONN_FLAG_HAS_IREF	0x02
 	unsigned short flags;	/* flags [lock] */
-	__kernel_fsid_t fsid;	/* fsid of filesystem containing object */
 	union {
 		/* Object pointer [lock] */
 		fsnotify_connp_t *obj;
@@ -530,6 +528,8 @@ struct fsnotify_mark {
 #define FSNOTIFY_MARK_FLAG_IGNORED_SURV_MODIFY	0x0100
 #define FSNOTIFY_MARK_FLAG_NO_IREF		0x0200
 #define FSNOTIFY_MARK_FLAG_HAS_IGNORE_FLAGS	0x0400
+#define FSNOTIFY_MARK_FLAG_HAS_FSID		0x0800
+#define FSNOTIFY_MARK_FLAG_WEAK_FSID		0x1000
 	unsigned int flags;		/* flags [mark->lock] */
 };
 
@@ -763,11 +763,10 @@ extern struct fsnotify_mark *fsnotify_find_mark(fsnotify_connp_t *connp,
 /* attach the mark to the object */
 extern int fsnotify_add_mark(struct fsnotify_mark *mark,
 			     fsnotify_connp_t *connp, unsigned int obj_type,
-			     int add_flags, __kernel_fsid_t *fsid);
+			     int add_flags);
 extern int fsnotify_add_mark_locked(struct fsnotify_mark *mark,
 				    fsnotify_connp_t *connp,
-				    unsigned int obj_type, int add_flags,
-				    __kernel_fsid_t *fsid);
+				    unsigned int obj_type, int add_flags);
 
 /* attach the mark to the inode */
 static inline int fsnotify_add_inode_mark(struct fsnotify_mark *mark,
@@ -775,15 +774,14 @@ static inline int fsnotify_add_inode_mark(struct fsnotify_mark *mark,
 					  int add_flags)
 {
 	return fsnotify_add_mark(mark, &inode->i_fsnotify_marks,
-				 FSNOTIFY_OBJ_TYPE_INODE, add_flags, NULL);
+				 FSNOTIFY_OBJ_TYPE_INODE, add_flags);
 }
 static inline int fsnotify_add_inode_mark_locked(struct fsnotify_mark *mark,
 						 struct inode *inode,
 						 int add_flags)
 {
 	return fsnotify_add_mark_locked(mark, &inode->i_fsnotify_marks,
-					FSNOTIFY_OBJ_TYPE_INODE, add_flags,
-					NULL);
+					FSNOTIFY_OBJ_TYPE_INODE, add_flags);
 }
 
 /* given a group and a mark, flag mark to be freed when all references are dropped */

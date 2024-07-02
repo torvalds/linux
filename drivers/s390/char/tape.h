@@ -305,7 +305,9 @@ tape_ccw_cc(struct ccw1 *ccw, __u8 cmd_code, __u16 memsize, void *cda)
 	ccw->cmd_code = cmd_code;
 	ccw->flags = CCW_FLAG_CC;
 	ccw->count = memsize;
-	ccw->cda = (__u32)(addr_t) cda;
+	ccw->cda = 0;
+	if (cda)
+		ccw->cda = virt_to_dma32(cda);
 	return ccw + 1;
 }
 
@@ -315,7 +317,9 @@ tape_ccw_end(struct ccw1 *ccw, __u8 cmd_code, __u16 memsize, void *cda)
 	ccw->cmd_code = cmd_code;
 	ccw->flags = 0;
 	ccw->count = memsize;
-	ccw->cda = (__u32)(addr_t) cda;
+	ccw->cda = 0;
+	if (cda)
+		ccw->cda = virt_to_dma32(cda);
 	return ccw + 1;
 }
 
@@ -325,7 +329,7 @@ tape_ccw_cmd(struct ccw1 *ccw, __u8 cmd_code)
 	ccw->cmd_code = cmd_code;
 	ccw->flags = 0;
 	ccw->count = 0;
-	ccw->cda = (__u32)(addr_t) &ccw->cmd_code;
+	ccw->cda = virt_to_dma32(&ccw->cmd_code);
 	return ccw + 1;
 }
 
@@ -336,7 +340,7 @@ tape_ccw_repeat(struct ccw1 *ccw, __u8 cmd_code, int count)
 		ccw->cmd_code = cmd_code;
 		ccw->flags = CCW_FLAG_CC;
 		ccw->count = 0;
-		ccw->cda = (__u32)(addr_t) &ccw->cmd_code;
+		ccw->cda = virt_to_dma32(&ccw->cmd_code);
 		ccw++;
 	}
 	return ccw;

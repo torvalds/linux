@@ -387,7 +387,7 @@ err_end:
 	return result;
 }
 
-static int acpi_fan_remove(struct platform_device *pdev)
+static void acpi_fan_remove(struct platform_device *pdev)
 {
 	struct acpi_fan *fan = platform_get_drvdata(pdev);
 
@@ -399,8 +399,6 @@ static int acpi_fan_remove(struct platform_device *pdev)
 	sysfs_remove_link(&pdev->dev.kobj, "thermal_cooling");
 	sysfs_remove_link(&fan->cdev->device.kobj, "device");
 	thermal_cooling_device_unregister(fan->cdev);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -446,7 +444,7 @@ static const struct dev_pm_ops acpi_fan_pm = {
 
 static struct platform_driver acpi_fan_driver = {
 	.probe = acpi_fan_probe,
-	.remove = acpi_fan_remove,
+	.remove_new = acpi_fan_remove,
 	.driver = {
 		.name = "acpi-fan",
 		.acpi_match_table = fan_device_ids,

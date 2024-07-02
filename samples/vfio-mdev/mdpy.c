@@ -84,7 +84,9 @@ static struct mdev_type *mdpy_mdev_types[] = {
 };
 
 static dev_t		mdpy_devt;
-static struct class	*mdpy_class;
+static const struct class mdpy_class = {
+	.name = MDPY_CLASS_NAME,
+};
 static struct cdev	mdpy_cdev;
 static struct device	mdpy_dev;
 static struct mdev_parent mdpy_parent;
@@ -709,13 +711,10 @@ static int __init mdpy_dev_init(void)
 	if (ret)
 		goto err_cdev;
 
-	mdpy_class = class_create(MDPY_CLASS_NAME);
-	if (IS_ERR(mdpy_class)) {
-		pr_err("Error: failed to register mdpy_dev class\n");
-		ret = PTR_ERR(mdpy_class);
+	ret = class_register(&mdpy_class);
+	if (ret)
 		goto err_driver;
-	}
-	mdpy_dev.class = mdpy_class;
+	mdpy_dev.class = &mdpy_class;
 	mdpy_dev.release = mdpy_device_release;
 	dev_set_name(&mdpy_dev, "%s", MDPY_NAME);
 
@@ -735,7 +734,7 @@ err_device:
 	device_del(&mdpy_dev);
 err_put:
 	put_device(&mdpy_dev);
-	class_destroy(mdpy_class);
+	class_unregister(&mdpy_class);
 err_driver:
 	mdev_unregister_driver(&mdpy_driver);
 err_cdev:
@@ -753,8 +752,7 @@ static void __exit mdpy_dev_exit(void)
 	mdev_unregister_driver(&mdpy_driver);
 	cdev_del(&mdpy_cdev);
 	unregister_chrdev_region(mdpy_devt, MINORMASK + 1);
-	class_destroy(mdpy_class);
-	mdpy_class = NULL;
+	class_unregister(&mdpy_class);
 }
 
 module_param_named(count, mdpy_driver.max_instances, int, 0444);

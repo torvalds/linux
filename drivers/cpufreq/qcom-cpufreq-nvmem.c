@@ -23,8 +23,10 @@
 #include <linux/nvmem-consumer.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/pm.h>
 #include <linux/pm_domain.h>
 #include <linux/pm_opp.h>
+#include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/soc/qcom/smem.h>
 
@@ -38,6 +40,11 @@ enum ipq806x_versions {
 
 #define IPQ6000_VERSION	BIT(2)
 
+enum ipq8074_versions {
+	IPQ8074_HAWKEYE_VERSION = 0,
+	IPQ8074_ACORN_VERSION,
+};
+
 struct qcom_cpufreq_drv;
 
 struct qcom_cpufreq_match_data {
@@ -50,6 +57,7 @@ struct qcom_cpufreq_match_data {
 
 struct qcom_cpufreq_drv_cpu {
 	int opp_token;
+	struct device **virt_devs;
 };
 
 struct qcom_cpufreq_drv {
@@ -178,6 +186,16 @@ static int qcom_cpufreq_kryo_name_version(struct device *cpu_dev,
 	switch (msm_id) {
 	case QCOM_ID_MSM8996:
 	case QCOM_ID_APQ8096:
+	case QCOM_ID_IPQ5332:
+	case QCOM_ID_IPQ5322:
+	case QCOM_ID_IPQ5312:
+	case QCOM_ID_IPQ5302:
+	case QCOM_ID_IPQ5300:
+	case QCOM_ID_IPQ9514:
+	case QCOM_ID_IPQ9550:
+	case QCOM_ID_IPQ9554:
+	case QCOM_ID_IPQ9570:
+	case QCOM_ID_IPQ9574:
 		drv->versions = 1 << (unsigned int)(*speedbin);
 		break;
 	case QCOM_ID_MSM8996SG:
@@ -338,6 +356,44 @@ static int qcom_cpufreq_ipq6018_name_version(struct device *cpu_dev,
 	return 0;
 }
 
+static int qcom_cpufreq_ipq8074_name_version(struct device *cpu_dev,
+					     struct nvmem_cell *speedbin_nvmem,
+					     char **pvs_name,
+					     struct qcom_cpufreq_drv *drv)
+{
+	u32 msm_id;
+	int ret;
+	*pvs_name = NULL;
+
+	ret = qcom_smem_get_soc_id(&msm_id);
+	if (ret)
+		return ret;
+
+	switch (msm_id) {
+	case QCOM_ID_IPQ8070A:
+	case QCOM_ID_IPQ8071A:
+	case QCOM_ID_IPQ8172:
+	case QCOM_ID_IPQ8173:
+	case QCOM_ID_IPQ8174:
+		drv->versions = BIT(IPQ8074_ACORN_VERSION);
+		break;
+	case QCOM_ID_IPQ8072A:
+	case QCOM_ID_IPQ8074A:
+	case QCOM_ID_IPQ8076A:
+	case QCOM_ID_IPQ8078A:
+		drv->versions = BIT(IPQ8074_HAWKEYE_VERSION);
+		break;
+	default:
+		dev_err(cpu_dev,
+			"SoC ID %u is not part of IPQ8074 family, limiting to 1.4GHz!\n",
+			msm_id);
+		drv->versions = BIT(IPQ8074_ACORN_VERSION);
+		break;
+	}
+
+	return 0;
+}
+
 static const char *generic_genpd_names[] = { "perf", NULL };
 
 static const struct qcom_cpufreq_match_data match_data_kryo = {
@@ -366,6 +422,34 @@ static const struct qcom_cpufreq_match_data match_data_ipq6018 = {
 static const struct qcom_cpufreq_match_data match_data_ipq8064 = {
 	.get_version = qcom_cpufreq_ipq8064_name_version,
 };
+
+static const struct qcom_cpufreq_match_data match_data_ipq8074 = {
+	.get_version = qcom_cpufreq_ipq8074_name_version,
+};
+
+static void qcom_cpufreq_suspend_virt_devs(struct qcom_cpufreq_drv *drv, unsigned int cpu)
+{
+	const char * const *name = drv->data->genpd_names;
+	int i;
+
+	if (!drv->cpus[cpu].virt_devs)
+		return;
+
+	for (i = 0; *name; i++, name++)
+		device_set_awake_path(drv->cpus[cpu].virt_devs[i]);
+}
+
+static void qcom_cpufreq_put_virt_devs(struct qcom_cpufreq_drv *drv, unsigned int cpu)
+{
+	const char * const *name = drv->data->genpd_names;
+	int i;
+
+	if (!drv->cpus[cpu].virt_devs)
+		return;
+
+	for (i = 0; *name; i++, name++)
+		pm_runtime_put(drv->cpus[cpu].virt_devs[i]);
+}
 
 static int qcom_cpufreq_probe(struct platform_device *pdev)
 {
@@ -421,6 +505,7 @@ static int qcom_cpufreq_probe(struct platform_device *pdev)
 	of_node_put(np);
 
 	for_each_possible_cpu(cpu) {
+		struct device **virt_devs = NULL;
 		struct dev_pm_opp_config config = {
 			.supported_hw = NULL,
 		};
@@ -441,7 +526,7 @@ static int qcom_cpufreq_probe(struct platform_device *pdev)
 
 		if (drv->data->genpd_names) {
 			config.genpd_names = drv->data->genpd_names;
-			config.virt_devs = NULL;
+			config.virt_devs = &virt_devs;
 		}
 
 		if (config.supported_hw || config.genpd_names) {
@@ -451,6 +536,27 @@ static int qcom_cpufreq_probe(struct platform_device *pdev)
 				dev_err(cpu_dev, "Failed to set OPP config\n");
 				goto free_opp;
 			}
+		}
+
+		if (virt_devs) {
+			const char * const *name = config.genpd_names;
+			int i, j;
+
+			for (i = 0; *name; i++, name++) {
+				ret = pm_runtime_resume_and_get(virt_devs[i]);
+				if (ret) {
+					dev_err(cpu_dev, "failed to resume %s: %d\n",
+						*name, ret);
+
+					/* Rollback previous PM runtime calls */
+					name = config.genpd_names;
+					for (j = 0; *name && j < i; j++, name++)
+						pm_runtime_put(virt_devs[j]);
+
+					goto free_opp;
+				}
+			}
+			drv->cpus[cpu].virt_devs = virt_devs;
 		}
 	}
 
@@ -465,8 +571,10 @@ static int qcom_cpufreq_probe(struct platform_device *pdev)
 	dev_err(cpu_dev, "Failed to register platform device\n");
 
 free_opp:
-	for_each_possible_cpu(cpu)
+	for_each_possible_cpu(cpu) {
+		qcom_cpufreq_put_virt_devs(drv, cpu);
 		dev_pm_opp_clear_config(drv->cpus[cpu].opp_token);
+	}
 	return ret;
 }
 
@@ -477,15 +585,31 @@ static void qcom_cpufreq_remove(struct platform_device *pdev)
 
 	platform_device_unregister(cpufreq_dt_pdev);
 
-	for_each_possible_cpu(cpu)
+	for_each_possible_cpu(cpu) {
+		qcom_cpufreq_put_virt_devs(drv, cpu);
 		dev_pm_opp_clear_config(drv->cpus[cpu].opp_token);
+	}
 }
+
+static int qcom_cpufreq_suspend(struct device *dev)
+{
+	struct qcom_cpufreq_drv *drv = dev_get_drvdata(dev);
+	unsigned int cpu;
+
+	for_each_possible_cpu(cpu)
+		qcom_cpufreq_suspend_virt_devs(drv, cpu);
+
+	return 0;
+}
+
+static DEFINE_SIMPLE_DEV_PM_OPS(qcom_cpufreq_pm_ops, qcom_cpufreq_suspend, NULL);
 
 static struct platform_driver qcom_cpufreq_driver = {
 	.probe = qcom_cpufreq_probe,
 	.remove_new = qcom_cpufreq_remove,
 	.driver = {
 		.name = "qcom-cpufreq-nvmem",
+		.pm = pm_sleep_ptr(&qcom_cpufreq_pm_ops),
 	},
 };
 
@@ -494,9 +618,12 @@ static const struct of_device_id qcom_cpufreq_match_list[] __initconst = {
 	{ .compatible = "qcom,msm8909", .data = &match_data_msm8909 },
 	{ .compatible = "qcom,msm8996", .data = &match_data_kryo },
 	{ .compatible = "qcom,qcs404", .data = &match_data_qcs404 },
+	{ .compatible = "qcom,ipq5332", .data = &match_data_kryo },
 	{ .compatible = "qcom,ipq6018", .data = &match_data_ipq6018 },
 	{ .compatible = "qcom,ipq8064", .data = &match_data_ipq8064 },
+	{ .compatible = "qcom,ipq8074", .data = &match_data_ipq8074 },
 	{ .compatible = "qcom,apq8064", .data = &match_data_krait },
+	{ .compatible = "qcom,ipq9574", .data = &match_data_kryo },
 	{ .compatible = "qcom,msm8974", .data = &match_data_krait },
 	{ .compatible = "qcom,msm8960", .data = &match_data_krait },
 	{},

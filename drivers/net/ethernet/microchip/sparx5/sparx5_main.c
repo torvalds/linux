@@ -757,6 +757,7 @@ static int mchp_sparx5_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, sparx5);
 	sparx5->pdev = pdev;
 	sparx5->dev = &pdev->dev;
+	spin_lock_init(&sparx5->tx_lock);
 
 	/* Do switch core reset if available */
 	reset = devm_reset_control_get_optional_shared(&pdev->dev, "switch");
@@ -898,6 +899,9 @@ static int mchp_sparx5_probe(struct platform_device *pdev)
 		dev_err(sparx5->dev, "PTP failed\n");
 		goto cleanup_ports;
 	}
+
+	INIT_LIST_HEAD(&sparx5->mall_entries);
+
 	goto cleanup_config;
 
 cleanup_ports:

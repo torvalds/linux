@@ -418,7 +418,7 @@ static void set_section_perms(struct section_perm *perms, int n, bool set,
 
 }
 
-/**
+/*
  * update_sections_early intended to be called only through stop_machine
  * framework and executed by only one CPU while all other CPUs will spin and
  * wait, so no locking is required in this function.
@@ -458,7 +458,7 @@ static int __mark_rodata_ro(void *unused)
 void mark_rodata_ro(void)
 {
 	stop_machine(__mark_rodata_ro, NULL, NULL);
-	debug_checkwx();
+	arm_debug_checkwx();
 }
 
 #else

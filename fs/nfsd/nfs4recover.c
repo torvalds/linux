@@ -66,6 +66,7 @@ struct nfsd4_client_tracking_ops {
 static const struct nfsd4_client_tracking_ops nfsd4_cld_tracking_ops;
 static const struct nfsd4_client_tracking_ops nfsd4_cld_tracking_ops_v2;
 
+#ifdef CONFIG_NFSD_LEGACY_CLIENT_TRACKING
 /* Globals */
 static char user_recovery_dirname[PATH_MAX] = "/var/lib/nfs/v4recovery";
 
@@ -720,6 +721,7 @@ static const struct nfsd4_client_tracking_ops nfsd4_legacy_tracking_ops = {
 	.version	= 1,
 	.msglen		= 0,
 };
+#endif /* CONFIG_NFSD_LEGACY_CLIENT_TRACKING */
 
 /* Globals */
 #define NFSD_PIPE_DIR		"nfsd"
@@ -731,8 +733,10 @@ struct cld_net {
 	spinlock_t		 cn_lock;
 	struct list_head	 cn_list;
 	unsigned int		 cn_xid;
-	bool			 cn_has_legacy;
 	struct crypto_shash	*cn_tfm;
+#ifdef CONFIG_NFSD_LEGACY_CLIENT_TRACKING
+	bool			 cn_has_legacy;
+#endif
 };
 
 struct cld_upcall {
@@ -793,7 +797,6 @@ __cld_pipe_inprogress_downcall(const struct cld_msg_v2 __user *cmsg,
 	uint8_t cmd, princhashlen;
 	struct xdr_netobj name, princhash = { .len = 0, .data = NULL };
 	uint16_t namelen;
-	struct cld_net *cn = nn->cld_net;
 
 	if (get_user(cmd, &cmsg->cm_cmd)) {
 		dprintk("%s: error when copying cmd from userspace", __func__);
@@ -833,11 +836,15 @@ __cld_pipe_inprogress_downcall(const struct cld_msg_v2 __user *cmsg,
 				return PTR_ERR(name.data);
 			name.len = namelen;
 		}
+#ifdef CONFIG_NFSD_LEGACY_CLIENT_TRACKING
 		if (name.len > 5 && memcmp(name.data, "hash:", 5) == 0) {
+			struct cld_net *cn = nn->cld_net;
+
 			name.len = name.len - 5;
 			memmove(name.data, name.data + 5, name.len);
 			cn->cn_has_legacy = true;
 		}
+#endif
 		if (!nfs4_client_to_reclaim(name, princhash, nn)) {
 			kfree(name.data);
 			kfree(princhash.data);
@@ -1010,7 +1017,9 @@ __nfsd4_init_cld_pipe(struct net *net)
 	}
 
 	cn->cn_pipe->dentry = dentry;
+#ifdef CONFIG_NFSD_LEGACY_CLIENT_TRACKING
 	cn->cn_has_legacy = false;
+#endif
 	nn->cld_net = cn;
 	return 0;
 
@@ -1282,10 +1291,6 @@ nfsd4_cld_check(struct nfs4_client *clp)
 {
 	struct nfs4_client_reclaim *crp;
 	struct nfsd_net *nn = net_generic(clp->net, nfsd_net_id);
-	struct cld_net *cn = nn->cld_net;
-	int status;
-	char dname[HEXDIR_LEN];
-	struct xdr_netobj name;
 
 	/* did we already find that this client is stable? */
 	if (test_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags))
@@ -1296,7 +1301,12 @@ nfsd4_cld_check(struct nfs4_client *clp)
 	if (crp)
 		goto found;
 
-	if (cn->cn_has_legacy) {
+#ifdef CONFIG_NFSD_LEGACY_CLIENT_TRACKING
+	if (nn->cld_net->cn_has_legacy) {
+		int status;
+		char dname[HEXDIR_LEN];
+		struct xdr_netobj name;
+
 		status = nfs4_make_rec_clidname(dname, &clp->cl_name);
 		if (status)
 			return -ENOENT;
@@ -1314,6 +1324,7 @@ nfsd4_cld_check(struct nfs4_client *clp)
 			goto found;
 
 	}
+#endif
 	return -ENOENT;
 found:
 	crp->cr_clp = clp;
@@ -1327,8 +1338,6 @@ nfsd4_cld_check_v2(struct nfs4_client *clp)
 	struct nfsd_net *nn = net_generic(clp->net, nfsd_net_id);
 	struct cld_net *cn = nn->cld_net;
 	int status;
-	char dname[HEXDIR_LEN];
-	struct xdr_netobj name;
 	struct crypto_shash *tfm = cn->cn_tfm;
 	struct xdr_netobj cksum;
 	char *principal = NULL;
@@ -1342,7 +1351,11 @@ nfsd4_cld_check_v2(struct nfs4_client *clp)
 	if (crp)
 		goto found;
 
+#ifdef CONFIG_NFSD_LEGACY_CLIENT_TRACKING
 	if (cn->cn_has_legacy) {
+		struct xdr_netobj name;
+		char dname[HEXDIR_LEN];
+
 		status = nfs4_make_rec_clidname(dname, &clp->cl_name);
 		if (status)
 			return -ENOENT;
@@ -1360,6 +1373,7 @@ nfsd4_cld_check_v2(struct nfs4_client *clp)
 			goto found;
 
 	}
+#endif
 	return -ENOENT;
 found:
 	if (crp->cr_princhash.len) {
@@ -1663,6 +1677,7 @@ static const struct nfsd4_client_tracking_ops nfsd4_cld_tracking_ops_v2 = {
 	.msglen		= sizeof(struct cld_msg_v2),
 };
 
+#ifdef CONFIG_NFSD_LEGACY_CLIENT_TRACKING
 /* upcall via usermodehelper */
 static char cltrack_prog[PATH_MAX] = "/sbin/nfsdcltrack";
 module_param_string(cltrack_prog, cltrack_prog, sizeof(cltrack_prog),
@@ -2007,12 +2022,46 @@ static const struct nfsd4_client_tracking_ops nfsd4_umh_tracking_ops = {
 	.msglen		= 0,
 };
 
+static inline int check_for_legacy_methods(int status, struct net *net)
+{
+	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+	struct path path;
+
+	/*
+	 * Next, try the UMH upcall.
+	 */
+	nn->client_tracking_ops = &nfsd4_umh_tracking_ops;
+	status = nn->client_tracking_ops->init(net);
+	if (!status)
+		return status;
+
+	/*
+	 * Finally, See if the recoverydir exists and is a directory.
+	 * If it is, then use the legacy ops.
+	 */
+	nn->client_tracking_ops = &nfsd4_legacy_tracking_ops;
+	status = kern_path(nfs4_recoverydir(), LOOKUP_FOLLOW, &path);
+	if (!status) {
+		status = !d_is_dir(path.dentry);
+		path_put(&path);
+		if (status)
+			return -ENOTDIR;
+		status = nn->client_tracking_ops->init(net);
+	}
+	return status;
+}
+#else
+static inline int check_for_legacy_methods(int status, struct net *net)
+{
+	return status;
+}
+#endif /* CONFIG_LEGACY_NFSD_CLIENT_TRACKING */
+
 int
 nfsd4_client_tracking_init(struct net *net)
 {
-	int status;
-	struct path path;
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+	int status;
 
 	/* just run the init if it the method is already decided */
 	if (nn->client_tracking_ops)
@@ -2030,29 +2079,9 @@ nfsd4_client_tracking_init(struct net *net)
 			return status;
 	}
 
-	/*
-	 * Next, try the UMH upcall.
-	 */
-	nn->client_tracking_ops = &nfsd4_umh_tracking_ops;
-	status = nn->client_tracking_ops->init(net);
-	if (!status)
-		return status;
-
-	/*
-	 * Finally, See if the recoverydir exists and is a directory.
-	 * If it is, then use the legacy ops.
-	 */
-	nn->client_tracking_ops = &nfsd4_legacy_tracking_ops;
-	status = kern_path(nfs4_recoverydir(), LOOKUP_FOLLOW, &path);
-	if (!status) {
-		status = d_is_dir(path.dentry);
-		path_put(&path);
-		if (!status) {
-			status = -EINVAL;
-			goto out;
-		}
-	}
-
+	status = check_for_legacy_methods(status, net);
+	if (status)
+		goto out;
 do_init:
 	status = nn->client_tracking_ops->init(net);
 out:

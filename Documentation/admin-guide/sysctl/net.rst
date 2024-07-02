@@ -72,6 +72,7 @@ two flavors of JITs, the newer eBPF JIT currently supported on:
   - riscv64
   - riscv32
   - loongarch64
+  - arc
 
 And the older cBPF JIT supported on the following archs:
 
@@ -205,6 +206,11 @@ sysctl.net.busy_read globally.
 Will increase power usage.
 
 Default: 0 (off)
+
+mem_pcpu_rsv
+------------
+
+Per-cpu reserved forward alloc cache size in page units. Default 1MB per CPU.
 
 rmem_default
 ------------
@@ -345,7 +351,10 @@ optmem_max
 ----------
 
 Maximum ancillary buffer size allowed per socket. Ancillary data is a sequence
-of struct cmsghdr structures with appended data.
+of struct cmsghdr structures with appended data. TCP tx zerocopy also uses
+optmem_max as a limit for its internal structures.
+
+Default : 128 KB
 
 fb_tunnels_only_for_init_net
 ----------------------------

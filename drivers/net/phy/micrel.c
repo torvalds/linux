@@ -114,11 +114,29 @@
 #define LAN8814_INTR_CTRL_REG_POLARITY		BIT(1)
 #define LAN8814_INTR_CTRL_REG_INTR_ENABLE	BIT(0)
 
+#define LAN8814_EEE_STATE			0x38
+#define LAN8814_EEE_STATE_MASK2P5P		BIT(10)
+
+#define LAN8814_PD_CONTROLS			0x9d
+#define LAN8814_PD_CONTROLS_PD_MEAS_TIME_MASK	GENMASK(3, 0)
+#define LAN8814_PD_CONTROLS_PD_MEAS_TIME_VAL	0xb
+
 /* Represents 1ppm adjustment in 2^32 format with
  * each nsec contains 4 clock cycles.
  * The value is calculated as following: (1/1000000)/((2^-32)/4)
  */
 #define LAN8814_1PPM_FORMAT			17179
+
+/* Represents 1ppm adjustment in 2^32 format with
+ * each nsec contains 8 clock cycles.
+ * The value is calculated as following: (1/1000000)/((2^-32)/8)
+ */
+#define LAN8841_1PPM_FORMAT			34360
+
+#define PTP_RX_VERSION				0x0248
+#define PTP_TX_VERSION				0x0288
+#define PTP_MAX_VERSION(x)			(((x) & GENMASK(7, 0)) << 8)
+#define PTP_MIN_VERSION(x)			((x) & GENMASK(7, 0))
 
 #define PTP_RX_MOD				0x024F
 #define PTP_RX_MOD_BAD_UDPV4_CHKSUM_FORCE_FCS_DIS_ BIT(3)
@@ -149,15 +167,41 @@
 #define PTP_CMD_CTL_PTP_LTC_STEP_SEC_		BIT(5)
 #define PTP_CMD_CTL_PTP_LTC_STEP_NSEC_		BIT(6)
 
+#define PTP_COMMON_INT_ENA			0x0204
+#define PTP_COMMON_INT_ENA_GPIO_CAP_EN		BIT(2)
+
+#define PTP_CLOCK_SET_SEC_HI			0x0205
 #define PTP_CLOCK_SET_SEC_MID			0x0206
 #define PTP_CLOCK_SET_SEC_LO			0x0207
 #define PTP_CLOCK_SET_NS_HI			0x0208
 #define PTP_CLOCK_SET_NS_LO			0x0209
 
+#define PTP_CLOCK_READ_SEC_HI			0x0229
 #define PTP_CLOCK_READ_SEC_MID			0x022A
 #define PTP_CLOCK_READ_SEC_LO			0x022B
 #define PTP_CLOCK_READ_NS_HI			0x022C
 #define PTP_CLOCK_READ_NS_LO			0x022D
+
+#define PTP_GPIO_SEL				0x0230
+#define PTP_GPIO_SEL_GPIO_SEL(pin)		((pin) << 8)
+#define PTP_GPIO_CAP_MAP_LO			0x0232
+
+#define PTP_GPIO_CAP_EN				0x0233
+#define PTP_GPIO_CAP_EN_GPIO_RE_CAPTURE_ENABLE(gpio)	BIT(gpio)
+#define PTP_GPIO_CAP_EN_GPIO_FE_CAPTURE_ENABLE(gpio)	(BIT(gpio) << 8)
+
+#define PTP_GPIO_RE_LTC_SEC_HI_CAP		0x0235
+#define PTP_GPIO_RE_LTC_SEC_LO_CAP		0x0236
+#define PTP_GPIO_RE_LTC_NS_HI_CAP		0x0237
+#define PTP_GPIO_RE_LTC_NS_LO_CAP		0x0238
+#define PTP_GPIO_FE_LTC_SEC_HI_CAP		0x0239
+#define PTP_GPIO_FE_LTC_SEC_LO_CAP		0x023A
+#define PTP_GPIO_FE_LTC_NS_HI_CAP		0x023B
+#define PTP_GPIO_FE_LTC_NS_LO_CAP		0x023C
+
+#define PTP_GPIO_CAP_STS			0x023D
+#define PTP_GPIO_CAP_STS_PTP_GPIO_RE_STS(gpio)	BIT(gpio)
+#define PTP_GPIO_CAP_STS_PTP_GPIO_FE_STS(gpio)	(BIT(gpio) << 8)
 
 #define PTP_OPERATING_MODE			0x0241
 #define PTP_OPERATING_MODE_STANDALONE_		BIT(0)
@@ -252,6 +296,67 @@
 #define PS_TO_REG				200
 #define FIFO_SIZE				8
 
+#define LAN8814_PTP_GPIO_NUM			24
+#define LAN8814_PTP_PEROUT_NUM			2
+#define LAN8814_PTP_EXTTS_NUM			3
+
+#define LAN8814_BUFFER_TIME			2
+
+#define LAN8841_PTP_GENERAL_CONFIG_LTC_EVENT_200MS	13
+#define LAN8841_PTP_GENERAL_CONFIG_LTC_EVENT_100MS	12
+#define LAN8841_PTP_GENERAL_CONFIG_LTC_EVENT_50MS	11
+#define LAN8841_PTP_GENERAL_CONFIG_LTC_EVENT_10MS	10
+#define LAN8841_PTP_GENERAL_CONFIG_LTC_EVENT_5MS	9
+#define LAN8841_PTP_GENERAL_CONFIG_LTC_EVENT_1MS	8
+#define LAN8841_PTP_GENERAL_CONFIG_LTC_EVENT_500US	7
+#define LAN8841_PTP_GENERAL_CONFIG_LTC_EVENT_100US	6
+#define LAN8841_PTP_GENERAL_CONFIG_LTC_EVENT_50US	5
+#define LAN8841_PTP_GENERAL_CONFIG_LTC_EVENT_10US	4
+#define LAN8841_PTP_GENERAL_CONFIG_LTC_EVENT_5US	3
+#define LAN8841_PTP_GENERAL_CONFIG_LTC_EVENT_1US	2
+#define LAN8841_PTP_GENERAL_CONFIG_LTC_EVENT_500NS	1
+#define LAN8841_PTP_GENERAL_CONFIG_LTC_EVENT_100NS	0
+
+#define LAN8814_GPIO_EN1			0x20
+#define LAN8814_GPIO_EN2			0x21
+#define LAN8814_GPIO_DIR1			0x22
+#define LAN8814_GPIO_DIR2			0x23
+#define LAN8814_GPIO_BUF1			0x24
+#define LAN8814_GPIO_BUF2			0x25
+
+#define LAN8814_GPIO_EN_ADDR(pin) \
+	((pin) > 15 ? LAN8814_GPIO_EN1 : LAN8814_GPIO_EN2)
+#define LAN8814_GPIO_EN_BIT(pin)		BIT(pin)
+#define LAN8814_GPIO_DIR_ADDR(pin) \
+	((pin) > 15 ? LAN8814_GPIO_DIR1 : LAN8814_GPIO_DIR2)
+#define LAN8814_GPIO_DIR_BIT(pin)		BIT(pin)
+#define LAN8814_GPIO_BUF_ADDR(pin) \
+	((pin) > 15 ? LAN8814_GPIO_BUF1 : LAN8814_GPIO_BUF2)
+#define LAN8814_GPIO_BUF_BIT(pin)		BIT(pin)
+
+#define LAN8814_EVENT_A				0
+#define LAN8814_EVENT_B				1
+
+#define LAN8814_PTP_GENERAL_CONFIG		0x0201
+#define LAN8814_PTP_GENERAL_CONFIG_LTC_EVENT_MASK(event) \
+	((event) ? GENMASK(11, 8) : GENMASK(7, 4))
+#define LAN8814_PTP_GENERAL_CONFIG_LTC_EVENT_SET(event, value) \
+	(((value) & GENMASK(3, 0)) << (4 + ((event) << 2)))
+#define LAN8814_PTP_GENERAL_CONFIG_RELOAD_ADD_X(event) \
+	((event) ? BIT(2) : BIT(0))
+#define LAN8814_PTP_GENERAL_CONFIG_POLARITY_X(event) \
+	((event) ? BIT(3) : BIT(1))
+
+#define LAN8814_PTP_CLOCK_TARGET_SEC_HI(event)	((event) ? 0x21F : 0x215)
+#define LAN8814_PTP_CLOCK_TARGET_SEC_LO(event)	((event) ? 0x220 : 0x216)
+#define LAN8814_PTP_CLOCK_TARGET_NS_HI(event)	((event) ? 0x221 : 0x217)
+#define LAN8814_PTP_CLOCK_TARGET_NS_LO(event)	((event) ? 0x222 : 0x218)
+
+#define LAN8814_PTP_CLOCK_TARGET_RELOAD_SEC_HI(event)	((event) ? 0x223 : 0x219)
+#define LAN8814_PTP_CLOCK_TARGET_RELOAD_SEC_LO(event)	((event) ? 0x224 : 0x21A)
+#define LAN8814_PTP_CLOCK_TARGET_RELOAD_NS_HI(event)	((event) ? 0x225 : 0x21B)
+#define LAN8814_PTP_CLOCK_TARGET_RELOAD_NS_LO(event)	((event) ? 0x226 : 0x21C)
+
 /* Delay used to get the second part from the LTC */
 #define LAN8841_GET_SEC_LTC_DELAY		(500 * NSEC_PER_MSEC)
 
@@ -284,13 +389,9 @@ struct lan8814_shared_priv {
 	struct phy_device *phydev;
 	struct ptp_clock *ptp_clock;
 	struct ptp_clock_info ptp_clock_info;
+	struct ptp_pin_desc *pin_config;
 
-	/* Reference counter to how many ports in the package are enabling the
-	 * timestamping
-	 */
-	u8 ref;
-
-	/* Lock for ptp_clock and ref */
+	/* Lock for ptp_clock */
 	struct mutex shared_lock;
 };
 
@@ -2001,7 +2102,7 @@ static int kszphy_probe(struct phy_device *phydev)
 
 	kszphy_parse_led_mode(phydev);
 
-	clk = devm_clk_get(&phydev->mdio.dev, "rmii-ref");
+	clk = devm_clk_get_optional_enabled(&phydev->mdio.dev, "rmii-ref");
 	/* NOTE: clk may be NULL if building without CONFIG_HAVE_CLK */
 	if (!IS_ERR_OR_NULL(clk)) {
 		unsigned long rate = clk_get_rate(clk);
@@ -2021,6 +2122,11 @@ static int kszphy_probe(struct phy_device *phydev)
 				   rate);
 			return -EINVAL;
 		}
+	} else if (!clk) {
+		/* unnamed clock from the generic ethernet-phy binding */
+		clk = devm_clk_get_optional_enabled(&phydev->mdio.dev, NULL);
+		if (IS_ERR(clk))
+			return PTR_ERR(clk);
 	}
 
 	if (ksz8041_fiber_mode(phydev))
@@ -2395,24 +2501,21 @@ static void lan8814_flush_fifo(struct phy_device *phydev, bool egress)
 	lanphy_read_page_reg(phydev, 5, PTP_TSU_INT_STS);
 }
 
-static int lan8814_hwtstamp(struct mii_timestamper *mii_ts, struct ifreq *ifr)
+static int lan8814_hwtstamp(struct mii_timestamper *mii_ts,
+			    struct kernel_hwtstamp_config *config,
+			    struct netlink_ext_ack *extack)
 {
 	struct kszphy_ptp_priv *ptp_priv =
 			  container_of(mii_ts, struct kszphy_ptp_priv, mii_ts);
-	struct phy_device *phydev = ptp_priv->phydev;
-	struct lan8814_shared_priv *shared = phydev->shared->priv;
 	struct lan8814_ptp_rx_ts *rx_ts, *tmp;
-	struct hwtstamp_config config;
 	int txcfg = 0, rxcfg = 0;
 	int pkt_ts_enable;
+	int tx_mod;
 
-	if (copy_from_user(&config, ifr->ifr_data, sizeof(config)))
-		return -EFAULT;
+	ptp_priv->hwts_tx_type = config->tx_type;
+	ptp_priv->rx_filter = config->rx_filter;
 
-	ptp_priv->hwts_tx_type = config.tx_type;
-	ptp_priv->rx_filter = config.rx_filter;
-
-	switch (config.rx_filter) {
+	switch (config->rx_filter) {
 	case HWTSTAMP_FILTER_NONE:
 		ptp_priv->layer = 0;
 		ptp_priv->version = 0;
@@ -2454,28 +2557,19 @@ static int lan8814_hwtstamp(struct mii_timestamper *mii_ts, struct ifreq *ifr)
 	lanphy_write_page_reg(ptp_priv->phydev, 5, PTP_RX_TIMESTAMP_EN, pkt_ts_enable);
 	lanphy_write_page_reg(ptp_priv->phydev, 5, PTP_TX_TIMESTAMP_EN, pkt_ts_enable);
 
-	if (ptp_priv->hwts_tx_type == HWTSTAMP_TX_ONESTEP_SYNC)
+	tx_mod = lanphy_read_page_reg(ptp_priv->phydev, 5, PTP_TX_MOD);
+	if (ptp_priv->hwts_tx_type == HWTSTAMP_TX_ONESTEP_SYNC) {
 		lanphy_write_page_reg(ptp_priv->phydev, 5, PTP_TX_MOD,
-				      PTP_TX_MOD_TX_PTP_SYNC_TS_INSERT_);
+				      tx_mod | PTP_TX_MOD_TX_PTP_SYNC_TS_INSERT_);
+	} else if (ptp_priv->hwts_tx_type == HWTSTAMP_TX_ON) {
+		lanphy_write_page_reg(ptp_priv->phydev, 5, PTP_TX_MOD,
+				      tx_mod & ~PTP_TX_MOD_TX_PTP_SYNC_TS_INSERT_);
+	}
 
-	if (config.rx_filter != HWTSTAMP_FILTER_NONE)
+	if (config->rx_filter != HWTSTAMP_FILTER_NONE)
 		lan8814_config_ts_intr(ptp_priv->phydev, true);
 	else
 		lan8814_config_ts_intr(ptp_priv->phydev, false);
-
-	mutex_lock(&shared->shared_lock);
-	if (config.rx_filter != HWTSTAMP_FILTER_NONE)
-		shared->ref++;
-	else
-		shared->ref--;
-
-	if (shared->ref)
-		lanphy_write_page_reg(ptp_priv->phydev, 4, PTP_CMD_CTL,
-				      PTP_CMD_CTL_PTP_ENABLE_);
-	else
-		lanphy_write_page_reg(ptp_priv->phydev, 4, PTP_CMD_CTL,
-				      PTP_CMD_CTL_PTP_DISABLE_);
-	mutex_unlock(&shared->shared_lock);
 
 	/* In case of multiple starts and stops, these needs to be cleared */
 	list_for_each_entry_safe(rx_ts, tmp, &ptp_priv->rx_ts_list, list) {
@@ -2488,7 +2582,7 @@ static int lan8814_hwtstamp(struct mii_timestamper *mii_ts, struct ifreq *ifr)
 	lan8814_flush_fifo(ptp_priv->phydev, false);
 	lan8814_flush_fifo(ptp_priv->phydev, true);
 
-	return copy_to_user(ifr->ifr_data, &config, sizeof(config)) ? -EFAULT : 0;
+	return 0;
 }
 
 static void lan8814_txtstamp(struct mii_timestamper *mii_ts,
@@ -2514,7 +2608,7 @@ static void lan8814_txtstamp(struct mii_timestamper *mii_ts,
 	}
 }
 
-static void lan8814_get_sig_rx(struct sk_buff *skb, u16 *sig)
+static bool lan8814_get_sig_rx(struct sk_buff *skb, u16 *sig)
 {
 	struct ptp_header *ptp_header;
 	u32 type;
@@ -2524,7 +2618,11 @@ static void lan8814_get_sig_rx(struct sk_buff *skb, u16 *sig)
 	ptp_header = ptp_parse_header(skb, type);
 	skb_pull_inline(skb, ETH_HLEN);
 
+	if (!ptp_header)
+		return false;
+
 	*sig = (__force u16)(ntohs(ptp_header->sequence_id));
+	return true;
 }
 
 static bool lan8814_match_rx_skb(struct kszphy_ptp_priv *ptp_priv,
@@ -2536,7 +2634,8 @@ static bool lan8814_match_rx_skb(struct kszphy_ptp_priv *ptp_priv,
 	bool ret = false;
 	u16 skb_sig;
 
-	lan8814_get_sig_rx(skb, &skb_sig);
+	if (!lan8814_get_sig_rx(skb, &skb_sig))
+		return ret;
 
 	/* Iterate over all RX timestamps and match it with the received skbs */
 	spin_lock_irqsave(&ptp_priv->rx_ts_lock, flags);
@@ -2584,35 +2683,31 @@ static bool lan8814_rxtstamp(struct mii_timestamper *mii_ts, struct sk_buff *skb
 }
 
 static void lan8814_ptp_clock_set(struct phy_device *phydev,
-				  u32 seconds, u32 nano_seconds)
+				  time64_t sec, u32 nsec)
 {
-	u32 sec_low, sec_high, nsec_low, nsec_high;
-
-	sec_low = seconds & 0xffff;
-	sec_high = (seconds >> 16) & 0xffff;
-	nsec_low = nano_seconds & 0xffff;
-	nsec_high = (nano_seconds >> 16) & 0x3fff;
-
-	lanphy_write_page_reg(phydev, 4, PTP_CLOCK_SET_SEC_LO, sec_low);
-	lanphy_write_page_reg(phydev, 4, PTP_CLOCK_SET_SEC_MID, sec_high);
-	lanphy_write_page_reg(phydev, 4, PTP_CLOCK_SET_NS_LO, nsec_low);
-	lanphy_write_page_reg(phydev, 4, PTP_CLOCK_SET_NS_HI, nsec_high);
+	lanphy_write_page_reg(phydev, 4, PTP_CLOCK_SET_SEC_LO, lower_16_bits(sec));
+	lanphy_write_page_reg(phydev, 4, PTP_CLOCK_SET_SEC_MID, upper_16_bits(sec));
+	lanphy_write_page_reg(phydev, 4, PTP_CLOCK_SET_SEC_HI, upper_32_bits(sec));
+	lanphy_write_page_reg(phydev, 4, PTP_CLOCK_SET_NS_LO, lower_16_bits(nsec));
+	lanphy_write_page_reg(phydev, 4, PTP_CLOCK_SET_NS_HI, upper_16_bits(nsec));
 
 	lanphy_write_page_reg(phydev, 4, PTP_CMD_CTL, PTP_CMD_CTL_PTP_CLOCK_LOAD_);
 }
 
 static void lan8814_ptp_clock_get(struct phy_device *phydev,
-				  u32 *seconds, u32 *nano_seconds)
+				  time64_t *sec, u32 *nsec)
 {
 	lanphy_write_page_reg(phydev, 4, PTP_CMD_CTL, PTP_CMD_CTL_PTP_CLOCK_READ_);
 
-	*seconds = lanphy_read_page_reg(phydev, 4, PTP_CLOCK_READ_SEC_MID);
-	*seconds = (*seconds << 16) |
-		   lanphy_read_page_reg(phydev, 4, PTP_CLOCK_READ_SEC_LO);
+	*sec = lanphy_read_page_reg(phydev, 4, PTP_CLOCK_READ_SEC_HI);
+	*sec <<= 16;
+	*sec |= lanphy_read_page_reg(phydev, 4, PTP_CLOCK_READ_SEC_MID);
+	*sec <<= 16;
+	*sec |= lanphy_read_page_reg(phydev, 4, PTP_CLOCK_READ_SEC_LO);
 
-	*nano_seconds = lanphy_read_page_reg(phydev, 4, PTP_CLOCK_READ_NS_HI);
-	*nano_seconds = ((*nano_seconds & 0x3fff) << 16) |
-			lanphy_read_page_reg(phydev, 4, PTP_CLOCK_READ_NS_LO);
+	*nsec = lanphy_read_page_reg(phydev, 4, PTP_CLOCK_READ_NS_HI);
+	*nsec <<= 16;
+	*nsec |= lanphy_read_page_reg(phydev, 4, PTP_CLOCK_READ_NS_LO);
 }
 
 static int lan8814_ptpci_gettime64(struct ptp_clock_info *ptpci,
@@ -2622,7 +2717,7 @@ static int lan8814_ptpci_gettime64(struct ptp_clock_info *ptpci,
 							  ptp_clock_info);
 	struct phy_device *phydev = shared->phydev;
 	u32 nano_seconds;
-	u32 seconds;
+	time64_t seconds;
 
 	mutex_lock(&shared->shared_lock);
 	lan8814_ptp_clock_get(phydev, &seconds, &nano_seconds);
@@ -2647,43 +2742,67 @@ static int lan8814_ptpci_settime64(struct ptp_clock_info *ptpci,
 	return 0;
 }
 
+static void lan8814_ptp_set_target(struct phy_device *phydev, int event,
+				   s64 start_sec, u32 start_nsec)
+{
+	/* Set the start time */
+	lanphy_write_page_reg(phydev, 4, LAN8814_PTP_CLOCK_TARGET_SEC_LO(event),
+			      lower_16_bits(start_sec));
+	lanphy_write_page_reg(phydev, 4, LAN8814_PTP_CLOCK_TARGET_SEC_HI(event),
+			      upper_16_bits(start_sec));
+
+	lanphy_write_page_reg(phydev, 4, LAN8814_PTP_CLOCK_TARGET_NS_LO(event),
+			      lower_16_bits(start_nsec));
+	lanphy_write_page_reg(phydev, 4, LAN8814_PTP_CLOCK_TARGET_NS_HI(event),
+			      upper_16_bits(start_nsec) & 0x3fff);
+}
+
+static void lan8814_ptp_update_target(struct phy_device *phydev, time64_t sec)
+{
+	lan8814_ptp_set_target(phydev, LAN8814_EVENT_A,
+			       sec + LAN8814_BUFFER_TIME, 0);
+	lan8814_ptp_set_target(phydev, LAN8814_EVENT_B,
+			       sec + LAN8814_BUFFER_TIME, 0);
+}
+
 static void lan8814_ptp_clock_step(struct phy_device *phydev,
 				   s64 time_step_ns)
 {
 	u32 nano_seconds_step;
 	u64 abs_time_step_ns;
-	u32 unsigned_seconds;
+	time64_t set_seconds;
 	u32 nano_seconds;
 	u32 remainder;
 	s32 seconds;
 
 	if (time_step_ns >  15000000000LL) {
 		/* convert to clock set */
-		lan8814_ptp_clock_get(phydev, &unsigned_seconds, &nano_seconds);
-		unsigned_seconds += div_u64_rem(time_step_ns, 1000000000LL,
-						&remainder);
+		lan8814_ptp_clock_get(phydev, &set_seconds, &nano_seconds);
+		set_seconds += div_u64_rem(time_step_ns, 1000000000LL,
+					   &remainder);
 		nano_seconds += remainder;
 		if (nano_seconds >= 1000000000) {
-			unsigned_seconds++;
+			set_seconds++;
 			nano_seconds -= 1000000000;
 		}
-		lan8814_ptp_clock_set(phydev, unsigned_seconds, nano_seconds);
+		lan8814_ptp_clock_set(phydev, set_seconds, nano_seconds);
+		lan8814_ptp_update_target(phydev, set_seconds);
 		return;
 	} else if (time_step_ns < -15000000000LL) {
 		/* convert to clock set */
 		time_step_ns = -time_step_ns;
 
-		lan8814_ptp_clock_get(phydev, &unsigned_seconds, &nano_seconds);
-		unsigned_seconds -= div_u64_rem(time_step_ns, 1000000000LL,
-						&remainder);
+		lan8814_ptp_clock_get(phydev, &set_seconds, &nano_seconds);
+		set_seconds -= div_u64_rem(time_step_ns, 1000000000LL,
+					   &remainder);
 		nano_seconds_step = remainder;
 		if (nano_seconds < nano_seconds_step) {
-			unsigned_seconds--;
+			set_seconds--;
 			nano_seconds += 1000000000;
 		}
 		nano_seconds -= nano_seconds_step;
-		lan8814_ptp_clock_set(phydev, unsigned_seconds,
-				      nano_seconds);
+		lan8814_ptp_clock_set(phydev, set_seconds, nano_seconds);
+		lan8814_ptp_update_target(phydev, set_seconds);
 		return;
 	}
 
@@ -2720,6 +2839,8 @@ static void lan8814_ptp_clock_step(struct phy_device *phydev,
 	}
 
 	while (seconds) {
+		u32 nsec;
+
 		if (seconds > 0) {
 			u32 adjustment_value = (u32)seconds;
 			u16 adjustment_value_lo, adjustment_value_hi;
@@ -2736,6 +2857,10 @@ static void lan8814_ptp_clock_step(struct phy_device *phydev,
 					      PTP_LTC_STEP_ADJ_DIR_ |
 					      adjustment_value_hi);
 			seconds -= ((s32)adjustment_value);
+
+			lan8814_ptp_clock_get(phydev, &set_seconds, &nsec);
+			set_seconds -= adjustment_value;
+			lan8814_ptp_update_target(phydev, set_seconds);
 		} else {
 			u32 adjustment_value = (u32)(-seconds);
 			u16 adjustment_value_lo, adjustment_value_hi;
@@ -2751,6 +2876,10 @@ static void lan8814_ptp_clock_step(struct phy_device *phydev,
 			lanphy_write_page_reg(phydev, 4, PTP_LTC_STEP_ADJ_HI,
 					      adjustment_value_hi);
 			seconds += ((s32)adjustment_value);
+
+			lan8814_ptp_clock_get(phydev, &set_seconds, &nsec);
+			set_seconds += adjustment_value;
+			lan8814_ptp_update_target(phydev, set_seconds);
 		}
 		lanphy_write_page_reg(phydev, 4, PTP_CMD_CTL,
 				      PTP_CMD_CTL_PTP_LTC_STEP_SEC_);
@@ -2816,7 +2945,336 @@ static int lan8814_ptpci_adjfine(struct ptp_clock_info *ptpci, long scaled_ppm)
 	return 0;
 }
 
-static void lan8814_get_sig_tx(struct sk_buff *skb, u16 *sig)
+static void lan8814_ptp_set_reload(struct phy_device *phydev, int event,
+				   s64 period_sec, u32 period_nsec)
+{
+	lanphy_write_page_reg(phydev, 4,
+			      LAN8814_PTP_CLOCK_TARGET_RELOAD_SEC_LO(event),
+			      lower_16_bits(period_sec));
+	lanphy_write_page_reg(phydev, 4,
+			      LAN8814_PTP_CLOCK_TARGET_RELOAD_SEC_HI(event),
+			      upper_16_bits(period_sec));
+
+	lanphy_write_page_reg(phydev, 4,
+			      LAN8814_PTP_CLOCK_TARGET_RELOAD_NS_LO(event),
+			      lower_16_bits(period_nsec));
+	lanphy_write_page_reg(phydev, 4,
+			      LAN8814_PTP_CLOCK_TARGET_RELOAD_NS_HI(event),
+			      upper_16_bits(period_nsec) & 0x3fff);
+}
+
+static void lan8814_ptp_enable_event(struct phy_device *phydev, int event,
+				     int pulse_width)
+{
+	u16 val;
+
+	val = lanphy_read_page_reg(phydev, 4, LAN8814_PTP_GENERAL_CONFIG);
+	/* Set the pulse width of the event */
+	val &= ~(LAN8814_PTP_GENERAL_CONFIG_LTC_EVENT_MASK(event));
+	/* Make sure that the target clock will be incremented each time when
+	 * local time reaches or pass it
+	 */
+	val |= LAN8814_PTP_GENERAL_CONFIG_LTC_EVENT_SET(event, pulse_width);
+	val &= ~(LAN8814_PTP_GENERAL_CONFIG_RELOAD_ADD_X(event));
+	/* Set the polarity high */
+	val |= LAN8814_PTP_GENERAL_CONFIG_POLARITY_X(event);
+	lanphy_write_page_reg(phydev, 4, LAN8814_PTP_GENERAL_CONFIG, val);
+}
+
+static void lan8814_ptp_disable_event(struct phy_device *phydev, int event)
+{
+	u16 val;
+
+	/* Set target to too far in the future, effectively disabling it */
+	lan8814_ptp_set_target(phydev, event, 0xFFFFFFFF, 0);
+
+	/* And then reload once it recheas the target */
+	val = lanphy_read_page_reg(phydev, 4, LAN8814_PTP_GENERAL_CONFIG);
+	val |= LAN8814_PTP_GENERAL_CONFIG_RELOAD_ADD_X(event);
+	lanphy_write_page_reg(phydev, 4, LAN8814_PTP_GENERAL_CONFIG, val);
+}
+
+static void lan8814_ptp_perout_off(struct phy_device *phydev, int pin)
+{
+	u16 val;
+
+	/* Disable gpio alternate function,
+	 * 1: select as gpio,
+	 * 0: select alt func
+	 */
+	val = lanphy_read_page_reg(phydev, 4, LAN8814_GPIO_EN_ADDR(pin));
+	val |= LAN8814_GPIO_EN_BIT(pin);
+	lanphy_write_page_reg(phydev, 4, LAN8814_GPIO_EN_ADDR(pin), val);
+
+	val = lanphy_read_page_reg(phydev, 4, LAN8814_GPIO_DIR_ADDR(pin));
+	val &= ~LAN8814_GPIO_DIR_BIT(pin);
+	lanphy_write_page_reg(phydev, 4, LAN8814_GPIO_DIR_ADDR(pin), val);
+
+	val = lanphy_read_page_reg(phydev, 4, LAN8814_GPIO_BUF_ADDR(pin));
+	val &= ~LAN8814_GPIO_BUF_BIT(pin);
+	lanphy_write_page_reg(phydev, 4, LAN8814_GPIO_BUF_ADDR(pin), val);
+}
+
+static void lan8814_ptp_perout_on(struct phy_device *phydev, int pin)
+{
+	int val;
+
+	/* Set as gpio output */
+	val = lanphy_read_page_reg(phydev, 4, LAN8814_GPIO_DIR_ADDR(pin));
+	val |= LAN8814_GPIO_DIR_BIT(pin);
+	lanphy_write_page_reg(phydev, 4, LAN8814_GPIO_DIR_ADDR(pin), val);
+
+	/* Enable gpio 0:for alternate function, 1:gpio */
+	val = lanphy_read_page_reg(phydev, 4, LAN8814_GPIO_EN_ADDR(pin));
+	val &= ~LAN8814_GPIO_EN_BIT(pin);
+	lanphy_write_page_reg(phydev, 4, LAN8814_GPIO_EN_ADDR(pin), val);
+
+	/* Set buffer type to push pull */
+	val = lanphy_read_page_reg(phydev, 4, LAN8814_GPIO_BUF_ADDR(pin));
+	val |= LAN8814_GPIO_BUF_BIT(pin);
+	lanphy_write_page_reg(phydev, 4, LAN8814_GPIO_BUF_ADDR(pin), val);
+}
+
+static int lan8814_ptp_perout(struct ptp_clock_info *ptpci,
+			      struct ptp_clock_request *rq, int on)
+{
+	struct lan8814_shared_priv *shared = container_of(ptpci, struct lan8814_shared_priv,
+							  ptp_clock_info);
+	struct phy_device *phydev = shared->phydev;
+	struct timespec64 ts_on, ts_period;
+	s64 on_nsec, period_nsec;
+	int pulse_width;
+	int pin, event;
+
+	/* Reject requests with unsupported flags */
+	if (rq->perout.flags & ~PTP_PEROUT_DUTY_CYCLE)
+		return -EOPNOTSUPP;
+
+	mutex_lock(&shared->shared_lock);
+	event = rq->perout.index;
+	pin = ptp_find_pin(shared->ptp_clock, PTP_PF_PEROUT, event);
+	if (pin < 0 || pin >= LAN8814_PTP_PEROUT_NUM) {
+		mutex_unlock(&shared->shared_lock);
+		return -EBUSY;
+	}
+
+	if (!on) {
+		lan8814_ptp_perout_off(phydev, pin);
+		lan8814_ptp_disable_event(phydev, event);
+		mutex_unlock(&shared->shared_lock);
+		return 0;
+	}
+
+	ts_on.tv_sec = rq->perout.on.sec;
+	ts_on.tv_nsec = rq->perout.on.nsec;
+	on_nsec = timespec64_to_ns(&ts_on);
+
+	ts_period.tv_sec = rq->perout.period.sec;
+	ts_period.tv_nsec = rq->perout.period.nsec;
+	period_nsec = timespec64_to_ns(&ts_period);
+
+	if (period_nsec < 200) {
+		pr_warn_ratelimited("%s: perout period too small, minimum is 200 nsec\n",
+				    phydev_name(phydev));
+		mutex_unlock(&shared->shared_lock);
+		return -EOPNOTSUPP;
+	}
+
+	if (on_nsec >= period_nsec) {
+		pr_warn_ratelimited("%s: pulse width must be smaller than period\n",
+				    phydev_name(phydev));
+		mutex_unlock(&shared->shared_lock);
+		return -EINVAL;
+	}
+
+	switch (on_nsec) {
+	case 200000000:
+		pulse_width = LAN8841_PTP_GENERAL_CONFIG_LTC_EVENT_200MS;
+		break;
+	case 100000000:
+		pulse_width = LAN8841_PTP_GENERAL_CONFIG_LTC_EVENT_100MS;
+		break;
+	case 50000000:
+		pulse_width = LAN8841_PTP_GENERAL_CONFIG_LTC_EVENT_50MS;
+		break;
+	case 10000000:
+		pulse_width = LAN8841_PTP_GENERAL_CONFIG_LTC_EVENT_10MS;
+		break;
+	case 5000000:
+		pulse_width = LAN8841_PTP_GENERAL_CONFIG_LTC_EVENT_5MS;
+		break;
+	case 1000000:
+		pulse_width = LAN8841_PTP_GENERAL_CONFIG_LTC_EVENT_1MS;
+		break;
+	case 500000:
+		pulse_width = LAN8841_PTP_GENERAL_CONFIG_LTC_EVENT_500US;
+		break;
+	case 100000:
+		pulse_width = LAN8841_PTP_GENERAL_CONFIG_LTC_EVENT_100US;
+		break;
+	case 50000:
+		pulse_width = LAN8841_PTP_GENERAL_CONFIG_LTC_EVENT_50US;
+		break;
+	case 10000:
+		pulse_width = LAN8841_PTP_GENERAL_CONFIG_LTC_EVENT_10US;
+		break;
+	case 5000:
+		pulse_width = LAN8841_PTP_GENERAL_CONFIG_LTC_EVENT_5US;
+		break;
+	case 1000:
+		pulse_width = LAN8841_PTP_GENERAL_CONFIG_LTC_EVENT_1US;
+		break;
+	case 500:
+		pulse_width = LAN8841_PTP_GENERAL_CONFIG_LTC_EVENT_500NS;
+		break;
+	case 100:
+		pulse_width = LAN8841_PTP_GENERAL_CONFIG_LTC_EVENT_100NS;
+		break;
+	default:
+		pr_warn_ratelimited("%s: Use default duty cycle of 100ns\n",
+				    phydev_name(phydev));
+		pulse_width = LAN8841_PTP_GENERAL_CONFIG_LTC_EVENT_100NS;
+		break;
+	}
+
+	/* Configure to pulse every period */
+	lan8814_ptp_enable_event(phydev, event, pulse_width);
+	lan8814_ptp_set_target(phydev, event, rq->perout.start.sec,
+			       rq->perout.start.nsec);
+	lan8814_ptp_set_reload(phydev, event, rq->perout.period.sec,
+			       rq->perout.period.nsec);
+	lan8814_ptp_perout_on(phydev, pin);
+	mutex_unlock(&shared->shared_lock);
+
+	return 0;
+}
+
+static void lan8814_ptp_extts_on(struct phy_device *phydev, int pin, u32 flags)
+{
+	u16 tmp;
+
+	/* Set as gpio input */
+	tmp = lanphy_read_page_reg(phydev, 4, LAN8814_GPIO_DIR_ADDR(pin));
+	tmp &= ~LAN8814_GPIO_DIR_BIT(pin);
+	lanphy_write_page_reg(phydev, 4, LAN8814_GPIO_DIR_ADDR(pin), tmp);
+
+	/* Map the pin to ltc pin 0 of the capture map registers */
+	tmp = lanphy_read_page_reg(phydev, 4, PTP_GPIO_CAP_MAP_LO);
+	tmp |= pin;
+	lanphy_write_page_reg(phydev, 4, PTP_GPIO_CAP_MAP_LO, tmp);
+
+	/* Enable capture on the edges of the ltc pin */
+	tmp = lanphy_read_page_reg(phydev, 4, PTP_GPIO_CAP_EN);
+	if (flags & PTP_RISING_EDGE)
+		tmp |= PTP_GPIO_CAP_EN_GPIO_RE_CAPTURE_ENABLE(0);
+	if (flags & PTP_FALLING_EDGE)
+		tmp |= PTP_GPIO_CAP_EN_GPIO_FE_CAPTURE_ENABLE(0);
+	lanphy_write_page_reg(phydev, 4, PTP_GPIO_CAP_EN, tmp);
+
+	/* Enable interrupt top interrupt */
+	tmp = lanphy_read_page_reg(phydev, 4, PTP_COMMON_INT_ENA);
+	tmp |= PTP_COMMON_INT_ENA_GPIO_CAP_EN;
+	lanphy_write_page_reg(phydev, 4, PTP_COMMON_INT_ENA, tmp);
+}
+
+static void lan8814_ptp_extts_off(struct phy_device *phydev, int pin)
+{
+	u16 tmp;
+
+	/* Set as gpio out */
+	tmp = lanphy_read_page_reg(phydev, 4, LAN8814_GPIO_DIR_ADDR(pin));
+	tmp |= LAN8814_GPIO_DIR_BIT(pin);
+	lanphy_write_page_reg(phydev, 4, LAN8814_GPIO_DIR_ADDR(pin), tmp);
+
+	/* Enable alternate, 0:for alternate function, 1:gpio */
+	tmp = lanphy_read_page_reg(phydev, 4, LAN8814_GPIO_EN_ADDR(pin));
+	tmp &= ~LAN8814_GPIO_EN_BIT(pin);
+	lanphy_write_page_reg(phydev, 4, LAN8814_GPIO_EN_ADDR(pin), tmp);
+
+	/* Clear the mapping of pin to registers 0 of the capture registers */
+	tmp = lanphy_read_page_reg(phydev, 4, PTP_GPIO_CAP_MAP_LO);
+	tmp &= ~GENMASK(3, 0);
+	lanphy_write_page_reg(phydev, 4, PTP_GPIO_CAP_MAP_LO, tmp);
+
+	/* Disable capture on both of the edges */
+	tmp = lanphy_read_page_reg(phydev, 4, PTP_GPIO_CAP_EN);
+	tmp &= ~PTP_GPIO_CAP_EN_GPIO_RE_CAPTURE_ENABLE(pin);
+	tmp &= ~PTP_GPIO_CAP_EN_GPIO_FE_CAPTURE_ENABLE(pin);
+	lanphy_write_page_reg(phydev, 4, PTP_GPIO_CAP_EN, tmp);
+
+	/* Disable interrupt top interrupt */
+	tmp = lanphy_read_page_reg(phydev, 4, PTP_COMMON_INT_ENA);
+	tmp &= ~PTP_COMMON_INT_ENA_GPIO_CAP_EN;
+	lanphy_write_page_reg(phydev, 4, PTP_COMMON_INT_ENA, tmp);
+}
+
+static int lan8814_ptp_extts(struct ptp_clock_info *ptpci,
+			     struct ptp_clock_request *rq, int on)
+{
+	struct lan8814_shared_priv *shared = container_of(ptpci, struct lan8814_shared_priv,
+							  ptp_clock_info);
+	struct phy_device *phydev = shared->phydev;
+	int pin;
+
+	if (rq->extts.flags & ~(PTP_ENABLE_FEATURE |
+				PTP_EXTTS_EDGES |
+				PTP_STRICT_FLAGS))
+		return -EOPNOTSUPP;
+
+	pin = ptp_find_pin(shared->ptp_clock, PTP_PF_EXTTS,
+			   rq->extts.index);
+	if (pin == -1 || pin != LAN8814_PTP_EXTTS_NUM)
+		return -EINVAL;
+
+	mutex_lock(&shared->shared_lock);
+	if (on)
+		lan8814_ptp_extts_on(phydev, pin, rq->extts.flags);
+	else
+		lan8814_ptp_extts_off(phydev, pin);
+
+	mutex_unlock(&shared->shared_lock);
+
+	return 0;
+}
+
+static int lan8814_ptpci_enable(struct ptp_clock_info *ptpci,
+				struct ptp_clock_request *rq, int on)
+{
+	switch (rq->type) {
+	case PTP_CLK_REQ_PEROUT:
+		return lan8814_ptp_perout(ptpci, rq, on);
+	case PTP_CLK_REQ_EXTTS:
+		return lan8814_ptp_extts(ptpci, rq, on);
+	default:
+		return -EINVAL;
+	}
+}
+
+static int lan8814_ptpci_verify(struct ptp_clock_info *ptp, unsigned int pin,
+				enum ptp_pin_function func, unsigned int chan)
+{
+	switch (func) {
+	case PTP_PF_NONE:
+	case PTP_PF_PEROUT:
+		/* Only pins 0 and 1 can generate perout signals. And for pin 0
+		 * there is only chan 0 (event A) and for pin 1 there is only
+		 * chan 1 (event B)
+		 */
+		if (pin >= LAN8814_PTP_PEROUT_NUM || pin != chan)
+			return -1;
+		break;
+	case PTP_PF_EXTTS:
+		if (pin != LAN8814_PTP_EXTTS_NUM)
+			return -1;
+		break;
+	default:
+		return -1;
+	}
+
+	return 0;
+}
+
+static bool lan8814_get_sig_tx(struct sk_buff *skb, u16 *sig)
 {
 	struct ptp_header *ptp_header;
 	u32 type;
@@ -2824,7 +3282,11 @@ static void lan8814_get_sig_tx(struct sk_buff *skb, u16 *sig)
 	type = ptp_classify_raw(skb);
 	ptp_header = ptp_parse_header(skb, type);
 
+	if (!ptp_header)
+		return false;
+
 	*sig = (__force u16)(ntohs(ptp_header->sequence_id));
+	return true;
 }
 
 static void lan8814_match_tx_skb(struct kszphy_ptp_priv *ptp_priv,
@@ -2838,7 +3300,8 @@ static void lan8814_match_tx_skb(struct kszphy_ptp_priv *ptp_priv,
 
 	spin_lock_irqsave(&ptp_priv->tx_queue.lock, flags);
 	skb_queue_walk_safe(&ptp_priv->tx_queue, skb, skb_tmp) {
-		lan8814_get_sig_tx(skb, &skb_sig);
+		if (!lan8814_get_sig_tx(skb, &skb_sig))
+			continue;
 
 		if (memcmp(&skb_sig, &seq_id, sizeof(seq_id)))
 			continue;
@@ -2892,7 +3355,8 @@ static bool lan8814_match_skb(struct kszphy_ptp_priv *ptp_priv,
 
 	spin_lock_irqsave(&ptp_priv->rx_queue.lock, flags);
 	skb_queue_walk_safe(&ptp_priv->rx_queue, skb, skb_tmp) {
-		lan8814_get_sig_rx(skb, &skb_sig);
+		if (!lan8814_get_sig_rx(skb, &skb_sig))
+			continue;
 
 		if (memcmp(&skb_sig, &rx_ts->seq_id, sizeof(rx_ts->seq_id)))
 			continue;
@@ -2973,6 +3437,64 @@ static void lan8814_handle_ptp_interrupt(struct phy_device *phydev, u16 status)
 		lan8814_flush_fifo(phydev, false);
 		skb_queue_purge(&ptp_priv->rx_queue);
 	}
+}
+
+static int lan8814_gpio_process_cap(struct lan8814_shared_priv *shared)
+{
+	struct phy_device *phydev = shared->phydev;
+	struct ptp_clock_event ptp_event = {0};
+	unsigned long nsec;
+	s64 sec;
+	u16 tmp;
+
+	/* This is 0 because whatever was the input pin it was mapped it to
+	 * ltc gpio pin 0
+	 */
+	tmp = lanphy_read_page_reg(phydev, 4, PTP_GPIO_SEL);
+	tmp |= PTP_GPIO_SEL_GPIO_SEL(0);
+	lanphy_write_page_reg(phydev, 4, PTP_GPIO_SEL, tmp);
+
+	tmp = lanphy_read_page_reg(phydev, 4, PTP_GPIO_CAP_STS);
+	if (!(tmp & PTP_GPIO_CAP_STS_PTP_GPIO_RE_STS(0)) &&
+	    !(tmp & PTP_GPIO_CAP_STS_PTP_GPIO_FE_STS(0)))
+		return -1;
+
+	if (tmp & BIT(0)) {
+		sec = lanphy_read_page_reg(phydev, 4, PTP_GPIO_RE_LTC_SEC_HI_CAP);
+		sec <<= 16;
+		sec |= lanphy_read_page_reg(phydev, 4, PTP_GPIO_RE_LTC_SEC_LO_CAP);
+
+		nsec = lanphy_read_page_reg(phydev, 4, PTP_GPIO_RE_LTC_NS_HI_CAP) & 0x3fff;
+		nsec <<= 16;
+		nsec |= lanphy_read_page_reg(phydev, 4, PTP_GPIO_RE_LTC_NS_LO_CAP);
+	} else {
+		sec = lanphy_read_page_reg(phydev, 4, PTP_GPIO_FE_LTC_SEC_HI_CAP);
+		sec <<= 16;
+		sec |= lanphy_read_page_reg(phydev, 4, PTP_GPIO_FE_LTC_SEC_LO_CAP);
+
+		nsec = lanphy_read_page_reg(phydev, 4, PTP_GPIO_FE_LTC_NS_HI_CAP) & 0x3fff;
+		nsec <<= 16;
+		nsec |= lanphy_read_page_reg(phydev, 4, PTP_GPIO_RE_LTC_NS_LO_CAP);
+	}
+
+	ptp_event.index = 0;
+	ptp_event.timestamp = ktime_set(sec, nsec);
+	ptp_event.type = PTP_CLOCK_EXTTS;
+	ptp_clock_event(shared->ptp_clock, &ptp_event);
+
+	return 0;
+}
+
+static int lan8814_handle_gpio_interrupt(struct phy_device *phydev, u16 status)
+{
+	struct lan8814_shared_priv *shared = phydev->shared->priv;
+	int ret;
+
+	mutex_lock(&shared->shared_lock);
+	ret = lan8814_gpio_process_cap(shared);
+	mutex_unlock(&shared->shared_lock);
+
+	return ret;
 }
 
 static int lan8804_config_init(struct phy_device *phydev)
@@ -3079,6 +3601,9 @@ static irqreturn_t lan8814_handle_interrupt(struct phy_device *phydev)
 		ret = IRQ_HANDLED;
 	}
 
+	if (!lan8814_handle_gpio_interrupt(phydev, irq_status))
+		ret = IRQ_HANDLED;
+
 	return ret;
 }
 
@@ -3147,6 +3672,12 @@ static void lan8814_ptp_init(struct phy_device *phydev)
 	lanphy_write_page_reg(phydev, 5, PTP_TX_PARSE_IP_ADDR_EN, 0);
 	lanphy_write_page_reg(phydev, 5, PTP_RX_PARSE_IP_ADDR_EN, 0);
 
+	/* Disable checking for minorVersionPTP field */
+	lanphy_write_page_reg(phydev, 5, PTP_RX_VERSION,
+			      PTP_MAX_VERSION(0xff) | PTP_MIN_VERSION(0x0));
+	lanphy_write_page_reg(phydev, 5, PTP_TX_VERSION,
+			      PTP_MAX_VERSION(0xff) | PTP_MIN_VERSION(0x0));
+
 	skb_queue_head_init(&ptp_priv->tx_queue);
 	skb_queue_head_init(&ptp_priv->rx_queue);
 	INIT_LIST_HEAD(&ptp_priv->rx_ts_list);
@@ -3169,19 +3700,39 @@ static int lan8814_ptp_probe_once(struct phy_device *phydev)
 	/* Initialise shared lock for clock*/
 	mutex_init(&shared->shared_lock);
 
+	shared->pin_config = devm_kmalloc_array(&phydev->mdio.dev,
+						LAN8814_PTP_GPIO_NUM,
+						sizeof(*shared->pin_config),
+						GFP_KERNEL);
+	if (!shared->pin_config)
+		return -ENOMEM;
+
+	for (int i = 0; i < LAN8814_PTP_GPIO_NUM; i++) {
+		struct ptp_pin_desc *ptp_pin = &shared->pin_config[i];
+
+		memset(ptp_pin, 0, sizeof(*ptp_pin));
+		snprintf(ptp_pin->name,
+			 sizeof(ptp_pin->name), "lan8814_ptp_pin_%02d", i);
+		ptp_pin->index = i;
+		ptp_pin->func =  PTP_PF_NONE;
+	}
+
 	shared->ptp_clock_info.owner = THIS_MODULE;
 	snprintf(shared->ptp_clock_info.name, 30, "%s", phydev->drv->name);
 	shared->ptp_clock_info.max_adj = 31249999;
 	shared->ptp_clock_info.n_alarm = 0;
-	shared->ptp_clock_info.n_ext_ts = 0;
-	shared->ptp_clock_info.n_pins = 0;
+	shared->ptp_clock_info.n_ext_ts = LAN8814_PTP_EXTTS_NUM;
+	shared->ptp_clock_info.n_pins = LAN8814_PTP_GPIO_NUM;
 	shared->ptp_clock_info.pps = 0;
-	shared->ptp_clock_info.pin_config = NULL;
+	shared->ptp_clock_info.pin_config = shared->pin_config;
+	shared->ptp_clock_info.n_per_out = LAN8814_PTP_PEROUT_NUM;
 	shared->ptp_clock_info.adjfine = lan8814_ptpci_adjfine;
 	shared->ptp_clock_info.adjtime = lan8814_ptpci_adjtime;
 	shared->ptp_clock_info.gettime64 = lan8814_ptpci_gettime64;
 	shared->ptp_clock_info.settime64 = lan8814_ptpci_settime64;
 	shared->ptp_clock_info.getcrosststamp = NULL;
+	shared->ptp_clock_info.enable = lan8814_ptpci_enable;
+	shared->ptp_clock_info.verify = lan8814_ptpci_verify;
 
 	shared->ptp_clock = ptp_clock_register(&shared->ptp_clock_info,
 					       &phydev->mdio.dev);
@@ -3205,6 +3756,9 @@ static int lan8814_ptp_probe_once(struct phy_device *phydev)
 	lanphy_write_page_reg(phydev, 4, LTC_HARD_RESET, LTC_HARD_RESET_);
 	lanphy_write_page_reg(phydev, 4, PTP_OPERATING_MODE,
 			      PTP_OPERATING_MODE_STANDALONE_);
+
+	/* Enable ptp to run LTC clock for ptp and gpio 1PPS operation */
+	lanphy_write_page_reg(phydev, 4, PTP_CMD_CTL, PTP_CMD_CTL_PTP_ENABLE_);
 
 	return 0;
 }
@@ -3271,6 +3825,33 @@ static int lan8814_release_coma_mode(struct phy_device *phydev)
 	return 0;
 }
 
+static void lan8814_clear_2psp_bit(struct phy_device *phydev)
+{
+	u16 val;
+
+	/* It was noticed that when traffic is passing through the PHY and the
+	 * cable is removed then the LED was still one even though there is no
+	 * link
+	 */
+	val = lanphy_read_page_reg(phydev, 2, LAN8814_EEE_STATE);
+	val &= ~LAN8814_EEE_STATE_MASK2P5P;
+	lanphy_write_page_reg(phydev, 2, LAN8814_EEE_STATE, val);
+}
+
+static void lan8814_update_meas_time(struct phy_device *phydev)
+{
+	u16 val;
+
+	/* By setting the measure time to a value of 0xb this will allow cables
+	 * longer than 100m to be used. This configuration can be used
+	 * regardless of the mode of operation of the PHY
+	 */
+	val = lanphy_read_page_reg(phydev, 1, LAN8814_PD_CONTROLS);
+	val &= ~LAN8814_PD_CONTROLS_PD_MEAS_TIME_MASK;
+	val |= LAN8814_PD_CONTROLS_PD_MEAS_TIME_VAL;
+	lanphy_write_page_reg(phydev, 1, LAN8814_PD_CONTROLS, val);
+}
+
 static int lan8814_probe(struct phy_device *phydev)
 {
 	const struct kszphy_type *type = phydev->drv->driver_data;
@@ -3307,6 +3888,10 @@ static int lan8814_probe(struct phy_device *phydev)
 
 	lan8814_ptp_init(phydev);
 
+	/* Errata workarounds */
+	lan8814_clear_2psp_bit(phydev);
+	lan8814_update_meas_time(phydev);
+
 	return 0;
 }
 
@@ -3335,8 +3920,10 @@ static int lan8814_probe(struct phy_device *phydev)
 #define LAN8841_ADC_CHANNEL_MASK		198
 #define LAN8841_PTP_RX_PARSE_L2_ADDR_EN		370
 #define LAN8841_PTP_RX_PARSE_IP_ADDR_EN		371
+#define LAN8841_PTP_RX_VERSION			374
 #define LAN8841_PTP_TX_PARSE_L2_ADDR_EN		434
 #define LAN8841_PTP_TX_PARSE_IP_ADDR_EN		435
+#define LAN8841_PTP_TX_VERSION			438
 #define LAN8841_PTP_CMD_CTL			256
 #define LAN8841_PTP_CMD_CTL_PTP_ENABLE		BIT(2)
 #define LAN8841_PTP_CMD_CTL_PTP_DISABLE		BIT(1)
@@ -3379,6 +3966,12 @@ static int lan8841_config_init(struct phy_device *phydev)
 		      LAN8841_PTP_TX_PARSE_IP_ADDR_EN, 0);
 	phy_write_mmd(phydev, KSZ9131RN_MMD_COMMON_CTRL_REG,
 		      LAN8841_PTP_RX_PARSE_IP_ADDR_EN, 0);
+
+	/* Disable checking for minorVersionPTP field */
+	phy_write_mmd(phydev, KSZ9131RN_MMD_COMMON_CTRL_REG,
+		      LAN8841_PTP_RX_VERSION, 0xff00);
+	phy_write_mmd(phydev, KSZ9131RN_MMD_COMMON_CTRL_REG,
+		      LAN8841_PTP_TX_VERSION, 0xff00);
 
 	/* 100BT Clause 40 improvenent errata */
 	phy_write_mmd(phydev, LAN8841_MMD_ANALOG_REG,
@@ -3631,12 +4224,8 @@ static int lan8841_ts_info(struct mii_timestamper *mii_ts,
 
 	info->phc_index = ptp_priv->ptp_clock ?
 				ptp_clock_index(ptp_priv->ptp_clock) : -1;
-	if (info->phc_index == -1) {
-		info->so_timestamping |= SOF_TIMESTAMPING_TX_SOFTWARE |
-					 SOF_TIMESTAMPING_RX_SOFTWARE |
-					 SOF_TIMESTAMPING_SOFTWARE;
+	if (info->phc_index == -1)
 		return 0;
-	}
 
 	info->so_timestamping = SOF_TIMESTAMPING_TX_HARDWARE |
 				SOF_TIMESTAMPING_RX_HARDWARE |
@@ -3703,21 +4292,19 @@ static void lan8841_ptp_enable_processing(struct kszphy_ptp_priv *ptp_priv,
 #define LAN8841_PTP_TX_TIMESTAMP_EN		443
 #define LAN8841_PTP_TX_MOD			445
 
-static int lan8841_hwtstamp(struct mii_timestamper *mii_ts, struct ifreq *ifr)
+static int lan8841_hwtstamp(struct mii_timestamper *mii_ts,
+			    struct kernel_hwtstamp_config *config,
+			    struct netlink_ext_ack *extack)
 {
 	struct kszphy_ptp_priv *ptp_priv = container_of(mii_ts, struct kszphy_ptp_priv, mii_ts);
 	struct phy_device *phydev = ptp_priv->phydev;
-	struct hwtstamp_config config;
 	int txcfg = 0, rxcfg = 0;
 	int pkt_ts_enable;
 
-	if (copy_from_user(&config, ifr->ifr_data, sizeof(config)))
-		return -EFAULT;
+	ptp_priv->hwts_tx_type = config->tx_type;
+	ptp_priv->rx_filter = config->rx_filter;
 
-	ptp_priv->hwts_tx_type = config.tx_type;
-	ptp_priv->rx_filter = config.rx_filter;
-
-	switch (config.rx_filter) {
+	switch (config->rx_filter) {
 	case HWTSTAMP_FILTER_NONE:
 		ptp_priv->layer = 0;
 		ptp_priv->version = 0;
@@ -3771,13 +4358,13 @@ static int lan8841_hwtstamp(struct mii_timestamper *mii_ts, struct ifreq *ifr)
 
 	/* Now enable/disable the timestamping */
 	lan8841_ptp_enable_processing(ptp_priv,
-				      config.rx_filter != HWTSTAMP_FILTER_NONE);
+				      config->rx_filter != HWTSTAMP_FILTER_NONE);
 
 	skb_queue_purge(&ptp_priv->tx_queue);
 
 	lan8841_ptp_flush_fifo(ptp_priv);
 
-	return copy_to_user(ifr->ifr_data, &config, sizeof(config)) ? -EFAULT : 0;
+	return 0;
 }
 
 static bool lan8841_rxtstamp(struct mii_timestamper *mii_ts,
@@ -4102,8 +4689,8 @@ static int lan8841_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 		faster = false;
 	}
 
-	rate = LAN8814_1PPM_FORMAT * (upper_16_bits(scaled_ppm));
-	rate += (LAN8814_1PPM_FORMAT * (lower_16_bits(scaled_ppm))) >> 16;
+	rate = LAN8841_1PPM_FORMAT * (upper_16_bits(scaled_ppm));
+	rate += (LAN8841_1PPM_FORMAT * (lower_16_bits(scaled_ppm))) >> 16;
 
 	mutex_lock(&ptp_priv->ptp_lock);
 	phy_write_mmd(phydev, 2, LAN8841_PTP_LTC_RATE_ADJ_HI,
@@ -4602,7 +5189,8 @@ static int lan8841_suspend(struct phy_device *phydev)
 	struct kszphy_priv *priv = phydev->priv;
 	struct kszphy_ptp_priv *ptp_priv = &priv->ptp_priv;
 
-	ptp_cancel_worker_sync(ptp_priv->ptp_clock);
+	if (ptp_priv->ptp_clock)
+		ptp_cancel_worker_sync(ptp_priv->ptp_clock);
 
 	return genphy_suspend(phydev);
 }
@@ -4842,6 +5430,7 @@ static struct phy_driver ksphy_driver[] = {
 	.flags		= PHY_POLL_CABLE_TEST,
 	.driver_data	= &ksz9131_type,
 	.probe		= kszphy_probe,
+	.soft_reset	= genphy_soft_reset,
 	.config_init	= ksz9131_config_init,
 	.config_intr	= kszphy_config_intr,
 	.config_aneg	= ksz9131_config_aneg,

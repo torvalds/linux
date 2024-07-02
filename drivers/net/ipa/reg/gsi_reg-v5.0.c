@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0
 
-/* Copyright (C) 2023 Linaro Ltd. */
+/* Copyright (C) 2023-2024 Linaro Ltd. */
 
+#include <linux/array_size.h>
+#include <linux/bits.h>
 #include <linux/types.h>
 
-#include "../gsi.h"
-#include "../reg.h"
 #include "../gsi_reg.h"
+#include "../ipa_version.h"
+#include "../reg.h"
 
 REG(INTER_EE_SRC_CH_IRQ_MSK, inter_ee_src_ch_irq_msk,
     0x0000c01c + 0x1000 * GSI_EE_AP);
@@ -78,7 +80,7 @@ REG_STRIDE_FIELDS(EV_CH_E_CNTXT_0, ev_ch_e_cntxt_0,
 		  0x0001c000 + 0x12000 * GSI_EE_AP, 0x80);
 
 static const u32 reg_ev_ch_e_cntxt_1_fmask[] = {
-	[R_LENGTH]					= GENMASK(19, 0),
+	[R_LENGTH]					= GENMASK(23, 0),
 };
 
 REG_STRIDE_FIELDS(EV_CH_E_CNTXT_1, ev_ch_e_cntxt_1,

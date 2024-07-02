@@ -13,7 +13,6 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/delay.h>
-#include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
@@ -362,7 +361,7 @@ static const struct of_device_id cs4349_of_match[] = {
 MODULE_DEVICE_TABLE(of, cs4349_of_match);
 
 static const struct i2c_device_id cs4349_i2c_id[] = {
-	{"cs4349", 0},
+	{"cs4349"},
 	{}
 };
 

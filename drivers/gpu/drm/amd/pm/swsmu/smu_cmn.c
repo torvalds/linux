@@ -235,6 +235,50 @@ static void __smu_cmn_send_msg(struct smu_context *smu,
 	WREG32(smu->msg_reg, msg);
 }
 
+static inline uint32_t __smu_cmn_get_msg_flags(struct smu_context *smu,
+					       enum smu_message_type msg)
+{
+	return smu->message_map[msg].flags;
+}
+
+static int __smu_cmn_ras_filter_msg(struct smu_context *smu,
+				    enum smu_message_type msg, bool *poll)
+{
+	struct amdgpu_device *adev = smu->adev;
+	uint32_t flags, resp;
+	bool fed_status;
+
+	flags = __smu_cmn_get_msg_flags(smu, msg);
+	*poll = true;
+
+	/* When there is RAS fatal error, FW won't process non-RAS priority
+	 * messages. Don't allow any messages other than RAS priority messages.
+	 */
+	fed_status = amdgpu_ras_get_fed_status(adev);
+	if (fed_status) {
+		if (!(flags & SMU_MSG_RAS_PRI)) {
+			dev_dbg(adev->dev,
+				"RAS error detected, skip sending %s",
+				smu_get_message_name(smu, msg));
+			return -EACCES;
+		}
+
+		/* FW will ignore non-priority messages when a RAS fatal error
+		 * is detected. Hence it is possible that a previous message
+		 * wouldn't have got response. Allow to continue without polling
+		 * for response status for priority messages.
+		 */
+		resp = RREG32(smu->resp_reg);
+		dev_dbg(adev->dev,
+			"Sending RAS priority message %s response status: %x",
+			smu_get_message_name(smu, msg), resp);
+		if (resp == 0)
+			*poll = false;
+	}
+
+	return 0;
+}
+
 static int __smu_cmn_send_debug_msg(struct smu_context *smu,
 			       u32 msg,
 			       u32 param)
@@ -354,6 +398,7 @@ int smu_cmn_send_smc_msg_with_param(struct smu_context *smu,
 {
 	struct amdgpu_device *adev = smu->adev;
 	int res, index;
+	bool poll = true;
 	u32 reg;
 
 	if (adev->no_hw_access)
@@ -366,20 +411,35 @@ int smu_cmn_send_smc_msg_with_param(struct smu_context *smu,
 		return index == -EACCES ? 0 : index;
 
 	mutex_lock(&smu->message_lock);
-	reg = __smu_cmn_poll_stat(smu);
-	res = __smu_cmn_reg2errno(smu, reg);
-	if (reg == SMU_RESP_NONE ||
-	    res == -EREMOTEIO) {
-		__smu_cmn_reg_print_error(smu, reg, index, param, msg);
-		goto Out;
+
+	if (smu->smc_fw_caps & SMU_FW_CAP_RAS_PRI) {
+		res = __smu_cmn_ras_filter_msg(smu, msg, &poll);
+		if (res)
+			goto Out;
+	}
+
+	if (poll) {
+		reg = __smu_cmn_poll_stat(smu);
+		res = __smu_cmn_reg2errno(smu, reg);
+		if (reg == SMU_RESP_NONE || res == -EREMOTEIO) {
+			__smu_cmn_reg_print_error(smu, reg, index, param, msg);
+			goto Out;
+		}
 	}
 	__smu_cmn_send_msg(smu, (uint16_t) index, param);
 	reg = __smu_cmn_poll_stat(smu);
 	res = __smu_cmn_reg2errno(smu, reg);
 	if (res != 0)
 		__smu_cmn_reg_print_error(smu, reg, index, param, msg);
-	if (read_arg)
+	if (read_arg) {
 		smu_cmn_read_arg(smu, read_arg);
+		dev_dbg(adev->dev, "smu send message: %s(%d) param: 0x%08x, resp: 0x%08x,\
+			readval: 0x%08x\n",
+			smu_get_message_name(smu, msg), index, param, reg, *read_arg);
+	} else {
+		dev_dbg(adev->dev, "smu send message: %s(%d) param: 0x%08x, resp: 0x%08x\n",
+			smu_get_message_name(smu, msg), index, param, reg);
+	}
 Out:
 	if (unlikely(adev->pm.smu_debug_mask & SMU_DEBUG_HALT_ON_ERROR) && res) {
 		amdgpu_device_halt(adev);
@@ -430,7 +490,7 @@ int smu_cmn_to_asic_specific_index(struct smu_context *smu,
 			return -EINVAL;
 
 		if (amdgpu_sriov_vf(smu->adev) &&
-		    !msg_mapping.valid_in_vf)
+		    !(msg_mapping.flags & SMU_MSG_VF_FLAG))
 			return -EACCES;
 
 		return msg_mapping.map_to;
@@ -989,6 +1049,9 @@ void smu_cmn_init_soft_gpu_metrics(void *table, uint8_t frev, uint8_t crev)
 	case METRICS_VERSION(1, 4):
 		structure_size = sizeof(struct gpu_metrics_v1_4);
 		break;
+	case METRICS_VERSION(1, 5):
+		structure_size = sizeof(struct gpu_metrics_v1_5);
+		break;
 	case METRICS_VERSION(2, 0):
 		structure_size = sizeof(struct gpu_metrics_v2_0);
 		break;
@@ -1003,6 +1066,9 @@ void smu_cmn_init_soft_gpu_metrics(void *table, uint8_t frev, uint8_t crev)
 		break;
 	case METRICS_VERSION(2, 4):
 		structure_size = sizeof(struct gpu_metrics_v2_4);
+		break;
+	case METRICS_VERSION(3, 0):
+		structure_size = sizeof(struct gpu_metrics_v3_0);
 		break;
 	default:
 		return;

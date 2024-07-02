@@ -105,6 +105,81 @@ noinstr int aarch64_insn_write_literal_u64(void *addr, u64 val)
 	return ret;
 }
 
+typedef void text_poke_f(void *dst, void *src, size_t patched, size_t len);
+
+static void *__text_poke(text_poke_f func, void *addr, void *src, size_t len)
+{
+	unsigned long flags;
+	size_t patched = 0;
+	size_t size;
+	void *waddr;
+	void *ptr;
+
+	raw_spin_lock_irqsave(&patch_lock, flags);
+
+	while (patched < len) {
+		ptr = addr + patched;
+		size = min_t(size_t, PAGE_SIZE - offset_in_page(ptr),
+			     len - patched);
+
+		waddr = patch_map(ptr, FIX_TEXT_POKE0);
+		func(waddr, src, patched, size);
+		patch_unmap(FIX_TEXT_POKE0);
+
+		patched += size;
+	}
+	raw_spin_unlock_irqrestore(&patch_lock, flags);
+
+	flush_icache_range((uintptr_t)addr, (uintptr_t)addr + len);
+
+	return addr;
+}
+
+static void text_poke_memcpy(void *dst, void *src, size_t patched, size_t len)
+{
+	copy_to_kernel_nofault(dst, src + patched, len);
+}
+
+static void text_poke_memset(void *dst, void *src, size_t patched, size_t len)
+{
+	u32 c = *(u32 *)src;
+
+	memset32(dst, c, len / 4);
+}
+
+/**
+ * aarch64_insn_copy - Copy instructions into (an unused part of) RX memory
+ * @dst: address to modify
+ * @src: source of the copy
+ * @len: length to copy
+ *
+ * Useful for JITs to dump new code blocks into unused regions of RX memory.
+ */
+noinstr void *aarch64_insn_copy(void *dst, void *src, size_t len)
+{
+	/* A64 instructions must be word aligned */
+	if ((uintptr_t)dst & 0x3)
+		return NULL;
+
+	return __text_poke(text_poke_memcpy, dst, src, len);
+}
+
+/**
+ * aarch64_insn_set - memset for RX memory regions.
+ * @dst: address to modify
+ * @insn: value to set
+ * @len: length of memory region.
+ *
+ * Useful for JITs to fill regions of RX memory with illegal instructions.
+ */
+noinstr void *aarch64_insn_set(void *dst, u32 insn, size_t len)
+{
+	if ((uintptr_t)dst & 0x3)
+		return NULL;
+
+	return __text_poke(text_poke_memset, dst, &insn, len);
+}
+
 int __kprobes aarch64_insn_patch_text_nosync(void *addr, u32 insn)
 {
 	u32 *tp = addr;

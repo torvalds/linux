@@ -13,6 +13,7 @@
 #include <net/ieee80211_radiotap.h>
 #include <linux/if_arp.h>
 #include <linux/gpio/consumer.h>
+#include <linux/rculist.h>
 
 #include "hif.h"
 #include "wlan.h"
@@ -28,6 +29,11 @@
 #define DEFAULT_LINK_SPEED			72
 
 #define TX_BACKOFF_WEIGHT_MS			1
+
+#define wilc_for_each_vif(w, v) \
+	struct wilc *_w = w; \
+	list_for_each_entry_rcu(v, &_w->vif_list, list, \
+				 rcu_read_lock_held())
 
 struct wilc_wfi_stats {
 	unsigned long rx_packets;
@@ -214,7 +220,6 @@ struct wilc {
 
 	/* protect vif list */
 	struct mutex vif_mutex;
-	struct srcu_struct srcu;
 	u8 open_ifcs;
 
 	/* protect head of transmit queue */

@@ -154,7 +154,6 @@ struct ov5693_device {
 		unsigned int inc_y_odd;
 		unsigned int vts;
 	} mode;
-	bool streaming;
 
 	struct v4l2_subdev sd;
 	struct media_pad pad;
@@ -776,7 +775,7 @@ __ov5693_get_pad_format(struct ov5693_device *ov5693,
 {
 	switch (which) {
 	case V4L2_SUBDEV_FORMAT_TRY:
-		return v4l2_subdev_get_try_format(&ov5693->sd, state, pad);
+		return v4l2_subdev_state_get_format(state, pad);
 	case V4L2_SUBDEV_FORMAT_ACTIVE:
 		return &ov5693->mode.format;
 	default:
@@ -791,7 +790,7 @@ __ov5693_get_pad_crop(struct ov5693_device *ov5693,
 {
 	switch (which) {
 	case V4L2_SUBDEV_FORMAT_TRY:
-		return v4l2_subdev_get_try_crop(&ov5693->sd, state, pad);
+		return v4l2_subdev_state_get_crop(state, pad);
 	case V4L2_SUBDEV_FORMAT_ACTIVE:
 		return &ov5693->mode.crop;
 	}
@@ -975,9 +974,9 @@ static int ov5693_s_stream(struct v4l2_subdev *sd, int enable)
 	int ret;
 
 	if (enable) {
-		ret = pm_runtime_get_sync(ov5693->dev);
-		if (ret < 0)
-			goto err_power_down;
+		ret = pm_runtime_resume_and_get(ov5693->dev);
+		if (ret)
+			return ret;
 
 		mutex_lock(&ov5693->lock);
 		ret = __v4l2_ctrl_handler_setup(&ov5693->ctrls.handler);
@@ -996,8 +995,6 @@ static int ov5693_s_stream(struct v4l2_subdev *sd, int enable)
 	if (ret)
 		goto err_power_down;
 
-	ov5693->streaming = !!enable;
-
 	if (!enable)
 		pm_runtime_put(ov5693->dev);
 
@@ -1007,13 +1004,21 @@ err_power_down:
 	return ret;
 }
 
-static int ov5693_g_frame_interval(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_frame_interval *interval)
+static int ov5693_get_frame_interval(struct v4l2_subdev *sd,
+				     struct v4l2_subdev_state *sd_state,
+				     struct v4l2_subdev_frame_interval *interval)
 {
 	struct ov5693_device *ov5693 = to_ov5693_sensor(sd);
 	unsigned int framesize = OV5693_FIXED_PPL * (ov5693->mode.format.height +
 				 ov5693->ctrls.vblank->val);
 	unsigned int fps = DIV_ROUND_CLOSEST(OV5693_PIXEL_RATE, framesize);
+
+	/*
+	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
+	 * subdev active state API.
+	 */
+	if (interval->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
 
 	interval->interval.numerator = 1;
 	interval->interval.denominator = fps;
@@ -1057,7 +1062,6 @@ static int ov5693_enum_frame_size(struct v4l2_subdev *sd,
 
 static const struct v4l2_subdev_video_ops ov5693_video_ops = {
 	.s_stream = ov5693_s_stream,
-	.g_frame_interval = ov5693_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops ov5693_pad_ops = {
@@ -1067,6 +1071,7 @@ static const struct v4l2_subdev_pad_ops ov5693_pad_ops = {
 	.set_fmt = ov5693_set_fmt,
 	.get_selection = ov5693_get_selection,
 	.set_selection = ov5693_set_selection,
+	.get_frame_interval = ov5693_get_frame_interval,
 };
 
 static const struct v4l2_subdev_ops ov5693_ops = {

@@ -12,7 +12,8 @@
 #define MT7921_TX_FWDL_RING_SIZE	128
 
 #define MT7921_RX_RING_SIZE		1536
-#define MT7921_RX_MCU_RING_SIZE		512
+#define MT7921_RX_MCU_RING_SIZE		8
+#define MT7921_RX_MCU_WA_RING_SIZE	512
 
 #define MT7921_EEPROM_SIZE		3584
 #define MT7921_TOKEN_SIZE		8192
@@ -25,6 +26,10 @@
 
 #define MCU_UNI_EVENT_ROC  0x27
 #define MCU_UNI_EVENT_CLC  0x80
+
+#define EXT_CMD_RADIO_LED_CTRL_ENABLE   0x1
+#define EXT_CMD_RADIO_ON_LED            0x2
+#define EXT_CMD_RADIO_OFF_LED           0x3
 
 enum {
 	UNI_ROC_ACQUIRE,
@@ -195,6 +200,7 @@ int mt7921_mcu_fw_log_2_host(struct mt792x_dev *dev, u8 ctrl);
 void mt7921_mcu_rx_event(struct mt792x_dev *dev, struct sk_buff *skb);
 int mt7921_mcu_set_rxfilter(struct mt792x_dev *dev, u32 fif,
 			    u8 bit_op, u32 bit_map);
+int mt7921_mcu_radio_led_ctrl(struct mt792x_dev *dev, u8 value);
 
 static inline u32
 mt7921_reg_map_l1(struct mt792x_dev *dev, u32 addr)
@@ -233,6 +239,7 @@ mt7921_l1_rmw(struct mt792x_dev *dev, u32 addr, u32 mask, u32 val)
 #define mt7921_l1_set(dev, addr, val)	mt7921_l1_rmw(dev, addr, 0, val)
 #define mt7921_l1_clear(dev, addr, val)	mt7921_l1_rmw(dev, addr, val, 0)
 
+void mt7921_regd_update(struct mt792x_dev *dev);
 int mt7921_mac_init(struct mt792x_dev *dev);
 bool mt7921_mac_wtbl_update(struct mt792x_dev *dev, int idx, u32 mask);
 int mt7921_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
@@ -320,4 +327,6 @@ int mt7921_mcu_set_roc(struct mt792x_phy *phy, struct mt792x_vif *vif,
 		       enum mt7921_roc_req type, u8 token_id);
 int mt7921_mcu_abort_roc(struct mt792x_phy *phy, struct mt792x_vif *vif,
 			 u8 token_id);
+void mt7921_roc_abort_sync(struct mt792x_dev *dev);
+int mt7921_mcu_set_rssimonitor(struct mt792x_dev *dev, struct ieee80211_vif *vif);
 #endif

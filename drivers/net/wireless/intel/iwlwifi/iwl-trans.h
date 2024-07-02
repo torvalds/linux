@@ -110,8 +110,7 @@ static inline u32 iwl_rx_packet_payload_len(const struct iwl_rx_packet *pkt)
  * @CMD_WANT_SKB: Not valid with CMD_ASYNC. The caller needs the buffer of
  *	the response. The caller needs to call iwl_free_resp when done.
  * @CMD_SEND_IN_RFKILL: Send the command even if the NIC is in RF-kill.
- * @CMD_WANT_ASYNC_CALLBACK: the op_mode's async callback function must be
- *	called after this command completes. Valid only with CMD_ASYNC.
+ * @CMD_BLOCK_TXQS: Block TXQs while the comment is executing.
  * @CMD_SEND_IN_D3: Allow the command to be sent in D3 mode, relevant to
  *	SUSPEND and RESUME commands. We are in D3 mode when we set
  *	trans->system_pm_mode to IWL_PLAT_PM_MODE_D3.
@@ -120,7 +119,7 @@ enum CMD_MODE {
 	CMD_ASYNC		= BIT(0),
 	CMD_WANT_SKB		= BIT(1),
 	CMD_SEND_IN_RFKILL	= BIT(2),
-	CMD_WANT_ASYNC_CALLBACK	= BIT(3),
+	CMD_BLOCK_TXQS		= BIT(3),
 	CMD_SEND_IN_D3          = BIT(4),
 };
 
@@ -520,6 +519,7 @@ struct iwl_pnvm_image {
  *	Must be atomic
  * @reclaim: free packet until ssn. Returns a list of freed packets.
  *	Must be atomic
+ * @set_q_ptrs: set queue pointers internally, after D3 when HW state changed
  * @txq_enable: setup a queue. To setup an AC queue, use the
  *	iwl_trans_ac_txq_enable wrapper. fw_alive must have been called before
  *	this one. The op_mode must not configure the HCMD queue. The scheduler
@@ -529,16 +529,13 @@ struct iwl_pnvm_image {
  *	hardware scheduler bug. May sleep.
  * @txq_disable: de-configure a Tx queue to send AMPDUs
  *	Must be atomic
+ * @txq_alloc: Allocate a new TX queue, may sleep.
+ * @txq_free: Free a previously allocated TX queue.
  * @txq_set_shared_mode: change Tx queue shared/unshared marking
  * @wait_tx_queues_empty: wait until tx queues are empty. May sleep.
  * @wait_txq_empty: wait until specific tx queue is empty. May sleep.
  * @freeze_txq_timer: prevents the timer of the queue from firing until the
  *	queue is set to awake. Must be atomic.
- * @block_txq_ptrs: stop updating the write pointers of the Tx queues. Note
- *	that the transport needs to refcount the calls since this function
- *	will be called several times with block = true, and then the queues
- *	need to be unblocked only after the same number of calls with
- *	block = false.
  * @write8: write a u8 to a register at offset ofs from the BAR
  * @write32: write a u32 to a register at offset ofs from the BAR
  * @read32: read a u32 register at offset ofs from the BAR
@@ -553,23 +550,27 @@ struct iwl_pnvm_image {
  *	the op_mode. May be called several times before start_fw, can't be
  *	called after that.
  * @set_pmi: set the power pmi state
+ * @sw_reset: trigger software reset of the NIC
  * @grab_nic_access: wake the NIC to be able to access non-HBUS regs.
  *	Sleeping is not allowed between grab_nic_access and
  *	release_nic_access.
  * @release_nic_access: let the NIC go to sleep. The "flags" parameter
  *	must be the same one that was sent before to the grab_nic_access.
- * @set_bits_mask - set SRAM register according to value and mask.
+ * @set_bits_mask: set SRAM register according to value and mask.
  * @dump_data: return a vmalloc'ed buffer with debug data, maybe containing last
  *	TX'ed commands and similar. The buffer will be vfree'd by the caller.
  *	Note that the transport must fill in the proper file headers.
  * @debugfs_cleanup: used in the driver unload flow to make a proper cleanup
  *	of the trans debugfs
+ * @sync_nmi: trigger a firmware NMI and wait for it to complete
  * @load_pnvm: save the pnvm data in DRAM
  * @set_pnvm: set the pnvm data in the prph scratch buffer, inside the
  *	context info.
  * @load_reduce_power: copy reduce power table to the corresponding DRAM memory
  * @set_reduce_power: set reduce power table addresses in the sratch buffer
  * @interrupts: disable/enable interrupts to transport
+ * @imr_dma_data: set up IMR DMA
+ * @rxq_dma_data: retrieve RX queue DMA data, see @struct iwl_trans_rxq_dma_data
  */
 struct iwl_trans_ops {
 
@@ -613,7 +614,6 @@ struct iwl_trans_ops {
 	int (*wait_txq_empty)(struct iwl_trans *trans, int queue);
 	void (*freeze_txq_timer)(struct iwl_trans *trans, unsigned long txqs,
 				 bool freeze);
-	void (*block_txq_ptrs)(struct iwl_trans *trans, bool block);
 
 	void (*write8)(struct iwl_trans *trans, u32 ofs, u8 val);
 	void (*write32)(struct iwl_trans *trans, u32 ofs, u32 val);
@@ -782,7 +782,7 @@ struct iwl_self_init_dram {
  * @imr_size: imr dram size received from fw
  * @sram_addr: sram address from debug tlv
  * @sram_size: sram size from debug tlv
- * @imr2sram_remainbyte`: size remained after each dma transfer
+ * @imr2sram_remainbyte: size remained after each dma transfer
  * @imr_curr_addr: current dst address used during dma transfer
  * @imr_base_addr: imr address received from fw
  */
@@ -829,12 +829,16 @@ struct iwl_pc_data {
  * @fw_mon: DRAM buffer for firmware monitor
  * @hw_error: equals true if hw error interrupt was received from the FW
  * @ini_dest: debug monitor destination uses &enum iwl_fw_ini_buffer_location
+ * @unsupported_region_msk: unsupported regions out of active_regions
  * @active_regions: active regions
  * @debug_info_tlv_list: list of debug info TLVs
  * @time_point: array of debug time points
  * @periodic_trig_list: periodic triggers list
  * @domains_bitmap: bitmap of active domains other than &IWL_FW_INI_DOMAIN_ALWAYS_ON
  * @ucode_preset: preset based on ucode
+ * @restart_required: indicates debug restart is required
+ * @last_tp_resetfw: last handling of reset during debug timepoint
+ * @imr_data: IMR debug data allocation
  * @dump_file_name_ext: dump file name extension
  * @dump_file_name_ext_valid: dump file name extension if valid or not
  * @num_pc: number of program counter for cpu
@@ -937,6 +941,7 @@ struct iwl_pcie_first_tb_buf {
  * @wd_timeout: queue watchdog timeout (jiffies) - per queue
  * @frozen: tx stuck queue timer is frozen
  * @frozen_expiry_remainder: remember how long until the timer fires
+ * @block: queue is blocked
  * @bc_tbl: byte count table of the queue (relevant only for gen2 transport)
  * @write_ptr: 1-st empty entry (index) host_w
  * @read_ptr: last used entry (index) host_r
@@ -945,6 +950,8 @@ struct iwl_pcie_first_tb_buf {
  * @id: queue id
  * @low_mark: low watermark, resume queue if free space more than this
  * @high_mark: high watermark, stop queue if free space less than this
+ * @overflow_q: overflow queue for handling frames that didn't fit on HW queue
+ * @overflow_tx: need to transmit from overflow
  *
  * A Tx queue consists of circular buffer of BDs (a.k.a. TFDs, transmit frame
  * descriptors) and required locking structures.
@@ -997,10 +1004,19 @@ struct iwl_txq {
  * @bc_table_dword: true if the BC table expects DWORD (as opposed to bytes)
  * @page_offs: offset from skb->cb to mac header page pointer
  * @dev_cmd_offs: offset from skb->cb to iwl_device_tx_cmd pointer
- * @queue_used - bit mask of used queues
- * @queue_stopped - bit mask of stopped queues
+ * @queue_used: bit mask of used queues
+ * @queue_stopped: bit mask of stopped queues
+ * @txq: array of TXQ data structures representing the TXQs
  * @scd_bc_tbls: gen1 pointer to the byte count table of the scheduler
  * @queue_alloc_cmd_ver: queue allocation command version
+ * @bc_pool: bytecount DMA allocations pool
+ * @bc_tbl_size: bytecount table size
+ * @tso_hdr_page: page allocated (per CPU) for A-MSDU headers when doing TSO
+ *	(and similar usage)
+ * @tfd: TFD data
+ * @tfd.max_tbs: max number of buffers per TFD
+ * @tfd.size: TFD size
+ * @tfd.addr_size: TFD/TB address size
  */
 struct iwl_trans_txqs {
 	unsigned long queue_used[BITS_TO_LONGS(IWL_MAX_TVQM_QUEUES)];
@@ -1033,27 +1049,35 @@ struct iwl_trans_txqs {
 /**
  * struct iwl_trans - transport common data
  *
- * @csme_own - true if we couldn't get ownership on the device
- * @ops - pointer to iwl_trans_ops
- * @op_mode - pointer to the op_mode
+ * @csme_own: true if we couldn't get ownership on the device
+ * @ops: pointer to iwl_trans_ops
+ * @op_mode: pointer to the op_mode
  * @trans_cfg: the trans-specific configuration part
- * @cfg - pointer to the configuration
- * @drv - pointer to iwl_drv
+ * @cfg: pointer to the configuration
+ * @drv: pointer to iwl_drv
+ * @state: current device state
  * @status: a bit-mask of transport status flags
- * @dev - pointer to struct device * that represents the device
+ * @dev: pointer to struct device * that represents the device
  * @max_skb_frags: maximum number of fragments an SKB can have when transmitted.
  *	0 indicates that frag SKBs (NETIF_F_SG) aren't supported.
- * @hw_rf_id a u32 with the device RF ID
- * @hw_crf_id a u32 with the device CRF ID
- * @hw_wfpm_id a u32 with the device wfpm ID
+ * @hw_rf_id: a u32 with the device RF ID
+ * @hw_cnv_id: a u32 with the device CNV ID
+ * @hw_crf_id: a u32 with the device CRF ID
+ * @hw_wfpm_id: a u32 with the device wfpm ID
  * @hw_id: a u32 with the ID of the device / sub-device.
  *	Set during transport allocation.
  * @hw_id_str: a string with info about HW ID. Set during transport allocation.
+ * @sku_id: the SKU identifier (for PNVM matching)
+ * @pnvm_loaded: indicates PNVM was loaded
+ * @hw_rev: the revision data of the HW
  * @hw_rev_step: The mac step of the HW
  * @pm_support: set to true in start_hw if link pm is supported
  * @ltr_enabled: set to true if the LTR is enabled
  * @fail_to_parse_pnvm_image: set to true if pnvm parsing failed
+ * @reduce_power_loaded: indicates reduced power section was loaded
  * @failed_to_load_reduce_power_image: set to true if pnvm loading failed
+ * @command_groups: pointer to command group name list array
+ * @command_groups_size: array size of @command_groups
  * @wide_cmd_header: true when ucode supports wide command header format
  * @wait_command_queue: wait queue for sync commands
  * @num_rx_queues: number of RX queues allocated by the transport;
@@ -1062,19 +1086,29 @@ struct iwl_trans_txqs {
  * @iml: a pointer to the image loader itself
  * @dev_cmd_pool: pool for Tx cmd allocation - for internal use only.
  *	The user should use iwl_trans_{alloc,free}_tx_cmd.
+ * @dev_cmd_pool_name: name for the TX command allocation pool
+ * @dbgfs_dir: iwlwifi debugfs base dir for this device
+ * @sync_cmd_lockdep_map: lockdep map for checking sync commands
  * @rx_mpdu_cmd: MPDU RX command ID, must be assigned by opmode before
  *	starting the firmware, used for tracing
  * @rx_mpdu_cmd_hdr_size: used for tracing, amount of data before the
  *	start of the 802.11 header in the @rx_mpdu_cmd
+ * @dbg: additional debug data, see &struct iwl_trans_debug
+ * @init_dram: FW initialization DMA data
  * @system_pm_mode: the system-wide power management mode in use.
  *	This mode is set dynamically, depending on the WoWLAN values
  *	configured from the userspace at runtime.
+ * @name: the device name
  * @txqs: transport tx queues data.
  * @mbx_addr_0_step: step address data 0
  * @mbx_addr_1_step: step address data 1
  * @pcie_link_speed: current PCIe link speed (%PCI_EXP_LNKSTA_CLS_*),
  *	only valid for discrete (not integrated) NICs
  * @invalid_tx_cmd: invalid TX command buffer
+ * @reduced_cap_sku: reduced capability supported SKU
+ * @no_160: device not supporting 160 MHz
+ * @step_urm: STEP is in URM, no support for MCS>9 in 320 MHz
+ * @trans_specific: data for the specific transport this is allocated for/with
  */
 struct iwl_trans {
 	bool csme_own;
@@ -1097,6 +1131,8 @@ struct iwl_trans {
 	u32 hw_id;
 	char hw_id_str[52];
 	u32 sku_id[3];
+	bool reduced_cap_sku;
+	u8 no_160:1, step_urm:1;
 
 	u8 rx_mpdu_cmd, rx_mpdu_cmd_hdr_size;
 
@@ -1323,7 +1359,7 @@ iwl_trans_get_rxq_dma_data(struct iwl_trans *trans, int queue,
 			   struct iwl_trans_rxq_dma_data *data)
 {
 	if (WARN_ON_ONCE(!trans->ops->rxq_dma_data))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	return trans->ops->rxq_dma_data(trans, queue, data);
 }
@@ -1345,7 +1381,7 @@ iwl_trans_txq_alloc(struct iwl_trans *trans,
 	might_sleep();
 
 	if (WARN_ON_ONCE(!trans->ops->txq_alloc))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	if (WARN_ON_ONCE(trans->state != IWL_TRANS_FW_ALIVE)) {
 		IWL_ERR(trans, "%s bad state = %d\n", __func__, trans->state);
@@ -1407,23 +1443,11 @@ static inline void iwl_trans_freeze_txq_timer(struct iwl_trans *trans,
 		trans->ops->freeze_txq_timer(trans, txqs, freeze);
 }
 
-static inline void iwl_trans_block_txq_ptrs(struct iwl_trans *trans,
-					    bool block)
-{
-	if (WARN_ON_ONCE(trans->state != IWL_TRANS_FW_ALIVE)) {
-		IWL_ERR(trans, "%s bad state = %d\n", __func__, trans->state);
-		return;
-	}
-
-	if (trans->ops->block_txq_ptrs)
-		trans->ops->block_txq_ptrs(trans, block);
-}
-
 static inline int iwl_trans_wait_tx_queues_empty(struct iwl_trans *trans,
 						 u32 txqs)
 {
 	if (WARN_ON_ONCE(!trans->ops->wait_tx_queues_empty))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	/* No need to wait if the firmware is not alive */
 	if (trans->state != IWL_TRANS_FW_ALIVE) {
@@ -1437,7 +1461,7 @@ static inline int iwl_trans_wait_tx_queues_empty(struct iwl_trans *trans,
 static inline int iwl_trans_wait_txq_empty(struct iwl_trans *trans, int queue)
 {
 	if (WARN_ON_ONCE(!trans->ops->wait_txq_empty))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	if (WARN_ON_ONCE(trans->state != IWL_TRANS_FW_ALIVE)) {
 		IWL_ERR(trans, "%s bad state = %d\n", __func__, trans->state);

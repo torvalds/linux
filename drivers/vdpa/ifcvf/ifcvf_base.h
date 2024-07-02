@@ -28,6 +28,7 @@
 #define IFCVF_PCI_MAX_RESOURCE	6
 
 #define IFCVF_LM_BAR			4
+#define IFCVF_MIN_VQ_SIZE		64
 
 #define IFCVF_ERR(pdev, fmt, ...)	dev_err(&pdev->dev, fmt, ##__VA_ARGS__)
 #define IFCVF_DBG(pdev, fmt, ...)	dev_dbg(&pdev->dev, fmt, ##__VA_ARGS__)
@@ -131,4 +132,5 @@ void ifcvf_set_vq_ready(struct ifcvf_hw *hw, u16 qid, bool ready);
 void ifcvf_set_driver_features(struct ifcvf_hw *hw, u64 features);
 u64 ifcvf_get_driver_features(struct ifcvf_hw *hw);
 u16 ifcvf_get_max_vq_size(struct ifcvf_hw *hw);
+u16 ifcvf_get_vq_size(struct ifcvf_hw *hw, u16 qid);
 #endif /* _IFCVF_H_ */

@@ -427,7 +427,7 @@ static struct scx200_acb_iface *scx200_create_iface(const char *text,
 	snprintf(adapter->name, sizeof(adapter->name), "%s ACB%d", text, index);
 	adapter->owner = THIS_MODULE;
 	adapter->algo = &scx200_acb_algorithm;
-	adapter->class = I2C_CLASS_HWMON | I2C_CLASS_SPD;
+	adapter->class = I2C_CLASS_HWMON;
 	adapter->dev.parent = dev;
 
 	mutex_init(&iface->mutex);

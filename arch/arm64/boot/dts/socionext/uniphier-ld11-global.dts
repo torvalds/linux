@@ -111,7 +111,7 @@
 &i2c0 {
 	status = "okay";
 
-	tas5707a@1d {
+	audio-codec@1d {
 		compatible = "ti,tas5711";
 		reg = <0x1d>;
 		reset-gpios = <&gpio UNIPHIER_GPIO_PORT(23, 4) GPIO_ACTIVE_LOW>;
@@ -124,7 +124,7 @@
 		PVDD_C-supply = <&amp_vcc_reg>;
 		PVDD_D-supply = <&amp_vcc_reg>;
 
-		port@0 {
+		port {
 			tas_speaker: endpoint {
 				dai-format = "i2s";
 				remote-endpoint = <&i2s_hpcmout1>;

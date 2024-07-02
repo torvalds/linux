@@ -31,7 +31,7 @@ config PREEMPT_RCU
 
 config TINY_RCU
 	bool
-	default y if !PREEMPTION && !SMP
+	default y if !PREEMPT_RCU && !SMP
 	help
 	  This option selects the RCU implementation that is
 	  designed for UP systems from which real-time response
@@ -85,9 +85,13 @@ config FORCE_TASKS_RCU
 	  idle, and user-mode execution as quiescent states.  Not for
 	  manual selection in most cases.
 
-config TASKS_RCU
+config NEED_TASKS_RCU
 	bool
 	default n
+
+config TASKS_RCU
+	bool
+	default NEED_TASKS_RCU && (PREEMPTION || PREEMPT_AUTO)
 	select IRQ_WORK
 
 config FORCE_TASKS_RUDE_RCU
@@ -313,6 +317,19 @@ config RCU_LAZY
 	help
 	  To save power, batch RCU callbacks and flush after delay, memory
 	  pressure, or callback list growing too big.
+
+	  Requires rcu_nocbs=all to be set.
+
+	  Use rcutree.enable_rcu_lazy=0 to turn it off at boot time.
+
+config RCU_LAZY_DEFAULT_OFF
+	bool "Turn RCU lazy invocation off by default"
+	depends on RCU_LAZY
+	default n
+	help
+	  Allows building the kernel with CONFIG_RCU_LAZY=y yet keep it default
+	  off. Boot time param rcutree.enable_rcu_lazy=1 can be used to switch
+	  it back on.
 
 config RCU_DOUBLE_CHECK_CB_TIME
 	bool "RCU callback-batch backup time check"

@@ -1,0 +1,152 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/interconnect/qcom,sm6115.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm SM6115 Network-On-Chip interconnect
+
+maintainers:
+  - Konrad Dybcio <konradybcio@kernel.org>
+
+description:
+  The Qualcomm SM6115 interconnect providers support adjusting the
+  bandwidth requirements between the various NoC fabrics.
+
+properties:
+  compatible:
+    enum:
+      - qcom,sm6115-bimc
+      - qcom,sm6115-cnoc
+      - qcom,sm6115-snoc
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    minItems: 1
+    maxItems: 4
+
+  clock-names:
+    minItems: 1
+    maxItems: 4
+
+# Child node's properties
+patternProperties:
+  '^interconnect-[a-z0-9]+$':
+    type: object
+    description:
+      The interconnect providers do not have a separate QoS register space,
+      but share parent's space.
+
+    $ref: qcom,rpm-common.yaml#
+
+    properties:
+      compatible:
+        enum:
+          - qcom,sm6115-clk-virt
+          - qcom,sm6115-mmrt-virt
+          - qcom,sm6115-mmnrt-virt
+
+    required:
+      - compatible
+
+    unevaluatedProperties: false
+
+required:
+  - compatible
+  - reg
+
+allOf:
+  - $ref: qcom,rpm-common.yaml#
+  - if:
+      properties:
+        compatible:
+          const: qcom,sm6115-cnoc
+
+    then:
+      properties:
+        clocks:
+          items:
+            - description: USB-NoC AXI clock
+
+        clock-names:
+          items:
+            - const: usb_axi
+
+  - if:
+      properties:
+        compatible:
+          const: qcom,sm6115-snoc
+
+    then:
+      properties:
+        clocks:
+          items:
+            - description: CPU-NoC AXI clock.
+            - description: UFS-NoC AXI clock.
+            - description: USB-NoC AXI clock.
+            - description: IPA clock.
+
+        clock-names:
+          items:
+            - const: cpu_axi
+            - const: ufs_axi
+            - const: usb_axi
+            - const: ipa
+
+  - if:
+      properties:
+        compatible:
+          enum:
+            - qcom,sm6115-bimc
+            - qcom,sm6115-clk-virt
+            - qcom,sm6115-mmrt-virt
+            - qcom,sm6115-mmnrt-virt
+
+    then:
+      properties:
+        clocks: false
+        clock-names: false
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/qcom,gcc-sm6115.h>
+    #include <dt-bindings/clock/qcom,rpmcc.h>
+
+    snoc: interconnect@1880000 {
+        compatible = "qcom,sm6115-snoc";
+        reg = <0x01880000 0x60200>;
+        clocks = <&gcc GCC_SYS_NOC_CPUSS_AHB_CLK>,
+                 <&gcc GCC_SYS_NOC_UFS_PHY_AXI_CLK>,
+                 <&gcc GCC_SYS_NOC_USB3_PRIM_AXI_CLK>,
+                 <&rpmcc RPM_SMD_IPA_CLK>;
+        clock-names = "cpu_axi",
+                      "ufs_axi",
+                      "usb_axi",
+                      "ipa";
+        #interconnect-cells = <1>;
+
+        qup_virt: interconnect-clk {
+            compatible = "qcom,sm6115-clk-virt";
+            #interconnect-cells = <1>;
+        };
+
+        mmnrt_virt: interconnect-mmnrt {
+            compatible = "qcom,sm6115-mmnrt-virt";
+            #interconnect-cells = <1>;
+        };
+
+        mmrt_virt: interconnect-mmrt {
+            compatible = "qcom,sm6115-mmrt-virt";
+            #interconnect-cells = <1>;
+        };
+    };
+
+    cnoc: interconnect@1900000 {
+        compatible = "qcom,sm6115-cnoc";
+        reg = <0x01900000 0x8200>;
+        #interconnect-cells = <1>;
+    };

@@ -93,7 +93,7 @@ static SIMPLE_DEV_PM_OPS(wpan_phy_pm_ops, wpan_phy_suspend, wpan_phy_resume);
 #define WPAN_PHY_PM_OPS NULL
 #endif
 
-struct class wpan_phy_class = {
+const struct class wpan_phy_class = {
 	.name = "ieee802154",
 	.dev_release = wpan_phy_release,
 	.dev_groups = pmib_groups,

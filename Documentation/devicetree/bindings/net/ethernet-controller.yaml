@@ -14,7 +14,6 @@ properties:
     pattern: "^ethernet(@.*)?$"
 
   label:
-    $ref: /schemas/types.yaml#/definitions/string
     description: Human readable label on a port of a box.
 
   local-mac-address:
@@ -275,12 +274,12 @@ allOf:
       properties:
         rx-internal-delay-ps:
           description:
-            RGMII Receive Clock Delay defined in pico seconds.This is used for
+            RGMII Receive Clock Delay defined in pico seconds. This is used for
             controllers that have configurable RX internal delays. If this
             property is present then the MAC applies the RX delay.
         tx-internal-delay-ps:
           description:
-            RGMII Transmit Clock Delay defined in pico seconds.This is used for
+            RGMII Transmit Clock Delay defined in pico seconds. This is used for
             controllers that have configurable TX internal delays. If this
             property is present then the MAC applies the TX delay.
 

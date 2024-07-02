@@ -74,8 +74,12 @@ void fscrypt_put_master_key(struct fscrypt_master_key *mk)
 	 * that concurrent keyring lookups can no longer find it.
 	 */
 	WARN_ON_ONCE(refcount_read(&mk->mk_active_refs) != 0);
-	key_put(mk->mk_users);
-	mk->mk_users = NULL;
+	if (mk->mk_users) {
+		/* Clear the keyring so the quota gets released right away. */
+		keyring_clear(mk->mk_users);
+		key_put(mk->mk_users);
+		mk->mk_users = NULL;
+	}
 	call_rcu(&mk->mk_rcu_head, fscrypt_free_master_key);
 }
 
@@ -1002,9 +1006,9 @@ static int try_to_lock_encrypted_files(struct super_block *sb,
  * FS_IOC_REMOVE_ENCRYPTION_KEY_ALL_USERS (all_users=true) always removes the
  * key itself.
  *
- * To "remove the key itself", first we wipe the actual master key secret, so
- * that no more inodes can be unlocked with it.  Then we try to evict all cached
- * inodes that had been unlocked with the key.
+ * To "remove the key itself", first we transition the key to the "incompletely
+ * removed" state, so that no more inodes can be unlocked with it.  Then we try
+ * to evict all cached inodes that had been unlocked with the key.
  *
  * If all inodes were evicted, then we unlink the fscrypt_master_key from the
  * keyring.  Otherwise it remains in the keyring in the "incompletely removed"

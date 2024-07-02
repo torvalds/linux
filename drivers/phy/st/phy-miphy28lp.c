@@ -1074,7 +1074,7 @@ static int miphy28lp_get_addr(struct miphy28lp_phy *miphy_phy)
 }
 
 static struct phy *miphy28lp_xlate(struct device *dev,
-				   struct of_phandle_args *args)
+				   const struct of_phandle_args *args)
 {
 	struct miphy28lp_dev *miphy_dev = dev_get_drvdata(dev);
 	struct miphy28lp_phy *miphy_phy = NULL;

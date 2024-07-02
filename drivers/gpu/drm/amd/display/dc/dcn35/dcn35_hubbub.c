@@ -111,7 +111,7 @@ static uint32_t convert_and_clamp(
 
 static bool hubbub35_program_stutter_z8_watermarks(
 		struct hubbub *hubbub,
-		struct dcn_watermark_set *watermarks,
+		union dcn_watermark_set *watermarks,
 		unsigned int refclk_mhz,
 		bool safe_to_lower)
 {
@@ -297,7 +297,7 @@ static void hubbub35_get_dchub_ref_freq(struct hubbub *hubbub,
 
 static bool hubbub35_program_watermarks(
 		struct hubbub *hubbub,
-		struct dcn_watermark_set *watermarks,
+		union dcn_watermark_set *watermarks,
 		unsigned int refclk_mhz,
 		bool safe_to_lower)
 {

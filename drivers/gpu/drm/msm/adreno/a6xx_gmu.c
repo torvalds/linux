@@ -223,7 +223,7 @@ static int a6xx_gmu_start(struct a6xx_gmu *gmu)
 	 * note: downstream saves the value in poweroff and restores it here
 	 */
 	if (adreno_is_a7xx(adreno_gpu))
-		gmu_write(gmu, REG_A6XX_GMU_GENERAL_9, 0);
+		gmu_write(gmu, REG_A7XX_GMU_GENERAL_9, 0);
 	else
 		gmu_write(gmu, REG_A6XX_GPU_GMU_CX_GMU_PWR_COL_CP_RESP, 0);
 
@@ -507,7 +507,7 @@ static void a6xx_rpmh_stop(struct a6xx_gmu *gmu)
 
 static inline void pdc_write(void __iomem *ptr, u32 offset, u32 value)
 {
-	msm_writel(value, ptr + (offset << 2));
+	writel(value, ptr + (offset << 2));
 }
 
 static void __iomem *a6xx_gmu_get_mmio(struct platform_device *pdev,
@@ -842,6 +842,8 @@ static int a6xx_gmu_fw_start(struct a6xx_gmu *gmu, unsigned int state)
 		 */
 		if (adreno_is_a740(adreno_gpu))
 			chipid_min = 2;
+		else if (adreno_is_a750(adreno_gpu))
+			chipid_min = 9;
 		else
 			return -EINVAL;
 
@@ -863,8 +865,8 @@ static int a6xx_gmu_fw_start(struct a6xx_gmu *gmu, unsigned int state)
 	}
 
 	if (adreno_is_a7xx(adreno_gpu)) {
-		gmu_write(gmu, REG_A6XX_GMU_GENERAL_10, chipid);
-		gmu_write(gmu, REG_A6XX_GMU_GENERAL_8,
+		gmu_write(gmu, REG_A7XX_GMU_GENERAL_10, chipid);
+		gmu_write(gmu, REG_A7XX_GMU_GENERAL_8,
 			  (gmu->log.iova & GENMASK(31, 12)) |
 			  ((gmu->log.size / SZ_4K - 1) & GENMASK(7, 0)));
 	} else {

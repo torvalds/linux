@@ -184,7 +184,7 @@ static void sunplus_break_ctl(struct uart_port *port, int ctl)
 	unsigned long flags;
 	unsigned int lcr;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	lcr = readl(port->membase + SUP_UART_LCR);
 
@@ -195,7 +195,7 @@ static void sunplus_break_ctl(struct uart_port *port, int ctl)
 
 	writel(lcr, port->membase + SUP_UART_LCR);
 
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 }
 
 static void transmit_chars(struct uart_port *port)
@@ -260,7 +260,7 @@ static void receive_chars(struct uart_port *port)
 		if (port->ignore_status_mask & SUP_DUMMY_READ)
 			goto ignore_char;
 
-		if (uart_handle_sysrq_char(port, ch))
+		if (uart_prepare_sysrq_char(port, ch))
 			goto ignore_char;
 
 		uart_insert_char(port, lsr, SUP_UART_LSR_OE, ch, flag);
@@ -277,7 +277,7 @@ static irqreturn_t sunplus_uart_irq(int irq, void *args)
 	struct uart_port *port = args;
 	unsigned int isc;
 
-	spin_lock(&port->lock);
+	uart_port_lock(port);
 
 	isc = readl(port->membase + SUP_UART_ISC);
 
@@ -287,7 +287,7 @@ static irqreturn_t sunplus_uart_irq(int irq, void *args)
 	if (isc & SUP_UART_ISC_TX)
 		transmit_chars(port);
 
-	spin_unlock(&port->lock);
+	uart_unlock_and_check_sysrq(port);
 
 	return IRQ_HANDLED;
 }
@@ -302,14 +302,14 @@ static int sunplus_startup(struct uart_port *port)
 	if (ret)
 		return ret;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 	/* isc define Bit[7:4] int setting, Bit[3:0] int status
 	 * isc register will clean Bit[3:0] int status after read
 	 * only do a write to Bit[7:4] int setting
 	 */
 	isc |= SUP_UART_ISC_RXM;
 	writel(isc, port->membase + SUP_UART_ISC);
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 
 	return 0;
 }
@@ -318,13 +318,13 @@ static void sunplus_shutdown(struct uart_port *port)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 	/* isc define Bit[7:4] int setting, Bit[3:0] int status
 	 * isc register will clean Bit[3:0] int status after read
 	 * only do a write to Bit[7:4] int setting
 	 */
 	writel(0, port->membase + SUP_UART_ISC); /* disable all interrupt */
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 
 	free_irq(port->irq, port);
 }
@@ -372,7 +372,7 @@ static void sunplus_set_termios(struct uart_port *port,
 			lcr |= UART_LCR_EPAR;
 	}
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	uart_update_timeout(port, termios->c_cflag, baud);
 
@@ -407,7 +407,7 @@ static void sunplus_set_termios(struct uart_port *port,
 	writel(div_l, port->membase + SUP_UART_DIV_L);
 	writel(lcr, port->membase + SUP_UART_LCR);
 
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 }
 
 static void sunplus_set_ldisc(struct uart_port *port, struct ktermios *termios)
@@ -512,22 +512,16 @@ static void sunplus_console_write(struct console *co,
 	unsigned long flags;
 	int locked = 1;
 
-	local_irq_save(flags);
-
-	if (sunplus_console_ports[co->index]->port.sysrq)
-		locked = 0;
-	else if (oops_in_progress)
-		locked = spin_trylock(&sunplus_console_ports[co->index]->port.lock);
+	if (oops_in_progress)
+		locked = uart_port_trylock_irqsave(&sunplus_console_ports[co->index]->port, &flags);
 	else
-		spin_lock(&sunplus_console_ports[co->index]->port.lock);
+		uart_port_lock_irqsave(&sunplus_console_ports[co->index]->port, &flags);
 
 	uart_console_write(&sunplus_console_ports[co->index]->port, s, count,
 			   sunplus_uart_console_putchar);
 
 	if (locked)
-		spin_unlock(&sunplus_console_ports[co->index]->port.lock);
-
-	local_irq_restore(flags);
+		uart_port_unlock_irqrestore(&sunplus_console_ports[co->index]->port, flags);
 }
 
 static int __init sunplus_console_setup(struct console *co, char *options)
@@ -662,13 +656,11 @@ static int sunplus_uart_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int sunplus_uart_remove(struct platform_device *pdev)
+static void sunplus_uart_remove(struct platform_device *pdev)
 {
 	struct sunplus_uart_port *sup = platform_get_drvdata(pdev);
 
 	uart_remove_one_port(&sunplus_uart_driver, &sup->port);
-
-	return 0;
 }
 
 static int __maybe_unused sunplus_uart_suspend(struct device *dev)
@@ -703,7 +695,7 @@ MODULE_DEVICE_TABLE(of, sp_uart_of_match);
 
 static struct platform_driver sunplus_uart_platform_driver = {
 	.probe		= sunplus_uart_probe,
-	.remove		= sunplus_uart_remove,
+	.remove_new	= sunplus_uart_remove,
 	.driver = {
 		.name	= "sunplus_uart",
 		.of_match_table = sp_uart_of_match,

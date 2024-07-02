@@ -92,7 +92,7 @@ static void setup_clock(struct kvm_vm *vm, struct test_case *test_case)
 				break;
 		} while (errno == EINTR);
 
-		TEST_ASSERT(!r, "clock_gettime() failed: %d\n", r);
+		TEST_ASSERT(!r, "clock_gettime() failed: %d", r);
 
 		data.realtime = ts.tv_sec * NSEC_PER_SEC;
 		data.realtime += ts.tv_nsec;
@@ -127,45 +127,9 @@ static void enter_guest(struct kvm_vcpu *vcpu)
 			handle_abort(&uc);
 			return;
 		default:
-			TEST_ASSERT(0, "unhandled ucall: %ld\n", uc.cmd);
+			TEST_ASSERT(0, "unhandled ucall: %ld", uc.cmd);
 		}
 	}
-}
-
-#define CLOCKSOURCE_PATH "/sys/devices/system/clocksource/clocksource0/current_clocksource"
-
-static void check_clocksource(void)
-{
-	char *clk_name;
-	struct stat st;
-	FILE *fp;
-
-	fp = fopen(CLOCKSOURCE_PATH, "r");
-	if (!fp) {
-		pr_info("failed to open clocksource file: %d; assuming TSC.\n",
-			errno);
-		return;
-	}
-
-	if (fstat(fileno(fp), &st)) {
-		pr_info("failed to stat clocksource file: %d; assuming TSC.\n",
-			errno);
-		goto out;
-	}
-
-	clk_name = malloc(st.st_size);
-	TEST_ASSERT(clk_name, "failed to allocate buffer to read file\n");
-
-	if (!fgets(clk_name, st.st_size, fp)) {
-		pr_info("failed to read clocksource file: %d; assuming TSC.\n",
-			ferror(fp));
-		goto out;
-	}
-
-	TEST_ASSERT(!strncmp(clk_name, "tsc\n", st.st_size),
-		    "clocksource not supported: %s", clk_name);
-out:
-	fclose(fp);
 }
 
 int main(void)
@@ -179,7 +143,7 @@ int main(void)
 	flags = kvm_check_cap(KVM_CAP_ADJUST_CLOCK);
 	TEST_REQUIRE(flags & KVM_CLOCK_REALTIME);
 
-	check_clocksource();
+	TEST_REQUIRE(sys_clocksource_is_based_on_tsc());
 
 	vm = vm_create_with_one_vcpu(&vcpu, guest_main);
 

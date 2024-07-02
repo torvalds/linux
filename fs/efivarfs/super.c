@@ -8,20 +8,55 @@
 #include <linux/efi.h>
 #include <linux/fs.h>
 #include <linux/fs_context.h>
+#include <linux/fs_parser.h>
 #include <linux/module.h>
 #include <linux/pagemap.h>
 #include <linux/ucs2_string.h>
 #include <linux/slab.h>
 #include <linux/magic.h>
 #include <linux/statfs.h>
+#include <linux/notifier.h>
+#include <linux/printk.h>
 
 #include "internal.h"
 
-LIST_HEAD(efivarfs_list);
+static int efivarfs_ops_notifier(struct notifier_block *nb, unsigned long event,
+				 void *data)
+{
+	struct efivarfs_fs_info *sfi = container_of(nb, struct efivarfs_fs_info, nb);
+
+	switch (event) {
+	case EFIVAR_OPS_RDONLY:
+		sfi->sb->s_flags |= SB_RDONLY;
+		break;
+	case EFIVAR_OPS_RDWR:
+		sfi->sb->s_flags &= ~SB_RDONLY;
+		break;
+	default:
+		return NOTIFY_DONE;
+	}
+
+	return NOTIFY_OK;
+}
 
 static void efivarfs_evict_inode(struct inode *inode)
 {
 	clear_inode(inode);
+}
+
+static int efivarfs_show_options(struct seq_file *m, struct dentry *root)
+{
+	struct super_block *sb = root->d_sb;
+	struct efivarfs_fs_info *sbi = sb->s_fs_info;
+	struct efivarfs_mount_opts *opts = &sbi->mount_opts;
+
+	if (!uid_eq(opts->uid, GLOBAL_ROOT_UID))
+		seq_printf(m, ",uid=%u",
+				from_kuid_munged(&init_user_ns, opts->uid));
+	if (!gid_eq(opts->gid, GLOBAL_ROOT_GID))
+		seq_printf(m, ",gid=%u",
+				from_kgid_munged(&init_user_ns, opts->gid));
+	return 0;
 }
 
 static int efivarfs_statfs(struct dentry *dentry, struct kstatfs *buf)
@@ -30,6 +65,7 @@ static int efivarfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 			 EFI_VARIABLE_BOOTSERVICE_ACCESS |
 			 EFI_VARIABLE_RUNTIME_ACCESS;
 	u64 storage_space, remaining_space, max_variable_size;
+	u64 id = huge_encode_dev(dentry->d_sb->s_dev);
 	efi_status_t status;
 
 	/* Some UEFI firmware does not implement QueryVariableInfo() */
@@ -53,6 +89,7 @@ static int efivarfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_blocks	= storage_space;
 	buf->f_bfree	= remaining_space;
 	buf->f_type	= dentry->d_sb->s_magic;
+	buf->f_fsid	= u64_to_fsid(id);
 
 	/*
 	 * In f_bavail we declare the free space that the kernel will allow writing
@@ -70,6 +107,7 @@ static const struct super_operations efivarfs_ops = {
 	.statfs = efivarfs_statfs,
 	.drop_inode = generic_delete_inode,
 	.evict_inode = efivarfs_evict_inode,
+	.show_options = efivarfs_show_options,
 };
 
 /*
@@ -147,7 +185,8 @@ static struct dentry *efivarfs_alloc_dentry(struct dentry *parent, char *name)
 }
 
 static int efivarfs_callback(efi_char16_t *name16, efi_guid_t vendor,
-			     unsigned long name_size, void *data)
+			     unsigned long name_size, void *data,
+			     struct list_head *list)
 {
 	struct super_block *sb = (struct super_block *)data;
 	struct efivar_entry *entry;
@@ -202,7 +241,7 @@ static int efivarfs_callback(efi_char16_t *name16, efi_guid_t vendor,
 	}
 
 	__efivar_entry_get(entry, NULL, &size, NULL);
-	__efivar_entry_add(entry, &efivarfs_list);
+	__efivar_entry_add(entry, list);
 
 	/* copied by the above to local storage in the dentry. */
 	kfree(name);
@@ -231,14 +270,51 @@ static int efivarfs_destroy(struct efivar_entry *entry, void *data)
 	return 0;
 }
 
+enum {
+	Opt_uid, Opt_gid,
+};
+
+static const struct fs_parameter_spec efivarfs_parameters[] = {
+	fsparam_u32("uid", Opt_uid),
+	fsparam_u32("gid", Opt_gid),
+	{},
+};
+
+static int efivarfs_parse_param(struct fs_context *fc, struct fs_parameter *param)
+{
+	struct efivarfs_fs_info *sbi = fc->s_fs_info;
+	struct efivarfs_mount_opts *opts = &sbi->mount_opts;
+	struct fs_parse_result result;
+	int opt;
+
+	opt = fs_parse(fc, efivarfs_parameters, param, &result);
+	if (opt < 0)
+		return opt;
+
+	switch (opt) {
+	case Opt_uid:
+		opts->uid = make_kuid(current_user_ns(), result.uint_32);
+		if (!uid_valid(opts->uid))
+			return -EINVAL;
+		break;
+	case Opt_gid:
+		opts->gid = make_kgid(current_user_ns(), result.uint_32);
+		if (!gid_valid(opts->gid))
+			return -EINVAL;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int efivarfs_fill_super(struct super_block *sb, struct fs_context *fc)
 {
+	struct efivarfs_fs_info *sfi = sb->s_fs_info;
 	struct inode *inode = NULL;
 	struct dentry *root;
 	int err;
-
-	if (!efivar_is_available())
-		return -EOPNOTSUPP;
 
 	sb->s_maxbytes          = MAX_LFS_FILESIZE;
 	sb->s_blocksize         = PAGE_SIZE;
@@ -261,13 +337,13 @@ static int efivarfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	if (!root)
 		return -ENOMEM;
 
-	INIT_LIST_HEAD(&efivarfs_list);
-
-	err = efivar_init(efivarfs_callback, (void *)sb, true, &efivarfs_list);
+	sfi->sb = sb;
+	sfi->nb.notifier_call = efivarfs_ops_notifier;
+	err = blocking_notifier_chain_register(&efivar_ops_nh, &sfi->nb);
 	if (err)
-		efivar_entry_iter(efivarfs_destroy, &efivarfs_list, NULL);
+		return err;
 
-	return err;
+	return efivar_init(efivarfs_callback, sb, &sfi->efivarfs_list);
 }
 
 static int efivarfs_get_tree(struct fs_context *fc)
@@ -275,25 +351,53 @@ static int efivarfs_get_tree(struct fs_context *fc)
 	return get_tree_single(fc, efivarfs_fill_super);
 }
 
+static int efivarfs_reconfigure(struct fs_context *fc)
+{
+	if (!efivar_supports_writes() && !(fc->sb_flags & SB_RDONLY)) {
+		pr_err("Firmware does not support SetVariableRT. Can not remount with rw\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static const struct fs_context_operations efivarfs_context_ops = {
 	.get_tree	= efivarfs_get_tree,
+	.parse_param	= efivarfs_parse_param,
+	.reconfigure	= efivarfs_reconfigure,
 };
 
 static int efivarfs_init_fs_context(struct fs_context *fc)
 {
+	struct efivarfs_fs_info *sfi;
+
+	if (!efivar_is_available())
+		return -EOPNOTSUPP;
+
+	sfi = kzalloc(sizeof(*sfi), GFP_KERNEL);
+	if (!sfi)
+		return -ENOMEM;
+
+	INIT_LIST_HEAD(&sfi->efivarfs_list);
+
+	sfi->mount_opts.uid = GLOBAL_ROOT_UID;
+	sfi->mount_opts.gid = GLOBAL_ROOT_GID;
+
+	fc->s_fs_info = sfi;
 	fc->ops = &efivarfs_context_ops;
 	return 0;
 }
 
 static void efivarfs_kill_sb(struct super_block *sb)
 {
+	struct efivarfs_fs_info *sfi = sb->s_fs_info;
+
+	blocking_notifier_chain_unregister(&efivar_ops_nh, &sfi->nb);
 	kill_litter_super(sb);
 
-	if (!efivar_is_available())
-		return;
-
 	/* Remove all entries and destroy */
-	efivar_entry_iter(efivarfs_destroy, &efivarfs_list, NULL);
+	efivar_entry_iter(efivarfs_destroy, &sfi->efivarfs_list, NULL);
+	kfree(sfi);
 }
 
 static struct file_system_type efivarfs_type = {
@@ -301,6 +405,7 @@ static struct file_system_type efivarfs_type = {
 	.name    = "efivarfs",
 	.init_fs_context = efivarfs_init_fs_context,
 	.kill_sb = efivarfs_kill_sb,
+	.parameters = efivarfs_parameters,
 };
 
 static __init int efivarfs_init(void)

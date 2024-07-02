@@ -486,20 +486,14 @@ static irqreturn_t cdns_xspi_irq_handler(int this_irq, void *dev)
 static int cdns_xspi_of_get_plat_data(struct platform_device *pdev)
 {
 	struct device_node *node_prop = pdev->dev.of_node;
-	struct device_node *node_child;
 	unsigned int cs;
 
-	for_each_child_of_node(node_prop, node_child) {
-		if (!of_device_is_available(node_child))
-			continue;
-
+	for_each_available_child_of_node_scoped(node_prop, node_child) {
 		if (of_property_read_u32(node_child, "reg", &cs)) {
 			dev_err(&pdev->dev, "Couldn't get memory chip select\n");
-			of_node_put(node_child);
 			return -ENXIO;
 		} else if (cs >= CDNS_XSPI_MAX_BANKS) {
 			dev_err(&pdev->dev, "reg (cs) parameter value too large\n");
-			of_node_put(node_child);
 			return -ENXIO;
 		}
 	}
@@ -619,7 +613,6 @@ MODULE_DEVICE_TABLE(of, cdns_xspi_of_match);
 
 static struct platform_driver cdns_xspi_platform_driver = {
 	.probe          = cdns_xspi_probe,
-	.remove         = NULL,
 	.driver = {
 		.name = CDNS_XSPI_NAME,
 		.of_match_table = cdns_xspi_of_match,

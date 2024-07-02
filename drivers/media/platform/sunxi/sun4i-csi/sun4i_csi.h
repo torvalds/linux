@@ -89,6 +89,7 @@ enum csi_subdev_pads {
 };
 
 extern const struct v4l2_subdev_ops sun4i_csi_subdev_ops;
+extern const struct v4l2_subdev_internal_ops sun4i_csi_subdev_internal_ops;
 
 struct sun4i_csi_format {
 	u32			mbus;

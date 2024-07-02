@@ -61,6 +61,7 @@ enum MES_SCH_API_OPCODE {
 	MES_SCH_API_MISC			= 14,
 	MES_SCH_API_UPDATE_ROOT_PAGE_TABLE      = 15,
 	MES_SCH_API_AMD_LOG                     = 16,
+	MES_SCH_API_SET_HW_RSRC_1               = 19,
 	MES_SCH_API_MAX				= 0xFF
 };
 
@@ -232,9 +233,30 @@ union MESAPI_SET_HW_RESOURCES {
 		};
 		uint32_t	oversubscription_timer;
 		uint64_t        doorbell_info;
+		uint64_t        event_intr_history_gpu_mc_ptr;
 	};
 
 	uint32_t	max_dwords_in_api[API_FRAME_SIZE_IN_DWORDS];
+};
+
+union MESAPI_SET_HW_RESOURCES_1 {
+	struct {
+		union MES_API_HEADER				header;
+		struct MES_API_STATUS			   api_status;
+		uint64_t							timestamp;
+		union {
+			struct {
+				uint32_t enable_mes_info_ctx : 1;
+				uint32_t reserved : 31;
+			};
+			uint32_t uint32_all;
+		};
+		uint64_t							mes_info_ctx_mc_addr;
+		uint32_t							mes_info_ctx_size;
+		uint32_t							mes_kiq_unmap_timeout; // unit is 100ms
+	};
+
+	uint32_t max_dwords_in_api[API_FRAME_SIZE_IN_DWORDS];
 };
 
 union MESAPI__ADD_QUEUE {
@@ -277,10 +299,21 @@ union MESAPI__ADD_QUEUE {
 			uint32_t skip_process_ctx_clear : 1;
 			uint32_t map_legacy_kq		: 1;
 			uint32_t exclusively_scheduled	: 1;
-			uint32_t reserved		: 17;
+			uint32_t is_long_running        : 1;
+			uint32_t is_dwm_queue           : 1;
+			uint32_t is_video_blit_queue    : 1;
+			uint32_t reserved               : 14;
 		};
-		struct MES_API_STATUS		api_status;
-		uint64_t                        tma_addr;
+		struct MES_API_STATUS       api_status;
+		uint64_t                    tma_addr;
+		uint32_t                    sch_id;
+		uint64_t                    timestamp;
+		uint32_t                    process_context_array_index;
+		uint32_t                    gang_context_array_index;
+		uint32_t                    pipe_id;
+		uint32_t                    queue_id;
+		uint32_t                    alignment_mode_setting;
+		uint64_t                    unmap_flag_addr;
 	};
 
 	uint32_t	max_dwords_in_api[API_FRAME_SIZE_IN_DWORDS];
@@ -571,7 +604,8 @@ struct SET_SHADER_DEBUGGER {
 		struct {
 			uint32_t single_memop : 1;  /* SQ_DEBUG.single_memop */
 			uint32_t single_alu_op : 1; /* SQ_DEBUG.single_alu_op */
-			uint32_t reserved : 30;
+			uint32_t reserved : 29;
+			uint32_t process_ctx_flush : 1;
 		};
 		uint32_t u32all;
 	} flags;

@@ -180,7 +180,7 @@ int nvmf_reg_read32(struct nvme_ctrl *ctrl, u32 off, u32 *val)
 	cmd.prop_get.offset = cpu_to_le32(off);
 
 	ret = __nvme_submit_sync_cmd(ctrl->fabrics_q, &cmd, &res, NULL, 0,
-			NVME_QID_ANY, 0, 0);
+			NVME_QID_ANY, 0);
 
 	if (ret >= 0)
 		*val = le64_to_cpu(res.u64);
@@ -226,7 +226,7 @@ int nvmf_reg_read64(struct nvme_ctrl *ctrl, u32 off, u64 *val)
 	cmd.prop_get.offset = cpu_to_le32(off);
 
 	ret = __nvme_submit_sync_cmd(ctrl->fabrics_q, &cmd, &res, NULL, 0,
-			NVME_QID_ANY, 0, 0);
+			NVME_QID_ANY, 0);
 
 	if (ret >= 0)
 		*val = le64_to_cpu(res.u64);
@@ -271,7 +271,7 @@ int nvmf_reg_write32(struct nvme_ctrl *ctrl, u32 off, u32 val)
 	cmd.prop_set.value = cpu_to_le64(val);
 
 	ret = __nvme_submit_sync_cmd(ctrl->fabrics_q, &cmd, NULL, NULL, 0,
-			NVME_QID_ANY, 0, 0);
+			NVME_QID_ANY, 0);
 	if (unlikely(ret))
 		dev_err(ctrl->device,
 			"Property Set error: %d, offset %#x\n",
@@ -387,8 +387,8 @@ static struct nvmf_connect_data *nvmf_connect_data_prep(struct nvme_ctrl *ctrl,
 
 	uuid_copy(&data->hostid, &ctrl->opts->host->id);
 	data->cntlid = cpu_to_le16(cntlid);
-	strncpy(data->subsysnqn, ctrl->opts->subsysnqn, NVMF_NQN_SIZE);
-	strncpy(data->hostnqn, ctrl->opts->host->nqn, NVMF_NQN_SIZE);
+	strscpy(data->subsysnqn, ctrl->opts->subsysnqn, NVMF_NQN_SIZE);
+	strscpy(data->hostnqn, ctrl->opts->host->nqn, NVMF_NQN_SIZE);
 
 	return data;
 }
@@ -450,8 +450,10 @@ int nvmf_connect_admin_queue(struct nvme_ctrl *ctrl)
 		return -ENOMEM;
 
 	ret = __nvme_submit_sync_cmd(ctrl->fabrics_q, &cmd, &res,
-			data, sizeof(*data), NVME_QID_ANY, 1,
-			BLK_MQ_REQ_RESERVED | BLK_MQ_REQ_NOWAIT);
+			data, sizeof(*data), NVME_QID_ANY,
+			NVME_SUBMIT_AT_HEAD |
+			NVME_SUBMIT_NOWAIT |
+			NVME_SUBMIT_RESERVED);
 	if (ret) {
 		nvmf_log_connect_error(ctrl, ret, le32_to_cpu(res.u32),
 				       &cmd, data);
@@ -525,11 +527,14 @@ int nvmf_connect_io_queue(struct nvme_ctrl *ctrl, u16 qid)
 		return -ENOMEM;
 
 	ret = __nvme_submit_sync_cmd(ctrl->connect_q, &cmd, &res,
-			data, sizeof(*data), qid, 1,
-			BLK_MQ_REQ_RESERVED | BLK_MQ_REQ_NOWAIT);
+			data, sizeof(*data), qid,
+			NVME_SUBMIT_AT_HEAD |
+			NVME_SUBMIT_RESERVED |
+			NVME_SUBMIT_NOWAIT);
 	if (ret) {
 		nvmf_log_connect_error(ctrl, ret, le32_to_cpu(res.u32),
 				       &cmd, data);
+		goto out_free_data;
 	}
 	result = le32_to_cpu(res.u32);
 	if (result & (NVME_CONNECT_AUTHREQ_ATR | NVME_CONNECT_AUTHREQ_ASCR)) {
@@ -633,7 +638,7 @@ static struct key *nvmf_parse_key(int key_id)
 	}
 
 	key = key_lookup(key_id);
-	if (!IS_ERR(key))
+	if (IS_ERR(key))
 		pr_err("key id %08x not found\n", key_id);
 	else
 		pr_debug("Using key id %08x\n", key_id);
@@ -667,8 +672,10 @@ static const match_table_t opt_tokens = {
 #endif
 	{ NVMF_OPT_FAIL_FAST_TMO,	"fast_io_fail_tmo=%d"	},
 	{ NVMF_OPT_DISCOVERY,		"discovery"		},
+#ifdef CONFIG_NVME_HOST_AUTH
 	{ NVMF_OPT_DHCHAP_SECRET,	"dhchap_secret=%s"	},
 	{ NVMF_OPT_DHCHAP_CTRL_SECRET,	"dhchap_ctrl_secret=%s"	},
+#endif
 #ifdef CONFIG_NVME_TCP_TLS
 	{ NVMF_OPT_TLS,			"tls"			},
 #endif
@@ -1312,7 +1319,10 @@ out_free_opts:
 	return ERR_PTR(ret);
 }
 
-static struct class *nvmf_class;
+static const struct class nvmf_class = {
+	.name = "nvme-fabrics",
+};
+
 static struct device *nvmf_device;
 static DEFINE_MUTEX(nvmf_dev_mutex);
 
@@ -1432,15 +1442,14 @@ static int __init nvmf_init(void)
 	if (!nvmf_default_host)
 		return -ENOMEM;
 
-	nvmf_class = class_create("nvme-fabrics");
-	if (IS_ERR(nvmf_class)) {
+	ret = class_register(&nvmf_class);
+	if (ret) {
 		pr_err("couldn't register class nvme-fabrics\n");
-		ret = PTR_ERR(nvmf_class);
 		goto out_free_host;
 	}
 
 	nvmf_device =
-		device_create(nvmf_class, NULL, MKDEV(0, 0), NULL, "ctl");
+		device_create(&nvmf_class, NULL, MKDEV(0, 0), NULL, "ctl");
 	if (IS_ERR(nvmf_device)) {
 		pr_err("couldn't create nvme-fabrics device!\n");
 		ret = PTR_ERR(nvmf_device);
@@ -1456,9 +1465,9 @@ static int __init nvmf_init(void)
 	return 0;
 
 out_destroy_device:
-	device_destroy(nvmf_class, MKDEV(0, 0));
+	device_destroy(&nvmf_class, MKDEV(0, 0));
 out_destroy_class:
-	class_destroy(nvmf_class);
+	class_unregister(&nvmf_class);
 out_free_host:
 	nvmf_host_put(nvmf_default_host);
 	return ret;
@@ -1467,8 +1476,8 @@ out_free_host:
 static void __exit nvmf_exit(void)
 {
 	misc_deregister(&nvmf_misc);
-	device_destroy(nvmf_class, MKDEV(0, 0));
-	class_destroy(nvmf_class);
+	device_destroy(&nvmf_class, MKDEV(0, 0));
+	class_unregister(&nvmf_class);
 	nvmf_host_put(nvmf_default_host);
 
 	BUILD_BUG_ON(sizeof(struct nvmf_common_command) != 64);
@@ -1486,6 +1495,7 @@ static void __exit nvmf_exit(void)
 }
 
 MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("NVMe host fabrics library");
 
 module_init(nvmf_init);
 module_exit(nvmf_exit);

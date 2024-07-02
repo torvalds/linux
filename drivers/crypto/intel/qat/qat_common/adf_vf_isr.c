@@ -293,8 +293,6 @@ EXPORT_SYMBOL_GPL(adf_flush_vf_wq);
 /**
  * adf_init_vf_wq() - Init workqueue for VF
  *
- * Function init workqueue 'adf_vf_stop_wq' for VF.
- *
  * Return: 0 on success, error code otherwise.
  */
 int __init adf_init_vf_wq(void)

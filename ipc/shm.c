@@ -29,6 +29,7 @@
 #include <linux/mm.h>
 #include <linux/hugetlb.h>
 #include <linux/shm.h>
+#include <uapi/linux/shm.h>
 #include <linux/init.h>
 #include <linux/file.h>
 #include <linux/mman.h>
@@ -661,8 +662,8 @@ static const struct file_operations shm_file_operations = {
 };
 
 /*
- * shm_file_operations_huge is now identical to shm_file_operations,
- * but we keep it distinct for the sake of is_file_shm_hugepages().
+ * shm_file_operations_huge is now identical to shm_file_operations
+ * except for fop_flags
  */
 static const struct file_operations shm_file_operations_huge = {
 	.mmap		= shm_mmap,
@@ -671,12 +672,8 @@ static const struct file_operations shm_file_operations_huge = {
 	.get_unmapped_area	= shm_get_unmapped_area,
 	.llseek		= noop_llseek,
 	.fallocate	= shm_fallocate,
+	.fop_flags	= FOP_HUGE_PAGES,
 };
-
-bool is_file_shm_hugepages(struct file *file)
-{
-	return file->f_op == &shm_file_operations_huge;
-}
 
 static const struct vm_operations_struct shm_vm_ops = {
 	.open	= shm_open,	/* callback for a new vm-area open */

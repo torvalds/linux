@@ -12,6 +12,9 @@
 #include <linux/coresight.h>
 #include <linux/pm_runtime.h>
 
+extern struct mutex coresight_mutex;
+extern struct device_type coresight_dev_type[];
+
 /*
  * Coresight management registers (0xf00-0xfcc)
  * 0xfa0 - 0xfa4: Management	registers in PFTv1.0
@@ -130,8 +133,6 @@ void coresight_disable_path(struct list_head *path);
 int coresight_enable_path(struct list_head *path, enum cs_mode mode,
 			  void *sink_data);
 struct coresight_device *coresight_get_sink(struct list_head *path);
-struct coresight_device *
-coresight_get_enabled_sink(struct coresight_device *source);
 struct coresight_device *coresight_get_sink_by_id(u32 id);
 struct coresight_device *
 coresight_find_default_sink(struct coresight_device *csdev);
@@ -231,8 +232,6 @@ void coresight_add_helper(struct coresight_device *csdev,
 
 void coresight_set_percpu_sink(int cpu, struct coresight_device *csdev);
 struct coresight_device *coresight_get_percpu_sink(int cpu);
-int coresight_enable_source(struct coresight_device *csdev, enum cs_mode mode,
-			    void *data);
-bool coresight_disable_source(struct coresight_device *csdev, void *data);
+void coresight_disable_source(struct coresight_device *csdev, void *data);
 
 #endif

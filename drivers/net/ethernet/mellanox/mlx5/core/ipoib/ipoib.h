@@ -53,6 +53,7 @@ extern const struct mlx5e_rx_handlers mlx5i_rx_handlers;
 struct mlx5i_priv {
 	struct rdma_netdev rn; /* keep this first */
 	u32 qpn;
+	u32 tisn;
 	bool   sub_interface;
 	u32    num_sub_interfaces;
 	u32    qkey;
@@ -63,6 +64,7 @@ struct mlx5i_priv {
 };
 
 int mlx5i_create_tis(struct mlx5_core_dev *mdev, u32 underlay_qpn, u32 *tisn);
+u32 mlx5i_get_tisn(struct mlx5_core_dev *mdev, struct mlx5e_priv *priv, u8 lag_port, u8 tc);
 
 /* Underlay QP create/destroy functions */
 int mlx5i_create_underlay_qp(struct mlx5e_priv *priv);

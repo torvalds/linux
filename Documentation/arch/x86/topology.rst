@@ -47,17 +47,21 @@ AMD nomenclature for package is 'Node'.
 
 Package-related topology information in the kernel:
 
-  - cpuinfo_x86.x86_max_cores:
+  - topology_num_threads_per_package()
 
-    The number of cores in a package. This information is retrieved via CPUID.
+    The number of threads in a package.
 
-  - cpuinfo_x86.x86_max_dies:
+  - topology_num_cores_per_package()
 
-    The number of dies in a package. This information is retrieved via CPUID.
+    The number of cores in a package.
+
+  - topology_max_dies_per_package()
+
+    The maximum number of dies in a package.
 
   - cpuinfo_x86.topo.die_id:
 
-    The physical ID of the die. This information is retrieved via CPUID.
+    The physical ID of the die.
 
   - cpuinfo_x86.topo.pkg_id:
 
@@ -95,16 +99,6 @@ are SMT- or CMT-type threads.
 
 AMDs nomenclature for a CMT core is "Compute Unit". The kernel always uses
 "core".
-
-Core-related topology information in the kernel:
-
-  - smp_num_siblings:
-
-    The number of threads in a core. The number of threads in a package can be
-    calculated by::
-
-	threads_per_package = cpuinfo_x86.x86_max_cores * smp_num_siblings
-
 
 Threads
 =======

@@ -93,7 +93,7 @@ static void cec_devnode_release(struct device *cd)
 	cec_delete_adapter(to_cec_adapter(devnode));
 }
 
-static struct bus_type cec_bus_type = {
+static const struct bus_type cec_bus_type = {
 	.name = CEC_NAME,
 };
 

@@ -291,27 +291,29 @@ static int vega20_ih_irq_init(struct amdgpu_device *adev)
 
 	adev->nbio.funcs->ih_control(adev);
 
-	if ((amdgpu_ip_version(adev, OSSSYS_HWIP, 0) == IP_VERSION(4, 2, 1)) &&
-	    adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT) {
-		ih_chicken = RREG32_SOC15(OSSSYS, 0, mmIH_CHICKEN);
-		if (adev->irq.ih.use_bus_addr) {
-			ih_chicken = REG_SET_FIELD(ih_chicken, IH_CHICKEN,
-						   MC_SPACE_GPA_ENABLE, 1);
+	if (!amdgpu_sriov_vf(adev)) {
+		if ((amdgpu_ip_version(adev, OSSSYS_HWIP, 0) == IP_VERSION(4, 2, 1)) &&
+		    adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT) {
+			ih_chicken = RREG32_SOC15(OSSSYS, 0, mmIH_CHICKEN);
+			if (adev->irq.ih.use_bus_addr) {
+				ih_chicken = REG_SET_FIELD(ih_chicken, IH_CHICKEN,
+							   MC_SPACE_GPA_ENABLE, 1);
+			}
+			WREG32_SOC15(OSSSYS, 0, mmIH_CHICKEN, ih_chicken);
 		}
-		WREG32_SOC15(OSSSYS, 0, mmIH_CHICKEN, ih_chicken);
-	}
 
-	/* psp firmware won't program IH_CHICKEN for aldebaran
-	 * driver needs to program it properly according to
-	 * MC_SPACE type in IH_RB_CNTL */
-	if ((amdgpu_ip_version(adev, OSSSYS_HWIP, 0) == IP_VERSION(4, 4, 0)) ||
-	    (amdgpu_ip_version(adev, OSSSYS_HWIP, 0) == IP_VERSION(4, 4, 2))) {
-		ih_chicken = RREG32_SOC15(OSSSYS, 0, mmIH_CHICKEN_ALDEBARAN);
-		if (adev->irq.ih.use_bus_addr) {
-			ih_chicken = REG_SET_FIELD(ih_chicken, IH_CHICKEN,
-						   MC_SPACE_GPA_ENABLE, 1);
+		/* psp firmware won't program IH_CHICKEN for aldebaran
+		 * driver needs to program it properly according to
+		 * MC_SPACE type in IH_RB_CNTL */
+		if ((amdgpu_ip_version(adev, OSSSYS_HWIP, 0) == IP_VERSION(4, 4, 0)) ||
+		    (amdgpu_ip_version(adev, OSSSYS_HWIP, 0) == IP_VERSION(4, 4, 2))) {
+			ih_chicken = RREG32_SOC15(OSSSYS, 0, mmIH_CHICKEN_ALDEBARAN);
+			if (adev->irq.ih.use_bus_addr) {
+				ih_chicken = REG_SET_FIELD(ih_chicken, IH_CHICKEN,
+							   MC_SPACE_GPA_ENABLE, 1);
+			}
+			WREG32_SOC15(OSSSYS, 0, mmIH_CHICKEN_ALDEBARAN, ih_chicken);
 		}
-		WREG32_SOC15(OSSSYS, 0, mmIH_CHICKEN_ALDEBARAN, ih_chicken);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(ih); i++) {
@@ -419,6 +421,12 @@ static u32 vega20_ih_get_wptr(struct amdgpu_device *adev,
 
 	tmp = RREG32_NO_KIQ(ih_regs->ih_rb_cntl);
 	tmp = REG_SET_FIELD(tmp, IH_RB_CNTL, WPTR_OVERFLOW_CLEAR, 1);
+	WREG32_NO_KIQ(ih_regs->ih_rb_cntl, tmp);
+
+	/* Unset the CLEAR_OVERFLOW bit immediately so new overflows
+	 * can be detected.
+	 */
+	tmp = REG_SET_FIELD(tmp, IH_RB_CNTL, WPTR_OVERFLOW_CLEAR, 0);
 	WREG32_NO_KIQ(ih_regs->ih_rb_cntl, tmp);
 
 out:

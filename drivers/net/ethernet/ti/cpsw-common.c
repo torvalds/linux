@@ -90,4 +90,5 @@ int ti_cm_get_macid(struct device *dev, int slave, u8 *mac_addr)
 }
 EXPORT_SYMBOL_GPL(ti_cm_get_macid);
 
+MODULE_DESCRIPTION("TI CPSW Switch common module");
 MODULE_LICENSE("GPL");

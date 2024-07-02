@@ -847,7 +847,7 @@ void af_alg_wmem_wakeup(struct sock *sk)
 		wake_up_interruptible_sync_poll(&wq->wait, EPOLLIN |
 							   EPOLLRDNORM |
 							   EPOLLRDBAND);
-	sk_wake_async(sk, SOCK_WAKE_WAITD, POLL_IN);
+	sk_wake_async_rcu(sk, SOCK_WAKE_WAITD, POLL_IN);
 	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(af_alg_wmem_wakeup);
@@ -914,7 +914,7 @@ static void af_alg_data_wakeup(struct sock *sk)
 		wake_up_interruptible_sync_poll(&wq->wait, EPOLLOUT |
 							   EPOLLRDNORM |
 							   EPOLLRDBAND);
-	sk_wake_async(sk, SOCK_WAKE_SPACE, POLL_OUT);
+	sk_wake_async_rcu(sk, SOCK_WAKE_SPACE, POLL_OUT);
 	rcu_read_unlock();
 }
 
@@ -1116,9 +1116,13 @@ EXPORT_SYMBOL_GPL(af_alg_sendmsg);
 void af_alg_free_resources(struct af_alg_async_req *areq)
 {
 	struct sock *sk = areq->sk;
+	struct af_alg_ctx *ctx;
 
 	af_alg_free_areq_sgls(areq);
 	sock_kfree_s(sk, areq, areq->areqlen);
+
+	ctx = alg_sk(sk)->private;
+	ctx->inflight = false;
 }
 EXPORT_SYMBOL_GPL(af_alg_free_resources);
 
@@ -1188,10 +1192,18 @@ EXPORT_SYMBOL_GPL(af_alg_poll);
 struct af_alg_async_req *af_alg_alloc_areq(struct sock *sk,
 					   unsigned int areqlen)
 {
-	struct af_alg_async_req *areq = sock_kmalloc(sk, areqlen, GFP_KERNEL);
+	struct af_alg_ctx *ctx = alg_sk(sk)->private;
+	struct af_alg_async_req *areq;
 
+	/* Only one AIO request can be in flight. */
+	if (ctx->inflight)
+		return ERR_PTR(-EBUSY);
+
+	areq = sock_kmalloc(sk, areqlen, GFP_KERNEL);
 	if (unlikely(!areq))
 		return ERR_PTR(-ENOMEM);
+
+	ctx->inflight = true;
 
 	areq->areqlen = areqlen;
 	areq->sk = sk;

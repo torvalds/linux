@@ -45,7 +45,9 @@ dtb-$(CONFIG_SOC_IMX53) += \
 	imx53-mba53.dtb \
 	imx53-ppd.dtb \
 	imx53-qsb.dtb \
+	imx53-qsb-hdmi.dtb \
 	imx53-qsrb.dtb \
+	imx53-qsrb-hdmi.dtb \
 	imx53-sk-imx53.dtb \
 	imx53-sk-imx53-atm0700d4-lvds.dtb \
 	imx53-sk-imx53-atm0700d4-rgb.dtb \
@@ -54,6 +56,8 @@ dtb-$(CONFIG_SOC_IMX53) += \
 	imx53-tx53-x13x.dtb \
 	imx53-usbarmory.dtb \
 	imx53-voipac-bsb.dtb
+imx53-qsb-hdmi-dtbs := imx53-qsb.dtb imx53-qsb-hdmi.dtbo
+imx53-qsrb-hdmi-dtbs := imx53-qsrb.dtb imx53-qsb-hdmi.dtbo
 dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6dl-alti6p.dtb \
 	imx6dl-apf6dev.dtb \
@@ -118,6 +122,7 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6dl-sabrelite.dtb \
 	imx6dl-sabresd.dtb \
 	imx6dl-savageboard.dtb \
+	imx6dl-sielaff.dtb \
 	imx6dl-skov-revc-lt2.dtb \
 	imx6dl-skov-revc-lt6.dtb \
 	imx6dl-solidsense.dtb \
@@ -147,6 +152,7 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6dl-yapp4-phoenix.dtb \
 	imx6dl-yapp4-ursa.dtb \
 	imx6q-apalis-eval.dtb \
+	imx6q-apalis-eval-v1.2.dtb \
 	imx6q-apalis-ixora.dtb \
 	imx6q-apalis-ixora-v1.1.dtb \
 	imx6q-apalis-ixora-v1.2.dtb \
@@ -343,12 +349,15 @@ dtb-$(CONFIG_SOC_IMX6UL) += \
 	imx6ull-phytec-segin-lc-rdk-nand.dtb \
 	imx6ull-phytec-tauri-emmc.dtb \
 	imx6ull-phytec-tauri-nand.dtb \
+	imx6ull-seeed-npi-dev-board-emmc.dtb \
+	imx6ull-seeed-npi-dev-board-nand.dtb \
 	imx6ull-tarragon-master.dtb \
 	imx6ull-tarragon-micro.dtb \
 	imx6ull-tarragon-slave.dtb \
 	imx6ull-tarragon-slavext.dtb \
 	imx6ull-tqma6ull2-mba6ulx.dtb \
 	imx6ull-tqma6ull2l-mba6ulx.dtb \
+	imx6ull-uti260b.dtb \
 	imx6ulz-14x14-evk.dtb \
 	imx6ulz-bsh-smm-m2.dtb
 dtb-$(CONFIG_SOC_IMX7D) += \

@@ -23,6 +23,7 @@
 
 /* TDX hypercall Leaf IDs */
 #define TDVMCALL_MAP_GPA		0x10001
+#define TDVMCALL_GET_QUOTE		0x10002
 #define TDVMCALL_REPORT_FATAL_ERROR	0x10003
 
 #define TDVMCALL_STATUS_RETRY		1
@@ -53,6 +54,12 @@
 #define TDVMCALL_EXPOSE_REGS_MASK	\
 	(TDX_RDX | TDX_RBX | TDX_RSI | TDX_RDI | TDX_R8  | TDX_R9  | \
 	 TDX_R10 | TDX_R11 | TDX_R12 | TDX_R13 | TDX_R14 | TDX_R15)
+
+/* TDX supported page sizes from the TDX module ABI. */
+#define TDX_PS_4K	0
+#define TDX_PS_2M	1
+#define TDX_PS_1G	2
+#define TDX_PS_NR	(TDX_PS_1G + 1)
 
 #ifndef __ASSEMBLY__
 

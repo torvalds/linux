@@ -20,7 +20,7 @@ static unsigned int mhi_timeout_ms = 2000; /* 2 sec default */
 module_param(mhi_timeout_ms, uint, 0600);
 MODULE_PARM_DESC(mhi_timeout_ms, "MHI controller timeout value");
 
-static struct mhi_channel_config aic100_channels[] = {
+static const struct mhi_channel_config aic100_channels[] = {
 	{
 		.name = "QAIC_LOOPBACK",
 		.num = 0,
@@ -348,7 +348,7 @@ static struct mhi_channel_config aic100_channels[] = {
 		.local_elements = 0,
 		.event_ring = 0,
 		.dir = DMA_TO_DEVICE,
-		.ee_mask = MHI_CH_EE_SBL | MHI_CH_EE_AMSS,
+		.ee_mask = MHI_CH_EE_SBL,
 		.pollcfg = 0,
 		.doorbell = MHI_DB_BRST_DISABLE,
 		.lpm_notify = false,
@@ -358,13 +358,45 @@ static struct mhi_channel_config aic100_channels[] = {
 		.wake_capable = false,
 	},
 	{
-		.num = 21,
 		.name = "QAIC_TIMESYNC",
+		.num = 21,
 		.num_elements = 32,
 		.local_elements = 0,
 		.event_ring = 0,
 		.dir = DMA_FROM_DEVICE,
-		.ee_mask = MHI_CH_EE_SBL | MHI_CH_EE_AMSS,
+		.ee_mask = MHI_CH_EE_SBL,
+		.pollcfg = 0,
+		.doorbell = MHI_DB_BRST_DISABLE,
+		.lpm_notify = false,
+		.offload_channel = false,
+		.doorbell_mode_switch = false,
+		.auto_queue = false,
+		.wake_capable = false,
+	},
+	{
+		.name = "QAIC_TIMESYNC_PERIODIC",
+		.num = 22,
+		.num_elements = 32,
+		.local_elements = 0,
+		.event_ring = 0,
+		.dir = DMA_TO_DEVICE,
+		.ee_mask = MHI_CH_EE_AMSS,
+		.pollcfg = 0,
+		.doorbell = MHI_DB_BRST_DISABLE,
+		.lpm_notify = false,
+		.offload_channel = false,
+		.doorbell_mode_switch = false,
+		.auto_queue = false,
+		.wake_capable = false,
+	},
+	{
+		.name = "QAIC_TIMESYNC_PERIODIC",
+		.num = 23,
+		.num_elements = 32,
+		.local_elements = 0,
+		.event_ring = 0,
+		.dir = DMA_FROM_DEVICE,
+		.ee_mask = MHI_CH_EE_AMSS,
 		.pollcfg = 0,
 		.doorbell = MHI_DB_BRST_DISABLE,
 		.lpm_notify = false,
@@ -404,8 +436,21 @@ static struct mhi_controller_config aic100_config = {
 
 static int mhi_read_reg(struct mhi_controller *mhi_cntrl, void __iomem *addr, u32 *out)
 {
-	u32 tmp = readl_relaxed(addr);
+	u32 tmp;
 
+	/*
+	 * SOC_HW_VERSION quirk
+	 * The SOC_HW_VERSION register (offset 0x224) is not reliable and
+	 * may contain uninitialized values, including 0xFFFFFFFF. This could
+	 * cause a false positive link down error.  Instead, intercept any
+	 * reads and provide the correct value of the register.
+	 */
+	if (addr - mhi_cntrl->regs == 0x224) {
+		*out = 0x60110200;
+		return 0;
+	}
+
+	tmp = readl_relaxed(addr);
 	if (tmp == U32_MAX)
 		return -EIO;
 
@@ -437,7 +482,7 @@ static void mhi_status_cb(struct mhi_controller *mhi_cntrl, enum mhi_callback re
 		pci_err(qdev->pdev, "Fatal error received from device. Attempting to recover\n");
 	/* this event occurs in non-atomic context */
 	if (reason == MHI_CB_SYS_ERROR)
-		qaic_dev_reset_clean_local_state(qdev, true);
+		qaic_dev_reset_clean_local_state(qdev);
 }
 
 static int mhi_reset_and_async_power_up(struct mhi_controller *mhi_cntrl)
@@ -468,7 +513,7 @@ static int mhi_reset_and_async_power_up(struct mhi_controller *mhi_cntrl)
 }
 
 struct mhi_controller *qaic_mhi_register_controller(struct pci_dev *pci_dev, void __iomem *mhi_bar,
-						    int mhi_irq)
+						    int mhi_irq, bool shared_msi)
 {
 	struct mhi_controller *mhi_cntrl;
 	int ret;
@@ -500,6 +545,10 @@ struct mhi_controller *qaic_mhi_register_controller(struct pci_dev *pci_dev, voi
 		return ERR_PTR(-ENOMEM);
 
 	mhi_cntrl->irq[0] = mhi_irq;
+
+	if (shared_msi) /* MSI shared with data path, no IRQF_NO_SUSPEND */
+		mhi_cntrl->irq_flags = IRQF_SHARED;
+
 	mhi_cntrl->fw_image = "qcom/aic100/sbl.bin";
 
 	/* use latest configured timeout */

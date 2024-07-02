@@ -59,7 +59,7 @@ static int udf_fiiter_find_entry(struct inode *dir, const struct qstr *child,
 		child->name[0] == '.' && child->name[1] == '.';
 	int ret;
 
-	fname = kmalloc(UDF_NAME_LEN, GFP_NOFS);
+	fname = kmalloc(UDF_NAME_LEN, GFP_KERNEL);
 	if (!fname)
 		return -ENOMEM;
 
@@ -125,8 +125,6 @@ static struct dentry *udf_lookup(struct inode *dir, struct dentry *dentry,
 		udf_fiiter_release(&iter);
 
 		inode = udf_iget(dir->i_sb, &loc);
-		if (IS_ERR(inode))
-			return ERR_CAST(inode);
 	}
 
 	return d_splice_alias(inode, dentry);
@@ -230,8 +228,6 @@ static int udf_fiiter_add_entry(struct inode *dir, struct dentry *dentry,
 	char name[UDF_NAME_LEN_CS0];
 
 	if (dentry) {
-		if (!dentry->d_name.len)
-			return -EINVAL;
 		namelen = udf_put_filename(dir->i_sb, dentry->d_name.name,
 					   dentry->d_name.len,
 					   name, UDF_NAME_LEN_CS0);
@@ -570,7 +566,7 @@ out:
 static int udf_symlink(struct mnt_idmap *idmap, struct inode *dir,
 		       struct dentry *dentry, const char *symname)
 {
-	struct inode *inode = udf_new_inode(dir, S_IFLNK | 0777);
+	struct inode *inode;
 	struct pathComponent *pc;
 	const char *compstart;
 	struct extent_position epos = {};
@@ -583,17 +579,20 @@ static int udf_symlink(struct mnt_idmap *idmap, struct inode *dir,
 	struct udf_inode_info *iinfo;
 	struct super_block *sb = dir->i_sb;
 
-	if (IS_ERR(inode))
-		return PTR_ERR(inode);
+	name = kmalloc(UDF_NAME_LEN_CS0, GFP_KERNEL);
+	if (!name) {
+		err = -ENOMEM;
+		goto out;
+	}
+
+	inode = udf_new_inode(dir, S_IFLNK | 0777);
+	if (IS_ERR(inode)) {
+		err = PTR_ERR(inode);
+		goto out;
+	}
 
 	iinfo = UDF_I(inode);
 	down_write(&iinfo->i_data_sem);
-	name = kmalloc(UDF_NAME_LEN_CS0, GFP_NOFS);
-	if (!name) {
-		err = -ENOMEM;
-		goto out_no_entry;
-	}
-
 	inode->i_data.a_ops = &udf_symlink_aops;
 	inode->i_op = &udf_symlink_inode_operations;
 	inode_nohighmem(inode);
@@ -766,7 +765,7 @@ static int udf_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 	struct inode *old_inode = d_inode(old_dentry);
 	struct inode *new_inode = d_inode(new_dentry);
 	struct udf_fileident_iter oiter, niter, diriter;
-	bool has_diriter = false;
+	bool has_diriter = false, is_dir = false;
 	int retval;
 	struct kernel_lb_addr tloc;
 
@@ -789,6 +788,9 @@ static int udf_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 			if (!empty_dir(new_inode))
 				goto out_oiter;
 		}
+		is_dir = true;
+	}
+	if (is_dir && old_dir != new_dir) {
 		retval = udf_fiiter_find_entry(old_inode, &dotdot_name,
 					       &diriter);
 		if (retval == -ENOENT) {
@@ -878,7 +880,9 @@ static int udf_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 			       udf_dir_entry_len(&diriter.fi));
 		udf_fiiter_write_fi(&diriter, NULL);
 		udf_fiiter_release(&diriter);
+	}
 
+	if (is_dir) {
 		inode_dec_link_count(old_dir);
 		if (new_inode)
 			inode_dec_link_count(new_inode);
@@ -899,7 +903,6 @@ out_oiter:
 static struct dentry *udf_get_parent(struct dentry *child)
 {
 	struct kernel_lb_addr tloc;
-	struct inode *inode = NULL;
 	struct udf_fileident_iter iter;
 	int err;
 
@@ -909,11 +912,7 @@ static struct dentry *udf_get_parent(struct dentry *child)
 
 	tloc = lelb_to_cpu(iter.fi.icb.extLocation);
 	udf_fiiter_release(&iter);
-	inode = udf_iget(child->d_sb, &tloc);
-	if (IS_ERR(inode))
-		return ERR_CAST(inode);
-
-	return d_obtain_alias(inode);
+	return d_obtain_alias(udf_iget(child->d_sb, &tloc));
 }
 
 

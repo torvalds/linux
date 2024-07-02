@@ -10,26 +10,26 @@
 
 TRACE_EVENT(ifs_status,
 
-	TP_PROTO(int cpu, int start, int stop, u64 status),
+	TP_PROTO(int batch, int start, int stop, u64 status),
 
-	TP_ARGS(cpu, start, stop, status),
+	TP_ARGS(batch, start, stop, status),
 
 	TP_STRUCT__entry(
+		__field(	int,	batch	)
 		__field(	u64,	status	)
-		__field(	int,	cpu	)
 		__field(	u16,	start	)
 		__field(	u16,	stop	)
 	),
 
 	TP_fast_assign(
-		__entry->cpu	= cpu;
+		__entry->batch	= batch;
 		__entry->start	= start;
 		__entry->stop	= stop;
 		__entry->status	= status;
 	),
 
-	TP_printk("cpu: %d, start: %.4x, stop: %.4x, status: %.16llx",
-		__entry->cpu,
+	TP_printk("batch: %.2d, start: %.4x, stop: %.4x, status: %.16llx",
+		__entry->batch,
 		__entry->start,
 		__entry->stop,
 		__entry->status)

@@ -1,2 +1,7 @@
 # Hangs machine
 kms_bw.*
+
+# Failing due to a bootloader/fw issue. The workaround in mesa CI involves these two patches
+# https://gitlab.freedesktop.org/gfx-ci/linux/-/commit/4b49f902ec6f2bb382cbbf489870573f4b43371e
+# https://gitlab.freedesktop.org/gfx-ci/linux/-/commit/38cdf4c5559771e2474ae0fecef8469f65147bc1
+msm_mapping@*

@@ -73,12 +73,7 @@ const struct rpc_program nfs_program = {
 	.number			= NFS_PROGRAM,
 	.nrvers			= ARRAY_SIZE(nfs_version),
 	.version		= nfs_version,
-	.stats			= &nfs_rpcstat,
 	.pipe_dir_name		= NFS_PIPE_DIRNAME,
-};
-
-struct rpc_stat nfs_rpcstat = {
-	.program		= &nfs_program
 };
 
 static struct nfs_subversion *find_nfs_version(unsigned int version)
@@ -246,7 +241,7 @@ void nfs_free_client(struct nfs_client *clp)
 	put_nfs_version(clp->cl_nfs_mod);
 	kfree(clp->cl_hostname);
 	kfree(clp->cl_acceptor);
-	kfree(clp);
+	kfree_rcu(clp, rcu);
 }
 EXPORT_SYMBOL_GPL(nfs_free_client);
 
@@ -502,6 +497,7 @@ int nfs_create_rpc_client(struct nfs_client *clp,
 			  const struct nfs_client_initdata *cl_init,
 			  rpc_authflavor_t flavor)
 {
+	struct nfs_net		*nn = net_generic(clp->cl_net, nfs_net_id);
 	struct rpc_clnt		*clnt = NULL;
 	struct rpc_create_args args = {
 		.net		= clp->cl_net,
@@ -513,6 +509,7 @@ int nfs_create_rpc_client(struct nfs_client *clp,
 		.servername	= clp->cl_hostname,
 		.nodename	= cl_init->nodename,
 		.program	= &nfs_program,
+		.stats		= &nn->rpcstats,
 		.version	= clp->rpc_ops->version,
 		.authflavor	= flavor,
 		.cred		= cl_init->cred,
@@ -1006,6 +1003,14 @@ struct nfs_server *nfs_alloc_server(void)
 }
 EXPORT_SYMBOL_GPL(nfs_alloc_server);
 
+static void delayed_free(struct rcu_head *p)
+{
+	struct nfs_server *server = container_of(p, struct nfs_server, rcu);
+
+	nfs_free_iostats(server->io_stats);
+	kfree(server);
+}
+
 /*
  * Free up a server record
  */
@@ -1031,10 +1036,9 @@ void nfs_free_server(struct nfs_server *server)
 
 	ida_destroy(&server->lockowner_id);
 	ida_destroy(&server->openowner_id);
-	nfs_free_iostats(server->io_stats);
 	put_cred(server->cred);
-	kfree(server);
 	nfs_release_automount_timer();
+	call_rcu(&server->rcu, delayed_free);
 }
 EXPORT_SYMBOL_GPL(nfs_free_server);
 
@@ -1175,6 +1179,8 @@ void nfs_clients_init(struct net *net)
 #endif
 	spin_lock_init(&nn->nfs_client_lock);
 	nn->boot_time = ktime_get_real();
+	memset(&nn->rpcstats, 0, sizeof(nn->rpcstats));
+	nn->rpcstats.program = &nfs_program;
 
 	nfs_netns_sysfs_setup(nn, net);
 }

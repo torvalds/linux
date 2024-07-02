@@ -104,7 +104,7 @@ static int __gfs2_unstuff_inode(struct gfs2_inode *ip, struct folio *folio)
 		   and write it out to disk */
 
 		unsigned int n = 1;
-		error = gfs2_alloc_blocks(ip, &block, &n, 0, NULL);
+		error = gfs2_alloc_blocks(ip, &block, &n, 0);
 		if (error)
 			goto out_brelse;
 		if (isdir) {
@@ -315,6 +315,12 @@ static void gfs2_metapath_ra(struct gfs2_glock *gl, __be64 *start, __be64 *end)
 	}
 }
 
+static inline struct buffer_head *
+metapath_dibh(struct metapath *mp)
+{
+	return mp->mp_bh[0];
+}
+
 static int __fillup_metapath(struct gfs2_inode *ip, struct metapath *mp,
 			     unsigned int x, unsigned int h)
 {
@@ -413,13 +419,12 @@ static void release_metapath(struct metapath *mp)
  * gfs2_extent_length - Returns length of an extent of blocks
  * @bh: The metadata block
  * @ptr: Current position in @bh
- * @limit: Max extent length to return
  * @eob: Set to 1 if we hit "end of block"
  *
  * Returns: The length of the extent (minimum of one block)
  */
 
-static inline unsigned int gfs2_extent_length(struct buffer_head *bh, __be64 *ptr, size_t limit, int *eob)
+static inline unsigned int gfs2_extent_length(struct buffer_head *bh, __be64 *ptr, int *eob)
 {
 	const __be64 *end = (__be64 *)(bh->b_data + bh->b_size);
 	const __be64 *first = ptr;
@@ -658,7 +663,7 @@ static int __gfs2_iomap_alloc(struct inode *inode, struct iomap *iomap,
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
-	struct buffer_head *dibh = mp->mp_bh[0];
+	struct buffer_head *dibh = metapath_dibh(mp);
 	u64 bn;
 	unsigned n, i, blks, alloced = 0, iblks = 0, branch_start = 0;
 	size_t dblks = iomap->length >> inode->i_blkbits;
@@ -700,7 +705,7 @@ static int __gfs2_iomap_alloc(struct inode *inode, struct iomap *iomap,
 	i = mp->mp_aheight;
 	do {
 		n = blks - alloced;
-		ret = gfs2_alloc_blocks(ip, &bn, &n, 0, NULL);
+		ret = gfs2_alloc_blocks(ip, &bn, &n, 0);
 		if (ret)
 			goto out;
 		alloced += n;
@@ -911,7 +916,7 @@ unstuff:
 		goto do_alloc;
 
 	bh = mp->mp_bh[ip->i_height - 1];
-	len = gfs2_extent_length(bh, ptr, len, &eob);
+	len = gfs2_extent_length(bh, ptr, &eob);
 
 	iomap->addr = be64_to_cpu(*ptr) << inode->i_blkbits;
 	iomap->length = len << inode->i_blkbits;
@@ -1713,7 +1718,8 @@ static int punch_hole(struct gfs2_inode *ip, u64 offset, u64 length)
 	struct buffer_head *dibh, *bh;
 	struct gfs2_holder rd_gh;
 	unsigned int bsize_shift = sdp->sd_sb.sb_bsize_shift;
-	u64 lblock = (offset + (1 << bsize_shift) - 1) >> bsize_shift;
+	unsigned int bsize = 1 << bsize_shift;
+	u64 lblock = (offset + bsize - 1) >> bsize_shift;
 	__u16 start_list[GFS2_MAX_META_HEIGHT];
 	__u16 __end_list[GFS2_MAX_META_HEIGHT], *end_list = NULL;
 	unsigned int start_aligned, end_aligned;
@@ -1724,7 +1730,7 @@ static int punch_hole(struct gfs2_inode *ip, u64 offset, u64 length)
 	u64 prev_bnr = 0;
 	__be64 *start, *end;
 
-	if (offset >= maxsize) {
+	if (offset + bsize - 1 >= maxsize) {
 		/*
 		 * The starting point lies beyond the allocated metadata;
 		 * there are no blocks to deallocate.
@@ -1821,7 +1827,7 @@ static int punch_hole(struct gfs2_inode *ip, u64 offset, u64 length)
 			gfs2_assert_withdraw(sdp, bh);
 			if (gfs2_assert_withdraw(sdp,
 						 prev_bnr != bh->b_blocknr)) {
-				fs_emerg(sdp, "inode %llu, block:%llu, i_h:%u,"
+				fs_emerg(sdp, "inode %llu, block:%llu, i_h:%u, "
 					 "s_h:%u, mp_h:%u\n",
 				       (unsigned long long)ip->i_no_addr,
 				       prev_bnr, ip->i_height, strip_h, mp_h);
@@ -2460,7 +2466,7 @@ out:
 }
 
 static int gfs2_map_blocks(struct iomap_writepage_ctx *wpc, struct inode *inode,
-		loff_t offset)
+		loff_t offset, unsigned int len)
 {
 	int ret;
 

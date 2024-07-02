@@ -155,12 +155,12 @@ static char *mmap_and_merge_range(char val, unsigned long size, int prot,
 	/* Stabilize accounting by disabling KSM completely. */
 	if (ksm_unmerge()) {
 		ksft_test_result_fail("Disabling (unmerging) KSM failed\n");
-		goto unmap;
+		return MAP_FAILED;
 	}
 
 	if (get_my_merging_pages() > 0) {
 		ksft_test_result_fail("Still pages merged\n");
-		goto unmap;
+		return MAP_FAILED;
 	}
 
 	map = mmap(NULL, size, PROT_READ|PROT_WRITE,
@@ -646,5 +646,5 @@ int main(int argc, char **argv)
 	if (err)
 		ksft_exit_fail_msg("%d out of %d tests failed\n",
 				   err, ksft_test_num());
-	return ksft_exit_pass();
+	ksft_exit_pass();
 }

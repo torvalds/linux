@@ -2,9 +2,8 @@
 // Copyright 2017-2020 NXP
 
 #include <linux/module.h>
-#include <linux/of.h>
+#include <linux/of_platform.h>
 #include <linux/of_reserved_mem.h>
-#include <linux/platform_device.h>
 #include <linux/i2c.h>
 #include <linux/of_gpio.h>
 #include <linux/slab.h>
@@ -21,7 +20,10 @@ struct imx_rpmsg {
 	struct snd_soc_dai_link dai;
 	struct snd_soc_card card;
 	unsigned long sysclk;
+	bool lpa;
 };
+
+static struct dev_pm_ops lpa_pm;
 
 static const struct snd_soc_dapm_widget imx_rpmsg_dapm_widgets[] = {
 	SND_SOC_DAPM_HP("Headphone Jack", NULL),
@@ -39,6 +41,58 @@ static int imx_rpmsg_late_probe(struct snd_soc_card *card)
 	struct device *dev = card->dev;
 	int ret;
 
+	if (data->lpa) {
+		struct snd_soc_component *codec_comp;
+		struct device_node *codec_np;
+		struct device_driver *codec_drv;
+		struct device *codec_dev = NULL;
+
+		codec_np = data->dai.codecs->of_node;
+		if (codec_np) {
+			struct platform_device *codec_pdev;
+			struct i2c_client *codec_i2c;
+
+			codec_i2c = of_find_i2c_device_by_node(codec_np);
+			if (codec_i2c)
+				codec_dev = &codec_i2c->dev;
+			if (!codec_dev) {
+				codec_pdev = of_find_device_by_node(codec_np);
+				if (codec_pdev)
+					codec_dev = &codec_pdev->dev;
+			}
+		}
+		if (codec_dev) {
+			codec_comp = snd_soc_lookup_component_nolocked(codec_dev, NULL);
+			if (codec_comp) {
+				int i, num_widgets;
+				const char *widgets;
+				struct snd_soc_dapm_context *dapm;
+
+				num_widgets = of_property_count_strings(data->card.dev->of_node,
+									"ignore-suspend-widgets");
+				for (i = 0; i < num_widgets; i++) {
+					of_property_read_string_index(data->card.dev->of_node,
+								      "ignore-suspend-widgets",
+								      i, &widgets);
+					dapm = snd_soc_component_get_dapm(codec_comp);
+					snd_soc_dapm_ignore_suspend(dapm, widgets);
+				}
+			}
+			codec_drv = codec_dev->driver;
+			if (codec_drv->pm) {
+				memcpy(&lpa_pm, codec_drv->pm, sizeof(lpa_pm));
+				lpa_pm.suspend = NULL;
+				lpa_pm.resume = NULL;
+				lpa_pm.freeze = NULL;
+				lpa_pm.thaw = NULL;
+				lpa_pm.poweroff = NULL;
+				lpa_pm.restore = NULL;
+				codec_drv->pm = &lpa_pm;
+			}
+			put_device(codec_dev);
+		}
+	}
+
 	if (!data->sysclk)
 		return 0;
 
@@ -54,10 +108,8 @@ static int imx_rpmsg_late_probe(struct snd_soc_card *card)
 static int imx_rpmsg_probe(struct platform_device *pdev)
 {
 	struct snd_soc_dai_link_component *dlc;
-	struct device *dev = pdev->dev.parent;
-	/* rpmsg_pdev is the platform device for the rpmsg node that probed us */
-	struct platform_device *rpmsg_pdev = to_platform_device(dev);
-	struct device_node *np = rpmsg_pdev->dev.of_node;
+	struct snd_soc_dai *cpu_dai;
+	struct device_node *np = NULL;
 	struct of_phandle_args args;
 	const char *platform_name;
 	struct imx_rpmsg *data;
@@ -72,10 +124,6 @@ static int imx_rpmsg_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto fail;
 	}
-
-	ret = of_reserved_mem_device_init_by_idx(&pdev->dev, np, 0);
-	if (ret)
-		dev_warn(&pdev->dev, "no reserved DMA memory\n");
 
 	data->dai.cpus = &dlc[0];
 	data->dai.num_cpus = 1;
@@ -98,6 +146,23 @@ static int imx_rpmsg_probe(struct platform_device *pdev)
 	 */
 	data->dai.ignore_pmdown_time = 1;
 
+	data->dai.cpus->dai_name = pdev->dev.platform_data;
+	cpu_dai = snd_soc_find_dai(data->dai.cpus);
+	if (!cpu_dai) {
+		ret = -EPROBE_DEFER;
+		goto fail;
+	}
+	np = cpu_dai->dev->of_node;
+	if (!np) {
+		dev_err(&pdev->dev, "failed to parse CPU DAI device node\n");
+		ret = -ENODEV;
+		goto fail;
+	}
+
+	ret = of_reserved_mem_device_init_by_idx(&pdev->dev, np, 0);
+	if (ret)
+		dev_warn(&pdev->dev, "no reserved DMA memory\n");
+
 	/* Optional codec node */
 	ret = of_parse_phandle_with_fixed_args(np, "audio-codec", 0, 0, &args);
 	if (ret) {
@@ -116,7 +181,6 @@ static int imx_rpmsg_probe(struct platform_device *pdev)
 			data->sysclk = clk_get_rate(clk);
 	}
 
-	data->dai.cpus->dai_name = dev_name(&rpmsg_pdev->dev);
 	if (!of_property_read_string(np, "fsl,rpmsg-channel-name", &platform_name))
 		data->dai.platforms->name = platform_name;
 	else
@@ -137,6 +201,9 @@ static int imx_rpmsg_probe(struct platform_device *pdev)
 		ret = -EINVAL;
 		goto fail;
 	}
+
+	if (of_property_read_bool(np, "fsl,enable-lpa"))
+		data->lpa = true;
 
 	data->card.dev = &pdev->dev;
 	data->card.owner = THIS_MODULE;

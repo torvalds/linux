@@ -531,11 +531,35 @@ void ipoib_ib_rx_completion(struct ib_cq *cq, void *ctx_ptr)
 	napi_schedule(&priv->recv_napi);
 }
 
+/* The function will force napi_schedule */
+void ipoib_napi_schedule_work(struct work_struct *work)
+{
+	struct ipoib_dev_priv *priv =
+		container_of(work, struct ipoib_dev_priv, reschedule_napi_work);
+	bool ret;
+
+	do {
+		ret = napi_schedule(&priv->send_napi);
+		if (!ret)
+			msleep(3);
+	} while (!ret && netif_queue_stopped(priv->dev) &&
+		 test_bit(IPOIB_FLAG_INITIALIZED, &priv->flags));
+}
+
 void ipoib_ib_tx_completion(struct ib_cq *cq, void *ctx_ptr)
 {
 	struct ipoib_dev_priv *priv = ctx_ptr;
+	bool ret;
 
-	napi_schedule(&priv->send_napi);
+	ret = napi_schedule(&priv->send_napi);
+	/*
+	 * if the queue is closed the driver must be able to schedule napi,
+	 * otherwise we can end with closed queue forever, because no new
+	 * packets to send and napi callback might not get new event after
+	 * its re-arm of the napi.
+	 */
+	if (!ret && netif_queue_stopped(priv->dev))
+		schedule_work(&priv->reschedule_napi_work);
 }
 
 static inline int post_send(struct ipoib_dev_priv *priv,

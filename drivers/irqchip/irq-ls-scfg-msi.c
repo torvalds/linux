@@ -398,7 +398,7 @@ static int ls_scfg_msi_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int ls_scfg_msi_remove(struct platform_device *pdev)
+static void ls_scfg_msi_remove(struct platform_device *pdev)
 {
 	struct ls_scfg_msi *msi_data = platform_get_drvdata(pdev);
 	int i;
@@ -410,17 +410,15 @@ static int ls_scfg_msi_remove(struct platform_device *pdev)
 	irq_domain_remove(msi_data->parent);
 
 	platform_set_drvdata(pdev, NULL);
-
-	return 0;
 }
 
 static struct platform_driver ls_scfg_msi_driver = {
 	.driver = {
-		.name = "ls-scfg-msi",
-		.of_match_table = ls_scfg_msi_id,
+		.name		= "ls-scfg-msi",
+		.of_match_table	= ls_scfg_msi_id,
 	},
-	.probe = ls_scfg_msi_probe,
-	.remove = ls_scfg_msi_remove,
+	.probe		= ls_scfg_msi_probe,
+	.remove_new	= ls_scfg_msi_remove,
 };
 
 module_platform_driver(ls_scfg_msi_driver);

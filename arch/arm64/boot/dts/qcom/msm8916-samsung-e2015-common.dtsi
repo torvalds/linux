@@ -23,6 +23,12 @@
 
 			pinctrl-names = "default";
 			pinctrl-0 = <&muic_int_default>;
+
+			usb_con: connector {
+				compatible = "usb-b-connector";
+				label = "micro-USB";
+				type = "micro";
+			};
 		};
 	};
 
@@ -63,6 +69,10 @@
 		pinctrl-0 = <&accel_int_default>;
 		pinctrl-names = "default";
 	};
+};
+
+&mpss_mem {
+	reg = <0x0 0x86800000 0x0 0x5a00000>;
 };
 
 &reg_motor_vdd {

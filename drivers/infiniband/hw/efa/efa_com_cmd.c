@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
 /*
- * Copyright 2018-2023 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2018-2024 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #include "efa_com.h"
@@ -270,6 +270,15 @@ int efa_com_register_mr(struct efa_com_dev *edev,
 
 	result->l_key = cmd_completion.l_key;
 	result->r_key = cmd_completion.r_key;
+	result->ic_info.recv_ic_id = cmd_completion.recv_ic_id;
+	result->ic_info.rdma_read_ic_id = cmd_completion.rdma_read_ic_id;
+	result->ic_info.rdma_recv_ic_id = cmd_completion.rdma_recv_ic_id;
+	result->ic_info.recv_ic_id_valid = EFA_GET(&cmd_completion.validity,
+						   EFA_ADMIN_REG_MR_RESP_RECV_IC_ID);
+	result->ic_info.rdma_read_ic_id_valid = EFA_GET(&cmd_completion.validity,
+							EFA_ADMIN_REG_MR_RESP_RDMA_READ_IC_ID);
+	result->ic_info.rdma_recv_ic_id_valid = EFA_GET(&cmd_completion.validity,
+							EFA_ADMIN_REG_MR_RESP_RDMA_RECV_IC_ID);
 
 	return 0;
 }

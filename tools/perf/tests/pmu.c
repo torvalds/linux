@@ -128,30 +128,35 @@ static int test_format_dir_put(char *dir)
 	return system(buf);
 }
 
-static struct list_head *test_terms_list(void)
+static void add_test_terms(struct parse_events_terms *terms)
 {
-	static LIST_HEAD(terms);
 	unsigned int i;
 
-	for (i = 0; i < ARRAY_SIZE(test_terms); i++)
-		list_add_tail(&test_terms[i].list, &terms);
+	for (i = 0; i < ARRAY_SIZE(test_terms); i++) {
+		struct parse_events_term *clone;
 
-	return &terms;
+		parse_events_term__clone(&clone, &test_terms[i]);
+		list_add_tail(&clone->list, &terms->terms);
+	}
 }
 
 static int test__pmu(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
 	char dir[PATH_MAX];
 	char *format;
-	struct list_head *terms = test_terms_list();
+	struct parse_events_terms terms;
 	struct perf_event_attr attr;
 	struct perf_pmu *pmu;
 	int fd;
 	int ret;
 
+	parse_events_terms__init(&terms);
+	add_test_terms(&terms);
 	pmu = zalloc(sizeof(*pmu));
-	if (!pmu)
+	if (!pmu) {
+		parse_events_terms__exit(&terms);
 		return -ENOMEM;
+	}
 
 	INIT_LIST_HEAD(&pmu->format);
 	INIT_LIST_HEAD(&pmu->aliases);
@@ -159,6 +164,7 @@ static int test__pmu(struct test_suite *test __maybe_unused, int subtest __maybe
 	format = test_format_dir_get(dir, sizeof(dir));
 	if (!format) {
 		free(pmu);
+		parse_events_terms__exit(&terms);
 		return -EINVAL;
 	}
 
@@ -175,7 +181,7 @@ static int test__pmu(struct test_suite *test __maybe_unused, int subtest __maybe
 	if (ret)
 		goto out;
 
-	ret = perf_pmu__config_terms(pmu, &attr, terms, /*zero=*/false, /*err=*/NULL);
+	ret = perf_pmu__config_terms(pmu, &attr, &terms, /*zero=*/false, /*err=*/NULL);
 	if (ret)
 		goto out;
 
@@ -191,6 +197,7 @@ static int test__pmu(struct test_suite *test __maybe_unused, int subtest __maybe
 out:
 	test_format_dir_put(format);
 	perf_pmu__delete(pmu);
+	parse_events_terms__exit(&terms);
 	return ret;
 }
 

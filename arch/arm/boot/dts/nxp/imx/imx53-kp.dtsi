@@ -13,7 +13,7 @@
 		compatible = "pwm-beeper";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_buzzer>;
-		pwms = <&pwm1 0 500000>;
+		pwms = <&pwm1 0 500000 0>;
 	};
 
 	gpio-buttons {
@@ -160,14 +160,6 @@
 		MX53_PAD_EIM_D19__GPIO3_19 0x1e4
 		MX53_PAD_EIM_D20__GPIO3_20 0x1e4
 	>;
-};
-
-&pwm1 {
-	#pwm-cells = <2>;
-};
-
-&pwm2 {
-	#pwm-cells = <2>;
 };
 
 &uart1 {

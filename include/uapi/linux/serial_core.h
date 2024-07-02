@@ -1,22 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
 /*
- *  linux/drivers/char/serial_core.h
- *
  *  Copyright (C) 2000 Deep Blue Solutions Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 #ifndef _UAPILINUX_SERIAL_CORE_H
 #define _UAPILINUX_SERIAL_CORE_H
@@ -27,6 +11,8 @@
  * The type definitions.  These are from Ted Ts'o's serial.h
  * By historical reasons the values from 0 to 13 are defined
  * in the include/uapi/linux/serial.h, do not define them here.
+ * Values 0 to 19 are used by setserial from busybox and must never
+ * be modified.
  */
 #define PORT_NS16550A	14
 #define PORT_XSCALE	15
@@ -244,5 +230,8 @@
 
 /* Sunplus UART */
 #define PORT_SUNPLUS	123
+
+/* Generic type identifier for ports which type is not important to userspace. */
+#define PORT_GENERIC	(-1)
 
 #endif /* _UAPILINUX_SERIAL_CORE_H */

@@ -166,6 +166,23 @@ static bool is_movsx(const struct bpf_insn *insn)
 	       (insn->off == 8 || insn->off == 16 || insn->off == 32);
 }
 
+static bool is_addr_space_cast(const struct bpf_insn *insn)
+{
+	return insn->code == (BPF_ALU64 | BPF_MOV | BPF_X) &&
+		insn->off == BPF_ADDR_SPACE_CAST;
+}
+
+/* Special (internal-only) form of mov, used to resolve per-CPU addrs:
+ * dst_reg = src_reg + <percpu_base_off>
+ * BPF_ADDR_PERCPU is used as a special insn->off value.
+ */
+#define BPF_ADDR_PERCPU	(-1)
+
+static inline bool is_mov_percpu_addr(const struct bpf_insn *insn)
+{
+	return insn->code == (BPF_ALU64 | BPF_MOV | BPF_X) && insn->off == BPF_ADDR_PERCPU;
+}
+
 void print_bpf_insn(const struct bpf_insn_cbs *cbs,
 		    const struct bpf_insn *insn,
 		    bool allow_ptr_leaks)
@@ -184,6 +201,13 @@ void print_bpf_insn(const struct bpf_insn_cbs *cbs,
 				insn->code, class == BPF_ALU ? 'w' : 'r',
 				insn->dst_reg, class == BPF_ALU ? 'w' : 'r',
 				insn->dst_reg);
+		} else if (is_addr_space_cast(insn)) {
+			verbose(cbs->private_data, "(%02x) r%d = addr_space_cast(r%d, %d, %d)\n",
+				insn->code, insn->dst_reg,
+				insn->src_reg, ((u32)insn->imm) >> 16, (u16)insn->imm);
+		} else if (is_mov_percpu_addr(insn)) {
+			verbose(cbs->private_data, "(%02x) r%d = &(void __percpu *)(r%d)\n",
+				insn->code, insn->dst_reg, insn->src_reg);
 		} else if (BPF_SRC(insn->code) == BPF_X) {
 			verbose(cbs->private_data, "(%02x) %c%d %s %s%c%d\n",
 				insn->code, class == BPF_ALU ? 'w' : 'r',
@@ -321,6 +345,10 @@ void print_bpf_insn(const struct bpf_insn_cbs *cbs,
 			}
 		} else if (insn->code == (BPF_JMP | BPF_JA)) {
 			verbose(cbs->private_data, "(%02x) goto pc%+d\n",
+				insn->code, insn->off);
+		} else if (insn->code == (BPF_JMP | BPF_JCOND) &&
+			   insn->src_reg == BPF_MAY_GOTO) {
+			verbose(cbs->private_data, "(%02x) may_goto pc%+d\n",
 				insn->code, insn->off);
 		} else if (insn->code == (BPF_JMP32 | BPF_JA)) {
 			verbose(cbs->private_data, "(%02x) gotol pc%+d\n",

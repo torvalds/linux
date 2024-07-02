@@ -15,6 +15,7 @@
  *		<grundym@us.ibm.com>
  */
 #include <linux/types.h>
+#include <asm/ctlreg.h>
 #include <asm-generic/kprobes.h>
 
 #define BREAKPOINT_INSTRUCTION	0x0002
@@ -65,15 +66,13 @@ struct prev_kprobe {
 struct kprobe_ctlblk {
 	unsigned long kprobe_status;
 	unsigned long kprobe_saved_imask;
-	unsigned long kprobe_saved_ctl[3];
+	struct ctlreg kprobe_saved_ctl[3];
 	struct prev_kprobe prev_kprobe;
 };
 
 void arch_remove_kprobe(struct kprobe *p);
 
 int kprobe_fault_handler(struct pt_regs *regs, int trapnr);
-int kprobe_exceptions_notify(struct notifier_block *self,
-	unsigned long val, void *data);
 
 #define flush_insn_slot(p)	do { } while (0)
 

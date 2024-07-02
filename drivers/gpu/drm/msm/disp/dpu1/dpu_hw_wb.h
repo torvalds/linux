@@ -46,7 +46,7 @@ struct dpu_hw_wb_ops {
 			struct dpu_hw_qos_cfg *cfg);
 
 	void (*setup_cdp)(struct dpu_hw_wb *ctx,
-			  const struct dpu_format *fmt,
+			  const struct msm_format *fmt,
 			  bool enable);
 
 	bool (*setup_clk_force_ctrl)(struct dpu_hw_wb *ctx,
@@ -76,18 +76,15 @@ struct dpu_hw_wb {
 
 /**
  * dpu_hw_wb_init() - Initializes the writeback hw driver object.
+ * @dev:  Corresponding device for devres management
  * @cfg:  wb_path catalog entry for which driver object is required
  * @addr: mapped register io address of MDP
  * @mdss_rev: dpu core's major and minor versions
  * Return: Error code or allocated dpu_hw_wb context
  */
-struct dpu_hw_wb *dpu_hw_wb_init(const struct dpu_wb_cfg *cfg,
-		void __iomem *addr, const struct dpu_mdss_version *mdss_rev);
-
-/**
- * dpu_hw_wb_destroy(): Destroy writeback hw driver object.
- * @hw_wb:  Pointer to writeback hw driver object
- */
-void dpu_hw_wb_destroy(struct dpu_hw_wb *hw_wb);
+struct dpu_hw_wb *dpu_hw_wb_init(struct drm_device *dev,
+				 const struct dpu_wb_cfg *cfg,
+				 void __iomem *addr,
+				 const struct dpu_mdss_version *mdss_rev);
 
 #endif /*_DPU_HW_WB_H */

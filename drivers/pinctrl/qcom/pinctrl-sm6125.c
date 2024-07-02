@@ -1221,6 +1221,21 @@ static const struct msm_pingroup sm6125_groups[] = {
 	[140] = SDC_QDSD_PINGROUP(sdc2_data, SOUTH, 0x58b000, 9, 0),
 };
 
+static const struct msm_gpio_wakeirq_map sm6125_mpm_map[] = {
+	{ 1, 14 }, { 3, 15 }, { 4, 16 }, { 9, 17 }, { 13, 18 }, { 14, 23 },
+	{ 15, 19 }, { 17, 20 }, { 19, 21 }, { 21, 22 }, { 22, 84 }, { 25, 24 },
+	{ 26, 25 }, { 27, 26 }, { 29, 27 }, { 33, 28 }, { 36, 29 }, { 42, 30 },
+	{ 43, 5 }, { 44, 31 }, { 45, 6 }, { 47, 32 }, { 50, 33 }, { 59, 7 },
+	{ 70, 34 }, { 72, 8 }, { 75, 35 }, { 79, 36 }, { 80, 37 }, { 81, 38 },
+	{ 82, 39 }, { 83, 9 }, { 85, 40 }, { 86, 41 }, { 88, 42 }, { 89, 43 },
+	{ 91, 44 }, { 92, 45 }, { 93, 46 }, { 94, 47 }, { 95, 48 }, { 96, 49 },
+	{ 97, 70 }, { 98, 50 }, { 99, 51 }, { 100, 64 }, { 101, 52 },
+	{ 102, 53 }, { 105, 54 }, { 107, 55 }, { 110, 56 }, { 111, 57 },
+	{ 112, 58 }, { 118, 59 }, { 120, 71 }, { 122, 60 }, { 123, 61 },
+	{ 124, 13 }, { 126, 62 }, { 128, 63 }, { 130, 65 },  { 131, 66 },
+	{ 132, 67 },
+};
+
 static const struct msm_pinctrl_soc_data sm6125_tlmm = {
 	.pins = sm6125_pins,
 	.npins = ARRAY_SIZE(sm6125_pins),
@@ -1231,6 +1246,8 @@ static const struct msm_pinctrl_soc_data sm6125_tlmm = {
 	.ngpios = 134,
 	.tiles = sm6125_tiles,
 	.ntiles = ARRAY_SIZE(sm6125_tiles),
+	.wakeirq_map = sm6125_mpm_map,
+	.nwakeirq_map = ARRAY_SIZE(sm6125_mpm_map),
 };
 
 static int sm6125_tlmm_probe(struct platform_device *pdev)
@@ -1249,7 +1266,7 @@ static struct platform_driver sm6125_tlmm_driver = {
 		.of_match_table = sm6125_tlmm_of_match,
 	},
 	.probe = sm6125_tlmm_probe,
-	.remove = msm_pinctrl_remove,
+	.remove_new = msm_pinctrl_remove,
 };
 
 static int __init sm6125_tlmm_init(void)

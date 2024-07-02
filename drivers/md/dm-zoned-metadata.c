@@ -1655,10 +1655,13 @@ static int dmz_reset_zone(struct dmz_metadata *zmd, struct dm_zone *zone)
 
 	if (!dmz_is_empty(zone) || dmz_seq_write_err(zone)) {
 		struct dmz_dev *dev = zone->dev;
+		unsigned int noio_flag;
 
+		noio_flag = memalloc_noio_save();
 		ret = blkdev_zone_mgmt(dev->bdev, REQ_OP_ZONE_RESET,
 				       dmz_start_sect(zmd, zone),
-				       zmd->zone_nr_sectors, GFP_NOIO);
+				       zmd->zone_nr_sectors);
+		memalloc_noio_restore(noio_flag);
 		if (ret) {
 			dmz_dev_err(dev, "Reset zone %u failed %d",
 				    zone->id, ret);
@@ -2836,12 +2839,11 @@ static void dmz_print_dev(struct dmz_metadata *zmd, int num)
 {
 	struct dmz_dev *dev = &zmd->dev[num];
 
-	if (bdev_zoned_model(dev->bdev) == BLK_ZONED_NONE)
+	if (!bdev_is_zoned(dev->bdev))
 		dmz_dev_info(dev, "Regular block device");
 	else
-		dmz_dev_info(dev, "Host-%s zoned block device",
-			     bdev_zoned_model(dev->bdev) == BLK_ZONED_HA ?
-			     "aware" : "managed");
+		dmz_dev_info(dev, "Host-managed zoned block device");
+
 	if (zmd->sb_version > 1) {
 		sector_t sector_offset =
 			dev->zone_offset << zmd->zone_nr_sectors_shift;

@@ -16,7 +16,7 @@
 		PIN_FIELD_CALC(_s_pin, _e_pin, _i_base, _s_addr, _x_addrs, _s_bit,	\
 			_x_bits, 32, 0)
 
-/**
+/*
  * enum - Locking variants of the iocfg bases
  *
  * MT7986 have multiple bases to program pin configuration listed as the below:

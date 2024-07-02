@@ -322,6 +322,17 @@ static int loopback_snd_timer_close_cable(struct loopback_pcm *dpcm)
 	return 0;
 }
 
+static bool is_access_interleaved(snd_pcm_access_t access)
+{
+	switch (access) {
+	case SNDRV_PCM_ACCESS_MMAP_INTERLEAVED:
+	case SNDRV_PCM_ACCESS_RW_INTERLEAVED:
+		return true;
+	default:
+		return false;
+	}
+};
+
 static int loopback_check_format(struct loopback_cable *cable, int stream)
 {
 	struct snd_pcm_runtime *runtime, *cruntime;
@@ -341,7 +352,8 @@ static int loopback_check_format(struct loopback_cable *cable, int stream)
 	check = runtime->format != cruntime->format ||
 		runtime->rate != cruntime->rate ||
 		runtime->channels != cruntime->channels ||
-		runtime->access != cruntime->access;
+		is_access_interleaved(runtime->access) !=
+		is_access_interleaved(cruntime->access);
 	if (!check)
 		return 0;
 	if (stream == SNDRV_PCM_STREAM_CAPTURE) {
@@ -369,7 +381,8 @@ static int loopback_check_format(struct loopback_cable *cable, int stream)
 							&setup->channels_id);
 			setup->channels = runtime->channels;
 		}
-		if (setup->access != runtime->access) {
+		if (is_access_interleaved(setup->access) !=
+		    is_access_interleaved(runtime->access)) {
 			snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_VALUE,
 							&setup->access_id);
 			setup->access = runtime->access;
@@ -584,8 +597,7 @@ static void copy_play_buf(struct loopback_pcm *play,
 			size = play->pcm_buffer_size - src_off;
 		if (dst_off + size > capt->pcm_buffer_size)
 			size = capt->pcm_buffer_size - dst_off;
-		if (runtime->access == SNDRV_PCM_ACCESS_RW_NONINTERLEAVED ||
-		    runtime->access == SNDRV_PCM_ACCESS_MMAP_NONINTERLEAVED)
+		if (!is_access_interleaved(runtime->access))
 			copy_play_buf_part_n(play, capt, size, src_off, dst_off);
 		else
 			memcpy(dst + dst_off, src + src_off, size);
@@ -915,10 +927,13 @@ static const struct snd_pcm_hardware loopback_pcm_hardware =
 			 SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S24_BE |
 			 SNDRV_PCM_FMTBIT_S24_3LE | SNDRV_PCM_FMTBIT_S24_3BE |
 			 SNDRV_PCM_FMTBIT_S32_LE | SNDRV_PCM_FMTBIT_S32_BE |
-			 SNDRV_PCM_FMTBIT_FLOAT_LE | SNDRV_PCM_FMTBIT_FLOAT_BE),
-	.rates =	SNDRV_PCM_RATE_CONTINUOUS | SNDRV_PCM_RATE_8000_192000,
+			 SNDRV_PCM_FMTBIT_FLOAT_LE | SNDRV_PCM_FMTBIT_FLOAT_BE |
+			 SNDRV_PCM_FMTBIT_DSD_U8 |
+			 SNDRV_PCM_FMTBIT_DSD_U16_LE | SNDRV_PCM_FMTBIT_DSD_U16_BE |
+			 SNDRV_PCM_FMTBIT_DSD_U32_LE | SNDRV_PCM_FMTBIT_DSD_U32_BE),
+	.rates =	SNDRV_PCM_RATE_CONTINUOUS | SNDRV_PCM_RATE_8000_768000,
 	.rate_min =		8000,
-	.rate_max =		192000,
+	.rate_max =		768000,
 	.channels_min =		1,
 	.channels_max =		32,
 	.buffer_bytes_max =	2 * 1024 * 1024,
@@ -1544,8 +1559,7 @@ static int loopback_access_get(struct snd_kcontrol *kcontrol,
 	mutex_lock(&loopback->cable_lock);
 	access = loopback->setup[kcontrol->id.subdevice][kcontrol->id.device].access;
 
-	ucontrol->value.enumerated.item[0] = access == SNDRV_PCM_ACCESS_RW_NONINTERLEAVED ||
-					     access == SNDRV_PCM_ACCESS_MMAP_NONINTERLEAVED;
+	ucontrol->value.enumerated.item[0] = !is_access_interleaved(access);
 
 	mutex_unlock(&loopback->cable_lock);
 	return 0;
@@ -1819,7 +1833,6 @@ static int loopback_probe(struct platform_device *devptr)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int loopback_suspend(struct device *pdev)
 {
 	struct snd_card *card = dev_get_drvdata(pdev);
@@ -1836,11 +1849,7 @@ static int loopback_resume(struct device *pdev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(loopback_pm, loopback_suspend, loopback_resume);
-#define LOOPBACK_PM_OPS	&loopback_pm
-#else
-#define LOOPBACK_PM_OPS	NULL
-#endif
+static DEFINE_SIMPLE_DEV_PM_OPS(loopback_pm, loopback_suspend, loopback_resume);
 
 #define SND_LOOPBACK_DRIVER	"snd_aloop"
 
@@ -1848,7 +1857,7 @@ static struct platform_driver loopback_driver = {
 	.probe		= loopback_probe,
 	.driver		= {
 		.name	= SND_LOOPBACK_DRIVER,
-		.pm	= LOOPBACK_PM_OPS,
+		.pm	= &loopback_pm,
 	},
 };
 

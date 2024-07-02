@@ -348,7 +348,7 @@ static void final_fixup(struct pci_dev *dev)
 	unsigned char bist;
 	int ret;
 
-	/* Do build-in self test */
+	/* Do built-in self test */
 	ret = pci_read_config_byte(dev, PCI_BIST, &bist);
 	if ((ret != PCIBIOS_SUCCESSFUL) || !(bist & PCI_BIST_CAPABLE))
 		return;

@@ -537,7 +537,7 @@ static int max6621_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id max6621_id[] = {
-	{ MAX6621_DRV_NAME, 0 },
+	{ MAX6621_DRV_NAME },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, max6621_id);
@@ -549,7 +549,6 @@ static const struct of_device_id __maybe_unused max6621_of_match[] = {
 MODULE_DEVICE_TABLE(of, max6621_of_match);
 
 static struct i2c_driver max6621_driver = {
-	.class		= I2C_CLASS_HWMON,
 	.driver = {
 		.name = MAX6621_DRV_NAME,
 		.of_match_table = of_match_ptr(max6621_of_match),

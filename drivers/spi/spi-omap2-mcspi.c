@@ -53,8 +53,6 @@
 
 /* per-register bitmasks: */
 #define OMAP2_MCSPI_IRQSTATUS_EOW	BIT(17)
-#define OMAP2_MCSPI_IRQSTATUS_TX0_EMPTY    BIT(0)
-#define OMAP2_MCSPI_IRQSTATUS_RX0_FULL    BIT(2)
 
 #define OMAP2_MCSPI_MODULCTRL_SINGLE	BIT(0)
 #define OMAP2_MCSPI_MODULCTRL_MS	BIT(2)
@@ -133,6 +131,7 @@ struct omap2_mcspi {
 	unsigned int		pin_dir:1;
 	size_t			max_xfer_len;
 	u32			ref_clk_hz;
+	bool			use_multi_mode;
 };
 
 struct omap2_mcspi_cs {
@@ -258,10 +257,15 @@ static void omap2_mcspi_set_cs(struct spi_device *spi, bool enable)
 
 		l = mcspi_cached_chconf0(spi);
 
-		if (enable)
+		/* Only enable chip select manually if single mode is used */
+		if (mcspi->use_multi_mode) {
 			l &= ~OMAP2_MCSPI_CHCONF_FORCE;
-		else
-			l |= OMAP2_MCSPI_CHCONF_FORCE;
+		} else {
+			if (enable)
+				l &= ~OMAP2_MCSPI_CHCONF_FORCE;
+			else
+				l |= OMAP2_MCSPI_CHCONF_FORCE;
+		}
 
 		mcspi_write_chconf0(spi, l);
 
@@ -285,7 +289,12 @@ static void omap2_mcspi_set_mode(struct spi_controller *ctlr)
 		l |= (OMAP2_MCSPI_MODULCTRL_MS);
 	} else {
 		l &= ~(OMAP2_MCSPI_MODULCTRL_MS);
-		l |= OMAP2_MCSPI_MODULCTRL_SINGLE;
+
+		/* Enable single mode if needed */
+		if (mcspi->use_multi_mode)
+			l &= ~OMAP2_MCSPI_MODULCTRL_SINGLE;
+		else
+			l |= OMAP2_MCSPI_MODULCTRL_SINGLE;
 	}
 	mcspi_write_reg(ctlr, OMAP2_MCSPI_MODULCTRL, l);
 
@@ -293,7 +302,7 @@ static void omap2_mcspi_set_mode(struct spi_controller *ctlr)
 }
 
 static void omap2_mcspi_set_fifo(const struct spi_device *spi,
-				struct spi_transfer *t, int enable, int dma_enabled)
+				struct spi_transfer *t, int enable)
 {
 	struct spi_controller *ctlr = spi->controller;
 	struct omap2_mcspi_cs *cs = spi->controller_state;
@@ -314,28 +323,20 @@ static void omap2_mcspi_set_fifo(const struct spi_device *spi,
 			max_fifo_depth = OMAP2_MCSPI_MAX_FIFODEPTH / 2;
 		else
 			max_fifo_depth = OMAP2_MCSPI_MAX_FIFODEPTH;
-		if (dma_enabled)
-			wcnt = t->len / bytes_per_word;
-		else
-			wcnt = 0;
+
+		wcnt = t->len / bytes_per_word;
 		if (wcnt > OMAP2_MCSPI_MAX_FIFOWCNT)
 			goto disable_fifo;
 
 		xferlevel = wcnt << 16;
 		if (t->rx_buf != NULL) {
 			chconf |= OMAP2_MCSPI_CHCONF_FFER;
-			if (dma_enabled)
-				xferlevel |= (bytes_per_word - 1) << 8;
-			else
-				xferlevel |= (max_fifo_depth - 1) << 8;
+			xferlevel |= (bytes_per_word - 1) << 8;
 		}
 
 		if (t->tx_buf != NULL) {
 			chconf |= OMAP2_MCSPI_CHCONF_FFET;
-			if (dma_enabled)
-				xferlevel |= bytes_per_word - 1;
-			else
-				xferlevel |= (max_fifo_depth - 1);
+			xferlevel |= bytes_per_word - 1;
 		}
 
 		mcspi_write_reg(ctlr, OMAP2_MCSPI_XFERLEVEL, xferlevel);
@@ -892,113 +893,6 @@ out:
 	return count - c;
 }
 
-static unsigned
-omap2_mcspi_txrx_piofifo(struct spi_device *spi, struct spi_transfer *xfer)
-{
-	struct omap2_mcspi_cs	*cs = spi->controller_state;
-	struct omap2_mcspi    *mcspi;
-	unsigned int		count, c;
-	unsigned int		iter, cwc;
-	int last_request;
-	void __iomem		*base = cs->base;
-	void __iomem		*tx_reg;
-	void __iomem		*rx_reg;
-	void __iomem		*chstat_reg;
-	void __iomem        *irqstat_reg;
-	int			word_len, bytes_per_word;
-	u8		*rx;
-	const u8	*tx;
-
-	mcspi = spi_controller_get_devdata(spi->controller);
-	count = xfer->len;
-	c = count;
-	word_len = cs->word_len;
-	bytes_per_word = mcspi_bytes_per_word(word_len);
-
-	/*
-	 * We store the pre-calculated register addresses on stack to speed
-	 * up the transfer loop.
-	 */
-	tx_reg		= base + OMAP2_MCSPI_TX0;
-	rx_reg		= base + OMAP2_MCSPI_RX0;
-	chstat_reg	= base + OMAP2_MCSPI_CHSTAT0;
-	irqstat_reg    = base + OMAP2_MCSPI_IRQSTATUS;
-
-	if (c < (word_len >> 3))
-		return 0;
-
-	rx = xfer->rx_buf;
-	tx = xfer->tx_buf;
-
-	do {
-		/* calculate number of words in current iteration */
-		cwc = min((unsigned int)mcspi->fifo_depth / bytes_per_word,
-			  c / bytes_per_word);
-		last_request = cwc != (mcspi->fifo_depth / bytes_per_word);
-		if (tx) {
-			if (mcspi_wait_for_reg_bit(irqstat_reg,
-						   OMAP2_MCSPI_IRQSTATUS_TX0_EMPTY) < 0) {
-				dev_err(&spi->dev, "TX Empty timed out\n");
-				goto out;
-			}
-			writel_relaxed(OMAP2_MCSPI_IRQSTATUS_TX0_EMPTY, irqstat_reg);
-
-			for (iter = 0; iter < cwc; iter++, tx += bytes_per_word) {
-				if (bytes_per_word == 1)
-					writel_relaxed(*tx, tx_reg);
-				else if (bytes_per_word == 2)
-					writel_relaxed(*((u16 *)tx), tx_reg);
-				else if (bytes_per_word == 4)
-					writel_relaxed(*((u32 *)tx), tx_reg);
-			}
-		}
-
-		if (rx) {
-			if (!last_request &&
-			    mcspi_wait_for_reg_bit(irqstat_reg,
-						   OMAP2_MCSPI_IRQSTATUS_RX0_FULL) < 0) {
-				dev_err(&spi->dev, "RX_FULL timed out\n");
-				goto out;
-			}
-			writel_relaxed(OMAP2_MCSPI_IRQSTATUS_RX0_FULL, irqstat_reg);
-
-			for (iter = 0; iter < cwc; iter++, rx += bytes_per_word) {
-				if (last_request &&
-				    mcspi_wait_for_reg_bit(chstat_reg,
-							   OMAP2_MCSPI_CHSTAT_RXS) < 0) {
-					dev_err(&spi->dev, "RXS timed out\n");
-					goto out;
-				}
-				if (bytes_per_word == 1)
-					*rx = readl_relaxed(rx_reg);
-				else if (bytes_per_word == 2)
-					*((u16 *)rx) = readl_relaxed(rx_reg);
-				else if (bytes_per_word == 4)
-					*((u32 *)rx) = readl_relaxed(rx_reg);
-			}
-		}
-
-		if (last_request) {
-			if (mcspi_wait_for_reg_bit(chstat_reg,
-						   OMAP2_MCSPI_CHSTAT_EOT) < 0) {
-				dev_err(&spi->dev, "EOT timed out\n");
-				goto out;
-			}
-			if (mcspi_wait_for_reg_bit(chstat_reg,
-						   OMAP2_MCSPI_CHSTAT_TXFFE) < 0) {
-				dev_err(&spi->dev, "TXFFE timed out\n");
-				goto out;
-			}
-			omap2_mcspi_set_enable(spi, 0);
-		}
-		c -= cwc * bytes_per_word;
-	} while (c >= bytes_per_word);
-
-out:
-	omap2_mcspi_set_enable(spi, 1);
-	return count - c;
-}
-
 static u32 omap2_mcspi_calc_divisor(u32 speed_hz, u32 ref_clk_hz)
 {
 	u32 div;
@@ -1292,13 +1186,6 @@ static int omap2_mcspi_transfer_one(struct spi_controller *ctlr,
 		    t->bits_per_word == spi->bits_per_word)
 			par_override = 0;
 	}
-	if (cd && cd->cs_per_word) {
-		chconf = mcspi->ctx.modulctrl;
-		chconf &= ~OMAP2_MCSPI_MODULCTRL_SINGLE;
-		mcspi_write_reg(ctlr, OMAP2_MCSPI_MODULCTRL, chconf);
-		mcspi->ctx.modulctrl =
-			mcspi_read_cs_reg(spi, OMAP2_MCSPI_MODULCTRL);
-	}
 
 	chconf = mcspi_cached_chconf0(spi);
 	chconf &= ~OMAP2_MCSPI_CHCONF_TRM_MASK;
@@ -1323,9 +1210,7 @@ static int omap2_mcspi_transfer_one(struct spi_controller *ctlr,
 		if ((mcspi_dma->dma_rx && mcspi_dma->dma_tx) &&
 		    ctlr->cur_msg_mapped &&
 		    ctlr->can_dma(ctlr, spi, t))
-			omap2_mcspi_set_fifo(spi, t, 1, 1);
-		else if (t->len > OMAP2_MCSPI_MAX_FIFODEPTH)
-			omap2_mcspi_set_fifo(spi, t, 1, 0);
+			omap2_mcspi_set_fifo(spi, t, 1);
 
 		omap2_mcspi_set_enable(spi, 1);
 
@@ -1338,8 +1223,6 @@ static int omap2_mcspi_transfer_one(struct spi_controller *ctlr,
 		    ctlr->cur_msg_mapped &&
 		    ctlr->can_dma(ctlr, spi, t))
 			count = omap2_mcspi_txrx_dma(spi, t);
-		else if (mcspi->fifo_depth > 0)
-			count = omap2_mcspi_txrx_piofifo(spi, t);
 		else
 			count = omap2_mcspi_txrx_pio(spi, t);
 
@@ -1352,7 +1235,7 @@ static int omap2_mcspi_transfer_one(struct spi_controller *ctlr,
 	omap2_mcspi_set_enable(spi, 0);
 
 	if (mcspi->fifo_depth > 0)
-		omap2_mcspi_set_fifo(spi, t, 0, 0);
+		omap2_mcspi_set_fifo(spi, t, 0);
 
 out:
 	/* Restore defaults if they were overriden */
@@ -1361,21 +1244,13 @@ out:
 		status = omap2_mcspi_setup_transfer(spi, NULL);
 	}
 
-	if (cd && cd->cs_per_word) {
-		chconf = mcspi->ctx.modulctrl;
-		chconf |= OMAP2_MCSPI_MODULCTRL_SINGLE;
-		mcspi_write_reg(ctlr, OMAP2_MCSPI_MODULCTRL, chconf);
-		mcspi->ctx.modulctrl =
-			mcspi_read_cs_reg(spi, OMAP2_MCSPI_MODULCTRL);
-	}
-
 	omap2_mcspi_set_enable(spi, 0);
 
 	if (spi_get_csgpiod(spi, 0))
 		omap2_mcspi_set_cs(spi, !(spi->mode & SPI_CS_HIGH));
 
 	if (mcspi->fifo_depth > 0 && t)
-		omap2_mcspi_set_fifo(spi, t, 0, 0);
+		omap2_mcspi_set_fifo(spi, t, 0);
 
 	return status;
 }
@@ -1386,15 +1261,72 @@ static int omap2_mcspi_prepare_message(struct spi_controller *ctlr,
 	struct omap2_mcspi	*mcspi = spi_controller_get_devdata(ctlr);
 	struct omap2_mcspi_regs	*ctx = &mcspi->ctx;
 	struct omap2_mcspi_cs	*cs;
+	struct spi_transfer	*tr;
+	u8 bits_per_word;
 
-	/* Only a single channel can have the FORCE bit enabled
+	/*
+	 * The conditions are strict, it is mandatory to check each transfer of the list to see if
+	 * multi-mode is applicable.
+	 */
+	mcspi->use_multi_mode = true;
+	list_for_each_entry(tr, &msg->transfers, transfer_list) {
+		if (!tr->bits_per_word)
+			bits_per_word = msg->spi->bits_per_word;
+		else
+			bits_per_word = tr->bits_per_word;
+
+		/*
+		 * Check if this transfer contains only one word;
+		 * OR contains 1 to 4 words, with bits_per_word == 8 and no delay between each word
+		 * OR contains 1 to 2 words, with bits_per_word == 16 and no delay between each word
+		 *
+		 * If one of the two last case is true, this also change the bits_per_word of this
+		 * transfer to make it a bit faster.
+		 * It's not an issue to change the bits_per_word here even if the multi-mode is not
+		 * applicable for this message, the signal on the wire will be the same.
+		 */
+		if (bits_per_word < 8 && tr->len == 1) {
+			/* multi-mode is applicable, only one word (1..7 bits) */
+		} else if (tr->word_delay.value == 0 && bits_per_word == 8 && tr->len <= 4) {
+			/* multi-mode is applicable, only one "bigger" word (8,16,24,32 bits) */
+			tr->bits_per_word = tr->len * bits_per_word;
+		} else if (tr->word_delay.value == 0 && bits_per_word == 16 && tr->len <= 2) {
+			/* multi-mode is applicable, only one "bigger" word (16,32 bits) */
+			tr->bits_per_word = tr->len * bits_per_word / 2;
+		} else if (bits_per_word >= 8 && tr->len == bits_per_word / 8) {
+			/* multi-mode is applicable, only one word (9..15,17..32 bits) */
+		} else {
+			/* multi-mode is not applicable: more than one word in the transfer */
+			mcspi->use_multi_mode = false;
+		}
+
+		/* Check if transfer asks to change the CS status after the transfer */
+		if (!tr->cs_change)
+			mcspi->use_multi_mode = false;
+
+		/*
+		 * If at least one message is not compatible, switch back to single mode
+		 *
+		 * The bits_per_word of certain transfer can be different, but it will have no
+		 * impact on the signal itself.
+		 */
+		if (!mcspi->use_multi_mode)
+			break;
+	}
+
+	omap2_mcspi_set_mode(ctlr);
+
+	/* In single mode only a single channel can have the FORCE bit enabled
 	 * in its chconf0 register.
 	 * Scan all channels and disable them except the current one.
 	 * A FORCE can remain from a last transfer having cs_change enabled
+	 *
+	 * In multi mode all FORCE bits must be disabled.
 	 */
 	list_for_each_entry(cs, &ctx->cs, node) {
-		if (msg->spi->controller_state == cs)
+		if (msg->spi->controller_state == cs && !mcspi->use_multi_mode) {
 			continue;
+		}
 
 		if ((cs->chconf0 & OMAP2_MCSPI_CHCONF_FORCE)) {
 			cs->chconf0 &= ~OMAP2_MCSPI_CHCONF_FORCE;

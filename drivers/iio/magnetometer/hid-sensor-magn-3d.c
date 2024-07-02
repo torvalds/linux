@@ -547,7 +547,7 @@ error_remove_trigger:
 }
 
 /* Function to deinitialize the processing for usage id */
-static int hid_magn_3d_remove(struct platform_device *pdev)
+static void hid_magn_3d_remove(struct platform_device *pdev)
 {
 	struct hid_sensor_hub_device *hsdev = pdev->dev.platform_data;
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
@@ -556,8 +556,6 @@ static int hid_magn_3d_remove(struct platform_device *pdev)
 	sensor_hub_remove_callback(hsdev, HID_USAGE_SENSOR_COMPASS_3D);
 	iio_device_unregister(indio_dev);
 	hid_sensor_remove_trigger(indio_dev, &magn_state->magn_flux_attributes);
-
-	return 0;
 }
 
 static const struct platform_device_id hid_magn_3d_ids[] = {
@@ -576,7 +574,7 @@ static struct platform_driver hid_magn_3d_platform_driver = {
 		.pm	= &hid_sensor_pm_ops,
 	},
 	.probe		= hid_magn_3d_probe,
-	.remove		= hid_magn_3d_remove,
+	.remove_new	= hid_magn_3d_remove,
 };
 module_platform_driver(hid_magn_3d_platform_driver);
 

@@ -578,7 +578,7 @@
 				reg = <0x83fd8000 0x1000>;
 			};
 
-			weim: weim@83fda000 {
+			weim: memory-controller@83fda000 {
 				#address-cells = <2>;
 				#size-cells = <1>;
 				compatible = "fsl,imx51-weim";

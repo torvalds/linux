@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
 
-#ifdef HAVE_PERF_REGS_SUPPORT
-
 #include "../perf_regs.h"
 #include "../../../arch/x86/include/uapi/asm/perf_regs.h"
 
@@ -94,5 +92,3 @@ uint64_t __perf_reg_sp_x86(void)
 {
 	return PERF_REG_X86_SP;
 }
-
-#endif

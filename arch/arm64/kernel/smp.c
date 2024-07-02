@@ -264,6 +264,13 @@ asmlinkage notrace void secondary_start_kernel(void)
 	set_cpu_online(cpu, true);
 	complete(&cpu_running);
 
+	/*
+	 * Secondary CPUs enter the kernel with all DAIF exceptions masked.
+	 *
+	 * As with setup_arch() we must unmask Debug and SError exceptions, and
+	 * as the root irqchip has already been detected and initialized we can
+	 * unmask IRQ and FIQ at the same time.
+	 */
 	local_daif_restore(DAIF_PROCCTX);
 
 	/*
@@ -439,9 +446,8 @@ static void __init hyp_mode_check(void)
 void __init smp_cpus_done(unsigned int max_cpus)
 {
 	pr_info("SMP: Total of %d processors activated.\n", num_online_cpus());
-	setup_system_features();
 	hyp_mode_check();
-	apply_alternatives_all();
+	setup_system_features();
 	setup_user_features();
 	mark_linear_text_alias_ro();
 }
@@ -454,14 +460,9 @@ void __init smp_prepare_boot_cpu(void)
 	 * freed shortly, so we must move over to the runtime per-cpu area.
 	 */
 	set_my_cpu_offset(per_cpu_offset(smp_processor_id()));
-	cpuinfo_store_boot_cpu();
 
-	/*
-	 * We now know enough about the boot CPU to apply the
-	 * alternatives that cannot wait until interrupt handling
-	 * and/or scheduling is enabled.
-	 */
-	apply_boot_alternatives();
+	cpuinfo_store_boot_cpu();
+	setup_boot_cpu_features();
 
 	/* Conditionally switch to GIC PMR for interrupt masking */
 	if (system_uses_irq_prio_masking())
@@ -965,10 +966,7 @@ static void smp_cross_call(const struct cpumask *target, unsigned int ipinr)
 
 static bool ipi_should_be_nmi(enum ipi_msg_type ipi)
 {
-	DECLARE_STATIC_KEY_FALSE(supports_pseudo_nmis);
-
-	if (!system_uses_irq_prio_masking() ||
-	    !static_branch_likely(&supports_pseudo_nmis))
+	if (!system_uses_irq_prio_masking())
 		return false;
 
 	switch (ipi) {

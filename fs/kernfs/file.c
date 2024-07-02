@@ -447,7 +447,7 @@ static int kernfs_fop_mmap(struct file *file, struct vm_area_struct *vma)
 	 * warnings and we don't want to add spurious locking dependency
 	 * between the two.  Check whether mmap is actually implemented
 	 * without grabbing @of->mutex by testing HAS_MMAP flag.  See the
-	 * comment in kernfs_file_open() for more details.
+	 * comment in kernfs_fop_open() for more details.
 	 */
 	if (!(of->kn->flags & KERNFS_HAS_MMAP))
 		return -ENODEV;
@@ -483,9 +483,11 @@ static int kernfs_fop_mmap(struct file *file, struct vm_area_struct *vma)
 		goto out_put;
 
 	rc = 0;
-	of->mmapped = true;
-	of_on(of)->nr_mmapped++;
-	of->vm_ops = vma->vm_ops;
+	if (!of->mmapped) {
+		of->mmapped = true;
+		of_on(of)->nr_mmapped++;
+		of->vm_ops = vma->vm_ops;
+	}
 	vma->vm_ops = &kernfs_vm_ops;
 out_put:
 	kernfs_put_active(of->kn);
@@ -634,10 +636,17 @@ static int kernfs_fop_open(struct inode *inode, struct file *file)
 	 * each file a separate locking class.  Let's differentiate on
 	 * whether the file has mmap or not for now.
 	 *
-	 * Both paths of the branch look the same.  They're supposed to
+	 * For similar reasons, writable and readonly files are given different
+	 * lockdep key, because the writable file /sys/power/resume may call vfs
+	 * lookup helpers for arbitrary paths and readonly files can be read by
+	 * overlayfs from vfs helpers when sysfs is a lower layer of overalyfs.
+	 *
+	 * All three cases look the same.  They're supposed to
 	 * look that way and give @of->mutex different static lockdep keys.
 	 */
 	if (has_mmap)
+		mutex_init(&of->mutex);
+	else if (file->f_mode & FMODE_WRITE)
 		mutex_init(&of->mutex);
 	else
 		mutex_init(&of->mutex);
@@ -854,6 +863,33 @@ static __poll_t kernfs_fop_poll(struct file *filp, poll_table *wait)
 	return ret;
 }
 
+static loff_t kernfs_fop_llseek(struct file *file, loff_t offset, int whence)
+{
+	struct kernfs_open_file *of = kernfs_of(file);
+	const struct kernfs_ops *ops;
+	loff_t ret;
+
+	/*
+	 * @of->mutex nests outside active ref and is primarily to ensure that
+	 * the ops aren't called concurrently for the same open file.
+	 */
+	mutex_lock(&of->mutex);
+	if (!kernfs_get_active(of->kn)) {
+		mutex_unlock(&of->mutex);
+		return -ENODEV;
+	}
+
+	ops = kernfs_ops(of->kn);
+	if (ops->llseek)
+		ret = ops->llseek(of, offset, whence);
+	else
+		ret = generic_file_llseek(file, offset, whence);
+
+	kernfs_put_active(of->kn);
+	mutex_unlock(&of->mutex);
+	return ret;
+}
+
 static void kernfs_notify_workfn(struct work_struct *work)
 {
 	struct kernfs_node *kn;
@@ -956,7 +992,7 @@ EXPORT_SYMBOL_GPL(kernfs_notify);
 const struct file_operations kernfs_file_fops = {
 	.read_iter	= kernfs_fop_read_iter,
 	.write_iter	= kernfs_fop_write_iter,
-	.llseek		= generic_file_llseek,
+	.llseek		= kernfs_fop_llseek,
 	.mmap		= kernfs_fop_mmap,
 	.open		= kernfs_fop_open,
 	.release	= kernfs_fop_release,

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
 //
-// Copyright(c) 2022 Intel Corporation. All rights reserved.
+// Copyright(c) 2022 Intel Corporation
 //
 // Authors: Ranjani Sridharan <ranjani.sridharan@linux.intel.com>
 //
@@ -9,6 +9,7 @@
  * Hardware interface for audio DSP on Meteorlake.
  */
 
+#include <linux/debugfs.h>
 #include <linux/firmware.h>
 #include <sound/sof/ipc4/header.h>
 #include <trace/events/sof_intel.h>
@@ -24,6 +25,7 @@ static const struct snd_sof_debugfs_map mtl_dsp_debugfs[] = {
 	{"hda", HDA_DSP_HDA_BAR, 0, 0x4000, SOF_DEBUGFS_ACCESS_ALWAYS},
 	{"pp", HDA_DSP_PP_BAR,  0, 0x1000, SOF_DEBUGFS_ACCESS_ALWAYS},
 	{"dsp", HDA_DSP_BAR,  0, 0x10000, SOF_DEBUGFS_ACCESS_ALWAYS},
+	{"fw_regs", HDA_DSP_BAR,  MTL_SRAM_WINDOW_OFFSET(0), 0x1000, SOF_DEBUGFS_ACCESS_D0_ONLY},
 };
 
 static void mtl_ipc_host_done(struct snd_sof_dev *sdev)
@@ -75,6 +77,7 @@ bool mtl_dsp_check_ipc_irq(struct snd_sof_dev *sdev)
 
 	return false;
 }
+EXPORT_SYMBOL_NS(mtl_dsp_check_ipc_irq, SND_SOC_SOF_INTEL_MTL);
 
 /* Check if an SDW IRQ occurred */
 static bool mtl_dsp_check_sdw_irq(struct snd_sof_dev *sdev)
@@ -118,6 +121,7 @@ int mtl_ipc_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg)
 
 	return 0;
 }
+EXPORT_SYMBOL_NS(mtl_ipc_send_msg, SND_SOC_SOF_INTEL_MTL);
 
 void mtl_enable_ipc_interrupts(struct snd_sof_dev *sdev)
 {
@@ -145,6 +149,7 @@ void mtl_disable_ipc_interrupts(struct snd_sof_dev *sdev)
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, chip->ipc_ctl,
 				MTL_DSP_REG_HFIPCXCTL_BUSY | MTL_DSP_REG_HFIPCXCTL_DONE, 0);
 }
+EXPORT_SYMBOL_NS(mtl_disable_ipc_interrupts, SND_SOC_SOF_INTEL_MTL);
 
 static void mtl_enable_sdw_irq(struct snd_sof_dev *sdev, bool enable)
 {
@@ -229,6 +234,7 @@ int mtl_enable_interrupts(struct snd_sof_dev *sdev, bool enable)
 
 	return ret;
 }
+EXPORT_SYMBOL_NS(mtl_enable_interrupts, SND_SOC_SOF_INTEL_MTL);
 
 /* pre fw run operations */
 int mtl_dsp_pre_fw_run(struct snd_sof_dev *sdev)
@@ -279,6 +285,7 @@ int mtl_dsp_pre_fw_run(struct snd_sof_dev *sdev)
 
 	return ret;
 }
+EXPORT_SYMBOL_NS(mtl_dsp_pre_fw_run, SND_SOC_SOF_INTEL_MTL);
 
 int mtl_dsp_post_fw_run(struct snd_sof_dev *sdev)
 {
@@ -294,36 +301,36 @@ int mtl_dsp_post_fw_run(struct snd_sof_dev *sdev)
 		}
 
 		/* Check if IMR boot is usable */
-		if (!sof_debug_check_flag(SOF_DBG_IGNORE_D3_PERSISTENT))
+		if (!sof_debug_check_flag(SOF_DBG_IGNORE_D3_PERSISTENT)) {
 			hdev->imrboot_supported = true;
+			debugfs_create_bool("skip_imr_boot",
+					    0644, sdev->debugfs_root,
+					    &hdev->skip_imr_boot);
+		}
 	}
 
 	hda_sdw_int_enable(sdev, true);
 	return 0;
 }
+EXPORT_SYMBOL_NS(mtl_dsp_post_fw_run, SND_SOC_SOF_INTEL_MTL);
 
 void mtl_dsp_dump(struct snd_sof_dev *sdev, u32 flags)
 {
 	char *level = (flags & SOF_DBG_DUMP_OPTIONAL) ? KERN_DEBUG : KERN_ERR;
-	u32 romdbgsts;
-	u32 romdbgerr;
 	u32 fwsts;
 	u32 fwlec;
 
+	hda_dsp_get_state(sdev, level);
 	fwsts = snd_sof_dsp_read(sdev, HDA_DSP_BAR, MTL_DSP_ROM_STS);
 	fwlec = snd_sof_dsp_read(sdev, HDA_DSP_BAR, MTL_DSP_ROM_ERROR);
-	romdbgsts = snd_sof_dsp_read(sdev, HDA_DSP_BAR, MTL_DSP_REG_HFFLGPXQWY);
-	romdbgerr = snd_sof_dsp_read(sdev, HDA_DSP_BAR, MTL_DSP_REG_HFFLGPXQWY_ERROR);
 
-	dev_err(sdev->dev, "ROM status: %#x, ROM error: %#x\n", fwsts, fwlec);
-	dev_err(sdev->dev, "ROM debug status: %#x, ROM debug error: %#x\n", romdbgsts,
-		romdbgerr);
-	romdbgsts = snd_sof_dsp_read(sdev, HDA_DSP_BAR, MTL_DSP_REG_HFFLGPXQWY + 0x8 * 3);
-	dev_printk(level, sdev->dev, "ROM feature bit%s enabled\n",
-		   romdbgsts & BIT(24) ? "" : " not");
+	if (fwsts != 0xffffffff)
+		dev_err(sdev->dev, "Firmware state: %#x, status/error code: %#x\n",
+			fwsts, fwlec);
 
 	sof_ipc4_intel_dump_telemetry_state(sdev, flags);
 }
+EXPORT_SYMBOL_NS(mtl_dsp_dump, SND_SOC_SOF_INTEL_MTL);
 
 static bool mtl_dsp_primary_core_is_enabled(struct snd_sof_dev *sdev)
 {
@@ -434,13 +441,15 @@ int mtl_power_down_dsp(struct snd_sof_dev *sdev)
 					     (dsphfdsscs & cpa) == 0, HDA_DSP_REG_POLL_INTERVAL_US,
 					     HDA_DSP_RESET_TIMEOUT_US);
 }
+EXPORT_SYMBOL_NS(mtl_power_down_dsp, SND_SOC_SOF_INTEL_MTL);
 
 int mtl_dsp_cl_init(struct snd_sof_dev *sdev, int stream_tag, bool imr_boot)
 {
 	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	const struct sof_intel_dsp_desc *chip = hda->desc;
-	unsigned int status;
-	u32 ipc_hdr;
+	unsigned int status, target_status;
+	u32 ipc_hdr, flags;
+	char *dump_msg;
 	int ret;
 
 	/* step 1: purge FW request */
@@ -484,19 +493,58 @@ int mtl_dsp_cl_init(struct snd_sof_dev *sdev, int stream_tag, bool imr_boot)
 
 	mtl_enable_ipc_interrupts(sdev);
 
-	/*
-	 * ACE workaround: don't wait for ROM INIT.
-	 * The platform cannot catch ROM_INIT_DONE because of a very short
-	 * timing window. Follow the recommendations and skip this part.
-	 */
+	if (chip->rom_status_reg == MTL_DSP_ROM_STS) {
+		/*
+		 * Workaround: when the ROM status register is pointing to
+		 * the SRAM window (MTL_DSP_ROM_STS) the platform cannot catch
+		 * ROM_INIT_DONE because of a very short timing window.
+		 * Follow the recommendations and skip target state waiting.
+		 */
+		return 0;
+	}
 
-	return 0;
+	/*
+	 * step 7:
+	 * - Cold/Full boot: wait for ROM init to proceed to download the firmware
+	 * - IMR boot: wait for ROM firmware entered (firmware booted up from IMR)
+	 */
+	if (imr_boot)
+		target_status = FSR_STATE_FW_ENTERED;
+	else
+		target_status = FSR_STATE_INIT_DONE;
+
+	ret = snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_BAR,
+					chip->rom_status_reg, status,
+					(FSR_TO_STATE_CODE(status) == target_status),
+					HDA_DSP_REG_POLL_INTERVAL_US,
+					chip->rom_init_timeout *
+					USEC_PER_MSEC);
+
+	if (!ret)
+		return 0;
+
+	if (hda->boot_iteration == HDA_FW_BOOT_ATTEMPTS)
+		dev_err(sdev->dev,
+			"%s: timeout with rom_status_reg (%#x) read\n",
+			__func__, chip->rom_status_reg);
 
 err:
-	snd_sof_dsp_dbg_dump(sdev, "MTL DSP init fail", 0);
+	flags = SOF_DBG_DUMP_PCI | SOF_DBG_DUMP_MBOX | SOF_DBG_DUMP_OPTIONAL;
+
+	/* after max boot attempts make sure that the dump is printed */
+	if (hda->boot_iteration == HDA_FW_BOOT_ATTEMPTS)
+		flags &= ~SOF_DBG_DUMP_OPTIONAL;
+
+	dump_msg = kasprintf(GFP_KERNEL, "Boot iteration failed: %d/%d",
+			     hda->boot_iteration, HDA_FW_BOOT_ATTEMPTS);
+	snd_sof_dsp_dbg_dump(sdev, dump_msg, flags);
+	mtl_enable_interrupts(sdev, false);
 	mtl_dsp_core_power_down(sdev, SOF_DSP_PRIMARY_CORE);
+
+	kfree(dump_msg);
 	return ret;
 }
+EXPORT_SYMBOL_NS(mtl_dsp_cl_init, SND_SOC_SOF_INTEL_MTL);
 
 irqreturn_t mtl_ipc_irq_thread(int irq, void *context)
 {
@@ -580,16 +628,19 @@ irqreturn_t mtl_ipc_irq_thread(int irq, void *context)
 
 	return IRQ_HANDLED;
 }
+EXPORT_SYMBOL_NS(mtl_ipc_irq_thread, SND_SOC_SOF_INTEL_MTL);
 
 int mtl_dsp_ipc_get_mailbox_offset(struct snd_sof_dev *sdev)
 {
 	return MTL_DSP_MBOX_UPLINK_OFFSET;
 }
+EXPORT_SYMBOL_NS(mtl_dsp_ipc_get_mailbox_offset, SND_SOC_SOF_INTEL_MTL);
 
 int mtl_dsp_ipc_get_window_offset(struct snd_sof_dev *sdev, u32 id)
 {
 	return MTL_SRAM_WINDOW_OFFSET(id);
 }
+EXPORT_SYMBOL_NS(mtl_dsp_ipc_get_window_offset, SND_SOC_SOF_INTEL_MTL);
 
 void mtl_ipc_dump(struct snd_sof_dev *sdev)
 {
@@ -607,6 +658,7 @@ void mtl_ipc_dump(struct snd_sof_dev *sdev)
 		"Host IPC initiator: %#x|%#x|%#x, target: %#x|%#x|%#x, ctl: %#x\n",
 		hipcidr, hipcidd, hipcida, hipctdr, hipctdd, hipctda, hipcctl);
 }
+EXPORT_SYMBOL_NS(mtl_ipc_dump, SND_SOC_SOF_INTEL_MTL);
 
 static int mtl_dsp_disable_interrupts(struct snd_sof_dev *sdev)
 {
@@ -615,19 +667,7 @@ static int mtl_dsp_disable_interrupts(struct snd_sof_dev *sdev)
 	return mtl_enable_interrupts(sdev, false);
 }
 
-u64 mtl_dsp_get_stream_hda_link_position(struct snd_sof_dev *sdev,
-					 struct snd_soc_component *component,
-					 struct snd_pcm_substream *substream)
-{
-	struct hdac_stream *hstream = substream->runtime->private_data;
-	u32 llp_l, llp_u;
-
-	llp_l = snd_sof_dsp_read(sdev, HDA_DSP_HDA_BAR, MTL_PPLCLLPL(hstream->index));
-	llp_u = snd_sof_dsp_read(sdev, HDA_DSP_HDA_BAR, MTL_PPLCLLPU(hstream->index));
-	return ((u64)llp_u << 32) | llp_l;
-}
-
-static int mtl_dsp_core_get(struct snd_sof_dev *sdev, int core)
+int mtl_dsp_core_get(struct snd_sof_dev *sdev, int core)
 {
 	const struct sof_ipc_pm_ops *pm_ops = sdev->ipc->ops->pm;
 
@@ -639,8 +679,9 @@ static int mtl_dsp_core_get(struct snd_sof_dev *sdev, int core)
 
 	return 0;
 }
+EXPORT_SYMBOL_NS(mtl_dsp_core_get, SND_SOC_SOF_INTEL_MTL);
 
-static int mtl_dsp_core_put(struct snd_sof_dev *sdev, int core)
+int mtl_dsp_core_put(struct snd_sof_dev *sdev, int core)
 {
 	const struct sof_ipc_pm_ops *pm_ops = sdev->ipc->ops->pm;
 	int ret;
@@ -656,10 +697,10 @@ static int mtl_dsp_core_put(struct snd_sof_dev *sdev, int core)
 
 	return 0;
 }
+EXPORT_SYMBOL_NS(mtl_dsp_core_put, SND_SOC_SOF_INTEL_MTL);
 
 /* Meteorlake ops */
 struct snd_sof_dsp_ops sof_mtl_ops;
-EXPORT_SYMBOL_NS(sof_mtl_ops, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 int sof_mtl_ops_init(struct snd_sof_dev *sdev)
 {
@@ -696,9 +737,7 @@ int sof_mtl_ops_init(struct snd_sof_dev *sdev)
 	sof_mtl_ops.core_get = mtl_dsp_core_get;
 	sof_mtl_ops.core_put = mtl_dsp_core_put;
 
-	sof_mtl_ops.get_stream_position = mtl_dsp_get_stream_hda_link_position;
-
-	sdev->private = devm_kzalloc(sdev->dev, sizeof(struct sof_ipc4_fw_data), GFP_KERNEL);
+	sdev->private = kzalloc(sizeof(struct sof_ipc4_fw_data), GFP_KERNEL);
 	if (!sdev->private)
 		return -ENOMEM;
 
@@ -706,6 +745,8 @@ int sof_mtl_ops_init(struct snd_sof_dev *sdev)
 	ipc4_data->manifest_fw_hdr_offset = SOF_MAN4_FW_HDR_OFFSET;
 
 	ipc4_data->mtrace_type = SOF_IPC4_MTRACE_INTEL_CAVS_2;
+
+	ipc4_data->fw_context_save = true;
 
 	/* External library loading support */
 	ipc4_data->load_library = hda_dsp_ipc4_load_library;
@@ -717,7 +758,6 @@ int sof_mtl_ops_init(struct snd_sof_dev *sdev)
 
 	return 0;
 };
-EXPORT_SYMBOL_NS(sof_mtl_ops_init, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 const struct sof_intel_dsp_desc mtl_chip_info = {
 	.cores_num = 3,
@@ -728,7 +768,7 @@ const struct sof_intel_dsp_desc mtl_chip_info = {
 	.ipc_ack = MTL_DSP_REG_HFIPCXIDA,
 	.ipc_ack_mask = MTL_DSP_REG_HFIPCXIDA_DONE,
 	.ipc_ctl = MTL_DSP_REG_HFIPCXCTL,
-	.rom_status_reg = MTL_DSP_ROM_STS,
+	.rom_status_reg = MTL_DSP_REG_HFFLGPXQWY,
 	.rom_init_timeout	= 300,
 	.ssp_count = MTL_SSP_COUNT,
 	.ssp_base_offset = CNL_SSP_BASE_OFFSET,
@@ -739,10 +779,38 @@ const struct sof_intel_dsp_desc mtl_chip_info = {
 	.enable_sdw_irq = mtl_enable_sdw_irq,
 	.check_sdw_irq = mtl_dsp_check_sdw_irq,
 	.check_sdw_wakeen_irq = hda_sdw_check_wakeen_irq_common,
+	.sdw_process_wakeen = hda_sdw_process_wakeen_common,
 	.check_ipc_irq = mtl_dsp_check_ipc_irq,
 	.cl_init = mtl_dsp_cl_init,
 	.power_down_dsp = mtl_power_down_dsp,
 	.disable_interrupts = mtl_dsp_disable_interrupts,
 	.hw_ip_version = SOF_INTEL_ACE_1_0,
 };
-EXPORT_SYMBOL_NS(mtl_chip_info, SND_SOC_SOF_INTEL_HDA_COMMON);
+
+const struct sof_intel_dsp_desc arl_s_chip_info = {
+	.cores_num = 2,
+	.init_core_mask = BIT(0),
+	.host_managed_cores_mask = BIT(0),
+	.ipc_req = MTL_DSP_REG_HFIPCXIDR,
+	.ipc_req_mask = MTL_DSP_REG_HFIPCXIDR_BUSY,
+	.ipc_ack = MTL_DSP_REG_HFIPCXIDA,
+	.ipc_ack_mask = MTL_DSP_REG_HFIPCXIDA_DONE,
+	.ipc_ctl = MTL_DSP_REG_HFIPCXCTL,
+	.rom_status_reg = MTL_DSP_REG_HFFLGPXQWY,
+	.rom_init_timeout	= 300,
+	.ssp_count = MTL_SSP_COUNT,
+	.ssp_base_offset = CNL_SSP_BASE_OFFSET,
+	.sdw_shim_base = SDW_SHIM_BASE_ACE,
+	.sdw_alh_base = SDW_ALH_BASE_ACE,
+	.d0i3_offset = MTL_HDA_VS_D0I3C,
+	.read_sdw_lcount =  hda_sdw_check_lcount_common,
+	.enable_sdw_irq = mtl_enable_sdw_irq,
+	.check_sdw_irq = mtl_dsp_check_sdw_irq,
+	.check_sdw_wakeen_irq = hda_sdw_check_wakeen_irq_common,
+	.sdw_process_wakeen = hda_sdw_process_wakeen_common,
+	.check_ipc_irq = mtl_dsp_check_ipc_irq,
+	.cl_init = mtl_dsp_cl_init,
+	.power_down_dsp = mtl_power_down_dsp,
+	.disable_interrupts = mtl_dsp_disable_interrupts,
+	.hw_ip_version = SOF_INTEL_ACE_1_0,
+};

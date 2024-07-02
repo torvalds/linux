@@ -441,8 +441,9 @@ static unsigned int trace_string(struct synth_trace_event *entry,
 	if (is_dynamic) {
 		union trace_synth_field *data = &entry->fields[*n_u64];
 
+		len = fetch_store_strlen((unsigned long)str_val);
 		data->as_dynamic.offset = struct_size(entry, fields, event->n_u64) + data_size;
-		data->as_dynamic.len = fetch_store_strlen((unsigned long)str_val);
+		data->as_dynamic.len = len;
 
 		ret = fetch_store_string((unsigned long)str_val, &entry->fields[*n_u64], entry);
 
@@ -452,7 +453,7 @@ static unsigned int trace_string(struct synth_trace_event *entry,
 
 #ifdef CONFIG_ARCH_HAS_NON_OVERLAPPING_ADDRESS_SPACE
 		if ((unsigned long)str_val < TASK_SIZE)
-			ret = strncpy_from_user_nofault(str_field, str_val, STR_VAR_LEN_MAX);
+			ret = strncpy_from_user_nofault(str_field, (const void __user *)str_val, STR_VAR_LEN_MAX);
 		else
 #endif
 			ret = strncpy_from_kernel_nofault(str_field, str_val, STR_VAR_LEN_MAX);
@@ -1137,7 +1138,7 @@ EXPORT_SYMBOL_GPL(synth_event_add_fields);
  * @cmd: A pointer to the dynevent_cmd struct representing the new event
  * @name: The name of the synthetic event
  * @mod: The module creating the event, NULL if not created from a module
- * @args: Variable number of arg (pairs), one pair for each field
+ * @...: Variable number of arg (pairs), one pair for each field
  *
  * NOTE: Users normally won't want to call this function directly, but
  * rather use the synth_event_gen_cmd_start() wrapper, which
@@ -1695,7 +1696,7 @@ __synth_event_trace_end(struct synth_event_trace_state *trace_state)
  * synth_event_trace - Trace a synthetic event
  * @file: The trace_event_file representing the synthetic event
  * @n_vals: The number of values in vals
- * @args: Variable number of args containing the event values
+ * @...: Variable number of args containing the event values
  *
  * Trace a synthetic event using the values passed in the variable
  * argument list.

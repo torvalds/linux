@@ -228,11 +228,43 @@ static void g4x_hdmi_enable_port(struct intel_encoder *encoder,
 	temp = intel_de_read(dev_priv, intel_hdmi->hdmi_reg);
 
 	temp |= SDVO_ENABLE;
-	if (pipe_config->has_audio)
-		temp |= HDMI_AUDIO_ENABLE;
 
 	intel_de_write(dev_priv, intel_hdmi->hdmi_reg, temp);
 	intel_de_posting_read(dev_priv, intel_hdmi->hdmi_reg);
+}
+
+static void g4x_hdmi_audio_enable(struct intel_encoder *encoder,
+				  const struct intel_crtc_state *crtc_state,
+				  const struct drm_connector_state *conn_state)
+{
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	struct intel_hdmi *hdmi = enc_to_intel_hdmi(encoder);
+
+	if (!crtc_state->has_audio)
+		return;
+
+	drm_WARN_ON(&i915->drm, !crtc_state->has_hdmi_sink);
+
+	/* Enable audio presence detect */
+	intel_de_rmw(i915, hdmi->hdmi_reg, 0, HDMI_AUDIO_ENABLE);
+
+	intel_audio_codec_enable(encoder, crtc_state, conn_state);
+}
+
+static void g4x_hdmi_audio_disable(struct intel_encoder *encoder,
+				   const struct intel_crtc_state *old_crtc_state,
+				   const struct drm_connector_state *old_conn_state)
+{
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	struct intel_hdmi *hdmi = enc_to_intel_hdmi(encoder);
+
+	if (!old_crtc_state->has_audio)
+		return;
+
+	intel_audio_codec_disable(encoder, old_crtc_state, old_conn_state);
+
+	/* Disable audio presence detect */
+	intel_de_rmw(i915, hdmi->hdmi_reg, HDMI_AUDIO_ENABLE, 0);
 }
 
 static void g4x_enable_hdmi(struct intel_atomic_state *state,
@@ -240,13 +272,7 @@ static void g4x_enable_hdmi(struct intel_atomic_state *state,
 			    const struct intel_crtc_state *pipe_config,
 			    const struct drm_connector_state *conn_state)
 {
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-
 	g4x_hdmi_enable_port(encoder, pipe_config);
-
-	drm_WARN_ON(&dev_priv->drm, pipe_config->has_audio &&
-		    !pipe_config->has_hdmi_sink);
-	intel_audio_codec_enable(encoder, pipe_config, conn_state);
 }
 
 static void ibx_enable_hdmi(struct intel_atomic_state *state,
@@ -262,8 +288,6 @@ static void ibx_enable_hdmi(struct intel_atomic_state *state,
 	temp = intel_de_read(dev_priv, intel_hdmi->hdmi_reg);
 
 	temp |= SDVO_ENABLE;
-	if (pipe_config->has_audio)
-		temp |= HDMI_AUDIO_ENABLE;
 
 	/*
 	 * HW workaround, need to write this twice for issue
@@ -296,10 +320,6 @@ static void ibx_enable_hdmi(struct intel_atomic_state *state,
 		intel_de_write(dev_priv, intel_hdmi->hdmi_reg, temp);
 		intel_de_posting_read(dev_priv, intel_hdmi->hdmi_reg);
 	}
-
-	drm_WARN_ON(&dev_priv->drm, pipe_config->has_audio &&
-		    !pipe_config->has_hdmi_sink);
-	intel_audio_codec_enable(encoder, pipe_config, conn_state);
 }
 
 static void cpt_enable_hdmi(struct intel_atomic_state *state,
@@ -317,8 +337,6 @@ static void cpt_enable_hdmi(struct intel_atomic_state *state,
 	temp = intel_de_read(dev_priv, intel_hdmi->hdmi_reg);
 
 	temp |= SDVO_ENABLE;
-	if (pipe_config->has_audio)
-		temp |= HDMI_AUDIO_ENABLE;
 
 	/*
 	 * WaEnableHDMI8bpcBefore12bpc:snb,ivb
@@ -351,10 +369,6 @@ static void cpt_enable_hdmi(struct intel_atomic_state *state,
 		intel_de_rmw(dev_priv, TRANS_CHICKEN1(pipe),
 			     TRANS_CHICKEN1_HDMIUNIT_GC_DISABLE, 0);
 	}
-
-	drm_WARN_ON(&dev_priv->drm, pipe_config->has_audio &&
-		    !pipe_config->has_hdmi_sink);
-	intel_audio_codec_enable(encoder, pipe_config, conn_state);
 }
 
 static void vlv_enable_hdmi(struct intel_atomic_state *state,
@@ -362,11 +376,6 @@ static void vlv_enable_hdmi(struct intel_atomic_state *state,
 			    const struct intel_crtc_state *pipe_config,
 			    const struct drm_connector_state *conn_state)
 {
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-
-	drm_WARN_ON(&dev_priv->drm, pipe_config->has_audio &&
-		    !pipe_config->has_hdmi_sink);
-	intel_audio_codec_enable(encoder, pipe_config, conn_state);
 }
 
 static void intel_disable_hdmi(struct intel_atomic_state *state,
@@ -384,7 +393,7 @@ static void intel_disable_hdmi(struct intel_atomic_state *state,
 
 	temp = intel_de_read(dev_priv, intel_hdmi->hdmi_reg);
 
-	temp &= ~(SDVO_ENABLE | HDMI_AUDIO_ENABLE);
+	temp &= ~SDVO_ENABLE;
 	intel_de_write(dev_priv, intel_hdmi->hdmi_reg, temp);
 	intel_de_posting_read(dev_priv, intel_hdmi->hdmi_reg);
 
@@ -433,8 +442,6 @@ static void g4x_disable_hdmi(struct intel_atomic_state *state,
 			     const struct intel_crtc_state *old_crtc_state,
 			     const struct drm_connector_state *old_conn_state)
 {
-	intel_audio_codec_disable(encoder, old_crtc_state, old_conn_state);
-
 	intel_disable_hdmi(state, encoder, old_crtc_state, old_conn_state);
 }
 
@@ -443,7 +450,6 @@ static void pch_disable_hdmi(struct intel_atomic_state *state,
 			     const struct intel_crtc_state *old_crtc_state,
 			     const struct drm_connector_state *old_conn_state)
 {
-	intel_audio_codec_disable(encoder, old_crtc_state, old_conn_state);
 }
 
 static void pch_post_disable_hdmi(struct intel_atomic_state *state,
@@ -750,6 +756,8 @@ void g4x_hdmi_init(struct drm_i915_private *dev_priv,
 		else
 			intel_encoder->enable = g4x_enable_hdmi;
 	}
+	intel_encoder->audio_enable = g4x_hdmi_audio_enable;
+	intel_encoder->audio_disable = g4x_hdmi_audio_disable;
 	intel_encoder->shutdown = intel_hdmi_encoder_shutdown;
 
 	intel_encoder->type = INTEL_OUTPUT_HDMI;

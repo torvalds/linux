@@ -200,6 +200,7 @@
 			gpio-controller;
 			ngpios = <4>;
 			interrupt-controller;
+			#interrupt-cells = <2>;
 			interrupts = <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>;
 		};
 

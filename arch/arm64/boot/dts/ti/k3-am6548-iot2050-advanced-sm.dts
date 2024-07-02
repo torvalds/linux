@@ -1,0 +1,189 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (c) Siemens AG, 2023
+ *
+ * Authors:
+ *   Baocheng Su <baocheng.su@siemens.com>
+ *   Chao Zeng <chao.zeng@siemens.com>
+ *   Huaqian Li <huaqian.li@siemens.com>
+ *
+ * AM6548-based (quad-core) IOT2050 SM variant, Product Generation 2
+ * 4 GB RAM, 16 GB eMMC, USB-serial converter on connector X30
+ *
+ * Product homepage:
+ * https://new.siemens.com/global/en/products/automation/pc-based/iot-gateways/simatic-iot2050.html
+ */
+
+/dts-v1/;
+
+#include "k3-am6548-iot2050-advanced-common.dtsi"
+#include "k3-am65-iot2050-common-pg2.dtsi"
+
+/ {
+	compatible = "siemens,iot2050-advanced-sm", "ti,am654";
+	model = "SIMATIC IOT2050 Advanced SM";
+
+	memory@80000000 {
+		device_type = "memory";
+		/* 4G RAM */
+		reg = <0x00000000 0x80000000 0x00000000 0x80000000>,
+		      <0x00000008 0x80000000 0x00000000 0x80000000>;
+	};
+
+	aliases {
+		spi1 = &main_spi0;
+	};
+
+	leds {
+		pinctrl-0 = <&leds_pins_default>, <&user1_led_pins>;
+
+		led-2 {
+			gpios = <&wkup_gpio0 52 GPIO_ACTIVE_HIGH>;
+		};
+
+		led-3 {
+			gpios = <&wkup_gpio0 53 GPIO_ACTIVE_HIGH>;
+		};
+	};
+};
+
+&main_pmx0 {
+	main_pcie_enable_pins_default: main-pcie-enable-default-pins {
+		pinctrl-single,pins = <
+			AM65X_IOPAD(0x01d8, PIN_OUTPUT, 7)  /* (AH12) GPIO1_22 */
+		>;
+	};
+
+	main_spi0_pins: main-spi0-default-pins  {
+		pinctrl-single,pins = <
+			AM65X_IOPAD(0x01c4, PIN_INPUT, 0) /* (AH13) SPI0_CLK */
+			AM65X_IOPAD(0x01c8, PIN_INPUT, 0) /* (AE13) SPI0_D0 */
+			AM65X_IOPAD(0x01cc, PIN_INPUT, 0) /* (AD13) SPI0_D1 */
+			AM65X_IOPAD(0x01bc, PIN_OUTPUT, 0) /* (AG13) SPI0_CS0 */
+		>;
+	};
+};
+
+&main_pmx1 {
+	asic_spi_mux_ctrl_pin: asic-spi-mux-ctrl-default-pins {
+		pinctrl-single,pins = <
+			AM65X_IOPAD(0x0010, PIN_OUTPUT, 7)  /* (D21) GPIO1_86 */
+		>;
+	};
+};
+
+&wkup_pmx0 {
+	user1_led_pins: user1-led-default-pins {
+		pinctrl-single,pins = <
+			/* (AB1) WKUP_UART0_RXD:WKUP_GPIO0_52, as USER 1 led red */
+			AM65X_WKUP_IOPAD(0x00a0, PIN_OUTPUT, 7)
+			/* (AB5) WKUP_UART0_TXD:WKUP_GPIO0_53, as USER 1 led green */
+			AM65X_WKUP_IOPAD(0x00a4, PIN_OUTPUT, 7)
+		>;
+	};
+
+	soc_asic_pins: soc-asic-default-pins {
+		pinctrl-single,pins = <
+			AM65X_WKUP_IOPAD(0x0044, PIN_INPUT, 7)  /* (P4) WKUP_GPIO0_29 */
+			AM65X_WKUP_IOPAD(0x0048, PIN_INPUT, 7)  /* (P5) WKUP_GPIO0_30 */
+			AM65X_WKUP_IOPAD(0x004c, PIN_INPUT, 7)  /* (P1) WKUP_GPIO0_31 */
+		>;
+	};
+};
+
+&main_gpio0 {
+	gpio-line-names = "main_gpio0-base";
+};
+
+&main_gpio1 {
+	pinctrl-names = "default";
+	pinctrl-0 =
+		<&cp2102n_reset_pin_default>,
+		<&main_pcie_enable_pins_default>,
+		<&asic_spi_mux_ctrl_pin>;
+	gpio-line-names =
+		/* 0..9 */
+		"", "", "", "", "", "", "", "", "", "",
+		/* 10..19 */
+		"", "", "", "", "", "", "", "", "", "",
+		/* 20..29 */
+		"", "", "", "", "CP2102N-RESET", "", "", "", "", "",
+		/* 30..39 */
+		"", "", "", "", "", "", "", "", "", "",
+		/* 40..49 */
+		"", "", "", "", "", "", "", "", "", "",
+		/* 50..59 */
+		"", "", "", "", "", "", "", "", "", "",
+		/* 60..69 */
+		"", "", "", "", "", "", "", "", "", "",
+		/* 70..79 */
+		"", "", "", "", "", "", "", "", "", "",
+		/* 80..86 */
+		"", "", "", "", "", "", "ASIC-spi-mux-ctrl";
+};
+
+&wkup_gpio0 {
+	pinctrl-names = "default";
+	pinctrl-0 =
+		<&push_button_pins_default>,
+		<&db9_com_mode_pins_default>,
+		<&soc_asic_pins>;
+	gpio-line-names =
+		/* 0..9 */
+		"wkup_gpio0-base", "", "", "", "UART0-mode1", "UART0-mode0",
+		"UART0-enable", "UART0-terminate", "", "WIFI-disable",
+		/* 10..19 */
+		"", "", "", "", "", "", "", "", "", "",
+		/* 20..29 */
+		"", "", "", "", "", "USER-button", "", "", "","ASIC-gpio-0",
+		/* 30..31 */
+		"ASIC-gpio-1", "ASIC-gpio-2";
+};
+
+&main_spi0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&main_spi0_pins>;
+
+	#address-cells = <1>;
+	#size-cells= <0>;
+};
+
+&mcu_spi0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mcu_spi0_pins_default>;
+};
+
+&main_i2c3 {
+	accelerometer: lsm6dso@6a {
+		compatible = "st,lsm6dso";
+		reg = <0x6a>;
+	};
+};
+
+&dss {
+	status = "disabled";
+};
+
+&serdes0 {
+	assigned-clocks = <&k3_clks 153 4>, <&serdes0 AM654_SERDES_CMU_REFCLK>;
+	assigned-clock-parents = <&k3_clks 153 8>, <&k3_clks 153 4>;
+};
+
+&serdes1 {
+	status = "disabled";
+};
+
+&pcie0_rc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&minipcie_pins_default>;
+
+	num-lanes = <1>;
+	phys = <&serdes0 PHY_TYPE_PCIE 1>;
+	phy-names = "pcie-phy0";
+	reset-gpios = <&wkup_gpio0 27 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+&pcie1_rc {
+	status = "disabled";
+};

@@ -16,7 +16,7 @@
  * Large Arrays of Fixed-Size Records
  * ==================================
  *
- * This memory array uses an xfile (which itself is a memfd "file") to store
+ * This memory array uses an xfile (which itself is a shmem file) to store
  * large numbers of fixed-size records in memory that can be paged out.  This
  * puts less stress on the memory reclaim algorithms during an online repair
  * because we don't have to pin so much memory.  However, array access is less
@@ -136,7 +136,7 @@ xfarray_load(
 	if (idx >= array->nr)
 		return -ENODATA;
 
-	return xfile_obj_load(array->xfile, ptr, array->obj_size,
+	return xfile_load(array->xfile, ptr, array->obj_size,
 			xfarray_pos(array, idx));
 }
 
@@ -152,7 +152,7 @@ xfarray_is_unset(
 	if (array->unset_slots == 0)
 		return false;
 
-	error = xfile_obj_load(array->xfile, temp, array->obj_size, pos);
+	error = xfile_load(array->xfile, temp, array->obj_size, pos);
 	if (!error && xfarray_element_is_null(array, temp))
 		return true;
 
@@ -184,7 +184,7 @@ xfarray_unset(
 		return 0;
 
 	memset(temp, 0, array->obj_size);
-	error = xfile_obj_store(array->xfile, temp, array->obj_size, pos);
+	error = xfile_store(array->xfile, temp, array->obj_size, pos);
 	if (error)
 		return error;
 
@@ -209,7 +209,7 @@ xfarray_store(
 
 	ASSERT(!xfarray_element_is_null(array, ptr));
 
-	ret = xfile_obj_store(array->xfile, ptr, array->obj_size,
+	ret = xfile_store(array->xfile, ptr, array->obj_size,
 			xfarray_pos(array, idx));
 	if (ret)
 		return ret;
@@ -245,12 +245,12 @@ xfarray_store_anywhere(
 	for (pos = 0;
 	     pos < endpos && array->unset_slots > 0;
 	     pos += array->obj_size) {
-		error = xfile_obj_load(array->xfile, temp, array->obj_size,
+		error = xfile_load(array->xfile, temp, array->obj_size,
 				pos);
 		if (error || !xfarray_element_is_null(array, temp))
 			continue;
 
-		error = xfile_obj_store(array->xfile, ptr, array->obj_size,
+		error = xfile_store(array->xfile, ptr, array->obj_size,
 				pos);
 		if (error)
 			return error;
@@ -552,7 +552,7 @@ xfarray_isort(
 	trace_xfarray_isort(si, lo, hi);
 
 	xfarray_sort_bump_loads(si);
-	error = xfile_obj_load(si->array->xfile, scratch, len, lo_pos);
+	error = xfile_load(si->array->xfile, scratch, len, lo_pos);
 	if (error)
 		return error;
 
@@ -560,88 +560,45 @@ xfarray_isort(
 	sort(scratch, hi - lo + 1, si->array->obj_size, si->cmp_fn, NULL);
 
 	xfarray_sort_bump_stores(si);
-	return xfile_obj_store(si->array->xfile, scratch, len, lo_pos);
+	return xfile_store(si->array->xfile, scratch, len, lo_pos);
 }
 
-/* Grab a page for sorting records. */
-static inline int
-xfarray_sort_get_page(
-	struct xfarray_sortinfo	*si,
-	loff_t			pos,
-	uint64_t		len)
-{
-	int			error;
-
-	error = xfile_get_page(si->array->xfile, pos, len, &si->xfpage);
-	if (error)
-		return error;
-
-	/*
-	 * xfile pages must never be mapped into userspace, so we skip the
-	 * dcache flush when mapping the page.
-	 */
-	si->page_kaddr = kmap_local_page(si->xfpage.page);
-	return 0;
-}
-
-/* Release a page we grabbed for sorting records. */
-static inline int
-xfarray_sort_put_page(
-	struct xfarray_sortinfo	*si)
-{
-	if (!si->page_kaddr)
-		return 0;
-
-	kunmap_local(si->page_kaddr);
-	si->page_kaddr = NULL;
-
-	return xfile_put_page(si->array->xfile, &si->xfpage);
-}
-
-/* Decide if these records are eligible for in-page sorting. */
-static inline bool
-xfarray_want_pagesort(
-	struct xfarray_sortinfo	*si,
-	xfarray_idx_t		lo,
-	xfarray_idx_t		hi)
-{
-	pgoff_t			lo_page;
-	pgoff_t			hi_page;
-	loff_t			end_pos;
-
-	/* We can only map one page at a time. */
-	lo_page = xfarray_pos(si->array, lo) >> PAGE_SHIFT;
-	end_pos = xfarray_pos(si->array, hi) + si->array->obj_size - 1;
-	hi_page = end_pos >> PAGE_SHIFT;
-
-	return lo_page == hi_page;
-}
-
-/* Sort a bunch of records that all live in the same memory page. */
+/*
+ * Sort the records from lo to hi (inclusive) if they are all backed by the
+ * same memory folio.  Returns 1 if it sorted, 0 if it did not, or a negative
+ * errno.
+ */
 STATIC int
-xfarray_pagesort(
+xfarray_foliosort(
 	struct xfarray_sortinfo	*si,
 	xfarray_idx_t		lo,
 	xfarray_idx_t		hi)
 {
+	struct folio		*folio;
 	void			*startp;
 	loff_t			lo_pos = xfarray_pos(si->array, lo);
-	uint64_t		len = xfarray_pos(si->array, hi - lo);
-	int			error = 0;
+	uint64_t		len = xfarray_pos(si->array, hi - lo + 1);
 
-	trace_xfarray_pagesort(si, lo, hi);
+	/* No single folio could back this many records. */
+	if (len > XFILE_MAX_FOLIO_SIZE)
+		return 0;
 
 	xfarray_sort_bump_loads(si);
-	error = xfarray_sort_get_page(si, lo_pos, len);
-	if (error)
-		return error;
+	folio = xfile_get_folio(si->array->xfile, lo_pos, len, XFILE_ALLOC);
+	if (IS_ERR(folio))
+		return PTR_ERR(folio);
+	if (!folio)
+		return 0;
+
+	trace_xfarray_foliosort(si, lo, hi);
 
 	xfarray_sort_bump_heapsorts(si);
-	startp = si->page_kaddr + offset_in_page(lo_pos);
+	startp = folio_address(folio) + offset_in_folio(folio, lo_pos);
 	sort(startp, hi - lo + 1, si->array->obj_size, si->cmp_fn, NULL);
 
 	xfarray_sort_bump_stores(si);
-	return xfarray_sort_put_page(si);
+	xfile_put_folio(si->array->xfile, folio);
+	return 1;
 }
 
 /* Return a pointer to the xfarray pivot record within the sortinfo struct. */
@@ -829,63 +786,78 @@ xfarray_qsort_push(
 	return 0;
 }
 
+static inline void
+xfarray_sort_scan_done(
+	struct xfarray_sortinfo	*si)
+{
+	if (si->folio)
+		xfile_put_folio(si->array->xfile, si->folio);
+	si->folio = NULL;
+}
+
 /*
- * Load an element from the array into the first scratchpad and cache the page,
- * if possible.
+ * Cache the folio backing the start of the given array element.  If the array
+ * element is contained entirely within the folio, return a pointer to the
+ * cached folio.  Otherwise, load the element into the scratchpad and return a
+ * pointer to the scratchpad.
  */
 static inline int
-xfarray_sort_load_cached(
+xfarray_sort_scan(
 	struct xfarray_sortinfo	*si,
 	xfarray_idx_t		idx,
-	void			*ptr)
+	void			**ptrp)
 {
 	loff_t			idx_pos = xfarray_pos(si->array, idx);
-	pgoff_t			startpage;
-	pgoff_t			endpage;
 	int			error = 0;
 
+	if (xfarray_sort_terminated(si, &error))
+		return error;
+
+	trace_xfarray_sort_scan(si, idx);
+
+	/* If the cached folio doesn't cover this index, release it. */
+	if (si->folio &&
+	    (idx < si->first_folio_idx || idx > si->last_folio_idx))
+		xfarray_sort_scan_done(si);
+
+	/* Grab the first folio that backs this array element. */
+	if (!si->folio) {
+		loff_t		next_pos;
+
+		si->folio = xfile_get_folio(si->array->xfile, idx_pos,
+				si->array->obj_size, XFILE_ALLOC);
+		if (IS_ERR(si->folio))
+			return PTR_ERR(si->folio);
+
+		si->first_folio_idx = xfarray_idx(si->array,
+				folio_pos(si->folio) + si->array->obj_size - 1);
+
+		next_pos = folio_pos(si->folio) + folio_size(si->folio);
+		si->last_folio_idx = xfarray_idx(si->array, next_pos - 1);
+		if (xfarray_pos(si->array, si->last_folio_idx + 1) > next_pos)
+			si->last_folio_idx--;
+
+		trace_xfarray_sort_scan(si, idx);
+	}
+
 	/*
-	 * If this load would split a page, release the cached page, if any,
-	 * and perform a traditional read.
+	 * If this folio still doesn't cover the desired element, it must cross
+	 * a folio boundary.  Read into the scratchpad and we're done.
 	 */
-	startpage = idx_pos >> PAGE_SHIFT;
-	endpage = (idx_pos + si->array->obj_size - 1) >> PAGE_SHIFT;
-	if (startpage != endpage) {
-		error = xfarray_sort_put_page(si);
+	if (idx < si->first_folio_idx || idx > si->last_folio_idx) {
+		void		*temp = xfarray_scratch(si->array);
+
+		error = xfile_load(si->array->xfile, temp, si->array->obj_size,
+				idx_pos);
 		if (error)
 			return error;
 
-		if (xfarray_sort_terminated(si, &error))
-			return error;
-
-		return xfile_obj_load(si->array->xfile, ptr,
-				si->array->obj_size, idx_pos);
+		*ptrp = temp;
+		return 0;
 	}
 
-	/* If the cached page is not the one we want, release it. */
-	if (xfile_page_cached(&si->xfpage) &&
-	    xfile_page_index(&si->xfpage) != startpage) {
-		error = xfarray_sort_put_page(si);
-		if (error)
-			return error;
-	}
-
-	/*
-	 * If we don't have a cached page (and we know the load is contained
-	 * in a single page) then grab it.
-	 */
-	if (!xfile_page_cached(&si->xfpage)) {
-		if (xfarray_sort_terminated(si, &error))
-			return error;
-
-		error = xfarray_sort_get_page(si, startpage << PAGE_SHIFT,
-				PAGE_SIZE);
-		if (error)
-			return error;
-	}
-
-	memcpy(ptr, si->page_kaddr + offset_in_page(idx_pos),
-			si->array->obj_size);
+	/* Otherwise return a pointer to the array element in the folio. */
+	*ptrp = folio_address(si->folio) + offset_in_folio(si->folio, idx_pos);
 	return 0;
 }
 
@@ -952,6 +924,8 @@ xfarray_sort(
 	pivot = xfarray_sortinfo_pivot(si);
 
 	while (si->stack_depth >= 0) {
+		int		ret;
+
 		lo = si_lo[si->stack_depth];
 		hi = si_hi[si->stack_depth];
 
@@ -964,13 +938,13 @@ xfarray_sort(
 		}
 
 		/*
-		 * If directly mapping the page and sorting can solve our
+		 * If directly mapping the folio and sorting can solve our
 		 * problems, we're done.
 		 */
-		if (xfarray_want_pagesort(si, lo, hi)) {
-			error = xfarray_pagesort(si, lo, hi);
-			if (error)
-				goto out_free;
+		ret = xfarray_foliosort(si, lo, hi);
+		if (ret < 0)
+			goto out_free;
+		if (ret == 1) {
 			si->stack_depth--;
 			continue;
 		}
@@ -995,25 +969,24 @@ xfarray_sort(
 		 * than the pivot is on the right side of the range.
 		 */
 		while (lo < hi) {
+			void	*p;
+
 			/*
 			 * Decrement hi until it finds an a[hi] less than the
 			 * pivot value.
 			 */
-			error = xfarray_sort_load_cached(si, hi, scratch);
+			error = xfarray_sort_scan(si, hi, &p);
 			if (error)
 				goto out_free;
-			while (xfarray_sort_cmp(si, scratch, pivot) >= 0 &&
-								lo < hi) {
+			while (xfarray_sort_cmp(si, p, pivot) >= 0 && lo < hi) {
 				hi--;
-				error = xfarray_sort_load_cached(si, hi,
-						scratch);
+				error = xfarray_sort_scan(si, hi, &p);
 				if (error)
 					goto out_free;
 			}
-			error = xfarray_sort_put_page(si);
-			if (error)
-				goto out_free;
-
+			if (p != scratch)
+				memcpy(scratch, p, si->array->obj_size);
+			xfarray_sort_scan_done(si);
 			if (xfarray_sort_terminated(si, &error))
 				goto out_free;
 
@@ -1028,21 +1001,18 @@ xfarray_sort(
 			 * Increment lo until it finds an a[lo] greater than
 			 * the pivot value.
 			 */
-			error = xfarray_sort_load_cached(si, lo, scratch);
+			error = xfarray_sort_scan(si, lo, &p);
 			if (error)
 				goto out_free;
-			while (xfarray_sort_cmp(si, scratch, pivot) <= 0 &&
-								lo < hi) {
+			while (xfarray_sort_cmp(si, p, pivot) <= 0 && lo < hi) {
 				lo++;
-				error = xfarray_sort_load_cached(si, lo,
-						scratch);
+				error = xfarray_sort_scan(si, lo, &p);
 				if (error)
 					goto out_free;
 			}
-			error = xfarray_sort_put_page(si);
-			if (error)
-				goto out_free;
-
+			if (p != scratch)
+				memcpy(scratch, p, si->array->obj_size);
+			xfarray_sort_scan_done(si);
 			if (xfarray_sort_terminated(si, &error))
 				goto out_free;
 

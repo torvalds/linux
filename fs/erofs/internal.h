@@ -49,7 +49,7 @@ typedef u32 erofs_blk_t;
 struct erofs_device_info {
 	char *path;
 	struct erofs_fscache *fscache;
-	struct bdev_handle *bdev_handle;
+	struct file *bdev_file;
 	struct dax_device *dax_dev;
 	u64 dax_part_off;
 
@@ -82,13 +82,6 @@ struct erofs_dev_context {
 
 	unsigned int extra_devices;
 	bool flatdev;
-};
-
-struct erofs_fs_context {
-	struct erofs_mount_opts opt;
-	struct erofs_dev_context *devs;
-	char *fsid;
-	char *domain_id;
 };
 
 /* all filesystem-wide lz4 configurations */
@@ -385,7 +378,6 @@ struct erofs_map_dev {
 	unsigned int m_deviceid;
 };
 
-extern struct file_system_type erofs_fs_type;
 extern const struct super_operations erofs_sops;
 
 extern const struct address_space_operations erofs_raw_access_aops;
@@ -446,7 +438,11 @@ void erofs_unregister_sysfs(struct super_block *sb);
 int __init erofs_init_sysfs(void);
 void erofs_exit_sysfs(void);
 
-struct page *erofs_allocpage(struct page **pagepool, gfp_t gfp);
+struct page *__erofs_allocpage(struct page **pagepool, gfp_t gfp, bool tryrsv);
+static inline struct page *erofs_allocpage(struct page **pagepool, gfp_t gfp)
+{
+	return __erofs_allocpage(pagepool, gfp, false);
+}
 static inline void erofs_pagepool_add(struct page **pagepool, struct page *page)
 {
 	set_page_private(page, (unsigned long)*pagepool);
@@ -467,15 +463,15 @@ int __init erofs_init_shrinker(void);
 void erofs_exit_shrinker(void);
 int __init z_erofs_init_zip_subsystem(void);
 void z_erofs_exit_zip_subsystem(void);
-int erofs_try_to_free_all_cached_pages(struct erofs_sb_info *sbi,
-				       struct erofs_workgroup *egrp);
+int erofs_try_to_free_all_cached_folios(struct erofs_sb_info *sbi,
+					struct erofs_workgroup *egrp);
 int z_erofs_map_blocks_iter(struct inode *inode, struct erofs_map_blocks *map,
 			    int flags);
-void *erofs_get_pcpubuf(unsigned int requiredpages);
-void erofs_put_pcpubuf(void *ptr);
-int erofs_pcpubuf_growsize(unsigned int nrpages);
-void __init erofs_pcpubuf_init(void);
-void erofs_pcpubuf_exit(void);
+void *z_erofs_get_gbuf(unsigned int requiredpages);
+void z_erofs_put_gbuf(void *ptr);
+int z_erofs_gbuf_growsize(unsigned int nrpages);
+int __init z_erofs_gbuf_init(void);
+void z_erofs_gbuf_exit(void);
 int erofs_init_managed_cache(struct super_block *sb);
 int z_erofs_parse_cfgs(struct super_block *sb, struct erofs_super_block *dsb);
 #else
@@ -485,8 +481,8 @@ static inline int erofs_init_shrinker(void) { return 0; }
 static inline void erofs_exit_shrinker(void) {}
 static inline int z_erofs_init_zip_subsystem(void) { return 0; }
 static inline void z_erofs_exit_zip_subsystem(void) {}
-static inline void erofs_pcpubuf_init(void) {}
-static inline void erofs_pcpubuf_exit(void) {}
+static inline int z_erofs_gbuf_init(void) { return 0; }
+static inline void z_erofs_gbuf_exit(void) {}
 static inline int erofs_init_managed_cache(struct super_block *sb) { return 0; }
 #endif	/* !CONFIG_EROFS_FS_ZIP */
 
@@ -506,6 +502,14 @@ static inline int z_erofs_deflate_init(void) { return 0; }
 static inline int z_erofs_deflate_exit(void) { return 0; }
 #endif	/* !CONFIG_EROFS_FS_ZIP_DEFLATE */
 
+#ifdef CONFIG_EROFS_FS_ZIP_ZSTD
+int __init z_erofs_zstd_init(void);
+void z_erofs_zstd_exit(void);
+#else
+static inline int z_erofs_zstd_init(void) { return 0; }
+static inline int z_erofs_zstd_exit(void) { return 0; }
+#endif	/* !CONFIG_EROFS_FS_ZIP_ZSTD */
+
 #ifdef CONFIG_EROFS_FS_ONDEMAND
 int erofs_fscache_register_fs(struct super_block *sb);
 void erofs_fscache_unregister_fs(struct super_block *sb);
@@ -513,6 +517,8 @@ void erofs_fscache_unregister_fs(struct super_block *sb);
 struct erofs_fscache *erofs_fscache_register_cookie(struct super_block *sb,
 					char *name, unsigned int flags);
 void erofs_fscache_unregister_cookie(struct erofs_fscache *fscache);
+struct bio *erofs_fscache_bio_alloc(struct erofs_map_dev *mdev);
+void erofs_fscache_submit_bio(struct bio *bio);
 #else
 static inline int erofs_fscache_register_fs(struct super_block *sb)
 {
@@ -530,6 +536,8 @@ struct erofs_fscache *erofs_fscache_register_cookie(struct super_block *sb,
 static inline void erofs_fscache_unregister_cookie(struct erofs_fscache *fscache)
 {
 }
+static inline struct bio *erofs_fscache_bio_alloc(struct erofs_map_dev *mdev) { return NULL; }
+static inline void erofs_fscache_submit_bio(struct bio *bio) {}
 #endif
 
 #define EFSCORRUPTED    EUCLEAN         /* Filesystem is corrupted */

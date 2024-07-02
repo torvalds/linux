@@ -62,14 +62,15 @@
 		compatible = "ti,clksel";
 		reg = <0x1000>;
 		#clock-cells = <2>;
-		#address-cells = <0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-		uart4_fck: clock-uart4-fck {
+		uart4_fck: clock-uart4-fck@18 {
+			reg = <18>;
 			#clock-cells = <0>;
 			compatible = "ti,wait-gate-clock";
 			clock-output-names = "uart4_fck";
 			clocks = <&per_48m_fck>;
-			ti,bit-shift = <18>;
 		};
 	};
 };

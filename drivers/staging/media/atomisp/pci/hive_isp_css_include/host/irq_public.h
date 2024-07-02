@@ -19,16 +19,6 @@
 #include <type_support.h>
 #include "system_local.h"
 
-/*! Read the control registers of IRQ[ID]
-
- \param	ID[in]				IRQ identifier
- \param	state[out]			irq controller state structure
-
- \return none, state = IRQ[ID].state
- */
-void irq_controller_get_state(const irq_ID_t ID,
-			      struct irq_controller_state *state);
-
 /*! Write to a control register of IRQ[ID]
 
  \param	ID[in]				IRQ identifier

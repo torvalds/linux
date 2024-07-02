@@ -595,7 +595,7 @@ int module_finalize(const Elf_Ehdr *hdr,
 	if (scs_is_dynamic()) {
 		s = find_section(hdr, sechdrs, ".init.eh_frame");
 		if (s)
-			scs_patch((void *)s->sh_addr, s->sh_size);
+			__pi_scs_patch((void *)s->sh_addr, s->sh_size);
 	}
 
 	return module_init_ftrace_plt(hdr, sechdrs, me);

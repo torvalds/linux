@@ -38,6 +38,7 @@
 #include <asm/irq.h>
 #include <asm/mmu_context.h>
 #include <asm/tlbflush.h>
+#include <asm/cacheflush.h>
 
 #include "proto.h"
 #include "irq_impl.h"
@@ -465,11 +466,6 @@ smp_prepare_cpus(unsigned int max_cpus)
 	printk(KERN_INFO "SMP starting up secondaries.\n");
 
 	smp_num_cpus = smp_num_probed;
-}
-
-void
-smp_prepare_boot_cpu(void)
-{
 }
 
 int

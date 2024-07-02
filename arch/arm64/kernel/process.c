@@ -290,9 +290,6 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 		fpsimd_preserve_current_state();
 	*dst = *src;
 
-	/* We rely on the above assignment to initialize dst's thread_flags: */
-	BUILD_BUG_ON(!IS_ENABLED(CONFIG_THREAD_INFO_IN_TASK));
-
 	/*
 	 * Detach src's sve_state (if any) from dst so that it does not
 	 * get erroneously used or freed prematurely.  dst's copies

@@ -52,10 +52,3 @@ config MPC8641
 	select MPIC
 	default y if GEF_SBC610 || GEF_SBC310 || GEF_PPC9A \
 			|| MVME7100
-
-config MPC8610
-	bool
-	select HAVE_PCI
-	select FSL_PCI if PCI
-	select PPC_UDBG_16550
-	select MPIC

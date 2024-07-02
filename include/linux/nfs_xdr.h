@@ -1772,7 +1772,7 @@ struct nfs_rpc_ops {
 	void	(*rename_rpc_prepare)(struct rpc_task *task, struct nfs_renamedata *);
 	int	(*rename_done) (struct rpc_task *task, struct inode *old_dir, struct inode *new_dir);
 	int	(*link)    (struct inode *, struct inode *, const struct qstr *);
-	int	(*symlink) (struct inode *, struct dentry *, struct page *,
+	int	(*symlink) (struct inode *, struct dentry *, struct folio *,
 			    unsigned int, struct iattr *);
 	int	(*mkdir)   (struct inode *, struct dentry *, struct iattr *);
 	int	(*rmdir)   (struct inode *, const struct qstr *);
@@ -1819,13 +1819,6 @@ struct nfs_rpc_ops {
 	void	(*enable_swap)(struct inode *inode);
 	void	(*disable_swap)(struct inode *inode);
 };
-
-/*
- * 	NFS_CALL(getattr, inode, (fattr));
- * into
- *	NFS_PROTO(inode)->getattr(fattr);
- */
-#define NFS_CALL(op, inode, args)	NFS_PROTO(inode)->op args
 
 /*
  * Function vectors etc. for the NFS client

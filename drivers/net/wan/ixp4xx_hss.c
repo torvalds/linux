@@ -1522,20 +1522,19 @@ err_plat:
 	return err;
 }
 
-static int ixp4xx_hss_remove(struct platform_device *pdev)
+static void ixp4xx_hss_remove(struct platform_device *pdev)
 {
 	struct port *port = platform_get_drvdata(pdev);
 
 	unregister_hdlc_device(port->netdev);
 	free_netdev(port->netdev);
 	npe_release(port->npe);
-	return 0;
 }
 
 static struct platform_driver ixp4xx_hss_driver = {
 	.driver.name	= DRV_NAME,
 	.probe		= ixp4xx_hss_probe,
-	.remove		= ixp4xx_hss_remove,
+	.remove_new	= ixp4xx_hss_remove,
 };
 module_platform_driver(ixp4xx_hss_driver);
 

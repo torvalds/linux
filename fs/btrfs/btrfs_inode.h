@@ -8,12 +8,31 @@
 
 #include <linux/hash.h>
 #include <linux/refcount.h>
+#include <linux/spinlock.h>
+#include <linux/mutex.h>
+#include <linux/rwsem.h>
+#include <linux/fs.h>
+#include <linux/mm.h>
+#include <linux/compiler.h>
 #include <linux/fscrypt.h>
+#include <linux/lockdep.h>
+#include <uapi/linux/btrfs_tree.h>
 #include <trace/events/btrfs.h>
+#include "block-rsv.h"
+#include "btrfs_inode.h"
 #include "extent_map.h"
 #include "extent_io.h"
+#include "extent-io-tree.h"
 #include "ordered-data.h"
 #include "delayed-inode.h"
+
+struct extent_state;
+struct posix_acl;
+struct iov_iter;
+struct writeback_control;
+struct btrfs_root;
+struct btrfs_fs_info;
+struct btrfs_trans_handle;
 
 /*
  * Since we search a directory based on f_pos (struct dir_context::pos) we have
@@ -41,7 +60,6 @@ enum {
 	  */
 	BTRFS_INODE_NEEDS_FULL_SYNC,
 	BTRFS_INODE_COPY_EVERYTHING,
-	BTRFS_INODE_IN_DELALLOC_LIST,
 	BTRFS_INODE_HAS_PROPS,
 	BTRFS_INODE_SNAPSHOT_FLUSH,
 	/*
@@ -69,6 +87,8 @@ enum {
 	BTRFS_INODE_VERITY_IN_PROGRESS,
 	/* Set when this inode is a free space inode. */
 	BTRFS_INODE_FREE_SPACE_INODE,
+	/* Set when there are no capabilities in XATTs for the inode. */
+	BTRFS_INODE_NO_CAP_XATTR,
 };
 
 /* in memory btrfs inode */
@@ -107,9 +127,11 @@ struct btrfs_inode {
 
 	/*
 	 * Keep track of where the inode has extent items mapped in order to
-	 * make sure the i_size adjustments are accurate
+	 * make sure the i_size adjustments are accurate. Not required when the
+	 * filesystem is NO_HOLES, the status can't be set while mounted as
+	 * it's a mkfs-time feature.
 	 */
-	struct extent_io_tree file_extent_tree;
+	struct extent_io_tree *file_extent_tree;
 
 	/* held while logging the inode in tree-log.c */
 	struct mutex log_mutex;
@@ -359,9 +381,11 @@ static inline void btrfs_set_inode_last_sub_trans(struct btrfs_inode *inode)
 }
 
 /*
- * Should be called while holding the inode's VFS lock in exclusive mode or in a
- * context where no one else can access the inode concurrently (during inode
- * creation or when loading an inode from disk).
+ * Should be called while holding the inode's VFS lock in exclusive mode, or
+ * while holding the inode's mmap lock (struct btrfs_inode::i_mmap_lock) in
+ * either shared or exclusive mode, or in a context where no one else can access
+ * the inode concurrently (during inode creation or when loading an inode from
+ * disk).
  */
 static inline void btrfs_set_inode_full_sync(struct btrfs_inode *inode)
 {
@@ -424,7 +448,7 @@ noinline int can_nocow_extent(struct inode *inode, u64 offset, u64 *len,
 			      u64 *orig_start, u64 *orig_block_len,
 			      u64 *ram_bytes, bool nowait, bool strict);
 
-void __btrfs_del_delalloc_inode(struct btrfs_root *root, struct btrfs_inode *inode);
+void btrfs_del_delalloc_inode(struct btrfs_inode *inode);
 struct inode *btrfs_lookup_dentry(struct inode *dir, struct dentry *dentry);
 int btrfs_set_inode_index(struct btrfs_inode *dir, u64 *index);
 int btrfs_unlink_inode(struct btrfs_trans_handle *trans,
@@ -474,7 +498,6 @@ void btrfs_merge_delalloc_extent(struct btrfs_inode *inode, struct extent_state 
 void btrfs_split_delalloc_extent(struct btrfs_inode *inode,
 				 struct extent_state *orig, u64 split);
 void btrfs_set_range_writeback(struct btrfs_inode *inode, u64 start, u64 end);
-vm_fault_t btrfs_page_mkwrite(struct vm_fault *vmf);
 void btrfs_evict_inode(struct inode *inode);
 struct inode *btrfs_alloc_inode(struct super_block *sb);
 void btrfs_destroy_inode(struct inode *inode);
@@ -486,8 +509,7 @@ struct inode *btrfs_iget_path(struct super_block *s, u64 ino,
 			      struct btrfs_root *root, struct btrfs_path *path);
 struct inode *btrfs_iget(struct super_block *s, u64 ino, struct btrfs_root *root);
 struct extent_map *btrfs_get_extent(struct btrfs_inode *inode,
-				    struct page *page, size_t pg_offset,
-				    u64 start, u64 end);
+				    struct page *page, u64 start, u64 len);
 int btrfs_update_inode(struct btrfs_trans_handle *trans,
 		       struct btrfs_inode *inode);
 int btrfs_update_inode_fallback(struct btrfs_trans_handle *trans,
@@ -523,6 +545,7 @@ ssize_t btrfs_dio_read(struct kiocb *iocb, struct iov_iter *iter,
 		       size_t done_before);
 struct iomap_dio *btrfs_dio_write(struct kiocb *iocb, struct iov_iter *iter,
 				  size_t done_before);
+struct btrfs_inode *btrfs_find_first_inode(struct btrfs_root *root, u64 min_ino);
 
 extern const struct dentry_operations btrfs_dentry_operations;
 

@@ -991,6 +991,7 @@ static enum power_supply_property bq2415x_power_supply_props[] = {
 	/* TODO: maybe add more power supply properties */
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_MODEL_NAME,
+	POWER_SUPPLY_PROP_ONLINE,
 };
 
 static int bq2415x_power_supply_get_property(struct power_supply *psy,
@@ -1016,6 +1017,15 @@ static int bq2415x_power_supply_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_MODEL_NAME:
 		val->strval = bq->model;
+		break;
+	case POWER_SUPPLY_PROP_ONLINE:
+		/* VBUS is present for all charging and fault states,
+		 * except the 'Ready' state.
+		 */
+		ret = bq2415x_exec_command(bq, BQ2415X_CHARGE_STATUS);
+		if (ret < 0)
+			return ret;
+		val->intval = ret > 0;
 		break;
 	default:
 		return -EINVAL;

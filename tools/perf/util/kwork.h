@@ -16,6 +16,7 @@ enum kwork_class_type {
 	KWORK_CLASS_IRQ,
 	KWORK_CLASS_SOFTIRQ,
 	KWORK_CLASS_WORKQUEUE,
+	KWORK_CLASS_SCHED,
 	KWORK_CLASS_MAX,
 };
 
@@ -23,6 +24,7 @@ enum kwork_report_type {
 	KWORK_REPORT_RUNTIME,
 	KWORK_REPORT_LATENCY,
 	KWORK_REPORT_TIMEHIST,
+	KWORK_REPORT_TOP,
 };
 
 enum kwork_trace_type {
@@ -91,6 +93,7 @@ struct kwork_atom_page {
 	DECLARE_BITMAP(bitmap, NR_ATOM_PER_PAGE);
 };
 
+struct perf_kwork;
 struct kwork_class;
 struct kwork_work {
 	/*
@@ -127,6 +130,13 @@ struct kwork_work {
 	u64 max_latency_start;
 	u64 max_latency_end;
 	u64 total_latency;
+
+	/*
+	 * top report
+	 */
+	u32 cpu_usage;
+	u32 tgid;
+	bool is_kthread;
 };
 
 struct kwork_class {
@@ -142,8 +152,10 @@ struct kwork_class {
 	int (*class_init)(struct kwork_class *class,
 			  struct perf_session *session);
 
-	void (*work_init)(struct kwork_class *class,
+	void (*work_init)(struct perf_kwork *kwork,
+			  struct kwork_class *class,
 			  struct kwork_work *work,
+			  enum kwork_trace_type src_type,
 			  struct evsel *evsel,
 			  struct perf_sample *sample,
 			  struct machine *machine);
@@ -152,7 +164,6 @@ struct kwork_class {
 			  char *buf, int len);
 };
 
-struct perf_kwork;
 struct trace_kwork_handler {
 	int (*raise_event)(struct perf_kwork *kwork,
 			   struct kwork_class *class, struct evsel *evsel,
@@ -165,6 +176,23 @@ struct trace_kwork_handler {
 	int (*exit_event)(struct perf_kwork *kwork,
 			  struct kwork_class *class, struct evsel *evsel,
 			  struct perf_sample *sample, struct machine *machine);
+
+	int (*sched_switch_event)(struct perf_kwork *kwork,
+				  struct kwork_class *class, struct evsel *evsel,
+				  struct perf_sample *sample, struct machine *machine);
+};
+
+struct __top_cpus_runtime {
+	u64 load;
+	u64 idle;
+	u64 irq;
+	u64 softirq;
+	u64 total;
+};
+
+struct kwork_top_stat {
+	DECLARE_BITMAP(all_cpus_bitmap, MAX_NR_CPUS);
+	struct __top_cpus_runtime *cpus_runtime;
 };
 
 struct perf_kwork {
@@ -218,6 +246,11 @@ struct perf_kwork {
 	u64 all_runtime;
 	u64 all_count;
 	u64 nr_skipped_events[KWORK_TRACE_MAX + 1];
+
+	/*
+	 * perf kwork top data
+	 */
+	struct kwork_top_stat top_stat;
 };
 
 struct kwork_work *perf_kwork_add_work(struct perf_kwork *kwork,
@@ -232,6 +265,13 @@ void perf_kwork__report_cleanup_bpf(void);
 
 void perf_kwork__trace_start(void);
 void perf_kwork__trace_finish(void);
+
+int perf_kwork__top_prepare_bpf(struct perf_kwork *kwork);
+int perf_kwork__top_read_bpf(struct perf_kwork *kwork);
+void perf_kwork__top_cleanup_bpf(void);
+
+void perf_kwork__top_start(void);
+void perf_kwork__top_finish(void);
 
 #else  /* !HAVE_BPF_SKEL */
 
@@ -251,6 +291,23 @@ static inline void perf_kwork__report_cleanup_bpf(void) {}
 
 static inline void perf_kwork__trace_start(void) {}
 static inline void perf_kwork__trace_finish(void) {}
+
+static inline int
+perf_kwork__top_prepare_bpf(struct perf_kwork *kwork __maybe_unused)
+{
+	return -1;
+}
+
+static inline int
+perf_kwork__top_read_bpf(struct perf_kwork *kwork __maybe_unused)
+{
+	return -1;
+}
+
+static inline void perf_kwork__top_cleanup_bpf(void) {}
+
+static inline void perf_kwork__top_start(void) {}
+static inline void perf_kwork__top_finish(void) {}
 
 #endif  /* HAVE_BPF_SKEL */
 

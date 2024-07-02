@@ -147,4 +147,4 @@ Si no se puede encontrar a nadie para revisar internamente los parches y necesit
 ayuda para encontrar a esa persona, o si tiene alguna otra pregunta relacionada
 con este documento y las expectativas de la comunidad de desarrolladores, por
 favor contacte con la lista de correo privada Technical Advisory Board:
-<tech-board@lists.linux-foundation.org>.
+<tech-board@groups.linuxfoundation.org>.

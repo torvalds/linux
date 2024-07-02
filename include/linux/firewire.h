@@ -75,7 +75,7 @@ void fw_csr_iterator_init(struct fw_csr_iterator *ci, const u32 *p);
 int fw_csr_iterator_next(struct fw_csr_iterator *ci, int *key, int *value);
 int fw_csr_string(const u32 *directory, int key, char *buf, size_t size);
 
-extern struct bus_type fw_bus_type;
+extern const struct bus_type fw_bus_type;
 
 struct fw_card_driver;
 struct fw_node;
@@ -463,7 +463,8 @@ struct fw_iso_packet {
 	u32 tag:2;		/* tx: Tag in packet header		*/
 	u32 sy:4;		/* tx: Sy in packet header		*/
 	u32 header_length:8;	/* Length of immediate header		*/
-	u32 header[];		/* tx: Top of 1394 isoch. data_block	*/
+				/* tx: Top of 1394 isoch. data_block    */
+	u32 header[] __counted_by(header_length);
 };
 
 #define FW_ISO_CONTEXT_TRANSMIT			0

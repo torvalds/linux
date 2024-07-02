@@ -81,7 +81,7 @@ static void gb_module_release(struct device *dev)
 	kfree(module);
 }
 
-struct device_type greybus_module_type = {
+const struct device_type greybus_module_type = {
 	.name		= "greybus_module",
 	.release	= gb_module_release,
 };

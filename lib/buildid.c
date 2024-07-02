@@ -140,7 +140,7 @@ int build_id_parse(struct vm_area_struct *vma, unsigned char *build_id,
 		return -EFAULT;	/* page not mapped */
 
 	ret = -EINVAL;
-	page_addr = kmap_atomic(page);
+	page_addr = kmap_local_page(page);
 	ehdr = (Elf32_Ehdr *)page_addr;
 
 	/* compare magic x7f "ELF" */
@@ -156,7 +156,7 @@ int build_id_parse(struct vm_area_struct *vma, unsigned char *build_id,
 	else if (ehdr->e_ident[EI_CLASS] == ELFCLASS64)
 		ret = get_build_id_64(page_addr, build_id, size);
 out:
-	kunmap_atomic(page_addr);
+	kunmap_local(page_addr);
 	put_page(page);
 	return ret;
 }
@@ -174,7 +174,7 @@ int build_id_parse_buf(const void *buf, unsigned char *build_id, u32 buf_size)
 	return parse_build_id_buf(build_id, NULL, buf, buf_size);
 }
 
-#if IS_ENABLED(CONFIG_STACKTRACE_BUILD_ID) || IS_ENABLED(CONFIG_CRASH_CORE)
+#if IS_ENABLED(CONFIG_STACKTRACE_BUILD_ID) || IS_ENABLED(CONFIG_VMCORE_INFO)
 unsigned char vmlinux_build_id[BUILD_ID_SIZE_MAX] __ro_after_init;
 
 /**

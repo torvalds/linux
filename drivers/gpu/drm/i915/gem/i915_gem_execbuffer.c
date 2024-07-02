@@ -9,6 +9,7 @@
 #include <linux/sync_file.h>
 #include <linux/uaccess.h>
 
+#include <drm/drm_auth.h>
 #include <drm/drm_syncobj.h>
 
 #include "display/intel_frontbuffer.h"
@@ -253,6 +254,7 @@ struct i915_execbuffer {
 	struct intel_gt *gt; /* gt for the execbuf */
 	struct intel_context *context; /* logical state for the request */
 	struct i915_gem_context *gem_context; /** caller's context */
+	intel_wakeref_t wakeref;
 
 	/** our requests to build */
 	struct i915_request *requests[MAX_ENGINE_INSTANCE + 1];
@@ -1156,7 +1158,7 @@ static void reloc_cache_unmap(struct reloc_cache *cache)
 
 	vaddr = unmask_page(cache->vaddr);
 	if (cache->vaddr & KMAP)
-		kunmap_atomic(vaddr);
+		kunmap_local(vaddr);
 	else
 		io_mapping_unmap_atomic((void __iomem *)vaddr);
 }
@@ -1172,7 +1174,7 @@ static void reloc_cache_remap(struct reloc_cache *cache,
 	if (cache->vaddr & KMAP) {
 		struct page *page = i915_gem_object_get_page(obj, cache->page);
 
-		vaddr = kmap_atomic(page);
+		vaddr = kmap_local_page(page);
 		cache->vaddr = unmask_flags(cache->vaddr) |
 			(unsigned long)vaddr;
 	} else {
@@ -1202,7 +1204,7 @@ static void reloc_cache_reset(struct reloc_cache *cache, struct i915_execbuffer 
 		if (cache->vaddr & CLFLUSH_AFTER)
 			mb();
 
-		kunmap_atomic(vaddr);
+		kunmap_local(vaddr);
 		i915_gem_object_finish_access(obj);
 	} else {
 		struct i915_ggtt *ggtt = cache_to_ggtt(cache);
@@ -1234,7 +1236,7 @@ static void *reloc_kmap(struct drm_i915_gem_object *obj,
 	struct page *page;
 
 	if (cache->vaddr) {
-		kunmap_atomic(unmask_page(cache->vaddr));
+		kunmap_local(unmask_page(cache->vaddr));
 	} else {
 		unsigned int flushes;
 		int err;
@@ -1256,7 +1258,7 @@ static void *reloc_kmap(struct drm_i915_gem_object *obj,
 	if (!obj->mm.dirty)
 		set_page_dirty(page);
 
-	vaddr = kmap_atomic(page);
+	vaddr = kmap_local_page(page);
 	cache->vaddr = unmask_flags(cache->vaddr) | (unsigned long)vaddr;
 	cache->page = pageno;
 
@@ -1678,7 +1680,7 @@ static int eb_copy_relocations(const struct i915_execbuffer *eb)
 		urelocs = u64_to_user_ptr(eb->exec[i].relocs_ptr);
 		size = nreloc * sizeof(*relocs);
 
-		relocs = kvmalloc_array(size, 1, GFP_KERNEL);
+		relocs = kvmalloc_array(1, size, GFP_KERNEL);
 		if (!relocs) {
 			err = -ENOMEM;
 			goto err;
@@ -2157,12 +2159,6 @@ static int eb_move_to_gpu(struct i915_execbuffer *eb)
 
 #ifdef CONFIG_MMU_NOTIFIER
 	if (!err && (eb->args->flags & __EXEC_USERPTR_USED)) {
-		read_lock(&eb->i915->mm.notifier_lock);
-
-		/*
-		 * count is always at least 1, otherwise __EXEC_USERPTR_USED
-		 * could not have been set
-		 */
 		for (i = 0; i < count; i++) {
 			struct eb_vma *ev = &eb->vma[i];
 			struct drm_i915_gem_object *obj = ev->vma->obj;
@@ -2174,8 +2170,6 @@ static int eb_move_to_gpu(struct i915_execbuffer *eb)
 			if (err)
 				break;
 		}
-
-		read_unlock(&eb->i915->mm.notifier_lock);
 	}
 #endif
 
@@ -2462,7 +2456,7 @@ static int eb_submit(struct i915_execbuffer *eb)
  * The engine index is returned.
  */
 static unsigned int
-gen8_dispatch_bsd_engine(struct drm_i915_private *dev_priv,
+gen8_dispatch_bsd_engine(struct drm_i915_private *i915,
 			 struct drm_file *file)
 {
 	struct drm_i915_file_private *file_priv = file->driver_priv;
@@ -2470,7 +2464,7 @@ gen8_dispatch_bsd_engine(struct drm_i915_private *dev_priv,
 	/* Check whether the file_priv has already selected one ring. */
 	if ((int)file_priv->bsd_engine < 0)
 		file_priv->bsd_engine =
-			get_random_u32_below(dev_priv->engine_uabi_class_count[I915_ENGINE_CLASS_VIDEO]);
+			get_random_u32_below(i915->engine_uabi_class_count[I915_ENGINE_CLASS_VIDEO]);
 
 	return file_priv->bsd_engine;
 }
@@ -2691,7 +2685,6 @@ static int
 eb_select_engine(struct i915_execbuffer *eb)
 {
 	struct intel_context *ce, *child;
-	struct intel_gt *gt;
 	unsigned int idx;
 	int err;
 
@@ -2715,17 +2708,10 @@ eb_select_engine(struct i915_execbuffer *eb)
 		}
 	}
 	eb->num_batches = ce->parallel.number_children + 1;
-	gt = ce->engine->gt;
 
 	for_each_child(ce, child)
 		intel_context_get(child);
-	intel_gt_pm_get(gt);
-	/*
-	 * Keep GT0 active on MTL so that i915_vma_parked() doesn't
-	 * free VMAs while execbuf ioctl is validating VMAs.
-	 */
-	if (gt->info.id)
-		intel_gt_pm_get(to_gt(gt->i915));
+	eb->wakeref = intel_gt_pm_get(ce->engine->gt);
 
 	if (!test_bit(CONTEXT_ALLOC_BIT, &ce->flags)) {
 		err = intel_context_alloc_state(ce);
@@ -2764,10 +2750,7 @@ eb_select_engine(struct i915_execbuffer *eb)
 	return err;
 
 err:
-	if (gt->info.id)
-		intel_gt_pm_put(to_gt(gt->i915));
-
-	intel_gt_pm_put(gt);
+	intel_gt_pm_put(ce->engine->gt, eb->wakeref);
 	for_each_child(ce, child)
 		intel_context_put(child);
 	intel_context_put(ce);
@@ -2780,13 +2763,7 @@ eb_put_engine(struct i915_execbuffer *eb)
 	struct intel_context *child;
 
 	i915_vm_put(eb->context->vm);
-	/*
-	 * This works in conjunction with eb_select_engine() to prevent
-	 * i915_vma_parked() from interfering while execbuf validates vmas.
-	 */
-	if (eb->gt->info.id)
-		intel_gt_pm_put(to_gt(eb->gt->i915));
-	intel_gt_pm_put(eb->gt);
+	intel_gt_pm_put(eb->context->engine->gt, eb->wakeref);
 	for_each_child(eb->context, child)
 		intel_context_put(child);
 	intel_context_put(eb->context);

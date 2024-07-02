@@ -1,7 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only OR MIT
 /*
  * Device Tree file for the AM62P wakeup domain peripherals
- * Copyright (C) 2023 Texas Instruments Incorporated - https://www.ti.com/
+ * Copyright (C) 2023-2024 Texas Instruments Incorporated - https://www.ti.com/
  */
 
 &cbass_wakeup {
@@ -17,6 +17,16 @@
 			compatible = "ti,am654-chipid";
 			reg = <0x14 0x4>;
 			bootph-all;
+		};
+
+		usb0_phy_ctrl: syscon@4008 {
+			compatible = "ti,am62-usb-phy-ctrl", "syscon";
+			reg = <0x4008 0x4>;
+		};
+
+		usb1_phy_ctrl: syscon@4018 {
+			compatible = "ti,am62-usb-phy-ctrl", "syscon";
+			reg = <0x4018 0x4>;
 		};
 	};
 
@@ -78,6 +88,7 @@
 		ranges = <0x78000000 0x00 0x78000000 0x8000>,
 			 <0x78100000 0x00 0x78100000 0x8000>;
 		power-domains = <&k3_pds 119 TI_SCI_PD_EXCLUSIVE>;
+		status = "disabled";
 
 		wkup_r5fss0_core0: r5f@78000000 {
 			compatible = "ti,am62-r5f";

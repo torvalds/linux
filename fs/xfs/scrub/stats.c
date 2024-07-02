@@ -77,6 +77,8 @@ static const char *name_map[XFS_SCRUB_TYPE_NR] = {
 	[XFS_SCRUB_TYPE_GQUOTA]		= "grpquota",
 	[XFS_SCRUB_TYPE_PQUOTA]		= "prjquota",
 	[XFS_SCRUB_TYPE_FSCOUNTERS]	= "fscounters",
+	[XFS_SCRUB_TYPE_QUOTACHECK]	= "quotacheck",
+	[XFS_SCRUB_TYPE_NLINKS]		= "nlinks",
 };
 
 /* Format the scrub stats into a text buffer, similar to pcp style. */
@@ -329,9 +331,9 @@ xchk_stats_register(
 	if (!cs->cs_debugfs)
 		return;
 
-	debugfs_create_file("stats", 0644, cs->cs_debugfs, cs,
+	debugfs_create_file("stats", 0444, cs->cs_debugfs, cs,
 			&scrub_stats_fops);
-	debugfs_create_file("clear_stats", 0400, cs->cs_debugfs, cs,
+	debugfs_create_file("clear_stats", 0200, cs->cs_debugfs, cs,
 			&clear_scrub_stats_fops);
 }
 

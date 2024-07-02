@@ -16,11 +16,14 @@
 #include "xfs_btree_staging.h"
 #include "xfs_rmap.h"
 #include "xfs_rmap_btree.h"
+#include "xfs_health.h"
 #include "xfs_trace.h"
 #include "xfs_error.h"
 #include "xfs_extent_busy.h"
 #include "xfs_ag.h"
 #include "xfs_ag_resv.h"
+#include "xfs_buf_mem.h"
+#include "xfs_btree_mem.h"
 
 static struct kmem_cache	*xfs_rmapbt_cur_cache;
 
@@ -65,13 +68,12 @@ xfs_rmapbt_set_root(
 {
 	struct xfs_buf		*agbp = cur->bc_ag.agbp;
 	struct xfs_agf		*agf = agbp->b_addr;
-	int			btnum = cur->bc_btnum;
 
 	ASSERT(ptr->s != 0);
 
-	agf->agf_roots[btnum] = ptr->s;
-	be32_add_cpu(&agf->agf_levels[btnum], inc);
-	cur->bc_ag.pag->pagf_levels[btnum] += inc;
+	agf->agf_rmap_root = ptr->s;
+	be32_add_cpu(&agf->agf_rmap_level, inc);
+	cur->bc_ag.pag->pagf_rmap_level += inc;
 
 	xfs_alloc_log_agf(cur->bc_tp, agbp, XFS_AGF_ROOTS | XFS_AGF_LEVELS);
 }
@@ -94,8 +96,6 @@ xfs_rmapbt_alloc_block(
 				       &bno, 1);
 	if (error)
 		return error;
-
-	trace_xfs_rmapbt_alloc_block(cur->bc_mp, pag->pag_agno, bno, 1);
 	if (bno == NULLAGBLOCK) {
 		*stat = 0;
 		return 0;
@@ -125,8 +125,6 @@ xfs_rmapbt_free_block(
 	int			error;
 
 	bno = xfs_daddr_to_agbno(cur->bc_mp, xfs_buf_daddr(bp));
-	trace_xfs_rmapbt_free_block(cur->bc_mp, pag->pag_agno,
-			bno, 1);
 	be32_add_cpu(&agf->agf_rmap_blocks, -1);
 	xfs_alloc_log_agf(cur->bc_tp, agbp, XFS_AGF_RMAP_BLOCKS);
 	error = xfs_alloc_put_freelist(pag, cur->bc_tp, agbp, NULL, bno, 1);
@@ -226,7 +224,7 @@ xfs_rmapbt_init_ptr_from_cur(
 
 	ASSERT(cur->bc_ag.pag->pag_agno == be32_to_cpu(agf->agf_seqno));
 
-	ptr->s = agf->agf_roots[cur->bc_btnum];
+	ptr->s = agf->agf_rmap_root;
 }
 
 /*
@@ -340,18 +338,29 @@ xfs_rmapbt_verify(
 
 	if (!xfs_has_rmapbt(mp))
 		return __this_address;
-	fa = xfs_btree_sblock_v5hdr_verify(bp);
+	fa = xfs_btree_agblock_v5hdr_verify(bp);
 	if (fa)
 		return fa;
 
 	level = be16_to_cpu(block->bb_level);
 	if (pag && xfs_perag_initialised_agf(pag)) {
-		if (level >= pag->pagf_levels[XFS_BTNUM_RMAPi])
+		unsigned int	maxlevel = pag->pagf_rmap_level;
+
+#ifdef CONFIG_XFS_ONLINE_REPAIR
+		/*
+		 * Online repair could be rewriting the free space btrees, so
+		 * we'll validate against the larger of either tree while this
+		 * is going on.
+		 */
+		maxlevel = max_t(unsigned int, maxlevel,
+				pag->pagf_repair_rmap_level);
+#endif
+		if (level >= maxlevel)
 			return __this_address;
 	} else if (level >= mp->m_rmap_maxlevels)
 		return __this_address;
 
-	return xfs_btree_sblock_verify(bp, mp->m_rmap_mxr[level != 0]);
+	return xfs_btree_agblock_verify(bp, mp->m_rmap_mxr[level != 0]);
 }
 
 static void
@@ -360,7 +369,7 @@ xfs_rmapbt_read_verify(
 {
 	xfs_failaddr_t	fa;
 
-	if (!xfs_btree_sblock_verify_crc(bp))
+	if (!xfs_btree_agblock_verify_crc(bp))
 		xfs_verifier_error(bp, -EFSBADCRC, __this_address);
 	else {
 		fa = xfs_rmapbt_verify(bp);
@@ -384,7 +393,7 @@ xfs_rmapbt_write_verify(
 		xfs_verifier_error(bp, -EFSCORRUPTED, fa);
 		return;
 	}
-	xfs_btree_sblock_calc_crc(bp);
+	xfs_btree_agblock_calc_crc(bp);
 
 }
 
@@ -476,9 +485,19 @@ xfs_rmapbt_keys_contiguous(
 				 be32_to_cpu(key2->rmap.rm_startblock));
 }
 
-static const struct xfs_btree_ops xfs_rmapbt_ops = {
+const struct xfs_btree_ops xfs_rmapbt_ops = {
+	.name			= "rmap",
+	.type			= XFS_BTREE_TYPE_AG,
+	.geom_flags		= XFS_BTGEO_OVERLAPPING,
+
 	.rec_len		= sizeof(struct xfs_rmap_rec),
+	/* Overlapping btree; 2 keys per pointer. */
 	.key_len		= 2 * sizeof(struct xfs_rmap_key),
+	.ptr_len		= XFS_BTREE_SHORT_PTR_LEN,
+
+	.lru_refs		= XFS_RMAP_BTREE_REF,
+	.statoff		= XFS_STATS_CALC_INDEX(xs_rmap_2),
+	.sick_mask		= XFS_SICK_AG_RMAPBT,
 
 	.dup_cursor		= xfs_rmapbt_dup_cursor,
 	.set_root		= xfs_rmapbt_set_root,
@@ -498,26 +517,11 @@ static const struct xfs_btree_ops xfs_rmapbt_ops = {
 	.keys_contiguous	= xfs_rmapbt_keys_contiguous,
 };
 
-static struct xfs_btree_cur *
-xfs_rmapbt_init_common(
-	struct xfs_mount	*mp,
-	struct xfs_trans	*tp,
-	struct xfs_perag	*pag)
-{
-	struct xfs_btree_cur	*cur;
-
-	/* Overlapping btree; 2 keys per pointer. */
-	cur = xfs_btree_alloc_cursor(mp, tp, XFS_BTNUM_RMAP,
-			mp->m_rmap_maxlevels, xfs_rmapbt_cur_cache);
-	cur->bc_flags = XFS_BTREE_CRC_BLOCKS | XFS_BTREE_OVERLAPPING;
-	cur->bc_statoff = XFS_STATS_CALC_INDEX(xs_rmap_2);
-	cur->bc_ops = &xfs_rmapbt_ops;
-
-	cur->bc_ag.pag = xfs_perag_hold(pag);
-	return cur;
-}
-
-/* Create a new reverse mapping btree cursor. */
+/*
+ * Create a new reverse mapping btree cursor.
+ *
+ * For staging cursors tp and agbp are NULL.
+ */
 struct xfs_btree_cur *
 xfs_rmapbt_init_cursor(
 	struct xfs_mount	*mp,
@@ -525,28 +529,164 @@ xfs_rmapbt_init_cursor(
 	struct xfs_buf		*agbp,
 	struct xfs_perag	*pag)
 {
-	struct xfs_agf		*agf = agbp->b_addr;
 	struct xfs_btree_cur	*cur;
 
-	cur = xfs_rmapbt_init_common(mp, tp, pag);
-	cur->bc_nlevels = be32_to_cpu(agf->agf_levels[XFS_BTNUM_RMAP]);
+	cur = xfs_btree_alloc_cursor(mp, tp, &xfs_rmapbt_ops,
+			mp->m_rmap_maxlevels, xfs_rmapbt_cur_cache);
+	cur->bc_ag.pag = xfs_perag_hold(pag);
 	cur->bc_ag.agbp = agbp;
+	if (agbp) {
+		struct xfs_agf		*agf = agbp->b_addr;
+
+		cur->bc_nlevels = be32_to_cpu(agf->agf_rmap_level);
+	}
 	return cur;
 }
 
-/* Create a new reverse mapping btree cursor with a fake root for staging. */
+#ifdef CONFIG_XFS_BTREE_IN_MEM
+static inline unsigned int
+xfs_rmapbt_mem_block_maxrecs(
+	unsigned int		blocklen,
+	bool			leaf)
+{
+	if (leaf)
+		return blocklen / sizeof(struct xfs_rmap_rec);
+	return blocklen /
+		(2 * sizeof(struct xfs_rmap_key) + sizeof(__be64));
+}
+
+/*
+ * Validate an in-memory rmap btree block.  Callers are allowed to generate an
+ * in-memory btree even if the ondisk feature is not enabled.
+ */
+static xfs_failaddr_t
+xfs_rmapbt_mem_verify(
+	struct xfs_buf		*bp)
+{
+	struct xfs_btree_block	*block = XFS_BUF_TO_BLOCK(bp);
+	xfs_failaddr_t		fa;
+	unsigned int		level;
+	unsigned int		maxrecs;
+
+	if (!xfs_verify_magic(bp, block->bb_magic))
+		return __this_address;
+
+	fa = xfs_btree_fsblock_v5hdr_verify(bp, XFS_RMAP_OWN_UNKNOWN);
+	if (fa)
+		return fa;
+
+	level = be16_to_cpu(block->bb_level);
+	if (level >= xfs_rmapbt_maxlevels_ondisk())
+		return __this_address;
+
+	maxrecs = xfs_rmapbt_mem_block_maxrecs(
+			XFBNO_BLOCKSIZE - XFS_BTREE_LBLOCK_CRC_LEN, level == 0);
+	return xfs_btree_memblock_verify(bp, maxrecs);
+}
+
+static void
+xfs_rmapbt_mem_rw_verify(
+	struct xfs_buf	*bp)
+{
+	xfs_failaddr_t	fa = xfs_rmapbt_mem_verify(bp);
+
+	if (fa)
+		xfs_verifier_error(bp, -EFSCORRUPTED, fa);
+}
+
+/* skip crc checks on in-memory btrees to save time */
+static const struct xfs_buf_ops xfs_rmapbt_mem_buf_ops = {
+	.name			= "xfs_rmapbt_mem",
+	.magic			= { 0, cpu_to_be32(XFS_RMAP_CRC_MAGIC) },
+	.verify_read		= xfs_rmapbt_mem_rw_verify,
+	.verify_write		= xfs_rmapbt_mem_rw_verify,
+	.verify_struct		= xfs_rmapbt_mem_verify,
+};
+
+const struct xfs_btree_ops xfs_rmapbt_mem_ops = {
+	.name			= "mem_rmap",
+	.type			= XFS_BTREE_TYPE_MEM,
+	.geom_flags		= XFS_BTGEO_OVERLAPPING,
+
+	.rec_len		= sizeof(struct xfs_rmap_rec),
+	/* Overlapping btree; 2 keys per pointer. */
+	.key_len		= 2 * sizeof(struct xfs_rmap_key),
+	.ptr_len		= XFS_BTREE_LONG_PTR_LEN,
+
+	.lru_refs		= XFS_RMAP_BTREE_REF,
+	.statoff		= XFS_STATS_CALC_INDEX(xs_rmap_mem_2),
+
+	.dup_cursor		= xfbtree_dup_cursor,
+	.set_root		= xfbtree_set_root,
+	.alloc_block		= xfbtree_alloc_block,
+	.free_block		= xfbtree_free_block,
+	.get_minrecs		= xfbtree_get_minrecs,
+	.get_maxrecs		= xfbtree_get_maxrecs,
+	.init_key_from_rec	= xfs_rmapbt_init_key_from_rec,
+	.init_high_key_from_rec	= xfs_rmapbt_init_high_key_from_rec,
+	.init_rec_from_cur	= xfs_rmapbt_init_rec_from_cur,
+	.init_ptr_from_cur	= xfbtree_init_ptr_from_cur,
+	.key_diff		= xfs_rmapbt_key_diff,
+	.buf_ops		= &xfs_rmapbt_mem_buf_ops,
+	.diff_two_keys		= xfs_rmapbt_diff_two_keys,
+	.keys_inorder		= xfs_rmapbt_keys_inorder,
+	.recs_inorder		= xfs_rmapbt_recs_inorder,
+	.keys_contiguous	= xfs_rmapbt_keys_contiguous,
+};
+
+/* Create a cursor for an in-memory btree. */
 struct xfs_btree_cur *
-xfs_rmapbt_stage_cursor(
-	struct xfs_mount	*mp,
-	struct xbtree_afakeroot	*afake,
-	struct xfs_perag	*pag)
+xfs_rmapbt_mem_cursor(
+	struct xfs_perag	*pag,
+	struct xfs_trans	*tp,
+	struct xfbtree		*xfbt)
 {
 	struct xfs_btree_cur	*cur;
+	struct xfs_mount	*mp = pag->pag_mount;
 
-	cur = xfs_rmapbt_init_common(mp, NULL, pag);
-	xfs_btree_stage_afakeroot(cur, afake);
+	cur = xfs_btree_alloc_cursor(mp, tp, &xfs_rmapbt_mem_ops,
+			xfs_rmapbt_maxlevels_ondisk(), xfs_rmapbt_cur_cache);
+	cur->bc_mem.xfbtree = xfbt;
+	cur->bc_nlevels = xfbt->nlevels;
+
+	cur->bc_mem.pag = xfs_perag_hold(pag);
 	return cur;
 }
+
+/* Create an in-memory rmap btree. */
+int
+xfs_rmapbt_mem_init(
+	struct xfs_mount	*mp,
+	struct xfbtree		*xfbt,
+	struct xfs_buftarg	*btp,
+	xfs_agnumber_t		agno)
+{
+	xfbt->owner = agno;
+	return xfbtree_init(mp, xfbt, btp, &xfs_rmapbt_mem_ops);
+}
+
+/* Compute the max possible height for reverse mapping btrees in memory. */
+static unsigned int
+xfs_rmapbt_mem_maxlevels(void)
+{
+	unsigned int		minrecs[2];
+	unsigned int		blocklen;
+
+	blocklen = XFBNO_BLOCKSIZE - XFS_BTREE_LBLOCK_CRC_LEN;
+
+	minrecs[0] = xfs_rmapbt_mem_block_maxrecs(blocklen, true) / 2;
+	minrecs[1] = xfs_rmapbt_mem_block_maxrecs(blocklen, false) / 2;
+
+	/*
+	 * How tall can an in-memory rmap btree become if we filled the entire
+	 * AG with rmap records?
+	 */
+	return xfs_btree_compute_maxlevels(minrecs,
+			XFS_MAX_AG_BYTES / sizeof(struct xfs_rmap_rec));
+}
+#else
+# define xfs_rmapbt_mem_maxlevels()	(0)
+#endif /* CONFIG_XFS_BTREE_IN_MEM */
 
 /*
  * Install a new reverse mapping btree root.  Caller is responsible for
@@ -563,12 +703,12 @@ xfs_rmapbt_commit_staged_btree(
 
 	ASSERT(cur->bc_flags & XFS_BTREE_STAGING);
 
-	agf->agf_roots[cur->bc_btnum] = cpu_to_be32(afake->af_root);
-	agf->agf_levels[cur->bc_btnum] = cpu_to_be32(afake->af_levels);
+	agf->agf_rmap_root = cpu_to_be32(afake->af_root);
+	agf->agf_rmap_level = cpu_to_be32(afake->af_levels);
 	agf->agf_rmap_blocks = cpu_to_be32(afake->af_blocks);
 	xfs_alloc_log_agf(tp, agbp, XFS_AGF_ROOTS | XFS_AGF_LEVELS |
 				    XFS_AGF_RMAP_BLOCKS);
-	xfs_btree_commit_afakeroot(cur, tp, agbp, &xfs_rmapbt_ops);
+	xfs_btree_commit_afakeroot(cur, tp, agbp);
 }
 
 /* Calculate number of records in a reverse mapping btree block. */
@@ -618,7 +758,8 @@ xfs_rmapbt_maxlevels_ondisk(void)
 	 * like if it consumes almost all the blocks in the AG due to maximal
 	 * sharing factor.
 	 */
-	return xfs_btree_space_to_height(minrecs, XFS_MAX_CRC_AG_BLOCKS);
+	return max(xfs_btree_space_to_height(minrecs, XFS_MAX_CRC_AG_BLOCKS),
+		   xfs_rmapbt_mem_maxlevels());
 }
 
 /* Compute the maximum height of an rmap btree. */

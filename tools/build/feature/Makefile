@@ -7,6 +7,7 @@ FILES=                                          \
          test-bionic.bin                        \
          test-dwarf.bin                         \
          test-dwarf_getlocations.bin            \
+         test-dwarf_getcfi.bin                  \
          test-eventfd.bin                       \
          test-fortify-source.bin                \
          test-get_current_dir_name.bin          \
@@ -53,6 +54,7 @@ FILES=                                          \
          test-timerfd.bin                       \
          test-libdw-dwarf-unwind.bin            \
          test-libbabeltrace.bin                 \
+         test-libcapstone.bin			\
          test-compile-32.bin                    \
          test-compile-x32.bin                   \
          test-zlib.bin                          \
@@ -152,6 +154,9 @@ $(OUTPUT)test-dwarf.bin:
 	$(BUILD) $(DWARFLIBS)
 
 $(OUTPUT)test-dwarf_getlocations.bin:
+	$(BUILD) $(DWARFLIBS)
+
+$(OUTPUT)test-dwarf_getcfi.bin:
 	$(BUILD) $(DWARFLIBS)
 
 $(OUTPUT)test-libelf-getphdrnum.bin:
@@ -281,6 +286,9 @@ $(OUTPUT)test-libdw-dwarf-unwind.bin:
 
 $(OUTPUT)test-libbabeltrace.bin:
 	$(BUILD) # -lbabeltrace provided by $(FEATURE_CHECK_LDFLAGS-libbabeltrace)
+
+$(OUTPUT)test-libcapstone.bin:
+	$(BUILD) # -lcapstone provided by $(FEATURE_CHECK_LDFLAGS-libcapstone)
 
 $(OUTPUT)test-compile-32.bin:
 	$(CC) -m32 -o $@ test-compile.c

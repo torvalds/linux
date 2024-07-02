@@ -495,7 +495,7 @@ static int event_device_add(struct acpi_device *adev)
 free_dev_data:
 	hangup_device(dev_data);
 free_minor:
-	ida_simple_remove(&event_ida, minor);
+	ida_free(&event_ida, minor);
 	return error;
 }
 
@@ -504,7 +504,7 @@ static void event_device_remove(struct acpi_device *adev)
 	struct event_device_data *dev_data = adev->driver_data;
 
 	cdev_device_del(&dev_data->cdev, &dev_data->dev);
-	ida_simple_remove(&event_ida, MINOR(dev_data->dev.devt));
+	ida_free(&event_ida, MINOR(dev_data->dev.devt));
 	hangup_device(dev_data);
 }
 
@@ -523,7 +523,6 @@ static struct acpi_driver event_driver = {
 		.notify = event_device_notify,
 		.remove = event_device_remove,
 	},
-	.owner = THIS_MODULE,
 };
 
 static int __init event_module_init(void)
@@ -575,4 +574,3 @@ module_exit(event_module_exit);
 MODULE_AUTHOR("Nick Crews <ncrews@chromium.org>");
 MODULE_DESCRIPTION("Wilco EC ACPI event driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:" DRV_NAME);

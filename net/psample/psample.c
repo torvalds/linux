@@ -31,7 +31,8 @@ enum psample_nl_multicast_groups {
 
 static const struct genl_multicast_group psample_nl_mcgrps[] = {
 	[PSAMPLE_NL_MCGRP_CONFIG] = { .name = PSAMPLE_NL_MCGRP_CONFIG_NAME },
-	[PSAMPLE_NL_MCGRP_SAMPLE] = { .name = PSAMPLE_NL_MCGRP_SAMPLE_NAME },
+	[PSAMPLE_NL_MCGRP_SAMPLE] = { .name = PSAMPLE_NL_MCGRP_SAMPLE_NAME,
+				      .flags = GENL_MCAST_CAP_NET_ADMIN, },
 };
 
 static struct genl_family psample_nl_family __ro_after_init;
@@ -220,7 +221,7 @@ static int __psample_ip_tun_to_nlattr(struct sk_buff *skb,
 	const struct ip_tunnel_key *tun_key = &tun_info->key;
 	int tun_opts_len = tun_info->options_len;
 
-	if (tun_key->tun_flags & TUNNEL_KEY &&
+	if (test_bit(IP_TUNNEL_KEY_BIT, tun_key->tun_flags) &&
 	    nla_put_be64(skb, PSAMPLE_TUNNEL_KEY_ATTR_ID, tun_key->tun_id,
 			 PSAMPLE_TUNNEL_KEY_ATTR_PAD))
 		return -EMSGSIZE;
@@ -256,10 +257,10 @@ static int __psample_ip_tun_to_nlattr(struct sk_buff *skb,
 		return -EMSGSIZE;
 	if (nla_put_u8(skb, PSAMPLE_TUNNEL_KEY_ATTR_TTL, tun_key->ttl))
 		return -EMSGSIZE;
-	if ((tun_key->tun_flags & TUNNEL_DONT_FRAGMENT) &&
+	if (test_bit(IP_TUNNEL_DONT_FRAGMENT_BIT, tun_key->tun_flags) &&
 	    nla_put_flag(skb, PSAMPLE_TUNNEL_KEY_ATTR_DONT_FRAGMENT))
 		return -EMSGSIZE;
-	if ((tun_key->tun_flags & TUNNEL_CSUM) &&
+	if (test_bit(IP_TUNNEL_CSUM_BIT, tun_key->tun_flags) &&
 	    nla_put_flag(skb, PSAMPLE_TUNNEL_KEY_ATTR_CSUM))
 		return -EMSGSIZE;
 	if (tun_key->tp_src &&
@@ -268,15 +269,16 @@ static int __psample_ip_tun_to_nlattr(struct sk_buff *skb,
 	if (tun_key->tp_dst &&
 	    nla_put_be16(skb, PSAMPLE_TUNNEL_KEY_ATTR_TP_DST, tun_key->tp_dst))
 		return -EMSGSIZE;
-	if ((tun_key->tun_flags & TUNNEL_OAM) &&
+	if (test_bit(IP_TUNNEL_OAM_BIT, tun_key->tun_flags) &&
 	    nla_put_flag(skb, PSAMPLE_TUNNEL_KEY_ATTR_OAM))
 		return -EMSGSIZE;
 	if (tun_opts_len) {
-		if (tun_key->tun_flags & TUNNEL_GENEVE_OPT &&
+		if (test_bit(IP_TUNNEL_GENEVE_OPT_BIT, tun_key->tun_flags) &&
 		    nla_put(skb, PSAMPLE_TUNNEL_KEY_ATTR_GENEVE_OPTS,
 			    tun_opts_len, tun_opts))
 			return -EMSGSIZE;
-		else if (tun_key->tun_flags & TUNNEL_ERSPAN_OPT &&
+		else if (test_bit(IP_TUNNEL_ERSPAN_OPT_BIT,
+				  tun_key->tun_flags) &&
 			 nla_put(skb, PSAMPLE_TUNNEL_KEY_ATTR_ERSPAN_OPTS,
 				 tun_opts_len, tun_opts))
 			return -EMSGSIZE;
@@ -313,7 +315,7 @@ static int psample_tunnel_meta_len(struct ip_tunnel_info *tun_info)
 	int tun_opts_len = tun_info->options_len;
 	int sum = nla_total_size(0);	/* PSAMPLE_ATTR_TUNNEL */
 
-	if (tun_key->tun_flags & TUNNEL_KEY)
+	if (test_bit(IP_TUNNEL_KEY_BIT, tun_key->tun_flags))
 		sum += nla_total_size_64bit(sizeof(u64));
 
 	if (tun_info->mode & IP_TUNNEL_INFO_BRIDGE)
@@ -336,20 +338,21 @@ static int psample_tunnel_meta_len(struct ip_tunnel_info *tun_info)
 	if (tun_key->tos)
 		sum += nla_total_size(sizeof(u8));
 	sum += nla_total_size(sizeof(u8));	/* TTL */
-	if (tun_key->tun_flags & TUNNEL_DONT_FRAGMENT)
+	if (test_bit(IP_TUNNEL_DONT_FRAGMENT_BIT, tun_key->tun_flags))
 		sum += nla_total_size(0);
-	if (tun_key->tun_flags & TUNNEL_CSUM)
+	if (test_bit(IP_TUNNEL_CSUM_BIT, tun_key->tun_flags))
 		sum += nla_total_size(0);
 	if (tun_key->tp_src)
 		sum += nla_total_size(sizeof(u16));
 	if (tun_key->tp_dst)
 		sum += nla_total_size(sizeof(u16));
-	if (tun_key->tun_flags & TUNNEL_OAM)
+	if (test_bit(IP_TUNNEL_OAM_BIT, tun_key->tun_flags))
 		sum += nla_total_size(0);
 	if (tun_opts_len) {
-		if (tun_key->tun_flags & TUNNEL_GENEVE_OPT)
+		if (test_bit(IP_TUNNEL_GENEVE_OPT_BIT, tun_key->tun_flags))
 			sum += nla_total_size(tun_opts_len);
-		else if (tun_key->tun_flags & TUNNEL_ERSPAN_OPT)
+		else if (test_bit(IP_TUNNEL_ERSPAN_OPT_BIT,
+				  tun_key->tun_flags))
 			sum += nla_total_size(tun_opts_len);
 	}
 

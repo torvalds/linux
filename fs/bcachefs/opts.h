@@ -10,24 +10,25 @@
 
 struct bch_fs;
 
-extern const char * const bch2_iops_measurements[];
 extern const char * const bch2_error_actions[];
 extern const char * const bch2_fsck_fix_opts[];
 extern const char * const bch2_version_upgrade_opts[];
 extern const char * const bch2_sb_features[];
 extern const char * const bch2_sb_compat[];
-extern const char * const bch2_btree_ids[];
-extern const char * const bch2_csum_types[];
+extern const char * const __bch2_btree_ids[];
 extern const char * const bch2_csum_opts[];
-extern const char * const bch2_compression_types[];
 extern const char * const bch2_compression_opts[];
 extern const char * const bch2_str_hash_types[];
 extern const char * const bch2_str_hash_opts[];
-extern const char * const bch2_data_types[];
+extern const char * const __bch2_data_types[];
 extern const char * const bch2_member_states[];
-extern const char * const bch2_jset_entry_types[];
-extern const char * const bch2_fs_usage_types[];
 extern const char * const bch2_d_types[];
+
+void bch2_prt_jset_entry_type(struct printbuf *,	enum bch_jset_entry_type);
+void bch2_prt_fs_usage_type(struct printbuf *,		enum bch_fs_usage_type);
+void bch2_prt_data_type(struct printbuf *,		enum bch_data_type);
+void bch2_prt_csum_type(struct printbuf *,		enum bch_csum_type);
+void bch2_prt_compression_type(struct printbuf *,	enum bch_compression_type);
 
 static inline const char *bch2_d_type_str(unsigned d_type)
 {
@@ -74,6 +75,7 @@ enum opt_type {
 struct bch_opt_fn {
 	int (*parse)(struct bch_fs *, const char *, u64 *, struct printbuf *);
 	void (*to_text)(struct printbuf *, struct bch_fs *, struct bch_sb *, u64);
+	int (*validate)(u64, struct printbuf *);
 };
 
 /**
@@ -233,11 +235,6 @@ enum fsck_err_opts {
 	  OPT_BOOL(),							\
 	  BCH2_NO_SB_OPT,		true,				\
 	  NULL,		"Stash pointer to in memory btree node in btree ptr")\
-	x(btree_write_buffer_size, u32,					\
-	  OPT_FS|OPT_MOUNT,						\
-	  OPT_UINT(16, (1U << 20) - 1),					\
-	  BCH2_NO_SB_OPT,		1U << 13,			\
-	  NULL,		"Number of btree write buffer entries")		\
 	x(gc_reserve_percent,		u8,				\
 	  OPT_FS|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,			\
 	  OPT_UINT(5, 21),						\
@@ -295,6 +292,11 @@ enum fsck_err_opts {
 	  OPT_BOOL(),							\
 	  BCH2_NO_SB_OPT,		false,				\
 	  NULL,		"Allow mounting in when data will be missing")	\
+	x(no_splitbrain_check,		u8,				\
+	  OPT_FS|OPT_MOUNT,						\
+	  OPT_BOOL(),							\
+	  BCH2_NO_SB_OPT,		false,				\
+	  NULL,		"Don't kick drives out when splitbrain detected")\
 	x(discard,			u8,				\
 	  OPT_FS|OPT_MOUNT|OPT_DEVICE,					\
 	  OPT_BOOL(),							\
@@ -337,6 +339,11 @@ enum fsck_err_opts {
 	  OPT_BOOL(),							\
 	  BCH2_NO_SB_OPT,		false,				\
 	  NULL,		"Run fsck on mount")				\
+	x(fsck_memory_usage_percent,	u8,				\
+	  OPT_FS|OPT_MOUNT,						\
+	  OPT_UINT(20, 70),						\
+	  BCH2_NO_SB_OPT,		50,				\
+	  NULL,		"Maximum percentage of system ram fsck is allowed to pin")\
 	x(fix_errors,			u8,				\
 	  OPT_FS|OPT_MOUNT,						\
 	  OPT_FN(bch2_opt_fix_errors),					\
@@ -357,12 +364,17 @@ enum fsck_err_opts {
 	  OPT_FS|OPT_MOUNT,						\
 	  OPT_BOOL(),							\
 	  BCH2_NO_SB_OPT,		false,				\
-	  NULL,		"Don't replay the journal")			\
-	x(keep_journal,			u8,				\
+	  NULL,		"Exit recovery immediately prior to journal replay")\
+	x(recovery_pass_last,		u8,				\
+	  OPT_FS|OPT_MOUNT,						\
+	  OPT_STR_NOLIMIT(bch2_recovery_passes),			\
+	  BCH2_NO_SB_OPT,		0,				\
+	  NULL,		"Exit recovery after specified pass")		\
+	x(retain_recovery_info,		u8,				\
 	  0,								\
 	  OPT_BOOL(),							\
 	  BCH2_NO_SB_OPT,		false,				\
-	  NULL,		"Don't free journal entries/keys after startup")\
+	  NULL,		"Don't free journal entries/keys, scanned btree nodes after startup")\
 	x(read_entire_journal,		u8,				\
 	  0,								\
 	  OPT_BOOL(),							\
@@ -394,7 +406,7 @@ enum fsck_err_opts {
 	  BCH2_NO_SB_OPT,		BCH_SB_SECTOR,			\
 	  "offset",	"Sector offset of superblock")			\
 	x(read_only,			u8,				\
-	  OPT_FS,							\
+	  OPT_FS|OPT_MOUNT,						\
 	  OPT_BOOL(),							\
 	  BCH2_NO_SB_OPT,		false,				\
 	  NULL,		NULL)						\
@@ -419,6 +431,11 @@ enum fsck_err_opts {
 	  OPT_BOOL(),							\
 	  BCH2_NO_SB_OPT,		false,				\
 	  NULL,		"Allocate the buckets_nouse bitmap")		\
+	x(stdio,			u64,				\
+	  0,								\
+	  OPT_UINT(0, S64_MAX),						\
+	  BCH2_NO_SB_OPT,		false,				\
+	  NULL,		"Pointer to a struct stdio_redirect")		\
 	x(project,			u8,				\
 	  OPT_INODE,							\
 	  OPT_BOOL(),							\
@@ -458,7 +475,13 @@ enum fsck_err_opts {
 	  OPT_UINT(0, BCH_REPLICAS_MAX),				\
 	  BCH2_NO_SB_OPT,		1,				\
 	  "n",		"Data written to this device will be considered\n"\
-			"to have already been replicated n times")
+			"to have already been replicated n times")	\
+	x(btree_node_prefetch,		u8,				\
+	  OPT_FS|OPT_MOUNT|OPT_RUNTIME,					\
+	  OPT_BOOL(),							\
+	  BCH2_NO_SB_OPT,		true,				\
+	  NULL,		"BTREE_ITER_PREFETCH casuse btree nodes to be\n"\
+	  " prefetched sequentially")
 
 struct bch_opts {
 #define x(_name, _bits, ...)	unsigned _name##_defined:1;
@@ -557,6 +580,11 @@ struct bch_io_opts {
 	BCH_INODE_OPTS()
 #undef x
 };
+
+static inline unsigned background_compression(struct bch_io_opts opts)
+{
+	return opts.background_compression ?: opts.compression;
+}
 
 struct bch_io_opts bch2_opts_to_inode_opts(struct bch_opts);
 bool bch2_opt_is_inode_opt(enum bch_opt_id);

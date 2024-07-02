@@ -437,7 +437,7 @@ field.  This is a pointer to a "struct inode_operations" which describes
 the methods that can be performed on individual inodes.
 
 
-struct xattr_handlers
+struct xattr_handler
 ---------------------
 
 On filesystems that support extended attributes (xattrs), the s_xattr
@@ -823,7 +823,7 @@ cache in your filesystem.  The following members are defined:
 		bool (*is_partially_uptodate) (struct folio *, size_t from,
 					       size_t count);
 		void (*is_dirty_writeback)(struct folio *, bool *, bool *);
-		int (*error_remove_page) (struct mapping *mapping, struct page *page);
+		int (*error_remove_folio)(struct mapping *mapping, struct folio *);
 		int (*swap_activate)(struct swap_info_struct *sis, struct file *f, sector_t *span)
 		int (*swap_deactivate)(struct file *);
 		int (*swap_rw)(struct kiocb *iocb, struct iov_iter *iter);
@@ -1034,8 +1034,8 @@ cache in your filesystem.  The following members are defined:
 	VM if a folio should be treated as dirty or writeback for the
 	purposes of stalling.
 
-``error_remove_page``
-	normally set to generic_error_remove_page if truncation is ok
+``error_remove_folio``
+	normally set to generic_error_remove_folio if truncation is ok
 	for this address space.  Used for memory failure handling.
 	Setting this implies you deal with pages going away under you,
 	unless you have them locked or reference counts increased.
@@ -1264,7 +1264,7 @@ defined:
 		char *(*d_dname)(struct dentry *, char *, int);
 		struct vfsmount *(*d_automount)(struct path *);
 		int (*d_manage)(const struct path *, bool);
-		struct dentry *(*d_real)(struct dentry *, const struct inode *);
+		struct dentry *(*d_real)(struct dentry *, enum d_real_type type);
 	};
 
 ``d_revalidate``
@@ -1419,16 +1419,14 @@ defined:
 	the dentry being transited from.
 
 ``d_real``
-	overlay/union type filesystems implement this method to return
-	one of the underlying dentries hidden by the overlay.  It is
-	used in two different modes:
+	overlay/union type filesystems implement this method to return one
+	of the underlying dentries of a regular file hidden by the overlay.
 
-	Called from file_dentry() it returns the real dentry matching
-	the inode argument.  The real dentry may be from a lower layer
-	already copied up, but still referenced from the file.  This
-	mode is selected with a non-NULL inode argument.
+	The 'type' argument takes the values D_REAL_DATA or D_REAL_METADATA
+	for returning the real underlying dentry that refers to the inode
+	hosting the file's data or metadata respectively.
 
-	With NULL inode the topmost real underlying dentry is returned.
+	For non-regular files, the 'dentry' argument is returned.
 
 Each dentry has a pointer to its parent dentry, as well as a hash list
 of child dentries.  Child dentries are basically like files in a

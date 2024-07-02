@@ -153,18 +153,6 @@ Managed Resources
 .. kernel-doc:: include/drm/drm_managed.h
    :internal:
 
-Bus-specific Device Registration and PCI Support
-------------------------------------------------
-
-A number of functions are provided to help with device registration. The
-functions deal with PCI and platform devices respectively and are only
-provided for historical reasons. These are all deprecated and shouldn't
-be used in new drivers. Besides that there's a few helpers for pci
-drivers.
-
-.. kernel-doc:: drivers/gpu/drm/drm_pci.c
-   :export:
-
 Open/Close, File Operations and IOCTLs
 ======================================
 

@@ -516,11 +516,12 @@ static void bpf_skip(struct bpf_jit *jit, int size)
  * PLT for hotpatchable calls. The calling convention is the same as for the
  * ftrace hotpatch trampolines: %r0 is return address, %r1 is clobbered.
  */
-extern const char bpf_plt[];
-extern const char bpf_plt_ret[];
-extern const char bpf_plt_target[];
-extern const char bpf_plt_end[];
-#define BPF_PLT_SIZE 32
+struct bpf_plt {
+	char code[16];
+	void *ret;
+	void *target;
+} __packed;
+extern const struct bpf_plt bpf_plt;
 asm(
 	".pushsection .rodata\n"
 	"	.balign 8\n"
@@ -531,15 +532,14 @@ asm(
 	"	.balign 8\n"
 	"bpf_plt_ret: .quad 0\n"
 	"bpf_plt_target: .quad 0\n"
-	"bpf_plt_end:\n"
 	"	.popsection\n"
 );
 
-static void bpf_jit_plt(void *plt, void *ret, void *target)
+static void bpf_jit_plt(struct bpf_plt *plt, void *ret, void *target)
 {
-	memcpy(plt, bpf_plt, BPF_PLT_SIZE);
-	*(void **)((char *)plt + (bpf_plt_ret - bpf_plt)) = ret;
-	*(void **)((char *)plt + (bpf_plt_target - bpf_plt)) = target ?: ret;
+	memcpy(plt, &bpf_plt, sizeof(*plt));
+	plt->ret = ret;
+	plt->target = target;
 }
 
 /*
@@ -662,9 +662,9 @@ static void bpf_jit_epilogue(struct bpf_jit *jit, u32 stack_depth)
 	jit->prg = ALIGN(jit->prg, 8);
 	jit->prologue_plt = jit->prg;
 	if (jit->prg_buf)
-		bpf_jit_plt(jit->prg_buf + jit->prg,
+		bpf_jit_plt((struct bpf_plt *)(jit->prg_buf + jit->prg),
 			    jit->prg_buf + jit->prologue_plt_ret, NULL);
-	jit->prg += BPF_PLT_SIZE;
+	jit->prg += sizeof(struct bpf_plt);
 }
 
 static int get_probe_mem_regno(const u8 *insn)
@@ -779,7 +779,7 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 				 int i, bool extra_pass, u32 stack_depth)
 {
 	struct bpf_insn *insn = &fp->insnsi[i];
-	s16 branch_oc_off = insn->off;
+	s32 branch_oc_off = insn->off;
 	u32 dst_reg = insn->dst_reg;
 	u32 src_reg = insn->src_reg;
 	int last, insn_count = 1;
@@ -1427,8 +1427,12 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 	EMIT6_DISP_LH(0xeb000000, is32 ? (op32) : (op64),		\
 		      (insn->imm & BPF_FETCH) ? src_reg : REG_W0,	\
 		      src_reg, dst_reg, off);				\
-	if (is32 && (insn->imm & BPF_FETCH))				\
-		EMIT_ZERO(src_reg);					\
+	if (insn->imm & BPF_FETCH) {					\
+		/* bcr 14,0 - see atomic_fetch_{add,and,or,xor}() */	\
+		_EMIT2(0x07e0);						\
+		if (is32)                                               \
+			EMIT_ZERO(src_reg);				\
+	}								\
 } while (0)
 		case BPF_ADD:
 		case BPF_ADD | BPF_FETCH:
@@ -2040,9 +2044,6 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *fp)
 	struct bpf_jit jit;
 	int pass;
 
-	if (WARN_ON_ONCE(bpf_plt_end - bpf_plt != BPF_PLT_SIZE))
-		return orig_fp;
-
 	if (!fp->jit_requested)
 		return orig_fp;
 
@@ -2111,7 +2112,11 @@ skip_init_ctx:
 		print_fn_code(jit.prg_buf, jit.size_prg);
 	}
 	if (!fp->is_func || extra_pass) {
-		bpf_jit_binary_lock_ro(header);
+		if (bpf_jit_binary_lock_ro(header)) {
+			bpf_jit_binary_free(header);
+			fp = orig_fp;
+			goto free_addrs;
+		}
 	} else {
 		jit_data->header = header;
 		jit_data->ctx = jit;
@@ -2148,14 +2153,11 @@ bool bpf_jit_supports_far_kfunc_call(void)
 int bpf_arch_text_poke(void *ip, enum bpf_text_poke_type t,
 		       void *old_addr, void *new_addr)
 {
+	struct bpf_plt expected_plt, current_plt, new_plt, *plt;
 	struct {
 		u16 opc;
 		s32 disp;
 	} __packed insn;
-	char expected_plt[BPF_PLT_SIZE];
-	char current_plt[BPF_PLT_SIZE];
-	char new_plt[BPF_PLT_SIZE];
-	char *plt;
 	char *ret;
 	int err;
 
@@ -2174,18 +2176,18 @@ int bpf_arch_text_poke(void *ip, enum bpf_text_poke_type t,
 		 */
 	} else {
 		/* Verify the PLT. */
-		plt = (char *)ip + (insn.disp << 1);
-		err = copy_from_kernel_nofault(current_plt, plt, BPF_PLT_SIZE);
+		plt = ip + (insn.disp << 1);
+		err = copy_from_kernel_nofault(&current_plt, plt,
+					       sizeof(current_plt));
 		if (err < 0)
 			return err;
 		ret = (char *)ip + 6;
-		bpf_jit_plt(expected_plt, ret, old_addr);
-		if (memcmp(current_plt, expected_plt, BPF_PLT_SIZE))
+		bpf_jit_plt(&expected_plt, ret, old_addr);
+		if (memcmp(&current_plt, &expected_plt, sizeof(current_plt)))
 			return -EINVAL;
 		/* Adjust the call address. */
-		bpf_jit_plt(new_plt, ret, new_addr);
-		s390_kernel_write(plt + (bpf_plt_target - bpf_plt),
-				  new_plt + (bpf_plt_target - bpf_plt),
+		bpf_jit_plt(&new_plt, ret, new_addr);
+		s390_kernel_write(&plt->target, &new_plt.target,
 				  sizeof(void *));
 	}
 
@@ -2362,7 +2364,8 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
 		return -ENOTSUPP;
 
 	/* Return to %r14, since func_addr and %r0 are not available. */
-	if (!func_addr && !(flags & BPF_TRAMP_F_ORIG_STACK))
+	if ((!func_addr && !(flags & BPF_TRAMP_F_ORIG_STACK)) ||
+	    (flags & BPF_TRAMP_F_INDIRECT))
 		flags |= BPF_TRAMP_F_SKIP_FRAME;
 
 	/*
@@ -2637,6 +2640,21 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
 	return 0;
 }
 
+int arch_bpf_trampoline_size(const struct btf_func_model *m, u32 flags,
+			     struct bpf_tramp_links *tlinks, void *orig_call)
+{
+	struct bpf_tramp_image im;
+	struct bpf_tramp_jit tjit;
+	int ret;
+
+	memset(&tjit, 0, sizeof(tjit));
+
+	ret = __arch_prepare_bpf_trampoline(&im, &tjit, m, flags,
+					    tlinks, orig_call);
+
+	return ret < 0 ? ret : tjit.common.prg;
+}
+
 int arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *image,
 				void *image_end, const struct btf_func_model *m,
 				u32 flags, struct bpf_tramp_links *tlinks,
@@ -2644,30 +2662,27 @@ int arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *image,
 {
 	struct bpf_tramp_jit tjit;
 	int ret;
-	int i;
 
-	for (i = 0; i < 2; i++) {
-		if (i == 0) {
-			/* Compute offsets, check whether the code fits. */
-			memset(&tjit, 0, sizeof(tjit));
-		} else {
-			/* Generate the code. */
-			tjit.common.prg = 0;
-			tjit.common.prg_buf = image;
-		}
-		ret = __arch_prepare_bpf_trampoline(im, &tjit, m, flags,
-						    tlinks, func_addr);
-		if (ret < 0)
-			return ret;
-		if (tjit.common.prg > (char *)image_end - (char *)image)
-			/*
-			 * Use the same error code as for exceeding
-			 * BPF_MAX_TRAMP_LINKS.
-			 */
-			return -E2BIG;
-	}
+	/* Compute offsets, check whether the code fits. */
+	memset(&tjit, 0, sizeof(tjit));
+	ret = __arch_prepare_bpf_trampoline(im, &tjit, m, flags,
+					    tlinks, func_addr);
 
-	return tjit.common.prg;
+	if (ret < 0)
+		return ret;
+	if (tjit.common.prg > (char *)image_end - (char *)image)
+		/*
+		 * Use the same error code as for exceeding
+		 * BPF_MAX_TRAMP_LINKS.
+		 */
+		return -E2BIG;
+
+	tjit.common.prg = 0;
+	tjit.common.prg_buf = image;
+	ret = __arch_prepare_bpf_trampoline(im, &tjit, m, flags,
+					    tlinks, func_addr);
+
+	return ret < 0 ? ret : tjit.common.prg;
 }
 
 bool bpf_jit_supports_subprog_tailcalls(void)

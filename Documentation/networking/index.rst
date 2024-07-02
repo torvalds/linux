@@ -55,6 +55,7 @@ Contents:
    filter
    generic-hdlc
    generic_netlink
+   netlink_spec/index
    gen_stats
    gtp
    ila
@@ -73,7 +74,9 @@ Contents:
    mpls-sysctl
    mptcp-sysctl
    multiqueue
+   multi-pf-netdev
    napi
+   net_cachelines/index
    netconsole
    netdev-features
    netdevices
@@ -90,6 +93,7 @@ Contents:
    plip
    ppp_generic
    proc_net_tcp
+   pse-pd/index
    radiotap-headers
    rds
    regulatory
@@ -123,6 +127,7 @@ Contents:
    xfrm_sync
    xfrm_sysctl
    xdp-rx-metadata
+   xsk-tx-metadata
 
 .. only::  subproject and html
 

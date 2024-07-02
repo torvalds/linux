@@ -100,6 +100,30 @@ struct io_pgtable_cfg {
 	const struct iommu_flush_ops	*tlb;
 	struct device			*iommu_dev;
 
+	/**
+	 * @alloc: Custom page allocator.
+	 *
+	 * Optional hook used to allocate page tables. If this function is NULL,
+	 * @free must be NULL too.
+	 *
+	 * Memory returned should be zeroed and suitable for dma_map_single() and
+	 * virt_to_phys().
+	 *
+	 * Not all formats support custom page allocators. Before considering
+	 * passing a non-NULL value, make sure the chosen page format supports
+	 * this feature.
+	 */
+	void *(*alloc)(void *cookie, size_t size, gfp_t gfp);
+
+	/**
+	 * @free: Custom page de-allocator.
+	 *
+	 * Optional hook used to free page tables allocated with the @alloc
+	 * hook. Must be non-NULL if @alloc is not NULL, must be NULL
+	 * otherwise.
+	 */
+	void (*free)(void *cookie, void *pages, size_t size);
+
 	/* Low-level data specific to the table format */
 	union {
 		struct {
@@ -242,15 +266,25 @@ io_pgtable_tlb_add_page(struct io_pgtable *iop,
 }
 
 /**
+ * enum io_pgtable_caps - IO page table backend capabilities.
+ */
+enum io_pgtable_caps {
+	/** @IO_PGTABLE_CAP_CUSTOM_ALLOCATOR: Backend accepts custom page table allocators. */
+	IO_PGTABLE_CAP_CUSTOM_ALLOCATOR = BIT(0),
+};
+
+/**
  * struct io_pgtable_init_fns - Alloc/free a set of page tables for a
  *                              particular format.
  *
  * @alloc: Allocate a set of page tables described by cfg.
  * @free:  Free the page tables associated with iop.
+ * @caps:  Combination of @io_pgtable_caps flags encoding the backend capabilities.
  */
 struct io_pgtable_init_fns {
 	struct io_pgtable *(*alloc)(struct io_pgtable_cfg *cfg, void *cookie);
 	void (*free)(struct io_pgtable *iop);
+	u32 caps;
 };
 
 extern struct io_pgtable_init_fns io_pgtable_arm_32_lpae_s1_init_fns;

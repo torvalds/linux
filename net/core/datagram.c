@@ -324,25 +324,6 @@ void skb_free_datagram(struct sock *sk, struct sk_buff *skb)
 }
 EXPORT_SYMBOL(skb_free_datagram);
 
-void __skb_free_datagram_locked(struct sock *sk, struct sk_buff *skb, int len)
-{
-	bool slow;
-
-	if (!skb_unref(skb)) {
-		sk_peek_offset_bwd(sk, len);
-		return;
-	}
-
-	slow = lock_sock_fast(sk);
-	sk_peek_offset_bwd(sk, len);
-	skb_orphan(skb);
-	unlock_sock_fast(sk, slow);
-
-	/* skb is now orphaned, can be freed outside of locked section */
-	__kfree_skb(skb);
-}
-EXPORT_SYMBOL(__skb_free_datagram_locked);
-
 int __sk_queue_drop_skb(struct sock *sk, struct sk_buff_head *sk_queue,
 			struct sk_buff *skb, unsigned int flags,
 			void (*destructor)(struct sock *sk,
@@ -751,7 +732,7 @@ size_t memcpy_to_iter_csum(void *iter_to, size_t progress,
 			   size_t len, void *from, void *priv2)
 {
 	__wsum *csum = priv2;
-	__wsum next = csum_partial_copy_nocheck(from, iter_to, len);
+	__wsum next = csum_partial_copy_nocheck(from + progress, iter_to, len);
 
 	*csum = csum_block_add(*csum, next, progress);
 	return 0;

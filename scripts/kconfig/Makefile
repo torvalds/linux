@@ -27,6 +27,14 @@ KCONFIG_DEFCONFIG_LIST += \
 endif
 KCONFIG_DEFCONFIG_LIST += arch/$(SRCARCH)/configs/$(KBUILD_DEFCONFIG)
 
+ifneq ($(findstring c, $(KBUILD_EXTRA_WARN)),)
+export KCONFIG_WARN_UNKNOWN_SYMBOLS=1
+endif
+
+ifneq ($(findstring e, $(KBUILD_EXTRA_WARN)),)
+export KCONFIG_WERROR=1
+endif
+
 # We need this, in case the user has it in its environment
 unexport CONFIG_
 
@@ -99,7 +107,7 @@ config-fragments = $(call configfiles,$@)
 
 %.config: $(obj)/conf
 	$(if $(config-fragments),, $(error $@ fragment does not exists on this architecture))
-	$(Q)$(CONFIG_SHELL) $(srctree)/scripts/kconfig/merge_config.sh -m .config $(config-fragments)
+	$(Q)$(CONFIG_SHELL) $(srctree)/scripts/kconfig/merge_config.sh -m $(KCONFIG_CONFIG) $(config-fragments)
 	$(Q)$(MAKE) -f $(srctree)/Makefile olddefconfig
 
 PHONY += tinyconfig
@@ -166,7 +174,7 @@ conf-objs	:= conf.o $(common-objs)
 
 # nconf: Used for the nconfig target based on ncurses
 hostprogs	+= nconf
-nconf-objs	:= nconf.o nconf.gui.o $(common-objs)
+nconf-objs	:= nconf.o nconf.gui.o mnconf-common.o $(common-objs)
 
 HOSTLDLIBS_nconf       = $(call read-file, $(obj)/nconf-libs)
 HOSTCFLAGS_nconf.o     = $(call read-file, $(obj)/nconf-cflags)
@@ -179,7 +187,7 @@ $(obj)/nconf.o $(obj)/nconf.gui.o: | $(obj)/nconf-cflags
 hostprogs	+= mconf
 lxdialog	:= $(addprefix lxdialog/, \
 		     checklist.o inputbox.o menubox.o textbox.o util.o yesno.o)
-mconf-objs	:= mconf.o $(lxdialog) $(common-objs)
+mconf-objs	:= mconf.o $(lxdialog) mnconf-common.o $(common-objs)
 
 HOSTLDLIBS_mconf = $(call read-file, $(obj)/mconf-libs)
 $(foreach f, mconf.o $(lxdialog), \

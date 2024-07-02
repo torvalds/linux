@@ -274,14 +274,11 @@ static ssize_t serial_show(struct device *dev, struct device_attribute *attr,
 
 static DEVICE_ATTR_RO(serial);
 
-static struct attribute *meson_sm_sysfs_attributes[] = {
+static struct attribute *meson_sm_sysfs_attrs[] = {
 	&dev_attr_serial.attr,
 	NULL,
 };
-
-static const struct attribute_group meson_sm_sysfs_attr_group = {
-	.attrs = meson_sm_sysfs_attributes,
-};
+ATTRIBUTE_GROUPS(meson_sm_sysfs);
 
 static const struct of_device_id meson_sm_ids[] = {
 	{ .compatible = "amlogic,meson-gxbb-sm", .data = &gxbb_chip },
@@ -313,7 +310,7 @@ static int __init meson_sm_probe(struct platform_device *pdev)
 		fw->sm_shmem_out_base = meson_sm_map_shmem(chip->cmd_shmem_out_base,
 							   chip->shmem_size);
 		if (WARN_ON(!fw->sm_shmem_out_base))
-			goto out_in_base;
+			goto unmap_in_base;
 	}
 
 	fw->chip = chip;
@@ -321,16 +318,15 @@ static int __init meson_sm_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, fw);
 
 	if (devm_of_platform_populate(dev))
-		goto out_in_base;
-
-	if (sysfs_create_group(&pdev->dev.kobj, &meson_sm_sysfs_attr_group))
-		goto out_in_base;
+		goto unmap_out_base;
 
 	pr_info("secure-monitor enabled\n");
 
 	return 0;
 
-out_in_base:
+unmap_out_base:
+	iounmap(fw->sm_shmem_out_base);
+unmap_in_base:
 	iounmap(fw->sm_shmem_in_base);
 out:
 	return -EINVAL;
@@ -340,6 +336,7 @@ static struct platform_driver meson_sm_driver = {
 	.driver = {
 		.name = "meson-sm",
 		.of_match_table = of_match_ptr(meson_sm_ids),
+		.dev_groups = meson_sm_sysfs_groups,
 	},
 };
 module_platform_driver_probe(meson_sm_driver, meson_sm_probe);

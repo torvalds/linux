@@ -19,13 +19,6 @@
 #define NVMF_DEF_FAIL_FAST_TMO		-1
 
 /*
- * Reserved one command for internal usage.  This command is used for sending
- * the connect command, as well as for the keep alive command on the admin
- * queue once live.
- */
-#define NVMF_RESERVED_TAGS	1
-
-/*
  * Define a host as seen by the target.  We allocate one at boot, but also
  * allow the override it when creating controllers.  This is both to provide
  * persistence of the Host NQN over multiple boots, and to allow using
@@ -185,9 +178,11 @@ static inline bool
 nvmf_ctlr_matches_baseopts(struct nvme_ctrl *ctrl,
 			struct nvmf_ctrl_options *opts)
 {
-	if (ctrl->state == NVME_CTRL_DELETING ||
-	    ctrl->state == NVME_CTRL_DELETING_NOIO ||
-	    ctrl->state == NVME_CTRL_DEAD ||
+	enum nvme_ctrl_state state = nvme_ctrl_state(ctrl);
+
+	if (state == NVME_CTRL_DELETING ||
+	    state == NVME_CTRL_DELETING_NOIO ||
+	    state == NVME_CTRL_DEAD ||
 	    strcmp(opts->subsysnqn, ctrl->opts->subsysnqn) ||
 	    strcmp(opts->host->nqn, ctrl->opts->host->nqn) ||
 	    !uuid_equal(&opts->host->id, &ctrl->opts->host->id))

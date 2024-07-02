@@ -166,11 +166,24 @@ module_param_named(timestamp_precision_usec, drm_timestamp_precision, int, 0600)
 MODULE_PARM_DESC(vblankoffdelay, "Delay until vblank irq auto-disable [msecs] (0: never disable, <0: disable immediately)");
 MODULE_PARM_DESC(timestamp_precision_usec, "Max. error on timestamps [usecs]");
 
+static struct drm_vblank_crtc *
+drm_vblank_crtc(struct drm_device *dev, unsigned int pipe)
+{
+	return &dev->vblank[pipe];
+}
+
+struct drm_vblank_crtc *
+drm_crtc_vblank_crtc(struct drm_crtc *crtc)
+{
+	return drm_vblank_crtc(crtc->dev, drm_crtc_index(crtc));
+}
+EXPORT_SYMBOL(drm_crtc_vblank_crtc);
+
 static void store_vblank(struct drm_device *dev, unsigned int pipe,
 			 u32 vblank_count_inc,
 			 ktime_t t_vblank, u32 last)
 {
-	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
+	struct drm_vblank_crtc *vblank = drm_vblank_crtc(dev, pipe);
 
 	assert_spin_locked(&dev->vblank_time_lock);
 
@@ -184,7 +197,7 @@ static void store_vblank(struct drm_device *dev, unsigned int pipe,
 
 static u32 drm_max_vblank_count(struct drm_device *dev, unsigned int pipe)
 {
-	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
+	struct drm_vblank_crtc *vblank = drm_vblank_crtc(dev, pipe);
 
 	return vblank->max_vblank_count ?: dev->max_vblank_count;
 }
@@ -210,11 +223,6 @@ static u32 __get_vblank_counter(struct drm_device *dev, unsigned int pipe)
 		if (crtc->funcs->get_vblank_counter)
 			return crtc->funcs->get_vblank_counter(crtc);
 	}
-#ifdef CONFIG_DRM_LEGACY
-	else if (dev->driver->get_vblank_counter) {
-		return dev->driver->get_vblank_counter(dev, pipe);
-	}
-#endif
 
 	return drm_vblank_no_hw_counter(dev, pipe);
 }
@@ -278,7 +286,7 @@ static void drm_reset_vblank_timestamp(struct drm_device *dev, unsigned int pipe
 static void drm_update_vblank_count(struct drm_device *dev, unsigned int pipe,
 				    bool in_vblank_irq)
 {
-	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
+	struct drm_vblank_crtc *vblank = drm_vblank_crtc(dev, pipe);
 	u32 cur_vblank, diff;
 	bool rc;
 	ktime_t t_vblank;
@@ -369,7 +377,7 @@ static void drm_update_vblank_count(struct drm_device *dev, unsigned int pipe,
 
 u64 drm_vblank_count(struct drm_device *dev, unsigned int pipe)
 {
-	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
+	struct drm_vblank_crtc *vblank = drm_vblank_crtc(dev, pipe);
 	u64 count;
 
 	if (drm_WARN_ON(dev, pipe >= dev->num_crtcs))
@@ -433,11 +441,6 @@ static void __disable_vblank(struct drm_device *dev, unsigned int pipe)
 		if (crtc->funcs->disable_vblank)
 			crtc->funcs->disable_vblank(crtc);
 	}
-#ifdef CONFIG_DRM_LEGACY
-	else {
-		dev->driver->disable_vblank(dev, pipe);
-	}
-#endif
 }
 
 /*
@@ -448,7 +451,7 @@ static void __disable_vblank(struct drm_device *dev, unsigned int pipe)
  */
 void drm_vblank_disable_and_save(struct drm_device *dev, unsigned int pipe)
 {
-	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
+	struct drm_vblank_crtc *vblank = drm_vblank_crtc(dev, pipe);
 	unsigned long irqflags;
 
 	assert_spin_locked(&dev->vbl_lock);
@@ -610,7 +613,7 @@ void drm_calc_timestamping_constants(struct drm_crtc *crtc,
 {
 	struct drm_device *dev = crtc->dev;
 	unsigned int pipe = drm_crtc_index(crtc);
-	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
+	struct drm_vblank_crtc *vblank = drm_crtc_vblank_crtc(crtc);
 	int linedur_ns = 0, framedur_ns = 0;
 	int dotclock = mode->crtc_clock;
 
@@ -940,7 +943,7 @@ EXPORT_SYMBOL(drm_crtc_vblank_count);
 static u64 drm_vblank_count_and_time(struct drm_device *dev, unsigned int pipe,
 				     ktime_t *vblanktime)
 {
-	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
+	struct drm_vblank_crtc *vblank = drm_vblank_crtc(dev, pipe);
 	u64 vblank_count;
 	unsigned int seq;
 
@@ -995,7 +998,6 @@ EXPORT_SYMBOL(drm_crtc_vblank_count_and_time);
  */
 int drm_crtc_next_vblank_start(struct drm_crtc *crtc, ktime_t *vblanktime)
 {
-	unsigned int pipe = drm_crtc_index(crtc);
 	struct drm_vblank_crtc *vblank;
 	struct drm_display_mode *mode;
 	u64 vblank_start;
@@ -1003,7 +1005,7 @@ int drm_crtc_next_vblank_start(struct drm_crtc *crtc, ktime_t *vblanktime)
 	if (!drm_dev_has_vblank(crtc->dev))
 		return -EINVAL;
 
-	vblank = &crtc->dev->vblank[pipe];
+	vblank = drm_crtc_vblank_crtc(crtc);
 	mode = &vblank->hwmode;
 
 	if (!vblank->framedur_ns || !vblank->linedur_ns)
@@ -1151,18 +1153,13 @@ static int __enable_vblank(struct drm_device *dev, unsigned int pipe)
 		if (crtc->funcs->enable_vblank)
 			return crtc->funcs->enable_vblank(crtc);
 	}
-#ifdef CONFIG_DRM_LEGACY
-	else if (dev->driver->enable_vblank) {
-		return dev->driver->enable_vblank(dev, pipe);
-	}
-#endif
 
 	return -EINVAL;
 }
 
 static int drm_vblank_enable(struct drm_device *dev, unsigned int pipe)
 {
-	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
+	struct drm_vblank_crtc *vblank = drm_vblank_crtc(dev, pipe);
 	int ret = 0;
 
 	assert_spin_locked(&dev->vbl_lock);
@@ -1200,7 +1197,7 @@ static int drm_vblank_enable(struct drm_device *dev, unsigned int pipe)
 
 int drm_vblank_get(struct drm_device *dev, unsigned int pipe)
 {
-	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
+	struct drm_vblank_crtc *vblank = drm_vblank_crtc(dev, pipe);
 	unsigned long irqflags;
 	int ret = 0;
 
@@ -1243,7 +1240,7 @@ EXPORT_SYMBOL(drm_crtc_vblank_get);
 
 void drm_vblank_put(struct drm_device *dev, unsigned int pipe)
 {
-	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
+	struct drm_vblank_crtc *vblank = drm_vblank_crtc(dev, pipe);
 
 	if (drm_WARN_ON(dev, pipe >= dev->num_crtcs))
 		return;
@@ -1289,7 +1286,7 @@ EXPORT_SYMBOL(drm_crtc_vblank_put);
  */
 void drm_wait_one_vblank(struct drm_device *dev, unsigned int pipe)
 {
-	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
+	struct drm_vblank_crtc *vblank = drm_vblank_crtc(dev, pipe);
 	int ret;
 	u64 last;
 
@@ -1342,7 +1339,7 @@ void drm_crtc_vblank_off(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	unsigned int pipe = drm_crtc_index(crtc);
-	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
+	struct drm_vblank_crtc *vblank = drm_crtc_vblank_crtc(crtc);
 	struct drm_pending_vblank_event *e, *t;
 	ktime_t now;
 	u64 seq;
@@ -1420,8 +1417,7 @@ EXPORT_SYMBOL(drm_crtc_vblank_off);
 void drm_crtc_vblank_reset(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
-	unsigned int pipe = drm_crtc_index(crtc);
-	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
+	struct drm_vblank_crtc *vblank = drm_crtc_vblank_crtc(crtc);
 
 	spin_lock_irq(&dev->vbl_lock);
 	/*
@@ -1460,8 +1456,7 @@ void drm_crtc_set_max_vblank_count(struct drm_crtc *crtc,
 				   u32 max_vblank_count)
 {
 	struct drm_device *dev = crtc->dev;
-	unsigned int pipe = drm_crtc_index(crtc);
-	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
+	struct drm_vblank_crtc *vblank = drm_crtc_vblank_crtc(crtc);
 
 	drm_WARN_ON(dev, dev->max_vblank_count);
 	drm_WARN_ON(dev, !READ_ONCE(vblank->inmodeset));
@@ -1484,7 +1479,7 @@ void drm_crtc_vblank_on(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	unsigned int pipe = drm_crtc_index(crtc);
-	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
+	struct drm_vblank_crtc *vblank = drm_crtc_vblank_crtc(crtc);
 
 	if (drm_WARN_ON(dev, pipe >= dev->num_crtcs))
 		return;
@@ -1527,7 +1522,7 @@ static void drm_vblank_restore(struct drm_device *dev, unsigned int pipe)
 	assert_spin_locked(&dev->vbl_lock);
 	assert_spin_locked(&dev->vblank_time_lock);
 
-	vblank = &dev->vblank[pipe];
+	vblank = drm_vblank_crtc(dev, pipe);
 	drm_WARN_ONCE(dev,
 		      drm_debug_enabled(DRM_UT_VBL) && !vblank->framedur_ns,
 		      "Cannot compute missed vblanks without frame duration\n");
@@ -1574,94 +1569,12 @@ void drm_crtc_vblank_restore(struct drm_crtc *crtc)
 }
 EXPORT_SYMBOL(drm_crtc_vblank_restore);
 
-static void drm_legacy_vblank_pre_modeset(struct drm_device *dev,
-					  unsigned int pipe)
-{
-	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
-
-	/* vblank is not initialized (IRQ not installed ?), or has been freed */
-	if (!drm_dev_has_vblank(dev))
-		return;
-
-	if (drm_WARN_ON(dev, pipe >= dev->num_crtcs))
-		return;
-
-	/*
-	 * To avoid all the problems that might happen if interrupts
-	 * were enabled/disabled around or between these calls, we just
-	 * have the kernel take a reference on the CRTC (just once though
-	 * to avoid corrupting the count if multiple, mismatch calls occur),
-	 * so that interrupts remain enabled in the interim.
-	 */
-	if (!vblank->inmodeset) {
-		vblank->inmodeset = 0x1;
-		if (drm_vblank_get(dev, pipe) == 0)
-			vblank->inmodeset |= 0x2;
-	}
-}
-
-static void drm_legacy_vblank_post_modeset(struct drm_device *dev,
-					   unsigned int pipe)
-{
-	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
-
-	/* vblank is not initialized (IRQ not installed ?), or has been freed */
-	if (!drm_dev_has_vblank(dev))
-		return;
-
-	if (drm_WARN_ON(dev, pipe >= dev->num_crtcs))
-		return;
-
-	if (vblank->inmodeset) {
-		spin_lock_irq(&dev->vbl_lock);
-		drm_reset_vblank_timestamp(dev, pipe);
-		spin_unlock_irq(&dev->vbl_lock);
-
-		if (vblank->inmodeset & 0x2)
-			drm_vblank_put(dev, pipe);
-
-		vblank->inmodeset = 0;
-	}
-}
-
-int drm_legacy_modeset_ctl_ioctl(struct drm_device *dev, void *data,
-				 struct drm_file *file_priv)
-{
-	struct drm_modeset_ctl *modeset = data;
-	unsigned int pipe;
-
-	/* If drm_vblank_init() hasn't been called yet, just no-op */
-	if (!drm_dev_has_vblank(dev))
-		return 0;
-
-	/* KMS drivers handle this internally */
-	if (!drm_core_check_feature(dev, DRIVER_LEGACY))
-		return 0;
-
-	pipe = modeset->crtc;
-	if (pipe >= dev->num_crtcs)
-		return -EINVAL;
-
-	switch (modeset->cmd) {
-	case _DRM_PRE_MODESET:
-		drm_legacy_vblank_pre_modeset(dev, pipe);
-		break;
-	case _DRM_POST_MODESET:
-		drm_legacy_vblank_post_modeset(dev, pipe);
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 static int drm_queue_vblank_event(struct drm_device *dev, unsigned int pipe,
 				  u64 req_seq,
 				  union drm_wait_vblank *vblwait,
 				  struct drm_file *file_priv)
 {
-	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
+	struct drm_vblank_crtc *vblank = drm_vblank_crtc(dev, pipe);
 	struct drm_pending_vblank_event *e;
 	ktime_t now;
 	u64 seq;
@@ -1780,10 +1693,6 @@ static void drm_wait_vblank_reply(struct drm_device *dev, unsigned int pipe,
 
 static bool drm_wait_vblank_supported(struct drm_device *dev)
 {
-#if IS_ENABLED(CONFIG_DRM_LEGACY)
-	if (unlikely(drm_core_check_feature(dev, DRIVER_LEGACY)))
-		return dev->irq_enabled;
-#endif
 	return drm_dev_has_vblank(dev);
 }
 
@@ -1973,7 +1882,7 @@ static void drm_handle_vblank_events(struct drm_device *dev, unsigned int pipe)
  */
 bool drm_handle_vblank(struct drm_device *dev, unsigned int pipe)
 {
-	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
+	struct drm_vblank_crtc *vblank = drm_vblank_crtc(dev, pipe);
 	unsigned long irqflags;
 	bool disable_irq;
 
@@ -2082,7 +1991,7 @@ int drm_crtc_get_sequence_ioctl(struct drm_device *dev, void *data,
 
 	pipe = drm_crtc_index(crtc);
 
-	vblank = &dev->vblank[pipe];
+	vblank = drm_crtc_vblank_crtc(crtc);
 	vblank_enabled = dev->vblank_disable_immediate && READ_ONCE(vblank->enabled);
 
 	if (!vblank_enabled) {
@@ -2147,7 +2056,7 @@ int drm_crtc_queue_sequence_ioctl(struct drm_device *dev, void *data,
 
 	pipe = drm_crtc_index(crtc);
 
-	vblank = &dev->vblank[pipe];
+	vblank = drm_crtc_vblank_crtc(crtc);
 
 	e = kzalloc(sizeof(*e), GFP_KERNEL);
 	if (e == NULL)

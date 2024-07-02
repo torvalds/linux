@@ -200,17 +200,8 @@ int kvm_emu_idle(struct kvm_vcpu *vcpu)
 	++vcpu->stat.idle_exits;
 	trace_kvm_exit_idle(vcpu, KVM_TRACE_EXIT_IDLE);
 
-	if (!kvm_arch_vcpu_runnable(vcpu)) {
-		/*
-		 * Switch to the software timer before halt-polling/blocking as
-		 * the guest's timer may be a break event for the vCPU, and the
-		 * hypervisor timer runs only when the CPU is in guest mode.
-		 * Switch before halt-polling so that KVM recognizes an expired
-		 * timer before blocking.
-		 */
-		kvm_save_timer(vcpu);
-		kvm_vcpu_block(vcpu);
-	}
+	if (!kvm_arch_vcpu_runnable(vcpu))
+		kvm_vcpu_halt(vcpu);
 
 	return EMULATE_DONE;
 }
@@ -643,6 +634,11 @@ static int kvm_handle_fpu_disabled(struct kvm_vcpu *vcpu)
 {
 	struct kvm_run *run = vcpu->run;
 
+	if (!kvm_guest_has_fpu(&vcpu->arch)) {
+		kvm_queue_exception(vcpu, EXCCODE_INE, 0);
+		return RESUME_GUEST;
+	}
+
 	/*
 	 * If guest FPU not present, the FPU operation should have been
 	 * treated as a reserved instruction!
@@ -655,6 +651,36 @@ static int kvm_handle_fpu_disabled(struct kvm_vcpu *vcpu)
 	}
 
 	kvm_own_fpu(vcpu);
+
+	return RESUME_GUEST;
+}
+
+/*
+ * kvm_handle_lsx_disabled() - Guest used LSX while disabled in root.
+ * @vcpu:      Virtual CPU context.
+ *
+ * Handle when the guest attempts to use LSX when it is disabled in the root
+ * context.
+ */
+static int kvm_handle_lsx_disabled(struct kvm_vcpu *vcpu)
+{
+	if (kvm_own_lsx(vcpu))
+		kvm_queue_exception(vcpu, EXCCODE_INE, 0);
+
+	return RESUME_GUEST;
+}
+
+/*
+ * kvm_handle_lasx_disabled() - Guest used LASX while disabled in root.
+ * @vcpu:	Virtual CPU context.
+ *
+ * Handle when the guest attempts to use LASX when it is disabled in the root
+ * context.
+ */
+static int kvm_handle_lasx_disabled(struct kvm_vcpu *vcpu)
+{
+	if (kvm_own_lasx(vcpu))
+		kvm_queue_exception(vcpu, EXCCODE_INE, 0);
 
 	return RESUME_GUEST;
 }
@@ -687,6 +713,8 @@ static exit_handle_fn kvm_fault_tables[EXCCODE_INT_START] = {
 	[EXCCODE_TLBS]			= kvm_handle_write_fault,
 	[EXCCODE_TLBM]			= kvm_handle_write_fault,
 	[EXCCODE_FPDIS]			= kvm_handle_fpu_disabled,
+	[EXCCODE_LSXDIS]		= kvm_handle_lsx_disabled,
+	[EXCCODE_LASXDIS]		= kvm_handle_lasx_disabled,
 	[EXCCODE_GSPR]			= kvm_handle_gspr,
 };
 

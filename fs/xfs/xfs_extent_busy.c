@@ -32,7 +32,8 @@ xfs_extent_busy_insert_list(
 	struct rb_node		**rbp;
 	struct rb_node		*parent = NULL;
 
-	new = kmem_zalloc(sizeof(struct xfs_extent_busy), 0);
+	new = kzalloc(sizeof(struct xfs_extent_busy),
+			GFP_KERNEL | __GFP_NOFAIL);
 	new->agno = pag->pag_agno;
 	new->bno = bno;
 	new->length = len;
@@ -530,7 +531,7 @@ xfs_extent_busy_clear_one(
 	}
 
 	list_del_init(&busyp->list);
-	kmem_free(busyp);
+	kfree(busyp);
 }
 
 static void
@@ -677,4 +678,17 @@ xfs_extent_busy_ag_cmp(
 	if (!diff)
 		diff = b1->bno - b2->bno;
 	return diff;
+}
+
+/* Are there any busy extents in this AG? */
+bool
+xfs_extent_busy_list_empty(
+	struct xfs_perag	*pag)
+{
+	bool			res;
+
+	spin_lock(&pag->pagb_lock);
+	res = RB_EMPTY_ROOT(&pag->pagb_tree);
+	spin_unlock(&pag->pagb_lock);
+	return res;
 }

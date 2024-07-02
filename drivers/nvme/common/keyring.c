@@ -111,7 +111,7 @@ static struct key *nvme_tls_psk_lookup(struct key *keyring,
  * should be preferred to 'generated' PSKs,
  * and SHA-384 should be preferred to SHA-256.
  */
-struct nvme_tls_psk_priority_list {
+static struct nvme_tls_psk_priority_list {
 	bool generated;
 	enum nvme_tcp_tls_cipher cipher;
 } nvme_tls_psk_prio[] = {
@@ -151,7 +151,7 @@ key_serial_t nvme_tls_psk_default(struct key *keyring,
 }
 EXPORT_SYMBOL_GPL(nvme_tls_psk_default);
 
-int nvme_keyring_init(void)
+static int __init nvme_keyring_init(void)
 {
 	int err;
 
@@ -171,12 +171,16 @@ int nvme_keyring_init(void)
 	}
 	return 0;
 }
-EXPORT_SYMBOL_GPL(nvme_keyring_init);
 
-void nvme_keyring_exit(void)
+static void __exit nvme_keyring_exit(void)
 {
 	unregister_key_type(&nvme_tls_psk_key_type);
 	key_revoke(nvme_keyring);
 	key_put(nvme_keyring);
 }
-EXPORT_SYMBOL_GPL(nvme_keyring_exit);
+
+MODULE_LICENSE("GPL v2");
+MODULE_AUTHOR("Hannes Reinecke <hare@suse.de>");
+MODULE_DESCRIPTION("NVMe Keyring implementation");
+module_init(nvme_keyring_init);
+module_exit(nvme_keyring_exit);

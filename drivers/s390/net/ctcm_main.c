@@ -996,7 +996,7 @@ static int ctcm_change_mtu(struct net_device *dev, int new_mtu)
 			return -EINVAL;
 		dev->hard_header_len = LL_HEADER_LENGTH + 2;
 	}
-	dev->mtu = new_mtu;
+	WRITE_ONCE(dev->mtu, new_mtu);
 	return 0;
 }
 
@@ -1389,7 +1389,7 @@ static int add_channel(struct ccw_device *cdev, enum ctcm_channel_types type,
 		ch->ccw[15].cmd_code = CCW_CMD_WRITE;
 		ch->ccw[15].flags    = CCW_FLAG_SLI | CCW_FLAG_CC;
 		ch->ccw[15].count    = TH_HEADER_LENGTH;
-		ch->ccw[15].cda      = virt_to_phys(ch->discontact_th);
+		ch->ccw[15].cda      = virt_to_dma32(ch->discontact_th);
 
 		ch->ccw[16].cmd_code = CCW_CMD_NOOP;
 		ch->ccw[16].flags    = CCW_FLAG_SLI;

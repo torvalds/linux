@@ -441,7 +441,6 @@ static void mcfqspi_remove(struct platform_device *pdev)
 	mcfqspi_wr_qmr(mcfqspi, MCFQSPI_QMR_MSTR);
 
 	mcfqspi_cs_teardown(mcfqspi);
-	clk_disable_unprepare(mcfqspi->clk);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -501,7 +500,6 @@ static const struct dev_pm_ops mcfqspi_pm = {
 
 static struct platform_driver mcfqspi_driver = {
 	.driver.name	= DRIVER_NAME,
-	.driver.owner	= THIS_MODULE,
 	.driver.pm	= &mcfqspi_pm,
 	.probe		= mcfqspi_probe,
 	.remove_new	= mcfqspi_remove,

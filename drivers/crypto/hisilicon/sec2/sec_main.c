@@ -99,8 +99,8 @@
 #define SEC_DBGFS_VAL_MAX_LEN		20
 #define SEC_SINGLE_PORT_MAX_TRANS	0x2060
 
-#define SEC_SQE_MASK_OFFSET		64
-#define SEC_SQE_MASK_LEN		48
+#define SEC_SQE_MASK_OFFSET		16
+#define SEC_SQE_MASK_LEN		108
 #define SEC_SHAPER_TYPE_RATE		400
 
 #define SEC_DFX_BASE		0x301000
@@ -120,7 +120,6 @@
 					GENMASK_ULL(42, 25))
 #define SEC_AEAD_BITMAP			(GENMASK_ULL(7, 6) | GENMASK_ULL(18, 17) | \
 					GENMASK_ULL(45, 43))
-#define SEC_DEV_ALG_MAX_LEN		256
 
 struct sec_hw_error {
 	u32 int_msk;
@@ -130,11 +129,6 @@ struct sec_hw_error {
 struct sec_dfx_item {
 	const char *name;
 	u32 offset;
-};
-
-struct sec_dev_alg {
-	u64 alg_msk;
-	const char *algs;
 };
 
 static const char sec_name[] = "hisi_sec2";
@@ -158,8 +152,8 @@ static const struct hisi_qm_cap_info sec_basic_info[] = {
 	{SEC_CORE_TYPE_NUM_CAP, 0x313c, 16, GENMASK(3, 0), 0x1, 0x1, 0x1},
 	{SEC_CORE_NUM_CAP, 0x313c, 8, GENMASK(7, 0), 0x4, 0x4, 0x4},
 	{SEC_CORES_PER_CLUSTER_NUM_CAP, 0x313c, 0, GENMASK(7, 0), 0x4, 0x4, 0x4},
-	{SEC_CORE_ENABLE_BITMAP, 0x3140, 32, GENMASK(31, 0), 0x17F, 0x17F, 0xF},
-	{SEC_DRV_ALG_BITMAP_LOW, 0x3144, 0, GENMASK(31, 0), 0x18050CB, 0x18050CB, 0x187F0FF},
+	{SEC_CORE_ENABLE_BITMAP, 0x3140, 0, GENMASK(31, 0), 0x17F, 0x17F, 0xF},
+	{SEC_DRV_ALG_BITMAP_LOW, 0x3144, 0, GENMASK(31, 0), 0x18050CB, 0x18050CB, 0x18670CF},
 	{SEC_DRV_ALG_BITMAP_HIGH, 0x3148, 0, GENMASK(31, 0), 0x395C, 0x395C, 0x395C},
 	{SEC_DEV_ALG_BITMAP_LOW, 0x314c, 0, GENMASK(31, 0), 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
 	{SEC_DEV_ALG_BITMAP_HIGH, 0x3150, 0, GENMASK(31, 0), 0x3FFF, 0x3FFF, 0x3FFF},
@@ -173,15 +167,22 @@ static const struct hisi_qm_cap_info sec_basic_info[] = {
 	{SEC_CORE4_ALG_BITMAP_HIGH, 0x3170, 0, GENMASK(31, 0), 0x3FFF, 0x3FFF, 0x3FFF},
 };
 
-static const struct sec_dev_alg sec_dev_algs[] = { {
+static const u32 sec_pre_store_caps[] = {
+	SEC_DRV_ALG_BITMAP_LOW,
+	SEC_DRV_ALG_BITMAP_HIGH,
+	SEC_DEV_ALG_BITMAP_LOW,
+	SEC_DEV_ALG_BITMAP_HIGH,
+};
+
+static const struct qm_dev_alg sec_dev_algs[] = { {
 		.alg_msk = SEC_CIPHER_BITMAP,
-		.algs = "cipher\n",
+		.alg = "cipher\n",
 	}, {
 		.alg_msk = SEC_DIGEST_BITMAP,
-		.algs = "digest\n",
+		.alg = "digest\n",
 	}, {
 		.alg_msk = SEC_AEAD_BITMAP,
-		.algs = "aead\n",
+		.alg = "aead\n",
 	},
 };
 
@@ -281,6 +282,11 @@ static const struct debugfs_reg32 sec_dfx_regs[] = {
 	{"SEC_BD_SAA6                   ",  0x301C38},
 	{"SEC_BD_SAA7                   ",  0x301C3C},
 	{"SEC_BD_SAA8                   ",  0x301C40},
+	{"SEC_RAS_CE_ENABLE             ",  0x301050},
+	{"SEC_RAS_FE_ENABLE             ",  0x301054},
+	{"SEC_RAS_NFE_ENABLE            ",  0x301058},
+	{"SEC_REQ_TRNG_TIME_TH          ",  0x30112C},
+	{"SEC_CHANNEL_RNG_REQ_THLD      ",  0x302110},
 };
 
 /* define the SEC's dfx regs region and region length */
@@ -373,7 +379,7 @@ void sec_destroy_qps(struct hisi_qp **qps, int qp_num)
 
 struct hisi_qp **sec_create_qps(void)
 {
-	int node = cpu_to_node(smp_processor_id());
+	int node = cpu_to_node(raw_smp_processor_id());
 	u32 ctx_num = ctx_q_num;
 	struct hisi_qp **qps;
 	int ret;
@@ -394,8 +400,8 @@ u64 sec_get_alg_bitmap(struct hisi_qm *qm, u32 high, u32 low)
 {
 	u32 cap_val_h, cap_val_l;
 
-	cap_val_h = hisi_qm_get_hw_info(qm, sec_basic_info, high, qm->cap_ver);
-	cap_val_l = hisi_qm_get_hw_info(qm, sec_basic_info, low, qm->cap_ver);
+	cap_val_h = qm->cap_tables.dev_cap_table[high].cap_val;
+	cap_val_l = qm->cap_tables.dev_cap_table[low].cap_val;
 
 	return ((u64)cap_val_h << SEC_ALG_BITMAP_SHIFT) | (u64)cap_val_l;
 }
@@ -895,37 +901,36 @@ static int sec_debugfs_init(struct hisi_qm *qm)
 	struct device *dev = &qm->pdev->dev;
 	int ret;
 
-	qm->debug.debug_root = debugfs_create_dir(dev_name(dev),
-						  sec_debugfs_root);
-	qm->debug.sqe_mask_offset = SEC_SQE_MASK_OFFSET;
-	qm->debug.sqe_mask_len = SEC_SQE_MASK_LEN;
-
 	ret = hisi_qm_regs_debugfs_init(qm, sec_diff_regs, ARRAY_SIZE(sec_diff_regs));
 	if (ret) {
 		dev_warn(dev, "Failed to init SEC diff regs!\n");
-		goto debugfs_remove;
+		return ret;
 	}
+
+	qm->debug.debug_root = debugfs_create_dir(dev_name(dev),
+							sec_debugfs_root);
+	qm->debug.sqe_mask_offset = SEC_SQE_MASK_OFFSET;
+	qm->debug.sqe_mask_len = SEC_SQE_MASK_LEN;
 
 	hisi_qm_debug_init(qm);
 
 	ret = sec_debug_init(qm);
 	if (ret)
-		goto failed_to_create;
+		goto debugfs_remove;
 
 	return 0;
 
-failed_to_create:
-	hisi_qm_regs_debugfs_uninit(qm, ARRAY_SIZE(sec_diff_regs));
 debugfs_remove:
-	debugfs_remove_recursive(sec_debugfs_root);
+	debugfs_remove_recursive(qm->debug.debug_root);
+	hisi_qm_regs_debugfs_uninit(qm, ARRAY_SIZE(sec_diff_regs));
 	return ret;
 }
 
 static void sec_debugfs_exit(struct hisi_qm *qm)
 {
-	hisi_qm_regs_debugfs_uninit(qm, ARRAY_SIZE(sec_diff_regs));
-
 	debugfs_remove_recursive(qm->debug.debug_root);
+
+	hisi_qm_regs_debugfs_uninit(qm, ARRAY_SIZE(sec_diff_regs));
 }
 
 static int sec_show_last_regs_init(struct hisi_qm *qm)
@@ -1077,37 +1082,31 @@ static int sec_pf_probe_init(struct sec_dev *sec)
 	return ret;
 }
 
-static int sec_set_qm_algs(struct hisi_qm *qm)
+static int sec_pre_store_cap_reg(struct hisi_qm *qm)
 {
-	struct device *dev = &qm->pdev->dev;
-	char *algs, *ptr;
-	u64 alg_mask;
-	int i;
+	struct hisi_qm_cap_record *sec_cap;
+	struct pci_dev *pdev = qm->pdev;
+	size_t i, size;
 
-	if (!qm->use_sva)
-		return 0;
-
-	algs = devm_kzalloc(dev, SEC_DEV_ALG_MAX_LEN * sizeof(char), GFP_KERNEL);
-	if (!algs)
+	size = ARRAY_SIZE(sec_pre_store_caps);
+	sec_cap = devm_kzalloc(&pdev->dev, sizeof(*sec_cap) * size, GFP_KERNEL);
+	if (!sec_cap)
 		return -ENOMEM;
 
-	alg_mask = sec_get_alg_bitmap(qm, SEC_DEV_ALG_BITMAP_HIGH, SEC_DEV_ALG_BITMAP_LOW);
+	for (i = 0; i < size; i++) {
+		sec_cap[i].type = sec_pre_store_caps[i];
+		sec_cap[i].cap_val = hisi_qm_get_hw_info(qm, sec_basic_info,
+				     sec_pre_store_caps[i], qm->cap_ver);
+	}
 
-	for (i = 0; i < ARRAY_SIZE(sec_dev_algs); i++)
-		if (alg_mask & sec_dev_algs[i].alg_msk)
-			strcat(algs, sec_dev_algs[i].algs);
-
-	ptr = strrchr(algs, '\n');
-	if (ptr)
-		*ptr = '\0';
-
-	qm->uacce->algs = algs;
+	qm->cap_tables.dev_cap_table = sec_cap;
 
 	return 0;
 }
 
 static int sec_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 {
+	u64 alg_msk;
 	int ret;
 
 	qm->pdev = pdev;
@@ -1142,7 +1141,16 @@ static int sec_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 		return ret;
 	}
 
-	ret = sec_set_qm_algs(qm);
+	/* Fetch and save the value of capability registers */
+	ret = sec_pre_store_cap_reg(qm);
+	if (ret) {
+		pci_err(qm->pdev, "Failed to pre-store capability registers!\n");
+		hisi_qm_uninit(qm);
+		return ret;
+	}
+
+	alg_msk = sec_get_alg_bitmap(qm, SEC_DEV_ALG_BITMAP_HIGH_IDX, SEC_DEV_ALG_BITMAP_LOW_IDX);
+	ret = hisi_qm_set_algs(qm, alg_msk, sec_dev_algs, ARRAY_SIZE(sec_dev_algs));
 	if (ret) {
 		pci_err(qm->pdev, "Failed to set sec algs!\n");
 		hisi_qm_uninit(qm);
@@ -1315,7 +1323,8 @@ static struct pci_driver sec_pci_driver = {
 	.probe = sec_probe,
 	.remove = sec_remove,
 	.err_handler = &sec_err_handler,
-	.sriov_configure = hisi_qm_sriov_configure,
+	.sriov_configure = IS_ENABLED(CONFIG_PCI_IOV) ?
+				hisi_qm_sriov_configure : NULL,
 	.shutdown = hisi_qm_dev_shutdown,
 	.driver.pm = &sec_pm_ops,
 };

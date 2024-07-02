@@ -184,7 +184,7 @@ static void iucv_sock_wake_msglim(struct sock *sk)
 	wq = rcu_dereference(sk->sk_wq);
 	if (skwq_has_sleeper(wq))
 		wake_up_interruptible_all(&wq->wait);
-	sk_wake_async(sk, SOCK_WAKE_SPACE, POLL_OUT);
+	sk_wake_async_rcu(sk, SOCK_WAKE_SPACE, POLL_OUT);
 	rcu_read_unlock();
 }
 
@@ -1060,13 +1060,12 @@ static int iucv_sock_sendmsg(struct socket *sock, struct msghdr *msg,
 			int i;
 
 			/* skip iucv_array lying in the headroom */
-			iba[0].address = (u32)(addr_t)skb->data;
+			iba[0].address = virt_to_dma32(skb->data);
 			iba[0].length = (u32)skb_headlen(skb);
 			for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 				skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
-				iba[i + 1].address =
-					(u32)(addr_t)skb_frag_address(frag);
+				iba[i + 1].address = virt_to_dma32(skb_frag_address(frag));
 				iba[i + 1].length = (u32)skb_frag_size(frag);
 			}
 			err = pr_iucv->message_send(iucv->path, &txmsg,
@@ -1162,13 +1161,12 @@ static void iucv_process_message(struct sock *sk, struct sk_buff *skb,
 			struct iucv_array *iba = (struct iucv_array *)skb->head;
 			int i;
 
-			iba[0].address = (u32)(addr_t)skb->data;
+			iba[0].address = virt_to_dma32(skb->data);
 			iba[0].length = (u32)skb_headlen(skb);
 			for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 				skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
-				iba[i + 1].address =
-					(u32)(addr_t)skb_frag_address(frag);
+				iba[i + 1].address = virt_to_dma32(skb_frag_address(frag));
 				iba[i + 1].length = (u32)skb_frag_size(frag);
 			}
 			rc = pr_iucv->message_receive(path, msg,

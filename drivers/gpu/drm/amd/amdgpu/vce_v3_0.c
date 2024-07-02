@@ -450,8 +450,6 @@ static int vce_v3_0_sw_init(void *handle)
 			return r;
 	}
 
-	r = amdgpu_vce_entity_init(adev);
-
 	return r;
 }
 
@@ -915,6 +913,8 @@ static const struct amd_ip_funcs vce_v3_0_ip_funcs = {
 	.set_clockgating_state = vce_v3_0_set_clockgating_state,
 	.set_powergating_state = vce_v3_0_set_powergating_state,
 	.get_clockgating_state = vce_v3_0_get_clockgating_state,
+	.dump_ip_state = NULL,
+	.print_ip_state = NULL,
 };
 
 static const struct amdgpu_ring_funcs vce_v3_0_ring_phys_funcs = {

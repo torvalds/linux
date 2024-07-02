@@ -578,8 +578,8 @@ static int lm95245_probe(struct i2c_client *client)
 
 /* Driver data (common to all clients) */
 static const struct i2c_device_id lm95245_id[] = {
-	{ "lm95235", 0 },
-	{ "lm95245", 0 },
+	{ "lm95235" },
+	{ "lm95245" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lm95245_id);

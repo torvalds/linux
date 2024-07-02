@@ -80,7 +80,6 @@ enum signal_type dcn35_get_dig_mode(
 	default:
 		return SIGNAL_TYPE_NONE;
 	}
-	return SIGNAL_TYPE_NONE;
 }
 
 void dcn35_link_encoder_setup(
@@ -119,7 +118,7 @@ void dcn35_link_encoder_setup(
 
 void dcn35_link_encoder_init(struct link_encoder *enc)
 {
-	enc32_hw_init(enc);
+	enc31_hw_init(enc);
 	dcn35_link_encoder_set_fgcg(enc, enc->ctx->dc->debug.enable_fine_grain_clock_gating.bits.dio);
 }
 
@@ -256,6 +255,10 @@ void dcn35_link_encoder_construct(
 		enc10->base.features.flags.bits.IS_UHBR10_CAPABLE = bp_cap_info.DP_UHBR10_EN;
 		enc10->base.features.flags.bits.IS_UHBR13_5_CAPABLE = bp_cap_info.DP_UHBR13_5_EN;
 		enc10->base.features.flags.bits.IS_UHBR20_CAPABLE = bp_cap_info.DP_UHBR20_EN;
+		if (bp_cap_info.DP_IS_USB_C) {
+			/*BIOS not switch to use CONNECTOR_ID_USBC = 24 yet*/
+			enc10->base.features.flags.bits.DP_IS_USB_C = 1;
+		}
 
 	} else {
 		DC_LOG_WARNING("%s: Failed to get encoder_cap_info from VBIOS with error code %d!\n",
@@ -264,4 +267,5 @@ void dcn35_link_encoder_construct(
 	}
 	if (enc10->base.ctx->dc->debug.hdmi20_disable)
 		enc10->base.features.flags.bits.HDMI_6GB_EN = 0;
+
 }

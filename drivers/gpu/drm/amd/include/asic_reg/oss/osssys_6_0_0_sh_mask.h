@@ -888,6 +888,16 @@
 //IH_CLIENT_CFG
 #define IH_CLIENT_CFG__TOTAL_CLIENT_NUM__SHIFT                                                                0x0
 #define IH_CLIENT_CFG__TOTAL_CLIENT_NUM_MASK                                                                  0x0000003FL
+//IH_RING1_CLIENT_CFG_INDEX
+#define IH_RING1_CLIENT_CFG_INDEX__INDEX__SHIFT                                                               0x0
+#define IH_RING1_CLIENT_CFG_INDEX__INDEX_MASK                                                                 0x00000007L
+//IH_RING1_CLIENT_CFG_DATA
+#define IH_RING1_CLIENT_CFG_DATA__CLIENT_ID__SHIFT                                                            0x0
+#define IH_RING1_CLIENT_CFG_DATA__SOURCE_ID__SHIFT                                                            0x8
+#define IH_RING1_CLIENT_CFG_DATA__SOURCE_ID_MATCH_ENABLE__SHIFT                                               0x10
+#define IH_RING1_CLIENT_CFG_DATA__CLIENT_ID_MASK                                                              0x000000FFL
+#define IH_RING1_CLIENT_CFG_DATA__SOURCE_ID_MASK                                                              0x0000FF00L
+#define IH_RING1_CLIENT_CFG_DATA__SOURCE_ID_MATCH_ENABLE_MASK                                                 0x00010000L
 //IH_CLIENT_CFG_INDEX
 #define IH_CLIENT_CFG_INDEX__INDEX__SHIFT                                                                     0x0
 #define IH_CLIENT_CFG_INDEX__INDEX_MASK                                                                       0x0000001FL

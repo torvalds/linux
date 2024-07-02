@@ -29,7 +29,7 @@ int main(int argc, char *argv[])
 
 	xss_val = vcpu_get_msr(vcpu, MSR_IA32_XSS);
 	TEST_ASSERT(xss_val == 0,
-		    "MSR_IA32_XSS should be initialized to zero\n");
+		    "MSR_IA32_XSS should be initialized to zero");
 
 	vcpu_set_msr(vcpu, MSR_IA32_XSS, xss_val);
 

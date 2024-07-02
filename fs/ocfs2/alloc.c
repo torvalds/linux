@@ -6934,7 +6934,7 @@ static int ocfs2_grab_eof_pages(struct inode *inode, loff_t start, loff_t end,
  * nonzero data on subsequent file extends.
  *
  * We need to call this before i_size is updated on the inode because
- * otherwise block_write_full_page() will skip writeout of pages past
+ * otherwise block_write_full_folio() will skip writeout of pages past
  * i_size.
  */
 int ocfs2_zero_range_for_truncate(struct inode *inode, handle_t *handle,

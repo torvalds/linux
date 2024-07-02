@@ -505,27 +505,34 @@ static int gswip_mdio_rd(struct mii_bus *bus, int addr, int reg)
 	return gswip_mdio_r(priv, GSWIP_MDIO_READ);
 }
 
-static int gswip_mdio(struct gswip_priv *priv, struct device_node *mdio_np)
+static int gswip_mdio(struct gswip_priv *priv)
 {
-	struct dsa_switch *ds = priv->ds;
-	int err;
+	struct device_node *mdio_np, *switch_np = priv->dev->of_node;
+	struct device *dev = priv->dev;
+	struct mii_bus *bus;
+	int err = 0;
 
-	ds->user_mii_bus = mdiobus_alloc();
-	if (!ds->user_mii_bus)
-		return -ENOMEM;
+	mdio_np = of_get_compatible_child(switch_np, "lantiq,xrx200-mdio");
+	if (!of_device_is_available(mdio_np))
+		goto out_put_node;
 
-	ds->user_mii_bus->priv = priv;
-	ds->user_mii_bus->read = gswip_mdio_rd;
-	ds->user_mii_bus->write = gswip_mdio_wr;
-	ds->user_mii_bus->name = "lantiq,xrx200-mdio";
-	snprintf(ds->user_mii_bus->id, MII_BUS_ID_SIZE, "%s-mii",
-		 dev_name(priv->dev));
-	ds->user_mii_bus->parent = priv->dev;
-	ds->user_mii_bus->phy_mask = ~ds->phys_mii_mask;
+	bus = devm_mdiobus_alloc(dev);
+	if (!bus) {
+		err = -ENOMEM;
+		goto out_put_node;
+	}
 
-	err = of_mdiobus_register(ds->user_mii_bus, mdio_np);
-	if (err)
-		mdiobus_free(ds->user_mii_bus);
+	bus->priv = priv;
+	bus->read = gswip_mdio_rd;
+	bus->write = gswip_mdio_wr;
+	bus->name = "lantiq,xrx200-mdio";
+	snprintf(bus->id, MII_BUS_ID_SIZE, "%s-mii", dev_name(priv->dev));
+	bus->parent = priv->dev;
+
+	err = devm_of_mdiobus_register(dev, bus, mdio_np);
+
+out_put_node:
+	of_node_put(mdio_np);
 
 	return err;
 }
@@ -1663,11 +1670,13 @@ static void gswip_port_set_pause(struct gswip_priv *priv, int port,
 			mdio_phy, GSWIP_MDIO_PHYp(port));
 }
 
-static void gswip_phylink_mac_config(struct dsa_switch *ds, int port,
+static void gswip_phylink_mac_config(struct phylink_config *config,
 				     unsigned int mode,
 				     const struct phylink_link_state *state)
 {
-	struct gswip_priv *priv = ds->priv;
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct gswip_priv *priv = dp->ds->priv;
+	int port = dp->index;
 	u32 miicfg = 0;
 
 	miicfg |= GSWIP_MII_CFG_LDCLKDIS;
@@ -1693,7 +1702,7 @@ static void gswip_phylink_mac_config(struct dsa_switch *ds, int port,
 		miicfg |= GSWIP_MII_CFG_MODE_GMII;
 		break;
 	default:
-		dev_err(ds->dev,
+		dev_err(dp->ds->dev,
 			"Unsupported interface: %d\n", state->interface);
 		return;
 	}
@@ -1719,28 +1728,32 @@ static void gswip_phylink_mac_config(struct dsa_switch *ds, int port,
 	}
 }
 
-static void gswip_phylink_mac_link_down(struct dsa_switch *ds, int port,
+static void gswip_phylink_mac_link_down(struct phylink_config *config,
 					unsigned int mode,
 					phy_interface_t interface)
 {
-	struct gswip_priv *priv = ds->priv;
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct gswip_priv *priv = dp->ds->priv;
+	int port = dp->index;
 
 	gswip_mii_mask_cfg(priv, GSWIP_MII_CFG_EN, 0, port);
 
-	if (!dsa_is_cpu_port(ds, port))
+	if (!dsa_port_is_cpu(dp))
 		gswip_port_set_link(priv, port, false);
 }
 
-static void gswip_phylink_mac_link_up(struct dsa_switch *ds, int port,
+static void gswip_phylink_mac_link_up(struct phylink_config *config,
+				      struct phy_device *phydev,
 				      unsigned int mode,
 				      phy_interface_t interface,
-				      struct phy_device *phydev,
 				      int speed, int duplex,
 				      bool tx_pause, bool rx_pause)
 {
-	struct gswip_priv *priv = ds->priv;
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct gswip_priv *priv = dp->ds->priv;
+	int port = dp->index;
 
-	if (!dsa_is_cpu_port(ds, port)) {
+	if (!dsa_port_is_cpu(dp)) {
 		gswip_port_set_link(priv, port, true);
 		gswip_port_set_speed(priv, port, speed, interface);
 		gswip_port_set_duplex(priv, port, duplex);
@@ -1759,7 +1772,7 @@ static void gswip_get_strings(struct dsa_switch *ds, int port, u32 stringset,
 		return;
 
 	for (i = 0; i < ARRAY_SIZE(gswip_rmon_cnt); i++)
-		ethtool_sprintf(&data, "%s", gswip_rmon_cnt[i].name);
+		ethtool_puts(&data, gswip_rmon_cnt[i].name);
 }
 
 static u32 gswip_bcm_ram_entry_read(struct gswip_priv *priv, u32 table,
@@ -1817,6 +1830,12 @@ static int gswip_get_sset_count(struct dsa_switch *ds, int port, int sset)
 	return ARRAY_SIZE(gswip_rmon_cnt);
 }
 
+static const struct phylink_mac_ops gswip_phylink_mac_ops = {
+	.mac_config	= gswip_phylink_mac_config,
+	.mac_link_down	= gswip_phylink_mac_link_down,
+	.mac_link_up	= gswip_phylink_mac_link_up,
+};
+
 static const struct dsa_switch_ops gswip_xrx200_switch_ops = {
 	.get_tag_protocol	= gswip_get_tag_protocol,
 	.setup			= gswip_setup,
@@ -1835,9 +1854,6 @@ static const struct dsa_switch_ops gswip_xrx200_switch_ops = {
 	.port_change_mtu	= gswip_port_change_mtu,
 	.port_max_mtu		= gswip_port_max_mtu,
 	.phylink_get_caps	= gswip_xrx200_phylink_get_caps,
-	.phylink_mac_config	= gswip_phylink_mac_config,
-	.phylink_mac_link_down	= gswip_phylink_mac_link_down,
-	.phylink_mac_link_up	= gswip_phylink_mac_link_up,
 	.get_strings		= gswip_get_strings,
 	.get_ethtool_stats	= gswip_get_ethtool_stats,
 	.get_sset_count		= gswip_get_sset_count,
@@ -1861,9 +1877,6 @@ static const struct dsa_switch_ops gswip_xrx300_switch_ops = {
 	.port_change_mtu	= gswip_port_change_mtu,
 	.port_max_mtu		= gswip_port_max_mtu,
 	.phylink_get_caps	= gswip_xrx300_phylink_get_caps,
-	.phylink_mac_config	= gswip_phylink_mac_config,
-	.phylink_mac_link_down	= gswip_phylink_mac_link_down,
-	.phylink_mac_link_up	= gswip_phylink_mac_link_up,
 	.get_strings		= gswip_get_strings,
 	.get_ethtool_stats	= gswip_get_ethtool_stats,
 	.get_sset_count		= gswip_get_sset_count,
@@ -2094,9 +2107,9 @@ remove_gphy:
 
 static int gswip_probe(struct platform_device *pdev)
 {
-	struct gswip_priv *priv;
-	struct device_node *np, *mdio_np, *gphy_fw_np;
+	struct device_node *np, *gphy_fw_np;
 	struct device *dev = &pdev->dev;
+	struct gswip_priv *priv;
 	int err;
 	int i;
 	u32 version;
@@ -2129,6 +2142,7 @@ static int gswip_probe(struct platform_device *pdev)
 	priv->ds->num_ports = priv->hw_info->max_ports;
 	priv->ds->priv = priv;
 	priv->ds->ops = priv->hw_info->ops;
+	priv->ds->phylink_mac_ops = &gswip_phylink_mac_ops;
 	priv->dev = dev;
 	mutex_init(&priv->pce_table_lock);
 	version = gswip_switch_r(priv, GSWIP_VERSION);
@@ -2163,19 +2177,16 @@ static int gswip_probe(struct platform_device *pdev)
 	}
 
 	/* bring up the mdio bus */
-	mdio_np = of_get_compatible_child(dev->of_node, "lantiq,xrx200-mdio");
-	if (mdio_np) {
-		err = gswip_mdio(priv, mdio_np);
-		if (err) {
-			dev_err(dev, "mdio probe failed\n");
-			goto put_mdio_node;
-		}
+	err = gswip_mdio(priv);
+	if (err) {
+		dev_err(dev, "mdio probe failed\n");
+		goto gphy_fw_remove;
 	}
 
 	err = dsa_register_switch(priv->ds);
 	if (err) {
 		dev_err(dev, "dsa switch register failed: %i\n", err);
-		goto mdio_bus;
+		goto gphy_fw_remove;
 	}
 	if (!dsa_is_cpu_port(priv->ds, priv->hw_info->cpu_port)) {
 		dev_err(dev, "wrong CPU port defined, HW only supports port: %i",
@@ -2194,13 +2205,7 @@ static int gswip_probe(struct platform_device *pdev)
 disable_switch:
 	gswip_mdio_mask(priv, GSWIP_MDIO_GLOB_ENABLE, 0, GSWIP_MDIO_GLOB);
 	dsa_unregister_switch(priv->ds);
-mdio_bus:
-	if (mdio_np) {
-		mdiobus_unregister(priv->ds->user_mii_bus);
-		mdiobus_free(priv->ds->user_mii_bus);
-	}
-put_mdio_node:
-	of_node_put(mdio_np);
+gphy_fw_remove:
 	for (i = 0; i < priv->num_gphy_fw; i++)
 		gswip_gphy_fw_remove(priv, &priv->gphy_fw[i]);
 	return err;
@@ -2218,12 +2223,6 @@ static void gswip_remove(struct platform_device *pdev)
 	gswip_mdio_mask(priv, GSWIP_MDIO_GLOB_ENABLE, 0, GSWIP_MDIO_GLOB);
 
 	dsa_unregister_switch(priv->ds);
-
-	if (priv->ds->user_mii_bus) {
-		mdiobus_unregister(priv->ds->user_mii_bus);
-		of_node_put(priv->ds->user_mii_bus->dev.of_node);
-		mdiobus_free(priv->ds->user_mii_bus);
-	}
 
 	for (i = 0; i < priv->num_gphy_fw; i++)
 		gswip_gphy_fw_remove(priv, &priv->gphy_fw[i]);

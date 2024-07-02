@@ -670,7 +670,7 @@ mtk_wed_tx_buffer_alloc(struct mtk_wed_device *dev)
 		void *buf;
 		int s;
 
-		page = __dev_alloc_pages(GFP_KERNEL, 0);
+		page = __dev_alloc_page(GFP_KERNEL);
 		if (!page)
 			return -ENOMEM;
 
@@ -691,10 +691,11 @@ mtk_wed_tx_buffer_alloc(struct mtk_wed_device *dev)
 
 		for (s = 0; s < MTK_WED_BUF_PER_PAGE; s++) {
 			struct mtk_wdma_desc *desc = desc_ptr;
+			u32 ctrl;
 
 			desc->buf0 = cpu_to_le32(buf_phys);
 			if (!mtk_wed_is_v3_or_greater(dev->hw)) {
-				u32 txd_size, ctrl;
+				u32 txd_size;
 
 				txd_size = dev->wlan.init_buf(buf, buf_phys,
 							      token++);
@@ -708,11 +709,11 @@ mtk_wed_tx_buffer_alloc(struct mtk_wed_device *dev)
 					ctrl |= MTK_WDMA_DESC_CTRL_LAST_SEG0 |
 						FIELD_PREP(MTK_WDMA_DESC_CTRL_LEN1_V2,
 							   MTK_WED_BUF_SIZE - txd_size);
-				desc->ctrl = cpu_to_le32(ctrl);
 				desc->info = 0;
 			} else {
-				desc->ctrl = cpu_to_le32(token << 16);
+				ctrl = token << 16 | TX_DMA_PREP_ADDR64(buf_phys);
 			}
+			desc->ctrl = cpu_to_le32(ctrl);
 
 			desc_ptr += desc_size;
 			buf += MTK_WED_BUF_SIZE;
@@ -811,6 +812,7 @@ mtk_wed_hwrro_buffer_alloc(struct mtk_wed_device *dev)
 		buf_phys = page_phys;
 		for (s = 0; s < MTK_WED_RX_BUF_PER_PAGE; s++) {
 			desc->buf0 = cpu_to_le32(buf_phys);
+			desc->token = cpu_to_le32(RX_DMA_PREP_ADDR64(buf_phys));
 			buf_phys += MTK_WED_PAGE_BUF_SIZE;
 			desc++;
 		}
@@ -1072,13 +1074,13 @@ mtk_wed_dma_disable(struct mtk_wed_device *dev)
 static void
 mtk_wed_stop(struct mtk_wed_device *dev)
 {
+	mtk_wed_dma_disable(dev);
 	mtk_wed_set_ext_int(dev, false);
 
 	wed_w32(dev, MTK_WED_WPDMA_INT_TRIGGER, 0);
 	wed_w32(dev, MTK_WED_WDMA_INT_TRIGGER, 0);
 	wdma_w32(dev, MTK_WDMA_INT_MASK, 0);
 	wdma_w32(dev, MTK_WDMA_INT_GRP2, 0);
-	wed_w32(dev, MTK_WED_WPDMA_INT_MASK, 0);
 
 	if (!mtk_wed_get_rx_capa(dev))
 		return;
@@ -1091,7 +1093,6 @@ static void
 mtk_wed_deinit(struct mtk_wed_device *dev)
 {
 	mtk_wed_stop(dev);
-	mtk_wed_dma_disable(dev);
 
 	wed_clr(dev, MTK_WED_CTRL,
 		MTK_WED_CTRL_WDMA_INT_AGENT_EN |
@@ -2603,9 +2604,6 @@ mtk_wed_irq_get(struct mtk_wed_device *dev, u32 mask)
 static void
 mtk_wed_irq_set_mask(struct mtk_wed_device *dev, u32 mask)
 {
-	if (!dev->running)
-		return;
-
 	mtk_wed_set_ext_int(dev, !!mask);
 	wed_w32(dev, MTK_WED_INT_MASK, mask);
 }

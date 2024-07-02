@@ -66,7 +66,7 @@ static int tcf_sample_init(struct net *net, struct nlattr *nla,
 		return err;
 	exists = err;
 	if (exists && bind)
-		return 0;
+		return ACT_P_BOUND;
 
 	if (!exists) {
 		ret = tcf_idr_create(tn, index, est, a,
@@ -316,6 +316,7 @@ static struct tc_action_ops act_sample_ops = {
 	.offload_act_setup    = tcf_sample_offload_act_setup,
 	.size	  = sizeof(struct tcf_sample),
 };
+MODULE_ALIAS_NET_ACT("sample");
 
 static __net_init int sample_init_net(struct net *net)
 {

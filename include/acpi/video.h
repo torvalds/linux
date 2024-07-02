@@ -75,6 +75,15 @@ static inline enum acpi_backlight_type acpi_video_get_backlight_type(void)
 	return __acpi_video_get_backlight_type(false, NULL);
 }
 
+/*
+ * This function MUST only be called by GPU drivers to check if the driver
+ * should register a backlight class device. This function not only checks
+ * if a GPU native backlight device should be registered it *also* tells
+ * the ACPI video-detect code that native GPU backlight control is available.
+ * Therefor calling this from any place other then the GPU driver is wrong!
+ * To check if GPU native backlight control is used in other places instead use:
+ *   if (acpi_video_get_backlight_type() == acpi_backlight_native) { ... }
+ */
 static inline bool acpi_video_backlight_use_native(void)
 {
 	return __acpi_video_get_backlight_type(true, NULL) == acpi_backlight_native;

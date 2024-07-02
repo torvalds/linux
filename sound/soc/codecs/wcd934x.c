@@ -13,7 +13,6 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
-#include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/slimbus.h>
 #include <sound/pcm_params.h>
@@ -5968,7 +5967,6 @@ static struct platform_driver wcd934x_codec_driver = {
 	}
 };
 
-MODULE_ALIAS("platform:wcd934x-codec");
 module_platform_driver(wcd934x_codec_driver);
 MODULE_DESCRIPTION("WCD934x codec driver");
 MODULE_LICENSE("GPL v2");

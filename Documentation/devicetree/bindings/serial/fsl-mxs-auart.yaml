@@ -14,10 +14,13 @@ allOf:
 
 properties:
   compatible:
-    enum:
-      - fsl,imx23-auart
-      - fsl,imx28-auart
-      - alphascale,asm9260-auart
+    oneOf:
+      - const: fsl,imx23-auart
+      - const: alphascale,asm9260-auart
+      - items:
+          - enum:
+              - fsl,imx28-auart
+          - const: fsl,imx23-auart
 
   reg:
     maxItems: 1
@@ -82,7 +85,7 @@ examples:
     };
 
     auart0: serial@8006a000 {
-        compatible = "fsl,imx28-auart";
+        compatible = "fsl,imx28-auart", "fsl,imx23-auart";
         reg = <0x8006a000 0x2000>;
         interrupts = <112>;
         dmas = <&dma_apbx 8>, <&dma_apbx 9>;

@@ -53,7 +53,7 @@ static const struct of_device_id cs35l45_of_match[] = {
 MODULE_DEVICE_TABLE(of, cs35l45_of_match);
 
 static const struct i2c_device_id cs35l45_id_i2c[] = {
-	{ "cs35l45", 0 },
+	{ "cs35l45" },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, cs35l45_id_i2c);
@@ -62,7 +62,7 @@ static struct i2c_driver cs35l45_i2c_driver = {
 	.driver = {
 		.name		= "cs35l45",
 		.of_match_table = cs35l45_of_match,
-		.pm		= &cs35l45_pm_ops,
+		.pm		= pm_ptr(&cs35l45_pm_ops),
 	},
 	.id_table	= cs35l45_id_i2c,
 	.probe		= cs35l45_i2c_probe,

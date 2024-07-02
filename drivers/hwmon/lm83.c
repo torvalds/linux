@@ -165,7 +165,7 @@ static bool lm83_regmap_is_volatile(struct device *dev, unsigned int reg)
 static const struct regmap_config lm83_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.volatile_reg = lm83_regmap_is_volatile,
 	.reg_read = lm83_regmap_reg_read,
 	.reg_write = lm83_regmap_reg_write,

@@ -192,14 +192,10 @@ static int bcm6345_l1_set_affinity(struct irq_data *d,
 	u32 mask = BIT(d->hwirq % IRQS_PER_WORD);
 	unsigned int old_cpu = cpu_for_irq(intc, d);
 	unsigned int new_cpu;
-	struct cpumask valid;
 	unsigned long flags;
 	bool enabled;
 
-	if (!cpumask_and(&valid, &intc->cpumask, dest))
-		return -EINVAL;
-
-	new_cpu = cpumask_any_and(&valid, cpu_online_mask);
+	new_cpu = cpumask_first_and_and(&intc->cpumask, dest, cpu_online_mask);
 	if (new_cpu >= nr_cpu_ids)
 		return -EINVAL;
 
@@ -242,7 +238,7 @@ static int __init bcm6345_l1_init_one(struct device_node *dn,
 	else if (intc->n_words != n_words)
 		return -EINVAL;
 
-	cpu = intc->cpus[idx] = kzalloc(sizeof(*cpu) + n_words * sizeof(u32),
+	cpu = intc->cpus[idx] = kzalloc(struct_size(cpu, enable_cache, n_words),
 					GFP_KERNEL);
 	if (!cpu)
 		return -ENOMEM;

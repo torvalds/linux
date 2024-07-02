@@ -16,12 +16,13 @@ struct intel_atomic_state;
 struct intel_crtc_state;
 
 struct intel_link_bw_limits {
+	u8 force_fec_pipes;
 	u8 bpp_limit_reached_pipes;
 	/* in 1/16 bpp units */
 	int max_bpp_x16[I915_MAX_PIPES];
 };
 
-void intel_link_bw_init_limits(struct drm_i915_private *i915,
+void intel_link_bw_init_limits(struct intel_atomic_state *state,
 			       struct intel_link_bw_limits *limits);
 int intel_link_bw_reduce_bpp(struct intel_atomic_state *state,
 			     struct intel_link_bw_limits *limits,

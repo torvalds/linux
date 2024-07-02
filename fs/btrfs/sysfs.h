@@ -3,7 +3,16 @@
 #ifndef BTRFS_SYSFS_H
 #define BTRFS_SYSFS_H
 
+#include <linux/types.h>
+#include <linux/compiler_types.h>
 #include <linux/kobject.h>
+
+struct btrfs_fs_info;
+struct btrfs_device;
+struct btrfs_fs_devices;
+struct btrfs_block_group;
+struct btrfs_space_info;
+struct btrfs_qgroup;
 
 enum btrfs_feature_set {
 	FEAT_COMPAT,

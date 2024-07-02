@@ -47,7 +47,7 @@ void mpc32_mpc_init(struct mpc *mpc)
 	struct dcn30_mpc *mpc30 = TO_DCN30_MPC(mpc);
 	int mpcc_id;
 
-	mpc1_mpc_init(mpc);
+	mpc3_mpc_init(mpc);
 
 	if (mpc->ctx->dc->debug.enable_mem_low_power.bits.mpc) {
 		if (mpc30->mpc_mask->MPCC_MCM_SHAPER_MEM_LOW_PWR_MODE && mpc30->mpc_mask->MPCC_MCM_3DLUT_MEM_LOW_PWR_MODE) {
@@ -71,12 +71,13 @@ void mpc32_power_on_blnd_lut(
 {
 	struct dcn30_mpc *mpc30 = TO_DCN30_MPC(mpc);
 
+	REG_SET(MPCC_MCM_MEM_PWR_CTRL[mpcc_id], 0, MPCC_MCM_1DLUT_MEM_PWR_DIS, power_on);
+
 	if (mpc->ctx->dc->debug.enable_mem_low_power.bits.cm) {
 		if (power_on) {
 			REG_UPDATE(MPCC_MCM_MEM_PWR_CTRL[mpcc_id], MPCC_MCM_1DLUT_MEM_PWR_FORCE, 0);
 			REG_WAIT(MPCC_MCM_MEM_PWR_CTRL[mpcc_id], MPCC_MCM_1DLUT_MEM_PWR_STATE, 0, 1, 5);
 		} else if (!mpc->ctx->dc->debug.disable_mem_low_power) {
-			ASSERT(false);
 			/* TODO: change to mpc
 			 *  dpp_base->ctx->dc->optimized_required = true;
 			 *  dpp_base->deferred_reg_writes.bits.disable_blnd_lut = true;
@@ -237,16 +238,19 @@ void mpc32_program_post1dlut_pwl(
 			REG_SET(MPCC_MCM_1DLUT_LUT_DATA[mpcc_id], 0, MPCC_MCM_1DLUT_LUT_DATA, rgb[i].red_reg);
 		REG_SET(MPCC_MCM_1DLUT_LUT_DATA[mpcc_id], 0, MPCC_MCM_1DLUT_LUT_DATA, last_base_value_red);
 	} else {
+		REG_SET(MPCC_MCM_1DLUT_LUT_INDEX[mpcc_id], 0, MPCC_MCM_1DLUT_LUT_INDEX, 0);
 		REG_UPDATE(MPCC_MCM_1DLUT_LUT_CONTROL[mpcc_id], MPCC_MCM_1DLUT_LUT_WRITE_COLOR_MASK, 4);
 		for (i = 0 ; i < num; i++)
 			REG_SET(MPCC_MCM_1DLUT_LUT_DATA[mpcc_id], 0, MPCC_MCM_1DLUT_LUT_DATA, rgb[i].red_reg);
 		REG_SET(MPCC_MCM_1DLUT_LUT_DATA[mpcc_id], 0, MPCC_MCM_1DLUT_LUT_DATA, last_base_value_red);
 
+		REG_SET(MPCC_MCM_1DLUT_LUT_INDEX[mpcc_id], 0, MPCC_MCM_1DLUT_LUT_INDEX, 0);
 		REG_UPDATE(MPCC_MCM_1DLUT_LUT_CONTROL[mpcc_id], MPCC_MCM_1DLUT_LUT_WRITE_COLOR_MASK, 2);
 		for (i = 0 ; i < num; i++)
 			REG_SET(MPCC_MCM_1DLUT_LUT_DATA[mpcc_id], 0, MPCC_MCM_1DLUT_LUT_DATA, rgb[i].green_reg);
 		REG_SET(MPCC_MCM_1DLUT_LUT_DATA[mpcc_id], 0, MPCC_MCM_1DLUT_LUT_DATA, last_base_value_green);
 
+		REG_SET(MPCC_MCM_1DLUT_LUT_INDEX[mpcc_id], 0, MPCC_MCM_1DLUT_LUT_INDEX, 0);
 		REG_UPDATE(MPCC_MCM_1DLUT_LUT_CONTROL[mpcc_id], MPCC_MCM_1DLUT_LUT_WRITE_COLOR_MASK, 1);
 		for (i = 0 ; i < num; i++)
 			REG_SET(MPCC_MCM_1DLUT_LUT_DATA[mpcc_id], 0, MPCC_MCM_1DLUT_LUT_DATA, rgb[i].blue_reg);
@@ -987,7 +991,7 @@ static const struct mpc_funcs dcn32_mpc_funcs = {
 	.insert_plane = mpc1_insert_plane,
 	.remove_mpcc = mpc1_remove_mpcc,
 	.mpc_init = mpc32_mpc_init,
-	.mpc_init_single_inst = mpc1_mpc_init_single_inst,
+	.mpc_init_single_inst = mpc3_mpc_init_single_inst,
 	.update_blending = mpc2_update_blending,
 	.cursor_lock = mpc1_cursor_lock,
 	.get_mpcc_for_dpp = mpc1_get_mpcc_for_dpp,
@@ -1004,7 +1008,6 @@ static const struct mpc_funcs dcn32_mpc_funcs = {
 	.set_dwb_mux = mpc3_set_dwb_mux,
 	.disable_dwb_mux = mpc3_disable_dwb_mux,
 	.is_dwb_idle = mpc3_is_dwb_idle,
-	.set_out_rate_control = mpc3_set_out_rate_control,
 	.set_gamut_remap = mpc3_set_gamut_remap,
 	.program_shaper = mpc32_program_shaper,
 	.program_3dlut = mpc32_program_3dlut,

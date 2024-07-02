@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/**
- * lib/minmax.c: windowed min/max tracker by Kathleen Nichols.
+/*
+ * win_minmax.h: windowed min/max tracker by Kathleen Nichols.
  *
  */
 #ifndef MINMAX_H

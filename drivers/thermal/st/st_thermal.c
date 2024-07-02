@@ -203,7 +203,7 @@ int st_thermal_register(struct platform_device *pdev,
 	trip.type = THERMAL_TRIP_CRITICAL;
 
 	sensor->thermal_dev =
-		thermal_zone_device_register_with_trips(dev_name(dev), &trip, 1, 0, sensor,
+		thermal_zone_device_register_with_trips(dev_name(dev), &trip, 1, sensor,
 							&st_tz_ops, NULL, 0, polling_delay);
 	if (IS_ERR(sensor->thermal_dev)) {
 		dev_err(dev, "failed to register thermal zone device\n");

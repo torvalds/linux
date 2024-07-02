@@ -167,7 +167,7 @@ static struct i2c_driver st33zp24_i2c_driver = {
 
 module_i2c_driver(st33zp24_i2c_driver);
 
-MODULE_AUTHOR("TPM support (TPMsupport@list.st.com)");
+MODULE_AUTHOR("TPM support <TPMsupport@list.st.com>");
 MODULE_DESCRIPTION("STM TPM 1.2 I2C ST33 Driver");
 MODULE_VERSION("1.3.0");
 MODULE_LICENSE("GPL");

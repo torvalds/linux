@@ -433,7 +433,7 @@ static void make_send_cqe(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
 		}
 	} else {
 		if (wqe->status != IB_WC_WR_FLUSH_ERR)
-			rxe_err_qp(qp, "non-flush error status = %d",
+			rxe_err_qp(qp, "non-flush error status = %d\n",
 				wqe->status);
 	}
 }
@@ -582,7 +582,7 @@ static int flush_send_wqe(struct rxe_qp *qp, struct rxe_send_wqe *wqe)
 
 	err = rxe_cq_post(qp->scq, &cqe, 0);
 	if (err)
-		rxe_dbg_cq(qp->scq, "post cq failed, err = %d", err);
+		rxe_dbg_cq(qp->scq, "post cq failed, err = %d\n", err);
 
 	return err;
 }

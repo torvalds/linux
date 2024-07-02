@@ -17,21 +17,11 @@
 #include <sound/jack.h>
 #include "sof_sdw_common.h"
 
-static const struct snd_soc_dapm_widget rt5682_widgets[] = {
-	SND_SOC_DAPM_HP("Headphone", NULL),
-	SND_SOC_DAPM_MIC("Headset Mic", NULL),
-};
-
 static const struct snd_soc_dapm_route rt5682_map[] = {
 	/*Headphones*/
 	{ "Headphone", NULL, "rt5682 HPOL" },
 	{ "Headphone", NULL, "rt5682 HPOR" },
 	{ "rt5682 IN1P", NULL, "Headset Mic" },
-};
-
-static const struct snd_kcontrol_new rt5682_controls[] = {
-	SOC_DAPM_PIN_SWITCH("Headphone"),
-	SOC_DAPM_PIN_SWITCH("Headset Mic"),
 };
 
 static struct snd_soc_jack_pin rt5682_jack_pins[] = {
@@ -45,34 +35,29 @@ static struct snd_soc_jack_pin rt5682_jack_pins[] = {
 	},
 };
 
-static int rt5682_rtd_init(struct snd_soc_pcm_runtime *rtd)
+static const char * const jack_codecs[] = {
+	"rt5682"
+};
+
+int rt5682_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *dai)
 {
 	struct snd_soc_card *card = rtd->card;
 	struct mc_private *ctx = snd_soc_card_get_drvdata(card);
-	struct snd_soc_dai *codec_dai = snd_soc_rtd_to_codec(rtd, 0);
-	struct snd_soc_component *component = codec_dai->component;
+	struct snd_soc_dai *codec_dai;
+	struct snd_soc_component *component;
 	struct snd_soc_jack *jack;
 	int ret;
 
+	codec_dai = get_codec_dai_by_name(rtd, jack_codecs, ARRAY_SIZE(jack_codecs));
+	if (!codec_dai)
+		return -EINVAL;
+
+	component = codec_dai->component;
 	card->components = devm_kasprintf(card->dev, GFP_KERNEL,
 					  "%s hs:rt5682",
 					  card->components);
 	if (!card->components)
 		return -ENOMEM;
-
-	ret = snd_soc_add_card_controls(card, rt5682_controls,
-					ARRAY_SIZE(rt5682_controls));
-	if (ret) {
-		dev_err(card->dev, "rt5682 control addition failed: %d\n", ret);
-		return ret;
-	}
-
-	ret = snd_soc_dapm_new_controls(&card->dapm, rt5682_widgets,
-					ARRAY_SIZE(rt5682_widgets));
-	if (ret) {
-		dev_err(card->dev, "rt5682 widgets addition failed: %d\n", ret);
-		return ret;
-	}
 
 	ret = snd_soc_dapm_add_routes(&card->dapm, rt5682_map,
 				      ARRAY_SIZE(rt5682_map));
@@ -110,21 +95,4 @@ static int rt5682_rtd_init(struct snd_soc_pcm_runtime *rtd)
 
 	return ret;
 }
-
-int sof_sdw_rt5682_init(struct snd_soc_card *card,
-			const struct snd_soc_acpi_link_adr *link,
-			struct snd_soc_dai_link *dai_links,
-			struct sof_sdw_codec_info *info,
-			bool playback)
-{
-	/*
-	 * headset should be initialized once.
-	 * Do it with dai link for playback.
-	 */
-	if (!playback)
-		return 0;
-
-	dai_links->init = rt5682_rtd_init;
-
-	return 0;
-}
+MODULE_IMPORT_NS(SND_SOC_INTEL_SOF_BOARD_HELPERS);

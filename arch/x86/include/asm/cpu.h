@@ -9,23 +9,11 @@
 #include <linux/percpu.h>
 #include <asm/ibt.h>
 
-#ifdef CONFIG_SMP
-
-extern void prefill_possible_map(void);
-
-#else /* CONFIG_SMP */
-
-static inline void prefill_possible_map(void) {}
-
+#ifndef CONFIG_SMP
 #define cpu_physical_id(cpu)			boot_cpu_physical_apicid
 #define cpu_acpi_id(cpu)			0
 #define safe_smp_processor_id()			0
-
 #endif /* CONFIG_SMP */
-
-struct x86_cpu {
-	struct cpu cpu;
-};
 
 #ifdef CONFIG_HOTPLUG_CPU
 extern void soft_restart_cpu(void);
@@ -71,26 +59,12 @@ static inline void init_ia32_feat_ctl(struct cpuinfo_x86 *c) {}
 
 extern __noendbr void cet_disable(void);
 
-struct ucode_cpu_info;
+struct cpu_signature;
 
-int intel_cpu_collect_info(struct ucode_cpu_info *uci);
-
-static inline bool intel_cpu_signatures_match(unsigned int s1, unsigned int p1,
-					      unsigned int s2, unsigned int p2)
-{
-	if (s1 != s2)
-		return false;
-
-	/* Processor flags are either both 0 ... */
-	if (!p1 && !p2)
-		return true;
-
-	/* ... or they intersect. */
-	return p1 & p2;
-}
+void intel_collect_cpu_info(struct cpu_signature *sig);
 
 extern u64 x86_read_arch_cap_msr(void);
-int intel_find_matching_signature(void *mc, unsigned int csig, int cpf);
+bool intel_find_matching_signature(void *mc, struct cpu_signature *sig);
 int intel_microcode_sanity_check(void *mc, bool print_err, int hdr_type);
 
 extern struct cpumask cpus_stop_mask;

@@ -87,7 +87,12 @@ static inline bool gt_is_root(struct intel_gt *gt)
 	return !gt->info.id;
 }
 
+bool intel_gt_needs_wa_16018031267(struct intel_gt *gt);
 bool intel_gt_needs_wa_22016122933(struct intel_gt *gt);
+
+#define NEEDS_FASTCOLOR_BLT_WABB(engine) ( \
+	intel_gt_needs_wa_16018031267(engine->gt) && \
+	engine->class == COPY_ENGINE_CLASS && engine->instance == 0)
 
 static inline struct intel_gt *uc_to_gt(struct intel_uc *uc)
 {
@@ -112,6 +117,16 @@ static inline struct intel_gt *gsc_uc_to_gt(struct intel_gsc_uc *gsc_uc)
 static inline struct intel_gt *gsc_to_gt(struct intel_gsc *gsc)
 {
 	return container_of(gsc, struct intel_gt, gsc);
+}
+
+static inline struct drm_i915_private *guc_to_i915(struct intel_guc *guc)
+{
+	return guc_to_gt(guc)->i915;
+}
+
+static inline struct intel_guc *gt_to_guc(struct intel_gt *gt)
+{
+	return &gt->uc.guc;
 }
 
 void intel_gt_common_init_early(struct intel_gt *gt);
@@ -166,6 +181,20 @@ void intel_gt_release_all(struct drm_i915_private *i915);
 	     (id__) < I915_MAX_GT; \
 	     (id__)++) \
 		for_each_if(((gt__) = (i915__)->gt[(id__)]))
+
+/* Simple iterator over all initialised engines */
+#define for_each_engine(engine__, gt__, id__) \
+	for ((id__) = 0; \
+	     (id__) < I915_NUM_ENGINES; \
+	     (id__)++) \
+		for_each_if ((engine__) = (gt__)->engine[(id__)])
+
+/* Iterator over subset of engines selected by mask */
+#define for_each_engine_masked(engine__, gt__, mask__, tmp__) \
+	for ((tmp__) = (mask__) & (gt__)->info.engine_mask; \
+	     (tmp__) ? \
+	     ((engine__) = (gt__)->engine[__mask_next_bit(tmp__)]), 1 : \
+	     0;)
 
 void intel_gt_info_print(const struct intel_gt_info *info,
 			 struct drm_printer *p);

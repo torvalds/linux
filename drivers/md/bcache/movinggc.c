@@ -35,16 +35,16 @@ static bool moving_pred(struct keybuf *buf, struct bkey *k)
 
 /* Moving GC - IO loop */
 
-static void moving_io_destructor(struct closure *cl)
+static CLOSURE_CALLBACK(moving_io_destructor)
 {
-	struct moving_io *io = container_of(cl, struct moving_io, cl);
+	closure_type(io, struct moving_io, cl);
 
 	kfree(io);
 }
 
-static void write_moving_finish(struct closure *cl)
+static CLOSURE_CALLBACK(write_moving_finish)
 {
-	struct moving_io *io = container_of(cl, struct moving_io, cl);
+	closure_type(io, struct moving_io, cl);
 	struct bio *bio = &io->bio.bio;
 
 	bio_free_pages(bio);
@@ -89,9 +89,9 @@ static void moving_init(struct moving_io *io)
 	bch_bio_map(bio, NULL);
 }
 
-static void write_moving(struct closure *cl)
+static CLOSURE_CALLBACK(write_moving)
 {
-	struct moving_io *io = container_of(cl, struct moving_io, cl);
+	closure_type(io, struct moving_io, cl);
 	struct data_insert_op *op = &io->op;
 
 	if (!op->status) {
@@ -113,9 +113,9 @@ static void write_moving(struct closure *cl)
 	continue_at(cl, write_moving_finish, op->wq);
 }
 
-static void read_moving_submit(struct closure *cl)
+static CLOSURE_CALLBACK(read_moving_submit)
 {
-	struct moving_io *io = container_of(cl, struct moving_io, cl);
+	closure_type(io, struct moving_io, cl);
 	struct bio *bio = &io->bio.bio;
 
 	bch_submit_bbio(bio, io->op.c, &io->w->key, 0);

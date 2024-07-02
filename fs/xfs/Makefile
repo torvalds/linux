@@ -92,8 +92,7 @@ xfs-y				+= xfs_aops.o \
 				   xfs_symlink.o \
 				   xfs_sysfs.o \
 				   xfs_trans.o \
-				   xfs_xattr.o \
-				   kmem.o
+				   xfs_xattr.o
 
 # low-level transaction/log code
 xfs-y				+= xfs_log.o \
@@ -137,6 +136,9 @@ xfs-$(CONFIG_FS_DAX)		+= xfs_notify_failure.o
 endif
 
 xfs-$(CONFIG_XFS_DRAIN_INTENTS)	+= xfs_drain.o
+xfs-$(CONFIG_XFS_LIVE_HOOKS)	+= xfs_hooks.o
+xfs-$(CONFIG_XFS_MEMORY_BUFS)	+= xfs_buf_mem.o
+xfs-$(CONFIG_XFS_BTREE_IN_MEM)	+= libxfs/xfs_btree_mem.o
 
 # online scrub/repair
 ifeq ($(CONFIG_XFS_ONLINE_SCRUB),y)
@@ -145,6 +147,7 @@ ifeq ($(CONFIG_XFS_ONLINE_SCRUB),y)
 
 xfs-y				+= $(addprefix scrub/, \
 				   trace.o \
+				   agb_bitmap.o \
 				   agheader.o \
 				   alloc.o \
 				   attr.o \
@@ -158,6 +161,8 @@ xfs-y				+= $(addprefix scrub/, \
 				   health.o \
 				   ialloc.o \
 				   inode.o \
+				   iscan.o \
+				   nlinks.o \
 				   parent.o \
 				   readdir.o \
 				   refcount.o \
@@ -175,14 +180,39 @@ xfs-$(CONFIG_XFS_RT)		+= $(addprefix scrub/, \
 				   rtsummary.o \
 				   )
 
-xfs-$(CONFIG_XFS_QUOTA)		+= scrub/quota.o
+xfs-$(CONFIG_XFS_QUOTA)		+= $(addprefix scrub/, \
+				   dqiterate.o \
+				   quota.o \
+				   quotacheck.o \
+				   )
 
 # online repair
 ifeq ($(CONFIG_XFS_ONLINE_REPAIR),y)
 xfs-y				+= $(addprefix scrub/, \
 				   agheader_repair.o \
+				   alloc_repair.o \
+				   bmap_repair.o \
+				   cow_repair.o \
+				   fscounters_repair.o \
+				   ialloc_repair.o \
+				   inode_repair.o \
+				   newbt.o \
+				   nlinks_repair.o \
+				   rcbag_btree.o \
+				   rcbag.o \
 				   reap.o \
+				   refcount_repair.o \
 				   repair.o \
+				   rmap_repair.o \
+				   )
+
+xfs-$(CONFIG_XFS_RT)		+= $(addprefix scrub/, \
+				   rtbitmap_repair.o \
+				   )
+
+xfs-$(CONFIG_XFS_QUOTA)		+= $(addprefix scrub/, \
+				   quota_repair.o \
+				   quotacheck_repair.o \
 				   )
 endif
 endif

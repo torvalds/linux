@@ -275,11 +275,6 @@ static int bfs_add_entry(struct inode *dir, const struct qstr *child, int ino)
 
 	dprintf("name=%s, namelen=%d\n", name, namelen);
 
-	if (!namelen)
-		return -ENOENT;
-	if (namelen > BFS_NAMELEN)
-		return -ENAMETOOLONG;
-
 	sblock = BFS_I(dir)->i_sblock;
 	eblock = BFS_I(dir)->i_eblock;
 	for (block = sblock; block <= eblock; block++) {

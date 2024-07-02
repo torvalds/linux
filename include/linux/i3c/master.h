@@ -76,7 +76,6 @@ struct i2c_dev_boardinfo {
 /**
  * struct i2c_dev_desc - I2C device descriptor
  * @common: common part of the I2C device descriptor
- * @boardinfo: pointer to the boardinfo attached to this I2C device
  * @dev: I2C device object registered to the I2C framework
  * @addr: I2C device address
  * @lvr: LVR (Legacy Virtual Register) needed by the I3C core to know about
@@ -135,6 +134,7 @@ struct i3c_ibi_slot {
  *		     rejected by the master
  * @num_slots: number of IBI slots reserved for this device
  * @enabled: reflect the IBI status
+ * @wq: workqueue used to execute IBI handlers.
  * @handler: IBI handler specified at i3c_device_request_ibi() call time. This
  *	     handler will be called from the controller workqueue, and as such
  *	     is allowed to sleep (though it is recommended to process the IBI
@@ -157,6 +157,7 @@ struct i3c_device_ibi_info {
 	unsigned int max_payload_len;
 	unsigned int num_slots;
 	unsigned int enabled;
+	struct workqueue_struct *wq;
 	void (*handler)(struct i3c_device *dev,
 			const struct i3c_ibi_payload *payload);
 };
@@ -172,7 +173,7 @@ struct i3c_device_ibi_info {
  *		 assigned a dynamic address by the master. Will be used during
  *		 bus initialization to assign it a specific dynamic address
  *		 before starting DAA (Dynamic Address Assignment)
- * @pid: I3C Provisional ID exposed by the device. This is a unique identifier
+ * @pid: I3C Provisioned ID exposed by the device. This is a unique identifier
  *	 that may be used to attach boardinfo to i3c_dev_desc when the device
  *	 does not have a static address
  * @of_node: optional DT node in case the device has been described in the DT
@@ -432,6 +433,8 @@ struct i3c_bus {
  *		      for a future IBI
  *		      This method is mandatory only if ->request_ibi is not
  *		      NULL.
+ * @enable_hotjoin: enable hot join event detect.
+ * @disable_hotjoin: disable hot join event detect.
  */
 struct i3c_master_controller_ops {
 	int (*bus_init)(struct i3c_master_controller *master);
@@ -458,6 +461,8 @@ struct i3c_master_controller_ops {
 	int (*disable_ibi)(struct i3c_dev_desc *dev);
 	void (*recycle_ibi_slot)(struct i3c_dev_desc *dev,
 				 struct i3c_ibi_slot *slot);
+	int (*enable_hotjoin)(struct i3c_master_controller *master);
+	int (*disable_hotjoin)(struct i3c_master_controller *master);
 };
 
 /**
@@ -471,11 +476,12 @@ struct i3c_master_controller_ops {
  * @ops: master operations. See &struct i3c_master_controller_ops
  * @secondary: true if the master is a secondary master
  * @init_done: true when the bus initialization is done
+ * @hotjoin: true if the master support hotjoin
  * @boardinfo.i3c: list of I3C  boardinfo objects
  * @boardinfo.i2c: list of I2C boardinfo objects
  * @boardinfo: board-level information attached to devices connected on the bus
  * @bus: I3C bus exposed by this master
- * @wq: workqueue used to execute IBI handlers. Can also be used by master
+ * @wq: workqueue which can be used by master
  *	drivers if they need to postpone operations that need to take place
  *	in a thread context. Typical examples are Hot Join processing which
  *	requires taking the bus lock in maintenance, which in turn, can only
@@ -493,6 +499,7 @@ struct i3c_master_controller {
 	const struct i3c_master_controller_ops *ops;
 	unsigned int secondary : 1;
 	unsigned int init_done : 1;
+	unsigned int hotjoin: 1;
 	struct {
 		struct list_head i3c;
 		struct list_head i2c;
@@ -549,6 +556,8 @@ int i3c_master_register(struct i3c_master_controller *master,
 			const struct i3c_master_controller_ops *ops,
 			bool secondary);
 void i3c_master_unregister(struct i3c_master_controller *master);
+int i3c_master_enable_hotjoin(struct i3c_master_controller *master);
+int i3c_master_disable_hotjoin(struct i3c_master_controller *master);
 
 /**
  * i3c_dev_get_master_data() - get master private data attached to an I3C

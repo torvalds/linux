@@ -818,6 +818,17 @@ static int mlx5_query_node_desc(struct mlx5_ib_dev *dev, char *node_desc)
 				    MLX5_REG_NODE_DESC, 0, 0);
 }
 
+static void fill_esw_mgr_reg_c0(struct mlx5_core_dev *mdev,
+				struct mlx5_ib_query_device_resp *resp)
+{
+	struct mlx5_eswitch *esw = mdev->priv.eswitch;
+	u16 vport = mlx5_eswitch_manager_vport(mdev);
+
+	resp->reg_c0.value = mlx5_eswitch_get_vport_metadata_for_match(esw,
+								      vport);
+	resp->reg_c0.mask = mlx5_eswitch_get_vport_metadata_mask();
+}
+
 static int mlx5_ib_query_device(struct ib_device *ibdev,
 				struct ib_device_attr *props,
 				struct ib_udata *uhw)
@@ -1207,6 +1218,19 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 
 		resp.dci_streams_caps.max_log_num_errored =
 			MLX5_CAP_GEN(mdev, log_max_dci_errored_streams);
+	}
+
+	if (offsetofend(typeof(resp), reserved) <= uhw_outlen)
+		resp.response_length += sizeof(resp.reserved);
+
+	if (offsetofend(typeof(resp), reg_c0) <= uhw_outlen) {
+		struct mlx5_eswitch *esw = mdev->priv.eswitch;
+
+		resp.response_length += sizeof(resp.reg_c0);
+
+		if (mlx5_eswitch_mode(mdev) == MLX5_ESWITCH_OFFLOADS &&
+		    mlx5_eswitch_vport_match_metadata_enabled(esw))
+			fill_esw_mgr_reg_c0(mdev, &resp);
 	}
 
 	if (uhw_outlen) {

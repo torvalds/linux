@@ -30,7 +30,6 @@
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
-#define MEI_CSI_DRIVER_NAME "ivsc_csi"
 #define MEI_CSI_ENTITY_NAME "Intel IVSC CSI"
 
 #define MEI_CSI_LINK_FREQ_400MHZ 400000000ULL
@@ -72,8 +71,8 @@ enum ivsc_privacy_status {
 };
 
 enum csi_pads {
-	CSI_PAD_SOURCE,
 	CSI_PAD_SINK,
+	CSI_PAD_SOURCE,
 	CSI_NUM_PADS
 };
 
@@ -129,7 +128,6 @@ struct mei_csi {
 	int streaming;
 
 	struct media_pad pads[CSI_NUM_PADS];
-	struct v4l2_mbus_framefmt format_mbus[CSI_NUM_PADS];
 
 	/* number of data lanes used on the CSI-2 link */
 	u32 nr_of_lanes;
@@ -330,57 +328,16 @@ err:
 	return ret;
 }
 
-static struct v4l2_mbus_framefmt *
-mei_csi_get_pad_format(struct v4l2_subdev *sd,
-		       struct v4l2_subdev_state *sd_state,
-		       unsigned int pad, u32 which)
-{
-	struct mei_csi *csi = sd_to_csi(sd);
-
-	switch (which) {
-	case V4L2_SUBDEV_FORMAT_TRY:
-		return v4l2_subdev_get_try_format(sd, sd_state, pad);
-	case V4L2_SUBDEV_FORMAT_ACTIVE:
-		return &csi->format_mbus[pad];
-	default:
-		return NULL;
-	}
-}
-
-static int mei_csi_init_cfg(struct v4l2_subdev *sd,
-			    struct v4l2_subdev_state *sd_state)
+static int mei_csi_init_state(struct v4l2_subdev *sd,
+			      struct v4l2_subdev_state *sd_state)
 {
 	struct v4l2_mbus_framefmt *mbusformat;
-	struct mei_csi *csi = sd_to_csi(sd);
 	unsigned int i;
 
-	mutex_lock(&csi->lock);
-
 	for (i = 0; i < sd->entity.num_pads; i++) {
-		mbusformat = v4l2_subdev_get_try_format(sd, sd_state, i);
+		mbusformat = v4l2_subdev_state_get_format(sd_state, i);
 		*mbusformat = mei_csi_format_mbus_default;
 	}
-
-	mutex_unlock(&csi->lock);
-
-	return 0;
-}
-
-static int mei_csi_get_fmt(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_state *sd_state,
-			   struct v4l2_subdev_format *format)
-{
-	struct v4l2_mbus_framefmt *mbusformat;
-	struct mei_csi *csi = sd_to_csi(sd);
-
-	mutex_lock(&csi->lock);
-
-	mbusformat = mei_csi_get_pad_format(sd, sd_state, format->pad,
-					    format->which);
-	if (mbusformat)
-		format->format = *mbusformat;
-
-	mutex_unlock(&csi->lock);
 
 	return 0;
 }
@@ -389,20 +346,17 @@ static int mei_csi_set_fmt(struct v4l2_subdev *sd,
 			   struct v4l2_subdev_state *sd_state,
 			   struct v4l2_subdev_format *format)
 {
-	struct v4l2_mbus_framefmt *source_mbusformat;
-	struct v4l2_mbus_framefmt *mbusformat;
-	struct mei_csi *csi = sd_to_csi(sd);
-	struct media_pad *pad;
+	struct v4l2_mbus_framefmt *source_fmt;
+	struct v4l2_mbus_framefmt *sink_fmt;
 
-	mbusformat = mei_csi_get_pad_format(sd, sd_state, format->pad,
-					    format->which);
-	if (!mbusformat)
-		return -EINVAL;
+	sink_fmt = v4l2_subdev_state_get_format(sd_state, CSI_PAD_SINK);
+	source_fmt = v4l2_subdev_state_get_format(sd_state, CSI_PAD_SOURCE);
 
-	source_mbusformat = mei_csi_get_pad_format(sd, sd_state, CSI_PAD_SOURCE,
-						   format->which);
-	if (!source_mbusformat)
-		return -EINVAL;
+	if (format->pad) {
+		*source_fmt = *sink_fmt;
+
+		return 0;
+	}
 
 	v4l_bound_align_image(&format->format.width, 1, 65536, 0,
 			      &format->format.height, 1, 65536, 0, 0);
@@ -505,18 +459,8 @@ static int mei_csi_set_fmt(struct v4l2_subdev *sd,
 	if (format->format.field == V4L2_FIELD_ANY)
 		format->format.field = V4L2_FIELD_NONE;
 
-	mutex_lock(&csi->lock);
-
-	pad = &csi->pads[format->pad];
-	if (pad->flags & MEDIA_PAD_FL_SOURCE)
-		format->format = csi->format_mbus[CSI_PAD_SINK];
-
-	*mbusformat = format->format;
-
-	if (pad->flags & MEDIA_PAD_FL_SINK)
-		*source_mbusformat = format->format;
-
-	mutex_unlock(&csi->lock);
+	*sink_fmt = format->format;
+	*source_fmt = *sink_fmt;
 
 	return 0;
 }
@@ -555,14 +499,17 @@ static const struct v4l2_subdev_video_ops mei_csi_video_ops = {
 };
 
 static const struct v4l2_subdev_pad_ops mei_csi_pad_ops = {
-	.init_cfg = mei_csi_init_cfg,
-	.get_fmt = mei_csi_get_fmt,
+	.get_fmt = v4l2_subdev_get_fmt,
 	.set_fmt = mei_csi_set_fmt,
 };
 
 static const struct v4l2_subdev_ops mei_csi_subdev_ops = {
 	.video = &mei_csi_video_ops,
 	.pad = &mei_csi_pad_ops,
+};
+
+static const struct v4l2_subdev_internal_ops mei_csi_internal_ops = {
+	.init_state = mei_csi_init_state,
 };
 
 static const struct media_entity_operations mei_csi_entity_ops = {
@@ -585,7 +532,7 @@ static int mei_csi_notify_bound(struct v4l2_async_notifier *notifier,
 	csi->remote_pad = pad;
 
 	return media_create_pad_link(&subdev->entity, pad,
-				     &csi->subdev.entity, 1,
+				     &csi->subdev.entity, CSI_PAD_SINK,
 				     MEDIA_LNK_FL_ENABLED |
 				     MEDIA_LNK_FL_IMMUTABLE);
 }
@@ -646,47 +593,66 @@ static int mei_csi_parse_firmware(struct mei_csi *csi)
 	};
 	struct device *dev = &csi->cldev->dev;
 	struct v4l2_async_connection *asd;
-	struct fwnode_handle *fwnode;
-	struct fwnode_handle *ep;
+	struct fwnode_handle *sink_ep, *source_ep;
 	int ret;
 
-	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(dev), 0, 0, 0);
-	if (!ep) {
-		dev_err(dev, "not connected to subdevice\n");
+	sink_ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(dev), 0, 0, 0);
+	if (!sink_ep) {
+		dev_err(dev, "can't obtain sink endpoint\n");
 		return -EINVAL;
 	}
-
-	ret = v4l2_fwnode_endpoint_parse(ep, &v4l2_ep);
-	if (ret) {
-		dev_err(dev, "could not parse v4l2 endpoint\n");
-		fwnode_handle_put(ep);
-		return -EINVAL;
-	}
-
-	fwnode = fwnode_graph_get_remote_endpoint(ep);
-	fwnode_handle_put(ep);
 
 	v4l2_async_subdev_nf_init(&csi->notifier, &csi->subdev);
 	csi->notifier.ops = &mei_csi_notify_ops;
 
-	asd = v4l2_async_nf_add_fwnode(&csi->notifier, fwnode,
-				       struct v4l2_async_connection);
-	if (IS_ERR(asd)) {
-		fwnode_handle_put(fwnode);
-		return PTR_ERR(asd);
+	ret = v4l2_fwnode_endpoint_parse(sink_ep, &v4l2_ep);
+	if (ret) {
+		dev_err(dev, "could not parse v4l2 sink endpoint\n");
+		goto out_nf_cleanup;
 	}
 
-	ret = v4l2_fwnode_endpoint_alloc_parse(fwnode, &v4l2_ep);
-	fwnode_handle_put(fwnode);
-	if (ret)
-		return ret;
 	csi->nr_of_lanes = v4l2_ep.bus.mipi_csi2.num_data_lanes;
+
+	source_ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(dev), 1, 0, 0);
+	if (!source_ep) {
+		ret = -ENOTCONN;
+		dev_err(dev, "can't obtain source endpoint\n");
+		goto out_nf_cleanup;
+	}
+
+	ret = v4l2_fwnode_endpoint_parse(source_ep, &v4l2_ep);
+	fwnode_handle_put(source_ep);
+	if (ret) {
+		dev_err(dev, "could not parse v4l2 source endpoint\n");
+		goto out_nf_cleanup;
+	}
+
+	if (csi->nr_of_lanes != v4l2_ep.bus.mipi_csi2.num_data_lanes) {
+		ret = -EINVAL;
+		dev_err(dev,
+			"the number of lanes does not match (%u vs. %u)\n",
+			csi->nr_of_lanes, v4l2_ep.bus.mipi_csi2.num_data_lanes);
+		goto out_nf_cleanup;
+	}
+
+	asd = v4l2_async_nf_add_fwnode_remote(&csi->notifier, sink_ep,
+					      struct v4l2_async_connection);
+	if (IS_ERR(asd)) {
+		ret = PTR_ERR(asd);
+		goto out_nf_cleanup;
+	}
 
 	ret = v4l2_async_nf_register(&csi->notifier);
 	if (ret)
-		v4l2_async_nf_cleanup(&csi->notifier);
+		goto out_nf_cleanup;
 
-	v4l2_fwnode_endpoint_free(&v4l2_ep);
+	fwnode_handle_put(sink_ep);
+
+	return 0;
+
+out_nf_cleanup:
+	v4l2_async_nf_cleanup(&csi->notifier);
+	fwnode_handle_put(sink_ep);
 
 	return ret;
 }
@@ -728,7 +694,9 @@ static int mei_csi_probe(struct mei_cl_device *cldev,
 		goto err_disable;
 
 	csi->subdev.dev = &cldev->dev;
+	csi->subdev.state_lock = &csi->lock;
 	v4l2_subdev_init(&csi->subdev, &mei_csi_subdev_ops);
+	csi->subdev.internal_ops = &mei_csi_internal_ops;
 	v4l2_set_subdevdata(&csi->subdev, csi);
 	csi->subdev.flags = V4L2_SUBDEV_FL_HAS_DEVNODE |
 			    V4L2_SUBDEV_FL_HAS_EVENTS;
@@ -741,9 +709,6 @@ static int mei_csi_probe(struct mei_cl_device *cldev,
 	ret = mei_csi_init_controls(csi);
 	if (ret)
 		goto err_ctrl_handler;
-
-	csi->format_mbus[CSI_PAD_SOURCE] = mei_csi_format_mbus_default;
-	csi->format_mbus[CSI_PAD_SINK] = mei_csi_format_mbus_default;
 
 	csi->pads[CSI_PAD_SOURCE].flags = MEDIA_PAD_FL_SOURCE;
 	csi->pads[CSI_PAD_SINK].flags = MEDIA_PAD_FL_SINK;
@@ -804,14 +769,14 @@ static void mei_csi_remove(struct mei_cl_device *cldev)
 			     0xAF, 0x93, 0x7b, 0x44, 0x53, 0xAC, 0x29, 0xDA)
 
 static const struct mei_cl_device_id mei_csi_tbl[] = {
-	{ MEI_CSI_DRIVER_NAME, MEI_CSI_UUID, MEI_CL_VERSION_ANY },
+	{ .uuid = MEI_CSI_UUID, .version = MEI_CL_VERSION_ANY },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(mei, mei_csi_tbl);
 
 static struct mei_cl_driver mei_csi_driver = {
 	.id_table = mei_csi_tbl,
-	.name = MEI_CSI_DRIVER_NAME,
+	.name = KBUILD_MODNAME,
 
 	.probe = mei_csi_probe,
 	.remove = mei_csi_remove,

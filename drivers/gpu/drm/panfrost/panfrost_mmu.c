@@ -231,6 +231,8 @@ void panfrost_mmu_reset(struct panfrost_device *pfdev)
 {
 	struct panfrost_mmu *mmu, *mmu_tmp;
 
+	clear_bit(PANFROST_COMP_BIT_MMU, pfdev->is_suspended);
+
 	spin_lock(&pfdev->as_lock);
 
 	pfdev->as_alloc_mask = 0;
@@ -500,11 +502,18 @@ static int panfrost_mmu_map_fault_addr(struct panfrost_device *pfdev, int as,
 	mapping_set_unevictable(mapping);
 
 	for (i = page_offset; i < page_offset + NUM_FAULT_PAGES; i++) {
+		/* Can happen if the last fault only partially filled this
+		 * section of the pages array before failing. In that case
+		 * we skip already filled pages.
+		 */
+		if (pages[i])
+			continue;
+
 		pages[i] = shmem_read_mapping_page(mapping, i);
 		if (IS_ERR(pages[i])) {
 			ret = PTR_ERR(pages[i]);
 			pages[i] = NULL;
-			goto err_pages;
+			goto err_unlock;
 		}
 	}
 
@@ -512,7 +521,7 @@ static int panfrost_mmu_map_fault_addr(struct panfrost_device *pfdev, int as,
 	ret = sg_alloc_table_from_pages(sgt, pages + page_offset,
 					NUM_FAULT_PAGES, 0, SZ_2M, GFP_KERNEL);
 	if (ret)
-		goto err_pages;
+		goto err_unlock;
 
 	ret = dma_map_sgtable(pfdev->dev, sgt, DMA_BIDIRECTIONAL, 0);
 	if (ret)
@@ -535,8 +544,6 @@ out:
 
 err_map:
 	sg_free_table(sgt);
-err_pages:
-	drm_gem_shmem_put_pages(&bo->base);
 err_unlock:
 	dma_resv_unlock(obj->resv);
 err_bo:
@@ -670,6 +677,9 @@ static irqreturn_t panfrost_mmu_irq_handler(int irq, void *data)
 {
 	struct panfrost_device *pfdev = data;
 
+	if (test_bit(PANFROST_COMP_BIT_MMU, pfdev->is_suspended))
+		return IRQ_NONE;
+
 	if (!mmu_read(pfdev, MMU_INT_STAT))
 		return IRQ_NONE;
 
@@ -744,22 +754,25 @@ static irqreturn_t panfrost_mmu_irq_handler_thread(int irq, void *data)
 			status = mmu_read(pfdev, MMU_INT_RAWSTAT) & ~pfdev->as_faulty_mask;
 	}
 
-	spin_lock(&pfdev->as_lock);
-	mmu_write(pfdev, MMU_INT_MASK, ~pfdev->as_faulty_mask);
-	spin_unlock(&pfdev->as_lock);
+	/* Enable interrupts only if we're not about to get suspended */
+	if (!test_bit(PANFROST_COMP_BIT_MMU, pfdev->is_suspended)) {
+		spin_lock(&pfdev->as_lock);
+		mmu_write(pfdev, MMU_INT_MASK, ~pfdev->as_faulty_mask);
+		spin_unlock(&pfdev->as_lock);
+	}
 
 	return IRQ_HANDLED;
 };
 
 int panfrost_mmu_init(struct panfrost_device *pfdev)
 {
-	int err, irq;
+	int err;
 
-	irq = platform_get_irq_byname(to_platform_device(pfdev->dev), "mmu");
-	if (irq < 0)
-		return irq;
+	pfdev->mmu_irq = platform_get_irq_byname(to_platform_device(pfdev->dev), "mmu");
+	if (pfdev->mmu_irq < 0)
+		return pfdev->mmu_irq;
 
-	err = devm_request_threaded_irq(pfdev->dev, irq,
+	err = devm_request_threaded_irq(pfdev->dev, pfdev->mmu_irq,
 					panfrost_mmu_irq_handler,
 					panfrost_mmu_irq_handler_thread,
 					IRQF_SHARED, KBUILD_MODNAME "-mmu",
@@ -776,4 +789,12 @@ int panfrost_mmu_init(struct panfrost_device *pfdev)
 void panfrost_mmu_fini(struct panfrost_device *pfdev)
 {
 	mmu_write(pfdev, MMU_INT_MASK, 0);
+}
+
+void panfrost_mmu_suspend_irq(struct panfrost_device *pfdev)
+{
+	set_bit(PANFROST_COMP_BIT_MMU, pfdev->is_suspended);
+
+	mmu_write(pfdev, MMU_INT_MASK, 0);
+	synchronize_irq(pfdev->mmu_irq);
 }

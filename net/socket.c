@@ -88,7 +88,7 @@
 #include <linux/xattr.h>
 #include <linux/nospec.h>
 #include <linux/indirect_call_wrapper.h>
-#include <linux/io_uring.h>
+#include <linux/io_uring/net.h>
 
 #include <linux/uaccess.h>
 #include <asm/unistd.h>
@@ -343,7 +343,7 @@ static void init_inodecache(void)
 					      0,
 					      (SLAB_HWCACHE_ALIGN |
 					       SLAB_RECLAIM_ACCOUNT |
-					       SLAB_MEM_SPREAD | SLAB_ACCOUNT),
+					       SLAB_ACCOUNT),
 					      init_once);
 	BUG_ON(sock_inode_cachep == NULL);
 }
@@ -757,6 +757,7 @@ int sock_sendmsg(struct socket *sock, struct msghdr *msg)
 {
 	struct sockaddr_storage *save_addr = (struct sockaddr_storage *)msg->msg_name;
 	struct sockaddr_storage address;
+	int save_len = msg->msg_namelen;
 	int ret;
 
 	if (msg->msg_name) {
@@ -766,6 +767,7 @@ int sock_sendmsg(struct socket *sock, struct msghdr *msg)
 
 	ret = __sock_sendmsg(sock, msg);
 	msg->msg_name = save_addr;
+	msg->msg_namelen = save_len;
 
 	return ret;
 }
@@ -1685,20 +1687,16 @@ struct file *__sys_socket_file(int family, int type, int protocol)
  *	Therefore, __weak is needed to ensure that the call is still
  *	emitted, by telling the compiler that we don't know what the
  *	function might eventually be.
- *
- *	__diag_* below are needed to dismiss the missing prototype warning.
  */
 
-__diag_push();
-__diag_ignore_all("-Wmissing-prototypes",
-		  "A fmod_ret entry point for BPF programs");
+__bpf_hook_start();
 
 __weak noinline int update_socket_protocol(int family, int type, int protocol)
 {
 	return protocol;
 }
 
-__diag_pop();
+__bpf_hook_end();
 
 int __sys_socket(int family, int type, int protocol)
 {
@@ -2165,10 +2163,9 @@ int __sys_sendto(int fd, void __user *buff, size_t len, unsigned int flags,
 	struct sockaddr_storage address;
 	int err;
 	struct msghdr msg;
-	struct iovec iov;
 	int fput_needed;
 
-	err = import_single_range(ITER_SOURCE, buff, len, &iov, &msg.msg_iter);
+	err = import_ubuf(ITER_SOURCE, buff, len, &msg.msg_iter);
 	if (unlikely(err))
 		return err;
 	sock = sockfd_lookup_light(fd, &err, &fput_needed);
@@ -2230,11 +2227,10 @@ int __sys_recvfrom(int fd, void __user *ubuf, size_t size, unsigned int flags,
 		.msg_name = addr ? (struct sockaddr *)&address : NULL,
 	};
 	struct socket *sock;
-	struct iovec iov;
 	int err, err2;
 	int fput_needed;
 
-	err = import_single_range(ITER_DEST, ubuf, size, &iov, &msg.msg_iter);
+	err = import_ubuf(ITER_DEST, ubuf, size, &msg.msg_iter);
 	if (unlikely(err))
 		return err;
 	sock = sockfd_lookup_light(fd, &err, &fput_needed);
@@ -2604,9 +2600,9 @@ out:
 	return err;
 }
 
-int sendmsg_copy_msghdr(struct msghdr *msg,
-			struct user_msghdr __user *umsg, unsigned flags,
-			struct iovec **iov)
+static int sendmsg_copy_msghdr(struct msghdr *msg,
+			       struct user_msghdr __user *umsg, unsigned flags,
+			       struct iovec **iov)
 {
 	int err;
 
@@ -2757,10 +2753,10 @@ SYSCALL_DEFINE4(sendmmsg, int, fd, struct mmsghdr __user *, mmsg,
 	return __sys_sendmmsg(fd, mmsg, vlen, flags, true);
 }
 
-int recvmsg_copy_msghdr(struct msghdr *msg,
-			struct user_msghdr __user *umsg, unsigned flags,
-			struct sockaddr __user **uaddr,
-			struct iovec **iov)
+static int recvmsg_copy_msghdr(struct msghdr *msg,
+			       struct user_msghdr __user *umsg, unsigned flags,
+			       struct sockaddr __user **uaddr,
+			       struct iovec **iov)
 {
 	ssize_t err;
 

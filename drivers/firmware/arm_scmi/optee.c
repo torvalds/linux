@@ -109,8 +109,10 @@ enum scmi_optee_pta_cmd {
  * @rx_len: Response size
  * @mu: Mutex protection on channel access
  * @cinfo: SCMI channel information
- * @shmem: Virtual base address of the shared memory
- * @req: Shared memory protocol handle for SCMI request and synchronous response
+ * @req: union for SCMI interface
+ * @req.shmem: Virtual base address of the shared memory
+ * @req.msg: Shared memory protocol handle for SCMI request and
+ *   synchronous response
  * @tee_shm: TEE shared memory handle @req or NULL if using IOMEM shmem
  * @link: Reference in agent's channel list
  */
@@ -439,6 +441,10 @@ static int scmi_optee_chan_setup(struct scmi_chan_info *cinfo, struct device *de
 	ret = open_session(scmi_optee_private, &channel->tee_session);
 	if (ret)
 		goto err_free_shm;
+
+	ret = tee_client_system_session(scmi_optee_private->tee_ctx, channel->tee_session);
+	if (ret)
+		dev_warn(dev, "Could not switch to system session, do best effort\n");
 
 	ret = get_channel(channel);
 	if (ret)
