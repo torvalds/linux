@@ -7,7 +7,7 @@
 
 #include <drm/drm_managed.h>
 
-#include "regs/xe_sriov_regs.h"
+#include "regs/xe_gt_regs.h"
 
 #include "xe_assert.h"
 #include "xe_bo.h"
