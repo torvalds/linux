@@ -4937,6 +4937,10 @@
 			Set maximum number of finished RCU callbacks to
 			process in one batch.
 
+	rcutree.csd_lock_suppress_rcu_stall=	[KNL]
+			Do only a one-line RCU CPU stall warning when
+			there is an ongoing too-long CSD-lock wait.
+
 	rcutree.do_rcu_barrier=	[KNL]
 			Request a call to rcu_barrier().  This is
 			throttled so that userspace tests can safely
