@@ -3246,4 +3246,5 @@ void virtqueue_dma_sync_single_range_for_device(struct virtqueue *_vq,
 }
 EXPORT_SYMBOL_GPL(virtqueue_dma_sync_single_range_for_device);
 
+MODULE_DESCRIPTION("Virtio ring implementation");
 MODULE_LICENSE("GPL");
