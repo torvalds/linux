@@ -109,7 +109,8 @@ static int ad7298_update_scan_mode(struct iio_dev *indio_dev,
 	int scan_count;
 
 	/* Now compute overall size */
-	scan_count = bitmap_weight(active_scan_mask, indio_dev->masklength);
+	scan_count = bitmap_weight(active_scan_mask,
+				   iio_get_masklength(indio_dev));
 
 	command = AD7298_WRITE | st->ext_ref;
 
