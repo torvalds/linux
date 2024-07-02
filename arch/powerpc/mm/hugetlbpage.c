@@ -183,9 +183,6 @@ pte_t *huge_pte_alloc(struct mm_struct *mm, struct vm_area_struct *vma,
 	if (!hpdp)
 		return NULL;
 
-	if (IS_ENABLED(CONFIG_PPC_8xx) && pshift < PMD_SHIFT)
-		return pte_alloc_huge(mm, (pmd_t *)hpdp, addr);
-
 	BUG_ON(!hugepd_none(*hpdp) && !hugepd_ok(*hpdp));
 
 	if (hugepd_none(*hpdp) && __hugepte_alloc(mm, hpdp, addr,
@@ -218,8 +215,18 @@ pte_t *huge_pte_alloc(struct mm_struct *mm, struct vm_area_struct *vma,
 	if (!pmd)
 		return NULL;
 
-	if (sz >= PMD_SIZE)
+	if (sz >= PMD_SIZE) {
+		/* On 8xx, all hugepages are handled as contiguous PTEs */
+		if (IS_ENABLED(CONFIG_PPC_8xx)) {
+			int i;
+
+			for (i = 0; i < sz / PMD_SIZE; i++) {
+				if (!pte_alloc_huge(mm, pmd + i, addr))
+					return NULL;
+			}
+		}
 		return (pte_t *)pmd;
+	}
 
 	return pte_alloc_huge(mm, pmd, addr);
 }
@@ -617,10 +624,8 @@ static int __init hugetlbpage_init(void)
 		 * use pgt cache for hugepd.
 		 */
 		if (pdshift > shift) {
-			if (!IS_ENABLED(CONFIG_PPC_8xx))
-				pgtable_cache_add(pdshift - shift);
-		} else if (IS_ENABLED(CONFIG_PPC_E500) ||
-			   IS_ENABLED(CONFIG_PPC_8xx)) {
+			pgtable_cache_add(pdshift - shift);
+		} else if (IS_ENABLED(CONFIG_PPC_E500)) {
 			pgtable_cache_add(PTE_T_ORDER);
 		}
 

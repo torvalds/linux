@@ -37,7 +37,6 @@ config PPC_85xx
 
 config PPC_8xx
 	bool "Freescale 8xx"
-	select ARCH_HAS_HUGEPD if HUGETLB_PAGE
 	select ARCH_SUPPORTS_HUGETLBFS
 	select FSL_SOC
 	select PPC_KUEP

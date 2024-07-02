@@ -293,13 +293,8 @@ static inline const void *pfn_to_kaddr(unsigned long pfn)
 /*
  * Some number of bits at the level of the page table that points to
  * a hugepte are used to encode the size.  This masks those bits.
- * On 8xx, HW assistance requires 4k alignment for the hugepte.
  */
-#ifdef CONFIG_PPC_8xx
-#define HUGEPD_SHIFT_MASK     0xfff
-#else
 #define HUGEPD_SHIFT_MASK     0x3f
-#endif
 
 #ifndef __ASSEMBLY__
 
