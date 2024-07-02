@@ -43,7 +43,7 @@ xrep_tempfile_create(
 	struct xfs_icreate_args	args = {
 		.pip		= sc->mp->m_rootip,
 		.mode		= mode,
-		.flags		= XFS_ICREATE_TMPFILE,
+		.flags		= XFS_ICREATE_TMPFILE | XFS_ICREATE_UNLINKABLE,
 	};
 	struct xfs_mount	*mp = sc->mp;
 	struct xfs_trans	*tp = NULL;

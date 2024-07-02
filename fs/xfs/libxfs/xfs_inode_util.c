@@ -233,6 +233,31 @@ xfs_inode_inherit_flags2(
 	}
 }
 
+/*
+ * If we need to create attributes immediately after allocating the inode,
+ * initialise an empty attribute fork right now. We use the default fork offset
+ * for attributes here as we don't know exactly what size or how many
+ * attributes we might be adding. We can do this safely here because we know
+ * the data fork is completely empty and this saves us from needing to run a
+ * separate transaction to set the fork offset in the immediate future.
+ *
+ * If we have parent pointers and the caller hasn't told us that the file will
+ * never be linked into a directory tree, we /must/ create the attr fork.
+ */
+static inline bool
+xfs_icreate_want_attrfork(
+	struct xfs_mount		*mp,
+	const struct xfs_icreate_args	*args)
+{
+	if (args->flags & XFS_ICREATE_INIT_XATTRS)
+		return true;
+
+	if (!(args->flags & XFS_ICREATE_UNLINKABLE) && xfs_has_parent(mp))
+		return true;
+
+	return false;
+}
+
 /* Initialise an inode's attributes. */
 void
 xfs_inode_init(
@@ -325,16 +350,7 @@ xfs_inode_init(
 		ASSERT(0);
 	}
 
-	/*
-	 * If we need to create attributes immediately after allocating the
-	 * inode, initialise an empty attribute fork right now. We use the
-	 * default fork offset for attributes here as we don't know exactly what
-	 * size or how many attributes we might be adding. We can do this
-	 * safely here because we know the data fork is completely empty and
-	 * this saves us from needing to run a separate transaction to set the
-	 * fork offset in the immediate future.
-	 */
-	if (args->flags & XFS_ICREATE_INIT_XATTRS) {
+	if (xfs_icreate_want_attrfork(mp, args)) {
 		ip->i_forkoff = xfs_default_attroffset(ip) >> 3;
 		xfs_ifork_init_attr(ip, XFS_DINODE_FMT_EXTENTS, 0);
 

@@ -795,6 +795,7 @@ xfs_qm_qino_alloc(
 	if (need_alloc) {
 		struct xfs_icreate_args	args = {
 			.mode		= S_IFREG,
+			.flags		= XFS_ICREATE_UNLINKABLE,
 		};
 		xfs_ino_t	ino;
 

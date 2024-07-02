@@ -2527,9 +2527,6 @@ xfs_rename_alloc_whiteout(
 	struct qstr		name;
 	int			error;
 
-	if (xfs_has_parent(dp->i_mount))
-		args.flags |= XFS_ICREATE_INIT_XATTRS;
-
 	error = xfs_create_tmpfile(&args, &tmpfile);
 	if (error)
 		return error;

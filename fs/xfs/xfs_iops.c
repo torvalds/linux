@@ -158,8 +158,6 @@ xfs_create_need_xattr(
 	if (dir->i_sb->s_security)
 		return true;
 #endif
-	if (xfs_has_parent(XFS_I(dir)->i_mount))
-		return true;
 	return false;
 }
 
@@ -215,12 +213,11 @@ xfs_generic_create(
 		args.flags |= XFS_ICREATE_TMPFILE;
 
 		/*
-		 * If this temporary file will be linkable, set up the file
-		 * with an attr fork to receive a parent pointer.
+		 * If this temporary file will not be linkable, don't bother
+		 * creating an attr fork to receive a parent pointer.
 		 */
-		if (!(tmpfile->f_flags & O_EXCL) &&
-		    xfs_has_parent(XFS_I(dir)->i_mount))
-			args.flags |= XFS_ICREATE_INIT_XATTRS;
+		if (tmpfile->f_flags & O_EXCL)
+			args.flags |= XFS_ICREATE_UNLINKABLE;
 
 		error = xfs_create_tmpfile(&args, &ip);
 	}

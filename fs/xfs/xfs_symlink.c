@@ -115,9 +115,6 @@ xfs_symlink(
 	if (xfs_is_shutdown(mp))
 		return -EIO;
 
-	if (xfs_has_parent(mp))
-		args.flags |= XFS_ICREATE_INIT_XATTRS;
-
 	/*
 	 * Check component lengths of the target path name.
 	 */

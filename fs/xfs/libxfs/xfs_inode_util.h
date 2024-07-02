@@ -32,6 +32,7 @@ struct xfs_icreate_args {
 
 #define XFS_ICREATE_TMPFILE	(1U << 0)  /* create an unlinked file */
 #define XFS_ICREATE_INIT_XATTRS	(1U << 1)  /* will set xattrs immediately */
+#define XFS_ICREATE_UNLINKABLE	(1U << 2)  /* cannot link into dir tree */
 	uint16_t		flags;
 };
 
