@@ -714,14 +714,16 @@ xfs_create(
 	struct xfs_inode	**ipp)
 {
 	struct xfs_inode	*dp = args->pip;
+	struct xfs_dir_update	du = {
+		.dp		= dp,
+		.name		= name,
+	};
 	struct xfs_mount	*mp = dp->i_mount;
-	struct xfs_inode	*ip = NULL;
 	struct xfs_trans	*tp = NULL;
 	struct xfs_dquot	*udqp;
 	struct xfs_dquot	*gdqp;
 	struct xfs_dquot	*pdqp;
 	struct xfs_trans_res	*tres;
-	struct xfs_parent_args	*ppargs;
 	xfs_ino_t		ino;
 	bool			unlock_dp_on_error = false;
 	bool			is_dir = S_ISDIR(args->mode);
@@ -748,7 +750,7 @@ xfs_create(
 		tres = &M_RES(mp)->tr_create;
 	}
 
-	error = xfs_parent_start(mp, &ppargs);
+	error = xfs_parent_start(mp, &du.ppargs);
 	if (error)
 		goto out_release_dquots;
 
@@ -779,7 +781,7 @@ xfs_create(
 	 */
 	error = xfs_dialloc(&tp, dp->i_ino, args->mode, &ino);
 	if (!error)
-		error = xfs_icreate(tp, ino, args, &ip);
+		error = xfs_icreate(tp, ino, args, &du.ip);
 	if (error)
 		goto out_trans_cancel;
 
@@ -792,38 +794,15 @@ xfs_create(
 	 */
 	xfs_trans_ijoin(tp, dp, 0);
 
-	error = xfs_dir_createname(tp, dp, name, ip->i_ino,
-					resblks - XFS_IALLOC_SPACE_RES(mp));
-	if (error) {
-		ASSERT(error != -ENOSPC);
+	error = xfs_dir_create_child(tp, resblks, &du);
+	if (error)
 		goto out_trans_cancel;
-	}
-	xfs_trans_ichgtime(tp, dp, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
-	xfs_trans_log_inode(tp, dp, XFS_ILOG_CORE);
-
-	if (is_dir) {
-		error = xfs_dir_init(tp, ip, dp);
-		if (error)
-			goto out_trans_cancel;
-
-		xfs_bumplink(tp, dp);
-	}
-
-	/*
-	 * If we have parent pointers, we need to add the attribute containing
-	 * the parent information now.
-	 */
-	if (ppargs) {
-		error = xfs_parent_addname(tp, ppargs, dp, name, ip);
-		if (error)
-			goto out_trans_cancel;
-	}
 
 	/*
 	 * Create ip with a reference from dp, and add '.' and '..' references
 	 * if it's a directory.
 	 */
-	xfs_dir_update_hook(dp, ip, 1, name);
+	xfs_dir_update_hook(dp, du.ip, 1, name);
 
 	/*
 	 * If this is a synchronous mount, make sure that the
@@ -838,7 +817,7 @@ xfs_create(
 	 * These ids of the inode couldn't have changed since the new
 	 * inode has been locked ever since it was created.
 	 */
-	xfs_qm_vop_create_dqattach(tp, ip, udqp, gdqp, pdqp);
+	xfs_qm_vop_create_dqattach(tp, du.ip, udqp, gdqp, pdqp);
 
 	error = xfs_trans_commit(tp);
 	if (error)
@@ -848,10 +827,10 @@ xfs_create(
 	xfs_qm_dqrele(gdqp);
 	xfs_qm_dqrele(pdqp);
 
-	*ipp = ip;
-	xfs_iunlock(ip, XFS_ILOCK_EXCL);
+	*ipp = du.ip;
+	xfs_iunlock(du.ip, XFS_ILOCK_EXCL);
 	xfs_iunlock(dp, XFS_ILOCK_EXCL);
-	xfs_parent_finish(mp, ppargs);
+	xfs_parent_finish(mp, du.ppargs);
 	return 0;
 
  out_trans_cancel:
@@ -862,13 +841,13 @@ xfs_create(
 	 * setup of the inode and release the inode.  This prevents recursive
 	 * transactions and deadlocks from xfs_inactive.
 	 */
-	if (ip) {
-		xfs_iunlock(ip, XFS_ILOCK_EXCL);
-		xfs_finish_inode_setup(ip);
-		xfs_irele(ip);
+	if (du.ip) {
+		xfs_iunlock(du.ip, XFS_ILOCK_EXCL);
+		xfs_finish_inode_setup(du.ip);
+		xfs_irele(du.ip);
 	}
  out_parent:
-	xfs_parent_finish(mp, ppargs);
+	xfs_parent_finish(mp, du.ppargs);
  out_release_dquots:
 	xfs_qm_dqrele(udqp);
 	xfs_qm_dqrele(gdqp);
