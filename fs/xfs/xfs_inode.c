@@ -672,10 +672,11 @@ xfs_icreate(
 	struct inode		*dir = pip ? VFS_I(pip) : NULL;
 	struct xfs_mount	*mp = tp->t_mountp;
 	struct xfs_inode	*ip;
-	unsigned int		flags;
-	int			error;
-	struct timespec64	tv;
 	struct inode		*inode;
+	unsigned int		flags;
+	int			times = XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG |
+					XFS_ICHGTIME_ACCESS;
+	int			error;
 
 	/*
 	 * Protect against obviously corrupt allocation btree records. Later
@@ -743,18 +744,16 @@ xfs_icreate(
 	ip->i_df.if_nextents = 0;
 	ASSERT(ip->i_nblocks == 0);
 
-	tv = inode_set_ctime_current(inode);
-	inode_set_mtime_to_ts(inode, tv);
-	inode_set_atime_to_ts(inode, tv);
-
 	ip->i_extsize = 0;
 	ip->i_diflags = 0;
 
 	if (xfs_has_v3inodes(mp)) {
 		inode_set_iversion(inode, 1);
 		ip->i_cowextsize = 0;
-		ip->i_crtime = tv;
+		times |= XFS_ICHGTIME_CREATE;
 	}
+
+	xfs_trans_ichgtime(tp, ip, times);
 
 	flags = XFS_ILOG_CORE;
 	switch (args->mode & S_IFMT) {
