@@ -80,12 +80,14 @@ if [ -n "$PERFSUITE_RUN_DIR" ]; then
 	export CURRENT_TEST_DIR="$PERFSUITE_RUN_DIR/$TEST_NAME"
 	export MAKE_TARGET_DIR="$CURRENT_TEST_DIR/examples"
 	export LOGS_DIR="$CURRENT_TEST_DIR/logs"
+	export HEADER_TAR_DIR="$CURRENT_TEST_DIR/header_tar"
 	test -d "$CURRENT_TEST_DIR" || mkdir -p "$CURRENT_TEST_DIR"
 	test -d "$LOGS_DIR" || mkdir -p "$LOGS_DIR"
 else
 	# when $PERFSUITE_RUN_DIR is not set, logs will be placed here
 	export CURRENT_TEST_DIR="."
 	export LOGS_DIR="."
+	export HEADER_TAR_DIR="./header_tar"
 fi
 
 
