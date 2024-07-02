@@ -235,7 +235,12 @@ xfs_buf_to_agfl_bno(
 
 int xfs_free_extent_later(struct xfs_trans *tp, xfs_fsblock_t bno,
 		xfs_filblks_t len, const struct xfs_owner_info *oinfo,
-		enum xfs_ag_resv_type type, bool skip_discard);
+		enum xfs_ag_resv_type type, unsigned int free_flags);
+
+/* Don't issue a discard for the blocks freed. */
+#define XFS_FREE_EXTENT_SKIP_DISCARD	(1U << 0)
+
+#define XFS_FREE_EXTENT_ALL_FLAGS	(XFS_FREE_EXTENT_SKIP_DISCARD)
 
 /*
  * List of extents to be free "later".
@@ -264,7 +269,7 @@ struct xfs_alloc_autoreap {
 };
 
 int xfs_alloc_schedule_autoreap(const struct xfs_alloc_arg *args,
-		bool skip_discard, struct xfs_alloc_autoreap *aarp);
+		unsigned int free_flags, struct xfs_alloc_autoreap *aarp);
 void xfs_alloc_cancel_autoreap(struct xfs_trans *tp,
 		struct xfs_alloc_autoreap *aarp);
 void xfs_alloc_commit_autoreap(struct xfs_trans *tp,
