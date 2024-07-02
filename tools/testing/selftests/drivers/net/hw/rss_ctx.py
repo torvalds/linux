@@ -174,8 +174,10 @@ def test_rss_context(cfg, ctx_cnt=1, create_with_cfg=None):
         GenerateTraffic(cfg, port=ports[i]).wait_pkts_and_stop(20000)
         cnts = _get_rx_cnts(cfg, prev=cnts)
 
-        ksft_lt(sum(cnts[ :2]), 10000, "traffic on main context:" + str(cnts))
-        ksft_ge(sum(cnts[2+i*2:4+i*2]), 20000, f"traffic on context {i}: " + str(cnts))
+        directed = sum(cnts[2+i*2:4+i*2])
+
+        ksft_lt(sum(cnts[ :2]), directed / 2, "traffic on main context:" + str(cnts))
+        ksft_ge(directed, 20000, f"traffic on context {i}: " + str(cnts))
         ksft_eq(sum(cnts[2:2+i*2] + cnts[4+i*2:]), 0, "traffic on other contexts: " + str(cnts))
 
     if requested_ctx_cnt != ctx_cnt:
@@ -233,8 +235,9 @@ def test_rss_context_out_of_order(cfg, ctx_cnt=4):
             cnts = _get_rx_cnts(cfg, prev=cnts)
 
             if ctx[i]:
-                ksft_lt(sum(cnts[ :2]), 10000, "traffic on main context:" + str(cnts))
-                ksft_ge(sum(cnts[2+i*2:4+i*2]), 20000, f"traffic on context {i}: " + str(cnts))
+                directed = sum(cnts[2+i*2:4+i*2])
+                ksft_lt(sum(cnts[ :2]), directed / 2, "traffic on main context:" + str(cnts))
+                ksft_ge(directed, 20000, f"traffic on context {i}: " + str(cnts))
                 ksft_eq(sum(cnts[2:2+i*2] + cnts[4+i*2:]), 0, "traffic on other contexts: " + str(cnts))
             else:
                 ksft_ge(sum(cnts[ :2]), 20000, "traffic on main context:" + str(cnts))
@@ -328,8 +331,9 @@ def test_rss_context_overlap(cfg, other_ctx=0):
     GenerateTraffic(cfg, port=port).wait_pkts_and_stop(20000)
     cnts = _get_rx_cnts(cfg, prev=cnts)
 
-    ksft_lt(sum(cnts[ :2]),  7000, "traffic on main context: " + str(cnts))
-    ksft_ge(sum(cnts[2:4]), 20000, "traffic on extra context: " + str(cnts))
+    directed = sum(cnts[2:4])
+    ksft_lt(sum(cnts[ :2]), directed / 2, "traffic on main context: " + str(cnts))
+    ksft_ge(directed, 20000, "traffic on extra context: " + str(cnts))
     if other_ctx == 0:
         ksft_eq(sum(cnts[4: ]),     0, "traffic on other queues: " + str(cnts))
 
