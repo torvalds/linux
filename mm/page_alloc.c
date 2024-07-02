@@ -1236,16 +1236,11 @@ void __free_pages_core(struct page *page, unsigned int order,
 	 */
 	if (IS_ENABLED(CONFIG_MEMORY_HOTPLUG) &&
 	    unlikely(context == MEMINIT_HOTPLUG)) {
-		prefetchw(p);
-		for (loop = 0; loop < (nr_pages - 1); loop++, p++) {
-			prefetchw(p + 1);
+		for (loop = 0; loop < nr_pages; loop++, p++) {
 			VM_WARN_ON_ONCE(PageReserved(p));
 			__ClearPageOffline(p);
 			set_page_count(p, 0);
 		}
-		VM_WARN_ON_ONCE(PageReserved(p));
-		__ClearPageOffline(p);
-		set_page_count(p, 0);
 
 		/*
 		 * Freeing the page with debug_pagealloc enabled will try to
@@ -1255,14 +1250,10 @@ void __free_pages_core(struct page *page, unsigned int order,
 		debug_pagealloc_map_pages(page, nr_pages);
 		adjust_managed_page_count(page, nr_pages);
 	} else {
-		prefetchw(p);
-		for (loop = 0; loop < (nr_pages - 1); loop++, p++) {
-			prefetchw(p + 1);
+		for (loop = 0; loop < nr_pages; loop++, p++) {
 			__ClearPageReserved(p);
 			set_page_count(p, 0);
 		}
-		__ClearPageReserved(p);
-		set_page_count(p, 0);
 
 		/* memblock adjusts totalram_pages() manually. */
 		atomic_long_add(nr_pages, &page_zone(page)->managed_pages);
