@@ -4695,7 +4695,12 @@ struct rtw89_dack_info {
 	bool msbk_timeout[RTW89_DACK_PATH_NR];
 };
 
-#define RTW89_RFK_CHS_NR 3
+enum rtw89_rfk_chs_nrs {
+	__RTW89_RFK_CHS_NR_V0 = 2,
+	__RTW89_RFK_CHS_NR_V1 = 3,
+
+	RTW89_RFK_CHS_NR = __RTW89_RFK_CHS_NR_V1,
+};
 
 struct rtw89_rfk_mcc_info {
 	u8 ch[RTW89_RFK_CHS_NR];

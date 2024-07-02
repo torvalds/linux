@@ -2,6 +2,7 @@
 /* Copyright(c) 2019-2020  Realtek Corporation
  */
 
+#include "chan.h"
 #include "coex.h"
 #include "debug.h"
 #include "fw.h"
@@ -6002,6 +6003,74 @@ void rtw89_phy_set_bss_color(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif
 	rtw89_phy_write32_idx(rtwdev, chip->bss_clr_map_reg, B_BSS_CLR_MAP_STAID,
 			      vif->cfg.aid, phy_idx);
 }
+
+static bool rfk_chan_validate_desc(const struct rtw89_rfk_chan_desc *desc)
+{
+	return desc->ch != 0;
+}
+
+static bool rfk_chan_is_equivalent(const struct rtw89_rfk_chan_desc *desc,
+				   const struct rtw89_chan *chan)
+{
+	if (!rfk_chan_validate_desc(desc))
+		return false;
+
+	if (desc->ch != chan->channel)
+		return false;
+
+	if (desc->has_band && desc->band != chan->band_type)
+		return false;
+
+	if (desc->has_bw && desc->bw != chan->band_width)
+		return false;
+
+	return true;
+}
+
+struct rfk_chan_iter_data {
+	const struct rtw89_rfk_chan_desc desc;
+	unsigned int found;
+};
+
+static int rfk_chan_iter_search(const struct rtw89_chan *chan, void *data)
+{
+	struct rfk_chan_iter_data *iter_data = data;
+
+	if (rfk_chan_is_equivalent(&iter_data->desc, chan))
+		iter_data->found++;
+
+	return 0;
+}
+
+u8 rtw89_rfk_chan_lookup(struct rtw89_dev *rtwdev,
+			 const struct rtw89_rfk_chan_desc *desc, u8 desc_nr,
+			 const struct rtw89_chan *target_chan)
+{
+	int sel = -1;
+	u8 i;
+
+	for (i = 0; i < desc_nr; i++) {
+		struct rfk_chan_iter_data iter_data = {
+			.desc = desc[i],
+		};
+
+		if (rfk_chan_is_equivalent(&desc[i], target_chan))
+			return i;
+
+		rtw89_iterate_entity_chan(rtwdev, rfk_chan_iter_search, &iter_data);
+		if (!iter_data.found && sel == -1)
+			sel = i;
+	}
+
+	if (sel == -1) {
+		rtw89_debug(rtwdev, RTW89_DBG_RFK,
+			    "no idle rfk entry; force replace the first\n");
+		sel = 0;
+	}
+
+	return sel;
+}
+EXPORT_SYMBOL(rtw89_rfk_chan_lookup);
 
 static void
 _rfk_write_rf(struct rtw89_dev *rtwdev, const struct rtw89_reg5_def *def)

@@ -715,6 +715,19 @@ enum rtw89_phy_gain_band_be rtw89_subband_to_gain_band_be(enum rtw89_subband sub
 	}
 }
 
+struct rtw89_rfk_chan_desc {
+	/* desc is valid iff ch is non-zero */
+	u8 ch;
+
+	/* To avoid us from extending old chip code every time, each new
+	 * field must be defined along with a bool flag in positivte way.
+	 */
+	bool has_band;
+	u8 band;
+	bool has_bw;
+	u8 bw;
+};
+
 enum rtw89_rfk_flag {
 	RTW89_RFK_F_WRF = 0,
 	RTW89_RFK_F_WM = 1,
@@ -950,5 +963,8 @@ enum rtw89_rf_path_bit rtw89_phy_get_kpath(struct rtw89_dev *rtwdev,
 					   enum rtw89_phy_idx phy_idx);
 enum rtw89_rf_path rtw89_phy_get_syn_sel(struct rtw89_dev *rtwdev,
 					 enum rtw89_phy_idx phy_idx);
+u8 rtw89_rfk_chan_lookup(struct rtw89_dev *rtwdev,
+			 const struct rtw89_rfk_chan_desc *desc, u8 desc_nr,
+			 const struct rtw89_chan *target_chan);
 
 #endif
