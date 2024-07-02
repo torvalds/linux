@@ -952,11 +952,15 @@ xfs_link(
 	struct xfs_inode	*sip,
 	struct xfs_name		*target_name)
 {
+	struct xfs_dir_update	du = {
+		.dp		= tdp,
+		.name		= target_name,
+		.ip		= sip,
+	};
 	struct xfs_mount	*mp = tdp->i_mount;
 	struct xfs_trans	*tp;
 	int			error, nospace_error = 0;
 	int			resblks;
-	struct xfs_parent_args	*ppargs;
 
 	trace_xfs_link(tdp, target_name);
 
@@ -975,7 +979,7 @@ xfs_link(
 	if (error)
 		goto std_return;
 
-	error = xfs_parent_start(mp, &ppargs);
+	error = xfs_parent_start(mp, &du.ppargs);
 	if (error)
 		goto std_return;
 
@@ -990,7 +994,7 @@ xfs_link(
 	 * pointers are enabled because we can't back out if the xattrs must
 	 * grow.
 	 */
-	if (ppargs && nospace_error) {
+	if (du.ppargs && nospace_error) {
 		error = nospace_error;
 		goto error_return;
 	}
@@ -1017,45 +1021,9 @@ xfs_link(
 		}
 	}
 
-	if (!resblks) {
-		error = xfs_dir_canenter(tp, tdp, target_name);
-		if (error)
-			goto error_return;
-	}
-
-	/*
-	 * Handle initial link state of O_TMPFILE inode
-	 */
-	if (VFS_I(sip)->i_nlink == 0) {
-		struct xfs_perag	*pag;
-
-		pag = xfs_perag_get(mp, XFS_INO_TO_AGNO(mp, sip->i_ino));
-		error = xfs_iunlink_remove(tp, pag, sip);
-		xfs_perag_put(pag);
-		if (error)
-			goto error_return;
-	}
-
-	error = xfs_dir_createname(tp, tdp, target_name, sip->i_ino,
-				   resblks);
+	error = xfs_dir_add_child(tp, resblks, &du);
 	if (error)
 		goto error_return;
-	xfs_trans_ichgtime(tp, tdp, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
-	xfs_trans_log_inode(tp, tdp, XFS_ILOG_CORE);
-
-	xfs_bumplink(tp, sip);
-
-	/*
-	 * If we have parent pointers, we now need to add the parent record to
-	 * the attribute fork of the inode. If this is the initial parent
-	 * attribute, we need to create it correctly, otherwise we can just add
-	 * the parent to the inode.
-	 */
-	if (ppargs) {
-		error = xfs_parent_addname(tp, ppargs, tdp, target_name, sip);
-		if (error)
-			goto error_return;
-	}
 
 	xfs_dir_update_hook(tdp, sip, 1, target_name);
 
@@ -1070,7 +1038,7 @@ xfs_link(
 	error = xfs_trans_commit(tp);
 	xfs_iunlock(tdp, XFS_ILOCK_EXCL);
 	xfs_iunlock(sip, XFS_ILOCK_EXCL);
-	xfs_parent_finish(mp, ppargs);
+	xfs_parent_finish(mp, du.ppargs);
 	return error;
 
  error_return:
@@ -1078,7 +1046,7 @@ xfs_link(
 	xfs_iunlock(tdp, XFS_ILOCK_EXCL);
 	xfs_iunlock(sip, XFS_ILOCK_EXCL);
  out_parent:
-	xfs_parent_finish(mp, ppargs);
+	xfs_parent_finish(mp, du.ppargs);
  std_return:
 	if (error == -ENOSPC && nospace_error)
 		error = nospace_error;
