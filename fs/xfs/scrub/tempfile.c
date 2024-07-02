@@ -40,6 +40,11 @@ xrep_tempfile_create(
 	struct xfs_scrub	*sc,
 	uint16_t		mode)
 {
+	struct xfs_icreate_args	args = {
+		.pip		= sc->mp->m_rootip,
+		.mode		= mode,
+		.flags		= XFS_ICREATE_TMPFILE,
+	};
 	struct xfs_mount	*mp = sc->mp;
 	struct xfs_trans	*tp = NULL;
 	struct xfs_dquot	*udqp = NULL;
@@ -87,14 +92,11 @@ xrep_tempfile_create(
 	error = xfs_dialloc(&tp, dp->i_ino, mode, &ino);
 	if (error)
 		goto out_trans_cancel;
-	error = xfs_init_new_inode(&nop_mnt_idmap, tp, dp, ino, mode, 0, 0,
-			0, false, &sc->tempip);
+	error = xfs_icreate(tp, ino, &args, &sc->tempip);
 	if (error)
 		goto out_trans_cancel;
 
-	/* Change the ownership of the inode to root. */
-	VFS_I(sc->tempip)->i_uid = GLOBAL_ROOT_UID;
-	VFS_I(sc->tempip)->i_gid = GLOBAL_ROOT_GID;
+	/* We don't touch file data, so drop the realtime flags. */
 	sc->tempip->i_diflags &= ~(XFS_DIFLAG_REALTIME | XFS_DIFLAG_RTINHERIT);
 	xfs_trans_log_inode(tp, sc->tempip, XFS_ILOG_CORE);
 

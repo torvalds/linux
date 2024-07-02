@@ -662,18 +662,13 @@ xfs_inode_inherit_flags2(
  * Caller is responsible for unlocking the inode manually upon return
  */
 int
-xfs_init_new_inode(
-	struct mnt_idmap	*idmap,
+xfs_icreate(
 	struct xfs_trans	*tp,
-	struct xfs_inode	*pip,
 	xfs_ino_t		ino,
-	umode_t			mode,
-	xfs_nlink_t		nlink,
-	dev_t			rdev,
-	prid_t			prid,
-	bool			init_xattrs,
+	const struct xfs_icreate_args *args,
 	struct xfs_inode	**ipp)
 {
+	struct xfs_inode	*pip = args->pip;
 	struct inode		*dir = pip ? VFS_I(pip) : NULL;
 	struct xfs_mount	*mp = tp->t_mountp;
 	struct xfs_inode	*ip;
@@ -706,26 +701,43 @@ xfs_init_new_inode(
 
 	ASSERT(ip != NULL);
 	inode = VFS_I(ip);
-	set_nlink(inode, nlink);
-	inode->i_rdev = rdev;
-	ip->i_projid = prid;
 
-	if (dir && !(dir->i_mode & S_ISGID) && xfs_has_grpid(mp)) {
-		inode_fsuid_set(inode, idmap);
-		inode->i_gid = dir->i_gid;
-		inode->i_mode = mode;
+	if (args->flags & XFS_ICREATE_TMPFILE)
+		set_nlink(inode, 0);
+	else if (S_ISDIR(args->mode))
+		set_nlink(inode, 2);
+	else
+		set_nlink(inode, 1);
+	inode->i_rdev = args->rdev;
+
+	if (!args->idmap || pip == NULL) {
+		/* creating a tree root, sb rooted, or detached file */
+		inode->i_uid = GLOBAL_ROOT_UID;
+		inode->i_gid = GLOBAL_ROOT_GID;
+		ip->i_projid = 0;
+		inode->i_mode = args->mode;
 	} else {
-		inode_init_owner(idmap, inode, dir, mode);
-	}
+		/* creating a child in the directory tree */
+		if (dir && !(dir->i_mode & S_ISGID) && xfs_has_grpid(mp)) {
+			inode_fsuid_set(inode, args->idmap);
+			inode->i_gid = dir->i_gid;
+			inode->i_mode = args->mode;
+		} else {
+			inode_init_owner(args->idmap, inode, dir, args->mode);
+		}
 
-	/*
-	 * If the group ID of the new file does not match the effective group
-	 * ID or one of the supplementary group IDs, the S_ISGID bit is cleared
-	 * (and only if the irix_sgid_inherit compatibility variable is set).
-	 */
-	if (irix_sgid_inherit && (inode->i_mode & S_ISGID) &&
-	    !vfsgid_in_group_p(i_gid_into_vfsgid(idmap, inode)))
-		inode->i_mode &= ~S_ISGID;
+		/*
+		 * If the group ID of the new file does not match the effective
+		 * group ID or one of the supplementary group IDs, the S_ISGID
+		 * bit is cleared (and only if the irix_sgid_inherit
+		 * compatibility variable is set).
+		 */
+		if (irix_sgid_inherit && (inode->i_mode & S_ISGID) &&
+		    !vfsgid_in_group_p(i_gid_into_vfsgid(args->idmap, inode)))
+			inode->i_mode &= ~S_ISGID;
+
+		ip->i_projid = pip ? xfs_get_initial_prid(pip) : 0;
+	}
 
 	ip->i_disk_size = 0;
 	ip->i_df.if_nextents = 0;
@@ -745,7 +757,7 @@ xfs_init_new_inode(
 	}
 
 	flags = XFS_ILOG_CORE;
-	switch (mode & S_IFMT) {
+	switch (args->mode & S_IFMT) {
 	case S_IFIFO:
 	case S_IFCHR:
 	case S_IFBLK:
@@ -778,7 +790,7 @@ xfs_init_new_inode(
 	 * this saves us from needing to run a separate transaction to set the
 	 * fork offset in the immediate future.
 	 */
-	if (init_xattrs) {
+	if (args->flags & XFS_ICREATE_INIT_XATTRS) {
 		ip->i_forkoff = xfs_default_attroffset(ip) >> 3;
 		xfs_ifork_init_attr(ip, XFS_DINODE_FMT_EXTENTS, 0);
 
@@ -941,6 +953,13 @@ xfs_create(
 	bool			init_xattrs,
 	xfs_inode_t		**ipp)
 {
+	struct xfs_icreate_args	args = {
+		.idmap		= idmap,
+		.pip		= dp,
+		.rdev		= rdev,
+		.mode		= mode,
+		.flags		= init_xattrs ? XFS_ICREATE_INIT_XATTRS : 0,
+	};
 	int			is_dir = S_ISDIR(mode);
 	struct xfs_mount	*mp = dp->i_mount;
 	struct xfs_inode	*ip = NULL;
@@ -1016,8 +1035,7 @@ xfs_create(
 	 */
 	error = xfs_dialloc(&tp, dp->i_ino, mode, &ino);
 	if (!error)
-		error = xfs_init_new_inode(idmap, tp, dp, ino, mode,
-				is_dir ? 2 : 1, rdev, prid, init_xattrs, &ip);
+		error = xfs_icreate(tp, ino, &args, &ip);
 	if (error)
 		goto out_trans_cancel;
 
@@ -1125,11 +1143,17 @@ xfs_create_tmpfile(
 	bool			init_xattrs,
 	struct xfs_inode	**ipp)
 {
+	struct xfs_icreate_args	args = {
+		.idmap		= idmap,
+		.pip		= dp,
+		.mode		= mode,
+		.flags		= XFS_ICREATE_TMPFILE,
+	};
 	struct xfs_mount	*mp = dp->i_mount;
 	struct xfs_inode	*ip = NULL;
 	struct xfs_trans	*tp = NULL;
 	int			error;
-	prid_t                  prid;
+	prid_t			prid;
 	struct xfs_dquot	*udqp = NULL;
 	struct xfs_dquot	*gdqp = NULL;
 	struct xfs_dquot	*pdqp = NULL;
@@ -1141,6 +1165,8 @@ xfs_create_tmpfile(
 		return -EIO;
 
 	prid = xfs_get_initial_prid(dp);
+	if (init_xattrs)
+		args.flags |= XFS_ICREATE_INIT_XATTRS;
 
 	/*
 	 * Make sure that we have allocated dquot(s) on disk.  The uid/gid
@@ -1164,8 +1190,7 @@ xfs_create_tmpfile(
 
 	error = xfs_dialloc(&tp, dp->i_ino, mode, &ino);
 	if (!error)
-		error = xfs_init_new_inode(idmap, tp, dp, ino, mode,
-				0, 0, prid, init_xattrs, &ip);
+		error = xfs_icreate(tp, ino, &args, &ip);
 	if (error)
 		goto out_trans_cancel;
 
