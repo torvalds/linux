@@ -3553,7 +3553,7 @@ err:
 	for (int i = 0; i < num_folios; i++) {
 		if (eb->folios[i]) {
 			detach_extent_buffer_folio(eb, eb->folios[i]);
-			__folio_put(eb->folios[i]);
+			folio_put(eb->folios[i]);
 		}
 	}
 	__free_extent_buffer(eb);
