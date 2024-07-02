@@ -900,8 +900,7 @@ static irqreturn_t msa311_buffer_thread(int irq, void *p)
 
 	mutex_lock(&msa311->lock);
 
-	for_each_set_bit(bit, indio_dev->active_scan_mask,
-			 indio_dev->masklength) {
+	iio_for_each_active_channel(indio_dev, bit) {
 		chan = &msa311_channels[bit];
 
 		err = msa311_get_axis(msa311, chan, &axis);
