@@ -59,13 +59,13 @@ static const struct ieee80211_iface_combination iwl_mvm_iface_combinations[] = {
 		.num_different_channels = 2,
 		.max_interfaces = 3,
 		.limits = iwl_mvm_limits,
-		.n_limits = ARRAY_SIZE(iwl_mvm_limits) - 1,
+		.n_limits = ARRAY_SIZE(iwl_mvm_limits),
 	},
 	{
 		.num_different_channels = 1,
 		.max_interfaces = 3,
 		.limits = iwl_mvm_limits_ap,
-		.n_limits = ARRAY_SIZE(iwl_mvm_limits_ap) - 1,
+		.n_limits = ARRAY_SIZE(iwl_mvm_limits_ap),
 	},
 };
 
