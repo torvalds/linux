@@ -131,34 +131,25 @@ static void bio_integrity_uncopy_user(struct bio_integrity_payload *bip)
 	bio_integrity_unpin_bvec(copy, nr_vecs, true);
 }
 
-static void bio_integrity_unmap_user(struct bio_integrity_payload *bip)
+/**
+ * bio_integrity_unmap_user - Unmap user integrity payload
+ * @bio:	bio containing bip to be unmapped
+ *
+ * Unmap the user mapped integrity portion of a bio.
+ */
+void bio_integrity_unmap_user(struct bio *bio)
 {
-	bool dirty = bio_data_dir(bip->bip_bio) == READ;
+	struct bio_integrity_payload *bip = bio_integrity(bio);
 
 	if (bip->bip_flags & BIP_COPY_USER) {
-		if (dirty)
+		if (bio_data_dir(bio) == READ)
 			bio_integrity_uncopy_user(bip);
 		kfree(bvec_virt(bip->bip_vec));
 		return;
 	}
 
-	bio_integrity_unpin_bvec(bip->bip_vec, bip->bip_max_vcnt, dirty);
-}
-
-/**
- * bio_integrity_unmap_free_user - Unmap and free bio user integrity payload
- * @bio:	bio containing bip to be unmapped and freed
- *
- * Description: Used to unmap and free the user mapped integrity portion of a
- * bio. Submitter attaching the user integrity buffer is responsible for
- * unmapping and freeing it during completion.
- */
-void bio_integrity_unmap_free_user(struct bio *bio)
-{
-	struct bio_integrity_payload *bip = bio_integrity(bio);
-
-	bio_integrity_unmap_user(bip);
-	bio_integrity_free(bio);
+	bio_integrity_unpin_bvec(bip->bip_vec, bip->bip_max_vcnt,
+			bio_data_dir(bio) == READ);
 }
 
 /**

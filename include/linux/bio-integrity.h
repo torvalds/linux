@@ -73,7 +73,7 @@ struct bio_integrity_payload *bio_integrity_alloc(struct bio *bio, gfp_t gfp,
 int bio_integrity_add_page(struct bio *bio, struct page *page, unsigned int len,
 		unsigned int offset);
 int bio_integrity_map_user(struct bio *bio, void __user *ubuf, ssize_t len, u32 seed);
-void bio_integrity_unmap_free_user(struct bio *bio);
+void bio_integrity_unmap_user(struct bio *bio);
 bool bio_integrity_prep(struct bio *bio);
 void bio_integrity_advance(struct bio *bio, unsigned int bytes_done);
 void bio_integrity_trim(struct bio *bio);
@@ -104,7 +104,7 @@ static inline int bio_integrity_map_user(struct bio *bio, void __user *ubuf,
 	return -EINVAL;
 }
 
-static inline void bio_integrity_unmap_free_user(struct bio *bio)
+static inline void bio_integrity_unmap_user(struct bio *bio)
 {
 }
 

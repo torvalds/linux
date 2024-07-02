@@ -758,7 +758,7 @@ int blk_rq_unmap_user(struct bio *bio)
 		}
 
 		if (bio_integrity(bio))
-			bio_integrity_unmap_free_user(bio);
+			bio_integrity_unmap_user(bio);
 
 		next_bio = bio;
 		bio = bio->bi_next;
