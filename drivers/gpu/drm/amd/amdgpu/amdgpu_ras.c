@@ -124,6 +124,8 @@ const char *get_ras_block_str(struct ras_common_if *ras_block)
 
 #define AMDGPU_RAS_RETIRE_PAGE_INTERVAL 100  //ms
 
+#define MAX_FLUSH_RETIRE_DWORK_TIMES  100
+
 enum amdgpu_ras_retire_page_reservation {
 	AMDGPU_RAS_RETIRE_PAGE_RESERVED,
 	AMDGPU_RAS_RETIRE_PAGE_PENDING,
@@ -2907,6 +2909,23 @@ static void amdgpu_ras_ecc_log_fini(struct ras_ecc_log_info *ecc_log)
 	ecc_log->prev_de_queried_count = 0;
 }
 
+static bool amdgpu_ras_schedule_retirement_dwork(struct amdgpu_ras *con,
+				uint32_t delayed_ms)
+{
+	int ret;
+
+	mutex_lock(&con->umc_ecc_log.lock);
+	ret = radix_tree_tagged(&con->umc_ecc_log.de_page_tree,
+			UMC_ECC_NEW_DETECTED_TAG);
+	mutex_unlock(&con->umc_ecc_log.lock);
+
+	if (ret)
+		schedule_delayed_work(&con->page_retirement_dwork,
+			msecs_to_jiffies(delayed_ms));
+
+	return ret ? true : false;
+}
+
 static void amdgpu_ras_do_page_retirement(struct work_struct *work)
 {
 	struct amdgpu_ras *con = container_of(work, struct amdgpu_ras,
@@ -2928,12 +2947,8 @@ static void amdgpu_ras_do_page_retirement(struct work_struct *work)
 	if (err_cnt && con->is_rma)
 		amdgpu_ras_reset_gpu(adev);
 
-	mutex_lock(&con->umc_ecc_log.lock);
-	if (radix_tree_tagged(&con->umc_ecc_log.de_page_tree,
-				UMC_ECC_NEW_DETECTED_TAG))
-		schedule_delayed_work(&con->page_retirement_dwork,
-			msecs_to_jiffies(AMDGPU_RAS_RETIRE_PAGE_INTERVAL));
-	mutex_unlock(&con->umc_ecc_log.lock);
+	amdgpu_ras_schedule_retirement_dwork(con,
+			AMDGPU_RAS_RETIRE_PAGE_INTERVAL);
 }
 
 static int amdgpu_ras_poison_creation_handler(struct amdgpu_device *adev,
@@ -3237,10 +3252,18 @@ static int amdgpu_ras_recovery_fini(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct ras_err_handler_data *data = con->eh_data;
+	int max_flush_timeout = MAX_FLUSH_RETIRE_DWORK_TIMES;
+	bool ret;
 
 	/* recovery_init failed to init it, fini is useless */
 	if (!data)
 		return 0;
+
+	/* Save all cached bad pages to eeprom */
+	do {
+		flush_delayed_work(&con->page_retirement_dwork);
+		ret = amdgpu_ras_schedule_retirement_dwork(con, 0);
+	} while (ret && max_flush_timeout--);
 
 	if (con->page_retirement_thread)
 		kthread_stop(con->page_retirement_thread);
