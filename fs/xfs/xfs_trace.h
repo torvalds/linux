@@ -3176,17 +3176,41 @@ DEFINE_AG_ERROR_EVENT(xfs_ag_resv_init_error);
 
 /* refcount tracepoint classes */
 
-/* reuse the discard trace class for agbno/aglen-based traces */
-#define DEFINE_AG_EXTENT_EVENT(name) DEFINE_DISCARD_EVENT(name)
+DECLARE_EVENT_CLASS(xfs_refcount_class,
+	TP_PROTO(struct xfs_btree_cur *cur, xfs_agblock_t agbno,
+		xfs_extlen_t len),
+	TP_ARGS(cur, agbno, len),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_agnumber_t, agno)
+		__field(xfs_agblock_t, agbno)
+		__field(xfs_extlen_t, len)
+	),
+	TP_fast_assign(
+		__entry->dev = cur->bc_mp->m_super->s_dev;
+		__entry->agno = cur->bc_ag.pag->pag_agno;
+		__entry->agbno = agbno;
+		__entry->len = len;
+	),
+	TP_printk("dev %d:%d agno 0x%x agbno 0x%x fsbcount 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->agno,
+		  __entry->agbno,
+		  __entry->len)
+);
+#define DEFINE_REFCOUNT_EVENT(name) \
+DEFINE_EVENT(xfs_refcount_class, name, \
+	TP_PROTO(struct xfs_btree_cur *cur, xfs_agblock_t agbno, \
+		xfs_extlen_t len), \
+	TP_ARGS(cur, agbno, len))
 
-/* ag btree lookup tracepoint class */
 TRACE_DEFINE_ENUM(XFS_LOOKUP_EQi);
 TRACE_DEFINE_ENUM(XFS_LOOKUP_LEi);
 TRACE_DEFINE_ENUM(XFS_LOOKUP_GEi);
-DECLARE_EVENT_CLASS(xfs_ag_btree_lookup_class,
-	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno,
-		 xfs_agblock_t agbno, xfs_lookup_t dir),
-	TP_ARGS(mp, agno, agbno, dir),
+TRACE_EVENT(xfs_refcount_lookup,
+	TP_PROTO(struct xfs_btree_cur *cur, xfs_agblock_t agbno,
+		xfs_lookup_t dir),
+	TP_ARGS(cur, agbno, dir),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(xfs_agnumber_t, agno)
@@ -3194,8 +3218,8 @@ DECLARE_EVENT_CLASS(xfs_ag_btree_lookup_class,
 		__field(xfs_lookup_t, dir)
 	),
 	TP_fast_assign(
-		__entry->dev = mp->m_super->s_dev;
-		__entry->agno = agno;
+		__entry->dev = cur->bc_mp->m_super->s_dev;
+		__entry->agno = cur->bc_ag.pag->pag_agno;
 		__entry->agbno = agbno;
 		__entry->dir = dir;
 	),
@@ -3206,12 +3230,6 @@ DECLARE_EVENT_CLASS(xfs_ag_btree_lookup_class,
 		  __print_symbolic(__entry->dir, XFS_AG_BTREE_CMP_FORMAT_STR),
 		  __entry->dir)
 )
-
-#define DEFINE_AG_BTREE_LOOKUP_EVENT(name) \
-DEFINE_EVENT(xfs_ag_btree_lookup_class, name, \
-	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno, \
-		 xfs_agblock_t agbno, xfs_lookup_t dir), \
-	TP_ARGS(mp, agno, agbno, dir))
 
 /* single-rcext tracepoint class */
 DECLARE_EVENT_CLASS(xfs_refcount_extent_class,
@@ -3456,7 +3474,6 @@ DEFINE_EVENT(xfs_refcount_triple_extent_class, name, \
 	TP_ARGS(mp, agno, i1, i2, i3))
 
 /* refcount btree tracepoints */
-DEFINE_AG_BTREE_LOOKUP_EVENT(xfs_refcount_lookup);
 DEFINE_REFCOUNT_EXTENT_EVENT(xfs_refcount_get);
 DEFINE_REFCOUNT_EXTENT_EVENT(xfs_refcount_update);
 DEFINE_REFCOUNT_EXTENT_EVENT(xfs_refcount_insert);
@@ -3466,10 +3483,10 @@ DEFINE_BTREE_ERROR_EVENT(xfs_refcount_delete_error);
 DEFINE_BTREE_ERROR_EVENT(xfs_refcount_update_error);
 
 /* refcount adjustment tracepoints */
-DEFINE_AG_EXTENT_EVENT(xfs_refcount_increase);
-DEFINE_AG_EXTENT_EVENT(xfs_refcount_decrease);
-DEFINE_AG_EXTENT_EVENT(xfs_refcount_cow_increase);
-DEFINE_AG_EXTENT_EVENT(xfs_refcount_cow_decrease);
+DEFINE_REFCOUNT_EVENT(xfs_refcount_increase);
+DEFINE_REFCOUNT_EVENT(xfs_refcount_decrease);
+DEFINE_REFCOUNT_EVENT(xfs_refcount_cow_increase);
+DEFINE_REFCOUNT_EVENT(xfs_refcount_cow_decrease);
 DEFINE_REFCOUNT_TRIPLE_EXTENT_EVENT(xfs_refcount_merge_center_extents);
 DEFINE_REFCOUNT_EXTENT_EVENT(xfs_refcount_modify_extent);
 DEFINE_REFCOUNT_EXTENT_EVENT(xfs_refcount_recover_extent);
@@ -3489,8 +3506,8 @@ DEFINE_BTREE_ERROR_EVENT(xfs_refcount_find_left_extent_error);
 DEFINE_BTREE_ERROR_EVENT(xfs_refcount_find_right_extent_error);
 
 /* reflink helpers */
-DEFINE_AG_EXTENT_EVENT(xfs_refcount_find_shared);
-DEFINE_AG_EXTENT_EVENT(xfs_refcount_find_shared_result);
+DEFINE_REFCOUNT_EVENT(xfs_refcount_find_shared);
+DEFINE_REFCOUNT_EVENT(xfs_refcount_find_shared_result);
 DEFINE_BTREE_ERROR_EVENT(xfs_refcount_find_shared_error);
 
 DECLARE_EVENT_CLASS(xfs_refcount_deferred_class,
