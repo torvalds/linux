@@ -45,7 +45,7 @@ export TEST_IGNORE_MISSING_PMU=${TEST_IGNORE_MISSING_PMU:-n}
 export LC_ALL=C
 
 #### colors
-if [ -t 1 -o "$TESTLOG_FORCE_COLOR" = "yes" ]; then
+if [ -t 1 ] || [ "$TESTLOG_FORCE_COLOR" = "yes" ]; then
 	export MPASS="\e[32m"
 	export MALLPASS="\e[1;32m"
 	export MFAIL="\e[31m"
@@ -68,15 +68,15 @@ fi
 ### general info
 DIR_PATH=`dirname "$(readlink -e "$0")"`
 
-export TEST_NAME=`basename $DIR_PATH | sed 's/base/perf/'`
-export MY_ARCH=`arch`
+TEST_NAME=`basename $DIR_PATH | sed 's/base/perf/'`; export TEST_NAME
+MY_ARCH=`arch`; export MY_ARCH
 
 # storing logs and temporary files variables
 if [ -n "$PERFSUITE_RUN_DIR" ]; then
 	# when $PERFSUITE_RUN_DIR is set to something, all the logs and temp files will be placed there
 	# --> the $PERFSUITE_RUN_DIR/perf_something/examples and $PERFSUITE_RUN_DIR/perf_something/logs
 	#     dirs will be used for that
-	export PERFSUITE_RUN_DIR=`readlink -f $PERFSUITE_RUN_DIR`
+	PERFSUITE_RUN_DIR=`readlink -f $PERFSUITE_RUN_DIR`; export PERFSUITE_RUN_DIR
 	export CURRENT_TEST_DIR="$PERFSUITE_RUN_DIR/$TEST_NAME"
 	export MAKE_TARGET_DIR="$CURRENT_TEST_DIR/examples"
 	export LOGS_DIR="$CURRENT_TEST_DIR/logs"
@@ -93,6 +93,7 @@ fi
 if [ ! -d ./common ]; then
 	# set parameters based on runmode
 	if [ -f ../common/parametrization.$PERFTOOL_TESTSUITE_RUNMODE.sh ]; then
+		# shellcheck source=/dev/null
 		. ../common/parametrization.$PERFTOOL_TESTSUITE_RUNMODE.sh
 	fi
 	# if some parameters haven't been set until now, set them to default

@@ -26,8 +26,8 @@ print_results()
 	PERF_RETVAL="$1"; shift
 	CHECK_RETVAL="$1"; shift
 	FAILURE_REASON=""
-	TASK_COMMENT="$@"
-	if [ $PERF_RETVAL -eq 0 -a $CHECK_RETVAL -eq 0 ]; then
+	TASK_COMMENT="$*"
+	if [ $PERF_RETVAL -eq 0 ] && [ $CHECK_RETVAL -eq 0 ]; then
 		_echo "$MPASS-- [ PASS ] --$MEND $TEST_NAME :: $THIS_TEST_NAME :: $TASK_COMMENT"
 		return 0
 	else
@@ -56,7 +56,7 @@ print_overall_results()
 
 print_testcase_skipped()
 {
-	TASK_COMMENT="$@"
+	TASK_COMMENT="$*"
 	_echo "$MSKIP-- [ SKIP ] --$MEND $TEST_NAME :: $THIS_TEST_NAME :: $TASK_COMMENT :: testcase skipped"
 	return 0
 }
@@ -69,7 +69,7 @@ print_overall_skipped()
 
 print_warning()
 {
-	WARN_COMMENT="$@"
+	WARN_COMMENT="$*"
 	_echo "$MWARN-- [ WARN ] --$MEND $TEST_NAME :: $THIS_TEST_NAME :: $WARN_COMMENT"
 	return 0
 }
