@@ -202,8 +202,6 @@ static inline void devm_thermal_of_zone_unregister(struct device *dev,
 }
 #endif
 
-int __thermal_zone_get_trip(struct thermal_zone_device *tz, int trip_id,
-			    struct thermal_trip *trip);
 int thermal_zone_get_trip(struct thermal_zone_device *tz, int trip_id,
 			  struct thermal_trip *trip);
 int for_each_thermal_trip(struct thermal_zone_device *tz,

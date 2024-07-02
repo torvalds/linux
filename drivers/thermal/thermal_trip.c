@@ -114,27 +114,17 @@ void thermal_zone_set_trips(struct thermal_zone_device *tz)
 		dev_err(&tz->device, "Failed to set trips: %d\n", ret);
 }
 
-int __thermal_zone_get_trip(struct thermal_zone_device *tz, int trip_id,
-			    struct thermal_trip *trip)
-{
-	if (!tz || trip_id < 0 || trip_id >= tz->num_trips || !trip)
-		return -EINVAL;
-
-	*trip = tz->trips[trip_id].trip;
-	return 0;
-}
-EXPORT_SYMBOL_GPL(__thermal_zone_get_trip);
-
 int thermal_zone_get_trip(struct thermal_zone_device *tz, int trip_id,
 			  struct thermal_trip *trip)
 {
-	int ret;
+	if (!tz || !trip || trip_id < 0 || trip_id >= tz->num_trips)
+		return -EINVAL;
 
 	mutex_lock(&tz->lock);
-	ret = __thermal_zone_get_trip(tz, trip_id, trip);
+	*trip = tz->trips[trip_id].trip;
 	mutex_unlock(&tz->lock);
 
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(thermal_zone_get_trip);
 
