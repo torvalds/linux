@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-// Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) 2022, 2024 Qualcomm Innovation Center, Inc. All rights reserved.
 
 #include <linux/cdev.h>
 #include <linux/device.h>
@@ -650,15 +650,15 @@ static int mhi_uci_probe(struct mhi_device *mhi_dev,
 	snprintf(node_name, sizeof(node_name), "%s_pipe_%d",
 		 dev_name(mhi_dev->dev.parent), mhi_dev->ul_chan_id);
 
-	mutex_lock(&uci_dev->mutex);
 	mutex_lock(&mhi_uci_drv.lock);
+	mutex_lock(&uci_dev->mutex);
 
 	uci_dev->devt = MKDEV(mhi_uci_drv.major, minor);
 	uci_dev->dev = device_create(mhi_uci_drv.class, &mhi_dev->dev,
 				     uci_dev->devt, uci_dev, "%s", node_name);
 	if (IS_ERR(uci_dev->dev)) {
-		mutex_unlock(&mhi_uci_drv.lock);
 		mutex_unlock(&uci_dev->mutex);
+		mutex_unlock(&mhi_uci_drv.lock);
 		mutex_destroy(&uci_dev->mutex);
 		ret = PTR_ERR(uci_dev->dev);
 		kfree(uci_dev);
@@ -690,8 +690,8 @@ static int mhi_uci_probe(struct mhi_device *mhi_dev,
 	uci_dev->enabled = true;
 
 	list_add(&uci_dev->node, &mhi_uci_drv.head);
-	mutex_unlock(&mhi_uci_drv.lock);
 	mutex_unlock(&uci_dev->mutex);
+	mutex_unlock(&mhi_uci_drv.lock);
 
 	MSG_LOG("channel:%s successfully probed\n", mhi_dev->name);
 
