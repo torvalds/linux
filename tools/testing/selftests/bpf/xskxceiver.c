@@ -196,6 +196,12 @@ static int xsk_configure_umem(struct ifobject *ifobj, struct xsk_umem_info *umem
 	};
 	int ret;
 
+	if (umem->fill_size)
+		cfg.fill_size = umem->fill_size;
+
+	if (umem->comp_size)
+		cfg.comp_size = umem->comp_size;
+
 	if (umem->unaligned_mode)
 		cfg.flags |= XDP_UMEM_UNALIGNED_CHUNK_FLAG;
 
@@ -265,6 +271,10 @@ static int __xsk_configure_socket(struct xsk_socket_info *xsk, struct xsk_umem_i
 		cfg.bind_flags |= XDP_SHARED_UMEM;
 	if (ifobject->mtu > MAX_ETH_PKT_SIZE)
 		cfg.bind_flags |= XDP_USE_SG;
+	if (umem->comp_size)
+		cfg.tx_size = umem->comp_size;
+	if (umem->fill_size)
+		cfg.rx_size = umem->fill_size;
 
 	txr = ifobject->tx_on ? &xsk->tx : NULL;
 	rxr = ifobject->rx_on ? &xsk->rx : NULL;
@@ -1616,7 +1626,7 @@ static void xsk_populate_fill_ring(struct xsk_umem_info *umem, struct pkt_stream
 	if (umem->num_frames < XSK_RING_PROD__DEFAULT_NUM_DESCS)
 		buffers_to_fill = umem->num_frames;
 	else
-		buffers_to_fill = XSK_RING_PROD__DEFAULT_NUM_DESCS;
+		buffers_to_fill = umem->fill_size;
 
 	ret = xsk_ring_prod__reserve(&umem->fq, buffers_to_fill, &idx);
 	if (ret != buffers_to_fill)
@@ -2445,7 +2455,7 @@ static int testapp_hw_sw_min_ring_size(struct test_spec *test)
 
 static int testapp_hw_sw_max_ring_size(struct test_spec *test)
 {
-	u32 max_descs = XSK_RING_PROD__DEFAULT_NUM_DESCS * 2;
+	u32 max_descs = XSK_RING_PROD__DEFAULT_NUM_DESCS * 4;
 	int ret;
 
 	test->set_ring = true;
@@ -2453,7 +2463,8 @@ static int testapp_hw_sw_max_ring_size(struct test_spec *test)
 	test->ifobj_tx->ring.tx_pending = test->ifobj_tx->ring.tx_max_pending;
 	test->ifobj_tx->ring.rx_pending  = test->ifobj_tx->ring.rx_max_pending;
 	test->ifobj_rx->umem->num_frames = max_descs;
-	test->ifobj_rx->xsk->rxqsize = max_descs;
+	test->ifobj_rx->umem->fill_size = max_descs;
+	test->ifobj_rx->umem->comp_size = max_descs;
 	test->ifobj_tx->xsk->batch_size = XSK_RING_PROD__DEFAULT_NUM_DESCS;
 	test->ifobj_rx->xsk->batch_size = XSK_RING_PROD__DEFAULT_NUM_DESCS;
 
@@ -2461,9 +2472,12 @@ static int testapp_hw_sw_max_ring_size(struct test_spec *test)
 	if (ret)
 		return ret;
 
-	/* Set batch_size to 4095 */
-	test->ifobj_tx->xsk->batch_size = max_descs - 1;
-	test->ifobj_rx->xsk->batch_size = max_descs - 1;
+	/* Set batch_size to 8152 for testing, as the ice HW ignores the 3 lowest bits when
+	 * updating the Rx HW tail register.
+	 */
+	test->ifobj_tx->xsk->batch_size = test->ifobj_tx->ring.tx_max_pending - 8;
+	test->ifobj_rx->xsk->batch_size = test->ifobj_tx->ring.tx_max_pending - 8;
+	pkt_stream_replace(test, max_descs, MIN_PKT_SIZE);
 	return testapp_validate_traffic(test);
 }
 
