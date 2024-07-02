@@ -347,7 +347,7 @@ static void do_region(const blk_opf_t opf, unsigned int region,
 			break;
 		default:
 			num_bvecs = bio_max_segs(dm_sector_div_up(remaining,
-						(PAGE_SIZE >> SECTOR_SHIFT)));
+						(PAGE_SIZE >> SECTOR_SHIFT)) + 1);
 		}
 
 		bio = bio_alloc_bioset(where->bdev, num_bvecs, opf, GFP_NOIO,
