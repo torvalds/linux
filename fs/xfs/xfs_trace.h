@@ -2786,10 +2786,10 @@ DEFINE_DEFER_PENDING_ITEM_EVENT(xfs_defer_finish_item);
 
 /* rmap tracepoints */
 DECLARE_EVENT_CLASS(xfs_rmap_class,
-	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno,
+	TP_PROTO(struct xfs_btree_cur *cur,
 		 xfs_agblock_t agbno, xfs_extlen_t len, bool unwritten,
 		 const struct xfs_owner_info *oinfo),
-	TP_ARGS(mp, agno, agbno, len, unwritten, oinfo),
+	TP_ARGS(cur, agbno, len, unwritten, oinfo),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(xfs_agnumber_t, agno)
@@ -2800,8 +2800,8 @@ DECLARE_EVENT_CLASS(xfs_rmap_class,
 		__field(unsigned long, flags)
 	),
 	TP_fast_assign(
-		__entry->dev = mp->m_super->s_dev;
-		__entry->agno = agno;
+		__entry->dev = cur->bc_mp->m_super->s_dev;
+		__entry->agno = cur->bc_ag.pag->pag_agno;
 		__entry->agbno = agbno;
 		__entry->len = len;
 		__entry->owner = oinfo->oi_owner;
@@ -2821,10 +2821,10 @@ DECLARE_EVENT_CLASS(xfs_rmap_class,
 );
 #define DEFINE_RMAP_EVENT(name) \
 DEFINE_EVENT(xfs_rmap_class, name, \
-	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno, \
+	TP_PROTO(struct xfs_btree_cur *cur, \
 		 xfs_agblock_t agbno, xfs_extlen_t len, bool unwritten, \
 		 const struct xfs_owner_info *oinfo), \
-	TP_ARGS(mp, agno, agbno, len, unwritten, oinfo))
+	TP_ARGS(cur, agbno, len, unwritten, oinfo))
 
 /* btree cursor error/%ip tracepoint class */
 DECLARE_EVENT_CLASS(xfs_btree_error_class,
@@ -2920,10 +2920,10 @@ TRACE_EVENT(xfs_rmap_convert_state,
 );
 
 DECLARE_EVENT_CLASS(xfs_rmapbt_class,
-	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno,
+	TP_PROTO(struct xfs_btree_cur *cur,
 		 xfs_agblock_t agbno, xfs_extlen_t len,
 		 uint64_t owner, uint64_t offset, unsigned int flags),
-	TP_ARGS(mp, agno, agbno, len, owner, offset, flags),
+	TP_ARGS(cur, agbno, len, owner, offset, flags),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(xfs_agnumber_t, agno)
@@ -2934,8 +2934,8 @@ DECLARE_EVENT_CLASS(xfs_rmapbt_class,
 		__field(unsigned int, flags)
 	),
 	TP_fast_assign(
-		__entry->dev = mp->m_super->s_dev;
-		__entry->agno = agno;
+		__entry->dev = cur->bc_mp->m_super->s_dev;
+		__entry->agno = cur->bc_ag.pag->pag_agno;
 		__entry->agbno = agbno;
 		__entry->len = len;
 		__entry->owner = owner;
@@ -2953,10 +2953,10 @@ DECLARE_EVENT_CLASS(xfs_rmapbt_class,
 );
 #define DEFINE_RMAPBT_EVENT(name) \
 DEFINE_EVENT(xfs_rmapbt_class, name, \
-	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno, \
+	TP_PROTO(struct xfs_btree_cur *cur, \
 		 xfs_agblock_t agbno, xfs_extlen_t len, \
 		 uint64_t owner, uint64_t offset, unsigned int flags), \
-	TP_ARGS(mp, agno, agbno, len, owner, offset, flags))
+	TP_ARGS(cur, agbno, len, owner, offset, flags))
 
 DECLARE_EVENT_CLASS(xfs_rmap_deferred_class,
 	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno,
