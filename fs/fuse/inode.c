@@ -740,8 +740,8 @@ static const struct fs_parameter_spec fuse_fs_parameters[] = {
 	fsparam_string	("source",		OPT_SOURCE),
 	fsparam_u32	("fd",			OPT_FD),
 	fsparam_u32oct	("rootmode",		OPT_ROOTMODE),
-	fsparam_u32	("user_id",		OPT_USER_ID),
-	fsparam_u32	("group_id",		OPT_GROUP_ID),
+	fsparam_uid	("user_id",		OPT_USER_ID),
+	fsparam_gid	("group_id",		OPT_GROUP_ID),
 	fsparam_flag	("default_permissions",	OPT_DEFAULT_PERMISSIONS),
 	fsparam_flag	("allow_other",		OPT_ALLOW_OTHER),
 	fsparam_u32	("max_read",		OPT_MAX_READ),
@@ -801,9 +801,7 @@ static int fuse_parse_param(struct fs_context *fsc, struct fs_parameter *param)
 		break;
 
 	case OPT_USER_ID:
-		kuid =  make_kuid(fsc->user_ns, result.uint_32);
-		if (!uid_valid(kuid))
-			return invalfc(fsc, "Invalid user_id");
+		kuid = result.uid;
 		/*
 		 * The requested uid must be representable in the
 		 * filesystem's idmapping.
@@ -815,9 +813,7 @@ static int fuse_parse_param(struct fs_context *fsc, struct fs_parameter *param)
 		break;
 
 	case OPT_GROUP_ID:
-		kgid = make_kgid(fsc->user_ns, result.uint_32);;
-		if (!gid_valid(kgid))
-			return invalfc(fsc, "Invalid group_id");
+		kgid = result.gid;
 		/*
 		 * The requested gid must be representable in the
 		 * filesystem's idmapping.
