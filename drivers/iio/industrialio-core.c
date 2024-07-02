@@ -1912,7 +1912,7 @@ static void iio_sanity_check_avail_scan_masks(struct iio_dev *indio_dev)
 	int i;
 
 	av_masks = indio_dev->available_scan_masks;
-	masklength = indio_dev->masklength;
+	masklength = iio_get_masklength(indio_dev);
 	longs_per_mask = BITS_TO_LONGS(masklength);
 
 	/*
