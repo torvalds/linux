@@ -1091,8 +1091,8 @@ static const struct constant_table fat_param_conv[] = {
 /* Core options. See below for vfat and msdos extras */
 const struct fs_parameter_spec fat_param_spec[] = {
 	fsparam_enum	("check",	Opt_check, fat_param_check),
-	fsparam_u32	("uid",		Opt_uid),
-	fsparam_u32	("gid",		Opt_gid),
+	fsparam_uid	("uid",		Opt_uid),
+	fsparam_gid	("gid",		Opt_gid),
 	fsparam_u32oct	("umask",	Opt_umask),
 	fsparam_u32oct	("dmask",	Opt_dmask),
 	fsparam_u32oct	("fmask",	Opt_fmask),
@@ -1161,8 +1161,6 @@ int fat_parse_param(struct fs_context *fc, struct fs_parameter *param,
 	struct fat_mount_options *opts = fc->fs_private;
 	struct fs_parse_result result;
 	int opt;
-	kuid_t uid;
-	kgid_t gid;
 
 	/* remount options have traditionally been ignored */
 	if (fc->purpose == FS_CONTEXT_FOR_RECONFIGURE)
@@ -1209,16 +1207,10 @@ int fat_parse_param(struct fs_context *fc, struct fs_parameter *param,
 		opts->sys_immutable = 1;
 		break;
 	case Opt_uid:
-		uid = make_kuid(current_user_ns(), result.uint_32);
-		if (!uid_valid(uid))
-			return -EINVAL;
-		opts->fs_uid = uid;
+		opts->fs_uid = result.uid;
 		break;
 	case Opt_gid:
-		gid = make_kgid(current_user_ns(), result.uint_32);
-		if (!gid_valid(gid))
-			return -EINVAL;
-		opts->fs_gid = gid;
+		opts->fs_gid = result.gid;
 		break;
 	case Opt_umask:
 		opts->fs_fmask = opts->fs_dmask = result.uint_32;
