@@ -1871,7 +1871,6 @@ int skb_zerocopy_iter_stream(struct sock *sk, struct sk_buff *skb,
 			     struct msghdr *msg, int len,
 			     struct ubuf_info *uarg)
 {
-	struct ubuf_info *orig_uarg = skb_zcopy(skb);
 	int err, orig_len = skb->len;
 
 	if (uarg->ops->link_skb) {
@@ -1879,6 +1878,8 @@ int skb_zerocopy_iter_stream(struct sock *sk, struct sk_buff *skb,
 		if (err)
 			return err;
 	} else {
+		struct ubuf_info *orig_uarg = skb_zcopy(skb);
+
 		/* An skb can only point to one uarg. This edge case happens
 		 * when TCP appends to an skb, but zerocopy_realloc triggered
 		 * a new alloc.
@@ -1899,8 +1900,7 @@ int skb_zerocopy_iter_stream(struct sock *sk, struct sk_buff *skb,
 		return err;
 	}
 
-	if (!uarg->ops->link_skb)
-		skb_zcopy_set(skb, uarg, NULL);
+	skb_zcopy_set(skb, uarg, NULL);
 	return skb->len - orig_len;
 }
 EXPORT_SYMBOL_GPL(skb_zerocopy_iter_stream);
