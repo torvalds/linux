@@ -689,8 +689,8 @@ static int __init exynos_register_cpu_clock(struct samsung_clk_provider *ctx,
 	for (num_cfgs = 0; clk_data->cfg[num_cfgs].prate != 0; )
 		num_cfgs++;
 
-	cpuclk->cfg = kmemdup(clk_data->cfg, sizeof(*clk_data->cfg) * num_cfgs,
-			      GFP_KERNEL);
+	cpuclk->cfg = kmemdup_array(clk_data->cfg, num_cfgs, sizeof(*cpuclk->cfg),
+				    GFP_KERNEL);
 	if (!cpuclk->cfg) {
 		ret = -ENOMEM;
 		goto unregister_clk_nb;
