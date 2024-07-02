@@ -1907,8 +1907,11 @@ typedef unsigned int pgtbl_mod_mask;
 #ifndef pmd_leaf_size
 #define pmd_leaf_size(x) PMD_SIZE
 #endif
+#ifndef __pte_leaf_size
 #ifndef pte_leaf_size
 #define pte_leaf_size(x) PAGE_SIZE
+#endif
+#define __pte_leaf_size(x,y) pte_leaf_size(y)
 #endif
 
 /*
