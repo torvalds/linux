@@ -9287,6 +9287,7 @@ static void gfx_v10_ip_print(void *handle, struct drm_printer *p)
 	if (!adev->gfx.ip_dump_gfx_queues)
 		return;
 
+	index = 0;
 	reg_count = ARRAY_SIZE(gc_gfx_queue_reg_list_10);
 	drm_printf(p, "\nnum_me: %d num_pipe: %d num_queue: %d\n",
 		   adev->gfx.me.num_me,
@@ -9352,6 +9353,7 @@ static void gfx_v10_ip_dump(void *handle)
 	if (!adev->gfx.ip_dump_gfx_queues)
 		return;
 
+	index = 0;
 	reg_count = ARRAY_SIZE(gc_gfx_queue_reg_list_10);
 	amdgpu_gfx_off_ctrl(adev, false);
 	mutex_lock(&adev->srbm_mutex);
