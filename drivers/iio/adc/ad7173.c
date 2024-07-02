@@ -1188,7 +1188,7 @@ static int ad7173_fw_parse_channel_config(struct iio_dev *indio_dev)
 	struct device *dev = indio_dev->dev.parent;
 	struct iio_chan_spec *chan_arr, *chan;
 	unsigned int ain[AD7173_NO_AINS_PER_CHANNEL], chan_index = 0;
-	int ref_sel, ret, is_current_chan, num_channels;
+	int ref_sel, ret, num_channels;
 
 	num_channels = device_get_child_node_count(dev);
 
@@ -1234,6 +1234,8 @@ static int ad7173_fw_parse_channel_config(struct iio_dev *indio_dev)
 	}
 
 	device_for_each_child_node_scoped(dev, child) {
+		bool is_current_chan = false;
+
 		chan = &chan_arr[chan_index];
 		*chan = ad7173_channel_template;
 		chan_st_priv = &chans_st_arr[chan_index];
