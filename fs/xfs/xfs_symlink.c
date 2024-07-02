@@ -200,8 +200,6 @@ xfs_symlink(
 	if (error)
 		goto out_trans_cancel;
 
-	xfs_dir_update_hook(dp, du.ip, 1, link_name);
-
 	/*
 	 * If this is a synchronous mount, make sure that the
 	 * symlink transaction goes to disk before returning to

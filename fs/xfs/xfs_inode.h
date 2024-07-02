@@ -632,31 +632,6 @@ void xfs_inode_count_blocks(struct xfs_trans *tp, struct xfs_inode *ip,
 		xfs_filblks_t *dblocks, xfs_filblks_t *rblocks);
 unsigned int xfs_inode_alloc_unitsize(struct xfs_inode *ip);
 
-struct xfs_dir_update_params {
-	const struct xfs_inode	*dp;
-	const struct xfs_inode	*ip;
-	const struct xfs_name	*name;
-	int			delta;
-};
-
-#ifdef CONFIG_XFS_LIVE_HOOKS
-void xfs_dir_update_hook(struct xfs_inode *dp, struct xfs_inode *ip,
-		int delta, const struct xfs_name *name);
-
-struct xfs_dir_hook {
-	struct xfs_hook		dirent_hook;
-};
-
-void xfs_dir_hook_disable(void);
-void xfs_dir_hook_enable(void);
-
-int xfs_dir_hook_add(struct xfs_mount *mp, struct xfs_dir_hook *hook);
-void xfs_dir_hook_del(struct xfs_mount *mp, struct xfs_dir_hook *hook);
-void xfs_dir_hook_setup(struct xfs_dir_hook *hook, notifier_fn_t mod_fn);
-#else
-# define xfs_dir_update_hook(dp, ip, delta, name)	((void)0)
-#endif /* CONFIG_XFS_LIVE_HOOKS */
-
 int xfs_icreate_dqalloc(const struct xfs_icreate_args *args,
 		struct xfs_dquot **udqpp, struct xfs_dquot **gdqpp,
 		struct xfs_dquot **pdqpp);
