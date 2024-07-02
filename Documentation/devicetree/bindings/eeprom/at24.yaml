@@ -105,9 +105,6 @@ properties:
       # These are special cases that don't conform to the above pattern.
       # Each requires a standard at24 model as fallback.
       - items:
-          - const: belling,bl24c16a
-          - const: atmel,24c16
-      - items:
           - enum:
               - rohm,br24g01
               - rohm,br24t01
@@ -124,7 +121,9 @@ properties:
               - rohm,br24g04
           - const: atmel,24c04
       - items:
-          - const: renesas,r1ex24016
+          - enum:
+              - belling,bl24c16a
+              - renesas,r1ex24016
           - const: atmel,24c16
       - items:
           - const: giantec,gt24c32a
