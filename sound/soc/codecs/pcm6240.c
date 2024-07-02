@@ -18,6 +18,7 @@
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/of_irq.h>
+#include <linux/of_address.h>
 #include <linux/regmap.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
@@ -2081,10 +2082,6 @@ static int pcmdevice_i2c_probe(struct i2c_client *i2c)
 	struct device_node *np;
 	unsigned int dev_addrs[PCMDEVICE_MAX_I2C_DEVICES];
 	int ret = 0, i = 0, ndev = 0;
-#ifdef CONFIG_OF
-	const __be32 *reg, *reg_end;
-	int len, sw, aw;
-#endif
 
 	pcm_dev = devm_kzalloc(&i2c->dev, sizeof(*pcm_dev), GFP_KERNEL);
 	if (!pcm_dev)
@@ -2118,27 +2115,19 @@ static int pcmdevice_i2c_probe(struct i2c_client *i2c)
 	i2c_set_clientdata(i2c, pcm_dev);
 	mutex_init(&pcm_dev->codec_lock);
 	np = pcm_dev->dev->of_node;
-#ifdef CONFIG_OF
-	aw = of_n_addr_cells(np);
-	sw = of_n_size_cells(np);
-	if (sw == 0) {
-		reg = (const __be32 *)of_get_property(np,
-			"reg", &len);
-		reg_end = reg + len/sizeof(*reg);
-		ndev = 0;
-		do {
-			dev_addrs[ndev] = of_read_number(reg, aw);
-			reg += aw;
-			ndev++;
-		} while (reg < reg_end);
+
+	if (IS_ENABLED(CONFIG_OF)) {
+		u64 addr;
+
+		for (i = 0; i < PCMDEVICE_MAX_I2C_DEVICES; i++) {
+			if (of_property_read_reg(np, i, &addr, NULL))
+				break;
+			dev_addrs[ndev++] = addr;
+		}
 	} else {
 		ndev = 1;
 		dev_addrs[0] = i2c->addr;
 	}
-#else
-	ndev = 1;
-	dev_addrs[0] = i2c->addr;
-#endif
 	pcm_dev->irq_info.gpio = of_irq_get(np, 0);
 
 	for (i = 0; i < ndev; i++)
