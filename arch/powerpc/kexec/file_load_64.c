@@ -18,6 +18,7 @@
 #include <linux/of_fdt.h>
 #include <linux/libfdt.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/memblock.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
@@ -376,11 +377,10 @@ static int kdump_setup_usable_lmb(struct drmem_lmb *lmb, const __be32 **usm,
 static int add_usable_mem_property(void *fdt, struct device_node *dn,
 				   struct umem_info *um_info)
 {
-	int n_mem_addr_cells, n_mem_size_cells, node;
+	int node;
 	char path[NODE_PATH_LEN];
-	int i, len, ranges, ret;
-	const __be32 *prop;
-	u64 base, end;
+	int i, ret;
+	u64 base, size;
 
 	of_node_get(dn);
 
@@ -399,21 +399,9 @@ static int add_usable_mem_property(void *fdt, struct device_node *dn,
 		goto out;
 	}
 
-	/* Get the address & size cells */
-	n_mem_addr_cells = of_n_addr_cells(dn);
-	n_mem_size_cells = of_n_size_cells(dn);
-	kexec_dprintk("address cells: %d, size cells: %d\n", n_mem_addr_cells,
-		      n_mem_size_cells);
-
 	um_info->idx  = 0;
 	if (!check_realloc_usable_mem(um_info, 2)) {
 		ret = -ENOMEM;
-		goto out;
-	}
-
-	prop = of_get_property(dn, "reg", &len);
-	if (!prop || len <= 0) {
-		ret = 0;
 		goto out;
 	}
 
@@ -421,18 +409,19 @@ static int add_usable_mem_property(void *fdt, struct device_node *dn,
 	 * "reg" property represents sequence of (addr,size) tuples
 	 * each representing a memory range.
 	 */
-	ranges = (len >> 2) / (n_mem_addr_cells + n_mem_size_cells);
+	for (i = 0; ; i++) {
+		ret = of_property_read_reg(dn, i, &base, &size);
+		if (ret)
+			break;
 
-	for (i = 0; i < ranges; i++) {
-		base = of_read_number(prop, n_mem_addr_cells);
-		prop += n_mem_addr_cells;
-		end = base + of_read_number(prop, n_mem_size_cells) - 1;
-		prop += n_mem_size_cells;
-
-		ret = add_usable_mem(um_info, base, end);
+		ret = add_usable_mem(um_info, base, base + size - 1);
 		if (ret)
 			goto out;
 	}
+
+	// No reg or empty reg? Skip this node.
+	if (i == 0)
+		goto out;
 
 	/*
 	 * No kdump kernel usable memory found in this memory node.
