@@ -28,7 +28,7 @@
 #include "reg_helper.h"
 #include "dcn30/dcn30_dpp.h"
 #include "basics/conversion.h"
-#include "dcn30_cm_common.h"
+#include "dcn30/dcn30_cm_common.h"
 #include "custom_float.h"
 
 #define REG(reg) reg
