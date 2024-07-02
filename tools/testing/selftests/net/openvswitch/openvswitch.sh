@@ -613,16 +613,20 @@ run_test() {
 	tname="$1"
 	tdesc="$2"
 
-	if ! lsmod | grep openvswitch >/dev/null 2>&1; then
-		stdbuf -o0 printf "TEST: %-60s  [NOMOD]\n" "${tdesc}"
-		return $ksft_skip
-	fi
-
 	if python3 ovs-dpctl.py -h 2>&1 | \
 	     grep -E "Need to (install|upgrade) the python" >/dev/null 2>&1; then
 		stdbuf -o0 printf "TEST: %-60s  [PYLIB]\n" "${tdesc}"
 		return $ksft_skip
 	fi
+
+	python3 ovs-dpctl.py show >/dev/null 2>&1 || \
+		echo "[DPCTL] show exception."
+
+	if ! lsmod | grep openvswitch >/dev/null 2>&1; then
+		stdbuf -o0 printf "TEST: %-60s  [NOMOD]\n" "${tdesc}"
+		return $ksft_skip
+	fi
+
 	printf "TEST: %-60s  [START]\n" "${tname}"
 
 	unset IFS
