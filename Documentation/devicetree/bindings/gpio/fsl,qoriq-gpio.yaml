@@ -24,6 +24,7 @@ properties:
               - fsl,ls1021a-gpio
               - fsl,ls1028a-gpio
               - fsl,ls1043a-gpio
+              - fsl,ls1046a-gpio
               - fsl,ls1088a-gpio
               - fsl,ls2080a-gpio
           - const: fsl,qoriq-gpio
