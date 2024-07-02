@@ -206,6 +206,9 @@ static int stm32mp1_validate_ethck_rate(struct plat_stmmacenet_data *plat_dat)
 	struct stm32_dwmac *dwmac = plat_dat->bsp_priv;
 	const u32 clk_rate = clk_get_rate(dwmac->clk_eth_ck);
 
+	if (!dwmac->enable_eth_ck)
+		return 0;
+
 	switch (plat_dat->mac_interface) {
 	case PHY_INTERFACE_MODE_MII:
 	case PHY_INTERFACE_MODE_GMII:
@@ -432,10 +435,12 @@ static int stm32_dwmac_parse_data(struct stm32_dwmac *dwmac,
 	dwmac->mode_mask = SYSCFG_MP1_ETH_MASK;
 	err = of_property_read_u32_index(np, "st,syscon", 2, &dwmac->mode_mask);
 	if (err) {
-		if (dwmac->ops->is_mp13)
+		if (dwmac->ops->is_mp13) {
 			dev_err(dev, "Sysconfig register mask must be set (%d)\n", err);
-		else
+		} else {
 			dev_dbg(dev, "Warning sysconfig register mask not set\n");
+			err = 0;
+		}
 	}
 
 	return err;
