@@ -125,7 +125,7 @@ gen_source ()
 rm -rf debian
 mkdir debian
 
-email=${DEBEMAIL-$EMAIL}
+email=${DEBEMAIL}
 
 # use email string directly if it contains <email>
 if echo "${email}" | grep -q '<.*>'; then
