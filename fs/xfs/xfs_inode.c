@@ -523,55 +523,6 @@ xfs_lock_two_inodes(
 	}
 }
 
-uint
-xfs_ip2xflags(
-	struct xfs_inode	*ip)
-{
-	uint			flags = 0;
-
-	if (ip->i_diflags & XFS_DIFLAG_ANY) {
-		if (ip->i_diflags & XFS_DIFLAG_REALTIME)
-			flags |= FS_XFLAG_REALTIME;
-		if (ip->i_diflags & XFS_DIFLAG_PREALLOC)
-			flags |= FS_XFLAG_PREALLOC;
-		if (ip->i_diflags & XFS_DIFLAG_IMMUTABLE)
-			flags |= FS_XFLAG_IMMUTABLE;
-		if (ip->i_diflags & XFS_DIFLAG_APPEND)
-			flags |= FS_XFLAG_APPEND;
-		if (ip->i_diflags & XFS_DIFLAG_SYNC)
-			flags |= FS_XFLAG_SYNC;
-		if (ip->i_diflags & XFS_DIFLAG_NOATIME)
-			flags |= FS_XFLAG_NOATIME;
-		if (ip->i_diflags & XFS_DIFLAG_NODUMP)
-			flags |= FS_XFLAG_NODUMP;
-		if (ip->i_diflags & XFS_DIFLAG_RTINHERIT)
-			flags |= FS_XFLAG_RTINHERIT;
-		if (ip->i_diflags & XFS_DIFLAG_PROJINHERIT)
-			flags |= FS_XFLAG_PROJINHERIT;
-		if (ip->i_diflags & XFS_DIFLAG_NOSYMLINKS)
-			flags |= FS_XFLAG_NOSYMLINKS;
-		if (ip->i_diflags & XFS_DIFLAG_EXTSIZE)
-			flags |= FS_XFLAG_EXTSIZE;
-		if (ip->i_diflags & XFS_DIFLAG_EXTSZINHERIT)
-			flags |= FS_XFLAG_EXTSZINHERIT;
-		if (ip->i_diflags & XFS_DIFLAG_NODEFRAG)
-			flags |= FS_XFLAG_NODEFRAG;
-		if (ip->i_diflags & XFS_DIFLAG_FILESTREAM)
-			flags |= FS_XFLAG_FILESTREAM;
-	}
-
-	if (ip->i_diflags2 & XFS_DIFLAG2_ANY) {
-		if (ip->i_diflags2 & XFS_DIFLAG2_DAX)
-			flags |= FS_XFLAG_DAX;
-		if (ip->i_diflags2 & XFS_DIFLAG2_COWEXTSIZE)
-			flags |= FS_XFLAG_COWEXTSIZE;
-	}
-
-	if (xfs_inode_has_attr_fork(ip))
-		flags |= FS_XFLAG_HASATTR;
-	return flags;
-}
-
 /*
  * Lookups up an inode from "name". If ci_name is not NULL, then a CI match
  * is allowed, otherwise it has to be an exact match. If a CI match is found,
