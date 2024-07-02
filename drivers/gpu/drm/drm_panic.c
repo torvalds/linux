@@ -655,11 +655,11 @@ static struct drm_plane *to_drm_plane(struct kmsg_dumper *kd)
 	return container_of(kd, struct drm_plane, kmsg_panic);
 }
 
-static void drm_panic(struct kmsg_dumper *dumper, enum kmsg_dump_reason reason)
+static void drm_panic(struct kmsg_dumper *dumper, struct kmsg_dump_detail *detail)
 {
 	struct drm_plane *plane = to_drm_plane(dumper);
 
-	if (reason == KMSG_DUMP_PANIC)
+	if (detail->reason == KMSG_DUMP_PANIC)
 		draw_panic_plane(plane);
 }
 

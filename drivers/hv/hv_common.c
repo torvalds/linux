@@ -207,13 +207,13 @@ static int hv_die_panic_notify_crash(struct notifier_block *self,
  * buffer and call into Hyper-V to transfer the data.
  */
 static void hv_kmsg_dump(struct kmsg_dumper *dumper,
-			 enum kmsg_dump_reason reason)
+			 struct kmsg_dump_detail *detail)
 {
 	struct kmsg_dump_iter iter;
 	size_t bytes_written;
 
 	/* We are only interested in panics. */
-	if (reason != KMSG_DUMP_PANIC || !sysctl_record_panic_msg)
+	if (detail->reason != KMSG_DUMP_PANIC || !sysctl_record_panic_msg)
 		return;
 
 	/*
