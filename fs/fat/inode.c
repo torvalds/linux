@@ -1132,7 +1132,7 @@ static const match_table_t vfat_tokens = {
 };
 
 static int parse_options(struct super_block *sb, char *options, int is_vfat,
-			 int silent, int *debug, struct fat_mount_options *opts)
+			 int silent, struct fat_mount_options *opts)
 {
 	char *p;
 	substring_t args[MAX_OPT_ARGS];
@@ -1162,7 +1162,7 @@ static int parse_options(struct super_block *sb, char *options, int is_vfat,
 	opts->tz_set = 0;
 	opts->nfs = 0;
 	opts->errors = FAT_ERRORS_RO;
-	*debug = 0;
+	opts->debug = 0;
 
 	opts->utf8 = IS_ENABLED(CONFIG_FAT_DEFAULT_UTF8) && is_vfat;
 
@@ -1210,7 +1210,7 @@ static int parse_options(struct super_block *sb, char *options, int is_vfat,
 			opts->showexec = 1;
 			break;
 		case Opt_debug:
-			*debug = 1;
+			opts->debug = 1;
 			break;
 		case Opt_immutable:
 			opts->sys_immutable = 1;
@@ -1614,7 +1614,6 @@ int fat_fill_super(struct super_block *sb, void *data, int silent, int isvfat,
 	struct msdos_sb_info *sbi;
 	u16 logical_sector_size;
 	u32 total_sectors, total_clusters, fat_clusters, rootdir_sectors;
-	int debug;
 	long error;
 	char buf[50];
 	struct timespec64 ts;
@@ -1643,7 +1642,7 @@ int fat_fill_super(struct super_block *sb, void *data, int silent, int isvfat,
 	ratelimit_state_init(&sbi->ratelimit, DEFAULT_RATELIMIT_INTERVAL,
 			     DEFAULT_RATELIMIT_BURST);
 
-	error = parse_options(sb, data, isvfat, silent, &debug, &sbi->options);
+	error = parse_options(sb, data, isvfat, silent, &sbi->options);
 	if (error)
 		goto out_fail;
 
