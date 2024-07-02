@@ -62,16 +62,6 @@ static void int340x_thermal_critical(struct thermal_zone_device *zone)
 		thermal_zone_device_type(zone));
 }
 
-static inline void *int_to_trip_priv(int i)
-{
-	return (void *)(long)i;
-}
-
-static inline int trip_priv_to_int(const struct thermal_trip *trip)
-{
-	return (long)trip->priv;
-}
-
 static int int340x_thermal_read_trips(struct acpi_device *zone_adev,
 				      struct thermal_trip *zone_trips,
 				      int trip_cnt)
@@ -106,7 +96,7 @@ static int int340x_thermal_read_trips(struct acpi_device *zone_adev,
 			break;
 
 		zone_trips[trip_cnt].type = THERMAL_TRIP_ACTIVE;
-		zone_trips[trip_cnt].priv = int_to_trip_priv(i);
+		zone_trips[trip_cnt].priv = THERMAL_INT_TO_TRIP_PRIV(i);
 		trip_cnt++;
 	}
 
@@ -224,7 +214,7 @@ static int int340x_update_one_trip(struct thermal_trip *trip, void *arg)
 		break;
 	case THERMAL_TRIP_ACTIVE:
 		err = thermal_acpi_active_trip_temp(zone_adev,
-						    trip_priv_to_int(trip),
+						    THERMAL_TRIP_PRIV_TO_INT(trip->priv),
 						    &temp);
 		break;
 	default:
