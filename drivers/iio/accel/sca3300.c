@@ -494,8 +494,7 @@ static irqreturn_t sca3300_trigger_handler(int irq, void *p)
 	int bit, ret, val, i = 0;
 	s16 *channels = (s16 *)data->buffer;
 
-	for_each_set_bit(bit, indio_dev->active_scan_mask,
-			 indio_dev->masklength) {
+	iio_for_each_active_channel(indio_dev, bit) {
 		ret = sca3300_read_reg(data, indio_dev->channels[bit].address, &val);
 		if (ret) {
 			dev_err_ratelimited(&data->spi->dev,
