@@ -227,7 +227,7 @@ MODULE_PARM_DESC(mbps, "Cache size in MiB for memory-backed device. Default: 0 (
 
 static bool g_fua = true;
 module_param_named(fua, g_fua, bool, 0444);
-MODULE_PARM_DESC(zoned, "Enable/disable FUA support when cache_size is used. Default: true");
+MODULE_PARM_DESC(fua, "Enable/disable FUA support when cache_size is used. Default: true");
 
 static unsigned int g_mbps;
 module_param_named(mbps, g_mbps, uint, 0444);
