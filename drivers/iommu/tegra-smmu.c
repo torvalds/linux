@@ -837,7 +837,7 @@ static int tegra_smmu_configure(struct tegra_smmu *smmu, struct device *dev,
 	const struct iommu_ops *ops = smmu->iommu.ops;
 	int err;
 
-	err = iommu_fwspec_init(dev, &dev->of_node->fwnode, ops);
+	err = iommu_fwspec_init(dev, of_fwnode_handle(dev->of_node));
 	if (err < 0) {
 		dev_err(dev, "failed to initialize fwspec: %d\n", err);
 		return err;

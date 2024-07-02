@@ -21,26 +21,19 @@ static int of_iommu_xlate(struct device *dev,
 			  struct of_phandle_args *iommu_spec)
 {
 	const struct iommu_ops *ops;
-	struct fwnode_handle *fwnode = &iommu_spec->np->fwnode;
 	int ret;
 
-	ops = iommu_ops_from_fwnode(fwnode);
-	if ((ops && !ops->of_xlate) ||
-	    !of_device_is_available(iommu_spec->np))
+	if (!of_device_is_available(iommu_spec->np))
 		return -ENODEV;
 
-	ret = iommu_fwspec_init(dev, fwnode, ops);
+	ret = iommu_fwspec_init(dev, of_fwnode_handle(iommu_spec->np));
+	if (ret == -EPROBE_DEFER)
+		return driver_deferred_probe_check_state(dev);
 	if (ret)
 		return ret;
-	/*
-	 * The otherwise-empty fwspec handily serves to indicate the specific
-	 * IOMMU device we're waiting for, which will be useful if we ever get
-	 * a proper probe-ordering dependency mechanism in future.
-	 */
-	if (!ops)
-		return driver_deferred_probe_check_state(dev);
 
-	if (!try_module_get(ops->owner))
+	ops = dev_iommu_fwspec_get(dev)->ops;
+	if (!ops->of_xlate || !try_module_get(ops->owner))
 		return -ENODEV;
 
 	ret = ops->of_xlate(dev, iommu_spec);

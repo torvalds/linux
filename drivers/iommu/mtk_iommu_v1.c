@@ -412,7 +412,7 @@ static int mtk_iommu_v1_create_mapping(struct device *dev,
 		return -EINVAL;
 	}
 
-	ret = iommu_fwspec_init(dev, &args->np->fwnode, &mtk_iommu_v1_ops);
+	ret = iommu_fwspec_init(dev, of_fwnode_handle(args->np));
 	if (ret)
 		return ret;
 

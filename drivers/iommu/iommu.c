@@ -2822,10 +2822,13 @@ const struct iommu_ops *iommu_ops_from_fwnode(const struct fwnode_handle *fwnode
 	return ops;
 }
 
-int iommu_fwspec_init(struct device *dev, struct fwnode_handle *iommu_fwnode,
-		      const struct iommu_ops *ops)
+int iommu_fwspec_init(struct device *dev, struct fwnode_handle *iommu_fwnode)
 {
+	const struct iommu_ops *ops = iommu_ops_from_fwnode(iommu_fwnode);
 	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
+
+	if (!ops)
+		return -EPROBE_DEFER;
 
 	if (fwspec)
 		return ops == fwspec->ops ? 0 : -EINVAL;
@@ -2838,7 +2841,7 @@ int iommu_fwspec_init(struct device *dev, struct fwnode_handle *iommu_fwnode,
 	if (!fwspec)
 		return -ENOMEM;
 
-	of_node_get(to_of_node(iommu_fwnode));
+	fwnode_handle_get(iommu_fwnode);
 	fwspec->iommu_fwnode = iommu_fwnode;
 	fwspec->ops = ops;
 	dev_iommu_fwspec_set(dev, fwspec);
