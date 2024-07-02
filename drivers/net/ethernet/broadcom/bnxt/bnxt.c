@@ -15081,11 +15081,6 @@ static void bnxt_queue_mem_free(struct net_device *dev, void *qmem)
 	bnxt_free_one_rx_ring(bp, rxr);
 	bnxt_free_one_rx_agg_ring(bp, rxr);
 
-	/* At this point, this NAPI instance has another page pool associated
-	 * with it. Disconnect here before freeing the old page pool to avoid
-	 * warnings.
-	 */
-	rxr->page_pool->p.napi = NULL;
 	page_pool_destroy(rxr->page_pool);
 	rxr->page_pool = NULL;
 
@@ -15205,6 +15200,7 @@ static int bnxt_queue_stop(struct net_device *dev, void *qmem, int idx)
 	bnxt_hwrm_rx_ring_free(bp, rxr, false);
 	bnxt_hwrm_rx_agg_ring_free(bp, rxr, false);
 	rxr->rx_next_cons = 0;
+	page_pool_disable_direct_recycling(rxr->page_pool);
 
 	memcpy(qmem, rxr, sizeof(*rxr));
 	bnxt_init_rx_ring_struct(bp, qmem);
