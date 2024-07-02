@@ -305,7 +305,7 @@
 
 &pmi632_vbus {
 	regulator-min-microamp = <500000>;
-	regulator-max-microamp = <3000000>;
+	regulator-max-microamp = <1000000>;
 	status = "okay";
 };
 
