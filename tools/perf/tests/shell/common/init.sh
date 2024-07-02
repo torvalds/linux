@@ -115,3 +115,26 @@ detect_amd()
 	# 1 = is not AMD or unknown
 	grep "vendor_id" < /proc/cpuinfo | grep -q "AMD"
 }
+
+# base probe utility
+check_kprobes_available()
+{
+	test -e /sys/kernel/debug/tracing/kprobe_events
+}
+
+check_uprobes_available()
+{
+	test -e /sys/kernel/debug/tracing/uprobe_events
+}
+
+clear_all_probes()
+{
+	echo 0 > /sys/kernel/debug/tracing/events/enable
+	check_kprobes_available && echo > /sys/kernel/debug/tracing/kprobe_events
+	check_uprobes_available && echo > /sys/kernel/debug/tracing/uprobe_events
+}
+
+check_sdt_support()
+{
+	$CMD_PERF list sdt | grep sdt > /dev/null 2> /dev/null
+}
