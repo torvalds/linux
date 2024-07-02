@@ -2,7 +2,6 @@
 //
 // Copyright 2024 Advanced Micro Devices, Inc.
 
-
 #ifndef __DML2_CORE_SHARED_TYPES_H__
 #define __DML2_CORE_SHARED_TYPES_H__
 
@@ -70,6 +69,7 @@ struct dml2_core_ip_params {
 	unsigned int words_per_channel;
 	bool imall_supported;
 	unsigned int max_flip_time_us;
+	unsigned int max_flip_time_lines;
 	unsigned int subvp_swath_height_margin_lines;
 	unsigned int subvp_fw_processing_delay_us;
 	unsigned int subvp_pstate_allow_width_us;
@@ -782,6 +782,7 @@ struct dml2_core_internal_mode_program {
 	unsigned int VUpdateOffsetPix[DML2_MAX_PLANES];
 	unsigned int VUpdateWidthPix[DML2_MAX_PLANES];
 	unsigned int VReadyOffsetPix[DML2_MAX_PLANES];
+	unsigned int pstate_keepout_dst_lines[DML2_MAX_PLANES];
 
 	// Latency and Support
 	double MaxActiveFCLKChangeLatencySupported;
@@ -975,7 +976,7 @@ struct dml2_core_calcs_mode_programming_locals {
 
 	unsigned int DSCFormatFactor;
 	struct dml2_core_internal_DmlPipe SurfaceParameters[DML2_MAX_PLANES];
-	unsigned int ReorderBytes;
+	unsigned int ReorderingBytes;
 	double HostVMInefficiencyFactor;
 	double HostVMInefficiencyFactorPrefetch;
 	unsigned int TotalDCCActiveDPP;
@@ -2010,6 +2011,7 @@ struct dml2_core_internal_scratch {
 struct dml2_core_internal_display_mode_lib {
 	struct dml2_core_ip_params ip;
 	struct dml2_soc_bb soc;
+	struct dml2_ip_capabilities ip_caps;
 
 	//@brief Mode Support and Mode programming struct
 	// Used to hold input; intermediate and output of the calculations

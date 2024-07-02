@@ -2,7 +2,6 @@
 //
 // Copyright 2024 Advanced Micro Devices, Inc.
 
-
 #ifndef __DML_TOP_SOC_PARAMETER_TYPES_H__
 #define __DML_TOP_SOC_PARAMETER_TYPES_H__
 
@@ -173,6 +172,7 @@ struct dml2_ip_capabilities {
 	unsigned int meta_fifo_size_in_kentries;
 	unsigned int compressed_buffer_segment_size_in_kbytes;
 	unsigned int max_flip_time_us;
+	unsigned int max_flip_time_lines;
 	unsigned int hostvm_mode;
 	unsigned int subvp_drr_scheduling_margin_us;
 	unsigned int subvp_prefetch_end_to_mall_start_us;
@@ -190,6 +190,10 @@ struct dml2_ip_capabilities {
 		unsigned int subvp_programming_delay_us;
 		unsigned int subvp_prefetch_to_mall_delay_us;
 		unsigned int drr_programming_delay_us;
+
+		unsigned int lock_timeout_us;
+		unsigned int recovery_timeout_us;
+		unsigned int flip_programming_delay_us;
 	} fams2;
 };
 

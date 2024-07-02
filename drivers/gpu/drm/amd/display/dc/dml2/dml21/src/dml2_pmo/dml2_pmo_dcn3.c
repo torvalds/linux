@@ -2,7 +2,6 @@
 //
 // Copyright 2024 Advanced Micro Devices, Inc.
 
-
 #include "dml2_pmo_factory.h"
 #include "dml2_pmo_dcn3.h"
 

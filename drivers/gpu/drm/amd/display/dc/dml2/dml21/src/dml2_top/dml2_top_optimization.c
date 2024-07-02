@@ -2,7 +2,6 @@
 //
 // Copyright 2024 Advanced Micro Devices, Inc.
 
-
 #include "dml2_top_optimization.h"
 #include "dml2_internal_shared_types.h"
 #include "dml_top_mcache.h"

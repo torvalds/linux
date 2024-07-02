@@ -2242,11 +2242,15 @@ bool dml2_core_shared_mode_support(struct dml2_core_calcs_mode_support_ex *in_ou
 		}
 
 		double min_return_bw_for_latency = mode_lib->ms.support.urg_bandwidth_available_min_latency[dml2_core_internal_soc_state_sys_active];
+		if (mode_lib->soc.qos_parameters.qos_type == dml2_qos_param_type_dcn3)
+			s->ReorderingBytes = (unsigned int)(mode_lib->soc.clk_table.dram_config.channel_count * math_max3(mode_lib->soc.qos_parameters.qos_params.dcn3.urgent_out_of_order_return_per_channel_pixel_only_bytes,
+											mode_lib->soc.qos_parameters.qos_params.dcn3.urgent_out_of_order_return_per_channel_pixel_and_vm_bytes,
+											mode_lib->soc.qos_parameters.qos_params.dcn3.urgent_out_of_order_return_per_channel_vm_only_bytes));
 
 		CalculateExtraLatency(
 			display_cfg,
 			mode_lib->ip.rob_buffer_size_kbytes,
-			0, //mode_lib->soc.round_trip_ping_latency_dcfclk_cycles,
+			mode_lib->soc.qos_parameters.qos_params.dcn3.loaded_round_trip_latency_fclk_cycles,
 			s->ReorderingBytes,
 			mode_lib->ms.DCFCLK,
 			mode_lib->ms.FabricClock,
@@ -5050,7 +5054,7 @@ static void calculate_mcache_row_bytes(
 		unsigned int meta_per_mvmpg_per_channel_ub = 0;
 
 		if (p->gpuvm_enable) {
-			meta_per_mvmpg_per_channel = (float)vmpg_bytes / 256 / p->num_chans;
+			meta_per_mvmpg_per_channel = (float)vmpg_bytes / (float)256 / p->num_chans;
 
 			//but using the est_blk_per_vmpg between 2 and 4, to be not as pessimestic
 			if (p->surf_vert && vmpg_bytes > blk_bytes) {
@@ -5059,7 +5063,7 @@ static void calculate_mcache_row_bytes(
 
 			*p->dcc_dram_bw_nom_overhead_factor = 1 + math_max2(1.0 / 256.0, math_ceil2(meta_per_mvmpg_per_channel, p->mem_word_bytes) / (256 * meta_per_mvmpg_per_channel)); // dcc_dr_oh_nom
 		} else {
-			meta_per_mvmpg_per_channel = (float)blk_bytes / 256 / p->num_chans;
+			meta_per_mvmpg_per_channel = (float)blk_bytes / (float)256 / p->num_chans;
 
 			if (!p->surf_vert)
 				*p->dcc_dram_bw_nom_overhead_factor = 1 + 1.0 / 256.0;
@@ -7165,7 +7169,7 @@ static void calculate_tdlut_setting(
 		*p->tdlut_bytes_per_group = tdlut_bytes_per_line * tdlut_mpc_width;
 		//the delivery cycles is DispClk cycles per line * number of lines * number of slices
 		tdlut_delivery_cycles = (unsigned int)math_ceil2(tdlut_mpc_width / 2.0, 1) * tdlut_mpc_width * tdlut_mpc_width;
-		tdlut_drain_rate = tdlut_bytes_per_line * p->dispclk_mhz / 9.0;
+		tdlut_drain_rate = tdlut_bytes_per_line * p->dispclk_mhz /  math_ceil2(tdlut_mpc_width/2.0, 1);
 	} else {
 		//tdlut_addressing_mode = tdlut_simple_linear, 3dlut width should be 4*1229=4916 elements
 		*p->tdlut_bytes_per_frame = (unsigned int)math_ceil2(tdlut_width * tdlut_bpe, 256);
@@ -7501,11 +7505,14 @@ static void CalculateExtraLatency(
 
 #ifdef __DML_VBA_DEBUG__
 	dml2_printf("DML::%s: qos_type=%u\n", __func__, qos_type);
+	dml2_printf("DML::%s: hostvm_mode=%u\n", __func__, hostvm_mode);
+	dml2_printf("DML::%s: Tex_trips=%u\n", __func__, Tex_trips);
 	dml2_printf("DML::%s: max_oustanding_when_urgent_expected=%u\n", __func__, max_oustanding_when_urgent_expected);
 	dml2_printf("DML::%s: FabricClock=%f\n", __func__, FabricClock);
 	dml2_printf("DML::%s: DCFCLK=%f\n", __func__, DCFCLK);
 	dml2_printf("DML::%s: ReturnBW=%f\n", __func__, ReturnBW);
 	dml2_printf("DML::%s: RoundTripPingLatencyCycles=%u\n", __func__, RoundTripPingLatencyCycles);
+	dml2_printf("DML::%s: ReorderingBytes=%u\n", __func__, ReorderingBytes);
 	dml2_printf("DML::%s: Tarb=%f\n", __func__, Tarb);
 	dml2_printf("DML::%s: ExtraLatency=%f\n", __func__, *ExtraLatency);
 	dml2_printf("DML::%s: ExtraLatency_sr=%f\n", __func__, *ExtraLatency_sr);
@@ -7739,7 +7746,6 @@ static bool CalculatePrefetchSchedule(struct dml2_core_internal_scratch *scratch
 	s->max_Tsw = (math_max2(p->PrefetchSourceLinesY, p->PrefetchSourceLinesC) * s->LineTime);
 
 	s->prefetch_sw_bytes = p->PrefetchSourceLinesY * p->swath_width_luma_ub * p->myPipe->BytePerPixelY + p->PrefetchSourceLinesC * p->swath_width_chroma_ub * p->myPipe->BytePerPixelC;
-
 	s->prefetch_bw_pr = s->prefetch_bw_pr * p->mall_prefetch_sdp_overhead_factor;
 	s->prefetch_sw_bytes = s->prefetch_sw_bytes * p->mall_prefetch_sdp_overhead_factor;
 	s->prefetch_bw_oto = math_max2(s->prefetch_bw_pr, s->prefetch_sw_bytes / s->max_Tsw);
@@ -9304,6 +9310,10 @@ static void CalculateMetaAndPTETimes(struct dml2_core_shared_CalculateMetaAndPTE
 				dpte_groups_per_row_luma_ub = (unsigned int)(math_ceil2((double)p->dpte_row_width_luma_ub[k] / (double)dpte_group_width_luma, 1.0));
 			}
 
+			if (dpte_groups_per_row_luma_ub <= 2) {
+				dpte_groups_per_row_luma_ub = dpte_groups_per_row_luma_ub + 1;
+			}
+
 			dml2_printf("DML::%s: k=%u, use_one_row_for_frame = %u\n", __func__, k, p->use_one_row_for_frame[k]);
 			dml2_printf("DML::%s: k=%u, dpte_group_bytes = %u\n", __func__, k, p->dpte_group_bytes[k]);
 			dml2_printf("DML::%s: k=%u, PTERequestSizeY = %u\n", __func__, k, p->PTERequestSizeY[k]);
@@ -9331,6 +9341,9 @@ static void CalculateMetaAndPTETimes(struct dml2_core_shared_CalculateMetaAndPTE
 					dpte_groups_per_row_chroma_ub = (unsigned int)(math_ceil2((double)p->dpte_row_width_chroma_ub[k] / (double)dpte_group_width_chroma / 2.0, 1.0));
 				} else {
 					dpte_groups_per_row_chroma_ub = (unsigned int)(math_ceil2((double)p->dpte_row_width_chroma_ub[k] / (double)dpte_group_width_chroma, 1.0));
+				}
+				if (dpte_groups_per_row_chroma_ub <= 2) {
+					dpte_groups_per_row_chroma_ub = dpte_groups_per_row_chroma_ub + 1;
 				}
 				dml2_printf("DML::%s: k=%u, dpte_row_width_chroma_ub = %u\n", __func__, k, p->dpte_row_width_chroma_ub[k]);
 				dml2_printf("DML::%s: k=%u, dpte_group_width_chroma = %u\n", __func__, k, dpte_group_width_chroma);
@@ -9450,6 +9463,14 @@ static void CalculateVMGroupAndRequestTimes(
 			}
 
 			double line_time = display_cfg->stream_descriptors[display_cfg->plane_descriptors[k].stream_index].timing.h_total / pixel_clock_mhz;
+
+			if (num_group_per_lower_vm_stage_flip <= 2) {
+				num_group_per_lower_vm_stage_flip = num_group_per_lower_vm_stage_flip + 1;
+			}
+
+			if (num_group_per_lower_vm_stage_pref <= 2) {
+				num_group_per_lower_vm_stage_pref = num_group_per_lower_vm_stage_pref + 1;
+			}
 
 			TimePerVMGroupVBlank[k] = dst_y_per_vm_vblank[k] * line_time / num_group_per_lower_vm_stage_pref;
 			TimePerVMGroupFlip[k] = dst_y_per_vm_flip[k] * line_time / num_group_per_lower_vm_stage_flip;
@@ -10388,11 +10409,16 @@ bool dml2_core_shared_mode_programming(struct dml2_core_calcs_mode_programming_e
 		calculate_tdlut_setting(&mode_lib->scratch, calculate_tdlut_setting_params);
 	}
 
+	if (mode_lib->soc.qos_parameters.qos_type == dml2_qos_param_type_dcn3)
+		s->ReorderingBytes = (unsigned int)(mode_lib->soc.clk_table.dram_config.channel_count * math_max3(mode_lib->soc.qos_parameters.qos_params.dcn3.urgent_out_of_order_return_per_channel_pixel_only_bytes,
+										mode_lib->soc.qos_parameters.qos_params.dcn3.urgent_out_of_order_return_per_channel_pixel_and_vm_bytes,
+										mode_lib->soc.qos_parameters.qos_params.dcn3.urgent_out_of_order_return_per_channel_vm_only_bytes));
+
 	CalculateExtraLatency(
 		display_cfg,
 		mode_lib->ip.rob_buffer_size_kbytes,
-		0, //mode_lib->soc.round_trip_ping_latency_dcfclk_cycles,
-		s->ReorderBytes,
+		mode_lib->soc.qos_parameters.qos_params.dcn3.loaded_round_trip_latency_fclk_cycles,
+		s->ReorderingBytes,
 		mode_lib->mp.Dcfclk,
 		mode_lib->mp.FabricClock,
 		mode_lib->ip.pixel_chunk_size_kbytes,

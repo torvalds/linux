@@ -262,6 +262,7 @@ union dml2_global_sync_programming {
 		unsigned int vupdate_offset_pixels;
 		unsigned int vupdate_vupdate_width_pixels;
 		unsigned int vready_offset_pixels;
+		unsigned int pstate_keepout_start_lines;
 	} dcn4;
 };
 
@@ -411,6 +412,7 @@ struct dml2_display_cfg_programming {
 
 	/* indicates this configuration requires FW to support */
 	bool fams2_required;
+	struct dmub_cmd_fams2_global_config fams2_global_config;
 
 	struct {
 		bool supported_in_blank; // Changing to configurations where this is false requires stutter to be disabled during the transition

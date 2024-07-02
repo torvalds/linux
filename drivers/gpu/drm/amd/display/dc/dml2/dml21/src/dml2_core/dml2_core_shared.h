@@ -2,7 +2,6 @@
 //
 // Copyright 2024 Advanced Micro Devices, Inc.
 
-
 #ifndef __DML2_CORE_SHARED_H__
 #define __DML2_CORE_SHARED_H__
 

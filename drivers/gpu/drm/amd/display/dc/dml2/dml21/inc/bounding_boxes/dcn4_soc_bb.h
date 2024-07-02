@@ -344,6 +344,9 @@ static const struct dml2_ip_capabilities dml2_dcn401_max_ip_caps = {
 	.config_return_buffer_segment_size_in_kbytes = 64,
 	.meta_fifo_size_in_kentries = 22,
 	.compressed_buffer_segment_size_in_kbytes = 64,
+	.max_flip_time_us = 80,
+	.max_flip_time_lines = 32,
+	.hostvm_mode = 0,
 	.subvp_drr_scheduling_margin_us = 100,
 	.subvp_prefetch_end_to_mall_start_us = 15,
 	.subvp_fw_processing_delay = 15,
@@ -351,14 +354,18 @@ static const struct dml2_ip_capabilities dml2_dcn401_max_ip_caps = {
 
 	.fams2 = {
 		.max_allow_delay_us = 100 * 1000,
-		.scheduling_delay_us = 50,
+		.scheduling_delay_us = 125,
 		.vertical_interrupt_ack_delay_us = 18,
 		.allow_programming_delay_us = 18,
 		.min_allow_width_us = 20,
 		.subvp_df_throttle_delay_us = 100,
-		.subvp_programming_delay_us = 18,
+		.subvp_programming_delay_us = 200,
 		.subvp_prefetch_to_mall_delay_us = 18,
-		.drr_programming_delay_us = 18,
+		.drr_programming_delay_us = 35,
+
+		.lock_timeout_us = 5000,
+		.recovery_timeout_us = 5000,
+		.flip_programming_delay_us = 300,
 	},
 };
 
