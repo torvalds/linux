@@ -5202,6 +5202,46 @@ rtw89_mac_c2h_mrc_status_rpt(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 
 	case RTW89_MAC_MRC_DEL_SCH_OK:
 		func = H2C_FUNC_DEL_MRC;
 		break;
+	case RTW89_MAC_MRC_EMPTY_SCH_FAIL:
+		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
+			    "MRC C2H STS RPT: empty sch fail\n");
+		return;
+	case RTW89_MAC_MRC_ROLE_NOT_EXIST_FAIL:
+		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
+			    "MRC C2H STS RPT: role not exist fail\n");
+		return;
+	case RTW89_MAC_MRC_DATA_NOT_FOUND_FAIL:
+		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
+			    "MRC C2H STS RPT: data not found fail\n");
+		return;
+	case RTW89_MAC_MRC_GET_NEXT_SLOT_FAIL:
+		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
+			    "MRC C2H STS RPT: get next slot fail\n");
+		return;
+	case RTW89_MAC_MRC_ALT_ROLE_FAIL:
+		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
+			    "MRC C2H STS RPT: alt role fail\n");
+		return;
+	case RTW89_MAC_MRC_ADD_PSTIMER_FAIL:
+		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
+			    "MRC C2H STS RPT: add ps timer fail\n");
+		return;
+	case RTW89_MAC_MRC_MALLOC_FAIL:
+		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
+			    "MRC C2H STS RPT: malloc fail\n");
+		return;
+	case RTW89_MAC_MRC_SWITCH_CH_FAIL:
+		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
+			    "MRC C2H STS RPT: switch ch fail\n");
+		return;
+	case RTW89_MAC_MRC_TXNULL0_FAIL:
+		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
+			    "MRC C2H STS RPT: tx null-0 fail\n");
+		return;
+	case RTW89_MAC_MRC_PORT_FUNC_EN_FAIL:
+		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
+			    "MRC C2H STS RPT: port func en fail\n");
+		return;
 	default:
 		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
 			    "invalid MRC C2H STS RPT: status %d\n", status);
