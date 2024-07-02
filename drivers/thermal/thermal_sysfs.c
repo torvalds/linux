@@ -113,7 +113,7 @@ trip_point_temp_store(struct device *dev, struct device_attribute *attr,
 
 	if (temp != trip->temperature) {
 		if (tz->ops.set_trip_temp) {
-			ret = tz->ops.set_trip_temp(tz, trip_id, temp);
+			ret = tz->ops.set_trip_temp(tz, trip, temp);
 			if (ret)
 				goto unlock;
 		}
