@@ -325,4 +325,7 @@ int xfs_dir_add_child(struct xfs_trans *tp, unsigned int resblks,
 int xfs_dir_remove_child(struct xfs_trans *tp, unsigned int resblks,
 		struct xfs_dir_update *du);
 
+int xfs_dir_exchange_children(struct xfs_trans *tp, struct xfs_dir_update *du1,
+		struct xfs_dir_update *du2, unsigned int spaceres);
+
 #endif	/* __XFS_DIR2_H__ */
