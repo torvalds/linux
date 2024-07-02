@@ -1351,7 +1351,7 @@ static int svc_i3c_master_send_direct_ccc_cmd(struct svc_i3c_master *master,
 	cmd->addr = ccc->dests[0].addr;
 	cmd->rnw = ccc->rnw;
 	cmd->in = ccc->rnw ? ccc->dests[0].payload.data : NULL;
-	cmd->out = ccc->rnw ? NULL : ccc->dests[0].payload.data,
+	cmd->out = ccc->rnw ? NULL : ccc->dests[0].payload.data;
 	cmd->len = xfer_len;
 	cmd->actual_len = actual_len;
 	cmd->continued = false;
