@@ -829,6 +829,33 @@ static inline struct list_head *bpf_net_ctx_get_xskmap_flush_list(void)
 	return &bpf_net_ctx->xskmap_map_flush_list;
 }
 
+static inline void bpf_net_ctx_get_all_used_flush_lists(struct list_head **lh_map,
+							struct list_head **lh_dev,
+							struct list_head **lh_xsk)
+{
+	struct bpf_net_context *bpf_net_ctx = bpf_net_ctx_get();
+	u32 kern_flags = bpf_net_ctx->ri.kern_flags;
+	struct list_head *lh;
+
+	*lh_map = *lh_dev = *lh_xsk = NULL;
+
+	if (!IS_ENABLED(CONFIG_BPF_SYSCALL))
+		return;
+
+	lh = &bpf_net_ctx->dev_map_flush_list;
+	if (kern_flags & BPF_RI_F_DEV_MAP_INIT && !list_empty(lh))
+		*lh_dev = lh;
+
+	lh = &bpf_net_ctx->cpu_map_flush_list;
+	if (kern_flags & BPF_RI_F_CPU_MAP_INIT && !list_empty(lh))
+		*lh_map = lh;
+
+	lh = &bpf_net_ctx->xskmap_map_flush_list;
+	if (IS_ENABLED(CONFIG_XDP_SOCKETS) &&
+	    kern_flags & BPF_RI_F_XSK_MAP_INIT && !list_empty(lh))
+		*lh_xsk = lh;
+}
+
 /* Compute the linear packet data range [data, data_end) which
  * will be accessed by various program types (cls_bpf, act_bpf,
  * lwt, ...). Subsystems allowing direct data access must (!)
