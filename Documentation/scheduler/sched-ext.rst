@@ -48,13 +48,16 @@ sched_ext is used only when the BPF scheduler is loaded and running.
 
 If a task explicitly sets its scheduling policy to ``SCHED_EXT``, it will be
 treated as ``SCHED_NORMAL`` and scheduled by CFS until the BPF scheduler is
-loaded. On load, such tasks will be switched to and scheduled by sched_ext.
+loaded.
 
-The BPF scheduler can choose to schedule all normal and lower class tasks by
-calling ``scx_bpf_switch_all()`` from its ``init()`` operation. In this
-case, all ``SCHED_NORMAL``, ``SCHED_BATCH``, ``SCHED_IDLE`` and
-``SCHED_EXT`` tasks are scheduled by sched_ext. In the example schedulers,
-this mode can be selected with the ``-a`` option.
+When the BPF scheduler is loaded and ``SCX_OPS_SWITCH_PARTIAL`` is not set
+in ``ops->flags``, all ``SCHED_NORMAL``, ``SCHED_BATCH``, ``SCHED_IDLE``, and
+``SCHED_EXT`` tasks are scheduled by sched_ext.
+
+However, when the BPF scheduler is loaded and ``SCX_OPS_SWITCH_PARTIAL`` is
+set in ``ops->flags``, only tasks with the ``SCHED_EXT`` policy are scheduled
+by sched_ext, while tasks with ``SCHED_NORMAL``, ``SCHED_BATCH`` and
+``SCHED_IDLE`` policies are scheduled by CFS.
 
 Terminating the sched_ext scheduler program, triggering :kbd:`SysRq-S`, or
 detection of any internal error including stalled runnable tasks aborts the
@@ -109,7 +112,7 @@ Userspace can implement an arbitrary BPF scheduler by loading a set of BPF
 programs that implement ``struct sched_ext_ops``. The only mandatory field
 is ``ops.name`` which must be a valid BPF object name. All operations are
 optional. The following modified excerpt is from
-``tools/sched/scx_simple.bpf.c`` showing a minimal global FIFO scheduler.
+``tools/sched_ext/scx_simple.bpf.c`` showing a minimal global FIFO scheduler.
 
 .. code-block:: c
 
@@ -156,13 +159,12 @@ optional. The following modified excerpt is from
             scx_bpf_dispatch(p, SCX_DSQ_GLOBAL, SCX_SLICE_DFL, enq_flags);
     }
 
-    s32 BPF_STRUCT_OPS(simple_init)
+    s32 BPF_STRUCT_OPS_SLEEPABLE(simple_init)
     {
             /*
-             * All SCHED_OTHER, SCHED_IDLE, and SCHED_BATCH tasks should
-             * use sched_ext.
+             * By default, all SCHED_EXT, SCHED_OTHER, SCHED_IDLE, and
+             * SCHED_BATCH tasks should use sched_ext.
              */
-            scx_bpf_switch_all();
             return 0;
     }
 
