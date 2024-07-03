@@ -22,15 +22,16 @@ trap trap_cleanup EXIT TERM INT
 test_bpf_filter_priv() {
   echo "Checking BPF-filter privilege"
 
-  if [ "$(id -u)" != 0 ]
-  then
-    echo "bpf-filter test [Skipped permission]"
-    err=2
-    return
-  fi
   if ! perf record -e task-clock --filter 'period > 1' \
 	  -o /dev/null --quiet true 2>&1
   then
+    if [ "$(id -u)" != 0 ]
+    then
+      echo "try 'sudo perf record --setup-filter pin' first."
+      echo "bpf-filter test [Skipped permission]"
+      err=2
+      return
+    fi
     echo "bpf-filter test [Skipped missing BPF support]"
     err=2
     return
