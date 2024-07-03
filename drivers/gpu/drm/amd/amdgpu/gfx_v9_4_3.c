@@ -652,6 +652,15 @@ static void gfx_v9_4_3_select_me_pipe_q(struct amdgpu_device *adev,
 	soc15_grbm_select(adev, me, pipe, q, vm, GET_INST(GC, xcc_id));
 }
 
+static int gfx_v9_4_3_get_xccs_per_xcp(struct amdgpu_device *adev)
+{
+	u32 xcp_ctl;
+
+	/* Value is expected to be the same on all, fetch from first instance */
+	xcp_ctl = RREG32_SOC15(GC, GET_INST(GC, 0), regCP_HYP_XCP_CTL);
+
+	return REG_GET_FIELD(xcp_ctl, CP_HYP_XCP_CTL, NUM_XCC_IN_XCP);
+}
 
 static int gfx_v9_4_3_switch_compute_partition(struct amdgpu_device *adev,
 						int num_xccs_per_xcp)
@@ -706,6 +715,7 @@ static const struct amdgpu_gfx_funcs gfx_v9_4_3_gfx_funcs = {
 	.select_me_pipe_q = &gfx_v9_4_3_select_me_pipe_q,
 	.switch_partition_mode = &gfx_v9_4_3_switch_compute_partition,
 	.ih_node_to_logical_xcc = &gfx_v9_4_3_ih_to_xcc_inst,
+	.get_xccs_per_xcp = &gfx_v9_4_3_get_xccs_per_xcp,
 };
 
 static int gfx_v9_4_3_aca_bank_parser(struct aca_handle *handle,
@@ -2050,18 +2060,31 @@ static int gfx_v9_4_3_xcc_cp_resume(struct amdgpu_device *adev, int xcc_id)
 
 static int gfx_v9_4_3_cp_resume(struct amdgpu_device *adev)
 {
-	int r = 0, i, num_xcc;
+	int r = 0, i, num_xcc, num_xcp, num_xcc_per_xcp;
 
-	if (amdgpu_xcp_query_partition_mode(adev->xcp_mgr,
-					    AMDGPU_XCP_FL_NONE) ==
-	    AMDGPU_UNKNOWN_COMPUTE_PARTITION_MODE)
-		r = amdgpu_xcp_switch_partition_mode(adev->xcp_mgr,
-						     amdgpu_user_partt_mode);
+	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
+	if (amdgpu_sriov_vf(adev)) {
+		enum amdgpu_gfx_partition mode;
 
+		mode = amdgpu_xcp_query_partition_mode(adev->xcp_mgr,
+						       AMDGPU_XCP_FL_NONE);
+		if (mode == AMDGPU_UNKNOWN_COMPUTE_PARTITION_MODE)
+			return -EINVAL;
+		num_xcc_per_xcp = gfx_v9_4_3_get_xccs_per_xcp(adev);
+		adev->gfx.num_xcc_per_xcp = num_xcc_per_xcp;
+		num_xcp = num_xcc / num_xcc_per_xcp;
+		r = amdgpu_xcp_init(adev->xcp_mgr, num_xcp, mode);
+
+	} else {
+		if (amdgpu_xcp_query_partition_mode(adev->xcp_mgr,
+						    AMDGPU_XCP_FL_NONE) ==
+		    AMDGPU_UNKNOWN_COMPUTE_PARTITION_MODE)
+			r = amdgpu_xcp_switch_partition_mode(
+				adev->xcp_mgr, amdgpu_user_partt_mode);
+	}
 	if (r)
 		return r;
 
-	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
 	for (i = 0; i < num_xcc; i++) {
 		r = gfx_v9_4_3_xcc_cp_resume(adev, i);
 		if (r)
