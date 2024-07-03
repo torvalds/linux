@@ -95,7 +95,7 @@ enum {
  * @flags: Flags to represent IEP properties
  */
 struct icss_iep_plat_data {
-	struct regmap_config *config;
+	const struct regmap_config *config;
 	u32 reg_offs[ICSS_IEP_MAX_REGS];
 	u32 flags;
 };
@@ -952,7 +952,7 @@ static int icss_iep_regmap_read(void *context, unsigned int reg,
 	return 0;
 }
 
-static struct regmap_config am654_icss_iep_regmap_config = {
+static const struct regmap_config am654_icss_iep_regmap_config = {
 	.name = "icss iep",
 	.reg_stride = 1,
 	.reg_write = icss_iep_regmap_write,
