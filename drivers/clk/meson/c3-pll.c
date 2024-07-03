@@ -678,7 +678,7 @@ static struct clk_regmap *const c3_pll_clk_regmaps[] = {
 	&mclk1,
 };
 
-static struct regmap_config clkc_regmap_config = {
+static const struct regmap_config clkc_regmap_config = {
 	.reg_bits       = 32,
 	.val_bits       = 32,
 	.reg_stride     = 4,
