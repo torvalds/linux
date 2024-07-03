@@ -965,21 +965,21 @@ static void cdn_dp_pd_event_work(struct work_struct *work)
 
 	/* Not connected, notify userspace to disable the block */
 	if (!cdn_dp_connected_port(dp)) {
-		DRM_DEV_INFO(dp->dev, "Not connected. Disabling cdn\n");
+		DRM_DEV_INFO(dp->dev, "Not connected; disabling cdn\n");
 		dp->connected = false;
 
 	/* Connected but not enabled, enable the block */
 	} else if (!dp->active) {
-		DRM_DEV_INFO(dp->dev, "Connected, not enabled. Enabling cdn\n");
+		DRM_DEV_INFO(dp->dev, "Connected, not enabled; enabling cdn\n");
 		ret = cdn_dp_enable(dp);
 		if (ret) {
-			DRM_DEV_ERROR(dp->dev, "Enable dp failed %d\n", ret);
+			DRM_DEV_ERROR(dp->dev, "Enabling dp failed: %d\n", ret);
 			dp->connected = false;
 		}
 
 	/* Enabled and connected to a dongle without a sink, notify userspace */
 	} else if (!cdn_dp_check_sink_connection(dp)) {
-		DRM_DEV_INFO(dp->dev, "Connected without sink. Assert hpd\n");
+		DRM_DEV_INFO(dp->dev, "Connected without sink; assert hpd\n");
 		dp->connected = false;
 
 	/* Enabled and connected with a sink, re-train if requested */
@@ -988,11 +988,11 @@ static void cdn_dp_pd_event_work(struct work_struct *work)
 		unsigned int lanes = dp->max_lanes;
 		struct drm_display_mode *mode = &dp->mode;
 
-		DRM_DEV_INFO(dp->dev, "Connected with sink. Re-train link\n");
+		DRM_DEV_INFO(dp->dev, "Connected with sink; re-train link\n");
 		ret = cdn_dp_train_link(dp);
 		if (ret) {
 			dp->connected = false;
-			DRM_DEV_ERROR(dp->dev, "Train link failed %d\n", ret);
+			DRM_DEV_ERROR(dp->dev, "Training link failed: %d\n", ret);
 			goto out;
 		}
 
@@ -1002,9 +1002,7 @@ static void cdn_dp_pd_event_work(struct work_struct *work)
 			ret = cdn_dp_config_video(dp);
 			if (ret) {
 				dp->connected = false;
-				DRM_DEV_ERROR(dp->dev,
-					      "Failed to config video %d\n",
-					      ret);
+				DRM_DEV_ERROR(dp->dev, "Failed to configure video: %d\n", ret);
 			}
 		}
 	}
