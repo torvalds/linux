@@ -6,6 +6,7 @@
  */
 
 #include <linux/completion.h>
+#include <linux/cleanup.h>
 #include <linux/device.h>
 #include <linux/io.h>
 #include <linux/jiffies.h>
@@ -600,7 +601,6 @@ static int amd_sdw_hw_params(struct snd_pcm_substream *substream,
 	struct amd_sdw_manager *amd_manager = snd_soc_dai_get_drvdata(dai);
 	struct sdw_amd_dai_runtime *dai_runtime;
 	struct sdw_stream_config sconfig;
-	struct sdw_port_config *pconfig;
 	int ch, dir;
 	int ret;
 
@@ -623,7 +623,8 @@ static int amd_sdw_hw_params(struct snd_pcm_substream *substream,
 	sconfig.bps = snd_pcm_format_width(params_format(params));
 
 	/* Port configuration */
-	pconfig = kzalloc(sizeof(*pconfig), GFP_KERNEL);
+	struct sdw_port_config *pconfig __free(kfree) = kzalloc(sizeof(*pconfig),
+								GFP_KERNEL);
 	if (!pconfig)
 		return -ENOMEM;
 
@@ -633,8 +634,6 @@ static int amd_sdw_hw_params(struct snd_pcm_substream *substream,
 				    pconfig, 1, dai_runtime->stream);
 	if (ret)
 		dev_err(amd_manager->dev, "add manager to stream failed:%d\n", ret);
-
-	kfree(pconfig);
 
 	return ret;
 }
