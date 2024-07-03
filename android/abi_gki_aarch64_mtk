@@ -1894,6 +1894,7 @@
   phy_attached_info
   phy_connect
   phy_connect_direct
+  phy_create_lookup
   phy_disconnect
   phy_do_ioctl_running
   phy_drivers_register
