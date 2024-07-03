@@ -739,24 +739,20 @@ struct iwl_mvm_tcm {
  * struct iwl_mvm_reorder_buffer - per ra/tid/queue reorder buffer
  * @head_sn: reorder window head sn
  * @num_stored: number of mpdus stored in the buffer
- * @buf_size: the reorder buffer size as set by the last addba request
  * @queue: queue of this reorder buffer
  * @last_amsdu: track last ASMDU SN for duplication detection
  * @last_sub_index: track ASMDU sub frame index for duplication detection
  * @valid: reordering is valid for this queue
  * @lock: protect reorder buffer internal state
- * @mvm: mvm pointer, needed for frame timer context
  */
 struct iwl_mvm_reorder_buffer {
 	u16 head_sn;
 	u16 num_stored;
-	u16 buf_size;
 	int queue;
 	u16 last_amsdu;
 	u8 last_sub_index;
 	bool valid;
 	spinlock_t lock;
-	struct iwl_mvm *mvm;
 } ____cacheline_aligned_in_smp;
 
 /**
@@ -778,6 +774,7 @@ __aligned(roundup_pow_of_two(sizeof(struct sk_buff_head)))
  * @tid: tid of the session
  * @baid: baid of the session
  * @timeout: the timeout set in the addba request
+ * @buf_size: the reorder buffer size as set by the last addba request
  * @entries_per_queue: # of buffers per queue, this actually gets
  *	aligned up to avoid cache line sharing between queues
  * @last_rx: last rx jiffies, updated only if timeout passed from last update
@@ -794,6 +791,7 @@ struct iwl_mvm_baid_data {
 	u8 tid;
 	u8 baid;
 	u16 timeout;
+	u16 buf_size;
 	u16 entries_per_queue;
 	unsigned long last_rx;
 	struct timer_list session_timer;
