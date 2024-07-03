@@ -2223,6 +2223,14 @@ static void gpi_process_imed_data_event(struct gpii_chan *gpii_chan,
 		struct msm_gpi_tre *gpi_tre;
 
 		spin_unlock_irqrestore(&gpii_chan->vc.lock, flags);
+		/*
+		 * RP pointed by Event is to last TRE processed,
+		 * we need to update ring rp to tre + 1
+		 */
+		tre += ch_ring->el_size;
+		if (tre >= (ch_ring->base + ch_ring->len))
+			tre = ch_ring->base;
+		ch_ring->rp = tre;
 		GPII_ERR(gpii, gpii_chan->chid,
 			 "event without a pending descriptor!\n");
 		gpi_ere = (struct gpi_ere *)imed_event;
@@ -2345,6 +2353,14 @@ static void gpi_process_xfer_compl_event(struct gpii_chan *gpii_chan,
 		struct gpi_ere *gpi_ere;
 
 		spin_unlock_irqrestore(&gpii_chan->vc.lock, flags);
+		/*
+		 * RP pointed by Event is to last TRE processed,
+		 * we need to update ring rp to ev_rp + 1
+		 */
+		ev_rp += ch_ring->el_size;
+		if (ev_rp >= (ch_ring->base + ch_ring->len))
+			ev_rp = ch_ring->base;
+		ch_ring->rp = ev_rp;
 		GPII_ERR(gpii, gpii_chan->chid,
 			 "Event without a pending descriptor!\n");
 		gpi_ere = (struct gpi_ere *)compl_event;
