@@ -5501,6 +5501,7 @@ struct ata_port *ata_port_alloc(struct ata_host *host)
 
 	return ap;
 }
+EXPORT_SYMBOL_GPL(ata_port_alloc);
 
 void ata_port_free(struct ata_port *ap)
 {

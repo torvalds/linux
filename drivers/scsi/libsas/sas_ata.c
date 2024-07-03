@@ -572,15 +572,6 @@ static struct ata_port_operations sas_sata_ops = {
 	.end_eh			= sas_ata_end_eh,
 };
 
-static struct ata_port_info sata_port_info = {
-	.flags = ATA_FLAG_SATA | ATA_FLAG_PIO_DMA | ATA_FLAG_NCQ |
-		 ATA_FLAG_SAS_HOST | ATA_FLAG_FPDMA_AUX,
-	.pio_mask = ATA_PIO4,
-	.mwdma_mask = ATA_MWDMA2,
-	.udma_mask = ATA_UDMA6,
-	.port_ops = &sas_sata_ops
-};
-
 int sas_ata_init(struct domain_device *found_dev)
 {
 	struct sas_ha_struct *ha = found_dev->port->ha;
@@ -597,13 +588,20 @@ int sas_ata_init(struct domain_device *found_dev)
 
 	ata_host_init(ata_host, ha->dev, &sas_sata_ops);
 
-	ap = ata_sas_port_alloc(ata_host, &sata_port_info, shost);
+	ap = ata_port_alloc(ata_host);
 	if (!ap) {
-		pr_err("ata_sas_port_alloc failed.\n");
+		pr_err("ata_port_alloc failed.\n");
 		rc = -ENODEV;
 		goto free_host;
 	}
 
+	ap->port_no = 0;
+	ap->pio_mask = ATA_PIO4;
+	ap->mwdma_mask = ATA_MWDMA2;
+	ap->udma_mask = ATA_UDMA6;
+	ap->flags |= ATA_FLAG_SATA | ATA_FLAG_PIO_DMA | ATA_FLAG_NCQ |
+		     ATA_FLAG_SAS_HOST | ATA_FLAG_FPDMA_AUX;
+	ap->ops = &sas_sata_ops;
 	ap->private_data = found_dev;
 	ap->cbl = ATA_CBL_SATA;
 	ap->scsi_host = shost;
