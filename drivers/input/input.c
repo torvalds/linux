@@ -323,9 +323,6 @@ static void input_event_dispose(struct input_dev *dev, int disposition,
 	if ((disposition & INPUT_PASS_TO_DEVICE) && dev->event)
 		dev->event(dev, type, code, value);
 
-	if (!dev->vals)
-		return;
-
 	if (disposition & INPUT_PASS_TO_HANDLERS) {
 		struct input_value *v;
 
@@ -1985,6 +1982,18 @@ struct input_dev *input_allocate_device(void)
 	if (!dev)
 		return NULL;
 
+	/*
+	 * Start with space for SYN_REPORT + 7 EV_KEY/EV_MSC events + 2 spare,
+	 * see input_estimate_events_per_packet(). We will tune the number
+	 * when we register the device.
+	 */
+	dev->max_vals = 10;
+	dev->vals = kcalloc(dev->max_vals, sizeof(*dev->vals), GFP_KERNEL);
+	if (!dev->vals) {
+		kfree(dev);
+		return NULL;
+	}
+
 	mutex_init(&dev->mutex);
 	spin_lock_init(&dev->event_lock);
 	timer_setup(&dev->timer, NULL, 0);
@@ -2344,6 +2353,35 @@ bool input_device_enabled(struct input_dev *dev)
 }
 EXPORT_SYMBOL_GPL(input_device_enabled);
 
+static int input_device_tune_vals(struct input_dev *dev)
+{
+	struct input_value *vals;
+	unsigned int packet_size;
+	unsigned int max_vals;
+
+	packet_size = input_estimate_events_per_packet(dev);
+	if (dev->hint_events_per_packet < packet_size)
+		dev->hint_events_per_packet = packet_size;
+
+	max_vals = dev->hint_events_per_packet + 2;
+	if (dev->max_vals >= max_vals)
+		return 0;
+
+	vals = kcalloc(max_vals, sizeof(*vals), GFP_KERNEL);
+	if (!vals)
+		return -ENOMEM;
+
+	spin_lock_irq(&dev->event_lock);
+	dev->max_vals = max_vals;
+	swap(dev->vals, vals);
+	spin_unlock_irq(&dev->event_lock);
+
+	/* Because of swap() above, this frees the old vals memory */
+	kfree(vals);
+
+	return 0;
+}
+
 /**
  * input_register_device - register device with input core
  * @dev: device to be registered
@@ -2371,7 +2409,6 @@ int input_register_device(struct input_dev *dev)
 {
 	struct input_devres *devres = NULL;
 	struct input_handler *handler;
-	unsigned int packet_size;
 	const char *path;
 	int error;
 
@@ -2399,16 +2436,9 @@ int input_register_device(struct input_dev *dev)
 	/* Make sure that bitmasks not mentioned in dev->evbit are clean. */
 	input_cleanse_bitmasks(dev);
 
-	packet_size = input_estimate_events_per_packet(dev);
-	if (dev->hint_events_per_packet < packet_size)
-		dev->hint_events_per_packet = packet_size;
-
-	dev->max_vals = dev->hint_events_per_packet + 2;
-	dev->vals = kcalloc(dev->max_vals, sizeof(*dev->vals), GFP_KERNEL);
-	if (!dev->vals) {
-		error = -ENOMEM;
+	error = input_device_tune_vals(dev);
+	if (error)
 		goto err_devres_free;
-	}
 
 	/*
 	 * If delay and period are pre-set by the driver, then autorepeating
@@ -2428,7 +2458,7 @@ int input_register_device(struct input_dev *dev)
 
 	error = device_add(&dev->dev);
 	if (error)
-		goto err_free_vals;
+		goto err_devres_free;
 
 	path = kobject_get_path(&dev->dev.kobj, GFP_KERNEL);
 	pr_info("%s as %s\n",
@@ -2458,9 +2488,6 @@ int input_register_device(struct input_dev *dev)
 
 err_device_del:
 	device_del(&dev->dev);
-err_free_vals:
-	kfree(dev->vals);
-	dev->vals = NULL;
 err_devres_free:
 	devres_free(devres);
 	return error;
