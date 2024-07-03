@@ -295,7 +295,7 @@ static struct clk_regmap *const a1_pll_regmaps[] = {
 	&hifi_pll,
 };
 
-static struct regmap_config a1_pll_regmap_cfg = {
+static const struct regmap_config a1_pll_regmap_cfg = {
 	.reg_bits   = 32,
 	.val_bits   = 32,
 	.reg_stride = 4,
