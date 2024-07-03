@@ -303,6 +303,10 @@ static void iwl_txq_gen1_tfd_unmap(struct iwl_trans *trans,
 		return;
 	}
 
+	/* TB1 is mapped directly, the rest is the TSO page and SG list. */
+	if (meta->sg_offset)
+		num_tbs = 2;
+
 	/* first TB is never freed - it's the bidirectional DMA data */
 
 	for (i = 1; i < num_tbs; i++) {
@@ -1892,6 +1896,7 @@ static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 	unsigned int snap_ip_tcp_hdrlen, ip_hdrlen, total_len, hdr_room;
 	unsigned int mss = skb_shinfo(skb)->gso_size;
 	u16 length, iv_len, amsdu_pad;
+	dma_addr_t start_hdr_phys;
 	u8 *start_hdr, *pos_hdr;
 	struct sg_table *sgt;
 	struct tso_t tso;
@@ -1920,6 +1925,7 @@ static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 	if (!sgt)
 		return -ENOMEM;
 
+	start_hdr_phys = iwl_pcie_get_tso_page_phys(start_hdr);
 	pos_hdr = start_hdr;
 	memcpy(pos_hdr, skb->data + hdr_len, iv_len);
 	pos_hdr += iv_len;
@@ -1971,10 +1977,8 @@ static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 		pos_hdr += snap_ip_tcp_hdrlen;
 
 		hdr_tb_len = pos_hdr - start_hdr;
-		hdr_tb_phys = dma_map_single(trans->dev, start_hdr,
-					     hdr_tb_len, DMA_TO_DEVICE);
-		if (unlikely(dma_mapping_error(trans->dev, hdr_tb_phys)))
-			return -EINVAL;
+		hdr_tb_phys = iwl_pcie_get_tso_page_phys(start_hdr);
+
 		iwl_pcie_txq_build_tfd(trans, txq, hdr_tb_phys,
 				       hdr_tb_len, false);
 		trace_iwlwifi_dev_tx_tb(trans->dev, skb, start_hdr,
@@ -1991,9 +1995,9 @@ static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 						  data_left);
 			dma_addr_t tb_phys;
 
-			tb_phys = dma_map_single(trans->dev, tso.data,
-						 size, DMA_TO_DEVICE);
-			if (unlikely(dma_mapping_error(trans->dev, tb_phys)))
+			tb_phys = iwl_pcie_get_sgt_tb_phys(sgt, tso.data);
+			/* Not a real mapping error, use direct comparison */
+			if (unlikely(tb_phys == DMA_MAPPING_ERROR))
 				return -EINVAL;
 
 			iwl_pcie_txq_build_tfd(trans, txq, tb_phys,
@@ -2005,6 +2009,9 @@ static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 			tso_build_data(skb, &tso, size);
 		}
 	}
+
+	dma_sync_single_for_device(trans->dev, start_hdr_phys, hdr_room,
+				   DMA_TO_DEVICE);
 
 	/* re -add the WiFi header and IV */
 	skb_push(skb, hdr_len + iv_len);
