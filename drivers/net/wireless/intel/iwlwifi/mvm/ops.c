@@ -153,7 +153,7 @@ static void iwl_mvm_rx_esr_mode_notif(struct iwl_mvm *mvm,
 	struct ieee80211_vif *vif = iwl_mvm_get_bss_vif(mvm);
 
 	/* FW recommendations is only for entering EMLSR */
-	if (!vif || iwl_mvm_vif_from_mac80211(vif)->esr_active)
+	if (IS_ERR_OR_NULL(vif) || iwl_mvm_vif_from_mac80211(vif)->esr_active)
 		return;
 
 	if (le32_to_cpu(notif->action) == ESR_RECOMMEND_ENTER)

@@ -966,7 +966,7 @@ static void iwl_mvm_update_esr_mode_tpt(struct iwl_mvm *mvm)
 
 	lockdep_assert_held(&mvm->mutex);
 
-	if (!bss_vif)
+	if (IS_ERR_OR_NULL(bss_vif))
 		return;
 
 	mvmvif = iwl_mvm_vif_from_mac80211(bss_vif);
