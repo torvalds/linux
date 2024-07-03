@@ -624,10 +624,8 @@ static int amd_sdw_hw_params(struct snd_pcm_substream *substream,
 
 	/* Port configuration */
 	pconfig = kzalloc(sizeof(*pconfig), GFP_KERNEL);
-	if (!pconfig) {
-		ret =  -ENOMEM;
-		goto error;
-	}
+	if (!pconfig)
+		return -ENOMEM;
 
 	pconfig->num = dai->id;
 	pconfig->ch_mask = (1 << ch) - 1;
@@ -637,7 +635,7 @@ static int amd_sdw_hw_params(struct snd_pcm_substream *substream,
 		dev_err(amd_manager->dev, "add manager to stream failed:%d\n", ret);
 
 	kfree(pconfig);
-error:
+
 	return ret;
 }
 
