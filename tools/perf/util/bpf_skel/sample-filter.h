@@ -14,6 +14,7 @@ enum perf_bpf_filter_op {
 	PBF_OP_AND,
 	PBF_OP_GROUP_BEGIN,
 	PBF_OP_GROUP_END,
+	PBF_OP_DONE,
 };
 
 enum perf_bpf_filter_term {

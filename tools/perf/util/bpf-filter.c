@@ -93,71 +93,102 @@ static int check_sample_flags(struct evsel *evsel, struct perf_bpf_filter_expr *
 
 int perf_bpf_filter__prepare(struct evsel *evsel)
 {
-	int i, x, y, fd;
+	int i, x, y, fd, ret;
 	struct sample_filter_bpf *skel;
 	struct bpf_program *prog;
 	struct bpf_link *link;
 	struct perf_bpf_filter_expr *expr;
+	struct perf_bpf_filter_entry *entry;
+
+	entry = calloc(MAX_FILTERS, sizeof(*entry));
+	if (entry == NULL)
+		return -1;
 
 	skel = sample_filter_bpf__open_and_load();
 	if (!skel) {
 		pr_err("Failed to load perf sample-filter BPF skeleton\n");
-		return -1;
+		ret = -EPERM;
+		goto err;
 	}
 
 	i = 0;
 	fd = bpf_map__fd(skel->maps.filters);
 	list_for_each_entry(expr, &evsel->bpf_filters, list) {
-		struct perf_bpf_filter_entry entry = {
-			.op = expr->op,
-			.part = expr->part,
-			.term = expr->term,
-			.value = expr->val,
-		};
+		if (check_sample_flags(evsel, expr) < 0) {
+			ret = -EINVAL;
+			goto err;
+		}
 
-		if (check_sample_flags(evsel, expr) < 0)
-			return -1;
+		if (i == MAX_FILTERS) {
+			ret = -E2BIG;
+			goto err;
+		}
 
-		bpf_map_update_elem(fd, &i, &entry, BPF_ANY);
+		entry[i].op = expr->op;
+		entry[i].part = expr->part;
+		entry[i].term = expr->term;
+		entry[i].value = expr->val;
 		i++;
 
 		if (expr->op == PBF_OP_GROUP_BEGIN) {
 			struct perf_bpf_filter_expr *group;
 
 			list_for_each_entry(group, &expr->groups, list) {
-				struct perf_bpf_filter_entry group_entry = {
-					.op = group->op,
-					.part = group->part,
-					.term = group->term,
-					.value = group->val,
-				};
-				bpf_map_update_elem(fd, &i, &group_entry, BPF_ANY);
+				if (i == MAX_FILTERS) {
+					ret = -E2BIG;
+					goto err;
+				}
+
+				entry[i].op = group->op;
+				entry[i].part = group->part;
+				entry[i].term = group->term;
+				entry[i].value = group->val;
 				i++;
 			}
 
-			memset(&entry, 0, sizeof(entry));
-			entry.op = PBF_OP_GROUP_END;
-			bpf_map_update_elem(fd, &i, &entry, BPF_ANY);
+			if (i == MAX_FILTERS) {
+				ret = -E2BIG;
+				goto err;
+			}
+
+			entry[i].op = PBF_OP_GROUP_END;
 			i++;
 		}
 	}
 
-	if (i > MAX_FILTERS) {
-		pr_err("Too many filters: %d (max = %d)\n", i, MAX_FILTERS);
-		return -1;
+	if (i < MAX_FILTERS) {
+		/* to terminate the loop early */
+		entry[i].op = PBF_OP_DONE;
+		i++;
 	}
+
+	/* The filters map has only one entry for now */
+	i = 0;
+	if (bpf_map_update_elem(fd, &i, entry, BPF_ANY) < 0) {
+		ret = -errno;
+		pr_err("Failed to update the filter map\n");
+		goto err;
+	}
+
 	prog = skel->progs.perf_sample_filter;
 	for (x = 0; x < xyarray__max_x(evsel->core.fd); x++) {
 		for (y = 0; y < xyarray__max_y(evsel->core.fd); y++) {
 			link = bpf_program__attach_perf_event(prog, FD(evsel, x, y));
 			if (IS_ERR(link)) {
 				pr_err("Failed to attach perf sample-filter program\n");
-				return PTR_ERR(link);
+				ret = PTR_ERR(link);
+				goto err;
 			}
 		}
 	}
+	free(entry);
 	evsel->bpf_skel = skel;
 	return 0;
+
+err:
+	free(entry);
+	sample_filter_bpf__destroy(skel);
+	return ret;
 }
 
 int perf_bpf_filter__destroy(struct evsel *evsel)

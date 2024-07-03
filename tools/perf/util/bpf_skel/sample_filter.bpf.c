@@ -9,10 +9,10 @@
 
 /* BPF map that will be filled by user space */
 struct filters {
-	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(type, BPF_MAP_TYPE_HASH);
 	__type(key, int);
-	__type(value, struct perf_bpf_filter_entry);
-	__uint(max_entries, MAX_FILTERS);
+	__type(value, struct perf_bpf_filter_entry[MAX_FILTERS]);
+	__uint(max_entries, 1);
 } filters SEC(".maps");
 
 int dropped;
@@ -179,39 +179,39 @@ int perf_sample_filter(void *ctx)
 	__u64 sample_data;
 	int in_group = 0;
 	int group_result = 0;
-	int i;
+	int i, k;
 
 	kctx = bpf_cast_to_kern_ctx(ctx);
 
+	k = 0;
+	entry = bpf_map_lookup_elem(&filters, &k);
+	if (entry == NULL)
+		goto drop;
+
 	for (i = 0; i < MAX_FILTERS; i++) {
-		int key = i; /* needed for verifier :( */
+		sample_data = perf_get_sample(kctx, &entry[i]);
 
-		entry = bpf_map_lookup_elem(&filters, &key);
-		if (entry == NULL)
-			break;
-		sample_data = perf_get_sample(kctx, entry);
-
-		switch (entry->op) {
+		switch (entry[i].op) {
 		case PBF_OP_EQ:
-			CHECK_RESULT(sample_data, ==, entry->value)
+			CHECK_RESULT(sample_data, ==, entry[i].value)
 			break;
 		case PBF_OP_NEQ:
-			CHECK_RESULT(sample_data, !=, entry->value)
+			CHECK_RESULT(sample_data, !=, entry[i].value)
 			break;
 		case PBF_OP_GT:
-			CHECK_RESULT(sample_data, >, entry->value)
+			CHECK_RESULT(sample_data, >, entry[i].value)
 			break;
 		case PBF_OP_GE:
-			CHECK_RESULT(sample_data, >=, entry->value)
+			CHECK_RESULT(sample_data, >=, entry[i].value)
 			break;
 		case PBF_OP_LT:
-			CHECK_RESULT(sample_data, <, entry->value)
+			CHECK_RESULT(sample_data, <, entry[i].value)
 			break;
 		case PBF_OP_LE:
-			CHECK_RESULT(sample_data, <=, entry->value)
+			CHECK_RESULT(sample_data, <=, entry[i].value)
 			break;
 		case PBF_OP_AND:
-			CHECK_RESULT(sample_data, &, entry->value)
+			CHECK_RESULT(sample_data, &, entry[i].value)
 			break;
 		case PBF_OP_GROUP_BEGIN:
 			in_group = 1;
@@ -222,6 +222,9 @@ int perf_sample_filter(void *ctx)
 				goto drop;
 			in_group = 0;
 			break;
+		case PBF_OP_DONE:
+			/* no failures so far, accept it */
+			return 1;
 		}
 	}
 	/* generate sample data */
