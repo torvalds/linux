@@ -6646,7 +6646,9 @@ int msm_pcie_enumerate(u32 rc_idx)
 	pci_host_probe(bridge);
 
 	dev->enumerated = true;
-	schedule_work(&pcie_drv.drv_connect);
+
+	if (dev->drv_supported)
+		schedule_work(&pcie_drv.drv_connect);
 
 	msm_pcie_write_mask(dev->dm_core +
 		PCIE20_COMMAND_STATUS, 0, BIT(2)|BIT(1));
@@ -8809,11 +8811,13 @@ static int msm_pcie_probe(struct platform_device *pdev)
 			goto decrease_rc_num;
 
 	} else {
-		ret = register_rpmsg_driver(&msm_pcie_drv_rpmsg_driver);
-		if (ret && ret != -EBUSY)
-			PCIE_ERR(pcie_dev,
-				"PCIe %d: DRV: rpmsg register fail: ret: %d\n",
-							pcie_dev->rc_idx, ret);
+		if (pcie_dev->drv_name || pcie_dev->drv_supported) {
+			ret = register_rpmsg_driver(&msm_pcie_drv_rpmsg_driver);
+			if (ret && ret != -EBUSY)
+				PCIE_ERR(pcie_dev,
+					"PCIe %d: DRV: rpmsg register fail: ret: %d\n",
+								pcie_dev->rc_idx, ret);
+		}
 	}
 
 	msm_pcie_get_pinctrl(pcie_dev, pdev);
