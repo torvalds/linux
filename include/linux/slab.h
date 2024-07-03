@@ -604,7 +604,8 @@ void *__kmalloc_large_node_noprof(size_t size, gfp_t flags, int node)
  *
  * The allocated object address is aligned to at least ARCH_KMALLOC_MINALIGN
  * bytes. For @size of power of two bytes, the alignment is also guaranteed
- * to be at least to the size.
+ * to be at least to the size. For other sizes, the alignment is guaranteed to
+ * be at least the largest power-of-two divisor of @size.
  *
  * The @flags argument may be one of the GFP flags defined at
  * include/linux/gfp_types.h and described at

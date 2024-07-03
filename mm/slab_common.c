@@ -617,11 +617,12 @@ void __init create_boot_cache(struct kmem_cache *s, const char *name,
 	s->size = s->object_size = size;
 
 	/*
-	 * For power of two sizes, guarantee natural alignment for kmalloc
-	 * caches, regardless of SL*B debugging options.
+	 * kmalloc caches guarantee alignment of at least the largest
+	 * power-of-two divisor of the size. For power-of-two sizes,
+	 * it is the size itself.
 	 */
-	if (is_power_of_2(size))
-		align = max(align, size);
+	if (flags & SLAB_KMALLOC)
+		align = max(align, 1U << (ffs(size) - 1));
 	s->align = calculate_alignment(flags, align, size);
 
 #ifdef CONFIG_HARDENED_USERCOPY
