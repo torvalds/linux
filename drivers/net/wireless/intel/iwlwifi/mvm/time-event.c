@@ -1057,11 +1057,20 @@ void iwl_mvm_roc_duration_and_delay(struct ieee80211_vif *vif,
 				    u32 *duration_tu,
 				    u32 *delay)
 {
-	u32 dtim_interval = vif->bss_conf.dtim_period *
-		vif->bss_conf.beacon_int;
+	struct ieee80211_bss_conf *link_conf;
+	unsigned int link_id;
+	u32 dtim_interval = 0;
 
 	*delay = AUX_ROC_MIN_DELAY;
 	*duration_tu = MSEC_TO_TU(duration_ms);
+
+	rcu_read_lock();
+	for_each_vif_active_link(vif, link_conf, link_id) {
+		dtim_interval =
+			max_t(u32, dtim_interval,
+			      link_conf->dtim_period * link_conf->beacon_int);
+	}
+	rcu_read_unlock();
 
 	/*
 	 * If we are associated we want the delay time to be at least one
@@ -1071,8 +1080,10 @@ void iwl_mvm_roc_duration_and_delay(struct ieee80211_vif *vif,
 	 * Since we want to use almost a whole dtim interval we would also
 	 * like the delay to be for 2-3 dtim intervals, in case there are
 	 * other time events with higher priority.
+	 * dtim_interval should never be 0, it can be 1 if we don't know it
+	 * (we haven't heard any beacon yet).
 	 */
-	if (vif->cfg.assoc) {
+	if (vif->cfg.assoc && !WARN_ON(!dtim_interval)) {
 		*delay = min_t(u32, dtim_interval * 3, AUX_ROC_MAX_DELAY);
 		/* We cannot remain off-channel longer than the DTIM interval */
 		if (dtim_interval <= *duration_tu) {
