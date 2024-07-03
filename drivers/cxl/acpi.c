@@ -74,6 +74,43 @@ static struct cxl_dport *cxl_hb_xor(struct cxl_root_decoder *cxlrd, int pos)
 	return cxlrd->cxlsd.target[n];
 }
 
+static u64 cxl_xor_hpa_to_spa(struct cxl_root_decoder *cxlrd, u64 hpa)
+{
+	struct cxl_cxims_data *cximsd = cxlrd->platform_data;
+	int hbiw = cxlrd->cxlsd.nr_targets;
+	u64 val;
+	int pos;
+
+	/* No xormaps for host bridge interleave ways of 1 or 3 */
+	if (hbiw == 1 || hbiw == 3)
+		return hpa;
+
+	/*
+	 * For root decoders using xormaps (hbiw: 2,4,6,8,12,16) restore
+	 * the position bit to its value before the xormap was applied at
+	 * HPA->DPA translation.
+	 *
+	 * pos is the lowest set bit in an XORMAP
+	 * val is the XORALLBITS(HPA & XORMAP)
+	 *
+	 * XORALLBITS: The CXL spec (3.1 Table 9-22) defines XORALLBITS
+	 * as an operation that outputs a single bit by XORing all the
+	 * bits in the input (hpa & xormap). Implement XORALLBITS using
+	 * hweight64(). If the hamming weight is even the XOR of those
+	 * bits results in val==0, if odd the XOR result is val==1.
+	 */
+
+	for (int i = 0; i < cximsd->nr_maps; i++) {
+		if (!cximsd->xormaps[i])
+			continue;
+		pos = __ffs(cximsd->xormaps[i]);
+		val = (hweight64(hpa & cximsd->xormaps[i]) & 1);
+		hpa = (hpa & ~(1ULL << pos)) | (val << pos);
+	}
+
+	return hpa;
+}
+
 struct cxl_cxims_context {
 	struct device *dev;
 	struct cxl_root_decoder *cxlrd;
@@ -433,6 +470,9 @@ static int __cxl_parse_cfmws(struct acpi_cedt_cfmws *cfmws,
 	}
 
 	cxlrd->qos_class = cfmws->qtg_id;
+
+	if (cfmws->interleave_arithmetic == ACPI_CEDT_CFMWS_ARITHMETIC_XOR)
+		cxlrd->hpa_to_spa = cxl_xor_hpa_to_spa;
 
 	rc = cxl_decoder_add(cxld, target_map);
 	if (rc)
