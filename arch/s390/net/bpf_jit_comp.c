@@ -31,6 +31,7 @@
 #include <asm/nospec-branch.h>
 #include <asm/set_memory.h>
 #include <asm/text-patching.h>
+#include <asm/unwind.h>
 #include "bpf_jit.h"
 
 struct bpf_jit {
@@ -61,6 +62,8 @@ struct bpf_jit {
 #define SEEN_LITERAL	BIT(1)		/* code uses literals */
 #define SEEN_FUNC	BIT(2)		/* calls C functions */
 #define SEEN_STACK	(SEEN_FUNC | SEEN_MEM)
+
+#define NVREGS		0xffc0		/* %r6-%r15 */
 
 /*
  * s390 registers
@@ -572,8 +575,21 @@ static void bpf_jit_prologue(struct bpf_jit *jit, struct bpf_prog *fp,
 	}
 	/* Tail calls have to skip above initialization */
 	jit->tail_call_start = jit->prg;
-	/* Save registers */
-	save_restore_regs(jit, REGS_SAVE, stack_depth, 0);
+	if (fp->aux->exception_cb) {
+		/*
+		 * Switch stack, the new address is in the 2nd parameter.
+		 *
+		 * Arrange the restoration of %r6-%r15 in the epilogue.
+		 * Do not restore them now, the prog does not need them.
+		 */
+		/* lgr %r15,%r3 */
+		EMIT4(0xb9040000, REG_15, REG_3);
+		jit->seen_regs |= NVREGS;
+	} else {
+		/* Save registers */
+		save_restore_regs(jit, REGS_SAVE, stack_depth,
+				  fp->aux->exception_boundary ? NVREGS : 0);
+	}
 	/* Setup literal pool */
 	if (is_first_pass(jit) || (jit->seen & SEEN_LITERAL)) {
 		if (!is_first_pass(jit) &&
@@ -2908,4 +2924,39 @@ bool bpf_jit_supports_insn(struct bpf_insn *insn, bool in_arena)
 	 * atomic stores to arena are supported, and they all are.
 	 */
 	return true;
+}
+
+bool bpf_jit_supports_exceptions(void)
+{
+	/*
+	 * Exceptions require unwinding support, which is always available,
+	 * because the kernel is always built with backchain.
+	 */
+	return true;
+}
+
+void arch_bpf_stack_walk(bool (*consume_fn)(void *, u64, u64, u64),
+			 void *cookie)
+{
+	unsigned long addr, prev_addr = 0;
+	struct unwind_state state;
+
+	unwind_for_each_frame(&state, NULL, NULL, 0) {
+		addr = unwind_get_return_address(&state);
+		if (!addr)
+			break;
+		/*
+		 * addr is a return address and state.sp is the value of %r15
+		 * at this address. exception_cb needs %r15 at entry to the
+		 * function containing addr, so take the next state.sp.
+		 *
+		 * There is no bp, and the exception_cb prog does not need one
+		 * to perform a quasi-longjmp. The common code requires a
+		 * non-zero bp, so pass sp there as well.
+		 */
+		if (prev_addr && !consume_fn(cookie, prev_addr, state.sp,
+					     state.sp))
+			break;
+		prev_addr = addr;
+	}
 }
