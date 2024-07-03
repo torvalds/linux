@@ -1941,7 +1941,7 @@ slot_handler_func(void *v)
 
 	DEBUG_INITIALISE(local);
 
-	while (1) {
+	while (!kthread_should_stop()) {
 		DEBUG_COUNT(SLOT_HANDLER_COUNT);
 		DEBUG_TRACE(SLOT_HANDLER_LINE);
 		ret = remote_event_wait(&state->trigger_event, &local->trigger);
@@ -1986,7 +1986,7 @@ recycle_func(void *v)
 	if (!found)
 		return -ENOMEM;
 
-	while (1) {
+	while (!kthread_should_stop()) {
 		ret = remote_event_wait(&state->recycle_event, &local->recycle);
 		if (ret)
 			return ret;
@@ -2008,7 +2008,7 @@ sync_func(void *v)
 	int svc_fourcc;
 	int ret;
 
-	while (1) {
+	while (!kthread_should_stop()) {
 		struct vchiq_service *service;
 		int msgid, size;
 		int type;

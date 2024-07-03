@@ -16,13 +16,6 @@ some of the ones we want:
   to manage these buffers as dmabufs so that we can zero-copy import
   camera images into vc4 for rendering/display.
 
-* Fix kernel module support
-
-Even the VPU firmware doesn't support a VCHI re-connect, the driver
-should properly handle a module unload. This also includes that all
-resources must be freed (kthreads, debugfs entries, ...) and global
-variables avoided.
-
 * Documentation
 
 A short top-down description of this driver's architecture (function of
