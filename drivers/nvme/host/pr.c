@@ -77,7 +77,7 @@ static int nvme_sc_to_pr_err(int nvme_sc)
 	if (nvme_is_path_error(nvme_sc))
 		return PR_STS_PATH_FAILED;
 
-	switch (nvme_sc) {
+	switch (nvme_sc & 0x7ff) {
 	case NVME_SC_SUCCESS:
 		return PR_STS_SUCCESS;
 	case NVME_SC_RESERVATION_CONFLICT:

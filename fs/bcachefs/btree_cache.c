@@ -91,10 +91,11 @@ static int bch2_btree_cache_cmp_fn(struct rhashtable_compare_arg *arg,
 }
 
 static const struct rhashtable_params bch_btree_cache_params = {
-	.head_offset	= offsetof(struct btree, hash),
-	.key_offset	= offsetof(struct btree, hash_val),
-	.key_len	= sizeof(u64),
-	.obj_cmpfn	= bch2_btree_cache_cmp_fn,
+	.head_offset		= offsetof(struct btree, hash),
+	.key_offset		= offsetof(struct btree, hash_val),
+	.key_len		= sizeof(u64),
+	.obj_cmpfn		= bch2_btree_cache_cmp_fn,
+	.automatic_shrinking	= true,
 };
 
 static int btree_node_data_alloc(struct bch_fs *c, struct btree *b, gfp_t gfp)

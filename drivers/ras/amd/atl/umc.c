@@ -68,6 +68,8 @@ struct xor_bits {
 };
 
 #define NUM_BANK_BITS	4
+#define NUM_COL_BITS	5
+#define NUM_SID_BITS	2
 
 static struct {
 	/* UMC::CH::AddrHashBank */
@@ -80,7 +82,22 @@ static struct {
 	u8		bank_xor;
 } addr_hash;
 
+static struct {
+	u8 bank[NUM_BANK_BITS];
+	u8 col[NUM_COL_BITS];
+	u8 sid[NUM_SID_BITS];
+	u8 num_row_lo;
+	u8 num_row_hi;
+	u8 row_lo;
+	u8 row_hi;
+	u8 pc;
+} bit_shifts;
+
 #define MI300_UMC_CH_BASE	0x90000
+#define MI300_ADDR_CFG		(MI300_UMC_CH_BASE + 0x30)
+#define MI300_ADDR_SEL		(MI300_UMC_CH_BASE + 0x40)
+#define MI300_COL_SEL_LO	(MI300_UMC_CH_BASE + 0x50)
+#define MI300_ADDR_SEL_2	(MI300_UMC_CH_BASE + 0xA4)
 #define MI300_ADDR_HASH_BANK0	(MI300_UMC_CH_BASE + 0xC8)
 #define MI300_ADDR_HASH_PC	(MI300_UMC_CH_BASE + 0xE0)
 #define MI300_ADDR_HASH_PC2	(MI300_UMC_CH_BASE + 0xE4)
@@ -90,17 +107,42 @@ static struct {
 #define ADDR_HASH_ROW_XOR	GENMASK(31, 14)
 #define ADDR_HASH_BANK_XOR	GENMASK(5, 0)
 
+#define ADDR_CFG_NUM_ROW_LO	GENMASK(11, 8)
+#define ADDR_CFG_NUM_ROW_HI	GENMASK(15, 12)
+
+#define ADDR_SEL_BANK0		GENMASK(3, 0)
+#define ADDR_SEL_BANK1		GENMASK(7, 4)
+#define ADDR_SEL_BANK2		GENMASK(11, 8)
+#define ADDR_SEL_BANK3		GENMASK(15, 12)
+#define ADDR_SEL_BANK4		GENMASK(20, 16)
+#define ADDR_SEL_ROW_LO		GENMASK(27, 24)
+#define ADDR_SEL_ROW_HI		GENMASK(31, 28)
+
+#define COL_SEL_LO_COL0		GENMASK(3, 0)
+#define COL_SEL_LO_COL1		GENMASK(7, 4)
+#define COL_SEL_LO_COL2		GENMASK(11, 8)
+#define COL_SEL_LO_COL3		GENMASK(15, 12)
+#define COL_SEL_LO_COL4		GENMASK(19, 16)
+
+#define ADDR_SEL_2_BANK5	GENMASK(4, 0)
+#define ADDR_SEL_2_CHAN		GENMASK(15, 12)
+
 /*
  * Read UMC::CH::AddrHash{Bank,PC,PC2} registers to get XOR bits used
- * for hashing. Do this during module init, since the values will not
- * change during run time.
+ * for hashing.
+ *
+ * Also, read UMC::CH::Addr{Cfg,Sel,Sel2} and UMC::CH:ColSelLo registers to
+ * get the values needed to reconstruct the normalized address. Apply additional
+ * offsets to the raw register values, as needed.
+ *
+ * Do this during module init, since the values will not change during run time.
  *
  * These registers are instantiated for each UMC across each AMD Node.
  * However, they should be identically programmed due to the fixed hardware
  * design of MI300 systems. So read the values from Node 0 UMC 0 and keep a
  * single global structure for simplicity.
  */
-int get_addr_hash_mi300(void)
+int get_umc_info_mi300(void)
 {
 	u32 temp;
 	int ret;
@@ -130,6 +172,44 @@ int get_addr_hash_mi300(void)
 
 	addr_hash.bank_xor = FIELD_GET(ADDR_HASH_BANK_XOR, temp);
 
+	ret = amd_smn_read(0, MI300_ADDR_CFG, &temp);
+	if (ret)
+		return ret;
+
+	bit_shifts.num_row_hi = FIELD_GET(ADDR_CFG_NUM_ROW_HI, temp);
+	bit_shifts.num_row_lo = 10 + FIELD_GET(ADDR_CFG_NUM_ROW_LO, temp);
+
+	ret = amd_smn_read(0, MI300_ADDR_SEL, &temp);
+	if (ret)
+		return ret;
+
+	bit_shifts.bank[0] = 5 + FIELD_GET(ADDR_SEL_BANK0, temp);
+	bit_shifts.bank[1] = 5 + FIELD_GET(ADDR_SEL_BANK1, temp);
+	bit_shifts.bank[2] = 5 + FIELD_GET(ADDR_SEL_BANK2, temp);
+	bit_shifts.bank[3] = 5 + FIELD_GET(ADDR_SEL_BANK3, temp);
+	/* Use BankBit4 for the SID0 position. */
+	bit_shifts.sid[0]  = 5 + FIELD_GET(ADDR_SEL_BANK4, temp);
+	bit_shifts.row_lo  = 12 + FIELD_GET(ADDR_SEL_ROW_LO, temp);
+	bit_shifts.row_hi  = 24 + FIELD_GET(ADDR_SEL_ROW_HI, temp);
+
+	ret = amd_smn_read(0, MI300_COL_SEL_LO, &temp);
+	if (ret)
+		return ret;
+
+	bit_shifts.col[0] = 2 + FIELD_GET(COL_SEL_LO_COL0, temp);
+	bit_shifts.col[1] = 2 + FIELD_GET(COL_SEL_LO_COL1, temp);
+	bit_shifts.col[2] = 2 + FIELD_GET(COL_SEL_LO_COL2, temp);
+	bit_shifts.col[3] = 2 + FIELD_GET(COL_SEL_LO_COL3, temp);
+	bit_shifts.col[4] = 2 + FIELD_GET(COL_SEL_LO_COL4, temp);
+
+	ret = amd_smn_read(0, MI300_ADDR_SEL_2, &temp);
+	if (ret)
+		return ret;
+
+	/* Use BankBit5 for the SID1 position. */
+	bit_shifts.sid[1] = 5 + FIELD_GET(ADDR_SEL_2_BANK5, temp);
+	bit_shifts.pc	  = 5 + FIELD_GET(ADDR_SEL_2_CHAN, temp);
+
 	return 0;
 }
 
@@ -146,9 +226,6 @@ int get_addr_hash_mi300(void)
  * The MCA address format is as follows:
  *	MCA_ADDR[27:0] = {S[1:0], P[0], R[14:0], B[3:0], C[4:0], Z[0]}
  *
- * The normalized address format is fixed in hardware and is as follows:
- *	NA[30:0] = {S[1:0], R[13:0], C4, B[1:0], B[3:2], C[3:2], P, C[1:0], Z[4:0]}
- *
  * Additionally, the PC and Bank bits may be hashed. This must be accounted for before
  * reconstructing the normalized address.
  */
@@ -158,18 +235,10 @@ int get_addr_hash_mi300(void)
 #define MI300_UMC_MCA_PC	BIT(25)
 #define MI300_UMC_MCA_SID	GENMASK(27, 26)
 
-#define MI300_NA_COL_1_0	GENMASK(6, 5)
-#define MI300_NA_PC		BIT(7)
-#define MI300_NA_COL_3_2	GENMASK(9, 8)
-#define MI300_NA_BANK_3_2	GENMASK(11, 10)
-#define MI300_NA_BANK_1_0	GENMASK(13, 12)
-#define MI300_NA_COL_4		BIT(14)
-#define MI300_NA_ROW		GENMASK(28, 15)
-#define MI300_NA_SID		GENMASK(30, 29)
-
 static unsigned long convert_dram_to_norm_addr_mi300(unsigned long addr)
 {
-	u16 i, col, row, bank, pc, sid, temp;
+	u16 i, col, row, bank, pc, sid;
+	u32 temp;
 
 	col  = FIELD_GET(MI300_UMC_MCA_COL,  addr);
 	bank = FIELD_GET(MI300_UMC_MCA_BANK, addr);
@@ -189,49 +258,48 @@ static unsigned long convert_dram_to_norm_addr_mi300(unsigned long addr)
 
 	/* Calculate hash for PC bit. */
 	if (addr_hash.pc.xor_enable) {
-		/* Bits SID[1:0] act as Bank[6:5] for PC hash, so apply them here. */
-		bank |= sid << 5;
-
 		temp  = bitwise_xor_bits(col  & addr_hash.pc.col_xor);
 		temp ^= bitwise_xor_bits(row  & addr_hash.pc.row_xor);
-		temp ^= bitwise_xor_bits(bank & addr_hash.bank_xor);
+		/* Bits SID[1:0] act as Bank[5:4] for PC hash, so apply them here. */
+		temp ^= bitwise_xor_bits((bank | sid << NUM_BANK_BITS) & addr_hash.bank_xor);
 		pc   ^= temp;
-
-		/* Drop SID bits for the sake of debug printing later. */
-		bank &= 0x1F;
 	}
 
 	/* Reconstruct the normalized address starting with NA[4:0] = 0 */
 	addr  = 0;
 
-	/* NA[6:5] = Column[1:0] */
-	temp  = col & 0x3;
-	addr |= FIELD_PREP(MI300_NA_COL_1_0, temp);
+	/* Column bits */
+	for (i = 0; i < NUM_COL_BITS; i++) {
+		temp  = (col >> i) & 0x1;
+		addr |= temp << bit_shifts.col[i];
+	}
 
-	/* NA[7] = PC */
-	addr |= FIELD_PREP(MI300_NA_PC, pc);
+	/* Bank bits */
+	for (i = 0; i < NUM_BANK_BITS; i++) {
+		temp  = (bank >> i) & 0x1;
+		addr |= temp << bit_shifts.bank[i];
+	}
 
-	/* NA[9:8] = Column[3:2] */
-	temp  = (col >> 2) & 0x3;
-	addr |= FIELD_PREP(MI300_NA_COL_3_2, temp);
+	/* Row lo bits */
+	for (i = 0; i < bit_shifts.num_row_lo; i++) {
+		temp  = (row >> i) & 0x1;
+		addr |= temp << (i + bit_shifts.row_lo);
+	}
 
-	/* NA[11:10] = Bank[3:2] */
-	temp  = (bank >> 2) & 0x3;
-	addr |= FIELD_PREP(MI300_NA_BANK_3_2, temp);
+	/* Row hi bits */
+	for (i = 0; i < bit_shifts.num_row_hi; i++) {
+		temp  = (row >> (i + bit_shifts.num_row_lo)) & 0x1;
+		addr |= temp << (i + bit_shifts.row_hi);
+	}
 
-	/* NA[13:12] = Bank[1:0] */
-	temp  = bank & 0x3;
-	addr |= FIELD_PREP(MI300_NA_BANK_1_0, temp);
+	/* PC bit */
+	addr |= pc << bit_shifts.pc;
 
-	/* NA[14] = Column[4] */
-	temp  = (col >> 4) & 0x1;
-	addr |= FIELD_PREP(MI300_NA_COL_4, temp);
-
-	/* NA[28:15] = Row[13:0] */
-	addr |= FIELD_PREP(MI300_NA_ROW, row);
-
-	/* NA[30:29] = SID[1:0] */
-	addr |= FIELD_PREP(MI300_NA_SID, sid);
+	/* SID bits */
+	for (i = 0; i < NUM_SID_BITS; i++) {
+		temp  = (sid >> i) & 0x1;
+		addr |= temp << bit_shifts.sid[i];
+	}
 
 	pr_debug("Addr=0x%016lx", addr);
 	pr_debug("Bank=%u Row=%u Column=%u PC=%u SID=%u", bank, row, col, pc, sid);

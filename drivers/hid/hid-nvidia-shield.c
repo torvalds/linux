@@ -283,7 +283,9 @@ static struct input_dev *shield_haptics_create(
 		return haptics;
 
 	input_set_capability(haptics, EV_FF, FF_RUMBLE);
-	input_ff_create_memless(haptics, NULL, play_effect);
+	ret = input_ff_create_memless(haptics, NULL, play_effect);
+	if (ret)
+		goto err;
 
 	ret = input_register_device(haptics);
 	if (ret)

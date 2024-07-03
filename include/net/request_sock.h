@@ -285,4 +285,16 @@ static inline int reqsk_queue_len_young(const struct request_sock_queue *queue)
 	return atomic_read(&queue->young);
 }
 
+/* RFC 7323 2.3 Using the Window Scale Option
+ *  The window field (SEG.WND) of every outgoing segment, with the
+ *  exception of <SYN> segments, MUST be right-shifted by
+ *  Rcv.Wind.Shift bits.
+ *
+ * This means the SEG.WND carried in SYNACK can not exceed 65535.
+ * We use this property to harden TCP stack while in NEW_SYN_RECV state.
+ */
+static inline u32 tcp_synack_window(const struct request_sock *req)
+{
+	return min(req->rsk_rcv_wnd, 65535U);
+}
 #endif /* _REQUEST_SOCK_H */

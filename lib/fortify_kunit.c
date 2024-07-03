@@ -236,9 +236,6 @@ static void fortify_test_alloc_size_##allocator##_dynamic(struct kunit *test) \
 		kfree(p));						\
 	checker(expected_size, __kmalloc(alloc_size, gfp),		\
 		kfree(p));						\
-	checker(expected_size,						\
-		__kmalloc_node(alloc_size, gfp, NUMA_NO_NODE),		\
-		kfree(p));						\
 									\
 	orig = kmalloc(alloc_size, gfp);				\
 	KUNIT_EXPECT_TRUE(test, orig != NULL);				\
@@ -377,7 +374,7 @@ static const char * const test_strs[] = {
 	for (i = 0; i < ARRAY_SIZE(test_strs); i++) {			\
 		len = strlen(test_strs[i]);				\
 		KUNIT_EXPECT_EQ(test, __builtin_constant_p(len), 0);	\
-		checker(len, kmemdup_array(test_strs[i], len, 1, gfp),	\
+		checker(len, kmemdup_array(test_strs[i], 1, len, gfp),	\
 			kfree(p));					\
 		checker(len, kmemdup(test_strs[i], len, gfp),		\
 			kfree(p));					\

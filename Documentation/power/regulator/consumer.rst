@@ -227,3 +227,9 @@ directly written to the voltage selector register, use::
 
 	int regulator_list_hardware_vsel(struct regulator *regulator,
 					 unsigned selector);
+
+To access the hardware for enabling/disabling the regulator, consumers must
+use regulator_get_exclusive(), as it can't work if there's more than one
+consumer. To enable/disable regulator use::
+
+	int regulator_hardware_enable(struct regulator *regulator, bool enable);

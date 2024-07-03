@@ -564,7 +564,7 @@ static void __bch2_fs_free(struct bch_fs *c)
 	BUG_ON(atomic_read(&c->journal_keys.ref));
 	bch2_fs_btree_write_buffer_exit(c);
 	percpu_free_rwsem(&c->mark_lock);
-	EBUG_ON(percpu_u64_get(c->online_reserved));
+	EBUG_ON(c->online_reserved && percpu_u64_get(c->online_reserved));
 	free_percpu(c->online_reserved);
 
 	darray_exit(&c->btree_roots_extra);
@@ -582,8 +582,10 @@ static void __bch2_fs_free(struct bch_fs *c)
 
 	if (c->write_ref_wq)
 		destroy_workqueue(c->write_ref_wq);
-	if (c->io_complete_wq)
-		destroy_workqueue(c->io_complete_wq);
+	if (c->btree_write_submit_wq)
+		destroy_workqueue(c->btree_write_submit_wq);
+	if (c->btree_read_complete_wq)
+		destroy_workqueue(c->btree_read_complete_wq);
 	if (c->copygc_wq)
 		destroy_workqueue(c->copygc_wq);
 	if (c->btree_io_complete_wq)
@@ -878,8 +880,10 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 				WQ_HIGHPRI|WQ_FREEZABLE|WQ_MEM_RECLAIM, 1)) ||
 	    !(c->copygc_wq = alloc_workqueue("bcachefs_copygc",
 				WQ_HIGHPRI|WQ_FREEZABLE|WQ_MEM_RECLAIM|WQ_CPU_INTENSIVE, 1)) ||
-	    !(c->io_complete_wq = alloc_workqueue("bcachefs_io",
+	    !(c->btree_read_complete_wq = alloc_workqueue("bcachefs_btree_read_complete",
 				WQ_HIGHPRI|WQ_FREEZABLE|WQ_MEM_RECLAIM, 512)) ||
+	    !(c->btree_write_submit_wq = alloc_workqueue("bcachefs_btree_write_sumit",
+				WQ_HIGHPRI|WQ_FREEZABLE|WQ_MEM_RECLAIM, 1)) ||
 	    !(c->write_ref_wq = alloc_workqueue("bcachefs_write_ref",
 				WQ_FREEZABLE, 0)) ||
 #ifndef BCH_WRITE_REF_DEBUG
@@ -908,9 +912,9 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	    bch2_io_clock_init(&c->io_clock[WRITE]) ?:
 	    bch2_fs_journal_init(&c->journal) ?:
 	    bch2_fs_replicas_init(c) ?:
+	    bch2_fs_btree_iter_init(c) ?:
 	    bch2_fs_btree_cache_init(c) ?:
 	    bch2_fs_btree_key_cache_init(&c->btree_key_cache) ?:
-	    bch2_fs_btree_iter_init(c) ?:
 	    bch2_fs_btree_interior_update_init(c) ?:
 	    bch2_fs_buckets_waiting_for_journal_init(c) ?:
 	    bch2_fs_btree_write_buffer_init(c) ?:
@@ -927,12 +931,13 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	if (ret)
 		goto err;
 
-	for (i = 0; i < c->sb.nr_devices; i++)
-		if (bch2_member_exists(c->disk_sb.sb, i) &&
-		    bch2_dev_alloc(c, i)) {
-			ret = -EEXIST;
+	for (i = 0; i < c->sb.nr_devices; i++) {
+		if (!bch2_member_exists(c->disk_sb.sb, i))
+			continue;
+		ret = bch2_dev_alloc(c, i);
+		if (ret)
 			goto err;
-		}
+	}
 
 	bch2_journal_entry_res_resize(&c->journal,
 			&c->btree_root_journal_res,

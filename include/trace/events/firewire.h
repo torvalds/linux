@@ -36,10 +36,11 @@
 #define QUADLET_SIZE	4
 
 DECLARE_EVENT_CLASS(async_outbound_initiate_template,
-	TP_PROTO(u64 transaction, unsigned int generation, unsigned int scode, const u32 *header, const u32 *data, unsigned int data_count),
-	TP_ARGS(transaction, generation, scode, header, data, data_count),
+	TP_PROTO(u64 transaction, unsigned int card_index, unsigned int generation, unsigned int scode, const u32 *header, const u32 *data, unsigned int data_count),
+	TP_ARGS(transaction, card_index, generation, scode, header, data, data_count),
 	TP_STRUCT__entry(
 		__field(u64, transaction)
+		__field(u8, card_index)
 		__field(u8, generation)
 		__field(u8, scode)
 		__array(u32, header, ASYNC_HEADER_QUADLET_COUNT)
@@ -47,6 +48,7 @@ DECLARE_EVENT_CLASS(async_outbound_initiate_template,
 	),
 	TP_fast_assign(
 		__entry->transaction = transaction;
+		__entry->card_index = card_index;
 		__entry->generation = generation;
 		__entry->scode = scode;
 		memcpy(__entry->header, header, QUADLET_SIZE * ASYNC_HEADER_QUADLET_COUNT);
@@ -54,8 +56,9 @@ DECLARE_EVENT_CLASS(async_outbound_initiate_template,
 	),
 	// This format is for the request subaction.
 	TP_printk(
-		"transaction=0x%llx generation=%u scode=%u dst_id=0x%04x tlabel=%u tcode=%u src_id=0x%04x offset=0x%012llx header=%s data=%s",
+		"transaction=0x%llx card_index=%u generation=%u scode=%u dst_id=0x%04x tlabel=%u tcode=%u src_id=0x%04x offset=0x%012llx header=%s data=%s",
 		__entry->transaction,
+		__entry->card_index,
 		__entry->generation,
 		__entry->scode,
 		ASYNC_HEADER_GET_DESTINATION(__entry->header),
@@ -71,10 +74,11 @@ DECLARE_EVENT_CLASS(async_outbound_initiate_template,
 
 // The value of status is one of ack codes and rcodes specific to Linux FireWire subsystem.
 DECLARE_EVENT_CLASS(async_outbound_complete_template,
-	TP_PROTO(u64 transaction, unsigned int generation, unsigned int scode, unsigned int status, unsigned int timestamp),
-	TP_ARGS(transaction, generation, scode, status, timestamp),
+	TP_PROTO(u64 transaction, unsigned int card_index, unsigned int generation, unsigned int scode, unsigned int status, unsigned int timestamp),
+	TP_ARGS(transaction, card_index, generation, scode, status, timestamp),
 	TP_STRUCT__entry(
 		__field(u64, transaction)
+		__field(u8, card_index)
 		__field(u8, generation)
 		__field(u8, scode)
 		__field(u8, status)
@@ -82,14 +86,16 @@ DECLARE_EVENT_CLASS(async_outbound_complete_template,
 	),
 	TP_fast_assign(
 		__entry->transaction = transaction;
+		__entry->card_index = card_index;
 		__entry->generation = generation;
 		__entry->scode = scode;
 		__entry->status = status;
 		__entry->timestamp = timestamp;
 	),
 	TP_printk(
-		"transaction=0x%llx generation=%u scode=%u status=%u timestamp=0x%04x",
+		"transaction=0x%llx card_index=%u generation=%u scode=%u status=%u timestamp=0x%04x",
 		__entry->transaction,
+		__entry->card_index,
 		__entry->generation,
 		__entry->scode,
 		__entry->status,
@@ -99,10 +105,11 @@ DECLARE_EVENT_CLASS(async_outbound_complete_template,
 
 // The value of status is one of ack codes and rcodes specific to Linux FireWire subsystem.
 DECLARE_EVENT_CLASS(async_inbound_template,
-	TP_PROTO(u64 transaction, unsigned int generation, unsigned int scode, unsigned int status, unsigned int timestamp, const u32 *header, const u32 *data, unsigned int data_count),
-	TP_ARGS(transaction, generation, scode, status, timestamp, header, data, data_count),
+	TP_PROTO(u64 transaction, unsigned int card_index, unsigned int generation, unsigned int scode, unsigned int status, unsigned int timestamp, const u32 *header, const u32 *data, unsigned int data_count),
+	TP_ARGS(transaction, card_index, generation, scode, status, timestamp, header, data, data_count),
 	TP_STRUCT__entry(
 		__field(u64, transaction)
+		__field(u8, card_index)
 		__field(u8, generation)
 		__field(u8, scode)
 		__field(u8, status)
@@ -112,6 +119,7 @@ DECLARE_EVENT_CLASS(async_inbound_template,
 	),
 	TP_fast_assign(
 		__entry->transaction = transaction;
+		__entry->card_index = card_index;
 		__entry->generation = generation;
 		__entry->scode = scode;
 		__entry->status = status;
@@ -121,8 +129,9 @@ DECLARE_EVENT_CLASS(async_inbound_template,
 	),
 	// This format is for the response subaction.
 	TP_printk(
-		"transaction=0x%llx generation=%u scode=%u status=%u timestamp=0x%04x dst_id=0x%04x tlabel=%u tcode=%u src_id=0x%04x rcode=%u header=%s data=%s",
+		"transaction=0x%llx card_index=%u generation=%u scode=%u status=%u timestamp=0x%04x dst_id=0x%04x tlabel=%u tcode=%u src_id=0x%04x rcode=%u header=%s data=%s",
 		__entry->transaction,
+		__entry->card_index,
 		__entry->generation,
 		__entry->scode,
 		__entry->status,
@@ -139,26 +148,27 @@ DECLARE_EVENT_CLASS(async_inbound_template,
 );
 
 DEFINE_EVENT(async_outbound_initiate_template, async_request_outbound_initiate,
-	TP_PROTO(u64 transaction, unsigned int generation, unsigned int scode, const u32 *header, const u32 *data, unsigned int data_count),
-	TP_ARGS(transaction, generation, scode, header, data, data_count)
+	TP_PROTO(u64 transaction, unsigned int card_index, unsigned int generation, unsigned int scode, const u32 *header, const u32 *data, unsigned int data_count),
+	TP_ARGS(transaction, card_index, generation, scode, header, data, data_count)
 );
 
 DEFINE_EVENT(async_outbound_complete_template, async_request_outbound_complete,
-	TP_PROTO(u64 transaction, unsigned int generation, unsigned int scode, unsigned int status, unsigned int timestamp),
-	TP_ARGS(transaction, generation, scode, status, timestamp)
+	TP_PROTO(u64 transaction, unsigned int card_index, unsigned int generation, unsigned int scode, unsigned int status, unsigned int timestamp),
+	TP_ARGS(transaction, card_index, generation, scode, status, timestamp)
 );
 
 DEFINE_EVENT(async_inbound_template, async_response_inbound,
-	TP_PROTO(u64 transaction, unsigned int generation, unsigned int scode, unsigned int status, unsigned int timestamp, const u32 *header, const u32 *data, unsigned int data_count),
-	TP_ARGS(transaction, generation, scode, status, timestamp, header, data, data_count)
+	TP_PROTO(u64 transaction, unsigned int card_index, unsigned int generation, unsigned int scode, unsigned int status, unsigned int timestamp, const u32 *header, const u32 *data, unsigned int data_count),
+	TP_ARGS(transaction, card_index, generation, scode, status, timestamp, header, data, data_count)
 );
 
 DEFINE_EVENT_PRINT(async_inbound_template, async_request_inbound,
-	TP_PROTO(u64 transaction, unsigned int generation, unsigned int scode, unsigned int status, unsigned int timestamp, const u32 *header, const u32 *data, unsigned int data_count),
-	TP_ARGS(transaction, generation, scode, status, timestamp, header, data, data_count),
+	TP_PROTO(u64 transaction, unsigned int card_index, unsigned int generation, unsigned int scode, unsigned int status, unsigned int timestamp, const u32 *header, const u32 *data, unsigned int data_count),
+	TP_ARGS(transaction, card_index, generation, scode, status, timestamp, header, data, data_count),
 	TP_printk(
-		"transaction=0x%llx generation=%u scode=%u status=%u timestamp=0x%04x dst_id=0x%04x tlabel=%u tcode=%u src_id=0x%04x offset=0x%012llx header=%s data=%s",
+		"transaction=0x%llx card_index=%u generation=%u scode=%u status=%u timestamp=0x%04x dst_id=0x%04x tlabel=%u tcode=%u src_id=0x%04x offset=0x%012llx header=%s data=%s",
 		__entry->transaction,
+		__entry->card_index,
 		__entry->generation,
 		__entry->scode,
 		__entry->status,
@@ -175,11 +185,12 @@ DEFINE_EVENT_PRINT(async_inbound_template, async_request_inbound,
 );
 
 DEFINE_EVENT_PRINT(async_outbound_initiate_template, async_response_outbound_initiate,
-	TP_PROTO(u64 transaction, unsigned int generation, unsigned int scode, const u32 *header, const u32 *data, unsigned int data_count),
-	TP_ARGS(transaction, generation, scode, header, data, data_count),
+	TP_PROTO(u64 transaction, unsigned int card_index, unsigned int generation, unsigned int scode, const u32 *header, const u32 *data, unsigned int data_count),
+	TP_ARGS(transaction, card_index, generation, scode, header, data, data_count),
 	TP_printk(
-		"transaction=0x%llx generation=%u scode=%u dst_id=0x%04x tlabel=%u tcode=%u src_id=0x%04x rcode=%u header=%s data=%s",
+		"transaction=0x%llx card_index=%u generation=%u scode=%u dst_id=0x%04x tlabel=%u tcode=%u src_id=0x%04x rcode=%u header=%s data=%s",
 		__entry->transaction,
+		__entry->card_index,
 		__entry->generation,
 		__entry->scode,
 		ASYNC_HEADER_GET_DESTINATION(__entry->header),
@@ -194,8 +205,8 @@ DEFINE_EVENT_PRINT(async_outbound_initiate_template, async_response_outbound_ini
 );
 
 DEFINE_EVENT(async_outbound_complete_template, async_response_outbound_complete,
-	TP_PROTO(u64 transaction, unsigned int generation, unsigned int scode, unsigned int status, unsigned int timestamp),
-	TP_ARGS(transaction, generation, scode, status, timestamp)
+	TP_PROTO(u64 transaction, unsigned int card_index, unsigned int generation, unsigned int scode, unsigned int status, unsigned int timestamp),
+	TP_ARGS(transaction, card_index, generation, scode, status, timestamp)
 );
 
 #undef ASYNC_HEADER_GET_DESTINATION
@@ -206,23 +217,26 @@ DEFINE_EVENT(async_outbound_complete_template, async_response_outbound_complete,
 #undef ASYNC_HEADER_GET_RCODE
 
 TRACE_EVENT(async_phy_outbound_initiate,
-	TP_PROTO(u64 packet, unsigned int generation, u32 first_quadlet, u32 second_quadlet),
-	TP_ARGS(packet, generation, first_quadlet, second_quadlet),
+	TP_PROTO(u64 packet, unsigned int card_index, unsigned int generation, u32 first_quadlet, u32 second_quadlet),
+	TP_ARGS(packet, card_index, generation, first_quadlet, second_quadlet),
 	TP_STRUCT__entry(
 		__field(u64, packet)
+		__field(u8, card_index)
 		__field(u8, generation)
 		__field(u32, first_quadlet)
 		__field(u32, second_quadlet)
 	),
 	TP_fast_assign(
 		__entry->packet = packet;
+		__entry->card_index = card_index;
 		__entry->generation = generation;
 		__entry->first_quadlet = first_quadlet;
 		__entry->second_quadlet = second_quadlet
 	),
 	TP_printk(
-		"packet=0x%llx generation=%u first_quadlet=0x%08x second_quadlet=0x%08x",
+		"packet=0x%llx card_index=%u generation=%u first_quadlet=0x%08x second_quadlet=0x%08x",
 		__entry->packet,
+		__entry->card_index,
 		__entry->generation,
 		__entry->first_quadlet,
 		__entry->second_quadlet
@@ -230,23 +244,26 @@ TRACE_EVENT(async_phy_outbound_initiate,
 );
 
 TRACE_EVENT(async_phy_outbound_complete,
-	TP_PROTO(u64 packet, unsigned int generation, unsigned int status, unsigned int timestamp),
-	TP_ARGS(packet, generation, status, timestamp),
+	TP_PROTO(u64 packet, unsigned int card_index, unsigned int generation, unsigned int status, unsigned int timestamp),
+	TP_ARGS(packet, card_index, generation, status, timestamp),
 	TP_STRUCT__entry(
 		__field(u64, packet)
+		__field(u8, card_index)
 		__field(u8, generation)
 		__field(u8, status)
 		__field(u16, timestamp)
 	),
 	TP_fast_assign(
 		__entry->packet = packet;
+		__entry->card_index = card_index;
 		__entry->generation = generation;
 		__entry->status = status;
 		__entry->timestamp = timestamp;
 	),
 	TP_printk(
-		"packet=0x%llx generation=%u status=%u timestamp=0x%04x",
+		"packet=0x%llx card_index=%u generation=%u status=%u timestamp=0x%04x",
 		__entry->packet,
+		__entry->card_index,
 		__entry->generation,
 		__entry->status,
 		__entry->timestamp
@@ -254,10 +271,11 @@ TRACE_EVENT(async_phy_outbound_complete,
 );
 
 TRACE_EVENT(async_phy_inbound,
-	TP_PROTO(u64 packet, unsigned int generation, unsigned int status, unsigned int timestamp, u32 first_quadlet, u32 second_quadlet),
-	TP_ARGS(packet, generation, status, timestamp, first_quadlet, second_quadlet),
+	TP_PROTO(u64 packet, unsigned int card_index, unsigned int generation, unsigned int status, unsigned int timestamp, u32 first_quadlet, u32 second_quadlet),
+	TP_ARGS(packet, card_index, generation, status, timestamp, first_quadlet, second_quadlet),
 	TP_STRUCT__entry(
 		__field(u64, packet)
+		__field(u8, card_index)
 		__field(u8, generation)
 		__field(u8, status)
 		__field(u16, timestamp)
@@ -273,8 +291,9 @@ TRACE_EVENT(async_phy_inbound,
 		__entry->second_quadlet = second_quadlet
 	),
 	TP_printk(
-		"packet=0x%llx generation=%u status=%u timestamp=0x%04x first_quadlet=0x%08x second_quadlet=0x%08x",
+		"packet=0x%llx card_index=%u generation=%u status=%u timestamp=0x%04x first_quadlet=0x%08x second_quadlet=0x%08x",
 		__entry->packet,
+		__entry->card_index,
 		__entry->generation,
 		__entry->status,
 		__entry->timestamp,
@@ -284,55 +303,61 @@ TRACE_EVENT(async_phy_inbound,
 );
 
 DECLARE_EVENT_CLASS(bus_reset_arrange_template,
-	TP_PROTO(unsigned int generation, bool short_reset),
-	TP_ARGS(generation, short_reset),
+	TP_PROTO(unsigned int card_index, unsigned int generation, bool short_reset),
+	TP_ARGS(card_index, generation, short_reset),
 	TP_STRUCT__entry(
+		__field(u8, card_index)
 		__field(u8, generation)
 		__field(bool, short_reset)
 	),
 	TP_fast_assign(
+		__entry->card_index = card_index;
 		__entry->generation = generation;
 		__entry->short_reset = short_reset;
 	),
 	TP_printk(
-		"generation=%u short_reset=%s",
+		"card_index=%u generation=%u short_reset=%s",
+		__entry->card_index,
 		__entry->generation,
 		__entry->short_reset ? "true" : "false"
 	)
 );
 
 DEFINE_EVENT(bus_reset_arrange_template, bus_reset_initiate,
-	TP_PROTO(unsigned int generation, bool short_reset),
-	TP_ARGS(generation, short_reset)
+	TP_PROTO(unsigned int card_index, unsigned int generation, bool short_reset),
+	TP_ARGS(card_index, generation, short_reset)
 );
 
 DEFINE_EVENT(bus_reset_arrange_template, bus_reset_schedule,
-	TP_PROTO(unsigned int generation, bool short_reset),
-	TP_ARGS(generation, short_reset)
+	TP_PROTO(unsigned int card_index, unsigned int generation, bool short_reset),
+	TP_ARGS(card_index, generation, short_reset)
 );
 
 DEFINE_EVENT(bus_reset_arrange_template, bus_reset_postpone,
-	TP_PROTO(unsigned int generation, bool short_reset),
-	TP_ARGS(generation, short_reset)
+	TP_PROTO(unsigned int card_index, unsigned int generation, bool short_reset),
+	TP_ARGS(card_index, generation, short_reset)
 );
 
 TRACE_EVENT(bus_reset_handle,
-	TP_PROTO(unsigned int generation, unsigned int node_id, bool bm_abdicate, u32 *self_ids, unsigned int self_id_count),
-	TP_ARGS(generation, node_id, bm_abdicate, self_ids, self_id_count),
+	TP_PROTO(unsigned int card_index, unsigned int generation, unsigned int node_id, bool bm_abdicate, u32 *self_ids, unsigned int self_id_count),
+	TP_ARGS(card_index, generation, node_id, bm_abdicate, self_ids, self_id_count),
 	TP_STRUCT__entry(
+		__field(u8, card_index)
 		__field(u8, generation)
 		__field(u8, node_id)
 		__field(bool, bm_abdicate)
 		__dynamic_array(u32, self_ids, self_id_count)
 	),
 	TP_fast_assign(
+		__entry->card_index = card_index;
 		__entry->generation = generation;
 		__entry->node_id = node_id;
 		__entry->bm_abdicate = bm_abdicate;
 		memcpy(__get_dynamic_array(self_ids), self_ids, __get_dynamic_array_len(self_ids));
 	),
 	TP_printk(
-		"generation=%u node_id=0x%04x bm_abdicate=%s self_ids=%s",
+		"card_index=%u generation=%u node_id=0x%04x bm_abdicate=%s self_ids=%s",
+		__entry->card_index,
 		__entry->generation,
 		__entry->node_id,
 		__entry->bm_abdicate ? "true" : "false",

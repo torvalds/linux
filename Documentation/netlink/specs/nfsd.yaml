@@ -123,8 +123,6 @@ operations:
       doc: dump pending nfsd rpc
       attribute-set: rpc-status
       dump:
-        pre: nfsd-nl-rpc-status-get-start
-        post: nfsd-nl-rpc-status-get-done
         reply:
           attributes:
             - xid

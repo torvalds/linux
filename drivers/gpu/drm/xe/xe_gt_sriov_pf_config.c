@@ -1274,6 +1274,9 @@ static void pf_reset_vf_lmtt(struct xe_device *xe, unsigned int vfid)
 	struct xe_tile *tile;
 	unsigned int tid;
 
+	xe_assert(xe, IS_DGFX(xe));
+	xe_assert(xe, IS_SRIOV_PF(xe));
+
 	for_each_tile(tile, xe, tid) {
 		lmtt = &tile->sriov.pf.lmtt;
 		xe_lmtt_drop_pages(lmtt, vfid);
@@ -1291,6 +1294,9 @@ static int pf_update_vf_lmtt(struct xe_device *xe, unsigned int vfid)
 	unsigned int gtid;
 	unsigned int tid;
 	int err;
+
+	xe_assert(xe, IS_DGFX(xe));
+	xe_assert(xe, IS_SRIOV_PF(xe));
 
 	total = 0;
 	for_each_tile(tile, xe, tid)
@@ -1337,6 +1343,7 @@ fail:
 
 static void pf_release_vf_config_lmem(struct xe_gt *gt, struct xe_gt_sriov_config *config)
 {
+	xe_gt_assert(gt, IS_DGFX(gt_to_xe(gt)));
 	xe_gt_assert(gt, !xe_gt_is_media_type(gt));
 	lockdep_assert_held(xe_gt_sriov_pf_master_mutex(gt));
 
@@ -1355,6 +1362,7 @@ static int pf_provision_vf_lmem(struct xe_gt *gt, unsigned int vfid, u64 size)
 	int err;
 
 	xe_gt_assert(gt, vfid);
+	xe_gt_assert(gt, IS_DGFX(xe));
 	xe_gt_assert(gt, !xe_gt_is_media_type(gt));
 
 	size = round_up(size, pf_get_lmem_alignment(gt));
@@ -1745,10 +1753,14 @@ static void pf_reset_config_sched(struct xe_gt *gt, struct xe_gt_sriov_config *c
 static void pf_release_vf_config(struct xe_gt *gt, unsigned int vfid)
 {
 	struct xe_gt_sriov_config *config = pf_pick_vf_config(gt, vfid);
+	struct xe_device *xe = gt_to_xe(gt);
 
 	if (!xe_gt_is_media_type(gt)) {
 		pf_release_vf_config_ggtt(gt, config);
-		pf_release_vf_config_lmem(gt, config);
+		if (IS_DGFX(xe)) {
+			pf_release_vf_config_lmem(gt, config);
+			pf_update_vf_lmtt(xe, vfid);
+		}
 	}
 	pf_release_config_ctxs(gt, config);
 	pf_release_config_dbs(gt, config);

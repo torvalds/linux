@@ -721,7 +721,7 @@ int iio_read_channel_processed_scale(struct iio_channel *chan, int *val,
 			return ret;
 		*val *= scale;
 
-		return 0;
+		return ret;
 	} else {
 		ret = iio_channel_read(chan, val, NULL, IIO_CHAN_INFO_RAW);
 		if (ret < 0)
