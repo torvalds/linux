@@ -608,7 +608,7 @@ int sas_ata_init(struct domain_device *found_dev)
 	ap->cbl = ATA_CBL_SATA;
 	ap->scsi_host = shost;
 
-	rc = ata_sas_tport_add(ata_host->dev, ap);
+	rc = ata_tport_add(ata_host->dev, ap);
 	if (rc)
 		goto free_port;
 

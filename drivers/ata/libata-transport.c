@@ -265,6 +265,7 @@ void ata_tport_delete(struct ata_port *ap)
 	transport_destroy_device(dev);
 	put_device(dev);
 }
+EXPORT_SYMBOL_GPL(ata_tport_delete);
 
 static const struct device_type ata_port_sas_type = {
 	.name = ATA_PORT_TYPE_NAME,
@@ -329,6 +330,7 @@ int ata_tport_add(struct device *parent,
 	put_device(dev);
 	return error;
 }
+EXPORT_SYMBOL_GPL(ata_tport_add);
 
 /**
  *     ata_port_classify - determine device type based on ATA-spec signature
