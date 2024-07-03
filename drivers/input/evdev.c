@@ -288,8 +288,8 @@ static void evdev_pass_values(struct evdev_client *client,
 /*
  * Pass incoming events to all connected clients.
  */
-static void evdev_events(struct input_handle *handle,
-			 const struct input_value *vals, unsigned int count)
+static unsigned int evdev_events(struct input_handle *handle,
+				 struct input_value *vals, unsigned int count)
 {
 	struct evdev *evdev = handle->private;
 	struct evdev_client *client;
@@ -306,6 +306,8 @@ static void evdev_events(struct input_handle *handle,
 			evdev_pass_values(client, vals, count, ev_time);
 
 	rcu_read_unlock();
+
+	return count;
 }
 
 static int evdev_fasync(int fd, struct file *file, int on)
