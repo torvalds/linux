@@ -931,12 +931,12 @@ static void dcn401_execute_block_sequence(struct clk_mgr *clk_mgr_base, unsigned
 static unsigned int dcn401_build_update_bandwidth_clocks_sequence(
 		struct clk_mgr *clk_mgr_base,
 		struct dc_state *context,
+		struct dc_clocks *new_clocks,
 		bool safe_to_lower)
 {
 	struct clk_mgr_internal *clk_mgr_internal = TO_CLK_MGR_INTERNAL(clk_mgr_base);
 	struct dcn401_clk_mgr *clk_mgr401 = TO_DCN401_CLK_MGR(clk_mgr_internal);
 	struct dc *dc = clk_mgr_base->ctx->dc;
-	struct dc_clocks *new_clocks = &context->bw_ctx.bw.dcn.clk;
 	struct dcn401_clk_mgr_block_sequence *block_sequence = clk_mgr401->block_sequence;
 	bool enter_display_off = false;
 	bool update_active_fclk = false;
@@ -1218,13 +1218,13 @@ static unsigned int dcn401_build_update_bandwidth_clocks_sequence(
 static unsigned int dcn401_build_update_display_clocks_sequence(
 		struct clk_mgr *clk_mgr_base,
 		struct dc_state *context,
+		struct dc_clocks *new_clocks,
 		bool safe_to_lower)
 {
 	struct clk_mgr_internal *clk_mgr_internal = TO_CLK_MGR_INTERNAL(clk_mgr_base);
 	struct dcn401_clk_mgr *clk_mgr401 = TO_DCN401_CLK_MGR(clk_mgr_internal);
 	struct dc *dc = clk_mgr_base->ctx->dc;
 	struct dmcu *dmcu = clk_mgr_base->ctx->dc->res_pool->dmcu;
-	struct dc_clocks *new_clocks = &context->bw_ctx.bw.dcn.clk;
 	struct dcn401_clk_mgr_block_sequence *block_sequence = clk_mgr401->block_sequence;
 	bool force_reset = false;
 	bool update_dispclk = false;
@@ -1375,6 +1375,7 @@ static void dcn401_update_clocks(struct clk_mgr *clk_mgr_base,
 	/* build bandwidth related clocks update sequence */
 	num_steps = dcn401_build_update_bandwidth_clocks_sequence(clk_mgr_base,
 			context,
+			&context->bw_ctx.bw.dcn.clk,
 			safe_to_lower);
 
 	/* execute sequence */
@@ -1383,6 +1384,7 @@ static void dcn401_update_clocks(struct clk_mgr *clk_mgr_base,
 	/* build display related clocks update sequence */
 	num_steps = dcn401_build_update_display_clocks_sequence(clk_mgr_base,
 			context,
+			&context->bw_ctx.bw.dcn.clk,
 			safe_to_lower);
 
 	/* execute sequence */
@@ -1474,33 +1476,34 @@ static void dcn401_notify_wm_ranges(struct clk_mgr *clk_mgr_base)
 static void dcn401_set_hard_min_memclk(struct clk_mgr *clk_mgr_base, bool current_mode)
 {
 	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
+	const struct dc *dc = clk_mgr->base.ctx->dc;
+	struct dc_state *context = dc->current_state;
+	struct dc_clocks new_clocks;
+	int num_steps;
 
 	if (!clk_mgr->smu_present || !dcn401_is_ppclk_dpm_enabled(clk_mgr, PPCLK_UCLK))
 		return;
+
+	/* build clock update */
+	memcpy(&new_clocks, &clk_mgr_base->clks, sizeof(struct dc_clocks));
 
 	if (current_mode) {
-		if (clk_mgr_base->clks.p_state_change_support)
-			dcn401_smu_set_hard_min_by_freq(clk_mgr, PPCLK_UCLK,
-					khz_to_mhz_ceil(clk_mgr_base->clks.dramclk_khz));
-		else
-			dcn401_smu_set_hard_min_by_freq(clk_mgr, PPCLK_UCLK,
-					clk_mgr_base->bw_params->max_memclk_mhz);
+		new_clocks.dramclk_khz = context->bw_ctx.bw.dcn.clk.dramclk_khz;
+		new_clocks.idle_dramclk_khz = context->bw_ctx.bw.dcn.clk.idle_dramclk_khz;
+		new_clocks.p_state_change_support = context->bw_ctx.bw.dcn.clk.p_state_change_support;
 	} else {
-		dcn401_smu_set_hard_min_by_freq(clk_mgr, PPCLK_UCLK,
-				clk_mgr_base->bw_params->clk_table.entries[0].memclk_mhz);
+		new_clocks.dramclk_khz = clk_mgr_base->bw_params->clk_table.entries[0].memclk_mhz * 1000;
+		new_clocks.idle_dramclk_khz = new_clocks.dramclk_khz;
+		new_clocks.p_state_change_support = true;
 	}
-}
 
-/* Set max memclk to highest DPM value */
-static void dcn401_set_hard_max_memclk(struct clk_mgr *clk_mgr_base)
-{
-	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
+	num_steps = dcn401_build_update_bandwidth_clocks_sequence(clk_mgr_base,
+			context,
+			&new_clocks,
+			true);
 
-	if (!clk_mgr->smu_present || !dcn401_is_ppclk_dpm_enabled(clk_mgr, PPCLK_UCLK))
-		return;
-
-	dcn30_smu_set_hard_max_by_freq(clk_mgr, PPCLK_UCLK,
-			clk_mgr_base->bw_params->max_memclk_mhz);
+	/* execute sequence */
+	dcn401_execute_block_sequence(clk_mgr_base,	num_steps);
 }
 
 /* Get current memclk states, update bounding box */
@@ -1631,7 +1634,6 @@ static struct clk_mgr_funcs dcn401_funcs = {
 		.init_clocks = dcn401_init_clocks,
 		.notify_wm_ranges = dcn401_notify_wm_ranges,
 		.set_hard_min_memclk = dcn401_set_hard_min_memclk,
-		.set_hard_max_memclk = dcn401_set_hard_max_memclk,
 		.get_memclk_states_from_smu = dcn401_get_memclk_states_from_smu,
 		.are_clock_states_equal = dcn401_are_clock_states_equal,
 		.enable_pme_wa = dcn401_enable_pme_wa,
