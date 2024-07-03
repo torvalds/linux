@@ -1205,6 +1205,7 @@
   crypto_put_default_rng
   crypto_register_aead
   crypto_register_ahash
+  crypto_register_alg
   crypto_register_rng
   crypto_register_rngs
   crypto_register_shash
@@ -1221,6 +1222,7 @@
   crypto_skcipher_setkey
   crypto_unregister_aead
   crypto_unregister_ahash
+  crypto_unregister_alg
   crypto_unregister_rng
   crypto_unregister_rngs
   crypto_unregister_shash
@@ -3050,6 +3052,7 @@
   netlink_register_notifier
   netlink_unicast
   netlink_unregister_notifier
+  next_arg
   nf_conntrack_destroy
   nf_ct_attach
   nf_ct_delete
