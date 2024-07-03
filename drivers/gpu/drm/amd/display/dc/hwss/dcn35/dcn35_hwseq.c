@@ -1461,10 +1461,9 @@ void dcn35_set_drr(struct pipe_ctx **pipe_ctx,
 
 	for (i = 0; i < num_pipes; i++) {
 		if ((pipe_ctx[i]->stream_res.tg != NULL) && pipe_ctx[i]->stream_res.tg->funcs) {
-			struct dc_crtc_timing *timing = &pipe_ctx[i]->stream->timing;
-			struct dc *dc = pipe_ctx[i]->stream->ctx->dc;
-
-			if (dc->debug.static_screen_wait_frames) {
+			if (pipe_ctx[i]->stream && pipe_ctx[i]->stream->ctx->dc->debug.static_screen_wait_frames) {
+				struct dc_crtc_timing *timing = &pipe_ctx[i]->stream->timing;
+				struct dc *dc = pipe_ctx[i]->stream->ctx->dc;
 				unsigned int frame_rate = timing->pix_clk_100hz / (timing->h_total * timing->v_total);
 
 				if (frame_rate >= 120 && dc->caps.ips_support &&
