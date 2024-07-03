@@ -374,26 +374,33 @@ int lan937x_setup(struct dsa_switch *ds)
 	ds->vlan_filtering_is_global = true;
 
 	/* Enable aggressive back off for half duplex & UNH mode */
-	lan937x_cfg(dev, REG_SW_MAC_CTRL_0,
-		    (SW_PAUSE_UNH_MODE | SW_NEW_BACKOFF | SW_AGGR_BACKOFF),
-		    true);
+	ret = lan937x_cfg(dev, REG_SW_MAC_CTRL_0, (SW_PAUSE_UNH_MODE |
+						   SW_NEW_BACKOFF |
+						   SW_AGGR_BACKOFF), true);
+	if (ret < 0)
+		return ret;
 
 	/* If NO_EXC_COLLISION_DROP bit is set, the switch will not drop
 	 * packets when 16 or more collisions occur
 	 */
-	lan937x_cfg(dev, REG_SW_MAC_CTRL_1, NO_EXC_COLLISION_DROP, true);
+	ret = lan937x_cfg(dev, REG_SW_MAC_CTRL_1, NO_EXC_COLLISION_DROP, true);
+	if (ret < 0)
+		return ret;
 
 	/* enable global MIB counter freeze function */
-	lan937x_cfg(dev, REG_SW_MAC_CTRL_6, SW_MIB_COUNTER_FREEZE, true);
+	ret = lan937x_cfg(dev, REG_SW_MAC_CTRL_6, SW_MIB_COUNTER_FREEZE, true);
+	if (ret < 0)
+		return ret;
 
 	/* disable CLK125 & CLK25, 1: disable, 0: enable */
-	lan937x_cfg(dev, REG_SW_GLOBAL_OUTPUT_CTRL__1,
-		    (SW_CLK125_ENB | SW_CLK25_ENB), true);
+	ret = lan937x_cfg(dev, REG_SW_GLOBAL_OUTPUT_CTRL__1,
+			  (SW_CLK125_ENB | SW_CLK25_ENB), true);
+	if (ret < 0)
+		return ret;
 
 	/* Disable global VPHY support. Related to CPU interface only? */
-	ksz_rmw32(dev, REG_SW_CFG_STRAP_OVR, SW_VPHY_DISABLE, SW_VPHY_DISABLE);
-
-	return 0;
+	return ksz_rmw32(dev, REG_SW_CFG_STRAP_OVR, SW_VPHY_DISABLE,
+			 SW_VPHY_DISABLE);
 }
 
 void lan937x_teardown(struct dsa_switch *ds)
