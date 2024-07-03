@@ -1731,6 +1731,39 @@ static ssize_t amdgpu_ras_sysfs_schema_show(struct device *dev,
 	return sysfs_emit(buf, "schema: 0x%x\n", con->schema);
 }
 
+static struct {
+	enum ras_event_type type;
+	const char *name;
+} dump_event[] = {
+	{RAS_EVENT_TYPE_FATAL, "Fatal Error"},
+	{RAS_EVENT_TYPE_POISON_CREATION, "Poison Creation"},
+	{RAS_EVENT_TYPE_POISON_CONSUMPTION, "Poison Consumption"},
+};
+
+static ssize_t amdgpu_ras_sysfs_event_state_show(struct device *dev,
+						 struct device_attribute *attr, char *buf)
+{
+	struct amdgpu_ras *con =
+		container_of(attr, struct amdgpu_ras, event_state_attr);
+	struct ras_event_manager *event_mgr = con->event_mgr;
+	struct ras_event_state *event_state;
+	int i, size = 0;
+
+	if (!event_mgr)
+		return -EINVAL;
+
+	size += sysfs_emit_at(buf, size, "current seqno: %llu\n", atomic64_read(&event_mgr->seqno));
+	for (i = 0; i < ARRAY_SIZE(dump_event); i++) {
+		event_state = &event_mgr->event_state[dump_event[i].type];
+		size += sysfs_emit_at(buf, size, "%s: count:%llu, last_seqno:%llu\n",
+				      dump_event[i].name,
+				      atomic64_read(&event_state->count),
+				      event_state->last_seqno);
+	}
+
+	return (ssize_t)size;
+}
+
 static void amdgpu_ras_sysfs_remove_bad_page_node(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
@@ -1748,6 +1781,7 @@ static int amdgpu_ras_sysfs_remove_dev_attr_node(struct amdgpu_device *adev)
 		&con->features_attr.attr,
 		&con->version_attr.attr,
 		&con->schema_attr.attr,
+		&con->event_state_attr.attr,
 		NULL
 	};
 	struct attribute_group group = {
@@ -1980,6 +2014,8 @@ static DEVICE_ATTR(version, 0444,
 		amdgpu_ras_sysfs_version_show, NULL);
 static DEVICE_ATTR(schema, 0444,
 		amdgpu_ras_sysfs_schema_show, NULL);
+static DEVICE_ATTR(event_state, 0444,
+		   amdgpu_ras_sysfs_event_state_show, NULL);
 static int amdgpu_ras_fs_init(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
@@ -1990,6 +2026,7 @@ static int amdgpu_ras_fs_init(struct amdgpu_device *adev)
 		&con->features_attr.attr,
 		&con->version_attr.attr,
 		&con->schema_attr.attr,
+		&con->event_state_attr.attr,
 		NULL
 	};
 	struct bin_attribute *bin_attrs[] = {
@@ -2011,6 +2048,10 @@ static int amdgpu_ras_fs_init(struct amdgpu_device *adev)
 	/* add schema entry */
 	con->schema_attr = dev_attr_schema;
 	sysfs_attr_init(attrs[2]);
+
+	/* add event_state entry */
+	con->event_state_attr = dev_attr_event_state;
+	sysfs_attr_init(attrs[3]);
 
 	if (amdgpu_bad_page_threshold != 0) {
 		/* add bad_page_features entry */
@@ -3440,13 +3481,17 @@ static int amdgpu_get_ras_schema(struct amdgpu_device *adev)
 
 static void ras_event_mgr_init(struct ras_event_manager *mgr)
 {
+	struct ras_event_state *event_state;
 	int i;
 
 	memset(mgr, 0, sizeof(*mgr));
 	atomic64_set(&mgr->seqno, 0);
 
-	for (i = 0; i < ARRAY_SIZE(mgr->last_seqno); i++)
-		mgr->last_seqno[i] = RAS_EVENT_INVALID_ID;
+	for (i = 0; i < ARRAY_SIZE(mgr->event_state); i++) {
+		event_state = &mgr->event_state[i];
+		event_state->last_seqno = RAS_EVENT_INVALID_ID;
+		atomic64_set(&event_state->count, 0);
+	}
 }
 
 static void amdgpu_ras_event_mgr_init(struct amdgpu_device *adev)
@@ -3961,6 +4006,7 @@ int amdgpu_ras_mark_ras_event_caller(struct amdgpu_device *adev, enum ras_event_
 				     const void *caller)
 {
 	struct ras_event_manager *event_mgr;
+	struct ras_event_state *event_state;
 	int ret = 0;
 
 	if (type >= RAS_EVENT_TYPE_COUNT) {
@@ -3974,7 +4020,9 @@ int amdgpu_ras_mark_ras_event_caller(struct amdgpu_device *adev, enum ras_event_
 		goto out;
 	}
 
-	event_mgr->last_seqno[type] = atomic64_inc_return(&event_mgr->seqno);
+	event_state = &event_mgr->event_state[type];
+	event_state->last_seqno = atomic64_inc_return(&event_mgr->seqno);
+	atomic64_inc(&event_state->count);
 
 out:
 	if (ret && caller)
@@ -4000,7 +4048,7 @@ u64 amdgpu_ras_acquire_event_id(struct amdgpu_device *adev, enum ras_event_type 
 		if (!event_mgr)
 			return RAS_EVENT_INVALID_ID;
 
-		id = event_mgr->last_seqno[type];
+		id = event_mgr->event_state[type].last_seqno;
 		break;
 	case RAS_EVENT_TYPE_INVALID:
 	default:
