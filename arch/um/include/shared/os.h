@@ -195,6 +195,9 @@ extern void get_host_cpu_features(
 /* mem.c */
 extern int create_mem_file(unsigned long long len);
 
+/* tlb.c */
+extern void report_enomem(void);
+
 /* process.c */
 extern unsigned long os_process_pc(int pid);
 extern int os_process_parent(int pid);
@@ -274,6 +277,7 @@ extern long long os_nsecs(void);
 /* skas/mem.c */
 int syscall_stub_flush(struct mm_id *mm_idp);
 struct stub_syscall *syscall_stub_alloc(struct mm_id *mm_idp);
+void syscall_stub_dump_error(struct mm_id *mm_idp);
 
 void map(struct mm_id *mm_idp, unsigned long virt,
 	 unsigned long len, int prot, int phys_fd,

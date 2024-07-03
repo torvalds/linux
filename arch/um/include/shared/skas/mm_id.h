@@ -12,7 +12,6 @@ struct mm_id {
 		int pid;
 	} u;
 	unsigned long stack;
-	int kill;
 	int syscall_data_len;
 };
 

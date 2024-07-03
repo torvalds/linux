@@ -53,7 +53,7 @@ struct host_vm_change {
 	   .index	= 0, \
 	   .force	= force })
 
-static void report_enomem(void)
+void report_enomem(void)
 {
 	printk(KERN_ERR "UML ran out of memory on the host side! "
 			"This can happen due to a memory limitation or "
@@ -338,15 +338,6 @@ static void fix_range_common(struct mm_struct *mm, unsigned long start_addr,
 
 	if (!ret)
 		ret = do_ops(&hvc, hvc.index, 1);
-
-	/* This is not an else because ret is modified above */
-	if (ret) {
-		struct mm_id *mm_idp = &current->mm->context.id;
-
-		printk(KERN_ERR "fix_range_common: failed, killing current "
-		       "process: %d\n", task_tgid_vnr(current));
-		mm_idp->kill = 1;
-	}
 }
 
 static int flush_tlb_kernel_range_common(unsigned long start, unsigned long end)
@@ -461,7 +452,7 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long address)
 	pmd_t *pmd;
 	pte_t *pte;
 	struct mm_struct *mm = vma->vm_mm;
-	int r, w, x, prot, err = 0;
+	int r, w, x, prot;
 	struct mm_id *mm_id;
 
 	address &= PAGE_MASK;
@@ -508,14 +499,6 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long address)
 			unmap(mm_id, address, PAGE_SIZE);
 	} else if (pte_newprot(*pte))
 		protect(mm_id, address, PAGE_SIZE, prot);
-
-	err = syscall_stub_flush(mm_id);
-	if (err) {
-		if (err == -ENOMEM)
-			report_enomem();
-
-		goto kill;
-	}
 
 	*pte = pte_mkuptodate(*pte);
 

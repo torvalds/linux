@@ -22,6 +22,29 @@
 
 extern char __syscall_stub_start[];
 
+void syscall_stub_dump_error(struct mm_id *mm_idp)
+{
+	struct stub_data *proc_data = (void *)mm_idp->stack;
+	struct stub_syscall *sc;
+
+	if (proc_data->syscall_data_len < 0 ||
+	    proc_data->syscall_data_len >= ARRAY_SIZE(proc_data->syscall_data))
+		panic("Syscall data was corrupted by stub (len is: %d, expected maximum: %d)!",
+			proc_data->syscall_data_len,
+			mm_idp->syscall_data_len);
+
+	sc = &proc_data->syscall_data[proc_data->syscall_data_len];
+
+	printk(UM_KERN_ERR "%s : length = %d, last offset = %d",
+		__func__, mm_idp->syscall_data_len,
+		proc_data->syscall_data_len);
+	printk(UM_KERN_ERR "%s : stub syscall type %d failed, return value = 0x%lx\n",
+		__func__, sc->syscall, proc_data->err);
+
+	print_hex_dump(UM_KERN_ERR, "    syscall data: ", 0,
+		       16, 4, sc, sizeof(*sc), 0);
+}
+
 static inline unsigned long *check_init_stack(struct mm_id * mm_idp,
 					      unsigned long *stack)
 {
@@ -82,26 +105,9 @@ static inline long do_syscall_stub(struct mm_id *mm_idp)
 	 * otherwise it will be zero (but we do not need to rely on that).
 	 */
 	if (proc_data->err < 0) {
-		struct stub_syscall *sc;
+		syscall_stub_dump_error(mm_idp);
 
-		if (proc_data->syscall_data_len < 0 ||
-		    proc_data->syscall_data_len >= ARRAY_SIZE(proc_data->syscall_data))
-			panic("Syscall data was corrupted by stub (len is: %d, expected maximum: %d)!",
-			      proc_data->syscall_data_len,
-			      mm_idp->syscall_data_len);
-
-		sc = &proc_data->syscall_data[proc_data->syscall_data_len];
-
-		printk(UM_KERN_ERR "%s : length = %d, last offset = %d",
-		       __func__, mm_idp->syscall_data_len,
-		       proc_data->syscall_data_len);
-		printk(UM_KERN_ERR "%s : stub syscall type %d failed, return value = 0x%lx\n",
-		       __func__, sc->syscall, proc_data->err);
-
-		print_hex_dump(UM_KERN_ERR,
-			       "    syscall data: ", 0,
-			       16, 4, sc, sizeof(*sc), 0);
-
+		/* Store error code in case someone tries to add more syscalls */
 		mm_idp->syscall_data_len = proc_data->err;
 	} else {
 		mm_idp->syscall_data_len = 0;
