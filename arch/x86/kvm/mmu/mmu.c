@@ -6997,10 +6997,50 @@ void kvm_arch_flush_shadow_all(struct kvm *kvm)
 	kvm_mmu_zap_all(kvm);
 }
 
+/*
+ * Zapping leaf SPTEs with memslot range when a memslot is moved/deleted.
+ *
+ * Zapping non-leaf SPTEs, a.k.a. not-last SPTEs, isn't required, worst
+ * case scenario we'll have unused shadow pages lying around until they
+ * are recycled due to age or when the VM is destroyed.
+ */
+static void kvm_mmu_zap_memslot_leafs(struct kvm *kvm, struct kvm_memory_slot *slot)
+{
+	struct kvm_gfn_range range = {
+		.slot = slot,
+		.start = slot->base_gfn,
+		.end = slot->base_gfn + slot->npages,
+		.may_block = true,
+	};
+	bool flush = false;
+
+	write_lock(&kvm->mmu_lock);
+
+	if (kvm_memslots_have_rmaps(kvm))
+		flush = kvm_handle_gfn_range(kvm, &range, kvm_zap_rmap);
+
+	if (tdp_mmu_enabled)
+		flush = kvm_tdp_mmu_unmap_gfn_range(kvm, &range, flush);
+
+	if (flush)
+		kvm_flush_remote_tlbs_memslot(kvm, slot);
+
+	write_unlock(&kvm->mmu_lock);
+}
+
+static inline bool kvm_memslot_flush_zap_all(struct kvm *kvm)
+{
+	return kvm->arch.vm_type == KVM_X86_DEFAULT_VM &&
+	       kvm_check_has_quirk(kvm, KVM_X86_QUIRK_SLOT_ZAP_ALL);
+}
+
 void kvm_arch_flush_shadow_memslot(struct kvm *kvm,
 				   struct kvm_memory_slot *slot)
 {
-	kvm_mmu_zap_all_fast(kvm);
+	if (kvm_memslot_flush_zap_all(kvm))
+		kvm_mmu_zap_all_fast(kvm);
+	else
+		kvm_mmu_zap_memslot_leafs(kvm, slot);
 }
 
 void kvm_mmu_invalidate_mmio_sptes(struct kvm *kvm, u64 gen)
