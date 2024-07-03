@@ -4829,7 +4829,8 @@ static int __vcpu_run(struct kvm_vcpu *vcpu)
 			       sizeof(sie_page->pv_grregs));
 		}
 		exit_reason = sie64a(vcpu->arch.sie_block,
-				     vcpu->run->s.regs.gprs);
+				     vcpu->run->s.regs.gprs,
+				     gmap_get_enabled()->asce);
 		if (kvm_s390_pv_cpu_is_protected(vcpu)) {
 			memcpy(vcpu->run->s.regs.gprs,
 			       sie_page->pv_grregs,
