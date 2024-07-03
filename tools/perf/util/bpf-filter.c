@@ -260,10 +260,22 @@ int perf_bpf_filter__prepare(struct evsel *evsel, struct target *target)
 	}
 
 	if (needs_pid_hash && geteuid() != 0) {
+		int zero = 0;
+
 		/* The filters map is shared among other processes */
 		ret = update_pid_hash(evsel, entry);
 		if (ret < 0)
 			goto err;
+
+		fd = get_pinned_fd("dropped");
+		if (fd < 0) {
+			ret = fd;
+			goto err;
+		}
+
+		/* Reset the lost count */
+		bpf_map_update_elem(fd, &pinned_filter_idx, &zero, BPF_ANY);
+		close(fd);
 
 		fd = get_pinned_fd("perf_sample_filter");
 		if (fd < 0) {
@@ -347,9 +359,25 @@ int perf_bpf_filter__destroy(struct evsel *evsel)
 
 u64 perf_bpf_filter__lost_count(struct evsel *evsel)
 {
-	struct sample_filter_bpf *skel = evsel->bpf_skel;
+	int count = 0;
 
-	return skel ? skel->bss->dropped : 0;
+	if (list_empty(&evsel->bpf_filters))
+		return 0;
+
+	if (pinned_filter_idx >= 0) {
+		int fd = get_pinned_fd("dropped");
+
+		bpf_map_lookup_elem(fd, &pinned_filter_idx, &count);
+		close(fd);
+	} else if (evsel->bpf_skel) {
+		struct sample_filter_bpf *skel = evsel->bpf_skel;
+		int fd = bpf_map__fd(skel->maps.dropped);
+		int idx = 0;
+
+		bpf_map_lookup_elem(fd, &idx, &count);
+	}
+
+	return count;
 }
 
 struct perf_bpf_filter_expr *perf_bpf_filter_expr__new(enum perf_bpf_filter_term term,
@@ -402,6 +430,7 @@ int perf_bpf_filter__pin(void)
 	/* pinned program will use pid-hash */
 	bpf_map__set_max_entries(skel->maps.filters, MAX_FILTERS);
 	bpf_map__set_max_entries(skel->maps.pid_hash, MAX_PIDS);
+	bpf_map__set_max_entries(skel->maps.dropped, MAX_FILTERS);
 	skel->rodata->use_pid_hash = 1;
 
 	if (sample_filter_bpf__load(skel) < 0) {
@@ -457,6 +486,10 @@ int perf_bpf_filter__pin(void)
 	}
 	if (fchmodat(dir_fd, "pid_hash", 0666, 0) < 0) {
 		pr_debug("chmod for pid_hash failed\n");
+		ret = -errno;
+	}
+	if (fchmodat(dir_fd, "dropped", 0666, 0) < 0) {
+		pr_debug("chmod for dropped failed\n");
 		ret = -errno;
 	}
 

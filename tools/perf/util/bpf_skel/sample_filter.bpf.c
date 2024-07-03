@@ -23,7 +23,14 @@ struct pid_hash {
 	__uint(max_entries, 1);
 } pid_hash SEC(".maps");
 
-int dropped;
+/* tgid to filter index */
+struct lost_count {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__type(key, int);
+	__type(value, int);
+	__uint(max_entries, 1);
+} dropped SEC(".maps");
+
 volatile const int use_pid_hash;
 
 void *bpf_cast_to_kern_ctx(void *) __ksym;
@@ -189,6 +196,7 @@ int perf_sample_filter(void *ctx)
 	int in_group = 0;
 	int group_result = 0;
 	int i, k;
+	int *losts;
 
 	kctx = bpf_cast_to_kern_ctx(ctx);
 
@@ -252,7 +260,10 @@ int perf_sample_filter(void *ctx)
 	return 1;
 
 drop:
-	__sync_fetch_and_add(&dropped, 1);
+	losts = bpf_map_lookup_elem(&dropped, &k);
+	if (losts != NULL)
+		__sync_fetch_and_add(losts, 1);
+
 	return 0;
 }
 
