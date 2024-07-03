@@ -24,11 +24,6 @@ void flush_thread(void)
 {
 	arch_flush_thread(&current->thread.arch);
 
-	unmap(&current->mm->context.id, 0, TASK_SIZE);
-	if (syscall_stub_flush(&current->mm->context.id) < 0) {
-		printk(KERN_ERR "%s - clearing address space failed", __func__);
-		force_sig(SIGKILL);
-	}
 	get_safe_registers(current_pt_regs()->regs.gp,
 			   current_pt_regs()->regs.fp);
 
