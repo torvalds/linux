@@ -333,20 +333,21 @@ static void iwl_txq_gen1_tfd_unmap(struct iwl_trans *trans,
  * iwl_txq_free_tfd - Free all chunks referenced by TFD [txq->q.read_ptr]
  * @trans: transport private data
  * @txq: tx queue
+ * @read_ptr: the TXQ read_ptr to free
  *
  * Does NOT advance any TFD circular buffer read/write indexes
  * Does NOT free the TFD itself (which is within circular buffer)
  */
-static void iwl_txq_free_tfd(struct iwl_trans *trans, struct iwl_txq *txq)
+static void iwl_txq_free_tfd(struct iwl_trans *trans, struct iwl_txq *txq,
+			     int read_ptr)
 {
 	/* rd_ptr is bounded by TFD_QUEUE_SIZE_MAX and
 	 * idx is bounded by n_window
 	 */
-	int rd_ptr = txq->read_ptr;
-	int idx = iwl_txq_get_cmd_index(txq, rd_ptr);
+	int idx = iwl_txq_get_cmd_index(txq, read_ptr);
 	struct sk_buff *skb;
 
-	lockdep_assert_held(&txq->lock);
+	lockdep_assert_held(&txq->reclaim_lock);
 
 	if (!txq->entries)
 		return;
@@ -356,10 +357,10 @@ static void iwl_txq_free_tfd(struct iwl_trans *trans, struct iwl_txq *txq)
 	 */
 	if (trans->trans_cfg->gen2)
 		iwl_txq_gen2_tfd_unmap(trans, &txq->entries[idx].meta,
-				       iwl_txq_get_tfd(trans, txq, rd_ptr));
+				       iwl_txq_get_tfd(trans, txq, read_ptr));
 	else
 		iwl_txq_gen1_tfd_unmap(trans, &txq->entries[idx].meta,
-				       txq, rd_ptr);
+				       txq, read_ptr);
 
 	/* free SKB */
 	skb = txq->entries[idx].skb;
@@ -387,7 +388,8 @@ static void iwl_pcie_txq_unmap(struct iwl_trans *trans, int txq_id)
 		return;
 	}
 
-	spin_lock_bh(&txq->lock);
+	spin_lock_bh(&txq->reclaim_lock);
+	spin_lock(&txq->lock);
 	while (txq->write_ptr != txq->read_ptr) {
 		IWL_DEBUG_TX_REPLY(trans, "Q %d Free %d\n",
 				   txq_id, txq->read_ptr);
@@ -402,7 +404,7 @@ static void iwl_pcie_txq_unmap(struct iwl_trans *trans, int txq_id)
 
 			iwl_pcie_free_tso_pages(trans, skb, cmd_meta);
 		}
-		iwl_txq_free_tfd(trans, txq);
+		iwl_txq_free_tfd(trans, txq, txq->read_ptr);
 		txq->read_ptr = iwl_txq_inc_wrap(trans, txq->read_ptr);
 
 		if (txq->read_ptr == txq->write_ptr &&
@@ -416,7 +418,8 @@ static void iwl_pcie_txq_unmap(struct iwl_trans *trans, int txq_id)
 		iwl_op_mode_free_skb(trans->op_mode, skb);
 	}
 
-	spin_unlock_bh(&txq->lock);
+	spin_unlock(&txq->lock);
+	spin_unlock_bh(&txq->reclaim_lock);
 
 	/* just in case - this queue may have been stopped */
 	iwl_trans_pcie_wake_queue(trans, txq);
@@ -921,6 +924,7 @@ int iwl_txq_init(struct iwl_trans *trans, struct iwl_txq *txq,
 		return ret;
 
 	spin_lock_init(&txq->lock);
+	spin_lock_init(&txq->reclaim_lock);
 
 	if (cmd_queue) {
 		static struct lock_class_key iwl_txq_cmd_queue_lock_class;
@@ -1055,11 +1059,12 @@ static void iwl_txq_progress(struct iwl_txq *txq)
 		mod_timer(&txq->stuck_timer, jiffies + txq->wd_timeout);
 }
 
-static inline bool iwl_txq_used(const struct iwl_txq *q, int i)
+static inline bool iwl_txq_used(const struct iwl_txq *q, int i,
+				int read_ptr, int write_ptr)
 {
 	int index = iwl_txq_get_cmd_index(q, i);
-	int r = iwl_txq_get_cmd_index(q, q->read_ptr);
-	int w = iwl_txq_get_cmd_index(q, q->write_ptr);
+	int r = iwl_txq_get_cmd_index(q, read_ptr);
+	int w = iwl_txq_get_cmd_index(q, write_ptr);
 
 	return w >= r ?
 		(index >= r && index < w) :
@@ -1086,7 +1091,7 @@ static void iwl_pcie_cmdq_reclaim(struct iwl_trans *trans, int txq_id, int idx)
 	r = iwl_txq_get_cmd_index(txq, txq->read_ptr);
 
 	if (idx >= trans->trans_cfg->base_params->max_tfd_queue_size ||
-	    (!iwl_txq_used(txq, idx))) {
+	    (!iwl_txq_used(txq, idx, txq->read_ptr, txq->write_ptr))) {
 		WARN_ONCE(test_bit(txq_id, trans_pcie->txqs.queue_used),
 			  "%s: Read index for DMA queue txq id (%d), index %d is out of range [0-%d] %d %d.\n",
 			  __func__, txq_id, idx,
@@ -2284,12 +2289,12 @@ out_err:
 }
 
 static void iwl_txq_gen1_inval_byte_cnt_tbl(struct iwl_trans *trans,
-					    struct iwl_txq *txq)
+					    struct iwl_txq *txq,
+					    int read_ptr)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwlagn_scd_bc_tbl *scd_bc_tbl = trans_pcie->txqs.scd_bc_tbls.addr;
 	int txq_id = txq->id;
-	int read_ptr = txq->read_ptr;
 	u8 sta_id = 0;
 	__le16 bc_ent;
 	struct iwl_device_tx_cmd *dev_cmd = txq->entries[read_ptr].cmd;
@@ -2316,6 +2321,7 @@ void iwl_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_txq *txq = trans_pcie->txqs.txq[txq_id];
 	int tfd_num, read_ptr, last_to_free;
+	int txq_read_ptr, txq_write_ptr;
 
 	/* This function is not meant to release cmd queue*/
 	if (WARN_ON(txq_id == trans_pcie->txqs.cmd.q_id))
@@ -2326,8 +2332,14 @@ void iwl_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 
 	tfd_num = iwl_txq_get_cmd_index(txq, ssn);
 
-	spin_lock_bh(&txq->lock);
-	read_ptr = iwl_txq_get_cmd_index(txq, txq->read_ptr);
+	spin_lock_bh(&txq->reclaim_lock);
+
+	spin_lock(&txq->lock);
+	txq_read_ptr = txq->read_ptr;
+	txq_write_ptr = txq->write_ptr;
+	spin_unlock(&txq->lock);
+
+	read_ptr = iwl_txq_get_cmd_index(txq, txq_read_ptr);
 
 	if (!test_bit(txq_id, trans_pcie->txqs.queue_used)) {
 		IWL_DEBUG_TX_QUEUES(trans, "Q %d inactive - ignoring idx %d\n",
@@ -2339,19 +2351,19 @@ void iwl_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 		goto out;
 
 	IWL_DEBUG_TX_REPLY(trans, "[Q %d] %d (%d) -> %d (%d)\n",
-			   txq_id, read_ptr, txq->read_ptr, tfd_num, ssn);
+			   txq_id, read_ptr, txq_read_ptr, tfd_num, ssn);
 
 	/* Since we free until index _not_ inclusive, the one before index is
 	 * the last we will free. This one must be used
 	 */
 	last_to_free = iwl_txq_dec_wrap(trans, tfd_num);
 
-	if (!iwl_txq_used(txq, last_to_free)) {
+	if (!iwl_txq_used(txq, last_to_free, txq_read_ptr, txq_write_ptr)) {
 		IWL_ERR(trans,
 			"%s: Read index for txq id (%d), last_to_free %d is out of range [0-%d] %d %d.\n",
 			__func__, txq_id, last_to_free,
 			trans->trans_cfg->base_params->max_tfd_queue_size,
-			txq->write_ptr, txq->read_ptr);
+			txq_write_ptr, txq_read_ptr);
 
 		iwl_op_mode_time_point(trans->op_mode,
 				       IWL_FW_INI_TIME_POINT_FAKE_TX,
@@ -2364,13 +2376,13 @@ void iwl_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 
 	for (;
 	     read_ptr != tfd_num;
-	     txq->read_ptr = iwl_txq_inc_wrap(trans, txq->read_ptr),
-	     read_ptr = iwl_txq_get_cmd_index(txq, txq->read_ptr)) {
+	     txq_read_ptr = iwl_txq_inc_wrap(trans, txq_read_ptr),
+	     read_ptr = iwl_txq_get_cmd_index(txq, txq_read_ptr)) {
 		struct iwl_cmd_meta *cmd_meta = &txq->entries[read_ptr].meta;
 		struct sk_buff *skb = txq->entries[read_ptr].skb;
 
 		if (WARN_ONCE(!skb, "no SKB at %d (%d) on queue %d\n",
-			      read_ptr, txq->read_ptr, txq_id))
+			      read_ptr, txq_read_ptr, txq_id))
 			continue;
 
 		iwl_pcie_free_tso_pages(trans, skb, cmd_meta);
@@ -2380,10 +2392,14 @@ void iwl_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 		txq->entries[read_ptr].skb = NULL;
 
 		if (!trans->trans_cfg->gen2)
-			iwl_txq_gen1_inval_byte_cnt_tbl(trans, txq);
+			iwl_txq_gen1_inval_byte_cnt_tbl(trans, txq,
+							txq_read_ptr);
 
-		iwl_txq_free_tfd(trans, txq);
+		iwl_txq_free_tfd(trans, txq, txq_read_ptr);
 	}
+
+	spin_lock(&txq->lock);
+	txq->read_ptr = txq_read_ptr;
 
 	iwl_txq_progress(txq);
 
@@ -2406,11 +2422,10 @@ void iwl_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 		txq->overflow_tx = true;
 
 		/*
-		 * This is tricky: we are in reclaim path which is non
-		 * re-entrant, so noone will try to take the access the
-		 * txq data from that path. We stopped tx, so we can't
-		 * have tx as well. Bottom line, we can unlock and re-lock
-		 * later.
+		 * This is tricky: we are in reclaim path and are holding
+		 * reclaim_lock, so noone will try to access the txq data
+		 * from that path. We stopped tx, so we can't have tx as well.
+		 * Bottom line, we can unlock and re-lock later.
 		 */
 		spin_unlock(&txq->lock);
 
@@ -2435,8 +2450,9 @@ void iwl_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 		txq->overflow_tx = false;
 	}
 
+	spin_unlock(&txq->lock);
 out:
-	spin_unlock_bh(&txq->lock);
+	spin_unlock_bh(&txq->reclaim_lock);
 }
 
 /* Set wr_ptr of specific device and txq  */

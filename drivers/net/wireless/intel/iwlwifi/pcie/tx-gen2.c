@@ -821,7 +821,8 @@ static void iwl_txq_gen2_unmap(struct iwl_trans *trans, int txq_id)
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_txq *txq = trans_pcie->txqs.txq[txq_id];
 
-	spin_lock_bh(&txq->lock);
+	spin_lock_bh(&txq->reclaim_lock);
+	spin_lock(&txq->lock);
 	while (txq->write_ptr != txq->read_ptr) {
 		IWL_DEBUG_TX_REPLY(trans, "Q %d Free %d\n",
 				   txq_id, txq->read_ptr);
@@ -844,7 +845,8 @@ static void iwl_txq_gen2_unmap(struct iwl_trans *trans, int txq_id)
 		iwl_op_mode_free_skb(trans->op_mode, skb);
 	}
 
-	spin_unlock_bh(&txq->lock);
+	spin_unlock(&txq->lock);
+	spin_unlock_bh(&txq->reclaim_lock);
 
 	/* just in case - this queue may have been stopped */
 	iwl_trans_pcie_wake_queue(trans, txq);

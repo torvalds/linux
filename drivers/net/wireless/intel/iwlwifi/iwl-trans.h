@@ -752,6 +752,7 @@ struct iwl_pcie_first_tb_buf {
  * @first_tb_dma: DMA address for the first_tb_bufs start
  * @entries: transmit entries (driver state)
  * @lock: queue lock
+ * @reclaim_lock: reclaim lock
  * @stuck_timer: timer that fires if queue gets stuck
  * @trans: pointer back to transport (for timer)
  * @need_update: indicates need to update read/write index
@@ -794,6 +795,8 @@ struct iwl_txq {
 	struct iwl_pcie_txq_entry *entries;
 	/* lock for syncing changes on the queue */
 	spinlock_t lock;
+	/* lock to prevent concurrent reclaim */
+	spinlock_t reclaim_lock;
 	unsigned long frozen_expiry_remainder;
 	struct timer_list stuck_timer;
 	struct iwl_trans *trans;
