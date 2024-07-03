@@ -230,8 +230,6 @@ static int audio_iio_aux_probe(struct platform_device *pdev)
 	struct audio_iio_aux_chan *iio_aux_chan;
 	struct device *dev = &pdev->dev;
 	struct audio_iio_aux *iio_aux;
-	const char **names;
-	u32 *invert_ranges;
 	int count;
 	int ret;
 	int i;
@@ -248,22 +246,22 @@ static int audio_iio_aux_probe(struct platform_device *pdev)
 
 	iio_aux->num_chans = count;
 
-	names = kcalloc(iio_aux->num_chans, sizeof(*names), GFP_KERNEL);
+	const char **names __free(kfree) = kcalloc(iio_aux->num_chans,
+						   sizeof(*names),
+						   GFP_KERNEL);
 	if (!names)
 		return -ENOMEM;
 
-	invert_ranges = kcalloc(iio_aux->num_chans, sizeof(*invert_ranges), GFP_KERNEL);
-	if (!invert_ranges) {
-		ret = -ENOMEM;
-		goto out_free_names;
-	}
+	u32 *invert_ranges __free(kfree) = kcalloc(iio_aux->num_chans,
+						   sizeof(*invert_ranges),
+						   GFP_KERNEL);
+	if (!invert_ranges)
+		return -ENOMEM;
 
 	ret = device_property_read_string_array(dev, "io-channel-names",
 						names, iio_aux->num_chans);
-	if (ret < 0) {
-		dev_err_probe(dev, ret, "failed to read io-channel-names\n");
-		goto out_free_invert_ranges;
-	}
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "failed to read io-channel-names\n");
 
 	/*
 	 * snd-control-invert-range is optional and can contain fewer items
@@ -274,10 +272,8 @@ static int audio_iio_aux_probe(struct platform_device *pdev)
 		count = min_t(unsigned int, count, iio_aux->num_chans);
 		ret = device_property_read_u32_array(dev, "snd-control-invert-range",
 						     invert_ranges, count);
-		if (ret < 0) {
-			dev_err_probe(dev, ret, "failed to read snd-control-invert-range\n");
-			goto out_free_invert_ranges;
-		}
+		if (ret < 0)
+			return dev_err_probe(dev, ret, "failed to read snd-control-invert-range\n");
 	}
 
 	for (i = 0; i < iio_aux->num_chans; i++) {
@@ -286,23 +282,16 @@ static int audio_iio_aux_probe(struct platform_device *pdev)
 		iio_aux_chan->is_invert_range = invert_ranges[i];
 
 		iio_aux_chan->iio_chan = devm_iio_channel_get(dev, iio_aux_chan->name);
-		if (IS_ERR(iio_aux_chan->iio_chan)) {
-			ret = PTR_ERR(iio_aux_chan->iio_chan);
-			dev_err_probe(dev, ret, "get IIO channel '%s' failed\n",
-				      iio_aux_chan->name);
-			goto out_free_invert_ranges;
-		}
+		if (IS_ERR(iio_aux_chan->iio_chan))
+			return dev_err_probe(dev, PTR_ERR(iio_aux_chan->iio_chan),
+					     "get IIO channel '%s' failed\n",
+					     iio_aux_chan->name);
 	}
 
 	platform_set_drvdata(pdev, iio_aux);
 
-	ret = devm_snd_soc_register_component(dev, &audio_iio_aux_component_driver,
-					      NULL, 0);
-out_free_invert_ranges:
-	kfree(invert_ranges);
-out_free_names:
-	kfree(names);
-	return ret;
+	return devm_snd_soc_register_component(dev, &audio_iio_aux_component_driver,
+					       NULL, 0);
 }
 
 static const struct of_device_id audio_iio_aux_ids[] = {
