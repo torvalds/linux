@@ -293,6 +293,10 @@
 246	arc	arc_gettls			sys_arc_gettls
 247	arc	sysfs				sys_sysfs
 248	arc	arc_usr_cmpxchg			sys_arc_usr_cmpxchg
+
+244	csky	set_thread_area			sys_set_thread_area
+245	csky	cacheflush			sys_cacheflush
+
 260	time32	wait4				sys_wait4			compat_sys_wait4
 260	64	wait4				sys_wait4
 261	common	prlimit64			sys_prlimit64
