@@ -687,7 +687,7 @@ struct pwrseq_desc *pwrseq_get(struct device *dev, const char *target)
 		/* No device matched. */
 		return ERR_PTR(-EPROBE_DEFER);
 
-	return no_free_ptr(desc);
+	return_ptr(desc);
 }
 EXPORT_SYMBOL_GPL(pwrseq_get);
 
