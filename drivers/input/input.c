@@ -115,9 +115,6 @@ static void input_pass_values(struct input_dev *dev,
 
 	lockdep_assert_held(&dev->event_lock);
 
-	if (!count)
-		return;
-
 	rcu_read_lock();
 
 	handle = rcu_dereference(dev->grab);
