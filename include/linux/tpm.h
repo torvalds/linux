@@ -490,11 +490,22 @@ static inline void tpm_buf_append_empty_auth(struct tpm_buf *buf, u32 handle)
 {
 }
 #endif
+
+static inline struct tpm2_auth *tpm2_chip_auth(struct tpm_chip *chip)
+{
+#ifdef CONFIG_TCG_TPM2_HMAC
+	return chip->auth;
+#else
+	return NULL;
+#endif
+}
+
+void tpm_buf_append_name(struct tpm_chip *chip, struct tpm_buf *buf,
+			 u32 handle, u8 *name);
+
 #ifdef CONFIG_TCG_TPM2_HMAC
 
 int tpm2_start_auth_session(struct tpm_chip *chip);
-void tpm_buf_append_name(struct tpm_chip *chip, struct tpm_buf *buf,
-			 u32 handle, u8 *name);
 void tpm_buf_append_hmac_session(struct tpm_chip *chip, struct tpm_buf *buf,
 				 u8 attributes, u8 *passphrase,
 				 int passphraselen);
@@ -520,14 +531,6 @@ static inline int tpm2_start_auth_session(struct tpm_chip *chip)
 }
 static inline void tpm2_end_auth_session(struct tpm_chip *chip)
 {
-}
-static inline void tpm_buf_append_name(struct tpm_chip *chip,
-				       struct tpm_buf *buf,
-				       u32 handle, u8 *name)
-{
-	tpm_buf_append_u32(buf, handle);
-	/* count the number of handles in the upper bits of flags */
-	buf->handles++;
 }
 static inline void tpm_buf_append_hmac_session(struct tpm_chip *chip,
 					       struct tpm_buf *buf,
