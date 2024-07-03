@@ -915,11 +915,6 @@ static struct rcu_torture_ops tasks_ops = {
  * Definitions for rude RCU-tasks torture testing.
  */
 
-static void rcu_tasks_rude_torture_deferred_free(struct rcu_torture *p)
-{
-	call_rcu_tasks_rude(&p->rtort_rcu, rcu_torture_cb);
-}
-
 static struct rcu_torture_ops tasks_rude_ops = {
 	.ttype		= RCU_TASKS_RUDE_FLAVOR,
 	.init		= rcu_sync_torture_init,
@@ -927,11 +922,8 @@ static struct rcu_torture_ops tasks_rude_ops = {
 	.read_delay	= rcu_read_delay,  /* just reuse rcu's version. */
 	.readunlock	= rcu_torture_read_unlock_trivial,
 	.get_gp_seq	= rcu_no_completed,
-	.deferred_free	= rcu_tasks_rude_torture_deferred_free,
 	.sync		= synchronize_rcu_tasks_rude,
 	.exp_sync	= synchronize_rcu_tasks_rude,
-	.call		= call_rcu_tasks_rude,
-	.cb_barrier	= rcu_barrier_tasks_rude,
 	.gp_kthread_dbg	= show_rcu_tasks_rude_gp_kthread,
 	.get_gp_data	= rcu_tasks_rude_get_gp_data,
 	.cbflood_max	= 50000,
