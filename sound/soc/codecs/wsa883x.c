@@ -934,7 +934,7 @@ static bool wsa883x_volatile_register(struct device *dev, unsigned int reg)
 	return wsa883x_readonly_register(dev, reg);
 }
 
-static struct regmap_config wsa883x_regmap_config = {
+static const struct regmap_config wsa883x_regmap_config = {
 	.reg_bits = 32,
 	.val_bits = 8,
 	.cache_type = REGCACHE_MAPLE,
