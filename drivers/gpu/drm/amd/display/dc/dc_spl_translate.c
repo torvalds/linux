@@ -42,26 +42,26 @@ static void populate_spltaps_from_taps(struct spl_taps *spl_scaling_quality,
 static void populate_taps_from_spltaps(struct scaling_taps *scaling_quality,
 		const struct spl_taps *spl_scaling_quality)
 {
-	scaling_quality->h_taps_c = spl_scaling_quality->h_taps_c;
-	scaling_quality->h_taps = spl_scaling_quality->h_taps;
-	scaling_quality->v_taps_c = spl_scaling_quality->v_taps_c;
-	scaling_quality->v_taps = spl_scaling_quality->v_taps;
+	scaling_quality->h_taps_c = spl_scaling_quality->h_taps_c + 1;
+	scaling_quality->h_taps = spl_scaling_quality->h_taps + 1;
+	scaling_quality->v_taps_c = spl_scaling_quality->v_taps_c + 1;
+	scaling_quality->v_taps = spl_scaling_quality->v_taps + 1;
 }
 static void populate_ratios_from_splratios(struct scaling_ratios *ratios,
-		const struct spl_ratios *spl_ratios)
+		const struct ratio *spl_ratios)
 {
-	ratios->horz = spl_ratios->horz;
-	ratios->vert = spl_ratios->vert;
-	ratios->horz_c = spl_ratios->horz_c;
-	ratios->vert_c = spl_ratios->vert_c;
+	ratios->horz = dc_fixpt_from_ux_dy(spl_ratios->h_scale_ratio >> 5, 3, 19);
+	ratios->vert = dc_fixpt_from_ux_dy(spl_ratios->v_scale_ratio >> 5, 3, 19);
+	ratios->horz_c = dc_fixpt_from_ux_dy(spl_ratios->h_scale_ratio_c >> 5, 3, 19);
+	ratios->vert_c = dc_fixpt_from_ux_dy(spl_ratios->v_scale_ratio_c >> 5, 3, 19);
 }
 static void populate_inits_from_splinits(struct scl_inits *inits,
-		const struct spl_inits *spl_inits)
+		const struct init *spl_inits)
 {
-	inits->h = spl_inits->h;
-	inits->v = spl_inits->v;
-	inits->h_c = spl_inits->h_c;
-	inits->v_c = spl_inits->v_c;
+	inits->h = dc_fixpt_from_int_dy(spl_inits->h_filter_init_int, spl_inits->h_filter_init_frac >> 5, 0, 19);
+	inits->v = dc_fixpt_from_int_dy(spl_inits->v_filter_init_int, spl_inits->v_filter_init_frac >> 5, 0, 19);
+	inits->h_c = dc_fixpt_from_int_dy(spl_inits->h_filter_init_int_c, spl_inits->h_filter_init_frac_c >> 5, 0, 19);
+	inits->v_c = dc_fixpt_from_int_dy(spl_inits->v_filter_init_int_c, spl_inits->v_filter_init_frac_c >> 5, 0, 19);
 }
 /// @brief Translate SPL input parameters from pipe context
 /// @param pipe_ctx
@@ -170,6 +170,9 @@ void translate_SPL_in_params_from_pipe_ctx(struct pipe_ctx *pipe_ctx, struct spl
 	/* Translate transfer function */
 	spl_in->basic_in.tf_type = (enum spl_transfer_func_type) plane_state->in_transfer_func.type;
 	spl_in->basic_in.tf_predefined_type = (enum spl_transfer_func_predefined) plane_state->in_transfer_func.tf;
+
+	spl_in->h_active = pipe_ctx->plane_res.scl_data.h_active;
+	spl_in->v_active = pipe_ctx->plane_res.scl_data.v_active;
 	/* Check if it is stream is in fullscreen and if its HDR.
 	 * Use this to determine sharpness levels
 	 */
@@ -184,15 +187,15 @@ void translate_SPL_in_params_from_pipe_ctx(struct pipe_ctx *pipe_ctx, struct spl
 void translate_SPL_out_params_to_pipe_ctx(struct pipe_ctx *pipe_ctx, struct spl_out *spl_out)
 {
 	// Make scaler data recout point to spl output field recout
-	populate_rect_from_splrect(&pipe_ctx->plane_res.scl_data.recout, &spl_out->scl_data.recout);
+	populate_rect_from_splrect(&pipe_ctx->plane_res.scl_data.recout, &spl_out->dscl_prog_data->recout);
 	// Make scaler data ratios point to spl output field ratios
-	populate_ratios_from_splratios(&pipe_ctx->plane_res.scl_data.ratios, &spl_out->scl_data.ratios);
+	populate_ratios_from_splratios(&pipe_ctx->plane_res.scl_data.ratios, &spl_out->dscl_prog_data->ratios);
 	// Make scaler data viewport point to spl output field viewport
-	populate_rect_from_splrect(&pipe_ctx->plane_res.scl_data.viewport, &spl_out->scl_data.viewport);
+	populate_rect_from_splrect(&pipe_ctx->plane_res.scl_data.viewport, &spl_out->dscl_prog_data->viewport);
 	// Make scaler data viewport_c point to spl output field viewport_c
-	populate_rect_from_splrect(&pipe_ctx->plane_res.scl_data.viewport_c, &spl_out->scl_data.viewport_c);
+	populate_rect_from_splrect(&pipe_ctx->plane_res.scl_data.viewport_c, &spl_out->dscl_prog_data->viewport_c);
 	// Make scaler data taps point to spl output field scaling taps
-	populate_taps_from_spltaps(&pipe_ctx->plane_res.scl_data.taps, &spl_out->scl_data.taps);
+	populate_taps_from_spltaps(&pipe_ctx->plane_res.scl_data.taps, &spl_out->dscl_prog_data->taps);
 	// Make scaler data init point to spl output field init
-	populate_inits_from_splinits(&pipe_ctx->plane_res.scl_data.inits, &spl_out->scl_data.inits);
+	populate_inits_from_splinits(&pipe_ctx->plane_res.scl_data.inits, &spl_out->dscl_prog_data->init);
 }

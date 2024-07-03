@@ -3,6 +3,7 @@
 // Copyright 2024 Advanced Micro Devices, Inc.
 
 #include "dc_spl_types.h"
+#include "spl_debug.h"
 #include "dc_spl_filters.h"
 #include "dc_spl_isharp_filters.h"
 
@@ -631,10 +632,10 @@ uint16_t *spl_get_filter_isharp_bs_3tap_64p(void)
 	return filter_isharp_bs_3tap_64p_s1_12;
 }
 
-void spl_build_isharp_1dlut_from_reference_curve(struct fixed31_32 ratio, enum system_setup setup)
+void spl_build_isharp_1dlut_from_reference_curve(struct spl_fixed31_32 ratio, enum system_setup setup)
 {
 	uint8_t *byte_ptr_1dlut_src, *byte_ptr_1dlut_dst;
-	struct fixed31_32 sharp_base, sharp_calc, sharp_level, ratio_level;
+	struct spl_fixed31_32 sharp_base, sharp_calc, sharp_level, ratio_level;
 	int i, j;
 	struct scale_ratio_to_sharpness_level_lookup *setup_lookup_ptr;
 	int num_sharp_ramp_levels;
@@ -680,12 +681,12 @@ void spl_build_isharp_1dlut_from_reference_curve(struct fixed31_32 ratio, enum s
 		 *  base scale ratio to sharpness curve
 		 */
 		j = 0;
-		sharp_level = dc_fixpt_zero;
+		sharp_level = spl_fixpt_zero;
 		while (j < num_sharp_ramp_levels) {
-			ratio_level = dc_fixpt_from_fraction(setup_lookup_ptr->ratio_numer,
+			ratio_level = spl_fixpt_from_fraction(setup_lookup_ptr->ratio_numer,
 				setup_lookup_ptr->ratio_denom);
 			if (ratio.value >= ratio_level.value) {
-				sharp_level = dc_fixpt_from_fraction(setup_lookup_ptr->sharpness_numer,
+				sharp_level = spl_fixpt_from_fraction(setup_lookup_ptr->sharpness_numer,
 					setup_lookup_ptr->sharpness_denom);
 				break;
 			}
@@ -707,12 +708,12 @@ void spl_build_isharp_1dlut_from_reference_curve(struct fixed31_32 ratio, enum s
 		size_1dlut = sizeof(filter_isharp_1D_lut_3p0x);
 		memset(byte_ptr_1dlut_dst, 0, size_1dlut);
 		for (j = 0; j < size_1dlut; j++) {
-			sharp_base = dc_fixpt_from_int((int)*byte_ptr_1dlut_src);
-			sharp_calc = dc_fixpt_mul(sharp_base, sharp_level);
-			sharp_calc = dc_fixpt_div(sharp_calc, dc_fixpt_from_int(3));
-			sharp_calc = dc_fixpt_min(dc_fixpt_from_int(255), sharp_calc);
-			sharp_calc = dc_fixpt_add(sharp_calc, dc_fixpt_from_fraction(1, 2));
-			sharp_calc_int = dc_fixpt_floor(sharp_calc);
+			sharp_base = spl_fixpt_from_int((int)*byte_ptr_1dlut_src);
+			sharp_calc = spl_fixpt_mul(sharp_base, sharp_level);
+			sharp_calc = spl_fixpt_div(sharp_calc, spl_fixpt_from_int(3));
+			sharp_calc = spl_fixpt_min(spl_fixpt_from_int(255), sharp_calc);
+			sharp_calc = spl_fixpt_add(sharp_calc, spl_fixpt_from_fraction(1, 2));
+			sharp_calc_int = spl_fixpt_floor(sharp_calc);
 			if (sharp_calc_int > 255)
 				sharp_calc_int = 255;
 			*byte_ptr_1dlut_dst = (uint8_t)sharp_calc_int;
@@ -742,7 +743,6 @@ void spl_init_blur_scale_coeffs(void)
 		filter_isharp_bs_4tap_in_6_64p_s1_12, 6);
 }
 
-#ifdef CONFIG_DRM_AMD_DC_FP
 uint16_t *spl_dscl_get_blur_scale_coeffs_64p(int taps)
 {
 	if (taps == 3)
@@ -753,7 +753,7 @@ uint16_t *spl_dscl_get_blur_scale_coeffs_64p(int taps)
 		return spl_get_filter_isharp_bs_4tap_in_6_64p();
 	else {
 		/* should never happen, bug */
-		BREAK_TO_DEBUGGER();
+		SPL_BREAK_TO_DEBUGGER();
 		return NULL;
 	}
 }
@@ -767,5 +767,4 @@ void spl_set_blur_scale_data(struct dscl_prog_data *dscl_prog_data,
 	dscl_prog_data->filter_blur_scale_v =
 		spl_dscl_get_blur_scale_coeffs_64p(data->taps.v_taps);
 }
-#endif
 
