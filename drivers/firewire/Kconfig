@@ -11,7 +11,7 @@ config FIREWIRE
 	  This is the new-generation IEEE 1394 (FireWire) driver stack
 	  a.k.a. Juju, a new implementation designed for robustness and
 	  simplicity.
-	  See http://ieee1394.wiki.kernel.org/index.php/Juju_Migration
+	  See http://ieee1394.docs.kernel.org/en/latest/migration.html
 	  for information about migration from the older Linux 1394 stack
 	  to the new driver stack.
 

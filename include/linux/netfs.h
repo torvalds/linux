@@ -521,7 +521,7 @@ static inline struct fscache_cookie *netfs_i_cookie(struct netfs_inode *ctx)
 
 /**
  * netfs_wait_for_outstanding_io - Wait for outstanding I/O to complete
- * @ctx: The netfs inode to wait on
+ * @inode: The netfs inode to wait on
  *
  * Wait for outstanding I/O requests of any type to complete.  This is intended
  * to be called from inode eviction routines.  This makes sure that any

@@ -1178,14 +1178,28 @@ struct foo {
 	s16 array[] __counted_by(counter);
 };
 
+struct bar {
+	int a;
+	u32 counter;
+	s16 array[];
+};
+
 static void DEFINE_FLEX_test(struct kunit *test)
 {
-	DEFINE_RAW_FLEX(struct foo, two, array, 2);
+	/* Using _RAW_ on a __counted_by struct will initialize "counter" to zero */
+	DEFINE_RAW_FLEX(struct foo, two_but_zero, array, 2);
+#if __has_attribute(__counted_by__)
+	int expected_raw_size = sizeof(struct foo);
+#else
+	int expected_raw_size = sizeof(struct foo) + 2 * sizeof(s16);
+#endif
+	/* Without annotation, it will always be on-stack size. */
+	DEFINE_RAW_FLEX(struct bar, two, array, 2);
 	DEFINE_FLEX(struct foo, eight, array, counter, 8);
 	DEFINE_FLEX(struct foo, empty, array, counter, 0);
 
-	KUNIT_EXPECT_EQ(test, __struct_size(two),
-			sizeof(struct foo) + sizeof(s16) + sizeof(s16));
+	KUNIT_EXPECT_EQ(test, __struct_size(two_but_zero), expected_raw_size);
+	KUNIT_EXPECT_EQ(test, __struct_size(two), sizeof(struct bar) + 2 * sizeof(s16));
 	KUNIT_EXPECT_EQ(test, __struct_size(eight), 24);
 	KUNIT_EXPECT_EQ(test, __struct_size(empty), sizeof(struct foo));
 }

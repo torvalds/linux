@@ -55,6 +55,7 @@ struct thermal_governor {
  * @type:	the thermal zone device type
  * @device:	&struct device for this thermal zone
  * @removal:	removal completion
+ * @resume:	resume completion
  * @trip_temp_attrs:	attributes for trip points for sysfs: trip temperature
  * @trip_type_attrs:	attributes for trip points for sysfs: trip type
  * @trip_hyst_attrs:	attributes for trip points for sysfs: trip hysteresis
@@ -89,6 +90,7 @@ struct thermal_governor {
  * @poll_queue:	delayed work for polling
  * @notify_event: Last notification event
  * @suspended: thermal zone suspend indicator
+ * @resuming:	indicates whether or not thermal zone resume is in progress
  * @trips:	array of struct thermal_trip objects
  */
 struct thermal_zone_device {
@@ -96,6 +98,7 @@ struct thermal_zone_device {
 	char type[THERMAL_NAME_LENGTH];
 	struct device device;
 	struct completion removal;
+	struct completion resume;
 	struct attribute_group trips_attribute_group;
 	struct thermal_attr *trip_temp_attrs;
 	struct thermal_attr *trip_type_attrs;
@@ -123,6 +126,7 @@ struct thermal_zone_device {
 	struct delayed_work poll_queue;
 	enum thermal_notify_event notify_event;
 	bool suspended;
+	bool resuming;
 #ifdef CONFIG_THERMAL_DEBUGFS
 	struct thermal_debugfs *debugfs;
 #endif
