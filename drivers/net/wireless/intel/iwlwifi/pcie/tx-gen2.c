@@ -19,8 +19,10 @@ static struct page *get_workaround_page(struct iwl_trans *trans,
 					struct sk_buff *skb)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	struct iwl_tso_page_info *info;
 	struct page **page_ptr;
 	struct page *ret;
+	dma_addr_t phys;
 
 	page_ptr = (void *)((u8 *)skb->cb + trans_pcie->txqs.page_offs);
 
@@ -28,8 +30,22 @@ static struct page *get_workaround_page(struct iwl_trans *trans,
 	if (!ret)
 		return NULL;
 
+	info = IWL_TSO_PAGE_INFO(page_address(ret));
+
+	/* Create a DMA mapping for the page */
+	phys = dma_map_page_attrs(trans->dev, ret, 0, PAGE_SIZE,
+				  DMA_TO_DEVICE, DMA_ATTR_SKIP_CPU_SYNC);
+	if (unlikely(dma_mapping_error(trans->dev, phys))) {
+		__free_page(ret);
+		return NULL;
+	}
+
+	/* Store physical address and set use count */
+	info->dma_addr = phys;
+	refcount_set(&info->use_count, 1);
+
 	/* set the chaining pointer to the previous page if there */
-	*(void **)((u8 *)page_address(ret) + PAGE_SIZE - sizeof(void *)) = *page_ptr;
+	info->next = *page_ptr;
 	*page_ptr = ret;
 
 	return ret;
@@ -76,7 +92,7 @@ static int iwl_txq_gen2_set_tb_with_wa(struct iwl_trans *trans,
 	 * a new mapping for it so the device will not fail.
 	 */
 
-	if (WARN_ON(len > PAGE_SIZE - sizeof(void *))) {
+	if (WARN_ON(len > IWL_TSO_PAGE_DATA_SIZE)) {
 		ret = -ENOBUFS;
 		goto unmap;
 	}
@@ -782,7 +798,7 @@ static void iwl_txq_gen2_unmap(struct iwl_trans *trans, int txq_id)
 			struct sk_buff *skb = txq->entries[idx].skb;
 
 			if (!WARN_ON_ONCE(!skb))
-				iwl_pcie_free_tso_page(trans, skb, cmd_meta);
+				iwl_pcie_free_tso_pages(trans, skb, cmd_meta);
 		}
 		iwl_txq_gen2_free_tfd(trans, txq);
 		txq->read_ptr = iwl_txq_inc_wrap(trans, txq->read_ptr);

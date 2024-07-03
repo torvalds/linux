@@ -209,8 +209,22 @@ static void iwl_pcie_clear_cmd_in_flight(struct iwl_trans *trans)
 	spin_unlock(&trans_pcie->reg_lock);
 }
 
-void iwl_pcie_free_tso_page(struct iwl_trans *trans, struct sk_buff *skb,
-			    struct iwl_cmd_meta *cmd_meta)
+static void iwl_pcie_free_and_unmap_tso_page(struct iwl_trans *trans,
+					     struct page *page)
+{
+	struct iwl_tso_page_info *info = IWL_TSO_PAGE_INFO(page_address(page));
+
+	/* Decrease internal use count and unmap/free page if needed */
+	if (refcount_dec_and_test(&info->use_count)) {
+		dma_unmap_page(trans->dev, info->dma_addr, PAGE_SIZE,
+			       DMA_TO_DEVICE);
+
+		__free_page(page);
+	}
+}
+
+void iwl_pcie_free_tso_pages(struct iwl_trans *trans, struct sk_buff *skb,
+			     struct iwl_cmd_meta *cmd_meta)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct page **page_ptr;
@@ -221,10 +235,11 @@ void iwl_pcie_free_tso_page(struct iwl_trans *trans, struct sk_buff *skb,
 	*page_ptr = NULL;
 
 	while (next) {
+		struct iwl_tso_page_info *info;
 		struct page *tmp = next;
 
-		next = *(void **)((u8 *)page_address(next) + PAGE_SIZE -
-				  sizeof(void *));
+		info = IWL_TSO_PAGE_INFO(page_address(next));
+		next = info->next;
 
 		/* Unmap the scatter gather list that is on the last page */
 		if (!next && cmd_meta->sg_offset) {
@@ -236,7 +251,7 @@ void iwl_pcie_free_tso_page(struct iwl_trans *trans, struct sk_buff *skb,
 			dma_unmap_sgtable(trans->dev, sgt, DMA_TO_DEVICE, 0);
 		}
 
-		__free_page(tmp);
+		iwl_pcie_free_and_unmap_tso_page(trans, tmp);
 	}
 }
 
@@ -381,7 +396,7 @@ static void iwl_pcie_txq_unmap(struct iwl_trans *trans, int txq_id)
 			if (WARN_ON_ONCE(!skb))
 				continue;
 
-			iwl_pcie_free_tso_page(trans, skb, cmd_meta);
+			iwl_pcie_free_tso_pages(trans, skb, cmd_meta);
 		}
 		iwl_txq_free_tfd(trans, txq);
 		txq->read_ptr = iwl_txq_inc_wrap(trans, txq->read_ptr);
@@ -1722,7 +1737,9 @@ static void *iwl_pcie_get_page_hdr(struct iwl_trans *trans,
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_tso_hdr_page *p = this_cpu_ptr(trans_pcie->txqs.tso_hdr_page);
+	struct iwl_tso_page_info *info;
 	struct page **page_ptr;
+	dma_addr_t phys;
 	void *ret;
 
 	page_ptr = (void *)((u8 *)skb->cb + trans_pcie->txqs.page_offs);
@@ -1743,23 +1760,42 @@ static void *iwl_pcie_get_page_hdr(struct iwl_trans *trans,
 	 *
 	 * (see also get_workaround_page() in tx-gen2.c)
 	 */
-	if (p->pos + len < (u8 *)page_address(p->page) + PAGE_SIZE -
-			   sizeof(void *))
+	if (((unsigned long)p->pos & ~PAGE_MASK) + len < IWL_TSO_PAGE_DATA_SIZE) {
+		info = IWL_TSO_PAGE_INFO(page_address(ret));
 		goto out;
+	}
 
 	/* We don't have enough room on this page, get a new one. */
-	__free_page(p->page);
+	iwl_pcie_free_and_unmap_tso_page(trans, p->page);
 
 alloc:
 	p->page = alloc_page(GFP_ATOMIC);
 	if (!p->page)
 		return NULL;
 	p->pos = page_address(p->page);
+
+	info = IWL_TSO_PAGE_INFO(page_address(ret));
+
 	/* set the chaining pointer to NULL */
-	*(void **)((u8 *)page_address(p->page) + PAGE_SIZE - sizeof(void *)) = NULL;
+	info->next = NULL;
+
+	/* Create a DMA mapping for the page */
+	phys = dma_map_page_attrs(trans->dev, p->page, 0, PAGE_SIZE,
+				  DMA_TO_DEVICE, DMA_ATTR_SKIP_CPU_SYNC);
+	if (unlikely(dma_mapping_error(trans->dev, phys))) {
+		__free_page(p->page);
+		p->page = NULL;
+
+		return NULL;
+	}
+
+	/* Store physical address and set use count */
+	info->dma_addr = phys;
+	refcount_set(&info->use_count, 1);
 out:
 	*page_ptr = p->page;
-	get_page(p->page);
+	/* Return an internal reference for the caller */
+	refcount_inc(&info->use_count);
 	ret = p->pos;
 	p->pos += len;
 
@@ -2330,7 +2366,7 @@ void iwl_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 			      read_ptr, txq->read_ptr, txq_id))
 			continue;
 
-		iwl_pcie_free_tso_page(trans, skb, cmd_meta);
+		iwl_pcie_free_tso_pages(trans, skb, cmd_meta);
 
 		__skb_queue_tail(skbs, skb);
 
