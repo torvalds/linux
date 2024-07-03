@@ -100,44 +100,12 @@ static void input_stop_autorepeat(struct input_dev *dev)
 }
 
 /*
- * Pass event first through all filters and then, if event has not been
- * filtered out, through all open handles. This function is called with
- * dev->event_lock held and interrupts disabled.
- */
-static unsigned int input_to_handler(struct input_handle *handle,
-			struct input_value *vals, unsigned int count)
-{
-	struct input_handler *handler = handle->handler;
-	struct input_value *end = vals;
-	struct input_value *v;
-
-	if (handler->filter) {
-		for (v = vals; v != vals + count; v++) {
-			if (handler->filter(handle, v->type, v->code, v->value))
-				continue;
-			if (end != v)
-				*end = *v;
-			end++;
-		}
-		count = end - vals;
-	}
-
-	if (!count)
-		return 0;
-
-	if (handler->events)
-		handler->events(handle, vals, count);
-	else if (handler->event)
-		for (v = vals; v != vals + count; v++)
-			handler->event(handle, v->type, v->code, v->value);
-
-	return count;
-}
-
-/*
  * Pass values first through all filters and then, if event has not been
- * filtered out, through all open handles. This function is called with
- * dev->event_lock held and interrupts disabled.
+ * filtered out, through all open handles. This order is achieved by placing
+ * filters at the head of the list of handles attached to the device, and
+ * placing regular handles at the tail of the list.
+ *
+ * This function is called with dev->event_lock held and interrupts disabled.
  */
 static void input_pass_values(struct input_dev *dev,
 			      struct input_value *vals, unsigned int count)
@@ -154,11 +122,12 @@ static void input_pass_values(struct input_dev *dev,
 
 	handle = rcu_dereference(dev->grab);
 	if (handle) {
-		count = input_to_handler(handle, vals, count);
+		count = handle->handler->events(handle, vals, count);
 	} else {
 		list_for_each_entry_rcu(handle, &dev->h_list, d_node)
 			if (handle->open) {
-				count = input_to_handler(handle, vals, count);
+				count = handle->handler->events(handle, vals,
+								count);
 				if (!count)
 					break;
 			}
@@ -2537,6 +2506,57 @@ static int input_handler_check_methods(const struct input_handler *handler)
 	return 0;
 }
 
+/*
+ * An implementation of input_handler's events() method that simply
+ * invokes handler->event() method for each event one by one.
+ */
+static unsigned int input_handler_events_default(struct input_handle *handle,
+						 struct input_value *vals,
+						 unsigned int count)
+{
+	struct input_handler *handler = handle->handler;
+	struct input_value *v;
+
+	for (v = vals; v != vals + count; v++)
+		handler->event(handle, v->type, v->code, v->value);
+
+	return count;
+}
+
+/*
+ * An implementation of input_handler's events() method that invokes
+ * handler->filter() method for each event one by one and removes events
+ * that were filtered out from the "vals" array.
+ */
+static unsigned int input_handler_events_filter(struct input_handle *handle,
+						struct input_value *vals,
+						unsigned int count)
+{
+	struct input_handler *handler = handle->handler;
+	struct input_value *end = vals;
+	struct input_value *v;
+
+	for (v = vals; v != vals + count; v++) {
+		if (handler->filter(handle, v->type, v->code, v->value))
+			continue;
+		if (end != v)
+			*end = *v;
+		end++;
+	}
+
+	return end - vals;
+}
+
+/*
+ * An implementation of input_handler's events() method that does nothing.
+ */
+static unsigned int input_handler_events_null(struct input_handle *handle,
+					      struct input_value *vals,
+					      unsigned int count)
+{
+	return count;
+}
+
 /**
  * input_register_handler - register a new input handler
  * @handler: handler to be registered
@@ -2554,11 +2574,18 @@ int input_register_handler(struct input_handler *handler)
 	if (error)
 		return error;
 
+	INIT_LIST_HEAD(&handler->h_list);
+
+	if (handler->filter)
+		handler->events = input_handler_events_filter;
+	else if (handler->event)
+		handler->events = input_handler_events_default;
+	else if (!handler->events)
+		handler->events = input_handler_events_null;
+
 	error = mutex_lock_interruptible(&input_mutex);
 	if (error)
 		return error;
-
-	INIT_LIST_HEAD(&handler->h_list);
 
 	list_add_tail(&handler->node, &input_handler_list);
 
