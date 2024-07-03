@@ -1740,7 +1740,7 @@ static struct dml2_soc_bb *dm_dmub_get_vbios_bounding_box(struct amdgpu_device *
 		/* Send the chunk */
 		ret = dm_dmub_send_vbios_gpint_command(adev, send_addrs[i], chunk, 30000);
 		if (ret != DMUB_STATUS_OK)
-			/* No need to free bb here since it shall be done unconditionally <elsewhere> */
+			/* No need to free bb here since it shall be done in dm_sw_fini() */
 			return NULL;
 	}
 
@@ -2489,8 +2489,17 @@ static int dm_sw_init(void *handle)
 static int dm_sw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct dal_allocation *da;
 
-	kfree(adev->dm.bb_from_dmub);
+	list_for_each_entry(da, &adev->dm.da_list, list) {
+		if (adev->dm.bb_from_dmub == (void *) da->cpu_ptr) {
+			amdgpu_bo_free_kernel(&da->bo, &da->gpu_addr, &da->cpu_ptr);
+			list_del(&da->list);
+			kfree(da);
+			break;
+		}
+	}
+
 	adev->dm.bb_from_dmub = NULL;
 
 	kfree(adev->dm.dmub_fb_info);
