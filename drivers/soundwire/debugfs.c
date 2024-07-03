@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 // Copyright(c) 2017-2019 Intel Corporation.
 
+#include <linux/cleanup.h>
 #include <linux/device.h>
 #include <linux/debugfs.h>
 #include <linux/firmware.h>
@@ -49,18 +50,16 @@ static ssize_t sdw_sprintf(struct sdw_slave *slave,
 static int sdw_slave_reg_show(struct seq_file *s_file, void *data)
 {
 	struct sdw_slave *slave = s_file->private;
-	char *buf;
 	ssize_t ret;
 	int i, j;
 
-	buf = kzalloc(RD_BUF, GFP_KERNEL);
+	char *buf __free(kfree) = kzalloc(RD_BUF, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
 	ret = pm_runtime_get_sync(&slave->dev);
 	if (ret < 0 && ret != -EACCES) {
 		pm_runtime_put_noidle(&slave->dev);
-		kfree(buf);
 		return ret;
 	}
 
@@ -131,8 +130,6 @@ static int sdw_slave_reg_show(struct seq_file *s_file, void *data)
 
 	pm_runtime_mark_last_busy(&slave->dev);
 	pm_runtime_put(&slave->dev);
-
-	kfree(buf);
 
 	return 0;
 }
