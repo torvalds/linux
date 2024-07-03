@@ -312,17 +312,13 @@ static inline unsigned int erofs_inode_datalayout(unsigned int ifmt)
 	return (ifmt >> EROFS_I_DATALAYOUT_BIT) & EROFS_I_DATALAYOUT_MASK;
 }
 
-/*
- * Different from grab_cache_page_nowait(), reclaiming is never triggered
- * when allocating new pages.
- */
-static inline
-struct page *erofs_grab_cache_page_nowait(struct address_space *mapping,
-					  pgoff_t index)
+/* reclaiming is never triggered when allocating new folios. */
+static inline struct folio *erofs_grab_folio_nowait(struct address_space *as,
+						    pgoff_t index)
 {
-	return pagecache_get_page(mapping, index,
+	return __filemap_get_folio(as, index,
 			FGP_LOCK|FGP_CREAT|FGP_NOFS|FGP_NOWAIT,
-			readahead_gfp_mask(mapping) & ~__GFP_RECLAIM);
+			readahead_gfp_mask(as) & ~__GFP_RECLAIM);
 }
 
 /* Has a disk mapping */

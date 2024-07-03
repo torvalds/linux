@@ -1767,7 +1767,6 @@ static void z_erofs_pcluster_readmore(struct z_erofs_decompress_frontend *f,
 		end = round_up(end, PAGE_SIZE);
 	} else {
 		end = round_up(map->m_la, PAGE_SIZE);
-
 		if (!map->m_llen)
 			return;
 	}
@@ -1775,15 +1774,15 @@ static void z_erofs_pcluster_readmore(struct z_erofs_decompress_frontend *f,
 	cur = map->m_la + map->m_llen - 1;
 	while ((cur >= end) && (cur < i_size_read(inode))) {
 		pgoff_t index = cur >> PAGE_SHIFT;
-		struct page *page;
+		struct folio *folio;
 
-		page = erofs_grab_cache_page_nowait(inode->i_mapping, index);
-		if (page) {
-			if (PageUptodate(page))
-				unlock_page(page);
+		folio = erofs_grab_folio_nowait(inode->i_mapping, index);
+		if (!IS_ERR_OR_NULL(folio)) {
+			if (folio_test_uptodate(folio))
+				folio_unlock(folio);
 			else
-				z_erofs_scan_folio(f, page_folio(page), !!rac);
-			put_page(page);
+				z_erofs_scan_folio(f, folio, !!rac);
+			folio_put(folio);
 		}
 
 		if (cur < PAGE_SIZE)
