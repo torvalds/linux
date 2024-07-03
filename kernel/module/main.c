@@ -450,7 +450,7 @@ bool __is_module_percpu_address(unsigned long addr, unsigned long *can_addr)
 	return false;
 }
 
-/**
+/*
  * is_module_percpu_address() - test whether address is from module static percpu
  * @addr: address to test
  *
