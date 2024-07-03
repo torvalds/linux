@@ -308,17 +308,6 @@ static void evdev_events(struct input_handle *handle,
 	rcu_read_unlock();
 }
 
-/*
- * Pass incoming event to all connected clients.
- */
-static void evdev_event(struct input_handle *handle,
-			unsigned int type, unsigned int code, int value)
-{
-	struct input_value vals[] = { { type, code, value } };
-
-	evdev_events(handle, vals, 1);
-}
-
 static int evdev_fasync(int fd, struct file *file, int on)
 {
 	struct evdev_client *client = file->private_data;
@@ -1418,7 +1407,6 @@ static const struct input_device_id evdev_ids[] = {
 MODULE_DEVICE_TABLE(input, evdev_ids);
 
 static struct input_handler evdev_handler = {
-	.event		= evdev_event,
 	.events		= evdev_events,
 	.connect	= evdev_connect,
 	.disconnect	= evdev_disconnect,
