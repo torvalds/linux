@@ -13,4 +13,3 @@
 
 extern void stub_segv_handler(int, siginfo_t *, void *);
 extern void stub_syscall_handler(void);
-extern void stub_clone_handler(void);

@@ -21,8 +21,7 @@ static_assert(sizeof(struct stub_data) == STUB_DATA_PAGES * UM_KERN_PAGE_SIZE);
 
 int init_new_context(struct task_struct *task, struct mm_struct *mm)
 {
- 	struct mm_context *from_mm = NULL;
-	struct mm_context *to_mm = &mm->context;
+	struct mm_id *new_id = &mm->context.id;
 	unsigned long stack = 0;
 	int ret = -ENOMEM;
 
@@ -30,27 +29,22 @@ int init_new_context(struct task_struct *task, struct mm_struct *mm)
 	if (stack == 0)
 		goto out;
 
-	to_mm->id.stack = stack;
-	if (current->mm != NULL && current->mm != &init_mm)
-		from_mm = &current->mm->context;
+	new_id->stack = stack;
 
 	block_signals_trace();
-	if (from_mm)
-		to_mm->id.u.pid = copy_context_skas0(stack,
-						     from_mm->id.u.pid);
-	else to_mm->id.u.pid = start_userspace(stack);
+	new_id->u.pid = start_userspace(stack);
 	unblock_signals_trace();
 
-	if (to_mm->id.u.pid < 0) {
-		ret = to_mm->id.u.pid;
+	if (new_id->u.pid < 0) {
+		ret = new_id->u.pid;
 		goto out_free;
 	}
 
 	return 0;
 
  out_free:
-	if (to_mm->id.stack != 0)
-		free_pages(to_mm->id.stack, ilog2(STUB_DATA_PAGES));
+	if (new_id->stack != 0)
+		free_pages(new_id->stack, ilog2(STUB_DATA_PAGES));
  out:
 	return ret;
 }

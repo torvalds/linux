@@ -36,7 +36,6 @@ struct stub_syscall {
 
 struct stub_data {
 	unsigned long offset;
-	int fd;
 	long err, child_err;
 
 	int syscall_data_len;

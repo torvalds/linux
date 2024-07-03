@@ -107,30 +107,6 @@ static __always_inline void trap_myself(void)
 	__asm("int3");
 }
 
-static __always_inline void remap_stack_and_trap(void)
-{
-	__asm__ volatile (
-		"movl %%esp,%%ebx ;"
-		"andl %0,%%ebx ;"
-		"movl %1,%%eax ;"
-		"movl %%ebx,%%edi ; addl %2,%%edi ; movl (%%edi),%%edi ;"
-		"movl %%ebx,%%ebp ; addl %3,%%ebp ; movl (%%ebp),%%ebp ;"
-		"int $0x80 ;"
-		"addl %4,%%ebx ; movl %%eax, (%%ebx) ;"
-		"int $3"
-		: :
-		"g" (~(STUB_DATA_PAGES * UM_KERN_PAGE_SIZE - 1)),
-		"g" (STUB_MMAP_NR),
-		"g" (offsetof(struct stub_data, fd)),
-		"g" (offsetof(struct stub_data, offset)),
-		"g" (offsetof(struct stub_data, child_err)),
-		"c" (STUB_DATA_PAGES * UM_KERN_PAGE_SIZE),
-		"d" (PROT_READ | PROT_WRITE),
-		"S" (MAP_FIXED | MAP_SHARED)
-		:
-		"memory");
-}
-
 static __always_inline void *get_stub_data(void)
 {
 	unsigned long ret;
