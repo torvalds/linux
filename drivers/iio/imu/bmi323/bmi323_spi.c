@@ -36,7 +36,7 @@ static int bmi323_regmap_spi_write(void *context, const void *data,
 	return spi_write(spi, data_buff + 1, count - 1);
 }
 
-static struct regmap_bus bmi323_regmap_bus = {
+static const struct regmap_bus bmi323_regmap_bus = {
 	.read = bmi323_regmap_spi_read,
 	.write = bmi323_regmap_spi_write,
 };
