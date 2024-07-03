@@ -2517,6 +2517,26 @@ void input_unregister_device(struct input_dev *dev)
 }
 EXPORT_SYMBOL(input_unregister_device);
 
+static int input_handler_check_methods(const struct input_handler *handler)
+{
+	int count = 0;
+
+	if (handler->filter)
+		count++;
+	if (handler->events)
+		count++;
+	if (handler->event)
+		count++;
+
+	if (count > 1) {
+		pr_err("%s: only one event processing method can be defined (%s)\n",
+		       __func__, handler->name);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 /**
  * input_register_handler - register a new input handler
  * @handler: handler to be registered
@@ -2529,6 +2549,10 @@ int input_register_handler(struct input_handler *handler)
 {
 	struct input_dev *dev;
 	int error;
+
+	error = input_handler_check_methods(handler);
+	if (error)
+		return error;
 
 	error = mutex_lock_interruptible(&input_mutex);
 	if (error)
