@@ -242,7 +242,7 @@ qcom_tzmem_pool_new(const struct qcom_tzmem_pool_config *config)
 		}
 	}
 
-	return no_free_ptr(pool);
+	return_ptr(pool);
 }
 EXPORT_SYMBOL_GPL(qcom_tzmem_pool_new);
 
