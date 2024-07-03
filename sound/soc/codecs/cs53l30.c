@@ -900,7 +900,7 @@ static const struct snd_soc_component_driver cs53l30_driver = {
 	.endianness		= 1,
 };
 
-static struct regmap_config cs53l30_regmap = {
+static const struct regmap_config cs53l30_regmap = {
 	.reg_bits = 8,
 	.val_bits = 8,
 
