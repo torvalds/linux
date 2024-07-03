@@ -1038,11 +1038,5 @@ static int __init um_bc_start(void)
 
 	return 0;
 }
-
-void __exit time_exit(void)
-{
-	kobject_put(bc_time_kobject);
-}
-
 late_initcall(um_bc_start);
 #endif
