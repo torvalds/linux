@@ -2183,7 +2183,7 @@ static struct clk_regmap *const a1_periphs_regmaps[] = {
 	&dmc_sel2,
 };
 
-static struct regmap_config a1_periphs_regmap_cfg = {
+static const struct regmap_config a1_periphs_regmap_cfg = {
 	.reg_bits   = 32,
 	.val_bits   = 32,
 	.reg_stride = 4,
