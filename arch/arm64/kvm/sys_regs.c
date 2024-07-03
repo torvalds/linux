@@ -5150,9 +5150,11 @@ void kvm_calculate_traps(struct kvm_vcpu *vcpu)
 	kvm->arch.fgu[HFGRTR_GROUP] = (HFGRTR_EL2_nAMAIR2_EL1		|
 				       HFGRTR_EL2_nMAIR2_EL1		|
 				       HFGRTR_EL2_nS2POR_EL1		|
-				       HFGRTR_EL2_nACCDATA_EL1		|
 				       HFGRTR_EL2_nSMPRI_EL1_MASK	|
 				       HFGRTR_EL2_nTPIDR2_EL0_MASK);
+
+	if (!kvm_has_feat(kvm, ID_AA64ISAR1_EL1, LS64, LS64_ACCDATA))
+		kvm->arch.fgu[HFGRTR_GROUP] |= HFGRTR_EL2_nACCDATA_EL1;
 
 	if (!kvm_has_feat(kvm, ID_AA64ISAR0_EL1, TLB, OS))
 		kvm->arch.fgu[HFGITR_GROUP] |= (HFGITR_EL2_TLBIRVAALE1OS|
