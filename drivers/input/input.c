@@ -1982,21 +1982,28 @@ struct input_dev *input_allocate_device(void)
 	struct input_dev *dev;
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (dev) {
-		dev->dev.type = &input_dev_type;
-		dev->dev.class = &input_class;
-		device_initialize(&dev->dev);
-		mutex_init(&dev->mutex);
-		spin_lock_init(&dev->event_lock);
-		timer_setup(&dev->timer, NULL, 0);
-		INIT_LIST_HEAD(&dev->h_list);
-		INIT_LIST_HEAD(&dev->node);
+	if (!dev)
+		return NULL;
 
-		dev_set_name(&dev->dev, "input%lu",
-			     (unsigned long)atomic_inc_return(&input_no));
+	mutex_init(&dev->mutex);
+	spin_lock_init(&dev->event_lock);
+	timer_setup(&dev->timer, NULL, 0);
+	INIT_LIST_HEAD(&dev->h_list);
+	INIT_LIST_HEAD(&dev->node);
 
-		__module_get(THIS_MODULE);
-	}
+	dev->dev.type = &input_dev_type;
+	dev->dev.class = &input_class;
+	device_initialize(&dev->dev);
+	/*
+	 * From this point on we can no longer simply "kfree(dev)", we need
+	 * to use input_free_device() so that device core properly frees its
+	 * resources associated with the input device.
+	 */
+
+	dev_set_name(&dev->dev, "input%lu",
+		     (unsigned long)atomic_inc_return(&input_no));
+
+	__module_get(THIS_MODULE);
 
 	return dev;
 }
