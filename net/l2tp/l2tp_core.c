@@ -60,7 +60,6 @@
 #include <linux/atomic.h>
 
 #include "l2tp_core.h"
-#include "trace.h"
 
 #define CREATE_TRACE_POINTS
 #include "trace.h"
