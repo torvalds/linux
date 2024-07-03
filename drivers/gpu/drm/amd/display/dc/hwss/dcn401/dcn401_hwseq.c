@@ -1115,10 +1115,10 @@ void dcn401_set_cursor_position(struct pipe_ctx *pipe_ctx)
 		.mirror = pipe_ctx->plane_state->horizontal_mirror,
 		.stream = pipe_ctx->stream
 	};
+	struct rect odm_slice_src = { 0 };
 	bool odm_combine_on = (pipe_ctx->next_odm_pipe != NULL) ||
 		(pipe_ctx->prev_odm_pipe != NULL);
 	int prev_odm_width = 0;
-	int prev_odm_offset = 0;
 	struct pipe_ctx *prev_odm_pipe = NULL;
 	bool mpc_combine_on = false;
 	int  bottom_pipe_x_pos = 0;
@@ -1183,12 +1183,12 @@ void dcn401_set_cursor_position(struct pipe_ctx *pipe_ctx)
 		prev_odm_pipe = pipe_ctx->prev_odm_pipe;
 
 		while (prev_odm_pipe != NULL) {
-			prev_odm_width += prev_odm_pipe->plane_res.scl_data.recout.width;
-			prev_odm_offset += prev_odm_pipe->plane_res.scl_data.recout.x;
+			odm_slice_src = resource_get_odm_slice_src_rect(prev_odm_pipe);
+			prev_odm_width += odm_slice_src.width;
 			prev_odm_pipe = prev_odm_pipe->prev_odm_pipe;
 		}
 
-		x_pos -= (prev_odm_width + prev_odm_offset);
+		x_pos -= (prev_odm_width);
 	}
 
 	/* If the position is negative then we need to add to the hotspot
