@@ -919,7 +919,7 @@ static void verity_io_hints(struct dm_target *ti, struct queue_limits *limits)
 	if (limits->physical_block_size < 1 << v->data_dev_block_bits)
 		limits->physical_block_size = 1 << v->data_dev_block_bits;
 
-	blk_limits_io_min(limits, limits->logical_block_size);
+	limits->io_min = limits->logical_block_size;
 
 	/*
 	 * Similar to what dm-crypt does, opt dm-verity out of support for

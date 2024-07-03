@@ -3471,7 +3471,7 @@ static void dm_integrity_io_hints(struct dm_target *ti, struct queue_limits *lim
 	if (ic->sectors_per_block > 1) {
 		limits->logical_block_size = ic->sectors_per_block << SECTOR_SHIFT;
 		limits->physical_block_size = ic->sectors_per_block << SECTOR_SHIFT;
-		blk_limits_io_min(limits, ic->sectors_per_block << SECTOR_SHIFT);
+		limits->io_min = ic->sectors_per_block << SECTOR_SHIFT;
 		limits->dma_alignment = limits->logical_block_size - 1;
 		limits->discard_granularity = ic->sectors_per_block << SECTOR_SHIFT;
 	}

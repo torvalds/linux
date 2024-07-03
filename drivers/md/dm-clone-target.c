@@ -2073,8 +2073,8 @@ static void clone_io_hints(struct dm_target *ti, struct queue_limits *limits)
 	 */
 	if (io_opt_sectors < clone->region_size ||
 	    do_div(io_opt_sectors, clone->region_size)) {
-		blk_limits_io_min(limits, clone->region_size << SECTOR_SHIFT);
-		blk_limits_io_opt(limits, clone->region_size << SECTOR_SHIFT);
+		limits->io_min = clone->region_size << SECTOR_SHIFT;
+		limits->io_opt = clone->region_size << SECTOR_SHIFT;
 	}
 
 	disable_passdown_if_not_supported(clone);

@@ -428,7 +428,7 @@ static void ebs_io_hints(struct dm_target *ti, struct queue_limits *limits)
 	limits->logical_block_size = to_bytes(ec->e_bs);
 	limits->physical_block_size = to_bytes(ec->u_bs);
 	limits->alignment_offset = limits->physical_block_size;
-	blk_limits_io_min(limits, limits->logical_block_size);
+	limits->io_min = limits->logical_block_size;
 }
 
 static int ebs_iterate_devices(struct dm_target *ti,
