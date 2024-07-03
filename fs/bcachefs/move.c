@@ -36,31 +36,6 @@ const char * const bch2_data_ops_strs[] = {
 	NULL
 };
 
-static void bch2_data_update_opts_to_text(struct printbuf *out, struct bch_fs *c,
-					  struct bch_io_opts *io_opts,
-					  struct data_update_opts *data_opts)
-{
-	printbuf_tabstop_push(out, 20);
-	prt_str(out, "rewrite ptrs:\t");
-	bch2_prt_u64_base2(out, data_opts->rewrite_ptrs);
-	prt_newline(out);
-
-	prt_str(out, "kill ptrs:\t");
-	bch2_prt_u64_base2(out, data_opts->kill_ptrs);
-	prt_newline(out);
-
-	prt_str(out, "target:\t");
-	bch2_target_to_text(out, c, data_opts->target);
-	prt_newline(out);
-
-	prt_str(out, "compression:\t");
-	bch2_compression_opt_to_text(out, background_compression(*io_opts));
-	prt_newline(out);
-
-	prt_str(out, "extra replicas:\t");
-	prt_u64(out, data_opts->extra_replicas);
-}
-
 static void trace_move_extent2(struct bch_fs *c, struct bkey_s_c k,
 			       struct bch_io_opts *io_opts,
 			       struct data_update_opts *data_opts)
