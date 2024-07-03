@@ -1531,7 +1531,7 @@ void dcn401_fams2_update_config(struct dc *dc, struct dc_state *context, bool en
 	if (!dc->ctx || !dc->ctx->dmub_srv || !dc->debug.fams2_config.bits.enable)
 		return;
 
-	fams2_required = context->bw_ctx.bw.dcn.fams2_stream_count > 0;
+	fams2_required = context->bw_ctx.bw.dcn.fams2_global_config.features.bits.enable;
 
 	dc_dmub_srv_fams2_update_config(dc, context, enable && fams2_required);
 }
@@ -1656,7 +1656,7 @@ void dcn401_hardware_release(struct dc *dc)
 	 */
 	if (dc->current_state) {
 		if ((!dc->clk_mgr->clks.p_state_change_support ||
-				dc->current_state->bw_ctx.bw.dcn.fams2_stream_count > 0) &&
+				dc->current_state->bw_ctx.bw.dcn.fams2_global_config.features.bits.enable) &&
 				dc->res_pool->hubbub->funcs->force_pstate_change_control)
 			dc->res_pool->hubbub->funcs->force_pstate_change_control(
 					dc->res_pool->hubbub, true, true);

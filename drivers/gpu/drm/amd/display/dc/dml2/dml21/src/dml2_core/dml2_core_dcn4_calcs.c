@@ -12221,12 +12221,19 @@ void dml2_core_calcs_get_global_fams2_programming(const struct dml2_core_interna
 		const struct display_configuation_with_meta *display_cfg,
 		struct dmub_cmd_fams2_global_config *fams2_global_config)
 {
-	fams2_global_config->max_allow_delay_us = mode_lib->ip_caps.fams2.max_allow_delay_us;
-	fams2_global_config->lock_wait_time_us = mode_lib->ip_caps.fams2.lock_timeout_us;
-	fams2_global_config->recovery_timeout_us = mode_lib->ip_caps.fams2.recovery_timeout_us;
-	fams2_global_config->hwfq_flip_programming_delay_us = mode_lib->ip_caps.fams2.flip_programming_delay_us;
+	fams2_global_config->features.bits.enable = display_cfg->stage3.fams2_required;
 
-	fams2_global_config->num_streams = display_cfg->display_config.num_streams;
+	if (fams2_global_config->features.bits.enable) {
+		fams2_global_config->features.bits.enable_stall_recovery = true;
+		fams2_global_config->features.bits.allow_delay_check_mode = FAMS2_ALLOW_DELAY_CHECK_FROM_START;
+
+		fams2_global_config->max_allow_delay_us = mode_lib->ip_caps.fams2.max_allow_delay_us;
+		fams2_global_config->lock_wait_time_us = mode_lib->ip_caps.fams2.lock_timeout_us;
+		fams2_global_config->recovery_timeout_us = mode_lib->ip_caps.fams2.recovery_timeout_us;
+		fams2_global_config->hwfq_flip_programming_delay_us = mode_lib->ip_caps.fams2.flip_programming_delay_us;
+
+		fams2_global_config->num_streams = display_cfg->display_config.num_streams;
+	}
 }
 
 void dml2_core_calcs_get_stream_fams2_programming(const struct dml2_core_internal_display_mode_lib *mode_lib,

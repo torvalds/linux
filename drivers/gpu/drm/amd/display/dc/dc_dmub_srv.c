@@ -1672,22 +1672,17 @@ void dc_dmub_srv_fams2_update_config(struct dc *dc,
 	global_cmd->header.sub_type = DMUB_CMD__FAMS2_CONFIG;
 	global_cmd->header.payload_bytes = sizeof(struct dmub_rb_cmd_fams2) - sizeof(struct dmub_cmd_header);
 
-	/* send global configuration parameters */
-	global_cmd->config.global.max_allow_delay_us = 100 * 1000; //100ms
-	global_cmd->config.global.lock_wait_time_us = 5000; //5ms
-	global_cmd->config.global.recovery_timeout_us = 5000; //5ms
-	global_cmd->config.global.hwfq_flip_programming_delay_us = 100; //100us
-
-	/* copy static feature configuration */
-	global_cmd->config.global.features.all = dc->debug.fams2_config.all;
-
-	/* apply feature configuration based on current driver state */
-	global_cmd->config.global.features.bits.enable_visual_confirm = dc->debug.visual_confirm == VISUAL_CONFIRM_FAMS2;
-	global_cmd->config.global.features.bits.enable = enable;
-
-	/* construct per-stream configs */
 	if (enable) {
-		for (i = 0; i < context->bw_ctx.bw.dcn.fams2_stream_count; i++) {
+		/* send global configuration parameters */
+		memcpy(&global_cmd->config.global, &context->bw_ctx.bw.dcn.fams2_global_config, sizeof(struct dmub_cmd_fams2_global_config));
+
+		/* copy static feature configuration overrides */
+		global_cmd->config.global.features.bits.enable_stall_recovery = dc->debug.fams2_config.bits.enable_stall_recovery;
+		global_cmd->config.global.features.bits.enable_debug = dc->debug.fams2_config.bits.enable_debug;
+		global_cmd->config.global.features.bits.enable_offload_flip = dc->debug.fams2_config.bits.enable_offload_flip;
+
+		/* construct per-stream configs */
+		for (i = 0; i < context->bw_ctx.bw.dcn.fams2_global_config.num_streams; i++) {
 			struct dmub_rb_cmd_fams2 *stream_cmd = &cmd[i+1].fams2_config;
 
 			/* configure command header */
@@ -1702,12 +1697,15 @@ void dc_dmub_srv_fams2_update_config(struct dc *dc,
 		}
 	}
 
-	if (enable && context->bw_ctx.bw.dcn.fams2_stream_count) {
+	/* apply feature configuration based on current driver state */
+	global_cmd->config.global.features.bits.enable_visual_confirm = dc->debug.visual_confirm == VISUAL_CONFIRM_FAMS2;
+	global_cmd->config.global.features.bits.enable = enable;
+
+	if (enable && context->bw_ctx.bw.dcn.fams2_global_config.features.bits.enable) {
 		/* set multi pending for global, and unset for last stream cmd */
-		global_cmd->config.global.num_streams = context->bw_ctx.bw.dcn.fams2_stream_count;
 		global_cmd->header.multi_cmd_pending = 1;
-		cmd[context->bw_ctx.bw.dcn.fams2_stream_count].fams2_config.header.multi_cmd_pending = 0;
-		num_cmds += context->bw_ctx.bw.dcn.fams2_stream_count;
+		cmd[context->bw_ctx.bw.dcn.fams2_global_config.num_streams].fams2_config.header.multi_cmd_pending = 0;
+		num_cmds += context->bw_ctx.bw.dcn.fams2_global_config.num_streams;
 	}
 
 	dm_execute_dmub_cmd_list(dc->ctx, num_cmds, cmd, DM_DMUB_WAIT_TYPE_WAIT);
