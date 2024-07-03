@@ -10,14 +10,45 @@
 
 #include <linux/compiler_types.h>
 #include <as-layout.h>
+#include <sysdep/tls.h>
+
+#define STUB_NEXT_SYSCALL(s) \
+	((struct stub_syscall *) (((unsigned long) s) + (s)->cmd_len))
+
+enum stub_syscall_type {
+	STUB_SYSCALL_UNSET = 0,
+	STUB_SYSCALL_MMAP,
+	STUB_SYSCALL_MUNMAP,
+	STUB_SYSCALL_MPROTECT,
+	STUB_SYSCALL_LDT,
+};
+
+struct stub_syscall {
+	union {
+		struct {
+			unsigned long addr;
+			unsigned long length;
+			unsigned long offset;
+			int fd;
+			int prot;
+		} mem;
+		struct {
+			user_desc_t desc;
+			int func;
+		} ldt;
+	};
+
+	enum stub_syscall_type syscall;
+};
 
 struct stub_data {
 	unsigned long offset;
 	int fd;
-	long parent_err, child_err;
+	long err, child_err;
 
+	int syscall_data_len;
 	/* 128 leaves enough room for additional fields in the struct */
-	unsigned char syscall_data[UM_KERN_PAGE_SIZE - 128] __aligned(16);
+	struct stub_syscall syscall_data[(UM_KERN_PAGE_SIZE - 128) / sizeof(struct stub_syscall)] __aligned(16);
 
 	/* Stack for our signal handlers and for calling into . */
 	unsigned char sigstack[UM_KERN_PAGE_SIZE] __aligned(UM_KERN_PAGE_SIZE);

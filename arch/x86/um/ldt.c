@@ -12,33 +12,22 @@
 #include <os.h>
 #include <skas.h>
 #include <sysdep/tls.h>
+#include <stub-data.h>
 
 static inline int modify_ldt (int func, void *ptr, unsigned long bytecount)
 {
 	return syscall(__NR_modify_ldt, func, ptr, bytecount);
 }
 
-static long write_ldt_entry(struct mm_id *mm_idp, int func,
-		     struct user_desc *desc, void **addr, int done)
+static void write_ldt_entry(struct mm_id *mm_idp, int func,
+		     struct user_desc *desc)
 {
-	long res;
-	void *stub_addr;
+	struct stub_syscall *sc;
 
-	BUILD_BUG_ON(sizeof(*desc) % sizeof(long));
-
-	res = syscall_stub_data(mm_idp, (unsigned long *)desc,
-				sizeof(*desc) / sizeof(long),
-				addr, &stub_addr);
-	if (!res) {
-		unsigned long args[] = { func,
-					 (unsigned long)stub_addr,
-					 sizeof(*desc),
-					 0, 0, 0 };
-		res = run_syscall_stub(mm_idp, __NR_modify_ldt, args,
-				       0, addr, done);
-	}
-
-	return res;
+	sc = syscall_stub_alloc(mm_idp);
+	sc->syscall = STUB_SYSCALL_LDT;
+	sc->ldt.func = func;
+	memcpy(&sc->ldt.desc, desc, sizeof(*desc));
 }
 
 /*
@@ -127,7 +116,6 @@ static int write_ldt(void __user * ptr, unsigned long bytecount, int func)
 	int i, err;
 	struct user_desc ldt_info;
 	struct ldt_entry entry0, *ldt_p;
-	void *addr = NULL;
 
 	err = -EINVAL;
 	if (bytecount != sizeof(ldt_info))
@@ -148,7 +136,8 @@ static int write_ldt(void __user * ptr, unsigned long bytecount, int func)
 
 	mutex_lock(&ldt->lock);
 
-	err = write_ldt_entry(mm_idp, func, &ldt_info, &addr, 1);
+	write_ldt_entry(mm_idp, func, &ldt_info);
+	err = syscall_stub_flush(mm_idp);
 	if (err)
 		goto out_unlock;
 
@@ -166,7 +155,8 @@ static int write_ldt(void __user * ptr, unsigned long bytecount, int func)
 				err = -ENOMEM;
 				/* Undo the change in host */
 				memset(&ldt_info, 0, sizeof(ldt_info));
-				write_ldt_entry(mm_idp, 1, &ldt_info, &addr, 1);
+				write_ldt_entry(mm_idp, 1, &ldt_info);
+				err = syscall_stub_flush(mm_idp);
 				goto out_unlock;
 			}
 			if (i == 0) {
@@ -303,7 +293,6 @@ long init_new_ldt(struct mm_context *new_mm, struct mm_context *from_mm)
 	short * num_p;
 	int i;
 	long page, err=0;
-	void *addr = NULL;
 
 
 	mutex_init(&new_mm->arch.ldt.lock);
@@ -318,11 +307,9 @@ long init_new_ldt(struct mm_context *new_mm, struct mm_context *from_mm)
 		ldt_get_host_info();
 		for (num_p=host_ldt_entries; *num_p != -1; num_p++) {
 			desc.entry_number = *num_p;
-			err = write_ldt_entry(&new_mm->id, 1, &desc,
-					      &addr, *(num_p + 1) == -1);
-			if (err)
-				break;
+			write_ldt_entry(&new_mm->id, 1, &desc);
 		}
+		err = syscall_stub_flush(&new_mm->id);
 		new_mm->arch.ldt.entry_count = 0;
 
 		goto out;

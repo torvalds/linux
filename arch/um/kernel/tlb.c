@@ -71,21 +71,19 @@ static int do_ops(struct host_vm_change *hvc, int end,
 		switch (op->type) {
 		case MMAP:
 			if (hvc->userspace)
-				ret = map(&hvc->mm->context.id, op->u.mmap.addr,
-					  op->u.mmap.len, op->u.mmap.prot,
-					  op->u.mmap.fd,
-					  op->u.mmap.offset, finished,
-					  &hvc->data);
+				map(&hvc->mm->context.id, op->u.mmap.addr,
+				    op->u.mmap.len, op->u.mmap.prot,
+				    op->u.mmap.fd,
+				    op->u.mmap.offset);
 			else
 				map_memory(op->u.mmap.addr, op->u.mmap.offset,
 					   op->u.mmap.len, 1, 1, 1);
 			break;
 		case MUNMAP:
 			if (hvc->userspace)
-				ret = unmap(&hvc->mm->context.id,
-					    op->u.munmap.addr,
-					    op->u.munmap.len, finished,
-					    &hvc->data);
+				unmap(&hvc->mm->context.id,
+				      op->u.munmap.addr,
+				      op->u.munmap.len);
 			else
 				ret = os_unmap_memory(
 					(void *) op->u.munmap.addr,
@@ -94,11 +92,10 @@ static int do_ops(struct host_vm_change *hvc, int end,
 			break;
 		case MPROTECT:
 			if (hvc->userspace)
-				ret = protect(&hvc->mm->context.id,
-					      op->u.mprotect.addr,
-					      op->u.mprotect.len,
-					      op->u.mprotect.prot,
-					      finished, &hvc->data);
+				protect(&hvc->mm->context.id,
+					op->u.mprotect.addr,
+					op->u.mprotect.len,
+					op->u.mprotect.prot);
 			else
 				ret = os_protect_memory(
 					(void *) op->u.mprotect.addr,
@@ -112,6 +109,9 @@ static int do_ops(struct host_vm_change *hvc, int end,
 			break;
 		}
 	}
+
+	if (hvc->userspace && finished)
+		ret = syscall_stub_flush(&hvc->mm->context.id);
 
 	if (ret == -ENOMEM)
 		report_enomem();
@@ -461,7 +461,6 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long address)
 	pmd_t *pmd;
 	pte_t *pte;
 	struct mm_struct *mm = vma->vm_mm;
-	void *flush = NULL;
 	int r, w, x, prot, err = 0;
 	struct mm_id *mm_id;
 
@@ -504,14 +503,13 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long address)
 			int fd;
 
 			fd = phys_mapping(pte_val(*pte) & PAGE_MASK, &offset);
-			err = map(mm_id, address, PAGE_SIZE, prot, fd, offset,
-				  1, &flush);
-		}
-		else err = unmap(mm_id, address, PAGE_SIZE, 1, &flush);
-	}
-	else if (pte_newprot(*pte))
-		err = protect(mm_id, address, PAGE_SIZE, prot, 1, &flush);
+			map(mm_id, address, PAGE_SIZE, prot, fd, offset);
+		} else
+			unmap(mm_id, address, PAGE_SIZE);
+	} else if (pte_newprot(*pte))
+		protect(mm_id, address, PAGE_SIZE, prot);
 
+	err = syscall_stub_flush(mm_id);
 	if (err) {
 		if (err == -ENOMEM)
 			report_enomem();

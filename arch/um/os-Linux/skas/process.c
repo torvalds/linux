@@ -501,7 +501,7 @@ int copy_context_skas0(unsigned long new_stack, int pid)
 	*data = ((struct stub_data) {
 		.offset	= MMAP_OFFSET(new_offset),
 		.fd     = new_fd,
-		.parent_err = -ESRCH,
+		.err    = -ESRCH,
 		.child_err = 0,
 	});
 
@@ -538,7 +538,7 @@ int copy_context_skas0(unsigned long new_stack, int pid)
 
 	wait_stub_done(pid);
 
-	pid = data->parent_err;
+	pid = data->err;
 	if (pid < 0) {
 		printk(UM_KERN_ERR "%s - stub-parent reports error %d\n",
 		      __func__, -pid);

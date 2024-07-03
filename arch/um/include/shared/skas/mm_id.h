@@ -13,6 +13,7 @@ struct mm_id {
 	} u;
 	unsigned long stack;
 	int kill;
+	int syscall_data_len;
 };
 
 void __switch_mm(struct mm_id *mm_idp);

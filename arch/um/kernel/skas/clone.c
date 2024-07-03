@@ -33,7 +33,7 @@ stub_clone_handler(void)
 					    sizeof(data->syscall_data) / 2 -
 					    sizeof(void *));
 	if (err) {
-		data->parent_err = err;
+		data->err = err;
 		goto done;
 	}
 
