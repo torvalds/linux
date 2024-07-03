@@ -8,6 +8,8 @@
 #include <linux/sched/task_stack.h>
 #include <linux/sched/task.h>
 
+#include <asm/tlbflush.h>
+
 #include <as-layout.h>
 #include <kern.h>
 #include <os.h>
@@ -57,4 +59,12 @@ struct mm_id *current_mm_id(void)
 		return NULL;
 
 	return &current->mm->context.id;
+}
+
+void current_mm_sync(void)
+{
+	if (current->mm == NULL)
+		return;
+
+	um_tlb_sync(current->mm);
 }

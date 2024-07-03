@@ -36,7 +36,6 @@
 #include <linux/vmalloc.h>
 #include <linux/platform_device.h>
 #include <linux/scatterlist.h>
-#include <asm/tlbflush.h>
 #include <kern_util.h>
 #include "mconsole_kern.h"
 #include <init.h>
@@ -770,7 +769,6 @@ static int ubd_open_dev(struct ubd *ubd_dev)
 			printk(KERN_ERR "Failed to vmalloc COW bitmap\n");
 			goto error;
 		}
-		flush_tlb_kernel_vm();
 
 		err = read_cow_bitmap(ubd_dev->fd, ubd_dev->cow.bitmap,
 				      ubd_dev->cow.bitmap_offset,

@@ -347,6 +347,8 @@ void userspace(struct uml_pt_regs *regs, unsigned long *aux_fp_regs)
 	while (1) {
 		time_travel_print_bc_msg();
 
+		current_mm_sync();
+
 		/* Flush out any pending syscalls */
 		err = syscall_stub_flush(current_mm_id());
 		if (err) {

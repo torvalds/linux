@@ -10,6 +10,10 @@
 
 typedef struct mm_context {
 	struct mm_id id;
+
+	/* Address range in need of a TLB sync */
+	unsigned long sync_tlb_range_from;
+	unsigned long sync_tlb_range_to;
 } mm_context_t;
 
 #endif

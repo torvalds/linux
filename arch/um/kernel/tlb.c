@@ -170,13 +170,15 @@ static inline int update_p4d_range(pgd_t *pgd, unsigned long addr,
 	return ret;
 }
 
-static int fix_range_common(struct mm_struct *mm, unsigned long start_addr,
-			     unsigned long end_addr)
+int um_tlb_sync(struct mm_struct *mm)
 {
 	pgd_t *pgd;
 	struct vm_ops ops;
-	unsigned long addr = start_addr, next;
+	unsigned long addr = mm->context.sync_tlb_range_from, next;
 	int ret = 0;
+
+	if (mm->context.sync_tlb_range_to == 0)
+		return 0;
 
 	ops.mm_idp = &mm->context.id;
 	if (mm == &init_mm) {
@@ -191,7 +193,7 @@ static int fix_range_common(struct mm_struct *mm, unsigned long start_addr,
 
 	pgd = pgd_offset(mm, addr);
 	do {
-		next = pgd_addr_end(addr, end_addr);
+		next = pgd_addr_end(addr, mm->context.sync_tlb_range_to);
 		if (!pgd_present(*pgd)) {
 			if (pgd_newpage(*pgd)) {
 				ret = ops.unmap(ops.mm_idp, addr,
@@ -200,87 +202,16 @@ static int fix_range_common(struct mm_struct *mm, unsigned long start_addr,
 			}
 		} else
 			ret = update_p4d_range(pgd, addr, next, &ops);
-	} while (pgd++, addr = next, ((addr < end_addr) && !ret));
+	} while (pgd++, addr = next,
+		 ((addr < mm->context.sync_tlb_range_to) && !ret));
 
 	if (ret == -ENOMEM)
 		report_enomem();
 
+	mm->context.sync_tlb_range_from = 0;
+	mm->context.sync_tlb_range_to = 0;
+
 	return ret;
-}
-
-static void flush_tlb_kernel_range_common(unsigned long start, unsigned long end)
-{
-	int err;
-
-	err = fix_range_common(&init_mm, start, end);
-
-	if (err)
-		panic("flush_tlb_kernel failed, errno = %d\n", err);
-}
-
-void flush_tlb_page(struct vm_area_struct *vma, unsigned long address)
-{
-	pgd_t *pgd;
-	p4d_t *p4d;
-	pud_t *pud;
-	pmd_t *pmd;
-	pte_t *pte;
-	struct mm_struct *mm = vma->vm_mm;
-	int r, w, x, prot;
-	struct mm_id *mm_id;
-
-	address &= PAGE_MASK;
-
-	pgd = pgd_offset(mm, address);
-	if (!pgd_present(*pgd))
-		goto kill;
-
-	p4d = p4d_offset(pgd, address);
-	if (!p4d_present(*p4d))
-		goto kill;
-
-	pud = pud_offset(p4d, address);
-	if (!pud_present(*pud))
-		goto kill;
-
-	pmd = pmd_offset(pud, address);
-	if (!pmd_present(*pmd))
-		goto kill;
-
-	pte = pte_offset_kernel(pmd, address);
-
-	r = pte_read(*pte);
-	w = pte_write(*pte);
-	x = pte_exec(*pte);
-	if (!pte_young(*pte)) {
-		r = 0;
-		w = 0;
-	} else if (!pte_dirty(*pte)) {
-		w = 0;
-	}
-
-	mm_id = &mm->context.id;
-	prot = ((r ? UM_PROT_READ : 0) | (w ? UM_PROT_WRITE : 0) |
-		(x ? UM_PROT_EXEC : 0));
-	if (pte_newpage(*pte)) {
-		if (pte_present(*pte)) {
-			unsigned long long offset;
-			int fd;
-
-			fd = phys_mapping(pte_val(*pte) & PAGE_MASK, &offset);
-			map(mm_id, address, PAGE_SIZE, prot, fd, offset);
-		} else
-			unmap(mm_id, address, PAGE_SIZE);
-	} else if (pte_newprot(*pte))
-		protect(mm_id, address, PAGE_SIZE, prot);
-
-	*pte = pte_mkuptodate(*pte);
-
-	return;
-
-kill:
-	printk(KERN_ERR "Failed to flush page for address 0x%lx\n", address);
-	force_sig(SIGKILL);
 }
 
 void flush_tlb_all(void)
@@ -295,48 +226,11 @@ void flush_tlb_all(void)
 	flush_tlb_mm(current->mm);
 }
 
-void flush_tlb_kernel_range(unsigned long start, unsigned long end)
-{
-	flush_tlb_kernel_range_common(start, end);
-}
-
-void flush_tlb_kernel_vm(void)
-{
-	flush_tlb_kernel_range_common(start_vm, end_vm);
-}
-
-void __flush_tlb_one(unsigned long addr)
-{
-	flush_tlb_kernel_range_common(addr, addr + PAGE_SIZE);
-}
-
-static void fix_range(struct mm_struct *mm, unsigned long start_addr,
-		      unsigned long end_addr)
-{
-	/*
-	 * Don't bother flushing if this address space is about to be
-	 * destroyed.
-	 */
-	if (atomic_read(&mm->mm_users) == 0)
-		return;
-
-	fix_range_common(mm, start_addr, end_addr);
-}
-
-void flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
-		     unsigned long end)
-{
-	if (vma->vm_mm == NULL)
-		flush_tlb_kernel_range_common(start, end);
-	else fix_range(vma->vm_mm, start, end);
-}
-EXPORT_SYMBOL(flush_tlb_range);
-
 void flush_tlb_mm(struct mm_struct *mm)
 {
 	struct vm_area_struct *vma;
 	VMA_ITERATOR(vmi, mm, 0);
 
 	for_each_vma(vmi, vma)
-		fix_range(mm, vma->vm_start, vma->vm_end);
+		um_tlb_mark_sync(mm, vma->vm_start, vma->vm_end);
 }
