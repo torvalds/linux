@@ -120,6 +120,7 @@ enum CMD_MODE {
 	CMD_BLOCK_TXQS		= BIT(3),
 	CMD_SEND_IN_D3          = BIT(4),
 };
+#define CMD_MODE_BITS 5
 
 #define DEF_CMD_PAYLOAD_SIZE 320
 
@@ -712,7 +713,9 @@ struct iwl_dma_ptr {
 struct iwl_cmd_meta {
 	/* only for SYNC commands, iff the reply skb is wanted */
 	struct iwl_host_cmd *source;
-	u32 flags;
+	u32 flags: CMD_MODE_BITS;
+	/* sg_offset is valid if it is non-zero */
+	u32 sg_offset: PAGE_SHIFT;
 	u32 tbs;
 };
 

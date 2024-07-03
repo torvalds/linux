@@ -623,9 +623,13 @@ void iwl_trans_pcie_tx_reset(struct iwl_trans *trans);
 int iwl_pcie_txq_alloc(struct iwl_trans *trans, struct iwl_txq *txq,
 		       int slots_num, bool cmd_queue);
 
-void *iwl_pcie_get_page_hdr(struct iwl_trans *trans, size_t len,
-			    struct sk_buff *skb);
-void iwl_pcie_free_tso_page(struct iwl_trans *trans, struct sk_buff *skb);
+dma_addr_t iwl_pcie_get_sgt_tb_phys(struct sg_table *sgt, void *addr);
+struct sg_table *iwl_pcie_prep_tso(struct iwl_trans *trans, struct sk_buff *skb,
+				   struct iwl_cmd_meta *cmd_meta,
+				   u8 **hdr, unsigned int hdr_room);
+
+void iwl_pcie_free_tso_page(struct iwl_trans *trans, struct sk_buff *skb,
+			    struct iwl_cmd_meta *cmd_meta);
 
 static inline dma_addr_t
 iwl_txq_get_first_tb_dma(struct iwl_txq *txq, int idx)

@@ -119,7 +119,9 @@ trace:
 
 static int iwl_txq_gen2_build_amsdu(struct iwl_trans *trans,
 				    struct sk_buff *skb,
-				    struct iwl_tfh_tfd *tfd, int start_len,
+				    struct iwl_tfh_tfd *tfd,
+				    struct iwl_cmd_meta *out_meta,
+				    int start_len,
 				    u8 hdr_len,
 				    struct iwl_device_tx_cmd *dev_cmd)
 {
@@ -130,6 +132,7 @@ static int iwl_txq_gen2_build_amsdu(struct iwl_trans *trans,
 	unsigned int mss = skb_shinfo(skb)->gso_size;
 	u16 length, amsdu_pad;
 	u8 *start_hdr;
+	struct sg_table *sgt;
 	struct tso_t tso;
 
 	trace_iwlwifi_dev_tx(trans->dev, skb, tfd, sizeof(*tfd),
@@ -145,8 +148,8 @@ static int iwl_txq_gen2_build_amsdu(struct iwl_trans *trans,
 		(3 + snap_ip_tcp_hdrlen + sizeof(struct ethhdr));
 
 	/* Our device supports 9 segments at most, it will fit in 1 page */
-	start_hdr = iwl_pcie_get_page_hdr(trans, hdr_room, skb);
-	if (!start_hdr)
+	sgt = iwl_pcie_prep_tso(trans, skb, out_meta, &start_hdr, hdr_room);
+	if (!sgt)
 		return -ENOMEM;
 
 	/*
@@ -287,8 +290,8 @@ iwl_tfh_tfd *iwl_txq_gen2_build_tx_amsdu(struct iwl_trans *trans,
 	 */
 	iwl_txq_gen2_set_tb(trans, tfd, tb_phys, len);
 
-	if (iwl_txq_gen2_build_amsdu(trans, skb, tfd, len + IWL_FIRST_TB_SIZE,
-				     hdr_len, dev_cmd))
+	if (iwl_txq_gen2_build_amsdu(trans, skb, tfd, out_meta,
+				     len + IWL_FIRST_TB_SIZE, hdr_len, dev_cmd))
 		goto out_err;
 
 	/* building the A-MSDU might have changed this data, memcpy it now */
@@ -719,7 +722,7 @@ int iwl_txq_gen2_tx(struct iwl_trans *trans, struct sk_buff *skb,
 
 	/* Set up first empty entry in queue's array of Tx/cmd buffers */
 	out_meta = &txq->entries[idx].meta;
-	out_meta->flags = 0;
+	memset(out_meta, 0, sizeof(*out_meta));
 
 	tfd = iwl_txq_gen2_build_tfd(trans, txq, dev_cmd, skb, out_meta);
 	if (!tfd) {
@@ -775,10 +778,11 @@ static void iwl_txq_gen2_unmap(struct iwl_trans *trans, int txq_id)
 
 		if (txq_id != trans_pcie->txqs.cmd.q_id) {
 			int idx = iwl_txq_get_cmd_index(txq, txq->read_ptr);
+			struct iwl_cmd_meta *cmd_meta = &txq->entries[idx].meta;
 			struct sk_buff *skb = txq->entries[idx].skb;
 
 			if (!WARN_ON_ONCE(!skb))
-				iwl_pcie_free_tso_page(trans, skb);
+				iwl_pcie_free_tso_page(trans, skb, cmd_meta);
 		}
 		iwl_txq_gen2_free_tfd(trans, txq);
 		txq->read_ptr = iwl_txq_inc_wrap(trans, txq->read_ptr);
@@ -1247,7 +1251,7 @@ int iwl_pcie_gen2_enqueue_hcmd(struct iwl_trans *trans,
 	out_cmd = txq->entries[idx].cmd;
 	out_meta = &txq->entries[idx].meta;
 
-	/* re-initialize to NULL */
+	/* re-initialize, this also marks the SG list as unused */
 	memset(out_meta, 0, sizeof(*out_meta));
 	if (cmd->flags & CMD_WANT_SKB)
 		out_meta->source = cmd;
