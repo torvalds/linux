@@ -1912,12 +1912,10 @@ static bool iwl_mvm_set_hw_rfkill_state(struct iwl_op_mode *op_mode, bool state)
 	bool rfkill_safe_init_done = READ_ONCE(mvm->rfkill_safe_init_done);
 	bool unified = iwl_mvm_has_unified_ucode(mvm);
 
-	if (state) {
+	if (state)
 		set_bit(IWL_MVM_STATUS_HW_RFKILL, &mvm->status);
-		wake_up(&mvm->rx_sync_waitq);
-	} else {
+	else
 		clear_bit(IWL_MVM_STATUS_HW_RFKILL, &mvm->status);
-	}
 
 	iwl_mvm_set_rfkill_state(mvm);
 
