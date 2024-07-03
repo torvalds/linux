@@ -45,17 +45,6 @@ static __always_inline int syscall_handler(struct stub_data *d)
 				return -1;
 			}
 			break;
-		case STUB_SYSCALL_LDT:
-			res = stub_syscall3(__NR_modify_ldt, sc->ldt.func,
-					    (unsigned long) &sc->ldt.desc,
-					    sizeof(sc->ldt.desc));
-			/* We only write, so the expected result is zero */
-			if (res) {
-				d->err = res;
-				d->syscall_data_len = i;
-				return -1;
-			}
-			break;
 		default:
 			d->err = -95; /* EOPNOTSUPP */
 			d->syscall_data_len = i;

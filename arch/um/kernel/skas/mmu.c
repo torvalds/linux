@@ -46,13 +46,6 @@ int init_new_context(struct task_struct *task, struct mm_struct *mm)
 		goto out_free;
 	}
 
-	ret = init_new_ldt(to_mm, from_mm);
-	if (ret < 0) {
-		printk(KERN_ERR "init_new_context_skas - init_ldt"
-		       " failed, errno = %d\n", ret);
-		goto out_free;
-	}
-
 	return 0;
 
  out_free:
@@ -80,5 +73,4 @@ void destroy_context(struct mm_struct *mm)
 	os_kill_ptraced_process(mmu->id.u.pid, 1);
 
 	free_pages(mmu->id.stack, ilog2(STUB_DATA_PAGES));
-	free_ldt(mmu);
 }

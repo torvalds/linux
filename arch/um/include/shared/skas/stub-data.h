@@ -20,23 +20,16 @@ enum stub_syscall_type {
 	STUB_SYSCALL_MMAP,
 	STUB_SYSCALL_MUNMAP,
 	STUB_SYSCALL_MPROTECT,
-	STUB_SYSCALL_LDT,
 };
 
 struct stub_syscall {
-	union {
-		struct {
-			unsigned long addr;
-			unsigned long length;
-			unsigned long offset;
-			int fd;
-			int prot;
-		} mem;
-		struct {
-			user_desc_t desc;
-			int func;
-		} ldt;
-	};
+	struct {
+		unsigned long addr;
+		unsigned long length;
+		unsigned long offset;
+		int fd;
+		int prot;
+	} mem;
 
 	enum stub_syscall_type syscall;
 };
