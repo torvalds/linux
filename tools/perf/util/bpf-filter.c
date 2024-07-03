@@ -1,5 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #include <stdlib.h>
+#include <fcntl.h>
+#include <sys/ioctl.h>
+#include <sys/stat.h>
 
 #include <bpf/bpf.h>
 #include <linux/err.h>
@@ -22,6 +25,9 @@
 
 #define __PERF_SAMPLE_TYPE(tt, st, opt)	{ tt, #st, opt }
 #define PERF_SAMPLE_TYPE(_st, opt)	__PERF_SAMPLE_TYPE(PBF_TERM_##_st, PERF_SAMPLE_##_st, opt)
+
+/* Index in the pinned 'filters' map.  Should be released after use. */
+static int pinned_filter_idx = -1;
 
 static const struct perf_sample_info {
 	enum perf_bpf_filter_term type;
@@ -46,6 +52,8 @@ static const struct perf_sample_info {
 	PERF_SAMPLE_TYPE(CODE_PAGE_SIZE, "--code-page-size"),
 	PERF_SAMPLE_TYPE(DATA_PAGE_SIZE, "--data-page-size"),
 };
+
+static int get_pinned_fd(const char *name);
 
 static const struct perf_sample_info *get_sample_info(enum perf_bpf_filter_term type)
 {
@@ -167,19 +175,26 @@ static int convert_to_tgid(int tid)
 	return tgid;
 }
 
-static int update_pid_hash(struct sample_filter_bpf *skel, struct evsel *evsel,
-			   struct perf_bpf_filter_entry *entry)
+static int update_pid_hash(struct evsel *evsel, struct perf_bpf_filter_entry *entry)
 {
 	int filter_idx;
-	int nr, last;
-	int fd = bpf_map__fd(skel->maps.filters);
+	int fd, nr, last;
 	struct perf_thread_map *threads;
+
+	fd = get_pinned_fd("filters");
+	if (fd < 0) {
+		pr_debug("cannot get fd for 'filters' map\n");
+		return fd;
+	}
 
 	/* Find the first available entry in the filters map */
 	for (filter_idx = 0; filter_idx < MAX_FILTERS; filter_idx++) {
-		if (bpf_map_update_elem(fd, &filter_idx, entry, BPF_NOEXIST) == 0)
+		if (bpf_map_update_elem(fd, &filter_idx, entry, BPF_NOEXIST) == 0) {
+			pinned_filter_idx = filter_idx;
 			break;
+		}
 	}
+	close(fd);
 
 	if (filter_idx == MAX_FILTERS) {
 		pr_err("Too many users for the filter map\n");
@@ -193,7 +208,9 @@ static int update_pid_hash(struct sample_filter_bpf *skel, struct evsel *evsel,
 	}
 
 	/* save the index to a hash map */
-	fd = bpf_map__fd(skel->maps.pid_hash);
+	fd = get_pinned_fd("pid_hash");
+	if (fd < 0)
+		return fd;
 
 	last = -1;
 	nr = perf_thread_map__nr(threads);
@@ -214,10 +231,12 @@ static int update_pid_hash(struct sample_filter_bpf *skel, struct evsel *evsel,
 
 		if (bpf_map_update_elem(fd, &tgid, &filter_idx, BPF_ANY) < 0) {
 			pr_err("Failed to update the pid hash\n");
-			return -errno;
+			close(fd);
+			return -1;
 		}
 		pr_debug("pid hash: %d -> %d\n", tgid, filter_idx);
 	}
+	close(fd);
 	return 0;
 }
 
@@ -240,40 +259,48 @@ int perf_bpf_filter__prepare(struct evsel *evsel, struct target *target)
 		goto err;
 	}
 
-	skel = sample_filter_bpf__open();
-	if (!skel) {
-		pr_err("Failed to open perf sample-filter BPF skeleton\n");
-		ret = -EPERM;
-		goto err;
-	}
-
-	if (needs_pid_hash) {
-		bpf_map__set_max_entries(skel->maps.filters, MAX_FILTERS);
-		bpf_map__set_max_entries(skel->maps.pid_hash, MAX_PIDS);
-		skel->rodata->use_pid_hash = 1;
-	}
-
-	if (sample_filter_bpf__load(skel) < 0) {
-		pr_err("Failed to load perf sample-filter BPF skeleton\n");
-		ret = -EPERM;
-		goto err;
-	}
-
-	if (needs_pid_hash) {
-		/* The filters map is shared among other processes  */
-		ret = update_pid_hash(skel, evsel, entry);
+	if (needs_pid_hash && geteuid() != 0) {
+		/* The filters map is shared among other processes */
+		ret = update_pid_hash(evsel, entry);
 		if (ret < 0)
 			goto err;
-	} else {
-		i = 0;
-		fd = bpf_map__fd(skel->maps.filters);
 
-		/* The filters map has only one entry in this case */
-		if (bpf_map_update_elem(fd, &i, entry, BPF_ANY) < 0) {
-			ret = -errno;
-			pr_err("Failed to update the filter map\n");
+		fd = get_pinned_fd("perf_sample_filter");
+		if (fd < 0) {
+			ret = fd;
 			goto err;
 		}
+
+		for (x = 0; x < xyarray__max_x(evsel->core.fd); x++) {
+			for (y = 0; y < xyarray__max_y(evsel->core.fd); y++) {
+				ret = ioctl(FD(evsel, x, y), PERF_EVENT_IOC_SET_BPF, fd);
+				if (ret < 0) {
+					pr_err("Failed to attach perf sample-filter\n");
+					goto err;
+				}
+			}
+		}
+
+		close(fd);
+		free(entry);
+		return 0;
+	}
+
+	skel = sample_filter_bpf__open_and_load();
+	if (!skel) {
+		ret = -errno;
+		pr_err("Failed to load perf sample-filter BPF skeleton\n");
+		goto err;
+	}
+
+	i = 0;
+	fd = bpf_map__fd(skel->maps.filters);
+
+	/* The filters map has only one entry in this case */
+	if (bpf_map_update_elem(fd, &i, entry, BPF_ANY) < 0) {
+		ret = -errno;
+		pr_err("Failed to update the filter map\n");
+		goto err;
 	}
 
 	prog = skel->progs.perf_sample_filter;
@@ -306,6 +333,15 @@ int perf_bpf_filter__destroy(struct evsel *evsel)
 		free(expr);
 	}
 	sample_filter_bpf__destroy(evsel->bpf_skel);
+
+	if (pinned_filter_idx >= 0) {
+		int fd = get_pinned_fd("filters");
+
+		bpf_map_delete_elem(fd, &pinned_filter_idx);
+		pinned_filter_idx = -1;
+		close(fd);
+	}
+
 	return 0;
 }
 
@@ -348,4 +384,130 @@ int perf_bpf_filter__parse(struct list_head *expr_head, const char *str)
 	perf_bpf_filter_lex_destroy();
 
 	return ret;
+}
+
+int perf_bpf_filter__pin(void)
+{
+	struct sample_filter_bpf *skel;
+	char *path = NULL;
+	int dir_fd, ret = -1;
+
+	skel = sample_filter_bpf__open();
+	if (!skel) {
+		ret = -errno;
+		pr_err("Failed to open perf sample-filter BPF skeleton\n");
+		goto err;
+	}
+
+	/* pinned program will use pid-hash */
+	bpf_map__set_max_entries(skel->maps.filters, MAX_FILTERS);
+	bpf_map__set_max_entries(skel->maps.pid_hash, MAX_PIDS);
+	skel->rodata->use_pid_hash = 1;
+
+	if (sample_filter_bpf__load(skel) < 0) {
+		ret = -errno;
+		pr_err("Failed to load perf sample-filter BPF skeleton\n");
+		goto err;
+	}
+
+	if (asprintf(&path, "%s/fs/bpf/%s", sysfs__mountpoint(),
+		     PERF_BPF_FILTER_PIN_PATH) < 0) {
+		ret = -errno;
+		pr_err("Failed to allocate pathname in the BPF-fs\n");
+		goto err;
+	}
+
+	ret = bpf_object__pin(skel->obj, path);
+	if (ret < 0) {
+		pr_err("Failed to pin BPF filter objects\n");
+		goto err;
+	}
+
+	/* setup access permissions for the pinned objects */
+	dir_fd = open(path, O_PATH);
+	if (dir_fd < 0) {
+		bpf_object__unpin(skel->obj, path);
+		ret = dir_fd;
+		goto err;
+	}
+
+	/* BPF-fs root has the sticky bit */
+	if (fchmodat(dir_fd, "..", 01755, 0) < 0) {
+		pr_debug("chmod for BPF-fs failed\n");
+		ret = -errno;
+		goto err_close;
+	}
+
+	/* perf_filter directory */
+	if (fchmodat(dir_fd, ".", 0755, 0) < 0) {
+		pr_debug("chmod for perf_filter directory failed?\n");
+		ret = -errno;
+		goto err_close;
+	}
+
+	/* programs need write permission for some reason */
+	if (fchmodat(dir_fd, "perf_sample_filter", 0777, 0) < 0) {
+		pr_debug("chmod for perf_sample_filter failed\n");
+		ret = -errno;
+	}
+	/* maps */
+	if (fchmodat(dir_fd, "filters", 0666, 0) < 0) {
+		pr_debug("chmod for filters failed\n");
+		ret = -errno;
+	}
+	if (fchmodat(dir_fd, "pid_hash", 0666, 0) < 0) {
+		pr_debug("chmod for pid_hash failed\n");
+		ret = -errno;
+	}
+
+err_close:
+	close(dir_fd);
+
+err:
+	free(path);
+	sample_filter_bpf__destroy(skel);
+	return ret;
+}
+
+int perf_bpf_filter__unpin(void)
+{
+	struct sample_filter_bpf *skel;
+	char *path = NULL;
+	int ret = -1;
+
+	skel = sample_filter_bpf__open_and_load();
+	if (!skel) {
+		ret = -errno;
+		pr_err("Failed to open perf sample-filter BPF skeleton\n");
+		goto err;
+	}
+
+	if (asprintf(&path, "%s/fs/bpf/%s", sysfs__mountpoint(),
+		     PERF_BPF_FILTER_PIN_PATH) < 0) {
+		ret = -errno;
+		pr_err("Failed to allocate pathname in the BPF-fs\n");
+		goto err;
+	}
+
+	ret = bpf_object__unpin(skel->obj, path);
+
+err:
+	free(path);
+	sample_filter_bpf__destroy(skel);
+	return ret;
+}
+
+static int get_pinned_fd(const char *name)
+{
+	char *path = NULL;
+	int fd;
+
+	if (asprintf(&path, "%s/fs/bpf/%s/%s", sysfs__mountpoint(),
+		     PERF_BPF_FILTER_PIN_PATH, name) < 0)
+		return -1;
+
+	fd = bpf_obj_get(path);
+
+	free(path);
+	return fd;
 }
