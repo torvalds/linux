@@ -331,7 +331,7 @@ static void sound_remove_unit(struct sound_unit **list, int unit)
 
 static struct sound_unit *chains[SOUND_STEP];
 
-/**
+/*
  *	register_sound_special_device - register a special sound node
  *	@fops: File operations for the driver
  *	@unit: Unit number to allocate
@@ -418,7 +418,7 @@ int register_sound_special(const struct file_operations *fops, int unit)
 
 EXPORT_SYMBOL(register_sound_special);
 
-/**
+/*
  *	register_sound_mixer - register a mixer device
  *	@fops: File operations for the driver
  *	@dev: Unit number to allocate
@@ -443,7 +443,7 @@ EXPORT_SYMBOL(register_sound_mixer);
  *	in open - see below.
  */
  
-/**
+/*
  *	register_sound_dsp - register a DSP device
  *	@fops: File operations for the driver
  *	@dev: Unit number to allocate
@@ -466,7 +466,7 @@ int register_sound_dsp(const struct file_operations *fops, int dev)
 
 EXPORT_SYMBOL(register_sound_dsp);
 
-/**
+/*
  *	unregister_sound_special - unregister a special sound device
  *	@unit: unit number to allocate
  *
@@ -483,7 +483,7 @@ void unregister_sound_special(int unit)
  
 EXPORT_SYMBOL(unregister_sound_special);
 
-/**
+/*
  *	unregister_sound_mixer - unregister a mixer
  *	@unit: unit number to allocate
  *
@@ -498,7 +498,7 @@ void unregister_sound_mixer(int unit)
 
 EXPORT_SYMBOL(unregister_sound_mixer);
 
-/**
+/*
  *	unregister_sound_dsp - unregister a DSP device
  *	@unit: unit number to allocate
  *
