@@ -1000,6 +1000,13 @@ S:	Supported
 T:	git https://gitlab.freedesktop.org/agd5f/linux.git
 F:	drivers/gpu/drm/amd/display/
 
+AMD DISPLAY CORE - DML
+M:	Chaitanya Dhere <chaitanya.dhere@amd.com>
+M:	Jun Lei <jun.lei@amd.com>
+S:	Supported
+F:	drivers/gpu/drm/amd/display/dc/dml/
+F:	drivers/gpu/drm/amd/display/dc/dml2/
+
 AMD FAM15H PROCESSOR POWER MONITORING DRIVER
 M:	Huang Rui <ray.huang@amd.com>
 L:	linux-hwmon@vger.kernel.org
