@@ -824,8 +824,13 @@ EXPORT_SYMBOL(tpm_buf_check_hmac_response);
  */
 void tpm2_end_auth_session(struct tpm_chip *chip)
 {
-	tpm2_flush_context(chip, chip->auth->handle);
-	memzero_explicit(chip->auth, sizeof(*chip->auth));
+	struct tpm2_auth *auth = chip->auth;
+
+	if (!auth)
+		return;
+
+	tpm2_flush_context(chip, auth->handle);
+	memzero_explicit(auth, sizeof(*auth));
 }
 EXPORT_SYMBOL(tpm2_end_auth_session);
 
@@ -906,6 +911,11 @@ int tpm2_start_auth_session(struct tpm_chip *chip)
 	struct tpm2_auth *auth = chip->auth;
 	int rc;
 	u32 null_key;
+
+	if (!auth) {
+		dev_warn_once(&chip->dev, "auth session is not active\n");
+		return 0;
+	}
 
 	rc = tpm2_load_null(chip, &null_key);
 	if (rc)
