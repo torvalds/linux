@@ -1043,6 +1043,11 @@ static const struct drm_prop_enum_list drm_scaling_mode_enum_list[] = {
 	{ DRM_MODE_SCALE_ASPECT, "Full aspect" },
 };
 
+static const struct drm_prop_enum_list drm_power_saving_policy_enum_list[] = {
+	{ __builtin_ffs(DRM_MODE_REQUIRE_COLOR_ACCURACY) - 1, "Require color accuracy" },
+	{ __builtin_ffs(DRM_MODE_REQUIRE_LOW_LATENCY) - 1, "Require low latency" },
+};
+
 static const struct drm_prop_enum_list drm_aspect_ratio_enum_list[] = {
 	{ DRM_MODE_PICTURE_ASPECT_NONE, "Automatic" },
 	{ DRM_MODE_PICTURE_ASPECT_4_3, "4:3" },
@@ -1629,6 +1634,16 @@ EXPORT_SYMBOL(drm_hdmi_connector_get_output_format_name);
  *
  *	Drivers can set up these properties by calling
  *	drm_mode_create_tv_margin_properties().
+ * power saving policy:
+ *	This property is used to set the power saving policy for the connector.
+ *	This property is populated with a bitmask of optional requirements set
+ *	by the drm master for the drm driver to respect:
+ *	- "Require color accuracy": Disable power saving features that will
+ *	  affect color fidelity.
+ *	  For example: Hardware assisted backlight modulation.
+ *	- "Require low latency": Disable power saving features that will
+ *	  affect latency.
+ *	  For example: Panel self refresh (PSR)
  */
 
 int drm_connector_create_standard_properties(struct drm_device *dev)
@@ -2130,6 +2145,39 @@ int drm_mode_create_scaling_mode_property(struct drm_device *dev)
 	return 0;
 }
 EXPORT_SYMBOL(drm_mode_create_scaling_mode_property);
+
+/**
+ * drm_mode_create_power_saving_policy_property - create power saving policy property
+ * @dev: DRM device
+ * @supported_policies: bitmask of supported power saving policies
+ *
+ * Called by a driver the first time it's needed, must be attached to desired
+ * connectors.
+ *
+ * Returns: %0
+ */
+int drm_mode_create_power_saving_policy_property(struct drm_device *dev,
+						 uint64_t supported_policies)
+{
+	struct drm_property *power_saving;
+
+	if (dev->mode_config.power_saving_policy)
+		return 0;
+	WARN_ON((supported_policies & DRM_MODE_POWER_SAVING_POLICY_ALL) == 0);
+
+	power_saving =
+		drm_property_create_bitmask(dev, 0, "power saving policy",
+					    drm_power_saving_policy_enum_list,
+					    ARRAY_SIZE(drm_power_saving_policy_enum_list),
+					    supported_policies);
+	if (!power_saving)
+		return -ENOMEM;
+
+	dev->mode_config.power_saving_policy = power_saving;
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_mode_create_power_saving_policy_property);
 
 /**
  * DOC: Variable refresh properties
