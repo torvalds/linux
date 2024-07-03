@@ -16,6 +16,7 @@
 #include "hif.h"
 #include "fw.h"
 #include "debugfs.h"
+#include "wow.h"
 
 unsigned int ath12k_debug_mask;
 module_param_named(debug_mask, ath12k_debug_mask, uint, 0644);
@@ -42,13 +43,37 @@ static int ath12k_core_rfkill_config(struct ath12k_base *ab)
 	return ret;
 }
 
+/* Check if we need to continue with suspend/resume operation.
+ * Return:
+ *	a negative value: error happens and don't continue.
+ *	0:  no error but don't continue.
+ *	positive value: no error and do continue.
+ */
+static int ath12k_core_continue_suspend_resume(struct ath12k_base *ab)
+{
+	struct ath12k *ar;
+
+	if (!ab->hw_params->supports_suspend)
+		return -EOPNOTSUPP;
+
+	/* so far single_pdev_only chips have supports_suspend as true
+	 * so pass 0 as a dummy pdev_id here.
+	 */
+	ar = ab->pdevs[0].ar;
+	if (!ar || !ar->ah || ar->ah->state != ATH12K_HW_STATE_OFF)
+		return 0;
+
+	return 1;
+}
+
 int ath12k_core_suspend(struct ath12k_base *ab)
 {
 	struct ath12k *ar;
 	int ret, i;
 
-	if (!ab->hw_params->supports_suspend)
-		return -EOPNOTSUPP;
+	ret = ath12k_core_continue_suspend_resume(ab);
+	if (ret <= 0)
+		return ret;
 
 	for (i = 0; i < ab->num_radios; i++) {
 		ar = ab->pdevs[i].ar;
@@ -80,8 +105,13 @@ EXPORT_SYMBOL(ath12k_core_suspend);
 
 int ath12k_core_suspend_late(struct ath12k_base *ab)
 {
-	if (!ab->hw_params->supports_suspend)
-		return -EOPNOTSUPP;
+	int ret;
+
+	ret = ath12k_core_continue_suspend_resume(ab);
+	if (ret <= 0)
+		return ret;
+
+	ath12k_acpi_stop(ab);
 
 	ath12k_hif_irq_disable(ab);
 	ath12k_hif_ce_irq_disable(ab);
@@ -96,8 +126,9 @@ int ath12k_core_resume_early(struct ath12k_base *ab)
 {
 	int ret;
 
-	if (!ab->hw_params->supports_suspend)
-		return -EOPNOTSUPP;
+	ret = ath12k_core_continue_suspend_resume(ab);
+	if (ret <= 0)
+		return ret;
 
 	reinit_completion(&ab->restart_completed);
 	ret = ath12k_hif_power_up(ab);
@@ -111,9 +142,11 @@ EXPORT_SYMBOL(ath12k_core_resume_early);
 int ath12k_core_resume(struct ath12k_base *ab)
 {
 	long time_left;
+	int ret;
 
-	if (!ab->hw_params->supports_suspend)
-		return -EOPNOTSUPP;
+	ret = ath12k_core_continue_suspend_resume(ab);
+	if (ret <= 0)
+		return ret;
 
 	time_left = wait_for_completion_timeout(&ab->restart_completed,
 						ATH12K_RESET_TIMEOUT_HZ);
@@ -1059,8 +1092,6 @@ static void ath12k_core_post_reconfigure_recovery(struct ath12k_base *ab)
 				mutex_unlock(&ar->conf_mutex);
 			}
 
-			/* Restart after all the link/radio halt */
-			ieee80211_restart_hw(ah->hw);
 			break;
 		case ATH12K_HW_STATE_OFF:
 			ath12k_warn(ab,
@@ -1087,7 +1118,8 @@ static void ath12k_core_post_reconfigure_recovery(struct ath12k_base *ab)
 static void ath12k_core_restart(struct work_struct *work)
 {
 	struct ath12k_base *ab = container_of(work, struct ath12k_base, restart_work);
-	int ret;
+	struct ath12k_hw *ah;
+	int ret, i;
 
 	ret = ath12k_core_reconfigure_on_crash(ab);
 	if (ret) {
@@ -1095,8 +1127,12 @@ static void ath12k_core_restart(struct work_struct *work)
 		return;
 	}
 
-	if (ab->is_reset)
-		complete_all(&ab->reconfigure_complete);
+	if (ab->is_reset) {
+		for (i = 0; i < ab->num_hw; i++) {
+			ah = ab->ah[i];
+			ieee80211_restart_hw(ah->hw);
+		}
+	}
 
 	complete(&ab->restart_completed);
 }
@@ -1150,19 +1186,13 @@ static void ath12k_core_reset(struct work_struct *work)
 	ath12k_dbg(ab, ATH12K_DBG_BOOT, "reset starting\n");
 
 	ab->is_reset = true;
-	atomic_set(&ab->recovery_start_count, 0);
-	reinit_completion(&ab->recovery_start);
 	atomic_set(&ab->recovery_count, 0);
 
 	ath12k_core_pre_reconfigure_recovery(ab);
 
-	reinit_completion(&ab->reconfigure_complete);
 	ath12k_core_post_reconfigure_recovery(ab);
 
 	ath12k_dbg(ab, ATH12K_DBG_BOOT, "waiting recovery start...\n");
-
-	time_left = wait_for_completion_timeout(&ab->recovery_start,
-						ATH12K_RECOVER_START_TIMEOUT_HZ);
 
 	ath12k_hif_irq_disable(ab);
 	ath12k_hif_ce_irq_disable(ab);
@@ -1275,8 +1305,6 @@ struct ath12k_base *ath12k_core_alloc(struct device *dev, size_t priv_size,
 	mutex_init(&ab->core_lock);
 	spin_lock_init(&ab->base_lock);
 	init_completion(&ab->reset_complete);
-	init_completion(&ab->reconfigure_complete);
-	init_completion(&ab->recovery_start);
 
 	INIT_LIST_HEAD(&ab->peers);
 	init_waitqueue_head(&ab->peer_mapping_wq);
@@ -1288,6 +1316,7 @@ struct ath12k_base *ath12k_core_alloc(struct device *dev, size_t priv_size,
 	timer_setup(&ab->rx_replenish_retry, ath12k_ce_rx_replenish_retry, 0);
 	init_completion(&ab->htc_suspend);
 	init_completion(&ab->restart_completed);
+	init_completion(&ab->wow.wakeup_completed);
 
 	ab->dev = dev;
 	ab->hif.bus = bus;
