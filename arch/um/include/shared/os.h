@@ -279,12 +279,12 @@ int syscall_stub_flush(struct mm_id *mm_idp);
 struct stub_syscall *syscall_stub_alloc(struct mm_id *mm_idp);
 void syscall_stub_dump_error(struct mm_id *mm_idp);
 
-void map(struct mm_id *mm_idp, unsigned long virt,
-	 unsigned long len, int prot, int phys_fd,
-	 unsigned long long offset);
-void unmap(struct mm_id *mm_idp, unsigned long addr, unsigned long len);
-void protect(struct mm_id *mm_idp, unsigned long addr,
-	     unsigned long len, unsigned int prot);
+int map(struct mm_id *mm_idp, unsigned long virt,
+	unsigned long len, int prot, int phys_fd,
+	unsigned long long offset);
+int unmap(struct mm_id *mm_idp, unsigned long addr, unsigned long len);
+int protect(struct mm_id *mm_idp, unsigned long addr,
+	    unsigned long len, unsigned int prot);
 
 /* skas/process.c */
 extern int is_skas_winch(int pid, int fd, void *data);

@@ -175,7 +175,7 @@ static struct stub_syscall *syscall_stub_get_previous(struct mm_id *mm_idp,
 	return NULL;
 }
 
-void map(struct mm_id *mm_idp, unsigned long virt, unsigned long len, int prot,
+int map(struct mm_id *mm_idp, unsigned long virt, unsigned long len, int prot,
 	int phys_fd, unsigned long long offset)
 {
 	struct stub_syscall *sc;
@@ -185,7 +185,7 @@ void map(struct mm_id *mm_idp, unsigned long virt, unsigned long len, int prot,
 	if (sc && sc->mem.prot == prot && sc->mem.fd == phys_fd &&
 	    sc->mem.offset == MMAP_OFFSET(offset - sc->mem.length)) {
 		sc->mem.length += len;
-		return;
+		return 0;
 	}
 
 	sc = syscall_stub_alloc(mm_idp);
@@ -195,9 +195,11 @@ void map(struct mm_id *mm_idp, unsigned long virt, unsigned long len, int prot,
 	sc->mem.prot = prot;
 	sc->mem.fd = phys_fd;
 	sc->mem.offset = MMAP_OFFSET(offset);
+
+	return 0;
 }
 
-void unmap(struct mm_id *mm_idp, unsigned long addr, unsigned long len)
+int unmap(struct mm_id *mm_idp, unsigned long addr, unsigned long len)
 {
 	struct stub_syscall *sc;
 
@@ -205,16 +207,18 @@ void unmap(struct mm_id *mm_idp, unsigned long addr, unsigned long len)
 	sc = syscall_stub_get_previous(mm_idp, STUB_SYSCALL_MUNMAP, addr);
 	if (sc) {
 		sc->mem.length += len;
-		return;
+		return 0;
 	}
 
 	sc = syscall_stub_alloc(mm_idp);
 	sc->syscall = STUB_SYSCALL_MUNMAP;
 	sc->mem.addr = addr;
 	sc->mem.length = len;
+
+	return 0;
 }
 
-void protect(struct mm_id *mm_idp, unsigned long addr, unsigned long len,
+int protect(struct mm_id *mm_idp, unsigned long addr, unsigned long len,
 	    unsigned int prot)
 {
 	struct stub_syscall *sc;
@@ -223,7 +227,7 @@ void protect(struct mm_id *mm_idp, unsigned long addr, unsigned long len,
 	sc = syscall_stub_get_previous(mm_idp, STUB_SYSCALL_MPROTECT, addr);
 	if (sc && sc->mem.prot == prot) {
 		sc->mem.length += len;
-		return;
+		return 0;
 	}
 
 	sc = syscall_stub_alloc(mm_idp);
@@ -231,4 +235,6 @@ void protect(struct mm_id *mm_idp, unsigned long addr, unsigned long len,
 	sc->mem.addr = addr;
 	sc->mem.length = len;
 	sc->mem.prot = prot;
+
+	return 0;
 }
