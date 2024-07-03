@@ -2032,6 +2032,8 @@ err_put_super:
 	__bch2_fs_stop(c);
 	deactivate_locked_super(sb);
 err:
+	if (ret)
+		pr_err("error: %s", bch2_err_str(ret));
 	/*
 	 * On an inconsistency error in recovery we might see an -EROFS derived
 	 * errorcode (from the journal), but we don't want to return that to
