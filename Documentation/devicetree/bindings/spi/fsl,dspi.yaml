@@ -34,6 +34,9 @@ properties:
       - items:
           - const: fsl,ls2080a-dspi
           - const: fsl,ls2085a-dspi
+      - items:
+          - const: fsl,lx2160a-dspi
+          - const: fsl,ls2085a-dspi
 
   reg:
     maxItems: 1
