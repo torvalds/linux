@@ -27,9 +27,11 @@ stub_clone_handler(void)
 	struct stub_data *data = get_stub_data();
 	long err;
 
+	/* syscall data as a temporary stack area (bottom half). */
 	err = stub_syscall2(__NR_clone, CLONE_PARENT | CLONE_FILES | SIGCHLD,
-			    (unsigned long)data +
-				STUB_DATA_PAGES * UM_KERN_PAGE_SIZE / 2);
+			    (unsigned long) data->syscall_data +
+					    sizeof(data->syscall_data) / 2 -
+					    sizeof(void *));
 	if (err) {
 		data->parent_err = err;
 		goto done;

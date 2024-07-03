@@ -474,11 +474,12 @@ static int __init init_thread_regs(void)
 	thread_regs[REGS_IP_INDEX] = STUB_CODE +
 				(unsigned long) stub_clone_handler -
 				(unsigned long) __syscall_stub_start;
-	thread_regs[REGS_SP_INDEX] = STUB_DATA + STUB_DATA_PAGES * UM_KERN_PAGE_SIZE -
-		sizeof(void *);
-#ifdef __SIGNAL_FRAMESIZE
-	thread_regs[REGS_SP_INDEX] -= __SIGNAL_FRAMESIZE;
-#endif
+
+	/* syscall data as a temporary stack area (top half). */
+	thread_regs[REGS_SP_INDEX] = STUB_DATA +
+				     offsetof(struct stub_data, syscall_data) +
+				     sizeof(((struct stub_data *) 0)->syscall_data) -
+				     sizeof(void *);
 	return 0;
 }
 

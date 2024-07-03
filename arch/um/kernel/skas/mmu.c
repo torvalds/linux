@@ -14,6 +14,10 @@
 #include <as-layout.h>
 #include <os.h>
 #include <skas.h>
+#include <stub-data.h>
+
+/* Ensure the stub_data struct covers the allocated area */
+static_assert(sizeof(struct stub_data) == STUB_DATA_PAGES * UM_KERN_PAGE_SIZE);
 
 int init_new_context(struct task_struct *task, struct mm_struct *mm)
 {
