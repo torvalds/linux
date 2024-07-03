@@ -2542,7 +2542,7 @@ int qcom_glink_native_start(struct qcom_glink *glink)
 	ret = devm_request_threaded_irq(dev, irq,
 					qcom_glink_native_intr,
 					qcom_glink_native_thread_intr,
-					IRQF_NO_SUSPEND | IRQF_ONESHOT,
+					IRQF_NO_SUSPEND,
 					glink->irqname, glink);
 	if (ret) {
 		dev_err(dev, "failed to request IRQ with %d\n", ret);
