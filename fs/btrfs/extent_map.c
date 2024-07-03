@@ -1115,7 +1115,7 @@ static long btrfs_scan_root(struct btrfs_root *root, long *scanned, long nr_to_s
 
 		min_ino = btrfs_ino(inode) + 1;
 		fs_info->extent_map_shrinker_last_ino = btrfs_ino(inode);
-		iput(&inode->vfs_inode);
+		btrfs_add_delayed_iput(inode);
 
 		if (*scanned >= nr_to_scan)
 			break;
