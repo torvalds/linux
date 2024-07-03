@@ -950,100 +950,97 @@ static int z_erofs_read_fragment(struct super_block *sb, struct folio *folio,
 	return 0;
 }
 
-static int z_erofs_scan_folio(struct z_erofs_decompress_frontend *fe,
+static int z_erofs_scan_folio(struct z_erofs_decompress_frontend *f,
 			      struct folio *folio, bool ra)
 {
-	struct inode *const inode = fe->inode;
-	struct erofs_map_blocks *const map = &fe->map;
+	struct inode *const inode = f->inode;
+	struct erofs_map_blocks *const map = &f->map;
 	const loff_t offset = folio_pos(folio);
-	const unsigned int bs = i_blocksize(inode), fs = folio_size(folio);
-	bool tight = true, exclusive;
-	unsigned int cur, end, split;
-	int err = 0;
+	const unsigned int bs = i_blocksize(inode);
+	unsigned int end = folio_size(folio), split = 0, cur, pgs;
+	bool tight, excl;
+	int err;
 
+	tight = (bs == PAGE_SIZE);
 	z_erofs_onlinefolio_init(folio);
-	split = 0;
-	end = fs;
-repeat:
-	if (offset + end - 1 < map->m_la ||
-	    offset + end - 1 >= map->m_la + map->m_llen) {
-		z_erofs_pcluster_end(fe);
-		map->m_la = offset + end - 1;
-		map->m_llen = 0;
-		err = z_erofs_map_blocks_iter(inode, map, 0);
-		if (err)
-			goto out;
-	}
+	do {
+		if (offset + end - 1 < map->m_la ||
+		    offset + end - 1 >= map->m_la + map->m_llen) {
+			z_erofs_pcluster_end(f);
+			map->m_la = offset + end - 1;
+			map->m_llen = 0;
+			err = z_erofs_map_blocks_iter(inode, map, 0);
+			if (err)
+				break;
+		}
 
-	cur = offset > map->m_la ? 0 : map->m_la - offset;
-	/* bump split parts first to avoid several separate cases */
-	++split;
+		cur = offset > map->m_la ? 0 : map->m_la - offset;
+		pgs = round_down(cur, PAGE_SIZE);
+		/* bump split parts first to avoid several separate cases */
+		++split;
 
-	if (!(map->m_flags & EROFS_MAP_MAPPED)) {
-		folio_zero_segment(folio, cur, end);
-		tight = false;
-		goto next_part;
-	}
+		if (!(map->m_flags & EROFS_MAP_MAPPED)) {
+			folio_zero_segment(folio, cur, end);
+			tight = false;
+		} else if (map->m_flags & EROFS_MAP_FRAGMENT) {
+			erofs_off_t fpos = offset + cur - map->m_la;
 
-	if (map->m_flags & EROFS_MAP_FRAGMENT) {
-		erofs_off_t fpos = offset + cur - map->m_la;
+			err = z_erofs_read_fragment(inode->i_sb, folio, cur,
+					cur + min(map->m_llen - fpos, end - cur),
+					EROFS_I(inode)->z_fragmentoff + fpos);
+			if (err)
+				break;
+			tight = false;
+		} else {
+			if (!f->pcl) {
+				err = z_erofs_pcluster_begin(f);
+				if (err)
+					break;
+				f->pcl->besteffort |= !ra;
+			}
 
-		err = z_erofs_read_fragment(inode->i_sb, folio, cur,
-				cur + min(map->m_llen - fpos, end - cur),
-				EROFS_I(inode)->z_fragmentoff + fpos);
-		if (err)
-			goto out;
-		tight = false;
-		goto next_part;
-	}
+			pgs = round_down(end - 1, PAGE_SIZE);
+			/*
+			 * Ensure this partial page belongs to this submit chain
+			 * rather than other concurrent submit chains or
+			 * noio(bypass) chains since those chains are handled
+			 * asynchronously thus it cannot be used for inplace I/O
+			 * or bvpage (should be processed in the strict order.)
+			 */
+			tight &= (f->mode >= Z_EROFS_PCLUSTER_FOLLOWED);
+			excl = false;
+			if (cur <= pgs) {
+				excl = (split <= 1) || tight;
+				cur = pgs;
+			}
 
-	if (!fe->pcl) {
-		err = z_erofs_pcluster_begin(fe);
-		if (err)
-			goto out;
-		fe->pcl->besteffort |= !ra;
-	}
+			err = z_erofs_attach_page(f, &((struct z_erofs_bvec) {
+				.page = folio_page(folio, pgs >> PAGE_SHIFT),
+				.offset = offset + pgs - map->m_la,
+				.end = end - pgs, }), excl);
+			if (err)
+				break;
 
-	/*
-	 * Ensure the current partial folio belongs to this submit chain rather
-	 * than other concurrent submit chains or the noio(bypass) chain since
-	 * those chains are handled asynchronously thus the folio cannot be used
-	 * for inplace I/O or bvpage (should be processed in a strict order.)
-	 */
-	tight &= (fe->mode > Z_EROFS_PCLUSTER_FOLLOWED_NOINPLACE);
-	exclusive = (!cur && ((split <= 1) || (tight && bs == fs)));
-	if (cur)
-		tight &= (fe->mode >= Z_EROFS_PCLUSTER_FOLLOWED);
-
-	err = z_erofs_attach_page(fe, &((struct z_erofs_bvec) {
-					.page = &folio->page,
-					.offset = offset - map->m_la,
-					.end = end,
-				  }), exclusive);
-	if (err)
-		goto out;
-
-	z_erofs_onlinefolio_split(folio);
-	if (fe->pcl->pageofs_out != (map->m_la & ~PAGE_MASK))
-		fe->pcl->multibases = true;
-	if (fe->pcl->length < offset + end - map->m_la) {
-		fe->pcl->length = offset + end - map->m_la;
-		fe->pcl->pageofs_out = map->m_la & ~PAGE_MASK;
-	}
-	if ((map->m_flags & EROFS_MAP_FULL_MAPPED) &&
-	    !(map->m_flags & EROFS_MAP_PARTIAL_REF) &&
-	    fe->pcl->length == map->m_llen)
-		fe->pcl->partial = false;
-next_part:
-	/* shorten the remaining extent to update progress */
-	map->m_llen = offset + cur - map->m_la;
-	map->m_flags &= ~EROFS_MAP_FULL_MAPPED;
-
-	end = cur;
-	if (end > 0)
-		goto repeat;
-
-out:
+			z_erofs_onlinefolio_split(folio);
+			if (f->pcl->pageofs_out != (map->m_la & ~PAGE_MASK))
+				f->pcl->multibases = true;
+			if (f->pcl->length < offset + end - map->m_la) {
+				f->pcl->length = offset + end - map->m_la;
+				f->pcl->pageofs_out = map->m_la & ~PAGE_MASK;
+			}
+			if ((map->m_flags & EROFS_MAP_FULL_MAPPED) &&
+			    !(map->m_flags & EROFS_MAP_PARTIAL_REF) &&
+			    f->pcl->length == map->m_llen)
+				f->pcl->partial = false;
+		}
+		/* shorten the remaining extent to update progress */
+		map->m_llen = offset + cur - map->m_la;
+		map->m_flags &= ~EROFS_MAP_FULL_MAPPED;
+		if (cur <= pgs) {
+			split = cur < pgs;
+			tight = (bs == PAGE_SIZE);
+		}
+	} while ((end = cur) > 0);
 	z_erofs_onlinefolio_end(folio, err);
 	return err;
 }
