@@ -810,8 +810,8 @@ static u64 limit_nv_id_reg(u32 id, u64 val)
 		break;
 
 	case SYS_ID_AA64ISAR1_EL1:
-		/* Support everything but Spec Invalidation */
-		val &= ~(GENMASK_ULL(63, 56)	|
+		/* Support everything but Spec Invalidation and LS64 */
+		val &= ~(NV_FTR(ISAR1, LS64)	|
 			 NV_FTR(ISAR1, SPECRES));
 		break;
 
