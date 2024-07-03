@@ -36,7 +36,8 @@ uses_generated_oob := \
 	$(obj)/xe_ring_ops.o \
 	$(obj)/xe_vm.o \
 	$(obj)/xe_wa.o \
-	$(obj)/xe_ttm_stolen_mgr.o
+	$(obj)/xe_ttm_stolen_mgr.o \
+	$(obj)/display/xe_display_wa.o
 
 $(uses_generated_oob): $(generated_oob)
 
@@ -194,6 +195,7 @@ xe-$(CONFIG_DRM_XE_DISPLAY) += \
 	display/xe_display.o \
 	display/xe_display_misc.o \
 	display/xe_display_rps.o \
+	display/xe_display_wa.o \
 	display/xe_dsb_buffer.o \
 	display/xe_fb_pin.o \
 	display/xe_hdcp_gsc.o \
