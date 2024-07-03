@@ -91,7 +91,7 @@ static int get_module_eeprom_by_page(struct net_device *dev,
 {
 	const struct ethtool_ops *ops = dev->ethtool_ops;
 
-	if (dev->module_fw_flash_in_progress) {
+	if (dev->ethtool->module_fw_flash_in_progress) {
 		NL_SET_ERR_MSG(extack,
 			       "Module firmware flashing is in progress");
 		return -EBUSY;

@@ -658,7 +658,7 @@ static int ethtool_get_settings(struct net_device *dev, void __user *useraddr)
 	if (!dev->ethtool_ops->get_link_ksettings)
 		return -EOPNOTSUPP;
 
-	if (dev->module_fw_flash_in_progress)
+	if (dev->ethtool->module_fw_flash_in_progress)
 		return -EBUSY;
 
 	memset(&link_ksettings, 0, sizeof(link_ksettings));
@@ -1572,7 +1572,7 @@ static int ethtool_reset(struct net_device *dev, char __user *useraddr)
 	if (!dev->ethtool_ops->reset)
 		return -EOPNOTSUPP;
 
-	if (dev->module_fw_flash_in_progress)
+	if (dev->ethtool->module_fw_flash_in_progress)
 		return -EBUSY;
 
 	if (copy_from_user(&reset, useraddr, sizeof(reset)))
@@ -2588,7 +2588,7 @@ int ethtool_get_module_info_call(struct net_device *dev,
 	const struct ethtool_ops *ops = dev->ethtool_ops;
 	struct phy_device *phydev = dev->phydev;
 
-	if (dev->module_fw_flash_in_progress)
+	if (dev->ethtool->module_fw_flash_in_progress)
 		return -EBUSY;
 
 	if (dev->sfp_bus)
@@ -2628,7 +2628,7 @@ int ethtool_get_module_eeprom_call(struct net_device *dev,
 	const struct ethtool_ops *ops = dev->ethtool_ops;
 	struct phy_device *phydev = dev->phydev;
 
-	if (dev->module_fw_flash_in_progress)
+	if (dev->ethtool->module_fw_flash_in_progress)
 		return -EBUSY;
 
 	if (dev->sfp_bus)

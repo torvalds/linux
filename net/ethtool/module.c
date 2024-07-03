@@ -37,7 +37,7 @@ static int module_get_power_mode(struct net_device *dev,
 	if (!ops->get_module_power_mode)
 		return 0;
 
-	if (dev->module_fw_flash_in_progress) {
+	if (dev->ethtool->module_fw_flash_in_progress) {
 		NL_SET_ERR_MSG(extack,
 			       "Module firmware flashing is in progress");
 		return -EBUSY;
@@ -119,7 +119,7 @@ ethnl_set_module_validate(struct ethnl_req_info *req_info,
 	if (!tb[ETHTOOL_A_MODULE_POWER_MODE_POLICY])
 		return 0;
 
-	if (req_info->dev->module_fw_flash_in_progress) {
+	if (req_info->dev->ethtool->module_fw_flash_in_progress) {
 		NL_SET_ERR_MSG(info->extack,
 			       "Module firmware flashing is in progress");
 		return -EBUSY;
@@ -226,7 +226,7 @@ static void module_flash_fw_work(struct work_struct *work)
 	ethtool_cmis_fw_update(&module_fw->fw_update);
 
 	module_flash_fw_work_list_del(&module_fw->list);
-	module_fw->fw_update.dev->module_fw_flash_in_progress = false;
+	module_fw->fw_update.dev->ethtool->module_fw_flash_in_progress = false;
 	netdev_put(module_fw->fw_update.dev, &module_fw->dev_tracker);
 	release_firmware(module_fw->fw_update.fw);
 	kfree(module_fw);
@@ -318,7 +318,7 @@ module_flash_fw_schedule(struct net_device *dev, const char *file_name,
 	if (err < 0)
 		goto err_release_firmware;
 
-	dev->module_fw_flash_in_progress = true;
+	dev->ethtool->module_fw_flash_in_progress = true;
 	netdev_hold(dev, &module_fw->dev_tracker, GFP_KERNEL);
 	fw_update->dev = dev;
 	fw_update->ntf_params.portid = info->snd_portid;
@@ -385,7 +385,7 @@ static int ethnl_module_fw_flash_validate(struct net_device *dev,
 		return -EOPNOTSUPP;
 	}
 
-	if (dev->module_fw_flash_in_progress) {
+	if (dev->ethtool->module_fw_flash_in_progress) {
 		NL_SET_ERR_MSG(extack, "Module firmware flashing already in progress");
 		return -EBUSY;
 	}
