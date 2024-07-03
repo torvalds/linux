@@ -1129,6 +1129,7 @@ void dml21_populate_pipe_ctx_dlg_params(struct dml2_context *dml_ctx, struct dc_
 	pipe_ctx->pipe_dlg_param.vupdate_offset = global_sync->dcn4.vupdate_offset_pixels;
 	pipe_ctx->pipe_dlg_param.vupdate_width = global_sync->dcn4.vupdate_vupdate_width_pixels;
 	pipe_ctx->pipe_dlg_param.vready_offset = global_sync->dcn4.vready_offset_pixels;
+	pipe_ctx->pipe_dlg_param.pstate_keepout = global_sync->dcn4.pstate_keepout_start_lines;
 
 	pipe_ctx->pipe_dlg_param.otg_inst = pipe_ctx->stream_res.tg->inst;
 

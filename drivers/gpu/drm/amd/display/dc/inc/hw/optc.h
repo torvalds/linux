@@ -65,6 +65,7 @@ struct optc {
 	int vupdate_offset;
 	int vupdate_width;
 	int vready_offset;
+	int pstate_keepout;
 	struct dc_crtc_timing orginal_patched_timing;
 	enum signal_type signal;
 };
@@ -110,6 +111,7 @@ void optc1_program_timing(struct timing_generator *optc,
 			  int vstartup_start,
 			  int vupdate_offset,
 			  int vupdate_width,
+			  int pstate_keepout,
 			  const enum signal_type signal,
 			  bool use_vbios);
 
@@ -127,7 +129,8 @@ void optc1_program_global_sync(struct timing_generator *optc,
 			       int vready_offset,
 			       int vstartup_start,
 			       int vupdate_offset,
-			       int vupdate_width);
+			       int vupdate_width,
+				   int pstate_keepout);
 
 bool optc1_disable_crtc(struct timing_generator *optc);
 
