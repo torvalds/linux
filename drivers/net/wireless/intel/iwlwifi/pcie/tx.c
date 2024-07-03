@@ -2412,7 +2412,7 @@ void iwl_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 		 * have tx as well. Bottom line, we can unlock and re-lock
 		 * later.
 		 */
-		spin_unlock_bh(&txq->lock);
+		spin_unlock(&txq->lock);
 
 		while ((skb = __skb_dequeue(&overflow_skbs))) {
 			struct iwl_device_tx_cmd *dev_cmd_ptr;
@@ -2431,7 +2431,7 @@ void iwl_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 		if (iwl_txq_space(trans, txq) > txq->low_mark)
 			iwl_trans_pcie_wake_queue(trans, txq);
 
-		spin_lock_bh(&txq->lock);
+		spin_lock(&txq->lock);
 		txq->overflow_tx = false;
 	}
 
