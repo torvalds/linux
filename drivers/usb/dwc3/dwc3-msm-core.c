@@ -4232,7 +4232,6 @@ static int dwc3_msm_suspend(struct dwc3_msm *mdwc, bool force_power_collapse)
 		return 0;
 	}
 
-	msm_dwc3_perf_vote_enable(mdwc, false);
 	if (dwc) {
 		if (!mdwc->in_host_mode) {
 			evt = dwc->ev_buf;
@@ -4288,6 +4287,8 @@ static int dwc3_msm_suspend(struct dwc3_msm *mdwc, bool force_power_collapse)
 			pm_request_resume(&dwc->xhci->dev);
 		return ret;
 	}
+
+	msm_dwc3_perf_vote_enable(mdwc, false);
 
 	/* disable power event irq, hs and ss phy irq is used as wake up src */
 	disable_irq_nosync(mdwc->wakeup_irq[PWR_EVNT_IRQ].irq);
@@ -6493,6 +6494,12 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 	}
 
 	mdwc->force_disconnect = false;
+
+	/* Add pm_qos with default mode intially */
+	if (mdwc->pm_qos_latency)
+		cpu_latency_qos_add_request(&mdwc->pm_qos_req_dma,
+					    PM_QOS_DEFAULT_VALUE);
+
 	return 0;
 
 put_dwc3:
@@ -6542,6 +6549,10 @@ static int dwc3_msm_remove(struct platform_device *pdev)
 
 	msm_dwc3_perf_vote_enable(mdwc, false);
 	cancel_work_sync(&mdwc->sm_work);
+
+	/* Remove pm_qos request */
+	if (mdwc->pm_qos_latency)
+		cpu_latency_qos_remove_request(&mdwc->pm_qos_req_dma);
 
 	if (mdwc->hs_phy)
 		mdwc->hs_phy->flags &= ~PHY_HOST_MODE;
@@ -6843,9 +6854,6 @@ static void msm_dwc3_perf_vote_enable(struct dwc3_msm *mdwc, bool enable)
 		/* make sure when enable work, save a valid start irq count */
 		mdwc->irq_cnt = irq_desc->tot_count;
 
-		/* start default mode intially */
-		cpu_latency_qos_add_request(&mdwc->pm_qos_req_dma,
-					    PM_QOS_DEFAULT_VALUE);
 		schedule_delayed_work(&mdwc->perf_vote_work,
 				msecs_to_jiffies(PM_QOS_DEFAULT_SAMPLE_MS));
 	} else {
@@ -6853,7 +6861,6 @@ static void msm_dwc3_perf_vote_enable(struct dwc3_msm *mdwc, bool enable)
 			return;
 		cancel_delayed_work_sync(&mdwc->perf_vote_work);
 		msm_dwc3_perf_vote_update(mdwc, false);
-		cpu_latency_qos_remove_request(&mdwc->pm_qos_req_dma);
 	}
 }
 
