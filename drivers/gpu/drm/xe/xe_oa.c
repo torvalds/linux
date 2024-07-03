@@ -32,7 +32,7 @@
 #include "xe_macros.h"
 #include "xe_mmio.h"
 #include "xe_oa.h"
-#include "xe_perf.h"
+#include "xe_observation.h"
 #include "xe_pm.h"
 #include "xe_sched_job.h"
 #include "xe_sriov.h"
@@ -481,7 +481,7 @@ static int __xe_oa_read(struct xe_oa_stream *stream, char __user *buf,
 					  OASTATUS_RELEVANT_BITS, 0);
 	/*
 	 * Signal to userspace that there is non-zero OA status to read via
-	 * @DRM_XE_PERF_IOCTL_STATUS perf fd ioctl
+	 * @DRM_XE_OBSERVATION_IOCTL_STATUS observation stream fd ioctl
 	 */
 	if (stream->oa_status & OASTATUS_RELEVANT_BITS)
 		return -EIO;
@@ -1158,15 +1158,15 @@ static long xe_oa_ioctl_locked(struct xe_oa_stream *stream,
 			       unsigned long arg)
 {
 	switch (cmd) {
-	case DRM_XE_PERF_IOCTL_ENABLE:
+	case DRM_XE_OBSERVATION_IOCTL_ENABLE:
 		return xe_oa_enable_locked(stream);
-	case DRM_XE_PERF_IOCTL_DISABLE:
+	case DRM_XE_OBSERVATION_IOCTL_DISABLE:
 		return xe_oa_disable_locked(stream);
-	case DRM_XE_PERF_IOCTL_CONFIG:
+	case DRM_XE_OBSERVATION_IOCTL_CONFIG:
 		return xe_oa_config_locked(stream, arg);
-	case DRM_XE_PERF_IOCTL_STATUS:
+	case DRM_XE_OBSERVATION_IOCTL_STATUS:
 		return xe_oa_status_locked(stream, arg);
-	case DRM_XE_PERF_IOCTL_INFO:
+	case DRM_XE_OBSERVATION_IOCTL_INFO:
 		return xe_oa_info_locked(stream, arg);
 	}
 
@@ -1209,7 +1209,7 @@ static int xe_oa_release(struct inode *inode, struct file *file)
 	xe_oa_destroy_locked(stream);
 	mutex_unlock(&gt->oa.gt_lock);
 
-	/* Release the reference the perf stream kept on the driver */
+	/* Release the reference the OA stream kept on the driver */
 	drm_dev_put(&gt_to_xe(gt)->drm);
 
 	return 0;
@@ -1222,7 +1222,7 @@ static int xe_oa_mmap(struct file *file, struct vm_area_struct *vma)
 	unsigned long start = vma->vm_start;
 	int i, ret;
 
-	if (xe_perf_stream_paranoid && !perfmon_capable()) {
+	if (xe_observation_paranoid && !perfmon_capable()) {
 		drm_dbg(&stream->oa->xe->drm, "Insufficient privilege to map OA buffer\n");
 		return -EACCES;
 	}
@@ -1789,8 +1789,8 @@ static int xe_oa_user_extensions(struct xe_oa *oa, u64 extension, int ext_number
  * @file: @drm_file
  *
  * The functions opens an OA stream. An OA stream, opened with specified
- * properties, enables perf counter samples to be collected, either
- * periodically (time based sampling), or on request (using perf queries)
+ * properties, enables OA counter samples to be collected, either
+ * periodically (time based sampling), or on request (using OA queries)
  */
 int xe_oa_stream_open_ioctl(struct drm_device *dev, u64 data, struct drm_file *file)
 {
@@ -1836,8 +1836,8 @@ int xe_oa_stream_open_ioctl(struct drm_device *dev, u64 data, struct drm_file *f
 		privileged_op = true;
 	}
 
-	if (privileged_op && xe_perf_stream_paranoid && !perfmon_capable()) {
-		drm_dbg(&oa->xe->drm, "Insufficient privileges to open xe perf stream\n");
+	if (privileged_op && xe_observation_paranoid && !perfmon_capable()) {
+		drm_dbg(&oa->xe->drm, "Insufficient privileges to open xe OA stream\n");
 		ret = -EACCES;
 		goto err_exec_q;
 	}
@@ -2097,7 +2097,7 @@ int xe_oa_add_config_ioctl(struct drm_device *dev, u64 data, struct drm_file *fi
 		return -ENODEV;
 	}
 
-	if (xe_perf_stream_paranoid && !perfmon_capable()) {
+	if (xe_observation_paranoid && !perfmon_capable()) {
 		drm_dbg(&oa->xe->drm, "Insufficient privileges to add xe OA config\n");
 		return -EACCES;
 	}
@@ -2181,7 +2181,7 @@ reg_err:
 /**
  * xe_oa_remove_config_ioctl - Removes one OA config
  * @dev: @drm_device
- * @data: pointer to struct @drm_xe_perf_param
+ * @data: pointer to struct @drm_xe_observation_param
  * @file: @drm_file
  */
 int xe_oa_remove_config_ioctl(struct drm_device *dev, u64 data, struct drm_file *file)
@@ -2197,7 +2197,7 @@ int xe_oa_remove_config_ioctl(struct drm_device *dev, u64 data, struct drm_file 
 		return -ENODEV;
 	}
 
-	if (xe_perf_stream_paranoid && !perfmon_capable()) {
+	if (xe_observation_paranoid && !perfmon_capable()) {
 		drm_dbg(&oa->xe->drm, "Insufficient privileges to remove xe OA config\n");
 		return -EACCES;
 	}
@@ -2381,7 +2381,7 @@ static int xe_oa_init_gt(struct xe_gt *gt)
 
 	/*
 	 * Fused off engines can result in oa_unit's with num_engines == 0. These units
-	 * will appear in OA unit query, but no perf streams can be opened on them.
+	 * will appear in OA unit query, but no OA streams can be opened on them.
 	 */
 	gt->oa.num_oa_units = num_oa_units;
 	gt->oa.oa_unit = u;

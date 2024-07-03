@@ -389,7 +389,7 @@ struct xe_gt {
 		u8 instances_per_class[XE_ENGINE_CLASS_MAX];
 	} user_engines;
 
-	/** @oa: oa perf counter subsystem per gt info */
+	/** @oa: oa observation subsystem per gt info */
 	struct xe_oa_gt oa;
 };
 

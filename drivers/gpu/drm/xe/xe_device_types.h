@@ -463,7 +463,7 @@ struct xe_device {
 	/** @heci_gsc: graphics security controller */
 	struct xe_heci_gsc heci_gsc;
 
-	/** @oa: oa perf counter subsystem */
+	/** @oa: oa observation subsystem */
 	struct xe_oa oa;
 
 	/** @needs_flr_on_fini: requests function-reset on fini */
