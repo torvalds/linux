@@ -68,7 +68,7 @@ struct xvcu_device {
 	struct clk_hw_onecell_data *clk_data;
 };
 
-static struct regmap_config vcu_settings_regmap_config = {
+static const struct regmap_config vcu_settings_regmap_config = {
 	.name = "regmap",
 	.reg_bits = 32,
 	.val_bits = 32,
