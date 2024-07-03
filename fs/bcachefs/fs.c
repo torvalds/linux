@@ -2071,7 +2071,8 @@ int __init bch2_vfs_init(void)
 {
 	int ret = -ENOMEM;
 
-	bch2_inode_cache = KMEM_CACHE(bch_inode_info, SLAB_RECLAIM_ACCOUNT);
+	bch2_inode_cache = KMEM_CACHE(bch_inode_info, SLAB_RECLAIM_ACCOUNT |
+				      SLAB_ACCOUNT);
 	if (!bch2_inode_cache)
 		goto err;
 
