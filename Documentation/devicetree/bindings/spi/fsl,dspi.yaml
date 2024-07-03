@@ -48,6 +48,16 @@ properties:
     items:
       - const: dspi
 
+  dmas:
+    items:
+      - description: DMA controller phandle and request line for TX
+      - description: DMA controller phandle and request line for RX
+
+  dma-names:
+    items:
+      - const: tx
+      - const: rx
+
   spi-num-chipselects:
     $ref: /schemas/types.yaml#/definitions/uint32
     description:
