@@ -2261,6 +2261,10 @@ void *bpf_map_kvcalloc(struct bpf_map *map, size_t n, size_t size,
 void __percpu *bpf_map_alloc_percpu(const struct bpf_map *map, size_t size,
 				    size_t align, gfp_t flags);
 #else
+/*
+ * These specialized allocators have to be macros for their allocations to be
+ * accounted separately (to have separate alloc_tag).
+ */
 #define bpf_map_kmalloc_node(_map, _size, _flags, _node)	\
 		kmalloc_node(_size, _flags, _node)
 #define bpf_map_kzalloc(_map, _size, _flags)			\
