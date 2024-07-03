@@ -1119,6 +1119,8 @@ static int vector_net_close(struct net_device *dev)
 	netif_stop_queue(dev);
 	del_timer(&vp->tl);
 
+	vp->opened = false;
+
 	if (vp->fds == NULL)
 		return 0;
 
@@ -1157,7 +1159,6 @@ static int vector_net_close(struct net_device *dev)
 		destroy_queue(vp->tx_queue);
 	kfree(vp->fds);
 	vp->fds = NULL;
-	vp->opened = false;
 	vp->in_error = false;
 	return 0;
 }
