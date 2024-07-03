@@ -5,6 +5,25 @@
  * Copyright (C) 2023 Renesas Electronics Corp.
  * Copyright (C) 2024 Glider bv
  */
+/*
+ * [How to use Sound]
+ *
+ * Because R-Car V4M has only 1 SSI, it cannot handle both Playback/Capture
+ * at the same time. You need to switch the direction which is controlled
+ * by the GP0_01 pin via amixer.
+ *
+ * Playback (CN9500)
+ *	> amixer set "MUX" "Playback"	// for GP0_01
+ *	> amixer set "DAC 1" 85%
+ *	> aplay xxx.wav
+ *
+ * Capture (CN9501)
+ *	> amixer set "MUX" "Capture"	// for GP0_01
+ *	> amixer set "Mic 1" 80%
+ *	> amixer set "ADC 1" on
+ *	> amixer set 'ADC 1' 80%
+ *	> arecord xxx hoge.wav
+ */
 
 /dts-v1/;
 
@@ -59,6 +78,24 @@
 			regulator-boot-on;
 			regulator-always-on;
 	};
+
+	sound_mux: sound-mux {
+		compatible = "simple-audio-mux";
+		mux-gpios = <&gpio0 1 GPIO_ACTIVE_HIGH>;
+		state-labels = "Playback", "Capture";
+	};
+
+	sound_card: sound {
+		compatible = "audio-graph-card2";
+		label = "rcar-sound";
+		aux-devs = <&sound_mux>; // for GP0_01
+
+		links = <&rsnd_port>; // AK4619 Audio Codec
+	};
+};
+
+&audio_clkin {
+	clock-frequency = <24576000>;
 };
 
 &avb0 {
@@ -85,6 +122,15 @@
 
 &extalr_clk {
 	clock-frequency = <32768>;
+};
+
+&gpio1 {
+	audio-power-hog {
+		gpio-hog;
+		gpios = <8 GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "Audio-Power";
+	};
 };
 
 &hscif0 {
@@ -136,6 +182,29 @@
 		label = "ethernet-sub-board-id";
 		reg = <0x53>;
 		pagesize = <8>;
+	};
+};
+
+&i2c3 {
+	pinctrl-0 = <&i2c3_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+	clock-frequency = <400000>;
+
+	codec@10 {
+		compatible = "asahi-kasei,ak4619";
+		reg = <0x10>;
+
+		clocks = <&rcar_sound>;
+		clock-names = "mclk";
+
+		#sound-dai-cells = <0>;
+		port {
+			ak4619_endpoint: endpoint {
+				remote-endpoint = <&rsnd_endpoint>;
+			};
+		};
 	};
 };
 
@@ -193,6 +262,11 @@
 		function = "i2c0";
 	};
 
+	i2c3_pins: i2c3 {
+		groups = "i2c3";
+		function = "i2c3";
+	};
+
 	mmc_pins: mmc {
 		groups = "mmc_data8", "mmc_ctrl", "mmc_ds";
 		function = "mmc";
@@ -212,6 +286,40 @@
 	scif_clk2_pins: scif-clk2 {
 		groups = "scif_clk2";
 		function = "scif_clk2";
+	};
+
+	sound_clk_pins: sound_clk {
+		groups = "audio_clkin", "audio_clkout";
+		function = "audio_clk";
+	};
+
+	sound_pins: sound {
+		groups = "ssi_ctrl", "ssi_data";
+		function = "ssi";
+	};
+};
+
+&rcar_sound {
+	pinctrl-0 = <&sound_clk_pins>, <&sound_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+
+	/* audio_clkout */
+	clock-frequency = <12288000>;
+
+	ports {
+		rsnd_port: port {
+			rsnd_endpoint: endpoint {
+				remote-endpoint = <&ak4619_endpoint>;
+				bitclock-master;
+				frame-master;
+
+				/* see above [How to use Sound] */
+				playback = <&ssi0>;
+				capture  = <&ssi0>;
+			};
+		};
 	};
 };
 
