@@ -1086,7 +1086,8 @@ out_delete_threads:
 	return -1;
 }
 
-int evlist__apply_filters(struct evlist *evlist, struct evsel **err_evsel)
+int evlist__apply_filters(struct evlist *evlist, struct evsel **err_evsel,
+			  struct target *target)
 {
 	struct evsel *evsel;
 	int err = 0;
@@ -1108,7 +1109,7 @@ int evlist__apply_filters(struct evlist *evlist, struct evsel **err_evsel)
 		 * non-tracepoint events can have BPF filters.
 		 */
 		if (!list_empty(&evsel->bpf_filters)) {
-			err = perf_bpf_filter__prepare(evsel);
+			err = perf_bpf_filter__prepare(evsel, target);
 			if (err) {
 				*err_evsel = evsel;
 				break;

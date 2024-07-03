@@ -1055,7 +1055,7 @@ try_again:
 		}
 	}
 
-	if (evlist__apply_filters(evlist, &counter)) {
+	if (evlist__apply_filters(evlist, &counter, &opts->target)) {
 		pr_err("failed to set filter \"%s\" on event %s with %d (%s)\n",
 			counter->filter ?: "BPF", evsel__name(counter), errno,
 			str_error_r(errno, msg, sizeof(msg)));

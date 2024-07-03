@@ -91,7 +91,7 @@ static int check_sample_flags(struct evsel *evsel, struct perf_bpf_filter_expr *
 	return -1;
 }
 
-int perf_bpf_filter__prepare(struct evsel *evsel)
+int perf_bpf_filter__prepare(struct evsel *evsel, struct target *target __maybe_unused)
 {
 	int i, x, y, fd, ret;
 	struct sample_filter_bpf *skel;
