@@ -3,10 +3,13 @@
 
 #include <bpf/bpf.h>
 #include <linux/err.h>
+#include <api/fs/fs.h>
 #include <internal/xyarray.h>
+#include <perf/threadmap.h>
 
 #include "util/debug.h"
 #include "util/evsel.h"
+#include "util/target.h"
 
 #include "util/bpf-filter.h"
 #include <util/bpf-filter-flex.h>
@@ -91,38 +94,17 @@ static int check_sample_flags(struct evsel *evsel, struct perf_bpf_filter_expr *
 	return -1;
 }
 
-int perf_bpf_filter__prepare(struct evsel *evsel, struct target *target __maybe_unused)
+static int get_filter_entries(struct evsel *evsel, struct perf_bpf_filter_entry *entry)
 {
-	int i, x, y, fd, ret;
-	struct sample_filter_bpf *skel;
-	struct bpf_program *prog;
-	struct bpf_link *link;
+	int i = 0;
 	struct perf_bpf_filter_expr *expr;
-	struct perf_bpf_filter_entry *entry;
 
-	entry = calloc(MAX_FILTERS, sizeof(*entry));
-	if (entry == NULL)
-		return -1;
-
-	skel = sample_filter_bpf__open_and_load();
-	if (!skel) {
-		pr_err("Failed to load perf sample-filter BPF skeleton\n");
-		ret = -EPERM;
-		goto err;
-	}
-
-	i = 0;
-	fd = bpf_map__fd(skel->maps.filters);
 	list_for_each_entry(expr, &evsel->bpf_filters, list) {
-		if (check_sample_flags(evsel, expr) < 0) {
-			ret = -EINVAL;
-			goto err;
-		}
+		if (check_sample_flags(evsel, expr) < 0)
+			return -EINVAL;
 
-		if (i == MAX_FILTERS) {
-			ret = -E2BIG;
-			goto err;
-		}
+		if (i == MAX_FILTERS)
+			return -E2BIG;
 
 		entry[i].op = expr->op;
 		entry[i].part = expr->part;
@@ -134,10 +116,8 @@ int perf_bpf_filter__prepare(struct evsel *evsel, struct target *target __maybe_
 			struct perf_bpf_filter_expr *group;
 
 			list_for_each_entry(group, &expr->groups, list) {
-				if (i == MAX_FILTERS) {
-					ret = -E2BIG;
-					goto err;
-				}
+				if (i == MAX_FILTERS)
+					return -E2BIG;
 
 				entry[i].op = group->op;
 				entry[i].part = group->part;
@@ -146,10 +126,8 @@ int perf_bpf_filter__prepare(struct evsel *evsel, struct target *target __maybe_
 				i++;
 			}
 
-			if (i == MAX_FILTERS) {
-				ret = -E2BIG;
-				goto err;
-			}
+			if (i == MAX_FILTERS)
+				return -E2BIG;
 
 			entry[i].op = PBF_OP_GROUP_END;
 			i++;
@@ -161,13 +139,141 @@ int perf_bpf_filter__prepare(struct evsel *evsel, struct target *target __maybe_
 		entry[i].op = PBF_OP_DONE;
 		i++;
 	}
+	return 0;
+}
 
-	/* The filters map has only one entry for now */
-	i = 0;
-	if (bpf_map_update_elem(fd, &i, entry, BPF_ANY) < 0) {
-		ret = -errno;
-		pr_err("Failed to update the filter map\n");
+static int convert_to_tgid(int tid)
+{
+	char path[128];
+	char *buf, *p, *q;
+	int tgid;
+	size_t len;
+
+	scnprintf(path, sizeof(path), "%d/status", tid);
+	if (procfs__read_str(path, &buf, &len) < 0)
+		return -1;
+
+	p = strstr(buf, "Tgid:");
+	if (p == NULL) {
+		free(buf);
+		return -1;
+	}
+
+	tgid = strtol(p + 6, &q, 0);
+	free(buf);
+	if (*q != '\n')
+		return -1;
+
+	return tgid;
+}
+
+static int update_pid_hash(struct sample_filter_bpf *skel, struct evsel *evsel,
+			   struct perf_bpf_filter_entry *entry)
+{
+	int filter_idx;
+	int nr, last;
+	int fd = bpf_map__fd(skel->maps.filters);
+	struct perf_thread_map *threads;
+
+	/* Find the first available entry in the filters map */
+	for (filter_idx = 0; filter_idx < MAX_FILTERS; filter_idx++) {
+		if (bpf_map_update_elem(fd, &filter_idx, entry, BPF_NOEXIST) == 0)
+			break;
+	}
+
+	if (filter_idx == MAX_FILTERS) {
+		pr_err("Too many users for the filter map\n");
+		return -EBUSY;
+	}
+
+	threads = perf_evsel__threads(&evsel->core);
+	if (threads == NULL) {
+		pr_err("Cannot get the thread list of the event\n");
+		return -EINVAL;
+	}
+
+	/* save the index to a hash map */
+	fd = bpf_map__fd(skel->maps.pid_hash);
+
+	last = -1;
+	nr = perf_thread_map__nr(threads);
+	for (int i = 0; i < nr; i++) {
+		int pid = perf_thread_map__pid(threads, i);
+		int tgid;
+
+		/* it actually needs tgid, let's get tgid from /proc. */
+		tgid = convert_to_tgid(pid);
+		if (tgid < 0) {
+			/* the thread may be dead, ignore. */
+			continue;
+		}
+
+		if (tgid == last)
+			continue;
+		last = tgid;
+
+		if (bpf_map_update_elem(fd, &tgid, &filter_idx, BPF_ANY) < 0) {
+			pr_err("Failed to update the pid hash\n");
+			return -errno;
+		}
+		pr_debug("pid hash: %d -> %d\n", tgid, filter_idx);
+	}
+	return 0;
+}
+
+int perf_bpf_filter__prepare(struct evsel *evsel, struct target *target)
+{
+	int i, x, y, fd, ret;
+	struct sample_filter_bpf *skel = NULL;
+	struct bpf_program *prog;
+	struct bpf_link *link;
+	struct perf_bpf_filter_entry *entry;
+	bool needs_pid_hash = !target__has_cpu(target) && !target->uid_str;
+
+	entry = calloc(MAX_FILTERS, sizeof(*entry));
+	if (entry == NULL)
+		return -1;
+
+	ret = get_filter_entries(evsel, entry);
+	if (ret < 0) {
+		pr_err("Failed to process filter entries\n");
 		goto err;
+	}
+
+	skel = sample_filter_bpf__open();
+	if (!skel) {
+		pr_err("Failed to open perf sample-filter BPF skeleton\n");
+		ret = -EPERM;
+		goto err;
+	}
+
+	if (needs_pid_hash) {
+		bpf_map__set_max_entries(skel->maps.filters, MAX_FILTERS);
+		bpf_map__set_max_entries(skel->maps.pid_hash, MAX_PIDS);
+		skel->rodata->use_pid_hash = 1;
+	}
+
+	if (sample_filter_bpf__load(skel) < 0) {
+		pr_err("Failed to load perf sample-filter BPF skeleton\n");
+		ret = -EPERM;
+		goto err;
+	}
+
+	if (needs_pid_hash) {
+		/* The filters map is shared among other processes  */
+		ret = update_pid_hash(skel, evsel, entry);
+		if (ret < 0)
+			goto err;
+	} else {
+		i = 0;
+		fd = bpf_map__fd(skel->maps.filters);
+
+		/* The filters map has only one entry in this case */
+		if (bpf_map_update_elem(fd, &i, entry, BPF_ANY) < 0) {
+			ret = -errno;
+			pr_err("Failed to update the filter map\n");
+			goto err;
+		}
 	}
 
 	prog = skel->progs.perf_sample_filter;
