@@ -122,8 +122,6 @@ void new_thread_handler(void)
 /* Called magically, see new_thread_handler above */
 static void fork_handler(void)
 {
-	force_flush_all();
-
 	schedule_tail(current->thread.prev_sched);
 
 	/*

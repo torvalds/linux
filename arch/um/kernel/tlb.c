@@ -41,17 +41,15 @@ struct host_vm_change {
 	int index;
 	struct mm_struct *mm;
 	void *data;
-	int force;
 };
 
-#define INIT_HVC(mm, force, userspace) \
+#define INIT_HVC(mm, userspace) \
 	((struct host_vm_change) \
 	 { .ops		= { { .type = NONE } },	\
 	   .mm		= mm, \
        	   .data	= NULL, \
 	   .userspace	= userspace, \
-	   .index	= 0, \
-	   .force	= force })
+	   .index	= 0 })
 
 void report_enomem(void)
 {
@@ -235,7 +233,7 @@ static inline int update_pte_range(pmd_t *pmd, unsigned long addr,
 
 		prot = ((r ? UM_PROT_READ : 0) | (w ? UM_PROT_WRITE : 0) |
 			(x ? UM_PROT_EXEC : 0));
-		if (hvc->force || pte_newpage(*pte)) {
+		if (pte_newpage(*pte)) {
 			if (pte_present(*pte)) {
 				if (pte_newpage(*pte))
 					ret = add_mmap(addr, pte_val(*pte) & PAGE_MASK,
@@ -261,7 +259,7 @@ static inline int update_pmd_range(pud_t *pud, unsigned long addr,
 	do {
 		next = pmd_addr_end(addr, end);
 		if (!pmd_present(*pmd)) {
-			if (hvc->force || pmd_newpage(*pmd)) {
+			if (pmd_newpage(*pmd)) {
 				ret = add_munmap(addr, next - addr, hvc);
 				pmd_mkuptodate(*pmd);
 			}
@@ -283,7 +281,7 @@ static inline int update_pud_range(p4d_t *p4d, unsigned long addr,
 	do {
 		next = pud_addr_end(addr, end);
 		if (!pud_present(*pud)) {
-			if (hvc->force || pud_newpage(*pud)) {
+			if (pud_newpage(*pud)) {
 				ret = add_munmap(addr, next - addr, hvc);
 				pud_mkuptodate(*pud);
 			}
@@ -305,7 +303,7 @@ static inline int update_p4d_range(pgd_t *pgd, unsigned long addr,
 	do {
 		next = p4d_addr_end(addr, end);
 		if (!p4d_present(*p4d)) {
-			if (hvc->force || p4d_newpage(*p4d)) {
+			if (p4d_newpage(*p4d)) {
 				ret = add_munmap(addr, next - addr, hvc);
 				p4d_mkuptodate(*p4d);
 			}
@@ -316,19 +314,19 @@ static inline int update_p4d_range(pgd_t *pgd, unsigned long addr,
 }
 
 static void fix_range_common(struct mm_struct *mm, unsigned long start_addr,
-			     unsigned long end_addr, int force)
+			     unsigned long end_addr)
 {
 	pgd_t *pgd;
 	struct host_vm_change hvc;
 	unsigned long addr = start_addr, next;
 	int ret = 0, userspace = 1;
 
-	hvc = INIT_HVC(mm, force, userspace);
+	hvc = INIT_HVC(mm, userspace);
 	pgd = pgd_offset(mm, addr);
 	do {
 		next = pgd_addr_end(addr, end_addr);
 		if (!pgd_present(*pgd)) {
-			if (force || pgd_newpage(*pgd)) {
+			if (pgd_newpage(*pgd)) {
 				ret = add_munmap(addr, next - addr, &hvc);
 				pgd_mkuptodate(*pgd);
 			}
@@ -349,11 +347,11 @@ static int flush_tlb_kernel_range_common(unsigned long start, unsigned long end)
 	pmd_t *pmd;
 	pte_t *pte;
 	unsigned long addr, last;
-	int updated = 0, err = 0, force = 0, userspace = 0;
+	int updated = 0, err = 0,  userspace = 0;
 	struct host_vm_change hvc;
 
 	mm = &init_mm;
-	hvc = INIT_HVC(mm, force, userspace);
+	hvc = INIT_HVC(mm, userspace);
 	for (addr = start; addr < end;) {
 		pgd = pgd_offset(mm, addr);
 		if (!pgd_present(*pgd)) {
@@ -537,7 +535,7 @@ void __flush_tlb_one(unsigned long addr)
 }
 
 static void fix_range(struct mm_struct *mm, unsigned long start_addr,
-		      unsigned long end_addr, int force)
+		      unsigned long end_addr)
 {
 	/*
 	 * Don't bother flushing if this address space is about to be
@@ -546,7 +544,7 @@ static void fix_range(struct mm_struct *mm, unsigned long start_addr,
 	if (atomic_read(&mm->mm_users) == 0)
 		return;
 
-	fix_range_common(mm, start_addr, end_addr, force);
+	fix_range_common(mm, start_addr, end_addr);
 }
 
 void flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
@@ -554,7 +552,7 @@ void flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 {
 	if (vma->vm_mm == NULL)
 		flush_tlb_kernel_range_common(start, end);
-	else fix_range(vma->vm_mm, start, end, 0);
+	else fix_range(vma->vm_mm, start, end);
 }
 EXPORT_SYMBOL(flush_tlb_range);
 
@@ -564,17 +562,5 @@ void flush_tlb_mm(struct mm_struct *mm)
 	VMA_ITERATOR(vmi, mm, 0);
 
 	for_each_vma(vmi, vma)
-		fix_range(mm, vma->vm_start, vma->vm_end, 0);
-}
-
-void force_flush_all(void)
-{
-	struct mm_struct *mm = current->mm;
-	struct vm_area_struct *vma;
-	VMA_ITERATOR(vmi, mm, 0);
-
-	mmap_read_lock(mm);
-	for_each_vma(vmi, vma)
-		fix_range(mm, vma->vm_start, vma->vm_end, 1);
-	mmap_read_unlock(mm);
+		fix_range(mm, vma->vm_start, vma->vm_end);
 }
