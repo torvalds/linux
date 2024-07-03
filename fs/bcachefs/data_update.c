@@ -677,6 +677,16 @@ int bch2_data_update_init(struct btree_trans *trans,
 	if (!(durability_have + durability_removing))
 		m->op.nr_replicas = max((unsigned) m->op.nr_replicas, 1);
 
+	if (!m->op.nr_replicas) {
+		struct printbuf buf = PRINTBUF;
+
+		bch2_data_update_to_text(&buf, m);
+		WARN(1, "trying to move an extent, but nr_replicas=0\n%s", buf.buf);
+		printbuf_exit(&buf);
+		ret = -BCH_ERR_data_update_done;
+		goto done;
+	}
+
 	m->op.nr_replicas_required = m->op.nr_replicas;
 
 	if (reserve_sectors) {
