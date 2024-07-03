@@ -512,6 +512,12 @@ properties:
     description:
       Frequency division factor for MDC clock.
 
+  snps,tso:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      Enables the TSO feature otherwise it will be managed by MAC HW capability
+      register.
+
   mdio:
     $ref: mdio.yaml#
     unevaluatedProperties: false
@@ -595,41 +601,38 @@ allOf:
   - if:
       properties:
         compatible:
-          contains:
-            enum:
-              - allwinner,sun7i-a20-gmac
-              - allwinner,sun8i-a83t-emac
-              - allwinner,sun8i-h3-emac
-              - allwinner,sun8i-r40-gmac
-              - allwinner,sun8i-v3s-emac
-              - allwinner,sun50i-a64-emac
-              - loongson,ls2k-dwmac
-              - loongson,ls7a-dwmac
-              - ingenic,jz4775-mac
-              - ingenic,x1000-mac
-              - ingenic,x1600-mac
-              - ingenic,x1830-mac
-              - ingenic,x2000-mac
-              - qcom,qcs404-ethqos
-              - qcom,sa8775p-ethqos
-              - qcom,sc8280xp-ethqos
-              - qcom,sm8150-ethqos
-              - snps,dwmac-4.00
-              - snps,dwmac-4.10a
-              - snps,dwmac-4.20a
-              - snps,dwmac-5.10a
-              - snps,dwmac-5.20
-              - snps,dwxgmac
-              - snps,dwxgmac-2.10
-              - st,spear600-gmac
+          not:
+            contains:
+              enum:
+                - allwinner,sun7i-a20-gmac
+                - allwinner,sun8i-a83t-emac
+                - allwinner,sun8i-h3-emac
+                - allwinner,sun8i-r40-gmac
+                - allwinner,sun8i-v3s-emac
+                - allwinner,sun50i-a64-emac
+                - loongson,ls2k-dwmac
+                - loongson,ls7a-dwmac
+                - ingenic,jz4775-mac
+                - ingenic,x1000-mac
+                - ingenic,x1600-mac
+                - ingenic,x1830-mac
+                - ingenic,x2000-mac
+                - qcom,qcs404-ethqos
+                - qcom,sa8775p-ethqos
+                - qcom,sc8280xp-ethqos
+                - qcom,sm8150-ethqos
+                - snps,dwmac-4.00
+                - snps,dwmac-4.10a
+                - snps,dwmac-4.20a
+                - snps,dwmac-5.10a
+                - snps,dwmac-5.20
+                - snps,dwxgmac
+                - snps,dwxgmac-2.10
+                - st,spear600-gmac
 
     then:
       properties:
-        snps,tso:
-          $ref: /schemas/types.yaml#/definitions/flag
-          description:
-            Enables the TSO feature otherwise it will be managed by
-            MAC HW capability register.
+        snps,tso: false
 
 additionalProperties: true
 
