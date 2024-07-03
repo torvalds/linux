@@ -1086,7 +1086,7 @@ static const struct snd_soc_component_driver soc_component_dev_cs35l35 = {
 	.endianness		= 1,
 };
 
-static struct regmap_config cs35l35_regmap = {
+static const struct regmap_config cs35l35_regmap = {
 	.reg_bits = 8,
 	.val_bits = 8,
 
