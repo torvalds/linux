@@ -171,6 +171,7 @@ struct record {
 	bool			timestamp_filename;
 	bool			timestamp_boundary;
 	bool			off_cpu;
+	const char		*filter_action;
 	struct switch_output	switch_output;
 	unsigned long long	samples;
 	unsigned long		output_max_size;	/* = 0: unlimited */
@@ -3557,6 +3558,8 @@ static struct option __record_options[] = {
 			    "write collected trace data into several data files using parallel threads",
 			    record__parse_threads),
 	OPT_BOOLEAN(0, "off-cpu", &record.off_cpu, "Enable off-cpu analysis"),
+	OPT_STRING(0, "setup-filter", &record.filter_action, "pin|unpin",
+		   "BPF filter action"),
 	OPT_END()
 };
 
@@ -4084,6 +4087,18 @@ int cmd_record(int argc, const char **argv)
 	if (rec->timestamp_filename && record__threads_enabled(rec)) {
 		rec->timestamp_filename = false;
 		pr_warning("WARNING: --timestamp-filename option is not available in parallel streaming mode.\n");
+	}
+
+	if (rec->filter_action) {
+		if (!strcmp(rec->filter_action, "pin"))
+			err = perf_bpf_filter__pin();
+		else if (!strcmp(rec->filter_action, "unpin"))
+			err = perf_bpf_filter__unpin();
+		else {
+			pr_warning("Unknown BPF filter action: %s\n", rec->filter_action);
+			err = -EINVAL;
+		}
+		goto out_opts;
 	}
 
 	/*

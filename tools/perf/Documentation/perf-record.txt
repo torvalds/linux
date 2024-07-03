@@ -828,6 +828,11 @@ filtered through the mask provided by -C option.
 	only, as of now.  So the applications built without the frame
 	pointer might see bogus addresses.
 
+--setup-filter=<action>::
+	Prepare BPF filter to be used by regular users.  The action should be
+	either "pin" or "unpin".  The filter can be used after it's pinned.
+
+
 include::intel-hybrid.txt[]
 
 SEE ALSO
