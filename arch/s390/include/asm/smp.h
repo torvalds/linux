@@ -59,7 +59,7 @@ static inline void smp_cpus_done(unsigned int max_cpus)
 {
 }
 
-extern int smp_rescan_cpus(void);
+extern int smp_rescan_cpus(bool early);
 extern void __noreturn cpu_die(void);
 extern void __cpu_die(unsigned int cpu);
 extern int __cpu_disable(void);
