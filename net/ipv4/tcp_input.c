@@ -4224,6 +4224,13 @@ void tcp_parse_options(const struct net *net,
 				 */
 				break;
 #endif
+#ifdef CONFIG_TCP_AO
+			case TCPOPT_AO:
+				/* TCP AO has already been checked
+				 * (see tcp_inbound_ao_hash()).
+				 */
+				break;
+#endif
 			case TCPOPT_FASTOPEN:
 				tcp_parse_fastopen_option(
 					opsize - TCPOLEN_FASTOPEN_BASE,
