@@ -623,8 +623,8 @@ void iwl_trans_pcie_tx_reset(struct iwl_trans *trans);
 int iwl_pcie_txq_alloc(struct iwl_trans *trans, struct iwl_txq *txq,
 		       int slots_num, bool cmd_queue);
 
-struct iwl_tso_hdr_page *iwl_pcie_get_page_hdr(struct iwl_trans *trans,
-					       size_t len, struct sk_buff *skb);
+void *iwl_pcie_get_page_hdr(struct iwl_trans *trans, size_t len,
+			    struct sk_buff *skb);
 void iwl_pcie_free_tso_page(struct iwl_trans *trans, struct sk_buff *skb);
 
 static inline dma_addr_t

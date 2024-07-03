@@ -1702,12 +1702,13 @@ static int iwl_fill_data_tbs(struct iwl_trans *trans, struct sk_buff *skb,
 }
 
 #ifdef CONFIG_INET
-struct iwl_tso_hdr_page *iwl_pcie_get_page_hdr(struct iwl_trans *trans,
-					       size_t len, struct sk_buff *skb)
+void *iwl_pcie_get_page_hdr(struct iwl_trans *trans,
+			    size_t len, struct sk_buff *skb)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_tso_hdr_page *p = this_cpu_ptr(trans_pcie->txqs.tso_hdr_page);
 	struct page **page_ptr;
+	void *ret;
 
 	page_ptr = (void *)((u8 *)skb->cb + trans_pcie->txqs.page_offs);
 
@@ -1744,7 +1745,10 @@ alloc:
 out:
 	*page_ptr = p->page;
 	get_page(p->page);
-	return p;
+	ret = p->pos;
+	p->pos += len;
+
+	return ret;
 }
 
 static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
@@ -1759,8 +1763,7 @@ static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 	unsigned int snap_ip_tcp_hdrlen, ip_hdrlen, total_len, hdr_room;
 	unsigned int mss = skb_shinfo(skb)->gso_size;
 	u16 length, iv_len, amsdu_pad;
-	u8 *start_hdr;
-	struct iwl_tso_hdr_page *hdr_page;
+	u8 *start_hdr, *pos_hdr;
 	struct tso_t tso;
 
 	/* if the packet is protected, then it must be CCMP or GCMP */
@@ -1783,13 +1786,12 @@ static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 		(3 + snap_ip_tcp_hdrlen + sizeof(struct ethhdr)) + iv_len;
 
 	/* Our device supports 9 segments at most, it will fit in 1 page */
-	hdr_page = iwl_pcie_get_page_hdr(trans, hdr_room, skb);
-	if (!hdr_page)
+	pos_hdr = start_hdr = iwl_pcie_get_page_hdr(trans, hdr_room, skb);
+	if (!start_hdr)
 		return -ENOMEM;
 
-	start_hdr = hdr_page->pos;
-	memcpy(hdr_page->pos, skb->data + hdr_len, iv_len);
-	hdr_page->pos += iv_len;
+	memcpy(pos_hdr, skb->data + hdr_len, iv_len);
+	pos_hdr += iv_len;
 
 	/*
 	 * Pull the ieee80211 header + IV to be able to use TSO core,
@@ -1812,32 +1814,32 @@ static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 			min_t(unsigned int, mss, total_len);
 		unsigned int hdr_tb_len;
 		dma_addr_t hdr_tb_phys;
-		u8 *subf_hdrs_start = hdr_page->pos;
+		u8 *subf_hdrs_start = pos_hdr;
 
 		total_len -= data_left;
 
-		memset(hdr_page->pos, 0, amsdu_pad);
-		hdr_page->pos += amsdu_pad;
+		memset(pos_hdr, 0, amsdu_pad);
+		pos_hdr += amsdu_pad;
 		amsdu_pad = (4 - (sizeof(struct ethhdr) + snap_ip_tcp_hdrlen +
 				  data_left)) & 0x3;
-		ether_addr_copy(hdr_page->pos, ieee80211_get_DA(hdr));
-		hdr_page->pos += ETH_ALEN;
-		ether_addr_copy(hdr_page->pos, ieee80211_get_SA(hdr));
-		hdr_page->pos += ETH_ALEN;
+		ether_addr_copy(pos_hdr, ieee80211_get_DA(hdr));
+		pos_hdr += ETH_ALEN;
+		ether_addr_copy(pos_hdr, ieee80211_get_SA(hdr));
+		pos_hdr += ETH_ALEN;
 
 		length = snap_ip_tcp_hdrlen + data_left;
-		*((__be16 *)hdr_page->pos) = cpu_to_be16(length);
-		hdr_page->pos += sizeof(length);
+		*((__be16 *)pos_hdr) = cpu_to_be16(length);
+		pos_hdr += sizeof(length);
 
 		/*
 		 * This will copy the SNAP as well which will be considered
 		 * as MAC header.
 		 */
-		tso_build_hdr(skb, hdr_page->pos, &tso, data_left, !total_len);
+		tso_build_hdr(skb, pos_hdr, &tso, data_left, !total_len);
 
-		hdr_page->pos += snap_ip_tcp_hdrlen;
+		pos_hdr += snap_ip_tcp_hdrlen;
 
-		hdr_tb_len = hdr_page->pos - start_hdr;
+		hdr_tb_len = pos_hdr - start_hdr;
 		hdr_tb_phys = dma_map_single(trans->dev, start_hdr,
 					     hdr_tb_len, DMA_TO_DEVICE);
 		if (unlikely(dma_mapping_error(trans->dev, hdr_tb_phys)))
@@ -1847,10 +1849,10 @@ static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 		trace_iwlwifi_dev_tx_tb(trans->dev, skb, start_hdr,
 					hdr_tb_phys, hdr_tb_len);
 		/* add this subframe's headers' length to the tx_cmd */
-		le16_add_cpu(&tx_cmd->len, hdr_page->pos - subf_hdrs_start);
+		le16_add_cpu(&tx_cmd->len, pos_hdr - subf_hdrs_start);
 
 		/* prepare the start_hdr for the next subframe */
-		start_hdr = hdr_page->pos;
+		start_hdr = pos_hdr;
 
 		/* put the payload */
 		while (data_left) {
