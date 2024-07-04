@@ -6549,7 +6549,7 @@ static int gfx_v11_0_reset_kgq(struct amdgpu_ring *ring, unsigned int vmid)
 	struct amdgpu_device *adev = ring->adev;
 	int r;
 
-	r = amdgpu_mes_reset_legacy_queue(ring->adev, ring, vmid);
+	r = amdgpu_mes_reset_legacy_queue(ring->adev, ring, vmid, false);
 	if (r)
 		return r;
 

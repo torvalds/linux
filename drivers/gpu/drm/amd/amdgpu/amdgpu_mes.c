@@ -873,7 +873,8 @@ int amdgpu_mes_unmap_legacy_queue(struct amdgpu_device *adev,
 
 int amdgpu_mes_reset_legacy_queue(struct amdgpu_device *adev,
 				  struct amdgpu_ring *ring,
-				  unsigned int vmid)
+				  unsigned int vmid,
+				  bool use_mmio)
 {
 	struct mes_reset_legacy_queue_input queue_input;
 	int r;

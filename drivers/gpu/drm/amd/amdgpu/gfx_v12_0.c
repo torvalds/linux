@@ -5163,7 +5163,7 @@ static int gfx_v12_0_reset_kgq(struct amdgpu_ring *ring, unsigned int vmid)
 	struct amdgpu_device *adev = ring->adev;
 	int r;
 
-	r = amdgpu_mes_reset_legacy_queue(ring->adev, ring, vmid);
+	r = amdgpu_mes_reset_legacy_queue(ring->adev, ring, vmid, false);
 	if (r) {
 		dev_err(adev->dev, "reset via MES failed %d\n", r);
 		return r;
