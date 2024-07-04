@@ -84,7 +84,7 @@ static int bch2_bucket_is_movable(struct btree_trans *trans,
 		return 0;
 
 	k = bch2_bkey_get_iter(trans, &iter, BTREE_ID_alloc,
-			       b->k.bucket, BTREE_ITER_CACHED);
+			       b->k.bucket, BTREE_ITER_cached);
 	ret = bkey_err(k);
 	if (ret)
 		return ret;
@@ -157,6 +157,8 @@ static int bch2_copygc_get_buckets(struct moving_context *ctxt,
 
 	if (bch2_fs_fatal_err_on(ret, c, "%s: from bch2_btree_write_buffer_tryflush()", bch2_err_str(ret)))
 		return ret;
+
+	bch2_trans_begin(trans);
 
 	ret = for_each_btree_key_upto(trans, iter, BTREE_ID_lru,
 				  lru_pos(BCH_LRU_FRAGMENTATION_START, 0, 0),

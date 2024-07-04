@@ -7,6 +7,11 @@
 
 / {
 	compatible = "sophgo,cv1800b";
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x80000000 0x4000000>;
+	};
 };
 
 &plic {
@@ -15,4 +20,8 @@
 
 &clint {
 	compatible = "sophgo,cv1800b-clint", "thead,c900-clint";
+};
+
+&clk {
+	compatible = "sophgo,cv1800-clk";
 };

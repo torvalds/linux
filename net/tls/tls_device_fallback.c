@@ -33,6 +33,7 @@
 #include <crypto/aead.h>
 #include <crypto/scatterwalk.h>
 #include <net/ip6_checksum.h>
+#include <linux/skbuff_ref.h>
 
 #include "tls.h"
 

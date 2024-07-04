@@ -335,7 +335,7 @@ causes the PCI support to program CPU vector data into the PCI device
 capability registers. Many architectures, chip-sets, or BIOSes do NOT
 support MSI or MSI-X and a call to pci_alloc_irq_vectors with just
 the PCI_IRQ_MSI and PCI_IRQ_MSIX flags will fail, so try to always
-specify PCI_IRQ_LEGACY as well.
+specify PCI_IRQ_INTX as well.
 
 Drivers that have different interrupt handlers for MSI/MSI-X and
 legacy INTx should chose the right one based on the msi_enabled

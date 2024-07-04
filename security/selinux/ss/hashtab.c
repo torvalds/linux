@@ -136,11 +136,12 @@ void hashtab_stat(struct hashtab *h, struct hashtab_info *info)
 }
 #endif /* CONFIG_SECURITY_SELINUX_DEBUG */
 
-int hashtab_duplicate(struct hashtab *new, struct hashtab *orig,
+int hashtab_duplicate(struct hashtab *new, const struct hashtab *orig,
 		      int (*copy)(struct hashtab_node *new,
-				  struct hashtab_node *orig, void *args),
+				  const struct hashtab_node *orig, void *args),
 		      int (*destroy)(void *k, void *d, void *args), void *args)
 {
+	const struct hashtab_node *orig_cur;
 	struct hashtab_node *cur, *tmp, *tail;
 	u32 i;
 	int rc;
@@ -155,12 +156,13 @@ int hashtab_duplicate(struct hashtab *new, struct hashtab *orig,
 
 	for (i = 0; i < orig->size; i++) {
 		tail = NULL;
-		for (cur = orig->htable[i]; cur; cur = cur->next) {
+		for (orig_cur = orig->htable[i]; orig_cur;
+		     orig_cur = orig_cur->next) {
 			tmp = kmem_cache_zalloc(hashtab_node_cachep,
 						GFP_KERNEL);
 			if (!tmp)
 				goto error;
-			rc = copy(tmp, cur, args);
+			rc = copy(tmp, orig_cur, args);
 			if (rc) {
 				kmem_cache_free(hashtab_node_cachep, tmp);
 				goto error;

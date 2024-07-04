@@ -81,14 +81,12 @@ static int seg_led_probe(struct platform_device *pdev)
 	return linedisp_register(&priv->linedisp, dev, 1, &seg_led_linedisp_ops);
 }
 
-static int seg_led_remove(struct platform_device *pdev)
+static void seg_led_remove(struct platform_device *pdev)
 {
 	struct seg_led_priv *priv = platform_get_drvdata(pdev);
 
 	cancel_delayed_work_sync(&priv->work);
 	linedisp_unregister(&priv->linedisp);
-
-	return 0;
 }
 
 static const struct of_device_id seg_led_of_match[] = {
@@ -99,7 +97,7 @@ MODULE_DEVICE_TABLE(of, seg_led_of_match);
 
 static struct platform_driver seg_led_driver = {
 	.probe = seg_led_probe,
-	.remove = seg_led_remove,
+	.remove_new = seg_led_remove,
 	.driver = {
 		.name = "seg-led-gpio",
 		.of_match_table = seg_led_of_match,

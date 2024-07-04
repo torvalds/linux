@@ -140,6 +140,138 @@ extern void __memset_io(volatile void __iomem *, int, size_t);
 #define memcpy_toio(c,a,l)	__memcpy_toio((c),(a),(l))
 
 /*
+ * The ARM64 iowrite implementation is intended to support drivers that want to
+ * use write combining. For instance PCI drivers using write combining with a 64
+ * byte __iowrite64_copy() expect to get a 64 byte MemWr TLP on the PCIe bus.
+ *
+ * Newer ARM core have sensitive write combining buffers, it is important that
+ * the stores be contiguous blocks of store instructions. Normal memcpy
+ * approaches have a very low chance to generate write combining.
+ *
+ * Since this is the only API on ARM64 that should be used with write combining
+ * it also integrates the DGH hint which is supposed to lower the latency to
+ * emit the large TLP from the CPU.
+ */
+
+static inline void __const_memcpy_toio_aligned32(volatile u32 __iomem *to,
+						 const u32 *from, size_t count)
+{
+	switch (count) {
+	case 8:
+		asm volatile("str %w0, [%8, #4 * 0]\n"
+			     "str %w1, [%8, #4 * 1]\n"
+			     "str %w2, [%8, #4 * 2]\n"
+			     "str %w3, [%8, #4 * 3]\n"
+			     "str %w4, [%8, #4 * 4]\n"
+			     "str %w5, [%8, #4 * 5]\n"
+			     "str %w6, [%8, #4 * 6]\n"
+			     "str %w7, [%8, #4 * 7]\n"
+			     :
+			     : "rZ"(from[0]), "rZ"(from[1]), "rZ"(from[2]),
+			       "rZ"(from[3]), "rZ"(from[4]), "rZ"(from[5]),
+			       "rZ"(from[6]), "rZ"(from[7]), "r"(to));
+		break;
+	case 4:
+		asm volatile("str %w0, [%4, #4 * 0]\n"
+			     "str %w1, [%4, #4 * 1]\n"
+			     "str %w2, [%4, #4 * 2]\n"
+			     "str %w3, [%4, #4 * 3]\n"
+			     :
+			     : "rZ"(from[0]), "rZ"(from[1]), "rZ"(from[2]),
+			       "rZ"(from[3]), "r"(to));
+		break;
+	case 2:
+		asm volatile("str %w0, [%2, #4 * 0]\n"
+			     "str %w1, [%2, #4 * 1]\n"
+			     :
+			     : "rZ"(from[0]), "rZ"(from[1]), "r"(to));
+		break;
+	case 1:
+		__raw_writel(*from, to);
+		break;
+	default:
+		BUILD_BUG();
+	}
+}
+
+void __iowrite32_copy_full(void __iomem *to, const void *from, size_t count);
+
+static inline void __const_iowrite32_copy(void __iomem *to, const void *from,
+					  size_t count)
+{
+	if (count == 8 || count == 4 || count == 2 || count == 1) {
+		__const_memcpy_toio_aligned32(to, from, count);
+		dgh();
+	} else {
+		__iowrite32_copy_full(to, from, count);
+	}
+}
+
+#define __iowrite32_copy(to, from, count)                  \
+	(__builtin_constant_p(count) ?                     \
+		 __const_iowrite32_copy(to, from, count) : \
+		 __iowrite32_copy_full(to, from, count))
+
+static inline void __const_memcpy_toio_aligned64(volatile u64 __iomem *to,
+						 const u64 *from, size_t count)
+{
+	switch (count) {
+	case 8:
+		asm volatile("str %x0, [%8, #8 * 0]\n"
+			     "str %x1, [%8, #8 * 1]\n"
+			     "str %x2, [%8, #8 * 2]\n"
+			     "str %x3, [%8, #8 * 3]\n"
+			     "str %x4, [%8, #8 * 4]\n"
+			     "str %x5, [%8, #8 * 5]\n"
+			     "str %x6, [%8, #8 * 6]\n"
+			     "str %x7, [%8, #8 * 7]\n"
+			     :
+			     : "rZ"(from[0]), "rZ"(from[1]), "rZ"(from[2]),
+			       "rZ"(from[3]), "rZ"(from[4]), "rZ"(from[5]),
+			       "rZ"(from[6]), "rZ"(from[7]), "r"(to));
+		break;
+	case 4:
+		asm volatile("str %x0, [%4, #8 * 0]\n"
+			     "str %x1, [%4, #8 * 1]\n"
+			     "str %x2, [%4, #8 * 2]\n"
+			     "str %x3, [%4, #8 * 3]\n"
+			     :
+			     : "rZ"(from[0]), "rZ"(from[1]), "rZ"(from[2]),
+			       "rZ"(from[3]), "r"(to));
+		break;
+	case 2:
+		asm volatile("str %x0, [%2, #8 * 0]\n"
+			     "str %x1, [%2, #8 * 1]\n"
+			     :
+			     : "rZ"(from[0]), "rZ"(from[1]), "r"(to));
+		break;
+	case 1:
+		__raw_writeq(*from, to);
+		break;
+	default:
+		BUILD_BUG();
+	}
+}
+
+void __iowrite64_copy_full(void __iomem *to, const void *from, size_t count);
+
+static inline void __const_iowrite64_copy(void __iomem *to, const void *from,
+					  size_t count)
+{
+	if (count == 8 || count == 4 || count == 2 || count == 1) {
+		__const_memcpy_toio_aligned64(to, from, count);
+		dgh();
+	} else {
+		__iowrite64_copy_full(to, from, count);
+	}
+}
+
+#define __iowrite64_copy(to, from, count)                  \
+	(__builtin_constant_p(count) ?                     \
+		 __const_iowrite64_copy(to, from, count) : \
+		 __iowrite64_copy_full(to, from, count))
+
+/*
  * I/O memory mapping functions.
  */
 

@@ -2199,7 +2199,7 @@ MODULE_DEVICE_TABLE(acpi, rt5651_acpi_match);
 #endif
 
 static const struct i2c_device_id rt5651_i2c_id[] = {
-	{ "rt5651", 0 },
+	{ "rt5651" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, rt5651_i2c_id);

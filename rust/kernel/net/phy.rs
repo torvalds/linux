@@ -6,7 +6,7 @@
 //!
 //! C headers: [`include/linux/phy.h`](srctree/include/linux/phy.h).
 
-use crate::{bindings, error::*, prelude::*, str::CStr, types::Opaque};
+use crate::{error::*, prelude::*, types::Opaque};
 
 use core::marker::PhantomData;
 

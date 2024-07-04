@@ -75,11 +75,8 @@ int hda_component_manager_init(struct hda_codec *cdc,
 void hda_component_manager_free(struct hda_codec *cdc,
 				const struct component_master_ops *ops);
 
-static inline int hda_component_manager_bind(struct hda_codec *cdc,
-					     struct hda_component *comps)
-{
-	return component_bind_all(hda_codec_dev(cdc), comps);
-}
+int hda_component_manager_bind(struct hda_codec *cdc,
+			       struct hda_component *comps, int count);
 
 static inline void hda_component_manager_unbind(struct hda_codec *cdc,
 					       struct hda_component *comps)

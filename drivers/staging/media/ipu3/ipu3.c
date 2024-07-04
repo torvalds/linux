@@ -13,6 +13,7 @@
 #include <linux/pm_runtime.h>
 
 #include "ipu3.h"
+#include "ipu3-css-fw.h"
 #include "ipu3-dmamap.h"
 #include "ipu3-mmu.h"
 
@@ -853,10 +854,13 @@ static struct pci_driver imgu_pci_driver = {
 
 module_pci_driver(imgu_pci_driver);
 
-MODULE_AUTHOR("Tuukka Toivonen <tuukka.toivonen@intel.com>");
+MODULE_AUTHOR("Tuukka Toivonen");
 MODULE_AUTHOR("Tianshu Qiu <tian.shu.qiu@intel.com>");
-MODULE_AUTHOR("Jian Xu Zheng <jian.xu.zheng@intel.com>");
-MODULE_AUTHOR("Yuning Pu <yuning.pu@intel.com>");
+MODULE_AUTHOR("Jian Xu Zheng");
+MODULE_AUTHOR("Yuning Pu");
 MODULE_AUTHOR("Yong Zhi <yong.zhi@intel.com>");
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Intel ipu3_imgu PCI driver");
+MODULE_FIRMWARE(IMGU_FW_NAME);
+MODULE_FIRMWARE(IMGU_FW_NAME_20161208);
+MODULE_FIRMWARE(IMGU_FW_NAME_IPU_20161208);

@@ -169,6 +169,24 @@ static int pidfs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 	return -EOPNOTSUPP;
 }
 
+
+/*
+ * User space expects pidfs inodes to have no file type in st_mode.
+ *
+ * In particular, 'lsof' has this legacy logic:
+ *
+ *	type = s->st_mode & S_IFMT;
+ *	switch (type) {
+ *	  ...
+ *	case 0:
+ *		if (!strcmp(p, "anon_inode"))
+ *			Lf->ntype = Ntype = N_ANON_INODE;
+ *
+ * to detect our old anon_inode logic.
+ *
+ * Rather than mess with our internal sane inode data, just fix it
+ * up here in getattr() by masking off the format bits.
+ */
 static int pidfs_getattr(struct mnt_idmap *idmap, const struct path *path,
 			 struct kstat *stat, u32 request_mask,
 			 unsigned int query_flags)
@@ -176,6 +194,7 @@ static int pidfs_getattr(struct mnt_idmap *idmap, const struct path *path,
 	struct inode *inode = d_inode(path->dentry);
 
 	generic_fillattr(&nop_mnt_idmap, request_mask, inode, stat);
+	stat->mode &= ~S_IFMT;
 	return 0;
 }
 
@@ -199,12 +218,13 @@ static const struct super_operations pidfs_sops = {
 	.statfs		= simple_statfs,
 };
 
+/*
+ * 'lsof' has knowledge of out historical anon_inode use, and expects
+ * the pidfs dentry name to start with 'anon_inode'.
+ */
 static char *pidfs_dname(struct dentry *dentry, char *buffer, int buflen)
 {
-	struct inode *inode = d_inode(dentry);
-	struct pid *pid = inode->i_private;
-
-	return dynamic_dname(buffer, buflen, "pidfd:[%llu]", pid->ino);
+	return dynamic_dname(buffer, buflen, "anon_inode:[pidfd]");
 }
 
 static const struct dentry_operations pidfs_dentry_operations = {

@@ -358,7 +358,7 @@ static int sbsm_probe(struct i2c_client *client)
 	/* register muxed i2c channels. One for each supported battery */
 	for (i = 0; i < SBSM_MAX_BATS; ++i) {
 		if (data->supported_bats & BIT(i)) {
-			ret = i2c_mux_add_adapter(data->muxc, 0, i + 1, 0);
+			ret = i2c_mux_add_adapter(data->muxc, 0, i + 1);
 			if (ret)
 				break;
 		}

@@ -18,6 +18,9 @@ properties:
   compatible:
     const: leadtek,ltk035c5444t
 
+  reg:
+    maxItems: 1
+
   spi-3wire: true
 
 required:

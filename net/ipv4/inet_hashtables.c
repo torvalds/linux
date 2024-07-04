@@ -565,7 +565,8 @@ static int __inet_check_established(struct inet_timewait_death_row *death_row,
 		if (likely(inet_match(net, sk2, acookie, ports, dif, sdif))) {
 			if (sk2->sk_state == TCP_TIME_WAIT) {
 				tw = inet_twsk(sk2);
-				if (twsk_unique(sk, sk2, twp))
+				if (sk->sk_protocol == IPPROTO_TCP &&
+				    tcp_twsk_unique(sk, sk2, twp))
 					break;
 			}
 			goto not_unique;

@@ -4,7 +4,7 @@
  * cannot be called either. This file explicitly creates functions ("helpers")
  * that wrap those so that they can be called from Rust.
  *
- * Even though Rust kernel modules should never use directly the bindings, some
+ * Even though Rust kernel modules should never use the bindings directly, some
  * of these helpers need to be exported because Rust generics and inlined
  * functions may not get their code generated in the crate where they are
  * defined. Other helpers, called from non-inline functions, may not be
@@ -28,6 +28,7 @@
 #include <linux/mutex.h>
 #include <linux/refcount.h>
 #include <linux/sched/signal.h>
+#include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
@@ -156,6 +157,13 @@ void rust_helper_init_work_with_key(struct work_struct *work, work_func_t func,
 	work->func = func;
 }
 EXPORT_SYMBOL_GPL(rust_helper_init_work_with_key);
+
+void * __must_check __realloc_size(2)
+rust_helper_krealloc(const void *objp, size_t new_size, gfp_t flags)
+{
+	return krealloc(objp, new_size, flags);
+}
+EXPORT_SYMBOL_GPL(rust_helper_krealloc);
 
 /*
  * `bindgen` binds the C `size_t` type as the Rust `usize` type, so we can

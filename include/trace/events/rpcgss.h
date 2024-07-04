@@ -154,7 +154,7 @@ DECLARE_EVENT_CLASS(rpcgss_ctx_class,
 	TP_fast_assign(
 		__entry->cred = gc;
 		__entry->service = gc->gc_service;
-		__assign_str(principal, gc->gc_principal);
+		__assign_str(principal);
 	),
 
 	TP_printk("cred=%p service=%s principal='%s'",
@@ -189,7 +189,7 @@ DECLARE_EVENT_CLASS(rpcgss_svc_gssapi_class,
 	TP_fast_assign(
 		__entry->xid = __be32_to_cpu(rqstp->rq_xid);
 		__entry->maj_stat = maj_stat;
-		__assign_str(addr, rqstp->rq_xprt->xpt_remotebuf);
+		__assign_str(addr);
 	),
 
 	TP_printk("addr=%s xid=0x%08x maj_stat=%s",
@@ -225,7 +225,7 @@ TRACE_EVENT(rpcgss_svc_wrap_failed,
 
 	TP_fast_assign(
 		__entry->xid = be32_to_cpu(rqstp->rq_xid);
-		__assign_str(addr, rqstp->rq_xprt->xpt_remotebuf);
+		__assign_str(addr);
 	),
 
 	TP_printk("addr=%s xid=0x%08x", __get_str(addr), __entry->xid)
@@ -245,7 +245,7 @@ TRACE_EVENT(rpcgss_svc_unwrap_failed,
 
 	TP_fast_assign(
 		__entry->xid = be32_to_cpu(rqstp->rq_xid);
-		__assign_str(addr, rqstp->rq_xprt->xpt_remotebuf);
+		__assign_str(addr);
 	),
 
 	TP_printk("addr=%s xid=0x%08x", __get_str(addr), __entry->xid)
@@ -271,7 +271,7 @@ TRACE_EVENT(rpcgss_svc_seqno_bad,
 		__entry->expected = expected;
 		__entry->received = received;
 		__entry->xid = __be32_to_cpu(rqstp->rq_xid);
-		__assign_str(addr, rqstp->rq_xprt->xpt_remotebuf);
+		__assign_str(addr);
 	),
 
 	TP_printk("addr=%s xid=0x%08x expected seqno %u, received seqno %u",
@@ -299,7 +299,7 @@ TRACE_EVENT(rpcgss_svc_accept_upcall,
 		__entry->minor_status = minor_status;
 		__entry->major_status = major_status;
 		__entry->xid = be32_to_cpu(rqstp->rq_xid);
-		__assign_str(addr, rqstp->rq_xprt->xpt_remotebuf);
+		__assign_str(addr);
 	),
 
 	TP_printk("addr=%s xid=0x%08x major_status=%s (0x%08lx) minor_status=%u",
@@ -327,7 +327,7 @@ TRACE_EVENT(rpcgss_svc_authenticate,
 	TP_fast_assign(
 		__entry->xid = be32_to_cpu(rqstp->rq_xid);
 		__entry->seqno = gc->gc_seq;
-		__assign_str(addr, rqstp->rq_xprt->xpt_remotebuf);
+		__assign_str(addr);
 	),
 
 	TP_printk("addr=%s xid=0x%08x seqno=%u", __get_str(addr),
@@ -563,7 +563,7 @@ TRACE_EVENT(rpcgss_upcall_msg,
 	),
 
 	TP_fast_assign(
-		__assign_str(msg, buf);
+		__assign_str(msg);
 	),
 
 	TP_printk("msg='%s'", __get_str(msg))
@@ -618,7 +618,7 @@ TRACE_EVENT(rpcgss_context,
 		__entry->timeout = timeout;
 		__entry->window_size = window_size;
 		__entry->len = len;
-		__assign_str(acceptor, data);
+		__assign_str(acceptor);
 	),
 
 	TP_printk("win_size=%u expiry=%lu now=%lu timeout=%u acceptor=%.*s",
@@ -677,7 +677,7 @@ TRACE_EVENT(rpcgss_oid_to_mech,
 	),
 
 	TP_fast_assign(
-		__assign_str(oid, oid);
+		__assign_str(oid);
 	),
 
 	TP_printk("mech for oid %s was not found", __get_str(oid))

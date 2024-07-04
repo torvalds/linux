@@ -132,17 +132,29 @@ config SND_SOC_AMD_RPL_ACP6x
           Say m if you have such a device.
           If unsure select "N".
 
+config SND_SOC_AMD_ACP63_TOPLEVEL
+	tristate "support for AMD platforms with ACP version >= 6.3"
+	default SND_AMD_ACP_CONFIG
+	depends on SND_AMD_ACP_CONFIG
+	depends on SOUNDWIRE_AMD || !SOUNDWIRE_AMD
+	depends on X86 || COMPILE_TEST
+	help
+	  This adds support for AMD platforms with ACP version >= 6.3.
+	  Say Y if you have such a device.
+	  If unsure select "N".
+
+if SND_SOC_AMD_ACP63_TOPLEVEL
+
 config SND_SOC_AMD_SOUNDWIRE_LINK_BASELINE
 	tristate
-	select SOUNDWIRE_AMD if SND_SOC_AMD_SOUNDWIRE != n
 	select SND_AMD_SOUNDWIRE_ACPI if ACPI
 
 config SND_SOC_AMD_SOUNDWIRE
 	tristate "Support for SoundWire based AMD platforms"
 	default SND_SOC_AMD_SOUNDWIRE_LINK_BASELINE
 	depends on SND_SOC_AMD_SOUNDWIRE_LINK_BASELINE
-	depends on ACPI && SOUNDWIRE
-	depends on !(SOUNDWIRE=m && SND_SOC_AMD_SOUNDWIRE_LINK_BASELINE=y)
+	depends on ACPI
+	depends on SOUNDWIRE_AMD
 	help
 	  This adds support for SoundWire for AMD platforms.
 	  Say Y if you want to enable SoundWire links with SOF.
@@ -150,7 +162,6 @@ config SND_SOC_AMD_SOUNDWIRE
 
 config SND_SOC_AMD_PS
         tristate "AMD Audio Coprocessor-v6.3 Pink Sardine support"
-	select SND_AMD_ACP_CONFIG
 	select SND_SOC_AMD_SOUNDWIRE_LINK_BASELINE
         depends on X86 && PCI && ACPI
         help
@@ -171,3 +182,5 @@ config SND_SOC_AMD_PS_MACH
           DMIC can be connected directly to ACP IP.
           Say m if you have such a device.
           If unsure select "N".
+
+endif

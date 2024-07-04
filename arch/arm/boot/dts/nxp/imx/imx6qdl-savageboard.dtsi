@@ -83,7 +83,7 @@
 		brightness-levels = <0 4 8 16 32 64 128 255>;
 		default-brightness-level = <4>;
 		power-supply = <&reg_3p3v>;
-		pwms = <&pwm1 0 10000>;
+		pwms = <&pwm1 0 10000 0>;
 	};
 
 	reg_3p3v: regulator-3p3v {
@@ -140,7 +140,6 @@
 };
 
 &pwm1 {
-	#pwm-cells = <2>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm1>;
 	status = "okay";

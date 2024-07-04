@@ -1,28 +1,25 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2018-2023 Linaro Ltd.
+ * Copyright (C) 2018-2024 Linaro Ltd.
  */
 
-#include <linux/types.h>
-#include <linux/kernel.h>
-#include <linux/bits.h>
 #include <linux/bitops.h>
-#include <linux/bitfield.h>
-#include <linux/io.h>
 #include <linux/build_bug.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
+#include <linux/io.h>
+#include <linux/types.h>
 
-#include "ipa.h"
-#include "ipa_version.h"
-#include "ipa_endpoint.h"
-#include "ipa_table.h"
-#include "ipa_reg.h"
-#include "ipa_mem.h"
-#include "ipa_cmd.h"
 #include "gsi.h"
 #include "gsi_trans.h"
+#include "ipa.h"
+#include "ipa_cmd.h"
+#include "ipa_endpoint.h"
+#include "ipa_mem.h"
+#include "ipa_reg.h"
+#include "ipa_table.h"
+#include "ipa_version.h"
 
 /**
  * DOC: IPA Filter and Route Tables
@@ -159,6 +156,12 @@ ipa_table_mem(struct ipa *ipa, bool filter, bool hashed, bool ipv6)
 					: IPA_MEM_V4_ROUTE;
 
 	return ipa_mem_find(ipa, mem_id);
+}
+
+/* Return true if hashed tables are supported */
+bool ipa_table_hash_support(struct ipa *ipa)
+{
+	return ipa->version != IPA_VERSION_4_2;
 }
 
 bool ipa_filtered_valid(struct ipa *ipa, u64 filtered)

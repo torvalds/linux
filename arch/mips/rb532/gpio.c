@@ -197,7 +197,7 @@ void rb532_gpio_set_func(unsigned gpio)
 }
 EXPORT_SYMBOL(rb532_gpio_set_func);
 
-int __init rb532_gpio_init(void)
+static int __init rb532_gpio_init(void)
 {
 	struct resource *r;
 

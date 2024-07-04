@@ -18,8 +18,8 @@ struct RustPrint;
 fn arc_print() -> Result {
     use kernel::sync::*;
 
-    let a = Arc::try_new(1)?;
-    let b = UniqueArc::try_new("hello, world")?;
+    let a = Arc::new(1, GFP_KERNEL)?;
+    let b = UniqueArc::new("hello, world", GFP_KERNEL)?;
 
     // Prints the value of data in `a`.
     pr_info!("{}", a);

@@ -17,10 +17,23 @@
 #include <linux/slab.h>
 #include <linux/bug.h>
 
+/* Are there any inode/mount/sb objects watched with priority prio or above? */
+static inline bool fsnotify_sb_has_priority_watchers(struct super_block *sb,
+						     int prio)
+{
+	struct fsnotify_sb_info *sbinfo = fsnotify_sb_info(sb);
+
+	/* Were any marks ever added to any object on this sb? */
+	if (!sbinfo)
+		return false;
+
+	return atomic_long_read(&sbinfo->watched_objects[prio]);
+}
+
 /* Are there any inode/mount/sb objects that are being watched at all? */
 static inline bool fsnotify_sb_has_watchers(struct super_block *sb)
 {
-	return atomic_long_read(&sb->s_fsnotify_connectors);
+	return fsnotify_sb_has_priority_watchers(sb, 0);
 }
 
 /*
@@ -103,6 +116,12 @@ static inline int fsnotify_file(struct file *file, __u32 mask)
 		return 0;
 
 	path = &file->f_path;
+	/* Permission events require group prio >= FSNOTIFY_PRIO_CONTENT */
+	if (mask & ALL_FSNOTIFY_PERM_EVENTS &&
+	    !fsnotify_sb_has_priority_watchers(path->dentry->d_sb,
+					       FSNOTIFY_PRIO_CONTENT))
+		return 0;
+
 	return fsnotify_parent(path->dentry, mask, path, FSNOTIFY_EVENT_PATH);
 }
 

@@ -27,17 +27,17 @@ static void advance_date(int *year, int *month, int *mday, int *yday)
 }
 
 /*
- * Checks every day in a 160000 years interval starting on 1970-01-01
+ * Check every day in specified number of years interval starting on 1970-01-01
  * against the expected result.
  */
-static void rtc_time64_to_tm_test_date_range(struct kunit *test)
+static void rtc_time64_to_tm_test_date_range(struct kunit *test, int years)
 {
 	/*
-	 * 160000 years	= (160000 / 400) * 400 years
-	 *		= (160000 / 400) * 146097 days
-	 *		= (160000 / 400) * 146097 * 86400 seconds
+	 * years	= (years / 400) * 400 years
+	 *		= (years / 400) * 146097 days
+	 *		= (years / 400) * 146097 * 86400 seconds
 	 */
-	time64_t total_secs = ((time64_t) 160000) / 400 * 146097 * 86400;
+	time64_t total_secs = ((time64_t)years) / 400 * 146097 * 86400;
 
 	int year	= 1970;
 	int month	= 1;
@@ -66,8 +66,27 @@ static void rtc_time64_to_tm_test_date_range(struct kunit *test)
 	}
 }
 
+/*
+ * Checks every day in a 160000 years interval starting on 1970-01-01
+ * against the expected result.
+ */
+static void rtc_time64_to_tm_test_date_range_160000(struct kunit *test)
+{
+	rtc_time64_to_tm_test_date_range(test, 160000);
+}
+
+/*
+ * Checks every day in a 1000 years interval starting on 1970-01-01
+ * against the expected result.
+ */
+static void rtc_time64_to_tm_test_date_range_1000(struct kunit *test)
+{
+	rtc_time64_to_tm_test_date_range(test, 1000);
+}
+
 static struct kunit_case rtc_lib_test_cases[] = {
-	KUNIT_CASE(rtc_time64_to_tm_test_date_range),
+	KUNIT_CASE(rtc_time64_to_tm_test_date_range_1000),
+	KUNIT_CASE_SLOW(rtc_time64_to_tm_test_date_range_160000),
 	{}
 };
 

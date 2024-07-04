@@ -98,10 +98,6 @@ init_i8259a_irqs(void)
 
 #if defined(CONFIG_ALPHA_GENERIC)
 # define IACK_SC	alpha_mv.iack_sc
-#elif defined(CONFIG_ALPHA_APECS)
-# define IACK_SC	APECS_IACK_SC
-#elif defined(CONFIG_ALPHA_LCA)
-# define IACK_SC	LCA_IACK_SC
 #elif defined(CONFIG_ALPHA_CIA)
 # define IACK_SC	CIA_IACK_SC
 #elif defined(CONFIG_ALPHA_PYXIS)

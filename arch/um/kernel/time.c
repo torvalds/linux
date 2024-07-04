@@ -19,6 +19,7 @@
 #include <asm/param.h>
 #include <kern_util.h>
 #include <os.h>
+#include <linux/delay.h>
 #include <linux/time-internal.h>
 #include <linux/um_timetravel.h>
 #include <shared/init.h>
@@ -319,7 +320,7 @@ void time_travel_add_event_rel(struct time_travel_event *e,
 	time_travel_add_event(e, time_travel_time + delay_ns);
 }
 
-void time_travel_periodic_timer(struct time_travel_event *e)
+static void time_travel_periodic_timer(struct time_travel_event *e)
 {
 	time_travel_add_event(&time_travel_timer_event,
 			      time_travel_time + time_travel_timer_interval);
@@ -812,7 +813,7 @@ unsigned long calibrate_delay_is_known(void)
 	return 0;
 }
 
-int setup_time_travel(char *str)
+static int setup_time_travel(char *str)
 {
 	if (strcmp(str, "=inf-cpu") == 0) {
 		time_travel_mode = TT_MODE_INFCPU;
@@ -862,7 +863,7 @@ __uml_help(setup_time_travel,
 "devices using it, assuming the device has the right capabilities.\n"
 "The optional ID is a 64-bit integer that's sent to the central scheduler.\n");
 
-int setup_time_travel_start(char *str)
+static int setup_time_travel_start(char *str)
 {
 	int err;
 

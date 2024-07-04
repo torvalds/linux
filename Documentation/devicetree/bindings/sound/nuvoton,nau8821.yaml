@@ -103,6 +103,12 @@ properties:
         just limited to the left adc for design demand.
     type: boolean
 
+  nuvoton,adc-delay-ms:
+    description: Delay (in ms) to make input path stable and avoid pop noise.
+    minimum: 125
+    maximum: 500
+    default: 125
+
   '#sound-dai-cells':
     const: 0
 
@@ -136,6 +142,7 @@ examples:
             nuvoton,jack-eject-debounce = <0>;
             nuvoton,dmic-clk-threshold = <3072000>;
             nuvoton,dmic-slew-rate = <0>;
+            nuvoton,adc-delay-ms = <125>;
             #sound-dai-cells = <0>;
         };
     };

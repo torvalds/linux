@@ -53,6 +53,7 @@ void apply_alternatives(struct alt_instr *start, struct alt_instr *end);
 	"\t.long " b_altinstr(num)"b - .\n"	/* alt instruction */	\
 	"\t.word " __stringify(facility) "\n"	/* facility bit    */	\
 	"\t.byte " oldinstr_len "\n"		/* instruction len */	\
+	"\t.org . - (" oldinstr_len ") & 1\n"				\
 	"\t.org . - (" oldinstr_len ") + (" altinstr_len(num) ")\n"	\
 	"\t.org . - (" altinstr_len(num) ") + (" oldinstr_len ")\n"
 

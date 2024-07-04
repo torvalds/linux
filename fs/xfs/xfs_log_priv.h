@@ -450,9 +450,6 @@ struct xlog {
 	xfs_lsn_t		l_recovery_lsn;
 
 	uint32_t		l_iclog_roundoff;/* padding roundoff */
-
-	/* Users of log incompat features should take a read lock. */
-	struct rw_semaphore	l_incompat_users;
 };
 
 /*
@@ -623,7 +620,8 @@ xlog_wait(
 	remove_wait_queue(wq, &wait);
 }
 
-int xlog_wait_on_iclog(struct xlog_in_core *iclog);
+int xlog_wait_on_iclog(struct xlog_in_core *iclog)
+		__releases(iclog->ic_log->l_icloglock);
 
 /*
  * The LSN is valid so long as it is behind the current LSN. If it isn't, this
@@ -683,7 +681,7 @@ xlog_valid_lsn(
  * flags to control the kmalloc() behaviour within kvmalloc(). Hence kmalloc()
  * will do direct reclaim and compaction in the slow path, both of which are
  * horrendously expensive. We just want kmalloc to fail fast and fall back to
- * vmalloc if it can't get somethign straight away from the free lists or
+ * vmalloc if it can't get something straight away from the free lists or
  * buddy allocator. Hence we have to open code kvmalloc outselves here.
  *
  * This assumes that the caller uses memalloc_nofs_save task context here, so

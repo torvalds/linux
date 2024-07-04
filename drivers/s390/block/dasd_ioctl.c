@@ -215,7 +215,7 @@ dasd_format(struct dasd_block *block, struct format_data_t *fdata)
 	 * enabling the device later.
 	 */
 	if (fdata->start_unit == 0) {
-		block->gdp->part0->bd_inode->i_blkbits =
+		block->gdp->part0->bd_mapping->host->i_blkbits =
 			blksize_bits(fdata->blksize);
 	}
 

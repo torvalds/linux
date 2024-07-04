@@ -1,13 +1,13 @@
 # SPDX-License-Identifier: GPL-2.0
 # Platform
-snd-soc-lpass-cpu-objs := lpass-cpu.o
-snd-soc-lpass-cdc-dma-objs := lpass-cdc-dma.o
-snd-soc-lpass-hdmi-objs := lpass-hdmi.o
-snd-soc-lpass-platform-objs := lpass-platform.o
-snd-soc-lpass-ipq806x-objs := lpass-ipq806x.o
-snd-soc-lpass-apq8016-objs := lpass-apq8016.o
-snd-soc-lpass-sc7180-objs := lpass-sc7180.o
-snd-soc-lpass-sc7280-objs := lpass-sc7280.o
+snd-soc-lpass-cpu-y := lpass-cpu.o
+snd-soc-lpass-cdc-dma-y := lpass-cdc-dma.o
+snd-soc-lpass-hdmi-y := lpass-hdmi.o
+snd-soc-lpass-platform-y := lpass-platform.o
+snd-soc-lpass-ipq806x-y := lpass-ipq806x.o
+snd-soc-lpass-apq8016-y := lpass-apq8016.o
+snd-soc-lpass-sc7180-y := lpass-sc7180.o
+snd-soc-lpass-sc7280-y := lpass-sc7280.o
 
 obj-$(CONFIG_SND_SOC_LPASS_CPU) += snd-soc-lpass-cpu.o
 obj-$(CONFIG_SND_SOC_LPASS_CDC_DMA) += snd-soc-lpass-cdc-dma.o
@@ -19,17 +19,17 @@ obj-$(CONFIG_SND_SOC_LPASS_SC7180) += snd-soc-lpass-sc7180.o
 obj-$(CONFIG_SND_SOC_LPASS_SC7280) += snd-soc-lpass-sc7280.o
 
 # Machine
-snd-soc-storm-objs := storm.o
-snd-soc-apq8016-sbc-objs := apq8016_sbc.o
-snd-soc-apq8096-objs := apq8096.o
-snd-soc-sc7180-objs := sc7180.o
-snd-soc-sc7280-objs := sc7280.o
-snd-soc-sdm845-objs := sdm845.o
-snd-soc-sm8250-objs := sm8250.o
-snd-soc-sc8280xp-objs := sc8280xp.o
-snd-soc-qcom-common-objs := common.o
-snd-soc-qcom-sdw-objs := sdw.o
-snd-soc-x1e80100-objs := x1e80100.o
+snd-soc-storm-y := storm.o
+snd-soc-apq8016-sbc-y := apq8016_sbc.o
+snd-soc-apq8096-y := apq8096.o
+snd-soc-sc7180-y := sc7180.o
+snd-soc-sc7280-y := sc7280.o
+snd-soc-sdm845-y := sdm845.o
+snd-soc-sm8250-y := sm8250.o
+snd-soc-sc8280xp-y := sc8280xp.o
+snd-soc-qcom-common-y := common.o
+snd-soc-qcom-sdw-y := sdw.o
+snd-soc-x1e80100-y := x1e80100.o
 
 obj-$(CONFIG_SND_SOC_STORM) += snd-soc-storm.o
 obj-$(CONFIG_SND_SOC_APQ8016_SBC) += snd-soc-apq8016-sbc.o

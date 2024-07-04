@@ -107,6 +107,9 @@ static int bpf_tcp_ca_btf_struct_access(struct bpf_verifier_log *log,
 	case offsetof(struct tcp_sock, snd_cwnd_cnt):
 		end = offsetofend(struct tcp_sock, snd_cwnd_cnt);
 		break;
+	case offsetof(struct tcp_sock, snd_cwnd_stamp):
+		end = offsetofend(struct tcp_sock, snd_cwnd_stamp);
+		break;
 	case offsetof(struct tcp_sock, snd_ssthresh):
 		end = offsetofend(struct tcp_sock, snd_ssthresh);
 		break;
@@ -307,7 +310,8 @@ static u32 bpf_tcp_ca_min_tso_segs(struct sock *sk)
 	return 0;
 }
 
-static void bpf_tcp_ca_cong_control(struct sock *sk, const struct rate_sample *rs)
+static void bpf_tcp_ca_cong_control(struct sock *sk, u32 ack, int flag,
+				    const struct rate_sample *rs)
 {
 }
 

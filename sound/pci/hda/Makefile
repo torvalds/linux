@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
-snd-hda-intel-objs := hda_intel.o
-snd-hda-tegra-objs := hda_tegra.o
+snd-hda-intel-y := hda_intel.o
+snd-hda-tegra-y := hda_tegra.o
 
 snd-hda-codec-y := hda_bind.o hda_codec.o hda_jack.o hda_auto_parser.o hda_sysfs.o
 snd-hda-codec-y += hda_controller.o
@@ -13,32 +13,32 @@ snd-hda-codec-$(CONFIG_SND_HDA_INPUT_BEEP) += hda_beep.o
 CFLAGS_hda_controller.o := -I$(src)
 CFLAGS_hda_intel.o := -I$(src)
 
-snd-hda-codec-generic-objs :=	hda_generic.o
-snd-hda-codec-realtek-objs :=	patch_realtek.o
-snd-hda-codec-cmedia-objs :=	patch_cmedia.o
-snd-hda-codec-analog-objs :=	patch_analog.o
-snd-hda-codec-idt-objs :=	patch_sigmatel.o
-snd-hda-codec-si3054-objs :=	patch_si3054.o
-snd-hda-codec-cirrus-objs :=	patch_cirrus.o
-snd-hda-codec-cs8409-objs :=	patch_cs8409.o patch_cs8409-tables.o
-snd-hda-codec-ca0110-objs :=	patch_ca0110.o
-snd-hda-codec-ca0132-objs :=	patch_ca0132.o
-snd-hda-codec-conexant-objs :=	patch_conexant.o
-snd-hda-codec-via-objs :=	patch_via.o
-snd-hda-codec-hdmi-objs :=	patch_hdmi.o hda_eld.o
+snd-hda-codec-generic-y :=	hda_generic.o
+snd-hda-codec-realtek-y :=	patch_realtek.o
+snd-hda-codec-cmedia-y :=	patch_cmedia.o
+snd-hda-codec-analog-y :=	patch_analog.o
+snd-hda-codec-idt-y :=		patch_sigmatel.o
+snd-hda-codec-si3054-y :=	patch_si3054.o
+snd-hda-codec-cirrus-y :=	patch_cirrus.o
+snd-hda-codec-cs8409-y :=	patch_cs8409.o patch_cs8409-tables.o
+snd-hda-codec-ca0110-y :=	patch_ca0110.o
+snd-hda-codec-ca0132-y :=	patch_ca0132.o
+snd-hda-codec-conexant-y :=	patch_conexant.o
+snd-hda-codec-via-y :=		patch_via.o
+snd-hda-codec-hdmi-y :=		patch_hdmi.o hda_eld.o
 
 # side codecs
-snd-hda-cirrus-scodec-objs :=		cirrus_scodec.o
-snd-hda-cirrus-scodec-test-objs :=	cirrus_scodec_test.o
-snd-hda-scodec-cs35l41-objs :=		cs35l41_hda.o cs35l41_hda_property.o
-snd-hda-scodec-cs35l41-i2c-objs :=	cs35l41_hda_i2c.o
-snd-hda-scodec-cs35l41-spi-objs :=	cs35l41_hda_spi.o
-snd-hda-scodec-cs35l56-objs :=		cs35l56_hda.o
-snd-hda-scodec-cs35l56-i2c-objs :=	cs35l56_hda_i2c.o
-snd-hda-scodec-cs35l56-spi-objs :=	cs35l56_hda_spi.o
-snd-hda-cs-dsp-ctls-objs :=		hda_cs_dsp_ctl.o
-snd-hda-scodec-component-objs :=	hda_component.o
-snd-hda-scodec-tas2781-i2c-objs :=	tas2781_hda_i2c.o
+snd-hda-cirrus-scodec-y :=	cirrus_scodec.o
+snd-hda-cirrus-scodec-test-y :=	cirrus_scodec_test.o
+snd-hda-scodec-cs35l41-y :=	cs35l41_hda.o cs35l41_hda_property.o
+snd-hda-scodec-cs35l41-i2c-y :=	cs35l41_hda_i2c.o
+snd-hda-scodec-cs35l41-spi-y :=	cs35l41_hda_spi.o
+snd-hda-scodec-cs35l56-y :=	cs35l56_hda.o
+snd-hda-scodec-cs35l56-i2c-y :=	cs35l56_hda_i2c.o
+snd-hda-scodec-cs35l56-spi-y :=	cs35l56_hda_spi.o
+snd-hda-cs-dsp-ctls-y :=	hda_cs_dsp_ctl.o
+snd-hda-scodec-component-y :=	hda_component.o
+snd-hda-scodec-tas2781-i2c-y :=	tas2781_hda_i2c.o
 
 # common driver
 obj-$(CONFIG_SND_HDA) := snd-hda-codec.o

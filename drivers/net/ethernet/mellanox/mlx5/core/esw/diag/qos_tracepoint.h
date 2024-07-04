@@ -17,7 +17,7 @@ TRACE_EVENT(mlx5_esw_vport_qos_destroy,
 			     __field(unsigned short, vport_id)
 			     __field(unsigned int,   tsar_ix)
 			     ),
-	    TP_fast_assign(__assign_str(devname, dev_name(vport->dev->device));
+	    TP_fast_assign(__assign_str(devname);
 		    __entry->vport_id = vport->vport;
 		    __entry->tsar_ix = vport->qos.esw_tsar_ix;
 	    ),
@@ -36,7 +36,7 @@ DECLARE_EVENT_CLASS(mlx5_esw_vport_qos_template,
 				     __field(unsigned int, max_rate)
 				     __field(void *, group)
 				     ),
-		    TP_fast_assign(__assign_str(devname, dev_name(vport->dev->device));
+		    TP_fast_assign(__assign_str(devname);
 			    __entry->vport_id = vport->vport;
 			    __entry->tsar_ix = vport->qos.esw_tsar_ix;
 			    __entry->bw_share = bw_share;
@@ -68,7 +68,7 @@ DECLARE_EVENT_CLASS(mlx5_esw_group_qos_template,
 				     __field(const void *, group)
 				     __field(unsigned int, tsar_ix)
 				     ),
-		    TP_fast_assign(__assign_str(devname, dev_name(dev->device));
+		    TP_fast_assign(__assign_str(devname);
 			    __entry->group = group;
 			    __entry->tsar_ix = tsar_ix;
 		    ),
@@ -102,7 +102,7 @@ TRACE_EVENT(mlx5_esw_group_qos_config,
 			     __field(unsigned int, bw_share)
 			     __field(unsigned int, max_rate)
 			     ),
-	    TP_fast_assign(__assign_str(devname, dev_name(dev->device));
+	    TP_fast_assign(__assign_str(devname);
 		    __entry->group = group;
 		    __entry->tsar_ix = tsar_ix;
 		    __entry->bw_share = bw_share;

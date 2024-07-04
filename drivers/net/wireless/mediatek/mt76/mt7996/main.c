@@ -35,6 +35,14 @@ int mt7996_run(struct ieee80211_hw *hw)
 		ret = mt7996_mcu_set_hdr_trans(dev, true);
 		if (ret)
 			goto out;
+
+		if (is_mt7992(&dev->mt76)) {
+			u8 queue = mt76_connac_lmac_mapping(IEEE80211_AC_VI);
+
+			ret = mt7996_mcu_cp_support(dev, queue);
+			if (ret)
+				goto out;
+		}
 	}
 
 	mt7996_mac_enable_nf(dev, phy->mt76->band_idx);
@@ -238,7 +246,11 @@ static int mt7996_add_interface(struct ieee80211_hw *hw,
 	mt7996_init_bitrate_mask(vif);
 
 	mt7996_mcu_add_bss_info(phy, vif, true);
-	mt7996_mcu_add_sta(dev, vif, NULL, true);
+	/* defer the first STA_REC of BMC entry to BSS_CHANGED_BSSID for STA
+	 * interface, since firmware only records BSSID when the entry is new
+	 */
+	if (vif->type != NL80211_IFTYPE_STATION)
+		mt7996_mcu_add_sta(dev, vif, NULL, true, true);
 	rcu_assign_pointer(dev->mt76.wcid[idx], &mvif->sta.wcid);
 
 out:
@@ -256,7 +268,7 @@ static void mt7996_remove_interface(struct ieee80211_hw *hw,
 	struct mt7996_phy *phy = mt7996_hw_phy(hw);
 	int idx = msta->wcid.idx;
 
-	mt7996_mcu_add_sta(dev, vif, NULL, false);
+	mt7996_mcu_add_sta(dev, vif, NULL, false, false);
 	mt7996_mcu_add_bss_info(phy, vif, false);
 
 	if (vif == phy->monitor_vif)
@@ -340,10 +352,6 @@ static int mt7996_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	/* fall back to sw encryption for unsupported ciphers */
 	switch (key->cipher) {
-	case WLAN_CIPHER_SUITE_AES_CMAC:
-		wcid_keyidx = &wcid->hw_key_idx2;
-		key->flags |= IEEE80211_KEY_FLAG_GENERATE_MMIE;
-		break;
 	case WLAN_CIPHER_SUITE_TKIP:
 	case WLAN_CIPHER_SUITE_CCMP:
 	case WLAN_CIPHER_SUITE_CCMP_256:
@@ -351,6 +359,11 @@ static int mt7996_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	case WLAN_CIPHER_SUITE_GCMP_256:
 	case WLAN_CIPHER_SUITE_SMS4:
 		break;
+	case WLAN_CIPHER_SUITE_AES_CMAC:
+		wcid_keyidx = &wcid->hw_key_idx2;
+		key->flags |= IEEE80211_KEY_FLAG_GENERATE_MMIE;
+		fallthrough;
+	case WLAN_CIPHER_SUITE_BIP_CMAC_256:
 	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
 	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
 		if (key->keyidx == 6 || key->keyidx == 7)
@@ -438,7 +451,7 @@ mt7996_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	       const struct ieee80211_tx_queue_params *params)
 {
 	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
-	const u8 mq_to_aci[] = {
+	static const u8 mq_to_aci[] = {
 		[IEEE80211_AC_VO] = 3,
 		[IEEE80211_AC_VI] = 2,
 		[IEEE80211_AC_BE] = 0,
@@ -599,7 +612,8 @@ static void mt7996_bss_info_changed(struct ieee80211_hw *hw,
 	    (changed & BSS_CHANGED_ASSOC && vif->cfg.assoc) ||
 	    (changed & BSS_CHANGED_BEACON_ENABLED && info->enable_beacon)) {
 		mt7996_mcu_add_bss_info(phy, vif, true);
-		mt7996_mcu_add_sta(dev, vif, NULL, true);
+		mt7996_mcu_add_sta(dev, vif, NULL, true,
+				   !!(changed & BSS_CHANGED_BSSID));
 	}
 
 	if (changed & BSS_CHANGED_ERP_CTS_PROT)
@@ -688,7 +702,7 @@ int mt7996_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 	mt7996_mac_wtbl_update(dev, idx,
 			       MT_WTBL_UPDATE_ADM_COUNT_CLEAR);
 
-	ret = mt7996_mcu_add_sta(dev, vif, sta, true);
+	ret = mt7996_mcu_add_sta(dev, vif, sta, true, true);
 	if (ret)
 		return ret;
 
@@ -702,7 +716,7 @@ void mt7996_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
 	int i;
 
-	mt7996_mcu_add_sta(dev, vif, sta, false);
+	mt7996_mcu_add_sta(dev, vif, sta, false, false);
 
 	mt7996_mac_wtbl_update(dev, msta->wcid.idx,
 			       MT_WTBL_UPDATE_ADM_COUNT_CLEAR);

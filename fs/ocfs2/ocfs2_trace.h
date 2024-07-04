@@ -82,7 +82,7 @@ DECLARE_EVENT_CLASS(ocfs2__string,
 		__string(name,name)
 	),
 	TP_fast_assign(
-		__assign_str(name, name);
+		__assign_str(name);
 	),
 	TP_printk("%s", __get_str(name))
 );
@@ -1289,7 +1289,7 @@ DECLARE_EVENT_CLASS(ocfs2__file_ops,
 		__entry->dentry = dentry;
 		__entry->ino = ino;
 		__entry->d_len = d_len;
-		__assign_str(d_name, d_name);
+		__assign_str(d_name);
 		__entry->para = para;
 	),
 	TP_printk("%p %p %p %llu %llu %.*s", __entry->inode, __entry->file,
@@ -1425,7 +1425,7 @@ TRACE_EVENT(ocfs2_setattr,
 		__entry->dentry = dentry;
 		__entry->ino = ino;
 		__entry->d_len = d_len;
-		__assign_str(d_name, d_name);
+		__assign_str(d_name);
 		__entry->ia_valid = ia_valid;
 		__entry->ia_mode = ia_mode;
 		__entry->ia_uid = ia_uid;
@@ -1683,7 +1683,7 @@ TRACE_EVENT(ocfs2_parse_options,
 	),
 	TP_fast_assign(
 		__entry->is_remount = is_remount;
-		__assign_str(options, options);
+		__assign_str(options);
 	),
 	TP_printk("%d %s", __entry->is_remount, __get_str(options))
 );
@@ -1718,8 +1718,8 @@ TRACE_EVENT(ocfs2_initialize_super,
 		__field(int, cluster_bits)
 	),
 	TP_fast_assign(
-		__assign_str(label, label);
-		__assign_str(uuid_str, uuid_str);
+		__assign_str(label);
+		__assign_str(uuid_str);
 		__entry->root_dir = root_dir;
 		__entry->system_dir = system_dir;
 		__entry->cluster_bits = cluster_bits;
@@ -1746,7 +1746,7 @@ TRACE_EVENT(ocfs2_init_xattr_set_ctxt,
 		__field(int, credits)
 	),
 	TP_fast_assign(
-		__assign_str(name, name);
+		__assign_str(name);
 		__entry->meta = meta;
 		__entry->clusters = clusters;
 		__entry->credits = credits;
@@ -1770,7 +1770,7 @@ DECLARE_EVENT_CLASS(ocfs2__xattr_find,
 	),
 	TP_fast_assign(
 		__entry->ino = ino;
-		__assign_str(name, name);
+		__assign_str(name);
 		__entry->name_index = name_index;
 		__entry->hash = hash;
 		__entry->location = location;
@@ -2019,7 +2019,7 @@ TRACE_EVENT(ocfs2_sync_dquot_helper,
 		__entry->dq_id = dq_id;
 		__entry->dq_type = dq_type;
 		__entry->type = type;
-		__assign_str(s_id, s_id);
+		__assign_str(s_id);
 	),
 	TP_printk("%u %u %lu %s", __entry->dq_id, __entry->dq_type,
 		  __entry->type, __get_str(s_id))
@@ -2060,7 +2060,7 @@ TRACE_EVENT(ocfs2_dx_dir_search,
 	TP_fast_assign(
 		__entry->ino = ino;
 		__entry->namelen = namelen;
-		__assign_str(name, name);
+		__assign_str(name);
 		__entry->major_hash = major_hash;
 		__entry->minor_hash = minor_hash;
 		__entry->blkno = blkno;
@@ -2088,7 +2088,7 @@ TRACE_EVENT(ocfs2_find_files_on_disk,
 	),
 	TP_fast_assign(
 		__entry->namelen = namelen;
-		__assign_str(name, name);
+		__assign_str(name);
 		__entry->blkno = blkno;
 		__entry->dir = dir;
 	),
@@ -2107,7 +2107,7 @@ TRACE_EVENT(ocfs2_check_dir_for_entry,
 	TP_fast_assign(
 		__entry->dir = dir;
 		__entry->namelen = namelen;
-		__assign_str(name, name);
+		__assign_str(name);
 	),
 	TP_printk("%llu %.*s", __entry->dir,
 		  __entry->namelen, __get_str(name))
@@ -2135,7 +2135,7 @@ TRACE_EVENT(ocfs2_dx_dir_index_root_block,
 		__entry->major_hash = major_hash;
 		__entry->minor_hash = minor_hash;
 		__entry->namelen = namelen;
-		__assign_str(name, name);
+		__assign_str(name);
 		__entry->num_used = num_used;
 	),
 	TP_printk("%llu %x %x %.*s %u", __entry->dir,
@@ -2171,7 +2171,7 @@ DECLARE_EVENT_CLASS(ocfs2__dentry_ops,
 		__entry->dir = dir;
 		__entry->dentry = dentry;
 		__entry->name_len = name_len;
-		__assign_str(name, name);
+		__assign_str(name);
 		__entry->dir_blkno = dir_blkno;
 		__entry->extra = extra;
 	),
@@ -2217,7 +2217,7 @@ TRACE_EVENT(ocfs2_mknod,
 		__entry->dir = dir;
 		__entry->dentry = dentry;
 		__entry->name_len = name_len;
-		__assign_str(name, name);
+		__assign_str(name);
 		__entry->dir_blkno = dir_blkno;
 		__entry->dev = dev;
 		__entry->mode = mode;
@@ -2241,9 +2241,9 @@ TRACE_EVENT(ocfs2_link,
 	TP_fast_assign(
 		__entry->ino = ino;
 		__entry->old_len = old_len;
-		__assign_str(old_name, old_name);
+		__assign_str(old_name);
 		__entry->name_len = name_len;
-		__assign_str(name, name);
+		__assign_str(name);
 	),
 	TP_printk("%llu %.*s %.*s", __entry->ino,
 		  __entry->old_len, __get_str(old_name),
@@ -2279,9 +2279,9 @@ TRACE_EVENT(ocfs2_rename,
 		__entry->new_dir = new_dir;
 		__entry->new_dentry = new_dentry;
 		__entry->old_len = old_len;
-		__assign_str(old_name, old_name);
+		__assign_str(old_name);
 		__entry->new_len = new_len;
-		__assign_str(new_name, new_name);
+		__assign_str(new_name);
 	),
 	TP_printk("%p %p %p %p %.*s %.*s",
 		  __entry->old_dir, __entry->old_dentry,
@@ -2301,7 +2301,7 @@ TRACE_EVENT(ocfs2_rename_target_exists,
 	),
 	TP_fast_assign(
 		__entry->new_len = new_len;
-		__assign_str(new_name, new_name);
+		__assign_str(new_name);
 	),
 	TP_printk("%.*s", __entry->new_len, __get_str(new_name))
 );
@@ -2344,7 +2344,7 @@ TRACE_EVENT(ocfs2_symlink_begin,
 		__entry->dentry = dentry;
 		__entry->symname = symname;
 		__entry->len = len;
-		__assign_str(name, name);
+		__assign_str(name);
 	),
 	TP_printk("%p %p %s %.*s", __entry->dir, __entry->dentry,
 		  __entry->symname, __entry->len, __get_str(name))
@@ -2360,7 +2360,7 @@ TRACE_EVENT(ocfs2_blkno_stringify,
 	),
 	TP_fast_assign(
 		__entry->blkno = blkno;
-		__assign_str(name, name);
+		__assign_str(name);
 		__entry->namelen = namelen;
 	),
 	TP_printk("%llu %s %d", __entry->blkno, __get_str(name),
@@ -2381,7 +2381,7 @@ TRACE_EVENT(ocfs2_orphan_del,
 	),
 	TP_fast_assign(
 		__entry->dir = dir;
-		__assign_str(name, name);
+		__assign_str(name);
 		__entry->namelen = namelen;
 	),
 	TP_printk("%llu %s %d", __entry->dir, __get_str(name),
@@ -2403,7 +2403,7 @@ TRACE_EVENT(ocfs2_dentry_revalidate,
 	TP_fast_assign(
 		__entry->dentry = dentry;
 		__entry->len = len;
-		__assign_str(name, name);
+		__assign_str(name);
 	),
 	TP_printk("%p %.*s", __entry->dentry, __entry->len, __get_str(name))
 );
@@ -2420,7 +2420,7 @@ TRACE_EVENT(ocfs2_dentry_revalidate_negative,
 	),
 	TP_fast_assign(
 		__entry->len = len;
-		__assign_str(name, name);
+		__assign_str(name);
 		__entry->pgen = pgen;
 		__entry->gen = gen;
 	),
@@ -2445,7 +2445,7 @@ TRACE_EVENT(ocfs2_find_local_alias,
 	),
 	TP_fast_assign(
 		__entry->len = len;
-		__assign_str(name, name);
+		__assign_str(name);
 	),
 	TP_printk("%.*s", __entry->len, __get_str(name))
 );
@@ -2462,7 +2462,7 @@ TRACE_EVENT(ocfs2_dentry_attach_lock,
 	),
 	TP_fast_assign(
 		__entry->len = len;
-		__assign_str(name, name);
+		__assign_str(name);
 		__entry->parent = parent;
 		__entry->fsdata = fsdata;
 	),
@@ -2480,7 +2480,7 @@ TRACE_EVENT(ocfs2_dentry_attach_lock_found,
 		__field(unsigned long long, ino)
 	),
 	TP_fast_assign(
-		__assign_str(name, name);
+		__assign_str(name);
 		__entry->parent = parent;
 		__entry->ino = ino;
 	),
@@ -2527,7 +2527,7 @@ TRACE_EVENT(ocfs2_get_parent,
 	TP_fast_assign(
 		__entry->child = child;
 		__entry->len = len;
-		__assign_str(name, name);
+		__assign_str(name);
 		__entry->ino = ino;
 	),
 	TP_printk("%p %.*s %llu", __entry->child, __entry->len,
@@ -2551,7 +2551,7 @@ TRACE_EVENT(ocfs2_encode_fh_begin,
 	TP_fast_assign(
 		__entry->dentry = dentry;
 		__entry->name_len = name_len;
-		__assign_str(name, name);
+		__assign_str(name);
 		__entry->fh = fh;
 		__entry->len = len;
 		__entry->connectable = connectable;

@@ -1262,7 +1262,7 @@ int liquidio_change_mtu(struct net_device *netdev, int new_mtu)
 		return -EINVAL;
 	}
 
-	netdev->mtu = new_mtu;
+	WRITE_ONCE(netdev->mtu, new_mtu);
 	lio->mtu = new_mtu;
 
 	WRITE_ONCE(sc->caller_is_done, true);

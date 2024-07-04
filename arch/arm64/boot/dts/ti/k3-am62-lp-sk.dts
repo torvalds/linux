@@ -166,7 +166,6 @@
 
 		interrupt-parent = <&gic500>;
 		interrupts = <GIC_SPI 224 IRQ_TYPE_LEVEL_HIGH>;
-		ti,power-button;
 
 		regulators {
 			buck1_reg: buck1 {

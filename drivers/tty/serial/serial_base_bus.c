@@ -8,6 +8,7 @@
  * The serial core bus manages the serial core controller instances.
  */
 
+#include <linux/cleanup.h>
 #include <linux/container_of.h>
 #include <linux/device.h>
 #include <linux/idr.h>
@@ -203,6 +204,134 @@ void serial_base_port_device_remove(struct serial_port_device *port_dev)
 	ida_free(&ctrl_dev->port_ida, port_dev->port->port_id);
 	put_device(&port_dev->dev);
 }
+
+#ifdef CONFIG_SERIAL_CORE_CONSOLE
+
+static int serial_base_add_one_prefcon(const char *match, const char *dev_name,
+				       int port_id)
+{
+	int ret;
+
+	ret = add_preferred_console_match(match, dev_name, port_id);
+	if (ret == -ENOENT)
+		return 0;
+
+	return ret;
+}
+
+#ifdef __sparc__
+
+/* Handle Sparc ttya and ttyb options as done in console_setup() */
+static int serial_base_add_sparc_console(const char *dev_name, int idx)
+{
+	const char *name;
+
+	switch (idx) {
+	case 0:
+		name = "ttya";
+		break;
+	case 1:
+		name = "ttyb";
+		break;
+	default:
+		return 0;
+	}
+
+	return serial_base_add_one_prefcon(name, dev_name, idx);
+}
+
+#else
+
+static inline int serial_base_add_sparc_console(const char *dev_name, int idx)
+{
+	return 0;
+}
+
+#endif
+
+static int serial_base_add_prefcon(const char *name, int idx)
+{
+	const char *char_match __free(kfree) = NULL;
+	const char *nmbr_match __free(kfree) = NULL;
+	int ret;
+
+	/* Handle ttyS specific options */
+	if (strstarts(name, "ttyS")) {
+		/* No name, just a number */
+		nmbr_match = kasprintf(GFP_KERNEL, "%i", idx);
+		if (!nmbr_match)
+			return -ENODEV;
+
+		ret = serial_base_add_one_prefcon(nmbr_match, name, idx);
+		if (ret)
+			return ret;
+
+		/* Sparc ttya and ttyb */
+		ret = serial_base_add_sparc_console(name, idx);
+		if (ret)
+			return ret;
+	}
+
+	/* Handle the traditional character device name style console=ttyS0 */
+	char_match = kasprintf(GFP_KERNEL, "%s%i", name, idx);
+	if (!char_match)
+		return -ENOMEM;
+
+	return serial_base_add_one_prefcon(char_match, name, idx);
+}
+
+/**
+ * serial_base_add_preferred_console - Adds a preferred console
+ * @drv: Serial port device driver
+ * @port: Serial port instance
+ *
+ * Tries to add a preferred console for a serial port if specified in the
+ * kernel command line. Supports both the traditional character device such
+ * as console=ttyS0, and a hardware addressing based console=DEVNAME:0.0
+ * style name.
+ *
+ * Translates the kernel command line option using a hardware based addressing
+ * console=DEVNAME:0.0 to the serial port character device such as ttyS0.
+ * Cannot be called early for ISA ports, depends on struct device.
+ *
+ * Note that duplicates are ignored by add_preferred_console().
+ *
+ * Return: 0 on success, negative error code on failure.
+ */
+int serial_base_add_preferred_console(struct uart_driver *drv,
+				      struct uart_port *port)
+{
+	const char *port_match __free(kfree) = NULL;
+	int ret;
+
+	ret = serial_base_add_prefcon(drv->dev_name, port->line);
+	if (ret)
+		return ret;
+
+	port_match = kasprintf(GFP_KERNEL, "%s:%i.%i", dev_name(port->dev),
+			       port->ctrl_id, port->port_id);
+	if (!port_match)
+		return -ENOMEM;
+
+	/* Translate a hardware addressing style console=DEVNAME:0.0 */
+	return serial_base_add_one_prefcon(port_match, drv->dev_name, port->line);
+}
+
+#endif
+
+#ifdef CONFIG_SERIAL_8250_CONSOLE
+
+/*
+ * Early ISA ports initialize the console before there is no struct device.
+ * This should be only called from serial8250_isa_init_preferred_console(),
+ * other callers are likely wrong and should rely on earlycon instead.
+ */
+int serial_base_add_isa_preferred_console(const char *name, int idx)
+{
+	return serial_base_add_prefcon(name, idx);
+}
+
+#endif
 
 static int serial_base_init(void)
 {

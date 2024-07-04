@@ -333,7 +333,8 @@ static void pmz_status_handle(struct uart_pmac_port *uap)
 
 static void pmz_transmit_chars(struct uart_pmac_port *uap)
 {
-	struct circ_buf *xmit;
+	struct tty_port *tport;
+	unsigned char ch;
 
 	if (ZS_IS_CONS(uap)) {
 		unsigned char status = read_zsreg(uap, R0);
@@ -384,8 +385,8 @@ static void pmz_transmit_chars(struct uart_pmac_port *uap)
 
 	if (uap->port.state == NULL)
 		goto ack_tx_int;
-	xmit = &uap->port.state->xmit;
-	if (uart_circ_empty(xmit)) {
+	tport = &uap->port.state->port;
+	if (kfifo_is_empty(&tport->xmit_fifo)) {
 		uart_write_wakeup(&uap->port);
 		goto ack_tx_int;
 	}
@@ -393,12 +394,11 @@ static void pmz_transmit_chars(struct uart_pmac_port *uap)
 		goto ack_tx_int;
 
 	uap->flags |= PMACZILOG_FLAG_TX_ACTIVE;
-	write_zsdata(uap, xmit->buf[xmit->tail]);
+	WARN_ON(!uart_fifo_get(&uap->port, &ch));
+	write_zsdata(uap, ch);
 	zssync(uap);
 
-	uart_xmit_advance(&uap->port, 1);
-
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+	if (kfifo_len(&tport->xmit_fifo) < WAKEUP_CHARS)
 		uart_write_wakeup(&uap->port);
 
 	return;
@@ -606,15 +606,15 @@ static void pmz_start_tx(struct uart_port *port)
 		port->icount.tx++;
 		port->x_char = 0;
 	} else {
-		struct circ_buf *xmit = &port->state->xmit;
+		struct tty_port *tport = &port->state->port;
+		unsigned char ch;
 
-		if (uart_circ_empty(xmit))
+		if (!uart_fifo_get(&uap->port, &ch))
 			return;
-		write_zsdata(uap, xmit->buf[xmit->tail]);
+		write_zsdata(uap, ch);
 		zssync(uap);
-		uart_xmit_advance(port, 1);
 
-		if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+		if (kfifo_len(&tport->xmit_fifo) < WAKEUP_CHARS)
 			uart_write_wakeup(&uap->port);
 	}
 }
@@ -1681,7 +1681,7 @@ static void pmz_dispose_port(struct uart_pmac_port *uap)
 	memset(uap, 0, sizeof(struct uart_pmac_port));
 }
 
-static int __init pmz_attach(struct platform_device *pdev)
+static int pmz_attach(struct platform_device *pdev)
 {
 	struct uart_pmac_port *uap;
 	int i;
@@ -1700,7 +1700,7 @@ static int __init pmz_attach(struct platform_device *pdev)
 	return uart_add_one_port(&pmz_uart_reg, &uap->port);
 }
 
-static void __exit pmz_detach(struct platform_device *pdev)
+static void pmz_detach(struct platform_device *pdev)
 {
 	struct uart_pmac_port *uap = platform_get_drvdata(pdev);
 
@@ -1775,7 +1775,8 @@ static struct macio_driver pmz_driver = {
 #else
 
 static struct platform_driver pmz_driver = {
-	.remove_new	= __exit_p(pmz_detach),
+	.probe		= pmz_attach,
+	.remove_new	= pmz_detach,
 	.driver		= {
 		.name		= "scc",
 	},
@@ -1823,7 +1824,7 @@ static int __init init_pmz(void)
 #ifdef CONFIG_PPC_PMAC
 	return macio_register_driver(&pmz_driver);
 #else
-	return platform_driver_probe(&pmz_driver, pmz_attach);
+	return platform_driver_register(&pmz_driver);
 #endif
 }
 

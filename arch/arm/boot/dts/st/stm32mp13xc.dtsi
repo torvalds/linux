@@ -4,15 +4,14 @@
  * Author: Alexandre Torgue <alexandre.torgue@foss.st.com> for STMicroelectronics.
  */
 
-/ {
-	soc {
-		cryp: crypto@54002000 {
-			compatible = "st,stm32mp1-cryp";
-			reg = <0x54002000 0x400>;
-			interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&rcc CRYP1>;
-			resets = <&rcc CRYP1_R>;
-			status = "disabled";
-		};
+&etzpc {
+	cryp: crypto@54002000 {
+		compatible = "st,stm32mp1-cryp";
+		reg = <0x54002000 0x400>;
+		interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&rcc CRYP1>;
+		resets = <&rcc CRYP1_R>;
+		access-controllers = <&etzpc 42>;
+		status = "disabled";
 	};
 };

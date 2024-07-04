@@ -5,9 +5,6 @@
  *
  * Copyright (C) 2022, Google LLC.
  */
-
-#define _GNU_SOURCE
-
 #include <fcntl.h>
 #include <stdint.h>
 #include <time.h>

@@ -2148,7 +2148,7 @@ static bool is_idle_sample(struct perf_sample *sample,
 			   struct evsel *evsel)
 {
 	/* pid 0 == swapper == idle task */
-	if (strcmp(evsel__name(evsel), "sched:sched_switch") == 0)
+	if (evsel__name_is(evsel, "sched:sched_switch"))
 		return evsel__intval(evsel, sample, "prev_pid") == 0;
 
 	return sample->pid == 0;
@@ -2375,7 +2375,7 @@ static bool timehist_skip_sample(struct perf_sched *sched,
 	}
 
 	if (sched->idle_hist) {
-		if (strcmp(evsel__name(evsel), "sched:sched_switch"))
+		if (!evsel__name_is(evsel, "sched:sched_switch"))
 			rc = true;
 		else if (evsel__intval(evsel, sample, "prev_pid") != 0 &&
 			 evsel__intval(evsel, sample, "next_pid") != 0)
@@ -2963,8 +2963,11 @@ static int timehist_check_attr(struct perf_sched *sched,
 			return -1;
 		}
 
-		if (sched->show_callchain && !evsel__has_callchain(evsel)) {
-			pr_info("Samples do not have callchains.\n");
+		/* only need to save callchain related to sched_switch event */
+		if (sched->show_callchain &&
+		    evsel__name_is(evsel, "sched:sched_switch") &&
+		    !evsel__has_callchain(evsel)) {
+			pr_info("Samples of sched_switch event do not have callchains.\n");
 			sched->show_callchain = 0;
 			symbol_conf.use_callchain = 0;
 		}
@@ -3210,7 +3213,7 @@ static int perf_sched__lat(struct perf_sched *sched)
 	perf_sched__sort_lat(sched);
 
 	printf("\n -------------------------------------------------------------------------------------------------------------------------------------------\n");
-	printf("  Task                  |   Runtime ms  | Switches | Avg delay ms    | Max delay ms    | Max delay start           | Max delay end          |\n");
+	printf("  Task                  |   Runtime ms  |  Count   | Avg delay ms    | Max delay ms    | Max delay start           | Max delay end          |\n");
 	printf(" -------------------------------------------------------------------------------------------------------------------------------------------\n");
 
 	next = rb_first_cached(&sched->sorted_atom_root);

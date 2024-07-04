@@ -21,6 +21,9 @@ properties:
     contains:
       const: djn,9a-3r063-1102b
 
+  reg:
+    maxItems: 1
+
   vdd1-supply:
     description: Digital voltage rail
 
@@ -30,7 +33,6 @@ properties:
   vsp-supply:
     description: Negative source voltage rail
 
-  reg: true
   port: true
 
 required:

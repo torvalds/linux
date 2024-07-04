@@ -39,6 +39,7 @@ kgdb_arch
 kgdb_io
 kobj_type
 kset_uevent_ops
+lcd_ops
 lock_manager_operations
 machine_desc
 microcode_ops

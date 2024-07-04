@@ -113,6 +113,16 @@
 		vin-supply = <&dc_12v>;
 	};
 
+	vcc5v0_otg: vcc5v0-otg-regulator {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio1 RK_PB5 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&otg_vbus_drv>;
+		regulator-name = "vcc5v0_otg";
+		regulator-always-on;
+	};
+
 	vcc5v0_usb: vcc5v0-usb-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_usb";
@@ -134,6 +144,10 @@
 };
 
 &combphy2_psu {
+	status = "okay";
+};
+
+&extcon_usb3 {
 	status = "okay";
 };
 
@@ -199,6 +213,13 @@
 				<3 RK_PD5 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
+
+	usb2 {
+		otg_vbus_drv: otg-vbus-drv {
+			rockchip,pins =
+			  <1 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
 };
 
 &sdmmc {
@@ -211,6 +232,23 @@
 	sd-uhs-sdr50;
 	sd-uhs-sdr104;
 	vmmc-supply = <&vcc3v3_baseboard>;
+	status = "okay";
+};
+
+&u2phy0 {
+	status = "okay";
+};
+
+&u2phy0_otg {
+	phy-supply = <&vcc5v0_otg>;
+	status = "okay";
+};
+
+&u2phy1 {
+	status = "okay";
+};
+
+&u2phy1_otg {
 	status = "okay";
 };
 
@@ -231,22 +269,35 @@
 };
 
 &uart2 {
-	pinctrl-0 = <&uart2m2_xfer>;
 	status = "okay";
 };
 
 &uart5 {
 	rts-gpios = <&gpio3 RK_PB3 GPIO_ACTIVE_HIGH>;
+};
+
+&usbdp_phy0 {
 	status = "okay";
 };
 
-/* host0 on Q7_USB_P2, lower usb3 port */
+&usbdp_phy1 {
+	status = "okay";
+};
+
+/* host0 on Q7_USB_P2, upper usb3 port */
 &usb_host0_ehci {
 	status = "okay";
 };
 
-/* host0 on Q7_USB_P2, lower usb3 port */
+/* host0 on Q7_USB_P2, upper usb3 port */
 &usb_host0_ohci {
+	status = "okay";
+};
+
+/* host0_xhci on Q7_USB_P1, usb3-otg port */
+&usb_host0_xhci {
+	dr_mode = "otg";
+	extcon = <&extcon_usb3>;
 	status = "okay";
 };
 
@@ -260,7 +311,13 @@
 	status = "okay";
 };
 
-/* host2 on Q7_USB_P2, lower usb3 port */
+/* host1_xhci on Q7_USB_P0, lower usb3 port */
+&usb_host1_xhci {
+	dr_mode = "host";
+	status = "okay";
+};
+
+/* host2 on Q7_USB_P2, upper usb3 port */
 &usb_host2_xhci {
 	status = "okay";
 };

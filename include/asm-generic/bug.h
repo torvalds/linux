@@ -72,7 +72,7 @@ struct bug_entry {
 #endif
 
 /*
- * WARN(), WARN_ON(), WARN_ON_ONCE, and so on can be used to report
+ * WARN(), WARN_ON(), WARN_ON_ONCE(), and so on can be used to report
  * significant kernel issues that need prompt attention if they should ever
  * appear at runtime.
  *

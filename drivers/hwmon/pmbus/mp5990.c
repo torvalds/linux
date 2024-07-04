@@ -158,7 +158,7 @@ static const struct of_device_id mp5990_of_match[] = {
 };
 
 static const struct i2c_device_id mp5990_id[] = {
-	{"mp5990", 0},
+	{"mp5990"},
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mp5990_id);

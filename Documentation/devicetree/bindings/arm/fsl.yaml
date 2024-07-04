@@ -813,6 +813,14 @@ properties:
           - const: tq,imx6ull-tqma6ull2l      # MCIMX6Y2, LGA SoM variant
           - const: fsl,imx6ull
 
+      - description: Seeed Stuido i.MX6ULL SoM on dev boards
+        items:
+          - enum:
+              - seeed,imx6ull-seeed-npi-emmc
+              - seeed,imx6ull-seeed-npi-nand
+          - const: seeed,imx6ull-seeed-npi
+          - const: fsl,imx6ull
+
       - description: i.MX6ULZ based Boards
         items:
           - enum:
@@ -1050,6 +1058,7 @@ properties:
           - enum:
               - beacon,imx8mp-beacon-kit  # i.MX8MP Beacon Development Kit
               - dmo,imx8mp-data-modul-edm-sbc # i.MX8MP eDM SBC
+              - emcraft,imx8mp-navqp      # i.MX8MP Emcraft Systems NavQ+ Kit
               - fsl,imx8mp-evk            # i.MX8MP EVK Board
               - gateworks,imx8mp-gw71xx-2x # i.MX8MP Gateworks Board
               - gateworks,imx8mp-gw72xx-2x # i.MX8MP Gateworks Board
@@ -1218,7 +1227,6 @@ properties:
           - enum:
               - einfochips,imx8qxp-ai_ml  # i.MX8QXP AI_ML Board
               - fsl,imx8qxp-mek           # i.MX8QXP MEK Board
-              - toradex,colibri-imx8x     # Colibri iMX8X Modules
           - const: fsl,imx8qxp
 
       - description: i.MX8DXL based Boards
@@ -1227,7 +1235,7 @@ properties:
               - fsl,imx8dxl-evk           # i.MX8DXL EVK Board
           - const: fsl,imx8dxl
 
-      - description: i.MX8QXP Boards with Toradex Colibri iMX8X Modules
+      - description: i.MX8QXP/i.MX8DX Boards with Toradex Colibri iMX8X Modules
         items:
           - enum:
               - toradex,colibri-imx8x-aster   # Colibri iMX8X Module on Aster Board
@@ -1235,7 +1243,9 @@ properties:
               - toradex,colibri-imx8x-iris    # Colibri iMX8X Module on Iris Board
               - toradex,colibri-imx8x-iris-v2 # Colibri iMX8X Module on Iris Board V2
           - const: toradex,colibri-imx8x
-          - const: fsl,imx8qxp
+          - enum:
+              - fsl,imx8qxp
+              - fsl,imx8dx
 
       - description:
           TQMa8Xx is a series of SOM featuring NXP i.MX8X system-on-chip
@@ -1535,6 +1545,12 @@ properties:
               - nxp,s32g274a-evb
               - nxp,s32g274a-rdb2
           - const: nxp,s32g2
+
+      - description: S32G3 based Boards
+        items:
+          - enum:
+              - nxp,s32g399a-rdb3
+          - const: nxp,s32g3
 
       - description: S32V234 based Boards
         items:

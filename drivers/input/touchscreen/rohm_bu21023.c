@@ -1165,7 +1165,7 @@ static int rohm_bu21023_i2c_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id rohm_bu21023_i2c_id[] = {
-	{ BU21023_NAME, 0 },
+	{ BU21023_NAME },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(i2c, rohm_bu21023_i2c_id);

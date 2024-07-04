@@ -24,7 +24,6 @@
 #include "ia_css_types.h"
 #include "ia_css_pipe_public.h"
 #include "ia_css_metadata.h"
-#include "ia_css_tpg.h"
 #include "ia_css_prbs.h"
 #include "ia_css_input_port.h"
 
@@ -34,7 +33,6 @@
 enum ia_css_input_mode {
 	IA_CSS_INPUT_MODE_SENSOR, /** data from sensor */
 	IA_CSS_INPUT_MODE_FIFO,   /** data from input-fifo */
-	IA_CSS_INPUT_MODE_TPG,    /** data from test-pattern generator */
 	IA_CSS_INPUT_MODE_PRBS,   /** data from pseudo-random bit stream */
 	IA_CSS_INPUT_MODE_MEMORY, /** data from a frame in memory */
 	IA_CSS_INPUT_MODE_BUFFERED_SENSOR /** data is sent through mipi buffer */
@@ -91,7 +89,6 @@ struct ia_css_stream_config {
 	enum ia_css_input_mode    mode; /** Input mode */
 	union {
 		struct ia_css_input_port  port; /** Port, for sensor only. */
-		struct ia_css_tpg_config  tpg;  /** TPG configuration */
 		struct ia_css_prbs_config prbs; /** PRBS configuration */
 	} source; /** Source of input data */
 	unsigned int	      channel_id; /** Channel on which input data
@@ -459,20 +456,6 @@ ia_css_stream_send_input_embedded_line(const struct ia_css_stream *stream,
  */
 void
 ia_css_stream_end_input_frame(const struct ia_css_stream *stream);
-
-/* @brief send a request flash command to SP
- *
- * @param[in]	stream The stream.
- * @return	None
- *
- * Driver needs to call this function to send a flash request command
- * to SP, SP will be responsible for switching on/off the flash at proper
- * time. Due to the SP multi-threading environment, this request may have
- * one-frame delay, the driver needs to check the flashed flag in frame info
- * to determine which frame is being flashed.
- */
-void
-ia_css_stream_request_flash(struct ia_css_stream *stream);
 
 /* @brief Configure a stream with filter coefficients.
  *	   @deprecated {Replaced by

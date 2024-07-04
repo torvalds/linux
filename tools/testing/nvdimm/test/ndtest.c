@@ -13,6 +13,8 @@
 #include <nd-core.h>
 #include <linux/printk.h>
 #include <linux/seq_buf.h>
+#include <linux/papr_scm.h>
+#include <uapi/linux/papr_pdsm.h>
 
 #include "../watermark.h"
 #include "nfit_test.h"
@@ -830,12 +832,11 @@ static int ndtest_bus_register(struct ndtest_priv *p)
 	return 0;
 }
 
-static int ndtest_remove(struct platform_device *pdev)
+static void ndtest_remove(struct platform_device *pdev)
 {
 	struct ndtest_priv *p = to_ndtest_priv(&pdev->dev);
 
 	nvdimm_bus_unregister(p->bus);
-	return 0;
 }
 
 static int ndtest_probe(struct platform_device *pdev)
@@ -882,7 +883,7 @@ static const struct platform_device_id ndtest_id[] = {
 
 static struct platform_driver ndtest_driver = {
 	.probe = ndtest_probe,
-	.remove = ndtest_remove,
+	.remove_new = ndtest_remove,
 	.driver = {
 		.name = KBUILD_MODNAME,
 	},

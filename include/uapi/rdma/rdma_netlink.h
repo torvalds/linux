@@ -558,6 +558,12 @@ enum rdma_nldev_attr {
 
 	RDMA_NLDEV_SYS_ATTR_PRIVILEGED_QKEY_MODE, /* u8 */
 
+	RDMA_NLDEV_ATTR_DRIVER_DETAILS,		/* u8 */
+	/*
+	 * QP subtype string, used for driver QPs
+	 */
+	RDMA_NLDEV_ATTR_RES_SUBTYPE,		/* string */
+
 	/*
 	 * Always the end
 	 */

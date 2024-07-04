@@ -24,6 +24,15 @@ config ATH12K_DEBUG
 	  If unsure, say Y to make it easier to debug problems. But if
 	  you want optimal performance choose N.
 
+config ATH12K_DEBUGFS
+	bool "QTI ath12k debugfs support"
+	depends on ATH12K && MAC80211_DEBUGFS
+	help
+	  Enable ath12k debugfs support
+
+	  If unsure, say Y to make it easier to debug problems. But if
+	  you want optimal performance choose N.
+
 config ATH12K_TRACING
 	bool "ath12k tracing support"
 	depends on ATH12K && EVENT_TRACING

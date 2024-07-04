@@ -606,7 +606,7 @@ fill_node(struct callchain_node *node, struct callchain_cursor *cursor)
 					call->brtype_stat = zalloc(sizeof(*call->brtype_stat));
 					if (!call->brtype_stat) {
 						perror("not enough memory for the code path branch statistics");
-						free(call->brtype_stat);
+						zfree(&call->brtype_stat);
 						return -ENOMEM;
 					}
 				}
@@ -1205,7 +1205,7 @@ char *callchain_list__sym_name(struct callchain_list *cl,
 	if (show_dso)
 		scnprintf(bf + printed, bfsize - printed, " %s",
 			  cl->ms.map ?
-			  map__dso(cl->ms.map)->short_name :
+			  dso__short_name(map__dso(cl->ms.map)) :
 			  "unknown");
 
 	return bf;

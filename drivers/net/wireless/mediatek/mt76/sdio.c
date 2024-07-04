@@ -499,7 +499,8 @@ static void mt76s_tx_status_data(struct mt76_worker *worker)
 	dev = container_of(sdio, struct mt76_dev, sdio);
 
 	while (true) {
-		if (test_bit(MT76_REMOVED, &dev->phy.state))
+		if (test_bit(MT76_RESET, &dev->phy.state) ||
+		    test_bit(MT76_REMOVED, &dev->phy.state))
 			break;
 
 		if (!dev->drv->tx_status_data(dev, &update))
@@ -514,13 +515,14 @@ static void mt76s_tx_status_data(struct mt76_worker *worker)
 }
 
 static int
-mt76s_tx_queue_skb(struct mt76_dev *dev, struct mt76_queue *q,
+mt76s_tx_queue_skb(struct mt76_phy *phy, struct mt76_queue *q,
 		   enum mt76_txq_id qid, struct sk_buff *skb,
 		   struct mt76_wcid *wcid, struct ieee80211_sta *sta)
 {
 	struct mt76_tx_info tx_info = {
 		.skb = skb,
 	};
+	struct mt76_dev *dev = phy->dev;
 	int err, len = skb->len;
 	u16 idx = q->head;
 
@@ -548,10 +550,7 @@ static int
 mt76s_tx_queue_skb_raw(struct mt76_dev *dev, struct mt76_queue *q,
 		       struct sk_buff *skb, u32 tx_info)
 {
-	int ret = -ENOSPC, len = skb->len, pad;
-
-	if (q->queued == q->ndesc)
-		goto error;
+	int ret, len = skb->len, pad;
 
 	pad = round_up(skb->len, 4) - skb->len;
 	ret = mt76_skb_adjust_pad(skb, pad);
@@ -559,6 +558,12 @@ mt76s_tx_queue_skb_raw(struct mt76_dev *dev, struct mt76_queue *q,
 		goto error;
 
 	spin_lock_bh(&q->lock);
+
+	if (q->queued == q->ndesc) {
+		ret = -ENOSPC;
+		spin_unlock_bh(&q->lock);
+		goto error;
+	}
 
 	q->entry[q->head].buf_sz = len;
 	q->entry[q->head].skb = skb;

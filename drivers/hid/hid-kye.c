@@ -209,7 +209,7 @@ static const __u8 pensketch_t609a_control_rdesc[] = {
 	0xC0               /*  End Collection            */
 };
 
-/* Fix indexes in kye_tablet_fixup if you change this */
+/* Fix indexes in kye_tablet_fixup() if you change this */
 static const __u8 kye_tablet_rdesc[] = {
 	0x06, 0x00, 0xFF,             /*  Usage Page (FF00h),             */
 	0x09, 0x01,                   /*  Usage (01h),                    */
@@ -262,12 +262,16 @@ static const __u8 kye_tablet_rdesc[] = {
 	0x27, 0xFF, 0x07, 0x00, 0x00, /*      Logical Maximum (2047),     */
 	0x81, 0x02,                   /*      Input (Variable),           */
 	0xC0,                         /*    End Collection,               */
-	0xC0,                         /*  End Collection,                 */
-	0x05, 0x0D,                   /*  Usage Page (Digitizer),         */
-	0x09, 0x21,                   /*  Usage (Puck),                   */
+	0xC0                          /*  End Collection,                 */
+};
+
+/* Fix indexes in kye_tablet_fixup() if you change this */
+static const __u8 kye_tablet_mouse_rdesc[] = {
+	0x05, 0x01,                   /*  Usage Page (Desktop),           */
+	0x09, 0x02,                   /*  Usage (Mouse),                  */
 	0xA1, 0x01,                   /*  Collection (Application),       */
 	0x85, 0x11,                   /*    Report ID (17),               */
-	0x09, 0x21,                   /*    Usage (Puck),                 */
+	0x09, 0x01,                   /*    Usage (Pointer),              */
 	0xA0,                         /*    Collection (Physical),        */
 	0x05, 0x09,                   /*      Usage Page (Button),        */
 	0x19, 0x01,                   /*      Usage Minimum (01h),        */
@@ -280,7 +284,7 @@ static const __u8 kye_tablet_rdesc[] = {
 	0x95, 0x04,                   /*      Report Count (4),           */
 	0x81, 0x01,                   /*      Input (Constant),           */
 	0x05, 0x0D,                   /*      Usage Page (Digitizer),     */
-	0x09, 0x32,                   /*      Usage (In Range),           */
+	0x09, 0x37,                   /*      Usage (Data Valid),         */
 	0x95, 0x01,                   /*      Report Count (1),           */
 	0x81, 0x02,                   /*      Input (Variable),           */
 	0x05, 0x01,                   /*      Usage Page (Desktop),       */
@@ -317,7 +321,7 @@ static const struct kye_tablet_info {
 	__s32 y_physical_maximum;
 	__s8 unit_exponent;
 	__s8 unit;
-	bool has_punk;
+	bool has_mouse;
 	unsigned int control_rsize;
 	const __u8 *control_rdesc;
 } kye_tablets_info[] = {
@@ -402,7 +406,7 @@ static __u8 *kye_consumer_control_fixup(struct hid_device *hdev, __u8 *rdesc,
 static __u8 *kye_tablet_fixup(struct hid_device *hdev, __u8 *rdesc, unsigned int *rsize)
 {
 	const struct kye_tablet_info *info;
-	unsigned int newsize;
+	__u8 *newdesc = rdesc;
 
 	if (*rsize < sizeof(kye_tablet_rdesc)) {
 		hid_warn(hdev,
@@ -420,36 +424,45 @@ static __u8 *kye_tablet_fixup(struct hid_device *hdev, __u8 *rdesc, unsigned int
 		return rdesc;
 	}
 
-	newsize = info->has_punk ? sizeof(kye_tablet_rdesc) : 112;
-	memcpy(rdesc, kye_tablet_rdesc, newsize);
+	memcpy(newdesc, kye_tablet_rdesc, sizeof(kye_tablet_rdesc));
 
-	put_unaligned_le32(info->x_logical_maximum, rdesc + 66);
-	put_unaligned_le32(info->x_physical_maximum, rdesc + 72);
-	rdesc[77] = info->unit;
-	rdesc[79] = info->unit_exponent;
-	put_unaligned_le32(info->y_logical_maximum, rdesc + 87);
-	put_unaligned_le32(info->y_physical_maximum, rdesc + 92);
-	put_unaligned_le32(info->pressure_logical_maximum, rdesc + 104);
+	put_unaligned_le32(info->x_logical_maximum, newdesc + 66);
+	put_unaligned_le32(info->x_physical_maximum, newdesc + 72);
+	newdesc[77] = info->unit;
+	newdesc[79] = info->unit_exponent;
+	put_unaligned_le32(info->y_logical_maximum, newdesc + 87);
+	put_unaligned_le32(info->y_physical_maximum, newdesc + 92);
+	put_unaligned_le32(info->pressure_logical_maximum, newdesc + 104);
 
-	if (info->has_punk) {
-		put_unaligned_le32(info->x_logical_maximum, rdesc + 156);
-		put_unaligned_le32(info->x_physical_maximum, rdesc + 162);
-		rdesc[167] = info->unit;
-		rdesc[169] = info->unit_exponent;
-		put_unaligned_le32(info->y_logical_maximum, rdesc + 177);
-		put_unaligned_le32(info->y_physical_maximum, rdesc + 182);
-	}
+	newdesc += sizeof(kye_tablet_rdesc);
 
-	if (info->control_rsize) {
-		if (newsize + info->control_rsize > *rsize)
-			hid_err(hdev, "control rdesc unexpectedly large");
+	if (info->has_mouse) {
+		if (newdesc + sizeof(kye_tablet_mouse_rdesc) > rdesc + *rsize)
+			hid_err(hdev, "control desc unexpectedly large\n");
 		else {
-			memcpy(rdesc + newsize, info->control_rdesc, info->control_rsize);
-			newsize += info->control_rsize;
+			memcpy(newdesc, kye_tablet_mouse_rdesc, sizeof(kye_tablet_mouse_rdesc));
+
+			put_unaligned_le32(info->x_logical_maximum, newdesc + 44);
+			put_unaligned_le32(info->x_physical_maximum, newdesc + 50);
+			newdesc[55] = info->unit;
+			newdesc[57] = info->unit_exponent;
+			put_unaligned_le32(info->y_logical_maximum, newdesc + 65);
+			put_unaligned_le32(info->y_physical_maximum, newdesc + 70);
+
+			newdesc += sizeof(kye_tablet_mouse_rdesc);
 		}
 	}
 
-	*rsize = newsize;
+	if (info->control_rsize) {
+		if (newdesc + info->control_rsize > rdesc + *rsize)
+			hid_err(hdev, "control desc unexpectedly large\n");
+		else {
+			memcpy(newdesc, info->control_rdesc, info->control_rsize);
+			newdesc += info->control_rsize;
+		}
+	}
+
+	*rsize = newdesc - rdesc;
 	return rdesc;
 }
 

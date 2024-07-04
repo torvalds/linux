@@ -1,0 +1,6 @@
+# Board Name: asus-C436FA-Flip-hatch
+# Bug Report: https://lore.kernel.org/intel-gfx/af4ca4df-a3ef-4943-bdbf-4c3af2c333af@collabora.com/T/#u
+# IGT Version: 1.28-g0df7b9b97
+# Linux Version: 6.9.0-rc7
+# Failure Rate: 50
+kms_plane_alpha_blend@constant-alpha-min

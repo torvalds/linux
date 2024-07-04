@@ -215,11 +215,8 @@ GPIO 值的命令需要等待其信息排到隊首才發送命令，再獲得其
 	gpio_request()
 
 ## 	gpio_request_one()
-##	gpio_request_array()
-## 	gpio_free_array()
 
 	gpio_free()
-
 
 
 聲明和釋放 GPIO
@@ -278,14 +275,6 @@ gpio_request()前將這類細節配置好，例如使用 pinctrl 子系統的映
 	 */
 	int gpio_request_one(unsigned gpio, unsigned long flags, const char *label);
 
-	/* 在單個函數中申請多個 GPIO
-	 */
-	int gpio_request_array(struct gpio *array, size_t num);
-
-	/* 在單個函數中釋放多個 GPIO
-	 */
-	void gpio_free_array(struct gpio *array, size_t num);
-
 這裡 'flags' 當前定義可指定以下屬性:
 
 	* GPIOF_DIR_IN		- 配置方向爲輸入
@@ -322,12 +311,6 @@ gpio_request()前將這類細節配置好，例如使用 pinctrl 子系統的映
 	err = gpio_request_one(31, GPIOF_IN, "Reset Button");
 	if (err)
 		...
-
-	err = gpio_request_array(leds_gpios, ARRAY_SIZE(leds_gpios));
-	if (err)
-		...
-
-	gpio_free_array(leds_gpios, ARRAY_SIZE(leds_gpios));
 
 
 GPIO 映射到 IRQ

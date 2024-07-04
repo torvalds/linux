@@ -7,6 +7,7 @@
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/netdevice.h>
+#include <linux/vmalloc.h>
 #include "octep_vf_config.h"
 #include "octep_vf_main.h"
 

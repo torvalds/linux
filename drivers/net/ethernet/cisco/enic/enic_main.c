@@ -2027,7 +2027,7 @@ static int _enic_change_mtu(struct net_device *netdev, int new_mtu)
 			return err;
 	}
 
-	netdev->mtu = new_mtu;
+	WRITE_ONCE(netdev->mtu, new_mtu);
 
 	if (running) {
 		err = enic_open(netdev);

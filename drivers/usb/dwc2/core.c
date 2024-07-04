@@ -249,6 +249,11 @@ void dwc2_hib_restore_common(struct dwc2_hsotg *hsotg, int rem_wakeup,
 	dwc2_writel(hsotg, gpwrdn, GPWRDN);
 	udelay(10);
 
+	/* Reset ULPI latch */
+	gpwrdn = dwc2_readl(hsotg, GPWRDN);
+	gpwrdn &= ~GPWRDN_ULPI_LATCH_EN_DURING_HIB_ENTRY;
+	dwc2_writel(hsotg, gpwrdn, GPWRDN);
+
 	/* Disable PMU interrupt */
 	gpwrdn = dwc2_readl(hsotg, GPWRDN);
 	gpwrdn &= ~GPWRDN_PMUINTSEL;
@@ -975,6 +980,41 @@ void dwc2_init_fs_ls_pclk_sel(struct dwc2_hsotg *hsotg)
 	dwc2_writel(hsotg, hcfg, HCFG);
 }
 
+static void dwc2_set_clock_switch_timer(struct dwc2_hsotg *hsotg)
+{
+	u32 grstctl, gsnpsid, val = 0;
+
+	gsnpsid = dwc2_readl(hsotg, GSNPSID);
+
+	/*
+	 * Applicable only to HSOTG core v5.00a or higher.
+	 * Not applicable to HS/FS IOT devices.
+	 */
+	if ((gsnpsid & ~DWC2_CORE_REV_MASK) != DWC2_OTG_ID ||
+	    gsnpsid < DWC2_CORE_REV_5_00a)
+		return;
+
+	if ((hsotg->hw_params.hs_phy_type == GHWCFG2_HS_PHY_TYPE_UTMI &&
+	     hsotg->hw_params.fs_phy_type == GHWCFG2_FS_PHY_TYPE_NOT_SUPPORTED) ||
+	    (hsotg->hw_params.hs_phy_type == GHWCFG2_HS_PHY_TYPE_ULPI &&
+	     hsotg->hw_params.fs_phy_type == GHWCFG2_FS_PHY_TYPE_NOT_SUPPORTED) ||
+	    (hsotg->hw_params.hs_phy_type == GHWCFG2_HS_PHY_TYPE_NOT_SUPPORTED &&
+	     hsotg->hw_params.fs_phy_type != GHWCFG2_FS_PHY_TYPE_NOT_SUPPORTED)) {
+		val = GRSTCTL_CLOCK_SWITH_TIMER_VALUE_DIS;
+	}
+
+	if (hsotg->params.speed == DWC2_SPEED_PARAM_LOW &&
+	    hsotg->hw_params.hs_phy_type != GHWCFG2_HS_PHY_TYPE_NOT_SUPPORTED &&
+	    hsotg->hw_params.fs_phy_type != GHWCFG2_FS_PHY_TYPE_NOT_SUPPORTED) {
+		val = GRSTCTL_CLOCK_SWITH_TIMER_VALUE_147;
+	}
+
+	grstctl = dwc2_readl(hsotg, GRSTCTL);
+	grstctl &= ~GRSTCTL_CLOCK_SWITH_TIMER_MASK;
+	grstctl |= GRSTCTL_CLOCK_SWITH_TIMER(val);
+	dwc2_writel(hsotg, grstctl, GRSTCTL);
+}
+
 static int dwc2_fs_phy_init(struct dwc2_hsotg *hsotg, bool select_phy)
 {
 	u32 usbcfg, ggpio, i2cctl;
@@ -991,6 +1031,8 @@ static int dwc2_fs_phy_init(struct dwc2_hsotg *hsotg, bool select_phy)
 		if (!(usbcfg & GUSBCFG_PHYSEL)) {
 			usbcfg |= GUSBCFG_PHYSEL;
 			dwc2_writel(hsotg, usbcfg, GUSBCFG);
+
+			dwc2_set_clock_switch_timer(hsotg);
 
 			/* Reset after a PHY select */
 			retval = dwc2_core_reset(hsotg, false);

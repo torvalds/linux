@@ -1,0 +1,34 @@
+// Check reception of another SYN while we have an established conntrack state.
+// Challenge ACK is supposed to pass through, RST reply should clear conntrack
+// state and SYN retransmit should give us new 'SYN_RECV' connection state.
+
+`packetdrill/common.sh`
+
+// should show a match if bug is present:
++0 `iptables -A INPUT -m conntrack --ctstate INVALID -p tcp --tcp-flags SYN,ACK SYN,ACK`
+
++0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
++0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
++0 bind(3, ..., ...) = 0
++0 listen(3, 10) = 0
+
++0 < S 0:0(0) win 32792 <mss 1000,nop,wscale 7, TS val 1 ecr 0,nop,nop>
++0 > S. 0:0(0) ack 1 <mss 1460,nop,nop,TS val 100 ecr 1,nop,wscale 8>
++.01 < . 1:1(0) ack 1 win 257 <TS val 1 ecr 100,nop,nop>
++0 accept(3, ..., ...) = 4
+
++0 < P. 1:101(100) ack 1 win 257 <TS val 2 ecr 100,nop,nop>
++.001 > . 1:1(0) ack 101 win 256 <nop,nop,TS val 110 ecr 2>
++0 read(4, ..., 101) = 100
+
+1.0 < S 2000:2000(0) win 32792 <mss 1000,nop,wscale 7, TS val 233 ecr 0,nop,nop>
+// Won't expect this: challenge ack.
+
++0 > . 1:1(0) ack 101 win 256 <nop,nop,TS val 112 ecr 2>
++0 < R. 101:101(0) ack 1 win 257
++0 close(4) = 0
+
+1.5 < S 2000:2000(0) win 32792 <mss 1000,nop,wscale 0, TS val 233 ecr 0,nop,nop>
+
++0 `conntrack -f $NFCT_IP_VERSION -L -p tcp --dport 8080 2>/dev/null | grep -q SYN_RECV`
++0 `iptables -v -S INPUT | grep INVALID | grep -q -- "-c 0 0"`

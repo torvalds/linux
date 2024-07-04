@@ -103,8 +103,7 @@ static_assert(sizeof(struct gve_device_option_gqi_qpl) == 4);
 
 struct gve_device_option_dqo_rda {
 	__be32 supported_features_mask;
-	__be16 tx_comp_ring_entries;
-	__be16 rx_buff_ring_entries;
+	__be32 reserved;
 };
 
 static_assert(sizeof(struct gve_device_option_dqo_rda) == 8);
@@ -134,6 +133,16 @@ struct gve_device_option_buffer_sizes {
 
 static_assert(sizeof(struct gve_device_option_buffer_sizes) == 8);
 
+struct gve_device_option_modify_ring {
+	__be32 supported_featured_mask;
+	__be16 max_rx_ring_size;
+	__be16 max_tx_ring_size;
+	__be16 min_rx_ring_size;
+	__be16 min_tx_ring_size;
+};
+
+static_assert(sizeof(struct gve_device_option_modify_ring) == 12);
+
 /* Terminology:
  *
  * RDA - Raw DMA Addressing - Buffers associated with SKBs are directly DMA
@@ -143,28 +152,31 @@ static_assert(sizeof(struct gve_device_option_buffer_sizes) == 8);
  *       the device for read/write and data is copied from/to SKBs.
  */
 enum gve_dev_opt_id {
-	GVE_DEV_OPT_ID_GQI_RAW_ADDRESSING = 0x1,
-	GVE_DEV_OPT_ID_GQI_RDA = 0x2,
-	GVE_DEV_OPT_ID_GQI_QPL = 0x3,
-	GVE_DEV_OPT_ID_DQO_RDA = 0x4,
-	GVE_DEV_OPT_ID_DQO_QPL = 0x7,
-	GVE_DEV_OPT_ID_JUMBO_FRAMES = 0x8,
-	GVE_DEV_OPT_ID_BUFFER_SIZES = 0xa,
+	GVE_DEV_OPT_ID_GQI_RAW_ADDRESSING	= 0x1,
+	GVE_DEV_OPT_ID_GQI_RDA			= 0x2,
+	GVE_DEV_OPT_ID_GQI_QPL			= 0x3,
+	GVE_DEV_OPT_ID_DQO_RDA			= 0x4,
+	GVE_DEV_OPT_ID_MODIFY_RING		= 0x6,
+	GVE_DEV_OPT_ID_DQO_QPL			= 0x7,
+	GVE_DEV_OPT_ID_JUMBO_FRAMES		= 0x8,
+	GVE_DEV_OPT_ID_BUFFER_SIZES		= 0xa,
 };
 
 enum gve_dev_opt_req_feat_mask {
-	GVE_DEV_OPT_REQ_FEAT_MASK_GQI_RAW_ADDRESSING = 0x0,
-	GVE_DEV_OPT_REQ_FEAT_MASK_GQI_RDA = 0x0,
-	GVE_DEV_OPT_REQ_FEAT_MASK_GQI_QPL = 0x0,
-	GVE_DEV_OPT_REQ_FEAT_MASK_DQO_RDA = 0x0,
-	GVE_DEV_OPT_REQ_FEAT_MASK_JUMBO_FRAMES = 0x0,
-	GVE_DEV_OPT_REQ_FEAT_MASK_DQO_QPL = 0x0,
-	GVE_DEV_OPT_REQ_FEAT_MASK_BUFFER_SIZES = 0x0,
+	GVE_DEV_OPT_REQ_FEAT_MASK_GQI_RAW_ADDRESSING	= 0x0,
+	GVE_DEV_OPT_REQ_FEAT_MASK_GQI_RDA		= 0x0,
+	GVE_DEV_OPT_REQ_FEAT_MASK_GQI_QPL		= 0x0,
+	GVE_DEV_OPT_REQ_FEAT_MASK_DQO_RDA		= 0x0,
+	GVE_DEV_OPT_REQ_FEAT_MASK_JUMBO_FRAMES		= 0x0,
+	GVE_DEV_OPT_REQ_FEAT_MASK_DQO_QPL		= 0x0,
+	GVE_DEV_OPT_REQ_FEAT_MASK_BUFFER_SIZES		= 0x0,
+	GVE_DEV_OPT_REQ_FEAT_MASK_MODIFY_RING		= 0x0,
 };
 
 enum gve_sup_feature_mask {
-	GVE_SUP_JUMBO_FRAMES_MASK = 1 << 2,
-	GVE_SUP_BUFFER_SIZES_MASK = 1 << 4,
+	GVE_SUP_MODIFY_RING_MASK	= 1 << 0,
+	GVE_SUP_JUMBO_FRAMES_MASK	= 1 << 2,
+	GVE_SUP_BUFFER_SIZES_MASK	= 1 << 4,
 };
 
 #define GVE_DEV_OPT_LEN_GQI_RAW_ADDRESSING 0x0
@@ -439,7 +451,9 @@ int gve_adminq_configure_device_resources(struct gve_priv *priv,
 int gve_adminq_deconfigure_device_resources(struct gve_priv *priv);
 int gve_adminq_create_tx_queues(struct gve_priv *priv, u32 start_id, u32 num_queues);
 int gve_adminq_destroy_tx_queues(struct gve_priv *priv, u32 start_id, u32 num_queues);
+int gve_adminq_create_single_rx_queue(struct gve_priv *priv, u32 queue_index);
 int gve_adminq_create_rx_queues(struct gve_priv *priv, u32 num_queues);
+int gve_adminq_destroy_single_rx_queue(struct gve_priv *priv, u32 queue_index);
 int gve_adminq_destroy_rx_queues(struct gve_priv *priv, u32 queue_id);
 int gve_adminq_register_page_list(struct gve_priv *priv,
 				  struct gve_queue_page_list *qpl);

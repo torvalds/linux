@@ -805,8 +805,8 @@ dump_blkd_tasks(struct rcu_node *rnp, int ncheck)
 		rdp = per_cpu_ptr(&rcu_data, cpu);
 		pr_info("\t%d: %c online: %ld(%d) offline: %ld(%d)\n",
 			cpu, ".o"[rcu_rdp_cpu_online(rdp)],
-			(long)rdp->rcu_onl_gp_seq, rdp->rcu_onl_gp_flags,
-			(long)rdp->rcu_ofl_gp_seq, rdp->rcu_ofl_gp_flags);
+			(long)rdp->rcu_onl_gp_seq, rdp->rcu_onl_gp_state,
+			(long)rdp->rcu_ofl_gp_seq, rdp->rcu_ofl_gp_state);
 	}
 }
 

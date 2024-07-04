@@ -236,8 +236,11 @@ static int mei_pxp_component_match(struct device *dev, int subcomponent,
 
 	pdev = to_pci_dev(dev);
 
-	if (pdev->class != (PCI_CLASS_DISPLAY_VGA << 8) ||
-	    pdev->vendor != PCI_VENDOR_ID_INTEL)
+	if (pdev->vendor != PCI_VENDOR_ID_INTEL)
+		return 0;
+
+	if (pdev->class != (PCI_CLASS_DISPLAY_VGA << 8) &&
+	    pdev->class != (PCI_CLASS_DISPLAY_OTHER << 8))
 		return 0;
 
 	if (subcomponent != I915_COMPONENT_PXP)

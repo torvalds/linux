@@ -7,6 +7,16 @@
 #include <linux/ftrace.h>
 #include <linux/rethook.h>
 
+struct fprobe;
+
+typedef int (*fprobe_entry_cb)(struct fprobe *fp, unsigned long entry_ip,
+			       unsigned long ret_ip, struct pt_regs *regs,
+			       void *entry_data);
+
+typedef void (*fprobe_exit_cb)(struct fprobe *fp, unsigned long entry_ip,
+			       unsigned long ret_ip, struct pt_regs *regs,
+			       void *entry_data);
+
 /**
  * struct fprobe - ftrace based probe.
  * @ops: The ftrace_ops.
@@ -34,12 +44,8 @@ struct fprobe {
 	size_t			entry_data_size;
 	int			nr_maxactive;
 
-	int (*entry_handler)(struct fprobe *fp, unsigned long entry_ip,
-			     unsigned long ret_ip, struct pt_regs *regs,
-			     void *entry_data);
-	void (*exit_handler)(struct fprobe *fp, unsigned long entry_ip,
-			     unsigned long ret_ip, struct pt_regs *regs,
-			     void *entry_data);
+	fprobe_entry_cb entry_handler;
+	fprobe_exit_cb  exit_handler;
 };
 
 /* This fprobe is soft-disabled. */

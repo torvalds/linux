@@ -41,11 +41,11 @@ static_assert((BTRFS_MAX_COMPRESSED % PAGE_SIZE) == 0);
 #define	BTRFS_ZLIB_DEFAULT_LEVEL		3
 
 struct compressed_bio {
-	/* Number of compressed pages in the array */
-	unsigned int nr_pages;
+	/* Number of compressed folios in the array. */
+	unsigned int nr_folios;
 
-	/* the pages with the compressed data on them */
-	struct page **compressed_pages;
+	/* The folios with the compressed data on them. */
+	struct folio **compressed_folios;
 
 	/* starting offset in the inode for our pages */
 	u64 start;
@@ -85,27 +85,24 @@ static inline unsigned int btrfs_compress_level(unsigned int type_level)
 int __init btrfs_init_compress(void);
 void __cold btrfs_exit_compress(void);
 
-int btrfs_compress_pages(unsigned int type_level, struct address_space *mapping,
-			 u64 start, struct page **pages,
-			 unsigned long *out_pages,
-			 unsigned long *total_in,
-			 unsigned long *total_out);
+int btrfs_compress_folios(unsigned int type_level, struct address_space *mapping,
+			  u64 start, struct folio **folios, unsigned long *out_folios,
+			 unsigned long *total_in, unsigned long *total_out);
 int btrfs_decompress(int type, const u8 *data_in, struct page *dest_page,
 		     unsigned long start_byte, size_t srclen, size_t destlen);
 int btrfs_decompress_buf2page(const char *buf, u32 buf_len,
 			      struct compressed_bio *cb, u32 decompressed);
 
 void btrfs_submit_compressed_write(struct btrfs_ordered_extent *ordered,
-				  struct page **compressed_pages,
-				  unsigned int nr_pages,
-				  blk_opf_t write_flags,
-				  bool writeback);
+				   struct folio **compressed_folios,
+				   unsigned int nr_folios, blk_opf_t write_flags,
+				   bool writeback);
 void btrfs_submit_compressed_read(struct btrfs_bio *bbio);
 
 unsigned int btrfs_compress_str2level(unsigned int type, const char *str);
 
-struct page *btrfs_alloc_compr_page(void);
-void btrfs_free_compr_page(struct page *page);
+struct folio *btrfs_alloc_compr_folio(void);
+void btrfs_free_compr_folio(struct folio *folio);
 
 enum btrfs_compression_type {
 	BTRFS_COMPRESS_NONE  = 0,
@@ -149,8 +146,11 @@ bool btrfs_compress_is_valid_type(const char *str, size_t len);
 
 int btrfs_compress_heuristic(struct inode *inode, u64 start, u64 end);
 
-int zlib_compress_pages(struct list_head *ws, struct address_space *mapping,
-		u64 start, struct page **pages, unsigned long *out_pages,
+int btrfs_compress_filemap_get_folio(struct address_space *mapping, u64 start,
+				     struct folio **in_folio_ret);
+
+int zlib_compress_folios(struct list_head *ws, struct address_space *mapping,
+			 u64 start, struct folio **folios, unsigned long *out_folios,
 		unsigned long *total_in, unsigned long *total_out);
 int zlib_decompress_bio(struct list_head *ws, struct compressed_bio *cb);
 int zlib_decompress(struct list_head *ws, const u8 *data_in,
@@ -160,8 +160,8 @@ struct list_head *zlib_alloc_workspace(unsigned int level);
 void zlib_free_workspace(struct list_head *ws);
 struct list_head *zlib_get_workspace(unsigned int level);
 
-int lzo_compress_pages(struct list_head *ws, struct address_space *mapping,
-		u64 start, struct page **pages, unsigned long *out_pages,
+int lzo_compress_folios(struct list_head *ws, struct address_space *mapping,
+			u64 start, struct folio **folios, unsigned long *out_folios,
 		unsigned long *total_in, unsigned long *total_out);
 int lzo_decompress_bio(struct list_head *ws, struct compressed_bio *cb);
 int lzo_decompress(struct list_head *ws, const u8 *data_in,
@@ -170,8 +170,8 @@ int lzo_decompress(struct list_head *ws, const u8 *data_in,
 struct list_head *lzo_alloc_workspace(unsigned int level);
 void lzo_free_workspace(struct list_head *ws);
 
-int zstd_compress_pages(struct list_head *ws, struct address_space *mapping,
-		u64 start, struct page **pages, unsigned long *out_pages,
+int zstd_compress_folios(struct list_head *ws, struct address_space *mapping,
+			 u64 start, struct folio **folios, unsigned long *out_folios,
 		unsigned long *total_in, unsigned long *total_out);
 int zstd_decompress_bio(struct list_head *ws, struct compressed_bio *cb);
 int zstd_decompress(struct list_head *ws, const u8 *data_in,

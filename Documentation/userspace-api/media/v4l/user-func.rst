@@ -62,6 +62,7 @@ Function Reference
     vidioc-query-dv-timings
     vidioc-querystd
     vidioc-reqbufs
+    vidioc-remove-bufs
     vidioc-s-hw-freq-seek
     vidioc-streamon
     vidioc-subdev-enum-frame-interval

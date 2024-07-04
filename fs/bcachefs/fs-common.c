@@ -42,7 +42,7 @@ int bch2_create_trans(struct btree_trans *trans,
 	if (ret)
 		goto err;
 
-	ret = bch2_inode_peek(trans, &dir_iter, dir_u, dir, BTREE_ITER_INTENT);
+	ret = bch2_inode_peek(trans, &dir_iter, dir_u, dir, BTREE_ITER_intent);
 	if (ret)
 		goto err;
 
@@ -70,7 +70,7 @@ int bch2_create_trans(struct btree_trans *trans,
 			struct bch_subvolume s;
 
 			ret = bch2_subvolume_get(trans, snapshot_src.subvol, true,
-						 BTREE_ITER_CACHED, &s);
+						 BTREE_ITER_cached, &s);
 			if (ret)
 				goto err;
 
@@ -78,7 +78,7 @@ int bch2_create_trans(struct btree_trans *trans,
 		}
 
 		ret = bch2_inode_peek(trans, &inode_iter, new_inode, snapshot_src,
-				      BTREE_ITER_INTENT);
+				      BTREE_ITER_intent);
 		if (ret)
 			goto err;
 
@@ -163,7 +163,7 @@ int bch2_create_trans(struct btree_trans *trans,
 					 name,
 					 dir_target,
 					 &dir_offset,
-					 BCH_HASH_SET_MUST_CREATE);
+					 STR_HASH_must_create);
 		if (ret)
 			goto err;
 
@@ -171,7 +171,7 @@ int bch2_create_trans(struct btree_trans *trans,
 		new_inode->bi_dir_offset	= dir_offset;
 	}
 
-	inode_iter.flags &= ~BTREE_ITER_ALL_SNAPSHOTS;
+	inode_iter.flags &= ~BTREE_ITER_all_snapshots;
 	bch2_btree_iter_set_snapshot(&inode_iter, snapshot);
 
 	ret   = bch2_btree_iter_traverse(&inode_iter) ?:
@@ -198,16 +198,16 @@ int bch2_link_trans(struct btree_trans *trans,
 	if (dir.subvol != inum.subvol)
 		return -EXDEV;
 
-	ret = bch2_inode_peek(trans, &inode_iter, inode_u, inum, BTREE_ITER_INTENT);
+	ret = bch2_inode_peek(trans, &inode_iter, inode_u, inum, BTREE_ITER_intent);
 	if (ret)
-		goto err;
+		return ret;
 
 	inode_u->bi_ctime = now;
 	ret = bch2_inode_nlink_inc(inode_u);
 	if (ret)
-		return ret;
+		goto err;
 
-	ret = bch2_inode_peek(trans, &dir_iter, dir_u, dir, BTREE_ITER_INTENT);
+	ret = bch2_inode_peek(trans, &dir_iter, dir_u, dir, BTREE_ITER_intent);
 	if (ret)
 		goto err;
 
@@ -223,7 +223,7 @@ int bch2_link_trans(struct btree_trans *trans,
 	ret = bch2_dirent_create(trans, dir, &dir_hash,
 				 mode_to_type(inode_u->bi_mode),
 				 name, inum.inum, &dir_offset,
-				 BCH_HASH_SET_MUST_CREATE);
+				 STR_HASH_must_create);
 	if (ret)
 		goto err;
 
@@ -255,19 +255,19 @@ int bch2_unlink_trans(struct btree_trans *trans,
 	struct bkey_s_c k;
 	int ret;
 
-	ret = bch2_inode_peek(trans, &dir_iter, dir_u, dir, BTREE_ITER_INTENT);
+	ret = bch2_inode_peek(trans, &dir_iter, dir_u, dir, BTREE_ITER_intent);
 	if (ret)
 		goto err;
 
 	dir_hash = bch2_hash_info_init(c, dir_u);
 
 	ret = bch2_dirent_lookup_trans(trans, &dirent_iter, dir, &dir_hash,
-				       name, &inum, BTREE_ITER_INTENT);
+				       name, &inum, BTREE_ITER_intent);
 	if (ret)
 		goto err;
 
 	ret = bch2_inode_peek(trans, &inode_iter, inode_u, inum,
-			      BTREE_ITER_INTENT);
+			      BTREE_ITER_intent);
 	if (ret)
 		goto err;
 
@@ -322,7 +322,7 @@ int bch2_unlink_trans(struct btree_trans *trans,
 
 	ret =   bch2_hash_delete_at(trans, bch2_dirent_hash_desc,
 				    &dir_hash, &dirent_iter,
-				    BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE) ?:
+				    BTREE_UPDATE_internal_snapshot_node) ?:
 		bch2_inode_write(trans, &dir_iter, dir_u) ?:
 		bch2_inode_write(trans, &inode_iter, inode_u);
 err:
@@ -363,7 +363,7 @@ static int subvol_update_parent(struct btree_trans *trans, u32 subvol, u32 new_p
 	struct bkey_i_subvolume *s =
 		bch2_bkey_get_mut_typed(trans, &iter,
 			BTREE_ID_subvolumes, POS(0, subvol),
-			BTREE_ITER_CACHED, subvolume);
+			BTREE_ITER_cached, subvolume);
 	int ret = PTR_ERR_OR_ZERO(s);
 	if (ret)
 		return ret;
@@ -394,7 +394,7 @@ int bch2_rename_trans(struct btree_trans *trans,
 	int ret;
 
 	ret = bch2_inode_peek(trans, &src_dir_iter, src_dir_u, src_dir,
-			      BTREE_ITER_INTENT);
+			      BTREE_ITER_intent);
 	if (ret)
 		goto err;
 
@@ -403,7 +403,7 @@ int bch2_rename_trans(struct btree_trans *trans,
 	if (dst_dir.inum	!= src_dir.inum ||
 	    dst_dir.subvol	!= src_dir.subvol) {
 		ret = bch2_inode_peek(trans, &dst_dir_iter, dst_dir_u, dst_dir,
-				      BTREE_ITER_INTENT);
+				      BTREE_ITER_intent);
 		if (ret)
 			goto err;
 
@@ -423,13 +423,13 @@ int bch2_rename_trans(struct btree_trans *trans,
 		goto err;
 
 	ret = bch2_inode_peek(trans, &src_inode_iter, src_inode_u, src_inum,
-			      BTREE_ITER_INTENT);
+			      BTREE_ITER_intent);
 	if (ret)
 		goto err;
 
 	if (dst_inum.inum) {
 		ret = bch2_inode_peek(trans, &dst_inode_iter, dst_inode_u, dst_inum,
-				      BTREE_ITER_INTENT);
+				      BTREE_ITER_intent);
 		if (ret)
 			goto err;
 	}

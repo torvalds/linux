@@ -1361,7 +1361,7 @@ static int __init resume_setup(char *str)
 	if (noresume)
 		return 1;
 
-	strncpy(resume_file, str, 255);
+	strscpy(resume_file, str);
 	return 1;
 }
 

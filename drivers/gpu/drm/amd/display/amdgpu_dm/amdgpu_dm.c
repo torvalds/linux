@@ -531,7 +531,7 @@ static void dm_vupdate_high_irq(void *interrupt_params)
 	if (acrtc) {
 		vrr_active = amdgpu_dm_crtc_vrr_active_irq(acrtc);
 		drm_dev = acrtc->base.dev;
-		vblank = &drm_dev->vblank[acrtc->base.index];
+		vblank = drm_crtc_vblank_crtc(&acrtc->base);
 		previous_timestamp = atomic64_read(&irq_params->previous_timestamp);
 		frame_duration_ns = vblank->time - previous_timestamp;
 
@@ -4556,15 +4556,18 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 	/* Determine whether to enable Replay support by default. */
 	if (!(amdgpu_dc_debug_mask & DC_DISABLE_REPLAY)) {
 		switch (amdgpu_ip_version(adev, DCE_HWIP, 0)) {
-		case IP_VERSION(3, 1, 4):
-		case IP_VERSION(3, 1, 5):
-		case IP_VERSION(3, 1, 6):
-		case IP_VERSION(3, 2, 0):
-		case IP_VERSION(3, 2, 1):
-		case IP_VERSION(3, 5, 0):
-		case IP_VERSION(3, 5, 1):
-			replay_feature_enabled = true;
-			break;
+/*
+ * Disabled by default due to https://gitlab.freedesktop.org/drm/amd/-/issues/3344
+ *		case IP_VERSION(3, 1, 4):
+ *		case IP_VERSION(3, 1, 5):
+ *		case IP_VERSION(3, 1, 6):
+ *		case IP_VERSION(3, 2, 0):
+ *		case IP_VERSION(3, 2, 1):
+ *		case IP_VERSION(3, 5, 0):
+ *		case IP_VERSION(3, 5, 1):
+ *			replay_feature_enabled = true;
+ *			break;
+ */
 		default:
 			replay_feature_enabled = amdgpu_dc_feature_mask & DC_REPLAY_MASK;
 			break;

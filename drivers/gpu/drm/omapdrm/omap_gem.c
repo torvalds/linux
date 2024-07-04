@@ -9,6 +9,7 @@
 #include <linux/shmem_fs.h>
 #include <linux/spinlock.h>
 #include <linux/pfn_t.h>
+#include <linux/vmalloc.h>
 
 #include <drm/drm_prime.h>
 #include <drm/drm_vma_manager.h>
@@ -1022,8 +1023,8 @@ struct sg_table *omap_gem_get_sg(struct drm_gem_object *obj,
 
 	if (addr) {
 		for_each_sg(sgt->sgl, sg, count, i) {
-			sg_set_page(sg, phys_to_page(addr), len,
-				offset_in_page(addr));
+			sg_set_page(sg, pfn_to_page(__phys_to_pfn(addr)),
+				    len, offset_in_page(addr));
 			sg_dma_address(sg) = addr;
 			sg_dma_len(sg) = len;
 

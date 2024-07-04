@@ -673,7 +673,7 @@ int btrfs_ref_tree_mod(struct btrfs_fs_info *fs_info,
 	int ret = 0;
 	bool metadata;
 	u64 bytenr = generic_ref->bytenr;
-	u64 num_bytes = generic_ref->len;
+	u64 num_bytes = generic_ref->num_bytes;
 	u64 parent = generic_ref->parent;
 	u64 ref_root = 0;
 	u64 owner = 0;
@@ -684,11 +684,11 @@ int btrfs_ref_tree_mod(struct btrfs_fs_info *fs_info,
 
 	if (generic_ref->type == BTRFS_REF_METADATA) {
 		if (!parent)
-			ref_root = generic_ref->tree_ref.ref_root;
+			ref_root = generic_ref->ref_root;
 		owner = generic_ref->tree_ref.level;
 	} else if (!parent) {
-		ref_root = generic_ref->data_ref.ref_root;
-		owner = generic_ref->data_ref.ino;
+		ref_root = generic_ref->ref_root;
+		owner = generic_ref->data_ref.objectid;
 		offset = generic_ref->data_ref.offset;
 	}
 	metadata = owner < BTRFS_FIRST_FREE_OBJECTID;

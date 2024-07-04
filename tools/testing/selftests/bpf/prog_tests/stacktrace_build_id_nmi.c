@@ -35,7 +35,7 @@ retry:
 	pmu_fd = syscall(__NR_perf_event_open, &attr, -1 /* pid */,
 			 0 /* cpu 0 */, -1 /* group id */,
 			 0 /* flags */);
-	if (pmu_fd < 0 && errno == ENOENT) {
+	if (pmu_fd < 0 && (errno == ENOENT || errno == EOPNOTSUPP)) {
 		printf("%s:SKIP:no PERF_COUNT_HW_CPU_CYCLES\n", __func__);
 		test__skip();
 		goto cleanup;

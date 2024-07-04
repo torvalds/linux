@@ -97,6 +97,21 @@ void fsnotify_get_mark(struct fsnotify_mark *mark)
 	refcount_inc(&mark->refcnt);
 }
 
+static fsnotify_connp_t *fsnotify_object_connp(void *obj,
+				enum fsnotify_obj_type obj_type)
+{
+	switch (obj_type) {
+	case FSNOTIFY_OBJ_TYPE_INODE:
+		return &((struct inode *)obj)->i_fsnotify_marks;
+	case FSNOTIFY_OBJ_TYPE_VFSMOUNT:
+		return &real_mount(obj)->mnt_fsnotify_marks;
+	case FSNOTIFY_OBJ_TYPE_SB:
+		return fsnotify_sb_marks(obj);
+	default:
+		return NULL;
+	}
+}
+
 static __u32 *fsnotify_conn_mask_p(struct fsnotify_mark_connector *conn)
 {
 	if (conn->type == FSNOTIFY_OBJ_TYPE_INODE)
@@ -116,10 +131,69 @@ __u32 fsnotify_conn_mask(struct fsnotify_mark_connector *conn)
 	return *fsnotify_conn_mask_p(conn);
 }
 
+static void fsnotify_get_sb_watched_objects(struct super_block *sb)
+{
+	atomic_long_inc(fsnotify_sb_watched_objects(sb));
+}
+
+static void fsnotify_put_sb_watched_objects(struct super_block *sb)
+{
+	if (atomic_long_dec_and_test(fsnotify_sb_watched_objects(sb)))
+		wake_up_var(fsnotify_sb_watched_objects(sb));
+}
+
 static void fsnotify_get_inode_ref(struct inode *inode)
 {
 	ihold(inode);
-	atomic_long_inc(&inode->i_sb->s_fsnotify_connectors);
+	fsnotify_get_sb_watched_objects(inode->i_sb);
+}
+
+static void fsnotify_put_inode_ref(struct inode *inode)
+{
+	fsnotify_put_sb_watched_objects(inode->i_sb);
+	iput(inode);
+}
+
+/*
+ * Grab or drop watched objects reference depending on whether the connector
+ * is attached and has any marks attached.
+ */
+static void fsnotify_update_sb_watchers(struct super_block *sb,
+					struct fsnotify_mark_connector *conn)
+{
+	struct fsnotify_sb_info *sbinfo = fsnotify_sb_info(sb);
+	bool is_watched = conn->flags & FSNOTIFY_CONN_FLAG_IS_WATCHED;
+	struct fsnotify_mark *first_mark = NULL;
+	unsigned int highest_prio = 0;
+
+	if (conn->obj)
+		first_mark = hlist_entry_safe(conn->list.first,
+					      struct fsnotify_mark, obj_list);
+	if (first_mark)
+		highest_prio = first_mark->group->priority;
+	if (WARN_ON(highest_prio >= __FSNOTIFY_PRIO_NUM))
+		highest_prio = 0;
+
+	/*
+	 * If the highest priority of group watching this object is prio,
+	 * then watched object has a reference on counters [0..prio].
+	 * Update priority >= 1 watched objects counters.
+	 */
+	for (unsigned int p = conn->prio + 1; p <= highest_prio; p++)
+		atomic_long_inc(&sbinfo->watched_objects[p]);
+	for (unsigned int p = conn->prio; p > highest_prio; p--)
+		atomic_long_dec(&sbinfo->watched_objects[p]);
+	conn->prio = highest_prio;
+
+	/* Update priority >= 0 (a.k.a total) watched objects counter */
+	BUILD_BUG_ON(FSNOTIFY_PRIO_NORMAL != 0);
+	if (first_mark && !is_watched) {
+		conn->flags |= FSNOTIFY_CONN_FLAG_IS_WATCHED;
+		fsnotify_get_sb_watched_objects(sb);
+	} else if (!first_mark && is_watched) {
+		conn->flags &= ~FSNOTIFY_CONN_FLAG_IS_WATCHED;
+		fsnotify_put_sb_watched_objects(sb);
+	}
 }
 
 /*
@@ -213,35 +287,12 @@ static void fsnotify_connector_destroy_workfn(struct work_struct *work)
 	}
 }
 
-static void fsnotify_put_inode_ref(struct inode *inode)
-{
-	struct super_block *sb = inode->i_sb;
-
-	iput(inode);
-	if (atomic_long_dec_and_test(&sb->s_fsnotify_connectors))
-		wake_up_var(&sb->s_fsnotify_connectors);
-}
-
-static void fsnotify_get_sb_connectors(struct fsnotify_mark_connector *conn)
-{
-	struct super_block *sb = fsnotify_connector_sb(conn);
-
-	if (sb)
-		atomic_long_inc(&sb->s_fsnotify_connectors);
-}
-
-static void fsnotify_put_sb_connectors(struct fsnotify_mark_connector *conn)
-{
-	struct super_block *sb = fsnotify_connector_sb(conn);
-
-	if (sb && atomic_long_dec_and_test(&sb->s_fsnotify_connectors))
-		wake_up_var(&sb->s_fsnotify_connectors);
-}
-
 static void *fsnotify_detach_connector_from_object(
 					struct fsnotify_mark_connector *conn,
 					unsigned int *type)
 {
+	fsnotify_connp_t *connp = fsnotify_object_connp(conn->obj, conn->type);
+	struct super_block *sb = fsnotify_connector_sb(conn);
 	struct inode *inode = NULL;
 
 	*type = conn->type;
@@ -261,10 +312,10 @@ static void *fsnotify_detach_connector_from_object(
 		fsnotify_conn_sb(conn)->s_fsnotify_mask = 0;
 	}
 
-	fsnotify_put_sb_connectors(conn);
-	rcu_assign_pointer(*(conn->obj), NULL);
+	rcu_assign_pointer(*connp, NULL);
 	conn->obj = NULL;
 	conn->type = FSNOTIFY_OBJ_TYPE_DETACHED;
+	fsnotify_update_sb_watchers(sb, conn);
 
 	return inode;
 }
@@ -316,6 +367,11 @@ void fsnotify_put_mark(struct fsnotify_mark *mark)
 		objp = fsnotify_detach_connector_from_object(conn, &type);
 		free_conn = true;
 	} else {
+		struct super_block *sb = fsnotify_connector_sb(conn);
+
+		/* Update watched objects after detaching mark */
+		if (sb)
+			fsnotify_update_sb_watchers(sb, conn);
 		objp = __fsnotify_recalc_mask(conn);
 		type = conn->type;
 	}
@@ -536,8 +592,28 @@ int fsnotify_compare_groups(struct fsnotify_group *a, struct fsnotify_group *b)
 	return -1;
 }
 
+static int fsnotify_attach_info_to_sb(struct super_block *sb)
+{
+	struct fsnotify_sb_info *sbinfo;
+
+	/* sb info is freed on fsnotify_sb_delete() */
+	sbinfo = kzalloc(sizeof(*sbinfo), GFP_KERNEL);
+	if (!sbinfo)
+		return -ENOMEM;
+
+	/*
+	 * cmpxchg() provides the barrier so that callers of fsnotify_sb_info()
+	 * will observe an initialized structure
+	 */
+	if (cmpxchg(&sb->s_fsnotify_info, NULL, sbinfo)) {
+		/* Someone else created sbinfo for us */
+		kfree(sbinfo);
+	}
+	return 0;
+}
+
 static int fsnotify_attach_connector_to_object(fsnotify_connp_t *connp,
-					       unsigned int obj_type)
+					       void *obj, unsigned int obj_type)
 {
 	struct fsnotify_mark_connector *conn;
 
@@ -547,10 +623,9 @@ static int fsnotify_attach_connector_to_object(fsnotify_connp_t *connp,
 	spin_lock_init(&conn->lock);
 	INIT_HLIST_HEAD(&conn->list);
 	conn->flags = 0;
+	conn->prio = 0;
 	conn->type = obj_type;
-	conn->obj = connp;
-	conn->flags = 0;
-	fsnotify_get_sb_connectors(conn);
+	conn->obj = obj;
 
 	/*
 	 * cmpxchg() provides the barrier so that readers of *connp can see
@@ -558,10 +633,8 @@ static int fsnotify_attach_connector_to_object(fsnotify_connp_t *connp,
 	 */
 	if (cmpxchg(connp, NULL, conn)) {
 		/* Someone else created list structure for us */
-		fsnotify_put_sb_connectors(conn);
 		kmem_cache_free(fsnotify_mark_connector_cachep, conn);
 	}
-
 	return 0;
 }
 
@@ -598,24 +671,36 @@ out:
  * to which group and for which inodes. These marks are ordered according to
  * priority, highest number first, and then by the group's location in memory.
  */
-static int fsnotify_add_mark_list(struct fsnotify_mark *mark,
-				  fsnotify_connp_t *connp,
+static int fsnotify_add_mark_list(struct fsnotify_mark *mark, void *obj,
 				  unsigned int obj_type, int add_flags)
 {
+	struct super_block *sb = fsnotify_object_sb(obj, obj_type);
 	struct fsnotify_mark *lmark, *last = NULL;
 	struct fsnotify_mark_connector *conn;
+	fsnotify_connp_t *connp;
 	int cmp;
 	int err = 0;
 
 	if (WARN_ON(!fsnotify_valid_obj_type(obj_type)))
 		return -EINVAL;
 
+	/*
+	 * Attach the sb info before attaching a connector to any object on sb.
+	 * The sb info will remain attached as long as sb lives.
+	 */
+	if (!fsnotify_sb_info(sb)) {
+		err = fsnotify_attach_info_to_sb(sb);
+		if (err)
+			return err;
+	}
+
+	connp = fsnotify_object_connp(obj, obj_type);
 restart:
 	spin_lock(&mark->lock);
 	conn = fsnotify_grab_connector(connp);
 	if (!conn) {
 		spin_unlock(&mark->lock);
-		err = fsnotify_attach_connector_to_object(connp, obj_type);
+		err = fsnotify_attach_connector_to_object(connp, obj, obj_type);
 		if (err)
 			return err;
 		goto restart;
@@ -649,6 +734,7 @@ restart:
 	/* mark should be the last entry.  last is the current last entry */
 	hlist_add_behind_rcu(&mark->obj_list, &last->obj_list);
 added:
+	fsnotify_update_sb_watchers(sb, conn);
 	/*
 	 * Since connector is attached to object using cmpxchg() we are
 	 * guaranteed that connector initialization is fully visible by anyone
@@ -667,7 +753,7 @@ out_err:
  * event types should be delivered to which group.
  */
 int fsnotify_add_mark_locked(struct fsnotify_mark *mark,
-			     fsnotify_connp_t *connp, unsigned int obj_type,
+			     void *obj, unsigned int obj_type,
 			     int add_flags)
 {
 	struct fsnotify_group *group = mark->group;
@@ -688,7 +774,7 @@ int fsnotify_add_mark_locked(struct fsnotify_mark *mark,
 	fsnotify_get_mark(mark); /* for g_list */
 	spin_unlock(&mark->lock);
 
-	ret = fsnotify_add_mark_list(mark, connp, obj_type, add_flags);
+	ret = fsnotify_add_mark_list(mark, obj, obj_type, add_flags);
 	if (ret)
 		goto err;
 
@@ -706,14 +792,14 @@ err:
 	return ret;
 }
 
-int fsnotify_add_mark(struct fsnotify_mark *mark, fsnotify_connp_t *connp,
+int fsnotify_add_mark(struct fsnotify_mark *mark, void *obj,
 		      unsigned int obj_type, int add_flags)
 {
 	int ret;
 	struct fsnotify_group *group = mark->group;
 
 	fsnotify_group_lock(group);
-	ret = fsnotify_add_mark_locked(mark, connp, obj_type, add_flags);
+	ret = fsnotify_add_mark_locked(mark, obj, obj_type, add_flags);
 	fsnotify_group_unlock(group);
 	return ret;
 }
@@ -723,11 +809,15 @@ EXPORT_SYMBOL_GPL(fsnotify_add_mark);
  * Given a list of marks, find the mark associated with given group. If found
  * take a reference to that mark and return it, else return NULL.
  */
-struct fsnotify_mark *fsnotify_find_mark(fsnotify_connp_t *connp,
+struct fsnotify_mark *fsnotify_find_mark(void *obj, unsigned int obj_type,
 					 struct fsnotify_group *group)
 {
+	fsnotify_connp_t *connp = fsnotify_object_connp(obj, obj_type);
 	struct fsnotify_mark_connector *conn;
 	struct fsnotify_mark *mark;
+
+	if (!connp)
+		return NULL;
 
 	conn = fsnotify_grab_connector(connp);
 	if (!conn)

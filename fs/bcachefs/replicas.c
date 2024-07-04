@@ -23,14 +23,12 @@ static int bch2_memcmp(const void *l, const void *r,  const void *priv)
 static void verify_replicas_entry(struct bch_replicas_entry_v1 *e)
 {
 #ifdef CONFIG_BCACHEFS_DEBUG
-	unsigned i;
-
 	BUG_ON(e->data_type >= BCH_DATA_NR);
 	BUG_ON(!e->nr_devs);
 	BUG_ON(e->nr_required > 1 &&
 	       e->nr_required >= e->nr_devs);
 
-	for (i = 0; i + 1 < e->nr_devs; i++)
+	for (unsigned i = 0; i + 1 < e->nr_devs; i++)
 		BUG_ON(e->devs[i] >= e->devs[i + 1]);
 #endif
 }
@@ -84,7 +82,7 @@ int bch2_replicas_entry_validate(struct bch_replicas_entry_v1 *r,
 	}
 
 	for (unsigned i = 0; i < r->nr_devs; i++)
-		if (!bch2_dev_exists(sb, r->devs[i])) {
+		if (!bch2_member_exists(sb, r->devs[i])) {
 			prt_printf(err, "invalid device %u in entry ", r->devs[i]);
 			goto bad;
 		}
@@ -192,24 +190,17 @@ cpu_replicas_add_entry(struct bch_fs *c,
 		       struct bch_replicas_cpu *old,
 		       struct bch_replicas_entry_v1 *new_entry)
 {
-	unsigned i;
 	struct bch_replicas_cpu new = {
 		.nr		= old->nr + 1,
 		.entry_size	= max_t(unsigned, old->entry_size,
 					replicas_entry_bytes(new_entry)),
 	};
 
-	for (i = 0; i < new_entry->nr_devs; i++)
-		BUG_ON(!bch2_dev_exists2(c, new_entry->devs[i]));
-
-	BUG_ON(!new_entry->data_type);
-	verify_replicas_entry(new_entry);
-
 	new.entries = kcalloc(new.nr, new.entry_size, GFP_KERNEL);
 	if (!new.entries)
 		return new;
 
-	for (i = 0; i < old->nr; i++)
+	for (unsigned i = 0; i < old->nr; i++)
 		memcpy(cpu_replicas_entry(&new, i),
 		       cpu_replicas_entry(old, i),
 		       old->entry_size);
@@ -229,8 +220,6 @@ static inline int __replicas_entry_idx(struct bch_replicas_cpu *r,
 
 	if (unlikely(entry_size > r->entry_size))
 		return -1;
-
-	verify_replicas_entry(search);
 
 #define entry_cmp(_l, _r)	memcmp(_l, _r, entry_size)
 	idx = eytzinger0_find(r->entries, r->nr, r->entry_size,
@@ -524,13 +513,16 @@ int bch2_replicas_gc_start(struct bch_fs *c, unsigned typemask)
 	c->replicas_gc.nr		= 0;
 	c->replicas_gc.entry_size	= 0;
 
-	for_each_cpu_replicas_entry(&c->replicas, e)
-		if (!((1 << e->data_type) & typemask)) {
+	for_each_cpu_replicas_entry(&c->replicas, e) {
+		/* Preserve unknown data types */
+		if (e->data_type >= BCH_DATA_NR ||
+		    !((1 << e->data_type) & typemask)) {
 			c->replicas_gc.nr++;
 			c->replicas_gc.entry_size =
 				max_t(unsigned, c->replicas_gc.entry_size,
 				      replicas_entry_bytes(e));
 		}
+	}
 
 	c->replicas_gc.entries = kcalloc(c->replicas_gc.nr,
 					 c->replicas_gc.entry_size,
@@ -542,7 +534,8 @@ int bch2_replicas_gc_start(struct bch_fs *c, unsigned typemask)
 	}
 
 	for_each_cpu_replicas_entry(&c->replicas, e)
-		if (!((1 << e->data_type) & typemask))
+		if (e->data_type >= BCH_DATA_NR ||
+		    !((1 << e->data_type) & typemask))
 			memcpy(cpu_replicas_entry(&c->replicas_gc, i++),
 			       e, c->replicas_gc.entry_size);
 
@@ -860,7 +853,7 @@ static int bch2_cpu_replicas_validate(struct bch_replicas_cpu *cpu_r,
 }
 
 static int bch2_sb_replicas_validate(struct bch_sb *sb, struct bch_sb_field *f,
-				     struct printbuf *err)
+				     enum bch_validate_flags flags, struct printbuf *err)
 {
 	struct bch_sb_field_replicas *sb_r = field_to_type(f, replicas);
 	struct bch_replicas_cpu cpu_r;
@@ -899,7 +892,7 @@ const struct bch_sb_field_ops bch_sb_field_ops_replicas = {
 };
 
 static int bch2_sb_replicas_v0_validate(struct bch_sb *sb, struct bch_sb_field *f,
-					struct printbuf *err)
+					enum bch_validate_flags flags, struct printbuf *err)
 {
 	struct bch_sb_field_replicas_v0 *sb_r = field_to_type(f, replicas_v0);
 	struct bch_replicas_cpu cpu_r;
@@ -947,18 +940,20 @@ bool bch2_have_enough_devs(struct bch_fs *c, struct bch_devs_mask devs,
 
 	percpu_down_read(&c->mark_lock);
 	for_each_cpu_replicas_entry(&c->replicas, e) {
-		unsigned i, nr_online = 0, nr_failed = 0, dflags = 0;
+		unsigned nr_online = 0, nr_failed = 0, dflags = 0;
 		bool metadata = e->data_type < BCH_DATA_user;
 
 		if (e->data_type == BCH_DATA_cached)
 			continue;
 
-		for (i = 0; i < e->nr_devs; i++) {
-			struct bch_dev *ca = bch_dev_bkey_exists(c, e->devs[i]);
-
+		rcu_read_lock();
+		for (unsigned i = 0; i < e->nr_devs; i++) {
 			nr_online += test_bit(e->devs[i], devs.d);
-			nr_failed += ca->mi.state == BCH_MEMBER_STATE_failed;
+
+			struct bch_dev *ca = bch2_dev_rcu(c, e->devs[i]);
+			nr_failed += ca && ca->mi.state == BCH_MEMBER_STATE_failed;
 		}
+		rcu_read_unlock();
 
 		if (nr_failed == e->nr_devs)
 			continue;
@@ -996,7 +991,7 @@ unsigned bch2_sb_dev_has_data(struct bch_sb *sb, unsigned dev)
 {
 	struct bch_sb_field_replicas *replicas;
 	struct bch_sb_field_replicas_v0 *replicas_v0;
-	unsigned i, data_has = 0;
+	unsigned data_has = 0;
 
 	replicas = bch2_sb_field_get(sb, replicas);
 	replicas_v0 = bch2_sb_field_get(sb, replicas_v0);
@@ -1004,17 +999,26 @@ unsigned bch2_sb_dev_has_data(struct bch_sb *sb, unsigned dev)
 	if (replicas) {
 		struct bch_replicas_entry_v1 *r;
 
-		for_each_replicas_entry(replicas, r)
-			for (i = 0; i < r->nr_devs; i++)
+		for_each_replicas_entry(replicas, r) {
+			if (r->data_type >= sizeof(data_has) * 8)
+				continue;
+
+			for (unsigned i = 0; i < r->nr_devs; i++)
 				if (r->devs[i] == dev)
 					data_has |= 1 << r->data_type;
+		}
+
 	} else if (replicas_v0) {
 		struct bch_replicas_entry_v0 *r;
 
-		for_each_replicas_entry_v0(replicas_v0, r)
-			for (i = 0; i < r->nr_devs; i++)
+		for_each_replicas_entry_v0(replicas_v0, r) {
+			if (r->data_type >= sizeof(data_has) * 8)
+				continue;
+
+			for (unsigned i = 0; i < r->nr_devs; i++)
 				if (r->devs[i] == dev)
 					data_has |= 1 << r->data_type;
+		}
 	}
 
 

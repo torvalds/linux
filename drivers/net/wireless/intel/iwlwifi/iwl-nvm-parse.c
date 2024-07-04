@@ -392,11 +392,14 @@ static enum nl80211_band iwl_nl80211_band_from_channel_idx(int ch_idx)
 	return NL80211_BAND_2GHZ;
 }
 
-static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
+static int iwl_init_channel_map(struct iwl_trans *trans,
+				const struct iwl_fw *fw,
 				struct iwl_nvm_data *data,
 				const void * const nvm_ch_flags,
 				u32 sbands_flags, bool v4)
 {
+	const struct iwl_cfg *cfg = trans->cfg;
+	struct device *dev = trans->dev;
 	int ch_idx;
 	int n_channels = 0;
 	struct ieee80211_channel *channel;
@@ -478,11 +481,10 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 		else
 			channel->flags = 0;
 
-		/* TODO: Don't put limitations on UHB devices as we still don't
-		 * have NVM for them
-		 */
-		if (cfg->uhb_supported)
-			channel->flags = 0;
+		if (fw_has_capa(&fw->ucode_capa,
+				IWL_UCODE_TLV_CAPA_MONITOR_PASSIVE_CHANS))
+			channel->flags |= IEEE80211_CHAN_CAN_MONITOR;
+
 		iwl_nvm_print_channel_flags(dev, IWL_DL_EEPROM,
 					    channel->hw_value, ch_flags);
 		IWL_DEBUG_EEPROM(dev, "Ch. %d: %ddBm\n",
@@ -597,7 +599,8 @@ static const u8 iwl_vendor_caps[] = {
 
 static const struct ieee80211_sband_iftype_data iwl_he_eht_capa[] = {
 	{
-		.types_mask = BIT(NL80211_IFTYPE_STATION),
+		.types_mask = BIT(NL80211_IFTYPE_STATION) |
+			      BIT(NL80211_IFTYPE_P2P_CLIENT),
 		.he_cap = {
 			.has_he = true,
 			.he_cap_elem = {
@@ -753,7 +756,8 @@ static const struct ieee80211_sband_iftype_data iwl_he_eht_capa[] = {
 		},
 	},
 	{
-		.types_mask = BIT(NL80211_IFTYPE_AP),
+		.types_mask = BIT(NL80211_IFTYPE_AP) |
+			      BIT(NL80211_IFTYPE_P2P_GO),
 		.he_cap = {
 			.has_he = true,
 			.he_cap_elem = {
@@ -906,7 +910,8 @@ iwl_nvm_fixup_sband_iftd(struct iwl_trans *trans,
 			 u8 tx_chains, u8 rx_chains,
 			 const struct iwl_fw *fw)
 {
-	bool is_ap = iftype_data->types_mask & BIT(NL80211_IFTYPE_AP);
+	bool is_ap = iftype_data->types_mask & (BIT(NL80211_IFTYPE_AP) |
+						BIT(NL80211_IFTYPE_P2P_GO));
 	bool no_320;
 
 	no_320 = (!trans->trans_cfg->integrated &&
@@ -1023,8 +1028,6 @@ iwl_nvm_fixup_sband_iftd(struct iwl_trans *trans,
 
 	switch (CSR_HW_RFID_TYPE(trans->hw_rf_id)) {
 	case IWL_CFG_RF_TYPE_GF:
-	case IWL_CFG_RF_TYPE_MR:
-	case IWL_CFG_RF_TYPE_MS:
 	case IWL_CFG_RF_TYPE_FM:
 	case IWL_CFG_RF_TYPE_WH:
 		iftype_data->he_cap.he_cap_elem.phy_cap_info[9] |=
@@ -1176,12 +1179,11 @@ static void iwl_init_sbands(struct iwl_trans *trans,
 			    const struct iwl_fw *fw)
 {
 	struct device *dev = trans->dev;
-	const struct iwl_cfg *cfg = trans->cfg;
 	int n_channels;
 	int n_used = 0;
 	struct ieee80211_supported_band *sband;
 
-	n_channels = iwl_init_channel_map(dev, cfg, data, nvm_ch_flags,
+	n_channels = iwl_init_channel_map(trans, fw, data, nvm_ch_flags,
 					  sbands_flags, v4);
 	sband = &data->bands[NL80211_BAND_2GHZ];
 	sband->band = NL80211_BAND_2GHZ;

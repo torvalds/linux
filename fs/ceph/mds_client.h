@@ -35,8 +35,9 @@ enum ceph_feature_type {
 	CEPHFS_FEATURE_32BITS_RETRY_FWD,
 	CEPHFS_FEATURE_NEW_SNAPREALM_INFO,
 	CEPHFS_FEATURE_HAS_OWNER_UIDGID,
+	CEPHFS_FEATURE_MDS_AUTH_CAPS_CHECK,
 
-	CEPHFS_FEATURE_MAX = CEPHFS_FEATURE_HAS_OWNER_UIDGID,
+	CEPHFS_FEATURE_MAX = CEPHFS_FEATURE_MDS_AUTH_CAPS_CHECK,
 };
 
 #define CEPHFS_FEATURES_CLIENT_SUPPORTED {	\
@@ -52,6 +53,7 @@ enum ceph_feature_type {
 	CEPHFS_FEATURE_OP_GETVXATTR,		\
 	CEPHFS_FEATURE_32BITS_RETRY_FWD,	\
 	CEPHFS_FEATURE_HAS_OWNER_UIDGID,	\
+	CEPHFS_FEATURE_MDS_AUTH_CAPS_CHECK,	\
 }
 
 /*
@@ -70,6 +72,24 @@ enum ceph_feature_type {
 
 struct ceph_fs_client;
 struct ceph_cap;
+
+#define MDS_AUTH_UID_ANY -1
+
+struct ceph_mds_cap_match {
+	s64 uid;  /* default to MDS_AUTH_UID_ANY */
+	u32 num_gids;
+	u32 *gids;  /* use these GIDs */
+	char *path;  /* require path to be child of this
+			(may be "" or "/" for any) */
+	char *fs_name;
+	bool root_squash;  /* default to false */
+};
+
+struct ceph_mds_cap_auth {
+	struct ceph_mds_cap_match match;
+	bool readable;
+	bool writeable;
+};
 
 /*
  * parsed info about a single inode.  pointers are into the encoded
@@ -513,6 +533,9 @@ struct ceph_mds_client {
 	struct rw_semaphore     pool_perm_rwsem;
 	struct rb_root		pool_perm_tree;
 
+	u32			 s_cap_auths_num;
+	struct ceph_mds_cap_auth *s_cap_auths;
+
 	char nodename[__NEW_UTS_LEN + 1];
 };
 
@@ -581,6 +604,9 @@ extern void ceph_queue_cap_unlink_work(struct ceph_mds_client *mdsc);
 extern int ceph_iterate_session_caps(struct ceph_mds_session *session,
 				     int (*cb)(struct inode *, int mds, void *),
 				     void *arg);
+extern int ceph_mds_check_access(struct ceph_mds_client *mdsc, char *tpath,
+				 int mask);
+
 extern void ceph_mdsc_pre_umount(struct ceph_mds_client *mdsc);
 
 static inline void ceph_mdsc_free_path(char *path, int len)

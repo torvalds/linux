@@ -128,7 +128,7 @@ static void nouveau_dmem_page_free(struct page *page)
 static void nouveau_dmem_fence_done(struct nouveau_fence **fence)
 {
 	if (fence) {
-		nouveau_fence_wait(*fence, true, false);
+		nouveau_fence_wait(*fence, false);
 		nouveau_fence_unref(fence);
 	} else {
 		/*

@@ -2559,7 +2559,7 @@ static int cxgb_change_mtu(struct net_device *dev, int new_mtu)
 
 	if ((ret = t3_mac_set_mtu(&pi->mac, new_mtu)))
 		return ret;
-	dev->mtu = new_mtu;
+	WRITE_ONCE(dev->mtu, new_mtu);
 	init_port_mtus(adapter);
 	if (adapter->params.rev == 0 && offload_running(adapter))
 		t3_load_mtus(adapter, adapter->params.mtus,

@@ -3,6 +3,7 @@
 #define _GNU_SOURCE
 
 #include <assert.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <sched.h>
 #include <fcntl.h>

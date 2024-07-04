@@ -27,6 +27,8 @@ enum populate_mode {
 	POPULATE_NONE,
 	POPULATE_DIRECT,
 	POPULATE_ABS_LOWCORE,
+	POPULATE_IDENTITY,
+	POPULATE_KERNEL,
 #ifdef CONFIG_KASAN
 	POPULATE_KASAN_MAP_SHADOW,
 	POPULATE_KASAN_ZERO_SHADOW,
@@ -54,7 +56,7 @@ static inline void kasan_populate(unsigned long start, unsigned long end, enum p
 	pgtable_populate(start, end, mode);
 }
 
-static void kasan_populate_shadow(void)
+static void kasan_populate_shadow(unsigned long kernel_start, unsigned long kernel_end)
 {
 	pmd_t pmd_z = __pmd(__pa(kasan_early_shadow_pte) | _SEGMENT_ENTRY);
 	pud_t pud_z = __pud(__pa(kasan_early_shadow_pmd) | _REGION3_ENTRY);
@@ -76,44 +78,20 @@ static void kasan_populate_shadow(void)
 	__arch_set_page_dat(kasan_early_shadow_pmd, 1UL << CRST_ALLOC_ORDER);
 	__arch_set_page_dat(kasan_early_shadow_pte, 1);
 
-	/*
-	 * Current memory layout:
-	 * +- 0 -------------+	       +- shadow start -+
-	 * |1:1 ident mapping|	      /|1/8 of ident map|
-	 * |		     |	     / |		|
-	 * +-end of ident map+	    /  +----------------+
-	 * | ... gap ...     |	   /   |    kasan	|
-	 * |		     |	  /    |  zero page	|
-	 * +- vmalloc area  -+	 /     |   mapping	|
-	 * | vmalloc_size    |	/      | (untracked)	|
-	 * +- modules vaddr -+ /       +----------------+
-	 * | 2Gb	     |/        |    unmapped	| allocated per module
-	 * +- shadow start  -+	       +----------------+
-	 * | 1/8 addr space  |	       | zero pg mapping| (untracked)
-	 * +- shadow end ----+---------+- shadow end ---+
-	 *
-	 * Current memory layout (KASAN_VMALLOC):
-	 * +- 0 -------------+	       +- shadow start -+
-	 * |1:1 ident mapping|	      /|1/8 of ident map|
-	 * |		     |	     / |		|
-	 * +-end of ident map+	    /  +----------------+
-	 * | ... gap ...     |	   /   | kasan zero page| (untracked)
-	 * |		     |	  /    | mapping	|
-	 * +- vmalloc area  -+	 /     +----------------+
-	 * | vmalloc_size    |	/      |shallow populate|
-	 * +- modules vaddr -+ /       +----------------+
-	 * | 2Gb	     |/        |shallow populate|
-	 * +- shadow start  -+	       +----------------+
-	 * | 1/8 addr space  |	       | zero pg mapping| (untracked)
-	 * +- shadow end ----+---------+- shadow end ---+
-	 */
-
 	for_each_physmem_usable_range(i, &start, &end) {
-		kasan_populate(start, end, POPULATE_KASAN_MAP_SHADOW);
-		if (memgap_start && physmem_info.info_source == MEM_DETECT_DIAG260)
-			kasan_populate(memgap_start, start, POPULATE_KASAN_ZERO_SHADOW);
+		kasan_populate((unsigned long)__identity_va(start),
+			       (unsigned long)__identity_va(end),
+			       POPULATE_KASAN_MAP_SHADOW);
+		if (memgap_start && physmem_info.info_source == MEM_DETECT_DIAG260) {
+			kasan_populate((unsigned long)__identity_va(memgap_start),
+				       (unsigned long)__identity_va(start),
+				       POPULATE_KASAN_ZERO_SHADOW);
+		}
 		memgap_start = end;
 	}
+	kasan_populate(kernel_start, kernel_end, POPULATE_KASAN_MAP_SHADOW);
+	kasan_populate(0, (unsigned long)__identity_va(0), POPULATE_KASAN_ZERO_SHADOW);
+	kasan_populate(AMODE31_START, AMODE31_END, POPULATE_KASAN_ZERO_SHADOW);
 	if (IS_ENABLED(CONFIG_KASAN_VMALLOC)) {
 		untracked_end = VMALLOC_START;
 		/* shallowly populate kasan shadow for vmalloc and modules */
@@ -122,8 +100,9 @@ static void kasan_populate_shadow(void)
 		untracked_end = MODULES_VADDR;
 	}
 	/* populate kasan shadow for untracked memory */
-	kasan_populate(ident_map_size, untracked_end, POPULATE_KASAN_ZERO_SHADOW);
-	kasan_populate(MODULES_END, _REGION1_SIZE, POPULATE_KASAN_ZERO_SHADOW);
+	kasan_populate((unsigned long)__identity_va(ident_map_size), untracked_end,
+		       POPULATE_KASAN_ZERO_SHADOW);
+	kasan_populate(kernel_end, _REGION1_SIZE, POPULATE_KASAN_ZERO_SHADOW);
 }
 
 static bool kasan_pgd_populate_zero_shadow(pgd_t *pgd, unsigned long addr,
@@ -180,7 +159,9 @@ static bool kasan_pte_populate_zero_shadow(pte_t *pte, enum populate_mode mode)
 }
 #else
 
-static inline void kasan_populate_shadow(void) {}
+static inline void kasan_populate_shadow(unsigned long kernel_start, unsigned long kernel_end)
+{
+}
 
 static inline bool kasan_pgd_populate_zero_shadow(pgd_t *pgd, unsigned long addr,
 						  unsigned long end, enum populate_mode mode)
@@ -263,6 +244,10 @@ static unsigned long _pa(unsigned long addr, unsigned long size, enum populate_m
 		return addr;
 	case POPULATE_ABS_LOWCORE:
 		return __abs_lowcore_pa(addr);
+	case POPULATE_KERNEL:
+		return __kernel_pa(addr);
+	case POPULATE_IDENTITY:
+		return __identity_pa(addr);
 #ifdef CONFIG_KASAN
 	case POPULATE_KASAN_MAP_SHADOW:
 		addr = physmem_alloc_top_down(RR_VMEM, size, size);
@@ -274,15 +259,22 @@ static unsigned long _pa(unsigned long addr, unsigned long size, enum populate_m
 	}
 }
 
-static bool can_large_pud(pud_t *pu_dir, unsigned long addr, unsigned long end)
+static bool large_allowed(enum populate_mode mode)
 {
-	return machine.has_edat2 &&
+	return (mode == POPULATE_DIRECT) || (mode == POPULATE_IDENTITY);
+}
+
+static bool can_large_pud(pud_t *pu_dir, unsigned long addr, unsigned long end,
+			  enum populate_mode mode)
+{
+	return machine.has_edat2 && large_allowed(mode) &&
 	       IS_ALIGNED(addr, PUD_SIZE) && (end - addr) >= PUD_SIZE;
 }
 
-static bool can_large_pmd(pmd_t *pm_dir, unsigned long addr, unsigned long end)
+static bool can_large_pmd(pmd_t *pm_dir, unsigned long addr, unsigned long end,
+			  enum populate_mode mode)
 {
-	return machine.has_edat1 &&
+	return machine.has_edat1 && large_allowed(mode) &&
 	       IS_ALIGNED(addr, PMD_SIZE) && (end - addr) >= PMD_SIZE;
 }
 
@@ -322,7 +314,7 @@ static void pgtable_pmd_populate(pud_t *pud, unsigned long addr, unsigned long e
 		if (pmd_none(*pmd)) {
 			if (kasan_pmd_populate_zero_shadow(pmd, addr, next, mode))
 				continue;
-			if (can_large_pmd(pmd, addr, next)) {
+			if (can_large_pmd(pmd, addr, next, mode)) {
 				entry = __pmd(_pa(addr, _SEGMENT_SIZE, mode));
 				entry = set_pmd_bit(entry, SEGMENT_KERNEL);
 				if (!machine.has_nx)
@@ -355,7 +347,7 @@ static void pgtable_pud_populate(p4d_t *p4d, unsigned long addr, unsigned long e
 		if (pud_none(*pud)) {
 			if (kasan_pud_populate_zero_shadow(pud, addr, next, mode))
 				continue;
-			if (can_large_pud(pud, addr, next)) {
+			if (can_large_pud(pud, addr, next, mode)) {
 				entry = __pud(_pa(addr, _REGION3_SIZE, mode));
 				entry = set_pud_bit(entry, REGION3_KERNEL);
 				if (!machine.has_nx)
@@ -418,11 +410,12 @@ static void pgtable_populate(unsigned long addr, unsigned long end, enum populat
 	}
 }
 
-void setup_vmem(unsigned long asce_limit)
+void setup_vmem(unsigned long kernel_start, unsigned long kernel_end, unsigned long asce_limit)
 {
 	unsigned long start, end;
 	unsigned long asce_type;
 	unsigned long asce_bits;
+	pgd_t *init_mm_pgd;
 	int i;
 
 	/*
@@ -432,6 +425,15 @@ void setup_vmem(unsigned long asce_limit)
 	 */
 	for_each_physmem_online_range(i, &start, &end)
 		__arch_set_page_nodat((void *)start, (end - start) >> PAGE_SHIFT);
+
+	/*
+	 * init_mm->pgd contains virtual address of swapper_pg_dir.
+	 * It is unusable at this stage since DAT is yet off. Swap
+	 * it for physical address of swapper_pg_dir and restore
+	 * the virtual address after all page tables are created.
+	 */
+	init_mm_pgd = init_mm.pgd;
+	init_mm.pgd = (pgd_t *)swapper_pg_dir;
 
 	if (asce_limit == _REGION1_SIZE) {
 		asce_type = _REGION2_ENTRY_EMPTY;
@@ -453,15 +455,20 @@ void setup_vmem(unsigned long asce_limit)
 	 * the lowcore and create the identity mapping only afterwards.
 	 */
 	pgtable_populate(0, sizeof(struct lowcore), POPULATE_DIRECT);
-	for_each_physmem_usable_range(i, &start, &end)
-		pgtable_populate(start, end, POPULATE_DIRECT);
+	for_each_physmem_usable_range(i, &start, &end) {
+		pgtable_populate((unsigned long)__identity_va(start),
+				 (unsigned long)__identity_va(end),
+				 POPULATE_IDENTITY);
+	}
+	pgtable_populate(kernel_start, kernel_end, POPULATE_KERNEL);
+	pgtable_populate(AMODE31_START, AMODE31_END, POPULATE_DIRECT);
 	pgtable_populate(__abs_lowcore, __abs_lowcore + sizeof(struct lowcore),
 			 POPULATE_ABS_LOWCORE);
 	pgtable_populate(__memcpy_real_area, __memcpy_real_area + PAGE_SIZE,
 			 POPULATE_NONE);
-	memcpy_real_ptep = __virt_to_kpte(__memcpy_real_area);
+	memcpy_real_ptep = __identity_va(__virt_to_kpte(__memcpy_real_area));
 
-	kasan_populate_shadow();
+	kasan_populate_shadow(kernel_start, kernel_end);
 
 	S390_lowcore.kernel_asce.val = swapper_pg_dir | asce_bits;
 	S390_lowcore.user_asce = s390_invalid_asce;
@@ -471,4 +478,5 @@ void setup_vmem(unsigned long asce_limit)
 	local_ctl_load(13, &S390_lowcore.kernel_asce);
 
 	init_mm.context.asce = S390_lowcore.kernel_asce.val;
+	init_mm.pgd = init_mm_pgd;
 }

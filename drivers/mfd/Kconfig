@@ -292,7 +292,7 @@ config MFD_MADERA_SPI
 
 config MFD_MAX5970
 	tristate "Maxim 5970/5978 power switch and monitor"
-	depends on (I2C && OF)
+	depends on I2C && OF
 	select MFD_SIMPLE_MFD_I2C
 	help
 	  This driver controls a Maxim 5970/5978 switch via I2C bus.
@@ -458,7 +458,7 @@ config MFD_EXYNOS_LPASS
 
 config MFD_GATEWORKS_GSC
 	tristate "Gateworks System Controller"
-	depends on (I2C && OF)
+	depends on I2C && OF
 	select MFD_CORE
 	select REGMAP_I2C
 	select REGMAP_IRQ
@@ -473,7 +473,7 @@ config MFD_GATEWORKS_GSC
 
 config MFD_MC13XXX
 	tristate
-	depends on (SPI_MASTER || I2C)
+	depends on SPI_MASTER || I2C
 	select MFD_CORE
 	select REGMAP_IRQ
 	help
@@ -1109,7 +1109,7 @@ config PCF50633_GPIO
 
 config MFD_PM8XXX
 	tristate "Qualcomm PM8xxx PMIC chips driver"
-	depends on (ARM || HEXAGON || COMPILE_TEST)
+	depends on ARM || HEXAGON || COMPILE_TEST
 	select IRQ_DOMAIN_HIERARCHY
 	select MFD_CORE
 	select REGMAP
@@ -1225,7 +1225,7 @@ config MFD_RK8XX
 	select MFD_CORE
 
 config MFD_RK8XX_I2C
-	tristate "Rockchip RK805/RK808/RK809/RK817/RK818 Power Management Chip"
+	tristate "Rockchip RK805/RK808/RK809/RK816/RK817/RK818 Power Management Chip"
 	depends on I2C && OF
 	select MFD_CORE
 	select REGMAP_I2C
@@ -1233,7 +1233,7 @@ config MFD_RK8XX_I2C
 	select MFD_RK8XX
 	help
 	  If you say yes here you get support for the RK805, RK808, RK809,
-	  RK817 and RK818 Power Management chips.
+	  RK816, RK817 and RK818 Power Management chips.
 	  This driver provides common support for accessing the device
 	  through I2C interface. The device supports multiple sub-devices
 	  including interrupts, RTC, LDO & DCDC regulators, and onkey.
@@ -1418,7 +1418,7 @@ config MFD_DB8500_PRCMU
 
 config MFD_STMPE
 	bool "STMicroelectronics STMPE"
-	depends on (I2C=y || SPI_MASTER=y)
+	depends on I2C=y || SPI_MASTER=y
 	depends on OF
 	select MFD_CORE
 	help
@@ -2116,7 +2116,7 @@ config MFD_STM32_TIMERS
 
 config MFD_STPMIC1
 	tristate "Support for STPMIC1 PMIC"
-	depends on (I2C=y && OF)
+	depends on I2C=y && OF
 	select REGMAP_I2C
 	select REGMAP_IRQ
 	select MFD_CORE

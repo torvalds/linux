@@ -101,7 +101,7 @@ struct ath10k_pci_supp_chip {
 
 enum ath10k_pci_irq_mode {
 	ATH10K_PCI_IRQ_AUTO = 0,
-	ATH10K_PCI_IRQ_LEGACY = 1,
+	ATH10K_PCI_IRQ_INTX = 1,
 	ATH10K_PCI_IRQ_MSI = 2,
 };
 
@@ -243,9 +243,9 @@ int ath10k_pci_init_pipes(struct ath10k *ar);
 int ath10k_pci_init_config(struct ath10k *ar);
 void ath10k_pci_rx_post(struct ath10k *ar);
 void ath10k_pci_flush(struct ath10k *ar);
-void ath10k_pci_enable_legacy_irq(struct ath10k *ar);
+void ath10k_pci_enable_intx_irq(struct ath10k *ar);
 bool ath10k_pci_irq_pending(struct ath10k *ar);
-void ath10k_pci_disable_and_clear_legacy_irq(struct ath10k *ar);
+void ath10k_pci_disable_and_clear_intx_irq(struct ath10k *ar);
 void ath10k_pci_irq_msi_fw_mask(struct ath10k *ar);
 int ath10k_pci_wait_for_target_init(struct ath10k *ar);
 int ath10k_pci_setup_resource(struct ath10k *ar);

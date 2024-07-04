@@ -23,7 +23,9 @@ properties:
     oneOf:
       - const: fsl,s32v234-linflexuart
       - items:
-          - const: nxp,s32g2-linflexuart
+          - enum:
+              - nxp,s32g2-linflexuart
+              - nxp,s32g3-linflexuart
           - const: fsl,s32v234-linflexuart
 
   reg:

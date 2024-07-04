@@ -928,7 +928,7 @@ err_muic_irq:
 	return ret;
 }
 
-static int max77843_muic_remove(struct platform_device *pdev)
+static void max77843_muic_remove(struct platform_device *pdev)
 {
 	struct max77843_muic_info *info = platform_get_drvdata(pdev);
 	struct max77693_dev *max77843 = info->max77843;
@@ -936,8 +936,6 @@ static int max77843_muic_remove(struct platform_device *pdev)
 	cancel_work_sync(&info->irq_work);
 	regmap_del_irq_chip(max77843->irq, max77843->irq_data_muic);
 	i2c_unregister_device(max77843->i2c_muic);
-
-	return 0;
 }
 
 static const struct platform_device_id max77843_muic_id[] = {
@@ -958,7 +956,7 @@ static struct platform_driver max77843_muic_driver = {
 		.of_match_table = of_max77843_muic_dt_match,
 	},
 	.probe		= max77843_muic_probe,
-	.remove		= max77843_muic_remove,
+	.remove_new	= max77843_muic_remove,
 	.id_table	= max77843_muic_id,
 };
 

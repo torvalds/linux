@@ -205,6 +205,7 @@ struct io_submit_state {
 
 	bool			plug_started;
 	bool			need_plug;
+	bool			cq_flush;
 	unsigned short		submit_nr;
 	unsigned int		cqes_count;
 	struct blk_plug		plug;
@@ -219,7 +220,7 @@ struct io_ev_fd {
 };
 
 struct io_alloc_cache {
-	struct io_wq_work_node	list;
+	void			**entries;
 	unsigned int		nr_cached;
 	unsigned int		max_cached;
 	size_t			elem_size;
@@ -299,6 +300,8 @@ struct io_ring_ctx {
 		struct io_hash_table	cancel_table_locked;
 		struct io_alloc_cache	apoll_cache;
 		struct io_alloc_cache	netmsg_cache;
+		struct io_alloc_cache	rw_cache;
+		struct io_alloc_cache	uring_cache;
 
 		/*
 		 * Any cancelable uring_cmd is added to this list in
@@ -341,13 +344,7 @@ struct io_ring_ctx {
 		unsigned		cq_last_tm_flush;
 	} ____cacheline_aligned_in_smp;
 
-	struct io_uring_cqe	completion_cqes[16];
-
 	spinlock_t		completion_lock;
-
-	/* IRQ completion list, under ->completion_lock */
-	unsigned int		locked_free_nr;
-	struct io_wq_work_list	locked_free_list;
 
 	struct list_head	io_buffers_comp;
 	struct list_head	cq_overflow_list;
@@ -370,9 +367,6 @@ struct io_ring_ctx {
 	unsigned int		file_alloc_end;
 
 	struct list_head	io_buffers_cache;
-
-	/* deferred free list, protected by ->uring_lock */
-	struct hlist_head	io_buf_list;
 
 	/* Keep this last, we don't need it for the fast path */
 	struct wait_queue_head		poll_wq;
@@ -438,8 +432,6 @@ struct io_ring_ctx {
 };
 
 struct io_tw_state {
-	/* ->uring_lock is taken, callbacks can use io_tw_lock to lock it */
-	bool locked;
 };
 
 enum {
@@ -480,6 +472,7 @@ enum {
 	REQ_F_CAN_POLL_BIT,
 	REQ_F_BL_EMPTY_BIT,
 	REQ_F_BL_NO_RECYCLE_BIT,
+	REQ_F_BUFFERS_COMMIT_BIT,
 
 	/* not a real bit, just to check we're not overflowing the space */
 	__REQ_F_LAST_BIT,
@@ -558,6 +551,8 @@ enum {
 	REQ_F_BL_EMPTY		= IO_REQ_FLAG(REQ_F_BL_EMPTY_BIT),
 	/* don't recycle provided buffers for this request */
 	REQ_F_BL_NO_RECYCLE	= IO_REQ_FLAG(REQ_F_BL_NO_RECYCLE_BIT),
+	/* buffer ring head needs incrementing on put */
+	REQ_F_BUFFERS_COMMIT	= IO_REQ_FLAG(REQ_F_BUFFERS_COMMIT_BIT),
 };
 
 typedef void (*io_req_tw_func_t)(struct io_kiocb *req, struct io_tw_state *ts);

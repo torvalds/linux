@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include "bcachefs.h"
-#include "btree_iter.h"
 #include "eytzinger.h"
+#include "journal.h"
 #include "journal_seq_blacklist.h"
 #include "super-io.h"
 
@@ -162,9 +162,8 @@ int bch2_blacklist_table_initialize(struct bch_fs *c)
 	return 0;
 }
 
-static int bch2_sb_journal_seq_blacklist_validate(struct bch_sb *sb,
-						  struct bch_sb_field *f,
-						  struct printbuf *err)
+static int bch2_sb_journal_seq_blacklist_validate(struct bch_sb *sb, struct bch_sb_field *f,
+				enum bch_validate_flags flags, struct printbuf *err)
 {
 	struct bch_sb_field_journal_seq_blacklist *bl =
 		field_to_type(f, journal_seq_blacklist);
@@ -217,78 +216,40 @@ const struct bch_sb_field_ops bch_sb_field_ops_journal_seq_blacklist = {
 	.to_text	= bch2_sb_journal_seq_blacklist_to_text
 };
 
-void bch2_blacklist_entries_gc(struct work_struct *work)
+bool bch2_blacklist_entries_gc(struct bch_fs *c)
 {
-	struct bch_fs *c = container_of(work, struct bch_fs,
-					journal_seq_blacklist_gc_work);
-	struct journal_seq_blacklist_table *t;
-	struct bch_sb_field_journal_seq_blacklist *bl;
 	struct journal_seq_blacklist_entry *src, *dst;
-	struct btree_trans *trans = bch2_trans_get(c);
-	unsigned i, nr, new_nr;
-	int ret;
 
-	for (i = 0; i < BTREE_ID_NR; i++) {
-		struct btree_iter iter;
-		struct btree *b;
-
-		bch2_trans_node_iter_init(trans, &iter, i, POS_MIN,
-					  0, 0, BTREE_ITER_PREFETCH);
-retry:
-		bch2_trans_begin(trans);
-
-		b = bch2_btree_iter_peek_node(&iter);
-
-		while (!(ret = PTR_ERR_OR_ZERO(b)) &&
-		       b &&
-		       !test_bit(BCH_FS_stopping, &c->flags))
-			b = bch2_btree_iter_next_node(&iter);
-
-		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
-			goto retry;
-
-		bch2_trans_iter_exit(trans, &iter);
-	}
-
-	bch2_trans_put(trans);
-	if (ret)
-		return;
-
-	mutex_lock(&c->sb_lock);
-	bl = bch2_sb_field_get(c->disk_sb.sb, journal_seq_blacklist);
+	struct bch_sb_field_journal_seq_blacklist *bl =
+		bch2_sb_field_get(c->disk_sb.sb, journal_seq_blacklist);
 	if (!bl)
-		goto out;
+		return false;
 
-	nr = blacklist_nr_entries(bl);
+	unsigned nr = blacklist_nr_entries(bl);
 	dst = bl->start;
 
-	t = c->journal_seq_blacklist_table;
+	struct journal_seq_blacklist_table *t = c->journal_seq_blacklist_table;
 	BUG_ON(nr != t->nr);
 
+	unsigned i;
 	for (src = bl->start, i = eytzinger0_first(t->nr);
 	     src < bl->start + nr;
 	     src++, i = eytzinger0_next(i, nr)) {
 		BUG_ON(t->entries[i].start	!= le64_to_cpu(src->start));
 		BUG_ON(t->entries[i].end	!= le64_to_cpu(src->end));
 
-		if (t->entries[i].dirty)
+		if (t->entries[i].dirty || t->entries[i].end >= c->journal.oldest_seq_found_ondisk)
 			*dst++ = *src;
 	}
 
-	new_nr = dst - bl->start;
+	unsigned new_nr = dst - bl->start;
+	if (new_nr == nr)
+		return false;
 
-	bch_info(c, "nr blacklist entries was %u, now %u", nr, new_nr);
+	bch_verbose(c, "nr blacklist entries was %u, now %u", nr, new_nr);
 
-	if (new_nr != nr) {
-		bl = bch2_sb_field_resize(&c->disk_sb, journal_seq_blacklist,
-				new_nr ? sb_blacklist_u64s(new_nr) : 0);
-		BUG_ON(new_nr && !bl);
-
-		if (!new_nr)
-			c->disk_sb.sb->features[0] &= cpu_to_le64(~(1ULL << BCH_FEATURE_journal_seq_blacklist_v3));
-
-		bch2_write_super(c);
-	}
-out:
-	mutex_unlock(&c->sb_lock);
+	bl = bch2_sb_field_resize(&c->disk_sb, journal_seq_blacklist,
+				  new_nr ? sb_blacklist_u64s(new_nr) : 0);
+	BUG_ON(new_nr && !bl);
+	return true;
 }

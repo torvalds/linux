@@ -32,7 +32,7 @@ struct bpf_map *bpf_map_meta_alloc(int inner_map_ufd)
 
 	inner_map_meta_size = sizeof(*inner_map_meta);
 	/* In some cases verifier needs to access beyond just base map. */
-	if (inner_map->ops == &array_map_ops)
+	if (inner_map->ops == &array_map_ops || inner_map->ops == &percpu_array_map_ops)
 		inner_map_meta_size = sizeof(struct bpf_array);
 
 	inner_map_meta = kzalloc(inner_map_meta_size, GFP_USER);
@@ -68,7 +68,7 @@ struct bpf_map *bpf_map_meta_alloc(int inner_map_ufd)
 
 	/* Misc members not needed in bpf_map_meta_equal() check. */
 	inner_map_meta->ops = inner_map->ops;
-	if (inner_map->ops == &array_map_ops) {
+	if (inner_map->ops == &array_map_ops || inner_map->ops == &percpu_array_map_ops) {
 		struct bpf_array *inner_array_meta =
 			container_of(inner_map_meta, struct bpf_array, map);
 		struct bpf_array *inner_array = container_of(inner_map, struct bpf_array, map);

@@ -398,7 +398,7 @@ int usbnet_change_mtu (struct net_device *net, int new_mtu)
 	// no second zero-length packet read wanted after mtu-sized packets
 	if ((ll_mtu % dev->maxpacket) == 0)
 		return -EDOM;
-	net->mtu = new_mtu;
+	WRITE_ONCE(net->mtu, new_mtu);
 
 	dev->hard_mtu = net->mtu + net->hard_header_len;
 	if (dev->rx_urb_size == old_hard_mtu) {
@@ -1733,6 +1733,7 @@ usbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 	dev->hard_mtu = net->mtu + net->hard_header_len;
 	net->min_mtu = 0;
 	net->max_mtu = ETH_MAX_MTU;
+	net->pcpu_stat_type = NETDEV_PCPU_STAT_TSTATS;
 
 	net->netdev_ops = &usbnet_netdev_ops;
 	net->watchdog_timeo = TX_TIMEOUT_JIFFIES;

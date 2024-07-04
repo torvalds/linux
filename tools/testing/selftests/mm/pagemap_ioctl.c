@@ -1484,7 +1484,7 @@ int main(int argc, char *argv[])
 	ksft_print_header();
 
 	if (init_uffd())
-		return ksft_exit_pass();
+		ksft_exit_pass();
 
 	ksft_set_plan(115);
 
@@ -1660,5 +1660,5 @@ int main(int argc, char *argv[])
 	userfaultfd_tests();
 
 	close(pagemap_fd);
-	return ksft_exit_pass();
+	ksft_exit_pass();
 }

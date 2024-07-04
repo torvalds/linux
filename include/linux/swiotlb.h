@@ -43,7 +43,7 @@ int swiotlb_init_late(size_t size, gfp_t gfp_mask,
 extern void __init swiotlb_update_mem_attributes(void);
 
 phys_addr_t swiotlb_tbl_map_single(struct device *hwdev, phys_addr_t phys,
-		size_t mapping_size, size_t alloc_size,
+		size_t mapping_size,
 		unsigned int alloc_aligned_mask, enum dma_data_direction dir,
 		unsigned long attrs);
 

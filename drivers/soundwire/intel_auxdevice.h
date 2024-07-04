@@ -6,6 +6,7 @@
 
 int intel_link_startup(struct auxiliary_device *auxdev);
 int intel_link_process_wakeen_event(struct auxiliary_device *auxdev);
+int intel_resume_child_device(struct device *dev, void *data);
 
 struct sdw_intel_link_dev {
 	struct auxiliary_device auxdev;

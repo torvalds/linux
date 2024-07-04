@@ -174,6 +174,8 @@ void print_cap(struct pfru_update_cap_info *cap)
 		exit(1);
 	}
 
+	printf("update capability:%d\n", cap->update_cap);
+
 	uuid_unparse(cap->code_type, uuid);
 	printf("code injection image type:%s\n", uuid);
 	printf("fw_version:%d\n", cap->fw_version);

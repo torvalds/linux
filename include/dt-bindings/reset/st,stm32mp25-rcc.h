@@ -69,7 +69,7 @@
 #define ADC3_R		59
 #define ETH1_R		60
 #define ETH2_R		61
-#define USB2_R		62
+#define USBH_R		62
 #define USB2PHY1_R	63
 #define USB2PHY2_R	64
 #define USB3DR_R	65

@@ -220,7 +220,7 @@ lm73_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id lm73_ids[] = {
-	{ "lm73", 0 },
+	{ "lm73" },
 	{ /* LIST END */ }
 };
 MODULE_DEVICE_TABLE(i2c, lm73_ids);

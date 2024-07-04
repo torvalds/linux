@@ -16,11 +16,14 @@
 #include <linux/gpio/consumer.h>
 #include <linux/device.h>
 #include <sound/cs35l41.h>
+#include <sound/cs-amp-lib.h>
 
 #include <linux/firmware/cirrus/cs_dsp.h>
 #include <linux/firmware/cirrus/wmfw.h>
 
 #define CS35L41_MAX_ACCEPTABLE_SPI_SPEED_HZ	1000000
+#define DEFAULT_AMP_GAIN_PCM			17	/* 17.5dB Gain */
+#define DEFAULT_AMP_GAIN_PDM			19	/* 19.5dB Gain */
 
 struct cs35l41_amp_cal_data {
 	u32 calTarget[2];
@@ -83,6 +86,9 @@ struct cs35l41_hda {
 	bool mute_override;
 	enum control_bus control_bus;
 	bool bypass_fw;
+	unsigned int tuning_gain;
+	struct cirrus_amp_cal_data cal_data;
+	bool cal_data_valid;
 
 };
 

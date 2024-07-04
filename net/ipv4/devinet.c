@@ -224,6 +224,7 @@ static struct in_ifaddr *inet_alloc_ifa(void)
 static void inet_rcu_free_ifa(struct rcu_head *head)
 {
 	struct in_ifaddr *ifa = container_of(head, struct in_ifaddr, rcu_head);
+
 	if (ifa->ifa_dev)
 		in_dev_put(ifa->ifa_dev);
 	kfree(ifa);
@@ -231,7 +232,11 @@ static void inet_rcu_free_ifa(struct rcu_head *head)
 
 static void inet_free_ifa(struct in_ifaddr *ifa)
 {
-	call_rcu(&ifa->rcu_head, inet_rcu_free_ifa);
+	/* Our reference to ifa->ifa_dev must be freed ASAP
+	 * to release the reference to the netdev the same way.
+	 * in_dev_put() -> in_dev_finish_destroy() -> netdev_put()
+	 */
+	call_rcu_hurry(&ifa->rcu_head, inet_rcu_free_ifa);
 }
 
 static void in_dev_free_rcu(struct rcu_head *head)
@@ -1683,6 +1688,7 @@ static int inet_fill_ifaddr(struct sk_buff *skb, const struct in_ifaddr *ifa,
 	struct nlmsghdr  *nlh;
 	unsigned long tstamp;
 	u32 preferred, valid;
+	u32 flags;
 
 	nlh = nlmsg_put(skb, args->portid, args->seq, args->event, sizeof(*ifm),
 			args->flags);
@@ -1692,7 +1698,13 @@ static int inet_fill_ifaddr(struct sk_buff *skb, const struct in_ifaddr *ifa,
 	ifm = nlmsg_data(nlh);
 	ifm->ifa_family = AF_INET;
 	ifm->ifa_prefixlen = ifa->ifa_prefixlen;
-	ifm->ifa_flags = READ_ONCE(ifa->ifa_flags);
+
+	flags = READ_ONCE(ifa->ifa_flags);
+	/* Warning : ifm->ifa_flags is an __u8, it holds only 8 bits.
+	 * The 32bit value is given in IFA_FLAGS attribute.
+	 */
+	ifm->ifa_flags = (__u8)flags;
+
 	ifm->ifa_scope = ifa->ifa_scope;
 	ifm->ifa_index = ifa->ifa_dev->dev->ifindex;
 
@@ -1701,7 +1713,7 @@ static int inet_fill_ifaddr(struct sk_buff *skb, const struct in_ifaddr *ifa,
 		goto nla_put_failure;
 
 	tstamp = READ_ONCE(ifa->ifa_tstamp);
-	if (!(ifm->ifa_flags & IFA_F_PERMANENT)) {
+	if (!(flags & IFA_F_PERMANENT)) {
 		preferred = READ_ONCE(ifa->ifa_preferred_lft);
 		valid = READ_ONCE(ifa->ifa_valid_lft);
 		if (preferred != INFINITY_LIFE_TIME) {
@@ -1732,7 +1744,7 @@ static int inet_fill_ifaddr(struct sk_buff *skb, const struct in_ifaddr *ifa,
 	     nla_put_string(skb, IFA_LABEL, ifa->ifa_label)) ||
 	    (ifa->ifa_proto &&
 	     nla_put_u8(skb, IFA_PROTO, ifa->ifa_proto)) ||
-	    nla_put_u32(skb, IFA_FLAGS, ifm->ifa_flags) ||
+	    nla_put_u32(skb, IFA_FLAGS, flags) ||
 	    (ifa->ifa_rt_priority &&
 	     nla_put_u32(skb, IFA_RT_PRIORITY, ifa->ifa_rt_priority)) ||
 	    put_cacheinfo(skb, READ_ONCE(ifa->ifa_cstamp), tstamp,
@@ -2515,7 +2527,7 @@ static int ipv4_doint_and_flush(struct ctl_table *ctl, int write,
 
 static struct devinet_sysctl_table {
 	struct ctl_table_header *sysctl_header;
-	struct ctl_table devinet_vars[__IPV4_DEVCONF_MAX];
+	struct ctl_table devinet_vars[IPV4_DEVCONF_MAX];
 } devinet_sysctl = {
 	.devinet_vars = {
 		DEVINET_SYSCTL_COMPLEX_ENTRY(FORWARDING, "forwarding",
@@ -2578,7 +2590,7 @@ static int __devinet_sysctl_register(struct net *net, char *dev_name,
 	if (!t)
 		goto out;
 
-	for (i = 0; i < ARRAY_SIZE(t->devinet_vars) - 1; i++) {
+	for (i = 0; i < ARRAY_SIZE(t->devinet_vars); i++) {
 		t->devinet_vars[i].data += (char *)p - (char *)&ipv4_devconf;
 		t->devinet_vars[i].extra1 = p;
 		t->devinet_vars[i].extra2 = net;
@@ -2652,7 +2664,6 @@ static struct ctl_table ctl_forward_entry[] = {
 		.extra1		= &ipv4_devconf,
 		.extra2		= &init_net,
 	},
-	{ },
 };
 #endif
 
@@ -2749,7 +2760,7 @@ err_alloc_all:
 static __net_exit void devinet_exit_net(struct net *net)
 {
 #ifdef CONFIG_SYSCTL
-	struct ctl_table *tbl;
+	const struct ctl_table *tbl;
 
 	tbl = net->ipv4.forw_hdr->ctl_table_arg;
 	unregister_net_sysctl_table(net->ipv4.forw_hdr);

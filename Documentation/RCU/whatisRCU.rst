@@ -427,7 +427,7 @@ their assorted primitives.
 
 This section shows a simple use of the core RCU API to protect a
 global pointer to a dynamically allocated structure.  More-typical
-uses of RCU may be found in listRCU.rst, arrayRCU.rst, and NMI-RCU.rst.
+uses of RCU may be found in listRCU.rst and NMI-RCU.rst.
 ::
 
 	struct foo {
@@ -510,8 +510,8 @@ So, to sum up:
 	data item.
 
 See checklist.rst for additional rules to follow when using RCU.
-And again, more-typical uses of RCU may be found in listRCU.rst,
-arrayRCU.rst, and NMI-RCU.rst.
+And again, more-typical uses of RCU may be found in listRCU.rst
+and NMI-RCU.rst.
 
 .. _4_whatisRCU:
 

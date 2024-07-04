@@ -79,7 +79,7 @@ void iwl_mvm_beacon_filter_set_cqm_params(struct iwl_mvm *mvm,
 		cmd->bf_roaming_state =
 			cpu_to_le32(-vif->bss_conf.cqm_rssi_thold);
 	}
-	cmd->ba_enable_beacon_abort = cpu_to_le32(mvmvif->bf_data.ba_enabled);
+	cmd->ba_enable_beacon_abort = cpu_to_le32(mvmvif->ba_enabled);
 }
 
 static void iwl_mvm_power_log(struct iwl_mvm *mvm,
@@ -826,7 +826,7 @@ static int _iwl_mvm_enable_beacon_filter(struct iwl_mvm *mvm,
 	ret = iwl_mvm_beacon_filter_send_cmd(mvm, cmd);
 
 	if (!ret)
-		mvmvif->bf_data.bf_enabled = true;
+		mvmvif->bf_enabled = true;
 
 	return ret;
 }
@@ -855,7 +855,7 @@ static int _iwl_mvm_disable_beacon_filter(struct iwl_mvm *mvm,
 	ret = iwl_mvm_beacon_filter_send_cmd(mvm, &cmd);
 
 	if (!ret)
-		mvmvif->bf_data.bf_enabled = false;
+		mvmvif->bf_enabled = false;
 
 	return ret;
 }
@@ -903,16 +903,16 @@ static int iwl_mvm_power_set_ba(struct iwl_mvm *mvm,
 		.bf_enable_beacon_filter = cpu_to_le32(1),
 	};
 
-	if (!mvmvif->bf_data.bf_enabled)
+	if (!mvmvif->bf_enabled)
 		return 0;
 
 	if (test_bit(IWL_MVM_STATUS_IN_D3, &mvm->status))
 		cmd.ba_escape_timer = cpu_to_le32(IWL_BA_ESCAPE_TIMER_D3);
 
-	mvmvif->bf_data.ba_enabled = !(!mvmvif->pm_enabled ||
-				       mvm->ps_disabled ||
-				       !vif->cfg.ps ||
-				       iwl_mvm_vif_low_latency(mvmvif));
+	mvmvif->ba_enabled = !(!mvmvif->pm_enabled ||
+			       mvm->ps_disabled ||
+			       !vif->cfg.ps ||
+			       iwl_mvm_vif_low_latency(mvmvif));
 
 	return _iwl_mvm_enable_beacon_filter(mvm, vif, &cmd);
 }

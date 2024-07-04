@@ -38,7 +38,7 @@ static inline struct ila_params *ila_params_lwtunnel(
 static int ila_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	struct dst_entry *orig_dst = skb_dst(skb);
-	struct rt6_info *rt = (struct rt6_info *)orig_dst;
+	struct rt6_info *rt = dst_rt6_info(orig_dst);
 	struct ila_lwt *ilwt = ila_lwt_lwtunnel(orig_dst->lwtstate);
 	struct dst_entry *dst;
 	int err = -EINVAL;
@@ -70,7 +70,7 @@ static int ila_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 		memset(&fl6, 0, sizeof(fl6));
 		fl6.flowi6_oif = orig_dst->dev->ifindex;
 		fl6.flowi6_iif = LOOPBACK_IFINDEX;
-		fl6.daddr = *rt6_nexthop((struct rt6_info *)orig_dst,
+		fl6.daddr = *rt6_nexthop(dst_rt6_info(orig_dst),
 					 &ip6h->daddr);
 
 		dst = ip6_route_output(net, NULL, &fl6);

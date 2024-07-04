@@ -15,6 +15,67 @@ description: |
   USB transceiver or Audio amplifier.
   These chips are connected to an i2c bus.
 
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: ti,twl4030
+    then:
+      properties:
+        madc:
+          type: object
+          $ref: /schemas/iio/adc/ti,twl4030-madc.yaml
+          unevaluatedProperties: false
+
+        bci:
+          type: object
+          $ref: /schemas/power/supply/twl4030-charger.yaml
+          unevaluatedProperties: false
+
+        pwrbutton:
+          type: object
+          additionalProperties: false
+          properties:
+            compatible:
+              const: ti,twl4030-pwrbutton
+            interrupts:
+              items:
+                - items:
+                    const: 8
+
+        watchdog:
+          type: object
+          additionalProperties: false
+          properties:
+            compatible:
+              const: ti,twl4030-wdt
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: ti,twl6030
+    then:
+      properties:
+        gpadc:
+          type: object
+          properties:
+            compatible:
+              const: ti,twl6030-gpadc
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: ti,twl6032
+    then:
+      properties:
+        gpadc:
+          type: object
+          properties:
+            compatible:
+              const: ti,twl6032-gpadc
+
 properties:
   compatible:
     description:
@@ -42,7 +103,16 @@ properties:
   "#clock-cells":
     const: 1
 
-additionalProperties: false
+  rtc:
+    type: object
+    additionalProperties: false
+    properties:
+      compatible:
+        const: ti,twl4030-rtc
+      interrupts:
+        maxItems: 1
+
+unevaluatedProperties: false
 
 required:
   - compatible

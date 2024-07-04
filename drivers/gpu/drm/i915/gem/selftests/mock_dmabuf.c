@@ -4,6 +4,7 @@
  * Copyright © 2016 Intel Corporation
  */
 
+#include <linux/vmalloc.h>
 #include "mock_dmabuf.h"
 
 static struct sg_table *mock_map_dma_buf(struct dma_buf_attachment *attachment,

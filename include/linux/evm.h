@@ -26,6 +26,8 @@ extern int evm_protected_xattr_if_enabled(const char *req_xattr_name);
 extern int evm_read_protected_xattrs(struct dentry *dentry, u8 *buffer,
 				     int buffer_size, char type,
 				     bool canonical_fmt);
+extern bool evm_metadata_changed(struct inode *inode,
+				 struct inode *metadata_inode);
 #ifdef CONFIG_FS_POSIX_ACL
 extern int posix_xattr_acl(const char *xattrname);
 #else
@@ -74,6 +76,12 @@ static inline int evm_read_protected_xattrs(struct dentry *dentry, u8 *buffer,
 					    bool canonical_fmt)
 {
 	return -EOPNOTSUPP;
+}
+
+static inline bool evm_metadata_changed(struct inode *inode,
+					struct inode *metadata_inode)
+{
+	return false;
 }
 
 #endif /* CONFIG_EVM */

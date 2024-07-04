@@ -37,7 +37,6 @@
 #include "target_core_ua.h"
 
 static DEFINE_MUTEX(device_mutex);
-static LIST_HEAD(device_list);
 static DEFINE_IDR(devices_idr);
 
 static struct se_hba *lun0_hba;

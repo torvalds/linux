@@ -28,7 +28,7 @@ enum pageblock_bits {
 	NR_PAGEBLOCK_BITS
 };
 
-#ifdef CONFIG_HUGETLB_PAGE
+#if defined(CONFIG_HUGETLB_PAGE)
 
 #ifdef CONFIG_HUGETLB_PAGE_SIZE_VARIABLE
 
@@ -45,7 +45,11 @@ extern unsigned int pageblock_order;
 
 #endif /* CONFIG_HUGETLB_PAGE_SIZE_VARIABLE */
 
-#else /* CONFIG_HUGETLB_PAGE */
+#elif defined(CONFIG_TRANSPARENT_HUGEPAGE)
+
+#define pageblock_order		min_t(unsigned int, HPAGE_PMD_ORDER, MAX_PAGE_ORDER)
+
+#else /* CONFIG_TRANSPARENT_HUGEPAGE */
 
 /* If huge pages are not used, group by MAX_ORDER_NR_PAGES */
 #define pageblock_order		MAX_PAGE_ORDER

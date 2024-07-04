@@ -6,7 +6,9 @@ shelldir=$(dirname "$0")
 # shellcheck source=lib/perf_has_symbol.sh
 . "${shelldir}"/lib/perf_has_symbol.sh
 
-lscpu | grep -q "aarch64" || exit 2
+if [ "$(uname -m)" != "aarch64" ]; then
+	exit 2
+fi
 
 if perf version --build-options | grep HAVE_DWARF_UNWIND_SUPPORT | grep -q OFF
 then

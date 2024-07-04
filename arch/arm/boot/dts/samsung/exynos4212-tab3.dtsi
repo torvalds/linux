@@ -45,6 +45,12 @@
 		/* Default S-BOOT bootloader loads initramfs here */
 		linux,initrd-start = <0x42000000>;
 		linux,initrd-end = <0x42800000>;
+
+		/*
+		 * Stock bootloader provides incorrect memory size in ATAG_MEM;
+		 * override it here
+		 */
+		linux,usable-memory-range = <0x40000000 0x3fc00000>;
 	};
 
 	firmware@204f000 {

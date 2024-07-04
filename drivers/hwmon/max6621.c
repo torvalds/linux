@@ -537,7 +537,7 @@ static int max6621_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id max6621_id[] = {
-	{ MAX6621_DRV_NAME, 0 },
+	{ MAX6621_DRV_NAME },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, max6621_id);

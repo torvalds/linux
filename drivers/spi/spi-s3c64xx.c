@@ -950,7 +950,7 @@ static struct s3c64xx_spi_csinfo *s3c64xx_get_target_ctrldata(
 				struct spi_device *spi)
 {
 	struct s3c64xx_spi_csinfo *cs;
-	struct device_node *target_np, *data_np = NULL;
+	struct device_node *target_np;
 	u32 fb_delay = 0;
 
 	target_np = spi->dev.of_node;
@@ -963,7 +963,8 @@ static struct s3c64xx_spi_csinfo *s3c64xx_get_target_ctrldata(
 	if (!cs)
 		return ERR_PTR(-ENOMEM);
 
-	data_np = of_get_child_by_name(target_np, "controller-data");
+	struct device_node *data_np __free(device_node) =
+			of_get_child_by_name(target_np, "controller-data");
 	if (!data_np) {
 		dev_info(&spi->dev, "feedback delay set to default (0)\n");
 		return cs;
@@ -971,7 +972,6 @@ static struct s3c64xx_spi_csinfo *s3c64xx_get_target_ctrldata(
 
 	of_property_read_u32(data_np, "samsung,spi-feedback-delay", &fb_delay);
 	cs->fb_delay = fb_delay;
-	of_node_put(data_np);
 	return cs;
 }
 

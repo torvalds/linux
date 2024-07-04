@@ -1512,7 +1512,7 @@ static unsigned int cake_drop(struct Qdisc *sch, struct sk_buff **to_free)
 	if (!q->overflow_timeout) {
 		int i;
 		/* Build fresh max-heap */
-		for (i = CAKE_MAX_TINS * CAKE_QUEUES / 2; i >= 0; i--)
+		for (i = CAKE_MAX_TINS * CAKE_QUEUES / 2 - 1; i >= 0; i--)
 			cake_heapify(q, i);
 	}
 	q->overflow_timeout = 65535;
@@ -2572,6 +2572,8 @@ static int cake_change(struct Qdisc *sch, struct nlattr *opt,
 {
 	struct cake_sched_data *q = qdisc_priv(sch);
 	struct nlattr *tb[TCA_CAKE_MAX + 1];
+	u16 rate_flags;
+	u8 flow_mode;
 	int err;
 
 	err = nla_parse_nested_deprecated(tb, TCA_CAKE_MAX, opt, cake_policy,
@@ -2579,10 +2581,11 @@ static int cake_change(struct Qdisc *sch, struct nlattr *opt,
 	if (err < 0)
 		return err;
 
+	flow_mode = q->flow_mode;
 	if (tb[TCA_CAKE_NAT]) {
 #if IS_ENABLED(CONFIG_NF_CONNTRACK)
-		q->flow_mode &= ~CAKE_FLOW_NAT_FLAG;
-		q->flow_mode |= CAKE_FLOW_NAT_FLAG *
+		flow_mode &= ~CAKE_FLOW_NAT_FLAG;
+		flow_mode |= CAKE_FLOW_NAT_FLAG *
 			!!nla_get_u32(tb[TCA_CAKE_NAT]);
 #else
 		NL_SET_ERR_MSG_ATTR(extack, tb[TCA_CAKE_NAT],
@@ -2592,29 +2595,34 @@ static int cake_change(struct Qdisc *sch, struct nlattr *opt,
 	}
 
 	if (tb[TCA_CAKE_BASE_RATE64])
-		q->rate_bps = nla_get_u64(tb[TCA_CAKE_BASE_RATE64]);
+		WRITE_ONCE(q->rate_bps,
+			   nla_get_u64(tb[TCA_CAKE_BASE_RATE64]));
 
 	if (tb[TCA_CAKE_DIFFSERV_MODE])
-		q->tin_mode = nla_get_u32(tb[TCA_CAKE_DIFFSERV_MODE]);
+		WRITE_ONCE(q->tin_mode,
+			   nla_get_u32(tb[TCA_CAKE_DIFFSERV_MODE]));
 
+	rate_flags = q->rate_flags;
 	if (tb[TCA_CAKE_WASH]) {
 		if (!!nla_get_u32(tb[TCA_CAKE_WASH]))
-			q->rate_flags |= CAKE_FLAG_WASH;
+			rate_flags |= CAKE_FLAG_WASH;
 		else
-			q->rate_flags &= ~CAKE_FLAG_WASH;
+			rate_flags &= ~CAKE_FLAG_WASH;
 	}
 
 	if (tb[TCA_CAKE_FLOW_MODE])
-		q->flow_mode = ((q->flow_mode & CAKE_FLOW_NAT_FLAG) |
+		flow_mode = ((flow_mode & CAKE_FLOW_NAT_FLAG) |
 				(nla_get_u32(tb[TCA_CAKE_FLOW_MODE]) &
 					CAKE_FLOW_MASK));
 
 	if (tb[TCA_CAKE_ATM])
-		q->atm_mode = nla_get_u32(tb[TCA_CAKE_ATM]);
+		WRITE_ONCE(q->atm_mode,
+			   nla_get_u32(tb[TCA_CAKE_ATM]));
 
 	if (tb[TCA_CAKE_OVERHEAD]) {
-		q->rate_overhead = nla_get_s32(tb[TCA_CAKE_OVERHEAD]);
-		q->rate_flags |= CAKE_FLAG_OVERHEAD;
+		WRITE_ONCE(q->rate_overhead,
+			   nla_get_s32(tb[TCA_CAKE_OVERHEAD]));
+		rate_flags |= CAKE_FLAG_OVERHEAD;
 
 		q->max_netlen = 0;
 		q->max_adjlen = 0;
@@ -2623,7 +2631,7 @@ static int cake_change(struct Qdisc *sch, struct nlattr *opt,
 	}
 
 	if (tb[TCA_CAKE_RAW]) {
-		q->rate_flags &= ~CAKE_FLAG_OVERHEAD;
+		rate_flags &= ~CAKE_FLAG_OVERHEAD;
 
 		q->max_netlen = 0;
 		q->max_adjlen = 0;
@@ -2632,54 +2640,58 @@ static int cake_change(struct Qdisc *sch, struct nlattr *opt,
 	}
 
 	if (tb[TCA_CAKE_MPU])
-		q->rate_mpu = nla_get_u32(tb[TCA_CAKE_MPU]);
+		WRITE_ONCE(q->rate_mpu,
+			   nla_get_u32(tb[TCA_CAKE_MPU]));
 
 	if (tb[TCA_CAKE_RTT]) {
-		q->interval = nla_get_u32(tb[TCA_CAKE_RTT]);
+		u32 interval = nla_get_u32(tb[TCA_CAKE_RTT]);
 
-		if (!q->interval)
-			q->interval = 1;
+		WRITE_ONCE(q->interval, max(interval, 1U));
 	}
 
 	if (tb[TCA_CAKE_TARGET]) {
-		q->target = nla_get_u32(tb[TCA_CAKE_TARGET]);
+		u32 target = nla_get_u32(tb[TCA_CAKE_TARGET]);
 
-		if (!q->target)
-			q->target = 1;
+		WRITE_ONCE(q->target, max(target, 1U));
 	}
 
 	if (tb[TCA_CAKE_AUTORATE]) {
 		if (!!nla_get_u32(tb[TCA_CAKE_AUTORATE]))
-			q->rate_flags |= CAKE_FLAG_AUTORATE_INGRESS;
+			rate_flags |= CAKE_FLAG_AUTORATE_INGRESS;
 		else
-			q->rate_flags &= ~CAKE_FLAG_AUTORATE_INGRESS;
+			rate_flags &= ~CAKE_FLAG_AUTORATE_INGRESS;
 	}
 
 	if (tb[TCA_CAKE_INGRESS]) {
 		if (!!nla_get_u32(tb[TCA_CAKE_INGRESS]))
-			q->rate_flags |= CAKE_FLAG_INGRESS;
+			rate_flags |= CAKE_FLAG_INGRESS;
 		else
-			q->rate_flags &= ~CAKE_FLAG_INGRESS;
+			rate_flags &= ~CAKE_FLAG_INGRESS;
 	}
 
 	if (tb[TCA_CAKE_ACK_FILTER])
-		q->ack_filter = nla_get_u32(tb[TCA_CAKE_ACK_FILTER]);
+		WRITE_ONCE(q->ack_filter,
+			   nla_get_u32(tb[TCA_CAKE_ACK_FILTER]));
 
 	if (tb[TCA_CAKE_MEMORY])
-		q->buffer_config_limit = nla_get_u32(tb[TCA_CAKE_MEMORY]);
+		WRITE_ONCE(q->buffer_config_limit,
+			   nla_get_u32(tb[TCA_CAKE_MEMORY]));
 
 	if (tb[TCA_CAKE_SPLIT_GSO]) {
 		if (!!nla_get_u32(tb[TCA_CAKE_SPLIT_GSO]))
-			q->rate_flags |= CAKE_FLAG_SPLIT_GSO;
+			rate_flags |= CAKE_FLAG_SPLIT_GSO;
 		else
-			q->rate_flags &= ~CAKE_FLAG_SPLIT_GSO;
+			rate_flags &= ~CAKE_FLAG_SPLIT_GSO;
 	}
 
 	if (tb[TCA_CAKE_FWMARK]) {
-		q->fwmark_mask = nla_get_u32(tb[TCA_CAKE_FWMARK]);
-		q->fwmark_shft = q->fwmark_mask ? __ffs(q->fwmark_mask) : 0;
+		WRITE_ONCE(q->fwmark_mask, nla_get_u32(tb[TCA_CAKE_FWMARK]));
+		WRITE_ONCE(q->fwmark_shft,
+			   q->fwmark_mask ? __ffs(q->fwmark_mask) : 0);
 	}
 
+	WRITE_ONCE(q->rate_flags, rate_flags);
+	WRITE_ONCE(q->flow_mode, flow_mode);
 	if (q->tins) {
 		sch_tree_lock(sch);
 		cake_reconfigure(sch);
@@ -2774,68 +2786,72 @@ static int cake_dump(struct Qdisc *sch, struct sk_buff *skb)
 {
 	struct cake_sched_data *q = qdisc_priv(sch);
 	struct nlattr *opts;
+	u16 rate_flags;
+	u8 flow_mode;
 
 	opts = nla_nest_start_noflag(skb, TCA_OPTIONS);
 	if (!opts)
 		goto nla_put_failure;
 
-	if (nla_put_u64_64bit(skb, TCA_CAKE_BASE_RATE64, q->rate_bps,
-			      TCA_CAKE_PAD))
+	if (nla_put_u64_64bit(skb, TCA_CAKE_BASE_RATE64,
+			      READ_ONCE(q->rate_bps), TCA_CAKE_PAD))
 		goto nla_put_failure;
 
-	if (nla_put_u32(skb, TCA_CAKE_FLOW_MODE,
-			q->flow_mode & CAKE_FLOW_MASK))
+	flow_mode = READ_ONCE(q->flow_mode);
+	if (nla_put_u32(skb, TCA_CAKE_FLOW_MODE, flow_mode & CAKE_FLOW_MASK))
 		goto nla_put_failure;
 
-	if (nla_put_u32(skb, TCA_CAKE_RTT, q->interval))
+	if (nla_put_u32(skb, TCA_CAKE_RTT, READ_ONCE(q->interval)))
 		goto nla_put_failure;
 
-	if (nla_put_u32(skb, TCA_CAKE_TARGET, q->target))
+	if (nla_put_u32(skb, TCA_CAKE_TARGET, READ_ONCE(q->target)))
 		goto nla_put_failure;
 
-	if (nla_put_u32(skb, TCA_CAKE_MEMORY, q->buffer_config_limit))
+	if (nla_put_u32(skb, TCA_CAKE_MEMORY,
+			READ_ONCE(q->buffer_config_limit)))
 		goto nla_put_failure;
 
+	rate_flags = READ_ONCE(q->rate_flags);
 	if (nla_put_u32(skb, TCA_CAKE_AUTORATE,
-			!!(q->rate_flags & CAKE_FLAG_AUTORATE_INGRESS)))
+			!!(rate_flags & CAKE_FLAG_AUTORATE_INGRESS)))
 		goto nla_put_failure;
 
 	if (nla_put_u32(skb, TCA_CAKE_INGRESS,
-			!!(q->rate_flags & CAKE_FLAG_INGRESS)))
+			!!(rate_flags & CAKE_FLAG_INGRESS)))
 		goto nla_put_failure;
 
-	if (nla_put_u32(skb, TCA_CAKE_ACK_FILTER, q->ack_filter))
+	if (nla_put_u32(skb, TCA_CAKE_ACK_FILTER, READ_ONCE(q->ack_filter)))
 		goto nla_put_failure;
 
 	if (nla_put_u32(skb, TCA_CAKE_NAT,
-			!!(q->flow_mode & CAKE_FLOW_NAT_FLAG)))
+			!!(flow_mode & CAKE_FLOW_NAT_FLAG)))
 		goto nla_put_failure;
 
-	if (nla_put_u32(skb, TCA_CAKE_DIFFSERV_MODE, q->tin_mode))
+	if (nla_put_u32(skb, TCA_CAKE_DIFFSERV_MODE, READ_ONCE(q->tin_mode)))
 		goto nla_put_failure;
 
 	if (nla_put_u32(skb, TCA_CAKE_WASH,
-			!!(q->rate_flags & CAKE_FLAG_WASH)))
+			!!(rate_flags & CAKE_FLAG_WASH)))
 		goto nla_put_failure;
 
-	if (nla_put_u32(skb, TCA_CAKE_OVERHEAD, q->rate_overhead))
+	if (nla_put_u32(skb, TCA_CAKE_OVERHEAD, READ_ONCE(q->rate_overhead)))
 		goto nla_put_failure;
 
-	if (!(q->rate_flags & CAKE_FLAG_OVERHEAD))
+	if (!(rate_flags & CAKE_FLAG_OVERHEAD))
 		if (nla_put_u32(skb, TCA_CAKE_RAW, 0))
 			goto nla_put_failure;
 
-	if (nla_put_u32(skb, TCA_CAKE_ATM, q->atm_mode))
+	if (nla_put_u32(skb, TCA_CAKE_ATM, READ_ONCE(q->atm_mode)))
 		goto nla_put_failure;
 
-	if (nla_put_u32(skb, TCA_CAKE_MPU, q->rate_mpu))
+	if (nla_put_u32(skb, TCA_CAKE_MPU, READ_ONCE(q->rate_mpu)))
 		goto nla_put_failure;
 
 	if (nla_put_u32(skb, TCA_CAKE_SPLIT_GSO,
-			!!(q->rate_flags & CAKE_FLAG_SPLIT_GSO)))
+			!!(rate_flags & CAKE_FLAG_SPLIT_GSO)))
 		goto nla_put_failure;
 
-	if (nla_put_u32(skb, TCA_CAKE_FWMARK, q->fwmark_mask))
+	if (nla_put_u32(skb, TCA_CAKE_FWMARK, READ_ONCE(q->fwmark_mask)))
 		goto nla_put_failure;
 
 	return nla_nest_end(skb, opts);

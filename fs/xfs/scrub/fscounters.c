@@ -85,7 +85,7 @@ xchk_fscount_warmup(
 			continue;
 
 		/* Lock both AG headers. */
-		error = xfs_ialloc_read_agi(pag, sc->tp, &agi_bp);
+		error = xfs_ialloc_read_agi(pag, sc->tp, 0, &agi_bp);
 		if (error)
 			break;
 		error = xfs_alloc_read_agf(pag, sc->tp, 0, &agf_bp);
@@ -412,10 +412,11 @@ xchk_fscount_count_frextents(
 	int			error;
 
 	fsc->frextents = 0;
+	fsc->frextents_delayed = 0;
 	if (!xfs_has_realtime(mp))
 		return 0;
 
-	xfs_ilock(sc->mp->m_rbmip, XFS_ILOCK_SHARED | XFS_ILOCK_RTBITMAP);
+	xfs_rtbitmap_lock_shared(sc->mp, XFS_RBMLOCK_BITMAP);
 	error = xfs_rtalloc_query_all(sc->mp, sc->tp,
 			xchk_fscount_add_frextent, fsc);
 	if (error) {
@@ -423,8 +424,10 @@ xchk_fscount_count_frextents(
 		goto out_unlock;
 	}
 
+	fsc->frextents_delayed = percpu_counter_sum(&mp->m_delalloc_rtextents);
+
 out_unlock:
-	xfs_iunlock(sc->mp->m_rbmip, XFS_ILOCK_SHARED | XFS_ILOCK_RTBITMAP);
+	xfs_rtbitmap_unlock_shared(sc->mp, XFS_RBMLOCK_BITMAP);
 	return error;
 }
 #else
@@ -434,6 +437,7 @@ xchk_fscount_count_frextents(
 	struct xchk_fscounters	*fsc)
 {
 	fsc->frextents = 0;
+	fsc->frextents_delayed = 0;
 	return 0;
 }
 #endif /* CONFIG_XFS_RT */
@@ -517,7 +521,7 @@ xchk_fscounters(
 
 	/*
 	 * If the filesystem is not frozen, the counter summation calls above
-	 * can race with xfs_mod_freecounter, which subtracts a requested space
+	 * can race with xfs_dec_freecounter, which subtracts a requested space
 	 * reservation from the counter and undoes the subtraction if that made
 	 * the counter go negative.  Therefore, it's possible to see negative
 	 * values here, and we should only flag that as a corruption if we
@@ -593,7 +597,7 @@ xchk_fscounters(
 	}
 
 	if (!xchk_fscount_within_range(sc, frextents, &mp->m_frextents,
-			fsc->frextents)) {
+			fsc->frextents - fsc->frextents_delayed)) {
 		if (fsc->frozen)
 			xchk_set_corrupt(sc);
 		else

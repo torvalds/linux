@@ -690,12 +690,12 @@ static int mana_change_mtu(struct net_device *ndev, int new_mtu)
 		goto out;
 	}
 
-	ndev->mtu = new_mtu;
+	WRITE_ONCE(ndev->mtu, new_mtu);
 
 	err = mana_attach(ndev);
 	if (err) {
 		netdev_err(ndev, "mana_attach failed: %d\n", err);
-		ndev->mtu = old_mtu;
+		WRITE_ONCE(ndev->mtu, old_mtu);
 	}
 
 out:
@@ -1058,11 +1058,10 @@ static int mana_cfg_vport_steering(struct mana_port_context *apc,
 	struct mana_cfg_rx_steer_req_v2 *req;
 	struct mana_cfg_rx_steer_resp resp = {};
 	struct net_device *ndev = apc->ndev;
-	mana_handle_t *req_indir_tab;
 	u32 req_buf_size;
 	int err;
 
-	req_buf_size = sizeof(*req) + sizeof(mana_handle_t) * num_entries;
+	req_buf_size = struct_size(req, indir_tab, num_entries);
 	req = kzalloc(req_buf_size, GFP_KERNEL);
 	if (!req)
 		return -ENOMEM;
@@ -1074,7 +1073,8 @@ static int mana_cfg_vport_steering(struct mana_port_context *apc,
 
 	req->vport = apc->port_handle;
 	req->num_indir_entries = num_entries;
-	req->indir_tab_offset = sizeof(*req);
+	req->indir_tab_offset = offsetof(struct mana_cfg_rx_steer_req_v2,
+					 indir_tab);
 	req->rx_enable = rx;
 	req->rss_enable = apc->rss_state;
 	req->update_default_rxobj = update_default_rxobj;
@@ -1086,11 +1086,9 @@ static int mana_cfg_vport_steering(struct mana_port_context *apc,
 	if (update_key)
 		memcpy(&req->hashkey, apc->hashkey, MANA_HASH_KEY_SIZE);
 
-	if (update_tab) {
-		req_indir_tab = (mana_handle_t *)(req + 1);
-		memcpy(req_indir_tab, apc->rxobj_table,
-		       req->num_indir_entries * sizeof(mana_handle_t));
-	}
+	if (update_tab)
+		memcpy(req->indir_tab, apc->rxobj_table,
+		       flex_array_size(req, indir_tab, req->num_indir_entries));
 
 	err = mana_send_request(apc->ac, req, req_buf_size, &resp,
 				sizeof(resp));

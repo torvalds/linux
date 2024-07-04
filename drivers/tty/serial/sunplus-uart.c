@@ -200,7 +200,7 @@ static void sunplus_break_ctl(struct uart_port *port, int ctl)
 
 static void transmit_chars(struct uart_port *port)
 {
-	struct circ_buf *xmit = &port->state->xmit;
+	struct tty_port *tport = &port->state->port;
 
 	if (port->x_char) {
 		sp_uart_put_char(port, port->x_char);
@@ -209,22 +209,24 @@ static void transmit_chars(struct uart_port *port)
 		return;
 	}
 
-	if (uart_circ_empty(xmit) || uart_tx_stopped(port)) {
+	if (kfifo_is_empty(&tport->xmit_fifo) || uart_tx_stopped(port)) {
 		sunplus_stop_tx(port);
 		return;
 	}
 
 	do {
-		sp_uart_put_char(port, xmit->buf[xmit->tail]);
-		uart_xmit_advance(port, 1);
-		if (uart_circ_empty(xmit))
+		unsigned char ch;
+
+		if (!uart_fifo_get(port, &ch))
 			break;
+
+		sp_uart_put_char(port, ch);
 	} while (sunplus_tx_buf_not_full(port));
 
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+	if (kfifo_len(&tport->xmit_fifo) < WAKEUP_CHARS)
 		uart_write_wakeup(port);
 
-	if (uart_circ_empty(xmit))
+	if (kfifo_is_empty(&tport->xmit_fifo))
 		sunplus_stop_tx(port);
 }
 

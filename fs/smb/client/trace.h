@@ -85,6 +85,62 @@ smb3_tcon_ref_traces;
 
 /* For logging errors in read or write */
 DECLARE_EVENT_CLASS(smb3_rw_err_class,
+	TP_PROTO(unsigned int rreq_debug_id,
+		 unsigned int rreq_debug_index,
+		 unsigned int xid,
+		 __u64	fid,
+		 __u32	tid,
+		 __u64	sesid,
+		 __u64	offset,
+		 __u32	len,
+		 int	rc),
+	TP_ARGS(rreq_debug_id, rreq_debug_index,
+		xid, fid, tid, sesid, offset, len, rc),
+	TP_STRUCT__entry(
+		__field(unsigned int, rreq_debug_id)
+		__field(unsigned int, rreq_debug_index)
+		__field(unsigned int, xid)
+		__field(__u64, fid)
+		__field(__u32, tid)
+		__field(__u64, sesid)
+		__field(__u64, offset)
+		__field(__u32, len)
+		__field(int, rc)
+	),
+	TP_fast_assign(
+		__entry->rreq_debug_id = rreq_debug_id;
+		__entry->rreq_debug_index = rreq_debug_index;
+		__entry->xid = xid;
+		__entry->fid = fid;
+		__entry->tid = tid;
+		__entry->sesid = sesid;
+		__entry->offset = offset;
+		__entry->len = len;
+		__entry->rc = rc;
+	),
+	TP_printk("\tR=%08x[%x] xid=%u sid=0x%llx tid=0x%x fid=0x%llx offset=0x%llx len=0x%x rc=%d",
+		  __entry->rreq_debug_id, __entry->rreq_debug_index,
+		  __entry->xid, __entry->sesid, __entry->tid, __entry->fid,
+		  __entry->offset, __entry->len, __entry->rc)
+)
+
+#define DEFINE_SMB3_RW_ERR_EVENT(name)          \
+DEFINE_EVENT(smb3_rw_err_class, smb3_##name,    \
+	TP_PROTO(unsigned int rreq_debug_id,	\
+		 unsigned int rreq_debug_index,		\
+		 unsigned int xid,			\
+		 __u64	fid,				\
+		 __u32	tid,				\
+		 __u64	sesid,				\
+		 __u64	offset,				\
+		 __u32	len,				\
+		 int	rc),				\
+	TP_ARGS(rreq_debug_id, rreq_debug_index, xid, fid, tid, sesid, offset, len, rc))
+
+DEFINE_SMB3_RW_ERR_EVENT(read_err);
+
+/* For logging errors in other file I/O ops */
+DECLARE_EVENT_CLASS(smb3_other_err_class,
 	TP_PROTO(unsigned int xid,
 		__u64	fid,
 		__u32	tid,
@@ -116,8 +172,8 @@ DECLARE_EVENT_CLASS(smb3_rw_err_class,
 		__entry->offset, __entry->len, __entry->rc)
 )
 
-#define DEFINE_SMB3_RW_ERR_EVENT(name)          \
-DEFINE_EVENT(smb3_rw_err_class, smb3_##name,    \
+#define DEFINE_SMB3_OTHER_ERR_EVENT(name)	\
+DEFINE_EVENT(smb3_other_err_class, smb3_##name, \
 	TP_PROTO(unsigned int xid,		\
 		__u64	fid,			\
 		__u32	tid,			\
@@ -127,15 +183,67 @@ DEFINE_EVENT(smb3_rw_err_class, smb3_##name,    \
 		int	rc),			\
 	TP_ARGS(xid, fid, tid, sesid, offset, len, rc))
 
-DEFINE_SMB3_RW_ERR_EVENT(write_err);
-DEFINE_SMB3_RW_ERR_EVENT(read_err);
-DEFINE_SMB3_RW_ERR_EVENT(query_dir_err);
-DEFINE_SMB3_RW_ERR_EVENT(zero_err);
-DEFINE_SMB3_RW_ERR_EVENT(falloc_err);
+DEFINE_SMB3_OTHER_ERR_EVENT(write_err);
+DEFINE_SMB3_OTHER_ERR_EVENT(query_dir_err);
+DEFINE_SMB3_OTHER_ERR_EVENT(zero_err);
+DEFINE_SMB3_OTHER_ERR_EVENT(falloc_err);
 
 
 /* For logging successful read or write */
 DECLARE_EVENT_CLASS(smb3_rw_done_class,
+	TP_PROTO(unsigned int rreq_debug_id,
+		 unsigned int rreq_debug_index,
+		 unsigned int xid,
+		 __u64	fid,
+		 __u32	tid,
+		 __u64	sesid,
+		 __u64	offset,
+		 __u32	len),
+	TP_ARGS(rreq_debug_id, rreq_debug_index,
+		xid, fid, tid, sesid, offset, len),
+	TP_STRUCT__entry(
+		__field(unsigned int, rreq_debug_id)
+		__field(unsigned int, rreq_debug_index)
+		__field(unsigned int, xid)
+		__field(__u64, fid)
+		__field(__u32, tid)
+		__field(__u64, sesid)
+		__field(__u64, offset)
+		__field(__u32, len)
+	),
+	TP_fast_assign(
+		__entry->rreq_debug_id = rreq_debug_id;
+		__entry->rreq_debug_index = rreq_debug_index;
+		__entry->xid = xid;
+		__entry->fid = fid;
+		__entry->tid = tid;
+		__entry->sesid = sesid;
+		__entry->offset = offset;
+		__entry->len = len;
+	),
+	TP_printk("R=%08x[%x] xid=%u sid=0x%llx tid=0x%x fid=0x%llx offset=0x%llx len=0x%x",
+		  __entry->rreq_debug_id, __entry->rreq_debug_index,
+		  __entry->xid, __entry->sesid, __entry->tid, __entry->fid,
+		  __entry->offset, __entry->len)
+)
+
+#define DEFINE_SMB3_RW_DONE_EVENT(name)         \
+DEFINE_EVENT(smb3_rw_done_class, smb3_##name,   \
+	TP_PROTO(unsigned int rreq_debug_id,	\
+		 unsigned int rreq_debug_index,	\
+		 unsigned int xid,		\
+		__u64	fid,			\
+		__u32	tid,			\
+		__u64	sesid,			\
+		__u64	offset,			\
+		__u32	len),			\
+	TP_ARGS(rreq_debug_id, rreq_debug_index, xid, fid, tid, sesid, offset, len))
+
+DEFINE_SMB3_RW_DONE_EVENT(read_enter);
+DEFINE_SMB3_RW_DONE_EVENT(read_done);
+
+/* For logging successful other op */
+DECLARE_EVENT_CLASS(smb3_other_done_class,
 	TP_PROTO(unsigned int xid,
 		__u64	fid,
 		__u32	tid,
@@ -164,8 +272,8 @@ DECLARE_EVENT_CLASS(smb3_rw_done_class,
 		__entry->offset, __entry->len)
 )
 
-#define DEFINE_SMB3_RW_DONE_EVENT(name)         \
-DEFINE_EVENT(smb3_rw_done_class, smb3_##name,   \
+#define DEFINE_SMB3_OTHER_DONE_EVENT(name)         \
+DEFINE_EVENT(smb3_other_done_class, smb3_##name,   \
 	TP_PROTO(unsigned int xid,		\
 		__u64	fid,			\
 		__u32	tid,			\
@@ -174,16 +282,14 @@ DEFINE_EVENT(smb3_rw_done_class, smb3_##name,   \
 		__u32	len),			\
 	TP_ARGS(xid, fid, tid, sesid, offset, len))
 
-DEFINE_SMB3_RW_DONE_EVENT(write_enter);
-DEFINE_SMB3_RW_DONE_EVENT(read_enter);
-DEFINE_SMB3_RW_DONE_EVENT(query_dir_enter);
-DEFINE_SMB3_RW_DONE_EVENT(zero_enter);
-DEFINE_SMB3_RW_DONE_EVENT(falloc_enter);
-DEFINE_SMB3_RW_DONE_EVENT(write_done);
-DEFINE_SMB3_RW_DONE_EVENT(read_done);
-DEFINE_SMB3_RW_DONE_EVENT(query_dir_done);
-DEFINE_SMB3_RW_DONE_EVENT(zero_done);
-DEFINE_SMB3_RW_DONE_EVENT(falloc_done);
+DEFINE_SMB3_OTHER_DONE_EVENT(write_enter);
+DEFINE_SMB3_OTHER_DONE_EVENT(query_dir_enter);
+DEFINE_SMB3_OTHER_DONE_EVENT(zero_enter);
+DEFINE_SMB3_OTHER_DONE_EVENT(falloc_enter);
+DEFINE_SMB3_OTHER_DONE_EVENT(write_done);
+DEFINE_SMB3_OTHER_DONE_EVENT(query_dir_done);
+DEFINE_SMB3_OTHER_DONE_EVENT(zero_done);
+DEFINE_SMB3_OTHER_DONE_EVENT(falloc_done);
 
 /* For logging successful set EOF (truncate) */
 DECLARE_EVENT_CLASS(smb3_eof_class,
@@ -412,7 +518,7 @@ DECLARE_EVENT_CLASS(smb3_inf_compound_enter_class,
 		__entry->xid = xid;
 		__entry->tid = tid;
 		__entry->sesid = sesid;
-		__assign_str(path, full_path);
+		__assign_str(path);
 	),
 	TP_printk("xid=%u sid=0x%llx tid=0x%x path=%s",
 		__entry->xid, __entry->sesid, __entry->tid,
@@ -656,7 +762,7 @@ DECLARE_EVENT_CLASS(smb3_exit_err_class,
 	),
 	TP_fast_assign(
 		__entry->xid = xid;
-		__assign_str(func_name, func_name);
+		__assign_str(func_name);
 		__entry->rc = rc;
 	),
 	TP_printk("\t%s: xid=%u rc=%d",
@@ -709,7 +815,7 @@ DECLARE_EVENT_CLASS(smb3_enter_exit_class,
 	),
 	TP_fast_assign(
 		__entry->xid = xid;
-		__assign_str(func_name, func_name);
+		__assign_str(func_name);
 	),
 	TP_printk("\t%s: xid=%u",
 		__get_str(func_name), __entry->xid)
@@ -746,7 +852,7 @@ DECLARE_EVENT_CLASS(smb3_tcon_class,
 		__entry->xid = xid;
 		__entry->tid = tid;
 		__entry->sesid = sesid;
-		__assign_str(name, unc_name);
+		__assign_str(name);
 		__entry->rc = rc;
 	),
 	TP_printk("xid=%u sid=0x%llx tid=0x%x unc_name=%s rc=%d",
@@ -790,7 +896,7 @@ DECLARE_EVENT_CLASS(smb3_open_enter_class,
 		__entry->xid = xid;
 		__entry->tid = tid;
 		__entry->sesid = sesid;
-		__assign_str(path, full_path);
+		__assign_str(path);
 		__entry->create_options = create_options;
 		__entry->desired_access = desired_access;
 	),
@@ -992,7 +1098,7 @@ DECLARE_EVENT_CLASS(smb3_connect_class,
 		__entry->conn_id = conn_id;
 		pss = (struct sockaddr_storage *)__entry->dst_addr;
 		*pss = *dst_addr;
-		__assign_str(hostname, hostname);
+		__assign_str(hostname);
 	),
 	TP_printk("conn_id=0x%llx server=%s addr=%pISpsfc",
 		__entry->conn_id,
@@ -1028,7 +1134,7 @@ DECLARE_EVENT_CLASS(smb3_connect_err_class,
 		__entry->rc = rc;
 		pss = (struct sockaddr_storage *)__entry->dst_addr;
 		*pss = *dst_addr;
-		__assign_str(hostname, hostname);
+		__assign_str(hostname);
 	),
 	TP_printk("rc=%d conn_id=0x%llx server=%s addr=%pISpsfc",
 		__entry->rc,
@@ -1060,7 +1166,7 @@ DECLARE_EVENT_CLASS(smb3_reconnect_class,
 	TP_fast_assign(
 		__entry->currmid = currmid;
 		__entry->conn_id = conn_id;
-		__assign_str(hostname, hostname);
+		__assign_str(hostname);
 	),
 	TP_printk("conn_id=0x%llx server=%s current_mid=%llu",
 		__entry->conn_id,
@@ -1149,7 +1255,7 @@ DECLARE_EVENT_CLASS(smb3_credit_class,
 	TP_fast_assign(
 		__entry->currmid = currmid;
 		__entry->conn_id = conn_id;
-		__assign_str(hostname, hostname);
+		__assign_str(hostname);
 		__entry->credits = credits;
 		__entry->credits_to_add = credits_to_add;
 		__entry->in_flight = in_flight;

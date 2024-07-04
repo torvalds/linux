@@ -17,7 +17,9 @@
 #include <linux/uaccess.h>
 #include <linux/workqueue.h>
 
+#ifndef CONFIG_PANEL_BOOT_MESSAGE
 #include <generated/utsrelease.h>
+#endif
 
 #include "charlcd.h"
 
@@ -678,4 +680,5 @@ int charlcd_unregister(struct charlcd *lcd)
 }
 EXPORT_SYMBOL_GPL(charlcd_unregister);
 
+MODULE_DESCRIPTION("Character LCD core support");
 MODULE_LICENSE("GPL");

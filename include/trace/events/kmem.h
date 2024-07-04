@@ -126,7 +126,7 @@ TRACE_EVENT(kmem_cache_free,
 	TP_fast_assign(
 		__entry->call_site	= call_site;
 		__entry->ptr		= ptr;
-		__assign_str(name, s->name);
+		__assign_str(name);
 	),
 
 	TP_printk("call_site=%pS ptr=%p name=%s",

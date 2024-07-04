@@ -778,6 +778,7 @@ struct phy_device {
 
 /* Generic phy_device::dev_flags */
 #define PHY_F_NO_IRQ		0x80000000
+#define PHY_F_RXC_ALWAYS_ON	0x40000000
 
 static inline struct phy_device *to_phy_device(const struct device *dev)
 {

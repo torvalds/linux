@@ -34,7 +34,7 @@ static inline void xe_guc_ct_irq_handler(struct xe_guc_ct *ct)
 		return;
 
 	wake_up_all(&ct->wq);
-	queue_work(system_unbound_wq, &ct->g2h_worker);
+	queue_work(ct->g2h_wq, &ct->g2h_worker);
 	xe_guc_ct_fast_path(ct);
 }
 

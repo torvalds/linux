@@ -44,6 +44,12 @@ void gve_tx_free_rings_dqo(struct gve_priv *priv,
 			   struct gve_tx_alloc_rings_cfg *cfg);
 void gve_tx_start_ring_dqo(struct gve_priv *priv, int idx);
 void gve_tx_stop_ring_dqo(struct gve_priv *priv, int idx);
+int gve_rx_alloc_ring_dqo(struct gve_priv *priv,
+			  struct gve_rx_alloc_rings_cfg *cfg,
+			  struct gve_rx_ring *rx,
+			  int idx);
+void gve_rx_free_ring_dqo(struct gve_priv *priv, struct gve_rx_ring *rx,
+			  struct gve_rx_alloc_rings_cfg *cfg);
 int gve_rx_alloc_rings_dqo(struct gve_priv *priv,
 			   struct gve_rx_alloc_rings_cfg *cfg);
 void gve_rx_free_rings_dqo(struct gve_priv *priv,

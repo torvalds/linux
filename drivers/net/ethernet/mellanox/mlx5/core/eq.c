@@ -688,6 +688,12 @@ static int create_async_eqs(struct mlx5_core_dev *dev)
 	if (err)
 		goto err2;
 
+	/* Skip page eq creation when the device does not request for page requests */
+	if (MLX5_CAP_GEN(dev, page_request_disable)) {
+		mlx5_core_dbg(dev, "Skip page EQ creation\n");
+		return 0;
+	}
+
 	param = (struct mlx5_eq_param) {
 		.irq = table->ctrl_irq,
 		.nent = /* TODO: sriov max_vf + */ 1,
@@ -716,7 +722,8 @@ static void destroy_async_eqs(struct mlx5_core_dev *dev)
 {
 	struct mlx5_eq_table *table = dev->priv.eq_table;
 
-	cleanup_async_eq(dev, &table->pages_eq, "pages");
+	if (!MLX5_CAP_GEN(dev, page_request_disable))
+		cleanup_async_eq(dev, &table->pages_eq, "pages");
 	cleanup_async_eq(dev, &table->async_eq, "async");
 	mlx5_cmd_allowed_opcode(dev, MLX5_CMD_OP_DESTROY_EQ);
 	mlx5_cmd_use_polling(dev);

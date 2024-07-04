@@ -125,6 +125,7 @@ static const struct of_device_id sun20i_d1_r_ccu_ids[] = {
 	{ .compatible = "allwinner,sun20i-d1-r-ccu" },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, sun20i_d1_r_ccu_ids);
 
 static struct platform_driver sun20i_d1_r_ccu_driver = {
 	.probe	= sun20i_d1_r_ccu_probe,

@@ -411,7 +411,7 @@ TRACE_EVENT(sched_process_exec,
 	),
 
 	TP_fast_assign(
-		__assign_str(filename, bprm->filename);
+		__assign_str(filename);
 		__entry->pid		= p->pid;
 		__entry->old_pid	= old_pid;
 	),
@@ -420,6 +420,41 @@ TRACE_EVENT(sched_process_exec,
 		  __entry->pid, __entry->old_pid)
 );
 
+/**
+ * sched_prepare_exec - called before setting up new exec
+ * @task:	pointer to the current task
+ * @bprm:	pointer to linux_binprm used for new exec
+ *
+ * Called before flushing the old exec, where @task is still unchanged, but at
+ * the point of no return during switching to the new exec. At the point it is
+ * called the exec will either succeed, or on failure terminate the task. Also
+ * see the "sched_process_exec" tracepoint, which is called right after @task
+ * has successfully switched to the new exec.
+ */
+TRACE_EVENT(sched_prepare_exec,
+
+	TP_PROTO(struct task_struct *task, struct linux_binprm *bprm),
+
+	TP_ARGS(task, bprm),
+
+	TP_STRUCT__entry(
+		__string(	interp,		bprm->interp	)
+		__string(	filename,	bprm->filename	)
+		__field(	pid_t,		pid		)
+		__string(	comm,		task->comm	)
+	),
+
+	TP_fast_assign(
+		__assign_str(interp);
+		__assign_str(filename);
+		__entry->pid = task->pid;
+		__assign_str(comm);
+	),
+
+	TP_printk("interp=%s filename=%s pid=%d comm=%s",
+		  __get_str(interp), __get_str(filename),
+		  __entry->pid, __get_str(comm))
+);
 
 #ifdef CONFIG_SCHEDSTATS
 #define DEFINE_EVENT_SCHEDSTAT DEFINE_EVENT
@@ -752,7 +787,7 @@ DECLARE_TRACE(pelt_dl_tp,
 	TP_PROTO(struct rq *rq),
 	TP_ARGS(rq));
 
-DECLARE_TRACE(pelt_thermal_tp,
+DECLARE_TRACE(pelt_hw_tp,
 	TP_PROTO(struct rq *rq),
 	TP_ARGS(rq));
 

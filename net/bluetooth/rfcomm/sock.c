@@ -468,8 +468,8 @@ done:
 	return err;
 }
 
-static int rfcomm_sock_accept(struct socket *sock, struct socket *newsock, int flags,
-			      bool kern)
+static int rfcomm_sock_accept(struct socket *sock, struct socket *newsock,
+			      struct proto_accept_arg *arg)
 {
 	DEFINE_WAIT_FUNC(wait, woken_wake_function);
 	struct sock *sk = sock->sk, *nsk;
@@ -483,7 +483,7 @@ static int rfcomm_sock_accept(struct socket *sock, struct socket *newsock, int f
 		goto done;
 	}
 
-	timeo = sock_rcvtimeo(sk, flags & O_NONBLOCK);
+	timeo = sock_rcvtimeo(sk, arg->flags & O_NONBLOCK);
 
 	BT_DBG("sk %p timeo %ld", sk, timeo);
 

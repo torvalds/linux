@@ -52,17 +52,6 @@ struct pxa_desc_pin {
 	struct pxa_desc_function	*functions;
 };
 
-struct pxa_pinctrl_group {
-	const char	*name;
-	unsigned	pin;
-};
-
-struct pxa_pinctrl_function {
-	const char	*name;
-	const char	**groups;
-	unsigned	ngroups;
-};
-
 struct pxa_pinctrl {
 	spinlock_t			lock;
 	void __iomem			**base_gafr;
@@ -74,9 +63,9 @@ struct pxa_pinctrl {
 	unsigned			npins;
 	const struct pxa_desc_pin	*ppins;
 	unsigned			ngroups;
-	struct pxa_pinctrl_group	*groups;
+	struct pingroup			*groups;
 	unsigned			nfuncs;
-	struct pxa_pinctrl_function	*functions;
+	struct pinfunction		*functions;
 	char				*name;
 };
 

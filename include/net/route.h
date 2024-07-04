@@ -35,8 +35,6 @@
 #include <linux/cache.h>
 #include <linux/security.h>
 
-#define RTO_ONLINK	0x01
-
 static inline __u8 ip_sock_rt_scope(const struct sock *sk)
 {
 	if (sock_flag(sk, SOCK_LOCALROUTE))
@@ -76,6 +74,17 @@ struct rtable {
 	u32			rt_mtu_locked:1,
 				rt_pmtu:31;
 };
+
+#define dst_rtable(_ptr) container_of_const(_ptr, struct rtable, dst)
+
+/**
+ * skb_rtable - Returns the skb &rtable
+ * @skb: buffer
+ */
+static inline struct rtable *skb_rtable(const struct sk_buff *skb)
+{
+	return dst_rtable(skb_dst(skb));
+}
 
 static inline bool rt_is_input_route(const struct rtable *rt)
 {
@@ -141,15 +150,22 @@ static inline struct rtable *ip_route_output_key(struct net *net, struct flowi4 
 	return ip_route_output_flow(net, flp, NULL);
 }
 
+/* Simplistic IPv4 route lookup function.
+ * This is only suitable for some particular use cases: since the flowi4
+ * structure is only partially set, it may bypass some fib-rules.
+ */
 static inline struct rtable *ip_route_output(struct net *net, __be32 daddr,
-					     __be32 saddr, u8 tos, int oif)
+					     __be32 saddr, u8 tos, int oif,
+					     __u8 scope)
 {
 	struct flowi4 fl4 = {
 		.flowi4_oif = oif,
 		.flowi4_tos = tos,
+		.flowi4_scope = scope,
 		.daddr = daddr,
 		.saddr = saddr,
 	};
+
 	return ip_route_output_key(net, &fl4);
 }
 

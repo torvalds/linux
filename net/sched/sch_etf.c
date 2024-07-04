@@ -467,15 +467,15 @@ static int etf_dump(struct Qdisc *sch, struct sk_buff *skb)
 	if (!nest)
 		goto nla_put_failure;
 
-	opt.delta = q->delta;
-	opt.clockid = q->clockid;
-	if (q->offload)
+	opt.delta = READ_ONCE(q->delta);
+	opt.clockid = READ_ONCE(q->clockid);
+	if (READ_ONCE(q->offload))
 		opt.flags |= TC_ETF_OFFLOAD_ON;
 
-	if (q->deadline_mode)
+	if (READ_ONCE(q->deadline_mode))
 		opt.flags |= TC_ETF_DEADLINE_MODE_ON;
 
-	if (q->skip_sock_check)
+	if (READ_ONCE(q->skip_sock_check))
 		opt.flags |= TC_ETF_SKIP_SOCK_CHECK;
 
 	if (nla_put(skb, TCA_ETF_PARMS, sizeof(opt), &opt))

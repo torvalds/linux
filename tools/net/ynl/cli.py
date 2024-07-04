@@ -19,13 +19,30 @@ class YnlEncoder(json.JSONEncoder):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='YNL CLI sample')
+    description = """
+    YNL CLI utility - a general purpose netlink utility that uses YAML
+    specs to drive protocol encoding and decoding.
+    """
+    epilog = """
+    The --multi option can be repeated to include several do operations
+    in the same netlink payload.
+    """
+
+    parser = argparse.ArgumentParser(description=description,
+                                     epilog=epilog)
     parser.add_argument('--spec', dest='spec', type=str, required=True)
     parser.add_argument('--schema', dest='schema', type=str)
     parser.add_argument('--no-schema', action='store_true')
     parser.add_argument('--json', dest='json_text', type=str)
-    parser.add_argument('--do', dest='do', type=str)
-    parser.add_argument('--dump', dest='dump', type=str)
+
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument('--do', dest='do', metavar='DO-OPERATION', type=str)
+    group.add_argument('--multi', dest='multi', nargs=2, action='append',
+                       metavar=('DO-OPERATION', 'JSON_TEXT'), type=str)
+    group.add_argument('--dump', dest='dump', metavar='DUMP-OPERATION', type=str)
+    group.add_argument('--list-ops', action='store_true')
+    group.add_argument('--list-msgs', action='store_true')
+
     parser.add_argument('--sleep', dest='sleep', type=int)
     parser.add_argument('--subscribe', dest='ntf', type=str)
     parser.add_argument('--replace', dest='flags', action='append_const',
@@ -66,12 +83,23 @@ def main():
     if args.sleep:
         time.sleep(args.sleep)
 
+    if args.list_ops:
+        for op_name, op in ynl.ops.items():
+            print(op_name, " [", ", ".join(op.modes), "]")
+    if args.list_msgs:
+        for op_name, op in ynl.msgs.items():
+            print(op_name, " [", ", ".join(op.modes), "]")
+
     try:
         if args.do:
             reply = ynl.do(args.do, attrs, args.flags)
             output(reply)
         if args.dump:
             reply = ynl.dump(args.dump, attrs)
+            output(reply)
+        if args.multi:
+            ops = [ (item[0], json.loads(item[1]), args.flags or []) for item in args.multi ]
+            reply = ynl.do_multi(ops)
             output(reply)
     except NlError as e:
         print(e)

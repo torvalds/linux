@@ -45,7 +45,7 @@ static inline int _soc_dai_ret(struct snd_soc_dai *dai,
  * @dai: DAI
  * @clk_id: DAI specific clock ID
  * @freq: new clock frequency in Hz
- * @dir: new clock direction - input/output.
+ * @dir: new clock direction (SND_SOC_CLOCK_IN or SND_SOC_CLOCK_OUT)
  *
  * Configures the DAI master (MCLK) or system (SYSCLK) clocking.
  */

@@ -192,7 +192,7 @@ _GLOBAL(scom970_read)
 	xori	r0,r0,MSR_EE
 	mtmsrd	r0,1
 
-	/* rotate 24 bits SCOM address 8 bits left and mask out it's low 8 bits
+	/* rotate 24 bits SCOM address 8 bits left and mask out its low 8 bits
 	 * (including parity). On current CPUs they must be 0'd,
 	 * and finally or in RW bit
 	 */
@@ -226,7 +226,7 @@ _GLOBAL(scom970_write)
 	xori	r0,r0,MSR_EE
 	mtmsrd	r0,1
 
-	/* rotate 24 bits SCOM address 8 bits left and mask out it's low 8 bits
+	/* rotate 24 bits SCOM address 8 bits left and mask out its low 8 bits
 	 * (including parity). On current CPUs they must be 0'd.
 	 */
 

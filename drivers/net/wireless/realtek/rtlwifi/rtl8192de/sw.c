@@ -5,8 +5,12 @@
 #include "../core.h"
 #include "../pci.h"
 #include "../base.h"
-#include "reg.h"
-#include "def.h"
+#include "../rtl8192d/reg.h"
+#include "../rtl8192d/def.h"
+#include "../rtl8192d/dm_common.h"
+#include "../rtl8192d/hw_common.h"
+#include "../rtl8192d/phy_common.h"
+#include "../rtl8192d/trx_common.h"
 #include "phy.h"
 #include "dm.h"
 #include "hw.h"
@@ -207,7 +211,7 @@ static struct rtl_hal_ops rtl8192de_hal_ops = {
 	.radio_onoff_checking = rtl92de_gpio_radio_on_off_checking,
 	.set_bw_mode = rtl92d_phy_set_bw_mode,
 	.switch_channel = rtl92d_phy_sw_chnl,
-	.dm_watchdog = rtl92d_dm_watchdog,
+	.dm_watchdog = rtl92de_dm_watchdog,
 	.scan_operation_backup = rtl_phy_scan_operation_backup,
 	.set_rf_power_state = rtl92d_phy_set_rf_power_state,
 	.led_control = rtl92de_led_control,
@@ -223,6 +227,8 @@ static struct rtl_hal_ops rtl8192de_hal_ops = {
 	.set_rfreg = rtl92d_phy_set_rf_reg,
 	.linked_set_reg = rtl92d_linked_set_reg,
 	.get_btc_status = rtl_btc_status_false,
+	.phy_iq_calibrate = rtl92d_phy_iq_calibrate,
+	.phy_lc_calibrate = rtl92d_phy_lc_calibrate,
 };
 
 static struct rtl_mod_params rtl92de_mod_params = {

@@ -1,17 +1,15 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
 /* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2018-2023 Linaro Ltd.
+ * Copyright (C) 2018-2024 Linaro Ltd.
  */
 #ifndef _GSI_H_
 #define _GSI_H_
 
-#include <linux/types.h>
-#include <linux/spinlock.h>
-#include <linux/mutex.h>
 #include <linux/completion.h>
-#include <linux/platform_device.h>
+#include <linux/mutex.h>
 #include <linux/netdevice.h>
+#include <linux/types.h>
 
 #include "ipa_version.h"
 
@@ -23,12 +21,10 @@
 #define GSI_TLV_MAX		64
 
 struct device;
-struct scatterlist;
 struct platform_device;
 
 struct gsi;
 struct gsi_trans;
-struct gsi_channel_data;
 struct ipa_gsi_endpoint_data;
 
 struct gsi_ring {
@@ -155,7 +151,7 @@ struct gsi {
 	struct mutex mutex;		/* protects commands, programming */
 	struct gsi_channel channel[GSI_CHANNEL_COUNT_MAX];
 	struct gsi_evt_ring evt_ring[GSI_EVT_RING_COUNT_MAX];
-	struct net_device dummy_dev;	/* needed for NAPI */
+	struct net_device *dummy_dev;	/* needed for NAPI */
 };
 
 /**

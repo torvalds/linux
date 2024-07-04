@@ -91,6 +91,18 @@ void ynl_sock_destroy(struct ynl_sock *ys);
 	     !ynl_dump_obj_is_last(iter);				\
 	     iter = ynl_dump_obj_next(iter))
 
+/**
+ * ynl_dump_empty() - does the dump have no entries
+ * @dump: pointer to the dump list, as returned by a dump call
+ *
+ * Check if the dump is empty, i.e. contains no objects.
+ * Dump calls return NULL on error, and terminator element if empty.
+ */
+static inline bool ynl_dump_empty(void *dump)
+{
+	return dump == (void *)YNL_LIST_END;
+}
+
 int ynl_subscribe(struct ynl_sock *ys, const char *grp_name);
 int ynl_socket_get_fd(struct ynl_sock *ys);
 int ynl_ntf_check(struct ynl_sock *ys);

@@ -23,6 +23,7 @@
 #include <asm/pkru.h>
 #include <asm/trapnr.h>
 #include <asm/fpu/xcr.h>
+#include <asm/fpu/xstate.h>
 #include <asm/debugreg.h>
 
 #include "mmu.h"
@@ -32,22 +33,12 @@
 #include "cpuid.h"
 #include "trace.h"
 
-#ifndef CONFIG_KVM_AMD_SEV
-/*
- * When this config is not defined, SEV feature is not supported and APIs in
- * this file are not used but this file still gets compiled into the KVM AMD
- * module.
- *
- * We will not have MISC_CG_RES_SEV and MISC_CG_RES_SEV_ES entries in the enum
- * misc_res_type {} defined in linux/misc_cgroup.h.
- *
- * Below macros allow compilation to succeed.
- */
-#define MISC_CG_RES_SEV MISC_CG_RES_TYPES
-#define MISC_CG_RES_SEV_ES MISC_CG_RES_TYPES
-#endif
+#define GHCB_VERSION_MAX	2ULL
+#define GHCB_VERSION_DEFAULT	2ULL
+#define GHCB_VERSION_MIN	1ULL
 
-#ifdef CONFIG_KVM_AMD_SEV
+#define GHCB_HV_FT_SUPPORTED	GHCB_HV_FT_SNP
+
 /* enable/disable SEV support */
 static bool sev_enabled = true;
 module_param_named(sev, sev_enabled, bool, 0444);
@@ -57,13 +48,13 @@ static bool sev_es_enabled = true;
 module_param_named(sev_es, sev_es_enabled, bool, 0444);
 
 /* enable/disable SEV-ES DebugSwap support */
-static bool sev_es_debug_swap_enabled = false;
+static bool sev_es_debug_swap_enabled = true;
 module_param_named(debug_swap, sev_es_debug_swap_enabled, bool, 0444);
-#else
-#define sev_enabled false
-#define sev_es_enabled false
-#define sev_es_debug_swap_enabled false
-#endif /* CONFIG_KVM_AMD_SEV */
+static u64 sev_supported_vmsa_features;
+
+#define AP_RESET_HOLD_NONE		0
+#define AP_RESET_HOLD_NAE_EVENT		1
+#define AP_RESET_HOLD_MSR_PROTO		2
 
 static u8 sev_enc_bit;
 static DECLARE_RWSEM(sev_deactivate_lock);
@@ -113,7 +104,15 @@ static int sev_flush_asids(unsigned int min_asid, unsigned int max_asid)
 
 static inline bool is_mirroring_enc_context(struct kvm *kvm)
 {
-	return !!to_kvm_svm(kvm)->sev_info.enc_context_owner;
+	return !!to_kvm_sev_info(kvm)->enc_context_owner;
+}
+
+static bool sev_vcpu_has_debug_swap(struct vcpu_svm *svm)
+{
+	struct kvm_vcpu *vcpu = &svm->vcpu;
+	struct kvm_sev_info *sev = &to_kvm_svm(vcpu->kvm)->sev_info;
+
+	return sev->vmsa_features & SVM_SEV_FEAT_DEBUG_SWAP;
 }
 
 /* Must be called with the sev_bitmap_lock held */
@@ -251,20 +250,44 @@ static void sev_unbind_asid(struct kvm *kvm, unsigned int handle)
 	sev_decommission(handle);
 }
 
-static int sev_guest_init(struct kvm *kvm, struct kvm_sev_cmd *argp)
+static int __sev_guest_init(struct kvm *kvm, struct kvm_sev_cmd *argp,
+			    struct kvm_sev_init *data,
+			    unsigned long vm_type)
 {
 	struct kvm_sev_info *sev = &to_kvm_svm(kvm)->sev_info;
 	struct sev_platform_init_args init_args = {0};
+	bool es_active = vm_type != KVM_X86_SEV_VM;
+	u64 valid_vmsa_features = es_active ? sev_supported_vmsa_features : 0;
 	int ret;
 
 	if (kvm->created_vcpus)
+		return -EINVAL;
+
+	if (data->flags)
+		return -EINVAL;
+
+	if (data->vmsa_features & ~valid_vmsa_features)
+		return -EINVAL;
+
+	if (data->ghcb_version > GHCB_VERSION_MAX || (!es_active && data->ghcb_version))
 		return -EINVAL;
 
 	if (unlikely(sev->active))
 		return -EINVAL;
 
 	sev->active = true;
-	sev->es_active = argp->id == KVM_SEV_ES_INIT;
+	sev->es_active = es_active;
+	sev->vmsa_features = data->vmsa_features;
+	sev->ghcb_version = data->ghcb_version;
+
+	/*
+	 * Currently KVM supports the full range of mandatory features defined
+	 * by version 2 of the GHCB protocol, so default to that for SEV-ES
+	 * guests created via KVM_SEV_INIT2.
+	 */
+	if (sev->es_active && !sev->ghcb_version)
+		sev->ghcb_version = GHCB_VERSION_DEFAULT;
+
 	ret = sev_asid_new(sev);
 	if (ret)
 		goto e_no_asid;
@@ -276,6 +299,7 @@ static int sev_guest_init(struct kvm *kvm, struct kvm_sev_cmd *argp)
 
 	INIT_LIST_HEAD(&sev->regions_list);
 	INIT_LIST_HEAD(&sev->mirror_vms);
+	sev->need_init = false;
 
 	kvm_set_apicv_inhibit(kvm, APICV_INHIBIT_REASON_SEV);
 
@@ -286,9 +310,51 @@ e_free:
 	sev_asid_free(sev);
 	sev->asid = 0;
 e_no_asid:
+	sev->vmsa_features = 0;
 	sev->es_active = false;
 	sev->active = false;
 	return ret;
+}
+
+static int sev_guest_init(struct kvm *kvm, struct kvm_sev_cmd *argp)
+{
+	struct kvm_sev_init data = {
+		.vmsa_features = 0,
+		.ghcb_version = 0,
+	};
+	unsigned long vm_type;
+
+	if (kvm->arch.vm_type != KVM_X86_DEFAULT_VM)
+		return -EINVAL;
+
+	vm_type = (argp->id == KVM_SEV_INIT ? KVM_X86_SEV_VM : KVM_X86_SEV_ES_VM);
+
+	/*
+	 * KVM_SEV_ES_INIT has been deprecated by KVM_SEV_INIT2, so it will
+	 * continue to only ever support the minimal GHCB protocol version.
+	 */
+	if (vm_type == KVM_X86_SEV_ES_VM)
+		data.ghcb_version = GHCB_VERSION_MIN;
+
+	return __sev_guest_init(kvm, argp, &data, vm_type);
+}
+
+static int sev_guest_init2(struct kvm *kvm, struct kvm_sev_cmd *argp)
+{
+	struct kvm_sev_info *sev = &to_kvm_svm(kvm)->sev_info;
+	struct kvm_sev_init data;
+
+	if (!sev->need_init)
+		return -EINVAL;
+
+	if (kvm->arch.vm_type != KVM_X86_SEV_VM &&
+	    kvm->arch.vm_type != KVM_X86_SEV_ES_VM)
+		return -EINVAL;
+
+	if (copy_from_user(&data, u64_to_user_ptr(argp->data), sizeof(data)))
+		return -EFAULT;
+
+	return __sev_guest_init(kvm, argp, &data, kvm->arch.vm_type);
 }
 
 static int sev_bind_asid(struct kvm *kvm, unsigned int handle, int *error)
@@ -339,7 +405,7 @@ static int sev_launch_start(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	if (!sev_guest(kvm))
 		return -ENOTTY;
 
-	if (copy_from_user(&params, (void __user *)(uintptr_t)argp->data, sizeof(params)))
+	if (copy_from_user(&params, u64_to_user_ptr(argp->data), sizeof(params)))
 		return -EFAULT;
 
 	memset(&start, 0, sizeof(start));
@@ -383,7 +449,7 @@ static int sev_launch_start(struct kvm *kvm, struct kvm_sev_cmd *argp)
 
 	/* return handle to userspace */
 	params.handle = start.handle;
-	if (copy_to_user((void __user *)(uintptr_t)argp->data, &params, sizeof(params))) {
+	if (copy_to_user(u64_to_user_ptr(argp->data), &params, sizeof(params))) {
 		sev_unbind_asid(kvm, start.handle);
 		ret = -EFAULT;
 		goto e_free_session;
@@ -522,7 +588,7 @@ static int sev_launch_update_data(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	if (!sev_guest(kvm))
 		return -ENOTTY;
 
-	if (copy_from_user(&params, (void __user *)(uintptr_t)argp->data, sizeof(params)))
+	if (copy_from_user(&params, u64_to_user_ptr(argp->data), sizeof(params)))
 		return -EFAULT;
 
 	vaddr = params.uaddr;
@@ -580,7 +646,13 @@ e_unpin:
 
 static int sev_es_sync_vmsa(struct vcpu_svm *svm)
 {
+	struct kvm_vcpu *vcpu = &svm->vcpu;
+	struct kvm_sev_info *sev = &to_kvm_svm(vcpu->kvm)->sev_info;
 	struct sev_es_save_area *save = svm->sev_es.vmsa;
+	struct xregs_state *xsave;
+	const u8 *s;
+	u8 *d;
+	int i;
 
 	/* Check some debug related fields before encrypting the VMSA */
 	if (svm->vcpu.guest_debug || (svm->vmcb->save.dr7 & ~DR7_FIXED_1))
@@ -621,10 +693,44 @@ static int sev_es_sync_vmsa(struct vcpu_svm *svm)
 	save->xss  = svm->vcpu.arch.ia32_xss;
 	save->dr6  = svm->vcpu.arch.dr6;
 
-	if (sev_es_debug_swap_enabled) {
-		save->sev_features |= SVM_SEV_FEAT_DEBUG_SWAP;
-		pr_warn_once("Enabling DebugSwap with KVM_SEV_ES_INIT. "
-			     "This will not work starting with Linux 6.10\n");
+	save->sev_features = sev->vmsa_features;
+
+	/*
+	 * Skip FPU and AVX setup with KVM_SEV_ES_INIT to avoid
+	 * breaking older measurements.
+	 */
+	if (vcpu->kvm->arch.vm_type != KVM_X86_DEFAULT_VM) {
+		xsave = &vcpu->arch.guest_fpu.fpstate->regs.xsave;
+		save->x87_dp = xsave->i387.rdp;
+		save->mxcsr = xsave->i387.mxcsr;
+		save->x87_ftw = xsave->i387.twd;
+		save->x87_fsw = xsave->i387.swd;
+		save->x87_fcw = xsave->i387.cwd;
+		save->x87_fop = xsave->i387.fop;
+		save->x87_ds = 0;
+		save->x87_cs = 0;
+		save->x87_rip = xsave->i387.rip;
+
+		for (i = 0; i < 8; i++) {
+			/*
+			 * The format of the x87 save area is undocumented and
+			 * definitely not what you would expect.  It consists of
+			 * an 8*8 bytes area with bytes 0-7, and an 8*2 bytes
+			 * area with bytes 8-9 of each register.
+			 */
+			d = save->fpreg_x87 + i * 8;
+			s = ((u8 *)xsave->i387.st_space) + i * 16;
+			memcpy(d, s, 8);
+			save->fpreg_x87[64 + i * 2] = s[8];
+			save->fpreg_x87[64 + i * 2 + 1] = s[9];
+		}
+		memcpy(save->fpreg_xmm, xsave->i387.xmm_space, 256);
+
+		s = get_xsave_addr(xsave, XFEATURE_YMM);
+		if (s)
+			memcpy(save->fpreg_ymm, s, 256);
+		else
+			memset(save->fpreg_ymm, 0, 256);
 	}
 
 	pr_debug("Virtual Machine Save Area (VMSA):\n");
@@ -658,13 +764,20 @@ static int __sev_launch_update_vmsa(struct kvm *kvm, struct kvm_vcpu *vcpu,
 	clflush_cache_range(svm->sev_es.vmsa, PAGE_SIZE);
 
 	vmsa.reserved = 0;
-	vmsa.handle = to_kvm_svm(kvm)->sev_info.handle;
+	vmsa.handle = to_kvm_sev_info(kvm)->handle;
 	vmsa.address = __sme_pa(svm->sev_es.vmsa);
 	vmsa.len = PAGE_SIZE;
 	ret = sev_issue_cmd(kvm, SEV_CMD_LAUNCH_UPDATE_VMSA, &vmsa, error);
 	if (ret)
 	  return ret;
 
+	/*
+	 * SEV-ES guests maintain an encrypted version of their FPU
+	 * state which is restored and saved on VMRUN and VMEXIT.
+	 * Mark vcpu->arch.guest_fpu->fpstate as scratch so it won't
+	 * do xsave/xrstor on it.
+	 */
+	fpstate_set_confidential(&vcpu->arch.guest_fpu);
 	vcpu->arch.guest_state_protected = true;
 	return 0;
 }
@@ -695,7 +808,7 @@ static int sev_launch_update_vmsa(struct kvm *kvm, struct kvm_sev_cmd *argp)
 
 static int sev_launch_measure(struct kvm *kvm, struct kvm_sev_cmd *argp)
 {
-	void __user *measure = (void __user *)(uintptr_t)argp->data;
+	void __user *measure = u64_to_user_ptr(argp->data);
 	struct kvm_sev_info *sev = &to_kvm_svm(kvm)->sev_info;
 	struct sev_data_launch_measure data;
 	struct kvm_sev_launch_measure params;
@@ -715,7 +828,7 @@ static int sev_launch_measure(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	if (!params.len)
 		goto cmd;
 
-	p = (void __user *)(uintptr_t)params.uaddr;
+	p = u64_to_user_ptr(params.uaddr);
 	if (p) {
 		if (params.len > SEV_FW_BLOB_MAX_SIZE)
 			return -EINVAL;
@@ -788,7 +901,7 @@ static int sev_guest_status(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	params.state = data.state;
 	params.handle = data.handle;
 
-	if (copy_to_user((void __user *)(uintptr_t)argp->data, &params, sizeof(params)))
+	if (copy_to_user(u64_to_user_ptr(argp->data), &params, sizeof(params)))
 		ret = -EFAULT;
 
 	return ret;
@@ -953,7 +1066,7 @@ static int sev_dbg_crypt(struct kvm *kvm, struct kvm_sev_cmd *argp, bool dec)
 	if (!sev_guest(kvm))
 		return -ENOTTY;
 
-	if (copy_from_user(&debug, (void __user *)(uintptr_t)argp->data, sizeof(debug)))
+	if (copy_from_user(&debug, u64_to_user_ptr(argp->data), sizeof(debug)))
 		return -EFAULT;
 
 	if (!debug.len || debug.src_uaddr + debug.len < debug.src_uaddr)
@@ -1037,7 +1150,7 @@ static int sev_launch_secret(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	if (!sev_guest(kvm))
 		return -ENOTTY;
 
-	if (copy_from_user(&params, (void __user *)(uintptr_t)argp->data, sizeof(params)))
+	if (copy_from_user(&params, u64_to_user_ptr(argp->data), sizeof(params)))
 		return -EFAULT;
 
 	pages = sev_pin_memory(kvm, params.guest_uaddr, params.guest_len, &n, 1);
@@ -1101,7 +1214,7 @@ e_unpin_memory:
 
 static int sev_get_attestation_report(struct kvm *kvm, struct kvm_sev_cmd *argp)
 {
-	void __user *report = (void __user *)(uintptr_t)argp->data;
+	void __user *report = u64_to_user_ptr(argp->data);
 	struct kvm_sev_info *sev = &to_kvm_svm(kvm)->sev_info;
 	struct sev_data_attestation_report data;
 	struct kvm_sev_attestation_report params;
@@ -1112,7 +1225,7 @@ static int sev_get_attestation_report(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	if (!sev_guest(kvm))
 		return -ENOTTY;
 
-	if (copy_from_user(&params, (void __user *)(uintptr_t)argp->data, sizeof(params)))
+	if (copy_from_user(&params, u64_to_user_ptr(argp->data), sizeof(params)))
 		return -EFAULT;
 
 	memset(&data, 0, sizeof(data));
@@ -1121,7 +1234,7 @@ static int sev_get_attestation_report(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	if (!params.len)
 		goto cmd;
 
-	p = (void __user *)(uintptr_t)params.uaddr;
+	p = u64_to_user_ptr(params.uaddr);
 	if (p) {
 		if (params.len > SEV_FW_BLOB_MAX_SIZE)
 			return -EINVAL;
@@ -1174,7 +1287,7 @@ __sev_send_start_query_session_length(struct kvm *kvm, struct kvm_sev_cmd *argp,
 	ret = sev_issue_cmd(kvm, SEV_CMD_SEND_START, &data, &argp->error);
 
 	params->session_len = data.session_len;
-	if (copy_to_user((void __user *)(uintptr_t)argp->data, params,
+	if (copy_to_user(u64_to_user_ptr(argp->data), params,
 				sizeof(struct kvm_sev_send_start)))
 		ret = -EFAULT;
 
@@ -1193,7 +1306,7 @@ static int sev_send_start(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	if (!sev_guest(kvm))
 		return -ENOTTY;
 
-	if (copy_from_user(&params, (void __user *)(uintptr_t)argp->data,
+	if (copy_from_user(&params, u64_to_user_ptr(argp->data),
 				sizeof(struct kvm_sev_send_start)))
 		return -EFAULT;
 
@@ -1248,7 +1361,7 @@ static int sev_send_start(struct kvm *kvm, struct kvm_sev_cmd *argp)
 
 	ret = sev_issue_cmd(kvm, SEV_CMD_SEND_START, &data, &argp->error);
 
-	if (!ret && copy_to_user((void __user *)(uintptr_t)params.session_uaddr,
+	if (!ret && copy_to_user(u64_to_user_ptr(params.session_uaddr),
 			session_data, params.session_len)) {
 		ret = -EFAULT;
 		goto e_free_amd_cert;
@@ -1256,7 +1369,7 @@ static int sev_send_start(struct kvm *kvm, struct kvm_sev_cmd *argp)
 
 	params.policy = data.policy;
 	params.session_len = data.session_len;
-	if (copy_to_user((void __user *)(uintptr_t)argp->data, &params,
+	if (copy_to_user(u64_to_user_ptr(argp->data), &params,
 				sizeof(struct kvm_sev_send_start)))
 		ret = -EFAULT;
 
@@ -1287,7 +1400,7 @@ __sev_send_update_data_query_lengths(struct kvm *kvm, struct kvm_sev_cmd *argp,
 	params->hdr_len = data.hdr_len;
 	params->trans_len = data.trans_len;
 
-	if (copy_to_user((void __user *)(uintptr_t)argp->data, params,
+	if (copy_to_user(u64_to_user_ptr(argp->data), params,
 			 sizeof(struct kvm_sev_send_update_data)))
 		ret = -EFAULT;
 
@@ -1307,7 +1420,7 @@ static int sev_send_update_data(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	if (!sev_guest(kvm))
 		return -ENOTTY;
 
-	if (copy_from_user(&params, (void __user *)(uintptr_t)argp->data,
+	if (copy_from_user(&params, u64_to_user_ptr(argp->data),
 			sizeof(struct kvm_sev_send_update_data)))
 		return -EFAULT;
 
@@ -1358,14 +1471,14 @@ static int sev_send_update_data(struct kvm *kvm, struct kvm_sev_cmd *argp)
 		goto e_free_trans_data;
 
 	/* copy transport buffer to user space */
-	if (copy_to_user((void __user *)(uintptr_t)params.trans_uaddr,
+	if (copy_to_user(u64_to_user_ptr(params.trans_uaddr),
 			 trans_data, params.trans_len)) {
 		ret = -EFAULT;
 		goto e_free_trans_data;
 	}
 
 	/* Copy packet header to userspace. */
-	if (copy_to_user((void __user *)(uintptr_t)params.hdr_uaddr, hdr,
+	if (copy_to_user(u64_to_user_ptr(params.hdr_uaddr), hdr,
 			 params.hdr_len))
 		ret = -EFAULT;
 
@@ -1417,7 +1530,7 @@ static int sev_receive_start(struct kvm *kvm, struct kvm_sev_cmd *argp)
 		return -ENOTTY;
 
 	/* Get parameter from the userspace */
-	if (copy_from_user(&params, (void __user *)(uintptr_t)argp->data,
+	if (copy_from_user(&params, u64_to_user_ptr(argp->data),
 			sizeof(struct kvm_sev_receive_start)))
 		return -EFAULT;
 
@@ -1459,7 +1572,7 @@ static int sev_receive_start(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	}
 
 	params.handle = start.handle;
-	if (copy_to_user((void __user *)(uintptr_t)argp->data,
+	if (copy_to_user(u64_to_user_ptr(argp->data),
 			 &params, sizeof(struct kvm_sev_receive_start))) {
 		ret = -EFAULT;
 		sev_unbind_asid(kvm, start.handle);
@@ -1490,7 +1603,7 @@ static int sev_receive_update_data(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	if (!sev_guest(kvm))
 		return -EINVAL;
 
-	if (copy_from_user(&params, (void __user *)(uintptr_t)argp->data,
+	if (copy_from_user(&params, u64_to_user_ptr(argp->data),
 			sizeof(struct kvm_sev_receive_update_data)))
 		return -EFAULT;
 
@@ -1705,6 +1818,7 @@ static void sev_migrate_from(struct kvm *dst_kvm, struct kvm *src_kvm)
 	dst->pages_locked = src->pages_locked;
 	dst->enc_context_owner = src->enc_context_owner;
 	dst->es_active = src->es_active;
+	dst->vmsa_features = src->vmsa_features;
 
 	src->asid = 0;
 	src->active = false;
@@ -1812,7 +1926,8 @@ int sev_vm_move_enc_context_from(struct kvm *kvm, unsigned int source_fd)
 	if (ret)
 		goto out_fput;
 
-	if (sev_guest(kvm) || !sev_guest(source_kvm)) {
+	if (kvm->arch.vm_type != source_kvm->arch.vm_type ||
+	    sev_guest(kvm) || !sev_guest(source_kvm)) {
 		ret = -EINVAL;
 		goto out_unlock;
 	}
@@ -1861,6 +1976,21 @@ out_fput:
 	return ret;
 }
 
+int sev_dev_get_attr(u32 group, u64 attr, u64 *val)
+{
+	if (group != KVM_X86_GRP_SEV)
+		return -ENXIO;
+
+	switch (attr) {
+	case KVM_X86_SEV_VMSA_FEATURES:
+		*val = sev_supported_vmsa_features;
+		return 0;
+
+	default:
+		return -ENXIO;
+	}
+}
+
 int sev_mem_enc_ioctl(struct kvm *kvm, void __user *argp)
 {
 	struct kvm_sev_cmd sev_cmd;
@@ -1893,6 +2023,9 @@ int sev_mem_enc_ioctl(struct kvm *kvm, void __user *argp)
 		fallthrough;
 	case KVM_SEV_INIT:
 		r = sev_guest_init(kvm, &sev_cmd);
+		break;
+	case KVM_SEV_INIT2:
+		r = sev_guest_init2(kvm, &sev_cmd);
 		break;
 	case KVM_SEV_LAUNCH_START:
 		r = sev_launch_start(kvm, &sev_cmd);
@@ -2121,6 +2254,7 @@ int sev_vm_copy_enc_context_from(struct kvm *kvm, unsigned int source_fd)
 	mirror_sev->asid = source_sev->asid;
 	mirror_sev->fd = source_sev->fd;
 	mirror_sev->es_active = source_sev->es_active;
+	mirror_sev->need_init = false;
 	mirror_sev->handle = source_sev->handle;
 	INIT_LIST_HEAD(&mirror_sev->regions_list);
 	INIT_LIST_HEAD(&mirror_sev->mirror_vms);
@@ -2186,15 +2320,18 @@ void sev_vm_destroy(struct kvm *kvm)
 
 void __init sev_set_cpu_caps(void)
 {
-	if (!sev_enabled)
-		kvm_cpu_cap_clear(X86_FEATURE_SEV);
-	if (!sev_es_enabled)
-		kvm_cpu_cap_clear(X86_FEATURE_SEV_ES);
+	if (sev_enabled) {
+		kvm_cpu_cap_set(X86_FEATURE_SEV);
+		kvm_caps.supported_vm_types |= BIT(KVM_X86_SEV_VM);
+	}
+	if (sev_es_enabled) {
+		kvm_cpu_cap_set(X86_FEATURE_SEV_ES);
+		kvm_caps.supported_vm_types |= BIT(KVM_X86_SEV_ES_VM);
+	}
 }
 
 void __init sev_hardware_setup(void)
 {
-#ifdef CONFIG_KVM_AMD_SEV
 	unsigned int eax, ebx, ecx, edx, sev_asid_count, sev_es_asid_count;
 	bool sev_es_supported = false;
 	bool sev_supported = false;
@@ -2294,7 +2431,10 @@ out:
 	if (!sev_es_enabled || !cpu_feature_enabled(X86_FEATURE_DEBUG_SWAP) ||
 	    !cpu_feature_enabled(X86_FEATURE_NO_NESTED_DATA_BP))
 		sev_es_debug_swap_enabled = false;
-#endif
+
+	sev_supported_vmsa_features = 0;
+	if (sev_es_debug_swap_enabled)
+		sev_supported_vmsa_features |= SVM_SEV_FEAT_DEBUG_SWAP;
 }
 
 void sev_hardware_unsetup(void)
@@ -2585,6 +2725,8 @@ static int sev_es_validate_vmgexit(struct vcpu_svm *svm)
 	case SVM_VMGEXIT_AP_HLT_LOOP:
 	case SVM_VMGEXIT_AP_JUMP_TABLE:
 	case SVM_VMGEXIT_UNSUPPORTED_EVENT:
+	case SVM_VMGEXIT_HV_FEATURES:
+	case SVM_VMGEXIT_TERM_REQUEST:
 		break;
 	default:
 		reason = GHCB_ERR_INVALID_EVENT;
@@ -2615,6 +2757,9 @@ vmgexit_err:
 
 void sev_es_unmap_ghcb(struct vcpu_svm *svm)
 {
+	/* Clear any indication that the vCPU is in a type of AP Reset Hold */
+	svm->sev_es.ap_reset_hold_type = AP_RESET_HOLD_NONE;
+
 	if (!svm->sev_es.ghcb)
 		return;
 
@@ -2774,6 +2919,7 @@ static int sev_handle_vmgexit_msr_protocol(struct vcpu_svm *svm)
 {
 	struct vmcb_control_area *control = &svm->vmcb->control;
 	struct kvm_vcpu *vcpu = &svm->vcpu;
+	struct kvm_sev_info *sev = &to_kvm_svm(vcpu->kvm)->sev_info;
 	u64 ghcb_info;
 	int ret = 1;
 
@@ -2784,7 +2930,7 @@ static int sev_handle_vmgexit_msr_protocol(struct vcpu_svm *svm)
 
 	switch (ghcb_info) {
 	case GHCB_MSR_SEV_INFO_REQ:
-		set_ghcb_msr(svm, GHCB_MSR_SEV_INFO(GHCB_VERSION_MAX,
+		set_ghcb_msr(svm, GHCB_MSR_SEV_INFO((__u64)sev->ghcb_version,
 						    GHCB_VERSION_MIN,
 						    sev_enc_bit));
 		break;
@@ -2826,6 +2972,28 @@ static int sev_handle_vmgexit_msr_protocol(struct vcpu_svm *svm)
 				  GHCB_MSR_INFO_POS);
 		break;
 	}
+	case GHCB_MSR_AP_RESET_HOLD_REQ:
+		svm->sev_es.ap_reset_hold_type = AP_RESET_HOLD_MSR_PROTO;
+		ret = kvm_emulate_ap_reset_hold(&svm->vcpu);
+
+		/*
+		 * Preset the result to a non-SIPI return and then only set
+		 * the result to non-zero when delivering a SIPI.
+		 */
+		set_ghcb_msr_bits(svm, 0,
+				  GHCB_MSR_AP_RESET_HOLD_RESULT_MASK,
+				  GHCB_MSR_AP_RESET_HOLD_RESULT_POS);
+
+		set_ghcb_msr_bits(svm, GHCB_MSR_AP_RESET_HOLD_RESP,
+				  GHCB_MSR_INFO_MASK,
+				  GHCB_MSR_INFO_POS);
+		break;
+	case GHCB_MSR_HV_FT_REQ:
+		set_ghcb_msr_bits(svm, GHCB_HV_FT_SUPPORTED,
+				  GHCB_MSR_HV_FT_MASK, GHCB_MSR_HV_FT_POS);
+		set_ghcb_msr_bits(svm, GHCB_MSR_HV_FT_RESP,
+				  GHCB_MSR_INFO_MASK, GHCB_MSR_INFO_POS);
+		break;
 	case GHCB_MSR_TERM_REQ: {
 		u64 reason_set, reason_code;
 
@@ -2925,6 +3093,7 @@ int sev_handle_vmgexit(struct kvm_vcpu *vcpu)
 		ret = 1;
 		break;
 	case SVM_VMGEXIT_AP_HLT_LOOP:
+		svm->sev_es.ap_reset_hold_type = AP_RESET_HOLD_NAE_EVENT;
 		ret = kvm_emulate_ap_reset_hold(vcpu);
 		break;
 	case SVM_VMGEXIT_AP_JUMP_TABLE: {
@@ -2949,6 +3118,19 @@ int sev_handle_vmgexit(struct kvm_vcpu *vcpu)
 		ret = 1;
 		break;
 	}
+	case SVM_VMGEXIT_HV_FEATURES:
+		ghcb_set_sw_exit_info_2(svm->sev_es.ghcb, GHCB_HV_FT_SUPPORTED);
+
+		ret = 1;
+		break;
+	case SVM_VMGEXIT_TERM_REQUEST:
+		pr_info("SEV-ES guest requested termination: reason %#llx info %#llx\n",
+			control->exit_info_1, control->exit_info_2);
+		vcpu->run->exit_reason = KVM_EXIT_SYSTEM_EVENT;
+		vcpu->run->system_event.type = KVM_SYSTEM_EVENT_SEV_TERM;
+		vcpu->run->system_event.ndata = 1;
+		vcpu->run->system_event.data[0] = control->ghcb_gpa;
+		break;
 	case SVM_VMGEXIT_UNSUPPORTED_EVENT:
 		vcpu_unimpl(vcpu,
 			    "vmgexit: unsupported event - exit_info_1=%#llx, exit_info_2=%#llx\n",
@@ -3063,7 +3245,7 @@ static void sev_es_init_vmcb(struct vcpu_svm *svm)
 	svm_set_intercept(svm, TRAP_CR8_WRITE);
 
 	vmcb->control.intercepts[INTERCEPT_DR] = 0;
-	if (!sev_es_debug_swap_enabled) {
+	if (!sev_vcpu_has_debug_swap(svm)) {
 		vmcb_set_intercept(&vmcb->control, INTERCEPT_DR7_READ);
 		vmcb_set_intercept(&vmcb->control, INTERCEPT_DR7_WRITE);
 		recalc_intercepts(svm);
@@ -3109,16 +3291,19 @@ void sev_init_vmcb(struct vcpu_svm *svm)
 
 void sev_es_vcpu_reset(struct vcpu_svm *svm)
 {
+	struct kvm_vcpu *vcpu = &svm->vcpu;
+	struct kvm_sev_info *sev = &to_kvm_svm(vcpu->kvm)->sev_info;
+
 	/*
 	 * Set the GHCB MSR value as per the GHCB specification when emulating
 	 * vCPU RESET for an SEV-ES guest.
 	 */
-	set_ghcb_msr(svm, GHCB_MSR_SEV_INFO(GHCB_VERSION_MAX,
+	set_ghcb_msr(svm, GHCB_MSR_SEV_INFO((__u64)sev->ghcb_version,
 					    GHCB_VERSION_MIN,
 					    sev_enc_bit));
 }
 
-void sev_es_prepare_switch_to_guest(struct sev_es_save_area *hostsa)
+void sev_es_prepare_switch_to_guest(struct vcpu_svm *svm, struct sev_es_save_area *hostsa)
 {
 	/*
 	 * All host state for SEV-ES guests is categorized into three swap types
@@ -3146,7 +3331,7 @@ void sev_es_prepare_switch_to_guest(struct sev_es_save_area *hostsa)
 	 * the CPU (Type-B). If DebugSwap is disabled/unsupported, the CPU both
 	 * saves and loads debug registers (Type-A).
 	 */
-	if (sev_es_debug_swap_enabled) {
+	if (sev_vcpu_has_debug_swap(svm)) {
 		hostsa->dr0 = native_get_debugreg(0);
 		hostsa->dr1 = native_get_debugreg(1);
 		hostsa->dr2 = native_get_debugreg(2);
@@ -3168,15 +3353,31 @@ void sev_vcpu_deliver_sipi_vector(struct kvm_vcpu *vcpu, u8 vector)
 		return;
 	}
 
-	/*
-	 * Subsequent SIPI: Return from an AP Reset Hold VMGEXIT, where
-	 * the guest will set the CS and RIP. Set SW_EXIT_INFO_2 to a
-	 * non-zero value.
-	 */
-	if (!svm->sev_es.ghcb)
-		return;
+	/* Subsequent SIPI */
+	switch (svm->sev_es.ap_reset_hold_type) {
+	case AP_RESET_HOLD_NAE_EVENT:
+		/*
+		 * Return from an AP Reset Hold VMGEXIT, where the guest will
+		 * set the CS and RIP. Set SW_EXIT_INFO_2 to a non-zero value.
+		 */
+		ghcb_set_sw_exit_info_2(svm->sev_es.ghcb, 1);
+		break;
+	case AP_RESET_HOLD_MSR_PROTO:
+		/*
+		 * Return from an AP Reset Hold VMGEXIT, where the guest will
+		 * set the CS and RIP. Set GHCB data field to a non-zero value.
+		 */
+		set_ghcb_msr_bits(svm, 1,
+				  GHCB_MSR_AP_RESET_HOLD_RESULT_MASK,
+				  GHCB_MSR_AP_RESET_HOLD_RESULT_POS);
 
-	ghcb_set_sw_exit_info_2(svm->sev_es.ghcb, 1);
+		set_ghcb_msr_bits(svm, GHCB_MSR_AP_RESET_HOLD_RESP,
+				  GHCB_MSR_INFO_MASK,
+				  GHCB_MSR_INFO_POS);
+		break;
+	default:
+		break;
+	}
 }
 
 struct page *snp_safe_alloc_page(struct kvm_vcpu *vcpu)

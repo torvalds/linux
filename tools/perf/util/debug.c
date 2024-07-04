@@ -41,6 +41,7 @@ static int redirect_to_stderr;
 int debug_data_convert;
 static FILE *_debug_file;
 bool debug_display_time;
+int debug_type_profile;
 
 FILE *debug_file(void)
 {
@@ -231,6 +232,7 @@ static struct sublevel_option debug_opts[] = {
 	{ .name = "data-convert",	.value_ptr = &debug_data_convert },
 	{ .name = "perf-event-open",	.value_ptr = &debug_peo_args },
 	{ .name = "kmaps",		.value_ptr = &debug_kmaps },
+	{ .name = "type-profile",	.value_ptr = &debug_type_profile },
 	{ .name = NULL, }
 };
 
@@ -270,6 +272,7 @@ int perf_quiet_option(void)
 	redirect_to_stderr = 0;
 	debug_peo_args = 0;
 	debug_kmaps = 0;
+	debug_type_profile = 0;
 
 	return 0;
 }

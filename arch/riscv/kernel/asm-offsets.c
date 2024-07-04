@@ -9,6 +9,7 @@
 #include <linux/kbuild.h>
 #include <linux/mm.h>
 #include <linux/sched.h>
+#include <linux/ftrace.h>
 #include <linux/suspend.h>
 #include <asm/kvm_host.h>
 #include <asm/thread_info.h>
@@ -488,4 +489,21 @@ void asm_offsets(void)
 	DEFINE(STACKFRAME_SIZE_ON_STACK, ALIGN(sizeof(struct stackframe), STACK_ALIGN));
 	OFFSET(STACKFRAME_FP, stackframe, fp);
 	OFFSET(STACKFRAME_RA, stackframe, ra);
+
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_ARGS
+	DEFINE(FREGS_SIZE_ON_STACK, ALIGN(sizeof(struct ftrace_regs), STACK_ALIGN));
+	DEFINE(FREGS_EPC,	    offsetof(struct ftrace_regs, epc));
+	DEFINE(FREGS_RA,	    offsetof(struct ftrace_regs, ra));
+	DEFINE(FREGS_SP,	    offsetof(struct ftrace_regs, sp));
+	DEFINE(FREGS_S0,	    offsetof(struct ftrace_regs, s0));
+	DEFINE(FREGS_T1,	    offsetof(struct ftrace_regs, t1));
+	DEFINE(FREGS_A0,	    offsetof(struct ftrace_regs, a0));
+	DEFINE(FREGS_A1,	    offsetof(struct ftrace_regs, a1));
+	DEFINE(FREGS_A2,	    offsetof(struct ftrace_regs, a2));
+	DEFINE(FREGS_A3,	    offsetof(struct ftrace_regs, a3));
+	DEFINE(FREGS_A4,	    offsetof(struct ftrace_regs, a4));
+	DEFINE(FREGS_A5,	    offsetof(struct ftrace_regs, a5));
+	DEFINE(FREGS_A6,	    offsetof(struct ftrace_regs, a6));
+	DEFINE(FREGS_A7,	    offsetof(struct ftrace_regs, a7));
+#endif
 }

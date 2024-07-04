@@ -809,7 +809,6 @@ static struct ad5755_platform_data *ad5755_parse_fw(struct device *dev)
 
 static int ad5755_probe(struct spi_device *spi)
 {
-	enum ad5755_type type = spi_get_device_id(spi)->driver_data;
 	const struct ad5755_platform_data *pdata;
 	struct iio_dev *indio_dev;
 	struct ad5755_state *st;
@@ -824,7 +823,7 @@ static int ad5755_probe(struct spi_device *spi)
 	st = iio_priv(indio_dev);
 	spi_set_drvdata(spi, indio_dev);
 
-	st->chip_info = &ad5755_chip_info_tbl[type];
+	st->chip_info = spi_get_device_match_data(spi);
 	st->spi = spi;
 	st->pwr_down = 0xf;
 
@@ -854,21 +853,21 @@ static int ad5755_probe(struct spi_device *spi)
 }
 
 static const struct spi_device_id ad5755_id[] = {
-	{ "ad5755", ID_AD5755 },
-	{ "ad5755-1", ID_AD5755 },
-	{ "ad5757", ID_AD5757 },
-	{ "ad5735", ID_AD5735 },
-	{ "ad5737", ID_AD5737 },
+	{ "ad5755", (kernel_ulong_t)&ad5755_chip_info_tbl[ID_AD5755] },
+	{ "ad5755-1", (kernel_ulong_t)&ad5755_chip_info_tbl[ID_AD5755] },
+	{ "ad5757", (kernel_ulong_t)&ad5755_chip_info_tbl[ID_AD5757] },
+	{ "ad5735", (kernel_ulong_t)&ad5755_chip_info_tbl[ID_AD5735] },
+	{ "ad5737", (kernel_ulong_t)&ad5755_chip_info_tbl[ID_AD5737] },
 	{}
 };
 MODULE_DEVICE_TABLE(spi, ad5755_id);
 
 static const struct of_device_id ad5755_of_match[] = {
-	{ .compatible = "adi,ad5755" },
-	{ .compatible = "adi,ad5755-1" },
-	{ .compatible = "adi,ad5757" },
-	{ .compatible = "adi,ad5735" },
-	{ .compatible = "adi,ad5737" },
+	{ .compatible = "adi,ad5755", &ad5755_chip_info_tbl[ID_AD5755] },
+	{ .compatible = "adi,ad5755-1", &ad5755_chip_info_tbl[ID_AD5755] },
+	{ .compatible = "adi,ad5757", &ad5755_chip_info_tbl[ID_AD5757] },
+	{ .compatible = "adi,ad5735", &ad5755_chip_info_tbl[ID_AD5735] },
+	{ .compatible = "adi,ad5737", &ad5755_chip_info_tbl[ID_AD5737] },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ad5755_of_match);
@@ -876,6 +875,7 @@ MODULE_DEVICE_TABLE(of, ad5755_of_match);
 static struct spi_driver ad5755_driver = {
 	.driver = {
 		.name = "ad5755",
+		.of_match_table = ad5755_of_match,
 	},
 	.probe = ad5755_probe,
 	.id_table = ad5755_id,

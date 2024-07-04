@@ -580,7 +580,7 @@ mtk_flow_entry_update_l2(struct mtk_ppe *ppe, struct mtk_flow_entry *entry)
 
 		idle = cur_idle;
 		entry->data.ib1 &= ~ib1_ts_mask;
-		entry->data.ib1 |= hwe->ib1 & ib1_ts_mask;
+		entry->data.ib1 |= ib1 & ib1_ts_mask;
 	}
 }
 

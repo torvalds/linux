@@ -7,3 +7,4 @@ TEST_FILES := eeh-functions.sh settings
 
 top_srcdir = ../../../../..
 include ../../lib.mk
+include ../flags.mk

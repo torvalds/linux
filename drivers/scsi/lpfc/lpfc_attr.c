@@ -322,7 +322,7 @@ lpfc_enable_fip_show(struct device *dev, struct device_attribute *attr,
 	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
 	struct lpfc_hba   *phba = vport->phba;
 
-	if (phba->hba_flag & HBA_FIP_SUPPORT)
+	if (test_bit(HBA_FIP_SUPPORT, &phba->hba_flag))
 		return scnprintf(buf, PAGE_SIZE, "1\n");
 	else
 		return scnprintf(buf, PAGE_SIZE, "0\n");
@@ -1049,7 +1049,7 @@ lpfc_link_state_show(struct device *dev, struct device_attribute *attr,
 	case LPFC_INIT_MBX_CMDS:
 	case LPFC_LINK_DOWN:
 	case LPFC_HBA_ERROR:
-		if (phba->hba_flag & LINK_DISABLED)
+		if (test_bit(LINK_DISABLED, &phba->hba_flag))
 			len += scnprintf(buf + len, PAGE_SIZE-len,
 				"Link Down - User disabled\n");
 		else
@@ -1292,7 +1292,7 @@ lpfc_issue_lip(struct Scsi_Host *shost)
 	 * it doesn't make any sense to allow issue_lip
 	 */
 	if (test_bit(FC_OFFLINE_MODE, &vport->fc_flag) ||
-	    (phba->hba_flag & LINK_DISABLED) ||
+	    test_bit(LINK_DISABLED, &phba->hba_flag) ||
 	    (phba->sli.sli_flag & LPFC_BLOCK_MGMT_IO))
 		return -EPERM;
 
@@ -3635,7 +3635,8 @@ lpfc_pt_show(struct device *dev, struct device_attribute *attr, char *buf)
 	struct lpfc_hba   *phba = ((struct lpfc_vport *)shost->hostdata)->phba;
 
 	return scnprintf(buf, PAGE_SIZE, "%d\n",
-			 (phba->hba_flag & HBA_PERSISTENT_TOPO) ? 1 : 0);
+			 test_bit(HBA_PERSISTENT_TOPO,
+				  &phba->hba_flag) ? 1 : 0);
 }
 static DEVICE_ATTR(pt, 0444,
 			 lpfc_pt_show, NULL);
@@ -4205,8 +4206,8 @@ lpfc_topology_store(struct device *dev, struct device_attribute *attr,
 				    &phba->sli4_hba.sli_intf);
 		if_type = bf_get(lpfc_sli_intf_if_type,
 				 &phba->sli4_hba.sli_intf);
-		if ((phba->hba_flag & HBA_PERSISTENT_TOPO ||
-		    (!phba->sli4_hba.pc_sli4_params.pls &&
+		if ((test_bit(HBA_PERSISTENT_TOPO, &phba->hba_flag) ||
+		     (!phba->sli4_hba.pc_sli4_params.pls &&
 		     (sli_family == LPFC_SLI_INTF_FAMILY_G6 ||
 		      if_type == LPFC_SLI_INTF_IF_TYPE_6))) &&
 		    val == 4) {
@@ -4309,7 +4310,7 @@ lpfc_link_speed_store(struct device *dev, struct device_attribute *attr,
 
 	if_type = bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf);
 	if (if_type >= LPFC_SLI_INTF_IF_TYPE_2 &&
-	    phba->hba_flag & HBA_FORCED_LINK_SPEED)
+	    test_bit(HBA_FORCED_LINK_SPEED, &phba->hba_flag))
 		return -EPERM;
 
 	if (!strncmp(buf, "nolip ", strlen("nolip "))) {
@@ -6497,7 +6498,8 @@ lpfc_get_host_speed(struct Scsi_Host *shost)
 	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
 	struct lpfc_hba   *phba = vport->phba;
 
-	if ((lpfc_is_link_up(phba)) && (!(phba->hba_flag & HBA_FCOE_MODE))) {
+	if ((lpfc_is_link_up(phba)) &&
+	    !test_bit(HBA_FCOE_MODE, &phba->hba_flag)) {
 		switch(phba->fc_linkspeed) {
 		case LPFC_LINK_SPEED_1GHZ:
 			fc_host_speed(shost) = FC_PORTSPEED_1GBIT;
@@ -6533,7 +6535,8 @@ lpfc_get_host_speed(struct Scsi_Host *shost)
 			fc_host_speed(shost) = FC_PORTSPEED_UNKNOWN;
 			break;
 		}
-	} else if (lpfc_is_link_up(phba) && (phba->hba_flag & HBA_FCOE_MODE)) {
+	} else if (lpfc_is_link_up(phba) &&
+		   test_bit(HBA_FCOE_MODE, &phba->hba_flag)) {
 		switch (phba->fc_linkspeed) {
 		case LPFC_ASYNC_LINK_SPEED_1GBPS:
 			fc_host_speed(shost) = FC_PORTSPEED_1GBIT;
@@ -6718,7 +6721,7 @@ lpfc_get_stats(struct Scsi_Host *shost)
 	hs->invalid_crc_count -= lso->invalid_crc_count;
 	hs->error_frames -= lso->error_frames;
 
-	if (phba->hba_flag & HBA_FCOE_MODE) {
+	if (test_bit(HBA_FCOE_MODE, &phba->hba_flag)) {
 		hs->lip_count = -1;
 		hs->nos_count = (phba->link_events >> 1);
 		hs->nos_count -= lso->link_events;
@@ -6816,7 +6819,7 @@ lpfc_reset_stats(struct Scsi_Host *shost)
 	lso->invalid_tx_word_count = pmb->un.varRdLnk.invalidXmitWord;
 	lso->invalid_crc_count = pmb->un.varRdLnk.crcCnt;
 	lso->error_frames = pmb->un.varRdLnk.crcCnt;
-	if (phba->hba_flag & HBA_FCOE_MODE)
+	if (test_bit(HBA_FCOE_MODE, &phba->hba_flag))
 		lso->link_events = (phba->link_events >> 1);
 	else
 		lso->link_events = (phba->fc_eventTag >> 1);
@@ -7161,11 +7164,11 @@ lpfc_get_hba_function_mode(struct lpfc_hba *phba)
 	case PCI_DEVICE_ID_ZEPHYR_DCSP:
 	case PCI_DEVICE_ID_TIGERSHARK:
 	case PCI_DEVICE_ID_TOMCAT:
-		phba->hba_flag |= HBA_FCOE_MODE;
+		set_bit(HBA_FCOE_MODE, &phba->hba_flag);
 		break;
 	default:
 	/* for others, clear the flag */
-		phba->hba_flag &= ~HBA_FCOE_MODE;
+		clear_bit(HBA_FCOE_MODE, &phba->hba_flag);
 	}
 }
 
@@ -7236,7 +7239,7 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	lpfc_get_hba_function_mode(phba);
 
 	/* BlockGuard allowed for FC only. */
-	if (phba->cfg_enable_bg && phba->hba_flag & HBA_FCOE_MODE) {
+	if (phba->cfg_enable_bg && test_bit(HBA_FCOE_MODE, &phba->hba_flag)) {
 		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 				"0581 BlockGuard feature not supported\n");
 		/* If set, clear the BlockGuard support param */

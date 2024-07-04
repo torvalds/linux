@@ -2,8 +2,6 @@
 /*
  * Copyright (C) 2023, Tencent, Inc.
  */
-
-#define _GNU_SOURCE /* for program_invocation_short_name */
 #include <x86intrin.h>
 
 #include "pmu.h"
@@ -21,7 +19,6 @@
 
 static uint8_t kvm_pmu_version;
 static bool kvm_has_perf_caps;
-static bool is_forced_emulation_enabled;
 
 static struct kvm_vm *pmu_vm_create_with_one_vcpu(struct kvm_vcpu **vcpu,
 						  void *guest_code,
@@ -31,11 +28,7 @@ static struct kvm_vm *pmu_vm_create_with_one_vcpu(struct kvm_vcpu **vcpu,
 	struct kvm_vm *vm;
 
 	vm = vm_create_with_one_vcpu(vcpu, guest_code);
-	vm_init_descriptor_tables(vm);
-	vcpu_init_descriptor_tables(*vcpu);
-
 	sync_global_to_guest(vm, kvm_pmu_version);
-	sync_global_to_guest(vm, is_forced_emulation_enabled);
 
 	/*
 	 * Set PERF_CAPABILITIES before PMU version as KVM disallows enabling
@@ -630,7 +623,6 @@ int main(int argc, char *argv[])
 
 	kvm_pmu_version = kvm_cpu_property(X86_PROPERTY_PMU_VERSION);
 	kvm_has_perf_caps = kvm_cpu_has(X86_FEATURE_PDCM);
-	is_forced_emulation_enabled = kvm_is_forced_emulation_enabled();
 
 	test_intel_counters();
 

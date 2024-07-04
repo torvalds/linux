@@ -158,6 +158,18 @@
 #define  CPUCFG48_VFPU_CG		BIT(2)
 #define  CPUCFG48_RAM_CG		BIT(3)
 
+/*
+ * CPUCFG index area: 0x40000000 -- 0x400000ff
+ * SW emulation for KVM hypervirsor
+ */
+#define CPUCFG_KVM_BASE			0x40000000
+#define CPUCFG_KVM_SIZE			0x100
+
+#define CPUCFG_KVM_SIG			(CPUCFG_KVM_BASE + 0)
+#define  KVM_SIGNATURE			"KVM\0"
+#define CPUCFG_KVM_FEATURE		(CPUCFG_KVM_BASE + 4)
+#define  KVM_FEATURE_IPI		BIT(1)
+
 #ifndef __ASSEMBLY__
 
 /* CSR */

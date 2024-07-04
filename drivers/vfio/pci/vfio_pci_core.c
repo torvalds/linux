@@ -778,25 +778,26 @@ static int vfio_pci_count_devs(struct pci_dev *pdev, void *data)
 }
 
 struct vfio_pci_fill_info {
-	struct vfio_pci_dependent_device __user *devices;
-	struct vfio_pci_dependent_device __user *devices_end;
 	struct vfio_device *vdev;
+	struct vfio_pci_dependent_device *devices;
+	int nr_devices;
 	u32 count;
 	u32 flags;
 };
 
 static int vfio_pci_fill_devs(struct pci_dev *pdev, void *data)
 {
-	struct vfio_pci_dependent_device info = {
-		.segment = pci_domain_nr(pdev->bus),
-		.bus = pdev->bus->number,
-		.devfn = pdev->devfn,
-	};
+	struct vfio_pci_dependent_device *info;
 	struct vfio_pci_fill_info *fill = data;
 
-	fill->count++;
-	if (fill->devices >= fill->devices_end)
-		return 0;
+	/* The topology changed since we counted devices */
+	if (fill->count >= fill->nr_devices)
+		return -EAGAIN;
+
+	info = &fill->devices[fill->count++];
+	info->segment = pci_domain_nr(pdev->bus);
+	info->bus = pdev->bus->number;
+	info->devfn = pdev->devfn;
 
 	if (fill->flags & VFIO_PCI_HOT_RESET_FLAG_DEV_ID) {
 		struct iommufd_ctx *iommufd = vfio_iommufd_device_ictx(fill->vdev);
@@ -809,19 +810,19 @@ static int vfio_pci_fill_devs(struct pci_dev *pdev, void *data)
 		 */
 		vdev = vfio_find_device_in_devset(dev_set, &pdev->dev);
 		if (!vdev) {
-			info.devid = VFIO_PCI_DEVID_NOT_OWNED;
+			info->devid = VFIO_PCI_DEVID_NOT_OWNED;
 		} else {
 			int id = vfio_iommufd_get_dev_id(vdev, iommufd);
 
 			if (id > 0)
-				info.devid = id;
+				info->devid = id;
 			else if (id == -ENOENT)
-				info.devid = VFIO_PCI_DEVID_OWNED;
+				info->devid = VFIO_PCI_DEVID_OWNED;
 			else
-				info.devid = VFIO_PCI_DEVID_NOT_OWNED;
+				info->devid = VFIO_PCI_DEVID_NOT_OWNED;
 		}
 		/* If devid is VFIO_PCI_DEVID_NOT_OWNED, clear owned flag. */
-		if (info.devid == VFIO_PCI_DEVID_NOT_OWNED)
+		if (info->devid == VFIO_PCI_DEVID_NOT_OWNED)
 			fill->flags &= ~VFIO_PCI_HOT_RESET_FLAG_DEV_ID_OWNED;
 	} else {
 		struct iommu_group *iommu_group;
@@ -830,13 +831,10 @@ static int vfio_pci_fill_devs(struct pci_dev *pdev, void *data)
 		if (!iommu_group)
 			return -EPERM; /* Cannot reset non-isolated devices */
 
-		info.group_id = iommu_group_id(iommu_group);
+		info->group_id = iommu_group_id(iommu_group);
 		iommu_group_put(iommu_group);
 	}
 
-	if (copy_to_user(fill->devices, &info, sizeof(info)))
-		return -EFAULT;
-	fill->devices++;
 	return 0;
 }
 
@@ -1258,10 +1256,11 @@ static int vfio_pci_ioctl_get_pci_hot_reset_info(
 {
 	unsigned long minsz =
 		offsetofend(struct vfio_pci_hot_reset_info, count);
+	struct vfio_pci_dependent_device *devices = NULL;
 	struct vfio_pci_hot_reset_info hdr;
 	struct vfio_pci_fill_info fill = {};
 	bool slot = false;
-	int ret = 0;
+	int ret, count;
 
 	if (copy_from_user(&hdr, arg, minsz))
 		return -EFAULT;
@@ -1277,9 +1276,26 @@ static int vfio_pci_ioctl_get_pci_hot_reset_info(
 	else if (pci_probe_reset_bus(vdev->pdev->bus))
 		return -ENODEV;
 
-	fill.devices = arg->devices;
-	fill.devices_end = arg->devices +
-			   (hdr.argsz - sizeof(hdr)) / sizeof(arg->devices[0]);
+	ret = vfio_pci_for_each_slot_or_bus(vdev->pdev, vfio_pci_count_devs,
+					    &count, slot);
+	if (ret)
+		return ret;
+
+	if (WARN_ON(!count)) /* Should always be at least one */
+		return -ERANGE;
+
+	if (count > (hdr.argsz - sizeof(hdr)) / sizeof(*devices)) {
+		hdr.count = count;
+		ret = -ENOSPC;
+		goto header;
+	}
+
+	devices = kcalloc(count, sizeof(*devices), GFP_KERNEL);
+	if (!devices)
+		return -ENOMEM;
+
+	fill.devices = devices;
+	fill.nr_devices = count;
 	fill.vdev = &vdev->vdev;
 
 	if (vfio_device_cdev_opened(&vdev->vdev))
@@ -1291,16 +1307,23 @@ static int vfio_pci_ioctl_get_pci_hot_reset_info(
 					    &fill, slot);
 	mutex_unlock(&vdev->vdev.dev_set->lock);
 	if (ret)
-		return ret;
+		goto out;
+
+	if (copy_to_user(arg->devices, devices,
+			 sizeof(*devices) * fill.count)) {
+		ret = -EFAULT;
+		goto out;
+	}
 
 	hdr.count = fill.count;
 	hdr.flags = fill.flags;
-	if (copy_to_user(arg, &hdr, minsz))
-		return -EFAULT;
 
-	if (fill.count > fill.devices - arg->devices)
-		return -ENOSPC;
-	return 0;
+header:
+	if (copy_to_user(arg, &hdr, minsz))
+		ret = -EFAULT;
+out:
+	kfree(devices);
+	return ret;
 }
 
 static int

@@ -7,16 +7,12 @@
  * Generic netlink for thermal management framework
  */
 #include <linux/module.h>
+#include <linux/notifier.h>
 #include <linux/kernel.h>
 #include <net/genetlink.h>
 #include <uapi/linux/thermal.h>
 
 #include "thermal_core.h"
-
-enum thermal_genl_multicast_groups {
-	THERMAL_GENL_SAMPLING_GROUP = 0,
-	THERMAL_GENL_EVENT_GROUP = 1,
-};
 
 static const struct genl_multicast_group thermal_genl_mcgrps[] = {
 	[THERMAL_GENL_SAMPLING_GROUP] = { .name = THERMAL_GENL_SAMPLING_GROUP_NAME, },
@@ -74,11 +70,12 @@ struct param {
 
 typedef int (*cb_t)(struct param *);
 
-static struct genl_family thermal_gnl_family;
+static struct genl_family thermal_genl_family;
+static BLOCKING_NOTIFIER_HEAD(thermal_genl_chain);
 
 static int thermal_group_has_listeners(enum thermal_genl_multicast_groups group)
 {
-	return genl_has_listeners(&thermal_gnl_family, &init_net, group);
+	return genl_has_listeners(&thermal_genl_family, &init_net, group);
 }
 
 /************************** Sampling encoding *******************************/
@@ -95,7 +92,7 @@ int thermal_genl_sampling_temp(int id, int temp)
 	if (!skb)
 		return -ENOMEM;
 
-	hdr = genlmsg_put(skb, 0, 0, &thermal_gnl_family, 0,
+	hdr = genlmsg_put(skb, 0, 0, &thermal_genl_family, 0,
 			  THERMAL_GENL_SAMPLING_TEMP);
 	if (!hdr)
 		goto out_free;
@@ -108,7 +105,7 @@ int thermal_genl_sampling_temp(int id, int temp)
 
 	genlmsg_end(skb, hdr);
 
-	genlmsg_multicast(&thermal_gnl_family, skb, 0, THERMAL_GENL_SAMPLING_GROUP, GFP_KERNEL);
+	genlmsg_multicast(&thermal_genl_family, skb, 0, THERMAL_GENL_SAMPLING_GROUP, GFP_KERNEL);
 
 	return 0;
 out_cancel:
@@ -282,7 +279,7 @@ static int thermal_genl_send_event(enum thermal_genl_event event,
 		return -ENOMEM;
 	p->msg = msg;
 
-	hdr = genlmsg_put(msg, 0, 0, &thermal_gnl_family, 0, event);
+	hdr = genlmsg_put(msg, 0, 0, &thermal_genl_family, 0, event);
 	if (!hdr)
 		goto out_free_msg;
 
@@ -292,7 +289,7 @@ static int thermal_genl_send_event(enum thermal_genl_event event,
 
 	genlmsg_end(msg, hdr);
 
-	genlmsg_multicast(&thermal_gnl_family, msg, 0, THERMAL_GENL_EVENT_GROUP, GFP_KERNEL);
+	genlmsg_multicast(&thermal_genl_family, msg, 0, THERMAL_GENL_EVENT_GROUP, GFP_KERNEL);
 
 	return 0;
 
@@ -445,7 +442,7 @@ out_cancel_nest:
 static int thermal_genl_cmd_tz_get_trip(struct param *p)
 {
 	struct sk_buff *msg = p->msg;
-	const struct thermal_trip *trip;
+	const struct thermal_trip_desc *td;
 	struct thermal_zone_device *tz;
 	struct nlattr *start_trip;
 	int id;
@@ -465,7 +462,9 @@ static int thermal_genl_cmd_tz_get_trip(struct param *p)
 
 	mutex_lock(&tz->lock);
 
-	for_each_trip(tz, trip) {
+	for_each_trip_desc(tz, td) {
+		const struct thermal_trip *trip = &td->trip;
+
 		if (nla_put_u32(msg, THERMAL_GENL_ATTR_TZ_TRIP_ID,
 				thermal_zone_trip_id(tz, trip)) ||
 		    nla_put_u32(msg, THERMAL_GENL_ATTR_TZ_TRIP_TYPE, trip->type) ||
@@ -593,7 +592,7 @@ static int thermal_genl_cmd_dumpit(struct sk_buff *skb,
 	int ret;
 	void *hdr;
 
-	hdr = genlmsg_put(skb, 0, 0, &thermal_gnl_family, 0, cmd);
+	hdr = genlmsg_put(skb, 0, 0, &thermal_genl_family, 0, cmd);
 	if (!hdr)
 		return -EMSGSIZE;
 
@@ -625,7 +624,7 @@ static int thermal_genl_cmd_doit(struct sk_buff *skb,
 		return -ENOMEM;
 	p.msg = msg;
 
-	hdr = genlmsg_put_reply(msg, info, &thermal_gnl_family, 0, cmd);
+	hdr = genlmsg_put_reply(msg, info, &thermal_genl_family, 0, cmd);
 	if (!hdr)
 		goto out_free_msg;
 
@@ -643,6 +642,27 @@ out_free_msg:
 	nlmsg_free(msg);
 
 	return ret;
+}
+
+static int thermal_genl_bind(int mcgrp)
+{
+	struct thermal_genl_notify n = { .mcgrp = mcgrp };
+
+	if (WARN_ON_ONCE(mcgrp > THERMAL_GENL_MAX_GROUP))
+		return -EINVAL;
+
+	blocking_notifier_call_chain(&thermal_genl_chain, THERMAL_NOTIFY_BIND, &n);
+	return 0;
+}
+
+static void thermal_genl_unbind(int mcgrp)
+{
+	struct thermal_genl_notify n = { .mcgrp = mcgrp };
+
+	if (WARN_ON_ONCE(mcgrp > THERMAL_GENL_MAX_GROUP))
+		return;
+
+	blocking_notifier_call_chain(&thermal_genl_chain, THERMAL_NOTIFY_UNBIND, &n);
 }
 
 static const struct genl_small_ops thermal_genl_ops[] = {
@@ -673,12 +693,14 @@ static const struct genl_small_ops thermal_genl_ops[] = {
 	},
 };
 
-static struct genl_family thermal_gnl_family __ro_after_init = {
+static struct genl_family thermal_genl_family __ro_after_init = {
 	.hdrsize	= 0,
 	.name		= THERMAL_GENL_FAMILY_NAME,
 	.version	= THERMAL_GENL_VERSION,
 	.maxattr	= THERMAL_GENL_ATTR_MAX,
 	.policy		= thermal_genl_policy,
+	.bind		= thermal_genl_bind,
+	.unbind		= thermal_genl_unbind,
 	.small_ops	= thermal_genl_ops,
 	.n_small_ops	= ARRAY_SIZE(thermal_genl_ops),
 	.resv_start_op	= THERMAL_GENL_CMD_CDEV_GET + 1,
@@ -686,12 +708,22 @@ static struct genl_family thermal_gnl_family __ro_after_init = {
 	.n_mcgrps	= ARRAY_SIZE(thermal_genl_mcgrps),
 };
 
+int thermal_genl_register_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_register(&thermal_genl_chain, nb);
+}
+
+int thermal_genl_unregister_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_unregister(&thermal_genl_chain, nb);
+}
+
 int __init thermal_netlink_init(void)
 {
-	return genl_register_family(&thermal_gnl_family);
+	return genl_register_family(&thermal_genl_family);
 }
 
 void __init thermal_netlink_exit(void)
 {
-	genl_unregister_family(&thermal_gnl_family);
+	genl_unregister_family(&thermal_genl_family);
 }

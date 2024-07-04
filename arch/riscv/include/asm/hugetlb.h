@@ -5,11 +5,11 @@
 #include <asm/cacheflush.h>
 #include <asm/page.h>
 
-static inline void arch_clear_hugepage_flags(struct page *page)
+static inline void arch_clear_hugetlb_flags(struct folio *folio)
 {
-	clear_bit(PG_dcache_clean, &page->flags);
+	clear_bit(PG_dcache_clean, &folio->flags);
 }
-#define arch_clear_hugepage_flags arch_clear_hugepage_flags
+#define arch_clear_hugetlb_flags arch_clear_hugetlb_flags
 
 #ifdef CONFIG_ARCH_ENABLE_HUGEPAGE_MIGRATION
 bool arch_hugetlb_migration_supported(struct hstate *h);

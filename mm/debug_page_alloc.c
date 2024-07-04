@@ -32,8 +32,7 @@ static int __init debug_guardpage_minorder_setup(char *buf)
 }
 early_param("debug_guardpage_minorder", debug_guardpage_minorder_setup);
 
-bool __set_page_guard(struct zone *zone, struct page *page, unsigned int order,
-		      int migratetype)
+bool __set_page_guard(struct zone *zone, struct page *page, unsigned int order)
 {
 	if (order >= debug_guardpage_minorder())
 		return false;
@@ -41,19 +40,12 @@ bool __set_page_guard(struct zone *zone, struct page *page, unsigned int order,
 	__SetPageGuard(page);
 	INIT_LIST_HEAD(&page->buddy_list);
 	set_page_private(page, order);
-	/* Guard pages are not available for any usage */
-	if (!is_migrate_isolate(migratetype))
-		__mod_zone_freepage_state(zone, -(1 << order), migratetype);
 
 	return true;
 }
 
-void __clear_page_guard(struct zone *zone, struct page *page, unsigned int order,
-		      int migratetype)
+void __clear_page_guard(struct zone *zone, struct page *page, unsigned int order)
 {
 	__ClearPageGuard(page);
-
 	set_page_private(page, 0);
-	if (!is_migrate_isolate(migratetype))
-		__mod_zone_freepage_state(zone, (1 << order), migratetype);
 }

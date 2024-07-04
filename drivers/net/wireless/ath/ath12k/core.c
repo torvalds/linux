@@ -15,6 +15,7 @@
 #include "debug.h"
 #include "hif.h"
 #include "fw.h"
+#include "debugfs.h"
 
 unsigned int ath12k_debug_mask;
 module_param_named(debug_mask, ath12k_debug_mask, uint, 0644);
@@ -43,67 +44,90 @@ static int ath12k_core_rfkill_config(struct ath12k_base *ab)
 
 int ath12k_core_suspend(struct ath12k_base *ab)
 {
-	int ret;
+	struct ath12k *ar;
+	int ret, i;
 
 	if (!ab->hw_params->supports_suspend)
 		return -EOPNOTSUPP;
 
-	/* TODO: there can frames in queues so for now add delay as a hack.
-	 * Need to implement to handle and remove this delay.
+	rcu_read_lock();
+	for (i = 0; i < ab->num_radios; i++) {
+		ar = ath12k_mac_get_ar_by_pdev_id(ab, i);
+		if (!ar)
+			continue;
+		ret = ath12k_mac_wait_tx_complete(ar);
+		if (ret) {
+			ath12k_warn(ab, "failed to wait tx complete: %d\n", ret);
+			rcu_read_unlock();
+			return ret;
+		}
+	}
+	rcu_read_unlock();
+
+	/* PM framework skips suspend_late/resume_early callbacks
+	 * if other devices report errors in their suspend callbacks.
+	 * However ath12k_core_resume() would still be called because
+	 * here we return success thus kernel put us on dpm_suspended_list.
+	 * Since we won't go through a power down/up cycle, there is
+	 * no chance to call complete(&ab->restart_completed) in
+	 * ath12k_core_restart(), making ath12k_core_resume() timeout.
+	 * So call it here to avoid this issue. This also works in case
+	 * no error happens thus suspend_late/resume_early get called,
+	 * because it will be reinitialized in ath12k_core_resume_early().
 	 */
-	msleep(500);
+	complete(&ab->restart_completed);
 
-	ret = ath12k_dp_rx_pktlog_stop(ab, true);
-	if (ret) {
-		ath12k_warn(ab, "failed to stop dp rx (and timer) pktlog during suspend: %d\n",
-			    ret);
-		return ret;
-	}
+	return 0;
+}
+EXPORT_SYMBOL(ath12k_core_suspend);
 
-	ret = ath12k_dp_rx_pktlog_stop(ab, false);
-	if (ret) {
-		ath12k_warn(ab, "failed to stop dp rx pktlog during suspend: %d\n",
-			    ret);
-		return ret;
-	}
+int ath12k_core_suspend_late(struct ath12k_base *ab)
+{
+	if (!ab->hw_params->supports_suspend)
+		return -EOPNOTSUPP;
 
 	ath12k_hif_irq_disable(ab);
 	ath12k_hif_ce_irq_disable(ab);
 
-	ret = ath12k_hif_suspend(ab);
-	if (ret) {
-		ath12k_warn(ab, "failed to suspend hif: %d\n", ret);
-		return ret;
-	}
+	ath12k_hif_power_down(ab, true);
 
 	return 0;
 }
+EXPORT_SYMBOL(ath12k_core_suspend_late);
 
-int ath12k_core_resume(struct ath12k_base *ab)
+int ath12k_core_resume_early(struct ath12k_base *ab)
 {
 	int ret;
 
 	if (!ab->hw_params->supports_suspend)
 		return -EOPNOTSUPP;
 
-	ret = ath12k_hif_resume(ab);
-	if (ret) {
-		ath12k_warn(ab, "failed to resume hif during resume: %d\n", ret);
-		return ret;
-	}
+	reinit_completion(&ab->restart_completed);
+	ret = ath12k_hif_power_up(ab);
+	if (ret)
+		ath12k_warn(ab, "failed to power up hif during resume: %d\n", ret);
 
-	ath12k_hif_ce_irq_enable(ab);
-	ath12k_hif_irq_enable(ab);
+	return ret;
+}
+EXPORT_SYMBOL(ath12k_core_resume_early);
 
-	ret = ath12k_dp_rx_pktlog_start(ab);
-	if (ret) {
-		ath12k_warn(ab, "failed to start rx pktlog during resume: %d\n",
-			    ret);
-		return ret;
+int ath12k_core_resume(struct ath12k_base *ab)
+{
+	long time_left;
+
+	if (!ab->hw_params->supports_suspend)
+		return -EOPNOTSUPP;
+
+	time_left = wait_for_completion_timeout(&ab->restart_completed,
+						ATH12K_RESET_TIMEOUT_HZ);
+	if (time_left == 0) {
+		ath12k_warn(ab, "timeout while waiting for restart complete");
+		return -ETIMEDOUT;
 	}
 
 	return 0;
 }
+EXPORT_SYMBOL(ath12k_core_resume);
 
 static int __ath12k_core_create_board_name(struct ath12k_base *ab, char *name,
 					   size_t name_len, bool with_variant,
@@ -542,6 +566,8 @@ static void ath12k_core_stop(struct ath12k_base *ab)
 	if (!test_bit(ATH12K_FLAG_CRASH_FLUSH, &ab->dev_flags))
 		ath12k_qmi_firmware_stop(ab);
 
+	ath12k_acpi_stop(ab);
+
 	ath12k_hif_stop(ab);
 	ath12k_wmi_detach(ab);
 	ath12k_dp_rx_pdev_reo_cleanup(ab);
@@ -628,6 +654,8 @@ static int ath12k_core_soc_create(struct ath12k_base *ab)
 		return ret;
 	}
 
+	ath12k_debugfs_soc_create(ab);
+
 	ret = ath12k_hif_power_up(ab);
 	if (ret) {
 		ath12k_err(ab, "failed to power up :%d\n", ret);
@@ -637,6 +665,7 @@ static int ath12k_core_soc_create(struct ath12k_base *ab)
 	return 0;
 
 err_qmi_deinit:
+	ath12k_debugfs_soc_destroy(ab);
 	ath12k_qmi_deinit_service(ab);
 	return ret;
 }
@@ -645,6 +674,7 @@ static void ath12k_core_soc_destroy(struct ath12k_base *ab)
 {
 	ath12k_dp_free(ab);
 	ath12k_reg_free(ab);
+	ath12k_debugfs_soc_destroy(ab);
 	ath12k_qmi_deinit_service(ab);
 }
 
@@ -779,6 +809,11 @@ static int ath12k_core_start(struct ath12k_base *ab,
 		goto err_reo_cleanup;
 	}
 
+	ret = ath12k_acpi_start(ab);
+	if (ret)
+		/* ACPI is optional so continue in case of an error */
+		ath12k_dbg(ab, ATH12K_DBG_BOOT, "acpi failed: %d\n", ret);
+
 	return 0;
 
 err_reo_cleanup:
@@ -874,9 +909,8 @@ static int ath12k_core_reconfigure_on_crash(struct ath12k_base *ab)
 	int ret;
 
 	mutex_lock(&ab->core_lock);
-	ath12k_hif_irq_disable(ab);
 	ath12k_dp_pdev_free(ab);
-	ath12k_hif_stop(ab);
+	ath12k_ce_cleanup_pipes(ab);
 	ath12k_wmi_detach(ab);
 	ath12k_dp_rx_pdev_reo_cleanup(ab);
 	mutex_unlock(&ab->core_lock);
@@ -1052,9 +1086,6 @@ static void ath12k_core_restart(struct work_struct *work)
 	struct ath12k_base *ab = container_of(work, struct ath12k_base, restart_work);
 	int ret;
 
-	if (!ab->is_reset)
-		ath12k_core_pre_reconfigure_recovery(ab);
-
 	ret = ath12k_core_reconfigure_on_crash(ab);
 	if (ret) {
 		ath12k_err(ab, "failed to reconfigure driver on crash recovery\n");
@@ -1064,8 +1095,7 @@ static void ath12k_core_restart(struct work_struct *work)
 	if (ab->is_reset)
 		complete_all(&ab->reconfigure_complete);
 
-	if (!ab->is_reset)
-		ath12k_core_post_reconfigure_recovery(ab);
+	complete(&ab->restart_completed);
 }
 
 static void ath12k_core_reset(struct work_struct *work)
@@ -1131,8 +1161,10 @@ static void ath12k_core_reset(struct work_struct *work)
 	time_left = wait_for_completion_timeout(&ab->recovery_start,
 						ATH12K_RECOVER_START_TIMEOUT_HZ);
 
-	ath12k_hif_power_down(ab);
-	ath12k_qmi_free_resource(ab);
+	ath12k_hif_irq_disable(ab);
+	ath12k_hif_ce_irq_disable(ab);
+
+	ath12k_hif_power_down(ab, false);
 	ath12k_hif_power_up(ab);
 
 	ath12k_dbg(ab, ATH12K_DBG_BOOT, "reset started\n");
@@ -1175,7 +1207,7 @@ void ath12k_core_deinit(struct ath12k_base *ab)
 
 	mutex_unlock(&ab->core_lock);
 
-	ath12k_hif_power_down(ab);
+	ath12k_hif_power_down(ab, false);
 	ath12k_mac_destroy(ab);
 	ath12k_core_soc_destroy(ab);
 	ath12k_fw_unmap(ab);
@@ -1223,11 +1255,12 @@ struct ath12k_base *ath12k_core_alloc(struct device *dev, size_t priv_size,
 
 	timer_setup(&ab->rx_replenish_retry, ath12k_ce_rx_replenish_retry, 0);
 	init_completion(&ab->htc_suspend);
+	init_completion(&ab->restart_completed);
 
 	ab->dev = dev;
 	ab->hif.bus = bus;
 	ab->qmi.num_radios = U8_MAX;
-	ab->slo_capable = true;
+	ab->mlo_capable_flags = ATH12K_INTRA_DEVICE_MLO_SUPPORT;
 
 	return ab;
 

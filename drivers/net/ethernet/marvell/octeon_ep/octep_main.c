@@ -1096,7 +1096,7 @@ static int octep_change_mtu(struct net_device *netdev, int new_mtu)
 				     true);
 	if (!err) {
 		oct->link_info.mtu = new_mtu;
-		netdev->mtu = new_mtu;
+		WRITE_ONCE(netdev->mtu, new_mtu);
 	}
 
 	return err;

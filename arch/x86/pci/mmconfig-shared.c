@@ -518,7 +518,34 @@ static bool __ref pci_mmcfg_reserved(struct device *dev,
 {
 	struct resource *conflict;
 
-	if (!early && !acpi_disabled) {
+	if (early) {
+
+		/*
+		 * Don't try to do this check unless configuration type 1
+		 * is available.  How about type 2?
+		 */
+
+		/*
+		 * 946f2ee5c731 ("Check that MCFG points to an e820
+		 * reserved area") added this E820 check in 2006 to work
+		 * around BIOS defects.
+		 *
+		 * Per PCI Firmware r3.3, sec 4.1.2, ECAM space must be
+		 * reserved by a PNP0C02 resource, but it need not be
+		 * mentioned in E820.  Before the ACPI interpreter is
+		 * available, we can't check for PNP0C02 resources, so
+		 * there's no reliable way to verify the region in this
+		 * early check.  Keep it only for the old machines that
+		 * motivated 946f2ee5c731.
+		 */
+		if (dmi_get_bios_year() < 2016 && raw_pci_ops)
+			return is_mmconf_reserved(e820__mapped_all, cfg, dev,
+						  "E820 entry");
+
+		return true;
+	}
+
+	if (!acpi_disabled) {
 		if (is_mmconf_reserved(is_acpi_reserved, cfg, dev,
 				       "ACPI motherboard resource"))
 			return true;
@@ -551,16 +578,7 @@ static bool __ref pci_mmcfg_reserved(struct device *dev,
 	 * For MCFG information constructed from hotpluggable host bridge's
 	 * _CBA method, just assume it's reserved.
 	 */
-	if (pci_mmcfg_running_state)
-		return true;
-
-	/* Don't try to do this check unless configuration
-	   type 1 is available. how about type 2 ?*/
-	if (raw_pci_ops)
-		return is_mmconf_reserved(e820__mapped_all, cfg, dev,
-					  "E820 entry");
-
-	return false;
+	return pci_mmcfg_running_state;
 }
 
 static void __init pci_mmcfg_reject_broken(int early)

@@ -6,7 +6,7 @@
 #include <linux/module.h>
 
 #include <drm/drm_drv.h>
-#include <drm/drm_fbdev_generic.h>
+#include <drm/drm_fbdev_shmem.h>
 #include <drm/drm_file.h>
 #include <drm/drm_gem_shmem_helper.h>
 #include <drm/drm_managed.h>
@@ -117,7 +117,7 @@ static int udl_usb_probe(struct usb_interface *interface,
 
 	DRM_INFO("Initialized udl on minor %d\n", udl->drm.primary->index);
 
-	drm_fbdev_generic_setup(&udl->drm, 0);
+	drm_fbdev_shmem_setup(&udl->drm, 0);
 
 	return 0;
 }
@@ -160,4 +160,5 @@ static struct usb_driver udl_driver = {
 	.id_table = id_table,
 };
 module_usb_driver(udl_driver);
+MODULE_DESCRIPTION("KMS driver for the USB displaylink video adapters");
 MODULE_LICENSE("GPL");

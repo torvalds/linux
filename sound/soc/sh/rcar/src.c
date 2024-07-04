@@ -310,7 +310,7 @@ static void rsnd_src_set_convert_rate(struct rsnd_dai_stream *io,
 	/*
 	 * E3 need to overwrite
 	 */
-	if (rsnd_is_e3(priv))
+	if (rsnd_is_gen3_e3(priv))
 		switch (rsnd_mod_id(mod)) {
 		case 0:
 		case 4:
@@ -606,13 +606,13 @@ static void rsnd_src_debug_info(struct seq_file *m,
 				struct rsnd_dai_stream *io,
 				struct rsnd_mod *mod)
 {
-	rsnd_debugfs_mod_reg_show(m, mod, RSND_GEN2_SCU,
+	rsnd_debugfs_mod_reg_show(m, mod, RSND_BASE_SCU,
 				  rsnd_mod_id(mod) * 0x20, 0x20);
 	seq_puts(m, "\n");
-	rsnd_debugfs_mod_reg_show(m, mod, RSND_GEN2_SCU,
+	rsnd_debugfs_mod_reg_show(m, mod, RSND_BASE_SCU,
 				  0x1c0, 0x20);
 	seq_puts(m, "\n");
-	rsnd_debugfs_mod_reg_show(m, mod, RSND_GEN2_SCU,
+	rsnd_debugfs_mod_reg_show(m, mod, RSND_BASE_SCU,
 				  0x200 + rsnd_mod_id(mod) * 0x40, 0x40);
 }
 #define DEBUG_INFO .debug_info = rsnd_src_debug_info
@@ -651,10 +651,6 @@ int rsnd_src_probe(struct rsnd_priv *priv)
 	struct clk *clk;
 	char name[RSND_SRC_NAME_SIZE];
 	int i, nr, ret;
-
-	/* This driver doesn't support Gen1 at this point */
-	if (rsnd_is_gen1(priv))
-		return 0;
 
 	node = rsnd_src_of_node(priv);
 	if (!node)

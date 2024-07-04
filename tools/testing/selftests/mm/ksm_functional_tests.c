@@ -28,6 +28,15 @@
 #define MiB (1024 * KiB)
 #define FORK_EXEC_CHILD_PRG_NAME "ksm_fork_exec_child"
 
+#define MAP_MERGE_FAIL ((void *)-1)
+#define MAP_MERGE_SKIP ((void *)-2)
+
+enum ksm_merge_mode {
+	KSM_MERGE_PRCTL,
+	KSM_MERGE_MADVISE,
+	KSM_MERGE_NONE, /* PRCTL already set */
+};
+
 static int mem_fd;
 static int ksm_fd;
 static int ksm_full_scans_fd;
@@ -146,33 +155,34 @@ static int ksm_unmerge(void)
 	return 0;
 }
 
-static char *mmap_and_merge_range(char val, unsigned long size, int prot,
-				  bool use_prctl)
+static char *__mmap_and_merge_range(char val, unsigned long size, int prot,
+				  enum ksm_merge_mode mode)
 {
 	char *map;
+	char *err_map = MAP_MERGE_FAIL;
 	int ret;
 
 	/* Stabilize accounting by disabling KSM completely. */
 	if (ksm_unmerge()) {
-		ksft_test_result_fail("Disabling (unmerging) KSM failed\n");
-		return MAP_FAILED;
+		ksft_print_msg("Disabling (unmerging) KSM failed\n");
+		return err_map;
 	}
 
 	if (get_my_merging_pages() > 0) {
-		ksft_test_result_fail("Still pages merged\n");
-		return MAP_FAILED;
+		ksft_print_msg("Still pages merged\n");
+		return err_map;
 	}
 
 	map = mmap(NULL, size, PROT_READ|PROT_WRITE,
 		   MAP_PRIVATE|MAP_ANON, -1, 0);
 	if (map == MAP_FAILED) {
-		ksft_test_result_fail("mmap() failed\n");
-		return MAP_FAILED;
+		ksft_print_msg("mmap() failed\n");
+		return err_map;
 	}
 
 	/* Don't use THP. Ignore if THP are not around on a kernel. */
 	if (madvise(map, size, MADV_NOHUGEPAGE) && errno != EINVAL) {
-		ksft_test_result_fail("MADV_NOHUGEPAGE failed\n");
+		ksft_print_msg("MADV_NOHUGEPAGE failed\n");
 		goto unmap;
 	}
 
@@ -180,27 +190,36 @@ static char *mmap_and_merge_range(char val, unsigned long size, int prot,
 	memset(map, val, size);
 
 	if (mprotect(map, size, prot)) {
-		ksft_test_result_skip("mprotect() failed\n");
+		ksft_print_msg("mprotect() failed\n");
+		err_map = MAP_MERGE_SKIP;
 		goto unmap;
 	}
 
-	if (use_prctl) {
+	switch (mode) {
+	case KSM_MERGE_PRCTL:
 		ret = prctl(PR_SET_MEMORY_MERGE, 1, 0, 0, 0);
 		if (ret < 0 && errno == EINVAL) {
-			ksft_test_result_skip("PR_SET_MEMORY_MERGE not supported\n");
+			ksft_print_msg("PR_SET_MEMORY_MERGE not supported\n");
+			err_map = MAP_MERGE_SKIP;
 			goto unmap;
 		} else if (ret) {
-			ksft_test_result_fail("PR_SET_MEMORY_MERGE=1 failed\n");
+			ksft_print_msg("PR_SET_MEMORY_MERGE=1 failed\n");
 			goto unmap;
 		}
-	} else if (madvise(map, size, MADV_MERGEABLE)) {
-		ksft_test_result_fail("MADV_MERGEABLE failed\n");
-		goto unmap;
+		break;
+	case KSM_MERGE_MADVISE:
+		if (madvise(map, size, MADV_MERGEABLE)) {
+			ksft_print_msg("MADV_MERGEABLE failed\n");
+			goto unmap;
+		}
+		break;
+	case KSM_MERGE_NONE:
+		break;
 	}
 
 	/* Run KSM to trigger merging and wait. */
 	if (ksm_merge()) {
-		ksft_test_result_fail("Running KSM failed\n");
+		ksft_print_msg("Running KSM failed\n");
 		goto unmap;
 	}
 
@@ -209,14 +228,31 @@ static char *mmap_and_merge_range(char val, unsigned long size, int prot,
 	 * accounted differently (depending on kernel support).
 	 */
 	if (val && !get_my_merging_pages()) {
-		ksft_test_result_fail("No pages got merged\n");
+		ksft_print_msg("No pages got merged\n");
 		goto unmap;
 	}
 
 	return map;
 unmap:
 	munmap(map, size);
-	return MAP_FAILED;
+	return err_map;
+}
+
+static char *mmap_and_merge_range(char val, unsigned long size, int prot,
+				  enum ksm_merge_mode mode)
+{
+	char *map;
+	char *ret = MAP_FAILED;
+
+	map = __mmap_and_merge_range(val, size, prot, mode);
+	if (map == MAP_MERGE_FAIL)
+		ksft_test_result_fail("Merging memory failed");
+	else if (map == MAP_MERGE_SKIP)
+		ksft_test_result_skip("Merging memory skipped");
+	else
+		ret = map;
+
+	return ret;
 }
 
 static void test_unmerge(void)
@@ -226,7 +262,7 @@ static void test_unmerge(void)
 
 	ksft_print_msg("[RUN] %s\n", __func__);
 
-	map = mmap_and_merge_range(0xcf, size, PROT_READ | PROT_WRITE, false);
+	map = mmap_and_merge_range(0xcf, size, PROT_READ | PROT_WRITE, KSM_MERGE_MADVISE);
 	if (map == MAP_FAILED)
 		return;
 
@@ -264,7 +300,7 @@ static void test_unmerge_zero_pages(void)
 	}
 
 	/* Let KSM deduplicate zero pages. */
-	map = mmap_and_merge_range(0x00, size, PROT_READ | PROT_WRITE, false);
+	map = mmap_and_merge_range(0x00, size, PROT_READ | PROT_WRITE, KSM_MERGE_MADVISE);
 	if (map == MAP_FAILED)
 		return;
 
@@ -312,7 +348,7 @@ static void test_unmerge_discarded(void)
 
 	ksft_print_msg("[RUN] %s\n", __func__);
 
-	map = mmap_and_merge_range(0xcf, size, PROT_READ | PROT_WRITE, false);
+	map = mmap_and_merge_range(0xcf, size, PROT_READ | PROT_WRITE, KSM_MERGE_MADVISE);
 	if (map == MAP_FAILED)
 		return;
 
@@ -344,7 +380,7 @@ static void test_unmerge_uffd_wp(void)
 
 	ksft_print_msg("[RUN] %s\n", __func__);
 
-	map = mmap_and_merge_range(0xcf, size, PROT_READ | PROT_WRITE, false);
+	map = mmap_and_merge_range(0xcf, size, PROT_READ | PROT_WRITE, KSM_MERGE_MADVISE);
 	if (map == MAP_FAILED)
 		return;
 
@@ -439,6 +475,36 @@ static void test_prctl(void)
 	ksft_test_result_pass("Setting/clearing PR_SET_MEMORY_MERGE works\n");
 }
 
+static int test_child_ksm(void)
+{
+	const unsigned int size = 2 * MiB;
+	char *map;
+
+	/* Test if KSM is enabled for the process. */
+	if (prctl(PR_GET_MEMORY_MERGE, 0, 0, 0, 0) != 1)
+		return -1;
+
+	/* Test if merge could really happen. */
+	map = __mmap_and_merge_range(0xcf, size, PROT_READ | PROT_WRITE, KSM_MERGE_NONE);
+	if (map == MAP_MERGE_FAIL)
+		return -2;
+	else if (map == MAP_MERGE_SKIP)
+		return -3;
+
+	munmap(map, size);
+	return 0;
+}
+
+static void test_child_ksm_err(int status)
+{
+	if (status == -1)
+		ksft_test_result_fail("unexpected PR_GET_MEMORY_MERGE result in child\n");
+	else if (status == -2)
+		ksft_test_result_fail("Merge in child failed\n");
+	else if (status == -3)
+		ksft_test_result_skip("Merge in child skipped\n");
+}
+
 /* Verify that prctl ksm flag is inherited. */
 static void test_prctl_fork(void)
 {
@@ -458,7 +524,7 @@ static void test_prctl_fork(void)
 
 	child_pid = fork();
 	if (!child_pid) {
-		exit(prctl(PR_GET_MEMORY_MERGE, 0, 0, 0, 0));
+		exit(test_child_ksm());
 	} else if (child_pid < 0) {
 		ksft_test_result_fail("fork() failed\n");
 		return;
@@ -467,8 +533,11 @@ static void test_prctl_fork(void)
 	if (waitpid(child_pid, &status, 0) < 0) {
 		ksft_test_result_fail("waitpid() failed\n");
 		return;
-	} else if (WEXITSTATUS(status) != 1) {
-		ksft_test_result_fail("unexpected PR_GET_MEMORY_MERGE result in child\n");
+	}
+
+	status = WEXITSTATUS(status);
+	if (status) {
+		test_child_ksm_err(status);
 		return;
 	}
 
@@ -478,12 +547,6 @@ static void test_prctl_fork(void)
 	}
 
 	ksft_test_result_pass("PR_SET_MEMORY_MERGE value is inherited\n");
-}
-
-static int ksm_fork_exec_child(void)
-{
-	/* Test if KSM is enabled for the process. */
-	return prctl(PR_GET_MEMORY_MERGE, 0, 0, 0, 0) == 1;
 }
 
 static void test_prctl_fork_exec(void)
@@ -518,7 +581,7 @@ static void test_prctl_fork_exec(void)
 		if (WIFEXITED(status)) {
 			status = WEXITSTATUS(status);
 			if (status) {
-				ksft_test_result_fail("KSM not enabled\n");
+				test_child_ksm_err(status);
 				return;
 			}
 		} else {
@@ -545,7 +608,7 @@ static void test_prctl_unmerge(void)
 
 	ksft_print_msg("[RUN] %s\n", __func__);
 
-	map = mmap_and_merge_range(0xcf, size, PROT_READ | PROT_WRITE, true);
+	map = mmap_and_merge_range(0xcf, size, PROT_READ | PROT_WRITE, KSM_MERGE_PRCTL);
 	if (map == MAP_FAILED)
 		return;
 
@@ -568,7 +631,7 @@ static void test_prot_none(void)
 
 	ksft_print_msg("[RUN] %s\n", __func__);
 
-	map = mmap_and_merge_range(0x11, size, PROT_NONE, false);
+	map = mmap_and_merge_range(0x11, size, PROT_NONE, KSM_MERGE_MADVISE);
 	if (map == MAP_FAILED)
 		goto unmap;
 
@@ -599,7 +662,7 @@ int main(int argc, char **argv)
 	int err;
 
 	if (argc > 1 && !strcmp(argv[1], FORK_EXEC_CHILD_PRG_NAME)) {
-		exit(ksm_fork_exec_child() == 1 ? 0 : 1);
+		exit(test_child_ksm());
 	}
 
 #ifdef __NR_userfaultfd
@@ -646,5 +709,5 @@ int main(int argc, char **argv)
 	if (err)
 		ksft_exit_fail_msg("%d out of %d tests failed\n",
 				   err, ksft_test_num());
-	return ksft_exit_pass();
+	ksft_exit_pass();
 }

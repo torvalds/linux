@@ -257,7 +257,7 @@ int main(int argc, char **argv)
 	set_frequency(0.0);
 
 	if (fails)
-		return ksft_exit_fail();
+		ksft_exit_fail();
 
-	return ksft_exit_pass();
+	ksft_exit_pass();
 }

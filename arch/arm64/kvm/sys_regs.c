@@ -1568,15 +1568,29 @@ static u64 read_id_reg(const struct kvm_vcpu *vcpu, const struct sys_reg_desc *r
 	return IDREG(vcpu->kvm, reg_to_encoding(r));
 }
 
+static bool is_feature_id_reg(u32 encoding)
+{
+	return (sys_reg_Op0(encoding) == 3 &&
+		(sys_reg_Op1(encoding) < 2 || sys_reg_Op1(encoding) == 3) &&
+		sys_reg_CRn(encoding) == 0 &&
+		sys_reg_CRm(encoding) <= 7);
+}
+
 /*
  * Return true if the register's (Op0, Op1, CRn, CRm, Op2) is
- * (3, 0, 0, crm, op2), where 1<=crm<8, 0<=op2<8.
+ * (3, 0, 0, crm, op2), where 1<=crm<8, 0<=op2<8, which is the range of ID
+ * registers KVM maintains on a per-VM basis.
  */
-static inline bool is_id_reg(u32 id)
+static inline bool is_vm_ftr_id_reg(u32 id)
 {
 	return (sys_reg_Op0(id) == 3 && sys_reg_Op1(id) == 0 &&
 		sys_reg_CRn(id) == 0 && sys_reg_CRm(id) >= 1 &&
 		sys_reg_CRm(id) < 8);
+}
+
+static inline bool is_vcpu_ftr_id_reg(u32 id)
+{
+	return is_feature_id_reg(id) && !is_vm_ftr_id_reg(id);
 }
 
 static inline bool is_aa32_id_reg(u32 id)
@@ -2338,7 +2352,6 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 					ID_AA64MMFR0_EL1_TGRAN16_2)),
 	ID_WRITABLE(ID_AA64MMFR1_EL1, ~(ID_AA64MMFR1_EL1_RES0 |
 					ID_AA64MMFR1_EL1_HCX |
-					ID_AA64MMFR1_EL1_XNX |
 					ID_AA64MMFR1_EL1_TWED |
 					ID_AA64MMFR1_EL1_XNX |
 					ID_AA64MMFR1_EL1_VH |
@@ -3069,12 +3082,14 @@ static bool check_sysreg_table(const struct sys_reg_desc *table, unsigned int n,
 
 	for (i = 0; i < n; i++) {
 		if (!is_32 && table[i].reg && !table[i].reset) {
-			kvm_err("sys_reg table %pS entry %d lacks reset\n", &table[i], i);
+			kvm_err("sys_reg table %pS entry %d (%s) lacks reset\n",
+				&table[i], i, table[i].name);
 			return false;
 		}
 
 		if (i && cmp_sys_reg(&table[i-1], &table[i]) >= 0) {
-			kvm_err("sys_reg table %pS entry %d out of order\n", &table[i - 1], i - 1);
+			kvm_err("sys_reg table %pS entry %d (%s -> %s) out of order\n",
+				&table[i], i, table[i - 1].name, table[i].name);
 			return false;
 		}
 	}
@@ -3509,26 +3524,25 @@ void kvm_sys_regs_create_debugfs(struct kvm *kvm)
 			    &idregs_debug_fops);
 }
 
-static void kvm_reset_id_regs(struct kvm_vcpu *vcpu)
+static void reset_vm_ftr_id_reg(struct kvm_vcpu *vcpu, const struct sys_reg_desc *reg)
 {
-	const struct sys_reg_desc *idreg = first_idreg;
-	u32 id = reg_to_encoding(idreg);
+	u32 id = reg_to_encoding(reg);
 	struct kvm *kvm = vcpu->kvm;
 
 	if (test_bit(KVM_ARCH_FLAG_ID_REGS_INITIALIZED, &kvm->arch.flags))
 		return;
 
 	lockdep_assert_held(&kvm->arch.config_lock);
+	IDREG(kvm, id) = reg->reset(vcpu, reg);
+}
 
-	/* Initialize all idregs */
-	while (is_id_reg(id)) {
-		IDREG(kvm, id) = idreg->reset(vcpu, idreg);
+static void reset_vcpu_ftr_id_reg(struct kvm_vcpu *vcpu,
+				  const struct sys_reg_desc *reg)
+{
+	if (kvm_vcpu_initialized(vcpu))
+		return;
 
-		idreg++;
-		id = reg_to_encoding(idreg);
-	}
-
-	set_bit(KVM_ARCH_FLAG_ID_REGS_INITIALIZED, &kvm->arch.flags);
+	reg->reset(vcpu, reg);
 }
 
 /**
@@ -3540,19 +3554,24 @@ static void kvm_reset_id_regs(struct kvm_vcpu *vcpu)
  */
 void kvm_reset_sys_regs(struct kvm_vcpu *vcpu)
 {
+	struct kvm *kvm = vcpu->kvm;
 	unsigned long i;
-
-	kvm_reset_id_regs(vcpu);
 
 	for (i = 0; i < ARRAY_SIZE(sys_reg_descs); i++) {
 		const struct sys_reg_desc *r = &sys_reg_descs[i];
 
-		if (is_id_reg(reg_to_encoding(r)))
+		if (!r->reset)
 			continue;
 
-		if (r->reset)
+		if (is_vm_ftr_id_reg(reg_to_encoding(r)))
+			reset_vm_ftr_id_reg(vcpu, r);
+		else if (is_vcpu_ftr_id_reg(reg_to_encoding(r)))
+			reset_vcpu_ftr_id_reg(vcpu, r);
+		else
 			r->reset(vcpu, r);
 	}
+
+	set_bit(KVM_ARCH_FLAG_ID_REGS_INITIALIZED, &kvm->arch.flags);
 }
 
 /**
@@ -3978,14 +3997,6 @@ int kvm_arm_copy_sys_reg_indices(struct kvm_vcpu *vcpu, u64 __user *uindices)
 		sys_reg_CRm(r),					\
 		sys_reg_Op2(r))
 
-static bool is_feature_id_reg(u32 encoding)
-{
-	return (sys_reg_Op0(encoding) == 3 &&
-		(sys_reg_Op1(encoding) < 2 || sys_reg_Op1(encoding) == 3) &&
-		sys_reg_CRn(encoding) == 0 &&
-		sys_reg_CRm(encoding) <= 7);
-}
-
 int kvm_vm_ioctl_get_reg_writable_masks(struct kvm *kvm, struct reg_mask_range *range)
 {
 	const void *zero_page = page_to_virt(ZERO_PAGE(0));
@@ -4014,7 +4025,7 @@ int kvm_vm_ioctl_get_reg_writable_masks(struct kvm *kvm, struct reg_mask_range *
 		 * compliant with a given revision of the architecture, but the
 		 * RES0/RES1 definitions allow us to do that.
 		 */
-		if (is_id_reg(encoding)) {
+		if (is_vm_ftr_id_reg(encoding)) {
 			if (!reg->val ||
 			    (is_aa32_id_reg(encoding) && !kvm_supports_32bit_el0()))
 				continue;

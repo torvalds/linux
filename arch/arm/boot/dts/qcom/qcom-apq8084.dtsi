@@ -79,7 +79,7 @@
 		};
 
 		idle-states {
-			CPU_SPC: spc {
+			CPU_SPC: cpu-spc {
 				compatible = "qcom,idle-state-spc",
 						"arm,idle-state";
 				entry-latency-us = <150>;

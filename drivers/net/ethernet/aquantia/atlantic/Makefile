@@ -8,7 +8,7 @@
 
 obj-$(CONFIG_AQTION) += atlantic.o
 
-ccflags-y += -I$(srctree)/$(src)
+ccflags-y += -I$(src)
 
 atlantic-objs := aq_main.o \
 	aq_nic.o \

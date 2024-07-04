@@ -8,7 +8,7 @@
  * Copyright (C) 2023 Dmitry Baryshkov <dmitry.baryshkov@linaro.org>
  */
 
-#include <drm/drm_bridge.h>
+#include <drm/bridge/aux-bridge.h>
 #include <linux/bitfield.h>
 #include <linux/i2c.h>
 #include <linux/kernel.h>
@@ -67,8 +67,6 @@ struct ptn36502 {
 	struct typec_retimer *retimer;
 
 	struct typec_switch *typec_switch;
-
-	struct drm_bridge bridge;
 
 	struct mutex lock; /* protect non-concurrent retimer & switch */
 
@@ -283,44 +281,6 @@ static int ptn36502_detect(struct ptn36502 *ptn)
 	return 0;
 }
 
-#if IS_ENABLED(CONFIG_OF) && IS_ENABLED(CONFIG_DRM_PANEL_BRIDGE)
-static int ptn36502_bridge_attach(struct drm_bridge *bridge,
-				  enum drm_bridge_attach_flags flags)
-{
-	struct ptn36502 *ptn = container_of(bridge, struct ptn36502, bridge);
-	struct drm_bridge *next_bridge;
-
-	if (!(flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR))
-		return -EINVAL;
-
-	next_bridge = devm_drm_of_get_bridge(&ptn->client->dev, ptn->client->dev.of_node, 0, 0);
-	if (IS_ERR(next_bridge)) {
-		dev_err(&ptn->client->dev, "failed to acquire drm_bridge: %pe\n", next_bridge);
-		return PTR_ERR(next_bridge);
-	}
-
-	return drm_bridge_attach(bridge->encoder, next_bridge, bridge,
-				 DRM_BRIDGE_ATTACH_NO_CONNECTOR);
-}
-
-static const struct drm_bridge_funcs ptn36502_bridge_funcs = {
-	.attach	= ptn36502_bridge_attach,
-};
-
-static int ptn36502_register_bridge(struct ptn36502 *ptn)
-{
-	ptn->bridge.funcs = &ptn36502_bridge_funcs;
-	ptn->bridge.of_node = ptn->client->dev.of_node;
-
-	return devm_drm_bridge_add(&ptn->client->dev, &ptn->bridge);
-}
-#else
-static int ptn36502_register_bridge(struct ptn36502 *ptn)
-{
-	return 0;
-}
-#endif
-
 static const struct regmap_config ptn36502_regmap = {
 	.max_register = 0x0d,
 	.reg_bits = 8,
@@ -369,7 +329,7 @@ static int ptn36502_probe(struct i2c_client *client)
 	if (ret)
 		goto err_disable_regulator;
 
-	ret = ptn36502_register_bridge(ptn);
+	ret = drm_aux_bridge_register(dev);
 	if (ret)
 		goto err_disable_regulator;
 

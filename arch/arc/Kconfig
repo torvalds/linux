@@ -51,6 +51,7 @@ config ARC
 	select PCI_SYSCALL if PCI
 	select HAVE_ARCH_JUMP_LABEL if ISA_ARCV2 && !CPU_ENDIAN_BE32
 	select TRACE_IRQFLAGS_SUPPORT
+	select HAVE_EBPF_JIT if ISA_ARCV2
 
 config LOCKDEP_SUPPORT
 	def_bool y

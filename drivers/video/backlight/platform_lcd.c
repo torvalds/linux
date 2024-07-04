@@ -62,7 +62,7 @@ static int platform_lcd_match(struct lcd_device *lcd, struct fb_info *info)
 	return plcd->us->parent == info->device;
 }
 
-static struct lcd_ops platform_lcd_ops = {
+static const struct lcd_ops platform_lcd_ops = {
 	.get_power	= platform_lcd_get_power,
 	.set_power	= platform_lcd_set_power,
 	.check_fb	= platform_lcd_match,

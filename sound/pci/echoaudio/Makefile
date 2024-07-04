@@ -4,20 +4,20 @@
 # Copyright (c) 2003 by Giuliano Pochini <pochini@shiny.it>
 #
 
-snd-darla20-objs := darla20.o
-snd-gina20-objs := gina20.o
-snd-layla20-objs := layla20.o
-snd-darla24-objs := darla24.o
-snd-gina24-objs := gina24.o
-snd-layla24-objs := layla24.o
-snd-mona-objs := mona.o
-snd-mia-objs := mia.o
-snd-echo3g-objs := echo3g.o
-snd-indigo-objs := indigo.o
-snd-indigoio-objs := indigoio.o
-snd-indigodj-objs := indigodj.o
-snd-indigoiox-objs := indigoiox.o
-snd-indigodjx-objs := indigodjx.o
+snd-darla20-y := darla20.o
+snd-gina20-y := gina20.o
+snd-layla20-y := layla20.o
+snd-darla24-y := darla24.o
+snd-gina24-y := gina24.o
+snd-layla24-y := layla24.o
+snd-mona-y := mona.o
+snd-mia-y := mia.o
+snd-echo3g-y := echo3g.o
+snd-indigo-y := indigo.o
+snd-indigoio-y := indigoio.o
+snd-indigodj-y := indigodj.o
+snd-indigoiox-y := indigoiox.o
+snd-indigodjx-y := indigodjx.o
 
 obj-$(CONFIG_SND_DARLA20) += snd-darla20.o
 obj-$(CONFIG_SND_GINA20) += snd-gina20.o

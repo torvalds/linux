@@ -38,7 +38,7 @@
         "EventCode": "0x10",
         "EventName": "UNC_I_COHERENT_OPS.CLFLUSH",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of coherency related operations servied by the IRP",
+        "PublicDescription": "Counts the number of coherency related operations serviced by the IRP",
         "UMask": "0x80",
         "Unit": "IRP"
     },
@@ -47,7 +47,7 @@
         "EventCode": "0x10",
         "EventName": "UNC_I_COHERENT_OPS.CRD",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of coherency related operations servied by the IRP",
+        "PublicDescription": "Counts the number of coherency related operations serviced by the IRP",
         "UMask": "0x2",
         "Unit": "IRP"
     },
@@ -56,7 +56,7 @@
         "EventCode": "0x10",
         "EventName": "UNC_I_COHERENT_OPS.DRD",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of coherency related operations servied by the IRP",
+        "PublicDescription": "Counts the number of coherency related operations serviced by the IRP",
         "UMask": "0x4",
         "Unit": "IRP"
     },
@@ -65,7 +65,7 @@
         "EventCode": "0x10",
         "EventName": "UNC_I_COHERENT_OPS.PCIDCAHINT",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of coherency related operations servied by the IRP",
+        "PublicDescription": "Counts the number of coherency related operations serviced by the IRP",
         "UMask": "0x20",
         "Unit": "IRP"
     },
@@ -74,7 +74,7 @@
         "EventCode": "0x10",
         "EventName": "UNC_I_COHERENT_OPS.PCIRDCUR",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of coherency related operations servied by the IRP",
+        "PublicDescription": "Counts the number of coherency related operations serviced by the IRP",
         "UMask": "0x1",
         "Unit": "IRP"
     },
@@ -101,7 +101,7 @@
         "EventCode": "0x10",
         "EventName": "UNC_I_COHERENT_OPS.WBMTOI",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of coherency related operations servied by the IRP",
+        "PublicDescription": "Counts the number of coherency related operations serviced by the IRP",
         "UMask": "0x40",
         "Unit": "IRP"
     },
@@ -500,7 +500,7 @@
         "EventCode": "0x11",
         "EventName": "UNC_I_TRANSACTIONS.WRITES",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of Inbound transactions from the IRP to the Uncore.  This can be filtered based on request type in addition to the source queue.  Note the special filtering equation.  We do OR-reduction on the request type.  If the SOURCE bit is set, then we also do AND qualification based on the source portID.; Trackes only write requests.  Each write request should have a prefetch, so there is no need to explicitly track these requests.  For writes that are tickled and have to retry, the counter will be incremented for each retry.",
+        "PublicDescription": "Counts the number of Inbound transactions from the IRP to the Uncore.  This can be filtered based on request type in addition to the source queue.  Note the special filtering equation.  We do OR-reduction on the request type.  If the SOURCE bit is set, then we also do AND qualification based on the source portID.; Tracks only write requests.  Each write request should have a prefetch, so there is no need to explicitly track these requests.  For writes that are tickled and have to retry, the counter will be incremented for each retry.",
         "UMask": "0x2",
         "Unit": "IRP"
     },

@@ -1068,13 +1068,6 @@ qla2x00_free_sysfs_attr(scsi_qla_host_t *vha, bool stop_beacon)
 /* Scsi_Host attributes. */
 
 static ssize_t
-qla2x00_driver_version_show(struct device *dev,
-			  struct device_attribute *attr, char *buf)
-{
-	return scnprintf(buf, PAGE_SIZE, "%s\n", qla2x00_version_str);
-}
-
-static ssize_t
 qla2x00_fw_version_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
@@ -2412,7 +2405,7 @@ qla2x00_dport_diagnostics_show(struct device *dev,
 static DEVICE_ATTR(dport_diagnostics, 0444,
 	   qla2x00_dport_diagnostics_show, NULL);
 
-static DEVICE_ATTR(driver_version, S_IRUGO, qla2x00_driver_version_show, NULL);
+static DEVICE_STRING_ATTR_RO(driver_version, S_IRUGO, qla2x00_version_str);
 static DEVICE_ATTR(fw_version, S_IRUGO, qla2x00_fw_version_show, NULL);
 static DEVICE_ATTR(serial_num, S_IRUGO, qla2x00_serial_num_show, NULL);
 static DEVICE_ATTR(isp_name, S_IRUGO, qla2x00_isp_name_show, NULL);
@@ -2478,7 +2471,7 @@ static DEVICE_ATTR(port_no, 0444, qla2x00_port_no_show, NULL);
 static DEVICE_ATTR(fw_attr, 0444, qla2x00_fw_attr_show, NULL);
 
 static struct attribute *qla2x00_host_attrs[] = {
-	&dev_attr_driver_version.attr,
+	&dev_attr_driver_version.attr.attr,
 	&dev_attr_fw_version.attr,
 	&dev_attr_serial_num.attr,
 	&dev_attr_isp_name.attr,

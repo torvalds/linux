@@ -86,9 +86,11 @@ static int pcim_setup_msi_release(struct pci_dev *dev)
 		return 0;
 
 	ret = devm_add_action(&dev->dev, pcim_msi_release, dev);
-	if (!ret)
-		dev->is_msi_managed = true;
-	return ret;
+	if (ret)
+		return ret;
+
+	dev->is_msi_managed = true;
+	return 0;
 }
 
 /*
@@ -99,9 +101,10 @@ static int pci_setup_msi_context(struct pci_dev *dev)
 {
 	int ret = msi_setup_device_data(&dev->dev);
 
-	if (!ret)
-		ret = pcim_setup_msi_release(dev);
-	return ret;
+	if (ret)
+		return ret;
+
+	return pcim_setup_msi_release(dev);
 }
 
 /*
