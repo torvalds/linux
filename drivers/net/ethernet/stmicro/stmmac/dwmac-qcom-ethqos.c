@@ -2468,6 +2468,7 @@ static int qcom_ethqos_resume(struct device *dev)
 	struct net_device *ndev = NULL;
 	struct qcom_ethqos *ethqos;
 	int ret;
+	struct stmmac_priv *priv;
 
 	ETHQOSDBG("Resume Enter\n");
 	if (of_device_is_compatible(dev->of_node, "qcom,emac-smmu-embedded"))
@@ -2490,10 +2491,14 @@ static int qcom_ethqos_resume(struct device *dev)
 		ETHQOSERR(" Resume not possible\n");
 		return -EINVAL;
 	}
+	priv = netdev_priv(ndev);
 
 	qcom_ethqos_phy_resume_clks(ethqos);
 	if (ethqos->gdsc_off_on_suspend)
 		ethqos_set_func_clk_en(ethqos);
+
+	if (priv->plat->early_eth)
+		priv->plat->need_reset = 1;
 
 	ret = stmmac_resume(dev);
 

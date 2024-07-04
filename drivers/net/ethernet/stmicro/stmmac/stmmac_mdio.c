@@ -352,7 +352,7 @@ int stmmac_mdio_reset(struct mii_bus *bus)
 	unsigned int mii_address = priv->hw->mii.addr;
 	bool active_high = false;
 
-	if (priv->plat->early_eth)
+	if (priv->plat->early_eth && !priv->plat->need_reset)
 		return 0;
 
 #ifdef CONFIG_OF

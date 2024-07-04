@@ -304,5 +304,6 @@ struct plat_stmmacenet_data {
 	void (*phy_irq_enable)(void *priv);
 	void (*phy_irq_disable)(void *priv);
 	bool early_eth;
+	bool need_reset;
 };
 #endif
