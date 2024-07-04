@@ -157,70 +157,6 @@ static inline unsigned long *blk_alloc_zone_bitmap(int node,
 			    GFP_NOIO, node);
 }
 
-static int blk_zone_need_reset_cb(struct blk_zone *zone, unsigned int idx,
-				  void *data)
-{
-	/*
-	 * For an all-zones reset, ignore conventional, empty, read-only
-	 * and offline zones.
-	 */
-	switch (zone->cond) {
-	case BLK_ZONE_COND_NOT_WP:
-	case BLK_ZONE_COND_EMPTY:
-	case BLK_ZONE_COND_READONLY:
-	case BLK_ZONE_COND_OFFLINE:
-		return 0;
-	default:
-		set_bit(idx, (unsigned long *)data);
-		return 0;
-	}
-}
-
-static int blkdev_zone_reset_all_emulated(struct block_device *bdev)
-{
-	struct gendisk *disk = bdev->bd_disk;
-	sector_t capacity = bdev_nr_sectors(bdev);
-	sector_t zone_sectors = bdev_zone_sectors(bdev);
-	unsigned long *need_reset;
-	struct bio *bio = NULL;
-	sector_t sector = 0;
-	int ret;
-
-	need_reset = blk_alloc_zone_bitmap(disk->queue->node, disk->nr_zones);
-	if (!need_reset)
-		return -ENOMEM;
-
-	ret = disk->fops->report_zones(disk, 0, disk->nr_zones,
-				       blk_zone_need_reset_cb, need_reset);
-	if (ret < 0)
-		goto out_free_need_reset;
-
-	ret = 0;
-	while (sector < capacity) {
-		if (!test_bit(disk_zone_no(disk, sector), need_reset)) {
-			sector += zone_sectors;
-			continue;
-		}
-
-		bio = blk_next_bio(bio, bdev, 0, REQ_OP_ZONE_RESET | REQ_SYNC,
-				   GFP_KERNEL);
-		bio->bi_iter.bi_sector = sector;
-		sector += zone_sectors;
-
-		/* This may take a while, so be nice to others */
-		cond_resched();
-	}
-
-	if (bio) {
-		ret = submit_bio_wait(bio);
-		bio_put(bio);
-	}
-
-out_free_need_reset:
-	kfree(need_reset);
-	return ret;
-}
-
 static int blkdev_zone_reset_all(struct block_device *bdev)
 {
 	struct bio bio;
@@ -247,7 +183,6 @@ static int blkdev_zone_reset_all(struct block_device *bdev)
 int blkdev_zone_mgmt(struct block_device *bdev, enum req_op op,
 		     sector_t sector, sector_t nr_sectors)
 {
-	struct request_queue *q = bdev_get_queue(bdev);
 	sector_t zone_sectors = bdev_zone_sectors(bdev);
 	sector_t capacity = bdev_nr_sectors(bdev);
 	sector_t end_sector = sector + nr_sectors;
@@ -275,16 +210,11 @@ int blkdev_zone_mgmt(struct block_device *bdev, enum req_op op,
 		return -EINVAL;
 
 	/*
-	 * In the case of a zone reset operation over all zones,
-	 * REQ_OP_ZONE_RESET_ALL can be used with devices supporting this
-	 * command. For other devices, we emulate this command behavior by
-	 * identifying the zones needing a reset.
+	 * In the case of a zone reset operation over all zones, use
+	 * REQ_OP_ZONE_RESET_ALL.
 	 */
-	if (op == REQ_OP_ZONE_RESET && sector == 0 && nr_sectors == capacity) {
-		if (!blk_queue_zone_resetall(q))
-			return blkdev_zone_reset_all_emulated(bdev);
+	if (op == REQ_OP_ZONE_RESET && sector == 0 && nr_sectors == capacity)
 		return blkdev_zone_reset_all(bdev);
-	}
 
 	while (sector < end_sector) {
 		bio = blk_next_bio(bio, bdev, 0, op | REQ_SYNC, GFP_KERNEL);
