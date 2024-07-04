@@ -1,0 +1,673 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (C) 2024 Josua Mayer <josua@solid-run.com>
+ *
+ * DTS for SolidRun CN9132 Clearfog.
+ *
+ */
+
+/dts-v1/;
+
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/leds/common.h>
+
+#include "cn9130.dtsi"
+#include "cn9132-sr-cex7.dtsi"
+
+/ {
+	model = "SolidRun CN9132 Clearfog";
+	compatible = "solidrun,cn9132-clearfog",
+		     "solidrun,cn9132-sr-cex7", "marvell,cn9130";
+
+	aliases {
+		ethernet1 = &cp0_eth2;
+		ethernet2 = &cp0_eth0;
+		ethernet3 = &cp2_eth0;
+		ethernet4 = &cp1_eth0;
+		i2c7 = &carrier_mpcie_i2c;
+		i2c8 = &carrier_ptp_i2c;
+		mmc1 = &cp0_sdhci0;
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&cp1_wake0_pins>;
+
+		button-0 {
+			label = "SW2";
+			gpios = <&cp1_gpio2 8 GPIO_ACTIVE_LOW>;
+			linux,can-disable;
+			linux,code = <BTN_2>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&cp1_batlow_pins &cp2_rsvd4_pins>;
+
+		/* LED11 */
+		led-io-0 {
+			color = <LED_COLOR_ID_GREEN>;
+			function = LED_FUNCTION_DISK;
+			function-enumerator = <0>;
+			default-state = "off";
+			gpios = <&cp1_gpio1 11 GPIO_ACTIVE_HIGH>;
+		};
+
+		/* LED12 */
+		led-io-1 {
+			color = <LED_COLOR_ID_GREEN>;
+			function = LED_FUNCTION_DISK;
+			function-enumerator = <1>;
+			default-state = "off";
+			gpios = <&cp2_gpio1 4 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	/* CON4 W_DISABLE1/W_DISABLE2 */
+	rfkill-m2-wlan {
+		compatible = "rfkill-gpio";
+		label = "m.2 wlan (CON4)";
+		radio-type = "wlan";
+		pinctrl-names = "default";
+		pinctrl-0 = <&cp1_10g_phy_rst_01_pins>;
+		/* rfkill-gpio inverts internally */
+		shutdown-gpios = <&cp1_gpio2 11 GPIO_ACTIVE_HIGH>;
+	};
+
+	/* CON5 W_DISABLE1/W_DISABLE2 */
+	rfkill-m2-wlan {
+		compatible = "rfkill-gpio";
+		label = "m.2 wlan (CON5)";
+		radio-type = "wlan";
+		pinctrl-names = "default";
+		pinctrl-0 = <&cp1_10g_phy_rst_23_pins>;
+		/* rfkill-gpio inverts internally */
+		shutdown-gpios = <&cp1_gpio2 10 GPIO_ACTIVE_HIGH>;
+	};
+
+	/* J21 W_DISABLE1 */
+	rfkill-m2-wwan {
+		compatible = "rfkill-gpio";
+		label = "m.2 wwan (J21)";
+		radio-type = "wwan";
+		pinctrl-names = "default";
+		pinctrl-0 = <&cp2_rsvd3_pins>;
+		/* rfkill-gpio inverts internally */
+		shutdown-gpios = <&cp2_gpio1 3 GPIO_ACTIVE_HIGH>;
+	};
+
+	/* J21 W_DISABLE1 */
+	rfkill-m2-gnss {
+		compatible = "rfkill-gpio";
+		label = "m.2 gnss (J21)";
+		radio-type = "gps";
+		pinctrl-names = "default";
+		pinctrl-0 = <&cp2_rsvd8_pins>;
+		/* rfkill-gpio inverts internally */
+		shutdown-gpios = <&cp2_gpio1 8 GPIO_ACTIVE_HIGH>;
+	};
+
+	/* J14 W_DISABLE */
+	rfkill-mpcie-wlan {
+		compatible = "rfkill-gpio";
+		label = "mpcie wlan (J14)";
+		radio-type = "wlan";
+		pinctrl-names = "default";
+		pinctrl-0 = <&cp2_rsvd2_pins>;
+		/* rfkill-gpio inverts internally */
+		shutdown-gpios = <&cp2_gpio1 2 GPIO_ACTIVE_HIGH>;
+	};
+
+	sfp: sfp {
+		compatible = "sff,sfp";
+		i2c-bus = <&com_10g_sfp_i2c0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&com_10g_int0_pins>;
+		mod-def0-gpios = <&cp0_gpio1 24 GPIO_ACTIVE_LOW>;
+		maximum-power-milliwatt = <2000>;
+	};
+};
+
+&com_smbus {
+	/* This bus is also routed to STM32 BMC Microcontroller (U2) */
+
+	power-sensor@40 {
+		compatible = "ti,ina220";
+		reg = <0x40>;
+		#io-channel-cells = <1>;
+		label = "vdd_12v0";
+		shunt-resistor = <2000>;
+	};
+
+	adc@48 {
+		compatible = "ti,tla2021";
+		reg = <0x48>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		/* supplied by chaoskey hardware noise generator circuit */
+		channel@0 {
+			reg = <0>;
+		};
+	};
+};
+
+&cp0_eth_phy0 {
+	/*
+	 * Configure LEDs default behaviour:
+	 * - LED[0]: link is 1000Mbps: On (yellow): 0111
+	 * - LED[1]: link/activity: On/Blink (green): 0001
+	 * - LED[2]: Off (green): 1000
+	 */
+	marvell,reg-init = <3 16 0xf000 0x0817>;
+
+	leds {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		led@0 {
+			/* link */
+			reg = <0>;
+			color = <LED_COLOR_ID_YELLOW>;
+			function = LED_FUNCTION_LAN;
+			default-state = "keep";
+		};
+
+		led@1 {
+			/* act */
+			reg = <1>;
+			color = <LED_COLOR_ID_GREEN>;
+			function = LED_FUNCTION_LAN;
+			default-state = "keep";
+		};
+
+		led@2 {
+			/* 1000 */
+			reg = <2>;
+			color = <LED_COLOR_ID_GREEN>;
+			function = LED_FUNCTION_LAN;
+			default-state = "keep";
+		};
+	};
+};
+
+/* SRDS #4 - 10GE */
+&cp0_eth0 {
+	phys = <&cp0_comphy4 0>;
+	phy-mode = "10gbase-r";
+	managed = "in-band-status";
+	sfp = <&sfp>;
+	status = "okay";
+};
+
+&cp0_eth2 {
+	phy-mode = "2500base-x";
+	phys = <&cp0_comphy5 2>;
+	status = "okay";
+
+	fixed-link {
+		speed = <2500>;
+		full-duplex;
+		pause;
+	};
+};
+
+&cp0_i2c1 {
+	/*
+	 * Both COM and Carrier Board have a PCA9547 i2c mux at 0x77.
+	 * Describe them as a single device merging each child bus.
+	 */
+
+	i2c-mux@77 {
+		i2c@0 {
+			/* Routed to Full PCIe (J4) */
+		};
+
+		i2c@1 {
+			/* Routed to USB Hub (U29) */
+		};
+
+		i2c@2 {
+			/* Routed to M.2 (CON4) */
+		};
+
+		i2c@3 {
+			/* Routed to M.2 (CON5) */
+		};
+
+		i2c@4 {
+			/* Routed to M.2 (J21) */
+		};
+
+		carrier_mpcie_i2c: i2c@5 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <5>;
+
+			/* Routed to mini-PCIe (J14) */
+		};
+
+		carrier_ptp_i2c: i2c@6 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <6>;
+
+			/* Routed to various optional PTP related components */
+		};
+	};
+};
+
+&cp0_mdio {
+	ethernet-switch@4 {
+		compatible = "marvell,mv88e6085";
+		reg = <4>;
+
+		mdio {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			sw_phy1: ethernet-phy@1 {
+				reg = <0x11>;
+			};
+
+			sw_phy2: ethernet-phy@2 {
+				reg = <0x12>;
+			};
+
+			sw_phy3: ethernet-phy@3 {
+				reg = <0x13>;
+			};
+
+			sw_phy4: ethernet-phy@4 {
+				reg = <0x14>;
+			};
+		};
+
+		ethernet-ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			ethernet-port@1 {
+				reg = <1>;
+				label = "lan1";
+				phy-handle = <&sw_phy1>;
+				phy-mode = "internal";
+
+				leds {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					led@0 {
+						reg = <0>;
+						color = <LED_COLOR_ID_GREEN>;
+						function = LED_FUNCTION_LAN;
+						default-state = "keep";
+					};
+
+					led@1 {
+						reg = <1>;
+						color = <LED_COLOR_ID_YELLOW>;
+						function = LED_FUNCTION_LAN;
+						default-state = "keep";
+					};
+				};
+			};
+
+			ethernet-port@2 {
+				reg = <2>;
+				label = "lan2";
+				phy-handle = <&sw_phy2>;
+				phy-mode = "internal";
+
+				leds {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					led@0 {
+						reg = <0>;
+						color = <LED_COLOR_ID_GREEN>;
+						function = LED_FUNCTION_LAN;
+						default-state = "keep";
+					};
+
+					led@1 {
+						reg = <1>;
+						color = <LED_COLOR_ID_YELLOW>;
+						function = LED_FUNCTION_LAN;
+						default-state = "keep";
+					};
+				};
+			};
+
+			ethernet-port@3 {
+				reg = <3>;
+				label = "lan3";
+				phy-handle = <&sw_phy3>;
+				phy-mode = "internal";
+
+				leds {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					led@0 {
+						reg = <0>;
+						color = <LED_COLOR_ID_GREEN>;
+						function = LED_FUNCTION_LAN;
+						default-state = "keep";
+					};
+
+					led@1 {
+						reg = <1>;
+						color = <LED_COLOR_ID_YELLOW>;
+						function = LED_FUNCTION_LAN;
+						default-state = "keep";
+					};
+				};
+			};
+
+			ethernet-port@4 {
+				reg = <4>;
+				label = "lan4";
+				phy-handle = <&sw_phy4>;
+				phy-mode = "internal";
+
+				leds {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					led@0 {
+						reg = <0>;
+						color = <LED_COLOR_ID_GREEN>;
+						function = LED_FUNCTION_LAN;
+						default-state = "keep";
+					};
+
+					led@1 {
+						reg = <1>;
+						color = <LED_COLOR_ID_YELLOW>;
+						function = LED_FUNCTION_LAN;
+						default-state = "keep";
+					};
+				};
+			};
+
+			ethernet-port@5 {
+				reg = <5>;
+				label = "cpu";
+				ethernet = <&cp0_eth2>;
+				phy-mode = "2500base-x";
+
+				fixed-link {
+					speed = <2500>;
+					full-duplex;
+					pause;
+				};
+			};
+		};
+	};
+};
+
+/* SRDS #0,#1,#2,#3 - PCIe */
+&cp0_pcie0 {
+	num-lanes = <4>;
+	phys = <&cp0_comphy0 0>, <&cp0_comphy1 0>, <&cp0_comphy2 0>, <&cp0_comphy3 0>;
+	status = "okay";
+};
+
+&cp0_pinctrl {
+	/*
+	 * configure unused gpios exposed via pin headers:
+	 * - J7-10: PWRBTN
+	 */
+	pinctrl-names = "default";
+	pinctrl-0 = <&cp0_pwrbtn_pins>;
+};
+
+/* microSD */
+&cp0_sdhci0 {
+	pinctrl-0 = <&cp0_mmc0_pins>, <&cp0_mmc0_cd_pins>;
+	pinctrl-names = "default";
+	bus-width = <4>;
+	no-1-8-v;
+	status = "okay";
+};
+
+&cp0_spi1 {
+	/* add CS1 */
+	pinctrl-0 = <&cp0_spi1_pins>, <&cp0_spi1_cs1_pins>;
+
+	flash@1 {
+		compatible = "jedec,spi-nor";
+		reg = <1>;
+		/* read command supports max. 50MHz */
+		spi-max-frequency = <50000000>;
+	};
+};
+
+/* J38 */
+&cp0_uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&cp0_uart2_pins>;
+	status = "okay";
+};
+
+&cp0_utmi {
+	/* M.2 "CON5" swaps D+/D- */
+	swap-dx-lanes = <1>;
+};
+
+&cp1_ethernet {
+	status = "okay";
+};
+
+/* SRDS #2 - 5GE */
+&cp1_eth0 {
+	phys = <&cp1_comphy2 0>;
+	phy-mode = "5gbase-r";
+	phy = <&cp1_eth_phy0>;
+	managed = "in-band-status";
+	status = "okay";
+};
+
+/* SRDS #0,#1 - PCIe */
+&cp1_pcie0 {
+	num-lanes = <2>;
+	phys = <&cp1_comphy0 0>, <&cp1_comphy1 0>;
+	status = "okay";
+};
+
+/* SRDS #4 - PCIe */
+&cp1_pcie1 {
+	num-lanes = <1>;
+	phys = <&cp1_comphy4 1>;
+	status = "okay";
+};
+
+/* SRDS #5 - PCIe */
+&cp1_pcie2 {
+	num-lanes = <1>;
+	phys = <&cp1_comphy5 2>;
+	status = "okay";
+};
+
+&cp1_pinctrl {
+	/*
+	 * configure unused gpios exposed via pin headers:
+	 * - J7-8: RSVD16
+	 * - J7-10: THRM
+	 * - J10-1: WAKE1
+	 * - J10-2: SATA_ACT
+	 * - J10-8: THERMTRIP
+	 */
+	pinctrl-names = "default";
+	pinctrl-0 = <&cp1_rsvd16_pins &cp1_sata_act_pins &cp1_thrm_irq_pins>,
+		    <&cp1_thrm_trip_pins &cp1_wake1_pins>;
+};
+
+/* SRDS #3 - SATA */
+&cp1_sata0 {
+	status = "okay";
+
+	/* only port 1 is available */
+	/delete-node/ sata-port@0;
+
+	sata-port@1 {
+		phys = <&cp1_comphy3 1>;
+	};
+};
+
+&cp1_utmi {
+	/* M.2 "CON4" swaps D+/D- */
+	swap-dx-lanes = <0>;
+};
+
+&cp1_xmdio {
+	pinctrl-names = "default";
+	pinctrl-0 = <&cp1_xmdio_pins>;
+	status = "okay";
+
+	cp1_eth_phy0: ethernet-phy@8 {
+		compatible = "ethernet-phy-ieee802.3-c45";
+		reg = <8>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&com_10g_int1_pins>;
+		interrupt-parent = <&cp1_gpio2>;
+		interrupts = <18 IRQ_TYPE_EDGE_FALLING>;
+
+		leds {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			led@1 {
+				reg = <1>;
+				color = <LED_COLOR_ID_YELLOW>;
+				function = LED_FUNCTION_LAN;
+				default-state = "keep";
+			};
+
+			led@2 {
+				reg = <2>;
+				color = <LED_COLOR_ID_GREEN>;
+				function = LED_FUNCTION_LAN;
+				default-state = "keep";
+			};
+		};
+	};
+};
+
+&cp2_ethernet {
+	status =  "okay";
+};
+
+/* SRDS #2 - 5GE */
+&cp2_eth0 {
+	phys = <&cp2_comphy2 0>;
+	phy-mode = "5gbase-r";
+	phy = <&cp2_eth_phy0>;
+	managed = "in-band-status";
+	status = "okay";
+};
+
+&cp2_gpio1 {
+	pinctrl-names= "default";
+	pinctrl-0 = <&cp2_rsvd9_pins>;
+
+	/* J21 */
+	m2-wwan-reset-hog {
+		gpio-hog;
+		gpios = <9 (GPIO_ACTIVE_LOW | GPIO_OPEN_DRAIN)>;
+		output-low;
+		line-name = "m2-wwan-reset";
+	};
+};
+
+/* SRDS #0 - PCIe */
+&cp2_pcie0 {
+	num-lanes = <1>;
+	phys = <&cp2_comphy0 0>;
+	status = "okay";
+};
+
+/* SRDS #4 - PCIe */
+&cp2_pcie1 {
+	num-lanes = <1>;
+	phys = <&cp2_comphy4 1>;
+	status = "okay";
+};
+
+/* SRDS #5 - PCIe */
+&cp2_pcie2 {
+	num-lanes = <1>;
+	phys = <&cp2_comphy5 2>;
+	status = "okay";
+};
+
+&cp2_pinctrl {
+	/*
+	 * configure unused gpios exposed via pin headers:
+	 * - J7-1: RSVD10
+	 * - J7-3: RSVD11
+	 * - J7-5: RSVD56
+	 * - J7-6: RSVD7
+	 * - J7-7: RSVD27
+	 * - J10-3: RSVD31
+	 * - J10-5: RSVD5
+	 * - J10-6: RSVD32
+	 * - J10-7: RSVD0
+	 * - J10-9: RSVD1
+	 */
+	pinctrl-names = "default";
+	pinctrl-0 = <&cp2_rsvd0_pins &cp2_rsvd1_pins &cp2_rsvd5_pins>,
+		    <&cp2_rsvd7_pins &cp2_rsvd10_pins &cp2_rsvd11_pins>,
+		    <&cp2_rsvd27_pins &cp2_rsvd31_pins &cp2_rsvd32_pins>,
+		    <&cp2_rsvd56_pins>;
+};
+
+/* SRDS #3 - SATA */
+&cp2_sata0 {
+	status = "okay";
+
+	/* only port 1 is available */
+	/delete-node/ sata-port@0;
+
+	sata-port@1 {
+		phys = <&cp2_comphy3 1>;
+	};
+};
+
+&cp2_xmdio {
+	pinctrl-names = "default";
+	pinctrl-0 = <&cp2_xmdio_pins>;
+	status = "okay";
+
+	cp2_eth_phy0: ethernet-phy@8 {
+		compatible = "ethernet-phy-ieee802.3-c45";
+		reg = <8>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&com_10g_int2_pins>;
+		interrupt-parent = <&cp2_gpio2>;
+		interrupts = <18 IRQ_TYPE_EDGE_FALLING>;
+
+		leds {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			led@1 {
+				reg = <1>;
+				color = <LED_COLOR_ID_YELLOW>;
+				function = LED_FUNCTION_LAN;
+				default-state = "keep";
+			};
+
+			led@2 {
+				reg = <2>;
+				color = <LED_COLOR_ID_GREEN>;
+				function = LED_FUNCTION_LAN;
+				default-state = "keep";
+			};
+		};
+	};
+};
