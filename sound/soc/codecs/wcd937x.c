@@ -869,37 +869,6 @@ static int wcd937x_enable_rx3(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
-static int wcd937x_codec_enable_vdd_buck(struct snd_soc_dapm_widget *w,
-					 struct snd_kcontrol *kcontrol,
-					 int event)
-{
-	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
-	struct wcd937x_priv *wcd937x = snd_soc_component_get_drvdata(component);
-	int ret = 0;
-
-	switch (event) {
-	case SND_SOC_DAPM_PRE_PMU:
-		if (test_bit(ALLOW_BUCK_DISABLE, &wcd937x->status_mask)) {
-			dev_err(component->dev, "buck already in enabled state\n");
-			clear_bit(ALLOW_BUCK_DISABLE, &wcd937x->status_mask);
-			return 0;
-		}
-		ret = regulator_enable(wcd937x->buck_supply);
-		if (ret) {
-			dev_err(component->dev, "VDD_BUCK is not enabled\n");
-			return ret;
-		}
-		clear_bit(ALLOW_BUCK_DISABLE, &wcd937x->status_mask);
-		usleep_range(200, 250);
-		break;
-	case SND_SOC_DAPM_POST_PMD:
-		set_bit(ALLOW_BUCK_DISABLE, &wcd937x->status_mask);
-		break;
-	}
-
-	return 0;
-}
-
 static int wcd937x_get_micb_vout_ctl_val(u32 micb_mv)
 {
 	if (micb_mv < 1000 || micb_mv > 2850) {
@@ -2226,10 +2195,7 @@ static const struct snd_soc_dapm_widget wcd937x_dapm_widgets[] = {
 			    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 			    SND_SOC_DAPM_POST_PMD),
 
-	SND_SOC_DAPM_SUPPLY("VDD_BUCK", SND_SOC_NOPM, 0, 0,
-			    wcd937x_codec_enable_vdd_buck,
-			    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-
+	SND_SOC_DAPM_SUPPLY("VDD_BUCK", SND_SOC_NOPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY_S("CLS_H_PORT", 1, SND_SOC_NOPM, 0, 0, NULL, 0),
 
 	/* RX widgets */
@@ -2915,24 +2881,17 @@ static int wcd937x_probe(struct platform_device *pdev)
 	wcd937x->supplies[0].supply = "vdd-rxtx";
 	wcd937x->supplies[1].supply = "vdd-px";
 	wcd937x->supplies[2].supply = "vdd-mic-bias";
+	wcd937x->supplies[3].supply = "vdd-buck";
 
 	ret = devm_regulator_bulk_get(dev, WCD937X_MAX_BULK_SUPPLY, wcd937x->supplies);
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to get supplies\n");
 
 	ret = regulator_bulk_enable(WCD937X_MAX_BULK_SUPPLY, wcd937x->supplies);
-	if (ret)
+	if (ret) {
+		regulator_bulk_free(WCD937X_MAX_BULK_SUPPLY, wcd937x->supplies);
 		return dev_err_probe(dev, ret, "Failed to enable supplies\n");
-
-	/* Get the buck separately, as it needs special handling */
-	wcd937x->buck_supply = devm_regulator_get(dev, "vdd-buck");
-	if (IS_ERR(wcd937x->buck_supply))
-		return dev_err_probe(dev, PTR_ERR(wcd937x->buck_supply),
-				     "Failed to get buck supply\n");
-
-	ret = regulator_enable(wcd937x->buck_supply);
-	if (ret)
-		return dev_err_probe(dev, ret, "Failed to enable buck supply\n");
+	}
 
 	wcd937x_dt_parse_micbias_info(dev, wcd937x);
 
@@ -2949,13 +2908,13 @@ static int wcd937x_probe(struct platform_device *pdev)
 
 	ret = wcd937x_add_slave_components(wcd937x, dev, &match);
 	if (ret)
-		return ret;
+		goto err_disable_regulators;
 
 	wcd937x_reset(wcd937x);
 
 	ret = component_master_add_with_match(dev, &wcd937x_comp_ops, match);
 	if (ret)
-		return ret;
+		goto err_disable_regulators;
 
 	pm_runtime_set_autosuspend_delay(dev, 1000);
 	pm_runtime_use_autosuspend(dev);
@@ -2963,6 +2922,12 @@ static int wcd937x_probe(struct platform_device *pdev)
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 	pm_runtime_idle(dev);
+
+	return 0;
+
+err_disable_regulators:
+	regulator_bulk_disable(WCD937X_MAX_BULK_SUPPLY, wcd937x->supplies);
+	regulator_bulk_free(WCD937X_MAX_BULK_SUPPLY, wcd937x->supplies);
 
 	return ret;
 }
