@@ -137,7 +137,7 @@ pub fn module(ts: TokenStream) -> TokenStream {
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use kernel::error::VTABLE_DEFAULT_ERROR;
 /// use kernel::prelude::*;
 ///
@@ -182,12 +182,27 @@ pub fn vtable(attr: TokenStream, ts: TokenStream) -> TokenStream {
 ///
 /// # Examples
 ///
-/// ```ignore
-/// use kernel::macro::concat_idents;
+/// ```
+/// # const binder_driver_return_protocol_BR_OK: u32 = 0;
+/// # const binder_driver_return_protocol_BR_ERROR: u32 = 1;
+/// # const binder_driver_return_protocol_BR_TRANSACTION: u32 = 2;
+/// # const binder_driver_return_protocol_BR_REPLY: u32 = 3;
+/// # const binder_driver_return_protocol_BR_DEAD_REPLY: u32 = 4;
+/// # const binder_driver_return_protocol_BR_TRANSACTION_COMPLETE: u32 = 5;
+/// # const binder_driver_return_protocol_BR_INCREFS: u32 = 6;
+/// # const binder_driver_return_protocol_BR_ACQUIRE: u32 = 7;
+/// # const binder_driver_return_protocol_BR_RELEASE: u32 = 8;
+/// # const binder_driver_return_protocol_BR_DECREFS: u32 = 9;
+/// # const binder_driver_return_protocol_BR_NOOP: u32 = 10;
+/// # const binder_driver_return_protocol_BR_SPAWN_LOOPER: u32 = 11;
+/// # const binder_driver_return_protocol_BR_DEAD_BINDER: u32 = 12;
+/// # const binder_driver_return_protocol_BR_CLEAR_DEATH_NOTIFICATION_DONE: u32 = 13;
+/// # const binder_driver_return_protocol_BR_FAILED_REPLY: u32 = 14;
+/// use kernel::macros::concat_idents;
 ///
 /// macro_rules! pub_no_prefix {
 ///     ($prefix:ident, $($newname:ident),+) => {
-///         $(pub(crate) const $newname: u32 = kernel::macros::concat_idents!($prefix, $newname);)+
+///         $(pub(crate) const $newname: u32 = concat_idents!($prefix, $newname);)+
 ///     };
 /// }
 ///
@@ -233,7 +248,11 @@ pub fn concat_idents(ts: TokenStream) -> TokenStream {
 ///
 /// # Examples
 ///
-/// ```rust,ignore
+/// ```
+/// # #![feature(lint_reasons)]
+/// # use kernel::prelude::*;
+/// # use std::{sync::Mutex, process::Command};
+/// # use kernel::macros::pin_data;
 /// #[pin_data]
 /// struct DriverData {
 ///     #[pin]
@@ -242,7 +261,17 @@ pub fn concat_idents(ts: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
-/// ```rust,ignore
+/// ```
+/// # #![feature(lint_reasons)]
+/// # use kernel::prelude::*;
+/// # use std::{sync::Mutex, process::Command};
+/// # use core::pin::Pin;
+/// # pub struct Info;
+/// # mod bindings {
+/// #     pub unsafe fn destroy_info(_ptr: *mut super::Info) {}
+/// # }
+/// use kernel::macros::{pin_data, pinned_drop};
+///
 /// #[pin_data(PinnedDrop)]
 /// struct DriverData {
 ///     #[pin]
@@ -257,6 +286,7 @@ pub fn concat_idents(ts: TokenStream) -> TokenStream {
 ///         unsafe { bindings::destroy_info(self.raw_info) };
 ///     }
 /// }
+/// # fn main() {}
 /// ```
 ///
 /// [`pin_init!`]: ../kernel/macro.pin_init.html
@@ -272,13 +302,22 @@ pub fn pin_data(inner: TokenStream, item: TokenStream) -> TokenStream {
 ///
 /// # Examples
 ///
-/// ```rust,ignore
+/// ```
+/// # #![feature(lint_reasons)]
+/// # use kernel::prelude::*;
+/// # use macros::{pin_data, pinned_drop};
+/// # use std::{sync::Mutex, process::Command};
+/// # use core::pin::Pin;
+/// # mod bindings {
+/// #     pub struct Info;
+/// #     pub unsafe fn destroy_info(_ptr: *mut Info) {}
+/// # }
 /// #[pin_data(PinnedDrop)]
 /// struct DriverData {
 ///     #[pin]
 ///     queue: Mutex<KVec<Command>>,
 ///     buf: KBox<[u8; 1024 * 1024]>,
-///     raw_info: *mut Info,
+///     raw_info: *mut bindings::Info,
 /// }
 ///
 /// #[pinned_drop]
@@ -439,7 +478,9 @@ pub fn paste(input: TokenStream) -> TokenStream {
 ///
 /// # Examples
 ///
-/// ```rust,ignore
+/// ```
+/// use kernel::macros::Zeroable;
+///
 /// #[derive(Zeroable)]
 /// pub struct DriverData {
 ///     id: i64,
