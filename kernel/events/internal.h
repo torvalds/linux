@@ -221,7 +221,7 @@ static inline int get_recursion_context(u8 *recursion)
 	return rctx;
 }
 
-static inline void put_recursion_context(u8 *recursion, int rctx)
+static inline void put_recursion_context(u8 *recursion, unsigned char rctx)
 {
 	barrier();
 	recursion[rctx]--;
