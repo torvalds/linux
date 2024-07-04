@@ -30,7 +30,7 @@ use proc_macro::TokenStream;
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use kernel::prelude::*;
 ///
 /// module!{
@@ -42,22 +42,16 @@ use proc_macro::TokenStream;
 ///     alias: ["alternate_module_name"],
 /// }
 ///
-/// struct MyModule;
+/// struct MyModule(i32);
 ///
 /// impl kernel::Module for MyModule {
-///     fn init() -> Result<Self> {
-///         // If the parameter is writeable, then the kparam lock must be
-///         // taken to read the parameter:
-///         {
-///             let lock = THIS_MODULE.kernel_param_lock();
-///             pr_info!("i32 param is:  {}\n", writeable_i32.read(&lock));
-///         }
-///         // If the parameter is read only, it can be read without locking
-///         // the kernel parameters:
-///         pr_info!("i32 param is:  {}\n", my_i32.read());
-///         Ok(Self)
+///     fn init(_module: &'static ThisModule) -> Result<Self> {
+///         let foo: i32 = 42;
+///         pr_info!("I contain:  {}\n", foo);
+///         Ok(Self(foo))
 ///     }
 /// }
+/// # fn main() {}
 /// ```
 ///
 /// ## Firmware
@@ -69,7 +63,7 @@ use proc_macro::TokenStream;
 /// build an initramfs uses this information to put the firmware files into
 /// the initramfs image.
 ///
-/// ```ignore
+/// ```
 /// use kernel::prelude::*;
 ///
 /// module!{
@@ -84,10 +78,11 @@ use proc_macro::TokenStream;
 /// struct MyDeviceDriverModule;
 ///
 /// impl kernel::Module for MyDeviceDriverModule {
-///     fn init() -> Result<Self> {
+///     fn init(_module: &'static ThisModule) -> Result<Self> {
 ///         Ok(Self)
 ///     }
 /// }
+/// # fn main() {}
 /// ```
 ///
 /// # Supported argument types
