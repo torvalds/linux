@@ -300,9 +300,37 @@ static struct diag204_x_part_block *lpar_cpu_inf(struct lpar_cpu_inf *part_inf,
 	return (struct diag204_x_part_block *)&block->cpus[i];
 }
 
+static void *diag204_get_data(void)
+{
+	unsigned long subcode;
+	void *diag204_buf;
+	int pages, rc;
+
+	subcode = DIAG204_SUBC_RSI;
+	subcode |= DIAG204_INFO_EXT;
+	pages = diag204(subcode, 0, NULL);
+	if (pages < 0)
+		return ERR_PTR(pages);
+	if (pages == 0)
+		return ERR_PTR(-ENODATA);
+	diag204_buf = __vmalloc_node(array_size(pages, PAGE_SIZE),
+				     PAGE_SIZE, GFP_KERNEL, NUMA_NO_NODE,
+				     __builtin_return_address(0));
+	if (!diag204_buf)
+		return ERR_PTR(-ENOMEM);
+	subcode = DIAG204_SUBC_STIB7;
+	subcode |= DIAG204_INFO_EXT;
+	rc = diag204(subcode, pages, diag204_buf);
+	if (rc < 0) {
+		vfree(diag204_buf);
+		return ERR_PTR(rc);
+	}
+	return diag204_buf;
+}
+
 static void fill_diag(struct sthyi_sctns *sctns)
 {
-	int i, r, pages;
+	int i;
 	bool this_lpar;
 	void *diag204_buf;
 	void *diag224_buf = NULL;
@@ -312,21 +340,9 @@ static void fill_diag(struct sthyi_sctns *sctns)
 	struct lpar_cpu_inf lpar_inf = {};
 
 	/* Errors are handled through the validity bits in the response. */
-	pages = diag204((unsigned long)DIAG204_SUBC_RSI |
-			(unsigned long)DIAG204_INFO_EXT, 0, NULL);
-	if (pages <= 0)
+	diag204_buf = diag204_get_data();
+	if (IS_ERR(diag204_buf))
 		return;
-
-	diag204_buf = __vmalloc_node(array_size(pages, PAGE_SIZE),
-				     PAGE_SIZE, GFP_KERNEL, NUMA_NO_NODE,
-				     __builtin_return_address(0));
-	if (!diag204_buf)
-		return;
-
-	r = diag204((unsigned long)DIAG204_SUBC_STIB7 |
-		    (unsigned long)DIAG204_INFO_EXT, pages, diag204_buf);
-	if (r < 0)
-		goto out;
 
 	diag224_buf = (void *)__get_free_page(GFP_KERNEL | GFP_DMA);
 	if (!diag224_buf || diag224(diag224_buf))
