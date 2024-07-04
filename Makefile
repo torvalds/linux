@@ -11,8 +11,8 @@ NAME = Baby Opossum Posse
 # Comments in this file are targeted only to the developer, do not
 # expect to learn how to build the kernel reading this file.
 
-ifeq ($(filter undefine,$(.FEATURES)),)
-$(error GNU Make >= 3.82 is required. Your Make version is $(MAKE_VERSION))
+ifeq ($(filter output-sync,$(.FEATURES)),)
+$(error GNU Make >= 4.0 is required. Your Make version is $(MAKE_VERSION))
 endif
 
 $(if $(filter __%, $(MAKECMDGOALS)), \
@@ -93,15 +93,7 @@ endif
 
 # If the user is running make -s (silent mode), suppress echoing of
 # commands
-# make-4.0 (and later) keep single letter options in the 1st word of MAKEFLAGS.
-
-ifeq ($(filter 3.%,$(MAKE_VERSION)),)
-short-opts := $(firstword -$(MAKEFLAGS))
-else
-short-opts := $(filter-out --%,$(MAKEFLAGS))
-endif
-
-ifneq ($(findstring s,$(short-opts)),)
+ifneq ($(findstring s,$(firstword -$(MAKEFLAGS))),)
 quiet=silent_
 override KBUILD_VERBOSE :=
 endif
@@ -199,14 +191,6 @@ endif # ifneq ($(KBUILD_OUTPUT),)
 
 ifneq ($(words $(subst :, ,$(abs_srctree))), 1)
 $(error source directory cannot contain spaces or colons)
-endif
-
-ifneq ($(filter 3.%,$(MAKE_VERSION)),)
-# 'MAKEFLAGS += -rR' does not immediately become effective for GNU Make 3.x
-# We need to invoke sub-make to avoid implicit rules in the top Makefile.
-need-sub-make := 1
-# Cancel implicit rules for this Makefile.
-$(this-makefile): ;
 endif
 
 export sub_make_done := 1
