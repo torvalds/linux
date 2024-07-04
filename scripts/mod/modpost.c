@@ -1168,38 +1168,8 @@ static Elf_Addr addend_386_rel(uint32_t *location, unsigned int r_type)
 	return (Elf_Addr)(-1);
 }
 
-#ifndef R_ARM_CALL
-#define R_ARM_CALL	28
-#endif
-#ifndef R_ARM_JUMP24
-#define R_ARM_JUMP24	29
-#endif
-
 #ifndef	R_ARM_THM_CALL
 #define	R_ARM_THM_CALL		10
-#endif
-#ifndef	R_ARM_THM_JUMP24
-#define	R_ARM_THM_JUMP24	30
-#endif
-
-#ifndef R_ARM_MOVW_ABS_NC
-#define R_ARM_MOVW_ABS_NC	43
-#endif
-
-#ifndef R_ARM_MOVT_ABS
-#define R_ARM_MOVT_ABS		44
-#endif
-
-#ifndef R_ARM_THM_MOVW_ABS_NC
-#define R_ARM_THM_MOVW_ABS_NC	47
-#endif
-
-#ifndef R_ARM_THM_MOVT_ABS
-#define R_ARM_THM_MOVT_ABS	48
-#endif
-
-#ifndef	R_ARM_THM_JUMP19
-#define	R_ARM_THM_JUMP19	51
 #endif
 
 static int32_t sign_extend32(int32_t value, int index)
