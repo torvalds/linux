@@ -91,7 +91,7 @@ struct thread_info {
 }
 
 /* how to get the thread information struct from C */
-static inline struct thread_info *current_thread_info(void)
+static __always_inline struct thread_info *current_thread_info(void)
 {
 	struct thread_info *ti;
 	 __asm__("extui %0, a1, 0, "__stringify(CURRENT_SHIFT)"\n\t"
