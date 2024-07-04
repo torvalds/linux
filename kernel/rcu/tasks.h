@@ -396,7 +396,7 @@ static void rcu_barrier_tasks_generic_cb(struct rcu_head *rhp)
 
 // Wait for all in-flight callbacks for the specified RCU Tasks flavor.
 // Operates in a manner similar to rcu_barrier().
-static void rcu_barrier_tasks_generic(struct rcu_tasks *rtp)
+static void __maybe_unused rcu_barrier_tasks_generic(struct rcu_tasks *rtp)
 {
 	int cpu;
 	unsigned long flags;
@@ -1244,13 +1244,12 @@ void exit_tasks_rcu_finish(void) { exit_tasks_rcu_finish_trace(current); }
 
 ////////////////////////////////////////////////////////////////////////
 //
-// "Rude" variant of Tasks RCU, inspired by Steve Rostedt's trick of
-// passing an empty function to schedule_on_each_cpu().  This approach
-// provides an asynchronous call_rcu_tasks_rude() API and batching of
-// concurrent calls to the synchronous synchronize_rcu_tasks_rude() API.
-// This invokes schedule_on_each_cpu() in order to send IPIs far and wide
-// and induces otherwise unnecessary context switches on all online CPUs,
-// whether idle or not.
+// "Rude" variant of Tasks RCU, inspired by Steve Rostedt's
+// trick of passing an empty function to schedule_on_each_cpu().
+// This approach provides batching of concurrent calls to the synchronous
+// synchronize_rcu_tasks_rude() API.  This invokes schedule_on_each_cpu()
+// in order to send IPIs far and wide and induces otherwise unnecessary
+// context switches on all online CPUs, whether idle or not.
 //
 // Callback handling is provided by the rcu_tasks_kthread() function.
 //
@@ -1268,11 +1267,11 @@ static void rcu_tasks_rude_wait_gp(struct rcu_tasks *rtp)
 	schedule_on_each_cpu(rcu_tasks_be_rude);
 }
 
-void call_rcu_tasks_rude(struct rcu_head *rhp, rcu_callback_t func);
+static void call_rcu_tasks_rude(struct rcu_head *rhp, rcu_callback_t func);
 DEFINE_RCU_TASKS(rcu_tasks_rude, rcu_tasks_rude_wait_gp, call_rcu_tasks_rude,
 		 "RCU Tasks Rude");
 
-/**
+/*
  * call_rcu_tasks_rude() - Queue a callback rude task-based grace period
  * @rhp: structure to be used for queueing the RCU updates.
  * @func: actual callback function to be invoked after the grace period
@@ -1289,12 +1288,14 @@ DEFINE_RCU_TASKS(rcu_tasks_rude, rcu_tasks_rude_wait_gp, call_rcu_tasks_rude,
  *
  * See the description of call_rcu() for more detailed information on
  * memory ordering guarantees.
+ *
+ * This is no longer exported, and is instead reserved for use by
+ * synchronize_rcu_tasks_rude().
  */
-void call_rcu_tasks_rude(struct rcu_head *rhp, rcu_callback_t func)
+static void call_rcu_tasks_rude(struct rcu_head *rhp, rcu_callback_t func)
 {
 	call_rcu_tasks_generic(rhp, func, &rcu_tasks_rude);
 }
-EXPORT_SYMBOL_GPL(call_rcu_tasks_rude);
 
 /**
  * synchronize_rcu_tasks_rude - wait for a rude rcu-tasks grace period
@@ -1320,26 +1321,9 @@ void synchronize_rcu_tasks_rude(void)
 }
 EXPORT_SYMBOL_GPL(synchronize_rcu_tasks_rude);
 
-/**
- * rcu_barrier_tasks_rude - Wait for in-flight call_rcu_tasks_rude() callbacks.
- *
- * Although the current implementation is guaranteed to wait, it is not
- * obligated to, for example, if there are no pending callbacks.
- */
-void rcu_barrier_tasks_rude(void)
-{
-	rcu_barrier_tasks_generic(&rcu_tasks_rude);
-}
-EXPORT_SYMBOL_GPL(rcu_barrier_tasks_rude);
-
-int rcu_tasks_rude_lazy_ms = -1;
-module_param(rcu_tasks_rude_lazy_ms, int, 0444);
-
 static int __init rcu_spawn_tasks_rude_kthread(void)
 {
 	rcu_tasks_rude.gp_sleep = HZ / 10;
-	if (rcu_tasks_rude_lazy_ms >= 0)
-		rcu_tasks_rude.lazy_jiffies = msecs_to_jiffies(rcu_tasks_rude_lazy_ms);
 	rcu_spawn_tasks_kthread_generic(&rcu_tasks_rude);
 	return 0;
 }
@@ -2070,17 +2054,13 @@ static struct rcu_tasks_test_desc tests[] = {
 		.notrun = IS_ENABLED(CONFIG_TASKS_RCU),
 	},
 	{
-		.name = "call_rcu_tasks_rude()",
-		/* If not defined, the test is skipped. */
-		.notrun = IS_ENABLED(CONFIG_TASKS_RUDE_RCU),
-	},
-	{
 		.name = "call_rcu_tasks_trace()",
 		/* If not defined, the test is skipped. */
 		.notrun = IS_ENABLED(CONFIG_TASKS_TRACE_RCU)
 	}
 };
 
+#if defined(CONFIG_TASKS_RCU) || defined(CONFIG_TASKS_TRACE_RCU)
 static void test_rcu_tasks_callback(struct rcu_head *rhp)
 {
 	struct rcu_tasks_test_desc *rttd =
@@ -2090,6 +2070,7 @@ static void test_rcu_tasks_callback(struct rcu_head *rhp)
 
 	rttd->notrun = false;
 }
+#endif // #if defined(CONFIG_TASKS_RCU) || defined(CONFIG_TASKS_TRACE_RCU)
 
 static void rcu_tasks_initiate_self_tests(void)
 {
@@ -2102,16 +2083,14 @@ static void rcu_tasks_initiate_self_tests(void)
 
 #ifdef CONFIG_TASKS_RUDE_RCU
 	pr_info("Running RCU Tasks Rude wait API self tests\n");
-	tests[1].runstart = jiffies;
 	synchronize_rcu_tasks_rude();
-	call_rcu_tasks_rude(&tests[1].rh, test_rcu_tasks_callback);
 #endif
 
 #ifdef CONFIG_TASKS_TRACE_RCU
 	pr_info("Running RCU Tasks Trace wait API self tests\n");
-	tests[2].runstart = jiffies;
+	tests[1].runstart = jiffies;
 	synchronize_rcu_tasks_trace();
-	call_rcu_tasks_trace(&tests[2].rh, test_rcu_tasks_callback);
+	call_rcu_tasks_trace(&tests[1].rh, test_rcu_tasks_callback);
 #endif
 }
 
