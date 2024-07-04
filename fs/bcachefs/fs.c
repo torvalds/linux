@@ -517,11 +517,11 @@ static int __bch2_link(struct bch_fs *c,
 		       struct bch_inode_info *dir,
 		       struct dentry *dentry)
 {
-	struct btree_trans *trans = bch2_trans_get(c);
 	struct bch_inode_unpacked dir_u, inode_u;
 	int ret;
 
 	mutex_lock(&inode->ei_update_lock);
+	struct btree_trans *trans = bch2_trans_get(c);
 
 	ret = commit_do(trans, NULL, NULL, 0,
 			bch2_link_trans(trans,
@@ -568,10 +568,11 @@ int __bch2_unlink(struct inode *vdir, struct dentry *dentry,
 	struct bch_inode_info *dir = to_bch_ei(vdir);
 	struct bch_inode_info *inode = to_bch_ei(dentry->d_inode);
 	struct bch_inode_unpacked dir_u, inode_u;
-	struct btree_trans *trans = bch2_trans_get(c);
 	int ret;
 
 	bch2_lock_inodes(INODE_UPDATE_LOCK, dir, inode);
+
+	struct btree_trans *trans = bch2_trans_get(c);
 
 	ret = commit_do(trans, NULL, NULL,
 			BCH_TRANS_COMMIT_no_enospc,
@@ -595,8 +596,8 @@ int __bch2_unlink(struct inode *vdir, struct dentry *dentry,
 		set_nlink(&inode->v, 0);
 	}
 err:
-	bch2_unlock_inodes(INODE_UPDATE_LOCK, dir, inode);
 	bch2_trans_put(trans);
+	bch2_unlock_inodes(INODE_UPDATE_LOCK, dir, inode);
 
 	return ret;
 }
@@ -681,13 +682,13 @@ static int bch2_rename2(struct mnt_idmap *idmap,
 			return ret;
 	}
 
-	trans = bch2_trans_get(c);
-
 	bch2_lock_inodes(INODE_UPDATE_LOCK,
 			 src_dir,
 			 dst_dir,
 			 src_inode,
 			 dst_inode);
+
+	trans = bch2_trans_get(c);
 
 	ret   = bch2_subvol_is_ro_trans(trans, src_dir->ei_subvol) ?:
 		bch2_subvol_is_ro_trans(trans, dst_dir->ei_subvol);
