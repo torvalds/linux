@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 syscall-y += syscall_table_32.h
+syscall-y += syscall_table_64.h
 
 # arm32 syscall table used by lib/compat_audit.c:
 syscall-y += unistd_32.h
