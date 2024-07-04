@@ -1289,17 +1289,20 @@ static void l2tp_session_unhash(struct l2tp_session *session)
 static void l2tp_tunnel_closeall(struct l2tp_tunnel *tunnel)
 {
 	struct l2tp_session *session;
-	struct list_head *pos;
-	struct list_head *tmp;
 
 	spin_lock_bh(&tunnel->list_lock);
 	tunnel->acpt_newsess = false;
-	list_for_each_safe(pos, tmp, &tunnel->session_list) {
-		session = list_entry(pos, struct l2tp_session, list);
+	for (;;) {
+		session = list_first_entry_or_null(&tunnel->session_list,
+						   struct l2tp_session, list);
+		if (!session)
+			break;
+		l2tp_session_inc_refcount(session);
 		list_del_init(&session->list);
 		spin_unlock_bh(&tunnel->list_lock);
 		l2tp_session_delete(session);
 		spin_lock_bh(&tunnel->list_lock);
+		l2tp_session_dec_refcount(session);
 	}
 	spin_unlock_bh(&tunnel->list_lock);
 }
