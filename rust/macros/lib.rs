@@ -132,7 +132,7 @@ pub fn module(ts: TokenStream) -> TokenStream {
 /// calls to this function at compile time:
 ///
 /// ```compile_fail
-/// # use kernel::error::VTABLE_DEFAULT_ERROR;
+/// # // Intentionally missing `use`s to simplify `rusttest`.
 /// kernel::build_error(VTABLE_DEFAULT_ERROR)
 /// ```
 ///
