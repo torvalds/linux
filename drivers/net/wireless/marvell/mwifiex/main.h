@@ -1008,6 +1008,7 @@ struct mwifiex_adapter {
 
 	bool ext_scan;
 	bool host_mlme_enabled;
+	struct ieee80211_txrx_stypes mwifiex_mgmt_stypes[NUM_NL80211_IFTYPES];
 	u8 fw_api_ver;
 	u8 key_api_major_ver, key_api_minor_ver;
 	u8 max_p2p_conn, max_sta_conn;
