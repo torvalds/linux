@@ -99,6 +99,11 @@ Example to send a notification after 10ms::
 
   # i2cset -y 0 0x30 0x02 0x42 0x64 0x01 i
 
+If the host controller supports HostNotify, this message with debug level
+should appear (Linux 6.11 and later)::
+
+  Detected HostNotify from address 0x30
+
 0x03 SMBUS_BLOCK_PROC_CALL
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 

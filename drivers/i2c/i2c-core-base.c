@@ -1468,6 +1468,8 @@ int i2c_handle_smbus_host_notify(struct i2c_adapter *adap, unsigned short addr)
 	if (!adap)
 		return -EINVAL;
 
+	dev_dbg(&adap->dev, "Detected HostNotify from address 0x%02x", addr);
+
 	irq = irq_find_mapping(adap->host_notify_domain, addr);
 	if (irq <= 0)
 		return -ENXIO;
