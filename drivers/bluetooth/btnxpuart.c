@@ -46,6 +46,8 @@
 #define FIRMWARE_SECURE_IW624	"uartiw624_bt.bin.se"
 #define FIRMWARE_AW693		"uartaw693_bt.bin"
 #define FIRMWARE_SECURE_AW693	"uartaw693_bt.bin.se"
+#define FIRMWARE_AW693_A1		"uartaw693_bt_v1.bin"
+#define FIRMWARE_SECURE_AW693_A1	"uartaw693_bt_v1.bin.se"
 #define FIRMWARE_HELPER		"helper_uart_3000000.bin"
 
 #define CHIP_ID_W9098		0x5c03
@@ -53,7 +55,8 @@
 #define CHIP_ID_IW612		0x7601
 #define CHIP_ID_IW624a		0x8000
 #define CHIP_ID_IW624c		0x8001
-#define CHIP_ID_AW693		0x8200
+#define CHIP_ID_AW693a0		0x8200
+#define CHIP_ID_AW693a1		0x8201
 
 #define FW_SECURE_MASK		0xc0
 #define FW_OPEN			0x00
@@ -906,11 +909,19 @@ static char *nxp_get_fw_name_from_chipid(struct hci_dev *hdev, u16 chipid,
 		else
 			bt_dev_err(hdev, "Illegal loader version %02x", loader_ver);
 		break;
-	case CHIP_ID_AW693:
+	case CHIP_ID_AW693a0:
 		if ((loader_ver & FW_SECURE_MASK) == FW_OPEN)
 			fw_name = FIRMWARE_AW693;
 		else if ((loader_ver & FW_SECURE_MASK) != FW_AUTH_ILLEGAL)
 			fw_name = FIRMWARE_SECURE_AW693;
+		else
+			bt_dev_err(hdev, "Illegal loader version %02x", loader_ver);
+		break;
+	case CHIP_ID_AW693a1:
+		if ((loader_ver & FW_SECURE_MASK) == FW_OPEN)
+			fw_name = FIRMWARE_AW693_A1;
+		else if ((loader_ver & FW_SECURE_MASK) != FW_AUTH_ILLEGAL)
+			fw_name = FIRMWARE_SECURE_AW693_A1;
 		else
 			bt_dev_err(hdev, "Illegal loader version %02x", loader_ver);
 		break;
