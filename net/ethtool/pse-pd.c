@@ -96,7 +96,44 @@ static int pse_reply_size(const struct ethnl_req_info *req_base,
 			/* _C33_PSE_EXT_SUBSTATE */
 			len += nla_total_size(sizeof(u32));
 	}
+	if (st->c33_avail_pw_limit > 0)
+		/* _C33_AVAIL_PSE_PW_LIMIT */
+		len += nla_total_size(sizeof(u32));
+	if (st->c33_pw_limit_nb_ranges > 0)
+		/* _C33_PSE_PW_LIMIT_RANGES */
+		len += st->c33_pw_limit_nb_ranges *
+		       (nla_total_size(0) +
+			nla_total_size(sizeof(u32)) * 2);
+
 	return len;
+}
+
+static int pse_put_pw_limit_ranges(struct sk_buff *skb,
+				   const struct pse_control_status *st)
+{
+	const struct ethtool_c33_pse_pw_limit_range *pw_limit_ranges;
+	int i;
+
+	pw_limit_ranges = st->c33_pw_limit_ranges;
+	for (i = 0; i < st->c33_pw_limit_nb_ranges; i++) {
+		struct nlattr *nest;
+
+		nest = nla_nest_start(skb, ETHTOOL_A_C33_PSE_PW_LIMIT_RANGES);
+		if (!nest)
+			return -EMSGSIZE;
+
+		if (nla_put_u32(skb, ETHTOOL_A_C33_PSE_PW_LIMIT_MIN,
+				pw_limit_ranges->min) ||
+		    nla_put_u32(skb, ETHTOOL_A_C33_PSE_PW_LIMIT_MAX,
+				pw_limit_ranges->max)) {
+			nla_nest_cancel(skb, nest);
+			return -EMSGSIZE;
+		}
+		nla_nest_end(skb, nest);
+		pw_limit_ranges++;
+	}
+
+	return 0;
 }
 
 static int pse_fill_reply(struct sk_buff *skb,
@@ -147,7 +184,23 @@ static int pse_fill_reply(struct sk_buff *skb,
 			return -EMSGSIZE;
 	}
 
+	if (st->c33_avail_pw_limit > 0 &&
+	    nla_put_u32(skb, ETHTOOL_A_C33_PSE_AVAIL_PW_LIMIT,
+			st->c33_avail_pw_limit))
+		return -EMSGSIZE;
+
+	if (st->c33_pw_limit_nb_ranges > 0 &&
+	    pse_put_pw_limit_ranges(skb, st))
+		return -EMSGSIZE;
+
 	return 0;
+}
+
+static void pse_cleanup_data(struct ethnl_reply_data *reply_base)
+{
+	const struct pse_reply_data *data = PSE_REPDATA(reply_base);
+
+	kfree(data->status.c33_pw_limit_ranges);
 }
 
 /* PSE_SET */
@@ -160,6 +213,7 @@ const struct nla_policy ethnl_pse_set_policy[ETHTOOL_A_PSE_MAX + 1] = {
 	[ETHTOOL_A_C33_PSE_ADMIN_CONTROL] =
 		NLA_POLICY_RANGE(NLA_U32, ETHTOOL_C33_PSE_ADMIN_STATE_DISABLED,
 				 ETHTOOL_C33_PSE_ADMIN_STATE_ENABLED),
+	[ETHTOOL_A_C33_PSE_AVAIL_PW_LIMIT] = { .type = NLA_U32 },
 };
 
 static int
@@ -202,19 +256,39 @@ static int
 ethnl_set_pse(struct ethnl_req_info *req_info, struct genl_info *info)
 {
 	struct net_device *dev = req_info->dev;
-	struct pse_control_config config = {};
 	struct nlattr **tb = info->attrs;
 	struct phy_device *phydev;
+	int ret = 0;
 
 	phydev = dev->phydev;
-	/* These values are already validated by the ethnl_pse_set_policy */
-	if (pse_has_podl(phydev->psec))
-		config.podl_admin_control = nla_get_u32(tb[ETHTOOL_A_PODL_PSE_ADMIN_CONTROL]);
-	if (pse_has_c33(phydev->psec))
-		config.c33_admin_control = nla_get_u32(tb[ETHTOOL_A_C33_PSE_ADMIN_CONTROL]);
 
-	/* Return errno directly - PSE has no notification */
-	return pse_ethtool_set_config(phydev->psec, info->extack, &config);
+	if (tb[ETHTOOL_A_C33_PSE_AVAIL_PW_LIMIT]) {
+		unsigned int pw_limit;
+
+		pw_limit = nla_get_u32(tb[ETHTOOL_A_C33_PSE_AVAIL_PW_LIMIT]);
+		ret = pse_ethtool_set_pw_limit(phydev->psec, info->extack,
+					       pw_limit);
+		if (ret)
+			return ret;
+	}
+
+	/* These values are already validated by the ethnl_pse_set_policy */
+	if (tb[ETHTOOL_A_PODL_PSE_ADMIN_CONTROL] ||
+	    tb[ETHTOOL_A_C33_PSE_ADMIN_CONTROL]) {
+		struct pse_control_config config = {};
+
+		if (pse_has_podl(phydev->psec))
+			config.podl_admin_control = nla_get_u32(tb[ETHTOOL_A_PODL_PSE_ADMIN_CONTROL]);
+		if (pse_has_c33(phydev->psec))
+			config.c33_admin_control = nla_get_u32(tb[ETHTOOL_A_C33_PSE_ADMIN_CONTROL]);
+
+		ret = pse_ethtool_set_config(phydev->psec, info->extack,
+					     &config);
+		if (ret)
+			return ret;
+	}
+
+	return ret;
 }
 
 const struct ethnl_request_ops ethnl_pse_request_ops = {
@@ -227,6 +301,7 @@ const struct ethnl_request_ops ethnl_pse_request_ops = {
 	.prepare_data		= pse_prepare_data,
 	.reply_size		= pse_reply_size,
 	.fill_reply		= pse_fill_reply,
+	.cleanup_data		= pse_cleanup_data,
 
 	.set_validate		= ethnl_set_pse_validate,
 	.set			= ethnl_set_pse,

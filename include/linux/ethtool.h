@@ -1288,4 +1288,9 @@ struct ethtool_c33_pse_ext_state_info {
 		u32 __c33_pse_ext_substate;
 	};
 };
+
+struct ethtool_c33_pse_pw_limit_range {
+	u32 min;
+	u32 max;
+};
 #endif /* _LINUX_ETHTOOL_H */
