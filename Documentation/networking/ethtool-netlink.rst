@@ -1740,6 +1740,13 @@ Kernel response contents:
                                                   PSE functions.
   ``ETHTOOL_A_C33_PSE_PW_D_STATUS``          u32  power detection status of the
                                                   PoE PSE.
+  ``ETHTOOL_A_C33_PSE_PW_CLASS``             u32  power class of the PoE PSE.
+  ``ETHTOOL_A_C33_PSE_ACTUAL_PW``            u32  actual power drawn on the
+                                                  PoE PSE.
+  ``ETHTOOL_A_C33_PSE_EXT_STATE``            u32  power extended state of the
+                                                  PoE PSE.
+  ``ETHTOOL_A_C33_PSE_EXT_SUBSTATE``         u32  power extended substatus of
+                                                  the PoE PSE.
   ======================================  ======  =============================
 
 When set, the optional ``ETHTOOL_A_PODL_PSE_ADMIN_STATE`` attribute identifies
@@ -1771,6 +1778,36 @@ The same goes for ``ETHTOOL_A_C33_PSE_ADMIN_PW_D_STATUS`` implementing
 
 .. kernel-doc:: include/uapi/linux/ethtool.h
     :identifiers: ethtool_c33_pse_pw_d_status
+
+When set, the optional ``ETHTOOL_A_C33_PSE_PW_CLASS`` attribute identifies
+the power class of the C33 PSE. It depends on the class negotiated between
+the PSE and the PD. This option is corresponding to ``IEEE 802.3-2022``
+30.9.1.1.8 aPSEPowerClassification.
+
+When set, the optional ``ETHTOOL_A_C33_PSE_ACTUAL_PW`` attribute identifies
+This option is corresponding to ``IEEE 802.3-2022`` 30.9.1.1.23 aPSEActualPower.
+Actual power is reported in mW.
+
+When set, the optional ``ETHTOOL_A_C33_PSE_EXT_STATE`` attribute identifies
+the extended error state of the C33 PSE. Possible values are:
+
+.. kernel-doc:: include/uapi/linux/ethtool.h
+    :identifiers: ethtool_c33_pse_ext_state
+
+When set, the optional ``ETHTOOL_A_C33_PSE_EXT_SUBSTATE`` attribute identifies
+the extended error state of the C33 PSE. Possible values are:
+Possible values are:
+
+.. kernel-doc:: include/uapi/linux/ethtool.h
+    :identifiers: ethtool_c33_pse_ext_substate_class_num_events
+		  ethtool_c33_pse_ext_substate_error_condition
+		  ethtool_c33_pse_ext_substate_mr_pse_enable
+		  ethtool_c33_pse_ext_substate_option_detect_ted
+		  ethtool_c33_pse_ext_substate_option_vport_lim
+		  ethtool_c33_pse_ext_substate_ovld_detected
+		  ethtool_c33_pse_ext_substate_pd_dll_power_type
+		  ethtool_c33_pse_ext_substate_power_not_available
+		  ethtool_c33_pse_ext_substate_short_detected
 
 PSE_SET
 =======
