@@ -180,6 +180,11 @@ int dm_get_device(struct dm_target *ti, const char *path, blk_mode_t mode,
 void dm_put_device(struct dm_target *ti, struct dm_dev *d);
 
 /*
+ * Helper function for getting devices
+ */
+int dm_devt_from_path(const char *path, dev_t *dev_p);
+
+/*
  * Information about a target type
  */
 

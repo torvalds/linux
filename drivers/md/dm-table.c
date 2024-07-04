@@ -331,23 +331,15 @@ static int upgrade_mode(struct dm_dev_internal *dd, blk_mode_t new_mode,
 }
 
 /*
- * Add a device to the list, or just increment the usage count if
- * it's already present.
- *
  * Note: the __ref annotation is because this function can call the __init
  * marked early_lookup_bdev when called during early boot code from dm-init.c.
  */
-int __ref dm_get_device(struct dm_target *ti, const char *path, blk_mode_t mode,
-		  struct dm_dev **result)
+int __ref dm_devt_from_path(const char *path, dev_t *dev_p)
 {
 	int r;
 	dev_t dev;
 	unsigned int major, minor;
 	char dummy;
-	struct dm_dev_internal *dd;
-	struct dm_table *t = ti->table;
-
-	BUG_ON(!t);
 
 	if (sscanf(path, "%u:%u%c", &major, &minor, &dummy) == 2) {
 		/* Extract the major/minor numbers */
@@ -363,6 +355,29 @@ int __ref dm_get_device(struct dm_target *ti, const char *path, blk_mode_t mode,
 		if (r)
 			return r;
 	}
+	*dev_p = dev;
+	return 0;
+}
+EXPORT_SYMBOL(dm_devt_from_path);
+
+/*
+ * Add a device to the list, or just increment the usage count if
+ * it's already present.
+ */
+int dm_get_device(struct dm_target *ti, const char *path, blk_mode_t mode,
+		  struct dm_dev **result)
+{
+	int r;
+	dev_t dev;
+	struct dm_dev_internal *dd;
+	struct dm_table *t = ti->table;
+
+	BUG_ON(!t);
+
+	r = dm_devt_from_path(path, &dev);
+	if (r)
+		return r;
+
 	if (dev == disk_devt(t->md->disk))
 		return -EINVAL;
 
