@@ -352,6 +352,34 @@ static int ad9467_outputmode_set(struct ad9467_state *st, unsigned int mode)
 				AN877_ADC_TRANSFER_SYNC);
 }
 
+static int ad9467_testmode_set(struct ad9467_state *st, unsigned int chan,
+			       unsigned int test_mode)
+{
+	int ret;
+
+	if (st->info->num_channels > 1) {
+		/* so that the test mode is only applied to one channel */
+		ret = ad9467_spi_write(st, AN877_ADC_REG_CHAN_INDEX, BIT(chan));
+		if (ret)
+			return ret;
+	}
+
+	ret = ad9467_spi_write(st, AN877_ADC_REG_TEST_IO, test_mode);
+	if (ret)
+		return ret;
+
+	if (st->info->num_channels > 1) {
+		/* go to default state where all channels get write commands */
+		ret = ad9467_spi_write(st, AN877_ADC_REG_CHAN_INDEX,
+				       GENMASK(st->info->num_channels - 1, 0));
+		if (ret)
+			return ret;
+	}
+
+	return ad9467_spi_write(st, AN877_ADC_REG_TRANSFER,
+				AN877_ADC_TRANSFER_SYNC);
+}
+
 static int ad9647_calibrate_prepare(struct ad9467_state *st)
 {
 	struct iio_backend_data_fmt data = {
@@ -360,32 +388,30 @@ static int ad9647_calibrate_prepare(struct ad9467_state *st)
 	unsigned int c;
 	int ret;
 
-	ret = ad9467_spi_write(st, AN877_ADC_REG_TEST_IO,
-			       AN877_ADC_TESTMODE_PN9_SEQ);
-	if (ret)
-		return ret;
-
-	ret = ad9467_spi_write(st, AN877_ADC_REG_TRANSFER,
-			       AN877_ADC_TRANSFER_SYNC);
-	if (ret)
-		return ret;
-
 	ret = ad9467_outputmode_set(st, st->info->default_output_mode);
 	if (ret)
 		return ret;
 
 	for (c = 0; c < st->info->num_channels; c++) {
+		ret = ad9467_testmode_set(st, c, AN877_ADC_TESTMODE_PN9_SEQ);
+		if (ret)
+			return ret;
+
 		ret = iio_backend_data_format_set(st->back, c, &data);
+		if (ret)
+			return ret;
+
+		ret = iio_backend_test_pattern_set(st->back, c,
+						   IIO_BACKEND_ADI_PRBS_9A);
+		if (ret)
+			return ret;
+
+		ret = iio_backend_chan_enable(st->back, c);
 		if (ret)
 			return ret;
 	}
 
-	ret = iio_backend_test_pattern_set(st->back, 0,
-					   IIO_BACKEND_ADI_PRBS_9A);
-	if (ret)
-		return ret;
-
-	return iio_backend_chan_enable(st->back, 0);
+	return 0;
 }
 
 static int ad9647_calibrate_polarity_set(struct ad9467_state *st,
@@ -468,38 +494,32 @@ static int ad9647_calibrate_stop(struct ad9467_state *st)
 	unsigned int c, mode;
 	int ret;
 
-	ret = iio_backend_chan_disable(st->back, 0);
-	if (ret)
-		return ret;
-
-	ret = iio_backend_test_pattern_set(st->back, 0,
-					   IIO_BACKEND_NO_TEST_PATTERN);
-	if (ret)
-		return ret;
-
 	for (c = 0; c < st->info->num_channels; c++) {
+		ret = iio_backend_chan_disable(st->back, c);
+		if (ret)
+			return ret;
+
+		ret = iio_backend_test_pattern_set(st->back, c,
+						   IIO_BACKEND_NO_TEST_PATTERN);
+		if (ret)
+			return ret;
+
 		ret = iio_backend_data_format_set(st->back, c, &data);
+		if (ret)
+			return ret;
+
+		ret = ad9467_testmode_set(st, c, AN877_ADC_TESTMODE_OFF);
 		if (ret)
 			return ret;
 	}
 
 	mode = st->info->default_output_mode | AN877_ADC_OUTPUT_MODE_TWOS_COMPLEMENT;
-	ret = ad9467_outputmode_set(st, mode);
-	if (ret)
-		return ret;
-
-	ret = ad9467_spi_write(st, AN877_ADC_REG_TEST_IO,
-			       AN877_ADC_TESTMODE_OFF);
-	if (ret)
-		return ret;
-
-	return ad9467_spi_write(st, AN877_ADC_REG_TRANSFER,
-			       AN877_ADC_TRANSFER_SYNC);
+	return ad9467_outputmode_set(st, mode);
 }
 
 static int ad9467_calibrate(struct ad9467_state *st)
 {
-	unsigned int point, val, inv_val, cnt, inv_cnt = 0;
+	unsigned int point, val, inv_val, cnt, inv_cnt = 0, c;
 	/*
 	 * Half of the bitmap is for the inverted signal. The number of test
 	 * points is the same though...
@@ -526,11 +546,26 @@ retune:
 		if (ret)
 			return ret;
 
-		ret = iio_backend_chan_status(st->back, 0, &stat);
-		if (ret)
-			return ret;
+		for (c = 0; c < st->info->num_channels; c++) {
+			ret = iio_backend_chan_status(st->back, c, &stat);
+			if (ret)
+				return ret;
 
-		__assign_bit(point + invert * test_points, st->calib_map, stat);
+			/*
+			 * A point is considered valid if all channels report no
+			 * error. If one reports an error, then we consider the
+			 * point as invalid and we can break the loop right away.
+			 */
+			if (stat) {
+				dev_dbg(dev, "Invalid point(%u, inv:%u) for CH:%u\n",
+					point, invert, c);
+				break;
+			}
+
+			if (c == st->info->num_channels - 1)
+				__clear_bit(point + invert * test_points,
+					    st->calib_map);
+		}
 	}
 
 	if (!invert) {
