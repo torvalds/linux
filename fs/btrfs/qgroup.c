@@ -3062,8 +3062,6 @@ int btrfs_qgroup_check_inherit(struct btrfs_fs_info *fs_info,
 			       struct btrfs_qgroup_inherit *inherit,
 			       size_t size)
 {
-	if (!btrfs_qgroup_enabled(fs_info))
-		return 0;
 	if (inherit->flags & ~BTRFS_QGROUP_INHERIT_FLAGS_SUPP)
 		return -EOPNOTSUPP;
 	if (size < sizeof(*inherit) || size > PAGE_SIZE)
@@ -3083,6 +3081,14 @@ int btrfs_qgroup_check_inherit(struct btrfs_fs_info *fs_info,
 
 	if (size != struct_size(inherit, qgroups, inherit->num_qgroups))
 		return -EINVAL;
+
+	/*
+	 * Skip the inherit source qgroups check if qgroup is not enabled.
+	 * Qgroup can still be later enabled causing problems, but in that case
+	 * btrfs_qgroup_inherit() would just ignore those invalid ones.
+	 */
+	if (!btrfs_qgroup_enabled(fs_info))
+		return 0;
 
 	/*
 	 * Now check all the remaining qgroups, they should all:
