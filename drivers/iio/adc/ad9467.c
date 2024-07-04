@@ -105,6 +105,8 @@
 #define AD9467_REG_VREF_MASK		0x0F
 
 #define AD9647_MAX_TEST_POINTS		32
+#define AD9467_CAN_INVERT(st)	\
+	(!(st)->info->has_dco || (st)->info->has_dco_invert)
 
 struct ad9467_chip_info {
 	const char *name;
@@ -117,8 +119,11 @@ struct ad9467_chip_info {
 	unsigned int default_output_mode;
 	unsigned int vref_mask;
 	unsigned int num_lanes;
+	unsigned int dco_en;
+	unsigned int test_points;
 	/* data clock output */
 	bool has_dco;
+	bool has_dco_invert;
 };
 
 struct ad9467_state {
@@ -138,6 +143,8 @@ struct ad9467_state {
 	 * at the io delay control section.
 	 */
 	DECLARE_BITMAP(calib_map, AD9647_MAX_TEST_POINTS * 2);
+	/* number of bits of the map */
+	unsigned int calib_map_size;
 	struct gpio_desc *pwrdown_gpio;
 	/* ensure consistent state obtained on multiple related accesses */
 	struct mutex lock;
@@ -256,6 +263,7 @@ static const struct ad9467_chip_info ad9467_chip_tbl = {
 	.num_scales = ARRAY_SIZE(ad9467_scale_table),
 	.channels = ad9467_channels,
 	.num_channels = ARRAY_SIZE(ad9467_channels),
+	.test_points = AD9647_MAX_TEST_POINTS,
 	.default_output_mode = AD9467_DEF_OUTPUT_MODE,
 	.vref_mask = AD9467_REG_VREF_MASK,
 	.num_lanes = 8,
@@ -269,6 +277,7 @@ static const struct ad9467_chip_info ad9434_chip_tbl = {
 	.num_scales = ARRAY_SIZE(ad9434_scale_table),
 	.channels = ad9434_channels,
 	.num_channels = ARRAY_SIZE(ad9434_channels),
+	.test_points = AD9647_MAX_TEST_POINTS,
 	.default_output_mode = AD9434_DEF_OUTPUT_MODE,
 	.vref_mask = AD9434_REG_VREF_MASK,
 	.num_lanes = 6,
@@ -282,9 +291,11 @@ static const struct ad9467_chip_info ad9265_chip_tbl = {
 	.num_scales = ARRAY_SIZE(ad9265_scale_table),
 	.channels = ad9467_channels,
 	.num_channels = ARRAY_SIZE(ad9467_channels),
+	.test_points = AD9647_MAX_TEST_POINTS,
 	.default_output_mode = AD9265_DEF_OUTPUT_MODE,
 	.vref_mask = AD9265_REG_VREF_MASK,
 	.has_dco = true,
+	.has_dco_invert = true,
 };
 
 static int ad9467_get_scale(struct ad9467_state *st, int *val, int *val2)
@@ -468,7 +479,7 @@ static int ad9467_calibrate_apply(struct ad9467_state *st, unsigned int val)
 
 	if (st->info->has_dco) {
 		ret = ad9467_spi_write(st, AN877_ADC_REG_OUTPUT_DELAY,
-				       val);
+				       val | st->info->dco_en);
 		if (ret)
 			return ret;
 
@@ -524,14 +535,14 @@ static int ad9467_calibrate(struct ad9467_state *st)
 	 * Half of the bitmap is for the inverted signal. The number of test
 	 * points is the same though...
 	 */
-	unsigned int test_points = AD9647_MAX_TEST_POINTS;
+	unsigned int test_points = st->info->test_points;
 	unsigned long sample_rate = clk_get_rate(st->clk);
 	struct device *dev = &st->spi->dev;
 	bool invert = false, stat;
 	int ret;
 
 	/* all points invalid */
-	bitmap_fill(st->calib_map, BITS_PER_TYPE(st->calib_map));
+	bitmap_fill(st->calib_map, st->calib_map_size);
 
 	ret = ad9647_calibrate_prepare(st);
 	if (ret)
@@ -541,7 +552,7 @@ retune:
 	if (ret)
 		return ret;
 
-	for (point = 0; point < test_points; point++) {
+	for (point = 0; point < st->info->test_points; point++) {
 		ret = ad9467_calibrate_apply(st, point);
 		if (ret)
 			return ret;
@@ -576,8 +587,13 @@ retune:
 		 * a row.
 		 */
 		if (cnt < 3) {
-			invert = true;
-			goto retune;
+			if (AD9467_CAN_INVERT(st)) {
+				invert = true;
+				goto retune;
+			}
+
+			if (!cnt)
+				return -EIO;
 		}
 	} else {
 		inv_cnt = ad9467_find_optimal_point(st->calib_map, test_points,
@@ -802,7 +818,7 @@ static ssize_t ad9467_dump_calib_table(struct file *file,
 				       size_t count, loff_t *ppos)
 {
 	struct ad9467_state *st = file->private_data;
-	unsigned int bit, size = BITS_PER_TYPE(st->calib_map);
+	unsigned int bit;
 	/* +2 for the newline and +1 for the string termination */
 	unsigned char map[AD9647_MAX_TEST_POINTS * 2 + 3];
 	ssize_t len = 0;
@@ -811,8 +827,8 @@ static ssize_t ad9467_dump_calib_table(struct file *file,
 	if (*ppos)
 		goto out_read;
 
-	for (bit = 0; bit < size; bit++) {
-		if (bit == size / 2)
+	for (bit = 0; bit < st->calib_map_size; bit++) {
+		if (AD9467_CAN_INVERT(st) && bit == st->calib_map_size / 2)
 			len += scnprintf(map + len, sizeof(map) - len, "\n");
 
 		len += scnprintf(map + len, sizeof(map) - len, "%c",
@@ -860,6 +876,10 @@ static int ad9467_probe(struct spi_device *spi)
 	st->info = spi_get_device_match_data(spi);
 	if (!st->info)
 		return -ENODEV;
+
+	st->calib_map_size = st->info->test_points;
+	if (AD9467_CAN_INVERT(st))
+		st->calib_map_size *= 2;
 
 	st->clk = devm_clk_get_enabled(&spi->dev, "adc-clk");
 	if (IS_ERR(st->clk))
