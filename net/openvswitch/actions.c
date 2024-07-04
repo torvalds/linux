@@ -24,6 +24,11 @@
 #include <net/checksum.h>
 #include <net/dsfield.h>
 #include <net/mpls.h>
+
+#if IS_ENABLED(CONFIG_PSAMPLE)
+#include <net/psample.h>
+#endif
+
 #include <net/sctp/checksum.h>
 
 #include "datapath.h"
@@ -1299,6 +1304,40 @@ static int execute_dec_ttl(struct sk_buff *skb, struct sw_flow_key *key)
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_PSAMPLE)
+static void execute_psample(struct datapath *dp, struct sk_buff *skb,
+			    const struct nlattr *attr)
+{
+	struct psample_group psample_group = {};
+	struct psample_metadata md = {};
+	const struct nlattr *a;
+	int rem;
+
+	nla_for_each_attr(a, nla_data(attr), nla_len(attr), rem) {
+		switch (nla_type(a)) {
+		case OVS_PSAMPLE_ATTR_GROUP:
+			psample_group.group_num = nla_get_u32(a);
+			break;
+
+		case OVS_PSAMPLE_ATTR_COOKIE:
+			md.user_cookie = nla_data(a);
+			md.user_cookie_len = nla_len(a);
+			break;
+		}
+	}
+
+	psample_group.net = ovs_dp_get_net(dp);
+	md.in_ifindex = OVS_CB(skb)->input_vport->dev->ifindex;
+	md.trunc_size = skb->len - OVS_CB(skb)->cutlen;
+
+	psample_sample_packet(&psample_group, skb, 0, &md);
+}
+#else
+static void execute_psample(struct datapath *dp, struct sk_buff *skb,
+			    const struct nlattr *attr)
+{}
+#endif
+
 /* Execute a list of actions against 'skb'. */
 static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
 			      struct sw_flow_key *key,
@@ -1502,6 +1541,15 @@ static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
 			ovs_kfree_skb_reason(skb, reason);
 			return 0;
 		}
+
+		case OVS_ACTION_ATTR_PSAMPLE:
+			execute_psample(dp, skb, a);
+			OVS_CB(skb)->cutlen = 0;
+			if (nla_is_last(a, rem)) {
+				consume_skb(skb);
+				return 0;
+			}
+			break;
 		}
 
 		if (unlikely(err)) {
