@@ -69,7 +69,7 @@ struct amdgpu_iv_entry;
 #define AMDGPU_RAS_GET_FEATURES(val)  ((val) & ~AMDGPU_RAS_FEATURES_SOCKETID_MASK)
 
 #define RAS_EVENT_LOG(adev, id, fmt, ...)	\
-	amdgpu_ras_event_log_print((adev), (id), (fmt), ##__VA_ARGS__);
+	amdgpu_ras_event_log_print((adev), (id), (fmt), ##__VA_ARGS__)
 
 enum amdgpu_ras_block {
 	AMDGPU_RAS_BLOCK__UMC = 0,
