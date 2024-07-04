@@ -5108,6 +5108,19 @@ static struct pool_workqueue *alloc_unbound_pwq(struct workqueue_struct *wq,
 	return pwq;
 }
 
+static void apply_wqattrs_lock(void)
+{
+	/* CPUs should stay stable across pwq creations and installations */
+	cpus_read_lock();
+	mutex_lock(&wq_pool_mutex);
+}
+
+static void apply_wqattrs_unlock(void)
+{
+	mutex_unlock(&wq_pool_mutex);
+	cpus_read_unlock();
+}
+
 /**
  * wq_calc_pod_cpumask - calculate a wq_attrs' cpumask for a pod
  * @attrs: the wq_attrs of the default pwq of the target workqueue
@@ -5419,6 +5432,9 @@ static int alloc_and_link_pwqs(struct workqueue_struct *wq)
 	bool highpri = wq->flags & WQ_HIGHPRI;
 	int cpu, ret;
 
+	lockdep_assert_cpus_held();
+	lockdep_assert_held(&wq_pool_mutex);
+
 	wq->cpu_pwq = alloc_percpu(struct pool_workqueue *);
 	if (!wq->cpu_pwq)
 		goto enomem;
@@ -5452,20 +5468,18 @@ static int alloc_and_link_pwqs(struct workqueue_struct *wq)
 		return 0;
 	}
 
-	cpus_read_lock();
 	if (wq->flags & __WQ_ORDERED) {
 		struct pool_workqueue *dfl_pwq;
 
-		ret = apply_workqueue_attrs(wq, ordered_wq_attrs[highpri]);
+		ret = apply_workqueue_attrs_locked(wq, ordered_wq_attrs[highpri]);
 		/* there should only be single pwq for ordering guarantee */
 		dfl_pwq = rcu_access_pointer(wq->dfl_pwq);
 		WARN(!ret && (wq->pwqs.next != &dfl_pwq->pwqs_node ||
 			      wq->pwqs.prev != &dfl_pwq->pwqs_node),
 		     "ordering guarantee broken for workqueue %s\n", wq->name);
 	} else {
-		ret = apply_workqueue_attrs(wq, unbound_std_wq_attrs[highpri]);
+		ret = apply_workqueue_attrs_locked(wq, unbound_std_wq_attrs[highpri]);
 	}
-	cpus_read_unlock();
 
 	return ret;
 
@@ -5672,15 +5686,15 @@ struct workqueue_struct *alloc_workqueue(const char *fmt,
 			goto err_unreg_lockdep;
 	}
 
-	if (alloc_and_link_pwqs(wq) < 0)
-		goto err_free_node_nr_active;
-
 	/*
-	 * wq_pool_mutex protects global freeze state and workqueues list.
-	 * Grab it, adjust max_active and add the new @wq to workqueues
-	 * list.
+	 * wq_pool_mutex protects the workqueues list, allocations of PWQs,
+	 * and the global freeze state.  alloc_and_link_pwqs() also requires
+	 * cpus_read_lock() for PWQs' affinities.
 	 */
-	mutex_lock(&wq_pool_mutex);
+	apply_wqattrs_lock();
+
+	if (alloc_and_link_pwqs(wq) < 0)
+		goto err_unlock_free_node_nr_active;
 
 	mutex_lock(&wq->mutex);
 	wq_adjust_max_active(wq);
@@ -5688,7 +5702,7 @@ struct workqueue_struct *alloc_workqueue(const char *fmt,
 
 	list_add_tail_rcu(&wq->list, &workqueues);
 
-	mutex_unlock(&wq_pool_mutex);
+	apply_wqattrs_unlock();
 
 	if (wq_online && init_rescuer(wq) < 0)
 		goto err_destroy;
@@ -5698,7 +5712,8 @@ struct workqueue_struct *alloc_workqueue(const char *fmt,
 
 	return wq;
 
-err_free_node_nr_active:
+err_unlock_free_node_nr_active:
+	apply_wqattrs_unlock();
 	/*
 	 * Failed alloc_and_link_pwqs() may leave pending pwq->release_work,
 	 * flushing the pwq_release_worker ensures that the pwq_release_workfn()
@@ -6986,19 +7001,6 @@ static struct attribute *wq_sysfs_attrs[] = {
 	NULL,
 };
 ATTRIBUTE_GROUPS(wq_sysfs);
-
-static void apply_wqattrs_lock(void)
-{
-	/* CPUs should stay stable across pwq creations and installations */
-	cpus_read_lock();
-	mutex_lock(&wq_pool_mutex);
-}
-
-static void apply_wqattrs_unlock(void)
-{
-	mutex_unlock(&wq_pool_mutex);
-	cpus_read_unlock();
-}
 
 static ssize_t wq_nice_show(struct device *dev, struct device_attribute *attr,
 			    char *buf)
