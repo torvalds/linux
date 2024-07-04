@@ -528,7 +528,8 @@ int os_shutdown_socket(int fd, int r, int w)
 ssize_t os_rcv_fd_msg(int fd, int *fds, unsigned int n_fds,
 		      void *data, size_t data_len)
 {
-	char buf[CMSG_SPACE(sizeof(*fds) * n_fds)];
+#define MAX_RCV_FDS	2
+	char buf[CMSG_SPACE(sizeof(*fds) * MAX_RCV_FDS)];
 	struct cmsghdr *cmsg;
 	struct iovec iov = {
 		.iov_base = data,
@@ -538,9 +539,12 @@ ssize_t os_rcv_fd_msg(int fd, int *fds, unsigned int n_fds,
 		.msg_iov = &iov,
 		.msg_iovlen = 1,
 		.msg_control = buf,
-		.msg_controllen = sizeof(buf),
+		.msg_controllen = CMSG_SPACE(sizeof(*fds) * n_fds),
 	};
 	int n;
+
+	if (n_fds > MAX_RCV_FDS)
+		return -EINVAL;
 
 	n = recvmsg(fd, &msg, 0);
 	if (n < 0)
