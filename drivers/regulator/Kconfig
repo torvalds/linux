@@ -1033,6 +1033,13 @@ config REGULATOR_PWM
 	  This driver supports PWM controlled voltage regulators. PWM
 	  duty cycle can increase or decrease the voltage.
 
+config REGULATOR_QCOM_PM8008
+	tristate "Qualcomm PM8008 PMIC regulators"
+	depends on MFD_QCOM_PM8008
+	help
+	  Select this option to enable support for the voltage regulators in
+	  Qualcomm PM8008 PMICs.
+
 config REGULATOR_QCOM_REFGEN
 	tristate "Qualcomm REFGEN regulator driver"
 	depends on ARCH_QCOM || COMPILE_TEST
