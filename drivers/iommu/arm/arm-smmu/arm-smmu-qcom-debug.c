@@ -464,7 +464,7 @@ irqreturn_t qcom_smmu_context_fault(int irq, void *dev)
 	return ret;
 }
 
-static int qcom_tbu_probe(struct platform_device *pdev)
+int qcom_tbu_probe(struct platform_device *pdev)
 {
 	struct of_phandle_args args = { .args_count = 2 };
 	struct device_node *np = pdev->dev.of_node;
@@ -506,18 +506,3 @@ static int qcom_tbu_probe(struct platform_device *pdev)
 
 	return 0;
 }
-
-static const struct of_device_id qcom_tbu_of_match[] = {
-	{ .compatible = "qcom,sc7280-tbu" },
-	{ .compatible = "qcom,sdm845-tbu" },
-	{ }
-};
-
-static struct platform_driver qcom_tbu_driver = {
-	.driver = {
-		.name           = "qcom_tbu",
-		.of_match_table = qcom_tbu_of_match,
-	},
-	.probe = qcom_tbu_probe,
-};
-builtin_platform_driver(qcom_tbu_driver);
