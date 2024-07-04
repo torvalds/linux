@@ -413,7 +413,7 @@ struct mmc_gpio {
 	u32 cd_debounce_delay_ms;
 };
 
-static struct sdhci_msm_host *sdhci_slot[2];
+static struct sdhci_msm_host *sdhci_slot[3];
 
 static int sdhci_msm_update_qos_constraints(struct qos_cpu_group *qcg,
 					enum constraint type);
