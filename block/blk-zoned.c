@@ -150,13 +150,6 @@ int blkdev_report_zones(struct block_device *bdev, sector_t sector,
 }
 EXPORT_SYMBOL_GPL(blkdev_report_zones);
 
-static inline unsigned long *blk_alloc_zone_bitmap(int node,
-						   unsigned int nr_zones)
-{
-	return kcalloc_node(BITS_TO_LONGS(nr_zones), sizeof(unsigned long),
-			    GFP_NOIO, node);
-}
-
 static int blkdev_zone_reset_all(struct block_device *bdev)
 {
 	struct bio bio;
@@ -1482,7 +1475,7 @@ void disk_free_zone_resources(struct gendisk *disk)
 	mempool_destroy(disk->zone_wplugs_pool);
 	disk->zone_wplugs_pool = NULL;
 
-	kfree(disk->conv_zones_bitmap);
+	bitmap_free(disk->conv_zones_bitmap);
 	disk->conv_zones_bitmap = NULL;
 	disk->zone_capacity = 0;
 	disk->last_zone_capacity = 0;
@@ -1604,7 +1597,6 @@ static int blk_revalidate_conv_zone(struct blk_zone *zone, unsigned int idx,
 				    struct blk_revalidate_zone_args *args)
 {
 	struct gendisk *disk = args->disk;
-	struct request_queue *q = disk->queue;
 
 	if (zone->capacity != zone->len) {
 		pr_warn("%s: Invalid conventional zone capacity\n",
@@ -1620,7 +1612,7 @@ static int blk_revalidate_conv_zone(struct blk_zone *zone, unsigned int idx,
 
 	if (!args->conv_zones_bitmap) {
 		args->conv_zones_bitmap =
-			blk_alloc_zone_bitmap(q->node, args->nr_zones);
+			bitmap_zalloc(args->nr_zones, GFP_NOIO);
 		if (!args->conv_zones_bitmap)
 			return -ENOMEM;
 	}
