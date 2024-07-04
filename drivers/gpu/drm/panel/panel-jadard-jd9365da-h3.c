@@ -48,6 +48,19 @@ struct jadard {
 	struct gpio_desc *reset;
 };
 
+#define JD9365DA_DCS_SWITCH_PAGE	0xe0
+
+#define jd9365da_switch_page(dsi_ctx, page) \
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, JD9365DA_DCS_SWITCH_PAGE, (page))
+
+static void jadard_enable_standard_cmds(struct mipi_dsi_multi_context *dsi_ctx)
+{
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xe1, 0x93);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xe2, 0x65);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xe3, 0xf8);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x80, 0x03);
+}
+
 static inline struct jadard *panel_to_jadard(struct drm_panel *panel)
 {
 	return container_of(panel, struct jadard, panel);
@@ -198,12 +211,10 @@ static int radxa_display_8hd_ad002_init_cmds(struct jadard *jadard)
 {
 	struct mipi_dsi_multi_context dsi_ctx = { .dsi = jadard->dsi };
 
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xE0, 0x00);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xE1, 0x93);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xE2, 0x65);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xE3, 0xF8);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x80, 0x03);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xE0, 0x01);
+	jd9365da_switch_page(&dsi_ctx, 0x00);
+	jadard_enable_standard_cmds(&dsi_ctx);
+
+	jd9365da_switch_page(&dsi_ctx, 0x01);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x00, 0x00);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x01, 0x7E);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x03, 0x00);
@@ -276,7 +287,8 @@ static int radxa_display_8hd_ad002_init_cmds(struct jadard *jadard)
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x80, 0x37);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x81, 0x23);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x82, 0x10);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xE0, 0x02);
+
+	jd9365da_switch_page(&dsi_ctx, 0x02);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x00, 0x47);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x01, 0x47);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x02, 0x45);
@@ -360,13 +372,15 @@ static int radxa_display_8hd_ad002_init_cmds(struct jadard *jadard)
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x7C, 0x00);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x7D, 0x03);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x7E, 0x7B);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xE0, 0x04);
+
+	jd9365da_switch_page(&dsi_ctx, 0x04);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x00, 0x0E);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x02, 0xB3);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x09, 0x60);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x0E, 0x2A);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x36, 0x59);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xE0, 0x00);
+
+	jd9365da_switch_page(&dsi_ctx, 0x00);
 
 	return dsi_ctx.accum_err;
 };
@@ -398,12 +412,10 @@ static int cz101b4001_init_cmds(struct jadard *jadard)
 {
 	struct mipi_dsi_multi_context dsi_ctx = { .dsi = jadard->dsi };
 
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xE0, 0x00);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xE1, 0x93);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xE2, 0x65);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xE3, 0xF8);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x80, 0x03);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xE0, 0x01);
+	jd9365da_switch_page(&dsi_ctx, 0x00);
+	jadard_enable_standard_cmds(&dsi_ctx);
+
+	jd9365da_switch_page(&dsi_ctx, 0x01);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x00, 0x00);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x01, 0x3B);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x0C, 0x74);
@@ -471,7 +483,8 @@ static int cz101b4001_init_cmds(struct jadard *jadard)
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x80, 0x20);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x81, 0x0F);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x82, 0x00);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xE0, 0x02);
+
+	jd9365da_switch_page(&dsi_ctx, 0x02);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x00, 0x02);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x01, 0x02);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x02, 0x00);
@@ -584,12 +597,14 @@ static int cz101b4001_init_cmds(struct jadard *jadard)
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x7A, 0x17);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x7D, 0x14);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x7E, 0x82);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xE0, 0x04);
+
+	jd9365da_switch_page(&dsi_ctx, 0x04);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x00, 0x0E);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x02, 0xB3);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x09, 0x61);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x0E, 0x48);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xE0, 0x00);
+
+	jd9365da_switch_page(&dsi_ctx, 0x00);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xE6, 0x02);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xE7, 0x0C);
 
@@ -623,12 +638,10 @@ static int kingdisplay_kd101ne3_init_cmds(struct jadard *jadard)
 {
 	struct mipi_dsi_multi_context dsi_ctx = { .dsi = jadard->dsi };
 
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xe0, 0x00);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xe1, 0x93);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xe2, 0x65);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xe3, 0xf8);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x80, 0x03);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xe0, 0x01);
+	jd9365da_switch_page(&dsi_ctx, 0x00);
+	jadard_enable_standard_cmds(&dsi_ctx);
+
+	jd9365da_switch_page(&dsi_ctx, 0x01);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x0c, 0x74);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x17, 0x00);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x18, 0xc7);
@@ -694,7 +707,8 @@ static int kingdisplay_kd101ne3_init_cmds(struct jadard *jadard)
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x80, 0x26);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x81, 0x14);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x82, 0x02);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xe0, 0x02);
+
+	jd9365da_switch_page(&dsi_ctx, 0x02);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x00, 0x52);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x01, 0x5f);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x02, 0x5f);
@@ -808,12 +822,14 @@ static int kingdisplay_kd101ne3_init_cmds(struct jadard *jadard)
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x76, 0x00);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x77, 0x05);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x78, 0x2a);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xe0, 0x04);
+
+	jd9365da_switch_page(&dsi_ctx, 0x04);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x00, 0x0e);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x02, 0xb3);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x09, 0x61);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x0e, 0x48);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xe0, 0x00);
+
+	jd9365da_switch_page(&dsi_ctx, 0x00);
 
 	return dsi_ctx.accum_err;
 };
@@ -854,12 +870,10 @@ static int melfas_lmfbx101117480_init_cmds(struct jadard *jadard)
 {
 	struct mipi_dsi_multi_context dsi_ctx = { .dsi = jadard->dsi };
 
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xe0, 0x00);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xe1, 0x93);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xe2, 0x65);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xe3, 0xf8);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x80, 0x03);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xe0, 0x01);
+	jd9365da_switch_page(&dsi_ctx, 0x00);
+	jadard_enable_standard_cmds(&dsi_ctx);
+
+	jd9365da_switch_page(&dsi_ctx, 0x01);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x0c, 0x74);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x17, 0x00);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x18, 0xbf);
@@ -932,7 +946,8 @@ static int melfas_lmfbx101117480_init_cmds(struct jadard *jadard)
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x80, 0x24);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x81, 0x12);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x82, 0x02);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xe0, 0x02);
+
+	jd9365da_switch_page(&dsi_ctx, 0x02);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x00, 0x52);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x01, 0x55);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x02, 0x55);
@@ -1046,14 +1061,16 @@ static int melfas_lmfbx101117480_init_cmds(struct jadard *jadard)
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x76, 0x00);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x77, 0x05);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x78, 0x2a);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xe0, 0x04);
+
+	jd9365da_switch_page(&dsi_ctx, 0x04);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x02, 0x23);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x09, 0x11);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x0e, 0x48);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x36, 0x49);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x2b, 0x08);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x2e, 0x03);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xe0, 0x00);
+
+	jd9365da_switch_page(&dsi_ctx, 0x00);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xe6, 0x02);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xe7, 0x06);
 
