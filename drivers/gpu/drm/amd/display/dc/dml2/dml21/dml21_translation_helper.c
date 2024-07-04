@@ -31,7 +31,7 @@ static void dml21_init_socbb_params(struct dml2_initialize_instance_in_out *dml_
 		else
 			soc_bb = &dml2_socbb_dcn401;
 
-		qos_params = &dml_dcn401_soc_qos_params;
+		qos_params = &dml_dcn4_variant_a_soc_qos_params;
 	}
 
 	/* patch soc bb */

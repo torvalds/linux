@@ -8,7 +8,7 @@
 
 #include "dml_top_soc_parameter_types.h"
 
-static const struct dml2_soc_qos_parameters dml_dcn401_soc_qos_params = {
+static const struct dml2_soc_qos_parameters dml_dcn4_variant_a_soc_qos_params = {
 	.derate_table = {
 		.system_active_urgent = {
 			.dram_derate_percent_pixel = 22,
