@@ -689,8 +689,12 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata, bool going_do
 
 		fallthrough;
 	default:
-		if (going_down)
-			drv_remove_interface(local, sdata);
+		if (!going_down)
+			break;
+		drv_remove_interface(local, sdata);
+
+		/* Clear private driver data to prevent reuse */
+		memset(sdata->vif.drv_priv, 0, local->hw.vif_data_size);
 	}
 
 	ieee80211_recalc_ps(local);
