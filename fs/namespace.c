@@ -70,7 +70,8 @@ static DEFINE_IDA(mnt_id_ida);
 static DEFINE_IDA(mnt_group_ida);
 
 /* Don't allow confusion with old 32bit mount ID */
-static atomic64_t mnt_id_ctr = ATOMIC64_INIT(1ULL << 32);
+#define MNT_UNIQUE_ID_OFFSET (1ULL << 32)
+static atomic64_t mnt_id_ctr = ATOMIC64_INIT(MNT_UNIQUE_ID_OFFSET);
 
 static struct hlist_head *mount_hashtable __ro_after_init;
 static struct hlist_head *mountpoint_hashtable __ro_after_init;
@@ -5240,6 +5241,9 @@ static int copy_mnt_id_req(const struct mnt_id_req __user *req,
 	if (ret)
 		return ret;
 	if (kreq->spare != 0)
+		return -EINVAL;
+	/* The first valid unique mount id is MNT_UNIQUE_ID_OFFSET + 1. */
+	if (kreq->mnt_id <= MNT_UNIQUE_ID_OFFSET)
 		return -EINVAL;
 	return 0;
 }
