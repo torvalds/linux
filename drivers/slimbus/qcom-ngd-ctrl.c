@@ -203,6 +203,7 @@ struct qcom_slim_ngd_ctrl {
 	struct completion qmi_up;
 	struct completion xfer_done;
 	struct completion sync_done;
+	struct completion tx_sent;
 	spinlock_t tx_buf_lock;
 	struct mutex tx_lock;
 	struct mutex suspend_resume_lock;
@@ -633,6 +634,7 @@ static void qcom_slim_ngd_tx_msg_dma_cb(void *args)
 		desc->comp = NULL;
 		return;
 	}
+
 	spin_lock_irqsave(&ctrl->tx_buf_lock, flags);
 
 	if (desc->comp) {
@@ -971,7 +973,6 @@ static int qcom_slim_ngd_xfer_msg(struct slim_controller *sctrl,
 				  struct slim_msg_txn *txn)
 {
 	struct qcom_slim_ngd_ctrl *ctrl = dev_get_drvdata(sctrl->dev);
-	DECLARE_COMPLETION_ONSTACK(tx_sent);
 	int ret, timeout, i;
 	u8 wbuf[SLIM_MSGQ_BUF_LEN];
 	u8 rbuf[SLIM_MSGQ_BUF_LEN];
@@ -981,6 +982,7 @@ static int qcom_slim_ngd_xfer_msg(struct slim_controller *sctrl,
 	bool usr_msg = false;
 
 	reinit_completion(&ctrl->xfer_done);
+	reinit_completion(&ctrl->tx_sent);
 
 	if (txn->mt == SLIM_MSG_MT_CORE &&
 		(txn->mc >= SLIM_MSG_MC_BEGIN_RECONFIGURATION &&
@@ -1020,7 +1022,7 @@ static int qcom_slim_ngd_xfer_msg(struct slim_controller *sctrl,
 		return ret;
 	}
 
-	pbuf = qcom_slim_ngd_tx_msg_get(ctrl, txn->rl, &tx_sent);
+	pbuf = qcom_slim_ngd_tx_msg_get(ctrl, txn->rl, &ctrl->tx_sent);
 	if (!pbuf) {
 		SLIM_ERR(ctrl, "%s: Message buffer unavailable\n", __func__);
 		mutex_unlock(&ctrl->tx_lock);
@@ -1112,7 +1114,7 @@ static int qcom_slim_ngd_xfer_msg(struct slim_controller *sctrl,
 		return ret;
 	}
 
-	timeout = wait_for_completion_timeout(&tx_sent, 2*HZ);
+	timeout = wait_for_completion_timeout(&ctrl->tx_sent, 2*HZ);
 	if (!timeout) {
 		SLIM_ERR(ctrl, "%s: TX timed out:MC:0x%x,mt:0x%x", txn->mc,
 			 __func__, txn->mt);
@@ -2182,6 +2184,7 @@ static int qcom_slim_ngd_ctrl_probe(struct platform_device *pdev)
 	init_completion(&ctrl->qmi_up);
 	init_completion(&ctrl->xfer_done);
 	init_completion(&ctrl->sync_done);
+	init_completion(&ctrl->tx_sent);
 
 	ctrl->pdr = pdr_handle_alloc(slim_pd_status, ctrl);
 	if (IS_ERR(ctrl->pdr)) {
