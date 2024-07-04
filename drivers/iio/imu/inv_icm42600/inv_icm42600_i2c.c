@@ -28,8 +28,8 @@ static int inv_icm42600_i2c_bus_setup(struct inv_icm42600_state *st)
 			   INV_ICM42600_INTF_CONFIG6_MASK,
 			   INV_ICM42600_INTF_CONFIG6_I3C_EN);
 
-	ret = regmap_update_bits(st->map, INV_ICM42600_REG_INTF_CONFIG4,
-				 INV_ICM42600_INTF_CONFIG4_I3C_BUS_ONLY, 0);
+	ret = regmap_clear_bits(st->map, INV_ICM42600_REG_INTF_CONFIG4,
+				INV_ICM42600_INTF_CONFIG4_I3C_BUS_ONLY);
 	if (ret)
 		return ret;
 

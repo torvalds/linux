@@ -111,17 +111,16 @@ static int sx_common_enable_irq(struct sx_common_data *data, unsigned int irq)
 {
 	if (!data->client->irq)
 		return 0;
-	return regmap_update_bits(data->regmap, data->chip_info->reg_irq_msk,
-				  irq << data->chip_info->irq_msk_offset,
-				  irq << data->chip_info->irq_msk_offset);
+	return regmap_set_bits(data->regmap, data->chip_info->reg_irq_msk,
+			       irq << data->chip_info->irq_msk_offset);
 }
 
 static int sx_common_disable_irq(struct sx_common_data *data, unsigned int irq)
 {
 	if (!data->client->irq)
 		return 0;
-	return regmap_update_bits(data->regmap, data->chip_info->reg_irq_msk,
-				  irq << data->chip_info->irq_msk_offset, 0);
+	return regmap_clear_bits(data->regmap, data->chip_info->reg_irq_msk,
+				 irq << data->chip_info->irq_msk_offset);
 }
 
 static int sx_common_update_chan_en(struct sx_common_data *data,
