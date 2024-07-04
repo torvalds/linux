@@ -849,7 +849,7 @@ static inline void safe_put_page(struct page *p)
 
 extern int register_md_personality(struct md_personality *p);
 extern int unregister_md_personality(struct md_personality *p);
-extern int register_md_cluster_operations(struct md_cluster_operations *ops,
+extern int register_md_cluster_operations(const struct md_cluster_operations *ops,
 		struct module *module);
 extern int unregister_md_cluster_operations(void);
 extern int md_setup_cluster(struct mddev *mddev, int nodes);
@@ -932,7 +932,7 @@ static inline void rdev_dec_pending(struct md_rdev *rdev, struct mddev *mddev)
 	}
 }
 
-extern struct md_cluster_operations *md_cluster_ops;
+extern const struct md_cluster_operations *md_cluster_ops;
 static inline int mddev_is_clustered(struct mddev *mddev)
 {
 	return mddev->cluster_info && mddev->bitmap_info.nodes > 1;

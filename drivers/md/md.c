@@ -85,7 +85,7 @@ static DEFINE_SPINLOCK(pers_lock);
 
 static const struct kobj_type md_ktype;
 
-struct md_cluster_operations *md_cluster_ops;
+const struct md_cluster_operations *md_cluster_ops;
 EXPORT_SYMBOL(md_cluster_ops);
 static struct module *md_cluster_mod;
 
@@ -627,7 +627,7 @@ static void md_submit_flush_data(struct work_struct *ws)
 		 * always is 0, make_request() will not be called here.
 		 */
 		if (WARN_ON_ONCE(!mddev->pers->make_request(mddev, bio)))
-			bio_io_error(bio);;
+			bio_io_error(bio);
 	}
 
 	/* The pair is percpu_ref_get() from md_flush_request() */
@@ -7765,12 +7765,6 @@ static int md_ioctl(struct block_device *bdev, blk_mode_t mode,
 		return get_bitmap_file(mddev, argp);
 	}
 
-	if (cmd == HOT_REMOVE_DISK)
-		/* need to ensure recovery thread has run */
-		wait_event_interruptible_timeout(mddev->sb_wait,
-						 !test_bit(MD_RECOVERY_NEEDED,
-							   &mddev->recovery),
-						 msecs_to_jiffies(5000));
 	if (cmd == STOP_ARRAY || cmd == STOP_ARRAY_RO) {
 		/* Need to flush page cache, and ensure no-one else opens
 		 * and writes
@@ -8543,7 +8537,7 @@ int unregister_md_personality(struct md_personality *p)
 }
 EXPORT_SYMBOL(unregister_md_personality);
 
-int register_md_cluster_operations(struct md_cluster_operations *ops,
+int register_md_cluster_operations(const struct md_cluster_operations *ops,
 				   struct module *module)
 {
 	int ret = 0;
