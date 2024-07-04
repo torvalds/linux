@@ -231,14 +231,14 @@ static void __ad9467_get_scale(struct ad9467_state *st, int index,
 	*val2 = tmp % 1000000;
 }
 
-#define AD9467_CHAN(_chan, _si, _bits, _sign)				\
+#define AD9467_CHAN(_chan, avai_mask, _si, _bits, _sign)		\
 {									\
 	.type = IIO_VOLTAGE,						\
 	.indexed = 1,							\
 	.channel = _chan,						\
 	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE) |		\
 		BIT(IIO_CHAN_INFO_SAMP_FREQ),				\
-	.info_mask_shared_by_type_available = BIT(IIO_CHAN_INFO_SCALE), \
+	.info_mask_shared_by_type_available = avai_mask,		\
 	.scan_index = _si,						\
 	.scan_type = {							\
 		.sign = _sign,						\
@@ -248,11 +248,11 @@ static void __ad9467_get_scale(struct ad9467_state *st, int index,
 }
 
 static const struct iio_chan_spec ad9434_channels[] = {
-	AD9467_CHAN(0, 0, 12, 's'),
+	AD9467_CHAN(0, BIT(IIO_CHAN_INFO_SCALE), 0, 12, 's'),
 };
 
 static const struct iio_chan_spec ad9467_channels[] = {
-	AD9467_CHAN(0, 0, 16, 's'),
+	AD9467_CHAN(0, BIT(IIO_CHAN_INFO_SCALE), 0, 16, 's'),
 };
 
 static const struct ad9467_chip_info ad9467_chip_tbl = {
@@ -301,8 +301,13 @@ static const struct ad9467_chip_info ad9265_chip_tbl = {
 static int ad9467_get_scale(struct ad9467_state *st, int *val, int *val2)
 {
 	const struct ad9467_chip_info *info = st->info;
-	unsigned int i, vref_val;
+	unsigned int vref_val;
+	unsigned int i = 0;
 	int ret;
+
+	/* nothing to read if we only have one possible scale */
+	if (info->num_scales == 1)
+		goto out_get_scale;
 
 	ret = ad9467_spi_read(st, AN877_ADC_REG_VREF);
 	if (ret < 0)
@@ -318,6 +323,7 @@ static int ad9467_get_scale(struct ad9467_state *st, int *val, int *val2)
 	if (i == info->num_scales)
 		return -ERANGE;
 
+out_get_scale:
 	__ad9467_get_scale(st, i, val, val2);
 
 	return IIO_VAL_INT_PLUS_MICRO;
@@ -332,6 +338,8 @@ static int ad9467_set_scale(struct ad9467_state *st, int val, int val2)
 
 	if (val != 0)
 		return -EINVAL;
+	if (info->num_scales == 1)
+		return -EOPNOTSUPP;
 
 	for (i = 0; i < info->num_scales; i++) {
 		__ad9467_get_scale(st, i, &scale_val[0], &scale_val[1]);
@@ -730,7 +738,7 @@ static int ad9467_update_scan_mode(struct iio_dev *indio_dev,
 	return 0;
 }
 
-static const struct iio_info ad9467_info = {
+static struct iio_info ad9467_info = {
 	.read_raw = ad9467_read_raw,
 	.write_raw = ad9467_write_raw,
 	.update_scan_mode = ad9467_update_scan_mode,
@@ -905,6 +913,8 @@ static int ad9467_probe(struct spi_device *spi)
 		return -ENODEV;
 	}
 
+	if (st->info->num_scales > 1)
+		ad9467_info.read_avail = ad9467_read_avail;
 	indio_dev->name = st->info->name;
 	indio_dev->channels = st->info->channels;
 	indio_dev->num_channels = st->info->num_channels;
