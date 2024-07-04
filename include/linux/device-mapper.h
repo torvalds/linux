@@ -364,12 +364,6 @@ struct dm_target {
 	bool max_discard_granularity:1;
 
 	/*
-	 * Set if this target requires that secure_erases be split on
-	 * 'max_secure_erase_sectors' boundaries.
-	 */
-	bool max_secure_erase_granularity:1;
-
-	/*
 	 * Set if we need to limit the number of in-flight bios when swapping.
 	 */
 	bool limit_swap_bios:1;

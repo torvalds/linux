@@ -1658,8 +1658,6 @@ static blk_status_t __process_abnormal_io(struct clone_info *ci,
 	case REQ_OP_SECURE_ERASE:
 		num_bios = ti->num_secure_erase_bios;
 		max_sectors = limits->max_secure_erase_sectors;
-		if (ti->max_secure_erase_granularity)
-			max_granularity = max_sectors;
 		break;
 	case REQ_OP_WRITE_ZEROES:
 		num_bios = ti->num_write_zeroes_bios;
