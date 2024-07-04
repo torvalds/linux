@@ -1168,10 +1168,6 @@ static Elf_Addr addend_386_rel(uint32_t *location, unsigned int r_type)
 	return (Elf_Addr)(-1);
 }
 
-#ifndef	R_ARM_THM_CALL
-#define	R_ARM_THM_CALL		10
-#endif
-
 static int32_t sign_extend32(int32_t value, int index)
 {
 	uint8_t shift = 31 - index;
@@ -1232,7 +1228,7 @@ static Elf_Addr addend_arm_rel(void *loc, Elf_Sym *sym, unsigned int r_type)
 				       ((lower & 0x07ff) << 1),
 				       20);
 		return offset + sym->st_value + 4;
-	case R_ARM_THM_CALL:
+	case R_ARM_THM_PC22:
 	case R_ARM_THM_JUMP24:
 		/*
 		 * Encoding T4:
