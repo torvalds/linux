@@ -5208,10 +5208,9 @@ static void perf_pending_task_sync(struct perf_event *event)
 	}
 
 	/*
-	 * All accesses related to the event are within the same
-	 * non-preemptible section in perf_pending_task(). The RCU
-	 * grace period before the event is freed will make sure all
-	 * those accesses are complete by then.
+	 * All accesses related to the event are within the same RCU section in
+	 * perf_pending_task(). The RCU grace period before the event is freed
+	 * will make sure all those accesses are complete by then.
 	 */
 	rcuwait_wait_event(&event->pending_work_wait, !event->pending_work, TASK_UNINTERRUPTIBLE);
 }
@@ -6831,7 +6830,7 @@ static void perf_pending_task(struct callback_head *head)
 	 * critical section as the ->pending_work reset. See comment in
 	 * perf_pending_task_sync().
 	 */
-	preempt_disable_notrace();
+	rcu_read_lock();
 	/*
 	 * If we 'fail' here, that's OK, it means recursion is already disabled
 	 * and we won't recurse 'further'.
@@ -6844,10 +6843,10 @@ static void perf_pending_task(struct callback_head *head)
 		local_dec(&event->ctx->nr_pending);
 		rcuwait_wake_up(&event->pending_work_wait);
 	}
+	rcu_read_unlock();
 
 	if (rctx >= 0)
 		perf_swevent_put_recursion_context(rctx);
-	preempt_enable_notrace();
 }
 
 #ifdef CONFIG_GUEST_PERF_EVENTS
