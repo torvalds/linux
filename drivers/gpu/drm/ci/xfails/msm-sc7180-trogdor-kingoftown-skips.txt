@@ -4,7 +4,7 @@
 # Skip driver specific tests
 ^amdgpu.*
 nouveau_.*
-panfrost_.*
+^panfrost.*
 ^v3d.*
 ^vc4.*
 ^vmwgfx*
@@ -19,3 +19,6 @@ core_hotunplug.*
 
 # Timeout occurs
 kms_flip@2x-wf_vblank-ts-check
+
+# Hangs the machine
+kms_cursor_crc@cursor-random-max-size

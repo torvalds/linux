@@ -1,7 +1,7 @@
 # Skip driver specific tests
 ^amdgpu.*
 nouveau_.*
-panfrost_.*
+^panfrost.*
 ^v3d.*
 ^vc4.*
 ^vmwgfx*

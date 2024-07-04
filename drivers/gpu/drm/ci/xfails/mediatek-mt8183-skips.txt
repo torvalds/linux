@@ -1,6 +1,6 @@
 # Skip driver specific tests
 ^amdgpu.*
-msm_.*
+^msm.*
 nouveau_.*
 ^v3d.*
 ^vc4.*
