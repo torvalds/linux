@@ -165,6 +165,7 @@ static inline int cec_msg_recv_is_rx_result(const struct cec_msg *msg)
 /* cec_msg flags field */
 #define CEC_MSG_FL_REPLY_TO_FOLLOWERS	(1 << 0)
 #define CEC_MSG_FL_RAW			(1 << 1)
+#define CEC_MSG_FL_REPLY_VENDOR_ID	(1 << 2)
 
 /* cec_msg tx/rx_status field */
 #define CEC_TX_STATUS_OK		(1 << 0)
@@ -339,6 +340,8 @@ static inline int cec_is_unconfigured(__u16 log_addr_mask)
 #define CEC_CAP_MONITOR_PIN	(1 << 7)
 /* CEC_ADAP_G_CONNECTOR_INFO is available */
 #define CEC_CAP_CONNECTOR_INFO	(1 << 8)
+/* CEC_MSG_FL_REPLY_VENDOR_ID is available */
+#define CEC_CAP_REPLY_VENDOR_ID	(1 << 9)
 
 /**
  * struct cec_caps - CEC capabilities structure.

@@ -137,6 +137,12 @@ returns the information to the application. The ioctl never fails.
       - 0x00000100
       - If this capability is set, then :ref:`CEC_ADAP_G_CONNECTOR_INFO` can
         be used.
+    * .. _`CEC-CAP-REPLY-VENDOR-ID`:
+
+      - ``CEC_CAP_REPLY_VENDOR_ID``
+      - 0x00000200
+      - If this capability is set, then
+        :ref:`CEC_MSG_FL_REPLY_VENDOR_ID <cec-msg-flags>` can be used.
 
 Return Value
 ============

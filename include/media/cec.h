@@ -66,6 +66,8 @@ struct cec_data {
 	struct list_head xfer_list;
 	struct cec_adapter *adap;
 	struct cec_msg msg;
+	u8 match_len;
+	u8 match_reply[5];
 	struct cec_fh *fh;
 	struct delayed_work work;
 	struct completion c;
