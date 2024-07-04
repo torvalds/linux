@@ -5401,6 +5401,8 @@ SYSCALL_DEFINE4(listmount, const struct mnt_id_req __user *, req,
 	scoped_guard(rwsem_read, &namespace_sem)
 		ret = do_listmount(ns, kreq.mnt_id, kreq.param, kmnt_ids,
 				   nr_mnt_ids, (flags & LISTMOUNT_REVERSE));
+	if (ret <= 0)
+		return ret;
 
 	if (copy_to_user(mnt_ids, kmnt_ids, ret * sizeof(*mnt_ids)))
 		return -EFAULT;
