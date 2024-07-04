@@ -125,12 +125,12 @@ gen_source ()
 rm -rf debian
 mkdir debian
 
-user=${KBUILD_BUILD_USER-$(id -nu)}
-name=${DEBFULLNAME-${user}}
+user=${KBUILD_BUILD_USER:-$(id -nu)}
+name=${DEBFULLNAME:-${user}}
 if [ "${DEBEMAIL:+set}" ]; then
 	email=${DEBEMAIL}
 else
-	buildhost=${KBUILD_BUILD_HOST-$(hostname -f 2>/dev/null || hostname)}
+	buildhost=${KBUILD_BUILD_HOST:-$(hostname -f 2>/dev/null || hostname)}
 	email="${user}@${buildhost}"
 fi
 maintainer="${name} <${email}>"
