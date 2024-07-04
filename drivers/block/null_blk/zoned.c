@@ -145,7 +145,7 @@ int null_init_zoned_dev(struct nullb_device *dev,
 		zone = &dev->zones[i];
 
 		null_init_zone_lock(dev, zone);
-		zone->start = zone->wp = sector;
+		zone->start = sector;
 		if (zone->start + dev->zone_size_sects > dev_capacity_sects)
 			zone->len = dev_capacity_sects - zone->start;
 		else
@@ -153,7 +153,13 @@ int null_init_zoned_dev(struct nullb_device *dev,
 		zone->capacity =
 			min_t(sector_t, zone->len, zone_capacity_sects);
 		zone->type = BLK_ZONE_TYPE_SEQWRITE_REQ;
-		zone->cond = BLK_ZONE_COND_EMPTY;
+		if (dev->zone_full) {
+			zone->cond = BLK_ZONE_COND_FULL;
+			zone->wp = zone->start + zone->capacity;
+		} else{
+			zone->cond = BLK_ZONE_COND_EMPTY;
+			zone->wp = zone->start;
+		}
 
 		sector += dev->zone_size_sects;
 	}
