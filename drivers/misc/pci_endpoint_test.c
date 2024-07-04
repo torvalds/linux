@@ -144,18 +144,6 @@ static inline void pci_endpoint_test_writel(struct pci_endpoint_test *test,
 	writel(value, test->base + offset);
 }
 
-static inline u32 pci_endpoint_test_bar_readl(struct pci_endpoint_test *test,
-					      int bar, int offset)
-{
-	return readl(test->bar[bar] + offset);
-}
-
-static inline void pci_endpoint_test_bar_writel(struct pci_endpoint_test *test,
-						int bar, u32 offset, u32 value)
-{
-	writel(value, test->bar[bar] + offset);
-}
-
 static irqreturn_t pci_endpoint_test_irqhandler(int irq, void *dev_id)
 {
 	struct pci_endpoint_test *test = dev_id;
