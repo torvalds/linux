@@ -292,10 +292,12 @@ static int device_get_zone_resource_limits(struct dm_target *ti,
 
 	/*
 	 * If the target does not map all sequential zones, the limits
-	 * will not be reliable.
+	 * will not be reliable and we cannot use REQ_OP_ZONE_RESET_ALL.
 	 */
-	if (zc.target_nr_seq_zones < zc.total_nr_seq_zones)
+	if (zc.target_nr_seq_zones < zc.total_nr_seq_zones) {
 		zlim->reliable_limits = false;
+		ti->zone_reset_all_supported = false;
+	}
 
 	/*
 	 * If the target maps less sequential zones than the limit values, then
@@ -352,6 +354,14 @@ int dm_set_zones_restrictions(struct dm_table *t, struct request_queue *q,
 	 */
 	for (unsigned int i = 0; i < t->num_targets; i++) {
 		struct dm_target *ti = dm_table_get_target(t, i);
+
+		/*
+		 * Assume that the target can accept REQ_OP_ZONE_RESET_ALL.
+		 * device_get_zone_resource_limits() may adjust this if one of
+		 * the device used by the target does not have all its
+		 * sequential write required zones mapped.
+		 */
+		ti->zone_reset_all_supported = true;
 
 		if (!ti->type->iterate_devices ||
 		    ti->type->iterate_devices(ti,
@@ -419,4 +429,40 @@ void dm_zone_endio(struct dm_io *io, struct bio *clone)
 	}
 
 	return;
+}
+
+static int dm_zone_need_reset_cb(struct blk_zone *zone, unsigned int idx,
+				 void *data)
+{
+	/*
+	 * For an all-zones reset, ignore conventional, empty, read-only
+	 * and offline zones.
+	 */
+	switch (zone->cond) {
+	case BLK_ZONE_COND_NOT_WP:
+	case BLK_ZONE_COND_EMPTY:
+	case BLK_ZONE_COND_READONLY:
+	case BLK_ZONE_COND_OFFLINE:
+		return 0;
+	default:
+		set_bit(idx, (unsigned long *)data);
+		return 0;
+	}
+}
+
+int dm_zone_get_reset_bitmap(struct mapped_device *md, struct dm_table *t,
+			     sector_t sector, unsigned int nr_zones,
+			     unsigned long *need_reset)
+{
+	int ret;
+
+	ret = dm_blk_do_report_zones(md, t, sector, nr_zones,
+				     dm_zone_need_reset_cb, need_reset);
+	if (ret != nr_zones) {
+		DMERR("Get %s zone reset bitmap failed\n",
+		      md->disk->disk_name);
+		return -EIO;
+	}
+
+	return 0;
 }

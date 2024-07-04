@@ -358,6 +358,13 @@ struct dm_target {
 	bool discards_supported:1;
 
 	/*
+	 * Automatically set by dm-core if this target supports
+	 * REQ_OP_ZONE_RESET_ALL. Otherwise, this operation will be emulated
+	 * using REQ_OP_ZONE_RESET. Target drivers must not set this manually.
+	 */
+	bool zone_reset_all_supported:1;
+
+	/*
 	 * Set if this target requires that discards be split on
 	 * 'max_discard_sectors' boundaries.
 	 */

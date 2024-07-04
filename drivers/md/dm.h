@@ -110,6 +110,9 @@ int dm_blk_report_zones(struct gendisk *disk, sector_t sector,
 			unsigned int nr_zones, report_zones_cb cb, void *data);
 bool dm_is_zone_write(struct mapped_device *md, struct bio *bio);
 int dm_zone_map_bio(struct dm_target_io *io);
+int dm_zone_get_reset_bitmap(struct mapped_device *md, struct dm_table *t,
+			     sector_t sector, unsigned int nr_zones,
+			     unsigned long *need_reset);
 #else
 #define dm_blk_report_zones	NULL
 static inline bool dm_is_zone_write(struct mapped_device *md, struct bio *bio)
