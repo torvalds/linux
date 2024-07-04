@@ -1122,7 +1122,7 @@ struct phy_driver {
 				  u8 index, enum led_brightness value);
 
 	/**
-	 * @led_blink_set: Set a PHY LED brightness.  Index indicates
+	 * @led_blink_set: Set a PHY LED blinking.  Index indicates
 	 * which of the PHYs led should be configured to blink. Delays
 	 * are in milliseconds and if both are zero then a sensible
 	 * default should be chosen.  The call should adjust the
