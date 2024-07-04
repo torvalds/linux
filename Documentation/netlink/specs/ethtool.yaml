@@ -940,6 +940,15 @@ attribute-sets:
         name: power-mode
         type: u8
   -
+    name: c33-pse-pw-limit
+    attributes:
+      -
+        name: min
+        type: u32
+      -
+        name: max
+        type: u32
+  -
     name: pse
     attributes:
       -
@@ -987,6 +996,16 @@ attribute-sets:
         name: c33-pse-ext-substate
         type: u32
         name-prefix: ethtool-a-
+      -
+        name: c33-pse-avail-pw-limit
+        type: u32
+        name-prefix: ethtool-a-
+      -
+        name: c33-pse-pw-limit-ranges
+        name-prefix: ethtool-a-
+        type: nest
+        multi-attr: true
+        nested-attributes: c33-pse-pw-limit
   -
     name: rss
     attributes:
@@ -1708,6 +1727,8 @@ operations:
             - c33-pse-actual-pw
             - c33-pse-ext-state
             - c33-pse-ext-substate
+            - c33-pse-avail-pw-limit
+            - c33-pse-pw-limit-ranges
       dump: *pse-get-op
     -
       name: pse-set
@@ -1721,6 +1742,7 @@ operations:
             - header
             - podl-pse-admin-control
             - c33-pse-admin-control
+            - c33-pse-avail-pw-limit
     -
       name: rss-get
       doc: Get RSS params.
