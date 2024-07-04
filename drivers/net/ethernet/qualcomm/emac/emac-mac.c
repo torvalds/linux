@@ -1076,7 +1076,7 @@ static void emac_receive_skb(struct emac_rx_queue *rx_q,
 	if (vlan_flag) {
 		u16 vlan;
 
-		EMAC_TAG_TO_VLAN(vlan_tag, vlan);
+		vlan = ((((vlan_tag) >> 8) & 0xFF) | (((vlan_tag) & 0xFF) << 8));
 		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlan);
 	}
 
@@ -1449,7 +1449,8 @@ netdev_tx_t emac_mac_tx_buf_send(struct emac_adapter *adpt,
 	if (skb_vlan_tag_present(skb)) {
 		u16 tag;
 
-		EMAC_VLAN_TO_TAG(skb_vlan_tag_get(skb), tag);
+		tag = (((skb_vlan_tag_get(skb) >> 8) & 0xFF) |
+		       ((skb_vlan_tag_get(skb) & 0xFF) << 8));
 		TPD_CVLAN_TAG_SET(&tpd, tag);
 		TPD_INSTC_SET(&tpd, 1);
 	}
