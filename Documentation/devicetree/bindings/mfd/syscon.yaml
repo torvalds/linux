@@ -57,7 +57,6 @@ properties:
               - hisilicon,pcie-sas-subctrl
               - hisilicon,peri-subctrl
               - hpe,gxp-sysreg
-              - intel,lgm-syscon
               - loongson,ls1b-syscon
               - loongson,ls1c-syscon
               - marvell,armada-3700-cpu-misc
@@ -71,7 +70,6 @@ properties:
               - mediatek,mt8173-pctl-a-syscfg
               - mediatek,mt8365-syscfg
               - microchip,lan966x-cpu-syscon
-              - microchip,sparx5-cpu-syscon
               - mstar,msc313-pmsleep
               - nuvoton,ma35d1-sys
               - nuvoton,wpcm450-shm
@@ -90,7 +88,6 @@ properties:
               - ti,am62-usb-phy-ctrl
               - ti,am62p-cpsw-mac-efuse
               - ti,am654-dss-oldi-io-ctrl
-              - ti,am654-serdes-ctrl
               - ti,j784s4-pcie-ctrl
 
           - const: syscon
@@ -111,11 +108,6 @@ properties:
 
   resets:
     maxItems: 1
-
-  hwlocks:
-    maxItems: 1
-    description:
-      Reference to a phandle of a hardware spinlock provider node.
 
 required:
   - compatible
