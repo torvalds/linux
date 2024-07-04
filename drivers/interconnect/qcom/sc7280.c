@@ -1691,6 +1691,7 @@ static const struct qcom_icc_desc sc7280_aggre1_noc = {
 	.num_nodes = ARRAY_SIZE(aggre1_noc_nodes),
 	.bcms = aggre1_noc_bcms,
 	.num_bcms = ARRAY_SIZE(aggre1_noc_bcms),
+	.qos_clks_required = true,
 };
 
 static struct qcom_icc_bcm * const aggre2_noc_bcms[] = {
@@ -1722,6 +1723,7 @@ static const struct qcom_icc_desc sc7280_aggre2_noc = {
 	.num_nodes = ARRAY_SIZE(aggre2_noc_nodes),
 	.bcms = aggre2_noc_bcms,
 	.num_bcms = ARRAY_SIZE(aggre2_noc_bcms),
+	.qos_clks_required = true,
 };
 
 static struct qcom_icc_bcm * const clk_virt_bcms[] = {

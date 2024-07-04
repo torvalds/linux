@@ -153,6 +153,7 @@ struct qcom_icc_desc {
 	size_t num_nodes;
 	struct qcom_icc_bcm * const *bcms;
 	size_t num_bcms;
+	bool qos_clks_required;
 };
 
 int qcom_icc_aggregate(struct icc_node *node, u32 tag, u32 avg_bw,
