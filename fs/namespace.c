@@ -5375,6 +5375,7 @@ SYSCALL_DEFINE4(listmount, const struct mnt_id_req __user *, req,
 	const size_t maxcount = 1000000;
 	struct mnt_namespace *ns __free(mnt_ns_release) = NULL;
 	struct mnt_id_req kreq;
+	u64 last_mnt_id;
 	ssize_t ret;
 
 	if (flags & ~LISTMOUNT_REVERSE)
@@ -5395,6 +5396,11 @@ SYSCALL_DEFINE4(listmount, const struct mnt_id_req __user *, req,
 	if (ret)
 		return ret;
 
+	last_mnt_id = kreq.param;
+	/* The first valid unique mount id is MNT_UNIQUE_ID_OFFSET + 1. */
+	if (last_mnt_id != 0 && last_mnt_id <= MNT_UNIQUE_ID_OFFSET)
+		return -EINVAL;
+
 	kmnt_ids = kvmalloc_array(nr_mnt_ids, sizeof(*kmnt_ids),
 				  GFP_KERNEL_ACCOUNT);
 	if (!kmnt_ids)
@@ -5409,7 +5415,7 @@ SYSCALL_DEFINE4(listmount, const struct mnt_id_req __user *, req,
 		return -ENOENT;
 
 	scoped_guard(rwsem_read, &namespace_sem)
-		ret = do_listmount(ns, kreq.mnt_id, kreq.param, kmnt_ids,
+		ret = do_listmount(ns, kreq.mnt_id, last_mnt_id, kmnt_ids,
 				   nr_mnt_ids, (flags & LISTMOUNT_REVERSE));
 	if (ret <= 0)
 		return ret;
