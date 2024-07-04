@@ -1521,6 +1521,11 @@ bool bch2_journal_seq_pins_to_text(struct printbuf *out, struct journal *j, u64 
 	struct journal_entry_pin *pin;
 
 	spin_lock(&j->lock);
+	if (!test_bit(JOURNAL_running, &j->flags)) {
+		spin_unlock(&j->lock);
+		return true;
+	}
+
 	*seq = max(*seq, j->pin.front);
 
 	if (*seq >= j->pin.back) {

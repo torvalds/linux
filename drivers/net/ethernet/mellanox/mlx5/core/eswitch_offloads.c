@@ -4600,20 +4600,26 @@ mlx5_devlink_port_fn_max_io_eqs_get(struct devlink_port *port, u32 *max_io_eqs,
 		return -EOPNOTSUPP;
 	}
 
+	if (!MLX5_CAP_GEN_2(esw->dev, max_num_eqs_24b)) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Device doesn't support getting the max number of EQs");
+		return -EOPNOTSUPP;
+	}
+
 	query_ctx = kzalloc(query_out_sz, GFP_KERNEL);
 	if (!query_ctx)
 		return -ENOMEM;
 
 	mutex_lock(&esw->state_lock);
 	err = mlx5_vport_get_other_func_cap(esw->dev, vport_num, query_ctx,
-					    MLX5_CAP_GENERAL);
+					    MLX5_CAP_GENERAL_2);
 	if (err) {
 		NL_SET_ERR_MSG_MOD(extack, "Failed getting HCA caps");
 		goto out;
 	}
 
 	hca_caps = MLX5_ADDR_OF(query_hca_cap_out, query_ctx, capability);
-	max_eqs = MLX5_GET(cmd_hca_cap, hca_caps, max_num_eqs);
+	max_eqs = MLX5_GET(cmd_hca_cap_2, hca_caps, max_num_eqs_24b);
 	if (max_eqs < MLX5_ESW_MAX_CTRL_EQS)
 		*max_io_eqs = 0;
 	else
@@ -4644,6 +4650,12 @@ mlx5_devlink_port_fn_max_io_eqs_set(struct devlink_port *port, u32 max_io_eqs,
 		return -EOPNOTSUPP;
 	}
 
+	if (!MLX5_CAP_GEN_2(esw->dev, max_num_eqs_24b)) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Device doesn't support changing the max number of EQs");
+		return -EOPNOTSUPP;
+	}
+
 	if (check_add_overflow(max_io_eqs, MLX5_ESW_MAX_CTRL_EQS, &max_eqs)) {
 		NL_SET_ERR_MSG_MOD(extack, "Supplied value out of range");
 		return -EINVAL;
@@ -4655,17 +4667,17 @@ mlx5_devlink_port_fn_max_io_eqs_set(struct devlink_port *port, u32 max_io_eqs,
 
 	mutex_lock(&esw->state_lock);
 	err = mlx5_vport_get_other_func_cap(esw->dev, vport_num, query_ctx,
-					    MLX5_CAP_GENERAL);
+					    MLX5_CAP_GENERAL_2);
 	if (err) {
 		NL_SET_ERR_MSG_MOD(extack, "Failed getting HCA caps");
 		goto out;
 	}
 
 	hca_caps = MLX5_ADDR_OF(query_hca_cap_out, query_ctx, capability);
-	MLX5_SET(cmd_hca_cap, hca_caps, max_num_eqs, max_eqs);
+	MLX5_SET(cmd_hca_cap_2, hca_caps, max_num_eqs_24b, max_eqs);
 
 	err = mlx5_vport_set_other_func_cap(esw->dev, hca_caps, vport_num,
-					    MLX5_SET_HCA_CAP_OP_MOD_GENERAL_DEVICE);
+					    MLX5_SET_HCA_CAP_OP_MOD_GENERAL_DEVICE2);
 	if (err)
 		NL_SET_ERR_MSG_MOD(extack, "Failed setting HCA caps");
 

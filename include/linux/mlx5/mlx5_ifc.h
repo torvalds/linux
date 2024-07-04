@@ -2036,7 +2036,11 @@ struct mlx5_ifc_cmd_hca_cap_2_bits {
 	u8	   min_mkey_log_entity_size_fixed_buffer_valid[0x1];
 	u8	   reserved_at_402[0x1e];
 
-	u8	   reserved_at_420[0x3e0];
+	u8	   reserved_at_420[0x20];
+
+	u8	   reserved_at_440[0x8];
+	u8	   max_num_eqs_24b[0x18];
+	u8	   reserved_at_460[0x3a0];
 };
 
 enum mlx5_ifc_flow_destination_type {

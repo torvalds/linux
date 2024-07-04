@@ -490,13 +490,14 @@ static int ccwchain_fetch_tic(struct ccw1 *ccw,
 			      struct channel_program *cp)
 {
 	struct ccwchain *iter;
-	u32 cda, ccw_head;
+	u32 offset, ccw_head;
 
 	list_for_each_entry(iter, &cp->ccwchain_list, next) {
 		ccw_head = iter->ch_iova;
 		if (is_cpa_within_range(ccw->cda, ccw_head, iter->ch_len)) {
-			cda = (u64)iter->ch_ccw + dma32_to_u32(ccw->cda) - ccw_head;
-			ccw->cda = u32_to_dma32(cda);
+			/* Calculate offset of TIC target */
+			offset = dma32_to_u32(ccw->cda) - ccw_head;
+			ccw->cda = virt_to_dma32((void *)iter->ch_ccw + offset);
 			return 0;
 		}
 	}
@@ -914,7 +915,7 @@ void cp_update_scsw(struct channel_program *cp, union scsw *scsw)
 	 * in the ioctl directly. Path status changes etc.
 	 */
 	list_for_each_entry(chain, &cp->ccwchain_list, next) {
-		ccw_head = (u32)(u64)chain->ch_ccw;
+		ccw_head = dma32_to_u32(virt_to_dma32(chain->ch_ccw));
 		/*
 		 * On successful execution, cpa points just beyond the end
 		 * of the chain.
