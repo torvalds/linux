@@ -5516,6 +5516,8 @@ static int init_rescuer(struct workqueue_struct *wq)
 	struct worker *rescuer;
 	int ret;
 
+	lockdep_assert_held(&wq_pool_mutex);
+
 	if (!(wq->flags & WQ_MEM_RECLAIM))
 		return 0;
 
@@ -5538,7 +5540,7 @@ static int init_rescuer(struct workqueue_struct *wq)
 
 	wq->rescuer = rescuer;
 	if (wq->flags & WQ_UNBOUND)
-		kthread_bind_mask(rescuer->task, wq_unbound_cpumask);
+		kthread_bind_mask(rescuer->task, unbound_effective_cpumask(wq));
 	else
 		kthread_bind_mask(rescuer->task, cpu_possible_mask);
 	wake_up_process(rescuer->task);
@@ -5702,10 +5704,10 @@ struct workqueue_struct *alloc_workqueue(const char *fmt,
 
 	list_add_tail_rcu(&wq->list, &workqueues);
 
-	apply_wqattrs_unlock();
-
 	if (wq_online && init_rescuer(wq) < 0)
-		goto err_destroy;
+		goto err_unlock_destroy;
+
+	apply_wqattrs_unlock();
 
 	if ((wq->flags & WQ_SYSFS) && workqueue_sysfs_register(wq))
 		goto err_destroy;
@@ -5730,6 +5732,8 @@ err_free_wq:
 	free_workqueue_attrs(wq->unbound_attrs);
 	kfree(wq);
 	return NULL;
+err_unlock_destroy:
+	apply_wqattrs_unlock();
 err_destroy:
 	destroy_workqueue(wq);
 	return NULL;
