@@ -3077,7 +3077,7 @@ static void tcp_fastretrans_alert(struct sock *sk, const u32 prior_snd_una,
 			return;
 
 		if (tcp_try_undo_dsack(sk))
-			tcp_try_keep_open(sk);
+			tcp_try_to_open(sk, flag);
 
 		tcp_identify_packet_loss(sk, ack_flag);
 		if (icsk->icsk_ca_state != TCP_CA_Recovery) {
@@ -4221,6 +4221,13 @@ void tcp_parse_options(const struct net *net,
 			case TCPOPT_MD5SIG:
 				/* The MD5 Hash has already been
 				 * checked (see tcp_v{4,6}_rcv()).
+				 */
+				break;
+#endif
+#ifdef CONFIG_TCP_AO
+			case TCPOPT_AO:
+				/* TCP AO has already been checked
+				 * (see tcp_inbound_ao_hash()).
 				 */
 				break;
 #endif
