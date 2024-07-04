@@ -212,12 +212,10 @@ void mpi_rshift(MPI x, MPI a, unsigned int n)
 			return;
 		}
 
-		if (nlimbs) {
-			for (i = 0; i < x->nlimbs - nlimbs; i++)
-				x->d[i] = x->d[i+nlimbs];
-			x->d[i] = 0;
-			x->nlimbs -= nlimbs;
-		}
+		for (i = 0; i < x->nlimbs - nlimbs; i++)
+			x->d[i] = x->d[i+nlimbs];
+		x->d[i] = 0;
+		x->nlimbs -= nlimbs;
 
 		if (x->nlimbs && nbits)
 			mpihelp_rshift(x->d, x->d, x->nlimbs, nbits);
