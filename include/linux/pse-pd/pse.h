@@ -9,6 +9,9 @@
 #include <linux/list.h>
 #include <uapi/linux/ethtool.h>
 
+/* Maximum current in uA according to IEEE 802.3-2022 Table 145-1 */
+#define MAX_PI_CURRENT 1920000
+
 struct phy_device;
 struct pse_controller_dev;
 
@@ -41,6 +44,12 @@ struct pse_control_config {
  * @c33_actual_pw: power currently delivered by the PSE in mW
  *	IEEE 802.3-2022 30.9.1.1.23 aPSEActualPower
  * @c33_ext_state_info: extended state information of the PSE
+ * @c33_avail_pw_limit: available power limit of the PSE in mW
+ *	IEEE 802.3-2022 145.2.5.4 pse_avail_pwr
+ * @c33_pw_limit_ranges: supported power limit configuration range. The driver
+ *	is in charge of the memory allocation.
+ * @c33_pw_limit_nb_ranges: number of supported power limit configuration
+ *	ranges
  */
 struct pse_control_status {
 	enum ethtool_podl_pse_admin_state podl_admin_state;
@@ -50,6 +59,9 @@ struct pse_control_status {
 	u32 c33_pw_class;
 	u32 c33_actual_pw;
 	struct ethtool_c33_pse_ext_state_info c33_ext_state_info;
+	u32 c33_avail_pw_limit;
+	struct ethtool_c33_pse_pw_limit_range *c33_pw_limit_ranges;
+	u32 c33_pw_limit_nb_ranges;
 };
 
 /**
@@ -61,6 +73,14 @@ struct pse_control_status {
  *		   May also return negative errno.
  * @pi_enable: Configure the PSE PI as enabled.
  * @pi_disable: Configure the PSE PI as disabled.
+ * @pi_get_voltage: Return voltage similarly to get_voltage regulator
+ *		    callback.
+ * @pi_get_current_limit: Get the configured current limit similarly to
+ *			  get_current_limit regulator callback.
+ * @pi_set_current_limit: Configure the current limit similarly to
+ *			  set_current_limit regulator callback.
+ *			  Should not return an error in case of MAX_PI_CURRENT
+ *			  current value set.
  */
 struct pse_controller_ops {
 	int (*ethtool_get_status)(struct pse_controller_dev *pcdev,
@@ -70,6 +90,11 @@ struct pse_controller_ops {
 	int (*pi_is_enabled)(struct pse_controller_dev *pcdev, int id);
 	int (*pi_enable)(struct pse_controller_dev *pcdev, int id);
 	int (*pi_disable)(struct pse_controller_dev *pcdev, int id);
+	int (*pi_get_voltage)(struct pse_controller_dev *pcdev, int id);
+	int (*pi_get_current_limit)(struct pse_controller_dev *pcdev,
+				    int id);
+	int (*pi_set_current_limit)(struct pse_controller_dev *pcdev,
+				    int id, int max_uA);
 };
 
 struct module;
@@ -156,6 +181,11 @@ int pse_ethtool_get_status(struct pse_control *psec,
 int pse_ethtool_set_config(struct pse_control *psec,
 			   struct netlink_ext_ack *extack,
 			   const struct pse_control_config *config);
+int pse_ethtool_set_pw_limit(struct pse_control *psec,
+			     struct netlink_ext_ack *extack,
+			     const unsigned int pw_limit);
+int pse_ethtool_get_pw_limit(struct pse_control *psec,
+			     struct netlink_ext_ack *extack);
 
 bool pse_has_podl(struct pse_control *psec);
 bool pse_has_c33(struct pse_control *psec);
@@ -181,6 +211,19 @@ static inline int pse_ethtool_get_status(struct pse_control *psec,
 static inline int pse_ethtool_set_config(struct pse_control *psec,
 					 struct netlink_ext_ack *extack,
 					 const struct pse_control_config *config)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int pse_ethtool_set_pw_limit(struct pse_control *psec,
+					   struct netlink_ext_ack *extack,
+					   const unsigned int pw_limit)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int pse_ethtool_get_pw_limit(struct pse_control *psec,
+					   struct netlink_ext_ack *extack)
 {
 	return -EOPNOTSUPP;
 }
