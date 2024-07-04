@@ -39,8 +39,11 @@ struct t10_pi_tuple {
 
 static inline u32 t10_pi_ref_tag(struct request *rq)
 {
-	unsigned int shift = rq->q->limits.integrity.interval_exp;
+	unsigned int shift = ilog2(queue_logical_block_size(rq->q));
 
+	if (IS_ENABLED(CONFIG_BLK_DEV_INTEGRITY) &&
+	    rq->q->limits.integrity.interval_exp)
+		shift = rq->q->limits.integrity.interval_exp;
 	return blk_rq_pos(rq) >> (shift - SECTOR_SHIFT) & 0xffffffff;
 }
 
@@ -61,8 +64,11 @@ static inline u64 lower_48_bits(u64 n)
 
 static inline u64 ext_pi_ref_tag(struct request *rq)
 {
-	unsigned int shift = rq->q->limits.integrity.interval_exp;
+	unsigned int shift = ilog2(queue_logical_block_size(rq->q));
 
+	if (IS_ENABLED(CONFIG_BLK_DEV_INTEGRITY) &&
+	    rq->q->limits.integrity.interval_exp)
+		shift = rq->q->limits.integrity.interval_exp;
 	return lower_48_bits(blk_rq_pos(rq) >> (shift - SECTOR_SHIFT));
 }
 
