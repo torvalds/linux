@@ -9727,6 +9727,11 @@ static int __perf_event_overflow(struct perf_event *event,
 		if (!event->pending_sigtrap) {
 			event->pending_sigtrap = pending_id;
 			local_inc(&event->ctx->nr_pending);
+
+			event->pending_addr = 0;
+			if (valid_sample && (data->sample_flags & PERF_SAMPLE_ADDR))
+				event->pending_addr = data->addr;
+			irq_work_queue(&event->pending_irq);
 		} else if (event->attr.exclude_kernel && valid_sample) {
 			/*
 			 * Should not be able to return to user space without
@@ -9742,11 +9747,6 @@ static int __perf_event_overflow(struct perf_event *event,
 			 */
 			WARN_ON_ONCE(event->pending_sigtrap != pending_id);
 		}
-
-		event->pending_addr = 0;
-		if (valid_sample && (data->sample_flags & PERF_SAMPLE_ADDR))
-			event->pending_addr = data->addr;
-		irq_work_queue(&event->pending_irq);
 	}
 
 	READ_ONCE(event->overflow_handler)(event, data, regs);
