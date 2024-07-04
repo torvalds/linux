@@ -24,6 +24,21 @@ definitions:
     name: module-fw-flash-status
     type: enum
     entries: [ started, in_progress, completed, error ]
+  -
+    name: c33-pse-ext-state
+    enum-name:
+    type: enum
+    name-prefix: ethtool-c33-pse-ext-state-
+    entries:
+        - none
+        - error-condition
+        - mr-mps-valid
+        - mr-pse-enable
+        - option-detect-ted
+        - option-vport-lim
+        - ovld-detected
+        - power-not-available
+        - short-detected
 
 attribute-sets:
   -
@@ -955,6 +970,23 @@ attribute-sets:
         name: c33-pse-pw-d-status
         type: u32
         name-prefix: ethtool-a-
+      -
+        name: c33-pse-pw-class
+        type: u32
+        name-prefix: ethtool-a-
+      -
+        name: c33-pse-actual-pw
+        type: u32
+        name-prefix: ethtool-a-
+      -
+        name: c33-pse-ext-state
+        type: u32
+        name-prefix: ethtool-a-
+        enum: c33-pse-ext-state
+      -
+        name: c33-pse-ext-substate
+        type: u32
+        name-prefix: ethtool-a-
   -
     name: rss
     attributes:
@@ -1672,6 +1704,10 @@ operations:
             - c33-pse-admin-state
             - c33-pse-admin-control
             - c33-pse-pw-d-status
+            - c33-pse-pw-class
+            - c33-pse-actual-pw
+            - c33-pse-ext-state
+            - c33-pse-ext-substate
       dump: *pse-get-op
     -
       name: pse-set
