@@ -2645,241 +2645,6 @@ static int btusb_recv_event_realtek(struct hci_dev *hdev, struct sk_buff *skb)
 	return hci_recv_frame(hdev, skb);
 }
 
-static int btusb_mtk_func_query(struct hci_dev *hdev)
-{
-	struct btmtk_hci_wmt_params wmt_params;
-	int status, err;
-	u8 param = 0;
-
-	/* Query whether the function is enabled */
-	wmt_params.op = BTMTK_WMT_FUNC_CTRL;
-	wmt_params.flag = 4;
-	wmt_params.dlen = sizeof(param);
-	wmt_params.data = &param;
-	wmt_params.status = &status;
-
-	err = btmtk_usb_hci_wmt_sync(hdev, &wmt_params);
-	if (err < 0) {
-		bt_dev_err(hdev, "Failed to query function status (%d)", err);
-		return err;
-	}
-
-	return status;
-}
-
-static int btusb_mtk_uhw_reg_write(struct btusb_data *data, u32 reg, u32 val)
-{
-	struct hci_dev *hdev = data->hdev;
-	int pipe, err;
-	void *buf;
-
-	buf = kzalloc(4, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-
-	put_unaligned_le32(val, buf);
-
-	pipe = usb_sndctrlpipe(data->udev, 0);
-	err = usb_control_msg(data->udev, pipe, 0x02,
-			      0x5E,
-			      reg >> 16, reg & 0xffff,
-			      buf, 4, USB_CTRL_SET_TIMEOUT);
-	if (err < 0)
-		bt_dev_err(hdev, "Failed to write uhw reg(%d)", err);
-
-	kfree(buf);
-
-	return err;
-}
-
-static int btusb_mtk_uhw_reg_read(struct btusb_data *data, u32 reg, u32 *val)
-{
-	struct hci_dev *hdev = data->hdev;
-	int pipe, err;
-	void *buf;
-
-	buf = kzalloc(4, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-
-	pipe = usb_rcvctrlpipe(data->udev, 0);
-	err = usb_control_msg(data->udev, pipe, 0x01,
-			      0xDE,
-			      reg >> 16, reg & 0xffff,
-			      buf, 4, USB_CTRL_GET_TIMEOUT);
-	if (err < 0) {
-		bt_dev_err(hdev, "Failed to read uhw reg(%d)", err);
-		goto err_free_buf;
-	}
-
-	*val = get_unaligned_le32(buf);
-	bt_dev_dbg(hdev, "reg=%x, value=0x%08x", reg, *val);
-
-err_free_buf:
-	kfree(buf);
-
-	return err;
-}
-
-static int btusb_mtk_reg_read(struct btusb_data *data, u32 reg, u32 *val)
-{
-	int pipe, err, size = sizeof(u32);
-	void *buf;
-
-	buf = kzalloc(size, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-
-	pipe = usb_rcvctrlpipe(data->udev, 0);
-	err = usb_control_msg(data->udev, pipe, 0x63,
-			      USB_TYPE_VENDOR | USB_DIR_IN,
-			      reg >> 16, reg & 0xffff,
-			      buf, size, USB_CTRL_GET_TIMEOUT);
-	if (err < 0)
-		goto err_free_buf;
-
-	*val = get_unaligned_le32(buf);
-
-err_free_buf:
-	kfree(buf);
-
-	return err;
-}
-
-static int btusb_mtk_id_get(struct btusb_data *data, u32 reg, u32 *id)
-{
-	return btusb_mtk_reg_read(data, reg, id);
-}
-
-static u32 btusb_mtk_reset_done(struct hci_dev *hdev)
-{
-	struct btusb_data *data = hci_get_drvdata(hdev);
-	u32 val = 0;
-
-	btusb_mtk_uhw_reg_read(data, MTK_BT_MISC, &val);
-
-	return val & MTK_BT_RST_DONE;
-}
-
-static int btusb_mtk_subsys_reset(struct hci_dev *hdev, u32 dev_id)
-{
-	struct btusb_data *data = hci_get_drvdata(hdev);
-	u32 val;
-	int err;
-
-	if (dev_id == 0x7922) {
-		err = btusb_mtk_uhw_reg_read(data, MTK_BT_SUBSYS_RST, &val);
-		if (err < 0)
-			return err;
-		val |= 0x00002020;
-		err = btusb_mtk_uhw_reg_write(data, MTK_BT_SUBSYS_RST, val);
-		if (err < 0)
-			return err;
-		err = btusb_mtk_uhw_reg_write(data, MTK_EP_RST_OPT, 0x00010001);
-		if (err < 0)
-			return err;
-		err = btusb_mtk_uhw_reg_read(data, MTK_BT_SUBSYS_RST, &val);
-		if (err < 0)
-			return err;
-		val |= BIT(0);
-		err = btusb_mtk_uhw_reg_write(data, MTK_BT_SUBSYS_RST, val);
-		if (err < 0)
-			return err;
-		msleep(100);
-	} else if (dev_id == 0x7925) {
-		err = btusb_mtk_uhw_reg_read(data, MTK_BT_RESET_REG_CONNV3, &val);
-		if (err < 0)
-			return err;
-		val |= (1 << 5);
-		err = btusb_mtk_uhw_reg_write(data, MTK_BT_RESET_REG_CONNV3, val);
-		if (err < 0)
-			return err;
-		err = btusb_mtk_uhw_reg_read(data, MTK_BT_RESET_REG_CONNV3, &val);
-		if (err < 0)
-			return err;
-		val &= 0xFFFF00FF;
-		if (err < 0)
-			return err;
-		val |= (1 << 13);
-		err = btusb_mtk_uhw_reg_write(data, MTK_BT_RESET_REG_CONNV3, val);
-		if (err < 0)
-			return err;
-		err = btusb_mtk_uhw_reg_write(data, MTK_EP_RST_OPT, 0x00010001);
-		if (err < 0)
-			return err;
-		err = btusb_mtk_uhw_reg_read(data, MTK_BT_RESET_REG_CONNV3, &val);
-		if (err < 0)
-			return err;
-		val |= (1 << 0);
-		err = btusb_mtk_uhw_reg_write(data, MTK_BT_RESET_REG_CONNV3, val);
-		if (err < 0)
-			return err;
-		err = btusb_mtk_uhw_reg_write(data, MTK_UDMA_INT_STA_BT, 0x000000FF);
-		if (err < 0)
-			return err;
-		err = btusb_mtk_uhw_reg_read(data, MTK_UDMA_INT_STA_BT, &val);
-		if (err < 0)
-			return err;
-		err = btusb_mtk_uhw_reg_write(data, MTK_UDMA_INT_STA_BT1, 0x000000FF);
-		if (err < 0)
-			return err;
-		err = btusb_mtk_uhw_reg_read(data, MTK_UDMA_INT_STA_BT1, &val);
-		if (err < 0)
-			return err;
-		msleep(100);
-	} else {
-		/* It's Device EndPoint Reset Option Register */
-		bt_dev_dbg(hdev, "Initiating reset mechanism via uhw");
-		err = btusb_mtk_uhw_reg_write(data, MTK_EP_RST_OPT, MTK_EP_RST_IN_OUT_OPT);
-		if (err < 0)
-			return err;
-		err = btusb_mtk_uhw_reg_read(data, MTK_BT_WDT_STATUS, &val);
-		if (err < 0)
-			return err;
-		/* Reset the bluetooth chip via USB interface. */
-		err = btusb_mtk_uhw_reg_write(data, MTK_BT_SUBSYS_RST, 1);
-		if (err < 0)
-			return err;
-		err = btusb_mtk_uhw_reg_write(data, MTK_UDMA_INT_STA_BT, 0x000000FF);
-		if (err < 0)
-			return err;
-		err = btusb_mtk_uhw_reg_read(data, MTK_UDMA_INT_STA_BT, &val);
-		if (err < 0)
-			return err;
-		err = btusb_mtk_uhw_reg_write(data, MTK_UDMA_INT_STA_BT1, 0x000000FF);
-		if (err < 0)
-			return err;
-		err = btusb_mtk_uhw_reg_read(data, MTK_UDMA_INT_STA_BT1, &val);
-		if (err < 0)
-			return err;
-		/* MT7921 need to delay 20ms between toggle reset bit */
-		msleep(20);
-		err = btusb_mtk_uhw_reg_write(data, MTK_BT_SUBSYS_RST, 0);
-		if (err < 0)
-			return err;
-		err = btusb_mtk_uhw_reg_read(data, MTK_BT_SUBSYS_RST, &val);
-		if (err < 0)
-			return err;
-	}
-
-	err = readx_poll_timeout(btusb_mtk_reset_done, hdev, val,
-				 val & MTK_BT_RST_DONE, 20000, 1000000);
-	if (err < 0)
-		bt_dev_err(hdev, "Reset timeout");
-
-	if (dev_id == 0x7922) {
-		err = btusb_mtk_uhw_reg_write(data, MTK_UDMA_INT_STA_BT, 0x000000FF);
-		if (err < 0)
-			return err;
-	}
-
-	err = btusb_mtk_id_get(data, 0x70010200, &val);
-	if (err < 0 || !val)
-		bt_dev_err(hdev, "Can't get device id, subsys reset fail.");
-
-	return err;
-}
-
 static int btusb_mtk_reset(struct hci_dev *hdev, void *rst_data)
 {
 	struct btusb_data *data = hci_get_drvdata(hdev);
@@ -2887,7 +2652,7 @@ static int btusb_mtk_reset(struct hci_dev *hdev, void *rst_data)
 	int err;
 
 	/* It's MediaTek specific bluetooth reset mechanism via USB */
-	if (test_and_set_bit(BTUSB_HW_RESET_ACTIVE, &data->flags)) {
+	if (test_and_set_bit(BTMTK_HW_RESET_ACTIVE, &btmtk_data->flags)) {
 		bt_dev_err(hdev, "last reset failed? Not resetting again");
 		return -EBUSY;
 	}
@@ -2899,10 +2664,10 @@ static int btusb_mtk_reset(struct hci_dev *hdev, void *rst_data)
 	btusb_stop_traffic(data);
 	usb_kill_anchored_urbs(&data->tx_anchor);
 
-	err = btusb_mtk_subsys_reset(hdev, btmtk_data->dev_id);
+	err = btmtk_usb_subsys_reset(hdev, btmtk_data->dev_id);
 
 	usb_queue_reset_device(data->intf);
-	clear_bit(BTUSB_HW_RESET_ACTIVE, &data->flags);
+	clear_bit(BTMTK_HW_RESET_ACTIVE, &btmtk_data->flags);
 
 	return err;
 }
@@ -2910,212 +2675,23 @@ static int btusb_mtk_reset(struct hci_dev *hdev, void *rst_data)
 static int btusb_mtk_setup(struct hci_dev *hdev)
 {
 	struct btusb_data *data = hci_get_drvdata(hdev);
-	struct btmtk_hci_wmt_params wmt_params;
-	ktime_t calltime, delta, rettime;
-	struct btmtk_tci_sleep tci_sleep;
-	unsigned long long duration;
-	struct sk_buff *skb;
-	const char *fwname;
-	int err, status;
-	u32 dev_id = 0;
-	char fw_bin_name[64];
-	u32 fw_version = 0, fw_flavor = 0;
-	u8 param;
-	struct btmtk_data *mediatek;
+	struct btmtk_data *btmtk_data = hci_get_priv(hdev);
 
-	calltime = ktime_get();
+	/* MediaTek WMT vendor cmd requiring below USB resources to
+	 * complete the handshake.
+	 */
+	btmtk_data->drv_name = btusb_driver.name;
+	btmtk_data->intf = data->intf;
+	btmtk_data->udev = data->udev;
+	btmtk_data->ctrl_anchor = &data->ctrl_anchor;
+	btmtk_data->reset_sync = btusb_mtk_reset;
 
-	err = btusb_mtk_id_get(data, 0x80000008, &dev_id);
-	if (err < 0) {
-		bt_dev_err(hdev, "Failed to get device id (%d)", err);
-		return err;
-	}
-
-	if (!dev_id || dev_id != 0x7663) {
-		err = btusb_mtk_id_get(data, 0x70010200, &dev_id);
-		if (err < 0) {
-			bt_dev_err(hdev, "Failed to get device id (%d)", err);
-			return err;
-		}
-		err = btusb_mtk_id_get(data, 0x80021004, &fw_version);
-		if (err < 0) {
-			bt_dev_err(hdev, "Failed to get fw version (%d)", err);
-			return err;
-		}
-		err = btusb_mtk_id_get(data, 0x70010020, &fw_flavor);
-		if (err < 0) {
-			bt_dev_err(hdev, "Failed to get fw flavor (%d)", err);
-			return err;
-		}
-		fw_flavor = (fw_flavor & 0x00000080) >> 7;
-	}
-
-	mediatek = hci_get_priv(hdev);
-	mediatek->dev_id = dev_id;
-	mediatek->reset_sync = btusb_mtk_reset;
-
-	err = btmtk_register_coredump(hdev, btusb_driver.name, fw_version);
-	if (err < 0)
-		bt_dev_err(hdev, "Failed to register coredump (%d)", err);
-
-	switch (dev_id) {
-	case 0x7663:
-		fwname = FIRMWARE_MT7663;
-		break;
-	case 0x7668:
-		fwname = FIRMWARE_MT7668;
-		break;
-	case 0x7922:
-	case 0x7961:
-	case 0x7925:
-		/* Reset the device to ensure it's in the initial state before
-		 * downloading the firmware to ensure.
-		 */
-
-		if (!test_bit(BTUSB_FIRMWARE_LOADED, &data->flags))
-			btusb_mtk_subsys_reset(hdev, dev_id);
-
-		btmtk_fw_get_filename(fw_bin_name, sizeof(fw_bin_name), dev_id,
-				      fw_version, fw_flavor);
-
-		err = btmtk_setup_firmware_79xx(hdev, fw_bin_name,
-						btmtk_usb_hci_wmt_sync);
-		if (err < 0) {
-			bt_dev_err(hdev, "Failed to set up firmware (%d)", err);
-			clear_bit(BTUSB_FIRMWARE_LOADED, &data->flags);
-			return err;
-		}
-
-		set_bit(BTUSB_FIRMWARE_LOADED, &data->flags);
-
-		/* It's Device EndPoint Reset Option Register */
-		btusb_mtk_uhw_reg_write(data, MTK_EP_RST_OPT, MTK_EP_RST_IN_OUT_OPT);
-
-		/* Enable Bluetooth protocol */
-		param = 1;
-		wmt_params.op = BTMTK_WMT_FUNC_CTRL;
-		wmt_params.flag = 0;
-		wmt_params.dlen = sizeof(param);
-		wmt_params.data = &param;
-		wmt_params.status = NULL;
-
-		err = btmtk_usb_hci_wmt_sync(hdev, &wmt_params);
-		if (err < 0) {
-			bt_dev_err(hdev, "Failed to send wmt func ctrl (%d)", err);
-			return err;
-		}
-
-		hci_set_msft_opcode(hdev, 0xFD30);
-		hci_set_aosp_capable(hdev);
-		goto done;
-	default:
-		bt_dev_err(hdev, "Unsupported hardware variant (%08x)",
-			   dev_id);
-		return -ENODEV;
-	}
-
-	/* Query whether the firmware is already download */
-	wmt_params.op = BTMTK_WMT_SEMAPHORE;
-	wmt_params.flag = 1;
-	wmt_params.dlen = 0;
-	wmt_params.data = NULL;
-	wmt_params.status = &status;
-
-	err = btmtk_usb_hci_wmt_sync(hdev, &wmt_params);
-	if (err < 0) {
-		bt_dev_err(hdev, "Failed to query firmware status (%d)", err);
-		return err;
-	}
-
-	if (status == BTMTK_WMT_PATCH_DONE) {
-		bt_dev_info(hdev, "firmware already downloaded");
-		goto ignore_setup_fw;
-	}
-
-	/* Setup a firmware which the device definitely requires */
-	err = btmtk_setup_firmware(hdev, fwname,
-				   btmtk_usb_hci_wmt_sync);
-	if (err < 0)
-		return err;
-
-ignore_setup_fw:
-	err = readx_poll_timeout(btusb_mtk_func_query, hdev, status,
-				 status < 0 || status != BTMTK_WMT_ON_PROGRESS,
-				 2000, 5000000);
-	/* -ETIMEDOUT happens */
-	if (err < 0)
-		return err;
-
-	/* The other errors happen in btusb_mtk_func_query */
-	if (status < 0)
-		return status;
-
-	if (status == BTMTK_WMT_ON_DONE) {
-		bt_dev_info(hdev, "function already on");
-		goto ignore_func_on;
-	}
-
-	/* Enable Bluetooth protocol */
-	param = 1;
-	wmt_params.op = BTMTK_WMT_FUNC_CTRL;
-	wmt_params.flag = 0;
-	wmt_params.dlen = sizeof(param);
-	wmt_params.data = &param;
-	wmt_params.status = NULL;
-
-	err = btmtk_usb_hci_wmt_sync(hdev, &wmt_params);
-	if (err < 0) {
-		bt_dev_err(hdev, "Failed to send wmt func ctrl (%d)", err);
-		return err;
-	}
-
-ignore_func_on:
-	/* Apply the low power environment setup */
-	tci_sleep.mode = 0x5;
-	tci_sleep.duration = cpu_to_le16(0x640);
-	tci_sleep.host_duration = cpu_to_le16(0x640);
-	tci_sleep.host_wakeup_pin = 0;
-	tci_sleep.time_compensation = 0;
-
-	skb = __hci_cmd_sync(hdev, 0xfc7a, sizeof(tci_sleep), &tci_sleep,
-			     HCI_INIT_TIMEOUT);
-	if (IS_ERR(skb)) {
-		err = PTR_ERR(skb);
-		bt_dev_err(hdev, "Failed to apply low power setting (%d)", err);
-		return err;
-	}
-	kfree_skb(skb);
-
-done:
-	rettime = ktime_get();
-	delta = ktime_sub(rettime, calltime);
-	duration = (unsigned long long)ktime_to_ns(delta) >> 10;
-
-	bt_dev_info(hdev, "Device setup in %llu usecs", duration);
-
-	return 0;
+	return btmtk_usb_setup(hdev);
 }
 
 static int btusb_mtk_shutdown(struct hci_dev *hdev)
 {
-	struct btmtk_hci_wmt_params wmt_params;
-	u8 param = 0;
-	int err;
-
-	/* Disable the device */
-	wmt_params.op = BTMTK_WMT_FUNC_CTRL;
-	wmt_params.flag = 0;
-	wmt_params.dlen = sizeof(param);
-	wmt_params.data = &param;
-	wmt_params.status = NULL;
-
-	err = btmtk_usb_hci_wmt_sync(hdev, &wmt_params);
-	if (err < 0) {
-		bt_dev_err(hdev, "Failed to send wmt func ctrl (%d)", err);
-		return err;
-	}
-
-	return 0;
+	return btmtk_usb_shutdown(hdev);
 }
 
 static int btusb_recv_acl_mtk(struct hci_dev *hdev, struct sk_buff *skb)
