@@ -104,6 +104,27 @@
 #define AD9467_DEF_OUTPUT_MODE		0x08
 #define AD9467_REG_VREF_MASK		0x0F
 
+/*
+ * Analog Devices AD9643 14-Bit, 170/210/250 MSPS ADC
+ */
+
+#define CHIPID_AD9643			0x82
+#define AD9643_REG_VREF_MASK		0x1F
+
+/*
+ * Analog Devices AD9652 16-bit 310 MSPS ADC
+ */
+
+#define CHIPID_AD9652                   0xC1
+#define AD9652_REG_VREF_MASK            0xC0
+
+/*
+ * Analog Devices AD9649 14-bit 20/40/65/80 MSPS ADC
+ */
+
+#define CHIPID_AD9649			0x6F
+#define AD9649_TEST_POINTS		8
+
 #define AD9647_MAX_TEST_POINTS		32
 #define AD9467_CAN_INVERT(st)	\
 	(!(st)->info->has_dco || (st)->info->has_dco_invert)
@@ -218,6 +239,24 @@ static const unsigned int ad9467_scale_table[][2] = {
 	{2300, 8}, {2400, 9}, {2500, 10},
 };
 
+static const unsigned int ad9643_scale_table[][2] = {
+	{2087, 0x0F}, {2065, 0x0E}, {2042, 0x0D}, {2020, 0x0C}, {1997, 0x0B},
+	{1975, 0x0A}, {1952, 0x09}, {1930, 0x08}, {1907, 0x07}, {1885, 0x06},
+	{1862, 0x05}, {1840, 0x04}, {1817, 0x03}, {1795, 0x02}, {1772, 0x01},
+	{1750, 0x00}, {1727, 0x1F}, {1704, 0x1E}, {1681, 0x1D}, {1658, 0x1C},
+	{1635, 0x1B}, {1612, 0x1A}, {1589, 0x19}, {1567, 0x18}, {1544, 0x17},
+	{1521, 0x16}, {1498, 0x15}, {1475, 0x14}, {1452, 0x13}, {1429, 0x12},
+	{1406, 0x11}, {1383, 0x10},
+};
+
+static const unsigned int ad9649_scale_table[][2] = {
+	 {2000, 0},
+};
+
+static const unsigned int ad9652_scale_table[][2] = {
+	 {1250, 0}, {1125, 1}, {1200, 2}, {1250, 3}, {1000, 5},
+};
+
 static void __ad9467_get_scale(struct ad9467_state *st, int index,
 			       unsigned int *val, unsigned int *val2)
 {
@@ -253,6 +292,20 @@ static const struct iio_chan_spec ad9434_channels[] = {
 
 static const struct iio_chan_spec ad9467_channels[] = {
 	AD9467_CHAN(0, BIT(IIO_CHAN_INFO_SCALE), 0, 16, 's'),
+};
+
+static const struct iio_chan_spec ad9643_channels[] = {
+	AD9467_CHAN(0, BIT(IIO_CHAN_INFO_SCALE), 0, 14, 's'),
+	AD9467_CHAN(1, BIT(IIO_CHAN_INFO_SCALE), 1, 14, 's'),
+};
+
+static const struct iio_chan_spec ad9649_channels[] = {
+	AD9467_CHAN(0, 0, 0, 14, 's'),
+};
+
+static const struct iio_chan_spec ad9652_channels[] = {
+	AD9467_CHAN(0, BIT(IIO_CHAN_INFO_SCALE), 0, 16, 's'),
+	AD9467_CHAN(1, BIT(IIO_CHAN_INFO_SCALE), 1, 16, 's'),
 };
 
 static const struct ad9467_chip_info ad9467_chip_tbl = {
@@ -296,6 +349,48 @@ static const struct ad9467_chip_info ad9265_chip_tbl = {
 	.vref_mask = AD9265_REG_VREF_MASK,
 	.has_dco = true,
 	.has_dco_invert = true,
+};
+
+static const struct ad9467_chip_info ad9643_chip_tbl = {
+	.name = "ad9643",
+	.id = CHIPID_AD9643,
+	.max_rate = 250000000UL,
+	.scale_table = ad9643_scale_table,
+	.num_scales = ARRAY_SIZE(ad9643_scale_table),
+	.channels = ad9643_channels,
+	.num_channels = ARRAY_SIZE(ad9643_channels),
+	.test_points = AD9647_MAX_TEST_POINTS,
+	.vref_mask = AD9643_REG_VREF_MASK,
+	.has_dco = true,
+	.has_dco_invert = true,
+	.dco_en = AN877_ADC_DCO_DELAY_ENABLE,
+};
+
+static const struct ad9467_chip_info ad9649_chip_tbl = {
+	.name = "ad9649",
+	.id = CHIPID_AD9649,
+	.max_rate = 80000000UL,
+	.scale_table = ad9649_scale_table,
+	.num_scales = ARRAY_SIZE(ad9649_scale_table),
+	.channels = ad9649_channels,
+	.num_channels = ARRAY_SIZE(ad9649_channels),
+	.test_points = AD9649_TEST_POINTS,
+	.has_dco = true,
+	.has_dco_invert = true,
+	.dco_en = AN877_ADC_DCO_DELAY_ENABLE,
+};
+
+static const struct ad9467_chip_info ad9652_chip_tbl = {
+	.name = "ad9652",
+	.id = CHIPID_AD9652,
+	.max_rate = 310000000UL,
+	.scale_table = ad9652_scale_table,
+	.num_scales = ARRAY_SIZE(ad9652_scale_table),
+	.channels = ad9652_channels,
+	.num_channels = ARRAY_SIZE(ad9652_channels),
+	.test_points = AD9647_MAX_TEST_POINTS,
+	.vref_mask = AD9652_REG_VREF_MASK,
+	.has_dco = true,
 };
 
 static int ad9467_get_scale(struct ad9467_state *st, int *val, int *val2)
@@ -949,6 +1044,9 @@ static const struct of_device_id ad9467_of_match[] = {
 	{ .compatible = "adi,ad9265", .data = &ad9265_chip_tbl, },
 	{ .compatible = "adi,ad9434", .data = &ad9434_chip_tbl, },
 	{ .compatible = "adi,ad9467", .data = &ad9467_chip_tbl, },
+	{ .compatible = "adi,ad9643", .data = &ad9643_chip_tbl, },
+	{ .compatible = "adi,ad9649", .data = &ad9649_chip_tbl, },
+	{ .compatible = "adi,ad9652", .data = &ad9652_chip_tbl, },
 	{}
 };
 MODULE_DEVICE_TABLE(of, ad9467_of_match);
@@ -957,6 +1055,9 @@ static const struct spi_device_id ad9467_ids[] = {
 	{ "ad9265", (kernel_ulong_t)&ad9265_chip_tbl },
 	{ "ad9434", (kernel_ulong_t)&ad9434_chip_tbl },
 	{ "ad9467", (kernel_ulong_t)&ad9467_chip_tbl },
+	{ "ad9643", (kernel_ulong_t)&ad9643_chip_tbl },
+	{ "ad9649", (kernel_ulong_t)&ad9649_chip_tbl, },
+	{ "ad9652", (kernel_ulong_t)&ad9652_chip_tbl, },
 	{}
 };
 MODULE_DEVICE_TABLE(spi, ad9467_ids);
