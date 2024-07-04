@@ -1164,16 +1164,7 @@ static int __wcd937x_codec_enable_micbias(struct snd_soc_dapm_widget *w,
 					  int event)
 {
 	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
-	int micb_num;
-
-	if (strnstr(w->name, "MIC BIAS1", sizeof("MIC BIAS1")))
-		micb_num = MIC_BIAS_1;
-	else if (strnstr(w->name, "MIC BIAS2", sizeof("MIC BIAS2")))
-		micb_num = MIC_BIAS_2;
-	else if (strnstr(w->name, "MIC BIAS3", sizeof("MIC BIAS3")))
-		micb_num = MIC_BIAS_3;
-	else
-		return -EINVAL;
+	int micb_num = w->shift;
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
@@ -1203,16 +1194,7 @@ static int __wcd937x_codec_enable_micbias_pullup(struct snd_soc_dapm_widget *w,
 						 int event)
 {
 	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
-	int micb_num;
-
-	if (strnstr(w->name, "VA MIC BIAS1", sizeof("VA MIC BIAS1")))
-		micb_num = MIC_BIAS_1;
-	else if (strnstr(w->name, "VA MIC BIAS2", sizeof("VA MIC BIAS2")))
-		micb_num = MIC_BIAS_2;
-	else if (strnstr(w->name, "VA MIC BIAS3", sizeof("VA MIC BIAS3")))
-		micb_num = MIC_BIAS_3;
-	else
-		return -EINVAL;
+	int micb_num = w->shift;
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
@@ -2231,15 +2213,15 @@ static const struct snd_soc_dapm_widget wcd937x_dapm_widgets[] = {
 			     SND_SOC_DAPM_POST_PMD),
 
 	/* MIC_BIAS widgets */
-	SND_SOC_DAPM_SUPPLY("MIC BIAS1", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SUPPLY("MIC BIAS1", SND_SOC_NOPM, MIC_BIAS_1, 0,
 			    wcd937x_codec_enable_micbias,
 			    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 			    SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_SUPPLY("MIC BIAS2", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SUPPLY("MIC BIAS2", SND_SOC_NOPM, MIC_BIAS_2, 0,
 			    wcd937x_codec_enable_micbias,
 			    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 			    SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_SUPPLY("MIC BIAS3", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SUPPLY("MIC BIAS3", SND_SOC_NOPM, MIC_BIAS_3, 0,
 			    wcd937x_codec_enable_micbias,
 			    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 			    SND_SOC_DAPM_POST_PMD),
@@ -2320,15 +2302,15 @@ static const struct snd_soc_dapm_widget wcd937x_dapm_widgets[] = {
 	SND_SOC_DAPM_OUTPUT("HPHR"),
 
 	/* MIC_BIAS pull up widgets */
-	SND_SOC_DAPM_SUPPLY("VA MIC BIAS1", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SUPPLY("VA MIC BIAS1", SND_SOC_NOPM, MIC_BIAS_1, 0,
 			    wcd937x_codec_enable_micbias_pullup,
 			    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 			    SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_SUPPLY("VA MIC BIAS2", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SUPPLY("VA MIC BIAS2", SND_SOC_NOPM, MIC_BIAS_2, 0,
 			    wcd937x_codec_enable_micbias_pullup,
 			    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 			    SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_SUPPLY("VA MIC BIAS3", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_SUPPLY("VA MIC BIAS3", SND_SOC_NOPM, MIC_BIAS_3, 0,
 			    wcd937x_codec_enable_micbias_pullup,
 			    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 			    SND_SOC_DAPM_POST_PMD),
