@@ -2033,29 +2033,6 @@ prepare_slab_obj_exts_hook(struct kmem_cache *s, gfp_t flags, void *p)
 	return slab_obj_exts(slab) + obj_to_index(s, slab, p);
 }
 
-static inline void
-alloc_tagging_slab_free_hook(struct kmem_cache *s, struct slab *slab, void **p,
-			     int objects)
-{
-#ifdef CONFIG_MEM_ALLOC_PROFILING
-	struct slabobj_ext *obj_exts;
-	int i;
-
-	if (!mem_alloc_profiling_enabled())
-		return;
-
-	obj_exts = slab_obj_exts(slab);
-	if (!obj_exts)
-		return;
-
-	for (i = 0; i < objects; i++) {
-		unsigned int off = obj_to_index(s, slab, p[i]);
-
-		alloc_tag_sub(&obj_exts[off].ref, s->size);
-	}
-#endif
-}
-
 #else /* CONFIG_SLAB_OBJ_EXT */
 
 static int alloc_slab_obj_exts(struct slab *slab, struct kmem_cache *s,
@@ -2079,13 +2056,63 @@ prepare_slab_obj_exts_hook(struct kmem_cache *s, gfp_t flags, void *p)
 	return NULL;
 }
 
+#endif /* CONFIG_SLAB_OBJ_EXT */
+
+#ifdef CONFIG_MEM_ALLOC_PROFILING
+
+static inline void
+alloc_tagging_slab_alloc_hook(struct kmem_cache *s, void *object, gfp_t flags)
+{
+	if (need_slab_obj_ext()) {
+		struct slabobj_ext *obj_exts;
+
+		obj_exts = prepare_slab_obj_exts_hook(s, flags, object);
+		/*
+		 * Currently obj_exts is used only for allocation profiling.
+		 * If other users appear then mem_alloc_profiling_enabled()
+		 * check should be added before alloc_tag_add().
+		 */
+		if (likely(obj_exts))
+			alloc_tag_add(&obj_exts->ref, current->alloc_tag, s->size);
+	}
+}
+
+static inline void
+alloc_tagging_slab_free_hook(struct kmem_cache *s, struct slab *slab, void **p,
+			     int objects)
+{
+	struct slabobj_ext *obj_exts;
+	int i;
+
+	if (!mem_alloc_profiling_enabled())
+		return;
+
+	obj_exts = slab_obj_exts(slab);
+	if (!obj_exts)
+		return;
+
+	for (i = 0; i < objects; i++) {
+		unsigned int off = obj_to_index(s, slab, p[i]);
+
+		alloc_tag_sub(&obj_exts[off].ref, s->size);
+	}
+}
+
+#else /* CONFIG_MEM_ALLOC_PROFILING */
+
+static inline void
+alloc_tagging_slab_alloc_hook(struct kmem_cache *s, void *object, gfp_t flags)
+{
+}
+
 static inline void
 alloc_tagging_slab_free_hook(struct kmem_cache *s, struct slab *slab, void **p,
 			     int objects)
 {
 }
 
-#endif /* CONFIG_SLAB_OBJ_EXT */
+#endif /* CONFIG_MEM_ALLOC_PROFILING */
+
 
 #ifdef CONFIG_MEMCG_KMEM
 
@@ -3944,20 +3971,7 @@ bool slab_post_alloc_hook(struct kmem_cache *s, struct list_lru *lru,
 		kmemleak_alloc_recursive(p[i], s->object_size, 1,
 					 s->flags, init_flags);
 		kmsan_slab_alloc(s, p[i], init_flags);
-#ifdef CONFIG_MEM_ALLOC_PROFILING
-		if (need_slab_obj_ext()) {
-			struct slabobj_ext *obj_exts;
-
-			obj_exts = prepare_slab_obj_exts_hook(s, flags, p[i]);
-			/*
-			 * Currently obj_exts is used only for allocation profiling.
-			 * If other users appear then mem_alloc_profiling_enabled()
-			 * check should be added before alloc_tag_add().
-			 */
-			if (likely(obj_exts))
-				alloc_tag_add(&obj_exts->ref, current->alloc_tag, s->size);
-		}
-#endif
+		alloc_tagging_slab_alloc_hook(s, p[i], flags);
 	}
 
 	return memcg_slab_post_alloc_hook(s, lru, flags, size, p);
