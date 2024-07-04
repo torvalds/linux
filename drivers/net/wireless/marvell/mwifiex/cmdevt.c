@@ -924,6 +924,24 @@ int mwifiex_process_cmdresp(struct mwifiex_adapter *adapter)
 	return ret;
 }
 
+void mwifiex_process_assoc_resp(struct mwifiex_adapter *adapter)
+{
+	struct cfg80211_rx_assoc_resp_data assoc_resp = {
+		.uapsd_queues = -1,
+	};
+	struct mwifiex_private *priv =
+		mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_STA);
+
+	if (priv->assoc_rsp_size) {
+		assoc_resp.links[0].bss = priv->req_bss;
+		assoc_resp.buf = priv->assoc_rsp_buf;
+		assoc_resp.len = priv->assoc_rsp_size;
+		cfg80211_rx_assoc_resp(priv->netdev,
+				       &assoc_resp);
+		priv->assoc_rsp_size = 0;
+	}
+}
+
 /*
  * This function handles the timeout of command sending.
  *
@@ -1671,6 +1689,13 @@ int mwifiex_ret_get_hw_spec(struct mwifiex_private *priv,
 
 	if (adapter->fw_api_ver == MWIFIEX_FW_V15)
 		adapter->scan_chan_gap_enabled = true;
+
+	if (adapter->key_api_major_ver != KEY_API_VER_MAJOR_V2)
+		adapter->host_mlme_enabled = false;
+
+	mwifiex_dbg(adapter, MSG, "host_mlme: %s, key_api: %d\n",
+		    adapter->host_mlme_enabled ? "enable" : "disable",
+		    adapter->key_api_major_ver);
 
 	return 0;
 }

@@ -210,6 +210,8 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define TLV_TYPE_RANDOM_MAC         (PROPRIETARY_TLV_BASE_ID + 236)
 #define TLV_TYPE_CHAN_ATTR_CFG      (PROPRIETARY_TLV_BASE_ID + 237)
 #define TLV_TYPE_MAX_CONN           (PROPRIETARY_TLV_BASE_ID + 279)
+#define TLV_TYPE_HOST_MLME          (PROPRIETARY_TLV_BASE_ID + 307)
+#define TLV_TYPE_SAE_PWE_MODE       (PROPRIETARY_TLV_BASE_ID + 339)
 
 #define MWIFIEX_TX_DATA_BUF_SIZE_2K        2048
 
@@ -744,6 +746,25 @@ struct uap_rxpd {
 	u8 flags;
 } __packed;
 
+struct mwifiex_auth {
+	__le16 auth_alg;
+	__le16 auth_transaction;
+	__le16 status_code;
+	/* possibly followed by Challenge text */
+	u8 variable[];
+} __packed;
+
+struct mwifiex_ieee80211_mgmt {
+	__le16 frame_control;
+	__le16 duration;
+	u8 da[ETH_ALEN];
+	u8 sa[ETH_ALEN];
+	u8 bssid[ETH_ALEN];
+	__le16 seq_ctrl;
+	u8 addr4[ETH_ALEN];
+	struct mwifiex_auth auth;
+} __packed;
+
 struct mwifiex_fw_chan_stats {
 	u8 chan_num;
 	u8 bandcfg;
@@ -801,6 +822,11 @@ struct mwifiex_ie_types_rates_param_set {
 struct mwifiex_ie_types_ssid_param_set {
 	struct mwifiex_ie_types_header header;
 	u8 ssid[];
+} __packed;
+
+struct mwifiex_ie_types_host_mlme {
+	struct mwifiex_ie_types_header header;
+	u8 host_mlme;
 } __packed;
 
 struct mwifiex_ie_types_num_probes {
@@ -904,6 +930,13 @@ struct mwifiex_ie_types_vendor_param_set {
 struct mwifiex_ie_types_tdls_idle_timeout {
 	struct mwifiex_ie_types_header header;
 	__le16 value;
+} __packed;
+
+#define MWIFIEX_AUTHTYPE_SAE 6
+
+struct mwifiex_ie_types_sae_pwe_mode {
+	struct mwifiex_ie_types_header header;
+	u8 pwe[];
 } __packed;
 
 struct mwifiex_ie_types_rsn_param_set {
