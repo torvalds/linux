@@ -1125,6 +1125,7 @@ err_sync:
 }
 
 static void write_pgtable(struct xe_tile *tile, struct xe_bb *bb, u64 ppgtt_ofs,
+			  const struct xe_vm_pgtable_update_op *pt_op,
 			  const struct xe_vm_pgtable_update *update,
 			  struct xe_migrate_pt_update *pt_update)
 {
@@ -1159,8 +1160,12 @@ static void write_pgtable(struct xe_tile *tile, struct xe_bb *bb, u64 ppgtt_ofs,
 		bb->cs[bb->len++] = MI_STORE_DATA_IMM | MI_SDI_NUM_QW(chunk);
 		bb->cs[bb->len++] = lower_32_bits(addr);
 		bb->cs[bb->len++] = upper_32_bits(addr);
-		ops->populate(pt_update, tile, NULL, bb->cs + bb->len, ofs, chunk,
-			      update);
+		if (pt_op->bind)
+			ops->populate(pt_update, tile, NULL, bb->cs + bb->len,
+				      ofs, chunk, update);
+		else
+			ops->clear(pt_update, tile, NULL, bb->cs + bb->len,
+				   ofs, chunk, update);
 
 		bb->len += chunk * 2;
 		ofs += chunk;
@@ -1185,28 +1190,19 @@ struct migrate_test_params {
 
 static struct dma_fence *
 xe_migrate_update_pgtables_cpu(struct xe_migrate *m,
-			       struct xe_vm *vm, struct xe_bo *bo,
-			       const struct  xe_vm_pgtable_update *updates,
-			       u32 num_updates, bool wait_vm,
 			       struct xe_migrate_pt_update *pt_update)
 {
 	XE_TEST_DECLARE(struct migrate_test_params *test =
 			to_migrate_test_params
 			(xe_cur_kunit_priv(XE_TEST_LIVE_MIGRATE));)
 	const struct xe_migrate_pt_update_ops *ops = pt_update->ops;
-	struct dma_fence *fence;
+	struct xe_vm *vm = pt_update->vops->vm;
+	struct xe_vm_pgtable_update_ops *pt_update_ops =
+		&pt_update->vops->pt_update_ops[pt_update->tile_id];
 	int err;
-	u32 i;
+	u32 i, j;
 
 	if (XE_TEST_ONLY(test && test->force_gpu))
-		return ERR_PTR(-ETIME);
-
-	if (bo && !dma_resv_test_signaled(bo->ttm.base.resv,
-					  DMA_RESV_USAGE_KERNEL))
-		return ERR_PTR(-ETIME);
-
-	if (wait_vm && !dma_resv_test_signaled(xe_vm_resv(vm),
-					       DMA_RESV_USAGE_BOOKKEEP))
 		return ERR_PTR(-ETIME);
 
 	if (ops->pre_commit) {
@@ -1215,84 +1211,37 @@ xe_migrate_update_pgtables_cpu(struct xe_migrate *m,
 		if (err)
 			return ERR_PTR(err);
 	}
-	for (i = 0; i < num_updates; i++) {
-		const struct xe_vm_pgtable_update *update = &updates[i];
 
-		ops->populate(pt_update, m->tile, &update->pt_bo->vmap, NULL,
-			      update->ofs, update->qwords, update);
-	}
+	for (i = 0; i < pt_update_ops->num_ops; ++i) {
+		const struct xe_vm_pgtable_update_op *pt_op =
+			&pt_update_ops->ops[i];
 
-	if (vm) {
-		trace_xe_vm_cpu_bind(vm);
-		xe_device_wmb(vm->xe);
-	}
+		for (j = 0; j < pt_op->num_entries; j++) {
+			const struct xe_vm_pgtable_update *update =
+				&pt_op->entries[j];
 
-	fence = dma_fence_get_stub();
-
-	return fence;
-}
-
-static bool no_in_syncs(struct xe_vm *vm, struct xe_exec_queue *q,
-			struct xe_sync_entry *syncs, u32 num_syncs)
-{
-	struct dma_fence *fence;
-	int i;
-
-	for (i = 0; i < num_syncs; i++) {
-		fence = syncs[i].fence;
-
-		if (fence && !test_bit(DMA_FENCE_FLAG_SIGNALED_BIT,
-				       &fence->flags))
-			return false;
-	}
-	if (q) {
-		fence = xe_exec_queue_last_fence_get(q, vm);
-		if (!test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags)) {
-			dma_fence_put(fence);
-			return false;
+			if (pt_op->bind)
+				ops->populate(pt_update, m->tile,
+					      &update->pt_bo->vmap, NULL,
+					      update->ofs, update->qwords,
+					      update);
+			else
+				ops->clear(pt_update, m->tile,
+					   &update->pt_bo->vmap, NULL,
+					   update->ofs, update->qwords, update);
 		}
-		dma_fence_put(fence);
 	}
 
-	return true;
+	trace_xe_vm_cpu_bind(vm);
+	xe_device_wmb(vm->xe);
+
+	return dma_fence_get_stub();
 }
 
-/**
- * xe_migrate_update_pgtables() - Pipelined page-table update
- * @m: The migrate context.
- * @vm: The vm we'll be updating.
- * @bo: The bo whose dma-resv we will await before updating, or NULL if userptr.
- * @q: The exec queue to be used for the update or NULL if the default
- * migration engine is to be used.
- * @updates: An array of update descriptors.
- * @num_updates: Number of descriptors in @updates.
- * @syncs: Array of xe_sync_entry to await before updating. Note that waits
- * will block the engine timeline.
- * @num_syncs: Number of entries in @syncs.
- * @pt_update: Pointer to a struct xe_migrate_pt_update, which contains
- * pointers to callback functions and, if subclassed, private arguments to
- * those.
- *
- * Perform a pipelined page-table update. The update descriptors are typically
- * built under the same lock critical section as a call to this function. If
- * using the default engine for the updates, they will be performed in the
- * order they grab the job_mutex. If different engines are used, external
- * synchronization is needed for overlapping updates to maintain page-table
- * consistency. Note that the meaing of "overlapping" is that the updates
- * touch the same page-table, which might be a higher-level page-directory.
- * If no pipelining is needed, then updates may be performed by the cpu.
- *
- * Return: A dma_fence that, when signaled, indicates the update completion.
- */
-struct dma_fence *
-xe_migrate_update_pgtables(struct xe_migrate *m,
-			   struct xe_vm *vm,
-			   struct xe_bo *bo,
-			   struct xe_exec_queue *q,
-			   const struct xe_vm_pgtable_update *updates,
-			   u32 num_updates,
-			   struct xe_sync_entry *syncs, u32 num_syncs,
-			   struct xe_migrate_pt_update *pt_update)
+static struct dma_fence *
+__xe_migrate_update_pgtables(struct xe_migrate *m,
+			     struct xe_migrate_pt_update *pt_update,
+			     struct xe_vm_pgtable_update_ops *pt_update_ops)
 {
 	const struct xe_migrate_pt_update_ops *ops = pt_update->ops;
 	struct xe_tile *tile = m->tile;
@@ -1301,59 +1250,53 @@ xe_migrate_update_pgtables(struct xe_migrate *m,
 	struct xe_sched_job *job;
 	struct dma_fence *fence;
 	struct drm_suballoc *sa_bo = NULL;
-	struct xe_vma *vma = pt_update->vma;
 	struct xe_bb *bb;
-	u32 i, batch_size, ppgtt_ofs, update_idx, page_ofs = 0;
+	u32 i, j, batch_size = 0, ppgtt_ofs, update_idx, page_ofs = 0;
+	u32 num_updates = 0, current_update = 0;
 	u64 addr;
 	int err = 0;
-	bool usm = !q && xe->info.has_usm;
-	bool first_munmap_rebind = vma &&
-		vma->gpuva.flags & XE_VMA_FIRST_REBIND;
-	struct xe_exec_queue *q_override = !q ? m->q : q;
-	u16 pat_index = xe->pat.idx[XE_CACHE_WB];
+	bool is_migrate = pt_update_ops->q == m->q;
+	bool usm = is_migrate && xe->info.has_usm;
 
-	/* Use the CPU if no in syncs and engine is idle */
-	if (no_in_syncs(vm, q, syncs, num_syncs) && xe_exec_queue_is_idle(q_override)) {
-		fence =  xe_migrate_update_pgtables_cpu(m, vm, bo, updates,
-							num_updates,
-							first_munmap_rebind,
-							pt_update);
-		if (!IS_ERR(fence) || fence == ERR_PTR(-EAGAIN))
-			return fence;
+	for (i = 0; i < pt_update_ops->num_ops; ++i) {
+		struct xe_vm_pgtable_update_op *pt_op = &pt_update_ops->ops[i];
+		struct xe_vm_pgtable_update *updates = pt_op->entries;
+
+		num_updates += pt_op->num_entries;
+		for (j = 0; j < pt_op->num_entries; ++j) {
+			u32 num_cmds = DIV_ROUND_UP(updates[j].qwords,
+						    MAX_PTE_PER_SDI);
+
+			/* align noop + MI_STORE_DATA_IMM cmd prefix */
+			batch_size += 4 * num_cmds + updates[j].qwords * 2;
+		}
 	}
 
 	/* fixed + PTE entries */
 	if (IS_DGFX(xe))
-		batch_size = 2;
+		batch_size += 2;
 	else
-		batch_size = 6 + num_updates * 2;
+		batch_size += 6 * (num_updates / MAX_PTE_PER_SDI + 1) +
+			num_updates * 2;
 
-	for (i = 0; i < num_updates; i++) {
-		u32 num_cmds = DIV_ROUND_UP(updates[i].qwords, MAX_PTE_PER_SDI);
-
-		/* align noop + MI_STORE_DATA_IMM cmd prefix */
-		batch_size += 4 * num_cmds + updates[i].qwords * 2;
-	}
-
-	/*
-	 * XXX: Create temp bo to copy from, if batch_size becomes too big?
-	 *
-	 * Worst case: Sum(2 * (each lower level page size) + (top level page size))
-	 * Should be reasonably bound..
-	 */
-	xe_tile_assert(tile, batch_size < SZ_128K);
-
-	bb = xe_bb_new(gt, batch_size, !q && xe->info.has_usm);
+	bb = xe_bb_new(gt, batch_size, usm);
 	if (IS_ERR(bb))
 		return ERR_CAST(bb);
 
 	/* For sysmem PTE's, need to map them in our hole.. */
 	if (!IS_DGFX(xe)) {
-		ppgtt_ofs = NUM_KERNEL_PDE - 1;
-		if (q) {
-			xe_tile_assert(tile, num_updates <= NUM_VMUSA_WRITES_PER_UNIT);
+		u32 ptes, ofs;
 
-			sa_bo = drm_suballoc_new(&m->vm_update_sa, 1,
+		ppgtt_ofs = NUM_KERNEL_PDE - 1;
+		if (!is_migrate) {
+			u32 num_units = DIV_ROUND_UP(num_updates,
+						     NUM_VMUSA_WRITES_PER_UNIT);
+
+			if (num_units > m->vm_update_sa.size) {
+				err = -ENOBUFS;
+				goto err_bb;
+			}
+			sa_bo = drm_suballoc_new(&m->vm_update_sa, num_units,
 						 GFP_KERNEL, true, 0);
 			if (IS_ERR(sa_bo)) {
 				err = PTR_ERR(sa_bo);
@@ -1369,18 +1312,49 @@ xe_migrate_update_pgtables(struct xe_migrate *m,
 		}
 
 		/* Map our PT's to gtt */
-		bb->cs[bb->len++] = MI_STORE_DATA_IMM | MI_SDI_NUM_QW(num_updates);
-		bb->cs[bb->len++] = ppgtt_ofs * XE_PAGE_SIZE + page_ofs;
-		bb->cs[bb->len++] = 0; /* upper_32_bits */
+		i = 0;
+		j = 0;
+		ptes = num_updates;
+		ofs = ppgtt_ofs * XE_PAGE_SIZE + page_ofs;
+		while (ptes) {
+			u32 chunk = min(MAX_PTE_PER_SDI, ptes);
+			u32 idx = 0;
 
-		for (i = 0; i < num_updates; i++) {
-			struct xe_bo *pt_bo = updates[i].pt_bo;
+			bb->cs[bb->len++] = MI_STORE_DATA_IMM |
+				MI_SDI_NUM_QW(chunk);
+			bb->cs[bb->len++] = ofs;
+			bb->cs[bb->len++] = 0; /* upper_32_bits */
 
-			xe_tile_assert(tile, pt_bo->size == SZ_4K);
+			for (; i < pt_update_ops->num_ops; ++i) {
+				struct xe_vm_pgtable_update_op *pt_op =
+					&pt_update_ops->ops[i];
+				struct xe_vm_pgtable_update *updates = pt_op->entries;
 
-			addr = vm->pt_ops->pte_encode_bo(pt_bo, 0, pat_index, 0);
-			bb->cs[bb->len++] = lower_32_bits(addr);
-			bb->cs[bb->len++] = upper_32_bits(addr);
+				for (; j < pt_op->num_entries; ++j, ++current_update, ++idx) {
+					struct xe_vm *vm = pt_update->vops->vm;
+					struct xe_bo *pt_bo = updates[j].pt_bo;
+
+					if (idx == chunk)
+						goto next_cmd;
+
+					xe_tile_assert(tile, pt_bo->size == SZ_4K);
+
+					/* Map a PT at most once */
+					if (pt_bo->update_index < 0)
+						pt_bo->update_index = current_update;
+
+					addr = vm->pt_ops->pte_encode_bo(pt_bo, 0,
+									 XE_CACHE_WB, 0);
+					bb->cs[bb->len++] = lower_32_bits(addr);
+					bb->cs[bb->len++] = upper_32_bits(addr);
+				}
+
+				j = 0;
+			}
+
+next_cmd:
+			ptes -= chunk;
+			ofs += chunk * sizeof(u64);
 		}
 
 		bb->cs[bb->len++] = MI_BATCH_BUFFER_END;
@@ -1388,19 +1362,36 @@ xe_migrate_update_pgtables(struct xe_migrate *m,
 
 		addr = xe_migrate_vm_addr(ppgtt_ofs, 0) +
 			(page_ofs / sizeof(u64)) * XE_PAGE_SIZE;
-		for (i = 0; i < num_updates; i++)
-			write_pgtable(tile, bb, addr + i * XE_PAGE_SIZE,
-				      &updates[i], pt_update);
+		for (i = 0; i < pt_update_ops->num_ops; ++i) {
+			struct xe_vm_pgtable_update_op *pt_op =
+				&pt_update_ops->ops[i];
+			struct xe_vm_pgtable_update *updates = pt_op->entries;
+
+			for (j = 0; j < pt_op->num_entries; ++j) {
+				struct xe_bo *pt_bo = updates[j].pt_bo;
+
+				write_pgtable(tile, bb, addr +
+					      pt_bo->update_index * XE_PAGE_SIZE,
+					      pt_op, &updates[j], pt_update);
+			}
+		}
 	} else {
 		/* phys pages, no preamble required */
 		bb->cs[bb->len++] = MI_BATCH_BUFFER_END;
 		update_idx = bb->len;
 
-		for (i = 0; i < num_updates; i++)
-			write_pgtable(tile, bb, 0, &updates[i], pt_update);
+		for (i = 0; i < pt_update_ops->num_ops; ++i) {
+			struct xe_vm_pgtable_update_op *pt_op =
+				&pt_update_ops->ops[i];
+			struct xe_vm_pgtable_update *updates = pt_op->entries;
+
+			for (j = 0; j < pt_op->num_entries; ++j)
+				write_pgtable(tile, bb, 0, pt_op, &updates[j],
+					      pt_update);
+		}
 	}
 
-	job = xe_bb_create_migration_job(q ?: m->q, bb,
+	job = xe_bb_create_migration_job(pt_update_ops->q, bb,
 					 xe_migrate_batch_base(m, usm),
 					 update_idx);
 	if (IS_ERR(job)) {
@@ -1408,46 +1399,20 @@ xe_migrate_update_pgtables(struct xe_migrate *m,
 		goto err_sa;
 	}
 
-	/* Wait on BO move */
-	if (bo) {
-		err = xe_sched_job_add_deps(job, bo->ttm.base.resv,
-					    DMA_RESV_USAGE_KERNEL);
-		if (err)
-			goto err_job;
-	}
-
-	/*
-	 * Munmap style VM unbind, need to wait for all jobs to be complete /
-	 * trigger preempts before moving forward
-	 */
-	if (first_munmap_rebind) {
-		err = xe_sched_job_add_deps(job, xe_vm_resv(vm),
-					    DMA_RESV_USAGE_BOOKKEEP);
-		if (err)
-			goto err_job;
-	}
-
-	err = xe_sched_job_last_fence_add_dep(job, vm);
-	for (i = 0; !err && i < num_syncs; i++)
-		err = xe_sync_entry_add_deps(&syncs[i], job);
-
-	if (err)
-		goto err_job;
-
 	if (ops->pre_commit) {
 		pt_update->job = job;
 		err = ops->pre_commit(pt_update);
 		if (err)
 			goto err_job;
 	}
-	if (!q)
+	if (is_migrate)
 		mutex_lock(&m->job_mutex);
 
 	xe_sched_job_arm(job);
 	fence = dma_fence_get(&job->drm.s_fence->finished);
 	xe_sched_job_push(job);
 
-	if (!q)
+	if (is_migrate)
 		mutex_unlock(&m->job_mutex);
 
 	xe_bb_free(bb, fence);
@@ -1462,6 +1427,40 @@ err_sa:
 err_bb:
 	xe_bb_free(bb, NULL);
 	return ERR_PTR(err);
+}
+
+/**
+ * xe_migrate_update_pgtables() - Pipelined page-table update
+ * @m: The migrate context.
+ * @pt_update: PT update arguments
+ *
+ * Perform a pipelined page-table update. The update descriptors are typically
+ * built under the same lock critical section as a call to this function. If
+ * using the default engine for the updates, they will be performed in the
+ * order they grab the job_mutex. If different engines are used, external
+ * synchronization is needed for overlapping updates to maintain page-table
+ * consistency. Note that the meaing of "overlapping" is that the updates
+ * touch the same page-table, which might be a higher-level page-directory.
+ * If no pipelining is needed, then updates may be performed by the cpu.
+ *
+ * Return: A dma_fence that, when signaled, indicates the update completion.
+ */
+struct dma_fence *
+xe_migrate_update_pgtables(struct xe_migrate *m,
+			   struct xe_migrate_pt_update *pt_update)
+
+{
+	struct xe_vm_pgtable_update_ops *pt_update_ops =
+		&pt_update->vops->pt_update_ops[pt_update->tile_id];
+	struct dma_fence *fence;
+
+	fence =  xe_migrate_update_pgtables_cpu(m, pt_update);
+
+	/* -ETIME indicates a job is needed, anything else is legit error */
+	if (!IS_ERR(fence) || PTR_ERR(fence) != -ETIME)
+		return fence;
+
+	return __xe_migrate_update_pgtables(m, pt_update, pt_update_ops);
 }
 
 /**
