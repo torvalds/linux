@@ -11,7 +11,7 @@
 
 void intel_fb_bo_framebuffer_fini(struct xe_bo *bo)
 {
-	if (bo->flags & XE_BO_CREATE_PINNED_BIT) {
+	if (bo->flags & XE_BO_FLAG_PINNED) {
 		/* Unpin our kernel fb first */
 		xe_bo_lock(bo, false);
 		xe_bo_unpin(bo);
@@ -33,9 +33,9 @@ int intel_fb_bo_framebuffer_init(struct intel_framebuffer *intel_fb,
 	if (ret)
 		goto err;
 
-	if (!(bo->flags & XE_BO_SCANOUT_BIT)) {
+	if (!(bo->flags & XE_BO_FLAG_SCANOUT)) {
 		/*
-		 * XE_BO_SCANOUT_BIT should ideally be set at creation, or is
+		 * XE_BO_FLAG_SCANOUT should ideally be set at creation, or is
 		 * automatically set when creating FB. We cannot change caching
 		 * mode when the boect is VM_BINDed, so we can only set
 		 * coherency with display when unbound.
@@ -45,7 +45,7 @@ int intel_fb_bo_framebuffer_init(struct intel_framebuffer *intel_fb,
 			ret = -EINVAL;
 			goto err;
 		}
-		bo->flags |= XE_BO_SCANOUT_BIT;
+		bo->flags |= XE_BO_FLAG_SCANOUT;
 	}
 	ttm_bo_unreserve(&bo->ttm);
 	return 0;

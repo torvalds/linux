@@ -410,9 +410,6 @@ to be set to 'm'. This can be used if multiple drivers for a single
 hardware exists and only a single driver can be compiled/loaded into
 the kernel, but all drivers can be compiled as modules.
 
-A choice accepts another option "optional", which allows to set the
-choice to 'n' and no entry needs to be selected.
-
 comment::
 
 	"comment" <prompt>

@@ -478,7 +478,7 @@ static int nvmem_populate_sysfs_cells(struct nvmem_device *nvmem)
 
 	nvmem_cells_group.bin_attrs = cells_attrs;
 
-	ret = devm_device_add_groups(&nvmem->dev, nvmem_cells_groups);
+	ret = device_add_groups(&nvmem->dev, nvmem_cells_groups);
 	if (ret)
 		goto unlock_mutex;
 

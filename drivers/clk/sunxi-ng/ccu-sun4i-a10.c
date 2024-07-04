@@ -1481,6 +1481,7 @@ static const struct of_device_id sun4i_a10_ccu_ids[] = {
 	},
 	{ }
 };
+MODULE_DEVICE_TABLE(of, sun4i_a10_ccu_ids);
 
 static struct platform_driver sun4i_a10_ccu_driver = {
 	.probe	= sun4i_a10_ccu_probe,

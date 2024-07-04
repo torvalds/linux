@@ -1035,15 +1035,16 @@ int amdgpu_xgmi_remove_device(struct amdgpu_device *adev)
 	return 0;
 }
 
-static int xgmi_v6_4_0_aca_bank_generate_report(struct aca_handle *handle, struct aca_bank *bank, enum aca_error_type type,
-						struct aca_bank_report *report, void *data)
+static int xgmi_v6_4_0_aca_bank_parser(struct aca_handle *handle, struct aca_bank *bank,
+				       enum aca_smu_type type, void *data)
 {
 	struct amdgpu_device *adev = handle->adev;
+	struct aca_bank_info info;
 	const char *error_str;
-	u64 status;
+	u64 status, count;
 	int ret, ext_error_code;
 
-	ret = aca_bank_info_decode(bank, &report->info);
+	ret = aca_bank_info_decode(bank, &info);
 	if (ret)
 		return ret;
 
@@ -1055,15 +1056,28 @@ static int xgmi_v6_4_0_aca_bank_generate_report(struct aca_handle *handle, struc
 	if (error_str)
 		dev_info(adev->dev, "%s detected\n", error_str);
 
-	if ((type == ACA_ERROR_TYPE_UE && ext_error_code == 0) ||
-	    (type == ACA_ERROR_TYPE_CE && ext_error_code == 6))
-		report->count[type] = ACA_REG__MISC0__ERRCNT(bank->regs[ACA_REG_IDX_MISC0]);
+	count = ACA_REG__MISC0__ERRCNT(bank->regs[ACA_REG_IDX_MISC0]);
 
-	return 0;
+	switch (type) {
+	case ACA_SMU_TYPE_UE:
+		if (ext_error_code != 0 && ext_error_code != 9)
+			count = 0ULL;
+
+		ret = aca_error_cache_log_bank_error(handle, &info, ACA_ERROR_TYPE_UE, count);
+		break;
+	case ACA_SMU_TYPE_CE:
+		count = ext_error_code == 6 ? count : 0ULL;
+		ret = aca_error_cache_log_bank_error(handle, &info, ACA_ERROR_TYPE_CE, count);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return ret;
 }
 
 static const struct aca_bank_ops xgmi_v6_4_0_aca_bank_ops = {
-	.aca_bank_generate_report = xgmi_v6_4_0_aca_bank_generate_report,
+	.aca_bank_parser = xgmi_v6_4_0_aca_bank_parser,
 };
 
 static const struct aca_info xgmi_v6_4_0_aca_info = {

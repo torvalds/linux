@@ -488,7 +488,7 @@
 		#gpio-cells = <2>;
 
 		led@0 {
-			label = "nvme0";
+			label = "nvme3";
 			reg = <0>;
 			retain-state-shutdown;
 			default-state = "keep";
@@ -496,7 +496,7 @@
 		};
 
 		led@1 {
-			label = "nvme1";
+			label = "nvme2";
 			reg = <1>;
 			retain-state-shutdown;
 			default-state = "keep";
@@ -504,7 +504,7 @@
 		};
 
 		led@2 {
-			label = "nvme2";
+			label = "nvme1";
 			reg = <2>;
 			retain-state-shutdown;
 			default-state = "keep";
@@ -512,7 +512,7 @@
 		};
 
 		led@3 {
-			label = "nvme3";
+			label = "nvme0";
 			reg = <3>;
 			retain-state-shutdown;
 			default-state = "keep";

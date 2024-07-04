@@ -187,14 +187,14 @@ struct ext4_allocation_context {
 	struct ext4_free_extent ac_f_ex;
 
 	/*
-	 * goal len can change in CR1.5, so save the original len. This is
-	 * used while adjusting the PA window and for accounting.
+	 * goal len can change in CR_BEST_AVAIL_LEN, so save the original len.
+	 * This is used while adjusting the PA window and for accounting.
 	 */
 	ext4_grpblk_t	ac_orig_goal_len;
 
 	__u32 ac_flags;		/* allocation hints */
+	__u32 ac_groups_linear_remaining;
 	__u16 ac_groups_scanned;
-	__u16 ac_groups_linear_remaining;
 	__u16 ac_found;
 	__u16 ac_cX_found[EXT4_MB_NUM_CRS];
 	__u16 ac_tail;
@@ -204,8 +204,8 @@ struct ext4_allocation_context {
 	__u8 ac_2order;		/* if request is to allocate 2^N blocks and
 				 * N > 0, the field stores N, otherwise 0 */
 	__u8 ac_op;		/* operation, for history only */
-	struct page *ac_bitmap_page;
-	struct page *ac_buddy_page;
+	struct folio *ac_bitmap_folio;
+	struct folio *ac_buddy_folio;
 	struct ext4_prealloc_space *ac_pa;
 	struct ext4_locality_group *ac_lg;
 };
@@ -215,9 +215,9 @@ struct ext4_allocation_context {
 #define AC_STATUS_BREAK		3
 
 struct ext4_buddy {
-	struct page *bd_buddy_page;
+	struct folio *bd_buddy_folio;
 	void *bd_buddy;
-	struct page *bd_bitmap_page;
+	struct folio *bd_bitmap_folio;
 	void *bd_bitmap;
 	struct ext4_group_info *bd_info;
 	struct super_block *bd_sb;

@@ -996,7 +996,7 @@ static int ctcm_change_mtu(struct net_device *dev, int new_mtu)
 			return -EINVAL;
 		dev->hard_header_len = LL_HEADER_LENGTH + 2;
 	}
-	dev->mtu = new_mtu;
+	WRITE_ONCE(dev->mtu, new_mtu);
 	return 0;
 }
 

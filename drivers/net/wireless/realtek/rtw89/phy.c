@@ -122,6 +122,7 @@ static u64 get_eht_ra_mask(struct ieee80211_sta *sta)
 	struct ieee80211_sta_eht_cap *eht_cap = &sta->deflink.eht_cap;
 	struct ieee80211_eht_mcs_nss_supp_20mhz_only *mcs_nss_20mhz;
 	struct ieee80211_eht_mcs_nss_supp_bw *mcs_nss;
+	u8 *he_phy_cap = sta->deflink.he_cap.he_cap_elem.phy_cap_info;
 
 	switch (sta->deflink.bandwidth) {
 	case IEEE80211_STA_RX_BW_320:
@@ -132,15 +133,19 @@ static u64 get_eht_ra_mask(struct ieee80211_sta *sta)
 		mcs_nss = &eht_cap->eht_mcs_nss_supp.bw._160;
 		/* MCS 9, 11, 13 */
 		return get_eht_mcs_ra_mask(mcs_nss->rx_tx_max_nss, 9, 3);
+	case IEEE80211_STA_RX_BW_20:
+		if (!(he_phy_cap[0] &
+		      IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_MASK_ALL)) {
+			mcs_nss_20mhz = &eht_cap->eht_mcs_nss_supp.only_20mhz;
+			/* MCS 7, 9, 11, 13 */
+			return get_eht_mcs_ra_mask(mcs_nss_20mhz->rx_tx_max_nss, 7, 4);
+		}
+		fallthrough;
 	case IEEE80211_STA_RX_BW_80:
 	default:
 		mcs_nss = &eht_cap->eht_mcs_nss_supp.bw._80;
 		/* MCS 9, 11, 13 */
 		return get_eht_mcs_ra_mask(mcs_nss->rx_tx_max_nss, 9, 3);
-	case IEEE80211_STA_RX_BW_20:
-		mcs_nss_20mhz = &eht_cap->eht_mcs_nss_supp.only_20mhz;
-		/* MCS 7, 9, 11, 13 */
-		return get_eht_mcs_ra_mask(mcs_nss_20mhz->rx_tx_max_nss, 7, 4);
 	}
 }
 
@@ -6398,10 +6403,8 @@ enum rtw89_rf_path_bit rtw89_phy_get_kpath(struct rtw89_dev *rtwdev,
 			return RF_D;
 	case MLO_0_PLUS_2_1RF:
 	case MLO_2_PLUS_0_1RF:
-		if (phy_idx == RTW89_PHY_0)
-			return RF_AB;
-		else
-			return RF_AB;
+		/* for both PHY 0/1 */
+		return RF_AB;
 	case MLO_0_PLUS_2_2RF:
 	case MLO_2_PLUS_0_2RF:
 	case MLO_2_PLUS_2_2RF:

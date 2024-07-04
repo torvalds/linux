@@ -1,7 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
 
-ccflags-$(CONFIG_PPC64)	:= $(NO_MINIMAL_TOC)
-
 obj-y				+= mmu_context.o tlb.o tlb_low.o kup.o
 obj-$(CONFIG_PPC_BOOK3E_64)  	+= tlb_low_64e.o book3e_pgtable.o
 obj-$(CONFIG_40x)		+= 40x.o

@@ -211,7 +211,7 @@ SYM_FUNC_START(put_f64_reg)
 SYM_FUNC_END(put_f64_reg)
 
 /*
- * put_f64_reg - Get a 64 bits FP register value and returned it or store it to
+ * get_f64_reg - Get a 64 bits FP register value and returned it or store it to
  *	 	 a pointer.
  * a0 = FP register index to be retrieved
  * a1 = If xlen == 32, pointer which should be loaded with the FP register value

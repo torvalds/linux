@@ -127,7 +127,7 @@ static struct {
 #define CXL_TEST_EVENT_CNT_MAX 15
 
 /* Set a number of events to return at a time for simulation.  */
-#define CXL_TEST_EVENT_CNT 3
+#define CXL_TEST_EVENT_RET_MAX 4
 
 struct mock_event_log {
 	u16 clear_idx;
@@ -222,6 +222,12 @@ static void mes_add_event(struct mock_event_store *mes,
 	log->nr_events++;
 }
 
+/*
+ * Vary the number of events returned to simulate events occuring while the
+ * logs are being read.
+ */
+static int ret_limit = 0;
+
 static int mock_get_event(struct device *dev, struct cxl_mbox_cmd *cmd)
 {
 	struct cxl_get_event_payload *pl;
@@ -233,14 +239,18 @@ static int mock_get_event(struct device *dev, struct cxl_mbox_cmd *cmd)
 	if (cmd->size_in != sizeof(log_type))
 		return -EINVAL;
 
-	if (cmd->size_out < struct_size(pl, records, CXL_TEST_EVENT_CNT))
+	ret_limit = (ret_limit + 1) % CXL_TEST_EVENT_RET_MAX;
+	if (!ret_limit)
+		ret_limit = 1;
+
+	if (cmd->size_out < struct_size(pl, records, ret_limit))
 		return -EINVAL;
 
 	log_type = *((u8 *)cmd->payload_in);
 	if (log_type >= CXL_EVENT_TYPE_MAX)
 		return -EINVAL;
 
-	memset(cmd->payload_out, 0, cmd->size_out);
+	memset(cmd->payload_out, 0, struct_size(pl, records, 0));
 
 	log = event_find_log(dev, log_type);
 	if (!log || event_log_empty(log))
@@ -248,7 +258,7 @@ static int mock_get_event(struct device *dev, struct cxl_mbox_cmd *cmd)
 
 	pl = cmd->payload_out;
 
-	for (i = 0; i < CXL_TEST_EVENT_CNT && !event_log_empty(log); i++) {
+	for (i = 0; i < ret_limit && !event_log_empty(log); i++) {
 		memcpy(&pl->records[i], event_get_current(log),
 		       sizeof(pl->records[i]));
 		pl->records[i].event.generic.hdr.handle =
@@ -256,6 +266,7 @@ static int mock_get_event(struct device *dev, struct cxl_mbox_cmd *cmd)
 		log->cur_idx++;
 	}
 
+	cmd->size_out = struct_size(pl, records, i);
 	pl->record_count = cpu_to_le16(i);
 	if (!event_log_empty(log))
 		pl->flags |= CXL_GET_EVENT_FLAG_MORE_RECORDS;

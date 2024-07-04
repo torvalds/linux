@@ -330,7 +330,7 @@ static int rx6110_probe(struct rx6110_data *rx6110, struct device *dev)
 }
 
 #if IS_ENABLED(CONFIG_SPI_MASTER)
-static struct regmap_config regmap_spi_config = {
+static const struct regmap_config regmap_spi_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = RX6110_REG_IRQ,
@@ -410,7 +410,7 @@ static void rx6110_spi_unregister(void)
 #endif /* CONFIG_SPI_MASTER */
 
 #if IS_ENABLED(CONFIG_I2C)
-static struct regmap_config regmap_i2c_config = {
+static const struct regmap_config regmap_i2c_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = RX6110_REG_IRQ,

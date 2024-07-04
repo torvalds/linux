@@ -2,7 +2,7 @@
 /*
  * Sound card driver for Intel Haswell Lynx Point with Realtek 5640
  *
- * Copyright (C) 2013, Intel Corporation. All rights reserved.
+ * Copyright (C) 2013, Intel Corporation
  */
 
 #include <linux/module.h>

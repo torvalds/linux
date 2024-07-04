@@ -25,8 +25,6 @@
 	/* Actual device is MV88E6361 */
 	switch: switch@0 {
 		compatible = "marvell,mv88e6190";
-		#address-cells = <1>;
-		#size-cells = <0>;
 		reg = <0>;
 		status = "disabled";
 

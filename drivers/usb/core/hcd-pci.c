@@ -189,7 +189,8 @@ int usb_hcd_pci_probe(struct pci_dev *dev, const struct hc_driver *driver)
 	 * make sure irq setup is not touched for xhci in generic hcd code
 	 */
 	if ((driver->flags & HCD_MASK) < HCD_USB3) {
-		retval = pci_alloc_irq_vectors(dev, 1, 1, PCI_IRQ_LEGACY | PCI_IRQ_MSI);
+		retval = pci_alloc_irq_vectors(dev, 1, 1,
+					       PCI_IRQ_INTX | PCI_IRQ_MSI);
 		if (retval < 0) {
 			dev_err(&dev->dev,
 			"Found HC with no IRQ. Check BIOS/PCI %s setup!\n",

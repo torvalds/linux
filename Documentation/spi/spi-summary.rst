@@ -348,7 +348,6 @@ SPI protocol drivers somewhat resemble platform device drivers::
 	static struct spi_driver CHIP_driver = {
 		.driver = {
 			.name		= "CHIP",
-			.owner		= THIS_MODULE,
 			.pm		= &CHIP_pm_ops,
 		},
 
@@ -418,10 +417,6 @@ any more such messages.
     your messages.  That way controller drivers using DMA aren't forced
     to make extra copies unless the hardware requires it (e.g. working
     around hardware errata that force the use of bounce buffering).
-
-    If standard dma_map_single() handling of these buffers is inappropriate,
-    you can use spi_message.is_dma_mapped to tell the controller driver
-    that you've already provided the relevant DMA addresses.
 
   - The basic I/O primitive is spi_async().  Async requests may be
     issued in any context (irq handler, task, etc) and completion

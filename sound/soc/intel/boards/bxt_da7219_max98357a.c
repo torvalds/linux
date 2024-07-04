@@ -2,7 +2,7 @@
 /*
  * Intel Broxton-P I2S Machine Driver
  *
- * Copyright (C) 2016, Intel Corporation. All rights reserved.
+ * Copyright (C) 2016, Intel Corporation
  *
  * Modified from:
  *   Intel Skylake I2S Machine driver
@@ -24,13 +24,8 @@
 
 #define BXT_DIALOG_CODEC_DAI	"da7219-hifi"
 #define BXT_MAXIM_CODEC_DAI	"HiFi"
-#define MAX98390_DEV0_NAME	"i2c-MX98390:00"
-#define MAX98390_DEV1_NAME	"i2c-MX98390:01"
 #define DUAL_CHANNEL		2
 #define QUAD_CHANNEL		4
-
-#define SPKAMP_MAX98357A	1
-#define SPKAMP_MAX98390	2
 
 static struct snd_soc_jack broxton_headset;
 static struct snd_soc_jack broxton_hdmi[3];
@@ -44,7 +39,6 @@ struct bxt_hdmi_pcm {
 struct bxt_card_private {
 	struct list_head hdmi_pcm_list;
 	bool common_hdmi_codec_drv;
-	int spkamp;
 };
 
 enum {
@@ -91,15 +85,7 @@ static const struct snd_kcontrol_new broxton_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Headphone Jack"),
 	SOC_DAPM_PIN_SWITCH("Headset Mic"),
 	SOC_DAPM_PIN_SWITCH("Line Out"),
-};
-
-static const struct snd_kcontrol_new max98357a_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Spk"),
-};
-
-static const struct snd_kcontrol_new max98390_controls[] = {
-	SOC_DAPM_PIN_SWITCH("Left Spk"),
-	SOC_DAPM_PIN_SWITCH("Right Spk"),
 };
 
 static const struct snd_soc_dapm_widget broxton_widgets[] = {
@@ -112,15 +98,7 @@ static const struct snd_soc_dapm_widget broxton_widgets[] = {
 	SND_SOC_DAPM_SPK("HDMI3", NULL),
 	SND_SOC_DAPM_SUPPLY("Platform Clock", SND_SOC_NOPM, 0, 0,
 			platform_clock_control,	SND_SOC_DAPM_POST_PMD|SND_SOC_DAPM_PRE_PMU),
-};
-
-static const struct snd_soc_dapm_widget max98357a_widgets[] = {
 	SND_SOC_DAPM_SPK("Spk", NULL),
-};
-
-static const struct snd_soc_dapm_widget max98390_widgets[] = {
-	SND_SOC_DAPM_SPK("Left Spk", NULL),
-	SND_SOC_DAPM_SPK("Right Spk", NULL),
 };
 
 static const struct snd_soc_dapm_route audio_map[] = {
@@ -153,20 +131,10 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{ "Headphone Jack", NULL, "Platform Clock" },
 	{ "Headset Mic", NULL, "Platform Clock" },
 	{ "Line Out", NULL, "Platform Clock" },
-};
 
-static const struct snd_soc_dapm_route max98357a_routes[] = {
 	/* speaker */
 	{"Spk", NULL, "Speaker"},
-};
 
-static const struct snd_soc_dapm_route max98390_routes[] = {
-	/* Speaker */
-	{"Left Spk", NULL, "Left BE_OUT"},
-	{"Right Spk", NULL, "Right BE_OUT"},
-};
-
-static const struct snd_soc_dapm_route broxton_map[] = {
 	{"HiFi Playback", NULL, "ssp5 Tx"},
 	{"ssp5 Tx", NULL, "codec0_out"},
 
@@ -175,17 +143,6 @@ static const struct snd_soc_dapm_route broxton_map[] = {
 
 	{"codec0_in", NULL, "ssp1 Rx"},
 	{"ssp1 Rx", NULL, "Capture"},
-};
-
-static const struct snd_soc_dapm_route gemini_map[] = {
-	{"HiFi Playback", NULL, "ssp1 Tx"},
-	{"ssp1 Tx", NULL, "codec0_out"},
-
-	{"Playback", NULL, "ssp2 Tx"},
-	{"ssp2 Tx", NULL, "codec1_out"},
-
-	{"codec0_in", NULL, "ssp2 Rx"},
-	{"ssp2 Rx", NULL, "Capture"},
 };
 
 static struct snd_soc_jack_pin jack_pins[] = {
@@ -231,10 +188,7 @@ static int broxton_da7219_codec_init(struct snd_soc_pcm_runtime *rtd)
 	int clk_freq;
 
 	/* Configure sysclk for codec */
-	if (soc_intel_is_cml())
-		clk_freq = 24000000;
-	else
-		clk_freq = 19200000;
+	clk_freq = 19200000;
 
 	ret = snd_soc_dai_set_sysclk(codec_dai, DA7219_CLKSRC_MCLK, clk_freq,
 				     SND_SOC_CLOCK_IN);
@@ -453,10 +407,6 @@ SND_SOC_DAILINK_DEF(ssp5_pin,
 SND_SOC_DAILINK_DEF(ssp5_codec,
 	DAILINK_COMP_ARRAY(COMP_CODEC("MX98357A:00",
 				      BXT_MAXIM_CODEC_DAI)));
-SND_SOC_DAILINK_DEF(max98390_codec,
-	DAILINK_COMP_ARRAY(
-	/* Left */	COMP_CODEC(MAX98390_DEV0_NAME, "max98390-aif1"),
-	/* Right */	COMP_CODEC(MAX98390_DEV1_NAME, "max98390-aif1")));
 
 SND_SOC_DAILINK_DEF(ssp1_pin,
 	DAILINK_COMP_ARRAY(COMP_CPU("SSP1 Pin")));
@@ -654,75 +604,14 @@ static struct snd_soc_dai_link broxton_dais[] = {
 	},
 };
 
-static struct snd_soc_codec_conf max98390_codec_confs[] = {
-	{
-		.dlc = COMP_CODEC_CONF(MAX98390_DEV0_NAME),
-		.name_prefix = "Left",
-	},
-	{
-		.dlc = COMP_CODEC_CONF(MAX98390_DEV1_NAME),
-		.name_prefix = "Right",
-	},
-};
-
 #define NAME_SIZE	32
 static int bxt_card_late_probe(struct snd_soc_card *card)
 {
 	struct bxt_card_private *ctx = snd_soc_card_get_drvdata(card);
 	struct bxt_hdmi_pcm *pcm;
 	struct snd_soc_component *component = NULL;
-	const struct snd_kcontrol_new *controls;
-	const struct snd_soc_dapm_widget *widgets;
-	const struct snd_soc_dapm_route *routes;
-	int num_controls, num_widgets, num_routes, err, i = 0;
+	int err, i = 0;
 	char jack_name[NAME_SIZE];
-
-	switch (ctx->spkamp) {
-	case SPKAMP_MAX98357A:
-		controls = max98357a_controls;
-		num_controls = ARRAY_SIZE(max98357a_controls);
-		widgets = max98357a_widgets;
-		num_widgets = ARRAY_SIZE(max98357a_widgets);
-		routes = max98357a_routes;
-		num_routes = ARRAY_SIZE(max98357a_routes);
-		break;
-	case SPKAMP_MAX98390:
-		controls = max98390_controls;
-		num_controls = ARRAY_SIZE(max98390_controls);
-		widgets = max98390_widgets;
-		num_widgets = ARRAY_SIZE(max98390_widgets);
-		routes = max98390_routes;
-		num_routes = ARRAY_SIZE(max98390_routes);
-		break;
-	default:
-		dev_err(card->dev, "Invalid speaker amplifier %d\n", ctx->spkamp);
-		return -EINVAL;
-	}
-
-	err = snd_soc_dapm_new_controls(&card->dapm, widgets, num_widgets);
-	if (err) {
-		dev_err(card->dev, "Fail to new widgets\n");
-		return err;
-	}
-
-	err = snd_soc_add_card_controls(card, controls, num_controls);
-	if (err) {
-		dev_err(card->dev, "Fail to add controls\n");
-		return err;
-	}
-
-	err = snd_soc_dapm_add_routes(&card->dapm, routes, num_routes);
-	if (err) {
-		dev_err(card->dev, "Fail to add routes\n");
-		return err;
-	}
-
-	if (soc_intel_is_glk())
-		snd_soc_dapm_add_routes(&card->dapm, gemini_map,
-					ARRAY_SIZE(gemini_map));
-	else
-		snd_soc_dapm_add_routes(&card->dapm, broxton_map,
-					ARRAY_SIZE(broxton_map));
 
 	if (list_empty(&ctx->hdmi_pcm_list))
 		return -EINVAL;
@@ -768,6 +657,7 @@ static struct snd_soc_card broxton_audio_card = {
 	.dapm_routes = audio_map,
 	.num_dapm_routes = ARRAY_SIZE(audio_map),
 	.fully_routed = true,
+	.disable_route_checks = true,
 	.late_probe = bxt_card_late_probe,
 };
 
@@ -784,70 +674,8 @@ static int broxton_audio_probe(struct platform_device *pdev)
 
 	INIT_LIST_HEAD(&ctx->hdmi_pcm_list);
 
-	if (acpi_dev_present("MX98390", NULL, -1))
-		ctx->spkamp = SPKAMP_MAX98390;
-	else
-		ctx->spkamp = SPKAMP_MAX98357A;
-
 	broxton_audio_card.dev = &pdev->dev;
 	snd_soc_card_set_drvdata(&broxton_audio_card, ctx);
-	if (soc_intel_is_glk()) {
-		unsigned int i;
-
-		broxton_audio_card.name = "glkda7219max";
-		/* Fixup the SSP entries for geminilake */
-		for (i = 0; i < ARRAY_SIZE(broxton_dais); i++) {
-			if (!broxton_dais[i].codecs->dai_name)
-				continue;
-
-			/* MAXIM_CODEC is connected to SSP1. */
-			if (!strcmp(broxton_dais[i].codecs->dai_name,
-				    BXT_MAXIM_CODEC_DAI)) {
-				broxton_dais[i].name = "SSP1-Codec";
-				broxton_dais[i].cpus->dai_name = "SSP1 Pin";
-			}
-			/* DIALOG_CODE is connected to SSP2 */
-			else if (!strcmp(broxton_dais[i].codecs->dai_name,
-					 BXT_DIALOG_CODEC_DAI)) {
-				broxton_dais[i].name = "SSP2-Codec";
-				broxton_dais[i].cpus->dai_name = "SSP2 Pin";
-			}
-		}
-	} else if (soc_intel_is_cml()) {
-		unsigned int i;
-
-		if (ctx->spkamp == SPKAMP_MAX98390) {
-			broxton_audio_card.name = "cml_max98390_da7219";
-
-			broxton_audio_card.codec_conf = max98390_codec_confs;
-			broxton_audio_card.num_configs = ARRAY_SIZE(max98390_codec_confs);
-		} else
-			broxton_audio_card.name = "cmlda7219max";
-
-		for (i = 0; i < ARRAY_SIZE(broxton_dais); i++) {
-			if (!broxton_dais[i].codecs->dai_name)
-				continue;
-
-			/* MAXIM_CODEC is connected to SSP1. */
-			if (!strcmp(broxton_dais[i].codecs->dai_name,
-					BXT_MAXIM_CODEC_DAI)) {
-				broxton_dais[i].name = "SSP1-Codec";
-				broxton_dais[i].cpus->dai_name = "SSP1 Pin";
-
-				if (ctx->spkamp == SPKAMP_MAX98390) {
-					broxton_dais[i].codecs = max98390_codec;
-					broxton_dais[i].num_codecs = ARRAY_SIZE(max98390_codec);
-					broxton_dais[i].dpcm_capture = 1;
-				}
-			}
-			/* DIALOG_CODEC is connected to SSP0 */
-			else if (!strcmp(broxton_dais[i].codecs->dai_name,
-					BXT_DIALOG_CODEC_DAI)) {
-				broxton_dais[i].name = "SSP0-Codec";
-				broxton_dais[i].cpus->dai_name = "SSP0 Pin";
-			}
-		}
-	}
 
 	/* override platform name, if required */
 	mach = pdev->dev.platform_data;
@@ -865,8 +693,6 @@ static int broxton_audio_probe(struct platform_device *pdev)
 
 static const struct platform_device_id bxt_board_ids[] = {
 	{ .name = "bxt_da7219_mx98357a" },
-	{ .name = "glk_da7219_mx98357a" },
-	{ .name = "cml_da7219_mx98357a" },
 	{ }
 };
 MODULE_DEVICE_TABLE(platform, bxt_board_ids);

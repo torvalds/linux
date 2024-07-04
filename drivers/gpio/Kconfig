@@ -103,6 +103,15 @@ config GPIO_REGMAP
 	select REGMAP
 	tristate
 
+config GPIO_SWNODE_UNDEFINED
+	bool
+	help
+	  This adds a special place holder for software nodes to contain an
+	  undefined GPIO reference, this is primarily used by SPI to allow a
+	  list of GPIO chip selects to mark a certain chip select as being
+	  controlled the SPI device's internal chip select mechanism and not
+	  a GPIO.
+
 # put drivers in the right section, in alphabetical order
 
 # This symbol is selected by both I2C and SPI expanders
@@ -311,6 +320,24 @@ config GPIO_GENERIC_PLATFORM
 	select GPIO_GENERIC
 	help
 	  Say yes here to support basic platform_device memory-mapped GPIO controllers.
+
+config GPIO_GRANITERAPIDS
+	tristate "Intel Granite Rapids-D vGPIO support"
+	depends on X86 || COMPILE_TEST
+	select GPIOLIB_IRQCHIP
+	help
+	  Select this to enable virtual GPIO support on platforms with the
+	  following SoCs:
+
+	  - Intel Granite Rapids-D
+
+	  The driver enables basic GPIO functionality and implements interrupt
+	  support. The virtual GPIO driver controls GPIO lines via a firmware
+	  interface. The physical GPIO pins reside on device that is external
+	  from the main SoC package, such as a BMC or a CPLD.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called gpio-graniterapids.
 
 config GPIO_GRGPIO
 	tristate "Aeroflex Gaisler GRGPIO support"

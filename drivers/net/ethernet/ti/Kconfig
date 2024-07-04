@@ -167,7 +167,7 @@ config TI_KEYSTONE_NETCP_ETHSS
 
 config TLAN
 	tristate "TI ThunderLAN support"
-	depends on (PCI || EISA)
+	depends on (PCI || EISA) && HAS_IOPORT
 	help
 	  If you have a PCI Ethernet network card based on the ThunderLAN chip
 	  which is supported by this driver, say Y here.
@@ -197,6 +197,21 @@ config TI_ICSSG_PRUETH
 	  This driver requires firmware binaries which will run on the PRUs
 	  to support the Ethernet operation. Currently, it supports Ethernet
 	  with 1G and 100M link speed.
+
+config TI_ICSSG_PRUETH_SR1
+	tristate "TI Gigabit PRU SR1.0 Ethernet driver"
+	select PHYLIB
+	select TI_ICSS_IEP
+	select TI_K3_CPPI_DESC_POOL
+	depends on PRU_REMOTEPROC
+	depends on ARCH_K3 && OF && TI_K3_UDMA_GLUE_LAYER
+	help
+	  Support dual Gigabit Ethernet ports over the ICSSG PRU Subsystem.
+	  This subsystem is available on the AM65 SR1.0 platform.
+
+	  This driver requires firmware binaries which will run on the PRUs
+	  to support the Ethernet operation. Currently, it supports Ethernet
+	  with 1G, 100M and 10M link speed.
 
 config TI_ICSS_IEP
 	tristate "TI PRU ICSS IEP driver"

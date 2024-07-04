@@ -146,17 +146,6 @@ struct module_notes_attrs {
 	struct bin_attribute attrs[] __counted_by(notes);
 };
 
-static ssize_t module_notes_read(struct file *filp, struct kobject *kobj,
-				 struct bin_attribute *bin_attr,
-				 char *buf, loff_t pos, size_t count)
-{
-	/*
-	 * The caller checked the pos and count against our size.
-	 */
-	memcpy(buf, bin_attr->private + pos, count);
-	return count;
-}
-
 static void free_notes_attrs(struct module_notes_attrs *notes_attrs,
 			     unsigned int i)
 {
@@ -205,7 +194,7 @@ static void add_notes_attrs(struct module *mod, const struct load_info *info)
 			nattr->attr.mode = 0444;
 			nattr->size = info->sechdrs[i].sh_size;
 			nattr->private = (void *)info->sechdrs[i].sh_addr;
-			nattr->read = module_notes_read;
+			nattr->read = sysfs_bin_attr_simple_read;
 			++nattr;
 		}
 		++loaded;

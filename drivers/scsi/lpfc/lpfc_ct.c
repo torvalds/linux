@@ -291,9 +291,9 @@ lpfc_ct_handle_mibreq(struct lpfc_hba *phba, struct lpfc_iocbq *ctiocbq)
 
 	did = bf_get(els_rsp64_sid, &ctiocbq->wqe.xmit_els_rsp);
 	if (ulp_status) {
-		lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
-				 "6438 Unsol CT: status:x%x/x%x did : x%x\n",
-				 ulp_status, ulp_word4, did);
+		lpfc_vlog_msg(vport, KERN_WARNING, LOG_ELS,
+			      "6438 Unsol CT: status:x%x/x%x did : x%x\n",
+			      ulp_status, ulp_word4, did);
 		return;
 	}
 
@@ -303,17 +303,17 @@ lpfc_ct_handle_mibreq(struct lpfc_hba *phba, struct lpfc_iocbq *ctiocbq)
 
 	ndlp = lpfc_findnode_did(vport, did);
 	if (!ndlp) {
-		lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
-				 "6439 Unsol CT: NDLP Not Found for DID : x%x",
-				 did);
+		lpfc_vlog_msg(vport, KERN_WARNING, LOG_ELS,
+			      "6439 Unsol CT: NDLP Not Found for DID : x%x",
+			      did);
 		return;
 	}
 
 	ct_req = (struct lpfc_sli_ct_request *)ctiocbq->cmd_dmabuf->virt;
 
 	mi_cmd = be16_to_cpu(ct_req->CommandResponse.bits.CmdRsp);
-	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
-			 "6442 : MI Cmd : x%x Not Supported\n", mi_cmd);
+	lpfc_vlog_msg(vport, KERN_WARNING, LOG_ELS,
+		      "6442 MI Cmd : x%x Not Supported\n", mi_cmd);
 	lpfc_ct_reject_event(ndlp, ct_req,
 			     bf_get(wqe_ctxt_tag,
 				    &ctiocbq->wqe.xmit_els_rsp.wqe_com),
@@ -2173,7 +2173,7 @@ lpfc_fdmi_rprt_defer(struct lpfc_hba *phba, uint32_t mask)
 	struct lpfc_nodelist *ndlp;
 	int i;
 
-	phba->hba_flag |= HBA_RHBA_CMPL;
+	set_bit(HBA_RHBA_CMPL, &phba->hba_flag);
 	vports = lpfc_create_vport_work_array(phba);
 	if (vports) {
 		for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++) {
@@ -2368,7 +2368,7 @@ lpfc_cmpl_ct_disc_fdmi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			 * for the physical port completes successfully.
 			 * We may have to defer the RPRT accordingly.
 			 */
-			if (phba->hba_flag & HBA_RHBA_CMPL) {
+			if (test_bit(HBA_RHBA_CMPL, &phba->hba_flag)) {
 				lpfc_fdmi_cmd(vport, ndlp, SLI_MGMT_RPRT, 0);
 			} else {
 				lpfc_printf_vlog(vport, KERN_INFO,
@@ -2785,7 +2785,7 @@ lpfc_fdmi_port_attr_support_speed(struct lpfc_vport *vport, void *attr)
 	u32 tcfg;
 	u8 i, cnt;
 
-	if (!(phba->hba_flag & HBA_FCOE_MODE)) {
+	if (!test_bit(HBA_FCOE_MODE, &phba->hba_flag)) {
 		cnt = 0;
 		if (phba->sli_rev == LPFC_SLI_REV4) {
 			tcfg = phba->sli4_hba.conf_trunk;
@@ -2859,7 +2859,7 @@ lpfc_fdmi_port_attr_speed(struct lpfc_vport *vport, void *attr)
 	struct lpfc_hba   *phba = vport->phba;
 	u32 speeds = 0;
 
-	if (!(phba->hba_flag & HBA_FCOE_MODE)) {
+	if (!test_bit(HBA_FCOE_MODE, &phba->hba_flag)) {
 		switch (phba->fc_linkspeed) {
 		case LPFC_LINK_SPEED_1GHZ:
 			speeds = HBA_PORTSPEED_1GFC;

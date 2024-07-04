@@ -6,6 +6,7 @@
  */
 #include <linux/linkage.h>
 #include <linux/init.h>
+#include <linux/cfi_types.h>
 #include <linux/pgtable.h>
 #include <asm/assembler.h>
 #include <asm/asm-offsets.h>
@@ -23,18 +24,29 @@
  * cpu_arm7tdmi_switch_mm()
  *
  * These are not required.
- */
-ENTRY(cpu_arm7tdmi_proc_init)
-ENTRY(cpu_arm7tdmi_do_idle)
-ENTRY(cpu_arm7tdmi_dcache_clean_area)
-ENTRY(cpu_arm7tdmi_switch_mm)
-		ret	lr
+*/
+SYM_TYPED_FUNC_START(cpu_arm7tdmi_proc_init)
+	ret lr
+SYM_FUNC_END(cpu_arm7tdmi_proc_init)
+
+SYM_TYPED_FUNC_START(cpu_arm7tdmi_do_idle)
+	ret lr
+SYM_FUNC_END(cpu_arm7tdmi_do_idle)
+
+SYM_TYPED_FUNC_START(cpu_arm7tdmi_dcache_clean_area)
+	ret lr
+SYM_FUNC_END(cpu_arm7tdmi_dcache_clean_area)
+
+SYM_TYPED_FUNC_START(cpu_arm7tdmi_switch_mm)
+	ret	lr
+SYM_FUNC_END(cpu_arm7tdmi_switch_mm)
 
 /*
  * cpu_arm7tdmi_proc_fin()
- */
-ENTRY(cpu_arm7tdmi_proc_fin)
-		ret	lr
+*/
+SYM_TYPED_FUNC_START(cpu_arm7tdmi_proc_fin)
+	ret	lr
+SYM_FUNC_END(cpu_arm7tdmi_proc_fin)
 
 /*
  * Function: cpu_arm7tdmi_reset(loc)
@@ -42,9 +54,9 @@ ENTRY(cpu_arm7tdmi_proc_fin)
  * Purpose : Sets up everything for a reset and jump to the location for soft reset.
  */
 		.pushsection	.idmap.text, "ax"
-ENTRY(cpu_arm7tdmi_reset)
+SYM_TYPED_FUNC_START(cpu_arm7tdmi_reset)
 		ret	r0
-ENDPROC(cpu_arm7tdmi_reset)
+SYM_FUNC_END(cpu_arm7tdmi_reset)
 		.popsection
 
 		.type	__arm7tdmi_setup, #function

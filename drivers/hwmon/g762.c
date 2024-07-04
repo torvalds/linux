@@ -44,8 +44,8 @@
 #define DRVNAME "g762"
 
 static const struct i2c_device_id g762_id[] = {
-	{ "g762", 0 },
-	{ "g763", 0 },
+	{ "g762" },
+	{ "g763" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, g762_id);

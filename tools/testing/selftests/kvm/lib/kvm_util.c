@@ -4,11 +4,10 @@
  *
  * Copyright (C) 2018, Google LLC.
  */
-
-#define _GNU_SOURCE /* for program_invocation_name */
 #include "test_util.h"
 #include "kvm_util.h"
 #include "processor.h"
+#include "ucall_common.h"
 
 #include <assert.h>
 #include <sched.h>
@@ -19,6 +18,9 @@
 #include <linux/kernel.h>
 
 #define KVM_UTIL_MIN_PFN	2
+
+uint32_t guest_random_seed;
+struct guest_random_state guest_rng;
 
 static int vcpu_mmap_sz(void);
 
@@ -276,7 +278,6 @@ struct kvm_vm *____vm_create(struct vm_shape shape)
 
 	vm->mode = shape.mode;
 	vm->type = shape.type;
-	vm->subtype = shape.subtype;
 
 	vm->pa_bits = vm_guest_mode_params[vm->mode].pa_bits;
 	vm->va_bits = vm_guest_mode_params[vm->mode].va_bits;
@@ -432,6 +433,10 @@ struct kvm_vm *__vm_create(struct vm_shape shape, uint32_t nr_runnable_vcpus,
 	 */
 	slot0 = memslot2region(vm, 0);
 	ucall_init(vm, slot0->region.guest_phys_addr + slot0->region.memory_size);
+
+	pr_info("Random seed: 0x%x\n", guest_random_seed);
+	guest_rng = new_guest_random_state(guest_random_seed);
+	sync_global_to_guest(vm, guest_rng);
 
 	kvm_arch_vm_post_create(vm);
 
@@ -930,6 +935,10 @@ void vm_set_user_memory_region(struct kvm_vm *vm, uint32_t slot, uint32_t flags,
 		    errno, strerror(errno));
 }
 
+#define TEST_REQUIRE_SET_USER_MEMORY_REGION2()			\
+	__TEST_REQUIRE(kvm_has_cap(KVM_CAP_USER_MEMORY2),	\
+		       "KVM selftests now require KVM_SET_USER_MEMORY_REGION2 (introduced in v6.8)")
+
 int __vm_set_user_memory_region2(struct kvm_vm *vm, uint32_t slot, uint32_t flags,
 				 uint64_t gpa, uint64_t size, void *hva,
 				 uint32_t guest_memfd, uint64_t guest_memfd_offset)
@@ -943,6 +952,8 @@ int __vm_set_user_memory_region2(struct kvm_vm *vm, uint32_t slot, uint32_t flag
 		.guest_memfd = guest_memfd,
 		.guest_memfd_offset = guest_memfd_offset,
 	};
+
+	TEST_REQUIRE_SET_USER_MEMORY_REGION2();
 
 	return ioctl(vm->fd, KVM_SET_USER_MEMORY_REGION2, &region);
 }
@@ -969,6 +980,8 @@ void vm_mem_add(struct kvm_vm *vm, enum vm_mem_backing_src_type src_type,
 	size_t backing_src_pagesz = get_backing_src_pagesz(src_type);
 	size_t mem_size = npages * vm->page_size;
 	size_t alignment;
+
+	TEST_REQUIRE_SET_USER_MEMORY_REGION2();
 
 	TEST_ASSERT(vm_adjust_num_guest_pages(vm->mode, npages) == npages,
 		"Number of guest pages is not compatible with the host. "
@@ -2305,6 +2318,8 @@ void __attribute((constructor)) kvm_selftest_init(void)
 {
 	/* Tell stdout not to buffer its content. */
 	setbuf(stdout, NULL);
+
+	guest_random_seed = random();
 
 	kvm_selftest_arch_init();
 }

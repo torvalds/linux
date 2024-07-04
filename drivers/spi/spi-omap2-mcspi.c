@@ -131,6 +131,7 @@ struct omap2_mcspi {
 	unsigned int		pin_dir:1;
 	size_t			max_xfer_len;
 	u32			ref_clk_hz;
+	bool			use_multi_mode;
 };
 
 struct omap2_mcspi_cs {
@@ -256,10 +257,15 @@ static void omap2_mcspi_set_cs(struct spi_device *spi, bool enable)
 
 		l = mcspi_cached_chconf0(spi);
 
-		if (enable)
+		/* Only enable chip select manually if single mode is used */
+		if (mcspi->use_multi_mode) {
 			l &= ~OMAP2_MCSPI_CHCONF_FORCE;
-		else
-			l |= OMAP2_MCSPI_CHCONF_FORCE;
+		} else {
+			if (enable)
+				l &= ~OMAP2_MCSPI_CHCONF_FORCE;
+			else
+				l |= OMAP2_MCSPI_CHCONF_FORCE;
+		}
 
 		mcspi_write_chconf0(spi, l);
 
@@ -283,7 +289,12 @@ static void omap2_mcspi_set_mode(struct spi_controller *ctlr)
 		l |= (OMAP2_MCSPI_MODULCTRL_MS);
 	} else {
 		l &= ~(OMAP2_MCSPI_MODULCTRL_MS);
-		l |= OMAP2_MCSPI_MODULCTRL_SINGLE;
+
+		/* Enable single mode if needed */
+		if (mcspi->use_multi_mode)
+			l &= ~OMAP2_MCSPI_MODULCTRL_SINGLE;
+		else
+			l |= OMAP2_MCSPI_MODULCTRL_SINGLE;
 	}
 	mcspi_write_reg(ctlr, OMAP2_MCSPI_MODULCTRL, l);
 
@@ -1175,13 +1186,6 @@ static int omap2_mcspi_transfer_one(struct spi_controller *ctlr,
 		    t->bits_per_word == spi->bits_per_word)
 			par_override = 0;
 	}
-	if (cd && cd->cs_per_word) {
-		chconf = mcspi->ctx.modulctrl;
-		chconf &= ~OMAP2_MCSPI_MODULCTRL_SINGLE;
-		mcspi_write_reg(ctlr, OMAP2_MCSPI_MODULCTRL, chconf);
-		mcspi->ctx.modulctrl =
-			mcspi_read_cs_reg(spi, OMAP2_MCSPI_MODULCTRL);
-	}
 
 	chconf = mcspi_cached_chconf0(spi);
 	chconf &= ~OMAP2_MCSPI_CHCONF_TRM_MASK;
@@ -1240,14 +1244,6 @@ out:
 		status = omap2_mcspi_setup_transfer(spi, NULL);
 	}
 
-	if (cd && cd->cs_per_word) {
-		chconf = mcspi->ctx.modulctrl;
-		chconf |= OMAP2_MCSPI_MODULCTRL_SINGLE;
-		mcspi_write_reg(ctlr, OMAP2_MCSPI_MODULCTRL, chconf);
-		mcspi->ctx.modulctrl =
-			mcspi_read_cs_reg(spi, OMAP2_MCSPI_MODULCTRL);
-	}
-
 	omap2_mcspi_set_enable(spi, 0);
 
 	if (spi_get_csgpiod(spi, 0))
@@ -1265,15 +1261,72 @@ static int omap2_mcspi_prepare_message(struct spi_controller *ctlr,
 	struct omap2_mcspi	*mcspi = spi_controller_get_devdata(ctlr);
 	struct omap2_mcspi_regs	*ctx = &mcspi->ctx;
 	struct omap2_mcspi_cs	*cs;
+	struct spi_transfer	*tr;
+	u8 bits_per_word;
 
-	/* Only a single channel can have the FORCE bit enabled
+	/*
+	 * The conditions are strict, it is mandatory to check each transfer of the list to see if
+	 * multi-mode is applicable.
+	 */
+	mcspi->use_multi_mode = true;
+	list_for_each_entry(tr, &msg->transfers, transfer_list) {
+		if (!tr->bits_per_word)
+			bits_per_word = msg->spi->bits_per_word;
+		else
+			bits_per_word = tr->bits_per_word;
+
+		/*
+		 * Check if this transfer contains only one word;
+		 * OR contains 1 to 4 words, with bits_per_word == 8 and no delay between each word
+		 * OR contains 1 to 2 words, with bits_per_word == 16 and no delay between each word
+		 *
+		 * If one of the two last case is true, this also change the bits_per_word of this
+		 * transfer to make it a bit faster.
+		 * It's not an issue to change the bits_per_word here even if the multi-mode is not
+		 * applicable for this message, the signal on the wire will be the same.
+		 */
+		if (bits_per_word < 8 && tr->len == 1) {
+			/* multi-mode is applicable, only one word (1..7 bits) */
+		} else if (tr->word_delay.value == 0 && bits_per_word == 8 && tr->len <= 4) {
+			/* multi-mode is applicable, only one "bigger" word (8,16,24,32 bits) */
+			tr->bits_per_word = tr->len * bits_per_word;
+		} else if (tr->word_delay.value == 0 && bits_per_word == 16 && tr->len <= 2) {
+			/* multi-mode is applicable, only one "bigger" word (16,32 bits) */
+			tr->bits_per_word = tr->len * bits_per_word / 2;
+		} else if (bits_per_word >= 8 && tr->len == bits_per_word / 8) {
+			/* multi-mode is applicable, only one word (9..15,17..32 bits) */
+		} else {
+			/* multi-mode is not applicable: more than one word in the transfer */
+			mcspi->use_multi_mode = false;
+		}
+
+		/* Check if transfer asks to change the CS status after the transfer */
+		if (!tr->cs_change)
+			mcspi->use_multi_mode = false;
+
+		/*
+		 * If at least one message is not compatible, switch back to single mode
+		 *
+		 * The bits_per_word of certain transfer can be different, but it will have no
+		 * impact on the signal itself.
+		 */
+		if (!mcspi->use_multi_mode)
+			break;
+	}
+
+	omap2_mcspi_set_mode(ctlr);
+
+	/* In single mode only a single channel can have the FORCE bit enabled
 	 * in its chconf0 register.
 	 * Scan all channels and disable them except the current one.
 	 * A FORCE can remain from a last transfer having cs_change enabled
+	 *
+	 * In multi mode all FORCE bits must be disabled.
 	 */
 	list_for_each_entry(cs, &ctx->cs, node) {
-		if (msg->spi->controller_state == cs)
+		if (msg->spi->controller_state == cs && !mcspi->use_multi_mode) {
 			continue;
+		}
 
 		if ((cs->chconf0 & OMAP2_MCSPI_CHCONF_FORCE)) {
 			cs->chconf0 &= ~OMAP2_MCSPI_CHCONF_FORCE;

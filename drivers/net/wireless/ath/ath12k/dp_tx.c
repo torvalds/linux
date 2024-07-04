@@ -414,7 +414,7 @@ ath12k_dp_tx_process_htt_tx_complete(struct ath12k_base *ab,
 	struct ath12k_dp_htt_wbm_tx_status ts = {0};
 	enum hal_wbm_htt_tx_comp_status wbm_status;
 
-	status_desc = desc + HTT_TX_WBM_COMP_STATUS_OFFSET;
+	status_desc = desc;
 
 	wbm_status = le32_get_bits(status_desc->info0,
 				   HTT_TX_WBM_COMP_INFO0_STATUS);

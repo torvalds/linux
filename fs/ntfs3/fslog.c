@@ -517,7 +517,7 @@ static inline bool is_rst_area_valid(const struct RESTART_HDR *rhdr)
 		seq_bits -= 1;
 	}
 
-	if (seq_bits != ra->seq_num_bits)
+	if (seq_bits != le32_to_cpu(ra->seq_num_bits))
 		return false;
 
 	/* The log page data offset and record header length must be quad-aligned. */
@@ -1184,7 +1184,8 @@ out:
 static int log_read_rst(struct ntfs_log *log, bool first,
 			struct restart_info *info)
 {
-	u32 skip, vbo;
+	u32 skip;
+	u64 vbo;
 	struct RESTART_HDR *r_page = NULL;
 
 	/* Determine which restart area we are looking for. */

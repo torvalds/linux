@@ -964,7 +964,7 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 		     MAC80211_NOLINK) &&
 		     (ieee->rf_power_state == rf_on) && !ieee->is_set_key &&
 		     (!ieee->proto_stoppping) && !ieee->wx_set_enc) {
-			if (ieee->pwr_save_ctrl.ReturnPoint == IPS_CALLBACK_NONE)
+			if (ieee->pwr_save_ctrl.return_point == IPS_CALLBACK_NONE)
 				rtl92e_ips_enter(dev);
 		}
 	}

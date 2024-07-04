@@ -18,6 +18,8 @@
 
 #include <asm/cacheflush.h>
 
+#include "kernel.h"
+
 /* Compute the address of the breakpoint instruction and return it.
  *
  * Note that uprobe_get_swbp_addr is defined as a weak symbol in

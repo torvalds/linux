@@ -454,7 +454,6 @@ struct platform_driver rotator_driver = {
 	.remove_new	= rotator_remove,
 	.driver		= {
 		.name	= "exynos-rotator",
-		.owner	= THIS_MODULE,
 		.pm	= pm_ptr(&rotator_pm_ops),
 		.of_match_table = exynos_rotator_match,
 	},

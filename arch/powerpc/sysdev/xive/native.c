@@ -415,7 +415,7 @@ static void xive_native_setup_cpu(unsigned int cpu, struct xive_cpu *xc)
 		return;
 	}
 
-	/* Grab it's CAM value */
+	/* Grab its CAM value */
 	rc = opal_xive_get_vp_info(vp, NULL, &vp_cam_be, NULL, NULL);
 	if (rc) {
 		pr_err("Failed to get pool VP info CPU %d\n", cpu);

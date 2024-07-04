@@ -21,6 +21,7 @@
 #include <net/secure_seq.h>
 #include <net/ip.h>
 #include <net/sock_reuseport.h>
+#include <net/tcp.h>
 
 u32 inet6_ehashfn(const struct net *net,
 		  const struct in6_addr *laddr, const u16 lport,
@@ -289,7 +290,8 @@ static int __inet6_check_established(struct inet_timewait_death_row *death_row,
 				       dif, sdif))) {
 			if (sk2->sk_state == TCP_TIME_WAIT) {
 				tw = inet_twsk(sk2);
-				if (twsk_unique(sk, sk2, twp))
+				if (sk->sk_protocol == IPPROTO_TCP &&
+				    tcp_twsk_unique(sk, sk2, twp))
 					break;
 			}
 			goto not_unique;

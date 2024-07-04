@@ -61,12 +61,7 @@ void free_kallsyms_local(struct ksyms *ksyms)
 	free(ksyms);
 }
 
-static int ksym_cmp(const void *p1, const void *p2)
-{
-	return ((struct ksym *)p1)->addr - ((struct ksym *)p2)->addr;
-}
-
-struct ksyms *load_kallsyms_local(void)
+static struct ksyms *load_kallsyms_local_common(ksym_cmp_t cmp_cb)
 {
 	FILE *f;
 	char func[256], buf[256];
@@ -100,13 +95,28 @@ struct ksyms *load_kallsyms_local(void)
 			goto error;
 	}
 	fclose(f);
-	qsort(ksyms->syms, ksyms->sym_cnt, sizeof(struct ksym), ksym_cmp);
+	qsort(ksyms->syms, ksyms->sym_cnt, sizeof(struct ksym), cmp_cb);
 	return ksyms;
 
 error:
 	fclose(f);
 	free_kallsyms_local(ksyms);
 	return NULL;
+}
+
+static int ksym_cmp(const void *p1, const void *p2)
+{
+	return ((struct ksym *)p1)->addr - ((struct ksym *)p2)->addr;
+}
+
+struct ksyms *load_kallsyms_local(void)
+{
+	return load_kallsyms_local_common(ksym_cmp);
+}
+
+struct ksyms *load_kallsyms_custom_local(ksym_cmp_t cmp_cb)
+{
+	return load_kallsyms_local_common(cmp_cb);
 }
 
 int load_kallsyms(void)
@@ -146,6 +156,28 @@ struct ksym *ksym_search_local(struct ksyms *ksyms, long key)
 
 	/* out of range. return _stext */
 	return &ksyms->syms[0];
+}
+
+struct ksym *search_kallsyms_custom_local(struct ksyms *ksyms, const void *p,
+					  ksym_search_cmp_t cmp_cb)
+{
+	int start = 0, mid, end = ksyms->sym_cnt;
+	struct ksym *ks;
+	int result;
+
+	while (start < end) {
+		mid = start + (end - start) / 2;
+		ks = &ksyms->syms[mid];
+		result = cmp_cb(p, ks);
+		if (result < 0)
+			end = mid;
+		else if (result > 0)
+			start = mid + 1;
+		else
+			return ks;
+	}
+
+	return NULL;
 }
 
 struct ksym *ksym_search(long key)
@@ -199,29 +231,6 @@ int kallsyms_find(const char *sym, unsigned long long *addr)
 out:
 	fclose(f);
 	return err;
-}
-
-void read_trace_pipe(void)
-{
-	int trace_fd;
-
-	if (access(TRACEFS_PIPE, F_OK) == 0)
-		trace_fd = open(TRACEFS_PIPE, O_RDONLY, 0);
-	else
-		trace_fd = open(DEBUGFS_PIPE, O_RDONLY, 0);
-	if (trace_fd < 0)
-		return;
-
-	while (1) {
-		static char buf[4096];
-		ssize_t sz;
-
-		sz = read(trace_fd, buf, sizeof(buf) - 1);
-		if (sz > 0) {
-			buf[sz] = 0;
-			puts(buf);
-		}
-	}
 }
 
 ssize_t get_uprobe_offset(const void *addr)
@@ -380,4 +389,44 @@ out:
 		elf_end(elf);
 	close(fd);
 	return err;
+}
+
+int read_trace_pipe_iter(void (*cb)(const char *str, void *data), void *data, int iter)
+{
+	size_t buflen, n;
+	char *buf = NULL;
+	FILE *fp = NULL;
+
+	if (access(TRACEFS_PIPE, F_OK) == 0)
+		fp = fopen(TRACEFS_PIPE, "r");
+	else
+		fp = fopen(DEBUGFS_PIPE, "r");
+	if (!fp)
+		return -1;
+
+	 /* We do not want to wait forever when iter is specified. */
+	if (iter)
+		fcntl(fileno(fp), F_SETFL, O_NONBLOCK);
+
+	while ((n = getline(&buf, &buflen, fp) >= 0) || errno == EAGAIN) {
+		if (n > 0)
+			cb(buf, data);
+		if (iter && !(--iter))
+			break;
+	}
+
+	free(buf);
+	if (fp)
+		fclose(fp);
+	return 0;
+}
+
+static void trace_pipe_cb(const char *str, void *data)
+{
+	printf("%s", str);
+}
+
+void read_trace_pipe(void)
+{
+	read_trace_pipe_iter(trace_pipe_cb, NULL, 0);
 }

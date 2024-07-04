@@ -41,7 +41,7 @@ static inline void devm_delayed_work_drop(void *res)
  * detached. A few drivers need delayed work which must be cancelled before
  * driver is detached to avoid accessing removed resources.
  * devm_delayed_work_autocancel() can be used to omit the explicit
- * cancelleation when driver is detached.
+ * cancellation when driver is detached.
  */
 static inline int devm_delayed_work_autocancel(struct device *dev,
 					       struct delayed_work *w,
@@ -66,7 +66,7 @@ static inline void devm_work_drop(void *res)
  * A few drivers need to queue work which must be cancelled before driver
  * is detached to avoid accessing removed resources.
  * devm_work_autocancel() can be used to omit the explicit
- * cancelleation when driver is detached.
+ * cancellation when driver is detached.
  */
 static inline int devm_work_autocancel(struct device *dev,
 				       struct work_struct *w,

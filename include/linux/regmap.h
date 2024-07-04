@@ -297,15 +297,6 @@ typedef void (*regmap_unlock)(void *);
  *			performed on such table (a register is no increment
  *			readable if it belongs to one of the ranges specified
  *			by rd_noinc_table).
- * @disable_locking: This regmap is either protected by external means or
- *                   is guaranteed not to be accessed from multiple threads.
- *                   Don't use any locking mechanisms.
- * @lock:	  Optional lock callback (overrides regmap's default lock
- *		  function, based on spinlock or mutex).
- * @unlock:	  As above for unlocking.
- * @lock_arg:	  this field is passed as the only argument of lock/unlock
- *		  functions (ignored in case regular lock/unlock functions
- *		  are not overridden).
  * @reg_read:	  Optional callback that if filled will be used to perform
  *           	  all the reads from the registers. Should only be provided for
  *		  devices whose read operation cannot be represented as a simple
@@ -323,6 +314,7 @@ typedef void (*regmap_unlock)(void *);
  * @write: Same as above for writing.
  * @max_raw_read: Max raw read size that can be used on the device.
  * @max_raw_write: Max raw write size that can be used on the device.
+ * @can_sleep:	  Optional, specifies whether regmap operations can sleep.
  * @fast_io:	  Register IO is fast. Use a spinlock instead of a mutex
  *	     	  to perform locking. This field is ignored if custom lock/unlock
  *	     	  functions are used (see fields lock/unlock of struct regmap_config).
@@ -331,6 +323,15 @@ typedef void (*regmap_unlock)(void *);
  *		   Use it only for "no-bus" cases.
  * @io_port:	  Support IO port accessors. Makes sense only when MMIO vs. IO port
  *		  access can be distinguished.
+ * @disable_locking: This regmap is either protected by external means or
+ *		     is guaranteed not to be accessed from multiple threads.
+ *		     Don't use any locking mechanisms.
+ * @lock:	  Optional lock callback (overrides regmap's default lock
+ *		  function, based on spinlock or mutex).
+ * @unlock:	  As above for unlocking.
+ * @lock_arg:	  This field is passed as the only argument of lock/unlock
+ *		  functions (ignored in case regular lock/unlock functions
+ *		  are not overridden).
  * @max_register: Optional, specifies the maximum valid register address.
  * @max_register_is_0: Optional, specifies that zero value in @max_register
  *                     should be taken into account. This is a workaround to
@@ -373,21 +374,20 @@ typedef void (*regmap_unlock)(void *);
  * @reg_defaults_raw: Power on reset values for registers (for use with
  *                    register cache support).
  * @num_reg_defaults_raw: Number of elements in reg_defaults_raw.
- * @reg_format_endian: Endianness for formatted register addresses. If this is
- *                     DEFAULT, the @reg_format_endian_default value from the
- *                     regmap bus is used.
- * @val_format_endian: Endianness for formatted register values. If this is
- *                     DEFAULT, the @reg_format_endian_default value from the
- *                     regmap bus is used.
- *
- * @ranges: Array of configuration entries for virtual address ranges.
- * @num_ranges: Number of range configuration entries.
  * @use_hwlock: Indicate if a hardware spinlock should be used.
  * @use_raw_spinlock: Indicate if a raw spinlock should be used.
  * @hwlock_id: Specify the hardware spinlock id.
  * @hwlock_mode: The hardware spinlock mode, should be HWLOCK_IRQSTATE,
  *		 HWLOCK_IRQ or 0.
- * @can_sleep: Optional, specifies whether regmap operations can sleep.
+ * @reg_format_endian: Endianness for formatted register addresses. If this is
+ *		       DEFAULT, the @reg_format_endian_default value from the
+ *		       regmap bus is used.
+ * @val_format_endian: Endianness for formatted register values. If this is
+ *		       DEFAULT, the @reg_format_endian_default value from the
+ *		       regmap bus is used.
+ *
+ * @ranges: Array of configuration entries for virtual address ranges.
+ * @num_ranges: Number of range configuration entries.
  */
 struct regmap_config {
 	const char *name;
@@ -406,11 +406,6 @@ struct regmap_config {
 	bool (*writeable_noinc_reg)(struct device *dev, unsigned int reg);
 	bool (*readable_noinc_reg)(struct device *dev, unsigned int reg);
 
-	bool disable_locking;
-	regmap_lock lock;
-	regmap_unlock unlock;
-	void *lock_arg;
-
 	int (*reg_read)(void *context, unsigned int reg, unsigned int *val);
 	int (*reg_write)(void *context, unsigned int reg, unsigned int val);
 	int (*reg_update_bits)(void *context, unsigned int reg,
@@ -422,8 +417,15 @@ struct regmap_config {
 	size_t max_raw_read;
 	size_t max_raw_write;
 
+	bool can_sleep;
+
 	bool fast_io;
 	bool io_port;
+
+	bool disable_locking;
+	regmap_lock lock;
+	regmap_unlock unlock;
+	void *lock_arg;
 
 	unsigned int max_register;
 	bool max_register_is_0;
@@ -448,18 +450,16 @@ struct regmap_config {
 	bool use_relaxed_mmio;
 	bool can_multi_write;
 
-	enum regmap_endian reg_format_endian;
-	enum regmap_endian val_format_endian;
-
-	const struct regmap_range_cfg *ranges;
-	unsigned int num_ranges;
-
 	bool use_hwlock;
 	bool use_raw_spinlock;
 	unsigned int hwlock_id;
 	unsigned int hwlock_mode;
 
-	bool can_sleep;
+	enum regmap_endian reg_format_endian;
+	enum regmap_endian val_format_endian;
+
+	const struct regmap_range_cfg *ranges;
+	unsigned int num_ranges;
 };
 
 /**
@@ -1230,6 +1230,7 @@ int regmap_multi_reg_write_bypassed(struct regmap *map,
 int regmap_raw_write_async(struct regmap *map, unsigned int reg,
 			   const void *val, size_t val_len);
 int regmap_read(struct regmap *map, unsigned int reg, unsigned int *val);
+int regmap_read_bypassed(struct regmap *map, unsigned int reg, unsigned int *val);
 int regmap_raw_read(struct regmap *map, unsigned int reg,
 		    void *val, size_t val_len);
 int regmap_noinc_read(struct regmap *map, unsigned int reg,
@@ -1734,6 +1735,13 @@ static inline int regmap_bulk_write(struct regmap *map, unsigned int reg,
 
 static inline int regmap_read(struct regmap *map, unsigned int reg,
 			      unsigned int *val)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return -EINVAL;
+}
+
+static inline int regmap_read_bypassed(struct regmap *map, unsigned int reg,
+				       unsigned int *val)
 {
 	WARN_ONCE(1, "regmap API is disabled");
 	return -EINVAL;

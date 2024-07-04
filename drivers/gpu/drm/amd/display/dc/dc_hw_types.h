@@ -738,6 +738,13 @@ enum scanning_type {
 	SCANNING_TYPE_UNDEFINED
 };
 
+enum chroma_cositing {
+	CHROMA_COSITING_NONE,
+	CHROMA_COSITING_LEFT,
+	CHROMA_COSITING_TOPLEFT,
+	CHROMA_COSITING_COUNT
+};
+
 struct dc_crtc_timing_flags {
 	uint32_t INTERLACE :1;
 	uint32_t HSYNC_POSITIVE_POLARITY :1; /* when set to 1,
@@ -974,6 +981,7 @@ struct dc_crtc_timing_adjust {
 	uint32_t v_total_max;
 	uint32_t v_total_mid;
 	uint32_t v_total_mid_frame_num;
+	uint32_t allow_otg_v_count_halt;
 };
 
 

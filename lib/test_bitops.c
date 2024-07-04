@@ -5,9 +5,11 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/cleanup.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/printk.h>
+#include <linux/slab.h>
 
 /* a tiny module only meant to test
  *
@@ -49,6 +51,30 @@ static unsigned long order_comb_long[][2] = {
 	{0x8000300000000000, 64},
 };
 #endif
+
+static int __init test_fns(void)
+{
+	static volatile __always_used unsigned long tmp __initdata;
+	unsigned long *buf __free(kfree) = NULL;
+	unsigned int i, n;
+	ktime_t time;
+
+	buf = kmalloc_array(10000, sizeof(unsigned long), GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	get_random_bytes(buf, 10000 * sizeof(unsigned long));
+	time = ktime_get();
+
+	for (n = 0; n < BITS_PER_LONG; n++)
+		for (i = 0; i < 10000; i++)
+			tmp = fns(buf[i], n);
+
+	time = ktime_get() - time;
+	pr_err("fns:  %18llu ns\n", time);
+
+	return 0;
+}
 
 static int __init test_bitops_startup(void)
 {
@@ -93,6 +119,8 @@ static int __init test_bitops_startup(void)
 	bit_set = find_first_bit(g_bitmap, BITOPS_LAST);
 	if (bit_set != BITOPS_LAST)
 		pr_err("ERROR: FOUND SET BIT %d\n", bit_set);
+
+	test_fns();
 
 	pr_info("Completed bitops test\n");
 

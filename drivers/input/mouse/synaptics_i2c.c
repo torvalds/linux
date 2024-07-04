@@ -630,8 +630,8 @@ static DEFINE_SIMPLE_DEV_PM_OPS(synaptics_i2c_pm, synaptics_i2c_suspend,
 				synaptics_i2c_resume);
 
 static const struct i2c_device_id synaptics_i2c_id_table[] = {
-	{ "synaptics_i2c", 0 },
-	{ },
+	{ "synaptics_i2c" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, synaptics_i2c_id_table);
 

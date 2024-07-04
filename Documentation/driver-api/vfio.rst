@@ -364,7 +364,7 @@ IOMMUFD IOAS/HWPT to enable userspace DMA::
 				    MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
 	map.iova = 0; /* 1MB starting at 0x0 from device view */
 	map.length = 1024 * 1024;
-	map.ioas_id = alloc_data.out_ioas_id;;
+	map.ioas_id = alloc_data.out_ioas_id;
 
 	ioctl(iommufd, IOMMU_IOAS_MAP, &map);
 

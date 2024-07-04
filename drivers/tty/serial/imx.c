@@ -8,6 +8,7 @@
  * Copyright (C) 2004 Pengutronix
  */
 
+#include <linux/circ_buf.h>
 #include <linux/module.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
@@ -26,6 +27,7 @@
 #include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/dma-mapping.h>
 
 #include <asm/irq.h>
@@ -521,7 +523,8 @@ static void imx_uart_dma_tx(struct imx_port *sport);
 /* called with port.lock taken and irqs off */
 static inline void imx_uart_transmit_buffer(struct imx_port *sport)
 {
-	struct circ_buf *xmit = &sport->port.state->xmit;
+	struct tty_port *tport = &sport->port.state->port;
+	unsigned char c;
 
 	if (sport->port.x_char) {
 		/* Send next char */
@@ -531,7 +534,8 @@ static inline void imx_uart_transmit_buffer(struct imx_port *sport)
 		return;
 	}
 
-	if (uart_circ_empty(xmit) || uart_tx_stopped(&sport->port)) {
+	if (kfifo_is_empty(&tport->xmit_fifo) ||
+			uart_tx_stopped(&sport->port)) {
 		imx_uart_stop_tx(&sport->port);
 		return;
 	}
@@ -555,26 +559,22 @@ static inline void imx_uart_transmit_buffer(struct imx_port *sport)
 		return;
 	}
 
-	while (!uart_circ_empty(xmit) &&
-	       !(imx_uart_readl(sport, imx_uart_uts_reg(sport)) & UTS_TXFULL)) {
-		/* send xmit->buf[xmit->tail]
-		 * out the port here */
-		imx_uart_writel(sport, xmit->buf[xmit->tail], URTX0);
-		uart_xmit_advance(&sport->port, 1);
-	}
+	while (!(imx_uart_readl(sport, imx_uart_uts_reg(sport)) & UTS_TXFULL) &&
+			uart_fifo_get(&sport->port, &c))
+		imx_uart_writel(sport, c, URTX0);
 
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+	if (kfifo_len(&tport->xmit_fifo) < WAKEUP_CHARS)
 		uart_write_wakeup(&sport->port);
 
-	if (uart_circ_empty(xmit))
+	if (kfifo_is_empty(&tport->xmit_fifo))
 		imx_uart_stop_tx(&sport->port);
 }
 
 static void imx_uart_dma_tx_callback(void *data)
 {
 	struct imx_port *sport = data;
+	struct tty_port *tport = &sport->port.state->port;
 	struct scatterlist *sgl = &sport->tx_sgl[0];
-	struct circ_buf *xmit = &sport->port.state->xmit;
 	unsigned long flags;
 	u32 ucr1;
 
@@ -592,10 +592,11 @@ static void imx_uart_dma_tx_callback(void *data)
 
 	sport->dma_is_txing = 0;
 
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+	if (kfifo_len(&tport->xmit_fifo) < WAKEUP_CHARS)
 		uart_write_wakeup(&sport->port);
 
-	if (!uart_circ_empty(xmit) && !uart_tx_stopped(&sport->port))
+	if (!kfifo_is_empty(&tport->xmit_fifo) &&
+			!uart_tx_stopped(&sport->port))
 		imx_uart_dma_tx(sport);
 	else if (sport->port.rs485.flags & SER_RS485_ENABLED) {
 		u32 ucr4 = imx_uart_readl(sport, UCR4);
@@ -609,7 +610,7 @@ static void imx_uart_dma_tx_callback(void *data)
 /* called with port.lock taken and irqs off */
 static void imx_uart_dma_tx(struct imx_port *sport)
 {
-	struct circ_buf *xmit = &sport->port.state->xmit;
+	struct tty_port *tport = &sport->port.state->port;
 	struct scatterlist *sgl = sport->tx_sgl;
 	struct dma_async_tx_descriptor *desc;
 	struct dma_chan	*chan = sport->dma_chan_tx;
@@ -624,18 +625,10 @@ static void imx_uart_dma_tx(struct imx_port *sport)
 	ucr4 &= ~UCR4_TCEN;
 	imx_uart_writel(sport, ucr4, UCR4);
 
-	sport->tx_bytes = uart_circ_chars_pending(xmit);
-
-	if (xmit->tail < xmit->head || xmit->head == 0) {
-		sport->dma_tx_nents = 1;
-		sg_init_one(sgl, xmit->buf + xmit->tail, sport->tx_bytes);
-	} else {
-		sport->dma_tx_nents = 2;
-		sg_init_table(sgl, 2);
-		sg_set_buf(sgl, xmit->buf + xmit->tail,
-				UART_XMIT_SIZE - xmit->tail);
-		sg_set_buf(sgl + 1, xmit->buf, xmit->head);
-	}
+	sg_init_table(sgl, ARRAY_SIZE(sport->tx_sgl));
+	sport->tx_bytes = kfifo_len(&tport->xmit_fifo);
+	sport->dma_tx_nents = kfifo_dma_out_prepare(&tport->xmit_fifo, sgl,
+			ARRAY_SIZE(sport->tx_sgl), sport->tx_bytes);
 
 	ret = dma_map_sg(dev, sgl, sport->dma_tx_nents, DMA_TO_DEVICE);
 	if (ret == 0) {
@@ -653,8 +646,7 @@ static void imx_uart_dma_tx(struct imx_port *sport)
 	desc->callback = imx_uart_dma_tx_callback;
 	desc->callback_param = sport;
 
-	dev_dbg(dev, "TX: prepare to send %lu bytes by DMA.\n",
-			uart_circ_chars_pending(xmit));
+	dev_dbg(dev, "TX: prepare to send %u bytes by DMA.\n", sport->tx_bytes);
 
 	ucr1 = imx_uart_readl(sport, UCR1);
 	ucr1 |= UCR1_TXDMAEN;
@@ -671,9 +663,10 @@ static void imx_uart_dma_tx(struct imx_port *sport)
 static void imx_uart_start_tx(struct uart_port *port)
 {
 	struct imx_port *sport = (struct imx_port *)port;
+	struct tty_port *tport = &sport->port.state->port;
 	u32 ucr1;
 
-	if (!sport->port.x_char && uart_circ_empty(&port->state->xmit))
+	if (!sport->port.x_char && kfifo_is_empty(&tport->xmit_fifo))
 		return;
 
 	/*
@@ -749,7 +742,7 @@ static void imx_uart_start_tx(struct uart_port *port)
 			return;
 		}
 
-		if (!uart_circ_empty(&port->state->xmit) &&
+		if (!kfifo_is_empty(&tport->xmit_fifo) &&
 		    !uart_tx_stopped(port))
 			imx_uart_dma_tx(sport);
 		return;
@@ -1312,7 +1305,7 @@ static void imx_uart_clear_rx_errors(struct imx_port *sport)
 
 }
 
-#define TXTL_DEFAULT 2 /* reset default */
+#define TXTL_DEFAULT 8
 #define RXTL_DEFAULT 8 /* 8 characters or aging timer */
 #define TXTL_DMA 8 /* DMA burst setting */
 #define RXTL_DMA 9 /* DMA burst setting */
@@ -2010,7 +2003,7 @@ imx_uart_console_write(struct console *co, const char *s, unsigned int count)
 	struct imx_port *sport = imx_uart_ports[co->index];
 	struct imx_port_ucrs old_ucr;
 	unsigned long flags;
-	unsigned int ucr1;
+	unsigned int ucr1, usr2;
 	int locked = 1;
 
 	if (sport->port.sysrq)
@@ -2041,8 +2034,8 @@ imx_uart_console_write(struct console *co, const char *s, unsigned int count)
 	 *	Finally, wait for transmitter to become empty
 	 *	and restore UCR1/2/3
 	 */
-	while (!(imx_uart_readl(sport, USR2) & USR2_TXDC));
-
+	read_poll_timeout_atomic(imx_uart_readl, usr2, usr2 & USR2_TXDC,
+				 0, USEC_PER_SEC, false, sport, USR2);
 	imx_uart_ucrs_restore(sport, &old_ucr);
 
 	if (locked)

@@ -171,7 +171,7 @@ static const char *read_super(struct cache_sb *sb, struct block_device *bdev,
 	struct page *page;
 	unsigned int i;
 
-	page = read_cache_page_gfp(bdev->bd_inode->i_mapping,
+	page = read_cache_page_gfp(bdev->bd_mapping,
 				   SB_OFFSET >> PAGE_SHIFT, GFP_KERNEL);
 	if (IS_ERR(page))
 		return "IO error";
@@ -881,8 +881,8 @@ static void bcache_device_free(struct bcache_device *d)
 		bcache_device_detach(d);
 
 	if (disk) {
-		ida_simple_remove(&bcache_device_idx,
-				  first_minor_to_idx(disk->first_minor));
+		ida_free(&bcache_device_idx,
+			 first_minor_to_idx(disk->first_minor));
 		put_disk(disk);
 	}
 
@@ -940,8 +940,8 @@ static int bcache_device_init(struct bcache_device *d, unsigned int block_size,
 	if (!d->full_dirty_stripes)
 		goto out_free_stripe_sectors_dirty;
 
-	idx = ida_simple_get(&bcache_device_idx, 0,
-				BCACHE_DEVICE_IDX_MAX, GFP_KERNEL);
+	idx = ida_alloc_max(&bcache_device_idx, BCACHE_DEVICE_IDX_MAX - 1,
+			    GFP_KERNEL);
 	if (idx < 0)
 		goto out_free_full_dirty_stripes;
 
@@ -986,7 +986,7 @@ static int bcache_device_init(struct bcache_device *d, unsigned int block_size,
 out_bioset_exit:
 	bioset_exit(&d->bio_split);
 out_ida_remove:
-	ida_simple_remove(&bcache_device_idx, idx);
+	ida_free(&bcache_device_idx, idx);
 out_free_full_dirty_stripes:
 	kvfree(d->full_dirty_stripes);
 out_free_stripe_sectors_dirty:
@@ -1914,8 +1914,9 @@ struct cache_set *bch_cache_set_alloc(struct cache_sb *sb)
 	INIT_LIST_HEAD(&c->btree_cache_freed);
 	INIT_LIST_HEAD(&c->data_buckets);
 
-	iter_size = ((meta_bucket_pages(sb) * PAGE_SECTORS) / sb->block_size + 1) *
-		sizeof(struct btree_iter_set);
+	iter_size = sizeof(struct btree_iter) +
+		    ((meta_bucket_pages(sb) * PAGE_SECTORS) / sb->block_size) *
+			    sizeof(struct btree_iter_set);
 
 	c->devices = kcalloc(c->nr_uuids, sizeof(void *), GFP_KERNEL);
 	if (!c->devices)
@@ -2553,10 +2554,6 @@ static ssize_t register_bcache(struct kobject *k, struct kobj_attribute *attr,
 	bdev_file = bdev_file_open_by_path(strim(path), BLK_OPEN_READ, NULL, NULL);
 	if (IS_ERR(bdev_file))
 		goto out_free_sb;
-
-	err = "failed to set blocksize";
-	if (set_blocksize(file_bdev(bdev_file), 4096))
-		goto out_blkdev_put;
 
 	err = read_super(sb, file_bdev(bdev_file), &sb_disk);
 	if (err)

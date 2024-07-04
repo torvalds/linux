@@ -531,7 +531,7 @@ static int pvrdma_alloc_intrs(struct pvrdma_dev *dev)
 			PCI_IRQ_MSIX);
 	if (ret < 0) {
 		ret = pci_alloc_irq_vectors(pdev, 1, 1,
-				PCI_IRQ_MSI | PCI_IRQ_LEGACY);
+				PCI_IRQ_MSI | PCI_IRQ_INTX);
 		if (ret < 0)
 			return ret;
 	}

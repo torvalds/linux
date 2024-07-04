@@ -10,41 +10,149 @@
 
 #include "printbuf.h"
 
+static inline unsigned __printbuf_linelen(struct printbuf *buf, unsigned pos)
+{
+	return pos - buf->last_newline;
+}
+
 static inline unsigned printbuf_linelen(struct printbuf *buf)
 {
-	return buf->pos - buf->last_newline;
+	return __printbuf_linelen(buf, buf->pos);
+}
+
+/*
+ * Returns spaces from start of line, if set, or 0 if unset:
+ */
+static inline unsigned cur_tabstop(struct printbuf *buf)
+{
+	return buf->cur_tabstop < buf->nr_tabstops
+		? buf->_tabstops[buf->cur_tabstop]
+		: 0;
 }
 
 int bch2_printbuf_make_room(struct printbuf *out, unsigned extra)
 {
-	unsigned new_size;
-	char *buf;
-
-	if (!out->heap_allocated)
-		return 0;
-
 	/* Reserved space for terminating nul: */
 	extra += 1;
 
-	if (out->pos + extra < out->size)
+	if (out->pos + extra <= out->size)
 		return 0;
 
-	new_size = roundup_pow_of_two(out->size + extra);
+	if (!out->heap_allocated) {
+		out->overflow = true;
+		return 0;
+	}
+
+	unsigned new_size = roundup_pow_of_two(out->size + extra);
+
+	/* Sanity check... */
+	if (new_size > PAGE_SIZE << MAX_PAGE_ORDER) {
+		out->allocation_failure = true;
+		out->overflow = true;
+		return -ENOMEM;
+	}
 
 	/*
 	 * Note: output buffer must be freeable with kfree(), it's not required
 	 * that the user use printbuf_exit().
 	 */
-	buf = krealloc(out->buf, new_size, !out->atomic ? GFP_KERNEL : GFP_NOWAIT);
+	char *buf = krealloc(out->buf, new_size, !out->atomic ? GFP_KERNEL : GFP_NOWAIT);
 
 	if (!buf) {
 		out->allocation_failure = true;
+		out->overflow = true;
 		return -ENOMEM;
 	}
 
 	out->buf	= buf;
 	out->size	= new_size;
 	return 0;
+}
+
+static void printbuf_advance_pos(struct printbuf *out, unsigned len)
+{
+	out->pos += min(len, printbuf_remaining(out));
+}
+
+static void printbuf_insert_spaces(struct printbuf *out, unsigned pos, unsigned nr)
+{
+	unsigned move = out->pos - pos;
+
+	bch2_printbuf_make_room(out, nr);
+
+	if (pos + nr < out->size)
+		memmove(out->buf + pos + nr,
+			out->buf + pos,
+			min(move, out->size - 1 - pos - nr));
+
+	if (pos < out->size)
+		memset(out->buf + pos, ' ', min(nr, out->size - pos));
+
+	printbuf_advance_pos(out, nr);
+	printbuf_nul_terminate_reserved(out);
+}
+
+static void __printbuf_do_indent(struct printbuf *out, unsigned pos)
+{
+	while (true) {
+		int pad;
+		unsigned len = out->pos - pos;
+		char *p = out->buf + pos;
+		char *n = memscan(p, '\n', len);
+		if (cur_tabstop(out)) {
+			n = min(n, (char *) memscan(p, '\r', len));
+			n = min(n, (char *) memscan(p, '\t', len));
+		}
+
+		pos = n - out->buf;
+		if (pos == out->pos)
+			break;
+
+		switch (*n) {
+		case '\n':
+			pos++;
+			out->last_newline = pos;
+
+			printbuf_insert_spaces(out, pos, out->indent);
+
+			pos = min(pos + out->indent, out->pos);
+			out->last_field = pos;
+			out->cur_tabstop = 0;
+			break;
+		case '\r':
+			memmove(n, n + 1, out->pos - pos);
+			--out->pos;
+			pad = (int) cur_tabstop(out) - (int) __printbuf_linelen(out, pos);
+			if (pad > 0) {
+				printbuf_insert_spaces(out, out->last_field, pad);
+				pos += pad;
+			}
+
+			out->last_field = pos;
+			out->cur_tabstop++;
+			break;
+		case '\t':
+			pad = (int) cur_tabstop(out) - (int) __printbuf_linelen(out, pos) - 1;
+			if (pad > 0) {
+				*n = ' ';
+				printbuf_insert_spaces(out, pos, pad - 1);
+				pos += pad;
+			} else {
+				memmove(n, n + 1, out->pos - pos);
+				--out->pos;
+			}
+
+			out->last_field = pos;
+			out->cur_tabstop++;
+			break;
+		}
+	}
+}
+
+static inline void printbuf_do_indent(struct printbuf *out, unsigned pos)
+{
+	if (out->has_indent_or_tabstops && !out->suppress_indent_tabstop_handling)
+		__printbuf_do_indent(out, pos);
 }
 
 void bch2_prt_vprintf(struct printbuf *out, const char *fmt, va_list args)
@@ -55,14 +163,14 @@ void bch2_prt_vprintf(struct printbuf *out, const char *fmt, va_list args)
 		va_list args2;
 
 		va_copy(args2, args);
-		len = vsnprintf(out->buf + out->pos, printbuf_remaining(out), fmt, args2);
+		len = vsnprintf(out->buf + out->pos, printbuf_remaining_size(out), fmt, args2);
 		va_end(args2);
-	} while (len + 1 >= printbuf_remaining(out) &&
-		 !bch2_printbuf_make_room(out, len + 1));
+	} while (len > printbuf_remaining(out) &&
+		 !bch2_printbuf_make_room(out, len));
 
-	len = min_t(size_t, len,
-		  printbuf_remaining(out) ? printbuf_remaining(out) - 1 : 0);
-	out->pos += len;
+	unsigned indent_pos = out->pos;
+	printbuf_advance_pos(out, len);
+	printbuf_do_indent(out, indent_pos);
 }
 
 void bch2_prt_printf(struct printbuf *out, const char *fmt, ...)
@@ -72,14 +180,14 @@ void bch2_prt_printf(struct printbuf *out, const char *fmt, ...)
 
 	do {
 		va_start(args, fmt);
-		len = vsnprintf(out->buf + out->pos, printbuf_remaining(out), fmt, args);
+		len = vsnprintf(out->buf + out->pos, printbuf_remaining_size(out), fmt, args);
 		va_end(args);
-	} while (len + 1 >= printbuf_remaining(out) &&
-		 !bch2_printbuf_make_room(out, len + 1));
+	} while (len > printbuf_remaining(out) &&
+		 !bch2_printbuf_make_room(out, len));
 
-	len = min_t(size_t, len,
-		  printbuf_remaining(out) ? printbuf_remaining(out) - 1 : 0);
-	out->pos += len;
+	unsigned indent_pos = out->pos;
+	printbuf_advance_pos(out, len);
+	printbuf_do_indent(out, indent_pos);
 }
 
 /**
@@ -194,31 +302,18 @@ void bch2_printbuf_indent_sub(struct printbuf *buf, unsigned spaces)
 
 void bch2_prt_newline(struct printbuf *buf)
 {
-	unsigned i;
-
 	bch2_printbuf_make_room(buf, 1 + buf->indent);
 
-	__prt_char(buf, '\n');
+	__prt_char_reserved(buf, '\n');
 
 	buf->last_newline	= buf->pos;
 
-	for (i = 0; i < buf->indent; i++)
-		__prt_char(buf, ' ');
+	__prt_chars_reserved(buf, ' ', buf->indent);
 
-	printbuf_nul_terminate(buf);
+	printbuf_nul_terminate_reserved(buf);
 
 	buf->last_field		= buf->pos;
 	buf->cur_tabstop	= 0;
-}
-
-/*
- * Returns spaces from start of line, if set, or 0 if unset:
- */
-static inline unsigned cur_tabstop(struct printbuf *buf)
-{
-	return buf->cur_tabstop < buf->nr_tabstops
-		? buf->_tabstops[buf->cur_tabstop]
-		: 0;
 }
 
 static void __prt_tab(struct printbuf *out)
@@ -247,24 +342,9 @@ void bch2_prt_tab(struct printbuf *out)
 
 static void __prt_tab_rjust(struct printbuf *buf)
 {
-	unsigned move = buf->pos - buf->last_field;
 	int pad = (int) cur_tabstop(buf) - (int) printbuf_linelen(buf);
-
-	if (pad > 0) {
-		bch2_printbuf_make_room(buf, pad);
-
-		if (buf->last_field + pad < buf->size)
-			memmove(buf->buf + buf->last_field + pad,
-				buf->buf + buf->last_field,
-				min(move, buf->size - 1 - buf->last_field - pad));
-
-		if (buf->last_field < buf->size)
-			memset(buf->buf + buf->last_field, ' ',
-			       min((unsigned) pad, buf->size - buf->last_field));
-
-		buf->pos += pad;
-		printbuf_nul_terminate(buf);
-	}
+	if (pad > 0)
+		printbuf_insert_spaces(buf, buf->last_field, pad);
 
 	buf->last_field = buf->pos;
 	buf->cur_tabstop++;
@@ -301,41 +381,9 @@ void bch2_prt_tab_rjust(struct printbuf *buf)
  */
 void bch2_prt_bytes_indented(struct printbuf *out, const char *str, unsigned count)
 {
-	const char *unprinted_start = str;
-	const char *end = str + count;
-
-	if (!out->has_indent_or_tabstops || out->suppress_indent_tabstop_handling) {
-		prt_bytes(out, str, count);
-		return;
-	}
-
-	while (str != end) {
-		switch (*str) {
-		case '\n':
-			prt_bytes(out, unprinted_start, str - unprinted_start);
-			unprinted_start = str + 1;
-			bch2_prt_newline(out);
-			break;
-		case '\t':
-			if (likely(cur_tabstop(out))) {
-				prt_bytes(out, unprinted_start, str - unprinted_start);
-				unprinted_start = str + 1;
-				__prt_tab(out);
-			}
-			break;
-		case '\r':
-			if (likely(cur_tabstop(out))) {
-				prt_bytes(out, unprinted_start, str - unprinted_start);
-				unprinted_start = str + 1;
-				__prt_tab_rjust(out);
-			}
-			break;
-		}
-
-		str++;
-	}
-
-	prt_bytes(out, unprinted_start, str - unprinted_start);
+	unsigned indent_pos = out->pos;
+	prt_bytes(out, str, count);
+	printbuf_do_indent(out, indent_pos);
 }
 
 /**
@@ -348,9 +396,10 @@ void bch2_prt_bytes_indented(struct printbuf *out, const char *str, unsigned cou
 void bch2_prt_human_readable_u64(struct printbuf *out, u64 v)
 {
 	bch2_printbuf_make_room(out, 10);
-	out->pos += string_get_size(v, 1, !out->si_units,
-				    out->buf + out->pos,
-				    printbuf_remaining_size(out));
+	unsigned len = string_get_size(v, 1, !out->si_units,
+				       out->buf + out->pos,
+				       printbuf_remaining_size(out));
+	printbuf_advance_pos(out, len);
 }
 
 /**
@@ -402,9 +451,7 @@ void bch2_prt_string_option(struct printbuf *out,
 			    const char * const list[],
 			    size_t selected)
 {
-	size_t i;
-
-	for (i = 0; list[i]; i++)
+	for (size_t i = 0; list[i]; i++)
 		bch2_prt_printf(out, i == selected ? "[%s] " : "%s ", list[i]);
 }
 

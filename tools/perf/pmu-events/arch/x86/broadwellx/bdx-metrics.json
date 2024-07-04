@@ -732,9 +732,8 @@
     {
         "BriefDescription": "Average Parallel L2 cache miss data reads",
         "MetricExpr": "tma_info_memory_latency_data_l2_mlp",
-        "MetricGroup": "Memory_BW;Offcore;TopdownL1;tma_L1_group",
-        "MetricName": "tma_info_memory_data_l2_mlp",
-        "MetricgroupNoGroup": "TopdownL1"
+        "MetricGroup": "Memory_BW;Offcore",
+        "MetricName": "tma_info_memory_data_l2_mlp"
     },
     {
         "BriefDescription": "",
@@ -745,9 +744,8 @@
     {
         "BriefDescription": "Average per-core data fill bandwidth to the L1 data cache [GB / sec]",
         "MetricExpr": "64 * L1D.REPLACEMENT / 1e9 / (duration_time * 1e3 / 1e3)",
-        "MetricGroup": "Mem;MemoryBW;TopdownL1;tma_L1_group",
-        "MetricName": "tma_info_memory_l1d_cache_fill_bw_2t",
-        "MetricgroupNoGroup": "TopdownL1"
+        "MetricGroup": "Mem;MemoryBW",
+        "MetricName": "tma_info_memory_l1d_cache_fill_bw_2t"
     },
     {
         "BriefDescription": "L1 cache true misses per kilo instruction for retired demand loads",
@@ -764,9 +762,8 @@
     {
         "BriefDescription": "Average per-core data fill bandwidth to the L2 cache [GB / sec]",
         "MetricExpr": "64 * L2_LINES_IN.ALL / 1e9 / (duration_time * 1e3 / 1e3)",
-        "MetricGroup": "Mem;MemoryBW;TopdownL1;tma_L1_group",
-        "MetricName": "tma_info_memory_l2_cache_fill_bw_2t",
-        "MetricgroupNoGroup": "TopdownL1"
+        "MetricGroup": "Mem;MemoryBW",
+        "MetricName": "tma_info_memory_l2_cache_fill_bw_2t"
     },
     {
         "BriefDescription": "L2 cache hits per kilo instruction for all request types (including speculative)",
@@ -807,9 +804,8 @@
     {
         "BriefDescription": "Average per-core data fill bandwidth to the L3 cache [GB / sec]",
         "MetricExpr": "64 * LONGEST_LAT_CACHE.MISS / 1e9 / (duration_time * 1e3 / 1e3)",
-        "MetricGroup": "Mem;MemoryBW;TopdownL1;tma_L1_group",
-        "MetricName": "tma_info_memory_l3_cache_fill_bw_2t",
-        "MetricgroupNoGroup": "TopdownL1"
+        "MetricGroup": "Mem;MemoryBW",
+        "MetricName": "tma_info_memory_l3_cache_fill_bw_2t"
     },
     {
         "BriefDescription": "L3 cache true misses per kilo instruction for retired demand loads",
@@ -838,16 +834,14 @@
     {
         "BriefDescription": "Average Latency for L2 cache miss demand Loads",
         "MetricExpr": "OFFCORE_REQUESTS_OUTSTANDING.DEMAND_DATA_RD / OFFCORE_REQUESTS.DEMAND_DATA_RD",
-        "MetricGroup": "Memory_Lat;Offcore;TopdownL1;tma_L1_group",
-        "MetricName": "tma_info_memory_load_l2_miss_latency",
-        "MetricgroupNoGroup": "TopdownL1"
+        "MetricGroup": "Memory_Lat;Offcore",
+        "MetricName": "tma_info_memory_load_l2_miss_latency"
     },
     {
         "BriefDescription": "Average Parallel L2 cache miss demand Loads",
         "MetricExpr": "OFFCORE_REQUESTS_OUTSTANDING.DEMAND_DATA_RD / OFFCORE_REQUESTS_OUTSTANDING.CYCLES_WITH_DEMAND_DATA_RD",
-        "MetricGroup": "Memory_BW;Offcore;TopdownL1;tma_L1_group",
-        "MetricName": "tma_info_memory_load_l2_mlp",
-        "MetricgroupNoGroup": "TopdownL1"
+        "MetricGroup": "Memory_BW;Offcore",
+        "MetricName": "tma_info_memory_load_l2_mlp"
     },
     {
         "BriefDescription": "Actual Average Latency for L1 data-cache miss demand load operations (in core cycles)",
@@ -867,9 +861,8 @@
     {
         "BriefDescription": "Utilization of the core's Page Walker(s) serving STLB misses triggered by instruction/Load/Store accesses",
         "MetricExpr": "tma_info_memory_tlb_page_walks_utilization",
-        "MetricGroup": "Mem;MemoryTLB;TopdownL1;tma_L1_group",
-        "MetricName": "tma_info_memory_page_walks_utilization",
-        "MetricgroupNoGroup": "TopdownL1"
+        "MetricGroup": "Mem;MemoryTLB",
+        "MetricName": "tma_info_memory_page_walks_utilization"
     },
     {
         "BriefDescription": "Utilization of the core's Page Walker(s) serving STLB misses triggered by instruction/Load/Store accesses",

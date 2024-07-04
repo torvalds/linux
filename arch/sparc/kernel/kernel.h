@@ -40,6 +40,10 @@ int handle_popc(u32 insn, struct pt_regs *regs);
 void handle_lddfmna(struct pt_regs *regs, unsigned long sfar, unsigned long sfsr);
 void handle_stdfmna(struct pt_regs *regs, unsigned long sfar, unsigned long sfsr);
 
+/* uprobes.c */
+asmlinkage void uprobe_trap(struct pt_regs *regs,
+			    unsigned long trap_level);
+
 /* smp_64.c */
 void __irq_entry smp_call_function_client(int irq, struct pt_regs *regs);
 void __irq_entry smp_call_function_single_client(int irq, struct pt_regs *regs);

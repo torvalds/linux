@@ -222,7 +222,7 @@ mcdi_init_fail:
 	return ret;
 }
 
-static int xlnx_cdx_remove(struct platform_device *pdev)
+static void xlnx_cdx_remove(struct platform_device *pdev)
 {
 	struct cdx_controller *cdx = platform_get_drvdata(pdev);
 	struct cdx_mcdi *cdx_mcdi = cdx->priv;
@@ -234,8 +234,6 @@ static int xlnx_cdx_remove(struct platform_device *pdev)
 
 	cdx_mcdi_finish(cdx_mcdi);
 	kfree(cdx_mcdi);
-
-	return 0;
 }
 
 static const struct of_device_id cdx_match_table[] = {
@@ -252,7 +250,7 @@ static struct platform_driver cdx_pdriver = {
 		   .of_match_table = cdx_match_table,
 		   },
 	.probe = xlnx_cdx_probe,
-	.remove = xlnx_cdx_remove,
+	.remove_new = xlnx_cdx_remove,
 };
 
 static int __init cdx_controller_init(void)

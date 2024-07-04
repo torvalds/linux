@@ -1,32 +1,36 @@
 # SPDX-License-Identifier: GPL-2.0
-snd-soc-core-objs := soc-core.o soc-dapm.o soc-jack.o soc-utils.o soc-dai.o soc-component.o
-snd-soc-core-objs += soc-pcm.o soc-devres.o soc-ops.o soc-link.o soc-card.o
+snd-soc-core-y := soc-core.o soc-dapm.o soc-jack.o soc-utils.o soc-dai.o soc-component.o
+snd-soc-core-y += soc-pcm.o soc-devres.o soc-ops.o soc-link.o soc-card.o
 snd-soc-core-$(CONFIG_SND_SOC_COMPRESS) += soc-compress.o
 
 ifneq ($(CONFIG_SND_SOC_TOPOLOGY),)
-snd-soc-core-objs += soc-topology.o
+snd-soc-core-y += soc-topology.o
 endif
 
 ifneq ($(CONFIG_SND_SOC_TOPOLOGY_KUNIT_TEST),)
-# snd-soc-test-objs := soc-topology-test.o
+# snd-soc-test-y := soc-topology-test.o
 obj-$(CONFIG_SND_SOC_TOPOLOGY_KUNIT_TEST) += soc-topology-test.o
 endif
 
+ifneq ($(CONFIG_SND_SOC_CARD_KUNIT_TEST),)
+obj-$(CONFIG_SND_SOC_CARD_KUNIT_TEST) += soc-card-test.o
+endif
+
 ifneq ($(CONFIG_SND_SOC_UTILS_KUNIT_TEST),)
-# snd-soc-test-objs := soc-utils-test.o
+# snd-soc-test-y := soc-utils-test.o
 obj-$(CONFIG_SND_SOC_UTILS_KUNIT_TEST) += soc-utils-test.o
 endif
 
 ifneq ($(CONFIG_SND_SOC_GENERIC_DMAENGINE_PCM),)
-snd-soc-core-objs += soc-generic-dmaengine-pcm.o
+snd-soc-core-y += soc-generic-dmaengine-pcm.o
 endif
 
 ifneq ($(CONFIG_SND_SOC_AC97_BUS),)
-snd-soc-core-objs += soc-ac97.o
+snd-soc-core-y += soc-ac97.o
 endif
 
 ifneq ($(CONFIG_SND_SOC_ACPI),)
-snd-soc-acpi-objs := soc-acpi.o
+snd-soc-acpi-y := soc-acpi.o
 endif
 
 obj-$(CONFIG_SND_SOC_ACPI) += snd-soc-acpi.o

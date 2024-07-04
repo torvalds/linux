@@ -1686,8 +1686,8 @@ static void cx2072x_i2c_remove(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id cx2072x_i2c_id[] = {
-	{ "cx20721", 0 },
-	{ "cx20723", 0 },
+	{ "cx20721" },
+	{ "cx20723" },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, cx2072x_i2c_id);

@@ -10,6 +10,7 @@ obj-y += amlogic/
 obj-y += amphion/
 obj-y += aspeed/
 obj-y += atmel/
+obj-y += broadcom/
 obj-y += cadence/
 obj-y += chips-media/
 obj-y += intel/

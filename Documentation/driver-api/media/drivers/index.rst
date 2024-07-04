@@ -26,6 +26,7 @@ Video4Linux (V4L) drivers
 	vimc-devel
 	zoran
 	ccs/ccs
+	ipu6
 
 
 Digital TV drivers

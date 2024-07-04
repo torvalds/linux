@@ -2120,7 +2120,7 @@ int dsa_user_change_mtu(struct net_device *dev, int new_mtu)
 	if (err)
 		goto out_port_failed;
 
-	dev->mtu = new_mtu;
+	WRITE_ONCE(dev->mtu, new_mtu);
 
 	dsa_bridge_mtu_normalization(dp);
 
@@ -2134,6 +2134,32 @@ out_cpu_failed:
 		dev_set_mtu(conduit, old_conduit_mtu);
 out_conduit_failed:
 	return err;
+}
+
+static int __maybe_unused
+dsa_user_dcbnl_set_apptrust(struct net_device *dev, u8 *sel, int nsel)
+{
+	struct dsa_port *dp = dsa_user_to_port(dev);
+	struct dsa_switch *ds = dp->ds;
+	int port = dp->index;
+
+	if (!ds->ops->port_set_apptrust)
+		return -EOPNOTSUPP;
+
+	return ds->ops->port_set_apptrust(ds, port, sel, nsel);
+}
+
+static int __maybe_unused
+dsa_user_dcbnl_get_apptrust(struct net_device *dev, u8 *sel, int *nsel)
+{
+	struct dsa_port *dp = dsa_user_to_port(dev);
+	struct dsa_switch *ds = dp->ds;
+	int port = dp->index;
+
+	if (!ds->ops->port_get_apptrust)
+		return -EOPNOTSUPP;
+
+	return ds->ops->port_get_apptrust(ds, port, sel, nsel);
 }
 
 static int __maybe_unused
@@ -2163,6 +2189,58 @@ dsa_user_dcbnl_set_default_prio(struct net_device *dev, struct dcb_app *app)
 	return 0;
 }
 
+/* Update the DSCP prio entries on all user ports of the switch in case
+ * the switch supports global DSCP prio instead of per port DSCP prios.
+ */
+static int dsa_user_dcbnl_ieee_global_dscp_setdel(struct net_device *dev,
+						  struct dcb_app *app, bool del)
+{
+	int (*setdel)(struct net_device *dev, struct dcb_app *app);
+	struct dsa_port *dp = dsa_user_to_port(dev);
+	struct dsa_switch *ds = dp->ds;
+	struct dsa_port *other_dp;
+	int err, restore_err;
+
+	if (del)
+		setdel = dcb_ieee_delapp;
+	else
+		setdel = dcb_ieee_setapp;
+
+	dsa_switch_for_each_user_port(other_dp, ds) {
+		struct net_device *user = other_dp->user;
+
+		if (!user || user == dev)
+			continue;
+
+		err = setdel(user, app);
+		if (err)
+			goto err_try_to_restore;
+	}
+
+	return 0;
+
+err_try_to_restore:
+
+	/* Revert logic to restore previous state of app entries */
+	if (!del)
+		setdel = dcb_ieee_delapp;
+	else
+		setdel = dcb_ieee_setapp;
+
+	dsa_switch_for_each_user_port_continue_reverse(other_dp, ds) {
+		struct net_device *user = other_dp->user;
+
+		if (!user || user == dev)
+			continue;
+
+		restore_err = setdel(user, app);
+		if (restore_err)
+			netdev_err(user, "Failed to restore DSCP prio entry configuration\n");
+	}
+
+	return err;
+}
+
 static int __maybe_unused
 dsa_user_dcbnl_add_dscp_prio(struct net_device *dev, struct dcb_app *app)
 {
@@ -2190,6 +2268,17 @@ dsa_user_dcbnl_add_dscp_prio(struct net_device *dev, struct dcb_app *app)
 
 	err = ds->ops->port_add_dscp_prio(ds, port, dscp, new_prio);
 	if (err) {
+		dcb_ieee_delapp(dev, app);
+		return err;
+	}
+
+	if (!ds->dscp_prio_mapping_is_global)
+		return 0;
+
+	err = dsa_user_dcbnl_ieee_global_dscp_setdel(dev, app, false);
+	if (err) {
+		if (ds->ops->port_del_dscp_prio)
+			ds->ops->port_del_dscp_prio(ds, port, dscp, new_prio);
 		dcb_ieee_delapp(dev, app);
 		return err;
 	}
@@ -2260,6 +2349,18 @@ dsa_user_dcbnl_del_dscp_prio(struct net_device *dev, struct dcb_app *app)
 
 	err = ds->ops->port_del_dscp_prio(ds, port, dscp, app->priority);
 	if (err) {
+		dcb_ieee_setapp(dev, app);
+		return err;
+	}
+
+	if (!ds->dscp_prio_mapping_is_global)
+		return 0;
+
+	err = dsa_user_dcbnl_ieee_global_dscp_setdel(dev, app, true);
+	if (err) {
+		if (ds->ops->port_add_dscp_prio)
+			ds->ops->port_add_dscp_prio(ds, port, dscp,
+						    app->priority);
 		dcb_ieee_setapp(dev, app);
 		return err;
 	}
@@ -2376,6 +2477,8 @@ static const struct ethtool_ops dsa_user_ethtool_ops = {
 static const struct dcbnl_rtnl_ops __maybe_unused dsa_user_dcbnl_ops = {
 	.ieee_setapp		= dsa_user_dcbnl_ieee_setapp,
 	.ieee_delapp		= dsa_user_dcbnl_ieee_delapp,
+	.dcbnl_setapptrust	= dsa_user_dcbnl_set_apptrust,
+	.dcbnl_getapptrust	= dsa_user_dcbnl_get_apptrust,
 };
 
 static void dsa_user_get_stats64(struct net_device *dev,
@@ -2445,7 +2548,7 @@ EXPORT_SYMBOL_GPL(dsa_port_phylink_mac_change);
 static void dsa_user_phylink_fixed_state(struct phylink_config *config,
 					 struct phylink_link_state *state)
 {
-	struct dsa_port *dp = container_of(config, struct dsa_port, pl_config);
+	struct dsa_port *dp = dsa_phylink_to_port(config);
 	struct dsa_switch *ds = dp->ds;
 
 	/* No need to check that this operation is valid, the callback would

@@ -139,6 +139,43 @@ void __sched __closure_sync(struct closure *cl)
 }
 EXPORT_SYMBOL(__closure_sync);
 
+int __sched __closure_sync_timeout(struct closure *cl, unsigned long timeout)
+{
+	struct closure_syncer s = { .task = current };
+	int ret = 0;
+
+	cl->s = &s;
+	continue_at(cl, closure_sync_fn, NULL);
+
+	while (1) {
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		if (s.done)
+			break;
+		if (!timeout) {
+			/*
+			 * Carefully undo the continue_at() - but only if it
+			 * hasn't completed, i.e. the final closure_put() hasn't
+			 * happened yet:
+			 */
+			unsigned old, new, v = atomic_read(&cl->remaining);
+			do {
+				old = v;
+				if (!old || (old & CLOSURE_RUNNING))
+					goto success;
+
+				new = old + CLOSURE_REMAINING_INITIALIZER;
+			} while ((v = atomic_cmpxchg(&cl->remaining, old, new)) != old);
+			ret = -ETIME;
+		}
+
+		timeout = schedule_timeout(timeout);
+	}
+success:
+	__set_current_state(TASK_RUNNING);
+	return ret;
+}
+EXPORT_SYMBOL(__closure_sync_timeout);
+
 #ifdef CONFIG_DEBUG_CLOSURES
 
 static LIST_HEAD(closure_list);

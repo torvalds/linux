@@ -34,11 +34,7 @@
 #include "reg_helper.h"
 #include "fixed31_32.h"
 
-#ifdef _WIN32
-#include "atombios.h"
-#else
 #include "atom.h"
-#endif
 
 #define TO_DMUB_ABM(abm)\
 	container_of(abm, struct dce_abm, base)

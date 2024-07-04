@@ -17,12 +17,15 @@
  * the hardware mapping.
  */
 
+#define dev_fmt(fmt) "tpmi_sst: " fmt
+
 #include <linux/auxiliary_bus.h>
 #include <linux/delay.h>
 #include <linux/intel_tpmi.h>
 #include <linux/fs.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
+#include <linux/minmax.h>
 #include <linux/module.h>
 #include <uapi/linux/isst_if.h>
 
@@ -263,20 +266,33 @@ struct tpmi_per_power_domain_info {
 	bool write_blocked;
 };
 
+/* Supported maximum partitions */
+#define SST_MAX_PARTITIONS	2
+
 /**
  * struct tpmi_sst_struct -	Store sst info for a package
  * @package_id:			Package id for this aux device instance
  * @number_of_power_domains:	Number of power_domains pointed by power_domain_info pointer
  * @power_domain_info:		Pointer to power domains information
+ * @cdie_mask:			Mask of compute dies present in a partition from hardware.
+ *				This mask is not present in the version 1 information header.
+ * @io_dies:			Number of IO dies in a partition. This will be 0 for TPMI
+ *				version 1 information header.
+ * @partition_mask:		Mask of all partitions.
+ * @partition_mask_current:	Current partition mask as some may have been unbound.
  *
  * This structure is used store full SST information for a package.
- * Each package has a unique OOB PCI device, which enumerates TPMI.
- * Each Package will have multiple power_domains.
+ * Each package has one or multiple OOB PCI devices. Each package can contain multiple
+ * power domains.
  */
 struct tpmi_sst_struct {
 	int package_id;
-	int number_of_power_domains;
-	struct tpmi_per_power_domain_info *power_domain_info;
+	struct tpmi_per_power_domain_info *power_domain_info[SST_MAX_PARTITIONS];
+	u16 cdie_mask[SST_MAX_PARTITIONS];
+	u8 number_of_power_domains[SST_MAX_PARTITIONS];
+	u8 io_dies[SST_MAX_PARTITIONS];
+	u8 partition_mask;
+	u8 partition_mask_current;
 };
 
 /**
@@ -313,12 +329,11 @@ static int sst_add_perf_profiles(struct auxiliary_device *auxdev,
 				 struct tpmi_per_power_domain_info *pd_info,
 				 int levels)
 {
+	struct device *dev = &auxdev->dev;
 	u64 perf_level_offsets;
 	int i;
 
-	pd_info->perf_levels = devm_kcalloc(&auxdev->dev, levels,
-					    sizeof(struct perf_level),
-					    GFP_KERNEL);
+	pd_info->perf_levels = devm_kcalloc(dev, levels, sizeof(struct perf_level), GFP_KERNEL);
 	if (!pd_info->perf_levels)
 		return 0;
 
@@ -349,6 +364,7 @@ static int sst_add_perf_profiles(struct auxiliary_device *auxdev,
 
 static int sst_main(struct auxiliary_device *auxdev, struct tpmi_per_power_domain_info *pd_info)
 {
+	struct device *dev = &auxdev->dev;
 	int i, mask, levels;
 
 	*((u64 *)&pd_info->sst_header) = readq(pd_info->sst_base);
@@ -359,13 +375,13 @@ static int sst_main(struct auxiliary_device *auxdev, struct tpmi_per_power_domai
 		return -ENODEV;
 
 	if (TPMI_MAJOR_VERSION(pd_info->sst_header.interface_version) != ISST_MAJOR_VERSION) {
-		dev_err(&auxdev->dev, "SST: Unsupported major version:%lx\n",
+		dev_err(dev, "SST: Unsupported major version:%lx\n",
 			TPMI_MAJOR_VERSION(pd_info->sst_header.interface_version));
 		return -ENODEV;
 	}
 
 	if (TPMI_MINOR_VERSION(pd_info->sst_header.interface_version) != ISST_MINOR_VERSION)
-		dev_info(&auxdev->dev, "SST: Ignore: Unsupported minor version:%lx\n",
+		dev_info(dev, "SST: Ignore: Unsupported minor version:%lx\n",
 			 TPMI_MINOR_VERSION(pd_info->sst_header.interface_version));
 
 	/* Read SST CP Header */
@@ -387,6 +403,126 @@ static int sst_main(struct auxiliary_device *auxdev, struct tpmi_per_power_domai
 	return 0;
 }
 
+static u8 isst_instance_count(struct tpmi_sst_struct *sst_inst)
+{
+	u8 i, max_part, count = 0;
+
+	/* Partition mask starts from bit 0 and contains 1s only */
+	max_part = hweight8(sst_inst->partition_mask);
+	for (i = 0; i < max_part; i++)
+		count += sst_inst->number_of_power_domains[i];
+
+	return count;
+}
+
+/**
+ * map_cdies() - Map user domain ID to compute domain ID
+ * @sst_inst: TPMI Instance
+ * @id: User domain ID
+ * @partition: Resolved partition
+ *
+ * Helper function to map_partition_power_domain_id() to resolve compute
+ * domain ID and partition. Use hardware provided cdie_mask for a partition
+ * as is to resolve a compute domain ID.
+ *
+ * Return: %-EINVAL on error, otherwise mapped domain ID >= 0.
+ */
+static int map_cdies(struct tpmi_sst_struct *sst_inst, u8 id, u8 *partition)
+{
+	u8 i, max_part;
+
+	max_part = hweight8(sst_inst->partition_mask);
+	for (i = 0; i < max_part; i++) {
+		if (!(sst_inst->cdie_mask[i] & BIT(id)))
+			continue;
+
+		*partition = i;
+		return id - ffs(sst_inst->cdie_mask[i]) + 1;
+	}
+
+	return -EINVAL;
+}
+
+/**
+ * map_partition_power_domain_id() - Map user domain ID to partition domain ID
+ * @sst_inst: TPMI Instance
+ * @id: User domain ID
+ * @partition: Resolved partition
+ *
+ * In a partitioned system a CPU package has two separate MMIO ranges (Under
+ * two PCI devices). But the CPU package compute die/power domain IDs are
+ * unique in a package. User space can get compute die/power domain ID from
+ * CPUID and MSR 0x54 for a CPU. So, those IDs need to be preserved even if
+ * they are present in two different partitions with its own order.
+ *
+ * For example for command ISST_IF_COUNT_TPMI_INSTANCES, the valid_mask
+ * is 111111b for a 4 compute and 2 IO dies system. This is presented as
+ * provided by the hardware in a non-partitioned system with the following
+ * order:
+ *	I1-I0-C3-C2-C1-C0
+ * Here: "C": for compute and "I" for IO die.
+ * Compute dies are always present first in TPMI instances, as they have
+ * to map to the real power domain/die ID of a system. In a non-partitioned
+ * system there is no way to identify compute and IO die boundaries from
+ * this driver without reading each CPU's mapping.
+ *
+ * The same order needs to be preserved, even if those compute dies are
+ * distributed among multiple partitions. For example:
+ * Partition 1 can contain: I1-C1-C0
+ * Partition 2 can contain: I2-C3-C2
+ *
+ * This will require a conversion of user space IDs to the actual index into
+ * array of stored power domains for each partition. For the above example
+ * this function will return partition and index as follows:
+ *
+ * =============	=========	=====	========
+ * User space ID	Partition	Index	Die type
+ * =============	=========	=====	========
+ * 0			0		0	Compute
+ * 1			0		1	Compute
+ * 2			1		0	Compute
+ * 3			1		1	Compute
+ * 4			0		2	IO
+ * 5			1		2	IO
+ * =============	=========	=====	========
+ *
+ * Return: %-EINVAL on error, otherwise mapped domain ID >= 0.
+ */
+static int map_partition_power_domain_id(struct tpmi_sst_struct *sst_inst, u8 id, u8 *partition)
+{
+	u8 i, io_start_id, max_part;
+
+	*partition = 0;
+
+	/* If any PCI device for partition is unbound, treat this as failure */
+	if (sst_inst->partition_mask != sst_inst->partition_mask_current)
+		return -EINVAL;
+
+	max_part = hweight8(sst_inst->partition_mask);
+
+	/* IO Index begin here */
+	io_start_id = fls(sst_inst->cdie_mask[max_part - 1]);
+
+	if (id < io_start_id)
+		return map_cdies(sst_inst, id, partition);
+
+	for (i = 0; i < max_part; i++) {
+		u8 io_id;
+
+		io_id = id - io_start_id;
+		if (io_id < sst_inst->io_dies[i]) {
+			u8 cdie_range;
+
+			cdie_range = fls(sst_inst->cdie_mask[i]) - ffs(sst_inst->cdie_mask[i]) + 1;
+			*partition = i;
+			return cdie_range + io_id;
+		}
+		io_start_id += sst_inst->io_dies[i];
+	}
+
+	return -EINVAL;
+}
+
 /*
  * Map a package and power_domain id to SST information structure unique for a power_domain.
  * The caller should call under isst_tpmi_dev_lock.
@@ -395,19 +531,20 @@ static struct tpmi_per_power_domain_info *get_instance(int pkg_id, int power_dom
 {
 	struct tpmi_per_power_domain_info *power_domain_info;
 	struct tpmi_sst_struct *sst_inst;
+	u8 part;
 
-	if (pkg_id < 0 || pkg_id > isst_common.max_index ||
-	    pkg_id >= topology_max_packages())
+	if (!in_range(pkg_id, 0, topology_max_packages()) || pkg_id > isst_common.max_index)
 		return NULL;
 
 	sst_inst = isst_common.sst_inst[pkg_id];
 	if (!sst_inst)
 		return NULL;
 
-	if (power_domain_id < 0 || power_domain_id >= sst_inst->number_of_power_domains)
+	power_domain_id = map_partition_power_domain_id(sst_inst, power_domain_id, &part);
+	if (power_domain_id < 0)
 		return NULL;
 
-	power_domain_info = &sst_inst->power_domain_info[power_domain_id];
+	power_domain_info = &sst_inst->power_domain_info[part][power_domain_id];
 
 	if (power_domain_info && !power_domain_info->sst_base)
 		return NULL;
@@ -579,6 +716,7 @@ static long isst_if_clos_assoc(void __user *argp)
 		struct tpmi_sst_struct *sst_inst;
 		int offset, shift, cpu;
 		u64 val, mask, clos;
+		u8 part;
 
 		if (copy_from_user(&clos_assoc, ptr, sizeof(clos_assoc)))
 			return -EFAULT;
@@ -602,10 +740,11 @@ static long isst_if_clos_assoc(void __user *argp)
 
 		sst_inst = isst_common.sst_inst[pkg_id];
 
-		if (clos_assoc.power_domain_id > sst_inst->number_of_power_domains)
+		punit_id = map_partition_power_domain_id(sst_inst, punit_id, &part);
+		if (punit_id < 0)
 			return -EINVAL;
 
-		power_domain_info = &sst_inst->power_domain_info[punit_id];
+		power_domain_info = &sst_inst->power_domain_info[part][punit_id];
 
 		if (assoc_cmds.get_set && power_domain_info->write_blocked)
 			return -EPERM;
@@ -708,6 +847,8 @@ static int isst_if_get_perf_level(void __user *argp)
 {
 	struct isst_perf_level_info perf_level;
 	struct tpmi_per_power_domain_info *power_domain_info;
+	unsigned long level_mask;
+	u8 level, support;
 
 	if (copy_from_user(&perf_level, argp, sizeof(perf_level)))
 		return -EFAULT;
@@ -727,12 +868,34 @@ static int isst_if_get_perf_level(void __user *argp)
 		      SST_PP_FEATURE_STATE_START, SST_PP_FEATURE_STATE_WIDTH, SST_MUL_FACTOR_NONE)
 	perf_level.enabled = !!(power_domain_info->sst_header.cap_mask & BIT(1));
 
-	_read_bf_level_info("bf_support", perf_level.sst_bf_support, 0, 0,
-			    SST_BF_FEATURE_SUPPORTED_START, SST_BF_FEATURE_SUPPORTED_WIDTH,
-			    SST_MUL_FACTOR_NONE);
-	_read_tf_level_info("tf_support", perf_level.sst_tf_support, 0, 0,
-			    SST_TF_FEATURE_SUPPORTED_START, SST_TF_FEATURE_SUPPORTED_WIDTH,
-			    SST_MUL_FACTOR_NONE);
+	level_mask = perf_level.level_mask;
+	perf_level.sst_bf_support = 0;
+	for_each_set_bit(level, &level_mask, BITS_PER_BYTE) {
+		/*
+		 * Read BF support for a level. Read output is updated
+		 * to "support" variable by the below macro.
+		 */
+		_read_bf_level_info("bf_support", support, level, 0, SST_BF_FEATURE_SUPPORTED_START,
+				    SST_BF_FEATURE_SUPPORTED_WIDTH, SST_MUL_FACTOR_NONE);
+
+		/* If supported set the bit for the level */
+		if (support)
+			perf_level.sst_bf_support |= BIT(level);
+	}
+
+	perf_level.sst_tf_support = 0;
+	for_each_set_bit(level, &level_mask, BITS_PER_BYTE) {
+		/*
+		 * Read TF support for a level. Read output is updated
+		 * to "support" variable by the below macro.
+		 */
+		_read_tf_level_info("tf_support", support, level, 0, SST_TF_FEATURE_SUPPORTED_START,
+				    SST_TF_FEATURE_SUPPORTED_WIDTH, SST_MUL_FACTOR_NONE);
+
+		/* If supported set the bit for the level */
+		if (support)
+			perf_level.sst_tf_support |= BIT(level);
+	}
 
 	if (copy_to_user(argp, &perf_level, sizeof(perf_level)))
 		return -EFAULT;
@@ -1134,17 +1297,27 @@ static int isst_if_get_tpmi_instance_count(void __user *argp)
 	if (tpmi_inst.socket_id >= topology_max_packages())
 		return -EINVAL;
 
-	tpmi_inst.count = isst_common.sst_inst[tpmi_inst.socket_id]->number_of_power_domains;
-
 	sst_inst = isst_common.sst_inst[tpmi_inst.socket_id];
-	tpmi_inst.valid_mask = 0;
-	for (i = 0; i < sst_inst->number_of_power_domains; ++i) {
-		struct tpmi_per_power_domain_info *pd_info;
 
-		pd_info = &sst_inst->power_domain_info[i];
+	tpmi_inst.count = isst_instance_count(sst_inst);
+
+	tpmi_inst.valid_mask = 0;
+	for (i = 0; i < tpmi_inst.count; i++) {
+		struct tpmi_per_power_domain_info *pd_info;
+		u8 part;
+		int pd;
+
+		pd = map_partition_power_domain_id(sst_inst, i, &part);
+		if (pd < 0)
+			continue;
+
+		pd_info = &sst_inst->power_domain_info[part][pd];
 		if (pd_info->sst_base)
 			tpmi_inst.valid_mask |= BIT(i);
 	}
+
+	if (!tpmi_inst.valid_mask)
+		tpmi_inst.count = 0;
 
 	if (copy_to_user(argp, &tpmi_inst, sizeof(tpmi_inst)))
 		return -EFAULT;
@@ -1271,102 +1444,175 @@ static long isst_if_def_ioctl(struct file *file, unsigned int cmd,
 
 int tpmi_sst_dev_add(struct auxiliary_device *auxdev)
 {
+	struct tpmi_per_power_domain_info *pd_info;
 	bool read_blocked = 0, write_blocked = 0;
 	struct intel_tpmi_plat_info *plat_info;
+	struct device *dev = &auxdev->dev;
 	struct tpmi_sst_struct *tpmi_sst;
-	int i, ret, pkg = 0, inst = 0;
-	int num_resources;
+	u8 i, num_resources, io_die_cnt;
+	int ret, pkg = 0, inst = 0;
+	bool first_enum = false;
+	u16 cdie_mask;
+	u8 partition;
 
 	ret = tpmi_get_feature_status(auxdev, TPMI_ID_SST, &read_blocked, &write_blocked);
 	if (ret)
-		dev_info(&auxdev->dev, "Can't read feature status: ignoring read/write blocked status\n");
+		dev_info(dev, "Can't read feature status: ignoring read/write blocked status\n");
 
 	if (read_blocked) {
-		dev_info(&auxdev->dev, "Firmware has blocked reads, exiting\n");
+		dev_info(dev, "Firmware has blocked reads, exiting\n");
 		return -ENODEV;
 	}
 
 	plat_info = tpmi_get_platform_data(auxdev);
 	if (!plat_info) {
-		dev_err(&auxdev->dev, "No platform info\n");
+		dev_err(dev, "No platform info\n");
 		return -EINVAL;
 	}
 
 	pkg = plat_info->package_id;
 	if (pkg >= topology_max_packages()) {
-		dev_err(&auxdev->dev, "Invalid package id :%x\n", pkg);
+		dev_err(dev, "Invalid package id :%x\n", pkg);
 		return -EINVAL;
 	}
 
-	if (isst_common.sst_inst[pkg])
-		return -EEXIST;
+	partition = plat_info->partition;
+	if (partition >= SST_MAX_PARTITIONS) {
+		dev_err(&auxdev->dev, "Invalid partition :%x\n", partition);
+		return -EINVAL;
+	}
 
 	num_resources = tpmi_get_resource_count(auxdev);
 
 	if (!num_resources)
 		return -EINVAL;
 
-	tpmi_sst = devm_kzalloc(&auxdev->dev, sizeof(*tpmi_sst), GFP_KERNEL);
-	if (!tpmi_sst)
-		return -ENOMEM;
+	mutex_lock(&isst_tpmi_dev_lock);
 
-	tpmi_sst->power_domain_info = devm_kcalloc(&auxdev->dev, num_resources,
-						   sizeof(*tpmi_sst->power_domain_info),
-						   GFP_KERNEL);
-	if (!tpmi_sst->power_domain_info)
-		return -ENOMEM;
+	if (isst_common.sst_inst[pkg]) {
+		tpmi_sst = isst_common.sst_inst[pkg];
+	} else {
+		/*
+		 * tpmi_sst instance is for a package. So needs to be
+		 * allocated only once for both partitions. We can't use
+		 * devm_* allocation here as each partition is a
+		 * different device, which can be unbound.
+		 */
+		tpmi_sst = kzalloc(sizeof(*tpmi_sst), GFP_KERNEL);
+		if (!tpmi_sst) {
+			ret = -ENOMEM;
+			goto unlock_exit;
+		}
+		first_enum = true;
+	}
 
-	tpmi_sst->number_of_power_domains = num_resources;
+	ret = 0;
+
+	pd_info = devm_kcalloc(dev, num_resources, sizeof(*pd_info), GFP_KERNEL);
+	if (!pd_info) {
+		ret = -ENOMEM;
+		goto unlock_free;
+	}
+
+	/* Get the IO die count, if cdie_mask is present */
+	if (plat_info->cdie_mask) {
+		u8 cdie_range;
+
+		cdie_mask = plat_info->cdie_mask;
+		cdie_range = fls(cdie_mask) - ffs(cdie_mask) + 1;
+		io_die_cnt = num_resources - cdie_range;
+	} else {
+		/*
+		 * This is a synthetic mask, careful when assuming that
+		 * they are compute dies only.
+		 */
+		cdie_mask = (1 << num_resources) - 1;
+		io_die_cnt = 0;
+	}
 
 	for (i = 0; i < num_resources; ++i) {
 		struct resource *res;
 
 		res = tpmi_get_resource_at_index(auxdev, i);
 		if (!res) {
-			tpmi_sst->power_domain_info[i].sst_base = NULL;
+			pd_info[i].sst_base = NULL;
 			continue;
 		}
 
-		tpmi_sst->power_domain_info[i].package_id = pkg;
-		tpmi_sst->power_domain_info[i].power_domain_id = i;
-		tpmi_sst->power_domain_info[i].auxdev = auxdev;
-		tpmi_sst->power_domain_info[i].write_blocked = write_blocked;
-		tpmi_sst->power_domain_info[i].sst_base = devm_ioremap_resource(&auxdev->dev, res);
-		if (IS_ERR(tpmi_sst->power_domain_info[i].sst_base))
-			return PTR_ERR(tpmi_sst->power_domain_info[i].sst_base);
+		pd_info[i].package_id = pkg;
+		pd_info[i].power_domain_id = i;
+		pd_info[i].auxdev = auxdev;
+		pd_info[i].write_blocked = write_blocked;
+		pd_info[i].sst_base = devm_ioremap_resource(dev, res);
+		if (IS_ERR(pd_info[i].sst_base)) {
+			ret = PTR_ERR(pd_info[i].sst_base);
+			goto unlock_free;
+		}
 
-		ret = sst_main(auxdev, &tpmi_sst->power_domain_info[i]);
+		ret = sst_main(auxdev, &pd_info[i]);
 		if (ret) {
-			devm_iounmap(&auxdev->dev, tpmi_sst->power_domain_info[i].sst_base);
-			tpmi_sst->power_domain_info[i].sst_base =  NULL;
+			/*
+			 * This entry is not valid, hardware can partially
+			 * populate dies. In this case MMIO will have 0xFFs.
+			 * Also possible some pre-production hardware has
+			 * invalid data. But don't fail and continue to use
+			 * other dies with valid data.
+			 */
+			devm_iounmap(dev, pd_info[i].sst_base);
+			pd_info[i].sst_base = NULL;
 			continue;
 		}
 
 		++inst;
 	}
 
-	if (!inst)
-		return -ENODEV;
+	if (!inst) {
+		ret = -ENODEV;
+		goto unlock_free;
+	}
 
 	tpmi_sst->package_id = pkg;
+
+	tpmi_sst->power_domain_info[partition] = pd_info;
+	tpmi_sst->number_of_power_domains[partition] = num_resources;
+	tpmi_sst->cdie_mask[partition] = cdie_mask;
+	tpmi_sst->io_dies[partition] = io_die_cnt;
+	tpmi_sst->partition_mask |= BIT(partition);
+	tpmi_sst->partition_mask_current |= BIT(partition);
+
 	auxiliary_set_drvdata(auxdev, tpmi_sst);
 
-	mutex_lock(&isst_tpmi_dev_lock);
 	if (isst_common.max_index < pkg)
 		isst_common.max_index = pkg;
 	isst_common.sst_inst[pkg] = tpmi_sst;
+
+unlock_free:
+	if (ret && first_enum)
+		kfree(tpmi_sst);
+unlock_exit:
 	mutex_unlock(&isst_tpmi_dev_lock);
 
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL_NS_GPL(tpmi_sst_dev_add, INTEL_TPMI_SST);
 
 void tpmi_sst_dev_remove(struct auxiliary_device *auxdev)
 {
 	struct tpmi_sst_struct *tpmi_sst = auxiliary_get_drvdata(auxdev);
+	struct intel_tpmi_plat_info *plat_info;
+
+	plat_info = tpmi_get_platform_data(auxdev);
+	if (!plat_info)
+		return;
 
 	mutex_lock(&isst_tpmi_dev_lock);
-	isst_common.sst_inst[tpmi_sst->package_id] = NULL;
+	tpmi_sst->power_domain_info[plat_info->partition] = NULL;
+	tpmi_sst->partition_mask_current &= ~BIT(plat_info->partition);
+	/* Free the package instance when the all partitions are removed */
+	if (!tpmi_sst->partition_mask_current) {
+		kfree(tpmi_sst);
+		isst_common.sst_inst[tpmi_sst->package_id] = NULL;
+	}
 	mutex_unlock(&isst_tpmi_dev_lock);
 }
 EXPORT_SYMBOL_NS_GPL(tpmi_sst_dev_remove, INTEL_TPMI_SST);
@@ -1374,8 +1620,15 @@ EXPORT_SYMBOL_NS_GPL(tpmi_sst_dev_remove, INTEL_TPMI_SST);
 void tpmi_sst_dev_suspend(struct auxiliary_device *auxdev)
 {
 	struct tpmi_sst_struct *tpmi_sst = auxiliary_get_drvdata(auxdev);
-	struct tpmi_per_power_domain_info *power_domain_info = tpmi_sst->power_domain_info;
+	struct tpmi_per_power_domain_info *power_domain_info;
+	struct intel_tpmi_plat_info *plat_info;
 	void __iomem *cp_base;
+
+	plat_info = tpmi_get_platform_data(auxdev);
+	if (!plat_info)
+		return;
+
+	power_domain_info = tpmi_sst->power_domain_info[plat_info->partition];
 
 	cp_base = power_domain_info->sst_base + power_domain_info->sst_header.cp_offset;
 	power_domain_info->saved_sst_cp_control = readq(cp_base + SST_CP_CONTROL_OFFSET);
@@ -1395,8 +1648,15 @@ EXPORT_SYMBOL_NS_GPL(tpmi_sst_dev_suspend, INTEL_TPMI_SST);
 void tpmi_sst_dev_resume(struct auxiliary_device *auxdev)
 {
 	struct tpmi_sst_struct *tpmi_sst = auxiliary_get_drvdata(auxdev);
-	struct tpmi_per_power_domain_info *power_domain_info = tpmi_sst->power_domain_info;
+	struct tpmi_per_power_domain_info *power_domain_info;
+	struct intel_tpmi_plat_info *plat_info;
 	void __iomem *cp_base;
+
+	plat_info = tpmi_get_platform_data(auxdev);
+	if (!plat_info)
+		return;
+
+	power_domain_info = tpmi_sst->power_domain_info[plat_info->partition];
 
 	cp_base = power_domain_info->sst_base + power_domain_info->sst_header.cp_offset;
 	writeq(power_domain_info->saved_sst_cp_control, cp_base + SST_CP_CONTROL_OFFSET);
@@ -1412,7 +1672,7 @@ void tpmi_sst_dev_resume(struct auxiliary_device *auxdev)
 }
 EXPORT_SYMBOL_NS_GPL(tpmi_sst_dev_resume, INTEL_TPMI_SST);
 
-#define ISST_TPMI_API_VERSION	0x02
+#define ISST_TPMI_API_VERSION	0x03
 
 int tpmi_sst_init(void)
 {
@@ -1469,4 +1729,5 @@ EXPORT_SYMBOL_NS_GPL(tpmi_sst_exit, INTEL_TPMI_SST);
 MODULE_IMPORT_NS(INTEL_TPMI);
 MODULE_IMPORT_NS(INTEL_TPMI_POWER_DOMAIN);
 
+MODULE_DESCRIPTION("ISST TPMI interface module");
 MODULE_LICENSE("GPL");

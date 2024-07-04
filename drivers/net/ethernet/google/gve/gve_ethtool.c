@@ -8,6 +8,7 @@
 #include "gve.h"
 #include "gve_adminq.h"
 #include "gve_dqo.h"
+#include "gve_utils.h"
 
 static void gve_get_drvinfo(struct net_device *netdev,
 			    struct ethtool_drvinfo *info)
@@ -73,7 +74,7 @@ static const char gve_gstrings_adminq_stats[][ETH_GSTRING_LEN] = {
 	"adminq_create_tx_queue_cnt", "adminq_create_rx_queue_cnt",
 	"adminq_destroy_tx_queue_cnt", "adminq_destroy_rx_queue_cnt",
 	"adminq_dcfg_device_resources_cnt", "adminq_set_driver_parameter_cnt",
-	"adminq_report_stats_cnt", "adminq_report_link_speed_cnt"
+	"adminq_report_stats_cnt", "adminq_report_link_speed_cnt", "adminq_get_ptype_map_cnt"
 };
 
 static const char gve_gstrings_priv_flags[][ETH_GSTRING_LEN] = {
@@ -89,42 +90,34 @@ static const char gve_gstrings_priv_flags[][ETH_GSTRING_LEN] = {
 static void gve_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 {
 	struct gve_priv *priv = netdev_priv(netdev);
-	char *s = (char *)data;
+	u8 *s = (char *)data;
 	int num_tx_queues;
 	int i, j;
 
 	num_tx_queues = gve_num_tx_queues(priv);
 	switch (stringset) {
 	case ETH_SS_STATS:
-		memcpy(s, *gve_gstrings_main_stats,
-		       sizeof(gve_gstrings_main_stats));
-		s += sizeof(gve_gstrings_main_stats);
+		for (i = 0; i < ARRAY_SIZE(gve_gstrings_main_stats); i++)
+			ethtool_puts(&s, gve_gstrings_main_stats[i]);
 
-		for (i = 0; i < priv->rx_cfg.num_queues; i++) {
-			for (j = 0; j < NUM_GVE_RX_CNTS; j++) {
-				snprintf(s, ETH_GSTRING_LEN,
-					 gve_gstrings_rx_stats[j], i);
-				s += ETH_GSTRING_LEN;
-			}
-		}
+		for (i = 0; i < priv->rx_cfg.num_queues; i++)
+			for (j = 0; j < NUM_GVE_RX_CNTS; j++)
+				ethtool_sprintf(&s, gve_gstrings_rx_stats[j],
+						i);
 
-		for (i = 0; i < num_tx_queues; i++) {
-			for (j = 0; j < NUM_GVE_TX_CNTS; j++) {
-				snprintf(s, ETH_GSTRING_LEN,
-					 gve_gstrings_tx_stats[j], i);
-				s += ETH_GSTRING_LEN;
-			}
-		}
+		for (i = 0; i < num_tx_queues; i++)
+			for (j = 0; j < NUM_GVE_TX_CNTS; j++)
+				ethtool_sprintf(&s, gve_gstrings_tx_stats[j],
+						i);
 
-		memcpy(s, *gve_gstrings_adminq_stats,
-		       sizeof(gve_gstrings_adminq_stats));
-		s += sizeof(gve_gstrings_adminq_stats);
+		for (i = 0; i < ARRAY_SIZE(gve_gstrings_adminq_stats); i++)
+			ethtool_puts(&s, gve_gstrings_adminq_stats[i]);
+
 		break;
 
 	case ETH_SS_PRIV_FLAGS:
-		memcpy(s, *gve_gstrings_priv_flags,
-		       sizeof(gve_gstrings_priv_flags));
-		s += sizeof(gve_gstrings_priv_flags);
+		for (i = 0; i < ARRAY_SIZE(gve_gstrings_priv_flags); i++)
+			ethtool_puts(&s, gve_gstrings_priv_flags[i]);
 		break;
 
 	default:
@@ -165,6 +158,8 @@ gve_get_ethtool_stats(struct net_device *netdev,
 	struct stats *report_stats;
 	int *rx_qid_to_stats_idx;
 	int *tx_qid_to_stats_idx;
+	int num_stopped_rxqs = 0;
+	int num_stopped_txqs = 0;
 	struct gve_priv *priv;
 	bool skip_nic_stats;
 	unsigned int start;
@@ -181,12 +176,23 @@ gve_get_ethtool_stats(struct net_device *netdev,
 					    sizeof(int), GFP_KERNEL);
 	if (!rx_qid_to_stats_idx)
 		return;
+	for (ring = 0; ring < priv->rx_cfg.num_queues; ring++) {
+		rx_qid_to_stats_idx[ring] = -1;
+		if (!gve_rx_was_added_to_block(priv, ring))
+			num_stopped_rxqs++;
+	}
 	tx_qid_to_stats_idx = kmalloc_array(num_tx_queues,
 					    sizeof(int), GFP_KERNEL);
 	if (!tx_qid_to_stats_idx) {
 		kfree(rx_qid_to_stats_idx);
 		return;
 	}
+	for (ring = 0; ring < num_tx_queues; ring++) {
+		tx_qid_to_stats_idx[ring] = -1;
+		if (!gve_tx_was_added_to_block(priv, ring))
+			num_stopped_txqs++;
+	}
+
 	for (rx_pkts = 0, rx_bytes = 0, rx_hsplit_pkt = 0,
 	     rx_skb_alloc_fail = 0, rx_buf_alloc_fail = 0,
 	     rx_desc_err_dropped_pkt = 0, rx_hsplit_unsplit_pkt = 0,
@@ -260,7 +266,13 @@ gve_get_ethtool_stats(struct net_device *netdev,
 	/* For rx cross-reporting stats, start from nic rx stats in report */
 	base_stats_idx = GVE_TX_STATS_REPORT_NUM * num_tx_queues +
 		GVE_RX_STATS_REPORT_NUM * priv->rx_cfg.num_queues;
-	max_stats_idx = NIC_RX_STATS_REPORT_NUM * priv->rx_cfg.num_queues +
+	/* The boundary between driver stats and NIC stats shifts if there are
+	 * stopped queues.
+	 */
+	base_stats_idx += NIC_RX_STATS_REPORT_NUM * num_stopped_rxqs +
+		NIC_TX_STATS_REPORT_NUM * num_stopped_txqs;
+	max_stats_idx = NIC_RX_STATS_REPORT_NUM *
+		(priv->rx_cfg.num_queues - num_stopped_rxqs) +
 		base_stats_idx;
 	/* Preprocess the stats report for rx, map queue id to start index */
 	skip_nic_stats = false;
@@ -273,6 +285,10 @@ gve_get_ethtool_stats(struct net_device *netdev,
 			/* no stats written by NIC yet */
 			skip_nic_stats = true;
 			break;
+		}
+		if (queue_id < 0 || queue_id >= priv->rx_cfg.num_queues) {
+			net_err_ratelimited("Invalid rxq id in NIC stats\n");
+			continue;
 		}
 		rx_qid_to_stats_idx[queue_id] = stats_idx;
 	}
@@ -308,11 +324,11 @@ gve_get_ethtool_stats(struct net_device *netdev,
 			data[i++] = rx->rx_copybreak_pkt;
 			data[i++] = rx->rx_copied_pkt;
 			/* stats from NIC */
-			if (skip_nic_stats) {
+			stats_idx = rx_qid_to_stats_idx[ring];
+			if (skip_nic_stats || stats_idx < 0) {
 				/* skip NIC rx stats */
 				i += NIC_RX_STATS_REPORT_NUM;
 			} else {
-				stats_idx = rx_qid_to_stats_idx[ring];
 				for (j = 0; j < NIC_RX_STATS_REPORT_NUM; j++) {
 					u64 value =
 						be64_to_cpu(report_stats[stats_idx + j].value);
@@ -338,7 +354,8 @@ gve_get_ethtool_stats(struct net_device *netdev,
 
 	/* For tx cross-reporting stats, start from nic tx stats in report */
 	base_stats_idx = max_stats_idx;
-	max_stats_idx = NIC_TX_STATS_REPORT_NUM * num_tx_queues +
+	max_stats_idx = NIC_TX_STATS_REPORT_NUM *
+		(num_tx_queues - num_stopped_txqs) +
 		max_stats_idx;
 	/* Preprocess the stats report for tx, map queue id to start index */
 	skip_nic_stats = false;
@@ -351,6 +368,10 @@ gve_get_ethtool_stats(struct net_device *netdev,
 			/* no stats written by NIC yet */
 			skip_nic_stats = true;
 			break;
+		}
+		if (queue_id < 0 || queue_id >= num_tx_queues) {
+			net_err_ratelimited("Invalid txq id in NIC stats\n");
+			continue;
 		}
 		tx_qid_to_stats_idx[queue_id] = stats_idx;
 	}
@@ -383,11 +404,11 @@ gve_get_ethtool_stats(struct net_device *netdev,
 			data[i++] = gve_tx_load_event_counter(priv, tx);
 			data[i++] = tx->dma_mapping_error;
 			/* stats from NIC */
-			if (skip_nic_stats) {
+			stats_idx = tx_qid_to_stats_idx[ring];
+			if (skip_nic_stats || stats_idx < 0) {
 				/* skip NIC tx stats */
 				i += NIC_TX_STATS_REPORT_NUM;
 			} else {
-				stats_idx = tx_qid_to_stats_idx[ring];
 				for (j = 0; j < NIC_TX_STATS_REPORT_NUM; j++) {
 					u64 value =
 						be64_to_cpu(report_stats[stats_idx + j].value);
@@ -428,6 +449,7 @@ gve_get_ethtool_stats(struct net_device *netdev,
 	data[i++] = priv->adminq_set_driver_parameter_cnt;
 	data[i++] = priv->adminq_report_stats_cnt;
 	data[i++] = priv->adminq_report_link_speed_cnt;
+	data[i++] = priv->adminq_get_ptype_map_cnt;
 }
 
 static void gve_get_channels(struct net_device *netdev,
@@ -489,8 +511,8 @@ static void gve_get_ringparam(struct net_device *netdev,
 {
 	struct gve_priv *priv = netdev_priv(netdev);
 
-	cmd->rx_max_pending = priv->rx_desc_cnt;
-	cmd->tx_max_pending = priv->tx_desc_cnt;
+	cmd->rx_max_pending = priv->max_rx_desc_cnt;
+	cmd->tx_max_pending = priv->max_tx_desc_cnt;
 	cmd->rx_pending = priv->rx_desc_cnt;
 	cmd->tx_pending = priv->tx_desc_cnt;
 
@@ -502,20 +524,81 @@ static void gve_get_ringparam(struct net_device *netdev,
 		kernel_cmd->tcp_data_split = ETHTOOL_TCP_DATA_SPLIT_DISABLED;
 }
 
+static int gve_adjust_ring_sizes(struct gve_priv *priv,
+				 u16 new_tx_desc_cnt,
+				 u16 new_rx_desc_cnt)
+{
+	struct gve_tx_alloc_rings_cfg tx_alloc_cfg = {0};
+	struct gve_rx_alloc_rings_cfg rx_alloc_cfg = {0};
+	int err;
+
+	/* get current queue configuration */
+	gve_get_curr_alloc_cfgs(priv, &tx_alloc_cfg, &rx_alloc_cfg);
+
+	/* copy over the new ring_size from ethtool */
+	tx_alloc_cfg.ring_size = new_tx_desc_cnt;
+	rx_alloc_cfg.ring_size = new_rx_desc_cnt;
+
+	if (netif_running(priv->dev)) {
+		err = gve_adjust_config(priv, &tx_alloc_cfg, &rx_alloc_cfg);
+		if (err)
+			return err;
+	}
+
+	/* Set new ring_size for the next up */
+	priv->tx_desc_cnt = new_tx_desc_cnt;
+	priv->rx_desc_cnt = new_rx_desc_cnt;
+
+	return 0;
+}
+
+static int gve_validate_req_ring_size(struct gve_priv *priv, u16 new_tx_desc_cnt,
+				      u16 new_rx_desc_cnt)
+{
+	/* check for valid range */
+	if (new_tx_desc_cnt < priv->min_tx_desc_cnt ||
+	    new_tx_desc_cnt > priv->max_tx_desc_cnt ||
+	    new_rx_desc_cnt < priv->min_rx_desc_cnt ||
+	    new_rx_desc_cnt > priv->max_rx_desc_cnt) {
+		dev_err(&priv->pdev->dev, "Requested descriptor count out of range\n");
+		return -EINVAL;
+	}
+
+	if (!is_power_of_2(new_tx_desc_cnt) || !is_power_of_2(new_rx_desc_cnt)) {
+		dev_err(&priv->pdev->dev, "Requested descriptor count has to be a power of 2\n");
+		return -EINVAL;
+	}
+	return 0;
+}
+
 static int gve_set_ringparam(struct net_device *netdev,
 			     struct ethtool_ringparam *cmd,
 			     struct kernel_ethtool_ringparam *kernel_cmd,
 			     struct netlink_ext_ack *extack)
 {
 	struct gve_priv *priv = netdev_priv(netdev);
+	u16 new_tx_cnt, new_rx_cnt;
+	int err;
 
-	if (priv->tx_desc_cnt != cmd->tx_pending ||
-	    priv->rx_desc_cnt != cmd->rx_pending) {
-		dev_info(&priv->pdev->dev, "Modify ring size is not supported.\n");
+	err = gve_set_hsplit_config(priv, kernel_cmd->tcp_data_split);
+	if (err)
+		return err;
+
+	if (cmd->tx_pending == priv->tx_desc_cnt && cmd->rx_pending == priv->rx_desc_cnt)
+		return 0;
+
+	if (!priv->modify_ring_size_enabled) {
+		dev_err(&priv->pdev->dev, "Modify ring size is not supported.\n");
 		return -EOPNOTSUPP;
 	}
 
-	return gve_set_hsplit_config(priv, kernel_cmd->tcp_data_split);
+	new_tx_cnt = cmd->tx_pending;
+	new_rx_cnt = cmd->rx_pending;
+
+	if (gve_validate_req_ring_size(priv, new_tx_cnt, new_rx_cnt))
+		return -EINVAL;
+
+	return gve_adjust_ring_sizes(priv, new_tx_cnt, new_rx_cnt);
 }
 
 static int gve_user_reset(struct net_device *netdev, u32 *flags)
@@ -710,5 +793,6 @@ const struct ethtool_ops gve_ethtool_ops = {
 	.set_tunable = gve_set_tunable,
 	.get_priv_flags = gve_get_priv_flags,
 	.set_priv_flags = gve_set_priv_flags,
-	.get_link_ksettings = gve_get_link_ksettings
+	.get_link_ksettings = gve_get_link_ksettings,
+	.get_ts_info = ethtool_op_get_ts_info,
 };

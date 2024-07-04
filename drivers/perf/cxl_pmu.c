@@ -208,21 +208,10 @@ static int cxl_pmu_parse_caps(struct device *dev, struct cxl_pmu_info *info)
 	return 0;
 }
 
-static ssize_t cxl_pmu_format_sysfs_show(struct device *dev,
-					 struct device_attribute *attr, char *buf)
-{
-	struct dev_ext_attribute *eattr;
-
-	eattr = container_of(attr, struct dev_ext_attribute, attr);
-
-	return sysfs_emit(buf, "%s\n", (char *)eattr->var);
-}
-
 #define CXL_PMU_FORMAT_ATTR(_name, _format)\
 	(&((struct dev_ext_attribute[]) {					\
 		{								\
-			.attr = __ATTR(_name, 0444,				\
-				       cxl_pmu_format_sysfs_show, NULL),	\
+			.attr = __ATTR(_name, 0444, device_show_string, NULL),	\
 			.var = (void *)_format					\
 		}								\
 		})[0].attr.attr)
@@ -345,7 +334,7 @@ static ssize_t cxl_pmu_event_sysfs_show(struct device *dev,
 
 /* For CXL spec defined events */
 #define CXL_PMU_EVENT_CXL_ATTR(_name, _gid, _msk)			\
-	CXL_PMU_EVENT_ATTR(_name, PCI_DVSEC_VENDOR_ID_CXL, _gid, _msk)
+	CXL_PMU_EVENT_ATTR(_name, PCI_VENDOR_ID_CXL, _gid, _msk)
 
 static struct attribute *cxl_pmu_event_attrs[] = {
 	CXL_PMU_EVENT_CXL_ATTR(clock_ticks,			CXL_PMU_GID_CLOCK_TICKS, BIT(0)),

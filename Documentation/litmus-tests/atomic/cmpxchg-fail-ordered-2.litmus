@@ -1,0 +1,30 @@
+C cmpxchg-fail-ordered-2
+
+(*
+ * Result: Never
+ *
+ * Demonstrate use of smp_mb__after_atomic() to make a failing cmpxchg
+ * operation have acquire ordering.
+ *)
+
+{}
+
+P0(int *x, int *y)
+{
+	int r1;
+
+	WRITE_ONCE(*x, 1);
+	r1 = cmpxchg(y, 0, 1);
+}
+
+P1(int *x, int *y)
+{
+	int r1;
+	int r2;
+
+	r1 = cmpxchg(y, 0, 1);
+	smp_mb__after_atomic();
+	r2 = READ_ONCE(*x);
+}
+
+exists (0:r1=0 /\ 1:r1=1 /\ 1:r2=0)

@@ -241,28 +241,28 @@ nouveau_bo_alloc(struct nouveau_cli *cli, u64 *size, int *align, u32 domain,
 	}
 
 	nvbo->contig = !(tile_flags & NOUVEAU_GEM_TILE_NONCONTIG);
-	if (!nouveau_cli_uvmm(cli) || internal) {
-		/* for BO noVM allocs, don't assign kinds */
-		if (cli->device.info.family >= NV_DEVICE_INFO_V0_FERMI) {
-			nvbo->kind = (tile_flags & 0x0000ff00) >> 8;
-			if (!nvif_mmu_kind_valid(mmu, nvbo->kind)) {
-				kfree(nvbo);
-				return ERR_PTR(-EINVAL);
-			}
 
-			nvbo->comp = mmu->kind[nvbo->kind] != nvbo->kind;
-		} else if (cli->device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
-			nvbo->kind = (tile_flags & 0x00007f00) >> 8;
-			nvbo->comp = (tile_flags & 0x00030000) >> 16;
-			if (!nvif_mmu_kind_valid(mmu, nvbo->kind)) {
-				kfree(nvbo);
-				return ERR_PTR(-EINVAL);
-			}
-		} else {
-			nvbo->zeta = (tile_flags & 0x00000007);
+	if (cli->device.info.family >= NV_DEVICE_INFO_V0_FERMI) {
+		nvbo->kind = (tile_flags & 0x0000ff00) >> 8;
+		if (!nvif_mmu_kind_valid(mmu, nvbo->kind)) {
+			kfree(nvbo);
+			return ERR_PTR(-EINVAL);
 		}
-		nvbo->mode = tile_mode;
 
+		nvbo->comp = mmu->kind[nvbo->kind] != nvbo->kind;
+	} else if (cli->device.info.family >= NV_DEVICE_INFO_V0_TESLA) {
+		nvbo->kind = (tile_flags & 0x00007f00) >> 8;
+		nvbo->comp = (tile_flags & 0x00030000) >> 16;
+		if (!nvif_mmu_kind_valid(mmu, nvbo->kind)) {
+			kfree(nvbo);
+			return ERR_PTR(-EINVAL);
+		}
+	} else {
+		nvbo->zeta = (tile_flags & 0x00000007);
+	}
+	nvbo->mode = tile_mode;
+
+	if (!nouveau_cli_uvmm(cli) || internal) {
 		/* Determine the desirable target GPU page size for the buffer. */
 		for (i = 0; i < vmm->page_nr; i++) {
 			/* Because we cannot currently allow VMM maps to fail
@@ -304,12 +304,6 @@ nouveau_bo_alloc(struct nouveau_cli *cli, u64 *size, int *align, u32 domain,
 		}
 		nvbo->page = vmm->page[pi].shift;
 	} else {
-		/* reject other tile flags when in VM mode. */
-		if (tile_mode)
-			return ERR_PTR(-EINVAL);
-		if (tile_flags & ~NOUVEAU_GEM_TILE_NONCONTIG)
-			return ERR_PTR(-EINVAL);
-
 		/* Determine the desirable target GPU page size for the buffer. */
 		for (i = 0; i < vmm->page_nr; i++) {
 			/* Because we cannot currently allow VMM maps to fail
@@ -467,17 +461,14 @@ nouveau_bo_placement_set(struct nouveau_bo *nvbo, uint32_t domain,
 	set_placement_range(nvbo, domain);
 }
 
-int
-nouveau_bo_pin(struct nouveau_bo *nvbo, uint32_t domain, bool contig)
+int nouveau_bo_pin_locked(struct nouveau_bo *nvbo, uint32_t domain, bool contig)
 {
 	struct nouveau_drm *drm = nouveau_bdev(nvbo->bo.bdev);
 	struct ttm_buffer_object *bo = &nvbo->bo;
 	bool force = false, evict = false;
-	int ret;
+	int ret = 0;
 
-	ret = ttm_bo_reserve(bo, false, false, NULL);
-	if (ret)
-		return ret;
+	dma_resv_assert_held(bo->base.resv);
 
 	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA &&
 	    domain == NOUVEAU_GEM_DOMAIN_VRAM && contig) {
@@ -540,20 +531,15 @@ nouveau_bo_pin(struct nouveau_bo *nvbo, uint32_t domain, bool contig)
 out:
 	if (force && ret)
 		nvbo->contig = false;
-	ttm_bo_unreserve(bo);
 	return ret;
 }
 
-int
-nouveau_bo_unpin(struct nouveau_bo *nvbo)
+void nouveau_bo_unpin_locked(struct nouveau_bo *nvbo)
 {
 	struct nouveau_drm *drm = nouveau_bdev(nvbo->bo.bdev);
 	struct ttm_buffer_object *bo = &nvbo->bo;
-	int ret;
 
-	ret = ttm_bo_reserve(bo, false, false, NULL);
-	if (ret)
-		return ret;
+	dma_resv_assert_held(bo->base.resv);
 
 	ttm_bo_unpin(&nvbo->bo);
 	if (!nvbo->bo.pin_count) {
@@ -568,8 +554,33 @@ nouveau_bo_unpin(struct nouveau_bo *nvbo)
 			break;
 		}
 	}
+}
 
+int nouveau_bo_pin(struct nouveau_bo *nvbo, uint32_t domain, bool contig)
+{
+	struct ttm_buffer_object *bo = &nvbo->bo;
+	int ret;
+
+	ret = ttm_bo_reserve(bo, false, false, NULL);
+	if (ret)
+		return ret;
+	ret = nouveau_bo_pin_locked(nvbo, domain, contig);
 	ttm_bo_unreserve(bo);
+
+	return ret;
+}
+
+int nouveau_bo_unpin(struct nouveau_bo *nvbo)
+{
+	struct ttm_buffer_object *bo = &nvbo->bo;
+	int ret;
+
+	ret = ttm_bo_reserve(bo, false, false, NULL);
+	if (ret)
+		return ret;
+	nouveau_bo_unpin_locked(nvbo);
+	ttm_bo_unreserve(bo);
+
 	return 0;
 }
 

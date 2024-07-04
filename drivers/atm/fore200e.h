@@ -830,7 +830,6 @@ typedef struct fore200e_vc_map {
 /* per-device data */
 
 typedef struct fore200e {
-    struct       list_head     entry;                  /* next device                        */
     const struct fore200e_bus* bus;                    /* bus-dependent code and data        */
     union        fore200e_regs regs;                   /* bus-dependent registers            */
     struct       atm_dev*      atm_dev;                /* ATM device                         */

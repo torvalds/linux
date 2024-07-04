@@ -94,6 +94,7 @@ properties:
           - SAI: 24
           - Multi SAI: 25
           - HDMI Audio: 26
+          - I2C: 27
 
        The third cell: transfer priority ID
          enum:

@@ -51,11 +51,21 @@ config SENSORS_ADM1275
 	tristate "Analog Devices ADM1275 and compatibles"
 	help
 	  If you say yes here you get hardware monitoring support for Analog
-	  Devices ADM1075, ADM1272, ADM1275, ADM1276, ADM1278, ADM1293,
-	  and ADM1294 Hot-Swap Controller and Digital Power Monitors.
+	  Devices ADM1075, ADM1272, ADM1275, ADM1276, ADM1278, ADM1281,
+	  ADM1293, and ADM1294 Hot-Swap Controller and Digital Power Monitors.
 
 	  This driver can also be built as a module. If so, the module will
 	  be called adm1275.
+
+config SENSORS_ADP1050
+	tristate "Analog Devices ADP1050 digital controller for Power Supplies"
+	help
+	  If you say yes here you get hardware monitoring support for Analog
+	  Devices ADP1050 digital controller for isolated power supply with
+	  PMBus interface.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called adp1050.
 
 config SENSORS_BEL_PFE
 	tristate "Bel PFE Compatible Power Supplies"
@@ -510,6 +520,15 @@ config SENSORS_UCD9200
 
 	  This driver can also be built as a module. If so, the module will
 	  be called ucd9200.
+
+config SENSORS_XDP710
+	tristate "Infineon XDP710 family"
+	help
+	  If you say yes here you get hardware monitoring support for Infineon
+	  XDP710.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called xdp710.
 
 config SENSORS_XDPE152
 	tristate "Infineon XDPE152 family"

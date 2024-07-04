@@ -2,12 +2,12 @@
 /*
  * Intel Skylake I2S Machine Driver for NAU88L25+SSM4567
  *
- * Copyright (C) 2015, Intel Corporation. All rights reserved.
+ * Copyright (C) 2015, Intel Corporation
  *
  * Modified from:
  *   Intel Skylake I2S Machine Driver for NAU88L25 and SSM4567
  *
- *   Copyright (C) 2015, Intel Corporation. All rights reserved.
+ *   Copyright (C) 2015, Intel Corporation
  */
 
 #include <linux/module.h>

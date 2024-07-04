@@ -16,27 +16,33 @@ config BCM2835_VCHIQ
 	depends on HAS_DMA
 	imply VCHIQ_CDEV
 	help
-		Broadcom BCM2835 and similar SoCs have a VPU called VideoCore. This config
-		enables the VCHIQ driver, which implements a messaging interface between
-		the kernel and the firmware running on VideoCore. Other drivers use this
-		interface to communicate to the VPU. More specifically, the VCHIQ driver is
-		used by audio/video and camera drivers as well as for implementing MMAL
-		API, which is in turn used by several multimedia services on the BCM2835
-		family of SoCs.
-		Defaults to Y when the Broadcom Videocore services are included in
-		the build, N otherwise.
+		Broadcom BCM2835 and similar SoCs have a VPU called VideoCore.
+		This config enables the VCHIQ driver, which implements a
+		messaging interface between the kernel and the firmware running
+		on VideoCore. Other drivers use this interface to communicate to
+		the VPU. More specifically, the VCHIQ driver is used by
+		audio/video and camera drivers as well as for implementing MMAL
+		API, which is in turn used by several multimedia services on the
+		BCM2835 family of SoCs.
+
+		Defaults to Y when the Broadcom Videocore services are included
+		in the build, N otherwise.
 
 if BCM2835_VCHIQ
 
 config VCHIQ_CDEV
 	bool "VCHIQ Character Driver"
 	help
-		Enable the creation of VCHIQ character driver. The cdev exposes ioctls used
-		by userspace libraries and testing tools to interact with VideoCore, via
-		the VCHIQ core driver (Check BCM2835_VCHIQ for more info).
-		This can be set to 'N' if the VideoCore communication is not needed by
-		userspace but only by other kernel modules (like bcm2835-audio).  If not
-		sure, set this to 'Y'.
+		Enable the creation of VCHIQ character driver. The cdev exposes
+		ioctls used by userspace libraries and testing tools to interact
+		with VideoCore, via the VCHIQ core driver (Check BCM2835_VCHIQ
+		for more info).
+
+		This can be set to 'N' if the VideoCore communication is not
+		needed by userspace but only by other kernel modules
+		(like bcm2835-audio).
+
+		If not sure, set this to 'Y'.
 
 endif
 

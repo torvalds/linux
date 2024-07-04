@@ -60,6 +60,9 @@ config NET_XGRESS
 config NET_REDIRECT
 	bool
 
+config SKB_DECRYPTED
+	bool
+
 config SKB_EXTENSIONS
 	bool
 
@@ -447,6 +450,9 @@ config GRO_CELLS
 	default n
 
 config SOCK_VALIDATE_XMIT
+	bool
+
+config NET_IEEE8021Q_HELPERS
 	bool
 
 config NET_SELFTESTS

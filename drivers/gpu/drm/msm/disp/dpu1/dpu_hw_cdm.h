@@ -19,7 +19,7 @@ struct dpu_hw_cdm;
  *  @output_bit_depth:     output bit-depth of CDM block
  *  @h_cdwn_type:          downsample type used for horizontal pixels
  *  @v_cdwn_type:          downsample type used for vertical pixels
- *  @output_fmt:           handle to dpu_format of CDM block
+ *  @output_fmt:           handle to msm_format of CDM block
  *  @csc_cfg:              handle to CSC matrix programmed for CDM block
  *  @output_type:          interface to which CDM is paired (HDMI/WB)
  *  @pp_id:                ping-pong block to which CDM is bound to
@@ -30,7 +30,7 @@ struct dpu_hw_cdm_cfg {
 	u32 output_bit_depth;
 	u32 h_cdwn_type;
 	u32 v_cdwn_type;
-	const struct dpu_format *output_fmt;
+	const struct msm_format *output_fmt;
 	const struct dpu_csc_cfg *csc_cfg;
 	u32 output_type;
 	int pp_id;

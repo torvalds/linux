@@ -210,22 +210,26 @@ int amdgpu_mca_smu_set_debug_mode(struct amdgpu_device *adev, bool enable)
 	return -EOPNOTSUPP;
 }
 
-static void amdgpu_mca_smu_mca_bank_dump(struct amdgpu_device *adev, int idx, struct mca_bank_entry *entry)
+static void amdgpu_mca_smu_mca_bank_dump(struct amdgpu_device *adev, int idx, struct mca_bank_entry *entry,
+					 struct ras_query_context *qctx)
 {
-	dev_info(adev->dev, HW_ERR "Accelerator Check Architecture events logged\n");
-	dev_info(adev->dev, HW_ERR "aca entry[%02d].STATUS=0x%016llx\n",
-		 idx, entry->regs[MCA_REG_IDX_STATUS]);
-	dev_info(adev->dev, HW_ERR "aca entry[%02d].ADDR=0x%016llx\n",
-		 idx, entry->regs[MCA_REG_IDX_ADDR]);
-	dev_info(adev->dev, HW_ERR "aca entry[%02d].MISC0=0x%016llx\n",
-		 idx, entry->regs[MCA_REG_IDX_MISC0]);
-	dev_info(adev->dev, HW_ERR "aca entry[%02d].IPID=0x%016llx\n",
-		 idx, entry->regs[MCA_REG_IDX_IPID]);
-	dev_info(adev->dev, HW_ERR "aca entry[%02d].SYND=0x%016llx\n",
-		 idx, entry->regs[MCA_REG_IDX_SYND]);
+	u64 event_id = qctx->event_id;
+
+	RAS_EVENT_LOG(adev, event_id, HW_ERR "Accelerator Check Architecture events logged\n");
+	RAS_EVENT_LOG(adev, event_id, HW_ERR "aca entry[%02d].STATUS=0x%016llx\n",
+		      idx, entry->regs[MCA_REG_IDX_STATUS]);
+	RAS_EVENT_LOG(adev, event_id, HW_ERR "aca entry[%02d].ADDR=0x%016llx\n",
+		      idx, entry->regs[MCA_REG_IDX_ADDR]);
+	RAS_EVENT_LOG(adev, event_id, HW_ERR "aca entry[%02d].MISC0=0x%016llx\n",
+		      idx, entry->regs[MCA_REG_IDX_MISC0]);
+	RAS_EVENT_LOG(adev, event_id, HW_ERR "aca entry[%02d].IPID=0x%016llx\n",
+		      idx, entry->regs[MCA_REG_IDX_IPID]);
+	RAS_EVENT_LOG(adev, event_id, HW_ERR "aca entry[%02d].SYND=0x%016llx\n",
+		      idx, entry->regs[MCA_REG_IDX_SYND]);
 }
 
-int amdgpu_mca_smu_log_ras_error(struct amdgpu_device *adev, enum amdgpu_ras_block blk, enum amdgpu_mca_error_type type, struct ras_err_data *err_data)
+int amdgpu_mca_smu_log_ras_error(struct amdgpu_device *adev, enum amdgpu_ras_block blk, enum amdgpu_mca_error_type type,
+				 struct ras_err_data *err_data, struct ras_query_context *qctx)
 {
 	struct amdgpu_smuio_mcm_config_info mcm_info;
 	struct ras_err_addr err_addr = {0};
@@ -244,7 +248,7 @@ int amdgpu_mca_smu_log_ras_error(struct amdgpu_device *adev, enum amdgpu_ras_blo
 	list_for_each_entry(node, &mca_set.list, node) {
 		entry = &node->entry;
 
-		amdgpu_mca_smu_mca_bank_dump(adev, i++, entry);
+		amdgpu_mca_smu_mca_bank_dump(adev, i++, entry, qctx);
 
 		count = 0;
 		ret = amdgpu_mca_smu_parse_mca_error_count(adev, blk, type, entry, &count);

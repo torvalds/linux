@@ -198,6 +198,11 @@ static inline uint64_t howmany_64(uint64_t x, uint32_t y)
 	return x;
 }
 
+static inline bool isaligned_64(uint64_t x, uint32_t y)
+{
+	return do_div(x, y) == 0;
+}
+
 /* If @b is a power of 2, return log2(b).  Else return -1. */
 static inline int8_t log2_if_power2(unsigned long b)
 {

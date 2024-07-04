@@ -7,6 +7,7 @@
 #include <linux/sysfs.h>
 #include <drm/drm_managed.h>
 
+#include "xe_pm.h"
 #include "xe_tile.h"
 #include "xe_tile_sysfs.h"
 #include "xe_vram_freq.h"
@@ -28,7 +29,7 @@ static void tile_sysfs_fini(struct drm_device *drm, void *arg)
 	kobject_put(tile->sysfs);
 }
 
-void xe_tile_sysfs_init(struct xe_tile *tile)
+int xe_tile_sysfs_init(struct xe_tile *tile)
 {
 	struct xe_device *xe = tile_to_xe(tile);
 	struct device *dev = xe->drm.dev;
@@ -37,7 +38,7 @@ void xe_tile_sysfs_init(struct xe_tile *tile)
 
 	kt = kzalloc(sizeof(*kt), GFP_KERNEL);
 	if (!kt)
-		return;
+		return -ENOMEM;
 
 	kobject_init(&kt->base, &xe_tile_sysfs_kobj_type);
 	kt->tile = tile;
@@ -45,16 +46,14 @@ void xe_tile_sysfs_init(struct xe_tile *tile)
 	err = kobject_add(&kt->base, &dev->kobj, "tile%d", tile->id);
 	if (err) {
 		kobject_put(&kt->base);
-		drm_warn(&xe->drm, "failed to register TILE sysfs directory, err: %d\n", err);
-		return;
+		return err;
 	}
 
 	tile->sysfs = &kt->base;
 
-	xe_vram_freq_sysfs_init(tile);
-
-	err = drmm_add_action_or_reset(&xe->drm, tile_sysfs_fini, tile);
+	err = xe_vram_freq_sysfs_init(tile);
 	if (err)
-		drm_warn(&xe->drm, "%s: drmm_add_action_or_reset failed, err: %d\n",
-			 __func__, err);
+		return err;
+
+	return drmm_add_action_or_reset(&xe->drm, tile_sysfs_fini, tile);
 }

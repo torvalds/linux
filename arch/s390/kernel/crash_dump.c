@@ -465,7 +465,11 @@ static void *ehdr_init(Elf64_Ehdr *ehdr, int mem_chunk_cnt)
 	ehdr->e_phoff = sizeof(Elf64_Ehdr);
 	ehdr->e_ehsize = sizeof(Elf64_Ehdr);
 	ehdr->e_phentsize = sizeof(Elf64_Phdr);
-	ehdr->e_phnum = mem_chunk_cnt + 1;
+	/*
+	 * Number of memory chunk PT_LOAD program headers plus one kernel
+	 * image PT_LOAD program header plus one PT_NOTE program header.
+	 */
+	ehdr->e_phnum = mem_chunk_cnt + 1 + 1;
 	return ehdr + 1;
 }
 
@@ -501,20 +505,40 @@ static int get_mem_chunk_cnt(void)
  */
 static void loads_init(Elf64_Phdr *phdr)
 {
+	unsigned long old_identity_base = os_info_old_value(OS_INFO_IDENTITY_BASE);
 	phys_addr_t start, end;
 	u64 idx;
 
 	for_each_physmem_range(idx, &oldmem_type, &start, &end) {
-		phdr->p_filesz = end - start;
 		phdr->p_type = PT_LOAD;
+		phdr->p_vaddr = old_identity_base + start;
 		phdr->p_offset = start;
-		phdr->p_vaddr = (unsigned long)__va(start);
 		phdr->p_paddr = start;
+		phdr->p_filesz = end - start;
 		phdr->p_memsz = end - start;
 		phdr->p_flags = PF_R | PF_W | PF_X;
 		phdr->p_align = PAGE_SIZE;
 		phdr++;
 	}
+}
+
+/*
+ * Prepare PT_LOAD type program header for kernel image region
+ */
+static void text_init(Elf64_Phdr *phdr)
+{
+	unsigned long start_phys = os_info_old_value(OS_INFO_IMAGE_PHYS);
+	unsigned long start = os_info_old_value(OS_INFO_IMAGE_START);
+	unsigned long end = os_info_old_value(OS_INFO_IMAGE_END);
+
+	phdr->p_type = PT_LOAD;
+	phdr->p_vaddr = start;
+	phdr->p_filesz = end - start;
+	phdr->p_memsz = end - start;
+	phdr->p_offset = start_phys;
+	phdr->p_paddr = start_phys;
+	phdr->p_flags = PF_R | PF_W | PF_X;
+	phdr->p_align = PAGE_SIZE;
 }
 
 /*
@@ -557,6 +581,8 @@ static size_t get_elfcorehdr_size(int mem_chunk_cnt)
 	size += nt_vmcoreinfo_size();
 	/* nt_final */
 	size += sizeof(Elf64_Nhdr);
+	/* PT_LOAD type program header for kernel text region */
+	size += sizeof(Elf64_Phdr);
 	/* PT_LOADS */
 	size += mem_chunk_cnt * sizeof(Elf64_Phdr);
 
@@ -568,7 +594,7 @@ static size_t get_elfcorehdr_size(int mem_chunk_cnt)
  */
 int elfcorehdr_alloc(unsigned long long *addr, unsigned long long *size)
 {
-	Elf64_Phdr *phdr_notes, *phdr_loads;
+	Elf64_Phdr *phdr_notes, *phdr_loads, *phdr_text;
 	size_t alloc_size;
 	int mem_chunk_cnt;
 	void *ptr, *hdr;
@@ -606,14 +632,19 @@ int elfcorehdr_alloc(unsigned long long *addr, unsigned long long *size)
 	/* Init program headers */
 	phdr_notes = ptr;
 	ptr = PTR_ADD(ptr, sizeof(Elf64_Phdr));
+	phdr_text = ptr;
+	ptr = PTR_ADD(ptr, sizeof(Elf64_Phdr));
 	phdr_loads = ptr;
 	ptr = PTR_ADD(ptr, sizeof(Elf64_Phdr) * mem_chunk_cnt);
 	/* Init notes */
 	hdr_off = PTR_DIFF(ptr, hdr);
 	ptr = notes_init(phdr_notes, ptr, ((unsigned long) hdr) + hdr_off);
+	/* Init kernel text program header */
+	text_init(phdr_text);
 	/* Init loads */
-	hdr_off = PTR_DIFF(ptr, hdr);
 	loads_init(phdr_loads);
+	/* Finalize program headers */
+	hdr_off = PTR_DIFF(ptr, hdr);
 	*addr = (unsigned long long) hdr;
 	*size = (unsigned long long) hdr_off;
 	BUG_ON(elfcorehdr_size > alloc_size);

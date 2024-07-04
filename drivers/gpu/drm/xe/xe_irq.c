@@ -187,7 +187,7 @@ void xe_irq_enable_hwe(struct xe_gt *gt)
 		 * GSCCS interrupts, but it has its own mask register.
 		 */
 		if (xe_hw_engine_mask_per_class(gt, XE_ENGINE_CLASS_OTHER)) {
-			gsc_mask = irqs;
+			gsc_mask = irqs | GSC_ER_COMPLETE;
 			heci_mask = GSC_IRQ_INTF(1);
 		} else if (HAS_HECI_GSCFI(xe)) {
 			gsc_mask = GSC_IRQ_INTF(1);
@@ -326,7 +326,6 @@ static void gt_irq_handler(struct xe_tile *tile,
 					xe_heci_gsc_irq_handler(xe, intr_vec);
 				else
 					gt_other_irq_handler(engine_gt, instance, intr_vec);
-				continue;
 			}
 		}
 	}

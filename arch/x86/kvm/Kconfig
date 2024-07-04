@@ -95,6 +95,19 @@ config KVM_INTEL
 	  To compile this as a module, choose M here: the module
 	  will be called kvm-intel.
 
+config KVM_INTEL_PROVE_VE
+        bool "Check that guests do not receive #VE exceptions"
+        default KVM_PROVE_MMU || DEBUG_KERNEL
+        depends on KVM_INTEL
+        help
+
+          Checks that KVM's page table management code will not incorrectly
+          let guests receive a virtualization exception.  Virtualization
+          exceptions will be trapped by the hypervisor rather than injected
+          in the guest.
+
+          If unsure, say N.
+
 config X86_SGX_KVM
 	bool "Software Guard eXtensions (SGX) Virtualization"
 	depends on X86_SGX && KVM_INTEL

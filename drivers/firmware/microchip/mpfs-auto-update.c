@@ -206,10 +206,12 @@ static int mpfs_auto_update_verify_image(struct fw_upload *fw_uploader)
 	if (ret | response->resp_status) {
 		dev_warn(priv->dev, "Verification of Upgrade Image failed!\n");
 		ret = ret ? ret : -EBADMSG;
+		goto free_message;
 	}
 
 	dev_info(priv->dev, "Verification of Upgrade Image passed!\n");
 
+free_message:
 	devm_kfree(priv->dev, message);
 free_response:
 	devm_kfree(priv->dev, response);
@@ -265,7 +267,7 @@ static int mpfs_auto_update_set_image_address(struct mpfs_auto_update_priv *priv
 	       AUTO_UPDATE_DIRECTORY_WIDTH);
 	memset(buffer + AUTO_UPDATE_BLANK_DIRECTORY, 0x0, AUTO_UPDATE_DIRECTORY_WIDTH);
 
-	dev_info(priv->dev, "Writing the image address (%x) to the flash directory (%llx)\n",
+	dev_info(priv->dev, "Writing the image address (0x%x) to the flash directory (0x%llx)\n",
 		 image_address, directory_address);
 
 	ret = mtd_write(priv->flash, 0x0, erase_size, &bytes_written, (u_char *)buffer);
@@ -313,7 +315,7 @@ static int mpfs_auto_update_write_bitstream(struct fw_upload *fw_uploader, const
 	erase.len = round_up(size, (size_t)priv->flash->erasesize);
 	erase.addr = image_address;
 
-	dev_info(priv->dev, "Erasing the flash at address (%x)\n", image_address);
+	dev_info(priv->dev, "Erasing the flash at address (0x%x)\n", image_address);
 	ret = mtd_erase(priv->flash, &erase);
 	if (ret)
 		goto out;
@@ -323,7 +325,7 @@ static int mpfs_auto_update_write_bitstream(struct fw_upload *fw_uploader, const
 	 * will do all of that itself - including verifying that the bitstream
 	 * is valid.
 	 */
-	dev_info(priv->dev, "Writing the image to the flash at address (%x)\n", image_address);
+	dev_info(priv->dev, "Writing the image to the flash at address (0x%x)\n", image_address);
 	ret = mtd_write(priv->flash, (loff_t)image_address, size, &bytes_written, data);
 	if (ret)
 		goto out;

@@ -65,26 +65,29 @@
 
 #define TSC_MAX_NUM	5
 
-/* Structure for thermal temperature calculation */
-struct equation_coefs {
-	int a1;
-	int b1;
-	int a2;
-	int b2;
-};
-
 struct rcar_gen3_thermal_priv;
 
 struct rcar_thermal_info {
-	int ths_tj_1;
+	int scale;
+	int adj_below;
+	int adj_above;
 	void (*read_fuses)(struct rcar_gen3_thermal_priv *priv);
 };
 
+struct equation_set_coef {
+	int a;
+	int b;
+};
+
 struct rcar_gen3_thermal_tsc {
+	struct rcar_gen3_thermal_priv *priv;
 	void __iomem *base;
 	struct thermal_zone_device *zone;
-	struct equation_coefs coef;
-	int tj_t;
+	/* Different coefficients are used depending on a threshold. */
+	struct {
+		struct equation_set_coef below;
+		struct equation_set_coef above;
+	} coef;
 	int thcode[3];
 };
 
@@ -93,6 +96,7 @@ struct rcar_gen3_thermal_priv {
 	struct thermal_zone_device_ops ops;
 	unsigned int num_tscs;
 	int ptat[3];
+	int tj_t;
 	const struct rcar_thermal_info *info;
 };
 
@@ -111,84 +115,75 @@ static inline void rcar_gen3_thermal_write(struct rcar_gen3_thermal_tsc *tsc,
 /*
  * Linear approximation for temperature
  *
- * [reg] = [temp] * a + b => [temp] = ([reg] - b) / a
+ * [temp] = ((thadj - [reg]) * a) / b + adj
+ * [reg] = thadj - ([temp] - adj) * b / a
  *
  * The constants a and b are calculated using two triplets of int values PTAT
  * and THCODE. PTAT and THCODE can either be read from hardware or use hard
- * coded values from driver. The formula to calculate a and b are taken from
- * BSP and sparsely documented and understood.
+ * coded values from the driver. The formula to calculate a and b are taken from
+ * the datasheet. Different calculations are needed for a and b depending on
+ * if the input variables ([temp] or [reg]) are above or below a threshold. The
+ * threshold is also calculated from PTAT and THCODE using formulas from the
+ * datasheet.
  *
- * Examining the linear formula and the formula used to calculate constants a
- * and b while knowing that the span for PTAT and THCODE values are between
- * 0x000 and 0xfff the largest integer possible is 0xfff * 0xfff == 0xffe001.
- * Integer also needs to be signed so that leaves 7 bits for binary
- * fixed point scaling.
+ * The constant thadj is one of the THCODE values, which one to use depends on
+ * the threshold and input value.
+ *
+ * The constants adj is taken verbatim from the datasheet. Two values exists,
+ * which one to use depends on the input value and the calculated threshold.
+ * Furthermore different SoC models supported by the driver have different sets
+ * of values. The values for each model are stored in the device match data.
  */
 
-#define FIXPT_SHIFT 7
-#define FIXPT_INT(_x) ((_x) << FIXPT_SHIFT)
-#define INT_FIXPT(_x) ((_x) >> FIXPT_SHIFT)
-#define FIXPT_DIV(_a, _b) DIV_ROUND_CLOSEST(((_a) << FIXPT_SHIFT), (_b))
-#define FIXPT_TO_MCELSIUS(_x) ((_x) * 1000 >> FIXPT_SHIFT)
-
-#define RCAR3_THERMAL_GRAN 500 /* mili Celsius */
-
-/* no idea where these constants come from */
-#define TJ_3 -41
-
-static void rcar_gen3_thermal_calc_coefs(struct rcar_gen3_thermal_priv *priv,
-					 struct rcar_gen3_thermal_tsc *tsc,
-					 int ths_tj_1)
+static void rcar_gen3_thermal_shared_coefs(struct rcar_gen3_thermal_priv *priv)
 {
-	/* TODO: Find documentation and document constant calculation formula */
-
-	/*
-	 * Division is not scaled in BSP and if scaled it might overflow
-	 * the dividend (4095 * 4095 << 14 > INT_MAX) so keep it unscaled
-	 */
-	tsc->tj_t = (FIXPT_INT((priv->ptat[1] - priv->ptat[2]) * (ths_tj_1 - TJ_3))
-		     / (priv->ptat[0] - priv->ptat[2])) + FIXPT_INT(TJ_3);
-
-	tsc->coef.a1 = FIXPT_DIV(FIXPT_INT(tsc->thcode[1] - tsc->thcode[2]),
-				 tsc->tj_t - FIXPT_INT(TJ_3));
-	tsc->coef.b1 = FIXPT_INT(tsc->thcode[2]) - tsc->coef.a1 * TJ_3;
-
-	tsc->coef.a2 = FIXPT_DIV(FIXPT_INT(tsc->thcode[1] - tsc->thcode[0]),
-				 tsc->tj_t - FIXPT_INT(ths_tj_1));
-	tsc->coef.b2 = FIXPT_INT(tsc->thcode[0]) - tsc->coef.a2 * ths_tj_1;
+	priv->tj_t =
+		DIV_ROUND_CLOSEST((priv->ptat[1] - priv->ptat[2]) * priv->info->scale,
+				  priv->ptat[0] - priv->ptat[2])
+		+ priv->info->adj_below;
 }
-
-static int rcar_gen3_thermal_round(int temp)
+static void rcar_gen3_thermal_tsc_coefs(struct rcar_gen3_thermal_priv *priv,
+					struct rcar_gen3_thermal_tsc *tsc)
 {
-	int result, round_offs;
+	tsc->coef.below.a = priv->info->scale * (priv->ptat[2] - priv->ptat[1]);
+	tsc->coef.above.a = priv->info->scale * (priv->ptat[0] - priv->ptat[1]);
 
-	round_offs = temp >= 0 ? RCAR3_THERMAL_GRAN / 2 :
-		-RCAR3_THERMAL_GRAN / 2;
-	result = (temp + round_offs) / RCAR3_THERMAL_GRAN;
-	return result * RCAR3_THERMAL_GRAN;
+	tsc->coef.below.b = (priv->ptat[2] - priv->ptat[0]) * (tsc->thcode[2] - tsc->thcode[1]);
+	tsc->coef.above.b = (priv->ptat[0] - priv->ptat[2]) * (tsc->thcode[1] - tsc->thcode[0]);
 }
 
 static int rcar_gen3_thermal_get_temp(struct thermal_zone_device *tz, int *temp)
 {
 	struct rcar_gen3_thermal_tsc *tsc = thermal_zone_device_priv(tz);
-	int mcelsius, val;
-	int reg;
+	struct rcar_gen3_thermal_priv *priv = tsc->priv;
+	const struct equation_set_coef *coef;
+	int adj, decicelsius, reg, thcode;
 
 	/* Read register and convert to mili Celsius */
 	reg = rcar_gen3_thermal_read(tsc, REG_GEN3_TEMP) & CTEMP_MASK;
 
-	if (reg <= tsc->thcode[1])
-		val = FIXPT_DIV(FIXPT_INT(reg) - tsc->coef.b1,
-				tsc->coef.a1);
-	else
-		val = FIXPT_DIV(FIXPT_INT(reg) - tsc->coef.b2,
-				tsc->coef.a2);
-	mcelsius = FIXPT_TO_MCELSIUS(val);
+	if (reg < tsc->thcode[1]) {
+		adj = priv->info->adj_below;
+		coef = &tsc->coef.below;
+		thcode = tsc->thcode[2];
+	} else {
+		adj = priv->info->adj_above;
+		coef = &tsc->coef.above;
+		thcode = tsc->thcode[0];
+	}
+
+	/*
+	 * The dividend can't be grown as it might overflow, instead shorten the
+	 * divisor to convert to decidegree Celsius. If we convert after the
+	 * division precision is lost as we will scale up from whole degrees
+	 * Celsius.
+	 */
+	decicelsius = DIV_ROUND_CLOSEST(coef->a * (thcode - reg), coef->b / 10);
 
 	/* Guaranteed operating range is -40C to 125C. */
 
-	/* Round value to device granularity setting */
-	*temp = rcar_gen3_thermal_round(mcelsius);
+	/* Reporting is done in millidegree Celsius */
+	*temp = decicelsius * 100 + adj * 1000;
 
 	return 0;
 }
@@ -196,15 +191,22 @@ static int rcar_gen3_thermal_get_temp(struct thermal_zone_device *tz, int *temp)
 static int rcar_gen3_thermal_mcelsius_to_temp(struct rcar_gen3_thermal_tsc *tsc,
 					      int mcelsius)
 {
-	int celsius, val;
+	struct rcar_gen3_thermal_priv *priv = tsc->priv;
+	const struct equation_set_coef *coef;
+	int adj, celsius, thcode;
 
 	celsius = DIV_ROUND_CLOSEST(mcelsius, 1000);
-	if (celsius <= INT_FIXPT(tsc->tj_t))
-		val = celsius * tsc->coef.a1 + tsc->coef.b1;
-	else
-		val = celsius * tsc->coef.a2 + tsc->coef.b2;
+	if (celsius < priv->tj_t) {
+		coef = &tsc->coef.below;
+		adj = priv->info->adj_below;
+		thcode = tsc->thcode[2];
+	} else {
+		coef = &tsc->coef.above;
+		adj = priv->info->adj_above;
+		thcode = tsc->thcode[0];
+	}
 
-	return INT_FIXPT(val);
+	return thcode - DIV_ROUND_CLOSEST((celsius - adj) * coef->b, coef->a);
 }
 
 static int rcar_gen3_thermal_set_trips(struct thermal_zone_device *tz, int low, int high)
@@ -369,17 +371,23 @@ static void rcar_gen3_thermal_init(struct rcar_gen3_thermal_priv *priv,
 }
 
 static const struct rcar_thermal_info rcar_m3w_thermal_info = {
-	.ths_tj_1 = 116,
+	.scale = 157,
+	.adj_below = -41,
+	.adj_above = 116,
 	.read_fuses = rcar_gen3_thermal_read_fuses_gen3,
 };
 
 static const struct rcar_thermal_info rcar_gen3_thermal_info = {
-	.ths_tj_1 = 126,
+	.scale = 167,
+	.adj_below = -41,
+	.adj_above = 126,
 	.read_fuses = rcar_gen3_thermal_read_fuses_gen3,
 };
 
 static const struct rcar_thermal_info rcar_gen4_thermal_info = {
-	.ths_tj_1 = 126,
+	.scale = 167,
+	.adj_below = -41,
+	.adj_above = 126,
 	.read_fuses = rcar_gen3_thermal_read_fuses_gen4,
 };
 
@@ -516,6 +524,7 @@ static int rcar_gen3_thermal_probe(struct platform_device *pdev)
 			goto error_unregister;
 		}
 
+		tsc->priv = priv;
 		tsc->base = devm_ioremap_resource(dev, res);
 		if (IS_ERR(tsc->base)) {
 			ret = PTR_ERR(tsc->base);
@@ -530,11 +539,13 @@ static int rcar_gen3_thermal_probe(struct platform_device *pdev)
 	if (!rcar_gen3_thermal_read_fuses(priv))
 		dev_info(dev, "No calibration values fused, fallback to driver values\n");
 
+	rcar_gen3_thermal_shared_coefs(priv);
+
 	for (i = 0; i < priv->num_tscs; i++) {
 		struct rcar_gen3_thermal_tsc *tsc = priv->tscs[i];
 
 		rcar_gen3_thermal_init(priv, tsc);
-		rcar_gen3_thermal_calc_coefs(priv, tsc, priv->info->ths_tj_1);
+		rcar_gen3_thermal_tsc_coefs(priv, tsc);
 
 		zone = devm_thermal_of_zone_register(dev, i, tsc, &priv->ops);
 		if (IS_ERR(zone)) {

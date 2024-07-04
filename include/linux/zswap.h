@@ -7,7 +7,6 @@
 
 struct lruvec;
 
-extern u64 zswap_pool_total_size;
 extern atomic_t zswap_stored_pages;
 
 #ifdef CONFIG_ZSWAP
@@ -27,6 +26,7 @@ struct zswap_lruvec_state {
 	atomic_long_t nr_zswap_protected;
 };
 
+unsigned long zswap_total_pages(void);
 bool zswap_store(struct folio *folio);
 bool zswap_load(struct folio *folio);
 void zswap_invalidate(swp_entry_t swp);

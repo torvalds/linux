@@ -463,8 +463,8 @@ static int rdacm20_initialize(struct rdacm20_device *dev)
 		return ret;
 
 	/*
-	 *  Ensure that we have a good link configuration before attempting to
-	 *  identify the device.
+	 * Ensure that we have a good link configuration before attempting to
+	 * identify the device.
 	 */
 	ret = max9271_configure_i2c(&dev->serializer,
 				    MAX9271_I2CSLVSH_469NS_234NS |

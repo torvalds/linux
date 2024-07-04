@@ -24,6 +24,7 @@ struct saved_registers {
 	u64 kpgd;
 	u32 pwctl0;
 	u32 pwctl1;
+	u64 pcpu_base;
 };
 static struct saved_registers saved_regs;
 
@@ -36,6 +37,7 @@ void loongarch_common_suspend(void)
 	saved_regs.pwctl1 = csr_read32(LOONGARCH_CSR_PWCTL1);
 	saved_regs.ecfg = csr_read32(LOONGARCH_CSR_ECFG);
 	saved_regs.euen = csr_read32(LOONGARCH_CSR_EUEN);
+	saved_regs.pcpu_base = csr_read64(PERCPU_BASE_KS);
 
 	loongarch_suspend_addr = loongson_sysconf.suspend_addr;
 }
@@ -44,7 +46,6 @@ void loongarch_common_resume(void)
 {
 	sync_counter();
 	local_flush_tlb_all();
-	csr_write64(per_cpu_offset(0), PERCPU_BASE_KS);
 	csr_write64(eentry, LOONGARCH_CSR_EENTRY);
 	csr_write64(eentry, LOONGARCH_CSR_MERRENTRY);
 	csr_write64(tlbrentry, LOONGARCH_CSR_TLBRENTRY);
@@ -55,6 +56,7 @@ void loongarch_common_resume(void)
 	csr_write32(saved_regs.pwctl1, LOONGARCH_CSR_PWCTL1);
 	csr_write32(saved_regs.ecfg, LOONGARCH_CSR_ECFG);
 	csr_write32(saved_regs.euen, LOONGARCH_CSR_EUEN);
+	csr_write64(saved_regs.pcpu_base, PERCPU_BASE_KS);
 }
 
 int loongarch_acpi_suspend(void)

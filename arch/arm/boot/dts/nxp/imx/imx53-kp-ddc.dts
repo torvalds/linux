@@ -13,7 +13,7 @@
 
 	backlight_lcd: backlight {
 		compatible = "pwm-backlight";
-		pwms = <&pwm2 0 50000>;
+		pwms = <&pwm2 0 50000 0>;
 		power-supply = <&reg_backlight>;
 		brightness-levels = <0 24 28 32 36
 				     40 44 48 52 56

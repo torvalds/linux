@@ -86,7 +86,7 @@ TRACE_EVENT(mlx5e_tc_update_neigh_used_value,
 			struct in6_addr *pin6;
 			__be32 *p32;
 
-			__assign_str(devname, nhe->neigh_dev->name);
+			__assign_str(devname);
 			__entry->neigh_used = neigh_used;
 
 			p32 = (__be32 *)__entry->v4;

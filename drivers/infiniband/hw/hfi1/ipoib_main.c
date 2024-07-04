@@ -21,35 +21,24 @@ static int hfi1_ipoib_dev_init(struct net_device *dev)
 	struct hfi1_ipoib_dev_priv *priv = hfi1_ipoib_priv(dev);
 	int ret;
 
-	dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
-	if (!dev->tstats)
-		return -ENOMEM;
-
 	ret = priv->netdev_ops->ndo_init(dev);
 	if (ret)
-		goto out_ret;
+		return ret;
 
 	ret = hfi1_netdev_add_data(priv->dd,
 				   qpn_from_mac(priv->netdev->dev_addr),
 				   dev);
 	if (ret < 0) {
 		priv->netdev_ops->ndo_uninit(dev);
-		goto out_ret;
+		return ret;
 	}
 
 	return 0;
-out_ret:
-	free_percpu(dev->tstats);
-	dev->tstats = NULL;
-	return ret;
 }
 
 static void hfi1_ipoib_dev_uninit(struct net_device *dev)
 {
 	struct hfi1_ipoib_dev_priv *priv = hfi1_ipoib_priv(dev);
-
-	free_percpu(dev->tstats);
-	dev->tstats = NULL;
 
 	hfi1_netdev_remove_data(priv->dd, qpn_from_mac(priv->netdev->dev_addr));
 
@@ -107,7 +96,6 @@ static const struct net_device_ops hfi1_ipoib_netdev_ops = {
 	.ndo_uninit       = hfi1_ipoib_dev_uninit,
 	.ndo_open         = hfi1_ipoib_dev_open,
 	.ndo_stop         = hfi1_ipoib_dev_stop,
-	.ndo_get_stats64  = dev_get_tstats64,
 };
 
 static int hfi1_ipoib_mcast_attach(struct net_device *dev,
@@ -173,9 +161,6 @@ static void hfi1_ipoib_netdev_dtor(struct net_device *dev)
 
 	hfi1_ipoib_txreq_deinit(priv);
 	hfi1_ipoib_rxq_deinit(priv->netdev);
-
-	free_percpu(dev->tstats);
-	dev->tstats = NULL;
 }
 
 static void hfi1_ipoib_set_id(struct net_device *dev, int id)
@@ -234,6 +219,7 @@ static int hfi1_ipoib_setup_rn(struct ib_device *device,
 
 	netdev->priv_destructor = hfi1_ipoib_netdev_dtor;
 	netdev->needs_free_netdev = true;
+	netdev->pcpu_stat_type = NETDEV_PCPU_STAT_TSTATS;
 
 	return 0;
 }

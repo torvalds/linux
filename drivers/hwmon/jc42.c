@@ -609,7 +609,7 @@ static const struct dev_pm_ops jc42_dev_pm_ops = {
 #endif /* CONFIG_PM */
 
 static const struct i2c_device_id jc42_id[] = {
-	{ "jc42", 0 },
+	{ "jc42" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, jc42_id);
@@ -623,7 +623,7 @@ MODULE_DEVICE_TABLE(of, jc42_of_ids);
 #endif
 
 static struct i2c_driver jc42_driver = {
-	.class		= I2C_CLASS_SPD | I2C_CLASS_HWMON,
+	.class		= I2C_CLASS_HWMON,
 	.driver = {
 		.name	= "jc42",
 		.pm = JC42_DEV_PM_OPS,

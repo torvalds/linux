@@ -509,6 +509,24 @@ static void i9xx_cursor_disable_sel_fetch_arm(struct intel_plane *plane,
 	intel_de_write_fw(dev_priv, PLANE_SEL_FETCH_CTL(pipe, plane->id), 0);
 }
 
+static void wa_16021440873(struct intel_plane *plane,
+			   const struct intel_crtc_state *crtc_state,
+			   const struct intel_plane_state *plane_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	u32 ctl = plane_state->ctl;
+	int et_y_position = drm_rect_height(&crtc_state->pipe_src) + 1;
+	enum pipe pipe = plane->pipe;
+
+	ctl &= ~MCURSOR_MODE_MASK;
+	ctl |= MCURSOR_MODE_64_2B;
+
+	intel_de_write_fw(dev_priv, PLANE_SEL_FETCH_CTL(pipe, plane->id), ctl);
+
+	intel_de_write(dev_priv, PIPE_SRCSZ_ERLY_TPT(pipe),
+		       PIPESRC_HEIGHT(et_y_position));
+}
+
 static void i9xx_cursor_update_sel_fetch_arm(struct intel_plane *plane,
 					     const struct intel_crtc_state *crtc_state,
 					     const struct intel_plane_state *plane_state)
@@ -529,7 +547,11 @@ static void i9xx_cursor_update_sel_fetch_arm(struct intel_plane *plane,
 		intel_de_write_fw(dev_priv, PLANE_SEL_FETCH_CTL(pipe, plane->id),
 				  plane_state->ctl);
 	} else {
-		i9xx_cursor_disable_sel_fetch_arm(plane, crtc_state);
+		/* Wa_16021440873 */
+		if (crtc_state->enable_psr2_su_region_et)
+			wa_16021440873(plane, crtc_state, plane_state);
+		else
+			i9xx_cursor_disable_sel_fetch_arm(plane, crtc_state);
 	}
 }
 
@@ -821,6 +843,28 @@ static const struct drm_plane_funcs intel_cursor_plane_funcs = {
 	.format_mod_supported = intel_cursor_format_mod_supported,
 };
 
+static void intel_cursor_add_size_hints_property(struct intel_plane *plane)
+{
+	struct drm_i915_private *i915 = to_i915(plane->base.dev);
+	const struct drm_mode_config *config = &i915->drm.mode_config;
+	struct drm_plane_size_hint hints[4];
+	int size, max_size, num_hints = 0;
+
+	max_size = min(config->cursor_width, config->cursor_height);
+
+	/* for simplicity only enumerate the supported square+POT sizes */
+	for (size = 64; size <= max_size; size *= 2) {
+		if (drm_WARN_ON(&i915->drm, num_hints >= ARRAY_SIZE(hints)))
+			break;
+
+		hints[num_hints].width = size;
+		hints[num_hints].height = size;
+		num_hints++;
+	}
+
+	drm_plane_add_size_hints_property(&plane->base, hints, num_hints);
+}
+
 struct intel_plane *
 intel_cursor_plane_create(struct drm_i915_private *dev_priv,
 			  enum pipe pipe)
@@ -878,6 +922,8 @@ intel_cursor_plane_create(struct drm_i915_private *dev_priv,
 						   DRM_MODE_ROTATE_0,
 						   DRM_MODE_ROTATE_0 |
 						   DRM_MODE_ROTATE_180);
+
+	intel_cursor_add_size_hints_property(cursor);
 
 	zpos = DISPLAY_RUNTIME_INFO(dev_priv)->num_sprites[pipe] + 1;
 	drm_plane_create_zpos_immutable_property(&cursor->base, zpos);

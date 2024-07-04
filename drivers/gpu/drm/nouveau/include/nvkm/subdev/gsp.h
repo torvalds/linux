@@ -15,7 +15,9 @@ struct nvkm_gsp_mem {
 };
 
 struct nvkm_gsp_radix3 {
-	struct nvkm_gsp_mem mem[3];
+	struct nvkm_gsp_mem lvl0;
+	struct nvkm_gsp_mem lvl1;
+	struct sg_table lvl2;
 };
 
 int nvkm_gsp_sg(struct nvkm_device *, u64 size, struct sg_table *);

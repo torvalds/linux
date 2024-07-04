@@ -572,7 +572,7 @@ static int ml26124_i2c_probe(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id ml26124_i2c_id[] = {
-	{ "ml26124", 0 },
+	{ "ml26124" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ml26124_i2c_id);

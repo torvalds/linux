@@ -24,7 +24,9 @@ properties:
           - powkiddy,rk2023-panel
       - const: newvision,nv3051d
 
-  reg: true
+  reg:
+    maxItems: 1
+
   backlight: true
   port: true
   reset-gpios:

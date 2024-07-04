@@ -165,43 +165,65 @@ int start_command(struct child_process *cmd)
 	return 0;
 }
 
-static int wait_or_whine(pid_t pid)
+static int wait_or_whine(struct child_process *cmd, bool block)
 {
-	char sbuf[STRERR_BUFSIZE];
+	bool finished = cmd->finished;
+	int result = cmd->finish_result;
 
-	for (;;) {
+	while (!finished) {
 		int status, code;
-		pid_t waiting = waitpid(pid, &status, 0);
+		pid_t waiting = waitpid(cmd->pid, &status, block ? 0 : WNOHANG);
 
+		if (!block && waiting == 0)
+			break;
+
+		if (waiting < 0 && errno == EINTR)
+			continue;
+
+		finished = true;
 		if (waiting < 0) {
-			if (errno == EINTR)
-				continue;
+			char sbuf[STRERR_BUFSIZE];
+
 			fprintf(stderr, " Error: waitpid failed (%s)",
 				str_error_r(errno, sbuf, sizeof(sbuf)));
-			return -ERR_RUN_COMMAND_WAITPID;
-		}
-		if (waiting != pid)
-			return -ERR_RUN_COMMAND_WAITPID_WRONG_PID;
-		if (WIFSIGNALED(status))
-			return -ERR_RUN_COMMAND_WAITPID_SIGNAL;
-
-		if (!WIFEXITED(status))
-			return -ERR_RUN_COMMAND_WAITPID_NOEXIT;
-		code = WEXITSTATUS(status);
-		switch (code) {
-		case 127:
-			return -ERR_RUN_COMMAND_EXEC;
-		case 0:
-			return 0;
-		default:
-			return -code;
+			result = -ERR_RUN_COMMAND_WAITPID;
+		} else if (waiting != cmd->pid) {
+			result = -ERR_RUN_COMMAND_WAITPID_WRONG_PID;
+		} else if (WIFSIGNALED(status)) {
+			result = -ERR_RUN_COMMAND_WAITPID_SIGNAL;
+		} else if (!WIFEXITED(status)) {
+			result = -ERR_RUN_COMMAND_WAITPID_NOEXIT;
+		} else {
+			code = WEXITSTATUS(status);
+			switch (code) {
+			case 127:
+				result = -ERR_RUN_COMMAND_EXEC;
+				break;
+			case 0:
+				result = 0;
+				break;
+			default:
+				result = -code;
+				break;
+			}
 		}
 	}
+	if (finished) {
+		cmd->finished = 1;
+		cmd->finish_result = result;
+	}
+	return result;
+}
+
+int check_if_command_finished(struct child_process *cmd)
+{
+	wait_or_whine(cmd, /*block=*/false);
+	return cmd->finished;
 }
 
 int finish_command(struct child_process *cmd)
 {
-	return wait_or_whine(cmd->pid);
+	return wait_or_whine(cmd, /*block=*/true);
 }
 
 int run_command(struct child_process *cmd)

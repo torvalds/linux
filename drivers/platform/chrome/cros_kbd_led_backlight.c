@@ -9,6 +9,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/leds.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_data/cros_ec_commands.h>
@@ -247,17 +248,23 @@ static const struct of_device_id keyboard_led_of_match[] = {
 MODULE_DEVICE_TABLE(of, keyboard_led_of_match);
 #endif
 
+static const struct platform_device_id keyboard_led_id[] = {
+	{ "cros-keyboard-leds", 0 },
+	{}
+};
+MODULE_DEVICE_TABLE(platform, keyboard_led_id);
+
 static struct platform_driver keyboard_led_driver = {
 	.driver		= {
-		.name	= "chromeos-keyboard-leds",
+		.name	= "cros-keyboard-leds",
 		.acpi_match_table = ACPI_PTR(keyboard_led_acpi_match),
 		.of_match_table = of_match_ptr(keyboard_led_of_match),
 	},
 	.probe		= keyboard_led_probe,
+	.id_table	= keyboard_led_id,
 };
 module_platform_driver(keyboard_led_driver);
 
 MODULE_AUTHOR("Simon Que <sque@chromium.org>");
 MODULE_DESCRIPTION("ChromeOS Keyboard backlight LED Driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:chromeos-keyboard-leds");

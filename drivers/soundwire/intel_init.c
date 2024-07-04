@@ -16,6 +16,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/soundwire/sdw_intel.h>
 #include "cadence_master.h"
+#include "bus.h"
 #include "intel.h"
 #include "intel_auxdevice.h"
 
@@ -356,6 +357,19 @@ EXPORT_SYMBOL_NS(sdw_intel_startup, SOUNDWIRE_INTEL_INIT);
  */
 void sdw_intel_exit(struct sdw_intel_ctx *ctx)
 {
+	struct sdw_intel_link_res *link;
+
+	/* we first resume links and devices and wait synchronously before the cleanup */
+	list_for_each_entry(link, &ctx->link_list, list) {
+		struct sdw_bus *bus = &link->cdns->bus;
+		int ret;
+
+		ret = device_for_each_child(bus->dev, NULL, intel_resume_child_device);
+		if (ret < 0)
+			dev_err(bus->dev, "%s: intel_resume_child_device failed: %d\n",
+				__func__, ret);
+	}
+
 	sdw_intel_cleanup(ctx);
 	kfree(ctx->ids);
 	kfree(ctx->ldev);

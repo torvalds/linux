@@ -4,6 +4,8 @@
 #include "trace_helpers.h"
 #include "kprobe_multi_empty.skel.h"
 #include "kprobe_multi_override.skel.h"
+#include "kprobe_multi_session.skel.h"
+#include "kprobe_multi_session_cookie.skel.h"
 #include "bpf/libbpf_internal.h"
 #include "bpf/hashmap.h"
 
@@ -326,6 +328,74 @@ cleanup:
 	kprobe_multi__destroy(skel);
 }
 
+static void test_session_skel_api(void)
+{
+	struct kprobe_multi_session *skel = NULL;
+	LIBBPF_OPTS(bpf_kprobe_multi_opts, opts);
+	LIBBPF_OPTS(bpf_test_run_opts, topts);
+	struct bpf_link *link = NULL;
+	int i, err, prog_fd;
+
+	skel = kprobe_multi_session__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "kprobe_multi_session__open_and_load"))
+		return;
+
+	skel->bss->pid = getpid();
+
+	err = kprobe_multi_session__attach(skel);
+	if (!ASSERT_OK(err, " kprobe_multi_session__attach"))
+		goto cleanup;
+
+	prog_fd = bpf_program__fd(skel->progs.trigger);
+	err = bpf_prog_test_run_opts(prog_fd, &topts);
+	ASSERT_OK(err, "test_run");
+	ASSERT_EQ(topts.retval, 0, "test_run");
+
+	/* bpf_fentry_test1-4 trigger return probe, result is 2 */
+	for (i = 0; i < 4; i++)
+		ASSERT_EQ(skel->bss->kprobe_session_result[i], 2, "kprobe_session_result");
+
+	/* bpf_fentry_test5-8 trigger only entry probe, result is 1 */
+	for (i = 4; i < 8; i++)
+		ASSERT_EQ(skel->bss->kprobe_session_result[i], 1, "kprobe_session_result");
+
+cleanup:
+	bpf_link__destroy(link);
+	kprobe_multi_session__destroy(skel);
+}
+
+static void test_session_cookie_skel_api(void)
+{
+	struct kprobe_multi_session_cookie *skel = NULL;
+	LIBBPF_OPTS(bpf_kprobe_multi_opts, opts);
+	LIBBPF_OPTS(bpf_test_run_opts, topts);
+	struct bpf_link *link = NULL;
+	int err, prog_fd;
+
+	skel = kprobe_multi_session_cookie__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "fentry_raw_skel_load"))
+		return;
+
+	skel->bss->pid = getpid();
+
+	err = kprobe_multi_session_cookie__attach(skel);
+	if (!ASSERT_OK(err, " kprobe_multi_wrapper__attach"))
+		goto cleanup;
+
+	prog_fd = bpf_program__fd(skel->progs.trigger);
+	err = bpf_prog_test_run_opts(prog_fd, &topts);
+	ASSERT_OK(err, "test_run");
+	ASSERT_EQ(topts.retval, 0, "test_run");
+
+	ASSERT_EQ(skel->bss->test_kprobe_1_result, 1, "test_kprobe_1_result");
+	ASSERT_EQ(skel->bss->test_kprobe_2_result, 2, "test_kprobe_2_result");
+	ASSERT_EQ(skel->bss->test_kprobe_3_result, 3, "test_kprobe_3_result");
+
+cleanup:
+	bpf_link__destroy(link);
+	kprobe_multi_session_cookie__destroy(skel);
+}
+
 static size_t symbol_hash(long key, void *ctx __maybe_unused)
 {
 	return str_hash((const char *) key);
@@ -336,14 +406,79 @@ static bool symbol_equal(long key1, long key2, void *ctx __maybe_unused)
 	return strcmp((const char *) key1, (const char *) key2) == 0;
 }
 
+static bool is_invalid_entry(char *buf, bool kernel)
+{
+	if (kernel && strchr(buf, '['))
+		return true;
+	if (!kernel && !strchr(buf, '['))
+		return true;
+	return false;
+}
+
+static bool skip_entry(char *name)
+{
+	/*
+	 * We attach to almost all kernel functions and some of them
+	 * will cause 'suspicious RCU usage' when fprobe is attached
+	 * to them. Filter out the current culprits - arch_cpu_idle
+	 * default_idle and rcu_* functions.
+	 */
+	if (!strcmp(name, "arch_cpu_idle"))
+		return true;
+	if (!strcmp(name, "default_idle"))
+		return true;
+	if (!strncmp(name, "rcu_", 4))
+		return true;
+	if (!strcmp(name, "bpf_dispatcher_xdp_func"))
+		return true;
+	if (!strncmp(name, "__ftrace_invalid_address__",
+		     sizeof("__ftrace_invalid_address__") - 1))
+		return true;
+	return false;
+}
+
+/* Do comparision by ignoring '.llvm.<hash>' suffixes. */
+static int compare_name(const char *name1, const char *name2)
+{
+	const char *res1, *res2;
+	int len1, len2;
+
+	res1 = strstr(name1, ".llvm.");
+	res2 = strstr(name2, ".llvm.");
+	len1 = res1 ? res1 - name1 : strlen(name1);
+	len2 = res2 ? res2 - name2 : strlen(name2);
+
+	if (len1 == len2)
+		return strncmp(name1, name2, len1);
+	if (len1 < len2)
+		return strncmp(name1, name2, len1) <= 0 ? -1 : 1;
+	return strncmp(name1, name2, len2) >= 0 ? 1 : -1;
+}
+
+static int load_kallsyms_compare(const void *p1, const void *p2)
+{
+	return compare_name(((const struct ksym *)p1)->name, ((const struct ksym *)p2)->name);
+}
+
+static int search_kallsyms_compare(const void *p1, const struct ksym *p2)
+{
+	return compare_name(p1, p2->name);
+}
+
 static int get_syms(char ***symsp, size_t *cntp, bool kernel)
 {
-	size_t cap = 0, cnt = 0, i;
-	char *name = NULL, **syms = NULL;
+	size_t cap = 0, cnt = 0;
+	char *name = NULL, *ksym_name, **syms = NULL;
 	struct hashmap *map;
+	struct ksyms *ksyms;
+	struct ksym *ks;
 	char buf[256];
 	FILE *f;
 	int err = 0;
+
+	ksyms = load_kallsyms_custom_local(load_kallsyms_compare);
+	if (!ASSERT_OK_PTR(ksyms, "load_kallsyms_custom_local"))
+		return -EINVAL;
 
 	/*
 	 * The available_filter_functions contains many duplicates,
@@ -368,33 +503,23 @@ static int get_syms(char ***symsp, size_t *cntp, bool kernel)
 	}
 
 	while (fgets(buf, sizeof(buf), f)) {
-		if (kernel && strchr(buf, '['))
-			continue;
-		if (!kernel && !strchr(buf, '['))
+		if (is_invalid_entry(buf, kernel))
 			continue;
 
 		free(name);
 		if (sscanf(buf, "%ms$*[^\n]\n", &name) != 1)
 			continue;
-		/*
-		 * We attach to almost all kernel functions and some of them
-		 * will cause 'suspicious RCU usage' when fprobe is attached
-		 * to them. Filter out the current culprits - arch_cpu_idle
-		 * default_idle and rcu_* functions.
-		 */
-		if (!strcmp(name, "arch_cpu_idle"))
-			continue;
-		if (!strcmp(name, "default_idle"))
-			continue;
-		if (!strncmp(name, "rcu_", 4))
-			continue;
-		if (!strcmp(name, "bpf_dispatcher_xdp_func"))
-			continue;
-		if (!strncmp(name, "__ftrace_invalid_address__",
-			     sizeof("__ftrace_invalid_address__") - 1))
+		if (skip_entry(name))
 			continue;
 
-		err = hashmap__add(map, name, 0);
+		ks = search_kallsyms_custom_local(ksyms, name, search_kallsyms_compare);
+		if (!ks) {
+			err = -EINVAL;
+			goto error;
+		}
+
+		ksym_name = ks->name;
+		err = hashmap__add(map, ksym_name, 0);
 		if (err == -EEXIST) {
 			err = 0;
 			continue;
@@ -407,8 +532,7 @@ static int get_syms(char ***symsp, size_t *cntp, bool kernel)
 		if (err)
 			goto error;
 
-		syms[cnt++] = name;
-		name = NULL;
+		syms[cnt++] = ksym_name;
 	}
 
 	*symsp = syms;
@@ -418,24 +542,107 @@ error:
 	free(name);
 	fclose(f);
 	hashmap__free(map);
-	if (err) {
-		for (i = 0; i < cnt; i++)
-			free(syms[i]);
+	if (err)
 		free(syms);
-	}
 	return err;
+}
+
+static int get_addrs(unsigned long **addrsp, size_t *cntp, bool kernel)
+{
+	unsigned long *addr, *addrs, *tmp_addrs;
+	int err = 0, max_cnt, inc_cnt;
+	char *name = NULL;
+	size_t cnt = 0;
+	char buf[256];
+	FILE *f;
+
+	if (access("/sys/kernel/tracing/trace", F_OK) == 0)
+		f = fopen("/sys/kernel/tracing/available_filter_functions_addrs", "r");
+	else
+		f = fopen("/sys/kernel/debug/tracing/available_filter_functions_addrs", "r");
+
+	if (!f)
+		return -ENOENT;
+
+	/* In my local setup, the number of entries is 50k+ so Let us initially
+	 * allocate space to hold 64k entries. If 64k is not enough, incrementally
+	 * increase 1k each time.
+	 */
+	max_cnt = 65536;
+	inc_cnt = 1024;
+	addrs = malloc(max_cnt * sizeof(long));
+	if (addrs == NULL) {
+		err = -ENOMEM;
+		goto error;
+	}
+
+	while (fgets(buf, sizeof(buf), f)) {
+		if (is_invalid_entry(buf, kernel))
+			continue;
+
+		free(name);
+		if (sscanf(buf, "%p %ms$*[^\n]\n", &addr, &name) != 2)
+			continue;
+		if (skip_entry(name))
+			continue;
+
+		if (cnt == max_cnt) {
+			max_cnt += inc_cnt;
+			tmp_addrs = realloc(addrs, max_cnt);
+			if (!tmp_addrs) {
+				err = -ENOMEM;
+				goto error;
+			}
+			addrs = tmp_addrs;
+		}
+
+		addrs[cnt++] = (unsigned long)addr;
+	}
+
+	*addrsp = addrs;
+	*cntp = cnt;
+
+error:
+	free(name);
+	fclose(f);
+	if (err)
+		free(addrs);
+	return err;
+}
+
+static void do_bench_test(struct kprobe_multi_empty *skel, struct bpf_kprobe_multi_opts *opts)
+{
+	long attach_start_ns, attach_end_ns;
+	long detach_start_ns, detach_end_ns;
+	double attach_delta, detach_delta;
+	struct bpf_link *link = NULL;
+
+	attach_start_ns = get_time_ns();
+	link = bpf_program__attach_kprobe_multi_opts(skel->progs.test_kprobe_empty,
+						     NULL, opts);
+	attach_end_ns = get_time_ns();
+
+	if (!ASSERT_OK_PTR(link, "bpf_program__attach_kprobe_multi_opts"))
+		return;
+
+	detach_start_ns = get_time_ns();
+	bpf_link__destroy(link);
+	detach_end_ns = get_time_ns();
+
+	attach_delta = (attach_end_ns - attach_start_ns) / 1000000000.0;
+	detach_delta = (detach_end_ns - detach_start_ns) / 1000000000.0;
+
+	printf("%s: found %lu functions\n", __func__, opts->cnt);
+	printf("%s: attached in %7.3lfs\n", __func__, attach_delta);
+	printf("%s: detached in %7.3lfs\n", __func__, detach_delta);
 }
 
 static void test_kprobe_multi_bench_attach(bool kernel)
 {
 	LIBBPF_OPTS(bpf_kprobe_multi_opts, opts);
 	struct kprobe_multi_empty *skel = NULL;
-	long attach_start_ns, attach_end_ns;
-	long detach_start_ns, detach_end_ns;
-	double attach_delta, detach_delta;
-	struct bpf_link *link = NULL;
 	char **syms = NULL;
-	size_t cnt = 0, i;
+	size_t cnt = 0;
 
 	if (!ASSERT_OK(get_syms(&syms, &cnt, kernel), "get_syms"))
 		return;
@@ -447,32 +654,43 @@ static void test_kprobe_multi_bench_attach(bool kernel)
 	opts.syms = (const char **) syms;
 	opts.cnt = cnt;
 
-	attach_start_ns = get_time_ns();
-	link = bpf_program__attach_kprobe_multi_opts(skel->progs.test_kprobe_empty,
-						     NULL, &opts);
-	attach_end_ns = get_time_ns();
-
-	if (!ASSERT_OK_PTR(link, "bpf_program__attach_kprobe_multi_opts"))
-		goto cleanup;
-
-	detach_start_ns = get_time_ns();
-	bpf_link__destroy(link);
-	detach_end_ns = get_time_ns();
-
-	attach_delta = (attach_end_ns - attach_start_ns) / 1000000000.0;
-	detach_delta = (detach_end_ns - detach_start_ns) / 1000000000.0;
-
-	printf("%s: found %lu functions\n", __func__, cnt);
-	printf("%s: attached in %7.3lfs\n", __func__, attach_delta);
-	printf("%s: detached in %7.3lfs\n", __func__, detach_delta);
+	do_bench_test(skel, &opts);
 
 cleanup:
 	kprobe_multi_empty__destroy(skel);
-	if (syms) {
-		for (i = 0; i < cnt; i++)
-			free(syms[i]);
+	if (syms)
 		free(syms);
+}
+
+static void test_kprobe_multi_bench_attach_addr(bool kernel)
+{
+	LIBBPF_OPTS(bpf_kprobe_multi_opts, opts);
+	struct kprobe_multi_empty *skel = NULL;
+	unsigned long *addrs = NULL;
+	size_t cnt = 0;
+	int err;
+
+	err = get_addrs(&addrs, &cnt, kernel);
+	if (err == -ENOENT) {
+		test__skip();
+		return;
 	}
+
+	if (!ASSERT_OK(err, "get_addrs"))
+		return;
+
+	skel = kprobe_multi_empty__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "kprobe_multi_empty__open_and_load"))
+		goto cleanup;
+
+	opts.addrs = addrs;
+	opts.cnt = cnt;
+
+	do_bench_test(skel, &opts);
+
+cleanup:
+	kprobe_multi_empty__destroy(skel);
+	free(addrs);
 }
 
 static void test_attach_override(void)
@@ -515,6 +733,10 @@ void serial_test_kprobe_multi_bench_attach(void)
 		test_kprobe_multi_bench_attach(true);
 	if (test__start_subtest("modules"))
 		test_kprobe_multi_bench_attach(false);
+	if (test__start_subtest("kernel"))
+		test_kprobe_multi_bench_attach_addr(true);
+	if (test__start_subtest("modules"))
+		test_kprobe_multi_bench_attach_addr(false);
 }
 
 void test_kprobe_multi_test(void)
@@ -538,4 +760,8 @@ void test_kprobe_multi_test(void)
 		test_attach_api_fails();
 	if (test__start_subtest("attach_override"))
 		test_attach_override();
+	if (test__start_subtest("session"))
+		test_session_skel_api();
+	if (test__start_subtest("session_cookie"))
+		test_session_cookie_skel_api();
 }

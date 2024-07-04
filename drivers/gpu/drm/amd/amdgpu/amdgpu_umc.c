@@ -21,9 +21,12 @@
  *
  */
 
+#include <linux/sort.h>
 #include "amdgpu.h"
 #include "umc_v6_7.h"
 #define MAX_UMC_POISON_POLLING_TIME_SYNC   20  //ms
+
+#define MAX_UMC_HASH_STRING_SIZE  256
 
 static int amdgpu_umc_convert_error_address(struct amdgpu_device *adev,
 				    struct ras_err_data *err_data, uint64_t err_addr,
@@ -63,6 +66,8 @@ int amdgpu_umc_page_retirement_mca(struct amdgpu_device *adev,
 		goto out_fini_err_data;
 	}
 
+	err_data.err_addr_len = adev->umc.max_ras_err_cnt_per_query;
+
 	/*
 	 * Translate UMC channel address to Physical address
 	 */
@@ -86,7 +91,7 @@ out_fini_err_data:
 	return ret;
 }
 
-static void amdgpu_umc_handle_bad_pages(struct amdgpu_device *adev,
+void amdgpu_umc_handle_bad_pages(struct amdgpu_device *adev,
 			void *ras_error_status)
 {
 	struct ras_err_data *err_data = (struct ras_err_data *)ras_error_status;
@@ -118,6 +123,8 @@ static void amdgpu_umc_handle_bad_pages(struct amdgpu_device *adev,
 			if(!err_data->err_addr)
 				dev_warn(adev->dev, "Failed to alloc memory for "
 						"umc error address record!\n");
+			else
+				err_data->err_addr_len = adev->umc.max_ras_err_cnt_per_query;
 
 			/* umc query_ras_error_address is also responsible for clearing
 			 * error status
@@ -143,6 +150,8 @@ static void amdgpu_umc_handle_bad_pages(struct amdgpu_device *adev,
 			if(!err_data->err_addr)
 				dev_warn(adev->dev, "Failed to alloc memory for "
 						"umc error address record!\n");
+			else
+				err_data->err_addr_len = adev->umc.max_ras_err_cnt_per_query;
 
 			/* umc query_ras_error_address is also responsible for clearing
 			 * error status
@@ -170,6 +179,7 @@ static void amdgpu_umc_handle_bad_pages(struct amdgpu_device *adev,
 	}
 
 	kfree(err_data->err_addr);
+	err_data->err_addr = NULL;
 
 	mutex_unlock(&con->page_retirement_lock);
 }
@@ -177,7 +187,7 @@ static void amdgpu_umc_handle_bad_pages(struct amdgpu_device *adev,
 static int amdgpu_umc_do_page_retirement(struct amdgpu_device *adev,
 		void *ras_error_status,
 		struct amdgpu_iv_entry *entry,
-		bool reset)
+		uint32_t reset)
 {
 	struct ras_err_data *err_data = (struct ras_err_data *)ras_error_status;
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
@@ -186,9 +196,7 @@ static int amdgpu_umc_do_page_retirement(struct amdgpu_device *adev,
 	amdgpu_umc_handle_bad_pages(adev, ras_error_status);
 
 	if (err_data->ue_count && reset) {
-		/* use mode-2 reset for poison consumption */
-		if (!entry)
-			con->gpu_reset_flags |= AMDGPU_RAS_GPU_RESET_MODE2_RESET;
+		con->gpu_reset_flags |= reset;
 		amdgpu_ras_reset_gpu(adev);
 	}
 
@@ -196,7 +204,7 @@ static int amdgpu_umc_do_page_retirement(struct amdgpu_device *adev,
 }
 
 int amdgpu_umc_bad_page_polling_timeout(struct amdgpu_device *adev,
-			bool reset, uint32_t timeout_ms)
+			uint32_t reset, uint32_t timeout_ms)
 {
 	struct ras_err_data err_data;
 	struct ras_common_if head = {
@@ -238,16 +246,16 @@ int amdgpu_umc_bad_page_polling_timeout(struct amdgpu_device *adev,
 	if (reset) {
 		struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 
-		/* use mode-2 reset for poison consumption */
-		con->gpu_reset_flags |= AMDGPU_RAS_GPU_RESET_MODE2_RESET;
+		con->gpu_reset_flags |= reset;
 		amdgpu_ras_reset_gpu(adev);
 	}
 
 	return 0;
 }
 
-int amdgpu_umc_poison_handler(struct amdgpu_device *adev,
-			enum amdgpu_ras_block block, bool reset)
+int amdgpu_umc_pasid_poison_handler(struct amdgpu_device *adev,
+			enum amdgpu_ras_block block, uint16_t pasid,
+			pasid_notify pasid_fn, void *data, uint32_t reset)
 {
 	int ret = AMDGPU_RAS_SUCCESS;
 
@@ -285,16 +293,14 @@ int amdgpu_umc_poison_handler(struct amdgpu_device *adev,
 
 			amdgpu_ras_error_data_fini(&err_data);
 		} else {
-			if (reset) {
-				amdgpu_umc_bad_page_polling_timeout(adev,
-							reset, MAX_UMC_POISON_POLLING_TIME_SYNC);
-			} else {
 				struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+
+				amdgpu_ras_put_poison_req(adev,
+					block, pasid, pasid_fn, data, reset);
 
 				atomic_inc(&con->page_retirement_req_cnt);
 
 				wake_up(&con->page_retirement_wq);
-			}
 		}
 	} else {
 		if (adev->virt.ops && adev->virt.ops->ras_poison_handler)
@@ -307,11 +313,19 @@ int amdgpu_umc_poison_handler(struct amdgpu_device *adev,
 	return ret;
 }
 
+int amdgpu_umc_poison_handler(struct amdgpu_device *adev,
+			enum amdgpu_ras_block block, uint32_t reset)
+{
+	return amdgpu_umc_pasid_poison_handler(adev,
+				block, 0, NULL, NULL, reset);
+}
+
 int amdgpu_umc_process_ras_data_cb(struct amdgpu_device *adev,
 		void *ras_error_status,
 		struct amdgpu_iv_entry *entry)
 {
-	return amdgpu_umc_do_page_retirement(adev, ras_error_status, entry, true);
+	return amdgpu_umc_do_page_retirement(adev, ras_error_status, entry,
+				AMDGPU_RAS_GPU_RESET_MODE1_RESET);
 }
 
 int amdgpu_umc_ras_sw_init(struct amdgpu_device *adev)
@@ -388,14 +402,20 @@ int amdgpu_umc_process_ecc_irq(struct amdgpu_device *adev,
 	return 0;
 }
 
-void amdgpu_umc_fill_error_record(struct ras_err_data *err_data,
+int amdgpu_umc_fill_error_record(struct ras_err_data *err_data,
 		uint64_t err_addr,
 		uint64_t retired_page,
 		uint32_t channel_index,
 		uint32_t umc_inst)
 {
-	struct eeprom_table_record *err_rec =
-		&err_data->err_addr[err_data->err_addr_cnt];
+	struct eeprom_table_record *err_rec;
+
+	if (!err_data ||
+	    !err_data->err_addr ||
+	    (err_data->err_addr_cnt >= err_data->err_addr_len))
+		return -EINVAL;
+
+	err_rec = &err_data->err_addr[err_data->err_addr_cnt];
 
 	err_rec->address = err_addr;
 	/* page frame address is saved */
@@ -407,6 +427,8 @@ void amdgpu_umc_fill_error_record(struct ras_err_data *err_data,
 	err_rec->mcumc_id = umc_inst;
 
 	err_data->err_addr_cnt++;
+
+	return 0;
 }
 
 int amdgpu_umc_loop_channels(struct amdgpu_device *adev,
@@ -438,4 +460,77 @@ int amdgpu_umc_loop_channels(struct amdgpu_device *adev,
 	}
 
 	return 0;
+}
+
+int amdgpu_umc_update_ecc_status(struct amdgpu_device *adev,
+				uint64_t status, uint64_t ipid, uint64_t addr)
+{
+	if (adev->umc.ras->update_ecc_status)
+		return adev->umc.ras->update_ecc_status(adev,
+					status, ipid, addr);
+	return 0;
+}
+
+static int amdgpu_umc_uint64_cmp(const void *a, const void *b)
+{
+	uint64_t *addr_a = (uint64_t *)a;
+	uint64_t *addr_b = (uint64_t *)b;
+
+	if (*addr_a > *addr_b)
+		return 1;
+	else if (*addr_a < *addr_b)
+		return -1;
+	else
+		return 0;
+}
+
+/* Use string hash to avoid logging the same bad pages repeatedly */
+int amdgpu_umc_build_pages_hash(struct amdgpu_device *adev,
+		uint64_t *pfns, int len, uint64_t *val)
+{
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+	char buf[MAX_UMC_HASH_STRING_SIZE] = {0};
+	int offset = 0, i = 0;
+	uint64_t hash_val;
+
+	if (!pfns || !len)
+		return -EINVAL;
+
+	sort(pfns, len, sizeof(uint64_t), amdgpu_umc_uint64_cmp, NULL);
+
+	for (i = 0; i < len; i++)
+		offset += snprintf(&buf[offset], sizeof(buf) - offset, "%llx", pfns[i]);
+
+	hash_val = siphash(buf, offset, &con->umc_ecc_log.ecc_key);
+
+	*val = hash_val;
+
+	return 0;
+}
+
+int amdgpu_umc_logs_ecc_err(struct amdgpu_device *adev,
+		struct radix_tree_root *ecc_tree, struct ras_ecc_err *ecc_err)
+{
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+	struct ras_ecc_log_info *ecc_log;
+	int ret;
+
+	ecc_log = &con->umc_ecc_log;
+
+	mutex_lock(&ecc_log->lock);
+	ret = radix_tree_insert(ecc_tree, ecc_err->hash_index, ecc_err);
+	if (!ret) {
+		struct ras_err_pages *err_pages = &ecc_err->err_pages;
+		int i;
+
+		/* Reserve memory */
+		for (i = 0; i < err_pages->count; i++)
+			amdgpu_ras_reserve_page(adev, err_pages->pfn[i]);
+
+		radix_tree_tag_set(ecc_tree,
+			ecc_err->hash_index, UMC_ECC_NEW_DETECTED_TAG);
+	}
+	mutex_unlock(&ecc_log->lock);
+
+	return ret;
 }

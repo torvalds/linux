@@ -64,7 +64,6 @@ unsigned char SROMbyReadEmbedded(void __iomem *iobase,
 	unsigned char byData;
 	unsigned char byOrg;
 
-	byData = 0xFF;
 	byOrg = ioread8(iobase + MAC_REG_I2MCFG);
 	/* turn off hardware retry for getting NACK */
 	iowrite8(byOrg & (~I2MCFG_NORETRY), iobase + MAC_REG_I2MCFG);

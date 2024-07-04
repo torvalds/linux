@@ -54,6 +54,7 @@
 #include <linux/errqueue.h>
 
 #include <linux/leds.h>
+#include <linux/workqueue.h>
 
 #include "arcdevice.h"
 #include "com9026.h"
@@ -424,9 +425,9 @@ out:
 	rtnl_unlock();
 }
 
-static void arcnet_reply_tasklet(struct tasklet_struct *t)
+static void arcnet_reply_work(struct work_struct *t)
 {
-	struct arcnet_local *lp = from_tasklet(lp, t, reply_tasklet);
+	struct arcnet_local *lp = from_work(lp, t, reply_work);
 
 	struct sk_buff *ackskb, *skb;
 	struct sock_exterr_skb *serr;
@@ -527,7 +528,7 @@ int arcnet_open(struct net_device *dev)
 		arc_cont(D_PROTO, "\n");
 	}
 
-	tasklet_setup(&lp->reply_tasklet, arcnet_reply_tasklet);
+	INIT_WORK(&lp->reply_work, arcnet_reply_work);
 
 	arc_printk(D_INIT, dev, "arcnet_open: resetting card.\n");
 
@@ -620,7 +621,7 @@ int arcnet_close(struct net_device *dev)
 	netif_stop_queue(dev);
 	netif_carrier_off(dev);
 
-	tasklet_kill(&lp->reply_tasklet);
+	cancel_work_sync(&lp->reply_work);
 
 	/* flush TX and disable RX */
 	lp->hw.intmask(dev, 0);
@@ -984,7 +985,7 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id)
 						->ack_tx(dev, ackstatus);
 				}
 				lp->reply_status = ackstatus;
-				tasklet_hi_schedule(&lp->reply_tasklet);
+				queue_work(system_bh_highpri_wq, &lp->reply_work);
 			}
 			if (lp->cur_tx != -1)
 				release_arcbuf(dev, lp->cur_tx);

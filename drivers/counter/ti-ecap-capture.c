@@ -369,7 +369,7 @@ static const enum counter_synapse_action ecap_cnt_input_actions[] = {
 };
 
 static struct counter_comp ecap_cnt_clock_ext[] = {
-	COUNTER_COMP_SIGNAL_U64("frequency", ecap_cnt_clk_get_freq, NULL),
+	COUNTER_COMP_FREQUENCY(ecap_cnt_clk_get_freq),
 };
 
 static const enum counter_signal_polarity ecap_cnt_pol_avail[] = {
@@ -537,15 +537,13 @@ static int ecap_cnt_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int ecap_cnt_remove(struct platform_device *pdev)
+static void ecap_cnt_remove(struct platform_device *pdev)
 {
 	struct counter_device *counter_dev = platform_get_drvdata(pdev);
 	struct ecap_cnt_dev *ecap_dev = counter_priv(counter_dev);
 
 	if (ecap_dev->enabled)
 		ecap_cnt_capture_disable(counter_dev);
-
-	return 0;
 }
 
 static int ecap_cnt_suspend(struct device *dev)
@@ -600,7 +598,7 @@ MODULE_DEVICE_TABLE(of, ecap_cnt_of_match);
 
 static struct platform_driver ecap_cnt_driver = {
 	.probe = ecap_cnt_probe,
-	.remove = ecap_cnt_remove,
+	.remove_new = ecap_cnt_remove,
 	.driver = {
 		.name = "ecap-capture",
 		.of_match_table = ecap_cnt_of_match,

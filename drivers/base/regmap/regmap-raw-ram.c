@@ -107,7 +107,8 @@ static const struct regmap_bus regmap_raw_ram = {
 	.free_context = regmap_raw_ram_free_context,
 };
 
-struct regmap *__regmap_init_raw_ram(const struct regmap_config *config,
+struct regmap *__regmap_init_raw_ram(struct device *dev,
+				     const struct regmap_config *config,
 				     struct regmap_ram_data *data,
 				     struct lock_class_key *lock_key,
 				     const char *lock_name)
@@ -134,7 +135,7 @@ struct regmap *__regmap_init_raw_ram(const struct regmap_config *config,
 
 	data->reg_endian = config->reg_format_endian;
 
-	map = __regmap_init(NULL, &regmap_raw_ram, data, config,
+	map = __regmap_init(dev, &regmap_raw_ram, data, config,
 			    lock_key, lock_name);
 
 	return map;

@@ -2,7 +2,6 @@
 /*
  * Copyright (C) 2022, Google LLC.
  */
-#define _GNU_SOURCE /* for program_invocation_short_name */
 #include <fcntl.h>
 #include <limits.h>
 #include <pthread.h>

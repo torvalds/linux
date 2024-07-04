@@ -135,9 +135,9 @@ static inline void __debug_switch_to_guest_common(struct kvm_vcpu *vcpu)
 	if (!vcpu_get_flag(vcpu, DEBUG_DIRTY))
 		return;
 
-	host_ctxt = &this_cpu_ptr(&kvm_host_data)->host_ctxt;
+	host_ctxt = host_data_ptr(host_ctxt);
 	guest_ctxt = &vcpu->arch.ctxt;
-	host_dbg = &vcpu->arch.host_debug_state.regs;
+	host_dbg = host_data_ptr(host_debug_state.regs);
 	guest_dbg = kern_hyp_va(vcpu->arch.debug_ptr);
 
 	__debug_save_state(host_dbg, host_ctxt);
@@ -154,9 +154,9 @@ static inline void __debug_switch_to_host_common(struct kvm_vcpu *vcpu)
 	if (!vcpu_get_flag(vcpu, DEBUG_DIRTY))
 		return;
 
-	host_ctxt = &this_cpu_ptr(&kvm_host_data)->host_ctxt;
+	host_ctxt = host_data_ptr(host_ctxt);
 	guest_ctxt = &vcpu->arch.ctxt;
-	host_dbg = &vcpu->arch.host_debug_state.regs;
+	host_dbg = host_data_ptr(host_debug_state.regs);
 	guest_dbg = kern_hyp_va(vcpu->arch.debug_ptr);
 
 	__debug_save_state(guest_dbg, guest_ctxt);

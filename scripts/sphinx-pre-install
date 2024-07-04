@@ -514,6 +514,7 @@ sub give_mageia_hints()
 {
 	my %map = (
 		"python-sphinx"		=> "python3-sphinx",
+		"yaml"			=> "python3-yaml",
 		"virtualenv"		=> "python3-virtualenv",
 		"dot"			=> "graphviz",
 		"convert"		=> "ImageMagick",
@@ -557,10 +558,11 @@ sub give_mageia_hints()
 sub give_arch_linux_hints()
 {
 	my %map = (
+		"yaml"			=> "python-yaml",
 		"virtualenv"		=> "python-virtualenv",
 		"dot"			=> "graphviz",
 		"convert"		=> "imagemagick",
-		"xelatex"		=> "texlive-bin",
+		"xelatex"		=> "texlive-xetex",
 		"latexmk"		=> "texlive-core",
 		"rsvg-convert"		=> "extra/librsvg",
 	);
@@ -587,6 +589,7 @@ sub give_arch_linux_hints()
 sub give_gentoo_hints()
 {
 	my %map = (
+		"yaml"			=> "dev-python/pyyaml",
 		"virtualenv"		=> "dev-python/virtualenv",
 		"dot"			=> "media-gfx/graphviz",
 		"convert"		=> "media-gfx/imagemagick",

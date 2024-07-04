@@ -42,7 +42,7 @@ static int __bch2_set_rebalance_needs_scan(struct btree_trans *trans, u64 inum)
 
 	bch2_trans_iter_init(trans, &iter, BTREE_ID_rebalance_work,
 			     SPOS(inum, REBALANCE_WORK_SCAN_OFFSET, U32_MAX),
-			     BTREE_ITER_INTENT);
+			     BTREE_ITER_intent);
 	k = bch2_btree_iter_peek_slot(&iter);
 	ret = bkey_err(k);
 	if (ret)
@@ -89,7 +89,7 @@ static int bch2_clear_rebalance_needs_scan(struct btree_trans *trans, u64 inum, 
 
 	bch2_trans_iter_init(trans, &iter, BTREE_ID_rebalance_work,
 			     SPOS(inum, REBALANCE_WORK_SCAN_OFFSET, U32_MAX),
-			     BTREE_ITER_INTENT);
+			     BTREE_ITER_intent);
 	k = bch2_btree_iter_peek_slot(&iter);
 	ret = bkey_err(k);
 	if (ret)
@@ -140,7 +140,7 @@ static struct bkey_s_c next_rebalance_extent(struct btree_trans *trans,
 	bch2_trans_iter_init(trans, extent_iter,
 			     work_pos.inode ? BTREE_ID_extents : BTREE_ID_reflink,
 			     work_pos,
-			     BTREE_ITER_ALL_SNAPSHOTS);
+			     BTREE_ITER_all_snapshots);
 	k = bch2_btree_iter_peek_slot(extent_iter);
 	if (bkey_err(k))
 		return k;
@@ -323,12 +323,14 @@ static int do_rebalance(struct moving_context *ctxt)
 	struct bkey_s_c k;
 	int ret = 0;
 
+	bch2_trans_begin(trans);
+
 	bch2_move_stats_init(&r->work_stats, "rebalance_work");
 	bch2_move_stats_init(&r->scan_stats, "rebalance_scan");
 
 	bch2_trans_iter_init(trans, &rebalance_work_iter,
 			     BTREE_ID_rebalance_work, POS_MIN,
-			     BTREE_ITER_ALL_SNAPSHOTS);
+			     BTREE_ITER_all_snapshots);
 
 	while (!bch2_move_ratelimit(ctxt)) {
 		if (!r->enabled) {

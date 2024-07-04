@@ -40,7 +40,7 @@ static int test_delete(struct bch_fs *c, u64 nr)
 	k.k.p.snapshot = U32_MAX;
 
 	bch2_trans_iter_init(trans, &iter, BTREE_ID_xattrs, k.k.p,
-			     BTREE_ITER_INTENT);
+			     BTREE_ITER_intent);
 
 	ret = commit_do(trans, NULL, NULL, 0,
 		bch2_btree_iter_traverse(&iter) ?:
@@ -81,7 +81,7 @@ static int test_delete_written(struct bch_fs *c, u64 nr)
 	k.k.p.snapshot = U32_MAX;
 
 	bch2_trans_iter_init(trans, &iter, BTREE_ID_xattrs, k.k.p,
-			     BTREE_ITER_INTENT);
+			     BTREE_ITER_intent);
 
 	ret = commit_do(trans, NULL, NULL, 0,
 		bch2_btree_iter_traverse(&iter) ?:
@@ -261,7 +261,7 @@ static int test_iterate_slots(struct bch_fs *c, u64 nr)
 	ret = bch2_trans_run(c,
 		for_each_btree_key_upto(trans, iter, BTREE_ID_xattrs,
 					SPOS(0, 0, U32_MAX), POS(0, U64_MAX),
-					BTREE_ITER_SLOTS, k, ({
+					BTREE_ITER_slots, k, ({
 			if (i >= nr * 2)
 				break;
 
@@ -322,7 +322,7 @@ static int test_iterate_slots_extents(struct bch_fs *c, u64 nr)
 	ret = bch2_trans_run(c,
 		for_each_btree_key_upto(trans, iter, BTREE_ID_extents,
 					SPOS(0, 0, U32_MAX), POS(0, U64_MAX),
-					BTREE_ITER_SLOTS, k, ({
+					BTREE_ITER_slots, k, ({
 			if (i == nr)
 				break;
 			BUG_ON(bkey_deleted(k.k) != !(i % 16));
@@ -452,7 +452,7 @@ static int insert_test_overlapping_extent(struct bch_fs *c, u64 inum, u64 start,
 
 	ret = bch2_trans_do(c, NULL, NULL, 0,
 		bch2_btree_insert_nonextent(trans, BTREE_ID_extents, &k.k_i,
-					    BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE));
+					    BTREE_UPDATE_internal_snapshot_node));
 	bch_err_fn(c, ret);
 	return ret;
 }
@@ -671,7 +671,7 @@ static int __do_delete(struct btree_trans *trans, struct bpos pos)
 	int ret = 0;
 
 	bch2_trans_iter_init(trans, &iter, BTREE_ID_xattrs, pos,
-			     BTREE_ITER_INTENT);
+			     BTREE_ITER_intent);
 	k = bch2_btree_iter_peek_upto(&iter, POS(0, U64_MAX));
 	ret = bkey_err(k);
 	if (ret)
@@ -714,7 +714,7 @@ static int seq_insert(struct bch_fs *c, u64 nr)
 	return bch2_trans_run(c,
 		for_each_btree_key_commit(trans, iter, BTREE_ID_xattrs,
 					SPOS(0, 0, U32_MAX),
-					BTREE_ITER_SLOTS|BTREE_ITER_INTENT, k,
+					BTREE_ITER_slots|BTREE_ITER_intent, k,
 					NULL, NULL, 0, ({
 			if (iter.pos.offset >= nr)
 				break;
@@ -737,7 +737,7 @@ static int seq_overwrite(struct bch_fs *c, u64 nr)
 	return bch2_trans_run(c,
 		for_each_btree_key_commit(trans, iter, BTREE_ID_xattrs,
 					SPOS(0, 0, U32_MAX),
-					BTREE_ITER_INTENT, k,
+					BTREE_ITER_intent, k,
 					NULL, NULL, 0, ({
 			struct bkey_i_cookie u;
 

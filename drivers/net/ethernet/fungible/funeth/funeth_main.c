@@ -927,7 +927,7 @@ static int fun_change_mtu(struct net_device *netdev, int new_mtu)
 
 	rc = fun_port_write_cmd(fp, FUN_ADMIN_PORT_KEY_MTU, new_mtu);
 	if (!rc)
-		netdev->mtu = new_mtu;
+		WRITE_ONCE(netdev->mtu, new_mtu);
 	return rc;
 }
 

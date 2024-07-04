@@ -159,7 +159,7 @@ static bool reset_engines(struct intel_gt *gt)
 	if (INTEL_INFO(gt->i915)->gpu_reset_clobbers_display)
 		return false;
 
-	return __intel_gt_reset(gt, ALL_ENGINES) == 0;
+	return intel_gt_reset_all_engines(gt) == 0;
 }
 
 static void gt_sanitize(struct intel_gt *gt, bool force)

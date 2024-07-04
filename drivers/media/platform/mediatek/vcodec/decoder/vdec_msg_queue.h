@@ -158,14 +158,14 @@ int vdec_msg_queue_qbuf(struct vdec_msg_queue_ctx *ctx, struct vdec_lat_buf *buf
 struct vdec_lat_buf *vdec_msg_queue_dqbuf(struct vdec_msg_queue_ctx *ctx);
 
 /**
- * vdec_msg_queue_update_ube_rptr - used to updata the ube read point.
+ * vdec_msg_queue_update_ube_rptr - used to update the ube read point.
  * @msg_queue: used to store the lat buffer information
  * @ube_rptr: current ube read point
  */
 void vdec_msg_queue_update_ube_rptr(struct vdec_msg_queue *msg_queue, uint64_t ube_rptr);
 
 /**
- * vdec_msg_queue_update_ube_wptr - used to updata the ube write point.
+ * vdec_msg_queue_update_ube_wptr - used to update the ube write point.
  * @msg_queue: used to store the lat buffer information
  * @ube_wptr: current ube write point
  */

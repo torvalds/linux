@@ -35,7 +35,7 @@
 
 	pwm-beeper {
 		compatible = "pwm-beeper";
-		pwms = <&pwm8 0 5000>;
+		pwms = <&pwm8 0 5000 0>;
 	};
 
 	reg_3v3: regulator-3v3 {
@@ -152,7 +152,6 @@
 };
 
 &pwm8 {
-	#pwm-cells = <2>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm8>;
 	status = "okay";

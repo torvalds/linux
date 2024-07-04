@@ -26,6 +26,9 @@
 
 #include <linux/debugfs.h>
 #include <linux/list.h>
+#include <linux/kfifo.h>
+#include <linux/radix-tree.h>
+#include <linux/siphash.h>
 #include "ta_ras_if.h"
 #include "amdgpu_ras_eeprom.h"
 #include "amdgpu_smuio.h"
@@ -63,6 +66,14 @@ struct amdgpu_iv_entry;
 
 /* The high three bits indicates socketid */
 #define AMDGPU_RAS_GET_FEATURES(val)  ((val) & ~AMDGPU_RAS_FEATURES_SOCKETID_MASK)
+
+#define RAS_EVENT_LOG(_adev, _id, _fmt, ...)				\
+do {									\
+	if (amdgpu_ras_event_id_is_valid((_adev), (_id)))			\
+	    dev_info((_adev)->dev, "{%llu}" _fmt, (_id), ##__VA_ARGS__);	\
+	else								\
+	    dev_info((_adev)->dev, _fmt, ##__VA_ARGS__);			\
+} while (0)
 
 enum amdgpu_ras_block {
 	AMDGPU_RAS_BLOCK__UMC = 0,
@@ -419,6 +430,52 @@ struct umc_ecc_info {
 	int record_ce_addr_supported;
 };
 
+enum ras_event_type {
+	RAS_EVENT_TYPE_INVALID = -1,
+	RAS_EVENT_TYPE_ISR = 0,
+	RAS_EVENT_TYPE_COUNT,
+};
+
+struct ras_event_manager {
+	atomic64_t seqnos[RAS_EVENT_TYPE_COUNT];
+};
+
+struct ras_query_context {
+	enum ras_event_type type;
+	u64 event_id;
+};
+
+typedef int (*pasid_notify)(struct amdgpu_device *adev,
+		uint16_t pasid, void *data);
+
+struct ras_poison_msg {
+	enum amdgpu_ras_block block;
+	uint16_t pasid;
+	uint32_t reset;
+	pasid_notify pasid_fn;
+	void *data;
+};
+
+struct ras_err_pages {
+	uint32_t count;
+	uint64_t *pfn;
+};
+
+struct ras_ecc_err {
+	u64 hash_index;
+	uint64_t status;
+	uint64_t ipid;
+	uint64_t addr;
+	struct ras_err_pages err_pages;
+};
+
+struct ras_ecc_log_info {
+	struct mutex lock;
+	siphash_key_t ecc_key;
+	struct radix_tree_root de_page_tree;
+	bool	de_updated;
+};
+
 struct amdgpu_ras {
 	/* ras infrastructure */
 	/* for ras itself. */
@@ -477,8 +534,18 @@ struct amdgpu_ras {
 	wait_queue_head_t page_retirement_wq;
 	struct mutex page_retirement_lock;
 	atomic_t page_retirement_req_cnt;
+	struct mutex page_rsv_lock;
+	DECLARE_KFIFO(poison_fifo, struct ras_poison_msg, 128);
+	struct ras_ecc_log_info  umc_ecc_log;
+	struct delayed_work page_retirement_dwork;
+
 	/* Fatal error detected flag */
 	atomic_t fed;
+
+	/* RAS event manager */
+	struct ras_event_manager __event_mgr;
+	struct ras_event_manager *event_mgr;
+
 };
 
 struct ras_fs_data {
@@ -512,6 +579,7 @@ struct ras_err_data {
 	unsigned long de_count;
 	unsigned long err_addr_cnt;
 	struct eeprom_table_record *err_addr;
+	unsigned long err_addr_len;
 	u32 err_list_count;
 	struct list_head err_node_list;
 };
@@ -878,5 +946,14 @@ void amdgpu_ras_del_mca_err_addr(struct ras_err_info *err_info,
 
 void amdgpu_ras_set_fed(struct amdgpu_device *adev, bool status);
 bool amdgpu_ras_get_fed_status(struct amdgpu_device *adev);
+
+bool amdgpu_ras_event_id_is_valid(struct amdgpu_device *adev, u64 id);
+u64 amdgpu_ras_acquire_event_id(struct amdgpu_device *adev, enum ras_event_type type);
+
+int amdgpu_ras_reserve_page(struct amdgpu_device *adev, uint64_t pfn);
+
+int amdgpu_ras_put_poison_req(struct amdgpu_device *adev,
+		enum amdgpu_ras_block block, uint16_t pasid,
+		pasid_notify pasid_fn, void *data, uint32_t reset);
 
 #endif

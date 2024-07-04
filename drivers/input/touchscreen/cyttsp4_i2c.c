@@ -50,7 +50,7 @@ static void cyttsp4_i2c_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id cyttsp4_i2c_id[] = {
-	{ CYTTSP4_I2C_NAME, 0 },
+	{ CYTTSP4_I2C_NAME },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, cyttsp4_i2c_id);

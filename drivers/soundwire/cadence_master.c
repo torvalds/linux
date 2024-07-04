@@ -1236,7 +1236,7 @@ EXPORT_SYMBOL(sdw_cdns_enable_interrupt);
 
 static int cdns_allocate_pdi(struct sdw_cdns *cdns,
 			     struct sdw_cdns_pdi **stream,
-			     u32 num, u32 pdi_offset)
+			     u32 num)
 {
 	struct sdw_cdns_pdi *pdi;
 	int i;
@@ -1249,7 +1249,7 @@ static int cdns_allocate_pdi(struct sdw_cdns *cdns,
 		return -ENOMEM;
 
 	for (i = 0; i < num; i++) {
-		pdi[i].num = i + pdi_offset;
+		pdi[i].num = i;
 	}
 
 	*stream = pdi;
@@ -1266,7 +1266,6 @@ int sdw_cdns_pdi_init(struct sdw_cdns *cdns,
 		      struct sdw_cdns_stream_config config)
 {
 	struct sdw_cdns_streams *stream;
-	int offset;
 	int ret;
 
 	cdns->pcm.num_bd = config.pcm_bd;
@@ -1277,24 +1276,15 @@ int sdw_cdns_pdi_init(struct sdw_cdns *cdns,
 	stream = &cdns->pcm;
 
 	/* we allocate PDI0 and PDI1 which are used for Bulk */
-	offset = 0;
-
-	ret = cdns_allocate_pdi(cdns, &stream->bd,
-				stream->num_bd, offset);
+	ret = cdns_allocate_pdi(cdns, &stream->bd, stream->num_bd);
 	if (ret)
 		return ret;
 
-	offset += stream->num_bd;
-
-	ret = cdns_allocate_pdi(cdns, &stream->in,
-				stream->num_in, offset);
+	ret = cdns_allocate_pdi(cdns, &stream->in, stream->num_in);
 	if (ret)
 		return ret;
 
-	offset += stream->num_in;
-
-	ret = cdns_allocate_pdi(cdns, &stream->out,
-				stream->num_out, offset);
+	ret = cdns_allocate_pdi(cdns, &stream->out, stream->num_out);
 	if (ret)
 		return ret;
 
@@ -1328,6 +1318,12 @@ static void cdns_init_clock_ctrl(struct sdw_cdns *cdns)
 	u32 val;
 	u32 ssp_interval;
 	int divider;
+
+	dev_dbg(cdns->dev, "mclk %d max %d row %d col %d\n",
+		prop->mclk_freq,
+		prop->max_clk_freq,
+		prop->default_row,
+		prop->default_col);
 
 	/* Set clock divider */
 	divider	= (prop->mclk_freq / prop->max_clk_freq) - 1;
@@ -1802,7 +1798,6 @@ EXPORT_SYMBOL(cdns_set_sdw_stream);
  * cdns_find_pdi() - Find a free PDI
  *
  * @cdns: Cadence instance
- * @offset: Starting offset
  * @num: Number of PDIs
  * @pdi: PDI instances
  * @dai_id: DAI id
@@ -1811,14 +1806,13 @@ EXPORT_SYMBOL(cdns_set_sdw_stream);
  * expected to match, return NULL otherwise.
  */
 static struct sdw_cdns_pdi *cdns_find_pdi(struct sdw_cdns *cdns,
-					  unsigned int offset,
 					  unsigned int num,
 					  struct sdw_cdns_pdi *pdi,
 					  int dai_id)
 {
 	int i;
 
-	for (i = offset; i < offset + num; i++)
+	for (i = 0; i < num; i++)
 		if (pdi[i].num == dai_id)
 			return &pdi[i];
 
@@ -1872,15 +1866,15 @@ struct sdw_cdns_pdi *sdw_cdns_alloc_pdi(struct sdw_cdns *cdns,
 	struct sdw_cdns_pdi *pdi = NULL;
 
 	if (dir == SDW_DATA_DIR_RX)
-		pdi = cdns_find_pdi(cdns, 0, stream->num_in, stream->in,
+		pdi = cdns_find_pdi(cdns, stream->num_in, stream->in,
 				    dai_id);
 	else
-		pdi = cdns_find_pdi(cdns, 0, stream->num_out, stream->out,
+		pdi = cdns_find_pdi(cdns, stream->num_out, stream->out,
 				    dai_id);
 
 	/* check if we found a PDI, else find in bi-directional */
 	if (!pdi)
-		pdi = cdns_find_pdi(cdns, 2, stream->num_bd, stream->bd,
+		pdi = cdns_find_pdi(cdns, stream->num_bd, stream->bd,
 				    dai_id);
 
 	if (pdi) {

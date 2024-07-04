@@ -324,3 +324,123 @@ void show_stack(struct task_struct *tsk, unsigned long *sp, const char *loglvl)
 	dump_backtrace(NULL, tsk, loglvl);
 	barrier();
 }
+
+/*
+ * The struct defined for userspace stack frame in AARCH64 mode.
+ */
+struct frame_tail {
+	struct frame_tail	__user *fp;
+	unsigned long		lr;
+} __attribute__((packed));
+
+/*
+ * Get the return address for a single stackframe and return a pointer to the
+ * next frame tail.
+ */
+static struct frame_tail __user *
+unwind_user_frame(struct frame_tail __user *tail, void *cookie,
+	       stack_trace_consume_fn consume_entry)
+{
+	struct frame_tail buftail;
+	unsigned long err;
+	unsigned long lr;
+
+	/* Also check accessibility of one struct frame_tail beyond */
+	if (!access_ok(tail, sizeof(buftail)))
+		return NULL;
+
+	pagefault_disable();
+	err = __copy_from_user_inatomic(&buftail, tail, sizeof(buftail));
+	pagefault_enable();
+
+	if (err)
+		return NULL;
+
+	lr = ptrauth_strip_user_insn_pac(buftail.lr);
+
+	if (!consume_entry(cookie, lr))
+		return NULL;
+
+	/*
+	 * Frame pointers should strictly progress back up the stack
+	 * (towards higher addresses).
+	 */
+	if (tail >= buftail.fp)
+		return NULL;
+
+	return buftail.fp;
+}
+
+#ifdef CONFIG_COMPAT
+/*
+ * The registers we're interested in are at the end of the variable
+ * length saved register structure. The fp points at the end of this
+ * structure so the address of this struct is:
+ * (struct compat_frame_tail *)(xxx->fp)-1
+ *
+ * This code has been adapted from the ARM OProfile support.
+ */
+struct compat_frame_tail {
+	compat_uptr_t	fp; /* a (struct compat_frame_tail *) in compat mode */
+	u32		sp;
+	u32		lr;
+} __attribute__((packed));
+
+static struct compat_frame_tail __user *
+unwind_compat_user_frame(struct compat_frame_tail __user *tail, void *cookie,
+				stack_trace_consume_fn consume_entry)
+{
+	struct compat_frame_tail buftail;
+	unsigned long err;
+
+	/* Also check accessibility of one struct frame_tail beyond */
+	if (!access_ok(tail, sizeof(buftail)))
+		return NULL;
+
+	pagefault_disable();
+	err = __copy_from_user_inatomic(&buftail, tail, sizeof(buftail));
+	pagefault_enable();
+
+	if (err)
+		return NULL;
+
+	if (!consume_entry(cookie, buftail.lr))
+		return NULL;
+
+	/*
+	 * Frame pointers should strictly progress back up the stack
+	 * (towards higher addresses).
+	 */
+	if (tail + 1 >= (struct compat_frame_tail __user *)
+			compat_ptr(buftail.fp))
+		return NULL;
+
+	return (struct compat_frame_tail __user *)compat_ptr(buftail.fp) - 1;
+}
+#endif /* CONFIG_COMPAT */
+
+
+void arch_stack_walk_user(stack_trace_consume_fn consume_entry, void *cookie,
+					const struct pt_regs *regs)
+{
+	if (!consume_entry(cookie, regs->pc))
+		return;
+
+	if (!compat_user_mode(regs)) {
+		/* AARCH64 mode */
+		struct frame_tail __user *tail;
+
+		tail = (struct frame_tail __user *)regs->regs[29];
+		while (tail && !((unsigned long)tail & 0x7))
+			tail = unwind_user_frame(tail, cookie, consume_entry);
+	} else {
+#ifdef CONFIG_COMPAT
+		/* AARCH32 compat mode */
+		struct compat_frame_tail __user *tail;
+
+		tail = (struct compat_frame_tail __user *)regs->compat_fp - 1;
+		while (tail && !((unsigned long)tail & 0x3))
+			tail = unwind_compat_user_frame(tail, cookie, consume_entry);
+#endif
+	}
+}

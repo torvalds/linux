@@ -1220,14 +1220,3 @@ void amd_check_microcode(void)
 
 	on_each_cpu(zenbleed_check_cpu, NULL, 1);
 }
-
-/*
- * Issue a DIV 0/1 insn to clear any division data from previous DIV
- * operations.
- */
-void noinstr amd_clear_divider(void)
-{
-	asm volatile(ALTERNATIVE("", "div %2\n\t", X86_BUG_DIV0)
-		     :: "a" (0), "d" (0), "r" (1));
-}
-EXPORT_SYMBOL_GPL(amd_clear_divider);

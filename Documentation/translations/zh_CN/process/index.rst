@@ -48,6 +48,7 @@ TODOLIST:
    :maxdepth: 1
 
    embargoed-hardware-issues
+   cve
 
 TODOLIST:
 

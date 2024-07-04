@@ -648,7 +648,7 @@ static u64 __init get_secrets_page(void)
 
 static u64 __init get_snp_jump_table_addr(void)
 {
-	struct snp_secrets_page_layout *layout;
+	struct snp_secrets_page *secrets;
 	void __iomem *mem;
 	u64 pa, addr;
 
@@ -662,9 +662,9 @@ static u64 __init get_snp_jump_table_addr(void)
 		return 0;
 	}
 
-	layout = (__force struct snp_secrets_page_layout *)mem;
+	secrets = (__force struct snp_secrets_page *)mem;
 
-	addr = layout->os_area.ap_jump_table_pa;
+	addr = secrets->os_area.ap_jump_table_pa;
 	iounmap(mem);
 
 	return addr;

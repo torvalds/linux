@@ -26,11 +26,12 @@
  *          Jerome Glisse
  */
 
+#include <linux/debugfs.h>
 #include <linux/firmware.h>
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/slab.h>
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 
 #include <drm/drm_device.h>
 #include <drm/drm_vblank.h>

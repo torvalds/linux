@@ -285,7 +285,7 @@ static int pcf8591_read_channel(struct device *dev, int channel)
 }
 
 static const struct i2c_device_id pcf8591_id[] = {
-	{ "pcf8591", 0 },
+	{ "pcf8591" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, pcf8591_id);

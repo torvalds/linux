@@ -10,6 +10,6 @@ vmwgfx-y := vmwgfx_execbuf.o vmwgfx_gmr.o vmwgfx_kms.o vmwgfx_drv.o \
 	    vmwgfx_simple_resource.o vmwgfx_va.o vmwgfx_blit.o \
 	    vmwgfx_validation.o vmwgfx_page_dirty.o vmwgfx_streamoutput.o \
 	    vmwgfx_devcaps.o ttm_object.o vmwgfx_system_manager.o \
-	    vmwgfx_gem.o
+	    vmwgfx_gem.o vmwgfx_vkms.o
 
 obj-$(CONFIG_DRM_VMWGFX) := vmwgfx.o

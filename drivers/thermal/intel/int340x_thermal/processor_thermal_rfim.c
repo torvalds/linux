@@ -384,3 +384,4 @@ void proc_thermal_rfim_remove(struct pci_dev *pdev)
 EXPORT_SYMBOL_GPL(proc_thermal_rfim_remove);
 
 MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("Processor Thermal RFIM Interface");

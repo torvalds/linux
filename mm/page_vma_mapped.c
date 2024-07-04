@@ -314,17 +314,21 @@ next_pte:
 	return false;
 }
 
+#ifdef CONFIG_MEMORY_FAILURE
 /**
  * page_mapped_in_vma - check whether a page is really mapped in a VMA
  * @page: the page to test
  * @vma: the VMA to test
  *
- * Returns 1 if the page is mapped into the page tables of the VMA, 0
- * if the page is not mapped into the page tables of this VMA.  Only
- * valid for normal file or anonymous VMAs.
+ * Return: The address the page is mapped at if the page is in the range
+ * covered by the VMA and present in the page table.  If the page is
+ * outside the VMA or not present, returns -EFAULT.
+ * Only valid for normal file or anonymous VMAs.
  */
-int page_mapped_in_vma(struct page *page, struct vm_area_struct *vma)
+unsigned long page_mapped_in_vma(struct page *page, struct vm_area_struct *vma)
 {
+	struct folio *folio = page_folio(page);
+	pgoff_t pgoff = folio->index + folio_page_idx(folio, page);
 	struct page_vma_mapped_walk pvmw = {
 		.pfn = page_to_pfn(page),
 		.nr_pages = 1,
@@ -332,11 +336,13 @@ int page_mapped_in_vma(struct page *page, struct vm_area_struct *vma)
 		.flags = PVMW_SYNC,
 	};
 
-	pvmw.address = vma_address(page, vma);
+	pvmw.address = vma_address(vma, pgoff, 1);
 	if (pvmw.address == -EFAULT)
-		return 0;
+		goto out;
 	if (!page_vma_mapped_walk(&pvmw))
-		return 0;
+		return -EFAULT;
 	page_vma_mapped_walk_done(&pvmw);
-	return 1;
+out:
+	return pvmw.address;
 }
+#endif

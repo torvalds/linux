@@ -43,23 +43,39 @@ The routing configuration determines the flows of data inside an entity.
 Drivers report their current routing tables using the
 ``VIDIOC_SUBDEV_G_ROUTING`` ioctl and application may enable or disable routes
 with the ``VIDIOC_SUBDEV_S_ROUTING`` ioctl, by adding or removing routes and
-setting or clearing flags of the  ``flags`` field of a
-struct :c:type:`v4l2_subdev_route`.
+setting or clearing flags of the ``flags`` field of a struct
+:c:type:`v4l2_subdev_route`. Similarly to ``VIDIOC_SUBDEV_G_ROUTING``, also
+``VIDIOC_SUBDEV_S_ROUTING`` returns the routes back to the user.
 
-All stream configurations are reset when ``VIDIOC_SUBDEV_S_ROUTING`` is called. This
-means that the userspace must reconfigure all streams after calling the ioctl
-with e.g. ``VIDIOC_SUBDEV_S_FMT``.
+All stream configurations are reset when ``VIDIOC_SUBDEV_S_ROUTING`` is called.
+This means that the userspace must reconfigure all stream formats and selections
+after calling the ioctl with e.g. ``VIDIOC_SUBDEV_S_FMT``.
 
 Only subdevices which have both sink and source pads can support routing.
 
-When inspecting routes through ``VIDIOC_SUBDEV_G_ROUTING`` and the application
-provided ``num_routes`` is not big enough to contain all the available routes
-the subdevice exposes, drivers return the ENOSPC error code and adjust the
-value of the ``num_routes`` field. Application should then reserve enough memory
-for all the route entries and call ``VIDIOC_SUBDEV_G_ROUTING`` again.
+The ``len_routes`` field indicates the number of routes that can fit in the
+``routes`` array allocated by userspace. It is set by applications for both
+ioctls to indicate how many routes the kernel can return, and is never modified
+by the kernel.
 
-On a successful ``VIDIOC_SUBDEV_G_ROUTING`` call the driver updates the
-``num_routes`` field to reflect the actual number of routes returned.
+The ``num_routes`` field indicates the number of routes in the routing
+table. For ``VIDIOC_SUBDEV_S_ROUTING``, it is set by userspace to the number of
+routes that the application stored in the ``routes`` array. For both ioctls, it
+is returned by the kernel and indicates how many routes are stored in the
+subdevice routing table. This may be smaller or larger than the value of
+``num_routes`` set by the application for ``VIDIOC_SUBDEV_S_ROUTING``, as
+drivers may adjust the requested routing table.
+
+The kernel can return a ``num_routes`` value larger than ``len_routes`` from
+both ioctls. This indicates thare are more routes in the routing table than fits
+the ``routes`` array. In this case, the ``routes`` array is filled by the kernel
+with the first ``len_routes`` entries of the subdevice routing table. This is
+not considered to be an error, and the ioctl call succeeds. If the applications
+wants to retrieve the missing routes, it can issue a new
+``VIDIOC_SUBDEV_G_ROUTING`` call with a large enough ``routes`` array.
+
+``VIDIOC_SUBDEV_S_ROUTING`` may return more routes than the user provided in
+``num_routes`` field due to e.g. hardware properties.
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
@@ -74,6 +90,9 @@ On a successful ``VIDIOC_SUBDEV_G_ROUTING`` call the driver updates the
       - ``which``
       - Routing table to be accessed, from enum
         :ref:`v4l2_subdev_format_whence <v4l2-subdev-format-whence>`.
+    * - __u32
+      - ``len_routes``
+      - The length of the array (as in memory reserved for the array)
     * - struct :c:type:`v4l2_subdev_route`
       - ``routes[]``
       - Array of struct :c:type:`v4l2_subdev_route` entries
@@ -81,7 +100,7 @@ On a successful ``VIDIOC_SUBDEV_G_ROUTING`` call the driver updates the
       - ``num_routes``
       - Number of entries of the routes array
     * - __u32
-      - ``reserved``\ [5]
+      - ``reserved``\ [11]
       - Reserved for future extensions. Applications and drivers must set
 	the array to zero.
 
@@ -134,10 +153,6 @@ Return Value
 On success 0 is returned, on error -1 and the ``errno`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
-
-ENOSPC
-   The application provided ``num_routes`` is not big enough to contain
-   all the available routes the subdevice exposes.
 
 EINVAL
    The sink or source pad identifiers reference a non-existing pad or reference

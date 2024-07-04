@@ -108,6 +108,7 @@ static const struct ftr_set_desc pfr0 __prel64_initconst = {
 	.override	= &id_aa64pfr0_override,
 	.fields		= {
 	        FIELD("sve", ID_AA64PFR0_EL1_SVE_SHIFT, pfr0_sve_filter),
+		FIELD("el0", ID_AA64PFR0_EL1_EL0_SHIFT, NULL),
 		{}
 	},
 };
@@ -209,8 +210,8 @@ static const struct {
 	char	alias[FTR_ALIAS_NAME_LEN];
 	char	feature[FTR_ALIAS_OPTION_LEN];
 } aliases[] __initconst = {
-	{ "kvm_arm.mode=nvhe",		"id_aa64mmfr1.vh=0" },
-	{ "kvm_arm.mode=protected",	"id_aa64mmfr1.vh=0" },
+	{ "kvm_arm.mode=nvhe",		"arm64_sw.hvhe=0 id_aa64mmfr1.vh=0" },
+	{ "kvm_arm.mode=protected",	"arm64_sw.hvhe=1" },
 	{ "arm64.nosve",		"id_aa64pfr0.sve=0" },
 	{ "arm64.nosme",		"id_aa64pfr1.sme=0" },
 	{ "arm64.nobti",		"id_aa64pfr1.bt=0" },
@@ -223,6 +224,7 @@ static const struct {
 	{ "nokaslr",			"arm64_sw.nokaslr=1" },
 	{ "rodata=off",			"arm64_sw.rodataoff=1" },
 	{ "arm64.nolva",		"id_aa64mmfr2.varange=0" },
+	{ "arm64.no32bit_el0",		"id_aa64pfr0.el0=1" },
 };
 
 static int __init parse_hexdigit(const char *p, u64 *v)

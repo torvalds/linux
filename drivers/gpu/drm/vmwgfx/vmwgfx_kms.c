@@ -27,6 +27,7 @@
 #include "vmwgfx_kms.h"
 
 #include "vmwgfx_bo.h"
+#include "vmwgfx_vkms.h"
 #include "vmw_surface_cache.h"
 
 #include <drm/drm_atomic.h>
@@ -37,9 +38,16 @@
 #include <drm/drm_sysfs.h>
 #include <drm/drm_edid.h>
 
+void vmw_du_init(struct vmw_display_unit *du)
+{
+	vmw_vkms_crtc_init(&du->crtc);
+}
+
 void vmw_du_cleanup(struct vmw_display_unit *du)
 {
 	struct vmw_private *dev_priv = vmw_priv(du->primary.dev);
+
+	vmw_vkms_crtc_cleanup(&du->crtc);
 	drm_plane_cleanup(&du->primary);
 	if (vmw_cmd_supported(dev_priv))
 		drm_plane_cleanup(&du->cursor.base);
@@ -775,7 +783,6 @@ vmw_du_cursor_plane_atomic_update(struct drm_plane *plane,
 	hotspot_y = du->hotspot_y + new_state->hotspot_y;
 
 	du->cursor_surface = vps->surf;
-	du->cursor_bo = vps->bo;
 
 	if (!vps->surf && !vps->bo) {
 		vmw_cursor_update_position(dev_priv, false, 0, 0);
@@ -858,15 +865,6 @@ int vmw_du_primary_plane_atomic_check(struct drm_plane *plane,
 						  DRM_PLANE_NO_SCALING,
 						  DRM_PLANE_NO_SCALING,
 						  false, true);
-
-	if (!ret && new_fb) {
-		struct drm_crtc *crtc = new_state->crtc;
-		struct vmw_display_unit *du = vmw_crtc_to_du(crtc);
-
-		vmw_connector_state_to_vcs(du->connector.state);
-	}
-
-
 	return ret;
 }
 
@@ -970,14 +968,8 @@ int vmw_du_crtc_atomic_check(struct drm_crtc *crtc,
 void vmw_du_crtc_atomic_begin(struct drm_crtc *crtc,
 			      struct drm_atomic_state *state)
 {
+	vmw_vkms_crtc_atomic_begin(crtc, state);
 }
-
-
-void vmw_du_crtc_atomic_flush(struct drm_crtc *crtc,
-			      struct drm_atomic_state *state)
-{
-}
-
 
 /**
  * vmw_du_crtc_duplicate_state - duplicate crtc state
@@ -1366,7 +1358,6 @@ static int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
 
 	drm_helper_mode_fill_fb_struct(dev, &vfbs->base.base, mode_cmd);
 	vfbs->surface = vmw_surface_reference(surface);
-	vfbs->base.user_handle = mode_cmd->handles[0];
 	vfbs->is_bo_proxy = is_bo_proxy;
 
 	*out = &vfbs->base;
@@ -1534,7 +1525,6 @@ static int vmw_kms_new_framebuffer_bo(struct vmw_private *dev_priv,
 	drm_helper_mode_fill_fb_struct(dev, &vfbd->base.base, mode_cmd);
 	vfbd->base.bo = true;
 	vfbd->buffer = vmw_bo_reference(bo);
-	vfbd->base.user_handle = mode_cmd->handles[0];
 	*out = &vfbd->base;
 
 	ret = drm_framebuffer_init(dev, &vfbd->base.base,
@@ -2045,6 +2035,29 @@ vmw_kms_create_hotplug_mode_update_property(struct vmw_private *dev_priv)
 					  "hotplug_mode_update", 0, 1);
 }
 
+static void
+vmw_atomic_commit_tail(struct drm_atomic_state *old_state)
+{
+	struct vmw_private *vmw = vmw_priv(old_state->dev);
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *old_crtc_state;
+	int i;
+
+	drm_atomic_helper_commit_tail(old_state);
+
+	if (vmw->vkms_enabled) {
+		for_each_old_crtc_in_state(old_state, crtc, old_crtc_state, i) {
+			struct vmw_display_unit *du = vmw_crtc_to_du(crtc);
+			(void)old_crtc_state;
+			flush_work(&du->vkms.crc_generator_work);
+		}
+	}
+}
+
+static const struct drm_mode_config_helper_funcs vmw_mode_config_helpers = {
+	.atomic_commit_tail = vmw_atomic_commit_tail,
+};
+
 int vmw_kms_init(struct vmw_private *dev_priv)
 {
 	struct drm_device *dev = &dev_priv->drm;
@@ -2064,6 +2077,7 @@ int vmw_kms_init(struct vmw_private *dev_priv)
 	dev->mode_config.max_width = dev_priv->texture_max_width;
 	dev->mode_config.max_height = dev_priv->texture_max_height;
 	dev->mode_config.preferred_depth = dev_priv->assume_16bpp ? 16 : 32;
+	dev->mode_config.helper_private = &vmw_mode_config_helpers;
 
 	drm_mode_create_suggested_offset_properties(dev);
 	vmw_kms_create_hotplug_mode_update_property(dev_priv);

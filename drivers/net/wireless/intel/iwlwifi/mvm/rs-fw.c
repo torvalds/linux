@@ -654,10 +654,7 @@ void iwl_mvm_rs_fw_rate_init(struct iwl_mvm *mvm,
 	 */
 	sta->deflink.agg.max_amsdu_len = max_amsdu_len;
 
-	cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw,
-					WIDE_ID(DATA_PATH_GROUP,
-						TLC_MNG_CONFIG_CMD),
-					0);
+	cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, cmd_id, 0);
 	IWL_DEBUG_RATE(mvm, "TLC CONFIG CMD, sta_id=%d, max_ch_width=%d, mode=%d\n",
 		       cfg_cmd.sta_id, cfg_cmd.max_ch_width, cfg_cmd.mode);
 	IWL_DEBUG_RATE(mvm, "TLC CONFIG CMD, chains=0x%X, ch_wid_supp=%d, flags=0x%X\n",
@@ -693,9 +690,7 @@ void iwl_mvm_rs_fw_rate_init(struct iwl_mvm *mvm,
 		u16 cmd_size = sizeof(cfg_cmd_v3);
 
 		/* In old versions of the API the struct is 4 bytes smaller */
-		if (iwl_fw_lookup_cmd_ver(mvm->fw,
-					  WIDE_ID(DATA_PATH_GROUP,
-						  TLC_MNG_CONFIG_CMD), 0) < 3)
+		if (iwl_fw_lookup_cmd_ver(mvm->fw, cmd_id, 0) < 3)
 			cmd_size -= 4;
 
 		ret = iwl_mvm_send_cmd_pdu(mvm, cmd_id, CMD_ASYNC, cmd_size,

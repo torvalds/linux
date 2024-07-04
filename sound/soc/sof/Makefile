@@ -1,44 +1,44 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
 
-snd-sof-objs := core.o ops.o loader.o ipc.o pcm.o pm.o debug.o topology.o\
+snd-sof-y := core.o ops.o loader.o ipc.o pcm.o pm.o debug.o topology.o\
 		control.o trace.o iomem-utils.o sof-audio.o stream-ipc.o\
 		fw-file-profile.o
 
 # IPC implementations
 ifneq ($(CONFIG_SND_SOC_SOF_IPC3),)
-snd-sof-objs +=	ipc3.o ipc3-loader.o ipc3-topology.o ipc3-control.o ipc3-pcm.o\
+snd-sof-y +=	ipc3.o ipc3-loader.o ipc3-topology.o ipc3-control.o ipc3-pcm.o\
 		ipc3-dtrace.o
 endif
 ifneq ($(CONFIG_SND_SOC_SOF_IPC4),)
-snd-sof-objs += ipc4.o ipc4-loader.o ipc4-topology.o ipc4-control.o ipc4-pcm.o\
+snd-sof-y += ipc4.o ipc4-loader.o ipc4-topology.o ipc4-control.o ipc4-pcm.o\
 		ipc4-mtrace.o ipc4-telemetry.o
 endif
 
 # SOF client support
 ifneq ($(CONFIG_SND_SOC_SOF_CLIENT),)
-snd-sof-objs += sof-client.o
+snd-sof-y += sof-client.o
 endif
 
 snd-sof-$(CONFIG_SND_SOC_SOF_COMPRESS) += compress.o
 
-snd-sof-pci-objs := sof-pci-dev.o
-snd-sof-acpi-objs := sof-acpi-dev.o
-snd-sof-of-objs := sof-of-dev.o
+snd-sof-pci-y := sof-pci-dev.o
+snd-sof-acpi-y := sof-acpi-dev.o
+snd-sof-of-y := sof-of-dev.o
 
-snd-sof-ipc-flood-test-objs := sof-client-ipc-flood-test.o
-snd-sof-ipc-msg-injector-objs := sof-client-ipc-msg-injector.o
-snd-sof-ipc-kernel-injector-objs := sof-client-ipc-kernel-injector.o
-snd-sof-probes-objs := sof-client-probes.o
+snd-sof-ipc-flood-test-y := sof-client-ipc-flood-test.o
+snd-sof-ipc-msg-injector-y := sof-client-ipc-msg-injector.o
+snd-sof-ipc-kernel-injector-y := sof-client-ipc-kernel-injector.o
+snd-sof-probes-y := sof-client-probes.o
 ifneq ($(CONFIG_SND_SOC_SOF_IPC3),)
-snd-sof-probes-objs += sof-client-probes-ipc3.o
+snd-sof-probes-y += sof-client-probes-ipc3.o
 endif
 ifneq ($(CONFIG_SND_SOC_SOF_IPC4),)
-snd-sof-probes-objs += sof-client-probes-ipc4.o
+snd-sof-probes-y += sof-client-probes-ipc4.o
 endif
 
-snd-sof-nocodec-objs := nocodec.o
+snd-sof-nocodec-y := nocodec.o
 
-snd-sof-utils-objs := sof-utils.o
+snd-sof-utils-y := sof-utils.o
 
 obj-$(CONFIG_SND_SOC_SOF) += snd-sof.o
 obj-$(CONFIG_SND_SOC_SOF_NOCODEC) += snd-sof-nocodec.o

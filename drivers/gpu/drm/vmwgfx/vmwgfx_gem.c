@@ -30,6 +30,8 @@
 #include "drm/drm_prime.h"
 #include "drm/drm_gem_ttm_helper.h"
 
+#include <linux/debugfs.h>
+
 static void vmw_gem_object_free(struct drm_gem_object *gobj)
 {
 	struct ttm_buffer_object *bo = drm_gem_ttm_of_gem(gobj);
@@ -48,33 +50,20 @@ static void vmw_gem_object_close(struct drm_gem_object *obj,
 {
 }
 
-static int vmw_gem_pin_private(struct drm_gem_object *obj, bool do_pin)
-{
-	struct ttm_buffer_object *bo = drm_gem_ttm_of_gem(obj);
-	struct vmw_bo *vbo = to_vmw_bo(obj);
-	int ret;
-
-	ret = ttm_bo_reserve(bo, false, false, NULL);
-	if (unlikely(ret != 0))
-		goto err;
-
-	vmw_bo_pin_reserved(vbo, do_pin);
-
-	ttm_bo_unreserve(bo);
-
-err:
-	return ret;
-}
-
-
 static int vmw_gem_object_pin(struct drm_gem_object *obj)
 {
-	return vmw_gem_pin_private(obj, true);
+	struct vmw_bo *vbo = to_vmw_bo(obj);
+
+	vmw_bo_pin_reserved(vbo, true);
+
+	return 0;
 }
 
 static void vmw_gem_object_unpin(struct drm_gem_object *obj)
 {
-	vmw_gem_pin_private(obj, false);
+	struct vmw_bo *vbo = to_vmw_bo(obj);
+
+	vmw_bo_pin_reserved(vbo, false);
 }
 
 static struct sg_table *vmw_gem_object_get_sg_table(struct drm_gem_object *obj)

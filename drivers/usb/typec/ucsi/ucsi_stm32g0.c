@@ -64,6 +64,7 @@ struct ucsi_stm32g0 {
 	struct completion complete;
 	struct device *dev;
 	unsigned long flags;
+#define COMMAND_PENDING	1
 	const char *fw_name;
 	struct ucsi *ucsi;
 	bool suspended;

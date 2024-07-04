@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <setjmp.h>
 #include <signal.h>
+#include <sys/prctl.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 
@@ -41,6 +42,45 @@ bool dexcr_exists(void)
 out:
 	pop_signal_handler(SIGILL, old);
 	return exists;
+}
+
+unsigned int pr_which_to_aspect(unsigned long which)
+{
+	switch (which) {
+	case PR_PPC_DEXCR_SBHE:
+		return DEXCR_PR_SBHE;
+	case PR_PPC_DEXCR_IBRTPD:
+		return DEXCR_PR_IBRTPD;
+	case PR_PPC_DEXCR_SRAPD:
+		return DEXCR_PR_SRAPD;
+	case PR_PPC_DEXCR_NPHIE:
+		return DEXCR_PR_NPHIE;
+	default:
+		FAIL_IF_EXIT_MSG(true, "unknown PR aspect");
+	}
+}
+
+int pr_get_dexcr(unsigned long which)
+{
+	return prctl(PR_PPC_GET_DEXCR, which, 0UL, 0UL, 0UL);
+}
+
+int pr_set_dexcr(unsigned long which, unsigned long ctrl)
+{
+	return prctl(PR_PPC_SET_DEXCR, which, ctrl, 0UL, 0UL);
+}
+
+bool pr_dexcr_aspect_supported(unsigned long which)
+{
+	if (pr_get_dexcr(which) == -1)
+		return errno == ENODEV;
+
+	return true;
+}
+
+bool pr_dexcr_aspect_editable(unsigned long which)
+{
+	return pr_get_dexcr(which) & PR_PPC_DEXCR_CTRL_EDITABLE;
 }
 
 /*

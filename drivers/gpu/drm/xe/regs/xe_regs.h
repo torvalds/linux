@@ -57,7 +57,7 @@
 #define   DG1_MSTR_IRQ				REG_BIT(31)
 #define   DG1_MSTR_TILE(t)			REG_BIT(t)
 
-#define GFX_MSTR_IRQ				XE_REG(0x190010)
+#define GFX_MSTR_IRQ				XE_REG(0x190010, XE_REG_OPTION_VF)
 #define   MASTER_IRQ				REG_BIT(31)
 #define   GU_MISC_IRQ				REG_BIT(29)
 #define   DISPLAY_IRQ				REG_BIT(16)

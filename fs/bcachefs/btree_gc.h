@@ -6,10 +6,7 @@
 #include "btree_types.h"
 
 int bch2_check_topology(struct bch_fs *);
-int bch2_gc(struct bch_fs *, bool, bool);
-int bch2_gc_gens(struct bch_fs *);
-void bch2_gc_thread_stop(struct bch_fs *);
-int bch2_gc_thread_start(struct bch_fs *);
+int bch2_check_allocations(struct bch_fs *);
 
 /*
  * For concurrent mark and sweep (with other index updates), we define a total
@@ -37,16 +34,16 @@ static inline struct gc_pos gc_phase(enum gc_phase phase)
 {
 	return (struct gc_pos) {
 		.phase	= phase,
-		.pos	= POS_MIN,
 		.level	= 0,
+		.pos	= POS_MIN,
 	};
 }
 
 static inline int gc_pos_cmp(struct gc_pos l, struct gc_pos r)
 {
-	return  cmp_int(l.phase, r.phase) ?:
-		bpos_cmp(l.pos, r.pos) ?:
-		cmp_int(l.level, r.level);
+	return   cmp_int(l.phase, r.phase) ?:
+		-cmp_int(l.level, r.level) ?:
+		 bpos_cmp(l.pos, r.pos);
 }
 
 static inline enum gc_phase btree_id_to_gc_phase(enum btree_id id)
@@ -60,13 +57,13 @@ static inline enum gc_phase btree_id_to_gc_phase(enum btree_id id)
 	}
 }
 
-static inline struct gc_pos gc_pos_btree(enum btree_id id,
-					 struct bpos pos, unsigned level)
+static inline struct gc_pos gc_pos_btree(enum btree_id btree, unsigned level,
+					 struct bpos pos)
 {
 	return (struct gc_pos) {
-		.phase	= btree_id_to_gc_phase(id),
-		.pos	= pos,
+		.phase	= btree_id_to_gc_phase(btree),
 		.level	= level,
+		.pos	= pos,
 	};
 }
 
@@ -76,19 +73,7 @@ static inline struct gc_pos gc_pos_btree(enum btree_id id,
  */
 static inline struct gc_pos gc_pos_btree_node(struct btree *b)
 {
-	return gc_pos_btree(b->c.btree_id, b->key.k.p, b->c.level);
-}
-
-/*
- * GC position of the pointer to a btree root: we don't use
- * gc_pos_pointer_to_btree_node() here to avoid a potential race with
- * btree_split() increasing the tree depth - the new root will have level > the
- * old root and thus have a greater gc position than the old root, but that
- * would be incorrect since once gc has marked the root it's not coming back.
- */
-static inline struct gc_pos gc_pos_btree_root(enum btree_id id)
-{
-	return gc_pos_btree(id, SPOS_MAX, BTREE_MAX_DEPTH);
+	return gc_pos_btree(b->c.btree_id, b->c.level, b->key.k.p);
 }
 
 static inline bool gc_visited(struct bch_fs *c, struct gc_pos pos)
@@ -104,11 +89,8 @@ static inline bool gc_visited(struct bch_fs *c, struct gc_pos pos)
 	return ret;
 }
 
-static inline void bch2_do_gc_gens(struct bch_fs *c)
-{
-	atomic_inc(&c->kick_gc);
-	if (c->gc_thread)
-		wake_up_process(c->gc_thread);
-}
+int bch2_gc_gens(struct bch_fs *);
+void bch2_gc_gens_async(struct bch_fs *);
+void bch2_fs_gc_init(struct bch_fs *);
 
 #endif /* _BCACHEFS_BTREE_GC_H */

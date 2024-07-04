@@ -22,6 +22,7 @@
  *
  */
 
+#include <linux/debugfs.h>
 #include <linux/firmware.h>
 
 #include "i915_drv.h"
@@ -37,6 +38,8 @@
  * engine to save and restore the state of display engine when it enter into
  * low-power state and comes back to normal.
  */
+
+#define INTEL_DMC_FIRMWARE_URL "https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git"
 
 enum intel_dmc_id {
 	DMC_FW_MAIN = 0,
@@ -71,6 +74,21 @@ static struct intel_dmc *i915_to_dmc(struct drm_i915_private *i915)
 	return i915->display.dmc.dmc;
 }
 
+static const char *dmc_firmware_param(struct drm_i915_private *i915)
+{
+	const char *p = i915->display.params.dmc_firmware_path;
+
+	return p && *p ? p : NULL;
+}
+
+static bool dmc_firmware_param_disabled(struct drm_i915_private *i915)
+{
+	const char *p = dmc_firmware_param(i915);
+
+	/* Magic path to indicate disabled */
+	return p && !strcmp(p, "/dev/null");
+}
+
 #define DMC_VERSION(major, minor)	((major) << 16 | (minor))
 #define DMC_VERSION_MAJOR(version)	((version) >> 16)
 #define DMC_VERSION_MINOR(version)	((version) & 0xffff)
@@ -89,9 +107,13 @@ static struct intel_dmc *i915_to_dmc(struct drm_i915_private *i915)
 	__stringify(major) "_"			\
 	__stringify(minor) ".bin"
 
+#define XE2LPD_DMC_MAX_FW_SIZE		0x8000
 #define XELPDP_DMC_MAX_FW_SIZE		0x7000
 #define DISPLAY_VER13_DMC_MAX_FW_SIZE	0x20000
 #define DISPLAY_VER12_DMC_MAX_FW_SIZE	ICL_DMC_MAX_FW_SIZE
+
+#define XE2LPD_DMC_PATH			DMC_PATH(xe2lpd)
+MODULE_FIRMWARE(XE2LPD_DMC_PATH);
 
 #define MTL_DMC_PATH			DMC_PATH(mtl)
 MODULE_FIRMWARE(MTL_DMC_PATH);
@@ -135,6 +157,59 @@ MODULE_FIRMWARE(SKL_DMC_PATH);
 #define BXT_DMC_PATH			DMC_LEGACY_PATH(bxt, 1, 07)
 #define BXT_DMC_MAX_FW_SIZE		0x3000
 MODULE_FIRMWARE(BXT_DMC_PATH);
+
+static const char *dmc_firmware_default(struct drm_i915_private *i915, u32 *size)
+{
+	const char *fw_path = NULL;
+	u32 max_fw_size = 0;
+
+	if (DISPLAY_VER_FULL(i915) == IP_VER(20, 0)) {
+		fw_path = XE2LPD_DMC_PATH;
+		max_fw_size = XE2LPD_DMC_MAX_FW_SIZE;
+	} else if (DISPLAY_VER_FULL(i915) == IP_VER(14, 0)) {
+		fw_path = MTL_DMC_PATH;
+		max_fw_size = XELPDP_DMC_MAX_FW_SIZE;
+	} else if (IS_DG2(i915)) {
+		fw_path = DG2_DMC_PATH;
+		max_fw_size = DISPLAY_VER13_DMC_MAX_FW_SIZE;
+	} else if (IS_ALDERLAKE_P(i915)) {
+		fw_path = ADLP_DMC_PATH;
+		max_fw_size = DISPLAY_VER13_DMC_MAX_FW_SIZE;
+	} else if (IS_ALDERLAKE_S(i915)) {
+		fw_path = ADLS_DMC_PATH;
+		max_fw_size = DISPLAY_VER12_DMC_MAX_FW_SIZE;
+	} else if (IS_DG1(i915)) {
+		fw_path = DG1_DMC_PATH;
+		max_fw_size = DISPLAY_VER12_DMC_MAX_FW_SIZE;
+	} else if (IS_ROCKETLAKE(i915)) {
+		fw_path = RKL_DMC_PATH;
+		max_fw_size = DISPLAY_VER12_DMC_MAX_FW_SIZE;
+	} else if (IS_TIGERLAKE(i915)) {
+		fw_path = TGL_DMC_PATH;
+		max_fw_size = DISPLAY_VER12_DMC_MAX_FW_SIZE;
+	} else if (DISPLAY_VER(i915) == 11) {
+		fw_path = ICL_DMC_PATH;
+		max_fw_size = ICL_DMC_MAX_FW_SIZE;
+	} else if (IS_GEMINILAKE(i915)) {
+		fw_path = GLK_DMC_PATH;
+		max_fw_size = GLK_DMC_MAX_FW_SIZE;
+	} else if (IS_KABYLAKE(i915) ||
+		   IS_COFFEELAKE(i915) ||
+		   IS_COMETLAKE(i915)) {
+		fw_path = KBL_DMC_PATH;
+		max_fw_size = KBL_DMC_MAX_FW_SIZE;
+	} else if (IS_SKYLAKE(i915)) {
+		fw_path = SKL_DMC_PATH;
+		max_fw_size = SKL_DMC_MAX_FW_SIZE;
+	} else if (IS_BROXTON(i915)) {
+		fw_path = BXT_DMC_PATH;
+		max_fw_size = BXT_DMC_MAX_FW_SIZE;
+	}
+
+	*size = max_fw_size;
+
+	return fw_path;
+}
 
 #define DMC_DEFAULT_FW_OFFSET		0xFFFFFFFF
 #define PACKAGE_MAX_FW_INFO_ENTRIES	20
@@ -546,6 +621,8 @@ void intel_dmc_disable_program(struct drm_i915_private *i915)
 	pipedmc_clock_gating_wa(i915, true);
 	disable_all_event_handlers(i915);
 	pipedmc_clock_gating_wa(i915, false);
+
+	intel_dmc_wl_disable(&i915->display);
 }
 
 void assert_dmc_loaded(struct drm_i915_private *i915)
@@ -845,7 +922,7 @@ static u32 parse_dmc_fw_css(struct intel_dmc *dmc,
 	return sizeof(struct intel_css_header);
 }
 
-static void parse_dmc_fw(struct intel_dmc *dmc, const struct firmware *fw)
+static int parse_dmc_fw(struct intel_dmc *dmc, const struct firmware *fw)
 {
 	struct drm_i915_private *i915 = dmc->i915;
 	struct intel_css_header *css_header;
@@ -858,13 +935,13 @@ static void parse_dmc_fw(struct intel_dmc *dmc, const struct firmware *fw)
 	u32 r, offset;
 
 	if (!fw)
-		return;
+		return -EINVAL;
 
 	/* Extract CSS Header information */
 	css_header = (struct intel_css_header *)fw->data;
 	r = parse_dmc_fw_css(dmc, css_header, fw->size);
 	if (!r)
-		return;
+		return -EINVAL;
 
 	readcount += r;
 
@@ -872,7 +949,7 @@ static void parse_dmc_fw(struct intel_dmc *dmc, const struct firmware *fw)
 	package_header = (struct intel_package_header *)&fw->data[readcount];
 	r = parse_dmc_fw_package(dmc, package_header, si, fw->size - readcount);
 	if (!r)
-		return;
+		return -EINVAL;
 
 	readcount += r;
 
@@ -889,6 +966,13 @@ static void parse_dmc_fw(struct intel_dmc *dmc, const struct firmware *fw)
 		dmc_header = (struct intel_dmc_header_base *)&fw->data[offset];
 		parse_dmc_fw_header(dmc, dmc_header, fw->size - offset, dmc_id);
 	}
+
+	if (!intel_dmc_has_payload(i915)) {
+		drm_err(&i915->drm, "DMC firmware main program not found\n");
+		return -ENOENT;
+	}
+
+	return 0;
 }
 
 static void intel_dmc_runtime_pm_get(struct drm_i915_private *i915)
@@ -923,7 +1007,7 @@ static void dmc_load_work_fn(struct work_struct *work)
 
 	err = request_firmware(&fw, dmc->fw_path, i915->drm.dev);
 
-	if (err == -ENOENT && !i915->params.dmc_firmware_path) {
+	if (err == -ENOENT && !dmc_firmware_param(i915)) {
 		fallback_path = dmc_fallback_path(i915);
 		if (fallback_path) {
 			drm_dbg_kms(&i915->drm, "%s not found, falling back to %s\n",
@@ -934,24 +1018,31 @@ static void dmc_load_work_fn(struct work_struct *work)
 		}
 	}
 
-	parse_dmc_fw(dmc, fw);
-
-	if (intel_dmc_has_payload(i915)) {
-		intel_dmc_load_program(i915);
-		intel_dmc_runtime_pm_put(i915);
-
-		drm_info(&i915->drm, "Finished loading DMC firmware %s (v%u.%u)\n",
-			 dmc->fw_path, DMC_VERSION_MAJOR(dmc->version),
-			 DMC_VERSION_MINOR(dmc->version));
-	} else {
+	if (err) {
 		drm_notice(&i915->drm,
-			   "Failed to load DMC firmware %s."
-			   " Disabling runtime power management.\n",
-			   dmc->fw_path);
+			   "Failed to load DMC firmware %s (%pe). Disabling runtime power management.\n",
+			   dmc->fw_path, ERR_PTR(err));
 		drm_notice(&i915->drm, "DMC firmware homepage: %s",
-			   INTEL_UC_FIRMWARE_URL);
+			   INTEL_DMC_FIRMWARE_URL);
+		return;
 	}
 
+	err = parse_dmc_fw(dmc, fw);
+	if (err) {
+		drm_notice(&i915->drm,
+			   "Failed to parse DMC firmware %s (%pe). Disabling runtime power management.\n",
+			   dmc->fw_path, ERR_PTR(err));
+		goto out;
+	}
+
+	intel_dmc_load_program(i915);
+	intel_dmc_runtime_pm_put(i915);
+
+	drm_info(&i915->drm, "Finished loading DMC firmware %s (v%u.%u)\n",
+		 dmc->fw_path, DMC_VERSION_MAJOR(dmc->version),
+		 DMC_VERSION_MINOR(dmc->version));
+
+out:
 	release_firmware(fw);
 }
 
@@ -987,55 +1078,15 @@ void intel_dmc_init(struct drm_i915_private *i915)
 
 	INIT_WORK(&dmc->work, dmc_load_work_fn);
 
-	if (DISPLAY_VER_FULL(i915) == IP_VER(14, 0)) {
-		dmc->fw_path = MTL_DMC_PATH;
-		dmc->max_fw_size = XELPDP_DMC_MAX_FW_SIZE;
-	} else if (IS_DG2(i915)) {
-		dmc->fw_path = DG2_DMC_PATH;
-		dmc->max_fw_size = DISPLAY_VER13_DMC_MAX_FW_SIZE;
-	} else if (IS_ALDERLAKE_P(i915)) {
-		dmc->fw_path = ADLP_DMC_PATH;
-		dmc->max_fw_size = DISPLAY_VER13_DMC_MAX_FW_SIZE;
-	} else if (IS_ALDERLAKE_S(i915)) {
-		dmc->fw_path = ADLS_DMC_PATH;
-		dmc->max_fw_size = DISPLAY_VER12_DMC_MAX_FW_SIZE;
-	} else if (IS_DG1(i915)) {
-		dmc->fw_path = DG1_DMC_PATH;
-		dmc->max_fw_size = DISPLAY_VER12_DMC_MAX_FW_SIZE;
-	} else if (IS_ROCKETLAKE(i915)) {
-		dmc->fw_path = RKL_DMC_PATH;
-		dmc->max_fw_size = DISPLAY_VER12_DMC_MAX_FW_SIZE;
-	} else if (IS_TIGERLAKE(i915)) {
-		dmc->fw_path = TGL_DMC_PATH;
-		dmc->max_fw_size = DISPLAY_VER12_DMC_MAX_FW_SIZE;
-	} else if (DISPLAY_VER(i915) == 11) {
-		dmc->fw_path = ICL_DMC_PATH;
-		dmc->max_fw_size = ICL_DMC_MAX_FW_SIZE;
-	} else if (IS_GEMINILAKE(i915)) {
-		dmc->fw_path = GLK_DMC_PATH;
-		dmc->max_fw_size = GLK_DMC_MAX_FW_SIZE;
-	} else if (IS_KABYLAKE(i915) ||
-		   IS_COFFEELAKE(i915) ||
-		   IS_COMETLAKE(i915)) {
-		dmc->fw_path = KBL_DMC_PATH;
-		dmc->max_fw_size = KBL_DMC_MAX_FW_SIZE;
-	} else if (IS_SKYLAKE(i915)) {
-		dmc->fw_path = SKL_DMC_PATH;
-		dmc->max_fw_size = SKL_DMC_MAX_FW_SIZE;
-	} else if (IS_BROXTON(i915)) {
-		dmc->fw_path = BXT_DMC_PATH;
-		dmc->max_fw_size = BXT_DMC_MAX_FW_SIZE;
+	dmc->fw_path = dmc_firmware_default(i915, &dmc->max_fw_size);
+
+	if (dmc_firmware_param_disabled(i915)) {
+		drm_info(&i915->drm, "Disabling DMC firmware and runtime PM\n");
+		goto out;
 	}
 
-	if (i915->params.dmc_firmware_path) {
-		if (strlen(i915->params.dmc_firmware_path) == 0) {
-			drm_info(&i915->drm,
-				 "Disabling DMC firmware and runtime PM\n");
-			goto out;
-		}
-
-		dmc->fw_path = i915->params.dmc_firmware_path;
-	}
+	if (dmc_firmware_param(i915))
+		dmc->fw_path = dmc_firmware_param(i915);
 
 	if (!dmc->fw_path) {
 		drm_dbg_kms(&i915->drm,
@@ -1071,6 +1122,8 @@ void intel_dmc_suspend(struct drm_i915_private *i915)
 
 	if (dmc)
 		flush_work(&dmc->work);
+
+	intel_dmc_wl_disable(&i915->display);
 
 	/* Drop the reference held in case DMC isn't loaded. */
 	if (!intel_dmc_has_payload(i915))

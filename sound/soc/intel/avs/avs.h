@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright(c) 2021-2022 Intel Corporation. All rights reserved.
+ * Copyright(c) 2021-2022 Intel Corporation
  *
  * Authors: Cezary Rojewski <cezary.rojewski@intel.com>
  *          Amadeusz Slawinski <amadeuszx.slawinski@linux.intel.com>
@@ -46,8 +46,7 @@ struct avs_dsp_ops {
 	int (* const power)(struct avs_dev *, u32, bool);
 	int (* const reset)(struct avs_dev *, u32, bool);
 	int (* const stall)(struct avs_dev *, u32, bool);
-	irqreturn_t (* const irq_handler)(struct avs_dev *);
-	irqreturn_t (* const irq_thread)(struct avs_dev *);
+	irqreturn_t (* const dsp_interrupt)(struct avs_dev *);
 	void (* const int_control)(struct avs_dev *, bool);
 	int (* const load_basefw)(struct avs_dev *, struct firmware *);
 	int (* const load_lib)(struct avs_dev *, struct firmware *, u32);
@@ -107,7 +106,7 @@ struct avs_spec {
 };
 
 struct avs_fw_entry {
-	char *name;
+	const char *name;
 	const struct firmware *fw;
 
 	struct list_head node;
@@ -151,7 +150,6 @@ struct avs_dev {
 	struct completion fw_ready;
 	struct work_struct probe_work;
 
-	struct nhlt_acpi_table *nhlt;
 	struct list_head comp_list;
 	struct mutex comp_list_mutex;
 	struct list_head path_list;
@@ -245,7 +243,6 @@ struct avs_ipc {
 #define AVS_IPC_RET(ret) \
 	(((ret) <= 0) ? (ret) : -AVS_EIPC)
 
-irqreturn_t avs_irq_handler(struct avs_dev *adev);
 void avs_dsp_process_response(struct avs_dev *adev, u64 header);
 int avs_dsp_send_msg_timeout(struct avs_dev *adev, struct avs_ipc_msg *request,
 			     struct avs_ipc_msg *reply, int timeout, const char *name);
@@ -267,8 +264,8 @@ void avs_ipc_block(struct avs_ipc *ipc);
 int avs_dsp_disable_d0ix(struct avs_dev *adev);
 int avs_dsp_enable_d0ix(struct avs_dev *adev);
 
-irqreturn_t avs_skl_irq_thread(struct avs_dev *adev);
-irqreturn_t avs_cnl_irq_thread(struct avs_dev *adev);
+void avs_skl_ipc_interrupt(struct avs_dev *adev);
+irqreturn_t avs_cnl_dsp_interrupt(struct avs_dev *adev);
 int avs_apl_enable_logs(struct avs_dev *adev, enum avs_log_enable enable, u32 aging_period,
 			u32 fifo_full_period, unsigned long resource_mask, u32 *priorities);
 int avs_icl_enable_logs(struct avs_dev *adev, enum avs_log_enable enable, u32 aging_period,
@@ -381,6 +378,7 @@ struct avs_apl_log_buffer_layout {
 	u32 write_ptr;
 	u8 buffer[];
 } __packed;
+static_assert(sizeof(struct avs_apl_log_buffer_layout) == 8);
 
 #define avs_apl_log_payload_size(adev) \
 	(avs_log_buffer_size(adev) - sizeof(struct avs_apl_log_buffer_layout))

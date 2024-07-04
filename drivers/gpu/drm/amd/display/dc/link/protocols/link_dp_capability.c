@@ -992,7 +992,7 @@ enum dp_link_encoding mst_decide_link_encoding_format(const struct dc_link *link
 
 static void read_dp_device_vendor_id(struct dc_link *link)
 {
-	struct dp_device_vendor_id dp_id;
+	struct dp_device_vendor_id dp_id = {0};
 
 	/* read IEEE branch device id */
 	core_link_read_dpcd(
@@ -1087,7 +1087,7 @@ static void get_active_converter_info(
 	}
 
 	if (link->dpcd_caps.dpcd_rev.raw >= DPCD_REV_11) {
-		uint8_t det_caps[16]; /* CTS 4.2.2.7 expects source to read Detailed Capabilities Info : 00080h-0008F.*/
+		uint8_t det_caps[16] = {0}; /* CTS 4.2.2.7 expects source to read Detailed Capabilities Info : 00080h-0008F.*/
 		union dwnstream_port_caps_byte0 *port_caps =
 			(union dwnstream_port_caps_byte0 *)det_caps;
 		if (core_link_read_dpcd(link, DP_DOWNSTREAM_PORT_0,
@@ -1172,7 +1172,7 @@ static void get_active_converter_info(
 	set_dongle_type(link->ddc, link->dpcd_caps.dongle_type);
 
 	{
-		struct dp_sink_hw_fw_revision dp_hw_fw_revision;
+		struct dp_sink_hw_fw_revision dp_hw_fw_revision = {0};
 
 		core_link_read_dpcd(
 			link,
@@ -1242,7 +1242,7 @@ static void apply_usbc_combo_phy_reset_wa(struct dc_link *link,
 
 bool dp_overwrite_extended_receiver_cap(struct dc_link *link)
 {
-	uint8_t dpcd_data[16];
+	uint8_t dpcd_data[16] = {0};
 	uint32_t read_dpcd_retry_cnt = 3;
 	enum dc_status status = DC_ERROR_UNEXPECTED;
 	union dp_downstream_port_present ds_port = { 0 };
@@ -1408,7 +1408,7 @@ static bool get_usbc_cable_id(struct dc_link *link, union dp_cable_id *cable_id)
 
 static void retrieve_cable_id(struct dc_link *link)
 {
-	union dp_cable_id usbc_cable_id;
+	union dp_cable_id usbc_cable_id = {0};
 
 	link->dpcd_caps.cable_id.raw = 0;
 	core_link_read_dpcd(link, DP_CABLE_ATTRIBUTES_UPDATED_BY_DPRX,
@@ -1475,7 +1475,7 @@ static bool dpcd_read_sink_ext_caps(struct dc_link *link)
 
 enum dc_status dp_retrieve_lttpr_cap(struct dc_link *link)
 {
-	uint8_t lttpr_dpcd_data[8];
+	uint8_t lttpr_dpcd_data[8] = {0};
 	enum dc_status status;
 	bool is_lttpr_present;
 
@@ -1931,8 +1931,8 @@ void detect_edp_sink_caps(struct dc_link *link)
 	uint32_t entry;
 	uint32_t link_rate_in_khz;
 	enum dc_link_rate link_rate = LINK_RATE_UNKNOWN;
-	uint8_t backlight_adj_cap;
-	uint8_t general_edp_cap;
+	uint8_t backlight_adj_cap = 0;
+	uint8_t general_edp_cap = 0;
 
 	retrieve_link_cap(link);
 	link->dpcd_caps.edp_supported_link_rates_count = 0;

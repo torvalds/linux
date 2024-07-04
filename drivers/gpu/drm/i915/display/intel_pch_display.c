@@ -474,7 +474,7 @@ static void ilk_pch_clock_get(struct intel_crtc_state *crtc_state)
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 
 	/* read out port_clock from the DPLL */
-	i9xx_crtc_clock_get(crtc, crtc_state);
+	i9xx_crtc_clock_get(crtc_state);
 
 	/*
 	 * In case there is an active pipe without active ports,
@@ -529,7 +529,7 @@ void ilk_pch_get_config(struct intel_crtc_state *crtc_state)
 					     &crtc_state->dpll_hw_state);
 	drm_WARN_ON(&dev_priv->drm, !pll_active);
 
-	tmp = crtc_state->dpll_hw_state.dpll;
+	tmp = crtc_state->dpll_hw_state.i9xx.dpll;
 	crtc_state->pixel_multiplier =
 		((tmp & PLL_REF_SDVO_HDMI_MULTIPLIER_MASK)
 		 >> PLL_REF_SDVO_HDMI_MULTIPLIER_SHIFT) + 1;

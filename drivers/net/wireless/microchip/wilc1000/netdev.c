@@ -127,30 +127,28 @@ void wilc_wlan_set_bssid(struct net_device *wilc_netdev, const u8 *bssid,
 
 int wilc_wlan_get_num_conn_ifcs(struct wilc *wilc)
 {
-	int srcu_idx;
 	u8 ret_val = 0;
 	struct wilc_vif *vif;
 
-	srcu_idx = srcu_read_lock(&wilc->srcu);
+	rcu_read_lock();
 	wilc_for_each_vif(wilc, vif) {
 		if (!is_zero_ether_addr(vif->bssid))
 			ret_val++;
 	}
-	srcu_read_unlock(&wilc->srcu, srcu_idx);
+	rcu_read_unlock();
 	return ret_val;
 }
 
 static void wilc_wake_tx_queues(struct wilc *wl)
 {
-	int srcu_idx;
 	struct wilc_vif *ifc;
 
-	srcu_idx = srcu_read_lock(&wl->srcu);
+	rcu_read_lock();
 	wilc_for_each_vif(wl, ifc) {
 		if (ifc->mac_opened && netif_queue_stopped(ifc->ndev))
 			netif_wake_queue(ifc->ndev);
 	}
-	srcu_read_unlock(&wl->srcu, srcu_idx);
+	rcu_read_unlock();
 }
 
 static int wilc_txq_task(void *vp)
@@ -655,7 +653,6 @@ static int wilc_set_mac_addr(struct net_device *dev, void *p)
 	struct sockaddr *addr = (struct sockaddr *)p;
 	unsigned char mac_addr[ETH_ALEN];
 	struct wilc_vif *tmp_vif;
-	int srcu_idx;
 
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
@@ -667,19 +664,19 @@ static int wilc_set_mac_addr(struct net_device *dev, void *p)
 
 	/* Verify MAC Address is not already in use: */
 
-	srcu_idx = srcu_read_lock(&wilc->srcu);
+	rcu_read_lock();
 	wilc_for_each_vif(wilc, tmp_vif) {
 		wilc_get_mac_address(tmp_vif, mac_addr);
 		if (ether_addr_equal(addr->sa_data, mac_addr)) {
 			if (vif != tmp_vif) {
-				srcu_read_unlock(&wilc->srcu, srcu_idx);
+				rcu_read_unlock();
 				return -EADDRNOTAVAIL;
 			}
-			srcu_read_unlock(&wilc->srcu, srcu_idx);
+			rcu_read_unlock();
 			return 0;
 		}
 	}
-	srcu_read_unlock(&wilc->srcu, srcu_idx);
+	rcu_read_unlock();
 
 	result = wilc_set_mac_address(vif, (u8 *)addr->sa_data);
 	if (result)
@@ -767,15 +764,14 @@ netdev_tx_t wilc_mac_xmit(struct sk_buff *skb, struct net_device *ndev)
 						wilc_tx_complete);
 
 	if (queue_count > FLOW_CONTROL_UPPER_THRESHOLD) {
-		int srcu_idx;
 		struct wilc_vif *vif;
 
-		srcu_idx = srcu_read_lock(&wilc->srcu);
+		rcu_read_lock();
 		wilc_for_each_vif(wilc, vif) {
 			if (vif->mac_opened)
 				netif_stop_queue(vif->ndev);
 		}
-		srcu_read_unlock(&wilc->srcu, srcu_idx);
+		rcu_read_unlock();
 	}
 
 	return NETDEV_TX_OK;
@@ -819,13 +815,12 @@ void wilc_frmw_to_host(struct wilc *wilc, u8 *buff, u32 size,
 	unsigned int frame_len = 0;
 	struct wilc_vif *vif;
 	struct sk_buff *skb;
-	int srcu_idx;
 	int stats;
 
 	if (!wilc)
 		return;
 
-	srcu_idx = srcu_read_lock(&wilc->srcu);
+	rcu_read_lock();
 	wilc_netdev = get_if_handler(wilc, buff);
 	if (!wilc_netdev)
 		goto out;
@@ -853,15 +848,14 @@ void wilc_frmw_to_host(struct wilc *wilc, u8 *buff, u32 size,
 		netdev_dbg(wilc_netdev, "netif_rx ret value is: %d\n", stats);
 	}
 out:
-	srcu_read_unlock(&wilc->srcu, srcu_idx);
+	rcu_read_unlock();
 }
 
 void wilc_wfi_mgmt_rx(struct wilc *wilc, u8 *buff, u32 size, bool is_auth)
 {
-	int srcu_idx;
 	struct wilc_vif *vif;
 
-	srcu_idx = srcu_read_lock(&wilc->srcu);
+	rcu_read_lock();
 	wilc_for_each_vif(wilc, vif) {
 		struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)buff;
 		u16 type = le16_to_cpup((__le16 *)buff);
@@ -882,7 +876,7 @@ void wilc_wfi_mgmt_rx(struct wilc *wilc, u8 *buff, u32 size, bool is_auth)
 		if (vif->monitor_flag)
 			wilc_wfi_monitor_rx(wilc->monitor_dev, buff, size);
 	}
-	srcu_read_unlock(&wilc->srcu, srcu_idx);
+	rcu_read_unlock();
 }
 
 static const struct net_device_ops wilc_netdev_ops = {
@@ -912,7 +906,7 @@ void wilc_netdev_cleanup(struct wilc *wilc)
 		list_del_rcu(&vif->list);
 		wilc->vif_num--;
 		mutex_unlock(&wilc->vif_mutex);
-		synchronize_srcu(&wilc->srcu);
+		synchronize_rcu();
 		if (vif->ndev)
 			unregister_netdev(vif->ndev);
 	}
@@ -931,16 +925,15 @@ static u8 wilc_get_available_idx(struct wilc *wl)
 {
 	int idx = 0;
 	struct wilc_vif *vif;
-	int srcu_idx;
 
-	srcu_idx = srcu_read_lock(&wl->srcu);
+	rcu_read_lock();
 	wilc_for_each_vif(wl, vif) {
 		if (vif->idx == 0)
 			idx = 1;
 		else
 			idx = 0;
 	}
-	srcu_read_unlock(&wl->srcu, srcu_idx);
+	rcu_read_unlock();
 	return idx;
 }
 
@@ -990,7 +983,7 @@ struct wilc_vif *wilc_netdev_ifc_init(struct wilc *wl, const char *name,
 	list_add_tail_rcu(&vif->list, &wl->vif_list);
 	wl->vif_num += 1;
 	mutex_unlock(&wl->vif_mutex);
-	synchronize_srcu(&wl->srcu);
+	synchronize_rcu();
 
 	return vif;
 

@@ -14,7 +14,7 @@
 #include "xe_guc.h"
 #include "xe_map.h"
 
-static int send_get_hwconfig(struct xe_guc *guc, u32 ggtt_addr, u32 size)
+static int send_get_hwconfig(struct xe_guc *guc, u64 ggtt_addr, u32 size)
 {
 	u32 action[] = {
 		XE_GUC_ACTION_GET_HWCONFIG,
@@ -78,8 +78,9 @@ int xe_guc_hwconfig_init(struct xe_guc *guc)
 		return -EINVAL;
 
 	bo = xe_managed_bo_create_pin_map(xe, tile, PAGE_ALIGN(size),
-					  XE_BO_CREATE_SYSTEM_BIT |
-					  XE_BO_CREATE_GGTT_BIT);
+					  XE_BO_FLAG_SYSTEM |
+					  XE_BO_FLAG_GGTT |
+					  XE_BO_FLAG_GGTT_INVALIDATE);
 	if (IS_ERR(bo))
 		return PTR_ERR(bo);
 	guc->hwconfig.bo = bo;

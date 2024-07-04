@@ -1074,7 +1074,7 @@ TRACE_EVENT(kvm_smm_transition,
 );
 
 /*
- * Tracepoint for VT-d posted-interrupts.
+ * Tracepoint for VT-d posted-interrupts and AMD-Vi Guest Virtual APIC.
  */
 TRACE_EVENT(kvm_pi_irte_update,
 	TP_PROTO(unsigned int host_irq, unsigned int vcpu_id,
@@ -1100,7 +1100,7 @@ TRACE_EVENT(kvm_pi_irte_update,
 		__entry->set		= set;
 	),
 
-	TP_printk("VT-d PI is %s for irq %u, vcpu %u, gsi: 0x%x, "
+	TP_printk("PI is %s for irq %u, vcpu %u, gsi: 0x%x, "
 		  "gvec: 0x%x, pi_desc_addr: 0x%llx",
 		  __entry->set ? "enabled and being updated" : "disabled",
 		  __entry->host_irq,
@@ -1678,7 +1678,7 @@ TRACE_EVENT(kvm_nested_vmenter_failed,
 	),
 
 	TP_fast_assign(
-		__assign_str(msg, msg);
+		__assign_str(msg);
 		__entry->err = err;
 	),
 

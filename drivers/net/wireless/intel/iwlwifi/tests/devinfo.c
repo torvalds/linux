@@ -2,9 +2,10 @@
 /*
  * KUnit tests for the iwlwifi device info table
  *
- * Copyright (C) 2023 Intel Corporation
+ * Copyright (C) 2023-2024 Intel Corporation
  */
 #include <kunit/test.h>
+#include <linux/pci.h>
 #include "iwl-drv.h"
 #include "iwl-config.h"
 
@@ -41,8 +42,31 @@ static void devinfo_table_order(struct kunit *test)
 	}
 }
 
+static void devinfo_pci_ids(struct kunit *test)
+{
+	struct pci_dev *dev;
+
+	dev = kunit_kmalloc(test, sizeof(*dev), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, dev);
+
+	for (int i = 0; iwl_hw_card_ids[i].vendor; i++) {
+		const struct pci_device_id *s, *t;
+
+		s = &iwl_hw_card_ids[i];
+		dev->vendor = s->vendor;
+		dev->device = s->device;
+		dev->subsystem_vendor = s->subvendor;
+		dev->subsystem_device = s->subdevice;
+		dev->class = s->class;
+
+		t = pci_match_id(iwl_hw_card_ids, dev);
+		KUNIT_EXPECT_PTR_EQ(test, t, s);
+	}
+}
+
 static struct kunit_case devinfo_test_cases[] = {
 	KUNIT_CASE(devinfo_table_order),
+	KUNIT_CASE(devinfo_pci_ids),
 	{}
 };
 

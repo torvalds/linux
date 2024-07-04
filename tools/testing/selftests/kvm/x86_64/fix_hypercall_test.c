@@ -110,8 +110,6 @@ static void test_fix_hypercall(struct kvm_vcpu *vcpu, bool disable_quirk)
 {
 	struct kvm_vm *vm = vcpu->vm;
 
-	vm_init_descriptor_tables(vm);
-	vcpu_init_descriptor_tables(vcpu);
 	vm_install_exception_handler(vcpu->vm, UD_VECTOR, guest_ud_handler);
 
 	if (disable_quirk)

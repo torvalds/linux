@@ -44,7 +44,6 @@ struct snd_soc_jack_zone {
 /**
  * struct snd_soc_jack_gpio - Describes a gpio pin for jack detection
  *
- * @gpio:         legacy gpio number
  * @idx:          gpio descriptor index within the function of the GPIO
  *                consumer device
  * @gpiod_dev:    GPIO consumer device
@@ -59,7 +58,6 @@ struct snd_soc_jack_zone {
  *		       ADC).
  */
 struct snd_soc_jack_gpio {
-	unsigned int gpio;
 	unsigned int idx;
 	struct device *gpiod_dev;
 	const char *name;

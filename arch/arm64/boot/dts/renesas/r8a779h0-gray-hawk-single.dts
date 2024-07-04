@@ -18,11 +18,12 @@
 
 	aliases {
 		serial0 = &hscif0;
+		serial1 = &hscif2;
 		ethernet0 = &avb0;
 	};
 
 	chosen {
-		bootargs = "ignore_loglevel";
+		bootargs = "ignore_loglevel rw root=/dev/nfs ip=on";
 		stdout-path = "serial0:921600n8";
 	};
 
@@ -90,6 +91,14 @@
 	status = "okay";
 };
 
+&hscif2 {
+	pinctrl-0 = <&hscif2_pins>;
+	pinctrl-names = "default";
+
+	uart-has-rtscts;
+	status = "okay";
+};
+
 &i2c0 {
 	pinctrl-0 = <&i2c0_pins>;
 	pinctrl-names = "default";
@@ -144,7 +153,7 @@
 };
 
 &pfc {
-	pinctrl-0 = <&scif_clk_pins>;
+	pinctrl-0 = <&scif_clk_pins>, <&scif_clk2_pins>;
 	pinctrl-names = "default";
 
 	avb0_pins: avb0 {
@@ -170,6 +179,11 @@
 		function = "hscif0";
 	};
 
+	hscif2_pins: hscif2 {
+		groups = "hscif2_data", "hscif2_ctrl";
+		function = "hscif2";
+	};
+
 	i2c0_pins: i2c0 {
 		groups = "i2c0";
 		function = "i2c0";
@@ -189,6 +203,11 @@
 	scif_clk_pins: scif-clk {
 		groups = "scif_clk";
 		function = "scif_clk";
+	};
+
+	scif_clk2_pins: scif-clk2 {
+		groups = "scif_clk2";
+		function = "scif_clk2";
 	};
 };
 
@@ -226,5 +245,9 @@
 };
 
 &scif_clk {
+	clock-frequency = <24000000>;
+};
+
+&scif_clk2 {
 	clock-frequency = <24000000>;
 };

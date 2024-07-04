@@ -621,7 +621,7 @@ static int _adxl367_set_odr(struct adxl367_state *st, enum adxl367_odr odr)
 static int adxl367_set_odr(struct iio_dev *indio_dev, enum adxl367_odr odr)
 {
 	iio_device_claim_direct_scoped(return -EBUSY, indio_dev) {
-		struct adxl367_state *st = iio_priv(indio_dev);;
+		struct adxl367_state *st = iio_priv(indio_dev);
 		int ret;
 
 		guard(mutex)(&st->lock);

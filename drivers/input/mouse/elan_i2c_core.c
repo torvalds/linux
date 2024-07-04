@@ -1392,8 +1392,8 @@ err:
 static DEFINE_SIMPLE_DEV_PM_OPS(elan_pm_ops, elan_suspend, elan_resume);
 
 static const struct i2c_device_id elan_id[] = {
-	{ DRIVER_NAME, 0 },
-	{ },
+	{ DRIVER_NAME },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, elan_id);
 

@@ -866,6 +866,17 @@ struct drm_color_lut {
 };
 
 /**
+ * struct drm_plane_size_hint - Plane size hints
+ *
+ * The plane SIZE_HINTS property blob contains an
+ * array of struct drm_plane_size_hint.
+ */
+struct drm_plane_size_hint {
+	__u16 width;
+	__u16 height;
+};
+
+/**
  * struct hdr_metadata_infoframe - HDR Metadata Infoframe Data.
  *
  * HDR Metadata Infoframe as per CTA 861.G spec. This is expected

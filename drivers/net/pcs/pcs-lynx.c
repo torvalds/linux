@@ -61,11 +61,10 @@ static void lynx_pcs_get_state_usxgmii(struct mdio_device *pcs,
 static void lynx_pcs_get_state_2500basex(struct mdio_device *pcs,
 					 struct phylink_link_state *state)
 {
-	int bmsr, lpa;
+	int bmsr;
 
 	bmsr = mdiodev_read(pcs, MII_BMSR);
-	lpa = mdiodev_read(pcs, MII_LPA);
-	if (bmsr < 0 || lpa < 0) {
+	if (bmsr < 0) {
 		state->link = false;
 		return;
 	}

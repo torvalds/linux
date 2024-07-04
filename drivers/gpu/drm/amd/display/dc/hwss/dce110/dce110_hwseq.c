@@ -249,7 +249,7 @@ static bool dce110_enable_display_power_gating(
 		return false;
 }
 
-static void build_prescale_params(struct ipp_prescale_params *prescale_params,
+static void dce110_prescale_params(struct ipp_prescale_params *prescale_params,
 		const struct dc_plane_state *plane_state)
 {
 	prescale_params->mode = IPP_PRESCALE_MODE_FIXED_UNSIGNED;
@@ -289,16 +289,14 @@ dce110_set_input_transfer_func(struct dc *dc, struct pipe_ctx *pipe_ctx,
 	if (ipp == NULL)
 		return false;
 
-	if (plane_state->in_transfer_func)
-		tf = plane_state->in_transfer_func;
+	tf = &plane_state->in_transfer_func;
 
-	build_prescale_params(&prescale_params, plane_state);
+	dce110_prescale_params(&prescale_params, plane_state);
 	ipp->funcs->ipp_program_prescale(ipp, &prescale_params);
 
-	if (plane_state->gamma_correction &&
-			!plane_state->gamma_correction->is_identity &&
+	if (!plane_state->gamma_correction.is_identity &&
 			dce_use_lut(plane_state->format))
-		ipp->funcs->ipp_program_input_lut(ipp, plane_state->gamma_correction);
+		ipp->funcs->ipp_program_input_lut(ipp, &plane_state->gamma_correction);
 
 	if (tf == NULL) {
 		/* Default case if no input transfer function specified */
@@ -614,11 +612,10 @@ dce110_set_output_transfer_func(struct dc *dc, struct pipe_ctx *pipe_ctx,
 	xfm->funcs->opp_power_on_regamma_lut(xfm, true);
 	xfm->regamma_params.hw_points_num = GAMMA_HW_POINTS_NUM;
 
-	if (stream->out_transfer_func &&
-	    stream->out_transfer_func->type == TF_TYPE_PREDEFINED &&
-	    stream->out_transfer_func->tf == TRANSFER_FUNCTION_SRGB) {
+	if (stream->out_transfer_func.type == TF_TYPE_PREDEFINED &&
+	    stream->out_transfer_func.tf == TRANSFER_FUNCTION_SRGB) {
 		xfm->funcs->opp_set_regamma_mode(xfm, OPP_REGAMMA_SRGB);
-	} else if (dce110_translate_regamma_to_hw_format(stream->out_transfer_func,
+	} else if (dce110_translate_regamma_to_hw_format(&stream->out_transfer_func,
 							 &xfm->regamma_params)) {
 		xfm->funcs->opp_program_regamma_pwl(xfm, &xfm->regamma_params);
 		xfm->funcs->opp_set_regamma_mode(xfm, OPP_REGAMMA_USER);
@@ -1192,16 +1189,6 @@ void dce110_disable_stream(struct pipe_ctx *pipe_ctx)
 		dccg->funcs->disable_symclk_se(dccg, stream_enc->stream_enc_inst,
 					       link_enc->transmitter - TRANSMITTER_UNIPHY_A);
 	}
-
-	if (dc->link_srv->dp_is_128b_132b_signal(pipe_ctx)) {
-		/* TODO: This looks like a bug to me as we are disabling HPO IO when
-		 * we are just disabling a single HPO stream. Shouldn't we disable HPO
-		 * HW control only when HPOs for all streams are disabled?
-		 */
-		if (pipe_ctx->stream->ctx->dc->hwseq->funcs.setup_hpo_hw_control)
-			pipe_ctx->stream->ctx->dc->hwseq->funcs.setup_hpo_hw_control(
-					pipe_ctx->stream->ctx->dc->hwseq, false);
-	}
 }
 
 void dce110_unblank_stream(struct pipe_ctx *pipe_ctx,
@@ -1550,7 +1537,7 @@ enum dc_status dce110_apply_single_controller_ctx_to_hw(
 	}
 
 	if (pipe_ctx->stream_res.audio != NULL) {
-		struct audio_output audio_output;
+		struct audio_output audio_output = {0};
 
 		build_audio_output(context, pipe_ctx, &audio_output);
 
@@ -2201,7 +2188,7 @@ static void dce110_setup_audio_dto(
 		struct dc *dc,
 		struct dc_state *context)
 {
-	int i;
+	unsigned int i;
 
 	/* program audio wall clock. use HDMI as clock source if HDMI
 	 * audio active. Otherwise, use DP as clock source
@@ -2273,7 +2260,7 @@ static void dce110_setup_audio_dto(
 				continue;
 
 			if (pipe_ctx->stream_res.audio != NULL) {
-				struct audio_output audio_output;
+				struct audio_output audio_output = {0};
 
 				build_audio_output(context, pipe_ctx, &audio_output);
 
@@ -2288,6 +2275,19 @@ static void dce110_setup_audio_dto(
 	}
 }
 
+static bool dce110_is_hpo_enabled(struct dc_state *context)
+{
+	int i;
+
+	for (i = 0; i < MAX_HPO_DP2_ENCODERS; i++) {
+		if (context->res_ctx.is_hpo_dp_stream_enc_acquired[i]) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
 enum dc_status dce110_apply_ctx_to_hw(
 		struct dc *dc,
 		struct dc_state *context)
@@ -2296,6 +2296,8 @@ enum dc_status dce110_apply_ctx_to_hw(
 	struct dc_bios *dcb = dc->ctx->dc_bios;
 	enum dc_status status;
 	int i;
+	bool was_hpo_enabled = dce110_is_hpo_enabled(dc->current_state);
+	bool is_hpo_enabled = dce110_is_hpo_enabled(context);
 
 	/* reset syncd pipes from disabled pipes */
 	if (dc->config.use_pipe_ctx_sync_logic)
@@ -2337,6 +2339,10 @@ enum dc_status dce110_apply_ctx_to_hw(
 		dc->fbc_compressor->funcs->disable_fbc(dc->fbc_compressor);
 
 	dce110_setup_audio_dto(dc, context);
+
+	if (dc->hwseq->funcs.setup_hpo_hw_control && was_hpo_enabled != is_hpo_enabled) {
+		dc->hwseq->funcs.setup_hpo_hw_control(dc->hwseq, is_hpo_enabled);
+	}
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe_ctx_old =

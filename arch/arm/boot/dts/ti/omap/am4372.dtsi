@@ -92,7 +92,7 @@
 			opp-supported-hw = <0xFF 0x08>;
 		};
 
-		opp-800000000{
+		opp-800000000 {
 			/* OPP Turbo */
 			opp-hz = /bits/ 64 <800000000>;
 			opp-microvolt = <1260000 1234800 1285200>;

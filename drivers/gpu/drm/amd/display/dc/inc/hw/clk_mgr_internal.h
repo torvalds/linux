@@ -349,7 +349,7 @@ struct clk_mgr_internal {
 	enum dm_pp_clocks_state cur_min_clks_state;
 	bool periodic_retraining_disabled;
 
-	unsigned int cur_phyclk_req_table[MAX_PIPES * 2];
+	unsigned int cur_phyclk_req_table[MAX_LINKS];
 
 	bool smu_present;
 	void *wm_range_table;

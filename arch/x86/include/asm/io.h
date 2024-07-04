@@ -42,6 +42,7 @@
 #include <asm/early_ioremap.h>
 #include <asm/pgtable_types.h>
 #include <asm/shared/io.h>
+#include <asm/special_insns.h>
 
 #define build_mmio_read(name, size, type, reg, barrier) \
 static inline type name(const volatile void __iomem *addr) \
@@ -208,6 +209,23 @@ void memset_io(volatile void __iomem *, int, size_t);
 #define memcpy_fromio memcpy_fromio
 #define memcpy_toio memcpy_toio
 #define memset_io memset_io
+
+#ifdef CONFIG_X86_64
+/*
+ * Commit 0f07496144c2 ("[PATCH] Add faster __iowrite32_copy routine for
+ * x86_64") says that circa 2006 rep movsl is noticeably faster than a copy
+ * loop.
+ */
+static inline void __iowrite32_copy(void __iomem *to, const void *from,
+				    size_t count)
+{
+	asm volatile("rep ; movsl"
+		     : "=&c"(count), "=&D"(to), "=&S"(from)
+		     : "0"(count), "1"(to), "2"(from)
+		     : "memory");
+}
+#define __iowrite32_copy __iowrite32_copy
+#endif
 
 /*
  * ISA space is 'always mapped' on a typical x86 system, no need to

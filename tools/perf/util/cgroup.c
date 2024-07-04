@@ -465,9 +465,11 @@ int evlist__expand_cgroup(struct evlist *evlist, const char *str,
 		name = cn->name + prefix_len;
 		if (name[0] == '/' && name[1])
 			name++;
+
+		/* the cgroup can go away in the meantime */
 		cgrp = cgroup__new(name, open_cgroup);
 		if (cgrp == NULL)
-			goto out_err;
+			continue;
 
 		leader = NULL;
 		evlist__for_each_entry(orig_list, pos) {

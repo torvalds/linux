@@ -331,7 +331,7 @@ Date:		January 2018
 Contact:	Jaegeuk Kim <jaegeuk@kernel.org>
 Description:	This indicates how many GC can be failed for the pinned
 		file. If it exceeds this, F2FS doesn't guarantee its pinning
-		state. 2048 trials is set by default.
+		state. 2048 trials is set by default, and 65535 as maximum.
 
 What:		/sys/fs/f2fs/<disk>/extension_list
 Date:		February 2018

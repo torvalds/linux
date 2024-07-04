@@ -48,7 +48,7 @@ properties:
   interrupt-controller: true
 
   "#interrupt-cells":
-    $ref: "arm,gic.yaml#/properties/#interrupt-cells"
+    $ref: arm,gic.yaml#/properties/#interrupt-cells
 
 required:
   - reg

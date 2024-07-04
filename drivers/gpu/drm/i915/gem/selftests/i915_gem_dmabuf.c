@@ -7,6 +7,7 @@
 #include "i915_drv.h"
 #include "i915_selftest.h"
 #include "gem/i915_gem_context.h"
+#include "gt/intel_gt.h"
 
 #include "mock_context.h"
 #include "mock_dmabuf.h"
@@ -155,6 +156,7 @@ static int verify_access(struct drm_i915_private *i915,
 	struct file *file;
 	u32 *vaddr;
 	int err = 0, i;
+	unsigned int mode;
 
 	file = mock_file(i915);
 	if (IS_ERR(file))
@@ -194,7 +196,8 @@ static int verify_access(struct drm_i915_private *i915,
 	if (err)
 		goto out_file;
 
-	vaddr = i915_gem_object_pin_map_unlocked(native_obj, I915_MAP_WB);
+	mode = intel_gt_coherent_map_type(to_gt(i915), native_obj, true);
+	vaddr = i915_gem_object_pin_map_unlocked(native_obj, mode);
 	if (IS_ERR(vaddr)) {
 		err = PTR_ERR(vaddr);
 		goto out_file;

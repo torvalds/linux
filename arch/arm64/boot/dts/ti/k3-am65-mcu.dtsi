@@ -43,7 +43,6 @@
 		reg = <0x00 0x40a00000 0x00 0x100>;
 		interrupts = <GIC_SPI 565 IRQ_TYPE_LEVEL_HIGH>;
 		clock-frequency = <96000000>;
-		current-speed = <115200>;
 		power-domains = <&k3_pds 149 TI_SCI_PD_EXCLUSIVE>;
 		status = "disabled";
 	};
@@ -286,7 +285,11 @@
 		compatible = "simple-bus";
 		#address-cells = <2>;
 		#size-cells = <2>;
-		ranges;
+		ranges = <0x0 0x47000000 0x0 0x47000000 0x0 0x100>, /* FSS Control */
+			 <0x0 0x47040000 0x0 0x47040000 0x0 0x100>, /* OSPI0 Control */
+			 <0x0 0x47050000 0x0 0x47050000 0x0 0x100>, /* OSPI1 Control */
+			 <0x5 0x00000000 0x5 0x00000000 0x1 0x0000000>, /* OSPI0 Memory */
+			 <0x7 0x00000000 0x7 0x00000000 0x1 0x0000000>; /* OSPI1 Memory */
 
 		ospi0: spi@47040000 {
 			compatible = "ti,am654-ospi", "cdns,qspi-nor";

@@ -1237,5 +1237,5 @@ int main(int argc, char **argv)
 
 	ksft_set_plan(tests_cnt);
 
-	return ksft_exit_pass();
+	ksft_exit_pass();
 }

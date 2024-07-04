@@ -186,7 +186,7 @@ static void *task_producer(void *input)
 
 		for (i = 0; i < batch_sz; i++) {
 			if (!pthd_results[i])
-				pthread_join(pthds[i], NULL);;
+				pthread_join(pthds[i], NULL);
 		}
 	}
 

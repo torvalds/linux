@@ -59,25 +59,12 @@ config RAPIDIO_DEBUG
 
 	  If you are unsure about this, say N here.
 
-choice
-	prompt "Enumeration method"
-	depends on RAPIDIO
-	default RAPIDIO_ENUM_BASIC
-	help
-	  There are different enumeration and discovery mechanisms offered
-	  for RapidIO subsystem. You may select single built-in method or
-	  or any number of methods to be built as modules.
-	  Selecting a built-in method disables use of loadable methods.
-
-	  If unsure, select Basic built-in.
-
 config RAPIDIO_ENUM_BASIC
-	tristate "Basic"
+	tristate "Basic Enumeration method"
+	depends on RAPIDIO
 	help
 	  This option includes basic RapidIO fabric enumeration and discovery
 	  mechanism similar to one described in RapidIO specification Annex 1.
-
-endchoice
 
 config RAPIDIO_CHMAN
 	tristate "RapidIO Channelized Messaging driver"

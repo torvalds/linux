@@ -26,7 +26,7 @@ static void guc_prepare_xfer(struct intel_gt *gt)
 			 GUC_ENABLE_READ_CACHE_FOR_WOPCM_DATA |
 			 GUC_ENABLE_MIA_CLOCK_GATING;
 
-	if (GRAPHICS_VER_FULL(uncore->i915) < IP_VER(12, 50))
+	if (GRAPHICS_VER_FULL(uncore->i915) < IP_VER(12, 55))
 		shim_flags |= GUC_DISABLE_SRAM_INIT_TO_ZEROES |
 			      GUC_ENABLE_MIA_CACHING;
 
@@ -115,6 +115,7 @@ static inline bool guc_load_done(struct intel_uncore *uncore, u32 *status, bool 
 	case INTEL_GUC_LOAD_STATUS_INIT_DATA_INVALID:
 	case INTEL_GUC_LOAD_STATUS_MPU_DATA_INVALID:
 	case INTEL_GUC_LOAD_STATUS_INIT_MMIO_SAVE_RESTORE_INVALID:
+	case INTEL_GUC_LOAD_STATUS_KLV_WORKAROUND_INIT_ERROR:
 		*success = false;
 		return true;
 	}
@@ -239,6 +240,11 @@ static int guc_wait_ucode(struct intel_guc *guc)
 		case INTEL_GUC_LOAD_STATUS_INIT_MMIO_SAVE_RESTORE_INVALID:
 			guc_info(guc, "illegal register in save/restore workaround list\n");
 			ret = -EPERM;
+			break;
+
+		case INTEL_GUC_LOAD_STATUS_KLV_WORKAROUND_INIT_ERROR:
+			guc_info(guc, "invalid w/a KLV entry\n");
+			ret = -EINVAL;
 			break;
 
 		case INTEL_GUC_LOAD_STATUS_HWCONFIG_START:

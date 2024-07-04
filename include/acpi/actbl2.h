@@ -47,6 +47,7 @@
 #define ACPI_SIG_PPTT           "PPTT"	/* Processor Properties Topology Table */
 #define ACPI_SIG_PRMT           "PRMT"	/* Platform Runtime Mechanism Table */
 #define ACPI_SIG_RASF           "RASF"	/* RAS Feature table */
+#define ACPI_SIG_RAS2           "RAS2"	/* RAS2 Feature table */
 #define ACPI_SIG_RGRT           "RGRT"	/* Regulatory Graphics Resource Table */
 #define ACPI_SIG_RHCT           "RHCT"	/* RISC-V Hart Capabilities Table */
 #define ACPI_SIG_SBST           "SBST"	/* Smart Battery Specification Table */
@@ -77,8 +78,8 @@
  *
  * AEST - Arm Error Source Table
  *
- * Conforms to: ACPI for the Armv8 RAS Extensions 1.1 Platform Design Document
- * September 2020.
+ * Conforms to: ACPI for the Armv8 RAS Extensions 1.1(Sep 2020) and
+ * 2.0(May 2023) Platform Design Document.
  *
  ******************************************************************************/
 
@@ -108,7 +109,9 @@ struct acpi_aest_hdr {
 #define ACPI_AEST_SMMU_ERROR_NODE           2
 #define ACPI_AEST_VENDOR_ERROR_NODE         3
 #define ACPI_AEST_GIC_ERROR_NODE            4
-#define ACPI_AEST_NODE_TYPE_RESERVED        5	/* 5 and above are reserved */
+#define ACPI_AEST_PCIE_ERROR_NODE           5
+#define ACPI_AEST_PROXY_ERROR_NODE          6
+#define ACPI_AEST_NODE_TYPE_RESERVED        7 /* 7 and above are reserved */
 
 /*
  * AEST subtables (Error nodes)
@@ -187,6 +190,12 @@ typedef struct acpi_aest_vendor {
 
 } acpi_aest_vendor;
 
+struct acpi_aest_vendor_v2 {
+	char acpi_hid[8];
+	u32 acpi_uid;
+	u8 vendor_specific_data[16];
+};
+
 /* 4: Gic Error */
 
 typedef struct acpi_aest_gic {
@@ -203,6 +212,18 @@ typedef struct acpi_aest_gic {
 #define ACPI_AEST_GIC_ITS                   3
 #define ACPI_AEST_GIC_RESERVED              4	/* 4 and above are reserved */
 
+/* 5: PCIe Error */
+
+struct acpi_aest_pcie {
+	u32 iort_node_reference;
+};
+
+/* 6: Proxy Error */
+
+struct acpi_aest_proxy {
+	u64 node_address;
+};
+
 /* Node Interface Structure */
 
 typedef struct acpi_aest_node_interface {
@@ -218,11 +239,57 @@ typedef struct acpi_aest_node_interface {
 
 } acpi_aest_node_interface;
 
+/* Node Interface Structure V2 */
+
+struct acpi_aest_node_interface_header {
+	u8 type;
+	u8 group_format;
+	u8 reserved[2];
+	u32 flags;
+	u64 address;
+	u32 error_record_index;
+	u32 error_record_count;
+};
+
+#define ACPI_AEST_NODE_GROUP_FORMAT_4K          0
+#define ACPI_AEST_NODE_GROUP_FORMAT_16K         1
+#define ACPI_AEST_NODE_GROUP_FORMAT_64K         2
+
+struct acpi_aest_node_interface_common {
+	u32 error_node_device;
+	u32 processor_affinity;
+	u64 error_group_register_base;
+	u64 fault_inject_register_base;
+	u64 interrupt_config_register_base;
+};
+
+struct acpi_aest_node_interface_4k {
+	u64 error_record_implemented;
+	u64 error_status_reporting;
+	u64 addressing_mode;
+	struct acpi_aest_node_interface_common common;
+};
+
+struct acpi_aest_node_interface_16k {
+	u64 error_record_implemented[4];
+	u64 error_status_reporting[4];
+	u64 addressing_mode[4];
+	struct acpi_aest_node_interface_common common;
+};
+
+struct acpi_aest_node_interface_64k {
+	u64 error_record_implemented[14];
+	u64 error_status_reporting[14];
+	u64 addressing_mode[14];
+	struct acpi_aest_node_interface_common common;
+};
+
 /* Values for Type field above */
 
-#define ACPI_AEST_NODE_SYSTEM_REGISTER      0
-#define ACPI_AEST_NODE_MEMORY_MAPPED        1
-#define ACPI_AEST_XFACE_RESERVED            2	/* 2 and above are reserved */
+#define ACPI_AEST_NODE_SYSTEM_REGISTER			0
+#define ACPI_AEST_NODE_MEMORY_MAPPED			1
+#define ACPI_AEST_NODE_SINGLE_RECORD_MEMORY_MAPPED	2
+#define ACPI_AEST_XFACE_RESERVED			3   /* 2 and above are reserved */
 
 /* Node Interrupt Structure */
 
@@ -235,6 +302,16 @@ typedef struct acpi_aest_node_interrupt {
 	u8 reserved1[3];
 
 } acpi_aest_node_interrupt;
+
+/* Node Interrupt Structure V2 */
+
+struct acpi_aest_node_interrupt_v2 {
+	u8 type;
+	u8 reserved[2];
+	u8 flags;
+	u32 gsiv;
+	u8 reserved1[4];
+};
 
 /* Values for Type field above */
 
@@ -1889,22 +1966,22 @@ struct nfit_device_handle {
 
 /*******************************************************************************
  *
- * NHLT - Non HD Audio Link Table
- *
- * Conforms to: Intel Smart Sound Technology NHLT Specification
- * Version 0.8.1, January 2020.
+ * NHLT - Non HDAudio Link Table
+ *        Version 1
  *
  ******************************************************************************/
 
-/* Main table */
-
 struct acpi_table_nhlt {
 	struct acpi_table_header header;	/* Common ACPI table header */
-	u8 endpoint_count;
+	u8 endpoints_count;
+	/*
+	 * struct acpi_nhlt_endpoint endpoints[];
+	 * struct acpi_nhlt_config oed_config;
+	 */
 };
 
 struct acpi_nhlt_endpoint {
-	u32 descriptor_length;
+	u32 length;
 	u8 link_type;
 	u8 instance_id;
 	u16 vendor_id;
@@ -1914,84 +1991,135 @@ struct acpi_nhlt_endpoint {
 	u8 device_type;
 	u8 direction;
 	u8 virtual_bus_id;
+	/*
+	 * struct acpi_nhlt_config device_config;
+	 * struct acpi_nhlt_formats_config formats_config;
+	 * struct acpi_nhlt_devices_info devices_info;
+	 */
 };
 
-/* Types for link_type field above */
-
-#define ACPI_NHLT_RESERVED_HD_AUDIO         0
-#define ACPI_NHLT_RESERVED_DSP              1
-#define ACPI_NHLT_PDM                       2
-#define ACPI_NHLT_SSP                       3
-#define ACPI_NHLT_RESERVED_SLIMBUS          4
-#define ACPI_NHLT_RESERVED_SOUNDWIRE        5
-#define ACPI_NHLT_TYPE_RESERVED             6	/* 6 and above are reserved */
-
-/* All other values above are reserved */
+/*
+ * Values for link_type field above
+ *
+ * Only types PDM and SSP are used
+ */
+#define ACPI_NHLT_LINKTYPE_HDA			0
+#define ACPI_NHLT_LINKTYPE_DSP			1
+#define ACPI_NHLT_LINKTYPE_PDM			2
+#define ACPI_NHLT_LINKTYPE_SSP			3
+#define ACPI_NHLT_LINKTYPE_SLIMBUS		4
+#define ACPI_NHLT_LINKTYPE_SDW			5
+#define ACPI_NHLT_LINKTYPE_UAOL			6
 
 /* Values for device_id field above */
 
-#define ACPI_NHLT_PDM_DMIC                  0xAE20
-#define ACPI_NHLT_BT_SIDEBAND               0xAE30
-#define ACPI_NHLT_I2S_TDM_CODECS            0xAE23
+#define ACPI_NHLT_DEVICEID_DMIC			0xAE20
+#define ACPI_NHLT_DEVICEID_BT			0xAE30
+#define ACPI_NHLT_DEVICEID_I2S			0xAE34
 
 /* Values for device_type field above */
 
-/* SSP Link */
-
-#define ACPI_NHLT_LINK_BT_SIDEBAND          0
-#define ACPI_NHLT_LINK_FM                   1
-#define ACPI_NHLT_LINK_MODEM                2
-/* 3 is reserved */
-#define ACPI_NHLT_LINK_SSP_ANALOG_CODEC     4
-
-/* PDM Link */
-
-#define ACPI_NHLT_PDM_ON_CAVS_1P8           0
-#define ACPI_NHLT_PDM_ON_CAVS_1P5           1
+/*
+ * Device types unique to endpoint of link_type=PDM
+ *
+ * Type PDM used for all SKL+ platforms
+ */
+#define ACPI_NHLT_DEVICETYPE_PDM		0
+#define ACPI_NHLT_DEVICETYPE_PDM_SKL		1
+/* Device types unique to endpoint of link_type=SSP */
+#define ACPI_NHLT_DEVICETYPE_BT			0
+#define ACPI_NHLT_DEVICETYPE_FM			1
+#define ACPI_NHLT_DEVICETYPE_MODEM		2
+#define ACPI_NHLT_DEVICETYPE_CODEC		4
 
 /* Values for Direction field above */
 
-#define ACPI_NHLT_DIR_RENDER                0
-#define ACPI_NHLT_DIR_CAPTURE               1
-#define ACPI_NHLT_DIR_RENDER_LOOPBACK       2
-#define ACPI_NHLT_DIR_RENDER_FEEDBACK       3
-#define ACPI_NHLT_DIR_RESERVED              4	/* 4 and above are reserved */
+#define ACPI_NHLT_DIR_RENDER			0
+#define ACPI_NHLT_DIR_CAPTURE			1
 
-struct acpi_nhlt_device_specific_config {
+struct acpi_nhlt_config {
 	u32 capabilities_size;
+	u8 capabilities[];
+};
+
+struct acpi_nhlt_gendevice_config {
 	u8 virtual_slot;
 	u8 config_type;
 };
 
-struct acpi_nhlt_device_specific_config_a {
-	u32 capabilities_size;
+/* Values for config_type field above */
+
+#define ACPI_NHLT_CONFIGTYPE_GENERIC		0
+#define ACPI_NHLT_CONFIGTYPE_MICARRAY		1
+
+struct acpi_nhlt_micdevice_config {
 	u8 virtual_slot;
 	u8 config_type;
 	u8 array_type;
 };
 
-/* Values for Config Type above */
+/* Values for array_type field above */
 
-#define ACPI_NHLT_CONFIG_TYPE_GENERIC              0x00
-#define ACPI_NHLT_CONFIG_TYPE_MIC_ARRAY            0x01
-#define ACPI_NHLT_CONFIG_TYPE_RENDER_FEEDBACK      0x03
-#define ACPI_NHLT_CONFIG_TYPE_RESERVED             0x04	/* 4 and above are reserved */
+#define ACPI_NHLT_ARRAYTYPE_LINEAR2_SMALL	0xA
+#define ACPI_NHLT_ARRAYTYPE_LINEAR2_BIG		0xB
+#define ACPI_NHLT_ARRAYTYPE_LINEAR4_GEO1	0xC
+#define ACPI_NHLT_ARRAYTYPE_PLANAR4_LSHAPED	0xD
+#define ACPI_NHLT_ARRAYTYPE_LINEAR4_GEO2	0xE
+#define ACPI_NHLT_ARRAYTYPE_VENDOR		0xF
 
-struct acpi_nhlt_device_specific_config_b {
-	u32 capabilities_size;
+struct acpi_nhlt_vendor_mic_config {
+	u8 type;
+	u8 panel;
+	u16 speaker_position_distance;		/* mm */
+	u16 horizontal_offset;			/* mm */
+	u16 vertical_offset;			/* mm */
+	u8 frequency_low_band;			/* 5*Hz */
+	u8 frequency_high_band;			/* 500*Hz */
+	u16 direction_angle;			/* -180 - +180 */
+	u16 elevation_angle;			/* -180 - +180 */
+	u16 work_vertical_angle_begin;		/* -180 - +180 with 2 deg step */
+	u16 work_vertical_angle_end;		/* -180 - +180 with 2 deg step */
+	u16 work_horizontal_angle_begin;	/* -180 - +180 with 2 deg step */
+	u16 work_horizontal_angle_end;		/* -180 - +180 with 2 deg step */
 };
 
-struct acpi_nhlt_device_specific_config_c {
-	u32 capabilities_size;
+/* Values for Type field above */
+
+#define ACPI_NHLT_MICTYPE_OMNIDIRECTIONAL	0
+#define ACPI_NHLT_MICTYPE_SUBCARDIOID		1
+#define ACPI_NHLT_MICTYPE_CARDIOID		2
+#define ACPI_NHLT_MICTYPE_SUPERCARDIOID		3
+#define ACPI_NHLT_MICTYPE_HYPERCARDIOID		4
+#define ACPI_NHLT_MICTYPE_8SHAPED		5
+#define ACPI_NHLT_MICTYPE_RESERVED		6
+#define ACPI_NHLT_MICTYPE_VENDORDEFINED		7
+
+/* Values for Panel field above */
+
+#define ACPI_NHLT_MICLOCATION_TOP		0
+#define ACPI_NHLT_MICLOCATION_BOTTOM		1
+#define ACPI_NHLT_MICLOCATION_LEFT		2
+#define ACPI_NHLT_MICLOCATION_RIGHT		3
+#define ACPI_NHLT_MICLOCATION_FRONT		4
+#define ACPI_NHLT_MICLOCATION_REAR		5
+
+struct acpi_nhlt_vendor_micdevice_config {
 	u8 virtual_slot;
+	u8 config_type;
+	u8 array_type;
+	u8 mics_count;
+	struct acpi_nhlt_vendor_mic_config mics[];
 };
 
-struct acpi_nhlt_render_device_specific_config {
-	u32 capabilities_size;
+union acpi_nhlt_device_config {
 	u8 virtual_slot;
+	struct acpi_nhlt_gendevice_config gen;
+	struct acpi_nhlt_micdevice_config mic;
+	struct acpi_nhlt_vendor_micdevice_config vendor_mic;
 };
 
-struct acpi_nhlt_wave_extensible {
+/* Inherited from Microsoft's WAVEFORMATEXTENSIBLE. */
+struct acpi_nhlt_wave_formatext {
 	u16 format_tag;
 	u16 channel_count;
 	u32 samples_per_sec;
@@ -2001,144 +2129,28 @@ struct acpi_nhlt_wave_extensible {
 	u16 extra_format_size;
 	u16 valid_bits_per_sample;
 	u32 channel_mask;
-	u8 sub_format_guid[16];
+	u8 subformat[16];
 };
 
-/* Values for channel_mask above */
-
-#define ACPI_NHLT_SPKR_FRONT_LEFT             0x1
-#define ACPI_NHLT_SPKR_FRONT_RIGHT            0x2
-#define ACPI_NHLT_SPKR_FRONT_CENTER           0x4
-#define ACPI_NHLT_SPKR_LOW_FREQ               0x8
-#define ACPI_NHLT_SPKR_BACK_LEFT              0x10
-#define ACPI_NHLT_SPKR_BACK_RIGHT             0x20
-#define ACPI_NHLT_SPKR_FRONT_LEFT_OF_CENTER   0x40
-#define ACPI_NHLT_SPKR_FRONT_RIGHT_OF_CENTER  0x80
-#define ACPI_NHLT_SPKR_BACK_CENTER            0x100
-#define ACPI_NHLT_SPKR_SIDE_LEFT              0x200
-#define ACPI_NHLT_SPKR_SIDE_RIGHT             0x400
-#define ACPI_NHLT_SPKR_TOP_CENTER             0x800
-#define ACPI_NHLT_SPKR_TOP_FRONT_LEFT         0x1000
-#define ACPI_NHLT_SPKR_TOP_FRONT_CENTER       0x2000
-#define ACPI_NHLT_SPKR_TOP_FRONT_RIGHT        0x4000
-#define ACPI_NHLT_SPKR_TOP_BACK_LEFT          0x8000
-#define ACPI_NHLT_SPKR_TOP_BACK_CENTER        0x10000
-#define ACPI_NHLT_SPKR_TOP_BACK_RIGHT         0x20000
-
 struct acpi_nhlt_format_config {
-	struct acpi_nhlt_wave_extensible format;
-	u32 capability_size;
-	u8 capabilities[];
+	struct acpi_nhlt_wave_formatext format;
+	struct acpi_nhlt_config config;
 };
 
 struct acpi_nhlt_formats_config {
 	u8 formats_count;
-};
-
-struct acpi_nhlt_device_specific_hdr {
-	u8 virtual_slot;
-	u8 config_type;
-};
-
-/* Types for config_type above */
-
-#define ACPI_NHLT_GENERIC                   0
-#define ACPI_NHLT_MIC                       1
-#define ACPI_NHLT_RENDER                    3
-
-struct acpi_nhlt_mic_device_specific_config {
-	struct acpi_nhlt_device_specific_hdr device_config;
-	u8 array_type_ext;
-};
-
-/* Values for array_type_ext above */
-
-#define ACPI_NHLT_ARRAY_TYPE_RESERVED               0x09	/* 9 and below are reserved */
-#define ACPI_NHLT_SMALL_LINEAR_2ELEMENT             0x0A
-#define ACPI_NHLT_BIG_LINEAR_2ELEMENT               0x0B
-#define ACPI_NHLT_FIRST_GEOMETRY_LINEAR_4ELEMENT    0x0C
-#define ACPI_NHLT_PLANAR_LSHAPED_4ELEMENT           0x0D
-#define ACPI_NHLT_SECOND_GEOMETRY_LINEAR_4ELEMENT   0x0E
-#define ACPI_NHLT_VENDOR_DEFINED                    0x0F
-#define ACPI_NHLT_ARRAY_TYPE_MASK                   0x0F
-#define ACPI_NHLT_ARRAY_TYPE_EXT_MASK               0x10
-
-#define ACPI_NHLT_NO_EXTENSION                      0x0
-#define ACPI_NHLT_MIC_SNR_SENSITIVITY_EXT           (1<<4)
-
-struct acpi_nhlt_vendor_mic_count {
-	u8 microphone_count;
-};
-
-struct acpi_nhlt_vendor_mic_config {
-	u8 type;
-	u8 panel;
-	u16 speaker_position_distance;	/* mm */
-	u16 horizontal_offset;	/* mm */
-	u16 vertical_offset;	/* mm */
-	u8 frequency_low_band;	/* 5*Hz */
-	u8 frequency_high_band;	/* 500*Hz */
-	u16 direction_angle;	/* -180 - + 180 */
-	u16 elevation_angle;	/* -180 - + 180 */
-	u16 work_vertical_angle_begin;	/* -180 - + 180 with 2 deg step */
-	u16 work_vertical_angle_end;	/* -180 - + 180 with 2 deg step */
-	u16 work_horizontal_angle_begin;	/* -180 - + 180 with 2 deg step */
-	u16 work_horizontal_angle_end;	/* -180 - + 180 with 2 deg step */
-};
-
-/* Values for Type field above */
-
-#define ACPI_NHLT_MIC_OMNIDIRECTIONAL       0
-#define ACPI_NHLT_MIC_SUBCARDIOID           1
-#define ACPI_NHLT_MIC_CARDIOID              2
-#define ACPI_NHLT_MIC_SUPER_CARDIOID        3
-#define ACPI_NHLT_MIC_HYPER_CARDIOID        4
-#define ACPI_NHLT_MIC_8_SHAPED              5
-#define ACPI_NHLT_MIC_RESERVED6             6	/* 6 is reserved */
-#define ACPI_NHLT_MIC_VENDOR_DEFINED        7
-#define ACPI_NHLT_MIC_RESERVED              8	/* 8 and above are reserved */
-
-/* Values for Panel field above */
-
-#define ACPI_NHLT_MIC_POSITION_TOP          0
-#define ACPI_NHLT_MIC_POSITION_BOTTOM       1
-#define ACPI_NHLT_MIC_POSITION_LEFT         2
-#define ACPI_NHLT_MIC_POSITION_RIGHT        3
-#define ACPI_NHLT_MIC_POSITION_FRONT        4
-#define ACPI_NHLT_MIC_POSITION_BACK         5
-#define ACPI_NHLT_MIC_POSITION_RESERVED     6	/* 6 and above are reserved */
-
-struct acpi_nhlt_vendor_mic_device_specific_config {
-	struct acpi_nhlt_mic_device_specific_config mic_array_device_config;
-	u8 number_of_microphones;
-	struct acpi_nhlt_vendor_mic_config mic_config[];	/* Indexed by number_of_microphones */
-};
-
-/* Microphone SNR and Sensitivity extension */
-
-struct acpi_nhlt_mic_snr_sensitivity_extension {
-	u32 SNR;
-	u32 sensitivity;
-};
-
-/* Render device with feedback */
-
-struct acpi_nhlt_render_feedback_device_specific_config {
-	u8 feedback_virtual_slot;	/* Render slot in case of capture */
-	u16 feedback_channels;	/* Informative only */
-	u16 feedback_valid_bits_per_sample;
-};
-
-/* Non documented structures */
-
-struct acpi_nhlt_device_info_count {
-	u8 structure_count;
+	struct acpi_nhlt_format_config formats[];
 };
 
 struct acpi_nhlt_device_info {
-	u8 device_id[16];
-	u8 device_instance_id;
-	u8 device_port_id;
+	u8 id[16];
+	u8 instance_id;
+	u8 port_id;
+};
+
+struct acpi_nhlt_devices_info {
+	u8 devices_count;
+	struct acpi_nhlt_device_info devices[];
 };
 
 /*******************************************************************************
@@ -2750,6 +2762,134 @@ enum acpi_rasf_status {
 #define ACPI_RASF_SCI_DOORBELL          (1<<1)
 #define ACPI_RASF_ERROR                 (1<<2)
 #define ACPI_RASF_STATUS                (0x1F<<3)
+
+/*******************************************************************************
+ *
+ * RAS2 - RAS2 Feature Table (ACPI 6.5)
+ *        Version 1
+ *
+ *
+ ******************************************************************************/
+
+struct acpi_table_ras2 {
+	struct acpi_table_header header;	/* Common ACPI table header */
+	u16 reserved;
+	u16 num_pcc_descs;
+};
+
+/* RAS2 Platform Communication Channel Descriptor */
+
+struct acpi_ras2_pcc_desc {
+	u8 channel_id;
+	u16 reserved;
+	u8 feature_type;
+	u32 instance;
+};
+
+/* RAS2 Platform Communication Channel Shared Memory Region */
+
+struct acpi_ras2_shared_memory {
+	u32 signature;
+	u16 command;
+	u16 status;
+	u16 version;
+	u8 features[16];
+	u8 set_capabilities[16];
+	u16 num_parameter_blocks;
+	u32 set_capabilities_status;
+};
+
+/* RAS2 Parameter Block Structure for PATROL_SCRUB */
+
+struct acpi_ras2_parameter_block {
+	u16 type;
+	u16 version;
+	u16 length;
+};
+
+/* RAS2 Parameter Block Structure for PATROL_SCRUB */
+
+struct acpi_ras2_patrol_scrub_parameter {
+	struct acpi_ras2_parameter_block header;
+	u16 patrol_scrub_command;
+	u64 requested_address_range[2];
+	u64 actual_address_range[2];
+	u32 flags;
+	u32 scrub_params_out;
+	u32 scrub_params_in;
+};
+
+/* Masks for Flags field above */
+
+#define ACPI_RAS2_SCRUBBER_RUNNING      1
+
+/* RAS2 Parameter Block Structure for LA2PA_TRANSLATION */
+
+struct acpi_ras2_la2pa_translation_parameter {
+	struct acpi_ras2_parameter_block header;
+	u16 addr_translation_command;
+	u64 sub_inst_id;
+	u64 logical_address;
+	u64 physical_address;
+	u32 status;
+};
+
+/* Channel Commands */
+
+enum acpi_ras2_commands {
+	ACPI_RAS2_EXECUTE_RAS2_COMMAND = 1
+};
+
+/* Platform RAS2 Features */
+
+enum acpi_ras2_features {
+	ACPI_RAS2_PATROL_SCRUB_SUPPORTED = 0,
+	ACPI_RAS2_LA2PA_TRANSLATION = 1
+};
+
+/* RAS2 Patrol Scrub Commands */
+
+enum acpi_ras2_patrol_scrub_commands {
+	ACPI_RAS2_GET_PATROL_PARAMETERS = 1,
+	ACPI_RAS2_START_PATROL_SCRUBBER = 2,
+	ACPI_RAS2_STOP_PATROL_SCRUBBER = 3
+};
+
+/* RAS2 LA2PA Translation Commands */
+
+enum acpi_ras2_la2_pa_translation_commands {
+	ACPI_RAS2_GET_LA2PA_TRANSLATION = 1,
+};
+
+/* RAS2 LA2PA Translation Status values */
+
+enum acpi_ras2_la2_pa_translation_status {
+	ACPI_RAS2_LA2PA_TRANSLATION_SUCCESS = 0,
+	ACPI_RAS2_LA2PA_TRANSLATION_FAIL = 1,
+};
+
+/* Channel Command flags */
+
+#define ACPI_RAS2_GENERATE_SCI          (1<<15)
+
+/* Status values */
+
+enum acpi_ras2_status {
+	ACPI_RAS2_SUCCESS = 0,
+	ACPI_RAS2_NOT_VALID = 1,
+	ACPI_RAS2_NOT_SUPPORTED = 2,
+	ACPI_RAS2_BUSY = 3,
+	ACPI_RAS2_FAILED = 4,
+	ACPI_RAS2_ABORTED = 5,
+	ACPI_RAS2_INVALID_DATA = 6
+};
+
+/* Status flags */
+
+#define ACPI_RAS2_COMMAND_COMPLETE      (1)
+#define ACPI_RAS2_SCI_DOORBELL          (1<<1)
+#define ACPI_RAS2_ERROR                 (1<<2)
+#define ACPI_RAS2_STATUS                (0x1F<<3)
 
 /*******************************************************************************
  *

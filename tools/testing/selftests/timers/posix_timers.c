@@ -260,16 +260,16 @@ int main(int argc, char **argv)
 	ksft_print_msg("based timers if other threads run on the CPU...\n");
 
 	if (check_itimer(ITIMER_VIRTUAL) < 0)
-		return ksft_exit_fail();
+		ksft_exit_fail();
 
 	if (check_itimer(ITIMER_PROF) < 0)
-		return ksft_exit_fail();
+		ksft_exit_fail();
 
 	if (check_itimer(ITIMER_REAL) < 0)
-		return ksft_exit_fail();
+		ksft_exit_fail();
 
 	if (check_timer_create(CLOCK_THREAD_CPUTIME_ID) < 0)
-		return ksft_exit_fail();
+		ksft_exit_fail();
 
 	/*
 	 * It's unfortunately hard to reliably test a timer expiration
@@ -281,10 +281,10 @@ int main(int argc, char **argv)
 	 * find a better solution.
 	 */
 	if (check_timer_create(CLOCK_PROCESS_CPUTIME_ID) < 0)
-		return ksft_exit_fail();
+		ksft_exit_fail();
 
 	if (check_timer_distribution() < 0)
-		return ksft_exit_fail();
+		ksft_exit_fail();
 
 	ksft_finished();
 }

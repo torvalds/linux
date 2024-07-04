@@ -13,8 +13,10 @@
 #include <uapi/linux/io_uring.h>
 
 #include "io_uring.h"
+#include "alloc_cache.h"
 #include "openclose.h"
 #include "rsrc.h"
+#include "memmap.h"
 
 struct io_rsrc_update {
 	struct file			*file;
@@ -169,7 +171,7 @@ static void io_rsrc_put_work(struct io_rsrc_node *node)
 
 void io_rsrc_node_destroy(struct io_ring_ctx *ctx, struct io_rsrc_node *node)
 {
-	if (!io_alloc_cache_put(&ctx->rsrc_node_cache, &node->cache))
+	if (!io_alloc_cache_put(&ctx->rsrc_node_cache, node))
 		kfree(node);
 }
 
@@ -197,12 +199,9 @@ void io_rsrc_node_ref_zero(struct io_rsrc_node *node)
 struct io_rsrc_node *io_rsrc_node_alloc(struct io_ring_ctx *ctx)
 {
 	struct io_rsrc_node *ref_node;
-	struct io_cache_entry *entry;
 
-	entry = io_alloc_cache_get(&ctx->rsrc_node_cache);
-	if (entry) {
-		ref_node = container_of(entry, struct io_rsrc_node, cache);
-	} else {
+	ref_node = io_alloc_cache_get(&ctx->rsrc_node_cache);
+	if (!ref_node) {
 		ref_node = kzalloc(sizeof(*ref_node), GFP_KERNEL);
 		if (!ref_node)
 			return NULL;
@@ -870,42 +869,6 @@ static int io_buffer_account_pin(struct io_ring_ctx *ctx, struct page **pages,
 	if (ret)
 		imu->acct_pages = 0;
 	return ret;
-}
-
-struct page **io_pin_pages(unsigned long ubuf, unsigned long len, int *npages)
-{
-	unsigned long start, end, nr_pages;
-	struct page **pages = NULL;
-	int ret;
-
-	end = (ubuf + len + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	start = ubuf >> PAGE_SHIFT;
-	nr_pages = end - start;
-	WARN_ON(!nr_pages);
-
-	pages = kvmalloc_array(nr_pages, sizeof(struct page *), GFP_KERNEL);
-	if (!pages)
-		return ERR_PTR(-ENOMEM);
-
-	mmap_read_lock(current->mm);
-	ret = pin_user_pages(ubuf, nr_pages, FOLL_WRITE | FOLL_LONGTERM, pages);
-	mmap_read_unlock(current->mm);
-
-	/* success, mapped all pages */
-	if (ret == nr_pages) {
-		*npages = nr_pages;
-		return pages;
-	}
-
-	/* partial map, or didn't map anything */
-	if (ret >= 0) {
-		/* if we did partial map, release any pages we did get */
-		if (ret)
-			unpin_user_pages(pages, ret);
-		ret = -EFAULT;
-	}
-	kvfree(pages);
-	return ERR_PTR(ret);
 }
 
 static int io_sqe_buffer_register(struct io_ring_ctx *ctx, struct iovec *iov,

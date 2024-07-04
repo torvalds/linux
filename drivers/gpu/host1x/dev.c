@@ -216,6 +216,30 @@ static const struct host1x_info host1x07_info = {
  */
 static const struct host1x_sid_entry tegra234_sid_table[] = {
 	{
+		/* SE2 MMIO */
+		.base = 0x1658,
+		.offset = 0x90,
+		.limit = 0x90
+	},
+	{
+		/* SE4 MMIO */
+		.base = 0x1660,
+		.offset = 0x90,
+		.limit = 0x90
+	},
+	{
+		/* SE2 channel */
+		.base = 0x1738,
+		.offset = 0x90,
+		.limit = 0x90
+	},
+	{
+		/* SE4 channel */
+		.base = 0x1740,
+		.offset = 0x90,
+		.limit = 0x90
+	},
+	{
 		/* VIC channel */
 		.base = 0x17b8,
 		.offset = 0x30,

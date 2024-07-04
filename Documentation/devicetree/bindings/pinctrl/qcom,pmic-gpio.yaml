@@ -24,6 +24,7 @@ properties:
           - qcom,pm6150-gpio
           - qcom,pm6150l-gpio
           - qcom,pm6350-gpio
+          - qcom,pm6450-gpio
           - qcom,pm7250b-gpio
           - qcom,pm7325-gpio
           - qcom,pm7550ba-gpio
@@ -56,10 +57,12 @@ properties:
           - qcom,pma8084-gpio
           - qcom,pmc8180-gpio
           - qcom,pmc8180c-gpio
+          - qcom,pmd8028-gpio
           - qcom,pmi632-gpio
           - qcom,pmi8950-gpio
           - qcom,pmi8994-gpio
           - qcom,pmi8998-gpio
+          - qcom,pmih0108-gpio
           - qcom,pmk8350-gpio
           - qcom,pmk8550-gpio
           - qcom,pmm8155au-gpio
@@ -72,6 +75,7 @@ properties:
           - qcom,pmx55-gpio
           - qcom,pmx65-gpio
           - qcom,pmx75-gpio
+          - qcom,pmxr2230-gpio
 
       - enum:
           - qcom,spmi-gpio
@@ -141,6 +145,7 @@ allOf:
               - qcom,pm8005-gpio
               - qcom,pm8450-gpio
               - qcom,pm8916-gpio
+              - qcom,pmd8028-gpio
               - qcom,pmk8350-gpio
               - qcom,pmr735a-gpio
               - qcom,pmr735b-gpio
@@ -198,6 +203,7 @@ allOf:
           contains:
             enum:
               - qcom,pm6350-gpio
+              - qcom,pm6450-gpio
               - qcom,pm8350c-gpio
     then:
       properties:
@@ -261,6 +267,7 @@ allOf:
               - qcom,pmc8180c-gpio
               - qcom,pmp8074-gpio
               - qcom,pms405-gpio
+              - qcom,pmxr2230-gpio
     then:
       properties:
         gpio-line-names:
@@ -299,6 +306,21 @@ allOf:
         gpio-reserved-ranges:
           minItems: 1
           maxItems: 7
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,pmih0108-gpio
+    then:
+      properties:
+        gpio-line-names:
+          minItems: 18
+          maxItems: 18
+        gpio-reserved-ranges:
+          minItems: 1
+          maxItems: 9
 
   - if:
       properties:
@@ -402,6 +424,10 @@ patternProperties:
             $ref: "#/$defs/qcom-pmic-gpio-state"
         additionalProperties: false
 
+  "-hog(-[0-9]+)?$":
+    required:
+      - gpio-hog
+
 $defs:
   qcom-pmic-gpio-state:
     type: object
@@ -417,6 +443,7 @@ $defs:
                  - gpio1-gpio10 for pm6150
                  - gpio1-gpio12 for pm6150l
                  - gpio1-gpio9 for pm6350
+                 - gpio1-gpio9 for pm6450
                  - gpio1-gpio12 for pm7250b
                  - gpio1-gpio10 for pm7325
                  - gpio1-gpio8 for pm7550ba
@@ -447,9 +474,11 @@ $defs:
                  - gpio1-gpio22 for pm8994
                  - gpio1-gpio26 for pm8998
                  - gpio1-gpio22 for pma8084
+                 - gpio1-gpio4 for pmd8028
                  - gpio1-gpio8 for pmi632
                  - gpio1-gpio2 for pmi8950
                  - gpio1-gpio10 for pmi8994
+                 - gpio1-gpio18 for pmih0108
                  - gpio1-gpio4 for pmk8350
                  - gpio1-gpio6 for pmk8550
                  - gpio1-gpio10 for pmm8155au
@@ -464,6 +493,7 @@ $defs:
                                             and gpio11)
                  - gpio1-gpio16 for pmx65
                  - gpio1-gpio16 for pmx75
+                 - gpio1-gpio12 for pmxr2230
 
         items:
           pattern: "^gpio([0-9]+)$"
@@ -545,6 +575,7 @@ $defs:
 
 examples:
   - |
+    #include <dt-bindings/gpio/gpio.h>
     #include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 
     pm8921_gpio: gpio@150 {
@@ -567,6 +598,13 @@ examples:
           qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
           power-source = <PM8921_GPIO_S4>;
         };
+      };
+
+      otg-hog {
+        gpio-hog;
+        gpios = <35 GPIO_ACTIVE_HIGH>;
+        output-high;
+        line-name = "otg-gpio";
       };
     };
 ...

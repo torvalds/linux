@@ -56,6 +56,7 @@ INCLUDE FILES
 #define pr_fmt(fmt) KBUILD_MODNAME ":%s: " fmt, __func__
 
 #include <linux/module.h>
+#include <linux/firmware.h>
 #include <linux/init.h>
 #include <linux/string.h>
 #include <linux/slab.h>
@@ -1444,8 +1445,7 @@ static int drxdap_fasi_read_block(struct i2c_device_addr *dev_addr,
 
 	/* Read block from I2C **************************************************** */
 	do {
-		u16 todo = (datasize < DRXDAP_MAX_RCHUNKSIZE ?
-			      datasize : DRXDAP_MAX_RCHUNKSIZE);
+		u16 todo = min(datasize, DRXDAP_MAX_RCHUNKSIZE);
 
 		bufx = 0;
 
@@ -1659,7 +1659,7 @@ static int drxdap_fasi_write_block(struct i2c_device_addr *dev_addr,
 		   Address must be rewritten because HI is reset after data transport and
 		   expects an address.
 		 */
-		todo = (block_size < datasize ? block_size : datasize);
+		todo = min(block_size, datasize);
 		if (todo == 0) {
 			u16 overhead_size_i2c_addr = 0;
 			u16 data_block_size = 0;
@@ -1681,9 +1681,7 @@ static int drxdap_fasi_write_block(struct i2c_device_addr *dev_addr,
 				first_err = st;
 			}
 			bufx = 0;
-			todo =
-			    (data_block_size <
-			     datasize ? data_block_size : datasize);
+			todo = min(data_block_size, datasize);
 		}
 		memcpy(&buf[bufx], data, todo);
 		/* write (address if can do and) data */
@@ -11750,6 +11748,7 @@ static int drx_ctrl_u_code(struct drx_demod_instance *demod,
 	u8 *mc_data = NULL;
 	unsigned size;
 	char *mc_file;
+	const struct firmware *fw;
 
 	/* Check arguments */
 	if (!mc_info || !mc_info->mc_file)
@@ -11757,28 +11756,22 @@ static int drx_ctrl_u_code(struct drx_demod_instance *demod,
 
 	mc_file = mc_info->mc_file;
 
-	if (!demod->firmware) {
-		const struct firmware *fw = NULL;
-
-		rc = request_firmware(&fw, mc_file, demod->i2c->dev.parent);
-		if (rc < 0) {
-			pr_err("Couldn't read firmware %s\n", mc_file);
-			return rc;
-		}
-		demod->firmware = fw;
-
-		if (demod->firmware->size < 2 * sizeof(u16)) {
-			rc = -EINVAL;
-			pr_err("Firmware is too short!\n");
-			goto release;
-		}
-
-		pr_info("Firmware %s, size %zu\n",
-			mc_file, demod->firmware->size);
+	rc = request_firmware(&fw, mc_file, demod->i2c->dev.parent);
+	if (rc < 0) {
+		pr_err("Couldn't read firmware %s\n", mc_file);
+		return rc;
 	}
 
-	mc_data_init = demod->firmware->data;
-	size = demod->firmware->size;
+	if (fw->size < 2 * sizeof(u16)) {
+		rc = -EINVAL;
+		pr_err("Firmware is too short!\n");
+		goto release;
+	}
+
+	pr_info("Firmware %s, size %zu\n", mc_file, fw->size);
+
+	mc_data_init = fw->data;
+	size = fw->size;
 
 	mc_data = (void *)mc_data_init;
 	/* Check data */
@@ -11874,7 +11867,8 @@ static int drx_ctrl_u_code(struct drx_demod_instance *demod,
 						    0x0000)) {
 					pr_err("error reading firmware at pos %zd\n",
 					       mc_data - mc_data_init);
-					return -EIO;
+					rc = -EIO;
+					goto release;
 				}
 
 				result = memcmp(curr_ptr, mc_data_buffer,
@@ -11883,7 +11877,8 @@ static int drx_ctrl_u_code(struct drx_demod_instance *demod,
 				if (result) {
 					pr_err("error verifying firmware at pos %zd\n",
 					       mc_data - mc_data_init);
-					return -EIO;
+					rc = -EIO;
+					goto release;
 				}
 
 				curr_addr += ((dr_xaddr_t)(bytes_to_comp / 2));
@@ -11893,17 +11888,17 @@ static int drx_ctrl_u_code(struct drx_demod_instance *demod,
 			break;
 		}
 		default:
-			return -EINVAL;
+			rc = -EINVAL;
+			goto release;
 
 		}
 		mc_data += mc_block_nr_bytes;
 	}
 
-	return 0;
+	rc = 0;
 
 release:
-	release_firmware(demod->firmware);
-	demod->firmware = NULL;
+	release_firmware(fw);
 
 	return rc;
 }
@@ -12271,7 +12266,6 @@ static void drx39xxj_release(struct dvb_frontend *fe)
 	kfree(demod->my_ext_attr);
 	kfree(demod->my_common_attr);
 	kfree(demod->my_i2c_dev_addr);
-	release_firmware(demod->firmware);
 	kfree(demod);
 	kfree(state);
 }

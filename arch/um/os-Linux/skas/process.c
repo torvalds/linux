@@ -23,6 +23,7 @@
 #include <skas.h>
 #include <sysdep/stub.h>
 #include <linux/threads.h>
+#include "../internal.h"
 
 int is_skas_winch(int pid, int fd, void *data)
 {

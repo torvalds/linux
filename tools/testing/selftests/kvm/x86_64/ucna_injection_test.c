@@ -17,14 +17,11 @@
  * delivered into the guest or not.
  *
  */
-
-#define _GNU_SOURCE /* for program_invocation_short_name */
 #include <pthread.h>
 #include <inttypes.h>
 #include <string.h>
 #include <time.h>
 
-#include "kvm_util_base.h"
 #include "kvm_util.h"
 #include "mce.h"
 #include "processor.h"
@@ -285,10 +282,6 @@ int main(int argc, char *argv[])
 	cmcidis_vcpu = create_vcpu_with_mce_cap(vm, 1, false, cmci_disabled_guest_code);
 	cmci_vcpu = create_vcpu_with_mce_cap(vm, 2, true, cmci_enabled_guest_code);
 
-	vm_init_descriptor_tables(vm);
-	vcpu_init_descriptor_tables(ucna_vcpu);
-	vcpu_init_descriptor_tables(cmcidis_vcpu);
-	vcpu_init_descriptor_tables(cmci_vcpu);
 	vm_install_exception_handler(vm, CMCI_VECTOR, guest_cmci_handler);
 	vm_install_exception_handler(vm, GP_VECTOR, guest_gp_handler);
 

@@ -2539,7 +2539,7 @@ static int ace_change_mtu(struct net_device *dev, int new_mtu)
 	struct ace_regs __iomem *regs = ap->regs;
 
 	writel(new_mtu + ETH_HLEN + 4, &regs->IfMtu);
-	dev->mtu = new_mtu;
+	WRITE_ONCE(dev->mtu, new_mtu);
 
 	if (new_mtu > ACE_STD_MTU) {
 		if (!(ap->jumbo)) {

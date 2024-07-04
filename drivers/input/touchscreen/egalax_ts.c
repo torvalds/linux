@@ -218,7 +218,7 @@ static int egalax_ts_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id egalax_ts_id[] = {
-	{ "egalax_ts", 0 },
+	{ "egalax_ts" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, egalax_ts_id);

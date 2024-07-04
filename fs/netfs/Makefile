@@ -11,7 +11,8 @@ netfs-y := \
 	main.o \
 	misc.o \
 	objects.o \
-	output.o
+	write_collect.o \
+	write_issue.o
 
 netfs-$(CONFIG_NETFS_STATS) += stats.o
 

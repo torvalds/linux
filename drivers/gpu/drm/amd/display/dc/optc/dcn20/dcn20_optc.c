@@ -462,16 +462,6 @@ void optc2_setup_manual_trigger(struct timing_generator *optc)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
 
-	/* Set the min/max selectors unconditionally so that
-	 * DMCUB fw may change OTG timings when necessary
-	 * TODO: Remove the w/a after fixing the issue in DMCUB firmware
-	 */
-	REG_UPDATE_4(OTG_V_TOTAL_CONTROL,
-				 OTG_V_TOTAL_MIN_SEL, 1,
-				 OTG_V_TOTAL_MAX_SEL, 1,
-				 OTG_FORCE_LOCK_ON_EVENT, 0,
-				 OTG_SET_V_TOTAL_MIN_MASK, (1 << 1)); /* TRIGA */
-
 	REG_SET_8(OTG_TRIGA_CNTL, 0,
 			OTG_TRIGA_SOURCE_SELECT, 21,
 			OTG_TRIGA_SOURCE_PIPE_SELECT, optc->inst,

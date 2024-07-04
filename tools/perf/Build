@@ -59,3 +59,17 @@ perf-y += ui/
 perf-y += scripts/
 
 gtk-y += ui/gtk/
+
+ifdef SHELLCHECK
+  SHELL_TESTS := $(wildcard *.sh)
+  TEST_LOGS := $(SHELL_TESTS:%=%.shellcheck_log)
+else
+  SHELL_TESTS :=
+  TEST_LOGS :=
+endif
+
+$(OUTPUT)%.shellcheck_log: %
+	$(call rule_mkdir)
+	$(Q)$(call echo-cmd,test)shellcheck -s bash -a -S warning "$<" > $@ || (cat $@ && rm $@ && false)
+
+perf-y += $(TEST_LOGS)

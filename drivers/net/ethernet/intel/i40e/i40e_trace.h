@@ -89,8 +89,8 @@ TRACE_EVENT(i40e_napi_poll,
 		__entry->tx_clean_complete = tx_clean_complete;
 		__entry->irq_num = q->irq_num;
 		__entry->curr_cpu = get_cpu();
-		__assign_str(qname, q->name);
-		__assign_str(dev_name, napi->dev ? napi->dev->name : NO_DEV);
+		__assign_str(qname);
+		__assign_str(dev_name);
 		__assign_bitmask(irq_affinity, cpumask_bits(&q->affinity_mask),
 				 nr_cpumask_bits);
 	),
@@ -132,7 +132,7 @@ DECLARE_EVENT_CLASS(
 		__entry->ring = ring;
 		__entry->desc = desc;
 		__entry->buf = buf;
-		__assign_str(devname, ring->netdev->name);
+		__assign_str(devname);
 	),
 
 	TP_printk(
@@ -177,7 +177,7 @@ DECLARE_EVENT_CLASS(
 		__entry->ring = ring;
 		__entry->desc = desc;
 		__entry->xdp = xdp;
-		__assign_str(devname, ring->netdev->name);
+		__assign_str(devname);
 	),
 
 	TP_printk(
@@ -219,7 +219,7 @@ DECLARE_EVENT_CLASS(
 	TP_fast_assign(
 		__entry->skb = skb;
 		__entry->ring = ring;
-		__assign_str(devname, ring->netdev->name);
+		__assign_str(devname);
 	),
 
 	TP_printk(

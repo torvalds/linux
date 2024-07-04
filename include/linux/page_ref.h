@@ -139,18 +139,13 @@ static inline void folio_ref_sub(struct folio *folio, int nr)
 	page_ref_sub(&folio->page, nr);
 }
 
-static inline int page_ref_sub_return(struct page *page, int nr)
-{
-	int ret = atomic_sub_return(nr, &page->_refcount);
-
-	if (page_ref_tracepoint_active(page_ref_mod_and_return))
-		__page_ref_mod_and_return(page, -nr, ret);
-	return ret;
-}
-
 static inline int folio_ref_sub_return(struct folio *folio, int nr)
 {
-	return page_ref_sub_return(&folio->page, nr);
+	int ret = atomic_sub_return(nr, &folio->_refcount);
+
+	if (page_ref_tracepoint_active(page_ref_mod_and_return))
+		__page_ref_mod_and_return(&folio->page, -nr, ret);
+	return ret;
 }
 
 static inline void page_ref_inc(struct page *page)
