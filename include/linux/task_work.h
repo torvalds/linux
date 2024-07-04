@@ -18,6 +18,7 @@ enum task_work_notify_mode {
 	TWA_RESUME,
 	TWA_SIGNAL,
 	TWA_SIGNAL_NO_IPI,
+	TWA_NMI_CURRENT,
 };
 
 static inline bool task_work_pending(struct task_struct *task)
