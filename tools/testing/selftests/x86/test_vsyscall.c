@@ -247,7 +247,7 @@ static void test_getcpu(int cpu)
 
 	if (ret_sys == 0) {
 		if (cpu_sys != cpu)
-			ksft_print_msg("syscall reported CPU %hu but should be %d\n",
+			ksft_print_msg("syscall reported CPU %u but should be %d\n",
 				       cpu_sys, cpu);
 
 		have_node = true;
@@ -265,10 +265,10 @@ static void test_getcpu(int cpu)
 
 			if (cpu_vdso != cpu || node_vdso != node) {
 				if (cpu_vdso != cpu)
-					ksft_print_msg("vDSO reported CPU %hu but should be %d\n",
+					ksft_print_msg("vDSO reported CPU %u but should be %d\n",
 						       cpu_vdso, cpu);
 				if (node_vdso != node)
-					ksft_print_msg("vDSO reported node %hu but should be %hu\n",
+					ksft_print_msg("vDSO reported node %u but should be %u\n",
 						       node_vdso, node);
 				ksft_test_result_fail("Wrong values\n");
 			} else {
@@ -290,10 +290,10 @@ static void test_getcpu(int cpu)
 
 			if (cpu_vsys != cpu || node_vsys != node) {
 				if (cpu_vsys != cpu)
-					ksft_print_msg("vsyscall reported CPU %hu but should be %d\n",
+					ksft_print_msg("vsyscall reported CPU %u but should be %d\n",
 						       cpu_vsys, cpu);
 				if (node_vsys != node)
-					ksft_print_msg("vsyscall reported node %hu but should be %hu\n",
+					ksft_print_msg("vsyscall reported node %u but should be %u\n",
 						       node_vsys, node);
 				ksft_test_result_fail("Wrong values\n");
 			} else {
