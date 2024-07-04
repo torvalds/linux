@@ -599,13 +599,11 @@ static int mtk_cpufreq_init(struct cpufreq_policy *policy)
 	return 0;
 }
 
-static int mtk_cpufreq_exit(struct cpufreq_policy *policy)
+static void mtk_cpufreq_exit(struct cpufreq_policy *policy)
 {
 	struct mtk_cpu_dvfs_info *info = policy->driver_data;
 
 	dev_pm_opp_free_cpufreq_table(info->cpu_dev, &policy->freq_table);
-
-	return 0;
 }
 
 static struct cpufreq_driver mtk_cpufreq_driver = {

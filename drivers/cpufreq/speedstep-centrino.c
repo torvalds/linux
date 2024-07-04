@@ -400,16 +400,12 @@ static int centrino_cpu_init(struct cpufreq_policy *policy)
 	return 0;
 }
 
-static int centrino_cpu_exit(struct cpufreq_policy *policy)
+static void centrino_cpu_exit(struct cpufreq_policy *policy)
 {
 	unsigned int cpu = policy->cpu;
 
-	if (!per_cpu(centrino_model, cpu))
-		return -ENODEV;
-
-	per_cpu(centrino_model, cpu) = NULL;
-
-	return 0;
+	if (per_cpu(centrino_model, cpu))
+		per_cpu(centrino_model, cpu) = NULL;
 }
 
 /**
