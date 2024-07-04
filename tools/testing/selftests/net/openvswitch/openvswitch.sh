@@ -23,7 +23,9 @@ tests="
 	drop_reason				drop: test drop reasons are emitted"
 
 info() {
-    [ $VERBOSE = 0 ] || echo $*
+	[ "${ovs_dir}" != "" ] &&
+		echo "`date +"[%m-%d %H:%M:%S]"` $*" >> ${ovs_dir}/debug.log
+	[ $VERBOSE = 0 ] || echo $*
 }
 
 ovs_base=`pwd`
@@ -65,7 +67,8 @@ ovs_setenv() {
 
 ovs_sbx() {
 	if test "X$2" != X; then
-		(ovs_setenv $1; shift; "$@" >> ${ovs_dir}/debug.log)
+		(ovs_setenv $1; shift;
+		 info "run cmd: $@"; "$@" >> ${ovs_dir}/debug.log)
 	else
 		ovs_setenv $1
 	fi
@@ -139,7 +142,7 @@ ovs_add_flow () {
 	info "Adding flow to DP: sbx:$1 br:$2 flow:$3 act:$4"
 	ovs_sbx "$1" python3 $ovs_base/ovs-dpctl.py add-flow "$2" "$3" "$4"
 	if [ $? -ne 0 ]; then
-		echo "Flow [ $3 : $4 ] failed" >> ${ovs_dir}/debug.log
+		info "Flow [ $3 : $4 ] failed"
 		return 1
 	fi
 	return 0
@@ -613,16 +616,20 @@ run_test() {
 	tname="$1"
 	tdesc="$2"
 
-	if ! lsmod | grep openvswitch >/dev/null 2>&1; then
-		stdbuf -o0 printf "TEST: %-60s  [NOMOD]\n" "${tdesc}"
-		return $ksft_skip
-	fi
-
 	if python3 ovs-dpctl.py -h 2>&1 | \
 	     grep -E "Need to (install|upgrade) the python" >/dev/null 2>&1; then
 		stdbuf -o0 printf "TEST: %-60s  [PYLIB]\n" "${tdesc}"
 		return $ksft_skip
 	fi
+
+	python3 ovs-dpctl.py show >/dev/null 2>&1 || \
+		echo "[DPCTL] show exception."
+
+	if ! lsmod | grep openvswitch >/dev/null 2>&1; then
+		stdbuf -o0 printf "TEST: %-60s  [NOMOD]\n" "${tdesc}"
+		return $ksft_skip
+	fi
+
 	printf "TEST: %-60s  [START]\n" "${tname}"
 
 	unset IFS
