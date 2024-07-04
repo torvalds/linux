@@ -541,9 +541,6 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 	efi_status_t status;
 	char *cmdline_ptr;
 
-	if (efi_is_native())
-		memset(_bss, 0, _ebss - _bss);
-
 	efi_system_table = sys_table_arg;
 
 	/* Check if we were booted by the EFI firmware */
