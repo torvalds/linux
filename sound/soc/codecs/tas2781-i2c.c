@@ -104,7 +104,7 @@ static int tas2781_amp_putvol(struct snd_kcontrol *kcontrol,
 	return tasdevice_amp_putvol(tas_priv, ucontrol, mc);
 }
 
-static int tas2781_force_fwload_get(struct snd_kcontrol *kcontrol,
+static int tasdev_force_fwload_get(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component =
@@ -119,7 +119,7 @@ static int tas2781_force_fwload_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static int tas2781_force_fwload_put(struct snd_kcontrol *kcontrol,
+static int tasdev_force_fwload_put(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component =
@@ -140,6 +140,11 @@ static int tas2781_force_fwload_put(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
+static const struct snd_kcontrol_new tasdevice_snd_controls[] = {
+	SOC_SINGLE_BOOL_EXT("Speaker Force Firmware Load", 0,
+		tasdev_force_fwload_get, tasdev_force_fwload_put),
+};
+
 static const struct snd_kcontrol_new tas2781_snd_controls[] = {
 	SOC_SINGLE_RANGE_EXT_TLV("Speaker Analog Gain", TAS2781_AMP_LEVEL,
 		1, 0, 20, 0, tas2781_amp_getvol,
@@ -147,8 +152,6 @@ static const struct snd_kcontrol_new tas2781_snd_controls[] = {
 	SOC_SINGLE_RANGE_EXT_TLV("Speaker Digital Gain", TAS2781_DVC_LVL,
 		0, 0, 200, 1, tas2781_digital_getvol,
 		tas2781_digital_putvol, dvc_tlv),
-	SOC_SINGLE_BOOL_EXT("Speaker Force Firmware Load", 0,
-		tas2781_force_fwload_get, tas2781_force_fwload_put),
 };
 
 static int tasdevice_set_profile_id(struct snd_kcontrol *kcontrol,
@@ -590,6 +593,18 @@ static struct snd_soc_dai_driver tasdevice_dai_driver[] = {
 static int tasdevice_codec_probe(struct snd_soc_component *codec)
 {
 	struct tasdevice_priv *tas_priv = snd_soc_component_get_drvdata(codec);
+	int rc;
+
+	if (tas_priv->chip_id == TAS2781) {
+		rc = snd_soc_add_component_controls(codec,
+			tas2781_snd_controls,
+			ARRAY_SIZE(tas2781_snd_controls));
+		if (rc < 0) {
+			dev_err(tas_priv->dev, "%s: Add control err rc = %d",
+				__func__, rc);
+			return rc;
+		}
+	}
 
 	tas_priv->name_prefix = codec->name_prefix;
 	return tascodec_init(tas_priv, codec, THIS_MODULE, tasdevice_fw_ready);
@@ -617,8 +632,8 @@ static const struct snd_soc_component_driver
 	soc_codec_driver_tasdevice = {
 	.probe			= tasdevice_codec_probe,
 	.remove			= tasdevice_codec_remove,
-	.controls		= tas2781_snd_controls,
-	.num_controls		= ARRAY_SIZE(tas2781_snd_controls),
+	.controls		= tasdevice_snd_controls,
+	.num_controls		= ARRAY_SIZE(tasdevice_snd_controls),
 	.dapm_widgets		= tasdevice_dapm_widgets,
 	.num_dapm_widgets	= ARRAY_SIZE(tasdevice_dapm_widgets),
 	.dapm_routes		= tasdevice_audio_map,
@@ -759,7 +774,7 @@ MODULE_DEVICE_TABLE(acpi, tasdevice_acpi_match);
 
 static struct i2c_driver tasdevice_i2c_driver = {
 	.driver = {
-		.name = "tas2781-codec",
+		.name = "tasdev-codec",
 		.of_match_table = of_match_ptr(tasdevice_of_match),
 #ifdef CONFIG_ACPI
 		.acpi_match_table = ACPI_PTR(tasdevice_acpi_match),
