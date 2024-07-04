@@ -74,6 +74,8 @@ enum {
 	PD692X0_MSG_GET_PORT_STATUS,
 	PD692X0_MSG_DOWNLOAD_CMD,
 	PD692X0_MSG_GET_PORT_CLASS,
+	PD692X0_MSG_GET_PORT_MEAS,
+	PD692X0_MSG_GET_PORT_PARAM,
 
 	/* add new message above here */
 	PD692X0_MSG_CNT
@@ -135,7 +137,7 @@ static const struct pd692x0_msg pd692x0_msg_template_list[PD692X0_MSG_CNT] = {
 	[PD692X0_MSG_SET_PORT_PARAM] = {
 		.key = PD692X0_KEY_CMD,
 		.sub = {0x05, 0xc0},
-		.data = {   0, 0xff, 0xff, 0xff,
+		.data = { 0xf, 0xff, 0xff, 0xff,
 			 0x4e, 0x4e, 0x4e, 0x4e},
 	},
 	[PD692X0_MSG_GET_PORT_STATUS] = {
@@ -153,6 +155,18 @@ static const struct pd692x0_msg pd692x0_msg_template_list[PD692X0_MSG_CNT] = {
 	[PD692X0_MSG_GET_PORT_CLASS] = {
 		.key = PD692X0_KEY_REQ,
 		.sub = {0x05, 0xc4},
+		.data = {0x4e, 0x4e, 0x4e, 0x4e,
+			 0x4e, 0x4e, 0x4e, 0x4e},
+	},
+	[PD692X0_MSG_GET_PORT_MEAS] = {
+		.key = PD692X0_KEY_REQ,
+		.sub = {0x05, 0xc5},
+		.data = {0x4e, 0x4e, 0x4e, 0x4e,
+			 0x4e, 0x4e, 0x4e, 0x4e},
+	},
+	[PD692X0_MSG_GET_PORT_PARAM] = {
+		.key = PD692X0_KEY_REQ,
+		.sub = {0x05, 0xc0},
 		.data = {0x4e, 0x4e, 0x4e, 0x4e,
 			 0x4e, 0x4e, 0x4e, 0x4e},
 	},
@@ -520,6 +534,106 @@ pd692x0_get_ext_state(struct ethtool_c33_pse_ext_state_info *c33_ext_state_info,
 	}
 }
 
+struct pd692x0_class_pw {
+	int class;
+	int class_cfg_value;
+	int class_pw;
+	int max_added_class_pw;
+};
+
+#define PD692X0_CLASS_PW_TABLE_SIZE 4
+/* 4/2 pairs class configuration power table in compliance mode.
+ * Need to be arranged in ascending order of power support.
+ */
+static const struct pd692x0_class_pw
+pd692x0_class_pw_table[PD692X0_CLASS_PW_TABLE_SIZE] = {
+	{.class = 3, .class_cfg_value = 0x3, .class_pw = 15000, .max_added_class_pw = 3100},
+	{.class = 4, .class_cfg_value = 0x2, .class_pw = 30000, .max_added_class_pw = 8000},
+	{.class = 6, .class_cfg_value = 0x1, .class_pw = 60000, .max_added_class_pw = 5000},
+	{.class = 8, .class_cfg_value = 0x0, .class_pw = 90000, .max_added_class_pw = 7500},
+};
+
+static int pd692x0_pi_get_pw_from_table(int op_mode, int added_pw)
+{
+	const struct pd692x0_class_pw *pw_table;
+	int i;
+
+	pw_table = pd692x0_class_pw_table;
+	for (i = 0; i < PD692X0_CLASS_PW_TABLE_SIZE; i++, pw_table++) {
+		if (pw_table->class_cfg_value == op_mode)
+			return pw_table->class_pw + added_pw * 100;
+	}
+
+	return -ERANGE;
+}
+
+static int pd692x0_pi_set_pw_from_table(struct device *dev,
+					struct pd692x0_msg *msg, int pw)
+{
+	const struct pd692x0_class_pw *pw_table;
+	int i;
+
+	pw_table = pd692x0_class_pw_table;
+	if (pw < pw_table->class_pw) {
+		dev_err(dev,
+			"Power limit %dmW not supported. Ranges minimal available: [%d-%d]\n",
+			pw,
+			pw_table->class_pw,
+			pw_table->class_pw + pw_table->max_added_class_pw);
+		return -ERANGE;
+	}
+
+	for (i = 0; i < PD692X0_CLASS_PW_TABLE_SIZE; i++, pw_table++) {
+		if (pw > (pw_table->class_pw + pw_table->max_added_class_pw))
+			continue;
+
+		if (pw < pw_table->class_pw) {
+			dev_err(dev,
+				"Power limit %dmW not supported. Ranges availables: [%d-%d] or [%d-%d]\n",
+				pw,
+				(pw_table - 1)->class_pw,
+				(pw_table - 1)->class_pw + (pw_table - 1)->max_added_class_pw,
+				pw_table->class_pw,
+				pw_table->class_pw + pw_table->max_added_class_pw);
+			return -ERANGE;
+		}
+
+		msg->data[2] = pw_table->class_cfg_value;
+		msg->data[3] = (pw - pw_table->class_pw) / 100;
+		return 0;
+	}
+
+	pw_table--;
+	dev_warn(dev,
+		 "Power limit %dmW not supported. Set to highest power limit %dmW\n",
+		 pw, pw_table->class_pw + pw_table->max_added_class_pw);
+	msg->data[2] = pw_table->class_cfg_value;
+	msg->data[3] = pw_table->max_added_class_pw / 100;
+	return 0;
+}
+
+static int
+pd692x0_pi_get_pw_ranges(struct pse_control_status *st)
+{
+	const struct pd692x0_class_pw *pw_table;
+	int i;
+
+	pw_table = pd692x0_class_pw_table;
+	st->c33_pw_limit_ranges = kcalloc(PD692X0_CLASS_PW_TABLE_SIZE,
+					  sizeof(struct ethtool_c33_pse_pw_limit_range),
+					  GFP_KERNEL);
+	if (!st->c33_pw_limit_ranges)
+		return -ENOMEM;
+
+	for (i = 0; i < PD692X0_CLASS_PW_TABLE_SIZE; i++, pw_table++) {
+		st->c33_pw_limit_ranges[i].min = pw_table->class_pw;
+		st->c33_pw_limit_ranges[i].max = pw_table->class_pw + pw_table->max_added_class_pw;
+	}
+
+	st->c33_pw_limit_nb_ranges = i;
+	return 0;
+}
+
 static int pd692x0_ethtool_get_status(struct pse_controller_dev *pcdev,
 				      unsigned long id,
 				      struct netlink_ext_ack *extack,
@@ -558,8 +672,19 @@ static int pd692x0_ethtool_get_status(struct pse_controller_dev *pcdev,
 	priv->admin_state[id] = status->c33_admin_state;
 
 	pd692x0_get_ext_state(&status->c33_ext_state_info, buf.sub[0]);
-
 	status->c33_actual_pw = (buf.data[0] << 4 | buf.data[1]) * 100;
+
+	msg = pd692x0_msg_template_list[PD692X0_MSG_GET_PORT_PARAM];
+	msg.sub[2] = id;
+	memset(&buf, 0, sizeof(buf));
+	ret = pd692x0_sendrecv_msg(priv, &msg, &buf);
+	if (ret < 0)
+		return ret;
+
+	ret = pd692x0_pi_get_pw_from_table(buf.data[0], buf.data[1]);
+	if (ret < 0)
+		return ret;
+	status->c33_avail_pw_limit = ret;
 
 	memset(&buf, 0, sizeof(buf));
 	msg = pd692x0_msg_template_list[PD692X0_MSG_GET_PORT_CLASS];
@@ -571,6 +696,10 @@ static int pd692x0_ethtool_get_status(struct pse_controller_dev *pcdev,
 	class = buf.data[3] >> 4;
 	if (class <= 8)
 		status->c33_pw_class = class;
+
+	ret = pd692x0_pi_get_pw_ranges(status);
+	if (ret < 0)
+		return ret;
 
 	return 0;
 }
@@ -850,12 +979,97 @@ out:
 	return ret;
 }
 
+static int pd692x0_pi_get_voltage(struct pse_controller_dev *pcdev, int id)
+{
+	struct pd692x0_priv *priv = to_pd692x0_priv(pcdev);
+	struct pd692x0_msg msg, buf = {0};
+	int ret;
+
+	ret = pd692x0_fw_unavailable(priv);
+	if (ret)
+		return ret;
+
+	msg = pd692x0_msg_template_list[PD692X0_MSG_GET_PORT_MEAS];
+	msg.sub[2] = id;
+	ret = pd692x0_sendrecv_msg(priv, &msg, &buf);
+	if (ret < 0)
+		return ret;
+
+	/* Convert 0.1V unit to uV */
+	return (buf.sub[0] << 8 | buf.sub[1]) * 100000;
+}
+
+static int pd692x0_pi_get_current_limit(struct pse_controller_dev *pcdev,
+					int id)
+{
+	struct pd692x0_priv *priv = to_pd692x0_priv(pcdev);
+	struct pd692x0_msg msg, buf = {0};
+	int mW, uV, uA, ret;
+	s64 tmp_64;
+
+	msg = pd692x0_msg_template_list[PD692X0_MSG_GET_PORT_PARAM];
+	msg.sub[2] = id;
+	ret = pd692x0_sendrecv_msg(priv, &msg, &buf);
+	if (ret < 0)
+		return ret;
+
+	ret = pd692x0_pi_get_pw_from_table(buf.data[2], buf.data[3]);
+	if (ret < 0)
+		return ret;
+	mW = ret;
+
+	ret = pd692x0_pi_get_voltage(pcdev, id);
+	if (ret < 0)
+		return ret;
+	uV = ret;
+
+	tmp_64 = mW;
+	tmp_64 *= 1000000000ull;
+	/* uA = mW * 1000000000 / uV */
+	uA = DIV_ROUND_CLOSEST_ULL(tmp_64, uV);
+	return uA;
+}
+
+static int pd692x0_pi_set_current_limit(struct pse_controller_dev *pcdev,
+					int id, int max_uA)
+{
+	struct pd692x0_priv *priv = to_pd692x0_priv(pcdev);
+	struct device *dev = &priv->client->dev;
+	struct pd692x0_msg msg, buf = {0};
+	int uV, ret, mW;
+	s64 tmp_64;
+
+	ret = pd692x0_fw_unavailable(priv);
+	if (ret)
+		return ret;
+
+	ret = pd692x0_pi_get_voltage(pcdev, id);
+	if (ret < 0)
+		return ret;
+	uV = ret;
+
+	msg = pd692x0_msg_template_list[PD692X0_MSG_SET_PORT_PARAM];
+	msg.sub[2] = id;
+	tmp_64 = uV;
+	tmp_64 *= max_uA;
+	/* mW = uV * uA / 1000000000 */
+	mW = DIV_ROUND_CLOSEST_ULL(tmp_64, 1000000000);
+	ret = pd692x0_pi_set_pw_from_table(dev, &msg, mW);
+	if (ret)
+		return ret;
+
+	return pd692x0_sendrecv_msg(priv, &msg, &buf);
+}
+
 static const struct pse_controller_ops pd692x0_ops = {
 	.setup_pi_matrix = pd692x0_setup_pi_matrix,
 	.ethtool_get_status = pd692x0_ethtool_get_status,
 	.pi_enable = pd692x0_pi_enable,
 	.pi_disable = pd692x0_pi_disable,
 	.pi_is_enabled = pd692x0_pi_is_enabled,
+	.pi_get_voltage = pd692x0_pi_get_voltage,
+	.pi_get_current_limit = pd692x0_pi_get_current_limit,
+	.pi_set_current_limit = pd692x0_pi_set_current_limit,
 };
 
 #define PD692X0_FW_LINE_MAX_SZ 0xff
