@@ -9765,7 +9765,7 @@ struct swevent_htable {
 	int				hlist_refcount;
 
 	/* Recursion avoidance in each contexts */
-	int				recursion[PERF_NR_CONTEXTS];
+	u8				recursion[PERF_NR_CONTEXTS];
 };
 
 static DEFINE_PER_CPU(struct swevent_htable, swevent_htable);
