@@ -68,7 +68,9 @@ static struct iommu_table *iommu_pseries_alloc_table(int node)
 	return tbl;
 }
 
+#ifdef CONFIG_IOMMU_API
 static struct iommu_table_group_ops spapr_tce_table_group_ops;
+#endif
 
 static struct iommu_table_group *iommu_pseries_alloc_group(int node)
 {
@@ -165,6 +167,7 @@ static unsigned long tce_get_pseries(struct iommu_table *tbl, long index)
 	return be64_to_cpu(*tcep);
 }
 
+#ifdef CONFIG_IOMMU_API
 static long pseries_tce_iommu_userspace_view_alloc(struct iommu_table *tbl)
 {
 	unsigned long cb = ALIGN(sizeof(tbl->it_userspace[0]) * tbl->it_size, PAGE_SIZE);
@@ -183,6 +186,7 @@ static long pseries_tce_iommu_userspace_view_alloc(struct iommu_table *tbl)
 
 	return 0;
 }
+#endif
 
 static void tce_iommu_userspace_view_free(struct iommu_table *tbl)
 {
@@ -738,6 +742,7 @@ struct iommu_table_ops iommu_table_lpar_multi_ops = {
 	.free = tce_free_pSeries
 };
 
+#ifdef CONFIG_IOMMU_API
 /*
  * When the DMA window properties might have been removed,
  * the parent node has the table_group setup on it.
@@ -757,6 +762,7 @@ static struct device_node *pci_dma_find_parent_node(struct pci_dev *dev,
 
 	return NULL;
 }
+#endif
 
 /*
  * Find nearest ibm,dma-window (default DMA window) or direct DMA window or
@@ -1845,6 +1851,7 @@ static bool iommu_bypass_supported_pSeriesLP(struct pci_dev *pdev, u64 dma_mask)
 	return false;
 }
 
+#ifdef CONFIG_IOMMU_API
 /*
  * A simple iommu_table_group_ops which only allows reusing the existing
  * iommu_table. This handles VFIO for POWER7 or the nested KVM.
@@ -2327,6 +2334,7 @@ static struct iommu_table_group_ops spapr_tce_table_group_ops = {
 	.take_ownership = spapr_tce_take_ownership,
 	.release_ownership = spapr_tce_release_ownership,
 };
+#endif
 
 static int iommu_mem_notifier(struct notifier_block *nb, unsigned long action,
 		void *data)
