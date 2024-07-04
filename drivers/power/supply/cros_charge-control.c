@@ -204,14 +204,13 @@ static ssize_t charge_behaviour_store(struct device *dev, struct device_attribut
 {
 	struct cros_chctl_priv *priv = cros_chctl_attr_to_priv(&attr->attr,
 							       CROS_CHCTL_ATTR_CHARGE_BEHAVIOUR);
-	enum power_supply_charge_behaviour behaviour;
 	int ret;
 
-	behaviour = power_supply_charge_behaviour_parse(EC_CHARGE_CONTROL_BEHAVIOURS, buf);
-	if (behaviour < 0)
-		return behaviour;
+	ret = power_supply_charge_behaviour_parse(EC_CHARGE_CONTROL_BEHAVIOURS, buf);
+	if (ret < 0)
+		return ret;
 
-	priv->current_behaviour = behaviour;
+	priv->current_behaviour = ret;
 
 	ret = cros_chctl_configure_ec(priv);
 	if (ret < 0)
