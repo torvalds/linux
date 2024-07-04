@@ -119,6 +119,7 @@ enum diag204_sc {
 
 #define DIAG204_SUBCODE_MASK 0xffff
 #define DIAG204_BIF_BIT 0x80000000
+#define DIAG204_BUSY_WAIT (HZ / 10)
 
 /* The two available diag 204 data formats */
 enum diag204_format {
