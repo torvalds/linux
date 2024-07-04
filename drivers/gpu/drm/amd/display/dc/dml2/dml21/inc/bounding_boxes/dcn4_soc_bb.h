@@ -52,7 +52,7 @@ static const struct dml2_soc_qos_parameters dml_dcn401_soc_qos_params = {
 		.scaling_factor_mhz = 0,
 	},
 	.qos_params = {
-		.dcn4 = {
+		.dcn4x = {
 			.df_qos_response_time_fclk_cycles = 300,
 			.max_round_trip_to_furthest_cs_fclk_cycles = 350,
 			.mall_overhead_fclk_cycles = 50,
@@ -78,7 +78,7 @@ static const struct dml2_soc_qos_parameters dml_dcn401_soc_qos_params = {
 			},
 		},
 	},
-	.qos_type = dml2_qos_param_type_dcn4,
+	.qos_type = dml2_qos_param_type_dcn4x,
 };
 
 static const struct dml2_soc_bb dml2_socbb_dcn401 = {
@@ -178,7 +178,7 @@ static const struct dml2_soc_bb dml2_socbb_dcn401 = {
 			.scaling_factor_mhz = 0,
 		},
 		.qos_params = {
-			.dcn4 = {
+			.dcn4x = {
 				.df_qos_response_time_fclk_cycles = 300,
 				.max_round_trip_to_furthest_cs_fclk_cycles = 350,
 				.mall_overhead_fclk_cycles = 50,
@@ -282,7 +282,7 @@ static const struct dml2_soc_bb dml2_socbb_dcn401 = {
 				},
 			},
 		},
-		.qos_type = dml2_qos_param_type_dcn4,
+		.qos_type = dml2_qos_param_type_dcn4x,
 	},
 
 	.power_management_parameters = {

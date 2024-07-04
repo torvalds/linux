@@ -326,7 +326,7 @@ void dml21_program_dc_pipe(struct dml2_context *dml_ctx, struct dc_state *contex
 		pipe_ctx->det_buffer_size_kb = pln_prog->pipe_regs[pipe_reg_index]->det_size * 64;
 	}
 
-	pipe_ctx->plane_res.bw.dppclk_khz = pln_prog->min_clocks.dcn4.dppclk_khz;
+	pipe_ctx->plane_res.bw.dppclk_khz = pln_prog->min_clocks.dcn4x.dppclk_khz;
 	if (context->bw_ctx.bw.dcn.clk.dppclk_khz < pipe_ctx->plane_res.bw.dppclk_khz)
 		context->bw_ctx.bw.dcn.clk.dppclk_khz = pipe_ctx->plane_res.bw.dppclk_khz;
 

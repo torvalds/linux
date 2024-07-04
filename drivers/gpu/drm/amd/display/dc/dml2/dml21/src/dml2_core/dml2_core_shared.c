@@ -779,7 +779,7 @@ bool dml2_core_shared_mode_support(struct dml2_core_calcs_mode_support_ex *in_ou
 	mode_lib->ms.max_dppclk_freq_mhz = (double)min_clk_table->max_clocks_khz.dppclk / 1000;
 	mode_lib->ms.uclk_freq_mhz = dram_bw_kbps_to_uclk_mhz(min_clk_table->dram_bw_table.entries[in_out_params->min_clk_index].pre_derate_dram_bw_kbps, &mode_lib->soc.clk_table.dram_config);
 	mode_lib->ms.dram_bw_mbps = ((double)min_clk_table->dram_bw_table.entries[in_out_params->min_clk_index].pre_derate_dram_bw_kbps / 1000);
-	mode_lib->ms.qos_param_index = get_qos_param_index((unsigned int)(mode_lib->ms.uclk_freq_mhz * 1000.0), mode_lib->soc.qos_parameters.qos_params.dcn4.per_uclk_dpm_params);
+	mode_lib->ms.qos_param_index = get_qos_param_index((unsigned int)(mode_lib->ms.uclk_freq_mhz * 1000.0), mode_lib->soc.qos_parameters.qos_params.dcn4x.per_uclk_dpm_params);
 	mode_lib->ms.active_min_uclk_dpm_index = get_active_min_uclk_dpm_index((unsigned int)(mode_lib->ms.uclk_freq_mhz * 1000.0), &mode_lib->soc.clk_table);
 
 #if defined(__DML_VBA_DEBUG__)
@@ -1776,32 +1776,32 @@ bool dml2_core_shared_mode_support(struct dml2_core_calcs_mode_support_ex *in_ou
 #endif
 
 	mode_lib->ms.UrgLatency = CalculateUrgentLatency(
-		mode_lib->soc.qos_parameters.qos_params.dcn3.urgent_latency_us.base_latency_us,
-		mode_lib->soc.qos_parameters.qos_params.dcn3.urgent_latency_us.base_latency_pixel_vm_us,
-		mode_lib->soc.qos_parameters.qos_params.dcn3.urgent_latency_us.base_latency_vm_us,
+		mode_lib->soc.qos_parameters.qos_params.dcn32x.urgent_latency_us.base_latency_us,
+		mode_lib->soc.qos_parameters.qos_params.dcn32x.urgent_latency_us.base_latency_pixel_vm_us,
+		mode_lib->soc.qos_parameters.qos_params.dcn32x.urgent_latency_us.base_latency_vm_us,
 		mode_lib->soc.do_urgent_latency_adjustment,
-		mode_lib->soc.qos_parameters.qos_params.dcn3.urgent_latency_us.scaling_factor_fclk_us,
-		mode_lib->soc.qos_parameters.qos_params.dcn3.urgent_latency_us.scaling_factor_mhz,
+		mode_lib->soc.qos_parameters.qos_params.dcn32x.urgent_latency_us.scaling_factor_fclk_us,
+		mode_lib->soc.qos_parameters.qos_params.dcn32x.urgent_latency_us.scaling_factor_mhz,
 		mode_lib->ms.FabricClock,
 		mode_lib->ms.uclk_freq_mhz,
 		mode_lib->soc.qos_parameters.qos_type,
-		mode_lib->soc.qos_parameters.qos_params.dcn4.per_uclk_dpm_params[mode_lib->ms.qos_param_index].urgent_ramp_uclk_cycles,
-		mode_lib->soc.qos_parameters.qos_params.dcn4.df_qos_response_time_fclk_cycles,
-		mode_lib->soc.qos_parameters.qos_params.dcn4.max_round_trip_to_furthest_cs_fclk_cycles,
-		mode_lib->soc.qos_parameters.qos_params.dcn4.mall_overhead_fclk_cycles,
-		mode_lib->soc.qos_parameters.qos_params.dcn4.umc_urgent_ramp_latency_margin,
-		mode_lib->soc.qos_parameters.qos_params.dcn4.fabric_max_transport_latency_margin);
+		mode_lib->soc.qos_parameters.qos_params.dcn4x.per_uclk_dpm_params[mode_lib->ms.qos_param_index].urgent_ramp_uclk_cycles,
+		mode_lib->soc.qos_parameters.qos_params.dcn4x.df_qos_response_time_fclk_cycles,
+		mode_lib->soc.qos_parameters.qos_params.dcn4x.max_round_trip_to_furthest_cs_fclk_cycles,
+		mode_lib->soc.qos_parameters.qos_params.dcn4x.mall_overhead_fclk_cycles,
+		mode_lib->soc.qos_parameters.qos_params.dcn4x.umc_urgent_ramp_latency_margin,
+		mode_lib->soc.qos_parameters.qos_params.dcn4x.fabric_max_transport_latency_margin);
 
 	mode_lib->ms.TripToMemory = CalculateTripToMemory(
 		mode_lib->ms.UrgLatency,
 		mode_lib->ms.FabricClock,
 		mode_lib->ms.uclk_freq_mhz,
 		mode_lib->soc.qos_parameters.qos_type,
-		mode_lib->soc.qos_parameters.qos_params.dcn4.per_uclk_dpm_params[mode_lib->ms.qos_param_index].trip_to_memory_uclk_cycles,
-		mode_lib->soc.qos_parameters.qos_params.dcn4.max_round_trip_to_furthest_cs_fclk_cycles,
-		mode_lib->soc.qos_parameters.qos_params.dcn4.mall_overhead_fclk_cycles,
-		mode_lib->soc.qos_parameters.qos_params.dcn4.umc_max_latency_margin,
-		mode_lib->soc.qos_parameters.qos_params.dcn4.fabric_max_transport_latency_margin);
+		mode_lib->soc.qos_parameters.qos_params.dcn4x.per_uclk_dpm_params[mode_lib->ms.qos_param_index].trip_to_memory_uclk_cycles,
+		mode_lib->soc.qos_parameters.qos_params.dcn4x.max_round_trip_to_furthest_cs_fclk_cycles,
+		mode_lib->soc.qos_parameters.qos_params.dcn4x.mall_overhead_fclk_cycles,
+		mode_lib->soc.qos_parameters.qos_params.dcn4x.umc_max_latency_margin,
+		mode_lib->soc.qos_parameters.qos_params.dcn4x.fabric_max_transport_latency_margin);
 
 	mode_lib->ms.TripToMemory = math_max2(mode_lib->ms.UrgLatency, mode_lib->ms.TripToMemory);
 
@@ -1995,21 +1995,21 @@ bool dml2_core_shared_mode_support(struct dml2_core_calcs_mode_support_ex *in_ou
 	mode_lib->ms.support.OutstandingRequestsUrgencyAvoidance = true;
 
 	mode_lib->ms.support.avg_urgent_latency_us
-		= (mode_lib->soc.qos_parameters.qos_params.dcn4.per_uclk_dpm_params[mode_lib->ms.qos_param_index].average_latency_when_urgent_uclk_cycles / mode_lib->ms.uclk_freq_mhz
-			* (1 + mode_lib->soc.qos_parameters.qos_params.dcn4.umc_average_latency_margin / 100.0)
-			+ mode_lib->soc.qos_parameters.qos_params.dcn4.average_transport_distance_fclk_cycles / mode_lib->ms.FabricClock)
-		* (1 + mode_lib->soc.qos_parameters.qos_params.dcn4.fabric_average_transport_latency_margin / 100.0);
+		= (mode_lib->soc.qos_parameters.qos_params.dcn4x.per_uclk_dpm_params[mode_lib->ms.qos_param_index].average_latency_when_urgent_uclk_cycles / mode_lib->ms.uclk_freq_mhz
+			* (1 + mode_lib->soc.qos_parameters.qos_params.dcn4x.umc_average_latency_margin / 100.0)
+			+ mode_lib->soc.qos_parameters.qos_params.dcn4x.average_transport_distance_fclk_cycles / mode_lib->ms.FabricClock)
+		* (1 + mode_lib->soc.qos_parameters.qos_params.dcn4x.fabric_average_transport_latency_margin / 100.0);
 
 	mode_lib->ms.support.avg_non_urgent_latency_us
-		= (mode_lib->soc.qos_parameters.qos_params.dcn4.per_uclk_dpm_params[mode_lib->ms.qos_param_index].average_latency_when_non_urgent_uclk_cycles / mode_lib->ms.uclk_freq_mhz
-			* (1 + mode_lib->soc.qos_parameters.qos_params.dcn4.umc_average_latency_margin / 100.0)
-			+ mode_lib->soc.qos_parameters.qos_params.dcn4.average_transport_distance_fclk_cycles / mode_lib->ms.FabricClock)
-		* (1 + mode_lib->soc.qos_parameters.qos_params.dcn4.fabric_average_transport_latency_margin / 100.0);
+		= (mode_lib->soc.qos_parameters.qos_params.dcn4x.per_uclk_dpm_params[mode_lib->ms.qos_param_index].average_latency_when_non_urgent_uclk_cycles / mode_lib->ms.uclk_freq_mhz
+			* (1 + mode_lib->soc.qos_parameters.qos_params.dcn4x.umc_average_latency_margin / 100.0)
+			+ mode_lib->soc.qos_parameters.qos_params.dcn4x.average_transport_distance_fclk_cycles / mode_lib->ms.FabricClock)
+		* (1 + mode_lib->soc.qos_parameters.qos_params.dcn4x.fabric_average_transport_latency_margin / 100.0);
 
 	double outstanding_latency_us = 0;
 	for (k = 0; k < mode_lib->ms.num_active_planes; k++) {
 
-		if (mode_lib->soc.qos_parameters.qos_type == dml2_qos_param_type_dcn4) {
+		if (mode_lib->soc.qos_parameters.qos_type == dml2_qos_param_type_dcn4x) {
 			outstanding_latency_us = (mode_lib->soc.max_outstanding_reqs * mode_lib->ms.support.request_size_bytes_luma[k]
 				/ (mode_lib->ms.DCFCLK * mode_lib->soc.return_bus_width_bytes));
 
@@ -2029,7 +2029,7 @@ bool dml2_core_shared_mode_support(struct dml2_core_calcs_mode_support_ex *in_ou
 #endif
 		}
 
-		if (mode_lib->soc.qos_parameters.qos_type == dml2_qos_param_type_dcn4 && mode_lib->ms.BytePerPixelC[k] > 0) {
+		if (mode_lib->soc.qos_parameters.qos_type == dml2_qos_param_type_dcn4x && mode_lib->ms.BytePerPixelC[k] > 0) {
 			outstanding_latency_us = (mode_lib->soc.max_outstanding_reqs * mode_lib->ms.support.request_size_bytes_chroma[k]
 				/ (mode_lib->ms.DCFCLK * mode_lib->soc.return_bus_width_bytes));
 
@@ -2243,14 +2243,14 @@ bool dml2_core_shared_mode_support(struct dml2_core_calcs_mode_support_ex *in_ou
 
 		double min_return_bw_for_latency = mode_lib->ms.support.urg_bandwidth_available_min_latency[dml2_core_internal_soc_state_sys_active];
 		if (mode_lib->soc.qos_parameters.qos_type == dml2_qos_param_type_dcn3)
-			s->ReorderingBytes = (unsigned int)(mode_lib->soc.clk_table.dram_config.channel_count * math_max3(mode_lib->soc.qos_parameters.qos_params.dcn3.urgent_out_of_order_return_per_channel_pixel_only_bytes,
-											mode_lib->soc.qos_parameters.qos_params.dcn3.urgent_out_of_order_return_per_channel_pixel_and_vm_bytes,
-											mode_lib->soc.qos_parameters.qos_params.dcn3.urgent_out_of_order_return_per_channel_vm_only_bytes));
+			s->ReorderingBytes = (unsigned int)(mode_lib->soc.clk_table.dram_config.channel_count * math_max3(mode_lib->soc.qos_parameters.qos_params.dcn32x.urgent_out_of_order_return_per_channel_pixel_only_bytes,
+											mode_lib->soc.qos_parameters.qos_params.dcn32x.urgent_out_of_order_return_per_channel_pixel_and_vm_bytes,
+											mode_lib->soc.qos_parameters.qos_params.dcn32x.urgent_out_of_order_return_per_channel_vm_only_bytes));
 
 		CalculateExtraLatency(
 			display_cfg,
 			mode_lib->ip.rob_buffer_size_kbytes,
-			mode_lib->soc.qos_parameters.qos_params.dcn3.loaded_round_trip_latency_fclk_cycles,
+			mode_lib->soc.qos_parameters.qos_params.dcn32x.loaded_round_trip_latency_fclk_cycles,
 			s->ReorderingBytes,
 			mode_lib->ms.DCFCLK,
 			mode_lib->ms.FabricClock,
@@ -2717,13 +2717,13 @@ bool dml2_core_shared_mode_support(struct dml2_core_calcs_mode_support_ex *in_ou
 
 	//Re-ordering Buffer Support Check
 	mode_lib->ms.support.max_urgent_latency_us
-		= mode_lib->soc.qos_parameters.qos_params.dcn4.per_uclk_dpm_params[mode_lib->ms.qos_param_index].maximum_latency_when_urgent_uclk_cycles / mode_lib->ms.uclk_freq_mhz
-		* (1 + mode_lib->soc.qos_parameters.qos_params.dcn4.umc_max_latency_margin / 100.0)
-		+ mode_lib->soc.qos_parameters.qos_params.dcn4.mall_overhead_fclk_cycles / mode_lib->ms.FabricClock
-		+ mode_lib->soc.qos_parameters.qos_params.dcn4.max_round_trip_to_furthest_cs_fclk_cycles / mode_lib->ms.FabricClock
-		* (1 + mode_lib->soc.qos_parameters.qos_params.dcn4.fabric_max_transport_latency_margin / 100.0);
+		= mode_lib->soc.qos_parameters.qos_params.dcn4x.per_uclk_dpm_params[mode_lib->ms.qos_param_index].maximum_latency_when_urgent_uclk_cycles / mode_lib->ms.uclk_freq_mhz
+		* (1 + mode_lib->soc.qos_parameters.qos_params.dcn4x.umc_max_latency_margin / 100.0)
+		+ mode_lib->soc.qos_parameters.qos_params.dcn4x.mall_overhead_fclk_cycles / mode_lib->ms.FabricClock
+		+ mode_lib->soc.qos_parameters.qos_params.dcn4x.max_round_trip_to_furthest_cs_fclk_cycles / mode_lib->ms.FabricClock
+		* (1 + mode_lib->soc.qos_parameters.qos_params.dcn4x.fabric_max_transport_latency_margin / 100.0);
 
-	if (mode_lib->soc.qos_parameters.qos_type == dml2_qos_param_type_dcn4) {
+	if (mode_lib->soc.qos_parameters.qos_type == dml2_qos_param_type_dcn4x) {
 		if (((mode_lib->ip.rob_buffer_size_kbytes - mode_lib->ip.pixel_chunk_size_kbytes) * 1024
 			/ mode_lib->ms.support.non_urg_bandwidth_required_flip[dml2_core_internal_soc_state_sys_active][dml2_core_internal_bw_sdp]) >= mode_lib->ms.support.max_urgent_latency_us) {
 			mode_lib->ms.support.ROBSupport = true;
@@ -2731,7 +2731,7 @@ bool dml2_core_shared_mode_support(struct dml2_core_calcs_mode_support_ex *in_ou
 			mode_lib->ms.support.ROBSupport = false;
 		}
 	} else {
-		if (mode_lib->ip.rob_buffer_size_kbytes * 1024 >= mode_lib->soc.qos_parameters.qos_params.dcn3.loaded_round_trip_latency_fclk_cycles * mode_lib->soc.fabric_datapath_to_dcn_data_return_bytes) {
+		if (mode_lib->ip.rob_buffer_size_kbytes * 1024 >= mode_lib->soc.qos_parameters.qos_params.dcn32x.loaded_round_trip_latency_fclk_cycles * mode_lib->soc.fabric_datapath_to_dcn_data_return_bytes) {
 			mode_lib->ms.support.ROBSupport = true;
 		} else {
 			mode_lib->ms.support.ROBSupport = false;
@@ -5885,7 +5885,7 @@ static double CalculateUrgentLatency(
 	double fabric_max_transport_latency_margin)
 {
 	double urgent_latency = 0;
-	if (qos_type == dml2_qos_param_type_dcn4) {
+	if (qos_type == dml2_qos_param_type_dcn4x) {
 		urgent_latency = (df_qos_response_time_fclk_cycles + mall_overhead_fclk_cycles) / FabricClock
 			+ max_round_trip_to_furthest_cs_fclk_cycles / FabricClock * (1 + fabric_max_transport_latency_margin / 100.0)
 			+ urgent_ramp_uclk_cycles / uclk_freq_mhz * (1 + umc_urgent_ramp_latency_margin / 100.0);
@@ -5896,7 +5896,7 @@ static double CalculateUrgentLatency(
 		}
 	}
 #ifdef __DML_VBA_DEBUG__
-	if (qos_type == dml2_qos_param_type_dcn4) {
+	if (qos_type == dml2_qos_param_type_dcn4x) {
 		dml2_printf("DML::%s: qos_type = %d\n", __func__, qos_type);
 		dml2_printf("DML::%s: urgent_ramp_uclk_cycles = %d\n", __func__, urgent_ramp_uclk_cycles);
 		dml2_printf("DML::%s: uclk_freq_mhz = %f\n", __func__, uclk_freq_mhz);
@@ -5926,7 +5926,7 @@ static double CalculateTripToMemory(
 	double fabric_max_transport_latency_margin)
 {
 	double trip_to_memory_us;
-	if (qos_type == dml2_qos_param_type_dcn4) {
+	if (qos_type == dml2_qos_param_type_dcn4x) {
 		trip_to_memory_us = mall_overhead_fclk_cycles / FabricClock
 			+ max_round_trip_to_furthest_cs_fclk_cycles / FabricClock * (1.0 + fabric_max_transport_latency_margin / 100.0)
 			+ trip_to_memory_uclk_cycles / uclk_freq_mhz * (1.0 + umc_max_latency_margin / 100.0);
@@ -5935,7 +5935,7 @@ static double CalculateTripToMemory(
 	}
 
 #ifdef __DML_VBA_DEBUG__
-	if (qos_type == dml2_qos_param_type_dcn4) {
+	if (qos_type == dml2_qos_param_type_dcn4x) {
 		dml2_printf("DML::%s: qos_type = %d\n", __func__, qos_type);
 		dml2_printf("DML::%s: max_round_trip_to_furthest_cs_fclk_cycles = %d\n", __func__, max_round_trip_to_furthest_cs_fclk_cycles);
 		dml2_printf("DML::%s: mall_overhead_fclk_cycles = %d\n", __func__, mall_overhead_fclk_cycles);
@@ -5965,7 +5965,7 @@ static double CalculateMetaTripToMemory(
 	double fabric_max_transport_latency_margin)
 {
 	double meta_trip_to_memory_us;
-	if (qos_type == dml2_qos_param_type_dcn4) {
+	if (qos_type == dml2_qos_param_type_dcn4x) {
 		meta_trip_to_memory_us = meta_trip_to_memory_fclk_cycles / FabricClock * (1.0 + fabric_max_transport_latency_margin / 100.0)
 			+ meta_trip_to_memory_uclk_cycles / uclk_freq_mhz * (1.0 + umc_max_latency_margin / 100.0);
 	} else {
@@ -5973,7 +5973,7 @@ static double CalculateMetaTripToMemory(
 	}
 
 #ifdef __DML_VBA_DEBUG__
-	if (qos_type == dml2_qos_param_type_dcn4) {
+	if (qos_type == dml2_qos_param_type_dcn4x) {
 		dml2_printf("DML::%s: qos_type = %d\n", __func__, qos_type);
 		dml2_printf("DML::%s: meta_trip_to_memory_fclk_cycles = %d\n", __func__, meta_trip_to_memory_fclk_cycles);
 		dml2_printf("DML::%s: meta_trip_to_memory_uclk_cycles = %d\n", __func__, meta_trip_to_memory_uclk_cycles);
@@ -7489,7 +7489,7 @@ static void CalculateExtraLatency(
 			max_request_size_bytes = request_size_bytes_chroma[k];
 	}
 
-	if (qos_type == dml2_qos_param_type_dcn4) {
+	if (qos_type == dml2_qos_param_type_dcn4x) {
 		*ExtraLatency_sr = dchub_arb_to_ret_delay / DCFCLK;
 		*ExtraLatency = *ExtraLatency_sr;
 		if (max_oustanding_when_urgent_expected)
@@ -9835,14 +9835,14 @@ bool dml2_core_shared_mode_programming(struct dml2_core_calcs_mode_programming_e
 	mode_lib->mp.num_active_pipes = dml_get_num_active_pipes(display_cfg->num_planes, cfg_support_info);
 	dml_calc_pipe_plane_mapping(cfg_support_info, mode_lib->mp.pipe_plane);
 
-	mode_lib->mp.Dcfclk = programming->min_clocks.dcn4.active.dcfclk_khz / 1000.0;
-	mode_lib->mp.FabricClock = programming->min_clocks.dcn4.active.fclk_khz / 1000.0;
-	mode_lib->mp.dram_bw_mbps = uclk_khz_to_dram_bw_mbps(programming->min_clocks.dcn4.active.uclk_khz, &mode_lib->soc.clk_table.dram_config);
-	mode_lib->mp.uclk_freq_mhz = programming->min_clocks.dcn4.active.uclk_khz / 1000.0;
-	mode_lib->mp.GlobalDPPCLK = programming->min_clocks.dcn4.dpprefclk_khz / 1000.0;
-	s->SOCCLK = (double)programming->min_clocks.dcn4.socclk_khz / 1000;
-	mode_lib->mp.qos_param_index = get_qos_param_index(programming->min_clocks.dcn4.active.uclk_khz, mode_lib->soc.qos_parameters.qos_params.dcn4.per_uclk_dpm_params);
-	mode_lib->mp.active_min_uclk_dpm_index = get_active_min_uclk_dpm_index(programming->min_clocks.dcn4.active.uclk_khz, &mode_lib->soc.clk_table);
+	mode_lib->mp.Dcfclk = programming->min_clocks.dcn4x.active.dcfclk_khz / 1000.0;
+	mode_lib->mp.FabricClock = programming->min_clocks.dcn4x.active.fclk_khz / 1000.0;
+	mode_lib->mp.dram_bw_mbps = uclk_khz_to_dram_bw_mbps(programming->min_clocks.dcn4x.active.uclk_khz, &mode_lib->soc.clk_table.dram_config);
+	mode_lib->mp.uclk_freq_mhz = programming->min_clocks.dcn4x.active.uclk_khz / 1000.0;
+	mode_lib->mp.GlobalDPPCLK = programming->min_clocks.dcn4x.dpprefclk_khz / 1000.0;
+	s->SOCCLK = (double)programming->min_clocks.dcn4x.socclk_khz / 1000;
+	mode_lib->mp.qos_param_index = get_qos_param_index(programming->min_clocks.dcn4x.active.uclk_khz, mode_lib->soc.qos_parameters.qos_params.dcn4x.per_uclk_dpm_params);
+	mode_lib->mp.active_min_uclk_dpm_index = get_active_min_uclk_dpm_index(programming->min_clocks.dcn4x.active.uclk_khz, &mode_lib->soc.clk_table);
 
 	for (k = 0; k < s->num_active_planes; ++k) {
 		unsigned int stream_index = display_cfg->plane_descriptors[k].stream_index;
@@ -9877,18 +9877,18 @@ bool dml2_core_shared_mode_programming(struct dml2_core_calcs_mode_programming_e
 
 	for (k = 0; k < s->num_active_planes; ++k) {
 		mode_lib->mp.NoOfDPP[k] = cfg_support_info->plane_support_info[k].dpps_used;
-		mode_lib->mp.Dppclk[k] = programming->plane_programming[k].min_clocks.dcn4.dppclk_khz / 1000.0;
+		mode_lib->mp.Dppclk[k] = programming->plane_programming[k].min_clocks.dcn4x.dppclk_khz / 1000.0;
 		dml2_assert(mode_lib->mp.Dppclk[k] > 0);
 	}
 
 	for (k = 0; k < s->num_active_planes; ++k) {
 		unsigned int stream_index = display_cfg->plane_descriptors[k].stream_index;
-		mode_lib->mp.DSCCLK[k] = programming->stream_programming[stream_index].min_clocks.dcn4.dscclk_khz / 1000.0;
+		mode_lib->mp.DSCCLK[k] = programming->stream_programming[stream_index].min_clocks.dcn4x.dscclk_khz / 1000.0;
 		dml2_printf("DML::%s: k=%d stream_index=%d, mode_lib->mp.DSCCLK = %f\n", __func__, k, stream_index, mode_lib->mp.DSCCLK[k]);
 	}
 
-	mode_lib->mp.Dispclk = programming->min_clocks.dcn4.dispclk_khz / 1000.0;
-	mode_lib->mp.DCFCLKDeepSleep = programming->min_clocks.dcn4.deepsleep_dcfclk_khz / 1000.0;
+	mode_lib->mp.Dispclk = programming->min_clocks.dcn4x.dispclk_khz / 1000.0;
+	mode_lib->mp.DCFCLKDeepSleep = programming->min_clocks.dcn4x.deepsleep_dcfclk_khz / 1000.0;
 
 	dml2_assert(mode_lib->mp.Dcfclk > 0);
 	dml2_assert(mode_lib->mp.FabricClock > 0);
@@ -10410,14 +10410,14 @@ bool dml2_core_shared_mode_programming(struct dml2_core_calcs_mode_programming_e
 	}
 
 	if (mode_lib->soc.qos_parameters.qos_type == dml2_qos_param_type_dcn3)
-		s->ReorderingBytes = (unsigned int)(mode_lib->soc.clk_table.dram_config.channel_count * math_max3(mode_lib->soc.qos_parameters.qos_params.dcn3.urgent_out_of_order_return_per_channel_pixel_only_bytes,
-										mode_lib->soc.qos_parameters.qos_params.dcn3.urgent_out_of_order_return_per_channel_pixel_and_vm_bytes,
-										mode_lib->soc.qos_parameters.qos_params.dcn3.urgent_out_of_order_return_per_channel_vm_only_bytes));
+		s->ReorderingBytes = (unsigned int)(mode_lib->soc.clk_table.dram_config.channel_count * math_max3(mode_lib->soc.qos_parameters.qos_params.dcn32x.urgent_out_of_order_return_per_channel_pixel_only_bytes,
+										mode_lib->soc.qos_parameters.qos_params.dcn32x.urgent_out_of_order_return_per_channel_pixel_and_vm_bytes,
+										mode_lib->soc.qos_parameters.qos_params.dcn32x.urgent_out_of_order_return_per_channel_vm_only_bytes));
 
 	CalculateExtraLatency(
 		display_cfg,
 		mode_lib->ip.rob_buffer_size_kbytes,
-		mode_lib->soc.qos_parameters.qos_params.dcn3.loaded_round_trip_latency_fclk_cycles,
+		mode_lib->soc.qos_parameters.qos_params.dcn32x.loaded_round_trip_latency_fclk_cycles,
 		s->ReorderingBytes,
 		mode_lib->mp.Dcfclk,
 		mode_lib->mp.FabricClock,
@@ -10491,32 +10491,32 @@ bool dml2_core_shared_mode_programming(struct dml2_core_calcs_mode_programming_e
 				mode_lib->mp.WritebackDelay[k] = mode_lib->mp.WritebackDelay[j];
 
 	mode_lib->mp.UrgentLatency = CalculateUrgentLatency(
-		mode_lib->soc.qos_parameters.qos_params.dcn3.urgent_latency_us.base_latency_us,
-		mode_lib->soc.qos_parameters.qos_params.dcn3.urgent_latency_us.base_latency_pixel_vm_us,
-		mode_lib->soc.qos_parameters.qos_params.dcn3.urgent_latency_us.base_latency_vm_us,
+		mode_lib->soc.qos_parameters.qos_params.dcn32x.urgent_latency_us.base_latency_us,
+		mode_lib->soc.qos_parameters.qos_params.dcn32x.urgent_latency_us.base_latency_pixel_vm_us,
+		mode_lib->soc.qos_parameters.qos_params.dcn32x.urgent_latency_us.base_latency_vm_us,
 		mode_lib->soc.do_urgent_latency_adjustment,
-		mode_lib->soc.qos_parameters.qos_params.dcn3.urgent_latency_us.scaling_factor_fclk_us,
-		mode_lib->soc.qos_parameters.qos_params.dcn3.urgent_latency_us.scaling_factor_mhz,
+		mode_lib->soc.qos_parameters.qos_params.dcn32x.urgent_latency_us.scaling_factor_fclk_us,
+		mode_lib->soc.qos_parameters.qos_params.dcn32x.urgent_latency_us.scaling_factor_mhz,
 		mode_lib->mp.FabricClock,
 		mode_lib->mp.uclk_freq_mhz,
 		mode_lib->soc.qos_parameters.qos_type,
-		mode_lib->soc.qos_parameters.qos_params.dcn4.per_uclk_dpm_params[mode_lib->mp.qos_param_index].urgent_ramp_uclk_cycles,
-		mode_lib->soc.qos_parameters.qos_params.dcn4.df_qos_response_time_fclk_cycles,
-		mode_lib->soc.qos_parameters.qos_params.dcn4.max_round_trip_to_furthest_cs_fclk_cycles,
-		mode_lib->soc.qos_parameters.qos_params.dcn4.mall_overhead_fclk_cycles,
-		mode_lib->soc.qos_parameters.qos_params.dcn4.umc_urgent_ramp_latency_margin,
-		mode_lib->soc.qos_parameters.qos_params.dcn4.fabric_max_transport_latency_margin);
+		mode_lib->soc.qos_parameters.qos_params.dcn4x.per_uclk_dpm_params[mode_lib->mp.qos_param_index].urgent_ramp_uclk_cycles,
+		mode_lib->soc.qos_parameters.qos_params.dcn4x.df_qos_response_time_fclk_cycles,
+		mode_lib->soc.qos_parameters.qos_params.dcn4x.max_round_trip_to_furthest_cs_fclk_cycles,
+		mode_lib->soc.qos_parameters.qos_params.dcn4x.mall_overhead_fclk_cycles,
+		mode_lib->soc.qos_parameters.qos_params.dcn4x.umc_urgent_ramp_latency_margin,
+		mode_lib->soc.qos_parameters.qos_params.dcn4x.fabric_max_transport_latency_margin);
 
 	mode_lib->mp.TripToMemory = CalculateTripToMemory(
 		mode_lib->mp.UrgentLatency,
 		mode_lib->mp.FabricClock,
 		mode_lib->mp.uclk_freq_mhz,
 		mode_lib->soc.qos_parameters.qos_type,
-		mode_lib->soc.qos_parameters.qos_params.dcn4.per_uclk_dpm_params[mode_lib->mp.qos_param_index].trip_to_memory_uclk_cycles,
-		mode_lib->soc.qos_parameters.qos_params.dcn4.max_round_trip_to_furthest_cs_fclk_cycles,
-		mode_lib->soc.qos_parameters.qos_params.dcn4.mall_overhead_fclk_cycles,
-		mode_lib->soc.qos_parameters.qos_params.dcn4.umc_max_latency_margin,
-		mode_lib->soc.qos_parameters.qos_params.dcn4.fabric_max_transport_latency_margin);
+		mode_lib->soc.qos_parameters.qos_params.dcn4x.per_uclk_dpm_params[mode_lib->mp.qos_param_index].trip_to_memory_uclk_cycles,
+		mode_lib->soc.qos_parameters.qos_params.dcn4x.max_round_trip_to_furthest_cs_fclk_cycles,
+		mode_lib->soc.qos_parameters.qos_params.dcn4x.mall_overhead_fclk_cycles,
+		mode_lib->soc.qos_parameters.qos_params.dcn4x.umc_max_latency_margin,
+		mode_lib->soc.qos_parameters.qos_params.dcn4x.fabric_max_transport_latency_margin);
 
 	mode_lib->mp.TripToMemory = math_max2(mode_lib->mp.UrgentLatency, mode_lib->mp.TripToMemory);
 
@@ -10525,10 +10525,10 @@ bool dml2_core_shared_mode_programming(struct dml2_core_calcs_mode_programming_e
 		mode_lib->mp.FabricClock,
 		mode_lib->mp.uclk_freq_mhz,
 		mode_lib->soc.qos_parameters.qos_type,
-		mode_lib->soc.qos_parameters.qos_params.dcn4.per_uclk_dpm_params[mode_lib->mp.qos_param_index].meta_trip_to_memory_uclk_cycles,
-		mode_lib->soc.qos_parameters.qos_params.dcn4.meta_trip_adder_fclk_cycles,
-		mode_lib->soc.qos_parameters.qos_params.dcn4.umc_max_latency_margin,
-		mode_lib->soc.qos_parameters.qos_params.dcn4.fabric_max_transport_latency_margin);
+		mode_lib->soc.qos_parameters.qos_params.dcn4x.per_uclk_dpm_params[mode_lib->mp.qos_param_index].meta_trip_to_memory_uclk_cycles,
+		mode_lib->soc.qos_parameters.qos_params.dcn4x.meta_trip_adder_fclk_cycles,
+		mode_lib->soc.qos_parameters.qos_params.dcn4x.umc_max_latency_margin,
+		mode_lib->soc.qos_parameters.qos_params.dcn4x.fabric_max_transport_latency_margin);
 
 	for (k = 0; k < s->num_active_planes; ++k) {
 		calculate_cursor_req_attributes(
@@ -11971,14 +11971,14 @@ void dml2_core_shared_get_pipe_regs(const struct dml2_display_cfg *display_cfg,
 
 void dml2_core_shared_get_stream_programming(const struct dml2_core_internal_display_mode_lib *mode_lib, struct dml2_per_stream_programming *out, int pipe_index)
 {
-	// out->min_clocks.dcn4.dscclk_khz = (unsigned int)(dml_get_dscclk_calculated(mode_lib, pipe_index) * 1000); // FIXME_STAGE2
-	// out->min_clocks.dcn4.dtbclk_khz = (unsigned int)(dml_get_dscclk_calculated(mode_lib, pipe_index) * 1000);
-	// out->min_clocks.dcn4.phyclk_khz = (unsigned int)(dml_get_dscclk_calculated(mode_lib, pipe_index) * 1000);
+	// out->min_clocks.dcn4x.dscclk_khz = (unsigned int)(dml_get_dscclk_calculated(mode_lib, pipe_index) * 1000); // FIXME_STAGE2
+	// out->min_clocks.dcn4x.dtbclk_khz = (unsigned int)(dml_get_dscclk_calculated(mode_lib, pipe_index) * 1000);
+	// out->min_clocks.dcn4x.phyclk_khz = (unsigned int)(dml_get_dscclk_calculated(mode_lib, pipe_index) * 1000);
 
-	out->global_sync.dcn4.vready_offset_pixels = mode_lib->mp.VReadyOffsetPix[mode_lib->mp.pipe_plane[pipe_index]];
-	out->global_sync.dcn4.vstartup_lines = mode_lib->mp.VStartup[mode_lib->mp.pipe_plane[pipe_index]];
-	out->global_sync.dcn4.vupdate_offset_pixels = mode_lib->mp.VUpdateOffsetPix[mode_lib->mp.pipe_plane[pipe_index]];
-	out->global_sync.dcn4.vupdate_vupdate_width_pixels = mode_lib->mp.VUpdateWidthPix[mode_lib->mp.pipe_plane[pipe_index]];
+	out->global_sync.dcn4x.vready_offset_pixels = mode_lib->mp.VReadyOffsetPix[mode_lib->mp.pipe_plane[pipe_index]];
+	out->global_sync.dcn4x.vstartup_lines = mode_lib->mp.VStartup[mode_lib->mp.pipe_plane[pipe_index]];
+	out->global_sync.dcn4x.vupdate_offset_pixels = mode_lib->mp.VUpdateOffsetPix[mode_lib->mp.pipe_plane[pipe_index]];
+	out->global_sync.dcn4x.vupdate_vupdate_width_pixels = mode_lib->mp.VUpdateWidthPix[mode_lib->mp.pipe_plane[pipe_index]];
 }
 
 void dml2_core_shared_get_mcache_allocation(const struct dml2_core_internal_display_mode_lib *mode_lib, struct dml2_mcache_surface_allocation *out, int plane_idx)
@@ -12281,7 +12281,7 @@ void dml2_core_shared_get_informative(const struct dml2_core_internal_display_mo
 
 	out->informative.misc.cstate_max_cap_mode = mode_lib->mp.DCHUBBUB_ARB_CSTATE_MAX_CAP_MODE;
 
-	out->min_clocks.dcn4.dpprefclk_khz = (int unsigned)(mode_lib->mp.GlobalDPPCLK * 1000.0);
+	out->min_clocks.dcn4x.dpprefclk_khz = (int unsigned)(mode_lib->mp.GlobalDPPCLK * 1000.0);
 
 	out->informative.qos.max_active_fclk_change_latency_supported = mode_lib->mp.MaxActiveFCLKChangeLatencySupported;
 
@@ -12394,13 +12394,13 @@ void dml2_core_shared_get_informative(const struct dml2_core_internal_display_mo
 		}
 	}
 
-	out->informative.qos.max_non_urgent_latency_us = mode_lib->soc.qos_parameters.qos_params.dcn4.per_uclk_dpm_params[mode_lib->mp.qos_param_index].maximum_latency_when_non_urgent_uclk_cycles
-		/ mode_lib->mp.uclk_freq_mhz * (1 + mode_lib->soc.qos_parameters.qos_params.dcn4.umc_max_latency_margin / 100.0)
-		+ mode_lib->soc.qos_parameters.qos_params.dcn4.mall_overhead_fclk_cycles / mode_lib->mp.FabricClock
-		+ mode_lib->soc.qos_parameters.qos_params.dcn4.max_round_trip_to_furthest_cs_fclk_cycles / mode_lib->mp.FabricClock
-		* (1 + mode_lib->soc.qos_parameters.qos_params.dcn4.fabric_max_transport_latency_margin / 100.0);
+	out->informative.qos.max_non_urgent_latency_us = mode_lib->soc.qos_parameters.qos_params.dcn4x.per_uclk_dpm_params[mode_lib->mp.qos_param_index].maximum_latency_when_non_urgent_uclk_cycles
+		/ mode_lib->mp.uclk_freq_mhz * (1 + mode_lib->soc.qos_parameters.qos_params.dcn4x.umc_max_latency_margin / 100.0)
+		+ mode_lib->soc.qos_parameters.qos_params.dcn4x.mall_overhead_fclk_cycles / mode_lib->mp.FabricClock
+		+ mode_lib->soc.qos_parameters.qos_params.dcn4x.max_round_trip_to_furthest_cs_fclk_cycles / mode_lib->mp.FabricClock
+		* (1 + mode_lib->soc.qos_parameters.qos_params.dcn4x.fabric_max_transport_latency_margin / 100.0);
 
-	if (mode_lib->soc.qos_parameters.qos_type == dml2_qos_param_type_dcn4) {
+	if (mode_lib->soc.qos_parameters.qos_type == dml2_qos_param_type_dcn4x) {
 		if (((mode_lib->ip.rob_buffer_size_kbytes - mode_lib->ip.pixel_chunk_size_kbytes) * 1024
 			/ mode_lib->mp.non_urg_bandwidth_required[dml2_core_internal_soc_state_sys_active][dml2_core_internal_bw_sdp]) >= out->informative.qos.max_non_urgent_latency_us) {
 			out->informative.misc.ROBUrgencyAvoidance = true;

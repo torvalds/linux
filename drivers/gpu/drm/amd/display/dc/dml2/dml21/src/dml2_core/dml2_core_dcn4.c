@@ -551,7 +551,7 @@ bool core_dcn4_mode_programming(struct dml2_core_mode_programming_in_out *in_out
 	l->mode_programming_ex_params.min_clk_table = in_out->instance->minimum_clock_table;
 	l->mode_programming_ex_params.cfg_support_info = in_out->cfg_support_info;
 	l->mode_programming_ex_params.programming = in_out->programming;
-	l->mode_programming_ex_params.min_clk_index = lookup_uclk_dpm_index_by_freq(in_out->programming->min_clocks.dcn4.active.uclk_khz,
+	l->mode_programming_ex_params.min_clk_index = lookup_uclk_dpm_index_by_freq(in_out->programming->min_clocks.dcn4x.active.uclk_khz,
 		&core->clean_me_up.mode_lib.soc);
 
 	result = dml2_core_calcs_mode_programming_ex(&l->mode_programming_ex_params);

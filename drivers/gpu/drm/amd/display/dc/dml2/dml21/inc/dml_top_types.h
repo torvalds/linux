@@ -228,7 +228,7 @@ struct dml2_per_plane_programming {
 	union {
 		struct {
 			unsigned long dppclk_khz;
-		} dcn4;
+		} dcn4x;
 	} min_clocks;
 
 	struct dml2_mcache_surface_allocation mcache_allocation;
@@ -263,7 +263,7 @@ union dml2_global_sync_programming {
 		unsigned int vupdate_vupdate_width_pixels;
 		unsigned int vready_offset_pixels;
 		unsigned int pstate_keepout_start_lines;
-	} dcn4;
+	} dcn4x;
 };
 
 struct dml2_per_stream_programming {
@@ -274,7 +274,7 @@ struct dml2_per_stream_programming {
 			unsigned long dscclk_khz;
 			unsigned long dtbclk_khz;
 			unsigned long phyclk_khz;
-		} dcn4;
+		} dcn4x;
 	} min_clocks;
 
 	union dml2_global_sync_programming global_sync;
@@ -375,7 +375,7 @@ struct dml2_display_cfg_programming {
 			unsigned long dispclk_khz;
 			unsigned long dcfclk_deepsleep_khz;
 			unsigned long dpp_ref_khz;
-		} dcn3;
+		} dcn32x;
 		struct {
 			struct {
 				unsigned long uclk_khz;
@@ -404,7 +404,7 @@ struct dml2_display_cfg_programming {
 				uint32_t dpprefclk_did;
 				uint32_t dtbrefclk_did;
 			} divider_ids;
-		} dcn4;
+		} dcn4x;
 	} min_clocks;
 
 	bool uclk_pstate_supported;

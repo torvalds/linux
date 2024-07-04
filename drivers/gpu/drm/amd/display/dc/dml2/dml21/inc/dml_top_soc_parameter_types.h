@@ -26,7 +26,7 @@ struct dml2_soc_derates {
 	struct dml2_soc_derate_values system_idle_average;
 };
 
-struct dml2_dcn3_soc_qos_params {
+struct dml2_dcn32x_soc_qos_params {
 	struct {
 		unsigned int base_latency_us;
 		unsigned int base_latency_pixel_vm_us;
@@ -52,7 +52,7 @@ struct dml2_dcn4_uclk_dpm_dependent_qos_params {
 	unsigned int average_latency_when_non_urgent_uclk_cycles;
 };
 
-struct dml2_dcn4_soc_qos_params {
+struct dml2_dcn4x_soc_qos_params {
 	unsigned int df_qos_response_time_fclk_cycles;
 	unsigned int max_round_trip_to_furthest_cs_fclk_cycles;
 	unsigned int mall_overhead_fclk_cycles;
@@ -68,7 +68,7 @@ struct dml2_dcn4_soc_qos_params {
 
 enum dml2_qos_param_type {
 	dml2_qos_param_type_dcn3,
-	dml2_qos_param_type_dcn4
+	dml2_qos_param_type_dcn4x
 };
 
 struct dml2_soc_qos_parameters {
@@ -80,8 +80,8 @@ struct dml2_soc_qos_parameters {
 	} writeback;
 
 	union {
-		struct dml2_dcn3_soc_qos_params dcn3;
-		struct dml2_dcn4_soc_qos_params dcn4;
+		struct dml2_dcn32x_soc_qos_params dcn32x;
+		struct dml2_dcn4x_soc_qos_params dcn4x;
 	} qos_params;
 
 	enum dml2_qos_param_type qos_type;
