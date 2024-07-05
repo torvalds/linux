@@ -217,13 +217,18 @@ static unsigned int intel_fbc_max_cfb_height(struct intel_display *display)
 		return 1536;
 }
 
+static unsigned int _intel_fbc_cfb_size(struct intel_display *display,
+					unsigned int height, unsigned int stride)
+{
+	return min(height, intel_fbc_max_cfb_height(display)) * stride;
+}
+
 static unsigned int intel_fbc_cfb_size(const struct intel_plane_state *plane_state)
 {
 	struct intel_display *display = to_intel_display(plane_state->uapi.plane->dev);
 	unsigned int height = drm_rect_height(&plane_state->uapi.src) >> 16;
 
-	return min(height, intel_fbc_max_cfb_height(display)) *
-		intel_fbc_cfb_stride(plane_state);
+	return _intel_fbc_cfb_size(display, height, intel_fbc_cfb_stride(plane_state));
 }
 
 static u16 intel_fbc_override_cfb_stride(const struct intel_plane_state *plane_state)
