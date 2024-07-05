@@ -573,102 +573,21 @@ unlock_out:
 }
 
 /*
- * for (D1/D0 < 0.87):
- * lx = 0.004521097 * D1 - 0.002663996 * D0 +
- *	0.00012213 * D1 * D1 / D0
+ * for (D1/D0 < 1.5):
+ *    lx = (0.001193 * D0 + (-0.0000747) * D1) * ((D1/D0 – 1.5) * (0.25) + 1)
  *
- * =>	115.7400832 * ch1 / gain1 / mt -
- *	68.1982976 * ch0 / gain0 / mt +
- *	0.00012213 * 25600 * (ch1 / gain1 / mt) * 25600 *
- *	(ch1 /gain1 / mt) / (25600 * ch0 / gain0 / mt)
+ *    => -0.000745625 * D0 + 0.0002515625 * D1 + -0.000018675 * D1 * D1 / D0
  *
- * A =	0.00012213 * 25600 * (ch1 /gain1 / mt) * 25600 *
- *	(ch1 /gain1 / mt) / (25600 * ch0 / gain0 / mt)
- * =>	0.00012213 * 25600 * (ch1 /gain1 / mt) *
- *	(ch1 /gain1 / mt) / (ch0 / gain0 / mt)
- * =>	0.00012213 * 25600 * (ch1 / gain1) * (ch1 /gain1 / mt) /
- *	(ch0 / gain0)
- * =>	0.00012213 * 25600 * (ch1 / gain1) * (ch1 /gain1 / mt) *
- *	gain0 / ch0
- * =>	3.126528 * ch1 * ch1 * gain0 / gain1 / gain1 / mt /ch0
+ *    => (6.44 * ch1 / gain1 + 19.088 * ch0 / gain0 -
+ *       0.47808 * ch1 * ch1 * gain0 / gain1 / gain1 / ch0) /
+ *       mt
  *
- * lx = (115.7400832 * ch1 / gain1 - 68.1982976 * ch0 / gain0) /
- *	mt + A
- * =>	(115.7400832 * ch1 / gain1 - 68.1982976 * ch0 / gain0) /
- *	mt + 3.126528 * ch1 * ch1 * gain0 / gain1 / gain1 / mt /
- *	ch0
+ * Else
+ *    lx = 0.001193 * D0 - 0.0000747 * D1
  *
- * =>	(115.7400832 * ch1 / gain1 - 68.1982976 * ch0 / gain0 +
- *	  3.126528 * ch1 * ch1 * gain0 / gain1 / gain1 / ch0) /
- *	  mt
- *
- * For (0.87 <= D1/D0 < 1.00)
- * lx = (0.001331* D0 + 0.0000354 * D1) * ((D1/D0 – 0.87) * (0.385) + 1)
- * =>	(0.001331 * 256 * 100 * ch0 / gain0 / mt + 0.0000354 * 256 *
- *	100 * ch1 / gain1 / mt) * ((D1/D0 -  0.87) * (0.385) + 1)
- * =>	(34.0736 * ch0 / gain0 / mt + 0.90624 * ch1 / gain1 / mt) *
- *	((D1/D0 -  0.87) * (0.385) + 1)
- * =>	(34.0736 * ch0 / gain0 / mt + 0.90624 * ch1 / gain1 / mt) *
- *	(0.385 * D1/D0 - 0.66505)
- * =>	(34.0736 * ch0 / gain0 / mt + 0.90624 * ch1 / gain1 / mt) *
- *	(0.385 * 256 * 100 * ch1 / gain1 / mt / (256 * 100 * ch0 / gain0 / mt) - 0.66505)
- * =>	(34.0736 * ch0 / gain0 / mt + 0.90624 * ch1 / gain1 / mt) *
- *	(9856 * ch1 / gain1 / mt / (25600 * ch0 / gain0 / mt) + 0.66505)
- * =>	13.118336 * ch1 / (gain1 * mt)
- *	+ 22.66064768 * ch0 / (gain0 * mt)
- *	+ 8931.90144 * ch1 * ch1 * gain0 /
- *	  (25600 * ch0 * gain1 * gain1 * mt)
- *	+ 0.602694912 * ch1 / (gain1 * mt)
- *
- * =>	[0.3489024 * ch1 * ch1 * gain0 / (ch0 * gain1 * gain1)
- *	 + 22.66064768 * ch0 / gain0
- *	 + 13.721030912 * ch1 / gain1
- *	] / mt
- *
- * For (D1/D0 >= 1.00)
- *
- * lx	= (0.001331* D0 + 0.0000354 * D1) * ((D1/D0 – 2.0) * (-0.05) + 1)
- *	=> (0.001331* D0 + 0.0000354 * D1) * (-0.05D1/D0 + 1.1)
- *	=> (0.001331 * 256 * 100 * ch0 / gain0 / mt + 0.0000354 * 256 *
- *	   100 * ch1 / gain1 / mt) * (-0.05D1/D0 + 1.1)
- *	=> (34.0736 * ch0 / gain0 / mt + 0.90624 * ch1 / gain1 / mt) *
- *	   (-0.05 * 256 * 100 * ch1 / gain1 / mt / (256 * 100 * ch0 / gain0 / mt) + 1.1)
- *	=> (34.0736 * ch0 / gain0 / mt + 0.90624 * ch1 / gain1 / mt) *
- *	   (-1280 * ch1 / (gain1 * mt * 25600 * ch0 / gain0 / mt) + 1.1)
- *	=> (34.0736 * ch0 * -1280 * ch1 * gain0 * mt /( gain0 * mt * gain1 * mt * 25600 * ch0)
- *	    + 34.0736 * 1.1 * ch0 / (gain0 * mt)
- *	    + 0.90624 * ch1 * -1280 * ch1 *gain0 * mt / (gain1 * mt *gain1 * mt * 25600 * ch0)
- *	    + 1.1 * 0.90624 * ch1 / (gain1 * mt)
- *	=> -43614.208 * ch1 / (gain1 * mt * 25600)
- *	    + 37.48096  ch0 / (gain0 * mt)
- *	    - 1159.9872 * ch1 * ch1 * gain0 / (gain1 * gain1 * mt * 25600 * ch0)
- *	    + 0.996864 ch1 / (gain1 * mt)
- *	=> [
- *		- 0.045312 * ch1 * ch1 * gain0 / (gain1 * gain1 * ch0)
- *		- 0.706816 * ch1 / gain1
- *		+ 37.48096  ch0 /gain0
- *	   ] * mt
- *
- *
- * So, the first case (D1/D0 < 0.87) can be computed to a form:
- *
- * lx = (3.126528 * ch1 * ch1 * gain0 / (ch0 * gain1 * gain1) +
- *	 115.7400832 * ch1 / gain1 +
- *	-68.1982976 * ch0 / gain0
- *	 / mt
- *
- * Second case (0.87 <= D1/D0 < 1.00) goes to form:
- *
- *	=> [0.3489024 * ch1 * ch1 * gain0 / (ch0 * gain1 * gain1) +
- *	    13.721030912 * ch1 / gain1 +
- *	    22.66064768 * ch0 / gain0
- *	   ] / mt
- *
- * Third case (D1/D0 >= 1.00) goes to form:
- *	=> [-0.045312 * ch1 * ch1 * gain0 / (ch0 * gain1 * gain1) +
- *	    -0.706816 * ch1 / gain1 +
- *	    37.48096  ch0 /(gain0
- *	   ] / mt
+ *    => (1.91232 * ch1 / gain1 + 30.5408 * ch0 / gain0 +
+ *        [0 * ch1 * ch1 * gain0 / gain1 / gain1 / ch0] ) /
+ *        mt
  *
  * This can be unified to format:
  * lx = [
@@ -678,19 +597,14 @@ unlock_out:
  *	] / mt
  *
  * For case 1:
- * A = 3.126528,
- * B = 115.7400832
- * C = -68.1982976
+ * A = -0.47808,
+ * B = 6.44,
+ * C = 19.088
  *
  * For case 2:
- * A = 0.3489024
- * B = 13.721030912
- * C = 22.66064768
- *
- * For case 3:
- * A = -0.045312
- * B = -0.706816
- * C = 37.48096
+ * A = 0
+ * B = 1.91232
+ * C = 30.5408
  */
 
 struct bu27034_lx_coeff {
@@ -795,21 +709,16 @@ static int bu27034_fixp_calc_lx(unsigned int ch0, unsigned int ch1,
 {
 	static const struct bu27034_lx_coeff coeff[] = {
 		{
-			.A = 31265280,		/* 3.126528 */
-			.B = 1157400832,	/*115.7400832 */
-			.C = 681982976,		/* -68.1982976 */
-			.is_neg = {false, false, true},
+			.A = 4780800,		/* -0.47808 */
+			.B = 64400000,		/* 6.44 */
+			.C = 190880000,		/* 19.088 */
+			.is_neg = { true, false, false },
 		}, {
-			.A = 3489024,		/* 0.3489024 */
-			.B = 137210309,		/* 13.721030912 */
-			.C = 226606476,		/* 22.66064768 */
+			.A = 0,			/* 0 */
+			.B = 19123200,		/* 1.91232 */
+			.C = 305408000,		/* 30.5408 */
 			/* All terms positive */
-		}, {
-			.A = 453120,		/* -0.045312 */
-			.B = 7068160,		/* -0.706816 */
-			.C = 374809600,		/* 37.48096 */
-			.is_neg = {true, true, false},
-		}
+		},
 	};
 	const struct bu27034_lx_coeff *c = &coeff[coeff_idx];
 	u64 res = 0, terms[3];
@@ -972,12 +881,10 @@ static int bu27034_get_single_result(struct bu27034_data *data, int chan,
  * D1 = data1/ch1_gain/meas_time_ms * 25600
  *
  * Then:
- * if (D1/D0 < 0.87)
- *	lx = (0.001331 * D0 + 0.0000354 * D1) * ((D1 / D0 - 0.87) * 3.45 + 1)
- * else if (D1/D0 < 1)
- *	lx = (0.001331 * D0 + 0.0000354 * D1) * ((D1 / D0 - 0.87) * 0.385 + 1)
- * else
- *	lx = (0.001331 * D0 + 0.0000354 * D1) * ((D1 / D0 - 2) * -0.05 + 1)
+ * If (D1/D0 < 1.5)
+ *    lx = (0.001193 * D0 + (-0.0000747) * D1) * ((D1 / D0 – 1.5) * 0.25 + 1)
+ * Else
+ *    lx = (0.001193 * D0 + (-0.0000747) * D1)
  *
  * We use it here. Users who have for example some colored lens
  * need to modify the calculation but I hope this gives a starting point for
@@ -1028,12 +935,10 @@ static int bu27034_calc_mlux(struct bu27034_data *data, __le16 *res, int *val)
 		d1_d0_ratio_scaled /= ch0 * gain1;
 	}
 
-	if (d1_d0_ratio_scaled < 87)
+	if (d1_d0_ratio_scaled < 150)
 		ret = bu27034_fixp_calc_lx(ch0, ch1, gain0, gain1, meastime, 0);
-	else if (d1_d0_ratio_scaled < 100)
-		ret = bu27034_fixp_calc_lx(ch0, ch1, gain0, gain1, meastime, 1);
 	else
-		ret = bu27034_fixp_calc_lx(ch0, ch1, gain0, gain1, meastime, 2);
+		ret = bu27034_fixp_calc_lx(ch0, ch1, gain0, gain1, meastime, 1);
 
 	if (ret < 0)
 		return ret;
