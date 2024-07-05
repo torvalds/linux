@@ -208,7 +208,7 @@ static const struct regmap_access_table qt1050_writeable_table = {
 	.n_yes_ranges = ARRAY_SIZE(qt1050_writeable_ranges),
 };
 
-static struct regmap_config qt1050_regmap_config = {
+static const struct regmap_config qt1050_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = QT1050_RES_CAL,
