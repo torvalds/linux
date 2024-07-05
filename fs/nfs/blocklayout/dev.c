@@ -404,6 +404,8 @@ bl_parse_scsi(struct nfs_server *server, struct pnfs_block_dev *d,
 	bdev_file = bl_open_path(v, "dm-uuid-mpath-0x");
 	if (IS_ERR(bdev_file))
 		bdev_file = bl_open_path(v, "wwn-0x");
+	if (IS_ERR(bdev_file))
+		bdev_file = bl_open_path(v, "nvme-eui.");
 	if (IS_ERR(bdev_file)) {
 		pr_warn("pNFS: no device found for volume %*phN\n",
 			v->scsi.designator_len, v->scsi.designator);
