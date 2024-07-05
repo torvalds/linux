@@ -265,7 +265,7 @@ int intel_display_driver_probe_noirq(struct drm_i915_private *i915)
 
 	intel_init_quirks(display);
 
-	intel_fbc_init(i915);
+	intel_fbc_init(display);
 
 	return 0;
 
@@ -607,7 +607,7 @@ void intel_display_driver_remove_noirq(struct drm_i915_private *i915)
 	destroy_workqueue(i915->display.wq.flip);
 	destroy_workqueue(i915->display.wq.modeset);
 
-	intel_fbc_cleanup(i915);
+	intel_fbc_cleanup(&i915->display);
 }
 
 /* part #3: call after gem init */

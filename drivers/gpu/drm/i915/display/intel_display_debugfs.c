@@ -1008,7 +1008,7 @@ i915_fifo_underrun_reset_write(struct file *filp,
 			return ret;
 	}
 
-	intel_fbc_reset_underrun(dev_priv);
+	intel_fbc_reset_underrun(&dev_priv->display);
 
 	return cnt;
 }
@@ -1063,7 +1063,7 @@ void intel_display_debugfs_register(struct drm_i915_private *i915)
 	intel_bios_debugfs_register(i915);
 	intel_cdclk_debugfs_register(i915);
 	intel_dmc_debugfs_register(i915);
-	intel_fbc_debugfs_register(i915);
+	intel_fbc_debugfs_register(&i915->display);
 	intel_hpd_debugfs_register(i915);
 	intel_opregion_debugfs_register(i915);
 	intel_psr_debugfs_register(i915);
