@@ -7,6 +7,7 @@
 
 #include <linux/bitmap.h>
 #include <linux/bitops.h>
+#include <linux/cleanup.h>
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/io.h>
@@ -541,22 +542,18 @@ static int at91_adc_get_trigger_value_by_name(struct iio_dev *idev,
 	int i;
 
 	for (i = 0; i < st->caps->trigger_number; i++) {
-		char *name = kasprintf(GFP_KERNEL,
-				"%s-dev%d-%s",
-				idev->name,
-				iio_device_id(idev),
-				triggers[i].name);
+		char *name __free(kfree) = kasprintf(GFP_KERNEL, "%s-dev%d-%s",
+						     idev->name,
+						     iio_device_id(idev),
+						     triggers[i].name);
 		if (!name)
 			return -ENOMEM;
 
 		if (strcmp(trigger_name, name) == 0) {
-			kfree(name);
 			if (triggers[i].value == 0)
 				return -EINVAL;
 			return triggers[i].value;
 		}
-
-		kfree(name);
 	}
 
 	return -EINVAL;
