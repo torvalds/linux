@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt) "qcom-memlat: " fmt
@@ -1671,8 +1671,16 @@ static int cpucp_memlat_init(struct scmi_device *sdev)
 	}
 
 memlat_unlock:
-	if (ret < 0)
-		memlat_data->ops = NULL;
+	if (ret < 0) {
+		/* Only set ops to NULL if cpucp was enabled on a group */
+		for (i = 0; i < MAX_MEMLAT_GRPS; i++) {
+			grp = memlat_data->groups[i];
+			if (grp && grp->cpucp_enabled) {
+				memlat_data->ops = NULL;
+				break;
+			}
+		}
+	}
 	mutex_unlock(&memlat_lock);
 	return ret;
 }
