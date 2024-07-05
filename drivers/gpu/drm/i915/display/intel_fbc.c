@@ -139,20 +139,24 @@ static unsigned int intel_fbc_plane_stride(const struct intel_plane_state *plane
 	return stride;
 }
 
+static unsigned int intel_fbc_cfb_cpp(void)
+{
+	return 4; /* FBC always 4 bytes per pixel */
+}
+
 /* plane stride based cfb stride in bytes, assuming 1:1 compression limit */
 static unsigned int intel_fbc_plane_cfb_stride(const struct intel_plane_state *plane_state)
 {
-	unsigned int cpp = 4; /* FBC always 4 bytes per pixel */
+	unsigned int cpp = intel_fbc_cfb_cpp();
 
 	return intel_fbc_plane_stride(plane_state) * cpp;
 }
 
 /* minimum acceptable cfb stride in bytes, assuming 1:1 compression limit */
 static unsigned int skl_fbc_min_cfb_stride(struct intel_display *display,
-					   unsigned int width)
+					   unsigned int cpp, unsigned int width)
 {
 	unsigned int limit = 4; /* 1:4 compression limit is the worst case */
-	unsigned int cpp = 4; /* FBC always 4 bytes per pixel */
 	unsigned int height = 4; /* FBC segment is 4 lines */
 	unsigned int stride;
 
@@ -178,7 +182,8 @@ static unsigned int skl_fbc_min_cfb_stride(struct intel_display *display,
 
 /* properly aligned cfb stride in bytes, assuming 1:1 compression limit */
 static unsigned int _intel_fbc_cfb_stride(struct intel_display *display,
-					  unsigned int width, unsigned int stride)
+					  unsigned int cpp, unsigned int width,
+					  unsigned int stride)
 {
 	/*
 	 * At least some of the platforms require each 4 line segment to
@@ -186,7 +191,7 @@ static unsigned int _intel_fbc_cfb_stride(struct intel_display *display,
 	 * that regardless of the compression limit we choose later.
 	 */
 	if (DISPLAY_VER(display) >= 9)
-		return max(ALIGN(stride, 512), skl_fbc_min_cfb_stride(display, width));
+		return max(ALIGN(stride, 512), skl_fbc_min_cfb_stride(display, cpp, width));
 	else
 		return stride;
 }
@@ -196,8 +201,9 @@ static unsigned int intel_fbc_cfb_stride(const struct intel_plane_state *plane_s
 	struct intel_display *display = to_intel_display(plane_state->uapi.plane->dev);
 	unsigned int stride = intel_fbc_plane_cfb_stride(plane_state);
 	unsigned int width = drm_rect_width(&plane_state->uapi.src) >> 16;
+	unsigned int cpp = intel_fbc_cfb_cpp();
 
-	return _intel_fbc_cfb_stride(display, width, stride);
+	return _intel_fbc_cfb_stride(display, cpp, width, stride);
 }
 
 /*
