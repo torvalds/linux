@@ -1044,7 +1044,7 @@ M:	Joerg Roedel <joro@8bytes.org>
 R:	Suravee Suthikulpanit <suravee.suthikulpanit@amd.com>
 L:	iommu@lists.linux.dev
 S:	Maintained
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/joro/iommu.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/iommu/linux.git
 F:	drivers/iommu/amd/
 F:	include/linux/amd-iommu.h
 
@@ -3980,7 +3980,7 @@ R:	Song Liu <song@kernel.org>
 R:	Yonghong Song <yonghong.song@linux.dev>
 R:	John Fastabend <john.fastabend@gmail.com>
 R:	KP Singh <kpsingh@kernel.org>
-R:	Stanislav Fomichev <sdf@google.com>
+R:	Stanislav Fomichev <sdf@fomichev.me>
 R:	Hao Luo <haoluo@google.com>
 R:	Jiri Olsa <jolsa@kernel.org>
 L:	bpf@vger.kernel.org
@@ -4083,12 +4083,13 @@ F:	kernel/bpf/ringbuf.c
 
 BPF [SECURITY & LSM] (Security Audit and Enforcement using BPF)
 M:	KP Singh <kpsingh@kernel.org>
-R:	Matt Bobrowski <mattbobrowski@google.com>
+M:	Matt Bobrowski <mattbobrowski@google.com>
 L:	bpf@vger.kernel.org
 S:	Maintained
 F:	Documentation/bpf/prog_lsm.rst
 F:	include/linux/bpf_lsm.h
 F:	kernel/bpf/bpf_lsm.c
+F:	kernel/trace/bpf_trace.c
 F:	security/bpf/
 
 BPF [SELFTESTS] (Test Runners & Infrastructure)
@@ -5295,7 +5296,7 @@ F:	drivers/infiniband/hw/usnic/
 
 CLANG CONTROL FLOW INTEGRITY SUPPORT
 M:	Sami Tolvanen <samitolvanen@google.com>
-M:	Kees Cook <keescook@chromium.org>
+M:	Kees Cook <kees@kernel.org>
 R:	Nathan Chancellor <nathan@kernel.org>
 L:	llvm@lists.linux.dev
 S:	Supported
@@ -8217,7 +8218,7 @@ F:	rust/kernel/net/phy.rs
 
 EXEC & BINFMT API, ELF
 R:	Eric Biederman <ebiederm@xmission.com>
-R:	Kees Cook <keescook@chromium.org>
+R:	Kees Cook <kees@kernel.org>
 L:	linux-mm@kvack.org
 S:	Supported
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kees/linux.git for-next/execve
@@ -8618,7 +8619,7 @@ S:	Maintained
 F:	drivers/net/ethernet/nvidia/*
 
 FORTIFY_SOURCE
-M:	Kees Cook <keescook@chromium.org>
+M:	Kees Cook <kees@kernel.org>
 L:	linux-hardening@vger.kernel.org
 S:	Supported
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kees/linux.git for-next/hardening
@@ -9108,7 +9109,7 @@ F:	include/linux/mfd/gsc.h
 F:	include/linux/platform_data/gsc_hwmon.h
 
 GCC PLUGINS
-M:	Kees Cook <keescook@chromium.org>
+M:	Kees Cook <kees@kernel.org>
 L:	linux-hardening@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kees/linux.git for-next/hardening
@@ -9242,7 +9243,7 @@ S:	Maintained
 F:	drivers/input/touchscreen/resistive-adc-touch.c
 
 GENERIC STRING LIBRARY
-M:	Kees Cook <keescook@chromium.org>
+M:	Kees Cook <kees@kernel.org>
 R:	Andy Shevchenko <andy@kernel.org>
 L:	linux-hardening@vger.kernel.org
 S:	Supported
@@ -11042,6 +11043,7 @@ F:	include/uapi/drm/i915_drm.h
 INTEL DRM XE DRIVER (Lunar Lake and newer)
 M:	Lucas De Marchi <lucas.demarchi@intel.com>
 M:	Thomas Hellström <thomas.hellstrom@linux.intel.com>
+M:	Rodrigo Vivi <rodrigo.vivi@intel.com>
 L:	intel-xe@lists.freedesktop.org
 S:	Supported
 W:	https://drm.pages.freedesktop.org/intel-docs/
@@ -11162,7 +11164,7 @@ M:	David Woodhouse <dwmw2@infradead.org>
 M:	Lu Baolu <baolu.lu@linux.intel.com>
 L:	iommu@lists.linux.dev
 S:	Supported
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/joro/iommu.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/iommu/linux.git
 F:	drivers/iommu/intel/
 
 INTEL IPU3 CSI-2 CIO2 DRIVER
@@ -11535,7 +11537,7 @@ IOMMU DMA-API LAYER
 M:	Robin Murphy <robin.murphy@arm.com>
 L:	iommu@lists.linux.dev
 S:	Maintained
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/joro/iommu.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/iommu/linux.git
 F:	drivers/iommu/dma-iommu.c
 F:	drivers/iommu/dma-iommu.h
 F:	drivers/iommu/iova.c
@@ -11547,7 +11549,7 @@ M:	Will Deacon <will@kernel.org>
 R:	Robin Murphy <robin.murphy@arm.com>
 L:	iommu@lists.linux.dev
 S:	Maintained
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/joro/iommu.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/iommu/linux.git
 F:	Documentation/devicetree/bindings/iommu/
 F:	Documentation/userspace-api/iommu.rst
 F:	drivers/iommu/
@@ -11956,7 +11958,7 @@ F:	scripts/package/
 F:	usr/
 
 KERNEL HARDENING (not covered by other areas)
-M:	Kees Cook <keescook@chromium.org>
+M:	Kees Cook <kees@kernel.org>
 R:	Gustavo A. R. Silva <gustavoars@kernel.org>
 L:	linux-hardening@vger.kernel.org
 S:	Supported
@@ -12388,7 +12390,6 @@ F:	drivers/video/backlight/ktz8866.c
 
 KVM PARAVIRT (KVM/paravirt)
 M:	Paolo Bonzini <pbonzini@redhat.com>
-R:	Wanpeng Li <wanpengli@tencent.com>
 R:	Vitaly Kuznetsov <vkuznets@redhat.com>
 L:	kvm@vger.kernel.org
 S:	Supported
@@ -12484,7 +12485,7 @@ F:	drivers/scsi/53c700*
 
 LEAKING_ADDRESSES
 M:	Tycho Andersen <tycho@tycho.pizza>
-R:	Kees Cook <keescook@chromium.org>
+R:	Kees Cook <kees@kernel.org>
 L:	linux-hardening@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kees/linux.git for-next/hardening
@@ -12780,7 +12781,7 @@ F:	arch/powerpc/platforms/8xx/
 F:	arch/powerpc/platforms/83xx/
 
 LINUX KERNEL DUMP TEST MODULE (LKDTM)
-M:	Kees Cook <keescook@chromium.org>
+M:	Kees Cook <kees@kernel.org>
 S:	Maintained
 F:	drivers/misc/lkdtm/*
 F:	tools/testing/selftests/lkdtm/*
@@ -12910,7 +12911,7 @@ Q:	http://patchwork.linuxtv.org/project/linux-media/list/
 F:	drivers/media/usb/dvb-usb-v2/lmedm04*
 
 LOADPIN SECURITY MODULE
-M:	Kees Cook <keescook@chromium.org>
+M:	Kees Cook <kees@kernel.org>
 S:	Supported
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kees/linux.git for-next/hardening
 F:	Documentation/admin-guide/LSM/LoadPin.rst
@@ -15831,7 +15832,7 @@ F:	drivers/nfc/virtual_ncidev.c
 F:	tools/testing/selftests/nci/
 
 NFS, SUNRPC, AND LOCKD CLIENTS
-M:	Trond Myklebust <trond.myklebust@hammerspace.com>
+M:	Trond Myklebust <trondmy@kernel.org>
 M:	Anna Schumaker <anna@kernel.org>
 L:	linux-nfs@vger.kernel.org
 S:	Maintained
@@ -17538,7 +17539,6 @@ F:	include/linux/peci.h
 PENSANDO ETHERNET DRIVERS
 M:	Shannon Nelson <shannon.nelson@amd.com>
 M:	Brett Creeley <brett.creeley@amd.com>
-M:	drivers@pensando.io
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	Documentation/networking/device_drivers/ethernet/pensando/ionic.rst
@@ -18002,7 +18002,7 @@ F:	tools/testing/selftests/proc/
 
 PROC SYSCTL
 M:	Luis Chamberlain <mcgrof@kernel.org>
-M:	Kees Cook <keescook@chromium.org>
+M:	Kees Cook <kees@kernel.org>
 M:	Joel Granados <j.granados@samsung.com>
 L:	linux-kernel@vger.kernel.org
 L:	linux-fsdevel@vger.kernel.org
@@ -18058,7 +18058,7 @@ F:	Documentation/devicetree/bindings/net/pse-pd/
 F:	drivers/net/pse-pd/
 
 PSTORE FILESYSTEM
-M:	Kees Cook <keescook@chromium.org>
+M:	Kees Cook <kees@kernel.org>
 R:	Tony Luck <tony.luck@intel.com>
 R:	Guilherme G. Piccoli <gpiccoli@igalia.com>
 L:	linux-hardening@vger.kernel.org
@@ -18216,6 +18216,7 @@ QCOM AUDIO (ASoC) DRIVERS
 M:	Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
 M:	Banajit Goswami <bgoswami@quicinc.com>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+L:	linux-arm-msm@vger.kernel.org
 S:	Supported
 F:	Documentation/devicetree/bindings/soc/qcom/qcom,apr*
 F:	Documentation/devicetree/bindings/sound/qcom,*
@@ -20064,7 +20065,7 @@ F:	drivers/media/cec/platform/seco/seco-cec.c
 F:	drivers/media/cec/platform/seco/seco-cec.h
 
 SECURE COMPUTING
-M:	Kees Cook <keescook@chromium.org>
+M:	Kees Cook <kees@kernel.org>
 R:	Andy Lutomirski <luto@amacapital.net>
 R:	Will Drewry <wad@chromium.org>
 S:	Supported
@@ -22752,7 +22753,7 @@ M:	Jarkko Sakkinen <jarkko@kernel.org>
 R:	Jason Gunthorpe <jgg@ziepe.ca>
 L:	linux-integrity@vger.kernel.org
 S:	Maintained
-W:	https://gitlab.com/jarkkojs/linux-tpmdd-test
+W:	https://codeberg.org/jarkko/linux-tpmdd-test
 Q:	https://patchwork.kernel.org/project/linux-integrity/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jarkko/linux-tpmdd.git
 F:	Documentation/devicetree/bindings/tpm/
@@ -22978,7 +22979,7 @@ F:	drivers/block/ublk_drv.c
 F:	include/uapi/linux/ublk_cmd.h
 
 UBSAN
-M:	Kees Cook <keescook@chromium.org>
+M:	Kees Cook <kees@kernel.org>
 R:	Marco Elver <elver@google.com>
 R:	Andrey Konovalov <andreyknvl@gmail.com>
 R:	Andrey Ryabinin <ryabinin.a.a@gmail.com>
@@ -23980,7 +23981,6 @@ VMALLOC
 M:	Andrew Morton <akpm@linux-foundation.org>
 R:	Uladzislau Rezki <urezki@gmail.com>
 R:	Christoph Hellwig <hch@infradead.org>
-R:	Lorenzo Stoakes <lstoakes@gmail.com>
 L:	linux-mm@kvack.org
 S:	Maintained
 W:	http://www.linux-mm.org
@@ -24816,7 +24816,7 @@ F:	drivers/net/hamradio/yam*
 F:	include/linux/yam.h
 
 YAMA SECURITY MODULE
-M:	Kees Cook <keescook@chromium.org>
+M:	Kees Cook <kees@kernel.org>
 S:	Supported
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kees/linux.git for-next/hardening
 F:	Documentation/admin-guide/LSM/Yama.rst

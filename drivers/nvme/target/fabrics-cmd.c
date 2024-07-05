@@ -226,9 +226,6 @@ static void nvmet_execute_admin_connect(struct nvmet_req *req)
 	if (status)
 		goto out;
 
-	/* zero out initial completion result, assign values as needed */
-	req->cqe->result.u32 = 0;
-
 	if (c->recfmt != 0) {
 		pr_warn("invalid connect version (%d).\n",
 			le16_to_cpu(c->recfmt));
@@ -304,9 +301,6 @@ static void nvmet_execute_io_connect(struct nvmet_req *req)
 	status = nvmet_copy_from_sgl(req, 0, d, sizeof(*d));
 	if (status)
 		goto out;
-
-	/* zero out initial completion result, assign values as needed */
-	req->cqe->result.u32 = 0;
 
 	if (c->recfmt != 0) {
 		pr_warn("invalid connect version (%d).\n",

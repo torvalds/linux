@@ -296,6 +296,8 @@ static int gnr_gpio_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
+	raw_spin_lock_init(&priv->lock);
+
 	regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);

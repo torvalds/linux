@@ -302,6 +302,21 @@ static int lo_read_simple(struct loop_device *lo, struct request *rq,
 	return 0;
 }
 
+static void loop_clear_limits(struct loop_device *lo, int mode)
+{
+	struct queue_limits lim = queue_limits_start_update(lo->lo_queue);
+
+	if (mode & FALLOC_FL_ZERO_RANGE)
+		lim.max_write_zeroes_sectors = 0;
+
+	if (mode & FALLOC_FL_PUNCH_HOLE) {
+		lim.max_hw_discard_sectors = 0;
+		lim.discard_granularity = 0;
+	}
+
+	queue_limits_commit_update(lo->lo_queue, &lim);
+}
+
 static int lo_fallocate(struct loop_device *lo, struct request *rq, loff_t pos,
 			int mode)
 {
@@ -320,6 +335,14 @@ static int lo_fallocate(struct loop_device *lo, struct request *rq, loff_t pos,
 	ret = file->f_op->fallocate(file, mode, pos, blk_rq_bytes(rq));
 	if (unlikely(ret && ret != -EINVAL && ret != -EOPNOTSUPP))
 		return -EIO;
+
+	/*
+	 * We initially configure the limits in a hope that fallocate is
+	 * supported and clear them here if that turns out not to be true.
+	 */
+	if (unlikely(ret == -EOPNOTSUPP))
+		loop_clear_limits(lo, mode);
+
 	return ret;
 }
 

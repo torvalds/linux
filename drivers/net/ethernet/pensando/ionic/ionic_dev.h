@@ -375,7 +375,9 @@ typedef void (*ionic_cq_done_cb)(void *done_arg);
 unsigned int ionic_cq_service(struct ionic_cq *cq, unsigned int work_to_do,
 			      ionic_cq_cb cb, ionic_cq_done_cb done_cb,
 			      void *done_arg);
-unsigned int ionic_tx_cq_service(struct ionic_cq *cq, unsigned int work_to_do);
+unsigned int ionic_tx_cq_service(struct ionic_cq *cq,
+				 unsigned int work_to_do,
+				 bool in_napi);
 
 int ionic_q_init(struct ionic_lif *lif, struct ionic_dev *idev,
 		 struct ionic_queue *q, unsigned int index, const char *name,

@@ -245,7 +245,7 @@ static const char * const irq_type_names[] = {
 };
 
 static bool persist_gpio_outputs;
-module_param(persist_gpio_outputs, bool, 0644);
+module_param(persist_gpio_outputs, bool, 0444);
 MODULE_PARM_DESC(persist_gpio_outputs, "Enable GPIO_OUT persistence when pin is freed");
 
 static inline u32 bcm2835_gpio_rd(struct bcm2835_pinctrl *pc, unsigned reg)

@@ -79,6 +79,12 @@ static int slave_alloc (struct scsi_device *sdev)
 	if (us->protocol == USB_PR_BULK && us->max_lun > 0)
 		sdev->sdev_bflags |= BLIST_FORCELUN;
 
+	/*
+	 * Some USB storage devices reset if the IO advice hints grouping mode
+	 * page is queried. Hence skip that mode page.
+	 */
+	sdev->sdev_bflags |= BLIST_SKIP_IO_HINTS;
+
 	return 0;
 }
 
