@@ -1,3 +1,20 @@
+What:		/sys/bus/nvmem/devices/.../force_ro
+Date:		June 2024
+KernelVersion:	6.11
+Contact:	Marek Vasut <marex@denx.de>
+Description:
+		This read/write attribute allows users to set read-write
+		devices as read-only and back to read-write from userspace.
+		This can be used to unlock and relock write-protection of
+		devices which are generally locked, except during sporadic
+		programming operation.
+		Read returns '0' or '1' for read-write or read-only modes
+		respectively.
+		Write parses one of 'YyTt1NnFf0', or [oO][NnFf] for "on"
+		and "off", i.e. what kstrbool() supports.
+		Note: This file is only present if CONFIG_NVMEM_SYSFS
+		is enabled.
+
 What:		/sys/bus/nvmem/devices/.../nvmem
 Date:		July 2015
 KernelVersion:	4.2
