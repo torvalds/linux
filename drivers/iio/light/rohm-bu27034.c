@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * BU27034 ROHM Ambient Light Sensor
+ * BU27034ANUC ROHM Ambient Light Sensor
  *
  * Copyright (c) 2023, ROHM Semiconductor.
- * https://fscdn.rohm.com/en/products/databook/datasheet/ic/sensor/light/bu27034nuc-e.pdf
  */
 
 #include <linux/bitfield.h>
@@ -1501,7 +1500,7 @@ static int bu27034_probe(struct i2c_client *i2c)
 }
 
 static const struct of_device_id bu27034_of_match[] = {
-	{ .compatible = "rohm,bu27034" },
+	{ .compatible = "rohm,bu27034anuc" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, bu27034_of_match);
