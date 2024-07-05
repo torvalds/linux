@@ -148,7 +148,8 @@ static const struct iio_itime_sel_mul bu27034_itimes[] = {
 	.type = IIO_INTENSITY,						\
 	.channel = BU27034_CHAN_##_name,				\
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |			\
-			      BIT(IIO_CHAN_INFO_SCALE),			\
+			      BIT(IIO_CHAN_INFO_SCALE) |		\
+			      BIT(IIO_CHAN_INFO_HARDWAREGAIN),		\
 	.info_mask_separate_available = BIT(IIO_CHAN_INFO_SCALE),	\
 	.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_INT_TIME),		\
 	.info_mask_shared_by_all_available =				\
@@ -989,6 +990,13 @@ static int bu27034_read_raw(struct iio_dev *idev,
 
 		return IIO_VAL_INT_PLUS_MICRO;
 
+	case IIO_CHAN_INFO_HARDWAREGAIN:
+		ret = bu27034_get_gain(data, chan->channel, val);
+		if (ret)
+			return ret;
+
+		return IIO_VAL_INT;
+
 	case IIO_CHAN_INFO_SCALE:
 		return bu27034_get_scale(data, chan->channel, val, val2);
 
@@ -1033,12 +1041,17 @@ static int bu27034_write_raw_get_fmt(struct iio_dev *indio_dev,
 				     struct iio_chan_spec const *chan,
 				     long mask)
 {
+	struct bu27034_data *data = iio_priv(indio_dev);
 
 	switch (mask) {
 	case IIO_CHAN_INFO_SCALE:
 		return IIO_VAL_INT_PLUS_NANO;
 	case IIO_CHAN_INFO_INT_TIME:
 		return IIO_VAL_INT_PLUS_MICRO;
+	case IIO_CHAN_INFO_HARDWAREGAIN:
+		dev_dbg(data->dev,
+			"HARDWAREGAIN is read-only, use scale to set\n");
+		return -EINVAL;
 	default:
 		return -EINVAL;
 	}
