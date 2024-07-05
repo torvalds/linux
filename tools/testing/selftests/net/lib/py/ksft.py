@@ -146,6 +146,7 @@ def ksft_run(cases=None, globs=None, case_pfx=None, args=()):
 
     global KSFT_RESULT
     cnt = 0
+    stop = False
     for case in cases:
         KSFT_RESULT = True
         cnt += 1
@@ -160,10 +161,13 @@ def ksft_run(cases=None, globs=None, case_pfx=None, args=()):
         except KsftXfailEx as e:
             comment = "XFAIL " + str(e)
             cnt_key = 'xfail'
-        except Exception as e:
+        except BaseException as e:
+            stop |= isinstance(e, KeyboardInterrupt)
             tb = traceback.format_exc()
             for line in tb.strip().split('\n'):
                 ksft_pr("Exception|", line)
+            if stop:
+                ksft_pr("Stopping tests due to KeyboardInterrupt.")
             KSFT_RESULT = False
             cnt_key = 'fail'
 
@@ -174,6 +178,9 @@ def ksft_run(cases=None, globs=None, case_pfx=None, args=()):
 
         ktap_result(KSFT_RESULT, cnt, case, comment=comment)
         totals[cnt_key] += 1
+
+        if stop:
+            break
 
     print(
         f"# Totals: pass:{totals['pass']} fail:{totals['fail']} xfail:{totals['xfail']} xpass:0 skip:{totals['skip']} error:0"
