@@ -996,7 +996,6 @@ static int loop_configure(struct loop_device *lo, blk_mode_t mode,
 			  const struct loop_config *config)
 {
 	struct file *file = fget(config->fd);
-	struct inode *inode;
 	struct address_space *mapping;
 	int error;
 	loff_t size;
@@ -1033,7 +1032,6 @@ static int loop_configure(struct loop_device *lo, blk_mode_t mode,
 		goto out_unlock;
 
 	mapping = file->f_mapping;
-	inode = mapping->host;
 
 	if ((config->info.lo_flags & ~LOOP_CONFIGURE_SETTABLE_FLAGS) != 0) {
 		error = -EINVAL;
