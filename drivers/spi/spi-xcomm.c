@@ -36,12 +36,12 @@ struct spi_xcomm {
 
 	struct gpio_chip gc;
 
-	uint16_t settings;
-	uint16_t chipselect;
+	u16 settings;
+	u16 chipselect;
 
 	unsigned int current_speed;
 
-	uint8_t buf[63];
+	u8 buf[63];
 };
 
 static void spi_xcomm_gpio_set_value(struct gpio_chip *chip,
@@ -82,8 +82,8 @@ static int spi_xcomm_gpio_add(struct spi_xcomm *spi_xcomm)
 
 static int spi_xcomm_sync_config(struct spi_xcomm *spi_xcomm, unsigned int len)
 {
-	uint16_t settings;
-	uint8_t *buf = spi_xcomm->buf;
+	u16 settings;
+	u8 *buf = spi_xcomm->buf;
 
 	settings = spi_xcomm->settings;
 	settings |= len << SPI_XCOMM_SETTINGS_LEN_OFFSET;
@@ -96,10 +96,10 @@ static int spi_xcomm_sync_config(struct spi_xcomm *spi_xcomm, unsigned int len)
 }
 
 static void spi_xcomm_chipselect(struct spi_xcomm *spi_xcomm,
-	struct spi_device *spi, int is_active)
+				 struct spi_device *spi, int is_active)
 {
 	unsigned long cs = spi_get_chipselect(spi, 0);
-	uint16_t chipselect = spi_xcomm->chipselect;
+	u16 chipselect = spi_xcomm->chipselect;
 
 	if (is_active)
 		chipselect |= BIT(cs);
@@ -110,7 +110,8 @@ static void spi_xcomm_chipselect(struct spi_xcomm *spi_xcomm,
 }
 
 static int spi_xcomm_setup_transfer(struct spi_xcomm *spi_xcomm,
-	struct spi_device *spi, struct spi_transfer *t, unsigned int *settings)
+				    struct spi_device *spi, struct spi_transfer *t,
+				    unsigned int *settings)
 {
 	if (t->len > 62)
 		return -EINVAL;
@@ -148,7 +149,7 @@ static int spi_xcomm_setup_transfer(struct spi_xcomm *spi_xcomm,
 }
 
 static int spi_xcomm_txrx_bufs(struct spi_xcomm *spi_xcomm,
-	struct spi_device *spi, struct spi_transfer *t)
+			       struct spi_device *spi, struct spi_transfer *t)
 {
 	int ret;
 
@@ -159,13 +160,13 @@ static int spi_xcomm_txrx_bufs(struct spi_xcomm *spi_xcomm,
 		ret = i2c_master_send(spi_xcomm->i2c, spi_xcomm->buf, t->len + 1);
 		if (ret < 0)
 			return ret;
-		else if (ret != t->len + 1)
+		if (ret != t->len + 1)
 			return -EIO;
 	} else if (t->rx_buf) {
 		ret = i2c_master_recv(spi_xcomm->i2c, t->rx_buf, t->len);
 		if (ret < 0)
 			return ret;
-		else if (ret != t->len)
+		if (ret != t->len)
 			return -EIO;
 	}
 
@@ -173,12 +174,12 @@ static int spi_xcomm_txrx_bufs(struct spi_xcomm *spi_xcomm,
 }
 
 static int spi_xcomm_transfer_one(struct spi_controller *host,
-	struct spi_message *msg)
+				  struct spi_message *msg)
 {
 	struct spi_xcomm *spi_xcomm = spi_controller_get_devdata(host);
 	unsigned int settings = spi_xcomm->settings;
 	struct spi_device *spi = msg->spi;
-	unsigned cs_change = 0;
+	unsigned int cs_change = 0;
 	struct spi_transfer *t;
 	bool is_first = true;
 	int status = 0;
@@ -187,7 +188,6 @@ static int spi_xcomm_transfer_one(struct spi_controller *host,
 	spi_xcomm_chipselect(spi_xcomm, spi, true);
 
 	list_for_each_entry(t, &msg->transfers, transfer_list) {
-
 		if (!t->tx_buf && !t->rx_buf && t->len) {
 			status = -EINVAL;
 			break;
