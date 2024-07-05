@@ -93,6 +93,7 @@ def define_autogvm():
         "drivers/soc/qcom/minidump.ko",
         "drivers/soc/qcom/qcom_ramdump.ko",
         "drivers/soc/qcom/qcom_soc_wdt.ko",
+        "drivers/soc/qcom/qcom_va_minidump.ko",
         "drivers/soc/qcom/qcom_wdt_core.ko",
         "drivers/soc/qcom/qmi_helpers.ko",
         "drivers/soc/qcom/rename_devices.ko",
