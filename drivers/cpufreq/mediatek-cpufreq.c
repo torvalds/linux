@@ -390,28 +390,23 @@ static int mtk_cpu_dvfs_info_init(struct mtk_cpu_dvfs_info *info, int cpu)
 	int ret;
 
 	cpu_dev = get_cpu_device(cpu);
-	if (!cpu_dev) {
-		dev_err(cpu_dev, "failed to get cpu%d device\n", cpu);
-		return -ENODEV;
-	}
+	if (!cpu_dev)
+		return dev_err_probe(cpu_dev, -ENODEV, "failed to get cpu%d device\n", cpu);
 	info->cpu_dev = cpu_dev;
 
 	info->ccifreq_bound = false;
 	if (info->soc_data->ccifreq_supported) {
 		info->cci_dev = of_get_cci(info->cpu_dev);
-		if (IS_ERR(info->cci_dev)) {
-			ret = PTR_ERR(info->cci_dev);
-			dev_err(cpu_dev, "cpu%d: failed to get cci device\n", cpu);
-			return -ENODEV;
-		}
+		if (IS_ERR(info->cci_dev))
+			return dev_err_probe(cpu_dev, PTR_ERR(info->cci_dev),
+					     "cpu%d: failed to get cci device\n",
+					     cpu);
 	}
 
 	info->cpu_clk = clk_get(cpu_dev, "cpu");
-	if (IS_ERR(info->cpu_clk)) {
-		ret = PTR_ERR(info->cpu_clk);
-		return dev_err_probe(cpu_dev, ret,
+	if (IS_ERR(info->cpu_clk))
+		return dev_err_probe(cpu_dev, PTR_ERR(info->cpu_clk),
 				     "cpu%d: failed to get cpu clk\n", cpu);
-	}
 
 	info->inter_clk = clk_get(cpu_dev, "intermediate");
 	if (IS_ERR(info->inter_clk)) {
@@ -431,7 +426,7 @@ static int mtk_cpu_dvfs_info_init(struct mtk_cpu_dvfs_info *info, int cpu)
 
 	ret = regulator_enable(info->proc_reg);
 	if (ret) {
-		dev_warn(cpu_dev, "cpu%d: failed to enable vproc\n", cpu);
+		dev_err_probe(cpu_dev, ret, "cpu%d: failed to enable vproc\n", cpu);
 		goto out_free_proc_reg;
 	}
 
@@ -439,14 +434,17 @@ static int mtk_cpu_dvfs_info_init(struct mtk_cpu_dvfs_info *info, int cpu)
 	info->sram_reg = regulator_get_optional(cpu_dev, "sram");
 	if (IS_ERR(info->sram_reg)) {
 		ret = PTR_ERR(info->sram_reg);
-		if (ret == -EPROBE_DEFER)
+		if (ret == -EPROBE_DEFER) {
+			dev_err_probe(cpu_dev, ret,
+				      "cpu%d: Failed to get sram regulator\n", cpu);
 			goto out_disable_proc_reg;
+		}
 
 		info->sram_reg = NULL;
 	} else {
 		ret = regulator_enable(info->sram_reg);
 		if (ret) {
-			dev_warn(cpu_dev, "cpu%d: failed to enable vsram\n", cpu);
+			dev_err_probe(cpu_dev, ret, "cpu%d: failed to enable vsram\n", cpu);
 			goto out_free_sram_reg;
 		}
 	}
@@ -454,31 +452,34 @@ static int mtk_cpu_dvfs_info_init(struct mtk_cpu_dvfs_info *info, int cpu)
 	/* Get OPP-sharing information from "operating-points-v2" bindings */
 	ret = dev_pm_opp_of_get_sharing_cpus(cpu_dev, &info->cpus);
 	if (ret) {
-		dev_err(cpu_dev,
+		dev_err_probe(cpu_dev, ret,
 			"cpu%d: failed to get OPP-sharing information\n", cpu);
 		goto out_disable_sram_reg;
 	}
 
 	ret = dev_pm_opp_of_cpumask_add_table(&info->cpus);
 	if (ret) {
-		dev_warn(cpu_dev, "cpu%d: no OPP table\n", cpu);
+		dev_err_probe(cpu_dev, ret, "cpu%d: no OPP table\n", cpu);
 		goto out_disable_sram_reg;
 	}
 
 	ret = clk_prepare_enable(info->cpu_clk);
-	if (ret)
+	if (ret) {
+		dev_err_probe(cpu_dev, ret, "cpu%d: failed to enable cpu clk\n", cpu);
 		goto out_free_opp_table;
+	}
 
 	ret = clk_prepare_enable(info->inter_clk);
-	if (ret)
+	if (ret) {
+		dev_err_probe(cpu_dev, ret, "cpu%d: failed to enable inter clk\n", cpu);
 		goto out_disable_mux_clock;
+	}
 
 	if (info->soc_data->ccifreq_supported) {
 		info->vproc_on_boot = regulator_get_voltage(info->proc_reg);
 		if (info->vproc_on_boot < 0) {
-			ret = info->vproc_on_boot;
-			dev_err(info->cpu_dev,
-				"invalid Vproc value: %d\n", info->vproc_on_boot);
+			ret = dev_err_probe(info->cpu_dev, info->vproc_on_boot,
+					    "invalid Vproc value\n");
 			goto out_disable_inter_clock;
 		}
 	}
@@ -487,8 +488,8 @@ static int mtk_cpu_dvfs_info_init(struct mtk_cpu_dvfs_info *info, int cpu)
 	rate = clk_get_rate(info->inter_clk);
 	opp = dev_pm_opp_find_freq_ceil(cpu_dev, &rate);
 	if (IS_ERR(opp)) {
-		dev_err(cpu_dev, "cpu%d: failed to get intermediate opp\n", cpu);
-		ret = PTR_ERR(opp);
+		ret = dev_err_probe(cpu_dev, PTR_ERR(opp),
+				    "cpu%d: failed to get intermediate opp\n", cpu);
 		goto out_disable_inter_clock;
 	}
 	info->intermediate_voltage = dev_pm_opp_get_voltage(opp);
@@ -501,7 +502,7 @@ static int mtk_cpu_dvfs_info_init(struct mtk_cpu_dvfs_info *info, int cpu)
 	info->opp_nb.notifier_call = mtk_cpufreq_opp_notifier;
 	ret = dev_pm_opp_register_notifier(cpu_dev, &info->opp_nb);
 	if (ret) {
-		dev_err(cpu_dev, "cpu%d: failed to register opp notifier\n", cpu);
+		dev_err_probe(cpu_dev, ret, "cpu%d: failed to register opp notifier\n", cpu);
 		goto out_disable_inter_clock;
 	}
 
@@ -627,11 +628,9 @@ static int mtk_cpufreq_probe(struct platform_device *pdev)
 	int cpu, ret;
 
 	data = dev_get_platdata(&pdev->dev);
-	if (!data) {
-		dev_err(&pdev->dev,
-			"failed to get mtk cpufreq platform data\n");
-		return -ENODEV;
-	}
+	if (!data)
+		return dev_err_probe(&pdev->dev, -ENODEV,
+				     "failed to get mtk cpufreq platform data\n");
 
 	for_each_possible_cpu(cpu) {
 		info = mtk_cpu_dvfs_info_lookup(cpu);
@@ -640,25 +639,22 @@ static int mtk_cpufreq_probe(struct platform_device *pdev)
 
 		info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 		if (!info) {
-			ret = -ENOMEM;
+			ret = dev_err_probe(&pdev->dev, -ENOMEM,
+					    "Failed to allocate dvfs_info\n");
 			goto release_dvfs_info_list;
 		}
 
 		info->soc_data = data;
 		ret = mtk_cpu_dvfs_info_init(info, cpu);
-		if (ret) {
-			dev_err(&pdev->dev,
-				"failed to initialize dvfs info for cpu%d\n",
-				cpu);
+		if (ret)
 			goto release_dvfs_info_list;
-		}
 
 		list_add(&info->list_head, &dvfs_info_list);
 	}
 
 	ret = cpufreq_register_driver(&mtk_cpufreq_driver);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to register mtk cpufreq driver\n");
+		dev_err_probe(&pdev->dev, ret, "failed to register mtk cpufreq driver\n");
 		goto release_dvfs_info_list;
 	}
 
