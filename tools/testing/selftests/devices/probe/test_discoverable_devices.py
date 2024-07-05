@@ -16,11 +16,16 @@
 
 import argparse
 import glob
-import ksft
 import os
 import re
 import sys
 import yaml
+
+# Allow ksft module to be imported from different directory
+this_dir = os.path.dirname(os.path.realpath(__file__))
+sys.path.append(os.path.join(this_dir, "../../kselftest/"))
+
+import ksft
 
 pci_controllers = []
 usb_controllers = []
