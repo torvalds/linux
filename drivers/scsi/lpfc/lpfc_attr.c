@@ -1831,6 +1831,7 @@ static int
 lpfc_set_trunking(struct lpfc_hba *phba, char *buff_out)
 {
 	LPFC_MBOXQ_t *mbox = NULL;
+	u32 payload_len;
 	unsigned long val = 0;
 	char *pval = NULL;
 	int rc = 0;
@@ -1869,9 +1870,11 @@ lpfc_set_trunking(struct lpfc_hba *phba, char *buff_out)
 	if (!mbox)
 		return -ENOMEM;
 
+	payload_len = sizeof(struct lpfc_mbx_set_trunk_mode) -
+		      sizeof(struct lpfc_sli4_cfg_mhdr);
 	lpfc_sli4_config(phba, mbox, LPFC_MBOX_SUBSYSTEM_FCOE,
 			 LPFC_MBOX_OPCODE_FCOE_FC_SET_TRUNK_MODE,
-			 12, LPFC_SLI4_MBX_EMBED);
+			 payload_len, LPFC_SLI4_MBX_EMBED);
 
 	bf_set(lpfc_mbx_set_trunk_mode,
 	       &mbox->u.mqe.un.set_trunk_mode,
