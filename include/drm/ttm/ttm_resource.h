@@ -273,16 +273,21 @@ ttm_lru_item_to_res(struct ttm_lru_item *item)
  * struct ttm_resource_cursor
  *
  * @man: The resource manager currently being iterated over.
- * @cur: The list head the cursor currently points to.
+ * @hitch: A hitch list node inserted before the next resource
+ * to iterate over.
  * @priority: the current priority
  *
  * Cursor to iterate over the resources in a manager.
  */
 struct ttm_resource_cursor {
 	struct ttm_resource_manager *man;
-	struct list_head *cur;
+	struct ttm_lru_item hitch;
 	unsigned int priority;
 };
+
+void ttm_resource_cursor_fini_locked(struct ttm_resource_cursor *cursor);
+
+void ttm_resource_cursor_fini(struct ttm_resource_cursor *cursor);
 
 /**
  * struct ttm_lru_bulk_move_pos

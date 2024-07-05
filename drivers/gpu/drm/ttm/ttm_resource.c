@@ -34,6 +34,37 @@
 #include <drm/drm_util.h>
 
 /**
+ * ttm_resource_cursor_fini_locked() - Finalize the LRU list cursor usage
+ * @cursor: The struct ttm_resource_cursor to finalize.
+ *
+ * The function pulls the LRU list cursor off any lists it was previusly
+ * attached to. Needs to be called with the LRU lock held. The function
+ * can be called multiple times after eachother.
+ */
+void ttm_resource_cursor_fini_locked(struct ttm_resource_cursor *cursor)
+{
+	lockdep_assert_held(&cursor->man->bdev->lru_lock);
+	list_del_init(&cursor->hitch.link);
+}
+
+/**
+ * ttm_resource_cursor_fini() - Finalize the LRU list cursor usage
+ * @cursor: The struct ttm_resource_cursor to finalize.
+ *
+ * The function pulls the LRU list cursor off any lists it was previusly
+ * attached to. Needs to be called without the LRU list lock held. The
+ * function can be called multiple times after eachother.
+ */
+void ttm_resource_cursor_fini(struct ttm_resource_cursor *cursor)
+{
+	spinlock_t *lru_lock = &cursor->man->bdev->lru_lock;
+
+	spin_lock(lru_lock);
+	ttm_resource_cursor_fini_locked(cursor);
+	spin_unlock(lru_lock);
+}
+
+/**
  * ttm_lru_bulk_move_init - initialize a bulk move structure
  * @bulk: the structure to init
  *
@@ -485,12 +516,15 @@ void ttm_resource_manager_debug(struct ttm_resource_manager *man,
 EXPORT_SYMBOL(ttm_resource_manager_debug);
 
 /**
- * ttm_resource_manager_first
- *
+ * ttm_resource_manager_first() - Start iterating over the resources
+ * of a resource manager
  * @man: resource manager to iterate over
  * @cursor: cursor to record the position
  *
- * Returns the first resource from the resource manager.
+ * Initializes the cursor and starts iterating. When done iterating,
+ * the caller must explicitly call ttm_resource_cursor_fini().
+ *
+ * Return: The first resource from the resource manager.
  */
 struct ttm_resource *
 ttm_resource_manager_first(struct ttm_resource_manager *man,
@@ -500,13 +534,15 @@ ttm_resource_manager_first(struct ttm_resource_manager *man,
 
 	cursor->priority = 0;
 	cursor->man = man;
-	cursor->cur = &man->lru[cursor->priority];
+	ttm_lru_item_init(&cursor->hitch, TTM_LRU_HITCH);
+	list_add(&cursor->hitch.link, &man->lru[cursor->priority]);
+
 	return ttm_resource_manager_next(cursor);
 }
 
 /**
- * ttm_resource_manager_next
- *
+ * ttm_resource_manager_next() - Continue iterating over the resource manager
+ * resources
  * @cursor: cursor to record the position
  *
  * Return: the next resource from the resource manager.
@@ -520,10 +556,10 @@ ttm_resource_manager_next(struct ttm_resource_cursor *cursor)
 	lockdep_assert_held(&man->bdev->lru_lock);
 
 	for (;;) {
-		lru = list_entry(cursor->cur, typeof(*lru), link);
+		lru = &cursor->hitch;
 		list_for_each_entry_continue(lru, &man->lru[cursor->priority], link) {
 			if (ttm_lru_item_is_res(lru)) {
-				cursor->cur = &lru->link;
+				list_move(&cursor->hitch.link, &lru->link);
 				return ttm_lru_item_to_res(lru);
 			}
 		}
@@ -531,8 +567,10 @@ ttm_resource_manager_next(struct ttm_resource_cursor *cursor)
 		if (++cursor->priority >= TTM_MAX_BO_PRIORITY)
 			break;
 
-		cursor->cur = &man->lru[cursor->priority];
+		list_move(&cursor->hitch.link, &man->lru[cursor->priority]);
 	}
+
+	ttm_resource_cursor_fini_locked(cursor);
 
 	return NULL;
 }
