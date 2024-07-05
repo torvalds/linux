@@ -31,7 +31,6 @@ struct xe_test_priv {
 
 #define XE_TEST_DECLARE(x) x
 #define XE_TEST_ONLY(x) unlikely(x)
-#define XE_TEST_EXPORT
 
 /**
  * xe_cur_kunit_priv - Obtain the struct xe_test_priv pointed to by
@@ -58,7 +57,6 @@ xe_cur_kunit_priv(enum xe_test_priv_id id)
 
 #define XE_TEST_DECLARE(x)
 #define XE_TEST_ONLY(x) 0
-#define XE_TEST_EXPORT static
 #define xe_cur_kunit_priv(_id) NULL
 
 #endif
