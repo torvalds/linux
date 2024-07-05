@@ -1,6 +1,6 @@
 What:		/sys/bus/nvmem/devices/.../nvmem
 Date:		July 2015
-KernelVersion:  4.2
+KernelVersion:	4.2
 Contact:	Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
 Description:
 		This file allows user to read/write the raw NVMEM contents.
