@@ -12,8 +12,7 @@ endif
 TEST_GEN_PROGS += vdso_test_correctness
 
 CFLAGS := -std=gnu99
-CFLAGS_vdso_standalone_test_x86 := -nostdlib -fno-asynchronous-unwind-tables -fno-stack-protector
-LDFLAGS_vdso_test_correctness := -ldl
+
 ifeq ($(CONFIG_X86_32),y)
 LDLIBS += -lgcc_s
 endif
@@ -23,12 +22,9 @@ $(OUTPUT)/vdso_test_gettimeofday: parse_vdso.c vdso_test_gettimeofday.c
 $(OUTPUT)/vdso_test_getcpu: parse_vdso.c vdso_test_getcpu.c
 $(OUTPUT)/vdso_test_abi: parse_vdso.c vdso_test_abi.c
 $(OUTPUT)/vdso_test_clock_getres: vdso_test_clock_getres.c
+
 $(OUTPUT)/vdso_standalone_test_x86: vdso_standalone_test_x86.c parse_vdso.c
-	$(CC) $(CFLAGS) $(CFLAGS_vdso_standalone_test_x86) \
-		vdso_standalone_test_x86.c parse_vdso.c \
-		-o $@
+$(OUTPUT)/vdso_standalone_test_x86: CFLAGS +=-nostdlib -fno-asynchronous-unwind-tables -fno-stack-protector
+
 $(OUTPUT)/vdso_test_correctness: vdso_test_correctness.c
-	$(CC) $(CFLAGS) \
-		vdso_test_correctness.c \
-		-o $@ \
-		$(LDFLAGS_vdso_test_correctness)
+$(OUTPUT)/vdso_test_correctness: LDFLAGS += -ldl
