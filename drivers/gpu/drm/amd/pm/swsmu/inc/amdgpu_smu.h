@@ -495,6 +495,12 @@ struct stb_context {
 	spinlock_t lock;
 };
 
+enum smu_fw_status {
+	SMU_FW_INIT = 0,
+	SMU_FW_RUNTIME,
+	SMU_FW_HANG,
+};
+
 #define WORKLOAD_POLICY_MAX 7
 
 /*
@@ -562,6 +568,7 @@ struct smu_context {
 	uint32_t smc_fw_if_version;
 	uint32_t smc_fw_version;
 	uint32_t smc_fw_caps;
+	uint8_t smc_fw_state;
 
 	bool uploading_custom_pp_table;
 	bool dc_controlled_by_gpio;
