@@ -110,21 +110,21 @@ static struct spl_rect calculate_plane_rec_in_timing_active(
 	struct fixed31_32 temp;
 
 
-	temp = dc_fixpt_from_fraction(rec_in->x * stream_dst->width,
+	temp = dc_fixpt_from_fraction(rec_in->x * (long long)stream_dst->width,
 			stream_src->width);
 	rec_out.x = stream_dst->x + dc_fixpt_round(temp);
 
 	temp = dc_fixpt_from_fraction(
-			(rec_in->x + rec_in->width) * stream_dst->width,
+			(rec_in->x + rec_in->width) * (long long)stream_dst->width,
 			stream_src->width);
 	rec_out.width = stream_dst->x + dc_fixpt_round(temp) - rec_out.x;
 
-	temp = dc_fixpt_from_fraction(rec_in->y * stream_dst->height,
+	temp = dc_fixpt_from_fraction(rec_in->y * (long long)stream_dst->height,
 			stream_src->height);
 	rec_out.y = stream_dst->y + dc_fixpt_round(temp);
 
 	temp = dc_fixpt_from_fraction(
-			(rec_in->y + rec_in->height) * stream_dst->height,
+			(rec_in->y + rec_in->height) * (long long)stream_dst->height,
 			stream_src->height);
 	rec_out.height = stream_dst->y + dc_fixpt_round(temp) - rec_out.y;
 

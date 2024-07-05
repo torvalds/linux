@@ -1506,6 +1506,8 @@ drm_fourcc_canonicalize_nvidia_format_mod(__u64 modifier)
  *    6 - 64KB_3D
  *    7 - 256KB_3D
  */
+#define AMD_FMT_MOD_TILE_GFX12_256B_2D 1
+#define AMD_FMT_MOD_TILE_GFX12_4K_2D 2
 #define AMD_FMT_MOD_TILE_GFX12_64K_2D 3
 #define AMD_FMT_MOD_TILE_GFX12_256K_2D 4
 
@@ -1539,9 +1541,6 @@ drm_fourcc_canonicalize_nvidia_format_mod(__u64 modifier)
 #define AMD_FMT_MOD_DCC_INDEPENDENT_128B_MASK 0x1
 #define AMD_FMT_MOD_DCC_MAX_COMPRESSED_BLOCK_SHIFT 18
 #define AMD_FMT_MOD_DCC_MAX_COMPRESSED_BLOCK_MASK 0x3
-
-#define AMD_FMT_MOD_GFX12_DCC_MAX_COMPRESSED_BLOCK_SHIFT     3
-#define AMD_FMT_MOD_GFX12_DCC_MAX_COMPRESSED_BLOCK_MASK      0x3 /* 0:64B, 1:128B, 2:256B */
 
 /*
  * DCC supports embedding some clear colors directly in the DCC surface.

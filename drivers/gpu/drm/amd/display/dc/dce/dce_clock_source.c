@@ -217,7 +217,7 @@ static bool calc_fb_divider_checking_tolerance(
 	actual_calc_clk_100hz = (uint64_t)feedback_divider *
 					calc_pll_cs->fract_fb_divider_factor +
 							fract_feedback_divider;
-	actual_calc_clk_100hz *= calc_pll_cs->ref_freq_khz * 10;
+	actual_calc_clk_100hz *= (uint64_t)calc_pll_cs->ref_freq_khz * 10;
 	actual_calc_clk_100hz =
 		div_u64(actual_calc_clk_100hz,
 			ref_divider * post_divider *
@@ -680,7 +680,7 @@ static bool calculate_ss(
 	 * so have to divided by 100 * 100*/
 	ss_amount = dc_fixpt_mul(
 		fb_div, dc_fixpt_from_fraction(ss_data->percentage,
-					100 * ss_data->percentage_divider));
+					100 * (long long)ss_data->percentage_divider));
 	ds_data->feedback_amount = dc_fixpt_floor(ss_amount);
 
 	ss_nslip_amount = dc_fixpt_sub(ss_amount,
@@ -695,8 +695,8 @@ static bool calculate_ss(
 
 	/* compute SS_STEP_SIZE_DSFRAC */
 	modulation_time = dc_fixpt_from_fraction(
-		pll_settings->reference_freq * 1000,
-		pll_settings->reference_divider * ss_data->modulation_freq_hz);
+		pll_settings->reference_freq * (uint64_t)1000,
+		pll_settings->reference_divider * (uint64_t)ss_data->modulation_freq_hz);
 
 	if (ss_data->flags.CENTER_SPREAD)
 		modulation_time = dc_fixpt_div_int(modulation_time, 4);

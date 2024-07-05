@@ -302,6 +302,7 @@ static int vpe_early_init(void *handle)
 
 	switch (amdgpu_ip_version(adev, VPE_HWIP, 0)) {
 	case IP_VERSION(6, 1, 0):
+	case IP_VERSION(6, 1, 3):
 		vpe_v6_1_set_funcs(vpe);
 		break;
 	case IP_VERSION(6, 1, 1):

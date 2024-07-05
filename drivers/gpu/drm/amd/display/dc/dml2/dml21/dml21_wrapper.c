@@ -197,8 +197,13 @@ static bool dml21_mode_check_and_programming(const struct dc *in_dc, struct dc_s
 	memset(&dml_ctx->v21.dml_to_dc_pipe_mapping, 0, sizeof(struct dml2_dml_to_dc_pipe_mapping));
 	memset(&dml_ctx->v21.mode_programming.dml2_instance->scratch.build_mode_programming_locals.mode_programming_params, 0, sizeof(struct dml2_core_mode_programming_in_out));
 
-	if (!context || context->stream_count == 0)
+	if (!context)
 		return true;
+
+	if (context->stream_count == 0) {
+		dml21_build_fams2_programming(in_dc, context, dml_ctx);
+		return true;
+	}
 
 	/* scrub phantom's from current dc_state */
 	dml_ctx->config.svp_pstate.callbacks.remove_phantom_streams_and_planes(in_dc, context);
@@ -280,7 +285,8 @@ bool dml21_validate(const struct dc *in_dc, struct dc_state *context, struct dml
 
 void dml21_prepare_mcache_programming(struct dc *in_dc, struct dc_state *context, struct dml2_context *dml_ctx)
 {
-	unsigned int num_pipes, dml_prog_idx, dml_phantom_prog_idx, dc_pipe_index;
+	unsigned int dml_prog_idx, dml_phantom_prog_idx, dc_pipe_index;
+	int num_pipes;
 	struct pipe_ctx *dc_main_pipes[__DML2_WRAPPER_MAX_STREAMS_PLANES__];
 	struct pipe_ctx *dc_phantom_pipes[__DML2_WRAPPER_MAX_STREAMS_PLANES__] = {0};
 
@@ -314,10 +320,8 @@ void dml21_prepare_mcache_programming(struct dc *in_dc, struct dc_state *context
 		}
 
 		num_pipes = dml21_find_dc_pipes_for_plane(in_dc, context, dml_ctx, dc_main_pipes, dc_phantom_pipes, dml_prog_idx);
-
-		if (num_pipes <= 0 ||
-				dc_main_pipes[0]->stream == NULL ||
-				dc_main_pipes[0]->plane_state == NULL)
+		if (num_pipes <= 0 || dc_main_pipes[0]->stream == NULL ||
+		    dc_main_pipes[0]->plane_state == NULL)
 			continue;
 
 		/* get config for each pipe */
@@ -356,10 +360,8 @@ void dml21_prepare_mcache_programming(struct dc *in_dc, struct dc_state *context
 		pln_prog = &dml_ctx->v21.mode_programming.programming->plane_programming[dml_prog_idx];
 
 		num_pipes = dml21_find_dc_pipes_for_plane(in_dc, context, dml_ctx, dc_main_pipes, dc_phantom_pipes, dml_prog_idx);
-
-		if (num_pipes <= 0 ||
-				dc_main_pipes[0]->stream == NULL ||
-				dc_main_pipes[0]->plane_state == NULL)
+		if (num_pipes <= 0 || dc_main_pipes[0]->stream == NULL ||
+		    dc_main_pipes[0]->plane_state == NULL)
 			continue;
 
 		/* get config for each pipe */

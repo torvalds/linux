@@ -25,6 +25,42 @@
 
 ifdef CONFIG_DRM_AMD_DC_FP
 ###############################################################################
+# DCN10
+###############################################################################
+DIO_DCN10 = dcn10_link_encoder.o dcn10_stream_encoder.o
+
+AMD_DAL_DIO_DCN10 = $(addprefix $(AMDDALPATH)/dc/dio/dcn10/,$(DIO_DCN10))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_DIO_DCN10)
+
+###############################################################################
+# DCN20
+###############################################################################
+DIO_DCN20 = dcn20_link_encoder.o dcn20_stream_encoder.o
+
+AMD_DAL_DIO_DCN20 = $(addprefix $(AMDDALPATH)/dc/dio/dcn20/,$(DIO_DCN20))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_DIO_DCN20)
+
+###############################################################################
+# DCN30
+###############################################################################
+DIO_DCN30 = dcn30_dio_link_encoder.o dcn30_dio_stream_encoder.o
+
+AMD_DAL_DIO_DCN30 = $(addprefix $(AMDDALPATH)/dc/dio/dcn30/,$(DIO_DCN30))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_DIO_DCN30)
+
+###############################################################################
+# DCN31
+###############################################################################
+DIO_DCN31 = dcn31_dio_link_encoder.o
+
+AMD_DAL_DIO_DCN31 = $(addprefix $(AMDDALPATH)/dc/dio/dcn31/,$(DIO_DCN31))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_DIO_DCN31)
+
+###############################################################################
 # DCN32
 ###############################################################################
 DIO_DCN32 = dcn32_dio_link_encoder.o dcn32_dio_stream_encoder.o

@@ -575,10 +575,8 @@ bool dm_helpers_dp_write_dpcd(
 {
 	struct amdgpu_dm_connector *aconnector = link->priv;
 
-	if (!aconnector) {
-		DRM_ERROR("Failed to find connector for link!");
+	if (!aconnector)
 		return false;
-	}
 
 	return drm_dp_dpcd_write(&aconnector->dm_dp_aux.aux,
 			address, (uint8_t *)data, size) > 0;

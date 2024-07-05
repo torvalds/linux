@@ -80,4 +80,5 @@ void dcn401_unblank_stream(struct pipe_ctx *pipe_ctx, struct dc_link_settings *l
 void dcn401_hardware_release(struct dc *dc);
 void dcn401_update_odm(struct dc *dc, struct dc_state *context,
 		struct pipe_ctx *otg_master);
+void adjust_hotspot_between_slices_for_2x_magnify(uint32_t cursor_width, struct dc_cursor_position *pos_cpy);
 #endif /* __DC_HWSS_DCN401_H__ */

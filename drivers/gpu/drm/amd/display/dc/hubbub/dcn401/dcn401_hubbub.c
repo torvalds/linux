@@ -829,6 +829,7 @@ bool hubbub401_get_dcc_compression_cap(struct hubbub *hubbub,
 		struct dc_surface_dcc_cap *output)
 {
 	struct dc *dc = hubbub->ctx->dc;
+	const unsigned int max_dcc_plane_width = dc->caps.dcc_plane_width_limit;
 	/* DCN4_Programming_Guide_DCHUB.docx, Section 5.11.2.2 */
 	enum dcc_control dcc_control;
 	unsigned int plane0_bpe, plane1_bpe;
@@ -841,6 +842,11 @@ bool hubbub401_get_dcc_compression_cap(struct hubbub *hubbub,
 	memset(output, 0, sizeof(*output));
 
 	if (dc->debug.disable_dcc == DCC_DISABLE)
+		return false;
+
+	/* Conservatively disable DCC for cases where ODM4:1 may be required. */
+	if (max_dcc_plane_width != 0 &&
+			(input->surface_size.width > max_dcc_plane_width || input->plane1_size.width > max_dcc_plane_width))
 		return false;
 
 	switch (input->format) {

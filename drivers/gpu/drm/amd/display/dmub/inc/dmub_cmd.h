@@ -684,7 +684,8 @@ union dmub_fw_boot_options {
 		uint32_t ips_pg_disable: 1; /* 1 to disable ONO domains power gating*/
 		uint32_t ips_disable: 3; /* options to disable ips support*/
 		uint32_t ips_sequential_ono: 1; /**< 1 to enable sequential ONO IPS sequence */
-		uint32_t reserved : 8; /**< reserved */
+		uint32_t disable_sldo_opt: 1; /**< 1 to disable SLDO optimizations */
+		uint32_t reserved : 7; /**< reserved */
 	} bits; /**< boot bits */
 	uint32_t all; /**< 32-bit access to bits */
 };
@@ -3326,6 +3327,7 @@ enum replay_state {
 	REPLAY_STATE_1			= 0x10,
 	REPLAY_STATE_1A			= 0x11,
 	REPLAY_STATE_2			= 0x20,
+	REPLAY_STATE_2A			= 0x21,
 	REPLAY_STATE_3			= 0x30,
 	REPLAY_STATE_3INIT		= 0x31,
 	REPLAY_STATE_4			= 0x40,
@@ -3333,6 +3335,7 @@ enum replay_state {
 	REPLAY_STATE_4B			= 0x42,
 	REPLAY_STATE_4C			= 0x43,
 	REPLAY_STATE_4D			= 0x44,
+	REPLAY_STATE_4E			= 0x45,
 	REPLAY_STATE_4B_LOCKED		= 0x4A,
 	REPLAY_STATE_4C_UNLOCKED	= 0x4B,
 	REPLAY_STATE_5			= 0x50,

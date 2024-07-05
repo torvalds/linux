@@ -2208,7 +2208,7 @@ static int dcn10_align_pixel_clocks(struct dc *dc, int group_size,
 					grouped_pipes[i]->stream->signal)) {
 				embedded = i;
 				master = i;
-				phase[i] = embedded_pix_clk_100hz*100;
+				phase[i] = embedded_pix_clk_100hz*(uint64_t)100;
 				modulo[i] = dp_ref_clk_100hz*100;
 			} else {
 

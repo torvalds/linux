@@ -569,7 +569,7 @@ static bool mmhub_v1_8_query_utcl2_poison_status(struct amdgpu_device *adev,
 	if (!amdgpu_sriov_vf(adev)) {
 		/* clear page fault status and address */
 		WREG32_P(SOC15_REG_OFFSET(MMHUB, hub_inst,
-			 regVM_L2_PROTECTION_FAULT_STATUS), 1, ~1);
+			 regVM_L2_PROTECTION_FAULT_CNTL), 1, ~1);
 	}
 
 	return fed;

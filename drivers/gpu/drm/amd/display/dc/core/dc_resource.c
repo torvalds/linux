@@ -888,21 +888,21 @@ static struct rect calculate_plane_rec_in_timing_active(
 	struct rect rec_out = {0};
 	struct fixed31_32 temp;
 
-	temp = dc_fixpt_from_fraction(rec_in->x * stream->dst.width,
+	temp = dc_fixpt_from_fraction(rec_in->x * (long long)stream->dst.width,
 			stream->src.width);
 	rec_out.x = stream->dst.x + dc_fixpt_round(temp);
 
 	temp = dc_fixpt_from_fraction(
-			(rec_in->x + rec_in->width) * stream->dst.width,
+			(rec_in->x + rec_in->width) * (long long)stream->dst.width,
 			stream->src.width);
 	rec_out.width = stream->dst.x + dc_fixpt_round(temp) - rec_out.x;
 
-	temp = dc_fixpt_from_fraction(rec_in->y * stream->dst.height,
+	temp = dc_fixpt_from_fraction(rec_in->y * (long long)stream->dst.height,
 			stream->src.height);
 	rec_out.y = stream->dst.y + dc_fixpt_round(temp);
 
 	temp = dc_fixpt_from_fraction(
-			(rec_in->y + rec_in->height) * stream->dst.height,
+			(rec_in->y + rec_in->height) * (long long)stream->dst.height,
 			stream->src.height);
 	rec_out.height = stream->dst.y + dc_fixpt_round(temp) - rec_out.y;
 

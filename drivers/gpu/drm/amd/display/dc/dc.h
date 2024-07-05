@@ -55,7 +55,7 @@ struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.290"
+#define DC_VER "3.2.291"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -293,6 +293,8 @@ struct dc_caps {
 	bool cursor_not_scaled;
 	bool dcmode_power_limits_present;
 	bool sequential_ono;
+	/* Conservative limit for DCC cases which require ODM4:1 to support*/
+	uint32_t dcc_plane_width_limit;
 };
 
 struct dc_bug_wa {

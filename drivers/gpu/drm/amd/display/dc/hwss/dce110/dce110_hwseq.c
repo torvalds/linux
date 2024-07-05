@@ -1305,13 +1305,65 @@ static void populate_audio_dp_link_info(
 
 	dp_link_info->link_bandwidth_kbps = dc_fixpt_floor(link_bw_kbps);
 
-	/* HW minimum for 128b/132b HBlank is 4 frame symbols.
-	 * TODO: Plumb the actual programmed HBlank min symbol width to here.
+	/* Calculates hblank_min_symbol_width for 128b/132b
+	 * Corresponding HBLANK_MIN_SYMBOL_WIDTH register is calculated as:
+	 *   floor(h_blank * bits_per_pixel / 128)
 	 */
-	if (dp_link_info->encoding == DP_128b_132b_ENCODING)
-		dp_link_info->hblank_min_symbol_width = 4;
-	else
+	if (dp_link_info->encoding == DP_128b_132b_ENCODING) {
+		struct dc_crtc_timing *crtc_timing = &pipe_ctx->stream->timing;
+
+		uint32_t h_active = crtc_timing->h_addressable + crtc_timing->h_border_left
+				+ crtc_timing->h_border_right;
+		uint32_t h_blank = crtc_timing->h_total - h_active;
+
+		uint32_t bpp;
+
+		if (crtc_timing->flags.DSC) {
+			bpp = crtc_timing->dsc_cfg.bits_per_pixel;
+		} else {
+			/* When the timing is using DSC, dsc_cfg.bits_per_pixel is in 16th bits.
+			 * The bpp in this path is scaled to 16th bits so the final calculation
+			 * is correct for both cases.
+			 */
+			bpp = 16;
+			switch (crtc_timing->display_color_depth) {
+			case COLOR_DEPTH_666:
+				bpp *= 18;
+				break;
+			case COLOR_DEPTH_888:
+				bpp *= 24;
+				break;
+			case COLOR_DEPTH_101010:
+				bpp *= 30;
+				break;
+			case COLOR_DEPTH_121212:
+				bpp *= 36;
+				break;
+			default:
+				bpp = 0;
+				break;
+			}
+
+			switch (crtc_timing->pixel_encoding) {
+			case PIXEL_ENCODING_YCBCR422:
+				bpp = bpp * 2 / 3;
+				break;
+			case PIXEL_ENCODING_YCBCR420:
+				bpp /= 2;
+				break;
+			default:
+				break;
+			}
+		}
+
+		/* Min symbol width = floor(h_blank * (bpp/16) / 128) */
+		dp_link_info->hblank_min_symbol_width = dc_fixpt_floor(
+				dc_fixpt_div(dc_fixpt_from_int(h_blank * bpp),
+						dc_fixpt_from_int(128 / 16)));
+
+	} else {
 		dp_link_info->hblank_min_symbol_width = 0;
+	}
 }
 
 static void build_audio_output(

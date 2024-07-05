@@ -2153,8 +2153,6 @@ static bool dcn35_resource_construct(
 
 	dc->dml2_options.max_segments_per_hubp = 24;
 	dc->dml2_options.det_segment_size = DCN3_2_DET_SEG_SIZE;/*todo*/
-	dc->dml2_options.max_frac_urgent_for_min_fclk_x1000 = 900;
-	dc->dml2_options.min_fclk_for_urgent_workaround_khz = 400 * 1000;
 
 	if (dc->config.sdpif_request_limit_words_per_umc == 0)
 		dc->config.sdpif_request_limit_words_per_umc = 16;/*todo*/
