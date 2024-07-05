@@ -547,6 +547,7 @@ void snd_pcm_set_sync_per_card(struct snd_pcm_substream *substream,
 	strncpy(params->sync + 4, id, len);
 	memset(params->sync + 4 + len, 0, 12 - len);
 }
+EXPORT_SYMBOL_GPL(snd_pcm_set_sync_per_card);
 
 /*
  *  Standard ioctl routine
