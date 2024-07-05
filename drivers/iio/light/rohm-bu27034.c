@@ -94,49 +94,39 @@ static const unsigned long bu27034_scan_masks[] = {
 };
 
 /*
- * Available scales with gain 1x - 4096x, timings 55, 100, 200, 400 mS
+ * Available scales with gain 1x - 1024x, timings 55, 100, 200, 400 mS
  * Time impacts to gain: 1x, 2x, 4x, 8x.
  *
- * => Max total gain is HWGAIN * gain by integration time (8 * 4096) = 32768
+ * => Max total gain is HWGAIN * gain by integration time (8 * 1024) = 8192
+ * if 1x gain is scale 1, scale for 2x gain is 0.5, 4x => 0.25,
+ * ... 8192x => 0.0001220703125 => 122070.3125 nanos
  *
- * Using NANO precision for scale we must use scale 64x corresponding gain 1x
- * to avoid precision loss. (32x would result scale 976 562.5(nanos).
+ * Using NANO precision for scale, we must use scale 16x corresponding gain 1x
+ * to avoid precision loss. (8x would result scale 976 562.5(nanos).
  */
-#define BU27034_SCALE_1X	64
+#define BU27034_SCALE_1X	16
 
 /* See the data sheet for the "Gain Setting" table */
 #define BU27034_GSEL_1X		0x00 /* 00000 */
 #define BU27034_GSEL_4X		0x08 /* 01000 */
-#define BU27034_GSEL_16X	0x0a /* 01010 */
 #define BU27034_GSEL_32X	0x0b /* 01011 */
-#define BU27034_GSEL_64X	0x0c /* 01100 */
 #define BU27034_GSEL_256X	0x18 /* 11000 */
 #define BU27034_GSEL_512X	0x19 /* 11001 */
 #define BU27034_GSEL_1024X	0x1a /* 11010 */
-#define BU27034_GSEL_2048X	0x1b /* 11011 */
-#define BU27034_GSEL_4096X	0x1c /* 11100 */
 
 /* Available gain settings */
 static const struct iio_gain_sel_pair bu27034_gains[] = {
 	GAIN_SCALE_GAIN(1, BU27034_GSEL_1X),
 	GAIN_SCALE_GAIN(4, BU27034_GSEL_4X),
-	GAIN_SCALE_GAIN(16, BU27034_GSEL_16X),
 	GAIN_SCALE_GAIN(32, BU27034_GSEL_32X),
-	GAIN_SCALE_GAIN(64, BU27034_GSEL_64X),
 	GAIN_SCALE_GAIN(256, BU27034_GSEL_256X),
 	GAIN_SCALE_GAIN(512, BU27034_GSEL_512X),
 	GAIN_SCALE_GAIN(1024, BU27034_GSEL_1024X),
-	GAIN_SCALE_GAIN(2048, BU27034_GSEL_2048X),
-	GAIN_SCALE_GAIN(4096, BU27034_GSEL_4096X),
 };
 
 /*
- * The IC has 5 modes for sampling time. 5 mS mode is exceptional as it limits
- * the data collection to data0-channel only and cuts the supported range to
- * 10 bit. It is not supported by the driver.
- *
- * "normal" modes are 55, 100, 200 and 400 mS modes - which do have direct
- * multiplying impact to the register values (similar to gain).
+ * Measurement modes are 55, 100, 200 and 400 mS modes - which do have direct
+ * multiplying impact to the data register values (similar to gain).
  *
  * This means that if meas-mode is changed for example from 400 => 200,
  * the scale is doubled. Eg, time impact to total gain is x1, x2, x4, x8.
