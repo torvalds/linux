@@ -5086,7 +5086,7 @@ static struct mount *listmnt_next(struct mount *curr, bool reverse)
 
 static int grab_requested_root(struct mnt_namespace *ns, struct path *root)
 {
-	struct mount *first;
+	struct mount *first, *child;
 
 	rwsem_assert_held(&namespace_sem);
 
@@ -5103,10 +5103,16 @@ static int grab_requested_root(struct mnt_namespace *ns, struct path *root)
 	if (RB_EMPTY_ROOT(&ns->mounts))
 		return -ENOENT;
 
-	first = listmnt_next(ns->root, false);
-	if (!first)
-		return -ENOENT;
-	root->mnt = mntget(&first->mnt);
+	first = child = ns->root;
+	for (;;) {
+		child = listmnt_next(child, false);
+		if (!child)
+			return -ENOENT;
+		if (child->mnt_parent == first)
+			break;
+	}
+
+	root->mnt = mntget(&child->mnt);
 	root->dentry = dget(root->mnt->mnt_root);
 	return 0;
 }
