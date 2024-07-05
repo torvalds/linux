@@ -195,18 +195,14 @@ static int mtk_cec_probe(struct platform_device *pdev)
 	spin_lock_init(&cec->lock);
 
 	cec->regs = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(cec->regs)) {
-		ret = PTR_ERR(cec->regs);
-		dev_err(dev, "Failed to ioremap cec: %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(cec->regs))
+		return dev_err_probe(dev, PTR_ERR(cec->regs),
+				     "Failed to ioremap cec\n");
 
 	cec->clk = devm_clk_get(dev, NULL);
-	if (IS_ERR(cec->clk)) {
-		ret = PTR_ERR(cec->clk);
-		dev_err(dev, "Failed to get cec clock: %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(cec->clk))
+		return dev_err_probe(dev, PTR_ERR(cec->clk),
+				     "Failed to get cec clock\n");
 
 	cec->irq = platform_get_irq(pdev, 0);
 	if (cec->irq < 0)
@@ -216,16 +212,12 @@ static int mtk_cec_probe(struct platform_device *pdev)
 					mtk_cec_htplg_isr_thread,
 					IRQF_SHARED | IRQF_TRIGGER_LOW |
 					IRQF_ONESHOT, "hdmi hpd", dev);
-	if (ret) {
-		dev_err(dev, "Failed to register cec irq: %d\n", ret);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to register cec irq\n");
 
 	ret = clk_prepare_enable(cec->clk);
-	if (ret) {
-		dev_err(dev, "Failed to enable cec clock: %d\n", ret);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to enable cec clock\n");
 
 	mtk_cec_htplg_irq_init(cec);
 	mtk_cec_htplg_irq_enable(cec);

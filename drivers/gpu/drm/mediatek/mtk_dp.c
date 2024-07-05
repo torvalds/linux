@@ -2073,9 +2073,15 @@ static const struct drm_edid *mtk_dp_edid_read(struct drm_bridge *bridge,
 		 */
 		const struct edid *edid = drm_edid_raw(drm_edid);
 		struct cea_sad *sads;
+		int ret;
 
-		audio_caps->sad_count = drm_edid_to_sad(edid, &sads);
-		kfree(sads);
+		ret = drm_edid_to_sad(edid, &sads);
+		/* Ignore any errors */
+		if (ret < 0)
+			ret = 0;
+		if (ret)
+			kfree(sads);
+		audio_caps->sad_count = ret;
 
 		/*
 		 * FIXME: This should use connector->display_info.has_audio from
@@ -2655,11 +2661,9 @@ static int mtk_dp_probe(struct platform_device *pdev)
 		mutex_init(&mtk_dp->update_plugged_status_lock);
 
 		ret = mtk_dp_register_audio_driver(dev);
-		if (ret) {
-			dev_err(dev, "Failed to register audio driver: %d\n",
-				ret);
-			return ret;
-		}
+		if (ret)
+			return dev_err_probe(dev, ret,
+					     "Failed to register audio driver\n");
 	}
 
 	ret = mtk_dp_register_phy(mtk_dp);
