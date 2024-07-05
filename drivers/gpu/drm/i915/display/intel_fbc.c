@@ -1101,7 +1101,7 @@ static void intel_fbc_max_surface_size(struct intel_display *display,
  * the X and Y offset registers. That's why we include the src x/y offsets
  * instead of just looking at the plane size.
  */
-static bool intel_fbc_hw_tracking_covers_screen(const struct intel_plane_state *plane_state)
+static bool intel_fbc_surface_size_ok(const struct intel_plane_state *plane_state)
 {
 	struct intel_display *display = to_intel_display(plane_state->uapi.plane->dev);
 	unsigned int effective_w, effective_h, max_w, max_h;
@@ -1348,7 +1348,7 @@ static int intel_fbc_check_plane(struct intel_atomic_state *state,
 		return 0;
 	}
 
-	if (!intel_fbc_hw_tracking_covers_screen(plane_state)) {
+	if (!intel_fbc_surface_size_ok(plane_state)) {
 		plane_state->no_fbc_reason = "surface size too big";
 		return 0;
 	}
