@@ -58,12 +58,6 @@ static const char *const pcmdev_ctrl_name[] = {
 	"%s i2c%d Dev%d Ch%d Fine Volume",
 };
 
-static const char *const pcmdev_ctrl_name_with_prefix[] = {
-	"%s Dev%d Ch%d Ana Volume",
-	"%s Dev%d Ch%d Digi Volume",
-	"%s Dev%d Ch%d Fine Volume",
-};
-
 static const struct pcmdevice_mixer_control adc5120_analog_gain_ctl[] = {
 	{
 		.shift = 1,
@@ -1366,10 +1360,7 @@ static int pcmdev_gain_ctrl_add(struct pcmdevice_priv *pcm_dev,
 
 	name_id = pcmdev_gain_ctl_info[id][ctl_id].pcmdev_ctrl_name_id;
 
-	if (comp->name_prefix)
-		ctrl_name = pcmdev_ctrl_name_with_prefix[name_id];
-	else
-		ctrl_name = pcmdev_ctrl_name[name_id];
+	ctrl_name = pcmdev_ctrl_name[name_id];
 
 	for (chn = 1; chn <= nr_chn; chn++) {
 		name = devm_kzalloc(pcm_dev->dev,
@@ -1378,13 +1369,9 @@ static int pcmdev_gain_ctrl_add(struct pcmdevice_priv *pcm_dev,
 			ret = -ENOMEM;
 			goto out;
 		}
-		if (comp->name_prefix)
-			scnprintf(name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN,
-				ctrl_name, comp->name_prefix, dev_no, chn);
-		else
-			scnprintf(name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN,
-				ctrl_name, pcm_dev->upper_dev_name, adap->nr,
-				dev_no, chn);
+		scnprintf(name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN,
+			ctrl_name, pcm_dev->upper_dev_name, adap->nr,
+			dev_no, chn);
 		pcmdev_controls[mix_index].tlv.p =
 			pcmdev_gain_ctl_info[id][ctl_id].gain;
 		pcmdev_ctrl = devm_kmemdup(pcm_dev->dev,
@@ -1438,13 +1425,8 @@ static int pcmdev_profile_ctrl_add(struct pcmdevice_priv *pcm_dev)
 	if (!name)
 		return -ENOMEM;
 
-	if (comp->name_prefix)
-		scnprintf(name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN,
-			"%s Profile id", comp->name_prefix);
-	else
-		scnprintf(name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN,
-			"%s i2c%d Profile id", pcm_dev->upper_dev_name,
-			adap->nr);
+	scnprintf(name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN,
+		"%s i2c%d Profile id", pcm_dev->upper_dev_name, adap->nr);
 	pcmdev_ctrl->name = name;
 	pcmdev_ctrl->iface = SNDRV_CTL_ELEM_IFACE_MIXER;
 	pcmdev_ctrl->info = pcmdevice_info_profile;
