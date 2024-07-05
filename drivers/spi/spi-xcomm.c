@@ -10,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
+#include <linux/gpio/driver.h>
 #include <linux/spi/spi.h>
 #include <asm/unaligned.h>
 
@@ -26,11 +27,14 @@
 
 #define SPI_XCOMM_CMD_UPDATE_CONFIG	0x03
 #define SPI_XCOMM_CMD_WRITE		0x04
+#define SPI_XCOMM_CMD_GPIO_SET		0x05
 
 #define SPI_XCOMM_CLOCK 48000000
 
 struct spi_xcomm {
 	struct i2c_client *i2c;
+
+	struct gpio_chip gc;
 
 	uint16_t settings;
 	uint16_t chipselect;
@@ -39,6 +43,42 @@ struct spi_xcomm {
 
 	uint8_t buf[63];
 };
+
+static void spi_xcomm_gpio_set_value(struct gpio_chip *chip,
+				     unsigned int offset, int val)
+{
+	struct spi_xcomm *spi_xcomm = gpiochip_get_data(chip);
+	unsigned char buf[2];
+
+	buf[0] = SPI_XCOMM_CMD_GPIO_SET;
+	buf[1] = !!val;
+
+	i2c_master_send(spi_xcomm->i2c, buf, 2);
+}
+
+static int spi_xcomm_gpio_get_direction(struct gpio_chip *chip,
+					unsigned int offset)
+{
+	return GPIO_LINE_DIRECTION_OUT;
+}
+
+static int spi_xcomm_gpio_add(struct spi_xcomm *spi_xcomm)
+{
+	struct device *dev = &spi_xcomm->i2c->dev;
+
+	if (!IS_ENABLED(CONFIG_GPIOLIB))
+		return 0;
+
+	spi_xcomm->gc.get_direction = spi_xcomm_gpio_get_direction;
+	spi_xcomm->gc.set = spi_xcomm_gpio_set_value;
+	spi_xcomm->gc.can_sleep = 1;
+	spi_xcomm->gc.base = -1;
+	spi_xcomm->gc.ngpio = 1;
+	spi_xcomm->gc.label = spi_xcomm->i2c->name;
+	spi_xcomm->gc.owner = THIS_MODULE;
+
+	return devm_gpiochip_add_data(dev, &spi_xcomm->gc, spi_xcomm);
+}
 
 static int spi_xcomm_sync_config(struct spi_xcomm *spi_xcomm, unsigned int len)
 {
@@ -227,7 +267,7 @@ static int spi_xcomm_probe(struct i2c_client *i2c)
 	if (ret < 0)
 		spi_controller_put(host);
 
-	return ret;
+	return spi_xcomm_gpio_add(spi_xcomm);
 }
 
 static const struct i2c_device_id spi_xcomm_ids[] = {
