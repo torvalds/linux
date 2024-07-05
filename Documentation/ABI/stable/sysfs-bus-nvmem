@@ -20,3 +20,14 @@ Description:
 		  ...
 		  *
 		  0001000
+
+What:		/sys/bus/nvmem/devices/.../type
+Date:		November 2018
+KernelVersion:	5.0
+Contact:	Alexandre Belloni <alexandre.belloni@bootlin.com>
+Description:
+		This read-only attribute allows user to read the NVMEM
+		device type. Supported types are "Unknown", "EEPROM",
+		"OTP", "Battery backed", "FRAM".
+		Note: This file is only present if CONFIG_NVMEM_SYSFS
+		is enabled.
