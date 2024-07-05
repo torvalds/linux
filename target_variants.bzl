@@ -5,6 +5,7 @@ la_targets = [
     "autogvm",
     "blair",
     "gen3auto",
+    "neo-la",
     "niobe",
     "pineapple",
     "pitti",
