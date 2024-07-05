@@ -1072,6 +1072,29 @@ static bool rotation_is_valid(const struct intel_plane_state *plane_state)
 		return i8xx_fbc_rotation_is_valid(plane_state);
 }
 
+static void intel_fbc_max_surface_size(struct intel_display *display,
+				       unsigned int *w, unsigned int *h)
+{
+	struct drm_i915_private *i915 = to_i915(display->drm);
+
+	if (DISPLAY_VER(display) >= 11) {
+		*w = 8192;
+		*h = 4096;
+	} else if (DISPLAY_VER(display) >= 10) {
+		*w = 5120;
+		*h = 4096;
+	} else if (DISPLAY_VER(display) >= 7) {
+		*w = 4096;
+		*h = 4096;
+	} else if (IS_G4X(i915) || DISPLAY_VER(display) >= 5) {
+		*w = 4096;
+		*h = 2048;
+	} else {
+		*w = 2048;
+		*h = 1536;
+	}
+}
+
 /*
  * For some reason, the hardware tracking starts looking at whatever we
  * programmed as the display plane base address register. It does not look at
@@ -1081,25 +1104,9 @@ static bool rotation_is_valid(const struct intel_plane_state *plane_state)
 static bool intel_fbc_hw_tracking_covers_screen(const struct intel_plane_state *plane_state)
 {
 	struct intel_display *display = to_intel_display(plane_state->uapi.plane->dev);
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	unsigned int effective_w, effective_h, max_w, max_h;
 
-	if (DISPLAY_VER(display) >= 11) {
-		max_w = 8192;
-		max_h = 4096;
-	} else if (DISPLAY_VER(display) >= 10) {
-		max_w = 5120;
-		max_h = 4096;
-	} else if (DISPLAY_VER(display) >= 7) {
-		max_w = 4096;
-		max_h = 4096;
-	} else if (IS_G4X(i915) || DISPLAY_VER(display) >= 5) {
-		max_w = 4096;
-		max_h = 2048;
-	} else {
-		max_w = 2048;
-		max_h = 1536;
-	}
+	intel_fbc_max_surface_size(display, &max_w, &max_h);
 
 	effective_w = plane_state->view.color_plane[0].x +
 		(drm_rect_width(&plane_state->uapi.src) >> 16);
