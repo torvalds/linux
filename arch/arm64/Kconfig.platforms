@@ -312,6 +312,8 @@ config ARCH_STM32
 	select STM32_EXTI
 	select ARM_SMC_MBOX
 	select ARM_SCMI_PROTOCOL
+	select REGULATOR
+	select REGULATOR_ARM_SCMI
 	select COMMON_CLK_SCMI
 	select STM32_FIREWALL
 	help
