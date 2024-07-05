@@ -17,7 +17,22 @@
 #include "xe_trace.h"
 #include "regs/xe_guc_regs.h"
 
-#define TLB_TIMEOUT	(HZ / 4)
+/*
+ * TLB inval depends on pending commands in the CT queue and then the real
+ * invalidation time. Double up the time to process full CT queue
+ * just to be on the safe side.
+ */
+static long tlb_timeout_jiffies(struct xe_gt *gt)
+{
+	/* this reflects what HW/GuC needs to process TLB inv request */
+	const long hw_tlb_timeout = HZ / 4;
+
+	/* this estimates actual delay caused by the CTB transport */
+	long delay = xe_guc_ct_queue_proc_time_jiffies(&gt->uc.guc.ct);
+
+	return hw_tlb_timeout + 2 * delay;
+}
+
 
 static void xe_gt_tlb_fence_timeout(struct work_struct *work)
 {
@@ -32,7 +47,7 @@ static void xe_gt_tlb_fence_timeout(struct work_struct *work)
 		s64 since_inval_ms = ktime_ms_delta(ktime_get(),
 						    fence->invalidation_time);
 
-		if (msecs_to_jiffies(since_inval_ms) < TLB_TIMEOUT)
+		if (msecs_to_jiffies(since_inval_ms) < tlb_timeout_jiffies(gt))
 			break;
 
 		trace_xe_gt_tlb_invalidation_fence_timeout(xe, fence);
@@ -47,7 +62,7 @@ static void xe_gt_tlb_fence_timeout(struct work_struct *work)
 	if (!list_empty(&gt->tlb_invalidation.pending_fences))
 		queue_delayed_work(system_wq,
 				   &gt->tlb_invalidation.fence_tdr,
-				   TLB_TIMEOUT);
+				   tlb_timeout_jiffies(gt));
 	spin_unlock_irq(&gt->tlb_invalidation.pending_lock);
 }
 
@@ -183,7 +198,7 @@ static int send_tlb_invalidation(struct xe_guc *guc,
 			if (list_is_singular(&gt->tlb_invalidation.pending_fences))
 				queue_delayed_work(system_wq,
 						   &gt->tlb_invalidation.fence_tdr,
-						   TLB_TIMEOUT);
+						   tlb_timeout_jiffies(gt));
 		}
 		spin_unlock_irq(&gt->tlb_invalidation.pending_lock);
 	} else if (ret < 0 && fence) {
@@ -390,8 +405,7 @@ int xe_gt_tlb_invalidation_vma(struct xe_gt *gt,
  * @gt: graphics tile
  * @seqno: seqno to wait which was returned from xe_gt_tlb_invalidation
  *
- * Wait for 200ms for a TLB invalidation to complete, in practice we always
- * should receive the TLB invalidation within 200ms.
+ * Wait for tlb_timeout_jiffies() for a TLB invalidation to complete.
  *
  * Return: 0 on success, -ETIME on TLB invalidation timeout
  */
@@ -410,7 +424,7 @@ int xe_gt_tlb_invalidation_wait(struct xe_gt *gt, int seqno)
 	 */
 	ret = wait_event_timeout(guc->ct.wq,
 				 tlb_invalidation_seqno_past(gt, seqno),
-				 TLB_TIMEOUT);
+				 tlb_timeout_jiffies(gt));
 	if (!ret) {
 		struct drm_printer p = xe_gt_err_printer(gt);
 
@@ -486,7 +500,7 @@ int xe_guc_tlb_invalidation_done_handler(struct xe_guc *guc, u32 *msg, u32 len)
 	if (!list_empty(&gt->tlb_invalidation.pending_fences))
 		mod_delayed_work(system_wq,
 				 &gt->tlb_invalidation.fence_tdr,
-				 TLB_TIMEOUT);
+				 tlb_timeout_jiffies(gt));
 	else
 		cancel_delayed_work(&gt->tlb_invalidation.fence_tdr);
 

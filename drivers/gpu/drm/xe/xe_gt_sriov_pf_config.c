@@ -1922,6 +1922,84 @@ int xe_gt_sriov_pf_config_push(struct xe_gt *gt, unsigned int vfid, bool refresh
 	return err;
 }
 
+static int pf_validate_vf_config(struct xe_gt *gt, unsigned int vfid)
+{
+	struct xe_gt *primary_gt = gt_to_tile(gt)->primary_gt;
+	struct xe_device *xe = gt_to_xe(gt);
+	bool valid_ggtt, valid_ctxs, valid_dbs;
+	bool valid_any, valid_all;
+
+	valid_ggtt = pf_get_vf_config_ggtt(primary_gt, vfid);
+	valid_ctxs = pf_get_vf_config_ctxs(gt, vfid);
+	valid_dbs = pf_get_vf_config_dbs(gt, vfid);
+
+	/* note that GuC doorbells are optional */
+	valid_any = valid_ggtt || valid_ctxs || valid_dbs;
+	valid_all = valid_ggtt && valid_ctxs;
+
+	if (IS_DGFX(xe)) {
+		bool valid_lmem = pf_get_vf_config_ggtt(primary_gt, vfid);
+
+		valid_any = valid_any || valid_lmem;
+		valid_all = valid_all && valid_lmem;
+	}
+
+	return valid_all ? 1 : valid_any ? -ENOKEY : -ENODATA;
+}
+
+/**
+ * xe_gt_sriov_pf_config_is_empty - Check VF's configuration.
+ * @gt: the &xe_gt
+ * @vfid: the VF identifier (can't be PF)
+ *
+ * This function can only be called on PF.
+ *
+ * Return: true if VF mandatory configuration (GGTT, LMEM, ...) is empty.
+ */
+bool xe_gt_sriov_pf_config_is_empty(struct xe_gt *gt, unsigned int vfid)
+{
+	bool empty;
+
+	xe_gt_assert(gt, IS_SRIOV_PF(gt_to_xe(gt)));
+	xe_gt_assert(gt, vfid);
+
+	mutex_lock(xe_gt_sriov_pf_master_mutex(gt));
+	empty = pf_validate_vf_config(gt, vfid) == -ENODATA;
+	mutex_unlock(xe_gt_sriov_pf_master_mutex(gt));
+
+	return empty;
+}
+
+/**
+ * xe_gt_sriov_pf_config_restart - Restart SR-IOV configurations after a GT reset.
+ * @gt: the &xe_gt
+ *
+ * Any prior configurations pushed to GuC are lost when the GT is reset.
+ * Push again all non-empty VF configurations to the GuC.
+ *
+ * This function can only be called on PF.
+ */
+void xe_gt_sriov_pf_config_restart(struct xe_gt *gt)
+{
+	unsigned int n, total_vfs = xe_sriov_pf_get_totalvfs(gt_to_xe(gt));
+	unsigned int fail = 0, skip = 0;
+
+	for (n = 1; n <= total_vfs; n++) {
+		if (xe_gt_sriov_pf_config_is_empty(gt, n))
+			skip++;
+		else if (xe_gt_sriov_pf_config_push(gt, n, false))
+			fail++;
+	}
+
+	if (fail)
+		xe_gt_sriov_notice(gt, "Failed to push %u of %u VF%s configurations\n",
+				   fail, total_vfs - skip, str_plural(total_vfs));
+
+	if (fail != total_vfs)
+		xe_gt_sriov_dbg(gt, "pushed %u skip %u of %u VF%s configurations\n",
+				total_vfs - skip - fail, skip, total_vfs, str_plural(total_vfs));
+}
+
 /**
  * xe_gt_sriov_pf_config_print_ggtt - Print GGTT configurations.
  * @gt: the &xe_gt

@@ -13,6 +13,17 @@
 #include "xe_sriov_pf_helpers.h"
 #include "xe_sriov_printk.h"
 
+static int pf_needs_provisioning(struct xe_gt *gt, unsigned int num_vfs)
+{
+	unsigned int n;
+
+	for (n = 1; n <= num_vfs; n++)
+		if (!xe_gt_sriov_pf_config_is_empty(gt, n))
+			return false;
+
+	return true;
+}
+
 static int pf_provision_vfs(struct xe_device *xe, unsigned int num_vfs)
 {
 	struct xe_gt *gt;
@@ -20,6 +31,8 @@ static int pf_provision_vfs(struct xe_device *xe, unsigned int num_vfs)
 	int result = 0, err;
 
 	for_each_gt(gt, xe, id) {
+		if (!pf_needs_provisioning(gt, num_vfs))
+			continue;
 		err = xe_gt_sriov_pf_config_set_fair(gt, VFID(1), num_vfs);
 		result = result ?: err;
 	}

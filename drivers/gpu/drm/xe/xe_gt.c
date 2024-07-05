@@ -683,6 +683,9 @@ static int do_gt_restart(struct xe_gt *gt)
 	/* Restore GT freq to expected values */
 	xe_gt_sanitize_freq(gt);
 
+	if (IS_SRIOV_PF(gt_to_xe(gt)))
+		xe_gt_sriov_pf_restart(gt);
+
 	return 0;
 }
 
@@ -818,8 +821,7 @@ int xe_gt_sanitize_freq(struct xe_gt *gt)
 	int ret = 0;
 
 	if ((!xe_uc_fw_is_available(&gt->uc.gsc.fw) ||
-	    xe_uc_fw_is_loaded(&gt->uc.gsc.fw)) &&
-	    XE_WA(gt, 22019338487))
+	     xe_uc_fw_is_loaded(&gt->uc.gsc.fw)) && XE_WA(gt, 22019338487))
 		ret = xe_guc_pc_restore_stashed_freq(&gt->uc.guc.pc);
 
 	return ret;
