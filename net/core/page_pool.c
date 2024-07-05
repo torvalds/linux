@@ -444,7 +444,7 @@ static bool page_pool_dma_map(struct page_pool *pool, netmem_ref netmem)
 	return true;
 
 unmap_failed:
-	WARN_ON_ONCE("unexpected DMA address, please report to netdev@");
+	WARN_ONCE(1, "unexpected DMA address, please report to netdev@");
 	dma_unmap_page_attrs(pool->p.dev, dma,
 			     PAGE_SIZE << pool->p.order, pool->p.dma_dir,
 			     DMA_ATTR_SKIP_CPU_SYNC | DMA_ATTR_WEAK_ORDERING);
