@@ -13,7 +13,7 @@ Numa策略命中/未命中统计
 
 所有数据的单位都是页面。巨页有独立的计数器。
 
-numa_hit、numa_miss和numa_foreign计数器反应了进程是否能够在他们偏好的节点上分配内存。
+numa_hit、numa_miss和numa_foreign计数器反映了进程是否能够在他们偏好的节点上分配内存。
 如果进程成功在偏好的节点上分配内存则在偏好的节点上增加numa_hit计数，否则在偏好的节点上增
 加numa_foreign计数同时在实际内存分配的节点上增加numa_miss计数。
 
