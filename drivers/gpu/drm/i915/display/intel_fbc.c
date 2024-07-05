@@ -228,6 +228,11 @@ static u16 intel_fbc_override_cfb_stride(const struct intel_plane_state *plane_s
 	return 0;
 }
 
+static bool intel_fbc_has_fences(struct drm_i915_private *i915)
+{
+	return intel_gt_support_legacy_fencing(to_gt(i915));
+}
+
 static u32 i8xx_fbc_ctl(struct intel_fbc *fbc)
 {
 	const struct intel_fbc_state *fbc_state = &fbc->state;
@@ -619,7 +624,7 @@ static void ivb_fbc_activate(struct intel_fbc *fbc)
 	else if (DISPLAY_VER(i915) == 9)
 		skl_fbc_program_cfb_stride(fbc);
 
-	if (intel_gt_support_legacy_fencing(to_gt(i915)))
+	if (intel_fbc_has_fences(i915))
 		snb_fbc_program_fence(fbc);
 
 	/* wa_14019417088 Alternative WA*/
@@ -1153,7 +1158,7 @@ static void intel_fbc_update_state(struct intel_atomic_state *state,
 	fbc_state->fence_y_offset = intel_plane_fence_y_offset(plane_state);
 
 	drm_WARN_ON(&i915->drm, plane_state->flags & PLANE_HAS_FENCE &&
-		    !intel_gt_support_legacy_fencing(to_gt(i915)));
+		    !intel_fbc_has_fences(i915));
 
 	if (plane_state->flags & PLANE_HAS_FENCE)
 		fbc_state->fence_id =  i915_vma_fence_id(plane_state->ggtt_vma);
