@@ -914,7 +914,7 @@ s64 ttm_lru_walk_for_evict(struct ttm_lru_walk *walk, struct ttm_device *bdev,
 		if (progress < 0 || progress >= target)
 			break;
 	}
-	ttm_resource_cursor_fini_locked(&cursor);
+	ttm_resource_cursor_fini(&cursor);
 	spin_unlock(&bdev->lru_lock);
 
 	return progress;

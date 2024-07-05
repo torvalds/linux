@@ -81,35 +81,18 @@ static void ttm_bulk_move_drop_cursors(struct ttm_lru_bulk_move *bulk)
 }
 
 /**
- * ttm_resource_cursor_fini_locked() - Finalize the LRU list cursor usage
+ * ttm_resource_cursor_fini() - Finalize the LRU list cursor usage
  * @cursor: The struct ttm_resource_cursor to finalize.
  *
  * The function pulls the LRU list cursor off any lists it was previusly
  * attached to. Needs to be called with the LRU lock held. The function
  * can be called multiple times after eachother.
  */
-void ttm_resource_cursor_fini_locked(struct ttm_resource_cursor *cursor)
+void ttm_resource_cursor_fini(struct ttm_resource_cursor *cursor)
 {
 	lockdep_assert_held(&cursor->man->bdev->lru_lock);
 	list_del_init(&cursor->hitch.link);
 	ttm_resource_cursor_clear_bulk(cursor);
-}
-
-/**
- * ttm_resource_cursor_fini() - Finalize the LRU list cursor usage
- * @cursor: The struct ttm_resource_cursor to finalize.
- *
- * The function pulls the LRU list cursor off any lists it was previusly
- * attached to. Needs to be called without the LRU list lock held. The
- * function can be called multiple times after eachother.
- */
-void ttm_resource_cursor_fini(struct ttm_resource_cursor *cursor)
-{
-	spinlock_t *lru_lock = &cursor->man->bdev->lru_lock;
-
-	spin_lock(lru_lock);
-	ttm_resource_cursor_fini_locked(cursor);
-	spin_unlock(lru_lock);
 }
 
 /**
@@ -662,7 +645,7 @@ ttm_resource_manager_next(struct ttm_resource_cursor *cursor)
 		ttm_resource_cursor_clear_bulk(cursor);
 	}
 
-	ttm_resource_cursor_fini_locked(cursor);
+	ttm_resource_cursor_fini(cursor);
 
 	return NULL;
 }

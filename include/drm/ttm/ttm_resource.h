@@ -325,8 +325,6 @@ struct ttm_resource_cursor {
 	unsigned int priority;
 };
 
-void ttm_resource_cursor_fini_locked(struct ttm_resource_cursor *cursor);
-
 void ttm_resource_cursor_fini(struct ttm_resource_cursor *cursor);
 
 /**
