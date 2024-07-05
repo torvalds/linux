@@ -248,7 +248,7 @@ static int spi_xcomm_probe(struct i2c_client *i2c)
 	struct spi_controller *host;
 	int ret;
 
-	host = spi_alloc_host(&i2c->dev, sizeof(*spi_xcomm));
+	host = devm_spi_alloc_host(&i2c->dev, sizeof(*spi_xcomm));
 	if (!host)
 		return -ENOMEM;
 
@@ -265,7 +265,7 @@ static int spi_xcomm_probe(struct i2c_client *i2c)
 
 	ret = devm_spi_register_controller(&i2c->dev, host);
 	if (ret < 0)
-		spi_controller_put(host);
+		return ret;
 
 	return spi_xcomm_gpio_add(spi_xcomm);
 }
