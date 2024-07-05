@@ -39,7 +39,7 @@ struct gsc_hwmon_data {
 	struct hwmon_chip_info chip;
 };
 
-static struct regmap_bus gsc_hwmon_regmap_bus = {
+static const struct regmap_bus gsc_hwmon_regmap_bus = {
 	.reg_read = gsc_read,
 	.reg_write = gsc_write,
 };
