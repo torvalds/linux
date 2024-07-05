@@ -261,7 +261,6 @@ static int spi_xcomm_probe(struct i2c_client *i2c)
 	host->flags = SPI_CONTROLLER_HALF_DUPLEX;
 	host->transfer_one_message = spi_xcomm_transfer_one;
 	host->dev.of_node = i2c->dev.of_node;
-	i2c_set_clientdata(i2c, host);
 
 	ret = devm_spi_register_controller(&i2c->dev, host);
 	if (ret < 0)
