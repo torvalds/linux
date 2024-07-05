@@ -148,12 +148,11 @@ static unsigned int intel_fbc_plane_cfb_stride(const struct intel_plane_state *p
 }
 
 /* minimum acceptable cfb stride in bytes, assuming 1:1 compression limit */
-static unsigned int skl_fbc_min_cfb_stride(const struct intel_plane_state *plane_state)
+static unsigned int skl_fbc_min_cfb_stride(struct intel_display *display,
+					   unsigned int width)
 {
-	struct intel_display *display = to_intel_display(plane_state->uapi.plane->dev);
 	unsigned int limit = 4; /* 1:4 compression limit is the worst case */
 	unsigned int cpp = 4; /* FBC always 4 bytes per pixel */
-	unsigned int width = drm_rect_width(&plane_state->uapi.src) >> 16;
 	unsigned int height = 4; /* FBC segment is 4 lines */
 	unsigned int stride;
 
@@ -178,20 +177,27 @@ static unsigned int skl_fbc_min_cfb_stride(const struct intel_plane_state *plane
 }
 
 /* properly aligned cfb stride in bytes, assuming 1:1 compression limit */
-static unsigned int intel_fbc_cfb_stride(const struct intel_plane_state *plane_state)
+static unsigned int _intel_fbc_cfb_stride(struct intel_display *display,
+					  unsigned int width, unsigned int stride)
 {
-	struct intel_display *display = to_intel_display(plane_state->uapi.plane->dev);
-	unsigned int stride = intel_fbc_plane_cfb_stride(plane_state);
-
 	/*
 	 * At least some of the platforms require each 4 line segment to
 	 * be 512 byte aligned. Aligning each line to 512 bytes guarantees
 	 * that regardless of the compression limit we choose later.
 	 */
 	if (DISPLAY_VER(display) >= 9)
-		return max(ALIGN(stride, 512), skl_fbc_min_cfb_stride(plane_state));
+		return max(ALIGN(stride, 512), skl_fbc_min_cfb_stride(display, width));
 	else
 		return stride;
+}
+
+static unsigned int intel_fbc_cfb_stride(const struct intel_plane_state *plane_state)
+{
+	struct intel_display *display = to_intel_display(plane_state->uapi.plane->dev);
+	unsigned int stride = intel_fbc_plane_cfb_stride(plane_state);
+	unsigned int width = drm_rect_width(&plane_state->uapi.src) >> 16;
+
+	return _intel_fbc_cfb_stride(display, width, stride);
 }
 
 static unsigned int intel_fbc_cfb_size(const struct intel_plane_state *plane_state)
