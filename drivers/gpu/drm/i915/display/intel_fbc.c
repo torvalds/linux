@@ -200,17 +200,30 @@ static unsigned int intel_fbc_cfb_stride(const struct intel_plane_state *plane_s
 	return _intel_fbc_cfb_stride(display, width, stride);
 }
 
+/*
+ * Maximum height the hardware will compress, on HSW+
+ * additional lines (up to the actual plane height) will
+ * remain uncompressed.
+ */
+static unsigned int intel_fbc_max_cfb_height(struct intel_display *display)
+{
+	struct drm_i915_private *i915 = to_i915(display->drm);
+
+	if (DISPLAY_VER(display) >= 8)
+		return 2560;
+	else if (DISPLAY_VER(display) >= 5 || IS_G4X(i915))
+		return 2048;
+	else
+		return 1536;
+}
+
 static unsigned int intel_fbc_cfb_size(const struct intel_plane_state *plane_state)
 {
 	struct intel_display *display = to_intel_display(plane_state->uapi.plane->dev);
-	int height = drm_rect_height(&plane_state->uapi.src) >> 16;
+	unsigned int height = drm_rect_height(&plane_state->uapi.src) >> 16;
 
-	if (DISPLAY_VER(display) >= 8)
-		height = min(height, 2560);
-	else if (DISPLAY_VER(display) == 7)
-		height = min(height, 2048);
-
-	return height * intel_fbc_cfb_stride(plane_state);
+	return min(height, intel_fbc_max_cfb_height(display)) *
+		intel_fbc_cfb_stride(plane_state);
 }
 
 static u16 intel_fbc_override_cfb_stride(const struct intel_plane_state *plane_state)
