@@ -334,7 +334,7 @@ vunmap:
 
 static int migrate_test_run_device(struct xe_device *xe)
 {
-	struct kunit *test = xe_cur_kunit();
+	struct kunit *test = kunit_get_current_test();
 	struct xe_tile *tile;
 	int id;
 

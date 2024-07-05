@@ -107,7 +107,7 @@ static void check_residency(struct kunit *test, struct xe_bo *exported,
 
 static void xe_test_dmabuf_import_same_driver(struct xe_device *xe)
 {
-	struct kunit *test = xe_cur_kunit();
+	struct kunit *test = kunit_get_current_test();
 	struct dma_buf_test_params *params = to_dma_buf_test_params(test->priv);
 	struct drm_gem_object *import;
 	struct dma_buf *dmabuf;
@@ -258,7 +258,7 @@ static const struct dma_buf_test_params test_params[] = {
 static int dma_buf_run_device(struct xe_device *xe)
 {
 	const struct dma_buf_test_params *params;
-	struct kunit *test = xe_cur_kunit();
+	struct kunit *test = kunit_get_current_test();
 
 	xe_pm_runtime_get(xe);
 	for (params = test_params; params->mem_mask; ++params) {

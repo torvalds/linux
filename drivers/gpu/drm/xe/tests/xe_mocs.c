@@ -23,7 +23,7 @@ struct live_mocs {
 static int live_mocs_init(struct live_mocs *arg, struct xe_gt *gt)
 {
 	unsigned int flags;
-	struct kunit *test = xe_cur_kunit();
+	struct kunit *test = kunit_get_current_test();
 
 	memset(arg, 0, sizeof(*arg));
 
@@ -41,7 +41,7 @@ static int live_mocs_init(struct live_mocs *arg, struct xe_gt *gt)
 static void read_l3cc_table(struct xe_gt *gt,
 			    const struct xe_mocs_info *info)
 {
-	struct kunit *test = xe_cur_kunit();
+	struct kunit *test = kunit_get_current_test();
 	u32 l3cc, l3cc_expected;
 	unsigned int i;
 	u32 reg_val;
@@ -78,7 +78,7 @@ static void read_l3cc_table(struct xe_gt *gt,
 static void read_mocs_table(struct xe_gt *gt,
 			    const struct xe_mocs_info *info)
 {
-	struct kunit *test = xe_cur_kunit();
+	struct kunit *test = kunit_get_current_test();
 	u32 mocs, mocs_expected;
 	unsigned int i;
 	u32 reg_val;
@@ -148,7 +148,7 @@ static int mocs_reset_test_run_device(struct xe_device *xe)
 	struct xe_gt *gt;
 	unsigned int flags;
 	int id;
-	struct kunit *test = xe_cur_kunit();
+	struct kunit *test = kunit_get_current_test();
 
 	xe_pm_runtime_get(xe);
 
