@@ -256,6 +256,7 @@ static struct nvmem_config otp_config = {
 	.name = "rockchip-otp",
 	.owner = THIS_MODULE,
 	.add_legacy_fixed_of_cells = true,
+	.type = NVMEM_TYPE_OTP,
 	.read_only = true,
 	.stride = 1,
 	.word_size = 1,
