@@ -543,8 +543,8 @@ void snd_pcm_set_sync_per_card(struct snd_pcm_substream *substream,
 			       const unsigned char *id, unsigned int len)
 {
 	*(__u32 *)params->sync = cpu_to_le32(substream->pcm->card->number);
-	len = max(12, len);
-	strncpy(params->sync + 4, id, len);
+	len = min(12, len);
+	memcpy(params->sync + 4, id, len);
 	memset(params->sync + 4 + len, 0, 12 - len);
 }
 EXPORT_SYMBOL_GPL(snd_pcm_set_sync_per_card);
