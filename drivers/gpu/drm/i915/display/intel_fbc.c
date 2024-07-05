@@ -205,10 +205,10 @@ static unsigned int intel_fbc_cfb_size(const struct intel_plane_state *plane_sta
 	struct intel_display *display = to_intel_display(plane_state->uapi.plane->dev);
 	int height = drm_rect_height(&plane_state->uapi.src) >> 16;
 
-	if (DISPLAY_VER(display) == 7)
-		height = min(height, 2048);
-	else if (DISPLAY_VER(display) >= 8)
+	if (DISPLAY_VER(display) >= 8)
 		height = min(height, 2560);
+	else if (DISPLAY_VER(display) == 7)
+		height = min(height, 2048);
 
 	return height * intel_fbc_cfb_stride(plane_state);
 }
