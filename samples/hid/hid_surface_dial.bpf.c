@@ -10,7 +10,7 @@
 #define HID_UP_BUTTON		0x0009
 #define HID_GD_WHEEL		0x0038
 
-SEC("struct_ops/device_event")
+SEC("struct_ops/hid_device_event")
 int BPF_PROG(hid_event, struct hid_bpf_ctx *hctx)
 {
 	__u8 *data = hid_bpf_get_data(hctx, 0 /* offset */, 9 /* size */);
@@ -101,7 +101,7 @@ int set_haptic(struct haptic_syscall_args *args)
 }
 
 /* Convert REL_DIAL into REL_WHEEL */
-SEC("struct_ops/rdesc_fixup")
+SEC("struct_ops/hid_rdesc_fixup")
 int BPF_PROG(hid_rdesc_fixup, struct hid_bpf_ctx *hctx)
 {
 	__u8 *data = hid_bpf_get_data(hctx, 0 /* offset */, 4096 /* size */);
@@ -132,8 +132,8 @@ int BPF_PROG(hid_rdesc_fixup, struct hid_bpf_ctx *hctx)
 
 SEC(".struct_ops.link")
 struct hid_bpf_ops surface_dial = {
-	.rdesc_fixup = (void *)hid_rdesc_fixup,
-	.device_event = (void *)hid_event,
+	.hid_rdesc_fixup = (void *)hid_rdesc_fixup,
+	.hid_device_event = (void *)hid_event,
 };
 
 char _license[] SEC("license") = "GPL";
