@@ -770,6 +770,8 @@ static int bch2_get_btree_in_memory_pos(struct btree_trans *trans,
 		    !((1U << btree) & btree_interior_mask))
 			continue;
 
+		bch2_trans_begin(trans);
+
 		__for_each_btree_node(trans, iter, btree,
 				      btree == start.btree ? start.pos : POS_MIN,
 				      0, depth, BTREE_ITER_prefetch, b, ret) {
