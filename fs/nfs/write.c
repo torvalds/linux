@@ -1351,8 +1351,12 @@ int nfs_update_folio(struct file *file, struct folio *folio,
 		goto out;
 
 	if (nfs_can_extend_write(file, folio, pagelen)) {
-		count = max(count + offset, pagelen);
-		offset = 0;
+		unsigned int end = count + offset;
+
+		offset = round_down(offset, PAGE_SIZE);
+		if (end < pagelen)
+			end = min(round_up(end, PAGE_SIZE), pagelen);
+		count = end - offset;
 	}
 
 	status = nfs_writepage_setup(ctx, folio, offset, count);
