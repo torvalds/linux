@@ -221,7 +221,8 @@ struct thermal_zone_device *thermal_zone_device_register_with_trips(
 					int num_trips, void *devdata,
 					const struct thermal_zone_device_ops *ops,
 					const struct thermal_zone_params *tzp,
-					int passive_delay, int polling_delay);
+					unsigned int passive_delay,
+					unsigned int polling_delay);
 
 struct thermal_zone_device *thermal_tripless_zone_device_register(
 					const char *type,
