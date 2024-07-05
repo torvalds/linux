@@ -1809,13 +1809,9 @@ static void its_map_vm(struct its_node *its, struct its_vm *vm)
 
 		for (i = 0; i < vm->nr_vpes; i++) {
 			struct its_vpe *vpe = vm->vpes[i];
-			struct irq_data *d = irq_get_irq_data(vpe->irq);
 
-			/* Map the VPE to the first possible CPU */
-			vpe->col_idx = cpumask_first(cpu_online_mask);
 			its_send_vmapp(its, vpe, true);
 			its_send_vinvall(its, vpe);
-			irq_data_update_effective_affinity(d, cpumask_of(vpe->col_idx));
 		}
 	}
 
@@ -4582,6 +4578,10 @@ static int its_vpe_irq_domain_activate(struct irq_domain *domain,
 	struct its_vpe *vpe = irq_data_get_irq_chip_data(d);
 	struct its_node *its;
 
+	/* Map the VPE to the first possible CPU */
+	vpe->col_idx = cpumask_first(cpu_online_mask);
+	irq_data_update_effective_affinity(d, cpumask_of(vpe->col_idx));
+
 	/*
 	 * If we use the list map, we issue VMAPP on demand... Unless
 	 * we're on a GICv4.1 and we eagerly map the VPE on all ITSs
@@ -4590,9 +4590,6 @@ static int its_vpe_irq_domain_activate(struct irq_domain *domain,
 	if (!gic_requires_eager_mapping())
 		return 0;
 
-	/* Map the VPE to the first possible CPU */
-	vpe->col_idx = cpumask_first(cpu_online_mask);
-
 	list_for_each_entry(its, &its_nodes, entry) {
 		if (!is_v4(its))
 			continue;
@@ -4600,8 +4597,6 @@ static int its_vpe_irq_domain_activate(struct irq_domain *domain,
 		its_send_vmapp(its, vpe, true);
 		its_send_vinvall(its, vpe);
 	}
-
-	irq_data_update_effective_affinity(d, cpumask_of(vpe->col_idx));
 
 	return 0;
 }
