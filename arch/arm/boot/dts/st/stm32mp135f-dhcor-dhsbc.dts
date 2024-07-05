@@ -94,6 +94,7 @@
 			interrupt-parent = <&gpiog>;
 			interrupts = <12 IRQ_TYPE_LEVEL_LOW>;
 			reg = <1>;
+			realtek,clkout-disable;
 			reset-assert-us = <15000>;
 			reset-deassert-us = <55000>;
 			reset-gpios = <&gpioa 11 GPIO_ACTIVE_LOW>;
@@ -121,6 +122,7 @@
 			interrupt-parent = <&gpiog>;
 			interrupts = <15 IRQ_TYPE_LEVEL_LOW>;
 			reg = <1>;
+			realtek,clkout-disable;
 			reset-assert-us = <15000>;
 			reset-deassert-us = <55000>;
 			reset-gpios = <&gpiog 8 GPIO_ACTIVE_LOW>;
