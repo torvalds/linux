@@ -1059,6 +1059,9 @@ static inline bool nvme_disk_is_ns_head(struct gendisk *disk)
 }
 #endif /* CONFIG_NVME_MULTIPATH */
 
+int nvme_ns_get_unique_id(struct nvme_ns *ns, u8 id[16],
+		enum blk_unique_id type);
+
 struct nvme_zone_info {
 	u64 zone_size;
 	unsigned int max_open_zones;
