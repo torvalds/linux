@@ -108,28 +108,6 @@ static u32 dp_panel_get_supported_bpp(struct dp_panel *dp_panel,
 	return bpp;
 }
 
-static int dp_panel_update_modes(struct drm_connector *connector,
-	struct edid *edid)
-{
-	int rc = 0;
-
-	if (edid) {
-		rc = drm_connector_update_edid_property(connector, edid);
-		if (rc) {
-			DRM_ERROR("failed to update edid property %d\n", rc);
-			return rc;
-		}
-		rc = drm_add_edid_modes(connector, edid);
-		return rc;
-	}
-
-	rc = drm_connector_update_edid_property(connector, NULL);
-	if (rc)
-		DRM_ERROR("failed to update edid property %d\n", rc);
-
-	return rc;
-}
-
 int dp_panel_read_sink_caps(struct dp_panel *dp_panel,
 	struct drm_connector *connector)
 {
@@ -175,12 +153,13 @@ int dp_panel_read_sink_caps(struct dp_panel *dp_panel,
 	if (rc)
 		return rc;
 
-	kfree(dp_panel->edid);
-	dp_panel->edid = NULL;
+	drm_edid_free(dp_panel->drm_edid);
 
-	dp_panel->edid = drm_get_edid(connector,
-					      &panel->aux->ddc);
-	if (!dp_panel->edid) {
+	dp_panel->drm_edid = drm_edid_read_ddc(connector, &panel->aux->ddc);
+
+	drm_edid_connector_update(connector, dp_panel->drm_edid);
+
+	if (!dp_panel->drm_edid) {
 		DRM_ERROR("panel edid read failed\n");
 		/* check edid read fail is due to unplug */
 		if (!dp_catalog_link_is_connected(panel->catalog)) {
@@ -224,13 +203,13 @@ int dp_panel_get_modes(struct dp_panel *dp_panel,
 		return -EINVAL;
 	}
 
-	if (dp_panel->edid)
-		return dp_panel_update_modes(connector, dp_panel->edid);
+	if (dp_panel->drm_edid)
+		return drm_edid_connector_add_modes(connector);
 
 	return 0;
 }
 
-static u8 dp_panel_get_edid_checksum(struct edid *edid)
+static u8 dp_panel_get_edid_checksum(const struct edid *edid)
 {
 	edid += edid->extensions;
 
@@ -249,10 +228,12 @@ void dp_panel_handle_sink_request(struct dp_panel *dp_panel)
 	panel = container_of(dp_panel, struct dp_panel_private, dp_panel);
 
 	if (panel->link->sink_request & DP_TEST_LINK_EDID_READ) {
+		/* FIXME: get rid of drm_edid_raw() */
+		const struct edid *edid = drm_edid_raw(dp_panel->drm_edid);
 		u8 checksum;
 
-		if (dp_panel->edid)
-			checksum = dp_panel_get_edid_checksum(dp_panel->edid);
+		if (edid)
+			checksum = dp_panel_get_edid_checksum(edid);
 		else
 			checksum = dp_panel->connector->real_edid_checksum;
 
@@ -539,5 +520,5 @@ void dp_panel_put(struct dp_panel *dp_panel)
 	if (!dp_panel)
 		return;
 
-	kfree(dp_panel->edid);
+	drm_edid_free(dp_panel->drm_edid);
 }

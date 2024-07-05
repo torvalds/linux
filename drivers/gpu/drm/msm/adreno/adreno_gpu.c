@@ -46,7 +46,7 @@ static int zap_shader_load_mdt(struct msm_gpu *gpu, const char *fwname,
 	}
 
 	np = of_get_child_by_name(dev->of_node, "zap-shader");
-	if (!np) {
+	if (!of_device_is_available(np)) {
 		zap_available = false;
 		return -ENODEV;
 	}
@@ -375,6 +375,9 @@ int adreno_get_param(struct msm_gpu *gpu, struct msm_file_private *ctx,
 		return 0;
 	case MSM_PARAM_HIGHEST_BANK_BIT:
 		*value = adreno_gpu->ubwc_config.highest_bank_bit;
+		return 0;
+	case MSM_PARAM_RAYTRACING:
+		*value = adreno_gpu->has_ray_tracing;
 		return 0;
 	default:
 		DBG("%s: invalid param: %u", gpu->name, param);
@@ -887,6 +890,7 @@ void adreno_show(struct msm_gpu *gpu, struct msm_gpu_state *state,
 			drm_printf(p, "  - iova: 0x%016llx\n",
 				state->bos[i].iova);
 			drm_printf(p, "    size: %zd\n", state->bos[i].size);
+			drm_printf(p, "    flags: 0x%x\n", state->bos[i].flags);
 			drm_printf(p, "    name: %-32s\n", state->bos[i].name);
 
 			adreno_show_object(p, &state->bos[i].data,

@@ -126,6 +126,7 @@ patternProperties:
           - qcom,dsi-phy-14nm-8953
           - qcom,dsi-phy-20nm
           - qcom,dsi-phy-28nm-8226
+          - qcom,dsi-phy-28nm-8937
           - qcom,dsi-phy-28nm-hpm
           - qcom,dsi-phy-28nm-hpm-fam-b
           - qcom,dsi-phy-28nm-lp
