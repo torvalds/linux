@@ -3261,7 +3261,7 @@ static int mac80211_hwsim_switch_vif_chanctx(struct ieee80211_hw *hw,
 			hwsim_clear_chanctx_magic(vifs[i].old_ctx);
 			break;
 		default:
-			WARN_ON("Invalid mode");
+			WARN(1, "Invalid mode %d\n", mode);
 		}
 	}
 	return 0;
