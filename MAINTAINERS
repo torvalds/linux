@@ -2892,7 +2892,7 @@ F:	drivers/edac/altera_edac.[ch]
 ARM/SPREADTRUM SoC SUPPORT
 M:	Orson Zhai <orsonzhai@gmail.com>
 M:	Baolin Wang <baolin.wang7@gmail.com>
-M:	Chunyan Zhang <zhang.lyra@gmail.com>
+R:	Chunyan Zhang <zhang.lyra@gmail.com>
 S:	Maintained
 F:	arch/arm64/boot/dts/sprd
 N:	sprd
