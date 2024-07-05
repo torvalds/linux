@@ -5069,7 +5069,8 @@ static int amdgpu_device_reset_sriov(struct amdgpu_device *adev,
 	struct amdgpu_hive_info *hive = NULL;
 
 	if (test_bit(AMDGPU_HOST_FLR, &reset_context->flags)) {
-		amdgpu_virt_ready_to_reset(adev);
+		if (!amdgpu_ras_get_fed_status(adev))
+			amdgpu_virt_ready_to_reset(adev);
 		amdgpu_virt_wait_reset(adev);
 		clear_bit(AMDGPU_HOST_FLR, &reset_context->flags);
 		r = amdgpu_virt_request_full_gpu(adev, true);
@@ -5837,6 +5838,12 @@ retry:	/* Rest of adevs pre asic reset from XGMI hive. */
 	/* Actual ASIC resets if needed.*/
 	/* Host driver will handle XGMI hive reset for SRIOV */
 	if (amdgpu_sriov_vf(adev)) {
+		if (amdgpu_ras_get_fed_status(adev) || amdgpu_virt_rcvd_ras_interrupt(adev)) {
+			dev_dbg(adev->dev, "Detected RAS error, wait for FLR completion\n");
+			amdgpu_ras_set_fed(adev, true);
+			set_bit(AMDGPU_HOST_FLR, &reset_context->flags);
+		}
+
 		r = amdgpu_device_reset_sriov(adev, reset_context);
 		if (AMDGPU_RETRY_SRIOV_RESET(r) && (retry_limit--) > 0) {
 			amdgpu_virt_release_full_gpu(adev, true);

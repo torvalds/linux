@@ -346,12 +346,28 @@ static void dmub_replay_send_cmd(struct dmub_replay *dmub,
 		cmd.replay_disabled_adaptive_sync_sdp.header.sub_type =
 			DMUB_CMD__REPLAY_DISABLED_ADAPTIVE_SYNC_SDP;
 		cmd.replay_disabled_adaptive_sync_sdp.header.payload_bytes =
-			sizeof(struct dmub_rb_cmd_replay_set_pseudo_vtotal);
+			sizeof(struct dmub_rb_cmd_replay_disabled_adaptive_sync_sdp);
 		//Cmd Body
 		cmd.replay_disabled_adaptive_sync_sdp.data.panel_inst =
 			cmd_element->disabled_adaptive_sync_sdp_data.panel_inst;
 		cmd.replay_disabled_adaptive_sync_sdp.data.force_disabled =
 			cmd_element->disabled_adaptive_sync_sdp_data.force_disabled;
+		break;
+	case Replay_Set_General_Cmd:
+		//Header
+		cmd.replay_set_general_cmd.header.sub_type =
+			DMUB_CMD__REPLAY_SET_GENERAL_CMD;
+		cmd.replay_set_general_cmd.header.payload_bytes =
+			sizeof(struct dmub_rb_cmd_replay_set_general_cmd);
+		//Cmd Body
+		cmd.replay_set_general_cmd.data.panel_inst =
+			cmd_element->set_general_cmd_data.panel_inst;
+		cmd.replay_set_general_cmd.data.subtype =
+			cmd_element->set_general_cmd_data.subtype;
+		cmd.replay_set_general_cmd.data.param1 =
+			cmd_element->set_general_cmd_data.param1;
+		cmd.replay_set_general_cmd.data.param2 =
+			cmd_element->set_general_cmd_data.param2;
 		break;
 	case Replay_Msg_Not_Support:
 	default:

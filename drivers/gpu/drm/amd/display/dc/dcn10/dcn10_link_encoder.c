@@ -1104,6 +1104,7 @@ void dcn10_link_encoder_dp_set_lane_settings(
 	union dpcd_training_lane_set training_lane_set = { { 0 } };
 	int32_t lane = 0;
 	struct bp_transmitter_control cntl = { 0 };
+	enum bp_result result;
 
 	if (!link_settings) {
 		BREAK_TO_DEBUGGER();
@@ -1138,7 +1139,12 @@ void dcn10_link_encoder_dp_set_lane_settings(
 		cntl.lane_settings = training_lane_set.raw;
 
 		/* call VBIOS table to set voltage swing and pre-emphasis */
-		link_transmitter_control(enc10, &cntl);
+		result = link_transmitter_control(enc10, &cntl);
+
+		if (result != BP_RESULT_OK) {
+			DC_LOG_ERROR("%s: Failed to execute VBIOS command table!\n", __func__);
+			BREAK_TO_DEBUGGER();
+		}
 	}
 }
 

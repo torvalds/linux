@@ -323,4 +323,12 @@ amdgpu-y += $(AMD_DISPLAY_FILES)
 
 endif
 
+# add isp block
+ifneq ($(CONFIG_DRM_AMD_ISP),)
+amdgpu-y += \
+	amdgpu_isp.o \
+	isp_v4_1_0.o \
+	isp_v4_1_1.o
+endif
+
 obj-$(CONFIG_DRM_AMDGPU)+= amdgpu.o

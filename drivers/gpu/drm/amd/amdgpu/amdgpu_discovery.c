@@ -106,6 +106,9 @@
 #include "jpeg_v5_0_0.h"
 
 #include "amdgpu_vpe.h"
+#if defined(CONFIG_DRM_AMD_ISP)
+#include "amdgpu_isp.h"
+#endif
 
 #define FIRMWARE_IP_DISCOVERY "amdgpu/ip_discovery.bin"
 MODULE_FIRMWARE(FIRMWARE_IP_DISCOVERY);
@@ -225,6 +228,7 @@ static int hw_id_map[MAX_HWIP] = {
 	[DCI_HWIP]	= DCI_HWID,
 	[PCIE_HWIP]	= PCIE_HWID,
 	[VPE_HWIP]	= VPE_HWID,
+	[ISP_HWIP]	= ISP_HWID,
 };
 
 static int amdgpu_discovery_read_binary_from_sysmem(struct amdgpu_device *adev, uint8_t *binary)
@@ -711,6 +715,12 @@ static void amdgpu_discovery_read_from_harvest_table(struct amdgpu_device *adev,
 			adev->sdma.sdma_mask &=
 				~(1U << harvest_info->list[i].number_instance);
 			break;
+#if defined(CONFIG_DRM_AMD_ISP)
+		case ISP_HWID:
+			adev->isp.harvest_config |=
+				~(1U << harvest_info->list[i].number_instance);
+			break;
+#endif
 		default:
 			break;
 		}
@@ -2294,8 +2304,6 @@ static int amdgpu_discovery_set_mm_ip_blocks(struct amdgpu_device *adev)
 		case IP_VERSION(5, 0, 0):
 			amdgpu_device_ip_block_add(adev, &vcn_v5_0_0_ip_block);
 			amdgpu_device_ip_block_add(adev, &jpeg_v5_0_0_ip_block);
-			if (amdgpu_jpeg_test)
-				adev->enable_jpeg_test = true;
 			break;
 		default:
 			dev_err(adev->dev,
@@ -2374,6 +2382,24 @@ static int amdgpu_discovery_set_umsch_mm_ip_blocks(struct amdgpu_device *adev)
 	default:
 		break;
 	}
+
+	return 0;
+}
+
+static int amdgpu_discovery_set_isp_ip_blocks(struct amdgpu_device *adev)
+{
+#if defined(CONFIG_DRM_AMD_ISP)
+	switch (amdgpu_ip_version(adev, ISP_HWIP, 0)) {
+	case IP_VERSION(4, 1, 0):
+		amdgpu_device_ip_block_add(adev, &isp_v4_1_0_ip_block);
+		break;
+	case IP_VERSION(4, 1, 1):
+		amdgpu_device_ip_block_add(adev, &isp_v4_1_1_ip_block);
+		break;
+	default:
+		break;
+	}
+#endif
 
 	return 0;
 }
@@ -2904,6 +2930,9 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 	if (r)
 		return r;
 
+	r = amdgpu_discovery_set_isp_ip_blocks(adev);
+	if (r)
+		return r;
 	return 0;
 }
 

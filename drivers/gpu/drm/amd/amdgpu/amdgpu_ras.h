@@ -469,7 +469,8 @@ struct ras_ecc_log_info {
 	struct mutex lock;
 	siphash_key_t ecc_key;
 	struct radix_tree_root de_page_tree;
-	bool	de_updated;
+	uint64_t	de_queried_count;
+	uint64_t	prev_de_queried_count;
 };
 
 struct amdgpu_ras {
@@ -531,6 +532,7 @@ struct amdgpu_ras {
 	wait_queue_head_t page_retirement_wq;
 	struct mutex page_retirement_lock;
 	atomic_t page_retirement_req_cnt;
+	atomic_t poison_creation_count;
 	struct mutex page_rsv_lock;
 	DECLARE_KFIFO(poison_fifo, struct ras_poison_msg, 128);
 	struct ras_ecc_log_info  umc_ecc_log;

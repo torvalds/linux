@@ -229,6 +229,22 @@ void amdgpu_virt_free_mm_table(struct amdgpu_device *adev)
 	adev->virt.mm_table.gpu_addr = 0;
 }
 
+/**
+ * amdgpu_virt_rcvd_ras_interrupt() - receive ras interrupt
+ * @adev:	amdgpu device.
+ * Check whether host sent RAS error message
+ * Return: true if found, otherwise false
+ */
+bool amdgpu_virt_rcvd_ras_interrupt(struct amdgpu_device *adev)
+{
+	struct amdgpu_virt *virt = &adev->virt;
+
+	if (!virt->ops || !virt->ops->rcvd_ras_intr)
+		return false;
+
+	return virt->ops->rcvd_ras_intr(adev);
+}
+
 
 unsigned int amd_sriov_msg_checksum(void *obj,
 				unsigned long obj_size,
@@ -612,11 +628,14 @@ static void amdgpu_virt_update_vf2pf_work_item(struct work_struct *work)
 	ret = amdgpu_virt_read_pf2vf_data(adev);
 	if (ret) {
 		adev->virt.vf2pf_update_retry_cnt++;
-		if ((adev->virt.vf2pf_update_retry_cnt >= AMDGPU_VF2PF_UPDATE_MAX_RETRY_LIMIT) &&
-		    amdgpu_sriov_runtime(adev)) {
+
+		if ((amdgpu_virt_rcvd_ras_interrupt(adev) ||
+			adev->virt.vf2pf_update_retry_cnt >= AMDGPU_VF2PF_UPDATE_MAX_RETRY_LIMIT) &&
+			amdgpu_sriov_runtime(adev)) {
+
 			amdgpu_ras_set_fed(adev, true);
 			if (amdgpu_reset_domain_schedule(adev->reset_domain,
-							  &adev->kfd.reset_work))
+							&adev->kfd.reset_work))
 				return;
 			else
 				dev_err(adev->dev, "Failed to queue work! at %s", __func__);

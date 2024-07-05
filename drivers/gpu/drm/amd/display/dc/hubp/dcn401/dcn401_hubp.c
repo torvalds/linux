@@ -626,6 +626,26 @@ void hubp401_set_viewport(
 		  SEC_VIEWPORT_Y_START_C, viewport_c->y);
 }
 
+void hubp401_program_mcache_id_and_split_coordinate(
+	struct hubp *hubp,
+	struct dml2_hubp_pipe_mcache_regs *mcache_regs)
+{
+	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
+
+	REG_SET_8(DCHUBP_MCACHEID_CONFIG, 0,
+		MCACHEID_REG_READ_1H_P0, mcache_regs->main.p0.mcache_id_first,
+		MCACHEID_REG_READ_2H_P0, mcache_regs->main.p0.mcache_id_second,
+		MCACHEID_REG_READ_1H_P1, mcache_regs->main.p1.mcache_id_first,
+		MCACHEID_REG_READ_2H_P1, mcache_regs->main.p1.mcache_id_second,
+		MCACHEID_MALL_PREF_1H_P0, mcache_regs->mall.p0.mcache_id_first,
+		MCACHEID_MALL_PREF_2H_P0, mcache_regs->mall.p0.mcache_id_second,
+		MCACHEID_MALL_PREF_1H_P1, mcache_regs->mall.p1.mcache_id_first,
+		MCACHEID_MALL_PREF_2H_P1, mcache_regs->mall.p1.mcache_id_second);
+
+	REG_SET_2(DCSURF_VIEWPORT_MCACHE_SPLIT_COORDINATE, 0,
+		VIEWPORT_MCACHE_SPLIT_COORDINATE, mcache_regs->main.p0.split_location,
+		VIEWPORT_MCACHE_SPLIT_COORDINATE_C, mcache_regs->main.p1.split_location);
+}
 void hubp401_set_flip_int(struct hubp *hubp)
 {
 	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
@@ -654,13 +674,11 @@ void hubp401_cursor_set_position(
 	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
 	int x_pos = pos->x - param->recout.x;
 	int y_pos = pos->y - param->recout.y;
-	int x_hotspot = pos->x_hotspot;
-	int y_hotspot = pos->y_hotspot;
 	int rec_x_offset = x_pos - pos->x_hotspot;
 	int rec_y_offset = y_pos - pos->y_hotspot;
-	int cursor_height = (int)hubp->curs_attr.height;
-	int cursor_width = (int)hubp->curs_attr.width;
-	uint32_t dst_x_offset;
+	int dst_x_offset;
+	int x_pos_viewport = x_pos * param->viewport.width / param->recout.width;
+	int x_hot_viewport = pos->x_hotspot * param->viewport.width / param->recout.width;
 	uint32_t cur_en = pos->enable ? 1 : 0;
 
 	hubp->curs_pos = *pos;
@@ -672,29 +690,13 @@ void hubp401_cursor_set_position(
 	if (hubp->curs_attr.address.quad_part == 0)
 		return;
 
-	// Transform cursor width / height and hotspots for offset calculations
-	if (param->rotation == ROTATION_ANGLE_90 || param->rotation == ROTATION_ANGLE_270) {
-		swap(cursor_height, cursor_width);
-		swap(x_hotspot, y_hotspot);
-
-		if (param->rotation == ROTATION_ANGLE_90) {
-			// hotspot = (-y, x)
-			rec_x_offset = x_pos - (cursor_width - x_hotspot);
-			rec_y_offset = y_pos - y_hotspot;
-		} else if (param->rotation == ROTATION_ANGLE_270) {
-			// hotspot = (y, -x)
-			rec_x_offset = x_pos - x_hotspot;
-			rec_y_offset = y_pos - (cursor_height - y_hotspot);
-		}
-	} else if (param->rotation == ROTATION_ANGLE_180) {
-		// hotspot = (-x, -y)
-		if (!param->mirror)
-			rec_x_offset = x_pos - (cursor_width - x_hotspot);
-
-		rec_y_offset = y_pos - (cursor_height - y_hotspot);
-	}
-
-	dst_x_offset = (rec_x_offset >= 0) ? rec_x_offset : 0;
+	/* Translate the x position of the cursor from rect
+	 * space into viewport space. CURSOR_DST_X_OFFSET
+	 * is the offset relative to viewport start position.
+	 */
+	dst_x_offset = x_pos_viewport - x_hot_viewport *
+			(1 + hubp->curs_attr.attribute_flags.bits.ENABLE_MAGNIFICATION);
+	dst_x_offset = (dst_x_offset >= 0) ? dst_x_offset : 0;
 	dst_x_offset *= param->ref_clk_khz;
 	dst_x_offset /= param->pixel_clk_khz;
 
@@ -704,18 +706,6 @@ void hubp401_cursor_set_position(
 		dst_x_offset = dc_fixpt_floor(dc_fixpt_div(
 			dc_fixpt_from_int(dst_x_offset),
 			param->h_scale_ratio));
-
-	if (rec_x_offset >= (int)param->recout.width)
-		cur_en = 0;  /* not visible beyond right edge*/
-
-	if (rec_x_offset + cursor_width <= 0)
-		cur_en = 0;  /* not visible beyond left edge*/
-
-	if (rec_y_offset >= (int)param->recout.height)
-		cur_en = 0;  /* not visible beyond bottom edge*/
-
-	if (rec_y_offset + cursor_height <= 0)
-		cur_en = 0;  /* not visible beyond top edge*/
 
 	if (cur_en && REG_READ(CURSOR_SURFACE_ADDRESS) == 0)
 		hubp->funcs->set_cursor_attributes(hubp, &hubp->curs_attr);
@@ -993,6 +983,7 @@ static struct hubp_funcs dcn401_hubp_funcs = {
 	.phantom_hubp_post_enable = hubp32_phantom_hubp_post_enable,
 	.hubp_update_mall_sel = hubp401_update_mall_sel,
 	.hubp_prepare_subvp_buffering = hubp32_prepare_subvp_buffering,
+	.hubp_program_mcache_id_and_split_coordinate = hubp401_program_mcache_id_and_split_coordinate,
 	.hubp_update_3dlut_fl_bias_scale = hubp401_update_3dlut_fl_bias_scale,
 	.hubp_program_3dlut_fl_mode = hubp401_program_3dlut_fl_mode,
 	.hubp_program_3dlut_fl_format = hubp401_program_3dlut_fl_format,

@@ -721,7 +721,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.disable_dpp_power_gate = true,
 	.disable_hubp_power_gate = true,
 	.disable_optc_power_gate = true, /*should the same as above two*/
-	.disable_hpo_power_gate = false, /*dmubfw force domain25 on*/
+	.disable_hpo_power_gate = true, /*dmubfw force domain25 on*/
 	.disable_clock_gate = false,
 	.disable_dsc_power_gate = true,
 	.vsr_support = true,
@@ -2152,8 +2152,9 @@ static bool dcn35_resource_construct(
 	dc->dml2_options.callbacks.can_support_mclk_switch_using_fw_based_vblank_stretch = &dcn30_can_support_mclk_switch_using_fw_based_vblank_stretch;
 
 	dc->dml2_options.max_segments_per_hubp = 24;
-
 	dc->dml2_options.det_segment_size = DCN3_2_DET_SEG_SIZE;/*todo*/
+	dc->dml2_options.max_frac_urgent_for_min_fclk_x1000 = 900;
+	dc->dml2_options.min_fclk_for_urgent_workaround_khz = 400 * 1000;
 
 	if (dc->config.sdpif_request_limit_words_per_umc == 0)
 		dc->config.sdpif_request_limit_words_per_umc = 16;/*todo*/

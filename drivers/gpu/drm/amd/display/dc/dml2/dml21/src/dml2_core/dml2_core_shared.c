@@ -3142,62 +3142,62 @@ static unsigned int dml_get_tile_block_size_bytes(enum dml2_swizzle_mode sw_mode
 {
 	switch (sw_mode) {
 	case (dml2_sw_linear):
-		return 256; break;
+		return 256;
 	case (dml2_sw_256b_2d):
-		return 256; break;
+		return 256;
 	case (dml2_sw_4kb_2d):
-		return 4096; break;
+		return 4096;
 	case (dml2_sw_64kb_2d):
-		return 65536; break;
+		return 65536;
 	case (dml2_sw_256kb_2d):
-		return 262144; break;
+		return 262144;
 	case (dml2_gfx11_sw_linear):
-		return 256; break;
+		return 256;
 	case (dml2_gfx11_sw_64kb_d):
-		return 65536; break;
+		return 65536;
 	case (dml2_gfx11_sw_64kb_d_t):
-		return 65536; break;
+		return 65536;
 	case (dml2_gfx11_sw_64kb_d_x):
-		return 65536; break;
+		return 65536;
 	case (dml2_gfx11_sw_64kb_r_x):
-		return 65536; break;
+		return 65536;
 	case (dml2_gfx11_sw_256kb_d_x):
-		return 262144; break;
+		return 262144;
 	case (dml2_gfx11_sw_256kb_r_x):
-		return 262144; break;
+		return 262144;
 	default:
 		DML2_ASSERT(0);
 		return 256;
-	};
+	}
 }
 
 const char *dml2_core_internal_bw_type_str(enum dml2_core_internal_bw_type bw_type)
 {
 	switch (bw_type) {
 	case (dml2_core_internal_bw_sdp):
-		return("dml2_core_internal_bw_sdp"); break;
+		return("dml2_core_internal_bw_sdp");
 	case (dml2_core_internal_bw_dram):
-		return("dml2_core_internal_bw_dram"); break;
+		return("dml2_core_internal_bw_dram");
 	case (dml2_core_internal_bw_max):
-		return("dml2_core_internal_bw_max"); break;
+		return("dml2_core_internal_bw_max");
 	default:
-		return("dml2_core_internal_bw_unknown"); break;
-	};
+		return("dml2_core_internal_bw_unknown");
+	}
 }
 
 const char *dml2_core_internal_soc_state_type_str(enum dml2_core_internal_soc_state_type dml2_core_internal_soc_state_type)
 {
 	switch (dml2_core_internal_soc_state_type) {
 	case (dml2_core_internal_soc_state_sys_idle):
-		return("dml2_core_internal_soc_state_sys_idle"); break;
+		return("dml2_core_internal_soc_state_sys_idle");
 	case (dml2_core_internal_soc_state_sys_active):
-		return("dml2_core_internal_soc_state_sys_active"); break;
+		return("dml2_core_internal_soc_state_sys_active");
 	case (dml2_core_internal_soc_state_svp_prefetch):
-		return("dml2_core_internal_soc_state_svp_prefetch"); break;
+		return("dml2_core_internal_soc_state_svp_prefetch");
 	case dml2_core_internal_soc_state_max:
 	default:
-		return("dml2_core_internal_soc_state_unknown"); break;
-	};
+		return("dml2_core_internal_soc_state_unknown");
+	}
 }
 
 static bool dml_is_vertical_rotation(enum dml2_rotation_angle Scan)

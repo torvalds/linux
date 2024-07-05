@@ -1239,8 +1239,11 @@ void dm_helpers_enable_periodic_detection(struct dc_context *ctx, bool enable)
 {
 	struct amdgpu_device *adev = ctx->driver_context;
 
-	if (adev->dm.idle_workqueue)
+	if (adev->dm.idle_workqueue) {
 		adev->dm.idle_workqueue->enable = enable;
+		if (enable && !adev->dm.idle_workqueue->running && amdgpu_dm_is_headless(adev))
+			schedule_work(&adev->dm.idle_workqueue->work);
+	}
 }
 
 void dm_helpers_dp_mst_update_branch_bandwidth(

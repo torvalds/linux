@@ -454,7 +454,9 @@
 	type DSCCIF_UPDATE_TAKEN_ACK; \
 	type DSCRM_DSC_FORWARD_EN; \
 	type DSCRM_DSC_OPP_PIPE_SOURCE; \
-	type DSCRM_DSC_DOUBLE_BUFFER_REG_UPDATE_PENDING
+	type DSCRM_DSC_DOUBLE_BUFFER_REG_UPDATE_PENDING; \
+	type DSCRM_DSC_FORWARD_EN_STATUS
+
 
 struct dcn20_dsc_registers {
 	uint32_t DSC_TOP_CONTROL;
@@ -596,6 +598,15 @@ void dsc2_get_enc_caps(struct dsc_enc_caps *dsc_enc_caps,
 bool dsc2_get_packed_pps(struct display_stream_compressor *dsc,
 		const struct dsc_config *dsc_cfg,
 		uint8_t *dsc_packed_pps);
+
+void dsc2_read_state(struct display_stream_compressor *dsc, struct dcn_dsc_state *s);
+bool dsc2_validate_stream(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg);
+void dsc2_set_config(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg,
+		struct dsc_optc_config *dsc_optc_cfg);
+void dsc2_enable(struct display_stream_compressor *dsc, int opp_pipe);
+void dsc2_disable(struct display_stream_compressor *dsc);
+void dsc2_disconnect(struct display_stream_compressor *dsc);
+void dsc2_wait_disconnect_pending_clear(struct display_stream_compressor *dsc);
 
 #endif
 

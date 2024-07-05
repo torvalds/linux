@@ -343,11 +343,6 @@ int amdgpu_gem_create_ioctl(struct drm_device *dev, void *data,
 	if (args->in.domains & ~AMDGPU_GEM_DOMAIN_MASK)
 		return -EINVAL;
 
-	if ((flags & AMDGPU_GEM_CREATE_GFX12_DCC) &&
-	    ((amdgpu_ip_version(adev, GC_HWIP, 0) < IP_VERSION(12, 0, 0)) ||
-	     !(args->in.domains & AMDGPU_GEM_DOMAIN_VRAM)))
-		return -EINVAL;
-
 	if (!amdgpu_is_tmz(adev) && (flags & AMDGPU_GEM_CREATE_ENCRYPTED)) {
 		DRM_NOTE_ONCE("Cannot allocate secure buffer since TMZ is disabled\n");
 		return -EINVAL;

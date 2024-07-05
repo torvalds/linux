@@ -112,6 +112,9 @@
 #include "amdgpu_xcp.h"
 #include "amdgpu_seq64.h"
 #include "amdgpu_reg_state.h"
+#if defined(CONFIG_DRM_AMD_ISP)
+#include "amdgpu_isp.h"
+#endif
 
 #define MAX_GPU_INSTANCE		64
 
@@ -221,7 +224,6 @@ extern int amdgpu_mes;
 extern int amdgpu_mes_log_enable;
 extern int amdgpu_mes_kiq;
 extern int amdgpu_uni_mes;
-extern int amdgpu_jpeg_test;
 extern int amdgpu_noretry;
 extern int amdgpu_force_asic_type;
 extern int amdgpu_smartshift_bias;
@@ -721,6 +723,7 @@ enum amd_hw_ip_block_type {
 	XGMI_HWIP,
 	DCI_HWIP,
 	PCIE_HWIP,
+	ISP_HWIP,
 	MAX_HWIP
 };
 
@@ -1018,7 +1021,6 @@ struct amdgpu_device {
 
 	/* jpeg */
 	struct amdgpu_jpeg		jpeg;
-	bool enable_jpeg_test;
 
 	/* vpe */
 	struct amdgpu_vpe		vpe;
@@ -1047,6 +1049,11 @@ struct amdgpu_device {
 
 	/* display related functionality */
 	struct amdgpu_display_manager dm;
+
+#if defined(CONFIG_DRM_AMD_ISP)
+	/* isp */
+	struct amdgpu_isp		isp;
+#endif
 
 	/* mes */
 	bool                            enable_mes;

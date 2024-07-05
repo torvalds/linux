@@ -55,7 +55,7 @@ struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.289"
+#define DC_VER "3.2.290"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -333,6 +333,9 @@ struct dc_dcc_setting {
 		uint32_t dcc_128_128_uncontrained : 1;  //available in ASICs before DCN 3.0
 		uint32_t dcc_256_128_128 : 1;		//available starting with DCN 3.0
 		uint32_t dcc_256_256_unconstrained : 1;  //available in ASICs before DCN 3.0 (the best compression case)
+		uint32_t dcc_256_256 : 1;  //available in ASICs starting with DCN 4.0x (the best compression case)
+		uint32_t dcc_256_128 : 1;  //available in ASICs starting with DCN 4.0x
+		uint32_t dcc_256_64 : 1;   //available in ASICs starting with DCN 4.0x (the worst compression case)
 	} dcc_controls;
 };
 
@@ -476,6 +479,7 @@ enum visual_confirm {
 	VISUAL_CONFIRM_SUBVP = 14,
 	VISUAL_CONFIRM_MCLK_SWITCH = 16,
 	VISUAL_CONFIRM_FAMS2 = 19,
+	VISUAL_CONFIRM_HW_CURSOR = 20,
 };
 
 enum dc_psr_power_opts {
@@ -1036,9 +1040,10 @@ struct dc_debug_options {
 	unsigned int static_screen_wait_frames;
 	uint32_t pwm_freq;
 	bool force_chroma_subsampling_1tap;
+	unsigned int dcc_meta_propagation_delay_us;
 	bool disable_422_left_edge_pixel;
 	bool dml21_force_pstate_method;
-	uint32_t dml21_force_pstate_method_value;
+	uint32_t dml21_force_pstate_method_values[MAX_PIPES];
 	uint32_t dml21_disable_pstate_method_mask;
 	union dmub_fams2_global_feature_config fams2_config;
 	bool enable_legacy_clock_update;

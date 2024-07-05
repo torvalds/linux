@@ -483,11 +483,14 @@ bool dcn32_set_mcm_luts(
 	if (plane_state->blend_tf.type == TF_TYPE_HWPWL)
 		lut_params = &plane_state->blend_tf.pwl;
 	else if (plane_state->blend_tf.type == TF_TYPE_DISTRIBUTED_POINTS) {
-		cm3_helper_translate_curve_to_hw_format(&plane_state->blend_tf,
+		result = cm3_helper_translate_curve_to_hw_format(&plane_state->blend_tf,
 				&dpp_base->regamma_params, false);
+		if (!result)
+			return result;
+
 		lut_params = &dpp_base->regamma_params;
 	}
-	result = mpc->funcs->program_1dlut(mpc, lut_params, mpcc_id);
+	mpc->funcs->program_1dlut(mpc, lut_params, mpcc_id);
 	lut_params = NULL;
 
 	// Shaper
@@ -501,7 +504,7 @@ bool dcn32_set_mcm_luts(
 		lut_params = &dpp_base->shaper_params;
 	}
 
-	result = mpc->funcs->program_shaper(mpc, lut_params, mpcc_id);
+	mpc->funcs->program_shaper(mpc, lut_params, mpcc_id);
 
 	// 3D
 	if (plane_state->lut3d_func.state.bits.initialized == 1)
@@ -1254,6 +1257,8 @@ void dcn32_resync_fifo_dccg_dio(struct dce_hwseq *hws, struct dc *dc, struct dc_
 			pipe->stream_res.tg->funcs->enable_crtc(pipe->stream_res.tg);
 		}
 	}
+
+	dc_trigger_sync(dc, dc->current_state);
 }
 
 void dcn32_unblank_stream(struct pipe_ctx *pipe_ctx,

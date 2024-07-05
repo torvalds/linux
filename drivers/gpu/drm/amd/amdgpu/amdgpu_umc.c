@@ -293,14 +293,15 @@ int amdgpu_umc_pasid_poison_handler(struct amdgpu_device *adev,
 
 			amdgpu_ras_error_data_fini(&err_data);
 		} else {
-				struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+			struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+			int ret;
 
-				amdgpu_ras_put_poison_req(adev,
-					block, pasid, pasid_fn, data, reset);
-
+			ret = amdgpu_ras_put_poison_req(adev,
+				block, pasid, pasid_fn, data, reset);
+			if (!ret) {
 				atomic_inc(&con->page_retirement_req_cnt);
-
 				wake_up(&con->page_retirement_wq);
+			}
 		}
 	} else {
 		if (adev->virt.ops && adev->virt.ops->ras_poison_handler)

@@ -1691,7 +1691,7 @@ enum dc_status dm_dp_mst_is_port_support_mode(
 		if (aconnector->mst_output_port->passthrough_aux) {
 			if (bw_range.min_kbps > end_to_end_bw_in_kbps) {
 				DRM_DEBUG_DRIVER("DSC passthrough. Max dsc compression can't fit into end-to-end bw\n");
-			return DC_FAIL_BANDWIDTH_VALIDATE;
+				return DC_FAIL_BANDWIDTH_VALIDATE;
 			}
 		} else {
 			/*dsc bitstream decoded at the dp last link*/
@@ -1756,7 +1756,7 @@ enum dc_status dm_dp_mst_is_port_support_mode(
 		if (branch_max_throughput_mps != 0 &&
 			((stream->timing.pix_clk_100hz / 10) >  branch_max_throughput_mps * 1000)) {
 			DRM_DEBUG_DRIVER("DSC is required but max throughput mps fails");
-		return DC_FAIL_BANDWIDTH_VALIDATE;
+			return DC_FAIL_BANDWIDTH_VALIDATE;
 		}
 	} else {
 		DRM_DEBUG_DRIVER("DSC is required but can't find common dsc config.");

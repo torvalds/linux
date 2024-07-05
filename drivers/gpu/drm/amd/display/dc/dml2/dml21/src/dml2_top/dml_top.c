@@ -96,9 +96,14 @@ bool dml2_check_mode_supported(struct dml2_check_mode_supported_in_out *in_out)
 {
 	struct dml2_instance *dml = (struct dml2_instance *)in_out->dml2_instance;
 	struct dml2_check_mode_supported_locals *l = &dml->scratch.check_mode_supported_locals;
+	/* Borrow the build_mode_programming_locals programming struct for DPMM call. */
+	struct dml2_display_cfg_programming *dpmm_programming = dml->scratch.build_mode_programming_locals.mode_programming_params.programming;
 
 	bool result = false;
 	bool mcache_success = false;
+
+	if (dpmm_programming)
+		memset(dpmm_programming, 0, sizeof(struct dml2_display_cfg_programming));
 
 	setup_unoptimized_display_config_with_meta(dml, &l->base_display_config_with_meta, in_out->display_config);
 
@@ -120,6 +125,18 @@ bool dml2_check_mode_supported(struct dml2_check_mode_supported_in_out *in_out)
 		.all_or_nothing = false,
 		};
 		mcache_success = dml2_top_optimization_perform_optimization_phase(&l->optimization_phase_locals, &mcache_phase);
+	}
+
+	/*
+	 * Call DPMM to map all requirements to minimum clock state
+	 */
+	if (result && dpmm_programming) {
+		l->dppm_map_mode_params.min_clk_table = &dml->min_clk_table;
+		l->dppm_map_mode_params.display_cfg = &l->base_display_config_with_meta;
+		l->dppm_map_mode_params.programming = dpmm_programming;
+		l->dppm_map_mode_params.soc_bb = &dml->soc_bbox;
+		l->dppm_map_mode_params.ip = &dml->core_instance.clean_me_up.mode_lib.ip;
+		result = dml->dpmm_instance.map_mode_to_soc_dpm(&l->dppm_map_mode_params);
 	}
 
 	in_out->is_supported = mcache_success;

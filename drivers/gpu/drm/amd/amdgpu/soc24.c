@@ -428,6 +428,7 @@ static int soc24_common_early_init(void *handle)
 
 		adev->pg_flags = AMD_PG_SUPPORT_VCN |
 			AMD_PG_SUPPORT_JPEG |
+			AMD_PG_SUPPORT_JPEG_DPG |
 			AMD_PG_SUPPORT_VCN_DPG;
 		adev->external_rev_id = adev->rev_id + 0x50;
 		break;

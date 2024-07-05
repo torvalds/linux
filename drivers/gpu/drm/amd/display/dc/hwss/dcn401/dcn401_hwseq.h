@@ -61,6 +61,8 @@ bool dcn401_apply_idle_power_optimizations(struct dc *dc, bool enable);
 
 struct ips_ono_region_state dcn401_read_ono_state(struct dc *dc,
 						  uint8_t region);
+void dcn401_wait_for_dcc_meta_propagation(const struct dc *dc,
+		const struct pipe_ctx *top_pipe_to_program);
 
 void dcn401_prepare_bandwidth(struct dc *dc,
 		struct dc_state *context);
