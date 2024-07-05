@@ -6,6 +6,7 @@
  */
 
 #include <linux/bitfield.h>
+#include <linux/cleanup.h>
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/regulator/consumer.h>
@@ -273,7 +274,6 @@ static int tsc2046_adc_read_one(struct tsc2046_adc_priv *priv, int ch_idx,
 				u32 *effective_speed_hz)
 {
 	struct tsc2046_adc_ch_cfg *ch = &priv->ch_cfg[ch_idx];
-	struct tsc2046_adc_atom *rx_buf, *tx_buf;
 	unsigned int val, val_normalized = 0;
 	int ret, i, count_skip = 0, max_count;
 	struct spi_transfer xfer;
@@ -287,18 +287,20 @@ static int tsc2046_adc_read_one(struct tsc2046_adc_priv *priv, int ch_idx,
 		max_count = 1;
 	}
 
-	if (sizeof(*tx_buf) * max_count > PAGE_SIZE)
+	if (sizeof(struct tsc2046_adc_atom) * max_count > PAGE_SIZE)
 		return -ENOSPC;
 
-	tx_buf = kcalloc(max_count, sizeof(*tx_buf), GFP_KERNEL);
+	struct tsc2046_adc_atom *tx_buf __free(kfree) = kcalloc(max_count,
+								sizeof(*tx_buf),
+								GFP_KERNEL);
 	if (!tx_buf)
 		return -ENOMEM;
 
-	rx_buf = kcalloc(max_count, sizeof(*rx_buf), GFP_KERNEL);
-	if (!rx_buf) {
-		ret = -ENOMEM;
-		goto free_tx;
-	}
+	struct tsc2046_adc_atom *rx_buf __free(kfree) = kcalloc(max_count,
+								sizeof(*rx_buf),
+								GFP_KERNEL);
+	if (!rx_buf)
+		return -ENOMEM;
 
 	/*
 	 * Do not enable automatic power down on working samples. Otherwise the
@@ -326,7 +328,7 @@ static int tsc2046_adc_read_one(struct tsc2046_adc_priv *priv, int ch_idx,
 	if (ret) {
 		dev_err_ratelimited(&priv->spi->dev, "SPI transfer failed %pe\n",
 				    ERR_PTR(ret));
-		goto free_bufs;
+		return ret;
 	}
 
 	if (effective_speed_hz)
@@ -337,14 +339,7 @@ static int tsc2046_adc_read_one(struct tsc2046_adc_priv *priv, int ch_idx,
 		val_normalized += val;
 	}
 
-	ret = DIV_ROUND_UP(val_normalized, max_count - count_skip);
-
-free_bufs:
-	kfree(rx_buf);
-free_tx:
-	kfree(tx_buf);
-
-	return ret;
+	return DIV_ROUND_UP(val_normalized, max_count - count_skip);
 }
 
 static size_t tsc2046_adc_group_set_layout(struct tsc2046_adc_priv *priv,
