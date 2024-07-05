@@ -55,8 +55,7 @@ static int lan937x_vphy_ind_addr_wr(struct ksz_device *dev, int addr, int reg)
 	u16 addr_base = REG_PORT_T1_PHY_CTRL_BASE;
 	u16 temp;
 
-	if ((dev->info->chip_id == LAN9371_CHIP_ID ||
-	     dev->info->chip_id == LAN9372_CHIP_ID) && addr == KSZ_PORT_4)
+	if (is_lan937x_tx_phy(dev, addr))
 		addr_base = REG_PORT_TX_PHY_CTRL_BASE;
 
 	/* get register address based on the logical port */
@@ -324,6 +323,9 @@ void lan937x_phylink_get_caps(struct ksz_device *dev, int port,
 		/* MII/RMII/RGMII ports */
 		config->mac_capabilities |= MAC_ASYM_PAUSE | MAC_SYM_PAUSE |
 					    MAC_100HD | MAC_10 | MAC_1000FD;
+	} else if (is_lan937x_tx_phy(dev, port)) {
+		config->mac_capabilities |= MAC_ASYM_PAUSE | MAC_SYM_PAUSE |
+					    MAC_100HD | MAC_10;
 	}
 }
 

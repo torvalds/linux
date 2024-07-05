@@ -638,6 +638,12 @@ static inline int is_lan937x(struct ksz_device *dev)
 		dev->chip_id == LAN9374_CHIP_ID;
 }
 
+static inline bool is_lan937x_tx_phy(struct ksz_device *dev, int port)
+{
+	return (dev->chip_id == LAN9371_CHIP_ID ||
+		dev->chip_id == LAN9372_CHIP_ID) && port == KSZ_PORT_4;
+}
+
 /* STP State Defines */
 #define PORT_TX_ENABLE			BIT(2)
 #define PORT_RX_ENABLE			BIT(1)
