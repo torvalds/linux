@@ -140,7 +140,7 @@ static unsigned int intel_fbc_plane_stride(const struct intel_plane_state *plane
 }
 
 /* plane stride based cfb stride in bytes, assuming 1:1 compression limit */
-static unsigned int _intel_fbc_cfb_stride(const struct intel_plane_state *plane_state)
+static unsigned int intel_fbc_plane_cfb_stride(const struct intel_plane_state *plane_state)
 {
 	unsigned int cpp = 4; /* FBC always 4 bytes per pixel */
 
@@ -181,7 +181,7 @@ static unsigned int skl_fbc_min_cfb_stride(const struct intel_plane_state *plane
 static unsigned int intel_fbc_cfb_stride(const struct intel_plane_state *plane_state)
 {
 	struct intel_display *display = to_intel_display(plane_state->uapi.plane->dev);
-	unsigned int stride = _intel_fbc_cfb_stride(plane_state);
+	unsigned int stride = intel_fbc_plane_cfb_stride(plane_state);
 
 	/*
 	 * At least some of the platforms require each 4 line segment to
@@ -211,7 +211,7 @@ static u16 intel_fbc_override_cfb_stride(const struct intel_plane_state *plane_s
 {
 	struct intel_display *display = to_intel_display(plane_state->uapi.plane->dev);
 	unsigned int stride_aligned = intel_fbc_cfb_stride(plane_state);
-	unsigned int stride = _intel_fbc_cfb_stride(plane_state);
+	unsigned int stride = intel_fbc_plane_cfb_stride(plane_state);
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
 
 	/*
