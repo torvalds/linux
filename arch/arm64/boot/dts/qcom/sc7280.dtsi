@@ -711,6 +711,7 @@
 	firmware {
 		scm: scm {
 			compatible = "qcom,scm-sc7280", "qcom,scm";
+			qcom,dload-mode = <&tcsr_2 0x13000>;
 		};
 	};
 
