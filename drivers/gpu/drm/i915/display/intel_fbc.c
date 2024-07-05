@@ -203,14 +203,14 @@ static unsigned int intel_fbc_cfb_stride(const struct intel_plane_state *plane_s
 static unsigned int intel_fbc_cfb_size(const struct intel_plane_state *plane_state)
 {
 	struct intel_display *display = to_intel_display(plane_state->uapi.plane->dev);
-	int lines = drm_rect_height(&plane_state->uapi.src) >> 16;
+	int height = drm_rect_height(&plane_state->uapi.src) >> 16;
 
 	if (DISPLAY_VER(display) == 7)
-		lines = min(lines, 2048);
+		height = min(height, 2048);
 	else if (DISPLAY_VER(display) >= 8)
-		lines = min(lines, 2560);
+		height = min(height, 2560);
 
-	return lines * intel_fbc_cfb_stride(plane_state);
+	return height * intel_fbc_cfb_stride(plane_state);
 }
 
 static u16 intel_fbc_override_cfb_stride(const struct intel_plane_state *plane_state)
