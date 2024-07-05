@@ -35,14 +35,14 @@ unevaluatedProperties: false
 
 examples:
   - |
-        avs-monitor@7d5d2000 {
-                compatible = "brcm,bcm2711-avs-monitor",
-                             "syscon", "simple-mfd";
-                reg = <0x7d5d2000 0xf00>;
+    avs-monitor@7d5d2000 {
+        compatible = "brcm,bcm2711-avs-monitor",
+                     "syscon", "simple-mfd";
+        reg = <0x7d5d2000 0xf00>;
 
-                thermal: thermal {
-                        compatible = "brcm,bcm2711-thermal";
-                        #thermal-sensor-cells = <0>;
-                };
+        thermal: thermal {
+            compatible = "brcm,bcm2711-thermal";
+            #thermal-sensor-cells = <0>;
         };
+    };
 ...

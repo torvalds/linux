@@ -106,33 +106,33 @@ examples:
     #include <dt-bindings/power/r8a7795-sysc.h>
 
     tsc: thermal@e6198000 {
-            compatible = "renesas,r8a7795-thermal";
-            reg = <0xe6198000 0x100>,
-                  <0xe61a0000 0x100>,
-                  <0xe61a8000 0x100>;
-            interrupts = <GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>,
-                         <GIC_SPI 68 IRQ_TYPE_LEVEL_HIGH>,
-                         <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;
-            clocks = <&cpg CPG_MOD 522>;
-            power-domains = <&sysc R8A7795_PD_ALWAYS_ON>;
-            resets = <&cpg 522>;
-            #thermal-sensor-cells = <1>;
+        compatible = "renesas,r8a7795-thermal";
+        reg = <0xe6198000 0x100>,
+              <0xe61a0000 0x100>,
+              <0xe61a8000 0x100>;
+        interrupts = <GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 68 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&cpg CPG_MOD 522>;
+        power-domains = <&sysc R8A7795_PD_ALWAYS_ON>;
+        resets = <&cpg 522>;
+        #thermal-sensor-cells = <1>;
     };
 
     thermal-zones {
-            sensor_thermal: sensor-thermal {
-                    polling-delay-passive = <250>;
-                    polling-delay = <1000>;
-                    thermal-sensors = <&tsc 0>;
+        sensor_thermal: sensor-thermal {
+            polling-delay-passive = <250>;
+            polling-delay = <1000>;
+            thermal-sensors = <&tsc 0>;
 
-                    trips {
-                            sensor1_crit: sensor1-crit {
-                                    temperature = <90000>;
-                                    hysteresis = <2000>;
-                                    type = "critical";
-                            };
-                    };
+            trips {
+                sensor1_crit: sensor1-crit {
+                    temperature = <90000>;
+                    hysteresis = <2000>;
+                    type = "critical";
+                };
             };
+        };
     };
   - |
     #include <dt-bindings/clock/r8a779a0-cpg-mssr.h>
@@ -140,14 +140,14 @@ examples:
     #include <dt-bindings/power/r8a779a0-sysc.h>
 
     tsc_r8a779a0: thermal@e6190000 {
-            compatible = "renesas,r8a779a0-thermal";
-            reg = <0xe6190000 0x200>,
-                  <0xe6198000 0x200>,
-                  <0xe61a0000 0x200>,
-                  <0xe61a8000 0x200>,
-                  <0xe61b0000 0x200>;
-            clocks = <&cpg CPG_MOD 919>;
-            power-domains = <&sysc R8A779A0_PD_ALWAYS_ON>;
-            resets = <&cpg 919>;
-            #thermal-sensor-cells = <1>;
+        compatible = "renesas,r8a779a0-thermal";
+        reg = <0xe6190000 0x200>,
+              <0xe6198000 0x200>,
+              <0xe61a0000 0x200>,
+              <0xe61a8000 0x200>,
+              <0xe61b0000 0x200>;
+        clocks = <&cpg CPG_MOD 919>;
+        power-domains = <&sysc R8A779A0_PD_ALWAYS_ON>;
+        resets = <&cpg 919>;
+        #thermal-sensor-cells = <1>;
     };

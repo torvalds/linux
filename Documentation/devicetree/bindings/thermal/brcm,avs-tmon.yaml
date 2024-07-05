@@ -45,11 +45,11 @@ required:
 
 examples:
   - |
-     thermal@f04d1500 {
-          compatible = "brcm,avs-tmon-bcm7445", "brcm,avs-tmon";
-          reg = <0xf04d1500 0x28>;
-          interrupts = <0x6>;
-          interrupt-names = "tmon";
-          interrupt-parent = <&avs_host_l2_intc>;
-          #thermal-sensor-cells = <0>;
-     };
+    thermal@f04d1500 {
+        compatible = "brcm,avs-tmon-bcm7445", "brcm,avs-tmon";
+        reg = <0xf04d1500 0x28>;
+        interrupts = <0x6>;
+        interrupt-names = "tmon";
+        interrupt-parent = <&avs_host_l2_intc>;
+        #thermal-sensor-cells = <0>;
+    };

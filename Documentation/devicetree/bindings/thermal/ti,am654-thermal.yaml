@@ -47,11 +47,11 @@ examples:
         thermal-sensors = <&vtm0 0>;
 
         trips {
-                mpu0_crit: mpu0_crit {
-                        temperature = <125000>; /* milliCelsius */
-                        hysteresis = <2000>; /* milliCelsius */
-                        type = "critical";
-                };
+            mpu0_crit: mpu0_crit {
+                temperature = <125000>; /* milliCelsius */
+                hysteresis = <2000>; /* milliCelsius */
+                type = "critical";
+            };
         };
     };
 ...

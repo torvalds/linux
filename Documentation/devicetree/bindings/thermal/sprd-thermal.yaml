@@ -86,27 +86,27 @@ unevaluatedProperties: false
 
 examples:
   - |
-        ap_thm0: thermal@32200000 {
-                compatible = "sprd,ums512-thermal";
-                reg = <0x32200000 0x10000>;
-                clock-names = "enable";
-                clocks = <&aonapb_gate 32>;
-                #thermal-sensor-cells = <1>;
-                nvmem-cells = <&thm0_sign>, <&thm0_ratio>;
-                nvmem-cell-names = "thm_sign_cal", "thm_ratio_cal";
-                #address-cells = <1>;
-                #size-cells = <0>;
+    thermal@32200000 {
+        compatible = "sprd,ums512-thermal";
+        reg = <0x32200000 0x10000>;
+        clock-names = "enable";
+        clocks = <&aonapb_gate 32>;
+        #thermal-sensor-cells = <1>;
+        nvmem-cells = <&thm0_sign>, <&thm0_ratio>;
+        nvmem-cell-names = "thm_sign_cal", "thm_ratio_cal";
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-                prometheus-sensor@0 {
-                        reg = <0>;
-                        nvmem-cells = <&thm0_sen0>;
-                        nvmem-cell-names = "sen_delta_cal";
-                };
-
-                ank-sensor@1 {
-                        reg = <1>;
-                        nvmem-cells = <&thm0_sen1>;
-                        nvmem-cell-names = "sen_delta_cal";
-                };
+        prometheus-sensor@0 {
+            reg = <0>;
+            nvmem-cells = <&thm0_sen0>;
+            nvmem-cell-names = "sen_delta_cal";
         };
+
+        ank-sensor@1 {
+            reg = <1>;
+            nvmem-cells = <&thm0_sen1>;
+            nvmem-cell-names = "sen_delta_cal";
+        };
+    };
 ...

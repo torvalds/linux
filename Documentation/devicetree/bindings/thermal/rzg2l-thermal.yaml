@@ -53,27 +53,27 @@ examples:
     #include <dt-bindings/clock/r9a07g044-cpg.h>
 
     tsu: thermal@10059400 {
-            compatible = "renesas,r9a07g044-tsu",
-                         "renesas,rzg2l-tsu";
-            reg = <0x10059400 0x400>;
-            clocks = <&cpg CPG_MOD R9A07G044_TSU_PCLK>;
-            resets = <&cpg R9A07G044_TSU_PRESETN>;
-            power-domains = <&cpg>;
-            #thermal-sensor-cells = <1>;
+        compatible = "renesas,r9a07g044-tsu",
+                     "renesas,rzg2l-tsu";
+        reg = <0x10059400 0x400>;
+        clocks = <&cpg CPG_MOD R9A07G044_TSU_PCLK>;
+        resets = <&cpg R9A07G044_TSU_PRESETN>;
+        power-domains = <&cpg>;
+        #thermal-sensor-cells = <1>;
     };
 
     thermal-zones {
-            cpu-thermal {
-                    polling-delay-passive = <250>;
-                    polling-delay = <1000>;
-                    thermal-sensors = <&tsu 0>;
+        cpu-thermal {
+            polling-delay-passive = <250>;
+            polling-delay = <1000>;
+            thermal-sensors = <&tsu 0>;
 
-                    trips {
-                            sensor_crit: sensor-crit {
-                                    temperature = <125000>;
-                                    hysteresis = <1000>;
-                                    type = "critical";
-                            };
-                    };
+            trips {
+                sensor_crit: sensor-crit {
+                    temperature = <125000>;
+                    hysteresis = <1000>;
+                    type = "critical";
+                };
             };
+        };
     };
