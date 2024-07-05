@@ -1109,25 +1109,32 @@ static bool intel_fbc_hw_tracking_covers_screen(const struct intel_plane_state *
 	return effective_w <= max_w && effective_h <= max_h;
 }
 
+static void intel_fbc_max_plane_size(struct intel_display *display,
+				     unsigned int *w, unsigned int *h)
+{
+	struct drm_i915_private *i915 = to_i915(display->drm);
+
+	if (DISPLAY_VER(display) >= 10) {
+		*w = 5120;
+		*h = 4096;
+	} else if (DISPLAY_VER(display) >= 8 || IS_HASWELL(i915)) {
+		*w = 4096;
+		*h = 4096;
+	} else if (IS_G4X(i915) || DISPLAY_VER(display) >= 5) {
+		*w = 4096;
+		*h = 2048;
+	} else {
+		*w = 2048;
+		*h = 1536;
+	}
+}
+
 static bool intel_fbc_plane_size_valid(const struct intel_plane_state *plane_state)
 {
 	struct intel_display *display = to_intel_display(plane_state->uapi.plane->dev);
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	unsigned int w, h, max_w, max_h;
 
-	if (DISPLAY_VER(display) >= 10) {
-		max_w = 5120;
-		max_h = 4096;
-	} else if (DISPLAY_VER(display) >= 8 || IS_HASWELL(i915)) {
-		max_w = 4096;
-		max_h = 4096;
-	} else if (IS_G4X(i915) || DISPLAY_VER(display) >= 5) {
-		max_w = 4096;
-		max_h = 2048;
-	} else {
-		max_w = 2048;
-		max_h = 1536;
-	}
+	intel_fbc_max_plane_size(display, &max_w, &max_h);
 
 	w = drm_rect_width(&plane_state->uapi.src) >> 16;
 	h = drm_rect_height(&plane_state->uapi.src) >> 16;
