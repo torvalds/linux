@@ -295,7 +295,7 @@ struct guc_update_scheduling_policy_header {
 } __packed;
 
 /*
- * Can't dynmically allocate memory for the scheduling policy KLV because
+ * Can't dynamically allocate memory for the scheduling policy KLV because
  * it will be sent from within the reset path. Need a fixed size lump on
  * the stack instead :(.
  *
