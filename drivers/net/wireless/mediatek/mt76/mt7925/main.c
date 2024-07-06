@@ -1571,13 +1571,15 @@ mt7925_change_chanctx(struct ieee80211_hw *hw,
 {
 	struct mt792x_chanctx *mctx = (struct mt792x_chanctx *)ctx->drv_priv;
 	struct mt792x_phy *phy = mt792x_hw_phy(hw);
+	struct mt792x_bss_conf *mconf;
 	struct ieee80211_vif *vif;
 	struct mt792x_vif *mvif;
 
 	if (!mctx->bss_conf)
 		return;
 
-	mvif = container_of(mctx->bss_conf, struct mt792x_vif, bss_conf);
+	mconf = mctx->bss_conf;
+	mvif = mconf->vif;
 	vif = container_of((void *)mvif, struct ieee80211_vif, drv_priv);
 
 	mt792x_mutex_acquire(phy->dev);
@@ -1585,8 +1587,24 @@ mt7925_change_chanctx(struct ieee80211_hw *hw,
 		mt7925_mcu_set_sniffer(mvif->phy->dev, vif, true);
 		mt7925_mcu_config_sniffer(mvif, ctx);
 	} else {
-		mt7925_mcu_set_chctx(mvif->phy->mt76, &mvif->bss_conf.mt76, ctx);
+		if (ieee80211_vif_is_mld(vif)) {
+			unsigned long valid = mvif->valid_links;
+			u8 i;
+
+			for_each_set_bit(i, &valid, IEEE80211_MLD_MAX_NUM_LINKS) {
+				mconf = mt792x_vif_to_link(mvif, i);
+				if (mconf && mconf->mt76.ctx == ctx)
+					break;
+			}
+
+		} else {
+			mconf = &mvif->bss_conf;
+		}
+
+		if (mconf)
+			mt7925_mcu_set_chctx(mvif->phy->mt76, &mconf->mt76, ctx);
 	}
+
 	mt792x_mutex_release(phy->dev);
 }
 
