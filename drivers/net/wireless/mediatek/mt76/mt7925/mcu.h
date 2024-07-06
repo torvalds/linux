@@ -443,6 +443,17 @@ struct sta_rec_mld {
 	} __packed link[2];
 } __packed;
 
+struct sta_rec_eht_mld {
+	__le16 tag;
+	__le16 len;
+	u8 nsep;
+	u8 mld_type;
+	u8 __rsv1[1];
+	u8 str_cap[3];
+	u8 eml_cap[3];
+	u8 __rsv2[3];
+} __packed;
+
 struct bss_ifs_time_tlv {
 	__le16 tag;
 	__le16 len;
