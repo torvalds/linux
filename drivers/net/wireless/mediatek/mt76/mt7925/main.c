@@ -333,8 +333,9 @@ static int mt7925_mac_link_bss_add(struct mt792x_dev *dev,
 		goto out;
 	}
 
-	mconf->mt76.omac_idx = mconf->mt76.idx;
-	mconf->mt76.band_idx = 0;
+	mconf->mt76.omac_idx = ieee80211_vif_is_mld(vif) ?
+			       0 : mconf->mt76.idx;
+	mconf->mt76.band_idx = 0xff;
 	mconf->mt76.wmm_idx = mconf->mt76.idx % MT76_CONNAC_MAX_WMM_SETS;
 
 	if (mvif->phy->mt76->chandef.chan->band != NL80211_BAND_2GHZ)
