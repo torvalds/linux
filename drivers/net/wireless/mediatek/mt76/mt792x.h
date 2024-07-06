@@ -273,6 +273,17 @@ mt792x_vif_to_bss_conf(struct ieee80211_vif *vif, unsigned int link_id)
 	return link_conf_dereference_protected(vif, link_id);
 }
 
+static inline struct ieee80211_link_sta *
+mt792x_sta_to_link_sta(struct ieee80211_vif *vif, struct ieee80211_sta *sta,
+		       unsigned int link_id)
+{
+	if (!ieee80211_vif_is_mld(vif) ||
+	    link_id >= IEEE80211_LINK_UNSPECIFIED)
+		return &sta->deflink;
+
+	return link_sta_dereference_protected(sta, link_id);
+}
+
 static inline struct mt792x_dev *
 mt792x_hw_dev(struct ieee80211_hw *hw)
 {
