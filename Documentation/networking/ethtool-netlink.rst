@@ -1730,17 +1730,28 @@ Request contents:
 
 Kernel response contents:
 
-  ======================================  ======  =============================
-  ``ETHTOOL_A_PSE_HEADER``                nested  reply header
-  ``ETHTOOL_A_PODL_PSE_ADMIN_STATE``         u32  Operational state of the PoDL
-                                                  PSE functions
-  ``ETHTOOL_A_PODL_PSE_PW_D_STATUS``         u32  power detection status of the
-                                                  PoDL PSE.
-  ``ETHTOOL_A_C33_PSE_ADMIN_STATE``          u32  Operational state of the PoE
-                                                  PSE functions.
-  ``ETHTOOL_A_C33_PSE_PW_D_STATUS``          u32  power detection status of the
-                                                  PoE PSE.
-  ======================================  ======  =============================
+  ==========================================  ======  =============================
+  ``ETHTOOL_A_PSE_HEADER``                    nested  reply header
+  ``ETHTOOL_A_PODL_PSE_ADMIN_STATE``             u32  Operational state of the PoDL
+                                                      PSE functions
+  ``ETHTOOL_A_PODL_PSE_PW_D_STATUS``             u32  power detection status of the
+                                                      PoDL PSE.
+  ``ETHTOOL_A_C33_PSE_ADMIN_STATE``              u32  Operational state of the PoE
+                                                      PSE functions.
+  ``ETHTOOL_A_C33_PSE_PW_D_STATUS``              u32  power detection status of the
+                                                      PoE PSE.
+  ``ETHTOOL_A_C33_PSE_PW_CLASS``                 u32  power class of the PoE PSE.
+  ``ETHTOOL_A_C33_PSE_ACTUAL_PW``                u32  actual power drawn on the
+                                                      PoE PSE.
+  ``ETHTOOL_A_C33_PSE_EXT_STATE``                u32  power extended state of the
+                                                      PoE PSE.
+  ``ETHTOOL_A_C33_PSE_EXT_SUBSTATE``             u32  power extended substatus of
+                                                      the PoE PSE.
+  ``ETHTOOL_A_C33_PSE_AVAIL_PW_LIMIT``           u32  currently configured power
+                                                      limit of the PoE PSE.
+  ``ETHTOOL_A_C33_PSE_PW_LIMIT_RANGES``       nested  Supported power limit
+                                                      configuration ranges.
+  ==========================================  ======  =============================
 
 When set, the optional ``ETHTOOL_A_PODL_PSE_ADMIN_STATE`` attribute identifies
 the operational state of the PoDL PSE functions.  The operational state of the
@@ -1772,6 +1783,46 @@ The same goes for ``ETHTOOL_A_C33_PSE_ADMIN_PW_D_STATUS`` implementing
 .. kernel-doc:: include/uapi/linux/ethtool.h
     :identifiers: ethtool_c33_pse_pw_d_status
 
+When set, the optional ``ETHTOOL_A_C33_PSE_PW_CLASS`` attribute identifies
+the power class of the C33 PSE. It depends on the class negotiated between
+the PSE and the PD. This option is corresponding to ``IEEE 802.3-2022``
+30.9.1.1.8 aPSEPowerClassification.
+
+When set, the optional ``ETHTOOL_A_C33_PSE_ACTUAL_PW`` attribute identifies
+This option is corresponding to ``IEEE 802.3-2022`` 30.9.1.1.23 aPSEActualPower.
+Actual power is reported in mW.
+
+When set, the optional ``ETHTOOL_A_C33_PSE_EXT_STATE`` attribute identifies
+the extended error state of the C33 PSE. Possible values are:
+
+.. kernel-doc:: include/uapi/linux/ethtool.h
+    :identifiers: ethtool_c33_pse_ext_state
+
+When set, the optional ``ETHTOOL_A_C33_PSE_EXT_SUBSTATE`` attribute identifies
+the extended error state of the C33 PSE. Possible values are:
+Possible values are:
+
+.. kernel-doc:: include/uapi/linux/ethtool.h
+    :identifiers: ethtool_c33_pse_ext_substate_class_num_events
+		  ethtool_c33_pse_ext_substate_error_condition
+		  ethtool_c33_pse_ext_substate_mr_pse_enable
+		  ethtool_c33_pse_ext_substate_option_detect_ted
+		  ethtool_c33_pse_ext_substate_option_vport_lim
+		  ethtool_c33_pse_ext_substate_ovld_detected
+		  ethtool_c33_pse_ext_substate_pd_dll_power_type
+		  ethtool_c33_pse_ext_substate_power_not_available
+		  ethtool_c33_pse_ext_substate_short_detected
+
+When set, the optional ``ETHTOOL_A_C33_PSE_AVAIL_PW_LIMIT`` attribute
+identifies the C33 PSE power limit in mW.
+
+When set the optional ``ETHTOOL_A_C33_PSE_PW_LIMIT_RANGES`` nested attribute
+identifies the C33 PSE power limit ranges through
+``ETHTOOL_A_C33_PSE_PWR_VAL_LIMIT_RANGE_MIN`` and
+``ETHTOOL_A_C33_PSE_PWR_VAL_LIMIT_RANGE_MAX``.
+If the controller works with fixed classes, the min and max values will be
+equal.
+
 PSE_SET
 =======
 
@@ -1783,6 +1834,8 @@ Request contents:
   ``ETHTOOL_A_PSE_HEADER``                nested  request header
   ``ETHTOOL_A_PODL_PSE_ADMIN_CONTROL``       u32  Control PoDL PSE Admin state
   ``ETHTOOL_A_C33_PSE_ADMIN_CONTROL``        u32  Control PSE Admin state
+  ``ETHTOOL_A_C33_PSE_AVAIL_PWR_LIMIT``      u32  Control PoE PSE available
+                                                  power limit
   ======================================  ======  =============================
 
 When set, the optional ``ETHTOOL_A_PODL_PSE_ADMIN_CONTROL`` attribute is used
@@ -1792,6 +1845,18 @@ to control PoDL PSE Admin functions. This option is implementing
 
 The same goes for ``ETHTOOL_A_C33_PSE_ADMIN_CONTROL`` implementing
 ``IEEE 802.3-2022`` 30.9.1.2.1 acPSEAdminControl.
+
+When set, the optional ``ETHTOOL_A_C33_PSE_AVAIL_PWR_LIMIT`` attribute is
+used to control the available power value limit for C33 PSE in milliwatts.
+This attribute corresponds  to the `pse_available_power` variable described in
+``IEEE 802.3-2022`` 33.2.4.4 Variables  and `pse_avail_pwr` in 145.2.5.4
+Variables, which are described in power classes.
+
+It was decided to use milliwatts for this interface to unify it with other
+power monitoring interfaces, which also use milliwatts, and to align with
+various existing products that document power consumption in watts rather than
+classes. If power limit configuration based on classes is needed, the
+conversion can be done in user space, for example by ethtool.
 
 RSS_GET
 =======
