@@ -1749,6 +1749,10 @@ static void mt7925_vif_cfg_changed(struct ieee80211_hw *hw,
 {
 	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 	struct mt792x_dev *dev = mt792x_hw_dev(hw);
+	unsigned long valid = ieee80211_vif_is_mld(vif) ?
+				      mvif->valid_links : BIT(0);
+	struct ieee80211_bss_conf *bss_conf;
+	int i;
 
 	mt792x_mutex_acquire(dev);
 
@@ -1759,17 +1763,13 @@ static void mt7925_vif_cfg_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changed & BSS_CHANGED_ARP_FILTER) {
-		struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
-
-		mt7925_mcu_update_arp_filter(&dev->mt76, &mvif->bss_conf.mt76);
+		for_each_set_bit(i, &valid, IEEE80211_MLD_MAX_NUM_LINKS) {
+			bss_conf = mt792x_vif_to_bss_conf(vif, i);
+			mt7925_mcu_update_arp_filter(&dev->mt76, bss_conf);
+		}
 	}
 
 	if (changed & BSS_CHANGED_PS) {
-		unsigned long valid = ieee80211_vif_is_mld(vif) ?
-					      mvif->valid_links : BIT(0);
-		struct ieee80211_bss_conf *bss_conf;
-		int i;
-
 		for_each_set_bit(i, &valid, IEEE80211_MLD_MAX_NUM_LINKS) {
 			bss_conf = mt792x_vif_to_bss_conf(vif, i);
 			mt7925_mcu_uni_bss_ps(dev, bss_conf);
