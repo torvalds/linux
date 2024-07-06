@@ -98,8 +98,8 @@ static inline bool biovec_phys_mergeable(struct request_queue *q,
 		struct bio_vec *vec1, struct bio_vec *vec2)
 {
 	unsigned long mask = queue_segment_boundary(q);
-	phys_addr_t addr1 = page_to_phys(vec1->bv_page) + vec1->bv_offset;
-	phys_addr_t addr2 = page_to_phys(vec2->bv_page) + vec2->bv_offset;
+	phys_addr_t addr1 = bvec_phys(vec1);
+	phys_addr_t addr2 = bvec_phys(vec2);
 
 	/*
 	 * Merging adjacent physical pages may not work correctly under KMSAN
