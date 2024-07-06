@@ -321,8 +321,8 @@ static int rzv2m_i2c_stop_condition(struct rzv2m_i2c_priv *priv)
 				  100, jiffies_to_usecs(priv->adap.timeout));
 }
 
-static int rzv2m_i2c_master_xfer_msg(struct rzv2m_i2c_priv *priv,
-				  struct i2c_msg *msg, int stop)
+static int rzv2m_i2c_xfer_msg(struct rzv2m_i2c_priv *priv,
+			      struct i2c_msg *msg, int stop)
 {
 	unsigned int count = 0;
 	int ret, read = !!(msg->flags & I2C_M_RD);
@@ -351,8 +351,8 @@ static int rzv2m_i2c_master_xfer_msg(struct rzv2m_i2c_priv *priv,
 	return ret;
 }
 
-static int rzv2m_i2c_master_xfer(struct i2c_adapter *adap,
-				 struct i2c_msg *msgs, int num)
+static int rzv2m_i2c_xfer(struct i2c_adapter *adap,
+			  struct i2c_msg *msgs, int num)
 {
 	struct rzv2m_i2c_priv *priv = i2c_get_adapdata(adap);
 	struct device *dev = priv->adap.dev.parent;
@@ -370,7 +370,7 @@ static int rzv2m_i2c_master_xfer(struct i2c_adapter *adap,
 
 	/* I2C main transfer */
 	for (i = 0; i < num; i++) {
-		ret = rzv2m_i2c_master_xfer_msg(priv, &msgs[i], i == (num - 1));
+		ret = rzv2m_i2c_xfer_msg(priv, &msgs[i], i == (num - 1));
 		if (ret < 0)
 			goto out;
 	}
@@ -408,7 +408,7 @@ static const struct i2c_adapter_quirks rzv2m_i2c_quirks = {
 };
 
 static struct i2c_algorithm rzv2m_i2c_algo = {
-	.master_xfer = rzv2m_i2c_master_xfer,
+	.xfer = rzv2m_i2c_xfer,
 	.functionality = rzv2m_i2c_func,
 };
 
