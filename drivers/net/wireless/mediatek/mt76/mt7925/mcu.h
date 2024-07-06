@@ -492,7 +492,8 @@ struct bss_rlm_tlv {
 					 sizeof(struct sta_rec_eht) +		\
 					 sizeof(struct sta_rec_hdr_trans) +	\
 					 sizeof(struct sta_rec_mld) +		\
-					 sizeof(struct tlv))
+					 sizeof(struct tlv) * 2 +		\
+					 sizeof(struct sta_rec_remove))
 
 #define MT7925_BSS_UPDATE_MAX_SIZE	(sizeof(struct bss_req_hdr) +		\
 					 sizeof(struct mt76_connac_bss_basic_tlv) +	\

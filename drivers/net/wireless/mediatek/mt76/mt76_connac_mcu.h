@@ -545,6 +545,13 @@ struct sta_rec_muru {
 	} mimo_ul;
 } __packed;
 
+struct sta_rec_remove {
+	__le16 tag;
+	__le16 len;
+	u8 action;
+	u8 pad[3];
+} __packed;
+
 struct sta_phy {
 	u8 type;
 	u8 flag;
@@ -814,6 +821,8 @@ enum {
 	STA_REC_HE_V2 = 0x19,
 	STA_REC_MLD = 0x20,
 	STA_REC_EHT = 0x22,
+	STA_REC_MLD_OFF = 0x23,
+	STA_REC_REMOVE = 0x25,
 	STA_REC_PN_INFO = 0x26,
 	STA_REC_KEY_V3 = 0x27,
 	STA_REC_HDRT = 0x28,
