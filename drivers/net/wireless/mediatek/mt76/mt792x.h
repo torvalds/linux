@@ -92,6 +92,10 @@ struct mt792x_link_sta {
 	unsigned long last_txs;
 
 	struct mt76_connac_sta_key_conf bip;
+
+	struct mt792x_sta *sta;
+
+	struct ieee80211_link_sta *pri_link;
 };
 
 struct mt792x_sta {
@@ -99,6 +103,9 @@ struct mt792x_sta {
 	struct mt792x_link_sta __rcu *link[IEEE80211_MLD_MAX_NUM_LINKS];
 
 	struct mt792x_vif *vif;
+
+	u16 valid_links;
+	u8 deflink_id;
 };
 
 DECLARE_EWMA(rssi, 10, 8);

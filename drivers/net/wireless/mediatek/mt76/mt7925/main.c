@@ -809,14 +809,77 @@ static int mt7925_mac_link_sta_add(struct mt76_dev *mdev,
 		mt7925_mcu_add_bss_info(&dev->phy, mconf->mt76.ctx,
 					link_conf, link_sta, false);
 
-	ret = mt7925_mcu_sta_update(dev, link_sta, vif, true,
-				    MT76_STA_INFO_STATE_NONE);
-	if (ret)
-		return ret;
+	if (ieee80211_vif_is_mld(vif) &&
+	    link_sta == mlink->pri_link) {
+		ret = mt7925_mcu_sta_update(dev, link_sta, vif, true,
+					    MT76_STA_INFO_STATE_NONE);
+		if (ret)
+			return ret;
+	} else if (ieee80211_vif_is_mld(vif) &&
+		   link_sta != mlink->pri_link) {
+		ret = mt7925_mcu_sta_update(dev, mlink->pri_link, vif,
+					    true, MT76_STA_INFO_STATE_ASSOC);
+		if (ret)
+			return ret;
+
+		ret = mt7925_mcu_sta_update(dev, link_sta, vif, true,
+					    MT76_STA_INFO_STATE_ASSOC);
+		if (ret)
+			return ret;
+	} else {
+		ret = mt7925_mcu_sta_update(dev, link_sta, vif, true,
+					    MT76_STA_INFO_STATE_NONE);
+		if (ret)
+			return ret;
+	}
 
 	mt76_connac_power_save_sched(&dev->mphy, &dev->pm);
 
 	return 0;
+}
+
+static int
+mt7925_mac_sta_add_links(struct mt792x_dev *dev, struct ieee80211_vif *vif,
+			 struct ieee80211_sta *sta, unsigned long new_links)
+{
+	struct mt792x_sta *msta = (struct mt792x_sta *)sta->drv_priv;
+	struct mt76_wcid *wcid;
+	unsigned int link_id;
+	int err = 0;
+
+	for_each_set_bit(link_id, &new_links, IEEE80211_MLD_MAX_NUM_LINKS) {
+		struct ieee80211_link_sta *link_sta;
+		struct mt792x_link_sta *mlink;
+
+		if (msta->deflink_id == IEEE80211_LINK_UNSPECIFIED) {
+			mlink = &msta->deflink;
+			msta->deflink_id = link_id;
+		} else {
+			mlink = devm_kzalloc(dev->mt76.dev, sizeof(*mlink), GFP_KERNEL);
+			if (!mlink) {
+				err = -ENOMEM;
+				break;
+			}
+
+			wcid = &mlink->wcid;
+			ewma_signal_init(&wcid->rssi);
+			rcu_assign_pointer(dev->mt76.wcid[wcid->idx], wcid);
+			mt76_wcid_init(wcid);
+			ewma_avg_signal_init(&mlink->avg_ack_signal);
+			memset(mlink->airtime_ac, 0,
+			       sizeof(msta->deflink.airtime_ac));
+		}
+
+		msta->valid_links |= BIT(link_id);
+		rcu_assign_pointer(msta->link[link_id], mlink);
+		mlink->sta = msta;
+		mlink->pri_link = &sta->deflink;
+
+		link_sta = mt792x_sta_to_link_sta(vif, sta, link_id);
+		mt7925_mac_link_sta_add(&dev->mt76, vif, link_sta);
+	}
+
+	return err;
 }
 
 int mt7925_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
@@ -913,6 +976,48 @@ static void mt7925_mac_link_sta_remove(struct mt76_dev *mdev,
 	spin_unlock_bh(&mdev->sta_poll_lock);
 
 	mt76_connac_power_save_sched(&dev->mphy, &dev->pm);
+}
+
+static int
+mt7925_mac_sta_remove_links(struct mt792x_dev *dev, struct ieee80211_vif *vif,
+			    struct ieee80211_sta *sta, unsigned long old_links)
+{
+	struct mt792x_sta *msta = (struct mt792x_sta *)sta->drv_priv;
+	struct mt76_dev *mdev = &dev->mt76;
+	struct mt76_wcid *wcid;
+	unsigned int link_id;
+
+	for_each_set_bit(link_id, &old_links, IEEE80211_MLD_MAX_NUM_LINKS) {
+		struct ieee80211_link_sta *link_sta;
+		struct mt792x_link_sta *mlink;
+
+		link_sta = mt792x_sta_to_link_sta(vif, sta, link_id);
+		if (!link_sta)
+			continue;
+
+		mlink = mt792x_sta_to_link(msta, link_id);
+		if (!mlink)
+			continue;
+
+		mt7925_mac_link_sta_remove(&dev->mt76, vif, link_sta);
+
+		wcid = &mlink->wcid;
+		rcu_assign_pointer(msta->link[link_id], NULL);
+		msta->valid_links &= ~BIT(link_id);
+		mlink->sta = NULL;
+		mlink->pri_link = NULL;
+
+		if (link_sta != mlink->pri_link) {
+			mt76_wcid_cleanup(mdev, wcid);
+			mt76_wcid_mask_clear(mdev->wcid_mask, wcid->idx);
+			mt76_wcid_mask_clear(mdev->wcid_phy_mask, wcid->idx);
+		}
+
+		if (msta->deflink_id == link_id)
+			msta->deflink_id = IEEE80211_LINK_UNSPECIFIED;
+	}
+
+	return 0;
 }
 
 void mt7925_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
@@ -1650,6 +1755,34 @@ free:
 	return err;
 }
 
+static int
+mt7925_change_sta_links(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			struct ieee80211_sta *sta, u16 old_links, u16 new_links)
+{
+	unsigned long add = new_links & ~old_links;
+	unsigned long rem = old_links & ~new_links;
+	struct mt792x_dev *dev = mt792x_hw_dev(hw);
+	int err = 0;
+
+	if (old_links == new_links)
+		return 0;
+
+	mt792x_mutex_acquire(dev);
+
+	err = mt7925_mac_sta_remove_links(dev, vif, sta, rem);
+	if (err < 0)
+		goto out;
+
+	err = mt7925_mac_sta_add_links(dev, vif, sta, add);
+	if (err < 0)
+		goto out;
+
+out:
+	mt792x_mutex_release(dev);
+
+	return err;
+}
+
 const struct ieee80211_ops mt7925_ops = {
 	.tx = mt792x_tx,
 	.start = mt7925_start,
@@ -1709,6 +1842,7 @@ const struct ieee80211_ops mt7925_ops = {
 	.vif_cfg_changed = mt7925_vif_cfg_changed,
 	.link_info_changed = mt7925_link_info_changed,
 	.change_vif_links = mt7925_change_vif_links,
+	.change_sta_links = mt7925_change_sta_links,
 };
 EXPORT_SYMBOL_GPL(mt7925_ops);
 
