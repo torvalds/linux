@@ -131,6 +131,7 @@ struct mt792x_vif {
 
 	struct mt792x_phy *phy;
 	u16 valid_links;
+	u8 deflink_id;
 };
 
 struct mt792x_phy {
