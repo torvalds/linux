@@ -1219,8 +1219,8 @@ static int acpi_battery_add(struct acpi_device *device)
 	if (!battery)
 		return -ENOMEM;
 	battery->device = device;
-	strcpy(acpi_device_name(device), ACPI_BATTERY_DEVICE_NAME);
-	strcpy(acpi_device_class(device), ACPI_BATTERY_CLASS);
+	strscpy(acpi_device_name(device), ACPI_BATTERY_DEVICE_NAME);
+	strscpy(acpi_device_class(device), ACPI_BATTERY_CLASS);
 	device->driver_data = battery;
 	mutex_init(&battery->lock);
 	mutex_init(&battery->sysfs_lock);
