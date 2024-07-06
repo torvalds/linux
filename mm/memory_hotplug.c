@@ -628,7 +628,8 @@ int restore_online_page_callback(online_page_callback_t callback)
 }
 EXPORT_SYMBOL_GPL(restore_online_page_callback);
 
-void generic_online_page(struct page *page, unsigned int order)
+/* we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG */
+void __ref generic_online_page(struct page *page, unsigned int order)
 {
 	__free_pages_core(page, order, MEMINIT_HOTPLUG);
 }
