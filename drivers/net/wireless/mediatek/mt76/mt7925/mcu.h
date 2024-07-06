@@ -554,6 +554,26 @@ struct mt7925_wow_pattern_tlv {
 	u8 rsv[7];
 } __packed;
 
+struct roc_acquire_tlv {
+	__le16 tag;
+	__le16 len;
+	u8 bss_idx;
+	u8 tokenid;
+	u8 control_channel;
+	u8 sco;
+	u8 band;
+	u8 bw;
+	u8 center_chan;
+	u8 center_chan2;
+	u8 bw_from_ap;
+	u8 center_chan_from_ap;
+	u8 center_chan2_from_ap;
+	u8 reqtype;
+	__le32 maxinterval;
+	u8 dbdcband;
+	u8 rsv[3];
+} __packed;
+
 static inline enum connac3_mcu_cipher_type
 mt7925_mcu_get_cipher(int cipher)
 {

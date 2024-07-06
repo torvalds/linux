@@ -113,14 +113,17 @@ void mt792x_stop(struct ieee80211_hw *hw, bool suspend)
 }
 EXPORT_SYMBOL_GPL(mt792x_stop);
 
-static void mt792x_mac_link_bss_remove(struct mt792x_dev *dev,
-				       struct ieee80211_bss_conf *link_conf,
-				       struct mt792x_link_sta *mlink)
+void mt792x_mac_link_bss_remove(struct mt792x_dev *dev,
+				struct mt792x_bss_conf *mconf,
+				struct mt792x_link_sta *mlink)
 {
-	struct mt792x_bss_conf *mconf = mt792x_link_conf_to_mconf(link_conf);
+	struct ieee80211_vif *vif = container_of((void *)mconf->vif,
+						 struct ieee80211_vif, drv_priv);
+	struct ieee80211_bss_conf *link_conf;
 	int idx = mlink->wcid.idx;
 
-	mt792x_mutex_acquire(dev);
+	link_conf = mt792x_vif_to_bss_conf(vif, mconf->link_id);
+
 	mt76_connac_free_pending_tx_skbs(&dev->pm, &mlink->wcid);
 	mt76_connac_mcu_uni_add_dev(&dev->mphy, link_conf, &mlink->wcid, false);
 
@@ -128,7 +131,6 @@ static void mt792x_mac_link_bss_remove(struct mt792x_dev *dev,
 
 	dev->mt76.vif_mask &= ~BIT_ULL(mconf->mt76.idx);
 	mconf->vif->phy->omac_mask &= ~BIT_ULL(mconf->mt76.omac_idx);
-	mt792x_mutex_release(dev);
 
 	spin_lock_bh(&dev->mt76.sta_poll_lock);
 	if (!list_empty(&mlink->wcid.poll_list))
@@ -137,14 +139,21 @@ static void mt792x_mac_link_bss_remove(struct mt792x_dev *dev,
 
 	mt76_wcid_cleanup(&dev->mt76, &mlink->wcid);
 }
+EXPORT_SYMBOL_GPL(mt792x_mac_link_bss_remove);
 
 void mt792x_remove_interface(struct ieee80211_hw *hw,
 			     struct ieee80211_vif *vif)
 {
 	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 	struct mt792x_dev *dev = mt792x_hw_dev(hw);
+	struct mt792x_bss_conf *mconf;
 
-	mt792x_mac_link_bss_remove(dev, &vif->bss_conf, &mvif->sta.deflink);
+	mt792x_mutex_acquire(dev);
+
+	mconf = mt792x_link_conf_to_mconf(&vif->bss_conf);
+	mt792x_mac_link_bss_remove(dev, mconf, &mvif->sta.deflink);
+
+	mt792x_mutex_release(dev);
 }
 EXPORT_SYMBOL_GPL(mt792x_remove_interface);
 

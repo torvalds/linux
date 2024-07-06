@@ -112,6 +112,7 @@ struct mt792x_bss_conf {
 	struct mt792x_vif *vif;
 	struct ewma_rssi rssi;
 	struct ieee80211_tx_queue_params queue_params[IEEE80211_NUM_ACS];
+	unsigned int link_id;
 };
 
 struct mt792x_vif {
@@ -122,6 +123,7 @@ struct mt792x_vif {
 	struct mt792x_sta *wep_sta;
 
 	struct mt792x_phy *phy;
+	u16 valid_links;
 };
 
 struct mt792x_phy {
@@ -398,6 +400,9 @@ mt792x_get_mac80211_ops(struct device *dev,
 int mt792x_init_wcid(struct mt792x_dev *dev);
 int mt792x_mcu_drv_pmctrl(struct mt792x_dev *dev);
 int mt792x_mcu_fw_pmctrl(struct mt792x_dev *dev);
+void mt792x_mac_link_bss_remove(struct mt792x_dev *dev,
+				struct mt792x_bss_conf *mconf,
+				struct mt792x_link_sta *mlink);
 
 static inline char *mt792x_ram_name(struct mt792x_dev *dev)
 {
