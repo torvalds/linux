@@ -2385,6 +2385,7 @@ mt7925_mcu_bss_basic_tlv(struct sk_buff *skb,
 	basic_req->bcn_interval = cpu_to_le16(link_conf->beacon_int);
 	basic_req->dtim_period = link_conf->dtim_period;
 	basic_req->bmc_tx_wlan_idx = cpu_to_le16(wlan_idx);
+	basic_req->link_idx = mconf->mt76.idx;
 
 	if (link_sta) {
 		struct mt792x_sta *msta;
