@@ -88,7 +88,7 @@
  * Block buffer				yes
  * Block process call transaction	yes
  * I2C block read transaction		yes (doesn't use the block buffer)
- * Slave mode				no
+ * Target mode				no
  * SMBus Host Notify			yes
  * Interrupt processing			yes
  *
@@ -1277,10 +1277,10 @@ static void register_dell_lis3lv02d_i2c_device(struct i801_priv *priv)
 	i2c_new_client_device(&priv->adapter, &info);
 }
 
-/* Register optional slaves */
-static void i801_probe_optional_slaves(struct i801_priv *priv)
+/* Register optional targets */
+static void i801_probe_optional_targets(struct i801_priv *priv)
 {
-	/* Only register slaves on main SMBus channel */
+	/* Only register targets on main SMBus channel */
 	if (priv->features & FEATURE_IDF)
 		return;
 
@@ -1307,7 +1307,7 @@ static void i801_probe_optional_slaves(struct i801_priv *priv)
 }
 #else
 static void __init input_apanel_init(void) {}
-static void i801_probe_optional_slaves(struct i801_priv *priv) {}
+static void i801_probe_optional_targets(struct i801_priv *priv) {}
 #endif	/* CONFIG_X86 && CONFIG_DMI */
 
 #ifdef CONFIG_I2C_I801_MUX
@@ -1777,7 +1777,7 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	/* We ignore errors - multiplexing is optional */
 	i801_add_mux(priv);
-	i801_probe_optional_slaves(priv);
+	i801_probe_optional_targets(priv);
 
 	pci_set_drvdata(dev, priv);
 
