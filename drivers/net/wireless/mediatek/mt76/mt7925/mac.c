@@ -839,27 +839,53 @@ mt7925_mac_write_txwi(struct mt76_dev *dev, __le32 *txwi,
 }
 EXPORT_SYMBOL_GPL(mt7925_mac_write_txwi);
 
-static void mt7925_tx_check_aggr(struct ieee80211_sta *sta, __le32 *txwi)
+static void mt7925_tx_check_aggr(struct ieee80211_sta *sta, struct sk_buff *skb,
+				 struct mt76_wcid *wcid)
 {
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_link_sta *link_sta;
+	struct mt792x_link_sta *mlink;
 	struct mt792x_sta *msta;
+	bool is_8023;
 	u16 fc, tid;
-	u32 val;
 
-	if (!sta || !(sta->deflink.ht_cap.ht_supported || sta->deflink.he_cap.has_he))
+	link_sta = rcu_dereference(sta->link[wcid->link_id]);
+	if (!link_sta)
 		return;
 
-	tid = le32_get_bits(txwi[1], MT_TXD1_TID);
-	if (tid >= 6) /* skip VO queue */
+	if (!sta || !(link_sta->ht_cap.ht_supported || link_sta->he_cap.has_he))
 		return;
 
-	val = le32_to_cpu(txwi[2]);
-	fc = FIELD_GET(MT_TXD2_FRAME_TYPE, val) << 2 |
-	     FIELD_GET(MT_TXD2_SUB_TYPE, val) << 4;
+	tid = skb->priority & IEEE80211_QOS_CTL_TID_MASK;
+	is_8023 = info->flags & IEEE80211_TX_CTL_HW_80211_ENCAP;
+
+	if (is_8023) {
+		fc = IEEE80211_FTYPE_DATA |
+		     (sta->wme ? IEEE80211_STYPE_QOS_DATA :
+		      IEEE80211_STYPE_DATA);
+	} else {
+		/* No need to get precise TID for Action/Management Frame,
+		 * since it will not meet the following Frame Control
+		 * condition anyway.
+		 */
+
+		struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+
+		fc = le16_to_cpu(hdr->frame_control) &
+		     (IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE);
+	}
+
 	if (unlikely(fc != (IEEE80211_FTYPE_DATA | IEEE80211_STYPE_QOS_DATA)))
 		return;
 
 	msta = (struct mt792x_sta *)sta->drv_priv;
-	if (!test_and_set_bit(tid, &msta->deflink.wcid.ampdu_state))
+
+	if (sta->mlo && msta->deflink_id != IEEE80211_LINK_UNSPECIFIED)
+		mlink = rcu_dereference(msta->link[msta->deflink_id]);
+	else
+		mlink = &msta->deflink;
+
+	if (!test_and_set_bit(tid, &mlink->wcid.ampdu_state))
 		ieee80211_start_tx_ba_session(sta, tid, 0);
 }
 
@@ -1039,7 +1065,7 @@ out:
 }
 
 void mt7925_txwi_free(struct mt792x_dev *dev, struct mt76_txwi_cache *t,
-		      struct ieee80211_sta *sta, bool clear_status,
+		      struct ieee80211_sta *sta, struct mt76_wcid *wcid,
 		      struct list_head *free_list)
 {
 	struct mt76_dev *mdev = &dev->mt76;
@@ -1052,10 +1078,8 @@ void mt7925_txwi_free(struct mt792x_dev *dev, struct mt76_txwi_cache *t,
 
 	txwi = (__le32 *)mt76_get_txwi_ptr(mdev, t);
 	if (sta) {
-		struct mt76_wcid *wcid = (struct mt76_wcid *)sta->drv_priv;
-
 		if (likely(t->skb->protocol != cpu_to_be16(ETH_P_PAE)))
-			mt7925_tx_check_aggr(sta, txwi);
+			mt7925_tx_check_aggr(sta, t->skb, wcid);
 
 		wcid_idx = wcid->idx;
 	} else {
@@ -1140,7 +1164,7 @@ mt7925_mac_tx_free(struct mt792x_dev *dev, void *data, int len)
 			if (!txwi)
 				continue;
 
-			mt7925_txwi_free(dev, txwi, sta, 0, &free_list);
+			mt7925_txwi_free(dev, txwi, sta, wcid, &free_list);
 		}
 	}
 
@@ -1426,7 +1450,7 @@ void mt7925_usb_sdio_tx_complete_skb(struct mt76_dev *mdev,
 	sta = wcid_to_sta(wcid);
 
 	if (sta && likely(e->skb->protocol != cpu_to_be16(ETH_P_PAE)))
-		mt7925_tx_check_aggr(sta, txwi);
+		mt76_connac2_tx_check_aggr(sta, txwi);
 
 	skb_pull(e->skb, headroom);
 	mt76_tx_complete_skb(mdev, e->wcid, e->skb);

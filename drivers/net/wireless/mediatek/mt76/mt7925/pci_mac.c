@@ -60,7 +60,7 @@ void mt7925_tx_token_put(struct mt792x_dev *dev)
 
 	spin_lock_bh(&dev->mt76.token_lock);
 	idr_for_each_entry(&dev->mt76.token, txwi, id) {
-		mt7925_txwi_free(dev, txwi, NULL, false, NULL);
+		mt7925_txwi_free(dev, txwi, NULL, NULL, NULL);
 		dev->mt76.token_count--;
 	}
 	spin_unlock_bh(&dev->mt76.token_lock);
