@@ -366,7 +366,10 @@ struct bss_mld_tlv {
 	u8 mac_addr[ETH_ALEN];
 	u8 remap_idx;
 	u8 link_id;
-	u8 __rsv[2];
+	u8 eml_enable;
+	u8 max_link_num;
+	u8 hybrid_mode;
+	u8 __rsv[3];
 } __packed;
 
 struct sta_rec_ba_uni {
