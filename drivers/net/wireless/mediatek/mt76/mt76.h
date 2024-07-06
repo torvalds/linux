@@ -368,6 +368,8 @@ struct mt76_wcid {
 	struct mt76_sta_stats stats;
 
 	struct list_head poll_list;
+
+	struct mt76_wcid *def_wcid;
 };
 
 struct mt76_txq {
@@ -1257,6 +1259,9 @@ wcid_to_sta(struct mt76_wcid *wcid)
 
 	if (!wcid || !wcid->sta)
 		return NULL;
+
+	if (wcid->def_wcid)
+		ptr = wcid->def_wcid;
 
 	return container_of(ptr, struct ieee80211_sta, drv_priv);
 }
