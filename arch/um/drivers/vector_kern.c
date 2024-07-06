@@ -966,7 +966,7 @@ static int vector_mmsg_rx(struct vector_private *vp, int budget)
 		budget = qi->max_depth;
 
 	packet_count = uml_vector_recvmmsg(
-		vp->fds->rx_fd, qi->mmsg_vector, qi->max_depth, 0);
+		vp->fds->rx_fd, qi->mmsg_vector, budget, 0);
 
 	if (packet_count < 0)
 		vp->in_error = true;
@@ -1180,7 +1180,7 @@ static int vector_poll(struct napi_struct *napi, int budget)
 
 	if (tx_enqueued || err > 0)
 		napi_schedule(napi);
-	if (work_done < budget)
+	if (work_done <= budget)
 		napi_complete_done(napi, work_done);
 	return work_done;
 }
