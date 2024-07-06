@@ -751,6 +751,20 @@ mt7925_mcu_parse_phy_cap(struct mt792x_dev *dev, char *data)
 	dev->has_eht = cap->eht;
 }
 
+static void
+mt7925_mcu_parse_eml_cap(struct mt792x_dev *dev, char *data)
+{
+	struct mt7925_mcu_eml_cap {
+		u8 rsv[4];
+		__le16 eml_cap;
+		u8 rsv2[6];
+	} __packed * cap;
+
+	cap = (struct mt7925_mcu_eml_cap *)data;
+
+	dev->phy.eml_cap = le16_to_cpu(cap->eml_cap);
+}
+
 static int
 mt7925_mcu_get_nic_capability(struct mt792x_dev *dev)
 {
@@ -804,6 +818,12 @@ mt7925_mcu_get_nic_capability(struct mt792x_dev *dev)
 			break;
 		case MT_NIC_CAP_PHY:
 			mt7925_mcu_parse_phy_cap(dev, tlv->data);
+			break;
+		case MT_NIC_CAP_CHIP_CAP:
+			memcpy(&dev->phy.chip_cap, (void *)skb->data, sizeof(u64));
+			break;
+		case MT_NIC_CAP_EML_CAP:
+			mt7925_mcu_parse_eml_cap(dev, tlv->data);
 			break;
 		default:
 			break;

@@ -235,6 +235,7 @@ void mt7925_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 			 struct sk_buff *skb, u32 *info);
 void mt7925_stats_work(struct work_struct *work);
 void mt7925_set_stream_he_eht_caps(struct mt792x_phy *phy);
+int mt7925_init_mlo_caps(struct mt792x_phy *phy);
 int mt7925_init_debugfs(struct mt792x_dev *dev);
 
 int mt7925_mcu_set_beacon_filter(struct mt792x_dev *dev,
