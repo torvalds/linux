@@ -59,13 +59,17 @@ void mt792x_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_vif *vif = info->control.vif;
 	struct mt76_wcid *wcid = &dev->mt76.global_wcid;
+	u8 link_id;
 	int qid;
 
 	if (control->sta) {
+		struct mt792x_link_sta *mlink;
 		struct mt792x_sta *sta;
-
+		link_id = u32_get_bits(info->control.flags,
+				       IEEE80211_TX_CTRL_MLO_LINK);
 		sta = (struct mt792x_sta *)control->sta->drv_priv;
-		wcid = &sta->deflink.wcid;
+		mlink = mt792x_sta_to_link(sta, link_id);
+		wcid = &mlink->wcid;
 	}
 
 	if (vif && !control->sta) {
@@ -73,6 +77,24 @@ void mt792x_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 
 		mvif = (struct mt792x_vif *)vif->drv_priv;
 		wcid = &mvif->sta.deflink.wcid;
+	}
+
+	if (vif && control->sta && ieee80211_vif_is_mld(vif)) {
+		struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+		struct ieee80211_link_sta *link_sta;
+		struct ieee80211_bss_conf *conf;
+
+		link_id = wcid->link_id;
+		rcu_read_lock();
+		conf = rcu_dereference(vif->link_conf[link_id]);
+		memcpy(hdr->addr2, conf->addr, ETH_ALEN);
+
+		link_sta = rcu_dereference(control->sta->link[link_id]);
+		memcpy(hdr->addr1, link_sta->addr, ETH_ALEN);
+
+		if (vif->type == NL80211_IFTYPE_STATION)
+			memcpy(hdr->addr3, conf->bssid, ETH_ALEN);
+		rcu_read_unlock();
 	}
 
 	if (mt76_connac_pm_ref(mphy, &dev->pm)) {
