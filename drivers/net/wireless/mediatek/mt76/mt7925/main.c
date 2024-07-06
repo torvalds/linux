@@ -1801,9 +1801,12 @@ static void mt7925_link_info_changed(struct ieee80211_hw *hw,
 				     struct ieee80211_bss_conf *info,
 				     u64 changed)
 {
-	struct mt76_vif *mvif = (struct mt76_vif *)vif->drv_priv;
+	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 	struct mt792x_phy *phy = mt792x_hw_phy(hw);
 	struct mt792x_dev *dev = mt792x_hw_dev(hw);
+	struct mt792x_bss_conf *mconf;
+
+	mconf = mt792x_vif_to_link(mvif, info->link_id);
 
 	mt792x_mutex_acquire(dev);
 
@@ -1817,16 +1820,16 @@ static void mt7925_link_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changed & BSS_CHANGED_MCAST_RATE)
-		mvif->mcast_rates_idx =
+		mconf->mt76.mcast_rates_idx =
 				mt7925_get_rates_table(hw, vif, false, true);
 
 	if (changed & BSS_CHANGED_BASIC_RATES)
-		mvif->basic_rates_idx =
+		mconf->mt76.basic_rates_idx =
 				mt7925_get_rates_table(hw, vif, false, false);
 
 	if (changed & (BSS_CHANGED_BEACON |
 		       BSS_CHANGED_BEACON_ENABLED)) {
-		mvif->beacon_rates_idx =
+		mconf->mt76.beacon_rates_idx =
 				mt7925_get_rates_table(hw, vif, true, false);
 
 		mt7925_mcu_uni_add_beacon_offload(dev, hw, vif,
