@@ -99,10 +99,6 @@
 #define __INITRODATA	.section	".init.rodata","a",%progbits
 #define __FINITDATA	.previous
 
-#define __MEMINIT        .section	".meminit.text", "ax"
-#define __MEMINITDATA    .section	".meminit.data", "aw"
-#define __MEMINITRODATA  .section	".meminit.rodata", "a"
-
 /* silence warnings when references are OK */
 #define __REF            .section       ".ref.text", "ax"
 #define __REFDATA        .section       ".ref.data", "aw"
