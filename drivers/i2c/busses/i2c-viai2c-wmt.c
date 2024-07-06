@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *  Wondermedia I2C Master Mode Driver
+ *  Wondermedia I2C Controller Driver
  *
  *  Copyright (C) 2012 Tony Prisk <linux@prisktech.co.nz>
  *
@@ -35,8 +35,8 @@ static u32 wmt_i2c_func(struct i2c_adapter *adap)
 }
 
 static const struct i2c_algorithm wmt_i2c_algo = {
-	.master_xfer	= viai2c_xfer,
-	.functionality	= wmt_i2c_func,
+	.xfer = viai2c_xfer,
+	.functionality = wmt_i2c_func,
 };
 
 static int wmt_i2c_reset_hardware(struct viai2c *i2c)
@@ -178,7 +178,7 @@ static struct platform_driver wmt_i2c_driver = {
 
 module_platform_driver(wmt_i2c_driver);
 
-MODULE_DESCRIPTION("Wondermedia I2C master-mode bus adapter");
+MODULE_DESCRIPTION("Wondermedia I2C controller driver");
 MODULE_AUTHOR("Tony Prisk <linux@prisktech.co.nz>");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(of, wmt_i2c_dt_ids);
