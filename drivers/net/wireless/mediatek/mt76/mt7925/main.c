@@ -811,6 +811,7 @@ static int mt7925_mac_link_sta_add(struct mt76_dev *mdev,
 	mlink->wcid.tx_info |= MT_WCID_TX_INFO_SET;
 	mlink->last_txs = jiffies;
 	mlink->wcid.link_id = link_sta->link_id;
+	mlink->wcid.link_valid = !!link_sta->sta->valid_links;
 
 	ret = mt76_connac_pm_wake(&dev->mphy, &dev->pm);
 	if (ret)
@@ -1898,6 +1899,7 @@ mt7925_change_vif_links(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		mconf->link_id = link_id;
 		mconf->vif = mvif;
 		mlink->wcid.link_id = link_id;
+		mlink->wcid.link_valid = !!vif->valid_links;
 	}
 
 	if (hweight16(mvif->valid_links) == 0)
