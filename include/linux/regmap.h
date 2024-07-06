@@ -1607,7 +1607,7 @@ struct regmap_irq_chip {
 
 	unsigned int main_status;
 	unsigned int num_main_status_bits;
-	struct regmap_irq_sub_irq_map *sub_reg_offsets;
+	const struct regmap_irq_sub_irq_map *sub_reg_offsets;
 	int num_main_regs;
 
 	unsigned int status_base;

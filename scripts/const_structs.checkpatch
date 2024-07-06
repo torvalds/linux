@@ -72,6 +72,7 @@ regmap_bus
 regmap_config
 regmap_irq
 regmap_irq_chip
+regmap_irq_sub_irq_map
 regmap_range
 regmap_range_cfg
 regulator_ops
