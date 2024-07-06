@@ -776,3 +776,8 @@ config POLYNOMIAL
 
 config FIRMWARE_TABLE
 	bool
+
+config TEST_LLIST
+    tristate "KUnit tests for lib/llist" if !KUNIT_ALL_TESTS
+    default KUNIT_ALL_TESTS
+    depends on KUNIT
