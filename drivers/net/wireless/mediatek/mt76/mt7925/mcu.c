@@ -961,13 +961,12 @@ mt7925_mcu_sta_key_tlv(struct mt76_wcid *wcid,
 		       struct mt76_connac_sta_key_conf *sta_key_conf,
 		       struct sk_buff *skb,
 		       struct ieee80211_key_conf *key,
-		       enum set_key_cmd cmd)
+		       enum set_key_cmd cmd,
+		       struct mt792x_sta *msta)
 {
-	struct mt792x_link_sta *mlink = container_of(wcid, struct mt792x_link_sta, wcid);
-	struct mt792x_sta *msta = container_of(mlink, struct mt792x_sta, deflink);
-	struct sta_rec_sec_uni *sec;
 	struct mt792x_vif *mvif = msta->vif;
 	struct mt792x_bss_conf *mconf = mt792x_vif_to_link(mvif, wcid->link_id);
+	struct sta_rec_sec_uni *sec;
 	struct ieee80211_sta *sta;
 	struct ieee80211_vif *vif;
 	struct tlv *tlv;
@@ -990,12 +989,16 @@ mt7925_mcu_sta_key_tlv(struct mt76_wcid *wcid,
 		sec->tx_key = 1;
 		sec->key_type = 1;
 		link_sta = mt792x_sta_to_link_sta(vif, sta, wcid->link_id);
-		memcpy(sec->peer_addr, link_sta->addr, ETH_ALEN);
+
+		if (link_sta)
+			memcpy(sec->peer_addr, link_sta->addr, ETH_ALEN);
 	} else {
 		struct ieee80211_bss_conf *link_conf;
 
 		link_conf = mt792x_vif_to_bss_conf(vif, wcid->link_id);
-		memcpy(sec->peer_addr, link_conf->bssid, ETH_ALEN);
+
+		if (link_conf)
+			memcpy(sec->peer_addr, link_conf->bssid, ETH_ALEN);
 	}
 
 	if (cmd == SET_KEY) {
@@ -1040,18 +1043,20 @@ mt7925_mcu_sta_key_tlv(struct mt76_wcid *wcid,
 int mt7925_mcu_add_key(struct mt76_dev *dev, struct ieee80211_vif *vif,
 		       struct mt76_connac_sta_key_conf *sta_key_conf,
 		       struct ieee80211_key_conf *key, int mcu_cmd,
-		       struct mt76_wcid *wcid, enum set_key_cmd cmd)
+		       struct mt76_wcid *wcid, enum set_key_cmd cmd,
+		       struct mt792x_sta *msta)
 {
-	struct mt76_vif *mvif = (struct mt76_vif *)vif->drv_priv;
+	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
+	struct mt792x_bss_conf *mconf = mt792x_vif_to_link(mvif, wcid->link_id);
 	struct sk_buff *skb;
 	int ret;
 
-	skb = __mt76_connac_mcu_alloc_sta_req(dev, mvif, wcid,
+	skb = __mt76_connac_mcu_alloc_sta_req(dev, &mconf->mt76, wcid,
 					      MT7925_STA_UPDATE_MAX_SIZE);
 	if (IS_ERR(skb))
 		return PTR_ERR(skb);
 
-	ret = mt7925_mcu_sta_key_tlv(wcid, sta_key_conf, skb, key, cmd);
+	ret = mt7925_mcu_sta_key_tlv(wcid, sta_key_conf, skb, key, cmd, msta);
 	if (ret)
 		return ret;
 
