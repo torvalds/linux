@@ -200,7 +200,7 @@ static void hix5hd2_read_handle(struct hix5hd2_i2c_priv *priv)
 		/* the last byte don't need send ACK */
 		writel_relaxed(I2C_READ | I2C_NO_ACK, priv->regs + HIX5I2C_COM);
 	} else if (priv->msg_len > 1) {
-		/* if i2c master receive data will send ACK */
+		/* if i2c controller receive data will send ACK */
 		writel_relaxed(I2C_READ, priv->regs + HIX5I2C_COM);
 	} else {
 		hix5hd2_rw_handle_stop(priv);
@@ -384,8 +384,8 @@ static u32 hix5hd2_i2c_func(struct i2c_adapter *adap)
 }
 
 static const struct i2c_algorithm hix5hd2_i2c_algorithm = {
-	.master_xfer		= hix5hd2_i2c_xfer,
-	.functionality		= hix5hd2_i2c_func,
+	.xfer = hix5hd2_i2c_xfer,
+	.functionality = hix5hd2_i2c_func,
 };
 
 static int hix5hd2_i2c_probe(struct platform_device *pdev)
