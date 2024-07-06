@@ -209,23 +209,22 @@ static inline unsigned get_max_io_size(struct bio *bio,
 /**
  * get_max_segment_size() - maximum number of bytes to add as a single segment
  * @lim: Request queue limits.
- * @start_page: See below.
- * @offset: Offset from @start_page where to add a segment.
+ * @paddr: address of the range to add
+ * @max_len: maximum length available to add at @paddr
  *
- * Returns the maximum number of bytes that can be added as a single segment.
+ * Returns the maximum number of bytes of the range starting at @paddr that can
+ * be added to a single segment.
  */
 static inline unsigned get_max_segment_size(const struct queue_limits *lim,
-		struct page *start_page, unsigned long offset)
+		phys_addr_t paddr, unsigned int len)
 {
-	unsigned long mask = lim->seg_boundary_mask;
-
-	offset = mask & (page_to_phys(start_page) + offset);
-
 	/*
 	 * Prevent an overflow if mask = ULONG_MAX and offset = 0 by adding 1
 	 * after having calculated the minimum.
 	 */
-	return min(mask - offset, (unsigned long)lim->max_segment_size - 1) + 1;
+	return min_t(unsigned long, len,
+		min(lim->seg_boundary_mask - (lim->seg_boundary_mask & paddr),
+		    (unsigned long)lim->max_segment_size - 1) + 1);
 }
 
 /**
@@ -258,9 +257,7 @@ static bool bvec_split_segs(const struct queue_limits *lim,
 	unsigned seg_size = 0;
 
 	while (len && *nsegs < max_segs) {
-		seg_size = get_max_segment_size(lim, bv->bv_page,
-						bv->bv_offset + total_len);
-		seg_size = min(seg_size, len);
+		seg_size = get_max_segment_size(lim, bvec_phys(bv) + total_len, len);
 
 		(*nsegs)++;
 		total_len += seg_size;
@@ -494,8 +491,8 @@ static unsigned blk_bvec_map_sg(struct request_queue *q,
 
 	while (nbytes > 0) {
 		unsigned offset = bvec->bv_offset + total;
-		unsigned len = min(get_max_segment_size(&q->limits,
-				   bvec->bv_page, offset), nbytes);
+		unsigned len = get_max_segment_size(&q->limits, bvec_phys(bvec),
+			nbytes);
 		struct page *page = bvec->bv_page;
 
 		/*
