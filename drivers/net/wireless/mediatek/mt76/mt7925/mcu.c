@@ -313,16 +313,14 @@ mt7925_mcu_roc_iter(void *priv, u8 *mac, struct ieee80211_vif *vif)
 	mvif->band_idx = grant->dbdcband;
 }
 
-static void
-mt7925_mcu_uni_roc_event(struct mt792x_dev *dev, struct sk_buff *skb)
+static void mt7925_mcu_roc_handle_grant(struct mt792x_dev *dev,
+					struct tlv *tlv)
 {
 	struct ieee80211_hw *hw = dev->mt76.hw;
 	struct mt7925_roc_grant_tlv *grant;
-	struct mt7925_mcu_rxd *rxd;
 	int duration;
 
-	rxd = (struct mt7925_mcu_rxd *)skb->data;
-	grant = (struct mt7925_roc_grant_tlv *)(rxd->tlv + 4);
+	grant = (struct mt7925_roc_grant_tlv *)tlv;
 
 	/* should never happen */
 	WARN_ON_ONCE((le16_to_cpu(grant->tag) != UNI_EVENT_ROC_GRANT));
@@ -338,6 +336,29 @@ mt7925_mcu_uni_roc_event(struct mt792x_dev *dev, struct sk_buff *skb)
 	duration = le32_to_cpu(grant->max_interval);
 	mod_timer(&dev->phy.roc_timer,
 		  jiffies + msecs_to_jiffies(duration));
+}
+
+static void
+mt7925_mcu_uni_roc_event(struct mt792x_dev *dev, struct sk_buff *skb)
+{
+	struct tlv *tlv;
+	int i = 0;
+
+	skb_pull(skb, sizeof(struct mt7925_mcu_rxd) + 4);
+
+	while (i < skb->len) {
+		tlv = (struct tlv *)(skb->data + i);
+
+		switch (le16_to_cpu(tlv->tag)) {
+		case UNI_EVENT_ROC_GRANT:
+			mt7925_mcu_roc_handle_grant(dev, tlv);
+			break;
+		case UNI_EVENT_ROC_GRANT_SUB_LINK:
+			break;
+		}
+
+		i += le16_to_cpu(tlv->len);
+	}
 }
 
 static void
