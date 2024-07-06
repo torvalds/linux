@@ -10,6 +10,7 @@
 #include <linux/pci.h>
 #include <linux/phylink.h>
 #include <linux/vmalloc.h>
+#include <net/netdev_queues.h>
 #include <net/page_pool/helpers.h>
 
 #include "tn40.h"
@@ -378,6 +379,7 @@ static int tn40_rx_receive(struct tn40_priv *priv, int budget)
 		if (!skb) {
 			u64_stats_update_begin(&priv->syncp);
 			priv->stats.rx_dropped++;
+			priv->alloc_fail++;
 			u64_stats_update_end(&priv->syncp);
 			tn40_recycle_rx_buffer(priv, rxdd);
 			break;
@@ -1580,8 +1582,55 @@ static int tn40_ethtool_get_link_ksettings(struct net_device *ndev,
 }
 
 static const struct ethtool_ops tn40_ethtool_ops = {
-	.get_link		= ethtool_op_get_link,
-	.get_link_ksettings	= tn40_ethtool_get_link_ksettings,
+	.get_link = ethtool_op_get_link,
+	.get_link_ksettings = tn40_ethtool_get_link_ksettings,
+};
+
+static void tn40_get_queue_stats_rx(struct net_device *ndev, int idx,
+				    struct netdev_queue_stats_rx *stats)
+{
+	struct tn40_priv *priv = netdev_priv(ndev);
+	unsigned int start;
+
+	do {
+		start = u64_stats_fetch_begin(&priv->syncp);
+
+		stats->packets = priv->stats.rx_packets;
+		stats->bytes = priv->stats.rx_bytes;
+		stats->alloc_fail = priv->alloc_fail;
+	} while (u64_stats_fetch_retry(&priv->syncp, start));
+}
+
+static void tn40_get_queue_stats_tx(struct net_device *ndev, int idx,
+				    struct netdev_queue_stats_tx *stats)
+{
+	struct tn40_priv *priv = netdev_priv(ndev);
+	unsigned int start;
+
+	do {
+		start = u64_stats_fetch_begin(&priv->syncp);
+
+		stats->packets = priv->stats.tx_packets;
+		stats->bytes = priv->stats.tx_bytes;
+	} while (u64_stats_fetch_retry(&priv->syncp, start));
+}
+
+static void tn40_get_base_stats(struct net_device *ndev,
+				struct netdev_queue_stats_rx *rx,
+				struct netdev_queue_stats_tx *tx)
+{
+	rx->packets = 0;
+	rx->bytes = 0;
+	rx->alloc_fail = 0;
+
+	tx->packets = 0;
+	tx->bytes = 0;
+}
+
+static const struct netdev_stat_ops tn40_stat_ops = {
+	.get_queue_stats_rx = tn40_get_queue_stats_rx,
+	.get_queue_stats_tx = tn40_get_queue_stats_tx,
+	.get_base_stats = tn40_get_base_stats,
 };
 
 static int tn40_priv_init(struct tn40_priv *priv)
@@ -1613,6 +1662,7 @@ static struct net_device *tn40_netdev_alloc(struct pci_dev *pdev)
 		return NULL;
 	ndev->netdev_ops = &tn40_netdev_ops;
 	ndev->ethtool_ops = &tn40_ethtool_ops;
+	ndev->stat_ops = &tn40_stat_ops;
 	ndev->tx_queue_len = TN40_NDEV_TXQ_LEN;
 	ndev->mem_start = pci_resource_start(pdev, 0);
 	ndev->mem_end = pci_resource_end(pdev, 0);

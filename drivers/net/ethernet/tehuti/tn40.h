@@ -123,6 +123,7 @@ struct tn40_priv {
 
 	int stats_flag;
 	struct rtnl_link_stats64 stats;
+	u64 alloc_fail;
 	struct u64_stats_sync syncp;
 
 	u8 txd_size;
