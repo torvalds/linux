@@ -879,7 +879,7 @@ static void ar_sync_buffers_for_cpu(struct ar_context *ctx,
 #if defined(CONFIG_PPC_PMAC) && defined(CONFIG_PPC32)
 static u32 cond_le32_to_cpu(__le32 value, bool has_be_header_quirk)
 {
-	return has_be_header_quirk ? be32_to_cpu(value) : le32_to_cpu(value);
+	return has_be_header_quirk ? (__force __u32)value : le32_to_cpu(value);
 }
 
 static bool has_be_header_quirk(const struct fw_ohci *ohci)
