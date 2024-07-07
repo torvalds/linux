@@ -545,7 +545,7 @@ static void rcar_i2c_irq_send(struct rcar_i2c_priv *priv, u32 msr)
 	u32 irqs_to_clear = MDE;
 
 	/* FIXME: sometimes, unknown interrupt happened. Do nothing */
-	if (!(msr & MDE))
+	if (WARN(!(msr & MDE), "spurious irq"))
 		return;
 
 	if (msr & MAT)
