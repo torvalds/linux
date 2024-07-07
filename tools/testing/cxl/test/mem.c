@@ -1135,27 +1135,28 @@ static bool mock_poison_dev_max_injected(struct cxl_dev_state *cxlds)
 	return (count >= poison_inject_dev_max);
 }
 
-static bool mock_poison_add(struct cxl_dev_state *cxlds, u64 dpa)
+static int mock_poison_add(struct cxl_dev_state *cxlds, u64 dpa)
 {
+	/* Return EBUSY to match the CXL driver handling */
 	if (mock_poison_dev_max_injected(cxlds)) {
 		dev_dbg(cxlds->dev,
 			"Device poison injection limit has been reached: %d\n",
-			MOCK_INJECT_DEV_MAX);
-		return false;
+			poison_inject_dev_max);
+		return -EBUSY;
 	}
 
 	for (int i = 0; i < MOCK_INJECT_TEST_MAX; i++) {
 		if (!mock_poison_list[i].cxlds) {
 			mock_poison_list[i].cxlds = cxlds;
 			mock_poison_list[i].dpa = dpa;
-			return true;
+			return 0;
 		}
 	}
 	dev_dbg(cxlds->dev,
 		"Mock test poison injection limit has been reached: %d\n",
 		MOCK_INJECT_TEST_MAX);
 
-	return false;
+	return -ENXIO;
 }
 
 static bool mock_poison_found(struct cxl_dev_state *cxlds, u64 dpa)
@@ -1179,10 +1180,8 @@ static int mock_inject_poison(struct cxl_dev_state *cxlds,
 		dev_dbg(cxlds->dev, "DPA: 0x%llx already poisoned\n", dpa);
 		return 0;
 	}
-	if (!mock_poison_add(cxlds, dpa))
-		return -ENXIO;
 
-	return 0;
+	return mock_poison_add(cxlds, dpa);
 }
 
 static bool mock_poison_del(struct cxl_dev_state *cxlds, u64 dpa)
