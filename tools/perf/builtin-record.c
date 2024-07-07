@@ -1955,7 +1955,7 @@ static void record__read_lost_samples(struct record *rec)
 				}
 
 				if (count.lost) {
-					memset(&lost.lost, 0, sizeof(lost));
+					memset(&lost, 0, sizeof(lost));
 					lost.lost.header.type = PERF_RECORD_LOST_SAMPLES;
 					__record__save_lost_samples(rec, evsel, &lost.lost,
 								    x, y, count.lost, 0);
@@ -1965,7 +1965,7 @@ static void record__read_lost_samples(struct record *rec)
 
 		lost_count = perf_bpf_filter__lost_count(evsel);
 		if (lost_count) {
-			memset(&lost.lost, 0, sizeof(lost));
+			memset(&lost, 0, sizeof(lost));
 			lost.lost.header.type = PERF_RECORD_LOST_SAMPLES;
 			__record__save_lost_samples(rec, evsel, &lost.lost, 0, 0, lost_count,
 						    PERF_RECORD_MISC_LOST_SAMPLES_BPF);
