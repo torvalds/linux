@@ -128,10 +128,7 @@ static inline bool sym_is_choice(const struct symbol *sym)
 	return sym->name == NULL;
 }
 
-static inline bool sym_is_choice_value(const struct symbol *sym)
-{
-	return sym->flags & SYMBOL_CHOICEVAL ? true : false;
-}
+bool sym_is_choice_value(const struct symbol *sym);
 
 static inline bool sym_has_value(const struct symbol *sym)
 {

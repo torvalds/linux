@@ -1070,7 +1070,7 @@ static gchar **fill_row(struct menu *menu)
 		row[COL_BTNVIS] = GINT_TO_POINTER(FALSE);
 		return row;
 	}
-	if (sym->flags & SYMBOL_CHOICEVAL)
+	if (sym_is_choice_value(sym))
 		row[COL_BTNRAD] = GINT_TO_POINTER(TRUE);
 
 	stype = sym_get_type(sym);

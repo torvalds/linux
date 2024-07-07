@@ -467,11 +467,6 @@ static void _menu_finalize(struct menu *parent, bool inside_choice)
 		sym->dir_dep.expr = expr_alloc_or(sym->dir_dep.expr, parent->dep);
 	}
 	for (menu = parent->list; menu; menu = menu->next) {
-		if (sym && sym_is_choice(sym) &&
-		    menu->sym && !sym_is_choice_value(menu->sym)) {
-			menu->sym->flags |= SYMBOL_CHOICEVAL;
-		}
-
 		/*
 		 * This code serves two purposes:
 		 *

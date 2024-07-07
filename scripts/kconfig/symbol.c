@@ -871,6 +871,11 @@ bool sym_is_changeable(const struct symbol *sym)
 	return !sym_is_choice(sym) && sym->visible > sym->rev_dep.tri;
 }
 
+bool sym_is_choice_value(const struct symbol *sym)
+{
+	return !list_empty(&sym->choice_link);
+}
+
 HASHTABLE_DEFINE(sym_hashtable, SYMBOL_HASHSIZE);
 
 struct symbol *sym_lookup(const char *name, int flags)
@@ -908,6 +913,7 @@ struct symbol *sym_lookup(const char *name, int flags)
 	symbol->type = S_UNKNOWN;
 	symbol->flags = flags;
 	INIT_LIST_HEAD(&symbol->menus);
+	INIT_LIST_HEAD(&symbol->choice_link);
 
 	hash_add(sym_hashtable, &symbol->node, hash);
 
