@@ -156,6 +156,7 @@ struct perf_sched_map {
 	const char		*color_pids_str;
 	struct perf_cpu_map	*color_cpus;
 	const char		*color_cpus_str;
+	const char		*task_name;
 	struct perf_cpu_map	*cpus;
 	const char		*cpus_str;
 };
@@ -177,6 +178,7 @@ struct perf_sched {
 	struct perf_cpu	 max_cpu;
 	u32		 *curr_pid;
 	struct thread	 **curr_thread;
+	struct thread	 **curr_out_thread;
 	char		 next_shortname1;
 	char		 next_shortname2;
 	unsigned int	 replay_repeat;
@@ -1538,23 +1540,75 @@ map__findnew_thread(struct perf_sched *sched, struct machine *machine, pid_t pid
 	return thread;
 }
 
+static void print_sched_map(struct perf_sched *sched, struct perf_cpu this_cpu, int cpus_nr,
+								const char *color, bool sched_out)
+{
+	for (int i = 0; i < cpus_nr; i++) {
+		struct perf_cpu cpu = {
+			.cpu = sched->map.comp ? sched->map.comp_cpus[i].cpu : i,
+		};
+		struct thread *curr_thread = sched->curr_thread[cpu.cpu];
+		struct thread *curr_out_thread = sched->curr_out_thread[cpu.cpu];
+		struct thread_runtime *curr_tr;
+		const char *pid_color = color;
+		const char *cpu_color = color;
+		char symbol = ' ';
+		struct thread *thread_to_check = sched_out ? curr_out_thread : curr_thread;
+
+		if (thread_to_check && thread__has_color(thread_to_check))
+			pid_color = COLOR_PIDS;
+
+		if (sched->map.color_cpus && perf_cpu_map__has(sched->map.color_cpus, cpu))
+			cpu_color = COLOR_CPUS;
+
+		if (cpu.cpu == this_cpu.cpu)
+			symbol = '*';
+
+		color_fprintf(stdout, cpu.cpu != this_cpu.cpu ? color : cpu_color, "%c", symbol);
+
+		thread_to_check = sched_out ? sched->curr_out_thread[cpu.cpu] :
+								sched->curr_thread[cpu.cpu];
+
+		if (thread_to_check) {
+			curr_tr = thread__get_runtime(thread_to_check);
+			if (curr_tr == NULL)
+				return;
+
+			if (sched_out) {
+				if (cpu.cpu == this_cpu.cpu)
+					color_fprintf(stdout, color, "-  ");
+				else {
+					curr_tr = thread__get_runtime(sched->curr_thread[cpu.cpu]);
+					if (curr_tr != NULL)
+						color_fprintf(stdout, pid_color, "%2s ",
+										curr_tr->shortname);
+				}
+			} else
+				color_fprintf(stdout, pid_color, "%2s ", curr_tr->shortname);
+		} else
+			color_fprintf(stdout, color, "   ");
+	}
+}
+
 static int map_switch_event(struct perf_sched *sched, struct evsel *evsel,
 			    struct perf_sample *sample, struct machine *machine)
 {
 	const u32 next_pid = evsel__intval(evsel, sample, "next_pid");
-	struct thread *sched_in;
+	const u32 prev_pid = evsel__intval(evsel, sample, "prev_pid");
+	struct thread *sched_in, *sched_out;
 	struct thread_runtime *tr;
 	int new_shortname;
 	u64 timestamp0, timestamp = sample->time;
 	s64 delta;
-	int i;
 	struct perf_cpu this_cpu = {
 		.cpu = sample->cpu,
 	};
 	int cpus_nr;
+	int proceed;
 	bool new_cpu = false;
 	const char *color = PERF_COLOR_NORMAL;
 	char stimestamp[32];
+	const char *str;
 
 	BUG_ON(this_cpu.cpu >= MAX_CPUS || this_cpu.cpu < 0);
 
@@ -1583,7 +1637,8 @@ static int map_switch_event(struct perf_sched *sched, struct evsel *evsel,
 	}
 
 	sched_in = map__findnew_thread(sched, machine, -1, next_pid);
-	if (sched_in == NULL)
+	sched_out = map__findnew_thread(sched, machine, -1, prev_pid);
+	if (sched_in == NULL || sched_out == NULL)
 		return -1;
 
 	tr = thread__get_runtime(sched_in);
@@ -1593,7 +1648,9 @@ static int map_switch_event(struct perf_sched *sched, struct evsel *evsel,
 	}
 
 	sched->curr_thread[this_cpu.cpu] = thread__get(sched_in);
+	sched->curr_out_thread[this_cpu.cpu] = thread__get(sched_out);
 
+	str = thread__comm_str(sched_in);
 	new_shortname = 0;
 	if (!tr->shortname[0]) {
 		if (!strcmp(thread__comm_str(sched_in), "swapper")) {
@@ -1603,7 +1660,7 @@ static int map_switch_event(struct perf_sched *sched, struct evsel *evsel,
 			 */
 			tr->shortname[0] = '.';
 			tr->shortname[1] = ' ';
-		} else {
+		} else if (!sched->map.task_name || !strcmp(str, sched->map.task_name)) {
 			tr->shortname[0] = sched->next_shortname1;
 			tr->shortname[1] = sched->next_shortname2;
 
@@ -1616,6 +1673,9 @@ static int map_switch_event(struct perf_sched *sched, struct evsel *evsel,
 				else
 					sched->next_shortname2 = '0';
 			}
+		} else {
+			tr->shortname[0] = '-';
+			tr->shortname[1] = ' ';
 		}
 		new_shortname = 1;
 	}
@@ -1623,41 +1683,27 @@ static int map_switch_event(struct perf_sched *sched, struct evsel *evsel,
 	if (sched->map.cpus && !perf_cpu_map__has(sched->map.cpus, this_cpu))
 		goto out;
 
+	proceed = 0;
+	str = thread__comm_str(sched_in);
+	/*
+	 * Check which of sched_in and sched_out matches the passed --task-name
+	 * arguments and call the corresponding print_sched_map.
+	 */
+	if (sched->map.task_name && strcmp(str, sched->map.task_name)) {
+		if (strcmp(thread__comm_str(sched_out), sched->map.task_name))
+			goto out;
+		else
+			goto sched_out;
+
+	} else {
+		str = thread__comm_str(sched_out);
+		if (!(sched->map.task_name && strcmp(str, sched->map.task_name)))
+			proceed = 1;
+	}
+
 	printf("  ");
 
-	for (i = 0; i < cpus_nr; i++) {
-		struct perf_cpu cpu = {
-			.cpu = sched->map.comp ? sched->map.comp_cpus[i].cpu : i,
-		};
-		struct thread *curr_thread = sched->curr_thread[cpu.cpu];
-		struct thread_runtime *curr_tr;
-		const char *pid_color = color;
-		const char *cpu_color = color;
-
-		if (curr_thread && thread__has_color(curr_thread))
-			pid_color = COLOR_PIDS;
-
-		if (sched->map.cpus && !perf_cpu_map__has(sched->map.cpus, cpu))
-			continue;
-
-		if (sched->map.color_cpus && perf_cpu_map__has(sched->map.color_cpus, cpu))
-			cpu_color = COLOR_CPUS;
-
-		if (cpu.cpu != this_cpu.cpu)
-			color_fprintf(stdout, color, " ");
-		else
-			color_fprintf(stdout, cpu_color, "*");
-
-		if (sched->curr_thread[cpu.cpu]) {
-			curr_tr = thread__get_runtime(sched->curr_thread[cpu.cpu]);
-			if (curr_tr == NULL) {
-				thread__put(sched_in);
-				return -1;
-			}
-			color_fprintf(stdout, pid_color, "%2s ", curr_tr->shortname);
-		} else
-			color_fprintf(stdout, color, "   ");
-	}
+	print_sched_map(sched, this_cpu, cpus_nr, color, false);
 
 	timestamp__scnprintf_usec(timestamp, stimestamp, sizeof(stimestamp));
 	color_fprintf(stdout, color, "  %12s secs ", stimestamp);
@@ -1675,9 +1721,32 @@ static int map_switch_event(struct perf_sched *sched, struct evsel *evsel,
 	if (sched->map.comp && new_cpu)
 		color_fprintf(stdout, color, " (CPU %d)", this_cpu);
 
+	if (proceed != 1) {
+		color_fprintf(stdout, color, "\n");
+		goto out;
+	}
+
+sched_out:
+	if (sched->map.task_name) {
+		tr = thread__get_runtime(sched->curr_out_thread[this_cpu.cpu]);
+		if (strcmp(tr->shortname, "") == 0)
+			goto out;
+
+		if (proceed == 1)
+			color_fprintf(stdout, color, "\n");
+
+		printf("  ");
+		print_sched_map(sched, this_cpu, cpus_nr, color, true);
+		timestamp__scnprintf_usec(timestamp, stimestamp, sizeof(stimestamp));
+		color_fprintf(stdout, color, "  %12s secs ", stimestamp);
+	}
+
 	color_fprintf(stdout, color, "\n");
 
 out:
+	if (sched->map.task_name)
+		thread__put(sched_out);
+
 	thread__put(sched_in);
 
 	return 0;
@@ -3310,6 +3379,10 @@ static int perf_sched__map(struct perf_sched *sched)
 	if (!sched->curr_thread)
 		return rc;
 
+	sched->curr_out_thread = calloc(MAX_CPUS, sizeof(*(sched->curr_out_thread)));
+	if (!sched->curr_out_thread)
+		return rc;
+
 	if (setup_cpus_switch_event(sched))
 		goto out_free_curr_thread;
 
@@ -3566,6 +3639,8 @@ int cmd_sched(int argc, const char **argv)
                     "highlight given CPUs in map"),
 	OPT_STRING(0, "cpus", &sched.map.cpus_str, "cpus",
                     "display given CPUs in map"),
+	OPT_STRING(0, "task-name", &sched.map.task_name, "task",
+		"map output only for the given task name"),
 	OPT_PARENT(sched_options)
 	};
 	const struct option timehist_options[] = {
