@@ -137,6 +137,9 @@ OPTIONS for 'perf sched map'
 	task name(s).
 	('-' indicates other tasks while '.' is idle).
 
+--fuzzy-name::
+	Given task name(s) can be partially matched (fuzzy matching).
+
 OPTIONS for 'perf sched timehist'
 ---------------------------------
 -k::
