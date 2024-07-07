@@ -2280,6 +2280,16 @@ config TEST_DIV64
 
 	  If unsure, say N.
 
+config TEST_MULDIV64
+	tristate "mul_u64_u64_div_u64() test"
+	depends on DEBUG_KERNEL || m
+	help
+	  Enable this to turn on 'mul_u64_u64_div_u64()' function test.
+	  This test is executed only once during system boot (so affects
+	  only boot time), or at module load time.
+
+	  If unsure, say N.
+
 config TEST_IOV_ITER
 	tristate "Test iov_iter operation" if !KUNIT_ALL_TESTS
 	depends on KUNIT

@@ -212,11 +212,18 @@ u64 mul_u64_u64_div_u64(u64 a, u64 b, u64 c)
 
 #endif
 
+	/* make sure c is not zero, trigger exception otherwise */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdiv-by-zero"
+	if (unlikely(c == 0))
+		return 1/0;
+#pragma GCC diagnostic pop
+
 	int shift = __builtin_ctzll(c);
 
 	/* try reducing the fraction in case the dividend becomes <= 64 bits */
 	if ((n_hi >> shift) == 0) {
-		u64 n = (n_lo >> shift) | (n_hi << (64 - shift));
+		u64 n = shift ? (n_lo >> shift) | (n_hi << (64 - shift)) : n_lo;
 
 		return div64_u64(n, c >> shift);
 		/*
