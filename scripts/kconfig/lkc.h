@@ -75,7 +75,7 @@ struct gstr str_new(void);
 void str_free(struct gstr *gs);
 void str_append(struct gstr *gs, const char *s);
 void str_printf(struct gstr *gs, const char *fmt, ...);
-char *str_get(struct gstr *gs);
+char *str_get(const struct gstr *gs);
 
 /* menu.c */
 struct menu *menu_next(struct menu *menu, struct menu *root);
@@ -84,13 +84,14 @@ struct menu *menu_next(struct menu *menu, struct menu *root);
 #define menu_for_each_entry(menu) \
 	menu_for_each_sub_entry(menu, &rootmenu)
 void _menu_init(void);
-void menu_warn(struct menu *menu, const char *fmt, ...);
+void menu_warn(const struct menu *menu, const char *fmt, ...);
 struct menu *menu_add_menu(void);
 void menu_end_menu(void);
 void menu_add_entry(struct symbol *sym);
 void menu_add_dep(struct expr *dep);
 void menu_add_visibility(struct expr *dep);
-struct property *menu_add_prompt(enum prop_type type, char *prompt, struct expr *dep);
+struct property *menu_add_prompt(enum prop_type type, const char *prompt,
+				 struct expr *dep);
 void menu_add_expr(enum prop_type type, struct expr *expr, struct expr *dep);
 void menu_add_symbol(enum prop_type type, struct symbol *sym, struct expr *dep);
 void menu_finalize(void);
@@ -100,8 +101,8 @@ extern struct menu rootmenu;
 
 bool menu_is_empty(struct menu *menu);
 bool menu_is_visible(struct menu *menu);
-bool menu_has_prompt(struct menu *menu);
-const char *menu_get_prompt(struct menu *menu);
+bool menu_has_prompt(const struct menu *menu);
+const char *menu_get_prompt(const struct menu *menu);
 struct menu *menu_get_parent_menu(struct menu *menu);
 int get_jump_key_char(void);
 struct gstr get_relations_str(struct symbol **sym_arr, struct list_head *head);
@@ -114,25 +115,25 @@ struct symbol *sym_calc_choice(struct menu *choice);
 struct property *sym_get_range_prop(struct symbol *sym);
 const char *sym_get_string_default(struct symbol *sym);
 struct symbol *sym_check_deps(struct symbol *sym);
-struct symbol *prop_get_symbol(struct property *prop);
+struct symbol *prop_get_symbol(const struct property *prop);
 
-static inline tristate sym_get_tristate_value(struct symbol *sym)
+static inline tristate sym_get_tristate_value(const struct symbol *sym)
 {
 	return sym->curr.tri;
 }
 
-static inline bool sym_is_choice(struct symbol *sym)
+static inline bool sym_is_choice(const struct symbol *sym)
 {
 	/* A choice is a symbol with no name */
 	return sym->name == NULL;
 }
 
-static inline bool sym_is_choice_value(struct symbol *sym)
+static inline bool sym_is_choice_value(const struct symbol *sym)
 {
 	return sym->flags & SYMBOL_CHOICEVAL ? true : false;
 }
 
-static inline bool sym_has_value(struct symbol *sym)
+static inline bool sym_has_value(const struct symbol *sym)
 {
 	return sym->flags & SYMBOL_DEF_USER ? true : false;
 }

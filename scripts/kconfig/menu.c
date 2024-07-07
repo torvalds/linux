@@ -38,7 +38,7 @@ struct menu *menu_next(struct menu *menu, struct menu *root)
 	return menu->next;
 }
 
-void menu_warn(struct menu *menu, const char *fmt, ...)
+void menu_warn(const struct menu *menu, const char *fmt, ...)
 {
 	va_list ap;
 	va_start(ap, fmt);
@@ -48,7 +48,7 @@ void menu_warn(struct menu *menu, const char *fmt, ...)
 	va_end(ap);
 }
 
-static void prop_warn(struct property *prop, const char *fmt, ...)
+static void prop_warn(const struct property *prop, const char *fmt, ...)
 {
 	va_list ap;
 	va_start(ap, fmt);
@@ -175,7 +175,7 @@ static struct property *menu_add_prop(enum prop_type type, struct expr *expr,
 	return prop;
 }
 
-struct property *menu_add_prompt(enum prop_type type, char *prompt,
+struct property *menu_add_prompt(enum prop_type type, const char *prompt,
 				 struct expr *dep)
 {
 	struct property *prop = menu_add_prop(type, NULL, dep);
@@ -527,7 +527,7 @@ void menu_finalize(void)
 	_menu_finalize(&rootmenu, false);
 }
 
-bool menu_has_prompt(struct menu *menu)
+bool menu_has_prompt(const struct menu *menu)
 {
 	if (!menu->prompt)
 		return false;
@@ -573,7 +573,7 @@ bool menu_is_visible(struct menu *menu)
 	return visible != no;
 }
 
-const char *menu_get_prompt(struct menu *menu)
+const char *menu_get_prompt(const struct menu *menu)
 {
 	if (menu->prompt)
 		return menu->prompt->text;
@@ -594,13 +594,14 @@ struct menu *menu_get_parent_menu(struct menu *menu)
 	return menu;
 }
 
-static void get_def_str(struct gstr *r, struct menu *menu)
+static void get_def_str(struct gstr *r, const struct menu *menu)
 {
 	str_printf(r, "Defined at %s:%d\n",
 		   menu->filename, menu->lineno);
 }
 
-static void get_dep_str(struct gstr *r, struct expr *expr, const char *prefix)
+static void get_dep_str(struct gstr *r, const struct expr *expr,
+			const char *prefix)
 {
 	if (!expr_is_yes(expr)) {
 		str_append(r, prefix);

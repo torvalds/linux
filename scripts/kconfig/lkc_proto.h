@@ -25,21 +25,23 @@ struct symbol ** sym_re_search(const char *pattern);
 const char * sym_type_name(enum symbol_type type);
 void sym_calc_value(struct symbol *sym);
 bool sym_dep_errors(void);
-enum symbol_type sym_get_type(struct symbol *sym);
-bool sym_tristate_within_range(struct symbol *sym,tristate tri);
+enum symbol_type sym_get_type(const struct symbol *sym);
+bool sym_tristate_within_range(const struct symbol *sym, tristate tri);
 bool sym_set_tristate_value(struct symbol *sym,tristate tri);
 void choice_set_value(struct menu *choice, struct symbol *sym);
 tristate sym_toggle_tristate_value(struct symbol *sym);
 bool sym_string_valid(struct symbol *sym, const char *newval);
 bool sym_string_within_range(struct symbol *sym, const char *str);
 bool sym_set_string_value(struct symbol *sym, const char *newval);
-bool sym_is_changeable(struct symbol *sym);
-struct menu *sym_get_choice_menu(struct symbol *sym);
+bool sym_is_changeable(const struct symbol *sym);
+struct menu *sym_get_choice_menu(const struct symbol *sym);
 const char * sym_get_string_value(struct symbol *sym);
 
 const char * prop_get_type_name(enum prop_type type);
 
 /* expr.c */
-void expr_print(struct expr *e, void (*fn)(void *, struct symbol *, const char *), void *data, int prevtoken);
+void expr_print(const struct expr *e,
+		void (*fn)(void *, struct symbol *, const char *),
+		void *data, int prevtoken);
 
 #endif /* LKC_PROTO_H */

@@ -489,7 +489,7 @@ assign_val:
  *
  * Return: -1 if an error is found, 0 otherwise.
  */
-static int choice_check_sanity(struct menu *menu)
+static int choice_check_sanity(const struct menu *menu)
 {
 	struct property *prop;
 	int ret = 0;
@@ -644,7 +644,7 @@ static void print_quoted_string(FILE *out, const char *str)
 	putc('"', out);
 }
 
-static void print_symbol(FILE *out, struct menu *menu)
+static void print_symbol(FILE *out, const struct menu *menu)
 {
 	struct symbol *sym = menu->sym;
 	struct property *prop;

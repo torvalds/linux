@@ -1096,7 +1096,7 @@ static int expr_compare_type(enum expr_type t1, enum expr_type t2)
 	return 0;
 }
 
-void expr_print(struct expr *e,
+void expr_print(const struct expr *e,
 		void (*fn)(void *, struct symbol *, const char *),
 		void *data, int prevtoken)
 {
@@ -1221,7 +1221,7 @@ static void expr_print_gstr_helper(void *data, struct symbol *sym, const char *s
 		str_printf(gs, " [=%s]", sym_str);
 }
 
-void expr_gstr_print(struct expr *e, struct gstr *gs)
+void expr_gstr_print(const struct expr *e, struct gstr *gs)
 {
 	expr_print(e, expr_print_gstr_helper, gs, E_NONE);
 }
