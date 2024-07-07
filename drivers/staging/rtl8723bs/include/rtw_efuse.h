@@ -7,19 +7,6 @@
 #ifndef __RTW_EFUSE_H__
 #define __RTW_EFUSE_H__
 
-
-#define	EFUSE_ERROE_HANDLE		1
-
-#define	PG_STATE_HEADER			0x01
-#define	PG_STATE_WORD_0		0x02
-#define	PG_STATE_WORD_1		0x04
-#define	PG_STATE_WORD_2		0x08
-#define	PG_STATE_WORD_3		0x10
-#define	PG_STATE_DATA			0x20
-
-#define	PG_SWBYTE_H			0x01
-#define	PG_SWBYTE_L			0x02
-
 #define	PGPKT_DATA_SIZE		8
 
 #define	EFUSE_WIFI				0
