@@ -132,7 +132,6 @@ static int sunxi_ccu_probe(struct sunxi_ccu *ccu, struct device *dev,
 
 	for (i = 0; i < desc->hw_clks->num ; i++) {
 		struct clk_hw *hw = desc->hw_clks->hws[i];
-		struct ccu_common *common = hw_to_ccu_common(hw);
 		const char *name;
 
 		if (!hw)
@@ -147,14 +146,21 @@ static int sunxi_ccu_probe(struct sunxi_ccu *ccu, struct device *dev,
 			pr_err("Couldn't register clock %d - %s\n", i, name);
 			goto err_clk_unreg;
 		}
+	}
 
-		if (common->max_rate)
-			clk_hw_set_rate_range(hw, common->min_rate,
-					      common->max_rate);
+	for (i = 0; i < desc->num_ccu_clks; i++) {
+		struct ccu_common *cclk = desc->ccu_clks[i];
+
+		if (!cclk)
+			continue;
+
+		if (cclk->max_rate)
+			clk_hw_set_rate_range(&cclk->hw, cclk->min_rate,
+					      cclk->max_rate);
 		else
-			WARN(common->min_rate,
+			WARN(cclk->min_rate,
 			     "No max_rate, ignoring min_rate of clock %d - %s\n",
-			     i, name);
+			     i, clk_hw_get_name(&cclk->hw));
 	}
 
 	ret = of_clk_add_hw_provider(node, of_clk_hw_onecell_get,
