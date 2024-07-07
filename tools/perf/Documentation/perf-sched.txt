@@ -131,9 +131,10 @@ OPTIONS for 'perf sched map'
 	Highlight the given pids.
 
 --task-name <task>::
-	Map output only for the given task name. The sched-out
+	Map output only for the given task name(s). Separate the
+	task names with a comma (without whitespace). The sched-out
 	time is printed and is represented by '*-' for the given
-	task name
+	task name(s).
 	('-' indicates other tasks while '.' is idle).
 
 OPTIONS for 'perf sched timehist'

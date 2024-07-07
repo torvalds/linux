@@ -157,6 +157,7 @@ struct perf_sched_map {
 	struct perf_cpu_map	*color_cpus;
 	const char		*color_cpus_str;
 	const char		*task_name;
+	struct strlist		*task_names;
 	struct perf_cpu_map	*cpus;
 	const char		*cpus_str;
 };
@@ -1540,6 +1541,18 @@ map__findnew_thread(struct perf_sched *sched, struct machine *machine, pid_t pid
 	return thread;
 }
 
+static bool sched_match_task(const char *comm_str, struct strlist *task_names)
+{
+	struct str_node *node;
+
+	strlist__for_each_entry(node, task_names) {
+		if (strcmp(comm_str, node->s) == 0)
+			return true;
+	}
+
+	return false;
+}
+
 static void print_sched_map(struct perf_sched *sched, struct perf_cpu this_cpu, int cpus_nr,
 								const char *color, bool sched_out)
 {
@@ -1609,6 +1622,7 @@ static int map_switch_event(struct perf_sched *sched, struct evsel *evsel,
 	const char *color = PERF_COLOR_NORMAL;
 	char stimestamp[32];
 	const char *str;
+	struct strlist *task_names = sched->map.task_names;
 
 	BUG_ON(this_cpu.cpu >= MAX_CPUS || this_cpu.cpu < 0);
 
@@ -1660,7 +1674,7 @@ static int map_switch_event(struct perf_sched *sched, struct evsel *evsel,
 			 */
 			tr->shortname[0] = '.';
 			tr->shortname[1] = ' ';
-		} else if (!sched->map.task_name || !strcmp(str, sched->map.task_name)) {
+		} else if (!sched->map.task_name || sched_match_task(str, task_names)) {
 			tr->shortname[0] = sched->next_shortname1;
 			tr->shortname[1] = sched->next_shortname2;
 
@@ -1689,15 +1703,15 @@ static int map_switch_event(struct perf_sched *sched, struct evsel *evsel,
 	 * Check which of sched_in and sched_out matches the passed --task-name
 	 * arguments and call the corresponding print_sched_map.
 	 */
-	if (sched->map.task_name && strcmp(str, sched->map.task_name)) {
-		if (strcmp(thread__comm_str(sched_out), sched->map.task_name))
+	if (sched->map.task_name && !sched_match_task(str, task_names)) {
+		if (!sched_match_task(thread__comm_str(sched_out), task_names))
 			goto out;
 		else
 			goto sched_out;
 
 	} else {
 		str = thread__comm_str(sched_out);
-		if (!(sched->map.task_name && strcmp(str, sched->map.task_name)))
+		if (!(sched->map.task_name && !sched_match_task(str, task_names)))
 			proceed = 1;
 	}
 
@@ -3640,7 +3654,7 @@ int cmd_sched(int argc, const char **argv)
 	OPT_STRING(0, "cpus", &sched.map.cpus_str, "cpus",
                     "display given CPUs in map"),
 	OPT_STRING(0, "task-name", &sched.map.task_name, "task",
-		"map output only for the given task name"),
+		"map output only for the given task name(s)."),
 	OPT_PARENT(sched_options)
 	};
 	const struct option timehist_options[] = {
@@ -3739,6 +3753,14 @@ int cmd_sched(int argc, const char **argv)
 			argc = parse_options(argc, argv, map_options, map_usage, 0);
 			if (argc)
 				usage_with_options(map_usage, map_options);
+
+			if (sched.map.task_name) {
+				sched.map.task_names = strlist__new(sched.map.task_name, NULL);
+				if (sched.map.task_names == NULL) {
+					fprintf(stderr, "Failed to parse task names\n");
+					return -1;
+				}
+			}
 		}
 		sched.tp_handler = &map_ops;
 		setup_sorting(&sched, latency_options, latency_usage);
