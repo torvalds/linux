@@ -1108,5 +1108,6 @@
 
 /*--------------------------Define Parameters-------------------------------*/
 
+#define rDPDT_control				0x92c
 
 #endif	/* __INC_HAL8192SPHYREG_H */
