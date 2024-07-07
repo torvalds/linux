@@ -356,7 +356,7 @@ void pci_bus_add_device(struct pci_dev *dev)
 
 	pci_dev_assign_added(dev, true);
 
-	if (pci_is_bridge(dev)) {
+	if (IS_ENABLED(CONFIG_OF) && pci_is_bridge(dev)) {
 		retval = of_platform_populate(dev->dev.of_node, NULL, NULL,
 					      &dev->dev);
 		if (retval)
