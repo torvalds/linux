@@ -637,7 +637,7 @@ struct expr *expr_eliminate_dups(struct expr *e)
 		return e;
 
 	oldcount = trans_count;
-	while (1) {
+	do {
 		trans_count = 0;
 		switch (e->type) {
 		case E_OR: case E_AND:
@@ -645,11 +645,8 @@ struct expr *expr_eliminate_dups(struct expr *e)
 		default:
 			;
 		}
-		if (!trans_count)
-			/* No simplifications done in this pass. We're done */
-			break;
 		e = expr_eliminate_yn(e);
-	}
+	} while (trans_count); /* repeat until we get no more simplifications */
 	trans_count = oldcount;
 	return e;
 }
