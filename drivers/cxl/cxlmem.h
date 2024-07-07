@@ -161,7 +161,7 @@ struct cxl_mbox_cmd {
 	C(FWRESET, -ENXIO, "FW failed to activate, needs cold reset"),		\
 	C(HANDLE, -ENXIO, "one or more Event Record Handles were invalid"),     \
 	C(PADDR, -EFAULT, "physical address specified is invalid"),		\
-	C(POISONLMT, -ENXIO, "poison injection limit has been reached"),        \
+	C(POISONLMT, -EBUSY, "poison injection limit has been reached"),        \
 	C(MEDIAFAILURE, -ENXIO, "permanent issue with the media"),		\
 	C(ABORT, -ENXIO, "background cmd was aborted by device"),               \
 	C(SECURITY, -ENXIO, "not valid in the current security state"),         \
