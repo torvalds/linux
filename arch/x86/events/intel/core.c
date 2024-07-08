@@ -6943,12 +6943,18 @@ __init int intel_pmu_init(void)
 	case INTEL_EMERALDRAPIDS_X:
 		x86_pmu.flags |= PMU_FL_MEM_LOADS_AUX;
 		x86_pmu.extra_regs = intel_glc_extra_regs;
-		fallthrough;
+		pr_cont("Sapphire Rapids events, ");
+		name = "sapphire_rapids";
+		goto glc_common;
+
 	case INTEL_GRANITERAPIDS_X:
 	case INTEL_GRANITERAPIDS_D:
+		x86_pmu.extra_regs = intel_rwc_extra_regs;
+		pr_cont("Granite Rapids events, ");
+		name = "granite_rapids";
+
+	glc_common:
 		intel_pmu_init_glc(NULL);
-		if (!x86_pmu.extra_regs)
-			x86_pmu.extra_regs = intel_rwc_extra_regs;
 		x86_pmu.pebs_ept = 1;
 		x86_pmu.hw_config = hsw_hw_config;
 		x86_pmu.get_event_constraints = glc_get_event_constraints;
@@ -6959,8 +6965,6 @@ __init int intel_pmu_init(void)
 		td_attr = glc_td_events_attrs;
 		tsx_attr = glc_tsx_events_attrs;
 		intel_pmu_pebs_data_source_skl(true);
-		pr_cont("Sapphire Rapids events, ");
-		name = "sapphire_rapids";
 		break;
 
 	case INTEL_ALDERLAKE:
