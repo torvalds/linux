@@ -5,6 +5,7 @@
 // Copyright (c) 2016 Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
 
 #include <dt-bindings/sound/audio-graph.h>
+#include <linux/cleanup.h>
 #include <linux/clk.h>
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
@@ -135,8 +136,8 @@ EXPORT_SYMBOL_GPL(simple_util_parse_daifmt);
 int simple_util_parse_tdm_width_map(struct device *dev, struct device_node *np,
 				    struct simple_util_dai *dai)
 {
-	u32 *array_values, *p;
 	int n, i, ret;
+	u32 *p;
 
 	if (!of_property_read_bool(np, "dai-tdm-slot-width-map"))
 		return 0;
@@ -151,14 +152,15 @@ int simple_util_parse_tdm_width_map(struct device *dev, struct device_node *np,
 	if (!dai->tdm_width_map)
 		return -ENOMEM;
 
-	array_values = kcalloc(n, sizeof(*array_values), GFP_KERNEL);
+	u32 *array_values __free(kfree) = kcalloc(n, sizeof(*array_values),
+						  GFP_KERNEL);
 	if (!array_values)
 		return -ENOMEM;
 
 	ret = of_property_read_u32_array(np, "dai-tdm-slot-width-map", array_values, n);
 	if (ret < 0) {
 		dev_err(dev, "Could not read dai-tdm-slot-width-map: %d\n", ret);
-		goto out;
+		return ret;
 	}
 
 	p = array_values;
@@ -169,11 +171,8 @@ int simple_util_parse_tdm_width_map(struct device *dev, struct device_node *np,
 	}
 
 	dai->n_tdm_widths = i;
-	ret = 0;
-out:
-	kfree(array_values);
 
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(simple_util_parse_tdm_width_map);
 
