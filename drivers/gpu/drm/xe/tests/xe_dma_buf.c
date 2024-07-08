@@ -8,7 +8,6 @@
 #include <kunit/test.h>
 #include <kunit/visibility.h>
 
-#include "tests/xe_dma_buf_test.h"
 #include "tests/xe_pci_test.h"
 
 #include "xe_pci.h"
@@ -274,8 +273,19 @@ static int dma_buf_run_device(struct xe_device *xe)
 	return 0;
 }
 
-void xe_dma_buf_kunit(struct kunit *test)
+static void xe_dma_buf_kunit(struct kunit *test)
 {
 	xe_call_for_each_device(dma_buf_run_device);
 }
-EXPORT_SYMBOL_IF_KUNIT(xe_dma_buf_kunit);
+
+static struct kunit_case xe_dma_buf_tests[] = {
+	KUNIT_CASE(xe_dma_buf_kunit),
+	{}
+};
+
+VISIBLE_IF_KUNIT
+struct kunit_suite xe_dma_buf_test_suite = {
+	.name = "xe_dma_buf",
+	.test_cases = xe_dma_buf_tests,
+};
+EXPORT_SYMBOL_IF_KUNIT(xe_dma_buf_test_suite);
