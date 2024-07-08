@@ -160,12 +160,16 @@ void intel_hdcp_gsc_fini(struct xe_device *xe)
 {
 	struct intel_hdcp_gsc_message *hdcp_message =
 					xe->display.hdcp.hdcp_message;
+	struct i915_hdcp_arbiter *arb = xe->display.hdcp.arbiter;
 
-	if (!hdcp_message)
-		return;
+	if (hdcp_message) {
+		xe_bo_unpin_map_no_vm(hdcp_message->hdcp_bo);
+		kfree(hdcp_message);
+		xe->display.hdcp.hdcp_message = NULL;
+	}
 
-	xe_bo_unpin_map_no_vm(hdcp_message->hdcp_bo);
-	kfree(hdcp_message);
+	kfree(arb);
+	xe->display.hdcp.arbiter = NULL;
 }
 
 static int xe_gsc_send_sync(struct xe_device *xe,
