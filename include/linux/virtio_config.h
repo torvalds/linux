@@ -231,38 +231,6 @@ int virtio_find_vqs_info(struct virtio_device *vdev, unsigned int nvqs,
 }
 
 static inline
-int virtio_find_vqs_ctx(struct virtio_device *vdev, unsigned nvqs,
-			struct virtqueue *vqs[], vq_callback_t *callbacks[],
-			const char * const names[], const bool *ctx,
-			struct irq_affinity *desc)
-{
-	struct virtqueue_info *vqs_info;
-	int err, i;
-
-	vqs_info = kmalloc_array(nvqs, sizeof(*vqs_info), GFP_KERNEL);
-	if (!vqs_info)
-		return -ENOMEM;
-	for (i = 0; i < nvqs; i++) {
-		vqs_info[i].name = names[i];
-		vqs_info[i].callback = callbacks[i];
-		vqs_info[i].ctx = ctx ? ctx[i] : false;
-	}
-	err = virtio_find_vqs_info(vdev, nvqs, vqs, vqs_info, desc);
-	kfree(vqs_info);
-	return err;
-}
-
-static inline
-int virtio_find_vqs(struct virtio_device *vdev, unsigned nvqs,
-			struct virtqueue *vqs[], vq_callback_t *callbacks[],
-			const char * const names[],
-			struct irq_affinity *desc)
-{
-	return virtio_find_vqs_ctx(vdev, nvqs, vqs, callbacks,
-				   names, NULL, desc);
-}
-
-static inline
 struct virtqueue *virtio_find_single_vq(struct virtio_device *vdev,
 					vq_callback_t *c, const char *n)
 {
