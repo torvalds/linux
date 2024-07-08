@@ -300,7 +300,14 @@ static void dw_i3c_master_disable(struct dw_i3c_master *master)
 
 static void dw_i3c_master_enable(struct dw_i3c_master *master)
 {
-	writel(readl(master->regs + DEVICE_CTRL) | DEV_CTRL_ENABLE,
+	u32 dev_ctrl;
+
+	dev_ctrl = readl(master->regs + DEVICE_CTRL);
+	/* For now don't support Hot-Join */
+	dev_ctrl |= DEV_CTRL_HOT_JOIN_NACK;
+	if (master->i2c_slv_prsnt)
+		dev_ctrl |= DEV_CTRL_I2C_SLAVE_PRESENT;
+	writel(dev_ctrl | DEV_CTRL_ENABLE,
 	       master->regs + DEVICE_CTRL);
 }
 
@@ -521,6 +528,32 @@ static void dw_i3c_master_end_xfer_locked(struct dw_i3c_master *master, u32 isr)
 	dw_i3c_master_start_xfer_locked(master);
 }
 
+static void dw_i3c_master_set_intr_regs(struct dw_i3c_master *master)
+{
+	u32 thld_ctrl;
+
+	thld_ctrl = readl(master->regs + QUEUE_THLD_CTRL);
+	thld_ctrl &= ~(QUEUE_THLD_CTRL_RESP_BUF_MASK |
+		       QUEUE_THLD_CTRL_IBI_STAT_MASK |
+		       QUEUE_THLD_CTRL_IBI_DATA_MASK);
+	thld_ctrl |= QUEUE_THLD_CTRL_IBI_STAT(1) |
+		QUEUE_THLD_CTRL_IBI_DATA(31);
+	writel(thld_ctrl, master->regs + QUEUE_THLD_CTRL);
+
+	thld_ctrl = readl(master->regs + DATA_BUFFER_THLD_CTRL);
+	thld_ctrl &= ~DATA_BUFFER_THLD_CTRL_RX_BUF;
+	writel(thld_ctrl, master->regs + DATA_BUFFER_THLD_CTRL);
+
+	writel(INTR_ALL, master->regs + INTR_STATUS);
+	writel(INTR_MASTER_MASK, master->regs + INTR_STATUS_EN);
+	writel(INTR_MASTER_MASK, master->regs + INTR_SIGNAL_EN);
+
+	master->sir_rej_mask = IBI_REQ_REJECT_ALL;
+	writel(master->sir_rej_mask, master->regs + IBI_SIR_REQ_REJECT);
+
+	writel(IBI_REQ_REJECT_ALL, master->regs + IBI_MR_REQ_REJECT);
+}
+
 static int dw_i3c_clk_cfg(struct dw_i3c_master *master)
 {
 	unsigned long core_rate, core_period;
@@ -615,7 +648,6 @@ static int dw_i3c_master_bus_init(struct i3c_master_controller *m)
 	struct dw_i3c_master *master = to_dw_i3c_master(m);
 	struct i3c_bus *bus = i3c_master_get_bus(m);
 	struct i3c_device_info info = { };
-	u32 thld_ctrl;
 	int ret;
 
 	ret = master->platform_ops->init(master);
@@ -638,22 +670,6 @@ static int dw_i3c_master_bus_init(struct i3c_master_controller *m)
 		return -EINVAL;
 	}
 
-	thld_ctrl = readl(master->regs + QUEUE_THLD_CTRL);
-	thld_ctrl &= ~(QUEUE_THLD_CTRL_RESP_BUF_MASK |
-		       QUEUE_THLD_CTRL_IBI_STAT_MASK |
-		       QUEUE_THLD_CTRL_IBI_DATA_MASK);
-	thld_ctrl |= QUEUE_THLD_CTRL_IBI_STAT(1) |
-		QUEUE_THLD_CTRL_IBI_DATA(31);
-	writel(thld_ctrl, master->regs + QUEUE_THLD_CTRL);
-
-	thld_ctrl = readl(master->regs + DATA_BUFFER_THLD_CTRL);
-	thld_ctrl &= ~DATA_BUFFER_THLD_CTRL_RX_BUF;
-	writel(thld_ctrl, master->regs + DATA_BUFFER_THLD_CTRL);
-
-	writel(INTR_ALL, master->regs + INTR_STATUS);
-	writel(INTR_MASTER_MASK, master->regs + INTR_STATUS_EN);
-	writel(INTR_MASTER_MASK, master->regs + INTR_SIGNAL_EN);
-
 	ret = i3c_master_get_free_addr(m, 0);
 	if (ret < 0)
 		return ret;
@@ -668,15 +684,7 @@ static int dw_i3c_master_bus_init(struct i3c_master_controller *m)
 	if (ret)
 		return ret;
 
-	master->sir_rej_mask = IBI_REQ_REJECT_ALL;
-	writel(master->sir_rej_mask, master->regs + IBI_SIR_REQ_REJECT);
-
-	writel(IBI_REQ_REJECT_ALL, master->regs + IBI_MR_REQ_REJECT);
-
-	/* For now don't support Hot-Join */
-	writel(readl(master->regs + DEVICE_CTRL) | DEV_CTRL_HOT_JOIN_NACK,
-	       master->regs + DEVICE_CTRL);
-
+	dw_i3c_master_set_intr_regs(master);
 	dw_i3c_master_enable(master);
 
 	return 0;
