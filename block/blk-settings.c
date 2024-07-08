@@ -235,6 +235,10 @@ static int blk_validate_limits(struct queue_limits *lim)
 	 */
 	if (!lim->logical_block_size)
 		lim->logical_block_size = SECTOR_SIZE;
+	else if (blk_validate_block_size(lim->logical_block_size)) {
+		pr_warn("Invalid logical block size (%d)\n", lim->logical_block_size);
+		return -EINVAL;
+	}
 	if (lim->physical_block_size < lim->logical_block_size)
 		lim->physical_block_size = lim->logical_block_size;
 
