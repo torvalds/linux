@@ -277,6 +277,12 @@ config SPI_CADENCE_XSPI
 	  device with a Cadence XSPI controller and want to access the
 	  Flash as an MTD device.
 
+config SPI_CH341
+	tristate "CH341 USB2SPI adapter"
+	depends on SPI_MASTER && USB
+	help
+	  Enables the SPI controller on the CH341a USB to serial chip
+
 config SPI_CLPS711X
 	tristate "CLPS711X host SPI controller"
 	depends on ARCH_CLPS711X || COMPILE_TEST
