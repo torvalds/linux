@@ -3237,22 +3237,23 @@ static int scx_ops_init_task(struct task_struct *p, struct task_group *tg, bool 
 	return 0;
 }
 
-static void set_task_scx_weight(struct task_struct *p)
-{
-	u32 weight = sched_prio_to_weight[p->static_prio - MAX_RT_PRIO];
-
-	p->scx.weight = sched_weight_to_cgroup(weight);
-}
-
 static void scx_ops_enable_task(struct task_struct *p)
 {
+	u32 weight;
+
 	lockdep_assert_rq_held(task_rq(p));
 
 	/*
 	 * Set the weight before calling ops.enable() so that the scheduler
 	 * doesn't see a stale value if they inspect the task struct.
 	 */
-	set_task_scx_weight(p);
+	if (task_has_idle_policy(p))
+		weight = WEIGHT_IDLEPRIO;
+	else
+		weight = sched_prio_to_weight[p->static_prio - MAX_RT_PRIO];
+
+	p->scx.weight = sched_weight_to_cgroup(weight);
+
 	if (SCX_HAS_OP(enable))
 		SCX_CALL_OP_TASK(SCX_KF_REST, enable, p);
 	scx_set_task_state(p, SCX_TASK_ENABLED);
@@ -3408,7 +3409,7 @@ static void reweight_task_scx(struct rq *rq, struct task_struct *p,
 {
 	lockdep_assert_rq_held(task_rq(p));
 
-	set_task_scx_weight(p);
+	p->scx.weight = sched_weight_to_cgroup(scale_load_down(lw->weight));
 	if (SCX_HAS_OP(set_weight))
 		SCX_CALL_OP_TASK(SCX_KF_REST, set_weight, p, p->scx.weight);
 }
