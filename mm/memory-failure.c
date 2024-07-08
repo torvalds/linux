@@ -919,7 +919,6 @@ static const char *action_name[] = {
 static const char * const action_page_types[] = {
 	[MF_MSG_KERNEL]			= "reserved kernel page",
 	[MF_MSG_KERNEL_HIGH_ORDER]	= "high-order kernel page",
-	[MF_MSG_DIFFERENT_COMPOUND]	= "different compound page after locking",
 	[MF_MSG_HUGE]			= "huge page",
 	[MF_MSG_FREE_HUGE]		= "free huge page",
 	[MF_MSG_GET_HWPOISON]		= "get hwpoison page",
@@ -2349,22 +2348,10 @@ try_again:
 
 	/*
 	 * We're only intended to deal with the non-Compound page here.
-	 * However, the page could have changed compound pages due to
-	 * race window. If this happens, we could try again to hopefully
-	 * handle the page next round.
+	 * The page cannot become compound pages again as folio has been
+	 * splited and extra refcnt is held.
 	 */
-	if (folio_test_large(folio)) {
-		if (retry) {
-			ClearPageHWPoison(p);
-			folio_unlock(folio);
-			folio_put(folio);
-			flags &= ~MF_COUNT_INCREASED;
-			retry = false;
-			goto try_again;
-		}
-		res = action_result(pfn, MF_MSG_DIFFERENT_COMPOUND, MF_IGNORED);
-		goto unlock_page;
-	}
+	WARN_ON(folio_test_large(folio));
 
 	/*
 	 * We use page flags to determine what action should be taken, but
