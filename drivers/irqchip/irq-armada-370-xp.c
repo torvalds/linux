@@ -409,7 +409,7 @@ static void armada_370_xp_ipi_send_mask(struct irq_data *d,
 					const struct cpumask *mask)
 {
 	unsigned long map = 0;
-	int cpu;
+	unsigned int cpu;
 
 	/* Convert our logical CPU mask into a physical one. */
 	for_each_cpu(cpu, mask)
@@ -507,7 +507,7 @@ static int armada_xp_set_affinity(struct irq_data *d,
 				  const struct cpumask *mask_val, bool force)
 {
 	irq_hw_number_t hwirq = irqd_to_hwirq(d);
-	int cpu;
+	unsigned int cpu;
 
 	/* Select a single core from the affinity mask which is online */
 	cpu = cpumask_any_and(mask_val, cpu_online_mask);
