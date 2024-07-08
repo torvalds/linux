@@ -173,7 +173,7 @@ EXPORT_SYMBOL_GPL(driver_find_device);
  * @drv: driver.
  * @attr: driver attribute descriptor.
  */
-int driver_create_file(struct device_driver *drv,
+int driver_create_file(const struct device_driver *drv,
 		       const struct driver_attribute *attr)
 {
 	int error;
@@ -191,7 +191,7 @@ EXPORT_SYMBOL_GPL(driver_create_file);
  * @drv: driver.
  * @attr: driver attribute descriptor.
  */
-void driver_remove_file(struct device_driver *drv,
+void driver_remove_file(const struct device_driver *drv,
 			const struct driver_attribute *attr)
 {
 	if (drv)

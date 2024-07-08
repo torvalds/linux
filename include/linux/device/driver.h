@@ -146,9 +146,9 @@ struct driver_attribute {
 #define DRIVER_ATTR_WO(_name) \
 	struct driver_attribute driver_attr_##_name = __ATTR_WO(_name)
 
-int __must_check driver_create_file(struct device_driver *driver,
+int __must_check driver_create_file(const struct device_driver *driver,
 				    const struct driver_attribute *attr);
-void driver_remove_file(struct device_driver *driver,
+void driver_remove_file(const struct device_driver *driver,
 			const struct driver_attribute *attr);
 
 int driver_set_override(struct device *dev, const char **override,
