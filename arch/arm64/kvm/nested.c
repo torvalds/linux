@@ -328,21 +328,21 @@ int kvm_init_nv_sysregs(struct kvm *kvm)
 			 HFGxTR_EL2_ERXPFGF_EL1 | HFGxTR_EL2_ERXPFGCTL_EL1 |
 			 HFGxTR_EL2_ERXPFGCDN_EL1 | HFGxTR_EL2_ERXADDR_EL1);
 	if (!kvm_has_feat(kvm, ID_AA64ISAR1_EL1, LS64, LS64_ACCDATA))
-		res1 |= HFGxTR_EL2_nACCDATA_EL1;
+		res0 |= HFGxTR_EL2_nACCDATA_EL1;
 	if (!kvm_has_feat(kvm, ID_AA64PFR1_EL1, GCS, IMP))
-		res1 |= (HFGxTR_EL2_nGCS_EL0 | HFGxTR_EL2_nGCS_EL1);
+		res0 |= (HFGxTR_EL2_nGCS_EL0 | HFGxTR_EL2_nGCS_EL1);
 	if (!kvm_has_feat(kvm, ID_AA64PFR1_EL1, SME, IMP))
-		res1 |= (HFGxTR_EL2_nSMPRI_EL1 | HFGxTR_EL2_nTPIDR2_EL0);
+		res0 |= (HFGxTR_EL2_nSMPRI_EL1 | HFGxTR_EL2_nTPIDR2_EL0);
 	if (!kvm_has_feat(kvm, ID_AA64PFR1_EL1, THE, IMP))
-		res1 |= HFGxTR_EL2_nRCWMASK_EL1;
+		res0 |= HFGxTR_EL2_nRCWMASK_EL1;
 	if (!kvm_has_feat(kvm, ID_AA64MMFR3_EL1, S1PIE, IMP))
-		res1 |= (HFGxTR_EL2_nPIRE0_EL1 | HFGxTR_EL2_nPIR_EL1);
+		res0 |= (HFGxTR_EL2_nPIRE0_EL1 | HFGxTR_EL2_nPIR_EL1);
 	if (!kvm_has_feat(kvm, ID_AA64MMFR3_EL1, S1POE, IMP))
-		res1 |= (HFGxTR_EL2_nPOR_EL0 | HFGxTR_EL2_nPOR_EL1);
+		res0 |= (HFGxTR_EL2_nPOR_EL0 | HFGxTR_EL2_nPOR_EL1);
 	if (!kvm_has_feat(kvm, ID_AA64MMFR3_EL1, S2POE, IMP))
-		res1 |= HFGxTR_EL2_nS2POR_EL1;
+		res0 |= HFGxTR_EL2_nS2POR_EL1;
 	if (!kvm_has_feat(kvm, ID_AA64MMFR3_EL1, AIE, IMP))
-		res1 |= (HFGxTR_EL2_nMAIR2_EL1 | HFGxTR_EL2_nAMAIR2_EL1);
+		res0 |= (HFGxTR_EL2_nMAIR2_EL1 | HFGxTR_EL2_nAMAIR2_EL1);
 	set_sysreg_masks(kvm, HFGRTR_EL2, res0 | __HFGRTR_EL2_RES0, res1);
 	set_sysreg_masks(kvm, HFGWTR_EL2, res0 | __HFGWTR_EL2_RES0, res1);
 
@@ -378,10 +378,10 @@ int kvm_init_nv_sysregs(struct kvm *kvm)
 			 HDFGRTR_EL2_TRBPTR_EL1 | HDFGRTR_EL2_TRBSR_EL1 |
 			 HDFGRTR_EL2_TRBTRG_EL1);
 	if (!kvm_has_feat(kvm, ID_AA64DFR0_EL1, BRBE, IMP))
-		res1 |= (HDFGRTR_EL2_nBRBIDR | HDFGRTR_EL2_nBRBCTL |
+		res0 |= (HDFGRTR_EL2_nBRBIDR | HDFGRTR_EL2_nBRBCTL |
 			 HDFGRTR_EL2_nBRBDATA);
 	if (!kvm_has_feat(kvm, ID_AA64DFR0_EL1, PMSVer, V1P2))
-		res1 |= HDFGRTR_EL2_nPMSNEVFR_EL1;
+		res0 |= HDFGRTR_EL2_nPMSNEVFR_EL1;
 	set_sysreg_masks(kvm, HDFGRTR_EL2, res0 | HDFGRTR_EL2_RES0, res1);
 
 	/* Reuse the bits from the read-side and add the write-specific stuff */
@@ -417,9 +417,9 @@ int kvm_init_nv_sysregs(struct kvm *kvm)
 		res0 |= (HFGITR_EL2_CFPRCTX | HFGITR_EL2_DVPRCTX |
 			 HFGITR_EL2_CPPRCTX);
 	if (!kvm_has_feat(kvm, ID_AA64DFR0_EL1, BRBE, IMP))
-		res1 |= (HFGITR_EL2_nBRBINJ | HFGITR_EL2_nBRBIALL);
+		res0 |= (HFGITR_EL2_nBRBINJ | HFGITR_EL2_nBRBIALL);
 	if (!kvm_has_feat(kvm, ID_AA64PFR1_EL1, GCS, IMP))
-		res1 |= (HFGITR_EL2_nGCSPUSHM_EL1 | HFGITR_EL2_nGCSSTR_EL1 |
+		res0 |= (HFGITR_EL2_nGCSPUSHM_EL1 | HFGITR_EL2_nGCSSTR_EL1 |
 			 HFGITR_EL2_nGCSEPP);
 	if (!kvm_has_feat(kvm, ID_AA64ISAR1_EL1, SPECRES, COSP_RCTX))
 		res0 |= HFGITR_EL2_COSPRCTX;
