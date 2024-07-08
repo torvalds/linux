@@ -1289,18 +1289,9 @@ static int virtblk_read_limits(struct virtio_blk *vblk,
 	lim->max_segment_size = max_size;
 
 	/* Host can optionally specify the block size of the device */
-	err = virtio_cread_feature(vdev, VIRTIO_BLK_F_BLK_SIZE,
+	virtio_cread_feature(vdev, VIRTIO_BLK_F_BLK_SIZE,
 				   struct virtio_blk_config, blk_size,
 				   &lim->logical_block_size);
-	if (!err) {
-		err = blk_validate_block_size(lim->logical_block_size);
-		if (err) {
-			dev_err(&vdev->dev,
-				"virtio_blk: invalid block size: 0x%x\n",
-				lim->logical_block_size);
-			return err;
-		}
-	}
 
 	/* Use topology information if available */
 	err = virtio_cread_feature(vdev, VIRTIO_BLK_F_TOPOLOGY,
