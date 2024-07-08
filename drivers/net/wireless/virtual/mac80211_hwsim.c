@@ -6579,8 +6579,8 @@ static int init_vqs(struct virtio_device *vdev)
 		[HWSIM_VQ_RX] = { "rx", hwsim_virtio_rx_done },
 	};
 
-	return virtio_find_vqs_info(vdev, HWSIM_NUM_VQS,
-				    hwsim_vqs, vqs_info, NULL);
+	return virtio_find_vqs(vdev, HWSIM_NUM_VQS,
+			       hwsim_vqs, vqs_info, NULL);
 }
 
 static int fill_vq(struct virtqueue *vq)

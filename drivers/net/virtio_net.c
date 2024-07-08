@@ -5339,7 +5339,7 @@ static int virtnet_find_vqs(struct virtnet_info *vi)
 			vqs_info[rxq2vq(i)].ctx = true;
 	}
 
-	ret = virtio_find_vqs_info(vi->vdev, total_vqs, vqs, vqs_info, NULL);
+	ret = virtio_find_vqs(vi->vdev, total_vqs, vqs, vqs_info, NULL);
 	if (ret)
 		goto err_find;
 

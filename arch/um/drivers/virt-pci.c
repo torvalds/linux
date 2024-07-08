@@ -574,7 +574,7 @@ static int um_pci_init_vqs(struct um_pci_device *dev)
 	struct virtqueue *vqs[2];
 	int err, i;
 
-	err = virtio_find_vqs_info(dev->vdev, 2, vqs, vqs_info, NULL);
+	err = virtio_find_vqs(dev->vdev, 2, vqs, vqs_info, NULL);
 	if (err)
 		return err;
 

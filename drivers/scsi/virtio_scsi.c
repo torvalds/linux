@@ -879,7 +879,7 @@ static int virtscsi_init(struct virtio_device *vdev,
 		vqs_info[i].name = "request_poll";
 
 	/* Discover virtqueues and write information to configuration.  */
-	err = virtio_find_vqs_info(vdev, num_vqs, vqs, vqs_info, &desc);
+	err = virtio_find_vqs(vdev, num_vqs, vqs, vqs_info, &desc);
 	if (err)
 		goto out;
 

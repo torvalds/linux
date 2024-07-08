@@ -893,7 +893,7 @@ static int rpmsg_probe(struct virtio_device *vdev)
 	init_waitqueue_head(&vrp->sendq);
 
 	/* We expect two virtqueues, rx and tx (and in this order) */
-	err = virtio_find_vqs_info(vdev, 2, vqs, vqs_info, NULL);
+	err = virtio_find_vqs(vdev, 2, vqs, vqs_info, NULL);
 	if (err)
 		goto free_vrp;
 

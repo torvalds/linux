@@ -1089,8 +1089,8 @@ static int viommu_init_vqs(struct viommu_dev *viommu)
 		{ "event", viommu_event_handler },
 	};
 
-	return virtio_find_vqs_info(vdev, VIOMMU_NR_VQS, viommu->vqs,
-				    vqs_info, NULL);
+	return virtio_find_vqs(vdev, VIOMMU_NR_VQS, viommu->vqs,
+			       vqs_info, NULL);
 }
 
 static int viommu_fill_evtq(struct viommu_dev *viommu)

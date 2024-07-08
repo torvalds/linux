@@ -464,8 +464,8 @@ static int virtio_gpio_alloc_vqs(struct virtio_gpio *vgpio,
 	struct virtqueue *vqs[2] = { NULL, NULL };
 	int ret;
 
-	ret = virtio_find_vqs_info(vdev, vgpio->irq_lines ? 2 : 1, vqs,
-				   vqs_info, NULL);
+	ret = virtio_find_vqs(vdev, vgpio->irq_lines ? 2 : 1, vqs,
+			      vqs_info, NULL);
 	if (ret) {
 		dev_err(&vdev->dev, "failed to find vqs: %d\n", ret);
 		return ret;

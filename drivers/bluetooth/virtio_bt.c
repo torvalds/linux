@@ -284,8 +284,7 @@ static int virtbt_probe(struct virtio_device *vdev)
 
 	INIT_WORK(&vbt->rx, virtbt_rx_work);
 
-	err = virtio_find_vqs_info(vdev, VIRTBT_NUM_VQS, vbt->vqs,
-				   vqs_info, NULL);
+	err = virtio_find_vqs(vdev, VIRTBT_NUM_VQS, vbt->vqs, vqs_info, NULL);
 	if (err)
 		return err;
 

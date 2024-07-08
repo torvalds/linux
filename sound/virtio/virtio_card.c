@@ -125,7 +125,7 @@ static int virtsnd_find_vqs(struct virtio_snd *snd)
 	unsigned int n;
 	int rc;
 
-	rc = virtio_find_vqs_info(vdev, VIRTIO_SND_VQ_MAX, vqs, vqs_info, NULL);
+	rc = virtio_find_vqs(vdev, VIRTIO_SND_VQ_MAX, vqs, vqs_info, NULL);
 	if (rc) {
 		dev_err(&vdev->dev, "failed to initialize virtqueues\n");
 		return rc;

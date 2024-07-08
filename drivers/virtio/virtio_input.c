@@ -192,7 +192,7 @@ static int virtinput_init_vqs(struct virtio_input *vi)
 	struct virtqueue *vqs[2];
 	int err;
 
-	err = virtio_find_vqs_info(vi->vdev, 2, vqs, vqs_info, NULL);
+	err = virtio_find_vqs(vi->vdev, 2, vqs, vqs_info, NULL);
 	if (err)
 		return err;
 	vi->evt = vqs[0];

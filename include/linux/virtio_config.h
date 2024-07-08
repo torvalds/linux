@@ -222,10 +222,10 @@ static inline bool virtio_has_dma_quirk(const struct virtio_device *vdev)
 }
 
 static inline
-int virtio_find_vqs_info(struct virtio_device *vdev, unsigned int nvqs,
-			 struct virtqueue *vqs[],
-			 struct virtqueue_info vqs_info[],
-			 struct irq_affinity *desc)
+int virtio_find_vqs(struct virtio_device *vdev, unsigned int nvqs,
+		    struct virtqueue *vqs[],
+		    struct virtqueue_info vqs_info[],
+		    struct irq_affinity *desc)
 {
 	return vdev->config->find_vqs(vdev, nvqs, vqs, vqs_info, desc);
 }
@@ -238,7 +238,7 @@ struct virtqueue *virtio_find_single_vq(struct virtio_device *vdev,
 		{ n, c },
 	};
 	struct virtqueue *vq;
-	int err = virtio_find_vqs_info(vdev, 1, &vq, vqs_info, NULL);
+	int err = virtio_find_vqs(vdev, 1, &vq, vqs_info, NULL);
 
 	if (err < 0)
 		return ERR_PTR(err);
