@@ -1447,8 +1447,8 @@ static void qcom_pcie_icc_opp_update(struct qcom_pcie *pcie)
 			if (ret)
 				dev_err(pci->dev, "Failed to set OPP for freq (%lu): %d\n",
 					freq_kbps * width, ret);
+			dev_pm_opp_put(opp);
 		}
-		dev_pm_opp_put(opp);
 	}
 }
 
