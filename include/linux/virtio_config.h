@@ -63,15 +63,6 @@ struct virtqueue_info {
  *	After this, status and feature negotiation must be done again
  *	Device must not be reset from its vq/config callbacks, or in
  *	parallel with being added/removed.
- * @find_vqs: find virtqueues and instantiate them.
- *	vdev: the virtio_device
- *	nvqs: the number of virtqueues to find
- *	vqs: on success, includes new virtqueues
- *	callbacks: array of callbacks, for each virtqueue
- *		include a NULL entry for vqs that do not need a callback
- *	names: array of virtqueue names (mainly for debugging)
- *		include a NULL entry for vqs unused by driver
- *	Returns 0 on success or error status
  * @find_vqs_info: find virtqueues and instantiate them.
  *	vdev: the virtio_device
  *	nvqs: the number of virtqueues to find
@@ -125,10 +116,6 @@ struct virtio_config_ops {
 	u8 (*get_status)(struct virtio_device *vdev);
 	void (*set_status)(struct virtio_device *vdev, u8 status);
 	void (*reset)(struct virtio_device *vdev);
-	int (*find_vqs)(struct virtio_device *, unsigned nvqs,
-			struct virtqueue *vqs[], vq_callback_t *callbacks[],
-			const char * const names[], const bool *ctx,
-			struct irq_affinity *desc);
 	int (*find_vqs_info)(struct virtio_device *vdev, unsigned int nvqs,
 			     struct virtqueue *vqs[],
 			     struct virtqueue_info vqs_info[],
@@ -251,10 +238,6 @@ int virtio_find_vqs_ctx(struct virtio_device *vdev, unsigned nvqs,
 {
 	struct virtqueue_info *vqs_info;
 	int err, i;
-
-	if (!vdev->config->find_vqs_info)
-		return vdev->config->find_vqs(vdev, nvqs, vqs, callbacks,
-					      names, ctx, desc);
 
 	vqs_info = kmalloc_array(nvqs, sizeof(*vqs_info), GFP_KERNEL);
 	if (!vqs_info)
