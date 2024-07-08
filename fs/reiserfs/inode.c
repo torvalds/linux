@@ -2178,7 +2178,7 @@ static int grab_tail_page(struct inode *inode,
 	unsigned long offset = (inode->i_size) & (PAGE_SIZE - 1);
 	struct buffer_head *bh;
 	struct buffer_head *head;
-	struct page *page;
+	struct folio *folio;
 	int error;
 
 	/*
@@ -2190,20 +2190,20 @@ static int grab_tail_page(struct inode *inode,
 	if ((offset & (blocksize - 1)) == 0) {
 		return -ENOENT;
 	}
-	page = grab_cache_page(inode->i_mapping, index);
-	error = -ENOMEM;
-	if (!page) {
-		goto out;
-	}
+	folio = __filemap_get_folio(inode->i_mapping, index,
+			FGP_LOCK | FGP_ACCESSED | FGP_CREAT,
+			mapping_gfp_mask(inode->i_mapping));
+	if (IS_ERR(folio))
+		return PTR_ERR(folio);
 	/* start within the page of the last block in the file */
 	start = (offset / blocksize) * blocksize;
 
-	error = __block_write_begin(page, start, offset - start,
+	error = __block_write_begin(&folio->page, start, offset - start,
 				    reiserfs_get_block_create_0);
 	if (error)
 		goto unlock;
 
-	head = page_buffers(page);
+	head = folio_buffers(folio);
 	bh = head;
 	do {
 		if (pos >= start) {
@@ -2226,14 +2226,13 @@ static int grab_tail_page(struct inode *inode,
 		goto unlock;
 	}
 	*bh_result = bh;
-	*page_result = page;
+	*page_result = &folio->page;
 
-out:
 	return error;
 
 unlock:
-	unlock_page(page);
-	put_page(page);
+	folio_unlock(folio);
+	folio_put(folio);
 	return error;
 }
 
