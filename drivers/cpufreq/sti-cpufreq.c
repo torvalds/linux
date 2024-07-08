@@ -18,7 +18,7 @@
 #include <linux/regmap.h>
 
 #define VERSION_ELEMENTS	3
-#define MAX_PCODE_NAME_LEN	7
+#define MAX_PCODE_NAME_LEN	16
 
 #define VERSION_SHIFT		28
 #define HW_INFO_INDEX		1
