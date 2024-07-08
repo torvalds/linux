@@ -67,7 +67,7 @@
 		};
 
 		display-timings {
-			240x320p16 {
+			timing-240x320p16 {
 				clock-frequency = <6500000>;
 				hactive = <240>;
 				vactive = <320>;
