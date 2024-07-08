@@ -479,9 +479,9 @@ static int ufs_read_folio(struct file *file, struct folio *folio)
 	return block_read_full_folio(folio, ufs_getfrag_block);
 }
 
-int ufs_prepare_chunk(struct page *page, loff_t pos, unsigned len)
+int ufs_prepare_chunk(struct folio *folio, loff_t pos, unsigned len)
 {
-	return __block_write_begin(page, pos, len, ufs_getfrag_block);
+	return __block_write_begin(&folio->page, pos, len, ufs_getfrag_block);
 }
 
 static void ufs_truncate_blocks(struct inode *);

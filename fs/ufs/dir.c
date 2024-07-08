@@ -97,7 +97,7 @@ void ufs_set_link(struct inode *dir, struct ufs_dir_entry *de,
 	int err;
 
 	folio_lock(folio);
-	err = ufs_prepare_chunk(&folio->page, pos, len);
+	err = ufs_prepare_chunk(folio, pos, len);
 	BUG_ON(err);
 
 	de->d_ino = cpu_to_fs32(dir->i_sb, inode->i_ino);
@@ -366,7 +366,7 @@ int ufs_add_link(struct dentry *dentry, struct inode *inode)
 
 got_it:
 	pos = folio_pos(folio) + offset_in_folio(folio, de);
-	err = ufs_prepare_chunk(&folio->page, pos, rec_len);
+	err = ufs_prepare_chunk(folio, pos, rec_len);
 	if (err)
 		goto out_unlock;
 	if (de->d_ino) {
@@ -521,7 +521,7 @@ int ufs_delete_entry(struct inode *inode, struct ufs_dir_entry *dir,
 		from = offset_in_folio(folio, pde);
 	pos = folio_pos(folio) + from;
 	folio_lock(folio);
-	err = ufs_prepare_chunk(&folio->page, pos, to - from);
+	err = ufs_prepare_chunk(folio, pos, to - from);
 	BUG_ON(err);
 	if (pde)
 		pde->d_reclen = cpu_to_fs16(sb, to - from);
@@ -549,7 +549,7 @@ int ufs_make_empty(struct inode * inode, struct inode *dir)
 	if (IS_ERR(folio))
 		return PTR_ERR(folio);
 
-	err = ufs_prepare_chunk(&folio->page, 0, chunk_size);
+	err = ufs_prepare_chunk(folio, 0, chunk_size);
 	if (err) {
 		folio_unlock(folio);
 		goto fail;
