@@ -64,9 +64,8 @@ def _get_rx_cnts(cfg, prev=None):
 
 
 def test_rss_key_indir(cfg):
-    """
-    Test basics like updating the main RSS key and indirection table.
-    """
+    """Test basics like updating the main RSS key and indirection table."""
+
     if len(_get_rx_cnts(cfg)) < 2:
         KsftSkipEx("Device has only one queue (or doesn't support queue stats)")
 
@@ -89,6 +88,7 @@ def test_rss_key_indir(cfg):
 
     # Set the indirection table
     ethtool(f"-X {cfg.ifname} equal 2")
+    reset_indir = defer(ethtool, f"-X {cfg.ifname} default")
     data = get_rss(cfg)
     ksft_eq(0, min(data['rss-indirection-table']))
     ksft_eq(1, max(data['rss-indirection-table']))
@@ -104,7 +104,7 @@ def test_rss_key_indir(cfg):
     ksft_eq(sum(cnts[2:]), 0, "traffic on unused queues: " + str(cnts))
 
     # Restore, and check traffic gets spread again
-    ethtool(f"-X {cfg.ifname} default")
+    reset_indir.exec()
 
     cnts = _get_rx_cnts(cfg)
     GenerateTraffic(cfg).wait_pkts_and_stop(20000)
