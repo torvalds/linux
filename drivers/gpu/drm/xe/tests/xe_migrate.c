@@ -6,7 +6,6 @@
 #include <kunit/test.h>
 #include <kunit/visibility.h>
 
-#include "tests/xe_migrate_test.h"
 #include "tests/xe_pci_test.h"
 
 #include "xe_pci.h"
@@ -354,8 +353,19 @@ static int migrate_test_run_device(struct xe_device *xe)
 	return 0;
 }
 
-void xe_migrate_sanity_kunit(struct kunit *test)
+static void xe_migrate_sanity_kunit(struct kunit *test)
 {
 	xe_call_for_each_device(migrate_test_run_device);
 }
-EXPORT_SYMBOL_IF_KUNIT(xe_migrate_sanity_kunit);
+
+static struct kunit_case xe_migrate_tests[] = {
+	KUNIT_CASE(xe_migrate_sanity_kunit),
+	{}
+};
+
+VISIBLE_IF_KUNIT
+struct kunit_suite xe_migrate_test_suite = {
+	.name = "xe_migrate",
+	.test_cases = xe_migrate_tests,
+};
+EXPORT_SYMBOL_IF_KUNIT(xe_migrate_test_suite);
