@@ -5825,7 +5825,19 @@ static void put_prev_task_balance(struct rq *rq, struct task_struct *prev,
 				  struct rq_flags *rf)
 {
 #ifdef CONFIG_SMP
+	const struct sched_class *start_class = prev->sched_class;
 	const struct sched_class *class;
+
+#ifdef CONFIG_SCHED_CLASS_EXT
+	/*
+	 * SCX requires a balance() call before every pick_next_task() including
+	 * when waking up from SCHED_IDLE. If @start_class is below SCX, start
+	 * from SCX instead.
+	 */
+	if (sched_class_above(&ext_sched_class, start_class))
+		start_class = &ext_sched_class;
+#endif
+
 	/*
 	 * We must do the balancing pass before put_prev_task(), such
 	 * that when we release the rq->lock the task is in the same
@@ -5834,7 +5846,7 @@ static void put_prev_task_balance(struct rq *rq, struct task_struct *prev,
 	 * We can terminate the balance pass as soon as we know there is
 	 * a runnable task of @class priority or higher.
 	 */
-	for_balance_class_range(class, prev->sched_class, &idle_sched_class) {
+	for_active_class_range(class, start_class, &idle_sched_class) {
 		if (class->balance(rq, prev, rf))
 			break;
 	}

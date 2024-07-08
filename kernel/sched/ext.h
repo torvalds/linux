@@ -68,14 +68,6 @@ static inline const struct sched_class *next_active_class(const struct sched_cla
 #define for_each_active_class(class)						\
 	for_active_class_range(class, __sched_class_highest, __sched_class_lowest)
 
-/*
- * SCX requires a balance() call before every pick_next_task() call including
- * when waking up from idle.
- */
-#define for_balance_class_range(class, prev_class, end_class)			\
-	for_active_class_range(class, (prev_class) > &ext_sched_class ?		\
-			       &ext_sched_class : (prev_class), (end_class))
-
 #ifdef CONFIG_SCHED_CORE
 bool scx_prio_less(const struct task_struct *a, const struct task_struct *b,
 		   bool in_fi);
@@ -100,7 +92,6 @@ static inline bool task_on_scx(const struct task_struct *p) { return false; }
 static inline void init_sched_ext_class(void) {}
 
 #define for_each_active_class		for_each_class
-#define for_balance_class_range		for_class_range
 
 #endif	/* CONFIG_SCHED_CLASS_EXT */
 
