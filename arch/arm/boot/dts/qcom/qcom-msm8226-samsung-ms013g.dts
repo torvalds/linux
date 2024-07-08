@@ -8,156 +8,146 @@
 /delete-node/ &smem_region;
 
 / {
-	model = "Motorola Moto G 4G (2013)";
-	compatible = "motorola,peregrine", "qcom,msm8926", "qcom,msm8226";
+	model = "Samsung Galaxy Grand 2";
+	compatible = "samsung,ms013g", "qcom,msm8226";
 	chassis-type = "handset";
 
 	aliases {
 		mmc0 = &sdhc_1; /* SDC1 eMMC slot */
 		mmc1 = &sdhc_2; /* SDC2 SD card slot */
+		serial0 = &blsp1_uart3;
 	};
 
 	chosen {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges;
+		stdout-path = "serial0:115200n8";
+	};
 
-		framebuffer0: framebuffer@3200000 {
-			compatible = "simple-framebuffer";
-			reg = <0x03200000 0x800000>;
-			width = <720>;
-			height = <1280>;
-			stride = <(720 * 3)>;
-			format = "r8g8b8";
-			vsp-supply = <&reg_lcd_pos>;
-			vsn-supply = <&reg_lcd_neg>;
-			vdd-supply = <&pm8226_l28>;
-			vddio-supply = <&vddio_disp_vreg>;
+	gpio-hall-sensor {
+		compatible = "gpio-keys";
+
+		pinctrl-0 = <&gpio_hall_sensor_default>;
+		pinctrl-names = "default";
+
+		label = "GPIO Hall Effect Sensor";
+
+		event-hall-sensor {
+			label = "Hall Effect Sensor";
+			gpios = <&tlmm 50 GPIO_ACTIVE_LOW>;
+			linux,input-type = <EV_SW>;
+			linux,code = <SW_LID>;
+			linux,can-disable;
 		};
 	};
 
 	gpio-keys {
 		compatible = "gpio-keys";
 
-		event-hall-sensor {
-			label = "Hall Effect Sensor";
-			gpios = <&tlmm 51 GPIO_ACTIVE_LOW>;
-			linux,input-type = <EV_SW>;
-			linux,code = <SW_LID>;
-			linux,can-disable;
-		};
+		pinctrl-0 = <&gpio_keys_default>;
+		pinctrl-names = "default";
 
-		key-volume-up {
+		label = "GPIO Buttons";
+
+		button-volume-up {
 			label = "Volume Up";
 			gpios = <&tlmm 106 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEUP>;
-			debounce-interval = <15>;
+		};
+
+		button-volume-down {
+			label = "Volume Down";
+			gpios = <&tlmm 107 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_VOLUMEDOWN>;
+		};
+
+		button-home {
+			label = "Home Key";
+			gpios = <&tlmm 108 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_HOMEPAGE>;
 		};
 	};
 
-	vddio_disp_vreg: regulator-vddio-disp {
+	reg_motor_vdd: regulator-motor-vdd {
 		compatible = "regulator-fixed";
-		regulator-name = "vddio_disp";
-		gpio = <&tlmm 34 GPIO_ACTIVE_HIGH>;
-		startup-delay-us = <300>;
+		regulator-name = "motor_vdd";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+
+		gpio = <&tlmm 111 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
-		regulator-boot-on;
-		vin-supply = <&pm8226_l8>;
-		pinctrl-0 = <&disp_vddio_default>;
+
+		pinctrl-0 = <&motor_en_default>;
+		pinctrl-names = "default";
+	};
+
+	reg_vdd_tsp_a: regulator-vdd-tsp-a {
+		compatible = "regulator-fixed";
+		regulator-name = "tsp_3p3v";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+
+		gpio = <&tlmm 31 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		pinctrl-0 = <&tsp_en_default>;
 		pinctrl-names = "default";
 	};
 
 	reserved-memory {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges;
-
-		framebuffer@3200000 {
-			reg = <0x03200000 0x800000>;
-			no-map;
-		};
-
 		smem_region: smem@fa00000 {
 			reg = <0x0fa00000 0x100000>;
 			no-map;
 		};
 	};
+
+	vibrator {
+		compatible = "regulator-haptic";
+		haptic-supply = <&reg_motor_vdd>;
+		min-microvolt = <3300000>;
+		max-microvolt = <3300000>;
+	};
 };
 
 &blsp1_i2c2 {
-	clock-frequency = <100000>;
 	status = "okay";
 
-	magnetometer@c {
-		compatible = "asahi-kasei,ak8963";
-		reg = <0xc>;
-		interrupts-extended = <&tlmm 38 IRQ_TYPE_EDGE_FALLING>;
-		reset-gpios = <&tlmm 62 GPIO_ACTIVE_LOW>;
-		vdd-supply = <&pm8226_l19>;
-		pinctrl-0 = <&mag_int_default &mag_reset_default>;
-		pinctrl-names = "default";
-	};
-
 	accelerometer@18 {
-		compatible = "st,lis3dh-accel";
+		compatible = "bosch,bma255";
 		reg = <0x18>;
-		interrupts-extended = <&tlmm 1 IRQ_TYPE_EDGE_FALLING>;
+		interrupts-extended = <&tlmm 64 IRQ_TYPE_EDGE_RISING>;
+
 		vdd-supply = <&pm8226_l19>;
+		vddio-supply = <&pm8226_lvs1>;
+
 		pinctrl-0 = <&accel_int_default>;
 		pinctrl-names = "default";
-		st,drdy-int-pin = <1>;
+
+		mount-matrix = "0", "1", "0",
+			       "-1", "0", "0",
+			       "0", "0", "-1";
 	};
 };
 
-&blsp1_i2c3 {
-	clock-frequency = <400000>;
+&blsp1_i2c5 {
 	status = "okay";
 
-	regulator@3e {
-		compatible = "ti,tps65132";
-		reg = <0x3e>;
-		pinctrl-0 = <&reg_lcd_default>;
+	touchscreen@20 {
+		compatible = "zinitix,bt541";
+
+		reg = <0x20>;
+		interrupts-extended = <&tlmm 17 IRQ_TYPE_EDGE_FALLING>;
+
+		touchscreen-size-x = <720>;
+		touchscreen-size-y = <1280>;
+
+		vcca-supply = <&reg_vdd_tsp_a>;
+		vdd-supply = <&pm8226_lvs1>;
+
+		pinctrl-0 = <&tsp_int_default>;
 		pinctrl-names = "default";
-
-		reg_lcd_pos: outp {
-			regulator-name = "outp";
-			regulator-min-microvolt = <4000000>;
-			regulator-max-microvolt = <6000000>;
-			regulator-active-discharge = <1>;
-			regulator-boot-on;
-			enable-gpios = <&tlmm 31 GPIO_ACTIVE_HIGH>;
-		};
-
-		reg_lcd_neg: outn {
-			regulator-name = "outn";
-			regulator-min-microvolt = <4000000>;
-			regulator-max-microvolt = <6000000>;
-			regulator-active-discharge = <1>;
-			regulator-boot-on;
-			enable-gpios = <&tlmm 33 GPIO_ACTIVE_HIGH>;
-		};
-	};
-
-	sensor@48 {
-		compatible = "ti,tmp108";
-		reg = <0x48>;
-		interrupts-extended = <&tlmm 13 IRQ_TYPE_LEVEL_LOW>;
-		pinctrl-0 = <&temp_alert_default>;
-		pinctrl-names = "default";
-		#thermal-sensor-cells = <0>;
 	};
 };
 
 &blsp1_uart3 {
-	status = "okay";
-};
-
-&pm8226_resin {
-	linux,code = <KEY_VOLUMEDOWN>;
-	status = "okay";
-};
-
-&pm8226_vib {
 	status = "okay";
 };
 
@@ -209,6 +199,7 @@
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
 			regulator-allow-set-load;
+			regulator-always-on;
 		};
 
 		pm8226_l7: l7 {
@@ -254,6 +245,10 @@
 		pm8226_l17: l17 {
 			regulator-min-microvolt = <2950000>;
 			regulator-max-microvolt = <2950000>;
+
+			regulator-system-load = <200000>;
+			regulator-allow-set-load;
+			regulator-always-on;
 		};
 
 		pm8226_l18: l18 {
@@ -263,7 +258,7 @@
 
 		pm8226_l19: l19 {
 			regulator-min-microvolt = <2850000>;
-			regulator-max-microvolt = <2850000>;
+			regulator-max-microvolt = <3000000>;
 		};
 
 		pm8226_l20: l20 {
@@ -284,7 +279,7 @@
 
 		pm8226_l23: l23 {
 			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <2950000>;
+			regulator-max-microvolt = <3300000>;
 		};
 
 		pm8226_l24: l24 {
@@ -299,7 +294,7 @@
 
 		pm8226_l26: l26 {
 			regulator-min-microvolt = <1225000>;
-			regulator-max-microvolt = <1225000>;
+			regulator-max-microvolt = <1300000>;
 		};
 
 		pm8226_l27: l27 {
@@ -309,14 +304,10 @@
 
 		pm8226_l28: l28 {
 			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <3400000>;
-			regulator-boot-on;
+			regulator-max-microvolt = <2950000>;
 		};
 
-		pm8226_lvs1: lvs1 {
-			/* Pull-up for I2C lines */
-			regulator-always-on;
-		};
+		pm8226_lvs1: lvs1 {};
 	};
 };
 
@@ -335,78 +326,61 @@
 	vqmmc-supply = <&pm8226_l21>;
 
 	bus-width = <4>;
-	cd-gpios = <&tlmm 115 GPIO_ACTIVE_HIGH>;
+	cd-gpios = <&tlmm 38 GPIO_ACTIVE_LOW>;
 
-	status = "okay";
-};
-
-&smbb {
-	qcom,fast-charge-safe-current = <2000000>;
-	qcom,fast-charge-current-limit = <1900000>;
-	qcom,fast-charge-safe-voltage = <4400000>;
-	qcom,minimum-input-voltage = <4300000>;
+	pinctrl-0 = <&sdhc2_default_state &sdhc2_cd_default>;
+	pinctrl-names = "default";
 
 	status = "okay";
 };
 
 &tlmm {
 	accel_int_default: accel-int-default-state {
-		pins = "gpio1";
+		pins = "gpio64";
 		function = "gpio";
 		drive-strength = <2>;
 		bias-disable;
-		output-disable;
 	};
 
-	disp_vddio_default: disp-vddio-default-state {
-		pins = "gpio34";
+	gpio_hall_sensor_default: gpio-hall-sensor-default-state {
+		pins = "gpio50";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-up;
+	};
+
+	gpio_keys_default: gpio-keys-default-state {
+		pins = "gpio106", "gpio107", "gpio108";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-up;
+	};
+
+	motor_en_default: motor-en-default-state {
+		pins = "gpio111";
 		function = "gpio";
 		drive-strength = <2>;
 		bias-disable;
-		output-high;
 	};
 
-	mag_int_default: mag-int-default-state {
+	sdhc2_cd_default: sdhc2-cd-default-state {
 		pins = "gpio38";
 		function = "gpio";
 		drive-strength = <2>;
 		bias-disable;
-		output-disable;
 	};
 
-	mag_reset_default: mag-reset-default-state {
-		pins = "gpio62";
+	tsp_en_default: tsp-en-default-state {
+		pins = "gpio31";
 		function = "gpio";
 		drive-strength = <2>;
 		bias-disable;
-		output-high;
 	};
 
-	reg_lcd_default: reg-lcd-default-state {
-		pins = "gpio31", "gpio33";
+	tsp_int_default: tsp-int-default-state {
+		pins = "gpio17";
 		function = "gpio";
 		drive-strength = <2>;
 		bias-disable;
-		output-high;
 	};
-
-	temp_alert_default: temp-alert-default-state {
-		pins = "gpio13";
-		function = "gpio";
-		drive-strength = <2>;
-		bias-disable;
-		output-disable;
-	};
-};
-
-&usb {
-	extcon = <&smbb>;
-	dr_mode = "peripheral";
-	status = "okay";
-};
-
-&usb_hs_phy {
-	extcon = <&smbb>;
-	v1p8-supply = <&pm8226_l10>;
-	v3p3-supply = <&pm8226_l20>;
 };
