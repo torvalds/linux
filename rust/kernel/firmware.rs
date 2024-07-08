@@ -26,14 +26,18 @@ type FwFunc =
 ///
 /// # Examples
 ///
-/// ```
+/// ```no_run
 /// # use kernel::{c_str, device::Device, firmware::Firmware};
 ///
+/// # fn no_run() -> Result<(), Error> {
 /// # // SAFETY: *NOT* safe, just for the example to get an `ARef<Device>` instance
 /// # let dev = unsafe { Device::from_raw(core::ptr::null_mut()) };
 ///
-/// let fw = Firmware::request(c_str!("path/to/firmware.bin"), &dev).unwrap();
+/// let fw = Firmware::request(c_str!("path/to/firmware.bin"), &dev)?;
 /// let blob = fw.data();
+///
+/// # Ok(())
+/// # }
 /// ```
 pub struct Firmware(NonNull<bindings::firmware>);
 
