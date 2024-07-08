@@ -63,7 +63,7 @@ struct virtqueue_info {
  *	After this, status and feature negotiation must be done again
  *	Device must not be reset from its vq/config callbacks, or in
  *	parallel with being added/removed.
- * @find_vqs_info: find virtqueues and instantiate them.
+ * @find_vqs: find virtqueues and instantiate them.
  *	vdev: the virtio_device
  *	nvqs: the number of virtqueues to find
  *	vqs: on success, includes new virtqueues
@@ -116,10 +116,10 @@ struct virtio_config_ops {
 	u8 (*get_status)(struct virtio_device *vdev);
 	void (*set_status)(struct virtio_device *vdev, u8 status);
 	void (*reset)(struct virtio_device *vdev);
-	int (*find_vqs_info)(struct virtio_device *vdev, unsigned int nvqs,
-			     struct virtqueue *vqs[],
-			     struct virtqueue_info vqs_info[],
-			     struct irq_affinity *desc);
+	int (*find_vqs)(struct virtio_device *vdev, unsigned int nvqs,
+			struct virtqueue *vqs[],
+			struct virtqueue_info vqs_info[],
+			struct irq_affinity *desc);
 	void (*del_vqs)(struct virtio_device *);
 	void (*synchronize_cbs)(struct virtio_device *);
 	u64 (*get_features)(struct virtio_device *vdev);
@@ -227,7 +227,7 @@ int virtio_find_vqs_info(struct virtio_device *vdev, unsigned int nvqs,
 			 struct virtqueue_info vqs_info[],
 			 struct irq_affinity *desc)
 {
-	return vdev->config->find_vqs_info(vdev, nvqs, vqs, vqs_info, desc);
+	return vdev->config->find_vqs(vdev, nvqs, vqs, vqs_info, desc);
 }
 
 static inline
