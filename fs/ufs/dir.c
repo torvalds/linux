@@ -76,12 +76,12 @@ ino_t ufs_inode_by_name(struct inode *dir, const struct qstr *qstr)
 {
 	ino_t res = 0;
 	struct ufs_dir_entry *de;
-	struct page *page;
+	struct folio *folio;
 	
-	de = ufs_find_entry(dir, qstr, &page);
+	de = ufs_find_entry(dir, qstr, &folio);
 	if (de) {
 		res = fs32_to_cpu(dir->i_sb, de->d_ino);
-		ufs_put_page(page);
+		ufs_put_page(&folio->page);
 	}
 	return res;
 }
@@ -255,7 +255,7 @@ struct ufs_dir_entry *ufs_dotdot(struct inode *dir, struct page **p)
  * Entry is guaranteed to be valid.
  */
 struct ufs_dir_entry *ufs_find_entry(struct inode *dir, const struct qstr *qstr,
-				     struct page **res_page)
+				     struct folio **foliop)
 {
 	struct super_block *sb = dir->i_sb;
 	const unsigned char *name = qstr->name;
@@ -263,7 +263,6 @@ struct ufs_dir_entry *ufs_find_entry(struct inode *dir, const struct qstr *qstr,
 	unsigned reclen = UFS_DIR_REC_LEN(namelen);
 	unsigned long start, n;
 	unsigned long npages = dir_pages(dir);
-	struct folio *folio;
 	struct ufs_inode_info *ui = UFS_I(dir);
 	struct ufs_dir_entry *de;
 
@@ -272,16 +271,13 @@ struct ufs_dir_entry *ufs_find_entry(struct inode *dir, const struct qstr *qstr,
 	if (npages == 0 || namelen > UFS_MAXNAMLEN)
 		goto out;
 
-	/* OFFSET_CACHE */
-	*res_page = NULL;
-
 	start = ui->i_dir_start_lookup;
 
 	if (start >= npages)
 		start = 0;
 	n = start;
 	do {
-		char *kaddr = ufs_get_folio(dir, n, &folio);
+		char *kaddr = ufs_get_folio(dir, n, foliop);
 
 		if (!IS_ERR(kaddr)) {
 			de = (struct ufs_dir_entry *)kaddr;
@@ -291,7 +287,7 @@ struct ufs_dir_entry *ufs_find_entry(struct inode *dir, const struct qstr *qstr,
 					goto found;
 				de = ufs_next_entry(sb, de);
 			}
-			ufs_put_page(&folio->page);
+			ufs_put_page(&(*foliop)->page);
 		}
 		if (++n >= npages)
 			n = 0;
@@ -300,7 +296,6 @@ out:
 	return NULL;
 
 found:
-	*res_page = &folio->page;
 	ui->i_dir_start_lookup = n;
 	return de;
 }

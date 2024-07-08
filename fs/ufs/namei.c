@@ -209,14 +209,14 @@ static int ufs_unlink(struct inode *dir, struct dentry *dentry)
 {
 	struct inode * inode = d_inode(dentry);
 	struct ufs_dir_entry *de;
-	struct page *page;
+	struct folio *folio;
 	int err = -ENOENT;
 
-	de = ufs_find_entry(dir, &dentry->d_name, &page);
+	de = ufs_find_entry(dir, &dentry->d_name, &folio);
 	if (!de)
 		goto out;
 
-	err = ufs_delete_entry(dir, de, page);
+	err = ufs_delete_entry(dir, de, &folio->page);
 	if (err)
 		goto out;
 
@@ -251,14 +251,14 @@ static int ufs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 	struct inode *new_inode = d_inode(new_dentry);
 	struct page *dir_page = NULL;
 	struct ufs_dir_entry * dir_de = NULL;
-	struct page *old_page;
+	struct folio *old_folio;
 	struct ufs_dir_entry *old_de;
 	int err = -ENOENT;
 
 	if (flags & ~RENAME_NOREPLACE)
 		return -EINVAL;
 
-	old_de = ufs_find_entry(old_dir, &old_dentry->d_name, &old_page);
+	old_de = ufs_find_entry(old_dir, &old_dentry->d_name, &old_folio);
 	if (!old_de)
 		goto out;
 
@@ -270,7 +270,7 @@ static int ufs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 	}
 
 	if (new_inode) {
-		struct page *new_page;
+		struct folio *new_folio;
 		struct ufs_dir_entry *new_de;
 
 		err = -ENOTEMPTY;
@@ -278,10 +278,10 @@ static int ufs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 			goto out_dir;
 
 		err = -ENOENT;
-		new_de = ufs_find_entry(new_dir, &new_dentry->d_name, &new_page);
+		new_de = ufs_find_entry(new_dir, &new_dentry->d_name, &new_folio);
 		if (!new_de)
 			goto out_dir;
-		ufs_set_link(new_dir, new_de, new_page, old_inode, 1);
+		ufs_set_link(new_dir, new_de, &new_folio->page, old_inode, 1);
 		inode_set_ctime_current(new_inode);
 		if (dir_de)
 			drop_nlink(new_inode);
@@ -300,7 +300,7 @@ static int ufs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 	 */
 	inode_set_ctime_current(old_inode);
 
-	ufs_delete_entry(old_dir, old_de, old_page);
+	ufs_delete_entry(old_dir, old_de, &old_folio->page);
 	mark_inode_dirty(old_inode);
 
 	if (dir_de) {
@@ -321,8 +321,8 @@ out_dir:
 		put_page(dir_page);
 	}
 out_old:
-	kunmap(old_page);
-	put_page(old_page);
+	kunmap(&old_folio->page);
+	folio_put(old_folio);
 out:
 	return err;
 }
