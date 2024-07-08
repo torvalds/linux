@@ -194,18 +194,19 @@ fail:
 static struct page *ufs_get_page(struct inode *dir, unsigned long n)
 {
 	struct address_space *mapping = dir->i_mapping;
-	struct page *page = read_mapping_page(mapping, n, NULL);
-	if (!IS_ERR(page)) {
-		kmap(page);
-		if (unlikely(!PageChecked(page))) {
-			if (!ufs_check_page(page))
-				goto fail;
-		}
+	struct folio *folio = read_mapping_folio(mapping, n, NULL);
+
+	if (IS_ERR(folio))
+		return &folio->page;
+	kmap(&folio->page);
+	if (unlikely(!folio_test_checked(folio))) {
+		if (!ufs_check_page(&folio->page))
+			goto fail;
 	}
-	return page;
+	return &folio->page;
 
 fail:
-	ufs_put_page(page);
+	ufs_put_page(&folio->page);
 	return ERR_PTR(-EIO);
 }
 
