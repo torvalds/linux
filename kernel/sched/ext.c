@@ -3403,7 +3403,8 @@ void sched_ext_free(struct task_struct *p)
 	}
 }
 
-static void reweight_task_scx(struct rq *rq, struct task_struct *p, int newprio)
+static void reweight_task_scx(struct rq *rq, struct task_struct *p,
+			      const struct load_weight *lw)
 {
 	lockdep_assert_rq_held(task_rq(p));
 
