@@ -13967,32 +13967,34 @@ int bpf_object__attach_skeleton(struct bpf_object_skeleton *s)
 		 */
 	}
 
-	/* Skeleton is created with earlier version of bpftool
-	 * which does not support auto-attachment
-	 */
-	if (s->map_skel_sz < sizeof(struct bpf_map_skeleton))
-		return 0;
 
 	for (i = 0; i < s->map_cnt; i++) {
 		struct bpf_map_skeleton *map_skel = (void *)s->maps + i * s->map_skel_sz;
 		struct bpf_map *map = *map_skel->map;
-		struct bpf_link **link = map_skel->link;
+		struct bpf_link **link;
 
 		if (!map->autocreate || !map->autoattach)
-			continue;
-
-		if (*link)
 			continue;
 
 		/* only struct_ops maps can be attached */
 		if (!bpf_map__is_struct_ops(map))
 			continue;
-		*link = bpf_map__attach_struct_ops(map);
 
+		/* skeleton is created with earlier version of bpftool, notify user */
+		if (s->map_skel_sz < offsetofend(struct bpf_map_skeleton, link)) {
+			pr_warn("map '%s': BPF skeleton version is old, skipping map auto-attachment...\n",
+				bpf_map__name(map));
+			continue;
+		}
+
+		link = map_skel->link;
+		if (*link)
+			continue;
+
+		*link = bpf_map__attach_struct_ops(map);
 		if (!*link) {
 			err = -errno;
-			pr_warn("map '%s': failed to auto-attach: %d\n",
-				bpf_map__name(map), err);
+			pr_warn("map '%s': failed to auto-attach: %d\n", bpf_map__name(map), err);
 			return libbpf_err(err);
 		}
 	}
