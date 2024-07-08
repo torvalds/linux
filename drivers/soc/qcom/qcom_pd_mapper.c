@@ -527,11 +527,15 @@ static const struct qcom_pdm_domain_data *x1e80100_domains[] = {
 };
 
 static const struct of_device_id qcom_pdm_domains[] __maybe_unused = {
+	{ .compatible = "qcom,apq8016", .data = NULL, },
 	{ .compatible = "qcom,apq8064", .data = NULL, },
 	{ .compatible = "qcom,apq8074", .data = NULL, },
 	{ .compatible = "qcom,apq8084", .data = NULL, },
 	{ .compatible = "qcom,apq8096", .data = msm8996_domains, },
 	{ .compatible = "qcom,msm8226", .data = NULL, },
+	{ .compatible = "qcom,msm8909", .data = NULL, },
+	{ .compatible = "qcom,msm8916", .data = NULL, },
+	{ .compatible = "qcom,msm8939", .data = NULL, },
 	{ .compatible = "qcom,msm8974", .data = NULL, },
 	{ .compatible = "qcom,msm8996", .data = msm8996_domains, },
 	{ .compatible = "qcom,msm8998", .data = msm8998_domains, },
