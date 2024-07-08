@@ -1038,12 +1038,6 @@ static int loop_configure(struct loop_device *lo, blk_mode_t mode,
 		goto out_unlock;
 	}
 
-	if (config->block_size) {
-		error = blk_validate_block_size(config->block_size);
-		if (error)
-			goto out_unlock;
-	}
-
 	error = loop_set_status_from_info(lo, &config->info);
 	if (error)
 		goto out_unlock;
@@ -1075,7 +1069,7 @@ static int loop_configure(struct loop_device *lo, blk_mode_t mode,
 	mapping_set_gfp_mask(mapping, lo->old_gfp_mask & ~(__GFP_IO|__GFP_FS));
 
 	error = loop_reconfigure_limits(lo, config->block_size);
-	if (WARN_ON_ONCE(error))
+	if (error)
 		goto out_unlock;
 
 	loop_update_dio(lo);
@@ -1446,10 +1440,6 @@ static int loop_set_block_size(struct loop_device *lo, unsigned long arg)
 
 	if (lo->lo_state != Lo_bound)
 		return -ENXIO;
-
-	err = blk_validate_block_size(arg);
-	if (err)
-		return err;
 
 	if (lo->lo_queue->limits.logical_block_size == arg)
 		return 0;
