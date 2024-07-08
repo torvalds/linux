@@ -416,6 +416,7 @@ EXPORT_SYMBOL_GPL(ufshcd_mcq_enable_esi);
 void ufshcd_mcq_enable(struct ufs_hba *hba)
 {
 	ufshcd_rmwl(hba, MCQ_MODE_SELECT, MCQ_MODE_SELECT, REG_UFS_MEM_CFG);
+	hba->mcq_enabled = true;
 }
 EXPORT_SYMBOL_GPL(ufshcd_mcq_enable);
 
