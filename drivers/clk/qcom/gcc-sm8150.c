@@ -3797,7 +3797,7 @@ static int gcc_sm8150_probe(struct platform_device *pdev)
 	if (ret)
 		dev_err_probe(&pdev->dev, ret, "Failed to register with DFS!\n");
 
-	return qcom_cc_really_probe(pdev, &gcc_sm8150_desc, regmap);
+	return qcom_cc_really_probe(&pdev->dev, &gcc_sm8150_desc, regmap);
 }
 
 static struct platform_driver gcc_sm8150_driver = {

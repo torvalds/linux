@@ -40,6 +40,7 @@ properties:
 
 required:
   - compatible
+  - '#power-domain-cells'
 
 unevaluatedProperties: false
 

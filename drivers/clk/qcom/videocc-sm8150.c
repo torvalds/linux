@@ -24,7 +24,7 @@ enum {
 	P_VIDEO_PLL0_OUT_MAIN,
 };
 
-static struct pll_vco trion_vco[] = {
+static const struct pll_vco trion_vco[] = {
 	{ 249600000, 2000000000, 0 },
 };
 
@@ -262,7 +262,7 @@ static int video_cc_sm8150_probe(struct platform_device *pdev)
 	/* Keep VIDEO_CC_XO_CLK ALWAYS-ON */
 	regmap_update_bits(regmap, 0x984, 0x1, 0x1);
 
-	ret = qcom_cc_really_probe(pdev, &video_cc_sm8150_desc, regmap);
+	ret = qcom_cc_really_probe(&pdev->dev, &video_cc_sm8150_desc, regmap);
 
 	pm_runtime_put_sync(&pdev->dev);
 
