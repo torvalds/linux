@@ -7,10 +7,23 @@
 use crate::{bindings, device::Device, error::Error, error::Result, str::CStr};
 use core::ptr::NonNull;
 
-// One of the following: `bindings::request_firmware`, `bindings::firmware_request_nowarn`,
-// `firmware_request_platform`, `bindings::request_firmware_direct`
-type FwFunc =
-    unsafe extern "C" fn(*mut *const bindings::firmware, *const i8, *mut bindings::device) -> i32;
+/// # Invariants
+///
+/// One of the following: `bindings::request_firmware`, `bindings::firmware_request_nowarn`,
+/// `bindings::firmware_request_platform`, `bindings::request_firmware_direct`.
+struct FwFunc(
+    unsafe extern "C" fn(*mut *const bindings::firmware, *const i8, *mut bindings::device) -> i32,
+);
+
+impl FwFunc {
+    fn request() -> Self {
+        Self(bindings::request_firmware)
+    }
+
+    fn request_nowarn() -> Self {
+        Self(bindings::firmware_request_nowarn)
+    }
+}
 
 /// Abstraction around a C `struct firmware`.
 ///
@@ -48,7 +61,7 @@ impl Firmware {
 
         // SAFETY: `pfw` is a valid pointer to a NULL initialized `bindings::firmware` pointer.
         // `name` and `dev` are valid as by their type invariants.
-        let ret = unsafe { func(pfw as _, name.as_char_ptr(), dev.as_raw()) };
+        let ret = unsafe { func.0(pfw as _, name.as_char_ptr(), dev.as_raw()) };
         if ret != 0 {
             return Err(Error::from_errno(ret));
         }
@@ -60,13 +73,13 @@ impl Firmware {
 
     /// Send a firmware request and wait for it. See also `bindings::request_firmware`.
     pub fn request(name: &CStr, dev: &Device) -> Result<Self> {
-        Self::request_internal(name, dev, bindings::request_firmware)
+        Self::request_internal(name, dev, FwFunc::request())
     }
 
     /// Send a request for an optional firmware module. See also
     /// `bindings::firmware_request_nowarn`.
     pub fn request_nowarn(name: &CStr, dev: &Device) -> Result<Self> {
-        Self::request_internal(name, dev, bindings::firmware_request_nowarn)
+        Self::request_internal(name, dev, FwFunc::request_nowarn())
     }
 
     fn as_raw(&self) -> *mut bindings::firmware {
