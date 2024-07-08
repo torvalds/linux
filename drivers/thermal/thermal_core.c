@@ -484,16 +484,14 @@ static void thermal_trip_crossed(struct thermal_zone_device *tz,
 	thermal_governor_trip_crossed(governor, tz, trip, crossed_up);
 }
 
-static int thermal_trip_notify_cmp(void *ascending, const struct list_head *a,
+static int thermal_trip_notify_cmp(void *not_used, const struct list_head *a,
 				   const struct list_head *b)
 {
 	struct thermal_trip_desc *tda = container_of(a, struct thermal_trip_desc,
 						     notify_list_node);
 	struct thermal_trip_desc *tdb = container_of(b, struct thermal_trip_desc,
 						     notify_list_node);
-	int ret = tdb->notify_temp - tda->notify_temp;
-
-	return ascending ? ret : -ret;
+	return tda->notify_temp - tdb->notify_temp;
 }
 
 void __thermal_zone_device_update(struct thermal_zone_device *tz,
@@ -522,12 +520,12 @@ void __thermal_zone_device_update(struct thermal_zone_device *tz,
 	for_each_trip_desc(tz, td)
 		handle_thermal_trip(tz, td, &way_up_list, &way_down_list);
 
-	list_sort(&way_up_list, &way_up_list, thermal_trip_notify_cmp);
+	list_sort(NULL, &way_up_list, thermal_trip_notify_cmp);
 	list_for_each_entry(td, &way_up_list, notify_list_node)
 		thermal_trip_crossed(tz, &td->trip, governor, true);
 
 	list_sort(NULL, &way_down_list, thermal_trip_notify_cmp);
-	list_for_each_entry(td, &way_down_list, notify_list_node)
+	list_for_each_entry_reverse(td, &way_down_list, notify_list_node)
 		thermal_trip_crossed(tz, &td->trip, governor, false);
 
 	if (governor->manage)
