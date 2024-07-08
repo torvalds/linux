@@ -283,10 +283,11 @@ static inline
 struct virtqueue *virtio_find_single_vq(struct virtio_device *vdev,
 					vq_callback_t *c, const char *n)
 {
-	vq_callback_t *callbacks[] = { c };
-	const char *names[] = { n };
+	struct virtqueue_info vqs_info[] = {
+		{ n, c },
+	};
 	struct virtqueue *vq;
-	int err = virtio_find_vqs(vdev, 1, &vq, callbacks, names, NULL);
+	int err = virtio_find_vqs_info(vdev, 1, &vq, vqs_info, NULL);
 
 	if (err < 0)
 		return ERR_PTR(err);
