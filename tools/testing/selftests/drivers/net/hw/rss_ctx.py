@@ -137,6 +137,80 @@ def test_rss_key_indir(cfg):
     ksft_lt(sum(cnts[:2]), sum(cnts[2:]), "traffic distributed: " + str(cnts))
 
 
+def test_rss_queue_reconfigure(cfg, main_ctx=True):
+    """Make sure queue changes can't override requested RSS config.
+
+    By default main RSS table should change to include all queues.
+    When user sets a specific RSS config the driver should preserve it,
+    even when queue count changes. Driver should refuse to deactivate
+    queues used in the user-set RSS config.
+    """
+
+    if not main_ctx:
+        require_ntuple(cfg)
+
+    # Start with 4 queues, an arbitrary known number.
+    try:
+        qcnt = len(_get_rx_cnts(cfg))
+        ethtool(f"-L {cfg.ifname} combined 4")
+        defer(ethtool, f"-L {cfg.ifname} combined {qcnt}")
+    except:
+        raise KsftSkipEx("Not enough queues for the test or qstat not supported")
+
+    if main_ctx:
+        ctx_id = 0
+        ctx_ref = ""
+    else:
+        ctx_id = ethtool_create(cfg, "-X", "context new")
+        ctx_ref = f"context {ctx_id}"
+        defer(ethtool, f"-X {cfg.ifname} {ctx_ref} delete")
+
+    # Indirection table should be distributing to all queues.
+    data = get_rss(cfg, context=ctx_id)
+    ksft_eq(0, min(data['rss-indirection-table']))
+    ksft_eq(3, max(data['rss-indirection-table']))
+
+    # Increase queues, indirection table should be distributing to all queues.
+    # It's unclear whether tables of additional contexts should be reset, too.
+    if main_ctx:
+        ethtool(f"-L {cfg.ifname} combined 5")
+        data = get_rss(cfg)
+        ksft_eq(0, min(data['rss-indirection-table']))
+        ksft_eq(4, max(data['rss-indirection-table']))
+        ethtool(f"-L {cfg.ifname} combined 4")
+
+    # Configure the table explicitly
+    port = rand_port()
+    ethtool(f"-X {cfg.ifname} {ctx_ref} weight 1 0 0 1")
+    if main_ctx:
+        other_key = 'empty'
+        defer(ethtool, f"-X {cfg.ifname} default")
+    else:
+        other_key = 'noise'
+        flow = f"flow-type tcp{cfg.addr_ipver} dst-port {port} context {ctx_id}"
+        ntuple = ethtool_create(cfg, "-N", flow)
+        defer(ethtool, f"-N {cfg.ifname} delete {ntuple}")
+
+    _send_traffic_check(cfg, port, ctx_ref, { 'target': (0, 3),
+                                              other_key: (1, 2) })
+
+    # We should be able to increase queues, but table should be left untouched
+    ethtool(f"-L {cfg.ifname} combined 5")
+    data = get_rss(cfg, context=ctx_id)
+    ksft_eq({0, 3}, set(data['rss-indirection-table']))
+
+    _send_traffic_check(cfg, port, ctx_ref, { 'target': (0, 3),
+                                              other_key: (1, 2, 4) })
+
+    # Setting queue count to 3 should fail, queue 3 is used
+    try:
+        ethtool(f"-L {cfg.ifname} combined 3")
+    except CmdExitFailure:
+        pass
+    else:
+        raise Exception(f"Driver didn't prevent us from deactivating a used queue (context {ctx_id})")
+
+
 def test_rss_context(cfg, ctx_cnt=1, create_with_cfg=None):
     """
     Test separating traffic into RSS contexts.
@@ -213,6 +287,10 @@ def test_rss_context32(cfg):
 
 def test_rss_context4_create_with_cfg(cfg):
     test_rss_context(cfg, 4, create_with_cfg=True)
+
+
+def test_rss_context_queue_reconfigure(cfg):
+    test_rss_queue_reconfigure(cfg, main_ctx=False)
 
 
 def test_rss_context_out_of_order(cfg, ctx_cnt=4):
@@ -366,8 +444,9 @@ def main() -> None:
     with NetDrvEpEnv(__file__, nsim_test=False) as cfg:
         cfg.netdevnl = NetdevFamily()
 
-        ksft_run([test_rss_key_indir,
+        ksft_run([test_rss_key_indir, test_rss_queue_reconfigure,
                   test_rss_context, test_rss_context4, test_rss_context32,
+                  test_rss_context_queue_reconfigure,
                   test_rss_context_overlap, test_rss_context_overlap2,
                   test_rss_context_out_of_order, test_rss_context4_create_with_cfg],
                  args=(cfg, ))
