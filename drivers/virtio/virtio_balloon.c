@@ -560,9 +560,8 @@ static void update_balloon_size_func(struct work_struct *work)
 
 static int init_vqs(struct virtio_balloon *vb)
 {
+	struct virtqueue_info vqs_info[VIRTIO_BALLOON_VQ_MAX] = {};
 	struct virtqueue *vqs[VIRTIO_BALLOON_VQ_MAX];
-	vq_callback_t *callbacks[VIRTIO_BALLOON_VQ_MAX];
-	const char *names[VIRTIO_BALLOON_VQ_MAX];
 	int err;
 
 	/*
@@ -570,33 +569,26 @@ static int init_vqs(struct virtio_balloon *vb)
 	 * will be NULL if the related feature is not enabled, which will
 	 * cause no allocation for the corresponding virtqueue in find_vqs.
 	 */
-	callbacks[VIRTIO_BALLOON_VQ_INFLATE] = balloon_ack;
-	names[VIRTIO_BALLOON_VQ_INFLATE] = "inflate";
-	callbacks[VIRTIO_BALLOON_VQ_DEFLATE] = balloon_ack;
-	names[VIRTIO_BALLOON_VQ_DEFLATE] = "deflate";
-	callbacks[VIRTIO_BALLOON_VQ_STATS] = NULL;
-	names[VIRTIO_BALLOON_VQ_STATS] = NULL;
-	callbacks[VIRTIO_BALLOON_VQ_FREE_PAGE] = NULL;
-	names[VIRTIO_BALLOON_VQ_FREE_PAGE] = NULL;
-	names[VIRTIO_BALLOON_VQ_REPORTING] = NULL;
+	vqs_info[VIRTIO_BALLOON_VQ_INFLATE].callback = balloon_ack;
+	vqs_info[VIRTIO_BALLOON_VQ_INFLATE].name = "inflate";
+	vqs_info[VIRTIO_BALLOON_VQ_DEFLATE].callback = balloon_ack;
+	vqs_info[VIRTIO_BALLOON_VQ_DEFLATE].name = "deflate";
 
 	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ)) {
-		names[VIRTIO_BALLOON_VQ_STATS] = "stats";
-		callbacks[VIRTIO_BALLOON_VQ_STATS] = stats_request;
+		vqs_info[VIRTIO_BALLOON_VQ_STATS].name = "stats";
+		vqs_info[VIRTIO_BALLOON_VQ_STATS].callback = stats_request;
 	}
 
-	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_FREE_PAGE_HINT)) {
-		names[VIRTIO_BALLOON_VQ_FREE_PAGE] = "free_page_vq";
-		callbacks[VIRTIO_BALLOON_VQ_FREE_PAGE] = NULL;
-	}
+	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_FREE_PAGE_HINT))
+		vqs_info[VIRTIO_BALLOON_VQ_FREE_PAGE].name = "free_page_vq";
 
 	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_REPORTING)) {
-		names[VIRTIO_BALLOON_VQ_REPORTING] = "reporting_vq";
-		callbacks[VIRTIO_BALLOON_VQ_REPORTING] = balloon_ack;
+		vqs_info[VIRTIO_BALLOON_VQ_REPORTING].name = "reporting_vq";
+		vqs_info[VIRTIO_BALLOON_VQ_REPORTING].callback = balloon_ack;
 	}
 
-	err = virtio_find_vqs(vb->vdev, VIRTIO_BALLOON_VQ_MAX, vqs,
-			      callbacks, names, NULL);
+	err = virtio_find_vqs_info(vb->vdev, VIRTIO_BALLOON_VQ_MAX, vqs,
+				   vqs_info, NULL);
 	if (err)
 		return err;
 
