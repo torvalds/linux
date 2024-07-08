@@ -201,10 +201,7 @@ static inline unsigned int msi_doorbell_end(void)
 
 static inline bool is_percpu_irq(irq_hw_number_t irq)
 {
-	if (irq <= MPIC_MAX_PER_CPU_IRQS)
-		return true;
-
-	return false;
+	return irq <= MPIC_MAX_PER_CPU_IRQS;
 }
 
 /*
