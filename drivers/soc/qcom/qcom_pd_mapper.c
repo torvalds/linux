@@ -517,6 +517,15 @@ static const struct qcom_pdm_domain_data *sm8550_domains[] = {
 	NULL,
 };
 
+static const struct qcom_pdm_domain_data *x1e80100_domains[] = {
+	&adsp_audio_pd,
+	&adsp_root_pd,
+	&adsp_charger_pd,
+	&adsp_sensor_pd,
+	&cdsp_root_pd,
+	NULL,
+};
+
 static const struct of_device_id qcom_pdm_domains[] __maybe_unused = {
 	{ .compatible = "qcom,apq8064", .data = NULL, },
 	{ .compatible = "qcom,apq8074", .data = NULL, },
@@ -545,6 +554,7 @@ static const struct of_device_id qcom_pdm_domains[] __maybe_unused = {
 	{ .compatible = "qcom,sm8450", .data = sm8350_domains, },
 	{ .compatible = "qcom,sm8550", .data = sm8550_domains, },
 	{ .compatible = "qcom,sm8650", .data = sm8550_domains, },
+	{ .compatible = "qcom,x1e80100", .data = x1e80100_domains, },
 	{},
 };
 
