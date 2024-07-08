@@ -89,23 +89,22 @@ ino_t ufs_inode_by_name(struct inode *dir, const struct qstr *qstr)
 
 /* Releases the page */
 void ufs_set_link(struct inode *dir, struct ufs_dir_entry *de,
-		  struct page *page, struct inode *inode,
+		  struct folio *folio, struct inode *inode,
 		  bool update_times)
 {
-	loff_t pos = page_offset(page) +
-			(char *) de - (char *) page_address(page);
+	loff_t pos = folio_pos(folio) + offset_in_folio(folio, de);
 	unsigned len = fs16_to_cpu(dir->i_sb, de->d_reclen);
 	int err;
 
-	lock_page(page);
-	err = ufs_prepare_chunk(page, pos, len);
+	folio_lock(folio);
+	err = ufs_prepare_chunk(&folio->page, pos, len);
 	BUG_ON(err);
 
 	de->d_ino = cpu_to_fs32(dir->i_sb, inode->i_ino);
 	ufs_set_de_type(dir->i_sb, de, inode->i_mode);
 
-	ufs_commit_chunk(page, pos, len);
-	ufs_put_page(page);
+	ufs_commit_chunk(&folio->page, pos, len);
+	ufs_put_page(&folio->page);
 	if (update_times)
 		inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
 	mark_inode_dirty(dir);
@@ -233,17 +232,14 @@ ufs_next_entry(struct super_block *sb, struct ufs_dir_entry *p)
 					fs16_to_cpu(sb, p->d_reclen));
 }
 
-struct ufs_dir_entry *ufs_dotdot(struct inode *dir, struct page **p)
+struct ufs_dir_entry *ufs_dotdot(struct inode *dir, struct folio **foliop)
 {
-	struct folio *folio;
-	struct ufs_dir_entry *de = ufs_get_folio(dir, 0, &folio);
+	struct ufs_dir_entry *de = ufs_get_folio(dir, 0, foliop);
 
-	if (IS_ERR(de))
-		return NULL;
-	de = ufs_next_entry(dir->i_sb, de);
-	*p = &folio->page;
+	if (!IS_ERR(de))
+		return ufs_next_entry(dir->i_sb, de);
 
-	return de;
+	return NULL;
 }
 
 /*

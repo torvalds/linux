@@ -249,7 +249,7 @@ static int ufs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 {
 	struct inode *old_inode = d_inode(old_dentry);
 	struct inode *new_inode = d_inode(new_dentry);
-	struct page *dir_page = NULL;
+	struct folio *dir_folio = NULL;
 	struct ufs_dir_entry * dir_de = NULL;
 	struct folio *old_folio;
 	struct ufs_dir_entry *old_de;
@@ -264,7 +264,7 @@ static int ufs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 
 	if (S_ISDIR(old_inode->i_mode)) {
 		err = -EIO;
-		dir_de = ufs_dotdot(old_inode, &dir_page);
+		dir_de = ufs_dotdot(old_inode, &dir_folio);
 		if (!dir_de)
 			goto out_old;
 	}
@@ -281,7 +281,7 @@ static int ufs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 		new_de = ufs_find_entry(new_dir, &new_dentry->d_name, &new_folio);
 		if (!new_de)
 			goto out_dir;
-		ufs_set_link(new_dir, new_de, &new_folio->page, old_inode, 1);
+		ufs_set_link(new_dir, new_de, new_folio, old_inode, 1);
 		inode_set_ctime_current(new_inode);
 		if (dir_de)
 			drop_nlink(new_inode);
@@ -305,10 +305,10 @@ static int ufs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 
 	if (dir_de) {
 		if (old_dir != new_dir)
-			ufs_set_link(old_inode, dir_de, dir_page, new_dir, 0);
+			ufs_set_link(old_inode, dir_de, dir_folio, new_dir, 0);
 		else {
-			kunmap(dir_page);
-			put_page(dir_page);
+			kunmap(&dir_folio->page);
+			folio_put(dir_folio);
 		}
 		inode_dec_link_count(old_dir);
 	}
@@ -317,8 +317,8 @@ static int ufs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 
 out_dir:
 	if (dir_de) {
-		kunmap(dir_page);
-		put_page(dir_page);
+		kunmap(&dir_folio->page);
+		folio_put(dir_folio);
 	}
 out_old:
 	kunmap(&old_folio->page);

@@ -107,9 +107,9 @@ struct ufs_dir_entry *ufs_find_entry(struct inode *, const struct qstr *,
 		struct folio **);
 int ufs_delete_entry(struct inode *, struct ufs_dir_entry *, struct page *);
 int ufs_empty_dir(struct inode *);
-struct ufs_dir_entry *ufs_dotdot(struct inode *, struct page **);
+struct ufs_dir_entry *ufs_dotdot(struct inode *, struct folio **);
 void ufs_set_link(struct inode *dir, struct ufs_dir_entry *de,
-		struct page *page, struct inode *inode, bool update_times);
+		struct folio *folio, struct inode *inode, bool update_times);
 
 /* file.c */
 extern const struct inode_operations ufs_file_inode_operations;
