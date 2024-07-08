@@ -26,13 +26,6 @@ DECLARE_STATIC_KEY_FALSE(__scx_switched_all);
 #define scx_enabled()		static_branch_unlikely(&__scx_ops_enabled)
 #define scx_switched_all()	static_branch_unlikely(&__scx_switched_all)
 
-DECLARE_STATIC_KEY_FALSE(scx_ops_cpu_preempt);
-
-static inline bool task_on_scx(const struct task_struct *p)
-{
-	return scx_enabled() && p->sched_class == &ext_sched_class;
-}
-
 void scx_tick(struct rq *rq);
 void init_scx_entity(struct sched_ext_entity *scx);
 void scx_pre_fork(struct task_struct *p);
@@ -52,6 +45,11 @@ static inline u32 scx_cpuperf_target(s32 cpu)
 		return cpu_rq(cpu)->scx.cpuperf_target;
 	else
 		return 0;
+}
+
+static inline bool task_on_scx(const struct task_struct *p)
+{
+	return scx_enabled() && p->sched_class == &ext_sched_class;
 }
 
 static inline const struct sched_class *next_active_class(const struct sched_class *class)
