@@ -20098,6 +20098,7 @@ SECURE DIGITAL HOST CONTROLLER INTERFACE (SDHCI) NXP i.MX DRIVER
 M:	Haibo Chen <haibo.chen@nxp.com>
 L:	imx@lists.linux.dev
 L:	linux-mmc@vger.kernel.org
+L:	s32@nxp.com
 S:	Maintained
 F:	drivers/mmc/host/sdhci-esdhc-imx.c
 
