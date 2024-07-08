@@ -67,6 +67,11 @@ properties:
               - fsl,imx-audio-wm8962
       - items:
           - enum:
+              - fsl,imx-sabreauto-spdif
+              - fsl,imx6sx-sdb-spdif
+          - const: fsl,imx-audio-spdif
+      - items:
+          - enum:
               - fsl,imx-audio-ac97
               - fsl,imx-audio-cs42888
               - fsl,imx-audio-cs427x
@@ -81,6 +86,7 @@ properties:
               - fsl,imx-audio-wm8960
               - fsl,imx-audio-wm8962
               - fsl,imx-audio-wm8958
+              - fsl,imx-audio-spdif
 
   model:
     $ref: /schemas/types.yaml#/definitions/string
@@ -93,8 +99,15 @@ properties:
       need to add ASRC support via DPCM.
 
   audio-codec:
-    $ref: /schemas/types.yaml#/definitions/phandle
-    description: The phandle of an audio codec
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    description: |
+      The phandle of an audio codec.
+      With "fsl,imx-audio-spdif", either SPDIF audio codec spdif_transmitter,
+      spdif_receiver or both.
+    minItems: 1
+    maxItems: 2
+    items:
+      maxItems: 1
 
   audio-cpu:
     $ref: /schemas/types.yaml#/definitions/phandle
@@ -150,8 +163,10 @@ properties:
     description: dai-link uses bit clock inversion.
 
   mclk-id:
-    $ref: /schemas/types.yaml#/definitions/uint32
-    description: main clock id, specific for each card configuration.
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    description: Main clock id for each codec, specific for each card configuration.
+    minItems: 1
+    maxItems: 2
 
   mux-int-port:
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -166,6 +181,27 @@ properties:
   ssi-controller:
     $ref: /schemas/types.yaml#/definitions/phandle
     description: The phandle of an CPU DAI controller
+
+  spdif-controller:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    deprecated: true
+    description: The phandle of an S/PDIF CPU DAI controller.
+
+  spdif-out:
+    type: boolean
+    deprecated: true
+    description: |
+      If present, the transmitting function of S/PDIF will be enabled,
+      indicating there's a physical S/PDIF out connector or jack on the
+      board or it's connecting to some other IP block, such as an HDMI
+      encoder or display-controller.
+
+  spdif-in:
+    type: boolean
+    deprecated: true
+    description: |
+      If present, the receiving function of S/PDIF will be enabled,
+      indicating there is a physical S/PDIF in connector/jack on the board.
 
 required:
   - compatible
@@ -194,4 +230,13 @@ examples:
              "AIN1R", "Line In Jack",
              "AIN2L", "Line In Jack",
              "AIN2R", "Line In Jack";
+    };
+
+  - |
+    sound-spdif-asrc {
+        compatible = "fsl,imx-audio-spdif";
+        model = "spdif-asrc-audio";
+        audio-cpu = <&spdif>;
+        audio-asrc = <&easrc>;
+        audio-codec = <&spdifdit>, <&spdifdir>;
     };
