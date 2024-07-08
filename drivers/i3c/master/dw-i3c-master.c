@@ -543,18 +543,22 @@ static int dw_i3c_clk_cfg(struct dw_i3c_master *master)
 
 	scl_timing = SCL_I3C_TIMING_HCNT(hcnt) | SCL_I3C_TIMING_LCNT(lcnt);
 	writel(scl_timing, master->regs + SCL_I3C_PP_TIMING);
+	master->i3c_pp_timing = scl_timing;
 
 	/*
 	 * In pure i3c mode, MST_FREE represents tCAS. In shared mode, this
 	 * will be set up by dw_i2c_clk_cfg as tLOW.
 	 */
-	if (master->base.bus.mode == I3C_BUS_MODE_PURE)
+	if (master->base.bus.mode == I3C_BUS_MODE_PURE) {
 		writel(BUS_I3C_MST_FREE(lcnt), master->regs + BUS_FREE_TIMING);
+		master->bus_free_timing = BUS_I3C_MST_FREE(lcnt);
+	}
 
 	lcnt = max_t(u8,
 		     DIV_ROUND_UP(I3C_BUS_TLOW_OD_MIN_NS, core_period), lcnt);
 	scl_timing = SCL_I3C_TIMING_HCNT(hcnt) | SCL_I3C_TIMING_LCNT(lcnt);
 	writel(scl_timing, master->regs + SCL_I3C_OD_TIMING);
+	master->i3c_od_timing = scl_timing;
 
 	lcnt = DIV_ROUND_UP(core_rate, I3C_BUS_SDR1_SCL_RATE) - hcnt;
 	scl_timing = SCL_EXT_LCNT_1(lcnt);
@@ -565,6 +569,7 @@ static int dw_i3c_clk_cfg(struct dw_i3c_master *master)
 	lcnt = DIV_ROUND_UP(core_rate, I3C_BUS_SDR4_SCL_RATE) - hcnt;
 	scl_timing |= SCL_EXT_LCNT_4(lcnt);
 	writel(scl_timing, master->regs + SCL_EXT_LCNT_TIMING);
+	master->ext_lcnt_timing = scl_timing;
 
 	return 0;
 }
@@ -586,16 +591,21 @@ static int dw_i2c_clk_cfg(struct dw_i3c_master *master)
 	scl_timing = SCL_I2C_FMP_TIMING_HCNT(hcnt) |
 		     SCL_I2C_FMP_TIMING_LCNT(lcnt);
 	writel(scl_timing, master->regs + SCL_I2C_FMP_TIMING);
+	master->i2c_fmp_timing = scl_timing;
 
 	lcnt = DIV_ROUND_UP(I3C_BUS_I2C_FM_TLOW_MIN_NS, core_period);
 	hcnt = DIV_ROUND_UP(core_rate, I3C_BUS_I2C_FM_SCL_RATE) - lcnt;
 	scl_timing = SCL_I2C_FM_TIMING_HCNT(hcnt) |
 		     SCL_I2C_FM_TIMING_LCNT(lcnt);
 	writel(scl_timing, master->regs + SCL_I2C_FM_TIMING);
+	master->i2c_fm_timing = scl_timing;
 
 	writel(BUS_I3C_MST_FREE(lcnt), master->regs + BUS_FREE_TIMING);
+	master->bus_free_timing = BUS_I3C_MST_FREE(lcnt);
+
 	writel(readl(master->regs + DEVICE_CTRL) | DEV_CTRL_I2C_SLAVE_PRESENT,
 	       master->regs + DEVICE_CTRL);
+	master->i2c_slv_prsnt = true;
 
 	return 0;
 }
@@ -650,7 +660,7 @@ static int dw_i3c_master_bus_init(struct i3c_master_controller *m)
 
 	writel(DEV_ADDR_DYNAMIC_ADDR_VALID | DEV_ADDR_DYNAMIC(ret),
 	       master->regs + DEVICE_ADDR);
-
+	master->dev_addr = ret;
 	memset(&info, 0, sizeof(info));
 	info.dyn_addr = ret;
 
@@ -1077,6 +1087,7 @@ static int dw_i3c_master_attach_i2c_dev(struct i2c_dev_desc *dev)
 
 	data->index = pos;
 	master->devs[pos].addr = dev->addr;
+	master->devs[pos].is_i2c_addr = true;
 	master->free_pos &= ~BIT(pos);
 	i2c_dev_set_master_data(dev, data);
 
