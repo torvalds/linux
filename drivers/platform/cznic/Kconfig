@@ -17,6 +17,7 @@ config TURRIS_OMNIA_MCU
 	depends on MACH_ARMADA_38X || COMPILE_TEST
 	depends on I2C
 	depends on OF
+	depends on WATCHDOG
 	select GPIOLIB
 	select GPIOLIB_IRQCHIP
 	select HW_RANDOM
