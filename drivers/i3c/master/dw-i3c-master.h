@@ -25,6 +25,7 @@ struct dw_i3c_dat_entry {
 
 struct dw_i3c_master {
 	struct i3c_master_controller base;
+	struct device *dev;
 	u16 maxdevs;
 	u16 datstartaddr;
 	u32 free_pos;
