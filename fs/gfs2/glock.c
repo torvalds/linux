@@ -1091,11 +1091,13 @@ static void glock_work_func(struct work_struct *work)
 	if (test_bit(GLF_PENDING_DEMOTE, &gl->gl_flags) &&
 	    gl->gl_state != LM_ST_UNLOCKED &&
 	    gl->gl_demote_state != LM_ST_EXCLUSIVE) {
-		unsigned long holdtime, now = jiffies;
+		if (gl->gl_name.ln_type == LM_TYPE_INODE) {
+			unsigned long holdtime, now = jiffies;
 
-		holdtime = gl->gl_tchange + gl->gl_hold_time;
-		if (time_before(now, holdtime))
-			delay = holdtime - now;
+			holdtime = gl->gl_tchange + gl->gl_hold_time;
+			if (time_before(now, holdtime))
+				delay = holdtime - now;
+		}
 
 		if (!delay) {
 			clear_bit(GLF_PENDING_DEMOTE, &gl->gl_flags);
@@ -1106,8 +1108,6 @@ static void glock_work_func(struct work_struct *work)
 	if (delay) {
 		/* Keep one glock reference for the work we requeue. */
 		drop_refs--;
-		if (gl->gl_name.ln_type != LM_TYPE_INODE)
-			delay = 0;
 		gfs2_glock_queue_work(gl, delay);
 	}
 
