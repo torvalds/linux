@@ -485,18 +485,22 @@ ufs_readdir(struct file *file, struct dir_context *ctx)
  * previous entry.
  */
 int ufs_delete_entry(struct inode *inode, struct ufs_dir_entry *dir,
-		     struct page * page)
+		     struct folio *folio)
 {
 	struct super_block *sb = inode->i_sb;
-	char *kaddr = page_address(page);
-	unsigned from = ((char*)dir - kaddr) & ~(UFS_SB(sb)->s_uspi->s_dirblksize - 1);
-	unsigned to = ((char*)dir - kaddr) + fs16_to_cpu(sb, dir->d_reclen);
+	size_t from, to;
+	char *kaddr;
 	loff_t pos;
-	struct ufs_dir_entry *pde = NULL;
-	struct ufs_dir_entry *de = (struct ufs_dir_entry *) (kaddr + from);
+	struct ufs_dir_entry *de, *pde = NULL;
 	int err;
 
 	UFSD("ENTER\n");
+
+	from = offset_in_folio(folio, dir);
+	to = from + fs16_to_cpu(sb, dir->d_reclen);
+	kaddr = (char *)dir - from;
+	from &= ~(UFS_SB(sb)->s_uspi->s_dirblksize - 1);
+	de = (struct ufs_dir_entry *) (kaddr + from);
 
 	UFSD("ino %u, reclen %u, namlen %u, name %s\n",
 	      fs32_to_cpu(sb, de->d_ino),
@@ -514,21 +518,20 @@ int ufs_delete_entry(struct inode *inode, struct ufs_dir_entry *dir,
 		de = ufs_next_entry(sb, de);
 	}
 	if (pde)
-		from = (char*)pde - (char*)page_address(page);
-
-	pos = page_offset(page) + from;
-	lock_page(page);
-	err = ufs_prepare_chunk(page, pos, to - from);
+		from = offset_in_folio(folio, pde);
+	pos = folio_pos(folio) + from;
+	folio_lock(folio);
+	err = ufs_prepare_chunk(&folio->page, pos, to - from);
 	BUG_ON(err);
 	if (pde)
 		pde->d_reclen = cpu_to_fs16(sb, to - from);
 	dir->d_ino = 0;
-	ufs_commit_chunk(page, pos, to - from);
+	ufs_commit_chunk(&folio->page, pos, to - from);
 	inode_set_mtime_to_ts(inode, inode_set_ctime_current(inode));
 	mark_inode_dirty(inode);
 	err = ufs_handle_dirsync(inode);
 out:
-	ufs_put_page(page);
+	ufs_put_page(&folio->page);
 	UFSD("EXIT\n");
 	return err;
 }

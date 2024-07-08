@@ -216,7 +216,7 @@ static int ufs_unlink(struct inode *dir, struct dentry *dentry)
 	if (!de)
 		goto out;
 
-	err = ufs_delete_entry(dir, de, &folio->page);
+	err = ufs_delete_entry(dir, de, folio);
 	if (err)
 		goto out;
 
@@ -300,7 +300,7 @@ static int ufs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 	 */
 	inode_set_ctime_current(old_inode);
 
-	ufs_delete_entry(old_dir, old_de, &old_folio->page);
+	ufs_delete_entry(old_dir, old_de, old_folio);
 	mark_inode_dirty(old_inode);
 
 	if (dir_de) {
