@@ -24,7 +24,7 @@
 	gpio-leds {
 		compatible = "gpio-leds";
 
-		blue-sata {
+		led-blue-sata {
 			label = "ns2:blue:sata";
 			gpios = <&gpio0 30 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "disk-activity";
