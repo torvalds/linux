@@ -28,8 +28,6 @@ DCN30 := dcn30_vpg.o \
 	dcn30_cm_common.o \
 	dcn30_mmhubbub.o \
 
-
-
 AMD_DAL_DCN30 = $(addprefix $(AMDDALPATH)/dc/dcn30/,$(DCN30))
 
 AMD_DISPLAY_FILES += $(AMD_DAL_DCN30)
