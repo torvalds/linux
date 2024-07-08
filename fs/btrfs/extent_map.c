@@ -1057,7 +1057,18 @@ static long btrfs_scan_inode(struct btrfs_inode *inode, long *scanned, long nr_t
 	if (!down_read_trylock(&inode->i_mmap_lock))
 		return 0;
 
-	write_lock(&tree->lock);
+	/*
+	 * We want to be fast because we can be called from any path trying to
+	 * allocate memory, so if the lock is busy we don't want to spend time
+	 * waiting for it - either some task is about to do IO for the inode or
+	 * we may have another task shrinking extent maps, here in this code, so
+	 * skip this inode.
+	 */
+	if (!write_trylock(&tree->lock)) {
+		up_read(&inode->i_mmap_lock);
+		return 0;
+	}
+
 	node = rb_first_cached(&tree->map);
 	while (node) {
 		struct extent_map *em;
@@ -1089,12 +1100,14 @@ next:
 			break;
 
 		/*
-		 * Restart if we had to reschedule, and any extent maps that were
-		 * pinned before may have become unpinned after we released the
-		 * lock and took it again.
+		 * Stop if we need to reschedule or there's contention on the
+		 * lock. This is to avoid slowing other tasks trying to take the
+		 * lock and because the shrinker might be called during a memory
+		 * allocation path and we want to avoid taking a very long time
+		 * and slowing down all sorts of tasks.
 		 */
-		if (cond_resched_rwlock_write(&tree->lock))
-			node = rb_first_cached(&tree->map);
+		if (need_resched() || rwlock_needbreak(&tree->lock))
+			break;
 	}
 	write_unlock(&tree->lock);
 	up_read(&inode->i_mmap_lock);
@@ -1120,7 +1133,13 @@ static long btrfs_scan_root(struct btrfs_root *root, long *scanned, long nr_to_s
 		if (*scanned >= nr_to_scan)
 			break;
 
-		cond_resched();
+		/*
+		 * We may be called from memory allocation paths, so we don't
+		 * want to take too much time and slowdown tasks.
+		 */
+		if (need_resched())
+			break;
+
 		inode = btrfs_find_first_inode(root, min_ino);
 	}
 
@@ -1159,7 +1178,11 @@ long btrfs_free_extent_maps(struct btrfs_fs_info *fs_info, long nr_to_scan)
 		trace_btrfs_extent_map_shrinker_scan_enter(fs_info, nr_to_scan, nr);
 	}
 
-	while (scanned < nr_to_scan) {
+	/*
+	 * We may be called from memory allocation paths, so we don't want to
+	 * take too much time and slowdown tasks, so stop if we need reschedule.
+	 */
+	while (scanned < nr_to_scan && !need_resched()) {
 		struct btrfs_root *root;
 		unsigned long count;
 
