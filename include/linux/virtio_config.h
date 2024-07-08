@@ -225,15 +225,6 @@ struct virtqueue *virtio_find_single_vq(struct virtio_device *vdev,
 }
 
 static inline
-int virtio_find_vqs(struct virtio_device *vdev, unsigned nvqs,
-			struct virtqueue *vqs[], vq_callback_t *callbacks[],
-			const char * const names[],
-			struct irq_affinity *desc)
-{
-	return vdev->config->find_vqs(vdev, nvqs, vqs, callbacks, names, NULL, desc);
-}
-
-static inline
 int virtio_find_vqs_ctx(struct virtio_device *vdev, unsigned nvqs,
 			struct virtqueue *vqs[], vq_callback_t *callbacks[],
 			const char * const names[], const bool *ctx,
@@ -241,6 +232,16 @@ int virtio_find_vqs_ctx(struct virtio_device *vdev, unsigned nvqs,
 {
 	return vdev->config->find_vqs(vdev, nvqs, vqs, callbacks, names, ctx,
 				      desc);
+}
+
+static inline
+int virtio_find_vqs(struct virtio_device *vdev, unsigned nvqs,
+			struct virtqueue *vqs[], vq_callback_t *callbacks[],
+			const char * const names[],
+			struct irq_affinity *desc)
+{
+	return virtio_find_vqs_ctx(vdev, nvqs, vqs, callbacks,
+				   names, NULL, desc);
 }
 
 /**
