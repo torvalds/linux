@@ -22,7 +22,9 @@ properties:
           - const: allwinner,sun8i-a83t-r-lradc
       - const: allwinner,sun50i-r329-lradc
       - items:
-          - const: allwinner,sun20i-d1-lradc
+          - enum:
+              - allwinner,sun50i-h616-lradc
+              - allwinner,sun20i-d1-lradc
           - const: allwinner,sun50i-r329-lradc
 
   reg:
