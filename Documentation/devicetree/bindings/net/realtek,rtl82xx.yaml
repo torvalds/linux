@@ -14,9 +14,6 @@ maintainers:
 description:
   Bindings for Realtek RTL82xx PHYs
 
-allOf:
-  - $ref: ethernet-phy.yaml#
-
 properties:
   compatible:
     enum:
@@ -41,6 +38,8 @@ properties:
       - ethernet-phy-id001c.cad0
       - ethernet-phy-id001c.cb00
 
+  leds: true
+
   realtek,clkout-disable:
     type: boolean
     description:
@@ -53,6 +52,18 @@ properties:
       Enable ALDPS mode, ALDPS mode default is disabled after hardware reset.
 
 unevaluatedProperties: false
+
+allOf:
+  - $ref: ethernet-phy.yaml#
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              const: ethernet-phy-id001c.c916
+    then:
+      properties:
+        leds: false
 
 examples:
   - |
