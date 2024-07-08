@@ -977,8 +977,7 @@
 		reset-n-pins {
 			pins = "gpio99";
 			function = "gpio";
-			output-high;
-			drive-strength = <16>;
+			bias-disable;
 		};
 	};
 
