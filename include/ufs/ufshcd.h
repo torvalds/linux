@@ -1132,11 +1132,6 @@ struct ufs_hw_queue {
 
 #define MCQ_QCFG_SIZE		0x40
 
-static inline bool is_mcq_enabled(struct ufs_hba *hba)
-{
-	return hba->mcq_enabled;
-}
-
 static inline unsigned int ufshcd_mcq_opr_offset(struct ufs_hba *hba,
 		enum ufshcd_mcq_opr opr, int idx)
 {

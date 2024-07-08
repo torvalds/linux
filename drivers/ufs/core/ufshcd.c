@@ -453,7 +453,7 @@ static void ufshcd_add_command_trace(struct ufs_hba *hba, unsigned int tag,
 
 	intr = ufshcd_readl(hba, REG_INTERRUPT_STATUS);
 
-	if (is_mcq_enabled(hba)) {
+	if (hba->mcq_enabled) {
 		struct ufs_hw_queue *hwq = ufshcd_mcq_req_to_hwq(hba, rq);
 
 		hwq_id = hwq->id;
@@ -2301,7 +2301,7 @@ void ufshcd_send_command(struct ufs_hba *hba, unsigned int task_tag,
 	if (unlikely(ufshcd_should_inform_monitor(hba, lrbp)))
 		ufshcd_start_monitor(hba, lrbp);
 
-	if (is_mcq_enabled(hba)) {
+	if (hba->mcq_enabled) {
 		int utrd_size = sizeof(struct utp_transfer_req_desc);
 		struct utp_transfer_req_desc *src = lrbp->utr_descriptor_ptr;
 		struct utp_transfer_req_desc *dest;
@@ -3000,7 +3000,7 @@ static int ufshcd_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 		goto out;
 	}
 
-	if (is_mcq_enabled(hba))
+	if (hba->mcq_enabled)
 		hwq = ufshcd_mcq_req_to_hwq(hba, scsi_cmd_to_rq(cmd));
 
 	ufshcd_send_command(hba, tag, hwq);
@@ -3059,7 +3059,7 @@ static int ufshcd_clear_cmd(struct ufs_hba *hba, u32 task_tag)
 	unsigned long flags;
 	int err;
 
-	if (is_mcq_enabled(hba)) {
+	if (hba->mcq_enabled) {
 		/*
 		 * MCQ mode. Clean up the MCQ resources similar to
 		 * what the ufshcd_utrl_clear() does for SDB mode.
@@ -3169,7 +3169,7 @@ retry:
 			__func__, lrbp->task_tag);
 
 		/* MCQ mode */
-		if (is_mcq_enabled(hba)) {
+		if (hba->mcq_enabled) {
 			/* successfully cleared the command, retry if needed */
 			if (ufshcd_clear_cmd(hba, lrbp->task_tag) == 0)
 				err = -EAGAIN;
@@ -5560,7 +5560,7 @@ static int ufshcd_poll(struct Scsi_Host *shost, unsigned int queue_num)
 	u32 tr_doorbell;
 	struct ufs_hw_queue *hwq;
 
-	if (is_mcq_enabled(hba)) {
+	if (hba->mcq_enabled) {
 		hwq = &hba->uhq[queue_num];
 
 		return ufshcd_mcq_poll_cqe_lock(hba, hwq);
@@ -6201,7 +6201,7 @@ out:
 /* Complete requests that have door-bell cleared */
 static void ufshcd_complete_requests(struct ufs_hba *hba, bool force_compl)
 {
-	if (is_mcq_enabled(hba))
+	if (hba->mcq_enabled)
 		ufshcd_mcq_compl_pending_transfer(hba, force_compl);
 	else
 		ufshcd_transfer_req_compl(hba);
@@ -6458,7 +6458,7 @@ static bool ufshcd_abort_one(struct request *rq, void *priv)
 		*ret ? "failed" : "succeeded");
 
 	/* Release cmd in MCQ mode if abort succeeds */
-	if (is_mcq_enabled(hba) && (*ret == 0)) {
+	if (hba->mcq_enabled && (*ret == 0)) {
 		hwq = ufshcd_mcq_req_to_hwq(hba, scsi_cmd_to_rq(lrbp->cmd));
 		spin_lock_irqsave(&hwq->cq_lock, flags);
 		if (ufshcd_cmd_inflight(lrbp->cmd))
@@ -7389,7 +7389,7 @@ static int ufshcd_eh_device_reset_handler(struct scsi_cmnd *cmd)
 		goto out;
 	}
 
-	if (is_mcq_enabled(hba)) {
+	if (hba->mcq_enabled) {
 		for (pos = 0; pos < hba->nutrs; pos++) {
 			lrbp = &hba->lrb[pos];
 			if (ufshcd_cmd_inflight(lrbp->cmd) &&
@@ -7485,7 +7485,7 @@ int ufshcd_try_to_abort_task(struct ufs_hba *hba, int tag)
 			 */
 			dev_err(hba->dev, "%s: cmd at tag %d not pending in the device.\n",
 				__func__, tag);
-			if (is_mcq_enabled(hba)) {
+			if (hba->mcq_enabled) {
 				/* MCQ mode */
 				if (ufshcd_cmd_inflight(lrbp->cmd)) {
 					/* sleep for max. 200us same delay as in SDB mode */
@@ -7563,7 +7563,7 @@ static int ufshcd_abort(struct scsi_cmnd *cmd)
 
 	ufshcd_hold(hba);
 
-	if (!is_mcq_enabled(hba)) {
+	if (!hba->mcq_enabled) {
 		reg = ufshcd_readl(hba, REG_UTP_TRANSFER_REQ_DOOR_BELL);
 		if (!test_bit(tag, &hba->outstanding_reqs)) {
 			/* If command is already aborted/completed, return FAILED. */
@@ -7596,7 +7596,7 @@ static int ufshcd_abort(struct scsi_cmnd *cmd)
 	}
 	hba->req_abort_count++;
 
-	if (!is_mcq_enabled(hba) && !(reg & (1 << tag))) {
+	if (!hba->mcq_enabled && !(reg & (1 << tag))) {
 		/* only execute this code in single doorbell mode */
 		dev_err(hba->dev,
 		"%s: cmd was completed, but without a notifying intr, tag = %d",
@@ -7623,7 +7623,7 @@ static int ufshcd_abort(struct scsi_cmnd *cmd)
 		goto release;
 	}
 
-	if (is_mcq_enabled(hba)) {
+	if (hba->mcq_enabled) {
 		/* MCQ mode. Branch off to handle abort for mcq mode */
 		err = ufshcd_mcq_abort(cmd);
 		goto release;
@@ -8732,7 +8732,7 @@ static int ufshcd_device_init(struct ufs_hba *hba, bool init_dev_params)
 	ufshcd_set_link_active(hba);
 
 	/* Reconfigure MCQ upon reset */
-	if (is_mcq_enabled(hba) && !init_dev_params)
+	if (hba->mcq_enabled && !init_dev_params)
 		ufshcd_config_mcq(hba);
 
 	/* Verify device initialization by sending NOP OUT UPIU */
