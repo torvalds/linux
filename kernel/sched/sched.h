@@ -2438,19 +2438,54 @@ const struct sched_class name##_sched_class \
 extern struct sched_class __sched_class_highest[];
 extern struct sched_class __sched_class_lowest[];
 
+extern const struct sched_class stop_sched_class;
+extern const struct sched_class dl_sched_class;
+extern const struct sched_class rt_sched_class;
+extern const struct sched_class fair_sched_class;
+extern const struct sched_class idle_sched_class;
+
+#ifdef CONFIG_SCHED_CLASS_EXT
+extern const struct sched_class ext_sched_class;
+
+DECLARE_STATIC_KEY_FALSE(__scx_ops_enabled);	/* SCX BPF scheduler loaded */
+DECLARE_STATIC_KEY_FALSE(__scx_switched_all);	/* all fair class tasks on SCX */
+
+#define scx_enabled()		static_branch_unlikely(&__scx_ops_enabled)
+#define scx_switched_all()	static_branch_unlikely(&__scx_switched_all)
+#else /* !CONFIG_SCHED_CLASS_EXT */
+#define scx_enabled()		false
+#define scx_switched_all()	false
+#endif /* !CONFIG_SCHED_CLASS_EXT */
+
+/*
+ * Iterate only active classes. SCX can take over all fair tasks or be
+ * completely disabled. If the former, skip fair. If the latter, skip SCX.
+ */
+static inline const struct sched_class *next_active_class(const struct sched_class *class)
+{
+	class++;
+#ifdef CONFIG_SCHED_CLASS_EXT
+	if (scx_switched_all() && class == &fair_sched_class)
+		class++;
+	if (!scx_enabled() && class == &ext_sched_class)
+		class++;
+#endif
+	return class;
+}
+
 #define for_class_range(class, _from, _to) \
 	for (class = (_from); class < (_to); class++)
 
 #define for_each_class(class) \
 	for_class_range(class, __sched_class_highest, __sched_class_lowest)
 
-#define sched_class_above(_a, _b)	((_a) < (_b))
+#define for_active_class_range(class, _from, _to)				\
+	for (class = (_from); class != (_to); class = next_active_class(class))
 
-extern const struct sched_class stop_sched_class;
-extern const struct sched_class dl_sched_class;
-extern const struct sched_class rt_sched_class;
-extern const struct sched_class fair_sched_class;
-extern const struct sched_class idle_sched_class;
+#define for_each_active_class(class)						\
+	for_active_class_range(class, __sched_class_highest, __sched_class_lowest)
+
+#define sched_class_above(_a, _b)	((_a) < (_b))
 
 static inline bool sched_stop_runnable(struct rq *rq)
 {
@@ -3697,6 +3732,24 @@ static inline void balance_callbacks(struct rq *rq, struct balance_callback *hea
 }
 
 #endif
+
+#ifdef CONFIG_SCHED_CLASS_EXT
+/*
+ * Used by SCX in the enable/disable paths to move tasks between sched_classes
+ * and establish invariants.
+ */
+struct sched_enq_and_set_ctx {
+	struct task_struct	*p;
+	int			queue_flags;
+	bool			queued;
+	bool			running;
+};
+
+void sched_deq_and_put_task(struct task_struct *p, int queue_flags,
+			    struct sched_enq_and_set_ctx *ctx);
+void sched_enq_and_set_task(struct sched_enq_and_set_ctx *ctx);
+
+#endif /* CONFIG_SCHED_CLASS_EXT */
 
 #include "ext.h"
 

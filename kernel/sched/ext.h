@@ -8,24 +8,6 @@
  */
 #ifdef CONFIG_SCHED_CLASS_EXT
 
-struct sched_enq_and_set_ctx {
-	struct task_struct	*p;
-	int			queue_flags;
-	bool			queued;
-	bool			running;
-};
-
-void sched_deq_and_put_task(struct task_struct *p, int queue_flags,
-			    struct sched_enq_and_set_ctx *ctx);
-void sched_enq_and_set_task(struct sched_enq_and_set_ctx *ctx);
-
-extern const struct sched_class ext_sched_class;
-
-DECLARE_STATIC_KEY_FALSE(__scx_ops_enabled);
-DECLARE_STATIC_KEY_FALSE(__scx_switched_all);
-#define scx_enabled()		static_branch_unlikely(&__scx_ops_enabled)
-#define scx_switched_all()	static_branch_unlikely(&__scx_switched_all)
-
 void scx_tick(struct rq *rq);
 void init_scx_entity(struct sched_ext_entity *scx);
 void scx_pre_fork(struct task_struct *p);
@@ -52,31 +34,12 @@ static inline bool task_on_scx(const struct task_struct *p)
 	return scx_enabled() && p->sched_class == &ext_sched_class;
 }
 
-static inline const struct sched_class *next_active_class(const struct sched_class *class)
-{
-	class++;
-	if (scx_switched_all() && class == &fair_sched_class)
-		class++;
-	if (!scx_enabled() && class == &ext_sched_class)
-		class++;
-	return class;
-}
-
-#define for_active_class_range(class, _from, _to)				\
-	for (class = (_from); class != (_to); class = next_active_class(class))
-
-#define for_each_active_class(class)						\
-	for_active_class_range(class, __sched_class_highest, __sched_class_lowest)
-
 #ifdef CONFIG_SCHED_CORE
 bool scx_prio_less(const struct task_struct *a, const struct task_struct *b,
 		   bool in_fi);
 #endif
 
 #else	/* CONFIG_SCHED_CLASS_EXT */
-
-#define scx_enabled()		false
-#define scx_switched_all()	false
 
 static inline void scx_tick(struct rq *rq) {}
 static inline void scx_pre_fork(struct task_struct *p) {}
@@ -90,8 +53,6 @@ static inline void scx_rq_deactivate(struct rq *rq) {}
 static inline int scx_check_setscheduler(struct task_struct *p, int policy) { return 0; }
 static inline bool task_on_scx(const struct task_struct *p) { return false; }
 static inline void init_sched_ext_class(void) {}
-
-#define for_each_active_class		for_each_class
 
 #endif	/* CONFIG_SCHED_CLASS_EXT */
 
