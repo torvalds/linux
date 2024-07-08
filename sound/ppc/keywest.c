@@ -80,8 +80,8 @@ static void keywest_remove(struct i2c_client *client)
 
 
 static const struct i2c_device_id keywest_i2c_id[] = {
-	{ "MAC,tas3004", 0 },		/* instantiated by i2c-powermac */
-	{ "keywest", 0 },		/* instantiated by us if needed */
+	{ "MAC,tas3004" },	/* instantiated by i2c-powermac */
+	{ "keywest" },		/* instantiated by us if needed */
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, keywest_i2c_id);
