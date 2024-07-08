@@ -1578,7 +1578,8 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 	if (!ret) {
 		opp = dev_pm_opp_find_freq_floor(dev, &max_freq);
 		if (IS_ERR(opp)) {
-			dev_err_probe(pci->dev, PTR_ERR(opp),
+			ret = PTR_ERR(opp);
+			dev_err_probe(pci->dev, ret,
 				      "Unable to find max freq OPP\n");
 			goto err_pm_runtime_put;
 		} else {
