@@ -1908,6 +1908,18 @@ config GPIO_SLOPPY_LOGIC_ANALYZER
 	  If this driver is built as a module it will be called
 	  'gpio-sloppy-logic-analyzer'.
 
+config GPIO_VIRTUSER
+	tristate "GPIO Virtual User Testing Module"
+	select DEBUG_FS
+	select CONFIGFS_FS
+	select IRQ_WORK
+	help
+	  Say Y here to enable the configurable, configfs-based virtual GPIO
+	  consumer testing driver.
+
+	  This driver is aimed as a helper in spotting any regressions in
+	  hot-unplug handling in GPIOLIB.
+
 endmenu
 
 endif
