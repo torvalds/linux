@@ -211,20 +211,6 @@ static inline bool virtio_has_dma_quirk(const struct virtio_device *vdev)
 }
 
 static inline
-struct virtqueue *virtio_find_single_vq(struct virtio_device *vdev,
-					vq_callback_t *c, const char *n)
-{
-	vq_callback_t *callbacks[] = { c };
-	const char *names[] = { n };
-	struct virtqueue *vq;
-	int err = vdev->config->find_vqs(vdev, 1, &vq, callbacks, names, NULL,
-					 NULL);
-	if (err < 0)
-		return ERR_PTR(err);
-	return vq;
-}
-
-static inline
 int virtio_find_vqs_ctx(struct virtio_device *vdev, unsigned nvqs,
 			struct virtqueue *vqs[], vq_callback_t *callbacks[],
 			const char * const names[], const bool *ctx,
@@ -242,6 +228,20 @@ int virtio_find_vqs(struct virtio_device *vdev, unsigned nvqs,
 {
 	return virtio_find_vqs_ctx(vdev, nvqs, vqs, callbacks,
 				   names, NULL, desc);
+}
+
+static inline
+struct virtqueue *virtio_find_single_vq(struct virtio_device *vdev,
+					vq_callback_t *c, const char *n)
+{
+	vq_callback_t *callbacks[] = { c };
+	const char *names[] = { n };
+	struct virtqueue *vq;
+	int err = virtio_find_vqs(vdev, 1, &vq, callbacks, names, NULL);
+
+	if (err < 0)
+		return ERR_PTR(err);
+	return vq;
 }
 
 /**
