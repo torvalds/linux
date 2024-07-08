@@ -66,12 +66,6 @@ static int ufs_handle_dirsync(struct inode *dir)
 	return err;
 }
 
-static inline void ufs_put_page(struct page *page)
-{
-	kunmap(page);
-	put_page(page);
-}
-
 ino_t ufs_inode_by_name(struct inode *dir, const struct qstr *qstr)
 {
 	ino_t res = 0;
@@ -81,7 +75,7 @@ ino_t ufs_inode_by_name(struct inode *dir, const struct qstr *qstr)
 	de = ufs_find_entry(dir, qstr, &folio);
 	if (de) {
 		res = fs32_to_cpu(dir->i_sb, de->d_ino);
-		ufs_put_page(&folio->page);
+		folio_release_kmap(folio, de);
 	}
 	return res;
 }
@@ -104,7 +98,7 @@ void ufs_set_link(struct inode *dir, struct ufs_dir_entry *de,
 	ufs_set_de_type(dir->i_sb, de, inode->i_mode);
 
 	ufs_commit_chunk(folio, pos, len);
-	ufs_put_page(&folio->page);
+	folio_release_kmap(folio, de);
 	if (update_times)
 		inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
 	mark_inode_dirty(dir);
@@ -197,7 +191,7 @@ static void *ufs_get_folio(struct inode *dir, unsigned long n,
 
 	if (IS_ERR(folio))
 		return ERR_CAST(folio);
-	kaddr = kmap(&folio->page);
+	kaddr = kmap_local_folio(folio, 0);
 	if (unlikely(!folio_test_checked(folio))) {
 		if (!ufs_check_folio(folio, kaddr))
 			goto fail;
@@ -206,7 +200,7 @@ static void *ufs_get_folio(struct inode *dir, unsigned long n,
 	return kaddr;
 
 fail:
-	ufs_put_page(&folio->page);
+	folio_release_kmap(folio, kaddr);
 	return ERR_PTR(-EIO);
 }
 
@@ -283,7 +277,7 @@ struct ufs_dir_entry *ufs_find_entry(struct inode *dir, const struct qstr *qstr,
 					goto found;
 				de = ufs_next_entry(sb, de);
 			}
-			ufs_put_page(&(*foliop)->page);
+			folio_release_kmap(*foliop, kaddr);
 		}
 		if (++n >= npages)
 			n = 0;
@@ -359,7 +353,7 @@ int ufs_add_link(struct dentry *dentry, struct inode *inode)
 			de = (struct ufs_dir_entry *) ((char *) de + rec_len);
 		}
 		folio_unlock(folio);
-		ufs_put_page(&folio->page);
+		folio_release_kmap(folio, kaddr);
 	}
 	BUG();
 	return -EINVAL;
@@ -390,7 +384,7 @@ got_it:
 	err = ufs_handle_dirsync(dir);
 	/* OFFSET_CACHE */
 out_put:
-	ufs_put_page(&folio->page);
+	folio_release_kmap(folio, de);
 	return err;
 out_unlock:
 	folio_unlock(folio);
@@ -468,13 +462,13 @@ ufs_readdir(struct file *file, struct dir_context *ctx)
 					       ufs_get_de_namlen(sb, de),
 					       fs32_to_cpu(sb, de->d_ino),
 					       d_type)) {
-					ufs_put_page(&folio->page);
+					folio_release_kmap(folio, de);
 					return 0;
 				}
 			}
 			ctx->pos += fs16_to_cpu(sb, de->d_reclen);
 		}
-		ufs_put_page(&folio->page);
+		folio_release_kmap(folio, kaddr);
 	}
 	return 0;
 }
@@ -531,7 +525,7 @@ int ufs_delete_entry(struct inode *inode, struct ufs_dir_entry *dir,
 	mark_inode_dirty(inode);
 	err = ufs_handle_dirsync(inode);
 out:
-	ufs_put_page(&folio->page);
+	folio_release_kmap(folio, kaddr);
 	UFSD("EXIT\n");
 	return err;
 }
@@ -624,12 +618,12 @@ int ufs_empty_dir(struct inode * inode)
 			}
 			de = ufs_next_entry(sb, de);
 		}
-		ufs_put_page(&folio->page);
+		folio_release_kmap(folio, kaddr);
 	}
 	return 1;
 
 not_empty:
-	ufs_put_page(&folio->page);
+	folio_release_kmap(folio, kaddr);
 	return 0;
 }
 

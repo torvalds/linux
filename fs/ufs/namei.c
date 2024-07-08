@@ -306,23 +306,18 @@ static int ufs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 	if (dir_de) {
 		if (old_dir != new_dir)
 			ufs_set_link(old_inode, dir_de, dir_folio, new_dir, 0);
-		else {
-			kunmap(&dir_folio->page);
-			folio_put(dir_folio);
-		}
+		else
+			folio_release_kmap(dir_folio, new_dir);
 		inode_dec_link_count(old_dir);
 	}
 	return 0;
 
 
 out_dir:
-	if (dir_de) {
-		kunmap(&dir_folio->page);
-		folio_put(dir_folio);
-	}
+	if (dir_de)
+		folio_release_kmap(dir_folio, dir_de);
 out_old:
-	kunmap(&old_folio->page);
-	folio_put(old_folio);
+	folio_release_kmap(old_folio, old_de);
 out:
 	return err;
 }
