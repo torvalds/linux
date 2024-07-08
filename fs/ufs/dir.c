@@ -112,20 +112,18 @@ void ufs_set_link(struct inode *dir, struct ufs_dir_entry *de,
 	ufs_handle_dirsync(dir);
 }
 
-
-static bool ufs_check_page(struct page *page)
+static bool ufs_check_folio(struct folio *folio, char *kaddr)
 {
-	struct inode *dir = page->mapping->host;
+	struct inode *dir = folio->mapping->host;
 	struct super_block *sb = dir->i_sb;
-	char *kaddr = page_address(page);
 	unsigned offs, rec_len;
-	unsigned limit = PAGE_SIZE;
+	unsigned limit = folio_size(folio);
 	const unsigned chunk_mask = UFS_SB(sb)->s_uspi->s_dirblksize - 1;
 	struct ufs_dir_entry *p;
 	char *error;
 
-	if ((dir->i_size >> PAGE_SHIFT) == page->index) {
-		limit = dir->i_size & ~PAGE_MASK;
+	if (dir->i_size < folio_pos(folio) + limit) {
+		limit = offset_in_folio(folio, dir->i_size);
 		if (limit & chunk_mask)
 			goto Ebadsize;
 		if (!limit)
@@ -150,13 +148,13 @@ static bool ufs_check_page(struct page *page)
 	if (offs != limit)
 		goto Eend;
 out:
-	SetPageChecked(page);
+	folio_set_checked(folio);
 	return true;
 
 	/* Too bad, we had an error */
 
 Ebadsize:
-	ufs_error(sb, "ufs_check_page",
+	ufs_error(sb, __func__,
 		  "size of directory #%lu is not a multiple of chunk size",
 		  dir->i_ino
 	);
@@ -176,17 +174,17 @@ Espan:
 Einumber:
 	error = "inode out of bounds";
 bad_entry:
-	ufs_error (sb, "ufs_check_page", "bad entry in directory #%lu: %s - "
-		   "offset=%lu, rec_len=%d, name_len=%d",
-		   dir->i_ino, error, (page->index<<PAGE_SHIFT)+offs,
+	ufs_error(sb, __func__, "bad entry in directory #%lu: %s - "
+		   "offset=%llu, rec_len=%d, name_len=%d",
+		   dir->i_ino, error, folio_pos(folio) + offs,
 		   rec_len, ufs_get_de_namlen(sb, p));
 	goto fail;
 Eend:
 	p = (struct ufs_dir_entry *)(kaddr + offs);
 	ufs_error(sb, __func__,
 		   "entry in directory #%lu spans the page boundary"
-		   "offset=%lu",
-		   dir->i_ino, (page->index<<PAGE_SHIFT)+offs);
+		   "offset=%llu",
+		   dir->i_ino, folio_pos(folio) + offs);
 fail:
 	return false;
 }
@@ -202,7 +200,7 @@ static void *ufs_get_folio(struct inode *dir, unsigned long n,
 		return ERR_CAST(folio);
 	kaddr = kmap(&folio->page);
 	if (unlikely(!folio_test_checked(folio))) {
-		if (!ufs_check_page(&folio->page))
+		if (!ufs_check_folio(folio, kaddr))
 			goto fail;
 	}
 	*foliop = folio;
