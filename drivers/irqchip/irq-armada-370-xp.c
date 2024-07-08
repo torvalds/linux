@@ -276,7 +276,7 @@ static struct irq_chip armada_370_xp_msi_bottom_irq_chip = {
 static int armada_370_xp_msi_alloc(struct irq_domain *domain, unsigned int virq,
 				   unsigned int nr_irqs, void *args)
 {
-	int hwirq, i;
+	int hwirq;
 
 	mutex_lock(&msi_used_lock);
 	hwirq = bitmap_find_free_region(msi_used, msi_doorbell_size(),
@@ -286,7 +286,7 @@ static int armada_370_xp_msi_alloc(struct irq_domain *domain, unsigned int virq,
 	if (hwirq < 0)
 		return -ENOSPC;
 
-	for (i = 0; i < nr_irqs; i++) {
+	for (int i = 0; i < nr_irqs; i++) {
 		irq_domain_set_info(domain, virq + i, hwirq + i,
 				    &armada_370_xp_msi_bottom_irq_chip,
 				    domain->host_data, handle_simple_irq,
@@ -436,9 +436,7 @@ static int armada_370_xp_ipi_alloc(struct irq_domain *d,
 					 unsigned int virq,
 					 unsigned int nr_irqs, void *args)
 {
-	int i;
-
-	for (i = 0; i < nr_irqs; i++) {
+	for (int i = 0; i < nr_irqs; i++) {
 		irq_set_percpu_devid(virq + i);
 		irq_domain_set_info(d, virq + i, i, &ipi_irqchip,
 				    d->host_data,
@@ -463,9 +461,7 @@ static const struct irq_domain_ops ipi_domain_ops = {
 
 static void ipi_resume(void)
 {
-	int i;
-
-	for (i = 0; i < IPI_DOORBELL_END; i++) {
+	for (int i = 0; i < IPI_DOORBELL_END; i++) {
 		int irq;
 
 		irq = irq_find_mapping(ipi_domain, i);
@@ -517,12 +513,12 @@ static int armada_xp_set_affinity(struct irq_data *d,
 static void armada_xp_mpic_smp_cpu_init(void)
 {
 	u32 control;
-	int nr_irqs, i;
+	int nr_irqs;
 
 	control = readl(main_int_base + MPIC_INT_CONTROL);
 	nr_irqs = (control >> 2) & 0x3ff;
 
-	for (i = 0; i < nr_irqs; i++)
+	for (int i = 0; i < nr_irqs; i++)
 		writel(i, per_cpu_int_base + MPIC_INT_SET_MASK);
 
 	if (!is_ipi_available())
@@ -540,10 +536,8 @@ static void armada_xp_mpic_smp_cpu_init(void)
 
 static void armada_xp_mpic_reenable_percpu(void)
 {
-	unsigned int irq;
-
 	/* Re-enable per-CPU interrupts that were enabled before suspend */
-	for (irq = 0; irq < MPIC_MAX_PER_CPU_IRQS; irq++) {
+	for (unsigned int irq = 0; irq < MPIC_MAX_PER_CPU_IRQS; irq++) {
 		struct irq_data *data;
 		int virq;
 
@@ -735,11 +729,10 @@ static void armada_370_xp_mpic_resume(void)
 {
 	bool src0, src1;
 	int nirqs;
-	irq_hw_number_t irq;
 
 	/* Re-enable interrupts */
 	nirqs = (readl(main_int_base + MPIC_INT_CONTROL) >> 2) & 0x3ff;
-	for (irq = 0; irq < nirqs; irq++) {
+	for (irq_hw_number_t irq = 0; irq < nirqs; irq++) {
 		struct irq_data *data;
 		int virq;
 
@@ -797,7 +790,7 @@ static int __init armada_370_xp_mpic_of_init(struct device_node *node,
 					     struct device_node *parent)
 {
 	struct resource main_int_res, per_cpu_int_res;
-	int nr_irqs, i;
+	int nr_irqs;
 	u32 control;
 
 	BUG_ON(of_address_to_resource(node, 0, &main_int_res));
@@ -821,7 +814,7 @@ static int __init armada_370_xp_mpic_of_init(struct device_node *node,
 	control = readl(main_int_base + MPIC_INT_CONTROL);
 	nr_irqs = (control >> 2) & 0x3ff;
 
-	for (i = 0; i < nr_irqs; i++)
+	for (int i = 0; i < nr_irqs; i++)
 		writel(i, main_int_base + MPIC_INT_CLEAR_ENABLE);
 
 	armada_370_xp_mpic_domain =
