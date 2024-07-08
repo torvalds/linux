@@ -3993,10 +3993,10 @@ static void ufshcd_host_memory_configure(struct ufs_hba *hba)
  */
 static int ufshcd_dme_link_startup(struct ufs_hba *hba)
 {
-	struct uic_command uic_cmd = {0};
+	struct uic_command uic_cmd = {
+		.command = UIC_CMD_DME_LINK_STARTUP,
+	};
 	int ret;
-
-	uic_cmd.command = UIC_CMD_DME_LINK_STARTUP;
 
 	ret = ufshcd_send_uic_cmd(hba, &uic_cmd);
 	if (ret)
@@ -4015,10 +4015,10 @@ static int ufshcd_dme_link_startup(struct ufs_hba *hba)
  */
 static int ufshcd_dme_reset(struct ufs_hba *hba)
 {
-	struct uic_command uic_cmd = {0};
+	struct uic_command uic_cmd = {
+		.command = UIC_CMD_DME_RESET,
+	};
 	int ret;
-
-	uic_cmd.command = UIC_CMD_DME_RESET;
 
 	ret = ufshcd_send_uic_cmd(hba, &uic_cmd);
 	if (ret)
@@ -4054,10 +4054,10 @@ EXPORT_SYMBOL_GPL(ufshcd_dme_configure_adapt);
  */
 static int ufshcd_dme_enable(struct ufs_hba *hba)
 {
-	struct uic_command uic_cmd = {0};
+	struct uic_command uic_cmd = {
+		.command = UIC_CMD_DME_ENABLE,
+	};
 	int ret;
-
-	uic_cmd.command = UIC_CMD_DME_ENABLE;
 
 	ret = ufshcd_send_uic_cmd(hba, &uic_cmd);
 	if (ret)
@@ -4111,7 +4111,12 @@ static inline void ufshcd_add_delay_before_dme_cmd(struct ufs_hba *hba)
 int ufshcd_dme_set_attr(struct ufs_hba *hba, u32 attr_sel,
 			u8 attr_set, u32 mib_val, u8 peer)
 {
-	struct uic_command uic_cmd = {0};
+	struct uic_command uic_cmd = {
+		.command = peer ? UIC_CMD_DME_PEER_SET : UIC_CMD_DME_SET,
+		.argument1 = attr_sel,
+		.argument2 = UIC_ARG_ATTR_TYPE(attr_set),
+		.argument3 = mib_val,
+	};
 	static const char *const action[] = {
 		"dme-set",
 		"dme-peer-set"
@@ -4119,12 +4124,6 @@ int ufshcd_dme_set_attr(struct ufs_hba *hba, u32 attr_sel,
 	const char *set = action[!!peer];
 	int ret;
 	int retries = UFS_UIC_COMMAND_RETRIES;
-
-	uic_cmd.command = peer ?
-		UIC_CMD_DME_PEER_SET : UIC_CMD_DME_SET;
-	uic_cmd.argument1 = attr_sel;
-	uic_cmd.argument2 = UIC_ARG_ATTR_TYPE(attr_set);
-	uic_cmd.argument3 = mib_val;
 
 	do {
 		/* for peer attributes we retry upon failure */
@@ -4155,7 +4154,10 @@ EXPORT_SYMBOL_GPL(ufshcd_dme_set_attr);
 int ufshcd_dme_get_attr(struct ufs_hba *hba, u32 attr_sel,
 			u32 *mib_val, u8 peer)
 {
-	struct uic_command uic_cmd = {0};
+	struct uic_command uic_cmd = {
+		.command = peer ? UIC_CMD_DME_PEER_GET : UIC_CMD_DME_GET,
+		.argument1 = attr_sel,
+	};
 	static const char *const action[] = {
 		"dme-get",
 		"dme-peer-get"
@@ -4188,10 +4190,6 @@ int ufshcd_dme_get_attr(struct ufs_hba *hba, u32 attr_sel,
 				goto out;
 		}
 	}
-
-	uic_cmd.command = peer ?
-		UIC_CMD_DME_PEER_GET : UIC_CMD_DME_GET;
-	uic_cmd.argument1 = attr_sel;
 
 	do {
 		/* for peer attributes we retry upon failure */
@@ -4325,7 +4323,11 @@ out_unlock:
  */
 int ufshcd_uic_change_pwr_mode(struct ufs_hba *hba, u8 mode)
 {
-	struct uic_command uic_cmd = {0};
+	struct uic_command uic_cmd = {
+		.command = UIC_CMD_DME_SET,
+		.argument1 = UIC_ARG_MIB(PA_PWRMODE),
+		.argument3 = mode,
+	};
 	int ret;
 
 	if (hba->quirks & UFSHCD_QUIRK_BROKEN_PA_RXHSUNTERMCAP) {
@@ -4338,9 +4340,6 @@ int ufshcd_uic_change_pwr_mode(struct ufs_hba *hba, u8 mode)
 		}
 	}
 
-	uic_cmd.command = UIC_CMD_DME_SET;
-	uic_cmd.argument1 = UIC_ARG_MIB(PA_PWRMODE);
-	uic_cmd.argument3 = mode;
 	ufshcd_hold(hba);
 	ret = ufshcd_uic_pwr_ctrl(hba, &uic_cmd);
 	ufshcd_release(hba);
@@ -4381,13 +4380,14 @@ EXPORT_SYMBOL_GPL(ufshcd_link_recovery);
 
 int ufshcd_uic_hibern8_enter(struct ufs_hba *hba)
 {
-	int ret;
-	struct uic_command uic_cmd = {0};
+	struct uic_command uic_cmd = {
+		.command = UIC_CMD_DME_HIBER_ENTER,
+	};
 	ktime_t start = ktime_get();
+	int ret;
 
 	ufshcd_vops_hibern8_notify(hba, UIC_CMD_DME_HIBER_ENTER, PRE_CHANGE);
 
-	uic_cmd.command = UIC_CMD_DME_HIBER_ENTER;
 	ret = ufshcd_uic_pwr_ctrl(hba, &uic_cmd);
 	trace_ufshcd_profile_hibern8(dev_name(hba->dev), "enter",
 			     ktime_to_us(ktime_sub(ktime_get(), start)), ret);
@@ -4405,13 +4405,14 @@ EXPORT_SYMBOL_GPL(ufshcd_uic_hibern8_enter);
 
 int ufshcd_uic_hibern8_exit(struct ufs_hba *hba)
 {
-	struct uic_command uic_cmd = {0};
+	struct uic_command uic_cmd = {
+		.command = UIC_CMD_DME_HIBER_EXIT,
+	};
 	int ret;
 	ktime_t start = ktime_get();
 
 	ufshcd_vops_hibern8_notify(hba, UIC_CMD_DME_HIBER_EXIT, PRE_CHANGE);
 
-	uic_cmd.command = UIC_CMD_DME_HIBER_EXIT;
 	ret = ufshcd_uic_pwr_ctrl(hba, &uic_cmd);
 	trace_ufshcd_profile_hibern8(dev_name(hba->dev), "exit",
 			     ktime_to_us(ktime_sub(ktime_get(), start)), ret);
