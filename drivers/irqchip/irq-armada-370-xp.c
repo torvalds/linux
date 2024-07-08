@@ -137,13 +137,13 @@
 #define ARMADA_370_XP_MAX_PER_CPU_IRQS		(28)
 
 /* IPI and MSI interrupt definitions for IPI platforms */
-#define IPI_DOORBELL_START                      (0)
-#define IPI_DOORBELL_END                        (8)
-#define IPI_DOORBELL_MASK                       0xFF
-#define PCI_MSI_DOORBELL_START                  (16)
-#define PCI_MSI_DOORBELL_NR                     (16)
-#define PCI_MSI_DOORBELL_END                    (32)
-#define PCI_MSI_DOORBELL_MASK                   0xFFFF0000
+#define IPI_DOORBELL_START			(0)
+#define IPI_DOORBELL_END			(8)
+#define IPI_DOORBELL_MASK			0xFF
+#define PCI_MSI_DOORBELL_START			(16)
+#define PCI_MSI_DOORBELL_NR			(16)
+#define PCI_MSI_DOORBELL_END			(32)
+#define PCI_MSI_DOORBELL_MASK			0xFFFF0000
 
 /* MSI interrupt definitions for non-IPI platforms */
 #define PCI_MSI_FULL_DOORBELL_START		0
