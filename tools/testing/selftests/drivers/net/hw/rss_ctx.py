@@ -5,7 +5,7 @@ import datetime
 import random
 from lib.py import ksft_run, ksft_pr, ksft_exit, ksft_eq, ksft_ge, ksft_lt
 from lib.py import NetDrvEpEnv
-from lib.py import NetdevFamily
+from lib.py import EthtoolFamily, NetdevFamily
 from lib.py import KsftSkipEx
 from lib.py import rand_port
 from lib.py import ethtool, ip, defer, GenerateTraffic, CmdExitFailure
@@ -209,6 +209,39 @@ def test_rss_queue_reconfigure(cfg, main_ctx=True):
         pass
     else:
         raise Exception(f"Driver didn't prevent us from deactivating a used queue (context {ctx_id})")
+
+
+def test_rss_resize(cfg):
+    """Test resizing of the RSS table.
+
+    Some devices dynamically increase and decrease the size of the RSS
+    indirection table based on the number of enabled queues.
+    When that happens driver must maintain the balance of entries
+    (preferably duplicating the smaller table).
+    """
+
+    channels = cfg.ethnl.channels_get({'header': {'dev-index': cfg.ifindex}})
+    ch_max = channels['combined-max']
+    qcnt = channels['combined-count']
+
+    if ch_max < 2:
+        raise KsftSkipEx(f"Not enough queues for the test: {ch_max}")
+
+    ethtool(f"-L {cfg.ifname} combined 2")
+    defer(ethtool, f"-L {cfg.ifname} combined {qcnt}")
+
+    ethtool(f"-X {cfg.ifname} weight 1 7")
+    defer(ethtool, f"-X {cfg.ifname} default")
+
+    ethtool(f"-L {cfg.ifname} combined {ch_max}")
+    data = get_rss(cfg)
+    ksft_eq(0, min(data['rss-indirection-table']))
+    ksft_eq(1, max(data['rss-indirection-table']))
+
+    ksft_eq(7,
+            data['rss-indirection-table'].count(1) /
+            data['rss-indirection-table'].count(0),
+            f"Table imbalance after resize: {data['rss-indirection-table']}")
 
 
 def test_rss_context(cfg, ctx_cnt=1, create_with_cfg=None):
@@ -442,9 +475,11 @@ def test_rss_context_overlap2(cfg):
 
 def main() -> None:
     with NetDrvEpEnv(__file__, nsim_test=False) as cfg:
+        cfg.ethnl = EthtoolFamily()
         cfg.netdevnl = NetdevFamily()
 
         ksft_run([test_rss_key_indir, test_rss_queue_reconfigure,
+                  test_rss_resize,
                   test_rss_context, test_rss_context4, test_rss_context32,
                   test_rss_context_queue_reconfigure,
                   test_rss_context_overlap, test_rss_context_overlap2,
