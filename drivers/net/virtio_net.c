@@ -40,9 +40,6 @@ module_param(napi_tx, bool, 0644);
 
 #define VIRTNET_RX_PAD (NET_IP_ALIGN + NET_SKB_PAD)
 
-/* Amount of XDP headroom to prepend to packets for use by xdp_adjust_head */
-#define VIRTIO_XDP_HEADROOM 256
-
 /* Separating two types of XDP xmit */
 #define VIRTIO_XDP_TX		BIT(0)
 #define VIRTIO_XDP_REDIR	BIT(1)
@@ -1268,7 +1265,7 @@ static int virtnet_xdp_handler(struct bpf_prog *xdp_prog, struct xdp_buff *xdp,
 
 static unsigned int virtnet_get_headroom(struct virtnet_info *vi)
 {
-	return vi->xdp_enabled ? VIRTIO_XDP_HEADROOM : 0;
+	return vi->xdp_enabled ? XDP_PACKET_HEADROOM : 0;
 }
 
 /* We copy the packet for XDP in the following cases:
@@ -1332,7 +1329,7 @@ static struct page *xdp_linearize_page(struct receive_queue *rq,
 	}
 
 	/* Headroom does not contribute to packet length */
-	*len = page_off - VIRTIO_XDP_HEADROOM;
+	*len = page_off - XDP_PACKET_HEADROOM;
 	return page;
 err_buf:
 	__free_pages(page, 0);
@@ -1619,8 +1616,8 @@ static int virtnet_build_xdp_buff_mrg(struct net_device *dev,
 	void *ctx;
 
 	xdp_init_buff(xdp, frame_sz, &rq->xdp_rxq);
-	xdp_prepare_buff(xdp, buf - VIRTIO_XDP_HEADROOM,
-			 VIRTIO_XDP_HEADROOM + vi->hdr_len, len - vi->hdr_len, true);
+	xdp_prepare_buff(xdp, buf - XDP_PACKET_HEADROOM,
+			 XDP_PACKET_HEADROOM + vi->hdr_len, len - vi->hdr_len, true);
 
 	if (!*num_buf)
 		return 0;
@@ -1737,12 +1734,12 @@ static void *mergeable_xdp_get_buf(struct virtnet_info *vi,
 		/* linearize data for XDP */
 		xdp_page = xdp_linearize_page(rq, num_buf,
 					      *page, offset,
-					      VIRTIO_XDP_HEADROOM,
+					      XDP_PACKET_HEADROOM,
 					      len);
 		if (!xdp_page)
 			return NULL;
 	} else {
-		xdp_room = SKB_DATA_ALIGN(VIRTIO_XDP_HEADROOM +
+		xdp_room = SKB_DATA_ALIGN(XDP_PACKET_HEADROOM +
 					  sizeof(struct skb_shared_info));
 		if (*len + xdp_room > PAGE_SIZE)
 			return NULL;
@@ -1751,7 +1748,7 @@ static void *mergeable_xdp_get_buf(struct virtnet_info *vi,
 		if (!xdp_page)
 			return NULL;
 
-		memcpy(page_address(xdp_page) + VIRTIO_XDP_HEADROOM,
+		memcpy(page_address(xdp_page) + XDP_PACKET_HEADROOM,
 		       page_address(*page) + offset, *len);
 	}
 
@@ -1761,7 +1758,7 @@ static void *mergeable_xdp_get_buf(struct virtnet_info *vi,
 
 	*page = xdp_page;
 
-	return page_address(*page) + VIRTIO_XDP_HEADROOM;
+	return page_address(*page) + XDP_PACKET_HEADROOM;
 }
 
 static struct sk_buff *receive_mergeable_xdp(struct net_device *dev,
@@ -4971,7 +4968,7 @@ static int virtnet_restore_guest_offloads(struct virtnet_info *vi)
 static int virtnet_xdp_set(struct net_device *dev, struct bpf_prog *prog,
 			   struct netlink_ext_ack *extack)
 {
-	unsigned int room = SKB_DATA_ALIGN(VIRTIO_XDP_HEADROOM +
+	unsigned int room = SKB_DATA_ALIGN(XDP_PACKET_HEADROOM +
 					   sizeof(struct skb_shared_info));
 	unsigned int max_sz = PAGE_SIZE - room - ETH_HLEN;
 	struct virtnet_info *vi = netdev_priv(dev);
