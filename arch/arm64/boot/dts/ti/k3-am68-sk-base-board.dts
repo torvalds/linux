@@ -414,6 +414,82 @@
 	pinctrl-0 = <&wkup_uart0_pins_default>;
 };
 
+&wkup_i2c0 {
+	bootph-all;
+	clock-frequency = <400000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&wkup_i2c0_pins_default>;
+	status = "okay";
+
+	lp8733: pmic@60 {
+		compatible = "ti,lp8733";
+		reg = <0x60>;
+		buck0-in-supply = <&vsys_3v3>;
+		buck1-in-supply = <&vsys_3v3>;
+		ldo0-in-supply = <&vsys_3v3>;
+		ldo1-in-supply = <&vsys_3v3>;
+
+		lp8733_regulators: regulators {
+			lp8733_buck0_reg: buck0 {
+				/* FB_B0 -> LP8733-BUCK1 - VDD_MCU_0V85 */
+				regulator-name = "lp8733-buck0";
+				regulator-min-microvolt = <850000>;
+				regulator-max-microvolt = <850000>;
+				regulator-always-on;
+				regulator-boot-on;
+			};
+
+			lp8733_buck1_reg: buck1 {
+				/* FB_B1 -> LP8733-BUCK2 - VDD_DDR_1V1 */
+				regulator-name = "lp8733-buck1";
+				regulator-min-microvolt = <1100000>;
+				regulator-max-microvolt = <1100000>;
+				regulator-always-on;
+				regulator-boot-on;
+			};
+
+			lp8733_ldo0_reg: ldo0 {
+				/* LDO0 -> LP8733-LDO1 - VDA_DLL_0V8 */
+				regulator-name = "lp8733-ldo0";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <800000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			lp8733_ldo1_reg: ldo1 {
+				/* LDO1 -> LP8733-LDO2 - VDA_LN_1V8 */
+				regulator-name = "lp8733-ldo1";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-always-on;
+				regulator-boot-on;
+			};
+		};
+	};
+
+	tps62873a: regulator@40 {
+		compatible = "ti,tps62873";
+		reg = <0x40>;
+		bootph-pre-ram;
+		regulator-name = "VDD_CPU_AVS";
+		regulator-min-microvolt = <600000>;
+		regulator-max-microvolt = <900000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	tps62873b: regulator@43 {
+		compatible = "ti,tps62873";
+		reg = <0x43>;
+		regulator-name = "VDD_CORE_0V8";
+		regulator-min-microvolt = <800000>;
+		regulator-max-microvolt = <800000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+};
+
 &mcu_uart0 {
 	status = "okay";
 	pinctrl-names = "default";

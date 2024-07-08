@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only OR MIT
 /*
- * Device Tree file for the AM62P wakeup domain peripherals
+ * Device Tree file for the WAKEUP domain peripherals shared by AM62P and J722S
+ *
  * Copyright (C) 2023-2024 Texas Instruments Incorporated - https://www.ti.com/
  */
 
@@ -17,6 +18,11 @@
 			compatible = "ti,am654-chipid";
 			reg = <0x14 0x4>;
 			bootph-all;
+		};
+
+		cpsw_mac_syscon: ethernet-mac-syscon@200 {
+			compatible = "ti,am62p-cpsw-mac-efuse", "syscon";
+			reg = <0x200 0x8>;
 		};
 
 		usb0_phy_ctrl: syscon@4008 {
