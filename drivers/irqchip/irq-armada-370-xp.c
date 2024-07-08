@@ -116,33 +116,33 @@
  */
 
 /* Registers relative to main_int_base */
-#define ARMADA_370_XP_INT_CONTROL		(0x00)
-#define ARMADA_370_XP_SW_TRIG_INT		(0x04)
-#define ARMADA_370_XP_INT_SET_ENABLE		(0x30)
-#define ARMADA_370_XP_INT_CLEAR_ENABLE		(0x34)
-#define ARMADA_370_XP_INT_SOURCE_CTL(irq)	(0x100 + irq*4)
+#define ARMADA_370_XP_INT_CONTROL		0x00
+#define ARMADA_370_XP_SW_TRIG_INT		0x04
+#define ARMADA_370_XP_INT_SET_ENABLE		0x30
+#define ARMADA_370_XP_INT_CLEAR_ENABLE		0x34
+#define ARMADA_370_XP_INT_SOURCE_CTL(irq)	(0x100 + (irq) * 4)
 #define ARMADA_370_XP_INT_SOURCE_CPU_MASK	GENMASK(3, 0)
-#define ARMADA_370_XP_INT_IRQ_FIQ_MASK(cpuid)	((BIT(0) | BIT(8)) << cpuid)
+#define ARMADA_370_XP_INT_IRQ_FIQ_MASK(cpuid)	((BIT(0) | BIT(8)) << (cpuid))
 
 /* Registers relative to per_cpu_int_base */
-#define ARMADA_370_XP_IN_DRBEL_CAUSE		(0x08)
-#define ARMADA_370_XP_IN_DRBEL_MASK		(0x0c)
-#define ARMADA_375_PPI_CAUSE			(0x10)
-#define ARMADA_370_XP_CPU_INTACK		(0x44)
-#define ARMADA_370_XP_INT_SET_MASK		(0x48)
-#define ARMADA_370_XP_INT_CLEAR_MASK		(0x4C)
-#define ARMADA_370_XP_INT_FABRIC_MASK		(0x54)
+#define ARMADA_370_XP_IN_DRBEL_CAUSE		0x08
+#define ARMADA_370_XP_IN_DRBEL_MASK		0x0c
+#define ARMADA_375_PPI_CAUSE			0x10
+#define ARMADA_370_XP_CPU_INTACK		0x44
+#define ARMADA_370_XP_INT_SET_MASK		0x48
+#define ARMADA_370_XP_INT_CLEAR_MASK		0x4C
+#define ARMADA_370_XP_INT_FABRIC_MASK		0x54
 #define ARMADA_370_XP_INT_CAUSE_PERF(cpu)	BIT(cpu)
 
-#define ARMADA_370_XP_MAX_PER_CPU_IRQS		(28)
+#define ARMADA_370_XP_MAX_PER_CPU_IRQS		28
 
 /* IPI and MSI interrupt definitions for IPI platforms */
-#define IPI_DOORBELL_START			(0)
-#define IPI_DOORBELL_END			(8)
+#define IPI_DOORBELL_START			0
+#define IPI_DOORBELL_END			8
 #define IPI_DOORBELL_MASK			GENMASK(7, 0)
-#define PCI_MSI_DOORBELL_START			(16)
-#define PCI_MSI_DOORBELL_NR			(16)
-#define PCI_MSI_DOORBELL_END			(32)
+#define PCI_MSI_DOORBELL_START			16
+#define PCI_MSI_DOORBELL_NR			16
+#define PCI_MSI_DOORBELL_END			32
 #define PCI_MSI_DOORBELL_MASK			GENMASK(31, 16)
 
 /* MSI interrupt definitions for non-IPI platforms */
