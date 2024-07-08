@@ -16,6 +16,7 @@ config TURRIS_OMNIA_MCU
 	tristate "Turris Omnia MCU driver"
 	depends on MACH_ARMADA_38X || COMPILE_TEST
 	depends on I2C
+	depends on OF
 	select GPIOLIB
 	select GPIOLIB_IRQCHIP
 	select HW_RANDOM
