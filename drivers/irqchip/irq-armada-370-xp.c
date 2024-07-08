@@ -126,7 +126,7 @@
 
 /* Registers relative to per_cpu_int_base */
 #define ARMADA_370_XP_IN_DRBEL_CAUSE		(0x08)
-#define ARMADA_370_XP_IN_DRBEL_MSK		(0x0c)
+#define ARMADA_370_XP_IN_DRBEL_MASK		(0x0c)
 #define ARMADA_375_PPI_CAUSE			(0x10)
 #define ARMADA_370_XP_CPU_INTACK		(0x44)
 #define ARMADA_370_XP_INT_SET_MASK		(0x48)
@@ -324,9 +324,9 @@ static void armada_370_xp_msi_reenable_percpu(void)
 	u32 reg;
 
 	/* Enable MSI doorbell mask and combined cpu local interrupt */
-	reg = readl(per_cpu_int_base + ARMADA_370_XP_IN_DRBEL_MSK);
+	reg = readl(per_cpu_int_base + ARMADA_370_XP_IN_DRBEL_MASK);
 	reg |= msi_doorbell_mask();
-	writel(reg, per_cpu_int_base + ARMADA_370_XP_IN_DRBEL_MSK);
+	writel(reg, per_cpu_int_base + ARMADA_370_XP_IN_DRBEL_MASK);
 
 	/* Unmask local doorbell interrupt */
 	writel(1, per_cpu_int_base + ARMADA_370_XP_INT_CLEAR_MASK);
@@ -394,17 +394,17 @@ static struct irq_domain *ipi_domain;
 static void armada_370_xp_ipi_mask(struct irq_data *d)
 {
 	u32 reg;
-	reg = readl(per_cpu_int_base + ARMADA_370_XP_IN_DRBEL_MSK);
+	reg = readl(per_cpu_int_base + ARMADA_370_XP_IN_DRBEL_MASK);
 	reg &= ~BIT(d->hwirq);
-	writel(reg, per_cpu_int_base + ARMADA_370_XP_IN_DRBEL_MSK);
+	writel(reg, per_cpu_int_base + ARMADA_370_XP_IN_DRBEL_MASK);
 }
 
 static void armada_370_xp_ipi_unmask(struct irq_data *d)
 {
 	u32 reg;
-	reg = readl(per_cpu_int_base + ARMADA_370_XP_IN_DRBEL_MSK);
+	reg = readl(per_cpu_int_base + ARMADA_370_XP_IN_DRBEL_MASK);
 	reg |= BIT(d->hwirq);
-	writel(reg, per_cpu_int_base + ARMADA_370_XP_IN_DRBEL_MSK);
+	writel(reg, per_cpu_int_base + ARMADA_370_XP_IN_DRBEL_MASK);
 }
 
 static void armada_370_xp_ipi_send_mask(struct irq_data *d,
@@ -539,7 +539,7 @@ static void armada_xp_mpic_smp_cpu_init(void)
 		return;
 
 	/* Disable all IPIs */
-	writel(0, per_cpu_int_base + ARMADA_370_XP_IN_DRBEL_MSK);
+	writel(0, per_cpu_int_base + ARMADA_370_XP_IN_DRBEL_MASK);
 
 	/* Clear pending IPIs */
 	writel(0, per_cpu_int_base + ARMADA_370_XP_IN_DRBEL_CAUSE);
@@ -740,7 +740,7 @@ armada_370_xp_handle_irq(struct pt_regs *regs)
 
 static int armada_370_xp_mpic_suspend(void)
 {
-	doorbell_mask_reg = readl(per_cpu_int_base + ARMADA_370_XP_IN_DRBEL_MSK);
+	doorbell_mask_reg = readl(per_cpu_int_base + ARMADA_370_XP_IN_DRBEL_MASK);
 	return 0;
 }
 
@@ -785,7 +785,7 @@ static void armada_370_xp_mpic_resume(void)
 
 	/* Reconfigure doorbells for IPIs and MSIs */
 	writel(doorbell_mask_reg,
-	       per_cpu_int_base + ARMADA_370_XP_IN_DRBEL_MSK);
+	       per_cpu_int_base + ARMADA_370_XP_IN_DRBEL_MASK);
 
 	if (is_ipi_available()) {
 		src0 = doorbell_mask_reg & IPI_DOORBELL_MASK;
