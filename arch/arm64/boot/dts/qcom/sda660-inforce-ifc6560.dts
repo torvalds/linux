@@ -96,6 +96,18 @@
 
 		vin-supply = <&vph_pwr>;
 	};
+
+	/*
+	 * this is also used for APC1 CPU power, touching it resets the board
+	 */
+	vreg_l10a_1p8: vreg-l10a-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vreg_l10a_1p8";
+		regulator-min-microvolt = <1804000>;
+		regulator-max-microvolt = <1896000>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
 };
 
 &adsp_pil {
@@ -220,6 +232,7 @@
 	status = "okay";
 
 	vdd-supply = <&vreg_l1b_0p925>;
+	vdda-pll-supply = <&vreg_l10a_1p8>;
 	vdda-phy-dpdm-supply = <&vreg_l7b_3p125>;
 };
 
@@ -227,6 +240,7 @@
 	status = "okay";
 
 	vdd-supply = <&vreg_l1b_0p925>;
+	vdda-pll-supply = <&vreg_l10a_1p8>;
 	vdda-phy-dpdm-supply = <&vreg_l7b_3p125>;
 };
 
@@ -464,5 +478,6 @@
 
 &usb3_qmpphy {
 	vdda-phy-supply = <&vreg_l1b_0p925>;
+	vdda-pll-supply = <&vreg_l10a_1p8>;
 	status = "okay";
 };

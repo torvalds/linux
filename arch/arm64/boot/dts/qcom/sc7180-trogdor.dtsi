@@ -21,9 +21,6 @@
 / {
 	thermal-zones {
 		charger_thermal: charger-thermal {
-			polling-delay-passive = <0>;
-			polling-delay = <0>;
-
 			thermal-sensors = <&pm6150_adc_tm 0>;
 
 			trips {
@@ -359,10 +356,11 @@
 		#sound-dai-cells = <0>;
 	};
 
-	pwmleds {
+	pwmleds: pwmleds {
 		compatible = "pwm-leds";
+		status = "disabled";
+
 		keyboard_backlight: led-0 {
-			status = "disabled";
 			label = "cros_ec::kbd_backlight";
 			function = LED_FUNCTION_KBD_BACKLIGHT;
 			pwms = <&cros_ec_pwm 0>;

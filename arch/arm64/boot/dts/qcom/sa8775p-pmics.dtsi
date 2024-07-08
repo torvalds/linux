@@ -10,7 +10,7 @@
 	thermal-zones {
 		pmm8654au_0_thermal: pm8775-0-thermal {
 			polling-delay-passive = <100>;
-			polling-delay = <0>;
+
 			thermal-sensors = <&pmm8654au_0_temp_alarm>;
 
 			trips {
@@ -30,7 +30,7 @@
 
 		pmm8654au_1_thermal: pm8775-1-thermal {
 			polling-delay-passive = <100>;
-			polling-delay = <0>;
+
 			thermal-sensors = <&pmm8654au_1_temp_alarm>;
 
 			trips {
@@ -50,7 +50,7 @@
 
 		pmm8654au_2_thermal: pm8775-2-thermal {
 			polling-delay-passive = <100>;
-			polling-delay = <0>;
+
 			thermal-sensors = <&pmm8654au_2_temp_alarm>;
 
 			trips {
@@ -70,7 +70,7 @@
 
 		pmm8654au_3_thermal: pm8775-3-thermal {
 			polling-delay-passive = <100>;
-			polling-delay = <0>;
+
 			thermal-sensors = <&pmm8654au_3_temp_alarm>;
 
 			trips {

@@ -41,6 +41,12 @@
 	};
 };
 
+&battery {
+	charge-term-current-microamp = <150000>;
+	constant-charge-current-max-microamp = <1000000>;
+	constant-charge-voltage-max-microvolt = <4400000>;
+};
+
 &reg_motor_vdd {
 	gpio = <&tlmm 72 GPIO_ACTIVE_HIGH>;
 };
