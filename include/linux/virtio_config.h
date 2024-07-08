@@ -19,6 +19,20 @@ struct virtio_shm_region {
 typedef void vq_callback_t(struct virtqueue *);
 
 /**
+ * struct virtqueue_info - Info for a virtqueue passed to find_vqs().
+ * @name: virtqueue description. Used mainly for debugging, NULL for
+ *        a virtqueue unused by the driver.
+ * @callback: A callback to invoke on a used buffer notification.
+ *            NULL for a virtqueue that does not need a callback.
+ * @ctx: A flag to indicate to maintain an extra context per virtqueue.
+ */
+struct virtqueue_info {
+	const char *name;
+	vq_callback_t *callback;
+	bool ctx;
+};
+
+/**
  * struct virtio_config_ops - operations for configuring a virtio device
  * Note: Do not assume that a transport implements all of the operations
  *       getting/setting a value as a simple read/write! Generally speaking,
@@ -57,6 +71,12 @@ typedef void vq_callback_t(struct virtqueue *);
  *		include a NULL entry for vqs that do not need a callback
  *	names: array of virtqueue names (mainly for debugging)
  *		include a NULL entry for vqs unused by driver
+ *	Returns 0 on success or error status
+ * @find_vqs_info: find virtqueues and instantiate them.
+ *	vdev: the virtio_device
+ *	nvqs: the number of virtqueues to find
+ *	vqs: on success, includes new virtqueues
+ *	vqs_info: array of virtqueue info structures
  *	Returns 0 on success or error status
  * @del_vqs: free virtqueues found by find_vqs().
  * @synchronize_cbs: synchronize with the virtqueue callbacks (optional)
@@ -109,6 +129,10 @@ struct virtio_config_ops {
 			struct virtqueue *vqs[], vq_callback_t *callbacks[],
 			const char * const names[], const bool *ctx,
 			struct irq_affinity *desc);
+	int (*find_vqs_info)(struct virtio_device *vdev, unsigned int nvqs,
+			     struct virtqueue *vqs[],
+			     struct virtqueue_info vqs_info[],
+			     struct irq_affinity *desc);
 	void (*del_vqs)(struct virtio_device *);
 	void (*synchronize_cbs)(struct virtio_device *);
 	u64 (*get_features)(struct virtio_device *vdev);
@@ -117,7 +141,7 @@ struct virtio_config_ops {
 	int (*set_vq_affinity)(struct virtqueue *vq,
 			       const struct cpumask *cpu_mask);
 	const struct cpumask *(*get_vq_affinity)(struct virtio_device *vdev,
-			int index);
+						 int index);
 	bool (*get_shm_region)(struct virtio_device *vdev,
 			       struct virtio_shm_region *region, u8 id);
 	int (*disable_vq_and_reset)(struct virtqueue *vq);
@@ -211,13 +235,38 @@ static inline bool virtio_has_dma_quirk(const struct virtio_device *vdev)
 }
 
 static inline
+int virtio_find_vqs_info(struct virtio_device *vdev, unsigned int nvqs,
+			 struct virtqueue *vqs[],
+			 struct virtqueue_info vqs_info[],
+			 struct irq_affinity *desc)
+{
+	return vdev->config->find_vqs_info(vdev, nvqs, vqs, vqs_info, desc);
+}
+
+static inline
 int virtio_find_vqs_ctx(struct virtio_device *vdev, unsigned nvqs,
 			struct virtqueue *vqs[], vq_callback_t *callbacks[],
 			const char * const names[], const bool *ctx,
 			struct irq_affinity *desc)
 {
-	return vdev->config->find_vqs(vdev, nvqs, vqs, callbacks, names, ctx,
-				      desc);
+	struct virtqueue_info *vqs_info;
+	int err, i;
+
+	if (!vdev->config->find_vqs_info)
+		return vdev->config->find_vqs(vdev, nvqs, vqs, callbacks,
+					      names, ctx, desc);
+
+	vqs_info = kmalloc_array(nvqs, sizeof(*vqs_info), GFP_KERNEL);
+	if (!vqs_info)
+		return -ENOMEM;
+	for (i = 0; i < nvqs; i++) {
+		vqs_info[i].name = names[i];
+		vqs_info[i].callback = callbacks[i];
+		vqs_info[i].ctx = ctx ? ctx[i] : false;
+	}
+	err = virtio_find_vqs_info(vdev, nvqs, vqs, vqs_info, desc);
+	kfree(vqs_info);
+	return err;
 }
 
 static inline
