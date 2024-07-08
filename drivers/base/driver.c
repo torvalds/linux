@@ -148,7 +148,7 @@ EXPORT_SYMBOL_GPL(driver_for_each_device);
  * if it does.  If the callback returns non-zero, this function will
  * return to the caller and not iterate over any more devices.
  */
-struct device *driver_find_device(struct device_driver *drv,
+struct device *driver_find_device(const struct device_driver *drv,
 				  struct device *start, const void *data,
 				  int (*match)(struct device *dev, const void *data))
 {
