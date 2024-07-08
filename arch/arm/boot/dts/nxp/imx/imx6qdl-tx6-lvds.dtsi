@@ -127,8 +127,7 @@
 		};
 
 		display-timings {
-			hsd100pxn1 {
-				u-boot,panel-name = "hannstar,hsd100pxn1";
+			timing-hsd100pxn1 {
 				clock-frequency = <65000000>;
 				hactive = <1024>;
 				vactive = <768>;
@@ -142,7 +141,7 @@
 				pixelclk-active = <1>;
 			};
 
-			VGA {
+			timing-vga {
 				clock-frequency = <25200000>;
 				hactive = <640>;
 				vactive = <480>;
@@ -158,8 +157,7 @@
 				pixelclk-active = <0>;
 			};
 
-			nl12880bc20 {
-				u-boot,panel-name = "nlt,nl12880bc20-spwg-24";
+			timing-nl12880bc20 {
 				clock-frequency = <71000000>;
 				hactive = <1280>;
 				vactive = <800>;
@@ -175,8 +173,7 @@
 				pixelclk-active = <1>;
 			};
 
-			ET0700 {
-				u-boot,panel-name = "edt,etm0700g0dh6";
+			timing-et0700 {
 				clock-frequency = <33264000>;
 				hactive = <800>;
 				vactive = <480>;
@@ -192,8 +189,7 @@
 				pixelclk-active = <0>;
 			};
 
-			ETV570 {
-				u-boot,panel-name = "edt,et057090dhu";
+			timing-etv570 {
 				clock-frequency = <25200000>;
 				hactive = <640>;
 				vactive = <480>;
@@ -224,7 +220,7 @@
 		};
 
 		display-timings {
-			hsd100pxn1 {
+			timing-hsd100pxn1 {
 				clock-frequency = <65000000>;
 				hactive = <1024>;
 				vactive = <768>;
@@ -238,7 +234,7 @@
 				pixelclk-active = <1>;
 			};
 
-			VGA {
+			timing-vga {
 				clock-frequency = <25200000>;
 				hactive = <640>;
 				vactive = <480>;
@@ -254,7 +250,7 @@
 				pixelclk-active = <0>;
 			};
 
-			nl12880bc20 {
+			timing-nl12880bc20 {
 				clock-frequency = <71000000>;
 				hactive = <1280>;
 				vactive = <800>;
