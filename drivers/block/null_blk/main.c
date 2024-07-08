@@ -1831,9 +1831,6 @@ static int null_validate_conf(struct nullb_device *dev)
 		dev->queue_mode = NULL_Q_MQ;
 	}
 
-	if (blk_validate_block_size(dev->blocksize))
-		return -EINVAL;
-
 	if (dev->use_per_node_hctx) {
 		if (dev->submit_queues != nr_online_nodes)
 			dev->submit_queues = nr_online_nodes;
