@@ -1182,7 +1182,7 @@ static int cs_dsp_coeff_parse_alg(struct cs_dsp *dsp,
 
 		blk->id = le32_to_cpu(raw->id);
 		blk->name = raw->name;
-		blk->name_len = strlen(raw->name);
+		blk->name_len = strnlen(raw->name, ARRAY_SIZE(raw->name));
 		blk->ncoeff = le32_to_cpu(raw->ncoeff);
 
 		pos = sizeof(*raw);
@@ -1258,7 +1258,7 @@ static int cs_dsp_coeff_parse_coeff(struct cs_dsp *dsp,
 			return -EOVERFLOW;
 
 		blk->name = raw->name;
-		blk->name_len = strlen(raw->name);
+		blk->name_len = strnlen(raw->name, ARRAY_SIZE(raw->name));
 		blk->ctl_type = le16_to_cpu(raw->ctl_type);
 		blk->flags = le16_to_cpu(raw->flags);
 		blk->len = le32_to_cpu(raw->len);
