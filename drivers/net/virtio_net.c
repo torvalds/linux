@@ -1968,6 +1968,40 @@ static void virtio_skb_set_hash(const struct virtio_net_hdr_v1_hash *hdr_hash,
 	skb_set_hash(skb, __le32_to_cpu(hdr_hash->hash_value), rss_hash_type);
 }
 
+static void virtnet_receive_done(struct virtnet_info *vi, struct receive_queue *rq,
+				 struct sk_buff *skb, u8 flags)
+{
+	struct virtio_net_common_hdr *hdr;
+	struct net_device *dev = vi->dev;
+
+	hdr = skb_vnet_common_hdr(skb);
+	if (dev->features & NETIF_F_RXHASH && vi->has_rss_hash_report)
+		virtio_skb_set_hash(&hdr->hash_v1_hdr, skb);
+
+	if (flags & VIRTIO_NET_HDR_F_DATA_VALID)
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
+
+	if (virtio_net_hdr_to_skb(skb, &hdr->hdr,
+				  virtio_is_little_endian(vi->vdev))) {
+		net_warn_ratelimited("%s: bad gso: type: %u, size: %u\n",
+				     dev->name, hdr->hdr.gso_type,
+				     hdr->hdr.gso_size);
+		goto frame_err;
+	}
+
+	skb_record_rx_queue(skb, vq2rxq(rq->vq));
+	skb->protocol = eth_type_trans(skb, dev);
+	pr_debug("Receiving skb proto 0x%04x len %i type %i\n",
+		 ntohs(skb->protocol), skb->len, skb->pkt_type);
+
+	napi_gro_receive(&rq->napi, skb);
+	return;
+
+frame_err:
+	DEV_STATS_INC(dev, rx_frame_errors);
+	dev_kfree_skb(skb);
+}
+
 static void receive_buf(struct virtnet_info *vi, struct receive_queue *rq,
 			void *buf, unsigned int len, void **ctx,
 			unsigned int *xdp_xmit,
@@ -1975,7 +2009,6 @@ static void receive_buf(struct virtnet_info *vi, struct receive_queue *rq,
 {
 	struct net_device *dev = vi->dev;
 	struct sk_buff *skb;
-	struct virtio_net_common_hdr *hdr;
 	u8 flags;
 
 	if (unlikely(len < vi->hdr_len + ETH_HLEN)) {
@@ -2005,32 +2038,7 @@ static void receive_buf(struct virtnet_info *vi, struct receive_queue *rq,
 	if (unlikely(!skb))
 		return;
 
-	hdr = skb_vnet_common_hdr(skb);
-	if (dev->features & NETIF_F_RXHASH && vi->has_rss_hash_report)
-		virtio_skb_set_hash(&hdr->hash_v1_hdr, skb);
-
-	if (flags & VIRTIO_NET_HDR_F_DATA_VALID)
-		skb->ip_summed = CHECKSUM_UNNECESSARY;
-
-	if (virtio_net_hdr_to_skb(skb, &hdr->hdr,
-				  virtio_is_little_endian(vi->vdev))) {
-		net_warn_ratelimited("%s: bad gso: type: %u, size: %u\n",
-				     dev->name, hdr->hdr.gso_type,
-				     hdr->hdr.gso_size);
-		goto frame_err;
-	}
-
-	skb_record_rx_queue(skb, vq2rxq(rq->vq));
-	skb->protocol = eth_type_trans(skb, dev);
-	pr_debug("Receiving skb proto 0x%04x len %i type %i\n",
-		 ntohs(skb->protocol), skb->len, skb->pkt_type);
-
-	napi_gro_receive(&rq->napi, skb);
-	return;
-
-frame_err:
-	DEV_STATS_INC(dev, rx_frame_errors);
-	dev_kfree_skb(skb);
+	virtnet_receive_done(vi, rq, skb, flags);
 }
 
 /* Unlike mergeable buffers, all buffers are allocated to the
