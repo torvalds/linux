@@ -244,6 +244,36 @@ def test_rss_resize(cfg):
             f"Table imbalance after resize: {data['rss-indirection-table']}")
 
 
+def test_hitless_key_update(cfg):
+    """Test that flows may be rehashed without impacting traffic.
+
+    Some workloads may want to rehash the flows in response to an imbalance.
+    Most effective way to do that is changing the RSS key. Check that changing
+    the key does not cause link flaps or traffic disruption.
+
+    Disrupting traffic for key update is not a bug, but makes the key
+    update unusable for rehashing under load.
+    """
+    data = get_rss(cfg)
+    key_len = len(data['rss-hash-key'])
+
+    key = _rss_key_rand(key_len)
+
+    tgen = GenerateTraffic(cfg)
+    try:
+        errors0, carrier0 = get_drop_err_sum(cfg)
+        t0 = datetime.datetime.now()
+        ethtool(f"-X {cfg.ifname} hkey " + _rss_key_str(key))
+        t1 = datetime.datetime.now()
+        errors1, carrier1 = get_drop_err_sum(cfg)
+    finally:
+        tgen.wait_pkts_and_stop(5000)
+
+    ksft_lt((t1 - t0).total_seconds(), 0.2)
+    ksft_eq(errors1 - errors1, 0)
+    ksft_eq(carrier1 - carrier0, 0)
+
+
 def test_rss_context(cfg, ctx_cnt=1, create_with_cfg=None):
     """
     Test separating traffic into RSS contexts.
@@ -479,7 +509,7 @@ def main() -> None:
         cfg.netdevnl = NetdevFamily()
 
         ksft_run([test_rss_key_indir, test_rss_queue_reconfigure,
-                  test_rss_resize,
+                  test_rss_resize, test_hitless_key_update,
                   test_rss_context, test_rss_context4, test_rss_context32,
                   test_rss_context_queue_reconfigure,
                   test_rss_context_overlap, test_rss_context_overlap2,
