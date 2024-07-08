@@ -121,7 +121,7 @@
 #define ARMADA_370_XP_INT_SET_ENABLE		(0x30)
 #define ARMADA_370_XP_INT_CLEAR_ENABLE		(0x34)
 #define ARMADA_370_XP_INT_SOURCE_CTL(irq)	(0x100 + irq*4)
-#define ARMADA_370_XP_INT_SOURCE_CPU_MASK	0xF
+#define ARMADA_370_XP_INT_SOURCE_CPU_MASK	GENMASK(3, 0)
 #define ARMADA_370_XP_INT_IRQ_FIQ_MASK(cpuid)	((BIT(0) | BIT(8)) << cpuid)
 
 /* Registers relative to per_cpu_int_base */
@@ -132,18 +132,18 @@
 #define ARMADA_370_XP_INT_SET_MASK		(0x48)
 #define ARMADA_370_XP_INT_CLEAR_MASK		(0x4C)
 #define ARMADA_370_XP_INT_FABRIC_MASK		(0x54)
-#define ARMADA_370_XP_INT_CAUSE_PERF(cpu)	(1 << cpu)
+#define ARMADA_370_XP_INT_CAUSE_PERF(cpu)	BIT(cpu)
 
 #define ARMADA_370_XP_MAX_PER_CPU_IRQS		(28)
 
 /* IPI and MSI interrupt definitions for IPI platforms */
 #define IPI_DOORBELL_START			(0)
 #define IPI_DOORBELL_END			(8)
-#define IPI_DOORBELL_MASK			0xFF
+#define IPI_DOORBELL_MASK			GENMASK(7, 0)
 #define PCI_MSI_DOORBELL_START			(16)
 #define PCI_MSI_DOORBELL_NR			(16)
 #define PCI_MSI_DOORBELL_END			(32)
-#define PCI_MSI_DOORBELL_MASK			0xFFFF0000
+#define PCI_MSI_DOORBELL_MASK			GENMASK(31, 16)
 
 /* MSI interrupt definitions for non-IPI platforms */
 #define PCI_MSI_FULL_DOORBELL_START		0
@@ -415,7 +415,7 @@ static void armada_370_xp_ipi_send_mask(struct irq_data *d,
 
 	/* Convert our logical CPU mask into a physical one. */
 	for_each_cpu(cpu, mask)
-		map |= 1 << cpu_logical_map(cpu);
+		map |= BIT(cpu_logical_map(cpu));
 
 	/*
 	 * Ensure that stores to Normal memory are visible to the
