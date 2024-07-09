@@ -569,10 +569,8 @@ static int kvm_map_page_fast(struct kvm_vcpu *vcpu, unsigned long gpa, bool writ
 	}
 
 	/* Track access to pages marked old */
-	new = *ptep;
-	if (!kvm_pte_young(new))
-		new = kvm_pte_mkyoung(new);
-		/* call kvm_set_pfn_accessed() after unlock */
+	new = kvm_pte_mkyoung(*ptep);
+	/* call kvm_set_pfn_accessed() after unlock */
 
 	if (write && !kvm_pte_dirty(new)) {
 		if (!kvm_pte_write(new)) {
