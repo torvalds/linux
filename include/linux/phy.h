@@ -616,6 +616,8 @@ struct macsec_ops;
  *                 handling shall be postponed until PHY has resumed
  * @irq_rerun: Flag indicating interrupts occurred while PHY was suspended,
  *             requiring a rerun of the interrupt handler after resume
+ * @default_timestamp: Flag indicating whether we are using the phy
+ *		       timestamp as the default one
  * @interface: enum phy_interface_t value
  * @possible_interfaces: bitmap if interface modes that the attached PHY
  *			 will switch between depending on media speed.
@@ -680,6 +682,8 @@ struct phy_device {
 	unsigned interrupts:1;
 	unsigned irq_suspended:1;
 	unsigned irq_rerun:1;
+
+	unsigned default_timestamp:1;
 
 	int rate_matching;
 
@@ -1623,6 +1627,21 @@ static inline void phy_txtstamp(struct phy_device *phydev, struct sk_buff *skb,
 				int type)
 {
 	phydev->mii_ts->txtstamp(phydev->mii_ts, skb, type);
+}
+
+/**
+ * phy_is_default_hwtstamp - Is the PHY hwtstamp the default timestamp
+ * @phydev: Pointer to phy_device
+ *
+ * This is used to get default timestamping device taking into account
+ * the new API choice, which is selecting the timestamping from MAC by
+ * default if the phydev does not have default_timestamp flag enabled.
+ *
+ * Return: True if phy is the default hw timestamp, false otherwise.
+ */
+static inline bool phy_is_default_hwtstamp(struct phy_device *phydev)
+{
+	return phy_has_hwtstamp(phydev) && phydev->default_timestamp;
 }
 
 /**
