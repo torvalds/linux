@@ -41,6 +41,87 @@
 #define DC_LOGGER \
 	dccg->ctx->logger
 
+enum physymclk_fe_source {
+	PHYSYMCLK_FE_SYMCLK_A = 0,	// Select functional clock from backend symclk A
+	PHYSYMCLK_FE_SYMCLK_B,
+	PHYSYMCLK_FE_SYMCLK_C,
+	PHYSYMCLK_FE_SYMCLK_D,
+	PHYSYMCLK_FE_SYMCLK_E,
+	PHYSYMCLK_FE_REFCLK = 0xFF,	// Arbitrary value to pass refclk selection in software
+};
+
+enum physymclk_source {
+	PHYSYMCLK_PHYCLK = 0,		// Select symclk as source of clock which is output to PHY through DCIO.
+	PHYSYMCLK_PHYD18CLK,		// Select phyd18clk as the source of clock which is output to PHY through DCIO.
+	PHYSYMCLK_PHYD32CLK,		// Select phyd32clk as the source of clock which is output to PHY through DCIO.
+	PHYSYMCLK_REFCLK = 0xFF,	// Arbitrary value to pass refclk selection in software
+};
+
+enum dtbclk_source {
+	DTBCLK_DPREFCLK = 0,		// Selects source for DTBCLK_P# as DPREFCLK (src sel 0 and 1 are same)
+	DTBCLK_DPREFCLK_0,			// Selects source for DTBCLK_P# as DPREFCLK (src sel 0 and 1 are same)
+	DTBCLK_DTBCLK0,				// Selects source for DTBCLK_P# as DTBCLK0
+	DTBCLK_DTBCLK1,				// Selects source for DTBCLK_P# as DTBCLK0
+	DTBCLK_REFCLK = 0xFF,		// Arbitrary value to pass refclk selection in software
+};
+
+enum dppclk_clock_source {
+	DPP_REFCLK = 0,				// refclk is selected
+	DPP_DCCG_DTO,				// Functional clock selected is DTO tuned DPPCLK
+};
+
+enum dp_stream_clk_source {
+	DP_STREAM_DTBCLK_P0 = 0,	// Selects functional for DP_STREAM_CLK as DTBCLK_P#
+	DP_STREAM_DTBCLK_P1,
+	DP_STREAM_DTBCLK_P2,
+	DP_STREAM_DTBCLK_P3,
+	DP_STREAM_DTBCLK_P4,
+	DP_STREAM_DTBCLK_P5,
+	DP_STREAM_REFCLK = 0xFF,	// Arbitrary value to pass refclk selection in software
+};
+
+enum hdmi_char_clk {
+	HDMI_CHAR_PHYAD18CLK = 0,	// Selects functional for hdmi_char_clk as UNIPHYA PHYD18CLK
+	HDMI_CHAR_PHYBD18CLK,
+	HDMI_CHAR_PHYCD18CLK,
+	HDMI_CHAR_PHYDD18CLK,
+	HDMI_CHAR_PHYED18CLK,
+	HDMI_CHAR_REFCLK = 0xFF,	// Arbitrary value to pass refclk selection in software
+};
+
+enum hdmi_stream_clk_source {
+	HDMI_STREAM_DTBCLK_P0 = 0,	// Selects functional for HDMI_STREAM_CLK as DTBCLK_P#
+	HDMI_STREAM_DTBCLK_P1,
+	HDMI_STREAM_DTBCLK_P2,
+	HDMI_STREAM_DTBCLK_P3,
+	HDMI_STREAM_DTBCLK_P4,
+	HDMI_STREAM_DTBCLK_P5,
+	HDMI_STREAM_REFCLK = 0xFF,	// Arbitrary value to pass refclk selection in software
+};
+
+enum symclk32_se_clk_source {
+	SYMCLK32_SE_PHYAD32CLK = 0,	// Selects functional for SYMCLK32 as UNIPHYA PHYD32CLK
+	SYMCLK32_SE_PHYBD32CLK,
+	SYMCLK32_SE_PHYCD32CLK,
+	SYMCLK32_SE_PHYDD32CLK,
+	SYMCLK32_SE_PHYED32CLK,
+	SYMCLK32_SE_REFCLK = 0xFF,	// Arbitrary value to pass refclk selection in software
+};
+
+enum symclk32_le_clk_source {
+	SYMCLK32_LE_PHYAD32CLK = 0,	// Selects functional for SYMCLK32 as UNIPHYA PHYD32CLK
+	SYMCLK32_LE_PHYBD32CLK,
+	SYMCLK32_LE_PHYCD32CLK,
+	SYMCLK32_LE_PHYDD32CLK,
+	SYMCLK32_LE_PHYED32CLK,
+	SYMCLK32_LE_REFCLK = 0xFF,	// Arbitrary value to pass refclk selection in software
+};
+
+enum dsc_clk_source {
+	DSC_CLK_REF_CLK = 0,			// Ref clock selected for DSC_CLK
+	DSC_DTO_TUNED_CK_GPU_DISCLK_3,	// DTO divided clock selected as functional clock
+};
+
 static void dccg35_trigger_dio_fifo_resync(struct dccg *dccg)
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
