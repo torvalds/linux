@@ -159,7 +159,7 @@ static int sysv_unlink(struct inode * dir, struct dentry * dentry)
 	if (!de)
 		return -ENOENT;
 
-	err = sysv_delete_entry(de, &folio->page);
+	err = sysv_delete_entry(de, folio);
 	if (!err) {
 		inode_set_ctime_to_ts(inode, inode_get_ctime(dir));
 		inode_dec_link_count(inode);
@@ -242,7 +242,7 @@ static int sysv_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 			inode_inc_link_count(new_dir);
 	}
 
-	err = sysv_delete_entry(old_de, &old_folio->page);
+	err = sysv_delete_entry(old_de, old_folio);
 	if (err)
 		goto out_dir;
 

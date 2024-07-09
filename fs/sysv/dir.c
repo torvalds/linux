@@ -231,20 +231,20 @@ out_unlock:
 	goto out_folio;
 }
 
-int sysv_delete_entry(struct sysv_dir_entry *de, struct page *page)
+int sysv_delete_entry(struct sysv_dir_entry *de, struct folio *folio)
 {
-	struct inode *inode = page->mapping->host;
-	loff_t pos = page_offset(page) + offset_in_page(de);
+	struct inode *inode = folio->mapping->host;
+	loff_t pos = folio_pos(folio) + offset_in_folio(folio, de);
 	int err;
 
-	lock_page(page);
-	err = sysv_prepare_chunk(page, pos, SYSV_DIRSIZE);
+	folio_lock(folio);
+	err = sysv_prepare_chunk(&folio->page, pos, SYSV_DIRSIZE);
 	if (err) {
-		unlock_page(page);
+		folio_unlock(folio);
 		return err;
 	}
 	de->inode = 0;
-	dir_commit_chunk(page, pos, SYSV_DIRSIZE);
+	dir_commit_chunk(&folio->page, pos, SYSV_DIRSIZE);
 	inode_set_mtime_to_ts(inode, inode_set_ctime_current(inode));
 	mark_inode_dirty(inode);
 	return sysv_handle_dirsync(inode);

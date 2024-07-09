@@ -150,7 +150,7 @@ extern void sysv_destroy_icache(void);
 /* dir.c */
 struct sysv_dir_entry *sysv_find_entry(struct dentry *, struct folio **);
 int sysv_add_link(struct dentry *, struct inode *);
-int sysv_delete_entry(struct sysv_dir_entry *, struct page *);
+int sysv_delete_entry(struct sysv_dir_entry *, struct folio *);
 int sysv_make_empty(struct inode *, struct inode *);
 int sysv_empty_dir(struct inode *);
 int sysv_set_link(struct sysv_dir_entry *, struct folio *,
