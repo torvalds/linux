@@ -10,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
+#include <linux/regmap.h>
 
 
 #include "icc-rpm.h"
@@ -1067,10 +1068,22 @@ static struct qcom_icc_node * const qcs404_bimc_nodes[] = {
 	[SLAVE_BIMC_SNOC] = &slv_bimc_snoc,
 };
 
+static const struct regmap_config qcs404_bimc_regmap_config = {
+	.reg_bits = 32,
+	.reg_stride = 4,
+	.val_bits = 32,
+	.max_register = 0x80000,
+	.fast_io = true,
+};
+
 static const struct qcom_icc_desc qcs404_bimc = {
-	.bus_clk_desc = &bimc_clk,
+	.type = QCOM_ICC_BIMC,
 	.nodes = qcs404_bimc_nodes,
 	.num_nodes = ARRAY_SIZE(qcs404_bimc_nodes),
+	.bus_clk_desc = &bimc_clk,
+	.regmap_cfg = &qcs404_bimc_regmap_config,
+	.qos_offset = 0x8000,
+	.ab_coeff = 153,
 };
 
 static struct qcom_icc_node * const qcs404_pcnoc_nodes[] = {
@@ -1122,10 +1135,22 @@ static struct qcom_icc_node * const qcs404_pcnoc_nodes[] = {
 	[SLAVE_PCNOC_SNOC] = &slv_pcnoc_snoc,
 };
 
+static const struct regmap_config qcs404_pcnoc_regmap_config = {
+	.reg_bits = 32,
+	.reg_stride = 4,
+	.val_bits = 32,
+	.max_register = 0x15080,
+	.fast_io = true,
+};
+
 static const struct qcom_icc_desc qcs404_pcnoc = {
-	.bus_clk_desc = &bus_0_clk,
+	.type = QCOM_ICC_NOC,
 	.nodes = qcs404_pcnoc_nodes,
 	.num_nodes = ARRAY_SIZE(qcs404_pcnoc_nodes),
+	.bus_clk_desc = &bus_0_clk,
+	.qos_offset = 0x7000,
+	.keep_alive = true,
+	.regmap_cfg = &qcs404_pcnoc_regmap_config,
 };
 
 static struct qcom_icc_node * const qcs404_snoc_nodes[] = {
@@ -1151,10 +1176,21 @@ static struct qcom_icc_node * const qcs404_snoc_nodes[] = {
 	[SLAVE_LPASS] = &slv_lpass,
 };
 
+static const struct regmap_config qcs404_snoc_regmap_config = {
+	.reg_bits = 32,
+	.reg_stride = 4,
+	.val_bits = 32,
+	.max_register = 0x23080,
+	.fast_io = true,
+};
+
 static const struct qcom_icc_desc qcs404_snoc = {
-	.bus_clk_desc = &bus_1_clk,
+	.type = QCOM_ICC_NOC,
 	.nodes = qcs404_snoc_nodes,
 	.num_nodes = ARRAY_SIZE(qcs404_snoc_nodes),
+	.bus_clk_desc = &bus_1_clk,
+	.qos_offset = 0x11000,
+	.regmap_cfg = &qcs404_snoc_regmap_config,
 };
 
 
