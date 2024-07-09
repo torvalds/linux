@@ -161,14 +161,6 @@ if [ "$rust_bindings_generator_cversion" -lt "$rust_bindings_generator_min_cvers
 	echo >&2 "***"
 	exit 1
 fi
-if [ "$rust_bindings_generator_cversion" -gt "$rust_bindings_generator_min_cversion" ]; then
-	echo >&2 "***"
-	echo >&2 "*** Rust bindings generator '$BINDGEN' is too new. This may or may not work."
-	echo >&2 "***   Your version:     $rust_bindings_generator_version"
-	echo >&2 "***   Expected version: $rust_bindings_generator_min_version"
-	echo >&2 "***"
-	warning=1
-fi
 
 # Check that the `libclang` used by the Rust bindings generator is suitable.
 #

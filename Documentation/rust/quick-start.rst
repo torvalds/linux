@@ -107,11 +107,12 @@ bindgen
 *******
 
 The bindings to the C side of the kernel are generated at build time using
-the ``bindgen`` tool. A particular version is required.
+the ``bindgen`` tool.
 
-Install it via (note that this will download and build the tool from source)::
+Install it, for instance, via (note that this will download and build the tool
+from source)::
 
-	cargo install --locked --version $(scripts/min-tool-version.sh bindgen) bindgen-cli
+	cargo install --locked bindgen-cli
 
 ``bindgen`` uses the ``clang-sys`` crate to find a suitable ``libclang`` (which
 may be linked statically, dynamically or loaded at runtime). By default, the
