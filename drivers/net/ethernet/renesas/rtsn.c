@@ -1213,7 +1213,7 @@ static const struct net_device_ops rtsn_netdev_ops = {
 };
 
 static int rtsn_get_ts_info(struct net_device *ndev,
-			    struct ethtool_ts_info *info)
+			    struct kernel_ethtool_ts_info *info)
 {
 	struct rtsn_private *priv = netdev_priv(ndev);
 

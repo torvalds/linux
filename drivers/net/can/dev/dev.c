@@ -376,7 +376,7 @@ EXPORT_SYMBOL(can_eth_ioctl_hwts);
  * supporting hardware timestamps
  */
 int can_ethtool_op_get_ts_info_hwts(struct net_device *dev,
-				    struct ethtool_ts_info *info)
+				    struct kernel_ethtool_ts_info *info)
 {
 	info->so_timestamping =
 		SOF_TIMESTAMPING_TX_SOFTWARE |

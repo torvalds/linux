@@ -110,7 +110,7 @@ static void emac_get_ethtool_stats(struct net_device *ndev,
 }
 
 static int emac_get_ts_info(struct net_device *ndev,
-			    struct ethtool_ts_info *info)
+			    struct kernel_ethtool_ts_info *info)
 {
 	struct prueth_emac *emac = netdev_priv(ndev);
 
