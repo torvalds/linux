@@ -2136,9 +2136,9 @@ static int mc_probe(struct platform_device *pdev)
 
 	card = &ctx->card;
 	card->dev = &pdev->dev;
-	card->name = "soundwire",
-	card->owner = THIS_MODULE,
-	card->late_probe = sof_sdw_card_late_probe,
+	card->name = "soundwire";
+	card->owner = THIS_MODULE;
+	card->late_probe = sof_sdw_card_late_probe;
 
 	snd_soc_card_set_drvdata(card, ctx);
 
