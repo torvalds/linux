@@ -15,6 +15,7 @@
 
 #define LVB_SIZE	64
 #define NEW_DEV_TIMEOUT 5000
+#define WAIT_DLM_LOCK_TIMEOUT (30 * HZ)
 
 struct dlm_lock_resource {
 	dlm_lockspace_t *ls;
@@ -130,8 +131,13 @@ static int dlm_lock_sync(struct dlm_lock_resource *res, int mode)
 			0, sync_ast, res, res->bast);
 	if (ret)
 		return ret;
-	wait_event(res->sync_locking, res->sync_locking_done);
+	ret = wait_event_timeout(res->sync_locking, res->sync_locking_done,
+				WAIT_DLM_LOCK_TIMEOUT);
 	res->sync_locking_done = false;
+	if (!ret) {
+		pr_err("locking DLM '%s' timeout!\n", res->name);
+		return -EBUSY;
+	}
 	if (res->lksb.sb_status == 0)
 		res->mode = mode;
 	return res->lksb.sb_status;
@@ -743,7 +749,7 @@ static void unlock_comm(struct md_cluster_info *cinfo)
  */
 static int __sendmsg(struct md_cluster_info *cinfo, struct cluster_msg *cmsg)
 {
-	int error;
+	int error, unlock_error;
 	int slot = cinfo->slot_number - 1;
 
 	cmsg->slot = cpu_to_le32(slot);
@@ -751,7 +757,7 @@ static int __sendmsg(struct md_cluster_info *cinfo, struct cluster_msg *cmsg)
 	error = dlm_lock_sync(cinfo->message_lockres, DLM_LOCK_EX);
 	if (error) {
 		pr_err("md-cluster: failed to get EX on MESSAGE (%d)\n", error);
-		goto failed_message;
+		return error;
 	}
 
 	memcpy(cinfo->message_lockres->lksb.sb_lvbptr, (void *)cmsg,
@@ -781,14 +787,10 @@ static int __sendmsg(struct md_cluster_info *cinfo, struct cluster_msg *cmsg)
 	}
 
 failed_ack:
-	error = dlm_unlock_sync(cinfo->message_lockres);
-	if (unlikely(error != 0)) {
+	while ((unlock_error = dlm_unlock_sync(cinfo->message_lockres)))
 		pr_err("md-cluster: failed convert to NL on MESSAGE(%d)\n",
-			error);
-		/* in case the message can't be released due to some reason */
-		goto failed_ack;
-	}
-failed_message:
+			unlock_error);
+
 	return error;
 }
 
