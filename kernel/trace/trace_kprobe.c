@@ -794,6 +794,24 @@ static int validate_module_probe_symbol(const char *modname, const char *symbol)
 	return 0;
 }
 
+#ifdef CONFIG_MODULES
+/* Return NULL if the module is not loaded or under unloading. */
+static struct module *try_module_get_by_name(const char *name)
+{
+	struct module *mod;
+
+	rcu_read_lock_sched();
+	mod = find_module(name);
+	if (mod && !try_module_get(mod))
+		mod = NULL;
+	rcu_read_unlock_sched();
+
+	return mod;
+}
+#else
+#define try_module_get_by_name(name)	(NULL)
+#endif
+
 static int validate_probe_symbol(char *symbol)
 {
 	struct module *mod = NULL;
@@ -805,12 +823,7 @@ static int validate_probe_symbol(char *symbol)
 		modname = symbol;
 		symbol = p + 1;
 		*p = '\0';
-		/* Return 0 (defer) if the module does not exist yet. */
-		rcu_read_lock_sched();
-		mod = find_module(modname);
-		if (mod && !try_module_get(mod))
-			mod = NULL;
-		rcu_read_unlock_sched();
+		mod = try_module_get_by_name(modname);
 		if (!mod)
 			goto out;
 	}
