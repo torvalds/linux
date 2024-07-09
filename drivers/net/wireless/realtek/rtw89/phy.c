@@ -2,6 +2,7 @@
 /* Copyright(c) 2019-2020  Realtek Corporation
  */
 
+#include "chan.h"
 #include "coex.h"
 #include "debug.h"
 #include "fw.h"
@@ -1676,7 +1677,7 @@ static void rtw89_phy_preinit_rf_nctl_ax(struct rtw89_dev *rtwdev)
 	rtw89_phy_write32_set(rtwdev, R_P0_PATH_RST, 0x8000000);
 	if (chip->chip_id != RTL8851B)
 		rtw89_phy_write32_set(rtwdev, R_P1_PATH_RST, 0x8000000);
-	if (chip->chip_id == RTL8852B)
+	if (chip->chip_id == RTL8852B || chip->chip_id == RTL8852BT)
 		rtw89_phy_write32_set(rtwdev, R_IOQ_IQK_DPK, 0x2);
 
 	/* check 0x8080 */
@@ -1847,6 +1848,36 @@ static s8 rtw89_phy_txpwr_rf_to_mac(struct rtw89_dev *rtwdev, s8 txpwr_rf)
 	return txpwr_rf >> (chip->txpwr_factor_rf - chip->txpwr_factor_mac);
 }
 
+static s8 rtw89_phy_txpwr_dbm_to_mac(struct rtw89_dev *rtwdev, s8 dbm)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
+	return clamp_t(s16, dbm << chip->txpwr_factor_mac, -64, 63);
+}
+
+static s8 rtw89_phy_txpwr_dbm_without_tolerance(s8 dbm)
+{
+	const u8 tssi_deviation_point = 0;
+	const u8 tssi_max_deviation = 2;
+
+	if (dbm <= tssi_deviation_point)
+		dbm -= tssi_max_deviation;
+
+	return dbm;
+}
+
+static s8 rtw89_phy_get_tpe_constraint(struct rtw89_dev *rtwdev, u8 band)
+{
+	struct rtw89_regulatory_info *regulatory = &rtwdev->regulatory;
+	const struct rtw89_reg_6ghz_tpe *tpe = &regulatory->reg_6ghz_tpe;
+	s8 cstr = S8_MAX;
+
+	if (band == RTW89_BAND_6G && tpe->valid)
+		cstr = rtw89_phy_txpwr_dbm_without_tolerance(tpe->constraint);
+
+	return rtw89_phy_txpwr_dbm_to_mac(rtwdev, cstr);
+}
+
 s8 rtw89_phy_read_txpwr_byrate(struct rtw89_dev *rtwdev, u8 band, u8 bw,
 			       const struct rtw89_rate_desc *rate_desc)
 {
@@ -1921,6 +1952,7 @@ s8 rtw89_phy_read_txpwr_limit(struct rtw89_dev *rtwdev, u8 band,
 	u8 regd = rtw89_regd_get(rtwdev, band);
 	u8 reg6 = regulatory->reg_6ghz_power;
 	s8 lmt = 0, sar;
+	s8 cstr;
 
 	switch (band) {
 	case RTW89_BAND_2G:
@@ -1953,8 +1985,9 @@ s8 rtw89_phy_read_txpwr_limit(struct rtw89_dev *rtwdev, u8 band,
 
 	lmt = rtw89_phy_txpwr_rf_to_mac(rtwdev, lmt);
 	sar = rtw89_query_sar(rtwdev, freq);
+	cstr = rtw89_phy_get_tpe_constraint(rtwdev, band);
 
-	return min(lmt, sar);
+	return min3(lmt, sar, cstr);
 }
 EXPORT_SYMBOL(rtw89_phy_read_txpwr_limit);
 
@@ -2178,6 +2211,7 @@ s8 rtw89_phy_read_txpwr_limit_ru(struct rtw89_dev *rtwdev, u8 band,
 	u8 regd = rtw89_regd_get(rtwdev, band);
 	u8 reg6 = regulatory->reg_6ghz_power;
 	s8 lmt_ru = 0, sar;
+	s8 cstr;
 
 	switch (band) {
 	case RTW89_BAND_2G:
@@ -2210,8 +2244,9 @@ s8 rtw89_phy_read_txpwr_limit_ru(struct rtw89_dev *rtwdev, u8 band,
 
 	lmt_ru = rtw89_phy_txpwr_rf_to_mac(rtwdev, lmt_ru);
 	sar = rtw89_query_sar(rtwdev, freq);
+	cstr = rtw89_phy_get_tpe_constraint(rtwdev, band);
 
-	return min(lmt_ru, sar);
+	return min3(lmt_ru, sar, cstr);
 }
 
 static void
@@ -5968,6 +6003,74 @@ void rtw89_phy_set_bss_color(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif
 	rtw89_phy_write32_idx(rtwdev, chip->bss_clr_map_reg, B_BSS_CLR_MAP_STAID,
 			      vif->cfg.aid, phy_idx);
 }
+
+static bool rfk_chan_validate_desc(const struct rtw89_rfk_chan_desc *desc)
+{
+	return desc->ch != 0;
+}
+
+static bool rfk_chan_is_equivalent(const struct rtw89_rfk_chan_desc *desc,
+				   const struct rtw89_chan *chan)
+{
+	if (!rfk_chan_validate_desc(desc))
+		return false;
+
+	if (desc->ch != chan->channel)
+		return false;
+
+	if (desc->has_band && desc->band != chan->band_type)
+		return false;
+
+	if (desc->has_bw && desc->bw != chan->band_width)
+		return false;
+
+	return true;
+}
+
+struct rfk_chan_iter_data {
+	const struct rtw89_rfk_chan_desc desc;
+	unsigned int found;
+};
+
+static int rfk_chan_iter_search(const struct rtw89_chan *chan, void *data)
+{
+	struct rfk_chan_iter_data *iter_data = data;
+
+	if (rfk_chan_is_equivalent(&iter_data->desc, chan))
+		iter_data->found++;
+
+	return 0;
+}
+
+u8 rtw89_rfk_chan_lookup(struct rtw89_dev *rtwdev,
+			 const struct rtw89_rfk_chan_desc *desc, u8 desc_nr,
+			 const struct rtw89_chan *target_chan)
+{
+	int sel = -1;
+	u8 i;
+
+	for (i = 0; i < desc_nr; i++) {
+		struct rfk_chan_iter_data iter_data = {
+			.desc = desc[i],
+		};
+
+		if (rfk_chan_is_equivalent(&desc[i], target_chan))
+			return i;
+
+		rtw89_iterate_entity_chan(rtwdev, rfk_chan_iter_search, &iter_data);
+		if (!iter_data.found && sel == -1)
+			sel = i;
+	}
+
+	if (sel == -1) {
+		rtw89_debug(rtwdev, RTW89_DBG_RFK,
+			    "no idle rfk entry; force replace the first\n");
+		sel = 0;
+	}
+
+	return sel;
+}
+EXPORT_SYMBOL(rtw89_rfk_chan_lookup);
 
 static void
 _rfk_write_rf(struct rtw89_dev *rtwdev, const struct rtw89_reg5_def *def)

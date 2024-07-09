@@ -132,6 +132,7 @@ enum rtw89_hci_type {
 enum rtw89_core_chip_id {
 	RTL8852A,
 	RTL8852B,
+	RTL8852BT,
 	RTL8852C,
 	RTL8851B,
 	RTL8922A,
@@ -745,6 +746,14 @@ enum rtw89_reg_6ghz_power {
 	RTW89_REG_6GHZ_POWER_DFLT = RTW89_REG_6GHZ_POWER_VLP,
 };
 
+#define RTW89_MIN_VALID_POWER_CONSTRAINT (-10) /* unit: dBm */
+
+/* calculate based on ieee80211 Transmit Power Envelope */
+struct rtw89_reg_6ghz_tpe {
+	bool valid;
+	s8 constraint; /* unit: dBm */
+};
+
 enum rtw89_fw_pkt_ofld_type {
 	RTW89_PKT_OFLD_TYPE_PROBE_RSP = 0,
 	RTW89_PKT_OFLD_TYPE_PS_POLL = 1,
@@ -1329,6 +1338,7 @@ struct rtw89_btc_wl_smap {
 	u32 scan: 1;
 	u32 connecting: 1;
 	u32 roaming: 1;
+	u32 dbccing: 1;
 	u32 transacting: 1;
 	u32 _4way: 1;
 	u32 rf_off: 1;
@@ -3395,6 +3405,7 @@ struct rtw89_vif {
 	bool chanctx_assigned; /* only valid when running with chanctx_ops */
 	enum rtw89_sub_entity_idx sub_entity_idx;
 	enum rtw89_reg_6ghz_power reg_6ghz_power;
+	struct rtw89_reg_6ghz_tpe reg_6ghz_tpe;
 
 	u8 mac_id;
 	u8 port;
@@ -4235,7 +4246,7 @@ struct rtw89_chip_info {
 	const u32 *c2h_regs;
 	struct rtw89_reg_def c2h_counter_reg;
 	const struct rtw89_page_regs *page_regs;
-	u32 wow_reason_reg;
+	const u32 *wow_reason_reg;
 	bool cfo_src_fd;
 	bool cfo_hw_comp;
 	const struct rtw89_reg_def *dcfo_comp;
@@ -4345,6 +4356,7 @@ enum rtw89_fw_feature {
 	RTW89_FW_FEATURE_NO_LPS_PG,
 	RTW89_FW_FEATURE_BEACON_FILTER,
 	RTW89_FW_FEATURE_MACID_PAUSE_SLEEP,
+	RTW89_FW_FEATURE_WOW_REASON_V1,
 };
 
 struct rtw89_fw_suit {
@@ -4683,7 +4695,12 @@ struct rtw89_dack_info {
 	bool msbk_timeout[RTW89_DACK_PATH_NR];
 };
 
-#define RTW89_RFK_CHS_NR 3
+enum rtw89_rfk_chs_nrs {
+	__RTW89_RFK_CHS_NR_V0 = 2,
+	__RTW89_RFK_CHS_NR_V1 = 3,
+
+	RTW89_RFK_CHS_NR = __RTW89_RFK_CHS_NR_V1,
+};
 
 struct rtw89_rfk_mcc_info {
 	u8 ch[RTW89_RFK_CHS_NR];
@@ -4762,6 +4779,8 @@ struct rtw89_dpk_info {
 	u8 cur_idx[RTW89_DPK_RF_PATH];
 	u8 cur_k_set;
 	struct rtw89_dpk_bkup_para bp[RTW89_DPK_RF_PATH][RTW89_DPK_BKUP_NUM];
+	u8 max_dpk_txagc[RTW89_DPK_RF_PATH];
+	u32 dpk_order[RTW89_DPK_RF_PATH];
 };
 
 struct rtw89_fem_info {
@@ -4936,6 +4955,7 @@ struct rtw89_regd {
 struct rtw89_regulatory_info {
 	const struct rtw89_regd *regd;
 	enum rtw89_reg_6ghz_power reg_6ghz_power;
+	struct rtw89_reg_6ghz_tpe reg_6ghz_tpe;
 	DECLARE_BITMAP(block_unii4, RTW89_REGD_MAX_COUNTRY_NUM);
 	DECLARE_BITMAP(block_6ghz, RTW89_REGD_MAX_COUNTRY_NUM);
 	DECLARE_BITMAP(block_6ghz_sp, RTW89_REGD_MAX_COUNTRY_NUM);
@@ -6420,6 +6440,16 @@ static inline bool rtw89_is_mlo_1_1(struct rtw89_dev *rtwdev)
 	}
 }
 
+static inline bool rtw89_is_rtl885xb(struct rtw89_dev *rtwdev)
+{
+	enum rtw89_core_chip_id chip_id = rtwdev->chip->chip_id;
+
+	if (chip_id == RTL8852B || chip_id == RTL8851B || chip_id == RTL8852BT)
+		return true;
+
+	return false;
+}
+
 int rtw89_core_tx_write(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif,
 			struct ieee80211_sta *sta, struct sk_buff *skb, int *qsel);
 int rtw89_h2c_tx(struct rtw89_dev *rtwdev,
@@ -6520,8 +6550,8 @@ void rtw89_core_scan_start(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 			   const u8 *mac_addr, bool hw_scan);
 void rtw89_core_scan_complete(struct rtw89_dev *rtwdev,
 			      struct ieee80211_vif *vif, bool hw_scan);
-void rtw89_reg_6ghz_power_recalc(struct rtw89_dev *rtwdev,
-				 struct rtw89_vif *rtwvif, bool active);
+int rtw89_reg_6ghz_recalc(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
+			  bool active);
 void rtw89_core_update_p2p_ps(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif);
 void rtw89_core_ntfy_btc_event(struct rtw89_dev *rtwdev, enum rtw89_btc_hmsg event);
 

@@ -78,6 +78,10 @@ void rtw89_chan_create(struct rtw89_chan *chan, u8 center_chan, u8 primary_chan,
 bool rtw89_assign_entity_chan(struct rtw89_dev *rtwdev,
 			      enum rtw89_sub_entity_idx idx,
 			      const struct rtw89_chan *new);
+int rtw89_iterate_entity_chan(struct rtw89_dev *rtwdev,
+			      int (*iterator)(const struct rtw89_chan *chan,
+					      void *data),
+			      void *data);
 void rtw89_config_entity_chandef(struct rtw89_dev *rtwdev,
 				 enum rtw89_sub_entity_idx idx,
 				 const struct cfg80211_chan_def *chandef);

@@ -1921,7 +1921,8 @@ static void rtw89_vif_rx_stats_iter(void *data, u8 *mac,
 		return;
 
 	if (ieee80211_is_beacon(hdr->frame_control)) {
-		if (vif->type == NL80211_IFTYPE_STATION) {
+		if (vif->type == NL80211_IFTYPE_STATION &&
+		    !test_bit(RTW89_FLAG_WOWLAN, rtwdev->flags)) {
 			rtw89_vif_sync_bcn_tsf(rtwvif, hdr, skb->len);
 			rtw89_fw_h2c_rssi_offload(rtwdev, phy_ppdu);
 		}
@@ -3375,8 +3376,12 @@ int rtw89_core_sta_add(struct rtw89_dev *rtwdev,
 	if (vif->type == NL80211_IFTYPE_STATION && !sta->tdls) {
 		/* for station mode, assign the mac_id from itself */
 		rtwsta->mac_id = rtwvif->mac_id;
-		/* must do rtw89_reg_6ghz_power_recalc() before rfk channel */
-		rtw89_reg_6ghz_power_recalc(rtwdev, rtwvif, true);
+
+		/* must do rtw89_reg_6ghz_recalc() before rfk channel */
+		ret = rtw89_reg_6ghz_recalc(rtwdev, rtwvif, true);
+		if (ret)
+			return ret;
+
 		rtw89_btc_ntfy_role_info(rtwdev, rtwvif, rtwsta,
 					 BTC_ROLE_MSTS_STA_CONN_START);
 		rtw89_chip_rfk_channel(rtwdev);
@@ -3564,7 +3569,7 @@ int rtw89_core_sta_remove(struct rtw89_dev *rtwdev,
 	int ret;
 
 	if (vif->type == NL80211_IFTYPE_STATION && !sta->tdls) {
-		rtw89_reg_6ghz_power_recalc(rtwdev, rtwvif, false);
+		rtw89_reg_6ghz_recalc(rtwdev, rtwvif, false);
 		rtw89_btc_ntfy_role_info(rtwdev, rtwvif, rtwsta,
 					 BTC_ROLE_MSTS_STA_DIS_CONN);
 	} else if (vif->type == NL80211_IFTYPE_AP || sta->tdls) {
@@ -4054,15 +4059,15 @@ void rtw89_core_update_beacon_work(struct work_struct *work)
 int rtw89_wait_for_cond(struct rtw89_wait_info *wait, unsigned int cond)
 {
 	struct completion *cmpl = &wait->completion;
-	unsigned long timeout;
+	unsigned long time_left;
 	unsigned int cur;
 
 	cur = atomic_cmpxchg(&wait->cond, RTW89_WAIT_COND_IDLE, cond);
 	if (cur != RTW89_WAIT_COND_IDLE)
 		return -EBUSY;
 
-	timeout = wait_for_completion_timeout(cmpl, RTW89_WAIT_FOR_COND_TIMEOUT);
-	if (timeout == 0) {
+	time_left = wait_for_completion_timeout(cmpl, RTW89_WAIT_FOR_COND_TIMEOUT);
+	if (time_left == 0) {
 		atomic_set(&wait->cond, RTW89_WAIT_COND_IDLE);
 		return -ETIMEDOUT;
 	}
@@ -4382,7 +4387,7 @@ static void rtw89_read_chip_ver(struct rtw89_dev *rtwdev)
 
 	rtwdev->hal.cv = cv;
 
-	if (chip->chip_id == RTL8852B || chip->chip_id == RTL8851B) {
+	if (rtw89_is_rtl885xb(rtwdev)) {
 		ret = rtw89_mac_read_xtal_si(rtwdev, XTAL_SI_CV, &val);
 		if (ret)
 			return;
