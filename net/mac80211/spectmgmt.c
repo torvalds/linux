@@ -343,6 +343,9 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 		break;
 	}
 
+	/* capture the AP configuration */
+	csa_ie->chanreq.ap = csa_ie->chanreq.oper;
+
 	/* parse one of the Elements to build a new chandef */
 	memset(&new_chandef, 0, sizeof(new_chandef));
 	new_chandef.chan = new_chan;
@@ -369,11 +372,11 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 		validate_chandef_by_ht_vht_oper(sdata, conn, vht_cap_info,
 						&new_chandef);
 
-	/* capture the AP chandef before (potential) downgrading */
-	csa_ie->chanreq.ap = new_chandef;
-
 	/* if data is there validate the bandwidth & use it */
 	if (new_chandef.chan) {
+		/* capture the AP chandef before (potential) downgrading */
+		csa_ie->chanreq.ap = new_chandef;
+
 		if (conn->bw_limit < IEEE80211_CONN_BW_LIMIT_320 &&
 		    new_chandef.width == NL80211_CHAN_WIDTH_320)
 			ieee80211_chandef_downgrade(&new_chandef, NULL);
