@@ -589,7 +589,7 @@ static int pd692x0_pi_set_pw_from_table(struct device *dev,
 
 		if (pw < pw_table->class_pw) {
 			dev_err(dev,
-				"Power limit %dmW not supported. Ranges availables: [%d-%d] or [%d-%d]\n",
+				"Power limit %dmW not supported. Ranges available: [%d-%d] or [%d-%d]\n",
 				pw,
 				(pw_table - 1)->class_pw,
 				(pw_table - 1)->class_pw + (pw_table - 1)->max_added_class_pw,
