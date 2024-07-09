@@ -66,6 +66,11 @@ int btrfs_delete_raid_extent(struct btrfs_trans_handle *trans, u64 start, u64 le
 		if (ret)
 			break;
 
+		start += key.offset;
+		length -= key.offset;
+		if (length == 0)
+			break;
+
 		btrfs_release_path(path);
 	}
 
