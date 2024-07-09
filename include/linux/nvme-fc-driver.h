@@ -920,6 +920,9 @@ struct nvmet_fc_target_port {
  *       further references to hosthandle.
  *       Entrypoint is Mandatory if the lldd calls nvmet_fc_invalidate_host().
  *
+ * @host_traddr: called by the transport to retrieve the node name and
+ *       port name of the host port address.
+ *
  * @max_hw_queues:  indicates the maximum number of hw queues the LLDD
  *       supports for cpu affinitization.
  *       Value is Mandatory. Must be at least 1.
@@ -975,6 +978,7 @@ struct nvmet_fc_target_template {
 	void (*ls_abort)(struct nvmet_fc_target_port *targetport,
 				void *hosthandle, struct nvmefc_ls_req *lsreq);
 	void (*host_release)(void *hosthandle);
+	int (*host_traddr)(void *hosthandle, u64 *wwnn, u64 *wwpn);
 
 	u32	max_hw_queues;
 	u16	max_sgl_segments;

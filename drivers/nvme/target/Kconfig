@@ -17,6 +17,15 @@ config NVME_TARGET
 	  To configure the NVMe target you probably want to use the nvmetcli
 	  tool from http://git.infradead.org/users/hch/nvmetcli.git.
 
+config NVME_TARGET_DEBUGFS
+        bool "NVMe Target debugfs support"
+	depends on NVME_TARGET
+	help
+	  This enables debugfs support to display the connected controllers
+	  to each subsystem
+
+	  If unsure, say N.
+
 config NVME_TARGET_PASSTHRU
 	bool "NVMe Target Passthrough support"
 	depends on NVME_TARGET

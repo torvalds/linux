@@ -110,7 +110,7 @@ struct workqueue_struct *nvme_delete_wq;
 EXPORT_SYMBOL_GPL(nvme_delete_wq);
 
 static LIST_HEAD(nvme_subsystems);
-static DEFINE_MUTEX(nvme_subsystems_lock);
+DEFINE_MUTEX(nvme_subsystems_lock);
 
 static DEFINE_IDA(nvme_instance_ida);
 static dev_t nvme_ctrl_base_chr_devt;
@@ -261,7 +261,7 @@ void nvme_delete_ctrl_sync(struct nvme_ctrl *ctrl)
 
 static blk_status_t nvme_error_status(u16 status)
 {
-	switch (status & 0x7ff) {
+	switch (status & NVME_SCT_SC_MASK) {
 	case NVME_SC_SUCCESS:
 		return BLK_STS_OK;
 	case NVME_SC_CAP_EXCEEDED:
@@ -307,7 +307,7 @@ static void nvme_retry_req(struct request *req)
 	u16 crd;
 
 	/* The mask and shift result must be <= 3 */
-	crd = (nvme_req(req)->status & NVME_SC_CRD) >> 11;
+	crd = (nvme_req(req)->status & NVME_STATUS_CRD) >> 11;
 	if (crd)
 		delay = nvme_req(req)->ctrl->crdt[crd - 1] * 100;
 
@@ -329,10 +329,10 @@ static void nvme_log_error(struct request *req)
 		       nvme_sect_to_lba(ns->head, blk_rq_pos(req)),
 		       blk_rq_bytes(req) >> ns->head->lba_shift,
 		       nvme_get_error_status_str(nr->status),
-		       nr->status >> 8 & 7,	/* Status Code Type */
-		       nr->status & 0xff,	/* Status Code */
-		       nr->status & NVME_SC_MORE ? "MORE " : "",
-		       nr->status & NVME_SC_DNR  ? "DNR "  : "");
+		       NVME_SCT(nr->status),		/* Status Code Type */
+		       nr->status & NVME_SC_MASK,	/* Status Code */
+		       nr->status & NVME_STATUS_MORE ? "MORE " : "",
+		       nr->status & NVME_STATUS_DNR  ? "DNR "  : "");
 		return;
 	}
 
@@ -341,10 +341,10 @@ static void nvme_log_error(struct request *req)
 			   nvme_get_admin_opcode_str(nr->cmd->common.opcode),
 			   nr->cmd->common.opcode,
 			   nvme_get_error_status_str(nr->status),
-			   nr->status >> 8 & 7,	/* Status Code Type */
-			   nr->status & 0xff,	/* Status Code */
-			   nr->status & NVME_SC_MORE ? "MORE " : "",
-			   nr->status & NVME_SC_DNR  ? "DNR "  : "");
+			   NVME_SCT(nr->status),	/* Status Code Type */
+			   nr->status & NVME_SC_MASK,	/* Status Code */
+			   nr->status & NVME_STATUS_MORE ? "MORE " : "",
+			   nr->status & NVME_STATUS_DNR  ? "DNR "  : "");
 }
 
 static void nvme_log_err_passthru(struct request *req)
@@ -359,10 +359,10 @@ static void nvme_log_err_passthru(struct request *req)
 		     nvme_get_admin_opcode_str(nr->cmd->common.opcode),
 		nr->cmd->common.opcode,
 		nvme_get_error_status_str(nr->status),
-		nr->status >> 8 & 7,	/* Status Code Type */
-		nr->status & 0xff,	/* Status Code */
-		nr->status & NVME_SC_MORE ? "MORE " : "",
-		nr->status & NVME_SC_DNR  ? "DNR "  : "",
+		NVME_SCT(nr->status),		/* Status Code Type */
+		nr->status & NVME_SC_MASK,	/* Status Code */
+		nr->status & NVME_STATUS_MORE ? "MORE " : "",
+		nr->status & NVME_STATUS_DNR  ? "DNR "  : "",
 		nr->cmd->common.cdw10,
 		nr->cmd->common.cdw11,
 		nr->cmd->common.cdw12,
@@ -384,11 +384,11 @@ static inline enum nvme_disposition nvme_decide_disposition(struct request *req)
 		return COMPLETE;
 
 	if (blk_noretry_request(req) ||
-	    (nvme_req(req)->status & NVME_SC_DNR) ||
+	    (nvme_req(req)->status & NVME_STATUS_DNR) ||
 	    nvme_req(req)->retries >= nvme_max_retries)
 		return COMPLETE;
 
-	if ((nvme_req(req)->status & 0x7ff) == NVME_SC_AUTH_REQUIRED)
+	if ((nvme_req(req)->status & NVME_SCT_SC_MASK) == NVME_SC_AUTH_REQUIRED)
 		return AUTHENTICATE;
 
 	if (req->cmd_flags & REQ_NVME_MPATH) {
@@ -1256,7 +1256,7 @@ EXPORT_SYMBOL_NS_GPL(nvme_passthru_end, NVME_TARGET_PASSTHRU);
 
 /*
  * Recommended frequency for KATO commands per NVMe 1.4 section 7.12.1:
- * 
+ *
  *   The host should send Keep Alive commands at half of the Keep Alive Timeout
  *   accounting for transport roundtrip times [..].
  */
@@ -2286,6 +2286,32 @@ static int nvme_update_ns_info(struct nvme_ns *ns, struct nvme_ns_info *info)
 	return ret;
 }
 
+int nvme_ns_get_unique_id(struct nvme_ns *ns, u8 id[16],
+		enum blk_unique_id type)
+{
+	struct nvme_ns_ids *ids = &ns->head->ids;
+
+	if (type != BLK_UID_EUI64)
+		return -EINVAL;
+
+	if (memchr_inv(ids->nguid, 0, sizeof(ids->nguid))) {
+		memcpy(id, &ids->nguid, sizeof(ids->nguid));
+		return sizeof(ids->nguid);
+	}
+	if (memchr_inv(ids->eui64, 0, sizeof(ids->eui64))) {
+		memcpy(id, &ids->eui64, sizeof(ids->eui64));
+		return sizeof(ids->eui64);
+	}
+
+	return -EINVAL;
+}
+
+static int nvme_get_unique_id(struct gendisk *disk, u8 id[16],
+		enum blk_unique_id type)
+{
+	return nvme_ns_get_unique_id(disk->private_data, id, type);
+}
+
 #ifdef CONFIG_BLK_SED_OPAL
 static int nvme_sec_submit(void *data, u16 spsp, u8 secp, void *buffer, size_t len,
 		bool send)
@@ -2341,6 +2367,7 @@ const struct block_device_operations nvme_bdev_ops = {
 	.open		= nvme_open,
 	.release	= nvme_release,
 	.getgeo		= nvme_getgeo,
+	.get_unique_id	= nvme_get_unique_id,
 	.report_zones	= nvme_report_zones,
 	.pr_ops		= &nvme_pr_ops,
 };
@@ -3941,7 +3968,7 @@ static void nvme_ns_remove_by_nsid(struct nvme_ctrl *ctrl, u32 nsid)
 
 static void nvme_validate_ns(struct nvme_ns *ns, struct nvme_ns_info *info)
 {
-	int ret = NVME_SC_INVALID_NS | NVME_SC_DNR;
+	int ret = NVME_SC_INVALID_NS | NVME_STATUS_DNR;
 
 	if (!nvme_ns_ids_equal(&ns->head->ids, &info->ids)) {
 		dev_err(ns->ctrl->device,
@@ -3957,7 +3984,7 @@ out:
 	 *
 	 * TODO: we should probably schedule a delayed retry here.
 	 */
-	if (ret > 0 && (ret & NVME_SC_DNR))
+	if (ret > 0 && (ret & NVME_STATUS_DNR))
 		nvme_ns_remove(ns);
 }
 
@@ -4148,7 +4175,7 @@ static void nvme_scan_work(struct work_struct *work)
 		 * they report) but don't actually support it.
 		 */
 		ret = nvme_scan_ns_list(ctrl);
-		if (ret > 0 && ret & NVME_SC_DNR)
+		if (ret > 0 && ret & NVME_STATUS_DNR)
 			nvme_scan_ns_sequential(ctrl);
 	}
 	mutex_unlock(&ctrl->scan_lock);
@@ -4668,6 +4695,9 @@ static void nvme_free_ctrl(struct device *dev)
  * Initialize a NVMe controller structures.  This needs to be called during
  * earliest initialization so that we have the initialized structured around
  * during probing.
+ *
+ * On success, the caller must use the nvme_put_ctrl() to release this when
+ * needed, which also invokes the ops->free_ctrl() callback.
  */
 int nvme_init_ctrl(struct nvme_ctrl *ctrl, struct device *dev,
 		const struct nvme_ctrl_ops *ops, unsigned long quirks)
@@ -4716,6 +4746,12 @@ int nvme_init_ctrl(struct nvme_ctrl *ctrl, struct device *dev,
 		goto out;
 	ctrl->instance = ret;
 
+	ret = nvme_auth_init_ctrl(ctrl);
+	if (ret)
+		goto out_release_instance;
+
+	nvme_mpath_init_ctrl(ctrl);
+
 	device_initialize(&ctrl->ctrl_device);
 	ctrl->device = &ctrl->ctrl_device;
 	ctrl->device->devt = MKDEV(MAJOR(nvme_ctrl_base_chr_devt),
@@ -4728,16 +4764,36 @@ int nvme_init_ctrl(struct nvme_ctrl *ctrl, struct device *dev,
 		ctrl->device->groups = nvme_dev_attr_groups;
 	ctrl->device->release = nvme_free_ctrl;
 	dev_set_drvdata(ctrl->device, ctrl);
+
+	return ret;
+
+out_release_instance:
+	ida_free(&nvme_instance_ida, ctrl->instance);
+out:
+	if (ctrl->discard_page)
+		__free_page(ctrl->discard_page);
+	cleanup_srcu_struct(&ctrl->srcu);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(nvme_init_ctrl);
+
+/*
+ * On success, returns with an elevated controller reference and caller must
+ * use nvme_uninit_ctrl() to properly free resources associated with the ctrl.
+ */
+int nvme_add_ctrl(struct nvme_ctrl *ctrl)
+{
+	int ret;
+
 	ret = dev_set_name(ctrl->device, "nvme%d", ctrl->instance);
 	if (ret)
-		goto out_release_instance;
+		return ret;
 
-	nvme_get_ctrl(ctrl);
 	cdev_init(&ctrl->cdev, &nvme_dev_fops);
-	ctrl->cdev.owner = ops->module;
+	ctrl->cdev.owner = ctrl->ops->module;
 	ret = cdev_device_add(&ctrl->cdev, ctrl->device);
 	if (ret)
-		goto out_free_name;
+		return ret;
 
 	/*
 	 * Initialize latency tolerance controls.  The sysfs files won't
@@ -4748,28 +4804,11 @@ int nvme_init_ctrl(struct nvme_ctrl *ctrl, struct device *dev,
 		min(default_ps_max_latency_us, (unsigned long)S32_MAX));
 
 	nvme_fault_inject_init(&ctrl->fault_inject, dev_name(ctrl->device));
-	nvme_mpath_init_ctrl(ctrl);
-	ret = nvme_auth_init_ctrl(ctrl);
-	if (ret)
-		goto out_free_cdev;
+	nvme_get_ctrl(ctrl);
 
 	return 0;
-out_free_cdev:
-	nvme_fault_inject_fini(&ctrl->fault_inject);
-	dev_pm_qos_hide_latency_tolerance(ctrl->device);
-	cdev_device_del(&ctrl->cdev, ctrl->device);
-out_free_name:
-	nvme_put_ctrl(ctrl);
-	kfree_const(ctrl->device->kobj.name);
-out_release_instance:
-	ida_free(&nvme_instance_ida, ctrl->instance);
-out:
-	if (ctrl->discard_page)
-		__free_page(ctrl->discard_page);
-	cleanup_srcu_struct(&ctrl->srcu);
-	return ret;
 }
-EXPORT_SYMBOL_GPL(nvme_init_ctrl);
+EXPORT_SYMBOL_GPL(nvme_add_ctrl);
 
 /* let I/O to all namespaces fail in preparation for surprise removal */
 void nvme_mark_namespaces_dead(struct nvme_ctrl *ctrl)
