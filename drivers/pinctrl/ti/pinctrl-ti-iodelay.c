@@ -783,7 +783,7 @@ static const struct regmap_config dra7_iodelay_regmap_config = {
 	.max_register = 0xd1c,
 };
 
-static struct ti_iodelay_reg_data dra7_iodelay_data = {
+static const struct ti_iodelay_reg_data dra7_iodelay_data = {
 	.signature_mask = 0x0003f000,
 	.signature_value = 0x29,
 	.lock_mask = 0x00000400,
