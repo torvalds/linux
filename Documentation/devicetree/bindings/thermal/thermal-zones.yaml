@@ -232,7 +232,6 @@ patternProperties:
 
     required:
       - thermal-sensors
-      - trips
 
     additionalProperties: false
 
