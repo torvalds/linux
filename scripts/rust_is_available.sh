@@ -117,14 +117,6 @@ if [ "$rust_compiler_cversion" -lt "$rust_compiler_min_cversion" ]; then
 	echo >&2 "***"
 	exit 1
 fi
-if [ "$rust_compiler_cversion" -gt "$rust_compiler_min_cversion" ]; then
-	echo >&2 "***"
-	echo >&2 "*** Rust compiler '$RUSTC' is too new. This may or may not work."
-	echo >&2 "***   Your version:     $rust_compiler_version"
-	echo >&2 "***   Expected version: $rust_compiler_min_version"
-	echo >&2 "***"
-	warning=1
-fi
 
 # Check that the Rust bindings generator is suitable.
 #

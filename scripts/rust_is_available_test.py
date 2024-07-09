@@ -193,11 +193,6 @@ else:
         result = self.run_script(self.Expected.FAILURE, { "RUSTC": rustc })
         self.assertIn(f"Rust compiler '{rustc}' is too old.", result.stderr)
 
-    def test_rustc_new_version(self):
-        rustc = self.generate_rustc("rustc 1.999.0 (a8314ef7d 2099-06-27)")
-        result = self.run_script(self.Expected.SUCCESS_WITH_WARNINGS, { "RUSTC": rustc })
-        self.assertIn(f"Rust compiler '{rustc}' is too new. This may or may not work.", result.stderr)
-
     def test_bindgen_nonexecutable(self):
         result = self.run_script(self.Expected.FAILURE, { "BINDGEN": self.nonexecutable })
         self.assertIn(f"Running '{self.nonexecutable}' to check the Rust bindings generator version failed with", result.stderr)

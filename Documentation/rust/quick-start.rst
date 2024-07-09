@@ -36,16 +36,15 @@ if that is the case.
 rustc
 *****
 
-A particular version of the Rust compiler is required. Newer versions may or
-may not work because, for the moment, the kernel depends on some unstable
-Rust features.
+A recent version of the Rust compiler is required.
 
 If ``rustup`` is being used, enter the kernel build directory (or use
-``--path=<build-dir>`` argument to the ``set`` sub-command) and run::
+``--path=<build-dir>`` argument to the ``set`` sub-command) and run,
+for instance::
 
-	rustup override set $(scripts/min-tool-version.sh rustc)
+	rustup override set stable
 
-This will configure your working directory to use the correct version of
+This will configure your working directory to use the given version of
 ``rustc`` without affecting your default toolchain.
 
 Note that the override applies to the current working directory (and its
@@ -72,9 +71,9 @@ version later on requires re-adding the component.
 Otherwise, if a standalone installer is used, the Rust source tree may be
 downloaded into the toolchain's installation folder::
 
-	curl -L "https://static.rust-lang.org/dist/rust-src-$(scripts/min-tool-version.sh rustc).tar.gz" |
+	curl -L "https://static.rust-lang.org/dist/rust-src-$(rustc --version | cut -d' ' -f2).tar.gz" |
 		tar -xzf - -C "$(rustc --print sysroot)/lib" \
-		"rust-src-$(scripts/min-tool-version.sh rustc)/rust-src/lib/" \
+		"rust-src-$(rustc --version | cut -d' ' -f2)/rust-src/lib/" \
 		--strip-components=3
 
 In this case, upgrading the Rust compiler version later on requires manually
