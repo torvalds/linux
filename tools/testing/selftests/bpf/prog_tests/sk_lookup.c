@@ -416,16 +416,10 @@ static int udp_recv_send(int server_fd)
 	}
 
 	/* Reply from original destination address. */
-	fd = socket(dst_addr->ss_family, SOCK_DGRAM, 0);
-	if (CHECK(fd < 0, "socket", "failed\n")) {
+	fd = start_server_addr(SOCK_DGRAM, dst_addr, sizeof(*dst_addr), NULL);
+	if (!ASSERT_OK_FD(fd, "start_server_addr")) {
 		log_err("failed to create tx socket");
 		return -1;
-	}
-
-	ret = bind(fd, (struct sockaddr *)dst_addr, sizeof(*dst_addr));
-	if (CHECK(ret, "bind", "failed\n")) {
-		log_err("failed to bind tx socket");
-		goto out;
 	}
 
 	msg.msg_control = NULL;
