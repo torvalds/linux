@@ -470,8 +470,7 @@ struct folio *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 		 * before marking swap_map SWAP_HAS_CACHE, when -EEXIST will
 		 * cause any racers to loop around until we add it to cache.
 		 */
-		folio = (struct folio *)alloc_pages_mpol(gfp_mask, 0,
-						mpol, ilx, numa_node_id());
+		folio = folio_alloc_mpol(gfp_mask, 0, mpol, ilx, numa_node_id());
 		if (!folio)
                         goto fail_put_swap;
 
