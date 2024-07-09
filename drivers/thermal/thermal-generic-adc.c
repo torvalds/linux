@@ -131,12 +131,8 @@ static int gadc_thermal_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	gti->channel = devm_iio_channel_get(dev, "sensor-channel");
-	if (IS_ERR(gti->channel)) {
-		ret = PTR_ERR(gti->channel);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "IIO channel not found: %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(gti->channel))
+		return dev_err_probe(dev, PTR_ERR(gti->channel), "IIO channel not found\n");
 
 	ret = gadc_thermal_read_linear_lookup_table(dev, gti);
 	if (ret < 0)
