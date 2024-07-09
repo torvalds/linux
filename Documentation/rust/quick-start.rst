@@ -113,20 +113,15 @@ Install it via (note that this will download and build the tool from source)::
 
 	cargo install --locked --version $(scripts/min-tool-version.sh bindgen) bindgen-cli
 
-``bindgen`` needs to find a suitable ``libclang`` in order to work. If it is
-not found (or a different ``libclang`` than the one found should be used),
-the process can be tweaked using the environment variables understood by
-``clang-sys`` (the Rust bindings crate that ``bindgen`` uses to access
-``libclang``):
+``bindgen`` uses the ``clang-sys`` crate to find a suitable ``libclang`` (which
+may be linked statically, dynamically or loaded at runtime). By default, the
+``cargo`` command above will produce a ``bindgen`` binary that will load
+``libclang`` at runtime. If it is not found (or a different ``libclang`` than
+the one found should be used), the process can be tweaked, e.g. by using the
+``LIBCLANG_PATH`` environment variable. For details, please see ``clang-sys``'s
+documentation at:
 
-* ``LLVM_CONFIG_PATH`` can be pointed to an ``llvm-config`` executable.
-
-* Or ``LIBCLANG_PATH`` can be pointed to a ``libclang`` shared library
-  or to the directory containing it.
-
-* Or ``CLANG_PATH`` can be pointed to a ``clang`` executable.
-
-For details, please see ``clang-sys``'s documentation at:
+	https://github.com/KyleMayes/clang-sys#linking
 
 	https://github.com/KyleMayes/clang-sys#environment-variables
 
