@@ -426,7 +426,7 @@ again:
 	netfs_rreq_completed(rreq, was_async);
 }
 
-static void netfs_rreq_work(struct work_struct *work)
+void netfs_rreq_work(struct work_struct *work)
 {
 	struct netfs_io_request *rreq =
 		container_of(work, struct netfs_io_request, work);
@@ -738,8 +738,6 @@ int netfs_begin_read(struct netfs_io_request *rreq, bool sync)
 
 	// TODO: Use bounce buffer if requested
 	rreq->io_iter = rreq->iter;
-
-	INIT_WORK(&rreq->work, netfs_rreq_work);
 
 	/* Chop the read into slices according to what the cache and the netfs
 	 * want and submit each one.
