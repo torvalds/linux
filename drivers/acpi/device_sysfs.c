@@ -517,6 +517,85 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RO(status);
 
+static struct attribute *acpi_attrs[] = {
+	&dev_attr_path.attr,
+	&dev_attr_hid.attr,
+	&dev_attr_modalias.attr,
+	&dev_attr_description.attr,
+	&dev_attr_adr.attr,
+	&dev_attr_uid.attr,
+	&dev_attr_sun.attr,
+	&dev_attr_hrv.attr,
+	&dev_attr_status.attr,
+	&dev_attr_eject.attr,
+	&dev_attr_power_state.attr,
+	&dev_attr_real_power_state.attr,
+	NULL
+};
+
+static bool acpi_show_attr(struct acpi_device *dev, const struct device_attribute *attr)
+{
+	/*
+	 * Devices gotten from FADT don't have a "path" attribute
+	 */
+	if (attr == &dev_attr_path)
+		return dev->handle;
+
+	if (attr == &dev_attr_hid || attr == &dev_attr_modalias)
+		return !list_empty(&dev->pnp.ids);
+
+	if (attr == &dev_attr_description)
+		return acpi_has_method(dev->handle, "_STR");
+
+	if (attr == &dev_attr_adr)
+		return dev->pnp.type.bus_address;
+
+	if (attr == &dev_attr_uid)
+		return acpi_device_uid(dev);
+
+	if (attr == &dev_attr_sun)
+		return acpi_has_method(dev->handle, "_SUN");
+
+	if (attr == &dev_attr_hrv)
+		return acpi_has_method(dev->handle, "_HRV");
+
+	if (attr == &dev_attr_status)
+		return acpi_has_method(dev->handle, "_STA");
+
+	/*
+	 * If device has _EJ0, 'eject' file is created that is used to trigger
+	 * hot-removal function from userland.
+	 */
+	if (attr == &dev_attr_eject)
+		return acpi_has_method(dev->handle, "_EJ0");
+
+	if (attr == &dev_attr_power_state)
+		return dev->flags.power_manageable;
+
+	if (attr == &dev_attr_real_power_state)
+		return dev->flags.power_manageable && dev->power.flags.power_resources;
+
+	dev_warn_once(&dev->dev, "Unexpected attribute: %s\n", attr->attr.name);
+	return false;
+}
+
+static umode_t acpi_attr_is_visible(struct kobject *kobj,
+				    struct attribute *attr,
+				    int attrno)
+{
+	struct acpi_device *dev = to_acpi_device(kobj_to_dev(kobj));
+
+	if (acpi_show_attr(dev, container_of(attr, struct device_attribute, attr)))
+		return attr->mode;
+	else
+		return 0;
+}
+
+static const struct attribute_group acpi_group = {
+	.attrs = acpi_attrs,
+	.is_visible = acpi_attr_is_visible,
+};
+
 /**
  * acpi_device_setup_files - Create sysfs attributes of an ACPI device.
  * @dev: ACPI device object.
@@ -525,80 +604,10 @@ int acpi_device_setup_files(struct acpi_device *dev)
 {
 	int result = 0;
 
-	/*
-	 * Devices gotten from FADT don't have a "path" attribute
-	 */
-	if (dev->handle) {
-		result = device_create_file(&dev->dev, &dev_attr_path);
-		if (result)
-			goto end;
-	}
-
-	if (!list_empty(&dev->pnp.ids)) {
-		result = device_create_file(&dev->dev, &dev_attr_hid);
-		if (result)
-			goto end;
-
-		result = device_create_file(&dev->dev, &dev_attr_modalias);
-		if (result)
-			goto end;
-	}
-
-	/*
-	 * If device has _STR, 'description' file is created
-	 */
-	if (acpi_has_method(dev->handle, "_STR")) {
-		result = device_create_file(&dev->dev, &dev_attr_description);
-		if (result)
-			goto end;
-	}
-
-	if (dev->pnp.type.bus_address)
-		result = device_create_file(&dev->dev, &dev_attr_adr);
-	if (acpi_device_uid(dev))
-		result = device_create_file(&dev->dev, &dev_attr_uid);
-
-	if (acpi_has_method(dev->handle, "_SUN")) {
-		result = device_create_file(&dev->dev, &dev_attr_sun);
-		if (result)
-			goto end;
-	}
-
-	if (acpi_has_method(dev->handle, "_HRV")) {
-		result = device_create_file(&dev->dev, &dev_attr_hrv);
-		if (result)
-			goto end;
-	}
-
-	if (acpi_has_method(dev->handle, "_STA")) {
-		result = device_create_file(&dev->dev, &dev_attr_status);
-		if (result)
-			goto end;
-	}
-
-	/*
-	 * If device has _EJ0, 'eject' file is created that is used to trigger
-	 * hot-removal function from userland.
-	 */
-	if (acpi_has_method(dev->handle, "_EJ0")) {
-		result = device_create_file(&dev->dev, &dev_attr_eject);
-		if (result)
-			return result;
-	}
-
-	if (dev->flags.power_manageable) {
-		result = device_create_file(&dev->dev, &dev_attr_power_state);
-		if (result)
-			return result;
-
-		if (dev->power.flags.power_resources)
-			result = device_create_file(&dev->dev,
-						    &dev_attr_real_power_state);
-	}
+	result = device_add_group(&dev->dev, &acpi_group);
 
 	acpi_expose_nondev_subnodes(&dev->dev.kobj, &dev->data);
 
-end:
 	return result;
 }
 
@@ -609,39 +618,5 @@ end:
 void acpi_device_remove_files(struct acpi_device *dev)
 {
 	acpi_hide_nondev_subnodes(&dev->data);
-
-	if (dev->flags.power_manageable) {
-		device_remove_file(&dev->dev, &dev_attr_power_state);
-		if (dev->power.flags.power_resources)
-			device_remove_file(&dev->dev,
-					   &dev_attr_real_power_state);
-	}
-
-	/*
-	 * If device has _STR, remove 'description' file
-	 */
-	if (acpi_has_method(dev->handle, "_STR"))
-		device_remove_file(&dev->dev, &dev_attr_description);
-	/*
-	 * If device has _EJ0, remove 'eject' file.
-	 */
-	if (acpi_has_method(dev->handle, "_EJ0"))
-		device_remove_file(&dev->dev, &dev_attr_eject);
-
-	if (acpi_has_method(dev->handle, "_SUN"))
-		device_remove_file(&dev->dev, &dev_attr_sun);
-
-	if (acpi_has_method(dev->handle, "_HRV"))
-		device_remove_file(&dev->dev, &dev_attr_hrv);
-
-	if (acpi_device_uid(dev))
-		device_remove_file(&dev->dev, &dev_attr_uid);
-	if (dev->pnp.type.bus_address)
-		device_remove_file(&dev->dev, &dev_attr_adr);
-	device_remove_file(&dev->dev, &dev_attr_modalias);
-	device_remove_file(&dev->dev, &dev_attr_hid);
-	if (acpi_has_method(dev->handle, "_STA"))
-		device_remove_file(&dev->dev, &dev_attr_status);
-	if (dev->handle)
-		device_remove_file(&dev->dev, &dev_attr_path);
+	device_remove_group(&dev->dev, &acpi_group);
 }
