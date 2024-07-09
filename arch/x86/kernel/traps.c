@@ -1411,7 +1411,7 @@ void __init trap_init(void)
 	sev_es_init_vc_handling();
 
 	/* Initialize TSS before setting up traps so ISTs work */
-	cpu_init_exception_handling();
+	cpu_init_exception_handling(true);
 
 	/* Setup traps as cpu_init() might #GP */
 	if (!cpu_feature_enabled(X86_FEATURE_FRED))
