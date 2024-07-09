@@ -3464,6 +3464,12 @@
 				      "ptp_ref",
 				      "phyaux";
 
+			interconnects = <&aggre1_noc MASTER_EMAC_1 QCOM_ICC_TAG_ALWAYS
+					 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>,
+					<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+					 &config_noc SLAVE_EMAC1_CFG QCOM_ICC_TAG_ALWAYS>;
+			interconnect-names = "mac-mem", "cpu-mac";
+
 			power-domains = <&gcc EMAC1_GDSC>;
 
 			phys = <&serdes1>;
@@ -3498,6 +3504,12 @@
 				      "pclk",
 				      "ptp_ref",
 				      "phyaux";
+
+			interconnects = <&aggre1_noc MASTER_EMAC QCOM_ICC_TAG_ALWAYS
+					 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>,
+					<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
+					 &config_noc SLAVE_EMAC_CFG QCOM_ICC_TAG_ALWAYS>;
+			interconnect-names = "mac-mem", "cpu-mac";
 
 			power-domains = <&gcc EMAC0_GDSC>;
 
