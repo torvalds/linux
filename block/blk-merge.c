@@ -491,8 +491,8 @@ static unsigned blk_bvec_map_sg(struct request_queue *q,
 
 	while (nbytes > 0) {
 		unsigned offset = bvec->bv_offset + total;
-		unsigned len = get_max_segment_size(&q->limits, bvec_phys(bvec),
-			nbytes);
+		unsigned len = get_max_segment_size(&q->limits,
+				bvec_phys(bvec) + total, nbytes);
 		struct page *page = bvec->bv_page;
 
 		/*
