@@ -163,6 +163,7 @@ MODULE_DEVICE_TABLE(of, bcm2835_thermal_of_match_table);
 
 static int bcm2835_thermal_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	const struct of_device_id *match;
 	struct thermal_zone_device *tz;
 	struct bcm2835_thermal_data *data;
@@ -170,12 +171,11 @@ static int bcm2835_thermal_probe(struct platform_device *pdev)
 	u32 val;
 	unsigned long rate;
 
-	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
-	match = of_match_device(bcm2835_thermal_of_match_table,
-				&pdev->dev);
+	match = of_match_device(bcm2835_thermal_of_match_table, dev);
 	if (!match)
 		return -EINVAL;
 
@@ -185,28 +185,25 @@ static int bcm2835_thermal_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	data->clk = devm_clk_get_enabled(&pdev->dev, NULL);
+	data->clk = devm_clk_get_enabled(dev, NULL);
 	if (IS_ERR(data->clk)) {
 		err = PTR_ERR(data->clk);
 		if (err != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "Could not get clk: %d\n", err);
+			dev_err(dev, "Could not get clk: %d\n", err);
 		return err;
 	}
 
 	rate = clk_get_rate(data->clk);
 	if ((rate < 1920000) || (rate > 5000000))
-		dev_warn(&pdev->dev,
+		dev_warn(dev,
 			 "Clock %pCn running at %lu Hz is outside of the recommended range: 1.92 to 5MHz\n",
 			 data->clk, rate);
 
 	/* register of thermal sensor and get info from DT */
-	tz = devm_thermal_of_zone_register(&pdev->dev, 0, data,
-					   &bcm2835_thermal_ops);
+	tz = devm_thermal_of_zone_register(dev, 0, data, &bcm2835_thermal_ops);
 	if (IS_ERR(tz)) {
 		err = PTR_ERR(tz);
-		dev_err(&pdev->dev,
-			"Failed to register the thermal device: %d\n",
-			err);
+		dev_err(dev, "Failed to register the thermal device: %d\n", err);
 		return err;
 	}
 
@@ -229,9 +226,7 @@ static int bcm2835_thermal_probe(struct platform_device *pdev)
 		 */
 		err = thermal_zone_get_trip(tz, 0, &trip);
 		if (err < 0) {
-			dev_err(&pdev->dev,
-				"Not able to read trip_temp: %d\n",
-				err);
+			dev_err(dev, "Not able to read trip_temp: %d\n", err);
 			return err;
 		}
 
