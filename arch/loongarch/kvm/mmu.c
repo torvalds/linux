@@ -858,10 +858,20 @@ retry:
 
 	/* Disable dirty logging on HugePages */
 	level = 0;
-	if (!fault_supports_huge_mapping(memslot, hva, write)) {
-		level = 0;
-	} else {
+	if (fault_supports_huge_mapping(memslot, hva, write)) {
+		/* Check page level about host mmu*/
 		level = host_pfn_mapping_level(kvm, gfn, memslot);
+		if (level == 1) {
+			/*
+			 * Check page level about secondary mmu
+			 * Disable hugepage if it is normal page on
+			 * secondary mmu already
+			 */
+			ptep = kvm_populate_gpa(kvm, NULL, gpa, 0);
+			if (ptep && !kvm_pte_huge(*ptep))
+				level = 0;
+		}
+
 		if (level == 1) {
 			gfn = gfn & ~(PTRS_PER_PTE - 1);
 			pfn = pfn & ~(PTRS_PER_PTE - 1);
