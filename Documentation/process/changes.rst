@@ -90,11 +90,6 @@ Rust (optional)
 
 A recent version of the Rust compiler is required.
 
-Each Rust toolchain comes with several "components", some of which are required
-(like ``rustc``) and some that are optional. The ``rust-src`` component (which
-is optional) needs to be installed to build the kernel. Other components are
-useful for developing.
-
 Please see Documentation/rust/quick-start.rst for instructions on how to
 satisfy the build requirements of Rust support. In particular, the ``Makefile``
 target ``rustavailable`` is useful to check why the Rust toolchain may not
