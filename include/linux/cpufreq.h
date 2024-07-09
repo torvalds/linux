@@ -396,7 +396,7 @@ struct cpufreq_driver {
 
 	int		(*online)(struct cpufreq_policy *policy);
 	int		(*offline)(struct cpufreq_policy *policy);
-	int		(*exit)(struct cpufreq_policy *policy);
+	void		(*exit)(struct cpufreq_policy *policy);
 	int		(*suspend)(struct cpufreq_policy *policy);
 	int		(*resume)(struct cpufreq_policy *policy);
 

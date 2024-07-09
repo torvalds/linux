@@ -2715,13 +2715,11 @@ static int intel_pstate_cpu_offline(struct cpufreq_policy *policy)
 	return intel_cpufreq_cpu_offline(policy);
 }
 
-static int intel_pstate_cpu_exit(struct cpufreq_policy *policy)
+static void intel_pstate_cpu_exit(struct cpufreq_policy *policy)
 {
 	pr_debug("CPU %d exiting\n", policy->cpu);
 
 	policy->fast_switch_possible = false;
-
-	return 0;
 }
 
 static int __intel_pstate_cpu_init(struct cpufreq_policy *policy)
@@ -3052,7 +3050,7 @@ pstate_exit:
 	return ret;
 }
 
-static int intel_cpufreq_cpu_exit(struct cpufreq_policy *policy)
+static void intel_cpufreq_cpu_exit(struct cpufreq_policy *policy)
 {
 	struct freq_qos_request *req;
 
@@ -3062,7 +3060,7 @@ static int intel_cpufreq_cpu_exit(struct cpufreq_policy *policy)
 	freq_qos_remove_request(req);
 	kfree(req);
 
-	return intel_pstate_cpu_exit(policy);
+	intel_pstate_cpu_exit(policy);
 }
 
 static int intel_cpufreq_suspend(struct cpufreq_policy *policy)

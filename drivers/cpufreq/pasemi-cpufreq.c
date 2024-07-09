@@ -204,21 +204,19 @@ out:
 	return err;
 }
 
-static int pas_cpufreq_cpu_exit(struct cpufreq_policy *policy)
+static void pas_cpufreq_cpu_exit(struct cpufreq_policy *policy)
 {
 	/*
 	 * We don't support CPU hotplug. Don't unmap after the system
 	 * has already made it to a running state.
 	 */
 	if (system_state >= SYSTEM_RUNNING)
-		return 0;
+		return;
 
 	if (sdcasr_mapbase)
 		iounmap(sdcasr_mapbase);
 	if (sdcpwr_mapbase)
 		iounmap(sdcpwr_mapbase);
-
-	return 0;
 }
 
 static int pas_cpufreq_target(struct cpufreq_policy *policy,
