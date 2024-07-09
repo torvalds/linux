@@ -345,7 +345,7 @@ pub fn pinned_drop(args: TokenStream, input: TokenStream) -> TokenStream {
 ///
 /// Currently supported modifiers are:
 /// * `span`: change the span of concatenated identifier to the span of the specified token. By
-/// default the span of the `[< >]` group is used.
+///   default the span of the `[< >]` group is used.
 /// * `lower`: change the identifier to lower case.
 /// * `upper`: change the identifier to upper case.
 ///
