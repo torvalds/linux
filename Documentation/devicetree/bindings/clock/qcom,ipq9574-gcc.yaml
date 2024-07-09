@@ -35,6 +35,9 @@ properties:
 
   '#power-domain-cells': false
 
+  '#interconnect-cells':
+    const: 1
+
 required:
   - compatible
   - clocks

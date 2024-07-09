@@ -62,7 +62,6 @@ allOf:
           enum:
             - qcom,sc7180-videocc
             - qcom,sdm845-videocc
-            - qcom,sm8150-videocc
     then:
       properties:
         clocks:
@@ -87,6 +86,22 @@ allOf:
           items:
             - const: bi_tcxo
             - const: bi_tcxo_ao
+
+  - if:
+      properties:
+        compatible:
+          enum:
+            - qcom,sm8150-videocc
+    then:
+      properties:
+        clocks:
+          items:
+            - description: AHB
+            - description: Board XO source
+        clock-names:
+          items:
+            - const: iface
+            - const: bi_tcxo
 
   - if:
       properties:
