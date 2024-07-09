@@ -1,0 +1,110 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pinctrl/qcom,apq8064-pinctrl.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm Technologies, Inc. APQ8064 TLMM block
+
+maintainers:
+  - Bjorn Andersson <bjorn.andersson@linaro.org>
+
+description: |
+  Top Level Mode Multiplexer pin controller in Qualcomm APQ8064 SoC.
+
+allOf:
+  - $ref: /schemas/pinctrl/qcom,tlmm-common.yaml#
+
+properties:
+  compatible:
+    const: qcom,apq8064-pinctrl
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  gpio-reserved-ranges: true
+
+patternProperties:
+  "-state$":
+    oneOf:
+      - $ref: "#/$defs/qcom-apq8064-tlmm-state"
+      - patternProperties:
+          "-pins$":
+            $ref: "#/$defs/qcom-apq8064-tlmm-state"
+        additionalProperties: false
+
+$defs:
+  qcom-apq8064-tlmm-state:
+    type: object
+    description:
+      Pinctrl node's client devices use subnodes for desired pin configuration.
+      Client device subnodes use below standard properties.
+    $ref: qcom,tlmm-common.yaml#/$defs/qcom-tlmm-state
+    unevaluatedProperties: false
+
+    properties:
+      pins:
+        description:
+          List of gpio pins affected by the properties specified in this
+          subnode.
+        items:
+          oneOf:
+            - pattern: "^gpio([0-9]|[1-8][0-9])$"
+            - enum: [ sdc1_clk, sdc1_cmd, sdc1_data, sdc3_clk, sdc3_cmd, sdc3_data ]
+        minItems: 1
+        maxItems: 36
+
+      function:
+        description:
+          Specify the alternative function to be configured for the specified
+          pins.
+        enum: [ cam_mclk, codec_mic_i2s, codec_spkr_i2s, gp_clk_0a,
+                gp_clk_0b, gp_clk_1a, gp_clk_1b, gp_clk_2a, gp_clk_2b,
+                gpio, gsbi1, gsbi2, gsbi3, gsbi4, gsbi4_cam_i2c,
+                gsbi5, gsbi5_spi_cs1, gsbi5_spi_cs2, gsbi5_spi_cs3,
+                gsbi6, gsbi6_spi_cs1, gsbi6_spi_cs2, gsbi6_spi_cs3,
+                gsbi7, gsbi7_spi_cs1, gsbi7_spi_cs2, gsbi7_spi_cs3,
+                gsbi_cam_i2c, hdmi, mi2s, riva_bt, riva_fm, riva_wlan,
+                sdc2, sdc4, slimbus, spkr_i2s, tsif1, tsif2, usb2_hsic,
+                ps_hold ]
+
+    required:
+      - pins
+
+required:
+  - compatible
+  - reg
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    tlmm: pinctrl@800000 {
+        compatible = "qcom,apq8064-pinctrl";
+        reg = <0x800000 0x4000>;
+
+        gpio-controller;
+        #gpio-cells = <2>;
+        gpio-ranges = <&tlmm 0 0 90>;
+        interrupt-controller;
+        #interrupt-cells = <2>;
+        interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
+
+        uart-state {
+            rx-pins {
+                pins = "gpio52";
+                function = "gsbi5";
+                bias-pull-up;
+            };
+
+            tx-pins {
+                pins = "gpio51";
+                function = "gsbi5";
+                bias-disable;
+            };
+        };
+    };
