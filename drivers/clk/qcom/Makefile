@@ -136,6 +136,7 @@ obj-$(CONFIG_SM_DEBUGCC_HOLI) += debugcc-holi.o
 obj-$(CONFIG_SM_DEBUGCC_PINEAPPLE) += debugcc-pineapple.o
 obj-$(CONFIG_SM_DEBUGCC_PITTI) += debugcc-pitti.o
 obj-$(CONFIG_SXR_DEBUGCC_ANORAK) += debugcc-anorak.o
+obj-$(CONFIG_SXR_DEBUGCC_NEO) += debugcc-neo.o
 obj-$(CONFIG_SXR_DEBUGCC_NIOBE) += debugcc-niobe.o
 obj-$(CONFIG_SM_DEBUGCC_VOLCANO) += debugcc-volcano.o
 obj-$(CONFIG_SM_GCC_6115) += gcc-sm6115.o
