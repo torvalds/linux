@@ -336,6 +336,24 @@ CPU	  PRF_CTRL
 
 .fi
 
+.SH ADD PERF COUNTER EXAMPLE
+Here we limit turbostat to showing just the CPU number for cpu0 - cpu3.
+We add a counter showing time spent in C1 core cstate,
+labeling it with the column header, "pCPU%c1", and display it only once,
+after the conclusion of 0.1 second sleep.
+We also show CPU%c1 built-in counter that should show similar values.
+.nf
+sudo ./turbostat --quiet --cpu 0-3 --show CPU,CPU%c1 --add perf/cstate_core/c1-residency,cpu,delta,percent,pCPU%c1 sleep .1
+0.102448 sec
+CPU     pCPU%c1 CPU%c1
+-       34.89   34.89
+0       45.99   45.99
+1       45.94   45.94
+2       23.83   23.83
+3       23.84   23.84
+
+.fi
+
 .SH INPUT
 
 For interval-mode, turbostat will immediately end the current interval
