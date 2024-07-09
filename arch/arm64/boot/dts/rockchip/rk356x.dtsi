@@ -1592,10 +1592,9 @@
 			 <&cru SRST_TSADCPHY>;
 		rockchip,grf = <&grf>;
 		rockchip,hw-tshut-temp = <95000>;
-		pinctrl-names = "init", "default", "sleep";
-		pinctrl-0 = <&tsadc_pin>;
-		pinctrl-1 = <&tsadc_shutorg>;
-		pinctrl-2 = <&tsadc_pin>;
+		pinctrl-names = "default", "sleep";
+		pinctrl-0 = <&tsadc_shutorg>;
+		pinctrl-1 = <&tsadc_pin>;
 		#thermal-sensor-cells = <1>;
 		status = "disabled";
 	};
