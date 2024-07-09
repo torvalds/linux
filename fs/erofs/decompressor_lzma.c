@@ -5,7 +5,6 @@
 struct z_erofs_lzma {
 	struct z_erofs_lzma *next;
 	struct xz_dec_microlzma *state;
-	struct xz_buf buf;
 	u8 bounce[PAGE_SIZE];
 };
 
@@ -150,23 +149,25 @@ again:
 static int z_erofs_lzma_decompress(struct z_erofs_decompress_req *rq,
 				   struct page **pgpl)
 {
-	const unsigned int nrpages_out =
-		PAGE_ALIGN(rq->pageofs_out + rq->outputsize) >> PAGE_SHIFT;
-	const unsigned int nrpages_in =
-		PAGE_ALIGN(rq->inputsize) >> PAGE_SHIFT;
-	unsigned int inlen, outlen, pageofs;
+	struct super_block *sb = rq->sb;
+	struct z_erofs_stream_dctx dctx = {
+		.rq = rq,
+		.inpages = PAGE_ALIGN(rq->inputsize) >> PAGE_SHIFT,
+		.outpages = PAGE_ALIGN(rq->pageofs_out + rq->outputsize)
+				>> PAGE_SHIFT,
+		.no = -1, .ni = 0,
+	};
+	struct xz_buf buf = {};
 	struct z_erofs_lzma *strm;
-	u8 *kin;
-	bool bounced = false;
-	int no, ni, j, err = 0;
+	enum xz_ret xz_err;
+	int err;
 
 	/* 1. get the exact LZMA compressed size */
-	kin = kmap(*rq->in);
-	err = z_erofs_fixup_insize(rq, kin + rq->pageofs_in,
-			min_t(unsigned int, rq->inputsize,
-			      rq->sb->s_blocksize - rq->pageofs_in));
+	dctx.kin = kmap_local_page(*rq->in);
+	err = z_erofs_fixup_insize(rq, dctx.kin + rq->pageofs_in,
+			min(rq->inputsize, sb->s_blocksize - rq->pageofs_in));
 	if (err) {
-		kunmap(*rq->in);
+		kunmap_local(dctx.kin);
 		return err;
 	}
 
@@ -183,108 +184,45 @@ again:
 	spin_unlock(&z_erofs_lzma_lock);
 
 	/* 3. multi-call decompress */
-	inlen = rq->inputsize;
-	outlen = rq->outputsize;
-	xz_dec_microlzma_reset(strm->state, inlen, outlen,
+	xz_dec_microlzma_reset(strm->state, rq->inputsize, rq->outputsize,
 			       !rq->partial_decoding);
-	pageofs = rq->pageofs_out;
-	strm->buf.in = kin + rq->pageofs_in;
-	strm->buf.in_pos = 0;
-	strm->buf.in_size = min_t(u32, inlen, PAGE_SIZE - rq->pageofs_in);
-	inlen -= strm->buf.in_size;
-	strm->buf.out = NULL;
-	strm->buf.out_pos = 0;
-	strm->buf.out_size = 0;
+	buf.in_size = min(rq->inputsize, PAGE_SIZE - rq->pageofs_in);
+	rq->inputsize -= buf.in_size;
+	buf.in = dctx.kin + rq->pageofs_in,
+	dctx.bounce = strm->bounce;
+	do {
+		dctx.avail_out = buf.out_size - buf.out_pos;
+		dctx.inbuf_sz = buf.in_size;
+		dctx.inbuf_pos = buf.in_pos;
+		err = z_erofs_stream_switch_bufs(&dctx, (void **)&buf.out,
+						 (void **)&buf.in, pgpl);
+		if (err)
+			break;
 
-	for (ni = 0, no = -1;;) {
-		enum xz_ret xz_err;
-
-		if (strm->buf.out_pos == strm->buf.out_size) {
-			if (strm->buf.out) {
-				kunmap(rq->out[no]);
-				strm->buf.out = NULL;
-			}
-
-			if (++no >= nrpages_out || !outlen) {
-				erofs_err(rq->sb, "decompressed buf out of bound");
-				err = -EFSCORRUPTED;
-				break;
-			}
-			strm->buf.out_pos = 0;
-			strm->buf.out_size = min_t(u32, outlen,
-						   PAGE_SIZE - pageofs);
-			outlen -= strm->buf.out_size;
-			if (!rq->out[no] && rq->fillgaps) {	/* deduped */
-				rq->out[no] = erofs_allocpage(pgpl, rq->gfp);
-				if (!rq->out[no]) {
-					err = -ENOMEM;
-					break;
-				}
-				set_page_private(rq->out[no],
-						 Z_EROFS_SHORTLIVED_PAGE);
-			}
-			if (rq->out[no])
-				strm->buf.out = kmap(rq->out[no]) + pageofs;
-			pageofs = 0;
-		} else if (strm->buf.in_pos == strm->buf.in_size) {
-			kunmap(rq->in[ni]);
-
-			if (++ni >= nrpages_in || !inlen) {
-				erofs_err(rq->sb, "compressed buf out of bound");
-				err = -EFSCORRUPTED;
-				break;
-			}
-			strm->buf.in_pos = 0;
-			strm->buf.in_size = min_t(u32, inlen, PAGE_SIZE);
-			inlen -= strm->buf.in_size;
-			kin = kmap(rq->in[ni]);
-			strm->buf.in = kin;
-			bounced = false;
+		if (buf.out_size == buf.out_pos) {
+			buf.out_size = dctx.avail_out;
+			buf.out_pos = 0;
 		}
+		buf.in_size = dctx.inbuf_sz;
+		buf.in_pos = dctx.inbuf_pos;
 
-		/*
-		 * Handle overlapping: Use bounced buffer if the compressed
-		 * data is under processing; Otherwise, Use short-lived pages
-		 * from the on-stack pagepool where pages share with the same
-		 * request.
-		 */
-		if (!bounced && rq->out[no] == rq->in[ni]) {
-			memcpy(strm->bounce, strm->buf.in, strm->buf.in_size);
-			strm->buf.in = strm->bounce;
-			bounced = true;
-		}
-		for (j = ni + 1; j < nrpages_in; ++j) {
-			struct page *tmppage;
-
-			if (rq->out[no] != rq->in[j])
-				continue;
-			tmppage = erofs_allocpage(pgpl, rq->gfp);
-			if (!tmppage) {
-				err = -ENOMEM;
-				goto failed;
-			}
-			set_page_private(tmppage, Z_EROFS_SHORTLIVED_PAGE);
-			copy_highpage(tmppage, rq->in[j]);
-			rq->in[j] = tmppage;
-		}
-		xz_err = xz_dec_microlzma_run(strm->state, &strm->buf);
-		DBG_BUGON(strm->buf.out_pos > strm->buf.out_size);
-		DBG_BUGON(strm->buf.in_pos > strm->buf.in_size);
+		xz_err = xz_dec_microlzma_run(strm->state, &buf);
+		DBG_BUGON(buf.out_pos > buf.out_size);
+		DBG_BUGON(buf.in_pos > buf.in_size);
 
 		if (xz_err != XZ_OK) {
-			if (xz_err == XZ_STREAM_END && !outlen)
+			if (xz_err == XZ_STREAM_END && !rq->outputsize)
 				break;
-			erofs_err(rq->sb, "failed to decompress %d in[%u] out[%u]",
+			erofs_err(sb, "failed to decompress %d in[%u] out[%u]",
 				  xz_err, rq->inputsize, rq->outputsize);
 			err = -EFSCORRUPTED;
 			break;
 		}
-	}
-failed:
-	if (no < nrpages_out && strm->buf.out)
-		kunmap(rq->out[no]);
-	if (ni < nrpages_in)
-		kunmap(rq->in[ni]);
+	} while (1);
+
+	if (dctx.kout)
+		kunmap_local(dctx.kout);
+	kunmap_local(dctx.kin);
 	/* 4. push back LZMA stream context to the global list */
 	spin_lock(&z_erofs_lzma_lock);
 	strm->next = z_erofs_lzma_head;

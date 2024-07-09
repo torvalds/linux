@@ -88,6 +88,21 @@ extern const struct z_erofs_decompressor z_erofs_deflate_decomp;
 extern const struct z_erofs_decompressor z_erofs_zstd_decomp;
 extern const struct z_erofs_decompressor *z_erofs_decomp[];
 
+struct z_erofs_stream_dctx {
+	struct z_erofs_decompress_req *rq;
+	unsigned int inpages, outpages;	/* # of {en,de}coded pages */
+	int no, ni;			/* the current {en,de}coded page # */
+
+	unsigned int avail_out;		/* remaining bytes in the decoded buffer */
+	unsigned int inbuf_pos, inbuf_sz;
+					/* current status of the encoded buffer */
+	u8 *kin, *kout;			/* buffer mapped pointers */
+	void *bounce;			/* bounce buffer for inplace I/Os */
+	bool bounced;			/* is the bounce buffer used now? */
+};
+
+int z_erofs_stream_switch_bufs(struct z_erofs_stream_dctx *dctx, void **dst,
+			       void **src, struct page **pgpl);
 int z_erofs_fixup_insize(struct z_erofs_decompress_req *rq, const char *padbuf,
 			 unsigned int padbufsize);
 int __init z_erofs_init_decompressor(void);
