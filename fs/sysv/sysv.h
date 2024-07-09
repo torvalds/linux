@@ -153,9 +153,9 @@ int sysv_add_link(struct dentry *, struct inode *);
 int sysv_delete_entry(struct sysv_dir_entry *, struct page *);
 int sysv_make_empty(struct inode *, struct inode *);
 int sysv_empty_dir(struct inode *);
-int sysv_set_link(struct sysv_dir_entry *, struct page *,
+int sysv_set_link(struct sysv_dir_entry *, struct folio *,
 			struct inode *);
-struct sysv_dir_entry *sysv_dotdot(struct inode *, struct page **);
+struct sysv_dir_entry *sysv_dotdot(struct inode *, struct folio **);
 ino_t sysv_inode_by_name(struct dentry *);
 
 

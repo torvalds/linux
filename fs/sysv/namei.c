@@ -194,7 +194,7 @@ static int sysv_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 {
 	struct inode * old_inode = d_inode(old_dentry);
 	struct inode * new_inode = d_inode(new_dentry);
-	struct page * dir_page = NULL;
+	struct folio *dir_folio;
 	struct sysv_dir_entry * dir_de = NULL;
 	struct folio *old_folio;
 	struct sysv_dir_entry * old_de;
@@ -209,7 +209,7 @@ static int sysv_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 
 	if (S_ISDIR(old_inode->i_mode)) {
 		err = -EIO;
-		dir_de = sysv_dotdot(old_inode, &dir_page);
+		dir_de = sysv_dotdot(old_inode, &dir_folio);
 		if (!dir_de)
 			goto out_old;
 	}
@@ -226,7 +226,7 @@ static int sysv_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 		new_de = sysv_find_entry(new_dentry, &new_folio);
 		if (!new_de)
 			goto out_dir;
-		err = sysv_set_link(new_de, &new_folio->page, old_inode);
+		err = sysv_set_link(new_de, new_folio, old_inode);
 		folio_release_kmap(new_folio, new_de);
 		if (err)
 			goto out_dir;
@@ -249,14 +249,14 @@ static int sysv_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 	mark_inode_dirty(old_inode);
 
 	if (dir_de) {
-		err = sysv_set_link(dir_de, dir_page, new_dir);
+		err = sysv_set_link(dir_de, dir_folio, new_dir);
 		if (!err)
 			inode_dec_link_count(old_dir);
 	}
 
 out_dir:
 	if (dir_de)
-		unmap_and_put_page(dir_page, dir_de);
+		folio_release_kmap(dir_folio, dir_de);
 out_old:
 	folio_release_kmap(old_folio, old_de);
 out:

@@ -327,21 +327,21 @@ not_empty:
 }
 
 /* Releases the page */
-int sysv_set_link(struct sysv_dir_entry *de, struct page *page,
-	struct inode *inode)
+int sysv_set_link(struct sysv_dir_entry *de, struct folio *folio,
+		struct inode *inode)
 {
-	struct inode *dir = page->mapping->host;
-	loff_t pos = page_offset(page) + offset_in_page(de);
+	struct inode *dir = folio->mapping->host;
+	loff_t pos = folio_pos(folio) + offset_in_folio(folio, de);
 	int err;
 
-	lock_page(page);
-	err = sysv_prepare_chunk(page, pos, SYSV_DIRSIZE);
+	folio_lock(folio);
+	err = sysv_prepare_chunk(&folio->page, pos, SYSV_DIRSIZE);
 	if (err) {
-		unlock_page(page);
+		folio_unlock(folio);
 		return err;
 	}
 	de->inode = cpu_to_fs16(SYSV_SB(inode->i_sb), inode->i_ino);
-	dir_commit_chunk(page, pos, SYSV_DIRSIZE);
+	dir_commit_chunk(&folio->page, pos, SYSV_DIRSIZE);
 	inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
 	mark_inode_dirty(dir);
 	return sysv_handle_dirsync(inode);
@@ -354,15 +354,12 @@ int sysv_set_link(struct sysv_dir_entry *de, struct page *page,
  * sysv_dotdot() acts as a call to dir_get_folio() and must be treated
  * accordingly for nesting purposes.
  */
-struct sysv_dir_entry *sysv_dotdot(struct inode *dir, struct page **p)
+struct sysv_dir_entry *sysv_dotdot(struct inode *dir, struct folio **foliop)
 {
-	struct folio *folio;
-
-	struct sysv_dir_entry *de = dir_get_folio(dir, 0, &folio);
+	struct sysv_dir_entry *de = dir_get_folio(dir, 0, foliop);
 
 	if (IS_ERR(de))
 		return NULL;
-	*p = &folio->page;
 	/* ".." is the second directory entry */
 	return de + 1;
 }
