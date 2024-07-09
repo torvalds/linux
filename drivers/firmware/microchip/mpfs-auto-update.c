@@ -9,6 +9,7 @@
  *
  * Author: Conor Dooley <conor.dooley@microchip.com>
  */
+#include <linux/cleanup.h>
 #include <linux/debugfs.h>
 #include <linux/firmware.h>
 #include <linux/math.h>
@@ -71,8 +72,9 @@
 #define AUTO_UPDATE_UPGRADE_DIRECTORY	(AUTO_UPDATE_DIRECTORY_WIDTH * AUTO_UPDATE_UPGRADE_INDEX)
 #define AUTO_UPDATE_BLANK_DIRECTORY	(AUTO_UPDATE_DIRECTORY_WIDTH * AUTO_UPDATE_BLANK_INDEX)
 #define AUTO_UPDATE_DIRECTORY_SIZE	SZ_1K
-#define AUTO_UPDATE_RESERVED_SIZE	SZ_1M
-#define AUTO_UPDATE_BITSTREAM_BASE	(AUTO_UPDATE_DIRECTORY_SIZE + AUTO_UPDATE_RESERVED_SIZE)
+#define AUTO_UPDATE_INFO_BASE		AUTO_UPDATE_DIRECTORY_SIZE
+#define AUTO_UPDATE_INFO_SIZE		SZ_1M
+#define AUTO_UPDATE_BITSTREAM_BASE	(AUTO_UPDATE_DIRECTORY_SIZE + AUTO_UPDATE_INFO_SIZE)
 
 #define AUTO_UPDATE_TIMEOUT_MS		60000
 
@@ -85,6 +87,17 @@ struct mpfs_auto_update_priv {
 	size_t size_per_bitstream;
 	bool cancel_request;
 };
+
+static bool mpfs_auto_update_is_bitstream_info(const u8 *data, u32 size)
+{
+	if (size < 4)
+		return false;
+
+	if (data[0] == 0x4d && data[1] == 0x43 && data[2] == 0x48 && data[3] == 0x50)
+		return true;
+
+	return false;
+}
 
 static enum fw_upload_err mpfs_auto_update_prepare(struct fw_upload *fw_uploader, const u8 *data,
 						   u32 size)
@@ -162,27 +175,16 @@ static enum fw_upload_err mpfs_auto_update_poll_complete(struct fw_upload *fw_up
 static int mpfs_auto_update_verify_image(struct fw_upload *fw_uploader)
 {
 	struct mpfs_auto_update_priv *priv = fw_uploader->dd_handle;
-	struct mpfs_mss_response *response;
-	struct mpfs_mss_msg *message;
-	u32 *response_msg;
+	u32 *response_msg __free(kfree) =
+		kzalloc(AUTO_UPDATE_FEATURE_RESP_SIZE * sizeof(*response_msg), GFP_KERNEL);
+	struct mpfs_mss_response *response __free(kfree) =
+		kzalloc(sizeof(struct mpfs_mss_response), GFP_KERNEL);
+	struct mpfs_mss_msg *message __free(kfree) =
+		kzalloc(sizeof(struct mpfs_mss_msg), GFP_KERNEL);
 	int ret;
 
-	response_msg = devm_kzalloc(priv->dev, AUTO_UPDATE_FEATURE_RESP_SIZE * sizeof(*response_msg),
-				    GFP_KERNEL);
-	if (!response_msg)
+	if (!response_msg || !response || !message)
 		return -ENOMEM;
-
-	response = devm_kzalloc(priv->dev, sizeof(struct mpfs_mss_response), GFP_KERNEL);
-	if (!response) {
-		ret = -ENOMEM;
-		goto free_response_msg;
-	}
-
-	message = devm_kzalloc(priv->dev, sizeof(struct mpfs_mss_msg), GFP_KERNEL);
-	if (!message) {
-		ret = -ENOMEM;
-		goto free_response;
-	}
 
 	/*
 	 * The system controller can verify that an image in the flash is valid.
@@ -205,31 +207,25 @@ static int mpfs_auto_update_verify_image(struct fw_upload *fw_uploader)
 	ret = mpfs_blocking_transaction(priv->sys_controller, message);
 	if (ret | response->resp_status) {
 		dev_warn(priv->dev, "Verification of Upgrade Image failed!\n");
-		ret = ret ? ret : -EBADMSG;
-		goto free_message;
+		return ret ? ret : -EBADMSG;
 	}
 
 	dev_info(priv->dev, "Verification of Upgrade Image passed!\n");
 
-free_message:
-	devm_kfree(priv->dev, message);
-free_response:
-	devm_kfree(priv->dev, response);
-free_response_msg:
-	devm_kfree(priv->dev, response_msg);
-
-	return ret;
+	return 0;
 }
 
-static int mpfs_auto_update_set_image_address(struct mpfs_auto_update_priv *priv, char *buffer,
+static int mpfs_auto_update_set_image_address(struct mpfs_auto_update_priv *priv,
 					      u32 image_address, loff_t directory_address)
 {
 	struct erase_info erase;
-	size_t erase_size = AUTO_UPDATE_DIRECTORY_SIZE;
+	size_t erase_size = round_up(AUTO_UPDATE_DIRECTORY_SIZE, (u64)priv->flash->erasesize);
 	size_t bytes_written = 0, bytes_read = 0;
+	char *buffer __free(kfree) = kzalloc(erase_size, GFP_KERNEL);
 	int ret;
 
-	erase_size = round_up(erase_size, (u64)priv->flash->erasesize);
+	if (!buffer)
+		return -ENOMEM;
 
 	erase.addr = AUTO_UPDATE_DIRECTORY_BASE;
 	erase.len = erase_size;
@@ -275,7 +271,7 @@ static int mpfs_auto_update_set_image_address(struct mpfs_auto_update_priv *priv
 		return ret;
 
 	if (bytes_written != erase_size)
-		return ret;
+		return -EIO;
 
 	return 0;
 }
@@ -285,26 +281,36 @@ static int mpfs_auto_update_write_bitstream(struct fw_upload *fw_uploader, const
 {
 	struct mpfs_auto_update_priv *priv = fw_uploader->dd_handle;
 	struct erase_info erase;
-	char *buffer;
 	loff_t directory_address = AUTO_UPDATE_UPGRADE_DIRECTORY;
 	size_t erase_size = AUTO_UPDATE_DIRECTORY_SIZE;
 	size_t bytes_written = 0;
+	bool is_info = mpfs_auto_update_is_bitstream_info(data, size);
 	u32 image_address;
 	int ret;
 
 	erase_size = round_up(erase_size, (u64)priv->flash->erasesize);
 
-	image_address = AUTO_UPDATE_BITSTREAM_BASE +
-		AUTO_UPDATE_UPGRADE_INDEX * priv->size_per_bitstream;
+	if (is_info)
+		image_address = AUTO_UPDATE_INFO_BASE;
+	else
+		image_address = AUTO_UPDATE_BITSTREAM_BASE +
+				AUTO_UPDATE_UPGRADE_INDEX * priv->size_per_bitstream;
 
-	buffer = devm_kzalloc(priv->dev, erase_size, GFP_KERNEL);
-	if (!buffer)
-		return -ENOMEM;
-
-	ret = mpfs_auto_update_set_image_address(priv, buffer, image_address, directory_address);
-	if (ret) {
-		dev_err(priv->dev, "failed to set image address in the SPI directory: %d\n", ret);
-		goto out;
+	/*
+	 * For bitstream info, the descriptor is written to a fixed offset,
+	 * so there is no need to set the image address.
+	 */
+	if (!is_info) {
+		ret = mpfs_auto_update_set_image_address(priv, image_address, directory_address);
+		if (ret) {
+			dev_err(priv->dev, "failed to set image address in the SPI directory: %d\n", ret);
+			return ret;
+		}
+	} else {
+		if (size > AUTO_UPDATE_INFO_SIZE) {
+			dev_err(priv->dev, "bitstream info exceeds permitted size\n");
+			return -ENOSPC;
+		}
 	}
 
 	/*
@@ -318,7 +324,7 @@ static int mpfs_auto_update_write_bitstream(struct fw_upload *fw_uploader, const
 	dev_info(priv->dev, "Erasing the flash at address (0x%x)\n", image_address);
 	ret = mtd_erase(priv->flash, &erase);
 	if (ret)
-		goto out;
+		return ret;
 
 	/*
 	 * No parsing etc of the bitstream is required. The system controller
@@ -328,18 +334,15 @@ static int mpfs_auto_update_write_bitstream(struct fw_upload *fw_uploader, const
 	dev_info(priv->dev, "Writing the image to the flash at address (0x%x)\n", image_address);
 	ret = mtd_write(priv->flash, (loff_t)image_address, size, &bytes_written, data);
 	if (ret)
-		goto out;
+		return ret;
 
-	if (bytes_written != size) {
-		ret = -EIO;
-		goto out;
-	}
+	if (bytes_written != size)
+		return -EIO;
 
 	*written = bytes_written;
+	dev_info(priv->dev, "Wrote 0x%zx bytes to the flash\n", bytes_written);
 
-out:
-	devm_kfree(priv->dev, buffer);
-	return ret;
+	return 0;
 }
 
 static enum fw_upload_err mpfs_auto_update_write(struct fw_upload *fw_uploader, const u8 *data,
@@ -362,6 +365,9 @@ static enum fw_upload_err mpfs_auto_update_write(struct fw_upload *fw_uploader, 
 		goto out;
 	}
 
+	if (mpfs_auto_update_is_bitstream_info(data, size))
+		goto out;
+
 	ret = mpfs_auto_update_verify_image(fw_uploader);
 	if (ret)
 		err = FW_UPLOAD_ERR_FW_INVALID;
@@ -381,23 +387,15 @@ static const struct fw_upload_ops mpfs_auto_update_ops = {
 
 static int mpfs_auto_update_available(struct mpfs_auto_update_priv *priv)
 {
-	struct mpfs_mss_response *response;
-	struct mpfs_mss_msg *message;
-	u32 *response_msg;
+	u32 *response_msg __free(kfree) =
+		kzalloc(AUTO_UPDATE_FEATURE_RESP_SIZE * sizeof(*response_msg), GFP_KERNEL);
+	struct mpfs_mss_response *response __free(kfree) =
+		kzalloc(sizeof(struct mpfs_mss_response), GFP_KERNEL);
+	struct mpfs_mss_msg *message __free(kfree) =
+		kzalloc(sizeof(struct mpfs_mss_msg), GFP_KERNEL);
 	int ret;
 
-	response_msg = devm_kzalloc(priv->dev,
-				    AUTO_UPDATE_FEATURE_RESP_SIZE * sizeof(*response_msg),
-				    GFP_KERNEL);
-	if (!response_msg)
-		return -ENOMEM;
-
-	response = devm_kzalloc(priv->dev, sizeof(struct mpfs_mss_response), GFP_KERNEL);
-	if (!response)
-		return -ENOMEM;
-
-	message = devm_kzalloc(priv->dev, sizeof(struct mpfs_mss_msg), GFP_KERNEL);
-	if (!message)
+	if (!response_msg || !response || !message)
 		return -ENOMEM;
 
 	/*
