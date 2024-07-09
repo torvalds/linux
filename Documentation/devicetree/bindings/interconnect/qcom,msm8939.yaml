@@ -4,14 +4,14 @@
 $id: http://devicetree.org/schemas/interconnect/qcom,msm8939.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm MSM8939 Network-On-Chip interconnect
+title: Qualcomm MSM8939/MSM8976 Network-On-Chip interconnect
 
 maintainers:
   - Konrad Dybcio <konradybcio@kernel.org>
 
-description: |
-  The Qualcomm MSM8939 interconnect providers support adjusting the
-  bandwidth requirements between the various NoC fabrics.
+description:
+  The Qualcomm MSM8939/MSM8976 interconnect providers support
+  adjusting the bandwidth requirements between the various NoC fabrics.
 
 allOf:
   - $ref: qcom,rpm-common.yaml#
@@ -22,6 +22,9 @@ properties:
       - qcom,msm8939-bimc
       - qcom,msm8939-pcnoc
       - qcom,msm8939-snoc
+      - qcom,msm8976-bimc
+      - qcom,msm8976-pcnoc
+      - qcom,msm8976-snoc
 
   reg:
     maxItems: 1
@@ -39,7 +42,9 @@ patternProperties:
 
     properties:
       compatible:
-        const: qcom,msm8939-snoc-mm
+        enum:
+          - qcom,msm8939-snoc-mm
+          - qcom,msm8976-snoc-mm
 
     required:
       - compatible
