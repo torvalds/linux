@@ -1626,6 +1626,23 @@ static int _check_data_dev_sectors(struct raid_set *rs)
 	return 0;
 }
 
+/* Get reshape sectors from data_offsets or raid set */
+static sector_t _get_reshape_sectors(struct raid_set *rs)
+{
+	struct md_rdev *rdev;
+	sector_t reshape_sectors = 0;
+
+	rdev_for_each(rdev, &rs->md)
+		if (!test_bit(Journal, &rdev->flags)) {
+			reshape_sectors = (rdev->data_offset > rdev->new_data_offset) ?
+					rdev->data_offset - rdev->new_data_offset :
+					rdev->new_data_offset - rdev->data_offset;
+			break;
+		}
+
+	return max(reshape_sectors, (sector_t) rs->data_offset);
+}
+
 /* Calculate the sectors per device and per array used for @rs */
 static int rs_set_dev_and_array_sectors(struct raid_set *rs, sector_t sectors, bool use_mddev)
 {
@@ -2809,23 +2826,6 @@ static int rs_prepare_reshape(struct raid_set *rs)
 		set_bit(RT_FLAG_UPDATE_SBS, &rs->runtime_flags);
 
 	return 0;
-}
-
-/* Get reshape sectors from data_offsets or raid set */
-static sector_t _get_reshape_sectors(struct raid_set *rs)
-{
-	struct md_rdev *rdev;
-	sector_t reshape_sectors = 0;
-
-	rdev_for_each(rdev, &rs->md)
-		if (!test_bit(Journal, &rdev->flags)) {
-			reshape_sectors = (rdev->data_offset > rdev->new_data_offset) ?
-					rdev->data_offset - rdev->new_data_offset :
-					rdev->new_data_offset - rdev->data_offset;
-			break;
-		}
-
-	return max(reshape_sectors, (sector_t) rs->data_offset);
 }
 
 /*
