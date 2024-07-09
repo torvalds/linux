@@ -728,30 +728,22 @@ static const int adt7470_freq_map[] = {
 static int pwm1_freq_get(struct device *dev)
 {
 	struct adt7470_data *data = dev_get_drvdata(dev);
-	unsigned int cfg_reg_1, cfg_reg_2;
+	unsigned int regs[2] = {ADT7470_REG_CFG, ADT7470_REG_CFG_2};
+	u8 cfg_reg[2];
 	int index;
 	int err;
 
-	mutex_lock(&data->lock);
-	err = regmap_read(data->regmap, ADT7470_REG_CFG, &cfg_reg_1);
-	if (err < 0)
-		goto out;
-	err = regmap_read(data->regmap, ADT7470_REG_CFG_2, &cfg_reg_2);
-	if (err < 0)
-		goto out;
-	mutex_unlock(&data->lock);
+	err = regmap_multi_reg_read(data->regmap, regs, cfg_reg, 2);
+	if (err)
+		return err;
 
-	index = (cfg_reg_2 & ADT7470_FREQ_MASK) >> ADT7470_FREQ_SHIFT;
-	if (!(cfg_reg_1 & ADT7470_CFG_LF))
+	index = (cfg_reg[1] & ADT7470_FREQ_MASK) >> ADT7470_FREQ_SHIFT;
+	if (!(cfg_reg[0] & ADT7470_CFG_LF))
 		index += 8;
 	if (index >= ARRAY_SIZE(adt7470_freq_map))
 		index = ARRAY_SIZE(adt7470_freq_map) - 1;
 
 	return adt7470_freq_map[index];
-
-out:
-	mutex_unlock(&data->lock);
-	return err;
 }
 
 static int adt7470_pwm_read(struct device *dev, u32 attr, int channel, long *val)
