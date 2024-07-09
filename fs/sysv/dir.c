@@ -28,17 +28,17 @@ const struct file_operations sysv_dir_operations = {
 	.fsync		= generic_file_fsync,
 };
 
-static void dir_commit_chunk(struct page *page, loff_t pos, unsigned len)
+static void dir_commit_chunk(struct folio *folio, loff_t pos, unsigned len)
 {
-	struct address_space *mapping = page->mapping;
+	struct address_space *mapping = folio->mapping;
 	struct inode *dir = mapping->host;
 
-	block_write_end(NULL, mapping, pos, len, len, page, NULL);
+	block_write_end(NULL, mapping, pos, len, len, &folio->page, NULL);
 	if (pos+len > dir->i_size) {
 		i_size_write(dir, pos+len);
 		mark_inode_dirty(dir);
 	}
-	unlock_page(page);
+	folio_unlock(folio);
 }
 
 static int sysv_handle_dirsync(struct inode *dir)
@@ -219,7 +219,7 @@ got_it:
 	memcpy (de->name, name, namelen);
 	memset (de->name + namelen, 0, SYSV_DIRSIZE - namelen - 2);
 	de->inode = cpu_to_fs16(SYSV_SB(inode->i_sb), inode->i_ino);
-	dir_commit_chunk(&folio->page, pos, SYSV_DIRSIZE);
+	dir_commit_chunk(folio, pos, SYSV_DIRSIZE);
 	inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
 	mark_inode_dirty(dir);
 	err = sysv_handle_dirsync(dir);
@@ -244,7 +244,7 @@ int sysv_delete_entry(struct sysv_dir_entry *de, struct folio *folio)
 		return err;
 	}
 	de->inode = 0;
-	dir_commit_chunk(&folio->page, pos, SYSV_DIRSIZE);
+	dir_commit_chunk(folio, pos, SYSV_DIRSIZE);
 	inode_set_mtime_to_ts(inode, inode_set_ctime_current(inode));
 	mark_inode_dirty(inode);
 	return sysv_handle_dirsync(inode);
@@ -275,7 +275,7 @@ int sysv_make_empty(struct inode *inode, struct inode *dir)
 	strcpy(de->name,"..");
 
 	kunmap_local(kaddr);
-	dir_commit_chunk(&folio->page, 0, 2 * SYSV_DIRSIZE);
+	dir_commit_chunk(folio, 0, 2 * SYSV_DIRSIZE);
 	err = sysv_handle_dirsync(inode);
 fail:
 	folio_put(folio);
@@ -341,7 +341,7 @@ int sysv_set_link(struct sysv_dir_entry *de, struct folio *folio,
 		return err;
 	}
 	de->inode = cpu_to_fs16(SYSV_SB(inode->i_sb), inode->i_ino);
-	dir_commit_chunk(&folio->page, pos, SYSV_DIRSIZE);
+	dir_commit_chunk(folio, pos, SYSV_DIRSIZE);
 	inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
 	mark_inode_dirty(dir);
 	return sysv_handle_dirsync(inode);
