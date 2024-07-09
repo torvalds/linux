@@ -28,14 +28,14 @@ struct {
 } lru SEC(".maps");
 
 /* callback for non sleepable workqueue */
-static int wq_callback(void *map, int *key, struct bpf_wq *work)
+static int wq_callback(void *map, int *key, void *value)
 {
 	bpf_kfunc_common_test();
 	return 0;
 }
 
 /* callback for sleepable workqueue */
-static int wq_cb_sleepable(void *map, int *key, struct bpf_wq *work)
+static int wq_cb_sleepable(void *map, int *key, void *value)
 {
 	bpf_kfunc_call_test_sleepable();
 	return 0;

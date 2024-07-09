@@ -106,7 +106,7 @@ static inline struct hlist_head *dev_map_index_hash(struct bpf_dtab *dtab,
 	return &dtab->dev_index_head[idx & (dtab->n_buckets - 1)];
 }
 
-static int dev_map_init_map(struct bpf_dtab *dtab, union bpf_attr *attr)
+static int dev_map_alloc_check(union bpf_attr *attr)
 {
 	u32 valsize = attr->value_size;
 
@@ -120,23 +120,28 @@ static int dev_map_init_map(struct bpf_dtab *dtab, union bpf_attr *attr)
 	    attr->map_flags & ~DEV_CREATE_FLAG_MASK)
 		return -EINVAL;
 
+	if (attr->map_type == BPF_MAP_TYPE_DEVMAP_HASH) {
+		/* Hash table size must be power of 2; roundup_pow_of_two()
+		 * can overflow into UB on 32-bit arches
+		 */
+		if (attr->max_entries > 1UL << 31)
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int dev_map_init_map(struct bpf_dtab *dtab, union bpf_attr *attr)
+{
 	/* Lookup returns a pointer straight to dev->ifindex, so make sure the
 	 * verifier prevents writes from the BPF side
 	 */
 	attr->map_flags |= BPF_F_RDONLY_PROG;
-
-
 	bpf_map_init_from_attr(&dtab->map, attr);
 
 	if (attr->map_type == BPF_MAP_TYPE_DEVMAP_HASH) {
-		/* hash table size must be power of 2; roundup_pow_of_two() can
-		 * overflow into UB on 32-bit arches, so check that first
-		 */
-		if (dtab->map.max_entries > 1UL << 31)
-			return -EINVAL;
-
+		/* Hash table size must be power of 2 */
 		dtab->n_buckets = roundup_pow_of_two(dtab->map.max_entries);
-
 		dtab->dev_index_head = dev_map_create_hash(dtab->n_buckets,
 							   dtab->map.numa_node);
 		if (!dtab->dev_index_head)
@@ -1036,6 +1041,7 @@ static u64 dev_map_mem_usage(const struct bpf_map *map)
 BTF_ID_LIST_SINGLE(dev_map_btf_ids, struct, bpf_dtab)
 const struct bpf_map_ops dev_map_ops = {
 	.map_meta_equal = bpf_map_meta_equal,
+	.map_alloc_check = dev_map_alloc_check,
 	.map_alloc = dev_map_alloc,
 	.map_free = dev_map_free,
 	.map_get_next_key = dev_map_get_next_key,
@@ -1050,6 +1056,7 @@ const struct bpf_map_ops dev_map_ops = {
 
 const struct bpf_map_ops dev_map_hash_ops = {
 	.map_meta_equal = bpf_map_meta_equal,
+	.map_alloc_check = dev_map_alloc_check,
 	.map_alloc = dev_map_alloc,
 	.map_free = dev_map_free,
 	.map_get_next_key = dev_map_hash_get_next_key,

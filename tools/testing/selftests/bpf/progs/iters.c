@@ -7,8 +7,6 @@
 #include "bpf_misc.h"
 #include "bpf_compiler.h"
 
-#define ARRAY_SIZE(x) (int)(sizeof(x) / sizeof((x)[0]))
-
 static volatile int zero = 0;
 
 int my_pid;

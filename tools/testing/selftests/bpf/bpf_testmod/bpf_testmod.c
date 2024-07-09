@@ -53,6 +53,13 @@ struct bpf_testmod_struct_arg_4 {
 	int b;
 };
 
+struct bpf_testmod_struct_arg_5 {
+	char a;
+	short b;
+	int c;
+	long d;
+};
+
 __bpf_hook_start();
 
 noinline int
@@ -111,6 +118,15 @@ bpf_testmod_test_struct_arg_8(u64 a, void *b, short c, int d, void *e,
 }
 
 noinline int
+bpf_testmod_test_struct_arg_9(u64 a, void *b, short c, int d, void *e, char f,
+			      short g, struct bpf_testmod_struct_arg_5 h, long i)
+{
+	bpf_testmod_test_struct_arg_result = a + (long)b + c + d + (long)e +
+		f + g + h.a + h.b + h.c + h.d + i;
+	return bpf_testmod_test_struct_arg_result;
+}
+
+noinline int
 bpf_testmod_test_arg_ptr_to_struct(struct bpf_testmod_struct_arg_1 *a) {
 	bpf_testmod_test_struct_arg_result = a->a;
 	return bpf_testmod_test_struct_arg_result;
@@ -152,6 +168,42 @@ __bpf_kfunc void bpf_iter_testmod_seq_destroy(struct bpf_iter_testmod_seq *it)
 
 __bpf_kfunc void bpf_kfunc_common_test(void)
 {
+}
+
+__bpf_kfunc void bpf_kfunc_dynptr_test(struct bpf_dynptr *ptr,
+				       struct bpf_dynptr *ptr__nullable)
+{
+}
+
+__bpf_kfunc struct bpf_testmod_ctx *
+bpf_testmod_ctx_create(int *err)
+{
+	struct bpf_testmod_ctx *ctx;
+
+	ctx = kzalloc(sizeof(*ctx), GFP_ATOMIC);
+	if (!ctx) {
+		*err = -ENOMEM;
+		return NULL;
+	}
+	refcount_set(&ctx->usage, 1);
+
+	return ctx;
+}
+
+static void testmod_free_cb(struct rcu_head *head)
+{
+	struct bpf_testmod_ctx *ctx;
+
+	ctx = container_of(head, struct bpf_testmod_ctx, rcu);
+	kfree(ctx);
+}
+
+__bpf_kfunc void bpf_testmod_ctx_release(struct bpf_testmod_ctx *ctx)
+{
+	if (!ctx)
+		return;
+	if (refcount_dec_and_test(&ctx->usage))
+		call_rcu(&ctx->rcu, testmod_free_cb);
 }
 
 struct bpf_testmod_btf_type_tag_1 {
@@ -269,6 +321,7 @@ bpf_testmod_test_read(struct file *file, struct kobject *kobj,
 	struct bpf_testmod_struct_arg_2 struct_arg2 = {2, 3};
 	struct bpf_testmod_struct_arg_3 *struct_arg3;
 	struct bpf_testmod_struct_arg_4 struct_arg4 = {21, 22};
+	struct bpf_testmod_struct_arg_5 struct_arg5 = {23, 24, 25, 26};
 	int i = 1;
 
 	while (bpf_testmod_return_ptr(i))
@@ -283,6 +336,8 @@ bpf_testmod_test_read(struct file *file, struct kobject *kobj,
 					    (void *)20, struct_arg4);
 	(void)bpf_testmod_test_struct_arg_8(16, (void *)17, 18, 19,
 					    (void *)20, struct_arg4, 23);
+	(void)bpf_testmod_test_struct_arg_9(16, (void *)17, 18, 19, (void *)20,
+					    21, 22, struct_arg5, 27);
 
 	(void)bpf_testmod_test_arg_ptr_to_struct(&struct_arg1_2);
 
@@ -363,7 +418,14 @@ BTF_ID_FLAGS(func, bpf_iter_testmod_seq_new, KF_ITER_NEW)
 BTF_ID_FLAGS(func, bpf_iter_testmod_seq_next, KF_ITER_NEXT | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_iter_testmod_seq_destroy, KF_ITER_DESTROY)
 BTF_ID_FLAGS(func, bpf_kfunc_common_test)
+BTF_ID_FLAGS(func, bpf_kfunc_dynptr_test)
+BTF_ID_FLAGS(func, bpf_testmod_ctx_create, KF_ACQUIRE | KF_RET_NULL)
+BTF_ID_FLAGS(func, bpf_testmod_ctx_release, KF_RELEASE)
 BTF_KFUNCS_END(bpf_testmod_common_kfunc_ids)
+
+BTF_ID_LIST(bpf_testmod_dtor_ids)
+BTF_ID(struct, bpf_testmod_ctx)
+BTF_ID(func, bpf_testmod_ctx_release)
 
 static const struct btf_kfunc_id_set bpf_testmod_common_kfunc_set = {
 	.owner = THIS_MODULE,
@@ -898,6 +960,12 @@ extern int bpf_fentry_test1(int a);
 
 static int bpf_testmod_init(void)
 {
+	const struct btf_id_dtor_kfunc bpf_testmod_dtors[] = {
+		{
+			.btf_id		= bpf_testmod_dtor_ids[0],
+			.kfunc_btf_id	= bpf_testmod_dtor_ids[1]
+		},
+	};
 	int ret;
 
 	ret = register_btf_kfunc_id_set(BPF_PROG_TYPE_UNSPEC, &bpf_testmod_common_kfunc_set);
@@ -906,6 +974,9 @@ static int bpf_testmod_init(void)
 	ret = ret ?: register_btf_kfunc_id_set(BPF_PROG_TYPE_SYSCALL, &bpf_testmod_kfunc_set);
 	ret = ret ?: register_bpf_struct_ops(&bpf_bpf_testmod_ops, bpf_testmod_ops);
 	ret = ret ?: register_bpf_struct_ops(&bpf_testmod_ops2, bpf_testmod_ops2);
+	ret = ret ?: register_btf_id_dtor_kfuncs(bpf_testmod_dtors,
+						 ARRAY_SIZE(bpf_testmod_dtors),
+						 THIS_MODULE);
 	if (ret < 0)
 		return ret;
 	if (bpf_fentry_test1(0) < 0)

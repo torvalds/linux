@@ -1272,6 +1272,8 @@ static int do_skeleton(int argc, char **argv)
 		#include <stdlib.h>					    \n\
 		#include <bpf/libbpf.h>					    \n\
 									    \n\
+		#define BPF_SKEL_SUPPORTS_MAP_AUTO_ATTACH 1		    \n\
+									    \n\
 		struct %1$s {						    \n\
 			struct bpf_object_skeleton *skeleton;		    \n\
 			struct bpf_object *obj;				    \n\

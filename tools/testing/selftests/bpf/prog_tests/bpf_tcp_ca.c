@@ -49,7 +49,7 @@ static bool start_test(char *addr_str,
 		goto err;
 
 	/* connect to server */
-	*cli_fd = connect_to_fd_opts(*srv_fd, cli_opts);
+	*cli_fd = connect_to_fd_opts(*srv_fd, SOCK_STREAM, cli_opts);
 	if (!ASSERT_NEQ(*cli_fd, -1, "connect_to_fd_opts"))
 		goto err;
 
@@ -183,6 +183,39 @@ done:
 		close(lfd);
 	if (fd != -1)
 		close(fd);
+}
+
+static void test_dctcp_autoattach_map(void)
+{
+	struct cb_opts cb_opts = {
+		.cc = "bpf_dctcp",
+	};
+	struct network_helper_opts opts = {
+		.post_socket_cb	= cc_cb,
+		.cb_opts	= &cb_opts,
+	};
+	struct bpf_dctcp *dctcp_skel;
+	struct bpf_link *link;
+
+	dctcp_skel = bpf_dctcp__open_and_load();
+	if (!ASSERT_OK_PTR(dctcp_skel, "bpf_dctcp__open_and_load"))
+		return;
+
+	bpf_map__set_autoattach(dctcp_skel->maps.dctcp, true);
+	bpf_map__set_autoattach(dctcp_skel->maps.dctcp_nouse, false);
+
+	if (!ASSERT_OK(bpf_dctcp__attach(dctcp_skel), "bpf_dctcp__attach"))
+		goto destroy;
+
+	/* struct_ops is auto-attached  */
+	link = dctcp_skel->links.dctcp;
+	if (!ASSERT_OK_PTR(link, "link"))
+		goto destroy;
+
+	do_test(&opts);
+
+destroy:
+	bpf_dctcp__destroy(dctcp_skel);
 }
 
 static char *err_str;
@@ -598,4 +631,6 @@ void test_bpf_tcp_ca(void)
 		test_tcp_ca_kfunc();
 	if (test__start_subtest("cc_cubic"))
 		test_cc_cubic();
+	if (test__start_subtest("dctcp_autoattach_map"))
+		test_dctcp_autoattach_map();
 }

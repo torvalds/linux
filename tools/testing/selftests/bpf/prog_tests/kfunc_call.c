@@ -78,6 +78,7 @@ static struct kfunc_test_params kfunc_tests[] = {
 	SYSCALL_TEST(kfunc_syscall_test, 0),
 	SYSCALL_NULL_CTX_TEST(kfunc_syscall_test_null, 0),
 	TC_TEST(kfunc_call_test_static_unused_arg, 0),
+	TC_TEST(kfunc_call_ctx, 0),
 };
 
 struct syscall_test_args {

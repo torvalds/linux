@@ -2931,8 +2931,7 @@ bpf_probe_read_kernel_common(void *dst, u32 size, const void *unsafe_ptr)
 	return ret;
 }
 
-void __bpf_free_used_btfs(struct bpf_prog_aux *aux,
-			  struct btf_mod_pair *used_btfs, u32 len);
+void __bpf_free_used_btfs(struct btf_mod_pair *used_btfs, u32 len);
 
 static inline struct bpf_prog *bpf_prog_get_type(u32 ufd,
 						 enum bpf_prog_type type)
@@ -3263,8 +3262,8 @@ u32 bpf_sock_convert_ctx_access(enum bpf_access_type type,
 				struct bpf_insn *insn_buf,
 				struct bpf_prog *prog,
 				u32 *target_size);
-int bpf_dynptr_from_skb_rdonly(struct sk_buff *skb, u64 flags,
-			       struct bpf_dynptr_kern *ptr);
+int bpf_dynptr_from_skb_rdonly(struct __sk_buff *skb, u64 flags,
+			       struct bpf_dynptr *ptr);
 #else
 static inline bool bpf_sock_common_is_valid_access(int off, int size,
 						   enum bpf_access_type type,
@@ -3286,8 +3285,8 @@ static inline u32 bpf_sock_convert_ctx_access(enum bpf_access_type type,
 {
 	return 0;
 }
-static inline int bpf_dynptr_from_skb_rdonly(struct sk_buff *skb, u64 flags,
-					     struct bpf_dynptr_kern *ptr)
+static inline int bpf_dynptr_from_skb_rdonly(struct __sk_buff *skb, u64 flags,
+					     struct bpf_dynptr *ptr)
 {
 	return -EOPNOTSUPP;
 }
