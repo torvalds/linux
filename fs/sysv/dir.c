@@ -213,7 +213,7 @@ int sysv_add_link(struct dentry *dentry, struct inode *inode)
 got_it:
 	pos = folio_pos(folio) + offset_in_folio(folio, de);
 	folio_lock(folio);
-	err = sysv_prepare_chunk(&folio->page, pos, SYSV_DIRSIZE);
+	err = sysv_prepare_chunk(folio, pos, SYSV_DIRSIZE);
 	if (err)
 		goto out_unlock;
 	memcpy (de->name, name, namelen);
@@ -238,7 +238,7 @@ int sysv_delete_entry(struct sysv_dir_entry *de, struct folio *folio)
 	int err;
 
 	folio_lock(folio);
-	err = sysv_prepare_chunk(&folio->page, pos, SYSV_DIRSIZE);
+	err = sysv_prepare_chunk(folio, pos, SYSV_DIRSIZE);
 	if (err) {
 		folio_unlock(folio);
 		return err;
@@ -259,7 +259,7 @@ int sysv_make_empty(struct inode *inode, struct inode *dir)
 
 	if (IS_ERR(folio))
 		return PTR_ERR(folio);
-	err = sysv_prepare_chunk(&folio->page, 0, 2 * SYSV_DIRSIZE);
+	err = sysv_prepare_chunk(folio, 0, 2 * SYSV_DIRSIZE);
 	if (err) {
 		folio_unlock(folio);
 		goto fail;
@@ -335,7 +335,7 @@ int sysv_set_link(struct sysv_dir_entry *de, struct folio *folio,
 	int err;
 
 	folio_lock(folio);
-	err = sysv_prepare_chunk(&folio->page, pos, SYSV_DIRSIZE);
+	err = sysv_prepare_chunk(folio, pos, SYSV_DIRSIZE);
 	if (err) {
 		folio_unlock(folio);
 		return err;

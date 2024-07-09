@@ -133,8 +133,8 @@ extern void sysv_free_block(struct super_block *, sysv_zone_t);
 extern unsigned long sysv_count_free_blocks(struct super_block *);
 
 /* itree.c */
-extern void sysv_truncate(struct inode *);
-extern int sysv_prepare_chunk(struct page *page, loff_t pos, unsigned len);
+void sysv_truncate(struct inode *);
+int sysv_prepare_chunk(struct folio *folio, loff_t pos, unsigned len);
 
 /* inode.c */
 extern struct inode *sysv_iget(struct super_block *, unsigned int);
