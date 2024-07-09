@@ -439,22 +439,32 @@ static ssize_t description_show(struct device *dev,
 				char *buf)
 {
 	struct acpi_device *acpi_dev = to_acpi_device(dev);
+	struct acpi_buffer buffer = {ACPI_ALLOCATE_BUFFER, NULL};
+	union acpi_object *str_obj;
+	acpi_status status;
 	int result;
 
-	if (acpi_dev->pnp.str_obj == NULL)
-		return 0;
+	status = acpi_evaluate_object_typed(acpi_dev->handle, "_STR",
+					    NULL, &buffer,
+					    ACPI_TYPE_BUFFER);
+	if (ACPI_FAILURE(status))
+		return -EIO;
+
+	str_obj = buffer.pointer;
 
 	/*
 	 * The _STR object contains a Unicode identifier for a device.
 	 * We need to convert to utf-8 so it can be displayed.
 	 */
 	result = utf16s_to_utf8s(
-		(wchar_t *)acpi_dev->pnp.str_obj->buffer.pointer,
-		acpi_dev->pnp.str_obj->buffer.length,
+		(wchar_t *)str_obj->buffer.pointer,
+		str_obj->buffer.length,
 		UTF16_LITTLE_ENDIAN, buf,
 		PAGE_SIZE - 1);
 
 	buf[result++] = '\n';
+
+	kfree(str_obj);
 
 	return result;
 }
@@ -513,8 +523,6 @@ static DEVICE_ATTR_RO(status);
  */
 int acpi_device_setup_files(struct acpi_device *dev)
 {
-	struct acpi_buffer buffer = {ACPI_ALLOCATE_BUFFER, NULL};
-	acpi_status status;
 	int result = 0;
 
 	/*
@@ -540,12 +548,6 @@ int acpi_device_setup_files(struct acpi_device *dev)
 	 * If device has _STR, 'description' file is created
 	 */
 	if (acpi_has_method(dev->handle, "_STR")) {
-		status = acpi_evaluate_object_typed(dev->handle, "_STR",
-						    NULL, &buffer,
-						    ACPI_TYPE_BUFFER);
-		if (ACPI_FAILURE(status))
-			buffer.pointer = NULL;
-		dev->pnp.str_obj = buffer.pointer;
 		result = device_create_file(&dev->dev, &dev_attr_description);
 		if (result)
 			goto end;
@@ -618,10 +620,8 @@ void acpi_device_remove_files(struct acpi_device *dev)
 	/*
 	 * If device has _STR, remove 'description' file
 	 */
-	if (acpi_has_method(dev->handle, "_STR")) {
-		kfree(dev->pnp.str_obj);
+	if (acpi_has_method(dev->handle, "_STR"))
 		device_remove_file(&dev->dev, &dev_attr_description);
-	}
 	/*
 	 * If device has _EJ0, remove 'eject' file.
 	 */
