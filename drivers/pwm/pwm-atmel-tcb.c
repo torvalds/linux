@@ -260,7 +260,8 @@ static int atmel_tcb_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 {
 	struct atmel_tcb_pwm_chip *tcbpwmc = to_tcb_chip(chip);
 	struct atmel_tcb_pwm_device *tcbpwm = &tcbpwmc->pwms[pwm->hwpwm];
-	struct atmel_tcb_pwm_device *atcbpwm = NULL;
+	/* companion PWM sharing register values period and div */
+	struct atmel_tcb_pwm_device *atcbpwm = &tcbpwmc->pwms[pwm->hwpwm ^ 1];
 	int i = 0;
 	int slowclk = 0;
 	unsigned period;
@@ -305,11 +306,6 @@ static int atmel_tcb_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	duty = div_u64(duty_ns, min);
 	period = div_u64(period_ns, min);
 
-	if (pwm->hwpwm == 0)
-		atcbpwm = &tcbpwmc->pwms[1];
-	else
-		atcbpwm = &tcbpwmc->pwms[0];
-
 	/*
 	 * PWM devices provided by the TCB driver are grouped by 2.
 	 * PWM devices in a given group must be configured with the
@@ -318,8 +314,7 @@ static int atmel_tcb_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	 * We're checking the period value of the second PWM device
 	 * in this group before applying the new config.
 	 */
-	if ((atcbpwm && atcbpwm->duty > 0 &&
-			atcbpwm->duty != atcbpwm->period) &&
+	if ((atcbpwm->duty > 0 && atcbpwm->duty != atcbpwm->period) &&
 		(atcbpwm->div != i || atcbpwm->period != period)) {
 		dev_err(pwmchip_parent(chip),
 			"failed to configure period_ns: PWM group already configured with a different value\n");
