@@ -467,6 +467,13 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 	 *		kvm_arch_flush_shadow_memslot()
 	 */
 	if (!(old_flags & KVM_MEM_LOG_DIRTY_PAGES) && log_dirty_pages) {
+		/*
+		 * Initially-all-set does not require write protecting any page
+		 * because they're all assumed to be dirty.
+		 */
+		if (kvm_dirty_log_manual_protect_and_init_set(kvm))
+			return;
+
 		spin_lock(&kvm->mmu_lock);
 		/* Write protect GPA page table entries */
 		needs_flush = kvm_mkclean_gpa_pt(kvm, new->base_gfn,
