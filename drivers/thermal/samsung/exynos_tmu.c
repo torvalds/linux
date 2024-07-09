@@ -1037,17 +1037,14 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 		return ret;
 
 	data->clk = devm_clk_get(dev, "tmu_apbif");
-	if (IS_ERR(data->clk)) {
-		dev_err(dev, "Failed to get clock\n");
-		return PTR_ERR(data->clk);
-	}
+	if (IS_ERR(data->clk))
+		return dev_err_probe(dev, PTR_ERR(data->clk), "Failed to get clock\n");
 
 	data->clk_sec = devm_clk_get(dev, "tmu_triminfo_apbif");
 	if (IS_ERR(data->clk_sec)) {
-		if (data->soc == SOC_ARCH_EXYNOS5420_TRIMINFO) {
-			dev_err(dev, "Failed to get triminfo clock\n");
-			return PTR_ERR(data->clk_sec);
-		}
+		if (data->soc == SOC_ARCH_EXYNOS5420_TRIMINFO)
+			return dev_err_probe(dev, PTR_ERR(data->clk_sec),
+					     "Failed to get triminfo clock\n");
 	} else {
 		ret = clk_prepare(data->clk_sec);
 		if (ret) {
@@ -1067,8 +1064,7 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 	case SOC_ARCH_EXYNOS7:
 		data->sclk = devm_clk_get(dev, "tmu_sclk");
 		if (IS_ERR(data->sclk)) {
-			dev_err(dev, "Failed to get sclk\n");
-			ret = PTR_ERR(data->sclk);
+			ret = dev_err_probe(dev, PTR_ERR(data->sclk), "Failed to get sclk\n");
 			goto err_clk;
 		} else {
 			ret = clk_prepare_enable(data->sclk);
@@ -1091,9 +1087,7 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 	data->tzd = devm_thermal_of_zone_register(dev, 0, data,
 						  &exynos_sensor_ops);
 	if (IS_ERR(data->tzd)) {
-		ret = PTR_ERR(data->tzd);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "Failed to register sensor: %d\n", ret);
+		ret = dev_err_probe(dev, PTR_ERR(data->tzd), "Failed to register sensor\n");
 		goto err_sclk;
 	}
 
