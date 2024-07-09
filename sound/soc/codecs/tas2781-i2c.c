@@ -742,6 +742,8 @@ static int tasdevice_i2c_probe(struct i2c_client *i2c)
 	if (ret)
 		goto err;
 
+	tasdevice_reset(tas_priv);
+
 	ret = devm_snd_soc_register_component(tas_priv->dev,
 		&soc_codec_driver_tasdevice,
 		tasdevice_dai_driver, ARRAY_SIZE(tasdevice_dai_driver));

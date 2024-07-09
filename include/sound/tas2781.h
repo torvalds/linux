@@ -2,7 +2,7 @@
 //
 // ALSA SoC Texas Instruments TAS2563/TAS2781 Audio Smart Amplifier
 //
-// Copyright (C) 2022 - 2023 Texas Instruments Incorporated
+// Copyright (C) 2022 - 2024 Texas Instruments Incorporated
 // https://www.ti.com
 //
 // The TAS2563/TAS2781 driver implements a flexible and configurable
@@ -43,8 +43,8 @@
 					(page * 128)) + reg)
 
 /*Software Reset */
-#define TAS2781_REG_SWRESET		TASDEVICE_REG(0x0, 0X0, 0x01)
-#define TAS2781_REG_SWRESET_RESET	BIT(0)
+#define TASDEVICE_REG_SWRESET		TASDEVICE_REG(0x0, 0X0, 0x01)
+#define TASDEVICE_REG_SWRESET_RESET	BIT(0)
 
 /*I2C Checksum */
 #define TASDEVICE_I2CChecksum		TASDEVICE_REG(0x0, 0x0, 0x7E)
@@ -140,7 +140,7 @@ struct tasdevice_priv {
 	void (*apply_calibration)(struct tasdevice_priv *tas_priv);
 };
 
-void tas2781_reset(struct tasdevice_priv *tas_dev);
+void tasdevice_reset(struct tasdevice_priv *tas_dev);
 int tascodec_init(struct tasdevice_priv *tas_priv, void *codec,
 	struct module *module,
 	void (*cont)(const struct firmware *fw, void *context));
