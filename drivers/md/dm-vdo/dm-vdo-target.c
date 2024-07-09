@@ -945,7 +945,7 @@ static void vdo_io_hints(struct dm_target *ti, struct queue_limits *limits)
 	 * The value is used by dm-thin to determine whether to pass down discards. The block layer
 	 * splits large discards on this boundary when this is set.
 	 */
-	limits->max_discard_sectors =
+	limits->max_hw_discard_sectors =
 		(vdo->device_config->max_discard_blocks * VDO_SECTORS_PER_BLOCK);
 
 	/*
