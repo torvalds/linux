@@ -406,12 +406,12 @@ static ssize_t gpio_virtuser_direction_do_write(struct file *file,
 
 	trimmed = strim(buf);
 
-	if (strcmp(buf, "input") == 0) {
+	if (strcmp(trimmed, "input") == 0) {
 		dir = 1;
-	} else if (strcmp(buf, "output-high") == 0) {
+	} else if (strcmp(trimmed, "output-high") == 0) {
 		dir = 0;
 		val = 1;
-	} else if (strcmp(buf, "output-low") == 0) {
+	} else if (strcmp(trimmed, "output-low") == 0) {
 		dir = val = 0;
 	} else {
 		return -EINVAL;
