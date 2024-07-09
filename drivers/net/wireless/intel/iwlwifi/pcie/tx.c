@@ -1770,7 +1770,7 @@ static void *iwl_pcie_get_page_hdr(struct iwl_trans *trans,
 	 * (see also get_workaround_page() in tx-gen2.c)
 	 */
 	if (((unsigned long)p->pos & ~PAGE_MASK) + len < IWL_TSO_PAGE_DATA_SIZE) {
-		info = IWL_TSO_PAGE_INFO(page_address(ret));
+		info = IWL_TSO_PAGE_INFO(page_address(p->page));
 		goto out;
 	}
 
@@ -1783,7 +1783,7 @@ alloc:
 		return NULL;
 	p->pos = page_address(p->page);
 
-	info = IWL_TSO_PAGE_INFO(page_address(ret));
+	info = IWL_TSO_PAGE_INFO(page_address(p->page));
 
 	/* set the chaining pointer to NULL */
 	info->next = NULL;
