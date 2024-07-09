@@ -52,6 +52,8 @@ enum clk_ids {
 	CLK_PLL5,
 	CLK_PLL5_500,
 	CLK_PLL5_250,
+	CLK_PLL5_FOUTPOSTDIV,
+	CLK_DSI_DIV,
 #endif
 	CLK_PLL6,
 	CLK_PLL6_250,
@@ -120,6 +122,7 @@ static const struct cpg_core_clk r9a07g043_core_clks[] __initconst = {
 	DEF_FIXED(".pll5", CLK_PLL5, CLK_EXTAL, 125, 1),
 	DEF_FIXED(".pll5_500", CLK_PLL5_500, CLK_PLL5, 1, 6),
 	DEF_FIXED(".pll5_250", CLK_PLL5_250, CLK_PLL5_500, 1, 2),
+	DEF_PLL5_FOUTPOSTDIV(".pll5_foutpostdiv", CLK_PLL5_FOUTPOSTDIV, CLK_EXTAL),
 #endif
 	DEF_FIXED(".pll6", CLK_PLL6, CLK_EXTAL, 125, 6),
 	DEF_FIXED(".pll6_250", CLK_PLL6_250, CLK_PLL6, 1, 2),
@@ -146,6 +149,8 @@ static const struct cpg_core_clk r9a07g043_core_clks[] __initconst = {
 #ifdef CONFIG_ARM64
 	DEF_FIXED("M2", R9A07G043_CLK_M2, CLK_PLL3_533, 1, 2),
 	DEF_FIXED("M2_DIV2", CLK_M2_DIV2, R9A07G043_CLK_M2, 1, 2),
+	DEF_DSI_DIV("DSI_DIV", CLK_DSI_DIV, CLK_PLL5_FOUTPOSTDIV, CLK_SET_RATE_PARENT),
+	DEF_FIXED("M3", R9A07G043_CLK_M3, CLK_DSI_DIV, 1, 1),
 #endif
 };
 
@@ -209,6 +214,12 @@ static const struct rzg2l_mod_clk r9a07g043_mod_clks[] = {
 				0x564, 2),
 	DEF_MOD("cru_aclk",     R9A07G043_CRU_ACLK, R9A07G043_CLK_M0,
 				0x564, 3),
+	DEF_COUPLED("lcdc_clk_a", R9A07G043_LCDC_CLK_A, R9A07G043_CLK_M0,
+				0x56c, 0),
+	DEF_COUPLED("lcdc_clk_p", R9A07G043_LCDC_CLK_P, R9A07G043_CLK_ZT,
+				0x56c, 0),
+	DEF_MOD("lcdc_clk_d",	R9A07G043_LCDC_CLK_D, R9A07G043_CLK_M3,
+				0x56c, 1),
 #endif
 	DEF_MOD("ssi0_pclk",	R9A07G043_SSI0_PCLK2, R9A07G043_CLK_P0,
 				0x570, 0),
@@ -309,6 +320,7 @@ static const struct rzg2l_reset r9a07g043_resets[] = {
 	DEF_RST(R9A07G043_CRU_CMN_RSTB, 0x864, 0),
 	DEF_RST(R9A07G043_CRU_PRESETN, 0x864, 1),
 	DEF_RST(R9A07G043_CRU_ARESETN, 0x864, 2),
+	DEF_RST(R9A07G043_LCDC_RESET_N, 0x86c, 0),
 #endif
 	DEF_RST(R9A07G043_SSI0_RST_M2_REG, 0x870, 0),
 	DEF_RST(R9A07G043_SSI1_RST_M2_REG, 0x870, 1),
