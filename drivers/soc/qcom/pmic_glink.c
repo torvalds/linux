@@ -369,8 +369,17 @@ static struct platform_driver pmic_glink_driver = {
 
 static int pmic_glink_init(void)
 {
-	platform_driver_register(&pmic_glink_driver);
-	register_rpmsg_driver(&pmic_glink_rpmsg_driver);
+	int ret;
+
+	ret = platform_driver_register(&pmic_glink_driver);
+	if (ret < 0)
+		return ret;
+
+	ret = register_rpmsg_driver(&pmic_glink_rpmsg_driver);
+	if (ret < 0) {
+		platform_driver_unregister(&pmic_glink_driver);
+		return ret;
+	}
 
 	return 0;
 }

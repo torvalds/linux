@@ -73,9 +73,9 @@ static inline void qseecom_dma_free(struct qseecom_client *client, size_t size,
 /**
  * qcom_qseecom_app_send() - Send to and receive data from a given QSEE app.
  * @client:   The QSEECOM client associated with the target app.
- * @req:      DMA address of the request buffer sent to the app.
+ * @req:      Request buffer sent to the app (must be TZ memory).
  * @req_size: Size of the request buffer.
- * @rsp:      DMA address of the response buffer, written to by the app.
+ * @rsp:      Response buffer, written to by the app (must be TZ memory).
  * @rsp_size: Size of the response buffer.
  *
  * Sends a request to the QSEE app associated with the given client and read
@@ -90,8 +90,8 @@ static inline void qseecom_dma_free(struct qseecom_client *client, size_t size,
  * Return: Zero on success, nonzero on failure.
  */
 static inline int qcom_qseecom_app_send(struct qseecom_client *client,
-					dma_addr_t req, size_t req_size,
-					dma_addr_t rsp, size_t rsp_size)
+					void *req, size_t req_size,
+					void *rsp, size_t rsp_size)
 {
 	return qcom_scm_qseecom_app_send(client->app_id, req, req_size, rsp, rsp_size);
 }
