@@ -413,8 +413,7 @@ static int ad9739a_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	ret = iio_backend_extend_chan_spec(indio_dev, st->back,
-					   &ad9739a_channels[0]);
+	ret = iio_backend_extend_chan_spec(st->back, &ad9739a_channels[0]);
 	if (ret)
 		return ret;
 

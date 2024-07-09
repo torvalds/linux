@@ -451,7 +451,6 @@ EXPORT_SYMBOL_NS_GPL(iio_backend_ext_info_set, IIO_BACKEND);
 
 /**
  * iio_backend_extend_chan_spec - Extend an IIO channel
- * @indio_dev: IIO device
  * @back: Backend device
  * @chan: IIO channel
  *
@@ -461,8 +460,7 @@ EXPORT_SYMBOL_NS_GPL(iio_backend_ext_info_set, IIO_BACKEND);
  * RETURNS:
  * 0 on success, negative error number on failure.
  */
-int iio_backend_extend_chan_spec(struct iio_dev *indio_dev,
-				 struct iio_backend *back,
+int iio_backend_extend_chan_spec(struct iio_backend *back,
 				 struct iio_chan_spec *chan)
 {
 	const struct iio_chan_spec_ext_info *frontend_ext_info = chan->ext_info;
