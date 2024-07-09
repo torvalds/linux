@@ -145,12 +145,13 @@ static inline int namecompare(int len, int maxlen,
 /*
  *	minix_find_entry()
  *
- * finds an entry in the specified directory with the wanted name. It
- * returns the cache buffer in which the entry was found, and the entry
- * itself (as a parameter - res_dir). It does NOT read the inode of the
+ * finds an entry in the specified directory with the wanted name.
+ * It does NOT read the inode of the
  * entry - you'll have to do that yourself if you want to.
+ * 
+ * On Success folio_release_kmap() should be called on *foliop.
  */
-minix_dirent *minix_find_entry(struct dentry *dentry, struct page **res_page)
+minix_dirent *minix_find_entry(struct dentry *dentry, struct folio **foliop)
 {
 	const char * name = dentry->d_name.name;
 	int namelen = dentry->d_name.len;
@@ -159,17 +160,15 @@ minix_dirent *minix_find_entry(struct dentry *dentry, struct page **res_page)
 	struct minix_sb_info * sbi = minix_sb(sb);
 	unsigned long n;
 	unsigned long npages = dir_pages(dir);
-	struct folio *folio = NULL;
 	char *p;
 
 	char *namx;
 	__u32 inumber;
-	*res_page = NULL;
 
 	for (n = 0; n < npages; n++) {
 		char *kaddr, *limit;
 
-		kaddr = dir_get_folio(dir, n, &folio);
+		kaddr = dir_get_folio(dir, n, foliop);
 		if (IS_ERR(kaddr))
 			continue;
 
@@ -189,12 +188,11 @@ minix_dirent *minix_find_entry(struct dentry *dentry, struct page **res_page)
 			if (namecompare(namelen, sbi->s_namelen, name, namx))
 				goto found;
 		}
-		folio_release_kmap(folio, kaddr);
+		folio_release_kmap(*foliop, kaddr);
 	}
 	return NULL;
 
 found:
-	*res_page = &folio->page;
 	return (minix_dirent *)p;
 }
 
@@ -445,20 +443,19 @@ struct minix_dir_entry * minix_dotdot (struct inode *dir, struct page **p)
 
 ino_t minix_inode_by_name(struct dentry *dentry)
 {
-	struct page *page;
-	struct minix_dir_entry *de = minix_find_entry(dentry, &page);
+	struct folio *folio;
+	struct minix_dir_entry *de = minix_find_entry(dentry, &folio);
 	ino_t res = 0;
 
 	if (de) {
-		struct address_space *mapping = page->mapping;
-		struct inode *inode = mapping->host;
+		struct inode *inode = folio->mapping->host;
 		struct minix_sb_info *sbi = minix_sb(inode->i_sb);
 
 		if (sbi->s_version == MINIX_V3)
 			res = ((minix3_dirent *) de)->inode;
 		else
 			res = de->inode;
-		unmap_and_put_page(page, de);
+		folio_release_kmap(folio, de);
 	}
 	return res;
 }

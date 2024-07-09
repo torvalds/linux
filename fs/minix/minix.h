@@ -64,15 +64,15 @@ extern int V2_minix_get_block(struct inode *, long, struct buffer_head *, int);
 extern unsigned V1_minix_blocks(loff_t, struct super_block *);
 extern unsigned V2_minix_blocks(loff_t, struct super_block *);
 
-extern struct minix_dir_entry *minix_find_entry(struct dentry*, struct page**);
-extern int minix_add_link(struct dentry*, struct inode*);
-extern int minix_delete_entry(struct minix_dir_entry*, struct page*);
-extern int minix_make_empty(struct inode*, struct inode*);
-extern int minix_empty_dir(struct inode*);
+struct minix_dir_entry *minix_find_entry(struct dentry *, struct folio **);
+int minix_add_link(struct dentry*, struct inode*);
+int minix_delete_entry(struct minix_dir_entry*, struct page*);
+int minix_make_empty(struct inode*, struct inode*);
+int minix_empty_dir(struct inode*);
 int minix_set_link(struct minix_dir_entry *de, struct page *page,
 		struct inode *inode);
-extern struct minix_dir_entry *minix_dotdot(struct inode*, struct page**);
-extern ino_t minix_inode_by_name(struct dentry*);
+struct minix_dir_entry *minix_dotdot(struct inode*, struct page**);
+ino_t minix_inode_by_name(struct dentry*);
 
 extern const struct inode_operations minix_file_inode_operations;
 extern const struct inode_operations minix_dir_inode_operations;
