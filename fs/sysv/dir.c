@@ -127,27 +127,23 @@ static inline int namecompare(int len, int maxlen,
 /*
  *	sysv_find_entry()
  *
- * finds an entry in the specified directory with the wanted name. It
- * returns the cache buffer in which the entry was found, and the entry
- * itself (as a parameter - res_dir). It does NOT read the inode of the
+ * finds an entry in the specified directory with the wanted name.
+ * It does NOT read the inode of the
  * entry - you'll have to do that yourself if you want to.
  *
- * On Success unmap_and_put_page() should be called on *res_page.
+ * On Success folio_release_kmap() should be called on *foliop.
  *
  * sysv_find_entry() acts as a call to dir_get_folio() and must be treated
  * accordingly for nesting purposes.
  */
-struct sysv_dir_entry *sysv_find_entry(struct dentry *dentry, struct page **res_page)
+struct sysv_dir_entry *sysv_find_entry(struct dentry *dentry, struct folio **foliop)
 {
 	const char * name = dentry->d_name.name;
 	int namelen = dentry->d_name.len;
 	struct inode * dir = d_inode(dentry->d_parent);
 	unsigned long start, n;
 	unsigned long npages = dir_pages(dir);
-	struct folio *folio = NULL;
 	struct sysv_dir_entry *de;
-
-	*res_page = NULL;
 
 	start = SYSV_I(dir)->i_dir_start_lookup;
 	if (start >= npages)
@@ -155,11 +151,11 @@ struct sysv_dir_entry *sysv_find_entry(struct dentry *dentry, struct page **res_
 	n = start;
 
 	do {
-		char *kaddr = dir_get_folio(dir, n, &folio);
+		char *kaddr = dir_get_folio(dir, n, foliop);
 
 		if (!IS_ERR(kaddr)) {
 			de = (struct sysv_dir_entry *)kaddr;
-			kaddr += PAGE_SIZE - SYSV_DIRSIZE;
+			kaddr += folio_size(*foliop) - SYSV_DIRSIZE;
 			for ( ; (char *) de <= kaddr ; de++) {
 				if (!de->inode)
 					continue;
@@ -167,7 +163,7 @@ struct sysv_dir_entry *sysv_find_entry(struct dentry *dentry, struct page **res_
 							name, de->name))
 					goto found;
 			}
-			folio_release_kmap(folio, kaddr);
+			folio_release_kmap(*foliop, kaddr);
 		}
 
 		if (++n >= npages)
@@ -178,7 +174,6 @@ struct sysv_dir_entry *sysv_find_entry(struct dentry *dentry, struct page **res_
 
 found:
 	SYSV_I(dir)->i_dir_start_lookup = n;
-	*res_page = &folio->page;
 	return de;
 }
 
@@ -374,13 +369,13 @@ struct sysv_dir_entry *sysv_dotdot(struct inode *dir, struct page **p)
 
 ino_t sysv_inode_by_name(struct dentry *dentry)
 {
-	struct page *page;
-	struct sysv_dir_entry *de = sysv_find_entry (dentry, &page);
+	struct folio *folio;
+	struct sysv_dir_entry *de = sysv_find_entry (dentry, &folio);
 	ino_t res = 0;
 	
 	if (de) {
 		res = fs16_to_cpu(SYSV_SB(dentry->d_sb), de->inode);
-		unmap_and_put_page(page, de);
+		folio_release_kmap(folio, de);
 	}
 	return res;
 }
