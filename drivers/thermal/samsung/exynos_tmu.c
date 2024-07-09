@@ -1004,11 +1004,11 @@ static const struct thermal_zone_device_ops exynos_sensor_ops = {
 
 static int exynos_tmu_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct exynos_tmu_data *data;
 	int ret;
 
-	data = devm_kzalloc(&pdev->dev, sizeof(struct exynos_tmu_data),
-					GFP_KERNEL);
+	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
@@ -1020,7 +1020,7 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 	 * TODO: Add regulator as an SOC feature, so that regulator enable
 	 * is a compulsory call.
 	 */
-	ret = devm_regulator_get_enable_optional(&pdev->dev, "vtmu");
+	ret = devm_regulator_get_enable_optional(dev, "vtmu");
 	switch (ret) {
 	case 0:
 	case -ENODEV:
@@ -1028,8 +1028,7 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 	case -EPROBE_DEFER:
 		return -EPROBE_DEFER;
 	default:
-		dev_err(&pdev->dev, "Failed to get enabled regulator: %d\n",
-			ret);
+		dev_err(dev, "Failed to get enabled regulator: %d\n", ret);
 		return ret;
 	}
 
@@ -1037,44 +1036,44 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	data->clk = devm_clk_get(&pdev->dev, "tmu_apbif");
+	data->clk = devm_clk_get(dev, "tmu_apbif");
 	if (IS_ERR(data->clk)) {
-		dev_err(&pdev->dev, "Failed to get clock\n");
+		dev_err(dev, "Failed to get clock\n");
 		return PTR_ERR(data->clk);
 	}
 
-	data->clk_sec = devm_clk_get(&pdev->dev, "tmu_triminfo_apbif");
+	data->clk_sec = devm_clk_get(dev, "tmu_triminfo_apbif");
 	if (IS_ERR(data->clk_sec)) {
 		if (data->soc == SOC_ARCH_EXYNOS5420_TRIMINFO) {
-			dev_err(&pdev->dev, "Failed to get triminfo clock\n");
+			dev_err(dev, "Failed to get triminfo clock\n");
 			return PTR_ERR(data->clk_sec);
 		}
 	} else {
 		ret = clk_prepare(data->clk_sec);
 		if (ret) {
-			dev_err(&pdev->dev, "Failed to get clock\n");
+			dev_err(dev, "Failed to get clock\n");
 			return ret;
 		}
 	}
 
 	ret = clk_prepare(data->clk);
 	if (ret) {
-		dev_err(&pdev->dev, "Failed to get clock\n");
+		dev_err(dev, "Failed to get clock\n");
 		goto err_clk_sec;
 	}
 
 	switch (data->soc) {
 	case SOC_ARCH_EXYNOS5433:
 	case SOC_ARCH_EXYNOS7:
-		data->sclk = devm_clk_get(&pdev->dev, "tmu_sclk");
+		data->sclk = devm_clk_get(dev, "tmu_sclk");
 		if (IS_ERR(data->sclk)) {
-			dev_err(&pdev->dev, "Failed to get sclk\n");
+			dev_err(dev, "Failed to get sclk\n");
 			ret = PTR_ERR(data->sclk);
 			goto err_clk;
 		} else {
 			ret = clk_prepare_enable(data->sclk);
 			if (ret) {
-				dev_err(&pdev->dev, "Failed to enable sclk\n");
+				dev_err(dev, "Failed to enable sclk\n");
 				goto err_clk;
 			}
 		}
@@ -1085,33 +1084,32 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 
 	ret = exynos_tmu_initialize(pdev);
 	if (ret) {
-		dev_err(&pdev->dev, "Failed to initialize TMU\n");
+		dev_err(dev, "Failed to initialize TMU\n");
 		goto err_sclk;
 	}
 
-	data->tzd = devm_thermal_of_zone_register(&pdev->dev, 0, data,
+	data->tzd = devm_thermal_of_zone_register(dev, 0, data,
 						  &exynos_sensor_ops);
 	if (IS_ERR(data->tzd)) {
 		ret = PTR_ERR(data->tzd);
 		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "Failed to register sensor: %d\n",
-				ret);
+			dev_err(dev, "Failed to register sensor: %d\n", ret);
 		goto err_sclk;
 	}
 
 	ret = exynos_thermal_zone_configure(pdev);
 	if (ret) {
-		dev_err(&pdev->dev, "Failed to configure the thermal zone\n");
+		dev_err(dev, "Failed to configure the thermal zone\n");
 		goto err_sclk;
 	}
 
-	ret = devm_request_threaded_irq(&pdev->dev, data->irq, NULL,
+	ret = devm_request_threaded_irq(dev, data->irq, NULL,
 					exynos_tmu_threaded_irq,
 					IRQF_TRIGGER_RISING
 						| IRQF_SHARED | IRQF_ONESHOT,
-					dev_name(&pdev->dev), data);
+					dev_name(dev), data);
 	if (ret) {
-		dev_err(&pdev->dev, "Failed to request irq: %d\n", data->irq);
+		dev_err(dev, "Failed to request irq: %d\n", data->irq);
 		goto err_sclk;
 	}
 
