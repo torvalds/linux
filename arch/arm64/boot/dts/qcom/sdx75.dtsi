@@ -366,7 +366,12 @@
 			no-map;
 		};
 
-		qdss_mem: qdss@88800000 {
+		qdss_mem: qdss@88500000 {
+			reg = <0x0 0x88500000 0x0 0x300000>;
+			no-map;
+		};
+
+		qlink_logging_mem: qlink-logging@88800000 {
 			reg = <0x0 0x88800000 0x0 0x300000>;
 			no-map;
 		};
@@ -377,8 +382,13 @@
 			no-map;
 		};
 
-		mpss_dsmharq_mem: mpss-dsmharq@88f00000 {
-			reg = <0x0 0x88f00000 0x0 0x5080000>;
+		mpss_dsm_mem_2: mpss-dsm-2@88f00000 {
+			reg = <0x0 0x88f00000 0x0 0x2500000>;
+			no-map;
+		};
+
+		mpss_dsm_mem: mpss-dsm@8b400000 {
+			reg = <0x0 0x8b400000 0x0 0x2b80000>;
 			no-map;
 		};
 
@@ -388,7 +398,7 @@
 		};
 
 		mpssadsp_mem: mpssadsp@8e000000 {
-			reg = <0x0 0x8e000000 0x0 0xf400000>;
+			reg = <0x0 0x8e000000 0x0 0xf100000>;
 			no-map;
 		};
 
