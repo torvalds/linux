@@ -2195,10 +2195,12 @@ void cpu_init_exception_handling(void)
 	/* GHCB needs to be setup to handle #VC. */
 	setup_ghcb();
 
-	if (cpu_feature_enabled(X86_FEATURE_FRED))
+	if (cpu_feature_enabled(X86_FEATURE_FRED)) {
 		cpu_init_fred_exceptions();
-	else
+		cpu_init_fred_rsps();
+	} else {
 		load_current_idt();
+	}
 }
 
 /*
