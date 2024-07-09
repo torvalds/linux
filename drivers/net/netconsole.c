@@ -344,7 +344,7 @@ static ssize_t enabled_store(struct config_item *item,
 		goto out_unlock;
 
 	err = -EINVAL;
-	if ((bool)enabled == nt->enabled) {
+	if (enabled == nt->enabled) {
 		pr_info("network logging has already %s\n",
 			nt->enabled ? "started" : "stopped");
 		goto out_unlock;
