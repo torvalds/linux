@@ -633,9 +633,6 @@ static void run_lookup_prog(const struct test *t)
 	 * BPF socket lookup.
 	 */
 	if (t->reuseport_has_conns) {
-		struct sockaddr_storage addr = {};
-		socklen_t len = sizeof(addr);
-
 		/* Add an extra socket to reuseport group */
 		reuse_conn_fd = make_server(t->sotype, t->listen_at.ip,
 					    t->listen_at.port,
@@ -643,12 +640,9 @@ static void run_lookup_prog(const struct test *t)
 		if (reuse_conn_fd < 0)
 			goto close;
 
-		/* Connect the extra socket to itself */
-		err = getsockname(reuse_conn_fd, (void *)&addr, &len);
-		if (CHECK(err, "getsockname", "errno %d\n", errno))
-			goto close;
-		err = connect(reuse_conn_fd, (void *)&addr, len);
-		if (CHECK(err, "connect", "errno %d\n", errno))
+		 /* Connect the extra socket to itself */
+		err = connect_fd_to_fd(reuse_conn_fd, reuse_conn_fd, 0);
+		if (!ASSERT_OK(err, "connect_fd_to_fd"))
 			goto close;
 	}
 
