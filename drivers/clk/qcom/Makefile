@@ -192,6 +192,7 @@ obj-$(CONFIG_SM_VIDEOCC_8250) += videocc-sm8250.o
 obj-$(CONFIG_SM_VIDEOCC_PINEAPPLE) += videocc-pineapple.o
 obj-$(CONFIG_SM_VIDEOCC_VOLCANO) += videocc-volcano.o
 obj-$(CONFIG_SXR_VIDEOCC_ANORAK) += videocc-anorak.o
+obj-$(CONFIG_SXR_VIDEOCC_NEO) += videocc-neo.o
 obj-$(CONFIG_SXR_VIDEOCC_NIOBE) += videocc-niobe.o
 obj-$(CONFIG_SM_TCSRCC_PINEAPPLE) += tcsrcc-pineapple.o
 obj-$(CONFIG_SXR_TCSRCC_NIOBE) += tcsrcc-niobe.o

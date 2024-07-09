@@ -1526,6 +1526,15 @@ config SXR_DISPCC_NEO
 	  NEO devices.
 	  Say Y if you want to support display devices and functionality such as
 	  splash screen.
+
+config SXR_VIDEOCC_NEO
+	tristate "NEO Video Clock Controller"
+	select SXR_GCC_NEO
+	help
+	  Support for the video clock controller on Qualcomm Technologies, Inc.
+	  NEO devices.
+	  Say Y if you want to support video devices and functionality such as
+	  video encode/decode.
 endif
 
 config VIRTIO_CLK
