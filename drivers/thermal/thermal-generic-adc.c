@@ -117,44 +117,45 @@ static int gadc_thermal_read_linear_lookup_table(struct device *dev,
 
 static int gadc_thermal_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct gadc_thermal_info *gti;
 	int ret;
 
-	if (!pdev->dev.of_node) {
-		dev_err(&pdev->dev, "Only DT based supported\n");
+	if (!dev->of_node) {
+		dev_err(dev, "Only DT based supported\n");
 		return -ENODEV;
 	}
 
-	gti = devm_kzalloc(&pdev->dev, sizeof(*gti), GFP_KERNEL);
+	gti = devm_kzalloc(dev, sizeof(*gti), GFP_KERNEL);
 	if (!gti)
 		return -ENOMEM;
 
-	gti->channel = devm_iio_channel_get(&pdev->dev, "sensor-channel");
+	gti->channel = devm_iio_channel_get(dev, "sensor-channel");
 	if (IS_ERR(gti->channel)) {
 		ret = PTR_ERR(gti->channel);
 		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "IIO channel not found: %d\n", ret);
+			dev_err(dev, "IIO channel not found: %d\n", ret);
 		return ret;
 	}
 
-	ret = gadc_thermal_read_linear_lookup_table(&pdev->dev, gti);
+	ret = gadc_thermal_read_linear_lookup_table(dev, gti);
 	if (ret < 0)
 		return ret;
 
-	gti->dev = &pdev->dev;
+	gti->dev = dev;
 
-	gti->tz_dev = devm_thermal_of_zone_register(&pdev->dev, 0, gti,
+	gti->tz_dev = devm_thermal_of_zone_register(dev, 0, gti,
 						    &gadc_thermal_ops);
 	if (IS_ERR(gti->tz_dev)) {
 		ret = PTR_ERR(gti->tz_dev);
 		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev,
+			dev_err(dev,
 				"Thermal zone sensor register failed: %d\n",
 				ret);
 		return ret;
 	}
 
-	devm_thermal_add_hwmon_sysfs(&pdev->dev, gti->tz_dev);
+	devm_thermal_add_hwmon_sysfs(dev, gti->tz_dev);
 
 	return 0;
 }
