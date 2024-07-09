@@ -467,10 +467,8 @@ export rust_common_flags := --edition=2021 \
 			    -Wunreachable_pub \
 			    -Wmissing_docs \
 			    -Wrustdoc::missing_crate_level_docs \
-			    -Wclippy::correctness -Wclippy::style \
-			    -Wclippy::suspicious -Wclippy::complexity \
-			    -Wclippy::perf \
-			    -Wclippy::let_unit_value -Wclippy::mut_mut \
+			    -Wclippy::all \
+			    -Wclippy::mut_mut \
 			    -Wclippy::needless_bitwise_bool \
 			    -Wclippy::needless_continue \
 			    -Wclippy::no_mangle_with_rust_abi \
