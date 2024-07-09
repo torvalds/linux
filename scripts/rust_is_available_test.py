@@ -54,23 +54,30 @@ else:
 """)
 
     @classmethod
-    def generate_bindgen(cls, version_stdout, libclang_stderr):
+    def generate_bindgen(cls, version_stdout, libclang_stderr, version_0_66_patched=False):
         if libclang_stderr is None:
             libclang_case = f"raise SystemExit({cls.bindgen_default_bindgen_libclang_failure_exit_code})"
         else:
             libclang_case = f"print({repr(libclang_stderr)}, file=sys.stderr)"
 
+        if version_0_66_patched:
+            version_0_66_case = "pass"
+        else:
+            version_0_66_case = "raise SystemExit(1)"
+
         return cls.generate_executable(f"""#!/usr/bin/env python3
 import sys
 if "rust_is_available_bindgen_libclang.h" in " ".join(sys.argv):
     {libclang_case}
+elif "rust_is_available_bindgen_0_66.h" in " ".join(sys.argv):
+    {version_0_66_case}
 else:
     print({repr(version_stdout)})
 """)
 
     @classmethod
-    def generate_bindgen_version(cls, stdout):
-        return cls.generate_bindgen(stdout, cls.bindgen_default_bindgen_libclang_stderr)
+    def generate_bindgen_version(cls, stdout, version_0_66_patched=False):
+        return cls.generate_bindgen(stdout, cls.bindgen_default_bindgen_libclang_stderr, version_0_66_patched)
 
     @classmethod
     def generate_bindgen_libclang_failure(cls):
@@ -230,6 +237,19 @@ else:
         bindgen = self.generate_bindgen_version("bindgen 0.50.0")
         result = self.run_script(self.Expected.FAILURE, { "BINDGEN": bindgen })
         self.assertIn(f"Rust bindings generator '{bindgen}' is too old.", result.stderr)
+
+    def test_bindgen_bad_version_0_66_0_and_0_66_1(self):
+        for version in ("0.66.0", "0.66.1"):
+            with self.subTest(version=version):
+                bindgen = self.generate_bindgen_version(f"bindgen {version}")
+                result = self.run_script(self.Expected.SUCCESS_WITH_WARNINGS, { "BINDGEN": bindgen })
+                self.assertIn(f"Rust bindings generator '{bindgen}' versions 0.66.0 and 0.66.1 may not", result.stderr)
+
+    def test_bindgen_bad_version_0_66_0_and_0_66_1_patched(self):
+        for version in ("0.66.0", "0.66.1"):
+            with self.subTest(version=version):
+                bindgen = self.generate_bindgen_version(f"bindgen {version}", True)
+                result = self.run_script(self.Expected.SUCCESS, { "BINDGEN": bindgen })
 
     def test_bindgen_libclang_failure(self):
         bindgen = self.generate_bindgen_libclang_failure()

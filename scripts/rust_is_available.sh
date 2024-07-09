@@ -161,6 +161,19 @@ if [ "$rust_bindings_generator_cversion" -lt "$rust_bindings_generator_min_cvers
 	echo >&2 "***"
 	exit 1
 fi
+if [ "$rust_bindings_generator_cversion" -eq 6600 ] ||
+	[ "$rust_bindings_generator_cversion" -eq 6601 ]; then
+	# Distributions may have patched the issue (e.g. Debian did).
+	if ! "$BINDGEN" $(dirname $0)/rust_is_available_bindgen_0_66.h >/dev/null; then
+		echo >&2 "***"
+		echo >&2 "*** Rust bindings generator '$BINDGEN' versions 0.66.0 and 0.66.1 may not"
+		echo >&2 "*** work due to a bug (https://github.com/rust-lang/rust-bindgen/pull/2567),"
+		echo >&2 "*** unless patched (like Debian's)."
+		echo >&2 "***   Your version:     $rust_bindings_generator_version"
+		echo >&2 "***"
+		warning=1
+	fi
+fi
 
 # Check that the `libclang` used by the Rust bindings generator is suitable.
 #
