@@ -436,6 +436,7 @@ int l2tp_session_register(struct l2tp_session *session,
 			  struct l2tp_tunnel *tunnel)
 {
 	struct l2tp_net *pn = l2tp_pernet(tunnel->l2tp_net);
+	struct l2tp_session *other_session = NULL;
 	u32 session_key;
 	int err;
 
@@ -456,11 +457,10 @@ int l2tp_session_register(struct l2tp_session *session,
 		 * support existing userspace which depends on it.
 		 */
 		if (err == -ENOSPC && tunnel->encap == L2TP_ENCAPTYPE_UDP) {
-			struct l2tp_session *session2;
-
-			session2 = idr_find(&pn->l2tp_v3_session_idr,
-					    session_key);
-			err = l2tp_session_collision_add(pn, session, session2);
+			other_session = idr_find(&pn->l2tp_v3_session_idr,
+						 session_key);
+			err = l2tp_session_collision_add(pn, session,
+							 other_session);
 		}
 		spin_unlock_bh(&pn->l2tp_session_idr_lock);
 	} else {
@@ -484,10 +484,12 @@ int l2tp_session_register(struct l2tp_session *session,
 	spin_unlock_bh(&tunnel->list_lock);
 
 	spin_lock_bh(&pn->l2tp_session_idr_lock);
-	if (tunnel->version == L2TP_HDR_VER_3)
-		idr_replace(&pn->l2tp_v3_session_idr, session, session_key);
-	else
+	if (tunnel->version == L2TP_HDR_VER_3) {
+		if (!other_session)
+			idr_replace(&pn->l2tp_v3_session_idr, session, session_key);
+	} else {
 		idr_replace(&pn->l2tp_v2_session_idr, session, session_key);
+	}
 	spin_unlock_bh(&pn->l2tp_session_idr_lock);
 
 	trace_register_session(session);
