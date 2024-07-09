@@ -795,10 +795,7 @@ int acpi_device_add(struct acpi_device *device)
 		goto err;
 	}
 
-	result = acpi_device_setup_files(device);
-	if (result)
-		pr_err("Error creating sysfs interface for device %s\n",
-		       dev_name(&device->dev));
+	acpi_device_setup_files(device);
 
 	return 0;
 

@@ -605,13 +605,9 @@ const struct attribute_group *acpi_groups[] = {
  * acpi_device_setup_files - Create sysfs attributes of an ACPI device.
  * @dev: ACPI device object.
  */
-int acpi_device_setup_files(struct acpi_device *dev)
+void acpi_device_setup_files(struct acpi_device *dev)
 {
-	int result = 0;
-
 	acpi_expose_nondev_subnodes(&dev->dev.kobj, &dev->data);
-
-	return result;
 }
 
 /**

@@ -118,7 +118,7 @@ void acpi_init_device_object(struct acpi_device *device, acpi_handle handle,
 			     int type, void (*release)(struct device *));
 int acpi_tie_acpi_dev(struct acpi_device *adev);
 int acpi_device_add(struct acpi_device *device);
-int acpi_device_setup_files(struct acpi_device *dev);
+void acpi_device_setup_files(struct acpi_device *dev);
 void acpi_device_remove_files(struct acpi_device *dev);
 extern const struct attribute_group *acpi_groups[];
 void acpi_device_add_finalize(struct acpi_device *device);
