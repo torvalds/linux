@@ -1347,7 +1347,7 @@ static void hw_perf_event_update(struct perf_event *event, int flush_all)
 			sdbt = get_next_sdbt(sdbt);
 
 		/* Update event hardware registers */
-		TEAR_REG(hwc) = (unsigned long) sdbt;
+		TEAR_REG(hwc) = (unsigned long)sdbt;
 
 		/* Stop processing sample-data if all samples of the current
 		 * sample-data-block were flushed even if it was not full.
@@ -1943,7 +1943,7 @@ static int cpumsf_pmu_add(struct perf_event *event, int flags)
 {
 	struct cpu_hw_sf *cpuhw = this_cpu_ptr(&cpu_hw_sf);
 	struct aux_buffer *aux;
-	int err;
+	int err = 0;
 
 	if (cpuhw->flags & PMU_F_IN_USE)
 		return -EAGAIN;
@@ -1951,7 +1951,6 @@ static int cpumsf_pmu_add(struct perf_event *event, int flags)
 	if (!SAMPL_DIAG_MODE(&event->hw) && !cpuhw->sfb.sdbt)
 		return -EINVAL;
 
-	err = 0;
 	perf_pmu_disable(event->pmu);
 
 	event->hw.state = PERF_HES_UPTODATE | PERF_HES_STOPPED;
