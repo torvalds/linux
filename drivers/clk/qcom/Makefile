@@ -161,6 +161,7 @@ obj-$(CONFIG_SM_GPUCC_PITTI) += gpucc-pitti.o
 obj-$(CONFIG_SM_CAMCC_CLIFFS) += camcc-cliffs.o
 obj-$(CONFIG_SM_CAMCC_PINEAPPLE) += camcc-pineapple.o
 obj-$(CONFIG_SXR_CAMCC_ANORAK) += camcc-anorak.o
+obj-$(CONFIG_SXR_CAMCC_NEO) += camcc-neo.o
 obj-$(CONFIG_SXR_CAMCC_NIOBE) += camcc-niobe.o
 obj-$(CONFIG_SM_CAMCC_VOLCANO) += camcc-volcano.o
 obj-$(CONFIG_SM_GCC_KALAMA) += gcc-kalama.o

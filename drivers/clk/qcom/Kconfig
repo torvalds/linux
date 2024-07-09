@@ -1508,6 +1508,15 @@ config SXR_GPUCC_NEO
 	  NEO devices.
 	  Say Y if you want to support graphics controller devices and
 	  functionality such as 3D graphics.
+
+config SXR_CAMCC_NEO
+	tristate "NEO Camera Clock Controller"
+	select SXR_GCC_NEO
+	help
+	  Support for the camera clock controller on Qualcomm Technologies, Inc.
+	  NEO devices.
+	  Say Y if you want to support camera devices and functionality such as
+	  capturing pictures.
 endif
 
 config VIRTIO_CLK
