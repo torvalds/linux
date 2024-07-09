@@ -78,6 +78,8 @@ static bool qcom_tzmem_using_shm_bridge;
 /* List of machines that are known to not support SHM bridge correctly. */
 static const char *const qcom_tzmem_blacklist[] = {
 	"qcom,sc8180x",
+	"qcom,sdm845", /* reset in rmtfs memory assignment */
+	"qcom,sm8150", /* reset in rmtfs memory assignment */
 	NULL
 };
 
@@ -242,7 +244,7 @@ qcom_tzmem_pool_new(const struct qcom_tzmem_pool_config *config)
 		}
 	}
 
-	return no_free_ptr(pool);
+	return_ptr(pool);
 }
 EXPORT_SYMBOL_GPL(qcom_tzmem_pool_new);
 
