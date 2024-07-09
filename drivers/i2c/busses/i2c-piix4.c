@@ -29,6 +29,7 @@
 #include <linux/stddef.h>
 #include <linux/ioport.h>
 #include <linux/i2c.h>
+#include <linux/i2c-smbus.h>
 #include <linux/slab.h>
 #include <linux/dmi.h>
 #include <linux/acpi.h>
@@ -981,6 +982,14 @@ static int piix4_add_adapter(struct pci_dev *dev, unsigned short smba,
 		release_region(smba, SMBIOSIZE);
 		return retval;
 	}
+
+	/*
+	 * The AUX bus can not be probed as on some platforms it reports all
+	 * devices present and all reads return "0".
+	 * This would allow the ee1004 to be probed incorrectly.
+	 */
+	if (port == 0)
+		i2c_register_spd(adap);
 
 	*padap = adap;
 	return 0;
