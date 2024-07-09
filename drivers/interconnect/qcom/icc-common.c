@@ -35,4 +35,5 @@ struct icc_node_data *qcom_icc_xlate_extended(const struct of_phandle_args *spec
 }
 EXPORT_SYMBOL_GPL(qcom_icc_xlate_extended);
 
+MODULE_DESCRIPTION("Qualcomm interconnect common functions");
 MODULE_LICENSE("GPL");

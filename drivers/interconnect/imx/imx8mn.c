@@ -86,4 +86,5 @@ static struct platform_driver imx8mn_icc_driver = {
 module_platform_driver(imx8mn_icc_driver);
 MODULE_ALIAS("platform:imx8mn-interconnect");
 MODULE_AUTHOR("Leonard Crestez <leonard.crestez@nxp.com>");
+MODULE_DESCRIPTION("Interconnect framework driver for i.MX8MN SoC");
 MODULE_LICENSE("GPL v2");
