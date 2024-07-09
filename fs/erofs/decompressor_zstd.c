@@ -34,7 +34,7 @@ again:
 	return strm;
 }
 
-void z_erofs_zstd_exit(void)
+static void z_erofs_zstd_exit(void)
 {
 	while (z_erofs_zstd_avail_strms) {
 		struct z_erofs_zstd *strm, *n;
@@ -49,7 +49,7 @@ void z_erofs_zstd_exit(void)
 	}
 }
 
-int __init z_erofs_zstd_init(void)
+static int __init z_erofs_zstd_init(void)
 {
 	/* by default, use # of possible CPUs instead */
 	if (!z_erofs_zstd_nstrms)
@@ -281,5 +281,7 @@ failed_zinit:
 const struct z_erofs_decompressor z_erofs_zstd_decomp = {
 	.config = z_erofs_load_zstd_config,
 	.decompress = z_erofs_zstd_decompress,
+	.init = z_erofs_zstd_init,
+	.exit = z_erofs_zstd_exit,
 	.name = "zstd",
 };

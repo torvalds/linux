@@ -2,6 +2,7 @@
 /*
  * Copyright (C) 2019 HUAWEI, Inc.
  *             https://www.huawei.com/
+ * Copyright (C) 2024 Alibaba Cloud
  */
 #include "compress.h"
 #include <linux/lz4.h>
@@ -383,6 +384,8 @@ const struct z_erofs_decompressor *z_erofs_decomp[] = {
 	[Z_EROFS_COMPRESSION_LZ4] = &(const struct z_erofs_decompressor) {
 		.config = z_erofs_load_lz4_config,
 		.decompress = z_erofs_lz4_decompress,
+		.init = z_erofs_gbuf_init,
+		.exit = z_erofs_gbuf_exit,
 		.name = "lz4"
 	},
 #ifdef CONFIG_EROFS_FS_ZIP_LZMA
@@ -445,4 +448,29 @@ int z_erofs_parse_cfgs(struct super_block *sb, struct erofs_super_block *dsb)
 	}
 	erofs_put_metabuf(&buf);
 	return ret;
+}
+
+int __init z_erofs_init_decompressor(void)
+{
+	int i, err;
+
+	for (i = 0; i < Z_EROFS_COMPRESSION_MAX; ++i) {
+		err = z_erofs_decomp[i] ? z_erofs_decomp[i]->init() : 0;
+		if (err) {
+			while (--i)
+				if (z_erofs_decomp[i])
+					z_erofs_decomp[i]->exit();
+			return err;
+		}
+	}
+	return 0;
+}
+
+void z_erofs_exit_decompressor(void)
+{
+	int i;
+
+	for (i = 0; i < Z_EROFS_COMPRESSION_MAX; ++i)
+		if (z_erofs_decomp[i])
+			z_erofs_decomp[i]->exit();
 }

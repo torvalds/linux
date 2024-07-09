@@ -454,8 +454,8 @@ void erofs_shrinker_register(struct super_block *sb);
 void erofs_shrinker_unregister(struct super_block *sb);
 int __init erofs_init_shrinker(void);
 void erofs_exit_shrinker(void);
-int __init z_erofs_init_zip_subsystem(void);
-void z_erofs_exit_zip_subsystem(void);
+int __init z_erofs_init_subsystem(void);
+void z_erofs_exit_subsystem(void);
 int erofs_try_to_free_all_cached_folios(struct erofs_sb_info *sbi,
 					struct erofs_workgroup *egrp);
 int z_erofs_map_blocks_iter(struct inode *inode, struct erofs_map_blocks *map,
@@ -472,36 +472,10 @@ static inline void erofs_shrinker_register(struct super_block *sb) {}
 static inline void erofs_shrinker_unregister(struct super_block *sb) {}
 static inline int erofs_init_shrinker(void) { return 0; }
 static inline void erofs_exit_shrinker(void) {}
-static inline int z_erofs_init_zip_subsystem(void) { return 0; }
-static inline void z_erofs_exit_zip_subsystem(void) {}
-static inline int z_erofs_gbuf_init(void) { return 0; }
-static inline void z_erofs_gbuf_exit(void) {}
+static inline int z_erofs_init_subsystem(void) { return 0; }
+static inline void z_erofs_exit_subsystem(void) {}
 static inline int erofs_init_managed_cache(struct super_block *sb) { return 0; }
 #endif	/* !CONFIG_EROFS_FS_ZIP */
-
-#ifdef CONFIG_EROFS_FS_ZIP_LZMA
-int __init z_erofs_lzma_init(void);
-void z_erofs_lzma_exit(void);
-#else
-static inline int z_erofs_lzma_init(void) { return 0; }
-static inline int z_erofs_lzma_exit(void) { return 0; }
-#endif	/* !CONFIG_EROFS_FS_ZIP_LZMA */
-
-#ifdef CONFIG_EROFS_FS_ZIP_DEFLATE
-int __init z_erofs_deflate_init(void);
-void z_erofs_deflate_exit(void);
-#else
-static inline int z_erofs_deflate_init(void) { return 0; }
-static inline int z_erofs_deflate_exit(void) { return 0; }
-#endif	/* !CONFIG_EROFS_FS_ZIP_DEFLATE */
-
-#ifdef CONFIG_EROFS_FS_ZIP_ZSTD
-int __init z_erofs_zstd_init(void);
-void z_erofs_zstd_exit(void);
-#else
-static inline int z_erofs_zstd_init(void) { return 0; }
-static inline int z_erofs_zstd_exit(void) { return 0; }
-#endif	/* !CONFIG_EROFS_FS_ZIP_ZSTD */
 
 #ifdef CONFIG_EROFS_FS_ONDEMAND
 int erofs_fscache_register_fs(struct super_block *sb);

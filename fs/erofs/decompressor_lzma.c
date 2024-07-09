@@ -18,7 +18,7 @@ static DECLARE_WAIT_QUEUE_HEAD(z_erofs_lzma_wq);
 
 module_param_named(lzma_streams, z_erofs_lzma_nstrms, uint, 0444);
 
-void z_erofs_lzma_exit(void)
+static void z_erofs_lzma_exit(void)
 {
 	/* there should be no running fs instance */
 	while (z_erofs_lzma_avail_strms) {
@@ -46,7 +46,7 @@ void z_erofs_lzma_exit(void)
 	}
 }
 
-int __init z_erofs_lzma_init(void)
+static int __init z_erofs_lzma_init(void)
 {
 	unsigned int i;
 
@@ -297,5 +297,7 @@ failed:
 const struct z_erofs_decompressor z_erofs_lzma_decomp = {
 	.config = z_erofs_load_lzma_config,
 	.decompress = z_erofs_lzma_decompress,
+	.init = z_erofs_lzma_init,
+	.exit = z_erofs_lzma_exit,
 	.name = "lzma"
 };

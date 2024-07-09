@@ -15,7 +15,7 @@ static DECLARE_WAIT_QUEUE_HEAD(z_erofs_deflate_wq);
 
 module_param_named(deflate_streams, z_erofs_deflate_nstrms, uint, 0444);
 
-void z_erofs_deflate_exit(void)
+static void z_erofs_deflate_exit(void)
 {
 	/* there should be no running fs instance */
 	while (z_erofs_deflate_avail_strms) {
@@ -41,7 +41,7 @@ void z_erofs_deflate_exit(void)
 	}
 }
 
-int __init z_erofs_deflate_init(void)
+static int __init z_erofs_deflate_init(void)
 {
 	/* by default, use # of possible CPUs instead */
 	if (!z_erofs_deflate_nstrms)
@@ -256,5 +256,7 @@ failed_zinit:
 const struct z_erofs_decompressor z_erofs_deflate_decomp = {
 	.config = z_erofs_load_deflate_config,
 	.decompress = z_erofs_deflate_decompress,
+	.init = z_erofs_deflate_init,
+	.exit = z_erofs_deflate_exit,
 	.name = "deflate",
 };

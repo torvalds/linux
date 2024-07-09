@@ -24,6 +24,8 @@ struct z_erofs_decompressor {
 		      void *data, int size);
 	int (*decompress)(struct z_erofs_decompress_req *rq,
 			  struct page **pagepool);
+	int (*init)(void);
+	void (*exit)(void);
 	char *name;
 };
 
@@ -88,4 +90,6 @@ extern const struct z_erofs_decompressor *z_erofs_decomp[];
 
 int z_erofs_fixup_insize(struct z_erofs_decompress_req *rq, const char *padbuf,
 			 unsigned int padbufsize);
+int __init z_erofs_init_decompressor(void);
+void z_erofs_exit_decompressor(void);
 #endif
