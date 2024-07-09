@@ -908,7 +908,8 @@ int kvm_handle_mm_fault(struct kvm_vcpu *vcpu, unsigned long gpa, bool write)
 		return ret;
 
 	/* Invalidate this entry in the TLB */
-	kvm_flush_tlb_gpa(vcpu, gpa);
+	vcpu->arch.flush_gpa = gpa;
+	kvm_make_request(KVM_REQ_TLB_FLUSH_GPA, vcpu);
 
 	return 0;
 }
