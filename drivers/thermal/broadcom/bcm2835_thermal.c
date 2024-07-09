@@ -186,12 +186,8 @@ static int bcm2835_thermal_probe(struct platform_device *pdev)
 	}
 
 	data->clk = devm_clk_get_enabled(dev, NULL);
-	if (IS_ERR(data->clk)) {
-		err = PTR_ERR(data->clk);
-		if (err != -EPROBE_DEFER)
-			dev_err(dev, "Could not get clk: %d\n", err);
-		return err;
-	}
+	if (IS_ERR(data->clk))
+		return dev_err_probe(dev, PTR_ERR(data->clk), "Could not get clk\n");
 
 	rate = clk_get_rate(data->clk);
 	if ((rate < 1920000) || (rate > 5000000))
@@ -201,11 +197,8 @@ static int bcm2835_thermal_probe(struct platform_device *pdev)
 
 	/* register of thermal sensor and get info from DT */
 	tz = devm_thermal_of_zone_register(dev, 0, data, &bcm2835_thermal_ops);
-	if (IS_ERR(tz)) {
-		err = PTR_ERR(tz);
-		dev_err(dev, "Failed to register the thermal device: %d\n", err);
-		return err;
-	}
+	if (IS_ERR(tz))
+		return dev_err_probe(dev, PTR_ERR(tz), "Failed to register the thermal device\n");
 
 	/*
 	 * right now the FW does set up the HW-block, so we are not
