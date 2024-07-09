@@ -58,8 +58,6 @@ static bool con_enabled = IS_ENABLED(CONFIG_SERIAL_MSM_GENI_CONSOLE_DEFAULT_ENAB
 #define S_GP_LENGTH			(0x914)
 #define SE_DMA_DEBUG_REG0		(0xE40)
 #define SE_DMA_IF_EN			(0x004)
-#define SE_GENI_CLK_CTRL		(0x2000)
-#define SE_FIFO_IF_DISABLE		(0x2008)
 #define SE_GENI_GENERAL_CFG		(0x10)
 #define SE_DMA_TX_MAX_BURST		(0xC5C)
 #define SE_DMA_RX_MAX_BURST		(0xD5C)
@@ -547,7 +545,7 @@ void geni_se_dump_dbg_regs(struct uart_port *uport)
 	u32 dma_tx_ptr_l = 0, dma_tx_ptr_h = 0, dma_tx_attr = 0;
 	u32 dma_tx_max_burst_size = 0, dma_rx_ptr_l = 0, dma_rx_ptr_h = 0;
 	u32 dma_rx_attr = 0, dma_rx_max_burst_size = 0, dma_if_en = 0;
-	u32 geni_clk_ctrl = 0, fifo_if_disable = 0;
+	u32 geni_clk_ctrl_ro = 0, fifo_if_disable_ro = 0;
 
 
 	struct msm_geni_serial_port *port = GET_DEV_PORT(uport);
@@ -612,10 +610,8 @@ void geni_se_dump_dbg_regs(struct uart_port *uport)
 	dma_rx_attr = geni_read_reg(base, SE_DMA_RX_ATTR);
 	dma_rx_max_burst_size = geni_read_reg(base, SE_DMA_RX_MAX_BURST);
 	dma_if_en = geni_read_reg(base, SE_DMA_IF_EN);
-	geni_clk_ctrl = geni_read_reg(base, SE_GENI_CLK_CTRL);
-	fifo_if_disable = geni_read_reg(base, SE_FIFO_IF_DISABLE);
-
-
+	geni_clk_ctrl_ro = geni_read_reg(base, GENI_CLK_CTRL_RO);
+	fifo_if_disable_ro = geni_read_reg(base, GENI_IF_DISABLE_RO);
 
 	UART_LOG_DBG(port->ipc_log_misc, uport->dev,
 		     "%s: m_cmd0:0x%x, m_irq_status:0x%x, geni_status:0x%x, geni_ios:0x%x\n",
@@ -667,7 +663,7 @@ void geni_se_dump_dbg_regs(struct uart_port *uport)
 		     dma_rx_max_burst_size);
 	UART_LOG_DBG(port->ipc_log_misc, uport->dev,
 		     "dma_if_en:0x%x, geni_clk_ctrl:0x%x fifo_if_disable:0x%x\n",
-		     dma_if_en, geni_clk_ctrl, fifo_if_disable);
+		     dma_if_en, geni_clk_ctrl_ro, fifo_if_disable_ro);
 }
 
 int msm_geni_serial_resources_on(struct msm_geni_serial_port *port)
