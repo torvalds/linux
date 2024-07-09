@@ -46,4 +46,5 @@ static struct hid_driver ks_driver = {
 };
 module_hid_driver(ks_driver);
 
+MODULE_DESCRIPTION("HID driver for Kensigton Slimblade Trackball");
 MODULE_LICENSE("GPL");
