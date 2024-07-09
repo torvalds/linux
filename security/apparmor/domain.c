@@ -826,33 +826,19 @@ static struct aa_label *handle_onexec(const struct cred *subj_cred,
 	AA_BUG(!bprm);
 	AA_BUG(!buffer);
 
-	if (!stack) {
-		error = fn_for_each_in_ns(label, profile,
-				profile_onexec(subj_cred, profile, onexec, stack,
-					       bprm, buffer, cond, unsafe));
-		if (error)
-			return ERR_PTR(error);
-		new = fn_label_build_in_ns(label, profile, GFP_KERNEL,
-				aa_get_newest_label(onexec),
-				profile_transition(subj_cred, profile, bprm,
-						   buffer,
-						   cond, unsafe));
+	/* TODO: determine how much we want to loosen this */
+	error = fn_for_each_in_ns(label, profile,
+			profile_onexec(subj_cred, profile, onexec, stack,
+				       bprm, buffer, cond, unsafe));
+	if (error)
+		return ERR_PTR(error);
 
-	} else {
-		/* TODO: determine how much we want to loosen this */
-		error = fn_for_each_in_ns(label, profile,
-				profile_onexec(subj_cred, profile, onexec, stack, bprm,
-					       buffer, cond, unsafe));
-		if (error)
-			return ERR_PTR(error);
-		new = fn_label_build_in_ns(label, profile, GFP_KERNEL,
-				aa_label_merge(&profile->label, onexec,
-					       GFP_KERNEL),
-				profile_transition(subj_cred, profile, bprm,
-						   buffer,
-						   cond, unsafe));
-	}
-
+	new = fn_label_build_in_ns(label, profile, GFP_KERNEL,
+			stack ? aa_label_merge(&profile->label, onexec,
+					       GFP_KERNEL)
+			      : aa_get_newest_label(onexec),
+			profile_transition(subj_cred, profile, bprm,
+					   buffer, cond, unsafe));
 	if (new)
 		return new;
 
