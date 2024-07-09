@@ -252,33 +252,33 @@ int sysv_delete_entry(struct sysv_dir_entry *de, struct folio *folio)
 
 int sysv_make_empty(struct inode *inode, struct inode *dir)
 {
-	struct page *page = grab_cache_page(inode->i_mapping, 0);
+	struct folio *folio = filemap_grab_folio(inode->i_mapping, 0);
 	struct sysv_dir_entry * de;
-	char *base;
+	char *kaddr;
 	int err;
 
-	if (!page)
-		return -ENOMEM;
-	err = sysv_prepare_chunk(page, 0, 2 * SYSV_DIRSIZE);
+	if (IS_ERR(folio))
+		return PTR_ERR(folio);
+	err = sysv_prepare_chunk(&folio->page, 0, 2 * SYSV_DIRSIZE);
 	if (err) {
-		unlock_page(page);
+		folio_unlock(folio);
 		goto fail;
 	}
-	base = kmap_local_page(page);
-	memset(base, 0, PAGE_SIZE);
+	kaddr = kmap_local_folio(folio, 0);
+	memset(kaddr, 0, folio_size(folio));
 
-	de = (struct sysv_dir_entry *) base;
+	de = (struct sysv_dir_entry *)kaddr;
 	de->inode = cpu_to_fs16(SYSV_SB(inode->i_sb), inode->i_ino);
 	strcpy(de->name,".");
 	de++;
 	de->inode = cpu_to_fs16(SYSV_SB(inode->i_sb), dir->i_ino);
 	strcpy(de->name,"..");
 
-	kunmap_local(base);
-	dir_commit_chunk(page, 0, 2 * SYSV_DIRSIZE);
+	kunmap_local(kaddr);
+	dir_commit_chunk(&folio->page, 0, 2 * SYSV_DIRSIZE);
 	err = sysv_handle_dirsync(inode);
 fail:
-	put_page(page);
+	folio_put(folio);
 	return err;
 }
 
