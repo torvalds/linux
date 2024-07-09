@@ -5,7 +5,7 @@ import datetime
 import random
 from lib.py import ksft_run, ksft_pr, ksft_exit, ksft_eq, ksft_ge, ksft_lt
 from lib.py import NetDrvEpEnv
-from lib.py import NetdevFamily
+from lib.py import EthtoolFamily, NetdevFamily
 from lib.py import KsftSkipEx
 from lib.py import rand_port
 from lib.py import ethtool, ip, defer, GenerateTraffic, CmdExitFailure
@@ -63,10 +63,33 @@ def _get_rx_cnts(cfg, prev=None):
     return queue_stats
 
 
+def _send_traffic_check(cfg, port, name, params):
+    # params is a dict with 3 possible keys:
+    #  - "target": required, which queues we expect to get iperf traffic
+    #  - "empty": optional, which queues should see no traffic at all
+    #  - "noise": optional, which queues we expect to see low traffic;
+    #             used for queues of the main context, since some background
+    #             OS activity may use those queues while we're testing
+    # the value for each is a list, or some other iterable containing queue ids.
+
+    cnts = _get_rx_cnts(cfg)
+    GenerateTraffic(cfg, port=port).wait_pkts_and_stop(20000)
+    cnts = _get_rx_cnts(cfg, prev=cnts)
+
+    directed = sum(cnts[i] for i in params['target'])
+
+    ksft_ge(directed, 20000, f"traffic on {name}: " + str(cnts))
+    if params.get('noise'):
+        ksft_lt(sum(cnts[i] for i in params['noise']), directed / 2,
+                "traffic on other queues:" + str(cnts))
+    if params.get('empty'):
+        ksft_eq(sum(cnts[i] for i in params['empty']), 0,
+                "traffic on inactive queues: " + str(cnts))
+
+
 def test_rss_key_indir(cfg):
-    """
-    Test basics like updating the main RSS key and indirection table.
-    """
+    """Test basics like updating the main RSS key and indirection table."""
+
     if len(_get_rx_cnts(cfg)) < 2:
         KsftSkipEx("Device has only one queue (or doesn't support queue stats)")
 
@@ -89,6 +112,7 @@ def test_rss_key_indir(cfg):
 
     # Set the indirection table
     ethtool(f"-X {cfg.ifname} equal 2")
+    reset_indir = defer(ethtool, f"-X {cfg.ifname} default")
     data = get_rss(cfg)
     ksft_eq(0, min(data['rss-indirection-table']))
     ksft_eq(1, max(data['rss-indirection-table']))
@@ -104,13 +128,150 @@ def test_rss_key_indir(cfg):
     ksft_eq(sum(cnts[2:]), 0, "traffic on unused queues: " + str(cnts))
 
     # Restore, and check traffic gets spread again
-    ethtool(f"-X {cfg.ifname} default")
+    reset_indir.exec()
 
     cnts = _get_rx_cnts(cfg)
     GenerateTraffic(cfg).wait_pkts_and_stop(20000)
     cnts = _get_rx_cnts(cfg, prev=cnts)
     # First two queues get less traffic than all the rest
     ksft_lt(sum(cnts[:2]), sum(cnts[2:]), "traffic distributed: " + str(cnts))
+
+
+def test_rss_queue_reconfigure(cfg, main_ctx=True):
+    """Make sure queue changes can't override requested RSS config.
+
+    By default main RSS table should change to include all queues.
+    When user sets a specific RSS config the driver should preserve it,
+    even when queue count changes. Driver should refuse to deactivate
+    queues used in the user-set RSS config.
+    """
+
+    if not main_ctx:
+        require_ntuple(cfg)
+
+    # Start with 4 queues, an arbitrary known number.
+    try:
+        qcnt = len(_get_rx_cnts(cfg))
+        ethtool(f"-L {cfg.ifname} combined 4")
+        defer(ethtool, f"-L {cfg.ifname} combined {qcnt}")
+    except:
+        raise KsftSkipEx("Not enough queues for the test or qstat not supported")
+
+    if main_ctx:
+        ctx_id = 0
+        ctx_ref = ""
+    else:
+        ctx_id = ethtool_create(cfg, "-X", "context new")
+        ctx_ref = f"context {ctx_id}"
+        defer(ethtool, f"-X {cfg.ifname} {ctx_ref} delete")
+
+    # Indirection table should be distributing to all queues.
+    data = get_rss(cfg, context=ctx_id)
+    ksft_eq(0, min(data['rss-indirection-table']))
+    ksft_eq(3, max(data['rss-indirection-table']))
+
+    # Increase queues, indirection table should be distributing to all queues.
+    # It's unclear whether tables of additional contexts should be reset, too.
+    if main_ctx:
+        ethtool(f"-L {cfg.ifname} combined 5")
+        data = get_rss(cfg)
+        ksft_eq(0, min(data['rss-indirection-table']))
+        ksft_eq(4, max(data['rss-indirection-table']))
+        ethtool(f"-L {cfg.ifname} combined 4")
+
+    # Configure the table explicitly
+    port = rand_port()
+    ethtool(f"-X {cfg.ifname} {ctx_ref} weight 1 0 0 1")
+    if main_ctx:
+        other_key = 'empty'
+        defer(ethtool, f"-X {cfg.ifname} default")
+    else:
+        other_key = 'noise'
+        flow = f"flow-type tcp{cfg.addr_ipver} dst-port {port} context {ctx_id}"
+        ntuple = ethtool_create(cfg, "-N", flow)
+        defer(ethtool, f"-N {cfg.ifname} delete {ntuple}")
+
+    _send_traffic_check(cfg, port, ctx_ref, { 'target': (0, 3),
+                                              other_key: (1, 2) })
+
+    # We should be able to increase queues, but table should be left untouched
+    ethtool(f"-L {cfg.ifname} combined 5")
+    data = get_rss(cfg, context=ctx_id)
+    ksft_eq({0, 3}, set(data['rss-indirection-table']))
+
+    _send_traffic_check(cfg, port, ctx_ref, { 'target': (0, 3),
+                                              other_key: (1, 2, 4) })
+
+    # Setting queue count to 3 should fail, queue 3 is used
+    try:
+        ethtool(f"-L {cfg.ifname} combined 3")
+    except CmdExitFailure:
+        pass
+    else:
+        raise Exception(f"Driver didn't prevent us from deactivating a used queue (context {ctx_id})")
+
+
+def test_rss_resize(cfg):
+    """Test resizing of the RSS table.
+
+    Some devices dynamically increase and decrease the size of the RSS
+    indirection table based on the number of enabled queues.
+    When that happens driver must maintain the balance of entries
+    (preferably duplicating the smaller table).
+    """
+
+    channels = cfg.ethnl.channels_get({'header': {'dev-index': cfg.ifindex}})
+    ch_max = channels['combined-max']
+    qcnt = channels['combined-count']
+
+    if ch_max < 2:
+        raise KsftSkipEx(f"Not enough queues for the test: {ch_max}")
+
+    ethtool(f"-L {cfg.ifname} combined 2")
+    defer(ethtool, f"-L {cfg.ifname} combined {qcnt}")
+
+    ethtool(f"-X {cfg.ifname} weight 1 7")
+    defer(ethtool, f"-X {cfg.ifname} default")
+
+    ethtool(f"-L {cfg.ifname} combined {ch_max}")
+    data = get_rss(cfg)
+    ksft_eq(0, min(data['rss-indirection-table']))
+    ksft_eq(1, max(data['rss-indirection-table']))
+
+    ksft_eq(7,
+            data['rss-indirection-table'].count(1) /
+            data['rss-indirection-table'].count(0),
+            f"Table imbalance after resize: {data['rss-indirection-table']}")
+
+
+def test_hitless_key_update(cfg):
+    """Test that flows may be rehashed without impacting traffic.
+
+    Some workloads may want to rehash the flows in response to an imbalance.
+    Most effective way to do that is changing the RSS key. Check that changing
+    the key does not cause link flaps or traffic disruption.
+
+    Disrupting traffic for key update is not a bug, but makes the key
+    update unusable for rehashing under load.
+    """
+    data = get_rss(cfg)
+    key_len = len(data['rss-hash-key'])
+
+    key = _rss_key_rand(key_len)
+
+    tgen = GenerateTraffic(cfg)
+    try:
+        errors0, carrier0 = get_drop_err_sum(cfg)
+        t0 = datetime.datetime.now()
+        ethtool(f"-X {cfg.ifname} hkey " + _rss_key_str(key))
+        t1 = datetime.datetime.now()
+        errors1, carrier1 = get_drop_err_sum(cfg)
+    finally:
+        tgen.wait_pkts_and_stop(5000)
+
+    ksft_lt((t1 - t0).total_seconds(), 0.2)
+    ksft_eq(errors1 - errors1, 0)
+    ksft_eq(carrier1 - carrier0, 0)
 
 
 def test_rss_context(cfg, ctx_cnt=1, create_with_cfg=None):
@@ -170,15 +331,10 @@ def test_rss_context(cfg, ctx_cnt=1, create_with_cfg=None):
         defer(ethtool, f"-N {cfg.ifname} delete {ntuple}")
 
     for i in range(ctx_cnt):
-        cnts = _get_rx_cnts(cfg)
-        GenerateTraffic(cfg, port=ports[i]).wait_pkts_and_stop(20000)
-        cnts = _get_rx_cnts(cfg, prev=cnts)
-
-        directed = sum(cnts[2+i*2:4+i*2])
-
-        ksft_lt(sum(cnts[ :2]), directed / 2, "traffic on main context:" + str(cnts))
-        ksft_ge(directed, 20000, f"traffic on context {i}: " + str(cnts))
-        ksft_eq(sum(cnts[2:2+i*2] + cnts[4+i*2:]), 0, "traffic on other contexts: " + str(cnts))
+        _send_traffic_check(cfg, ports[i], f"context {i}",
+                            { 'target': (2+i*2, 3+i*2),
+                              'noise': (0, 1),
+                              'empty': list(range(2, 2+i*2)) + list(range(4+i*2, 2+2*ctx_cnt)) })
 
     if requested_ctx_cnt != ctx_cnt:
         raise KsftSkipEx(f"Tested only {ctx_cnt} contexts, wanted {requested_ctx_cnt}")
@@ -194,6 +350,10 @@ def test_rss_context32(cfg):
 
 def test_rss_context4_create_with_cfg(cfg):
     test_rss_context(cfg, 4, create_with_cfg=True)
+
+
+def test_rss_context_queue_reconfigure(cfg):
+    test_rss_queue_reconfigure(cfg, main_ctx=False)
 
 
 def test_rss_context_out_of_order(cfg, ctx_cnt=4):
@@ -230,18 +390,19 @@ def test_rss_context_out_of_order(cfg, ctx_cnt=4):
 
     def check_traffic():
         for i in range(ctx_cnt):
-            cnts = _get_rx_cnts(cfg)
-            GenerateTraffic(cfg, port=ports[i]).wait_pkts_and_stop(20000)
-            cnts = _get_rx_cnts(cfg, prev=cnts)
-
             if ctx[i]:
-                directed = sum(cnts[2+i*2:4+i*2])
-                ksft_lt(sum(cnts[ :2]), directed / 2, "traffic on main context:" + str(cnts))
-                ksft_ge(directed, 20000, f"traffic on context {i}: " + str(cnts))
-                ksft_eq(sum(cnts[2:2+i*2] + cnts[4+i*2:]), 0, "traffic on other contexts: " + str(cnts))
+                expected = {
+                    'target': (2+i*2, 3+i*2),
+                    'noise': (0, 1),
+                    'empty': list(range(2, 2+i*2)) + list(range(4+i*2, 2+2*ctx_cnt))
+                }
             else:
-                ksft_ge(sum(cnts[ :2]), 20000, "traffic on main context:" + str(cnts))
-                ksft_eq(sum(cnts[2: ]),     0, "traffic on other contexts: " + str(cnts))
+                expected = {
+                    'target': (0, 1),
+                    'empty':  range(2, 2+2*ctx_cnt)
+                }
+
+            _send_traffic_check(cfg, ports[i], f"context {i}", expected)
 
     # Use queues 0 and 1 for normal traffic
     ethtool(f"-X {cfg.ifname} equal 2")
@@ -344,10 +505,13 @@ def test_rss_context_overlap2(cfg):
 
 def main() -> None:
     with NetDrvEpEnv(__file__, nsim_test=False) as cfg:
+        cfg.ethnl = EthtoolFamily()
         cfg.netdevnl = NetdevFamily()
 
-        ksft_run([test_rss_key_indir,
+        ksft_run([test_rss_key_indir, test_rss_queue_reconfigure,
+                  test_rss_resize, test_hitless_key_update,
                   test_rss_context, test_rss_context4, test_rss_context32,
+                  test_rss_context_queue_reconfigure,
                   test_rss_context_overlap, test_rss_context_overlap2,
                   test_rss_context_out_of_order, test_rss_context4_create_with_cfg],
                  args=(cfg, ))
