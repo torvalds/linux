@@ -1822,6 +1822,7 @@ void acpi_init_device_object(struct acpi_device *device, acpi_handle handle,
 	device->dev.parent = parent ? &parent->dev : NULL;
 	device->dev.release = release;
 	device->dev.bus = &acpi_bus_type;
+	device->dev.groups = acpi_groups;
 	fwnode_init(&device->fwnode, &acpi_device_fwnode_ops);
 	acpi_set_device_status(device, ACPI_STA_DEFAULT);
 	acpi_device_get_busid(device);
