@@ -81,21 +81,11 @@ static inline bool z_erofs_put_shortlivedpage(struct page **pagepool,
 	return true;
 }
 
+extern const struct z_erofs_decompressor z_erofs_lzma_decomp;
+extern const struct z_erofs_decompressor z_erofs_deflate_decomp;
+extern const struct z_erofs_decompressor z_erofs_zstd_decomp;
+extern const struct z_erofs_decompressor *z_erofs_decomp[];
+
 int z_erofs_fixup_insize(struct z_erofs_decompress_req *rq, const char *padbuf,
 			 unsigned int padbufsize);
-extern const struct z_erofs_decompressor erofs_decompressors[];
-
-/* prototypes for specific algorithms */
-int z_erofs_load_lzma_config(struct super_block *sb,
-			struct erofs_super_block *dsb, void *data, int size);
-int z_erofs_load_deflate_config(struct super_block *sb,
-			struct erofs_super_block *dsb, void *data, int size);
-int z_erofs_load_zstd_config(struct super_block *sb,
-			struct erofs_super_block *dsb, void *data, int size);
-int z_erofs_lzma_decompress(struct z_erofs_decompress_req *rq,
-			    struct page **pagepool);
-int z_erofs_deflate_decompress(struct z_erofs_decompress_req *rq,
-			       struct page **pagepool);
-int z_erofs_zstd_decompress(struct z_erofs_decompress_req *rq,
-			    struct page **pgpl);
 #endif

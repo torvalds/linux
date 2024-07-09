@@ -1213,7 +1213,7 @@ static int z_erofs_decompress_pcluster(struct z_erofs_decompress_backend *be,
 	struct z_erofs_pcluster *pcl = be->pcl;
 	unsigned int pclusterpages = z_erofs_pclusterpages(pcl);
 	const struct z_erofs_decompressor *decomp =
-				&erofs_decompressors[pcl->algorithmformat];
+				z_erofs_decomp[pcl->algorithmformat];
 	int i, err2;
 	struct page *page;
 	bool overlapped;
