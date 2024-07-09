@@ -163,6 +163,7 @@ static kvm_pte_t *kvm_populate_gpa(struct kvm *kvm,
 
 			child = kvm_mmu_memory_cache_alloc(cache);
 			_kvm_pte_init(child, ctx.invalid_ptes[ctx.level - 1]);
+			smp_wmb(); /* Make pte visible before pmd */
 			kvm_set_pte(entry, __pa(child));
 		} else if (kvm_pte_huge(*entry)) {
 			return entry;
@@ -746,6 +747,7 @@ static kvm_pte_t *kvm_split_huge(struct kvm_vcpu *vcpu, kvm_pte_t *ptep, gfn_t g
 		val += PAGE_SIZE;
 	}
 
+	smp_wmb(); /* Make pte visible before pmd */
 	/* The later kvm_flush_tlb_gpa() will flush hugepage tlb */
 	kvm_set_pte(ptep, __pa(child));
 
