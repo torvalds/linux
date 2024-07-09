@@ -1632,16 +1632,18 @@ nla_put_failure:
 }
 
 static int nl80211_put_ifcomb_data(struct sk_buff *msg, bool large, int idx,
-				   const struct ieee80211_iface_combination *c)
+				   const struct ieee80211_iface_combination *c,
+				   u16 nested)
 {
 	struct nlattr *nl_combi, *nl_limits;
 	int i;
 
-	nl_combi = nla_nest_start_noflag(msg, idx);
+	nl_combi = nla_nest_start_noflag(msg, idx | nested);
 	if (!nl_combi)
 		goto nla_put_failure;
 
-	nl_limits = nla_nest_start_noflag(msg, NL80211_IFACE_COMB_LIMITS);
+	nl_limits = nla_nest_start_noflag(msg, NL80211_IFACE_COMB_LIMITS |
+					       nested);
 	if (!nl_limits)
 		goto nla_put_failure;
 
@@ -1689,19 +1691,26 @@ nla_put_failure:
 
 static int nl80211_put_iface_combinations(struct wiphy *wiphy,
 					  struct sk_buff *msg,
-					  bool large)
+					  int attr, int radio,
+					  bool large, u16 nested)
 {
+	const struct ieee80211_iface_combination *c;
 	struct nlattr *nl_combis;
-	int i;
+	int i, n;
 
-	nl_combis = nla_nest_start_noflag(msg,
-					  NL80211_ATTR_INTERFACE_COMBINATIONS);
+	nl_combis = nla_nest_start_noflag(msg, attr | nested);
 	if (!nl_combis)
 		goto nla_put_failure;
 
-	for (i = 0; i < wiphy->n_iface_combinations; i++)
-		if (nl80211_put_ifcomb_data(msg, large, i + 1,
-					    &wiphy->iface_combinations[i]))
+	if (radio >= 0) {
+		c = wiphy->radio[0].iface_combinations;
+		n = wiphy->radio[0].n_iface_combinations;
+	} else {
+		c = wiphy->iface_combinations;
+		n = wiphy->n_iface_combinations;
+	}
+	for (i = 0; i < n; i++)
+		if (nl80211_put_ifcomb_data(msg, large, i + 1, &c[i], nested))
 			goto nla_put_failure;
 
 	nla_nest_end(msg, nl_combis);
@@ -2408,6 +2417,80 @@ fail:
 	return -ENOBUFS;
 }
 
+static int nl80211_put_radio(struct wiphy *wiphy, struct sk_buff *msg, int idx)
+{
+	const struct wiphy_radio *r = &wiphy->radio[idx];
+	struct nlattr *radio, *freq;
+	int i;
+
+	radio = nla_nest_start(msg, idx);
+	if (!radio)
+		return -ENOBUFS;
+
+	if (nla_put_u32(msg, NL80211_WIPHY_RADIO_ATTR_INDEX, idx))
+		goto nla_put_failure;
+
+	for (i = 0; i < r->n_freq_range; i++) {
+		const struct wiphy_radio_freq_range *range = &r->freq_range[i];
+
+		freq = nla_nest_start(msg, NL80211_WIPHY_RADIO_ATTR_FREQ_RANGE);
+		if (!freq)
+			goto nla_put_failure;
+
+		if (nla_put_u32(msg, NL80211_WIPHY_RADIO_FREQ_ATTR_START,
+				range->start_freq) ||
+		    nla_put_u32(msg, NL80211_WIPHY_RADIO_FREQ_ATTR_END,
+				range->end_freq))
+			goto nla_put_failure;
+
+		nla_nest_end(msg, freq);
+	}
+
+	for (i = 0; i < r->n_iface_combinations; i++)
+		if (nl80211_put_ifcomb_data(msg, true,
+					    NL80211_WIPHY_RADIO_ATTR_INTERFACE_COMBINATION,
+					    &r->iface_combinations[i],
+					    NLA_F_NESTED))
+			goto nla_put_failure;
+
+	nla_nest_end(msg, radio);
+
+	return 0;
+
+nla_put_failure:
+	return -ENOBUFS;
+}
+
+static int nl80211_put_radios(struct wiphy *wiphy, struct sk_buff *msg)
+{
+	struct nlattr *radios;
+	int i;
+
+	if (!wiphy->n_radio)
+		return 0;
+
+	radios = nla_nest_start(msg, NL80211_ATTR_WIPHY_RADIOS);
+	if (!radios)
+		return -ENOBUFS;
+
+	for (i = 0; i < wiphy->n_radio; i++)
+		if (nl80211_put_radio(wiphy, msg, i))
+			goto fail;
+
+	nla_nest_end(msg, radios);
+
+	if (nl80211_put_iface_combinations(wiphy, msg,
+					   NL80211_ATTR_WIPHY_INTERFACE_COMBINATIONS,
+					   -1, true, NLA_F_NESTED))
+		return -ENOBUFS;
+
+	return 0;
+
+fail:
+	nla_nest_cancel(msg, radios);
+	return -ENOBUFS;
+}
+
 struct nl80211_dump_wiphy_state {
 	s64 filter_wiphy;
 	long start;
@@ -2703,7 +2786,9 @@ static int nl80211_send_wiphy(struct cfg80211_registered_device *rdev,
 			goto nla_put_failure;
 
 		if (nl80211_put_iface_combinations(&rdev->wiphy, msg,
-						   state->split))
+						   NL80211_ATTR_INTERFACE_COMBINATIONS,
+						   rdev->wiphy.n_radio ? 0 : -1,
+						   state->split, 0))
 			goto nla_put_failure;
 
 		state->split_start++;
@@ -3015,6 +3100,12 @@ static int nl80211_send_wiphy(struct cfg80211_registered_device *rdev,
 		if (rdev->wiphy.hw_timestamp_max_peers &&
 		    nla_put_u16(msg, NL80211_ATTR_MAX_HW_TIMESTAMP_PEERS,
 				rdev->wiphy.hw_timestamp_max_peers))
+			goto nla_put_failure;
+
+		state->split_start++;
+		break;
+	case 17:
+		if (nl80211_put_radios(&rdev->wiphy, msg))
 			goto nla_put_failure;
 
 		/* done */
