@@ -601,28 +601,29 @@ static inline void imx_thermal_unregister_legacy_cooling(struct imx_thermal_data
 
 static int imx_thermal_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct imx_thermal_data *data;
 	struct regmap *map;
 	int measure_freq;
 	int ret;
 
-	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
-	data->dev = &pdev->dev;
+	data->dev = dev;
 
-	map = syscon_regmap_lookup_by_phandle(pdev->dev.of_node, "fsl,tempmon");
+	map = syscon_regmap_lookup_by_phandle(dev->of_node, "fsl,tempmon");
 	if (IS_ERR(map)) {
 		ret = PTR_ERR(map);
-		dev_err(&pdev->dev, "failed to get tempmon regmap: %d\n", ret);
+		dev_err(dev, "failed to get tempmon regmap: %d\n", ret);
 		return ret;
 	}
 	data->tempmon = map;
 
-	data->socdata = of_device_get_match_data(&pdev->dev);
+	data->socdata = of_device_get_match_data(dev);
 	if (!data->socdata) {
-		dev_err(&pdev->dev, "no device match found\n");
+		dev_err(dev, "no device match found\n");
 		return -ENODEV;
 	}
 
@@ -645,15 +646,15 @@ static int imx_thermal_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, data);
 
-	if (of_property_present(pdev->dev.of_node, "nvmem-cells")) {
+	if (of_property_present(dev->of_node, "nvmem-cells")) {
 		ret = imx_init_from_nvmem_cells(pdev);
 		if (ret)
-			return dev_err_probe(&pdev->dev, ret,
+			return dev_err_probe(dev, ret,
 					     "failed to init from nvmem\n");
 	} else {
 		ret = imx_init_from_tempmon_data(pdev);
 		if (ret) {
-			dev_err(&pdev->dev, "failed to init from fsl,tempmon-data\n");
+			dev_err(dev, "failed to init from fsl,tempmon-data\n");
 			return ret;
 		}
 	}
@@ -673,15 +674,14 @@ static int imx_thermal_probe(struct platform_device *pdev)
 
 	ret = imx_thermal_register_legacy_cooling(data);
 	if (ret)
-		return dev_err_probe(&pdev->dev, ret,
+		return dev_err_probe(dev, ret,
 				     "failed to register cpufreq cooling device\n");
 
-	data->thermal_clk = devm_clk_get(&pdev->dev, NULL);
+	data->thermal_clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(data->thermal_clk)) {
 		ret = PTR_ERR(data->thermal_clk);
 		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev,
-				"failed to get thermal clk: %d\n", ret);
+			dev_err(dev, "failed to get thermal clk: %d\n", ret);
 		goto legacy_cleanup;
 	}
 
@@ -694,7 +694,7 @@ static int imx_thermal_probe(struct platform_device *pdev)
 	 */
 	ret = clk_prepare_enable(data->thermal_clk);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to enable thermal clk: %d\n", ret);
+		dev_err(dev, "failed to enable thermal clk: %d\n", ret);
 		goto legacy_cleanup;
 	}
 
@@ -707,12 +707,12 @@ static int imx_thermal_probe(struct platform_device *pdev)
 							   IMX_POLLING_DELAY);
 	if (IS_ERR(data->tz)) {
 		ret = PTR_ERR(data->tz);
-		dev_err(&pdev->dev,
-			"failed to register thermal zone device %d\n", ret);
+		dev_err(dev, "failed to register thermal zone device %d\n",
+			ret);
 		goto clk_disable;
 	}
 
-	dev_info(&pdev->dev, "%s CPU temperature grade - max:%dC"
+	dev_info(dev, "%s CPU temperature grade - max:%dC"
 		 " critical:%dC passive:%dC\n", data->temp_grade,
 		 data->temp_max / 1000, trips[IMX_TRIP_CRITICAL].temperature / 1000,
 		 trips[IMX_TRIP_PASSIVE].temperature / 1000);
@@ -736,7 +736,7 @@ static int imx_thermal_probe(struct platform_device *pdev)
 	usleep_range(20, 50);
 
 	/* the core was configured and enabled just before */
-	pm_runtime_set_active(&pdev->dev);
+	pm_runtime_set_active(dev);
 	pm_runtime_enable(data->dev);
 
 	ret = pm_runtime_resume_and_get(data->dev);
@@ -748,11 +748,11 @@ static int imx_thermal_probe(struct platform_device *pdev)
 	if (ret)
 		goto thermal_zone_unregister;
 
-	ret = devm_request_threaded_irq(&pdev->dev, data->irq,
+	ret = devm_request_threaded_irq(dev, data->irq,
 			imx_thermal_alarm_irq, imx_thermal_alarm_irq_thread,
 			0, "imx_thermal", data);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to request alarm irq: %d\n", ret);
+		dev_err(dev, "failed to request alarm irq: %d\n", ret);
 		goto thermal_zone_unregister;
 	}
 
