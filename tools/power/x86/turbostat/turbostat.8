@@ -323,7 +323,7 @@ available on all processors.
 Here we limit turbostat to showing just the CPU number for cpu0 - cpu3.
 We add a counter showing the 32-bit raw value of MSR 0x199 (MSR_IA32_PERF_CTL),
 labeling it with the column header, "PRF_CTRL", and display it only once,
-afte the conclusion of a 0.1 second sleep.
+after the conclusion of a 0.1 second sleep.
 .nf
 sudo ./turbostat --quiet --cpu 0-3 --show CPU --add msr0x199,u32,raw,PRF_CTRL sleep .1
 0.101604 sec
