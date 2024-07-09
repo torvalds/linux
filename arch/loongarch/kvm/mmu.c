@@ -557,6 +557,7 @@ static int kvm_map_page_fast(struct kvm_vcpu *vcpu, unsigned long gpa, bool writ
 	gfn_t gfn = gpa >> PAGE_SHIFT;
 	struct kvm *kvm = vcpu->kvm;
 	struct kvm_memory_slot *slot;
+	struct page *page;
 
 	spin_lock(&kvm->mmu_lock);
 
@@ -599,19 +600,22 @@ static int kvm_map_page_fast(struct kvm_vcpu *vcpu, unsigned long gpa, bool writ
 	if (changed) {
 		kvm_set_pte(ptep, new);
 		pfn = kvm_pte_pfn(new);
+		page = kvm_pfn_to_refcounted_page(pfn);
+		if (page)
+			get_page(page);
 	}
 	spin_unlock(&kvm->mmu_lock);
 
-	/*
-	 * Fixme: pfn may be freed after mmu_lock
-	 * kvm_try_get_pfn(pfn)/kvm_release_pfn pair to prevent this?
-	 */
-	if (kvm_pte_young(changed))
-		kvm_set_pfn_accessed(pfn);
+	if (changed) {
+		if (kvm_pte_young(changed))
+			kvm_set_pfn_accessed(pfn);
 
-	if (kvm_pte_dirty(changed)) {
-		mark_page_dirty(kvm, gfn);
-		kvm_set_pfn_dirty(pfn);
+		if (kvm_pte_dirty(changed)) {
+			mark_page_dirty(kvm, gfn);
+			kvm_set_pfn_dirty(pfn);
+		}
+		if (page)
+			put_page(page);
 	}
 	return ret;
 out:
@@ -920,7 +924,6 @@ retry:
 		kvm_set_pfn_dirty(pfn);
 	}
 
-	kvm_set_pfn_accessed(pfn);
 	kvm_release_pfn_clean(pfn);
 out:
 	srcu_read_unlock(&kvm->srcu, srcu_idx);
