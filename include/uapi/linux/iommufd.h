@@ -765,14 +765,10 @@ struct iommu_hwpt_pgfault {
  * @IOMMUFD_PAGE_RESP_INVALID: Could not handle this fault, don't retry the
  *                             access. This is the "Invalid Request" in PCI
  *                             10.4.2.1.
- * @IOMMUFD_PAGE_RESP_FAILURE: General error. Drop all subsequent faults from
- *                             this device if possible. This is the "Response
- *                             Failure" in PCI 10.4.2.1.
  */
 enum iommufd_page_response_code {
 	IOMMUFD_PAGE_RESP_SUCCESS = 0,
 	IOMMUFD_PAGE_RESP_INVALID,
-	IOMMUFD_PAGE_RESP_FAILURE,
 };
 
 /**
