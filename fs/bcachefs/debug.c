@@ -610,7 +610,7 @@ restart:
 	list_sort(&c->btree_trans_list, list_ptr_order_cmp);
 
 	list_for_each_entry(trans, &c->btree_trans_list, list) {
-		if ((ulong) trans < i->iter)
+		if ((ulong) trans <= i->iter)
 			continue;
 
 		i->iter = (ulong) trans;
@@ -832,16 +832,16 @@ static const struct file_operations btree_transaction_stats_op = {
 static void btree_deadlock_to_text(struct printbuf *out, struct bch_fs *c)
 {
 	struct btree_trans *trans;
-	pid_t iter = 0;
+	ulong iter = 0;
 restart:
 	seqmutex_lock(&c->btree_trans_lock);
-	list_for_each_entry(trans, &c->btree_trans_list, list) {
-		struct task_struct *task = READ_ONCE(trans->locking_wait.task);
+	list_sort(&c->btree_trans_list, list_ptr_order_cmp);
 
-		if (!task || task->pid <= iter)
+	list_for_each_entry(trans, &c->btree_trans_list, list) {
+		if ((ulong) trans <= iter)
 			continue;
 
-		iter = task->pid;
+		iter = (ulong) trans;
 
 		if (!closure_get_not_zero(&trans->ref))
 			continue;

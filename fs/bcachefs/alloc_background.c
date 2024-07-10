@@ -3,6 +3,7 @@
 #include "alloc_background.h"
 #include "alloc_foreground.h"
 #include "backpointers.h"
+#include "bkey_buf.h"
 #include "btree_cache.h"
 #include "btree_io.h"
 #include "btree_key_cache.h"
@@ -1553,13 +1554,13 @@ err:
 }
 
 static int bch2_check_alloc_to_lru_ref(struct btree_trans *trans,
-				       struct btree_iter *alloc_iter)
+				       struct btree_iter *alloc_iter,
+				       struct bkey_buf *last_flushed)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_iter lru_iter;
 	struct bch_alloc_v4 a_convert;
 	const struct bch_alloc_v4 *a;
-	struct bkey_s_c alloc_k, lru_k;
+	struct bkey_s_c alloc_k;
 	struct printbuf buf = PRINTBUF;
 	int ret;
 
@@ -1572,6 +1573,14 @@ static int bch2_check_alloc_to_lru_ref(struct btree_trans *trans,
 		return ret;
 
 	a = bch2_alloc_to_v4(alloc_k, &a_convert);
+
+	if (a->fragmentation_lru) {
+		ret = bch2_lru_check_set(trans, BCH_LRU_FRAGMENTATION_START,
+					 a->fragmentation_lru,
+					 alloc_k, last_flushed);
+		if (ret)
+			return ret;
+	}
 
 	if (a->data_type != BCH_DATA_cached)
 		return 0;
@@ -1597,41 +1606,30 @@ static int bch2_check_alloc_to_lru_ref(struct btree_trans *trans,
 		a = &a_mut->v;
 	}
 
-	lru_k = bch2_bkey_get_iter(trans, &lru_iter, BTREE_ID_lru,
-			     lru_pos(alloc_k.k->p.inode,
-				     bucket_to_u64(alloc_k.k->p),
-				     a->io_time[READ]), 0);
-	ret = bkey_err(lru_k);
+	ret = bch2_lru_check_set(trans, alloc_k.k->p.inode, a->io_time[READ],
+				 alloc_k, last_flushed);
 	if (ret)
-		return ret;
-
-	if (fsck_err_on(lru_k.k->type != KEY_TYPE_set, c,
-			alloc_key_to_missing_lru_entry,
-			"missing lru entry\n"
-			"  %s",
-			(printbuf_reset(&buf),
-			 bch2_bkey_val_to_text(&buf, c, alloc_k), buf.buf))) {
-		ret = bch2_lru_set(trans,
-				   alloc_k.k->p.inode,
-				   bucket_to_u64(alloc_k.k->p),
-				   a->io_time[READ]);
-		if (ret)
-			goto err;
-	}
+		goto err;
 err:
 fsck_err:
-	bch2_trans_iter_exit(trans, &lru_iter);
 	printbuf_exit(&buf);
 	return ret;
 }
 
 int bch2_check_alloc_to_lru_refs(struct bch_fs *c)
 {
+	struct bkey_buf last_flushed;
+
+	bch2_bkey_buf_init(&last_flushed);
+	bkey_init(&last_flushed.k->k);
+
 	int ret = bch2_trans_run(c,
 		for_each_btree_key_commit(trans, iter, BTREE_ID_alloc,
 				POS_MIN, BTREE_ITER_prefetch, k,
 				NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
-			bch2_check_alloc_to_lru_ref(trans, &iter)));
+			bch2_check_alloc_to_lru_ref(trans, &iter, &last_flushed)));
+
+	bch2_bkey_buf_exit(&last_flushed, c);
 	bch_err_fn(c, ret);
 	return ret;
 }

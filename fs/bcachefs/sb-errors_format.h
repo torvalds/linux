@@ -286,7 +286,8 @@ enum bch_fsck_flags {
 	x(accounting_mismatch,					272,	0)		\
 	x(accounting_replicas_not_marked,			273,	0)		\
 	x(invalid_btree_id,					274,	0)		\
-	x(alloc_key_io_time_bad,				275,	0)
+	x(alloc_key_io_time_bad,				275,	0)		\
+	x(alloc_key_fragmentation_lru_wrong,			276,	FSCK_AUTOFIX)
 
 enum bch_sb_error_id {
 #define x(t, n, ...) BCH_FSCK_ERR_##t = n,
