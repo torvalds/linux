@@ -103,7 +103,7 @@ static inline void sg2042_pll_ctrl_decode(unsigned int reg_value,
 	ctrl->postdiv2 = FIELD_GET(PLLCTRL_POSTDIV2_MASK, reg_value);
 }
 
-static inline int sg2042_pll_enable(struct sg2042_pll_clock *pll, bool en)
+static inline void sg2042_pll_enable(struct sg2042_pll_clock *pll, bool en)
 {
 	u32 value;
 
@@ -132,8 +132,6 @@ static inline int sg2042_pll_enable(struct sg2042_pll_clock *pll, bool en)
 		value = readl(pll->base + R_PLL_CLKEN_CONTROL);
 		writel(value & (~(1 << pll->shift_enable)), pll->base + R_PLL_CLKEN_CONTROL);
 	}
-
-	return 0;
 }
 
 /**
@@ -393,14 +391,13 @@ static int sg2042_clk_pll_set_rate(struct clk_hw *hw,
 	int ret;
 
 	spin_lock_irqsave(pll->lock, flags);
-	if (sg2042_pll_enable(pll, 0)) {
-		pr_warn("Can't disable pll(%s), status error\n", pll->hw.init->name);
-		goto out;
-	}
+
+	sg2042_pll_enable(pll, 0);
+
 	ret = sg2042_get_pll_ctl_setting(&pctrl_table, rate, parent_rate);
 	if (ret) {
 		pr_warn("%s: Can't find a proper pll setting\n", pll->hw.init->name);
-		goto out2;
+		goto out;
 	}
 
 	value = sg2042_pll_ctrl_encode(&pctrl_table);
@@ -408,9 +405,9 @@ static int sg2042_clk_pll_set_rate(struct clk_hw *hw,
 	/* write the value to top register */
 	writel(value, pll->base + pll->offset_ctrl);
 
-out2:
-	sg2042_pll_enable(pll, 1);
 out:
+	sg2042_pll_enable(pll, 1);
+
 	spin_unlock_irqrestore(pll->lock, flags);
 
 	pr_debug("--> %s: pll_set_rate: val = 0x%x\n",
