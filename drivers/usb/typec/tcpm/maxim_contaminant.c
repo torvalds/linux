@@ -283,10 +283,11 @@ static int max_contaminant_enable_dry_detection(struct max_tcpci_chip *chip)
 	u8 temp;
 	int ret;
 
-	ret = regmap_update_bits(regmap, TCPC_VENDOR_CC_CTRL3, CCWTRDEB_MASK | CCWTRSEL_MASK
-				    | WTRCYCLE_MASK, CCWTRDEB_1MS << CCWTRDEB_SHIFT |
-				    CCWTRSEL_1V << CCWTRSEL_SHIFT | WTRCYCLE_4_8_S <<
-				    WTRCYCLE_SHIFT);
+	ret = regmap_update_bits(regmap, TCPC_VENDOR_CC_CTRL3,
+				 CCWTRDEB | CCWTRSEL | WTRCYCLE,
+				 FIELD_PREP(CCWTRDEB, CCWTRDEB_1MS)
+				 | FIELD_PREP(CCWTRSEL, CCWTRSEL_1V)
+				 | FIELD_PREP(WTRCYCLE, WTRCYCLE_4_8_S));
 	if (ret < 0)
 		return ret;
 
