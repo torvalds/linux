@@ -1183,7 +1183,8 @@ void dml21_get_pipe_mcache_config(
 
 void dml21_set_dc_p_state_type(
 		struct pipe_ctx *pipe_ctx,
-		struct dml2_per_stream_programming *stream_programming)
+		struct dml2_per_stream_programming *stream_programming,
+		bool sub_vp_enabled)
 {
 	switch (stream_programming->uclk_pstate_method) {
 	case dml2_uclk_pstate_support_method_vactive:
@@ -1192,14 +1193,20 @@ void dml21_set_dc_p_state_type(
 		break;
 	case dml2_uclk_pstate_support_method_vblank:
 	case dml2_uclk_pstate_support_method_fw_vblank_drr:
-		pipe_ctx->p_state_type = P_STATE_V_BLANK;
+		if (sub_vp_enabled)
+			pipe_ctx->p_state_type = P_STATE_V_BLANK_SUB_VP;
+		else
+			pipe_ctx->p_state_type = P_STATE_V_BLANK;
 		break;
 	case dml2_uclk_pstate_support_method_fw_subvp_phantom:
 	case dml2_uclk_pstate_support_method_fw_subvp_phantom_drr:
 		pipe_ctx->p_state_type = P_STATE_SUB_VP;
 		break;
 	case dml2_uclk_pstate_support_method_fw_drr:
-		pipe_ctx->p_state_type = P_STATE_FPO;
+		if (sub_vp_enabled)
+			pipe_ctx->p_state_type = P_STATE_DRR_SUB_VP;
+		else
+			pipe_ctx->p_state_type = P_STATE_FPO;
 		break;
 	default:
 		pipe_ctx->p_state_type = P_STATE_UNKNOWN;

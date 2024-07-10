@@ -11,7 +11,6 @@
 
 #include "dml2_core_dcn4_calcs.h"
 
-
 int dml21_helper_find_dml_pipe_idx_by_stream_id(struct dml2_context *ctx, unsigned int stream_id)
 {
 	int i;
@@ -280,6 +279,23 @@ bool check_dp2p0_output_encoder(const struct pipe_ctx *pipe_ctx)
 		dc_is_dp_signal(pipe_ctx->stream->signal));
 }
 
+
+static bool is_sub_vp_enabled(struct dc *dc, struct dc_state *context)
+{
+	int i;
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+
+		if (pipe_ctx->stream && dc_state_get_paired_subvp_stream(context, pipe_ctx->stream) &&
+							dc_state_get_pipe_subvp_type(context, pipe_ctx) == SUBVP_MAIN) {
+			return true;
+		}
+	}
+	return false;
+}
+
+
 void dml21_program_dc_pipe(struct dml2_context *dml_ctx, struct dc_state *context, struct pipe_ctx *pipe_ctx, struct dml2_per_plane_programming *pln_prog,
 		struct dml2_per_stream_programming *stream_prog)
 {
@@ -317,7 +333,9 @@ void dml21_program_dc_pipe(struct dml2_context *dml_ctx, struct dc_state *contex
 	dml21_populate_mall_allocation_size(context, dml_ctx, pln_prog, pipe_ctx);
 	memcpy(&context->bw_ctx.bw.dcn.mcache_allocations[pipe_ctx->pipe_idx], &pln_prog->mcache_allocation, sizeof(struct dml2_mcache_surface_allocation));
 
-	dml21_set_dc_p_state_type(pipe_ctx, stream_prog);
+	bool sub_vp_enabled = is_sub_vp_enabled(pipe_ctx->stream->ctx->dc, context);
+
+	dml21_set_dc_p_state_type(pipe_ctx, stream_prog, sub_vp_enabled);
 }
 
 static struct dc_stream_state *dml21_add_phantom_stream(struct dml2_context *dml_ctx,
