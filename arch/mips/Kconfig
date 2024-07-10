@@ -667,6 +667,7 @@ config MACH_REALTEK_RTL
 	select BOOT_RAW
 	select PINCTRL
 	select USE_OF
+	select REALTEK_OTTO_TIMER
 
 config SGI_IP22
 	bool "SGI IP22 (Indy/Indigo2)"
