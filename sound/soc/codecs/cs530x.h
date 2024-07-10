@@ -211,7 +211,6 @@ struct cs530x_priv {
 
 	int tdm_width;
 	int tdm_slots;
-	int bclk;
 	int fs;
 	int adc_pairs_count;
 

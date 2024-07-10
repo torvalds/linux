@@ -415,13 +415,13 @@ static void cs530x_add_34_adc_widgets(struct snd_soc_component *component)
 				ARRAY_SIZE(adc_ch3_4_routes));
 }
 
-static int cs530x_set_bclk(struct snd_soc_component *component)
+static int cs530x_set_bclk(struct snd_soc_component *component, const int freq)
 {
 	struct cs530x_priv *cs530x = snd_soc_component_get_drvdata(component);
 	struct regmap *regmap = cs530x->regmap;
 	unsigned int bclk_val;
 
-	switch (cs530x->bclk) {
+	switch (freq) {
 	case 2822400:
 	case 3072000:
 		bclk_val = CS530X_BCLK_2P822_3P072;
@@ -439,11 +439,11 @@ static int cs530x_set_bclk(struct snd_soc_component *component)
 		bclk_val = CS530X_BCLK_24P5792_24P576;
 		break;
 	default:
-		dev_err(component->dev, "Invalid BCLK %d\n", cs530x->bclk);
+		dev_err(component->dev, "Invalid BCLK frequency %d\n", freq);
 		return -EINVAL;
 	}
 
-	dev_dbg(component->dev, "BCLK is %d\n", cs530x->bclk);
+	dev_dbg(component->dev, "BCLK frequency is %d\n", freq);
 
 	return regmap_update_bits(regmap, CS530X_ASP_CFG,
 				  CS530X_ASP_BCLK_FREQ_MASK, bclk_val);
@@ -489,7 +489,7 @@ static int cs530x_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_component *component = dai->component;
 	struct cs530x_priv *cs530x = snd_soc_component_get_drvdata(component);
 	struct regmap *regmap = cs530x->regmap;
-	int ret = 0, fs = params_rate(params);
+	int ret = 0, fs = params_rate(params), bclk;
 	unsigned int fs_val;
 
 
@@ -531,22 +531,22 @@ static int cs530x_hw_params(struct snd_pcm_substream *substream,
 			     CS530X_TDM_EN_MASK)) {
 		dev_dbg(component->dev, "Configuring for %d %d bit TDM slots\n",
 			cs530x->tdm_slots, cs530x->tdm_width);
-		cs530x->bclk = snd_soc_tdm_params_to_bclk(params,
-							  cs530x->tdm_width,
-							  cs530x->tdm_slots,
-							  1);
+		bclk = snd_soc_tdm_params_to_bclk(params,
+						  cs530x->tdm_width,
+						  cs530x->tdm_slots,
+						  1);
 	} else {
-		cs530x->bclk = snd_soc_params_to_bclk(params);
+		bclk = snd_soc_params_to_bclk(params);
 	}
 
 	if (!regmap_test_bits(regmap, CS530X_CLK_CFG_0,
 			     CS530X_PLL_REFCLK_SRC_MASK)) {
-		ret = cs530x_set_pll_refclk(component, cs530x->bclk);
+		ret = cs530x_set_pll_refclk(component, bclk);
 		if (ret)
 			return ret;
 	}
 
-	return cs530x_set_bclk(component);
+	return cs530x_set_bclk(component, bclk);
 }
 
 static int cs530x_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
