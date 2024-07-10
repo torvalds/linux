@@ -80,7 +80,7 @@ struct affs_head {
 	__be32 spare1;
 	__be32 first_data;
 	__be32 checksum;
-	__be32 table[1];
+	__be32 table[];
 };
 
 struct affs_tail {
