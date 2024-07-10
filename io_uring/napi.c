@@ -283,7 +283,7 @@ void __io_napi_adjust_timeout(struct io_ring_ctx *ctx, struct io_wait_queue *iow
 			s64 poll_to_ns = timespec64_to_ns(ts);
 			if (poll_to_ns > 0) {
 				u64 val = poll_to_ns + 999;
-				do_div(val, (s64) 1000);
+				do_div(val, 1000);
 				poll_to = val;
 			}
 		}
