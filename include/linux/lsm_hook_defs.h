@@ -403,7 +403,6 @@ LSM_HOOK(int, 0, xfrm_decode_session, struct sk_buff *skb, u32 *secid,
 #ifdef CONFIG_KEYS
 LSM_HOOK(int, 0, key_alloc, struct key *key, const struct cred *cred,
 	 unsigned long flags)
-LSM_HOOK(void, LSM_RET_VOID, key_free, struct key *key)
 LSM_HOOK(int, 0, key_permission, key_ref_t key_ref, const struct cred *cred,
 	 enum key_need_perm need_perm)
 LSM_HOOK(int, 0, key_getsecurity, struct key *key, char **buffer)
