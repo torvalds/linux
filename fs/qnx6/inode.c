@@ -184,17 +184,17 @@ static const char *qnx6_checkroot(struct super_block *s)
 	struct qnx6_dir_entry *dir_entry;
 	struct inode *root = d_inode(s->s_root);
 	struct address_space *mapping = root->i_mapping;
-	struct page *page = read_mapping_page(mapping, 0, NULL);
-	if (IS_ERR(page))
+	struct folio *folio = read_mapping_folio(mapping, 0, NULL);
+
+	if (IS_ERR(folio))
 		return "error reading root directory";
-	kmap(page);
-	dir_entry = page_address(page);
+	dir_entry = kmap_local_folio(folio, 0);
 	for (i = 0; i < 2; i++) {
 		/* maximum 3 bytes - due to match_root limitation */
 		if (strncmp(dir_entry[i].de_fname, match_root[i], 3))
 			error = 1;
 	}
-	qnx6_put_page(page);
+	folio_release_kmap(folio, dir_entry);
 	if (error)
 		return "error reading root directory.";
 	return NULL;
