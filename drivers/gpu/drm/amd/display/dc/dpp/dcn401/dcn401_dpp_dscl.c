@@ -280,7 +280,8 @@ static void dpp401_dscl_set_scaler_filter(
 static void dpp401_dscl_set_scl_filter(
 		struct dcn401_dpp *dpp,
 		const struct scaler_data *scl_data,
-		bool chroma_coef_mode)
+		bool chroma_coef_mode,
+		bool force_coeffs_update)
 {
 	bool h_2tap_hardcode_coef_en = false;
 	bool v_2tap_hardcode_coef_en = false;
@@ -343,7 +344,7 @@ static void dpp401_dscl_set_scl_filter(
 							|| (filter_v_c && (filter_v_c != dpp->filter_v_c));
 		}
 
-		if (filter_updated) {
+		if ((filter_updated) || (force_coeffs_update)) {
 			uint32_t scl_mode = REG_READ(SCL_MODE);
 
 			if (!h_2tap_hardcode_coef_en && filter_h) {
@@ -955,9 +956,11 @@ static void dpp401_dscl_set_isharp_filter(
  *
  */
 static void dpp401_dscl_program_isharp(struct dpp *dpp_base,
-		const struct scaler_data *scl_data)
+		const struct scaler_data *scl_data,
+		bool *bs_coeffs_updated)
 {
 	struct dcn401_dpp *dpp = TO_DCN401_DPP(dpp_base);
+	*bs_coeffs_updated = false;
 
 	PERF_TRACE();
 	/* ISHARP_MODE */
@@ -1030,12 +1033,14 @@ static void dpp401_dscl_program_isharp(struct dpp *dpp_base,
 				dpp, scl_data->taps.v_taps,
 				SCL_COEF_VERTICAL_BLUR_SCALE,
 				scl_data->dscl_prog_data.filter_blur_scale_v);
+			*bs_coeffs_updated = true;
 		}
 		if (scl_data->dscl_prog_data.filter_blur_scale_h) {
 			dpp401_dscl_set_scaler_filter(
 				dpp, scl_data->taps.h_taps,
 				SCL_COEF_HORIZONTAL_BLUR_SCALE,
 				scl_data->dscl_prog_data.filter_blur_scale_h);
+			*bs_coeffs_updated = true;
 		}
 	}
 	PERF_TRACE();
@@ -1066,6 +1071,7 @@ void dpp401_dscl_set_scaler_manual_scale(struct dpp *dpp_base,
 			dpp_base, scl_data, dpp_base->ctx->dc->debug.always_scale);
 	bool ycbcr = scl_data->format >= PIXEL_FORMAT_VIDEO_BEGIN
 				&& scl_data->format <= PIXEL_FORMAT_VIDEO_END;
+	bool bs_coeffs_updated = false;
 
 	if (memcmp(&dpp->scl_data, scl_data, sizeof(*scl_data)) == 0)
 		return;
@@ -1125,7 +1131,7 @@ void dpp401_dscl_set_scaler_manual_scale(struct dpp *dpp_base,
 	if (dscl_mode == DSCL_MODE_SCALING_444_BYPASS) {
 		if (dpp->base.ctx->dc->config.prefer_easf)
 			dpp401_dscl_disable_easf(dpp_base, scl_data);
-		dpp401_dscl_program_isharp(dpp_base, scl_data);
+		dpp401_dscl_program_isharp(dpp_base, scl_data, &bs_coeffs_updated);
 		return;
 	}
 
@@ -1152,12 +1158,18 @@ void dpp401_dscl_set_scaler_manual_scale(struct dpp *dpp_base,
 		SCL_V_NUM_TAPS_C, v_num_taps_c,
 		SCL_H_NUM_TAPS_C, h_num_taps_c);
 
-	dpp401_dscl_set_scl_filter(dpp, scl_data, ycbcr);
+	/* ISharp configuration
+	 * - B&S coeffs are written to same coeff RAM as WB scaler coeffs
+	 * - coeff RAM toggle is in EASF programming
+	 * - if we are only programming B&S coeffs, then need to reprogram
+	 *   WB scaler coeffs and toggle coeff RAM together
+	 */
+	//if (dpp->base.ctx->dc->config.prefer_easf)
+	dpp401_dscl_program_isharp(dpp_base, scl_data, &bs_coeffs_updated);
+
+	dpp401_dscl_set_scl_filter(dpp, scl_data, ycbcr, bs_coeffs_updated);
 	/* Edge adaptive scaler function configuration */
 	if (dpp->base.ctx->dc->config.prefer_easf)
 		dpp401_dscl_program_easf(dpp_base, scl_data);
-	/* isharp configuration */
-	//if (dpp->base.ctx->dc->config.prefer_easf)
-	dpp401_dscl_program_isharp(dpp_base, scl_data);
 	PERF_TRACE();
 }
