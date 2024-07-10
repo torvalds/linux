@@ -42,18 +42,18 @@ struct minix_sb_info {
 	unsigned short s_version;
 };
 
-extern struct inode *minix_iget(struct super_block *, unsigned long);
-extern struct minix_inode * minix_V1_raw_inode(struct super_block *, ino_t, struct buffer_head **);
-extern struct minix2_inode * minix_V2_raw_inode(struct super_block *, ino_t, struct buffer_head **);
-extern struct inode * minix_new_inode(const struct inode *, umode_t);
-extern void minix_free_inode(struct inode * inode);
-extern unsigned long minix_count_free_inodes(struct super_block *sb);
-extern int minix_new_block(struct inode * inode);
-extern void minix_free_block(struct inode *inode, unsigned long block);
-extern unsigned long minix_count_free_blocks(struct super_block *sb);
-extern int minix_getattr(struct mnt_idmap *, const struct path *,
-			 struct kstat *, u32, unsigned int);
-extern int minix_prepare_chunk(struct page *page, loff_t pos, unsigned len);
+struct inode *minix_iget(struct super_block *, unsigned long);
+struct minix_inode *minix_V1_raw_inode(struct super_block *, ino_t, struct buffer_head **);
+struct minix2_inode *minix_V2_raw_inode(struct super_block *, ino_t, struct buffer_head **);
+struct inode *minix_new_inode(const struct inode *, umode_t);
+void minix_free_inode(struct inode *inode);
+unsigned long minix_count_free_inodes(struct super_block *sb);
+int minix_new_block(struct inode *inode);
+void minix_free_block(struct inode *inode, unsigned long block);
+unsigned long minix_count_free_blocks(struct super_block *sb);
+int minix_getattr(struct mnt_idmap *, const struct path *,
+		struct kstat *, u32, unsigned int);
+int minix_prepare_chunk(struct folio *folio, loff_t pos, unsigned len);
 
 extern void V1_minix_truncate(struct inode *);
 extern void V2_minix_truncate(struct inode *);

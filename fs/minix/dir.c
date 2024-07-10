@@ -260,7 +260,7 @@ int minix_add_link(struct dentry *dentry, struct inode *inode)
 
 got_it:
 	pos = folio_pos(folio) + offset_in_folio(folio, p);
-	err = minix_prepare_chunk(&folio->page, pos, sbi->s_dirsize);
+	err = minix_prepare_chunk(folio, pos, sbi->s_dirsize);
 	if (err)
 		goto out_unlock;
 	memcpy (namx, name, namelen);
@@ -292,7 +292,7 @@ int minix_delete_entry(struct minix_dir_entry *de, struct folio *folio)
 	int err;
 
 	folio_lock(folio);
-	err = minix_prepare_chunk(&folio->page, pos, len);
+	err = minix_prepare_chunk(folio, pos, len);
 	if (err) {
 		folio_unlock(folio);
 		return err;
@@ -316,7 +316,7 @@ int minix_make_empty(struct inode *inode, struct inode *dir)
 
 	if (IS_ERR(folio))
 		return PTR_ERR(folio);
-	err = minix_prepare_chunk(&folio->page, 0, 2 * sbi->s_dirsize);
+	err = minix_prepare_chunk(folio, 0, 2 * sbi->s_dirsize);
 	if (err) {
 		folio_unlock(folio);
 		goto fail;
@@ -413,7 +413,7 @@ int minix_set_link(struct minix_dir_entry *de, struct folio *folio,
 	int err;
 
 	folio_lock(folio);
-	err = minix_prepare_chunk(&folio->page, pos, sbi->s_dirsize);
+	err = minix_prepare_chunk(folio, pos, sbi->s_dirsize);
 	if (err) {
 		folio_unlock(folio);
 		return err;

@@ -427,9 +427,9 @@ static int minix_read_folio(struct file *file, struct folio *folio)
 	return block_read_full_folio(folio, minix_get_block);
 }
 
-int minix_prepare_chunk(struct page *page, loff_t pos, unsigned len)
+int minix_prepare_chunk(struct folio *folio, loff_t pos, unsigned len)
 {
-	return __block_write_begin(page, pos, len, minix_get_block);
+	return __block_write_begin(&folio->page, pos, len, minix_get_block);
 }
 
 static void minix_write_failed(struct address_space *mapping, loff_t to)
