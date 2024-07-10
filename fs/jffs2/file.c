@@ -240,6 +240,7 @@ static int jffs2_write_end(struct file *filp, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned copied,
 			struct page *pg, void *fsdata)
 {
+	struct folio *folio = page_folio(pg);
 	/* Actually commit the write from the page cache page we're looking at.
 	 * For now, we write the full page out each time. It sucks, but it's simple
 	 */
@@ -252,16 +253,17 @@ static int jffs2_write_end(struct file *filp, struct address_space *mapping,
 	unsigned aligned_start = start & ~3;
 	int ret = 0;
 	uint32_t writtenlen = 0;
+	void *buf;
 
-	jffs2_dbg(1, "%s(): ino #%lu, page at 0x%lx, range %d-%d, flags %lx\n",
-		  __func__, inode->i_ino, pg->index << PAGE_SHIFT,
-		  start, end, pg->flags);
+	jffs2_dbg(1, "%s(): ino #%lu, page at 0x%llx, range %d-%d, flags %lx\n",
+		  __func__, inode->i_ino, folio_pos(folio),
+		  start, end, folio->flags);
 
 	/* We need to avoid deadlock with page_cache_read() in
-	   jffs2_garbage_collect_pass(). So the page must be
+	   jffs2_garbage_collect_pass(). So the folio must be
 	   up to date to prevent page_cache_read() from trying
 	   to re-lock it. */
-	BUG_ON(!PageUptodate(pg));
+	BUG_ON(!folio_test_uptodate(folio));
 
 	if (end == PAGE_SIZE) {
 		/* When writing out the end of a page, write out the
@@ -276,8 +278,8 @@ static int jffs2_write_end(struct file *filp, struct address_space *mapping,
 	if (!ri) {
 		jffs2_dbg(1, "%s(): Allocation of raw inode failed\n",
 			  __func__);
-		unlock_page(pg);
-		put_page(pg);
+		folio_unlock(folio);
+		folio_put(folio);
 		return -ENOMEM;
 	}
 
@@ -289,15 +291,11 @@ static int jffs2_write_end(struct file *filp, struct address_space *mapping,
 	ri->isize = cpu_to_je32((uint32_t)inode->i_size);
 	ri->atime = ri->ctime = ri->mtime = cpu_to_je32(JFFS2_NOW());
 
-	/* In 2.4, it was already kmapped by generic_file_write(). Doesn't
-	   hurt to do it again. The alternative is ifdefs, which are ugly. */
-	kmap(pg);
-
-	ret = jffs2_write_inode_range(c, f, ri, page_address(pg) + aligned_start,
-				      (pg->index << PAGE_SHIFT) + aligned_start,
+	buf = kmap_local_folio(folio, aligned_start);
+	ret = jffs2_write_inode_range(c, f, ri, buf,
+				      folio_pos(folio) + aligned_start,
 				      end - aligned_start, &writtenlen);
-
-	kunmap(pg);
+	kunmap_local(buf);
 
 	if (ret)
 		mapping_set_error(mapping, ret);
@@ -323,12 +321,12 @@ static int jffs2_write_end(struct file *filp, struct address_space *mapping,
 		   it gets reread */
 		jffs2_dbg(1, "%s(): Not all bytes written. Marking page !uptodate\n",
 			__func__);
-		ClearPageUptodate(pg);
+		folio_clear_uptodate(folio);
 	}
 
 	jffs2_dbg(1, "%s() returning %d\n",
 		  __func__, writtenlen > 0 ? writtenlen : ret);
-	unlock_page(pg);
-	put_page(pg);
+	folio_unlock(folio);
+	folio_put(folio);
 	return writtenlen > 0 ? writtenlen : ret;
 }
