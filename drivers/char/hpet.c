@@ -808,7 +808,7 @@ int hpet_alloc(struct hpet_data *hdp)
 	struct hpets *hpetp;
 	struct hpet __iomem *hpet;
 	static struct hpets *last;
-	unsigned long period;
+	u32 period;
 	unsigned long long temp;
 	u32 remainder;
 
