@@ -613,6 +613,7 @@
 				assigned-clock-rates = <500000>;
 				#thermal-sensor-cells = <0>;
 				amlogic,ao-secure = <&sec_AO>;
+				power-domains = <&pwrc PWRC_I2C_ID>;
 			};
 
 			hwrng: rng@5118 {
