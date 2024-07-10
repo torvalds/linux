@@ -1785,6 +1785,8 @@ struct rtw_efuse {
 	bool share_ant;
 	u8 bt_setting;
 
+	u8 usb_mode_switch;
+
 	struct {
 		u8 hci;
 		u8 bw;
