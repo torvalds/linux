@@ -309,21 +309,21 @@ int minix_delete_entry(struct minix_dir_entry *de, struct folio *folio)
 
 int minix_make_empty(struct inode *inode, struct inode *dir)
 {
-	struct page *page = grab_cache_page(inode->i_mapping, 0);
+	struct folio *folio = filemap_grab_folio(inode->i_mapping, 0);
 	struct minix_sb_info *sbi = minix_sb(inode->i_sb);
 	char *kaddr;
 	int err;
 
-	if (!page)
-		return -ENOMEM;
-	err = minix_prepare_chunk(page, 0, 2 * sbi->s_dirsize);
+	if (IS_ERR(folio))
+		return PTR_ERR(folio);
+	err = minix_prepare_chunk(&folio->page, 0, 2 * sbi->s_dirsize);
 	if (err) {
-		unlock_page(page);
+		folio_unlock(folio);
 		goto fail;
 	}
 
-	kaddr = kmap_local_page(page);
-	memset(kaddr, 0, PAGE_SIZE);
+	kaddr = kmap_local_folio(folio, 0);
+	memset(kaddr, 0, folio_size(folio));
 
 	if (sbi->s_version == MINIX_V3) {
 		minix3_dirent *de3 = (minix3_dirent *)kaddr;
@@ -344,10 +344,10 @@ int minix_make_empty(struct inode *inode, struct inode *dir)
 	}
 	kunmap_local(kaddr);
 
-	dir_commit_chunk(page, 0, 2 * sbi->s_dirsize);
+	dir_commit_chunk(&folio->page, 0, 2 * sbi->s_dirsize);
 	err = minix_handle_dirsync(inode);
 fail:
-	put_page(page);
+	folio_put(folio);
 	return err;
 }
 
