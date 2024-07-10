@@ -397,7 +397,7 @@ static irqreturn_t max_tcpci_irq(int irq, void *dev_id)
 	}
 	while (status) {
 		irq_return = _max_tcpci_irq(chip, status);
-		/* Do not return if the ALERT is already set. */
+		/* Do not return if a (new) ALERT is set (again). */
 		ret = max_tcpci_read16(chip, TCPC_ALERT, &status);
 		if (ret < 0)
 			break;
