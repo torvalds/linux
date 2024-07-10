@@ -46,8 +46,6 @@ enum fladc_select {
 #define READ1_SLEEP_MS			10
 #define READ2_SLEEP_MS			5
 
-#define STATUS_CHECK(reg, mask, val)	(((reg) & (mask)) == (val))
-
 #define IS_CC_OPEN(cc_status) \
 	(FIELD_GET(TCPC_CC_STATUS_CC1, cc_status) == TCPC_CC_STATE_SRC_OPEN \
 	 && FIELD_GET(TCPC_CC_STATUS_CC2, cc_status) == TCPC_CC_STATE_SRC_OPEN)
@@ -368,7 +366,7 @@ bool max_contaminant_is_contaminant(struct max_tcpci_chip *chip, bool disconnect
 		}
 		return false;
 	} else if (chip->contaminant_state == DETECTED) {
-		if (STATUS_CHECK(cc_status, TCPC_CC_STATUS_TOGGLING, 0)) {
+		if (!(cc_status & TCPC_CC_STATUS_TOGGLING)) {
 			chip->contaminant_state = max_contaminant_detect_contaminant(chip);
 			if (chip->contaminant_state == DETECTED) {
 				max_contaminant_enable_dry_detection(chip);
