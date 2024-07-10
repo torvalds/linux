@@ -144,6 +144,11 @@ static int lm95234_temp_write(struct device *dev, u32 attr, int channel, long va
 	struct regmap *regmap = data->regmap;
 
 	switch (attr) {
+	case hwmon_temp_enable:
+		if (val && val != 1)
+			return -EINVAL;
+		return regmap_update_bits(regmap, LM95234_REG_ENABLE,
+					  BIT(channel), val ? BIT(channel) : 0);
 	case hwmon_temp_type:
 		if (val != 1 && val != 2)
 			return -EINVAL;
@@ -183,6 +188,12 @@ static int lm95234_temp_read(struct device *dev, u32 attr, int channel, long *va
 	int ret;
 
 	switch (attr) {
+	case hwmon_temp_enable:
+		ret = regmap_read(regmap, LM95234_REG_ENABLE, &regval);
+		if (ret)
+			return ret;
+		*val = !!(regval & BIT(channel));
+		break;
 	case hwmon_temp_input:
 		return lm95234_read_temp(regmap, channel, val);
 	case hwmon_temp_max_alarm:
@@ -331,6 +342,7 @@ static umode_t lm95234_is_visible(const void *_data, enum hwmon_sensor_types typ
 		case hwmon_temp_fault:
 			return channel ? 0444 : 0;
 		case hwmon_temp_max:
+		case hwmon_temp_enable:
 			return 0644;
 		case hwmon_temp_max_hyst:
 			return channel ? 0444 : 0644;
@@ -350,21 +362,21 @@ static const struct hwmon_channel_info * const lm95234_info[] = {
 	HWMON_CHANNEL_INFO(chip, HWMON_C_UPDATE_INTERVAL),
 	HWMON_CHANNEL_INFO(temp,
 			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_MAX_HYST |
-			   HWMON_T_MAX_ALARM,
+			   HWMON_T_MAX_ALARM | HWMON_T_ENABLE,
 			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_MAX_HYST |
 			   HWMON_T_MAX_ALARM | HWMON_T_FAULT | HWMON_T_TYPE |
 			   HWMON_T_CRIT | HWMON_T_CRIT_HYST |
-			   HWMON_T_CRIT_ALARM | HWMON_T_OFFSET,
+			   HWMON_T_CRIT_ALARM | HWMON_T_OFFSET | HWMON_T_ENABLE,
 			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_MAX_HYST |
 			   HWMON_T_MAX_ALARM | HWMON_T_FAULT | HWMON_T_TYPE |
 			   HWMON_T_CRIT | HWMON_T_CRIT_HYST |
-			   HWMON_T_CRIT_ALARM | HWMON_T_OFFSET,
+			   HWMON_T_CRIT_ALARM | HWMON_T_OFFSET | HWMON_T_ENABLE,
 			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_MAX_HYST |
 			   HWMON_T_MAX_ALARM | HWMON_T_FAULT | HWMON_T_TYPE |
-			   HWMON_T_OFFSET,
+			   HWMON_T_OFFSET | HWMON_T_ENABLE,
 			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_MAX_HYST |
 			   HWMON_T_MAX_ALARM | HWMON_T_FAULT | HWMON_T_TYPE |
-			   HWMON_T_OFFSET),
+			   HWMON_T_OFFSET | HWMON_T_ENABLE),
 	NULL
 };
 
