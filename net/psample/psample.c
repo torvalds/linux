@@ -360,8 +360,9 @@ static int psample_tunnel_meta_len(struct ip_tunnel_info *tun_info)
 }
 #endif
 
-void psample_sample_packet(struct psample_group *group, struct sk_buff *skb,
-			   u32 sample_rate, const struct psample_metadata *md)
+void psample_sample_packet(struct psample_group *group,
+			   const struct sk_buff *skb, u32 sample_rate,
+			   const struct psample_metadata *md)
 {
 	ktime_t tstamp = ktime_get_real();
 	int out_ifindex = md->out_ifindex;
@@ -498,7 +499,7 @@ void psample_sample_packet(struct psample_group *group, struct sk_buff *skb,
 		goto error;
 
 	if (md->rate_as_probability)
-		nla_put_flag(skb, PSAMPLE_ATTR_SAMPLE_PROBABILITY);
+		nla_put_flag(nl_skb, PSAMPLE_ATTR_SAMPLE_PROBABILITY);
 
 	genlmsg_end(nl_skb, data);
 	genlmsg_multicast_netns(&psample_nl_family, group->net, nl_skb, 0,
