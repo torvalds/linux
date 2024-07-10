@@ -344,7 +344,7 @@ static void sunxi_sram_unlock(void *_lock)
 	spin_unlock(lock);
 }
 
-static struct regmap_config sunxi_sram_regmap_config = {
+static const struct regmap_config sunxi_sram_regmap_config = {
 	.reg_bits       = 32,
 	.val_bits       = 32,
 	.reg_stride     = 4,
