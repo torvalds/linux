@@ -5578,22 +5578,12 @@ static void selinux_req_classify_flow(const struct request_sock *req,
 	flic->flowic_secid = req->secid;
 }
 
-static int selinux_tun_dev_alloc_security(void **security)
+static int selinux_tun_dev_alloc_security(void *security)
 {
-	struct tun_security_struct *tunsec;
+	struct tun_security_struct *tunsec = selinux_tun_dev(security);
 
-	tunsec = kzalloc(sizeof(*tunsec), GFP_KERNEL);
-	if (!tunsec)
-		return -ENOMEM;
 	tunsec->sid = current_sid();
-
-	*security = tunsec;
 	return 0;
-}
-
-static void selinux_tun_dev_free_security(void *security)
-{
-	kfree(security);
 }
 
 static int selinux_tun_dev_create(void)
@@ -5613,7 +5603,7 @@ static int selinux_tun_dev_create(void)
 
 static int selinux_tun_dev_attach_queue(void *security)
 {
-	struct tun_security_struct *tunsec = security;
+	struct tun_security_struct *tunsec = selinux_tun_dev(security);
 
 	return avc_has_perm(current_sid(), tunsec->sid, SECCLASS_TUN_SOCKET,
 			    TUN_SOCKET__ATTACH_QUEUE, NULL);
@@ -5621,7 +5611,7 @@ static int selinux_tun_dev_attach_queue(void *security)
 
 static int selinux_tun_dev_attach(struct sock *sk, void *security)
 {
-	struct tun_security_struct *tunsec = security;
+	struct tun_security_struct *tunsec = selinux_tun_dev(security);
 	struct sk_security_struct *sksec = selinux_sock(sk);
 
 	/* we don't currently perform any NetLabel based labeling here and it
@@ -5639,7 +5629,7 @@ static int selinux_tun_dev_attach(struct sock *sk, void *security)
 
 static int selinux_tun_dev_open(void *security)
 {
-	struct tun_security_struct *tunsec = security;
+	struct tun_security_struct *tunsec = selinux_tun_dev(security);
 	u32 sid = current_sid();
 	int err;
 
@@ -6978,6 +6968,7 @@ struct lsm_blob_sizes selinux_blob_sizes __ro_after_init = {
 	.lbs_sock = sizeof(struct sk_security_struct),
 	.lbs_superblock = sizeof(struct superblock_security_struct),
 	.lbs_xattr_count = SELINUX_INODE_INIT_XATTRS,
+	.lbs_tun_dev = sizeof(struct tun_security_struct),
 };
 
 #ifdef CONFIG_PERF_EVENTS
@@ -7289,7 +7280,6 @@ static struct security_hook_list selinux_hooks[] __ro_after_init = {
 	LSM_HOOK_INIT(secmark_refcount_inc, selinux_secmark_refcount_inc),
 	LSM_HOOK_INIT(secmark_refcount_dec, selinux_secmark_refcount_dec),
 	LSM_HOOK_INIT(req_classify_flow, selinux_req_classify_flow),
-	LSM_HOOK_INIT(tun_dev_free_security, selinux_tun_dev_free_security),
 	LSM_HOOK_INIT(tun_dev_create, selinux_tun_dev_create),
 	LSM_HOOK_INIT(tun_dev_attach_queue, selinux_tun_dev_attach_queue),
 	LSM_HOOK_INIT(tun_dev_attach, selinux_tun_dev_attach),
