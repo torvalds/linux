@@ -138,8 +138,9 @@ bool dml2_check_mode_supported(struct dml2_check_mode_supported_in_out *in_out)
 	}
 
 	in_out->is_supported = mcache_success;
+	result = result && in_out->is_supported;
 
-	return true;
+	return result;
 }
 
 bool dml2_build_mode_programming(struct dml2_build_mode_programming_in_out *in_out)
