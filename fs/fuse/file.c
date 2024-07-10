@@ -2434,29 +2434,30 @@ static int fuse_write_end(struct file *file, struct address_space *mapping,
 		loff_t pos, unsigned len, unsigned copied,
 		struct page *page, void *fsdata)
 {
-	struct inode *inode = page->mapping->host;
+	struct folio *folio = page_folio(page);
+	struct inode *inode = folio->mapping->host;
 
 	/* Haven't copied anything?  Skip zeroing, size extending, dirtying. */
 	if (!copied)
 		goto unlock;
 
 	pos += copied;
-	if (!PageUptodate(page)) {
+	if (!folio_test_uptodate(folio)) {
 		/* Zero any unwritten bytes at the end of the page */
 		size_t endoff = pos & ~PAGE_MASK;
 		if (endoff)
-			zero_user_segment(page, endoff, PAGE_SIZE);
-		SetPageUptodate(page);
+			folio_zero_segment(folio, endoff, PAGE_SIZE);
+		folio_mark_uptodate(folio);
 	}
 
 	if (pos > inode->i_size)
 		i_size_write(inode, pos);
 
-	set_page_dirty(page);
+	folio_mark_dirty(folio);
 
 unlock:
-	unlock_page(page);
-	put_page(page);
+	folio_unlock(folio);
+	folio_put(folio);
 
 	return copied;
 }
