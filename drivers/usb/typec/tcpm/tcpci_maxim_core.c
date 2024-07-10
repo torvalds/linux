@@ -193,9 +193,8 @@ static void process_rx(struct max_tcpci_chip *chip, u16 status)
 	 * Read complete, clear RX status alert bit.
 	 * Clear overflow as well if set.
 	 */
-	ret = max_tcpci_write16(chip, TCPC_ALERT, status & TCPC_ALERT_RX_BUF_OVF ?
-				TCPC_ALERT_RX_STATUS | TCPC_ALERT_RX_BUF_OVF :
-				TCPC_ALERT_RX_STATUS);
+	ret = max_tcpci_write16(chip, TCPC_ALERT,
+				TCPC_ALERT_RX_STATUS | (status & TCPC_ALERT_RX_BUF_OVF));
 	if (ret < 0)
 		return;
 
@@ -297,9 +296,8 @@ static irqreturn_t _max_tcpci_irq(struct max_tcpci_chip *chip, u16 status)
 	 * be cleared until we have successfully retrieved message.
 	 */
 	if (status & ~TCPC_ALERT_RX_STATUS) {
-		mask = status & TCPC_ALERT_RX_BUF_OVF ?
-			status & ~(TCPC_ALERT_RX_STATUS | TCPC_ALERT_RX_BUF_OVF) :
-			status & ~TCPC_ALERT_RX_STATUS;
+		mask = status & ~(TCPC_ALERT_RX_STATUS
+				  | (status & TCPC_ALERT_RX_BUF_OVF));
 		ret = max_tcpci_write16(chip, TCPC_ALERT, mask);
 		if (ret < 0) {
 			dev_err(chip->dev, "ALERT clear failed\n");
