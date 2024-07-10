@@ -28,6 +28,7 @@
 #include <linux/xattr.h>
 #include <linux/msg.h>
 #include <linux/overflow.h>
+#include <linux/perf_event.h>
 #include <net/flow.h>
 #include <net/sock.h>
 
@@ -230,6 +231,7 @@ static void __init lsm_set_blob_sizes(struct lsm_blob_sizes *needed)
 	lsm_set_blob_size(&needed->lbs_ipc, &blob_sizes.lbs_ipc);
 	lsm_set_blob_size(&needed->lbs_key, &blob_sizes.lbs_key);
 	lsm_set_blob_size(&needed->lbs_msg_msg, &blob_sizes.lbs_msg_msg);
+	lsm_set_blob_size(&needed->lbs_perf_event, &blob_sizes.lbs_perf_event);
 	lsm_set_blob_size(&needed->lbs_sock, &blob_sizes.lbs_sock);
 	lsm_set_blob_size(&needed->lbs_superblock, &blob_sizes.lbs_superblock);
 	lsm_set_blob_size(&needed->lbs_task, &blob_sizes.lbs_task);
@@ -412,6 +414,7 @@ static void __init ordered_lsm_init(void)
 	init_debug("msg_msg blob size    = %d\n", blob_sizes.lbs_msg_msg);
 	init_debug("sock blob size       = %d\n", blob_sizes.lbs_sock);
 	init_debug("superblock blob size = %d\n", blob_sizes.lbs_superblock);
+	init_debug("perf event blob size = %d\n", blob_sizes.lbs_perf_event);
 	init_debug("task blob size       = %d\n", blob_sizes.lbs_task);
 	init_debug("tun device blob size = %d\n", blob_sizes.lbs_tun_dev);
 	init_debug("xattr slots          = %d\n", blob_sizes.lbs_xattr_count);
@@ -5685,7 +5688,19 @@ int security_perf_event_open(struct perf_event_attr *attr, int type)
  */
 int security_perf_event_alloc(struct perf_event *event)
 {
-	return call_int_hook(perf_event_alloc, event);
+	int rc;
+
+	rc = lsm_blob_alloc(&event->security, blob_sizes.lbs_perf_event,
+			    GFP_KERNEL);
+	if (rc)
+		return rc;
+
+	rc = call_int_hook(perf_event_alloc, event);
+	if (rc) {
+		kfree(event->security);
+		event->security = NULL;
+	}
+	return rc;
 }
 
 /**
@@ -5696,7 +5711,8 @@ int security_perf_event_alloc(struct perf_event *event)
  */
 void security_perf_event_free(struct perf_event *event)
 {
-	call_void_hook(perf_event_free, event);
+	kfree(event->security);
+	event->security = NULL;
 }
 
 /**

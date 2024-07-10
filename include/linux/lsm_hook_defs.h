@@ -439,7 +439,6 @@ LSM_HOOK(int, 0, locked_down, enum lockdown_reason what)
 #ifdef CONFIG_PERF_EVENTS
 LSM_HOOK(int, 0, perf_event_open, struct perf_event_attr *attr, int type)
 LSM_HOOK(int, 0, perf_event_alloc, struct perf_event *event)
-LSM_HOOK(void, LSM_RET_VOID, perf_event_free, struct perf_event *event)
 LSM_HOOK(int, 0, perf_event_read, struct perf_event *event)
 LSM_HOOK(int, 0, perf_event_write, struct perf_event *event)
 #endif /* CONFIG_PERF_EVENTS */

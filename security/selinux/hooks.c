@@ -6955,6 +6955,9 @@ struct lsm_blob_sizes selinux_blob_sizes __ro_after_init = {
 	.lbs_ipc = sizeof(struct ipc_security_struct),
 	.lbs_key = sizeof(struct key_security_struct),
 	.lbs_msg_msg = sizeof(struct msg_security_struct),
+#ifdef CONFIG_PERF_EVENTS
+	.lbs_perf_event = sizeof(struct perf_event_security_struct),
+#endif
 	.lbs_sock = sizeof(struct sk_security_struct),
 	.lbs_superblock = sizeof(struct superblock_security_struct),
 	.lbs_xattr_count = SELINUX_INODE_INIT_XATTRS,
@@ -6986,22 +6989,10 @@ static int selinux_perf_event_alloc(struct perf_event *event)
 {
 	struct perf_event_security_struct *perfsec;
 
-	perfsec = kzalloc(sizeof(*perfsec), GFP_KERNEL);
-	if (!perfsec)
-		return -ENOMEM;
-
+	perfsec = selinux_perf_event(event->security);
 	perfsec->sid = current_sid();
-	event->security = perfsec;
 
 	return 0;
-}
-
-static void selinux_perf_event_free(struct perf_event *event)
-{
-	struct perf_event_security_struct *perfsec = event->security;
-
-	event->security = NULL;
-	kfree(perfsec);
 }
 
 static int selinux_perf_event_read(struct perf_event *event)
@@ -7316,7 +7307,6 @@ static struct security_hook_list selinux_hooks[] __ro_after_init = {
 
 #ifdef CONFIG_PERF_EVENTS
 	LSM_HOOK_INIT(perf_event_open, selinux_perf_event_open),
-	LSM_HOOK_INIT(perf_event_free, selinux_perf_event_free),
 	LSM_HOOK_INIT(perf_event_read, selinux_perf_event_read),
 	LSM_HOOK_INIT(perf_event_write, selinux_perf_event_write),
 #endif
