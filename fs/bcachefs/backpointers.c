@@ -762,12 +762,12 @@ static int bch2_get_btree_in_memory_pos(struct btree_trans *trans,
 	for (enum btree_id btree = start.btree;
 	     btree < BTREE_ID_NR && !ret;
 	     btree++) {
-		unsigned depth = ((1U << btree) & btree_leaf_mask) ? 0 : 1;
+		unsigned depth = (BIT_ULL(btree) & btree_leaf_mask) ? 0 : 1;
 		struct btree_iter iter;
 		struct btree *b;
 
-		if (!((1U << btree) & btree_leaf_mask) &&
-		    !((1U << btree) & btree_interior_mask))
+		if (!(BIT_ULL(btree) & btree_leaf_mask) &&
+		    !(BIT_ULL(btree) & btree_interior_mask))
 			continue;
 
 		bch2_trans_begin(trans);
@@ -951,8 +951,8 @@ int bch2_check_backpointers_to_extents(struct bch_fs *c)
 
 	while (1) {
 		ret = bch2_get_btree_in_memory_pos(trans,
-						   (1U << BTREE_ID_extents)|
-						   (1U << BTREE_ID_reflink),
+						   BIT_ULL(BTREE_ID_extents)|
+						   BIT_ULL(BTREE_ID_reflink),
 						   ~0,
 						   start, &end);
 		if (ret)
