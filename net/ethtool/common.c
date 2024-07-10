@@ -587,35 +587,39 @@ err_free_info:
 	return err;
 }
 
-int ethtool_get_max_rxfh_channel(struct net_device *dev, u32 *max)
+u32 ethtool_get_max_rxfh_channel(struct net_device *dev)
 {
 	struct ethtool_rxfh_param rxfh = {};
-	u32 dev_size, current_max = 0;
+	u32 dev_size, current_max;
 	int ret;
+
+	if (!netif_is_rxfh_configured(dev))
+		return 0;
 
 	if (!dev->ethtool_ops->get_rxfh_indir_size ||
 	    !dev->ethtool_ops->get_rxfh)
-		return -EOPNOTSUPP;
+		return 0;
 	dev_size = dev->ethtool_ops->get_rxfh_indir_size(dev);
 	if (dev_size == 0)
-		return -EOPNOTSUPP;
+		return 0;
 
 	rxfh.indir = kcalloc(dev_size, sizeof(rxfh.indir[0]), GFP_USER);
 	if (!rxfh.indir)
-		return -ENOMEM;
+		return U32_MAX;
 
 	ret = dev->ethtool_ops->get_rxfh(dev, &rxfh);
-	if (ret)
-		goto out;
+	if (ret) {
+		current_max = U32_MAX;
+		goto out_free;
+	}
 
+	current_max = 0;
 	while (dev_size--)
 		current_max = max(current_max, rxfh.indir[dev_size]);
 
-	*max = current_max;
-
-out:
+out_free:
 	kfree(rxfh.indir);
-	return ret;
+	return current_max;
 }
 
 int ethtool_check_ops(const struct ethtool_ops *ops)
