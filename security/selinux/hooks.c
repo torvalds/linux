@@ -6781,22 +6781,12 @@ static int selinux_ib_endport_manage_subnet(void *ib_sec, const char *dev_name,
 			    INFINIBAND_ENDPORT__MANAGE_SUBNET, &ad);
 }
 
-static int selinux_ib_alloc_security(void **ib_sec)
+static int selinux_ib_alloc_security(void *ib_sec)
 {
-	struct ib_security_struct *sec;
+	struct ib_security_struct *sec = selinux_ib(ib_sec);
 
-	sec = kzalloc(sizeof(*sec), GFP_KERNEL);
-	if (!sec)
-		return -ENOMEM;
 	sec->sid = current_sid();
-
-	*ib_sec = sec;
 	return 0;
-}
-
-static void selinux_ib_free_security(void *ib_sec)
-{
-	kfree(ib_sec);
 }
 #endif
 
@@ -6969,6 +6959,7 @@ struct lsm_blob_sizes selinux_blob_sizes __ro_after_init = {
 	.lbs_superblock = sizeof(struct superblock_security_struct),
 	.lbs_xattr_count = SELINUX_INODE_INIT_XATTRS,
 	.lbs_tun_dev = sizeof(struct tun_security_struct),
+	.lbs_ib = sizeof(struct ib_security_struct),
 };
 
 #ifdef CONFIG_PERF_EVENTS
@@ -7288,7 +7279,6 @@ static struct security_hook_list selinux_hooks[] __ro_after_init = {
 	LSM_HOOK_INIT(ib_pkey_access, selinux_ib_pkey_access),
 	LSM_HOOK_INIT(ib_endport_manage_subnet,
 		      selinux_ib_endport_manage_subnet),
-	LSM_HOOK_INIT(ib_free_security, selinux_ib_free_security),
 #endif
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
 	LSM_HOOK_INIT(xfrm_policy_free_security, selinux_xfrm_policy_free),

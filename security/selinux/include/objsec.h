@@ -212,4 +212,9 @@ static inline struct tun_security_struct *selinux_tun_dev(void *security)
 	return security + selinux_blob_sizes.lbs_tun_dev;
 }
 
+static inline struct ib_security_struct *selinux_ib(void *ib_sec)
+{
+	return ib_sec + selinux_blob_sizes.lbs_ib;
+}
+
 #endif /* _SELINUX_OBJSEC_H_ */

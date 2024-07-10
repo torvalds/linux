@@ -219,6 +219,7 @@ static void __init lsm_set_blob_sizes(struct lsm_blob_sizes *needed)
 
 	lsm_set_blob_size(&needed->lbs_cred, &blob_sizes.lbs_cred);
 	lsm_set_blob_size(&needed->lbs_file, &blob_sizes.lbs_file);
+	lsm_set_blob_size(&needed->lbs_ib, &blob_sizes.lbs_ib);
 	/*
 	 * The inode blob gets an rcu_head in addition to
 	 * what the modules might need.
@@ -402,6 +403,7 @@ static void __init ordered_lsm_init(void)
 
 	init_debug("cred blob size       = %d\n", blob_sizes.lbs_cred);
 	init_debug("file blob size       = %d\n", blob_sizes.lbs_file);
+	init_debug("ib blob size         = %d\n", blob_sizes.lbs_ib);
 	init_debug("inode blob size      = %d\n", blob_sizes.lbs_inode);
 	init_debug("ipc blob size        = %d\n", blob_sizes.lbs_ipc);
 #ifdef CONFIG_KEYS
@@ -5096,7 +5098,18 @@ EXPORT_SYMBOL(security_ib_endport_manage_subnet);
  */
 int security_ib_alloc_security(void **sec)
 {
-	return call_int_hook(ib_alloc_security, sec);
+	int rc;
+
+	rc = lsm_blob_alloc(sec, blob_sizes.lbs_ib, GFP_KERNEL);
+	if (rc)
+		return rc;
+
+	rc = call_int_hook(ib_alloc_security, *sec);
+	if (rc) {
+		kfree(*sec);
+		*sec = NULL;
+	}
+	return rc;
 }
 EXPORT_SYMBOL(security_ib_alloc_security);
 
@@ -5108,7 +5121,7 @@ EXPORT_SYMBOL(security_ib_alloc_security);
  */
 void security_ib_free_security(void *sec)
 {
-	call_void_hook(ib_free_security, sec);
+	kfree(sec);
 }
 EXPORT_SYMBOL(security_ib_free_security);
 #endif	/* CONFIG_SECURITY_INFINIBAND */
