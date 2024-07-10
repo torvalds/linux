@@ -5321,7 +5321,7 @@ retry:
 	memcpy(page_address(page), symname, len-1);
 
 	err = aops->write_end(NULL, mapping, 0, len-1, len-1,
-							page, fsdata);
+						page_folio(page), fsdata);
 	if (err < 0)
 		goto fail;
 	if (err < len-1)

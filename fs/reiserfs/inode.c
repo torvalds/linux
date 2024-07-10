@@ -2862,10 +2862,9 @@ static sector_t reiserfs_aop_bmap(struct address_space *as, sector_t block)
 
 static int reiserfs_write_end(struct file *file, struct address_space *mapping,
 			      loff_t pos, unsigned len, unsigned copied,
-			      struct page *page, void *fsdata)
+			      struct folio *folio, void *fsdata)
 {
-	struct folio *folio = page_folio(page);
-	struct inode *inode = page->mapping->host;
+	struct inode *inode = folio->mapping->host;
 	int ret = 0;
 	int update_sd = 0;
 	struct reiserfs_transaction_handle *th;
@@ -2887,7 +2886,7 @@ static int reiserfs_write_end(struct file *file, struct address_space *mapping,
 	}
 	flush_dcache_folio(folio);
 
-	reiserfs_commit_page(inode, page, start, start + copied);
+	reiserfs_commit_page(inode, &folio->page, start, start + copied);
 
 	/*
 	 * generic_commit_write does this for us, but does not update the
@@ -2942,8 +2941,8 @@ static int reiserfs_write_end(struct file *file, struct address_space *mapping,
 out:
 	if (locked)
 		reiserfs_write_unlock(inode->i_sb);
-	unlock_page(page);
-	put_page(page);
+	folio_unlock(folio);
+	folio_put(folio);
 
 	if (pos + len > inode->i_size)
 		reiserfs_truncate_failed_write(inode);

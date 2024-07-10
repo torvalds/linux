@@ -2280,9 +2280,8 @@ EXPORT_SYMBOL(block_write_end);
 
 int generic_write_end(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned copied,
-			struct page *page, void *fsdata)
+			struct folio *folio, void *fsdata)
 {
-	struct folio *folio = page_folio(page);
 	struct inode *inode = mapping->host;
 	loff_t old_size = inode->i_size;
 	bool i_size_changed = false;
@@ -2480,7 +2479,7 @@ int generic_cont_expand_simple(struct inode *inode, loff_t size)
 	if (err)
 		goto out;
 
-	err = aops->write_end(NULL, mapping, size, 0, 0, page, fsdata);
+	err = aops->write_end(NULL, mapping, size, 0, 0, page_folio(page), fsdata);
 	BUG_ON(err > 0);
 
 out:
@@ -2518,7 +2517,7 @@ static int cont_expand_zero(struct file *file, struct address_space *mapping,
 			goto out;
 		zero_user(page, zerofrom, len);
 		err = aops->write_end(file, mapping, curpos, len, len,
-						page, fsdata);
+						page_folio(page), fsdata);
 		if (err < 0)
 			goto out;
 		BUG_ON(err != len);
@@ -2551,7 +2550,7 @@ static int cont_expand_zero(struct file *file, struct address_space *mapping,
 			goto out;
 		zero_user(page, zerofrom, len);
 		err = aops->write_end(file, mapping, curpos, len, len,
-						page, fsdata);
+						page_folio(page), fsdata);
 		if (err < 0)
 			goto out;
 		BUG_ON(err != len);

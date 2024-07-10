@@ -495,7 +495,7 @@ void hfs_file_truncate(struct inode *inode)
 				&fsdata);
 		if (!res) {
 			res = generic_write_end(NULL, mapping, size + 1, 0, 0,
-					page, fsdata);
+					page_folio(page), fsdata);
 		}
 		if (res)
 			inode->i_size = HFS_I(inode)->phys_size;

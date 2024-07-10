@@ -2700,7 +2700,7 @@ retry:
 		memcpy_to_page(page, offset, data, tocopy);
 
 		a_ops->write_end(NULL, mapping, off, tocopy, tocopy,
-						page, fsdata);
+						page_folio(page), fsdata);
 		offset = 0;
 		towrite -= tocopy;
 		off += tocopy;

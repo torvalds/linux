@@ -548,7 +548,7 @@ static int exfat_file_zeroed_range(struct file *file, loff_t start, loff_t end)
 
 		zero_user_segment(page, zerofrom, zerofrom + len);
 
-		err = ops->write_end(file, mapping, start, len, len, page, NULL);
+		err = ops->write_end(file, mapping, start, len, len, page_folio(page), NULL);
 		if (err < 0)
 			goto out;
 		start += len;

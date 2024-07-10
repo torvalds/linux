@@ -372,10 +372,9 @@ start:
 
 static int nfs_write_end(struct file *file, struct address_space *mapping,
 			 loff_t pos, unsigned len, unsigned copied,
-			 struct page *page, void *fsdata)
+			 struct folio *folio, void *fsdata)
 {
 	struct nfs_open_context *ctx = nfs_file_open_context(file);
-	struct folio *folio = page_folio(page);
 	unsigned offset = offset_in_folio(folio, pos);
 	int status;
 

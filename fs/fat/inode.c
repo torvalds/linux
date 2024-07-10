@@ -236,11 +236,11 @@ static int fat_write_begin(struct file *file, struct address_space *mapping,
 
 static int fat_write_end(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned copied,
-			struct page *pagep, void *fsdata)
+			struct folio *folio, void *fsdata)
 {
 	struct inode *inode = mapping->host;
 	int err;
-	err = generic_write_end(file, mapping, pos, len, copied, pagep, fsdata);
+	err = generic_write_end(file, mapping, pos, len, copied, folio, fsdata);
 	if (err < len)
 		fat_write_failed(mapping, pos + len);
 	if (!(err < 0) && !(MSDOS_I(inode)->i_attrs & ATTR_ARCH)) {

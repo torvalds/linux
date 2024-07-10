@@ -300,9 +300,8 @@ static int vboxsf_writepage(struct page *page, struct writeback_control *wbc)
 
 static int vboxsf_write_end(struct file *file, struct address_space *mapping,
 			    loff_t pos, unsigned int len, unsigned int copied,
-			    struct page *page, void *fsdata)
+			    struct folio *folio, void *fsdata)
 {
-	struct folio *folio = page_folio(page);
 	struct inode *inode = mapping->host;
 	struct vboxsf_handle *sf_handle = file->private_data;
 	size_t from = offset_in_folio(folio, pos);
@@ -314,10 +313,10 @@ static int vboxsf_write_end(struct file *file, struct address_space *mapping,
 	if (!folio_test_uptodate(folio) && copied < len)
 		folio_zero_range(folio, from + copied, len - copied);
 
-	buf = kmap(page);
+	buf = kmap(&folio->page);
 	err = vboxsf_write(sf_handle->root, sf_handle->handle,
 			   pos, &nwritten, buf + from);
-	kunmap(page);
+	kunmap(&folio->page);
 
 	if (err) {
 		nwritten = 0;

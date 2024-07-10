@@ -477,9 +477,8 @@ static int hostfs_write_begin(struct file *file, struct address_space *mapping,
 
 static int hostfs_write_end(struct file *file, struct address_space *mapping,
 			    loff_t pos, unsigned len, unsigned copied,
-			    struct page *page, void *fsdata)
+			    struct folio *folio, void *fsdata)
 {
-	struct folio *folio = page_folio(page);
 	struct inode *inode = mapping->host;
 	void *buffer;
 	size_t from = offset_in_folio(folio, pos);

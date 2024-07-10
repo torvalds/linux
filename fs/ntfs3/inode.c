@@ -947,9 +947,8 @@ out:
  * ntfs_write_end - Address_space_operations::write_end.
  */
 int ntfs_write_end(struct file *file, struct address_space *mapping, loff_t pos,
-		   u32 len, u32 copied, struct page *page, void *fsdata)
+		   u32 len, u32 copied, struct folio *folio, void *fsdata)
 {
-	struct folio *folio = page_folio(page);
 	struct inode *inode = mapping->host;
 	struct ntfs_inode *ni = ntfs_i(inode);
 	u64 valid = ni->i_valid;
@@ -979,7 +978,7 @@ int ntfs_write_end(struct file *file, struct address_space *mapping, loff_t pos,
 		folio_unlock(folio);
 		folio_put(folio);
 	} else {
-		err = generic_write_end(file, mapping, pos, len, copied, page,
+		err = generic_write_end(file, mapping, pos, len, copied, folio,
 					fsdata);
 	}
 

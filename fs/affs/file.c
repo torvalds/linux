@@ -433,12 +433,12 @@ static int affs_write_begin(struct file *file, struct address_space *mapping,
 
 static int affs_write_end(struct file *file, struct address_space *mapping,
 			  loff_t pos, unsigned int len, unsigned int copied,
-			  struct page *page, void *fsdata)
+			  struct folio *folio, void *fsdata)
 {
 	struct inode *inode = mapping->host;
 	int ret;
 
-	ret = generic_write_end(file, mapping, pos, len, copied, page, fsdata);
+	ret = generic_write_end(file, mapping, pos, len, copied, folio, fsdata);
 
 	/* Clear Archived bit on file writes, as AmigaOS would do */
 	if (AFFS_I(inode)->i_protect & FIBF_ARCHIVED) {
@@ -687,9 +687,8 @@ static int affs_write_begin_ofs(struct file *file, struct address_space *mapping
 
 static int affs_write_end_ofs(struct file *file, struct address_space *mapping,
 				loff_t pos, unsigned len, unsigned copied,
-				struct page *page, void *fsdata)
+				struct folio *folio, void *fsdata)
 {
-	struct folio *folio = page_folio(page);
 	struct inode *inode = mapping->host;
 	struct super_block *sb = inode->i_sb;
 	struct buffer_head *bh, *prev_bh;
@@ -889,7 +888,7 @@ affs_truncate(struct inode *inode)
 
 		res = mapping->a_ops->write_begin(NULL, mapping, isize, 0, &page, &fsdata);
 		if (!res)
-			res = mapping->a_ops->write_end(NULL, mapping, isize, 0, 0, page, fsdata);
+			res = mapping->a_ops->write_end(NULL, mapping, isize, 0, 0, page_folio(page), fsdata);
 		else
 			inode->i_size = AFFS_I(inode)->mmu_private;
 		mark_inode_dirty(inode);

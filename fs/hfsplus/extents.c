@@ -563,7 +563,7 @@ void hfsplus_file_truncate(struct inode *inode)
 		if (res)
 			return;
 		res = generic_write_end(NULL, mapping, size, 0, 0,
-					page, fsdata);
+					page_folio(page), fsdata);
 		if (res < 0)
 			return;
 		mark_inode_dirty(inode);

@@ -458,15 +458,14 @@ int ecryptfs_write_inode_size_to_metadata(struct inode *ecryptfs_inode)
  * @pos: The file position
  * @len: The length of the data (unused)
  * @copied: The amount of data copied
- * @page: The eCryptfs page
+ * @folio: The eCryptfs folio
  * @fsdata: The fsdata (unused)
  */
 static int ecryptfs_write_end(struct file *file,
 			struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned copied,
-			struct page *page, void *fsdata)
+			struct folio *folio, void *fsdata)
 {
-	struct folio *folio = page_folio(page);
 	pgoff_t index = pos >> PAGE_SHIFT;
 	unsigned from = pos & (PAGE_SIZE - 1);
 	unsigned to = from + copied;

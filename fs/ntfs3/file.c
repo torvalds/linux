@@ -215,7 +215,7 @@ static int ntfs_extend_initialized_size(struct file *file,
 		zero_user_segment(page, zerofrom, PAGE_SIZE);
 
 		/* This function in any case puts page. */
-		err = ntfs_write_end(file, mapping, pos, len, len, page, NULL);
+		err = ntfs_write_end(file, mapping, pos, len, len, page_folio(page), NULL);
 		if (err < 0)
 			goto out;
 		pos += len;

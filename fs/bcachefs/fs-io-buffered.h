@@ -13,7 +13,7 @@ void bch2_readahead(struct readahead_control *);
 int bch2_write_begin(struct file *, struct address_space *, loff_t,
 		     unsigned, struct page **, void **);
 int bch2_write_end(struct file *, struct address_space *, loff_t,
-		   unsigned, unsigned, struct page *, void *);
+		   unsigned len, unsigned copied, struct folio *, void *);
 
 ssize_t bch2_write_iter(struct kiocb *, struct iov_iter *);
 

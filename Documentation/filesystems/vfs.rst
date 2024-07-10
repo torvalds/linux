@@ -810,7 +810,7 @@ cache in your filesystem.  The following members are defined:
 				struct page **pagep, void **fsdata);
 		int (*write_end)(struct file *, struct address_space *mapping,
 				 loff_t pos, unsigned len, unsigned copied,
-				 struct page *page, void *fsdata);
+				 struct folio *folio, void *fsdata);
 		sector_t (*bmap)(struct address_space *, sector_t);
 		void (*invalidate_folio) (struct folio *, size_t start, size_t len);
 		bool (*release_folio)(struct folio *, gfp_t);
@@ -944,8 +944,8 @@ cache in your filesystem.  The following members are defined:
 	called.  len is the original len passed to write_begin, and
 	copied is the amount that was able to be copied.
 
-	The filesystem must take care of unlocking the page and
-	releasing it refcount, and updating i_size.
+	The filesystem must take care of unlocking the folio,
+	decrementing its refcount, and updating i_size.
 
 	Returns < 0 on failure, otherwise the number of bytes (<=
 	'copied') that were able to be copied into pagecache.

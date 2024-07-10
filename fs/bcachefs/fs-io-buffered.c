@@ -743,12 +743,11 @@ err_unlock:
 
 int bch2_write_end(struct file *file, struct address_space *mapping,
 		   loff_t pos, unsigned len, unsigned copied,
-		   struct page *page, void *fsdata)
+		   struct folio *folio, void *fsdata)
 {
 	struct bch_inode_info *inode = to_bch_ei(mapping->host);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	struct bch2_folio_reservation *res = fsdata;
-	struct folio *folio = page_folio(page);
 	unsigned offset = pos - folio_pos(folio);
 
 	lockdep_assert_held(&inode->v.i_rwsem);

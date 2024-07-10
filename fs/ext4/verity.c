@@ -86,7 +86,7 @@ static int pagecache_write(struct inode *inode, const void *buf, size_t count,
 
 		memcpy_to_page(page, offset_in_page(pos), buf, n);
 
-		res = aops->write_end(NULL, mapping, pos, n, n, page, fsdata);
+		res = aops->write_end(NULL, mapping, pos, n, n, page_folio(page), fsdata);
 		if (res < 0)
 			return res;
 		if (res != n)
