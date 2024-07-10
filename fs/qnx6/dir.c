@@ -213,8 +213,7 @@ static unsigned qnx6_match(struct super_block *s, int len, const char *name,
 }
 
 
-unsigned qnx6_find_entry(int len, struct inode *dir, const char *name,
-			 struct page **res_page)
+unsigned qnx6_find_ino(int len, struct inode *dir, const char *name)
 {
 	struct super_block *s = dir->i_sb;
 	struct qnx6_inode_info *ei = QNX6_I(dir);
@@ -224,8 +223,6 @@ unsigned qnx6_find_entry(int len, struct inode *dir, const char *name,
 	unsigned ino;
 	struct qnx6_dir_entry *de;
 	struct qnx6_long_dir_entry *lde;
-
-	*res_page = NULL;
 
 	if (npages == 0)
 		return 0;
@@ -267,8 +264,8 @@ unsigned qnx6_find_entry(int len, struct inode *dir, const char *name,
 	return 0;
 
 found:
-	*res_page = &folio->page;
 	ei->i_dir_start_lookup = n;
+	qnx6_put_page(&folio->page);
 	return ino;
 }
 

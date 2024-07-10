@@ -132,5 +132,4 @@ static inline void qnx6_put_page(struct page *page)
 	put_page(page);
 }
 
-extern unsigned qnx6_find_entry(int len, struct inode *dir, const char *name,
-				struct page **res_page);
+unsigned qnx6_find_ino(int len, struct inode *dir, const char *name);
