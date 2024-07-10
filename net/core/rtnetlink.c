@@ -3969,22 +3969,28 @@ static int rtnl_dellinkprop(struct sk_buff *skb, struct nlmsghdr *nlh,
 	return rtnl_linkprop(RTM_DELLINKPROP, skb, nlh, extack);
 }
 
-static u32 rtnl_calcit(struct sk_buff *skb, struct nlmsghdr *nlh)
+static noinline_for_stack u32 rtnl_calcit(struct sk_buff *skb,
+					  struct nlmsghdr *nlh)
 {
 	struct net *net = sock_net(skb->sk);
 	size_t min_ifinfo_dump_size = 0;
-	struct nlattr *tb[IFLA_MAX+1];
 	u32 ext_filter_mask = 0;
 	struct net_device *dev;
-	int hdrlen;
+	struct nlattr *nla;
+	int hdrlen, rem;
 
 	/* Same kernel<->userspace interface hack as in rtnl_dump_ifinfo. */
 	hdrlen = nlmsg_len(nlh) < sizeof(struct ifinfomsg) ?
 		 sizeof(struct rtgenmsg) : sizeof(struct ifinfomsg);
 
-	if (nlmsg_parse_deprecated(nlh, hdrlen, tb, IFLA_MAX, ifla_policy, NULL) >= 0) {
-		if (tb[IFLA_EXT_MASK])
-			ext_filter_mask = nla_get_u32(tb[IFLA_EXT_MASK]);
+	if (nlh->nlmsg_len < nlmsg_msg_size(hdrlen))
+		return NLMSG_GOODSIZE;
+
+	nla_for_each_attr_type(nla, IFLA_EXT_MASK,
+			       nlmsg_attrdata(nlh, hdrlen),
+			       nlmsg_attrlen(nlh, hdrlen), rem) {
+		if (nla_len(nla) == sizeof(u32))
+			ext_filter_mask = nla_get_u32(nla);
 	}
 
 	if (!ext_filter_mask)
