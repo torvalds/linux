@@ -499,6 +499,7 @@ static int nilfs_recover_dsync_blocks(struct the_nilfs *nilfs,
 	struct nilfs_recovery_block *rb, *n;
 	unsigned int blocksize = nilfs->ns_blocksize;
 	struct page *page;
+	struct folio *folio;
 	loff_t pos;
 	int err = 0, err2 = 0;
 
@@ -522,6 +523,7 @@ static int nilfs_recover_dsync_blocks(struct the_nilfs *nilfs,
 			goto failed_inode;
 		}
 
+		folio = page_folio(page);
 		err = nilfs_recovery_copy_block(nilfs, rb, pos, page);
 		if (unlikely(err))
 			goto failed_page;
@@ -533,15 +535,15 @@ static int nilfs_recover_dsync_blocks(struct the_nilfs *nilfs,
 		block_write_end(NULL, inode->i_mapping, pos, blocksize,
 				blocksize, page, NULL);
 
-		unlock_page(page);
-		put_page(page);
+		folio_unlock(folio);
+		folio_put(folio);
 
 		(*nr_salvaged_blocks)++;
 		goto next;
 
  failed_page:
-		unlock_page(page);
-		put_page(page);
+		folio_unlock(folio);
+		folio_put(folio);
 
  failed_inode:
 		nilfs_warn(sb,
