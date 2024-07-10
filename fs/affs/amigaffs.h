@@ -108,7 +108,7 @@ struct slink_front
 	__be32 key;
 	__be32 spare1[3];
 	__be32 checksum;
-	u8 symname[1];	/* depends on block size */
+	u8 symname[];	/* depends on block size */
 };
 
 struct affs_data_head
