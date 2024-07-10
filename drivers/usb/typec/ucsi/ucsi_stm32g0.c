@@ -739,8 +739,8 @@ static const struct of_device_id __maybe_unused ucsi_stm32g0_typec_of_match[] = 
 MODULE_DEVICE_TABLE(of, ucsi_stm32g0_typec_of_match);
 
 static const struct i2c_device_id ucsi_stm32g0_typec_i2c_devid[] = {
-	{"stm32g0-typec", 0},
-	{},
+	{ "stm32g0-typec" },
+	{}
 };
 MODULE_DEVICE_TABLE(i2c, ucsi_stm32g0_typec_i2c_devid);
 

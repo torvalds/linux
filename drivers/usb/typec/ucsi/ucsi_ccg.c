@@ -1501,7 +1501,7 @@ static const struct of_device_id ucsi_ccg_of_match_table[] = {
 MODULE_DEVICE_TABLE(of, ucsi_ccg_of_match_table);
 
 static const struct i2c_device_id ucsi_ccg_device_id[] = {
-	{"ccgx-ucsi", 0},
+	{ "ccgx-ucsi" },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, ucsi_ccg_device_id);
