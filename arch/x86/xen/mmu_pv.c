@@ -82,9 +82,7 @@
 #include <xen/hvc-console.h>
 #include <xen/swiotlb-xen.h>
 
-#include "multicalls.h"
-#include "mmu.h"
-#include "debugfs.h"
+#include "xen-ops.h"
 
 /*
  * Prototypes for functions called via PV_CALLEE_SAVE_REGS_THUNK() in order

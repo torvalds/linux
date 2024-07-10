@@ -28,8 +28,7 @@
 
 #include <asm/xen/hypercall.h>
 
-#include "multicalls.h"
-#include "debugfs.h"
+#include "xen-ops.h"
 
 #define MC_BATCH	32
 

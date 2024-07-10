@@ -5,7 +5,14 @@
 #include <linux/init.h>
 #include <linux/clocksource.h>
 #include <linux/irqreturn.h>
+#include <linux/linkage.h>
+
+#include <xen/interface/xenpmu.h>
 #include <xen/xen-ops.h>
+
+#include <asm/page.h>
+
+#include <trace/events/xen.h>
 
 /* These are code, but not functions.  Defined in entry.S */
 extern const char xen_failsafe_callback[];
@@ -27,8 +34,6 @@ DECLARE_PER_CPU(unsigned long, xen_cr3);
 extern struct start_info *xen_start_info;
 extern struct shared_info xen_dummy_shared_info;
 extern struct shared_info *HYPERVISOR_shared_info;
-
-extern bool xen_fifo_events;
 
 void xen_setup_mfn_list_list(void);
 void xen_build_mfn_list_list(void);
@@ -175,5 +180,143 @@ static inline void xen_hvm_post_suspend(int suspend_cancelled) {}
 #define EXTRA_MEM_RATIO		(10)
 
 void xen_add_extra_mem(unsigned long start_pfn, unsigned long n_pfns);
+
+struct dentry * __init xen_init_debugfs(void);
+
+enum pt_level {
+	PT_PGD,
+	PT_P4D,
+	PT_PUD,
+	PT_PMD,
+	PT_PTE
+};
+
+bool __set_phys_to_machine(unsigned long pfn, unsigned long mfn);
+void set_pte_mfn(unsigned long vaddr, unsigned long pfn, pgprot_t flags);
+unsigned long xen_read_cr2_direct(void);
+void xen_init_mmu_ops(void);
+void xen_hvm_init_mmu_ops(void);
+
+/* Multicalls */
+struct multicall_space
+{
+	struct multicall_entry *mc;
+	void *args;
+};
+
+/* Allocate room for a multicall and its args */
+struct multicall_space __xen_mc_entry(size_t args);
+
+DECLARE_PER_CPU(unsigned long, xen_mc_irq_flags);
+
+/* Call to start a batch of multiple __xen_mc_entry()s.  Must be
+   paired with xen_mc_issue() */
+static inline void xen_mc_batch(void)
+{
+	unsigned long flags;
+
+	/* need to disable interrupts until this entry is complete */
+	local_irq_save(flags);
+	trace_xen_mc_batch(xen_get_lazy_mode());
+	__this_cpu_write(xen_mc_irq_flags, flags);
+}
+
+static inline struct multicall_space xen_mc_entry(size_t args)
+{
+	xen_mc_batch();
+	return __xen_mc_entry(args);
+}
+
+/* Flush all pending multicalls */
+void xen_mc_flush(void);
+
+/* Issue a multicall if we're not in a lazy mode */
+static inline void xen_mc_issue(unsigned mode)
+{
+	trace_xen_mc_issue(mode);
+
+	if ((xen_get_lazy_mode() & mode) == 0)
+		xen_mc_flush();
+
+	/* restore flags saved in xen_mc_batch */
+	local_irq_restore(this_cpu_read(xen_mc_irq_flags));
+}
+
+/* Set up a callback to be called when the current batch is flushed */
+void xen_mc_callback(void (*fn)(void *), void *data);
+
+/*
+ * Try to extend the arguments of the previous multicall command.  The
+ * previous command's op must match.  If it does, then it attempts to
+ * extend the argument space allocated to the multicall entry by
+ * arg_size bytes.
+ *
+ * The returned multicall_space will return with mc pointing to the
+ * command on success, or NULL on failure, and args pointing to the
+ * newly allocated space.
+ */
+struct multicall_space xen_mc_extend_args(unsigned long op, size_t arg_size);
+
+extern bool is_xen_pmu;
+
+irqreturn_t xen_pmu_irq_handler(int irq, void *dev_id);
+#ifdef CONFIG_XEN_HAVE_VPMU
+void xen_pmu_init(int cpu);
+void xen_pmu_finish(int cpu);
+#else
+static inline void xen_pmu_init(int cpu) {}
+static inline void xen_pmu_finish(int cpu) {}
+#endif
+bool pmu_msr_read(unsigned int msr, uint64_t *val, int *err);
+bool pmu_msr_write(unsigned int msr, uint32_t low, uint32_t high, int *err);
+int pmu_apic_update(uint32_t reg);
+unsigned long long xen_read_pmc(int counter);
+
+#ifdef CONFIG_SMP
+
+void asm_cpu_bringup_and_idle(void);
+asmlinkage void cpu_bringup_and_idle(void);
+
+extern void xen_send_IPI_mask(const struct cpumask *mask,
+			      int vector);
+extern void xen_send_IPI_mask_allbutself(const struct cpumask *mask,
+				int vector);
+extern void xen_send_IPI_allbutself(int vector);
+extern void xen_send_IPI_all(int vector);
+extern void xen_send_IPI_self(int vector);
+
+extern int xen_smp_intr_init(unsigned int cpu);
+extern void xen_smp_intr_free(unsigned int cpu);
+int xen_smp_intr_init_pv(unsigned int cpu);
+void xen_smp_intr_free_pv(unsigned int cpu);
+
+void xen_smp_count_cpus(void);
+void xen_smp_cpus_done(unsigned int max_cpus);
+
+void xen_smp_send_reschedule(int cpu);
+void xen_smp_send_call_function_ipi(const struct cpumask *mask);
+void xen_smp_send_call_function_single_ipi(int cpu);
+
+void __noreturn xen_cpu_bringup_again(unsigned long stack);
+
+struct xen_common_irq {
+	int irq;
+	char *name;
+};
+#else /* CONFIG_SMP */
+
+static inline int xen_smp_intr_init(unsigned int cpu)
+{
+	return 0;
+}
+static inline void xen_smp_intr_free(unsigned int cpu) {}
+
+static inline int xen_smp_intr_init_pv(unsigned int cpu)
+{
+	return 0;
+}
+static inline void xen_smp_intr_free_pv(unsigned int cpu) {}
+static inline void xen_smp_count_cpus(void) { }
+#endif /* CONFIG_SMP */
 
 #endif /* XEN_OPS_H */

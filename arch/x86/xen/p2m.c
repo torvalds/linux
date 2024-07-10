@@ -81,7 +81,6 @@
 #include <xen/balloon.h>
 #include <xen/grant_table.h>
 
-#include "multicalls.h"
 #include "xen-ops.h"
 
 #define P2M_MID_PER_PAGE	(PAGE_SIZE / sizeof(unsigned long *))
@@ -795,7 +794,6 @@ int clear_foreign_p2m_mapping(struct gnttab_unmap_grant_ref *unmap_ops,
 
 #ifdef CONFIG_XEN_DEBUG_FS
 #include <linux/debugfs.h>
-#include "debugfs.h"
 static int p2m_dump_show(struct seq_file *m, void *v)
 {
 	static const char * const type_name[] = {
