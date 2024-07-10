@@ -912,9 +912,9 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	    bch2_io_clock_init(&c->io_clock[WRITE]) ?:
 	    bch2_fs_journal_init(&c->journal) ?:
 	    bch2_fs_replicas_init(c) ?:
+	    bch2_fs_btree_iter_init(c) ?:
 	    bch2_fs_btree_cache_init(c) ?:
 	    bch2_fs_btree_key_cache_init(&c->btree_key_cache) ?:
-	    bch2_fs_btree_iter_init(c) ?:
 	    bch2_fs_btree_interior_update_init(c) ?:
 	    bch2_fs_buckets_waiting_for_journal_init(c) ?:
 	    bch2_fs_btree_write_buffer_init(c) ?:
@@ -931,12 +931,13 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	if (ret)
 		goto err;
 
-	for (i = 0; i < c->sb.nr_devices; i++)
-		if (bch2_member_exists(c->disk_sb.sb, i) &&
-		    bch2_dev_alloc(c, i)) {
-			ret = -EEXIST;
+	for (i = 0; i < c->sb.nr_devices; i++) {
+		if (!bch2_member_exists(c->disk_sb.sb, i))
+			continue;
+		ret = bch2_dev_alloc(c, i);
+		if (ret)
 			goto err;
-		}
+	}
 
 	bch2_journal_entry_res_resize(&c->journal,
 			&c->btree_root_journal_res,

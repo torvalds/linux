@@ -1214,6 +1214,11 @@ static inline s64 bch2_current_time(const struct bch_fs *c)
 	return timespec_to_bch2_time(c, now);
 }
 
+static inline u64 bch2_current_io_time(const struct bch_fs *c, int rw)
+{
+	return max(1ULL, (u64) atomic64_read(&c->io_clock[rw].now) & LRU_TIME_MAX);
+}
+
 static inline struct stdio_redirect *bch2_fs_stdio_redirect(struct bch_fs *c)
 {
 	struct stdio_redirect *stdio = c->stdio;

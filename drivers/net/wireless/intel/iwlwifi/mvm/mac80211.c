@@ -4795,7 +4795,7 @@ static int iwl_mvm_roc_station(struct iwl_mvm *mvm,
 
 	if (fw_ver == IWL_FW_CMD_VER_UNKNOWN) {
 		ret = iwl_mvm_send_aux_roc_cmd(mvm, channel, vif, duration);
-	} else if (fw_ver == 3) {
+	} else if (fw_ver >= 3) {
 		ret = iwl_mvm_roc_add_cmd(mvm, channel, vif, duration,
 					  ROC_ACTIVITY_HOTSPOT);
 	} else {

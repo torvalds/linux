@@ -2514,7 +2514,8 @@ int __init fib6_init(void)
 		goto out_kmem_cache_create;
 
 	ret = rtnl_register_module(THIS_MODULE, PF_INET6, RTM_GETROUTE, NULL,
-				   inet6_dump_fib, RTNL_FLAG_DUMP_UNLOCKED);
+				   inet6_dump_fib, RTNL_FLAG_DUMP_UNLOCKED |
+				   RTNL_FLAG_DUMP_SPLIT_NLM_DONE);
 	if (ret)
 		goto out_unregister_subsys;
 

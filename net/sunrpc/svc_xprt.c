@@ -1421,12 +1421,13 @@ static void *svc_pool_stats_start(struct seq_file *m, loff_t *pos)
 
 	dprintk("svc_pool_stats_start, *pidx=%u\n", pidx);
 
+	if (!si->serv)
+		return NULL;
+
 	mutex_lock(si->mutex);
 
 	if (!pidx)
 		return SEQ_START_TOKEN;
-	if (!si->serv)
-		return NULL;
 	return pidx > si->serv->sv_nrpools ? NULL
 		: &si->serv->sv_pools[pidx - 1];
 }
@@ -1458,7 +1459,8 @@ static void svc_pool_stats_stop(struct seq_file *m, void *p)
 {
 	struct svc_info *si = m->private;
 
-	mutex_unlock(si->mutex);
+	if (si->serv)
+		mutex_unlock(si->mutex);
 }
 
 static int svc_pool_stats_show(struct seq_file *m, void *p)

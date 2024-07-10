@@ -1565,13 +1565,6 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 	if (!test_and_clear_bit(BCH_FS_need_delete_dead_snapshots, &c->flags))
 		return 0;
 
-	if (!test_bit(BCH_FS_started, &c->flags)) {
-		ret = bch2_fs_read_write_early(c);
-		bch_err_msg(c, ret, "deleting dead snapshots: error going rw");
-		if (ret)
-			return ret;
-	}
-
 	trans = bch2_trans_get(c);
 
 	/*
@@ -1686,6 +1679,8 @@ err:
 void bch2_delete_dead_snapshots_work(struct work_struct *work)
 {
 	struct bch_fs *c = container_of(work, struct bch_fs, snapshot_delete_work);
+
+	set_worker_desc("bcachefs-delete-dead-snapshots/%s", c->name);
 
 	bch2_delete_dead_snapshots(c);
 	bch2_write_ref_put(c, BCH_WRITE_REF_delete_dead_snapshots);

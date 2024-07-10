@@ -139,14 +139,14 @@ EXPORT_SYMBOL(kmemdup_noprof);
  * kmemdup_array - duplicate a given array.
  *
  * @src: array to duplicate.
- * @element_size: size of each element of array.
  * @count: number of elements to duplicate from array.
+ * @element_size: size of each element of array.
  * @gfp: GFP mask to use.
  *
  * Return: duplicated array of @src or %NULL in case of error,
  * result is physically contiguous. Use kfree() to free.
  */
-void *kmemdup_array(const void *src, size_t element_size, size_t count, gfp_t gfp)
+void *kmemdup_array(const void *src, size_t count, size_t element_size, gfp_t gfp)
 {
 	return kmemdup(src, size_mul(element_size, count), gfp);
 }

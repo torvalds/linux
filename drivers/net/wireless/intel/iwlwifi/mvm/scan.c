@@ -1830,7 +1830,7 @@ iwl_mvm_umac_scan_cfg_channels_v7_6g(struct iwl_mvm *mvm,
 		 */
 		if (!iwl_mvm_is_scan_fragmented(params->type)) {
 			if (!cfg80211_channel_is_psc(params->channels[i]) ||
-			    flags & IWL_UHB_CHAN_CFG_FLAG_PSC_CHAN_NO_LISTEN) {
+			    psc_no_listen) {
 				if (unsolicited_probe_on_chan) {
 					max_s_ssids = 2;
 					max_bssids = 6;

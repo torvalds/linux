@@ -2318,6 +2318,7 @@ struct bnxt {
 	u8			rss_hash_key_updated:1;
 
 	u16			max_mtu;
+	u16			tso_max_segs;
 	u8			max_tc;
 	u8			max_lltc;	/* lossless TCs */
 	struct bnxt_queue_info	q_info[BNXT_MAX_QUEUE];

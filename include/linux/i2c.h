@@ -960,8 +960,6 @@ int i2c_handle_smbus_host_notify(struct i2c_adapter *adap, unsigned short addr);
 #define builtin_i2c_driver(__i2c_driver) \
 	builtin_driver(__i2c_driver, i2c_add_driver)
 
-#endif /* I2C */
-
 /* must call put_device() when done with returned i2c_client device */
 struct i2c_client *i2c_find_device_by_fwnode(struct fwnode_handle *fwnode);
 
@@ -970,6 +968,28 @@ struct i2c_adapter *i2c_find_adapter_by_fwnode(struct fwnode_handle *fwnode);
 
 /* must call i2c_put_adapter() when done with returned i2c_adapter device */
 struct i2c_adapter *i2c_get_adapter_by_fwnode(struct fwnode_handle *fwnode);
+
+#else /* I2C */
+
+static inline struct i2c_client *
+i2c_find_device_by_fwnode(struct fwnode_handle *fwnode)
+{
+	return NULL;
+}
+
+static inline struct i2c_adapter *
+i2c_find_adapter_by_fwnode(struct fwnode_handle *fwnode)
+{
+	return NULL;
+}
+
+static inline struct i2c_adapter *
+i2c_get_adapter_by_fwnode(struct fwnode_handle *fwnode)
+{
+	return NULL;
+}
+
+#endif /* !I2C */
 
 #if IS_ENABLED(CONFIG_OF)
 /* must call put_device() when done with returned i2c_client device */
