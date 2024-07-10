@@ -587,21 +587,47 @@ err_free_info:
 	return err;
 }
 
+static u32 ethtool_get_max_rss_ctx_channel(struct net_device *dev)
+{
+	struct ethtool_rxfh_context *ctx;
+	unsigned long context;
+	u32 max_ring = 0;
+
+	mutex_lock(&dev->ethtool->rss_lock);
+	xa_for_each(&dev->ethtool->rss_ctx, context, ctx) {
+		u32 i, *tbl;
+
+		tbl = ethtool_rxfh_context_indir(ctx);
+		for (i = 0; i < ctx->indir_size; i++)
+			max_ring = max(max_ring, tbl[i]);
+	}
+	mutex_unlock(&dev->ethtool->rss_lock);
+
+	return max_ring;
+}
+
 u32 ethtool_get_max_rxfh_channel(struct net_device *dev)
 {
 	struct ethtool_rxfh_param rxfh = {};
 	u32 dev_size, current_max;
 	int ret;
 
+	/* While we do track whether RSS context has an indirection
+	 * table explicitly set by the user, no driver looks at that bit.
+	 * Assume drivers won't auto-regenerate the additional tables,
+	 * to be safe.
+	 */
+	current_max = ethtool_get_max_rss_ctx_channel(dev);
+
 	if (!netif_is_rxfh_configured(dev))
-		return 0;
+		return current_max;
 
 	if (!dev->ethtool_ops->get_rxfh_indir_size ||
 	    !dev->ethtool_ops->get_rxfh)
-		return 0;
+		return current_max;
 	dev_size = dev->ethtool_ops->get_rxfh_indir_size(dev);
 	if (dev_size == 0)
-		return 0;
+		return current_max;
 
 	rxfh.indir = kcalloc(dev_size, sizeof(rxfh.indir[0]), GFP_USER);
 	if (!rxfh.indir)
@@ -613,7 +639,6 @@ u32 ethtool_get_max_rxfh_channel(struct net_device *dev)
 		goto out_free;
 	}
 
-	current_max = 0;
 	while (dev_size--)
 		current_max = max(current_max, rxfh.indir[dev_size]);
 
