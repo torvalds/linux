@@ -46,19 +46,20 @@ static unsigned last_entry(struct inode *inode, unsigned long page_nr)
 
 static struct qnx6_long_filename *qnx6_longname(struct super_block *sb,
 					 struct qnx6_long_dir_entry *de,
-					 struct page **p)
+					 struct folio **foliop)
 {
 	struct qnx6_sb_info *sbi = QNX6_SB(sb);
 	u32 s = fs32_to_cpu(sbi, de->de_long_inode); /* in block units */
 	u32 n = s >> (PAGE_SHIFT - sb->s_blocksize_bits); /* in pages */
-	/* within page */
-	u32 offs = (s << sb->s_blocksize_bits) & ~PAGE_MASK;
+	u32 offs;
 	struct address_space *mapping = sbi->longfile->i_mapping;
-	struct page *page = read_mapping_page(mapping, n, NULL);
-	if (IS_ERR(page))
-		return ERR_CAST(page);
-	kmap(*p = page);
-	return (struct qnx6_long_filename *)(page_address(page) + offs);
+	struct folio *folio = read_mapping_folio(mapping, n, NULL);
+
+	if (IS_ERR(folio))
+		return ERR_CAST(folio);
+	offs = offset_in_folio(folio, s << sb->s_blocksize_bits);
+	*foliop = folio;
+	return kmap(&folio->page) + offs;
 }
 
 static int qnx6_dir_longfilename(struct inode *inode,
@@ -69,7 +70,7 @@ static int qnx6_dir_longfilename(struct inode *inode,
 	struct qnx6_long_filename *lf;
 	struct super_block *s = inode->i_sb;
 	struct qnx6_sb_info *sbi = QNX6_SB(s);
-	struct page *page;
+	struct folio *folio;
 	int lf_size;
 
 	if (de->de_size != 0xff) {
@@ -78,7 +79,7 @@ static int qnx6_dir_longfilename(struct inode *inode,
 		pr_err("invalid direntry size (%i).\n", de->de_size);
 		return 0;
 	}
-	lf = qnx6_longname(s, de, &page);
+	lf = qnx6_longname(s, de, &folio);
 	if (IS_ERR(lf)) {
 		pr_err("Error reading longname\n");
 		return 0;
@@ -89,7 +90,7 @@ static int qnx6_dir_longfilename(struct inode *inode,
 	if (lf_size > QNX6_LONG_NAME_MAX) {
 		pr_debug("file %s\n", lf->lf_fname);
 		pr_err("Filename too long (%i)\n", lf_size);
-		qnx6_put_page(page);
+		qnx6_put_page(&folio->page);
 		return 0;
 	}
 
@@ -102,11 +103,11 @@ static int qnx6_dir_longfilename(struct inode *inode,
 	pr_debug("qnx6_readdir:%.*s inode:%u\n",
 		 lf_size, lf->lf_fname, de_inode);
 	if (!dir_emit(ctx, lf->lf_fname, lf_size, de_inode, DT_UNKNOWN)) {
-		qnx6_put_page(page);
+		qnx6_put_page(&folio->page);
 		return 0;
 	}
 
-	qnx6_put_page(page);
+	qnx6_put_page(&folio->page);
 	/* success */
 	return 1;
 }
@@ -180,23 +181,23 @@ static unsigned qnx6_long_match(int len, const char *name,
 {
 	struct super_block *s = dir->i_sb;
 	struct qnx6_sb_info *sbi = QNX6_SB(s);
-	struct page *page;
+	struct folio *folio;
 	int thislen;
-	struct qnx6_long_filename *lf = qnx6_longname(s, de, &page);
+	struct qnx6_long_filename *lf = qnx6_longname(s, de, &folio);
 
 	if (IS_ERR(lf))
 		return 0;
 
 	thislen = fs16_to_cpu(sbi, lf->lf_size);
 	if (len != thislen) {
-		qnx6_put_page(page);
+		qnx6_put_page(&folio->page);
 		return 0;
 	}
 	if (memcmp(name, lf->lf_fname, len) == 0) {
-		qnx6_put_page(page);
+		qnx6_put_page(&folio->page);
 		return fs32_to_cpu(sbi, de->de_inode);
 	}
-	qnx6_put_page(page);
+	qnx6_put_page(&folio->page);
 	return 0;
 }
 
