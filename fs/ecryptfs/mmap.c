@@ -234,17 +234,17 @@ out:
 /*
  * Called with lower inode mutex held.
  */
-static int fill_zeros_to_end_of_page(struct page *page, unsigned int to)
+static int fill_zeros_to_end_of_page(struct folio *folio, unsigned int to)
 {
-	struct inode *inode = page->mapping->host;
+	struct inode *inode = folio->mapping->host;
 	int end_byte_in_page;
 
-	if ((i_size_read(inode) / PAGE_SIZE) != page->index)
+	if ((i_size_read(inode) / PAGE_SIZE) != folio->index)
 		goto out;
 	end_byte_in_page = i_size_read(inode) % PAGE_SIZE;
 	if (to > end_byte_in_page)
 		end_byte_in_page = to;
-	zero_user_segment(page, end_byte_in_page, PAGE_SIZE);
+	folio_zero_segment(folio, end_byte_in_page, PAGE_SIZE);
 out:
 	return 0;
 }
@@ -465,6 +465,7 @@ static int ecryptfs_write_end(struct file *file,
 			loff_t pos, unsigned len, unsigned copied,
 			struct page *page, void *fsdata)
 {
+	struct folio *folio = page_folio(page);
 	pgoff_t index = pos >> PAGE_SHIFT;
 	unsigned from = pos & (PAGE_SIZE - 1);
 	unsigned to = from + copied;
@@ -476,8 +477,8 @@ static int ecryptfs_write_end(struct file *file,
 	ecryptfs_printk(KERN_DEBUG, "Calling fill_zeros_to_end_of_page"
 			"(page w/ index = [0x%.16lx], to = [%d])\n", index, to);
 	if (!(crypt_stat->flags & ECRYPTFS_ENCRYPTED)) {
-		rc = ecryptfs_write_lower_page_segment(ecryptfs_inode, page, 0,
-						       to);
+		rc = ecryptfs_write_lower_page_segment(ecryptfs_inode,
+				&folio->page, 0, to);
 		if (!rc) {
 			rc = copied;
 			fsstack_copy_inode_size(ecryptfs_inode,
@@ -485,21 +486,21 @@ static int ecryptfs_write_end(struct file *file,
 		}
 		goto out;
 	}
-	if (!PageUptodate(page)) {
+	if (!folio_test_uptodate(folio)) {
 		if (copied < PAGE_SIZE) {
 			rc = 0;
 			goto out;
 		}
-		SetPageUptodate(page);
+		folio_mark_uptodate(folio);
 	}
 	/* Fills in zeros if 'to' goes beyond inode size */
-	rc = fill_zeros_to_end_of_page(page, to);
+	rc = fill_zeros_to_end_of_page(folio, to);
 	if (rc) {
 		ecryptfs_printk(KERN_WARNING, "Error attempting to fill "
 			"zeros in page with index = [0x%.16lx]\n", index);
 		goto out;
 	}
-	rc = ecryptfs_encrypt_page(page);
+	rc = ecryptfs_encrypt_page(&folio->page);
 	if (rc) {
 		ecryptfs_printk(KERN_WARNING, "Error encrypting page (upper "
 				"index [0x%.16lx])\n", index);
@@ -518,8 +519,8 @@ static int ecryptfs_write_end(struct file *file,
 	else
 		rc = copied;
 out:
-	unlock_page(page);
-	put_page(page);
+	folio_unlock(folio);
+	folio_put(folio);
 	return rc;
 }
 
