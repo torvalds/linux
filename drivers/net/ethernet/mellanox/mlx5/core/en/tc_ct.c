@@ -1145,7 +1145,7 @@ mlx5_tc_ct_entry_replace_rules(struct mlx5_tc_ct_priv *ct_priv,
 			       struct mlx5_ct_entry *entry,
 			       u8 zone_restore_id)
 {
-	int err;
+	int err = 0;
 
 	if (mlx5_tc_ct_entry_in_ct_table(entry)) {
 		err = mlx5_tc_ct_entry_replace_rule(ct_priv, flow_rule, entry, false,
