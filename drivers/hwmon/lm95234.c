@@ -10,14 +10,12 @@
 
 #include <linux/err.h>
 #include <linux/hwmon.h>
-#include <linux/hwmon-sysfs.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/regmap.h>
-#include <linux/sysfs.h>
 #include <linux/util_macros.h>
 
 #define DRVNAME "lm95234"
@@ -56,11 +54,11 @@ static const unsigned short normal_i2c[] = {
 /* Client data (each client gets its own) */
 struct lm95234_data {
 	struct regmap *regmap;
-	const struct attribute_group *groups[3];
 	struct mutex update_lock;
+	enum chips type;
 };
 
-static int lm95234_read_temp(struct regmap *regmap, int index, int *t)
+static int lm95234_read_temp(struct regmap *regmap, int index, long *t)
 {
 	int temp = 0, ret;
 	u32 val;
@@ -93,110 +91,7 @@ static int lm95234_read_temp(struct regmap *regmap, int index, int *t)
 	return 0;
 }
 
-static ssize_t temp_show(struct device *dev, struct device_attribute *attr,
-			 char *buf)
-{
-	struct lm95234_data *data = dev_get_drvdata(dev);
-	int index = to_sensor_dev_attr(attr)->index;
-	int ret, temp;
-
-	ret = lm95234_read_temp(data->regmap, index, &temp);
-	if (ret)
-		return ret;
-
-	return sysfs_emit(buf, "%d\n", temp);
-}
-
-static ssize_t alarm_show(struct device *dev, struct device_attribute *attr,
-			  char *buf)
-{
-	struct lm95234_data *data = dev_get_drvdata(dev);
-	u8 mask = to_sensor_dev_attr_2(attr)->index;
-	u8 reg = to_sensor_dev_attr_2(attr)->nr;
-	int ret;
-	u32 val;
-
-	ret = regmap_read(data->regmap, reg, &val);
-	if (ret)
-		return ret;
-
-	return sysfs_emit(buf, "%u\n", !!(val & mask));
-}
-
-static ssize_t type_show(struct device *dev, struct device_attribute *attr,
-			 char *buf)
-{
-	struct lm95234_data *data = dev_get_drvdata(dev);
-	u8 mask = to_sensor_dev_attr(attr)->index;
-	u32 val;
-	int ret;
-
-	ret = regmap_read(data->regmap, LM95234_REG_REM_MODEL, &val);
-	if (ret)
-		return ret;
-
-	return sysfs_emit(buf, "%s\n", val & mask ? "1" : "2");
-}
-
-static ssize_t type_store(struct device *dev, struct device_attribute *attr,
-			  const char *buf, size_t count)
-{
-	struct lm95234_data *data = dev_get_drvdata(dev);
-	u8 mask = to_sensor_dev_attr(attr)->index;
-	unsigned long val;
-	int ret;
-
-	ret = kstrtoul(buf, 10, &val);
-	if (ret < 0)
-		return ret;
-
-	if (val != 1 && val != 2)
-		return -EINVAL;
-
-	ret = regmap_update_bits(data->regmap, LM95234_REG_REM_MODEL,
-				 mask, val == 1 ? mask : 0);
-	if (ret)
-		return ret;
-	return count;
-}
-
-static ssize_t tcrit2_show(struct device *dev, struct device_attribute *attr,
-			   char *buf)
-{
-	struct lm95234_data *data = dev_get_drvdata(dev);
-	int index = to_sensor_dev_attr(attr)->index;
-	int ret;
-	u32 tcrit2;
-
-	ret = regmap_read(data->regmap, LM95234_REG_TCRIT2(index), &tcrit2);
-	if (ret)
-		return ret;
-
-	return sysfs_emit(buf, "%u\n", tcrit2 * 1000);
-}
-
-static ssize_t tcrit2_store(struct device *dev, struct device_attribute *attr,
-			    const char *buf, size_t count)
-{
-	struct lm95234_data *data = dev_get_drvdata(dev);
-	int index = to_sensor_dev_attr(attr)->index;
-	long val;
-	int ret;
-
-	ret = kstrtol(buf, 10, &val);
-	if (ret < 0)
-		return ret;
-
-	val = DIV_ROUND_CLOSEST(clamp_val(val, 0, (index ? 255 : 127) * 1000),
-				1000);
-
-	ret = regmap_write(data->regmap, LM95234_REG_TCRIT2(index), val);
-	if (ret)
-		return ret;
-	return count;
-}
-
-static ssize_t tcrit_hyst_show(struct lm95234_data *data, char *buf, int reg)
+static int lm95234_hyst_get(struct lm95234_data *data, int reg, long *val)
 {
 	u32 thyst, tcrit;
 	int ret;
@@ -212,80 +107,18 @@ unlock:
 		return ret;
 
 	/* Result can be negative, so be careful with unsigned operands */
-	return sysfs_emit(buf, "%d\n", ((int)tcrit - (int)thyst) * 1000);
+	*val = ((int)tcrit - (int)thyst) * 1000;
+	return 0;
 }
 
-static ssize_t tcrit2_hyst_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t lm95234_hyst_set(struct lm95234_data *data, long val)
 {
-	struct lm95234_data *data = dev_get_drvdata(dev);
-	int index = to_sensor_dev_attr(attr)->index;
-
-	return tcrit_hyst_show(data, buf, LM95234_REG_TCRIT2(index));
-}
-
-static ssize_t tcrit1_show(struct device *dev, struct device_attribute *attr,
-			   char *buf)
-{
-	struct lm95234_data *data = dev_get_drvdata(dev);
-	int index = to_sensor_dev_attr(attr)->index;
-	int ret;
-	u32 val;
-
-	ret = regmap_read(data->regmap, LM95234_REG_TCRIT1(index), &val);
-	if (ret)
-		return ret;
-
-	return sysfs_emit(buf, "%u\n", val * 1000);
-}
-
-static ssize_t tcrit1_store(struct device *dev, struct device_attribute *attr,
-			    const char *buf, size_t count)
-{
-	struct lm95234_data *data = dev_get_drvdata(dev);
-	int index = to_sensor_dev_attr(attr)->index;
-	long val;
-	int ret;
-
-	ret = kstrtol(buf, 10, &val);
-	if (ret < 0)
-		return ret;
-
-	val = DIV_ROUND_CLOSEST(clamp_val(val, 0, 255000), 1000);
-
-	ret = regmap_write(data->regmap, LM95234_REG_TCRIT1(index), val);
-	if (ret)
-		return ret;
-
-	return count;
-}
-
-static ssize_t tcrit1_hyst_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	struct lm95234_data *data = dev_get_drvdata(dev);
-	int index = to_sensor_dev_attr(attr)->index;
-
-	return tcrit_hyst_show(data, buf, LM95234_REG_TCRIT1(index));
-}
-
-static ssize_t tcrit1_hyst_store(struct device *dev,
-				 struct device_attribute *attr,
-				 const char *buf, size_t count)
-{
-	struct lm95234_data *data = dev_get_drvdata(dev);
-	int index = to_sensor_dev_attr(attr)->index;
 	u32 tcrit;
-	long val;
 	int ret;
-
-	ret = kstrtol(buf, 10, &val);
-	if (ret < 0)
-		return ret;
 
 	mutex_lock(&data->update_lock);
 
-	ret = regmap_read(data->regmap, LM95234_REG_TCRIT1(index), &tcrit);
+	ret = regmap_read(data->regmap, LM95234_REG_TCRIT1(0), &tcrit);
 	if (ret)
 		goto unlock;
 
@@ -295,188 +128,255 @@ static ssize_t tcrit1_hyst_store(struct device *dev,
 	ret = regmap_write(data->regmap, LM95234_REG_TCRIT_HYST, val);
 unlock:
 	mutex_unlock(&data->update_lock);
-	if (ret)
-		return ret;
-
-	return count;
+	return ret;
 }
 
-static ssize_t offset_show(struct device *dev, struct device_attribute *attr,
-			   char *buf)
+static int lm95234_crit_reg(int channel)
 {
-	struct lm95234_data *data = dev_get_drvdata(dev);
-	int index = to_sensor_dev_attr(attr)->index;
-	u32 offset;
-	int ret;
-
-	ret = regmap_read(data->regmap, LM95234_REG_OFFSET(index), &offset);
-	if (ret)
-		return ret;
-
-	return sysfs_emit(buf, "%d\n", sign_extend32(offset, 7) * 500);
+	if (channel == 1 || channel == 2)
+		return LM95234_REG_TCRIT2(channel - 1);
+	return LM95234_REG_TCRIT1(channel);
 }
 
-static ssize_t offset_store(struct device *dev, struct device_attribute *attr,
-			    const char *buf, size_t count)
+static int lm95234_temp_write(struct device *dev, u32 attr, int channel, long val)
 {
 	struct lm95234_data *data = dev_get_drvdata(dev);
-	int index = to_sensor_dev_attr(attr)->index;
-	long val;
+	struct regmap *regmap = data->regmap;
+
+	switch (attr) {
+	case hwmon_temp_type:
+		if (val != 1 && val != 2)
+			return -EINVAL;
+		return regmap_update_bits(regmap, LM95234_REG_REM_MODEL,
+					  BIT(channel),
+					  val == 1 ? BIT(channel) : 0);
+	case hwmon_temp_offset:
+		val = DIV_ROUND_CLOSEST(clamp_val(val, -64000, 63500), 500);
+		return regmap_write(regmap, LM95234_REG_OFFSET(channel - 1), val);
+	case hwmon_temp_max:
+		val = clamp_val(val, 0, channel == 1 ? 127000 : 255000);
+		val = DIV_ROUND_CLOSEST(val, 1000);
+		return regmap_write(regmap, lm95234_crit_reg(channel), val);
+	case hwmon_temp_max_hyst:
+		return lm95234_hyst_set(data, val);
+	case hwmon_temp_crit:
+		val = DIV_ROUND_CLOSEST(clamp_val(val, 0, 255000), 1000);
+		return regmap_write(regmap, LM95234_REG_TCRIT1(channel), val);
+	default:
+		return -EOPNOTSUPP;
+	}
+	return 0;
+}
+
+static int lm95234_alarm_reg(int channel)
+{
+	if (channel == 1 || channel == 2)
+		return LM95234_REG_STS_TCRIT2;
+	return LM95234_REG_STS_TCRIT1;
+}
+
+static int lm95234_temp_read(struct device *dev, u32 attr, int channel, long *val)
+{
+	struct lm95234_data *data = dev_get_drvdata(dev);
+	struct regmap *regmap = data->regmap;
+	u32 regval, mask;
 	int ret;
 
-	ret = kstrtol(buf, 10, &val);
-	if (ret < 0)
-		return ret;
-
-	/* Accuracy is 1/2 degrees C */
-	val = DIV_ROUND_CLOSEST(clamp_val(val, -64000, 63500), 500);
-
-	ret = regmap_write(data->regmap, LM95234_REG_OFFSET(index), val);
-	if (ret < 0)
-		return ret;
-
-	return count;
+	switch (attr) {
+	case hwmon_temp_input:
+		return lm95234_read_temp(regmap, channel, val);
+	case hwmon_temp_max_alarm:
+		ret =  regmap_read(regmap, lm95234_alarm_reg(channel), &regval);
+		if (ret)
+			return ret;
+		*val = !!(regval & BIT(channel));
+		break;
+	case hwmon_temp_crit_alarm:
+		ret =  regmap_read(regmap, LM95234_REG_STS_TCRIT1, &regval);
+		if (ret)
+			return ret;
+		*val = !!(regval & BIT(channel));
+		break;
+	case hwmon_temp_crit_hyst:
+		return lm95234_hyst_get(data, LM95234_REG_TCRIT1(channel), val);
+	case hwmon_temp_type:
+		ret = regmap_read(regmap, LM95234_REG_REM_MODEL, &regval);
+		if (ret)
+			return ret;
+		*val = (regval & BIT(channel)) ? 1 : 2;
+		break;
+	case hwmon_temp_offset:
+		ret = regmap_read(regmap, LM95234_REG_OFFSET(channel - 1), &regval);
+		if (ret)
+			return ret;
+		*val = sign_extend32(regval, 7) * 500;
+		break;
+	case hwmon_temp_fault:
+		ret = regmap_read(regmap, LM95234_REG_STS_FAULT, &regval);
+		if (ret)
+			return ret;
+		mask = (BIT(0) | BIT(1)) << ((channel - 1) << 1);
+		*val = !!(regval & mask);
+		break;
+	case hwmon_temp_max:
+		ret = regmap_read(regmap, lm95234_crit_reg(channel), &regval);
+		if (ret)
+			return ret;
+		*val = regval * 1000;
+		break;
+	case hwmon_temp_max_hyst:
+		return lm95234_hyst_get(data, lm95234_crit_reg(channel), val);
+	case hwmon_temp_crit:
+		ret = regmap_read(regmap, LM95234_REG_TCRIT1(channel), &regval);
+		if (ret)
+			return ret;
+		*val = regval * 1000;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+	return 0;
 }
 
 static u16 update_intervals[] = { 143, 364, 1000, 2500 };
 
-static ssize_t update_interval_show(struct device *dev,
-				    struct device_attribute *attr, char *buf)
+static int lm95234_chip_write(struct device *dev, u32 attr, long val)
+{
+	struct lm95234_data *data = dev_get_drvdata(dev);
+
+	switch (attr) {
+	case hwmon_chip_update_interval:
+		val = find_closest(val, update_intervals, ARRAY_SIZE(update_intervals));
+		return regmap_write(data->regmap, LM95234_REG_CONVRATE, val);
+	default:
+		return -EOPNOTSUPP;
+	}
+	return 0;
+}
+
+static int lm95234_chip_read(struct device *dev, u32 attr, long *val)
 {
 	struct lm95234_data *data = dev_get_drvdata(dev);
 	u32 convrate;
 	int ret;
 
-	ret = regmap_read(data->regmap, LM95234_REG_CONVRATE, &convrate);
-	if (ret)
-		return ret;
+	switch (attr) {
+	case hwmon_chip_update_interval:
+		ret = regmap_read(data->regmap, LM95234_REG_CONVRATE, &convrate);
+		if (ret)
+			return ret;
 
-	return sysfs_emit(buf, "%u\n", update_intervals[convrate & 0x03]);
+		*val = update_intervals[convrate & 0x03];
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+	return 0;
 }
 
-static ssize_t update_interval_store(struct device *dev,
-				     struct device_attribute *attr,
-				     const char *buf, size_t count)
+static int lm95234_write(struct device *dev, enum hwmon_sensor_types type,
+			 u32 attr, int channel, long val)
 {
-	struct lm95234_data *data = dev_get_drvdata(dev);
-	unsigned long val;
-	int ret;
-
-	ret = kstrtoul(buf, 10, &val);
-	if (ret < 0)
-		return ret;
-
-	val = find_closest(val, update_intervals, ARRAY_SIZE(update_intervals));
-	ret = regmap_write(data->regmap, LM95234_REG_CONVRATE, val);
-	if (ret)
-		return ret;
-
-	return count;
+	switch (type) {
+	case hwmon_chip:
+		return lm95234_chip_write(dev, attr, val);
+	case hwmon_temp:
+		return lm95234_temp_write(dev, attr, channel, val);
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
-static SENSOR_DEVICE_ATTR_RO(temp1_input, temp, 0);
-static SENSOR_DEVICE_ATTR_RO(temp2_input, temp, 1);
-static SENSOR_DEVICE_ATTR_RO(temp3_input, temp, 2);
-static SENSOR_DEVICE_ATTR_RO(temp4_input, temp, 3);
-static SENSOR_DEVICE_ATTR_RO(temp5_input, temp, 4);
+static int lm95234_read(struct device *dev, enum hwmon_sensor_types type,
+			u32 attr, int channel, long *val)
+{
+	switch (type) {
+	case hwmon_chip:
+		return lm95234_chip_read(dev, attr, val);
+	case hwmon_temp:
+		return lm95234_temp_read(dev, attr, channel, val);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
 
-static SENSOR_DEVICE_ATTR_2_RO(temp2_fault, alarm, LM95234_REG_STS_FAULT, BIT(0) | BIT(1));
-static SENSOR_DEVICE_ATTR_2_RO(temp3_fault, alarm, LM95234_REG_STS_FAULT, BIT(2) | BIT(3));
-static SENSOR_DEVICE_ATTR_2_RO(temp4_fault, alarm, LM95234_REG_STS_FAULT, BIT(4) | BIT(5));
-static SENSOR_DEVICE_ATTR_2_RO(temp5_fault, alarm, LM95234_REG_STS_FAULT, BIT(6) | BIT(7));
+static umode_t lm95234_is_visible(const void *_data, enum hwmon_sensor_types type,
+				  u32 attr, int channel)
+{
+	const struct lm95234_data *data = _data;
 
-static SENSOR_DEVICE_ATTR_RW(temp2_type, type, BIT(1));
-static SENSOR_DEVICE_ATTR_RW(temp3_type, type, BIT(2));
-static SENSOR_DEVICE_ATTR_RW(temp4_type, type, BIT(3));
-static SENSOR_DEVICE_ATTR_RW(temp5_type, type, BIT(4));
+	if (data->type == lm95233 && channel > 2)
+		return 0;
 
-static SENSOR_DEVICE_ATTR_RW(temp1_max, tcrit1, 0);
-static SENSOR_DEVICE_ATTR_RW(temp2_max, tcrit2, 0);
-static SENSOR_DEVICE_ATTR_RW(temp3_max, tcrit2, 1);
-static SENSOR_DEVICE_ATTR_RW(temp4_max, tcrit1, 3);
-static SENSOR_DEVICE_ATTR_RW(temp5_max, tcrit1, 4);
+	switch (type) {
+	case hwmon_chip:
+		switch (attr) {
+		case hwmon_chip_update_interval:
+			return 0644;
+		default:
+			break;
+		}
+		break;
+	case hwmon_temp:
+		switch (attr) {
+		case hwmon_temp_input:
+		case hwmon_temp_max_alarm:
+			return 0444;
+		case hwmon_temp_crit_alarm:
+		case hwmon_temp_crit_hyst:
+			return (channel && channel < 3) ? 0444 : 0;
+		case hwmon_temp_type:
+		case hwmon_temp_offset:
+			return channel ? 0644 : 0;
+		case hwmon_temp_fault:
+			return channel ? 0444 : 0;
+		case hwmon_temp_max:
+			return 0644;
+		case hwmon_temp_max_hyst:
+			return channel ? 0444 : 0644;
+		case hwmon_temp_crit:
+			return (channel && channel < 3) ? 0644 : 0;
+		default:
+			break;
+		}
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
 
-static SENSOR_DEVICE_ATTR_RW(temp1_max_hyst, tcrit1_hyst, 0);
-static SENSOR_DEVICE_ATTR_RO(temp2_max_hyst, tcrit2_hyst, 0);
-static SENSOR_DEVICE_ATTR_RO(temp3_max_hyst, tcrit2_hyst, 1);
-static SENSOR_DEVICE_ATTR_RO(temp4_max_hyst, tcrit1_hyst, 3);
-static SENSOR_DEVICE_ATTR_RO(temp5_max_hyst, tcrit1_hyst, 4);
-
-static SENSOR_DEVICE_ATTR_2_RO(temp1_max_alarm, alarm, LM95234_REG_STS_TCRIT1, BIT(0));
-static SENSOR_DEVICE_ATTR_2_RO(temp2_max_alarm, alarm, LM95234_REG_STS_TCRIT2, BIT(1));
-static SENSOR_DEVICE_ATTR_2_RO(temp3_max_alarm, alarm, LM95234_REG_STS_TCRIT2, BIT(2));
-static SENSOR_DEVICE_ATTR_2_RO(temp4_max_alarm, alarm, LM95234_REG_STS_TCRIT1, BIT(3));
-static SENSOR_DEVICE_ATTR_2_RO(temp5_max_alarm, alarm, LM95234_REG_STS_TCRIT1, BIT(4));
-
-static SENSOR_DEVICE_ATTR_RW(temp2_crit, tcrit1, 1);
-static SENSOR_DEVICE_ATTR_RW(temp3_crit, tcrit1, 2);
-
-static SENSOR_DEVICE_ATTR_RO(temp2_crit_hyst, tcrit1_hyst, 1);
-static SENSOR_DEVICE_ATTR_RO(temp3_crit_hyst, tcrit1_hyst, 2);
-
-static SENSOR_DEVICE_ATTR_2_RO(temp2_crit_alarm, alarm, LM95234_REG_STS_TCRIT1, BIT(1));
-static SENSOR_DEVICE_ATTR_2_RO(temp3_crit_alarm, alarm, LM95234_REG_STS_TCRIT1, BIT(2));
-
-static SENSOR_DEVICE_ATTR_RW(temp2_offset, offset, 0);
-static SENSOR_DEVICE_ATTR_RW(temp3_offset, offset, 1);
-static SENSOR_DEVICE_ATTR_RW(temp4_offset, offset, 2);
-static SENSOR_DEVICE_ATTR_RW(temp5_offset, offset, 3);
-
-static DEVICE_ATTR_RW(update_interval);
-
-static struct attribute *lm95234_common_attrs[] = {
-	&sensor_dev_attr_temp1_input.dev_attr.attr,
-	&sensor_dev_attr_temp2_input.dev_attr.attr,
-	&sensor_dev_attr_temp3_input.dev_attr.attr,
-	&sensor_dev_attr_temp2_fault.dev_attr.attr,
-	&sensor_dev_attr_temp3_fault.dev_attr.attr,
-	&sensor_dev_attr_temp2_type.dev_attr.attr,
-	&sensor_dev_attr_temp3_type.dev_attr.attr,
-	&sensor_dev_attr_temp1_max.dev_attr.attr,
-	&sensor_dev_attr_temp2_max.dev_attr.attr,
-	&sensor_dev_attr_temp3_max.dev_attr.attr,
-	&sensor_dev_attr_temp1_max_hyst.dev_attr.attr,
-	&sensor_dev_attr_temp2_max_hyst.dev_attr.attr,
-	&sensor_dev_attr_temp3_max_hyst.dev_attr.attr,
-	&sensor_dev_attr_temp1_max_alarm.dev_attr.attr,
-	&sensor_dev_attr_temp2_max_alarm.dev_attr.attr,
-	&sensor_dev_attr_temp3_max_alarm.dev_attr.attr,
-	&sensor_dev_attr_temp2_crit.dev_attr.attr,
-	&sensor_dev_attr_temp3_crit.dev_attr.attr,
-	&sensor_dev_attr_temp2_crit_hyst.dev_attr.attr,
-	&sensor_dev_attr_temp3_crit_hyst.dev_attr.attr,
-	&sensor_dev_attr_temp2_crit_alarm.dev_attr.attr,
-	&sensor_dev_attr_temp3_crit_alarm.dev_attr.attr,
-	&sensor_dev_attr_temp2_offset.dev_attr.attr,
-	&sensor_dev_attr_temp3_offset.dev_attr.attr,
-	&dev_attr_update_interval.attr,
+static const struct hwmon_channel_info * const lm95234_info[] = {
+	HWMON_CHANNEL_INFO(chip, HWMON_C_UPDATE_INTERVAL),
+	HWMON_CHANNEL_INFO(temp,
+			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_MAX_HYST |
+			   HWMON_T_MAX_ALARM,
+			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_MAX_HYST |
+			   HWMON_T_MAX_ALARM | HWMON_T_FAULT | HWMON_T_TYPE |
+			   HWMON_T_CRIT | HWMON_T_CRIT_HYST |
+			   HWMON_T_CRIT_ALARM | HWMON_T_OFFSET,
+			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_MAX_HYST |
+			   HWMON_T_MAX_ALARM | HWMON_T_FAULT | HWMON_T_TYPE |
+			   HWMON_T_CRIT | HWMON_T_CRIT_HYST |
+			   HWMON_T_CRIT_ALARM | HWMON_T_OFFSET,
+			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_MAX_HYST |
+			   HWMON_T_MAX_ALARM | HWMON_T_FAULT | HWMON_T_TYPE |
+			   HWMON_T_OFFSET,
+			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_MAX_HYST |
+			   HWMON_T_MAX_ALARM | HWMON_T_FAULT | HWMON_T_TYPE |
+			   HWMON_T_OFFSET),
 	NULL
 };
 
-static const struct attribute_group lm95234_common_group = {
-	.attrs = lm95234_common_attrs,
+static const struct hwmon_ops lm95234_hwmon_ops = {
+	.is_visible = lm95234_is_visible,
+	.read = lm95234_read,
+	.write = lm95234_write,
 };
 
-static struct attribute *lm95234_attrs[] = {
-	&sensor_dev_attr_temp4_input.dev_attr.attr,
-	&sensor_dev_attr_temp5_input.dev_attr.attr,
-	&sensor_dev_attr_temp4_fault.dev_attr.attr,
-	&sensor_dev_attr_temp5_fault.dev_attr.attr,
-	&sensor_dev_attr_temp4_type.dev_attr.attr,
-	&sensor_dev_attr_temp5_type.dev_attr.attr,
-	&sensor_dev_attr_temp4_max.dev_attr.attr,
-	&sensor_dev_attr_temp5_max.dev_attr.attr,
-	&sensor_dev_attr_temp4_max_hyst.dev_attr.attr,
-	&sensor_dev_attr_temp5_max_hyst.dev_attr.attr,
-	&sensor_dev_attr_temp4_max_alarm.dev_attr.attr,
-	&sensor_dev_attr_temp5_max_alarm.dev_attr.attr,
-	&sensor_dev_attr_temp4_offset.dev_attr.attr,
-	&sensor_dev_attr_temp5_offset.dev_attr.attr,
-	NULL
-};
-
-static const struct attribute_group lm95234_group = {
-	.attrs = lm95234_attrs,
+static const struct hwmon_chip_info lm95234_chip_info = {
+	.ops = &lm95234_hwmon_ops,
+	.info = lm95234_info,
 };
 
 static bool lm95234_volatile_reg(struct device *dev, unsigned int reg)
@@ -606,7 +506,6 @@ static int lm95234_init_client(struct device *dev, struct regmap *regmap)
 
 static int lm95234_probe(struct i2c_client *client)
 {
-	enum chips type = (uintptr_t)i2c_get_match_data(client);
 	struct device *dev = &client->dev;
 	struct lm95234_data *data;
 	struct device *hwmon_dev;
@@ -616,6 +515,8 @@ static int lm95234_probe(struct i2c_client *client)
 	data = devm_kzalloc(dev, sizeof(struct lm95234_data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
+
+	data->type = (uintptr_t)i2c_get_match_data(client);
 
 	regmap = devm_regmap_init_i2c(client, &lm95234_regmap_config);
 	if (IS_ERR(regmap))
@@ -629,12 +530,8 @@ static int lm95234_probe(struct i2c_client *client)
 	if (err < 0)
 		return err;
 
-	data->groups[0] = &lm95234_common_group;
-	if (type == lm95234)
-		data->groups[1] = &lm95234_group;
-
-	hwmon_dev = devm_hwmon_device_register_with_groups(dev, client->name,
-							   data, data->groups);
+	hwmon_dev = devm_hwmon_device_register_with_info(dev, client->name,
+							 data, &lm95234_chip_info, NULL);
 	return PTR_ERR_OR_ZERO(hwmon_dev);
 }
 
