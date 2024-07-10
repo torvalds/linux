@@ -231,7 +231,7 @@ static noinline int break_cycle(struct lock_graph *g, struct printbuf *cycle)
 			prt_newline(&buf);
 		}
 
-		bch2_print_string_as_lines(KERN_ERR, buf.buf);
+		bch2_print_string_as_lines_nonblocking(KERN_ERR, buf.buf);
 		printbuf_exit(&buf);
 		BUG();
 	}
