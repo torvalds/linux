@@ -442,6 +442,42 @@ static void mctp_i2c_unlock_reset(struct mctp_i2c_dev *midev)
 		i2c_unlock_bus(midev->adapter, I2C_LOCK_SEGMENT);
 }
 
+static void mctp_i2c_invalidate_tx_flow(struct mctp_i2c_dev *midev,
+					struct sk_buff *skb)
+{
+	struct mctp_sk_key *key;
+	struct mctp_flow *flow;
+	unsigned long flags;
+	bool release;
+
+	flow = skb_ext_find(skb, SKB_EXT_MCTP);
+	if (!flow)
+		return;
+
+	key = flow->key;
+	if (!key)
+		return;
+
+	spin_lock_irqsave(&key->lock, flags);
+	if (key->manual_alloc) {
+		/* we don't have control over lifetimes for manually-allocated
+		 * keys, so cannot assume we can invalidate all future flows
+		 * that would use this key.
+		 */
+		release = false;
+	} else {
+		release = key->dev_flow_state == MCTP_I2C_FLOW_STATE_ACTIVE;
+		key->dev_flow_state = MCTP_I2C_FLOW_STATE_INVALID;
+	}
+	spin_unlock_irqrestore(&key->lock, flags);
+
+	/* if we have changed state from active, the flow held a reference on
+	 * the lock; release that now.
+	 */
+	if (release)
+		mctp_i2c_unlock_nest(midev);
+}
+
 static void mctp_i2c_xmit(struct mctp_i2c_dev *midev, struct sk_buff *skb)
 {
 	struct net_device_stats *stats = &midev->ndev->stats;
@@ -500,6 +536,11 @@ static void mctp_i2c_xmit(struct mctp_i2c_dev *midev, struct sk_buff *skb)
 	case MCTP_I2C_TX_FLOW_EXISTING:
 		/* existing flow: we already have the lock; just tx */
 		rc = __i2c_transfer(midev->adapter, &msg, 1);
+
+		/* on tx errors, the flow can no longer be considered valid */
+		if (rc)
+			mctp_i2c_invalidate_tx_flow(midev, skb);
+
 		break;
 
 	case MCTP_I2C_TX_FLOW_INVALID:
