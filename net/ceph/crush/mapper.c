@@ -636,9 +636,8 @@ reject:
 }
 
 
-/**
+/*
  * crush_choose_indep: alternative breadth-first positionally stable mapping
- *
  */
 static void crush_choose_indep(const struct crush_map *map,
 			       struct crush_work *work,
