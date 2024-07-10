@@ -31,6 +31,7 @@
 #include <sound/tas2781.h>
 #include <sound/tlv.h>
 #include <sound/tas2781-tlv.h>
+#include <asm/unaligned.h>
 
 static const struct i2c_device_id tasdevice_id[] = {
 	{ "tas2563", TAS2563 },
@@ -140,6 +141,101 @@ static int tasdev_force_fwload_put(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
+static int tas2563_digital_gain_get(
+	struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
+	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
+	struct tasdevice_priv *tas_dev = snd_soc_component_get_drvdata(codec);
+	unsigned int l = 0, r = mc->max;
+	unsigned int target, ar_mid, mid, ar_l, ar_r;
+	unsigned int reg = mc->reg;
+	unsigned char data[4];
+	int ret;
+
+	mutex_lock(&tas_dev->codec_lock);
+	/* Read the primary device */
+	ret =  tasdevice_dev_bulk_read(tas_dev, 0, reg, data, 4);
+	if (ret) {
+		dev_err(tas_dev->dev, "%s, get AMP vol error\n", __func__);
+		goto out;
+	}
+
+	target = get_unaligned_be32(&data[0]);
+
+	while (r > 1 + l) {
+		mid = (l + r) / 2;
+		ar_mid = get_unaligned_be32(tas2563_dvc_table[mid]);
+		if (target < ar_mid)
+			r = mid;
+		else
+			l = mid;
+	}
+
+	ar_l = get_unaligned_be32(tas2563_dvc_table[l]);
+	ar_r = get_unaligned_be32(tas2563_dvc_table[r]);
+
+	/* find out the member same as or closer to the current volume */
+	ucontrol->value.integer.value[0] =
+		abs(target - ar_l) <= abs(target - ar_r) ? l : r;
+out:
+	mutex_unlock(&tas_dev->codec_lock);
+	return 0;
+}
+
+static int tas2563_digital_gain_put(
+	struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
+	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
+	struct tasdevice_priv *tas_dev = snd_soc_component_get_drvdata(codec);
+	int vol = ucontrol->value.integer.value[0];
+	int status = 0, max = mc->max, rc = 1;
+	int i, ret;
+	unsigned int reg = mc->reg;
+	unsigned int volrd, volwr;
+	unsigned char data[4];
+
+	vol = clamp(vol, 0, max);
+	mutex_lock(&tas_dev->codec_lock);
+	/* Read the primary device */
+	ret =  tasdevice_dev_bulk_read(tas_dev, 0, reg, data, 4);
+	if (ret) {
+		dev_err(tas_dev->dev, "%s, get AMP vol error\n", __func__);
+		rc = -1;
+		goto out;
+	}
+
+	volrd = get_unaligned_be32(&data[0]);
+	volwr = get_unaligned_be32(tas2563_dvc_table[vol]);
+
+	if (volrd == volwr) {
+		rc = 0;
+		goto out;
+	}
+
+	for (i = 0; i < tas_dev->ndev; i++) {
+		ret = tasdevice_dev_bulk_write(tas_dev, i, reg,
+			(unsigned char *)tas2563_dvc_table[vol], 4);
+		if (ret) {
+			dev_err(tas_dev->dev,
+				"%s, set digital vol error in dev %d\n",
+				__func__, i);
+			status |= BIT(i);
+		}
+	}
+
+	if (status)
+		rc = -1;
+out:
+	mutex_unlock(&tas_dev->codec_lock);
+	return rc;
+}
+
 static const struct snd_kcontrol_new tasdevice_snd_controls[] = {
 	SOC_SINGLE_BOOL_EXT("Speaker Force Firmware Load", 0,
 		tasdev_force_fwload_get, tasdev_force_fwload_put),
@@ -152,6 +248,13 @@ static const struct snd_kcontrol_new tas2781_snd_controls[] = {
 	SOC_SINGLE_RANGE_EXT_TLV("Speaker Digital Gain", TAS2781_DVC_LVL,
 		0, 0, 200, 1, tas2781_digital_getvol,
 		tas2781_digital_putvol, dvc_tlv),
+};
+
+static const struct snd_kcontrol_new tas2563_snd_controls[] = {
+	SOC_SINGLE_RANGE_EXT_TLV("Speaker Digital Volume", TAS2563_DVC_LVL, 0,
+		0, ARRAY_SIZE(tas2563_dvc_table) - 1, 0,
+		tas2563_digital_gain_get, tas2563_digital_gain_put,
+		tas2563_dvc_tlv),
 };
 
 static int tasdevice_set_profile_id(struct snd_kcontrol *kcontrol,
@@ -593,17 +696,25 @@ static struct snd_soc_dai_driver tasdevice_dai_driver[] = {
 static int tasdevice_codec_probe(struct snd_soc_component *codec)
 {
 	struct tasdevice_priv *tas_priv = snd_soc_component_get_drvdata(codec);
+	struct snd_kcontrol_new *p;
+	unsigned int size;
 	int rc;
 
-	if (tas_priv->chip_id == TAS2781) {
-		rc = snd_soc_add_component_controls(codec,
-			tas2781_snd_controls,
-			ARRAY_SIZE(tas2781_snd_controls));
-		if (rc < 0) {
-			dev_err(tas_priv->dev, "%s: Add control err rc = %d",
-				__func__, rc);
-			return rc;
-		}
+	switch (tas_priv->chip_id) {
+	case TAS2781:
+		p = (struct snd_kcontrol_new *)tas2781_snd_controls;
+		size = ARRAY_SIZE(tas2781_snd_controls);
+		break;
+	default:
+		p = (struct snd_kcontrol_new *)tas2563_snd_controls;
+		size = ARRAY_SIZE(tas2563_snd_controls);
+	}
+
+	rc = snd_soc_add_component_controls(codec, p, size);
+	if (rc < 0) {
+		dev_err(tas_priv->dev, "%s: Add control err rc = %d",
+			__func__, rc);
+		return rc;
 	}
 
 	tas_priv->name_prefix = codec->name_prefix;
