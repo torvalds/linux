@@ -283,25 +283,25 @@ out_unlock:
 	goto out_put;
 }
 
-int minix_delete_entry(struct minix_dir_entry *de, struct page *page)
+int minix_delete_entry(struct minix_dir_entry *de, struct folio *folio)
 {
-	struct inode *inode = page->mapping->host;
-	loff_t pos = page_offset(page) + offset_in_page(de);
+	struct inode *inode = folio->mapping->host;
+	loff_t pos = folio_pos(folio) + offset_in_folio(folio, de);
 	struct minix_sb_info *sbi = minix_sb(inode->i_sb);
 	unsigned len = sbi->s_dirsize;
 	int err;
 
-	lock_page(page);
-	err = minix_prepare_chunk(page, pos, len);
+	folio_lock(folio);
+	err = minix_prepare_chunk(&folio->page, pos, len);
 	if (err) {
-		unlock_page(page);
+		folio_unlock(folio);
 		return err;
 	}
 	if (sbi->s_version == MINIX_V3)
 		((minix3_dirent *)de)->inode = 0;
 	else
 		de->inode = 0;
-	dir_commit_chunk(page, pos, len);
+	dir_commit_chunk(&folio->page, pos, len);
 	inode_set_mtime_to_ts(inode, inode_set_ctime_current(inode));
 	mark_inode_dirty(inode);
 	return minix_handle_dirsync(inode);

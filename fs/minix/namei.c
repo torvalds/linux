@@ -148,7 +148,7 @@ static int minix_unlink(struct inode * dir, struct dentry *dentry)
 	de = minix_find_entry(dentry, &folio);
 	if (!de)
 		return -ENOENT;
-	err = minix_delete_entry(de, &folio->page);
+	err = minix_delete_entry(de, folio);
 	folio_release_kmap(folio, de);
 
 	if (err)
@@ -228,7 +228,7 @@ static int minix_rename(struct mnt_idmap *idmap,
 			inode_inc_link_count(new_dir);
 	}
 
-	err = minix_delete_entry(old_de, &old_folio->page);
+	err = minix_delete_entry(old_de, old_folio);
 	if (err)
 		goto out_dir;
 

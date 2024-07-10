@@ -66,7 +66,7 @@ extern unsigned V2_minix_blocks(loff_t, struct super_block *);
 
 struct minix_dir_entry *minix_find_entry(struct dentry *, struct folio **);
 int minix_add_link(struct dentry*, struct inode*);
-int minix_delete_entry(struct minix_dir_entry*, struct page*);
+int minix_delete_entry(struct minix_dir_entry *, struct folio *);
 int minix_make_empty(struct inode*, struct inode*);
 int minix_empty_dir(struct inode*);
 int minix_set_link(struct minix_dir_entry *de, struct folio *folio,
