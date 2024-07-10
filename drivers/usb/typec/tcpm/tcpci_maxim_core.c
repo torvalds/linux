@@ -97,11 +97,13 @@ static void max_tcpci_init_regs(struct max_tcpci_chip *chip)
 	if (ret < 0)
 		return;
 
-	alert_mask = TCPC_ALERT_TX_SUCCESS | TCPC_ALERT_TX_DISCARDED | TCPC_ALERT_TX_FAILED |
-		TCPC_ALERT_RX_HARD_RST | TCPC_ALERT_RX_STATUS | TCPC_ALERT_CC_STATUS |
-		TCPC_ALERT_VBUS_DISCNCT | TCPC_ALERT_RX_BUF_OVF | TCPC_ALERT_POWER_STATUS |
-		/* Enable Extended alert for detecting Fast Role Swap Signal */
-		TCPC_ALERT_EXTND | TCPC_ALERT_EXTENDED_STATUS | TCPC_ALERT_FAULT;
+	alert_mask = (TCPC_ALERT_TX_SUCCESS | TCPC_ALERT_TX_DISCARDED |
+		      TCPC_ALERT_TX_FAILED | TCPC_ALERT_RX_HARD_RST |
+		      TCPC_ALERT_RX_STATUS | TCPC_ALERT_POWER_STATUS |
+		      TCPC_ALERT_CC_STATUS |
+		      TCPC_ALERT_EXTND | TCPC_ALERT_EXTENDED_STATUS |
+		      TCPC_ALERT_VBUS_DISCNCT | TCPC_ALERT_RX_BUF_OVF |
+		      TCPC_ALERT_FAULT);
 
 	ret = max_tcpci_write16(chip, TCPC_ALERT_MASK, alert_mask);
 	if (ret < 0) {
