@@ -37,8 +37,7 @@
 #define WTRCYCLE_4_8_S                          1
 
 #define TCPC_VENDOR_ADC_CTRL1                   0x91
-#define ADCINSEL_MASK                           GENMASK(7, 5)
-#define ADC_CHANNEL_OFFSET                      5
+#define ADCINSEL                                GENMASK(7, 5)
 #define ADCEN                                   BIT(0)
 
 enum contamiant_state {

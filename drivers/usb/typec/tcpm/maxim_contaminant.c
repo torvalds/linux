@@ -76,8 +76,8 @@ static int max_contaminant_read_adc_mv(struct max_tcpci_chip *chip, enum fladc_s
 	int ret;
 
 	/* Channel & scale select */
-	ret = regmap_update_bits(regmap, TCPC_VENDOR_ADC_CTRL1, ADCINSEL_MASK,
-				 channel << ADC_CHANNEL_OFFSET);
+	ret = regmap_update_bits(regmap, TCPC_VENDOR_ADC_CTRL1, ADCINSEL,
+				 FIELD_PREP(ADCINSEL, channel));
 	if (ret < 0)
 		return ret;
 
@@ -96,7 +96,8 @@ static int max_contaminant_read_adc_mv(struct max_tcpci_chip *chip, enum fladc_s
 	if (ret < 0)
 		return ret;
 
-	ret = regmap_update_bits(regmap, TCPC_VENDOR_ADC_CTRL1, ADCINSEL_MASK, 0);
+	ret = regmap_update_bits(regmap, TCPC_VENDOR_ADC_CTRL1, ADCINSEL,
+				 FIELD_PREP(ADCINSEL, 0));
 	if (ret < 0)
 		return ret;
 
