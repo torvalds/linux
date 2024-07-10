@@ -3797,7 +3797,7 @@ int get_rapl_counters(int cpu, unsigned int domain, struct core_data *c, struct 
 	unsigned long long perf_data[NUM_RAPL_COUNTERS + 1];
 	struct rapl_counter_info_t *rci;
 
-	if (debug)
+	if (debug >= 2)
 		fprintf(stderr, "%s: cpu%d domain%d\n", __func__, cpu, domain);
 
 	assert(rapl_counter_info_perdomain);
@@ -3827,7 +3827,7 @@ int get_rapl_counters(int cpu, unsigned int domain, struct core_data *c, struct 
 			assert(pi < ARRAY_SIZE(perf_data));
 			assert(rci->fd_perf != -1);
 
-			if (debug)
+			if (debug >= 2)
 				fprintf(stderr, "Reading rapl counter via perf at %u (%llu %e %lf)\n",
 					i, perf_data[pi], rci->scale[i], perf_data[pi] * rci->scale[i]);
 
@@ -3837,7 +3837,7 @@ int get_rapl_counters(int cpu, unsigned int domain, struct core_data *c, struct 
 			break;
 
 		case COUNTER_SOURCE_MSR:
-			if (debug)
+			if (debug >= 2)
 				fprintf(stderr, "Reading rapl counter via msr at %u\n", i);
 
 			assert(!no_msr);
@@ -3895,7 +3895,7 @@ int get_cstate_counters(unsigned int cpu, struct thread_data *t, struct core_dat
 
 	struct cstate_counter_info_t *cci;
 
-	if (debug)
+	if (debug >= 2)
 		fprintf(stderr, "%s: cpu%d\n", __func__, cpu);
 
 	assert(ccstate_counter_info);
@@ -3965,9 +3965,8 @@ int get_cstate_counters(unsigned int cpu, struct thread_data *t, struct core_dat
 			assert(pi < ARRAY_SIZE(perf_data));
 			assert(cci->fd_perf_core != -1 || cci->fd_perf_pkg != -1);
 
-			if (debug) {
+			if (debug >= 2)
 				fprintf(stderr, "cstate via %s %u: %llu\n", "perf", i, perf_data[pi]);
-			}
 
 			cci->data[i] = perf_data[pi];
 
@@ -3979,9 +3978,8 @@ int get_cstate_counters(unsigned int cpu, struct thread_data *t, struct core_dat
 			if (get_msr(cpu, cci->msr[i], &cci->data[i]))
 				return -13 - i;
 
-			if (debug) {
+			if (debug >= 2)
 				fprintf(stderr, "cstate via %s0x%llx %u: %llu\n", "msr", cci->msr[i], i, cci->data[i]);
-			}
 
 			break;
 		}
@@ -4036,7 +4034,7 @@ int get_smi_aperf_mperf(unsigned int cpu, struct thread_data *t)
 
 	struct msr_counter_info_t *mci;
 
-	if (debug)
+	if (debug >= 2)
 		fprintf(stderr, "%s: cpu%d\n", __func__, cpu);
 
 	assert(msr_counter_info);
@@ -4066,7 +4064,7 @@ int get_smi_aperf_mperf(unsigned int cpu, struct thread_data *t)
 			assert(pi < ARRAY_SIZE(perf_data));
 			assert(mci->fd_perf != -1);
 
-			if (debug)
+			if (debug >= 2)
 				fprintf(stderr, "Reading msr counter via perf at %u: %llu\n", i, perf_data[pi]);
 
 			mci->data[i] = perf_data[pi];
@@ -4082,7 +4080,7 @@ int get_smi_aperf_mperf(unsigned int cpu, struct thread_data *t)
 
 			mci->data[i] &= mci->msr_mask[i];
 
-			if (debug)
+			if (debug >= 2)
 				fprintf(stderr, "Reading msr counter via msr at %u: %llu\n", i, mci->data[i]);
 
 			break;
@@ -7125,7 +7123,7 @@ int add_rapl_perf_counter(int cpu, struct rapl_counter_info_t *rci, const struct
 {
 	int ret = add_rapl_perf_counter_(cpu, rci, cai, scale, unit);
 
-	if (debug)
+	if (debug >= 2)
 		fprintf(stderr, "%s: %d (cpu: %d)\n", __func__, ret, cpu);
 
 	return ret;
@@ -7284,7 +7282,7 @@ int add_cstate_perf_counter(int cpu, struct cstate_counter_info_t *cci, const st
 {
 	int ret = add_cstate_perf_counter_(cpu, cci, cai);
 
-	if (debug)
+	if (debug >= 2)
 		fprintf(stderr, "%s: %d (cpu: %d)\n", __func__, ret, cpu);
 
 	return ret;
