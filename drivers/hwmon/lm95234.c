@@ -18,6 +18,7 @@
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/sysfs.h>
+#include <linux/util_macros.h>
 
 #define DRVNAME "lm95234"
 
@@ -471,10 +472,7 @@ static ssize_t update_interval_store(struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	for (regval = 0; regval < 3; regval++) {
-		if (val <= update_intervals[regval])
-			break;
-	}
+	regval = find_closest(val, update_intervals, ARRAY_SIZE(update_intervals));
 
 	mutex_lock(&data->update_lock);
 	data->interval = msecs_to_jiffies(update_intervals[regval]);
