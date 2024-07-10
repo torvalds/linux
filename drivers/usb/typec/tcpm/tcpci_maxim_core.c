@@ -472,6 +472,11 @@ static bool max_tcpci_attempt_vconn_swap_discovery(struct tcpci *tcpci, struct t
 	return true;
 }
 
+static void max_tcpci_unregister_tcpci_port(void *tcpci)
+{
+	tcpci_unregister_port(tcpci);
+}
+
 static int max_tcpci_probe(struct i2c_client *client)
 {
 	int ret;
@@ -515,27 +520,21 @@ static int max_tcpci_probe(struct i2c_client *client)
 		return dev_err_probe(&client->dev, PTR_ERR(chip->tcpci),
 				     "TCPCI port registration failed\n");
 
+        ret = devm_add_action_or_reset(&client->dev,
+				       max_tcpci_unregister_tcpci_port,
+				       chip->tcpci);
+        if (ret)
+                return ret;
+
 	chip->port = tcpci_get_tcpm_port(chip->tcpci);
+
 	ret = max_tcpci_init_alert(chip, client);
 	if (ret < 0)
-		goto unreg_port;
+		return dev_err_probe(&client->dev, ret,
+				     "IRQ initialization failed\n");
 
 	device_init_wakeup(chip->dev, true);
 	return 0;
-
-unreg_port:
-	tcpci_unregister_port(chip->tcpci);
-
-	return dev_err_probe(&client->dev, ret,
-			     "Maxim TCPCI driver initialization failed\n");
-}
-
-static void max_tcpci_remove(struct i2c_client *client)
-{
-	struct max_tcpci_chip *chip = i2c_get_clientdata(client);
-
-	if (!IS_ERR_OR_NULL(chip->tcpci))
-		tcpci_unregister_port(chip->tcpci);
 }
 
 static const struct i2c_device_id max_tcpci_id[] = {
@@ -558,7 +557,6 @@ static struct i2c_driver max_tcpci_i2c_driver = {
 		.of_match_table = of_match_ptr(max_tcpci_of_match),
 	},
 	.probe = max_tcpci_probe,
-	.remove = max_tcpci_remove,
 	.id_table = max_tcpci_id,
 };
 module_i2c_driver(max_tcpci_i2c_driver);
