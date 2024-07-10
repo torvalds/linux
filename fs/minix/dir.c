@@ -40,18 +40,18 @@ minix_last_byte(struct inode *inode, unsigned long page_nr)
 	return last_byte;
 }
 
-static void dir_commit_chunk(struct page *page, loff_t pos, unsigned len)
+static void dir_commit_chunk(struct folio *folio, loff_t pos, unsigned len)
 {
-	struct address_space *mapping = page->mapping;
+	struct address_space *mapping = folio->mapping;
 	struct inode *dir = mapping->host;
 
-	block_write_end(NULL, mapping, pos, len, len, page, NULL);
+	block_write_end(NULL, mapping, pos, len, len, &folio->page, NULL);
 
 	if (pos+len > dir->i_size) {
 		i_size_write(dir, pos+len);
 		mark_inode_dirty(dir);
 	}
-	unlock_page(page);
+	folio_unlock(folio);
 }
 
 static int minix_handle_dirsync(struct inode *dir)
@@ -271,7 +271,7 @@ got_it:
 		memset (namx + namelen, 0, sbi->s_dirsize - namelen - 2);
 		de->inode = inode->i_ino;
 	}
-	dir_commit_chunk(&folio->page, pos, sbi->s_dirsize);
+	dir_commit_chunk(folio, pos, sbi->s_dirsize);
 	inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
 	mark_inode_dirty(dir);
 	err = minix_handle_dirsync(dir);
@@ -301,7 +301,7 @@ int minix_delete_entry(struct minix_dir_entry *de, struct folio *folio)
 		((minix3_dirent *)de)->inode = 0;
 	else
 		de->inode = 0;
-	dir_commit_chunk(&folio->page, pos, len);
+	dir_commit_chunk(folio, pos, len);
 	inode_set_mtime_to_ts(inode, inode_set_ctime_current(inode));
 	mark_inode_dirty(inode);
 	return minix_handle_dirsync(inode);
@@ -344,7 +344,7 @@ int minix_make_empty(struct inode *inode, struct inode *dir)
 	}
 	kunmap_local(kaddr);
 
-	dir_commit_chunk(&folio->page, 0, 2 * sbi->s_dirsize);
+	dir_commit_chunk(folio, 0, 2 * sbi->s_dirsize);
 	err = minix_handle_dirsync(inode);
 fail:
 	folio_put(folio);
@@ -422,7 +422,7 @@ int minix_set_link(struct minix_dir_entry *de, struct folio *folio,
 		((minix3_dirent *)de)->inode = inode->i_ino;
 	else
 		de->inode = inode->i_ino;
-	dir_commit_chunk(&folio->page, pos, sbi->s_dirsize);
+	dir_commit_chunk(folio, pos, sbi->s_dirsize);
 	inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
 	mark_inode_dirty(dir);
 	return minix_handle_dirsync(dir);
