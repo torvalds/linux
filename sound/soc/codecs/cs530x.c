@@ -526,13 +526,15 @@ static int cs530x_hw_params(struct snd_pcm_substream *substream,
 	regmap_update_bits(regmap, CS530X_CLK_CFG_1,
 			   CS530X_SAMPLE_RATE_MASK, fs_val);
 
-	if (cs530x->tdm_slots) {
+
+	if (regmap_test_bits(regmap, CS530X_SIGNAL_PATH_CFG,
+			     CS530X_TDM_EN_MASK)) {
 		dev_dbg(component->dev, "Configuring for %d %d bit TDM slots\n",
 			cs530x->tdm_slots, cs530x->tdm_width);
-		cs530x->bclk = snd_soc_calc_bclk(cs530x->fs,
-						 cs530x->tdm_width,
-						 params_channels(params),
-						 cs530x->tdm_slots);
+		cs530x->bclk = snd_soc_tdm_params_to_bclk(params,
+							  cs530x->tdm_width,
+							  cs530x->tdm_slots,
+							  1);
 	} else {
 		cs530x->bclk = snd_soc_params_to_bclk(params);
 	}
@@ -654,6 +656,9 @@ static int cs530x_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 		dev_err(component->dev, "Invalid TX slot(s) 0x%x\n", tx_mask);
 		return -EINVAL;
 	}
+
+	cs530x->tdm_width = slot_width;
+	cs530x->tdm_slots = slots;
 
 	return regmap_update_bits(regmap, CS530X_SIGNAL_PATH_CFG,
 				  CS530X_ASP_TDM_SLOT_MASK,
