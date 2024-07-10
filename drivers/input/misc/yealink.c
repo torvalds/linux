@@ -36,7 +36,7 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <linux/rwsem.h>
+#include <linux/mutex.h>
 #include <linux/usb/input.h>
 #include <linux/map_to_7segment.h>
 
@@ -102,6 +102,8 @@ struct yealink_dev {
 
 	u8 lcdMap[ARRAY_SIZE(lcdMap)];	/* state of LCD, LED ... */
 	int key_code;			/* last reported key	 */
+
+	struct mutex sysfs_mutex;
 
 	unsigned int shutdown:1;
 
@@ -548,8 +550,6 @@ static void input_close(struct input_dev *dev)
  * sysfs interface
  ******************************************************************************/
 
-static DECLARE_RWSEM(sysfs_rwsema);
-
 /* Interface to the 7-segments translation table aka. char set.
  */
 static ssize_t show_map(struct device *dev, struct device_attribute *attr,
@@ -580,15 +580,10 @@ static ssize_t store_map(struct device *dev, struct device_attribute *attr,
  */
 static ssize_t show_line(struct device *dev, char *buf, int a, int b)
 {
-	struct yealink_dev *yld;
+	struct yealink_dev *yld = dev_get_drvdata(dev);
 	int i;
 
-	down_read(&sysfs_rwsema);
-	yld = dev_get_drvdata(dev);
-	if (yld == NULL) {
-		up_read(&sysfs_rwsema);
-		return -ENODEV;
-	}
+	guard(mutex)(&yld->sysfs_mutex);
 
 	for (i = a; i < b; i++)
 		*buf++ = lcdMap[i].type;
@@ -598,7 +593,6 @@ static ssize_t show_line(struct device *dev, char *buf, int a, int b)
 	*buf++ = '\n';
 	*buf = 0;
 
-	up_read(&sysfs_rwsema);
 	return 3 + ((b - a) << 1);
 }
 
@@ -630,22 +624,16 @@ static ssize_t show_line3(struct device *dev, struct device_attribute *attr,
 static ssize_t store_line(struct device *dev, const char *buf, size_t count,
 		int el, size_t len)
 {
-	struct yealink_dev *yld;
+	struct yealink_dev *yld = dev_get_drvdata(dev);
 	int i;
 
-	down_write(&sysfs_rwsema);
-	yld = dev_get_drvdata(dev);
-	if (yld == NULL) {
-		up_write(&sysfs_rwsema);
-		return -ENODEV;
-	}
+	guard(mutex)(&yld->sysfs_mutex);
 
 	if (len > count)
 		len = count;
 	for (i = 0; i < len; i++)
 		setChar(yld, el++, buf[i]);
 
-	up_write(&sysfs_rwsema);
 	return count;
 }
 
@@ -675,15 +663,10 @@ static ssize_t store_line3(struct device *dev, struct device_attribute *attr,
 static ssize_t get_icons(struct device *dev, struct device_attribute *attr,
 			char *buf)
 {
-	struct yealink_dev *yld;
+	struct yealink_dev *yld = dev_get_drvdata(dev);
 	int i, ret = 1;
 
-	down_read(&sysfs_rwsema);
-	yld = dev_get_drvdata(dev);
-	if (yld == NULL) {
-		up_read(&sysfs_rwsema);
-		return -ENODEV;
-	}
+	guard(mutex)(&yld->sysfs_mutex);
 
 	for (i = 0; i < ARRAY_SIZE(lcdMap); i++) {
 		if (lcdMap[i].type != '.')
@@ -692,7 +675,7 @@ static ssize_t get_icons(struct device *dev, struct device_attribute *attr,
 				yld->lcdMap[i] == ' ' ? "  " : "on",
 				lcdMap[i].u.p.name);
 	}
-	up_read(&sysfs_rwsema);
+
 	return ret;
 }
 
@@ -700,15 +683,10 @@ static ssize_t get_icons(struct device *dev, struct device_attribute *attr,
 static ssize_t set_icon(struct device *dev, const char *buf, size_t count,
 			int chr)
 {
-	struct yealink_dev *yld;
+	struct yealink_dev *yld = dev_get_drvdata(dev);
 	int i;
 
-	down_write(&sysfs_rwsema);
-	yld = dev_get_drvdata(dev);
-	if (yld == NULL) {
-		up_write(&sysfs_rwsema);
-		return -ENODEV;
-	}
+	guard(mutex)(&yld->sysfs_mutex);
 
 	for (i = 0; i < ARRAY_SIZE(lcdMap); i++) {
 		if (lcdMap[i].type != '.')
@@ -719,7 +697,6 @@ static ssize_t set_icon(struct device *dev, const char *buf, size_t count,
 		}
 	}
 
-	up_write(&sysfs_rwsema);
 	return count;
 }
 
@@ -739,22 +716,16 @@ static ssize_t hide_icon(struct device *dev, struct device_attribute *attr,
  */
 
 /* Stores raw ringtone data in the phone */
-static ssize_t store_ringtone(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf, size_t count)
+static ssize_t store_ringtone(struct device *dev, struct device_attribute *attr,
+			      const char *buf, size_t count)
 {
-	struct yealink_dev *yld;
+	struct yealink_dev *yld = dev_get_drvdata(dev);
 
-	down_write(&sysfs_rwsema);
-	yld = dev_get_drvdata(dev);
-	if (yld == NULL) {
-		up_write(&sysfs_rwsema);
-		return -ENODEV;
-	}
+	guard(mutex)(&yld->sysfs_mutex);
 
 	/* TODO locking with async usb control interface??? */
 	yealink_set_ringtone(yld, (char *)buf, count);
-	up_write(&sysfs_rwsema);
+
 	return count;
 }
 
@@ -835,14 +806,10 @@ static int usb_cleanup(struct yealink_dev *yld, int err)
 
 static void usb_disconnect(struct usb_interface *intf)
 {
-	struct yealink_dev *yld;
-
-	down_write(&sysfs_rwsema);
-	yld = usb_get_intfdata(intf);
-	usb_set_intfdata(intf, NULL);
-	up_write(&sysfs_rwsema);
+	struct yealink_dev *yld = usb_get_intfdata(intf);
 
 	usb_cleanup(yld, 0);
+	usb_set_intfdata(intf, NULL);
 }
 
 static int usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
@@ -870,6 +837,7 @@ static int usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	yld->udev = udev;
 	yld->intf = intf;
+	mutex_init(&yld->sysfs_mutex);
 
 	yld->idev = input_dev = input_allocate_device();
 	if (!input_dev)
