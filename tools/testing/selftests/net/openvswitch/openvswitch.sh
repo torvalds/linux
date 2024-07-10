@@ -11,6 +11,11 @@ ksft_skip=4
 PAUSE_ON_FAIL=no
 VERBOSE=0
 TRACING=0
+WAIT_TIMEOUT=5
+
+if test "X$KSFT_MACHINE_SLOW" == "Xyes"; then
+	WAIT_TIMEOUT=10
+fi
 
 tests="
 	arp_ping				eth-arp: Basic arp ping between two NS
@@ -27,6 +32,30 @@ info() {
 	[ "${ovs_dir}" != "" ] &&
 		echo "`date +"[%m-%d %H:%M:%S]"` $*" >> ${ovs_dir}/debug.log
 	[ $VERBOSE = 0 ] || echo $*
+}
+
+ovs_wait() {
+	info "waiting $WAIT_TIMEOUT s for: $@"
+
+	if "$@" ; then
+		info "wait succeeded immediately"
+		return 0
+	fi
+
+	# A quick re-check helps speed up small races in fast systems.
+	# However, fractional sleeps might not necessarily work.
+	local start=0
+	sleep 0.1 || { sleep 1; start=1; }
+
+	for (( i=start; i<WAIT_TIMEOUT; i++ )); do
+		if "$@" ; then
+			info "wait succeeded after $i seconds"
+			return 0
+		fi
+		sleep 1
+	done
+	info "wait failed after $i seconds"
+	return 1
 }
 
 ovs_base=`pwd`
@@ -278,20 +307,19 @@ test_psample() {
 
 	# Record psample data.
 	ovs_spawn_daemon "test_psample" python3 $ovs_base/ovs-dpctl.py psample-events
+	ovs_wait grep -q "listening for psample events" ${ovs_dir}/stdout
 
 	# Send a single ping.
-	sleep 1
 	ovs_sbx "test_psample" ip netns exec client ping -I c1 172.31.110.20 -c 1 || return 1
-	sleep 1
 
 	# We should have received one userspace action upcall and 2 psample packets.
-	grep -E "userspace action command" $ovs_dir/s0.out >/dev/null 2>&1 || return 1
+	ovs_wait grep -q "userspace action command" $ovs_dir/s0.out || return 1
 
 	# client -> server samples should only contain the first 14 bytes of the packet.
-	grep -E "rate:4294967295,group:1,cookie:c0ffee data:[0-9a-f]{28}$" \
-			 $ovs_dir/stdout >/dev/null 2>&1 || return 1
-	grep -E "rate:4294967295,group:2,cookie:eeff0c" \
-			 $ovs_dir/stdout >/dev/null 2>&1 || return 1
+	ovs_wait grep -qE "rate:4294967295,group:1,cookie:c0ffee data:[0-9a-f]{28}$" \
+		$ovs_dir/stdout || return 1
+
+	ovs_wait grep -q "rate:4294967295,group:2,cookie:eeff0c" $ovs_dir/stdout || return 1
 
 	return 0
 }
@@ -711,7 +739,8 @@ test_upcall_interfaces() {
 	ovs_add_netns_and_veths "test_upcall_interfaces" ui0 upc left0 l0 \
 	    172.31.110.1/24 -u || return 1
 
-	sleep 1
+	ovs_wait grep -q "listening on upcall packet handler" ${ovs_dir}/left0.out
+
 	info "sending arping"
 	ip netns exec upc arping -I l0 172.31.110.20 -c 1 \
 	    >$ovs_dir/arping.stdout 2>$ovs_dir/arping.stderr

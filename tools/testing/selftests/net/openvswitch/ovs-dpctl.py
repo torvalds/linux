@@ -2520,6 +2520,7 @@ class PsampleEvent(EventSocket):
     marshal_class = psample_msg
 
     def read_samples(self):
+        print("listening for psample events", flush=True)
         while True:
             try:
                 for msg in self.get():
