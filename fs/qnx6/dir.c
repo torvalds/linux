@@ -32,7 +32,7 @@ static void *qnx6_get_folio(struct inode *dir, unsigned long n,
 	if (IS_ERR(folio))
 		return folio;
 	*foliop = folio;
-	return kmap(&folio->page);
+	return kmap_local_folio(folio, 0);
 }
 
 static unsigned last_entry(struct inode *inode, unsigned long page_nr)
@@ -59,7 +59,7 @@ static struct qnx6_long_filename *qnx6_longname(struct super_block *sb,
 		return ERR_CAST(folio);
 	offs = offset_in_folio(folio, s << sb->s_blocksize_bits);
 	*foliop = folio;
-	return kmap(&folio->page) + offs;
+	return kmap_local_folio(folio, offs);
 }
 
 static int qnx6_dir_longfilename(struct inode *inode,
@@ -90,7 +90,7 @@ static int qnx6_dir_longfilename(struct inode *inode,
 	if (lf_size > QNX6_LONG_NAME_MAX) {
 		pr_debug("file %s\n", lf->lf_fname);
 		pr_err("Filename too long (%i)\n", lf_size);
-		qnx6_put_page(&folio->page);
+		folio_release_kmap(folio, lf);
 		return 0;
 	}
 
@@ -103,11 +103,11 @@ static int qnx6_dir_longfilename(struct inode *inode,
 	pr_debug("qnx6_readdir:%.*s inode:%u\n",
 		 lf_size, lf->lf_fname, de_inode);
 	if (!dir_emit(ctx, lf->lf_fname, lf_size, de_inode, DT_UNKNOWN)) {
-		qnx6_put_page(&folio->page);
+		folio_release_kmap(folio, lf);
 		return 0;
 	}
 
-	qnx6_put_page(&folio->page);
+	folio_release_kmap(folio, lf);
 	/* success */
 	return 1;
 }
@@ -168,7 +168,7 @@ static int qnx6_readdir(struct file *file, struct dir_context *ctx)
 				}
 			}
 		}
-		qnx6_put_page(&folio->page);
+		folio_release_kmap(folio, kaddr);
 	}
 	return 0;
 }
@@ -190,14 +190,14 @@ static unsigned qnx6_long_match(int len, const char *name,
 
 	thislen = fs16_to_cpu(sbi, lf->lf_size);
 	if (len != thislen) {
-		qnx6_put_page(&folio->page);
+		folio_release_kmap(folio, lf);
 		return 0;
 	}
 	if (memcmp(name, lf->lf_fname, len) == 0) {
-		qnx6_put_page(&folio->page);
+		folio_release_kmap(folio, lf);
 		return fs32_to_cpu(sbi, de->de_inode);
 	}
-	qnx6_put_page(&folio->page);
+	folio_release_kmap(folio, lf);
 	return 0;
 }
 
@@ -256,7 +256,7 @@ unsigned qnx6_find_ino(int len, struct inode *dir, const char *name)
 				} else
 					pr_err("undefined filename size in inode.\n");
 			}
-			qnx6_put_page(&folio->page);
+			folio_release_kmap(folio, de - i);
 		}
 
 		if (++n >= npages)
@@ -266,7 +266,7 @@ unsigned qnx6_find_ino(int len, struct inode *dir, const char *name)
 
 found:
 	ei->i_dir_start_lookup = n;
-	qnx6_put_page(&folio->page);
+	folio_release_kmap(folio, de);
 	return ino;
 }
 
