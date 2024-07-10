@@ -484,17 +484,17 @@ static int max_tcpci_probe(struct i2c_client *client)
 
 	chip->client = client;
 	chip->data.regmap = devm_regmap_init_i2c(client, &max_tcpci_regmap_config);
-	if (IS_ERR(chip->data.regmap)) {
-		dev_err(&client->dev, "Regmap init failed\n");
-		return PTR_ERR(chip->data.regmap);
-	}
+	if (IS_ERR(chip->data.regmap))
+		return dev_err_probe(&client->dev, PTR_ERR(chip->data.regmap),
+				     "Regmap init failed\n");
 
 	chip->dev = &client->dev;
 	i2c_set_clientdata(client, chip);
 
 	ret = max_tcpci_read8(chip, TCPC_POWER_STATUS, &power_status);
 	if (ret < 0)
-		return ret;
+		return dev_err_probe(&client->dev, ret,
+				     "Failed to read TCPC_POWER_STATUS\n");
 
 	/* Chip level tcpci callbacks */
 	chip->data.set_vbus = max_tcpci_set_vbus;
@@ -511,10 +511,10 @@ static int max_tcpci_probe(struct i2c_client *client)
 
 	max_tcpci_init_regs(chip);
 	chip->tcpci = tcpci_register_port(chip->dev, &chip->data);
-	if (IS_ERR(chip->tcpci)) {
-		dev_err(&client->dev, "TCPCI port registration failed\n");
-		return PTR_ERR(chip->tcpci);
-	}
+	if (IS_ERR(chip->tcpci))
+		return dev_err_probe(&client->dev, PTR_ERR(chip->tcpci),
+				     "TCPCI port registration failed\n");
+
 	chip->port = tcpci_get_tcpm_port(chip->tcpci);
 	ret = max_tcpci_init_alert(chip, client);
 	if (ret < 0)
@@ -526,7 +526,8 @@ static int max_tcpci_probe(struct i2c_client *client)
 unreg_port:
 	tcpci_unregister_port(chip->tcpci);
 
-	return ret;
+	return dev_err_probe(&client->dev, ret,
+			     "Maxim TCPCI driver initialization failed\n");
 }
 
 static void max_tcpci_remove(struct i2c_client *client)
