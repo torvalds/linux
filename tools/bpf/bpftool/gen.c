@@ -852,24 +852,41 @@ codegen_maps_skeleton(struct bpf_object *obj, size_t map_cnt, bool mmaped, bool 
 {
 	struct bpf_map *map;
 	char ident[256];
-	size_t i;
+	size_t i, map_sz;
 
 	if (!map_cnt)
 		return;
 
+	/* for backward compatibility with old libbpf versions that don't
+	 * handle new BPF skeleton with new struct bpf_map_skeleton definition
+	 * that includes link field, avoid specifying new increased size,
+	 * unless we absolutely have to (i.e., if there are struct_ops maps
+	 * present)
+	 */
+	map_sz = offsetof(struct bpf_map_skeleton, link);
+	if (populate_links) {
+		bpf_object__for_each_map(map, obj) {
+			if (bpf_map__type(map) == BPF_MAP_TYPE_STRUCT_OPS) {
+				map_sz = sizeof(struct bpf_map_skeleton);
+				break;
+			}
+		}
+	}
+
 	codegen("\
 		\n\
-									\n\
+								    \n\
 			/* maps */				    \n\
 			s->map_cnt = %zu;			    \n\
-			s->map_skel_sz = sizeof(*s->maps);	    \n\
-			s->maps = (struct bpf_map_skeleton *)calloc(s->map_cnt, s->map_skel_sz);\n\
+			s->map_skel_sz = %zu;			    \n\
+			s->maps = (struct bpf_map_skeleton *)calloc(s->map_cnt,\n\
+					sizeof(*s->maps) > %zu ? sizeof(*s->maps) : %zu);\n\
 			if (!s->maps) {				    \n\
 				err = -ENOMEM;			    \n\
 				goto err;			    \n\
 			}					    \n\
 		",
-		map_cnt
+		map_cnt, map_sz, map_sz, map_sz
 	);
 	i = 0;
 	bpf_object__for_each_map(map, obj) {
@@ -878,23 +895,22 @@ codegen_maps_skeleton(struct bpf_object *obj, size_t map_cnt, bool mmaped, bool 
 
 		codegen("\
 			\n\
-									\n\
-				s->maps[%zu].name = \"%s\";	    \n\
-				s->maps[%zu].map = &obj->maps.%s;   \n\
+								    \n\
+				map = (struct bpf_map_skeleton *)((char *)s->maps + %zu * s->map_skel_sz);\n\
+				map->name = \"%s\";		    \n\
+				map->map = &obj->maps.%s;	    \n\
 			",
-			i, bpf_map__name(map), i, ident);
+			i, bpf_map__name(map), ident);
 		/* memory-mapped internal maps */
 		if (mmaped && is_mmapable_map(map, ident, sizeof(ident))) {
-			printf("\ts->maps[%zu].mmaped = (void **)&obj->%s;\n",
-				i, ident);
+			printf("\tmap->mmaped = (void **)&obj->%s;\n", ident);
 		}
 
 		if (populate_links && bpf_map__type(map) == BPF_MAP_TYPE_STRUCT_OPS) {
 			codegen("\
 				\n\
-					s->maps[%zu].link = &obj->links.%s;\n\
-				",
-				i, ident);
+					map->link = &obj->links.%s; \n\
+				", ident);
 		}
 		i++;
 	}
@@ -1463,6 +1479,7 @@ static int do_skeleton(int argc, char **argv)
 		%1$s__create_skeleton(struct %1$s *obj)			    \n\
 		{							    \n\
 			struct bpf_object_skeleton *s;			    \n\
+			struct bpf_map_skeleton *map __attribute__((unused));\n\
 			int err;					    \n\
 									    \n\
 			s = (struct bpf_object_skeleton *)calloc(1, sizeof(*s));\n\
@@ -1753,6 +1770,7 @@ static int do_subskeleton(int argc, char **argv)
 		{							    \n\
 			struct %1$s *obj;				    \n\
 			struct bpf_object_subskeleton *s;		    \n\
+			struct bpf_map_skeleton *map __attribute__((unused));\n\
 			int err;					    \n\
 									    \n\
 			obj = (struct %1$s *)calloc(1, sizeof(*obj));	    \n\
