@@ -262,8 +262,8 @@ int block_write_begin(struct address_space *mapping, loff_t pos, unsigned len,
 int __block_write_begin(struct page *page, loff_t pos, unsigned len,
 		get_block_t *get_block);
 int block_write_end(struct file *, struct address_space *,
-				loff_t, unsigned, unsigned,
-				struct page *, void *);
+				loff_t, unsigned len, unsigned copied,
+				struct folio *, void *);
 int generic_write_end(struct file *, struct address_space *,
 				loff_t, unsigned, unsigned,
 				struct page *, void *);

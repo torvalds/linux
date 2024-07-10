@@ -533,7 +533,7 @@ static int nilfs_recover_dsync_blocks(struct the_nilfs *nilfs,
 			goto failed_page;
 
 		block_write_end(NULL, inode->i_mapping, pos, blocksize,
-				blocksize, page, NULL);
+				blocksize, folio, NULL);
 
 		folio_unlock(folio);
 		folio_put(folio);

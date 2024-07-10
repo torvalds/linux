@@ -2247,9 +2247,8 @@ EXPORT_SYMBOL(block_write_begin);
 
 int block_write_end(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned copied,
-			struct page *page, void *fsdata)
+			struct folio *folio, void *fsdata)
 {
-	struct folio *folio = page_folio(page);
 	size_t start = pos - folio_pos(folio);
 
 	if (unlikely(copied < len)) {
@@ -2288,7 +2287,7 @@ int generic_write_end(struct file *file, struct address_space *mapping,
 	loff_t old_size = inode->i_size;
 	bool i_size_changed = false;
 
-	copied = block_write_end(file, mapping, pos, len, copied, page, fsdata);
+	copied = block_write_end(file, mapping, pos, len, copied, folio, fsdata);
 
 	/*
 	 * No need to use i_size_read() here, the i_size cannot change under us

@@ -462,7 +462,7 @@ static int blkdev_write_end(struct file *file, struct address_space *mapping,
 {
 	struct folio *folio = page_folio(page);
 	int ret;
-	ret = block_write_end(file, mapping, pos, len, copied, page, fsdata);
+	ret = block_write_end(file, mapping, pos, len, copied, folio, fsdata);
 
 	folio_unlock(folio);
 	folio_put(folio);
