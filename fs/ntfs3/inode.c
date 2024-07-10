@@ -1008,45 +1008,6 @@ int ntfs_write_end(struct file *file, struct address_space *mapping, loff_t pos,
 	return err;
 }
 
-int reset_log_file(struct inode *inode)
-{
-	int err;
-	loff_t pos = 0;
-	u32 log_size = inode->i_size;
-	struct address_space *mapping = inode->i_mapping;
-
-	for (;;) {
-		u32 len;
-		void *kaddr;
-		struct page *page;
-
-		len = pos + PAGE_SIZE > log_size ? (log_size - pos) : PAGE_SIZE;
-
-		err = block_write_begin(mapping, pos, len, &page,
-					ntfs_get_block_write_begin);
-		if (err)
-			goto out;
-
-		kaddr = kmap_atomic(page);
-		memset(kaddr, -1, len);
-		kunmap_atomic(kaddr);
-		flush_dcache_page(page);
-
-		err = block_write_end(NULL, mapping, pos, len, len, page, NULL);
-		if (err < 0)
-			goto out;
-		pos += len;
-
-		if (pos >= log_size)
-			break;
-		balance_dirty_pages_ratelimited(mapping);
-	}
-out:
-	mark_inode_dirty_sync(inode);
-
-	return err;
-}
-
 int ntfs3_write_inode(struct inode *inode, struct writeback_control *wbc)
 {
 	return _ni_write_inode(inode, wbc->sync_mode == WB_SYNC_ALL);
