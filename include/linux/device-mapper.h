@@ -405,6 +405,12 @@ struct dm_target {
 	 * support it.
 	 */
 	bool flush_bypasses_map:1;
+
+	/*
+	 * Set if the target calls bio_integrity_alloc on bios received
+	 * in the map method.
+	 */
+	bool mempool_needs_integrity:1;
 };
 
 void *dm_per_bio_data(struct bio *bio, size_t data_size);
