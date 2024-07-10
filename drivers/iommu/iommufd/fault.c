@@ -305,6 +305,16 @@ static ssize_t iommufd_fault_fops_write(struct file *filep, const char __user *b
 		if (rc)
 			break;
 
+		static_assert((int)IOMMUFD_PAGE_RESP_SUCCESS ==
+			      (int)IOMMU_PAGE_RESP_SUCCESS);
+		static_assert((int)IOMMUFD_PAGE_RESP_INVALID ==
+			      (int)IOMMU_PAGE_RESP_INVALID);
+		if (response.code != IOMMUFD_PAGE_RESP_SUCCESS &&
+		    response.code != IOMMUFD_PAGE_RESP_INVALID) {
+			rc = -EINVAL;
+			break;
+		}
+
 		group = xa_erase(&fault->response, response.cookie);
 		if (!group) {
 			rc = -EINVAL;
