@@ -367,7 +367,8 @@ okay:
 static int orangefs_write_end(struct file *file, struct address_space *mapping,
     loff_t pos, unsigned len, unsigned copied, struct page *page, void *fsdata)
 {
-	struct inode *inode = page->mapping->host;
+	struct folio *folio = page_folio(page);
+	struct inode *inode = folio->mapping->host;
 	loff_t last_pos = pos + copied;
 
 	/*
@@ -377,23 +378,23 @@ static int orangefs_write_end(struct file *file, struct address_space *mapping,
 	if (last_pos > inode->i_size)
 		i_size_write(inode, last_pos);
 
-	/* zero the stale part of the page if we did a short copy */
-	if (!PageUptodate(page)) {
+	/* zero the stale part of the folio if we did a short copy */
+	if (!folio_test_uptodate(folio)) {
 		unsigned from = pos & (PAGE_SIZE - 1);
 		if (copied < len) {
-			zero_user(page, from + copied, len - copied);
+			folio_zero_range(folio, from + copied, len - copied);
 		}
 		/* Set fully written pages uptodate. */
-		if (pos == page_offset(page) &&
+		if (pos == folio_pos(folio) &&
 		    (len == PAGE_SIZE || pos + len == inode->i_size)) {
-			zero_user_segment(page, from + copied, PAGE_SIZE);
-			SetPageUptodate(page);
+			folio_zero_segment(folio, from + copied, PAGE_SIZE);
+			folio_mark_uptodate(folio);
 		}
 	}
 
-	set_page_dirty(page);
-	unlock_page(page);
-	put_page(page);
+	folio_mark_dirty(folio);
+	folio_unlock(folio);
+	folio_put(folio);
 
 	mark_inode_dirty_sync(file_inode(file));
 	return copied;
