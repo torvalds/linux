@@ -58,6 +58,10 @@ static bool xdp_flowtable_offload_check_tcp_state(void *ports, void *data_end,
 	return true;
 }
 
+struct flow_ports___local {
+	__be16 source, dest;
+} __attribute__((preserve_access_index));
+
 SEC("xdp.frags")
 int xdp_flowtable_do_lookup(struct xdp_md *ctx)
 {
@@ -69,7 +73,7 @@ int xdp_flowtable_do_lookup(struct xdp_md *ctx)
 	};
 	void *data = (void *)(long)ctx->data;
 	struct ethhdr *eth = data;
-	struct flow_ports *ports;
+	struct flow_ports___local *ports;
 	__u32 *val, key = 0;
 
 	if (eth + 1 > data_end)
@@ -79,7 +83,7 @@ int xdp_flowtable_do_lookup(struct xdp_md *ctx)
 	case bpf_htons(ETH_P_IP): {
 		struct iphdr *iph = data + sizeof(*eth);
 
-		ports = (struct flow_ports *)(iph + 1);
+		ports = (struct flow_ports___local *)(iph + 1);
 		if (ports + 1 > data_end)
 			return XDP_PASS;
 
@@ -106,7 +110,7 @@ int xdp_flowtable_do_lookup(struct xdp_md *ctx)
 		struct in6_addr *dst = (struct in6_addr *)tuple.ipv6_dst;
 		struct ipv6hdr *ip6h = data + sizeof(*eth);
 
-		ports = (struct flow_ports *)(ip6h + 1);
+		ports = (struct flow_ports___local *)(ip6h + 1);
 		if (ports + 1 > data_end)
 			return XDP_PASS;
 
