@@ -388,6 +388,7 @@ int xe_gt_init_early(struct xe_gt *gt)
 
 	xe_force_wake_init_gt(gt, gt_to_fw(gt));
 	xe_pcode_init(gt);
+	spin_lock_init(&gt->global_invl_lock);
 
 	return 0;
 }
