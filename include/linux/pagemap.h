@@ -354,10 +354,17 @@ static inline void mapping_set_gfp_mask(struct address_space *m, gfp_t mask)
  * a good order (that's 1MB if you're using 4kB pages)
  */
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-#define MAX_PAGECACHE_ORDER	HPAGE_PMD_ORDER
+#define PREFERRED_MAX_PAGECACHE_ORDER	HPAGE_PMD_ORDER
 #else
-#define MAX_PAGECACHE_ORDER	8
+#define PREFERRED_MAX_PAGECACHE_ORDER	8
 #endif
+
+/*
+ * xas_split_alloc() does not support arbitrary orders. This implies no
+ * 512MB THP on ARM64 with 64KB base page size.
+ */
+#define MAX_XAS_ORDER		(XA_CHUNK_SHIFT * 2 - 1)
+#define MAX_PAGECACHE_ORDER	min(MAX_XAS_ORDER, PREFERRED_MAX_PAGECACHE_ORDER)
 
 /**
  * mapping_set_large_folios() - Indicate the file supports large folios.
