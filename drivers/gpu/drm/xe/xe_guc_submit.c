@@ -1060,7 +1060,10 @@ guc_exec_queue_timedout_job(struct drm_sched_job *drm_job)
 	struct xe_exec_queue *q = job->q;
 	struct xe_gpu_scheduler *sched = &q->guc->sched;
 	struct xe_guc *guc = exec_queue_to_guc(q);
+	const char *process_name = "no process";
+	struct task_struct *task = NULL;
 	int err = -ETIME;
+	pid_t pid = -1;
 	int i = 0;
 	bool wedged, skip_timeout_check;
 
@@ -1157,9 +1160,19 @@ trigger_reset:
 		goto sched_enable;
 	}
 
-	xe_gt_notice(guc_to_gt(guc), "Timedout job: seqno=%u, lrc_seqno=%u, guc_id=%d, flags=0x%lx",
+	if (q->vm && q->vm->xef) {
+		task = get_pid_task(q->vm->xef->drm->pid, PIDTYPE_PID);
+		if (task) {
+			process_name = task->comm;
+			pid = task->pid;
+		}
+	}
+	xe_gt_notice(guc_to_gt(guc), "Timedout job: seqno=%u, lrc_seqno=%u, guc_id=%d, flags=0x%lx in %s [%d]",
 		     xe_sched_job_seqno(job), xe_sched_job_lrc_seqno(job),
-		     q->guc->id, q->flags);
+		     q->guc->id, q->flags, process_name, pid);
+	if (task)
+		put_task_struct(task);
+
 	trace_xe_sched_job_timedout(job);
 
 	if (!exec_queue_killed(q))
