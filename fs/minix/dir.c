@@ -404,40 +404,37 @@ not_empty:
 }
 
 /* Releases the page */
-int minix_set_link(struct minix_dir_entry *de, struct page *page,
+int minix_set_link(struct minix_dir_entry *de, struct folio *folio,
 		struct inode *inode)
 {
-	struct inode *dir = page->mapping->host;
+	struct inode *dir = folio->mapping->host;
 	struct minix_sb_info *sbi = minix_sb(dir->i_sb);
-	loff_t pos = page_offset(page) + offset_in_page(de);
+	loff_t pos = folio_pos(folio) + offset_in_folio(folio, de);
 	int err;
 
-	lock_page(page);
-	err = minix_prepare_chunk(page, pos, sbi->s_dirsize);
+	folio_lock(folio);
+	err = minix_prepare_chunk(&folio->page, pos, sbi->s_dirsize);
 	if (err) {
-		unlock_page(page);
+		folio_unlock(folio);
 		return err;
 	}
 	if (sbi->s_version == MINIX_V3)
 		((minix3_dirent *)de)->inode = inode->i_ino;
 	else
 		de->inode = inode->i_ino;
-	dir_commit_chunk(page, pos, sbi->s_dirsize);
+	dir_commit_chunk(&folio->page, pos, sbi->s_dirsize);
 	inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
 	mark_inode_dirty(dir);
 	return minix_handle_dirsync(dir);
 }
 
-struct minix_dir_entry * minix_dotdot (struct inode *dir, struct page **p)
+struct minix_dir_entry *minix_dotdot(struct inode *dir, struct folio **foliop)
 {
-	struct folio *folio;
 	struct minix_sb_info *sbi = minix_sb(dir->i_sb);
-	struct minix_dir_entry *de = dir_get_folio(dir, 0, &folio);
+	struct minix_dir_entry *de = dir_get_folio(dir, 0, foliop);
 
-	if (!IS_ERR(de)) {
-		*p = &folio->page;
+	if (!IS_ERR(de))
 		return minix_next_entry(de, sbi);
-	}
 	return NULL;
 }
 

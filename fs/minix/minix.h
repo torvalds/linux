@@ -69,9 +69,9 @@ int minix_add_link(struct dentry*, struct inode*);
 int minix_delete_entry(struct minix_dir_entry*, struct page*);
 int minix_make_empty(struct inode*, struct inode*);
 int minix_empty_dir(struct inode*);
-int minix_set_link(struct minix_dir_entry *de, struct page *page,
+int minix_set_link(struct minix_dir_entry *de, struct folio *folio,
 		struct inode *inode);
-struct minix_dir_entry *minix_dotdot(struct inode*, struct page**);
+struct minix_dir_entry *minix_dotdot(struct inode*, struct folio **);
 ino_t minix_inode_by_name(struct dentry*);
 
 extern const struct inode_operations minix_file_inode_operations;
