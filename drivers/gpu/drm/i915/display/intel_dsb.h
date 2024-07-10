@@ -10,6 +10,7 @@
 
 #include "i915_reg_defs.h"
 
+struct intel_atomic_state;
 struct intel_crtc;
 struct intel_crtc_state;
 struct intel_dsb;
@@ -22,7 +23,8 @@ enum intel_dsb_id {
 	I915_MAX_DSBS,
 };
 
-struct intel_dsb *intel_dsb_prepare(const struct intel_crtc_state *crtc_state,
+struct intel_dsb *intel_dsb_prepare(struct intel_atomic_state *state,
+				    struct intel_crtc *crtc,
 				    enum intel_dsb_id dsb_id,
 				    unsigned int max_cmds);
 void intel_dsb_finish(struct intel_dsb *dsb);

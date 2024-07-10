@@ -137,7 +137,7 @@ static unsigned int
 cmrr_get_vtotal(struct intel_crtc_state *crtc_state, bool video_mode_required)
 {
 	int multiplier_m = 1, multiplier_n = 1, vtotal, desired_refresh_rate;
-	long long adjusted_pixel_rate;
+	u64 adjusted_pixel_rate;
 	struct drm_display_mode *adjusted_mode = &crtc_state->hw.adjusted_mode;
 
 	desired_refresh_rate = drm_mode_vrefresh(adjusted_mode);

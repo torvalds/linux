@@ -346,6 +346,7 @@ static void flip_done_handler(struct drm_i915_private *i915,
 	spin_lock(&i915->drm.event_lock);
 
 	if (crtc->flip_done_event) {
+		trace_intel_crtc_flip_done(crtc);
 		drm_crtc_send_vblank_event(&crtc->base, crtc->flip_done_event);
 		crtc->flip_done_event = NULL;
 	}
@@ -836,14 +837,53 @@ static u32 gen8_de_port_aux_mask(struct drm_i915_private *dev_priv)
 
 static u32 gen8_de_pipe_fault_mask(struct drm_i915_private *dev_priv)
 {
+	if (DISPLAY_VER(dev_priv) >= 14)
+		return MTL_PIPEDMC_ATS_FAULT |
+			MTL_PLANE_ATS_FAULT |
+			GEN12_PIPEDMC_FAULT |
+			GEN9_PIPE_CURSOR_FAULT |
+			GEN11_PIPE_PLANE5_FAULT |
+			GEN9_PIPE_PLANE4_FAULT |
+			GEN9_PIPE_PLANE3_FAULT |
+			GEN9_PIPE_PLANE2_FAULT |
+			GEN9_PIPE_PLANE1_FAULT;
 	if (DISPLAY_VER(dev_priv) >= 13 || HAS_D12_PLANE_MINIMIZATION(dev_priv))
-		return RKL_DE_PIPE_IRQ_FAULT_ERRORS;
-	else if (DISPLAY_VER(dev_priv) >= 11)
-		return GEN11_DE_PIPE_IRQ_FAULT_ERRORS;
+		return GEN12_PIPEDMC_FAULT |
+			GEN9_PIPE_CURSOR_FAULT |
+			GEN11_PIPE_PLANE5_FAULT |
+			GEN9_PIPE_PLANE4_FAULT |
+			GEN9_PIPE_PLANE3_FAULT |
+			GEN9_PIPE_PLANE2_FAULT |
+			GEN9_PIPE_PLANE1_FAULT;
+	else if (DISPLAY_VER(dev_priv) == 12)
+		return GEN12_PIPEDMC_FAULT |
+			GEN9_PIPE_CURSOR_FAULT |
+			GEN11_PIPE_PLANE7_FAULT |
+			GEN11_PIPE_PLANE6_FAULT |
+			GEN11_PIPE_PLANE5_FAULT |
+			GEN9_PIPE_PLANE4_FAULT |
+			GEN9_PIPE_PLANE3_FAULT |
+			GEN9_PIPE_PLANE2_FAULT |
+			GEN9_PIPE_PLANE1_FAULT;
+	else if (DISPLAY_VER(dev_priv) == 11)
+		return GEN9_PIPE_CURSOR_FAULT |
+			GEN11_PIPE_PLANE7_FAULT |
+			GEN11_PIPE_PLANE6_FAULT |
+			GEN11_PIPE_PLANE5_FAULT |
+			GEN9_PIPE_PLANE4_FAULT |
+			GEN9_PIPE_PLANE3_FAULT |
+			GEN9_PIPE_PLANE2_FAULT |
+			GEN9_PIPE_PLANE1_FAULT;
 	else if (DISPLAY_VER(dev_priv) >= 9)
-		return GEN9_DE_PIPE_IRQ_FAULT_ERRORS;
+		return GEN9_PIPE_CURSOR_FAULT |
+			GEN9_PIPE_PLANE4_FAULT |
+			GEN9_PIPE_PLANE3_FAULT |
+			GEN9_PIPE_PLANE2_FAULT |
+			GEN9_PIPE_PLANE1_FAULT;
 	else
-		return GEN8_DE_PIPE_IRQ_FAULT_ERRORS;
+		return GEN8_PIPE_CURSOR_FAULT |
+			GEN8_PIPE_SPRITE_FAULT |
+			GEN8_PIPE_PRIMARY_FAULT;
 }
 
 static void intel_pmdemand_irq_handler(struct drm_i915_private *dev_priv)

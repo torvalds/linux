@@ -3279,6 +3279,10 @@ void intel_cx0pll_readout_hw_state(struct intel_encoder *encoder,
 {
 	pll_state->use_c10 = false;
 
+	pll_state->tbt_mode = intel_tc_port_in_tbt_alt_mode(enc_to_dig_port(encoder));
+	if (pll_state->tbt_mode)
+		return;
+
 	if (intel_encoder_is_c10phy(encoder)) {
 		intel_c10pll_readout_hw_state(encoder, &pll_state->c10);
 		pll_state->use_c10 = true;
@@ -3325,6 +3329,8 @@ static bool mtl_compare_hw_state_c20(const struct intel_c20pll_state *a,
 bool intel_cx0pll_compare_hw_state(const struct intel_cx0pll_state *a,
 				   const struct intel_cx0pll_state *b)
 {
+	if (a->tbt_mode || b->tbt_mode)
+		return true;
 
 	if (a->use_c10 != b->use_c10)
 		return false;
@@ -3420,11 +3426,10 @@ void intel_cx0pll_state_verify(struct intel_atomic_state *state,
 		return;
 
 	encoder = intel_get_crtc_new_encoder(state, new_crtc_state);
-
-	if (intel_tc_port_in_tbt_alt_mode(enc_to_dig_port(encoder)))
-		return;
-
 	intel_cx0pll_readout_hw_state(encoder, &mpll_hw_state);
+
+	if (mpll_hw_state.tbt_mode)
+		return;
 
 	if (intel_encoder_is_c10phy(encoder))
 		intel_c10pll_state_verify(new_crtc_state, crtc, encoder, &mpll_hw_state.c10);

@@ -503,6 +503,77 @@ skl_plane_max_stride(struct intel_plane *plane,
 				max_pixels, max_bytes);
 }
 
+static u32 tgl_plane_min_alignment(struct intel_plane *plane,
+				   const struct drm_framebuffer *fb,
+				   int color_plane)
+{
+	struct drm_i915_private *i915 = to_i915(plane->base.dev);
+	/* PLANE_SURF GGTT -> DPT alignment */
+	int mult = intel_fb_uses_dpt(fb) ? 512 : 1;
+
+	/* AUX_DIST needs only 4K alignment */
+	if (intel_fb_is_ccs_aux_plane(fb, color_plane))
+		return mult * 4 * 1024;
+
+	switch (fb->modifier) {
+	case DRM_FORMAT_MOD_LINEAR:
+	case I915_FORMAT_MOD_X_TILED:
+	case I915_FORMAT_MOD_Y_TILED:
+	case I915_FORMAT_MOD_4_TILED:
+		/*
+		 * FIXME ADL sees GGTT/DMAR faults with async
+		 * flips unless we align to 16k at least.
+		 * Figure out what's going on here...
+		 */
+		if (IS_ALDERLAKE_P(i915) && HAS_ASYNC_FLIPS(i915))
+			return mult * 16 * 1024;
+		return mult * 4 * 1024;
+	case I915_FORMAT_MOD_Y_TILED_GEN12_MC_CCS:
+	case I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS:
+	case I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS_CC:
+	case I915_FORMAT_MOD_4_TILED_MTL_MC_CCS:
+	case I915_FORMAT_MOD_4_TILED_MTL_RC_CCS:
+	case I915_FORMAT_MOD_4_TILED_MTL_RC_CCS_CC:
+	case I915_FORMAT_MOD_4_TILED_DG2_RC_CCS:
+	case I915_FORMAT_MOD_4_TILED_DG2_RC_CCS_CC:
+	case I915_FORMAT_MOD_4_TILED_DG2_MC_CCS:
+		/*
+		 * Align to at least 4x1 main surface
+		 * tiles (16K) to match 64B of AUX.
+		 */
+		return max(mult * 4 * 1024, 16 * 1024);
+	default:
+		MISSING_CASE(fb->modifier);
+		return 0;
+	}
+}
+
+static u32 skl_plane_min_alignment(struct intel_plane *plane,
+				   const struct drm_framebuffer *fb,
+				   int color_plane)
+{
+	/*
+	 * AUX_DIST needs only 4K alignment,
+	 * as does ICL UV PLANE_SURF.
+	 */
+	if (color_plane != 0)
+		return 4 * 1024;
+
+	switch (fb->modifier) {
+	case DRM_FORMAT_MOD_LINEAR:
+	case I915_FORMAT_MOD_X_TILED:
+		return 256 * 1024;
+	case I915_FORMAT_MOD_Y_TILED_CCS:
+	case I915_FORMAT_MOD_Yf_TILED_CCS:
+	case I915_FORMAT_MOD_Y_TILED:
+	case I915_FORMAT_MOD_Yf_TILED:
+		return 1 * 1024 * 1024;
+	default:
+		MISSING_CASE(fb->modifier);
+		return 0;
+	}
+}
+
 /* Preoffset values for YUV to RGB Conversion */
 #define PREOFF_YUV_TO_RGB_HI		0x1800
 #define PREOFF_YUV_TO_RGB_ME		0x0000
@@ -1680,11 +1751,12 @@ skl_check_main_ccs_coordinates(struct intel_plane_state *plane_state,
 			       int main_x, int main_y, u32 main_offset,
 			       int ccs_plane)
 {
+	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
 	int aux_x = plane_state->view.color_plane[ccs_plane].x;
 	int aux_y = plane_state->view.color_plane[ccs_plane].y;
 	u32 aux_offset = plane_state->view.color_plane[ccs_plane].offset;
-	unsigned int alignment = intel_surf_alignment(fb, ccs_plane);
+	unsigned int alignment = plane->min_alignment(plane, fb, ccs_plane);
 	int hsub;
 	int vsub;
 
@@ -1728,7 +1800,7 @@ int skl_calc_main_surface_offset(const struct intel_plane_state *plane_state,
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
 	int aux_plane = skl_main_to_aux_plane(fb, 0);
 	u32 aux_offset = plane_state->view.color_plane[aux_plane].offset;
-	unsigned int alignment = intel_surf_alignment(fb, 0);
+	unsigned int alignment = plane->min_alignment(plane, fb, 0);
 	int w = drm_rect_width(&plane_state->uapi.src) >> 16;
 
 	intel_add_fb_offsets(x, y, plane_state, 0);
@@ -1784,7 +1856,7 @@ static int skl_check_main_surface(struct intel_plane_state *plane_state)
 	int min_width = intel_plane_min_width(plane, fb, 0, rotation);
 	int max_width = intel_plane_max_width(plane, fb, 0, rotation);
 	int max_height = intel_plane_max_height(plane, fb, 0, rotation);
-	unsigned int alignment = intel_surf_alignment(fb, 0);
+	unsigned int alignment = plane->min_alignment(plane, fb, 0);
 	int aux_plane = skl_main_to_aux_plane(fb, 0);
 	u32 offset;
 	int ret;
@@ -1873,7 +1945,7 @@ static int skl_check_nv12_aux_surface(struct intel_plane_state *plane_state)
 
 	if (ccs_plane) {
 		u32 aux_offset = plane_state->view.color_plane[ccs_plane].offset;
-		unsigned int alignment = intel_surf_alignment(fb, uv_plane);
+		unsigned int alignment = plane->min_alignment(plane, fb, uv_plane);
 
 		if (offset > aux_offset)
 			offset = intel_plane_adjust_aligned_offset(&x, &y,
@@ -2429,6 +2501,11 @@ skl_universal_plane_create(struct drm_i915_private *dev_priv,
 		plane->max_stride = adl_plane_max_stride;
 	else
 		plane->max_stride = skl_plane_max_stride;
+
+	if (DISPLAY_VER(dev_priv) >= 12)
+		plane->min_alignment = tgl_plane_min_alignment;
+	else
+		plane->min_alignment = skl_plane_min_alignment;
 
 	if (DISPLAY_VER(dev_priv) >= 11) {
 		plane->update_noarm = icl_plane_update_noarm;

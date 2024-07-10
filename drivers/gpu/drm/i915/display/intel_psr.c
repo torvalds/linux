@@ -571,6 +571,20 @@ static void _panel_replay_init_dpcd(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 
+	if (intel_dp_is_edp(intel_dp)) {
+		if (!intel_alpm_aux_less_wake_supported(intel_dp)) {
+			drm_dbg_kms(&i915->drm,
+				    "Panel doesn't support AUX-less ALPM, eDP Panel Replay not possible\n");
+			return;
+		}
+
+		if (!(intel_dp->pr_dpcd & DP_PANEL_REPLAY_EARLY_TRANSPORT_SUPPORT)) {
+			drm_dbg_kms(&i915->drm,
+				    "Panel doesn't support early transport, eDP Panel Replay not possible\n");
+			return;
+		}
+	}
+
 	intel_dp->psr.sink_panel_replay_support = true;
 
 	if (intel_dp->pr_dpcd & DP_PANEL_REPLAY_SU_SUPPORT)
@@ -706,6 +720,7 @@ static void _panel_replay_enable_sink(struct intel_dp *intel_dp,
 		DP_PANEL_REPLAY_UNRECOVERABLE_ERROR_EN |
 		DP_PANEL_REPLAY_RFB_STORAGE_ERROR_EN |
 		DP_PANEL_REPLAY_ACTIVE_FRAME_CRC_ERROR_EN;
+	u8 panel_replay_config2 = DP_PANEL_REPLAY_CRC_VERIFICATION;
 
 	if (crtc_state->has_sel_update)
 		val |= DP_PANEL_REPLAY_SU_ENABLE;
@@ -713,7 +728,14 @@ static void _panel_replay_enable_sink(struct intel_dp *intel_dp,
 	if (crtc_state->enable_psr2_su_region_et)
 		val |= DP_PANEL_REPLAY_ENABLE_SU_REGION_ET;
 
+	if (crtc_state->req_psr2_sdp_prior_scanline)
+		panel_replay_config2 |=
+			DP_PANEL_REPLAY_SU_REGION_SCANLINE_CAPTURE;
+
 	drm_dp_dpcd_writeb(&intel_dp->aux, PANEL_REPLAY_CONFIG, val);
+
+	drm_dp_dpcd_writeb(&intel_dp->aux, PANEL_REPLAY_CONFIG2,
+			   panel_replay_config2);
 }
 
 static void _psr_enable_sink(struct intel_dp *intel_dp,
@@ -732,6 +754,9 @@ static void _psr_enable_sink(struct intel_dp *intel_dp,
 			val |= DP_PSR_CRC_VERIFICATION;
 	}
 
+	if (crtc_state->req_psr2_sdp_prior_scanline)
+		val |= DP_PSR_SU_REGION_SCANLINE_CAPTURE;
+
 	if (crtc_state->enable_psr2_su_region_et)
 		val |= DP_PANEL_REPLAY_ENABLE_SU_REGION_ET;
 
@@ -741,15 +766,31 @@ static void _psr_enable_sink(struct intel_dp *intel_dp,
 	drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_EN_CFG, val);
 }
 
+static void intel_psr_enable_sink_alpm(struct intel_dp *intel_dp,
+				       const struct intel_crtc_state *crtc_state)
+{
+	u8 val;
+
+	/*
+	 * eDP Panel Replay uses always ALPM
+	 * PSR2 uses ALPM but PSR1 doesn't
+	 */
+	if (!intel_dp_is_edp(intel_dp) || (!crtc_state->has_panel_replay &&
+					   !crtc_state->has_sel_update))
+		return;
+
+	val = DP_ALPM_ENABLE | DP_ALPM_LOCK_ERROR_IRQ_HPD_ENABLE;
+
+	if (crtc_state->has_panel_replay)
+		val |= DP_ALPM_MODE_AUX_LESS;
+
+	drm_dp_dpcd_writeb(&intel_dp->aux, DP_RECEIVER_ALPM_CONFIG, val);
+}
+
 void intel_psr_enable_sink(struct intel_dp *intel_dp,
 			   const struct intel_crtc_state *crtc_state)
 {
-	/* Enable ALPM at sink for psr2 */
-	if (!crtc_state->has_panel_replay && crtc_state->has_sel_update)
-		drm_dp_dpcd_writeb(&intel_dp->aux,
-				   DP_RECEIVER_ALPM_CONFIG,
-				   DP_ALPM_ENABLE |
-				   DP_ALPM_LOCK_ERROR_IRQ_HPD_ENABLE);
+	intel_psr_enable_sink_alpm(intel_dp, crtc_state);
 
 	crtc_state->has_panel_replay ?
 		_panel_replay_enable_sink(intel_dp, crtc_state) :
@@ -910,6 +951,19 @@ static u8 frames_before_su_entry(struct intel_dp *intel_dp)
 static void dg2_activate_panel_replay(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	struct intel_psr *psr = &intel_dp->psr;
+	enum transcoder cpu_transcoder = intel_dp->psr.transcoder;
+
+	if (intel_dp_is_edp(intel_dp) && psr->sel_update_enabled) {
+		u32 val = psr->su_region_et_enabled ?
+			LNL_EDP_PSR2_SU_REGION_ET_ENABLE : 0;
+
+		if (intel_dp->psr.req_psr2_sdp_prior_scanline)
+			val |= EDP_PSR2_SU_SDP_SCANLINE;
+
+		intel_de_write(dev_priv, EDP_PSR2_CTL(dev_priv, cpu_transcoder),
+			       val);
+	}
 
 	intel_de_rmw(dev_priv,
 		     PSR2_MAN_TRK_CTL(dev_priv, intel_dp->psr.transcoder),
@@ -1265,14 +1319,15 @@ static int intel_psr_entry_setup_frames(struct intel_dp *intel_dp,
 }
 
 static bool wake_lines_fit_into_vblank(struct intel_dp *intel_dp,
-				       const struct intel_crtc_state *crtc_state)
+				       const struct intel_crtc_state *crtc_state,
+				       bool aux_less)
 {
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 	int vblank = crtc_state->hw.adjusted_mode.crtc_vblank_end -
 		crtc_state->hw.adjusted_mode.crtc_vblank_start;
 	int wake_lines;
 
-	if (crtc_state->has_panel_replay)
+	if (aux_less)
 		wake_lines = intel_dp->alpm_parameters.aux_less_wake_lines;
 	else
 		wake_lines = DISPLAY_VER(i915) < 20 ?
@@ -1285,6 +1340,27 @@ static bool wake_lines_fit_into_vblank(struct intel_dp *intel_dp,
 	/* Vblank >= PSR2_CTL Block Count Number maximum line count */
 	if (vblank < wake_lines)
 		return false;
+
+	return true;
+}
+
+static bool alpm_config_valid(struct intel_dp *intel_dp,
+			      const struct intel_crtc_state *crtc_state,
+			      bool aux_less)
+{
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+
+	if (!intel_alpm_compute_params(intel_dp, crtc_state)) {
+		drm_dbg_kms(&i915->drm,
+			    "PSR2/Panel Replay  not enabled, Unable to use long enough wake times\n");
+		return false;
+	}
+
+	if (!wake_lines_fit_into_vblank(intel_dp, crtc_state, aux_less)) {
+		drm_dbg_kms(&i915->drm,
+			    "PSR2/Panel Replay not enabled, too short vblank time\n");
+		return false;
+	}
 
 	return true;
 }
@@ -1366,24 +1442,8 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 		return false;
 	}
 
-	if (!_compute_psr2_sdp_prior_scanline_indication(intel_dp, crtc_state)) {
-		drm_dbg_kms(&dev_priv->drm,
-			    "PSR2 not enabled, PSR2 SDP indication do not fit in hblank\n");
+	if (!alpm_config_valid(intel_dp, crtc_state, false))
 		return false;
-	}
-
-	if (!intel_alpm_compute_params(intel_dp, crtc_state)) {
-		drm_dbg_kms(&dev_priv->drm,
-			    "PSR2 not enabled, Unable to use long enough wake times\n");
-		return false;
-	}
-
-	/* Vblank >= PSR2_CTL Block Count Number maximum line count */
-	if (!wake_lines_fit_into_vblank(intel_dp, crtc_state)) {
-		drm_dbg_kms(&dev_priv->drm,
-			    "PSR2 not enabled, too short vblank time\n");
-		return false;
-	}
 
 	if (!crtc_state->enable_psr2_sel_fetch &&
 	    (crtc_hdisplay > psr_max_h || crtc_vdisplay > psr_max_v)) {
@@ -1395,9 +1455,6 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 	}
 
 	tgl_dc3co_exitline_compute_config(intel_dp, crtc_state);
-
-	if (psr2_su_region_et_valid(intel_dp, crtc_state->has_panel_replay))
-		crtc_state->enable_psr2_su_region_et = true;
 
 	return true;
 }
@@ -1423,6 +1480,12 @@ static bool intel_sel_update_config_valid(struct intel_dp *intel_dp,
 	if (!crtc_state->has_panel_replay && !intel_psr2_config_valid(intel_dp, crtc_state))
 		goto unsupported;
 
+	if (!_compute_psr2_sdp_prior_scanline_indication(intel_dp, crtc_state)) {
+		drm_dbg_kms(&dev_priv->drm,
+			    "Selective update not enabled, SDP indication do not fit in hblank\n");
+		goto unsupported;
+	}
+
 	if (crtc_state->has_panel_replay && (DISPLAY_VER(dev_priv) < 14 ||
 					     !intel_dp->psr.sink_panel_replay_su_support))
 		goto unsupported;
@@ -1438,6 +1501,9 @@ static bool intel_sel_update_config_valid(struct intel_dp *intel_dp,
 			    "Selective update not enabled, SU granularity not compatible\n");
 		goto unsupported;
 	}
+
+	crtc_state->enable_psr2_su_region_et =
+		psr2_su_region_et_valid(intel_dp, crtc_state->has_panel_replay);
 
 	return true;
 
@@ -1476,9 +1542,15 @@ static bool _psr_compute_config(struct intel_dp *intel_dp,
 	return true;
 }
 
-static bool _panel_replay_compute_config(struct intel_dp *intel_dp)
+static bool
+_panel_replay_compute_config(struct intel_dp *intel_dp,
+			     const struct intel_crtc_state *crtc_state,
+			     const struct drm_connector_state *conn_state)
 {
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+	struct intel_connector *connector =
+		to_intel_connector(conn_state->connector);
+	struct intel_hdcp *hdcp = &connector->hdcp;
 
 	if (!CAN_PANEL_REPLAY(intel_dp))
 		return false;
@@ -1487,6 +1559,32 @@ static bool _panel_replay_compute_config(struct intel_dp *intel_dp)
 		drm_dbg_kms(&i915->drm, "Panel Replay disabled by flag\n");
 		return false;
 	}
+
+	if (!intel_dp_is_edp(intel_dp))
+		return true;
+
+	/* Remaining checks are for eDP only */
+
+	/* 128b/132b Panel Replay is not supported on eDP */
+	if (intel_dp_is_uhbr(crtc_state)) {
+		drm_dbg_kms(&i915->drm,
+			    "Panel Replay is not supported with 128b/132b\n");
+		return false;
+	}
+
+	/* HW will not allow Panel Replay on eDP when HDCP enabled */
+	if (conn_state->content_protection ==
+	    DRM_MODE_CONTENT_PROTECTION_DESIRED ||
+	    (conn_state->content_protection ==
+	     DRM_MODE_CONTENT_PROTECTION_ENABLED && hdcp->value ==
+	     DRM_MODE_CONTENT_PROTECTION_UNDESIRED)) {
+		drm_dbg_kms(&i915->drm,
+			    "Panel Replay is not supported with HDCP\n");
+		return false;
+	}
+
+	if (!alpm_config_valid(intel_dp, crtc_state, true))
+		return false;
 
 	return true;
 }
@@ -1526,7 +1624,9 @@ void intel_psr_compute_config(struct intel_dp *intel_dp,
 		return;
 	}
 
-	crtc_state->has_panel_replay = _panel_replay_compute_config(intel_dp);
+	crtc_state->has_panel_replay = _panel_replay_compute_config(intel_dp,
+								    crtc_state,
+								    conn_state);
 
 	crtc_state->has_psr = crtc_state->has_panel_replay ? true :
 		_psr_compute_config(intel_dp, crtc_state);
@@ -3105,9 +3205,11 @@ void intel_psr_init(struct intel_dp *intel_dp)
 		return;
 	}
 
-	if (HAS_DP20(dev_priv) && !intel_dp_is_edp(intel_dp))
+	if ((HAS_DP20(dev_priv) && !intel_dp_is_edp(intel_dp)) ||
+	    DISPLAY_VER(dev_priv) >= 20)
 		intel_dp->psr.source_panel_replay_support = true;
-	else
+
+	if (HAS_PSR(dev_priv) && intel_dp_is_edp(intel_dp))
 		intel_dp->psr.source_support = true;
 
 	/* Set link_standby x link_off defaults */

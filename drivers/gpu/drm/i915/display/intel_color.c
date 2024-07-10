@@ -1902,19 +1902,24 @@ void intel_color_post_update(const struct intel_crtc_state *crtc_state)
 		i915->display.funcs.color->color_post_update(crtc_state);
 }
 
-void intel_color_prepare_commit(struct intel_crtc_state *crtc_state)
+void intel_color_prepare_commit(struct intel_atomic_state *state,
+				struct intel_crtc *crtc)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
 
 	if (!crtc_state->hw.active ||
 	    intel_crtc_needs_modeset(crtc_state))
 		return;
 
+	if (!intel_crtc_needs_color_update(crtc_state))
+		return;
+
 	if (!crtc_state->pre_csc_lut && !crtc_state->post_csc_lut)
 		return;
 
-	crtc_state->dsb = intel_dsb_prepare(crtc_state, INTEL_DSB_0, 1024);
+	crtc_state->dsb = intel_dsb_prepare(state, crtc, INTEL_DSB_0, 1024);
 	if (!crtc_state->dsb)
 		return;
 

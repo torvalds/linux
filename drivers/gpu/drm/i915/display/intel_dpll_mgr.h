@@ -265,6 +265,7 @@ struct intel_cx0pll_state {
 	};
 	bool ssc_enabled;
 	bool use_c10;
+	bool tbt_mode;
 };
 
 struct intel_dpll_hw_state {

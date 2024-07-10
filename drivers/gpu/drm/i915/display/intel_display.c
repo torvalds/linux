@@ -68,6 +68,7 @@
 #include "intel_crtc_state_dump.h"
 #include "intel_cursor_regs.h"
 #include "intel_cx0_phy.h"
+#include "intel_cursor.h"
 #include "intel_ddi.h"
 #include "intel_de.h"
 #include "intel_display_driver.h"
@@ -1160,8 +1161,8 @@ static void intel_crtc_async_flip_disable_wa(struct intel_atomic_state *state,
 			 * Apart from the async flip bit we want to
 			 * preserve the old state for the plane.
 			 */
-			plane->async_flip(plane, old_crtc_state,
-					  old_plane_state, false);
+			intel_plane_async_flip(plane, old_crtc_state,
+					       old_plane_state, false);
 			need_vbl_wait = true;
 		}
 	}
@@ -6718,7 +6719,7 @@ int intel_atomic_check(struct drm_device *dev,
 
 static int intel_atomic_prepare_commit(struct intel_atomic_state *state)
 {
-	struct intel_crtc_state *crtc_state;
+	struct intel_crtc_state __maybe_unused *crtc_state;
 	struct intel_crtc *crtc;
 	int i, ret;
 
@@ -6726,10 +6727,8 @@ static int intel_atomic_prepare_commit(struct intel_atomic_state *state)
 	if (ret < 0)
 		return ret;
 
-	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i) {
-		if (intel_crtc_needs_color_update(crtc_state))
-			intel_color_prepare_commit(crtc_state);
-	}
+	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i)
+		intel_color_prepare_commit(state, crtc);
 
 	return 0;
 }
@@ -7022,6 +7021,8 @@ static void intel_commit_modeset_disables(struct intel_atomic_state *state)
 			continue;
 
 		intel_crtc_disable_planes(state, crtc);
+
+		drm_vblank_work_flush_all(&crtc->base);
 	}
 
 	/* Only disable port sync and MST slaves */
