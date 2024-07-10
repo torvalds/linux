@@ -771,7 +771,7 @@ static DEVICE_ATTR(show_icon	, _M220, NULL		, show_icon	);
 static DEVICE_ATTR(hide_icon	, _M220, NULL		, hide_icon	);
 static DEVICE_ATTR(ringtone	, _M220, NULL		, store_ringtone);
 
-static struct attribute *yld_attributes[] = {
+static struct attribute *yld_attrs[] = {
 	&dev_attr_line1.attr,
 	&dev_attr_line2.attr,
 	&dev_attr_line3.attr,
@@ -782,10 +782,7 @@ static struct attribute *yld_attributes[] = {
 	&dev_attr_ringtone.attr,
 	NULL
 };
-
-static const struct attribute_group yld_attr_group = {
-	.attrs = yld_attributes
-};
+ATTRIBUTE_GROUPS(yld);
 
 /*******************************************************************************
  * Linux interface and usb initialisation
@@ -842,7 +839,6 @@ static void usb_disconnect(struct usb_interface *intf)
 
 	down_write(&sysfs_rwsema);
 	yld = usb_get_intfdata(intf);
-	sysfs_remove_group(&intf->dev.kobj, &yld_attr_group);
 	usb_set_intfdata(intf, NULL);
 	up_write(&sysfs_rwsema);
 
@@ -975,8 +971,6 @@ static int usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	store_line3(&intf->dev, NULL,
 			DRIVER_VERSION, sizeof(DRIVER_VERSION));
 
-	/* Register sysfs hooks (don't care about failure) */
-	ret = sysfs_create_group(&intf->dev.kobj, &yld_attr_group);
 	return 0;
 }
 
@@ -985,6 +979,7 @@ static struct usb_driver yealink_driver = {
 	.probe		= usb_probe,
 	.disconnect	= usb_disconnect,
 	.id_table	= usb_table,
+	.dev_groups	= yld_groups,
 };
 
 module_usb_driver(yealink_driver);
