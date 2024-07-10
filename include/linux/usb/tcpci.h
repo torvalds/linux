@@ -92,11 +92,9 @@
 #define TCPC_CC_STATUS_TERM		BIT(4)
 #define TCPC_CC_STATUS_TERM_RP		0
 #define TCPC_CC_STATUS_TERM_RD		1
+#define TCPC_CC_STATUS_CC2		GENMASK(3, 2)
+#define TCPC_CC_STATUS_CC1		GENMASK(1, 0)
 #define TCPC_CC_STATE_SRC_OPEN		0
-#define TCPC_CC_STATUS_CC2_SHIFT	2
-#define TCPC_CC_STATUS_CC2_MASK		0x3
-#define TCPC_CC_STATUS_CC1_SHIFT	0
-#define TCPC_CC_STATUS_CC1_MASK		0x3
 
 #define TCPC_POWER_STATUS		0x1e
 #define TCPC_POWER_STATUS_DBG_ACC_CON	BIT(7)
@@ -256,7 +254,7 @@ static inline enum typec_cc_status tcpci_to_typec_cc(unsigned int cc, bool sink)
 		if (sink)
 			return TYPEC_CC_RP_3_0;
 		fallthrough;
-	case 0x0:
+	case TCPC_CC_STATE_SRC_OPEN:
 	default:
 		return TYPEC_CC_OPEN;
 	}

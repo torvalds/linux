@@ -5,6 +5,7 @@
  * USB-C module to reduce wakeups due to contaminants.
  */
 
+#include <linux/bitfield.h>
 #include <linux/device.h>
 #include <linux/irqreturn.h>
 #include <linux/module.h>
@@ -48,11 +49,8 @@ enum fladc_select {
 #define STATUS_CHECK(reg, mask, val)	(((reg) & (mask)) == (val))
 
 #define IS_CC_OPEN(cc_status) \
-	(STATUS_CHECK((cc_status), TCPC_CC_STATUS_CC1_MASK << TCPC_CC_STATUS_CC1_SHIFT,  \
-		      TCPC_CC_STATE_SRC_OPEN) && STATUS_CHECK((cc_status),               \
-							      TCPC_CC_STATUS_CC2_MASK << \
-							      TCPC_CC_STATUS_CC2_SHIFT,  \
-							      TCPC_CC_STATE_SRC_OPEN))
+	(FIELD_GET(TCPC_CC_STATUS_CC1, cc_status) == TCPC_CC_STATE_SRC_OPEN \
+	 && FIELD_GET(TCPC_CC_STATUS_CC2, cc_status) == TCPC_CC_STATE_SRC_OPEN)
 
 static int max_contaminant_adc_to_mv(struct max_tcpci_chip *chip, enum fladc_select channel,
 				     bool ua_src, u8 fladc)

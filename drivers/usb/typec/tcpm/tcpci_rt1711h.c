@@ -5,6 +5,7 @@
  * Richtek RT1711H Type-C Chip Driver
  */
 
+#include <linux/bitfield.h>
 #include <linux/bits.h>
 #include <linux/kernel.h>
 #include <linux/mod_devicetable.h>
@@ -195,12 +196,10 @@ static inline int rt1711h_init_cc_params(struct rt1711h_chip *chip, u8 status)
 	if (ret < 0)
 		return ret;
 
-	cc1 = tcpci_to_typec_cc((status >> TCPC_CC_STATUS_CC1_SHIFT) &
-				TCPC_CC_STATUS_CC1_MASK,
+	cc1 = tcpci_to_typec_cc(FIELD_GET(TCPC_CC_STATUS_CC1, status),
 				status & TCPC_CC_STATUS_TERM ||
 				tcpc_presenting_rd(role, CC1));
-	cc2 = tcpci_to_typec_cc((status >> TCPC_CC_STATUS_CC2_SHIFT) &
-				TCPC_CC_STATUS_CC2_MASK,
+	cc2 = tcpci_to_typec_cc(FIELD_GET(TCPC_CC_STATUS_CC2, status),
 				status & TCPC_CC_STATUS_TERM ||
 				tcpc_presenting_rd(role, CC2));
 

@@ -5,6 +5,7 @@
  * USB Type-C Port Controller Interface.
  */
 
+#include <linux/bitfield.h>
 #include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -241,12 +242,10 @@ static int tcpci_get_cc(struct tcpc_dev *tcpc,
 	if (ret < 0)
 		return ret;
 
-	*cc1 = tcpci_to_typec_cc((reg >> TCPC_CC_STATUS_CC1_SHIFT) &
-				 TCPC_CC_STATUS_CC1_MASK,
+	*cc1 = tcpci_to_typec_cc(FIELD_GET(TCPC_CC_STATUS_CC1, reg),
 				 reg & TCPC_CC_STATUS_TERM ||
 				 tcpc_presenting_rd(role_control, CC1));
-	*cc2 = tcpci_to_typec_cc((reg >> TCPC_CC_STATUS_CC2_SHIFT) &
-				 TCPC_CC_STATUS_CC2_MASK,
+	*cc2 = tcpci_to_typec_cc(FIELD_GET(TCPC_CC_STATUS_CC2, reg),
 				 reg & TCPC_CC_STATUS_TERM ||
 				 tcpc_presenting_rd(role_control, CC2));
 
