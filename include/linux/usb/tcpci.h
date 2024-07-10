@@ -190,7 +190,7 @@ struct tcpci;
  *		Optional; Callback to perform chip specific operations when FRS
  *		is sourcing vbus.
  * @auto_discharge_disconnect:
- *		Optional; Enables TCPC to autonously discharge vbus on disconnect.
+ *		Optional; Enables TCPC to autonomously discharge vbus on disconnect.
  * @vbus_vsafe0v:
  *		optional; Set when TCPC can detect whether vbus is at VSAFE0V.
  * @set_partner_usb_comm_capable:
