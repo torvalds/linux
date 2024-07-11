@@ -2881,9 +2881,6 @@ static void amdgpu_ras_ecc_log_init(struct ras_ecc_log_info *ecc_log)
 {
 	mutex_init(&ecc_log->lock);
 
-	/* Set any value as siphash key */
-	memset(&ecc_log->ecc_key, 0xad, sizeof(ecc_log->ecc_key));
-
 	INIT_RADIX_TREE(&ecc_log->de_page_tree, GFP_KERNEL);
 	ecc_log->de_queried_count = 0;
 	ecc_log->prev_de_queried_count = 0;
@@ -4611,8 +4608,6 @@ static struct ras_err_info *amdgpu_ras_error_get_info(struct ras_err_data *err_d
 	if (!err_node)
 		return NULL;
 
-	INIT_LIST_HEAD(&err_node->err_info.err_addr_list);
-
 	memcpy(&err_node->err_info.mcm_info, mcm_info, sizeof(*mcm_info));
 
 	err_data->err_list_count++;
@@ -4620,18 +4615,6 @@ static struct ras_err_info *amdgpu_ras_error_get_info(struct ras_err_data *err_d
 	list_sort(NULL, &err_data->err_node_list, ras_err_info_cmp);
 
 	return &err_node->err_info;
-}
-
-void amdgpu_ras_add_mca_err_addr(struct ras_err_info *err_info, struct ras_err_addr *err_addr)
-{
-	/* This function will be retired. */
-	return;
-}
-
-void amdgpu_ras_del_mca_err_addr(struct ras_err_info *err_info, struct ras_err_addr *mca_err_addr)
-{
-	list_del(&mca_err_addr->node);
-	kfree(mca_err_addr);
 }
 
 int amdgpu_ras_error_statistic_ue_count(struct ras_err_data *err_data,
@@ -4649,9 +4632,6 @@ int amdgpu_ras_error_statistic_ue_count(struct ras_err_data *err_data,
 	err_info = amdgpu_ras_error_get_info(err_data, mcm_info);
 	if (!err_info)
 		return -EINVAL;
-
-	if (err_addr && err_addr->err_status)
-		amdgpu_ras_add_mca_err_addr(err_info, err_addr);
 
 	err_info->ue_count += count;
 	err_data->ue_count += count;
@@ -4696,9 +4676,6 @@ int amdgpu_ras_error_statistic_de_count(struct ras_err_data *err_data,
 	err_info = amdgpu_ras_error_get_info(err_data, mcm_info);
 	if (!err_info)
 		return -EINVAL;
-
-	if (err_addr && err_addr->err_status)
-		amdgpu_ras_add_mca_err_addr(err_info, err_addr);
 
 	err_info->de_count += count;
 	err_data->de_count += count;

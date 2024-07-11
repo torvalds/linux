@@ -28,7 +28,6 @@
 #include <linux/list.h>
 #include <linux/kfifo.h>
 #include <linux/radix-tree.h>
-#include <linux/siphash.h>
 #include "ta_ras_if.h"
 #include "amdgpu_ras_eeprom.h"
 #include "amdgpu_smuio.h"
@@ -485,7 +484,6 @@ struct ras_ecc_err {
 
 struct ras_ecc_log_info {
 	struct mutex lock;
-	siphash_key_t ecc_key;
 	struct radix_tree_root de_page_tree;
 	uint64_t	de_queried_count;
 	uint64_t	prev_de_queried_count;
@@ -573,7 +571,6 @@ struct ras_fs_data {
 };
 
 struct ras_err_addr {
-	struct list_head node;
 	uint64_t err_status;
 	uint64_t err_ipid;
 	uint64_t err_addr;
@@ -584,7 +581,6 @@ struct ras_err_info {
 	u64 ce_count;
 	u64 ue_count;
 	u64 de_count;
-	struct list_head err_addr_list;
 };
 
 struct ras_err_node {
@@ -956,12 +952,6 @@ int amdgpu_ras_unbind_aca(struct amdgpu_device *adev, enum amdgpu_ras_block blk)
 
 ssize_t amdgpu_ras_aca_sysfs_read(struct device *dev, struct device_attribute *attr,
 				  struct aca_handle *handle, char *buf, void *data);
-
-void amdgpu_ras_add_mca_err_addr(struct ras_err_info *err_info,
-			struct ras_err_addr *err_addr);
-
-void amdgpu_ras_del_mca_err_addr(struct ras_err_info *err_info,
-		struct ras_err_addr *mca_err_addr);
 
 void amdgpu_ras_set_fed(struct amdgpu_device *adev, bool status);
 bool amdgpu_ras_get_fed_status(struct amdgpu_device *adev);

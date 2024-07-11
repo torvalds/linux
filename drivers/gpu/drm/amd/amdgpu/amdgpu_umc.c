@@ -204,55 +204,6 @@ static int amdgpu_umc_do_page_retirement(struct amdgpu_device *adev,
 	return AMDGPU_RAS_SUCCESS;
 }
 
-int amdgpu_umc_bad_page_polling_timeout(struct amdgpu_device *adev,
-			uint32_t reset, uint32_t timeout_ms)
-{
-	struct ras_err_data err_data;
-	struct ras_common_if head = {
-		.block = AMDGPU_RAS_BLOCK__UMC,
-	};
-	struct ras_manager *obj = amdgpu_ras_find_obj(adev, &head);
-	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
-	uint32_t timeout = timeout_ms;
-
-	memset(&err_data, 0, sizeof(err_data));
-	amdgpu_ras_error_data_init(&err_data);
-
-	do {
-
-		amdgpu_umc_handle_bad_pages(adev, &err_data);
-
-		if (timeout && !err_data.de_count) {
-			msleep(1);
-			timeout--;
-		}
-
-	} while (timeout && !err_data.de_count);
-
-	if (!timeout)
-		dev_warn(adev->dev, "Can't find bad pages\n");
-
-	if (err_data.de_count)
-		dev_info(adev->dev, "%ld new deferred hardware errors detected\n", err_data.de_count);
-
-	if (obj) {
-		obj->err_data.ue_count += err_data.ue_count;
-		obj->err_data.ce_count += err_data.ce_count;
-		obj->err_data.de_count += err_data.de_count;
-	}
-
-	amdgpu_ras_error_data_fini(&err_data);
-
-	kgd2kfd_set_sram_ecc_flag(adev->kfd.dev);
-
-	if (reset || (err_data.err_addr_cnt && con && con->is_rma)) {
-		con->gpu_reset_flags |= reset;
-		amdgpu_ras_reset_gpu(adev);
-	}
-
-	return 0;
-}
-
 int amdgpu_umc_pasid_poison_handler(struct amdgpu_device *adev,
 			enum amdgpu_ras_block block, uint16_t pasid,
 			pasid_notify pasid_fn, void *data, uint32_t reset)
@@ -469,43 +420,6 @@ int amdgpu_umc_update_ecc_status(struct amdgpu_device *adev,
 	if (adev->umc.ras->update_ecc_status)
 		return adev->umc.ras->update_ecc_status(adev,
 					status, ipid, addr);
-	return 0;
-}
-
-static int amdgpu_umc_uint64_cmp(const void *a, const void *b)
-{
-	uint64_t *addr_a = (uint64_t *)a;
-	uint64_t *addr_b = (uint64_t *)b;
-
-	if (*addr_a > *addr_b)
-		return 1;
-	else if (*addr_a < *addr_b)
-		return -1;
-	else
-		return 0;
-}
-
-/* Use string hash to avoid logging the same bad pages repeatedly */
-int amdgpu_umc_build_pages_hash(struct amdgpu_device *adev,
-		uint64_t *pfns, int len, uint64_t *val)
-{
-	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
-	char buf[MAX_UMC_HASH_STRING_SIZE] = {0};
-	int offset = 0, i = 0;
-	uint64_t hash_val;
-
-	if (!pfns || !len)
-		return -EINVAL;
-
-	sort(pfns, len, sizeof(uint64_t), amdgpu_umc_uint64_cmp, NULL);
-
-	for (i = 0; i < len; i++)
-		offset += snprintf(&buf[offset], sizeof(buf) - offset, "%llx", pfns[i]);
-
-	hash_val = siphash(buf, offset, &con->umc_ecc_log.ecc_key);
-
-	*val = hash_val;
-
 	return 0;
 }
 
