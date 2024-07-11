@@ -104,10 +104,7 @@ struct v3d_dev {
 	int ver;
 	bool single_irq_line;
 
-	/* Different revisions of V3D have different total number of performance
-	 * counters
-	 */
-	unsigned int max_counters;
+	struct v3d_perfmon_info perfmon_info;
 
 	void __iomem *hub_regs;
 	void __iomem *core_regs[3];
@@ -568,6 +565,7 @@ int v3d_sched_init(struct v3d_dev *v3d);
 void v3d_sched_fini(struct v3d_dev *v3d);
 
 /* v3d_perfmon.c */
+void v3d_perfmon_init(struct v3d_dev *v3d);
 void v3d_perfmon_get(struct v3d_perfmon *perfmon);
 void v3d_perfmon_put(struct v3d_perfmon *perfmon);
 void v3d_perfmon_start(struct v3d_dev *v3d, struct v3d_perfmon *perfmon);
