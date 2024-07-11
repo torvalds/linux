@@ -872,6 +872,7 @@ struct bch_fs {
 	struct bch_devs_mask	rw_devs[BCH_DATA_NR];
 
 	u64			capacity; /* sectors */
+	u64			reserved; /* sectors */
 
 	/*
 	 * When capacity _decreases_ (due to a disk being removed), we

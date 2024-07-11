@@ -2336,6 +2336,7 @@ void bch2_recalc_capacity(struct bch_fs *c)
 
 	reserved_sectors = min(reserved_sectors, capacity);
 
+	c->reserved = reserved_sectors;
 	c->capacity = capacity - reserved_sectors;
 
 	c->bucket_size_max = bucket_size_max;
