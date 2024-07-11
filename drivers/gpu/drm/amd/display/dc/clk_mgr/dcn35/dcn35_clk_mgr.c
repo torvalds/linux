@@ -139,9 +139,9 @@ static void dcn35_disable_otg_wa(struct clk_mgr *clk_mgr_base, struct dc_state *
 		old_pipe->stream != new_pipe->stream &&
 		old_pipe->stream_res.tg == new_pipe->stream_res.tg &&
 		new_pipe->stream->link_enc && !new_pipe->stream->dpms_off &&
-		new_pipe->stream->link->link_enc->funcs->is_dig_enabled &&
-		new_pipe->stream->link->link_enc->funcs->is_dig_enabled(
-		new_pipe->stream->link->link_enc) &&
+		new_pipe->stream->link_enc->funcs->is_dig_enabled &&
+		new_pipe->stream->link_enc->funcs->is_dig_enabled(
+		new_pipe->stream->link_enc) &&
 		new_pipe->stream_res.stream_enc &&
 		new_pipe->stream_res.stream_enc->funcs->is_fifo_enabled &&
 		new_pipe->stream_res.stream_enc->funcs->is_fifo_enabled(new_pipe->stream_res.stream_enc);
