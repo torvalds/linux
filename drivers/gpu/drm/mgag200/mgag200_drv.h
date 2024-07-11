@@ -248,18 +248,6 @@ struct mgag200_device_info {
 
 struct mgag200_device_funcs {
 	/*
-	 * Disables an external reset source (i.e., BMC) before programming
-	 * a new display mode.
-	 */
-	void (*disable_vidrst)(struct mga_device *mdev);
-
-	/*
-	 * Enables an external reset source (i.e., BMC) after programming
-	 * a new display mode.
-	 */
-	void (*enable_vidrst)(struct mga_device *mdev);
-
-	/*
 	 * Validate that the given state can be programmed into PIXPLLC. On
 	 * success, the calculated parameters should be stored in the CRTC's
 	 * state in struct @mgag200_crtc_state.pixpllc.

@@ -146,8 +146,6 @@ static const struct mgag200_device_info mgag200_g200ew3_device_info =
 	MGAG200_DEVICE_INFO_INIT(2048, 2048, 0, true, 0, 1, false);
 
 static const struct mgag200_device_funcs mgag200_g200ew3_device_funcs = {
-	.disable_vidrst = mgag200_bmc_disable_vidrst,
-	.enable_vidrst = mgag200_bmc_enable_vidrst,
 	.pixpllc_atomic_check = mgag200_g200ew3_pixpllc_atomic_check,
 	.pixpllc_atomic_update = mgag200_g200wb_pixpllc_atomic_update, // same as G200WB
 };

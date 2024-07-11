@@ -655,9 +655,6 @@ void mgag200_crtc_helper_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_
 	struct mgag200_crtc_state *mgag200_crtc_state = to_mgag200_crtc_state(crtc_state);
 	const struct drm_format_info *format = mgag200_crtc_state->format;
 
-	if (funcs->disable_vidrst)
-		funcs->disable_vidrst(mdev);
-
 	mgag200_set_format_regs(mdev, format);
 	mgag200_set_mode_regs(mdev, adjusted_mode, mgag200_crtc_state->set_vidrst);
 
@@ -671,22 +668,18 @@ void mgag200_crtc_helper_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_
 
 	mgag200_enable_display(mdev);
 
-	if (funcs->enable_vidrst)
-		funcs->enable_vidrst(mdev);
+	if (mdev->info->has_vidrst)
+		mgag200_bmc_enable_vidrst(mdev);
 }
 
 void mgag200_crtc_helper_atomic_disable(struct drm_crtc *crtc, struct drm_atomic_state *old_state)
 {
 	struct mga_device *mdev = to_mga_device(crtc->dev);
-	const struct mgag200_device_funcs *funcs = mdev->funcs;
 
-	if (funcs->disable_vidrst)
-		funcs->disable_vidrst(mdev);
+	if (mdev->info->has_vidrst)
+		mgag200_bmc_disable_vidrst(mdev);
 
 	mgag200_disable_display(mdev);
-
-	if (funcs->enable_vidrst)
-		funcs->enable_vidrst(mdev);
 }
 
 void mgag200_crtc_reset(struct drm_crtc *crtc)
