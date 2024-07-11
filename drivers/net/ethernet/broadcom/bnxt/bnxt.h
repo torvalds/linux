@@ -1298,7 +1298,6 @@ struct bnxt_rss_ctx {
 };
 
 #define BNXT_MAX_ETH_RSS_CTX	32
-#define BNXT_RSS_CTX_BMAP_LEN	(BNXT_MAX_ETH_RSS_CTX + 1)
 #define BNXT_VNIC_ID_INVALID	0xffffffff
 
 struct bnxt_hw_rings {
@@ -2332,7 +2331,6 @@ struct bnxt {
 	struct bnxt_ring_grp_info	*grp_info;
 	struct bnxt_vnic_info	*vnic_info;
 	struct list_head	rss_ctx_list;
-	unsigned long		*rss_ctx_bmap;
 	u32			num_rss_ctx;
 	int			nr_vnics;
 	u16			*rss_indir_tbl;

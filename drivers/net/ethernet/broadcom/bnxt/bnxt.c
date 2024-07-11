@@ -10239,7 +10239,6 @@ void bnxt_del_one_rss_ctx(struct bnxt *bp, struct bnxt_rss_ctx *rss_ctx,
 	kfree(rss_ctx->rss_indir_tbl);
 	list_del(&rss_ctx->list);
 	bp->num_rss_ctx--;
-	clear_bit(rss_ctx->index, bp->rss_ctx_bmap);
 	kfree(rss_ctx);
 }
 
@@ -10281,20 +10280,12 @@ void bnxt_clear_rss_ctxs(struct bnxt *bp, bool all)
 
 	list_for_each_entry_safe(rss_ctx, tmp, &bp->rss_ctx_list, list)
 		bnxt_del_one_rss_ctx(bp, rss_ctx, all);
-
-	if (all)
-		bitmap_free(bp->rss_ctx_bmap);
 }
 
 static void bnxt_init_multi_rss_ctx(struct bnxt *bp)
 {
-	bp->rss_ctx_bmap = bitmap_zalloc(BNXT_RSS_CTX_BMAP_LEN, GFP_KERNEL);
-	if (bp->rss_ctx_bmap) {
-		/* burn index 0 since we cannot have context 0 */
-		__set_bit(0, bp->rss_ctx_bmap);
-		INIT_LIST_HEAD(&bp->rss_ctx_list);
-		bp->rss_cap |= BNXT_RSS_CAP_MULTI_RSS_CTX;
-	}
+	INIT_LIST_HEAD(&bp->rss_ctx_list);
+	bp->rss_cap |= BNXT_RSS_CAP_MULTI_RSS_CTX;
 }
 
 /* Allow PF, trusted VFs and VFs with default VLAN to be in promiscuous mode */

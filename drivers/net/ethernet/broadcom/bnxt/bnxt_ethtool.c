@@ -1902,11 +1902,6 @@ static int bnxt_create_rxfh_context(struct net_device *dev,
 		return -EINVAL;
 	}
 
-	if (test_and_set_bit(rxfh->rss_context, bp->rss_ctx_bmap)) {
-		NL_SET_ERR_MSG_MOD(extack, "Context ID conflict");
-		return -EINVAL;
-	}
-
 	if (!bnxt_rfs_capable(bp, true)) {
 		NL_SET_ERR_MSG_MOD(extack, "Out hardware resources");
 		return -ENOMEM;
