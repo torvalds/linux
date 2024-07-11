@@ -588,6 +588,7 @@ config NSM
 config MARVELL_CN10K_DPI
 	tristate "Octeon CN10K DPI driver"
 	depends on PCI
+	depends on ARCH_THUNDER || COMPILE_TEST
 	help
 	  Enables Octeon CN10K DMA packet interface (DPI) driver which
 	  intializes DPI hardware's physical function (PF) device's
