@@ -2738,20 +2738,21 @@ static int reiserfs_write_begin(struct file *file,
 				struct page **pagep, void **fsdata)
 {
 	struct inode *inode;
-	struct page *page;
+	struct folio *folio;
 	pgoff_t index;
 	int ret;
 	int old_ref = 0;
 
  	inode = mapping->host;
 	index = pos >> PAGE_SHIFT;
-	page = grab_cache_page_write_begin(mapping, index);
-	if (!page)
-		return -ENOMEM;
-	*pagep = page;
+	folio = __filemap_get_folio(mapping, index, FGP_WRITEBEGIN,
+			mapping_gfp_mask(mapping));
+	if (IS_ERR(folio))
+		return PTR_ERR(folio);
+	*pagep = &folio->page;
 
 	reiserfs_wait_on_write_block(inode->i_sb);
-	fix_tail_page_for_writing(page);
+	fix_tail_page_for_writing(&folio->page);
 	if (reiserfs_transaction_running(inode->i_sb)) {
 		struct reiserfs_transaction_handle *th;
 		th = (struct reiserfs_transaction_handle *)current->
@@ -2761,7 +2762,7 @@ static int reiserfs_write_begin(struct file *file,
 		old_ref = th->t_refcount;
 		th->t_refcount++;
 	}
-	ret = __block_write_begin(page, pos, len, reiserfs_get_block);
+	ret = __block_write_begin(&folio->page, pos, len, reiserfs_get_block);
 	if (ret && reiserfs_transaction_running(inode->i_sb)) {
 		struct reiserfs_transaction_handle *th = current->journal_info;
 		/*
@@ -2791,8 +2792,8 @@ static int reiserfs_write_begin(struct file *file,
 		}
 	}
 	if (ret) {
-		unlock_page(page);
-		put_page(page);
+		folio_unlock(folio);
+		folio_put(folio);
 		/* Truncate allocated blocks */
 		reiserfs_truncate_failed_write(inode);
 	}
