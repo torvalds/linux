@@ -304,6 +304,77 @@ static void bulk_read(struct kunit *test)
 		KUNIT_EXPECT_EQ(test, config.cache_type == REGCACHE_NONE, data->read[i]);
 }
 
+static void multi_write(struct kunit *test)
+{
+	struct regmap *map;
+	struct regmap_config config;
+	struct regmap_ram_data *data;
+	struct reg_sequence sequence[BLOCK_TEST_SIZE];
+	unsigned int val[BLOCK_TEST_SIZE], rval[BLOCK_TEST_SIZE];
+	int i;
+
+	config = test_regmap_config;
+
+	map = gen_regmap(test, &config, &data);
+	KUNIT_ASSERT_FALSE(test, IS_ERR(map));
+	if (IS_ERR(map))
+		return;
+
+	get_random_bytes(&val, sizeof(val));
+
+	/*
+	 * Data written via the multi API can be read back with single
+	 * reads.
+	 */
+	for (i = 0; i < BLOCK_TEST_SIZE; i++) {
+		sequence[i].reg = i;
+		sequence[i].def = val[i];
+		sequence[i].delay_us = 0;
+	}
+	KUNIT_EXPECT_EQ(test, 0,
+			regmap_multi_reg_write(map, sequence, BLOCK_TEST_SIZE));
+	for (i = 0; i < BLOCK_TEST_SIZE; i++)
+		KUNIT_EXPECT_EQ(test, 0, regmap_read(map, i, &rval[i]));
+
+	KUNIT_EXPECT_MEMEQ(test, val, rval, sizeof(val));
+
+	/* If using a cache the cache satisfied the read */
+	for (i = 0; i < BLOCK_TEST_SIZE; i++)
+		KUNIT_EXPECT_EQ(test, config.cache_type == REGCACHE_NONE, data->read[i]);
+}
+
+static void multi_read(struct kunit *test)
+{
+	struct regmap *map;
+	struct regmap_config config;
+	struct regmap_ram_data *data;
+	unsigned int regs[BLOCK_TEST_SIZE];
+	unsigned int val[BLOCK_TEST_SIZE], rval[BLOCK_TEST_SIZE];
+	int i;
+
+	config = test_regmap_config;
+
+	map = gen_regmap(test, &config, &data);
+	KUNIT_ASSERT_FALSE(test, IS_ERR(map));
+	if (IS_ERR(map))
+		return;
+
+	get_random_bytes(&val, sizeof(val));
+
+	/* Data written as single writes can be read via the multi API */
+	for (i = 0; i < BLOCK_TEST_SIZE; i++) {
+		regs[i] = i;
+		KUNIT_EXPECT_EQ(test, 0, regmap_write(map, i, val[i]));
+	}
+	KUNIT_EXPECT_EQ(test, 0,
+			regmap_multi_reg_read(map, regs, rval, BLOCK_TEST_SIZE));
+	KUNIT_EXPECT_MEMEQ(test, val, rval, sizeof(val));
+
+	/* If using a cache the cache satisfied the read */
+	for (i = 0; i < BLOCK_TEST_SIZE; i++)
+		KUNIT_EXPECT_EQ(test, config.cache_type == REGCACHE_NONE, data->read[i]);
+}
+
 static void read_bypassed(struct kunit *test)
 {
 	const struct regmap_test_param *param = test->param_value;
@@ -1905,6 +1976,8 @@ static struct kunit_case regmap_test_cases[] = {
 	KUNIT_CASE_PARAM(read_bypassed_volatile, real_cache_types_gen_params),
 	KUNIT_CASE_PARAM(bulk_write, regcache_types_gen_params),
 	KUNIT_CASE_PARAM(bulk_read, regcache_types_gen_params),
+	KUNIT_CASE_PARAM(multi_write, regcache_types_gen_params),
+	KUNIT_CASE_PARAM(multi_read, regcache_types_gen_params),
 	KUNIT_CASE_PARAM(write_readonly, regcache_types_gen_params),
 	KUNIT_CASE_PARAM(read_writeonly, regcache_types_gen_params),
 	KUNIT_CASE_PARAM(reg_defaults, regcache_types_gen_params),
