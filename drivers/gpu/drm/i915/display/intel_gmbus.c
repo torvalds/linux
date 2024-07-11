@@ -478,7 +478,7 @@ gmbus_xfer_read_chunk(struct drm_i915_private *i915,
 /*
  * HW spec says that 512Bytes in Burst read need special treatment.
  * But it doesn't talk about other multiple of 256Bytes. And couldn't locate
- * an I2C slave, which supports such a lengthy burst read too for experiments.
+ * an I2C target, which supports such a lengthy burst read too for experiments.
  *
  * So until things get clarified on HW support, to avoid the burst read length
  * in fold of 256Bytes except 512, max burst read length is fixed at 767Bytes.
@@ -701,7 +701,7 @@ clear_err:
 
 	/* Toggle the Software Clear Interrupt bit. This has the effect
 	 * of resetting the GMBUS controller and so clearing the
-	 * BUS_ERROR raised by the slave's NAK.
+	 * BUS_ERROR raised by the target's NAK.
 	 */
 	intel_de_write_fw(i915, GMBUS1(i915), GMBUS_SW_CLR_INT);
 	intel_de_write_fw(i915, GMBUS1(i915), 0);

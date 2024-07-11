@@ -72,8 +72,8 @@ struct intel_bios_encoder_data {
 	struct list_head node;
 };
 
-#define	SLAVE_ADDR1	0x70
-#define	SLAVE_ADDR2	0x72
+#define	TARGET_ADDR1	0x70
+#define	TARGET_ADDR2	0x72
 
 /* Get BDB block size given a pointer to Block ID. */
 static u32 _get_blocksize(const u8 *block_base)
@@ -1227,10 +1227,10 @@ parse_sdvo_device_mapping(struct drm_i915_private *i915)
 		const struct child_device_config *child = &devdata->child;
 		struct sdvo_device_mapping *mapping;
 
-		if (child->slave_addr != SLAVE_ADDR1 &&
-		    child->slave_addr != SLAVE_ADDR2) {
+		if (child->target_addr != TARGET_ADDR1 &&
+		    child->target_addr != TARGET_ADDR2) {
 			/*
-			 * If the slave address is neither 0x70 nor 0x72,
+			 * If the target address is neither 0x70 nor 0x72,
 			 * it is not a SDVO device. Skip it.
 			 */
 			continue;
@@ -1243,22 +1243,22 @@ parse_sdvo_device_mapping(struct drm_i915_private *i915)
 			continue;
 		}
 		drm_dbg_kms(&i915->drm,
-			    "the SDVO device with slave addr %2x is found on"
+			    "the SDVO device with target addr %2x is found on"
 			    " %s port\n",
-			    child->slave_addr,
+			    child->target_addr,
 			    (child->dvo_port == DEVICE_PORT_DVOB) ?
 			    "SDVOB" : "SDVOC");
 		mapping = &i915->display.vbt.sdvo_mappings[child->dvo_port - 1];
 		if (!mapping->initialized) {
 			mapping->dvo_port = child->dvo_port;
-			mapping->slave_addr = child->slave_addr;
+			mapping->target_addr = child->target_addr;
 			mapping->dvo_wiring = child->dvo_wiring;
 			mapping->ddc_pin = child->ddc_pin;
 			mapping->i2c_pin = child->i2c_pin;
 			mapping->initialized = 1;
 			drm_dbg_kms(&i915->drm,
 				    "SDVO device: dvo=%x, addr=%x, wiring=%d, ddc_pin=%d, i2c_pin=%d\n",
-				    mapping->dvo_port, mapping->slave_addr,
+				    mapping->dvo_port, mapping->target_addr,
 				    mapping->dvo_wiring, mapping->ddc_pin,
 				    mapping->i2c_pin);
 		} else {
@@ -1266,11 +1266,11 @@ parse_sdvo_device_mapping(struct drm_i915_private *i915)
 				    "Maybe one SDVO port is shared by "
 				    "two SDVO device.\n");
 		}
-		if (child->slave2_addr) {
+		if (child->target2_addr) {
 			/* Maybe this is a SDVO device with multiple inputs */
 			/* And the mapping info is not added */
 			drm_dbg_kms(&i915->drm,
-				    "there exists the slave2_addr. Maybe this"
+				    "there exists the target2_addr. Maybe this"
 				    " is a SDVO device with multiple inputs.\n");
 		}
 		count++;
