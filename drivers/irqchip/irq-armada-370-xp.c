@@ -117,7 +117,7 @@
 #define MPIC_SW_TRIG_INT			0x04
 #define MPIC_INT_SET_ENABLE			0x30
 #define MPIC_INT_CLEAR_ENABLE			0x34
-#define MPIC_INT_SOURCE_CTL(irq)		(0x100 + (irq) * 4)
+#define MPIC_INT_SOURCE_CTL(hwirq)		(0x100 + (hwirq) * 4)
 #define MPIC_INT_SOURCE_CPU_MASK		GENMASK(3, 0)
 #define MPIC_INT_IRQ_FIQ_MASK(cpuid)		((BIT(0) | BIT(8)) << (cpuid))
 
@@ -195,9 +195,9 @@ static inline unsigned int msi_doorbell_end(void)
 	return mpic_is_ipi_available() ? PCI_MSI_DOORBELL_END : PCI_MSI_FULL_DOORBELL_END;
 }
 
-static inline bool mpic_is_percpu_irq(irq_hw_number_t irq)
+static inline bool mpic_is_percpu_irq(irq_hw_number_t hwirq)
 {
-	return irq <= MPIC_MAX_PER_CPU_IRQS;
+	return hwirq <= MPIC_MAX_PER_CPU_IRQS;
 }
 
 /*
@@ -516,11 +516,11 @@ static void mpic_smp_cpu_init(void)
 static void mpic_reenable_percpu(void)
 {
 	/* Re-enable per-CPU interrupts that were enabled before suspend */
-	for (unsigned int irq = 0; irq < MPIC_MAX_PER_CPU_IRQS; irq++) {
+	for (unsigned int i = 0; i < MPIC_MAX_PER_CPU_IRQS; i++) {
 		struct irq_data *data;
 		unsigned int virq;
 
-		virq = irq_linear_revmap(mpic_domain, irq);
+		virq = irq_linear_revmap(mpic_domain, i);
 		if (!virq)
 			continue;
 
@@ -572,20 +572,20 @@ static struct irq_chip mpic_irq_chip = {
 };
 
 static int mpic_irq_map(struct irq_domain *h, unsigned int virq,
-			irq_hw_number_t hw)
+			irq_hw_number_t hwirq)
 {
 	/* IRQs 0 and 1 cannot be mapped, they are handled internally */
-	if (hw <= 1)
+	if (hwirq <= 1)
 		return -EINVAL;
 
 	mpic_irq_mask(irq_get_irq_data(virq));
-	if (!mpic_is_percpu_irq(hw))
-		writel(hw, per_cpu_int_base + MPIC_INT_CLEAR_MASK);
+	if (!mpic_is_percpu_irq(hwirq))
+		writel(hwirq, per_cpu_int_base + MPIC_INT_CLEAR_MASK);
 	else
-		writel(hw, main_int_base + MPIC_INT_SET_ENABLE);
+		writel(hwirq, main_int_base + MPIC_INT_SET_ENABLE);
 	irq_set_status_flags(virq, IRQ_LEVEL);
 
-	if (mpic_is_percpu_irq(hw)) {
+	if (mpic_is_percpu_irq(hwirq)) {
 		irq_set_percpu_devid(virq);
 		irq_set_chip_and_handler(virq, &mpic_irq_chip, handle_percpu_devid_irq);
 	} else {
@@ -638,15 +638,15 @@ static inline void mpic_handle_ipi_irq(void) {}
 static void mpic_handle_cascade_irq(struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
-	unsigned long irqmap, irqn, irqsrc, cpuid;
+	unsigned long irqmap, i, irqsrc, cpuid;
 
 	chained_irq_enter(chip, desc);
 
 	irqmap = readl_relaxed(per_cpu_int_base + MPIC_PPI_CAUSE);
 	cpuid = cpu_logical_map(smp_processor_id());
 
-	for_each_set_bit(irqn, &irqmap, BITS_PER_LONG) {
-		irqsrc = readl_relaxed(main_int_base + MPIC_INT_SOURCE_CTL(irqn));
+	for_each_set_bit(i, &irqmap, BITS_PER_LONG) {
+		irqsrc = readl_relaxed(main_int_base + MPIC_INT_SOURCE_CTL(i));
 
 		/* Check if the interrupt is not masked on current CPU.
 		 * Test IRQ (0-1) and FIQ (8-9) mask bits.
@@ -654,12 +654,12 @@ static void mpic_handle_cascade_irq(struct irq_desc *desc)
 		if (!(irqsrc & MPIC_INT_IRQ_FIQ_MASK(cpuid)))
 			continue;
 
-		if (irqn == 0 || irqn == 1) {
+		if (i == 0 || i == 1) {
 			mpic_handle_msi_irq();
 			continue;
 		}
 
-		generic_handle_domain_irq(mpic_domain, irqn);
+		generic_handle_domain_irq(mpic_domain, i);
 	}
 
 	chained_irq_exit(chip, desc);
@@ -667,26 +667,26 @@ static void mpic_handle_cascade_irq(struct irq_desc *desc)
 
 static void __exception_irq_entry mpic_handle_irq(struct pt_regs *regs)
 {
-	u32 irqstat, irqnr;
+	u32 irqstat, i;
 
 	do {
 		irqstat = readl_relaxed(per_cpu_int_base + MPIC_CPU_INTACK);
-		irqnr = FIELD_GET(MPIC_CPU_INTACK_IID_MASK, irqstat);
+		i = FIELD_GET(MPIC_CPU_INTACK_IID_MASK, irqstat);
 
-		if (irqnr > 1022)
+		if (i > 1022)
 			break;
 
-		if (irqnr > 1) {
-			generic_handle_domain_irq(mpic_domain, irqnr);
+		if (i > 1) {
+			generic_handle_domain_irq(mpic_domain, i);
 			continue;
 		}
 
 		/* MSI handling */
-		if (irqnr == 1)
+		if (i == 1)
 			mpic_handle_msi_irq();
 
 		/* IPI Handling */
-		if (irqnr == 0)
+		if (i == 0)
 			mpic_handle_ipi_irq();
 	} while (1);
 }
@@ -703,24 +703,24 @@ static void mpic_resume(void)
 	bool src0, src1;
 
 	/* Re-enable interrupts */
-	for (irq_hw_number_t irq = 0; irq < mpic_domain->hwirq_max; irq++) {
+	for (irq_hw_number_t i = 0; i < mpic_domain->hwirq_max; i++) {
 		struct irq_data *data;
 		unsigned int virq;
 
-		virq = irq_linear_revmap(mpic_domain, irq);
+		virq = irq_linear_revmap(mpic_domain, i);
 		if (!virq)
 			continue;
 
 		data = irq_get_irq_data(virq);
 
-		if (!mpic_is_percpu_irq(irq)) {
+		if (!mpic_is_percpu_irq(i)) {
 			/* Non per-CPU interrupts */
-			writel(irq, per_cpu_int_base + MPIC_INT_CLEAR_MASK);
+			writel(i, per_cpu_int_base + MPIC_INT_CLEAR_MASK);
 			if (!irqd_irq_disabled(data))
 				mpic_irq_unmask(data);
 		} else {
 			/* Per-CPU interrupts */
-			writel(irq, main_int_base + MPIC_INT_SET_ENABLE);
+			writel(i, main_int_base + MPIC_INT_SET_ENABLE);
 
 			/*
 			 * Re-enable on the current CPU, mpic_reenable_percpu()
