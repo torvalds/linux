@@ -637,6 +637,9 @@ v3d_get_cpu_reset_performance_params(struct drm_file *file_priv,
 	if (copy_from_user(&reset, ext, sizeof(reset)))
 		return -EFAULT;
 
+	if (reset.nperfmons > V3D_MAX_PERFMONS)
+		return -EINVAL;
+
 	job->job_type = V3D_CPU_JOB_TYPE_RESET_PERFORMANCE_QUERY;
 
 	job->performance_query.queries = kvmalloc_array(reset.count,
@@ -706,6 +709,9 @@ v3d_get_cpu_copy_performance_query_params(struct drm_file *file_priv,
 		return -EFAULT;
 
 	if (copy.pad)
+		return -EINVAL;
+
+	if (copy.nperfmons > V3D_MAX_PERFMONS)
 		return -EINVAL;
 
 	job->job_type = V3D_CPU_JOB_TYPE_COPY_PERFORMANCE_QUERY;
