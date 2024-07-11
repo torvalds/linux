@@ -178,6 +178,7 @@ static int __init early_serial8250_rs2_setup(struct earlycon_device *device,
 
 	return early_serial8250_setup(device, options);
 }
+OF_EARLYCON_DECLARE(uart, "intel,xscale-uart", early_serial8250_rs2_setup);
 OF_EARLYCON_DECLARE(uart, "mrvl,mmp-uart", early_serial8250_rs2_setup);
 OF_EARLYCON_DECLARE(uart, "mrvl,pxa-uart", early_serial8250_rs2_setup);
 
