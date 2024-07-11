@@ -3069,9 +3069,7 @@ static struct attribute *mxt_attrs[] = {
 	NULL
 };
 
-static const struct attribute_group mxt_attr_group = {
-	.attrs = mxt_attrs,
-};
+ATTRIBUTE_GROUPS(mxt);
 
 static void mxt_start(struct mxt_data *data)
 {
@@ -3348,18 +3346,8 @@ static int mxt_probe(struct i2c_client *client)
 	if (error)
 		goto err_disable_regulators;
 
-	error = sysfs_create_group(&client->dev.kobj, &mxt_attr_group);
-	if (error) {
-		dev_err(&client->dev, "Failure %d creating sysfs group\n",
-			error);
-		goto err_free_object;
-	}
-
 	return 0;
 
-err_free_object:
-	mxt_free_input_device(data);
-	mxt_free_object_table(data);
 err_disable_regulators:
 	regulator_bulk_disable(ARRAY_SIZE(data->regulators),
 			       data->regulators);
@@ -3371,7 +3359,6 @@ static void mxt_remove(struct i2c_client *client)
 	struct mxt_data *data = i2c_get_clientdata(client);
 
 	disable_irq(data->irq);
-	sysfs_remove_group(&client->dev.kobj, &mxt_attr_group);
 	mxt_free_input_device(data);
 	mxt_free_object_table(data);
 	regulator_bulk_disable(ARRAY_SIZE(data->regulators),
@@ -3455,6 +3442,7 @@ MODULE_DEVICE_TABLE(i2c, mxt_id);
 static struct i2c_driver mxt_driver = {
 	.driver = {
 		.name	= "atmel_mxt_ts",
+		.dev_groups = mxt_groups,
 		.of_match_table = mxt_of_match,
 		.acpi_match_table = ACPI_PTR(mxt_acpi_id),
 		.pm	= pm_sleep_ptr(&mxt_pm_ops),
