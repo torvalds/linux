@@ -268,35 +268,36 @@ static int ecryptfs_write_begin(struct file *file,
 			struct page **pagep, void **fsdata)
 {
 	pgoff_t index = pos >> PAGE_SHIFT;
-	struct page *page;
+	struct folio *folio;
 	loff_t prev_page_end_size;
 	int rc = 0;
 
-	page = grab_cache_page_write_begin(mapping, index);
-	if (!page)
-		return -ENOMEM;
-	*pagep = page;
+	folio = __filemap_get_folio(mapping, index, FGP_WRITEBEGIN,
+			mapping_gfp_mask(mapping));
+	if (IS_ERR(folio))
+		return PTR_ERR(folio);
+	*pagep = &folio->page;
 
 	prev_page_end_size = ((loff_t)index << PAGE_SHIFT);
-	if (!PageUptodate(page)) {
+	if (!folio_test_uptodate(folio)) {
 		struct ecryptfs_crypt_stat *crypt_stat =
 			&ecryptfs_inode_to_private(mapping->host)->crypt_stat;
 
 		if (!(crypt_stat->flags & ECRYPTFS_ENCRYPTED)) {
 			rc = ecryptfs_read_lower_page_segment(
-				page, index, 0, PAGE_SIZE, mapping->host);
+				&folio->page, index, 0, PAGE_SIZE, mapping->host);
 			if (rc) {
 				printk(KERN_ERR "%s: Error attempting to read "
 				       "lower page segment; rc = [%d]\n",
 				       __func__, rc);
-				ClearPageUptodate(page);
+				folio_clear_uptodate(folio);
 				goto out;
 			} else
-				SetPageUptodate(page);
+				folio_mark_uptodate(folio);
 		} else if (crypt_stat->flags & ECRYPTFS_VIEW_AS_ENCRYPTED) {
 			if (crypt_stat->flags & ECRYPTFS_METADATA_IN_XATTR) {
 				rc = ecryptfs_copy_up_encrypted_with_header(
-					page, crypt_stat);
+					&folio->page, crypt_stat);
 				if (rc) {
 					printk(KERN_ERR "%s: Error attempting "
 					       "to copy the encrypted content "
@@ -304,46 +305,46 @@ static int ecryptfs_write_begin(struct file *file,
 					       "inserting the metadata from "
 					       "the xattr into the header; rc "
 					       "= [%d]\n", __func__, rc);
-					ClearPageUptodate(page);
+					folio_clear_uptodate(folio);
 					goto out;
 				}
-				SetPageUptodate(page);
+				folio_mark_uptodate(folio);
 			} else {
 				rc = ecryptfs_read_lower_page_segment(
-					page, index, 0, PAGE_SIZE,
+					&folio->page, index, 0, PAGE_SIZE,
 					mapping->host);
 				if (rc) {
 					printk(KERN_ERR "%s: Error reading "
 					       "page; rc = [%d]\n",
 					       __func__, rc);
-					ClearPageUptodate(page);
+					folio_clear_uptodate(folio);
 					goto out;
 				}
-				SetPageUptodate(page);
+				folio_mark_uptodate(folio);
 			}
 		} else {
 			if (prev_page_end_size
-			    >= i_size_read(page->mapping->host)) {
-				zero_user(page, 0, PAGE_SIZE);
-				SetPageUptodate(page);
+			    >= i_size_read(mapping->host)) {
+				folio_zero_range(folio, 0, PAGE_SIZE);
+				folio_mark_uptodate(folio);
 			} else if (len < PAGE_SIZE) {
-				rc = ecryptfs_decrypt_page(page);
+				rc = ecryptfs_decrypt_page(&folio->page);
 				if (rc) {
 					printk(KERN_ERR "%s: Error decrypting "
 					       "page at index [%ld]; "
 					       "rc = [%d]\n",
-					       __func__, page->index, rc);
-					ClearPageUptodate(page);
+					       __func__, folio->index, rc);
+					folio_clear_uptodate(folio);
 					goto out;
 				}
-				SetPageUptodate(page);
+				folio_mark_uptodate(folio);
 			}
 		}
 	}
 	/* If creating a page or more of holes, zero them out via truncate.
 	 * Note, this will increase i_size. */
 	if (index != 0) {
-		if (prev_page_end_size > i_size_read(page->mapping->host)) {
+		if (prev_page_end_size > i_size_read(mapping->host)) {
 			rc = ecryptfs_truncate(file->f_path.dentry,
 					       prev_page_end_size);
 			if (rc) {
@@ -359,11 +360,11 @@ static int ecryptfs_write_begin(struct file *file,
 	 * of page?  Zero it out. */
 	if ((i_size_read(mapping->host) == prev_page_end_size)
 	    && (pos != 0))
-		zero_user(page, 0, PAGE_SIZE);
+		folio_zero_range(folio, 0, PAGE_SIZE);
 out:
 	if (unlikely(rc)) {
-		unlock_page(page);
-		put_page(page);
+		folio_unlock(folio);
+		folio_put(folio);
 		*pagep = NULL;
 	}
 	return rc;
