@@ -453,9 +453,6 @@ struct mpi3_event_data_sas_notify_primitive {
 #define MPI3_EVENT_NOTIFY_PRIMITIVE_POWER_LOSS_EXPECTED   (0x02)
 #define MPI3_EVENT_NOTIFY_PRIMITIVE_RESERVED1             (0x03)
 #define MPI3_EVENT_NOTIFY_PRIMITIVE_RESERVED2             (0x04)
-#ifndef MPI3_EVENT_SAS_TOPO_PHY_COUNT
-#define MPI3_EVENT_SAS_TOPO_PHY_COUNT           (1)
-#endif
 struct mpi3_event_sas_topo_phy_entry {
 	__le16             attached_dev_handle;
 	u8                 link_rate;
@@ -496,7 +493,7 @@ struct mpi3_event_data_sas_topology_change_list {
 	u8                                 start_phy_num;
 	u8                                 exp_status;
 	u8                                 io_unit_port;
-	struct mpi3_event_sas_topo_phy_entry   phy_entry[MPI3_EVENT_SAS_TOPO_PHY_COUNT];
+	struct mpi3_event_sas_topo_phy_entry   phy_entry[] __counted_by(num_entries);
 };
 
 #define MPI3_EVENT_SAS_TOPO_ES_NO_EXPANDER              (0x00)
