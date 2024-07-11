@@ -184,6 +184,8 @@ static void v3d_show_fdinfo(struct drm_printer *p, struct drm_file *file)
 		drm_printf(p, "v3d-jobs-%s: \t%llu jobs\n",
 			   v3d_queue_to_string(queue), jobs_completed);
 	}
+
+	drm_show_memory_stats(p, file);
 }
 
 static const struct file_operations v3d_drm_fops = {
