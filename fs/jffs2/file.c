@@ -127,7 +127,7 @@ static int jffs2_write_begin(struct file *filp, struct address_space *mapping,
 			loff_t pos, unsigned len,
 			struct page **pagep, void **fsdata)
 {
-	struct page *pg;
+	struct folio *folio;
 	struct inode *inode = mapping->host;
 	struct jffs2_inode_info *f = JFFS2_INODE_INFO(inode);
 	struct jffs2_sb_info *c = JFFS2_SB_INFO(inode->i_sb);
@@ -206,29 +206,30 @@ static int jffs2_write_begin(struct file *filp, struct address_space *mapping,
 	 * page in read_cache_page(), which causes a deadlock.
 	 */
 	mutex_lock(&c->alloc_sem);
-	pg = grab_cache_page_write_begin(mapping, index);
-	if (!pg) {
-		ret = -ENOMEM;
+	folio = __filemap_get_folio(mapping, index, FGP_WRITEBEGIN,
+			mapping_gfp_mask(mapping));
+	if (IS_ERR(folio)) {
+		ret = PTR_ERR(folio);
 		goto release_sem;
 	}
-	*pagep = pg;
+	*pagep = &folio->page;
 
 	/*
-	 * Read in the page if it wasn't already present. Cannot optimize away
-	 * the whole page write case until jffs2_write_end can handle the
+	 * Read in the folio if it wasn't already present. Cannot optimize away
+	 * the whole folio write case until jffs2_write_end can handle the
 	 * case of a short-copy.
 	 */
-	if (!PageUptodate(pg)) {
+	if (!folio_test_uptodate(folio)) {
 		mutex_lock(&f->sem);
-		ret = jffs2_do_readpage_nolock(inode, pg);
+		ret = jffs2_do_readpage_nolock(inode, &folio->page);
 		mutex_unlock(&f->sem);
 		if (ret) {
-			unlock_page(pg);
-			put_page(pg);
+			folio_unlock(folio);
+			folio_put(folio);
 			goto release_sem;
 		}
 	}
-	jffs2_dbg(1, "end write_begin(). pg->flags %lx\n", pg->flags);
+	jffs2_dbg(1, "end write_begin(). folio->flags %lx\n", folio->flags);
 
 release_sem:
 	mutex_unlock(&c->alloc_sem);
