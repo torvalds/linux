@@ -2295,14 +2295,6 @@ typedef struct _RAID_VOL0_SETTINGS
 #define MPI_RAID_HOT_SPARE_POOL_6                       (0x40)
 #define MPI_RAID_HOT_SPARE_POOL_7                       (0x80)
 
-/*
- * Host code (drivers, BIOS, utilities, etc.) should leave this define set to
- * one and check Header.PageLength at runtime.
- */
-#ifndef MPI_RAID_VOL_PAGE_0_PHYSDISK_MAX
-#define MPI_RAID_VOL_PAGE_0_PHYSDISK_MAX        (1)
-#endif
-
 typedef struct _CONFIG_PAGE_RAID_VOL_0
 {
     CONFIG_PAGE_HEADER      Header;         /* 00h */
@@ -2321,7 +2313,7 @@ typedef struct _CONFIG_PAGE_RAID_VOL_0
     U8                      DataScrubRate;  /* 25h */
     U8                      ResyncRate;     /* 26h */
     U8                      InactiveStatus; /* 27h */
-    RAID_VOL0_PHYS_DISK     PhysDisk[MPI_RAID_VOL_PAGE_0_PHYSDISK_MAX];/* 28h */
+    RAID_VOL0_PHYS_DISK     PhysDisk[] __counted_by(NumPhysDisks); /* 28h */
 } CONFIG_PAGE_RAID_VOL_0, MPI_POINTER PTR_CONFIG_PAGE_RAID_VOL_0,
   RaidVolumePage0_t, MPI_POINTER pRaidVolumePage0_t;
 
