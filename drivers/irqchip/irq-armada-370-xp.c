@@ -10,6 +10,7 @@
  * Ben Dooks <ben.dooks@codethink.co.uk>
  */
 
+#include <linux/bitfield.h>
 #include <linux/bits.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -112,6 +113,7 @@
 
 /* Registers relative to main_int_base */
 #define MPIC_INT_CONTROL			0x00
+#define MPIC_INT_CONTROL_NUMINT_MASK		GENMASK(12, 2)
 #define MPIC_SW_TRIG_INT			0x04
 #define MPIC_INT_SET_ENABLE			0x30
 #define MPIC_INT_CLEAR_ENABLE			0x34
@@ -124,6 +126,7 @@
 #define MPIC_IN_DRBEL_MASK			0x0c
 #define MPIC_PPI_CAUSE				0x10
 #define MPIC_CPU_INTACK				0x44
+#define MPIC_CPU_INTACK_IID_MASK		GENMASK(9, 0)
 #define MPIC_INT_SET_MASK			0x48
 #define MPIC_INT_CLEAR_MASK			0x4C
 #define MPIC_INT_FABRIC_MASK			0x54
@@ -660,7 +663,7 @@ static void __exception_irq_entry mpic_handle_irq(struct pt_regs *regs)
 
 	do {
 		irqstat = readl_relaxed(per_cpu_int_base + MPIC_CPU_INTACK);
-		irqnr = irqstat & 0x3FF;
+		irqnr = FIELD_GET(MPIC_CPU_INTACK_IID_MASK, irqstat);
 
 		if (irqnr > 1022)
 			break;
@@ -759,8 +762,7 @@ static int __init mpic_of_init(struct device_node *node,
 			       struct device_node *parent)
 {
 	struct resource main_int_res, per_cpu_int_res;
-	int nr_irqs;
-	u32 control;
+	unsigned int nr_irqs;
 
 	BUG_ON(of_address_to_resource(node, 0, &main_int_res));
 	BUG_ON(of_address_to_resource(node, 1, &per_cpu_int_res));
@@ -780,8 +782,7 @@ static int __init mpic_of_init(struct device_node *node,
 				   resource_size(&per_cpu_int_res));
 	BUG_ON(!per_cpu_int_base);
 
-	control = readl(main_int_base + MPIC_INT_CONTROL);
-	nr_irqs = (control >> 2) & 0x3ff;
+	nr_irqs = FIELD_GET(MPIC_INT_CONTROL_NUMINT_MASK, readl(main_int_base + MPIC_INT_CONTROL));
 
 	for (int i = 0; i < nr_irqs; i++)
 		writel(i, main_int_base + MPIC_INT_CLEAR_ENABLE);
