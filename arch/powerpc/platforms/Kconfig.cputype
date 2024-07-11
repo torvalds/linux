@@ -250,7 +250,6 @@ config TARGET_CPU
 	default "e6500" if E6500_CPU
 	default "power4" if POWERPC64_CPU && !CPU_LITTLE_ENDIAN
 	default "power8" if POWERPC64_CPU && CPU_LITTLE_ENDIAN
-	default "405" if 405_CPU
 	default "440" if 440_CPU
 	default "464" if 464_CPU
 	default "476" if 476_CPU
