@@ -961,12 +961,6 @@ static int bnxt_set_channels(struct net_device *dev,
 		return rc;
 	}
 
-	if (req_rx_rings < bp->rx_nr_rings &&
-	    req_rx_rings <= bnxt_get_max_rss_ctx_ring(bp)) {
-		netdev_warn(dev, "Can't deactivate rings used by RSS contexts\n");
-		return -EINVAL;
-	}
-
 	if (bnxt_get_nr_rss_ctxs(bp, req_rx_rings) !=
 	    bnxt_get_nr_rss_ctxs(bp, bp->rx_nr_rings) &&
 	    netif_is_rxfh_configured(dev)) {
@@ -1216,12 +1210,12 @@ fltr_err:
 static struct bnxt_rss_ctx *bnxt_get_rss_ctx_from_index(struct bnxt *bp,
 							u32 index)
 {
-	struct bnxt_rss_ctx *rss_ctx, *tmp;
+	struct ethtool_rxfh_context *ctx;
 
-	list_for_each_entry_safe(rss_ctx, tmp, &bp->rss_ctx_list, list)
-		if (rss_ctx->index == index)
-			return rss_ctx;
-	return NULL;
+	ctx = xa_load(&bp->dev->ethtool->rss_ctx, index);
+	if (!ctx)
+		return NULL;
+	return ethtool_rxfh_context_priv(ctx);
 }
 
 static int bnxt_alloc_rss_ctx_rss_table(struct bnxt *bp,
@@ -1909,7 +1903,6 @@ static int bnxt_create_rxfh_context(struct net_device *dev,
 
 	rss_ctx = ethtool_rxfh_context_priv(ctx);
 
-	list_add_tail(&rss_ctx->list, &bp->rss_ctx_list);
 	bp->num_rss_ctx++;
 
 	vnic = &rss_ctx->vnic;

@@ -5970,17 +5970,20 @@ bnxt_cfg_rfs_ring_tbl_idx(struct bnxt *bp,
 			  struct hwrm_cfa_ntuple_filter_alloc_input *req,
 			  struct bnxt_ntuple_filter *fltr)
 {
-	struct bnxt_rss_ctx *rss_ctx, *tmp;
 	u16 rxq = fltr->base.rxq;
 
 	if (fltr->base.flags & BNXT_ACT_RSS_CTX) {
-		list_for_each_entry_safe(rss_ctx, tmp, &bp->rss_ctx_list, list) {
-			if (rss_ctx->index == fltr->base.fw_vnic_id) {
-				struct bnxt_vnic_info *vnic = &rss_ctx->vnic;
+		struct ethtool_rxfh_context *ctx;
+		struct bnxt_rss_ctx *rss_ctx;
+		struct bnxt_vnic_info *vnic;
 
-				req->dst_id = cpu_to_le16(vnic->fw_vnic_id);
-				break;
-			}
+		ctx = xa_load(&bp->dev->ethtool->rss_ctx,
+			      fltr->base.fw_vnic_id);
+		if (ctx) {
+			rss_ctx = ethtool_rxfh_context_priv(ctx);
+			vnic = &rss_ctx->vnic;
+
+			req->dst_id = cpu_to_le16(vnic->fw_vnic_id);
 		}
 		return;
 	}
@@ -6279,21 +6282,6 @@ static u16 bnxt_get_max_rss_ring(struct bnxt *bp)
 	tbl_size = bnxt_get_rxfh_indir_size(bp->dev);
 	for (i = 0; i < tbl_size; i++)
 		max_ring = max(max_ring, bp->rss_indir_tbl[i]);
-	return max_ring;
-}
-
-u16 bnxt_get_max_rss_ctx_ring(struct bnxt *bp)
-{
-	u16 i, tbl_size, max_ring = 0;
-	struct bnxt_rss_ctx *rss_ctx;
-
-	tbl_size = bnxt_get_rxfh_indir_size(bp->dev);
-
-	list_for_each_entry(rss_ctx, &bp->rss_ctx_list, list) {
-		for (i = 0; i < tbl_size; i++)
-			max_ring = max(max_ring, rss_ctx->rss_indir_tbl[i]);
-	}
-
 	return max_ring;
 }
 
@@ -10237,16 +10225,17 @@ void bnxt_del_one_rss_ctx(struct bnxt *bp, struct bnxt_rss_ctx *rss_ctx,
 				  vnic->rss_table,
 				  vnic->rss_table_dma_addr);
 	kfree(rss_ctx->rss_indir_tbl);
-	list_del(&rss_ctx->list);
 	bp->num_rss_ctx--;
 }
 
 static void bnxt_hwrm_realloc_rss_ctx_vnic(struct bnxt *bp)
 {
 	bool set_tpa = !!(bp->flags & BNXT_FLAG_TPA);
-	struct bnxt_rss_ctx *rss_ctx, *tmp;
+	struct ethtool_rxfh_context *ctx;
+	unsigned long context;
 
-	list_for_each_entry_safe(rss_ctx, tmp, &bp->rss_ctx_list, list) {
+	xa_for_each(&bp->dev->ethtool->rss_ctx, context, ctx) {
+		struct bnxt_rss_ctx *rss_ctx = ethtool_rxfh_context_priv(ctx);
 		struct bnxt_vnic_info *vnic = &rss_ctx->vnic;
 
 		if (bnxt_hwrm_vnic_alloc(bp, vnic, 0, bp->rx_nr_rings) ||
@@ -10262,16 +10251,14 @@ static void bnxt_hwrm_realloc_rss_ctx_vnic(struct bnxt *bp)
 
 void bnxt_clear_rss_ctxs(struct bnxt *bp)
 {
-	struct bnxt_rss_ctx *rss_ctx, *tmp;
+	struct ethtool_rxfh_context *ctx;
+	unsigned long context;
 
-	list_for_each_entry_safe(rss_ctx, tmp, &bp->rss_ctx_list, list)
+	xa_for_each(&bp->dev->ethtool->rss_ctx, context, ctx) {
+		struct bnxt_rss_ctx *rss_ctx = ethtool_rxfh_context_priv(ctx);
+
 		bnxt_del_one_rss_ctx(bp, rss_ctx, false);
-}
-
-static void bnxt_init_multi_rss_ctx(struct bnxt *bp)
-{
-	INIT_LIST_HEAD(&bp->rss_ctx_list);
-	bp->rss_cap |= BNXT_RSS_CAP_MULTI_RSS_CTX;
+	}
 }
 
 /* Allow PF, trusted VFs and VFs with default VLAN to be in promiscuous mode */
@@ -15859,8 +15846,7 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	INIT_LIST_HEAD(&bp->usr_fltr_list);
 
 	if (BNXT_SUPPORTS_NTUPLE_VNIC(bp))
-		bnxt_init_multi_rss_ctx(bp);
-
+		bp->rss_cap |= BNXT_RSS_CAP_MULTI_RSS_CTX;
 
 	rc = register_netdev(dev);
 	if (rc)
