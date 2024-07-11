@@ -74,7 +74,7 @@ struct io_uring_sqe {
 		__u32		install_fd_flags;
 		__u32		nop_flags;
 	};
-	__u64	user_data;	/* data to be passed back at completion time */
+	__u64	user_data;	/* data to be passed back at completion time, not touched by kernel */
 	/* pack this to avoid bogus arm OABI complaints */
 	union {
 		/* index into fixed buffers, if used */
@@ -200,6 +200,7 @@ enum io_uring_sqe_flags_bit {
  */
 #define IORING_SETUP_NO_SQARRAY		(1U << 16)
 
+/* syscall op-code here */
 enum io_uring_op {
 	IORING_OP_NOP,
 	IORING_OP_READV,
@@ -448,6 +449,9 @@ struct io_uring_cqe {
 
 /*
  * Magic offsets for the application to mmap the data it needs
+ *
+ * additional: 
+ * IORING_OFF_SQ_RING used by MMAP(2) syscall while set memory on sq_ptr
  */
 #define IORING_OFF_SQ_RING		0ULL
 #define IORING_OFF_CQ_RING		0x8000000ULL
@@ -460,13 +464,13 @@ struct io_uring_cqe {
  * Filled with the offset for mmap(2)
  */
 struct io_sqring_offsets {
-	__u32 head;
-	__u32 tail;
-	__u32 ring_mask;
-	__u32 ring_entries;
-	__u32 flags;
-	__u32 dropped;
-	__u32 array;
+	__u32 head; /* offset of ring head */
+	__u32 tail; /* offset of ring tail */
+	__u32 ring_mask; /* ring mask value */
+	__u32 ring_entries; /* entries in ring */
+	__u32 flags; /* ring flags */
+	__u32 dropped; /* number of sqes not submitted */
+	__u32 array; /* sqe index array */
 	__u32 resv1;
 	__u64 user_addr;
 };
