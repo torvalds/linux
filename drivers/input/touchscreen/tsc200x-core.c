@@ -562,7 +562,8 @@ int tsc200x_probe(struct device *dev, int irq, const struct input_id *tsc_id,
 		return error;
 	}
 
-	device_init_wakeup(dev, true);
+	device_init_wakeup(dev,
+			   device_property_read_bool(dev, "wakeup-source"));
 
 	return 0;
 }
