@@ -1544,7 +1544,7 @@ static void cdns_sierra_phy_remove(struct platform_device *pdev)
 }
 
 /* SGMII PHY PMA lane configuration */
-static struct cdns_reg_pairs sgmii_phy_pma_ln_regs[] = {
+static const struct cdns_reg_pairs sgmii_phy_pma_ln_regs[] = {
 	{0x9010, SIERRA_PHY_PMA_XCVR_CTRL}
 };
 
@@ -1609,7 +1609,7 @@ static struct cdns_sierra_vals sgmii_100_no_ssc_plllc1_opt3_ln_vals = {
 };
 
 /* QSGMII PHY PMA lane configuration */
-static struct cdns_reg_pairs qsgmii_phy_pma_ln_regs[] = {
+static const struct cdns_reg_pairs qsgmii_phy_pma_ln_regs[] = {
 	{0x9010, SIERRA_PHY_PMA_XCVR_CTRL}
 };
 
@@ -1675,7 +1675,7 @@ static struct cdns_sierra_vals qsgmii_100_no_ssc_plllc1_ln_vals = {
 };
 
 /* PCIE PHY PCS common configuration */
-static struct cdns_reg_pairs pcie_phy_pcs_cmn_regs[] = {
+static const struct cdns_reg_pairs pcie_phy_pcs_cmn_regs[] = {
 	{0x0430, SIERRA_PHY_PIPE_CMN_CTRL1}
 };
 
