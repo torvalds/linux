@@ -285,7 +285,7 @@ static const int refclk_driver_parent_index[] = {
 	CDNS_TORRENT_RECEIVED_REFCLK
 };
 
-static u32 cdns_torrent_refclk_driver_mux_table[] = { 1, 0 };
+static const u32 cdns_torrent_refclk_driver_mux_table[] = { 1, 0 };
 
 enum cdns_torrent_phy_type {
 	TYPE_NONE,
