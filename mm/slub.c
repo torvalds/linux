@@ -2009,6 +2009,27 @@ static inline bool need_slab_obj_ext(void)
 	return false;
 }
 
+#else /* CONFIG_SLAB_OBJ_EXT */
+
+static int alloc_slab_obj_exts(struct slab *slab, struct kmem_cache *s,
+			       gfp_t gfp, bool new_slab)
+{
+	return 0;
+}
+
+static inline void free_slab_obj_exts(struct slab *slab)
+{
+}
+
+static inline bool need_slab_obj_ext(void)
+{
+	return false;
+}
+
+#endif /* CONFIG_SLAB_OBJ_EXT */
+
+#ifdef CONFIG_MEM_ALLOC_PROFILING
+
 static inline struct slabobj_ext *
 prepare_slab_obj_exts_hook(struct kmem_cache *s, gfp_t flags, void *p)
 {
@@ -2032,33 +2053,6 @@ prepare_slab_obj_exts_hook(struct kmem_cache *s, gfp_t flags, void *p)
 
 	return slab_obj_exts(slab) + obj_to_index(s, slab, p);
 }
-
-#else /* CONFIG_SLAB_OBJ_EXT */
-
-static int alloc_slab_obj_exts(struct slab *slab, struct kmem_cache *s,
-			       gfp_t gfp, bool new_slab)
-{
-	return 0;
-}
-
-static inline void free_slab_obj_exts(struct slab *slab)
-{
-}
-
-static inline bool need_slab_obj_ext(void)
-{
-	return false;
-}
-
-static inline struct slabobj_ext *
-prepare_slab_obj_exts_hook(struct kmem_cache *s, gfp_t flags, void *p)
-{
-	return NULL;
-}
-
-#endif /* CONFIG_SLAB_OBJ_EXT */
-
-#ifdef CONFIG_MEM_ALLOC_PROFILING
 
 static inline void
 alloc_tagging_slab_alloc_hook(struct kmem_cache *s, void *object, gfp_t flags)
