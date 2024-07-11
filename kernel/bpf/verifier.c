@@ -21122,7 +21122,9 @@ BTF_SET_START(btf_non_sleepable_error_inject)
  * Assume non-sleepable from bpf safety point of view.
  */
 BTF_ID(func, __filemap_add_folio)
+#ifdef CONFIG_FAIL_PAGE_ALLOC
 BTF_ID(func, should_fail_alloc_page)
+#endif
 #ifdef CONFIG_FAILSLAB
 BTF_ID(func, should_failslab)
 #endif
