@@ -486,19 +486,6 @@ int tsc200x_probe(struct device *dev, int irq, const struct input_id *tsc_id,
 					 &esd_timeout);
 	ts->esd_timeout = error ? 0 : esd_timeout;
 
-	ts->reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
-	if (IS_ERR(ts->reset_gpio)) {
-		error = PTR_ERR(ts->reset_gpio);
-		dev_err(dev, "error acquiring reset gpio: %d\n", error);
-		return error;
-	}
-
-	error = devm_regulator_get_enable(dev, "vio");
-	if (error) {
-		dev_err(dev, "error acquiring vio regulator: %d\n", error);
-		return error;
-	}
-
 	mutex_init(&ts->mutex);
 
 	spin_lock_init(&ts->lock);
@@ -538,6 +525,21 @@ int tsc200x_probe(struct device *dev, int irq, const struct input_id *tsc_id,
 			     0, MAX_12BIT, TSC200X_DEF_P_FUZZ, 0);
 
 	touchscreen_parse_properties(input_dev, false, &ts->prop);
+
+	ts->reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
+	error = PTR_ERR_OR_ZERO(ts->reset_gpio);
+	if (error) {
+		dev_err(dev, "error acquiring reset gpio: %d\n", error);
+		return error;
+	}
+
+	error = devm_regulator_get_enable(dev, "vio");
+	if (error) {
+		dev_err(dev, "error acquiring vio regulator: %d\n", error);
+		return error;
+	}
+
+	tsc200x_reset(ts);
 
 	/* Ensure the touchscreen is off */
 	tsc200x_stop_scan(ts);
