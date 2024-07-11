@@ -210,6 +210,8 @@ static inline size_t ethtool_rxfh_context_size(u32 indir_size, u32 key_size,
 	return struct_size_t(struct ethtool_rxfh_context, data, flex_len);
 }
 
+void ethtool_rxfh_context_lost(struct net_device *dev, u32 context_id);
+
 /* declare a link mode bitmap */
 #define __ETHTOOL_DECLARE_LINK_MODE_MASK(name)		\
 	DECLARE_BITMAP(name, __ETHTOOL_LINK_MODE_MASK_NBITS)
