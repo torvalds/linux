@@ -488,7 +488,7 @@ ethnl_module_fw_flash_ntf(struct net_device *dev,
 	if (!skb)
 		return;
 
-	hdr = ethnl_unicast_put(skb, ntf_params->portid, ntf_params->seq,
+	hdr = ethnl_unicast_put(skb, ntf_params->portid, ++ntf_params->seq,
 				ETHTOOL_MSG_MODULE_FW_FLASH_NTF);
 	if (!hdr)
 		goto err_skb;
