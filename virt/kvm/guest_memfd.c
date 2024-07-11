@@ -25,7 +25,7 @@ static inline kvm_pfn_t folio_file_pfn(struct folio *folio, pgoff_t index)
 	return folio_pfn(folio) + (index & (folio_nr_pages(folio) - 1));
 }
 
-static int kvm_gmem_prepare_folio(struct inode *inode, pgoff_t index, struct folio *folio)
+static int __kvm_gmem_prepare_folio(struct inode *inode, pgoff_t index, struct folio *folio)
 {
 #ifdef CONFIG_HAVE_KVM_ARCH_GMEM_PREPARE
 	struct list_head *gmem_list = &inode->i_mapping->i_private_list;
@@ -59,49 +59,63 @@ static int kvm_gmem_prepare_folio(struct inode *inode, pgoff_t index, struct fol
 	return 0;
 }
 
-/* Returns a locked folio on success.  */
-static struct folio *kvm_gmem_get_folio(struct inode *inode, pgoff_t index, bool prepare)
+/*
+ * Process @folio, which contains @gfn, so that the guest can use it.
+ * The folio must be locked and the gfn must be contained in @slot.
+ * On successful return the guest sees a zero page so as to avoid
+ * leaking host data and the up-to-date flag is set.
+ */
+static int kvm_gmem_prepare_folio(struct file *file, struct kvm_memory_slot *slot,
+				  gfn_t gfn, struct folio *folio)
 {
-	struct folio *folio;
+	unsigned long nr_pages, i;
+	pgoff_t index;
+	int r;
 
-	/* TODO: Support huge pages. */
-	folio = filemap_grab_folio(inode->i_mapping, index);
-	if (IS_ERR(folio))
-		return folio;
+	if (folio_test_uptodate(folio))
+		return 0;
+
+	nr_pages = folio_nr_pages(folio);
+	for (i = 0; i < nr_pages; i++)
+		clear_highpage(folio_page(folio, i));
 
 	/*
-	 * Use the up-to-date flag to track whether or not the memory has been
-	 * zeroed before being handed off to the guest.  There is no backing
-	 * storage for the memory, so the folio will remain up-to-date until
-	 * it's removed.
+	 * Preparing huge folios should always be safe, since it should
+	 * be possible to split them later if needed.
 	 *
-	 * TODO: Skip clearing pages when trusted firmware will do it when
-	 * assigning memory to the guest.
+	 * Right now the folio order is always going to be zero, but the
+	 * code is ready for huge folios.  The only assumption is that
+	 * the base pgoff of memslots is naturally aligned with the
+	 * requested page order, ensuring that huge folios can also use
+	 * huge page table entries for GPA->HPA mapping.
+	 *
+	 * The order will be passed when creating the guest_memfd, and
+	 * checked when creating memslots.
 	 */
-	if (!folio_test_uptodate(folio)) {
-		unsigned long nr_pages = folio_nr_pages(folio);
-		unsigned long i;
+	WARN_ON(!IS_ALIGNED(slot->gmem.pgoff, 1 << folio_order(folio)));
+	index = gfn - slot->base_gfn + slot->gmem.pgoff;
+	index = ALIGN_DOWN(index, 1 << folio_order(folio));
 
-		for (i = 0; i < nr_pages; i++)
-			clear_highpage(folio_page(folio, i));
-	}
-
-	if (prepare) {
-		int r =	kvm_gmem_prepare_folio(inode, index, folio);
-		if (r < 0) {
-			folio_unlock(folio);
-			folio_put(folio);
-			return ERR_PTR(r);
-		}
-
+	r = __kvm_gmem_prepare_folio(file_inode(file), index, folio);
+	if (!r)
 		folio_mark_uptodate(folio);
-	}
 
-	/*
-	 * Ignore accessed, referenced, and dirty flags.  The memory is
-	 * unevictable and there is no storage to write back to.
-	 */
-	return folio;
+	return r;
+}
+
+/*
+ * Returns a locked folio on success.  The caller is responsible for
+ * setting the up-to-date flag before the memory is mapped into the guest.
+ * There is no backing storage for the memory, so the folio will remain
+ * up-to-date until it's removed.
+ *
+ * Ignore accessed, referenced, and dirty flags.  The memory is
+ * unevictable and there is no storage to write back to.
+ */
+static struct folio *kvm_gmem_get_folio(struct inode *inode, pgoff_t index)
+{
+	/* TODO: Support huge pages. */
+	return filemap_grab_folio(inode->i_mapping, index);
 }
 
 static void kvm_gmem_invalidate_begin(struct kvm_gmem *gmem, pgoff_t start,
@@ -201,7 +215,7 @@ static long kvm_gmem_allocate(struct inode *inode, loff_t offset, loff_t len)
 			break;
 		}
 
-		folio = kvm_gmem_get_folio(inode, index, true);
+		folio = kvm_gmem_get_folio(inode, index);
 		if (IS_ERR(folio)) {
 			r = PTR_ERR(folio);
 			break;
@@ -555,7 +569,7 @@ void kvm_gmem_unbind(struct kvm_memory_slot *slot)
 /* Returns a locked folio on success.  */
 static struct folio *
 __kvm_gmem_get_pfn(struct file *file, struct kvm_memory_slot *slot,
-		   gfn_t gfn, kvm_pfn_t *pfn, int *max_order, bool prepare)
+		   gfn_t gfn, kvm_pfn_t *pfn, int *max_order)
 {
 	pgoff_t index = gfn - slot->base_gfn + slot->gmem.pgoff;
 	struct kvm_gmem *gmem = file->private_data;
@@ -572,7 +586,7 @@ __kvm_gmem_get_pfn(struct file *file, struct kvm_memory_slot *slot,
 		return ERR_PTR(-EIO);
 	}
 
-	folio = kvm_gmem_get_folio(file_inode(file), index, prepare);
+	folio = kvm_gmem_get_folio(file_inode(file), index);
 	if (IS_ERR(folio))
 		return folio;
 
@@ -594,17 +608,25 @@ int kvm_gmem_get_pfn(struct kvm *kvm, struct kvm_memory_slot *slot,
 {
 	struct file *file = kvm_gmem_get_file(slot);
 	struct folio *folio;
+	int r = 0;
 
 	if (!file)
 		return -EFAULT;
 
-	folio = __kvm_gmem_get_pfn(file, slot, gfn, pfn, max_order, true);
-	fput(file);
-	if (IS_ERR(folio))
-		return PTR_ERR(folio);
+	folio = __kvm_gmem_get_pfn(file, slot, gfn, pfn, max_order);
+	if (IS_ERR(folio)) {
+		r = PTR_ERR(folio);
+		goto out;
+	}
 
+	r = kvm_gmem_prepare_folio(file, slot, gfn, folio);
 	folio_unlock(folio);
-	return 0;
+	if (r < 0)
+		folio_put(folio);
+
+out:
+	fput(file);
+	return r;
 }
 EXPORT_SYMBOL_GPL(kvm_gmem_get_pfn);
 
@@ -643,7 +665,7 @@ long kvm_gmem_populate(struct kvm *kvm, gfn_t start_gfn, void __user *src, long 
 			break;
 		}
 
-		folio = __kvm_gmem_get_pfn(file, slot, gfn, &pfn, &max_order, false);
+		folio = __kvm_gmem_get_pfn(file, slot, gfn, &pfn, &max_order);
 		if (IS_ERR(folio)) {
 			ret = PTR_ERR(folio);
 			break;
