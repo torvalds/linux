@@ -15,7 +15,7 @@ extern struct page_ext_operations page_alloc_tagging_ops;
 
 static inline union codetag_ref *codetag_ref_from_page_ext(struct page_ext *page_ext)
 {
-	return (void *)page_ext + page_alloc_tagging_ops.offset;
+	return (union codetag_ref *)page_ext_data(page_ext, &page_alloc_tagging_ops);
 }
 
 static inline struct page_ext *page_ext_from_codetag_ref(union codetag_ref *ref)
