@@ -5113,15 +5113,12 @@ static struct pool_workqueue *alloc_unbound_pwq(struct workqueue_struct *wq,
 
 static void apply_wqattrs_lock(void)
 {
-	/* CPUs should stay stable across pwq creations and installations */
-	cpus_read_lock();
 	mutex_lock(&wq_pool_mutex);
 }
 
 static void apply_wqattrs_unlock(void)
 {
 	mutex_unlock(&wq_pool_mutex);
-	cpus_read_unlock();
 }
 
 /**
