@@ -102,11 +102,10 @@ static inline bool __should_fail_alloc_page(gfp_t gfp_mask, unsigned int order)
 }
 #endif /* CONFIG_FAIL_PAGE_ALLOC */
 
-int should_failslab(struct kmem_cache *s, gfp_t gfpflags);
 #ifdef CONFIG_FAILSLAB
-extern bool __should_failslab(struct kmem_cache *s, gfp_t gfpflags);
+int should_failslab(struct kmem_cache *s, gfp_t gfpflags);
 #else
-static inline bool __should_failslab(struct kmem_cache *s, gfp_t gfpflags)
+static inline int should_failslab(struct kmem_cache *s, gfp_t gfpflags)
 {
 	return false;
 }
