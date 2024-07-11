@@ -1804,7 +1804,7 @@ static int bnxt_get_rxfh(struct net_device *dev,
 	u32 rss_context = rxfh->rss_context;
 	struct bnxt_rss_ctx *rss_ctx = NULL;
 	struct bnxt *bp = netdev_priv(dev);
-	u16 *indir_tbl = bp->rss_indir_tbl;
+	u32 *indir_tbl = bp->rss_indir_tbl;
 	struct bnxt_vnic_info *vnic;
 	u32 i, tbl_size;
 
@@ -1848,7 +1848,7 @@ static void bnxt_modify_rss(struct bnxt *bp, struct bnxt_rss_ctx *rss_ctx,
 	}
 	if (rxfh->indir) {
 		u32 i, pad, tbl_size = bnxt_get_rxfh_indir_size(bp->dev);
-		u16 *indir_tbl = bp->rss_indir_tbl;
+		u32 *indir_tbl = bp->rss_indir_tbl;
 
 		if (rss_ctx)
 			indir_tbl = rss_ctx->rss_indir_tbl;
@@ -1856,7 +1856,7 @@ static void bnxt_modify_rss(struct bnxt *bp, struct bnxt_rss_ctx *rss_ctx,
 			indir_tbl[i] = rxfh->indir[i];
 		pad = bp->rss_indir_tbl_entries - tbl_size;
 		if (pad)
-			memset(&indir_tbl[i], 0, pad * sizeof(u16));
+			memset(&indir_tbl[i], 0, pad * sizeof(*indir_tbl));
 	}
 }
 

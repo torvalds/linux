@@ -1292,7 +1292,7 @@ struct bnxt_vnic_info {
 
 struct bnxt_rss_ctx {
 	struct bnxt_vnic_info vnic;
-	u16	*rss_indir_tbl;
+	u32	*rss_indir_tbl;
 	u8	index;
 };
 
@@ -2331,7 +2331,7 @@ struct bnxt {
 	struct bnxt_vnic_info	*vnic_info;
 	u32			num_rss_ctx;
 	int			nr_vnics;
-	u16			*rss_indir_tbl;
+	u32			*rss_indir_tbl;
 	u16			rss_indir_tbl_entries;
 	u32			rss_hash_cfg;
 	u32			rss_hash_delta;
