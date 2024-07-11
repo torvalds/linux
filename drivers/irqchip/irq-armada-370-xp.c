@@ -464,20 +464,23 @@ static void mpic_ipi_resume(void)
 	}
 }
 
-static __init void mpic_ipi_init(struct device_node *node)
+static __init int mpic_ipi_init(struct device_node *node)
 {
 	int base_ipi;
 
 	mpic_ipi_domain = irq_domain_create_linear(of_node_to_fwnode(node), IPI_DOORBELL_END,
 						   &mpic_ipi_domain_ops, NULL);
 	if (WARN_ON(!mpic_ipi_domain))
-		return;
+		return -ENOMEM;
 
 	irq_domain_update_bus_token(mpic_ipi_domain, DOMAIN_BUS_IPI);
 	base_ipi = irq_domain_alloc_irqs(mpic_ipi_domain, IPI_DOORBELL_END, NUMA_NO_NODE, NULL);
 	if (WARN_ON(!base_ipi))
-		return;
+		return -ENOMEM;
+
 	set_smp_ipi_range(base_ipi, IPI_DOORBELL_END);
+
+	return 0;
 }
 
 static int mpic_set_affinity(struct irq_data *d, const struct cpumask *mask_val, bool force)
@@ -803,7 +806,11 @@ static int __init mpic_of_init(struct device_node *node, struct device_node *par
 		writel(i, main_int_base + MPIC_INT_CLEAR_ENABLE);
 
 	mpic_domain = irq_domain_add_linear(node, nr_irqs, &mpic_irq_ops, NULL);
-	BUG_ON(!mpic_domain);
+	if (!mpic_domain) {
+		pr_err("%pOF: Unable to add IRQ domain\n", node);
+		return -ENOMEM;
+	}
+
 	irq_domain_update_bus_token(mpic_domain, DOMAIN_BUS_WIRED);
 
 	/*
@@ -816,13 +823,22 @@ static int __init mpic_of_init(struct device_node *node, struct device_node *par
 	mpic_perf_init();
 	mpic_smp_cpu_init();
 
-	mpic_msi_init(node, phys_base);
+	err = mpic_msi_init(node, phys_base);
+	if (err) {
+		pr_err("%pOF: Unable to initialize MSI domain\n", node);
+		return err;
+	}
 
 	if (parent_irq <= 0) {
 		irq_set_default_host(mpic_domain);
 		set_handle_irq(mpic_handle_irq);
 #ifdef CONFIG_SMP
-		mpic_ipi_init(node);
+		err = mpic_ipi_init(node);
+		if (err) {
+			pr_err("%pOF: Unable to initialize IPI domain\n", node);
+			return err;
+		}
+
 		cpuhp_setup_state_nocalls(CPUHP_AP_IRQ_ARMADA_XP_STARTING,
 					  "irqchip/armada/ipi:starting",
 					  mpic_starting_cpu, NULL);
