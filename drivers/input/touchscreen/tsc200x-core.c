@@ -542,10 +542,8 @@ int tsc200x_probe(struct device *dev, int irq, const struct input_id *tsc_id,
 	/* Ensure the touchscreen is off */
 	tsc200x_stop_scan(ts);
 
-	error = devm_request_threaded_irq(dev, irq, NULL,
-					  tsc200x_irq_thread,
-					  IRQF_TRIGGER_RISING | IRQF_ONESHOT,
-					  "tsc200x", ts);
+	error = devm_request_threaded_irq(dev, irq, NULL, tsc200x_irq_thread,
+					  IRQF_ONESHOT, "tsc200x", ts);
 	if (error) {
 		dev_err(dev, "Failed to request irq, err: %d\n", error);
 		return error;
