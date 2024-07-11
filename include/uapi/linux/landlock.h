@@ -12,29 +12,36 @@
 #include <linux/types.h>
 
 /**
- * struct landlock_ruleset_attr - Ruleset definition
+ * struct landlock_ruleset_attr - Ruleset definition.
  *
- * Argument of sys_landlock_create_ruleset().  This structure can grow in
- * future versions.
+ * Argument of sys_landlock_create_ruleset().
+ *
+ * This structure defines a set of *handled access rights*, a set of actions on
+ * different object types, which should be denied by default when the ruleset is
+ * enacted.  Vice versa, access rights that are not specifically listed here are
+ * not going to be denied by this ruleset when it is enacted.
+ *
+ * For historical reasons, the %LANDLOCK_ACCESS_FS_REFER right is always denied
+ * by default, even when its bit is not set in @handled_access_fs.  In order to
+ * add new rules with this access right, the bit must still be set explicitly
+ * (cf. `Filesystem flags`_).
+ *
+ * The explicit listing of *handled access rights* is required for backwards
+ * compatibility reasons.  In most use cases, processes that use Landlock will
+ * *handle* a wide range or all access rights that they know about at build time
+ * (and that they have tested with a kernel that supported them all).
+ *
+ * This structure can grow in future Landlock versions.
  */
 struct landlock_ruleset_attr {
 	/**
-	 * @handled_access_fs: Bitmask of actions (cf. `Filesystem flags`_)
-	 * that is handled by this ruleset and should then be forbidden if no
-	 * rule explicitly allow them: it is a deny-by-default list that should
-	 * contain as much Landlock access rights as possible. Indeed, all
-	 * Landlock filesystem access rights that are not part of
-	 * handled_access_fs are allowed.  This is needed for backward
-	 * compatibility reasons.  One exception is the
-	 * %LANDLOCK_ACCESS_FS_REFER access right, which is always implicitly
-	 * handled, but must still be explicitly handled to add new rules with
-	 * this access right.
+	 * @handled_access_fs: Bitmask of handled filesystem actions
+	 * (cf. `Filesystem flags`_).
 	 */
 	__u64 handled_access_fs;
 	/**
-	 * @handled_access_net: Bitmask of actions (cf. `Network flags`_)
-	 * that is handled by this ruleset and should then be forbidden if no
-	 * rule explicitly allow them.
+	 * @handled_access_net: Bitmask of handled network actions (cf. `Network
+	 * flags`_).
 	 */
 	__u64 handled_access_net;
 };
