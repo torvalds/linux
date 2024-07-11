@@ -207,8 +207,8 @@ static void mgag200_g200ev_crtc_helper_atomic_enable(struct drm_crtc *crtc,
 
 	mgag200_enable_display(mdev);
 
-	if (mdev->info->has_vidrst)
-		mgag200_bmc_enable_vidrst(mdev);
+	if (mdev->info->sync_bmc)
+		mgag200_bmc_start_scanout(mdev);
 }
 
 static const struct drm_crtc_helper_funcs mgag200_g200ev_crtc_helper_funcs = {

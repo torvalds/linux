@@ -608,7 +608,7 @@ int mgag200_crtc_helper_atomic_check(struct drm_crtc *crtc, struct drm_atomic_st
 	if (ret)
 		return ret;
 
-	new_mgag200_crtc_state->set_vidrst = mdev->info->has_vidrst;
+	new_mgag200_crtc_state->set_vidrst = mdev->info->sync_bmc;
 
 	if (new_crtc_state->mode_changed) {
 		if (funcs->pixpllc_atomic_check) {
@@ -668,16 +668,16 @@ void mgag200_crtc_helper_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_
 
 	mgag200_enable_display(mdev);
 
-	if (mdev->info->has_vidrst)
-		mgag200_bmc_enable_vidrst(mdev);
+	if (mdev->info->sync_bmc)
+		mgag200_bmc_start_scanout(mdev);
 }
 
 void mgag200_crtc_helper_atomic_disable(struct drm_crtc *crtc, struct drm_atomic_state *old_state)
 {
 	struct mga_device *mdev = to_mga_device(crtc->dev);
 
-	if (mdev->info->has_vidrst)
-		mgag200_bmc_disable_vidrst(mdev);
+	if (mdev->info->sync_bmc)
+		mgag200_bmc_stop_scanout(mdev);
 
 	mgag200_disable_display(mdev);
 }

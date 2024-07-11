@@ -14,7 +14,7 @@ static struct mgag200_bmc_connector *to_mgag200_bmc_connector(struct drm_connect
 	return container_of(connector, struct mgag200_bmc_connector, base);
 }
 
-void mgag200_bmc_disable_vidrst(struct mga_device *mdev)
+void mgag200_bmc_stop_scanout(struct mga_device *mdev)
 {
 	u8 tmp;
 	int iter_max;
@@ -73,7 +73,7 @@ void mgag200_bmc_disable_vidrst(struct mga_device *mdev)
 	}
 }
 
-void mgag200_bmc_enable_vidrst(struct mga_device *mdev)
+void mgag200_bmc_start_scanout(struct mga_device *mdev)
 {
 	u8 tmp;
 
