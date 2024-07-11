@@ -357,7 +357,7 @@ static inline int mpic_msi_init(struct device_node *node,
 
 static void mpic_perf_init(void)
 {
-	unsigned long cpuid;
+	u32 cpuid;
 
 	/*
 	 * This Performance Counter Overflow interrupt is specific for
@@ -396,8 +396,8 @@ static void mpic_ipi_unmask(struct irq_data *d)
 
 static void mpic_ipi_send_mask(struct irq_data *d, const struct cpumask *mask)
 {
-	unsigned long map = 0;
 	unsigned int cpu;
+	u32 map = 0;
 
 	/* Convert our logical CPU mask into a physical one. */
 	for_each_cpu(cpu, mask)
@@ -633,7 +633,8 @@ static inline void mpic_handle_ipi_irq(void) {}
 static void mpic_handle_cascade_irq(struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
-	unsigned long cause, irqsrc, cpuid;
+	unsigned long cause;
+	u32 irqsrc, cpuid;
 	irq_hw_number_t i;
 
 	chained_irq_enter(chip, desc);
