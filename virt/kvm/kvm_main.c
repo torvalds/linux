@@ -2398,6 +2398,14 @@ static int kvm_vm_ioctl_clear_dirty_log(struct kvm *kvm,
 #endif /* CONFIG_KVM_GENERIC_DIRTYLOG_READ_PROTECT */
 
 #ifdef CONFIG_KVM_GENERIC_MEMORY_ATTRIBUTES
+static u64 kvm_supported_mem_attributes(struct kvm *kvm)
+{
+	if (!kvm || kvm_arch_has_private_mem(kvm))
+		return KVM_MEMORY_ATTRIBUTE_PRIVATE;
+
+	return 0;
+}
+
 /*
  * Returns true if _all_ gfns in the range [@start, @end) have attributes
  * matching @attrs.
@@ -2406,40 +2414,30 @@ bool kvm_range_has_memory_attributes(struct kvm *kvm, gfn_t start, gfn_t end,
 				     unsigned long attrs)
 {
 	XA_STATE(xas, &kvm->mem_attr_array, start);
+	unsigned long mask = kvm_supported_mem_attributes(kvm);
 	unsigned long index;
-	bool has_attrs;
 	void *entry;
 
-	rcu_read_lock();
+	if (attrs & ~mask)
+		return false;
 
-	if (!attrs) {
-		has_attrs = !xas_find(&xas, end - 1);
-		goto out;
-	}
+	if (end == start + 1)
+		return kvm_get_memory_attributes(kvm, start) == attrs;
 
-	has_attrs = true;
+	guard(rcu)();
+	if (!attrs)
+		return !xas_find(&xas, end - 1);
+
 	for (index = start; index < end; index++) {
 		do {
 			entry = xas_next(&xas);
 		} while (xas_retry(&xas, entry));
 
-		if (xas.xa_index != index || xa_to_value(entry) != attrs) {
-			has_attrs = false;
-			break;
-		}
+		if (xas.xa_index != index || xa_to_value(entry) != attrs)
+			return false;
 	}
 
-out:
-	rcu_read_unlock();
-	return has_attrs;
-}
-
-static u64 kvm_supported_mem_attributes(struct kvm *kvm)
-{
-	if (!kvm || kvm_arch_has_private_mem(kvm))
-		return KVM_MEMORY_ATTRIBUTE_PRIVATE;
-
-	return 0;
+	return true;
 }
 
 static __always_inline void kvm_handle_gfn_range(struct kvm *kvm,
