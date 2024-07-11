@@ -149,7 +149,7 @@ unsigned long __bootdata_preserved(max_mappable);
 struct physmem_info __bootdata(physmem_info);
 
 struct vm_layout __bootdata_preserved(vm_layout);
-EXPORT_SYMBOL_GPL(vm_layout);
+EXPORT_SYMBOL(vm_layout);
 int __bootdata_preserved(__kaslr_enabled);
 unsigned int __bootdata_preserved(zlib_dfltcc_support);
 EXPORT_SYMBOL(zlib_dfltcc_support);
