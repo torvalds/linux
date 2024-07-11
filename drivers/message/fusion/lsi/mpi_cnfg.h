@@ -1018,14 +1018,6 @@ typedef struct _CONFIG_PAGE_IOC_2_RAID_VOL
 
 #define MPI_IOCPAGE2_FLAG_VOLUME_INACTIVE           (0x08)
 
-/*
- * Host code (drivers, BIOS, utilities, etc.) should leave this define set to
- * one and check Header.PageLength at runtime.
- */
-#ifndef MPI_IOC_PAGE_2_RAID_VOLUME_MAX
-#define MPI_IOC_PAGE_2_RAID_VOLUME_MAX      (1)
-#endif
-
 typedef struct _CONFIG_PAGE_IOC_2
 {
     CONFIG_PAGE_HEADER          Header;                              /* 00h */
@@ -1034,7 +1026,7 @@ typedef struct _CONFIG_PAGE_IOC_2
     U8                          MaxVolumes;                          /* 09h */
     U8                          NumActivePhysDisks;                  /* 0Ah */
     U8                          MaxPhysDisks;                        /* 0Bh */
-    CONFIG_PAGE_IOC_2_RAID_VOL  RaidVolume[MPI_IOC_PAGE_2_RAID_VOLUME_MAX];/* 0Ch */
+    CONFIG_PAGE_IOC_2_RAID_VOL  RaidVolume[] __counted_by(NumActiveVolumes); /* 0Ch */
 } CONFIG_PAGE_IOC_2, MPI_POINTER PTR_CONFIG_PAGE_IOC_2,
   IOCPage2_t, MPI_POINTER pIOCPage2_t;
 
