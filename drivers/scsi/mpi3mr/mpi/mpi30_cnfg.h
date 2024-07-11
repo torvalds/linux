@@ -1565,16 +1565,13 @@ struct mpi3_sas_io_unit0_phy_data {
 	__le32             reserved10;
 };
 
-#ifndef MPI3_SAS_IO_UNIT0_PHY_MAX
-#define MPI3_SAS_IO_UNIT0_PHY_MAX           (1)
-#endif
 struct mpi3_sas_io_unit_page0 {
 	struct mpi3_config_page_header         header;
 	__le32                             reserved08;
 	u8                                 num_phys;
 	u8                                 init_status;
 	__le16                             reserved0e;
-	struct mpi3_sas_io_unit0_phy_data      phy_data[MPI3_SAS_IO_UNIT0_PHY_MAX];
+	struct mpi3_sas_io_unit0_phy_data      phy_data[];
 };
 
 #define MPI3_SASIOUNIT0_PAGEVERSION                          (0x00)
