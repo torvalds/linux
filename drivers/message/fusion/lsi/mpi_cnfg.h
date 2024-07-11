@@ -2547,14 +2547,6 @@ typedef struct _MPI_SAS_IO_UNIT0_PHY_DATA
 } MPI_SAS_IO_UNIT0_PHY_DATA, MPI_POINTER PTR_MPI_SAS_IO_UNIT0_PHY_DATA,
   SasIOUnit0PhyData, MPI_POINTER pSasIOUnit0PhyData;
 
-/*
- * Host code (drivers, BIOS, utilities, etc.) should leave this define set to
- * one and check Header.PageLength at runtime.
- */
-#ifndef MPI_SAS_IOUNIT0_PHY_MAX
-#define MPI_SAS_IOUNIT0_PHY_MAX         (1)
-#endif
-
 typedef struct _CONFIG_PAGE_SAS_IO_UNIT_0
 {
     CONFIG_EXTENDED_PAGE_HEADER     Header;                             /* 00h */
@@ -2563,7 +2555,7 @@ typedef struct _CONFIG_PAGE_SAS_IO_UNIT_0
     U8                              NumPhys;                            /* 0Ch */
     U8                              Reserved2;                          /* 0Dh */
     U16                             Reserved3;                          /* 0Eh */
-    MPI_SAS_IO_UNIT0_PHY_DATA       PhyData[MPI_SAS_IOUNIT0_PHY_MAX];   /* 10h */
+    MPI_SAS_IO_UNIT0_PHY_DATA       PhyData[] __counted_by(NumPhys);    /* 10h */
 } CONFIG_PAGE_SAS_IO_UNIT_0, MPI_POINTER PTR_CONFIG_PAGE_SAS_IO_UNIT_0,
   SasIOUnitPage0_t, MPI_POINTER pSasIOUnitPage0_t;
 
