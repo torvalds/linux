@@ -350,6 +350,10 @@ static void trace_gic_v3_set_affinity(void *unused, struct irq_data *d,
 		}
 	}
 
+	/* Do not set InterruptRouting for single CPU affinity mask */
+	if (cpumask_weight(cpu_affinity) <= 1)
+		return;
+
 	cpumask_or(&all_cpus, &gic_routing_data.gic_routing_class0_cpus,
 			      &gic_routing_data.gic_routing_class1_cpus);
 
