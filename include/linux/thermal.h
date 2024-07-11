@@ -93,6 +93,7 @@ struct thermal_zone_device_ops {
 	int (*set_trip_temp) (struct thermal_zone_device *, int, int);
 	int (*get_crit_temp) (struct thermal_zone_device *, int *);
 	int (*set_emul_temp) (struct thermal_zone_device *, int);
+	int (*set_emul_offset) (struct thermal_zone_device *, int);
 	int (*get_trend) (struct thermal_zone_device *,
 			  const struct thermal_trip *, enum thermal_trend *);
 	void (*hot)(struct thermal_zone_device *);

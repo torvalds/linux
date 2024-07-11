@@ -256,6 +256,32 @@ emul_temp_store(struct device *dev, struct device_attribute *attr,
 	return ret ? ret : count;
 }
 static DEVICE_ATTR_WO(emul_temp);
+
+static ssize_t
+emul_offset_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct thermal_zone_device *tz = to_thermal_zone(dev);
+	int ret = 0;
+	int temperature;
+
+	if (kstrtoint(buf, 10, &temperature))
+		return -EINVAL;
+
+	if (!tz->ops->set_emul_offset) {
+		mutex_lock(&tz->lock);
+		tz->emul_offset = temperature;
+		mutex_unlock(&tz->lock);
+	} else {
+		ret = tz->ops->set_emul_offset(tz, temperature);
+	}
+
+	if (!ret)
+		thermal_zone_device_update(tz, THERMAL_EVENT_UNSPECIFIED);
+
+	return ret ? ret : count;
+}
+static DEVICE_ATTR_WO(emul_offset);
 #endif
 
 static ssize_t
@@ -349,6 +375,7 @@ static struct attribute *thermal_zone_dev_attrs[] = {
 	&dev_attr_temp.attr,
 #if (IS_ENABLED(CONFIG_THERMAL_EMULATION))
 	&dev_attr_emul_temp.attr,
+	&dev_attr_emul_offset.attr,
 #endif
 	&dev_attr_policy.attr,
 	&dev_attr_available_policies.attr,

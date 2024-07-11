@@ -90,7 +90,8 @@ int __thermal_zone_get_temp(struct thermal_zone_device *tz, int *temp)
 
 	ret = tz->ops.get_temp(tz, temp);
 
-	if (IS_ENABLED(CONFIG_THERMAL_EMULATION) && tz->emul_temperature) {
+	if (IS_ENABLED(CONFIG_THERMAL_EMULATION) &&
+		(tz->emul_temperature || tz->emul_offset)) {
 		for_each_trip_desc(tz, td) {
 			const struct thermal_trip *trip = &td->trip;
 
@@ -105,8 +106,16 @@ int __thermal_zone_get_temp(struct thermal_zone_device *tz, int *temp)
 		 * is below the critical temperature so that the emulation code
 		 * cannot hide critical conditions.
 		 */
-		if (!ret && *temp < crit_temp)
+		if (!ret && *temp < crit_temp && tz->emul_temperature)
 			*temp = tz->emul_temperature;
+
+		/*
+		 * If emul_offset is available, add an offset to the pre-calculated temperature
+		 * Also ensure offset are applied only when the temperature is non critical
+		 * to prevent unintentional hiding of critical thermal events via negative offsets.
+		 */
+		if (!ret && *temp < crit_temp && tz->emul_offset)
+			*temp += tz->emul_offset;
 	}
 
 	if (ret)

@@ -88,6 +88,9 @@ temperature) and throttle appropriate devices.
 	.set_emul_temp:
 			set the emulation temperature which helps in debugging
 			different threshold temperature points.
+	.set_emul_offset:
+			set the emulated offset temperature which helps in simulating
+			thermal stress at a higher ambient temperature.
     tzp:
 	thermal zone platform parameters.
     passive_delay:
@@ -145,6 +148,8 @@ temperature) and throttle appropriate devices.
 					sensor temperature trend.
 			set_emul_temp	a pointer to a function that sets
 					sensor emulated temperature.
+			set_emul_offset	a pointer to a function that sets
+					sensor emulated offset temperature.
 			==============  =======================================
 
 	The thermal zone temperature is provided by the get_temp() function
