@@ -181,6 +181,7 @@ struct ethtool_rxfh_context {
 	/* private: driver private data, indirection table, and hash key are
 	 * stored sequentially in @data area.  Use below helpers to access.
 	 */
+	u32 key_off;
 	u8 data[] __aligned(sizeof(void *));
 };
 
@@ -196,18 +197,7 @@ static inline u32 *ethtool_rxfh_context_indir(struct ethtool_rxfh_context *ctx)
 
 static inline u8 *ethtool_rxfh_context_key(struct ethtool_rxfh_context *ctx)
 {
-	return (u8 *)(ethtool_rxfh_context_indir(ctx) + ctx->indir_size);
-}
-
-static inline size_t ethtool_rxfh_context_size(u32 indir_size, u32 key_size,
-					       u16 priv_size)
-{
-	size_t indir_bytes = array_size(indir_size, sizeof(u32));
-	size_t flex_len;
-
-	flex_len = size_add(size_add(indir_bytes, key_size),
-			    ALIGN(priv_size, sizeof(u32)));
-	return struct_size_t(struct ethtool_rxfh_context, data, flex_len);
+	return &ctx->data[ctx->key_off];
 }
 
 void ethtool_rxfh_context_lost(struct net_device *dev, u32 context_id);
@@ -723,6 +713,10 @@ struct ethtool_rxfh_param {
  *	contexts.
  * @cap_rss_sym_xor_supported: indicates if the driver supports symmetric-xor
  *	RSS.
+ * @rxfh_indir_space: max size of RSS indirection tables, if indirection table
+ *	size as returned by @get_rxfh_indir_size may change during lifetime
+ *	of the device. Leave as 0 if the table size is constant.
+ * @rxfh_key_space: same as @rxfh_indir_space, but for the key.
  * @rxfh_priv_size: size of the driver private data area the core should
  *	allocate for an RSS context (in &struct ethtool_rxfh_context).
  * @rxfh_max_context_id: maximum (exclusive) supported RSS context ID.  If this
@@ -940,6 +934,8 @@ struct ethtool_ops {
 	u32     cap_link_lanes_supported:1;
 	u32     cap_rss_ctx_supported:1;
 	u32	cap_rss_sym_xor_supported:1;
+	u32	rxfh_indir_space;
+	u16	rxfh_key_space;
 	u16	rxfh_priv_size;
 	u32	rxfh_max_context_id;
 	u32	supported_coalesce_params;
