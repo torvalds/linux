@@ -56,7 +56,7 @@ static int mana_ib_probe(struct auxiliary_device *adev,
 {
 	struct mana_adev *madev = container_of(adev, struct mana_adev, adev);
 	struct gdma_dev *mdev = madev->mdev;
-	struct net_device *upper_ndev;
+	struct net_device *ndev;
 	struct mana_context *mc;
 	struct mana_ib_dev *dev;
 	u8 mac_addr[ETH_ALEN];
@@ -84,17 +84,17 @@ static int mana_ib_probe(struct auxiliary_device *adev,
 	dev->ib_dev.num_comp_vectors = mdev->gdma_context->max_num_queues;
 	dev->ib_dev.dev.parent = mdev->gdma_context->dev;
 
-	rcu_read_lock(); /* required to get upper dev */
-	upper_ndev = netdev_master_upper_dev_get_rcu(mc->ports[0]);
-	if (!upper_ndev) {
+	rcu_read_lock(); /* required to get primary netdev */
+	ndev = mana_get_primary_netdev_rcu(mc, 0);
+	if (!ndev) {
 		rcu_read_unlock();
 		ret = -ENODEV;
-		ibdev_err(&dev->ib_dev, "Failed to get master netdev");
+		ibdev_err(&dev->ib_dev, "Failed to get netdev for IB port 1");
 		goto free_ib_device;
 	}
-	ether_addr_copy(mac_addr, upper_ndev->dev_addr);
-	addrconf_addr_eui48((u8 *)&dev->ib_dev.node_guid, upper_ndev->dev_addr);
-	ret = ib_device_set_netdev(&dev->ib_dev, upper_ndev, 1);
+	ether_addr_copy(mac_addr, ndev->dev_addr);
+	addrconf_addr_eui48((u8 *)&dev->ib_dev.node_guid, ndev->dev_addr);
+	ret = ib_device_set_netdev(&dev->ib_dev, ndev, 1);
 	rcu_read_unlock();
 	if (ret) {
 		ibdev_err(&dev->ib_dev, "Failed to set ib netdev, ret %d", ret);
