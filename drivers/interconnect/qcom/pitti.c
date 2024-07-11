@@ -363,7 +363,7 @@ static struct qcom_icc_qosbox qxm_pimem_qos = {
 	.num_ports = 1,
 	.offsets = { 0x4D000, },
 	.config = &(struct qos_config) {
-		.prio = 2,
+		.prio = 3,
 		.urg_fwd = 0,
 		.prio_fwd_disable = 1,
 	},
