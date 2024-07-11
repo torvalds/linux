@@ -1,5 +1,5 @@
-load(":target_variants.bzl", "lxc_variants")
-load(":msm_kernel_lagvm.bzl", "define_msm_lagvm")
+load(":target_variants.bzl", "la_variants")
+load(":msm_kernel_la.bzl", "define_msm_la")
 load(":image_opts.bzl", "boot_image_opts")
 
 target_name = "autoghgvm"
@@ -62,18 +62,25 @@ def define_autoghgvm():
         "net/qrtr/qrtr-mhi.ko",
     ]
 
-    for variant in lxc_variants:
-        mod_list = _autoghgvm_in_tree_modules
+    _autoghgvm_consolidate_in_tree_modules = _autoghgvm_in_tree_modules + [
+        # keep sorted
+    ]
 
-        define_msm_lagvm(
+    for variant in la_variants:
+        if variant == "consolidate":
+            mod_list = _autoghgvm_consolidate_in_tree_modules
+        else:
+            mod_list = _autoghgvm_in_tree_modules
+
+        define_msm_la(
             msm_target = target_name,
             variant = variant,
             in_tree_module_list = mod_list,
             boot_image_opts = boot_image_opts(
                 boot_partition_size = 0x4000000,
-                boot_image_header_version = 2,
-                base_address = 0x80000000,
-                page_size = 4096,
+                #boot_image_header_version = 2,
+                #base_address = 0x80000000,
+                #page_size = 4096,
                 kernel_vendor_cmdline_extras = [
                     # do not sort
                     "console=hvc0",

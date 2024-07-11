@@ -1,6 +1,7 @@
 la_targets = [
     # keep sorted
     "anorak",
+    "autoghgvm",
     "autogvm",
     "blair",
     "gen3auto",
@@ -24,7 +25,6 @@ lxc_variants = [
 
 lxc_targets = [
     # keep sorted
-    "autoghgvm",
     "autogvm",
     "gen4auto",
 ]
