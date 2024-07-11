@@ -633,15 +633,15 @@ static inline void mpic_handle_ipi_irq(void) {}
 static void mpic_handle_cascade_irq(struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
-	unsigned long irqmap, irqsrc, cpuid;
+	unsigned long cause, irqsrc, cpuid;
 	irq_hw_number_t i;
 
 	chained_irq_enter(chip, desc);
 
-	irqmap = readl_relaxed(per_cpu_int_base + MPIC_PPI_CAUSE);
+	cause = readl_relaxed(per_cpu_int_base + MPIC_PPI_CAUSE);
 	cpuid = cpu_logical_map(smp_processor_id());
 
-	for_each_set_bit(i, &irqmap, BITS_PER_LONG) {
+	for_each_set_bit(i, &cause, BITS_PER_LONG) {
 		irqsrc = readl_relaxed(main_int_base + MPIC_INT_SOURCE_CTL(i));
 
 		/* Check if the interrupt is not masked on current CPU.
