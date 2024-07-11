@@ -313,18 +313,14 @@ static int orangefs_write_begin(struct file *file,
 {
 	struct orangefs_write_range *wr;
 	struct folio *folio;
-	struct page *page;
-	pgoff_t index;
 	int ret;
 
-	index = pos >> PAGE_SHIFT;
+	folio = __filemap_get_folio(mapping, pos / PAGE_SIZE, FGP_WRITEBEGIN,
+			mapping_gfp_mask(mapping));
+	if (IS_ERR(folio))
+		return PTR_ERR(folio);
 
-	page = grab_cache_page_write_begin(mapping, index);
-	if (!page)
-		return -ENOMEM;
-
-	*pagep = page;
-	folio = page_folio(page);
+	*pagep = &folio->page;
 
 	if (folio_test_dirty(folio) && !folio_test_private(folio)) {
 		/*
