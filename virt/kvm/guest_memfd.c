@@ -541,34 +541,34 @@ void kvm_gmem_unbind(struct kvm_memory_slot *slot)
 	fput(file);
 }
 
-static int __kvm_gmem_get_pfn(struct file *file, struct kvm_memory_slot *slot,
-		       gfn_t gfn, kvm_pfn_t *pfn, int *max_order, bool prepare)
+static struct folio *
+__kvm_gmem_get_pfn(struct file *file, struct kvm_memory_slot *slot,
+		   gfn_t gfn, kvm_pfn_t *pfn, int *max_order, bool prepare)
 {
 	pgoff_t index = gfn - slot->base_gfn + slot->gmem.pgoff;
 	struct kvm_gmem *gmem = file->private_data;
 	struct folio *folio;
 	struct page *page;
-	int r;
 
 	if (file != slot->gmem.file) {
 		WARN_ON_ONCE(slot->gmem.file);
-		return -EFAULT;
+		return ERR_PTR(-EFAULT);
 	}
 
 	gmem = file->private_data;
 	if (xa_load(&gmem->bindings, index) != slot) {
 		WARN_ON_ONCE(xa_load(&gmem->bindings, index));
-		return -EIO;
+		return ERR_PTR(-EIO);
 	}
 
 	folio = kvm_gmem_get_folio(file_inode(file), index, prepare);
 	if (IS_ERR(folio))
-		return PTR_ERR(folio);
+		return folio;
 
 	if (folio_test_hwpoison(folio)) {
 		folio_unlock(folio);
 		folio_put(folio);
-		return -EHWPOISON;
+		return ERR_PTR(-EHWPOISON);
 	}
 
 	page = folio_file_page(folio, index);
@@ -577,25 +577,25 @@ static int __kvm_gmem_get_pfn(struct file *file, struct kvm_memory_slot *slot,
 	if (max_order)
 		*max_order = 0;
 
-	r = 0;
-
 	folio_unlock(folio);
-
-	return r;
+	return folio;
 }
 
 int kvm_gmem_get_pfn(struct kvm *kvm, struct kvm_memory_slot *slot,
 		     gfn_t gfn, kvm_pfn_t *pfn, int *max_order)
 {
 	struct file *file = kvm_gmem_get_file(slot);
-	int r;
+	struct folio *folio;
 
 	if (!file)
 		return -EFAULT;
 
-	r = __kvm_gmem_get_pfn(file, slot, gfn, pfn, max_order, true);
+	folio = __kvm_gmem_get_pfn(file, slot, gfn, pfn, max_order, true);
 	fput(file);
-	return r;
+	if (IS_ERR(folio))
+		return PTR_ERR(folio);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(kvm_gmem_get_pfn);
 
@@ -625,6 +625,7 @@ long kvm_gmem_populate(struct kvm *kvm, gfn_t start_gfn, void __user *src, long 
 
 	npages = min_t(ulong, slot->npages - (start_gfn - slot->base_gfn), npages);
 	for (i = 0; i < npages; i += (1 << max_order)) {
+		struct folio *folio;
 		gfn_t gfn = start_gfn + i;
 		kvm_pfn_t pfn;
 
@@ -633,9 +634,11 @@ long kvm_gmem_populate(struct kvm *kvm, gfn_t start_gfn, void __user *src, long 
 			break;
 		}
 
-		ret = __kvm_gmem_get_pfn(file, slot, gfn, &pfn, &max_order, false);
-		if (ret)
+		folio = __kvm_gmem_get_pfn(file, slot, gfn, &pfn, &max_order, false);
+		if (IS_ERR(folio)) {
+			ret = PTR_ERR(folio);
 			break;
+		}
 
 		if (!IS_ALIGNED(gfn, (1 << max_order)) ||
 		    (npages - i) < (1 << max_order))
@@ -644,7 +647,7 @@ long kvm_gmem_populate(struct kvm *kvm, gfn_t start_gfn, void __user *src, long 
 		p = src ? src + i * PAGE_SIZE : NULL;
 		ret = post_populate(kvm, gfn, pfn, p, max_order, opaque);
 
-		put_page(pfn_to_page(pfn));
+		folio_put(folio);
 		if (ret)
 			break;
 	}
