@@ -614,7 +614,7 @@ setup_e820(struct boot_params *params, struct setup_data *e820ext, u32 e820ext_s
 		m |= (u64)efi->efi_memmap_hi << 32;
 #endif
 
-		d = efi_early_memdesc_ptr(m, efi->efi_memdesc_size, i);
+		d = efi_memdesc_ptr(m, efi->efi_memdesc_size, i);
 		switch (d->type) {
 		case EFI_RESERVED_TYPE:
 		case EFI_RUNTIME_SERVICES_CODE:
