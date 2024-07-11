@@ -239,16 +239,16 @@ static struct msi_domain_info mpic_msi_domain_info = {
 	.chip	= &mpic_msi_irq_chip,
 };
 
-static void mpic_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
+static void mpic_compose_msi_msg(struct irq_data *d, struct msi_msg *msg)
 {
-	unsigned int cpu = cpumask_first(irq_data_get_effective_affinity_mask(data));
+	unsigned int cpu = cpumask_first(irq_data_get_effective_affinity_mask(d));
 
 	msg->address_lo = lower_32_bits(msi_doorbell_addr);
 	msg->address_hi = upper_32_bits(msi_doorbell_addr);
-	msg->data = BIT(cpu + 8) | (data->hwirq + msi_doorbell_start());
+	msg->data = BIT(cpu + 8) | (d->hwirq + msi_doorbell_start());
 }
 
-static int mpic_msi_set_affinity(struct irq_data *irq_data, const struct cpumask *mask, bool force)
+static int mpic_msi_set_affinity(struct irq_data *d, const struct cpumask *mask, bool force)
 {
 	unsigned int cpu;
 
@@ -260,7 +260,7 @@ static int mpic_msi_set_affinity(struct irq_data *irq_data, const struct cpumask
 	if (cpu >= nr_cpu_ids)
 		return -EINVAL;
 
-	irq_data_update_effective_affinity(irq_data, cpumask_of(cpu));
+	irq_data_update_effective_affinity(d, cpumask_of(cpu));
 
 	return IRQ_SET_MASK_OK;
 }
@@ -517,19 +517,19 @@ static void mpic_reenable_percpu(void)
 {
 	/* Re-enable per-CPU interrupts that were enabled before suspend */
 	for (irq_hw_number_t i = 0; i < MPIC_MAX_PER_CPU_IRQS; i++) {
-		struct irq_data *data;
+		struct irq_data *d;
 		unsigned int virq;
 
 		virq = irq_linear_revmap(mpic_domain, i);
 		if (!virq)
 			continue;
 
-		data = irq_get_irq_data(virq);
+		d = irq_get_irq_data(virq);
 
 		if (!irq_percpu_is_enabled(virq))
 			continue;
 
-		mpic_irq_unmask(data);
+		mpic_irq_unmask(d);
 	}
 
 	if (mpic_is_ipi_available())
@@ -706,20 +706,20 @@ static void mpic_resume(void)
 
 	/* Re-enable interrupts */
 	for (irq_hw_number_t i = 0; i < mpic_domain->hwirq_max; i++) {
-		struct irq_data *data;
+		struct irq_data *d;
 		unsigned int virq;
 
 		virq = irq_linear_revmap(mpic_domain, i);
 		if (!virq)
 			continue;
 
-		data = irq_get_irq_data(virq);
+		d = irq_get_irq_data(virq);
 
 		if (!mpic_is_percpu_irq(i)) {
 			/* Non per-CPU interrupts */
 			writel(i, per_cpu_int_base + MPIC_INT_CLEAR_MASK);
-			if (!irqd_irq_disabled(data))
-				mpic_irq_unmask(data);
+			if (!irqd_irq_disabled(d))
+				mpic_irq_unmask(d);
 		} else {
 			/* Per-CPU interrupts */
 			writel(i, main_int_base + MPIC_INT_SET_ENABLE);
@@ -729,7 +729,7 @@ static void mpic_resume(void)
 			 * will take care of secondary CPUs when they come up.
 			 */
 			if (irq_percpu_is_enabled(virq))
-				mpic_irq_unmask(data);
+				mpic_irq_unmask(d);
 		}
 	}
 
