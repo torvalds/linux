@@ -602,29 +602,21 @@ static const struct irq_domain_ops mpic_irq_ops = {
 };
 
 #ifdef CONFIG_PCI_MSI
-static void mpic_handle_msi_irq(struct pt_regs *regs, bool is_chained)
+static void mpic_handle_msi_irq(void)
 {
-	u32 msimask, msinr;
+	unsigned long cause;
+	unsigned int i;
 
-	msimask = readl_relaxed(per_cpu_int_base + MPIC_IN_DRBEL_CAUSE);
-	msimask &= msi_doorbell_mask();
+	cause = readl_relaxed(per_cpu_int_base + MPIC_IN_DRBEL_CAUSE);
+	cause &= msi_doorbell_mask();
+	writel(~cause, per_cpu_int_base + MPIC_IN_DRBEL_CAUSE);
 
-	writel(~msimask, per_cpu_int_base + MPIC_IN_DRBEL_CAUSE);
-
-	for (msinr = msi_doorbell_start();
-	     msinr < msi_doorbell_end(); msinr++) {
-		unsigned int irq;
-
-		if (!(msimask & BIT(msinr)))
-			continue;
-
-		irq = msinr - msi_doorbell_start();
-
-		generic_handle_domain_irq(mpic_msi_inner_domain, irq);
-	}
+	for_each_set_bit(i, &cause, BITS_PER_LONG)
+		generic_handle_domain_irq(mpic_msi_inner_domain,
+					  i - msi_doorbell_start());
 }
 #else
-static void mpic_handle_msi_irq(struct pt_regs *r, bool b) {}
+static void mpic_handle_msi_irq(void) {}
 #endif
 
 static void mpic_handle_cascade_irq(struct irq_desc *desc)
@@ -647,7 +639,7 @@ static void mpic_handle_cascade_irq(struct irq_desc *desc)
 			continue;
 
 		if (irqn == 0 || irqn == 1) {
-			mpic_handle_msi_irq(NULL, true);
+			mpic_handle_msi_irq();
 			continue;
 		}
 
@@ -675,7 +667,7 @@ static void __exception_irq_entry mpic_handle_irq(struct pt_regs *regs)
 
 		/* MSI handling */
 		if (irqnr == 1)
-			mpic_handle_msi_irq(regs, false);
+			mpic_handle_msi_irq();
 
 #ifdef CONFIG_SMP
 		/* IPI Handling */
