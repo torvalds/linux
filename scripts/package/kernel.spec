@@ -83,7 +83,6 @@ ln -fns /usr/src/kernels/%{KERNELRELEASE} %{buildroot}/lib/modules/%{KERNELRELEA
 	done
 
 	if [ -d "%{buildroot}/lib/modules/%{KERNELRELEASE}/dtb" ];then
-		echo "/lib/modules/%{KERNELRELEASE}/dtb"
 		find "%{buildroot}/lib/modules/%{KERNELRELEASE}/dtb" -printf "%%%ghost /boot/dtb-%{KERNELRELEASE}/%%P\n"
 	fi
 
