@@ -60,54 +60,45 @@ struct lm95234_data {
 
 static int lm95234_read_temp(struct regmap *regmap, int index, long *t)
 {
+	unsigned int regs[2];
 	int temp = 0, ret;
-	u32 val;
+	u8 regvals[2];
 
 	if (index) {
-		ret = regmap_read(regmap, LM95234_REG_UTEMPH(index - 1), &val);
+		regs[0] = LM95234_REG_UTEMPH(index - 1);
+		regs[1] = LM95234_REG_UTEMPL(index - 1);
+		ret = regmap_multi_reg_read(regmap, regs, regvals, 2);
 		if (ret)
 			return ret;
-		temp = val << 8;
-		ret = regmap_read(regmap, LM95234_REG_UTEMPL(index - 1), &val);
-		if (ret)
-			return ret;
-		temp |= val;
+		temp = (regvals[0] << 8) | regvals[1];
 	}
 	/*
 	 * Read signed temperature if unsigned temperature is 0,
 	 * or if this is the local sensor.
 	 */
 	if (!temp) {
-		ret = regmap_read(regmap, LM95234_REG_TEMPH(index), &val);
+		regs[0] = LM95234_REG_TEMPH(index);
+		regs[1] = LM95234_REG_TEMPL(index);
+		ret = regmap_multi_reg_read(regmap, regs, regvals, 2);
 		if (ret)
 			return ret;
-		temp = val << 8;
-		ret = regmap_read(regmap, LM95234_REG_TEMPL(index), &val);
-		if (ret)
-			return ret;
-		temp = sign_extend32(temp | val, 15);
+		temp = (regvals[0] << 8) | regvals[1];
+		temp = sign_extend32(temp, 15);
 	}
 	*t = DIV_ROUND_CLOSEST(temp * 125, 32);
 	return 0;
 }
 
-static int lm95234_hyst_get(struct lm95234_data *data, int reg, long *val)
+static int lm95234_hyst_get(struct regmap *regmap, int reg, long *val)
 {
-	u32 thyst, tcrit;
+	unsigned int regs[2] = {reg, LM95234_REG_TCRIT_HYST};
+	u8 regvals[2];
 	int ret;
 
-	mutex_lock(&data->update_lock);
-	ret = regmap_read(data->regmap, reg, &tcrit);
-	if (ret)
-		goto unlock;
-	ret = regmap_read(data->regmap, LM95234_REG_TCRIT_HYST, &thyst);
-unlock:
-	mutex_unlock(&data->update_lock);
+	ret = regmap_multi_reg_read(regmap, regs, regvals, 2);
 	if (ret)
 		return ret;
-
-	/* Result can be negative, so be careful with unsigned operands */
-	*val = ((int)tcrit - (int)thyst) * 1000;
+	*val = (regvals[0] - regvals[1]) * 1000;
 	return 0;
 }
 
@@ -209,7 +200,7 @@ static int lm95234_temp_read(struct device *dev, u32 attr, int channel, long *va
 		*val = !!(regval & BIT(channel));
 		break;
 	case hwmon_temp_crit_hyst:
-		return lm95234_hyst_get(data, LM95234_REG_TCRIT1(channel), val);
+		return lm95234_hyst_get(regmap, LM95234_REG_TCRIT1(channel), val);
 	case hwmon_temp_type:
 		ret = regmap_read(regmap, LM95234_REG_REM_MODEL, &regval);
 		if (ret)
@@ -236,7 +227,7 @@ static int lm95234_temp_read(struct device *dev, u32 attr, int channel, long *va
 		*val = regval * 1000;
 		break;
 	case hwmon_temp_max_hyst:
-		return lm95234_hyst_get(data, lm95234_crit_reg(channel), val);
+		return lm95234_hyst_get(regmap, lm95234_crit_reg(channel), val);
 	case hwmon_temp_crit:
 		ret = regmap_read(regmap, LM95234_REG_TCRIT1(channel), &regval);
 		if (ret)
