@@ -1979,7 +1979,7 @@
 
 			i2c0: i2c@b80000 {
 				compatible = "qcom,geni-i2c";
-				reg = <0 0xb80000 0 0x4000>;
+				reg = <0 0x00b80000 0 0x4000>;
 
 				interrupts = <GIC_SPI 373 IRQ_TYPE_LEVEL_HIGH>;
 
@@ -2144,7 +2144,7 @@
 
 			spi2: spi@b88000 {
 				compatible = "qcom,geni-spi";
-				reg = <0 0xb88000 0 0x4000>;
+				reg = <0 0x00b88000 0 0x4000>;
 
 				interrupts = <GIC_SPI 584 IRQ_TYPE_LEVEL_HIGH>;
 
@@ -2243,7 +2243,7 @@
 
 			i2c4: i2c@b90000 {
 				compatible = "qcom,geni-i2c";
-				reg = <0 0xb90000 0 0x4000>;
+				reg = <0 0x00b90000 0 0x4000>;
 
 				interrupts = <GIC_SPI 586 IRQ_TYPE_LEVEL_HIGH>;
 
@@ -2772,7 +2772,7 @@
 
 		cnoc_main: interconnect@1500000 {
 			compatible = "qcom,x1e80100-cnoc-main";
-			reg = <0 0x1500000 0 0x14400>;
+			reg = <0 0x01500000 0 0x14400>;
 
 			qcom,bcm-voters = <&apps_bcm_voter>;
 
@@ -2781,7 +2781,7 @@
 
 		config_noc: interconnect@1600000 {
 			compatible = "qcom,x1e80100-cnoc-cfg";
-			reg = <0 0x1600000 0 0x6600>;
+			reg = <0 0x01600000 0 0x6600>;
 
 			qcom,bcm-voters = <&apps_bcm_voter>;
 
@@ -2790,7 +2790,7 @@
 
 		system_noc: interconnect@1680000 {
 			compatible = "qcom,x1e80100-system-noc";
-			reg = <0 0x1680000 0 0x1c080>;
+			reg = <0 0x01680000 0 0x1c080>;
 
 			qcom,bcm-voters = <&apps_bcm_voter>;
 
@@ -2799,7 +2799,7 @@
 
 		pcie_south_anoc: interconnect@16c0000 {
 			compatible = "qcom,x1e80100-pcie-south-anoc";
-			reg = <0 0x16c0000 0 0xd080>;
+			reg = <0 0x016c0000 0 0xd080>;
 
 			qcom,bcm-voters = <&apps_bcm_voter>;
 
@@ -2808,7 +2808,7 @@
 
 		pcie_center_anoc: interconnect@16d0000 {
 			compatible = "qcom,x1e80100-pcie-center-anoc";
-			reg = <0 0x16d0000 0 0x7000>;
+			reg = <0 0x016d0000 0 0x7000>;
 
 			qcom,bcm-voters = <&apps_bcm_voter>;
 
@@ -2817,7 +2817,7 @@
 
 		aggre1_noc: interconnect@16e0000 {
 			compatible = "qcom,x1e80100-aggre1-noc";
-			reg = <0 0x16E0000 0 0x14400>;
+			reg = <0 0x016e0000 0 0x14400>;
 
 			qcom,bcm-voters = <&apps_bcm_voter>;
 
@@ -2826,7 +2826,7 @@
 
 		aggre2_noc: interconnect@1700000 {
 			compatible = "qcom,x1e80100-aggre2-noc";
-			reg = <0 0x1700000 0 0x1c400>;
+			reg = <0 0x01700000 0 0x1c400>;
 
 			qcom,bcm-voters = <&apps_bcm_voter>;
 
@@ -2835,7 +2835,7 @@
 
 		pcie_north_anoc: interconnect@1740000 {
 			compatible = "qcom,x1e80100-pcie-north-anoc";
-			reg = <0 0x1740000 0 0x9080>;
+			reg = <0 0x01740000 0 0x9080>;
 
 			qcom,bcm-voters = <&apps_bcm_voter>;
 
@@ -2844,7 +2844,7 @@
 
 		usb_center_anoc: interconnect@1750000 {
 			compatible = "qcom,x1e80100-usb-center-anoc";
-			reg = <0 0x1750000 0 0x8800>;
+			reg = <0 0x01750000 0 0x8800>;
 
 			qcom,bcm-voters = <&apps_bcm_voter>;
 
@@ -2853,7 +2853,7 @@
 
 		usb_north_anoc: interconnect@1760000 {
 			compatible = "qcom,x1e80100-usb-north-anoc";
-			reg = <0 0x1760000 0 0x7080>;
+			reg = <0 0x01760000 0 0x7080>;
 
 			qcom,bcm-voters = <&apps_bcm_voter>;
 
@@ -2862,7 +2862,7 @@
 
 		usb_south_anoc: interconnect@1770000 {
 			compatible = "qcom,x1e80100-usb-south-anoc";
-			reg = <0 0x1770000 0 0xf080>;
+			reg = <0 0x01770000 0 0xf080>;
 
 			qcom,bcm-voters = <&apps_bcm_voter>;
 
@@ -2871,7 +2871,7 @@
 
 		mmss_noc: interconnect@1780000 {
 			compatible = "qcom,x1e80100-mmss-noc";
-			reg = <0 0x1780000 0 0x5B800>;
+			reg = <0 0x01780000 0 0x5B800>;
 
 			qcom,bcm-voters = <&apps_bcm_voter>;
 
@@ -3337,7 +3337,7 @@
 
 		nsp_noc: interconnect@320c0000 {
 			compatible = "qcom,x1e80100-nsp-noc";
-			reg = <0 0x320C0000 0 0xE080>;
+			reg = <0 0x320C0000 0 0xe080>;
 
 			qcom,bcm-voters = <&apps_bcm_voter>;
 
@@ -3671,7 +3671,7 @@
 
 		lpass_ag_noc: interconnect@7e40000 {
 			compatible = "qcom,x1e80100-lpass-ag-noc";
-			reg = <0 0x7e40000 0 0xE080>;
+			reg = <0 0x07e40000 0 0xe080>;
 
 			qcom,bcm-voters = <&apps_bcm_voter>;
 
@@ -3680,7 +3680,7 @@
 
 		lpass_lpiaon_noc: interconnect@7400000 {
 			compatible = "qcom,x1e80100-lpass-lpiaon-noc";
-			reg = <0 0x7400000 0 0x19080>;
+			reg = <0 0x07400000 0 0x19080>;
 
 			qcom,bcm-voters = <&apps_bcm_voter>;
 
@@ -3689,7 +3689,7 @@
 
 		lpass_lpicx_noc: interconnect@7430000 {
 			compatible = "qcom,x1e80100-lpass-lpicx-noc";
-			reg = <0 0x7430000 0 0x3A200>;
+			reg = <0 0x07430000 0 0x3A200>;
 
 			qcom,bcm-voters = <&apps_bcm_voter>;
 
@@ -4202,11 +4202,11 @@
 
 			mdss_dp0: displayport-controller@ae90000 {
 				compatible = "qcom,x1e80100-dp";
-				reg = <0 0xae90000 0 0x200>,
-				      <0 0xae90200 0 0x200>,
-				      <0 0xae90400 0 0x600>,
-				      <0 0xae91000 0 0x400>,
-				      <0 0xae91400 0 0x400>;
+				reg = <0 0x0ae90000 0 0x200>,
+				      <0 0x0ae90200 0 0x200>,
+				      <0 0x0ae90400 0 0x600>,
+				      <0 0x0ae91000 0 0x400>,
+				      <0 0x0ae91400 0 0x400>;
 
 				interrupts-extended = <&mdss 12>;
 
@@ -4285,11 +4285,11 @@
 
 			mdss_dp1: displayport-controller@ae98000 {
 				compatible = "qcom,x1e80100-dp";
-				reg = <0 0xae98000 0 0x200>,
-				      <0 0xae98200 0 0x200>,
-				      <0 0xae98400 0 0x600>,
-				      <0 0xae99000 0 0x400>,
-				      <0 0xae99400 0 0x400>;
+				reg = <0 0x0ae98000 0 0x200>,
+				      <0 0x0ae98200 0 0x200>,
+				      <0 0x0ae98400 0 0x600>,
+				      <0 0x0ae99000 0 0x400>,
+				      <0 0x0ae99400 0 0x400>;
 
 				interrupts-extended = <&mdss 13>;
 
@@ -4368,11 +4368,11 @@
 
 			mdss_dp2: displayport-controller@ae9a000 {
 				compatible = "qcom,x1e80100-dp";
-				reg = <0 0xae9a000 0 0x200>,
-				      <0 0xae9a200 0 0x200>,
-				      <0 0xae9a400 0 0x600>,
-				      <0 0xae9b000 0 0x400>,
-				      <0 0xae9b400 0 0x400>;
+				reg = <0 0x0ae9a000 0 0x200>,
+				      <0 0x0ae9a200 0 0x200>,
+				      <0 0x0ae9a400 0 0x600>,
+				      <0 0x0ae9b000 0 0x400>,
+				      <0 0x0ae9b400 0 0x400>;
 
 				interrupts-extended = <&mdss 14>;
 
@@ -4450,11 +4450,11 @@
 
 			mdss_dp3: displayport-controller@aea0000 {
 				compatible = "qcom,x1e80100-dp";
-				reg = <0 0xaea0000 0 0x200>,
-				      <0 0xaea0200 0 0x200>,
-				      <0 0xaea0400 0 0x600>,
-				      <0 0xaea1000 0 0x400>,
-				      <0 0xaea1400 0 0x400>;
+				reg = <0 0x0aea0000 0 0x200>,
+				      <0 0x0aea0200 0 0x200>,
+				      <0 0x0aea0400 0 0x600>,
+				      <0 0x0aea1000 0 0x400>,
+				      <0 0x0aea1400 0 0x400>;
 
 				interrupts-extended = <&mdss 15>;
 
