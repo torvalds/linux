@@ -5556,8 +5556,10 @@ static void mlx5e_build_nic_netdev(struct net_device *netdev)
 #if IS_ENABLED(CONFIG_MLX5_CLS_ACT)
 		netdev->hw_features      |= NETIF_F_HW_TC;
 #endif
-#ifdef CONFIG_MLX5_EN_ARFS
+#if IS_ENABLED(CONFIG_MLX5_EN_ARFS)
 		netdev->hw_features	 |= NETIF_F_NTUPLE;
+#elif IS_ENABLED(CONFIG_MLX5_EN_RXNFC)
+		netdev->features	 |= NETIF_F_NTUPLE;
 #endif
 	}
 
@@ -5731,7 +5733,7 @@ static int mlx5e_init_nic_rx(struct mlx5e_priv *priv)
 err_tc_nic_cleanup:
 	mlx5e_tc_nic_cleanup(priv);
 err_destroy_flow_steering:
-	mlx5e_destroy_flow_steering(priv->fs, !!(priv->netdev->hw_features & NETIF_F_NTUPLE),
+	mlx5e_destroy_flow_steering(priv->fs, mlx5e_fs_has_arfs(priv->netdev),
 				    priv->profile);
 err_destroy_rx_res:
 	mlx5e_rx_res_destroy(priv->rx_res);
@@ -5747,7 +5749,7 @@ static void mlx5e_cleanup_nic_rx(struct mlx5e_priv *priv)
 {
 	mlx5e_accel_cleanup_rx(priv);
 	mlx5e_tc_nic_cleanup(priv);
-	mlx5e_destroy_flow_steering(priv->fs, !!(priv->netdev->hw_features & NETIF_F_NTUPLE),
+	mlx5e_destroy_flow_steering(priv->fs, mlx5e_fs_has_arfs(priv->netdev),
 				    priv->profile);
 	mlx5e_rx_res_destroy(priv->rx_res);
 	priv->rx_res = NULL;

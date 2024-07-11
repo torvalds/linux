@@ -525,7 +525,7 @@ int mlx5e_ethtool_set_channels(struct mlx5e_priv *priv,
 
 	opened = test_bit(MLX5E_STATE_OPENED, &priv->state);
 
-	arfs_enabled = opened && (priv->netdev->features & NETIF_F_NTUPLE);
+	arfs_enabled = opened && mlx5e_fs_want_arfs(priv->netdev);
 	if (arfs_enabled)
 		mlx5e_arfs_disable(priv->fs);
 
