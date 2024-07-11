@@ -542,7 +542,7 @@ static void armada_xp_mpic_reenable_percpu(void)
 		unsigned int virq;
 
 		virq = irq_linear_revmap(armada_370_xp_mpic_domain, irq);
-		if (virq == 0)
+		if (!virq)
 			continue;
 
 		data = irq_get_irq_data(virq);
@@ -737,7 +737,7 @@ static void armada_370_xp_mpic_resume(void)
 		unsigned int virq;
 
 		virq = irq_linear_revmap(armada_370_xp_mpic_domain, irq);
-		if (virq == 0)
+		if (!virq)
 			continue;
 
 		data = irq_get_irq_data(virq);
