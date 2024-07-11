@@ -1158,7 +1158,7 @@ struct pqi_scsi_dev {
 
 	struct pqi_stream_data stream_data[NUM_STREAMS_PER_LUN];
 	atomic_t scsi_cmds_outstanding[PQI_MAX_LUNS_PER_DEVICE];
-	unsigned int raid_bypass_cnt;
+	u64 __percpu *raid_bypass_cnt;
 
 	struct pqi_tmf_work tmf_work[PQI_MAX_LUNS_PER_DEVICE];
 };

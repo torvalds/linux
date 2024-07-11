@@ -1508,6 +1508,12 @@ static int pqi_get_raid_map(struct pqi_ctrl_info *ctrl_info,
 	if (rc)
 		goto error;
 
+	device->raid_bypass_cnt = alloc_percpu(u64);
+	if (!device->raid_bypass_cnt) {
+		rc = -ENOMEM;
+		goto error;
+	}
+
 	device->raid_map = raid_map;
 
 	return 0;
@@ -2099,6 +2105,10 @@ static void pqi_scsi_update_device(struct pqi_ctrl_info *ctrl_info,
 				/* To prevent this from being freed later. */
 				new_device->raid_map = NULL;
 			}
+			if (new_device->raid_bypass_enabled && existing_device->raid_bypass_cnt == NULL) {
+				existing_device->raid_bypass_cnt = new_device->raid_bypass_cnt;
+				new_device->raid_bypass_cnt = NULL;
+			}
 			existing_device->raid_bypass_configured = new_device->raid_bypass_configured;
 			existing_device->raid_bypass_enabled = new_device->raid_bypass_enabled;
 		}
@@ -2121,6 +2131,7 @@ static void pqi_scsi_update_device(struct pqi_ctrl_info *ctrl_info,
 static inline void pqi_free_device(struct pqi_scsi_dev *device)
 {
 	if (device) {
+		free_percpu(device->raid_bypass_cnt);
 		kfree(device->raid_map);
 		kfree(device);
 	}
@@ -6007,6 +6018,7 @@ static int pqi_scsi_queue_command(struct Scsi_Host *shost, struct scsi_cmnd *scm
 	u16 hw_queue;
 	struct pqi_queue_group *queue_group;
 	bool raid_bypassed;
+	u64 *raid_bypass_cnt;
 	u8 lun;
 
 	scmd->host_scribble = PQI_NO_COMPLETION;
@@ -6053,7 +6065,8 @@ static int pqi_scsi_queue_command(struct Scsi_Host *shost, struct scsi_cmnd *scm
 			rc = pqi_raid_bypass_submit_scsi_cmd(ctrl_info, device, scmd, queue_group);
 			if (rc == 0 || rc == SCSI_MLQUEUE_HOST_BUSY) {
 				raid_bypassed = true;
-				device->raid_bypass_cnt++;
+				raid_bypass_cnt = per_cpu_ptr(device->raid_bypass_cnt, smp_processor_id());
+				(*raid_bypass_cnt)++;
 			}
 		}
 		if (!raid_bypassed)
@@ -7350,7 +7363,9 @@ static ssize_t pqi_raid_bypass_cnt_show(struct device *dev,
 	struct scsi_device *sdev;
 	struct pqi_scsi_dev *device;
 	unsigned long flags;
-	unsigned int raid_bypass_cnt;
+	u64 raid_bypass_cnt;
+	int cpu;
+	u64 *per_cpu_bypass_cnt_ptr;
 
 	sdev = to_scsi_device(dev);
 	ctrl_info = shost_to_hba(sdev->host);
@@ -7366,11 +7381,18 @@ static ssize_t pqi_raid_bypass_cnt_show(struct device *dev,
 		return -ENODEV;
 	}
 
-	raid_bypass_cnt = device->raid_bypass_cnt;
+	raid_bypass_cnt = 0;
+
+	if (device->raid_bypass_cnt) {
+		for_each_online_cpu(cpu) {
+			per_cpu_bypass_cnt_ptr = per_cpu_ptr(device->raid_bypass_cnt, cpu);
+			raid_bypass_cnt += *per_cpu_bypass_cnt_ptr;
+		}
+	}
 
 	spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock, flags);
 
-	return scnprintf(buffer, PAGE_SIZE, "0x%x\n", raid_bypass_cnt);
+	return scnprintf(buffer, PAGE_SIZE, "0x%llx\n", raid_bypass_cnt);
 }
 
 static ssize_t pqi_sas_ncq_prio_enable_show(struct device *dev,
