@@ -67,7 +67,7 @@ struct cpu_fbatches {
 	struct folio_batch lru_deactivate;
 	struct folio_batch lru_lazyfree;
 #ifdef CONFIG_SMP
-	struct folio_batch activate;
+	struct folio_batch lru_activate;
 #endif
 };
 static DEFINE_PER_CPU(struct cpu_fbatches, cpu_fbatches) = {
@@ -331,7 +331,7 @@ void lru_note_cost_refault(struct folio *folio)
 		      folio_nr_pages(folio), 0);
 }
 
-static void folio_activate_fn(struct lruvec *lruvec, struct folio *folio)
+static void lru_activate(struct lruvec *lruvec, struct folio *folio)
 {
 	long nr_pages = folio_nr_pages(folio);
 
@@ -351,10 +351,10 @@ static void folio_activate_fn(struct lruvec *lruvec, struct folio *folio)
 #ifdef CONFIG_SMP
 static void folio_activate_drain(int cpu)
 {
-	struct folio_batch *fbatch = &per_cpu(cpu_fbatches.activate, cpu);
+	struct folio_batch *fbatch = &per_cpu(cpu_fbatches.lru_activate, cpu);
 
 	if (folio_batch_count(fbatch))
-		folio_batch_move_lru(fbatch, folio_activate_fn);
+		folio_batch_move_lru(fbatch, lru_activate);
 }
 
 void folio_activate(struct folio *folio)
@@ -371,8 +371,8 @@ void folio_activate(struct folio *folio)
 	}
 
 	local_lock(&cpu_fbatches.lock);
-	fbatch = this_cpu_ptr(&cpu_fbatches.activate);
-	folio_batch_add_and_move(fbatch, folio, folio_activate_fn);
+	fbatch = this_cpu_ptr(&cpu_fbatches.lru_activate);
+	folio_batch_add_and_move(fbatch, folio, lru_activate);
 	local_unlock(&cpu_fbatches.lock);
 }
 
@@ -389,7 +389,7 @@ void folio_activate(struct folio *folio)
 		return;
 
 	lruvec = folio_lruvec_lock_irq(folio);
-	folio_activate_fn(lruvec, folio);
+	lru_activate(lruvec, folio);
 	unlock_page_lruvec_irq(lruvec);
 	folio_set_lru(folio);
 }
@@ -490,7 +490,7 @@ void folio_mark_accessed(struct folio *folio)
 	} else if (!folio_test_active(folio)) {
 		/*
 		 * If the folio is on the LRU, queue it for activation via
-		 * cpu_fbatches.activate. Otherwise, assume the folio is in a
+		 * cpu_fbatches.lru_activate. Otherwise, assume the folio is in a
 		 * folio_batch, mark it active and it'll be moved to the active
 		 * LRU on the next drain.
 		 */
@@ -829,7 +829,7 @@ static bool cpu_needs_drain(unsigned int cpu)
 		folio_batch_count(&fbatches->lru_deactivate_file) ||
 		folio_batch_count(&fbatches->lru_deactivate) ||
 		folio_batch_count(&fbatches->lru_lazyfree) ||
-		folio_batch_count(&fbatches->activate) ||
+		folio_batch_count(&fbatches->lru_activate) ||
 		need_mlock_drain(cpu) ||
 		has_bh_in_lru(cpu, NULL);
 }
