@@ -13,6 +13,18 @@ struct kvm_gmem {
 	struct list_head entry;
 };
 
+/**
+ * folio_file_pfn - like folio_file_page, but return a pfn.
+ * @folio: The folio which contains this index.
+ * @index: The index we want to look up.
+ *
+ * Return: The pfn for this index.
+ */
+static inline kvm_pfn_t folio_file_pfn(struct folio *folio, pgoff_t index)
+{
+	return folio_pfn(folio) + (index & (folio_nr_pages(folio) - 1));
+}
+
 static int kvm_gmem_prepare_folio(struct inode *inode, pgoff_t index, struct folio *folio)
 {
 #ifdef CONFIG_HAVE_KVM_GMEM_PREPARE
@@ -22,7 +34,6 @@ static int kvm_gmem_prepare_folio(struct inode *inode, pgoff_t index, struct fol
 	list_for_each_entry(gmem, gmem_list, entry) {
 		struct kvm_memory_slot *slot;
 		struct kvm *kvm = gmem->kvm;
-		struct page *page;
 		kvm_pfn_t pfn;
 		gfn_t gfn;
 		int rc;
@@ -34,13 +45,12 @@ static int kvm_gmem_prepare_folio(struct inode *inode, pgoff_t index, struct fol
 		if (!slot)
 			continue;
 
-		page = folio_file_page(folio, index);
-		pfn = page_to_pfn(page);
+		pfn = folio_file_pfn(folio, index);
 		gfn = slot->base_gfn + index - slot->gmem.pgoff;
-		rc = kvm_arch_gmem_prepare(kvm, gfn, pfn, compound_order(compound_head(page)));
+		rc = kvm_arch_gmem_prepare(kvm, gfn, pfn, folio_order(folio));
 		if (rc) {
-			pr_warn_ratelimited("gmem: Failed to prepare folio for index %lx GFN %llx PFN %llx error %d.\n",
-					    index, gfn, pfn, rc);
+			pr_warn_ratelimited("gmem: Failed to prepare folio for GFN %llx PFN %llx error %d.\n",
+					    gfn, pfn, rc);
 			return rc;
 		}
 	}
@@ -548,7 +558,6 @@ __kvm_gmem_get_pfn(struct file *file, struct kvm_memory_slot *slot,
 	pgoff_t index = gfn - slot->base_gfn + slot->gmem.pgoff;
 	struct kvm_gmem *gmem = file->private_data;
 	struct folio *folio;
-	struct page *page;
 
 	if (file != slot->gmem.file) {
 		WARN_ON_ONCE(slot->gmem.file);
@@ -571,9 +580,7 @@ __kvm_gmem_get_pfn(struct file *file, struct kvm_memory_slot *slot,
 		return ERR_PTR(-EHWPOISON);
 	}
 
-	page = folio_file_page(folio, index);
-
-	*pfn = page_to_pfn(page);
+	*pfn = folio_file_pfn(folio, index);
 	if (max_order)
 		*max_order = 0;
 
