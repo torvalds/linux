@@ -10274,12 +10274,12 @@ struct bnxt_rss_ctx *bnxt_alloc_rss_ctx(struct bnxt *bp)
 	return rss_ctx;
 }
 
-void bnxt_clear_rss_ctxs(struct bnxt *bp, bool all)
+void bnxt_clear_rss_ctxs(struct bnxt *bp)
 {
 	struct bnxt_rss_ctx *rss_ctx, *tmp;
 
 	list_for_each_entry_safe(rss_ctx, tmp, &bp->rss_ctx_list, list)
-		bnxt_del_one_rss_ctx(bp, rss_ctx, all);
+		bnxt_del_one_rss_ctx(bp, rss_ctx, false);
 }
 
 static void bnxt_init_multi_rss_ctx(struct bnxt *bp)
@@ -12331,7 +12331,7 @@ static void __bnxt_close_nic(struct bnxt *bp, bool irq_re_init,
 		msleep(20);
 
 	if (BNXT_SUPPORTS_MULTI_RSS_CTX(bp))
-		bnxt_clear_rss_ctxs(bp, false);
+		bnxt_clear_rss_ctxs(bp);
 	/* Flush rings and disable interrupts */
 	bnxt_shutdown_nic(bp, irq_re_init);
 
@@ -15246,8 +15246,7 @@ static void bnxt_remove_one(struct pci_dev *pdev)
 
 	bnxt_free_l2_filters(bp, true);
 	bnxt_free_ntp_fltrs(bp, true);
-	if (BNXT_SUPPORTS_MULTI_RSS_CTX(bp))
-		bnxt_clear_rss_ctxs(bp, true);
+	WARN_ON(bp->num_rss_ctx);
 	clear_bit(BNXT_STATE_IN_FW_RESET, &bp->state);
 	/* Flush any pending tasks */
 	cancel_work_sync(&bp->sp_task);
@@ -15898,8 +15897,6 @@ init_err_dl:
 	bnxt_clear_int_mode(bp);
 
 init_err_pci_clean:
-	if (BNXT_SUPPORTS_MULTI_RSS_CTX(bp))
-		bnxt_clear_rss_ctxs(bp, true);
 	bnxt_hwrm_func_drv_unrgtr(bp);
 	bnxt_free_hwrm_resources(bp);
 	bnxt_hwmon_uninit(bp);
