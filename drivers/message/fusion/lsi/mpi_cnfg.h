@@ -1056,21 +1056,13 @@ typedef struct _IOC_3_PHYS_DISK
 } IOC_3_PHYS_DISK, MPI_POINTER PTR_IOC_3_PHYS_DISK,
   Ioc3PhysDisk_t, MPI_POINTER pIoc3PhysDisk_t;
 
-/*
- * Host code (drivers, BIOS, utilities, etc.) should leave this define set to
- * one and check Header.PageLength at runtime.
- */
-#ifndef MPI_IOC_PAGE_3_PHYSDISK_MAX
-#define MPI_IOC_PAGE_3_PHYSDISK_MAX         (1)
-#endif
-
 typedef struct _CONFIG_PAGE_IOC_3
 {
     CONFIG_PAGE_HEADER          Header;                                /* 00h */
     U8                          NumPhysDisks;                          /* 04h */
     U8                          Reserved1;                             /* 05h */
     U16                         Reserved2;                             /* 06h */
-    IOC_3_PHYS_DISK             PhysDisk[MPI_IOC_PAGE_3_PHYSDISK_MAX]; /* 08h */
+    IOC_3_PHYS_DISK             PhysDisk[] __counted_by(NumPhysDisks); /* 08h */
 } CONFIG_PAGE_IOC_3, MPI_POINTER PTR_CONFIG_PAGE_IOC_3,
   IOCPage3_t, MPI_POINTER pIOCPage3_t;
 
