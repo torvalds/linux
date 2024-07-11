@@ -542,9 +542,6 @@ struct mpi3_event_data_pcie_enumeration {
 #define MPI3_EVENT_PCIE_ENUM_ES_MAX_SWITCHES_EXCEED         (0x40000000)
 #define MPI3_EVENT_PCIE_ENUM_ES_MAX_DEVICES_EXCEED          (0x20000000)
 #define MPI3_EVENT_PCIE_ENUM_ES_RESOURCES_EXHAUSTED         (0x10000000)
-#ifndef MPI3_EVENT_PCIE_TOPO_PORT_COUNT
-#define MPI3_EVENT_PCIE_TOPO_PORT_COUNT         (1)
-#endif
 struct mpi3_event_pcie_topo_port_entry {
 	__le16             attached_dev_handle;
 	u8                 port_status;
@@ -585,7 +582,7 @@ struct mpi3_event_data_pcie_topology_change_list {
 	u8                                     switch_status;
 	u8                                     io_unit_port;
 	__le32                                 reserved0c;
-	struct mpi3_event_pcie_topo_port_entry     port_entry[MPI3_EVENT_PCIE_TOPO_PORT_COUNT];
+	struct mpi3_event_pcie_topo_port_entry     port_entry[] __counted_by(num_entries);
 };
 
 #define MPI3_EVENT_PCIE_TOPO_SS_NO_PCIE_SWITCH          (0x00)
