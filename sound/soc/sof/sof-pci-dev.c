@@ -304,3 +304,4 @@ void sof_pci_shutdown(struct pci_dev *pci)
 EXPORT_SYMBOL_NS(sof_pci_shutdown, SND_SOC_SOF_PCI_DEV);
 
 MODULE_LICENSE("Dual BSD/GPL");
+MODULE_DESCRIPTION("SOF support for PCI platforms");

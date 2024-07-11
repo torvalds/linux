@@ -200,12 +200,9 @@ of_k3_udma_glue_parse_chn_by_id(struct device_node *udmax_np, struct k3_udma_glu
 
 	ret = of_k3_udma_glue_parse(udmax_np, common);
 	if (ret)
-		goto out_put_spec;
+		return ret;
 
 	ret = of_k3_udma_glue_parse_chn_common(common, thread_id, tx_chn);
-
-out_put_spec:
-	of_node_put(udmax_np);
 	return ret;
 }
 

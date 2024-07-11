@@ -127,7 +127,7 @@ static int df4_determine_df_rev(u32 reg)
 	if (reg == DF_FUNC0_ID_MI300) {
 		df_cfg.flags.heterogeneous = 1;
 
-		if (get_addr_hash_mi300())
+		if (get_umc_info_mi300())
 			return -EINVAL;
 	}
 

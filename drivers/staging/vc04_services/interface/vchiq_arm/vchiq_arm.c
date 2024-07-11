@@ -1759,7 +1759,7 @@ static int vchiq_probe(struct platform_device *pdev)
 	if (err)
 		goto failed_platform_init;
 
-	vchiq_debugfs_init();
+	vchiq_debugfs_init(&mgmt->state);
 
 	dev_dbg(&pdev->dev, "arm: platform initialised - version %d (min %d)\n",
 		VCHIQ_VERSION, VCHIQ_VERSION_MIN);

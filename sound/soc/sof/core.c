@@ -769,7 +769,7 @@ void sof_machine_unregister(struct snd_sof_dev *sdev, void *pdata)
 EXPORT_SYMBOL(sof_machine_unregister);
 
 MODULE_AUTHOR("Liam Girdwood");
-MODULE_DESCRIPTION("Sound Open Firmware (SOF) Core");
 MODULE_LICENSE("Dual BSD/GPL");
+MODULE_DESCRIPTION("Sound Open Firmware (SOF) Core");
 MODULE_ALIAS("platform:sof-audio");
 MODULE_IMPORT_NS(SND_SOC_SOF_CLIENT);

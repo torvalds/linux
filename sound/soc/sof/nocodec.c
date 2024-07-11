@@ -110,7 +110,7 @@ static struct platform_driver sof_nocodec_audio = {
 };
 module_platform_driver(sof_nocodec_audio)
 
+MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("ASoC sof nocodec");
 MODULE_AUTHOR("Liam Girdwood");
-MODULE_LICENSE("Dual BSD/GPL");
 MODULE_ALIAS("platform:sof-nocodec");

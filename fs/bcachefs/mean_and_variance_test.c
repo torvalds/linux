@@ -217,4 +217,5 @@ static struct kunit_suite mean_and_variance_test_suite = {
 kunit_test_suite(mean_and_variance_test_suite);
 
 MODULE_AUTHOR("Daniel B. Hill");
+MODULE_DESCRIPTION("bcachefs filesystem mean and variance unit tests");
 MODULE_LICENSE("GPL");

@@ -533,19 +533,6 @@ int conf_read(const char *name)
 			 */
 			if (sym->visible == no && !conf_unsaved)
 				sym->flags &= ~SYMBOL_DEF_USER;
-			switch (sym->type) {
-			case S_STRING:
-			case S_INT:
-			case S_HEX:
-				/* Reset a string value if it's out of range */
-				if (sym_string_within_range(sym, sym->def[S_DEF_USER].val))
-					break;
-				sym->flags &= ~SYMBOL_VALID;
-				conf_unsaved++;
-				break;
-			default:
-				break;
-			}
 		}
 	}
 

@@ -1460,28 +1460,6 @@ static int create_proc_exports_entry(void)
 
 unsigned int nfsd_net_id;
 
-/**
- * nfsd_nl_rpc_status_get_start - Prepare rpc_status_get dumpit
- * @cb: netlink metadata and command arguments
- *
- * Return values:
- *   %0: The rpc_status_get command may proceed
- *   %-ENODEV: There is no NFSD running in this namespace
- */
-int nfsd_nl_rpc_status_get_start(struct netlink_callback *cb)
-{
-	struct nfsd_net *nn = net_generic(sock_net(cb->skb->sk), nfsd_net_id);
-	int ret = -ENODEV;
-
-	mutex_lock(&nfsd_mutex);
-	if (nn->nfsd_serv)
-		ret = 0;
-	else
-		mutex_unlock(&nfsd_mutex);
-
-	return ret;
-}
-
 static int nfsd_genl_rpc_status_compose_msg(struct sk_buff *skb,
 					    struct netlink_callback *cb,
 					    struct nfsd_genl_rqstp *rqstp)
@@ -1558,8 +1536,16 @@ static int nfsd_genl_rpc_status_compose_msg(struct sk_buff *skb,
 int nfsd_nl_rpc_status_get_dumpit(struct sk_buff *skb,
 				  struct netlink_callback *cb)
 {
-	struct nfsd_net *nn = net_generic(sock_net(skb->sk), nfsd_net_id);
 	int i, ret, rqstp_index = 0;
+	struct nfsd_net *nn;
+
+	mutex_lock(&nfsd_mutex);
+
+	nn = net_generic(sock_net(skb->sk), nfsd_net_id);
+	if (!nn->nfsd_serv) {
+		ret = -ENODEV;
+		goto out_unlock;
+	}
 
 	rcu_read_lock();
 
@@ -1636,22 +1622,10 @@ int nfsd_nl_rpc_status_get_dumpit(struct sk_buff *skb,
 	ret = skb->len;
 out:
 	rcu_read_unlock();
-
-	return ret;
-}
-
-/**
- * nfsd_nl_rpc_status_get_done - rpc_status_get dumpit post-processing
- * @cb: netlink metadata and command arguments
- *
- * Return values:
- *   %0: Success
- */
-int nfsd_nl_rpc_status_get_done(struct netlink_callback *cb)
-{
+out_unlock:
 	mutex_unlock(&nfsd_mutex);
 
-	return 0;
+	return ret;
 }
 
 /**

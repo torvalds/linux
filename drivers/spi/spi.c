@@ -689,10 +689,12 @@ static int __spi_add_device(struct spi_device *spi)
 	 * Make sure that multiple logical CS doesn't map to the same physical CS.
 	 * For example, spi->chip_select[0] != spi->chip_select[1] and so on.
 	 */
-	for (idx = 0; idx < SPI_CS_CNT_MAX; idx++) {
-		status = spi_dev_check_cs(dev, spi, idx, spi, idx + 1);
-		if (status)
-			return status;
+	if (!spi_controller_is_target(ctlr)) {
+		for (idx = 0; idx < SPI_CS_CNT_MAX; idx++) {
+			status = spi_dev_check_cs(dev, spi, idx, spi, idx + 1);
+			if (status)
+				return status;
+		}
 	}
 
 	/* Set the bus ID string */
@@ -1220,6 +1222,11 @@ void spi_unmap_buf(struct spi_controller *ctlr, struct device *dev,
 	spi_unmap_buf_attrs(ctlr, dev, sgt, dir, 0);
 }
 
+/* Dummy SG for unidirect transfers */
+static struct scatterlist dummy_sg = {
+	.page_link = SG_END,
+};
+
 static int __spi_map_msg(struct spi_controller *ctlr, struct spi_message *msg)
 {
 	struct device *tx_dev, *rx_dev;
@@ -1243,6 +1250,7 @@ static int __spi_map_msg(struct spi_controller *ctlr, struct spi_message *msg)
 	else
 		rx_dev = ctlr->dev.parent;
 
+	ret = -ENOMSG;
 	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
 		/* The sync is done before each transfer. */
 		unsigned long attrs = DMA_ATTR_SKIP_CPU_SYNC;
@@ -1257,6 +1265,8 @@ static int __spi_map_msg(struct spi_controller *ctlr, struct spi_message *msg)
 						attrs);
 			if (ret != 0)
 				return ret;
+		} else {
+			xfer->tx_sg.sgl = &dummy_sg;
 		}
 
 		if (xfer->rx_buf != NULL) {
@@ -1270,8 +1280,13 @@ static int __spi_map_msg(struct spi_controller *ctlr, struct spi_message *msg)
 
 				return ret;
 			}
+		} else {
+			xfer->rx_sg.sgl = &dummy_sg;
 		}
 	}
+	/* No transfer has been mapped, bail out with success */
+	if (ret)
+		return 0;
 
 	ctlr->cur_rx_dma_dev = rx_dev;
 	ctlr->cur_tx_dma_dev = tx_dev;
@@ -1307,7 +1322,7 @@ static int __spi_unmap_msg(struct spi_controller *ctlr, struct spi_message *msg)
 	return 0;
 }
 
-static void spi_dma_sync_for_device(struct spi_controller *ctlr,
+static void spi_dma_sync_for_device(struct spi_controller *ctlr, struct spi_message *msg,
 				    struct spi_transfer *xfer)
 {
 	struct device *rx_dev = ctlr->cur_rx_dma_dev;
@@ -1316,17 +1331,23 @@ static void spi_dma_sync_for_device(struct spi_controller *ctlr,
 	if (!ctlr->cur_msg_mapped)
 		return;
 
+	if (!ctlr->can_dma(ctlr, msg->spi, xfer))
+		return;
+
 	dma_sync_sgtable_for_device(tx_dev, &xfer->tx_sg, DMA_TO_DEVICE);
 	dma_sync_sgtable_for_device(rx_dev, &xfer->rx_sg, DMA_FROM_DEVICE);
 }
 
-static void spi_dma_sync_for_cpu(struct spi_controller *ctlr,
+static void spi_dma_sync_for_cpu(struct spi_controller *ctlr, struct spi_message *msg,
 				 struct spi_transfer *xfer)
 {
 	struct device *rx_dev = ctlr->cur_rx_dma_dev;
 	struct device *tx_dev = ctlr->cur_tx_dma_dev;
 
 	if (!ctlr->cur_msg_mapped)
+		return;
+
+	if (!ctlr->can_dma(ctlr, msg->spi, xfer))
 		return;
 
 	dma_sync_sgtable_for_cpu(rx_dev, &xfer->rx_sg, DMA_FROM_DEVICE);
@@ -1346,11 +1367,13 @@ static inline int __spi_unmap_msg(struct spi_controller *ctlr,
 }
 
 static void spi_dma_sync_for_device(struct spi_controller *ctrl,
+				    struct spi_message *msg,
 				    struct spi_transfer *xfer)
 {
 }
 
 static void spi_dma_sync_for_cpu(struct spi_controller *ctrl,
+				 struct spi_message *msg,
 				 struct spi_transfer *xfer)
 {
 }
@@ -1622,10 +1645,10 @@ static int spi_transfer_one_message(struct spi_controller *ctlr,
 			reinit_completion(&ctlr->xfer_completion);
 
 fallback_pio:
-			spi_dma_sync_for_device(ctlr, xfer);
+			spi_dma_sync_for_device(ctlr, msg, xfer);
 			ret = ctlr->transfer_one(ctlr, msg->spi, xfer);
 			if (ret < 0) {
-				spi_dma_sync_for_cpu(ctlr, xfer);
+				spi_dma_sync_for_cpu(ctlr, msg, xfer);
 
 				if (ctlr->cur_msg_mapped &&
 				   (xfer->error & SPI_TRANS_FAIL_NO_START)) {
@@ -1650,7 +1673,7 @@ fallback_pio:
 					msg->status = ret;
 			}
 
-			spi_dma_sync_for_cpu(ctlr, xfer);
+			spi_dma_sync_for_cpu(ctlr, msg, xfer);
 		} else {
 			if (xfer->len)
 				dev_err(&msg->spi->dev,
@@ -4135,7 +4158,8 @@ static int __spi_validate(struct spi_device *spi, struct spi_message *message)
 				return -EINVAL;
 			if (xfer->tx_nbits != SPI_NBITS_SINGLE &&
 				xfer->tx_nbits != SPI_NBITS_DUAL &&
-				xfer->tx_nbits != SPI_NBITS_QUAD)
+				xfer->tx_nbits != SPI_NBITS_QUAD &&
+				xfer->tx_nbits != SPI_NBITS_OCTAL)
 				return -EINVAL;
 			if ((xfer->tx_nbits == SPI_NBITS_DUAL) &&
 				!(spi->mode & (SPI_TX_DUAL | SPI_TX_QUAD)))
@@ -4150,7 +4174,8 @@ static int __spi_validate(struct spi_device *spi, struct spi_message *message)
 				return -EINVAL;
 			if (xfer->rx_nbits != SPI_NBITS_SINGLE &&
 				xfer->rx_nbits != SPI_NBITS_DUAL &&
-				xfer->rx_nbits != SPI_NBITS_QUAD)
+				xfer->rx_nbits != SPI_NBITS_QUAD &&
+				xfer->rx_nbits != SPI_NBITS_OCTAL)
 				return -EINVAL;
 			if ((xfer->rx_nbits == SPI_NBITS_DUAL) &&
 				!(spi->mode & (SPI_RX_DUAL | SPI_RX_QUAD)))
