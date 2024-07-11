@@ -237,11 +237,6 @@ acpi_table_parse_cedt(enum acpi_cedt_type id,
 int acpi_parse_mcfg (struct acpi_table_header *header);
 void acpi_table_print_madt_entry (struct acpi_subtable_header *madt);
 
-static inline bool acpi_gicc_is_usable(struct acpi_madt_generic_interrupt *gicc)
-{
-	return gicc->flags & ACPI_MADT_ENABLED;
-}
-
 #if defined(CONFIG_X86) || defined(CONFIG_LOONGARCH)
 void acpi_numa_processor_affinity_init (struct acpi_srat_cpu_affinity *pa);
 #else
@@ -303,6 +298,8 @@ int acpi_map_cpu(acpi_handle handle, phys_cpuid_t physid, u32 acpi_id,
 		 int *pcpu);
 int acpi_unmap_cpu(int cpu);
 #endif /* CONFIG_ACPI_HOTPLUG_CPU */
+
+acpi_handle acpi_get_processor_handle(int cpu);
 
 #ifdef CONFIG_ACPI_HOTPLUG_IOAPIC
 int acpi_get_ioapic_id(acpi_handle handle, u32 gsi_base, u64 *phys_addr);
@@ -1074,6 +1071,11 @@ static inline u32 acpi_osc_ctx_get_cxl_control(struct acpi_osc_context *context)
 static inline bool acpi_sleep_state_supported(u8 sleep_state)
 {
 	return false;
+}
+
+static inline acpi_handle acpi_get_processor_handle(int cpu)
+{
+	return NULL;
 }
 
 #endif	/* !CONFIG_ACPI */
