@@ -18,6 +18,7 @@ if ARM64_PLATFORM_DEVICES
 
 config EC_ACER_ASPIRE1
 	tristate "Acer Aspire 1 Embedded Controller driver"
+	depends on ARCH_QCOM || COMPILE_TEST
 	depends on I2C
 	depends on DRM
 	depends on POWER_SUPPLY
