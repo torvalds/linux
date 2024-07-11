@@ -1286,13 +1286,12 @@ struct bnxt_vnic_info {
 #define BNXT_VNIC_RFS_NEW_RSS_FLAG	0x10
 #define BNXT_VNIC_NTUPLE_FLAG		0x20
 #define BNXT_VNIC_RSSCTX_FLAG		0x40
-	struct bnxt_rss_ctx	*rss_ctx;
+	struct ethtool_rxfh_context *rss_ctx;
 	u32		vnic_id;
 };
 
 struct bnxt_rss_ctx {
 	struct bnxt_vnic_info vnic;
-	u32	*rss_indir_tbl;
 	u8	index;
 };
 
@@ -2808,8 +2807,8 @@ int bnxt_hwrm_cfa_ntuple_filter_alloc(struct bnxt *bp,
 int bnxt_hwrm_vnic_set_tpa(struct bnxt *bp, struct bnxt_vnic_info *vnic,
 			   u32 tpa_flags);
 void bnxt_fill_ipv6_mask(__be32 mask[4]);
-int bnxt_alloc_rss_indir_tbl(struct bnxt *bp, struct bnxt_rss_ctx *rss_ctx);
-void bnxt_set_dflt_rss_indir_tbl(struct bnxt *bp, struct bnxt_rss_ctx *rss_ctx);
+void bnxt_set_dflt_rss_indir_tbl(struct bnxt *bp,
+				 struct ethtool_rxfh_context *rss_ctx);
 int bnxt_get_nr_rss_ctxs(struct bnxt *bp, int rx_rings);
 int bnxt_hwrm_vnic_cfg(struct bnxt *bp, struct bnxt_vnic_info *vnic);
 int bnxt_hwrm_vnic_alloc(struct bnxt *bp, struct bnxt_vnic_info *vnic,

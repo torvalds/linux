@@ -1218,11 +1218,10 @@ static struct bnxt_rss_ctx *bnxt_get_rss_ctx_from_index(struct bnxt *bp,
 	return ethtool_rxfh_context_priv(ctx);
 }
 
-static int bnxt_alloc_rss_ctx_rss_table(struct bnxt *bp,
-					struct bnxt_rss_ctx *rss_ctx)
+static int bnxt_alloc_vnic_rss_table(struct bnxt *bp,
+				     struct bnxt_vnic_info *vnic)
 {
 	int size = L1_CACHE_ALIGN(BNXT_MAX_RSS_TABLE_SIZE_P5);
-	struct bnxt_vnic_info *vnic = &rss_ctx->vnic;
 
 	vnic->rss_table_size = size + HW_HASH_KEY_SIZE;
 	vnic->rss_table = dma_alloc_coherent(&bp->pdev->dev,
@@ -1801,7 +1800,6 @@ static u32 bnxt_get_rxfh_key_size(struct net_device *dev)
 static int bnxt_get_rxfh(struct net_device *dev,
 			 struct ethtool_rxfh_param *rxfh)
 {
-	u32 rss_context = rxfh->rss_context;
 	struct bnxt_rss_ctx *rss_ctx = NULL;
 	struct bnxt *bp = netdev_priv(dev);
 	u32 *indir_tbl = bp->rss_indir_tbl;
@@ -1815,10 +1813,13 @@ static int bnxt_get_rxfh(struct net_device *dev,
 
 	vnic = &bp->vnic_info[BNXT_VNIC_DEFAULT];
 	if (rxfh->rss_context) {
-		rss_ctx = bnxt_get_rss_ctx_from_index(bp, rss_context);
-		if (!rss_ctx)
+		struct ethtool_rxfh_context *ctx;
+
+		ctx = xa_load(&bp->dev->ethtool->rss_ctx, rxfh->rss_context);
+		if (!ctx)
 			return -EINVAL;
-		indir_tbl = rss_ctx->rss_indir_tbl;
+		indir_tbl = ethtool_rxfh_context_indir(ctx);
+		rss_ctx = ethtool_rxfh_context_priv(ctx);
 		vnic = &rss_ctx->vnic;
 	}
 
@@ -1834,7 +1835,8 @@ static int bnxt_get_rxfh(struct net_device *dev,
 	return 0;
 }
 
-static void bnxt_modify_rss(struct bnxt *bp, struct bnxt_rss_ctx *rss_ctx,
+static void bnxt_modify_rss(struct bnxt *bp, struct ethtool_rxfh_context *ctx,
+			    struct bnxt_rss_ctx *rss_ctx,
 			    const struct ethtool_rxfh_param *rxfh)
 {
 	if (rxfh->key) {
@@ -1851,7 +1853,7 @@ static void bnxt_modify_rss(struct bnxt *bp, struct bnxt_rss_ctx *rss_ctx,
 		u32 *indir_tbl = bp->rss_indir_tbl;
 
 		if (rss_ctx)
-			indir_tbl = rss_ctx->rss_indir_tbl;
+			indir_tbl = ethtool_rxfh_context_indir(ctx);
 		for (i = 0; i < tbl_size; i++)
 			indir_tbl[i] = rxfh->indir[i];
 		pad = bp->rss_indir_tbl_entries - tbl_size;
@@ -1906,18 +1908,14 @@ static int bnxt_create_rxfh_context(struct net_device *dev,
 	bp->num_rss_ctx++;
 
 	vnic = &rss_ctx->vnic;
-	vnic->rss_ctx = rss_ctx;
+	vnic->rss_ctx = ctx;
 	vnic->flags |= BNXT_VNIC_RSSCTX_FLAG;
 	vnic->vnic_id = BNXT_VNIC_ID_INVALID;
-	rc = bnxt_alloc_rss_ctx_rss_table(bp, rss_ctx);
+	rc = bnxt_alloc_vnic_rss_table(bp, vnic);
 	if (rc)
 		goto out;
 
-	rc = bnxt_alloc_rss_indir_tbl(bp, rss_ctx);
-	if (rc)
-		goto out;
-
-	bnxt_set_dflt_rss_indir_tbl(bp, rss_ctx);
+	bnxt_set_dflt_rss_indir_tbl(bp, ctx);
 	memcpy(vnic->rss_hash_key, bp->rss_hash_key, HW_HASH_KEY_SIZE);
 
 	rc = bnxt_hwrm_vnic_alloc(bp, vnic, 0, bp->rx_nr_rings);
@@ -1931,7 +1929,7 @@ static int bnxt_create_rxfh_context(struct net_device *dev,
 		NL_SET_ERR_MSG_MOD(extack, "Unable to setup TPA");
 		goto out;
 	}
-	bnxt_modify_rss(bp, rss_ctx, rxfh);
+	bnxt_modify_rss(bp, ctx, rss_ctx, rxfh);
 
 	rc = __bnxt_setup_vnic_p5(bp, vnic);
 	if (rc) {
@@ -1961,7 +1959,7 @@ static int bnxt_modify_rxfh_context(struct net_device *dev,
 
 	rss_ctx = ethtool_rxfh_context_priv(ctx);
 
-	bnxt_modify_rss(bp, rss_ctx, rxfh);
+	bnxt_modify_rss(bp, ctx, rss_ctx, rxfh);
 
 	return bnxt_hwrm_vnic_rss_cfg_p5(bp, &rss_ctx->vnic);
 }
@@ -1990,7 +1988,7 @@ static int bnxt_set_rxfh(struct net_device *dev,
 	if (rxfh->hfunc && rxfh->hfunc != ETH_RSS_HASH_TOP)
 		return -EOPNOTSUPP;
 
-	bnxt_modify_rss(bp, NULL, rxfh);
+	bnxt_modify_rss(bp, NULL, NULL, rxfh);
 
 	bnxt_clear_usr_fltrs(bp, false);
 	if (netif_running(bp->dev)) {
