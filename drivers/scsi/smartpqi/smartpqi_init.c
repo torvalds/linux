@@ -3247,6 +3247,20 @@ static void pqi_process_raid_io_error(struct pqi_io_request *io_request)
 			sense_data_length);
 	}
 
+	if (pqi_cmd_priv(scmd)->this_residual &&
+	    !pqi_is_logical_device(scmd->device->hostdata) &&
+	    scsi_status == SAM_STAT_CHECK_CONDITION &&
+	    host_byte == DID_OK &&
+	    sense_data_length &&
+	    scsi_normalize_sense(error_info->data, sense_data_length, &sshdr) &&
+	    sshdr.sense_key == ILLEGAL_REQUEST &&
+	    sshdr.asc == 0x26 &&
+	    sshdr.ascq == 0x0) {
+		host_byte = DID_NO_CONNECT;
+		pqi_take_device_offline(scmd->device, "AIO");
+		scsi_build_sense_buffer(0, scmd->sense_buffer, HARDWARE_ERROR, 0x3e, 0x1);
+	}
+
 	scmd->result = scsi_status;
 	set_host_byte(scmd, host_byte);
 }
@@ -6021,7 +6035,7 @@ static int pqi_scsi_queue_command(struct Scsi_Host *shost, struct scsi_cmnd *scm
 
 	ctrl_info = shost_to_hba(shost);
 
-	if (pqi_ctrl_offline(ctrl_info) || pqi_device_in_remove(device)) {
+	if (pqi_ctrl_offline(ctrl_info) || pqi_device_offline(device) || pqi_device_in_remove(device)) {
 		set_host_byte(scmd, DID_NO_CONNECT);
 		pqi_scsi_done(scmd);
 		return 0;
