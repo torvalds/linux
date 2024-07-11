@@ -2198,7 +2198,7 @@ static int grab_tail_page(struct inode *inode,
 	/* start within the page of the last block in the file */
 	start = (offset / blocksize) * blocksize;
 
-	error = __block_write_begin(&folio->page, start, offset - start,
+	error = __block_write_begin(folio, start, offset - start,
 				    reiserfs_get_block_create_0);
 	if (error)
 		goto unlock;
@@ -2762,7 +2762,7 @@ static int reiserfs_write_begin(struct file *file,
 		old_ref = th->t_refcount;
 		th->t_refcount++;
 	}
-	ret = __block_write_begin(&folio->page, pos, len, reiserfs_get_block);
+	ret = __block_write_begin(folio, pos, len, reiserfs_get_block);
 	if (ret && reiserfs_transaction_running(inode->i_sb)) {
 		struct reiserfs_transaction_handle *th = current->journal_info;
 		/*
@@ -2822,7 +2822,7 @@ int __reiserfs_write_begin(struct page *page, unsigned from, unsigned len)
 		th->t_refcount++;
 	}
 
-	ret = __block_write_begin(page, from, len, reiserfs_get_block);
+	ret = __block_write_begin(page_folio(page), from, len, reiserfs_get_block);
 	if (ret && reiserfs_transaction_running(inode->i_sb)) {
 		struct reiserfs_transaction_handle *th = current->journal_info;
 		/*

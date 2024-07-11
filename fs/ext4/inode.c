@@ -1224,10 +1224,10 @@ retry_journal:
 		ret = ext4_block_write_begin(folio, pos, len, ext4_get_block);
 #else
 	if (ext4_should_dioread_nolock(inode))
-		ret = __block_write_begin(&folio->page, pos, len,
+		ret = __block_write_begin(folio, pos, len,
 					  ext4_get_block_unwritten);
 	else
-		ret = __block_write_begin(&folio->page, pos, len, ext4_get_block);
+		ret = __block_write_begin(folio, pos, len, ext4_get_block);
 #endif
 	if (!ret && ext4_should_journal_data(inode)) {
 		ret = ext4_walk_page_buffers(handle, inode,
@@ -2962,7 +2962,7 @@ retry:
 #ifdef CONFIG_FS_ENCRYPTION
 	ret = ext4_block_write_begin(folio, pos, len, ext4_da_get_block_prep);
 #else
-	ret = __block_write_begin(&folio->page, pos, len, ext4_da_get_block_prep);
+	ret = __block_write_begin(folio, pos, len, ext4_da_get_block_prep);
 #endif
 	if (ret < 0) {
 		folio_unlock(folio);
@@ -6216,7 +6216,7 @@ retry_alloc:
 		if (folio_pos(folio) + len > size)
 			len = size - folio_pos(folio);
 
-		err = __block_write_begin(&folio->page, 0, len, ext4_get_block);
+		err = __block_write_begin(folio, 0, len, ext4_get_block);
 		if (!err) {
 			ret = VM_FAULT_SIGBUS;
 			if (ext4_journal_folio_buffers(handle, folio, len))

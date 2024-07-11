@@ -2168,11 +2168,10 @@ int __block_write_begin_int(struct folio *folio, loff_t pos, unsigned len,
 	return err;
 }
 
-int __block_write_begin(struct page *page, loff_t pos, unsigned len,
+int __block_write_begin(struct folio *folio, loff_t pos, unsigned len,
 		get_block_t *get_block)
 {
-	return __block_write_begin_int(page_folio(page), pos, len, get_block,
-				       NULL);
+	return __block_write_begin_int(folio, pos, len, get_block, NULL);
 }
 EXPORT_SYMBOL(__block_write_begin);
 
