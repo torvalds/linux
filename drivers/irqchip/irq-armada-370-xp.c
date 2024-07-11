@@ -494,13 +494,7 @@ static int mpic_set_affinity(struct irq_data *d, const struct cpumask *mask_val,
 
 static void mpic_smp_cpu_init(void)
 {
-	u32 control;
-	int nr_irqs;
-
-	control = readl(main_int_base + MPIC_INT_CONTROL);
-	nr_irqs = (control >> 2) & 0x3ff;
-
-	for (int i = 0; i < nr_irqs; i++)
+	for (int i = 0; i < mpic_domain->hwirq_max; i++)
 		writel(i, per_cpu_int_base + MPIC_INT_SET_MASK);
 
 	if (!mpic_is_ipi_available())
@@ -706,10 +700,9 @@ static int mpic_suspend(void)
 static void mpic_resume(void)
 {
 	bool src0, src1;
-	int nirqs;
+
 	/* Re-enable interrupts */
-	nirqs = (readl(main_int_base + MPIC_INT_CONTROL) >> 2) & 0x3ff;
-	for (irq_hw_number_t irq = 0; irq < nirqs; irq++) {
+	for (irq_hw_number_t irq = 0; irq < mpic_domain->hwirq_max; irq++) {
 		struct irq_data *data;
 		unsigned int virq;
 
