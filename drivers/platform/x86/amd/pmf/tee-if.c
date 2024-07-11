@@ -62,18 +62,12 @@ static void amd_pmf_prepare_args(struct amd_pmf_dev *dev, int cmd,
 	param[0].u.memref.shm_offs = 0;
 }
 
-static int amd_pmf_update_uevents(struct amd_pmf_dev *dev, u16 event)
+static void amd_pmf_update_uevents(struct amd_pmf_dev *dev, u16 event)
 {
-	char *envp[2] = {};
-
-	envp[0] = kasprintf(GFP_KERNEL, "EVENT_ID=%d", event);
-	if (!envp[0])
-		return -EINVAL;
-
-	kobject_uevent_env(&dev->dev->kobj, KOBJ_CHANGE, envp);
-
-	kfree(envp[0]);
-	return 0;
+	input_report_key(dev->pmf_idev, event, 1); /* key press */
+	input_sync(dev->pmf_idev);
+	input_report_key(dev->pmf_idev, event, 0); /* key release */
+	input_sync(dev->pmf_idev);
 }
 
 static void amd_pmf_apply_policies(struct amd_pmf_dev *dev, struct ta_pmf_enact_result *out)
@@ -149,7 +143,20 @@ static void amd_pmf_apply_policies(struct amd_pmf_dev *dev, struct ta_pmf_enact_
 			break;
 
 		case PMF_POLICY_SYSTEM_STATE:
-			amd_pmf_update_uevents(dev, val);
+			switch (val) {
+			case 0:
+				amd_pmf_update_uevents(dev, KEY_SLEEP);
+				break;
+			case 1:
+				amd_pmf_update_uevents(dev, KEY_SUSPEND);
+				break;
+			case 2:
+				amd_pmf_update_uevents(dev, KEY_SCREENLOCK);
+				break;
+			default:
+				dev_err(dev->dev, "Invalid PMF policy system state: %d\n", val);
+			}
+
 			dev_dbg(dev->dev, "update SYSTEM_STATE: %s\n",
 				amd_pmf_uevent_as_str(val));
 			break;
@@ -363,6 +370,30 @@ static int amd_pmf_ta_open_session(struct tee_context *ctx, u32 *id)
 	return rc;
 }
 
+static int amd_pmf_register_input_device(struct amd_pmf_dev *dev)
+{
+	int err;
+
+	dev->pmf_idev = devm_input_allocate_device(dev->dev);
+	if (!dev->pmf_idev)
+		return -ENOMEM;
+
+	dev->pmf_idev->name = "PMF-TA output events";
+	dev->pmf_idev->phys = "amd-pmf/input0";
+
+	input_set_capability(dev->pmf_idev, EV_KEY, KEY_SLEEP);
+	input_set_capability(dev->pmf_idev, EV_KEY, KEY_SCREENLOCK);
+	input_set_capability(dev->pmf_idev, EV_KEY, KEY_SUSPEND);
+
+	err = input_register_device(dev->pmf_idev);
+	if (err) {
+		dev_err(dev->dev, "Failed to register input device: %d\n", err);
+		return err;
+	}
+
+	return 0;
+}
+
 static int amd_pmf_tee_init(struct amd_pmf_dev *dev)
 {
 	u32 size;
@@ -470,6 +501,10 @@ int amd_pmf_init_smart_pc(struct amd_pmf_dev *dev)
 	if (pb_side_load)
 		amd_pmf_open_pb(dev, dev->dbgfs_dir);
 
+	ret = amd_pmf_register_input_device(dev);
+	if (ret)
+		goto error;
+
 	return 0;
 
 error:
@@ -480,6 +515,9 @@ error:
 
 void amd_pmf_deinit_smart_pc(struct amd_pmf_dev *dev)
 {
+	if (dev->pmf_idev)
+		input_unregister_device(dev->pmf_idev);
+
 	if (pb_side_load && dev->esbin)
 		amd_pmf_remove_pb(dev);
 
