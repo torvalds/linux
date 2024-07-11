@@ -462,16 +462,14 @@ static const struct irq_domain_ops ipi_domain_ops = {
 static void ipi_resume(void)
 {
 	for (int i = 0; i < IPI_DOORBELL_END; i++) {
-		unsigned int virq;
+		unsigned int virq = irq_find_mapping(ipi_domain, i);
+		struct irq_data *d;
 
-		virq = irq_find_mapping(ipi_domain, i);
-		if (!virq)
+		if (!virq || !irq_percpu_is_enabled(virq))
 			continue;
-		if (irq_percpu_is_enabled(virq)) {
-			struct irq_data *d;
-			d = irq_domain_get_irq_data(ipi_domain, virq);
-			armada_370_xp_ipi_unmask(d);
-		}
+
+		d = irq_domain_get_irq_data(ipi_domain, virq);
+		armada_370_xp_ipi_unmask(d);
 	}
 }
 
