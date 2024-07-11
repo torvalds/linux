@@ -1077,21 +1077,13 @@ typedef struct _IOC_4_SEP
 } IOC_4_SEP, MPI_POINTER PTR_IOC_4_SEP,
   Ioc4Sep_t, MPI_POINTER pIoc4Sep_t;
 
-/*
- * Host code (drivers, BIOS, utilities, etc.) should leave this define set to
- * one and check Header.PageLength at runtime.
- */
-#ifndef MPI_IOC_PAGE_4_SEP_MAX
-#define MPI_IOC_PAGE_4_SEP_MAX              (1)
-#endif
-
 typedef struct _CONFIG_PAGE_IOC_4
 {
     CONFIG_PAGE_HEADER          Header;                         /* 00h */
     U8                          ActiveSEP;                      /* 04h */
     U8                          MaxSEP;                         /* 05h */
     U16                         Reserved1;                      /* 06h */
-    IOC_4_SEP                   SEP[MPI_IOC_PAGE_4_SEP_MAX];    /* 08h */
+    IOC_4_SEP                   SEP[] __counted_by(ActiveSEP);  /* 08h */
 } CONFIG_PAGE_IOC_4, MPI_POINTER PTR_CONFIG_PAGE_IOC_4,
   IOCPage4_t, MPI_POINTER pIOCPage4_t;
 
