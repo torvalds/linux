@@ -5150,10 +5150,6 @@ static void wq_calc_pod_cpumask(struct workqueue_attrs *attrs, int cpu,
 		cpumask_copy(attrs->__pod_cpumask, attrs->cpumask);
 		return;
 	}
-
-	if (cpumask_empty(attrs->__pod_cpumask))
-		pr_warn_once("WARNING: workqueue cpumask: online intersect > "
-				"possible intersect\n");
 }
 
 /* install @pwq into @wq and return the old pwq, @cpu < 0 for dfl_pwq */
