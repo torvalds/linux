@@ -2473,7 +2473,7 @@ struct MR_LD_VF_MAP {
 	union MR_LD_REF ref;
 	u8 ldVfCount;
 	u8 reserved[6];
-	u8 policy[1];
+	u8 policy[];
 };
 
 struct MR_LD_VF_AFFILIATION {
