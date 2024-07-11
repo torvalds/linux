@@ -673,10 +673,8 @@ static void __exception_irq_entry mpic_handle_irq(struct pt_regs *regs)
 		if (i > 1022)
 			break;
 
-		if (i > 1) {
+		if (i > 1)
 			generic_handle_domain_irq(mpic_domain, i);
-			continue;
-		}
 
 		/* MSI handling */
 		if (i == 1)
