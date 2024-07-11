@@ -47,20 +47,11 @@
 int page_cluster;
 const int page_cluster_max = 31;
 
-/* Protecting only lru_rotate.fbatch which requires disabling interrupts */
-struct lru_rotate {
-	local_lock_t lock;
-	struct folio_batch fbatch;
-};
-static DEFINE_PER_CPU(struct lru_rotate, lru_rotate) = {
-	.lock = INIT_LOCAL_LOCK(lock),
-};
-
-/*
- * The following folio batches are grouped together because they are protected
- * by disabling preemption (and interrupts remain enabled).
- */
 struct cpu_fbatches {
+	/*
+	 * The following folio batches are grouped together because they are protected
+	 * by disabling preemption (and interrupts remain enabled).
+	 */
 	local_lock_t lock;
 	struct folio_batch lru_add;
 	struct folio_batch lru_deactivate_file;
@@ -69,9 +60,14 @@ struct cpu_fbatches {
 #ifdef CONFIG_SMP
 	struct folio_batch lru_activate;
 #endif
+	/* Protecting the following batches which require disabling interrupts */
+	local_lock_t lock_irq;
+	struct folio_batch lru_move_tail;
 };
+
 static DEFINE_PER_CPU(struct cpu_fbatches, cpu_fbatches) = {
 	.lock = INIT_LOCAL_LOCK(lock),
+	.lock_irq = INIT_LOCAL_LOCK(lock_irq),
 };
 
 static void __page_cache_release(struct folio *folio, struct lruvec **lruvecp,
@@ -267,10 +263,10 @@ void folio_rotate_reclaimable(struct folio *folio)
 		return;
 	}
 
-	local_lock_irqsave(&lru_rotate.lock, flags);
-	fbatch = this_cpu_ptr(&lru_rotate.fbatch);
+	local_lock_irqsave(&cpu_fbatches.lock_irq, flags);
+	fbatch = this_cpu_ptr(&cpu_fbatches.lru_move_tail);
 	folio_batch_add_and_move(fbatch, folio, lru_move_tail_fn);
-	local_unlock_irqrestore(&lru_rotate.lock, flags);
+	local_unlock_irqrestore(&cpu_fbatches.lock_irq, flags);
 }
 
 void lru_note_cost(struct lruvec *lruvec, bool file,
@@ -668,15 +664,15 @@ void lru_add_drain_cpu(int cpu)
 	if (folio_batch_count(fbatch))
 		folio_batch_move_lru(fbatch, lru_add_fn);
 
-	fbatch = &per_cpu(lru_rotate.fbatch, cpu);
+	fbatch = &fbatches->lru_move_tail;
 	/* Disabling interrupts below acts as a compiler barrier. */
 	if (data_race(folio_batch_count(fbatch))) {
 		unsigned long flags;
 
 		/* No harm done if a racing interrupt already did this */
-		local_lock_irqsave(&lru_rotate.lock, flags);
+		local_lock_irqsave(&cpu_fbatches.lock_irq, flags);
 		folio_batch_move_lru(fbatch, lru_move_tail_fn);
-		local_unlock_irqrestore(&lru_rotate.lock, flags);
+		local_unlock_irqrestore(&cpu_fbatches.lock_irq, flags);
 	}
 
 	fbatch = &fbatches->lru_deactivate_file;
@@ -825,7 +821,7 @@ static bool cpu_needs_drain(unsigned int cpu)
 
 	/* Check these in order of likelihood that they're not zero */
 	return folio_batch_count(&fbatches->lru_add) ||
-		data_race(folio_batch_count(&per_cpu(lru_rotate.fbatch, cpu))) ||
+		folio_batch_count(&fbatches->lru_move_tail) ||
 		folio_batch_count(&fbatches->lru_deactivate_file) ||
 		folio_batch_count(&fbatches->lru_deactivate) ||
 		folio_batch_count(&fbatches->lru_lazyfree) ||
