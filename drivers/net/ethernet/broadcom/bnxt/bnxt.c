@@ -10239,7 +10239,6 @@ void bnxt_del_one_rss_ctx(struct bnxt *bp, struct bnxt_rss_ctx *rss_ctx,
 	kfree(rss_ctx->rss_indir_tbl);
 	list_del(&rss_ctx->list);
 	bp->num_rss_ctx--;
-	kfree(rss_ctx);
 }
 
 static void bnxt_hwrm_realloc_rss_ctx_vnic(struct bnxt *bp)
@@ -10259,19 +10258,6 @@ static void bnxt_hwrm_realloc_rss_ctx_vnic(struct bnxt *bp)
 			ethtool_rxfh_context_lost(bp->dev, rss_ctx->index);
 		}
 	}
-}
-
-struct bnxt_rss_ctx *bnxt_alloc_rss_ctx(struct bnxt *bp)
-{
-	struct bnxt_rss_ctx *rss_ctx = NULL;
-
-	rss_ctx = kzalloc(sizeof(*rss_ctx), GFP_KERNEL);
-	if (rss_ctx) {
-		rss_ctx->vnic.rss_ctx = rss_ctx;
-		list_add_tail(&rss_ctx->list, &bp->rss_ctx_list);
-		bp->num_rss_ctx++;
-	}
-	return rss_ctx;
 }
 
 void bnxt_clear_rss_ctxs(struct bnxt *bp)

@@ -1907,11 +1907,13 @@ static int bnxt_create_rxfh_context(struct net_device *dev,
 		return -ENOMEM;
 	}
 
-	rss_ctx = bnxt_alloc_rss_ctx(bp);
-	if (!rss_ctx)
-		return -ENOMEM;
+	rss_ctx = ethtool_rxfh_context_priv(ctx);
+
+	list_add_tail(&rss_ctx->list, &bp->rss_ctx_list);
+	bp->num_rss_ctx++;
 
 	vnic = &rss_ctx->vnic;
+	vnic->rss_ctx = rss_ctx;
 	vnic->flags |= BNXT_VNIC_RSSCTX_FLAG;
 	vnic->vnic_id = BNXT_VNIC_ID_INVALID;
 	rc = bnxt_alloc_rss_ctx_rss_table(bp, rss_ctx);
@@ -1964,12 +1966,7 @@ static int bnxt_modify_rxfh_context(struct net_device *dev,
 	if (rc)
 		return rc;
 
-	rss_ctx = bnxt_get_rss_ctx_from_index(bp, rxfh->rss_context);
-	if (!rss_ctx) {
-		NL_SET_ERR_MSG_FMT_MOD(extack, "RSS context %u not found",
-				       rxfh->rss_context);
-		return -EINVAL;
-	}
+	rss_ctx = ethtool_rxfh_context_priv(ctx);
 
 	bnxt_modify_rss(bp, rss_ctx, rxfh);
 
@@ -1984,12 +1981,7 @@ static int bnxt_remove_rxfh_context(struct net_device *dev,
 	struct bnxt *bp = netdev_priv(dev);
 	struct bnxt_rss_ctx *rss_ctx;
 
-	rss_ctx = bnxt_get_rss_ctx_from_index(bp, rss_context);
-	if (!rss_ctx) {
-		NL_SET_ERR_MSG_FMT_MOD(extack, "RSS context %u not found",
-				       rss_context);
-		return -EINVAL;
-	}
+	rss_ctx = ethtool_rxfh_context_priv(ctx);
 
 	bnxt_del_one_rss_ctx(bp, rss_ctx, true);
 	return 0;
@@ -5298,6 +5290,8 @@ const struct ethtool_ops bnxt_ethtool_ops = {
 	.cap_link_lanes_supported	= 1,
 	.cap_rss_ctx_supported		= 1,
 	.rxfh_max_context_id		= BNXT_MAX_ETH_RSS_CTX,
+	.rxfh_indir_space		= BNXT_MAX_RSS_TABLE_ENTRIES_P5,
+	.rxfh_priv_size			= sizeof(struct bnxt_rss_ctx),
 	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
 				     ETHTOOL_COALESCE_MAX_FRAMES |
 				     ETHTOOL_COALESCE_USECS_IRQ |
