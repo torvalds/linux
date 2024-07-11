@@ -1939,8 +1939,7 @@ static void gpi_process_ch_ctrl_irq(struct gpii *gpii)
 
 		/* notifying clients if in error state */
 		if (gpii_chan->ch_state == CH_STATE_ERROR)
-			gpi_generate_cb_event(gpii_chan, MSM_GPI_QUP_CH_ERROR,
-					      ch_irq);
+			gpi_generate_cb_event(gpii_chan, MSM_GPI_QUP_CH_ERROR, ch_irq);
 	}
 }
 
@@ -2522,7 +2521,7 @@ gpi_process_xfer_q2spi_cr_header(struct gpii_chan *gpii_chan,
 		  q2spi_cr_header_event->cr_hdr[0], q2spi_cr_header_event->cr_hdr[1],
 		  q2spi_cr_header_event->cr_hdr[2], q2spi_cr_header_event->cr_hdr[3]);
 	GPII_VERB(gpii_ptr, gpii_chan->chid,
-		  "cr_byte_0:0x%x cr_byte_1:0x%x cr_byte_2:0x%x cr_byte_3h:0x%x\n",
+		  "cr_ed_byte_0:0x%x cr_ed_byte_1:0x%x cr_ed_byte_2:0x%x cr_ed_byte_3:0x%x\n",
 		  q2spi_cr_header_event->cr_ed_byte[0], q2spi_cr_header_event->cr_ed_byte[1],
 		  q2spi_cr_header_event->cr_ed_byte[2], q2spi_cr_header_event->cr_ed_byte[3]);
 	GPII_VERB(gpii_ptr, gpii_chan->chid, "code:0x%x\n", q2spi_cr_header_event->code);
@@ -2530,6 +2529,13 @@ gpi_process_xfer_q2spi_cr_header(struct gpii_chan *gpii_chan,
 		  "cr_byte_0_len:0x%x cr_byte_0_err:0x%x type:0x%x ch_id:0x%x\n",
 		  q2spi_cr_header_event->byte0_len, q2spi_cr_header_event->byte0_err,
 		  q2spi_cr_header_event->type, q2spi_cr_header_event->ch_id);
+
+	if (q2spi_cr_header_event->code == Q2SPI_CR_HEADER_LEN_ZERO)
+		GPII_ERR(gpii_ptr, gpii_chan->chid, "Err negative 1H doorbell response\n");
+
+	if (q2spi_cr_header_event->code == Q2SPI_CR_HEADER_INCORRECT)
+		GPII_ERR(gpii_ptr, gpii_chan->chid, "Err unexpected CR Header is received\n");
+
 	msm_gpi_cb.cb_event = MSM_GPI_QUP_CR_HEADER;
 	msm_gpi_cb.q2spi_cr_header_event = *q2spi_cr_header_event;
 	GPII_VERB(gpii_chan->gpii, gpii_chan->chid, "sending CB event:%s\n",
@@ -3165,7 +3171,7 @@ static void gpi_noop_tre(struct gpii_chan *gpii_chan)
 	while (local_rp != local_wp) {
 		/* dump the channel ring at the time of error */
 		tre = (struct msm_gpi_tre *)cntxt_rp;
-		GPII_ERR(gpii, gpii_chan->chid, "local_rp:0x%011x TRE: %08x %08x %08x %08x\n",
+		GPII_ERR(gpii, gpii_chan->chid, "local_rp:%llu TRE: %08x %08x %08x %08x\n",
 			local_rp, tre->dword[0], tre->dword[1],
 			 tre->dword[2], tre->dword[3]);
 		tre->dword[3] &= noop_mask;
@@ -4242,7 +4248,7 @@ static int gpi_probe(struct platform_device *pdev)
 
 	/* setup debug capabilities */
 	gpi_setup_debug(gpi_dev);
-	GPI_LOG(gpi_dev, "probe success\n");
+	GPI_LOG(gpi_dev, "%s: probe success\n", __func__);
 
 	return ret;
 }
