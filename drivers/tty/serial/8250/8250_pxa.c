@@ -165,22 +165,6 @@ static struct platform_driver serial_pxa_driver = {
 
 module_platform_driver(serial_pxa_driver);
 
-#ifdef CONFIG_SERIAL_8250_CONSOLE
-static int __init early_serial_pxa_setup(struct earlycon_device *device,
-				  const char *options)
-{
-	struct uart_port *port = &device->port;
-
-	if (!(device->port.membase || device->port.iobase))
-		return -ENODEV;
-
-	port->regshift = 2;
-	return early_serial8250_setup(device, NULL);
-}
-OF_EARLYCON_DECLARE(early_pxa, "mrvl,pxa-uart", early_serial_pxa_setup);
-OF_EARLYCON_DECLARE(mmp, "mrvl,mmp-uart", early_serial_pxa_setup);
-#endif
-
 MODULE_AUTHOR("Sergei Ianovich");
 MODULE_DESCRIPTION("driver for PXA on-board UARTS");
 MODULE_LICENSE("GPL");
