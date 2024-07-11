@@ -404,59 +404,49 @@
 };
 
 &qcom_pinmux {
-	buttons_pins: buttons_pins {
-		mux {
-			pins = "gpio66";
-			drive-strength = <16>;
-			bias-disable;
-		};
+	buttons_pins: buttons-state {
+		pins = "gpio66";
+		function = "gpio";
+		drive-strength = <16>;
+		bias-disable;
 	};
 
-	leds_pins: leds_pins {
-		mux {
-			pins = "gpio33";
-			drive-strength = <16>;
-			bias-disable;
-		};
+	leds_pins: leds-state {
+		pins = "gpio33";
+		function = "gpio";
+		drive-strength = <16>;
+		bias-disable;
 	};
 
-	mdio1_pins: mdio1_pins {
-		mux {
-			pins = "gpio10", "gpio11";
-			function = "gpio";
-			drive-strength = <8>;
-			bias-disable;
-		};
+	mdio1_pins: mdio1-state {
+		pins = "gpio10", "gpio11";
+		function = "gpio";
+		drive-strength = <8>;
+		bias-disable;
 	};
 
-	sw0_reset_pin: sw0_reset_pin {
-		mux {
-			pins = "gpio16";
-			drive-strength = <16>;
-			function = "gpio";
-			bias-disable;
-			input-disable;
-		};
+	sw0_reset_pin: sw0-reset-state {
+		pins = "gpio16";
+		drive-strength = <16>;
+		function = "gpio";
+		bias-disable;
+		input-disable;
 	};
 
-	sw1_reset_pin: sw1_reset_pin {
-		mux {
-			pins = "gpio17";
-			drive-strength = <16>;
-			function = "gpio";
-			bias-disable;
-			input-disable;
-		};
+	sw1_reset_pin: sw1-reset-state {
+		pins = "gpio17";
+		drive-strength = <16>;
+		function = "gpio";
+		bias-disable;
+		input-disable;
 	};
 
-	usb1_pwr_en_pins: usb1_pwr_en_pins {
-		mux {
-			pins = "gpio4";
-			function = "gpio";
-			drive-strength = <16>;
-			bias-disable;
-			output-high;
-		};
+	usb1_pwr_en_pins: usb1-pwr-en-state {
+		pins = "gpio4";
+		function = "gpio";
+		drive-strength = <16>;
+		bias-disable;
+		output-high;
 	};
 };
 
