@@ -17,6 +17,7 @@
 #include "btree_iter.h"
 #include "btree_key_cache.h"
 #include "btree_update.h"
+#include "btree_update_interior.h"
 #include "btree_gc.h"
 #include "buckets.h"
 #include "clock.h"
@@ -170,6 +171,7 @@ read_attribute(compression_stats);
 read_attribute(journal_debug);
 read_attribute(btree_cache);
 read_attribute(btree_key_cache);
+read_attribute(btree_reserve_cache);
 read_attribute(stripes_heap);
 read_attribute(open_buckets);
 read_attribute(open_buckets_partial);
@@ -390,6 +392,9 @@ SHOW(bch2_fs)
 	if (attr == &sysfs_btree_key_cache)
 		bch2_btree_key_cache_to_text(out, &c->btree_key_cache);
 
+	if (attr == &sysfs_btree_reserve_cache)
+		bch2_btree_reserve_cache_to_text(out, c);
+
 	if (attr == &sysfs_stripes_heap)
 		bch2_stripes_heap_to_text(out, c);
 
@@ -607,6 +612,7 @@ struct attribute *bch2_fs_internal_files[] = {
 	&sysfs_journal_debug,
 	&sysfs_btree_cache,
 	&sysfs_btree_key_cache,
+	&sysfs_btree_reserve_cache,
 	&sysfs_new_stripes,
 	&sysfs_stripes_heap,
 	&sysfs_open_buckets,

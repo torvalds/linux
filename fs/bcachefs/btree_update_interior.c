@@ -2647,6 +2647,28 @@ bch2_btree_roots_to_journal_entries(struct bch_fs *c,
 	return end;
 }
 
+static void bch2_btree_alloc_to_text(struct printbuf *out,
+				     struct bch_fs *c,
+				     struct btree_alloc *a)
+{
+	printbuf_indent_add(out, 2);
+	bch2_bkey_val_to_text(out, c, bkey_i_to_s_c(&a->k));
+	prt_newline(out);
+
+	struct open_bucket *ob;
+	unsigned i;
+	open_bucket_for_each(c, &a->ob, ob, i)
+		bch2_open_bucket_to_text(out, c, ob);
+
+	printbuf_indent_sub(out, 2);
+}
+
+void bch2_btree_reserve_cache_to_text(struct printbuf *out, struct bch_fs *c)
+{
+	for (unsigned i = 0; i < c->btree_reserve_cache_nr; i++)
+		bch2_btree_alloc_to_text(out, c, &c->btree_reserve_cache[i]);
+}
+
 void bch2_fs_btree_interior_update_exit(struct bch_fs *c)
 {
 	if (c->btree_node_rewrite_worker)
