@@ -106,7 +106,9 @@ struct tsc200x {
 
 	struct gpio_desc	*reset_gpio;
 	int			(*tsc200x_cmd)(struct device *dev, u8 cmd);
+
 	int			irq;
+	bool			wake_irq_enabled;
 };
 
 static void tsc200x_update_pen_state(struct tsc200x *ts,
@@ -560,7 +562,8 @@ int tsc200x_probe(struct device *dev, int irq, const struct input_id *tsc_id,
 		return error;
 	}
 
-	irq_set_irq_wake(irq, 1);
+	device_init_wakeup(dev, true);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(tsc200x_probe);
@@ -576,6 +579,9 @@ static int tsc200x_suspend(struct device *dev)
 
 	ts->suspended = true;
 
+	if (device_may_wakeup(dev))
+		ts->wake_irq_enabled = enable_irq_wake(ts->irq) == 0;
+
 	mutex_unlock(&ts->mutex);
 
 	return 0;
@@ -586,6 +592,11 @@ static int tsc200x_resume(struct device *dev)
 	struct tsc200x *ts = dev_get_drvdata(dev);
 
 	mutex_lock(&ts->mutex);
+
+	if (ts->wake_irq_enabled) {
+		disable_irq_wake(ts->irq);
+		ts->wake_irq_enabled = false;
+	}
 
 	if (ts->suspended && ts->opened)
 		__tsc200x_enable(ts);
