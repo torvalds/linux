@@ -873,7 +873,7 @@ union aac_init
 			__le16	element_count;
 			__le16	comp_thresh;
 			__le16	unused;
-		} rrq[1];		/* up to 64 RRQ addresses */
+		} rrq[] __counted_by_le(rr_queue_count); /* up to 64 RRQ addresses */
 	} r8;
 };
 
