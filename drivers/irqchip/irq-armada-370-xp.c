@@ -462,10 +462,10 @@ static const struct irq_domain_ops ipi_domain_ops = {
 static void ipi_resume(void)
 {
 	for (int i = 0; i < IPI_DOORBELL_END; i++) {
-		int virq;
+		unsigned int virq;
 
 		virq = irq_find_mapping(ipi_domain, i);
-		if (virq <= 0)
+		if (!virq)
 			continue;
 		if (irq_percpu_is_enabled(virq)) {
 			struct irq_data *d;
@@ -539,7 +539,7 @@ static void armada_xp_mpic_reenable_percpu(void)
 	/* Re-enable per-CPU interrupts that were enabled before suspend */
 	for (unsigned int irq = 0; irq < MPIC_MAX_PER_CPU_IRQS; irq++) {
 		struct irq_data *data;
-		int virq;
+		unsigned int virq;
 
 		virq = irq_linear_revmap(armada_370_xp_mpic_domain, irq);
 		if (virq == 0)
@@ -734,7 +734,7 @@ static void armada_370_xp_mpic_resume(void)
 	nirqs = (readl(main_int_base + MPIC_INT_CONTROL) >> 2) & 0x3ff;
 	for (irq_hw_number_t irq = 0; irq < nirqs; irq++) {
 		struct irq_data *data;
-		int virq;
+		unsigned int virq;
 
 		virq = irq_linear_revmap(armada_370_xp_mpic_domain, irq);
 		if (virq == 0)
