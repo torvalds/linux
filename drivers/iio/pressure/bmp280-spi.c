@@ -5,10 +5,10 @@
  * Inspired by the older BMP085 driver drivers/misc/bmp085-spi.c
  */
 #include <linux/bits.h>
-#include <linux/module.h>
-#include <linux/spi/spi.h>
 #include <linux/err.h>
+#include <linux/module.h>
 #include <linux/regmap.h>
+#include <linux/spi/spi.h>
 
 #include "bmp280.h"
 
