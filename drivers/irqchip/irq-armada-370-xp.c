@@ -619,6 +619,22 @@ static void mpic_handle_msi_irq(void)
 static void mpic_handle_msi_irq(void) {}
 #endif
 
+#ifdef CONFIG_SMP
+static void mpic_handle_ipi_irq(void)
+{
+	unsigned long cause;
+	irq_hw_number_t i;
+
+	cause = readl_relaxed(per_cpu_int_base + MPIC_IN_DRBEL_CAUSE);
+	cause &= IPI_DOORBELL_MASK;
+
+	for_each_set_bit(i, &cause, IPI_DOORBELL_END)
+		generic_handle_domain_irq(mpic_ipi_domain, i);
+}
+#else
+static inline void mpic_handle_ipi_irq(void) {}
+#endif
+
 static void mpic_handle_cascade_irq(struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
@@ -669,19 +685,9 @@ static void __exception_irq_entry mpic_handle_irq(struct pt_regs *regs)
 		if (irqnr == 1)
 			mpic_handle_msi_irq();
 
-#ifdef CONFIG_SMP
 		/* IPI Handling */
-		if (irqnr == 0) {
-			unsigned long ipimask;
-			int ipi;
-
-			ipimask = readl_relaxed(per_cpu_int_base + MPIC_IN_DRBEL_CAUSE) &
-				  IPI_DOORBELL_MASK;
-
-			for_each_set_bit(ipi, &ipimask, IPI_DOORBELL_END)
-				generic_handle_domain_irq(mpic_ipi_domain, ipi);
-		}
-#endif
+		if (irqnr == 0)
+			mpic_handle_ipi_irq();
 	} while (1);
 }
 
