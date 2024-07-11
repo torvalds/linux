@@ -237,7 +237,7 @@ int fscache_add_cache(struct fscache_cache *cache,
 {
 	int n_accesses;
 
-	_enter("{%s,%s}", ops->name, cache->name);
+	kenter("{%s,%s}", ops->name, cache->name);
 
 	BUG_ON(fscache_cache_state(cache) != FSCACHE_CACHE_IS_PREPARING);
 
@@ -257,7 +257,7 @@ int fscache_add_cache(struct fscache_cache *cache,
 
 	up_write(&fscache_addremove_sem);
 	pr_notice("Cache \"%s\" added (type %s)\n", cache->name, ops->name);
-	_leave(" = 0 [%s]", cache->name);
+	kleave(" = 0 [%s]", cache->name);
 	return 0;
 }
 EXPORT_SYMBOL(fscache_add_cache);
