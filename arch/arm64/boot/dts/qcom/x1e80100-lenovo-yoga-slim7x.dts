@@ -689,6 +689,10 @@
 	vdd3-supply = <&vreg_l14b_3p0>;
 };
 
+&smb2360_2 {
+	status = "okay";
+};
+
 &smb2360_2_eusb2_repeater {
 	vdd18-supply = <&vreg_l3d_1p8>;
 	vdd3-supply = <&vreg_l8b_3p0>;
