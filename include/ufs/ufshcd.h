@@ -73,8 +73,8 @@ enum ufs_event_type {
  * @done: UIC command completion
  */
 struct uic_command {
-	u32 command;
-	u32 argument1;
+	const u32 command;
+	const u32 argument1;
 	u32 argument2;
 	u32 argument3;
 	int cmd_active;
@@ -325,7 +325,9 @@ struct ufs_pwr_mode_info {
  * @event_notify: called to notify important events
  * @reinit_notify: called to notify reinit of UFSHCD during max gear switch
  * @mcq_config_resource: called to configure MCQ platform resources
- * @get_hba_mac: called to get vendor specific mac value, mandatory for mcq mode
+ * @get_hba_mac: reports maximum number of outstanding commands supported by
+ *	the controller. Should be implemented for UFSHCI 4.0 or later
+ *	controllers that are not compliant with the UFSHCI 4.0 specification.
  * @op_runtime_config: called to config Operation and runtime regs Pointers
  * @get_outstanding_cqs: called to get outstanding completion queues
  * @config_esi: called to config Event Specific Interrupt
@@ -1132,11 +1134,6 @@ struct ufs_hw_queue {
 };
 
 #define MCQ_QCFG_SIZE		0x40
-
-static inline bool is_mcq_enabled(struct ufs_hba *hba)
-{
-	return hba->mcq_enabled;
-}
 
 static inline unsigned int ufshcd_mcq_opr_offset(struct ufs_hba *hba,
 		enum ufshcd_mcq_opr opr, int idx)

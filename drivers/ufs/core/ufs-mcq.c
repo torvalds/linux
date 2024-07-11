@@ -137,7 +137,6 @@ EXPORT_SYMBOL_GPL(ufshcd_mcq_queue_cfg_addr);
  *
  * MAC - Max. Active Command of the Host Controller (HC)
  * HC wouldn't send more than this commands to the device.
- * It is mandatory to implement get_hba_mac() to enable MCQ mode.
  * Calculates and adjusts the queue depth based on the depth
  * supported by the HC and ufs device.
  */
@@ -145,12 +144,21 @@ int ufshcd_mcq_decide_queue_depth(struct ufs_hba *hba)
 {
 	int mac;
 
-	/* Mandatory to implement get_hba_mac() */
-	mac = ufshcd_mcq_vops_get_hba_mac(hba);
-	if (mac < 0) {
-		dev_err(hba->dev, "Failed to get mac, err=%d\n", mac);
-		return mac;
+	if (!hba->vops || !hba->vops->get_hba_mac) {
+		/*
+		 * Extract the maximum number of active transfer tasks value
+		 * from the host controller capabilities register. This value is
+		 * 0-based.
+		 */
+		hba->capabilities =
+			ufshcd_readl(hba, REG_CONTROLLER_CAPABILITIES);
+		mac = hba->capabilities & MASK_TRANSFER_REQUESTS_SLOTS_MCQ;
+		mac++;
+	} else {
+		mac = hba->vops->get_hba_mac(hba);
 	}
+	if (mac < 0)
+		goto err;
 
 	WARN_ON_ONCE(!hba->dev_info.bqueuedepth);
 	/*
@@ -159,6 +167,10 @@ int ufshcd_mcq_decide_queue_depth(struct ufs_hba *hba)
 	 * shared queuing architecture is enabled.
 	 */
 	return min_t(int, mac, hba->dev_info.bqueuedepth);
+
+err:
+	dev_err(hba->dev, "Failed to get mac, err=%d\n", mac);
+	return mac;
 }
 
 static int ufshcd_mcq_config_nr_queues(struct ufs_hba *hba)
@@ -415,8 +427,15 @@ EXPORT_SYMBOL_GPL(ufshcd_mcq_enable_esi);
 void ufshcd_mcq_enable(struct ufs_hba *hba)
 {
 	ufshcd_rmwl(hba, MCQ_MODE_SELECT, MCQ_MODE_SELECT, REG_UFS_MEM_CFG);
+	hba->mcq_enabled = true;
 }
 EXPORT_SYMBOL_GPL(ufshcd_mcq_enable);
+
+void ufshcd_mcq_disable(struct ufs_hba *hba)
+{
+	ufshcd_rmwl(hba, MCQ_MODE_SELECT, 0, REG_UFS_MEM_CFG);
+	hba->mcq_enabled = false;
+}
 
 void ufshcd_mcq_config_esi(struct ufs_hba *hba, struct msi_msg *msg)
 {

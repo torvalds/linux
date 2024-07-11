@@ -164,8 +164,6 @@ EXPORT_SYMBOL_GPL(ufshcd_dump_regs);
 enum {
 	UFSHCD_MAX_CHANNEL	= 0,
 	UFSHCD_MAX_ID		= 1,
-	UFSHCD_CMD_PER_LUN	= 32 - UFSHCD_NUM_RESERVED,
-	UFSHCD_CAN_QUEUE	= 32 - UFSHCD_NUM_RESERVED,
 };
 
 static const char *const ufshcd_state_name[] = {
@@ -455,7 +453,7 @@ static void ufshcd_add_command_trace(struct ufs_hba *hba, unsigned int tag,
 
 	intr = ufshcd_readl(hba, REG_INTERRUPT_STATUS);
 
-	if (is_mcq_enabled(hba)) {
+	if (hba->mcq_enabled) {
 		struct ufs_hw_queue *hwq = ufshcd_mcq_req_to_hwq(hba, rq);
 
 		hwq_id = hwq->id;
@@ -2304,7 +2302,7 @@ void ufshcd_send_command(struct ufs_hba *hba, unsigned int task_tag,
 	if (unlikely(ufshcd_should_inform_monitor(hba, lrbp)))
 		ufshcd_start_monitor(hba, lrbp);
 
-	if (is_mcq_enabled(hba)) {
+	if (hba->mcq_enabled) {
 		int utrd_size = sizeof(struct utp_transfer_req_desc);
 		struct utp_transfer_req_desc *src = lrbp->utr_descriptor_ptr;
 		struct utp_transfer_req_desc *dest;
@@ -2404,7 +2402,7 @@ static inline int ufshcd_hba_capabilities(struct ufs_hba *hba)
 		hba->capabilities &= ~MASK_64_ADDRESSING_SUPPORT;
 
 	/* nutrs and nutmrs are 0 based values */
-	hba->nutrs = (hba->capabilities & MASK_TRANSFER_REQUESTS_SLOTS) + 1;
+	hba->nutrs = (hba->capabilities & MASK_TRANSFER_REQUESTS_SLOTS_SDB) + 1;
 	hba->nutmrs =
 	((hba->capabilities & MASK_TASK_MANAGEMENT_REQUEST_SLOTS) >> 16) + 1;
 	hba->reserved_slot = hba->nutrs - 1;
@@ -3003,7 +3001,7 @@ static int ufshcd_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 		goto out;
 	}
 
-	if (is_mcq_enabled(hba))
+	if (hba->mcq_enabled)
 		hwq = ufshcd_mcq_req_to_hwq(hba, scsi_cmd_to_rq(cmd));
 
 	ufshcd_send_command(hba, tag, hwq);
@@ -3062,7 +3060,7 @@ static int ufshcd_clear_cmd(struct ufs_hba *hba, u32 task_tag)
 	unsigned long flags;
 	int err;
 
-	if (is_mcq_enabled(hba)) {
+	if (hba->mcq_enabled) {
 		/*
 		 * MCQ mode. Clean up the MCQ resources similar to
 		 * what the ufshcd_utrl_clear() does for SDB mode.
@@ -3172,7 +3170,7 @@ retry:
 			__func__, lrbp->task_tag);
 
 		/* MCQ mode */
-		if (is_mcq_enabled(hba)) {
+		if (hba->mcq_enabled) {
 			/* successfully cleared the command, retry if needed */
 			if (ufshcd_clear_cmd(hba, lrbp->task_tag) == 0)
 				err = -EAGAIN;
@@ -3994,10 +3992,10 @@ static void ufshcd_host_memory_configure(struct ufs_hba *hba)
  */
 static int ufshcd_dme_link_startup(struct ufs_hba *hba)
 {
-	struct uic_command uic_cmd = {0};
+	struct uic_command uic_cmd = {
+		.command = UIC_CMD_DME_LINK_STARTUP,
+	};
 	int ret;
-
-	uic_cmd.command = UIC_CMD_DME_LINK_STARTUP;
 
 	ret = ufshcd_send_uic_cmd(hba, &uic_cmd);
 	if (ret)
@@ -4016,10 +4014,10 @@ static int ufshcd_dme_link_startup(struct ufs_hba *hba)
  */
 static int ufshcd_dme_reset(struct ufs_hba *hba)
 {
-	struct uic_command uic_cmd = {0};
+	struct uic_command uic_cmd = {
+		.command = UIC_CMD_DME_RESET,
+	};
 	int ret;
-
-	uic_cmd.command = UIC_CMD_DME_RESET;
 
 	ret = ufshcd_send_uic_cmd(hba, &uic_cmd);
 	if (ret)
@@ -4055,10 +4053,10 @@ EXPORT_SYMBOL_GPL(ufshcd_dme_configure_adapt);
  */
 static int ufshcd_dme_enable(struct ufs_hba *hba)
 {
-	struct uic_command uic_cmd = {0};
+	struct uic_command uic_cmd = {
+		.command = UIC_CMD_DME_ENABLE,
+	};
 	int ret;
-
-	uic_cmd.command = UIC_CMD_DME_ENABLE;
 
 	ret = ufshcd_send_uic_cmd(hba, &uic_cmd);
 	if (ret)
@@ -4112,7 +4110,12 @@ static inline void ufshcd_add_delay_before_dme_cmd(struct ufs_hba *hba)
 int ufshcd_dme_set_attr(struct ufs_hba *hba, u32 attr_sel,
 			u8 attr_set, u32 mib_val, u8 peer)
 {
-	struct uic_command uic_cmd = {0};
+	struct uic_command uic_cmd = {
+		.command = peer ? UIC_CMD_DME_PEER_SET : UIC_CMD_DME_SET,
+		.argument1 = attr_sel,
+		.argument2 = UIC_ARG_ATTR_TYPE(attr_set),
+		.argument3 = mib_val,
+	};
 	static const char *const action[] = {
 		"dme-set",
 		"dme-peer-set"
@@ -4120,12 +4123,6 @@ int ufshcd_dme_set_attr(struct ufs_hba *hba, u32 attr_sel,
 	const char *set = action[!!peer];
 	int ret;
 	int retries = UFS_UIC_COMMAND_RETRIES;
-
-	uic_cmd.command = peer ?
-		UIC_CMD_DME_PEER_SET : UIC_CMD_DME_SET;
-	uic_cmd.argument1 = attr_sel;
-	uic_cmd.argument2 = UIC_ARG_ATTR_TYPE(attr_set);
-	uic_cmd.argument3 = mib_val;
 
 	do {
 		/* for peer attributes we retry upon failure */
@@ -4156,7 +4153,10 @@ EXPORT_SYMBOL_GPL(ufshcd_dme_set_attr);
 int ufshcd_dme_get_attr(struct ufs_hba *hba, u32 attr_sel,
 			u32 *mib_val, u8 peer)
 {
-	struct uic_command uic_cmd = {0};
+	struct uic_command uic_cmd = {
+		.command = peer ? UIC_CMD_DME_PEER_GET : UIC_CMD_DME_GET,
+		.argument1 = attr_sel,
+	};
 	static const char *const action[] = {
 		"dme-get",
 		"dme-peer-get"
@@ -4189,10 +4189,6 @@ int ufshcd_dme_get_attr(struct ufs_hba *hba, u32 attr_sel,
 				goto out;
 		}
 	}
-
-	uic_cmd.command = peer ?
-		UIC_CMD_DME_PEER_GET : UIC_CMD_DME_GET;
-	uic_cmd.argument1 = attr_sel;
 
 	do {
 		/* for peer attributes we retry upon failure */
@@ -4326,7 +4322,11 @@ out_unlock:
  */
 int ufshcd_uic_change_pwr_mode(struct ufs_hba *hba, u8 mode)
 {
-	struct uic_command uic_cmd = {0};
+	struct uic_command uic_cmd = {
+		.command = UIC_CMD_DME_SET,
+		.argument1 = UIC_ARG_MIB(PA_PWRMODE),
+		.argument3 = mode,
+	};
 	int ret;
 
 	if (hba->quirks & UFSHCD_QUIRK_BROKEN_PA_RXHSUNTERMCAP) {
@@ -4339,9 +4339,6 @@ int ufshcd_uic_change_pwr_mode(struct ufs_hba *hba, u8 mode)
 		}
 	}
 
-	uic_cmd.command = UIC_CMD_DME_SET;
-	uic_cmd.argument1 = UIC_ARG_MIB(PA_PWRMODE);
-	uic_cmd.argument3 = mode;
 	ufshcd_hold(hba);
 	ret = ufshcd_uic_pwr_ctrl(hba, &uic_cmd);
 	ufshcd_release(hba);
@@ -4382,13 +4379,14 @@ EXPORT_SYMBOL_GPL(ufshcd_link_recovery);
 
 int ufshcd_uic_hibern8_enter(struct ufs_hba *hba)
 {
-	int ret;
-	struct uic_command uic_cmd = {0};
+	struct uic_command uic_cmd = {
+		.command = UIC_CMD_DME_HIBER_ENTER,
+	};
 	ktime_t start = ktime_get();
+	int ret;
 
 	ufshcd_vops_hibern8_notify(hba, UIC_CMD_DME_HIBER_ENTER, PRE_CHANGE);
 
-	uic_cmd.command = UIC_CMD_DME_HIBER_ENTER;
 	ret = ufshcd_uic_pwr_ctrl(hba, &uic_cmd);
 	trace_ufshcd_profile_hibern8(dev_name(hba->dev), "enter",
 			     ktime_to_us(ktime_sub(ktime_get(), start)), ret);
@@ -4406,13 +4404,14 @@ EXPORT_SYMBOL_GPL(ufshcd_uic_hibern8_enter);
 
 int ufshcd_uic_hibern8_exit(struct ufs_hba *hba)
 {
-	struct uic_command uic_cmd = {0};
+	struct uic_command uic_cmd = {
+		.command = UIC_CMD_DME_HIBER_EXIT,
+	};
 	int ret;
 	ktime_t start = ktime_get();
 
 	ufshcd_vops_hibern8_notify(hba, UIC_CMD_DME_HIBER_EXIT, PRE_CHANGE);
 
-	uic_cmd.command = UIC_CMD_DME_HIBER_EXIT;
 	ret = ufshcd_uic_pwr_ctrl(hba, &uic_cmd);
 	trace_ufshcd_profile_hibern8(dev_name(hba->dev), "exit",
 			     ktime_to_us(ktime_sub(ktime_get(), start)), ret);
@@ -5562,7 +5561,7 @@ static int ufshcd_poll(struct Scsi_Host *shost, unsigned int queue_num)
 	u32 tr_doorbell;
 	struct ufs_hw_queue *hwq;
 
-	if (is_mcq_enabled(hba)) {
+	if (hba->mcq_enabled) {
 		hwq = &hba->uhq[queue_num];
 
 		return ufshcd_mcq_poll_cqe_lock(hba, hwq);
@@ -6203,7 +6202,7 @@ out:
 /* Complete requests that have door-bell cleared */
 static void ufshcd_complete_requests(struct ufs_hba *hba, bool force_compl)
 {
-	if (is_mcq_enabled(hba))
+	if (hba->mcq_enabled)
 		ufshcd_mcq_compl_pending_transfer(hba, force_compl);
 	else
 		ufshcd_transfer_req_compl(hba);
@@ -6460,7 +6459,7 @@ static bool ufshcd_abort_one(struct request *rq, void *priv)
 		*ret ? "failed" : "succeeded");
 
 	/* Release cmd in MCQ mode if abort succeeds */
-	if (is_mcq_enabled(hba) && (*ret == 0)) {
+	if (hba->mcq_enabled && (*ret == 0)) {
 		hwq = ufshcd_mcq_req_to_hwq(hba, scsi_cmd_to_rq(lrbp->cmd));
 		if (!hwq)
 			return 0;
@@ -7393,7 +7392,7 @@ static int ufshcd_eh_device_reset_handler(struct scsi_cmnd *cmd)
 		goto out;
 	}
 
-	if (is_mcq_enabled(hba)) {
+	if (hba->mcq_enabled) {
 		for (pos = 0; pos < hba->nutrs; pos++) {
 			lrbp = &hba->lrb[pos];
 			if (ufshcd_cmd_inflight(lrbp->cmd) &&
@@ -7489,7 +7488,7 @@ int ufshcd_try_to_abort_task(struct ufs_hba *hba, int tag)
 			 */
 			dev_err(hba->dev, "%s: cmd at tag %d not pending in the device.\n",
 				__func__, tag);
-			if (is_mcq_enabled(hba)) {
+			if (hba->mcq_enabled) {
 				/* MCQ mode */
 				if (ufshcd_cmd_inflight(lrbp->cmd)) {
 					/* sleep for max. 200us same delay as in SDB mode */
@@ -7567,7 +7566,7 @@ static int ufshcd_abort(struct scsi_cmnd *cmd)
 
 	ufshcd_hold(hba);
 
-	if (!is_mcq_enabled(hba)) {
+	if (!hba->mcq_enabled) {
 		reg = ufshcd_readl(hba, REG_UTP_TRANSFER_REQ_DOOR_BELL);
 		if (!test_bit(tag, &hba->outstanding_reqs)) {
 			/* If command is already aborted/completed, return FAILED. */
@@ -7600,7 +7599,7 @@ static int ufshcd_abort(struct scsi_cmnd *cmd)
 	}
 	hba->req_abort_count++;
 
-	if (!is_mcq_enabled(hba) && !(reg & (1 << tag))) {
+	if (!hba->mcq_enabled && !(reg & (1 << tag))) {
 		/* only execute this code in single doorbell mode */
 		dev_err(hba->dev,
 		"%s: cmd was completed, but without a notifying intr, tag = %d",
@@ -7627,7 +7626,7 @@ static int ufshcd_abort(struct scsi_cmnd *cmd)
 		goto release;
 	}
 
-	if (is_mcq_enabled(hba)) {
+	if (hba->mcq_enabled) {
 		/* MCQ mode. Branch off to handle abort for mcq mode */
 		err = ufshcd_mcq_abort(cmd);
 		goto release;
@@ -8682,6 +8681,9 @@ static int ufshcd_alloc_mcq(struct ufs_hba *hba)
 	if (ret)
 		goto err;
 
+	hba->host->can_queue = hba->nutrs - UFSHCD_NUM_RESERVED;
+	hba->reserved_slot = hba->nutrs - UFSHCD_NUM_RESERVED;
+
 	return 0;
 err:
 	hba->nutrs = old_nutrs;
@@ -8702,12 +8704,6 @@ static void ufshcd_config_mcq(struct ufs_hba *hba)
 	ufshcd_enable_intr(hba, intrs);
 	ufshcd_mcq_make_queues_operational(hba);
 	ufshcd_mcq_config_mac(hba, hba->nutrs);
-
-	hba->host->can_queue = hba->nutrs - UFSHCD_NUM_RESERVED;
-	hba->reserved_slot = hba->nutrs - UFSHCD_NUM_RESERVED;
-
-	ufshcd_mcq_enable(hba);
-	hba->mcq_enabled = true;
 
 	dev_info(hba->dev, "MCQ configured, nr_queues=%d, io_queues=%d, read_queue=%d, poll_queues=%d, queue_depth=%d\n",
 		 hba->nr_hw_queues, hba->nr_queues[HCTX_TYPE_DEFAULT],
@@ -8736,8 +8732,10 @@ static int ufshcd_device_init(struct ufs_hba *hba, bool init_dev_params)
 	ufshcd_set_link_active(hba);
 
 	/* Reconfigure MCQ upon reset */
-	if (is_mcq_enabled(hba) && !init_dev_params)
+	if (hba->mcq_enabled && !init_dev_params) {
 		ufshcd_config_mcq(hba);
+		ufshcd_mcq_enable(hba);
+	}
 
 	/* Verify device initialization by sending NOP OUT UPIU */
 	ret = ufshcd_verify_dev_init(hba);
@@ -8758,11 +8756,13 @@ static int ufshcd_device_init(struct ufs_hba *hba, bool init_dev_params)
 		if (ret)
 			return ret;
 		if (is_mcq_supported(hba) && !hba->scsi_host_added) {
+			ufshcd_mcq_enable(hba);
 			ret = ufshcd_alloc_mcq(hba);
 			if (!ret) {
 				ufshcd_config_mcq(hba);
 			} else {
 				/* Continue with SDB mode */
+				ufshcd_mcq_disable(hba);
 				use_mcq_mode = false;
 				dev_err(hba->dev, "MCQ mode is disabled, err=%d\n",
 					 ret);
@@ -8776,6 +8776,7 @@ static int ufshcd_device_init(struct ufs_hba *hba, bool init_dev_params)
 		} else if (is_mcq_supported(hba)) {
 			/* UFSHCD_QUIRK_REINIT_AFTER_MAX_GEAR_SWITCH is set */
 			ufshcd_config_mcq(hba);
+			ufshcd_mcq_enable(hba);
 		}
 	}
 
@@ -8961,8 +8962,6 @@ static const struct scsi_host_template ufshcd_driver_template = {
 	.eh_timed_out		= ufshcd_eh_timed_out,
 	.this_id		= -1,
 	.sg_tablesize		= SG_ALL,
-	.cmd_per_lun		= UFSHCD_CMD_PER_LUN,
-	.can_queue		= UFSHCD_CAN_QUEUE,
 	.max_segment_size	= PRDT_DATA_BYTE_COUNT_MAX,
 	.max_sectors		= SZ_1M / SECTOR_SIZE,
 	.max_host_blocked	= 1,
