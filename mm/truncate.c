@@ -233,7 +233,7 @@ bool truncate_inode_partial_folio(struct folio *folio, loff_t start, loff_t end)
 	 * doing a complex calculation here, and then doing the zeroing
 	 * anyway if the page split fails.
 	 */
-	if (!(folio->mapping->flags & AS_INACCESSIBLE))
+	if (!mapping_inaccessible(folio->mapping))
 		folio_zero_range(folio, offset, length);
 
 	if (folio_has_private(folio))
