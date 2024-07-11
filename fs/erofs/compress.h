@@ -54,17 +54,14 @@ struct z_erofs_decompressor {
  */
 
 /*
- * short-lived pages are pages directly from buddy system with specific
- * page->private (no need to set PagePrivate since these are non-LRU /
- * non-movable pages and bypass reclaim / migration code).
+ * Currently, short-lived pages are pages directly from buddy system
+ * with specific page->private (Z_EROFS_SHORTLIVED_PAGE).
+ * In the future world of Memdescs, it should be type 0 (Misc) memory
+ * which type can be checked with a new helper.
  */
 static inline bool z_erofs_is_shortlived_page(struct page *page)
 {
-	if (page->private != Z_EROFS_SHORTLIVED_PAGE)
-		return false;
-
-	DBG_BUGON(page->mapping);
-	return true;
+	return page->private == Z_EROFS_SHORTLIVED_PAGE;
 }
 
 static inline bool z_erofs_put_shortlivedpage(struct page **pagepool,
@@ -72,14 +69,7 @@ static inline bool z_erofs_put_shortlivedpage(struct page **pagepool,
 {
 	if (!z_erofs_is_shortlived_page(page))
 		return false;
-
-	/* short-lived pages should not be used by others at the same time */
-	if (page_ref_count(page) > 1) {
-		put_page(page);
-	} else {
-		/* follow the pcluster rule above. */
-		erofs_pagepool_add(pagepool, page);
-	}
+	erofs_pagepool_add(pagepool, page);
 	return true;
 }
 
