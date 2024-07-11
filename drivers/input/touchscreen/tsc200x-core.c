@@ -104,8 +104,6 @@ struct tsc200x {
 
 	bool			pen_down;
 
-	struct regulator	*vio;
-
 	struct gpio_desc	*reset_gpio;
 	int			(*tsc200x_cmd)(struct device *dev, u8 cmd);
 	int			irq;
@@ -495,10 +493,9 @@ int tsc200x_probe(struct device *dev, int irq, const struct input_id *tsc_id,
 		return error;
 	}
 
-	ts->vio = devm_regulator_get(dev, "vio");
-	if (IS_ERR(ts->vio)) {
-		error = PTR_ERR(ts->vio);
-		dev_err(dev, "error acquiring vio regulator: %d", error);
+	error = devm_regulator_get_enable(dev, "vio");
+	if (error) {
+		dev_err(dev, "error acquiring vio regulator: %d\n", error);
 		return error;
 	}
 
@@ -554,35 +551,19 @@ int tsc200x_probe(struct device *dev, int irq, const struct input_id *tsc_id,
 		return error;
 	}
 
-	error = regulator_enable(ts->vio);
-	if (error)
-		return error;
-
 	dev_set_drvdata(dev, ts);
 
 	error = input_register_device(ts->idev);
 	if (error) {
 		dev_err(dev,
 			"Failed to register input device, err: %d\n", error);
-		goto disable_regulator;
+		return error;
 	}
 
 	irq_set_irq_wake(irq, 1);
 	return 0;
-
-disable_regulator:
-	regulator_disable(ts->vio);
-	return error;
 }
 EXPORT_SYMBOL_GPL(tsc200x_probe);
-
-void tsc200x_remove(struct device *dev)
-{
-	struct tsc200x *ts = dev_get_drvdata(dev);
-
-	regulator_disable(ts->vio);
-}
-EXPORT_SYMBOL_GPL(tsc200x_remove);
 
 static int tsc200x_suspend(struct device *dev)
 {
