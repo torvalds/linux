@@ -136,7 +136,6 @@ static void tsc200x_update_pen_state(struct tsc200x *ts,
 static irqreturn_t tsc200x_irq_thread(int irq, void *_ts)
 {
 	struct tsc200x *ts = _ts;
-	unsigned long flags;
 	unsigned int pressure;
 	struct tsc200x_data tsdata;
 	int error;
@@ -182,13 +181,11 @@ static irqreturn_t tsc200x_irq_thread(int irq, void *_ts)
 	if (unlikely(pressure > MAX_12BIT))
 		goto out;
 
-	spin_lock_irqsave(&ts->lock, flags);
-
-	tsc200x_update_pen_state(ts, tsdata.x, tsdata.y, pressure);
-	mod_timer(&ts->penup_timer,
-		  jiffies + msecs_to_jiffies(TSC200X_PENUP_TIME_MS));
-
-	spin_unlock_irqrestore(&ts->lock, flags);
+	scoped_guard(spinlock_irqsave, &ts->lock) {
+		tsc200x_update_pen_state(ts, tsdata.x, tsdata.y, pressure);
+		mod_timer(&ts->penup_timer,
+			  jiffies + msecs_to_jiffies(TSC200X_PENUP_TIME_MS));
+	}
 
 	ts->last_valid_interrupt = jiffies;
 out:
@@ -198,11 +195,9 @@ out:
 static void tsc200x_penup_timer(struct timer_list *t)
 {
 	struct tsc200x *ts = from_timer(ts, t, penup_timer);
-	unsigned long flags;
 
-	spin_lock_irqsave(&ts->lock, flags);
+	guard(spinlock_irqsave)(&ts->lock);
 	tsc200x_update_pen_state(ts, 0, 0, 0);
-	spin_unlock_irqrestore(&ts->lock, flags);
 }
 
 static void tsc200x_start_scan(struct tsc200x *ts)
@@ -232,12 +227,10 @@ static void __tsc200x_disable(struct tsc200x *ts)
 {
 	tsc200x_stop_scan(ts);
 
-	disable_irq(ts->irq);
+	guard(disable_irq)(&ts->irq);
+
 	del_timer_sync(&ts->penup_timer);
-
 	cancel_delayed_work_sync(&ts->esd_work);
-
-	enable_irq(ts->irq);
 }
 
 /* must be called with ts->mutex held */
@@ -253,80 +246,79 @@ static void __tsc200x_enable(struct tsc200x *ts)
 	}
 }
 
-static ssize_t tsc200x_selftest_show(struct device *dev,
-				     struct device_attribute *attr,
-				     char *buf)
+/*
+ * Test TSC200X communications via temp high register.
+ */
+static int tsc200x_do_selftest(struct tsc200x *ts)
 {
-	struct tsc200x *ts = dev_get_drvdata(dev);
-	unsigned int temp_high;
 	unsigned int temp_high_orig;
 	unsigned int temp_high_test;
-	bool success = true;
+	unsigned int temp_high;
 	int error;
-
-	mutex_lock(&ts->mutex);
-
-	/*
-	 * Test TSC200X communications via temp high register.
-	 */
-	__tsc200x_disable(ts);
 
 	error = regmap_read(ts->regmap, TSC200X_REG_TEMP_HIGH, &temp_high_orig);
 	if (error) {
-		dev_warn(dev, "selftest failed: read error %d\n", error);
-		success = false;
-		goto out;
+		dev_warn(ts->dev, "selftest failed: read error %d\n", error);
+		return error;
 	}
 
 	temp_high_test = (temp_high_orig - 1) & MAX_12BIT;
 
 	error = regmap_write(ts->regmap, TSC200X_REG_TEMP_HIGH, temp_high_test);
 	if (error) {
-		dev_warn(dev, "selftest failed: write error %d\n", error);
-		success = false;
-		goto out;
+		dev_warn(ts->dev, "selftest failed: write error %d\n", error);
+		return error;
 	}
 
 	error = regmap_read(ts->regmap, TSC200X_REG_TEMP_HIGH, &temp_high);
 	if (error) {
-		dev_warn(dev, "selftest failed: read error %d after write\n",
-			 error);
-		success = false;
-		goto out;
-	}
-
-	if (temp_high != temp_high_test) {
-		dev_warn(dev, "selftest failed: %d != %d\n",
-			 temp_high, temp_high_test);
-		success = false;
+		dev_warn(ts->dev,
+			 "selftest failed: read error %d after write\n", error);
+		return error;
 	}
 
 	/* hardware reset */
 	tsc200x_reset(ts);
 
-	if (!success)
-		goto out;
+	if (temp_high != temp_high_test) {
+		dev_warn(ts->dev, "selftest failed: %d != %d\n",
+			 temp_high, temp_high_test);
+		return -EINVAL;
+	}
 
 	/* test that the reset really happened */
 	error = regmap_read(ts->regmap, TSC200X_REG_TEMP_HIGH, &temp_high);
 	if (error) {
-		dev_warn(dev, "selftest failed: read error %d after reset\n",
-			 error);
-		success = false;
-		goto out;
+		dev_warn(ts->dev,
+			 "selftest failed: read error %d after reset\n", error);
+		return error;
 	}
 
 	if (temp_high != temp_high_orig) {
-		dev_warn(dev, "selftest failed after reset: %d != %d\n",
+		dev_warn(ts->dev, "selftest failed after reset: %d != %d\n",
 			 temp_high, temp_high_orig);
-		success = false;
+		return -EINVAL;
 	}
 
-out:
-	__tsc200x_enable(ts);
-	mutex_unlock(&ts->mutex);
+	return 0;
+}
 
-	return sprintf(buf, "%d\n", success);
+static ssize_t tsc200x_selftest_show(struct device *dev,
+				     struct device_attribute *attr,
+				     char *buf)
+{
+	struct tsc200x *ts = dev_get_drvdata(dev);
+	int error;
+
+	scoped_guard(mutex, &ts->mutex) {
+		__tsc200x_disable(ts);
+
+		error = tsc200x_do_selftest(ts);
+
+		__tsc200x_enable(ts);
+	}
+
+	return sprintf(buf, "%d\n", !error);
 }
 
 static DEVICE_ATTR(selftest, S_IRUGO, tsc200x_selftest_show, NULL);
@@ -368,46 +360,42 @@ static void tsc200x_esd_work(struct work_struct *work)
 	int error;
 	unsigned int r;
 
-	if (!mutex_trylock(&ts->mutex)) {
-		/*
-		 * If the mutex is taken, it means that disable or enable is in
-		 * progress. In that case just reschedule the work. If the work
-		 * is not needed, it will be canceled by disable.
-		 */
-		goto reschedule;
-	}
-
-	if (time_is_after_jiffies(ts->last_valid_interrupt +
-				  msecs_to_jiffies(ts->esd_timeout)))
-		goto out;
-
-	/* We should be able to read register without disabling interrupts. */
-	error = regmap_read(ts->regmap, TSC200X_REG_CFR0, &r);
-	if (!error &&
-	    !((r ^ TSC200X_CFR0_INITVALUE) & TSC200X_CFR0_RW_MASK)) {
-		goto out;
-	}
-
 	/*
-	 * If we could not read our known value from configuration register 0
-	 * then we should reset the controller as if from power-up and start
-	 * scanning again.
+	 * If the mutex is taken, it means that disable or enable is in
+	 * progress. In that case just reschedule the work. If the work
+	 * is not needed, it will be canceled by disable.
 	 */
-	dev_info(ts->dev, "TSC200X not responding - resetting\n");
+	scoped_guard(mutex_try, &ts->mutex) {
+		if (time_is_after_jiffies(ts->last_valid_interrupt +
+					  msecs_to_jiffies(ts->esd_timeout)))
+			break;
 
-	disable_irq(ts->irq);
-	del_timer_sync(&ts->penup_timer);
+		/*
+		 * We should be able to read register without disabling
+		 * interrupts.
+		 */
+		error = regmap_read(ts->regmap, TSC200X_REG_CFR0, &r);
+		if (!error &&
+		    !((r ^ TSC200X_CFR0_INITVALUE) & TSC200X_CFR0_RW_MASK)) {
+			break;
+		}
 
-	tsc200x_update_pen_state(ts, 0, 0, 0);
+		/*
+		 * If we could not read our known value from configuration
+		 * register 0 then we should reset the controller as if from
+		 * power-up and start scanning again.
+		 */
+		dev_info(ts->dev, "TSC200X not responding - resetting\n");
 
-	tsc200x_reset(ts);
+		scoped_guard(disable_irq, &ts->irq) {
+			del_timer_sync(&ts->penup_timer);
+			tsc200x_update_pen_state(ts, 0, 0, 0);
+			tsc200x_reset(ts);
+		}
 
-	enable_irq(ts->irq);
-	tsc200x_start_scan(ts);
+		tsc200x_start_scan(ts);
+	}
 
-out:
-	mutex_unlock(&ts->mutex);
-reschedule:
 	/* re-arm the watchdog */
 	schedule_delayed_work(&ts->esd_work,
 			      round_jiffies_relative(
@@ -418,14 +406,12 @@ static int tsc200x_open(struct input_dev *input)
 {
 	struct tsc200x *ts = input_get_drvdata(input);
 
-	mutex_lock(&ts->mutex);
+	guard(mutex)(&ts->mutex);
 
 	if (!ts->suspended)
 		__tsc200x_enable(ts);
 
 	ts->opened = true;
-
-	mutex_unlock(&ts->mutex);
 
 	return 0;
 }
@@ -434,14 +420,12 @@ static void tsc200x_close(struct input_dev *input)
 {
 	struct tsc200x *ts = input_get_drvdata(input);
 
-	mutex_lock(&ts->mutex);
+	guard(mutex)(&ts->mutex);
 
 	if (!ts->suspended)
 		__tsc200x_disable(ts);
 
 	ts->opened = false;
-
-	mutex_unlock(&ts->mutex);
 }
 
 int tsc200x_probe(struct device *dev, int irq, const struct input_id *tsc_id,
@@ -573,7 +557,7 @@ static int tsc200x_suspend(struct device *dev)
 {
 	struct tsc200x *ts = dev_get_drvdata(dev);
 
-	mutex_lock(&ts->mutex);
+	guard(mutex)(&ts->mutex);
 
 	if (!ts->suspended && ts->opened)
 		__tsc200x_disable(ts);
@@ -583,8 +567,6 @@ static int tsc200x_suspend(struct device *dev)
 	if (device_may_wakeup(dev))
 		ts->wake_irq_enabled = enable_irq_wake(ts->irq) == 0;
 
-	mutex_unlock(&ts->mutex);
-
 	return 0;
 }
 
@@ -592,7 +574,7 @@ static int tsc200x_resume(struct device *dev)
 {
 	struct tsc200x *ts = dev_get_drvdata(dev);
 
-	mutex_lock(&ts->mutex);
+	guard(mutex)(&ts->mutex);
 
 	if (ts->wake_irq_enabled) {
 		disable_irq_wake(ts->irq);
@@ -603,8 +585,6 @@ static int tsc200x_resume(struct device *dev)
 		__tsc200x_enable(ts);
 
 	ts->suspended = false;
-
-	mutex_unlock(&ts->mutex);
 
 	return 0;
 }
