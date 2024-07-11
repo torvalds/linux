@@ -1841,7 +1841,7 @@ static int bnxt_get_rxfh(struct net_device *dev,
 }
 
 static void bnxt_modify_rss(struct bnxt *bp, struct bnxt_rss_ctx *rss_ctx,
-			    struct ethtool_rxfh_param *rxfh)
+			    const struct ethtool_rxfh_param *rxfh)
 {
 	if (rxfh->key) {
 		if (rss_ctx) {
@@ -1866,48 +1866,44 @@ static void bnxt_modify_rss(struct bnxt *bp, struct bnxt_rss_ctx *rss_ctx,
 	}
 }
 
-static int bnxt_set_rxfh_context(struct bnxt *bp,
-				 struct ethtool_rxfh_param *rxfh,
-				 struct netlink_ext_ack *extack)
+static int bnxt_rxfh_context_check(struct bnxt *bp,
+				   struct netlink_ext_ack *extack)
 {
-	u32 *rss_context = &rxfh->rss_context;
-	struct bnxt_rss_ctx *rss_ctx;
-	struct bnxt_vnic_info *vnic;
-	bool modify = false;
-	bool delete;
-	int bit_id;
-	int rc;
-
 	if (!BNXT_SUPPORTS_MULTI_RSS_CTX(bp)) {
 		NL_SET_ERR_MSG_MOD(extack, "RSS contexts not supported");
 		return -EOPNOTSUPP;
 	}
 
-	delete = *rss_context != ETH_RXFH_CONTEXT_ALLOC && rxfh->rss_delete;
-	if (!netif_running(bp->dev) && !delete) {
+	if (!netif_running(bp->dev)) {
 		NL_SET_ERR_MSG_MOD(extack, "Unable to set RSS contexts when interface is down");
 		return -EAGAIN;
 	}
 
-	if (*rss_context != ETH_RXFH_CONTEXT_ALLOC) {
-		rss_ctx = bnxt_get_rss_ctx_from_index(bp, *rss_context);
-		if (!rss_ctx) {
-			NL_SET_ERR_MSG_FMT_MOD(extack, "RSS context %u not found",
-					       *rss_context);
-			return -EINVAL;
-		}
-		if (delete) {
-			bnxt_del_one_rss_ctx(bp, rss_ctx, true);
-			return 0;
-		}
-		modify = true;
-		vnic = &rss_ctx->vnic;
-		goto modify_context;
-	}
+	return 0;
+}
+
+static int bnxt_create_rxfh_context(struct net_device *dev,
+				    struct ethtool_rxfh_context *ctx,
+				    const struct ethtool_rxfh_param *rxfh,
+				    struct netlink_ext_ack *extack)
+{
+	struct bnxt *bp = netdev_priv(dev);
+	struct bnxt_rss_ctx *rss_ctx;
+	struct bnxt_vnic_info *vnic;
+	int rc;
+
+	rc = bnxt_rxfh_context_check(bp, extack);
+	if (rc)
+		return rc;
 
 	if (bp->num_rss_ctx >= BNXT_MAX_ETH_RSS_CTX) {
 		NL_SET_ERR_MSG_FMT_MOD(extack, "Out of RSS contexts, maximum %u",
 				       BNXT_MAX_ETH_RSS_CTX);
+		return -EINVAL;
+	}
+
+	if (test_and_set_bit(rxfh->rss_context, bp->rss_ctx_bmap)) {
+		NL_SET_ERR_MSG_MOD(extack, "Context ID conflict");
 		return -EINVAL;
 	}
 
@@ -1945,11 +1941,7 @@ static int bnxt_set_rxfh_context(struct bnxt *bp,
 		NL_SET_ERR_MSG_MOD(extack, "Unable to setup TPA");
 		goto out;
 	}
-modify_context:
 	bnxt_modify_rss(bp, rss_ctx, rxfh);
-
-	if (modify)
-		return bnxt_hwrm_vnic_rss_cfg_p5(bp, vnic);
 
 	rc = __bnxt_setup_vnic_p5(bp, vnic);
 	if (rc) {
@@ -1957,19 +1949,55 @@ modify_context:
 		goto out;
 	}
 
-	bit_id = bitmap_find_free_region(bp->rss_ctx_bmap,
-					 BNXT_RSS_CTX_BMAP_LEN, 0);
-	if (bit_id < 0) {
-		rc = -ENOMEM;
-		goto out;
-	}
-	rss_ctx->index = (u16)bit_id;
-	*rss_context = rss_ctx->index;
-
+	rss_ctx->index = rxfh->rss_context;
 	return 0;
 out:
 	bnxt_del_one_rss_ctx(bp, rss_ctx, true);
 	return rc;
+}
+
+static int bnxt_modify_rxfh_context(struct net_device *dev,
+				    struct ethtool_rxfh_context *ctx,
+				    const struct ethtool_rxfh_param *rxfh,
+				    struct netlink_ext_ack *extack)
+{
+	struct bnxt *bp = netdev_priv(dev);
+	struct bnxt_rss_ctx *rss_ctx;
+	int rc;
+
+	rc = bnxt_rxfh_context_check(bp, extack);
+	if (rc)
+		return rc;
+
+	rss_ctx = bnxt_get_rss_ctx_from_index(bp, rxfh->rss_context);
+	if (!rss_ctx) {
+		NL_SET_ERR_MSG_FMT_MOD(extack, "RSS context %u not found",
+				       rxfh->rss_context);
+		return -EINVAL;
+	}
+
+	bnxt_modify_rss(bp, rss_ctx, rxfh);
+
+	return bnxt_hwrm_vnic_rss_cfg_p5(bp, &rss_ctx->vnic);
+}
+
+static int bnxt_remove_rxfh_context(struct net_device *dev,
+				    struct ethtool_rxfh_context *ctx,
+				    u32 rss_context,
+				    struct netlink_ext_ack *extack)
+{
+	struct bnxt *bp = netdev_priv(dev);
+	struct bnxt_rss_ctx *rss_ctx;
+
+	rss_ctx = bnxt_get_rss_ctx_from_index(bp, rss_context);
+	if (!rss_ctx) {
+		NL_SET_ERR_MSG_FMT_MOD(extack, "RSS context %u not found",
+				       rss_context);
+		return -EINVAL;
+	}
+
+	bnxt_del_one_rss_ctx(bp, rss_ctx, true);
+	return 0;
 }
 
 static int bnxt_set_rxfh(struct net_device *dev,
@@ -1981,9 +2009,6 @@ static int bnxt_set_rxfh(struct net_device *dev,
 
 	if (rxfh->hfunc && rxfh->hfunc != ETH_RSS_HASH_TOP)
 		return -EOPNOTSUPP;
-
-	if (rxfh->rss_context)
-		return bnxt_set_rxfh_context(bp, rxfh, extack);
 
 	bnxt_modify_rss(bp, NULL, rxfh);
 
@@ -5277,6 +5302,7 @@ void bnxt_ethtool_free(struct bnxt *bp)
 const struct ethtool_ops bnxt_ethtool_ops = {
 	.cap_link_lanes_supported	= 1,
 	.cap_rss_ctx_supported		= 1,
+	.rxfh_max_context_id		= BNXT_MAX_ETH_RSS_CTX,
 	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
 				     ETHTOOL_COALESCE_MAX_FRAMES |
 				     ETHTOOL_COALESCE_USECS_IRQ |
@@ -5314,6 +5340,9 @@ const struct ethtool_ops bnxt_ethtool_ops = {
 	.get_rxfh_key_size      = bnxt_get_rxfh_key_size,
 	.get_rxfh               = bnxt_get_rxfh,
 	.set_rxfh		= bnxt_set_rxfh,
+	.create_rxfh_context	= bnxt_create_rxfh_context,
+	.modify_rxfh_context	= bnxt_modify_rxfh_context,
+	.remove_rxfh_context	= bnxt_remove_rxfh_context,
 	.flash_device		= bnxt_flash_device,
 	.get_eeprom_len         = bnxt_get_eeprom_len,
 	.get_eeprom             = bnxt_get_eeprom,

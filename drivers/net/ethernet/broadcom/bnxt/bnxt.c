@@ -10257,6 +10257,7 @@ static void bnxt_hwrm_realloc_rss_ctx_vnic(struct bnxt *bp)
 			netdev_err(bp->dev, "Failed to restore RSS ctx %d\n",
 				   rss_ctx->index);
 			bnxt_del_one_rss_ctx(bp, rss_ctx, true);
+			ethtool_rxfh_context_lost(bp->dev, rss_ctx->index);
 		}
 	}
 }
