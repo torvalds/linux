@@ -814,12 +814,12 @@ struct MR_HOST_DEVICE_LIST {
 	__le32			size;
 	__le32			count;
 	__le32			reserved[2];
-	struct MR_HOST_DEVICE_LIST_ENTRY	host_device_list[1];
+	struct MR_HOST_DEVICE_LIST_ENTRY	host_device_list[] __counted_by_le(count);
 } __packed;
 
 #define HOST_DEVICE_LIST_SZ (sizeof(struct MR_HOST_DEVICE_LIST) +	       \
 			      (sizeof(struct MR_HOST_DEVICE_LIST_ENTRY) *      \
-			      (MEGASAS_MAX_PD + MAX_LOGICAL_DRIVES_EXT - 1)))
+			      (MEGASAS_MAX_PD + MAX_LOGICAL_DRIVES_EXT)))
 
 
 /*
