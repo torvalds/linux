@@ -284,7 +284,7 @@ static int mpic_msi_alloc(struct irq_domain *domain, unsigned int virq, unsigned
 	if (hwirq < 0)
 		return -ENOSPC;
 
-	for (int i = 0; i < nr_irqs; i++) {
+	for (unsigned int i = 0; i < nr_irqs; i++) {
 		irq_domain_set_info(domain, virq + i, hwirq + i,
 				    &mpic_msi_bottom_irq_chip,
 				    domain->host_data, handle_simple_irq,
@@ -429,7 +429,7 @@ static struct irq_chip mpic_ipi_irqchip = {
 static int mpic_ipi_alloc(struct irq_domain *d, unsigned int virq,
 			  unsigned int nr_irqs, void *args)
 {
-	for (int i = 0; i < nr_irqs; i++) {
+	for (unsigned int i = 0; i < nr_irqs; i++) {
 		irq_set_percpu_devid(virq + i);
 		irq_domain_set_info(d, virq + i, i, &mpic_ipi_irqchip, d->host_data,
 				    handle_percpu_devid_irq, NULL, NULL);
@@ -451,7 +451,7 @@ static const struct irq_domain_ops mpic_ipi_domain_ops = {
 
 static void mpic_ipi_resume(void)
 {
-	for (int i = 0; i < IPI_DOORBELL_END; i++) {
+	for (irq_hw_number_t i = 0; i < IPI_DOORBELL_END; i++) {
 		unsigned int virq = irq_find_mapping(mpic_ipi_domain, i);
 		struct irq_data *d;
 
@@ -497,7 +497,7 @@ static int mpic_set_affinity(struct irq_data *d, const struct cpumask *mask_val,
 
 static void mpic_smp_cpu_init(void)
 {
-	for (int i = 0; i < mpic_domain->hwirq_max; i++)
+	for (irq_hw_number_t i = 0; i < mpic_domain->hwirq_max; i++)
 		writel(i, per_cpu_int_base + MPIC_INT_SET_MASK);
 
 	if (!mpic_is_ipi_available())
@@ -516,7 +516,7 @@ static void mpic_smp_cpu_init(void)
 static void mpic_reenable_percpu(void)
 {
 	/* Re-enable per-CPU interrupts that were enabled before suspend */
-	for (unsigned int i = 0; i < MPIC_MAX_PER_CPU_IRQS; i++) {
+	for (irq_hw_number_t i = 0; i < MPIC_MAX_PER_CPU_IRQS; i++) {
 		struct irq_data *data;
 		unsigned int virq;
 
@@ -638,7 +638,8 @@ static inline void mpic_handle_ipi_irq(void) {}
 static void mpic_handle_cascade_irq(struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
-	unsigned long irqmap, i, irqsrc, cpuid;
+	unsigned long irqmap, irqsrc, cpuid;
+	irq_hw_number_t i;
 
 	chained_irq_enter(chip, desc);
 
@@ -667,7 +668,8 @@ static void mpic_handle_cascade_irq(struct irq_desc *desc)
 
 static void __exception_irq_entry mpic_handle_irq(struct pt_regs *regs)
 {
-	u32 irqstat, i;
+	irq_hw_number_t i;
+	u32 irqstat;
 
 	do {
 		irqstat = readl_relaxed(per_cpu_int_base + MPIC_CPU_INTACK);
@@ -782,7 +784,7 @@ static int __init mpic_of_init(struct device_node *node,
 
 	nr_irqs = FIELD_GET(MPIC_INT_CONTROL_NUMINT_MASK, readl(main_int_base + MPIC_INT_CONTROL));
 
-	for (int i = 0; i < nr_irqs; i++)
+	for (irq_hw_number_t i = 0; i < nr_irqs; i++)
 		writel(i, main_int_base + MPIC_INT_CLEAR_ENABLE);
 
 	mpic_domain = irq_domain_add_linear(node, nr_irqs, &mpic_irq_ops, NULL);
