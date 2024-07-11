@@ -436,7 +436,7 @@ static void nfs_invalidate_folio(struct folio *folio, size_t offset,
 	/* Cancel any unstarted writes on this page */
 	nfs_wb_folio_cancel(inode, folio);
 	folio_wait_private_2(folio); /* [DEPRECATED] */
-	trace_nfs_invalidate_folio(inode, folio);
+	trace_nfs_invalidate_folio(inode, folio_pos(folio) + offset, length);
 }
 
 /*
@@ -504,7 +504,8 @@ static int nfs_launder_folio(struct folio *folio)
 
 	folio_wait_private_2(folio); /* [DEPRECATED] */
 	ret = nfs_wb_folio(inode, folio);
-	trace_nfs_launder_folio_done(inode, folio, ret);
+	trace_nfs_launder_folio_done(inode, folio_pos(folio),
+			folio_size(folio), ret);
 	return ret;
 }
 

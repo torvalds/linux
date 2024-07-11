@@ -2063,17 +2063,17 @@ int nfs_wb_folio_cancel(struct inode *inode, struct folio *folio)
  */
 int nfs_wb_folio(struct inode *inode, struct folio *folio)
 {
-	loff_t range_start = folio_file_pos(folio);
-	loff_t range_end = range_start + (loff_t)folio_size(folio) - 1;
+	loff_t range_start = folio_pos(folio);
+	size_t len = folio_size(folio);
 	struct writeback_control wbc = {
 		.sync_mode = WB_SYNC_ALL,
 		.nr_to_write = 0,
 		.range_start = range_start,
-		.range_end = range_end,
+		.range_end = range_start + len - 1,
 	};
 	int ret;
 
-	trace_nfs_writeback_folio(inode, folio);
+	trace_nfs_writeback_folio(inode, range_start, len);
 
 	for (;;) {
 		folio_wait_writeback(folio);
@@ -2091,7 +2091,7 @@ int nfs_wb_folio(struct inode *inode, struct folio *folio)
 			goto out_error;
 	}
 out_error:
-	trace_nfs_writeback_folio_done(inode, folio, ret);
+	trace_nfs_writeback_folio_done(inode, range_start, len, ret);
 	return ret;
 }
 
