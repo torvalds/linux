@@ -94,8 +94,10 @@ v3d_performance_query_info_free(struct v3d_performance_query_info *query_info,
 	if (query_info->queries) {
 		unsigned int i;
 
-		for (i = 0; i < count; i++)
+		for (i = 0; i < count; i++) {
 			drm_syncobj_put(query_info->queries[i].syncobj);
+			kvfree(query_info->queries[i].kperfmon_ids);
+		}
 
 		kvfree(query_info->queries);
 	}
