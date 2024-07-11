@@ -25,37 +25,27 @@ static inline kvm_pfn_t folio_file_pfn(struct folio *folio, pgoff_t index)
 	return folio_pfn(folio) + (index & (folio_nr_pages(folio) - 1));
 }
 
-static int __kvm_gmem_prepare_folio(struct inode *inode, pgoff_t index, struct folio *folio)
+static int __kvm_gmem_prepare_folio(struct kvm *kvm, struct kvm_memory_slot *slot,
+				    pgoff_t index, struct folio *folio)
 {
 #ifdef CONFIG_HAVE_KVM_ARCH_GMEM_PREPARE
-	struct list_head *gmem_list = &inode->i_mapping->i_private_list;
-	struct kvm_gmem *gmem;
+	kvm_pfn_t pfn;
+	gfn_t gfn;
+	int rc;
 
-	list_for_each_entry(gmem, gmem_list, entry) {
-		struct kvm_memory_slot *slot;
-		struct kvm *kvm = gmem->kvm;
-		kvm_pfn_t pfn;
-		gfn_t gfn;
-		int rc;
+	if (!kvm_arch_gmem_prepare_needed(kvm))
+		return 0;
 
-		if (!kvm_arch_gmem_prepare_needed(kvm))
-			continue;
-
-		slot = xa_load(&gmem->bindings, index);
-		if (!slot)
-			continue;
-
-		pfn = folio_file_pfn(folio, index);
-		gfn = slot->base_gfn + index - slot->gmem.pgoff;
-		rc = kvm_arch_gmem_prepare(kvm, gfn, pfn, folio_order(folio));
-		if (rc) {
-			pr_warn_ratelimited("gmem: Failed to prepare folio for GFN %llx PFN %llx error %d.\n",
-					    gfn, pfn, rc);
-			return rc;
-		}
+	pfn = folio_file_pfn(folio, index);
+	gfn = slot->base_gfn + index - slot->gmem.pgoff;
+	rc = kvm_arch_gmem_prepare(kvm, gfn, pfn, folio_order(folio));
+	if (rc) {
+		pr_warn_ratelimited("gmem: Failed to prepare folio for index %lx GFN %llx PFN %llx error %d.\n",
+				    index, gfn, pfn, rc);
+		return rc;
 	}
-
 #endif
+
 	return 0;
 }
 
@@ -65,7 +55,7 @@ static int __kvm_gmem_prepare_folio(struct inode *inode, pgoff_t index, struct f
  * On successful return the guest sees a zero page so as to avoid
  * leaking host data and the up-to-date flag is set.
  */
-static int kvm_gmem_prepare_folio(struct file *file, struct kvm_memory_slot *slot,
+static int kvm_gmem_prepare_folio(struct kvm *kvm, struct kvm_memory_slot *slot,
 				  gfn_t gfn, struct folio *folio)
 {
 	unsigned long nr_pages, i;
@@ -95,8 +85,7 @@ static int kvm_gmem_prepare_folio(struct file *file, struct kvm_memory_slot *slo
 	WARN_ON(!IS_ALIGNED(slot->gmem.pgoff, 1 << folio_order(folio)));
 	index = gfn - slot->base_gfn + slot->gmem.pgoff;
 	index = ALIGN_DOWN(index, 1 << folio_order(folio));
-
-	r = __kvm_gmem_prepare_folio(file_inode(file), index, folio);
+	r = __kvm_gmem_prepare_folio(kvm, slot, index, folio);
 	if (!r)
 		folio_mark_uptodate(folio);
 
@@ -619,7 +608,7 @@ int kvm_gmem_get_pfn(struct kvm *kvm, struct kvm_memory_slot *slot,
 		goto out;
 	}
 
-	r = kvm_gmem_prepare_folio(file, slot, gfn, folio);
+	r = kvm_gmem_prepare_folio(kvm, slot, gfn, folio);
 	folio_unlock(folio);
 	if (r < 0)
 		folio_put(folio);
