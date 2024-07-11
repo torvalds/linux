@@ -1390,6 +1390,14 @@ thermal_zone_device_register_with_trips(const char *type,
 	if (num_trips > 0 && !trips)
 		return ERR_PTR(-EINVAL);
 
+	if (polling_delay) {
+		if (passive_delay > polling_delay)
+			return ERR_PTR(-EINVAL);
+
+		if (!passive_delay)
+			passive_delay = polling_delay;
+	}
+
 	if (!thermal_class)
 		return ERR_PTR(-ENODEV);
 
