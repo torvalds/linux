@@ -134,6 +134,17 @@ static void misc_cg_update_watermark(struct misc_res *res, u64 new_usage)
 	}
 }
 
+static void misc_cg_event(enum misc_res_type type, struct misc_cg *cg)
+{
+	atomic64_inc(&cg->res[type].events_local);
+	cgroup_file_notify(&cg->events_local_file);
+
+	for (; parent_misc(cg); cg = parent_misc(cg)) {
+		atomic64_inc(&cg->res[type].events);
+		cgroup_file_notify(&cg->events_file);
+	}
+}
+
 /**
  * misc_cg_try_charge() - Try charging the misc cgroup.
  * @type: Misc res type to charge.
@@ -177,10 +188,7 @@ int misc_cg_try_charge(enum misc_res_type type, struct misc_cg *cg, u64 amount)
 	return 0;
 
 err_charge:
-	for (j = i; j; j = parent_misc(j)) {
-		atomic64_inc(&j->res[type].events);
-		cgroup_file_notify(&j->events_file);
-	}
+	misc_cg_event(type, i);
 
 	for (j = cg; j != i; j = parent_misc(j))
 		misc_cg_cancel_charge(type, j, amount);
@@ -368,18 +376,31 @@ static int misc_cg_capacity_show(struct seq_file *sf, void *v)
 	return 0;
 }
 
-static int misc_events_show(struct seq_file *sf, void *v)
+static int __misc_events_show(struct seq_file *sf, bool local)
 {
 	struct misc_cg *cg = css_misc(seq_css(sf));
 	u64 events;
 	int i;
 
 	for (i = 0; i < MISC_CG_RES_TYPES; i++) {
-		events = atomic64_read(&cg->res[i].events);
+		if (local)
+			events = atomic64_read(&cg->res[i].events_local);
+		else
+			events = atomic64_read(&cg->res[i].events);
 		if (READ_ONCE(misc_res_capacity[i]) || events)
 			seq_printf(sf, "%s.max %llu\n", misc_res_name[i], events);
 	}
 	return 0;
+}
+
+static int misc_events_show(struct seq_file *sf, void *v)
+{
+	return __misc_events_show(sf, false);
+}
+
+static int misc_events_local_show(struct seq_file *sf, void *v)
+{
+	return __misc_events_show(sf, true);
 }
 
 /* Misc cgroup interface files */
@@ -408,6 +429,12 @@ static struct cftype misc_cg_files[] = {
 		.flags = CFTYPE_NOT_ON_ROOT,
 		.file_offset = offsetof(struct misc_cg, events_file),
 		.seq_show = misc_events_show,
+	},
+	{
+		.name = "events.local",
+		.flags = CFTYPE_NOT_ON_ROOT,
+		.file_offset = offsetof(struct misc_cg, events_local_file),
+		.seq_show = misc_events_local_show,
 	},
 	{}
 };

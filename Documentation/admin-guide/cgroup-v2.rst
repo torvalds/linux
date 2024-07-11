@@ -2680,6 +2680,11 @@ Miscellaneous controller provides 3 interface files. If two misc resources (res_
 		The number of times the cgroup's resource usage was
 		about to go over the max boundary.
 
+  misc.events.local
+        Similar to misc.events but the fields in the file are local to the
+        cgroup i.e. not hierarchical. The file modified event generated on
+        this file reflects only the local events.
+
 Migration and Ownership
 ~~~~~~~~~~~~~~~~~~~~~~~
 
