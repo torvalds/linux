@@ -310,7 +310,7 @@ static const struct clk_parent_data pll_mux_parent_data[][SIERRA_NUM_CMN_PLLC_PA
 	},
 };
 
-static u32 cdns_sierra_pll_mux_table[][SIERRA_NUM_CMN_PLLC_PARENTS] = {
+static const u32 cdns_sierra_pll_mux_table[][SIERRA_NUM_CMN_PLLC_PARENTS] = {
 	[CMN_PLLLC] = { 0, 1 },
 	[CMN_PLLLC1] = { 1, 0 },
 };
