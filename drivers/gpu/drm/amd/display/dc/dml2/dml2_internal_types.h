@@ -101,6 +101,7 @@ struct dml2_wrapper_scratch {
 	struct dml2_dml_to_dc_pipe_mapping dml_to_dc_pipe_mapping;
 	bool enable_flexible_pipe_mapping;
 	bool plane_duplicate_exists;
+	unsigned int dp2_mst_stream_count;
 };
 
 struct dml2_helper_det_policy_scratch {

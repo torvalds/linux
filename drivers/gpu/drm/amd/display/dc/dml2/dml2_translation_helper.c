@@ -733,7 +733,8 @@ static void populate_dml_timing_cfg_from_stream_state(struct dml_timing_cfg_st *
 }
 
 static void populate_dml_output_cfg_from_stream_state(struct dml_output_cfg_st *out, unsigned int location,
-				const struct dc_stream_state *in, const struct pipe_ctx *pipe)
+				const struct dc_stream_state *in, const struct pipe_ctx *pipe,
+				unsigned int dp2_mst_stream_count)
 {
 	unsigned int output_bpc;
 
@@ -746,7 +747,7 @@ static void populate_dml_output_cfg_from_stream_state(struct dml_output_cfg_st *
 	case SIGNAL_TYPE_DISPLAY_PORT_MST:
 	case SIGNAL_TYPE_DISPLAY_PORT:
 		out->OutputEncoder[location] = dml_dp;
-		if (is_dp2p0_output_encoder(pipe))
+		if (is_dp2p0_output_encoder(pipe, dp2_mst_stream_count))
 			out->OutputEncoder[location] = dml_dp2p0;
 		break;
 	case SIGNAL_TYPE_EDP:
@@ -1193,6 +1194,37 @@ static void dml2_populate_pipe_to_plane_index_mapping(struct dml2_context *dml2,
 		plane_index = 0;
 	}
 }
+
+static unsigned int calculate_dp2_mst_stream_count(struct dc_state *context)
+{
+	int i, j;
+	unsigned int dp2_mst_stream_count = 0;
+
+	for (i = 0; i < context->stream_count; i++) {
+		struct dc_stream_state *stream = context->streams[i];
+
+		if (!stream || stream->signal != SIGNAL_TYPE_DISPLAY_PORT_MST)
+			continue;
+
+		for (j = 0; j < MAX_PIPES; j++) {
+			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
+
+			if (!pipe_ctx || !pipe_ctx->stream)
+				continue;
+
+			if (stream != pipe_ctx->stream)
+				continue;
+
+			if (pipe_ctx->stream_res.hpo_dp_stream_enc && pipe_ctx->link_res.hpo_dp_link_enc) {
+				dp2_mst_stream_count++;
+				break;
+			}
+		}
+	}
+
+	return dp2_mst_stream_count;
+}
+
 static void populate_dml_writeback_cfg_from_stream_state(struct dml_writeback_cfg_st *out,
 		unsigned int location, const struct dc_stream_state *in)
 {
@@ -1255,6 +1287,7 @@ void map_dc_state_into_dml_display_cfg(struct dml2_context *dml2, struct dc_stat
 	if (dml2->v20.dml_core_ctx.ip.hostvm_enable)
 		dml2->v20.dml_core_ctx.policy.AllowForPStateChangeOrStutterInVBlankFinal = dml_prefetch_support_uclk_fclk_and_stutter;
 
+	dml2->v20.scratch.dp2_mst_stream_count = calculate_dp2_mst_stream_count(context);
 	dml2_populate_pipe_to_plane_index_mapping(dml2, context);
 
 	for (i = 0; i < context->stream_count; i++) {
@@ -1276,7 +1309,7 @@ void map_dc_state_into_dml_display_cfg(struct dml2_context *dml2, struct dc_stat
 		ASSERT(disp_cfg_stream_location >= 0 && disp_cfg_stream_location <= __DML2_WRAPPER_MAX_STREAMS_PLANES__);
 
 		populate_dml_timing_cfg_from_stream_state(&dml_dispcfg->timing, disp_cfg_stream_location, context->streams[i]);
-		populate_dml_output_cfg_from_stream_state(&dml_dispcfg->output, disp_cfg_stream_location, context->streams[i], current_pipe_context);
+		populate_dml_output_cfg_from_stream_state(&dml_dispcfg->output, disp_cfg_stream_location, context->streams[i], current_pipe_context, dml2->v20.scratch.dp2_mst_stream_count);
 		/*Call site for populate_dml_writeback_cfg_from_stream_state*/
 		populate_dml_writeback_cfg_from_stream_state(&dml_dispcfg->writeback,
 			disp_cfg_stream_location, context->streams[i]);
@@ -1337,7 +1370,7 @@ void map_dc_state_into_dml_display_cfg(struct dml2_context *dml2, struct dc_stat
 
 				if (j >= 1) {
 					populate_dml_timing_cfg_from_stream_state(&dml_dispcfg->timing, disp_cfg_plane_location, context->streams[i]);
-					populate_dml_output_cfg_from_stream_state(&dml_dispcfg->output, disp_cfg_plane_location, context->streams[i], current_pipe_context);
+					populate_dml_output_cfg_from_stream_state(&dml_dispcfg->output, disp_cfg_plane_location, context->streams[i], current_pipe_context, dml2->v20.scratch.dp2_mst_stream_count);
 					switch (context->streams[i]->debug.force_odm_combine_segments) {
 					case 2:
 						dml2->v20.dml_core_ctx.policy.ODMUse[disp_cfg_plane_location] = dml_odm_use_policy_combine_2to1;
