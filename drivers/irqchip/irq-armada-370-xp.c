@@ -517,18 +517,13 @@ static void mpic_reenable_percpu(void)
 {
 	/* Re-enable per-CPU interrupts that were enabled before suspend */
 	for (irq_hw_number_t i = 0; i < MPIC_MAX_PER_CPU_IRQS; i++) {
+		unsigned int virq = irq_linear_revmap(mpic_domain, i);
 		struct irq_data *d;
-		unsigned int virq;
 
-		virq = irq_linear_revmap(mpic_domain, i);
-		if (!virq)
+		if (!virq || !irq_percpu_is_enabled(virq))
 			continue;
 
 		d = irq_get_irq_data(virq);
-
-		if (!irq_percpu_is_enabled(virq))
-			continue;
-
 		mpic_irq_unmask(d);
 	}
 
@@ -706,10 +701,9 @@ static void mpic_resume(void)
 
 	/* Re-enable interrupts */
 	for (irq_hw_number_t i = 0; i < mpic_domain->hwirq_max; i++) {
+		unsigned int virq = irq_linear_revmap(mpic_domain, i);
 		struct irq_data *d;
-		unsigned int virq;
 
-		virq = irq_linear_revmap(mpic_domain, i);
 		if (!virq)
 			continue;
 
