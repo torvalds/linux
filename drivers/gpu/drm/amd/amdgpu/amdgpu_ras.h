@@ -476,10 +476,10 @@ struct ras_err_pages {
 };
 
 struct ras_ecc_err {
-	u64 hash_index;
 	uint64_t status;
 	uint64_t ipid;
 	uint64_t addr;
+	uint64_t pa_pfn;
 	struct ras_err_pages err_pages;
 };
 

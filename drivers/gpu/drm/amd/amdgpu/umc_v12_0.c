@@ -524,9 +524,9 @@ static int umc_v12_0_update_ecc_status(struct amdgpu_device *adev,
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	uint16_t hwid, mcatype;
 	uint64_t page_pfn[UMC_V12_0_BAD_PAGE_NUM_PER_CHANNEL];
-	uint64_t err_addr, hash_val = 0, pa_addr = 0;
+	uint64_t err_addr, pa_addr = 0;
 	struct ras_ecc_err *ecc_err;
-	int count, ret;
+	int count, ret, i;
 
 	hwid = REG_GET_FIELD(ipid, MCMP1_IPIDT0, HardwareID);
 	mcatype = REG_GET_FIELD(ipid, MCMP1_IPIDT0, McaType);
@@ -559,6 +559,32 @@ static int umc_v12_0_update_ecc_status(struct amdgpu_device *adev,
 	if (ret)
 		return ret;
 
+	ecc_err = kzalloc(sizeof(*ecc_err), GFP_KERNEL);
+	if (!ecc_err)
+		return -ENOMEM;
+
+	ecc_err->status = status;
+	ecc_err->ipid = ipid;
+	ecc_err->addr = addr;
+	ecc_err->pa_pfn = UMC_V12_ADDR_MASK_BAD_COLS(pa_addr) >> AMDGPU_GPU_PAGE_SHIFT;
+
+	/* If converted pa_pfn is 0, use pa C4 pfn. */
+	if (!ecc_err->pa_pfn)
+		ecc_err->pa_pfn = BIT_ULL(UMC_V12_0_PA_C4_BIT) >> AMDGPU_GPU_PAGE_SHIFT;
+
+	ret = amdgpu_umc_logs_ecc_err(adev, &con->umc_ecc_log.de_page_tree, ecc_err);
+	if (ret) {
+		if (ret == -EEXIST)
+			con->umc_ecc_log.de_queried_count++;
+		else
+			dev_err(adev->dev, "Fail to log ecc error! ret:%d\n", ret);
+
+		kfree(ecc_err);
+		return ret;
+	}
+
+	con->umc_ecc_log.de_queried_count++;
+
 	memset(page_pfn, 0, sizeof(page_pfn));
 	count = umc_v12_0_lookup_bad_pages_in_a_row(adev,
 				pa_addr,
@@ -568,44 +594,9 @@ static int umc_v12_0_update_ecc_status(struct amdgpu_device *adev,
 		return 0;
 	}
 
-	ret = amdgpu_umc_build_pages_hash(adev,
-			page_pfn, count, &hash_val);
-	if (ret) {
-		dev_err(adev->dev, "Fail to build error pages hash\n");
-		return ret;
-	}
-
-	ecc_err = kzalloc(sizeof(*ecc_err), GFP_KERNEL);
-	if (!ecc_err)
-		return -ENOMEM;
-
-	ecc_err->err_pages.pfn = kcalloc(count, sizeof(*ecc_err->err_pages.pfn), GFP_KERNEL);
-	if (!ecc_err->err_pages.pfn) {
-		kfree(ecc_err);
-		return -ENOMEM;
-	}
-
-	memcpy(ecc_err->err_pages.pfn, page_pfn, count * sizeof(*ecc_err->err_pages.pfn));
-	ecc_err->err_pages.count = count;
-
-	ecc_err->hash_index = hash_val;
-	ecc_err->status = status;
-	ecc_err->ipid = ipid;
-	ecc_err->addr = addr;
-
-	ret = amdgpu_umc_logs_ecc_err(adev, &con->umc_ecc_log.de_page_tree, ecc_err);
-	if (ret) {
-		if (ret == -EEXIST)
-			con->umc_ecc_log.de_queried_count++;
-		else
-			dev_err(adev->dev, "Fail to log ecc error! ret:%d\n", ret);
-
-		kfree(ecc_err->err_pages.pfn);
-		kfree(ecc_err);
-		return ret;
-	}
-
-	con->umc_ecc_log.de_queried_count++;
+	/* Reserve memory */
+	for (i = 0; i < count; i++)
+		amdgpu_ras_reserve_page(adev, page_pfn[i]);
 
 	/* The problem case is as follows:
 	 * 1. GPU A triggers a gpu ras reset, and GPU A drives
@@ -631,16 +622,21 @@ static int umc_v12_0_fill_error_record(struct amdgpu_device *adev,
 				struct ras_ecc_err *ecc_err, void *ras_error_status)
 {
 	struct ras_err_data *err_data = (struct ras_err_data *)ras_error_status;
-	uint32_t i = 0;
-	int ret = 0;
+	uint64_t page_pfn[UMC_V12_0_BAD_PAGE_NUM_PER_CHANNEL];
+	int ret, i, count;
 
 	if (!err_data || !ecc_err)
 		return -EINVAL;
 
-	for (i = 0; i < ecc_err->err_pages.count; i++) {
+	memset(page_pfn, 0, sizeof(page_pfn));
+	count = umc_v12_0_lookup_bad_pages_in_a_row(adev,
+				ecc_err->pa_pfn << AMDGPU_GPU_PAGE_SHIFT,
+				page_pfn, ARRAY_SIZE(page_pfn));
+
+	for (i = 0; i < count; i++) {
 		ret = amdgpu_umc_fill_error_record(err_data,
 				ecc_err->addr,
-				ecc_err->err_pages.pfn[i] << AMDGPU_GPU_PAGE_SHIFT,
+				page_pfn[i] << AMDGPU_GPU_PAGE_SHIFT,
 				MCA_IPID_2_UMC_CH(ecc_err->ipid),
 				MCA_IPID_2_UMC_INST(ecc_err->ipid));
 		if (ret)
@@ -674,7 +670,8 @@ static void umc_v12_0_query_ras_ecc_err_addr(struct amdgpu_device *adev,
 			dev_err(adev->dev, "Fail to fill umc error record, ret:%d\n", ret);
 			break;
 		}
-		radix_tree_tag_clear(ecc_tree, entries[i]->hash_index, UMC_ECC_NEW_DETECTED_TAG);
+		radix_tree_tag_clear(ecc_tree,
+				entries[i]->pa_pfn, UMC_ECC_NEW_DETECTED_TAG);
 	}
 	mutex_unlock(&con->umc_ecc_log.lock);
 }

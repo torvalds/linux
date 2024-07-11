@@ -519,18 +519,10 @@ int amdgpu_umc_logs_ecc_err(struct amdgpu_device *adev,
 	ecc_log = &con->umc_ecc_log;
 
 	mutex_lock(&ecc_log->lock);
-	ret = radix_tree_insert(ecc_tree, ecc_err->hash_index, ecc_err);
-	if (!ret) {
-		struct ras_err_pages *err_pages = &ecc_err->err_pages;
-		int i;
-
-		/* Reserve memory */
-		for (i = 0; i < err_pages->count; i++)
-			amdgpu_ras_reserve_page(adev, err_pages->pfn[i]);
-
+	ret = radix_tree_insert(ecc_tree, ecc_err->pa_pfn, ecc_err);
+	if (!ret)
 		radix_tree_tag_set(ecc_tree,
-			ecc_err->hash_index, UMC_ECC_NEW_DETECTED_TAG);
-	}
+			ecc_err->pa_pfn, UMC_ECC_NEW_DETECTED_TAG);
 	mutex_unlock(&ecc_log->lock);
 
 	return ret;
