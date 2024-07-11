@@ -12,6 +12,7 @@
 
 #include <linux/bitfield.h>
 #include <linux/bits.h>
+#include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -751,29 +752,50 @@ static struct syscore_ops mpic_syscore_ops = {
 	.resume		= mpic_resume,
 };
 
-static int __init mpic_of_init(struct device_node *node,
-			       struct device_node *parent)
+static int __init mpic_map_region(struct device_node *np, int index,
+				  void __iomem **base, phys_addr_t *phys_base)
 {
-	struct resource main_int_res, per_cpu_int_res;
+	struct resource res;
+	int err;
+
+	err = of_address_to_resource(np, index, &res);
+	if (WARN_ON(err))
+		goto fail;
+
+	if (WARN_ON(!request_mem_region(res.start, resource_size(&res), np->full_name))) {
+		err = -EBUSY;
+		goto fail;
+	}
+
+	*base = ioremap(res.start, resource_size(&res));
+	if (WARN_ON(!*base)) {
+		err = -ENOMEM;
+		goto fail;
+	}
+
+	if (phys_base)
+		*phys_base = res.start;
+
+	return 0;
+
+fail:
+	pr_err("%pOF: Unable to map resource %d: %pE\n", np, index, ERR_PTR(err));
+	return err;
+}
+
+static int __init mpic_of_init(struct device_node *node, struct device_node *parent)
+{
+	phys_addr_t phys_base;
 	unsigned int nr_irqs;
+	int err;
 
-	BUG_ON(of_address_to_resource(node, 0, &main_int_res));
-	BUG_ON(of_address_to_resource(node, 1, &per_cpu_int_res));
+	err = mpic_map_region(node, 0, &main_int_base, &phys_base);
+	if (err)
+		return err;
 
-	BUG_ON(!request_mem_region(main_int_res.start,
-				   resource_size(&main_int_res),
-				   node->full_name));
-	BUG_ON(!request_mem_region(per_cpu_int_res.start,
-				   resource_size(&per_cpu_int_res),
-				   node->full_name));
-
-	main_int_base = ioremap(main_int_res.start,
-				resource_size(&main_int_res));
-	BUG_ON(!main_int_base);
-
-	per_cpu_int_base = ioremap(per_cpu_int_res.start,
-				   resource_size(&per_cpu_int_res));
-	BUG_ON(!per_cpu_int_base);
+	err = mpic_map_region(node, 1, &per_cpu_int_base, NULL);
+	if (err)
+		return err;
 
 	nr_irqs = FIELD_GET(MPIC_INT_CONTROL_NUMINT_MASK, readl(main_int_base + MPIC_INT_CONTROL));
 
@@ -794,7 +816,7 @@ static int __init mpic_of_init(struct device_node *node,
 	mpic_perf_init();
 	mpic_smp_cpu_init();
 
-	mpic_msi_init(node, main_int_res.start);
+	mpic_msi_init(node, phys_base);
 
 	if (parent_irq <= 0) {
 		irq_set_default_host(mpic_domain);
