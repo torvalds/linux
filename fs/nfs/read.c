@@ -325,18 +325,52 @@ out:
 }
 
 /*
- * Read a page over NFS.
- * We read the page synchronously in the following case:
- *  -	The error flag is set for this page. This happens only when a
- *	previous async read operation failed.
+ * Actually read a folio over the wire.
+ */
+static int nfs_do_read_folio(struct file *file, struct folio *folio)
+{
+	struct inode *inode = file_inode(file);
+	struct nfs_pageio_descriptor pgio;
+	struct nfs_open_context *ctx;
+	int ret;
+
+	ctx = get_nfs_open_context(nfs_file_open_context(file));
+
+	xchg(&ctx->error, 0);
+	nfs_pageio_init_read(&pgio, inode, false,
+			     &nfs_async_read_completion_ops);
+
+	ret = nfs_read_add_folio(&pgio, ctx, folio);
+	if (ret)
+		goto out_put;
+
+	nfs_pageio_complete_read(&pgio);
+	nfs_update_delegated_atime(inode);
+	if (pgio.pg_error < 0) {
+		ret = pgio.pg_error;
+		goto out_put;
+	}
+
+	ret = folio_wait_locked_killable(folio);
+	if (!folio_test_uptodate(folio) && !ret)
+		ret = xchg(&ctx->error, 0);
+
+out_put:
+	put_nfs_open_context(ctx);
+	return ret;
+}
+
+/*
+ * Synchronously read a folio.
+ *
+ * This is not heavily used as most users to try an asynchronous
+ * large read through ->readahead first.
  */
 int nfs_read_folio(struct file *file, struct folio *folio)
 {
 	struct inode *inode = file_inode(file);
 	loff_t pos = folio_pos(folio);
 	size_t len = folio_size(folio);
-	struct nfs_pageio_descriptor pgio;
-	struct nfs_open_context *ctx;
 	int ret;
 
 	trace_nfs_aop_readpage(inode, pos, len);
@@ -361,29 +395,8 @@ int nfs_read_folio(struct file *file, struct folio *folio)
 		goto out_unlock;
 
 	ret = nfs_netfs_read_folio(file, folio);
-	if (!ret)
-		goto out;
-
-	ctx = get_nfs_open_context(nfs_file_open_context(file));
-
-	xchg(&ctx->error, 0);
-	nfs_pageio_init_read(&pgio, inode, false,
-			     &nfs_async_read_completion_ops);
-
-	ret = nfs_read_add_folio(&pgio, ctx, folio);
 	if (ret)
-		goto out_put;
-
-	nfs_pageio_complete_read(&pgio);
-	nfs_update_delegated_atime(inode);
-	ret = pgio.pg_error < 0 ? pgio.pg_error : 0;
-	if (!ret) {
-		ret = folio_wait_locked_killable(folio);
-		if (!folio_test_uptodate(folio) && !ret)
-			ret = xchg(&ctx->error, 0);
-	}
-out_put:
-	put_nfs_open_context(ctx);
+		ret = nfs_do_read_folio(file, folio);
 out:
 	trace_nfs_aop_readpage_done(inode, pos, len, ret);
 	return ret;
