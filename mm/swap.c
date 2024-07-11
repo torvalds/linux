@@ -117,7 +117,9 @@ void __folio_put(struct folio *folio)
 	if (unlikely(folio_is_zone_device(folio))) {
 		free_zone_device_folio(folio);
 		return;
-	} else if (folio_test_hugetlb(folio)) {
+	}
+
+	if (folio_test_hugetlb(folio)) {
 		free_huge_folio(folio);
 		return;
 	}
@@ -228,17 +230,19 @@ static void folio_batch_add_and_move(struct folio_batch *fbatch,
 	if (folio_batch_add(fbatch, folio) && !folio_test_large(folio) &&
 	    !lru_cache_disabled())
 		return;
+
 	folio_batch_move_lru(fbatch, move_fn);
 }
 
 static void lru_move_tail_fn(struct lruvec *lruvec, struct folio *folio)
 {
-	if (!folio_test_unevictable(folio)) {
-		lruvec_del_folio(lruvec, folio);
-		folio_clear_active(folio);
-		lruvec_add_folio_tail(lruvec, folio);
-		__count_vm_events(PGROTATED, folio_nr_pages(folio));
-	}
+	if (folio_test_unevictable(folio))
+		return;
+
+	lruvec_del_folio(lruvec, folio);
+	folio_clear_active(folio);
+	lruvec_add_folio_tail(lruvec, folio);
+	__count_vm_events(PGROTATED, folio_nr_pages(folio));
 }
 
 /*
@@ -250,22 +254,23 @@ static void lru_move_tail_fn(struct lruvec *lruvec, struct folio *folio)
  */
 void folio_rotate_reclaimable(struct folio *folio)
 {
-	if (!folio_test_locked(folio) && !folio_test_dirty(folio) &&
-	    !folio_test_unevictable(folio)) {
-		struct folio_batch *fbatch;
-		unsigned long flags;
+	struct folio_batch *fbatch;
+	unsigned long flags;
 
-		folio_get(folio);
-		if (!folio_test_clear_lru(folio)) {
-			folio_put(folio);
-			return;
-		}
+	if (folio_test_locked(folio) || folio_test_dirty(folio) ||
+	    folio_test_unevictable(folio))
+		return;
 
-		local_lock_irqsave(&lru_rotate.lock, flags);
-		fbatch = this_cpu_ptr(&lru_rotate.fbatch);
-		folio_batch_add_and_move(fbatch, folio, lru_move_tail_fn);
-		local_unlock_irqrestore(&lru_rotate.lock, flags);
+	folio_get(folio);
+	if (!folio_test_clear_lru(folio)) {
+		folio_put(folio);
+		return;
 	}
+
+	local_lock_irqsave(&lru_rotate.lock, flags);
+	fbatch = this_cpu_ptr(&lru_rotate.fbatch);
+	folio_batch_add_and_move(fbatch, folio, lru_move_tail_fn);
+	local_unlock_irqrestore(&lru_rotate.lock, flags);
 }
 
 void lru_note_cost(struct lruvec *lruvec, bool file,
@@ -328,18 +333,19 @@ void lru_note_cost_refault(struct folio *folio)
 
 static void folio_activate_fn(struct lruvec *lruvec, struct folio *folio)
 {
-	if (!folio_test_active(folio) && !folio_test_unevictable(folio)) {
-		long nr_pages = folio_nr_pages(folio);
+	long nr_pages = folio_nr_pages(folio);
 
-		lruvec_del_folio(lruvec, folio);
-		folio_set_active(folio);
-		lruvec_add_folio(lruvec, folio);
-		trace_mm_lru_activate(folio);
+	if (folio_test_active(folio) || folio_test_unevictable(folio))
+		return;
 
-		__count_vm_events(PGACTIVATE, nr_pages);
-		__count_memcg_events(lruvec_memcg(lruvec), PGACTIVATE,
-				     nr_pages);
-	}
+
+	lruvec_del_folio(lruvec, folio);
+	folio_set_active(folio);
+	lruvec_add_folio(lruvec, folio);
+	trace_mm_lru_activate(folio);
+
+	__count_vm_events(PGACTIVATE, nr_pages);
+	__count_memcg_events(lruvec_memcg(lruvec), PGACTIVATE, nr_pages);
 }
 
 #ifdef CONFIG_SMP
@@ -353,20 +359,21 @@ static void folio_activate_drain(int cpu)
 
 void folio_activate(struct folio *folio)
 {
-	if (!folio_test_active(folio) && !folio_test_unevictable(folio)) {
-		struct folio_batch *fbatch;
+	struct folio_batch *fbatch;
 
-		folio_get(folio);
-		if (!folio_test_clear_lru(folio)) {
-			folio_put(folio);
-			return;
-		}
+	if (folio_test_active(folio) || folio_test_unevictable(folio))
+		return;
 
-		local_lock(&cpu_fbatches.lock);
-		fbatch = this_cpu_ptr(&cpu_fbatches.activate);
-		folio_batch_add_and_move(fbatch, folio, folio_activate_fn);
-		local_unlock(&cpu_fbatches.lock);
+	folio_get(folio);
+	if (!folio_test_clear_lru(folio)) {
+		folio_put(folio);
+		return;
 	}
+
+	local_lock(&cpu_fbatches.lock);
+	fbatch = this_cpu_ptr(&cpu_fbatches.activate);
+	folio_batch_add_and_move(fbatch, folio, folio_activate_fn);
+	local_unlock(&cpu_fbatches.lock);
 }
 
 #else
@@ -378,12 +385,13 @@ void folio_activate(struct folio *folio)
 {
 	struct lruvec *lruvec;
 
-	if (folio_test_clear_lru(folio)) {
-		lruvec = folio_lruvec_lock_irq(folio);
-		folio_activate_fn(lruvec, folio);
-		unlock_page_lruvec_irq(lruvec);
-		folio_set_lru(folio);
-	}
+	if (!folio_test_clear_lru(folio))
+		return;
+
+	lruvec = folio_lruvec_lock_irq(folio);
+	folio_activate_fn(lruvec, folio);
+	unlock_page_lruvec_irq(lruvec);
+	folio_set_lru(folio);
 }
 #endif
 
@@ -610,41 +618,41 @@ static void lru_deactivate_file_fn(struct lruvec *lruvec, struct folio *folio)
 
 static void lru_deactivate_fn(struct lruvec *lruvec, struct folio *folio)
 {
-	if (!folio_test_unevictable(folio) && (folio_test_active(folio) || lru_gen_enabled())) {
-		long nr_pages = folio_nr_pages(folio);
+	long nr_pages = folio_nr_pages(folio);
 
-		lruvec_del_folio(lruvec, folio);
-		folio_clear_active(folio);
-		folio_clear_referenced(folio);
-		lruvec_add_folio(lruvec, folio);
+	if (folio_test_unevictable(folio) || !(folio_test_active(folio) || lru_gen_enabled()))
+		return;
 
-		__count_vm_events(PGDEACTIVATE, nr_pages);
-		__count_memcg_events(lruvec_memcg(lruvec), PGDEACTIVATE,
-				     nr_pages);
-	}
+	lruvec_del_folio(lruvec, folio);
+	folio_clear_active(folio);
+	folio_clear_referenced(folio);
+	lruvec_add_folio(lruvec, folio);
+
+	__count_vm_events(PGDEACTIVATE, nr_pages);
+	__count_memcg_events(lruvec_memcg(lruvec), PGDEACTIVATE, nr_pages);
 }
 
 static void lru_lazyfree_fn(struct lruvec *lruvec, struct folio *folio)
 {
-	if (folio_test_anon(folio) && folio_test_swapbacked(folio) &&
-	    !folio_test_swapcache(folio) && !folio_test_unevictable(folio)) {
-		long nr_pages = folio_nr_pages(folio);
+	long nr_pages = folio_nr_pages(folio);
 
-		lruvec_del_folio(lruvec, folio);
-		folio_clear_active(folio);
-		folio_clear_referenced(folio);
-		/*
-		 * Lazyfree folios are clean anonymous folios.  They have
-		 * the swapbacked flag cleared, to distinguish them from normal
-		 * anonymous folios
-		 */
-		folio_clear_swapbacked(folio);
-		lruvec_add_folio(lruvec, folio);
+	if (!folio_test_anon(folio) || !folio_test_swapbacked(folio) ||
+	    folio_test_swapcache(folio) || folio_test_unevictable(folio))
+		return;
 
-		__count_vm_events(PGLAZYFREE, nr_pages);
-		__count_memcg_events(lruvec_memcg(lruvec), PGLAZYFREE,
-				     nr_pages);
-	}
+	lruvec_del_folio(lruvec, folio);
+	folio_clear_active(folio);
+	folio_clear_referenced(folio);
+	/*
+	 * Lazyfree folios are clean anonymous folios.  They have
+	 * the swapbacked flag cleared, to distinguish them from normal
+	 * anonymous folios
+	 */
+	folio_clear_swapbacked(folio);
+	lruvec_add_folio(lruvec, folio);
+
+	__count_vm_events(PGLAZYFREE, nr_pages);
+	__count_memcg_events(lruvec_memcg(lruvec), PGLAZYFREE, nr_pages);
 }
 
 /*
@@ -726,21 +734,21 @@ void deactivate_file_folio(struct folio *folio)
  */
 void folio_deactivate(struct folio *folio)
 {
-	if (!folio_test_unevictable(folio) && (folio_test_active(folio) ||
-	    lru_gen_enabled())) {
-		struct folio_batch *fbatch;
+	struct folio_batch *fbatch;
 
-		folio_get(folio);
-		if (!folio_test_clear_lru(folio)) {
-			folio_put(folio);
-			return;
-		}
+	if (folio_test_unevictable(folio) || !(folio_test_active(folio) || lru_gen_enabled()))
+		return;
 
-		local_lock(&cpu_fbatches.lock);
-		fbatch = this_cpu_ptr(&cpu_fbatches.lru_deactivate);
-		folio_batch_add_and_move(fbatch, folio, lru_deactivate_fn);
-		local_unlock(&cpu_fbatches.lock);
+	folio_get(folio);
+	if (!folio_test_clear_lru(folio)) {
+		folio_put(folio);
+		return;
 	}
+
+	local_lock(&cpu_fbatches.lock);
+	fbatch = this_cpu_ptr(&cpu_fbatches.lru_deactivate);
+	folio_batch_add_and_move(fbatch, folio, lru_deactivate_fn);
+	local_unlock(&cpu_fbatches.lock);
 }
 
 /**
@@ -752,21 +760,22 @@ void folio_deactivate(struct folio *folio)
  */
 void folio_mark_lazyfree(struct folio *folio)
 {
-	if (folio_test_anon(folio) && folio_test_swapbacked(folio) &&
-	    !folio_test_swapcache(folio) && !folio_test_unevictable(folio)) {
-		struct folio_batch *fbatch;
+	struct folio_batch *fbatch;
 
-		folio_get(folio);
-		if (!folio_test_clear_lru(folio)) {
-			folio_put(folio);
-			return;
-		}
+	if (!folio_test_anon(folio) || !folio_test_swapbacked(folio) ||
+	    folio_test_swapcache(folio) || folio_test_unevictable(folio))
+		return;
 
-		local_lock(&cpu_fbatches.lock);
-		fbatch = this_cpu_ptr(&cpu_fbatches.lru_lazyfree);
-		folio_batch_add_and_move(fbatch, folio, lru_lazyfree_fn);
-		local_unlock(&cpu_fbatches.lock);
+	folio_get(folio);
+	if (!folio_test_clear_lru(folio)) {
+		folio_put(folio);
+		return;
 	}
+
+	local_lock(&cpu_fbatches.lock);
+	fbatch = this_cpu_ptr(&cpu_fbatches.lru_lazyfree);
+	folio_batch_add_and_move(fbatch, folio, lru_lazyfree_fn);
+	local_unlock(&cpu_fbatches.lock);
 }
 
 void lru_add_drain(void)
