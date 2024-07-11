@@ -286,10 +286,13 @@ static inline int amdgpu_dm_crtc_set_vblank(struct drm_crtc *crtc, bool enable)
 	struct dm_crtc_state *acrtc_state = to_dm_crtc_state(crtc->state);
 	struct amdgpu_display_manager *dm = &adev->dm;
 	struct vblank_control_work *work;
+	int irq_type;
 	int rc = 0;
 
 	if (acrtc->otg_inst == -1)
 		goto skip;
+
+	irq_type = amdgpu_display_crtc_idx_to_irq_type(adev, acrtc->crtc_id);
 
 	if (enable) {
 		/* vblank irq on -> Only need vupdate irq in vrr mode */
@@ -303,13 +306,52 @@ static inline int amdgpu_dm_crtc_set_vblank(struct drm_crtc *crtc, bool enable)
 	if (rc)
 		return rc;
 
-	rc = (enable)
-		? amdgpu_irq_get(adev, &adev->crtc_irq, acrtc->crtc_id)
-		: amdgpu_irq_put(adev, &adev->crtc_irq, acrtc->crtc_id);
+	/* crtc vblank or vstartup interrupt */
+	if (enable) {
+		rc = amdgpu_irq_get(adev, &adev->crtc_irq, irq_type);
+		drm_dbg_vbl(crtc->dev, "Get crtc_irq ret=%d\n", rc);
+	} else {
+		rc = amdgpu_irq_put(adev, &adev->crtc_irq, irq_type);
+		drm_dbg_vbl(crtc->dev, "Put crtc_irq ret=%d\n", rc);
+	}
 
 	if (rc)
 		return rc;
 
+	/*
+	 * hubp surface flip interrupt
+	 *
+	 * We have no guarantee that the frontend index maps to the same
+	 * backend index - some even map to more than one.
+	 *
+	 * TODO: Use a different interrupt or check DC itself for the mapping.
+	 */
+	if (enable) {
+		rc = amdgpu_irq_get(adev, &adev->pageflip_irq, irq_type);
+		drm_dbg_vbl(crtc->dev, "Get pageflip_irq ret=%d\n", rc);
+	} else {
+		rc = amdgpu_irq_put(adev, &adev->pageflip_irq, irq_type);
+		drm_dbg_vbl(crtc->dev, "Put pageflip_irq ret=%d\n", rc);
+	}
+
+	if (rc)
+		return rc;
+
+#if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
+	/* crtc vline0 interrupt, only available on DCN+ */
+	if (amdgpu_ip_version(adev, DCE_HWIP, 0) != 0) {
+		if (enable) {
+			rc = amdgpu_irq_get(adev, &adev->vline0_irq, irq_type);
+			drm_dbg_vbl(crtc->dev, "Get vline0_irq ret=%d\n", rc);
+		} else {
+			rc = amdgpu_irq_put(adev, &adev->vline0_irq, irq_type);
+			drm_dbg_vbl(crtc->dev, "Put vline0_irq ret=%d\n", rc);
+		}
+
+		if (rc)
+			return rc;
+	}
+#endif
 skip:
 	if (amdgpu_in_reset(adev))
 		return 0;
