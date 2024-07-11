@@ -161,7 +161,7 @@ static void netfs_retry_write_stream(struct netfs_io_request *wreq,
 {
 	struct list_head *next;
 
-	_enter("R=%x[%x:]", wreq->debug_id, stream->stream_nr);
+	kenter("R=%x[%x:]", wreq->debug_id, stream->stream_nr);
 
 	if (list_empty(&stream->subrequests))
 		return;
@@ -374,7 +374,7 @@ static void netfs_collect_write_results(struct netfs_io_request *wreq)
 	unsigned int notes;
 	int s;
 
-	_enter("%llx-%llx", wreq->start, wreq->start + wreq->len);
+	kenter("%llx-%llx", wreq->start, wreq->start + wreq->len);
 	trace_netfs_collect(wreq);
 	trace_netfs_rreq(wreq, netfs_rreq_trace_collect);
 
@@ -409,7 +409,7 @@ reassess_streams:
 		front = stream->front;
 		while (front) {
 			trace_netfs_collect_sreq(wreq, front);
-			//_debug("sreq [%x] %llx %zx/%zx",
+			//kdebug("sreq [%x] %llx %zx/%zx",
 			//       front->debug_index, front->start, front->transferred, front->len);
 
 			/* Stall if there may be a discontinuity. */
@@ -598,7 +598,7 @@ reassess_streams:
 out:
 	netfs_put_group_many(wreq->group, wreq->nr_group_rel);
 	wreq->nr_group_rel = 0;
-	_leave(" = %x", notes);
+	kleave(" = %x", notes);
 	return;
 
 need_retry:
@@ -606,7 +606,7 @@ need_retry:
 	 * that any partially completed op will have had any wholly transferred
 	 * folios removed from it.
 	 */
-	_debug("retry");
+	kdebug("retry");
 	netfs_retry_writes(wreq);
 	goto out;
 }
@@ -621,7 +621,7 @@ void netfs_write_collection_worker(struct work_struct *work)
 	size_t transferred;
 	int s;
 
-	_enter("R=%x", wreq->debug_id);
+	kenter("R=%x", wreq->debug_id);
 
 	netfs_see_request(wreq, netfs_rreq_trace_see_work);
 	if (!test_bit(NETFS_RREQ_IN_PROGRESS, &wreq->flags)) {
@@ -684,7 +684,7 @@ void netfs_write_collection_worker(struct work_struct *work)
 	if (wreq->origin == NETFS_DIO_WRITE)
 		inode_dio_end(wreq->inode);
 
-	_debug("finished");
+	kdebug("finished");
 	trace_netfs_rreq(wreq, netfs_rreq_trace_wake_ip);
 	clear_bit_unlock(NETFS_RREQ_IN_PROGRESS, &wreq->flags);
 	wake_up_bit(&wreq->flags, NETFS_RREQ_IN_PROGRESS);
@@ -744,7 +744,7 @@ void netfs_write_subrequest_terminated(void *_op, ssize_t transferred_or_error,
 	struct netfs_io_request *wreq = subreq->rreq;
 	struct netfs_io_stream *stream = &wreq->io_streams[subreq->stream_nr];
 
-	_enter("%x[%x] %zd", wreq->debug_id, subreq->debug_index, transferred_or_error);
+	kenter("%x[%x] %zd", wreq->debug_id, subreq->debug_index, transferred_or_error);
 
 	switch (subreq->source) {
 	case NETFS_UPLOAD_TO_SERVER:

@@ -961,6 +961,12 @@ static int bnxt_set_channels(struct net_device *dev,
 		return rc;
 	}
 
+	if (req_rx_rings < bp->rx_nr_rings &&
+	    req_rx_rings <= bnxt_get_max_rss_ctx_ring(bp)) {
+		netdev_warn(dev, "Can't deactivate rings used by RSS contexts\n");
+		return -EINVAL;
+	}
+
 	if (bnxt_get_nr_rss_ctxs(bp, req_rx_rings) !=
 	    bnxt_get_nr_rss_ctxs(bp, bp->rx_nr_rings) &&
 	    netif_is_rxfh_configured(dev)) {

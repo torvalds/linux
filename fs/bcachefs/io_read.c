@@ -389,7 +389,6 @@ retry:
 
 	bch2_bkey_buf_reassemble(&sk, c, k);
 	k = bkey_i_to_s_c(sk.k);
-	bch2_trans_unlock(trans);
 
 	if (!bch2_bkey_matches_ptr(c, k,
 				   rbio->pick.ptr,
@@ -1003,6 +1002,9 @@ get_bio:
 	rbio->version		= k.k->version;
 	rbio->promote		= promote;
 	INIT_WORK(&rbio->work, NULL);
+
+	if (flags & BCH_READ_NODECODE)
+		orig->pick = pick;
 
 	rbio->bio.bi_opf	= orig->bio.bi_opf;
 	rbio->bio.bi_iter.bi_sector = pick.ptr.offset;

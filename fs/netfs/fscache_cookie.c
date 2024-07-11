@@ -456,7 +456,7 @@ struct fscache_cookie *__fscache_acquire_cookie(
 {
 	struct fscache_cookie *cookie;
 
-	_enter("V=%x", volume->debug_id);
+	kenter("V=%x", volume->debug_id);
 
 	if (!index_key || !index_key_len || index_key_len > 255 || aux_data_len > 255)
 		return NULL;
@@ -484,7 +484,7 @@ struct fscache_cookie *__fscache_acquire_cookie(
 
 	trace_fscache_acquire(cookie);
 	fscache_stat(&fscache_n_acquires_ok);
-	_leave(" = c=%08x", cookie->debug_id);
+	kleave(" = c=%08x", cookie->debug_id);
 	return cookie;
 }
 EXPORT_SYMBOL(__fscache_acquire_cookie);
@@ -505,7 +505,7 @@ static void fscache_perform_lookup(struct fscache_cookie *cookie)
 	enum fscache_access_trace trace = fscache_access_lookup_cookie_end_failed;
 	bool need_withdraw = false;
 
-	_enter("");
+	kenter("");
 
 	if (!cookie->volume->cache_priv) {
 		fscache_create_volume(cookie->volume, true);
@@ -519,7 +519,7 @@ static void fscache_perform_lookup(struct fscache_cookie *cookie)
 		if (cookie->state != FSCACHE_COOKIE_STATE_FAILED)
 			fscache_set_cookie_state(cookie, FSCACHE_COOKIE_STATE_QUIESCENT);
 		need_withdraw = true;
-		_leave(" [fail]");
+		kleave(" [fail]");
 		goto out;
 	}
 
@@ -572,7 +572,7 @@ void __fscache_use_cookie(struct fscache_cookie *cookie, bool will_modify)
 	bool queue = false;
 	int n_active;
 
-	_enter("c=%08x", cookie->debug_id);
+	kenter("c=%08x", cookie->debug_id);
 
 	if (WARN(test_bit(FSCACHE_COOKIE_RELINQUISHED, &cookie->flags),
 		 "Trying to use relinquished cookie\n"))
@@ -636,7 +636,7 @@ again:
 	spin_unlock(&cookie->lock);
 	if (queue)
 		fscache_queue_cookie(cookie, fscache_cookie_get_use_work);
-	_leave("");
+	kleave("");
 }
 EXPORT_SYMBOL(__fscache_use_cookie);
 
@@ -702,7 +702,7 @@ static void fscache_cookie_state_machine(struct fscache_cookie *cookie)
 	enum fscache_cookie_state state;
 	bool wake = false;
 
-	_enter("c=%x", cookie->debug_id);
+	kenter("c=%x", cookie->debug_id);
 
 again:
 	spin_lock(&cookie->lock);
@@ -820,7 +820,7 @@ out:
 	spin_unlock(&cookie->lock);
 	if (wake)
 		wake_up_cookie_state(cookie);
-	_leave("");
+	kleave("");
 }
 
 static void fscache_cookie_worker(struct work_struct *work)
@@ -867,7 +867,7 @@ static void fscache_cookie_lru_do_one(struct fscache_cookie *cookie)
 		set_bit(FSCACHE_COOKIE_DO_LRU_DISCARD, &cookie->flags);
 		spin_unlock(&cookie->lock);
 		fscache_stat(&fscache_n_cookies_lru_expired);
-		_debug("lru c=%x", cookie->debug_id);
+		kdebug("lru c=%x", cookie->debug_id);
 		__fscache_withdraw_cookie(cookie);
 	}
 
@@ -971,7 +971,7 @@ void __fscache_relinquish_cookie(struct fscache_cookie *cookie, bool retire)
 	if (retire)
 		fscache_stat(&fscache_n_relinquishes_retire);
 
-	_enter("c=%08x{%d},%d",
+	kenter("c=%08x{%d},%d",
 	       cookie->debug_id, atomic_read(&cookie->n_active), retire);
 
 	if (WARN(test_and_set_bit(FSCACHE_COOKIE_RELINQUISHED, &cookie->flags),
@@ -1050,7 +1050,7 @@ void __fscache_invalidate(struct fscache_cookie *cookie,
 {
 	bool is_caching;
 
-	_enter("c=%x", cookie->debug_id);
+	kenter("c=%x", cookie->debug_id);
 
 	fscache_stat(&fscache_n_invalidates);
 
@@ -1072,7 +1072,7 @@ void __fscache_invalidate(struct fscache_cookie *cookie,
 	case FSCACHE_COOKIE_STATE_INVALIDATING: /* is_still_valid will catch it */
 	default:
 		spin_unlock(&cookie->lock);
-		_leave(" [no %u]", cookie->state);
+		kleave(" [no %u]", cookie->state);
 		return;
 
 	case FSCACHE_COOKIE_STATE_LOOKING_UP:
@@ -1081,7 +1081,7 @@ void __fscache_invalidate(struct fscache_cookie *cookie,
 		fallthrough;
 	case FSCACHE_COOKIE_STATE_CREATING:
 		spin_unlock(&cookie->lock);
-		_leave(" [look %x]", cookie->inval_counter);
+		kleave(" [look %x]", cookie->inval_counter);
 		return;
 
 	case FSCACHE_COOKIE_STATE_ACTIVE:
@@ -1094,7 +1094,7 @@ void __fscache_invalidate(struct fscache_cookie *cookie,
 
 		if (is_caching)
 			fscache_queue_cookie(cookie, fscache_cookie_get_inval_work);
-		_leave(" [inv]");
+		kleave(" [inv]");
 		return;
 	}
 }
