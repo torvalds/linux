@@ -10,17 +10,6 @@
 #include <trace/events/firewire.h>
 
 #ifdef TRACEPOINTS_ENABLED
-void copy_port_status(u8 *port_status, unsigned int port_capacity,
-		      const u32 *self_id_sequence, unsigned int quadlet_count)
-{
-	unsigned int port_index;
-
-	for (port_index = 0; port_index < port_capacity; ++port_index) {
-		port_status[port_index] =
-			self_id_sequence_get_port_status(self_id_sequence, quadlet_count, port_index);
-	}
-}
-
 EXPORT_TRACEPOINT_SYMBOL_GPL(isoc_inbound_single_completions);
 EXPORT_TRACEPOINT_SYMBOL_GPL(isoc_inbound_multiple_completions);
 EXPORT_TRACEPOINT_SYMBOL_GPL(isoc_outbound_completions);

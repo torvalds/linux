@@ -392,9 +392,6 @@ TRACE_EVENT(bus_reset_handle,
 #define PHY_PACKET_SELF_ID_GET_INITIATED_RESET(quads)	\
 	((((const u32 *)quads)[0] & SELF_ID_ZERO_INITIATED_RESET_MASK) >> SELF_ID_ZERO_INITIATED_RESET_SHIFT)
 
-void copy_port_status(u8 *port_status, unsigned int port_capacity, const u32 *self_id_sequence,
-		      unsigned int quadlet_count);
-
 TRACE_EVENT(self_id_sequence,
 	TP_PROTO(unsigned int card_index, const u32 *self_id_sequence, unsigned int quadlet_count, unsigned int generation),
 	TP_ARGS(card_index, self_id_sequence, quadlet_count, generation),
@@ -407,8 +404,16 @@ TRACE_EVENT(self_id_sequence,
 	TP_fast_assign(
 		__entry->card_index = card_index;
 		__entry->generation = generation;
-		copy_port_status(__get_dynamic_array(port_status), __get_dynamic_array_len(port_status),
-				 self_id_sequence, quadlet_count);
+		{
+			u8 *port_status = __get_dynamic_array(port_status);
+			unsigned int port_index;
+
+			for (port_index = 0; port_index < __get_dynamic_array_len(port_status); ++port_index) {
+				port_status[port_index] =
+					self_id_sequence_get_port_status(self_id_sequence,
+									 quadlet_count, port_index);
+			}
+		}
 		memcpy(__get_dynamic_array(self_id_sequence), self_id_sequence,
 					   __get_dynamic_array_len(self_id_sequence));
 	),
