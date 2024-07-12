@@ -68,8 +68,6 @@ struct usbtouch_device_info {
 	 */
 	bool irq_always;
 
-	void (*process_pkt) (struct usbtouch_usb *usbtouch, unsigned char *pkt, int len);
-
 	/*
 	 * used to get the packet len. possible return values:
 	 * > 0: packet len
@@ -103,6 +101,8 @@ struct usbtouch_usb {
 
 	int x, y;
 	int touch, press;
+
+	void (*process_pkt)(struct usbtouch_usb *usbtouch, unsigned char *pkt, int len);
 };
 
 
@@ -1045,11 +1045,6 @@ static int elo_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
 /*****************************************************************************
  * the different device descriptors
  */
-#ifdef MULTI_PACKET
-static void usbtouch_process_multi(struct usbtouch_usb *usbtouch,
-				   unsigned char *pkt, int len);
-#endif
-
 static struct usbtouch_device_info usbtouch_dev_info[] = {
 #ifdef CONFIG_TOUCHSCREEN_USB_ELO
 	[DEVTYPE_ELO] = {
@@ -1070,7 +1065,6 @@ static struct usbtouch_device_info usbtouch_dev_info[] = {
 		.min_yc		= 0x0,
 		.max_yc		= 0x07ff,
 		.rept_size	= 16,
-		.process_pkt	= usbtouch_process_multi,
 		.get_pkt_len	= egalax_get_pkt_len,
 		.read_data	= egalax_read_data,
 		.init		= egalax_init,
@@ -1121,7 +1115,6 @@ static struct usbtouch_device_info usbtouch_dev_info[] = {
 		.min_yc		= 0x0,
 		.max_yc		= 0x07ff,
 		.rept_size	= 8,
-		.process_pkt	= usbtouch_process_multi,
 		.get_pkt_len	= eturbo_get_pkt_len,
 		.read_data	= eturbo_read_data,
 	},
@@ -1177,7 +1170,6 @@ static struct usbtouch_device_info usbtouch_dev_info[] = {
 		.min_yc		= 0x0,
 		.max_yc		= 0x0fff,
 		.rept_size	= 8,
-		.process_pkt	= usbtouch_process_multi,
 		.get_pkt_len	= idealtek_get_pkt_len,
 		.read_data	= idealtek_read_data,
 	},
@@ -1268,7 +1260,6 @@ static struct usbtouch_device_info usbtouch_dev_info[] = {
 		.min_yc		= 0x0,
 		.max_yc		= 0x07ff,
 		.rept_size	= 16,
-		.process_pkt	= usbtouch_process_multi,
 		.get_pkt_len	= etouch_get_pkt_len,
 		.read_data	= etouch_read_data,
 	},
@@ -1378,8 +1369,14 @@ out_flush_buf:
 	usbtouch->buf_len = 0;
 	return;
 }
+#else
+static void usbtouch_process_multi(struct usbtouch_usb *usbtouch,
+                                   unsigned char *pkt, int len)
+{
+	dev_WARN_ONCE(&usbtouch->interface->dev, 1,
+		      "Protocol has ->get_pkt_len() without #define MULTI_PACKET");
+}
 #endif
-
 
 static void usbtouch_irq(struct urb *urb)
 {
@@ -1411,7 +1408,7 @@ static void usbtouch_irq(struct urb *urb)
 		goto exit;
 	}
 
-	usbtouch->type->process_pkt(usbtouch, usbtouch->data, urb->actual_length);
+	usbtouch->process_pkt(usbtouch, usbtouch->data, urb->actual_length);
 
 exit:
 	usb_mark_last_busy(interface_to_usbdev(usbtouch->interface));
@@ -1564,8 +1561,6 @@ static int usbtouch_probe(struct usb_interface *intf,
 
 	type = &usbtouch_dev_info[id->driver_info];
 	usbtouch->type = type;
-	if (!type->process_pkt)
-		type->process_pkt = usbtouch_process_pkt;
 
 	usbtouch->data_size = type->rept_size;
 	if (type->get_pkt_len) {
@@ -1589,6 +1584,9 @@ static int usbtouch_probe(struct usb_interface *intf,
 		usbtouch->buffer = kmalloc(type->rept_size, GFP_KERNEL);
 		if (!usbtouch->buffer)
 			goto out_free_buffers;
+		usbtouch->process_pkt = usbtouch_process_multi;
+	} else {
+		usbtouch->process_pkt = usbtouch_process_pkt;
 	}
 
 	usbtouch->irq = usb_alloc_urb(0, GFP_KERNEL);
