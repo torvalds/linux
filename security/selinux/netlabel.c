@@ -62,7 +62,7 @@ static int selinux_netlbl_sidlookup_cached(struct sk_buff *skb,
  * Description:
  * Generate the NetLabel security attributes for a socket, making full use of
  * the socket's attribute cache.  Returns a pointer to the security attributes
- * on success, NULL on failure.
+ * on success, or an ERR_PTR on failure.
  *
  */
 static struct netlbl_lsm_secattr *selinux_netlbl_sock_genattr(struct sock *sk)
@@ -76,11 +76,12 @@ static struct netlbl_lsm_secattr *selinux_netlbl_sock_genattr(struct sock *sk)
 
 	secattr = netlbl_secattr_alloc(GFP_ATOMIC);
 	if (secattr == NULL)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
+
 	rc = security_netlbl_sid_to_secattr(sksec->sid, secattr);
 	if (rc != 0) {
 		netlbl_secattr_free(secattr);
-		return NULL;
+		return ERR_PTR(rc);
 	}
 	sksec->nlbl_secattr = secattr;
 
@@ -400,8 +401,8 @@ int selinux_netlbl_socket_post_create(struct sock *sk, u16 family)
 		return 0;
 
 	secattr = selinux_netlbl_sock_genattr(sk);
-	if (secattr == NULL)
-		return -ENOMEM;
+	if (IS_ERR(secattr))
+		return PTR_ERR(secattr);
 	/* On socket creation, replacement of IP options is safe even if
 	 * the caller does not hold the socket lock.
 	 */
@@ -561,10 +562,9 @@ static int selinux_netlbl_socket_connect_helper(struct sock *sk,
 		return rc;
 	}
 	secattr = selinux_netlbl_sock_genattr(sk);
-	if (secattr == NULL) {
-		rc = -ENOMEM;
-		return rc;
-	}
+	if (IS_ERR(secattr))
+		return PTR_ERR(secattr);
+
 	rc = netlbl_conn_setattr(sk, addr, secattr);
 	if (rc == 0)
 		sksec->nlbl_state = NLBL_CONNLABELED;
