@@ -615,6 +615,11 @@ do {									\
 # define u64_u32_load(var)		u64_u32_load_copy(var, var##_copy)
 # define u64_u32_store(var, val)	u64_u32_store_copy(var, var##_copy, val)
 
+struct balance_callback {
+	struct balance_callback *next;
+	void (*func)(struct rq *rq);
+};
+
 /* CFS-related fields in a runqueue */
 struct cfs_rq {
 	struct load_weight	load;
@@ -1053,11 +1058,6 @@ struct uclamp_rq {
 
 DECLARE_STATIC_KEY_FALSE(sched_uclamp_used);
 #endif /* CONFIG_UCLAMP_TASK */
-
-struct balance_callback {
-	struct balance_callback *next;
-	void (*func)(struct rq *rq);
-};
 
 /*
  * This is the main, per-CPU runqueue data structure.
