@@ -5,6 +5,7 @@
 #define _FBNIC_TXRX_H_
 
 #include <linux/netdevice.h>
+#include <linux/skbuff.h>
 #include <linux/types.h>
 #include <net/xdp.h>
 
@@ -120,6 +121,7 @@ void fbnic_disable(struct fbnic_net *fbn);
 void fbnic_flush(struct fbnic_net *fbn);
 void fbnic_fill(struct fbnic_net *fbn);
 
+void fbnic_napi_depletion_check(struct net_device *netdev);
 int fbnic_wait_all_queues_idle(struct fbnic_dev *fbd, bool may_fail);
 
 #endif /* _FBNIC_TXRX_H_ */

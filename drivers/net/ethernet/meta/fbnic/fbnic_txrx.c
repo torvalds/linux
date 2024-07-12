@@ -8,6 +8,7 @@
 #include <net/page_pool/helpers.h>
 
 #include "fbnic.h"
+#include "fbnic_csr.h"
 #include "fbnic_netdev.h"
 #include "fbnic_txrx.h"
 
@@ -45,6 +46,11 @@ static void fbnic_ring_wr32(struct fbnic_ring *ring, unsigned int csr, u32 val)
 static unsigned int fbnic_desc_unused(struct fbnic_ring *ring)
 {
 	return (ring->head - ring->tail - 1) & ring->size_mask;
+}
+
+static unsigned int fbnic_desc_used(struct fbnic_ring *ring)
+{
+	return (ring->tail - ring->head) & ring->size_mask;
 }
 
 static struct netdev_queue *txring_txq(const struct net_device *dev,
@@ -123,6 +129,24 @@ fbnic_tx_offloads(struct fbnic_ring *ring, struct sk_buff *skb, __le64 *meta)
 	*meta |= cpu_to_le64(FIELD_PREP(FBNIC_TWD_L2_HLEN_MASK, l2len / 2) |
 			     FIELD_PREP(FBNIC_TWD_L3_IHLEN_MASK, i3len / 2));
 	return false;
+}
+
+static void
+fbnic_rx_csum(u64 rcd, struct sk_buff *skb, struct fbnic_ring *rcq)
+{
+	skb_checksum_none_assert(skb);
+
+	if (unlikely(!(skb->dev->features & NETIF_F_RXCSUM)))
+		return;
+
+	if (FIELD_GET(FBNIC_RCD_META_L4_CSUM_UNNECESSARY, rcd)) {
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
+	} else {
+		u16 csum = FIELD_GET(FBNIC_RCD_META_L2_CSUM_MASK, rcd);
+
+		skb->ip_summed = CHECKSUM_COMPLETE;
+		skb->csum = (__force __wsum)csum;
+	}
 }
 
 static bool
@@ -358,6 +382,16 @@ static void fbnic_page_pool_init(struct fbnic_ring *ring, unsigned int idx,
 	rx_buf->page = page;
 }
 
+static struct page *fbnic_page_pool_get(struct fbnic_ring *ring,
+					unsigned int idx)
+{
+	struct fbnic_rx_buf *rx_buf = &ring->rx_buf[idx];
+
+	rx_buf->pagecnt_bias--;
+
+	return rx_buf->page;
+}
+
 static void fbnic_page_pool_drain(struct fbnic_ring *ring, unsigned int idx,
 				  struct fbnic_napi_vector *nv, int budget)
 {
@@ -502,6 +536,103 @@ static void fbnic_fill_bdq(struct fbnic_napi_vector *nv, struct fbnic_ring *bdq)
 	}
 }
 
+static unsigned int fbnic_hdr_pg_start(unsigned int pg_off)
+{
+	/* The headroom of the first header may be larger than FBNIC_RX_HROOM
+	 * due to alignment. So account for that by just making the page
+	 * offset 0 if we are starting at the first header.
+	 */
+	if (ALIGN(FBNIC_RX_HROOM, 128) > FBNIC_RX_HROOM &&
+	    pg_off == ALIGN(FBNIC_RX_HROOM, 128))
+		return 0;
+
+	return pg_off - FBNIC_RX_HROOM;
+}
+
+static unsigned int fbnic_hdr_pg_end(unsigned int pg_off, unsigned int len)
+{
+	/* Determine the end of the buffer by finding the start of the next
+	 * and then subtracting the headroom from that frame.
+	 */
+	pg_off += len + FBNIC_RX_TROOM + FBNIC_RX_HROOM;
+
+	return ALIGN(pg_off, 128) - FBNIC_RX_HROOM;
+}
+
+static void fbnic_pkt_prepare(struct fbnic_napi_vector *nv, u64 rcd,
+			      struct fbnic_pkt_buff *pkt,
+			      struct fbnic_q_triad *qt)
+{
+	unsigned int hdr_pg_idx = FIELD_GET(FBNIC_RCD_AL_BUFF_PAGE_MASK, rcd);
+	unsigned int hdr_pg_off = FIELD_GET(FBNIC_RCD_AL_BUFF_OFF_MASK, rcd);
+	struct page *page = fbnic_page_pool_get(&qt->sub0, hdr_pg_idx);
+	unsigned int len = FIELD_GET(FBNIC_RCD_AL_BUFF_LEN_MASK, rcd);
+	unsigned int frame_sz, hdr_pg_start, hdr_pg_end, headroom;
+	unsigned char *hdr_start;
+
+	/* data_hard_start should always be NULL when this is called */
+	WARN_ON_ONCE(pkt->buff.data_hard_start);
+
+	/* Short-cut the end calculation if we know page is fully consumed */
+	hdr_pg_end = FIELD_GET(FBNIC_RCD_AL_PAGE_FIN, rcd) ?
+		     FBNIC_BD_FRAG_SIZE : fbnic_hdr_pg_end(hdr_pg_off, len);
+	hdr_pg_start = fbnic_hdr_pg_start(hdr_pg_off);
+
+	headroom = hdr_pg_off - hdr_pg_start + FBNIC_RX_PAD;
+	frame_sz = hdr_pg_end - hdr_pg_start;
+	xdp_init_buff(&pkt->buff, frame_sz, NULL);
+	hdr_pg_start += (FBNIC_RCD_AL_BUFF_FRAG_MASK & rcd) *
+			FBNIC_BD_FRAG_SIZE;
+
+	/* Sync DMA buffer */
+	dma_sync_single_range_for_cpu(nv->dev, page_pool_get_dma_addr(page),
+				      hdr_pg_start, frame_sz,
+				      DMA_BIDIRECTIONAL);
+
+	/* Build frame around buffer */
+	hdr_start = page_address(page) + hdr_pg_start;
+
+	xdp_prepare_buff(&pkt->buff, hdr_start, headroom,
+			 len - FBNIC_RX_PAD, true);
+
+	pkt->data_truesize = 0;
+	pkt->data_len = 0;
+	pkt->nr_frags = 0;
+}
+
+static void fbnic_add_rx_frag(struct fbnic_napi_vector *nv, u64 rcd,
+			      struct fbnic_pkt_buff *pkt,
+			      struct fbnic_q_triad *qt)
+{
+	unsigned int pg_idx = FIELD_GET(FBNIC_RCD_AL_BUFF_PAGE_MASK, rcd);
+	unsigned int pg_off = FIELD_GET(FBNIC_RCD_AL_BUFF_OFF_MASK, rcd);
+	unsigned int len = FIELD_GET(FBNIC_RCD_AL_BUFF_LEN_MASK, rcd);
+	struct page *page = fbnic_page_pool_get(&qt->sub1, pg_idx);
+	struct skb_shared_info *shinfo;
+	unsigned int truesize;
+
+	truesize = FIELD_GET(FBNIC_RCD_AL_PAGE_FIN, rcd) ?
+		   FBNIC_BD_FRAG_SIZE - pg_off : ALIGN(len, 128);
+
+	pg_off += (FBNIC_RCD_AL_BUFF_FRAG_MASK & rcd) *
+		  FBNIC_BD_FRAG_SIZE;
+
+	/* Sync DMA buffer */
+	dma_sync_single_range_for_cpu(nv->dev, page_pool_get_dma_addr(page),
+				      pg_off, truesize, DMA_BIDIRECTIONAL);
+
+	/* Add page to xdp shared info */
+	shinfo = xdp_get_shared_info_from_buff(&pkt->buff);
+
+	/* We use gso_segs to store truesize */
+	pkt->data_truesize += truesize;
+
+	__skb_fill_page_desc_noacc(shinfo, pkt->nr_frags++, page, pg_off, len);
+
+	/* Store data_len in gso_size */
+	pkt->data_len += len;
+}
+
 static void fbnic_put_pkt_buff(struct fbnic_napi_vector *nv,
 			       struct fbnic_pkt_buff *pkt, int budget)
 {
@@ -522,6 +653,168 @@ static void fbnic_put_pkt_buff(struct fbnic_napi_vector *nv,
 
 	page = virt_to_page(pkt->buff.data_hard_start);
 	page_pool_put_full_page(nv->page_pool, page, !!budget);
+}
+
+static struct sk_buff *fbnic_build_skb(struct fbnic_napi_vector *nv,
+				       struct fbnic_pkt_buff *pkt)
+{
+	unsigned int nr_frags = pkt->nr_frags;
+	struct skb_shared_info *shinfo;
+	unsigned int truesize;
+	struct sk_buff *skb;
+
+	truesize = xdp_data_hard_end(&pkt->buff) + FBNIC_RX_TROOM -
+		   pkt->buff.data_hard_start;
+
+	/* Build frame around buffer */
+	skb = napi_build_skb(pkt->buff.data_hard_start, truesize);
+	if (unlikely(!skb))
+		return NULL;
+
+	/* Push data pointer to start of data, put tail to end of data */
+	skb_reserve(skb, pkt->buff.data - pkt->buff.data_hard_start);
+	__skb_put(skb, pkt->buff.data_end - pkt->buff.data);
+
+	/* Add tracking for metadata at the start of the frame */
+	skb_metadata_set(skb, pkt->buff.data - pkt->buff.data_meta);
+
+	/* Add Rx frags */
+	if (nr_frags) {
+		/* Verify that shared info didn't move */
+		shinfo = xdp_get_shared_info_from_buff(&pkt->buff);
+		WARN_ON(skb_shinfo(skb) != shinfo);
+
+		skb->truesize += pkt->data_truesize;
+		skb->data_len += pkt->data_len;
+		shinfo->nr_frags = nr_frags;
+		skb->len += pkt->data_len;
+	}
+
+	skb_mark_for_recycle(skb);
+
+	/* Set MAC header specific fields */
+	skb->protocol = eth_type_trans(skb, nv->napi.dev);
+
+	return skb;
+}
+
+static enum pkt_hash_types fbnic_skb_hash_type(u64 rcd)
+{
+	return (FBNIC_RCD_META_L4_TYPE_MASK & rcd) ? PKT_HASH_TYPE_L4 :
+	       (FBNIC_RCD_META_L3_TYPE_MASK & rcd) ? PKT_HASH_TYPE_L3 :
+						     PKT_HASH_TYPE_L2;
+}
+
+static void fbnic_populate_skb_fields(struct fbnic_napi_vector *nv,
+				      u64 rcd, struct sk_buff *skb,
+				      struct fbnic_q_triad *qt)
+{
+	struct net_device *netdev = nv->napi.dev;
+	struct fbnic_ring *rcq = &qt->cmpl;
+
+	fbnic_rx_csum(rcd, skb, rcq);
+
+	if (netdev->features & NETIF_F_RXHASH)
+		skb_set_hash(skb,
+			     FIELD_GET(FBNIC_RCD_META_RSS_HASH_MASK, rcd),
+			     fbnic_skb_hash_type(rcd));
+
+	skb_record_rx_queue(skb, rcq->q_idx);
+}
+
+static bool fbnic_rcd_metadata_err(u64 rcd)
+{
+	return !!(FBNIC_RCD_META_UNCORRECTABLE_ERR_MASK & rcd);
+}
+
+static int fbnic_clean_rcq(struct fbnic_napi_vector *nv,
+			   struct fbnic_q_triad *qt, int budget)
+{
+	struct fbnic_ring *rcq = &qt->cmpl;
+	struct fbnic_pkt_buff *pkt;
+	s32 head0 = -1, head1 = -1;
+	__le64 *raw_rcd, done;
+	u32 head = rcq->head;
+	u64 packets = 0;
+
+	done = (head & (rcq->size_mask + 1)) ? cpu_to_le64(FBNIC_RCD_DONE) : 0;
+	raw_rcd = &rcq->desc[head & rcq->size_mask];
+	pkt = rcq->pkt;
+
+	/* Walk the completion queue collecting the heads reported by NIC */
+	while (likely(packets < budget)) {
+		struct sk_buff *skb = ERR_PTR(-EINVAL);
+		u64 rcd;
+
+		if ((*raw_rcd & cpu_to_le64(FBNIC_RCD_DONE)) == done)
+			break;
+
+		dma_rmb();
+
+		rcd = le64_to_cpu(*raw_rcd);
+
+		switch (FIELD_GET(FBNIC_RCD_TYPE_MASK, rcd)) {
+		case FBNIC_RCD_TYPE_HDR_AL:
+			head0 = FIELD_GET(FBNIC_RCD_AL_BUFF_PAGE_MASK, rcd);
+			fbnic_pkt_prepare(nv, rcd, pkt, qt);
+
+			break;
+		case FBNIC_RCD_TYPE_PAY_AL:
+			head1 = FIELD_GET(FBNIC_RCD_AL_BUFF_PAGE_MASK, rcd);
+			fbnic_add_rx_frag(nv, rcd, pkt, qt);
+
+			break;
+		case FBNIC_RCD_TYPE_OPT_META:
+			/* Only type 0 is currently supported */
+			if (FIELD_GET(FBNIC_RCD_OPT_META_TYPE_MASK, rcd))
+				break;
+
+			/* We currently ignore the action table index */
+			break;
+		case FBNIC_RCD_TYPE_META:
+			if (likely(!fbnic_rcd_metadata_err(rcd)))
+				skb = fbnic_build_skb(nv, pkt);
+
+			/* Populate skb and invalidate XDP */
+			if (!IS_ERR_OR_NULL(skb)) {
+				fbnic_populate_skb_fields(nv, rcd, skb, qt);
+
+				packets++;
+
+				napi_gro_receive(&nv->napi, skb);
+			} else {
+				fbnic_put_pkt_buff(nv, pkt, 1);
+			}
+
+			pkt->buff.data_hard_start = NULL;
+
+			break;
+		}
+
+		raw_rcd++;
+		head++;
+		if (!(head & rcq->size_mask)) {
+			done ^= cpu_to_le64(FBNIC_RCD_DONE);
+			raw_rcd = &rcq->desc[0];
+		}
+	}
+
+	/* Unmap and free processed buffers */
+	if (head0 >= 0)
+		fbnic_clean_bdq(nv, budget, &qt->sub0, head0);
+	fbnic_fill_bdq(nv, &qt->sub0);
+
+	if (head1 >= 0)
+		fbnic_clean_bdq(nv, budget, &qt->sub1, head1);
+	fbnic_fill_bdq(nv, &qt->sub1);
+
+	/* Record the current head/tail of the queue */
+	if (rcq->head != head) {
+		rcq->head = head;
+		writel(head & rcq->size_mask, rcq->doorbell);
+	}
+
+	return packets;
 }
 
 static void fbnic_nv_irq_disable(struct fbnic_napi_vector *nv)
@@ -546,12 +839,18 @@ static int fbnic_poll(struct napi_struct *napi, int budget)
 	struct fbnic_napi_vector *nv = container_of(napi,
 						    struct fbnic_napi_vector,
 						    napi);
-	int i;
+	int i, j, work_done = 0;
 
 	for (i = 0; i < nv->txt_count; i++)
 		fbnic_clean_tcq(nv, &nv->qt[i], budget);
 
-	if (likely(napi_complete_done(napi, 0)))
+	for (j = 0; j < nv->rxt_count; j++, i++)
+		work_done += fbnic_clean_rcq(nv, &nv->qt[i], budget);
+
+	if (work_done >= budget)
+		return budget;
+
+	if (likely(napi_complete_done(napi, work_done)))
 		fbnic_nv_irq_rearm(nv);
 
 	return 0;
@@ -1577,6 +1876,36 @@ void fbnic_napi_enable(struct fbnic_net *fbn)
 	for (i = 0; i < ARRAY_SIZE(irqs); i++) {
 		if (!irqs[i])
 			continue;
+		fbnic_wr32(fbd, FBNIC_INTR_SET(i), irqs[i]);
+	}
+
+	fbnic_wrfl(fbd);
+}
+
+void fbnic_napi_depletion_check(struct net_device *netdev)
+{
+	struct fbnic_net *fbn = netdev_priv(netdev);
+	u32 irqs[FBNIC_MAX_MSIX_VECS / 32] = {};
+	struct fbnic_dev *fbd = fbn->fbd;
+	struct fbnic_napi_vector *nv;
+	int i, j;
+
+	list_for_each_entry(nv, &fbn->napis, napis) {
+		/* Find RQs which are completely out of pages */
+		for (i = nv->txt_count, j = 0; j < nv->rxt_count; j++, i++) {
+			/* Assume 4 pages is always enough to fit a packet
+			 * and therefore generate a completion and an IRQ.
+			 */
+			if (fbnic_desc_used(&nv->qt[i].sub0) < 4 ||
+			    fbnic_desc_used(&nv->qt[i].sub1) < 4)
+				irqs[nv->v_idx / 32] |= BIT(nv->v_idx % 32);
+		}
+	}
+
+	for (i = 0; i < ARRAY_SIZE(irqs); i++) {
+		if (!irqs[i])
+			continue;
+		fbnic_wr32(fbd, FBNIC_INTR_MASK_CLEAR(i), irqs[i]);
 		fbnic_wr32(fbd, FBNIC_INTR_SET(i), irqs[i]);
 	}
 

@@ -195,6 +195,9 @@ static void fbnic_service_task(struct work_struct *work)
 
 	fbnic_health_check(fbd);
 
+	if (netif_carrier_ok(fbd->netdev))
+		fbnic_napi_depletion_check(fbd->netdev);
+
 	if (netif_running(fbd->netdev))
 		schedule_delayed_work(&fbd->service_task, HZ);
 
