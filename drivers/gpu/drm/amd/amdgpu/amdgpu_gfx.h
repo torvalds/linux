@@ -444,6 +444,8 @@ struct amdgpu_gfx {
 	uint32_t			*ip_dump_core;
 	uint32_t			*ip_dump_compute_queues;
 	uint32_t			*ip_dump_gfx_queues;
+
+	struct mutex			reset_sem_mutex;
 };
 
 struct amdgpu_gfx_ras_reg_entry {
