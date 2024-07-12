@@ -483,7 +483,7 @@ static int netfs_write_folio(struct netfs_io_request *wreq,
 	if (!debug)
 		kdebug("R=%x: No submit", wreq->debug_id);
 
-	if (flen < fsize)
+	if (foff + flen < fsize)
 		for (int s = 0; s < NR_IO_STREAMS; s++)
 			netfs_issue_write(wreq, &wreq->io_streams[s]);
 

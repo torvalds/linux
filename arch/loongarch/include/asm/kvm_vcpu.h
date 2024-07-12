@@ -120,4 +120,9 @@ static inline void kvm_write_reg(struct kvm_vcpu *vcpu, int num, unsigned long v
 	vcpu->arch.gprs[num] = val;
 }
 
+static inline bool kvm_pvtime_supported(void)
+{
+	return !!sched_info_on();
+}
+
 #endif /* __ASM_LOONGARCH_KVM_VCPU_H__ */

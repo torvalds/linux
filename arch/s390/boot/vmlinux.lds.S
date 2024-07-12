@@ -109,6 +109,7 @@ SECTIONS
 #ifdef CONFIG_KERNEL_UNCOMPRESSED
 	. = ALIGN(PAGE_SIZE);
 	. += AMODE31_SIZE;		/* .amode31 section */
+	. = ALIGN(1 << 20);		/* _SEGMENT_SIZE */
 #else
 	. = ALIGN(8);
 #endif

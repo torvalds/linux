@@ -777,10 +777,10 @@ static void tas2781_hda_remove(struct device *dev)
 {
 	struct tas2781_hda *tas_hda = dev_get_drvdata(dev);
 
+	component_del(tas_hda->dev, &tas2781_hda_comp_ops);
+
 	pm_runtime_get_sync(tas_hda->dev);
 	pm_runtime_disable(tas_hda->dev);
-
-	component_del(tas_hda->dev, &tas2781_hda_comp_ops);
 
 	pm_runtime_put_noidle(tas_hda->dev);
 

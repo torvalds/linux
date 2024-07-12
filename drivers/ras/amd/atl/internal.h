@@ -224,7 +224,7 @@ int df_indirect_read_broadcast(u16 node, u8 func, u16 reg, u32 *lo);
 
 int get_df_system_info(void);
 int determine_node_id(struct addr_ctx *ctx, u8 socket_num, u8 die_num);
-int get_addr_hash_mi300(void);
+int get_umc_info_mi300(void);
 
 int get_address_map(struct addr_ctx *ctx);
 

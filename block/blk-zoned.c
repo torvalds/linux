@@ -1552,6 +1552,9 @@ static void disk_destroy_zone_wplugs_hash_table(struct gendisk *disk)
 
 void disk_free_zone_resources(struct gendisk *disk)
 {
+	if (!disk->zone_wplugs_pool)
+		return;
+
 	cancel_work_sync(&disk->zone_wplugs_work);
 
 	if (disk->zone_wplugs_wq) {

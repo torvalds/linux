@@ -55,7 +55,11 @@ static unsigned long get_target_state(struct thermal_instance *instance,
 		if (cur_state <= instance->lower)
 			return THERMAL_NO_TARGET;
 
-		return clamp(cur_state - 1, instance->lower, instance->upper);
+		/*
+		 * If 'throttle' is false, no mitigation is necessary, so
+		 * request the lower state for this instance.
+		 */
+		return instance->lower;
 	}
 
 	return instance->target;

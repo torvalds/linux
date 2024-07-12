@@ -493,6 +493,11 @@ struct io_count {
 	u64			sectors[2][BCH_DATA_NR];
 };
 
+struct discard_in_flight {
+	bool			in_progress:1;
+	u64			bucket:63;
+};
+
 struct bch_dev {
 	struct kobject		kobj;
 #ifdef CONFIG_BCACHEFS_DEBUG
@@ -553,6 +558,12 @@ struct bch_dev {
 	size_t			inc_gen_needs_gc;
 	size_t			inc_gen_really_needs_gc;
 	size_t			buckets_waiting_on_journal;
+
+	struct work_struct	invalidate_work;
+	struct work_struct	discard_work;
+	struct mutex		discard_buckets_in_flight_lock;
+	DARRAY(struct discard_in_flight)	discard_buckets_in_flight;
+	struct work_struct	discard_fast_work;
 
 	atomic64_t		rebalance_work;
 
@@ -790,7 +801,8 @@ struct bch_fs {
 
 	/* BTREE CACHE */
 	struct bio_set		btree_bio;
-	struct workqueue_struct	*io_complete_wq;
+	struct workqueue_struct	*btree_read_complete_wq;
+	struct workqueue_struct	*btree_write_submit_wq;
 
 	struct btree_root	btree_roots_known[BTREE_ID_NR];
 	DARRAY(struct btree_root) btree_roots_extra;
@@ -914,11 +926,6 @@ struct bch_fs {
 	unsigned		write_points_nr;
 
 	struct buckets_waiting_for_journal buckets_waiting_for_journal;
-	struct work_struct	invalidate_work;
-	struct work_struct	discard_work;
-	struct mutex		discard_buckets_in_flight_lock;
-	DARRAY(struct bpos)	discard_buckets_in_flight;
-	struct work_struct	discard_fast_work;
 
 	/* GARBAGE COLLECTION */
 	struct work_struct	gc_gens_work;
@@ -1211,6 +1218,11 @@ static inline s64 bch2_current_time(const struct bch_fs *c)
 
 	ktime_get_coarse_real_ts64(&now);
 	return timespec_to_bch2_time(c, now);
+}
+
+static inline u64 bch2_current_io_time(const struct bch_fs *c, int rw)
+{
+	return max(1ULL, (u64) atomic64_read(&c->io_clock[rw].now) & LRU_TIME_MAX);
 }
 
 static inline struct stdio_redirect *bch2_fs_stdio_redirect(struct bch_fs *c)

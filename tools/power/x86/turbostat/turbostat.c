@@ -10,6 +10,7 @@
 #define _GNU_SOURCE
 #include MSRHEADER
 #include INTEL_FAMILY_HEADER
+#include BUILD_BUG_HEADER
 #include <stdarg.h>
 #include <stdio.h>
 #include <err.h>
@@ -38,7 +39,6 @@
 #include <stdbool.h>
 #include <assert.h>
 #include <linux/kernel.h>
-#include <linux/build_bug.h>
 
 #define UNUSED(x) (void)(x)
 
@@ -5695,9 +5695,6 @@ static void probe_intel_uncore_frequency_cluster(void)
 	if (access("/sys/devices/system/cpu/intel_uncore_frequency/uncore00/current_freq_khz", R_OK))
 		return;
 
-	if (quiet)
-		return;
-
 	for (uncore_max_id = 0;; ++uncore_max_id) {
 
 		sprintf(path_base, "/sys/devices/system/cpu/intel_uncore_frequency/uncore%02d", uncore_max_id);
@@ -5727,6 +5724,14 @@ static void probe_intel_uncore_frequency_cluster(void)
 		sprintf(path, "%s/fabric_cluster_id", path_base);
 		cluster_id = read_sysfs_int(path);
 
+		sprintf(path, "%s/current_freq_khz", path_base);
+		sprintf(name_buf, "UMHz%d.%d", domain_id, cluster_id);
+
+		add_counter(0, path, name_buf, 0, SCOPE_PACKAGE, COUNTER_K2M, FORMAT_AVERAGE, 0, package_id);
+
+		if (quiet)
+			continue;
+
 		sprintf(path, "%s/min_freq_khz", path_base);
 		k = read_sysfs_int(path);
 		sprintf(path, "%s/max_freq_khz", path_base);
@@ -5743,11 +5748,6 @@ static void probe_intel_uncore_frequency_cluster(void)
 		sprintf(path, "%s/current_freq_khz", path_base);
 		k = read_sysfs_int(path);
 		fprintf(outf, " %d MHz\n", k / 1000);
-
-		sprintf(path, "%s/current_freq_khz", path_base);
-		sprintf(name_buf, "UMHz%d.%d", domain_id, cluster_id);
-
-		add_counter(0, path, name_buf, 0, SCOPE_PACKAGE, COUNTER_K2M, FORMAT_AVERAGE, 0, package_id);
 	}
 }
 
@@ -8424,7 +8424,7 @@ void cmdline(int argc, char **argv)
 	 * Parse some options early, because they may make other options invalid,
 	 * like adding the MSR counter with --add and at the same time using --no-msr.
 	 */
-	while ((opt = getopt_long_only(argc, argv, "MP", long_options, &option_index)) != -1) {
+	while ((opt = getopt_long_only(argc, argv, "MPn:", long_options, &option_index)) != -1) {
 		switch (opt) {
 		case 'M':
 			no_msr = 1;

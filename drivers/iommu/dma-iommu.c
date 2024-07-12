@@ -686,15 +686,15 @@ static int iommu_dma_init_domain(struct iommu_domain *domain, struct device *dev
 
 	/* Check the domain allows at least some access to the device... */
 	if (map) {
-		dma_addr_t base = dma_range_map_min(map);
-		if (base > domain->geometry.aperture_end ||
+		if (dma_range_map_min(map) > domain->geometry.aperture_end ||
 		    dma_range_map_max(map) < domain->geometry.aperture_start) {
 			pr_warn("specified DMA range outside IOMMU capability\n");
 			return -EFAULT;
 		}
-		/* ...then finally give it a kicking to make sure it fits */
-		base_pfn = max(base, domain->geometry.aperture_start) >> order;
 	}
+	/* ...then finally give it a kicking to make sure it fits */
+	base_pfn = max_t(unsigned long, base_pfn,
+			 domain->geometry.aperture_start >> order);
 
 	/* start_pfn is always nonzero for an already-initialised domain */
 	mutex_lock(&cookie->mutex);
