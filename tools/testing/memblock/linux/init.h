@@ -3,7 +3,6 @@
 #define _LINUX_INIT_H
 
 #include <linux/compiler.h>
-#include <asm/export.h>
 
 #define __section(section)              __attribute__((__section__(section)))
 
