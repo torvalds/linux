@@ -97,7 +97,7 @@ static int netfs_pgpriv2_copy_folio(struct netfs_io_request *wreq, struct folio 
 	if (netfs_buffer_append_folio(wreq, folio, false) < 0)
 		return -ENOMEM;
 
-	cache->submit_max_len = fsize;
+	cache->submit_extendable_to = fsize;
 	cache->submit_off = 0;
 	cache->submit_len = flen;
 
@@ -112,10 +112,10 @@ static int netfs_pgpriv2_copy_folio(struct netfs_io_request *wreq, struct folio 
 		wreq->io_iter.iov_offset = cache->submit_off;
 
 		atomic64_set(&wreq->issued_to, fpos + cache->submit_off);
+		cache->submit_extendable_to = fsize - cache->submit_off;
 		part = netfs_advance_write(wreq, cache, fpos + cache->submit_off,
 					   cache->submit_len, to_eof);
 		cache->submit_off += part;
-		cache->submit_max_len -= part;
 		if (part > cache->submit_len)
 			cache->submit_len = 0;
 		else

@@ -648,6 +648,7 @@ static void cachefiles_issue_write(struct netfs_io_subrequest *subreq)
 	struct netfs_cache_resources *cres = &wreq->cache_resources;
 	struct cachefiles_object *object = cachefiles_cres_object(cres);
 	struct cachefiles_cache *cache = object->volume->cache;
+	struct netfs_io_stream *stream = &wreq->io_streams[subreq->stream_nr];
 	const struct cred *saved_cred;
 	size_t off, pre, post, len = subreq->len;
 	loff_t start = subreq->start;
@@ -661,6 +662,7 @@ static void cachefiles_issue_write(struct netfs_io_subrequest *subreq)
 	if (off) {
 		pre = CACHEFILES_DIO_BLOCK_SIZE - off;
 		if (pre >= len) {
+			fscache_count_dio_misfit();
 			netfs_write_subrequest_terminated(subreq, len, false);
 			return;
 		}
@@ -671,10 +673,22 @@ static void cachefiles_issue_write(struct netfs_io_subrequest *subreq)
 	}
 
 	/* We also need to end on the cache granularity boundary */
+	if (start + len == wreq->i_size) {
+		size_t part = len % CACHEFILES_DIO_BLOCK_SIZE;
+		size_t need = CACHEFILES_DIO_BLOCK_SIZE - part;
+
+		if (part && stream->submit_extendable_to >= need) {
+			len += need;
+			subreq->len += need;
+			subreq->io_iter.count += need;
+		}
+	}
+
 	post = len & (CACHEFILES_DIO_BLOCK_SIZE - 1);
 	if (post) {
 		len -= post;
 		if (len == 0) {
+			fscache_count_dio_misfit();
 			netfs_write_subrequest_terminated(subreq, post, false);
 			return;
 		}

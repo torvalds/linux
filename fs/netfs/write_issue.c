@@ -283,6 +283,7 @@ int netfs_advance_write(struct netfs_io_request *wreq,
 	_debug("part %zx/%zx %zx/%zx", subreq->len, stream->sreq_max_len, part, len);
 	subreq->len += part;
 	subreq->nr_segs++;
+	stream->submit_extendable_to -= part;
 
 	if (subreq->len >= stream->sreq_max_len ||
 	    subreq->nr_segs >= stream->sreq_max_segs ||
@@ -424,7 +425,6 @@ static int netfs_write_folio(struct netfs_io_request *wreq,
 	 */
 	for (int s = 0; s < NR_IO_STREAMS; s++) {
 		stream = &wreq->io_streams[s];
-		stream->submit_max_len = fsize;
 		stream->submit_off = foff;
 		stream->submit_len = flen;
 		if ((stream->source == NETFS_WRITE_TO_CACHE && streamw) ||
@@ -432,7 +432,6 @@ static int netfs_write_folio(struct netfs_io_request *wreq,
 		     fgroup == NETFS_FOLIO_COPY_TO_CACHE)) {
 			stream->submit_off = UINT_MAX;
 			stream->submit_len = 0;
-			stream->submit_max_len = 0;
 		}
 	}
 
@@ -462,10 +461,10 @@ static int netfs_write_folio(struct netfs_io_request *wreq,
 		wreq->io_iter.iov_offset = stream->submit_off;
 
 		atomic64_set(&wreq->issued_to, fpos + stream->submit_off);
+		stream->submit_extendable_to = fsize - stream->submit_off;
 		part = netfs_advance_write(wreq, stream, fpos + stream->submit_off,
 					   stream->submit_len, to_eof);
 		stream->submit_off += part;
-		stream->submit_max_len -= part;
 		if (part > stream->submit_len)
 			stream->submit_len = 0;
 		else
