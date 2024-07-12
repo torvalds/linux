@@ -6,6 +6,8 @@
  * Copyright (c) 2011 David George <david.george@ska.ac.za>
  */
 
+#include <linux/bitfield.h>
+#include <linux/bits.h>
 #include <linux/err.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
@@ -32,20 +34,31 @@ static const u8 MAX6697_REG_CRIT[] = {
 			0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27 };
 
 /*
- * Map device tree / platform data register bit map to chip bit map.
+ * Map device tree / internal register bit map to chip bit map.
  * Applies to alert register and over-temperature register.
  */
+
+#define MAX6697_EXTERNAL_MASK_DT	GENMASK(7, 1)
+#define MAX6697_LOCAL_MASK_DT		BIT(0)
+#define MAX6697_EXTERNAL_MASK_CHIP	GENMASK(6, 0)
+#define MAX6697_LOCAL_MASK_CHIP		BIT(7)
+
+/* alert - local channel is in bit 6 */
 #define MAX6697_ALERT_MAP_BITS(reg)	((((reg) & 0x7e) >> 1) | \
 				 (((reg) & 0x01) << 6) | ((reg) & 0x80))
-#define MAX6697_OVERT_MAP_BITS(reg) (((reg) >> 1) | (((reg) & 0x01) << 7))
+
+/* over-temperature - local channel is in bit 7 */
+#define MAX6697_OVERT_MAP_BITS(reg)	\
+	(FIELD_PREP(MAX6697_EXTERNAL_MASK_CHIP, FIELD_GET(MAX6697_EXTERNAL_MASK_DT, reg)) | \
+	 FIELD_PREP(MAX6697_LOCAL_MASK_CHIP, FIELD_GET(MAX6697_LOCAL_MASK_DT, reg)))
 
 #define MAX6697_REG_STAT(n)		(0x44 + (n))
 
 #define MAX6697_REG_CONFIG		0x41
-#define MAX6581_CONF_EXTENDED		(1 << 1)
-#define MAX6693_CONF_BETA		(1 << 2)
-#define MAX6697_CONF_RESISTANCE		(1 << 3)
-#define MAX6697_CONF_TIMEOUT		(1 << 5)
+#define MAX6581_CONF_EXTENDED		BIT(1)
+#define MAX6693_CONF_BETA		BIT(2)
+#define MAX6697_CONF_RESISTANCE		BIT(3)
+#define MAX6697_CONF_TIMEOUT		BIT(5)
 #define MAX6697_REG_ALERT_MASK		0x42
 #define MAX6697_REG_OVERT_MASK		0x43
 
@@ -193,7 +206,7 @@ static struct max6697_data *max6697_update_device(struct device *dev)
 		goto abort;
 
 	for (i = 0; i < data->chip->channels; i++) {
-		if (data->chip->have_ext & (1 << i)) {
+		if (data->chip->have_ext & BIT(i)) {
 			val = i2c_smbus_read_byte_data(client,
 						       MAX6697_REG_TEMP_EXT[i]);
 			if (unlikely(val < 0)) {
@@ -217,7 +230,7 @@ static struct max6697_data *max6697_update_device(struct device *dev)
 		}
 		data->temp[i][MAX6697_TEMP_MAX] = val;
 
-		if (data->chip->have_crit & (1 << i)) {
+		if (data->chip->have_crit & BIT(i)) {
 			val = i2c_smbus_read_byte_data(client,
 						       MAX6697_REG_CRIT[i]);
 			if (unlikely(val < 0)) {
@@ -291,7 +304,7 @@ static ssize_t alarm_show(struct device *dev, struct device_attribute *attr,
 	if (data->chip->alarm_map)
 		index = data->chip->alarm_map[index];
 
-	return sprintf(buf, "%u\n", (data->alarms >> index) & 0x1);
+	return sprintf(buf, "%u\n", !!(data->alarms & BIT(index)));
 }
 
 static ssize_t temp_store(struct device *dev,
@@ -342,20 +355,20 @@ static ssize_t offset_store(struct device *dev, struct device_attribute *devattr
 		ret = select;
 		goto abort;
 	}
-	channel_enabled = (select & (1 << (index - 1)));
+	channel_enabled = (select & BIT(index - 1));
 	temp = clamp_val(temp, MAX6581_OFFSET_MIN, MAX6581_OFFSET_MAX);
 	val = DIV_ROUND_CLOSEST(temp, 250);
 	/* disable the offset for channel if the new offset is 0 */
 	if (val == 0) {
 		if (channel_enabled)
 			ret = i2c_smbus_write_byte_data(data->client, MAX6581_REG_OFFSET_SELECT,
-							select & ~(1 << (index - 1)));
+							select & ~BIT(index - 1));
 		ret = ret < 0 ? ret : count;
 		goto abort;
 	}
 	if (!channel_enabled) {
 		ret = i2c_smbus_write_byte_data(data->client, MAX6581_REG_OFFSET_SELECT,
-						select | (1 << (index - 1)));
+						select | BIT(index - 1));
 		if (ret < 0)
 			goto abort;
 	}
@@ -378,7 +391,7 @@ static ssize_t offset_show(struct device *dev, struct device_attribute *devattr,
 	select = i2c_smbus_read_byte_data(data->client, MAX6581_REG_OFFSET_SELECT);
 	if (select < 0)
 		ret = select;
-	else if (select & (1 << (index - 1)))
+	else if (select & BIT(index - 1))
 		ret = i2c_smbus_read_byte_data(data->client, MAX6581_REG_OFFSET);
 	else
 		ret = 0;
@@ -467,9 +480,9 @@ static umode_t max6697_is_visible(struct kobject *kobj, struct attribute *attr,
 	if (channel >= chip->channels)
 		return 0;
 
-	if ((nr == 3 || nr == 4) && !(chip->have_crit & (1 << channel)))
+	if ((nr == 3 || nr == 4) && !(chip->have_crit & BIT(channel)))
 		return 0;
-	if (nr == 5 && !(chip->have_fault & (1 << channel)))
+	if (nr == 5 && !(chip->have_fault & BIT(channel)))
 		return 0;
 	/* offset reg is only supported on max6581 remote channels */
 	if (nr == 6)
