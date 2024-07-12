@@ -1349,6 +1349,20 @@ exit:
 			__func__, retval);
 }
 
+static int usbtouch_start_io(struct usbtouch_usb *usbtouch)
+{
+	guard(mutex)(&usbtouch->pm_mutex);
+
+	if (!usbtouch->type->irq_always)
+		if (usb_submit_urb(usbtouch->irq, GFP_KERNEL))
+			return -EIO;
+
+	usbtouch->interface->needs_remote_wakeup = 1;
+	usbtouch->is_open = true;
+
+	return 0;
+}
+
 static int usbtouch_open(struct input_dev *input)
 {
 	struct usbtouch_usb *usbtouch = input_get_drvdata(input);
@@ -1357,23 +1371,12 @@ static int usbtouch_open(struct input_dev *input)
 	usbtouch->irq->dev = interface_to_usbdev(usbtouch->interface);
 
 	r = usb_autopm_get_interface(usbtouch->interface) ? -EIO : 0;
-	if (r < 0)
-		goto out;
+	if (r)
+		return r;
 
-	mutex_lock(&usbtouch->pm_mutex);
-	if (!usbtouch->type->irq_always) {
-		if (usb_submit_urb(usbtouch->irq, GFP_KERNEL)) {
-			r = -EIO;
-			goto out_put;
-		}
-	}
+	r = usbtouch_start_io(usbtouch);
 
-	usbtouch->interface->needs_remote_wakeup = 1;
-	usbtouch->is_open = true;
-out_put:
-	mutex_unlock(&usbtouch->pm_mutex);
 	usb_autopm_put_interface(usbtouch->interface);
-out:
 	return r;
 }
 
@@ -1382,11 +1385,11 @@ static void usbtouch_close(struct input_dev *input)
 	struct usbtouch_usb *usbtouch = input_get_drvdata(input);
 	int r;
 
-	mutex_lock(&usbtouch->pm_mutex);
-	if (!usbtouch->type->irq_always)
-		usb_kill_urb(usbtouch->irq);
-	usbtouch->is_open = false;
-	mutex_unlock(&usbtouch->pm_mutex);
+	scoped_guard(mutex, &usbtouch->pm_mutex) {
+		if (!usbtouch->type->irq_always)
+			usb_kill_urb(usbtouch->irq);
+		usbtouch->is_open = false;
+	}
 
 	r = usb_autopm_get_interface(usbtouch->interface);
 	usbtouch->interface->needs_remote_wakeup = 0;
@@ -1394,8 +1397,7 @@ static void usbtouch_close(struct input_dev *input)
 		usb_autopm_put_interface(usbtouch->interface);
 }
 
-static int usbtouch_suspend
-(struct usb_interface *intf, pm_message_t message)
+static int usbtouch_suspend(struct usb_interface *intf, pm_message_t message)
 {
 	struct usbtouch_usb *usbtouch = usb_get_intfdata(intf);
 
@@ -1407,20 +1409,19 @@ static int usbtouch_suspend
 static int usbtouch_resume(struct usb_interface *intf)
 {
 	struct usbtouch_usb *usbtouch = usb_get_intfdata(intf);
-	int result = 0;
 
-	mutex_lock(&usbtouch->pm_mutex);
+	guard(mutex)(&usbtouch->pm_mutex);
+
 	if (usbtouch->is_open || usbtouch->type->irq_always)
-		result = usb_submit_urb(usbtouch->irq, GFP_NOIO);
-	mutex_unlock(&usbtouch->pm_mutex);
+		return usb_submit_urb(usbtouch->irq, GFP_NOIO);
 
-	return result;
+	return 0;
 }
 
 static int usbtouch_reset_resume(struct usb_interface *intf)
 {
 	struct usbtouch_usb *usbtouch = usb_get_intfdata(intf);
-	int err = 0;
+	int err;
 
 	/* reinit the device */
 	if (usbtouch->type->init) {
@@ -1434,12 +1435,12 @@ static int usbtouch_reset_resume(struct usb_interface *intf)
 	}
 
 	/* restart IO if needed */
-	mutex_lock(&usbtouch->pm_mutex);
-	if (usbtouch->is_open)
-		err = usb_submit_urb(usbtouch->irq, GFP_NOIO);
-	mutex_unlock(&usbtouch->pm_mutex);
+	guard(mutex)(&usbtouch->pm_mutex);
 
-	return err;
+	if (usbtouch->is_open)
+		return usb_submit_urb(usbtouch->irq, GFP_NOIO);
+
+	return 0;
 }
 
 static void usbtouch_free_buffers(struct usb_device *udev,
