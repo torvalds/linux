@@ -737,8 +737,10 @@ enum scx_rq_flags {
 	 * only while the BPF scheduler considers the CPU to be online.
 	 */
 	SCX_RQ_ONLINE		= 1 << 0,
-	SCX_RQ_BALANCING	= 1 << 1,
-	SCX_RQ_CAN_STOP_TICK	= 1 << 2,
+	SCX_RQ_CAN_STOP_TICK	= 1 << 1,
+
+	SCX_RQ_IN_WAKEUP	= 1 << 16,
+	SCX_RQ_IN_BALANCE	= 1 << 17,
 };
 
 struct scx_rq {
