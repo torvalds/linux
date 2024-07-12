@@ -11,13 +11,19 @@ maintainers:
 
 properties:
   compatible:
-    enum:
-      - fsl,ls1021a-ahci
-      - fsl,ls1043a-ahci
-      - fsl,ls1028a-ahci
-      - fsl,ls1088a-ahci
-      - fsl,ls2080a-ahci
-      - fsl,lx2160a-ahci
+    oneOf:
+      - description: SATA controller for ls1012a
+        items:
+          - const: fsl,ls1012a-ahci
+          - const: fsl,ls1043a-ahci
+      - enum:
+          - fsl,ls1021a-ahci
+          - fsl,ls1028a-ahci
+          - fsl,ls1043a-ahci
+          - fsl,ls1046a-ahci
+          - fsl,ls1088a-ahci
+          - fsl,ls2080a-ahci
+          - fsl,lx2160a-ahci
 
   reg:
     minItems: 1
