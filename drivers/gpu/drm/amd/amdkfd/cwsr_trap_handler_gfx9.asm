@@ -75,8 +75,10 @@ var SQ_WAVE_STATUS_ECC_ERR_MASK         = 0x20000
 var SQ_WAVE_LDS_ALLOC_LDS_SIZE_SHIFT	= 12
 #if ASIC_FAMILY >= CHIP_GC_9_5_0
 var SQ_WAVE_LDS_ALLOC_LDS_SIZE_SIZE	= 11
+var LDS_RESTORE_GRANULARITY_BYTES	= 1280
 #else
 var SQ_WAVE_LDS_ALLOC_LDS_SIZE_SIZE	= 9
+var LDS_RESTORE_GRANULARITY_BYTES	= 512
 #endif
 var SQ_WAVE_GPR_ALLOC_VGPR_SIZE_SIZE	= 6
 var SQ_WAVE_GPR_ALLOC_SGPR_SIZE_SIZE	= 3			//FIXME	 sq.blk still has 4 bits at this time while SQ programming guide has 3 bits
@@ -572,12 +574,21 @@ if SAVE_AFTER_XNACK_ERROR
 
 	v_lshlrev_b32 v2, 2, v3
 L_SAVE_LDS_LOOP_SQC:
+#if ASIC_FAMILY < CHIP_GC_9_5_0
 	ds_read2_b32 v[0:1], v2 offset0:0 offset1:0x40
 	s_waitcnt lgkmcnt(0)
-
 	write_vgprs_to_mem_with_sqc(v0, 2, s_save_buf_rsrc0, s_save_mem_offset)
 
 	v_add_u32 v2, 0x200, v2
+#else
+	// gfx950 needs to save in multiple of 256 bytes.
+	ds_read_b32 v0, v2
+	s_waitcnt lgkmcnt(0)
+	write_vgprs_to_mem_with_sqc(v0, 1, s_save_buf_rsrc0, s_save_mem_offset)
+
+	v_add_u32 v2, 0x100, v2
+#endif
+
 	v_cmp_lt_u32 vcc[0:1], v2, s_save_alloc_size
 	s_cbranch_vccnz L_SAVE_LDS_LOOP_SQC
 
@@ -601,6 +612,9 @@ L_SAVE_LDS_LOOP_VECTOR:
 //	v_add_u32 v2, vcc[0:1], v2, v3
       v_add_u32 v2, v2, v3
       v_cmp_lt_u32 vcc[0:1], v2, s_save_alloc_size
+#if ASIC_FAMILY >= CHIP_GC_9_5_0
+      s_mov_b64 exec, vcc
+#endif
       s_cbranch_vccnz L_SAVE_LDS_LOOP_VECTOR
 
       // restore rsrc3
@@ -763,8 +777,13 @@ L_RESTORE:
   L_RESTORE_LDS_LOOP:
 	buffer_load_dword   v0, v0, s_restore_buf_rsrc0, s_restore_mem_offset lds:1		       // first 64DW
 	buffer_load_dword   v0, v0, s_restore_buf_rsrc0, s_restore_mem_offset lds:1 offset:256	       // second 64DW
-    s_add_u32	    m0, m0, 256*2						// 128 DW
-    s_add_u32	    s_restore_mem_offset, s_restore_mem_offset, 256*2		//mem offset increased by 128DW
+#if ASIC_FAMILY >= CHIP_GC_9_5_0
+	buffer_load_dword   v0, v0, s_restore_buf_rsrc0, s_restore_mem_offset lds:1 offset:512	// third 64DW
+	buffer_load_dword   v0, v0, s_restore_buf_rsrc0, s_restore_mem_offset lds:1 offset:768	// forth 64DW
+	buffer_load_dword   v0, v0, s_restore_buf_rsrc0, s_restore_mem_offset lds:1 offset:1024	// fifth 64DW
+#endif
+    s_add_u32	    m0, m0, LDS_RESTORE_GRANULARITY_BYTES					// 128/320 DW
+    s_add_u32	    s_restore_mem_offset, s_restore_mem_offset, LDS_RESTORE_GRANULARITY_BYTES	//mem offset increased by 128/320 DW
     s_cmp_lt_u32    m0, s_restore_alloc_size					//scc=(m0 < s_restore_alloc_size) ? 1 : 0
     s_cbranch_scc1  L_RESTORE_LDS_LOOP							    //LDS restore is complete?
 
