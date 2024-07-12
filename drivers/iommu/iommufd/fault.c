@@ -128,7 +128,7 @@ iommufd_device_get_attach_handle(struct iommufd_device *idev)
 	struct iommu_attach_handle *handle;
 
 	handle = iommu_attach_handle_get(idev->igroup->group, IOMMU_NO_PASID, 0);
-	if (!handle)
+	if (IS_ERR(handle))
 		return NULL;
 
 	return to_iommufd_handle(handle);
