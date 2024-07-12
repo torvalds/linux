@@ -74,11 +74,24 @@ void of_phandle_args_to_fwspec(struct device_node *np, const u32 *args,
  * struct irq_domain_ops - Methods for irq_domain objects
  * @match: Match an interrupt controller device node to a host, returns
  *         1 on a match
+ * @select: Match an interrupt controller fw specification. It is more generic
+ *	    than @match as it receives a complete struct irq_fwspec. Therefore,
+ *	    @select is preferred if provided. Returns 1 on a match.
  * @map: Create or update a mapping between a virtual irq number and a hw
  *       irq number. This is called only once for a given mapping.
  * @unmap: Dispose of such a mapping
  * @xlate: Given a device tree node and interrupt specifier, decode
  *         the hardware irq number and linux irq type value.
+ * @alloc: Allocate @nr_irqs interrupts starting from @virq.
+ * @free: Free @nr_irqs interrupts starting from @virq.
+ * @activate: Activate one interrupt in HW (@irqd). If @reserve is set, only
+ *	      reserve the vector. If unset, assign the vector (called from
+ *	      request_irq()).
+ * @deactivate: Disarm one interrupt (@irqd).
+ * @translate: Given @fwspec, decode the hardware irq number (@out_hwirq) and
+ *	       linux irq type value (@out_type). This is a generalised @xlate
+ *	       (over struct irq_fwspec) and is preferred if provided.
+ * @debug_show: For domains to show specific data for an interrupt in debugfs.
  *
  * Functions below are provided by the driver and called whenever a new mapping
  * is created or an old mapping is disposed. The driver can then proceed to
@@ -131,6 +144,9 @@ struct irq_domain_chip_generic;
  * Optional elements:
  * @fwnode:	Pointer to firmware node associated with the irq_domain. Pretty easy
  *		to swap it for the of_node via the irq_domain_get_of_node accessor
+ * @bus_token:	@fwnode's device_node might be used for several irq domains. But
+ *		in connection with @bus_token, the pair shall be unique in a
+ *		system.
  * @gc:		Pointer to a list of generic chips. There is a helper function for
  *		setting up one or more generic chips for interrupt controllers
  *		drivers using the generic chip library which uses this pointer.
@@ -144,7 +160,9 @@ struct irq_domain_chip_generic;
  * @exit:	Function called when the domain is destroyed
  *
  * Revmap data, used internally by the irq domain code:
- * @revmap_size:	Size of the linear map table @revmap[]
+ * @hwirq_max:		Top limit for the HW irq number. Especially to avoid
+ *			conflicts/failures with reserved HW irqs. Can be ~0.
+ * @revmap_size:	Size of the linear map table @revmap
  * @revmap_tree:	Radix map tree for hwirqs that don't fit in the linear map
  * @revmap:		Linear table of irq_data pointers
  */
