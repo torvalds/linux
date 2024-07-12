@@ -44,8 +44,8 @@ static struct mem_cgroup_tree soft_limit_tree __read_mostly;
 /*
  * Types of charges to be moved.
  */
-#define MOVE_ANON	0x1U
-#define MOVE_FILE	0x2U
+#define MOVE_ANON	0x1ULL
+#define MOVE_FILE	0x2ULL
 #define MOVE_MASK	(MOVE_ANON | MOVE_FILE)
 
 /* "mc" and its members are protected by cgroup_mutex */
