@@ -540,7 +540,7 @@ static int mcp4728_probe(struct i2c_client *client)
 	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct mcp4728_data *data;
 	struct iio_dev *indio_dev;
-	int err;
+	int ret;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
@@ -554,14 +554,14 @@ static int mcp4728_probe(struct i2c_client *client)
 	if (IS_ERR(data->vdd_reg))
 		return PTR_ERR(data->vdd_reg);
 
-	err = regulator_enable(data->vdd_reg);
-	if (err)
-		return err;
+	ret = regulator_enable(data->vdd_reg);
+	if (ret)
+		return ret;
 
-	err = devm_add_action_or_reset(&client->dev, mcp4728_reg_disable,
+	ret = devm_add_action_or_reset(&client->dev, mcp4728_reg_disable,
 				       data->vdd_reg);
-	if (err)
-		return err;
+	if (ret)
+		return ret;
 
 	/*
 	 * MCP4728 has internal EEPROM that save each channel boot
@@ -569,15 +569,15 @@ static int mcp4728_probe(struct i2c_client *client)
 	 * driver at kernel boot. mcp4728_init_channels_data() reads back DAC
 	 * settings and stores them in data structure.
 	 */
-	err = mcp4728_init_channels_data(data);
-	if (err) {
-		return dev_err_probe(&client->dev, err,
+	ret = mcp4728_init_channels_data(data);
+	if (ret) {
+		return dev_err_probe(&client->dev, ret,
 			"failed to read mcp4728 current configuration\n");
 	}
 
-	err = mcp4728_init_scales_avail(data);
-	if (err) {
-		return dev_err_probe(&client->dev, err,
+	ret = mcp4728_init_scales_avail(data);
+	if (ret) {
+		return dev_err_probe(&client->dev, ret,
 				     "failed to init scales\n");
 	}
 
