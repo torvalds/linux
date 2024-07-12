@@ -1344,6 +1344,9 @@ static bool is_dsc_need_re_compute(
 	DRM_DEBUG_DRIVER("%s: MST_DSC check on %d streams in current dc_state\n",
 			 __func__, dc->current_state->stream_count);
 
+	if (new_stream_on_link_num == 0)
+		return false;
+
 	/* check current_state if there stream on link but it is not in
 	 * new request state
 	 */
