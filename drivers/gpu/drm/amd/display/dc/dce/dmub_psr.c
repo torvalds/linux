@@ -94,6 +94,8 @@ static enum dc_psr_state convert_psr_state(uint32_t raw_state)
 		state = PSR_STATE_HWLOCK_MGR;
 	else if (raw_state == 0x61)
 		state = PSR_STATE_POLLVUPDATE;
+	else if (raw_state == 0x62)
+		state = PSR_STATE_RELEASE_HWLOCK_MGR_FULL_FRAME;
 	else
 		state = PSR_STATE_INVALID;
 
