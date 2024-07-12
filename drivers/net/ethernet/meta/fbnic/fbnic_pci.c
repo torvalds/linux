@@ -58,6 +58,48 @@ u32 fbnic_rd32(struct fbnic_dev *fbd, u32 reg)
 	return ~0U;
 }
 
+bool fbnic_fw_present(struct fbnic_dev *fbd)
+{
+	return !!READ_ONCE(fbd->uc_addr4);
+}
+
+void fbnic_fw_wr32(struct fbnic_dev *fbd, u32 reg, u32 val)
+{
+	u32 __iomem *csr = READ_ONCE(fbd->uc_addr4);
+
+	if (csr)
+		writel(val, csr + reg);
+}
+
+u32 fbnic_fw_rd32(struct fbnic_dev *fbd, u32 reg)
+{
+	u32 __iomem *csr = READ_ONCE(fbd->uc_addr4);
+	u32 value;
+
+	if (!csr)
+		return ~0U;
+
+	value = readl(csr + reg);
+
+	/* If any bits are 0 value should be valid */
+	if (~value)
+		return value;
+
+	/* All 1's may be valid if ZEROs register still works */
+	if (reg != FBNIC_FW_ZERO_REG && ~readl(csr + FBNIC_FW_ZERO_REG))
+		return value;
+
+	/* Hardware is giving us all 1's reads, assume it is gone */
+	WRITE_ONCE(fbd->uc_addr0, NULL);
+	WRITE_ONCE(fbd->uc_addr4, NULL);
+
+	dev_err(fbd->dev,
+		"Failed read (idx 0x%x AKA addr 0x%x), disabled CSR access, awaiting reset\n",
+		reg, reg << 2);
+
+	return ~0U;
+}
+
 /**
  * fbnic_probe - Device Initialization Routine
  * @pdev: PCI device information struct
@@ -121,6 +163,13 @@ static int fbnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto free_irqs;
 	}
 
+	err = fbnic_fw_enable_mbx(fbd);
+	if (err) {
+		dev_err(&pdev->dev,
+			"Firmware mailbox initialization failure\n");
+		goto free_irqs;
+	}
+
 	fbnic_devlink_register(fbd);
 
 	if (!fbd->dsn) {
@@ -158,6 +207,7 @@ static void fbnic_remove(struct pci_dev *pdev)
 	struct fbnic_dev *fbd = pci_get_drvdata(pdev);
 
 	fbnic_devlink_unregister(fbd);
+	fbnic_fw_disable_mbx(fbd);
 	fbnic_free_irqs(fbd);
 
 	pci_disable_device(pdev);
@@ -167,6 +217,8 @@ static void fbnic_remove(struct pci_dev *pdev)
 static int fbnic_pm_suspend(struct device *dev)
 {
 	struct fbnic_dev *fbd = dev_get_drvdata(dev);
+
+	fbnic_fw_disable_mbx(fbd);
 
 	/* Free the IRQs so they aren't trying to occupy sleeping CPUs */
 	fbnic_free_irqs(fbd);
@@ -196,7 +248,14 @@ static int __fbnic_pm_resume(struct device *dev)
 
 	fbd->mac->init_regs(fbd);
 
+	/* Re-enable mailbox */
+	err = fbnic_fw_enable_mbx(fbd);
+	if (err)
+		goto err_free_irqs;
+
 	return 0;
+err_free_irqs:
+	fbnic_free_irqs(fbd);
 err_invalidate_uc_addr:
 	WRITE_ONCE(fbd->uc_addr0, NULL);
 	WRITE_ONCE(fbd->uc_addr4, NULL);

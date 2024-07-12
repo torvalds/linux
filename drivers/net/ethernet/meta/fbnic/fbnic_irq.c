@@ -6,9 +6,85 @@
 
 #include "fbnic.h"
 
+static irqreturn_t fbnic_fw_msix_intr(int __always_unused irq, void *data)
+{
+	struct fbnic_dev *fbd = (struct fbnic_dev *)data;
+
+	fbnic_mbx_poll(fbd);
+
+	fbnic_wr32(fbd, FBNIC_INTR_MASK_CLEAR(0), 1u << FBNIC_FW_MSIX_ENTRY);
+
+	return IRQ_HANDLED;
+}
+
+/**
+ * fbnic_fw_enable_mbx - Configure and initialize Firmware Mailbox
+ * @fbd: Pointer to device to initialize
+ *
+ * This function will initialize the firmware mailbox rings, enable the IRQ
+ * and initialize the communication between the Firmware and the host. The
+ * firmware is expected to respond to the initialization by sending an
+ * interrupt essentially notifying the host that it has seen the
+ * initialization and is now synced up.
+ *
+ * Return: non-zero on failure.
+ **/
+int fbnic_fw_enable_mbx(struct fbnic_dev *fbd)
+{
+	u32 vector = fbd->fw_msix_vector;
+	int err;
+
+	/* Request the IRQ for FW Mailbox vector. */
+	err = request_threaded_irq(vector, NULL, &fbnic_fw_msix_intr,
+				   IRQF_ONESHOT, dev_name(fbd->dev), fbd);
+	if (err)
+		return err;
+
+	/* Initialize mailbox and attempt to poll it into ready state */
+	fbnic_mbx_init(fbd);
+	err = fbnic_mbx_poll_tx_ready(fbd);
+	if (err) {
+		dev_warn(fbd->dev, "FW mailbox did not enter ready state\n");
+		free_irq(vector, fbd);
+		return err;
+	}
+
+	/* Enable interrupts */
+	fbnic_wr32(fbd, FBNIC_INTR_MASK_CLEAR(0), 1u << FBNIC_FW_MSIX_ENTRY);
+
+	return 0;
+}
+
+/**
+ * fbnic_fw_disable_mbx - Disable mailbox and place it in standby state
+ * @fbd: Pointer to device to disable
+ *
+ * This function will disable the mailbox interrupt, free any messages still
+ * in the mailbox and place it into a standby state. The firmware is
+ * expected to see the update and assume that the host is in the reset state.
+ **/
+void fbnic_fw_disable_mbx(struct fbnic_dev *fbd)
+{
+	/* Disable interrupt and free vector */
+	fbnic_wr32(fbd, FBNIC_INTR_MASK_SET(0), 1u << FBNIC_FW_MSIX_ENTRY);
+
+	/* Free the vector */
+	free_irq(fbd->fw_msix_vector, fbd);
+
+	/* Make sure disabling logs message is sent, must be done here to
+	 * avoid risk of completing without a running interrupt.
+	 */
+	fbnic_mbx_flush_tx(fbd);
+
+	/* Reset the mailboxes to the initialized state */
+	fbnic_mbx_clean(fbd);
+}
+
 void fbnic_free_irqs(struct fbnic_dev *fbd)
 {
 	struct pci_dev *pdev = to_pci_dev(fbd->dev);
+
+	fbd->fw_msix_vector = 0;
 
 	fbd->num_irqs = 0;
 
@@ -34,6 +110,8 @@ int fbnic_alloc_irqs(struct fbnic_dev *fbd)
 			 num_irqs, wanted_irqs);
 
 	fbd->num_irqs = num_irqs;
+
+	fbd->fw_msix_vector = pci_irq_vector(pdev, FBNIC_FW_MSIX_ENTRY);
 
 	return 0;
 }

@@ -9,9 +9,59 @@
 #define CSR_BIT(nr)		(1u << (nr))
 #define CSR_GENMASK(h, l)	GENMASK(h, l)
 
+#define DESC_BIT(nr)		BIT_ULL(nr)
+#define DESC_GENMASK(h, l)	GENMASK_ULL(h, l)
+
 #define PCI_DEVICE_ID_META_FBNIC_ASIC		0x0013
 
 #define FBNIC_CLOCK_FREQ	(600 * (1000 * 1000))
+
+/* Register Definitions
+ *
+ * The registers are laid as indexes into an le32 array. As such the actual
+ * address is 4 times the index value. Below each register is defined as 3
+ * fields, name, index, and Address.
+ *
+ *      Name				Index		Address
+ *************************************************************************/
+/* Interrupt Registers */
+#define FBNIC_CSR_START_INTR		0x00000	/* CSR section delimiter */
+#define FBNIC_INTR_STATUS(n)		(0x00000 + (n))	/* 0x00000 + 4*n */
+#define FBNIC_INTR_STATUS_CNT			8
+#define FBNIC_INTR_MASK(n)		(0x00008 + (n)) /* 0x00020 + 4*n */
+#define FBNIC_INTR_MASK_CNT			8
+#define FBNIC_INTR_SET(n)		(0x00010 + (n))	/* 0x00040 + 4*n */
+#define FBNIC_INTR_SET_CNT			8
+#define FBNIC_INTR_CLEAR(n)		(0x00018 + (n))	/* 0x00060 + 4*n */
+#define FBNIC_INTR_CLEAR_CNT			8
+#define FBNIC_INTR_SW_STATUS(n)		(0x00020 + (n)) /* 0x00080 + 4*n */
+#define FBNIC_INTR_SW_STATUS_CNT		8
+#define FBNIC_INTR_SW_AC_MODE(n)	(0x00028 + (n)) /* 0x000a0 + 4*n */
+#define FBNIC_INTR_SW_AC_MODE_CNT		8
+#define FBNIC_INTR_MASK_SET(n)		(0x00030 + (n)) /* 0x000c0 + 4*n */
+#define FBNIC_INTR_MASK_SET_CNT			8
+#define FBNIC_INTR_MASK_CLEAR(n)	(0x00038 + (n)) /* 0x000e0 + 4*n */
+#define FBNIC_INTR_MASK_CLEAR_CNT		8
+#define FBNIC_MAX_MSIX_VECS		256U
+#define FBNIC_INTR_MSIX_CTRL(n)		(0x00040 + (n)) /* 0x00100 + 4*n */
+#define FBNIC_INTR_MSIX_CTRL_VECTOR_MASK	CSR_GENMASK(7, 0)
+#define FBNIC_INTR_MSIX_CTRL_ENABLE		CSR_BIT(31)
+
+#define FBNIC_CSR_END_INTR		0x0005f	/* CSR section delimiter */
+
+/* Interrupt MSIX Registers */
+#define FBNIC_CSR_START_INTR_CQ		0x00400	/* CSR section delimiter */
+#define FBNIC_INTR_CQ_REARM(n) \
+				(0x00400 + 4 * (n))	/* 0x01000 + 16*n */
+#define FBNIC_INTR_CQ_REARM_CNT			256
+#define FBNIC_INTR_CQ_REARM_RCQ_TIMEOUT		CSR_GENMASK(13, 0)
+#define FBNIC_INTR_CQ_REARM_RCQ_TIMEOUT_UPD_EN	CSR_BIT(14)
+#define FBNIC_INTR_CQ_REARM_TCQ_TIMEOUT		CSR_GENMASK(28, 15)
+#define FBNIC_INTR_CQ_REARM_TCQ_TIMEOUT_UPD_EN	CSR_BIT(29)
+#define FBNIC_INTR_CQ_REARM_INTR_RELOAD		CSR_BIT(30)
+#define FBNIC_INTR_CQ_REARM_INTR_UNMASK		CSR_BIT(31)
+
+#define FBNIC_CSR_END_INTR_CQ		0x007fe	/* CSR section delimiter */
 
 /* Global QM Tx registers */
 #define FBNIC_CSR_START_QM_TX		0x00800	/* CSR section delimiter */
@@ -317,5 +367,34 @@ enum {
 #define FBNIC_CSR_END_PUL_USER	0x31080	/* CSR section delimiter */
 
 #define FBNIC_MAX_QUEUES		128
+
+/* BAR 4 CSRs */
+
+/* The IPC mailbox consists of 32 mailboxes, with each mailbox consisting
+ * of 32 4 byte registers. We will use 2 registers per descriptor so the
+ * length of the mailbox is reduced to 16.
+ *
+ * Currently we use an offset of 0x6000 on BAR4 for the mailbox so we just
+ * have to do the math and determine the offset based on the mailbox
+ * direction and index inside that mailbox.
+ */
+#define FBNIC_IPC_MBX_DESC_LEN	16
+#define FBNIC_IPC_MBX(mbx_idx, desc_idx)	\
+	((((mbx_idx) * FBNIC_IPC_MBX_DESC_LEN + (desc_idx)) * 2) + 0x6000)
+
+/* Use first register in mailbox to flush writes */
+#define FBNIC_FW_ZERO_REG	FBNIC_IPC_MBX(0, 0)
+
+enum {
+	FBNIC_IPC_MBX_RX_IDX,
+	FBNIC_IPC_MBX_TX_IDX,
+	FBNIC_IPC_MBX_INDICES,
+};
+
+#define FBNIC_IPC_MBX_DESC_LEN_MASK	DESC_GENMASK(63, 48)
+#define FBNIC_IPC_MBX_DESC_EOM		DESC_BIT(46)
+#define FBNIC_IPC_MBX_DESC_ADDR_MASK	DESC_GENMASK(45, 3)
+#define FBNIC_IPC_MBX_DESC_FW_CMPL	DESC_BIT(1)
+#define FBNIC_IPC_MBX_DESC_HOST_CMPL	DESC_BIT(0)
 
 #endif /* _FBNIC_CSR_H_ */
