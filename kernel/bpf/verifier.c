@@ -18852,7 +18852,7 @@ static int adjust_jmp_off(struct bpf_prog *prog, u32 tgt_idx, u32 delta)
 		} else {
 			if (i + 1 + insn->off != tgt_idx)
 				continue;
-			if (signed_add16_overflows(insn->imm, delta))
+			if (signed_add16_overflows(insn->off, delta))
 				return -ERANGE;
 			insn->off += delta;
 		}
