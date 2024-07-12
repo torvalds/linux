@@ -367,6 +367,15 @@ config XILINX_GMII2RGMII
 	  the Reduced Gigabit Media Independent Interface(RGMII) between
 	  Ethernet physical media devices and the Gigabit Ethernet controller.
 
+config QCA8337_SWITCH
+	tristate "Drivers for QTI Atheros QCA8337 switch"
+	help
+	  This enables support for the QTI Atheros QCA8337 Ethernet
+	  switch. This driver support switch funtionality over SGMII
+          interface.
+	  Add downstream qca8337 driver
+	  Support the emac driver
+
 endif # PHYLIB
 
 config MICREL_KS8995MA
