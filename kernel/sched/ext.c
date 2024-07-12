@@ -851,7 +851,6 @@ static u32 scx_dsp_max_batch;
 
 struct scx_dsp_ctx {
 	struct rq		*rq;
-	struct rq_flags		*rf;
 	u32			cursor;
 	u32			nr_tasks;
 	struct scx_dsp_buf_ent	buf[];
@@ -2040,7 +2039,6 @@ static bool move_task_to_local_dsq(struct rq *rq, struct task_struct *p,
 /**
  * dispatch_to_local_dsq_lock - Ensure source and destination rq's are locked
  * @rq: current rq which is locked
- * @rf: rq_flags to use when unlocking @rq
  * @src_rq: rq to move task from
  * @dst_rq: rq to move task to
  *
@@ -2049,20 +2047,16 @@ static bool move_task_to_local_dsq(struct rq *rq, struct task_struct *p,
  * @rq stays locked isn't important as long as the state is restored after
  * dispatch_to_local_dsq_unlock().
  */
-static void dispatch_to_local_dsq_lock(struct rq *rq, struct rq_flags *rf,
-				       struct rq *src_rq, struct rq *dst_rq)
+static void dispatch_to_local_dsq_lock(struct rq *rq, struct rq *src_rq,
+				       struct rq *dst_rq)
 {
-	rq_unpin_lock(rq, rf);
-
 	if (src_rq == dst_rq) {
 		raw_spin_rq_unlock(rq);
 		raw_spin_rq_lock(dst_rq);
 	} else if (rq == src_rq) {
 		double_lock_balance(rq, dst_rq);
-		rq_repin_lock(rq, rf);
 	} else if (rq == dst_rq) {
 		double_lock_balance(rq, src_rq);
-		rq_repin_lock(rq, rf);
 	} else {
 		raw_spin_rq_unlock(rq);
 		double_rq_lock(src_rq, dst_rq);
@@ -2072,19 +2066,17 @@ static void dispatch_to_local_dsq_lock(struct rq *rq, struct rq_flags *rf,
 /**
  * dispatch_to_local_dsq_unlock - Undo dispatch_to_local_dsq_lock()
  * @rq: current rq which is locked
- * @rf: rq_flags to use when unlocking @rq
  * @src_rq: rq to move task from
  * @dst_rq: rq to move task to
  *
  * Unlock @src_rq and @dst_rq and ensure that @rq is locked on return.
  */
-static void dispatch_to_local_dsq_unlock(struct rq *rq, struct rq_flags *rf,
-					 struct rq *src_rq, struct rq *dst_rq)
+static void dispatch_to_local_dsq_unlock(struct rq *rq, struct rq *src_rq,
+					 struct rq *dst_rq)
 {
 	if (src_rq == dst_rq) {
 		raw_spin_rq_unlock(dst_rq);
 		raw_spin_rq_lock(rq);
-		rq_repin_lock(rq, rf);
 	} else if (rq == src_rq) {
 		double_unlock_balance(rq, dst_rq);
 	} else if (rq == dst_rq) {
@@ -2092,7 +2084,6 @@ static void dispatch_to_local_dsq_unlock(struct rq *rq, struct rq_flags *rf,
 	} else {
 		double_rq_unlock(src_rq, dst_rq);
 		raw_spin_rq_lock(rq);
-		rq_repin_lock(rq, rf);
 	}
 }
 #endif	/* CONFIG_SMP */
@@ -2132,8 +2123,7 @@ static bool task_can_run_on_remote_rq(struct task_struct *p, struct rq *rq)
 	return true;
 }
 
-static bool consume_remote_task(struct rq *rq, struct rq_flags *rf,
-				struct scx_dispatch_q *dsq,
+static bool consume_remote_task(struct rq *rq, struct scx_dispatch_q *dsq,
 				struct task_struct *p, struct rq *task_rq)
 {
 	bool moved = false;
@@ -2153,9 +2143,7 @@ static bool consume_remote_task(struct rq *rq, struct rq_flags *rf,
 	p->scx.holding_cpu = raw_smp_processor_id();
 	raw_spin_unlock(&dsq->lock);
 
-	rq_unpin_lock(rq, rf);
 	double_lock_balance(rq, task_rq);
-	rq_repin_lock(rq, rf);
 
 	moved = move_task_to_local_dsq(rq, p, 0);
 
@@ -2165,13 +2153,11 @@ static bool consume_remote_task(struct rq *rq, struct rq_flags *rf,
 }
 #else	/* CONFIG_SMP */
 static bool task_can_run_on_remote_rq(struct task_struct *p, struct rq *rq) { return false; }
-static bool consume_remote_task(struct rq *rq, struct rq_flags *rf,
-				struct scx_dispatch_q *dsq,
+static bool consume_remote_task(struct rq *rq, struct scx_dispatch_q *dsq,
 				struct task_struct *p, struct rq *task_rq) { return false; }
 #endif	/* CONFIG_SMP */
 
-static bool consume_dispatch_q(struct rq *rq, struct rq_flags *rf,
-			       struct scx_dispatch_q *dsq)
+static bool consume_dispatch_q(struct rq *rq, struct scx_dispatch_q *dsq)
 {
 	struct task_struct *p;
 retry:
@@ -2194,7 +2180,7 @@ retry:
 		}
 
 		if (task_can_run_on_remote_rq(p, rq)) {
-			if (likely(consume_remote_task(rq, rf, dsq, p, task_rq)))
+			if (likely(consume_remote_task(rq, dsq, p, task_rq)))
 				return true;
 			goto retry;
 		}
@@ -2214,7 +2200,6 @@ enum dispatch_to_local_dsq_ret {
 /**
  * dispatch_to_local_dsq - Dispatch a task to a local dsq
  * @rq: current rq which is locked
- * @rf: rq_flags to use when unlocking @rq
  * @dsq_id: destination dsq ID
  * @p: task to dispatch
  * @enq_flags: %SCX_ENQ_*
@@ -2227,8 +2212,8 @@ enum dispatch_to_local_dsq_ret {
  * %SCX_OPSS_DISPATCHING).
  */
 static enum dispatch_to_local_dsq_ret
-dispatch_to_local_dsq(struct rq *rq, struct rq_flags *rf, u64 dsq_id,
-		      struct task_struct *p, u64 enq_flags)
+dispatch_to_local_dsq(struct rq *rq, u64 dsq_id, struct task_struct *p,
+		      u64 enq_flags)
 {
 	struct rq *src_rq = task_rq(p);
 	struct rq *dst_rq;
@@ -2277,7 +2262,7 @@ dispatch_to_local_dsq(struct rq *rq, struct rq_flags *rf, u64 dsq_id,
 		/* store_release ensures that dequeue sees the above */
 		atomic_long_set_release(&p->scx.ops_state, SCX_OPSS_NONE);
 
-		dispatch_to_local_dsq_lock(rq, rf, src_rq, locked_dst_rq);
+		dispatch_to_local_dsq_lock(rq, src_rq, locked_dst_rq);
 
 		/*
 		 * We don't require the BPF scheduler to avoid dispatching to
@@ -2312,7 +2297,7 @@ dispatch_to_local_dsq(struct rq *rq, struct rq_flags *rf, u64 dsq_id,
 					     dst_rq->curr->sched_class))
 			resched_curr(dst_rq);
 
-		dispatch_to_local_dsq_unlock(rq, rf, src_rq, locked_dst_rq);
+		dispatch_to_local_dsq_unlock(rq, src_rq, locked_dst_rq);
 
 		return dsp ? DTL_DISPATCHED : DTL_LOST;
 	}
@@ -2326,7 +2311,6 @@ dispatch_to_local_dsq(struct rq *rq, struct rq_flags *rf, u64 dsq_id,
 /**
  * finish_dispatch - Asynchronously finish dispatching a task
  * @rq: current rq which is locked
- * @rf: rq_flags to use when unlocking @rq
  * @p: task to finish dispatching
  * @qseq_at_dispatch: qseq when @p started getting dispatched
  * @dsq_id: destination DSQ ID
@@ -2343,8 +2327,7 @@ dispatch_to_local_dsq(struct rq *rq, struct rq_flags *rf, u64 dsq_id,
  * was valid in the first place. Make sure that the task is still owned by the
  * BPF scheduler and claim the ownership before dispatching.
  */
-static void finish_dispatch(struct rq *rq, struct rq_flags *rf,
-			    struct task_struct *p,
+static void finish_dispatch(struct rq *rq, struct task_struct *p,
 			    unsigned long qseq_at_dispatch,
 			    u64 dsq_id, u64 enq_flags)
 {
@@ -2397,7 +2380,7 @@ retry:
 
 	BUG_ON(!(p->scx.flags & SCX_TASK_QUEUED));
 
-	switch (dispatch_to_local_dsq(rq, rf, dsq_id, p, enq_flags)) {
+	switch (dispatch_to_local_dsq(rq, dsq_id, p, enq_flags)) {
 	case DTL_DISPATCHED:
 		break;
 	case DTL_LOST:
@@ -2413,7 +2396,7 @@ retry:
 	}
 }
 
-static void flush_dispatch_buf(struct rq *rq, struct rq_flags *rf)
+static void flush_dispatch_buf(struct rq *rq)
 {
 	struct scx_dsp_ctx *dspc = this_cpu_ptr(scx_dsp_ctx);
 	u32 u;
@@ -2421,7 +2404,7 @@ static void flush_dispatch_buf(struct rq *rq, struct rq_flags *rf)
 	for (u = 0; u < dspc->cursor; u++) {
 		struct scx_dsp_buf_ent *ent = &dspc->buf[u];
 
-		finish_dispatch(rq, rf, ent->task, ent->qseq, ent->dsq_id,
+		finish_dispatch(rq, ent->task, ent->qseq, ent->dsq_id,
 				ent->enq_flags);
 	}
 
@@ -2429,8 +2412,7 @@ static void flush_dispatch_buf(struct rq *rq, struct rq_flags *rf)
 	dspc->cursor = 0;
 }
 
-static int balance_one(struct rq *rq, struct task_struct *prev,
-		       struct rq_flags *rf, bool local)
+static int balance_one(struct rq *rq, struct task_struct *prev, bool local)
 {
 	struct scx_dsp_ctx *dspc = this_cpu_ptr(scx_dsp_ctx);
 	bool prev_on_scx = prev->sched_class == &ext_sched_class;
@@ -2484,14 +2466,13 @@ static int balance_one(struct rq *rq, struct task_struct *prev,
 	if (rq->scx.local_dsq.nr)
 		goto has_tasks;
 
-	if (consume_dispatch_q(rq, rf, &scx_dsq_global))
+	if (consume_dispatch_q(rq, &scx_dsq_global))
 		goto has_tasks;
 
 	if (!SCX_HAS_OP(dispatch) || scx_ops_bypassing() || !scx_rq_online(rq))
 		goto out;
 
 	dspc->rq = rq;
-	dspc->rf = rf;
 
 	/*
 	 * The dispatch loop. Because flush_dispatch_buf() may drop the rq lock,
@@ -2506,11 +2487,11 @@ static int balance_one(struct rq *rq, struct task_struct *prev,
 		SCX_CALL_OP(SCX_KF_DISPATCH, dispatch, cpu_of(rq),
 			    prev_on_scx ? prev : NULL);
 
-		flush_dispatch_buf(rq, rf);
+		flush_dispatch_buf(rq);
 
 		if (rq->scx.local_dsq.nr)
 			goto has_tasks;
-		if (consume_dispatch_q(rq, rf, &scx_dsq_global))
+		if (consume_dispatch_q(rq, &scx_dsq_global))
 			goto has_tasks;
 
 		/*
@@ -2537,12 +2518,15 @@ out:
 	return has_tasks;
 }
 
+#ifdef CONFIG_SMP
 static int balance_scx(struct rq *rq, struct task_struct *prev,
 		       struct rq_flags *rf)
 {
 	int ret;
 
-	ret = balance_one(rq, prev, rf, true);
+	rq_unpin_lock(rq, rf);
+
+	ret = balance_one(rq, prev, true);
 
 #ifdef CONFIG_SCHED_SMT
 	/*
@@ -2556,28 +2540,19 @@ static int balance_scx(struct rq *rq, struct task_struct *prev,
 
 		for_each_cpu_andnot(scpu, smt_mask, cpumask_of(cpu_of(rq))) {
 			struct rq *srq = cpu_rq(scpu);
-			struct rq_flags srf;
 			struct task_struct *sprev = srq->curr;
 
-			/*
-			 * While core-scheduling, rq lock is shared among
-			 * siblings but the debug annotations and rq clock
-			 * aren't. Do pinning dance to transfer the ownership.
-			 */
 			WARN_ON_ONCE(__rq_lockp(rq) != __rq_lockp(srq));
-			rq_unpin_lock(rq, rf);
-			rq_pin_lock(srq, &srf);
-
 			update_rq_clock(srq);
-			balance_one(srq, sprev, &srf, false);
-
-			rq_unpin_lock(srq, &srf);
-			rq_repin_lock(rq, rf);
+			balance_one(srq, sprev, false);
 		}
 	}
 #endif
+	rq_repin_lock(rq, rf);
+
 	return ret;
 }
+#endif
 
 static void set_next_task_scx(struct rq *rq, struct task_struct *p, bool first)
 {
@@ -2647,11 +2622,11 @@ static void put_prev_task_scx(struct rq *rq, struct task_struct *p)
 	 * balance_scx() must be called before the previous SCX task goes
 	 * through put_prev_task_scx().
 	 *
-	 * As UP doesn't transfer tasks around, balance_scx() doesn't need @rf.
-	 * Pass in %NULL.
+         * @rq is pinned and can't be unlocked. As UP doesn't transfer tasks
+         * around, balance_one() doesn't need to.
 	 */
 	if (p->scx.flags & (SCX_TASK_QUEUED | SCX_TASK_DEQD_FOR_SLEEP))
-		balance_scx(rq, p, NULL);
+		balance_one(rq, p, true);
 #endif
 
 	update_curr_scx(rq);
@@ -2714,7 +2689,7 @@ static struct task_struct *pick_next_task_scx(struct rq *rq)
 #ifndef CONFIG_SMP
 	/* UP workaround - see the comment at the head of put_prev_task_scx() */
 	if (unlikely(rq->curr->sched_class != &ext_sched_class))
-		balance_scx(rq, rq->curr, NULL);
+		balance_one(rq, rq->curr, true);
 #endif
 
 	p = first_local_task(rq);
@@ -5577,7 +5552,7 @@ __bpf_kfunc bool scx_bpf_consume(u64 dsq_id)
 	if (!scx_kf_allowed(SCX_KF_DISPATCH))
 		return false;
 
-	flush_dispatch_buf(dspc->rq, dspc->rf);
+	flush_dispatch_buf(dspc->rq);
 
 	dsq = find_non_local_dsq(dsq_id);
 	if (unlikely(!dsq)) {
@@ -5585,7 +5560,7 @@ __bpf_kfunc bool scx_bpf_consume(u64 dsq_id)
 		return false;
 	}
 
-	if (consume_dispatch_q(dspc->rq, dspc->rf, dsq)) {
+	if (consume_dispatch_q(dspc->rq, dsq)) {
 		/*
 		 * A successfully consumed task can be dequeued before it starts
 		 * running while the CPU is trying to migrate other dispatched
