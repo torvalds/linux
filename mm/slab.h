@@ -97,8 +97,10 @@ struct slab {
 SLAB_MATCH(flags, __page_flags);
 SLAB_MATCH(compound_head, slab_cache);	/* Ensure bit 0 is clear */
 SLAB_MATCH(_refcount, __page_refcount);
-#ifdef CONFIG_SLAB_OBJ_EXT
+#ifdef CONFIG_MEMCG
 SLAB_MATCH(memcg_data, obj_exts);
+#elif defined(CONFIG_SLAB_OBJ_EXT)
+SLAB_MATCH(_unused_slab_obj_exts, obj_exts);
 #endif
 #undef SLAB_MATCH
 static_assert(sizeof(struct slab) <= sizeof(struct page));
