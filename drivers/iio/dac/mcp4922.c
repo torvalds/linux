@@ -30,7 +30,6 @@ struct mcp4922_state {
 	struct spi_device *spi;
 	unsigned int value[MCP4922_NUM_CHANNELS];
 	unsigned int vref_mv;
-	struct regulator *vref_reg;
 	u8 mosi[2] __aligned(IIO_DMA_MINALIGN);
 };
 
@@ -132,24 +131,11 @@ static int mcp4922_probe(struct spi_device *spi)
 
 	state = iio_priv(indio_dev);
 	state->spi = spi;
-	state->vref_reg = devm_regulator_get(&spi->dev, "vref");
-	if (IS_ERR(state->vref_reg))
-		return dev_err_probe(&spi->dev, PTR_ERR(state->vref_reg),
-				     "Vref regulator not specified\n");
 
-	ret = regulator_enable(state->vref_reg);
-	if (ret) {
-		dev_err(&spi->dev, "Failed to enable vref regulator: %d\n",
-				ret);
-		return ret;
-	}
+	ret = devm_regulator_get_enable_read_voltage(&spi->dev, "vref");
+	if (ret < 0)
+		return dev_err_probe(&spi->dev, ret, "Failed to get vref voltage\n");
 
-	ret = regulator_get_voltage(state->vref_reg);
-	if (ret < 0) {
-		dev_err(&spi->dev, "Failed to read vref regulator: %d\n",
-				ret);
-		goto error_disable_reg;
-	}
 	state->vref_mv = ret / 1000;
 
 	spi_set_drvdata(spi, indio_dev);
@@ -167,25 +153,17 @@ static int mcp4922_probe(struct spi_device *spi)
 	if (ret) {
 		dev_err(&spi->dev, "Failed to register iio device: %d\n",
 				ret);
-		goto error_disable_reg;
+		return ret;
 	}
 
 	return 0;
-
-error_disable_reg:
-	regulator_disable(state->vref_reg);
-
-	return ret;
 }
 
 static void mcp4922_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
-	struct mcp4922_state *state;
 
 	iio_device_unregister(indio_dev);
-	state = iio_priv(indio_dev);
-	regulator_disable(state->vref_reg);
 }
 
 static const struct spi_device_id mcp4922_id[] = {
