@@ -312,3 +312,4 @@ const struct ethtool_ops icssg_ethtool_ops = {
 	.nway_reset = emac_nway_reset,
 	.get_rmon_stats = emac_get_rmon_stats,
 };
+EXPORT_SYMBOL_GPL(icssg_ethtool_ops);

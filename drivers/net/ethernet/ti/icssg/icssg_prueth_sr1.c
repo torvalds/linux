@@ -722,14 +722,14 @@ static void emac_ndo_set_rx_mode_sr1(struct net_device *ndev)
 static const struct net_device_ops emac_netdev_ops = {
 	.ndo_open = emac_ndo_open,
 	.ndo_stop = emac_ndo_stop,
-	.ndo_start_xmit = emac_ndo_start_xmit,
+	.ndo_start_xmit = icssg_ndo_start_xmit,
 	.ndo_set_mac_address = eth_mac_addr,
 	.ndo_validate_addr = eth_validate_addr,
-	.ndo_tx_timeout = emac_ndo_tx_timeout,
+	.ndo_tx_timeout = icssg_ndo_tx_timeout,
 	.ndo_set_rx_mode = emac_ndo_set_rx_mode_sr1,
-	.ndo_eth_ioctl = emac_ndo_ioctl,
-	.ndo_get_stats64 = emac_ndo_get_stats64,
-	.ndo_get_phys_port_name = emac_ndo_get_phys_port_name,
+	.ndo_eth_ioctl = icssg_ndo_ioctl,
+	.ndo_get_stats64 = icssg_ndo_get_stats64,
+	.ndo_get_phys_port_name = icssg_ndo_get_phys_port_name,
 };
 
 static int prueth_netdev_init(struct prueth *prueth,
@@ -767,7 +767,7 @@ static int prueth_netdev_init(struct prueth *prueth,
 		goto free_ndev;
 	}
 
-	INIT_DELAYED_WORK(&emac->stats_work, emac_stats_work_handler);
+	INIT_DELAYED_WORK(&emac->stats_work, icssg_stats_work_handler);
 
 	ret = pruss_request_mem_region(prueth->pruss,
 				       port == PRUETH_PORT_MII0 ?
@@ -854,7 +854,7 @@ static int prueth_netdev_init(struct prueth *prueth,
 	ndev->hw_features = NETIF_F_SG;
 	ndev->features = ndev->hw_features;
 
-	netif_napi_add(ndev, &emac->napi_rx, emac_napi_rx_poll);
+	netif_napi_add(ndev, &emac->napi_rx, icssg_napi_rx_poll);
 	prueth->emac[mac] = emac;
 
 	return 0;

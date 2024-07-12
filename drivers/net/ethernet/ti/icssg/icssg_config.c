@@ -248,6 +248,7 @@ void icssg_config_ipg(struct prueth_emac *emac)
 
 	icssg_mii_update_ipg(prueth->mii_rt, slice, ipg);
 }
+EXPORT_SYMBOL_GPL(icssg_config_ipg);
 
 static void emac_r30_cmd_init(struct prueth_emac *emac)
 {
@@ -508,6 +509,7 @@ int icssg_config(struct prueth *prueth, struct prueth_emac *emac, int slice)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(icssg_config);
 
 /* Bitmask for ICSSG r30 commands */
 static const struct icssg_r30_cmd emac_r32_bitmask[] = {
@@ -532,8 +534,8 @@ static const struct icssg_r30_cmd emac_r32_bitmask[] = {
 	{{0xffef0000,  EMAC_NONE, 0xffef0000, EMAC_NONE}}	/* VLAN UNWARE*/
 };
 
-int emac_set_port_state(struct prueth_emac *emac,
-			enum icssg_port_state_cmd cmd)
+int icssg_set_port_state(struct prueth_emac *emac,
+			 enum icssg_port_state_cmd cmd)
 {
 	struct icssg_r30_cmd __iomem *p;
 	int ret = -ETIMEDOUT;
@@ -564,6 +566,7 @@ int emac_set_port_state(struct prueth_emac *emac,
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(icssg_set_port_state);
 
 void icssg_config_half_duplex(struct prueth_emac *emac)
 {
@@ -575,6 +578,7 @@ void icssg_config_half_duplex(struct prueth_emac *emac)
 	val = get_random_u32();
 	writel(val, emac->dram.va + HD_RAND_SEED_OFFSET);
 }
+EXPORT_SYMBOL_GPL(icssg_config_half_duplex);
 
 void icssg_config_set_speed(struct prueth_emac *emac)
 {
@@ -601,6 +605,7 @@ void icssg_config_set_speed(struct prueth_emac *emac)
 
 	writeb(fw_speed, emac->dram.va + PORT_LINK_SPEED_OFFSET);
 }
+EXPORT_SYMBOL_GPL(icssg_config_set_speed);
 
 int icssg_send_fdb_msg(struct prueth_emac *emac, struct mgmt_cmd *cmd,
 		       struct mgmt_cmd_rsp *rsp)
@@ -635,6 +640,7 @@ int icssg_send_fdb_msg(struct prueth_emac *emac, struct mgmt_cmd *cmd,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(icssg_send_fdb_msg);
 
 static void icssg_fdb_setup(struct prueth_emac *emac, struct mgmt_cmd *fdb_cmd,
 			    const unsigned char *addr, u8 fid, int cmd)
@@ -687,6 +693,7 @@ int icssg_fdb_add_del(struct prueth_emac *emac, const unsigned char *addr,
 
 	return -EINVAL;
 }
+EXPORT_SYMBOL_GPL(icssg_fdb_add_del);
 
 int icssg_fdb_lookup(struct prueth_emac *emac, const unsigned char *addr,
 		     u8 vid)
@@ -716,6 +723,7 @@ int icssg_fdb_lookup(struct prueth_emac *emac, const unsigned char *addr,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(icssg_fdb_lookup);
 
 void icssg_vtbl_modify(struct prueth_emac *emac, u8 vid, u8 port_mask,
 		       u8 untag_mask, bool add)
@@ -741,6 +749,7 @@ void icssg_vtbl_modify(struct prueth_emac *emac, u8 vid, u8 port_mask,
 
 	tbl[vid].fid_c1 = fid_c1;
 }
+EXPORT_SYMBOL_GPL(icssg_vtbl_modify);
 
 u16 icssg_get_pvid(struct prueth_emac *emac)
 {
@@ -756,6 +765,7 @@ u16 icssg_get_pvid(struct prueth_emac *emac)
 
 	return pvid;
 }
+EXPORT_SYMBOL_GPL(icssg_get_pvid);
 
 void icssg_set_pvid(struct prueth *prueth, u8 vid, u8 port)
 {
@@ -771,3 +781,4 @@ void icssg_set_pvid(struct prueth *prueth, u8 vid, u8 port)
 	else
 		writel(pvid, prueth->shram.va + EMAC_ICSSG_SWITCH_PORT0_DEFAULT_VLAN_OFFSET);
 }
+EXPORT_SYMBOL_GPL(icssg_set_pvid);
