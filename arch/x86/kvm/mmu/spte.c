@@ -291,14 +291,12 @@ static u64 make_spte_executable(u64 spte)
  * This is used during huge page splitting to build the SPTEs that make up the
  * new page table.
  */
-u64 make_huge_page_split_spte(struct kvm *kvm, u64 huge_spte, union kvm_mmu_page_role role,
-			      int index)
+u64 make_huge_page_split_spte(struct kvm *kvm, u64 huge_spte,
+			      union kvm_mmu_page_role role, int index)
 {
-	u64 child_spte;
+	u64 child_spte = huge_spte;
 
 	KVM_BUG_ON(!is_shadow_present_pte(huge_spte) || !is_large_pte(huge_spte), kvm);
-
-	child_spte = huge_spte;
 
 	/*
 	 * The child_spte already has the base address of the huge page being
