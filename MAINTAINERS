@@ -15769,8 +15769,13 @@ F:	include/linux/tcp.h
 F:	include/net/tcp.h
 F:	include/trace/events/tcp.h
 F:	include/uapi/linux/tcp.h
+F:	net/ipv4/inet_connection_sock.c
+F:	net/ipv4/inet_hashtables.c
+F:	net/ipv4/inet_timewait_sock.c
 F:	net/ipv4/syncookies.c
 F:	net/ipv4/tcp*.c
+F:	net/ipv6/inet6_connection_sock.c
+F:	net/ipv6/inet6_hashtables.c
 F:	net/ipv6/syncookies.c
 F:	net/ipv6/tcp*.c
 
