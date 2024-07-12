@@ -240,6 +240,7 @@ static const struct usb_device_id usbtouch_devices[] = {
 	{}
 };
 
+static struct usbtouch_device_info usbtouch_dev_info[];
 
 /*****************************************************************************
  * e2i Part
@@ -466,7 +467,19 @@ static struct attribute *mtouch_attrs[] = {
 	NULL
 };
 
+static bool mtouch_group_visible(struct kobject *kobj)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct usb_interface *intf = to_usb_interface(dev);
+	struct usbtouch_usb *usbtouch = usb_get_intfdata(intf);
+
+	return usbtouch->type == &usbtouch_dev_info[DEVTYPE_3M];
+}
+
+DEFINE_SIMPLE_SYSFS_GROUP_VISIBLE(mtouch);
+
 static const struct attribute_group mtouch_attr_group = {
+	.is_visible = SYSFS_GROUP_VISIBLE(mtouch),
 	.attrs = mtouch_attrs,
 };
 
@@ -506,21 +519,12 @@ free:
 static int mtouch_alloc(struct usbtouch_usb *usbtouch)
 {
 	struct mtouch_priv *priv;
-	int ret;
 
 	priv = kmalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
 	usbtouch->priv = priv;
-	ret = sysfs_create_group(&usbtouch->interface->dev.kobj,
-				 &mtouch_attr_group);
-	if (ret) {
-		kfree(usbtouch->priv);
-		usbtouch->priv = NULL;
-		return ret;
-	}
-
 	return 0;
 }
 
@@ -571,7 +575,6 @@ static void mtouch_exit(struct usbtouch_usb *usbtouch)
 {
 	struct mtouch_priv *priv = usbtouch->priv;
 
-	sysfs_remove_group(&usbtouch->interface->dev.kobj, &mtouch_attr_group);
 	kfree(priv);
 }
 #endif
@@ -1842,6 +1845,13 @@ static void usbtouch_disconnect(struct usb_interface *intf)
 	kfree(usbtouch);
 }
 
+static const struct attribute_group *usbtouch_groups[] = {
+#ifdef CONFIG_TOUCHSCREEN_USB_3M
+	&mtouch_attr_group,
+#endif
+	NULL
+};
+
 MODULE_DEVICE_TABLE(usb, usbtouch_devices);
 
 static struct usb_driver usbtouch_driver = {
@@ -1852,6 +1862,7 @@ static struct usb_driver usbtouch_driver = {
 	.resume		= usbtouch_resume,
 	.reset_resume	= usbtouch_reset_resume,
 	.id_table	= usbtouch_devices,
+	.dev_groups	= usbtouch_groups,
 	.supports_autosuspend = 1,
 };
 
