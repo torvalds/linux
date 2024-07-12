@@ -176,6 +176,7 @@ MODULE_FIRMWARE(FIRMWARE_DCN_401_DMUB);
 static int amdgpu_dm_init(struct amdgpu_device *adev);
 static void amdgpu_dm_fini(struct amdgpu_device *adev);
 static bool is_freesync_video_mode(const struct drm_display_mode *mode, struct amdgpu_dm_connector *aconnector);
+static void reset_freesync_config_for_crtc(struct dm_crtc_state *new_crtc_state);
 
 static enum drm_mode_subconnector get_subconnector_type(struct dc_link *link)
 {
@@ -3239,8 +3240,11 @@ static int dm_resume(void *handle)
 	drm_connector_list_iter_end(&iter);
 
 	/* Force mode set in atomic commit */
-	for_each_new_crtc_in_state(dm->cached_state, crtc, new_crtc_state, i)
+	for_each_new_crtc_in_state(dm->cached_state, crtc, new_crtc_state, i) {
 		new_crtc_state->active_changed = true;
+		dm_new_crtc_state = to_dm_crtc_state(new_crtc_state);
+		reset_freesync_config_for_crtc(dm_new_crtc_state);
+	}
 
 	/*
 	 * atomic_check is expected to create the dc states. We need to release
