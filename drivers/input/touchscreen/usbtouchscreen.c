@@ -130,111 +130,6 @@ enum {
 	DEVTYPE_ETOUCH,
 };
 
-static const struct usb_device_id usbtouch_devices[] = {
-#ifdef CONFIG_TOUCHSCREEN_USB_EGALAX
-	/* ignore the HID capable devices, handled by usbhid */
-	{USB_DEVICE_INTERFACE_CLASS(0x0eef, 0x0001, USB_INTERFACE_CLASS_HID),
-		.driver_info = DEVTYPE_IGNORE},
-	{USB_DEVICE_INTERFACE_CLASS(0x0eef, 0x0002, USB_INTERFACE_CLASS_HID),
-		.driver_info = DEVTYPE_IGNORE},
-
-	/* normal device IDs */
-	{USB_DEVICE(0x3823, 0x0001), .driver_info = DEVTYPE_EGALAX},
-	{USB_DEVICE(0x3823, 0x0002), .driver_info = DEVTYPE_EGALAX},
-	{USB_DEVICE(0x0123, 0x0001), .driver_info = DEVTYPE_EGALAX},
-	{USB_DEVICE(0x0eef, 0x0001), .driver_info = DEVTYPE_EGALAX},
-	{USB_DEVICE(0x0eef, 0x0002), .driver_info = DEVTYPE_EGALAX},
-	{USB_DEVICE(0x1234, 0x0001), .driver_info = DEVTYPE_EGALAX},
-	{USB_DEVICE(0x1234, 0x0002), .driver_info = DEVTYPE_EGALAX},
-#endif
-
-#ifdef CONFIG_TOUCHSCREEN_USB_PANJIT
-	{USB_DEVICE(0x134c, 0x0001), .driver_info = DEVTYPE_PANJIT},
-	{USB_DEVICE(0x134c, 0x0002), .driver_info = DEVTYPE_PANJIT},
-	{USB_DEVICE(0x134c, 0x0003), .driver_info = DEVTYPE_PANJIT},
-	{USB_DEVICE(0x134c, 0x0004), .driver_info = DEVTYPE_PANJIT},
-#endif
-
-#ifdef CONFIG_TOUCHSCREEN_USB_3M
-	{USB_DEVICE(0x0596, 0x0001), .driver_info = DEVTYPE_3M},
-#endif
-
-#ifdef CONFIG_TOUCHSCREEN_USB_ITM
-	{USB_DEVICE(0x0403, 0xf9e9), .driver_info = DEVTYPE_ITM},
-	{USB_DEVICE(0x16e3, 0xf9e9), .driver_info = DEVTYPE_ITM},
-#endif
-
-#ifdef CONFIG_TOUCHSCREEN_USB_ETURBO
-	{USB_DEVICE(0x1234, 0x5678), .driver_info = DEVTYPE_ETURBO},
-#endif
-
-#ifdef CONFIG_TOUCHSCREEN_USB_GUNZE
-	{USB_DEVICE(0x0637, 0x0001), .driver_info = DEVTYPE_GUNZE},
-#endif
-
-#ifdef CONFIG_TOUCHSCREEN_USB_DMC_TSC10
-	{USB_DEVICE(0x0afa, 0x03e8), .driver_info = DEVTYPE_DMC_TSC10},
-#endif
-
-#ifdef CONFIG_TOUCHSCREEN_USB_IRTOUCH
-	{USB_DEVICE(0x255e, 0x0001), .driver_info = DEVTYPE_IRTOUCH},
-	{USB_DEVICE(0x595a, 0x0001), .driver_info = DEVTYPE_IRTOUCH},
-	{USB_DEVICE(0x6615, 0x0001), .driver_info = DEVTYPE_IRTOUCH},
-	{USB_DEVICE(0x6615, 0x0012), .driver_info = DEVTYPE_IRTOUCH_HIRES},
-#endif
-
-#ifdef CONFIG_TOUCHSCREEN_USB_IDEALTEK
-	{USB_DEVICE(0x1391, 0x1000), .driver_info = DEVTYPE_IDEALTEK},
-#endif
-
-#ifdef CONFIG_TOUCHSCREEN_USB_GENERAL_TOUCH
-	{USB_DEVICE(0x0dfc, 0x0001), .driver_info = DEVTYPE_GENERAL_TOUCH},
-#endif
-
-#ifdef CONFIG_TOUCHSCREEN_USB_GOTOP
-	{USB_DEVICE(0x08f2, 0x007f), .driver_info = DEVTYPE_GOTOP},
-	{USB_DEVICE(0x08f2, 0x00ce), .driver_info = DEVTYPE_GOTOP},
-	{USB_DEVICE(0x08f2, 0x00f4), .driver_info = DEVTYPE_GOTOP},
-#endif
-
-#ifdef CONFIG_TOUCHSCREEN_USB_JASTEC
-	{USB_DEVICE(0x0f92, 0x0001), .driver_info = DEVTYPE_JASTEC},
-#endif
-
-#ifdef CONFIG_TOUCHSCREEN_USB_E2I
-	{USB_DEVICE(0x1ac7, 0x0001), .driver_info = DEVTYPE_E2I},
-#endif
-
-#ifdef CONFIG_TOUCHSCREEN_USB_ZYTRONIC
-	{USB_DEVICE(0x14c8, 0x0003), .driver_info = DEVTYPE_ZYTRONIC},
-#endif
-
-#ifdef CONFIG_TOUCHSCREEN_USB_ETT_TC45USB
-	/* TC5UH */
-	{USB_DEVICE(0x0664, 0x0309), .driver_info = DEVTYPE_TC45USB},
-	/* TC4UM */
-	{USB_DEVICE(0x0664, 0x0306), .driver_info = DEVTYPE_TC45USB},
-#endif
-
-#ifdef CONFIG_TOUCHSCREEN_USB_NEXIO
-	/* data interface only */
-	{USB_DEVICE_AND_INTERFACE_INFO(0x10f0, 0x2002, 0x0a, 0x00, 0x00),
-		.driver_info = DEVTYPE_NEXIO},
-	{USB_DEVICE_AND_INTERFACE_INFO(0x1870, 0x0001, 0x0a, 0x00, 0x00),
-		.driver_info = DEVTYPE_NEXIO},
-#endif
-
-#ifdef CONFIG_TOUCHSCREEN_USB_ELO
-	{USB_DEVICE(0x04e7, 0x0020), .driver_info = DEVTYPE_ELO},
-#endif
-
-#ifdef CONFIG_TOUCHSCREEN_USB_EASYTOUCH
-	{USB_DEVICE(0x7374, 0x0001), .driver_info = DEVTYPE_ETOUCH},
-#endif
-
-	{}
-};
-
 static struct usbtouch_device_info usbtouch_dev_info[];
 
 /*****************************************************************************
@@ -1847,6 +1742,110 @@ static const struct attribute_group *usbtouch_groups[] = {
 	NULL
 };
 
+static const struct usb_device_id usbtouch_devices[] = {
+#ifdef CONFIG_TOUCHSCREEN_USB_EGALAX
+	/* ignore the HID capable devices, handled by usbhid */
+	{USB_DEVICE_INTERFACE_CLASS(0x0eef, 0x0001, USB_INTERFACE_CLASS_HID),
+		.driver_info = DEVTYPE_IGNORE},
+	{USB_DEVICE_INTERFACE_CLASS(0x0eef, 0x0002, USB_INTERFACE_CLASS_HID),
+		.driver_info = DEVTYPE_IGNORE},
+
+	/* normal device IDs */
+	{USB_DEVICE(0x3823, 0x0001), .driver_info = DEVTYPE_EGALAX},
+	{USB_DEVICE(0x3823, 0x0002), .driver_info = DEVTYPE_EGALAX},
+	{USB_DEVICE(0x0123, 0x0001), .driver_info = DEVTYPE_EGALAX},
+	{USB_DEVICE(0x0eef, 0x0001), .driver_info = DEVTYPE_EGALAX},
+	{USB_DEVICE(0x0eef, 0x0002), .driver_info = DEVTYPE_EGALAX},
+	{USB_DEVICE(0x1234, 0x0001), .driver_info = DEVTYPE_EGALAX},
+	{USB_DEVICE(0x1234, 0x0002), .driver_info = DEVTYPE_EGALAX},
+#endif
+
+#ifdef CONFIG_TOUCHSCREEN_USB_PANJIT
+	{USB_DEVICE(0x134c, 0x0001), .driver_info = DEVTYPE_PANJIT},
+	{USB_DEVICE(0x134c, 0x0002), .driver_info = DEVTYPE_PANJIT},
+	{USB_DEVICE(0x134c, 0x0003), .driver_info = DEVTYPE_PANJIT},
+	{USB_DEVICE(0x134c, 0x0004), .driver_info = DEVTYPE_PANJIT},
+#endif
+
+#ifdef CONFIG_TOUCHSCREEN_USB_3M
+	{USB_DEVICE(0x0596, 0x0001), .driver_info = DEVTYPE_3M},
+#endif
+
+#ifdef CONFIG_TOUCHSCREEN_USB_ITM
+	{USB_DEVICE(0x0403, 0xf9e9), .driver_info = DEVTYPE_ITM},
+	{USB_DEVICE(0x16e3, 0xf9e9), .driver_info = DEVTYPE_ITM},
+#endif
+
+#ifdef CONFIG_TOUCHSCREEN_USB_ETURBO
+	{USB_DEVICE(0x1234, 0x5678), .driver_info = DEVTYPE_ETURBO},
+#endif
+
+#ifdef CONFIG_TOUCHSCREEN_USB_GUNZE
+	{USB_DEVICE(0x0637, 0x0001), .driver_info = DEVTYPE_GUNZE},
+#endif
+
+#ifdef CONFIG_TOUCHSCREEN_USB_DMC_TSC10
+	{USB_DEVICE(0x0afa, 0x03e8), .driver_info = DEVTYPE_DMC_TSC10},
+#endif
+
+#ifdef CONFIG_TOUCHSCREEN_USB_IRTOUCH
+	{USB_DEVICE(0x255e, 0x0001), .driver_info = DEVTYPE_IRTOUCH},
+	{USB_DEVICE(0x595a, 0x0001), .driver_info = DEVTYPE_IRTOUCH},
+	{USB_DEVICE(0x6615, 0x0001), .driver_info = DEVTYPE_IRTOUCH},
+	{USB_DEVICE(0x6615, 0x0012), .driver_info = DEVTYPE_IRTOUCH_HIRES},
+#endif
+
+#ifdef CONFIG_TOUCHSCREEN_USB_IDEALTEK
+	{USB_DEVICE(0x1391, 0x1000), .driver_info = DEVTYPE_IDEALTEK},
+#endif
+
+#ifdef CONFIG_TOUCHSCREEN_USB_GENERAL_TOUCH
+	{USB_DEVICE(0x0dfc, 0x0001), .driver_info = DEVTYPE_GENERAL_TOUCH},
+#endif
+
+#ifdef CONFIG_TOUCHSCREEN_USB_GOTOP
+	{USB_DEVICE(0x08f2, 0x007f), .driver_info = DEVTYPE_GOTOP},
+	{USB_DEVICE(0x08f2, 0x00ce), .driver_info = DEVTYPE_GOTOP},
+	{USB_DEVICE(0x08f2, 0x00f4), .driver_info = DEVTYPE_GOTOP},
+#endif
+
+#ifdef CONFIG_TOUCHSCREEN_USB_JASTEC
+	{USB_DEVICE(0x0f92, 0x0001), .driver_info = DEVTYPE_JASTEC},
+#endif
+
+#ifdef CONFIG_TOUCHSCREEN_USB_E2I
+	{USB_DEVICE(0x1ac7, 0x0001), .driver_info = DEVTYPE_E2I},
+#endif
+
+#ifdef CONFIG_TOUCHSCREEN_USB_ZYTRONIC
+	{USB_DEVICE(0x14c8, 0x0003), .driver_info = DEVTYPE_ZYTRONIC},
+#endif
+
+#ifdef CONFIG_TOUCHSCREEN_USB_ETT_TC45USB
+	/* TC5UH */
+	{USB_DEVICE(0x0664, 0x0309), .driver_info = DEVTYPE_TC45USB},
+	/* TC4UM */
+	{USB_DEVICE(0x0664, 0x0306), .driver_info = DEVTYPE_TC45USB},
+#endif
+
+#ifdef CONFIG_TOUCHSCREEN_USB_NEXIO
+	/* data interface only */
+	{USB_DEVICE_AND_INTERFACE_INFO(0x10f0, 0x2002, 0x0a, 0x00, 0x00),
+		.driver_info = DEVTYPE_NEXIO},
+	{USB_DEVICE_AND_INTERFACE_INFO(0x1870, 0x0001, 0x0a, 0x00, 0x00),
+		.driver_info = DEVTYPE_NEXIO},
+#endif
+
+#ifdef CONFIG_TOUCHSCREEN_USB_ELO
+	{USB_DEVICE(0x04e7, 0x0020), .driver_info = DEVTYPE_ELO},
+#endif
+
+#ifdef CONFIG_TOUCHSCREEN_USB_EASYTOUCH
+	{USB_DEVICE(0x7374, 0x0001), .driver_info = DEVTYPE_ETOUCH},
+#endif
+
+	{}
+};
 MODULE_DEVICE_TABLE(usb, usbtouch_devices);
 
 static struct usb_driver usbtouch_driver = {
