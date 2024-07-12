@@ -1238,8 +1238,6 @@ static int platform_profile_omen_get_ec(enum platform_profile_option *profile)
 static int platform_profile_omen_get(struct platform_profile_handler *pprof,
 				     enum platform_profile_option *profile)
 {
-	enum platform_profile_option selected_platform_profile;
-
 	/*
 	 * We directly return the stored platform profile, as the embedded
 	 * controller will not accept switching to the performance option when
@@ -1253,9 +1251,9 @@ static int platform_profile_omen_get(struct platform_profile_handler *pprof,
 	 * See also omen_powersource_event.
 	 */
 	guard(mutex)(&active_platform_profile_lock);
-	selected_platform_profile = active_platform_profile;
+	*profile = active_platform_profile;
 
-	return selected_platform_profile;
+	return 0;
 }
 
 static bool has_omen_thermal_profile_ec_timer(void)
