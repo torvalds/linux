@@ -236,7 +236,7 @@ amdgpu_devcoredump_read(char *buffer, loff_t offset, size_t count,
 	drm_printf(&p, "\nSOC Memory Information\n");
 	drm_printf(&p, "real vram size: %llu\n", coredump->adev->gmc.real_vram_size);
 	drm_printf(&p, "visible vram size: %llu\n", coredump->adev->gmc.visible_vram_size);
-	drm_printf(&p, "visible vram size: %llu\n", coredump->adev->mman.gtt_mgr.manager.size);
+	drm_printf(&p, "gtt size: %llu\n", coredump->adev->mman.gtt_mgr.manager.size);
 
 	/* GDS Config */
 	drm_printf(&p, "\nGDS Config\n");
