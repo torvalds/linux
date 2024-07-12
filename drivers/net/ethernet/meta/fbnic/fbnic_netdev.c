@@ -131,6 +131,9 @@ struct net_device *fbnic_netdev_alloc(struct fbnic_dev *fbd)
 	INIT_LIST_HEAD(&fbn->napis);
 
 	fbn->txq_size = FBNIC_TXQ_SIZE_DEFAULT;
+	fbn->hpq_size = FBNIC_HPQ_SIZE_DEFAULT;
+	fbn->ppq_size = FBNIC_PPQ_SIZE_DEFAULT;
+	fbn->rcq_size = FBNIC_RCQ_SIZE_DEFAULT;
 
 	default_queues = netif_get_num_default_rss_queues();
 	if (default_queues > fbd->max_num_queues)

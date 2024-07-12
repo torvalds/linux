@@ -129,6 +129,8 @@ void fbnic_up(struct fbnic_net *fbn)
 {
 	fbnic_enable(fbn);
 
+	fbnic_fill(fbn);
+
 	/* Enable Tx/Rx processing */
 	fbnic_napi_enable(fbn);
 	netif_tx_start_all_queues(fbn->netdev);

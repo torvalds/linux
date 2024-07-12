@@ -16,6 +16,9 @@ struct fbnic_net {
 	struct fbnic_dev *fbd;
 
 	u32 txq_size;
+	u32 hpq_size;
+	u32 ppq_size;
+	u32 rcq_size;
 
 	u16 num_napi;
 

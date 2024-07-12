@@ -16,6 +16,37 @@
 
 #define FBNIC_CLOCK_FREQ	(600 * (1000 * 1000))
 
+/* Rx Buffer Descriptor Format
+ *
+ * The layout of this can vary depending on the page size of the system.
+ *
+ * If the page size is 4K then the layout will simply consist of ID for
+ * the 16 most significant bits, and the lower 46 are essentially the page
+ * address with the lowest 12 bits being reserved 0 due to the fact that
+ * a page will be aligned.
+ *
+ * If the page size is larger than 4K then the lower n bits of the ID and
+ * page address will be reserved for the fragment ID. This fragment will
+ * be 4K in size and will be used to index both the DMA address and the ID
+ * by the same amount.
+ */
+#define FBNIC_BD_DESC_ADDR_MASK			DESC_GENMASK(45, 12)
+#define FBNIC_BD_DESC_ID_MASK			DESC_GENMASK(63, 48)
+#define FBNIC_BD_FRAG_SIZE \
+	(FBNIC_BD_DESC_ADDR_MASK & ~(FBNIC_BD_DESC_ADDR_MASK - 1))
+#define FBNIC_BD_FRAG_COUNT \
+	(PAGE_SIZE / FBNIC_BD_FRAG_SIZE)
+#define FBNIC_BD_FRAG_ADDR_MASK \
+	(FBNIC_BD_DESC_ADDR_MASK & \
+	 ~(FBNIC_BD_DESC_ADDR_MASK * FBNIC_BD_FRAG_COUNT))
+#define FBNIC_BD_FRAG_ID_MASK \
+	(FBNIC_BD_DESC_ID_MASK & \
+	 ~(FBNIC_BD_DESC_ID_MASK * FBNIC_BD_FRAG_COUNT))
+#define FBNIC_BD_PAGE_ADDR_MASK \
+	(FBNIC_BD_DESC_ADDR_MASK & ~FBNIC_BD_FRAG_ADDR_MASK)
+#define FBNIC_BD_PAGE_ID_MASK \
+	(FBNIC_BD_DESC_ID_MASK & ~FBNIC_BD_FRAG_ID_MASK)
+
 /* Register Definitions
  *
  * The registers are laid as indexes into an le32 array. As such the actual
@@ -124,14 +155,14 @@ enum {
 
 /* Global QM Rx registers */
 #define FBNIC_CSR_START_QM_RX		0x00c00	/* CSR section delimiter */
-#define FBNIC_QM_RCQ_IDLE(n)		(0x00c00 + (n)) /* 0x03000 + 0x4*n */
+#define FBNIC_QM_RCQ_IDLE(n)		(0x00c00 + (n)) /* 0x03000 + 4*n */
 #define FBNIC_QM_RCQ_IDLE_CNT			4
 #define FBNIC_QM_RCQ_CTL0		0x00c0c		/* 0x03030 */
 #define FBNIC_QM_RCQ_CTL0_COAL_WAIT		CSR_GENMASK(15, 0)
 #define FBNIC_QM_RCQ_CTL0_TICK_CYCLES		CSR_GENMASK(26, 16)
-#define FBNIC_QM_HPQ_IDLE(n)		(0x00c0f + (n)) /* 0x0303c + 0x4*n */
+#define FBNIC_QM_HPQ_IDLE(n)		(0x00c0f + (n)) /* 0x0303c + 4*n */
 #define FBNIC_QM_HPQ_IDLE_CNT			4
-#define FBNIC_QM_PPQ_IDLE(n)		(0x00c13 + (n)) /* 0x0304c + 0x4*n */
+#define FBNIC_QM_PPQ_IDLE(n)		(0x00c13 + (n)) /* 0x0304c + 4*n */
 #define FBNIC_QM_PPQ_IDLE_CNT			4
 #define FBNIC_QM_RNI_RBP_CTL		0x00c2d		/* 0x030b4 */
 #define FBNIC_QM_RNI_RBP_CTL_MRRS		CSR_GENMASK(1, 0)
@@ -451,12 +482,78 @@ enum {
 #define FBNIC_QUEUE_TIM_COUNTS_CNT0_MASK	CSR_GENMASK(14, 0)
 
 /* Rx Completion Queue Registers */
+#define FBNIC_QUEUE_RCQ_CTL		0x200		/* 0x800 */
+#define FBNIC_QUEUE_RCQ_CTL_RESET		CSR_BIT(0)
+#define FBNIC_QUEUE_RCQ_CTL_ENABLE		CSR_BIT(1)
+
 #define FBNIC_QUEUE_RCQ_HEAD		0x201		/* 0x804 */
 
+#define FBNIC_QUEUE_RCQ_SIZE		0x204		/* 0x810 */
+#define FBNIC_QUEUE_RCQ_SIZE_MASK		CSR_GENMASK(3, 0)
+
+#define FBNIC_QUEUE_RCQ_BAL		0x220		/* 0x880 */
+#define FBNIC_QUEUE_RCQ_BAH		0x221		/* 0x884 */
+
 /* Rx Buffer Descriptor Queue Registers */
+#define FBNIC_QUEUE_BDQ_CTL		0x240		/* 0x900 */
+#define FBNIC_QUEUE_BDQ_CTL_RESET		CSR_BIT(0)
+#define FBNIC_QUEUE_BDQ_CTL_ENABLE		CSR_BIT(1)
+#define FBNIC_QUEUE_BDQ_CTL_PPQ_ENABLE		CSR_BIT(30)
+
 #define FBNIC_QUEUE_BDQ_HPQ_TAIL	0x241		/* 0x904 */
 #define FBNIC_QUEUE_BDQ_PPQ_TAIL	0x242		/* 0x908 */
 
+#define FBNIC_QUEUE_BDQ_HPQ_SIZE	0x247		/* 0x91c */
+#define FBNIC_QUEUE_BDQ_PPQ_SIZE	0x248		/* 0x920 */
+#define FBNIC_QUEUE_BDQ_SIZE_MASK		CSR_GENMASK(3, 0)
+
+#define FBNIC_QUEUE_BDQ_HPQ_BAL		0x260		/* 0x980 */
+#define FBNIC_QUEUE_BDQ_HPQ_BAH		0x261		/* 0x984 */
+#define FBNIC_QUEUE_BDQ_PPQ_BAL		0x262		/* 0x988 */
+#define FBNIC_QUEUE_BDQ_PPQ_BAH		0x263		/* 0x98c */
+
+/* Rx DMA Engine Configuration */
+#define FBNIC_QUEUE_RDE_CTL0		0x2a0		/* 0xa80 */
+#define FBNIC_QUEUE_RDE_CTL0_EN_HDR_SPLIT	CSR_BIT(31)
+#define FBNIC_QUEUE_RDE_CTL0_DROP_MODE_MASK	CSR_GENMASK(30, 29)
+enum {
+	FBNIC_QUEUE_RDE_CTL0_DROP_IMMEDIATE	= 0,
+	FBNIC_QUEUE_RDE_CTL0_DROP_WAIT		= 1,
+	FBNIC_QUEUE_RDE_CTL0_DROP_NEVER		= 2,
+};
+
+#define FBNIC_QUEUE_RDE_CTL0_MIN_HROOM_MASK	CSR_GENMASK(28, 20)
+#define FBNIC_QUEUE_RDE_CTL0_MIN_TROOM_MASK	CSR_GENMASK(19, 11)
+
+#define FBNIC_QUEUE_RDE_CTL1		0x2a1		/* 0xa84 */
+#define FBNIC_QUEUE_RDE_CTL1_MAX_HDR_MASK	CSR_GENMASK(24, 12)
+#define FBNIC_QUEUE_RDE_CTL1_PAYLD_OFF_MASK	CSR_GENMASK(11, 9)
+#define FBNIC_QUEUE_RDE_CTL1_PAYLD_PG_CL_MASK	CSR_GENMASK(8, 6)
+#define FBNIC_QUEUE_RDE_CTL1_PADLEN_MASK	CSR_GENMASK(5, 2)
+#define FBNIC_QUEUE_RDE_CTL1_PAYLD_PACK_MASK	CSR_GENMASK(1, 0)
+enum {
+	FBNIC_QUEUE_RDE_CTL1_PAYLD_PACK_NONE	= 0,
+	FBNIC_QUEUE_RDE_CTL1_PAYLD_PACK_ALL	= 1,
+	FBNIC_QUEUE_RDE_CTL1_PAYLD_PACK_RSS	= 2,
+};
+
+/* Rx Interrupt Manager Registers */
+#define FBNIC_QUEUE_RIM_CTL		0x2c0		/* 0xb00 */
+#define FBNIC_QUEUE_RIM_CTL_MSIX_MASK		CSR_GENMASK(7, 0)
+
+#define FBNIC_QUEUE_RIM_THRESHOLD	0x2c1		/* 0xb04 */
+#define FBNIC_QUEUE_RIM_THRESHOLD_RCD_MASK	CSR_GENMASK(14, 0)
+
+#define FBNIC_QUEUE_RIM_CLEAR		0x2c2		/* 0xb08 */
+#define FBNIC_QUEUE_RIM_CLEAR_MASK		CSR_BIT(0)
+#define FBNIC_QUEUE_RIM_SET		0x2c3		/* 0xb0c */
+#define FBNIC_QUEUE_RIM_SET_MASK		CSR_BIT(0)
+#define FBNIC_QUEUE_RIM_MASK		0x2c4		/* 0xb10 */
+#define FBNIC_QUEUE_RIM_MASK_MASK		CSR_BIT(0)
+
+#define FBNIC_QUEUE_RIM_COAL_STATUS	0x2c5		/* 0xb14 */
+#define FBNIC_QUEUE_RIM_RCD_COUNT_MASK		CSR_GENMASK(30, 16)
+#define FBNIC_QUEUE_RIM_TIMER_MASK		CSR_GENMASK(13, 0)
 #define FBNIC_MAX_QUEUES		128
 #define FBNIC_CSR_END_QUEUE	(0x40000 + 0x400 * FBNIC_MAX_QUEUES - 1)
 

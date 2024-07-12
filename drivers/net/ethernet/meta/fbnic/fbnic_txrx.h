@@ -6,6 +6,7 @@
 
 #include <linux/netdevice.h>
 #include <linux/types.h>
+#include <net/xdp.h>
 
 struct fbnic_net;
 
@@ -13,14 +14,44 @@ struct fbnic_net;
 #define FBNIC_MAX_RXQS			128u
 
 #define FBNIC_TXQ_SIZE_DEFAULT		1024
+#define FBNIC_HPQ_SIZE_DEFAULT		256
+#define FBNIC_PPQ_SIZE_DEFAULT		256
+#define FBNIC_RCQ_SIZE_DEFAULT		1024
+
+#define FBNIC_RX_TROOM \
+	SKB_DATA_ALIGN(sizeof(struct skb_shared_info))
+#define FBNIC_RX_HROOM \
+	(ALIGN(FBNIC_RX_TROOM + NET_SKB_PAD, 128) - FBNIC_RX_TROOM)
+#define FBNIC_RX_PAD			0
+#define FBNIC_RX_MAX_HDR		(1536 - FBNIC_RX_PAD)
+#define FBNIC_RX_PAYLD_OFFSET		0
+#define FBNIC_RX_PAYLD_PG_CL		0
 
 #define FBNIC_RING_F_DISABLED		BIT(0)
 #define FBNIC_RING_F_CTX		BIT(1)
 #define FBNIC_RING_F_STATS		BIT(2)	/* Ring's stats may be used */
 
+struct fbnic_pkt_buff {
+	struct xdp_buff buff;
+	u32 data_truesize;
+	u16 data_len;
+	u16 nr_frags;
+};
+
+/* Pagecnt bias is long max to reserve the last bit to catch overflow
+ * cases where if we overcharge the bias it will flip over to be negative.
+ */
+#define PAGECNT_BIAS_MAX	LONG_MAX
+struct fbnic_rx_buf {
+	struct page *page;
+	long pagecnt_bias;
+};
+
 struct fbnic_ring {
 	/* Pointer to buffer specific info */
 	union {
+		struct fbnic_pkt_buff *pkt;	/* RCQ */
+		struct fbnic_rx_buf *rx_buf;	/* BDQ */
 		void **tx_buf;			/* TWQ */
 		void *buffer;			/* Generic pointer */
 	};
@@ -45,6 +76,7 @@ struct fbnic_q_triad {
 struct fbnic_napi_vector {
 	struct napi_struct napi;
 	struct device *dev;		/* Device for DMA unmapping */
+	struct page_pool *page_pool;
 	struct fbnic_dev *fbd;
 	char name[IFNAMSIZ + 9];
 
@@ -71,6 +103,7 @@ void fbnic_napi_disable(struct fbnic_net *fbn);
 void fbnic_enable(struct fbnic_net *fbn);
 void fbnic_disable(struct fbnic_net *fbn);
 void fbnic_flush(struct fbnic_net *fbn);
+void fbnic_fill(struct fbnic_net *fbn);
 
 int fbnic_wait_all_queues_idle(struct fbnic_dev *fbd, bool may_fail);
 
