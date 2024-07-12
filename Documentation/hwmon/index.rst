@@ -25,7 +25,6 @@ Hardware Monitoring Kernel Drivers
    acpi_power_meter
    ad7314
    adc128d818
-   adm1021
    adm1025
    adm1026
    adm1031
@@ -154,7 +153,6 @@ Hardware Monitoring Kernel Drivers
    max34440
    max6620
    max6639
-   max6642
    max6650
    max6697
    max8688

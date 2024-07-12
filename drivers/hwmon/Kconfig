@@ -105,18 +105,6 @@ config SENSORS_AD7418
 	  This driver can also be built as a module. If so, the module
 	  will be called ad7418.
 
-config SENSORS_ADM1021
-	tristate "Analog Devices ADM1021 and compatibles"
-	depends on I2C
-	depends on SENSORS_LM90=n
-	help
-	  If you say yes here you get support for Analog Devices ADM1021
-	  and ADM1023 sensor chips and clones: Maxim MAX1617 and MAX1617A,
-	  Genesys Logic GL523SM, National Semiconductor LM84 and TI THMC10.
-
-	  This driver can also be built as a module. If so, the module
-	  will be called adm1021.
-
 config SENSORS_ADM1025
 	tristate "Analog Devices ADM1025 and compatibles"
 	depends on I2C
@@ -1240,18 +1228,6 @@ config SENSORS_MAX6639
 
 	  This driver can also be built as a module. If so, the module
 	  will be called max6639.
-
-config SENSORS_MAX6642
-	tristate "Maxim MAX6642 sensor chip"
-	depends on I2C
-	depends on SENSORS_LM90=n
-	help
-	  If you say yes here you get support for MAX6642 sensor chip.
-	  MAX6642 is a SMBus-Compatible Remote/Local Temperature Sensor
-	  with Overtemperature Alarm from Maxim.
-
-	  This driver can also be built as a module. If so, the module
-	  will be called max6642.
 
 config SENSORS_MAX6650
 	tristate "Maxim MAX6650 sensor chip"
