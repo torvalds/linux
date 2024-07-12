@@ -1234,12 +1234,10 @@ static int intel_dp_get_link_train_fallback_values(struct intel_dp *intel_dp,
 	return 0;
 }
 
-/* NOTE: @state is only valid for MST links and can be %NULL for SST. */
 static bool intel_dp_schedule_fallback_link_training(struct intel_atomic_state *state,
 						     struct intel_dp *intel_dp,
 						     const struct intel_crtc_state *crtc_state)
 {
-	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
 
 	if (!intel_digital_port_connected(&dp_to_dig_port(intel_dp)->base)) {
@@ -1254,11 +1252,6 @@ static bool intel_dp_schedule_fallback_link_training(struct intel_atomic_state *
 	} else if (intel_dp_get_link_train_fallback_values(intel_dp, crtc_state)) {
 		return false;
 	}
-
-	if (drm_WARN_ON(&i915->drm,
-			intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST) &&
-			!state))
-		return false;
 
 	/* Schedule a Hotplug Uevent to userspace to start modeset */
 	intel_dp_queue_modeset_retry_for_link(state, encoder, crtc_state);
@@ -1518,8 +1511,6 @@ intel_dp_128b132b_link_train(struct intel_dp *intel_dp,
  * retraining with reduced link rate/lane parameters if the link training
  * fails.
  * After calling this function intel_dp_stop_link_train() must be called.
- *
- * NOTE: @state is only valid for MST links and can be %NULL for SST.
  */
 void intel_dp_start_link_train(struct intel_atomic_state *state,
 			       struct intel_dp *intel_dp,
@@ -1535,11 +1526,6 @@ void intel_dp_start_link_train(struct intel_atomic_state *state,
 	 * could've been prevented by an active link.
 	 */
 	int lttpr_count = intel_dp_init_lttpr_and_dprx_caps(intel_dp);
-
-	if (drm_WARN_ON(&i915->drm,
-			intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST) &&
-			!state))
-		return;
 
 	if (lttpr_count < 0)
 		/* Still continue with enabling the port and link training. */
