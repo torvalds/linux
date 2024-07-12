@@ -12,6 +12,14 @@
 #define DESC_BIT(nr)		BIT_ULL(nr)
 #define DESC_GENMASK(h, l)	GENMASK_ULL(h, l)
 
+/* Defines the minimum firmware version required by the driver */
+#define MIN_FW_MAJOR_VERSION    0
+#define MIN_FW_MINOR_VERSION    10
+#define MIN_FW_BUILD_VERSION    6
+#define MIN_FW_VERSION_CODE     (MIN_FW_MAJOR_VERSION * (1u << 24) + \
+				 MIN_FW_MINOR_VERSION * (1u << 16) + \
+				 MIN_FW_BUILD_VERSION)
+
 #define PCI_DEVICE_ID_META_FBNIC_ASIC		0x0013
 
 #define FBNIC_CLOCK_FREQ	(600 * (1000 * 1000))

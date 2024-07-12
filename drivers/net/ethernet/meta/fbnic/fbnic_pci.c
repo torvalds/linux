@@ -158,12 +158,40 @@ void fbnic_down(struct fbnic_net *fbn)
 	fbnic_flush(fbn);
 }
 
+static void fbnic_health_check(struct fbnic_dev *fbd)
+{
+	struct fbnic_fw_mbx *tx_mbx = &fbd->mbx[FBNIC_IPC_MBX_TX_IDX];
+
+	/* As long as the heart is beating the FW is healty */
+	if (fbd->fw_heartbeat_enabled)
+		return;
+
+	/* If the Tx mailbox still has messages sitting in it then there likely
+	 * isn't anything we can do. We will wait until the mailbox is empty to
+	 * report the fault so we can collect the crashlog.
+	 */
+	if (tx_mbx->head != tx_mbx->tail)
+		return;
+
+	/* TBD: Need to add a more thorough recovery here.
+	 *	Specifically I need to verify what all the firmware will have
+	 *	changed since we had setup and it rebooted. May just need to
+	 *	perform a down/up. For now we will just reclaim ownership so
+	 *	the heartbeat can catch the next fault.
+	 */
+	fbnic_fw_xmit_ownership_msg(fbd, true);
+}
+
 static void fbnic_service_task(struct work_struct *work)
 {
 	struct fbnic_dev *fbd = container_of(to_delayed_work(work),
 					     struct fbnic_dev, service_task);
 
 	rtnl_lock();
+
+	fbnic_fw_check_heartbeat(fbd);
+
+	fbnic_health_check(fbd);
 
 	if (netif_running(fbd->netdev))
 		schedule_delayed_work(&fbd->service_task, HZ);

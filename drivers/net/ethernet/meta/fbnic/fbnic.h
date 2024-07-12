@@ -26,8 +26,13 @@ struct fbnic_dev {
 	struct delayed_work service_task;
 
 	struct fbnic_fw_mbx mbx[FBNIC_IPC_MBX_INDICES];
+	struct fbnic_fw_cap fw_cap;
 	/* Lock protecting Tx Mailbox queue to prevent possible races */
 	spinlock_t fw_tx_lock;
+
+	unsigned long last_heartbeat_request;
+	unsigned long last_heartbeat_response;
+	u8 fw_heartbeat_enabled;
 
 	u64 dsn;
 	u32 mps;

@@ -11,6 +11,7 @@
 
 int __fbnic_open(struct fbnic_net *fbn)
 {
+	struct fbnic_dev *fbd = fbn->fbd;
 	int err;
 
 	err = fbnic_alloc_napi_vectors(fbn);
@@ -31,7 +32,22 @@ int __fbnic_open(struct fbnic_net *fbn)
 	if (err)
 		goto free_resources;
 
+	/* Send ownership message and flush to verify FW has seen it */
+	err = fbnic_fw_xmit_ownership_msg(fbd, true);
+	if (err) {
+		dev_warn(fbd->dev,
+			 "Error %d sending host ownership message to the firmware\n",
+			 err);
+		goto free_resources;
+	}
+
+	err = fbnic_fw_init_heartbeat(fbd, false);
+	if (err)
+		goto release_ownership;
+
 	return 0;
+release_ownership:
+	fbnic_fw_xmit_ownership_msg(fbn->fbd, false);
 free_resources:
 	fbnic_free_resources(fbn);
 free_napi_vectors:
@@ -56,6 +72,8 @@ static int fbnic_stop(struct net_device *netdev)
 	struct fbnic_net *fbn = netdev_priv(netdev);
 
 	fbnic_down(fbn);
+
+	fbnic_fw_xmit_ownership_msg(fbn->fbd, false);
 
 	fbnic_free_resources(fbn);
 	fbnic_free_napi_vectors(fbn);
