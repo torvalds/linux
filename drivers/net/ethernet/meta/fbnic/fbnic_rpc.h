@@ -54,9 +54,21 @@ struct fbnic_act_tcam {
 };
 
 enum {
+	FBNIC_RSS_EN_HOST_UDP6,
+	FBNIC_RSS_EN_HOST_UDP4,
+	FBNIC_RSS_EN_HOST_TCP6,
+	FBNIC_RSS_EN_HOST_TCP4,
+	FBNIC_RSS_EN_HOST_IP6,
+	FBNIC_RSS_EN_HOST_IP4,
 	FBNIC_RSS_EN_HOST_ETHER,
+	FBNIC_RSS_EN_XCAST_UDP6,
+#define FBNIC_RSS_EN_NUM_UNICAST FBNIC_RSS_EN_XCAST_UDP6
+	FBNIC_RSS_EN_XCAST_UDP4,
+	FBNIC_RSS_EN_XCAST_TCP6,
+	FBNIC_RSS_EN_XCAST_TCP4,
+	FBNIC_RSS_EN_XCAST_IP6,
+	FBNIC_RSS_EN_XCAST_IP4,
 	FBNIC_RSS_EN_XCAST_ETHER,
-#define FBNIC_RSS_EN_NUM_UNICAST FBNIC_RSS_EN_XCAST_ETHER
 	FBNIC_RSS_EN_NUM_ENTRIES
 };
 
@@ -91,8 +103,22 @@ enum {
 #define FBNIC_MAC_ADDR_T_HOST_LEN \
 	(FBNIC_MAC_ADDR_T_HOST_LAST - FBNIC_MAC_ADDR_T_HOST_START)
 
+#define FBNIC_RPC_TCAM_ACT0_IPSRC_IDX		CSR_GENMASK(2, 0)
+#define FBNIC_RPC_TCAM_ACT0_IPSRC_VALID		CSR_BIT(3)
+#define FBNIC_RPC_TCAM_ACT0_IPDST_IDX		CSR_GENMASK(6, 4)
+#define FBNIC_RPC_TCAM_ACT0_IPDST_VALID		CSR_BIT(7)
+#define FBNIC_RPC_TCAM_ACT0_OUTER_IPSRC_IDX	CSR_GENMASK(10, 8)
+#define FBNIC_RPC_TCAM_ACT0_OUTER_IPSRC_VALID	CSR_BIT(11)
+#define FBNIC_RPC_TCAM_ACT0_OUTER_IPDST_IDX	CSR_GENMASK(14, 12)
+#define FBNIC_RPC_TCAM_ACT0_OUTER_IPDST_VALID	CSR_BIT(15)
+
 #define FBNIC_RPC_TCAM_ACT1_L2_MACDA_IDX	CSR_GENMASK(9, 5)
 #define FBNIC_RPC_TCAM_ACT1_L2_MACDA_VALID	CSR_BIT(10)
+#define FBNIC_RPC_TCAM_ACT1_IP_IS_V6		CSR_BIT(11)
+#define FBNIC_RPC_TCAM_ACT1_IP_VALID		CSR_BIT(12)
+#define FBNIC_RPC_TCAM_ACT1_OUTER_IP_VALID	CSR_BIT(13)
+#define FBNIC_RPC_TCAM_ACT1_L4_IS_UDP		CSR_BIT(14)
+#define FBNIC_RPC_TCAM_ACT1_L4_VALID		CSR_BIT(15)
 
 /* TCAM 0 - 3 reserved for BMC MAC addresses */
 #define FBNIC_RPC_TCAM_MACDA_BMC_ADDR_IDX	0
@@ -114,10 +140,31 @@ enum {
 /* Reserved for use to record Multicast promisc, or Promiscuous */
 #define FBNIC_RPC_TCAM_MACDA_PROMISC_IDX	31
 
+enum {
+	FBNIC_UDP6_HASH_OPT,
+	FBNIC_UDP4_HASH_OPT,
+	FBNIC_TCP6_HASH_OPT,
+	FBNIC_TCP4_HASH_OPT,
+#define FBNIC_L4_HASH_OPT FBNIC_TCP4_HASH_OPT
+	FBNIC_IPV6_HASH_OPT,
+	FBNIC_IPV4_HASH_OPT,
+#define FBNIC_IP_HASH_OPT FBNIC_IPV4_HASH_OPT
+	FBNIC_ETHER_HASH_OPT,
+	FBNIC_NUM_HASH_OPT,
+};
+
 struct fbnic_dev;
+struct fbnic_net;
 
 void fbnic_bmc_rpc_init(struct fbnic_dev *fbd);
 void fbnic_bmc_rpc_all_multi_config(struct fbnic_dev *fbd, bool enable_host);
+
+void fbnic_reset_indir_tbl(struct fbnic_net *fbn);
+void fbnic_rss_key_fill(u32 *buffer);
+void fbnic_rss_init_en_mask(struct fbnic_net *fbn);
+void fbnic_rss_disable_hw(struct fbnic_dev *fbd);
+void fbnic_rss_reinit_hw(struct fbnic_dev *fbd, struct fbnic_net *fbn);
+void fbnic_rss_reinit(struct fbnic_dev *fbd, struct fbnic_net *fbn);
 
 int __fbnic_xc_unsync(struct fbnic_mac_addr *mac_addr, unsigned int tcam_idx);
 struct fbnic_mac_addr *__fbnic_uc_sync(struct fbnic_dev *fbd,
@@ -136,4 +183,7 @@ static inline int __fbnic_mc_unsync(struct fbnic_mac_addr *mac_addr)
 {
 	return __fbnic_xc_unsync(mac_addr, FBNIC_MAC_ADDR_T_MULTICAST);
 }
+
+void fbnic_clear_rules(struct fbnic_dev *fbd);
+void fbnic_write_rules(struct fbnic_dev *fbd);
 #endif /* _FBNIC_RPC_H_ */

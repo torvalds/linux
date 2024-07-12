@@ -50,6 +50,7 @@ int __fbnic_open(struct fbnic_net *fbn)
 		goto release_ownership;
 	/* Pull the BMC config and initialize the RPC */
 	fbnic_bmc_rpc_init(fbd);
+	fbnic_rss_reinit(fbd, fbn);
 
 	return 0;
 release_ownership:
@@ -262,6 +263,7 @@ void __fbnic_set_rx_mode(struct net_device *netdev)
 	fbnic_sift_macda(fbd);
 
 	/* Write updates to hardware */
+	fbnic_write_rules(fbd);
 	fbnic_write_macda(fbd);
 }
 
@@ -399,6 +401,10 @@ struct net_device *fbnic_netdev_alloc(struct fbnic_dev *fbd)
 		default_queues = fbd->max_num_queues;
 
 	fbnic_reset_queues(fbn, default_queues, default_queues);
+
+	fbnic_reset_indir_tbl(fbn);
+	fbnic_rss_key_fill(fbn->rss_key);
+	fbnic_rss_init_en_mask(fbn);
 
 	netdev->features |=
 		NETIF_F_RXHASH |

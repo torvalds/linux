@@ -133,6 +133,8 @@ void fbnic_up(struct fbnic_net *fbn)
 
 	fbnic_fill(fbn);
 
+	fbnic_rss_reinit_hw(fbn->fbd, fbn);
+
 	__fbnic_set_rx_mode(fbn->netdev);
 
 	/* Enable Tx/Rx processing */
@@ -151,6 +153,8 @@ static void fbnic_down_noidle(struct fbnic_net *fbn)
 	netif_tx_disable(fbn->netdev);
 
 	fbnic_clear_rx_mode(fbn->netdev);
+	fbnic_clear_rules(fbn->fbd);
+	fbnic_rss_disable_hw(fbn->fbd);
 	fbnic_disable(fbn);
 }
 
