@@ -1006,6 +1006,7 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 		BTREE_PTR_RANGE_UPDATED(&bkey_i_to_btree_ptr_v2(&b->key)->v);
 	unsigned u64s;
 	unsigned ptr_written = btree_ptr_sectors_written(bkey_i_to_s_c(&b->key));
+	u64 max_journal_seq = 0;
 	struct printbuf buf = PRINTBUF;
 	int ret = 0, retry_read = 0, write = READ;
 	u64 start_time = local_clock();
@@ -1181,6 +1182,8 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 		sort_iter_add(iter,
 			      vstruct_idx(i, 0),
 			      vstruct_last(i));
+
+		max_journal_seq = max(max_journal_seq, le64_to_cpu(i->journal_seq));
 	}
 
 	if (ptr_written) {
@@ -1217,6 +1220,7 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 	swap(sorted, b->data);
 	set_btree_bset(b, b->set, &b->data->keys);
 	b->nsets = 1;
+	b->data->keys.journal_seq = cpu_to_le64(max_journal_seq);
 
 	BUG_ON(b->nr.live_u64s != u64s);
 
