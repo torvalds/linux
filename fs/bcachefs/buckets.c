@@ -805,7 +805,7 @@ int bch2_bucket_ref_update(struct btree_trans *trans, struct bch_dev *ca,
 			"bucket %u:%zu gen %u (mem gen %u) data type %s: stale dirty ptr (gen %u)\n"
 			"while marking %s",
 			ptr->dev, bucket_nr, b_gen,
-			*bucket_gen(ca, bucket_nr),
+			bucket_gen_get(ca, bucket_nr),
 			bch2_data_type_str(bucket_data_type ?: ptr_data_type),
 			ptr->gen,
 			(printbuf_reset(&buf),

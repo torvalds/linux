@@ -125,7 +125,7 @@ err_noprint:
 	bch2_bkey_buf_exit(&old, c);
 
 	if (closure_nr_remaining(&cl) != 1) {
-		bch2_trans_unlock(trans);
+		bch2_trans_unlock_long(trans);
 		closure_sync(&cl);
 	}
 
