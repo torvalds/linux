@@ -1,11 +1,19 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config NET_VENDOR_MEDIATEK
 	bool "MediaTek devices"
-	depends on ARCH_MEDIATEK || SOC_MT7621 || SOC_MT7620 || COMPILE_TEST
+	depends on ARCH_MEDIATEK || ARCH_AIROHA || SOC_MT7621 || SOC_MT7620 || COMPILE_TEST
 	help
 	  If you have a Mediatek SoC with ethernet, say Y.
 
 if NET_VENDOR_MEDIATEK
+
+config NET_AIROHA
+	tristate "Airoha SoC Gigabit Ethernet support"
+	depends on NET_DSA || !NET_DSA
+	select PAGE_POOL
+	help
+	  This driver supports the gigabit ethernet MACs in the
+	  Airoha SoC family.
 
 config NET_MEDIATEK_SOC_WED
 	depends on ARCH_MEDIATEK || COMPILE_TEST
