@@ -513,10 +513,10 @@ i2c_register_board_info(int busnum, struct i2c_board_info const *info,
 
 /**
  * struct i2c_algorithm - represent I2C transfer method
- * @master_xfer: Issue a set of i2c transactions to the given I2C adapter
+ * @xfer: Issue a set of i2c transactions to the given I2C adapter
  *   defined by the msgs array, with num messages available to transfer via
  *   the adapter specified by adap.
- * @master_xfer_atomic: same as @master_xfer. Yet, only using atomic context
+ * @xfer_atomic: same as @xfer. Yet, only using atomic context
  *   so e.g. PMICs can be accessed very late before shutdown. Optional.
  * @smbus_xfer: Issue smbus transactions to the given I2C adapter. If this
  *   is not present, then the bus layer will try and convert the SMBus calls
@@ -525,27 +525,33 @@ i2c_register_board_info(int busnum, struct i2c_board_info const *info,
  *   so e.g. PMICs can be accessed very late before shutdown. Optional.
  * @functionality: Return the flags that this algorithm/adapter pair supports
  *   from the ``I2C_FUNC_*`` flags.
- * @reg_slave: Register given client to I2C slave mode of this adapter
- * @unreg_slave: Unregister given client from I2C slave mode of this adapter
+ * @reg_target: Register given client to local target mode of this adapter
+ * @unreg_target: Unregister given client from local target mode of this adapter
+ *
+ * @master_xfer: deprecated, use @xfer
+ * @master_xfer_atomic: deprecated, use @xfer_atomic
+ * @reg_slave: deprecated, use @reg_target
+ * @unreg_slave: deprecated, use @unreg_target
+ *
  *
  * The following structs are for those who like to implement new bus drivers:
  * i2c_algorithm is the interface to a class of hardware solutions which can
  * be addressed using the same bus algorithms - i.e. bit-banging or the PCF8584
  * to name two of the most common.
  *
- * The return codes from the ``master_xfer{_atomic}`` fields should indicate the
+ * The return codes from the ``xfer{_atomic}`` fields should indicate the
  * type of error code that occurred during the transfer, as documented in the
  * Kernel Documentation file Documentation/i2c/fault-codes.rst. Otherwise, the
  * number of messages executed should be returned.
  */
 struct i2c_algorithm {
 	/*
-	 * If an adapter algorithm can't do I2C-level access, set master_xfer
+	 * If an adapter algorithm can't do I2C-level access, set xfer
 	 * to NULL. If an adapter algorithm can do SMBus access, set
 	 * smbus_xfer. If set to NULL, the SMBus protocol is simulated
 	 * using common I2C messages.
 	 *
-	 * master_xfer should return the number of messages successfully
+	 * xfer should return the number of messages successfully
 	 * processed, or a negative value on error
 	 */
 	union {
