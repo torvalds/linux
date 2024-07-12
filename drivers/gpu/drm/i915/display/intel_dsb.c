@@ -85,10 +85,10 @@ struct intel_dsb {
 static bool assert_dsb_has_room(struct intel_dsb *dsb)
 {
 	struct intel_crtc *crtc = dsb->crtc;
-	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	struct intel_display *display = to_intel_display(crtc->base.dev);
 
 	/* each instruction is 2 dwords */
-	return !drm_WARN(&i915->drm, dsb->free_pos > dsb->size - 2,
+	return !drm_WARN(display->drm, dsb->free_pos > dsb->size - 2,
 			 "[CRTC:%d:%s] DSB %d buffer overflow\n",
 			 crtc->base.base.id, crtc->base.name, dsb->id);
 }
@@ -96,25 +96,25 @@ static bool assert_dsb_has_room(struct intel_dsb *dsb)
 static void intel_dsb_dump(struct intel_dsb *dsb)
 {
 	struct intel_crtc *crtc = dsb->crtc;
-	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	struct intel_display *display = to_intel_display(crtc->base.dev);
 	int i;
 
-	drm_dbg_kms(&i915->drm, "[CRTC:%d:%s] DSB %d commands {\n",
+	drm_dbg_kms(display->drm, "[CRTC:%d:%s] DSB %d commands {\n",
 		    crtc->base.base.id, crtc->base.name, dsb->id);
 	for (i = 0; i < ALIGN(dsb->free_pos, 64 / 4); i += 4)
-		drm_dbg_kms(&i915->drm,
+		drm_dbg_kms(display->drm,
 			    " 0x%08x: 0x%08x 0x%08x 0x%08x 0x%08x\n", i * 4,
 			    intel_dsb_buffer_read(&dsb->dsb_buf, i),
 			    intel_dsb_buffer_read(&dsb->dsb_buf, i + 1),
 			    intel_dsb_buffer_read(&dsb->dsb_buf, i + 2),
 			    intel_dsb_buffer_read(&dsb->dsb_buf, i + 3));
-	drm_dbg_kms(&i915->drm, "}\n");
+	drm_dbg_kms(display->drm, "}\n");
 }
 
-static bool is_dsb_busy(struct drm_i915_private *i915, enum pipe pipe,
+static bool is_dsb_busy(struct intel_display *display, enum pipe pipe,
 			enum intel_dsb_id dsb_id)
 {
-	return intel_de_read_fw(i915, DSB_CTRL(pipe, dsb_id)) & DSB_STATUS_BUSY;
+	return intel_de_read_fw(display, DSB_CTRL(pipe, dsb_id)) & DSB_STATUS_BUSY;
 }
 
 static void intel_dsb_emit(struct intel_dsb *dsb, u32 ldw, u32 udw)
@@ -343,27 +343,27 @@ static void _intel_dsb_commit(struct intel_dsb *dsb, u32 ctrl,
 			      int dewake_scanline)
 {
 	struct intel_crtc *crtc = dsb->crtc;
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_display *display = to_intel_display(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 	u32 tail;
 
 	tail = dsb->free_pos * 4;
-	if (drm_WARN_ON(&dev_priv->drm, !IS_ALIGNED(tail, CACHELINE_BYTES)))
+	if (drm_WARN_ON(display->drm, !IS_ALIGNED(tail, CACHELINE_BYTES)))
 		return;
 
-	if (is_dsb_busy(dev_priv, pipe, dsb->id)) {
-		drm_err(&dev_priv->drm, "[CRTC:%d:%s] DSB %d is busy\n",
+	if (is_dsb_busy(display, pipe, dsb->id)) {
+		drm_err(display->drm, "[CRTC:%d:%s] DSB %d is busy\n",
 			crtc->base.base.id, crtc->base.name, dsb->id);
 		return;
 	}
 
-	intel_de_write_fw(dev_priv, DSB_CTRL(pipe, dsb->id),
+	intel_de_write_fw(display, DSB_CTRL(pipe, dsb->id),
 			  ctrl | DSB_ENABLE);
 
-	intel_de_write_fw(dev_priv, DSB_CHICKEN(pipe, dsb->id),
+	intel_de_write_fw(display, DSB_CHICKEN(pipe, dsb->id),
 			  dsb_chicken(crtc));
 
-	intel_de_write_fw(dev_priv, DSB_HEAD(pipe, dsb->id),
+	intel_de_write_fw(display, DSB_HEAD(pipe, dsb->id),
 			  intel_dsb_buffer_ggtt_offset(&dsb->dsb_buf));
 
 	if (dewake_scanline >= 0) {
@@ -371,7 +371,7 @@ static void _intel_dsb_commit(struct intel_dsb *dsb, u32 ctrl,
 
 		hw_dewake_scanline = intel_crtc_scanline_to_hw(crtc, dewake_scanline);
 
-		intel_de_write_fw(dev_priv, DSB_PMCTRL(pipe, dsb->id),
+		intel_de_write_fw(display, DSB_PMCTRL(pipe, dsb->id),
 				  DSB_ENABLE_DEWAKE |
 				  DSB_SCANLINE_FOR_DEWAKE(hw_dewake_scanline));
 
@@ -380,12 +380,12 @@ static void _intel_dsb_commit(struct intel_dsb *dsb, u32 ctrl,
 		 * or close to racing past the target scanline.
 		 */
 		diff = dewake_scanline - intel_get_crtc_scanline(crtc);
-		intel_de_write_fw(dev_priv, DSB_PMCTRL_2(pipe, dsb->id),
+		intel_de_write_fw(display, DSB_PMCTRL_2(pipe, dsb->id),
 				  (diff >= 0 && diff < 5 ? DSB_FORCE_DEWAKE : 0) |
 				  DSB_BLOCK_DEWAKE_EXTENSION);
 	}
 
-	intel_de_write_fw(dev_priv, DSB_TAIL(pipe, dsb->id),
+	intel_de_write_fw(display, DSB_TAIL(pipe, dsb->id),
 			  intel_dsb_buffer_ggtt_offset(&dsb->dsb_buf) + tail);
 }
 
@@ -407,21 +407,21 @@ void intel_dsb_commit(struct intel_dsb *dsb,
 void intel_dsb_wait(struct intel_dsb *dsb)
 {
 	struct intel_crtc *crtc = dsb->crtc;
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_display *display = to_intel_display(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 
-	if (wait_for(!is_dsb_busy(dev_priv, pipe, dsb->id), 1)) {
+	if (wait_for(!is_dsb_busy(display, pipe, dsb->id), 1)) {
 		u32 offset = intel_dsb_buffer_ggtt_offset(&dsb->dsb_buf);
 
-		intel_de_write_fw(dev_priv, DSB_CTRL(pipe, dsb->id),
+		intel_de_write_fw(display, DSB_CTRL(pipe, dsb->id),
 				  DSB_ENABLE | DSB_HALT);
 
-		drm_err(&dev_priv->drm,
+		drm_err(display->drm,
 			"[CRTC:%d:%s] DSB %d timed out waiting for idle (current head=0x%x, head=0x%x, tail=0x%x)\n",
 			crtc->base.base.id, crtc->base.name, dsb->id,
-			intel_de_read_fw(dev_priv, DSB_CURRENT_HEAD(pipe, dsb->id)) - offset,
-			intel_de_read_fw(dev_priv, DSB_HEAD(pipe, dsb->id)) - offset,
-			intel_de_read_fw(dev_priv, DSB_TAIL(pipe, dsb->id)) - offset);
+			intel_de_read_fw(display, DSB_CURRENT_HEAD(pipe, dsb->id)) - offset,
+			intel_de_read_fw(display, DSB_HEAD(pipe, dsb->id)) - offset,
+			intel_de_read_fw(display, DSB_TAIL(pipe, dsb->id)) - offset);
 
 		intel_dsb_dump(dsb);
 	}
@@ -429,12 +429,13 @@ void intel_dsb_wait(struct intel_dsb *dsb)
 	/* Attempt to reset it */
 	dsb->free_pos = 0;
 	dsb->ins_start_offset = 0;
-	intel_de_write_fw(dev_priv, DSB_CTRL(pipe, dsb->id), 0);
+	intel_de_write_fw(display, DSB_CTRL(pipe, dsb->id), 0);
 }
 
 /**
  * intel_dsb_prepare() - Allocate, pin and map the DSB command buffer.
- * @crtc_state: the CRTC state
+ * @state: the atomic state
+ * @crtc: the CRTC
  * @dsb_id: the DSB engine to use
  * @max_cmds: number of commands we need to fit into command buffer
  *
@@ -444,17 +445,22 @@ void intel_dsb_wait(struct intel_dsb *dsb)
  * Returns:
  * DSB context, NULL on failure
  */
-struct intel_dsb *intel_dsb_prepare(const struct intel_crtc_state *crtc_state,
+struct intel_dsb *intel_dsb_prepare(struct intel_atomic_state *state,
+				    struct intel_crtc *crtc,
 				    enum intel_dsb_id dsb_id,
 				    unsigned int max_cmds)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	const struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
 	intel_wakeref_t wakeref;
 	struct intel_dsb *dsb;
 	unsigned int size;
 
 	if (!HAS_DSB(i915))
+		return NULL;
+
+	if (!i915->display.params.enable_dsb)
 		return NULL;
 
 	/* TODO: DSB is broken in Xe KMD, so disabling it until fixed */

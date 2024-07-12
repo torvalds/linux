@@ -557,6 +557,16 @@ void intel_crtc_update_active_timings(const struct intel_crtc_state *crtc_state,
 	spin_unlock_irqrestore(&i915->drm.vblank_time_lock, irqflags);
 }
 
+int intel_mode_vdisplay(const struct drm_display_mode *mode)
+{
+	int vdisplay = mode->crtc_vdisplay;
+
+	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
+		vdisplay = DIV_ROUND_UP(vdisplay, 2);
+
+	return vdisplay;
+}
+
 int intel_mode_vblank_start(const struct drm_display_mode *mode)
 {
 	int vblank_start = mode->crtc_vblank_start;

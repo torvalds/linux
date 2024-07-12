@@ -187,7 +187,6 @@ static void xe_hw_fence_release(struct dma_fence *dma_fence)
 {
 	struct xe_hw_fence *fence = to_xe_hw_fence(dma_fence);
 
-	trace_xe_hw_fence_free(fence);
 	XE_WARN_ON(!list_empty(&fence->irq_link));
 	call_rcu(&dma_fence->rcu, fence_free);
 }

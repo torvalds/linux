@@ -135,8 +135,9 @@ static int _lnl_compute_aux_less_wake_time(int port_clock)
 			    t1 + tcds, 1000);
 }
 
-static int _lnl_compute_aux_less_alpm_params(struct intel_dp *intel_dp,
-					     struct intel_crtc_state *crtc_state)
+static int
+_lnl_compute_aux_less_alpm_params(struct intel_dp *intel_dp,
+				  const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 	int aux_less_wake_time, aux_less_wake_lines, silence_period,
@@ -168,7 +169,7 @@ static int _lnl_compute_aux_less_alpm_params(struct intel_dp *intel_dp,
 }
 
 static bool _lnl_compute_alpm_params(struct intel_dp *intel_dp,
-				     struct intel_crtc_state *crtc_state)
+				     const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 	int check_entry_lines;
@@ -220,7 +221,7 @@ static int io_buffer_wake_time(const struct intel_crtc_state *crtc_state)
 }
 
 bool intel_alpm_compute_params(struct intel_dp *intel_dp,
-				      struct intel_crtc_state *crtc_state)
+			       const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 	int io_wake_lines, io_wake_time, fast_wake_lines, fast_wake_time;

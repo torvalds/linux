@@ -341,11 +341,6 @@ DEFINE_EVENT(xe_hw_fence, xe_hw_fence_try_signal,
 	     TP_ARGS(fence)
 );
 
-DEFINE_EVENT(xe_hw_fence, xe_hw_fence_free,
-	     TP_PROTO(struct xe_hw_fence *fence),
-	     TP_ARGS(fence)
-);
-
 TRACE_EVENT(xe_reg_rw,
 	TP_PROTO(struct xe_gt *gt, bool write, u32 reg, u64 val, int len),
 

@@ -43,6 +43,7 @@
 #include "i9xx_plane_regs.h"
 #include "intel_atomic_plane.h"
 #include "intel_cdclk.h"
+#include "intel_cursor.h"
 #include "intel_display_rps.h"
 #include "intel_display_trace.h"
 #include "intel_display_types.h"
@@ -801,18 +802,30 @@ void intel_plane_update_noarm(struct intel_plane *plane,
 		plane->update_noarm(plane, crtc_state, plane_state);
 }
 
+void intel_plane_async_flip(struct intel_plane *plane,
+			    const struct intel_crtc_state *crtc_state,
+			    const struct intel_plane_state *plane_state,
+			    bool async_flip)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+
+	trace_intel_plane_async_flip(plane, crtc, async_flip);
+	plane->async_flip(plane, crtc_state, plane_state, async_flip);
+}
+
 void intel_plane_update_arm(struct intel_plane *plane,
 			    const struct intel_crtc_state *crtc_state,
 			    const struct intel_plane_state *plane_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 
-	trace_intel_plane_update_arm(plane, crtc);
+	if (crtc_state->do_async_flip && plane->async_flip) {
+		intel_plane_async_flip(plane, crtc_state, plane_state, true);
+		return;
+	}
 
-	if (crtc_state->do_async_flip && plane->async_flip)
-		plane->async_flip(plane, crtc_state, plane_state, true);
-	else
-		plane->update_arm(plane, crtc_state, plane_state);
+	trace_intel_plane_update_arm(plane, crtc);
+	plane->update_arm(plane, crtc_state, plane_state);
 }
 
 void intel_plane_disable_arm(struct intel_plane *plane,
@@ -1189,7 +1202,6 @@ intel_cleanup_plane_fb(struct drm_plane *plane,
 
 	intel_display_rps_mark_interactive(dev_priv, state, false);
 
-	/* Should only be called after a successful intel_prepare_plane_fb()! */
 	intel_plane_unpin_fb(old_plane_state);
 }
 
@@ -1201,4 +1213,15 @@ static const struct drm_plane_helper_funcs intel_plane_helper_funcs = {
 void intel_plane_helper_add(struct intel_plane *plane)
 {
 	drm_plane_helper_add(&plane->base, &intel_plane_helper_funcs);
+}
+
+void intel_plane_init_cursor_vblank_work(struct intel_plane_state *old_plane_state,
+					 struct intel_plane_state *new_plane_state)
+{
+	if (!old_plane_state->ggtt_vma ||
+	    old_plane_state->ggtt_vma == new_plane_state->ggtt_vma)
+		return;
+
+	drm_vblank_work_init(&old_plane_state->unpin_work, old_plane_state->uapi.crtc,
+			     intel_cursor_unpin_work);
 }
