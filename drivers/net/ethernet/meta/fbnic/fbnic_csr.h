@@ -61,10 +61,18 @@
 #define FBNIC_INTR_CQ_REARM_INTR_RELOAD		CSR_BIT(30)
 #define FBNIC_INTR_CQ_REARM_INTR_UNMASK		CSR_BIT(31)
 
+#define FBNIC_INTR_RCQ_TIMEOUT(n) \
+				(0x00401 + 4 * (n))	/* 0x01004 + 16*n */
+#define FBNIC_INTR_RCQ_TIMEOUT_CNT		256
+#define FBNIC_INTR_TCQ_TIMEOUT(n) \
+				(0x00402 + 4 * (n))	/* 0x01008 + 16*n */
+#define FBNIC_INTR_TCQ_TIMEOUT_CNT		256
 #define FBNIC_CSR_END_INTR_CQ		0x007fe	/* CSR section delimiter */
 
 /* Global QM Tx registers */
 #define FBNIC_CSR_START_QM_TX		0x00800	/* CSR section delimiter */
+#define FBNIC_QM_TWQ_IDLE(n)		(0x00800 + (n)) /* 0x02000 + 4*n */
+#define FBNIC_QM_TWQ_IDLE_CNT			8
 #define FBNIC_QM_TWQ_DEFAULT_META_L	0x00818		/* 0x02060 */
 #define FBNIC_QM_TWQ_DEFAULT_META_H	0x00819		/* 0x02064 */
 
@@ -86,10 +94,16 @@ enum {
 #define FBNIC_QM_TQS_MTU_CTL0		0x0081d		/* 0x02074 */
 #define FBNIC_QM_TQS_MTU_CTL1		0x0081e		/* 0x02078 */
 #define FBNIC_QM_TQS_MTU_CTL1_BULK		CSR_GENMASK(13, 0)
+#define FBNIC_QM_TCQ_IDLE(n)		(0x00821 + (n)) /* 0x02084 + 4*n */
+#define FBNIC_QM_TCQ_IDLE_CNT			4
 #define FBNIC_QM_TCQ_CTL0		0x0082d		/* 0x020b4 */
 #define FBNIC_QM_TCQ_CTL0_COAL_WAIT		CSR_GENMASK(15, 0)
 #define FBNIC_QM_TCQ_CTL0_TICK_CYCLES		CSR_GENMASK(26, 16)
+#define FBNIC_QM_TQS_IDLE(n)		(0x00830 + (n)) /* 0x020c0 + 4*n */
+#define FBNIC_QM_TQS_IDLE_CNT			8
 #define FBNIC_QM_TQS_EDT_TS_RANGE	0x00849		/* 0x2124 */
+#define FBNIC_QM_TDE_IDLE(n)		(0x00853 + (n)) /* 0x0214c + 4*n */
+#define FBNIC_QM_TDE_IDLE_CNT			8
 #define FBNIC_QM_TNI_TDF_CTL		0x0086c		/* 0x021b0 */
 #define FBNIC_QM_TNI_TDF_CTL_MRRS		CSR_GENMASK(1, 0)
 #define FBNIC_QM_TNI_TDF_CTL_CLS		CSR_GENMASK(3, 2)
@@ -110,9 +124,15 @@ enum {
 
 /* Global QM Rx registers */
 #define FBNIC_CSR_START_QM_RX		0x00c00	/* CSR section delimiter */
+#define FBNIC_QM_RCQ_IDLE(n)		(0x00c00 + (n)) /* 0x03000 + 0x4*n */
+#define FBNIC_QM_RCQ_IDLE_CNT			4
 #define FBNIC_QM_RCQ_CTL0		0x00c0c		/* 0x03030 */
 #define FBNIC_QM_RCQ_CTL0_COAL_WAIT		CSR_GENMASK(15, 0)
 #define FBNIC_QM_RCQ_CTL0_TICK_CYCLES		CSR_GENMASK(26, 16)
+#define FBNIC_QM_HPQ_IDLE(n)		(0x00c0f + (n)) /* 0x0303c + 0x4*n */
+#define FBNIC_QM_HPQ_IDLE_CNT			4
+#define FBNIC_QM_PPQ_IDLE(n)		(0x00c13 + (n)) /* 0x0304c + 0x4*n */
+#define FBNIC_QM_PPQ_IDLE_CNT			4
 #define FBNIC_QM_RNI_RBP_CTL		0x00c2d		/* 0x030b4 */
 #define FBNIC_QM_RNI_RBP_CTL_MRRS		CSR_GENMASK(1, 0)
 #define FBNIC_QM_RNI_RBP_CTL_CLS		CSR_GENMASK(3, 2)
@@ -219,6 +239,8 @@ enum {
 /* TMI registers */
 #define FBNIC_CSR_START_TMI		0x04400	/* CSR section delimiter */
 #define FBNIC_TMI_SOP_PROT_CTRL		0x04400		/* 0x11000 */
+#define FBNIC_TMI_DROP_CTRL		0x04401		/* 0x11004 */
+#define FBNIC_TMI_DROP_CTRL_EN			CSR_BIT(0)
 #define FBNIC_CSR_END_TMI		0x0443f	/* CSR section delimiter */
 /* Rx Buffer Registers */
 #define FBNIC_CSR_START_RXB		0x08000	/* CSR section delimiter */
@@ -382,21 +404,51 @@ enum {
 #define FBNIC_QUEUE_TWQ1_CTL		0x001		/* 0x004 */
 #define FBNIC_QUEUE_TWQ_CTL_RESET		CSR_BIT(0)
 #define FBNIC_QUEUE_TWQ_CTL_ENABLE		CSR_BIT(1)
-#define FBNIC_QUEUE_TWQ_CTL_PREFETCH_DISABLE	CSR_BIT(2)
-#define FBNIC_QUEUE_TWQ_CTL_TXB_FIFO_SEL_MASK	CSR_GENMASK(30, 29)
-enum {
-	FBNIC_QUEUE_TWQ_CTL_TXB_SHARED	= 0,
-	FBNIC_QUEUE_TWQ_CTL_TXB_EI_DATA	= 1,
-	FBNIC_QUEUE_TWQ_CTL_TXB_EI_CTL	= 2,
-};
-
-#define FBNIC_QUEUE_TWQ_CTL_AGGR_MODE		CSR_BIT(31)
-
 #define FBNIC_QUEUE_TWQ0_TAIL		0x002		/* 0x008 */
 #define FBNIC_QUEUE_TWQ1_TAIL		0x003		/* 0x00c */
 
+#define FBNIC_QUEUE_TWQ0_SIZE		0x00a		/* 0x028 */
+#define FBNIC_QUEUE_TWQ1_SIZE		0x00b		/* 0x02c */
+#define FBNIC_QUEUE_TWQ_SIZE_MASK		CSR_GENMASK(3, 0)
+
+#define FBNIC_QUEUE_TWQ0_BAL		0x020		/* 0x080 */
+#define FBNIC_QUEUE_BAL_MASK			CSR_GENMASK(31, 7)
+#define FBNIC_QUEUE_TWQ0_BAH		0x021		/* 0x084 */
+#define FBNIC_QUEUE_TWQ1_BAL		0x022		/* 0x088 */
+#define FBNIC_QUEUE_TWQ1_BAH		0x023		/* 0x08c */
+
 /* Tx Completion Queue Registers */
+#define FBNIC_QUEUE_TCQ_CTL		0x080		/* 0x200 */
+#define FBNIC_QUEUE_TCQ_CTL_RESET		CSR_BIT(0)
+#define FBNIC_QUEUE_TCQ_CTL_ENABLE		CSR_BIT(1)
+
 #define FBNIC_QUEUE_TCQ_HEAD		0x081		/* 0x204 */
+
+#define FBNIC_QUEUE_TCQ_SIZE		0x084		/* 0x210 */
+#define FBNIC_QUEUE_TCQ_SIZE_MASK		CSR_GENMASK(3, 0)
+
+#define FBNIC_QUEUE_TCQ_BAL		0x0a0		/* 0x280 */
+#define FBNIC_QUEUE_TCQ_BAH		0x0a1		/* 0x284 */
+
+/* Tx Interrupt Manager Registers */
+#define FBNIC_QUEUE_TIM_CTL		0x0c0		/* 0x300 */
+#define FBNIC_QUEUE_TIM_CTL_MSIX_MASK		CSR_GENMASK(7, 0)
+
+#define FBNIC_QUEUE_TIM_THRESHOLD	0x0c1		/* 0x304 */
+#define FBNIC_QUEUE_TIM_THRESHOLD_TWD_MASK	CSR_GENMASK(14, 0)
+
+#define FBNIC_QUEUE_TIM_CLEAR		0x0c2		/* 0x308 */
+#define FBNIC_QUEUE_TIM_CLEAR_MASK		CSR_BIT(0)
+#define FBNIC_QUEUE_TIM_SET		0x0c3		/* 0x30c */
+#define FBNIC_QUEUE_TIM_SET_MASK		CSR_BIT(0)
+#define FBNIC_QUEUE_TIM_MASK		0x0c4		/* 0x310 */
+#define FBNIC_QUEUE_TIM_MASK_MASK		CSR_BIT(0)
+
+#define FBNIC_QUEUE_TIM_TIMER		0x0c5		/* 0x314 */
+
+#define FBNIC_QUEUE_TIM_COUNTS		0x0c6		/* 0x318 */
+#define FBNIC_QUEUE_TIM_COUNTS_CNT1_MASK	CSR_GENMASK(30, 16)
+#define FBNIC_QUEUE_TIM_COUNTS_CNT0_MASK	CSR_GENMASK(14, 0)
 
 /* Rx Completion Queue Registers */
 #define FBNIC_QUEUE_RCQ_HEAD		0x201		/* 0x804 */

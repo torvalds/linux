@@ -15,6 +15,8 @@ struct fbnic_net {
 	struct net_device *netdev;
 	struct fbnic_dev *fbd;
 
+	u32 txq_size;
+
 	u16 num_napi;
 
 	u16 num_tx_queues;

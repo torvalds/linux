@@ -127,16 +127,33 @@ static void fbnic_service_task_stop(struct fbnic_net *fbn)
 
 void fbnic_up(struct fbnic_net *fbn)
 {
+	fbnic_enable(fbn);
+
+	/* Enable Tx/Rx processing */
+	fbnic_napi_enable(fbn);
 	netif_tx_start_all_queues(fbn->netdev);
 
 	fbnic_service_task_start(fbn);
 }
 
-void fbnic_down(struct fbnic_net *fbn)
+static void fbnic_down_noidle(struct fbnic_net *fbn)
 {
 	fbnic_service_task_stop(fbn);
 
+	/* Disable Tx/Rx Processing */
+	fbnic_napi_disable(fbn);
 	netif_tx_disable(fbn->netdev);
+
+	fbnic_disable(fbn);
+}
+
+void fbnic_down(struct fbnic_net *fbn)
+{
+	fbnic_down_noidle(fbn);
+
+	fbnic_wait_all_queues_idle(fbn->fbd, false);
+
+	fbnic_flush(fbn);
 }
 
 static void fbnic_service_task(struct work_struct *work)

@@ -17,6 +17,10 @@ int __fbnic_open(struct fbnic_net *fbn)
 	if (err)
 		return err;
 
+	err = fbnic_alloc_resources(fbn);
+	if (err)
+		goto free_napi_vectors;
+
 	err = netif_set_real_num_tx_queues(fbn->netdev,
 					   fbn->num_tx_queues);
 	if (err)
@@ -29,6 +33,8 @@ int __fbnic_open(struct fbnic_net *fbn)
 
 	return 0;
 free_resources:
+	fbnic_free_resources(fbn);
+free_napi_vectors:
 	fbnic_free_napi_vectors(fbn);
 	return err;
 }
@@ -51,6 +57,7 @@ static int fbnic_stop(struct net_device *netdev)
 
 	fbnic_down(fbn);
 
+	fbnic_free_resources(fbn);
 	fbnic_free_napi_vectors(fbn);
 
 	return 0;
@@ -122,6 +129,8 @@ struct net_device *fbnic_netdev_alloc(struct fbnic_dev *fbd)
 	fbn->netdev = netdev;
 	fbn->fbd = fbd;
 	INIT_LIST_HEAD(&fbn->napis);
+
+	fbn->txq_size = FBNIC_TXQ_SIZE_DEFAULT;
 
 	default_queues = netif_get_num_default_rss_queues();
 	if (default_queues > fbd->max_num_queues)
