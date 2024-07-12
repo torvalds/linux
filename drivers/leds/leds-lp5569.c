@@ -521,7 +521,7 @@ MODULE_DEVICE_TABLE(of, of_lp5569_leds_match);
 
 static struct i2c_driver lp5569_driver = {
 	.driver = {
-		.name	= "lp5569x",
+		.name	= "lp5569",
 		.of_match_table = of_lp5569_leds_match,
 	},
 	.probe		= lp55xx_probe,
