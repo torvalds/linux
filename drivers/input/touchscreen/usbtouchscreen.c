@@ -167,9 +167,8 @@ static const struct usbtouch_device_info e2i_dev_info = {
 
 static int egalax_init(struct usbtouch_usb *usbtouch)
 {
-	int ret, i;
-	unsigned char *buf;
 	struct usb_device *udev = interface_to_usbdev(usbtouch->interface);
+	int ret, i;
 
 	/*
 	 * An eGalax diagnostic packet kicks the device into using the right
@@ -177,7 +176,7 @@ static int egalax_init(struct usbtouch_usb *usbtouch)
 	 * read later and ignored.
 	 */
 
-	buf = kmalloc(3, GFP_KERNEL);
+	u8 *buf __free(kfree) = kmalloc(3, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
@@ -191,17 +190,11 @@ static int egalax_init(struct usbtouch_usb *usbtouch)
 				      USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 				      0, 0, buf, 3,
 				      USB_CTRL_SET_TIMEOUT);
-		if (ret >= 0) {
-			ret = 0;
-			break;
-		}
 		if (ret != -EPIPE)
 			break;
 	}
 
-	kfree(buf);
-
-	return ret;
+	return ret < 0 ? ret : 0;
 }
 
 static int egalax_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
@@ -358,10 +351,9 @@ static int mtouch_get_fw_revision(struct usbtouch_usb *usbtouch)
 {
 	struct usb_device *udev = interface_to_usbdev(usbtouch->interface);
 	struct mtouch_priv *priv = usbtouch->priv;
-	u8 *buf;
 	int ret;
 
-	buf = kzalloc(MTOUCHUSB_REQ_CTRLLR_ID_LEN, GFP_NOIO);
+	u8 *buf __free(kfree) = kzalloc(MTOUCHUSB_REQ_CTRLLR_ID_LEN, GFP_NOIO);
 	if (!buf)
 		return -ENOMEM;
 
@@ -373,18 +365,13 @@ static int mtouch_get_fw_revision(struct usbtouch_usb *usbtouch)
 	if (ret != MTOUCHUSB_REQ_CTRLLR_ID_LEN) {
 		dev_warn(&usbtouch->interface->dev,
 			 "Failed to read FW rev: %d\n", ret);
-		ret = ret < 0 ? ret : -EIO;
-		goto free;
+		return ret < 0 ? ret : -EIO;
 	}
 
 	priv->fw_rev_major = buf[3];
 	priv->fw_rev_minor = buf[4];
 
-	ret = 0;
-
-free:
-	kfree(buf);
-	return ret;
+	return 0;
 }
 
 static int mtouch_alloc(struct usbtouch_usb *usbtouch)
@@ -636,24 +623,23 @@ static const struct usbtouch_device_info gunze_dev_info = {
 static int dmc_tsc10_init(struct usbtouch_usb *usbtouch)
 {
 	struct usb_device *dev = interface_to_usbdev(usbtouch->interface);
-	int ret = -ENOMEM;
-	unsigned char *buf;
+	int ret;
 
-	buf = kmalloc(2, GFP_NOIO);
+	u8 *buf __free(kfree) = kmalloc(2, GFP_NOIO);
 	if (!buf)
-		goto err_nobuf;
+		return -ENOMEM;
+
 	/* reset */
 	buf[0] = buf[1] = 0xFF;
 	ret = usb_control_msg(dev, usb_rcvctrlpipe (dev, 0),
-	                      TSC10_CMD_RESET,
-	                      USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-	                      0, 0, buf, 2, USB_CTRL_SET_TIMEOUT);
+			      TSC10_CMD_RESET,
+			      USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			      0, 0, buf, 2, USB_CTRL_SET_TIMEOUT);
 	if (ret < 0)
-		goto err_out;
-	if (buf[0] != 0x06) {
-		ret = -ENODEV;
-		goto err_out;
-	}
+		return ret;
+
+	if (buf[0] != 0x06)
+		return -ENODEV;
 
 	/* TSC-25 data sheet specifies a delay after the RESET command */
 	msleep(150);
@@ -661,27 +647,21 @@ static int dmc_tsc10_init(struct usbtouch_usb *usbtouch)
 	/* set coordinate output rate */
 	buf[0] = buf[1] = 0xFF;
 	ret = usb_control_msg(dev, usb_rcvctrlpipe (dev, 0),
-	                      TSC10_CMD_RATE,
-	                      USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-	                      TSC10_RATE_150, 0, buf, 2, USB_CTRL_SET_TIMEOUT);
+			      TSC10_CMD_RATE,
+			      USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			      TSC10_RATE_150, 0, buf, 2, USB_CTRL_SET_TIMEOUT);
 	if (ret < 0)
-		goto err_out;
-	if ((buf[0] != 0x06) && (buf[0] != 0x15 || buf[1] != 0x01)) {
-		ret = -ENODEV;
-		goto err_out;
-	}
+		return ret;
+
+	if (buf[0] != 0x06 && (buf[0] != 0x15 || buf[1] != 0x01))
+		return -ENODEV;
 
 	/* start sending data */
-	ret = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
-	                      TSC10_CMD_DATA1,
-	                      USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-	                      0, 0, NULL, 0, USB_CTRL_SET_TIMEOUT);
-err_out:
-	kfree(buf);
-err_nobuf:
-	return ret;
+	return usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
+			       TSC10_CMD_DATA1,
+			       USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			       0, 0, NULL, 0, USB_CTRL_SET_TIMEOUT);
 }
-
 
 static int dmc_tsc10_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
 {
@@ -992,7 +972,6 @@ static int nexio_init(struct usbtouch_usb *usbtouch)
 	struct nexio_priv *priv = usbtouch->priv;
 	int ret = -ENOMEM;
 	int actual_len, i;
-	unsigned char *buf;
 	char *firmware_ver = NULL, *device_name = NULL;
 	int input_ep = 0, output_ep = 0;
 
@@ -1008,9 +987,9 @@ static int nexio_init(struct usbtouch_usb *usbtouch)
 	if (!input_ep || !output_ep)
 		return -ENXIO;
 
-	buf = kmalloc(NEXIO_BUFSIZE, GFP_NOIO);
+	u8 *buf __free(kfree) = kmalloc(NEXIO_BUFSIZE, GFP_NOIO);
 	if (!buf)
-		goto out_buf;
+		return -ENOMEM;
 
 	/* two empty reads */
 	for (i = 0; i < 2; i++) {
@@ -1018,7 +997,7 @@ static int nexio_init(struct usbtouch_usb *usbtouch)
 				   buf, NEXIO_BUFSIZE, &actual_len,
 				   NEXIO_TIMEOUT);
 		if (ret < 0)
-			goto out_buf;
+			return ret;
 	}
 
 	/* send init command */
@@ -1027,7 +1006,7 @@ static int nexio_init(struct usbtouch_usb *usbtouch)
 			   buf, sizeof(nexio_init_pkt), &actual_len,
 			   NEXIO_TIMEOUT);
 	if (ret < 0)
-		goto out_buf;
+		return ret;
 
 	/* read replies */
 	for (i = 0; i < 3; i++) {
@@ -1058,11 +1037,8 @@ static int nexio_init(struct usbtouch_usb *usbtouch)
 	usb_fill_bulk_urb(priv->ack, dev, usb_sndbulkpipe(dev, output_ep),
 			  priv->ack_buf, sizeof(nexio_ack_pkt),
 			  nexio_ack_complete, usbtouch);
-	ret = 0;
 
-out_buf:
-	kfree(buf);
-	return ret;
+	return 0;
 }
 
 static void nexio_exit(struct usbtouch_usb *usbtouch)
