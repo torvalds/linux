@@ -366,7 +366,47 @@ enum {
 #define FBNIC_PUL_OB_TLP_HDR_AR_CFG_BME		CSR_BIT(18)
 #define FBNIC_CSR_END_PUL_USER	0x31080	/* CSR section delimiter */
 
+/* Queue Registers
+ *
+ * The queue register offsets are specific for a given queue grouping. So to
+ * find the actual register offset it is necessary to combine FBNIC_QUEUE(n)
+ * with the register to get the actual register offset like so:
+ *   FBNIC_QUEUE_TWQ0_CTL(n) == FBNIC_QUEUE(n) + FBNIC_QUEUE_TWQ0_CTL
+ */
+#define FBNIC_CSR_START_QUEUE		0x40000	/* CSR section delimiter */
+#define FBNIC_QUEUE_STRIDE		0x400		/* 0x1000 */
+#define FBNIC_QUEUE(n)\
+	(0x40000 + FBNIC_QUEUE_STRIDE * (n))	/* 0x100000 + 4096*n */
+
+#define FBNIC_QUEUE_TWQ0_CTL		0x000		/* 0x000 */
+#define FBNIC_QUEUE_TWQ1_CTL		0x001		/* 0x004 */
+#define FBNIC_QUEUE_TWQ_CTL_RESET		CSR_BIT(0)
+#define FBNIC_QUEUE_TWQ_CTL_ENABLE		CSR_BIT(1)
+#define FBNIC_QUEUE_TWQ_CTL_PREFETCH_DISABLE	CSR_BIT(2)
+#define FBNIC_QUEUE_TWQ_CTL_TXB_FIFO_SEL_MASK	CSR_GENMASK(30, 29)
+enum {
+	FBNIC_QUEUE_TWQ_CTL_TXB_SHARED	= 0,
+	FBNIC_QUEUE_TWQ_CTL_TXB_EI_DATA	= 1,
+	FBNIC_QUEUE_TWQ_CTL_TXB_EI_CTL	= 2,
+};
+
+#define FBNIC_QUEUE_TWQ_CTL_AGGR_MODE		CSR_BIT(31)
+
+#define FBNIC_QUEUE_TWQ0_TAIL		0x002		/* 0x008 */
+#define FBNIC_QUEUE_TWQ1_TAIL		0x003		/* 0x00c */
+
+/* Tx Completion Queue Registers */
+#define FBNIC_QUEUE_TCQ_HEAD		0x081		/* 0x204 */
+
+/* Rx Completion Queue Registers */
+#define FBNIC_QUEUE_RCQ_HEAD		0x201		/* 0x804 */
+
+/* Rx Buffer Descriptor Queue Registers */
+#define FBNIC_QUEUE_BDQ_HPQ_TAIL	0x241		/* 0x904 */
+#define FBNIC_QUEUE_BDQ_PPQ_TAIL	0x242		/* 0x908 */
+
 #define FBNIC_MAX_QUEUES		128
+#define FBNIC_CSR_END_QUEUE	(0x40000 + 0x400 * FBNIC_MAX_QUEUES - 1)
 
 /* BAR 4 CSRs */
 

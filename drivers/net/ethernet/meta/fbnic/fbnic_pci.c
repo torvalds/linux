@@ -4,10 +4,12 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/rtnetlink.h>
 #include <linux/types.h>
 
 #include "fbnic.h"
 #include "fbnic_drvinfo.h"
+#include "fbnic_netdev.h"
 
 char fbnic_driver_name[] = DRV_NAME;
 
@@ -15,6 +17,7 @@ MODULE_DESCRIPTION(DRV_SUMMARY);
 MODULE_LICENSE("GPL");
 
 static const struct fbnic_info fbnic_asic_info = {
+	.max_num_queues = FBNIC_MAX_QUEUES,
 	.bar_mask = BIT(0) | BIT(4)
 };
 
@@ -54,6 +57,10 @@ u32 fbnic_rd32(struct fbnic_dev *fbd, u32 reg)
 	dev_err(fbd->dev,
 		"Failed read (idx 0x%x AKA addr 0x%x), disabled CSR access, awaiting reset\n",
 		reg, reg << 2);
+
+	/* Notify stack that device has lost (PCIe) link */
+	if (!fbnic_init_failure(fbd))
+		netif_device_detach(fbd->netdev);
 
 	return ~0U;
 }
@@ -97,7 +104,52 @@ u32 fbnic_fw_rd32(struct fbnic_dev *fbd, u32 reg)
 		"Failed read (idx 0x%x AKA addr 0x%x), disabled CSR access, awaiting reset\n",
 		reg, reg << 2);
 
+	/* Notify stack that device has lost (PCIe) link */
+	if (!fbnic_init_failure(fbd))
+		netif_device_detach(fbd->netdev);
+
 	return ~0U;
+}
+
+static void fbnic_service_task_start(struct fbnic_net *fbn)
+{
+	struct fbnic_dev *fbd = fbn->fbd;
+
+	schedule_delayed_work(&fbd->service_task, HZ);
+}
+
+static void fbnic_service_task_stop(struct fbnic_net *fbn)
+{
+	struct fbnic_dev *fbd = fbn->fbd;
+
+	cancel_delayed_work(&fbd->service_task);
+}
+
+void fbnic_up(struct fbnic_net *fbn)
+{
+	netif_tx_start_all_queues(fbn->netdev);
+
+	fbnic_service_task_start(fbn);
+}
+
+void fbnic_down(struct fbnic_net *fbn)
+{
+	fbnic_service_task_stop(fbn);
+
+	netif_tx_disable(fbn->netdev);
+}
+
+static void fbnic_service_task(struct work_struct *work)
+{
+	struct fbnic_dev *fbd = container_of(to_delayed_work(work),
+					     struct fbnic_dev, service_task);
+
+	rtnl_lock();
+
+	if (netif_running(fbd->netdev))
+		schedule_delayed_work(&fbd->service_task, HZ);
+
+	rtnl_unlock();
 }
 
 /**
@@ -114,6 +166,7 @@ u32 fbnic_fw_rd32(struct fbnic_dev *fbd, u32 reg)
 static int fbnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	const struct fbnic_info *info = fbnic_info_tbl[ent->driver_data];
+	struct net_device *netdev;
 	struct fbnic_dev *fbd;
 	int err;
 
@@ -150,8 +203,13 @@ static int fbnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return -ENOMEM;
 	}
 
+	/* Populate driver with hardware-specific info and handlers */
+	fbd->max_num_queues = info->max_num_queues;
+
 	pci_set_master(pdev);
 	pci_save_state(pdev);
+
+	INIT_DELAYED_WORK(&fbd->service_task, fbnic_service_task);
 
 	err = fbnic_alloc_irqs(fbd);
 	if (err)
@@ -177,8 +235,22 @@ static int fbnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto init_failure_mode;
 	}
 
+	netdev = fbnic_netdev_alloc(fbd);
+	if (!netdev) {
+		dev_err(&pdev->dev, "Netdev allocation failed\n");
+		goto init_failure_mode;
+	}
+
+	err = fbnic_netdev_register(netdev);
+	if (err) {
+		dev_err(&pdev->dev, "Netdev registration failed: %d\n", err);
+		goto ifm_free_netdev;
+	}
+
 	return 0;
 
+ifm_free_netdev:
+	fbnic_netdev_free(fbd);
 init_failure_mode:
 	dev_warn(&pdev->dev, "Probe error encountered, entering init failure mode. Normal networking functionality will not be available.\n");
 	 /* Always return 0 even on error so devlink is registered to allow
@@ -206,6 +278,14 @@ static void fbnic_remove(struct pci_dev *pdev)
 {
 	struct fbnic_dev *fbd = pci_get_drvdata(pdev);
 
+	if (!fbnic_init_failure(fbd)) {
+		struct net_device *netdev = fbd->netdev;
+
+		fbnic_netdev_unregister(netdev);
+		cancel_delayed_work_sync(&fbd->service_task);
+		fbnic_netdev_free(fbd);
+	}
+
 	fbnic_devlink_unregister(fbd);
 	fbnic_fw_disable_mbx(fbd);
 	fbnic_free_irqs(fbd);
@@ -217,7 +297,21 @@ static void fbnic_remove(struct pci_dev *pdev)
 static int fbnic_pm_suspend(struct device *dev)
 {
 	struct fbnic_dev *fbd = dev_get_drvdata(dev);
+	struct net_device *netdev = fbd->netdev;
 
+	if (fbnic_init_failure(fbd))
+		goto null_uc_addr;
+
+	rtnl_lock();
+
+	netif_device_detach(netdev);
+
+	if (netif_running(netdev))
+		netdev->netdev_ops->ndo_stop(netdev);
+
+	rtnl_unlock();
+
+null_uc_addr:
 	fbnic_fw_disable_mbx(fbd);
 
 	/* Free the IRQs so they aren't trying to occupy sleeping CPUs */
@@ -233,7 +327,9 @@ static int fbnic_pm_suspend(struct device *dev)
 static int __fbnic_pm_resume(struct device *dev)
 {
 	struct fbnic_dev *fbd = dev_get_drvdata(dev);
+	struct net_device *netdev = fbd->netdev;
 	void __iomem * const *iomap_table;
+	struct fbnic_net *fbn;
 	int err;
 
 	/* Restore MMIO access */
@@ -253,7 +349,29 @@ static int __fbnic_pm_resume(struct device *dev)
 	if (err)
 		goto err_free_irqs;
 
+	/* No netdev means there isn't a network interface to bring up */
+	if (fbnic_init_failure(fbd))
+		return 0;
+
+	fbn = netdev_priv(netdev);
+
+	/* Reset the queues if needed */
+	fbnic_reset_queues(fbn, fbn->num_tx_queues, fbn->num_rx_queues);
+
+	rtnl_lock();
+
+	if (netif_running(netdev)) {
+		err = __fbnic_open(fbn);
+		if (err)
+			goto err_disable_mbx;
+	}
+
+	rtnl_unlock();
+
 	return 0;
+err_disable_mbx:
+	rtnl_unlock();
+	fbnic_fw_disable_mbx(fbd);
 err_free_irqs:
 	fbnic_free_irqs(fbd);
 err_invalidate_uc_addr:
@@ -262,11 +380,30 @@ err_invalidate_uc_addr:
 	return err;
 }
 
+static void __fbnic_pm_attach(struct device *dev)
+{
+	struct fbnic_dev *fbd = dev_get_drvdata(dev);
+	struct net_device *netdev = fbd->netdev;
+	struct fbnic_net *fbn;
+
+	if (fbnic_init_failure(fbd))
+		return;
+
+	fbn = netdev_priv(netdev);
+
+	if (netif_running(netdev))
+		fbnic_up(fbn);
+
+	netif_device_attach(netdev);
+}
+
 static int __maybe_unused fbnic_pm_resume(struct device *dev)
 {
 	int err;
 
 	err = __fbnic_pm_resume(dev);
+	if (!err)
+		__fbnic_pm_attach(dev);
 
 	return err;
 }
@@ -315,6 +452,7 @@ static pci_ers_result_t fbnic_err_slot_reset(struct pci_dev *pdev)
 
 static void fbnic_err_resume(struct pci_dev *pdev)
 {
+	__fbnic_pm_attach(&pdev->dev);
 }
 
 static const struct pci_error_handlers fbnic_err_handler = {

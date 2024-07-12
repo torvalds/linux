@@ -4,7 +4,10 @@
 #ifndef _FBNIC_H_
 #define _FBNIC_H_
 
+#include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/types.h>
+#include <linux/workqueue.h>
 
 #include "fbnic_csr.h"
 #include "fbnic_fw.h"
@@ -12,12 +15,15 @@
 
 struct fbnic_dev {
 	struct device *dev;
+	struct net_device *netdev;
 
 	u32 __iomem *uc_addr0;
 	u32 __iomem *uc_addr4;
 	const struct fbnic_mac *mac;
 	unsigned int fw_msix_vector;
 	unsigned short num_irqs;
+
+	struct delayed_work service_task;
 
 	struct fbnic_fw_mbx mbx[FBNIC_IPC_MBX_INDICES];
 	/* Lock protecting Tx Mailbox queue to prevent possible races */
@@ -26,6 +32,9 @@ struct fbnic_dev {
 	u64 dsn;
 	u32 mps;
 	u32 readrq;
+
+	/* Number of TCQs/RCQs available on hardware */
+	u16 max_num_queues;
 };
 
 /* Reserve entry 0 in the MSI-X "others" array until we have filled all
@@ -81,6 +90,11 @@ void fbnic_fw_wr32(struct fbnic_dev *fbd, u32 reg, u32 val);
 #define fw_wr32(_f, _r, _v)	fbnic_fw_wr32(_f, _r, _v)
 #define fw_wrfl(_f)		fbnic_fw_rd32(_f, FBNIC_FW_ZERO_REG)
 
+static inline bool fbnic_init_failure(struct fbnic_dev *fbd)
+{
+	return !fbd->netdev;
+}
+
 extern char fbnic_driver_name[];
 
 void fbnic_devlink_free(struct fbnic_dev *fbd);
@@ -91,6 +105,9 @@ void fbnic_devlink_unregister(struct fbnic_dev *fbd);
 int fbnic_fw_enable_mbx(struct fbnic_dev *fbd);
 void fbnic_fw_disable_mbx(struct fbnic_dev *fbd);
 
+int fbnic_request_irq(struct fbnic_dev *dev, int nr, irq_handler_t handler,
+		      unsigned long flags, const char *name, void *data);
+void fbnic_free_irq(struct fbnic_dev *dev, int nr, void *data);
 void fbnic_free_irqs(struct fbnic_dev *fbd);
 int fbnic_alloc_irqs(struct fbnic_dev *fbd);
 
@@ -99,6 +116,7 @@ enum fbnic_boards {
 };
 
 struct fbnic_info {
+	unsigned int max_num_queues;
 	unsigned int bar_mask;
 };
 
