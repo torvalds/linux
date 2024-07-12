@@ -5242,8 +5242,6 @@ static int intel_dp_retrain_link(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-	struct intel_crtc *crtc;
-	bool mst_output = false;
 	u8 pipe_mask;
 	int ret;
 
@@ -5272,64 +5270,17 @@ static int intel_dp_retrain_link(struct intel_encoder *encoder,
 		    encoder->base.base.id, encoder->base.name,
 		    str_yes_no(intel_dp->link.force_retrain));
 
-	for_each_intel_crtc_in_pipe_mask(&dev_priv->drm, crtc, pipe_mask) {
-		const struct intel_crtc_state *crtc_state =
-			to_intel_crtc_state(crtc->base.state);
+	ret = intel_modeset_commit_pipes(dev_priv, pipe_mask, ctx);
+	if (ret == -EDEADLK)
+		return ret;
 
-		if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST)) {
-			mst_output = true;
-			break;
-		}
+	intel_dp->link.force_retrain = false;
 
-		/* Suppress underruns caused by re-training */
-		intel_set_cpu_fifo_underrun_reporting(dev_priv, crtc->pipe, false);
-		if (crtc_state->has_pch_encoder)
-			intel_set_pch_fifo_underrun_reporting(dev_priv,
-							      intel_crtc_pch_transcoder(crtc), false);
-	}
-
-	/* TODO: use a modeset for SST as well. */
-	if (mst_output) {
-		ret = intel_modeset_commit_pipes(dev_priv, pipe_mask, ctx);
-
-		if (ret && ret != -EDEADLK)
-			drm_dbg_kms(&dev_priv->drm,
-				    "[ENCODER:%d:%s] link retraining failed: %pe\n",
-				    encoder->base.base.id, encoder->base.name,
-				    ERR_PTR(ret));
-
-		goto out;
-	}
-
-	for_each_intel_crtc_in_pipe_mask(&dev_priv->drm, crtc, pipe_mask) {
-		const struct intel_crtc_state *crtc_state =
-			to_intel_crtc_state(crtc->base.state);
-
-		intel_dp->link_trained = false;
-
-		intel_dp_check_frl_training(intel_dp);
-		intel_dp_pcon_dsc_configure(intel_dp, crtc_state);
-		intel_dp_start_link_train(NULL, intel_dp, crtc_state);
-		intel_dp_stop_link_train(intel_dp, crtc_state);
-		break;
-	}
-
-	for_each_intel_crtc_in_pipe_mask(&dev_priv->drm, crtc, pipe_mask) {
-		const struct intel_crtc_state *crtc_state =
-			to_intel_crtc_state(crtc->base.state);
-
-		/* Keep underrun reporting disabled until things are stable */
-		intel_crtc_wait_for_next_vblank(crtc);
-
-		intel_set_cpu_fifo_underrun_reporting(dev_priv, crtc->pipe, true);
-		if (crtc_state->has_pch_encoder)
-			intel_set_pch_fifo_underrun_reporting(dev_priv,
-							      intel_crtc_pch_transcoder(crtc), true);
-	}
-
-out:
-	if (ret != -EDEADLK)
-		intel_dp->link.force_retrain = false;
+	if (ret)
+		drm_dbg_kms(&dev_priv->drm,
+			    "[ENCODER:%d:%s] link retraining failed: %pe\n",
+			    encoder->base.base.id, encoder->base.name,
+			    ERR_PTR(ret));
 
 	return ret;
 }
