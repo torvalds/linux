@@ -92,7 +92,7 @@ struct usbtouch_usb {
 	struct urb *irq;
 	struct usb_interface *interface;
 	struct input_dev *input;
-	struct usbtouch_device_info *type;
+	const struct usbtouch_device_info *type;
 	struct mutex pm_mutex;  /* serialize access to open/suspend */
 	bool is_open;
 	char name[128];
@@ -130,7 +130,7 @@ enum {
 	DEVTYPE_ETOUCH,
 };
 
-static struct usbtouch_device_info usbtouch_dev_info[];
+static const struct usbtouch_device_info usbtouch_dev_info[];
 
 /*****************************************************************************
  * e2i Part
@@ -960,13 +960,11 @@ static int nexio_read_data(struct usbtouch_usb *usbtouch, unsigned char *pkt)
 	if (ret)
 		dev_warn(dev, "Failed to submit ACK URB: %d\n", ret);
 
-	if (!usbtouch->type->max_xc) {
-		usbtouch->type->max_xc = 2 * x_len;
+	if (!input_abs_get_max(usbtouch->input, ABS_X)) {
 		input_set_abs_params(usbtouch->input, ABS_X,
-				     0, usbtouch->type->max_xc, 0, 0);
-		usbtouch->type->max_yc = 2 * y_len;
+				     0, 2 * x_len, 0, 0);
 		input_set_abs_params(usbtouch->input, ABS_Y,
-				     0, usbtouch->type->max_yc, 0, 0);
+				     0, 2 * y_len, 0, 0);
 	}
 	/*
 	 * The device reports state of IR sensors on X and Y axes.
@@ -1045,7 +1043,7 @@ static int elo_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
 /*****************************************************************************
  * the different device descriptors
  */
-static struct usbtouch_device_info usbtouch_dev_info[] = {
+static const struct usbtouch_device_info usbtouch_dev_info[] = {
 #ifdef CONFIG_TOUCHSCREEN_USB_ELO
 	[DEVTYPE_ELO] = {
 		.min_xc		= 0x0,
@@ -1273,10 +1271,10 @@ static struct usbtouch_device_info usbtouch_dev_info[] = {
 static void usbtouch_process_pkt(struct usbtouch_usb *usbtouch,
                                  unsigned char *pkt, int len)
 {
-	struct usbtouch_device_info *type = usbtouch->type;
+	const struct usbtouch_device_info *type = usbtouch->type;
 
 	if (!type->read_data(usbtouch, pkt))
-			return;
+		return;
 
 	input_report_key(usbtouch->input, BTN_TOUCH, usbtouch->touch);
 
@@ -1538,7 +1536,7 @@ static int usbtouch_probe(struct usb_interface *intf,
 	struct input_dev *input_dev;
 	struct usb_endpoint_descriptor *endpoint;
 	struct usb_device *udev = interface_to_usbdev(intf);
-	struct usbtouch_device_info *type;
+	const struct usbtouch_device_info *type;
 	int err = -ENOMEM;
 
 	/* some devices are ignored */
