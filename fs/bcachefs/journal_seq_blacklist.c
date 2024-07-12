@@ -232,7 +232,7 @@ bool bch2_blacklist_entries_gc(struct bch_fs *c)
 	BUG_ON(nr != t->nr);
 
 	unsigned i;
-	for (src = bl->start, i = eytzinger0_first(t->nr);
+	for (src = bl->start, i = t->nr == 0 ? 0 : eytzinger0_first(t->nr);
 	     src < bl->start + nr;
 	     src++, i = eytzinger0_next(i, nr)) {
 		BUG_ON(t->entries[i].start	!= le64_to_cpu(src->start));

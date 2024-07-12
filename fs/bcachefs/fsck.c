@@ -1677,6 +1677,7 @@ static int check_subdir_count(struct btree_trans *trans, struct inode_walker *w)
 		trans_was_restarted(trans, restart_count);
 }
 
+noinline_for_stack
 static int check_dirent_inode_dirent(struct btree_trans *trans,
 				   struct btree_iter *iter,
 				   struct bkey_s_c_dirent d,
@@ -1773,6 +1774,7 @@ out_noiter:
 	return ret;
 }
 
+noinline_for_stack
 static int check_dirent_target(struct btree_trans *trans,
 			       struct btree_iter *iter,
 			       struct bkey_s_c_dirent d,
@@ -1847,6 +1849,7 @@ found:
 	return ret;
 }
 
+noinline_for_stack
 static int check_dirent_to_subvol(struct btree_trans *trans, struct btree_iter *iter,
 				  struct bkey_s_c_dirent d)
 {

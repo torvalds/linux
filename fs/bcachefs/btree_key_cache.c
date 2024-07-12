@@ -32,10 +32,11 @@ static int bch2_btree_key_cache_cmp_fn(struct rhashtable_compare_arg *arg,
 }
 
 static const struct rhashtable_params bch2_btree_key_cache_params = {
-	.head_offset	= offsetof(struct bkey_cached, hash),
-	.key_offset	= offsetof(struct bkey_cached, key),
-	.key_len	= sizeof(struct bkey_cached_key),
-	.obj_cmpfn	= bch2_btree_key_cache_cmp_fn,
+	.head_offset		= offsetof(struct bkey_cached, hash),
+	.key_offset		= offsetof(struct bkey_cached, key),
+	.key_len		= sizeof(struct bkey_cached_key),
+	.obj_cmpfn		= bch2_btree_key_cache_cmp_fn,
+	.automatic_shrinking	= true,
 };
 
 __flatten
@@ -840,7 +841,6 @@ static unsigned long bch2_btree_key_cache_scan(struct shrinker *shrink,
 		six_lock_exit(&ck->c.lock);
 		kmem_cache_free(bch2_key_cache, ck);
 		atomic_long_dec(&bc->nr_freed);
-		freed++;
 		bc->nr_freed_nonpcpu--;
 		bc->freed++;
 	}
@@ -854,7 +854,6 @@ static unsigned long bch2_btree_key_cache_scan(struct shrinker *shrink,
 		six_lock_exit(&ck->c.lock);
 		kmem_cache_free(bch2_key_cache, ck);
 		atomic_long_dec(&bc->nr_freed);
-		freed++;
 		bc->nr_freed_pcpu--;
 		bc->freed++;
 	}
@@ -876,23 +875,22 @@ static unsigned long bch2_btree_key_cache_scan(struct shrinker *shrink,
 
 			if (test_bit(BKEY_CACHED_DIRTY, &ck->flags)) {
 				bc->skipped_dirty++;
-				goto next;
 			} else if (test_bit(BKEY_CACHED_ACCESSED, &ck->flags)) {
 				clear_bit(BKEY_CACHED_ACCESSED, &ck->flags);
 				bc->skipped_accessed++;
-				goto next;
-			} else if (bkey_cached_lock_for_evict(ck)) {
+			} else if (!bkey_cached_lock_for_evict(ck)) {
+				bc->skipped_lock_fail++;
+			} else {
 				bkey_cached_evict(bc, ck);
 				bkey_cached_free(bc, ck);
 				bc->moved_to_freelist++;
-			} else {
-				bc->skipped_lock_fail++;
+				freed++;
 			}
 
 			scanned++;
 			if (scanned >= nr)
 				break;
-next:
+
 			pos = next;
 		}
 
@@ -916,6 +914,14 @@ static unsigned long bch2_btree_key_cache_count(struct shrinker *shrink,
 	struct btree_key_cache *bc = &c->btree_key_cache;
 	long nr = atomic_long_read(&bc->nr_keys) -
 		atomic_long_read(&bc->nr_dirty);
+
+	/*
+	 * Avoid hammering our shrinker too much if it's nearly empty - the
+	 * shrinker code doesn't take into account how big our cache is, if it's
+	 * mostly empty but the system is under memory pressure it causes nasty
+	 * lock contention:
+	 */
+	nr -= 128;
 
 	return max(0L, nr);
 }
@@ -1025,9 +1031,10 @@ int bch2_fs_btree_key_cache_init(struct btree_key_cache *bc)
 	if (!shrink)
 		return -BCH_ERR_ENOMEM_fs_btree_cache_init;
 	bc->shrink = shrink;
-	shrink->seeks		= 0;
 	shrink->count_objects	= bch2_btree_key_cache_count;
 	shrink->scan_objects	= bch2_btree_key_cache_scan;
+	shrink->batch		= 1 << 14;
+	shrink->seeks		= 0;
 	shrink->private_data	= c;
 	shrinker_register(shrink);
 	return 0;

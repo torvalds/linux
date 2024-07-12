@@ -4,7 +4,6 @@
 
 use super::{AllocError, Flags};
 use alloc::vec::Vec;
-use core::ptr;
 
 /// Extensions to [`Vec`].
 pub trait VecExt<T>: Sized {
@@ -141,7 +140,11 @@ impl<T> VecExt<T> for Vec<T> {
         // `krealloc_aligned`. A `Vec<T>`'s `ptr` value is not guaranteed to be NULL and might be
         // dangling after being created with `Vec::new`. Instead, we can rely on `Vec<T>`'s capacity
         // to be zero if no memory has been allocated yet.
-        let ptr = if cap == 0 { ptr::null_mut() } else { old_ptr };
+        let ptr = if cap == 0 {
+            core::ptr::null_mut()
+        } else {
+            old_ptr
+        };
 
         // SAFETY: `ptr` is valid because it's either NULL or comes from a previous call to
         // `krealloc_aligned`. We also verified that the type is not a ZST.

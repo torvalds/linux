@@ -802,6 +802,9 @@ struct drm_panthor_queue_submit {
 	 * Must be 64-bit/8-byte aligned (the size of a CS instruction)
 	 *
 	 * Can be zero if stream_addr is zero too.
+	 *
+	 * When the stream size is zero, the queue submit serves as a
+	 * synchronization point.
 	 */
 	__u32 stream_size;
 
@@ -822,6 +825,8 @@ struct drm_panthor_queue_submit {
 	 * ensure the GPU doesn't get garbage when reading the indirect command
 	 * stream buffers. If you want the cache flush to happen
 	 * unconditionally, pass a zero here.
+	 *
+	 * Ignored when stream_size is zero.
 	 */
 	__u32 latest_flush;
 

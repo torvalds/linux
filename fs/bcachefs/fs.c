@@ -188,6 +188,18 @@ static struct bch_inode_info *bch2_inode_insert(struct bch_fs *c, struct bch_ino
 	BUG_ON(!old);
 
 	if (unlikely(old != inode)) {
+		/*
+		 * bcachefs doesn't use I_NEW; we have no use for it since we
+		 * only insert fully created inodes in the inode hash table. But
+		 * discard_new_inode() expects it to be set...
+		 */
+		inode->v.i_flags |= I_NEW;
+		/*
+		 * We don't want bch2_evict_inode() to delete the inode on disk,
+		 * we just raced and had another inode in cache. Normally new
+		 * inodes don't have nlink == 0 - except tmpfiles do...
+		 */
+		set_nlink(&inode->v, 1);
 		discard_new_inode(&inode->v);
 		inode = old;
 	} else {
@@ -195,8 +207,10 @@ static struct bch_inode_info *bch2_inode_insert(struct bch_fs *c, struct bch_ino
 		list_add(&inode->ei_vfs_inode_list, &c->vfs_inodes_list);
 		mutex_unlock(&c->vfs_inodes_lock);
 		/*
-		 * we really don't want insert_inode_locked2() to be setting
-		 * I_NEW...
+		 * Again, I_NEW makes no sense for bcachefs. This is only needed
+		 * for clearing I_NEW, but since the inode was already fully
+		 * created and initialized we didn't actually want
+		 * inode_insert5() to set it for us.
 		 */
 		unlock_new_inode(&inode->v);
 	}
@@ -227,7 +241,9 @@ static struct bch_inode_info *__bch2_new_inode(struct bch_fs *c)
 	mutex_init(&inode->ei_update_lock);
 	two_state_lock_init(&inode->ei_pagecache_lock);
 	INIT_LIST_HEAD(&inode->ei_vfs_inode_list);
+	inode->ei_flags = 0;
 	mutex_init(&inode->ei_quota_lock);
+	memset(&inode->ei_devs_need_flush, 0, sizeof(inode->ei_devs_need_flush));
 	inode->v.i_state = 0;
 
 	if (unlikely(inode_init_always(c->vfs_sb, &inode->v))) {
@@ -1155,6 +1171,7 @@ static const struct file_operations bch_file_operations = {
 	.read_iter	= bch2_read_iter,
 	.write_iter	= bch2_write_iter,
 	.mmap		= bch2_mmap,
+	.get_unmapped_area = thp_get_unmapped_area,
 	.fsync		= bch2_fsync,
 	.splice_read	= filemap_splice_read,
 	.splice_write	= iter_file_splice_write,
@@ -1486,11 +1503,6 @@ static void bch2_vfs_inode_init(struct btree_trans *trans, subvol_inum inum,
 	bch2_iget5_set(&inode->v, &inum);
 	bch2_inode_update_after_write(trans, inode, bi, ~0);
 
-	if (BCH_SUBVOLUME_SNAP(subvol))
-		set_bit(EI_INODE_SNAPSHOT, &inode->ei_flags);
-	else
-		clear_bit(EI_INODE_SNAPSHOT, &inode->ei_flags);
-
 	inode->v.i_blocks	= bi->bi_sectors;
 	inode->v.i_ino		= bi->bi_inum;
 	inode->v.i_rdev		= bi->bi_dev;
@@ -1501,6 +1513,9 @@ static void bch2_vfs_inode_init(struct btree_trans *trans, subvol_inum inum,
 	inode->ei_quota_reserved = 0;
 	inode->ei_qid		= bch_qid(bi);
 	inode->ei_subvol	= inum.subvol;
+
+	if (BCH_SUBVOLUME_SNAP(subvol))
+		set_bit(EI_INODE_SNAPSHOT, &inode->ei_flags);
 
 	inode->v.i_mapping->a_ops = &bch_address_space_operations;
 
@@ -1967,6 +1982,7 @@ got_sb:
 	sb->s_time_min		= div_s64(S64_MIN, c->sb.time_units_per_sec) + 1;
 	sb->s_time_max		= div_s64(S64_MAX, c->sb.time_units_per_sec);
 	sb->s_uuid		= c->sb.user_uuid;
+	sb->s_shrink->seeks	= 0;
 	c->vfs_sb		= sb;
 	strscpy(sb->s_id, c->name, sizeof(sb->s_id));
 
@@ -2016,6 +2032,8 @@ err_put_super:
 	__bch2_fs_stop(c);
 	deactivate_locked_super(sb);
 err:
+	if (ret)
+		pr_err("error: %s", bch2_err_str(ret));
 	/*
 	 * On an inconsistency error in recovery we might see an -EROFS derived
 	 * errorcode (from the journal), but we don't want to return that to
@@ -2055,7 +2073,8 @@ int __init bch2_vfs_init(void)
 {
 	int ret = -ENOMEM;
 
-	bch2_inode_cache = KMEM_CACHE(bch_inode_info, SLAB_RECLAIM_ACCOUNT);
+	bch2_inode_cache = KMEM_CACHE(bch_inode_info, SLAB_RECLAIM_ACCOUNT |
+				      SLAB_ACCOUNT);
 	if (!bch2_inode_cache)
 		goto err;
 

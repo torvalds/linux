@@ -132,14 +132,9 @@ static struct io_timer *get_expired_timer(struct io_clock *clock,
 {
 	struct io_timer *ret = NULL;
 
-	spin_lock(&clock->timer_lock);
-
 	if (clock->timers.used &&
 	    time_after_eq(now, clock->timers.data[0]->expire))
 		heap_pop(&clock->timers, ret, io_timer_cmp, NULL);
-
-	spin_unlock(&clock->timer_lock);
-
 	return ret;
 }
 
@@ -148,8 +143,10 @@ void __bch2_increment_clock(struct io_clock *clock, unsigned sectors)
 	struct io_timer *timer;
 	unsigned long now = atomic64_add_return(sectors, &clock->now);
 
+	spin_lock(&clock->timer_lock);
 	while ((timer = get_expired_timer(clock, now)))
 		timer->fn(timer);
+	spin_unlock(&clock->timer_lock);
 }
 
 void bch2_io_timers_to_text(struct printbuf *out, struct io_clock *clock)

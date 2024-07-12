@@ -126,8 +126,8 @@ struct statx {
 	__u64	stx_mnt_id;
 	__u32	stx_dio_mem_align;	/* Memory buffer alignment for direct I/O */
 	__u32	stx_dio_offset_align;	/* File offset alignment for direct I/O */
-	__u64	stx_subvol;	/* Subvolume identifier */
 	/* 0xa0 */
+	__u64	stx_subvol;	/* Subvolume identifier */
 	__u64	__spare3[11];	/* Spare space for future expansion */
 	/* 0x100 */
 };

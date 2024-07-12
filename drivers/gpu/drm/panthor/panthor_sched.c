@@ -459,6 +459,16 @@ struct panthor_queue {
 		atomic64_t seqno;
 
 		/**
+		 * @last_fence: Fence of the last submitted job.
+		 *
+		 * We return this fence when we get an empty command stream.
+		 * This way, we are guaranteed that all earlier jobs have completed
+		 * when drm_sched_job::s_fence::finished without having to feed
+		 * the CS ring buffer with a dummy job that only signals the fence.
+		 */
+		struct dma_fence *last_fence;
+
+		/**
 		 * @in_flight_jobs: List containing all in-flight jobs.
 		 *
 		 * Used to keep track and signal panthor_job::done_fence when the
@@ -828,6 +838,9 @@ static void group_free_queue(struct panthor_group *group, struct panthor_queue *
 
 	panthor_kernel_bo_destroy(queue->ringbuf);
 	panthor_kernel_bo_destroy(queue->iface.mem);
+
+	/* Release the last_fence we were holding, if any. */
+	dma_fence_put(queue->fence_ctx.last_fence);
 
 	kfree(queue);
 }
@@ -2784,9 +2797,6 @@ static void group_sync_upd_work(struct work_struct *work)
 
 		spin_lock(&queue->fence_ctx.lock);
 		list_for_each_entry_safe(job, job_tmp, &queue->fence_ctx.in_flight_jobs, node) {
-			if (!job->call_info.size)
-				continue;
-
 			if (syncobj->seqno < job->done_fence->seqno)
 				break;
 
@@ -2865,11 +2875,14 @@ queue_run_job(struct drm_sched_job *sched_job)
 	static_assert(sizeof(call_instrs) % 64 == 0,
 		      "call_instrs is not aligned on a cacheline");
 
-	/* Stream size is zero, nothing to do => return a NULL fence and let
-	 * drm_sched signal the parent.
+	/* Stream size is zero, nothing to do except making sure all previously
+	 * submitted jobs are done before we signal the
+	 * drm_sched_job::s_fence::finished fence.
 	 */
-	if (!job->call_info.size)
-		return NULL;
+	if (!job->call_info.size) {
+		job->done_fence = dma_fence_get(queue->fence_ctx.last_fence);
+		return dma_fence_get(job->done_fence);
+	}
 
 	ret = pm_runtime_resume_and_get(ptdev->base.dev);
 	if (drm_WARN_ON(&ptdev->base, ret))
@@ -2927,6 +2940,10 @@ queue_run_job(struct drm_sched_job *sched_job)
 			sched->pm.has_ref = true;
 		}
 	}
+
+	/* Update the last fence. */
+	dma_fence_put(queue->fence_ctx.last_fence);
+	queue->fence_ctx.last_fence = dma_fence_get(job->done_fence);
 
 	done_fence = dma_fence_get(job->done_fence);
 
@@ -3378,10 +3395,15 @@ panthor_job_create(struct panthor_file *pfile,
 		goto err_put_job;
 	}
 
-	job->done_fence = kzalloc(sizeof(*job->done_fence), GFP_KERNEL);
-	if (!job->done_fence) {
-		ret = -ENOMEM;
-		goto err_put_job;
+	/* Empty command streams don't need a fence, they'll pick the one from
+	 * the previously submitted job.
+	 */
+	if (job->call_info.size) {
+		job->done_fence = kzalloc(sizeof(*job->done_fence), GFP_KERNEL);
+		if (!job->done_fence) {
+			ret = -ENOMEM;
+			goto err_put_job;
+		}
 	}
 
 	ret = drm_sched_job_init(&job->base,

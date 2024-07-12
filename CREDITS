@@ -1214,6 +1214,10 @@ D: UDF filesystem
 S: (ask for current address)
 S: USA
 
+N: Larry Finger
+E: Larry.Finger@lwfinger.net
+D: Maintainer of wireless drivers, too many to list here
+
 N: Jürgen Fischer
 E: fischer@norbit.de
 D: Author of Adaptec AHA-152x SCSI driver
@@ -3146,9 +3150,11 @@ S: Triftstra=DFe 55
 S: 13353 Berlin
 S: Germany
 
-N: Gustavo Pimental
+N: Gustavo Pimentel
 E: gustavo.pimentel@synopsys.com
 D: PCI driver for Synopsys DesignWare
+D: Synopsys DesignWare eDMA driver
+D: Synopsys DesignWare xData traffic generator
 
 N: Emanuel Pirker
 E: epirker@edu.uni-klu.ac.at

@@ -874,6 +874,9 @@ static int bch2_alloc_write_key(struct btree_trans *trans,
 	const struct bch_alloc_v4 *old;
 	int ret;
 
+	if (!bucket_valid(ca, k.k->p.offset))
+		return 0;
+
 	old = bch2_alloc_to_v4(k, &old_convert);
 	gc = new = *old;
 
@@ -900,6 +903,8 @@ static int bch2_alloc_write_key(struct btree_trans *trans,
 		bch2_dev_usage_update(c, ca, &old_gc, &gc, 0, true);
 	percpu_up_read(&c->mark_lock);
 
+	gc.fragmentation_lru = alloc_lru_idx_fragmentation(gc, ca);
+
 	if (fsck_err_on(new.data_type != gc.data_type, c,
 			alloc_key_data_type_wrong,
 			"bucket %llu:%llu gen %u has wrong data_type"
@@ -913,23 +918,19 @@ static int bch2_alloc_write_key(struct btree_trans *trans,
 #define copy_bucket_field(_errtype, _f)					\
 	if (fsck_err_on(new._f != gc._f, c, _errtype,			\
 			"bucket %llu:%llu gen %u data type %s has wrong " #_f	\
-			": got %u, should be %u",			\
+			": got %llu, should be %llu",			\
 			iter->pos.inode, iter->pos.offset,		\
 			gc.gen,						\
 			bch2_data_type_str(gc.data_type),		\
-			new._f, gc._f))					\
+			(u64) new._f, (u64) gc._f))				\
 		new._f = gc._f;						\
 
-	copy_bucket_field(alloc_key_gen_wrong,
-			  gen);
-	copy_bucket_field(alloc_key_dirty_sectors_wrong,
-			  dirty_sectors);
-	copy_bucket_field(alloc_key_cached_sectors_wrong,
-			  cached_sectors);
-	copy_bucket_field(alloc_key_stripe_wrong,
-			  stripe);
-	copy_bucket_field(alloc_key_stripe_redundancy_wrong,
-			  stripe_redundancy);
+	copy_bucket_field(alloc_key_gen_wrong,			gen);
+	copy_bucket_field(alloc_key_dirty_sectors_wrong,	dirty_sectors);
+	copy_bucket_field(alloc_key_cached_sectors_wrong,	cached_sectors);
+	copy_bucket_field(alloc_key_stripe_wrong,		stripe);
+	copy_bucket_field(alloc_key_stripe_redundancy_wrong,	stripe_redundancy);
+	copy_bucket_field(alloc_key_fragmentation_lru_wrong,	fragmentation_lru);
 #undef copy_bucket_field
 
 	if (!bch2_alloc_v4_cmp(*old, new))
@@ -943,7 +944,7 @@ static int bch2_alloc_write_key(struct btree_trans *trans,
 	a->v = new;
 
 	/*
-	 * The trigger normally makes sure this is set, but we're not running
+	 * The trigger normally makes sure these are set, but we're not running
 	 * triggers:
 	 */
 	if (a->v.data_type == BCH_DATA_cached && !a->v.io_time[READ])
@@ -990,6 +991,8 @@ static int bch2_gc_alloc_start(struct bch_fs *c)
 
 		buckets->first_bucket	= ca->mi.first_bucket;
 		buckets->nbuckets	= ca->mi.nbuckets;
+		buckets->nbuckets_minus_first =
+			buckets->nbuckets - buckets->first_bucket;
 		rcu_assign_pointer(ca->buckets_gc, buckets);
 	}
 
@@ -1003,12 +1006,14 @@ static int bch2_gc_alloc_start(struct bch_fs *c)
 				continue;
 			}
 
-			struct bch_alloc_v4 a_convert;
-			const struct bch_alloc_v4 *a = bch2_alloc_to_v4(k, &a_convert);
+			if (bucket_valid(ca, k.k->p.offset)) {
+				struct bch_alloc_v4 a_convert;
+				const struct bch_alloc_v4 *a = bch2_alloc_to_v4(k, &a_convert);
 
-			struct bucket *g = gc_bucket(ca, k.k->p.offset);
-			g->gen_valid	= 1;
-			g->gen		= a->gen;
+				struct bucket *g = gc_bucket(ca, k.k->p.offset);
+				g->gen_valid	= 1;
+				g->gen		= a->gen;
+			}
 			0;
 		})));
 	bch2_dev_put(ca);

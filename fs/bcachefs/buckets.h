@@ -93,7 +93,8 @@ static inline struct bucket *gc_bucket(struct bch_dev *ca, size_t b)
 {
 	struct bucket_array *buckets = gc_bucket_array(ca);
 
-	BUG_ON(!bucket_valid(ca, b));
+	if (b - buckets->first_bucket >= buckets->nbuckets_minus_first)
+		return NULL;
 	return buckets->b + b;
 }
 
@@ -110,7 +111,8 @@ static inline u8 *bucket_gen(struct bch_dev *ca, size_t b)
 {
 	struct bucket_gens *gens = bucket_gens(ca);
 
-	BUG_ON(!bucket_valid(ca, b));
+	if (b - gens->first_bucket >= gens->nbuckets_minus_first)
+		return NULL;
 	return gens->b + b;
 }
 
@@ -170,19 +172,22 @@ static inline int gen_after(u8 a, u8 b)
 	return r > 0 ? r : 0;
 }
 
-static inline u8 dev_ptr_stale_rcu(struct bch_dev *ca, const struct bch_extent_ptr *ptr)
+static inline int dev_ptr_stale_rcu(struct bch_dev *ca, const struct bch_extent_ptr *ptr)
 {
-	return gen_after(*bucket_gen(ca, PTR_BUCKET_NR(ca, ptr)), ptr->gen);
+	u8 *gen = bucket_gen(ca, PTR_BUCKET_NR(ca, ptr));
+	if (!gen)
+		return -1;
+	return gen_after(*gen, ptr->gen);
 }
 
 /**
  * dev_ptr_stale() - check if a pointer points into a bucket that has been
  * invalidated.
  */
-static inline u8 dev_ptr_stale(struct bch_dev *ca, const struct bch_extent_ptr *ptr)
+static inline int dev_ptr_stale(struct bch_dev *ca, const struct bch_extent_ptr *ptr)
 {
 	rcu_read_lock();
-	u8 ret = dev_ptr_stale_rcu(ca, ptr);
+	int ret = dev_ptr_stale_rcu(ca, ptr);
 	rcu_read_unlock();
 
 	return ret;

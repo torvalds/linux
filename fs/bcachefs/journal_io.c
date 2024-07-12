@@ -415,6 +415,8 @@ static int journal_entry_btree_keys_validate(struct bch_fs *c,
 					       flags|BCH_VALIDATE_journal);
 		if (ret == FSCK_DELETED_KEY)
 			continue;
+		else if (ret)
+			return ret;
 
 		k = bkey_next(k);
 	}
@@ -1677,6 +1679,13 @@ static CLOSURE_CALLBACK(journal_write_done)
 		mod_delayed_work(j->wq, &j->write_work, max(0L, delta));
 	}
 
+	/*
+	 * We don't typically trigger journal writes from her - the next journal
+	 * write will be triggered immediately after the previous one is
+	 * allocated, in bch2_journal_write() - but the journal write error path
+	 * is special:
+	 */
+	bch2_journal_do_writes(j);
 	spin_unlock(&j->lock);
 }
 
@@ -1755,11 +1764,13 @@ static CLOSURE_CALLBACK(journal_write_preflush)
 
 	if (j->seq_ondisk + 1 != le64_to_cpu(w->data->seq)) {
 		spin_lock(&j->lock);
-		closure_wait(&j->async_wait, cl);
+		if (j->seq_ondisk + 1 != le64_to_cpu(w->data->seq)) {
+			closure_wait(&j->async_wait, cl);
+			spin_unlock(&j->lock);
+			continue_at(cl, journal_write_preflush, j->wq);
+			return;
+		}
 		spin_unlock(&j->lock);
-
-		continue_at(cl, journal_write_preflush, j->wq);
-		return;
 	}
 
 	if (w->separate_flush) {
@@ -1967,7 +1978,6 @@ CLOSURE_CALLBACK(bch2_journal_write)
 	struct journal *j = container_of(w, struct journal, buf[w->idx]);
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	struct bch_replicas_padded replicas;
-	struct printbuf journal_debug_buf = PRINTBUF;
 	unsigned nr_rw_members = 0;
 	int ret;
 
@@ -2011,11 +2021,15 @@ CLOSURE_CALLBACK(bch2_journal_write)
 	}
 
 	if (ret) {
-		__bch2_journal_debug_to_text(&journal_debug_buf, j);
+		struct printbuf buf = PRINTBUF;
+		buf.atomic++;
+
+		prt_printf(&buf, bch2_fmt(c, "Unable to allocate journal write: %s"),
+			   bch2_err_str(ret));
+		__bch2_journal_debug_to_text(&buf, j);
 		spin_unlock(&j->lock);
-		bch_err(c, "Unable to allocate journal write:\n%s",
-			journal_debug_buf.buf);
-		printbuf_exit(&journal_debug_buf);
+		bch2_print_string_as_lines(KERN_ERR, buf.buf);
+		printbuf_exit(&buf);
 		goto err;
 	}
 

@@ -621,13 +621,13 @@ again:
 	avail = dev_buckets_free(ca, *usage, watermark);
 
 	if (usage->d[BCH_DATA_need_discard].buckets > avail)
-		bch2_do_discards(c);
+		bch2_dev_do_discards(ca);
 
 	if (usage->d[BCH_DATA_need_gc_gens].buckets > avail)
 		bch2_gc_gens_async(c);
 
 	if (should_invalidate_buckets(ca, *usage))
-		bch2_do_invalidates(c);
+		bch2_dev_do_invalidates(ca);
 
 	if (!avail) {
 		if (cl && !waiting) {
@@ -1703,6 +1703,7 @@ void bch2_fs_alloc_debug_to_text(struct printbuf *out, struct bch_fs *c)
 	for (unsigned i = 0; i < ARRAY_SIZE(c->open_buckets); i++)
 		nr[c->open_buckets[i].data_type]++;
 
+	printbuf_tabstops_reset(out);
 	printbuf_tabstop_push(out, 24);
 
 	percpu_down_read(&c->mark_lock);
@@ -1736,6 +1737,7 @@ void bch2_dev_alloc_debug_to_text(struct printbuf *out, struct bch_dev *ca)
 	for (unsigned i = 0; i < ARRAY_SIZE(c->open_buckets); i++)
 		nr[c->open_buckets[i].data_type]++;
 
+	printbuf_tabstops_reset(out);
 	printbuf_tabstop_push(out, 12);
 	printbuf_tabstop_push(out, 16);
 	printbuf_tabstop_push(out, 16);

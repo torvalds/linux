@@ -1095,7 +1095,7 @@ unlock:
 	return ret;
 }
 
-int bch2_dev_journal_alloc(struct bch_dev *ca)
+int bch2_dev_journal_alloc(struct bch_dev *ca, bool new_fs)
 {
 	unsigned nr;
 	int ret;
@@ -1117,7 +1117,7 @@ int bch2_dev_journal_alloc(struct bch_dev *ca)
 		     min(1 << 13,
 			 (1 << 24) / ca->mi.bucket_size));
 
-	ret = __bch2_set_nr_journal_buckets(ca, nr, true, NULL);
+	ret = __bch2_set_nr_journal_buckets(ca, nr, new_fs, NULL);
 err:
 	bch_err_fn(ca, ret);
 	return ret;
@@ -1129,7 +1129,7 @@ int bch2_fs_journal_alloc(struct bch_fs *c)
 		if (ca->journal.nr)
 			continue;
 
-		int ret = bch2_dev_journal_alloc(ca);
+		int ret = bch2_dev_journal_alloc(ca, true);
 		if (ret) {
 			percpu_ref_put(&ca->io_ref);
 			return ret;
@@ -1167,6 +1167,9 @@ void bch2_dev_journal_stop(struct journal *j, struct bch_dev *ca)
 
 void bch2_fs_journal_stop(struct journal *j)
 {
+	if (!test_bit(JOURNAL_running, &j->flags))
+		return;
+
 	bch2_journal_reclaim_stop(j);
 	bch2_journal_flush_all_pins(j);
 
@@ -1181,9 +1184,11 @@ void bch2_fs_journal_stop(struct journal *j)
 	journal_quiesce(j);
 	cancel_delayed_work_sync(&j->write_work);
 
-	BUG_ON(!bch2_journal_error(j) &&
-	       test_bit(JOURNAL_replay_done, &j->flags) &&
-	       j->last_empty_seq != journal_cur_seq(j));
+	WARN(!bch2_journal_error(j) &&
+	     test_bit(JOURNAL_replay_done, &j->flags) &&
+	     j->last_empty_seq != journal_cur_seq(j),
+	     "journal shutdown error: cur seq %llu but last empty seq %llu",
+	     journal_cur_seq(j), j->last_empty_seq);
 
 	if (!bch2_journal_error(j))
 		clear_bit(JOURNAL_running, &j->flags);
@@ -1415,8 +1420,8 @@ void __bch2_journal_debug_to_text(struct printbuf *out, struct journal *j)
 	unsigned long now = jiffies;
 	u64 nr_writes = j->nr_flush_writes + j->nr_noflush_writes;
 
-	if (!out->nr_tabstops)
-		printbuf_tabstop_push(out, 28);
+	printbuf_tabstops_reset(out);
+	printbuf_tabstop_push(out, 28);
 	out->atomic++;
 
 	rcu_read_lock();
@@ -1518,6 +1523,11 @@ bool bch2_journal_seq_pins_to_text(struct printbuf *out, struct journal *j, u64 
 	struct journal_entry_pin *pin;
 
 	spin_lock(&j->lock);
+	if (!test_bit(JOURNAL_running, &j->flags)) {
+		spin_unlock(&j->lock);
+		return true;
+	}
+
 	*seq = max(*seq, j->pin.front);
 
 	if (*seq >= j->pin.back) {

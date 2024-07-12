@@ -3,6 +3,8 @@
 #ifndef KVM_X86_MMU_SPTE_H
 #define KVM_X86_MMU_SPTE_H
 
+#include <asm/vmx.h>
+
 #include "mmu.h"
 #include "mmu_internal.h"
 
@@ -274,6 +276,13 @@ static inline bool is_mmio_spte(struct kvm *kvm, u64 spte)
 static inline bool is_shadow_present_pte(u64 pte)
 {
 	return !!(pte & SPTE_MMU_PRESENT_MASK);
+}
+
+static inline bool is_ept_ve_possible(u64 spte)
+{
+	return (shadow_present_mask & VMX_EPT_SUPPRESS_VE_BIT) &&
+	       !(spte & VMX_EPT_SUPPRESS_VE_BIT) &&
+	       (spte & VMX_EPT_RWX_MASK) != VMX_EPT_MISCONFIG_WX_VALUE;
 }
 
 /*

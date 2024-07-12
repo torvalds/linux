@@ -268,6 +268,7 @@ static int mark_stripe_bucket(struct btree_trans *trans,
 {
 	struct bch_fs *c = trans->c;
 	const struct bch_extent_ptr *ptr = s.v->ptrs + ptr_idx;
+	struct printbuf buf = PRINTBUF;
 	int ret = 0;
 
 	struct bch_dev *ca = bch2_dev_tryget(c, ptr->dev);
@@ -289,6 +290,13 @@ static int mark_stripe_bucket(struct btree_trans *trans,
 	if (flags & BTREE_TRIGGER_gc) {
 		percpu_down_read(&c->mark_lock);
 		struct bucket *g = gc_bucket(ca, bucket.offset);
+		if (bch2_fs_inconsistent_on(!g, c, "reference to invalid bucket on device %u\n  %s",
+					    ptr->dev,
+					    (bch2_bkey_val_to_text(&buf, c, s.s_c), buf.buf))) {
+			ret = -EIO;
+			goto err_unlock;
+		}
+
 		bucket_lock(g);
 		struct bch_alloc_v4 old = bucket_m_to_alloc(*g), new = old;
 		ret = __mark_stripe_bucket(trans, ca, s, ptr_idx, deleting, bucket, &new, flags);
@@ -297,10 +305,12 @@ static int mark_stripe_bucket(struct btree_trans *trans,
 			bch2_dev_usage_update(c, ca, &old, &new, 0, true);
 		}
 		bucket_unlock(g);
+err_unlock:
 		percpu_up_read(&c->mark_lock);
 	}
 err:
 	bch2_dev_put(ca);
+	printbuf_exit(&buf);
 	return ret;
 }
 
@@ -714,10 +724,12 @@ static void ec_block_endio(struct bio *bio)
 			       bch2_blk_status_to_str(bio->bi_status)))
 		clear_bit(ec_bio->idx, ec_bio->buf->valid);
 
-	if (dev_ptr_stale(ca, ptr)) {
+	int stale = dev_ptr_stale(ca, ptr);
+	if (stale) {
 		bch_err_ratelimited(ca->fs,
-				    "error %s stripe: stale pointer after io",
-				    bio_data_dir(bio) == READ ? "reading from" : "writing to");
+				    "error %s stripe: stale/invalid pointer (%i) after io",
+				    bio_data_dir(bio) == READ ? "reading from" : "writing to",
+				    stale);
 		clear_bit(ec_bio->idx, ec_bio->buf->valid);
 	}
 
@@ -743,10 +755,12 @@ static void ec_block_io(struct bch_fs *c, struct ec_stripe_buf *buf,
 		return;
 	}
 
-	if (dev_ptr_stale(ca, ptr)) {
+	int stale = dev_ptr_stale(ca, ptr);
+	if (stale) {
 		bch_err_ratelimited(c,
-				    "error %s stripe: stale pointer",
-				    rw == READ ? "reading from" : "writing to");
+				    "error %s stripe: stale pointer (%i)",
+				    rw == READ ? "reading from" : "writing to",
+				    stale);
 		clear_bit(idx, buf->valid);
 		return;
 	}

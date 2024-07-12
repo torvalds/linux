@@ -1395,6 +1395,11 @@ struct pptable_funcs {
 	int (*dpm_set_umsch_mm_enable)(struct smu_context *smu, bool enable);
 
 	/**
+	 * @set_mall_enable: Init MALL power gating control.
+	 */
+	int (*set_mall_enable)(struct smu_context *smu);
+
+	/**
 	 * @notify_rlc_state: Notify RLC power state to SMU.
 	 */
 	int (*notify_rlc_state)(struct smu_context *smu, bool en);

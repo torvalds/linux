@@ -13,14 +13,25 @@
 #include <linux/seq_file.h>
 #include <linux/sched/debug.h>
 
-static inline void closure_put_after_sub(struct closure *cl, int flags)
+static inline void closure_put_after_sub_checks(int flags)
 {
 	int r = flags & CLOSURE_REMAINING_MASK;
 
-	BUG_ON(flags & CLOSURE_GUARD_MASK);
-	BUG_ON(!r && (flags & ~CLOSURE_DESTRUCTOR));
+	if (WARN(flags & CLOSURE_GUARD_MASK,
+		 "closure has guard bits set: %x (%u)",
+		 flags & CLOSURE_GUARD_MASK, (unsigned) __fls(r)))
+		r &= ~CLOSURE_GUARD_MASK;
 
-	if (!r) {
+	WARN(!r && (flags & ~CLOSURE_DESTRUCTOR),
+	     "closure ref hit 0 with incorrect flags set: %x (%u)",
+	     flags & ~CLOSURE_DESTRUCTOR, (unsigned) __fls(flags));
+}
+
+static inline void closure_put_after_sub(struct closure *cl, int flags)
+{
+	closure_put_after_sub_checks(flags);
+
+	if (!(flags & CLOSURE_REMAINING_MASK)) {
 		smp_acquire__after_ctrl_dep();
 
 		cl->closure_get_happened = false;
@@ -139,6 +150,41 @@ void __sched __closure_sync(struct closure *cl)
 }
 EXPORT_SYMBOL(__closure_sync);
 
+/*
+ * closure_return_sync - finish running a closure, synchronously (i.e. waiting
+ * for outstanding get()s to finish) and returning once closure refcount is 0.
+ *
+ * Unlike closure_sync() this doesn't reinit the ref to 1; subsequent
+ * closure_get_not_zero() calls waill fail.
+ */
+void __sched closure_return_sync(struct closure *cl)
+{
+	struct closure_syncer s = { .task = current };
+
+	cl->s = &s;
+	set_closure_fn(cl, closure_sync_fn, NULL);
+
+	unsigned flags = atomic_sub_return_release(1 + CLOSURE_RUNNING - CLOSURE_DESTRUCTOR,
+						   &cl->remaining);
+
+	closure_put_after_sub_checks(flags);
+
+	if (unlikely(flags & CLOSURE_REMAINING_MASK)) {
+		while (1) {
+			set_current_state(TASK_UNINTERRUPTIBLE);
+			if (s.done)
+				break;
+			schedule();
+		}
+
+		__set_current_state(TASK_RUNNING);
+	}
+
+	if (cl->parent)
+		closure_put(cl->parent);
+}
+EXPORT_SYMBOL(closure_return_sync);
+
 int __sched __closure_sync_timeout(struct closure *cl, unsigned long timeout)
 {
 	struct closure_syncer s = { .task = current };
@@ -197,6 +243,9 @@ EXPORT_SYMBOL(closure_debug_create);
 void closure_debug_destroy(struct closure *cl)
 {
 	unsigned long flags;
+
+	if (cl->magic == CLOSURE_MAGIC_STACK)
+		return;
 
 	BUG_ON(cl->magic != CLOSURE_MAGIC_ALIVE);
 	cl->magic = CLOSURE_MAGIC_DEAD;
