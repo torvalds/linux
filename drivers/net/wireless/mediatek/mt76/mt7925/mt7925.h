@@ -30,17 +30,22 @@
 enum {
 	UNI_ROC_ACQUIRE,
 	UNI_ROC_ABORT,
+	UNI_ROC_SUB_LINK = 3,
 	UNI_ROC_NUM
 };
 
 enum mt7925_roc_req {
 	MT7925_ROC_REQ_JOIN,
 	MT7925_ROC_REQ_ROC,
+	MT7925_ROC_REQ_SUB_LINK,
+	MT7925_ROC_REQ_MLSR_AG = 10,
+	MT7925_ROC_REQ_MLSR_AA,
 	MT7925_ROC_REQ_NUM
 };
 
 enum {
 	UNI_EVENT_ROC_GRANT = 0,
+	UNI_EVENT_ROC_GRANT_SUB_LINK = 4,
 	UNI_EVENT_ROC_TAG_NUM
 };
 
@@ -192,13 +197,15 @@ int __mt7925_start(struct mt792x_phy *phy);
 int mt7925_register_device(struct mt792x_dev *dev);
 void mt7925_unregister_device(struct mt792x_dev *dev);
 int mt7925_run_firmware(struct mt792x_dev *dev);
-int mt7925_mcu_set_bss_pm(struct mt792x_dev *dev, struct ieee80211_vif *vif,
+int mt7925_mcu_set_bss_pm(struct mt792x_dev *dev,
+			  struct ieee80211_bss_conf *link_conf,
 			  bool enable);
-int mt7925_mcu_sta_update(struct mt792x_dev *dev, struct ieee80211_sta *sta,
+int mt7925_mcu_sta_update(struct mt792x_dev *dev,
+			  struct ieee80211_link_sta *link_sta,
 			  struct ieee80211_vif *vif, bool enable,
 			  enum mt76_sta_info_state state);
 int mt7925_mcu_set_chan_info(struct mt792x_phy *phy, u16 tag);
-int mt7925_mcu_set_tx(struct mt792x_dev *dev, struct ieee80211_vif *vif);
+int mt7925_mcu_set_tx(struct mt792x_dev *dev, struct ieee80211_bss_conf *bss_conf);
 int mt7925_mcu_set_eeprom(struct mt792x_dev *dev);
 int mt7925_mcu_get_rx_rate(struct mt792x_phy *phy, struct ieee80211_vif *vif,
 			   struct ieee80211_sta *sta, struct rate_info *rate);
@@ -228,6 +235,7 @@ void mt7925_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 			 struct sk_buff *skb, u32 *info);
 void mt7925_stats_work(struct work_struct *work);
 void mt7925_set_stream_he_eht_caps(struct mt792x_phy *phy);
+int mt7925_init_mlo_caps(struct mt792x_phy *phy);
 int mt7925_init_debugfs(struct mt792x_dev *dev);
 
 int mt7925_mcu_set_beacon_filter(struct mt792x_dev *dev,
@@ -241,7 +249,8 @@ int mt7925_mcu_uni_rx_ba(struct mt792x_dev *dev,
 			 bool enable);
 void mt7925_scan_work(struct work_struct *work);
 void mt7925_roc_work(struct work_struct *work);
-int mt7925_mcu_uni_bss_ps(struct mt792x_dev *dev, struct ieee80211_vif *vif);
+int mt7925_mcu_uni_bss_ps(struct mt792x_dev *dev,
+			  struct ieee80211_bss_conf *link_conf);
 void mt7925_coredump_work(struct work_struct *work);
 int mt7925_get_txpwr_info(struct mt792x_dev *dev, u8 band_idx,
 			  struct mt7925_txpwr *txpwr);
@@ -252,7 +261,7 @@ void mt7925_mac_write_txwi(struct mt76_dev *dev, __le32 *txwi,
 			   struct ieee80211_key_conf *key, int pid,
 			   enum mt76_txq_id qid, u32 changed);
 void mt7925_txwi_free(struct mt792x_dev *dev, struct mt76_txwi_cache *t,
-		      struct ieee80211_sta *sta, bool clear_status,
+		      struct ieee80211_sta *sta, struct mt76_wcid *wcid,
 		      struct list_head *free_list);
 int mt7925_mcu_parse_response(struct mt76_dev *mdev, int cmd,
 			      struct sk_buff *skb, int seq);
@@ -291,20 +300,24 @@ int mt7925_set_tx_sar_pwr(struct ieee80211_hw *hw,
 int mt7925_mcu_regval(struct mt792x_dev *dev, u32 regidx, u32 *val, bool set);
 int mt7925_mcu_set_clc(struct mt792x_dev *dev, u8 *alpha2,
 		       enum environment_cap env_cap);
-int mt7925_mcu_set_roc(struct mt792x_phy *phy, struct mt792x_vif *vif,
+int mt7925_mcu_set_mlo_roc(struct mt792x_bss_conf *mconf, u16 sel_links,
+			   int duration, u8 token_id);
+int mt7925_mcu_set_roc(struct mt792x_phy *phy, struct mt792x_bss_conf *mconf,
 		       struct ieee80211_channel *chan, int duration,
 		       enum mt7925_roc_req type, u8 token_id);
-int mt7925_mcu_abort_roc(struct mt792x_phy *phy, struct mt792x_vif *vif,
+int mt7925_mcu_abort_roc(struct mt792x_phy *phy, struct mt792x_bss_conf *mconf,
 			 u8 token_id);
 int mt7925_mcu_fill_message(struct mt76_dev *mdev, struct sk_buff *skb,
 			    int cmd, int *wait_seq);
 int mt7925_mcu_add_key(struct mt76_dev *dev, struct ieee80211_vif *vif,
 		       struct mt76_connac_sta_key_conf *sta_key_conf,
 		       struct ieee80211_key_conf *key, int mcu_cmd,
-		       struct mt76_wcid *wcid, enum set_key_cmd cmd);
+		       struct mt76_wcid *wcid, enum set_key_cmd cmd,
+		       struct mt792x_sta *msta);
 int mt7925_mcu_set_rts_thresh(struct mt792x_phy *phy, u32 val);
 int mt7925_mcu_wtbl_update_hdr_trans(struct mt792x_dev *dev,
 				     struct ieee80211_vif *vif,
-				     struct ieee80211_sta *sta);
+				     struct ieee80211_sta *sta,
+				     int link_id);
 
 #endif

@@ -209,7 +209,22 @@ static void iwl_pcie_clear_cmd_in_flight(struct iwl_trans *trans)
 	spin_unlock(&trans_pcie->reg_lock);
 }
 
-void iwl_pcie_free_tso_page(struct iwl_trans *trans, struct sk_buff *skb)
+static void iwl_pcie_free_and_unmap_tso_page(struct iwl_trans *trans,
+					     struct page *page)
+{
+	struct iwl_tso_page_info *info = IWL_TSO_PAGE_INFO(page_address(page));
+
+	/* Decrease internal use count and unmap/free page if needed */
+	if (refcount_dec_and_test(&info->use_count)) {
+		dma_unmap_page(trans->dev, info->dma_addr, PAGE_SIZE,
+			       DMA_TO_DEVICE);
+
+		__free_page(page);
+	}
+}
+
+void iwl_pcie_free_tso_pages(struct iwl_trans *trans, struct sk_buff *skb,
+			     struct iwl_cmd_meta *cmd_meta)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct page **page_ptr;
@@ -220,11 +235,23 @@ void iwl_pcie_free_tso_page(struct iwl_trans *trans, struct sk_buff *skb)
 	*page_ptr = NULL;
 
 	while (next) {
+		struct iwl_tso_page_info *info;
 		struct page *tmp = next;
 
-		next = *(void **)((u8 *)page_address(next) + PAGE_SIZE -
-				  sizeof(void *));
-		__free_page(tmp);
+		info = IWL_TSO_PAGE_INFO(page_address(next));
+		next = info->next;
+
+		/* Unmap the scatter gather list that is on the last page */
+		if (!next && cmd_meta->sg_offset) {
+			struct sg_table *sgt;
+
+			sgt = (void *)((u8 *)page_address(tmp) +
+				       cmd_meta->sg_offset);
+
+			dma_unmap_sgtable(trans->dev, sgt, DMA_TO_DEVICE, 0);
+		}
+
+		iwl_pcie_free_and_unmap_tso_page(trans, tmp);
 	}
 }
 
@@ -276,6 +303,10 @@ static void iwl_txq_gen1_tfd_unmap(struct iwl_trans *trans,
 		return;
 	}
 
+	/* TB1 is mapped directly, the rest is the TSO page and SG list. */
+	if (meta->sg_offset)
+		num_tbs = 2;
+
 	/* first TB is never freed - it's the bidirectional DMA data */
 
 	for (i = 1; i < num_tbs; i++) {
@@ -302,20 +333,21 @@ static void iwl_txq_gen1_tfd_unmap(struct iwl_trans *trans,
  * iwl_txq_free_tfd - Free all chunks referenced by TFD [txq->q.read_ptr]
  * @trans: transport private data
  * @txq: tx queue
+ * @read_ptr: the TXQ read_ptr to free
  *
  * Does NOT advance any TFD circular buffer read/write indexes
  * Does NOT free the TFD itself (which is within circular buffer)
  */
-static void iwl_txq_free_tfd(struct iwl_trans *trans, struct iwl_txq *txq)
+static void iwl_txq_free_tfd(struct iwl_trans *trans, struct iwl_txq *txq,
+			     int read_ptr)
 {
 	/* rd_ptr is bounded by TFD_QUEUE_SIZE_MAX and
 	 * idx is bounded by n_window
 	 */
-	int rd_ptr = txq->read_ptr;
-	int idx = iwl_txq_get_cmd_index(txq, rd_ptr);
+	int idx = iwl_txq_get_cmd_index(txq, read_ptr);
 	struct sk_buff *skb;
 
-	lockdep_assert_held(&txq->lock);
+	lockdep_assert_held(&txq->reclaim_lock);
 
 	if (!txq->entries)
 		return;
@@ -325,10 +357,10 @@ static void iwl_txq_free_tfd(struct iwl_trans *trans, struct iwl_txq *txq)
 	 */
 	if (trans->trans_cfg->gen2)
 		iwl_txq_gen2_tfd_unmap(trans, &txq->entries[idx].meta,
-				       iwl_txq_get_tfd(trans, txq, rd_ptr));
+				       iwl_txq_get_tfd(trans, txq, read_ptr));
 	else
 		iwl_txq_gen1_tfd_unmap(trans, &txq->entries[idx].meta,
-				       txq, rd_ptr);
+				       txq, read_ptr);
 
 	/* free SKB */
 	skb = txq->entries[idx].skb;
@@ -356,20 +388,23 @@ static void iwl_pcie_txq_unmap(struct iwl_trans *trans, int txq_id)
 		return;
 	}
 
-	spin_lock_bh(&txq->lock);
+	spin_lock_bh(&txq->reclaim_lock);
+	spin_lock(&txq->lock);
 	while (txq->write_ptr != txq->read_ptr) {
 		IWL_DEBUG_TX_REPLY(trans, "Q %d Free %d\n",
 				   txq_id, txq->read_ptr);
 
 		if (txq_id != trans_pcie->txqs.cmd.q_id) {
 			struct sk_buff *skb = txq->entries[txq->read_ptr].skb;
+			struct iwl_cmd_meta *cmd_meta =
+				&txq->entries[txq->read_ptr].meta;
 
 			if (WARN_ON_ONCE(!skb))
 				continue;
 
-			iwl_pcie_free_tso_page(trans, skb);
+			iwl_pcie_free_tso_pages(trans, skb, cmd_meta);
 		}
-		iwl_txq_free_tfd(trans, txq);
+		iwl_txq_free_tfd(trans, txq, txq->read_ptr);
 		txq->read_ptr = iwl_txq_inc_wrap(trans, txq->read_ptr);
 
 		if (txq->read_ptr == txq->write_ptr &&
@@ -383,7 +418,8 @@ static void iwl_pcie_txq_unmap(struct iwl_trans *trans, int txq_id)
 		iwl_op_mode_free_skb(trans->op_mode, skb);
 	}
 
-	spin_unlock_bh(&txq->lock);
+	spin_unlock(&txq->lock);
+	spin_unlock_bh(&txq->reclaim_lock);
 
 	/* just in case - this queue may have been stopped */
 	iwl_trans_pcie_wake_queue(trans, txq);
@@ -888,6 +924,7 @@ int iwl_txq_init(struct iwl_trans *trans, struct iwl_txq *txq,
 		return ret;
 
 	spin_lock_init(&txq->lock);
+	spin_lock_init(&txq->reclaim_lock);
 
 	if (cmd_queue) {
 		static struct lock_class_key iwl_txq_cmd_queue_lock_class;
@@ -1022,11 +1059,12 @@ static void iwl_txq_progress(struct iwl_txq *txq)
 		mod_timer(&txq->stuck_timer, jiffies + txq->wd_timeout);
 }
 
-static inline bool iwl_txq_used(const struct iwl_txq *q, int i)
+static inline bool iwl_txq_used(const struct iwl_txq *q, int i,
+				int read_ptr, int write_ptr)
 {
 	int index = iwl_txq_get_cmd_index(q, i);
-	int r = iwl_txq_get_cmd_index(q, q->read_ptr);
-	int w = iwl_txq_get_cmd_index(q, q->write_ptr);
+	int r = iwl_txq_get_cmd_index(q, read_ptr);
+	int w = iwl_txq_get_cmd_index(q, write_ptr);
 
 	return w >= r ?
 		(index >= r && index < w) :
@@ -1053,7 +1091,7 @@ static void iwl_pcie_cmdq_reclaim(struct iwl_trans *trans, int txq_id, int idx)
 	r = iwl_txq_get_cmd_index(txq, txq->read_ptr);
 
 	if (idx >= trans->trans_cfg->base_params->max_tfd_queue_size ||
-	    (!iwl_txq_used(txq, idx))) {
+	    (!iwl_txq_used(txq, idx, txq->read_ptr, txq->write_ptr))) {
 		WARN_ONCE(test_bit(txq_id, trans_pcie->txqs.queue_used),
 			  "%s: Read index for DMA queue txq id (%d), index %d is out of range [0-%d] %d %d.\n",
 			  __func__, txq_id, idx,
@@ -1420,7 +1458,8 @@ int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 	out_cmd = txq->entries[idx].cmd;
 	out_meta = &txq->entries[idx].meta;
 
-	memset(out_meta, 0, sizeof(*out_meta));	/* re-initialize to NULL */
+	/* re-initialize, this also marks the SG list as unused */
+	memset(out_meta, 0, sizeof(*out_meta));
 	if (cmd->flags & CMD_WANT_SKB)
 		out_meta->source = cmd;
 
@@ -1702,12 +1741,15 @@ static int iwl_fill_data_tbs(struct iwl_trans *trans, struct sk_buff *skb,
 }
 
 #ifdef CONFIG_INET
-struct iwl_tso_hdr_page *iwl_pcie_get_page_hdr(struct iwl_trans *trans,
-					       size_t len, struct sk_buff *skb)
+static void *iwl_pcie_get_page_hdr(struct iwl_trans *trans,
+				   size_t len, struct sk_buff *skb)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_tso_hdr_page *p = this_cpu_ptr(trans_pcie->txqs.tso_hdr_page);
+	struct iwl_tso_page_info *info;
 	struct page **page_ptr;
+	dma_addr_t phys;
+	void *ret;
 
 	page_ptr = (void *)((u8 *)skb->cb + trans_pcie->txqs.page_offs);
 
@@ -1727,24 +1769,124 @@ struct iwl_tso_hdr_page *iwl_pcie_get_page_hdr(struct iwl_trans *trans,
 	 *
 	 * (see also get_workaround_page() in tx-gen2.c)
 	 */
-	if (p->pos + len < (u8 *)page_address(p->page) + PAGE_SIZE -
-			   sizeof(void *))
+	if (((unsigned long)p->pos & ~PAGE_MASK) + len < IWL_TSO_PAGE_DATA_SIZE) {
+		info = IWL_TSO_PAGE_INFO(page_address(p->page));
 		goto out;
+	}
 
 	/* We don't have enough room on this page, get a new one. */
-	__free_page(p->page);
+	iwl_pcie_free_and_unmap_tso_page(trans, p->page);
 
 alloc:
 	p->page = alloc_page(GFP_ATOMIC);
 	if (!p->page)
 		return NULL;
 	p->pos = page_address(p->page);
+
+	info = IWL_TSO_PAGE_INFO(page_address(p->page));
+
 	/* set the chaining pointer to NULL */
-	*(void **)((u8 *)page_address(p->page) + PAGE_SIZE - sizeof(void *)) = NULL;
+	info->next = NULL;
+
+	/* Create a DMA mapping for the page */
+	phys = dma_map_page_attrs(trans->dev, p->page, 0, PAGE_SIZE,
+				  DMA_TO_DEVICE, DMA_ATTR_SKIP_CPU_SYNC);
+	if (unlikely(dma_mapping_error(trans->dev, phys))) {
+		__free_page(p->page);
+		p->page = NULL;
+
+		return NULL;
+	}
+
+	/* Store physical address and set use count */
+	info->dma_addr = phys;
+	refcount_set(&info->use_count, 1);
 out:
 	*page_ptr = p->page;
-	get_page(p->page);
-	return p;
+	/* Return an internal reference for the caller */
+	refcount_inc(&info->use_count);
+	ret = p->pos;
+	p->pos += len;
+
+	return ret;
+}
+
+/**
+ * iwl_pcie_get_sgt_tb_phys - Find TB address in mapped SG list
+ * @sgt: scatter gather table
+ * @addr: Virtual address
+ *
+ * Find the entry that includes the address for the given address and return
+ * correct physical address for the TB entry.
+ *
+ * Returns: Address for TB entry
+ */
+dma_addr_t iwl_pcie_get_sgt_tb_phys(struct sg_table *sgt, void *addr)
+{
+	struct scatterlist *sg;
+	int i;
+
+	for_each_sgtable_dma_sg(sgt, sg, i) {
+		if (addr >= sg_virt(sg) &&
+		    (u8 *)addr < (u8 *)sg_virt(sg) + sg_dma_len(sg))
+			return sg_dma_address(sg) +
+			       ((unsigned long)addr - (unsigned long)sg_virt(sg));
+	}
+
+	WARN_ON_ONCE(1);
+
+	return DMA_MAPPING_ERROR;
+}
+
+/**
+ * iwl_pcie_prep_tso - Prepare TSO page and SKB for sending
+ * @trans: transport private data
+ * @skb: the SKB to map
+ * @cmd_meta: command meta to store the scatter list information for unmapping
+ * @hdr: output argument for TSO headers
+ * @hdr_room: requested length for TSO headers
+ *
+ * Allocate space for a scatter gather list and TSO headers and map the SKB
+ * using the scatter gather list. The SKB is unmapped again when the page is
+ * free'ed again at the end of the operation.
+ *
+ * Returns: newly allocated and mapped scatter gather table with list
+ */
+struct sg_table *iwl_pcie_prep_tso(struct iwl_trans *trans, struct sk_buff *skb,
+				   struct iwl_cmd_meta *cmd_meta,
+				   u8 **hdr, unsigned int hdr_room)
+{
+	struct sg_table *sgt;
+
+	if (WARN_ON_ONCE(skb_has_frag_list(skb)))
+		return NULL;
+
+	*hdr = iwl_pcie_get_page_hdr(trans,
+				     hdr_room + __alignof__(struct sg_table) +
+				     sizeof(struct sg_table) +
+				     (skb_shinfo(skb)->nr_frags + 1) *
+				     sizeof(struct scatterlist),
+				     skb);
+	if (!*hdr)
+		return NULL;
+
+	sgt = (void *)PTR_ALIGN(*hdr + hdr_room, __alignof__(struct sg_table));
+	sgt->sgl = (void *)(sgt + 1);
+
+	sg_init_table(sgt->sgl, skb_shinfo(skb)->nr_frags + 1);
+
+	sgt->orig_nents = skb_to_sgvec(skb, sgt->sgl, 0, skb->len);
+	if (WARN_ON_ONCE(sgt->orig_nents <= 0))
+		return NULL;
+
+	/* And map the entire SKB */
+	if (dma_map_sgtable(trans->dev, sgt, DMA_TO_DEVICE, 0) < 0)
+		return NULL;
+
+	/* Store non-zero (i.e. valid) offset for unmapping */
+	cmd_meta->sg_offset = (unsigned long) sgt & ~PAGE_MASK;
+
+	return sgt;
 }
 
 static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
@@ -1759,8 +1901,9 @@ static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 	unsigned int snap_ip_tcp_hdrlen, ip_hdrlen, total_len, hdr_room;
 	unsigned int mss = skb_shinfo(skb)->gso_size;
 	u16 length, iv_len, amsdu_pad;
-	u8 *start_hdr;
-	struct iwl_tso_hdr_page *hdr_page;
+	dma_addr_t start_hdr_phys;
+	u8 *start_hdr, *pos_hdr;
+	struct sg_table *sgt;
 	struct tso_t tso;
 
 	/* if the packet is protected, then it must be CCMP or GCMP */
@@ -1783,13 +1926,14 @@ static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 		(3 + snap_ip_tcp_hdrlen + sizeof(struct ethhdr)) + iv_len;
 
 	/* Our device supports 9 segments at most, it will fit in 1 page */
-	hdr_page = iwl_pcie_get_page_hdr(trans, hdr_room, skb);
-	if (!hdr_page)
+	sgt = iwl_pcie_prep_tso(trans, skb, out_meta, &start_hdr, hdr_room);
+	if (!sgt)
 		return -ENOMEM;
 
-	start_hdr = hdr_page->pos;
-	memcpy(hdr_page->pos, skb->data + hdr_len, iv_len);
-	hdr_page->pos += iv_len;
+	start_hdr_phys = iwl_pcie_get_tso_page_phys(start_hdr);
+	pos_hdr = start_hdr;
+	memcpy(pos_hdr, skb->data + hdr_len, iv_len);
+	pos_hdr += iv_len;
 
 	/*
 	 * Pull the ieee80211 header + IV to be able to use TSO core,
@@ -1812,45 +1956,43 @@ static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 			min_t(unsigned int, mss, total_len);
 		unsigned int hdr_tb_len;
 		dma_addr_t hdr_tb_phys;
-		u8 *subf_hdrs_start = hdr_page->pos;
+		u8 *subf_hdrs_start = pos_hdr;
 
 		total_len -= data_left;
 
-		memset(hdr_page->pos, 0, amsdu_pad);
-		hdr_page->pos += amsdu_pad;
+		memset(pos_hdr, 0, amsdu_pad);
+		pos_hdr += amsdu_pad;
 		amsdu_pad = (4 - (sizeof(struct ethhdr) + snap_ip_tcp_hdrlen +
 				  data_left)) & 0x3;
-		ether_addr_copy(hdr_page->pos, ieee80211_get_DA(hdr));
-		hdr_page->pos += ETH_ALEN;
-		ether_addr_copy(hdr_page->pos, ieee80211_get_SA(hdr));
-		hdr_page->pos += ETH_ALEN;
+		ether_addr_copy(pos_hdr, ieee80211_get_DA(hdr));
+		pos_hdr += ETH_ALEN;
+		ether_addr_copy(pos_hdr, ieee80211_get_SA(hdr));
+		pos_hdr += ETH_ALEN;
 
 		length = snap_ip_tcp_hdrlen + data_left;
-		*((__be16 *)hdr_page->pos) = cpu_to_be16(length);
-		hdr_page->pos += sizeof(length);
+		*((__be16 *)pos_hdr) = cpu_to_be16(length);
+		pos_hdr += sizeof(length);
 
 		/*
 		 * This will copy the SNAP as well which will be considered
 		 * as MAC header.
 		 */
-		tso_build_hdr(skb, hdr_page->pos, &tso, data_left, !total_len);
+		tso_build_hdr(skb, pos_hdr, &tso, data_left, !total_len);
 
-		hdr_page->pos += snap_ip_tcp_hdrlen;
+		pos_hdr += snap_ip_tcp_hdrlen;
 
-		hdr_tb_len = hdr_page->pos - start_hdr;
-		hdr_tb_phys = dma_map_single(trans->dev, start_hdr,
-					     hdr_tb_len, DMA_TO_DEVICE);
-		if (unlikely(dma_mapping_error(trans->dev, hdr_tb_phys)))
-			return -EINVAL;
+		hdr_tb_len = pos_hdr - start_hdr;
+		hdr_tb_phys = iwl_pcie_get_tso_page_phys(start_hdr);
+
 		iwl_pcie_txq_build_tfd(trans, txq, hdr_tb_phys,
 				       hdr_tb_len, false);
 		trace_iwlwifi_dev_tx_tb(trans->dev, skb, start_hdr,
 					hdr_tb_phys, hdr_tb_len);
 		/* add this subframe's headers' length to the tx_cmd */
-		le16_add_cpu(&tx_cmd->len, hdr_page->pos - subf_hdrs_start);
+		le16_add_cpu(&tx_cmd->len, pos_hdr - subf_hdrs_start);
 
 		/* prepare the start_hdr for the next subframe */
-		start_hdr = hdr_page->pos;
+		start_hdr = pos_hdr;
 
 		/* put the payload */
 		while (data_left) {
@@ -1858,9 +2000,9 @@ static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 						  data_left);
 			dma_addr_t tb_phys;
 
-			tb_phys = dma_map_single(trans->dev, tso.data,
-						 size, DMA_TO_DEVICE);
-			if (unlikely(dma_mapping_error(trans->dev, tb_phys)))
+			tb_phys = iwl_pcie_get_sgt_tb_phys(sgt, tso.data);
+			/* Not a real mapping error, use direct comparison */
+			if (unlikely(tb_phys == DMA_MAPPING_ERROR))
 				return -EINVAL;
 
 			iwl_pcie_txq_build_tfd(trans, txq, tb_phys,
@@ -1872,6 +2014,9 @@ static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 			tso_build_data(skb, &tso, size);
 		}
 	}
+
+	dma_sync_single_for_device(trans->dev, start_hdr_phys, hdr_room,
+				   DMA_TO_DEVICE);
 
 	/* re -add the WiFi header and IV */
 	skb_push(skb, hdr_len + iv_len);
@@ -2027,7 +2172,7 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 
 	/* Set up first empty entry in queue's array of Tx/cmd buffers */
 	out_meta = &txq->entries[txq->write_ptr].meta;
-	out_meta->flags = 0;
+	memset(out_meta, 0, sizeof(*out_meta));
 
 	/*
 	 * The second TB (tb1) points to the remainder of the TX command
@@ -2144,12 +2289,12 @@ out_err:
 }
 
 static void iwl_txq_gen1_inval_byte_cnt_tbl(struct iwl_trans *trans,
-					    struct iwl_txq *txq)
+					    struct iwl_txq *txq,
+					    int read_ptr)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwlagn_scd_bc_tbl *scd_bc_tbl = trans_pcie->txqs.scd_bc_tbls.addr;
 	int txq_id = txq->id;
-	int read_ptr = txq->read_ptr;
 	u8 sta_id = 0;
 	__le16 bc_ent;
 	struct iwl_device_tx_cmd *dev_cmd = txq->entries[read_ptr].cmd;
@@ -2176,6 +2321,7 @@ void iwl_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_txq *txq = trans_pcie->txqs.txq[txq_id];
 	int tfd_num, read_ptr, last_to_free;
+	int txq_read_ptr, txq_write_ptr;
 
 	/* This function is not meant to release cmd queue*/
 	if (WARN_ON(txq_id == trans_pcie->txqs.cmd.q_id))
@@ -2186,8 +2332,14 @@ void iwl_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 
 	tfd_num = iwl_txq_get_cmd_index(txq, ssn);
 
-	spin_lock_bh(&txq->lock);
-	read_ptr = iwl_txq_get_cmd_index(txq, txq->read_ptr);
+	spin_lock_bh(&txq->reclaim_lock);
+
+	spin_lock(&txq->lock);
+	txq_read_ptr = txq->read_ptr;
+	txq_write_ptr = txq->write_ptr;
+	spin_unlock(&txq->lock);
+
+	read_ptr = iwl_txq_get_cmd_index(txq, txq_read_ptr);
 
 	if (!test_bit(txq_id, trans_pcie->txqs.queue_used)) {
 		IWL_DEBUG_TX_QUEUES(trans, "Q %d inactive - ignoring idx %d\n",
@@ -2199,19 +2351,19 @@ void iwl_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 		goto out;
 
 	IWL_DEBUG_TX_REPLY(trans, "[Q %d] %d (%d) -> %d (%d)\n",
-			   txq_id, read_ptr, txq->read_ptr, tfd_num, ssn);
+			   txq_id, read_ptr, txq_read_ptr, tfd_num, ssn);
 
 	/* Since we free until index _not_ inclusive, the one before index is
 	 * the last we will free. This one must be used
 	 */
 	last_to_free = iwl_txq_dec_wrap(trans, tfd_num);
 
-	if (!iwl_txq_used(txq, last_to_free)) {
+	if (!iwl_txq_used(txq, last_to_free, txq_read_ptr, txq_write_ptr)) {
 		IWL_ERR(trans,
 			"%s: Read index for txq id (%d), last_to_free %d is out of range [0-%d] %d %d.\n",
 			__func__, txq_id, last_to_free,
 			trans->trans_cfg->base_params->max_tfd_queue_size,
-			txq->write_ptr, txq->read_ptr);
+			txq_write_ptr, txq_read_ptr);
 
 		iwl_op_mode_time_point(trans->op_mode,
 				       IWL_FW_INI_TIME_POINT_FAKE_TX,
@@ -2224,25 +2376,30 @@ void iwl_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 
 	for (;
 	     read_ptr != tfd_num;
-	     txq->read_ptr = iwl_txq_inc_wrap(trans, txq->read_ptr),
-	     read_ptr = iwl_txq_get_cmd_index(txq, txq->read_ptr)) {
+	     txq_read_ptr = iwl_txq_inc_wrap(trans, txq_read_ptr),
+	     read_ptr = iwl_txq_get_cmd_index(txq, txq_read_ptr)) {
+		struct iwl_cmd_meta *cmd_meta = &txq->entries[read_ptr].meta;
 		struct sk_buff *skb = txq->entries[read_ptr].skb;
 
 		if (WARN_ONCE(!skb, "no SKB at %d (%d) on queue %d\n",
-			      read_ptr, txq->read_ptr, txq_id))
+			      read_ptr, txq_read_ptr, txq_id))
 			continue;
 
-		iwl_pcie_free_tso_page(trans, skb);
+		iwl_pcie_free_tso_pages(trans, skb, cmd_meta);
 
 		__skb_queue_tail(skbs, skb);
 
 		txq->entries[read_ptr].skb = NULL;
 
 		if (!trans->trans_cfg->gen2)
-			iwl_txq_gen1_inval_byte_cnt_tbl(trans, txq);
+			iwl_txq_gen1_inval_byte_cnt_tbl(trans, txq,
+							txq_read_ptr);
 
-		iwl_txq_free_tfd(trans, txq);
+		iwl_txq_free_tfd(trans, txq, txq_read_ptr);
 	}
+
+	spin_lock(&txq->lock);
+	txq->read_ptr = txq_read_ptr;
 
 	iwl_txq_progress(txq);
 
@@ -2265,13 +2422,12 @@ void iwl_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 		txq->overflow_tx = true;
 
 		/*
-		 * This is tricky: we are in reclaim path which is non
-		 * re-entrant, so noone will try to take the access the
-		 * txq data from that path. We stopped tx, so we can't
-		 * have tx as well. Bottom line, we can unlock and re-lock
-		 * later.
+		 * This is tricky: we are in reclaim path and are holding
+		 * reclaim_lock, so noone will try to access the txq data
+		 * from that path. We stopped tx, so we can't have tx as well.
+		 * Bottom line, we can unlock and re-lock later.
 		 */
-		spin_unlock_bh(&txq->lock);
+		spin_unlock(&txq->lock);
 
 		while ((skb = __skb_dequeue(&overflow_skbs))) {
 			struct iwl_device_tx_cmd *dev_cmd_ptr;
@@ -2290,12 +2446,13 @@ void iwl_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 		if (iwl_txq_space(trans, txq) > txq->low_mark)
 			iwl_trans_pcie_wake_queue(trans, txq);
 
-		spin_lock_bh(&txq->lock);
+		spin_lock(&txq->lock);
 		txq->overflow_tx = false;
 	}
 
+	spin_unlock(&txq->lock);
 out:
-	spin_unlock_bh(&txq->lock);
+	spin_unlock_bh(&txq->reclaim_lock);
 }
 
 /* Set wr_ptr of specific device and txq  */

@@ -523,6 +523,7 @@ static u8 rtw89_get_addr_cam_entry_size(struct rtw89_dev *rtwdev)
 	case RTL8852A:
 	case RTL8852B:
 	case RTL8851B:
+	case RTL8852BT:
 		return ADDR_CAM_ENT_SIZE;
 	default:
 		return ADDR_CAM_ENT_SHORT_SIZE;

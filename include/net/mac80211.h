@@ -250,6 +250,7 @@ struct ieee80211_chan_req {
  * @min_def: the minimum channel definition currently required.
  * @ap: the channel definition the AP actually is operating as,
  *	for use with (wider bandwidth) OFDMA
+ * @radio_idx: index of the wiphy radio used used for this channel
  * @rx_chains_static: The number of RX chains that must always be
  *	active on the channel to receive MIMO transmissions
  * @rx_chains_dynamic: The number of RX chains that must be enabled
@@ -264,6 +265,7 @@ struct ieee80211_chanctx_conf {
 	struct cfg80211_chan_def min_def;
 	struct cfg80211_chan_def ap;
 
+	int radio_idx;
 	u8 rx_chains_static, rx_chains_dynamic;
 
 	bool radar_enabled;
@@ -2767,14 +2769,6 @@ struct ieee80211_txq {
  * @IEEE80211_HW_SUPPORTS_TDLS_BUFFER_STA: Hardware supports buffer STA on
  *	TDLS links.
  *
- * @IEEE80211_HW_DEAUTH_NEED_MGD_TX_PREP: The driver requires the
- *	mgd_prepare_tx() callback to be called before transmission of a
- *	deauthentication frame in case the association was completed but no
- *	beacon was heard. This is required in multi-channel scenarios, where the
- *	virtual interface might not be given air time for the transmission of
- *	the frame, as it is not synced with the AP/P2P GO yet, and thus the
- *	deauthentication frame might not be transmitted.
- *
  * @IEEE80211_HW_DOESNT_SUPPORT_QOS_NDP: The driver (or firmware) doesn't
  *	support QoS NDP for AP probing - that's most likely a driver bug.
  *
@@ -2874,7 +2868,6 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_REPORTS_LOW_ACK,
 	IEEE80211_HW_SUPPORTS_TX_FRAG,
 	IEEE80211_HW_SUPPORTS_TDLS_BUFFER_STA,
-	IEEE80211_HW_DEAUTH_NEED_MGD_TX_PREP,
 	IEEE80211_HW_DOESNT_SUPPORT_QOS_NDP,
 	IEEE80211_HW_BUFF_MMPDU_TXQ,
 	IEEE80211_HW_SUPPORTS_VHT_EXT_NSS_BW,
@@ -3787,13 +3780,15 @@ enum ieee80211_reconfig_type {
  * @success: whether the frame exchange was successful, only
  *	used with the mgd_complete_tx() method, and then only
  *	valid for auth and (re)assoc.
+ * @was_assoc: set if this call is due to deauth/disassoc
+ *	while just having been associated
  * @link_id: the link id on which the frame will be TX'ed.
  *	Only used with the mgd_prepare_tx() method.
  */
 struct ieee80211_prep_tx_info {
 	u16 duration;
 	u16 subtype;
-	u8 success:1;
+	u8 success:1, was_assoc:1;
 	int link_id;
 };
 
@@ -4242,12 +4237,9 @@ struct ieee80211_prep_tx_info {
  *	yet it need not necessarily be given airtime, in particular since any
  *	transmission to a P2P GO needs to be synchronized against the GO's
  *	powersave state. mac80211 will call this function before transmitting a
- *	management frame prior to having successfully associated to allow the
- *	driver to give it channel time for the transmission, to get a response
- *	and to be able to synchronize with the GO.
- *	For drivers that set %IEEE80211_HW_DEAUTH_NEED_MGD_TX_PREP, mac80211
- *	would also call this function before transmitting a deauthentication
- *	frame in case that no beacon was heard from the AP/P2P GO.
+ *	management frame prior to transmitting that frame to allow the driver
+ *	to give it channel time for the transmission, to get a response and be
+ *	able to synchronize with the GO.
  *	The callback will be called before each transmission and upon return
  *	mac80211 will transmit the frame right away.
  *	Additional information is passed in the &struct ieee80211_prep_tx_info

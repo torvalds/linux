@@ -569,9 +569,12 @@ enum iwl_ppag_flags {
  * @v2: version 2
  * version 3, 4, 5 and 6 are the same structure as v2,
  *	but has a different format of the flags bitmap
- * @flags: values from &enum iwl_ppag_flags
- * @gain: table of antenna gain values per chain and sub-band
- * @reserved: reserved
+ * @v1.flags: values from &enum iwl_ppag_flags
+ * @v1.gain: table of antenna gain values per chain and sub-band
+ * @v1.reserved: reserved
+ * @v2.flags: values from &enum iwl_ppag_flags
+ * @v2.gain: table of antenna gain values per chain and sub-band
+ * @v2.reserved: reserved
  */
 union iwl_ppag_table_cmd {
 	struct {

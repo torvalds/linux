@@ -120,6 +120,7 @@ enum CMD_MODE {
 	CMD_BLOCK_TXQS		= BIT(3),
 	CMD_SEND_IN_D3          = BIT(4),
 };
+#define CMD_MODE_BITS 5
 
 #define DEF_CMD_PAYLOAD_SIZE 320
 
@@ -712,7 +713,9 @@ struct iwl_dma_ptr {
 struct iwl_cmd_meta {
 	/* only for SYNC commands, iff the reply skb is wanted */
 	struct iwl_host_cmd *source;
-	u32 flags;
+	u32 flags: CMD_MODE_BITS;
+	/* sg_offset is valid if it is non-zero */
+	u32 sg_offset: PAGE_SHIFT;
 	u32 tbs;
 };
 
@@ -749,6 +752,7 @@ struct iwl_pcie_first_tb_buf {
  * @first_tb_dma: DMA address for the first_tb_bufs start
  * @entries: transmit entries (driver state)
  * @lock: queue lock
+ * @reclaim_lock: reclaim lock
  * @stuck_timer: timer that fires if queue gets stuck
  * @trans: pointer back to transport (for timer)
  * @need_update: indicates need to update read/write index
@@ -791,6 +795,8 @@ struct iwl_txq {
 	struct iwl_pcie_txq_entry *entries;
 	/* lock for syncing changes on the queue */
 	spinlock_t lock;
+	/* lock to prevent concurrent reclaim */
+	spinlock_t reclaim_lock;
 	unsigned long frozen_expiry_remainder;
 	struct timer_list stuck_timer;
 	struct iwl_trans *trans;

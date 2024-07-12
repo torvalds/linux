@@ -497,6 +497,7 @@ static size_t iwl_get_lari_config_cmd_size(u8 cmd_ver)
 	size_t cmd_size;
 
 	switch (cmd_ver) {
+	case 12:
 	case 11:
 		cmd_size = sizeof(struct iwl_lari_config_change_cmd);
 		break;
@@ -563,6 +564,9 @@ int iwl_fill_lari_config(struct iwl_fw_runtime *fwrt,
 	if (!ret) {
 		if (cmd_ver < 8)
 			value &= ~ACTIVATE_5G2_IN_WW_MASK;
+		if (cmd_ver < 12)
+			value &= CHAN_STATE_ACTIVE_BITMAP_CMD_V11;
+
 		cmd->chan_state_active_bitmap = cpu_to_le32(value);
 	}
 

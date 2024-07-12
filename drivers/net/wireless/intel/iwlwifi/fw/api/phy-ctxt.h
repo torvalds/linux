@@ -144,6 +144,7 @@ struct iwl_phy_context_cmd_v1 {
  * @rxchain_info: ???
  * @sbb_bandwidth: 0 disabled, 1 - 40Mhz ... 4 - 320MHz
  * @sbb_ctrl_channel_loc: location of the control channel
+ * @puncture_mask: bitmap of punctured subchannels
  * @dsp_cfg_flags: set to 0
  * @reserved: reserved to align to 64 bit
  */

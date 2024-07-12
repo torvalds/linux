@@ -19,8 +19,10 @@ static struct page *get_workaround_page(struct iwl_trans *trans,
 					struct sk_buff *skb)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	struct iwl_tso_page_info *info;
 	struct page **page_ptr;
 	struct page *ret;
+	dma_addr_t phys;
 
 	page_ptr = (void *)((u8 *)skb->cb + trans_pcie->txqs.page_offs);
 
@@ -28,8 +30,22 @@ static struct page *get_workaround_page(struct iwl_trans *trans,
 	if (!ret)
 		return NULL;
 
+	info = IWL_TSO_PAGE_INFO(page_address(ret));
+
+	/* Create a DMA mapping for the page */
+	phys = dma_map_page_attrs(trans->dev, ret, 0, PAGE_SIZE,
+				  DMA_TO_DEVICE, DMA_ATTR_SKIP_CPU_SYNC);
+	if (unlikely(dma_mapping_error(trans->dev, phys))) {
+		__free_page(ret);
+		return NULL;
+	}
+
+	/* Store physical address and set use count */
+	info->dma_addr = phys;
+	refcount_set(&info->use_count, 1);
+
 	/* set the chaining pointer to the previous page if there */
-	*(void **)((u8 *)page_address(ret) + PAGE_SIZE - sizeof(void *)) = *page_ptr;
+	info->next = *page_ptr;
 	*page_ptr = ret;
 
 	return ret;
@@ -45,7 +61,8 @@ static int iwl_txq_gen2_set_tb_with_wa(struct iwl_trans *trans,
 				       struct sk_buff *skb,
 				       struct iwl_tfh_tfd *tfd,
 				       dma_addr_t phys, void *virt,
-				       u16 len, struct iwl_cmd_meta *meta)
+				       u16 len, struct iwl_cmd_meta *meta,
+				       bool unmap)
 {
 	dma_addr_t oldphys = phys;
 	struct page *page;
@@ -76,7 +93,7 @@ static int iwl_txq_gen2_set_tb_with_wa(struct iwl_trans *trans,
 	 * a new mapping for it so the device will not fail.
 	 */
 
-	if (WARN_ON(len > PAGE_SIZE - sizeof(void *))) {
+	if (WARN_ON(len > IWL_TSO_PAGE_DATA_SIZE)) {
 		ret = -ENOBUFS;
 		goto unmap;
 	}
@@ -89,10 +106,27 @@ static int iwl_txq_gen2_set_tb_with_wa(struct iwl_trans *trans,
 
 	memcpy(page_address(page), virt, len);
 
-	phys = dma_map_single(trans->dev, page_address(page), len,
-			      DMA_TO_DEVICE);
-	if (unlikely(dma_mapping_error(trans->dev, phys)))
-		return -ENOMEM;
+	/*
+	 * This is a bit odd, but performance does not matter here, what
+	 * matters are the expectations of the calling code and TB cleanup
+	 * function.
+	 *
+	 * As such, if unmap is set, then create another mapping for the TB
+	 * entry as it will be unmapped later. On the other hand, if it is not
+	 * set, then the TB entry will not be unmapped and instead we simply
+	 * reference and sync the mapping that get_workaround_page() created.
+	 */
+	if (unmap) {
+		phys = dma_map_single(trans->dev, page_address(page), len,
+				      DMA_TO_DEVICE);
+		if (unlikely(dma_mapping_error(trans->dev, phys)))
+			return -ENOMEM;
+	} else {
+		phys = iwl_pcie_get_tso_page_phys(page_address(page));
+		dma_sync_single_for_device(trans->dev, phys, len,
+					   DMA_TO_DEVICE);
+	}
+
 	ret = iwl_txq_gen2_set_tb(trans, tfd, phys, len);
 	if (ret < 0) {
 		/* unmap the new allocation as single */
@@ -100,6 +134,7 @@ static int iwl_txq_gen2_set_tb_with_wa(struct iwl_trans *trans,
 		meta = NULL;
 		goto unmap;
 	}
+
 	IWL_DEBUG_TX(trans,
 		     "TB bug workaround: copied %d bytes from 0x%llx to 0x%llx\n",
 		     len, (unsigned long long)oldphys,
@@ -107,6 +142,9 @@ static int iwl_txq_gen2_set_tb_with_wa(struct iwl_trans *trans,
 
 	ret = 0;
 unmap:
+	if (!unmap)
+		goto trace;
+
 	if (meta)
 		dma_unmap_page(trans->dev, oldphys, len, DMA_TO_DEVICE);
 	else
@@ -119,7 +157,9 @@ trace:
 
 static int iwl_txq_gen2_build_amsdu(struct iwl_trans *trans,
 				    struct sk_buff *skb,
-				    struct iwl_tfh_tfd *tfd, int start_len,
+				    struct iwl_tfh_tfd *tfd,
+				    struct iwl_cmd_meta *out_meta,
+				    int start_len,
 				    u8 hdr_len,
 				    struct iwl_device_tx_cmd *dev_cmd)
 {
@@ -128,9 +168,10 @@ static int iwl_txq_gen2_build_amsdu(struct iwl_trans *trans,
 	struct ieee80211_hdr *hdr = (void *)skb->data;
 	unsigned int snap_ip_tcp_hdrlen, ip_hdrlen, total_len, hdr_room;
 	unsigned int mss = skb_shinfo(skb)->gso_size;
+	dma_addr_t start_hdr_phys;
 	u16 length, amsdu_pad;
 	u8 *start_hdr;
-	struct iwl_tso_hdr_page *hdr_page;
+	struct sg_table *sgt;
 	struct tso_t tso;
 
 	trace_iwlwifi_dev_tx(trans->dev, skb, tfd, sizeof(*tfd),
@@ -146,11 +187,11 @@ static int iwl_txq_gen2_build_amsdu(struct iwl_trans *trans,
 		(3 + snap_ip_tcp_hdrlen + sizeof(struct ethhdr));
 
 	/* Our device supports 9 segments at most, it will fit in 1 page */
-	hdr_page = iwl_pcie_get_page_hdr(trans, hdr_room, skb);
-	if (!hdr_page)
+	sgt = iwl_pcie_prep_tso(trans, skb, out_meta, &start_hdr, hdr_room);
+	if (!sgt)
 		return -ENOMEM;
 
-	start_hdr = hdr_page->pos;
+	start_hdr_phys = iwl_pcie_get_tso_page_phys(start_hdr);
 
 	/*
 	 * Pull the ieee80211 header to be able to use TSO core,
@@ -172,36 +213,34 @@ static int iwl_txq_gen2_build_amsdu(struct iwl_trans *trans,
 		unsigned int data_left = min_t(unsigned int, mss, total_len);
 		unsigned int tb_len;
 		dma_addr_t tb_phys;
-		u8 *subf_hdrs_start = hdr_page->pos;
+		u8 *pos_hdr = start_hdr;
 
 		total_len -= data_left;
 
-		memset(hdr_page->pos, 0, amsdu_pad);
-		hdr_page->pos += amsdu_pad;
+		memset(pos_hdr, 0, amsdu_pad);
+		pos_hdr += amsdu_pad;
 		amsdu_pad = (4 - (sizeof(struct ethhdr) + snap_ip_tcp_hdrlen +
 				  data_left)) & 0x3;
-		ether_addr_copy(hdr_page->pos, ieee80211_get_DA(hdr));
-		hdr_page->pos += ETH_ALEN;
-		ether_addr_copy(hdr_page->pos, ieee80211_get_SA(hdr));
-		hdr_page->pos += ETH_ALEN;
+		ether_addr_copy(pos_hdr, ieee80211_get_DA(hdr));
+		pos_hdr += ETH_ALEN;
+		ether_addr_copy(pos_hdr, ieee80211_get_SA(hdr));
+		pos_hdr += ETH_ALEN;
 
 		length = snap_ip_tcp_hdrlen + data_left;
-		*((__be16 *)hdr_page->pos) = cpu_to_be16(length);
-		hdr_page->pos += sizeof(length);
+		*((__be16 *)pos_hdr) = cpu_to_be16(length);
+		pos_hdr += sizeof(length);
 
 		/*
 		 * This will copy the SNAP as well which will be considered
 		 * as MAC header.
 		 */
-		tso_build_hdr(skb, hdr_page->pos, &tso, data_left, !total_len);
+		tso_build_hdr(skb, pos_hdr, &tso, data_left, !total_len);
 
-		hdr_page->pos += snap_ip_tcp_hdrlen;
+		pos_hdr += snap_ip_tcp_hdrlen;
 
-		tb_len = hdr_page->pos - start_hdr;
-		tb_phys = dma_map_single(trans->dev, start_hdr,
-					 tb_len, DMA_TO_DEVICE);
-		if (unlikely(dma_mapping_error(trans->dev, tb_phys)))
-			goto out_err;
+		tb_len = pos_hdr - start_hdr;
+		tb_phys = iwl_pcie_get_tso_page_phys(start_hdr);
+
 		/*
 		 * No need for _with_wa, this is from the TSO page and
 		 * we leave some space at the end of it so can't hit
@@ -211,21 +250,24 @@ static int iwl_txq_gen2_build_amsdu(struct iwl_trans *trans,
 		trace_iwlwifi_dev_tx_tb(trans->dev, skb, start_hdr,
 					tb_phys, tb_len);
 		/* add this subframe's headers' length to the tx_cmd */
-		le16_add_cpu(&tx_cmd->len, hdr_page->pos - subf_hdrs_start);
+		le16_add_cpu(&tx_cmd->len, tb_len);
 
 		/* prepare the start_hdr for the next subframe */
-		start_hdr = hdr_page->pos;
+		start_hdr = pos_hdr;
 
 		/* put the payload */
 		while (data_left) {
 			int ret;
 
 			tb_len = min_t(unsigned int, tso.size, data_left);
-			tb_phys = dma_map_single(trans->dev, tso.data,
-						 tb_len, DMA_TO_DEVICE);
+			tb_phys = iwl_pcie_get_sgt_tb_phys(sgt, tso.data);
+			/* Not a real mapping error, use direct comparison */
+			if (unlikely(tb_phys == DMA_MAPPING_ERROR))
+				goto out_err;
+
 			ret = iwl_txq_gen2_set_tb_with_wa(trans, skb, tfd,
 							  tb_phys, tso.data,
-							  tb_len, NULL);
+							  tb_len, NULL, false);
 			if (ret)
 				goto out_err;
 
@@ -233,6 +275,9 @@ static int iwl_txq_gen2_build_amsdu(struct iwl_trans *trans,
 			tso_build_data(skb, &tso, tb_len);
 		}
 	}
+
+	dma_sync_single_for_device(trans->dev, start_hdr_phys, hdr_room,
+				   DMA_TO_DEVICE);
 
 	/* re -add the WiFi header */
 	skb_push(skb, hdr_len);
@@ -290,8 +335,8 @@ iwl_tfh_tfd *iwl_txq_gen2_build_tx_amsdu(struct iwl_trans *trans,
 	 */
 	iwl_txq_gen2_set_tb(trans, tfd, tb_phys, len);
 
-	if (iwl_txq_gen2_build_amsdu(trans, skb, tfd, len + IWL_FIRST_TB_SIZE,
-				     hdr_len, dev_cmd))
+	if (iwl_txq_gen2_build_amsdu(trans, skb, tfd, out_meta,
+				     len + IWL_FIRST_TB_SIZE, hdr_len, dev_cmd))
 		goto out_err;
 
 	/* building the A-MSDU might have changed this data, memcpy it now */
@@ -323,7 +368,7 @@ static int iwl_txq_gen2_tx_add_frags(struct iwl_trans *trans,
 					   fragsz, DMA_TO_DEVICE);
 		ret = iwl_txq_gen2_set_tb_with_wa(trans, skb, tfd, tb_phys,
 						  skb_frag_address(frag),
-						  fragsz, out_meta);
+						  fragsz, out_meta, true);
 		if (ret)
 			return ret;
 	}
@@ -397,7 +442,7 @@ iwl_tfh_tfd *iwl_txq_gen2_build_tx(struct iwl_trans *trans,
 					 tb2_len, DMA_TO_DEVICE);
 		ret = iwl_txq_gen2_set_tb_with_wa(trans, skb, tfd, tb_phys,
 						  skb->data + hdr_len, tb2_len,
-						  NULL);
+						  NULL, true);
 		if (ret)
 			goto out_err;
 	}
@@ -412,7 +457,8 @@ iwl_tfh_tfd *iwl_txq_gen2_build_tx(struct iwl_trans *trans,
 					 skb_headlen(frag), DMA_TO_DEVICE);
 		ret = iwl_txq_gen2_set_tb_with_wa(trans, skb, tfd, tb_phys,
 						  frag->data,
-						  skb_headlen(frag), NULL);
+						  skb_headlen(frag), NULL,
+						  true);
 		if (ret)
 			goto out_err;
 		if (iwl_txq_gen2_tx_add_frags(trans, frag, tfd, out_meta))
@@ -607,6 +653,10 @@ void iwl_txq_gen2_tfd_unmap(struct iwl_trans *trans,
 		return;
 	}
 
+	/* TB1 is mapped directly, the rest is the TSO page and SG list. */
+	if (meta->sg_offset)
+		num_tbs = 2;
+
 	/* first TB is never freed - it's the bidirectional DMA data */
 	for (i = 1; i < num_tbs; i++) {
 		if (meta->tbs & BIT(i))
@@ -722,7 +772,7 @@ int iwl_txq_gen2_tx(struct iwl_trans *trans, struct sk_buff *skb,
 
 	/* Set up first empty entry in queue's array of Tx/cmd buffers */
 	out_meta = &txq->entries[idx].meta;
-	out_meta->flags = 0;
+	memset(out_meta, 0, sizeof(*out_meta));
 
 	tfd = iwl_txq_gen2_build_tfd(trans, txq, dev_cmd, skb, out_meta);
 	if (!tfd) {
@@ -771,17 +821,19 @@ static void iwl_txq_gen2_unmap(struct iwl_trans *trans, int txq_id)
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_txq *txq = trans_pcie->txqs.txq[txq_id];
 
-	spin_lock_bh(&txq->lock);
+	spin_lock_bh(&txq->reclaim_lock);
+	spin_lock(&txq->lock);
 	while (txq->write_ptr != txq->read_ptr) {
 		IWL_DEBUG_TX_REPLY(trans, "Q %d Free %d\n",
 				   txq_id, txq->read_ptr);
 
 		if (txq_id != trans_pcie->txqs.cmd.q_id) {
 			int idx = iwl_txq_get_cmd_index(txq, txq->read_ptr);
+			struct iwl_cmd_meta *cmd_meta = &txq->entries[idx].meta;
 			struct sk_buff *skb = txq->entries[idx].skb;
 
 			if (!WARN_ON_ONCE(!skb))
-				iwl_pcie_free_tso_page(trans, skb);
+				iwl_pcie_free_tso_pages(trans, skb, cmd_meta);
 		}
 		iwl_txq_gen2_free_tfd(trans, txq);
 		txq->read_ptr = iwl_txq_inc_wrap(trans, txq->read_ptr);
@@ -793,7 +845,8 @@ static void iwl_txq_gen2_unmap(struct iwl_trans *trans, int txq_id)
 		iwl_op_mode_free_skb(trans->op_mode, skb);
 	}
 
-	spin_unlock_bh(&txq->lock);
+	spin_unlock(&txq->lock);
+	spin_unlock_bh(&txq->reclaim_lock);
 
 	/* just in case - this queue may have been stopped */
 	iwl_trans_pcie_wake_queue(trans, txq);
@@ -1250,7 +1303,7 @@ int iwl_pcie_gen2_enqueue_hcmd(struct iwl_trans *trans,
 	out_cmd = txq->entries[idx].cmd;
 	out_meta = &txq->entries[idx].meta;
 
-	/* re-initialize to NULL */
+	/* re-initialize, this also marks the SG list as unused */
 	memset(out_meta, 0, sizeof(*out_meta));
 	if (cmd->flags & CMD_WANT_SKB)
 		out_meta->source = cmd;

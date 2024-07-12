@@ -566,7 +566,7 @@ static void iwl_mvm_release_frames(struct iwl_mvm *mvm,
 	lockdep_assert_held(&reorder_buf->lock);
 
 	while (ieee80211_sn_less(ssn, nssn)) {
-		int index = ssn % reorder_buf->buf_size;
+		int index = ssn % baid_data->buf_size;
 		struct sk_buff_head *skb_list = &entries[index].frames;
 		struct sk_buff *skb;
 
@@ -617,7 +617,7 @@ static void iwl_mvm_del_ba(struct iwl_mvm *mvm, int queue,
 	spin_lock_bh(&reorder_buf->lock);
 	iwl_mvm_release_frames(mvm, sta, NULL, ba_data, reorder_buf,
 			       ieee80211_sn_add(reorder_buf->head_sn,
-						reorder_buf->buf_size));
+						ba_data->buf_size));
 	spin_unlock_bh(&reorder_buf->lock);
 
 out:
@@ -839,7 +839,7 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 	}
 
 	/* put in reorder buffer */
-	index = sn % buffer->buf_size;
+	index = sn % baid_data->buf_size;
 	__skb_queue_tail(&entries[index].frames, skb);
 	buffer->num_stored++;
 

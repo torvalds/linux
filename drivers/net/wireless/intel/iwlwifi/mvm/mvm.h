@@ -450,6 +450,38 @@ struct iwl_mvm_esr_exit {
  * @unblock_esr_tpt_wk: work for unblocking EMLSR when tpt is high enough.
  * @roc_activity: currently running ROC activity for this vif (or
  *	ROC_NUM_ACTIVITIES if no activity is running).
+ * @session_prot_connection_loss: the connection was lost due to session
+ *	protection ending without receiving a beacon, so we need to now
+ *	protect the deauth separately
+ * @ap_early_keys: The firmware cannot install keys before stations etc.,
+ *	but higher layers work differently, so we store the keys here for
+ *	later installation.
+ * @ap_sta: pointer to the AP STA data structure
+ * @csa_count: CSA counter (old CSA implementation w/o firmware)
+ * @csa_misbehave: CSA AP misbehaviour flag (old implementation)
+ * @csa_target_freq: CSA target channel frequency (old implementation)
+ * @csa_work: CSA work (old implementation)
+ * @dbgfs_bf: beamforming debugfs data
+ * @dbgfs_dir: debugfs directory for this vif
+ * @dbgfs_pm: power management debugfs data
+ * @dbgfs_quota_min: debugfs value for minimal quota
+ * @dbgfs_slink: debugfs symlink for this interface
+ * @ftm_unprotected: unprotected FTM debugfs override
+ * @hs_time_event_data: hotspot/AUX ROC time event data
+ * @mac_pwr_cmd: debugfs override for MAC power command
+ * @target_ipv6_addrs: IPv6 addresses on this interface for offload
+ * @num_target_ipv6_addrs: number of @target_ipv6_addrs
+ * @tentative_addrs: bitmap of tentative IPv6 addresses in @target_ipv6_addrs
+ * @rekey_data: rekeying data for WoWLAN GTK rekey offload
+ * @seqno: storage for seqno for older firmware D0/D3 transition
+ * @seqno_valid: indicates @seqno is valid
+ * @time_event_data: session protection time event data
+ * @tsf_id: the TSF resource ID assigned in firmware (for firmware needing that)
+ * @tx_key_idx: WEP transmit key index for D3
+ * @uapsd_misbehaving_ap_addr: MLD address/BSSID of U-APSD misbehaving AP, to
+ *	not use U-APSD on reconnection
+ * @uapsd_nonagg_detected_wk: worker for handling detection of no aggregation
+ *	in U-APSD
  */
 struct iwl_mvm_vif {
 	struct iwl_mvm *mvm;
@@ -463,6 +495,7 @@ struct iwl_mvm_vif {
 	bool pm_enabled;
 	bool monitor_active;
 	bool esr_active;
+	bool session_prot_connection_loss;
 
 	u8 low_latency: 6;
 	u8 low_latency_actual: 1;
@@ -735,24 +768,20 @@ struct iwl_mvm_tcm {
  * struct iwl_mvm_reorder_buffer - per ra/tid/queue reorder buffer
  * @head_sn: reorder window head sn
  * @num_stored: number of mpdus stored in the buffer
- * @buf_size: the reorder buffer size as set by the last addba request
  * @queue: queue of this reorder buffer
  * @last_amsdu: track last ASMDU SN for duplication detection
  * @last_sub_index: track ASMDU sub frame index for duplication detection
  * @valid: reordering is valid for this queue
  * @lock: protect reorder buffer internal state
- * @mvm: mvm pointer, needed for frame timer context
  */
 struct iwl_mvm_reorder_buffer {
 	u16 head_sn;
 	u16 num_stored;
-	u16 buf_size;
 	int queue;
 	u16 last_amsdu;
 	u8 last_sub_index;
 	bool valid;
 	spinlock_t lock;
-	struct iwl_mvm *mvm;
 } ____cacheline_aligned_in_smp;
 
 /**
@@ -774,6 +803,7 @@ __aligned(roundup_pow_of_two(sizeof(struct sk_buff_head)))
  * @tid: tid of the session
  * @baid: baid of the session
  * @timeout: the timeout set in the addba request
+ * @buf_size: the reorder buffer size as set by the last addba request
  * @entries_per_queue: # of buffers per queue, this actually gets
  *	aligned up to avoid cache line sharing between queues
  * @last_rx: last rx jiffies, updated only if timeout passed from last update
@@ -790,13 +820,14 @@ struct iwl_mvm_baid_data {
 	u8 tid;
 	u8 baid;
 	u16 timeout;
+	u16 buf_size;
 	u16 entries_per_queue;
 	unsigned long last_rx;
 	struct timer_list session_timer;
 	struct iwl_mvm_baid_data __rcu **rcu_ptr;
 	struct iwl_mvm *mvm;
 	struct iwl_mvm_reorder_buffer reorder_buf[IWL_MAX_RX_HW_QUEUES];
-	struct iwl_mvm_reorder_buf_entry entries[];
+	struct iwl_mvm_reorder_buf_entry entries[] ____cacheline_aligned_in_smp;
 };
 
 static inline struct iwl_mvm_baid_data *

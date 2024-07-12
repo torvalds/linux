@@ -2859,7 +2859,7 @@ int ath11k_qmi_firmware_start(struct ath11k_base *ab,
 
 int ath11k_qmi_fwreset_from_cold_boot(struct ath11k_base *ab)
 {
-	int timeout;
+	long time_left;
 
 	if (!ath11k_core_coldboot_cal_support(ab) ||
 	    ab->hw_params.cbcal_restart_fw == 0)
@@ -2867,11 +2867,11 @@ int ath11k_qmi_fwreset_from_cold_boot(struct ath11k_base *ab)
 
 	ath11k_dbg(ab, ATH11K_DBG_QMI, "wait for cold boot done\n");
 
-	timeout = wait_event_timeout(ab->qmi.cold_boot_waitq,
-				     (ab->qmi.cal_done == 1),
-				     ATH11K_COLD_BOOT_FW_RESET_DELAY);
+	time_left = wait_event_timeout(ab->qmi.cold_boot_waitq,
+				       (ab->qmi.cal_done == 1),
+				       ATH11K_COLD_BOOT_FW_RESET_DELAY);
 
-	if (timeout <= 0) {
+	if (time_left <= 0) {
 		ath11k_warn(ab, "Coldboot Calibration timed out\n");
 		return -ETIMEDOUT;
 	}
@@ -2886,7 +2886,7 @@ EXPORT_SYMBOL(ath11k_qmi_fwreset_from_cold_boot);
 
 static int ath11k_qmi_process_coldboot_calibration(struct ath11k_base *ab)
 {
-	int timeout;
+	long time_left;
 	int ret;
 
 	ret = ath11k_qmi_wlanfw_mode_send(ab, ATH11K_FIRMWARE_MODE_COLD_BOOT);
@@ -2897,10 +2897,10 @@ static int ath11k_qmi_process_coldboot_calibration(struct ath11k_base *ab)
 
 	ath11k_dbg(ab, ATH11K_DBG_QMI, "Coldboot calibration wait started\n");
 
-	timeout = wait_event_timeout(ab->qmi.cold_boot_waitq,
-				     (ab->qmi.cal_done  == 1),
-				     ATH11K_COLD_BOOT_FW_RESET_DELAY);
-	if (timeout <= 0) {
+	time_left = wait_event_timeout(ab->qmi.cold_boot_waitq,
+				       (ab->qmi.cal_done  == 1),
+				       ATH11K_COLD_BOOT_FW_RESET_DELAY);
+	if (time_left <= 0) {
 		ath11k_warn(ab, "coldboot calibration timed out\n");
 		return 0;
 	}

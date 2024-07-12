@@ -4070,12 +4070,11 @@ void rtw8852c_set_channel_rf(struct rtw89_dev *rtwdev,
 void rtw8852c_mcc_get_ch_info(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx)
 {
 	struct rtw89_rfk_mcc_info *rfk_mcc = &rtwdev->rfk_mcc;
-	DECLARE_BITMAP(map, RTW89_IQK_CHS_NR) = {};
+	struct rtw89_rfk_chan_desc desc[__RTW89_RFK_CHS_NR_V0] = {};
 	const struct rtw89_chan *chan;
 	enum rtw89_entity_mode mode;
 	u8 chan_idx;
 	u8 idx;
-	u8 i;
 
 	mode = rtw89_get_entity_mode(rtwdev);
 	switch (mode) {
@@ -4087,34 +4086,21 @@ void rtw8852c_mcc_get_ch_info(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_i
 		break;
 	}
 
-	for (i = 0; i <= chan_idx; i++) {
-		chan = rtw89_chan_get(rtwdev, i);
+	chan = rtw89_chan_get(rtwdev, chan_idx);
 
-		for (idx = 0; idx < RTW89_IQK_CHS_NR; idx++) {
-			if (rfk_mcc->ch[idx] == chan->channel &&
-			    rfk_mcc->band[idx] == chan->band_type) {
-				if (i != chan_idx) {
-					set_bit(idx, map);
-					break;
-				}
+	for (idx = 0; idx < ARRAY_SIZE(desc); idx++) {
+		struct rtw89_rfk_chan_desc *p = &desc[idx];
 
-				goto bottom;
-			}
-		}
+		p->ch = rfk_mcc->ch[idx];
+
+		p->has_band = true;
+		p->band = rfk_mcc->band[idx];
 	}
 
-	idx = find_first_zero_bit(map, RTW89_IQK_CHS_NR);
-	if (idx == RTW89_IQK_CHS_NR) {
-		rtw89_debug(rtwdev, RTW89_DBG_RFK,
-			    "%s: no empty rfk table; force replace the first\n",
-			    __func__);
-		idx = 0;
-	}
+	idx = rtw89_rfk_chan_lookup(rtwdev, desc, ARRAY_SIZE(desc), chan);
 
 	rfk_mcc->ch[idx] = chan->channel;
 	rfk_mcc->band[idx] = chan->band_type;
-
-bottom:
 	rfk_mcc->table_idx = idx;
 }
 

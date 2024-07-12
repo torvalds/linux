@@ -710,7 +710,15 @@ struct iwl_rx_mpdu_desc {
 	__le32 reorder_data;
 
 	union {
+		/**
+		 * @v1: version 1 of the remaining RX descriptor,
+		 *	see &struct iwl_rx_mpdu_desc_v1
+		 */
 		struct iwl_rx_mpdu_desc_v1 v1;
+		/**
+		 * @v3: version 3 of the remaining RX descriptor,
+		 *	see &struct iwl_rx_mpdu_desc_v3
+		 */
 		struct iwl_rx_mpdu_desc_v3 v3;
 	};
 } __packed; /* RX_MPDU_RES_START_API_S_VER_3,

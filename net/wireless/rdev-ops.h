@@ -1532,4 +1532,16 @@ rdev_set_ttlm(struct cfg80211_registered_device *rdev,
 
 	return ret;
 }
+
+static inline u32
+rdev_get_radio_mask(struct cfg80211_registered_device *rdev,
+		    struct net_device *dev)
+{
+	struct wiphy *wiphy = &rdev->wiphy;
+
+	if (!rdev->ops->get_radio_mask)
+		return 0;
+
+	return rdev->ops->get_radio_mask(wiphy, dev);
+}
 #endif /* __CFG80211_RDEV_OPS */
