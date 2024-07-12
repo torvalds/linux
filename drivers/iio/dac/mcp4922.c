@@ -138,7 +138,6 @@ static int mcp4922_probe(struct spi_device *spi)
 
 	state->vref_mv = ret / 1000;
 
-	spi_set_drvdata(spi, indio_dev);
 	id = spi_get_device_id(spi);
 	indio_dev->info = &mcp4922_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
@@ -149,22 +148,13 @@ static int mcp4922_probe(struct spi_device *spi)
 		indio_dev->num_channels = MCP4922_NUM_CHANNELS;
 	indio_dev->name = id->name;
 
-	ret = iio_device_register(indio_dev);
-	if (ret) {
-		dev_err(&spi->dev, "Failed to register iio device: %d\n",
-				ret);
-		return ret;
-	}
+	ret = devm_iio_device_register(&spi->dev, indio_dev);
+	if (ret)
+		return dev_err_probe(&spi->dev, ret, "Failed to register iio device\n");
 
 	return 0;
 }
 
-static void mcp4922_remove(struct spi_device *spi)
-{
-	struct iio_dev *indio_dev = spi_get_drvdata(spi);
-
-	iio_device_unregister(indio_dev);
-}
 
 static const struct spi_device_id mcp4922_id[] = {
 	{"mcp4902", ID_MCP4902},
@@ -180,7 +170,6 @@ static struct spi_driver mcp4922_driver = {
 		   .name = "mcp4922",
 		   },
 	.probe = mcp4922_probe,
-	.remove = mcp4922_remove,
 	.id_table = mcp4922_id,
 };
 module_spi_driver(mcp4922_driver);
