@@ -37,6 +37,8 @@
 
 #include <drm/drm_cache.h>
 
+#include "ttm_bo_internal.h"
+
 struct ttm_transfer_obj {
 	struct ttm_buffer_object base;
 	struct ttm_buffer_object *bo;
