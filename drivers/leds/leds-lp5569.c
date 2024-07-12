@@ -8,6 +8,7 @@
 #include <linux/delay.h>
 #include <linux/firmware.h>
 #include <linux/i2c.h>
+#include <linux/iopoll.h>
 #include <linux/leds.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -92,6 +93,8 @@
 #define LP5569_ENG2_MUX_ADDR		0xd0
 #define LP5569_ENG3_MUX_ADDR		0xe0
 
+#define LP5569_STARTUP_SLEEP		500
+
 #define LEDn_STATUS_FAULT(n, status)	((status) >> (n) & BIT(0))
 
 #define LP5569_DEFAULT_CONFIG \
@@ -169,14 +172,7 @@ out:
 static int lp5569_post_init_device(struct lp55xx_chip *chip)
 {
 	int ret;
-	int val;
-
-	ret = lp55xx_write(chip, LP5569_REG_ENABLE, LP5569_ENABLE);
-	if (ret)
-		return ret;
-
-	/* Chip startup time is 500 us, 1 - 2 ms gives some margin */
-	usleep_range(1000, 2000);
+	u8 val;
 
 	val = LP5569_DEFAULT_CONFIG;
 	val |= FIELD_PREP(LP5569_CP_MODE_MASK, chip->pdata->charge_pump_mode);
@@ -199,6 +195,13 @@ static int lp5569_post_init_device(struct lp55xx_chip *chip)
 			return ret;
 	}
 
+	ret = lp55xx_write(chip, LP5569_REG_ENABLE, LP5569_ENABLE);
+	if (ret)
+		return ret;
+
+	read_poll_timeout(lp55xx_read, ret, !(val & LP5569_STARTUP_BUSY),
+			  LP5569_STARTUP_SLEEP, LP5569_STARTUP_SLEEP * 10, false,
+			  chip, LP5569_REG_STATUS, &val);
 
 	return lp5569_init_program_engine(chip);
 }
