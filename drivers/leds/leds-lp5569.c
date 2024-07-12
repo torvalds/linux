@@ -180,20 +180,25 @@ static int lp5569_post_init_device(struct lp55xx_chip *chip)
 
 	val = LP5569_DEFAULT_CONFIG;
 	val |= FIELD_PREP(LP5569_CP_MODE_MASK, chip->pdata->charge_pump_mode);
+	ret = lp55xx_write(chip, LP5569_REG_MISC, val);
+	if (ret)
+		return ret;
 
 	if (chip->pdata->clock_mode == LP55XX_CLOCK_INT) {
+		/* Internal clock MUST be configured before CLK output */
+		ret = lp55xx_update_bits(chip, LP5569_REG_MISC,
+					 LP5569_INTERNAL_CLK,
+					 LP5569_INTERNAL_CLK);
+		if (ret)
+			return ret;
+
 		ret = lp55xx_update_bits(chip, LP5569_REG_IO_CONTROL,
 					 LP5569_CLK_OUTPUT,
 					 LP5569_CLK_OUTPUT);
 		if (ret)
 			return ret;
-
-		val |= LP5569_INTERNAL_CLK;
 	}
 
-	ret = lp55xx_write(chip, LP5569_REG_MISC, val);
-	if (ret)
-		return ret;
 
 	return lp5569_init_program_engine(chip);
 }
