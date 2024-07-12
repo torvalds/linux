@@ -3448,7 +3448,7 @@ static int fast_page_fault(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 		u64 new_spte;
 
 		if (tdp_mmu_enabled)
-			sptep = kvm_tdp_mmu_fast_pf_get_last_sptep(vcpu, fault->addr, &spte);
+			sptep = kvm_tdp_mmu_fast_pf_get_last_sptep(vcpu, fault->gfn, &spte);
 		else
 			sptep = fast_pf_get_last_sptep(vcpu, fault->addr, &spte);
 
@@ -3458,7 +3458,7 @@ static int fast_page_fault(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 		 * available as the vCPU holds a reference to its root(s).
 		 */
 		if (WARN_ON_ONCE(!sptep))
-			spte = REMOVED_SPTE;
+			spte = FROZEN_SPTE;
 
 		if (!is_shadow_present_pte(spte))
 			break;
