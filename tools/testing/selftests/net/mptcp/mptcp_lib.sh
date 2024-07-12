@@ -428,8 +428,8 @@ mptcp_lib_check_tools() {
 }
 
 mptcp_lib_ns_init() {
-	if ! setup_ns ${@}; then
-		mptcp_lib_pr_fail "Failed to setup namespace ${@}"
+	if ! setup_ns "${@}"; then
+		mptcp_lib_pr_fail "Failed to setup namespaces ${*}"
 		exit ${KSFT_FAIL}
 	fi
 
