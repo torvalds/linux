@@ -17,8 +17,6 @@
 #include <linux/of.h>
 #include <linux/slab.h>
 
-#include <linux/platform_data/max6697.h>
-
 enum chips { max6581, max6602, max6622, max6636, max6689, max6693, max6694,
 	     max6697, max6698, max6699 };
 
@@ -558,54 +556,97 @@ static const struct attribute_group max6697_group = {
 };
 __ATTRIBUTE_GROUPS(max6697);
 
-static void max6697_get_config_of(struct device_node *node,
-				  struct max6697_platform_data *pdata)
+static int max6697_config_of(struct max6697_data *data, struct i2c_client *client)
 {
-	int len;
-	const __be32 *prop;
+	const struct max6697_chip_data *chip = data->chip;
+	struct device_node *node = client->dev.of_node;
+	int ret, confreg;
+	int factor = 0;
+	u32 vals[2];
 
-	pdata->smbus_timeout_disable =
-		of_property_read_bool(node, "smbus-timeout-disable");
-	pdata->extended_range_enable =
-		of_property_read_bool(node, "extended-range-enable");
-	pdata->beta_compensation =
-		of_property_read_bool(node, "beta-compensation-enable");
+	confreg = 0;
+	if (of_property_read_bool(node, "smbus-timeout-disable") &&
+	    (chip->valid_conf & MAX6697_CONF_TIMEOUT)) {
+		confreg |= MAX6697_CONF_TIMEOUT;
+	}
+	if (of_property_read_bool(node, "extended-range-enable") &&
+	    (chip->valid_conf & MAX6581_CONF_EXTENDED)) {
+		confreg |= MAX6581_CONF_EXTENDED;
+		data->temp_offset = 64;
+	}
+	if (of_property_read_bool(node, "beta-compensation-enable") &&
+	    (chip->valid_conf & MAX6693_CONF_BETA)) {
+		confreg |= MAX6693_CONF_BETA;
+	}
 
-	prop = of_get_property(node, "alert-mask", &len);
-	if (prop && len == sizeof(u32))
-		pdata->alert_mask = be32_to_cpu(prop[0]);
-	prop = of_get_property(node, "over-temperature-mask", &len);
-	if (prop && len == sizeof(u32))
-		pdata->over_temperature_mask = be32_to_cpu(prop[0]);
-	prop = of_get_property(node, "resistance-cancellation", &len);
-	if (prop) {
-		if (len == sizeof(u32))
-			pdata->resistance_cancellation = be32_to_cpu(prop[0]);
-		else
-			pdata->resistance_cancellation = 0xfe;
+	if (of_property_read_u32(node, "alert-mask", vals))
+		vals[0] = 0;
+	ret = i2c_smbus_write_byte_data(client, MAX6697_REG_ALERT_MASK,
+					MAX6697_ALERT_MAP_BITS(vals[0]));
+	if (ret)
+		return ret;
+
+	if (of_property_read_u32(node, "over-temperature-mask", vals))
+		vals[0] = 0;
+	ret = i2c_smbus_write_byte_data(client, MAX6697_REG_OVERT_MASK,
+					MAX6697_OVERT_MAP_BITS(vals[0]));
+	if (ret)
+		return ret;
+
+	if (data->type != max6581) {
+		if (of_property_read_bool(node, "resistance-cancellation") &&
+		    chip->valid_conf & MAX6697_CONF_RESISTANCE) {
+			confreg |= MAX6697_CONF_RESISTANCE;
+			factor = 1;
+		}
+	} else {
+		if (of_property_read_u32(node, "resistance-cancellation", &vals[0])) {
+			if (of_property_read_bool(node, "resistance-cancellation"))
+				vals[0] = 0xfe;
+			else
+				vals[0] = 0;
+		}
+
+		vals[0] &= 0xfe;
+		factor = hweight8(vals[0]);
+		ret = i2c_smbus_write_byte_data(client, MAX6581_REG_RESISTANCE,
+						vals[0] >> 1);
+		if (ret < 0)
+			return ret;
+
+		if (of_property_read_u32_array(node, "transistor-ideality", vals, 2)) {
+			vals[0] = 0;
+			vals[1] = 0;
+		}
+
+		ret = i2c_smbus_write_byte_data(client, MAX6581_REG_IDEALITY,
+						vals[1]);
+		if (ret < 0)
+			return ret;
+		ret = i2c_smbus_write_byte_data(client,
+						MAX6581_REG_IDEALITY_SELECT,
+						(vals[0] & 0xfe) >> 1);
+		if (ret < 0)
+			return ret;
 	}
-	prop = of_get_property(node, "transistor-ideality", &len);
-	if (prop && len == 2 * sizeof(u32)) {
-			pdata->ideality_mask = be32_to_cpu(prop[0]);
-			pdata->ideality_value = be32_to_cpu(prop[1]);
-	}
+	ret = i2c_smbus_write_byte_data(client, MAX6697_REG_CONFIG, confreg);
+	if (ret < 0)
+		return ret;
+	return factor;
 }
 
 static int max6697_init_chip(struct max6697_data *data,
 			     struct i2c_client *client)
 {
-	struct max6697_platform_data *pdata = dev_get_platdata(&client->dev);
-	struct max6697_platform_data p;
 	const struct max6697_chip_data *chip = data->chip;
 	int factor = chip->channels;
 	int ret, reg;
 
 	/*
-	 * Don't touch configuration if neither platform data nor OF
-	 * configuration was specified. If that is the case, use the
-	 * current chip configuration.
+	 * Don't touch configuration if there is no devicetree configuration.
+	 * If that is the case, use the current chip configuration.
 	 */
-	if (!pdata && !client->dev.of_node) {
+	if (!client->dev.of_node) {
 		reg = i2c_smbus_read_byte_data(client, MAX6697_REG_CONFIG);
 		if (reg < 0)
 			return reg;
@@ -621,67 +662,14 @@ static int max6697_init_chip(struct max6697_data *data,
 			if (reg & MAX6697_CONF_RESISTANCE)
 				factor++;
 		}
-		goto done;
-	}
-
-	if (client->dev.of_node) {
-		memset(&p, 0, sizeof(p));
-		max6697_get_config_of(client->dev.of_node, &p);
-		pdata = &p;
-	}
-
-	reg = 0;
-	if (pdata->smbus_timeout_disable &&
-	    (chip->valid_conf & MAX6697_CONF_TIMEOUT)) {
-		reg |= MAX6697_CONF_TIMEOUT;
-	}
-	if (pdata->extended_range_enable &&
-	    (chip->valid_conf & MAX6581_CONF_EXTENDED)) {
-		reg |= MAX6581_CONF_EXTENDED;
-		data->temp_offset = 64;
-	}
-	if (pdata->resistance_cancellation &&
-	    (chip->valid_conf & MAX6697_CONF_RESISTANCE)) {
-		reg |= MAX6697_CONF_RESISTANCE;
-		factor++;
-	}
-	if (pdata->beta_compensation &&
-	    (chip->valid_conf & MAX6693_CONF_BETA)) {
-		reg |= MAX6693_CONF_BETA;
-	}
-
-	ret = i2c_smbus_write_byte_data(client, MAX6697_REG_CONFIG, reg);
-	if (ret < 0)
-		return ret;
-
-	ret = i2c_smbus_write_byte_data(client, MAX6697_REG_ALERT_MASK,
-				MAX6697_ALERT_MAP_BITS(pdata->alert_mask));
-	if (ret < 0)
-		return ret;
-
-	ret = i2c_smbus_write_byte_data(client, MAX6697_REG_OVERT_MASK,
-			MAX6697_OVERT_MAP_BITS(pdata->over_temperature_mask));
-	if (ret < 0)
-		return ret;
-
-	if (data->type == max6581) {
-		factor += hweight8(pdata->resistance_cancellation >> 1);
-		ret = i2c_smbus_write_byte_data(client, MAX6581_REG_RESISTANCE,
-					pdata->resistance_cancellation >> 1);
+		data->update_interval = factor * MAX6697_CONV_TIME;
+	} else {
+		ret = max6697_config_of(data, client);
 		if (ret < 0)
 			return ret;
-		ret = i2c_smbus_write_byte_data(client, MAX6581_REG_IDEALITY,
-						pdata->ideality_value);
-		if (ret < 0)
-			return ret;
-		ret = i2c_smbus_write_byte_data(client,
-						MAX6581_REG_IDEALITY_SELECT,
-						pdata->ideality_mask >> 1);
-		if (ret < 0)
-			return ret;
+		data->update_interval = (factor + ret) * MAX6697_CONV_TIME;
 	}
-done:
-	data->update_interval = factor * MAX6697_CONV_TIME;
+
 	return 0;
 }
 
