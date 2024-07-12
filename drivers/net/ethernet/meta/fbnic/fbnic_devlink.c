@@ -65,6 +65,8 @@ struct fbnic_dev *fbnic_devlink_alloc(struct pci_dev *pdev)
 	fbd->uc_addr4 = iomap_table[4];
 
 	fbd->dsn = pci_get_dsn(pdev);
+	fbd->mps = pcie_get_mps(pdev);
+	fbd->readrq = pcie_get_readrq(pdev);
 
 	return fbd;
 }

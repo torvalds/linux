@@ -29,6 +29,35 @@ static const struct pci_device_id fbnic_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, fbnic_pci_tbl);
 
+u32 fbnic_rd32(struct fbnic_dev *fbd, u32 reg)
+{
+	u32 __iomem *csr = READ_ONCE(fbd->uc_addr0);
+	u32 value;
+
+	if (!csr)
+		return ~0U;
+
+	value = readl(csr + reg);
+
+	/* If any bits are 0 value should be valid */
+	if (~value)
+		return value;
+
+	/* All 1's may be valid if ZEROs register still works */
+	if (reg != FBNIC_MASTER_SPARE_0 && ~readl(csr + FBNIC_MASTER_SPARE_0))
+		return value;
+
+	/* Hardware is giving us all 1's reads, assume it is gone */
+	WRITE_ONCE(fbd->uc_addr0, NULL);
+	WRITE_ONCE(fbd->uc_addr4, NULL);
+
+	dev_err(fbd->dev,
+		"Failed read (idx 0x%x AKA addr 0x%x), disabled CSR access, awaiting reset\n",
+		reg, reg << 2);
+
+	return ~0U;
+}
+
 /**
  * fbnic_probe - Device Initialization Routine
  * @pdev: PCI device information struct
@@ -86,6 +115,12 @@ static int fbnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		goto free_fbd;
 
+	err = fbnic_mac_init(fbd);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to initialize MAC: %d\n", err);
+		goto free_irqs;
+	}
+
 	fbnic_devlink_register(fbd);
 
 	if (!fbd->dsn) {
@@ -101,6 +136,8 @@ init_failure_mode:
 	  * firmware updates for fixes.
 	  */
 	return 0;
+free_irqs:
+	fbnic_free_irqs(fbd);
 free_fbd:
 	pci_disable_device(pdev);
 	fbnic_devlink_free(fbd);
@@ -156,6 +193,8 @@ static int __fbnic_pm_resume(struct device *dev)
 	err = fbnic_alloc_irqs(fbd);
 	if (err)
 		goto err_invalidate_uc_addr;
+
+	fbd->mac->init_regs(fbd);
 
 	return 0;
 err_invalidate_uc_addr:

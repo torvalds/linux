@@ -9,4 +9,5 @@ obj-$(CONFIG_FBNIC) += fbnic.o
 
 fbnic-y := fbnic_devlink.o \
 	   fbnic_irq.o \
+	   fbnic_mac.o \
 	   fbnic_pci.o
