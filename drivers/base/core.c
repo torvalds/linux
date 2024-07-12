@@ -572,7 +572,11 @@ static int devlink_add_symlinks(struct device *dev)
 	len = max(strlen(dev_bus_name(sup)) + strlen(dev_name(sup)),
 		  strlen(dev_bus_name(con)) + strlen(dev_name(con)));
 	len += strlen(":");
-	len += strlen("supplier:") + 1;
+	/*
+	 * we kzalloc() memory for symlink name of both supplier and
+	 * consumer, so explicitly take into account both prefix.
+	 */
+	len += max(strlen("supplier:"), strlen("consumer:")) + 1;
 	buf = kzalloc(len, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
@@ -623,7 +627,7 @@ static void devlink_remove_symlinks(struct device *dev)
 	len = max(strlen(dev_bus_name(sup)) + strlen(dev_name(sup)),
 		  strlen(dev_bus_name(con)) + strlen(dev_name(con)));
 	len += strlen(":");
-	len += strlen("supplier:") + 1;
+	len += max(strlen("supplier:"), strlen("consumer:")) + 1;
 	buf = kzalloc(len, GFP_KERNEL);
 	if (!buf) {
 		WARN(1, "Unable to properly free device link symlinks!\n");
