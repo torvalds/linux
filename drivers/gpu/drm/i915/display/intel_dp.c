@@ -5282,14 +5282,11 @@ static int intel_dp_retrain_link(struct intel_encoder *encoder,
 
 void intel_dp_link_check(struct intel_encoder *encoder)
 {
-	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	struct drm_modeset_acquire_ctx ctx;
 	int ret;
 
 	intel_modeset_lock_ctx_retry(&ctx, NULL, 0, ret)
 		ret = intel_dp_retrain_link(encoder, &ctx);
-
-	drm_WARN_ON(&i915->drm, ret);
 }
 
 void intel_dp_check_link_state(struct intel_dp *intel_dp)
