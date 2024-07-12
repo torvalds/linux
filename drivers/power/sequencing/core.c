@@ -212,7 +212,8 @@ pwrseq_target_new(const struct pwrseq_target_data *data)
 
 static void pwrseq_target_free(struct pwrseq_target *target)
 {
-	pwrseq_unit_put(target->unit);
+	if (!IS_ERR_OR_NULL(target->unit))
+		pwrseq_unit_put(target->unit);
 	kfree_const(target->name);
 	kfree(target);
 }
