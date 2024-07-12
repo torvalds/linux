@@ -32,12 +32,12 @@ TIPC Features
 - Service Addressing
 
   A fundamental concept in TIPC is that of Service Addressing which makes it
-  possible for a programmer to chose his own address, bind it to a server
+  possible for a programmer to choose his own address, bind it to a server
   socket and let client programs use only that address for sending messages.
 
 - Service Tracking
 
-  A client wanting to wait for the availability of a server, uses the Service
+  A client wanting to wait for the availability of a server uses the Service
   Tracking mechanism to subscribe for binding and unbinding/close events for
   sockets with the associated service address.
 
@@ -61,17 +61,17 @@ TIPC Features
   Multicast with very good performance and scalability is available both in
   datagram mode and in communication group mode.
 
-- Inter Node Links
+- Inter-Node Links
 
   Communication between any two nodes in a cluster is maintained by one or two
-  Inter Node Links, which both guarantee data traffic integrity and monitor
+  Inter-Node Links, which both guarantee data traffic integrity and monitor
   the peer node's availability.
 
 - Cluster Scalability
 
-  By applying the Overlapping Ring Monitoring algorithm on the inter node links
+  By applying the Overlapping Ring Monitoring algorithm on the inter-node links
   it is possible to scale TIPC clusters up to 1000 nodes with a maintained
-  neighbor failure discovery time of 1-2 seconds. For smaller clusters this
+  neighbor failure discovery time of 1-2 seconds. For smaller clusters, this
   time can be made much shorter.
 
 - Neighbor Discovery
@@ -85,7 +85,7 @@ TIPC Features
   When running TIPC in single node mode no configuration whatsoever is needed.
   When running in cluster mode TIPC must as a minimum be given a node address
   (before Linux 4.17) and told which interface to attach to. The "tipc"
-  configuration tool makes is possible to add and maintain many more
+  configuration tool makes it possible to add and maintain many more
   configuration parameters.
 
 - Performance
@@ -97,7 +97,7 @@ TIPC Features
 
 - Language Support
 
-  The TIPC user API has support for C, Python, Perl, Ruby, D and Go.
+  The TIPC user API has support for C, Python, Perl, Ruby, D, and Go.
 
 More Information
 ----------------
@@ -112,7 +112,7 @@ More Information
 
 - How to contribute to TIPC:
 
-- http://tipc.io/contacts.html
+  http://tipc.io/contacts.html
 
 - More details about TIPC specification:
 
