@@ -21,6 +21,7 @@ config FBNIC
 	tristate "Meta Platforms Host Network Interface"
 	depends on X86_64 || COMPILE_TEST
 	depends on PCI_MSI
+	select PHYLINK
 	help
 	  This driver supports Meta Platforms Host Network Interface.
 

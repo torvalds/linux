@@ -116,12 +116,14 @@ static void fbnic_service_task_start(struct fbnic_net *fbn)
 	struct fbnic_dev *fbd = fbn->fbd;
 
 	schedule_delayed_work(&fbd->service_task, HZ);
+	phylink_resume(fbn->phylink);
 }
 
 static void fbnic_service_task_stop(struct fbnic_net *fbn)
 {
 	struct fbnic_dev *fbd = fbn->fbd;
 
+	phylink_suspend(fbn->phylink, fbnic_bmc_present(fbd));
 	cancel_delayed_work(&fbd->service_task);
 }
 

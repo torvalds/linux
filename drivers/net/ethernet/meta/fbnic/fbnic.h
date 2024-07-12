@@ -21,6 +21,7 @@ struct fbnic_dev {
 	u32 __iomem *uc_addr4;
 	const struct fbnic_mac *mac;
 	unsigned int fw_msix_vector;
+	unsigned int pcs_msix_vector;
 	unsigned short num_irqs;
 
 	struct delayed_work service_task;
@@ -49,6 +50,7 @@ struct fbnic_dev {
  */
 enum {
 	FBNIC_FW_MSIX_ENTRY,
+	FBNIC_PCS_MSIX_ENTRY,
 	FBNIC_NON_NAPI_VECTORS
 };
 
@@ -95,6 +97,11 @@ void fbnic_fw_wr32(struct fbnic_dev *fbd, u32 reg, u32 val);
 #define fw_wr32(_f, _r, _v)	fbnic_fw_wr32(_f, _r, _v)
 #define fw_wrfl(_f)		fbnic_fw_rd32(_f, FBNIC_FW_ZERO_REG)
 
+static inline bool fbnic_bmc_present(struct fbnic_dev *fbd)
+{
+	return fbd->fw_cap.bmc_present;
+}
+
 static inline bool fbnic_init_failure(struct fbnic_dev *fbd)
 {
 	return !fbd->netdev;
@@ -109,6 +116,9 @@ void fbnic_devlink_unregister(struct fbnic_dev *fbd);
 
 int fbnic_fw_enable_mbx(struct fbnic_dev *fbd);
 void fbnic_fw_disable_mbx(struct fbnic_dev *fbd);
+
+int fbnic_pcs_irq_enable(struct fbnic_dev *fbd);
+void fbnic_pcs_irq_disable(struct fbnic_dev *fbd);
 
 int fbnic_request_irq(struct fbnic_dev *dev, int nr, irq_handler_t handler,
 		      unsigned long flags, const char *name, void *data);

@@ -45,6 +45,10 @@ int __fbnic_open(struct fbnic_net *fbn)
 	if (err)
 		goto release_ownership;
 
+	err = fbnic_pcs_irq_enable(fbd);
+	if (err)
+		goto release_ownership;
+
 	return 0;
 release_ownership:
 	fbnic_fw_xmit_ownership_msg(fbn->fbd, false);
@@ -72,6 +76,7 @@ static int fbnic_stop(struct net_device *netdev)
 	struct fbnic_net *fbn = netdev_priv(netdev);
 
 	fbnic_down(fbn);
+	fbnic_pcs_irq_disable(fbn->fbd);
 
 	fbnic_fw_xmit_ownership_msg(fbn->fbd, false);
 
@@ -114,6 +119,11 @@ void fbnic_reset_queues(struct fbnic_net *fbn,
  **/
 void fbnic_netdev_free(struct fbnic_dev *fbd)
 {
+	struct fbnic_net *fbn = netdev_priv(fbd->netdev);
+
+	if (fbn->phylink)
+		phylink_destroy(fbn->phylink);
+
 	free_netdev(fbd->netdev);
 	fbd->netdev = NULL;
 }
@@ -162,9 +172,21 @@ struct net_device *fbnic_netdev_alloc(struct fbnic_dev *fbd)
 	netdev->min_mtu = IPV6_MIN_MTU;
 	netdev->max_mtu = FBNIC_MAX_JUMBO_FRAME_SIZE - ETH_HLEN;
 
+	/* TBD: This is workaround for BMC as phylink doesn't have support
+	 * for leavling the link enabled if a BMC is present.
+	 */
+	netdev->ethtool->wol_enabled = true;
+
+	fbn->fec = FBNIC_FEC_AUTO | FBNIC_FEC_RS;
+	fbn->link_mode = FBNIC_LINK_AUTO | FBNIC_LINK_50R2;
 	netif_carrier_off(netdev);
 
 	netif_tx_stop_all_queues(netdev);
+
+	if (fbnic_phylink_init(netdev)) {
+		fbnic_netdev_free(fbd);
+		return NULL;
+	}
 
 	return netdev;
 }

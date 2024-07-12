@@ -5,6 +5,7 @@
 #include <linux/types.h>
 
 #include "fbnic.h"
+#include "fbnic_netdev.h"
 #include "fbnic_txrx.h"
 
 static irqreturn_t fbnic_fw_msix_intr(int __always_unused irq, void *data)
@@ -81,6 +82,70 @@ void fbnic_fw_disable_mbx(struct fbnic_dev *fbd)
 	fbnic_mbx_clean(fbd);
 }
 
+static irqreturn_t fbnic_pcs_msix_intr(int __always_unused irq, void *data)
+{
+	struct fbnic_dev *fbd = data;
+	struct fbnic_net *fbn;
+
+	if (fbd->mac->pcs_get_link_event(fbd) == FBNIC_LINK_EVENT_NONE) {
+		fbnic_wr32(fbd, FBNIC_INTR_MASK_CLEAR(0),
+			   1u << FBNIC_PCS_MSIX_ENTRY);
+		return IRQ_HANDLED;
+	}
+
+	fbn = netdev_priv(fbd->netdev);
+
+	phylink_pcs_change(&fbn->phylink_pcs, false);
+
+	return IRQ_HANDLED;
+}
+
+/**
+ * fbnic_pcs_irq_enable - Configure the MAC to enable it to advertise link
+ * @fbd: Pointer to device to initialize
+ *
+ * This function provides basic bringup for the MAC/PCS IRQ. For now the IRQ
+ * will remain disabled until we start the MAC/PCS/PHY logic via phylink.
+ *
+ * Return: non-zero on failure.
+ **/
+int fbnic_pcs_irq_enable(struct fbnic_dev *fbd)
+{
+	u32 vector = fbd->pcs_msix_vector;
+	int err;
+
+	/* Request the IRQ for MAC link vector.
+	 * Map MAC cause to it, and unmask it
+	 */
+	err = request_irq(vector, &fbnic_pcs_msix_intr, 0,
+			  fbd->netdev->name, fbd);
+	if (err)
+		return err;
+
+	fbnic_wr32(fbd, FBNIC_INTR_MSIX_CTRL(FBNIC_INTR_MSIX_CTRL_PCS_IDX),
+		   FBNIC_PCS_MSIX_ENTRY | FBNIC_INTR_MSIX_CTRL_ENABLE);
+
+	return 0;
+}
+
+/**
+ * fbnic_pcs_irq_disable - Teardown the MAC IRQ to prepare for stopping
+ * @fbd: Pointer to device that is stopping
+ *
+ * This function undoes the work done in fbnic_pcs_irq_enable and prepares
+ * the device to no longer receive traffic on the host interface.
+ **/
+void fbnic_pcs_irq_disable(struct fbnic_dev *fbd)
+{
+	/* Disable interrupt */
+	fbnic_wr32(fbd, FBNIC_INTR_MSIX_CTRL(FBNIC_INTR_MSIX_CTRL_PCS_IDX),
+		   FBNIC_PCS_MSIX_ENTRY);
+	fbnic_wr32(fbd, FBNIC_INTR_MASK_SET(0), 1u << FBNIC_PCS_MSIX_ENTRY);
+
+	/* Free the vector */
+	free_irq(fbd->pcs_msix_vector, fbd);
+}
+
 int fbnic_request_irq(struct fbnic_dev *fbd, int nr, irq_handler_t handler,
 		      unsigned long flags, const char *name, void *data)
 {
@@ -108,6 +173,7 @@ void fbnic_free_irqs(struct fbnic_dev *fbd)
 {
 	struct pci_dev *pdev = to_pci_dev(fbd->dev);
 
+	fbd->pcs_msix_vector = 0;
 	fbd->fw_msix_vector = 0;
 
 	fbd->num_irqs = 0;
@@ -135,6 +201,7 @@ int fbnic_alloc_irqs(struct fbnic_dev *fbd)
 
 	fbd->num_irqs = num_irqs;
 
+	fbd->pcs_msix_vector = pci_irq_vector(pdev, FBNIC_PCS_MSIX_ENTRY);
 	fbd->fw_msix_vector = pci_irq_vector(pdev, FBNIC_FW_MSIX_ENTRY);
 
 	return 0;

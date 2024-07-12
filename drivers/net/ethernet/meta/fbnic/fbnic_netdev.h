@@ -5,6 +5,7 @@
 #define _FBNIC_NETDEV_H_
 
 #include <linux/types.h>
+#include <linux/phylink.h>
 
 #include "fbnic_txrx.h"
 
@@ -22,9 +23,18 @@ struct fbnic_net {
 
 	u16 num_napi;
 
+	struct phylink *phylink;
+	struct phylink_config phylink_config;
+	struct phylink_pcs phylink_pcs;
+
+	/* TBD: Remove these when phylink supports FEC and lane config */
+	u8 fec;
+	u8 link_mode;
+
 	u16 num_tx_queues;
 	u16 num_rx_queues;
 
+	u64 link_down_events;
 	struct list_head napis;
 };
 
@@ -39,4 +49,5 @@ void fbnic_netdev_unregister(struct net_device *netdev);
 void fbnic_reset_queues(struct fbnic_net *fbn,
 			unsigned int tx, unsigned int rx);
 
+int fbnic_phylink_init(struct net_device *netdev);
 #endif /* _FBNIC_NETDEV_H_ */

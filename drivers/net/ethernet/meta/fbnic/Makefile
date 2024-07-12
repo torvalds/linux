@@ -13,5 +13,6 @@ fbnic-y := fbnic_devlink.o \
 	   fbnic_mac.o \
 	   fbnic_netdev.o \
 	   fbnic_pci.o \
+	   fbnic_phylink.o \
 	   fbnic_tlv.o \
 	   fbnic_txrx.o

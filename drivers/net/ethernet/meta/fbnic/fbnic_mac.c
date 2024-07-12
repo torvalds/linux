@@ -6,6 +6,7 @@
 
 #include "fbnic.h"
 #include "fbnic_mac.h"
+#include "fbnic_netdev.h"
 
 static void fbnic_init_readrq(struct fbnic_dev *fbd, unsigned int offset,
 			      unsigned int cls, unsigned int readrq)
@@ -402,8 +403,248 @@ static void fbnic_mac_init_regs(struct fbnic_dev *fbd)
 	fbnic_mac_init_txb(fbd);
 }
 
+static void fbnic_mac_tx_pause_config(struct fbnic_dev *fbd, bool tx_pause)
+{
+	u32 rxb_pause_ctrl;
+
+	/* Enable generation of pause frames if enabled */
+	rxb_pause_ctrl = rd32(fbd, FBNIC_RXB_PAUSE_DROP_CTRL);
+	rxb_pause_ctrl &= ~FBNIC_RXB_PAUSE_DROP_CTRL_PAUSE_ENABLE;
+	if (tx_pause)
+		rxb_pause_ctrl |=
+			FIELD_PREP(FBNIC_RXB_PAUSE_DROP_CTRL_PAUSE_ENABLE,
+				   FBNIC_PAUSE_EN_MASK);
+	wr32(fbd, FBNIC_RXB_PAUSE_DROP_CTRL, rxb_pause_ctrl);
+}
+
+static int fbnic_pcs_get_link_event_asic(struct fbnic_dev *fbd)
+{
+	u32 pcs_intr_mask = rd32(fbd, FBNIC_SIG_PCS_INTR_STS);
+
+	if (pcs_intr_mask & FBNIC_SIG_PCS_INTR_LINK_DOWN)
+		return FBNIC_LINK_EVENT_DOWN;
+
+	return (pcs_intr_mask & FBNIC_SIG_PCS_INTR_LINK_UP) ?
+	       FBNIC_LINK_EVENT_UP : FBNIC_LINK_EVENT_NONE;
+}
+
+static u32 __fbnic_mac_cmd_config_asic(struct fbnic_dev *fbd,
+				       bool tx_pause, bool rx_pause)
+{
+	/* Enable MAC Promiscuous mode and Tx padding */
+	u32 command_config = FBNIC_MAC_COMMAND_CONFIG_TX_PAD_EN |
+			     FBNIC_MAC_COMMAND_CONFIG_PROMISC_EN;
+	struct fbnic_net *fbn = netdev_priv(fbd->netdev);
+
+	/* Disable pause frames if not enabled */
+	if (!tx_pause)
+		command_config |= FBNIC_MAC_COMMAND_CONFIG_TX_PAUSE_DIS;
+	if (!rx_pause)
+		command_config |= FBNIC_MAC_COMMAND_CONFIG_RX_PAUSE_DIS;
+
+	/* Disable fault handling if no FEC is requested */
+	if ((fbn->fec & FBNIC_FEC_MODE_MASK) == FBNIC_FEC_OFF)
+		command_config |= FBNIC_MAC_COMMAND_CONFIG_FLT_HDL_DIS;
+
+	return command_config;
+}
+
+static bool fbnic_mac_get_pcs_link_status(struct fbnic_dev *fbd)
+{
+	struct fbnic_net *fbn = netdev_priv(fbd->netdev);
+	u32 pcs_status, lane_mask = ~0;
+
+	pcs_status = rd32(fbd, FBNIC_SIG_PCS_OUT0);
+	if (!(pcs_status & FBNIC_SIG_PCS_OUT0_LINK))
+		return false;
+
+	/* Define the expected lane mask for the status bits we need to check */
+	switch (fbn->link_mode & FBNIC_LINK_MODE_MASK) {
+	case FBNIC_LINK_100R2:
+		lane_mask = 0xf;
+		break;
+	case FBNIC_LINK_50R1:
+		lane_mask = 3;
+		break;
+	case FBNIC_LINK_50R2:
+		switch (fbn->fec & FBNIC_FEC_MODE_MASK) {
+		case FBNIC_FEC_OFF:
+			lane_mask = 0x63;
+			break;
+		case FBNIC_FEC_RS:
+			lane_mask = 5;
+			break;
+		case FBNIC_FEC_BASER:
+			lane_mask = 0xf;
+			break;
+		}
+		break;
+	case FBNIC_LINK_25R1:
+		lane_mask = 1;
+		break;
+	}
+
+	/* Use an XOR to remove the bits we expect to see set */
+	switch (fbn->fec & FBNIC_FEC_MODE_MASK) {
+	case FBNIC_FEC_OFF:
+		lane_mask ^= FIELD_GET(FBNIC_SIG_PCS_OUT0_BLOCK_LOCK,
+				       pcs_status);
+		break;
+	case FBNIC_FEC_RS:
+		lane_mask ^= FIELD_GET(FBNIC_SIG_PCS_OUT0_AMPS_LOCK,
+				       pcs_status);
+		break;
+	case FBNIC_FEC_BASER:
+		lane_mask ^= FIELD_GET(FBNIC_SIG_PCS_OUT1_FCFEC_LOCK,
+				       rd32(fbd, FBNIC_SIG_PCS_OUT1));
+		break;
+	}
+
+	/* If all lanes cancelled then we have a lock on all lanes */
+	return !lane_mask;
+}
+
+static bool fbnic_pcs_get_link_asic(struct fbnic_dev *fbd)
+{
+	bool link;
+
+	/* Flush status bits to clear possible stale data,
+	 * bits should reset themselves back to 1 if link is truly up
+	 */
+	wr32(fbd, FBNIC_SIG_PCS_OUT0, FBNIC_SIG_PCS_OUT0_LINK |
+				      FBNIC_SIG_PCS_OUT0_BLOCK_LOCK |
+				      FBNIC_SIG_PCS_OUT0_AMPS_LOCK);
+	wr32(fbd, FBNIC_SIG_PCS_OUT1, FBNIC_SIG_PCS_OUT1_FCFEC_LOCK);
+	wrfl(fbd);
+
+	/* Clear interrupt state due to recent changes. */
+	wr32(fbd, FBNIC_SIG_PCS_INTR_STS,
+	     FBNIC_SIG_PCS_INTR_LINK_DOWN | FBNIC_SIG_PCS_INTR_LINK_UP);
+
+	link = fbnic_mac_get_pcs_link_status(fbd);
+
+	/* Enable interrupt to only capture changes in link state */
+	wr32(fbd, FBNIC_SIG_PCS_INTR_MASK,
+	     ~FBNIC_SIG_PCS_INTR_LINK_DOWN & ~FBNIC_SIG_PCS_INTR_LINK_UP);
+	wr32(fbd, FBNIC_INTR_MASK_CLEAR(0), 1u << FBNIC_PCS_MSIX_ENTRY);
+
+	return link;
+}
+
+static void fbnic_pcs_get_fw_settings(struct fbnic_dev *fbd)
+{
+	struct fbnic_net *fbn = netdev_priv(fbd->netdev);
+	u8 link_mode = fbn->link_mode;
+	u8 fec = fbn->fec;
+
+	/* Update FEC first to reflect FW current mode */
+	if (fbn->fec & FBNIC_FEC_AUTO) {
+		switch (fbd->fw_cap.link_fec) {
+		case FBNIC_FW_LINK_FEC_NONE:
+			fec = FBNIC_FEC_OFF;
+			break;
+		case FBNIC_FW_LINK_FEC_RS:
+			fec = FBNIC_FEC_RS;
+			break;
+		case FBNIC_FW_LINK_FEC_BASER:
+			fec = FBNIC_FEC_BASER;
+			break;
+		default:
+			return;
+		}
+
+		fbn->fec = fec;
+	}
+
+	/* Do nothing if AUTO mode is not engaged */
+	if (fbn->link_mode & FBNIC_LINK_AUTO) {
+		switch (fbd->fw_cap.link_speed) {
+		case FBNIC_FW_LINK_SPEED_25R1:
+			link_mode = FBNIC_LINK_25R1;
+			break;
+		case FBNIC_FW_LINK_SPEED_50R2:
+			link_mode = FBNIC_LINK_50R2;
+			break;
+		case FBNIC_FW_LINK_SPEED_50R1:
+			link_mode = FBNIC_LINK_50R1;
+			fec = FBNIC_FEC_RS;
+			break;
+		case FBNIC_FW_LINK_SPEED_100R2:
+			link_mode = FBNIC_LINK_100R2;
+			fec = FBNIC_FEC_RS;
+			break;
+		default:
+			return;
+		}
+
+		fbn->link_mode = link_mode;
+	}
+}
+
+static int fbnic_pcs_enable_asic(struct fbnic_dev *fbd)
+{
+	/* Mask and clear the PCS interrupt, will be enabled by link handler */
+	wr32(fbd, FBNIC_SIG_PCS_INTR_MASK, ~0);
+	wr32(fbd, FBNIC_SIG_PCS_INTR_STS, ~0);
+
+	/* Pull in settings from FW */
+	fbnic_pcs_get_fw_settings(fbd);
+
+	return 0;
+}
+
+static void fbnic_pcs_disable_asic(struct fbnic_dev *fbd)
+{
+	/* Mask and clear the PCS interrupt */
+	wr32(fbd, FBNIC_SIG_PCS_INTR_MASK, ~0);
+	wr32(fbd, FBNIC_SIG_PCS_INTR_STS, ~0);
+}
+
+static void fbnic_mac_link_down_asic(struct fbnic_dev *fbd)
+{
+	u32 cmd_cfg, mac_ctrl;
+
+	cmd_cfg = __fbnic_mac_cmd_config_asic(fbd, false, false);
+	mac_ctrl = rd32(fbd, FBNIC_SIG_MAC_IN0);
+
+	mac_ctrl |= FBNIC_SIG_MAC_IN0_RESET_FF_TX_CLK |
+		    FBNIC_SIG_MAC_IN0_RESET_TX_CLK |
+		    FBNIC_SIG_MAC_IN0_RESET_FF_RX_CLK |
+		    FBNIC_SIG_MAC_IN0_RESET_RX_CLK;
+
+	wr32(fbd, FBNIC_SIG_MAC_IN0, mac_ctrl);
+	wr32(fbd, FBNIC_MAC_COMMAND_CONFIG, cmd_cfg);
+}
+
+static void fbnic_mac_link_up_asic(struct fbnic_dev *fbd,
+				   bool tx_pause, bool rx_pause)
+{
+	u32 cmd_cfg, mac_ctrl;
+
+	fbnic_mac_tx_pause_config(fbd, tx_pause);
+
+	cmd_cfg = __fbnic_mac_cmd_config_asic(fbd, tx_pause, rx_pause);
+	mac_ctrl = rd32(fbd, FBNIC_SIG_MAC_IN0);
+
+	mac_ctrl &= ~(FBNIC_SIG_MAC_IN0_RESET_FF_TX_CLK |
+		      FBNIC_SIG_MAC_IN0_RESET_TX_CLK |
+		      FBNIC_SIG_MAC_IN0_RESET_FF_RX_CLK |
+		      FBNIC_SIG_MAC_IN0_RESET_RX_CLK);
+	cmd_cfg |= FBNIC_MAC_COMMAND_CONFIG_RX_ENA |
+		   FBNIC_MAC_COMMAND_CONFIG_TX_ENA;
+
+	wr32(fbd, FBNIC_SIG_MAC_IN0, mac_ctrl);
+	wr32(fbd, FBNIC_MAC_COMMAND_CONFIG, cmd_cfg);
+}
+
 static const struct fbnic_mac fbnic_mac_asic = {
 	.init_regs = fbnic_mac_init_regs,
+	.pcs_enable = fbnic_pcs_enable_asic,
+	.pcs_disable = fbnic_pcs_disable_asic,
+	.pcs_get_link = fbnic_pcs_get_link_asic,
+	.pcs_get_link_event = fbnic_pcs_get_link_event_asic,
+	.link_down = fbnic_mac_link_down_asic,
+	.link_up = fbnic_mac_link_up_asic,
 };
 
 /**
