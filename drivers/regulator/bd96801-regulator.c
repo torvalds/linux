@@ -853,8 +853,6 @@ static int bd96801_probe(struct platform_device *pdev)
 			ldo_errs_arr[temp_notif_ldos] = rdesc[i].ldo_errs;
 			temp_notif_ldos++;
 		}
-		if (!idesc)
-			continue;
 
 		/* Register INTB handlers for configured protections */
 		for (j = 0; j < idesc->num_irqs; j++) {
