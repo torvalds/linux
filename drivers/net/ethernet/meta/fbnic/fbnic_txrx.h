@@ -10,6 +10,18 @@
 
 struct fbnic_net;
 
+/* Guarantee we have space needed for storing the buffer
+ * To store the buffer we need:
+ *	1 descriptor per page
+ *	+ 1 descriptor for skb head
+ *	+ 2 descriptors for metadata and optional metadata
+ *	+ 7 descriptors to keep tail out of the same cacheline as head
+ * If we cannot guarantee that then we should return TX_BUSY
+ */
+#define FBNIC_MAX_SKB_DESC	(MAX_SKB_FRAGS + 10)
+#define FBNIC_TX_DESC_WAKEUP	(FBNIC_MAX_SKB_DESC * 2)
+#define FBNIC_TX_DESC_MIN	roundup_pow_of_two(FBNIC_TX_DESC_WAKEUP)
+
 #define FBNIC_MAX_TXQS			128u
 #define FBNIC_MAX_RXQS			128u
 
@@ -93,6 +105,9 @@ struct fbnic_napi_vector {
 #define FBNIC_MAX_RXQS			128u
 
 netdev_tx_t fbnic_xmit_frame(struct sk_buff *skb, struct net_device *dev);
+netdev_features_t
+fbnic_features_check(struct sk_buff *skb, struct net_device *dev,
+		     netdev_features_t features);
 
 int fbnic_alloc_napi_vectors(struct fbnic_net *fbn);
 void fbnic_free_napi_vectors(struct fbnic_net *fbn);

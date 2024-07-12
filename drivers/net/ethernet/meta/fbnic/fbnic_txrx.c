@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) Meta Platforms, Inc. and affiliates. */
 
+#include <linux/bitfield.h>
 #include <linux/iopoll.h>
 #include <linux/pci.h>
 #include <net/netdev_queues.h>
@@ -9,6 +10,14 @@
 #include "fbnic.h"
 #include "fbnic_netdev.h"
 #include "fbnic_txrx.h"
+
+struct fbnic_xmit_cb {
+	u32 bytecount;
+	u8 desc_count;
+	int hw_head;
+};
+
+#define FBNIC_XMIT_CB(__skb) ((struct fbnic_xmit_cb *)((__skb)->cb))
 
 static u32 __iomem *fbnic_ring_csr_base(const struct fbnic_ring *ring)
 {
@@ -38,10 +47,305 @@ static unsigned int fbnic_desc_unused(struct fbnic_ring *ring)
 	return (ring->head - ring->tail - 1) & ring->size_mask;
 }
 
+static struct netdev_queue *txring_txq(const struct net_device *dev,
+				       const struct fbnic_ring *ring)
+{
+	return netdev_get_tx_queue(dev, ring->q_idx);
+}
+
+static int fbnic_maybe_stop_tx(const struct net_device *dev,
+			       struct fbnic_ring *ring,
+			       const unsigned int size)
+{
+	struct netdev_queue *txq = txring_txq(dev, ring);
+	int res;
+
+	res = netif_txq_maybe_stop(txq, fbnic_desc_unused(ring), size,
+				   FBNIC_TX_DESC_WAKEUP);
+
+	return !res;
+}
+
+static bool fbnic_tx_sent_queue(struct sk_buff *skb, struct fbnic_ring *ring)
+{
+	struct netdev_queue *dev_queue = txring_txq(skb->dev, ring);
+	unsigned int bytecount = FBNIC_XMIT_CB(skb)->bytecount;
+	bool xmit_more = netdev_xmit_more();
+
+	/* TBD: Request completion more often if xmit_more becomes large */
+
+	return __netdev_tx_sent_queue(dev_queue, bytecount, xmit_more);
+}
+
+static void fbnic_unmap_single_twd(struct device *dev, __le64 *twd)
+{
+	u64 raw_twd = le64_to_cpu(*twd);
+	unsigned int len;
+	dma_addr_t dma;
+
+	dma = FIELD_GET(FBNIC_TWD_ADDR_MASK, raw_twd);
+	len = FIELD_GET(FBNIC_TWD_LEN_MASK, raw_twd);
+
+	dma_unmap_single(dev, dma, len, DMA_TO_DEVICE);
+}
+
+static void fbnic_unmap_page_twd(struct device *dev, __le64 *twd)
+{
+	u64 raw_twd = le64_to_cpu(*twd);
+	unsigned int len;
+	dma_addr_t dma;
+
+	dma = FIELD_GET(FBNIC_TWD_ADDR_MASK, raw_twd);
+	len = FIELD_GET(FBNIC_TWD_LEN_MASK, raw_twd);
+
+	dma_unmap_page(dev, dma, len, DMA_TO_DEVICE);
+}
+
+#define FBNIC_TWD_TYPE(_type) \
+	cpu_to_le64(FIELD_PREP(FBNIC_TWD_TYPE_MASK, FBNIC_TWD_TYPE_##_type))
+
+static bool
+fbnic_tx_offloads(struct fbnic_ring *ring, struct sk_buff *skb, __le64 *meta)
+{
+	unsigned int l2len, i3len;
+
+	if (unlikely(skb->ip_summed != CHECKSUM_PARTIAL))
+		return false;
+
+	l2len = skb_mac_header_len(skb);
+	i3len = skb_checksum_start(skb) - skb_network_header(skb);
+
+	*meta |= cpu_to_le64(FIELD_PREP(FBNIC_TWD_CSUM_OFFSET_MASK,
+					skb->csum_offset / 2));
+
+	*meta |= cpu_to_le64(FBNIC_TWD_FLAG_REQ_CSO);
+
+	*meta |= cpu_to_le64(FIELD_PREP(FBNIC_TWD_L2_HLEN_MASK, l2len / 2) |
+			     FIELD_PREP(FBNIC_TWD_L3_IHLEN_MASK, i3len / 2));
+	return false;
+}
+
+static bool
+fbnic_tx_map(struct fbnic_ring *ring, struct sk_buff *skb, __le64 *meta)
+{
+	struct device *dev = skb->dev->dev.parent;
+	unsigned int tail = ring->tail, first;
+	unsigned int size, data_len;
+	skb_frag_t *frag;
+	dma_addr_t dma;
+	__le64 *twd;
+
+	ring->tx_buf[tail] = skb;
+
+	tail++;
+	tail &= ring->size_mask;
+	first = tail;
+
+	size = skb_headlen(skb);
+	data_len = skb->data_len;
+
+	if (size > FIELD_MAX(FBNIC_TWD_LEN_MASK))
+		goto dma_error;
+
+	dma = dma_map_single(dev, skb->data, size, DMA_TO_DEVICE);
+
+	for (frag = &skb_shinfo(skb)->frags[0];; frag++) {
+		twd = &ring->desc[tail];
+
+		if (dma_mapping_error(dev, dma))
+			goto dma_error;
+
+		*twd = cpu_to_le64(FIELD_PREP(FBNIC_TWD_ADDR_MASK, dma) |
+				   FIELD_PREP(FBNIC_TWD_LEN_MASK, size) |
+				   FIELD_PREP(FBNIC_TWD_TYPE_MASK,
+					      FBNIC_TWD_TYPE_AL));
+
+		tail++;
+		tail &= ring->size_mask;
+
+		if (!data_len)
+			break;
+
+		size = skb_frag_size(frag);
+		data_len -= size;
+
+		if (size > FIELD_MAX(FBNIC_TWD_LEN_MASK))
+			goto dma_error;
+
+		dma = skb_frag_dma_map(dev, frag, 0, size, DMA_TO_DEVICE);
+	}
+
+	*twd |= FBNIC_TWD_TYPE(LAST_AL);
+
+	FBNIC_XMIT_CB(skb)->desc_count = ((twd - meta) + 1) & ring->size_mask;
+
+	ring->tail = tail;
+
+	/* Verify there is room for another packet */
+	fbnic_maybe_stop_tx(skb->dev, ring, FBNIC_MAX_SKB_DESC);
+
+	if (fbnic_tx_sent_queue(skb, ring)) {
+		*meta |= cpu_to_le64(FBNIC_TWD_FLAG_REQ_COMPLETION);
+
+		/* Force DMA writes to flush before writing to tail */
+		dma_wmb();
+
+		writel(tail, ring->doorbell);
+	}
+
+	return false;
+dma_error:
+	if (net_ratelimit())
+		netdev_err(skb->dev, "TX DMA map failed\n");
+
+	while (tail != first) {
+		tail--;
+		tail &= ring->size_mask;
+		twd = &ring->desc[tail];
+		if (tail == first)
+			fbnic_unmap_single_twd(dev, twd);
+		else
+			fbnic_unmap_page_twd(dev, twd);
+	}
+
+	return true;
+}
+
+#define FBNIC_MIN_FRAME_LEN	60
+
+static netdev_tx_t
+fbnic_xmit_frame_ring(struct sk_buff *skb, struct fbnic_ring *ring)
+{
+	__le64 *meta = &ring->desc[ring->tail];
+	u16 desc_needed;
+
+	if (skb_put_padto(skb, FBNIC_MIN_FRAME_LEN))
+		goto err_count;
+
+	/* Need: 1 descriptor per page,
+	 *       + 1 desc for skb_head,
+	 *       + 2 desc for metadata and timestamp metadata
+	 *       + 7 desc gap to keep tail from touching head
+	 * otherwise try next time
+	 */
+	desc_needed = skb_shinfo(skb)->nr_frags + 10;
+	if (fbnic_maybe_stop_tx(skb->dev, ring, desc_needed))
+		return NETDEV_TX_BUSY;
+
+	*meta = cpu_to_le64(FBNIC_TWD_FLAG_DEST_MAC);
+
+	/* Write all members within DWORD to condense this into 2 4B writes */
+	FBNIC_XMIT_CB(skb)->bytecount = skb->len;
+	FBNIC_XMIT_CB(skb)->desc_count = 0;
+
+	if (fbnic_tx_offloads(ring, skb, meta))
+		goto err_free;
+
+	if (fbnic_tx_map(ring, skb, meta))
+		goto err_free;
+
+	return NETDEV_TX_OK;
+
+err_free:
+	dev_kfree_skb_any(skb);
+err_count:
+	return NETDEV_TX_OK;
+}
+
 netdev_tx_t fbnic_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 {
-	dev_kfree_skb_any(skb);
-	return NETDEV_TX_OK;
+	struct fbnic_net *fbn = netdev_priv(dev);
+	unsigned int q_map = skb->queue_mapping;
+
+	return fbnic_xmit_frame_ring(skb, fbn->tx[q_map]);
+}
+
+netdev_features_t
+fbnic_features_check(struct sk_buff *skb, struct net_device *dev,
+		     netdev_features_t features)
+{
+	unsigned int l2len, l3len;
+
+	if (unlikely(skb->ip_summed != CHECKSUM_PARTIAL))
+		return features;
+
+	l2len = skb_mac_header_len(skb);
+	l3len = skb_checksum_start(skb) - skb_network_header(skb);
+
+	/* Check header lengths are multiple of 2.
+	 * In case of 6in6 we support longer headers (IHLEN + OHLEN)
+	 * but keep things simple for now, 512B is plenty.
+	 */
+	if ((l2len | l3len | skb->csum_offset) % 2 ||
+	    !FIELD_FIT(FBNIC_TWD_L2_HLEN_MASK, l2len / 2) ||
+	    !FIELD_FIT(FBNIC_TWD_L3_IHLEN_MASK, l3len / 2) ||
+	    !FIELD_FIT(FBNIC_TWD_CSUM_OFFSET_MASK, skb->csum_offset / 2))
+		return features & ~NETIF_F_CSUM_MASK;
+
+	return features;
+}
+
+static void fbnic_clean_twq0(struct fbnic_napi_vector *nv, int napi_budget,
+			     struct fbnic_ring *ring, bool discard,
+			     unsigned int hw_head)
+{
+	u64 total_bytes = 0, total_packets = 0;
+	unsigned int head = ring->head;
+	struct netdev_queue *txq;
+	unsigned int clean_desc;
+
+	clean_desc = (hw_head - head) & ring->size_mask;
+
+	while (clean_desc) {
+		struct sk_buff *skb = ring->tx_buf[head];
+		unsigned int desc_cnt;
+
+		desc_cnt = FBNIC_XMIT_CB(skb)->desc_count;
+		if (desc_cnt > clean_desc)
+			break;
+
+		ring->tx_buf[head] = NULL;
+
+		clean_desc -= desc_cnt;
+
+		while (!(ring->desc[head] & FBNIC_TWD_TYPE(AL))) {
+			head++;
+			head &= ring->size_mask;
+			desc_cnt--;
+		}
+
+		fbnic_unmap_single_twd(nv->dev, &ring->desc[head]);
+		head++;
+		head &= ring->size_mask;
+		desc_cnt--;
+
+		while (desc_cnt--) {
+			fbnic_unmap_page_twd(nv->dev, &ring->desc[head]);
+			head++;
+			head &= ring->size_mask;
+		}
+
+		total_bytes += FBNIC_XMIT_CB(skb)->bytecount;
+		total_packets += 1;
+
+		napi_consume_skb(skb, napi_budget);
+	}
+
+	if (!total_bytes)
+		return;
+
+	ring->head = head;
+
+	txq = txring_txq(nv->napi.dev, ring);
+
+	if (unlikely(discard)) {
+		netdev_tx_completed_queue(txq, total_packets, total_bytes);
+		return;
+	}
+
+	netif_txq_completed_wake(txq, total_packets, total_bytes,
+				 fbnic_desc_unused(ring),
+				 FBNIC_TX_DESC_WAKEUP);
 }
 
 static void fbnic_page_pool_init(struct fbnic_ring *ring, unsigned int idx,
@@ -64,6 +368,65 @@ static void fbnic_page_pool_drain(struct fbnic_ring *ring, unsigned int idx,
 		page_pool_put_unrefed_page(nv->page_pool, page, -1, !!budget);
 
 	rx_buf->page = NULL;
+}
+
+static void fbnic_clean_twq(struct fbnic_napi_vector *nv, int napi_budget,
+			    struct fbnic_q_triad *qt, s32 head0)
+{
+	if (head0 >= 0)
+		fbnic_clean_twq0(nv, napi_budget, &qt->sub0, false, head0);
+}
+
+static void
+fbnic_clean_tcq(struct fbnic_napi_vector *nv, struct fbnic_q_triad *qt,
+		int napi_budget)
+{
+	struct fbnic_ring *cmpl = &qt->cmpl;
+	__le64 *raw_tcd, done;
+	u32 head = cmpl->head;
+	s32 head0 = -1;
+
+	done = (head & (cmpl->size_mask + 1)) ? 0 : cpu_to_le64(FBNIC_TCD_DONE);
+	raw_tcd = &cmpl->desc[head & cmpl->size_mask];
+
+	/* Walk the completion queue collecting the heads reported by NIC */
+	while ((*raw_tcd & cpu_to_le64(FBNIC_TCD_DONE)) == done) {
+		u64 tcd;
+
+		dma_rmb();
+
+		tcd = le64_to_cpu(*raw_tcd);
+
+		switch (FIELD_GET(FBNIC_TCD_TYPE_MASK, tcd)) {
+		case FBNIC_TCD_TYPE_0:
+			if (!(tcd & FBNIC_TCD_TWQ1))
+				head0 = FIELD_GET(FBNIC_TCD_TYPE0_HEAD0_MASK,
+						  tcd);
+			/* Currently all err status bits are related to
+			 * timestamps and as those have yet to be added
+			 * they are skipped for now.
+			 */
+			break;
+		default:
+			break;
+		}
+
+		raw_tcd++;
+		head++;
+		if (!(head & cmpl->size_mask)) {
+			done ^= cpu_to_le64(FBNIC_TCD_DONE);
+			raw_tcd = &cmpl->desc[0];
+		}
+	}
+
+	/* Record the current head/tail of the queue */
+	if (cmpl->head != head) {
+		cmpl->head = head;
+		writel(head & cmpl->size_mask, cmpl->doorbell);
+	}
+
+	/* Unmap and free processed buffers */
+	fbnic_clean_twq(nv, napi_budget, qt, head0);
 }
 
 static void fbnic_clean_bdq(struct fbnic_napi_vector *nv, int napi_budget,
@@ -169,8 +532,28 @@ static void fbnic_nv_irq_disable(struct fbnic_napi_vector *nv)
 	fbnic_wr32(fbd, FBNIC_INTR_MASK_SET(v_idx / 32), 1 << (v_idx % 32));
 }
 
+static void fbnic_nv_irq_rearm(struct fbnic_napi_vector *nv)
+{
+	struct fbnic_dev *fbd = nv->fbd;
+	u32 v_idx = nv->v_idx;
+
+	fbnic_wr32(fbd, FBNIC_INTR_CQ_REARM(v_idx),
+		   FBNIC_INTR_CQ_REARM_INTR_UNMASK);
+}
+
 static int fbnic_poll(struct napi_struct *napi, int budget)
 {
+	struct fbnic_napi_vector *nv = container_of(napi,
+						    struct fbnic_napi_vector,
+						    napi);
+	int i;
+
+	for (i = 0; i < nv->txt_count; i++)
+		fbnic_clean_tcq(nv, &nv->qt[i], budget);
+
+	if (likely(napi_complete_done(napi, 0)))
+		fbnic_nv_irq_rearm(nv);
+
 	return 0;
 }
 
@@ -910,6 +1293,9 @@ void fbnic_flush(struct fbnic_net *fbn)
 		for (i = 0; i < nv->txt_count; i++) {
 			struct fbnic_q_triad *qt = &nv->qt[i];
 			struct netdev_queue *tx_queue;
+
+			/* Clean the work queues of unprocessed work */
+			fbnic_clean_twq0(nv, 0, &qt->sub0, true, qt->sub0.tail);
 
 			/* Reset completion queue descriptor ring */
 			memset(qt->cmpl.desc, 0, qt->cmpl.size);

@@ -91,6 +91,7 @@ static const struct net_device_ops fbnic_netdev_ops = {
 	.ndo_stop		= fbnic_stop,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_start_xmit		= fbnic_xmit_frame,
+	.ndo_features_check	= fbnic_features_check,
 };
 
 void fbnic_reset_queues(struct fbnic_net *fbn,
@@ -168,6 +169,14 @@ struct net_device *fbnic_netdev_alloc(struct fbnic_dev *fbd)
 		default_queues = fbd->max_num_queues;
 
 	fbnic_reset_queues(fbn, default_queues, default_queues);
+
+	netdev->features |=
+		NETIF_F_SG |
+		NETIF_F_HW_CSUM;
+
+	netdev->hw_features |= netdev->features;
+	netdev->vlan_features |= netdev->features;
+	netdev->hw_enc_features |= netdev->features;
 
 	netdev->min_mtu = IPV6_MIN_MTU;
 	netdev->max_mtu = FBNIC_MAX_JUMBO_FRAME_SIZE - ETH_HLEN;
