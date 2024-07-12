@@ -4742,8 +4742,8 @@ static int gfx_v11_0_wait_for_idle(void *handle)
 	return -ETIMEDOUT;
 }
 
-static int gfx_v11_0_request_gfx_index_mutex(struct amdgpu_device *adev,
-					     bool req)
+int gfx_v11_0_request_gfx_index_mutex(struct amdgpu_device *adev,
+				      bool req)
 {
 	u32 i, tmp, val;
 
