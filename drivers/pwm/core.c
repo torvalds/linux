@@ -325,8 +325,8 @@ EXPORT_SYMBOL_GPL(pwm_adjust_config);
  *
  * Returns: 0 on success or a negative error code on failure.
  */
-int pwm_capture(struct pwm_device *pwm, struct pwm_capture *result,
-		unsigned long timeout)
+static int pwm_capture(struct pwm_device *pwm, struct pwm_capture *result,
+		       unsigned long timeout)
 {
 	if (!pwm || !pwm->chip->ops)
 		return -EINVAL;
@@ -338,7 +338,6 @@ int pwm_capture(struct pwm_device *pwm, struct pwm_capture *result,
 
 	return pwm->chip->ops->capture(pwm->chip, pwm, result, timeout);
 }
-EXPORT_SYMBOL_GPL(pwm_capture);
 
 static struct pwm_chip *pwmchip_find_by_name(const char *name)
 {
