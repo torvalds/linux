@@ -47,6 +47,10 @@ definitions:
     entries:
       - frag
       - firstfrag
+      - tuncsum
+      - tundf
+      - tunoam
+      - tuncrit
   -
     name: tc-stats
     type: struct
