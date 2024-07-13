@@ -82,7 +82,7 @@ struct btrfs_fs_context {
 	u32 commit_interval;
 	u32 metadata_ratio;
 	u32 thread_pool_size;
-	unsigned long mount_opt;
+	unsigned long long mount_opt;
 	unsigned long compress_type:4;
 	unsigned int compress_level;
 	refcount_t refs;
@@ -642,7 +642,7 @@ static void btrfs_clear_oneshot_options(struct btrfs_fs_info *fs_info)
 }
 
 static bool check_ro_option(const struct btrfs_fs_info *fs_info,
-			    unsigned long mount_opt, unsigned long opt,
+			    unsigned long long mount_opt, unsigned long long opt,
 			    const char *opt_name)
 {
 	if (mount_opt & opt) {
@@ -653,7 +653,8 @@ static bool check_ro_option(const struct btrfs_fs_info *fs_info,
 	return false;
 }
 
-bool btrfs_check_options(const struct btrfs_fs_info *info, unsigned long *mount_opt,
+bool btrfs_check_options(const struct btrfs_fs_info *info,
+			 unsigned long long *mount_opt,
 			 unsigned long flags)
 {
 	bool ret = true;
@@ -1231,7 +1232,7 @@ static void btrfs_resize_thread_pool(struct btrfs_fs_info *fs_info,
 }
 
 static inline void btrfs_remount_begin(struct btrfs_fs_info *fs_info,
-				       unsigned long old_opts, int flags)
+				       unsigned long long old_opts, int flags)
 {
 	if (btrfs_raw_test_opt(old_opts, AUTO_DEFRAG) &&
 	    (!btrfs_raw_test_opt(fs_info->mount_opt, AUTO_DEFRAG) ||
@@ -1245,7 +1246,7 @@ static inline void btrfs_remount_begin(struct btrfs_fs_info *fs_info,
 }
 
 static inline void btrfs_remount_cleanup(struct btrfs_fs_info *fs_info,
-					 unsigned long old_opts)
+					 unsigned long long old_opts)
 {
 	const bool cache_opt = btrfs_test_opt(fs_info, SPACE_CACHE);
 
