@@ -3045,7 +3045,7 @@ int ext4_seq_options_show(struct seq_file *seq, void *offset)
 
 	seq_puts(seq, sb_rdonly(sb) ? "ro" : "rw");
 	rc = _ext4_show_options(seq, sb, 1);
-	seq_puts(seq, "\n");
+	seq_putc(seq, '\n');
 	return rc;
 }
 

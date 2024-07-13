@@ -3075,8 +3075,7 @@ static int ext4_mb_seq_groups_show(struct seq_file *seq, void *v)
 	seq_puts(seq, " ]");
 	if (EXT4_MB_GRP_BBITMAP_CORRUPT(&sg.info))
 		seq_puts(seq, " Block bitmap corrupted!");
-	seq_puts(seq, "\n");
-
+	seq_putc(seq, '\n');
 	return 0;
 }
 
