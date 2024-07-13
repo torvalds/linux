@@ -1171,8 +1171,9 @@ static void fl_set_key_flag(u32 flower_key, u32 flower_mask,
 	}
 }
 
-static int fl_set_key_flags(struct nlattr **tb, bool encap, u32 *flags_key,
-			    u32 *flags_mask, struct netlink_ext_ack *extack)
+static int fl_set_key_flags(struct nlattr *tca_opts, struct nlattr **tb,
+			    bool encap, u32 *flags_key, u32 *flags_mask,
+			    struct netlink_ext_ack *extack)
 {
 	int fl_key, fl_mask;
 	u32 key, mask;
@@ -1186,7 +1187,7 @@ static int fl_set_key_flags(struct nlattr **tb, bool encap, u32 *flags_key,
 	}
 
 	/* mask is mandatory for flags */
-	if (NL_REQ_ATTR_CHECK(extack, NULL, tb, fl_mask)) {
+	if (NL_REQ_ATTR_CHECK(extack, tca_opts, tb, fl_mask)) {
 		NL_SET_ERR_MSG(extack, "Missing flags mask");
 		return -EINVAL;
 	}
@@ -1865,9 +1866,9 @@ static int fl_set_key_cfm(struct nlattr **tb,
 	return 0;
 }
 
-static int fl_set_key(struct net *net, struct nlattr **tb,
-		      struct fl_flow_key *key, struct fl_flow_key *mask,
-		      struct netlink_ext_ack *extack)
+static int fl_set_key(struct net *net, struct nlattr *tca_opts,
+		      struct nlattr **tb, struct fl_flow_key *key,
+		      struct fl_flow_key *mask, struct netlink_ext_ack *extack)
 {
 	__be16 ethertype;
 	int ret = 0;
@@ -2100,14 +2101,16 @@ static int fl_set_key(struct net *net, struct nlattr **tb,
 		return ret;
 
 	if (tb[TCA_FLOWER_KEY_FLAGS]) {
-		ret = fl_set_key_flags(tb, false, &key->control.flags,
+		ret = fl_set_key_flags(tca_opts, tb, false,
+				       &key->control.flags,
 				       &mask->control.flags, extack);
 		if (ret)
 			return ret;
 	}
 
 	if (tb[TCA_FLOWER_KEY_ENC_FLAGS])
-		ret = fl_set_key_flags(tb, true, &key->enc_control.flags,
+		ret = fl_set_key_flags(tca_opts, tb, true,
+				       &key->enc_control.flags,
 				       &mask->enc_control.flags, extack);
 
 	return ret;
@@ -2358,6 +2361,7 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 {
 	struct cls_fl_head *head = fl_head_dereference(tp);
 	bool rtnl_held = !(flags & TCA_ACT_FLAGS_NO_RTNL);
+	struct nlattr *tca_opts = tca[TCA_OPTIONS];
 	struct cls_fl_filter *fold = *arg;
 	bool bound_to_filter = false;
 	struct cls_fl_filter *fnew;
@@ -2366,7 +2370,7 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 	bool in_ht;
 	int err;
 
-	if (!tca[TCA_OPTIONS]) {
+	if (!tca_opts) {
 		err = -EINVAL;
 		goto errout_fold;
 	}
@@ -2384,7 +2388,7 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 	}
 
 	err = nla_parse_nested_deprecated(tb, TCA_FLOWER_MAX,
-					  tca[TCA_OPTIONS], fl_policy, NULL);
+					  tca_opts, fl_policy, NULL);
 	if (err < 0)
 		goto errout_tb;
 
@@ -2460,7 +2464,7 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 		bound_to_filter = true;
 	}
 
-	err = fl_set_key(net, tb, &fnew->key, &mask->key, extack);
+	err = fl_set_key(net, tca_opts, tb, &fnew->key, &mask->key, extack);
 	if (err)
 		goto unbind_filter;
 
@@ -2800,18 +2804,19 @@ static void *fl_tmplt_create(struct net *net, struct tcf_chain *chain,
 			     struct nlattr **tca,
 			     struct netlink_ext_ack *extack)
 {
+	struct nlattr *tca_opts = tca[TCA_OPTIONS];
 	struct fl_flow_tmplt *tmplt;
 	struct nlattr **tb;
 	int err;
 
-	if (!tca[TCA_OPTIONS])
+	if (!tca_opts)
 		return ERR_PTR(-EINVAL);
 
 	tb = kcalloc(TCA_FLOWER_MAX + 1, sizeof(struct nlattr *), GFP_KERNEL);
 	if (!tb)
 		return ERR_PTR(-ENOBUFS);
 	err = nla_parse_nested_deprecated(tb, TCA_FLOWER_MAX,
-					  tca[TCA_OPTIONS], fl_policy, NULL);
+					  tca_opts, fl_policy, NULL);
 	if (err)
 		goto errout_tb;
 
@@ -2821,7 +2826,8 @@ static void *fl_tmplt_create(struct net *net, struct tcf_chain *chain,
 		goto errout_tb;
 	}
 	tmplt->chain = chain;
-	err = fl_set_key(net, tb, &tmplt->dummy_key, &tmplt->mask, extack);
+	err = fl_set_key(net, tca_opts, tb, &tmplt->dummy_key,
+			 &tmplt->mask, extack);
 	if (err)
 		goto errout_tmplt;
 
