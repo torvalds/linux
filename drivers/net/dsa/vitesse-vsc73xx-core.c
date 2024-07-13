@@ -597,7 +597,7 @@ static enum dsa_tag_protocol vsc73xx_get_tag_protocol(struct dsa_switch *ds,
 	 * cannot access the tag. (See "Internal frame header" section
 	 * 3.9.1 in the manual.)
 	 */
-	return DSA_TAG_PROTO_NONE;
+	return DSA_TAG_PROTO_VSC73XX_8021Q;
 }
 
 static int vsc73xx_wait_for_vlan_table_cmd(struct vsc73xx *vsc)
@@ -687,7 +687,7 @@ vsc73xx_update_vlan_table(struct vsc73xx *vsc, int port, u16 vid, bool set)
 static int vsc73xx_setup(struct dsa_switch *ds)
 {
 	struct vsc73xx *vsc = ds->priv;
-	int i;
+	int i, ret;
 
 	dev_info(vsc->dev, "set up the switch\n");
 
@@ -768,7 +768,18 @@ static int vsc73xx_setup(struct dsa_switch *ds)
 
 	INIT_LIST_HEAD(&vsc->vlans);
 
-	return 0;
+	rtnl_lock();
+	ret = dsa_tag_8021q_register(ds, htons(ETH_P_8021Q));
+	rtnl_unlock();
+
+	return ret;
+}
+
+static void vsc73xx_teardown(struct dsa_switch *ds)
+{
+	rtnl_lock();
+	dsa_tag_8021q_unregister(ds);
+	rtnl_unlock();
 }
 
 static void vsc73xx_init_port(struct vsc73xx *vsc, int port)
@@ -1549,10 +1560,63 @@ static int vsc73xx_port_vlan_del(struct dsa_switch *ds, int port,
 		vsc73xx_bridge_vlan_remove_port(vsc73xx_vlan, port);
 
 	commit_to_hardware = !vsc73xx_tag_8021q_active(dsa_to_port(ds, port));
+
 	if (commit_to_hardware)
 		return vsc73xx_vlan_commit_settings(vsc, port);
 
 	return 0;
+}
+
+static int vsc73xx_tag_8021q_vlan_add(struct dsa_switch *ds, int port, u16 vid,
+				      u16 flags)
+{
+	bool pvid = flags & BRIDGE_VLAN_INFO_PVID;
+	struct vsc73xx_portinfo *portinfo;
+	struct vsc73xx *vsc = ds->priv;
+	bool commit_to_hardware;
+	int ret;
+
+	portinfo = &vsc->portinfo[port];
+
+	if (pvid) {
+		portinfo->pvid_tag_8021q_configured = true;
+		portinfo->pvid_tag_8021q = vid;
+	}
+
+	commit_to_hardware = vsc73xx_tag_8021q_active(dsa_to_port(ds, port));
+	if (commit_to_hardware) {
+		ret = vsc73xx_vlan_commit_settings(vsc, port);
+		if (ret)
+			return ret;
+	}
+
+	return vsc73xx_update_vlan_table(vsc, port, vid, true);
+}
+
+static int vsc73xx_tag_8021q_vlan_del(struct dsa_switch *ds, int port, u16 vid)
+{
+	struct vsc73xx_portinfo *portinfo;
+	struct vsc73xx *vsc = ds->priv;
+
+	portinfo = &vsc->portinfo[port];
+
+	if (portinfo->pvid_tag_8021q_configured &&
+	    portinfo->pvid_tag_8021q == vid) {
+		struct dsa_port *dp = dsa_to_port(ds, port);
+		bool commit_to_hardware;
+		int err;
+
+		portinfo->pvid_tag_8021q_configured = false;
+
+		commit_to_hardware = vsc73xx_tag_8021q_active(dp);
+		if (commit_to_hardware) {
+			err = vsc73xx_vlan_commit_settings(vsc, port);
+			if (err)
+				return err;
+		}
+	}
+
+	return vsc73xx_update_vlan_table(vsc, port, vid, false);
 }
 
 static void vsc73xx_refresh_fwd_map(struct dsa_switch *ds, int port, u8 state)
@@ -1644,6 +1708,7 @@ static const struct phylink_mac_ops vsc73xx_phylink_mac_ops = {
 static const struct dsa_switch_ops vsc73xx_ds_ops = {
 	.get_tag_protocol = vsc73xx_get_tag_protocol,
 	.setup = vsc73xx_setup,
+	.teardown = vsc73xx_teardown,
 	.phy_read = vsc73xx_phy_read,
 	.phy_write = vsc73xx_phy_write,
 	.get_strings = vsc73xx_get_strings,
@@ -1658,6 +1723,8 @@ static const struct dsa_switch_ops vsc73xx_ds_ops = {
 	.port_vlan_add = vsc73xx_port_vlan_add,
 	.port_vlan_del = vsc73xx_port_vlan_del,
 	.phylink_get_caps = vsc73xx_phylink_get_caps,
+	.tag_8021q_vlan_add = vsc73xx_tag_8021q_vlan_add,
+	.tag_8021q_vlan_del = vsc73xx_tag_8021q_vlan_del,
 };
 
 static int vsc73xx_gpio_get(struct gpio_chip *chip, unsigned int offset)
