@@ -641,16 +641,30 @@ static int bch2_gc_btree(struct btree_trans *trans, enum btree_id btree, bool in
 		target_depth = 0;
 
 	/* root */
-	mutex_lock(&c->btree_root_lock);
-	struct btree *b = bch2_btree_id_root(c, btree)->b;
-	if (!btree_node_fake(b)) {
+	do {
+retry_root:
+		bch2_trans_begin(trans);
+
+		struct btree_iter iter;
+		bch2_trans_node_iter_init(trans, &iter, btree, POS_MIN,
+					  0, bch2_btree_id_root(c, btree)->b->c.level, 0);
+		struct btree *b = bch2_btree_iter_peek_node(&iter);
+		ret = PTR_ERR_OR_ZERO(b);
+		if (ret)
+			goto err_root;
+
+		if (b != btree_node_root(c, b)) {
+			bch2_trans_iter_exit(trans, &iter);
+			goto retry_root;
+		}
+
 		gc_pos_set(c, gc_pos_btree(btree, b->c.level + 1, SPOS_MAX));
-		ret = lockrestart_do(trans,
-			bch2_gc_mark_key(trans, b->c.btree_id, b->c.level + 1,
-					 NULL, NULL, bkey_i_to_s_c(&b->key), initial));
+		struct bkey_s_c k = bkey_i_to_s_c(&b->key);
+		ret = bch2_gc_mark_key(trans, btree, b->c.level + 1, NULL, NULL, k, initial);
 		level = b->c.level;
-	}
-	mutex_unlock(&c->btree_root_lock);
+err_root:
+		bch2_trans_iter_exit(trans, &iter);
+	} while (bch2_err_matches(ret, BCH_ERR_transaction_restart));
 
 	if (ret)
 		return ret;

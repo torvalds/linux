@@ -116,6 +116,14 @@ static inline u8 *bucket_gen(struct bch_dev *ca, size_t b)
 	return gens->b + b;
 }
 
+static inline u8 bucket_gen_get(struct bch_dev *ca, size_t b)
+{
+	rcu_read_lock();
+	u8 gen = *bucket_gen(ca, b);
+	rcu_read_unlock();
+	return gen;
+}
+
 static inline size_t PTR_BUCKET_NR(const struct bch_dev *ca,
 				   const struct bch_extent_ptr *ptr)
 {
