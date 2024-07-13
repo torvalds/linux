@@ -652,6 +652,16 @@
 #define IGC_MDIC_READY		0x10000000
 #define IGC_MDIC_ERROR		0x40000000
 
+/* EEE Link Ability */
+#define IGC_EEE_2500BT_MASK	BIT(0)
+#define IGC_EEE_1000BT_MASK	BIT(2)
+#define IGC_EEE_100BT_MASK	BIT(1)
+
+/* EEE Link-Partner Ability */
+#define IGC_LP_EEE_2500BT_MASK	BIT(0)
+#define IGC_LP_EEE_1000BT_MASK	BIT(2)
+#define IGC_LP_EEE_100BT_MASK	BIT(1)
+
 #define IGC_N0_QUEUE		-1
 
 #define IGC_MAX_MAC_HDR_LEN	127
