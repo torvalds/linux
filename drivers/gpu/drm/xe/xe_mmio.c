@@ -171,7 +171,11 @@ void xe_mmio_write32(struct xe_gt *gt, struct xe_reg reg, u32 val)
 	u32 addr = xe_mmio_adjusted_addr(gt, reg.addr);
 
 	trace_xe_reg_rw(gt, true, addr, val, sizeof(val));
-	writel(val, (reg.ext ? tile->mmio_ext.regs : tile->mmio.regs) + addr);
+
+	if (!reg.vf && IS_SRIOV_VF(gt_to_xe(gt)))
+		xe_gt_sriov_vf_write32(gt, reg, val);
+	else
+		writel(val, (reg.ext ? tile->mmio_ext.regs : tile->mmio.regs) + addr);
 }
 
 u32 xe_mmio_read32(struct xe_gt *gt, struct xe_reg reg)

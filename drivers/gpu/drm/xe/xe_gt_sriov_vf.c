@@ -893,6 +893,32 @@ u32 xe_gt_sriov_vf_read32(struct xe_gt *gt, struct xe_reg reg)
 }
 
 /**
+ * xe_gt_sriov_vf_write32 - Handle a write to an inaccessible register.
+ * @gt: the &xe_gt
+ * @reg: the register to write
+ * @val: value to write
+ *
+ * This function is for VF use only.
+ * Currently it will trigger a WARN if running on debug build.
+ */
+void xe_gt_sriov_vf_write32(struct xe_gt *gt, struct xe_reg reg, u32 val)
+{
+	u32 addr = xe_mmio_adjusted_addr(gt, reg.addr);
+
+	xe_gt_assert(gt, IS_SRIOV_VF(gt_to_xe(gt)));
+	xe_gt_assert(gt, !reg.vf);
+
+	/*
+	 * In the future, we may want to handle selected writes to inaccessible
+	 * registers in some custom way, but for now let's just log a warning
+	 * about such attempt, as likely we might be doing something wrong.
+	 */
+	xe_gt_WARN(gt, IS_ENABLED(CONFIG_DRM_XE_DEBUG),
+		   "VF is trying to write %#x to an inaccessible register %#x+%#x\n",
+		   val, reg.addr, addr - reg.addr);
+}
+
+/**
  * xe_gt_sriov_vf_print_config - Print VF self config.
  * @gt: the &xe_gt
  * @p: the &drm_printer
