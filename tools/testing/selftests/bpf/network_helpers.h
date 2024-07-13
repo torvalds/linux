@@ -25,6 +25,16 @@ struct network_helper_opts {
 	int timeout_ms;
 	bool must_fail;
 	int proto;
+	/* +ve: Passed to listen() as-is.
+	 *   0: Default when the test does not set
+	 *      a particular value during the struct init.
+	 *      It is changed to 1 before passing to listen().
+	 *      Most tests only have one on-going connection.
+	 * -ve: It is changed to 0 before passing to listen().
+	 *      It is useful to force syncookie without
+	 *	changing the "tcp_syncookies" sysctl from 1 to 2.
+	 */
+	int backlog;
 	int (*post_socket_cb)(int fd, void *opts);
 	void *cb_opts;
 };
