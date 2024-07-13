@@ -95,7 +95,6 @@ static int loongson_pcm_trigger(struct snd_soc_component *component,
 	struct device *dev = substream->pcm->card->dev;
 	void __iomem *order_reg = prtd->dma_data->order_addr;
 	u64 val;
-	int ret = 0;
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -129,7 +128,7 @@ static int loongson_pcm_trigger(struct snd_soc_component *component,
 		return -EINVAL;
 	}
 
-	return ret;
+	return 0;
 }
 
 static int loongson_pcm_hw_params(struct snd_soc_component *component,
@@ -230,7 +229,6 @@ static int loongson_pcm_open(struct snd_soc_component *component,
 	struct snd_card *card = substream->pcm->card;
 	struct loongson_runtime_data *prtd;
 	struct loongson_dma_data *dma_data;
-	int ret;
 
 	/*
 	 * For mysterious reasons (and despite what the manual says)
@@ -252,20 +250,17 @@ static int loongson_pcm_open(struct snd_soc_component *component,
 	prtd->dma_desc_arr = dma_alloc_coherent(card->dev, PAGE_SIZE,
 						&prtd->dma_desc_arr_phy,
 						GFP_KERNEL);
-	if (!prtd->dma_desc_arr) {
-		ret = -ENOMEM;
+	if (!prtd->dma_desc_arr)
 		goto desc_err;
-	}
+
 	prtd->dma_desc_arr_size = PAGE_SIZE / sizeof(*prtd->dma_desc_arr);
 
 	prtd->dma_pos_desc = dma_alloc_coherent(card->dev,
 						sizeof(*prtd->dma_pos_desc),
 						&prtd->dma_pos_desc_phy,
 						GFP_KERNEL);
-	if (!prtd->dma_pos_desc) {
-		ret = -ENOMEM;
+	if (!prtd->dma_pos_desc)
 		goto pos_err;
-	}
 
 	dma_data = snd_soc_dai_get_dma_data(snd_soc_rtd_to_cpu(rtd, 0), substream);
 	prtd->dma_data = dma_data;
@@ -279,7 +274,7 @@ pos_err:
 desc_err:
 	kfree(prtd);
 
-	return ret;
+	return -ENOMEM;
 }
 
 static int loongson_pcm_close(struct snd_soc_component *component,
