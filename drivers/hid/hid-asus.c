@@ -492,11 +492,18 @@ static void asus_kbd_backlight_work(struct work_struct *work)
  */
 static bool asus_kbd_wmi_led_control_present(struct hid_device *hdev)
 {
+	struct asus_drvdata *drvdata = hid_get_drvdata(hdev);
 	u32 value;
 	int ret;
 
 	if (!IS_ENABLED(CONFIG_ASUS_WMI))
 		return false;
+
+	if (drvdata->quirks & QUIRK_ROG_NKEY_KEYBOARD &&
+			dmi_check_system(asus_use_hid_led_dmi_ids)) {
+		hid_info(hdev, "using HID for asus::kbd_backlight\n");
+		return false;
+	}
 
 	ret = asus_wmi_evaluate_method(ASUS_WMI_METHODID_DSTS,
 				       ASUS_WMI_DEVID_KBD_BACKLIGHT, 0, &value);
