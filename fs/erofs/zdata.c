@@ -962,7 +962,7 @@ static int z_erofs_scan_folio(struct z_erofs_decompress_frontend *f,
 	const unsigned int bs = i_blocksize(inode);
 	unsigned int end = folio_size(folio), split = 0, cur, pgs;
 	bool tight, excl;
-	int err;
+	int err = 0;
 
 	tight = (bs == PAGE_SIZE);
 	z_erofs_onlinefolio_init(folio);
