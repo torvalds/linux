@@ -6,6 +6,7 @@
 #include <linux/acpi.h>
 #include <linux/module.h>
 
+MODULE_DESCRIPTION("Intel Smart Connect disabling driver");
 MODULE_LICENSE("GPL");
 
 static int smartconnect_acpi_init(struct acpi_device *acpi)

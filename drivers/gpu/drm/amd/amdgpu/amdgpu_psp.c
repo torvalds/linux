@@ -640,6 +640,20 @@ static const char *psp_gfx_cmd_name(enum psp_gfx_cmd_id cmd_id)
 	}
 }
 
+static bool psp_err_warn(struct psp_context *psp)
+{
+	struct psp_gfx_cmd_resp *cmd = psp->cmd_buf_mem;
+
+	/* This response indicates reg list is already loaded */
+	if (amdgpu_ip_version(psp->adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 2) &&
+	    cmd->cmd_id == GFX_CMD_ID_LOAD_IP_FW &&
+	    cmd->cmd.cmd_load_ip_fw.fw_type == GFX_FW_TYPE_REG_LIST &&
+	    cmd->resp.status == TEE_ERROR_CANCEL)
+		return false;
+
+	return true;
+}
+
 static int
 psp_cmd_submit_buf(struct psp_context *psp,
 		   struct amdgpu_firmware_info *ucode,
@@ -699,10 +713,13 @@ psp_cmd_submit_buf(struct psp_context *psp,
 			dev_warn(psp->adev->dev,
 				 "failed to load ucode %s(0x%X) ",
 				 amdgpu_ucode_name(ucode->ucode_id), ucode->ucode_id);
-		dev_warn(psp->adev->dev,
-			 "psp gfx command %s(0x%X) failed and response status is (0x%X)\n",
-			 psp_gfx_cmd_name(psp->cmd_buf_mem->cmd_id), psp->cmd_buf_mem->cmd_id,
-			 psp->cmd_buf_mem->resp.status);
+		if (psp_err_warn(psp))
+			dev_warn(
+				psp->adev->dev,
+				"psp gfx command %s(0x%X) failed and response status is (0x%X)\n",
+				psp_gfx_cmd_name(psp->cmd_buf_mem->cmd_id),
+				psp->cmd_buf_mem->cmd_id,
+				psp->cmd_buf_mem->resp.status);
 		/* If any firmware (including CAP) load fails under SRIOV, it should
 		 * return failure to stop the VF from initializing.
 		 * Also return failure in case of timeout

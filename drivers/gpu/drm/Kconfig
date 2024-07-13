@@ -450,6 +450,7 @@ config DRM_PRIVACY_SCREEN
 config DRM_WERROR
 	bool "Compile the drm subsystem with warnings as errors"
 	depends on DRM && EXPERT
+	depends on !WERROR
 	default n
 	help
 	  A kernel build should not cause any compiler warnings, and this

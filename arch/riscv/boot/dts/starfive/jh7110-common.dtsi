@@ -244,7 +244,7 @@
 				regulator-boot-on;
 				regulator-always-on;
 				regulator-min-microvolt = <1800000>;
-				regulator-max-microvolt = <1800000>;
+				regulator-max-microvolt = <3300000>;
 				regulator-name = "emmc_vdd";
 			};
 		};

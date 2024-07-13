@@ -1220,7 +1220,7 @@ static void bch2_nocow_write(struct bch_write_op *op)
 	DARRAY_PREALLOCATED(struct bucket_to_lock, 3) buckets;
 	u32 snapshot;
 	struct bucket_to_lock *stale_at;
-	int ret;
+	int stale, ret;
 
 	if (op->flags & BCH_WRITE_MOVE)
 		return;
@@ -1299,7 +1299,8 @@ retry:
 						 BUCKET_NOCOW_LOCK_UPDATE);
 
 			rcu_read_lock();
-			bool stale = gen_after(*bucket_gen(ca, i->b.offset), i->gen);
+			u8 *gen = bucket_gen(ca, i->b.offset);
+			stale = !gen ? -1 : gen_after(*gen, i->gen);
 			rcu_read_unlock();
 
 			if (unlikely(stale)) {
@@ -1380,8 +1381,18 @@ err_bucket_stale:
 			break;
 	}
 
-	/* We can retry this: */
-	ret = -BCH_ERR_transaction_restart;
+	struct printbuf buf = PRINTBUF;
+	if (bch2_fs_inconsistent_on(stale < 0, c,
+				    "pointer to invalid bucket in nocow path on device %llu\n  %s",
+				    stale_at->b.inode,
+				    (bch2_bkey_val_to_text(&buf, c, k), buf.buf))) {
+		ret = -EIO;
+	} else {
+		/* We can retry this: */
+		ret = -BCH_ERR_transaction_restart;
+	}
+	printbuf_exit(&buf);
+
 	goto err_get_ioref;
 }
 

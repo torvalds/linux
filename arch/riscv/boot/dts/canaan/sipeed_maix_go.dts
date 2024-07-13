@@ -16,6 +16,10 @@
 	model = "SiPeed MAIX GO";
 	compatible = "sipeed,maix-go", "canaan,kendryte-k210";
 
+	aliases {
+		serial0 = &uarths0;
+	};
+
 	chosen {
 		bootargs = "earlycon console=ttySIF0";
 		stdout-path = "serial0:115200n8";
@@ -69,7 +73,6 @@
 &fpioa {
 	pinctrl-0 = <&jtag_pinctrl>;
 	pinctrl-names = "default";
-	status = "okay";
 
 	jtag_pinctrl: jtag-pinmux {
 		pinmux = <K210_FPIOA(0, K210_PCF_JTAG_TCLK)>,
@@ -167,6 +170,7 @@
 	#sound-dai-cells = <1>;
 	pinctrl-0 = <&i2s0_pinctrl>;
 	pinctrl-names = "default";
+	status = "okay";
 };
 
 &i2c1 {
@@ -181,6 +185,7 @@
 	pinctrl-names = "default";
 	num-cs = <1>;
 	cs-gpios = <&gpio0 20 GPIO_ACTIVE_HIGH>;
+	status = "okay";
 
 	panel@0 {
 		compatible = "sitronix,st7789v";
@@ -209,6 +214,8 @@
 };
 
 &spi3 {
+	status = "okay";
+
 	flash@0 {
 		compatible = "jedec,spi-nor";
 		reg = <0>;

@@ -476,6 +476,9 @@ struct bch_lru {
 
 #define LRU_ID_STRIPES		(1U << 16)
 
+#define LRU_TIME_BITS	48
+#define LRU_TIME_MAX	((1ULL << LRU_TIME_BITS) - 1)
+
 /* Optional/variable size superblock sections: */
 
 struct bch_sb_field {
@@ -987,8 +990,9 @@ enum bch_version_upgrade_opts {
 
 #define BCH_ERROR_ACTIONS()		\
 	x(continue,		0)	\
-	x(ro,			1)	\
-	x(panic,		2)
+	x(fix_safe,		1)	\
+	x(panic,		2)	\
+	x(ro,			3)
 
 enum bch_error_actions {
 #define x(t, n) BCH_ON_ERROR_##t = n,
@@ -1382,9 +1386,10 @@ enum btree_id {
 
 /*
  * Maximum number of btrees that we will _ever_ have under the current scheme,
- * where we refer to them with bitfields
+ * where we refer to them with 64 bit bitfields - and we also need a bit for
+ * the interior btree node type:
  */
-#define BTREE_ID_NR_MAX		64
+#define BTREE_ID_NR_MAX		63
 
 static inline bool btree_id_is_alloc(enum btree_id id)
 {

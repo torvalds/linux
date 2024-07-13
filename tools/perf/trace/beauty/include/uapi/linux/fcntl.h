@@ -9,6 +9,14 @@
 #define F_GETLEASE	(F_LINUX_SPECIFIC_BASE + 1)
 
 /*
+ * Request nofications on a directory.
+ * See below for events that may be notified.
+ */
+#define F_NOTIFY	(F_LINUX_SPECIFIC_BASE + 2)
+
+#define F_DUPFD_QUERY	(F_LINUX_SPECIFIC_BASE + 3)
+
+/*
  * Cancel a blocking posix lock; internal use only until we expose an
  * asynchronous lock api to userspace:
  */
@@ -16,12 +24,6 @@
 
 /* Create a file descriptor with FD_CLOEXEC set. */
 #define F_DUPFD_CLOEXEC	(F_LINUX_SPECIFIC_BASE + 6)
-
-/*
- * Request nofications on a directory.
- * See below for events that may be notified.
- */
-#define F_NOTIFY	(F_LINUX_SPECIFIC_BASE+2)
 
 /*
  * Set and get of pipe page size array

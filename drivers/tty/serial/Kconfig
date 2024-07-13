@@ -1023,8 +1023,9 @@ config SERIAL_SCCNXP_CONSOLE
 	help
 	  Support for console on SCCNXP serial ports.
 
-config SERIAL_SC16IS7XX_CORE
+config SERIAL_SC16IS7XX
 	tristate "NXP SC16IS7xx UART support"
+	depends on SPI_MASTER || I2C
 	select SERIAL_CORE
 	select SERIAL_SC16IS7XX_SPI if SPI_MASTER
 	select SERIAL_SC16IS7XX_I2C if I2C

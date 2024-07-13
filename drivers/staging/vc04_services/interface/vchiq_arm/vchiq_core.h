@@ -413,6 +413,11 @@ struct vchiq_state {
 	struct opaque_platform_state *platform_state;
 };
 
+static inline bool vchiq_remote_initialised(const struct vchiq_state *state)
+{
+	return state->remote && state->remote->initialised;
+}
+
 struct bulk_waiter {
 	struct vchiq_bulk *bulk;
 	struct completion event;

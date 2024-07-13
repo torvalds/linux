@@ -152,17 +152,23 @@ void thermal_zone_set_trip_temp(struct thermal_zone_device *tz,
 	if (trip->temperature == temp)
 		return;
 
+	trip->temperature = temp;
+	thermal_notify_tz_trip_change(tz, trip);
+
 	if (temp == THERMAL_TEMP_INVALID) {
 		struct thermal_trip_desc *td = trip_to_trip_desc(trip);
 
-		if (trip->type == THERMAL_TRIP_PASSIVE &&
-		    tz->temperature >= td->threshold) {
+		if (tz->temperature >= td->threshold) {
 			/*
-			 * The trip has been crossed, so the thermal zone's
-			 * passive count needs to be adjusted.
+			 * The trip has been crossed on the way up, so some
+			 * adjustments are needed to compensate for the lack
+			 * of it going forward.
 			 */
-			tz->passive--;
-			WARN_ON_ONCE(tz->passive < 0);
+			if (trip->type == THERMAL_TRIP_PASSIVE) {
+				tz->passive--;
+				WARN_ON_ONCE(tz->passive < 0);
+			}
+			thermal_zone_trip_down(tz, trip);
 		}
 		/*
 		 * Invalidate the threshold to avoid triggering a spurious
@@ -170,7 +176,5 @@ void thermal_zone_set_trip_temp(struct thermal_zone_device *tz,
 		 */
 		td->threshold = INT_MAX;
 	}
-	trip->temperature = temp;
-	thermal_notify_tz_trip_change(tz, trip);
 }
 EXPORT_SYMBOL_GPL(thermal_zone_set_trip_temp);

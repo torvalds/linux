@@ -731,6 +731,7 @@ static inline bool bioset_initialized(struct bio_set *bs)
 		bip_for_each_vec(_bvl, _bio->bi_integrity, _iter)
 
 int bio_integrity_map_user(struct bio *bio, void __user *ubuf, ssize_t len, u32 seed);
+void bio_integrity_unmap_free_user(struct bio *bio);
 extern struct bio_integrity_payload *bio_integrity_alloc(struct bio *, gfp_t, unsigned int);
 extern int bio_integrity_add_page(struct bio *, struct page *, unsigned int, unsigned int);
 extern bool bio_integrity_prep(struct bio *);
@@ -806,6 +807,9 @@ static inline int bio_integrity_map_user(struct bio *bio, void __user *ubuf,
 					 ssize_t len, u32 seed)
 {
 	return -EINVAL;
+}
+static inline void bio_integrity_unmap_free_user(struct bio *bio)
+{
 }
 
 #endif /* CONFIG_BLK_DEV_INTEGRITY */

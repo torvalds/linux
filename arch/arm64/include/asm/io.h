@@ -153,8 +153,9 @@ extern void __memset_io(volatile void __iomem *, int, size_t);
  * emit the large TLP from the CPU.
  */
 
-static inline void __const_memcpy_toio_aligned32(volatile u32 __iomem *to,
-						 const u32 *from, size_t count)
+static __always_inline void
+__const_memcpy_toio_aligned32(volatile u32 __iomem *to, const u32 *from,
+			      size_t count)
 {
 	switch (count) {
 	case 8:
@@ -196,24 +197,22 @@ static inline void __const_memcpy_toio_aligned32(volatile u32 __iomem *to,
 
 void __iowrite32_copy_full(void __iomem *to, const void *from, size_t count);
 
-static inline void __const_iowrite32_copy(void __iomem *to, const void *from,
-					  size_t count)
+static __always_inline void
+__iowrite32_copy(void __iomem *to, const void *from, size_t count)
 {
-	if (count == 8 || count == 4 || count == 2 || count == 1) {
+	if (__builtin_constant_p(count) &&
+	    (count == 8 || count == 4 || count == 2 || count == 1)) {
 		__const_memcpy_toio_aligned32(to, from, count);
 		dgh();
 	} else {
 		__iowrite32_copy_full(to, from, count);
 	}
 }
+#define __iowrite32_copy __iowrite32_copy
 
-#define __iowrite32_copy(to, from, count)                  \
-	(__builtin_constant_p(count) ?                     \
-		 __const_iowrite32_copy(to, from, count) : \
-		 __iowrite32_copy_full(to, from, count))
-
-static inline void __const_memcpy_toio_aligned64(volatile u64 __iomem *to,
-						 const u64 *from, size_t count)
+static __always_inline void
+__const_memcpy_toio_aligned64(volatile u64 __iomem *to, const u64 *from,
+			      size_t count)
 {
 	switch (count) {
 	case 8:
@@ -255,21 +254,18 @@ static inline void __const_memcpy_toio_aligned64(volatile u64 __iomem *to,
 
 void __iowrite64_copy_full(void __iomem *to, const void *from, size_t count);
 
-static inline void __const_iowrite64_copy(void __iomem *to, const void *from,
-					  size_t count)
+static __always_inline void
+__iowrite64_copy(void __iomem *to, const void *from, size_t count)
 {
-	if (count == 8 || count == 4 || count == 2 || count == 1) {
+	if (__builtin_constant_p(count) &&
+	    (count == 8 || count == 4 || count == 2 || count == 1)) {
 		__const_memcpy_toio_aligned64(to, from, count);
 		dgh();
 	} else {
 		__iowrite64_copy_full(to, from, count);
 	}
 }
-
-#define __iowrite64_copy(to, from, count)                  \
-	(__builtin_constant_p(count) ?                     \
-		 __const_iowrite64_copy(to, from, count) : \
-		 __iowrite64_copy_full(to, from, count))
+#define __iowrite64_copy __iowrite64_copy
 
 /*
  * I/O memory mapping functions.
