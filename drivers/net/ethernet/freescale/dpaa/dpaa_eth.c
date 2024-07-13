@@ -989,17 +989,6 @@ static int dpaa_fq_setup(struct dpaa_priv *priv,
 		}
 	}
 
-	 /* Make sure all CPUs receive a corresponding Tx queue. */
-	while (egress_cnt < dpaa_max_num_txqs()) {
-		list_for_each_entry(fq, &priv->dpaa_fq_list, list) {
-			if (fq->fq_type != FQ_TYPE_TX)
-				continue;
-			priv->egress_fqs[egress_cnt++] = &fq->fq_base;
-			if (egress_cnt == dpaa_max_num_txqs())
-				break;
-		}
-	}
-
 	kfree(channels);
 
 	return 0;
