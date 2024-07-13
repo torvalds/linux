@@ -10385,7 +10385,7 @@ out_unlock:
 out_folios:
 	for (i = 0; i < nr_folios; i++) {
 		if (folios[i])
-			__folio_put(folios[i]);
+			folio_put(folios[i]);
 	}
 	kvfree(folios);
 out:

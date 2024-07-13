@@ -1127,15 +1127,17 @@ int io_recv(struct io_kiocb *req, unsigned int issue_flags)
 		flags |= MSG_DONTWAIT;
 
 retry_multishot:
-	kmsg->msg.msg_inq = -1;
-	kmsg->msg.msg_flags = 0;
-
 	if (io_do_buffer_select(req)) {
 		ret = io_recv_buf_select(req, kmsg, &len, issue_flags);
-		if (unlikely(ret))
+		if (unlikely(ret)) {
+			kmsg->msg.msg_inq = -1;
 			goto out_free;
+		}
 		sr->buf = NULL;
 	}
+
+	kmsg->msg.msg_flags = 0;
+	kmsg->msg.msg_inq = -1;
 
 	if (flags & MSG_WAITALL)
 		min_ret = iov_iter_count(&kmsg->msg.msg_iter);

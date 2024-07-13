@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * FSI-attached I2C master algorithm
+ * FSI-attached I2C controller algorithm
  *
  * Copyright 2018 IBM Corporation
  *
@@ -145,7 +145,7 @@
 /* choose timeout length from legacy driver; it's well tested */
 #define I2C_ABORT_TIMEOUT	msecs_to_jiffies(100)
 
-struct fsi_i2c_master {
+struct fsi_i2c_ctrl {
 	struct fsi_device	*fsi;
 	u8			fifo_size;
 	struct list_head	ports;
@@ -155,7 +155,7 @@ struct fsi_i2c_master {
 struct fsi_i2c_port {
 	struct list_head	list;
 	struct i2c_adapter	adapter;
-	struct fsi_i2c_master	*master;
+	struct fsi_i2c_ctrl	*ctrl;
 	u16			port;
 	u16			xfrd;
 };
@@ -183,7 +183,7 @@ static int fsi_i2c_write_reg(struct fsi_device *fsi, unsigned int reg,
 	return fsi_device_write(fsi, reg, &data_be, sizeof(data_be));
 }
 
-static int fsi_i2c_dev_init(struct fsi_i2c_master *i2c)
+static int fsi_i2c_dev_init(struct fsi_i2c_ctrl *i2c)
 {
 	int rc;
 	u32 mode = I2C_MODE_ENHANCED, extended_status, watermark;
@@ -214,7 +214,7 @@ static int fsi_i2c_dev_init(struct fsi_i2c_master *i2c)
 static int fsi_i2c_set_port(struct fsi_i2c_port *port)
 {
 	int rc;
-	struct fsi_device *fsi = port->master->fsi;
+	struct fsi_device *fsi = port->ctrl->fsi;
 	u32 mode, dummy = 0;
 
 	rc = fsi_i2c_read_reg(fsi, I2C_FSI_MODE, &mode);
@@ -236,7 +236,7 @@ static int fsi_i2c_set_port(struct fsi_i2c_port *port)
 static int fsi_i2c_start(struct fsi_i2c_port *port, struct i2c_msg *msg,
 			 bool stop)
 {
-	struct fsi_i2c_master *i2c = port->master;
+	struct fsi_i2c_ctrl *i2c = port->ctrl;
 	u32 cmd = I2C_CMD_WITH_START | I2C_CMD_WITH_ADDR;
 
 	port->xfrd = 0;
@@ -268,7 +268,7 @@ static int fsi_i2c_write_fifo(struct fsi_i2c_port *port, struct i2c_msg *msg,
 {
 	int write;
 	int rc;
-	struct fsi_i2c_master *i2c = port->master;
+	struct fsi_i2c_ctrl *i2c = port->ctrl;
 	int bytes_to_write = i2c->fifo_size - fifo_count;
 	int bytes_remaining = msg->len - port->xfrd;
 
@@ -294,7 +294,7 @@ static int fsi_i2c_read_fifo(struct fsi_i2c_port *port, struct i2c_msg *msg,
 {
 	int read;
 	int rc;
-	struct fsi_i2c_master *i2c = port->master;
+	struct fsi_i2c_ctrl *i2c = port->ctrl;
 	int bytes_to_read;
 	int xfr_remaining = msg->len - port->xfrd;
 	u32 dummy;
@@ -330,7 +330,7 @@ static int fsi_i2c_get_scl(struct i2c_adapter *adap)
 {
 	u32 stat = 0;
 	struct fsi_i2c_port *port = adap->algo_data;
-	struct fsi_i2c_master *i2c = port->master;
+	struct fsi_i2c_ctrl *i2c = port->ctrl;
 
 	fsi_i2c_read_reg(i2c->fsi, I2C_FSI_STAT, &stat);
 
@@ -341,7 +341,7 @@ static void fsi_i2c_set_scl(struct i2c_adapter *adap, int val)
 {
 	u32 dummy = 0;
 	struct fsi_i2c_port *port = adap->algo_data;
-	struct fsi_i2c_master *i2c = port->master;
+	struct fsi_i2c_ctrl *i2c = port->ctrl;
 
 	if (val)
 		fsi_i2c_write_reg(i2c->fsi, I2C_FSI_SET_SCL, &dummy);
@@ -353,7 +353,7 @@ static int fsi_i2c_get_sda(struct i2c_adapter *adap)
 {
 	u32 stat = 0;
 	struct fsi_i2c_port *port = adap->algo_data;
-	struct fsi_i2c_master *i2c = port->master;
+	struct fsi_i2c_ctrl *i2c = port->ctrl;
 
 	fsi_i2c_read_reg(i2c->fsi, I2C_FSI_STAT, &stat);
 
@@ -364,7 +364,7 @@ static void fsi_i2c_set_sda(struct i2c_adapter *adap, int val)
 {
 	u32 dummy = 0;
 	struct fsi_i2c_port *port = adap->algo_data;
-	struct fsi_i2c_master *i2c = port->master;
+	struct fsi_i2c_ctrl *i2c = port->ctrl;
 
 	if (val)
 		fsi_i2c_write_reg(i2c->fsi, I2C_FSI_SET_SDA, &dummy);
@@ -377,7 +377,7 @@ static void fsi_i2c_prepare_recovery(struct i2c_adapter *adap)
 	int rc;
 	u32 mode;
 	struct fsi_i2c_port *port = adap->algo_data;
-	struct fsi_i2c_master *i2c = port->master;
+	struct fsi_i2c_ctrl *i2c = port->ctrl;
 
 	rc = fsi_i2c_read_reg(i2c->fsi, I2C_FSI_MODE, &mode);
 	if (rc)
@@ -392,7 +392,7 @@ static void fsi_i2c_unprepare_recovery(struct i2c_adapter *adap)
 	int rc;
 	u32 mode;
 	struct fsi_i2c_port *port = adap->algo_data;
-	struct fsi_i2c_master *i2c = port->master;
+	struct fsi_i2c_ctrl *i2c = port->ctrl;
 
 	rc = fsi_i2c_read_reg(i2c->fsi, I2C_FSI_MODE, &mode);
 	if (rc)
@@ -402,7 +402,7 @@ static void fsi_i2c_unprepare_recovery(struct i2c_adapter *adap)
 	fsi_i2c_write_reg(i2c->fsi, I2C_FSI_MODE, &mode);
 }
 
-static int fsi_i2c_reset_bus(struct fsi_i2c_master *i2c,
+static int fsi_i2c_reset_bus(struct fsi_i2c_ctrl *i2c,
 			     struct fsi_i2c_port *port)
 {
 	int rc;
@@ -435,7 +435,7 @@ static int fsi_i2c_reset_bus(struct fsi_i2c_master *i2c,
 	return fsi_i2c_dev_init(i2c);
 }
 
-static int fsi_i2c_reset_engine(struct fsi_i2c_master *i2c, u16 port)
+static int fsi_i2c_reset_engine(struct fsi_i2c_ctrl *i2c, u16 port)
 {
 	int rc;
 	u32 mode, dummy = 0;
@@ -478,7 +478,7 @@ static int fsi_i2c_abort(struct fsi_i2c_port *port, u32 status)
 	unsigned long start;
 	u32 cmd = I2C_CMD_WITH_STOP;
 	u32 stat;
-	struct fsi_i2c_master *i2c = port->master;
+	struct fsi_i2c_ctrl *i2c = port->ctrl;
 	struct fsi_device *fsi = i2c->fsi;
 
 	rc = fsi_i2c_reset_engine(i2c, port->port);
@@ -505,7 +505,7 @@ static int fsi_i2c_abort(struct fsi_i2c_port *port, u32 status)
 	if (rc)
 		return rc;
 
-	/* wait until we see command complete in the master */
+	/* wait until we see command complete in the controller */
 	start = jiffies;
 
 	do {
@@ -579,7 +579,7 @@ static int fsi_i2c_wait(struct fsi_i2c_port *port, struct i2c_msg *msg,
 	unsigned long start = jiffies;
 
 	do {
-		rc = fsi_i2c_read_reg(port->master->fsi, I2C_FSI_STAT,
+		rc = fsi_i2c_read_reg(port->ctrl->fsi, I2C_FSI_STAT,
 				      &status);
 		if (rc)
 			return rc;
@@ -609,10 +609,10 @@ static int fsi_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 	int i, rc;
 	unsigned long start_time;
 	struct fsi_i2c_port *port = adap->algo_data;
-	struct fsi_i2c_master *master = port->master;
+	struct fsi_i2c_ctrl *ctrl = port->ctrl;
 	struct i2c_msg *msg;
 
-	mutex_lock(&master->lock);
+	mutex_lock(&ctrl->lock);
 
 	rc = fsi_i2c_set_port(port);
 	if (rc)
@@ -633,7 +633,7 @@ static int fsi_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 	}
 
 unlock:
-	mutex_unlock(&master->lock);
+	mutex_unlock(&ctrl->lock);
 	return rc ? : num;
 }
 
@@ -654,7 +654,7 @@ static struct i2c_bus_recovery_info fsi_i2c_bus_recovery_info = {
 };
 
 static const struct i2c_algorithm fsi_i2c_algorithm = {
-	.master_xfer = fsi_i2c_xfer,
+	.xfer = fsi_i2c_xfer,
 	.functionality = fsi_i2c_functionality,
 };
 
@@ -676,7 +676,7 @@ static struct device_node *fsi_i2c_find_port_of_node(struct device_node *fsi,
 
 static int fsi_i2c_probe(struct device *dev)
 {
-	struct fsi_i2c_master *i2c;
+	struct fsi_i2c_ctrl *i2c;
 	struct fsi_i2c_port *port;
 	struct device_node *np;
 	u32 port_no, ports, stat;
@@ -699,7 +699,7 @@ static int fsi_i2c_probe(struct device *dev)
 		return rc;
 
 	ports = FIELD_GET(I2C_STAT_MAX_PORT, stat) + 1;
-	dev_dbg(dev, "I2C master has %d ports\n", ports);
+	dev_dbg(dev, "I2C controller has %d ports\n", ports);
 
 	for (port_no = 0; port_no < ports; port_no++) {
 		np = fsi_i2c_find_port_of_node(dev->of_node, port_no);
@@ -712,7 +712,7 @@ static int fsi_i2c_probe(struct device *dev)
 			break;
 		}
 
-		port->master = i2c;
+		port->ctrl = i2c;
 		port->port = port_no;
 
 		port->adapter.owner = THIS_MODULE;
@@ -742,7 +742,7 @@ static int fsi_i2c_probe(struct device *dev)
 
 static int fsi_i2c_remove(struct device *dev)
 {
-	struct fsi_i2c_master *i2c = dev_get_drvdata(dev);
+	struct fsi_i2c_ctrl *i2c = dev_get_drvdata(dev);
 	struct fsi_i2c_port *port, *tmp;
 
 	list_for_each_entry_safe(port, tmp, &i2c->ports, list) {
@@ -772,5 +772,5 @@ static struct fsi_driver fsi_i2c_driver = {
 module_fsi_driver(fsi_i2c_driver);
 
 MODULE_AUTHOR("Eddie James <eajames@us.ibm.com>");
-MODULE_DESCRIPTION("FSI attached I2C master");
+MODULE_DESCRIPTION("FSI attached I2C controller");
 MODULE_LICENSE("GPL");

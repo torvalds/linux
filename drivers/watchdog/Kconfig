@@ -257,6 +257,7 @@ config GPIO_WATCHDOG_ARCH_INITCALL
 config LENOVO_SE10_WDT
 	tristate "Lenovo SE10 Watchdog"
 	depends on (X86 && DMI) || COMPILE_TEST
+	depends on HAS_IOPORT
 	select WATCHDOG_CORE
 	help
 	  If you say yes here you get support for the watchdog

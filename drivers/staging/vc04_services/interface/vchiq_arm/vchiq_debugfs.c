@@ -138,7 +138,7 @@ void vchiq_debugfs_deinit(void)
 
 #else /* CONFIG_DEBUG_FS */
 
-void vchiq_debugfs_init(void)
+void vchiq_debugfs_init(struct vchiq_state *state)
 {
 }
 

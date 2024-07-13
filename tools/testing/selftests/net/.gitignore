@@ -43,7 +43,6 @@ tap
 tcp_fastopen_backup_key
 tcp_inq
 tcp_mmap
-test_unix_oob
 timestamping
 tls
 toeplitz

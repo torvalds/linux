@@ -136,11 +136,11 @@ static void iic_dev_init(struct ibm_iic_private* dev)
 
 	DBG("%d: init\n", dev->idx);
 
-	/* Clear master address */
+	/* Clear remote target address */
 	out_8(&iic->lmadr, 0);
 	out_8(&iic->hmadr, 0);
 
-	/* Clear slave address */
+	/* Clear local target address */
 	out_8(&iic->lsadr, 0);
 	out_8(&iic->hsadr, 0);
 
@@ -337,7 +337,7 @@ static irqreturn_t iic_handler(int irq, void *dev_id)
 }
 
 /*
- * Get master transfer result and clear errors if any.
+ * Get controller transfer result and clear errors if any.
  * Returns the number of actually transferred bytes or error (<0)
  */
 static int iic_xfer_result(struct ibm_iic_private* dev)
@@ -352,7 +352,7 @@ static int iic_xfer_result(struct ibm_iic_private* dev)
 		out_8(&iic->extsts, EXTSTS_IRQP | EXTSTS_IRQD |
 			EXTSTS_LA | EXTSTS_ICT | EXTSTS_XFRA);
 
-		/* Flush master data buffer */
+		/* Flush controller data buffer */
 		out_8(&iic->mdcntl, in_8(&iic->mdcntl) | MDCNTL_FMDB);
 
 		/* Is bus free?
@@ -401,7 +401,7 @@ static void iic_abort_xfer(struct ibm_iic_private* dev)
 }
 
 /*
- * Wait for master transfer to complete.
+ * Wait for controller transfer to complete.
  * It puts current process to sleep until we get interrupt or timeout expires.
  * Returns the number of transferred bytes or error (<0)
  */
@@ -452,9 +452,6 @@ static int iic_wait_for_tc(struct ibm_iic_private* dev){
 	return ret;
 }
 
-/*
- * Low level master transfer routine
- */
 static int iic_xfer_bytes(struct ibm_iic_private* dev, struct i2c_msg* pm,
 			  int combined_xfer)
 {
@@ -511,9 +508,7 @@ static int iic_xfer_bytes(struct ibm_iic_private* dev, struct i2c_msg* pm,
 	return ret > 0 ? 0 : ret;
 }
 
-/*
- * Set target slave address for master transfer
- */
+/* Set remote target address for transfer */
 static inline void iic_address(struct ibm_iic_private* dev, struct i2c_msg* msg)
 {
 	volatile struct iic_regs __iomem *iic = dev->vaddr;
@@ -546,7 +541,7 @@ static inline int iic_address_neq(const struct i2c_msg* p1,
 }
 
 /*
- * Generic master transfer entrypoint.
+ * Generic transfer entrypoint.
  * Returns the number of processed messages or error (<0)
  */
 static int iic_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
@@ -604,11 +599,11 @@ static int iic_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 		}
 	}
 	else {
-		/* Flush master data buffer (just in case) */
+		/* Flush controller data buffer (just in case) */
 		out_8(&iic->mdcntl, in_8(&iic->mdcntl) | MDCNTL_FMDB);
 	}
 
-	/* Load slave address */
+	/* Load target address */
 	iic_address(dev, &msgs[0]);
 
 	/* Do real transfer */
@@ -624,8 +619,8 @@ static u32 iic_func(struct i2c_adapter *adap)
 }
 
 static const struct i2c_algorithm iic_algo = {
-	.master_xfer 	= iic_xfer,
-	.functionality	= iic_func
+	.xfer = iic_xfer,
+	.functionality = iic_func
 };
 
 /*

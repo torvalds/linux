@@ -410,7 +410,29 @@ static ssize_t nvmet_addr_tsas_show(struct config_item *item,
 				return sprintf(page, "%s\n", nvmet_addr_tsas_rdma[i].name);
 		}
 	}
-	return sprintf(page, "reserved\n");
+	return sprintf(page, "\n");
+}
+
+static u8 nvmet_addr_tsas_rdma_store(const char *page)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(nvmet_addr_tsas_rdma); i++) {
+		if (sysfs_streq(page, nvmet_addr_tsas_rdma[i].name))
+			return nvmet_addr_tsas_rdma[i].type;
+	}
+	return NVMF_RDMA_QPTYPE_INVALID;
+}
+
+static u8 nvmet_addr_tsas_tcp_store(const char *page)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(nvmet_addr_tsas_tcp); i++) {
+		if (sysfs_streq(page, nvmet_addr_tsas_tcp[i].name))
+			return nvmet_addr_tsas_tcp[i].type;
+	}
+	return NVMF_TCP_SECTYPE_INVALID;
 }
 
 static ssize_t nvmet_addr_tsas_store(struct config_item *item,
@@ -418,20 +440,19 @@ static ssize_t nvmet_addr_tsas_store(struct config_item *item,
 {
 	struct nvmet_port *port = to_nvmet_port(item);
 	u8 treq = nvmet_port_disc_addr_treq_mask(port);
-	u8 sectype;
-	int i;
+	u8 sectype, qptype;
 
 	if (nvmet_is_port_enabled(port, __func__))
 		return -EACCES;
 
-	if (port->disc_addr.trtype != NVMF_TRTYPE_TCP)
-		return -EINVAL;
-
-	for (i = 0; i < ARRAY_SIZE(nvmet_addr_tsas_tcp); i++) {
-		if (sysfs_streq(page, nvmet_addr_tsas_tcp[i].name)) {
-			sectype = nvmet_addr_tsas_tcp[i].type;
+	if (port->disc_addr.trtype == NVMF_TRTYPE_RDMA) {
+		qptype = nvmet_addr_tsas_rdma_store(page);
+		if (qptype == port->disc_addr.tsas.rdma.qptype)
+			return count;
+	} else if (port->disc_addr.trtype == NVMF_TRTYPE_TCP) {
+		sectype = nvmet_addr_tsas_tcp_store(page);
+		if (sectype != NVMF_TCP_SECTYPE_INVALID)
 			goto found;
-		}
 	}
 
 	pr_err("Invalid value '%s' for tsas\n", page);

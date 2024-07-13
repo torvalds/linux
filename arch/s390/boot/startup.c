@@ -170,11 +170,14 @@ static void kaslr_adjust_got(unsigned long offset)
 	u64 *entry;
 
 	/*
-	 * Even without -fPIE, Clang still uses a global offset table for some
-	 * reason. Adjust the GOT entries.
+	 * Adjust GOT entries, except for ones for undefined weak symbols
+	 * that resolved to zero. This also skips the first three reserved
+	 * entries on s390x that are zero.
 	 */
-	for (entry = (u64 *)vmlinux.got_start; entry < (u64 *)vmlinux.got_end; entry++)
-		*entry += offset - __START_KERNEL;
+	for (entry = (u64 *)vmlinux.got_start; entry < (u64 *)vmlinux.got_end; entry++) {
+		if (*entry)
+			*entry += offset - __START_KERNEL;
+	}
 }
 
 /*
