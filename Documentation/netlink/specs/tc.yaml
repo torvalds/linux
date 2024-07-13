@@ -2763,6 +2763,18 @@ attribute-sets:
         name: key-spi-mask
         type: u32
         byte-order: big-endian
+      -
+        name: key-enc-flags
+        type: u32
+        byte-order: big-endian
+        enum: tc-flower-key-ctrl-flags
+        enum-as-flags: true
+      -
+        name: key-enc-flags-mask
+        type: u32
+        byte-order: big-endian
+        enum: tc-flower-key-ctrl-flags
+        enum-as-flags: true
   -
     name: tc-flower-key-enc-opts-attrs
     attributes:
