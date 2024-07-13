@@ -1286,19 +1286,16 @@ struct bnxt_vnic_info {
 #define BNXT_VNIC_RFS_NEW_RSS_FLAG	0x10
 #define BNXT_VNIC_NTUPLE_FLAG		0x20
 #define BNXT_VNIC_RSSCTX_FLAG		0x40
-	struct bnxt_rss_ctx	*rss_ctx;
+	struct ethtool_rxfh_context *rss_ctx;
 	u32		vnic_id;
 };
 
 struct bnxt_rss_ctx {
-	struct list_head list;
 	struct bnxt_vnic_info vnic;
-	u16	*rss_indir_tbl;
 	u8	index;
 };
 
 #define BNXT_MAX_ETH_RSS_CTX	32
-#define BNXT_RSS_CTX_BMAP_LEN	(BNXT_MAX_ETH_RSS_CTX + 1)
 #define BNXT_VNIC_ID_INVALID	0xffffffff
 
 struct bnxt_hw_rings {
@@ -2331,11 +2328,9 @@ struct bnxt {
 	/* grp_info indexed by completion ring index */
 	struct bnxt_ring_grp_info	*grp_info;
 	struct bnxt_vnic_info	*vnic_info;
-	struct list_head	rss_ctx_list;
-	unsigned long		*rss_ctx_bmap;
 	u32			num_rss_ctx;
 	int			nr_vnics;
-	u16			*rss_indir_tbl;
+	u32			*rss_indir_tbl;
 	u16			rss_indir_tbl_entries;
 	u32			rss_hash_cfg;
 	u32			rss_hash_delta;
@@ -2812,9 +2807,8 @@ int bnxt_hwrm_cfa_ntuple_filter_alloc(struct bnxt *bp,
 int bnxt_hwrm_vnic_set_tpa(struct bnxt *bp, struct bnxt_vnic_info *vnic,
 			   u32 tpa_flags);
 void bnxt_fill_ipv6_mask(__be32 mask[4]);
-int bnxt_alloc_rss_indir_tbl(struct bnxt *bp, struct bnxt_rss_ctx *rss_ctx);
-void bnxt_set_dflt_rss_indir_tbl(struct bnxt *bp, struct bnxt_rss_ctx *rss_ctx);
-u16 bnxt_get_max_rss_ctx_ring(struct bnxt *bp);
+void bnxt_set_dflt_rss_indir_tbl(struct bnxt *bp,
+				 struct ethtool_rxfh_context *rss_ctx);
 int bnxt_get_nr_rss_ctxs(struct bnxt *bp, int rx_rings);
 int bnxt_hwrm_vnic_cfg(struct bnxt *bp, struct bnxt_vnic_info *vnic);
 int bnxt_hwrm_vnic_alloc(struct bnxt *bp, struct bnxt_vnic_info *vnic,
@@ -2848,8 +2842,7 @@ int bnxt_hwrm_vnic_rss_cfg_p5(struct bnxt *bp, struct bnxt_vnic_info *vnic);
 int __bnxt_setup_vnic_p5(struct bnxt *bp, struct bnxt_vnic_info *vnic);
 void bnxt_del_one_rss_ctx(struct bnxt *bp, struct bnxt_rss_ctx *rss_ctx,
 			  bool all);
-struct bnxt_rss_ctx *bnxt_alloc_rss_ctx(struct bnxt *bp);
-void bnxt_clear_rss_ctxs(struct bnxt *bp, bool all);
+void bnxt_clear_rss_ctxs(struct bnxt *bp);
 int bnxt_open_nic(struct bnxt *, bool, bool);
 int bnxt_half_open_nic(struct bnxt *bp);
 void bnxt_half_close_nic(struct bnxt *bp);

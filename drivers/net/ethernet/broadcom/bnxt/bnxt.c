@@ -5970,17 +5970,20 @@ bnxt_cfg_rfs_ring_tbl_idx(struct bnxt *bp,
 			  struct hwrm_cfa_ntuple_filter_alloc_input *req,
 			  struct bnxt_ntuple_filter *fltr)
 {
-	struct bnxt_rss_ctx *rss_ctx, *tmp;
 	u16 rxq = fltr->base.rxq;
 
 	if (fltr->base.flags & BNXT_ACT_RSS_CTX) {
-		list_for_each_entry_safe(rss_ctx, tmp, &bp->rss_ctx_list, list) {
-			if (rss_ctx->index == fltr->base.fw_vnic_id) {
-				struct bnxt_vnic_info *vnic = &rss_ctx->vnic;
+		struct ethtool_rxfh_context *ctx;
+		struct bnxt_rss_ctx *rss_ctx;
+		struct bnxt_vnic_info *vnic;
 
-				req->dst_id = cpu_to_le16(vnic->fw_vnic_id);
-				break;
-			}
+		ctx = xa_load(&bp->dev->ethtool->rss_ctx,
+			      fltr->base.fw_vnic_id);
+		if (ctx) {
+			rss_ctx = ethtool_rxfh_context_priv(ctx);
+			vnic = &rss_ctx->vnic;
+
+			req->dst_id = cpu_to_le16(vnic->fw_vnic_id);
 		}
 		return;
 	}
@@ -6219,10 +6222,9 @@ static u16 bnxt_cp_ring_for_tx(struct bnxt *bp, struct bnxt_tx_ring_info *txr)
 		return bnxt_cp_ring_from_grp(bp, &txr->tx_ring_struct);
 }
 
-int bnxt_alloc_rss_indir_tbl(struct bnxt *bp, struct bnxt_rss_ctx *rss_ctx)
+static int bnxt_alloc_rss_indir_tbl(struct bnxt *bp)
 {
 	int entries;
-	u16 *tbl;
 
 	if (bp->flags & BNXT_FLAG_CHIP_P5_PLUS)
 		entries = BNXT_MAX_RSS_TABLE_ENTRIES_P5;
@@ -6230,22 +6232,19 @@ int bnxt_alloc_rss_indir_tbl(struct bnxt *bp, struct bnxt_rss_ctx *rss_ctx)
 		entries = HW_HASH_INDEX_SIZE;
 
 	bp->rss_indir_tbl_entries = entries;
-	tbl = kmalloc_array(entries, sizeof(*bp->rss_indir_tbl), GFP_KERNEL);
-	if (!tbl)
+	bp->rss_indir_tbl =
+		kmalloc_array(entries, sizeof(*bp->rss_indir_tbl), GFP_KERNEL);
+	if (!bp->rss_indir_tbl)
 		return -ENOMEM;
-
-	if (rss_ctx)
-		rss_ctx->rss_indir_tbl = tbl;
-	else
-		bp->rss_indir_tbl = tbl;
 
 	return 0;
 }
 
-void bnxt_set_dflt_rss_indir_tbl(struct bnxt *bp, struct bnxt_rss_ctx *rss_ctx)
+void bnxt_set_dflt_rss_indir_tbl(struct bnxt *bp,
+				 struct ethtool_rxfh_context *rss_ctx)
 {
 	u16 max_rings, max_entries, pad, i;
-	u16 *rss_indir_tbl;
+	u32 *rss_indir_tbl;
 
 	if (!bp->rx_nr_rings)
 		return;
@@ -6257,7 +6256,7 @@ void bnxt_set_dflt_rss_indir_tbl(struct bnxt *bp, struct bnxt_rss_ctx *rss_ctx)
 
 	max_entries = bnxt_get_rxfh_indir_size(bp->dev);
 	if (rss_ctx)
-		rss_indir_tbl = &rss_ctx->rss_indir_tbl[0];
+		rss_indir_tbl = ethtool_rxfh_context_indir(rss_ctx);
 	else
 		rss_indir_tbl = &bp->rss_indir_tbl[0];
 
@@ -6266,12 +6265,12 @@ void bnxt_set_dflt_rss_indir_tbl(struct bnxt *bp, struct bnxt_rss_ctx *rss_ctx)
 
 	pad = bp->rss_indir_tbl_entries - max_entries;
 	if (pad)
-		memset(&rss_indir_tbl[i], 0, pad * sizeof(u16));
+		memset(&rss_indir_tbl[i], 0, pad * sizeof(*rss_indir_tbl));
 }
 
 static u16 bnxt_get_max_rss_ring(struct bnxt *bp)
 {
-	u16 i, tbl_size, max_ring = 0;
+	u32 i, tbl_size, max_ring = 0;
 
 	if (!bp->rss_indir_tbl)
 		return 0;
@@ -6279,21 +6278,6 @@ static u16 bnxt_get_max_rss_ring(struct bnxt *bp)
 	tbl_size = bnxt_get_rxfh_indir_size(bp->dev);
 	for (i = 0; i < tbl_size; i++)
 		max_ring = max(max_ring, bp->rss_indir_tbl[i]);
-	return max_ring;
-}
-
-u16 bnxt_get_max_rss_ctx_ring(struct bnxt *bp)
-{
-	u16 i, tbl_size, max_ring = 0;
-	struct bnxt_rss_ctx *rss_ctx;
-
-	tbl_size = bnxt_get_rxfh_indir_size(bp->dev);
-
-	list_for_each_entry(rss_ctx, &bp->rss_ctx_list, list) {
-		for (i = 0; i < tbl_size; i++)
-			max_ring = max(max_ring, rss_ctx->rss_indir_tbl[i]);
-	}
-
 	return max_ring;
 }
 
@@ -6338,7 +6322,7 @@ static void bnxt_fill_hw_rss_tbl_p5(struct bnxt *bp,
 		if (vnic->flags & BNXT_VNIC_NTUPLE_FLAG)
 			j = ethtool_rxfh_indir_default(i, bp->rx_nr_rings);
 		else if (vnic->flags & BNXT_VNIC_RSSCTX_FLAG)
-			j = vnic->rss_ctx->rss_indir_tbl[i];
+			j = ethtool_rxfh_context_indir(vnic->rss_ctx)[i];
 		else
 			j = bp->rss_indir_tbl[i];
 		rxr = &bp->rx_ring[j];
@@ -10210,10 +10194,12 @@ void bnxt_del_one_rss_ctx(struct bnxt *bp, struct bnxt_rss_ctx *rss_ctx,
 	struct bnxt_ntuple_filter *ntp_fltr;
 	int i;
 
-	bnxt_hwrm_vnic_free_one(bp, &rss_ctx->vnic);
-	for (i = 0; i < BNXT_MAX_CTX_PER_VNIC; i++) {
-		if (vnic->fw_rss_cos_lb_ctx[i] != INVALID_HW_RING_ID)
-			bnxt_hwrm_vnic_ctx_free_one(bp, vnic, i);
+	if (netif_running(bp->dev)) {
+		bnxt_hwrm_vnic_free_one(bp, &rss_ctx->vnic);
+		for (i = 0; i < BNXT_MAX_CTX_PER_VNIC; i++) {
+			if (vnic->fw_rss_cos_lb_ctx[i] != INVALID_HW_RING_ID)
+				bnxt_hwrm_vnic_ctx_free_one(bp, vnic, i);
+		}
 	}
 	if (!all)
 		return;
@@ -10234,19 +10220,17 @@ void bnxt_del_one_rss_ctx(struct bnxt *bp, struct bnxt_rss_ctx *rss_ctx,
 		dma_free_coherent(&bp->pdev->dev, vnic->rss_table_size,
 				  vnic->rss_table,
 				  vnic->rss_table_dma_addr);
-	kfree(rss_ctx->rss_indir_tbl);
-	list_del(&rss_ctx->list);
 	bp->num_rss_ctx--;
-	clear_bit(rss_ctx->index, bp->rss_ctx_bmap);
-	kfree(rss_ctx);
 }
 
 static void bnxt_hwrm_realloc_rss_ctx_vnic(struct bnxt *bp)
 {
 	bool set_tpa = !!(bp->flags & BNXT_FLAG_TPA);
-	struct bnxt_rss_ctx *rss_ctx, *tmp;
+	struct ethtool_rxfh_context *ctx;
+	unsigned long context;
 
-	list_for_each_entry_safe(rss_ctx, tmp, &bp->rss_ctx_list, list) {
+	xa_for_each(&bp->dev->ethtool->rss_ctx, context, ctx) {
+		struct bnxt_rss_ctx *rss_ctx = ethtool_rxfh_context_priv(ctx);
 		struct bnxt_vnic_info *vnic = &rss_ctx->vnic;
 
 		if (bnxt_hwrm_vnic_alloc(bp, vnic, 0, bp->rx_nr_rings) ||
@@ -10255,42 +10239,20 @@ static void bnxt_hwrm_realloc_rss_ctx_vnic(struct bnxt *bp)
 			netdev_err(bp->dev, "Failed to restore RSS ctx %d\n",
 				   rss_ctx->index);
 			bnxt_del_one_rss_ctx(bp, rss_ctx, true);
+			ethtool_rxfh_context_lost(bp->dev, rss_ctx->index);
 		}
 	}
 }
 
-struct bnxt_rss_ctx *bnxt_alloc_rss_ctx(struct bnxt *bp)
+void bnxt_clear_rss_ctxs(struct bnxt *bp)
 {
-	struct bnxt_rss_ctx *rss_ctx = NULL;
+	struct ethtool_rxfh_context *ctx;
+	unsigned long context;
 
-	rss_ctx = kzalloc(sizeof(*rss_ctx), GFP_KERNEL);
-	if (rss_ctx) {
-		rss_ctx->vnic.rss_ctx = rss_ctx;
-		list_add_tail(&rss_ctx->list, &bp->rss_ctx_list);
-		bp->num_rss_ctx++;
-	}
-	return rss_ctx;
-}
+	xa_for_each(&bp->dev->ethtool->rss_ctx, context, ctx) {
+		struct bnxt_rss_ctx *rss_ctx = ethtool_rxfh_context_priv(ctx);
 
-void bnxt_clear_rss_ctxs(struct bnxt *bp, bool all)
-{
-	struct bnxt_rss_ctx *rss_ctx, *tmp;
-
-	list_for_each_entry_safe(rss_ctx, tmp, &bp->rss_ctx_list, list)
-		bnxt_del_one_rss_ctx(bp, rss_ctx, all);
-
-	if (all)
-		bitmap_free(bp->rss_ctx_bmap);
-}
-
-static void bnxt_init_multi_rss_ctx(struct bnxt *bp)
-{
-	bp->rss_ctx_bmap = bitmap_zalloc(BNXT_RSS_CTX_BMAP_LEN, GFP_KERNEL);
-	if (bp->rss_ctx_bmap) {
-		/* burn index 0 since we cannot have context 0 */
-		__set_bit(0, bp->rss_ctx_bmap);
-		INIT_LIST_HEAD(&bp->rss_ctx_list);
-		bp->rss_cap |= BNXT_RSS_CAP_MULTI_RSS_CTX;
+		bnxt_del_one_rss_ctx(bp, rss_ctx, false);
 	}
 }
 
@@ -12337,7 +12299,7 @@ static void __bnxt_close_nic(struct bnxt *bp, bool irq_re_init,
 		msleep(20);
 
 	if (BNXT_SUPPORTS_MULTI_RSS_CTX(bp))
-		bnxt_clear_rss_ctxs(bp, false);
+		bnxt_clear_rss_ctxs(bp);
 	/* Flush rings and disable interrupts */
 	bnxt_shutdown_nic(bp, irq_re_init);
 
@@ -15252,8 +15214,7 @@ static void bnxt_remove_one(struct pci_dev *pdev)
 
 	bnxt_free_l2_filters(bp, true);
 	bnxt_free_ntp_fltrs(bp, true);
-	if (BNXT_SUPPORTS_MULTI_RSS_CTX(bp))
-		bnxt_clear_rss_ctxs(bp, true);
+	WARN_ON(bp->num_rss_ctx);
 	clear_bit(BNXT_STATE_IN_FW_RESET, &bp->state);
 	/* Flush any pending tasks */
 	cancel_work_sync(&bp->sp_task);
@@ -15723,7 +15684,7 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			bp->flags |= BNXT_FLAG_CHIP_P7;
 	}
 
-	rc = bnxt_alloc_rss_indir_tbl(bp, NULL);
+	rc = bnxt_alloc_rss_indir_tbl(bp);
 	if (rc)
 		goto init_err_pci_clean;
 
@@ -15880,8 +15841,7 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	INIT_LIST_HEAD(&bp->usr_fltr_list);
 
 	if (BNXT_SUPPORTS_NTUPLE_VNIC(bp))
-		bnxt_init_multi_rss_ctx(bp);
-
+		bp->rss_cap |= BNXT_RSS_CAP_MULTI_RSS_CTX;
 
 	rc = register_netdev(dev);
 	if (rc)
@@ -15904,8 +15864,6 @@ init_err_dl:
 	bnxt_clear_int_mode(bp);
 
 init_err_pci_clean:
-	if (BNXT_SUPPORTS_MULTI_RSS_CTX(bp))
-		bnxt_clear_rss_ctxs(bp, true);
 	bnxt_hwrm_func_drv_unrgtr(bp);
 	bnxt_free_hwrm_resources(bp);
 	bnxt_hwmon_uninit(bp);
