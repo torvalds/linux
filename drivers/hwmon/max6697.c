@@ -32,6 +32,7 @@ static const u8 MAX6697_REG_MAX[] = {
 static const u8 MAX6697_REG_CRIT[] = {
 			0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27 };
 
+#define MAX6697_REG_MIN			0x30
 /*
  * Map device tree / internal register bit map to chip bit map.
  * Applies to alert register and over-temperature register.
@@ -54,6 +55,7 @@ static const u8 MAX6697_REG_CRIT[] = {
 #define MAX6697_REG_STAT_ALARM		0x44
 #define MAX6697_REG_STAT_CRIT		0x45
 #define MAX6697_REG_STAT_FAULT		0x46
+#define MAX6697_REG_STAT_MIN_ALARM	0x47
 
 #define MAX6697_REG_CONFIG		0x41
 #define MAX6581_CONF_EXTENDED		BIT(1)
@@ -173,6 +175,18 @@ static const struct max6697_chip_data max6697_chip_data[] = {
 	},
 };
 
+static int max6697_alarm_channel_map(int channel)
+{
+	switch (channel) {
+	case 0:
+		return 6;
+	case 7:
+		return 7;
+	default:
+		return channel - 1;
+	}
+}
+
 static int max6697_read(struct device *dev, enum hwmon_sensor_types type,
 			u32 attr, int channel, long *val)
 {
@@ -201,6 +215,12 @@ static int max6697_read(struct device *dev, enum hwmon_sensor_types type,
 		break;
 	case hwmon_temp_crit:
 		ret = regmap_read(regmap, MAX6697_REG_CRIT[channel], &regval);
+		if (ret)
+			return ret;
+		*val = ((int)regval - data->temp_offset) * 1000;
+		break;
+	case hwmon_temp_min:
+		ret = regmap_read(regmap, MAX6697_REG_MIN, &regval);
 		if (ret)
 			return ret;
 		*val = ((int)regval - data->temp_offset) * 1000;
@@ -234,17 +254,13 @@ static int max6697_read(struct device *dev, enum hwmon_sensor_types type,
 		ret = regmap_read(regmap, MAX6697_REG_STAT_ALARM, &regval);
 		if (ret)
 			return ret;
-		switch (channel) {
-		case 0:
-			*val = !!(regval & BIT(6));
-			break;
-		case 7:
-			*val = !!(regval & BIT(7));
-			break;
-		default:
-			*val = !!(regval & BIT(channel - 1));
-			break;
-		}
+		*val = !!(regval & BIT(max6697_alarm_channel_map(channel)));
+		break;
+	case hwmon_temp_min_alarm:
+		ret = regmap_read(regmap, MAX6697_REG_STAT_MIN_ALARM, &regval);
+		if (ret)
+			return ret;
+		*val = !!(regval & BIT(max6697_alarm_channel_map(channel)));
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -270,6 +286,11 @@ static int max6697_write(struct device *dev, enum hwmon_sensor_types type,
 		val = DIV_ROUND_CLOSEST(val, 1000) + data->temp_offset;
 		val = clamp_val(val, 0, data->type == max6581 ? 255 : 127);
 		return regmap_write(regmap, MAX6697_REG_CRIT[channel], val);
+	case hwmon_temp_min:
+		val = clamp_val(val, -1000000, 1000000);	/* prevent underflow */
+		val = DIV_ROUND_CLOSEST(val, 1000) + data->temp_offset;
+		val = clamp_val(val, 0, 255);
+		return regmap_write(regmap, MAX6697_REG_MIN, val);
 	case hwmon_temp_offset:
 		mutex_lock(&data->update_lock);
 		val = clamp_val(val, MAX6581_OFFSET_MIN, MAX6581_OFFSET_MAX);
@@ -308,6 +329,14 @@ static umode_t max6697_is_visible(const void *_data, enum hwmon_sensor_types typ
 	case hwmon_temp_input:
 	case hwmon_temp_max_alarm:
 		return 0444;
+	case hwmon_temp_min:
+		if (data->type == max6581)
+			return channel ? 0444 : 0644;
+		break;
+	case hwmon_temp_min_alarm:
+		if (data->type == max6581)
+			return 0444;
+		break;
 	case hwmon_temp_crit:
 		if (chip->have_crit & BIT(channel))
 			return 0644;
@@ -334,27 +363,35 @@ static umode_t max6697_is_visible(const void *_data, enum hwmon_sensor_types typ
 static const struct hwmon_channel_info * const max6697_info[] = {
 	HWMON_CHANNEL_INFO(temp,
 			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_CRIT |
+			   HWMON_T_MIN | HWMON_T_MIN_ALARM |
 			   HWMON_T_MAX_ALARM | HWMON_T_CRIT_ALARM,
 			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_CRIT |
 			   HWMON_T_MAX_ALARM | HWMON_T_CRIT_ALARM |
+			   HWMON_T_MIN | HWMON_T_MIN_ALARM |
 			   HWMON_T_FAULT | HWMON_T_OFFSET,
 			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_CRIT |
 			   HWMON_T_MAX_ALARM | HWMON_T_CRIT_ALARM |
+			   HWMON_T_MIN | HWMON_T_MIN_ALARM |
 			   HWMON_T_FAULT | HWMON_T_OFFSET,
 			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_CRIT |
 			   HWMON_T_MAX_ALARM | HWMON_T_CRIT_ALARM |
+			   HWMON_T_MIN | HWMON_T_MIN_ALARM |
 			   HWMON_T_FAULT | HWMON_T_OFFSET,
 			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_CRIT |
 			   HWMON_T_MAX_ALARM | HWMON_T_CRIT_ALARM |
+			   HWMON_T_MIN | HWMON_T_MIN_ALARM |
 			   HWMON_T_FAULT | HWMON_T_OFFSET,
 			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_CRIT |
 			   HWMON_T_MAX_ALARM | HWMON_T_CRIT_ALARM |
+			   HWMON_T_MIN | HWMON_T_MIN_ALARM |
 			   HWMON_T_FAULT | HWMON_T_OFFSET,
 			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_CRIT |
 			   HWMON_T_MAX_ALARM | HWMON_T_CRIT_ALARM |
+			   HWMON_T_MIN | HWMON_T_MIN_ALARM |
 			   HWMON_T_FAULT | HWMON_T_OFFSET,
 			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_CRIT |
 			   HWMON_T_MAX_ALARM | HWMON_T_CRIT_ALARM |
+			   HWMON_T_MIN | HWMON_T_MIN_ALARM |
 			   HWMON_T_FAULT | HWMON_T_OFFSET),
 	NULL
 };
