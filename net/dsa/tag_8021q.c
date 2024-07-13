@@ -286,7 +286,8 @@ int dsa_switch_tag_8021q_vlan_del(struct dsa_switch *ds,
  * be used for VLAN-unaware bridging.
  */
 int dsa_tag_8021q_bridge_join(struct dsa_switch *ds, int port,
-			      struct dsa_bridge bridge)
+			      struct dsa_bridge bridge, bool *tx_fwd_offload,
+			      struct netlink_ext_ack *extack)
 {
 	struct dsa_port *dp = dsa_to_port(ds, port);
 	u16 standalone_vid, bridge_vid;
@@ -303,6 +304,8 @@ int dsa_tag_8021q_bridge_join(struct dsa_switch *ds, int port,
 		return err;
 
 	dsa_port_tag_8021q_vlan_del(dp, standalone_vid, false);
+
+	*tx_fwd_offload = true;
 
 	return 0;
 }
