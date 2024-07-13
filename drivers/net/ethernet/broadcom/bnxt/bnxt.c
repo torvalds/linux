@@ -6151,6 +6151,9 @@ u16 bnxt_get_max_rss_ctx_ring(struct bnxt *bp)
 	u16 i, tbl_size, max_ring = 0;
 	struct bnxt_rss_ctx *rss_ctx;
 
+	if (!BNXT_SUPPORTS_MULTI_RSS_CTX(bp))
+		return 0;
+
 	tbl_size = bnxt_get_rxfh_indir_size(bp->dev);
 
 	list_for_each_entry(rss_ctx, &bp->rss_ctx_list, list) {
