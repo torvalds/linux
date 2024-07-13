@@ -537,22 +537,6 @@ void ice_eswitch_detach(struct ice_pf *pf, struct ice_vf *vf)
 }
 
 /**
- * ice_eswitch_rebuild - rebuild eswitch
- * @pf: pointer to PF structure
- */
-void ice_eswitch_rebuild(struct ice_pf *pf)
-{
-	struct ice_repr *repr;
-	unsigned long id;
-
-	if (!ice_is_switchdev_running(pf))
-		return;
-
-	xa_for_each(&pf->eswitch.reprs, id, repr)
-		ice_eswitch_detach(pf, repr->vf);
-}
-
-/**
  * ice_eswitch_get_target - get netdev based on src_vsi from descriptor
  * @rx_ring: ring used to receive the packet
  * @rx_desc: descriptor used to get src_vsi value

@@ -255,6 +255,5 @@ EXPORT_SYMBOL_NS_GPL(libeth_rx_pt_gen_hash_type, LIBETH);
 
 /* Module */
 
-MODULE_AUTHOR("Intel Corporation");
 MODULE_DESCRIPTION("Common Ethernet library");
 MODULE_LICENSE("GPL");

@@ -1086,6 +1086,7 @@ int ice_init_hw(struct ice_hw *hw)
 		goto err_unroll_cqinit;
 	}
 
+	hw->port_info->local_fwd_mode = ICE_LOCAL_FWD_MODE_ENABLED;
 	/* set the back pointer to HW */
 	hw->port_info->hw = hw;
 
@@ -3070,6 +3071,9 @@ ice_aq_set_port_params(struct ice_port_info *pi, bool double_vlan,
 	if (double_vlan)
 		cmd_flags |= ICE_AQC_SET_P_PARAMS_DOUBLE_VLAN_ENA;
 	cmd->cmd_flags = cpu_to_le16(cmd_flags);
+
+	cmd->local_fwd_mode = pi->local_fwd_mode |
+				ICE_AQC_SET_P_PARAMS_LOCAL_FWD_MODE_VALID;
 
 	return ice_aq_send_cmd(hw, &desc, NULL, 0, cd);
 }

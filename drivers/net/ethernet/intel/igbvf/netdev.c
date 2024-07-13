@@ -3001,7 +3001,6 @@ static void __exit igbvf_exit_module(void)
 }
 module_exit(igbvf_exit_module);
 
-MODULE_AUTHOR("Intel Corporation, <e1000-devel@lists.sourceforge.net>");
 MODULE_DESCRIPTION("Intel(R) Gigabit Virtual Function Network Driver");
 MODULE_LICENSE("GPL v2");
 
