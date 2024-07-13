@@ -7,6 +7,7 @@
 #include <linux/siphash.h>
 #include <linux/string.h>
 #include <uapi/linux/if_ether.h>
+#include <uapi/linux/pkt_cls.h>
 
 struct bpf_prog;
 struct net;
@@ -24,9 +25,16 @@ struct flow_dissector_key_control {
 	u32	flags;
 };
 
-#define FLOW_DIS_IS_FRAGMENT	BIT(0)
-#define FLOW_DIS_FIRST_FRAG	BIT(1)
-#define FLOW_DIS_ENCAPSULATION	BIT(2)
+/* The control flags are kept in sync with TCA_FLOWER_KEY_FLAGS_*, as those
+ * flags are exposed to userspace in some error paths, ie. unsupported flags.
+ */
+enum flow_dissector_ctrl_flags {
+	FLOW_DIS_IS_FRAGMENT		= TCA_FLOWER_KEY_FLAGS_IS_FRAGMENT,
+	FLOW_DIS_FIRST_FRAG		= TCA_FLOWER_KEY_FLAGS_FRAG_IS_FIRST,
+
+	/* These flags are internal to the kernel */
+	FLOW_DIS_ENCAPSULATION		= (TCA_FLOWER_KEY_FLAGS_MAX << 1),
+};
 
 enum flow_dissect_ret {
 	FLOW_DISSECT_RET_OUT_GOOD,
