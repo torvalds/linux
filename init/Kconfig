@@ -986,7 +986,7 @@ config MEMCG_V1
 	  going to shrink due to deprecation process. New deployments with v1
 	  controller are highly discouraged.
 
-	  San N is unsure.
+	  Say N if unsure.
 
 config BLK_CGROUP
 	bool "IO controller"
