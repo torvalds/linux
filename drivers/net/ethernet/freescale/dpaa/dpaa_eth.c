@@ -971,11 +971,7 @@ static int dpaa_fq_setup(struct dpaa_priv *priv,
 		case FQ_TYPE_TX:
 			dpaa_setup_egress(priv, fq, tx_port,
 					  &fq_cbs->egress_ern);
-			/* If we have more Tx queues than the number of cores,
-			 * just ignore the extra ones.
-			 */
-			if (egress_cnt < dpaa_max_num_txqs())
-				priv->egress_fqs[egress_cnt++] = &fq->fq_base;
+			priv->egress_fqs[egress_cnt++] = &fq->fq_base;
 			break;
 		case FQ_TYPE_TX_CONF_MQ:
 			priv->conf_fqs[conf_cnt++] = &fq->fq_base;
