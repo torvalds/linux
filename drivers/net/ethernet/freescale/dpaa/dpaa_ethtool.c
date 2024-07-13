@@ -457,11 +457,15 @@ static int dpaa_set_coalesce(struct net_device *dev,
 			     struct netlink_ext_ack *extack)
 {
 	const cpumask_t *cpus = qman_affine_cpus();
-	bool needs_revert[NR_CPUS] = {false};
 	struct qman_portal *portal;
 	u32 period, prev_period;
 	u8 thresh, prev_thresh;
+	bool *needs_revert;
 	int cpu, res;
+
+	needs_revert = kcalloc(num_possible_cpus(), sizeof(bool), GFP_KERNEL);
+	if (!needs_revert)
+		return -ENOMEM;
 
 	period = c->rx_coalesce_usecs;
 	thresh = c->rx_max_coalesced_frames;
@@ -485,6 +489,8 @@ static int dpaa_set_coalesce(struct net_device *dev,
 		needs_revert[cpu] = true;
 	}
 
+	kfree(needs_revert);
+
 	return 0;
 
 revert_values:
@@ -497,6 +503,8 @@ revert_values:
 		qman_portal_set_iperiod(portal, prev_period);
 		qman_dqrr_set_ithresh(portal, prev_thresh);
 	}
+
+	kfree(needs_revert);
 
 	return res;
 }
