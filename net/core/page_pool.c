@@ -178,7 +178,8 @@ static void page_pool_struct_check(void)
 	CACHELINE_ASSERT_GROUP_MEMBER(struct page_pool, frag, frag_users);
 	CACHELINE_ASSERT_GROUP_MEMBER(struct page_pool, frag, frag_page);
 	CACHELINE_ASSERT_GROUP_MEMBER(struct page_pool, frag, frag_offset);
-	CACHELINE_ASSERT_GROUP_SIZE(struct page_pool, frag, 4 * sizeof(long));
+	CACHELINE_ASSERT_GROUP_SIZE(struct page_pool, frag,
+				    PAGE_POOL_FRAG_GROUP_ALIGN);
 }
 
 static int page_pool_init(struct page_pool *pool,
