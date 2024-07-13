@@ -633,6 +633,7 @@ struct platform_device pxa27x_device_pwm1 = {
 };
 #endif /* CONFIG_PXA27x || CONFIG_PXA3xx */
 
+#if defined(CONFIG_PXA25x) || defined(CONFIG_PXA27x)
 const struct software_node pxa2xx_gpiochip_node = {
 	.name	= "gpio-pxa",
 };
@@ -684,6 +685,7 @@ struct platform_device pxa27x_device_gpio = {
 		.platform_data	= &pxa2xx_gpio_info,
 	},
 };
+#endif /* CONFIG_PXA25x || CONFIG_PXA27x */
 
 static struct resource pxa_dma_resource[] = {
 	[0] = {
