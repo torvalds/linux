@@ -1399,10 +1399,11 @@ static void pairs_redir_to_connected(int cli0, int peer0, int cli1, int peer1,
 			return;
 	}
 
-	n = xsend(cli1, "a", 1, send_flags);
-	if (n == 0)
+	/* Last byte is OOB data when send_flags has MSG_OOB bit set */
+	n = xsend(cli1, "ab", 2, send_flags);
+	if (n >= 0 && n < 2)
 		FAIL("%s: incomplete send", log_prefix);
-	if (n < 1)
+	if (n < 2)
 		return;
 
 	key = SK_PASS;
@@ -1417,6 +1418,25 @@ static void pairs_redir_to_connected(int cli0, int peer0, int cli1, int peer1,
 		FAIL_ERRNO("%s: recv_timeout", log_prefix);
 	if (n == 0)
 		FAIL("%s: incomplete recv", log_prefix);
+
+	if (send_flags & MSG_OOB) {
+		/* Check that we can't read OOB while in sockmap */
+		errno = 0;
+		n = recv(peer1, &b, 1, MSG_OOB | MSG_DONTWAIT);
+		if (n != -1 || errno != EOPNOTSUPP)
+			FAIL("%s: recv(MSG_OOB): expected EOPNOTSUPP: retval=%d errno=%d",
+			     log_prefix, n, errno);
+
+		/* Remove peer1 from sockmap */
+		xbpf_map_delete_elem(sock_mapfd, &(int){ 1 });
+
+		/* Check that OOB was dropped on redirect */
+		errno = 0;
+		n = recv(peer1, &b, 1, MSG_OOB | MSG_DONTWAIT);
+		if (n != -1 || errno != EINVAL)
+			FAIL("%s: recv(MSG_OOB): expected EINVAL: retval=%d errno=%d",
+			     log_prefix, n, errno);
+	}
 }
 
 static void unix_redir_to_connected(int sotype, int sock_mapfd,
@@ -1873,6 +1893,11 @@ static void unix_inet_skb_redir_to_connected(struct test_sockmap_listen *skel,
 				     sock_map, nop_map, verdict_map,
 				     REDIR_EGRESS, NO_FLAGS);
 
+	/* MSG_OOB not supported by AF_UNIX SOCK_DGRAM */
+	unix_inet_redir_to_connected(family, SOCK_STREAM,
+				     sock_map, nop_map, verdict_map,
+				     REDIR_EGRESS, MSG_OOB);
+
 	skel->bss->test_ingress = true;
 	unix_inet_redir_to_connected(family, SOCK_DGRAM,
 				     sock_map, -1, verdict_map,
@@ -1887,6 +1912,11 @@ static void unix_inet_skb_redir_to_connected(struct test_sockmap_listen *skel,
 	unix_inet_redir_to_connected(family, SOCK_STREAM,
 				     sock_map, nop_map, verdict_map,
 				     REDIR_INGRESS, NO_FLAGS);
+
+	/* MSG_OOB not supported by AF_UNIX SOCK_DGRAM */
+	unix_inet_redir_to_connected(family, SOCK_STREAM,
+				     sock_map, nop_map, verdict_map,
+				     REDIR_INGRESS, MSG_OOB);
 
 	xbpf_prog_detach2(verdict, sock_map, BPF_SK_SKB_VERDICT);
 }
