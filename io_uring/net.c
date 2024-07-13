@@ -1747,9 +1747,14 @@ int io_bind(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_bind *bind = io_kiocb_to_cmd(req, struct io_bind);
 	struct io_async_msghdr *io = req->async_data;
+	struct socket *sock;
 	int ret;
 
-	ret = __sys_bind_socket(sock_from_file(req->file),  &io->addr, bind->addr_len);
+	sock = sock_from_file(req->file);
+	if (unlikely(!sock))
+		return -ENOTSOCK;
+
+	ret = __sys_bind_socket(sock, &io->addr, bind->addr_len);
 	if (ret < 0)
 		req_set_fail(req);
 	io_req_set_res(req, ret, 0);
@@ -1770,9 +1775,14 @@ int io_listen_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 int io_listen(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_listen *listen = io_kiocb_to_cmd(req, struct io_listen);
+	struct socket *sock;
 	int ret;
 
-	ret = __sys_listen_socket(sock_from_file(req->file), listen->backlog);
+	sock = sock_from_file(req->file);
+	if (unlikely(!sock))
+		return -ENOTSOCK;
+
+	ret = __sys_listen_socket(sock, listen->backlog);
 	if (ret < 0)
 		req_set_fail(req);
 	io_req_set_res(req, ret, 0);
