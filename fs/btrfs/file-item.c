@@ -602,7 +602,7 @@ int btrfs_lookup_csums_range(struct btrfs_root *root, u64 start, u64 end,
 			}
 
 			sums->bytenr = start;
-			sums->len = (int)size;
+			sums->len = size;
 
 			offset = (start - key.offset) >> fs_info->sectorsize_bits;
 			offset *= csum_size;

@@ -349,6 +349,7 @@
   _copy_to_iter
   __cpu_active_mask
   cpu_bit_bitmap
+  cpu_busy_with_softirqs
   __cpu_dying_mask
   cpufreq_cpu_get
   cpufreq_cpu_get_raw
@@ -673,6 +674,7 @@
   __devm_rtc_register_device
   devm_snd_soc_register_card
   devm_snd_soc_register_component
+  devm_tegra_memory_controller_get
   devm_thermal_of_cooling_device_register
   devm_thermal_of_zone_register
   devm_usb_get_phy_by_node
@@ -2483,6 +2485,10 @@
   policy_has_boost_freq
   poll_state_synchronize_rcu
   poll_state_synchronize_srcu
+  powercap_register_control_type
+  powercap_register_zone
+  powercap_unregister_control_type
+  powercap_unregister_zone
   power_supply_changed
   power_supply_get_by_name
   power_supply_get_drvdata
@@ -3299,6 +3305,7 @@
   __task_rq_lock
   task_rq_lock
   tcp_hashinfo
+  tegra_mc_probe_device
   thermal_cdev_update
   thermal_cooling_device_register
   thermal_cooling_device_unregister
@@ -3444,6 +3451,8 @@
   __traceiter_android_vh_ftrace_oops_exit
   __traceiter_android_vh_ftrace_size_check
   __traceiter_android_vh_gic_v3_suspend
+  __traceiter_android_vh_hibernated_do_mem_alloc
+  __traceiter_android_vh_hibernate_save_cmp_len
   __traceiter_android_vh_ignore_dmabuf_vmap_bounds
   __traceiter_android_vh_init_aes_encrypt
   __traceiter_android_vh_ipi_stop
@@ -3593,6 +3602,8 @@
   __tracepoint_android_vh_ftrace_oops_exit
   __tracepoint_android_vh_ftrace_size_check
   __tracepoint_android_vh_gic_v3_suspend
+  __tracepoint_android_vh_hibernated_do_mem_alloc
+  __tracepoint_android_vh_hibernate_save_cmp_len
   __tracepoint_android_vh_ignore_dmabuf_vmap_bounds
   __tracepoint_android_vh_init_aes_encrypt
   __tracepoint_android_vh_ipi_stop
@@ -3815,6 +3826,7 @@
   usb_debug_root
   usb_decode_ctrl
   usb_deregister
+  usb_deregister_device_driver
   usb_device_match_id
   usb_disabled
   usb_driver_claim_interface
@@ -3842,6 +3854,7 @@
   usb_get_from_anchor
   usb_get_intf
   usb_get_urb
+  usb_hcd_is_primary_hcd
   usb_ifnum_to_if
   usb_interface_id
   usb_kill_urb
@@ -3852,6 +3865,7 @@
   usb_put_dev
   usb_put_function_instance
   usb_put_intf
+  usb_register_device_driver
   usb_register_driver
   usb_register_notify
   usb_remove_phy

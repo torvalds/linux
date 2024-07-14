@@ -770,6 +770,8 @@ static void blk_release_queue(struct kobject *kobj)
 	blk_free_queue_stats(q->stats);
 	kfree(q->poll_stat);
 
+	blk_disable_sub_page_limits(&q->limits);
+
 	if (queue_is_mq(q))
 		blk_mq_release(q);
 

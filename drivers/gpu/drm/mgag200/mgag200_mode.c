@@ -28,8 +28,8 @@
  * This file contains setup code for the CRTC.
  */
 
-static void mgag200_crtc_set_gamma_linear(struct mga_device *mdev,
-					  const struct drm_format_info *format)
+void mgag200_crtc_set_gamma_linear(struct mga_device *mdev,
+				   const struct drm_format_info *format)
 {
 	int i;
 
@@ -65,9 +65,9 @@ static void mgag200_crtc_set_gamma_linear(struct mga_device *mdev,
 	}
 }
 
-static void mgag200_crtc_set_gamma(struct mga_device *mdev,
-				   const struct drm_format_info *format,
-				   struct drm_color_lut *lut)
+void mgag200_crtc_set_gamma(struct mga_device *mdev,
+			    const struct drm_format_info *format,
+			    struct drm_color_lut *lut)
 {
 	int i;
 

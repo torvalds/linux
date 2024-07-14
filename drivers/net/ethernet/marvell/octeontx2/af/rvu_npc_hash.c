@@ -1999,7 +1999,9 @@ int rvu_npc_exact_init(struct rvu *rvu)
 	/* Install SDP drop rule */
 	drop_mcam_idx = &table->num_drop_rules;
 
-	max_lmac_cnt = rvu->cgx_cnt_max * MAX_LMAC_PER_CGX + PF_CGXMAP_BASE;
+	max_lmac_cnt = rvu->cgx_cnt_max * rvu->hw->lmac_per_cgx +
+		       PF_CGXMAP_BASE;
+
 	for (i = PF_CGXMAP_BASE; i < max_lmac_cnt; i++) {
 		if (rvu->pf2cgxlmac_map[i] == 0xFF)
 			continue;

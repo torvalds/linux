@@ -56,6 +56,26 @@
 	};
 };
 
+&lpass_aon {
+	status = "okay";
+};
+
+&lpass_core {
+	status = "okay";
+};
+
+&lpass_hm {
+	status = "okay";
+};
+
+&lpasscc {
+	status = "okay";
+};
+
+&pdc_reset {
+	status = "okay";
+};
+
 /* The PMIC PON code isn't compatible w/ how Chrome EC/BIOS handle things. */
 &pmk8350_pon {
 	status = "disabled";
@@ -91,6 +111,10 @@
 /* Increase the size from 2.5MB to 8MB */
 &rmtfs_mem {
 	reg = <0x0 0x9c900000 0x0 0x800000>;
+};
+
+&watchdog {
+	status = "okay";
 };
 
 &wifi {

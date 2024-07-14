@@ -864,6 +864,7 @@
   device_get_dma_attr
   device_match_fwnode
   devm_krealloc
+  devm_tegra_memory_controller_get
   driver_find_device
   generic_device_group
   iommu_alloc_resv_region
@@ -880,6 +881,7 @@
   pci_device_group
   platform_irq_count
   report_iommu_fault
+  tegra_mc_probe_device
 
 # required by ath10k_core.ko
   cpu_latency_qos_add_request

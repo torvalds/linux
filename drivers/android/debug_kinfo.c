@@ -193,6 +193,12 @@ static struct platform_driver debug_kinfo_driver = {
 };
 module_platform_driver(debug_kinfo_driver);
 
+/*
+ * For type visibility
+ */
+const struct kernel_all_info *const ANDROID_GKI_struct_kernel_all_info;
+EXPORT_SYMBOL_GPL(ANDROID_GKI_struct_kernel_all_info);
+
 MODULE_AUTHOR("Jone Chou <jonechou@google.com>");
 MODULE_DESCRIPTION("Debug Kinfo Driver");
 MODULE_LICENSE("GPL v2");

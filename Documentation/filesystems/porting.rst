@@ -943,3 +943,21 @@ file pointer instead of struct dentry pointer.  d_tmpfile() is similarly
 changed to simplify callers.  The passed file is in a non-open state and on
 success must be opened before returning (e.g. by calling
 finish_open_simple()).
+
+---
+
+**mandatory**
+
+If ->rename() update of .. on cross-directory move needs an exclusion with
+directory modifications, do *not* lock the subdirectory in question in your
+->rename() - it's done by the caller now [that item should've been added in
+28eceeda130f "fs: Lock moved directories"].
+
+---
+
+**mandatory**
+
+On same-directory ->rename() the (tautological) update of .. is not protected
+by any locks; just don't do it if the old parent is the same as the new one.
+We really can't lock two subdirectories in same-directory rename - not without
+deadlocks.

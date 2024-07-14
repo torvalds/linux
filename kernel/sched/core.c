@@ -1043,11 +1043,15 @@ void wake_up_q(struct wake_q_head *head)
 void resched_curr(struct rq *rq)
 {
 	struct task_struct *curr = rq->curr;
-	int cpu;
+	int cpu, need_lazy = 0;
 
 	lockdep_assert_rq_held(rq);
 
 	if (test_tsk_need_resched(curr))
+		return;
+
+	trace_android_vh_set_tsk_need_resched_lazy(curr, rq, &need_lazy);
+	if (need_lazy)
 		return;
 
 	cpu = cpu_of(rq);
@@ -3954,6 +3958,17 @@ out:
 	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(wake_up_if_idle);
+
+bool cpus_equal_capacity(int this_cpu, int that_cpu)
+{
+	if (!sched_asym_cpucap_active())
+		return true;
+
+	if (this_cpu == that_cpu)
+		return true;
+
+	return arch_scale_cpu_capacity(this_cpu) == arch_scale_cpu_capacity(that_cpu);
+}
 
 bool cpus_share_cache(int this_cpu, int that_cpu)
 {
@@ -7192,8 +7207,10 @@ void rt_mutex_setprio(struct task_struct *p, struct task_struct *pi_task)
 	} else {
 		if (dl_prio(oldprio))
 			p->dl.pi_se = &p->dl;
-		if (rt_prio(oldprio))
+		else if (rt_prio(oldprio))
 			p->rt.timeout = 0;
+		else if (!task_has_idle_policy(p))
+			reweight_task(p, prio - MAX_RT_PRIO);
 	}
 
 	__setscheduler_prio(p, prio);

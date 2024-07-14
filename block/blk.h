@@ -13,6 +13,7 @@ struct elevator_type;
 #define BLK_MAX_TIMEOUT		(5 * HZ)
 
 extern struct dentry *blk_debugfs_root;
+DECLARE_STATIC_KEY_FALSE(blk_sub_page_limits);
 
 struct blk_flush_queue {
 	unsigned int		flush_pending_idx:1;
@@ -36,6 +37,15 @@ bool is_flush_rq(struct request *req);
 struct blk_flush_queue *blk_alloc_flush_queue(int node, int cmd_size,
 					      gfp_t flags);
 void blk_free_flush_queue(struct blk_flush_queue *q);
+
+static inline bool blk_queue_sub_page_limits(const struct queue_limits *lim)
+{
+	return static_branch_unlikely(&blk_sub_page_limits) &&
+		lim->sub_page_limits;
+}
+
+int blk_sub_page_limit_queues_get(void *data, u64 *val);
+void blk_disable_sub_page_limits(struct queue_limits *q);
 
 void blk_freeze_queue(struct request_queue *q);
 void __blk_mq_unfreeze_queue(struct request_queue *q, bool force_atomic);
@@ -80,6 +90,24 @@ static inline int bio_queue_enter(struct bio *bio)
 struct bio_vec *bvec_alloc(mempool_t *pool, unsigned short *nr_vecs,
 		gfp_t gfp_mask);
 void bvec_free(mempool_t *pool, struct bio_vec *bv, unsigned short nr_vecs);
+
+/* Number of DMA segments required to transfer @bytes data. */
+static inline unsigned int blk_segments(const struct queue_limits *limits,
+					unsigned int bytes)
+{
+	if (!blk_queue_sub_page_limits(limits))
+		return 1;
+
+	{
+		const unsigned int mss = limits->max_segment_size;
+
+		if (bytes <= mss)
+			return 1;
+		if (is_power_of_2(mss))
+			return round_up(bytes, mss) >> ilog2(mss);
+		return (bytes + mss - 1) / mss;
+	}
+}
 
 static inline bool biovec_phys_mergeable(struct request_queue *q,
 		struct bio_vec *vec1, struct bio_vec *vec2)
@@ -309,13 +337,12 @@ static inline bool bio_may_exceed_limits(struct bio *bio,
 	}
 
 	/*
-	 * All drivers must accept single-segments bios that are <= PAGE_SIZE.
-	 * This is a quick and dirty check that relies on the fact that
-	 * bi_io_vec[0] is always valid if a bio has data.  The check might
-	 * lead to occasional false negatives when bios are cloned, but compared
-	 * to the performance impact of cloned bios themselves the loop below
-	 * doesn't matter anyway.
+	 * Check whether bio splitting should be performed. This check may
+	 * trigger the bio splitting code even if splitting is not necessary.
 	 */
+	if (blk_queue_sub_page_limits(lim) && bio->bi_io_vec &&
+	    bio->bi_io_vec->bv_len > lim->max_segment_size)
+		return true;
 	return lim->chunk_sectors || bio->bi_vcnt != 1 ||
 		bio->bi_io_vec->bv_len + bio->bi_io_vec->bv_offset > PAGE_SIZE;
 }

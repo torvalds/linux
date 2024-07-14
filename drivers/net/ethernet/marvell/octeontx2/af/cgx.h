@@ -18,11 +18,8 @@
 /* PCI BAR nos */
 #define PCI_CFG_REG_BAR_NUM		0
 
-#define CGX_ID_MASK			0x7
-#define MAX_LMAC_PER_CGX		4
+#define CGX_ID_MASK			0xF
 #define MAX_DMAC_ENTRIES_PER_CGX	32
-#define CGX_FIFO_LEN			65536 /* 64K for both Rx & Tx */
-#define CGX_OFFSET(x)			((x) * MAX_LMAC_PER_CGX)
 
 /* Registers */
 #define CGXX_CMRX_CFG			0x00
@@ -56,6 +53,7 @@
 #define CGXX_SCRATCH1_REG		0x1058
 #define CGX_CONST			0x2000
 #define CGX_CONST_RXFIFO_SIZE	        GENMASK_ULL(23, 0)
+#define CGX_CONST_MAX_LMACS	        GENMASK_ULL(31, 24)
 #define CGXX_SPUX_CONTROL1		0x10000
 #define CGXX_SPUX_LNX_FEC_CORR_BLOCKS	0x10700
 #define CGXX_SPUX_LNX_FEC_UNCORR_BLOCKS	0x10800

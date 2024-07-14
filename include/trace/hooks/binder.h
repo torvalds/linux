@@ -82,7 +82,6 @@ DECLARE_HOOK(android_vh_binder_select_special_worklist,
 DECLARE_HOOK(android_vh_binder_alloc_new_buf_locked,
 	TP_PROTO(size_t size, size_t *free_async_space, int is_async),
 	TP_ARGS(size, free_async_space, is_async));
-
 DECLARE_HOOK(android_vh_binder_detect_low_async_space,
 	TP_PROTO(int is_async, size_t *free_async_space, int pid, bool *should_fail),
 	TP_ARGS(is_async, free_async_space, pid, should_fail));

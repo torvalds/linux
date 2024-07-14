@@ -399,9 +399,10 @@ static int otx2_dcbnl_ieee_getpfc(struct net_device *dev, struct ieee_pfc *pfc)
 static int otx2_dcbnl_ieee_setpfc(struct net_device *dev, struct ieee_pfc *pfc)
 {
 	struct otx2_nic *pfvf = netdev_priv(dev);
+	u8 old_pfc_en;
 	int err;
 
-	/* Save PFC configuration to interface */
+	old_pfc_en = pfvf->pfc_en;
 	pfvf->pfc_en = pfc->pfc_en;
 
 	if (pfvf->hw.tx_queues >= NIX_PF_PFC_PRIO_MAX)
@@ -411,13 +412,17 @@ static int otx2_dcbnl_ieee_setpfc(struct net_device *dev, struct ieee_pfc *pfc)
 	 * supported by the tx queue configuration
 	 */
 	err = otx2_check_pfc_config(pfvf);
-	if (err)
+	if (err) {
+		pfvf->pfc_en = old_pfc_en;
 		return err;
+	}
 
 process_pfc:
 	err = otx2_config_priority_flow_ctrl(pfvf);
-	if (err)
+	if (err) {
+		pfvf->pfc_en = old_pfc_en;
 		return err;
+	}
 
 	/* Request Per channel Bpids */
 	if (pfc->pfc_en)
@@ -425,6 +430,12 @@ process_pfc:
 
 	err = otx2_pfc_txschq_update(pfvf);
 	if (err) {
+		if (pfc->pfc_en)
+			otx2_nix_config_bp(pfvf, false);
+
+		otx2_pfc_txschq_stop(pfvf);
+		pfvf->pfc_en = old_pfc_en;
+		otx2_config_priority_flow_ctrl(pfvf);
 		dev_err(pfvf->dev, "%s failed to update TX schedulers\n", __func__);
 		return err;
 	}
