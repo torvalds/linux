@@ -8978,7 +8978,8 @@ void md_do_sync(struct md_thread *thread)
 	 * This will mean we have to start checking from the beginning again.
 	 *
 	 */
-
+	if (mddev_is_clustered(mddev))
+		md_cluster_ops->resync_start_notify(mddev);
 	do {
 		int mddev2_minor = -1;
 		mddev->curr_resync = MD_RESYNC_DELAYED;
@@ -9992,8 +9993,18 @@ static void check_sb_changes(struct mddev *mddev, struct md_rdev *rdev)
 			 */
 			if (rdev2->raid_disk == -1 && role != MD_DISK_ROLE_SPARE &&
 			    !(le32_to_cpu(sb->feature_map) &
-			      MD_FEATURE_RESHAPE_ACTIVE)) {
-				rdev2->saved_raid_disk = role;
+			      MD_FEATURE_RESHAPE_ACTIVE) &&
+			    !md_cluster_ops->resync_status_get(mddev)) {
+				/*
+				 * -1 to make raid1_add_disk() set conf->fullsync
+				 * to 1. This could avoid skipping sync when the
+				 * remote node is down during resyncing.
+				 */
+				if ((le32_to_cpu(sb->feature_map)
+				    & MD_FEATURE_RECOVERY_OFFSET))
+					rdev2->saved_raid_disk = -1;
+				else
+					rdev2->saved_raid_disk = role;
 				ret = remove_and_add_spares(mddev, rdev2);
 				pr_info("Activated spare: %pg\n",
 					rdev2->bdev);
