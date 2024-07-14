@@ -126,7 +126,7 @@ static void pxav1_request_done(struct sdhci_host *host, struct mmc_request *mrq)
 	struct sdhci_pxav2_host *pxav2_host;
 
 	/* If this is an SDIO command, perform errata workaround for silicon bug */
-	if (mrq->cmd && !mrq->cmd->error &&
+	if (!mrq->cmd->error &&
 	    (mrq->cmd->opcode == SD_IO_RW_DIRECT ||
 	     mrq->cmd->opcode == SD_IO_RW_EXTENDED)) {
 		/* Reset data port */
