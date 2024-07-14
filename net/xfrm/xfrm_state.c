@@ -715,6 +715,7 @@ int __xfrm_state_delete(struct xfrm_state *x)
 		if (x->id.spi)
 			hlist_del_rcu(&x->byspi);
 		net->xfrm.state_num--;
+		xfrm_nat_keepalive_state_updated(x);
 		spin_unlock(&net->xfrm.xfrm_state_lock);
 
 		if (x->encap_sk)
@@ -1453,6 +1454,7 @@ static void __xfrm_state_insert(struct xfrm_state *x)
 	net->xfrm.state_num++;
 
 	xfrm_hash_grow_check(net, x->bydst.next != NULL);
+	xfrm_nat_keepalive_state_updated(x);
 }
 
 /* net->xfrm.xfrm_state_lock is held */
@@ -2869,6 +2871,21 @@ int __xfrm_init_state(struct xfrm_state *x, bool init_replay, bool offload,
 		err = xfrm_init_replay(x, extack);
 		if (err)
 			goto error;
+	}
+
+	if (x->nat_keepalive_interval) {
+		if (x->dir != XFRM_SA_DIR_OUT) {
+			NL_SET_ERR_MSG(extack, "NAT keepalive is only supported for outbound SAs");
+			err = -EINVAL;
+			goto error;
+		}
+
+		if (!x->encap || x->encap->encap_type != UDP_ENCAP_ESPINUDP) {
+			NL_SET_ERR_MSG(extack,
+				       "NAT keepalive is only supported for UDP encapsulation");
+			err = -EINVAL;
+			goto error;
+		}
 	}
 
 error:
