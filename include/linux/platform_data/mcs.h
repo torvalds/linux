@@ -16,10 +16,6 @@ struct mcs_platform_data {
 	void (*poweron)(bool);
 	void (*cfg_pin)(void);
 
-	/* touchscreen */
-	unsigned int x_size;
-	unsigned int y_size;
-
 	/* touchkey */
 	const u32 *keymap;
 	unsigned int keymap_size;
