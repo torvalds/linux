@@ -15,12 +15,6 @@
 
 void bch2_btree_lock_init(struct btree_bkey_cached_common *, enum six_lock_init_flags);
 
-#ifdef CONFIG_LOCKDEP
-void bch2_assert_btree_nodes_not_locked(void);
-#else
-static inline void bch2_assert_btree_nodes_not_locked(void) {}
-#endif
-
 void bch2_trans_unlock_noassert(struct btree_trans *);
 
 static inline bool is_btree_node(struct btree_path *path, unsigned l)
