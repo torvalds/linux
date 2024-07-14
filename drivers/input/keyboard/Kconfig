@@ -421,18 +421,6 @@ config KEYBOARD_MAX7359
 	  To compile this driver as a module, choose M here: the
 	  module will be called max7359_keypad.
 
-config KEYBOARD_MCS
-	tristate "MELFAS MCS Touchkey"
-	depends on I2C
-	help
-	  Say Y here if you have the MELFAS MCS5000/5080 touchkey controller
-	  chip in your system.
-
-	  If unsure, say N.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called mcs_touchkey.
-
 config KEYBOARD_MPR121
 	tristate "Freescale MPR121 Touchkey"
 	depends on I2C
