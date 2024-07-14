@@ -170,7 +170,7 @@ struct dm_cache_metadata {
  */
 #define SUPERBLOCK_CSUM_XOR 9031977
 
-static void sb_prepare_for_write(struct dm_block_validator *v,
+static void sb_prepare_for_write(const struct dm_block_validator *v,
 				 struct dm_block *b,
 				 size_t sb_block_size)
 {
@@ -195,7 +195,7 @@ static int check_metadata_version(struct cache_disk_superblock *disk_super)
 	return 0;
 }
 
-static int sb_check(struct dm_block_validator *v,
+static int sb_check(const struct dm_block_validator *v,
 		    struct dm_block *b,
 		    size_t sb_block_size)
 {
@@ -228,7 +228,7 @@ static int sb_check(struct dm_block_validator *v,
 	return check_metadata_version(disk_super);
 }
 
-static struct dm_block_validator sb_validator = {
+static const struct dm_block_validator sb_validator = {
 	.name = "superblock",
 	.prepare_for_write = sb_prepare_for_write,
 	.check = sb_check
