@@ -49,6 +49,28 @@ static void __mmu_config_restore(struct mmu_config *config)
 	write_sysreg(config->vtcr,	vtcr_el2);
 }
 
+static bool at_s1e1p_fast(struct kvm_vcpu *vcpu, u32 op, u64 vaddr)
+{
+	u64 host_pan;
+	bool fail;
+
+	host_pan = read_sysreg_s(SYS_PSTATE_PAN);
+	write_sysreg_s(*vcpu_cpsr(vcpu) & PSTATE_PAN, SYS_PSTATE_PAN);
+
+	switch (op) {
+	case OP_AT_S1E1RP:
+		fail = __kvm_at(OP_AT_S1E1RP, vaddr);
+		break;
+	case OP_AT_S1E1WP:
+		fail = __kvm_at(OP_AT_S1E1WP, vaddr);
+		break;
+	}
+
+	write_sysreg_s(host_pan, SYS_PSTATE_PAN);
+
+	return fail;
+}
+
 /*
  * Return the PAR_EL1 value as the result of a valid translation.
  *
@@ -105,6 +127,10 @@ skip_mmu_switch:
 	isb();
 
 	switch (op) {
+	case OP_AT_S1E1RP:
+	case OP_AT_S1E1WP:
+		fail = at_s1e1p_fast(vcpu, op, vaddr);
+		break;
 	case OP_AT_S1E1R:
 		fail = __kvm_at(OP_AT_S1E1R, vaddr);
 		break;
