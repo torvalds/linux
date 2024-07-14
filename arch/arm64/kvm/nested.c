@@ -814,14 +814,13 @@ static void limit_nv_id_regs(struct kvm *kvm)
 		 NV_FTR(ISAR1, SPECRES));
 	kvm_set_vm_id_reg(kvm, SYS_ID_AA64ISAR1_EL1, val);
 
-	/* No AMU, MPAM, S-EL2, RAS or SVE */
+	/* No AMU, MPAM, S-EL2, or RAS */
 	val = kvm_read_vm_id_reg(kvm, SYS_ID_AA64PFR0_EL1);
 	val &= ~(GENMASK_ULL(55, 52)	|
 		 NV_FTR(PFR0, AMU)	|
 		 NV_FTR(PFR0, MPAM)	|
 		 NV_FTR(PFR0, SEL2)	|
 		 NV_FTR(PFR0, RAS)	|
-		 NV_FTR(PFR0, SVE)	|
 		 NV_FTR(PFR0, EL3)	|
 		 NV_FTR(PFR0, EL2)	|
 		 NV_FTR(PFR0, EL1));
