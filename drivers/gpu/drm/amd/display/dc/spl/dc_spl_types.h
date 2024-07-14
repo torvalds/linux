@@ -2,14 +2,13 @@
 //
 // Copyright 2024 Advanced Micro Devices, Inc.
 
+#include "os_types.h"   // swap
+#ifndef ASSERT
+#define ASSERT(_bool) ((void *)0)
+#endif
+#include "include/fixed31_32.h"	// fixed31_32 and related functions
 #ifndef __DC_SPL_TYPES_H__
 #define __DC_SPL_TYPES_H__
-
-#include "spl_os_types.h"   // swap
-#ifndef SPL_ASSERT
-#define SPL_ASSERT(_bool) ((void *)0)
-#endif
-#include "spl_fixpt31_32.h"	// fixed31_32 and related functions
 
 enum lb_memory_config {
 	/* Enable all 3 pieces of memory */
@@ -39,16 +38,16 @@ struct spl_rect	{
 };
 
 struct spl_ratios {
-	struct spl_fixed31_32 horz;
-	struct spl_fixed31_32 vert;
-	struct spl_fixed31_32 horz_c;
-	struct spl_fixed31_32 vert_c;
+	struct fixed31_32 horz;
+	struct fixed31_32 vert;
+	struct fixed31_32 horz_c;
+	struct fixed31_32 vert_c;
 };
 struct spl_inits {
-	struct spl_fixed31_32 h;
-	struct spl_fixed31_32 h_c;
-	struct spl_fixed31_32 v;
-	struct spl_fixed31_32 v_c;
+	struct fixed31_32 h;
+	struct fixed31_32 h_c;
+	struct fixed31_32 v;
+	struct fixed31_32 v_c;
 };
 
 struct spl_taps	{
@@ -81,8 +80,6 @@ enum spl_pixel_format {
 	SPL_PIXEL_FORMAT_420BPP10,
 	/*end of pixel format definition*/
 	SPL_PIXEL_FORMAT_INVALID,
-	SPL_PIXEL_FORMAT_422BPP8,
-	SPL_PIXEL_FORMAT_422BPP10,
 	SPL_PIXEL_FORMAT_GRPH_BEGIN = SPL_PIXEL_FORMAT_INDEX8,
 	SPL_PIXEL_FORMAT_GRPH_END = SPL_PIXEL_FORMAT_FP16,
 	SPL_PIXEL_FORMAT_VIDEO_BEGIN = SPL_PIXEL_FORMAT_420BPP8,
@@ -138,7 +135,6 @@ struct spl_scaler_data {
 	struct spl_rect viewport_c;
 	struct spl_rect recout;
 	struct spl_ratios ratios;
-	struct spl_ratios recip_ratios;
 	struct spl_inits inits;
 };
 
@@ -409,15 +405,10 @@ struct dscl_prog_data {
 };
 
 /* SPL input and output definitions */
-// SPL scratch struct
-struct spl_scratch {
-	// Pack all SPL outputs in scl_data
-	struct spl_scaler_data scl_data;
-};
-
-/* SPL input and output definitions */
 // SPL outputs struct
 struct spl_out	{
+	// Pack all SPL outputs in scl_data
+	struct spl_scaler_data scl_data;
 	// Pack all output need to program hw registers
 	struct dscl_prog_data *dscl_prog_data;
 };
@@ -500,10 +491,6 @@ struct spl_in	{
 	bool prefer_easf;
 	bool disable_easf;
 	struct spl_debug debug;
-	bool is_fullscreen;
-	bool is_hdr_on;
-	int h_active;
-	int v_active;
 };
 // end of SPL inputs
 
