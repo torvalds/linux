@@ -2242,7 +2242,7 @@ static struct clk_branch gcc_hmss_trig_clk = {
 	},
 };
 
-static struct freq_tbl ftbl_hmss_gpll0_clk_src[] = {
+static const struct freq_tbl ftbl_hmss_gpll0_clk_src[] = {
 	F( 300000000, P_GPLL0_OUT_MAIN, 2, 0, 0),
 	F( 600000000, P_GPLL0_OUT_MAIN, 1, 0, 0),
 	{ }
