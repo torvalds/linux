@@ -20,7 +20,7 @@
 /* Add to (or subtract from) the entropy count.  (Superuser only.) */
 #define RNDADDTOENTCNT	_IOW( 'R', 0x01, int )
 
-/* Get the contents of the entropy pool.  (Superuser only.) */
+/* Get the contents of the entropy pool.  (Superuser only.) (Removed in 2.6.9-rc2.) */
 #define RNDGETPOOL	_IOR( 'R', 0x02, int [2] )
 
 /* 
