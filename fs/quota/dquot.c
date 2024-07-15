@@ -2594,7 +2594,8 @@ static int dquot_quota_enable(struct super_block *sb, unsigned int flags)
 			goto out_err;
 		}
 		if (sb_has_quota_limits_enabled(sb, type)) {
-			ret = -EBUSY;
+			/* compatible with XFS */
+			ret = -EEXIST;
 			goto out_err;
 		}
 		spin_lock(&dq_state_lock);
@@ -2608,9 +2609,6 @@ out_err:
 		if (flags & qtype_enforce_flag(type))
 			dquot_disable(sb, type, DQUOT_LIMITS_ENABLED);
 	}
-	/* Error code translation for better compatibility with XFS */
-	if (ret == -EBUSY)
-		ret = -EEXIST;
 	return ret;
 }
 
