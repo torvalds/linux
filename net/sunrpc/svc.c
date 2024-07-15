@@ -721,10 +721,7 @@ svc_prepare_thread(struct svc_serv *serv, struct svc_pool *pool, int node)
 	if (!rqstp)
 		return ERR_PTR(-ENOMEM);
 
-	spin_lock_bh(&serv->sv_lock);
 	serv->sv_nrthreads += 1;
-	spin_unlock_bh(&serv->sv_lock);
-
 	pool->sp_nrthreads += 1;
 
 	/* Protected by whatever lock the service uses when calling
@@ -959,10 +956,7 @@ svc_exit_thread(struct svc_rqst *rqstp)
 	list_del_rcu(&rqstp->rq_all);
 
 	pool->sp_nrthreads -= 1;
-
-	spin_lock_bh(&serv->sv_lock);
 	serv->sv_nrthreads -= 1;
-	spin_unlock_bh(&serv->sv_lock);
 	svc_sock_update_bufs(serv);
 
 	svc_rqst_free(rqstp);
