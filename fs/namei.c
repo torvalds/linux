@@ -1712,17 +1712,26 @@ static struct dentry *lookup_slow(const struct qstr *name,
 }
 
 static inline int may_lookup(struct mnt_idmap *idmap,
-			     struct nameidata *nd)
+			     struct nameidata *restrict nd)
 {
-	if (nd->flags & LOOKUP_RCU) {
-		int err = inode_permission(idmap, nd->inode, MAY_EXEC|MAY_NOT_BLOCK);
-		if (!err)		// success, keep going
-			return 0;
-		if (!try_to_unlazy(nd))
-			return -ECHILD;	// redo it all non-lazy
-		if (err != -ECHILD)	// hard error
-			return err;
-	}
+	int err, mask;
+
+	mask = nd->flags & LOOKUP_RCU ? MAY_NOT_BLOCK : 0;
+	err = inode_permission(idmap, nd->inode, mask | MAY_EXEC);
+	if (likely(!err))
+		return 0;
+
+	// If we failed, and we weren't in LOOKUP_RCU, it's final
+	if (!(nd->flags & LOOKUP_RCU))
+		return err;
+
+	// Drop out of RCU mode to make sure it wasn't transient
+	if (!try_to_unlazy(nd))
+		return -ECHILD;	// redo it all non-lazy
+
+	if (err != -ECHILD)	// hard error
+		return err;
+
 	return inode_permission(idmap, nd->inode, MAY_EXEC);
 }
 
@@ -2163,21 +2172,39 @@ EXPORT_SYMBOL(hashlen_string);
 
 /*
  * Calculate the length and hash of the path component, and
- * return the "hash_len" as the result.
+ * return the length as the result.
  */
-static inline u64 hash_name(const void *salt, const char *name)
+static inline const char *hash_name(struct nameidata *nd,
+				    const char *name,
+				    unsigned long *lastword)
 {
-	unsigned long a = 0, b, x = 0, y = (unsigned long)salt;
+	unsigned long a, b, x, y = (unsigned long)nd->path.dentry;
 	unsigned long adata, bdata, mask, len;
 	const struct word_at_a_time constants = WORD_AT_A_TIME_CONSTANTS;
 
-	len = 0;
-	goto inside;
+	/*
+	 * The first iteration is special, because it can result in
+	 * '.' and '..' and has no mixing other than the final fold.
+	 */
+	a = load_unaligned_zeropad(name);
+	b = a ^ REPEAT_BYTE('/');
+	if (has_zero(a, &adata, &constants) | has_zero(b, &bdata, &constants)) {
+		adata = prep_zero_mask(a, adata, &constants);
+		bdata = prep_zero_mask(b, bdata, &constants);
+		mask = create_zero_mask(adata | bdata);
+		a &= zero_bytemask(mask);
+		*lastword = a;
+		len = find_zero(mask);
+		nd->last.hash = fold_hash(a, y);
+		nd->last.len = len;
+		return name + len;
+	}
 
+	len = 0;
+	x = 0;
 	do {
 		HASH_MIX(x, y, a);
 		len += sizeof(unsigned long);
-inside:
 		a = load_unaligned_zeropad(name+len);
 		b = a ^ REPEAT_BYTE('/');
 	} while (!(has_zero(a, &adata, &constants) | has_zero(b, &bdata, &constants)));
@@ -2185,10 +2212,24 @@ inside:
 	adata = prep_zero_mask(a, adata, &constants);
 	bdata = prep_zero_mask(b, bdata, &constants);
 	mask = create_zero_mask(adata | bdata);
-	x ^= a & zero_bytemask(mask);
+	a &= zero_bytemask(mask);
+	x ^= a;
+	len += find_zero(mask);
+	*lastword = 0;		// Multi-word components cannot be DOT or DOTDOT
 
-	return hashlen_create(fold_hash(x, y), len + find_zero(mask));
+	nd->last.hash = fold_hash(x, y);
+	nd->last.len = len;
+	return name + len;
 }
+
+/*
+ * Note that the 'last' word is always zero-masked, but
+ * was loaded as a possibly big-endian word.
+ */
+#ifdef __BIG_ENDIAN
+  #define LAST_WORD_IS_DOT	(0x2eul << (BITS_PER_LONG-8))
+  #define LAST_WORD_IS_DOTDOT	(0x2e2eul << (BITS_PER_LONG-16))
+#endif
 
 #else	/* !CONFIG_DCACHE_WORD_ACCESS: Slow, byte-at-a-time version */
 
@@ -2222,20 +2263,33 @@ EXPORT_SYMBOL(hashlen_string);
  * We know there's a real path component here of at least
  * one character.
  */
-static inline u64 hash_name(const void *salt, const char *name)
+static inline const char *hash_name(struct nameidata *nd, const char *name, unsigned long *lastword)
 {
-	unsigned long hash = init_name_hash(salt);
-	unsigned long len = 0, c;
+	unsigned long hash = init_name_hash(nd->path.dentry);
+	unsigned long len = 0, c, last = 0;
 
 	c = (unsigned char)*name;
 	do {
+		last = (last << 8) + c;
 		len++;
 		hash = partial_name_hash(c, hash);
 		c = (unsigned char)name[len];
 	} while (c && c != '/');
-	return hashlen_create(end_name_hash(hash), len);
+
+	// This is reliable for DOT or DOTDOT, since the component
+	// cannot contain NUL characters - top bits being zero means
+	// we cannot have had any other pathnames.
+	*lastword = last;
+	nd->last.hash = end_name_hash(hash);
+	nd->last.len = len;
+	return name + len;
 }
 
+#endif
+
+#ifndef LAST_WORD_IS_DOT
+  #define LAST_WORD_IS_DOT	0x2e
+  #define LAST_WORD_IS_DOTDOT	0x2e2e
 #endif
 
 /*
@@ -2266,45 +2320,38 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 	for(;;) {
 		struct mnt_idmap *idmap;
 		const char *link;
-		u64 hash_len;
-		int type;
+		unsigned long lastword;
 
 		idmap = mnt_idmap(nd->path.mnt);
 		err = may_lookup(idmap, nd);
 		if (err)
 			return err;
 
-		hash_len = hash_name(nd->path.dentry, name);
+		nd->last.name = name;
+		name = hash_name(nd, name, &lastword);
 
-		type = LAST_NORM;
-		if (name[0] == '.') switch (hashlen_len(hash_len)) {
-			case 2:
-				if (name[1] == '.') {
-					type = LAST_DOTDOT;
-					nd->state |= ND_JUMPED;
-				}
-				break;
-			case 1:
-				type = LAST_DOT;
-		}
-		if (likely(type == LAST_NORM)) {
-			struct dentry *parent = nd->path.dentry;
+		switch(lastword) {
+		case LAST_WORD_IS_DOTDOT:
+			nd->last_type = LAST_DOTDOT;
+			nd->state |= ND_JUMPED;
+			break;
+
+		case LAST_WORD_IS_DOT:
+			nd->last_type = LAST_DOT;
+			break;
+
+		default:
+			nd->last_type = LAST_NORM;
 			nd->state &= ~ND_JUMPED;
+
+			struct dentry *parent = nd->path.dentry;
 			if (unlikely(parent->d_flags & DCACHE_OP_HASH)) {
-				struct qstr this = { { .hash_len = hash_len }, .name = name };
-				err = parent->d_op->d_hash(parent, &this);
+				err = parent->d_op->d_hash(parent, &nd->last);
 				if (err < 0)
 					return err;
-				hash_len = this.hash_len;
-				name = this.name;
 			}
 		}
 
-		nd->last.hash_len = hash_len;
-		nd->last.name = name;
-		nd->last_type = type;
-
-		name += hashlen_len(hash_len);
 		if (!*name)
 			goto OK;
 		/*
