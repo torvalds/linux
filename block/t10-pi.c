@@ -11,17 +11,23 @@
 #include <linux/module.h>
 #include <net/checksum.h>
 #include <asm/unaligned.h>
+#include "blk.h"
 
-typedef __be16 (csum_fn) (__be16, void *, unsigned int);
+struct blk_integrity_iter {
+	void			*prot_buf;
+	void			*data_buf;
+	sector_t		seed;
+	unsigned int		data_size;
+	unsigned short		interval;
+	const char		*disk_name;
+};
 
-static __be16 t10_pi_crc_fn(__be16 crc, void *data, unsigned int len)
+static __be16 t10_pi_csum(__be16 csum, void *data, unsigned int len,
+		unsigned char csum_type)
 {
-	return cpu_to_be16(crc_t10dif_update(be16_to_cpu(crc), data, len));
-}
-
-static __be16 t10_pi_ip_fn(__be16 csum, void *data, unsigned int len)
-{
-	return (__force __be16)ip_compute_csum(data, len);
+	if (csum_type == BLK_INTEGRITY_CSUM_IP)
+		return (__force __be16)ip_compute_csum(data, len);
+	return cpu_to_be16(crc_t10dif_update(be16_to_cpu(csum), data, len));
 }
 
 /*
@@ -29,48 +35,44 @@ static __be16 t10_pi_ip_fn(__be16 csum, void *data, unsigned int len)
  * 16 bit app tag, 32 bit reference tag. Type 3 does not define the ref
  * tag.
  */
-static blk_status_t t10_pi_generate(struct blk_integrity_iter *iter,
-		csum_fn *fn, enum t10_dif_type type)
+static void t10_pi_generate(struct blk_integrity_iter *iter,
+		struct blk_integrity *bi)
 {
-	u8 offset = iter->pi_offset;
+	u8 offset = bi->pi_offset;
 	unsigned int i;
 
 	for (i = 0 ; i < iter->data_size ; i += iter->interval) {
 		struct t10_pi_tuple *pi = iter->prot_buf + offset;
 
-		pi->guard_tag = fn(0, iter->data_buf, iter->interval);
+		pi->guard_tag = t10_pi_csum(0, iter->data_buf, iter->interval,
+				bi->csum_type);
 		if (offset)
-			pi->guard_tag = fn(pi->guard_tag, iter->prot_buf,
-					   offset);
+			pi->guard_tag = t10_pi_csum(pi->guard_tag,
+					iter->prot_buf, offset, bi->csum_type);
 		pi->app_tag = 0;
 
-		if (type == T10_PI_TYPE1_PROTECTION)
+		if (bi->flags & BLK_INTEGRITY_REF_TAG)
 			pi->ref_tag = cpu_to_be32(lower_32_bits(iter->seed));
 		else
 			pi->ref_tag = 0;
 
 		iter->data_buf += iter->interval;
-		iter->prot_buf += iter->tuple_size;
+		iter->prot_buf += bi->tuple_size;
 		iter->seed++;
 	}
-
-	return BLK_STS_OK;
 }
 
 static blk_status_t t10_pi_verify(struct blk_integrity_iter *iter,
-		csum_fn *fn, enum t10_dif_type type)
+		struct blk_integrity *bi)
 {
-	u8 offset = iter->pi_offset;
+	u8 offset = bi->pi_offset;
 	unsigned int i;
-
-	BUG_ON(type == T10_PI_TYPE0_PROTECTION);
 
 	for (i = 0 ; i < iter->data_size ; i += iter->interval) {
 		struct t10_pi_tuple *pi = iter->prot_buf + offset;
 		__be16 csum;
 
-		if (type == T10_PI_TYPE1_PROTECTION ||
-		    type == T10_PI_TYPE2_PROTECTION) {
+		if (bi->flags & BLK_INTEGRITY_REF_TAG) {
 			if (pi->app_tag == T10_PI_APP_ESCAPE)
 				goto next;
 
@@ -82,15 +84,17 @@ static blk_status_t t10_pi_verify(struct blk_integrity_iter *iter,
 				       iter->seed, be32_to_cpu(pi->ref_tag));
 				return BLK_STS_PROTECTION;
 			}
-		} else if (type == T10_PI_TYPE3_PROTECTION) {
+		} else {
 			if (pi->app_tag == T10_PI_APP_ESCAPE &&
 			    pi->ref_tag == T10_PI_REF_ESCAPE)
 				goto next;
 		}
 
-		csum = fn(0, iter->data_buf, iter->interval);
+		csum = t10_pi_csum(0, iter->data_buf, iter->interval,
+				bi->csum_type);
 		if (offset)
-			csum = fn(csum, iter->prot_buf, offset);
+			csum = t10_pi_csum(csum, iter->prot_buf, offset,
+					bi->csum_type);
 
 		if (pi->guard_tag != csum) {
 			pr_err("%s: guard tag error at sector %llu " \
@@ -102,31 +106,11 @@ static blk_status_t t10_pi_verify(struct blk_integrity_iter *iter,
 
 next:
 		iter->data_buf += iter->interval;
-		iter->prot_buf += iter->tuple_size;
+		iter->prot_buf += bi->tuple_size;
 		iter->seed++;
 	}
 
 	return BLK_STS_OK;
-}
-
-static blk_status_t t10_pi_type1_generate_crc(struct blk_integrity_iter *iter)
-{
-	return t10_pi_generate(iter, t10_pi_crc_fn, T10_PI_TYPE1_PROTECTION);
-}
-
-static blk_status_t t10_pi_type1_generate_ip(struct blk_integrity_iter *iter)
-{
-	return t10_pi_generate(iter, t10_pi_ip_fn, T10_PI_TYPE1_PROTECTION);
-}
-
-static blk_status_t t10_pi_type1_verify_crc(struct blk_integrity_iter *iter)
-{
-	return t10_pi_verify(iter, t10_pi_crc_fn, T10_PI_TYPE1_PROTECTION);
-}
-
-static blk_status_t t10_pi_type1_verify_ip(struct blk_integrity_iter *iter)
-{
-	return t10_pi_verify(iter, t10_pi_ip_fn, T10_PI_TYPE1_PROTECTION);
 }
 
 /**
@@ -141,7 +125,7 @@ static blk_status_t t10_pi_type1_verify_ip(struct blk_integrity_iter *iter)
  */
 static void t10_pi_type1_prepare(struct request *rq)
 {
-	struct blk_integrity *bi = &rq->q->integrity;
+	struct blk_integrity *bi = &rq->q->limits.integrity;
 	const int tuple_sz = bi->tuple_size;
 	u32 ref_tag = t10_pi_ref_tag(rq);
 	u8 offset = bi->pi_offset;
@@ -192,7 +176,7 @@ static void t10_pi_type1_prepare(struct request *rq)
  */
 static void t10_pi_type1_complete(struct request *rq, unsigned int nr_bytes)
 {
-	struct blk_integrity *bi = &rq->q->integrity;
+	struct blk_integrity *bi = &rq->q->limits.integrity;
 	unsigned intervals = nr_bytes >> bi->interval_exp;
 	const int tuple_sz = bi->tuple_size;
 	u32 ref_tag = t10_pi_ref_tag(rq);
@@ -225,81 +209,15 @@ static void t10_pi_type1_complete(struct request *rq, unsigned int nr_bytes)
 	}
 }
 
-static blk_status_t t10_pi_type3_generate_crc(struct blk_integrity_iter *iter)
-{
-	return t10_pi_generate(iter, t10_pi_crc_fn, T10_PI_TYPE3_PROTECTION);
-}
-
-static blk_status_t t10_pi_type3_generate_ip(struct blk_integrity_iter *iter)
-{
-	return t10_pi_generate(iter, t10_pi_ip_fn, T10_PI_TYPE3_PROTECTION);
-}
-
-static blk_status_t t10_pi_type3_verify_crc(struct blk_integrity_iter *iter)
-{
-	return t10_pi_verify(iter, t10_pi_crc_fn, T10_PI_TYPE3_PROTECTION);
-}
-
-static blk_status_t t10_pi_type3_verify_ip(struct blk_integrity_iter *iter)
-{
-	return t10_pi_verify(iter, t10_pi_ip_fn, T10_PI_TYPE3_PROTECTION);
-}
-
-/* Type 3 does not have a reference tag so no remapping is required. */
-static void t10_pi_type3_prepare(struct request *rq)
-{
-}
-
-/* Type 3 does not have a reference tag so no remapping is required. */
-static void t10_pi_type3_complete(struct request *rq, unsigned int nr_bytes)
-{
-}
-
-const struct blk_integrity_profile t10_pi_type1_crc = {
-	.name			= "T10-DIF-TYPE1-CRC",
-	.generate_fn		= t10_pi_type1_generate_crc,
-	.verify_fn		= t10_pi_type1_verify_crc,
-	.prepare_fn		= t10_pi_type1_prepare,
-	.complete_fn		= t10_pi_type1_complete,
-};
-EXPORT_SYMBOL(t10_pi_type1_crc);
-
-const struct blk_integrity_profile t10_pi_type1_ip = {
-	.name			= "T10-DIF-TYPE1-IP",
-	.generate_fn		= t10_pi_type1_generate_ip,
-	.verify_fn		= t10_pi_type1_verify_ip,
-	.prepare_fn		= t10_pi_type1_prepare,
-	.complete_fn		= t10_pi_type1_complete,
-};
-EXPORT_SYMBOL(t10_pi_type1_ip);
-
-const struct blk_integrity_profile t10_pi_type3_crc = {
-	.name			= "T10-DIF-TYPE3-CRC",
-	.generate_fn		= t10_pi_type3_generate_crc,
-	.verify_fn		= t10_pi_type3_verify_crc,
-	.prepare_fn		= t10_pi_type3_prepare,
-	.complete_fn		= t10_pi_type3_complete,
-};
-EXPORT_SYMBOL(t10_pi_type3_crc);
-
-const struct blk_integrity_profile t10_pi_type3_ip = {
-	.name			= "T10-DIF-TYPE3-IP",
-	.generate_fn		= t10_pi_type3_generate_ip,
-	.verify_fn		= t10_pi_type3_verify_ip,
-	.prepare_fn		= t10_pi_type3_prepare,
-	.complete_fn		= t10_pi_type3_complete,
-};
-EXPORT_SYMBOL(t10_pi_type3_ip);
-
 static __be64 ext_pi_crc64(u64 crc, void *data, unsigned int len)
 {
 	return cpu_to_be64(crc64_rocksoft_update(crc, data, len));
 }
 
-static blk_status_t ext_pi_crc64_generate(struct blk_integrity_iter *iter,
-					enum t10_dif_type type)
+static void ext_pi_crc64_generate(struct blk_integrity_iter *iter,
+		struct blk_integrity *bi)
 {
-	u8 offset = iter->pi_offset;
+	u8 offset = bi->pi_offset;
 	unsigned int i;
 
 	for (i = 0 ; i < iter->data_size ; i += iter->interval) {
@@ -311,17 +229,15 @@ static blk_status_t ext_pi_crc64_generate(struct blk_integrity_iter *iter,
 					iter->prot_buf, offset);
 		pi->app_tag = 0;
 
-		if (type == T10_PI_TYPE1_PROTECTION)
+		if (bi->flags & BLK_INTEGRITY_REF_TAG)
 			put_unaligned_be48(iter->seed, pi->ref_tag);
 		else
 			put_unaligned_be48(0ULL, pi->ref_tag);
 
 		iter->data_buf += iter->interval;
-		iter->prot_buf += iter->tuple_size;
+		iter->prot_buf += bi->tuple_size;
 		iter->seed++;
 	}
-
-	return BLK_STS_OK;
 }
 
 static bool ext_pi_ref_escape(u8 *ref_tag)
@@ -332,9 +248,9 @@ static bool ext_pi_ref_escape(u8 *ref_tag)
 }
 
 static blk_status_t ext_pi_crc64_verify(struct blk_integrity_iter *iter,
-				      enum t10_dif_type type)
+		struct blk_integrity *bi)
 {
-	u8 offset = iter->pi_offset;
+	u8 offset = bi->pi_offset;
 	unsigned int i;
 
 	for (i = 0; i < iter->data_size; i += iter->interval) {
@@ -342,7 +258,7 @@ static blk_status_t ext_pi_crc64_verify(struct blk_integrity_iter *iter,
 		u64 ref, seed;
 		__be64 csum;
 
-		if (type == T10_PI_TYPE1_PROTECTION) {
+		if (bi->flags & BLK_INTEGRITY_REF_TAG) {
 			if (pi->app_tag == T10_PI_APP_ESCAPE)
 				goto next;
 
@@ -353,7 +269,7 @@ static blk_status_t ext_pi_crc64_verify(struct blk_integrity_iter *iter,
 					iter->disk_name, seed, ref);
 				return BLK_STS_PROTECTION;
 			}
-		} else if (type == T10_PI_TYPE3_PROTECTION) {
+		} else {
 			if (pi->app_tag == T10_PI_APP_ESCAPE &&
 			    ext_pi_ref_escape(pi->ref_tag))
 				goto next;
@@ -374,26 +290,16 @@ static blk_status_t ext_pi_crc64_verify(struct blk_integrity_iter *iter,
 
 next:
 		iter->data_buf += iter->interval;
-		iter->prot_buf += iter->tuple_size;
+		iter->prot_buf += bi->tuple_size;
 		iter->seed++;
 	}
 
 	return BLK_STS_OK;
 }
 
-static blk_status_t ext_pi_type1_verify_crc64(struct blk_integrity_iter *iter)
-{
-	return ext_pi_crc64_verify(iter, T10_PI_TYPE1_PROTECTION);
-}
-
-static blk_status_t ext_pi_type1_generate_crc64(struct blk_integrity_iter *iter)
-{
-	return ext_pi_crc64_generate(iter, T10_PI_TYPE1_PROTECTION);
-}
-
 static void ext_pi_type1_prepare(struct request *rq)
 {
-	struct blk_integrity *bi = &rq->q->integrity;
+	struct blk_integrity *bi = &rq->q->limits.integrity;
 	const int tuple_sz = bi->tuple_size;
 	u64 ref_tag = ext_pi_ref_tag(rq);
 	u8 offset = bi->pi_offset;
@@ -433,7 +339,7 @@ static void ext_pi_type1_prepare(struct request *rq)
 
 static void ext_pi_type1_complete(struct request *rq, unsigned int nr_bytes)
 {
-	struct blk_integrity *bi = &rq->q->integrity;
+	struct blk_integrity *bi = &rq->q->limits.integrity;
 	unsigned intervals = nr_bytes >> bi->interval_exp;
 	const int tuple_sz = bi->tuple_size;
 	u64 ref_tag = ext_pi_ref_tag(rq);
@@ -467,33 +373,105 @@ static void ext_pi_type1_complete(struct request *rq, unsigned int nr_bytes)
 	}
 }
 
-static blk_status_t ext_pi_type3_verify_crc64(struct blk_integrity_iter *iter)
+void blk_integrity_generate(struct bio *bio)
 {
-	return ext_pi_crc64_verify(iter, T10_PI_TYPE3_PROTECTION);
+	struct blk_integrity *bi = blk_get_integrity(bio->bi_bdev->bd_disk);
+	struct bio_integrity_payload *bip = bio_integrity(bio);
+	struct blk_integrity_iter iter;
+	struct bvec_iter bviter;
+	struct bio_vec bv;
+
+	iter.disk_name = bio->bi_bdev->bd_disk->disk_name;
+	iter.interval = 1 << bi->interval_exp;
+	iter.seed = bio->bi_iter.bi_sector;
+	iter.prot_buf = bvec_virt(bip->bip_vec);
+	bio_for_each_segment(bv, bio, bviter) {
+		void *kaddr = bvec_kmap_local(&bv);
+
+		iter.data_buf = kaddr;
+		iter.data_size = bv.bv_len;
+		switch (bi->csum_type) {
+		case BLK_INTEGRITY_CSUM_CRC64:
+			ext_pi_crc64_generate(&iter, bi);
+			break;
+		case BLK_INTEGRITY_CSUM_CRC:
+		case BLK_INTEGRITY_CSUM_IP:
+			t10_pi_generate(&iter, bi);
+			break;
+		default:
+			break;
+		}
+		kunmap_local(kaddr);
+	}
 }
 
-static blk_status_t ext_pi_type3_generate_crc64(struct blk_integrity_iter *iter)
+void blk_integrity_verify(struct bio *bio)
 {
-	return ext_pi_crc64_generate(iter, T10_PI_TYPE3_PROTECTION);
+	struct blk_integrity *bi = blk_get_integrity(bio->bi_bdev->bd_disk);
+	struct bio_integrity_payload *bip = bio_integrity(bio);
+	struct blk_integrity_iter iter;
+	struct bvec_iter bviter;
+	struct bio_vec bv;
+
+	/*
+	 * At the moment verify is called bi_iter has been advanced during split
+	 * and completion, so use the copy created during submission here.
+	 */
+	iter.disk_name = bio->bi_bdev->bd_disk->disk_name;
+	iter.interval = 1 << bi->interval_exp;
+	iter.seed = bip->bio_iter.bi_sector;
+	iter.prot_buf = bvec_virt(bip->bip_vec);
+	__bio_for_each_segment(bv, bio, bviter, bip->bio_iter) {
+		void *kaddr = bvec_kmap_local(&bv);
+		blk_status_t ret = BLK_STS_OK;
+
+		iter.data_buf = kaddr;
+		iter.data_size = bv.bv_len;
+		switch (bi->csum_type) {
+		case BLK_INTEGRITY_CSUM_CRC64:
+			ret = ext_pi_crc64_verify(&iter, bi);
+			break;
+		case BLK_INTEGRITY_CSUM_CRC:
+		case BLK_INTEGRITY_CSUM_IP:
+			ret = t10_pi_verify(&iter, bi);
+			break;
+		default:
+			break;
+		}
+		kunmap_local(kaddr);
+
+		if (ret) {
+			bio->bi_status = ret;
+			return;
+		}
+	}
 }
 
-const struct blk_integrity_profile ext_pi_type1_crc64 = {
-	.name			= "EXT-DIF-TYPE1-CRC64",
-	.generate_fn		= ext_pi_type1_generate_crc64,
-	.verify_fn		= ext_pi_type1_verify_crc64,
-	.prepare_fn		= ext_pi_type1_prepare,
-	.complete_fn		= ext_pi_type1_complete,
-};
-EXPORT_SYMBOL_GPL(ext_pi_type1_crc64);
+void blk_integrity_prepare(struct request *rq)
+{
+	struct blk_integrity *bi = &rq->q->limits.integrity;
 
-const struct blk_integrity_profile ext_pi_type3_crc64 = {
-	.name			= "EXT-DIF-TYPE3-CRC64",
-	.generate_fn		= ext_pi_type3_generate_crc64,
-	.verify_fn		= ext_pi_type3_verify_crc64,
-	.prepare_fn		= t10_pi_type3_prepare,
-	.complete_fn		= t10_pi_type3_complete,
-};
-EXPORT_SYMBOL_GPL(ext_pi_type3_crc64);
+	if (!(bi->flags & BLK_INTEGRITY_REF_TAG))
+		return;
+
+	if (bi->csum_type == BLK_INTEGRITY_CSUM_CRC64)
+		ext_pi_type1_prepare(rq);
+	else
+		t10_pi_type1_prepare(rq);
+}
+
+void blk_integrity_complete(struct request *rq, unsigned int nr_bytes)
+{
+	struct blk_integrity *bi = &rq->q->limits.integrity;
+
+	if (!(bi->flags & BLK_INTEGRITY_REF_TAG))
+		return;
+
+	if (bi->csum_type == BLK_INTEGRITY_CSUM_CRC64)
+		ext_pi_type1_complete(rq, nr_bytes);
+	else
+		t10_pi_type1_complete(rq, nr_bytes);
+}
 
 MODULE_DESCRIPTION("T10 Protection Information module");
 MODULE_LICENSE("GPL");

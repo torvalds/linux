@@ -791,6 +791,7 @@ static int probe_disk(struct vdc_port *port)
 		.seg_boundary_mask		= PAGE_SIZE - 1,
 		.max_segment_size		= PAGE_SIZE,
 		.max_segments			= port->ring_cookies,
+		.features			= BLK_FEAT_ROTATIONAL,
 	};
 	struct request_queue *q;
 	struct gendisk *g;

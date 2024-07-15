@@ -1188,7 +1188,7 @@ static sector_t __max_io_len(struct dm_target *ti, sector_t sector,
 		return len;
 	return min_t(sector_t, len,
 		min(max_sectors ? : queue_max_sectors(ti->table->md->queue),
-		    blk_chunk_sectors_left(target_offset, max_granularity)));
+		    blk_boundary_sectors_left(target_offset, max_granularity)));
 }
 
 static inline sector_t max_io_len(struct dm_target *ti, sector_t sector)
@@ -1598,20 +1598,19 @@ static void __send_abnormal_io(struct clone_info *ci, struct dm_target *ti,
 
 static bool is_abnormal_io(struct bio *bio)
 {
-	enum req_op op = bio_op(bio);
-
-	if (op != REQ_OP_READ && op != REQ_OP_WRITE && op != REQ_OP_FLUSH) {
-		switch (op) {
-		case REQ_OP_DISCARD:
-		case REQ_OP_SECURE_ERASE:
-		case REQ_OP_WRITE_ZEROES:
-			return true;
-		default:
-			break;
-		}
+	switch (bio_op(bio)) {
+	case REQ_OP_READ:
+	case REQ_OP_WRITE:
+	case REQ_OP_FLUSH:
+		return false;
+	case REQ_OP_DISCARD:
+	case REQ_OP_SECURE_ERASE:
+	case REQ_OP_WRITE_ZEROES:
+	case REQ_OP_ZONE_RESET_ALL:
+		return true;
+	default:
+		return false;
 	}
-
-	return false;
 }
 
 static blk_status_t __process_abnormal_io(struct clone_info *ci,
@@ -1776,6 +1775,119 @@ static inline bool dm_zone_plug_bio(struct mapped_device *md, struct bio *bio)
 {
 	return dm_emulate_zone_append(md) && blk_zone_plug_bio(bio, 0);
 }
+
+static blk_status_t __send_zone_reset_all_emulated(struct clone_info *ci,
+						   struct dm_target *ti)
+{
+	struct bio_list blist = BIO_EMPTY_LIST;
+	struct mapped_device *md = ci->io->md;
+	unsigned int zone_sectors = md->disk->queue->limits.chunk_sectors;
+	unsigned long *need_reset;
+	unsigned int i, nr_zones, nr_reset;
+	unsigned int num_bios = 0;
+	blk_status_t sts = BLK_STS_OK;
+	sector_t sector = ti->begin;
+	struct bio *clone;
+	int ret;
+
+	nr_zones = ti->len >> ilog2(zone_sectors);
+	need_reset = bitmap_zalloc(nr_zones, GFP_NOIO);
+	if (!need_reset)
+		return BLK_STS_RESOURCE;
+
+	ret = dm_zone_get_reset_bitmap(md, ci->map, ti->begin,
+				       nr_zones, need_reset);
+	if (ret) {
+		sts = BLK_STS_IOERR;
+		goto free_bitmap;
+	}
+
+	/* If we have no zone to reset, we are done. */
+	nr_reset = bitmap_weight(need_reset, nr_zones);
+	if (!nr_reset)
+		goto free_bitmap;
+
+	atomic_add(nr_zones, &ci->io->io_count);
+
+	for (i = 0; i < nr_zones; i++) {
+
+		if (!test_bit(i, need_reset)) {
+			sector += zone_sectors;
+			continue;
+		}
+
+		if (bio_list_empty(&blist)) {
+			/* This may take a while, so be nice to others */
+			if (num_bios)
+				cond_resched();
+
+			/*
+			 * We may need to reset thousands of zones, so let's
+			 * not go crazy with the clone allocation.
+			 */
+			alloc_multiple_bios(&blist, ci, ti, min(nr_reset, 32),
+					    NULL, GFP_NOIO);
+		}
+
+		/* Get a clone and change it to a regular reset operation. */
+		clone = bio_list_pop(&blist);
+		clone->bi_opf &= ~REQ_OP_MASK;
+		clone->bi_opf |= REQ_OP_ZONE_RESET | REQ_SYNC;
+		clone->bi_iter.bi_sector = sector;
+		clone->bi_iter.bi_size = 0;
+		__map_bio(clone);
+
+		sector += zone_sectors;
+		num_bios++;
+		nr_reset--;
+	}
+
+	WARN_ON_ONCE(!bio_list_empty(&blist));
+	atomic_sub(nr_zones - num_bios, &ci->io->io_count);
+	ci->sector_count = 0;
+
+free_bitmap:
+	bitmap_free(need_reset);
+
+	return sts;
+}
+
+static void __send_zone_reset_all_native(struct clone_info *ci,
+					 struct dm_target *ti)
+{
+	unsigned int bios;
+
+	atomic_add(1, &ci->io->io_count);
+	bios = __send_duplicate_bios(ci, ti, 1, NULL, GFP_NOIO);
+	atomic_sub(1 - bios, &ci->io->io_count);
+
+	ci->sector_count = 0;
+}
+
+static blk_status_t __send_zone_reset_all(struct clone_info *ci)
+{
+	struct dm_table *t = ci->map;
+	blk_status_t sts = BLK_STS_OK;
+
+	for (unsigned int i = 0; i < t->num_targets; i++) {
+		struct dm_target *ti = dm_table_get_target(t, i);
+
+		if (ti->zone_reset_all_supported) {
+			__send_zone_reset_all_native(ci, ti);
+			continue;
+		}
+
+		sts = __send_zone_reset_all_emulated(ci, ti);
+		if (sts != BLK_STS_OK)
+			break;
+	}
+
+	/* Release the reference that alloc_io() took for submission. */
+	atomic_sub(1, &ci->io->io_count);
+
+	return sts;
+}
+
 #else
 static inline bool dm_zone_bio_needs_split(struct mapped_device *md,
 					   struct bio *bio)
@@ -1785,6 +1897,10 @@ static inline bool dm_zone_bio_needs_split(struct mapped_device *md,
 static inline bool dm_zone_plug_bio(struct mapped_device *md, struct bio *bio)
 {
 	return false;
+}
+static blk_status_t __send_zone_reset_all(struct clone_info *ci)
+{
+	return BLK_STS_NOTSUPP;
 }
 #endif
 
@@ -1799,9 +1915,14 @@ static void dm_split_and_process_bio(struct mapped_device *md,
 	blk_status_t error = BLK_STS_OK;
 	bool is_abnormal, need_split;
 
-	need_split = is_abnormal = is_abnormal_io(bio);
-	if (static_branch_unlikely(&zoned_enabled))
-		need_split = is_abnormal || dm_zone_bio_needs_split(md, bio);
+	is_abnormal = is_abnormal_io(bio);
+	if (static_branch_unlikely(&zoned_enabled)) {
+		/* Special case REQ_OP_ZONE_RESET_ALL as it cannot be split. */
+		need_split = (bio_op(bio) != REQ_OP_ZONE_RESET_ALL) &&
+			(is_abnormal || dm_zone_bio_needs_split(md, bio));
+	} else {
+		need_split = is_abnormal;
+	}
 
 	if (unlikely(need_split)) {
 		/*
@@ -1839,6 +1960,12 @@ static void dm_split_and_process_bio(struct mapped_device *md,
 	if (bio->bi_opf & REQ_PREFLUSH) {
 		__send_empty_flush(&ci);
 		/* dm_io_complete submits any data associated with flush */
+		goto out;
+	}
+
+	if (static_branch_unlikely(&zoned_enabled) &&
+	    (bio_op(bio) == REQ_OP_ZONE_RESET_ALL)) {
+		error = __send_zone_reset_all(&ci);
 		goto out;
 	}
 
@@ -2386,22 +2513,15 @@ int dm_setup_md_queue(struct mapped_device *md, struct dm_table *t)
 	struct table_device *td;
 	int r;
 
-	switch (type) {
-	case DM_TYPE_REQUEST_BASED:
+	WARN_ON_ONCE(type == DM_TYPE_NONE);
+
+	if (type == DM_TYPE_REQUEST_BASED) {
 		md->disk->fops = &dm_rq_blk_dops;
 		r = dm_mq_init_request_queue(md, t);
 		if (r) {
 			DMERR("Cannot initialize queue for request-based dm mapped device");
 			return r;
 		}
-		break;
-	case DM_TYPE_BIO_BASED:
-	case DM_TYPE_DAX_BIO_BASED:
-		blk_queue_flag_set(QUEUE_FLAG_IO_STAT, md->queue);
-		break;
-	case DM_TYPE_NONE:
-		WARN_ON_ONCE(true);
-		break;
 	}
 
 	r = dm_calculate_queue_limits(t, &limits);

@@ -116,24 +116,6 @@ const char *blk_zone_cond_str(enum blk_zone_cond zone_cond)
 EXPORT_SYMBOL_GPL(blk_zone_cond_str);
 
 /**
- * bdev_nr_zones - Get number of zones
- * @bdev:	Target device
- *
- * Return the total number of zones of a zoned block device.  For a block
- * device without zone capabilities, the number of zones is always 0.
- */
-unsigned int bdev_nr_zones(struct block_device *bdev)
-{
-	sector_t zone_sectors = bdev_zone_sectors(bdev);
-
-	if (!bdev_is_zoned(bdev))
-		return 0;
-	return (bdev_nr_sectors(bdev) + zone_sectors - 1) >>
-		ilog2(zone_sectors);
-}
-EXPORT_SYMBOL_GPL(bdev_nr_zones);
-
-/**
  * blkdev_report_zones - Get zones information
  * @bdev:	Target block device
  * @sector:	Sector from which to report zones
@@ -168,77 +150,6 @@ int blkdev_report_zones(struct block_device *bdev, sector_t sector,
 }
 EXPORT_SYMBOL_GPL(blkdev_report_zones);
 
-static inline unsigned long *blk_alloc_zone_bitmap(int node,
-						   unsigned int nr_zones)
-{
-	return kcalloc_node(BITS_TO_LONGS(nr_zones), sizeof(unsigned long),
-			    GFP_NOIO, node);
-}
-
-static int blk_zone_need_reset_cb(struct blk_zone *zone, unsigned int idx,
-				  void *data)
-{
-	/*
-	 * For an all-zones reset, ignore conventional, empty, read-only
-	 * and offline zones.
-	 */
-	switch (zone->cond) {
-	case BLK_ZONE_COND_NOT_WP:
-	case BLK_ZONE_COND_EMPTY:
-	case BLK_ZONE_COND_READONLY:
-	case BLK_ZONE_COND_OFFLINE:
-		return 0;
-	default:
-		set_bit(idx, (unsigned long *)data);
-		return 0;
-	}
-}
-
-static int blkdev_zone_reset_all_emulated(struct block_device *bdev)
-{
-	struct gendisk *disk = bdev->bd_disk;
-	sector_t capacity = bdev_nr_sectors(bdev);
-	sector_t zone_sectors = bdev_zone_sectors(bdev);
-	unsigned long *need_reset;
-	struct bio *bio = NULL;
-	sector_t sector = 0;
-	int ret;
-
-	need_reset = blk_alloc_zone_bitmap(disk->queue->node, disk->nr_zones);
-	if (!need_reset)
-		return -ENOMEM;
-
-	ret = disk->fops->report_zones(disk, 0, disk->nr_zones,
-				       blk_zone_need_reset_cb, need_reset);
-	if (ret < 0)
-		goto out_free_need_reset;
-
-	ret = 0;
-	while (sector < capacity) {
-		if (!test_bit(disk_zone_no(disk, sector), need_reset)) {
-			sector += zone_sectors;
-			continue;
-		}
-
-		bio = blk_next_bio(bio, bdev, 0, REQ_OP_ZONE_RESET | REQ_SYNC,
-				   GFP_KERNEL);
-		bio->bi_iter.bi_sector = sector;
-		sector += zone_sectors;
-
-		/* This may take a while, so be nice to others */
-		cond_resched();
-	}
-
-	if (bio) {
-		ret = submit_bio_wait(bio);
-		bio_put(bio);
-	}
-
-out_free_need_reset:
-	kfree(need_reset);
-	return ret;
-}
-
 static int blkdev_zone_reset_all(struct block_device *bdev)
 {
 	struct bio bio;
@@ -265,7 +176,6 @@ static int blkdev_zone_reset_all(struct block_device *bdev)
 int blkdev_zone_mgmt(struct block_device *bdev, enum req_op op,
 		     sector_t sector, sector_t nr_sectors)
 {
-	struct request_queue *q = bdev_get_queue(bdev);
 	sector_t zone_sectors = bdev_zone_sectors(bdev);
 	sector_t capacity = bdev_nr_sectors(bdev);
 	sector_t end_sector = sector + nr_sectors;
@@ -293,16 +203,11 @@ int blkdev_zone_mgmt(struct block_device *bdev, enum req_op op,
 		return -EINVAL;
 
 	/*
-	 * In the case of a zone reset operation over all zones,
-	 * REQ_OP_ZONE_RESET_ALL can be used with devices supporting this
-	 * command. For other devices, we emulate this command behavior by
-	 * identifying the zones needing a reset.
+	 * In the case of a zone reset operation over all zones, use
+	 * REQ_OP_ZONE_RESET_ALL.
 	 */
-	if (op == REQ_OP_ZONE_RESET && sector == 0 && nr_sectors == capacity) {
-		if (!blk_queue_zone_resetall(q))
-			return blkdev_zone_reset_all_emulated(bdev);
+	if (op == REQ_OP_ZONE_RESET && sector == 0 && nr_sectors == capacity)
 		return blkdev_zone_reset_all(bdev);
-	}
 
 	while (sector < end_sector) {
 		bio = blk_next_bio(bio, bdev, 0, op | REQ_SYNC, GFP_KERNEL);
@@ -1573,7 +1478,7 @@ void disk_free_zone_resources(struct gendisk *disk)
 	mempool_destroy(disk->zone_wplugs_pool);
 	disk->zone_wplugs_pool = NULL;
 
-	kfree(disk->conv_zones_bitmap);
+	bitmap_free(disk->conv_zones_bitmap);
 	disk->conv_zones_bitmap = NULL;
 	disk->zone_capacity = 0;
 	disk->last_zone_capacity = 0;
@@ -1650,8 +1555,22 @@ static int disk_update_zone_resources(struct gendisk *disk,
 		return -ENODEV;
 	}
 
+	lim = queue_limits_start_update(q);
+
+	/*
+	 * Some devices can advertize zone resource limits that are larger than
+	 * the number of sequential zones of the zoned block device, e.g. a
+	 * small ZNS namespace. For such case, assume that the zoned device has
+	 * no zone resource limits.
+	 */
+	nr_seq_zones = disk->nr_zones - nr_conv_zones;
+	if (lim.max_open_zones >= nr_seq_zones)
+		lim.max_open_zones = 0;
+	if (lim.max_active_zones >= nr_seq_zones)
+		lim.max_active_zones = 0;
+
 	if (!disk->zone_wplugs_pool)
-		return 0;
+		goto commit;
 
 	/*
 	 * If the device has no limit on the maximum number of open and active
@@ -1660,9 +1579,6 @@ static int disk_update_zone_resources(struct gendisk *disk,
 	 * dynamic zone write plug allocation when simultaneously writing to
 	 * more zones than the size of the mempool.
 	 */
-	lim = queue_limits_start_update(q);
-
-	nr_seq_zones = disk->nr_zones - nr_conv_zones;
 	pool_size = max(lim.max_open_zones, lim.max_active_zones);
 	if (!pool_size)
 		pool_size = min(BLK_ZONE_WPLUG_DEFAULT_POOL_SIZE, nr_seq_zones);
@@ -1676,6 +1592,7 @@ static int disk_update_zone_resources(struct gendisk *disk,
 			lim.max_open_zones = 0;
 	}
 
+commit:
 	return queue_limits_commit_update(q, &lim);
 }
 
@@ -1683,7 +1600,6 @@ static int blk_revalidate_conv_zone(struct blk_zone *zone, unsigned int idx,
 				    struct blk_revalidate_zone_args *args)
 {
 	struct gendisk *disk = args->disk;
-	struct request_queue *q = disk->queue;
 
 	if (zone->capacity != zone->len) {
 		pr_warn("%s: Invalid conventional zone capacity\n",
@@ -1699,7 +1615,7 @@ static int blk_revalidate_conv_zone(struct blk_zone *zone, unsigned int idx,
 
 	if (!args->conv_zones_bitmap) {
 		args->conv_zones_bitmap =
-			blk_alloc_zone_bitmap(q->node, args->nr_zones);
+			bitmap_zalloc(args->nr_zones, GFP_NOIO);
 		if (!args->conv_zones_bitmap)
 			return -ENOMEM;
 	}

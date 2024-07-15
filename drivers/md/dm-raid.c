@@ -3542,7 +3542,7 @@ static void raid_status(struct dm_target *ti, status_type_t type,
 		recovery = rs->md.recovery;
 		state = decipher_sync_action(mddev, recovery);
 		progress = rs_get_progress(rs, recovery, state, resync_max_sectors);
-		resync_mismatches = (mddev->last_sync_action && !strcasecmp(mddev->last_sync_action, "check")) ?
+		resync_mismatches = mddev->last_sync_action == ACTION_CHECK ?
 				    atomic64_read(&mddev->resync_mismatches) : 0;
 
 		/* HM FIXME: do we want another state char for raid0? It shows 'D'/'A'/'-' now */

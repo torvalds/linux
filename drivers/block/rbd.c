@@ -4949,14 +4949,12 @@ static const struct blk_mq_ops rbd_mq_ops = {
 static int rbd_init_disk(struct rbd_device *rbd_dev)
 {
 	struct gendisk *disk;
-	struct request_queue *q;
 	unsigned int objset_bytes =
 	    rbd_dev->layout.object_size * rbd_dev->layout.stripe_count;
 	struct queue_limits lim = {
 		.max_hw_sectors		= objset_bytes >> SECTOR_SHIFT,
-		.max_user_sectors	= objset_bytes >> SECTOR_SHIFT,
+		.io_opt			= objset_bytes,
 		.io_min			= rbd_dev->opts->alloc_size,
-		.io_opt			= rbd_dev->opts->alloc_size,
 		.max_segments		= USHRT_MAX,
 		.max_segment_size	= UINT_MAX,
 	};
@@ -4980,12 +4978,14 @@ static int rbd_init_disk(struct rbd_device *rbd_dev)
 		lim.max_write_zeroes_sectors = objset_bytes >> SECTOR_SHIFT;
 	}
 
+	if (!ceph_test_opt(rbd_dev->rbd_client->client, NOCRC))
+		lim.features |= BLK_FEAT_STABLE_WRITES;
+
 	disk = blk_mq_alloc_disk(&rbd_dev->tag_set, &lim, rbd_dev);
 	if (IS_ERR(disk)) {
 		err = PTR_ERR(disk);
 		goto out_tag_set;
 	}
-	q = disk->queue;
 
 	snprintf(disk->disk_name, sizeof(disk->disk_name), RBD_DRV_NAME "%d",
 		 rbd_dev->dev_id);
@@ -4997,13 +4997,6 @@ static int rbd_init_disk(struct rbd_device *rbd_dev)
 		disk->minors = RBD_MINORS_PER_MAJOR;
 	disk->fops = &rbd_bd_ops;
 	disk->private_data = rbd_dev;
-
-	blk_queue_flag_set(QUEUE_FLAG_NONROT, q);
-	/* QUEUE_FLAG_ADD_RANDOM is off by default for blk-mq */
-
-	if (!ceph_test_opt(rbd_dev->rbd_client->client, NOCRC))
-		blk_queue_flag_set(QUEUE_FLAG_STABLE_WRITES, q);
-
 	rbd_dev->disk = disk;
 
 	return 0;

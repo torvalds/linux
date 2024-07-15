@@ -206,7 +206,6 @@ struct dm_table {
 
 	bool integrity_supported:1;
 	bool singleton:1;
-	unsigned integrity_added:1;
 
 	/*
 	 * Indicates the rw permissions for the new logical device.  This

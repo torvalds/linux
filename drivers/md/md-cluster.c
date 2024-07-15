@@ -1570,7 +1570,7 @@ out:
 	return err;
 }
 
-static struct md_cluster_operations cluster_ops = {
+static const struct md_cluster_operations cluster_ops = {
 	.join   = join,
 	.leave  = leave,
 	.slot_number = slot_number,

@@ -3708,4 +3708,5 @@ static void __exit cdrom_exit(void)
 
 module_init(cdrom_init);
 module_exit(cdrom_exit);
+MODULE_DESCRIPTION("Uniform CD-ROM driver");
 MODULE_LICENSE("GPL");

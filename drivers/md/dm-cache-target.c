@@ -3403,7 +3403,6 @@ static void set_discard_limits(struct cache *cache, struct queue_limits *limits)
 	limits->max_hw_discard_sectors = origin_limits->max_hw_discard_sectors;
 	limits->discard_granularity = origin_limits->discard_granularity;
 	limits->discard_alignment = origin_limits->discard_alignment;
-	limits->discard_misaligned = origin_limits->discard_misaligned;
 }
 
 static void cache_io_hints(struct dm_target *ti, struct queue_limits *limits)
