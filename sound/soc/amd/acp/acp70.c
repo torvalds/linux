@@ -31,8 +31,6 @@ static struct acp_resource rsrc = {
 	.irqp_used = 1,
 	.soc_mclk = true,
 	.irq_reg_offset = 0x1a00,
-	.i2s_pin_cfg_offset = 0x1440,
-	.i2s_mode = 0x0a,
 	.scratch_reg_offset = 0x12800,
 	.sram_pte_offset = 0x03802800,
 };

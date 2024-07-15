@@ -4,6 +4,8 @@
 //
 // Copyright (c) 2016 Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
 
+#include <dt-bindings/sound/audio-graph.h>
+#include <linux/cleanup.h>
 #include <linux/clk.h>
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
@@ -13,12 +15,11 @@
 #include <sound/pcm_params.h>
 #include <sound/simple_card_utils.h>
 
-static void simple_fixup_sample_fmt(struct simple_util_data *data,
-					 struct snd_pcm_hw_params *params)
+int simple_util_get_sample_fmt(struct simple_util_data *data)
 {
 	int i;
-	struct snd_mask *mask = hw_param_mask(params,
-					      SNDRV_PCM_HW_PARAM_FORMAT);
+	int val = -EINVAL;
+
 	struct {
 		char *fmt;
 		u32 val;
@@ -33,10 +34,25 @@ static void simple_fixup_sample_fmt(struct simple_util_data *data,
 	for (i = 0; i < ARRAY_SIZE(of_sample_fmt_table); i++) {
 		if (!strcmp(data->convert_sample_format,
 			    of_sample_fmt_table[i].fmt)) {
-			snd_mask_none(mask);
-			snd_mask_set(mask, of_sample_fmt_table[i].val);
+			val = of_sample_fmt_table[i].val;
 			break;
 		}
+	}
+	return val;
+}
+EXPORT_SYMBOL_GPL(simple_util_get_sample_fmt);
+
+static void simple_fixup_sample_fmt(struct simple_util_data *data,
+				    struct snd_pcm_hw_params *params)
+{
+	int val;
+	struct snd_mask *mask = hw_param_mask(params,
+					      SNDRV_PCM_HW_PARAM_FORMAT);
+
+	val = simple_util_get_sample_fmt(data);
+	if (val >= 0) {
+		snd_mask_none(mask);
+		snd_mask_set(mask, val);
 	}
 }
 
@@ -45,6 +61,9 @@ void simple_util_parse_convert(struct device_node *np,
 			       struct simple_util_data *data)
 {
 	char prop[128];
+
+	if (!np)
+		return;
 
 	if (!prefix)
 		prefix = "";
@@ -117,8 +136,8 @@ EXPORT_SYMBOL_GPL(simple_util_parse_daifmt);
 int simple_util_parse_tdm_width_map(struct device *dev, struct device_node *np,
 				    struct simple_util_dai *dai)
 {
-	u32 *array_values, *p;
 	int n, i, ret;
+	u32 *p;
 
 	if (!of_property_read_bool(np, "dai-tdm-slot-width-map"))
 		return 0;
@@ -133,14 +152,15 @@ int simple_util_parse_tdm_width_map(struct device *dev, struct device_node *np,
 	if (!dai->tdm_width_map)
 		return -ENOMEM;
 
-	array_values = kcalloc(n, sizeof(*array_values), GFP_KERNEL);
+	u32 *array_values __free(kfree) = kcalloc(n, sizeof(*array_values),
+						  GFP_KERNEL);
 	if (!array_values)
 		return -ENOMEM;
 
 	ret = of_property_read_u32_array(np, "dai-tdm-slot-width-map", array_values, n);
 	if (ret < 0) {
 		dev_err(dev, "Could not read dai-tdm-slot-width-map: %d\n", ret);
-		goto out;
+		return ret;
 	}
 
 	p = array_values;
@@ -151,11 +171,8 @@ int simple_util_parse_tdm_width_map(struct device *dev, struct device_node *np,
 	}
 
 	dai->n_tdm_widths = i;
-	ret = 0;
-out:
-	kfree(array_values);
 
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(simple_util_parse_tdm_width_map);
 
@@ -1126,24 +1143,88 @@ parse_dai_end:
 }
 EXPORT_SYMBOL_GPL(graph_util_parse_dai);
 
-int graph_util_parse_link_direction(struct device_node *np,
+void graph_util_parse_link_direction(struct device_node *np,
 				    bool *playback_only, bool *capture_only)
 {
-	bool is_playback_only = false;
-	bool is_capture_only = false;
+	bool is_playback_only = of_property_read_bool(np, "playback-only");
+	bool is_capture_only  = of_property_read_bool(np, "capture-only");
 
-	is_playback_only = of_property_read_bool(np, "playback-only");
-	is_capture_only = of_property_read_bool(np, "capture-only");
-
-	if (is_playback_only && is_capture_only)
-		return -EINVAL;
-
-	*playback_only = is_playback_only;
-	*capture_only = is_capture_only;
-
-	return 0;
+	if (is_playback_only)
+		*playback_only = is_playback_only;
+	if (is_capture_only)
+		*capture_only = is_capture_only;
 }
 EXPORT_SYMBOL_GPL(graph_util_parse_link_direction);
+
+static enum snd_soc_trigger_order
+__graph_util_parse_trigger_order(struct simple_util_priv *priv,
+				 struct device_node *np,
+				 const char *prop)
+{
+	u32 val[SND_SOC_TRIGGER_SIZE];
+	int ret;
+
+	ret = of_property_read_u32_array(np, prop, val, SND_SOC_TRIGGER_SIZE);
+	if (ret == 0) {
+		struct device *dev = simple_priv_to_dev(priv);
+		u32 order =	(val[0] << 8) +
+			(val[1] << 4) +
+			(val[2]);
+
+		switch (order) {
+		case	(SND_SOC_TRIGGER_LINK		<< 8) +
+			(SND_SOC_TRIGGER_COMPONENT	<< 4) +
+			(SND_SOC_TRIGGER_DAI):
+			return SND_SOC_TRIGGER_ORDER_DEFAULT;
+
+		case	(SND_SOC_TRIGGER_LINK		<< 8) +
+			(SND_SOC_TRIGGER_DAI		<< 4) +
+			(SND_SOC_TRIGGER_COMPONENT):
+			return SND_SOC_TRIGGER_ORDER_LDC;
+
+		default:
+			dev_err(dev, "unsupported trigger order [0x%x]\n", order);
+		}
+	}
+
+	/* SND_SOC_TRIGGER_ORDER_MAX means error */
+	return SND_SOC_TRIGGER_ORDER_MAX;
+}
+
+void graph_util_parse_trigger_order(struct simple_util_priv *priv,
+				    struct device_node *np,
+				    enum snd_soc_trigger_order *trigger_start,
+				    enum snd_soc_trigger_order *trigger_stop)
+{
+	static enum snd_soc_trigger_order order;
+
+	/*
+	 * We can use it like below
+	 *
+	 * #include <dt-bindings/sound/audio-graph.h>
+	 *
+	 * link-trigger-order = <SND_SOC_TRIGGER_LINK
+	 *			 SND_SOC_TRIGGER_COMPONENT
+	 *			 SND_SOC_TRIGGER_DAI>;
+	 */
+
+	order = __graph_util_parse_trigger_order(priv, np, "link-trigger-order");
+	if (order < SND_SOC_TRIGGER_ORDER_MAX) {
+		*trigger_start = order;
+		*trigger_stop  = order;
+	}
+
+	order = __graph_util_parse_trigger_order(priv, np, "link-trigger-order-start");
+	if (order < SND_SOC_TRIGGER_ORDER_MAX)
+		*trigger_start = order;
+
+	order = __graph_util_parse_trigger_order(priv, np, "link-trigger-order-stop");
+	if (order < SND_SOC_TRIGGER_ORDER_MAX)
+		*trigger_stop  = order;
+
+	return;
+}
+EXPORT_SYMBOL_GPL(graph_util_parse_trigger_order);
 
 /* Module information */
 MODULE_AUTHOR("Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>");

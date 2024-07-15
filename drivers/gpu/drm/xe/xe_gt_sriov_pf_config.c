@@ -1749,6 +1749,7 @@ static void pf_release_vf_config(struct xe_gt *gt, unsigned int vfid)
 	if (!xe_gt_is_media_type(gt)) {
 		pf_release_vf_config_ggtt(gt, config);
 		pf_release_vf_config_lmem(gt, config);
+		pf_update_vf_lmtt(gt_to_xe(gt), vfid);
 	}
 	pf_release_config_ctxs(gt, config);
 	pf_release_config_dbs(gt, config);

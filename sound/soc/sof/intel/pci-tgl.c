@@ -183,7 +183,7 @@ static const struct sof_dev_desc adl_desc = {
 	.ops_free = hda_ops_free,
 };
 
-static const struct sof_dev_desc adl_n_desc = {
+static const struct sof_dev_desc adln_desc = {
 	.machines               = snd_soc_acpi_intel_adl_machines,
 	.alt_machines           = snd_soc_acpi_intel_adl_sdw_machines,
 	.use_acpi_target_states = true,
@@ -298,7 +298,7 @@ static const struct pci_device_id sof_pci_ids[] = {
 	{ PCI_DEVICE_DATA(INTEL, HDA_ADL_PX, &adl_desc) },
 	{ PCI_DEVICE_DATA(INTEL, HDA_RPL_M, &rpl_desc) },
 	{ PCI_DEVICE_DATA(INTEL, HDA_RPL_PX, &rpl_desc) },
-	{ PCI_DEVICE_DATA(INTEL, HDA_ADL_N, &adl_n_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_ADL_N, &adln_desc) },
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, sof_pci_ids);

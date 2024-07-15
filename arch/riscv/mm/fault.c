@@ -293,8 +293,8 @@ void handle_page_fault(struct pt_regs *regs)
 	if (unlikely(access_error(cause, vma))) {
 		vma_end_read(vma);
 		count_vm_vma_lock_event(VMA_LOCK_SUCCESS);
-		tsk->thread.bad_cause = SEGV_ACCERR;
-		bad_area_nosemaphore(regs, code, addr);
+		tsk->thread.bad_cause = cause;
+		bad_area_nosemaphore(regs, SEGV_ACCERR, addr);
 		return;
 	}
 

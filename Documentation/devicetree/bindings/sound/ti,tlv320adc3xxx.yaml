@@ -58,8 +58,8 @@ properties:
     description: |
       Configuration for DMDIN/GPIO1 pin.
 
-      When ADC3XXX_GPIO_GPO is configured, this causes corresponding the
-      ALSA control "GPIOx Output" to appear, as a switch control.
+      When ADC3XXX_GPIO_GPO is selected, the pin may be controlled via the
+      GPIO framework, as pin number 0 on the device.
 
   ti,dmclk-gpio2:
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -76,11 +76,31 @@ properties:
     description: |
       Configuration for DMCLK/GPIO2 pin.
 
-      When ADC3XXX_GPIO_GPO is configured, this causes corresponding the
-      ALSA control "GPIOx Output" to appear, as a switch control.
+      When ADC3XXX_GPIO_GPO is selected, the pin may be controlled via the
+      GPIO framework, as pin number 1 on the device.
 
       Note that there is currently no support for reading the GPIO pins as
       inputs.
+
+  ti,micbias1-gpo:
+    type: boolean
+    description: |
+      When set, the MICBIAS1 pin may be controlled via the GPIO framework,
+      as pin number 3 on the device.
+
+      In this mode, when the pin is activated, it will be set to the voltage
+      specified by the ti,micbias1-vg property. When deactivated, the pin will
+      float.
+
+  ti,micbias2-gpo:
+    type: boolean
+    description: |
+      When set, the MICBIAS2 pin may be controlled via the GPIO framework,
+      as pin number 4 on the device.
+
+      In this mode, when the pin is activated, it will be set to the voltage
+      specified by the ti,micbias2-vg property. When deactivated, the pin will
+      float.
 
   ti,micbias1-vg:
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -103,6 +123,10 @@ properties:
     default: 0
     description: |
       Mic bias voltage output on MICBIAS2 pin
+
+dependencies:
+  ti,micbias1-gpo: ['ti,micbias1-vg']
+  ti,micbias2-gpo: ['ti,micbias2-vg']
 
 required:
   - compatible

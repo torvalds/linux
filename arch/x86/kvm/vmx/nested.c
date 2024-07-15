@@ -2242,6 +2242,9 @@ static void prepare_vmcs02_constant_state(struct vcpu_vmx *vmx)
 		vmcs_write64(EPT_POINTER,
 			     construct_eptp(&vmx->vcpu, 0, PT64_ROOT_4LEVEL));
 
+	if (vmx->ve_info)
+		vmcs_write64(VE_INFORMATION_ADDRESS, __pa(vmx->ve_info));
+
 	/* All VMFUNCs are currently emulated through L0 vmexits.  */
 	if (cpu_has_vmx_vmfunc())
 		vmcs_write64(VM_FUNCTION_CONTROL, 0);
@@ -6229,6 +6232,8 @@ static bool nested_vmx_l0_wants_exit(struct kvm_vcpu *vcpu,
 			return true;
 		else if (is_alignment_check(intr_info) &&
 			 !vmx_guest_inject_ac(vcpu))
+			return true;
+		else if (is_ve_fault(intr_info))
 			return true;
 		return false;
 	case EXIT_REASON_EXTERNAL_INTERRUPT:

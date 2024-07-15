@@ -643,7 +643,9 @@ static int st7789v_probe(struct spi_device *spi)
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to get backlight\n");
 
-	of_drm_get_panel_orientation(spi->dev.of_node, &ctx->orientation);
+	ret = of_drm_get_panel_orientation(spi->dev.of_node, &ctx->orientation);
+	if (ret)
+		return dev_err_probe(&spi->dev, ret, "Failed to get orientation\n");
 
 	drm_panel_add(&ctx->panel);
 

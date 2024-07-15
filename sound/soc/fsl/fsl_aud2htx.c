@@ -261,7 +261,7 @@ static void fsl_aud2htx_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 }
 
-static int __maybe_unused fsl_aud2htx_runtime_suspend(struct device *dev)
+static int fsl_aud2htx_runtime_suspend(struct device *dev)
 {
 	struct fsl_aud2htx *aud2htx = dev_get_drvdata(dev);
 
@@ -271,7 +271,7 @@ static int __maybe_unused fsl_aud2htx_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused fsl_aud2htx_runtime_resume(struct device *dev)
+static int fsl_aud2htx_runtime_resume(struct device *dev)
 {
 	struct fsl_aud2htx *aud2htx = dev_get_drvdata(dev);
 	int ret;
@@ -288,9 +288,8 @@ static int __maybe_unused fsl_aud2htx_runtime_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops fsl_aud2htx_pm_ops = {
-	SET_RUNTIME_PM_OPS(fsl_aud2htx_runtime_suspend,
-			   fsl_aud2htx_runtime_resume,
-			   NULL)
+	RUNTIME_PM_OPS(fsl_aud2htx_runtime_suspend, fsl_aud2htx_runtime_resume,
+		       NULL)
 	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
 				pm_runtime_force_resume)
 };
@@ -300,7 +299,7 @@ static struct platform_driver fsl_aud2htx_driver = {
 	.remove_new = fsl_aud2htx_remove,
 	.driver = {
 		.name = "fsl-aud2htx",
-		.pm = &fsl_aud2htx_pm_ops,
+		.pm = pm_ptr(&fsl_aud2htx_pm_ops),
 		.of_match_table = fsl_aud2htx_dt_ids,
 	},
 };
