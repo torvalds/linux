@@ -8,10 +8,10 @@ and the code documentation when it is automatically generated.
 DCHUBBUB
 --------
 
-.. kernel-doc:: drivers/gpu/drm/amd/display/dc/inc/hw/hubp.h
+.. kernel-doc:: drivers/gpu/drm/amd/display/dc/inc/hw/dchubbub.h
    :doc: overview
 
-.. kernel-doc:: drivers/gpu/drm/amd/display/dc/inc/hw/hubp.h
+.. kernel-doc:: drivers/gpu/drm/amd/display/dc/inc/hw/dchubbub.h
    :internal:
 
 HUBP
@@ -26,10 +26,10 @@ HUBP
 DPP
 ---
 
-.. kernel-doc:: drivers/gpu/drm/amd/display/dc/inc/hw/hubp.h
+.. kernel-doc:: drivers/gpu/drm/amd/display/dc/inc/hw/dpp.h
    :doc: overview
 
-.. kernel-doc:: drivers/gpu/drm/amd/display/dc/inc/hw/hubp.h
+.. kernel-doc:: drivers/gpu/drm/amd/display/dc/inc/hw/dpp.h
    :internal:
 
 MPC
