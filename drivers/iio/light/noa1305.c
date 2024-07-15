@@ -48,7 +48,7 @@ struct noa1305_priv {
 	struct regmap *regmap;
 };
 
-static int noa1305_measure(struct noa1305_priv *priv)
+static int noa1305_measure(struct noa1305_priv *priv, int *val)
 {
 	__le16 data;
 	int ret;
@@ -58,7 +58,9 @@ static int noa1305_measure(struct noa1305_priv *priv)
 	if (ret < 0)
 		return ret;
 
-	return le16_to_cpu(data);
+	*val = le16_to_cpu(data);
+
+	return IIO_VAL_INT;
 }
 
 static int noa1305_scale(struct noa1305_priv *priv, int *val, int *val2)
@@ -129,18 +131,13 @@ static int noa1305_read_raw(struct iio_dev *indio_dev,
 			    int *val, int *val2, long mask)
 {
 	struct noa1305_priv *priv = iio_priv(indio_dev);
-	int ret;
 
 	if (chan->type != IIO_LIGHT)
 		return -EINVAL;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		ret = noa1305_measure(priv);
-		if (ret < 0)
-			return ret;
-		*val = ret;
-		return IIO_VAL_INT;
+		return noa1305_measure(priv, val);
 	case IIO_CHAN_INFO_SCALE:
 		return noa1305_scale(priv, val, val2);
 	default:
