@@ -3917,14 +3917,14 @@ static const struct constant_table shmem_param_enums_huge[] = {
 };
 
 const struct fs_parameter_spec shmem_fs_parameters[] = {
-	fsparam_u32   ("gid",		Opt_gid),
+	fsparam_gid   ("gid",		Opt_gid),
 	fsparam_enum  ("huge",		Opt_huge,  shmem_param_enums_huge),
 	fsparam_u32oct("mode",		Opt_mode),
 	fsparam_string("mpol",		Opt_mpol),
 	fsparam_string("nr_blocks",	Opt_nr_blocks),
 	fsparam_string("nr_inodes",	Opt_nr_inodes),
 	fsparam_string("size",		Opt_size),
-	fsparam_u32   ("uid",		Opt_uid),
+	fsparam_uid   ("uid",		Opt_uid),
 	fsparam_flag  ("inode32",	Opt_inode32),
 	fsparam_flag  ("inode64",	Opt_inode64),
 	fsparam_flag  ("noswap",	Opt_noswap),
@@ -3984,9 +3984,7 @@ static int shmem_parse_one(struct fs_context *fc, struct fs_parameter *param)
 		ctx->mode = result.uint_32 & 07777;
 		break;
 	case Opt_uid:
-		kuid = make_kuid(current_user_ns(), result.uint_32);
-		if (!uid_valid(kuid))
-			goto bad_value;
+		kuid = result.uid;
 
 		/*
 		 * The requested uid must be representable in the
@@ -3998,9 +3996,7 @@ static int shmem_parse_one(struct fs_context *fc, struct fs_parameter *param)
 		ctx->uid = kuid;
 		break;
 	case Opt_gid:
-		kgid = make_kgid(current_user_ns(), result.uint_32);
-		if (!gid_valid(kgid))
-			goto bad_value;
+		kgid = result.gid;
 
 		/*
 		 * The requested gid must be representable in the
