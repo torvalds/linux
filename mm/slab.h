@@ -168,7 +168,7 @@ static_assert(IS_ALIGNED(offsetof(struct slab, freelist), sizeof(freelist_aba_t)
  */
 static inline bool slab_test_pfmemalloc(const struct slab *slab)
 {
-	return folio_test_active((struct folio *)slab_folio(slab));
+	return folio_test_active(slab_folio(slab));
 }
 
 static inline void slab_set_pfmemalloc(struct slab *slab)
@@ -213,7 +213,7 @@ static inline struct slab *virt_to_slab(const void *addr)
 
 static inline int slab_order(const struct slab *slab)
 {
-	return folio_order((struct folio *)slab_folio(slab));
+	return folio_order(slab_folio(slab));
 }
 
 static inline size_t slab_size(const struct slab *slab)
@@ -405,16 +405,18 @@ static inline unsigned int size_index_elem(unsigned int bytes)
  * KMALLOC_MAX_CACHE_SIZE and the caller must check that.
  */
 static inline struct kmem_cache *
-kmalloc_slab(size_t size, gfp_t flags, unsigned long caller)
+kmalloc_slab(size_t size, kmem_buckets *b, gfp_t flags, unsigned long caller)
 {
 	unsigned int index;
 
+	if (!b)
+		b = &kmalloc_caches[kmalloc_type(flags, caller)];
 	if (size <= 192)
 		index = kmalloc_size_index[size_index_elem(size)];
 	else
 		index = fls(size - 1);
 
-	return kmalloc_caches[kmalloc_type(flags, caller)][index];
+	return (*b)[index];
 }
 
 gfp_t kmalloc_fix_flags(gfp_t flags);
