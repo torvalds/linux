@@ -104,20 +104,21 @@ struct landlock_path_beneath_attr {
  */
 struct landlock_net_port_attr {
 	/**
-	 * @allowed_access: Bitmask of allowed access network for a port
+	 * @allowed_access: Bitmask of allowed network actions for a port
 	 * (cf. `Network flags`_).
 	 */
 	__u64 allowed_access;
 	/**
 	 * @port: Network port in host endianness.
 	 *
-	 * It should be noted that port 0 passed to :manpage:`bind(2)` will
-	 * bind to an available port from a specific port range. This can be
-	 * configured thanks to the ``/proc/sys/net/ipv4/ip_local_port_range``
-	 * sysctl (also used for IPv6). A Landlock rule with port 0 and the
-	 * ``LANDLOCK_ACCESS_NET_BIND_TCP`` right means that requesting to bind
-	 * on port 0 is allowed and it will automatically translate to binding
-	 * on the related port range.
+	 * It should be noted that port 0 passed to :manpage:`bind(2)` will bind
+	 * to an available port from the ephemeral port range.  This can be
+	 * configured with the ``/proc/sys/net/ipv4/ip_local_port_range`` sysctl
+	 * (also used for IPv6).
+	 *
+	 * A Landlock rule with port 0 and the ``LANDLOCK_ACCESS_NET_BIND_TCP``
+	 * right means that requesting to bind on port 0 is allowed and it will
+	 * automatically translate to binding on the related port range.
 	 */
 	__u64 port;
 };
@@ -138,10 +139,10 @@ struct landlock_net_port_attr {
  * The following access rights apply only to files:
  *
  * - %LANDLOCK_ACCESS_FS_EXECUTE: Execute a file.
- * - %LANDLOCK_ACCESS_FS_WRITE_FILE: Open a file with write access. Note that
- *   you might additionally need the %LANDLOCK_ACCESS_FS_TRUNCATE right in order
- *   to overwrite files with :manpage:`open(2)` using ``O_TRUNC`` or
- *   :manpage:`creat(2)`.
+ * - %LANDLOCK_ACCESS_FS_WRITE_FILE: Open a file with write access.  When
+ *   opening files for writing, you will often additionally need the
+ *   %LANDLOCK_ACCESS_FS_TRUNCATE right.  In many cases, these system calls
+ *   truncate existing files when overwriting them (e.g., :manpage:`creat(2)`).
  * - %LANDLOCK_ACCESS_FS_READ_FILE: Open a file with read access.
  * - %LANDLOCK_ACCESS_FS_TRUNCATE: Truncate a file with :manpage:`truncate(2)`,
  *   :manpage:`ftruncate(2)`, :manpage:`creat(2)`, or :manpage:`open(2)` with
@@ -263,7 +264,7 @@ struct landlock_net_port_attr {
  * These flags enable to restrict a sandboxed process to a set of network
  * actions. This is supported since the Landlock ABI version 4.
  *
- * TCP sockets with allowed actions:
+ * The following access rights apply to TCP port numbers:
  *
  * - %LANDLOCK_ACCESS_NET_BIND_TCP: Bind a TCP socket to a local port.
  * - %LANDLOCK_ACCESS_NET_CONNECT_TCP: Connect an active TCP socket to
