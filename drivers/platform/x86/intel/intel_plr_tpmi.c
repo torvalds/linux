@@ -162,10 +162,11 @@ static int plr_clear_cpu_status(struct tpmi_plr_die *plr_die, int cpu)
 static void plr_print_bits(struct seq_file *s, u64 val, int bits)
 {
 	const unsigned long mask[] = { BITMAP_FROM_U64(val) };
-	const char *str;
 	int bit, index;
 
 	for_each_set_bit(bit, mask, bits) {
+		const char *str = NULL;
+
 		if (bit < PLR_COARSE_REASON_BITS) {
 			if (bit < ARRAY_SIZE(plr_coarse_reasons))
 				str = plr_coarse_reasons[bit];
