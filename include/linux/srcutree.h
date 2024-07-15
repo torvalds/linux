@@ -129,10 +129,23 @@ struct srcu_struct {
 #define SRCU_STATE_SCAN1	1
 #define SRCU_STATE_SCAN2	2
 
+/*
+ * Values for initializing gp sequence fields. Higher values allow wrap arounds to
+ * occur earlier.
+ * The second value with state is useful in the case of static initialization of
+ * srcu_usage where srcu_gp_seq_needed is expected to have some state value in its
+ * lower bits (or else it will appear to be already initialized within
+ * the call check_init_srcu_struct()).
+ */
+#define SRCU_GP_SEQ_INITIAL_VAL ((0UL - 100UL) << RCU_SEQ_CTR_SHIFT)
+#define SRCU_GP_SEQ_INITIAL_VAL_WITH_STATE (SRCU_GP_SEQ_INITIAL_VAL - 1)
+
 #define __SRCU_USAGE_INIT(name)									\
 {												\
 	.lock = __SPIN_LOCK_UNLOCKED(name.lock),						\
-	.srcu_gp_seq_needed = -1UL,								\
+	.srcu_gp_seq = SRCU_GP_SEQ_INITIAL_VAL,							\
+	.srcu_gp_seq_needed = SRCU_GP_SEQ_INITIAL_VAL_WITH_STATE,				\
+	.srcu_gp_seq_needed_exp = SRCU_GP_SEQ_INITIAL_VAL,					\
 	.work = __DELAYED_WORK_INITIALIZER(name.work, NULL, 0),					\
 }
 
