@@ -1894,8 +1894,8 @@ int freeze_secondary_cpus(int primary)
 	cpumask_clear(frozen_cpus);
 
 	pr_info("Disabling non-boot CPUs ...\n");
-	for_each_online_cpu(cpu) {
-		if (cpu == primary)
+	for (cpu = nr_cpu_ids - 1; cpu >= 0; cpu--) {
+		if (!cpu_online(cpu) || cpu == primary)
 			continue;
 
 		if (pm_wakeup_pending()) {
