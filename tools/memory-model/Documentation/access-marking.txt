@@ -6,7 +6,8 @@ normal accesses to shared memory, that is "normal" as in accesses that do
 not use read-modify-write atomic operations.  It also describes how to
 document these accesses, both with comments and with special assertions
 processed by the Kernel Concurrency Sanitizer (KCSAN).  This discussion
-builds on an earlier LWN article [1].
+builds on an earlier LWN article [1] and Linux Foundation mentorship
+session [2].
 
 
 ACCESS-MARKING OPTIONS
@@ -31,7 +32,7 @@ example:
 	WRITE_ONCE(a, b + data_race(c + d) + READ_ONCE(e));
 
 Neither plain C-language accesses nor data_race() (#1 and #2 above) place
-any sort of constraint on the compiler's choice of optimizations [2].
+any sort of constraint on the compiler's choice of optimizations [3].
 In contrast, READ_ONCE() and WRITE_ONCE() (#3 and #4 above) restrict the
 compiler's use of code-motion and common-subexpression optimizations.
 Therefore, if a given access is involved in an intentional data race,
@@ -594,5 +595,8 @@ REFERENCES
 [1] "Concurrency bugs should fear the big bad data-race detector (part 2)"
     https://lwn.net/Articles/816854/
 
-[2] "Who's afraid of a big bad optimizing compiler?"
+[2] "The Kernel Concurrency Sanitizer"
+    https://www.linuxfoundation.org/webinars/the-kernel-concurrency-sanitizer
+
+[3] "Who's afraid of a big bad optimizing compiler?"
     https://lwn.net/Articles/793253/
