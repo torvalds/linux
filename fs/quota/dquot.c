@@ -1830,7 +1830,6 @@ void dquot_claim_space_nodirty(struct inode *inode, qsize_t number)
 	spin_unlock(&inode->i_lock);
 	mark_all_dquot_dirty(dquots);
 	srcu_read_unlock(&dquot_srcu, index);
-	return;
 }
 EXPORT_SYMBOL(dquot_claim_space_nodirty);
 
@@ -1872,7 +1871,6 @@ void dquot_reclaim_space_nodirty(struct inode *inode, qsize_t number)
 	spin_unlock(&inode->i_lock);
 	mark_all_dquot_dirty(dquots);
 	srcu_read_unlock(&dquot_srcu, index);
-	return;
 }
 EXPORT_SYMBOL(dquot_reclaim_space_nodirty);
 
