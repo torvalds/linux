@@ -18744,6 +18744,8 @@ S:	Maintained
 T:	git https://git.kernel.org/pub/scm/linux/kernel/git/crng/random.git
 F:	Documentation/devicetree/bindings/rng/microsoft,vmgenid.yaml
 F:	drivers/char/random.c
+F:	include/linux/random.h
+F:	include/uapi/linux/random.h
 F:	drivers/virt/vmgenid.c
 F:	include/vdso/getrandom.h
 F:	lib/vdso/getrandom.c
