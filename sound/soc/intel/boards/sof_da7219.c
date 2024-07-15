@@ -178,42 +178,21 @@ static void da7219_codec_exit(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_component_set_jack(component, NULL, NULL);
 }
 
-static int max98373_hw_params(struct snd_pcm_substream *substream,
-			      struct snd_pcm_hw_params *params)
-{
-	struct snd_soc_pcm_runtime *runtime = snd_soc_substream_to_rtd(substream);
-	int ret, j;
-
-	for (j = 0; j < runtime->dai_link->num_codecs; j++) {
-		struct snd_soc_dai *codec_dai = snd_soc_rtd_to_codec(runtime, j);
-
-		if (!strcmp(codec_dai->component->name, MAX_98373_DEV0_NAME)) {
-			/* vmon_slot_no = 0 imon_slot_no = 1 for TX slots */
-			ret = snd_soc_dai_set_tdm_slot(codec_dai, 0x3, 3, 4, 16);
-			if (ret < 0) {
-				dev_err(runtime->dev, "DEV0 TDM slot err:%d\n", ret);
-				return ret;
-			}
-		}
-		if (!strcmp(codec_dai->component->name, MAX_98373_DEV1_NAME)) {
-			/* vmon_slot_no = 2 imon_slot_no = 3 for TX slots */
-			ret = snd_soc_dai_set_tdm_slot(codec_dai, 0xC, 3, 4, 16);
-			if (ret < 0) {
-				dev_err(runtime->dev, "DEV1 TDM slot err:%d\n", ret);
-				return ret;
-			}
-		}
-	}
-
-	return 0;
-}
-
-static const struct snd_soc_ops max98373_ops = {
-	.hw_params = max98373_hw_params,
-};
-
 static int card_late_probe(struct snd_soc_card *card)
 {
+	struct sof_card_private *ctx = snd_soc_card_get_drvdata(card);
+	struct snd_soc_dapm_context *dapm = &card->dapm;
+	int err;
+
+	if (ctx->amp_type == CODEC_MAX98373) {
+		/* Disable Left and Right Spk pin after boot */
+		snd_soc_dapm_disable_pin(dapm, "Left Spk");
+		snd_soc_dapm_disable_pin(dapm, "Right Spk");
+		err = snd_soc_dapm_sync(dapm);
+		if (err < 0)
+			return err;
+	}
+
 	return sof_intel_board_card_late_probe(card);
 }
 
@@ -276,14 +255,6 @@ sof_card_dai_links_create(struct device *dev, struct snd_soc_card *card,
 		break;
 	case CODEC_MAX98373:
 		max_98373_dai_link(dev, ctx->amp_link);
-
-		if (ctx->da7219.is_jsl_board) {
-			ctx->amp_link->ops = &max98373_ops; /* use local ops */
-		} else {
-			/* TBD: implement the amp for later platform */
-			dev_err(dev, "max98373 not support yet\n");
-			return -EINVAL;
-		}
 		break;
 	case CODEC_MAX98390:
 		max_98390_dai_link(dev, ctx->amp_link);
@@ -388,8 +359,6 @@ static int audio_probe(struct platform_device *pdev)
 			break;
 		}
 	} else if (board_quirk & SOF_DA7219_JSL_BOARD) {
-		ctx->da7219.is_jsl_board = true;
-
 		/* overwrite the DAI link order for JSL boards */
 		ctx->link_order_overwrite = JSL_LINK_ORDER;
 

@@ -11,7 +11,7 @@
 #include <sound/soc-link.h>
 
 #define soc_dai_ret(dai, ret) _soc_dai_ret(dai, __func__, ret)
-static inline int _soc_dai_ret(struct snd_soc_dai *dai,
+static inline int _soc_dai_ret(const struct snd_soc_dai *dai,
 			       const char *func, int ret)
 {
 	/* Positive, Zero values are not errors */
@@ -134,7 +134,7 @@ int snd_soc_dai_set_bclk_ratio(struct snd_soc_dai *dai, unsigned int ratio)
 }
 EXPORT_SYMBOL_GPL(snd_soc_dai_set_bclk_ratio);
 
-int snd_soc_dai_get_fmt_max_priority(struct snd_soc_pcm_runtime *rtd)
+int snd_soc_dai_get_fmt_max_priority(const struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_dai *dai;
 	int i, max = 0;
@@ -166,7 +166,7 @@ int snd_soc_dai_get_fmt_max_priority(struct snd_soc_pcm_runtime *rtd)
  * modes.  This will mean that sometimes fewer formats
  * are reported here than are supported by set_fmt().
  */
-u64 snd_soc_dai_get_fmt(struct snd_soc_dai *dai, int priority)
+u64 snd_soc_dai_get_fmt(const struct snd_soc_dai *dai, int priority)
 {
 	const struct snd_soc_dai_ops *ops = dai->driver->ops;
 	u64 fmt = 0;
@@ -304,8 +304,8 @@ EXPORT_SYMBOL_GPL(snd_soc_dai_set_tdm_slot);
  * configure the relationship between channel number and TDM slot number.
  */
 int snd_soc_dai_set_channel_map(struct snd_soc_dai *dai,
-				unsigned int tx_num, unsigned int *tx_slot,
-				unsigned int rx_num, unsigned int *rx_slot)
+				unsigned int tx_num, const unsigned int *tx_slot,
+				unsigned int rx_num, const unsigned int *rx_slot)
 {
 	int ret = -ENOTSUPP;
 
@@ -327,7 +327,7 @@ EXPORT_SYMBOL_GPL(snd_soc_dai_set_channel_map);
  * @rx_slot: pointer to an array which imply the RX slot number channel
  *           0~num-1 uses
  */
-int snd_soc_dai_get_channel_map(struct snd_soc_dai *dai,
+int snd_soc_dai_get_channel_map(const struct snd_soc_dai *dai,
 				unsigned int *tx_num, unsigned int *tx_slot,
 				unsigned int *rx_num, unsigned int *rx_slot)
 {
@@ -471,9 +471,9 @@ int snd_soc_dai_compress_new(struct snd_soc_dai *dai,
  *
  * Returns true if the DAI supports the indicated stream type.
  */
-bool snd_soc_dai_stream_valid(struct snd_soc_dai *dai, int dir)
+bool snd_soc_dai_stream_valid(const struct snd_soc_dai *dai, int dir)
 {
-	struct snd_soc_pcm_stream *stream = snd_soc_dai_get_pcm_stream(dai, dir);
+	const struct snd_soc_pcm_stream *stream = snd_soc_dai_get_pcm_stream(dai, dir);
 
 	/* If the codec specifies any channels at all, it supports the stream */
 	return stream->channels_min;
@@ -528,7 +528,7 @@ void snd_soc_dai_action(struct snd_soc_dai *dai,
 }
 EXPORT_SYMBOL_GPL(snd_soc_dai_action);
 
-int snd_soc_dai_active(struct snd_soc_dai *dai)
+int snd_soc_dai_active(const struct snd_soc_dai *dai)
 {
 	int stream, active;
 

@@ -2181,16 +2181,23 @@ void kvm_emulate_nested_eret(struct kvm_vcpu *vcpu)
 	if (forward_traps(vcpu, HCR_NV))
 		return;
 
+	spsr = vcpu_read_sys_reg(vcpu, SPSR_EL2);
+	spsr = kvm_check_illegal_exception_return(vcpu, spsr);
+
 	/* Check for an ERETAx */
 	esr = kvm_vcpu_get_esr(vcpu);
 	if (esr_iss_is_eretax(esr) && !kvm_auth_eretax(vcpu, &elr)) {
 		/*
-		 * Oh no, ERETAx failed to authenticate.  If we have
-		 * FPACCOMBINE, deliver an exception right away.  If we
-		 * don't, then let the mangled ELR value trickle down the
+		 * Oh no, ERETAx failed to authenticate.
+		 *
+		 * If we have FPACCOMBINE and we don't have a pending
+		 * Illegal Execution State exception (which has priority
+		 * over FPAC), deliver an exception right away.
+		 *
+		 * Otherwise, let the mangled ELR value trickle down the
 		 * ERET handling, and the guest will have a little surprise.
 		 */
-		if (kvm_has_pauth(vcpu->kvm, FPACCOMBINE)) {
+		if (kvm_has_pauth(vcpu->kvm, FPACCOMBINE) && !(spsr & PSR_IL_BIT)) {
 			esr &= ESR_ELx_ERET_ISS_ERETA;
 			esr |= FIELD_PREP(ESR_ELx_EC_MASK, ESR_ELx_EC_FPAC);
 			kvm_inject_nested_sync(vcpu, esr);
@@ -2201,17 +2208,11 @@ void kvm_emulate_nested_eret(struct kvm_vcpu *vcpu)
 	preempt_disable();
 	kvm_arch_vcpu_put(vcpu);
 
-	spsr = __vcpu_sys_reg(vcpu, SPSR_EL2);
-	spsr = kvm_check_illegal_exception_return(vcpu, spsr);
 	if (!esr_iss_is_eretax(esr))
 		elr = __vcpu_sys_reg(vcpu, ELR_EL2);
 
 	trace_kvm_nested_eret(vcpu, elr, spsr);
 
-	/*
-	 * Note that the current exception level is always the virtual EL2,
-	 * since we set HCR_EL2.NV bit only when entering the virtual EL2.
-	 */
 	*vcpu_pc(vcpu) = elr;
 	*vcpu_cpsr(vcpu) = spsr;
 
