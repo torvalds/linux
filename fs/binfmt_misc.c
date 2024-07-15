@@ -1083,4 +1083,5 @@ static void __exit exit_misc_binfmt(void)
 
 core_initcall(init_misc_binfmt);
 module_exit(exit_misc_binfmt);
+MODULE_DESCRIPTION("Kernel support for miscellaneous binaries");
 MODULE_LICENSE("GPL");
