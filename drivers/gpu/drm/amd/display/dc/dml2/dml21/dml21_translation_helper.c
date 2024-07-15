@@ -959,6 +959,11 @@ bool dml21_map_dc_state_into_dml_display_cfg(const struct dc *in_dc, struct dc_s
 	dml_dispcfg->minimize_det_reallocation = true;
 	dml_dispcfg->overrides.enable_subvp_implicit_pmo = true;
 
+	if (in_dc->debug.disable_unbounded_requesting) {
+		dml_dispcfg->overrides.hw.force_unbounded_requesting.enable = true;
+		dml_dispcfg->overrides.hw.force_unbounded_requesting.value = false;
+	}
+
 	for (stream_index = 0; stream_index < context->stream_count; stream_index++) {
 		disp_cfg_stream_location = map_stream_to_dml21_display_cfg(dml_ctx, context->streams[stream_index]);
 
