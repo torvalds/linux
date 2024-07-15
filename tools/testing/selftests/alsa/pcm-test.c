@@ -383,7 +383,7 @@ __format:
 		goto __close;
 	}
 	if (rrate != rate) {
-		snprintf(msg, sizeof(msg), "rate mismatch %ld != %d", rate, rrate);
+		snprintf(msg, sizeof(msg), "rate mismatch %ld != %u", rate, rrate);
 		goto __close;
 	}
 	rperiod_size = period_size;

@@ -428,6 +428,20 @@ static int lenovo_legion_no_acpi(struct cs35l41_hda *cs35l41, struct device *phy
 	return 0;
 }
 
+static int missing_speaker_id_gpio2(struct cs35l41_hda *cs35l41, struct device *physdev, int id,
+				    const char *hid)
+{
+	int ret;
+
+	ret = cs35l41_add_gpios(cs35l41, physdev, -1, 2, -1, 2);
+	if (ret) {
+		dev_err(cs35l41->dev, "Error adding GPIO mapping: %d\n", ret);
+		return ret;
+	}
+
+	return cs35l41_hda_parse_acpi(cs35l41, physdev, id);
+}
+
 struct cs35l41_prop_model {
 	const char *hid;
 	const char *ssid;
@@ -501,6 +515,7 @@ static const struct cs35l41_prop_model cs35l41_prop_model_table[] = {
 	{ "CSC3551", "104317F3", generic_dsd_config },
 	{ "CSC3551", "10431863", generic_dsd_config },
 	{ "CSC3551", "104318D3", generic_dsd_config },
+	{ "CSC3551", "10431A63", missing_speaker_id_gpio2 },
 	{ "CSC3551", "10431A83", generic_dsd_config },
 	{ "CSC3551", "10431B93", generic_dsd_config },
 	{ "CSC3551", "10431C9F", generic_dsd_config },
