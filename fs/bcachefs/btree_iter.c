@@ -3282,7 +3282,8 @@ bool bch2_current_has_btree_trans(struct bch_fs *c)
 	struct btree_trans *trans;
 	bool ret = false;
 	list_for_each_entry(trans, &c->btree_trans_list, list)
-		if (trans->locking_wait.task == current) {
+		if (trans->locking_wait.task == current &&
+		    trans->locked) {
 			ret = true;
 			break;
 		}
