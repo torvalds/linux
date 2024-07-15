@@ -687,4 +687,5 @@ static void __exit ot_mod_exit(void)
 module_init(ot_mod_init);
 module_exit(ot_mod_exit);
 
+MODULE_DESCRIPTION("Test module for lockless object pool");
 MODULE_LICENSE("GPL");
