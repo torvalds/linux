@@ -18,11 +18,11 @@ config TURRIS_OMNIA_MCU
 	depends on I2C
 	depends on OF
 	depends on WATCHDOG
-	select GPIOLIB
+	depends on GPIOLIB
+	depends on HW_RANDOM
+	depends on RTC_CLASS
+	depends on WATCHDOG_CORE
 	select GPIOLIB_IRQCHIP
-	select HW_RANDOM
-	select RTC_CLASS
-	select WATCHDOG_CORE
 	help
 	  Say Y here to add support for the features implemented by the
 	  microcontroller on the CZ.NIC's Turris Omnia SOHO router.
