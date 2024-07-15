@@ -839,4 +839,5 @@ void isst_if_cdev_unregister(int device_type)
 }
 EXPORT_SYMBOL_GPL(isst_if_cdev_unregister);
 
+MODULE_DESCRIPTION("ISST common interface module");
 MODULE_LICENSE("GPL v2");

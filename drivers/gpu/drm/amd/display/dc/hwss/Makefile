@@ -180,7 +180,7 @@ AMD_DISPLAY_FILES += $(AMD_DAL_HWSS_DCN35)
 
 ###############################################################################
 
-HWSS_DCN351 = dcn351_init.o
+HWSS_DCN351 = dcn351_hwseq.o dcn351_init.o
 
 AMD_DAL_HWSS_DCN351 = $(addprefix $(AMDDALPATH)/dc/hwss/dcn351/,$(HWSS_DCN351))
 

@@ -18,7 +18,7 @@ TRACE_EVENT(initcall_level,
 	),
 
 	TP_fast_assign(
-		__assign_str(level, level);
+		__assign_str(level);
 	),
 
 	TP_printk("level=%s", __get_str(level))

@@ -37,6 +37,10 @@ properties:
     description: If set, the RNG configuration in RNG_CR, RNG_HTCR and
                   RNG_NSCR will be locked.
 
+  access-controllers:
+    minItems: 1
+    maxItems: 2
+
 required:
   - compatible
   - reg

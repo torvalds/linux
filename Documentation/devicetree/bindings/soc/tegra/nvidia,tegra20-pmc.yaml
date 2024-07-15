@@ -365,9 +365,9 @@ allOf:
 additionalProperties: false
 
 dependencies:
-  "nvidia,suspend-mode": ["nvidia,core-pwr-off-time", "nvidia,cpu-pwr-off-time"]
-  "nvidia,core-pwr-off-time": ["nvidia,core-pwr-good-time"]
-  "nvidia,cpu-pwr-off-time": ["nvidia,cpu-pwr-good-time"]
+  nvidia,suspend-mode: ["nvidia,core-pwr-off-time", "nvidia,cpu-pwr-off-time"]
+  nvidia,core-pwr-off-time: ["nvidia,core-pwr-good-time"]
+  nvidia,cpu-pwr-off-time: ["nvidia,cpu-pwr-good-time"]
 
 examples:
   - |

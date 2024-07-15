@@ -30,8 +30,6 @@ struct r8a73a4_cpg {
 #define CPG_PLL2HCR	0xe4
 #define CPG_PLL2SCR	0xf4
 
-#define CLK_ENABLE_ON_INIT BIT(0)
-
 struct div4_clk {
 	const char *name;
 	unsigned int reg;

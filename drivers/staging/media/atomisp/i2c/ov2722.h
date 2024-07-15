@@ -198,7 +198,6 @@ struct ov2722_device {
 	struct ov2722_resolution *res;
 
 	struct camera_sensor_platform_data *platform_data;
-	int power_on;
 	u16 pixels_per_line;
 	u16 lines_per_frame;
 	u8 type;

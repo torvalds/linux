@@ -274,6 +274,58 @@ static __naked void iter_limit_bug_cb(void)
 	);
 }
 
+int tmp_var;
+SEC("socket")
+__failure __msg("infinite loop detected at insn 2")
+__naked void jgt_imm64_and_may_goto(void)
+{
+	asm volatile ("			\
+	r0 = %[tmp_var] ll;		\
+l0_%=:	.byte 0xe5; /* may_goto */	\
+	.byte 0; /* regs */		\
+	.short -3; /* off -3 */		\
+	.long 0; /* imm */		\
+	if r0 > 10 goto l0_%=;		\
+	r0 = 0;				\
+	exit;				\
+"	:: __imm_addr(tmp_var)
+	: __clobber_all);
+}
+
+SEC("socket")
+__failure __msg("infinite loop detected at insn 1")
+__naked void may_goto_self(void)
+{
+	asm volatile ("			\
+	r0 = *(u32 *)(r10 - 4);		\
+l0_%=:	.byte 0xe5; /* may_goto */	\
+	.byte 0; /* regs */		\
+	.short -1; /* off -1 */		\
+	.long 0; /* imm */		\
+	if r0 > 10 goto l0_%=;		\
+	r0 = 0;				\
+	exit;				\
+"	::: __clobber_all);
+}
+
+SEC("socket")
+__success __retval(0)
+__naked void may_goto_neg_off(void)
+{
+	asm volatile ("			\
+	r0 = *(u32 *)(r10 - 4);		\
+	goto l0_%=;			\
+	goto l1_%=;			\
+l0_%=:	.byte 0xe5; /* may_goto */	\
+	.byte 0; /* regs */		\
+	.short -2; /* off -2 */		\
+	.long 0; /* imm */		\
+	if r0 > 10 goto l0_%=;		\
+l1_%=:	r0 = 0;				\
+	exit;				\
+"	::: __clobber_all);
+}
+
 SEC("tc")
 __failure
 __flag(BPF_F_TEST_STATE_FREQ)
@@ -307,6 +359,100 @@ int iter_limit_bug(struct __sk_buff *skb)
 	return 0;
 }
 
+SEC("socket")
+__success __retval(0)
+__naked void ja_and_may_goto(void)
+{
+	asm volatile ("			\
+l0_%=:	.byte 0xe5; /* may_goto */	\
+	.byte 0; /* regs */		\
+	.short 1; /* off 1 */		\
+	.long 0; /* imm */		\
+	goto l0_%=;			\
+	r0 = 0;				\
+	exit;				\
+"	::: __clobber_common);
+}
+
+SEC("socket")
+__success __retval(0)
+__naked void ja_and_may_goto2(void)
+{
+	asm volatile ("			\
+l0_%=:	r0 = 0;				\
+	.byte 0xe5; /* may_goto */	\
+	.byte 0; /* regs */		\
+	.short 1; /* off 1 */		\
+	.long 0; /* imm */		\
+	goto l0_%=;			\
+	r0 = 0;				\
+	exit;				\
+"	::: __clobber_common);
+}
+
+SEC("socket")
+__success __retval(0)
+__naked void jlt_and_may_goto(void)
+{
+	asm volatile ("			\
+l0_%=:	call %[bpf_jiffies64];		\
+	.byte 0xe5; /* may_goto */	\
+	.byte 0; /* regs */		\
+	.short 1; /* off 1 */		\
+	.long 0; /* imm */		\
+	if r0 < 10 goto l0_%=;		\
+	r0 = 0;				\
+	exit;				\
+"	:: __imm(bpf_jiffies64)
+	: __clobber_all);
+}
+
+#if (defined(__TARGET_ARCH_arm64) || defined(__TARGET_ARCH_x86) || \
+	(defined(__TARGET_ARCH_riscv) && __riscv_xlen == 64) || \
+	defined(__TARGET_ARCH_arm) || defined(__TARGET_ARCH_s390) || \
+	defined(__TARGET_ARCH_loongarch)) && \
+	__clang_major__ >= 18
+SEC("socket")
+__success __retval(0)
+__naked void gotol_and_may_goto(void)
+{
+	asm volatile ("			\
+l0_%=:	r0 = 0;				\
+	.byte 0xe5; /* may_goto */	\
+	.byte 0; /* regs */		\
+	.short 1; /* off 1 */		\
+	.long 0; /* imm */		\
+	gotol l0_%=;			\
+	r0 = 0;				\
+	exit;				\
+"	::: __clobber_common);
+}
+#endif
+
+SEC("socket")
+__success __retval(0)
+__naked void ja_and_may_goto_subprog(void)
+{
+	asm volatile ("			\
+	call subprog_with_may_goto;	\
+	exit;				\
+"	::: __clobber_all);
+}
+
+static __naked __noinline __used
+void subprog_with_may_goto(void)
+{
+	asm volatile ("			\
+l0_%=:	.byte 0xe5; /* may_goto */	\
+	.byte 0; /* regs */		\
+	.short 1; /* off 1 */		\
+	.long 0; /* imm */		\
+	goto l0_%=;			\
+	r0 = 0;				\
+	exit;				\
+"	::: __clobber_all);
+}
+
 #define ARR_SZ 1000000
 int zero;
 char arr[ARR_SZ];
@@ -318,7 +464,7 @@ int cond_break1(const void *ctx)
 	unsigned long i;
 	unsigned int sum = 0;
 
-	for (i = zero; i < ARR_SZ; cond_break, i++)
+	for (i = zero; i < ARR_SZ && can_loop; i++)
 		sum += i;
 	for (i = zero; i < ARR_SZ; i++) {
 		barrier_var(i);
@@ -336,12 +482,11 @@ int cond_break2(const void *ctx)
 	int i, j;
 	int sum = 0;
 
-	for (i = zero; i < 1000; cond_break, i++)
+	for (i = zero; i < 1000 && can_loop; i++)
 		for (j = zero; j < 1000; j++) {
 			sum += i + j;
 			cond_break;
-		}
-
+	}
 	return sum;
 }
 
@@ -349,7 +494,7 @@ static __noinline int loop(void)
 {
 	int i, sum = 0;
 
-	for (i = zero; i <= 1000000; i++, cond_break)
+	for (i = zero; i <= 1000000 && can_loop; i++)
 		sum += i;
 
 	return sum;

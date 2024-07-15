@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2023 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2024 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -13,6 +13,10 @@
  * enum iwl_scan_subcmd_ids - scan commands
  */
 enum iwl_scan_subcmd_ids {
+	/**
+	 * @CHANNEL_SURVEY_NOTIF: &struct iwl_umac_scan_channel_survey_notif
+	 */
+	CHANNEL_SURVEY_NOTIF = 0xFB,
 	/**
 	 * @OFFLOAD_MATCH_INFO_NOTIF: &struct iwl_scan_offload_match_info
 	 */
@@ -61,6 +65,8 @@ struct iwl_ssid_ie {
 #define IWL_FULL_SCAN_MULTIPLIER 5
 #define IWL_FAST_SCHED_SCAN_ITERATIONS 3
 #define IWL_MAX_SCHED_SCAN_PLANS 2
+
+#define IWL_MAX_NUM_NOISE_RESULTS 22
 
 enum scan_framework_client {
 	SCAN_CLIENT_SCHED_SCAN		= BIT(0),
@@ -642,10 +648,13 @@ enum iwl_umac_scan_general_flags {
  *	notification per channel or not.
  * @IWL_UMAC_SCAN_GEN_FLAGS2_ALLOW_CHNL_REORDER: Whether to allow channel
  *	reorder optimization or not.
+ * @IWL_UMAC_SCAN_GEN_FLAGS2_COLLECT_CHANNEL_STATS: Enable channel statistics
+ *	collection when #IWL_UMAC_SCAN_GEN_FLAGS_V2_FORCE_PASSIVE is set.
  */
 enum iwl_umac_scan_general_flags2 {
 	IWL_UMAC_SCAN_GEN_FLAGS2_NOTIF_PER_CHNL		= BIT(0),
 	IWL_UMAC_SCAN_GEN_FLAGS2_ALLOW_CHNL_REORDER	= BIT(1),
+	IWL_UMAC_SCAN_GEN_FLAGS2_COLLECT_CHANNEL_STATS	= BIT(3),
 };
 
 /**
@@ -1257,5 +1266,27 @@ struct iwl_umac_scan_iter_complete_notif {
 	__le64 start_tsf;
 	struct iwl_scan_results_notif results[];
 } __packed; /* SCAN_ITER_COMPLETE_NTF_UMAC_API_S_VER_2 */
+
+/**
+ * struct iwl_umac_scan_channel_survey_notif - data for survey
+ * @channel: the channel scanned
+ * @band: band of channel
+ * @noise: noise floor measurements in negative dBm, invalid 0xff
+ * @reserved: for future use and alignment
+ * @active_time: time in ms the radio was turned on (on the channel)
+ * @busy_time: time in ms the channel was sensed busy, 0 for a clean channel
+ * @tx_time: time the radio spent transmitting data
+ * @rx_time: time the radio spent receiving data
+ */
+struct iwl_umac_scan_channel_survey_notif {
+	__le32 channel;
+	__le32 band;
+	u8 noise[IWL_MAX_NUM_NOISE_RESULTS];
+	u8 reserved[2];
+	__le32 active_time;
+	__le32 busy_time;
+	__le32 tx_time;
+	__le32 rx_time;
+} __packed; /* SCAN_CHANNEL_SURVEY_NTF_API_S_VER_1 */
 
 #endif /* __iwl_fw_api_scan_h__ */

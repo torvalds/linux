@@ -11,6 +11,7 @@ struct thread;
 struct perf_insn {
 	/* Initialized by callers: */
 	struct thread *thread;
+	struct machine *machine;
 	u8	      cpumode;
 	bool	      is64bit;
 	int	      cpu;

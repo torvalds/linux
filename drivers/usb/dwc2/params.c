@@ -201,6 +201,25 @@ static void dwc2_set_amcc_params(struct dwc2_hsotg *hsotg)
 	p->ahbcfg = GAHBCFG_HBSTLEN_INCR16 << GAHBCFG_HBSTLEN_SHIFT;
 }
 
+static void dwc2_set_cv1800_params(struct dwc2_hsotg *hsotg)
+{
+	struct dwc2_core_params *p = &hsotg->params;
+
+	p->otg_caps.hnp_support = false;
+	p->otg_caps.srp_support = false;
+	p->host_dma = false;
+	p->g_dma = false;
+	p->speed = DWC2_SPEED_PARAM_HIGH;
+	p->phy_type = DWC2_PHY_TYPE_PARAM_UTMI;
+	p->phy_utmi_width = 16;
+	p->ahbcfg = GAHBCFG_HBSTLEN_INCR16 << GAHBCFG_HBSTLEN_SHIFT;
+	p->lpm = false;
+	p->lpm_clock_gating = false;
+	p->besl = false;
+	p->hird_threshold_en = false;
+	p->power_down = DWC2_POWER_DOWN_PARAM_NONE;
+}
+
 static void dwc2_set_stm32f4x9_fsotg_params(struct dwc2_hsotg *hsotg)
 {
 	struct dwc2_core_params *p = &hsotg->params;
@@ -295,6 +314,8 @@ const struct of_device_id dwc2_of_match_table[] = {
 	  .data = dwc2_set_amlogic_a1_params },
 	{ .compatible = "amcc,dwc-otg", .data = dwc2_set_amcc_params },
 	{ .compatible = "apm,apm82181-dwc-otg", .data = dwc2_set_amcc_params },
+	{ .compatible = "sophgo,cv1800-usb",
+	  .data = dwc2_set_cv1800_params },
 	{ .compatible = "st,stm32f4x9-fsotg",
 	  .data = dwc2_set_stm32f4x9_fsotg_params },
 	{ .compatible = "st,stm32f4x9-hsotg" },
@@ -475,6 +496,7 @@ static void dwc2_set_default_params(struct dwc2_hsotg *hsotg)
 	dwc2_set_param_lpm(hsotg);
 	p->phy_ulpi_ddr = false;
 	p->phy_ulpi_ext_vbus = false;
+	p->eusb2_disc = false;
 
 	p->enable_dynamic_fifo = hw->enable_dynamic_fifo;
 	p->en_multiple_tx_fifo = hw->en_multiple_tx_fifo;
@@ -737,6 +759,25 @@ static void dwc2_check_param_tx_fifo_sizes(struct dwc2_hsotg *hsotg)
 	}
 }
 
+static void dwc2_check_param_eusb2_disc(struct dwc2_hsotg *hsotg)
+{
+	u32 gsnpsid;
+
+	if (!hsotg->params.eusb2_disc)
+		return;
+	gsnpsid = dwc2_readl(hsotg, GSNPSID);
+	/*
+	 * eusb2_disc not supported by FS IOT devices.
+	 * For other cores, it supported starting from version 5.00a
+	 */
+	if ((gsnpsid & ~DWC2_CORE_REV_MASK) == DWC2_FS_IOT_ID ||
+	    (gsnpsid & DWC2_CORE_REV_MASK) <
+	    (DWC2_CORE_REV_5_00a & DWC2_CORE_REV_MASK)) {
+		hsotg->params.eusb2_disc = false;
+		return;
+	}
+}
+
 #define CHECK_RANGE(_param, _min, _max, _def) do {			\
 		if ((int)(hsotg->params._param) < (_min) ||		\
 		    (hsotg->params._param) > (_max)) {			\
@@ -765,6 +806,8 @@ static void dwc2_check_params(struct dwc2_hsotg *hsotg)
 	dwc2_check_param_speed(hsotg);
 	dwc2_check_param_phy_utmi_width(hsotg);
 	dwc2_check_param_power_down(hsotg);
+	dwc2_check_param_eusb2_disc(hsotg);
+
 	CHECK_BOOL(enable_dynamic_fifo, hw->enable_dynamic_fifo);
 	CHECK_BOOL(en_multiple_tx_fifo, hw->en_multiple_tx_fifo);
 	CHECK_BOOL(i2c_enable, hw->i2c_enable);

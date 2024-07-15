@@ -681,7 +681,7 @@ static int stm32f4_i2c_xfer_msg(struct stm32f4_i2c_dev *i2c_dev,
 {
 	struct stm32f4_i2c_msg *f4_msg = &i2c_dev->msg;
 	void __iomem *reg = i2c_dev->base + STM32F4_I2C_CR1;
-	unsigned long timeout;
+	unsigned long time_left;
 	u32 mask;
 	int ret;
 
@@ -706,11 +706,11 @@ static int stm32f4_i2c_xfer_msg(struct stm32f4_i2c_dev *i2c_dev,
 		stm32f4_i2c_set_bits(reg, STM32F4_I2C_CR1_START);
 	}
 
-	timeout = wait_for_completion_timeout(&i2c_dev->complete,
-					      i2c_dev->adap.timeout);
+	time_left = wait_for_completion_timeout(&i2c_dev->complete,
+						i2c_dev->adap.timeout);
 	ret = f4_msg->result;
 
-	if (!timeout)
+	if (!time_left)
 		ret = -ETIMEDOUT;
 
 	return ret;

@@ -99,18 +99,17 @@ static int udf_pc_to_char(struct super_block *sb, unsigned char *from,
 
 static int udf_symlink_filler(struct file *file, struct folio *folio)
 {
-	struct page *page = &folio->page;
-	struct inode *inode = page->mapping->host;
+	struct inode *inode = folio->mapping->host;
 	struct buffer_head *bh = NULL;
 	unsigned char *symlink;
 	int err = 0;
-	unsigned char *p = page_address(page);
+	unsigned char *p = folio_address(folio);
 	struct udf_inode_info *iinfo = UDF_I(inode);
 
 	/* We don't support symlinks longer than one block */
 	if (inode->i_size > inode->i_sb->s_blocksize) {
 		err = -ENAMETOOLONG;
-		goto out_unlock;
+		goto out;
 	}
 
 	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB) {
@@ -120,24 +119,15 @@ static int udf_symlink_filler(struct file *file, struct folio *folio)
 		if (!bh) {
 			if (!err)
 				err = -EFSCORRUPTED;
-			goto out_err;
+			goto out;
 		}
 		symlink = bh->b_data;
 	}
 
 	err = udf_pc_to_char(inode->i_sb, symlink, inode->i_size, p, PAGE_SIZE);
 	brelse(bh);
-	if (err)
-		goto out_err;
-
-	SetPageUptodate(page);
-	unlock_page(page);
-	return 0;
-
-out_err:
-	SetPageError(page);
-out_unlock:
-	unlock_page(page);
+out:
+	folio_end_read(folio, err == 0);
 	return err;
 }
 
@@ -147,12 +137,12 @@ static int udf_symlink_getattr(struct mnt_idmap *idmap,
 {
 	struct dentry *dentry = path->dentry;
 	struct inode *inode = d_backing_inode(dentry);
-	struct page *page;
+	struct folio *folio;
 
 	generic_fillattr(&nop_mnt_idmap, request_mask, inode, stat);
-	page = read_mapping_page(inode->i_mapping, 0, NULL);
-	if (IS_ERR(page))
-		return PTR_ERR(page);
+	folio = read_mapping_folio(inode->i_mapping, 0, NULL);
+	if (IS_ERR(folio))
+		return PTR_ERR(folio);
 	/*
 	 * UDF uses non-trivial encoding of symlinks so i_size does not match
 	 * number of characters reported by readlink(2) which apparently some
@@ -162,8 +152,8 @@ static int udf_symlink_getattr(struct mnt_idmap *idmap,
 	 * let's report the length of string returned by readlink(2) for
 	 * st_size.
 	 */
-	stat->size = strlen(page_address(page));
-	put_page(page);
+	stat->size = strlen(folio_address(folio));
+	folio_put(folio);
 
 	return 0;
 }

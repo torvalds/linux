@@ -24,7 +24,7 @@ TRACE_EVENT(rvt_dbg,
 	),
 	TP_fast_assign(
 		RDI_DEV_ASSIGN(rdi);
-		__assign_str(msg, msg);
+		__assign_str(msg);
 	),
 	TP_printk("[%s]: %s", __get_str(dev), __get_str(msg))
 );

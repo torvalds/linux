@@ -155,14 +155,6 @@ static noinline void key_gc_unused_keys(struct list_head *keys)
 
 		security_key_free(key);
 
-		/* deal with the user's key tracking and quota */
-		if (test_bit(KEY_FLAG_IN_QUOTA, &key->flags)) {
-			spin_lock(&key->user->lock);
-			key->user->qnkeys--;
-			key->user->qnbytes -= key->quotalen;
-			spin_unlock(&key->user->lock);
-		}
-
 		atomic_dec(&key->user->nkeys);
 		if (state != KEY_IS_UNINSTANTIATED)
 			atomic_dec(&key->user->nikeys);

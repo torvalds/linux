@@ -252,6 +252,7 @@ static int otx2_mcam_entry_init(struct otx2_nic *pfvf)
 
 	pfvf->flags |= OTX2_FLAG_TC_FLOWER_SUPPORT;
 
+	refcount_set(&flow_cfg->mark_flows, 1);
 	return 0;
 }
 

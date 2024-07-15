@@ -223,13 +223,18 @@ static inline struct ap_queue_status ap_zapq(ap_qid_t qid, int fbit)
  * config info as returned by the ap_qci() function.
  */
 struct ap_config_info {
-	unsigned int apsc	 : 1;	/* S bit */
-	unsigned int apxa	 : 1;	/* N bit */
-	unsigned int qact	 : 1;	/* C bit */
-	unsigned int rc8a	 : 1;	/* R bit */
-	unsigned int		 : 4;
-	unsigned int apsb	 : 1;	/* B bit */
-	unsigned int		 : 23;
+	union {
+		unsigned int flags;
+		struct {
+			unsigned int apsc	 : 1;	/* S bit */
+			unsigned int apxa	 : 1;	/* N bit */
+			unsigned int qact	 : 1;	/* C bit */
+			unsigned int rc8a	 : 1;	/* R bit */
+			unsigned int		 : 4;
+			unsigned int apsb	 : 1;	/* B bit */
+			unsigned int		 : 23;
+		};
+	};
 	unsigned char na;		/* max # of APs - 1 */
 	unsigned char nd;		/* max # of Domains - 1 */
 	unsigned char _reserved0[10];
@@ -543,16 +548,5 @@ static inline struct ap_queue_status ap_dqap(ap_qid_t qid,
 
 	return reg1.status;
 }
-
-/*
- * Interface to tell the AP bus code that a configuration
- * change has happened. The bus code should at least do
- * an ap bus resource rescan.
- */
-#if IS_ENABLED(CONFIG_ZCRYPT)
-void ap_bus_cfg_chg(void);
-#else
-static inline void ap_bus_cfg_chg(void){}
-#endif
 
 #endif /* _ASM_S390_AP_H_ */

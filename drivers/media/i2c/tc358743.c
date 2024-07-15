@@ -1521,10 +1521,13 @@ static int tc358743_g_input_status(struct v4l2_subdev *sd, u32 *status)
 	return 0;
 }
 
-static int tc358743_s_dv_timings(struct v4l2_subdev *sd,
+static int tc358743_s_dv_timings(struct v4l2_subdev *sd, unsigned int pad,
 				 struct v4l2_dv_timings *timings)
 {
 	struct tc358743_state *state = to_state(sd);
+
+	if (pad != 0)
+		return -EINVAL;
 
 	if (!timings)
 		return -EINVAL;
@@ -1553,10 +1556,13 @@ static int tc358743_s_dv_timings(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int tc358743_g_dv_timings(struct v4l2_subdev *sd,
+static int tc358743_g_dv_timings(struct v4l2_subdev *sd, unsigned int pad,
 				 struct v4l2_dv_timings *timings)
 {
 	struct tc358743_state *state = to_state(sd);
+
+	if (pad != 0)
+		return -EINVAL;
 
 	*timings = state->timings;
 
@@ -1573,10 +1579,13 @@ static int tc358743_enum_dv_timings(struct v4l2_subdev *sd,
 			&tc358743_timings_cap, NULL, NULL);
 }
 
-static int tc358743_query_dv_timings(struct v4l2_subdev *sd,
-		struct v4l2_dv_timings *timings)
+static int tc358743_query_dv_timings(struct v4l2_subdev *sd, unsigned int pad,
+				     struct v4l2_dv_timings *timings)
 {
 	int ret;
+
+	if (pad != 0)
+		return -EINVAL;
 
 	ret = tc358743_get_detected_timings(sd, timings);
 	if (ret)
@@ -1822,9 +1831,6 @@ static const struct v4l2_subdev_core_ops tc358743_core_ops = {
 
 static const struct v4l2_subdev_video_ops tc358743_video_ops = {
 	.g_input_status = tc358743_g_input_status,
-	.s_dv_timings = tc358743_s_dv_timings,
-	.g_dv_timings = tc358743_g_dv_timings,
-	.query_dv_timings = tc358743_query_dv_timings,
 	.s_stream = tc358743_s_stream,
 };
 
@@ -1834,6 +1840,9 @@ static const struct v4l2_subdev_pad_ops tc358743_pad_ops = {
 	.get_fmt = tc358743_get_fmt,
 	.get_edid = tc358743_g_edid,
 	.set_edid = tc358743_s_edid,
+	.s_dv_timings = tc358743_s_dv_timings,
+	.g_dv_timings = tc358743_g_dv_timings,
+	.query_dv_timings = tc358743_query_dv_timings,
 	.enum_dv_timings = tc358743_enum_dv_timings,
 	.dv_timings_cap = tc358743_dv_timings_cap,
 	.get_mbus_config = tc358743_get_mbus_config,
@@ -2110,7 +2119,7 @@ static int tc358743_probe(struct i2c_client *client)
 
 	tc358743_initial_setup(sd);
 
-	tc358743_s_dv_timings(sd, &default_timing);
+	tc358743_s_dv_timings(sd, 0, &default_timing);
 
 	tc358743_set_csi_color_space(sd);
 

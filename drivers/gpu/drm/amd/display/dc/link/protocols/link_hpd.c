@@ -35,7 +35,7 @@
 
 bool link_get_hpd_state(struct dc_link *link)
 {
-	uint32_t state;
+	uint32_t state = 0;
 
 	dal_gpio_lock_pin(link->hpd_gpio);
 	dal_gpio_get_value(link->hpd_gpio, &state);

@@ -54,7 +54,7 @@ static int highbank_l2_err_probe(struct platform_device *pdev)
 	int res = 0;
 
 	dci = edac_device_alloc_ctl_info(sizeof(*drvdata), "cpu",
-		1, "L", 1, 2, NULL, 0, 0);
+					 1, "L", 1, 2, 0);
 	if (!dci)
 		return -ENOMEM;
 

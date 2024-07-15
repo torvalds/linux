@@ -23,6 +23,7 @@ static const struct nla_policy hsr_policy[IFLA_HSR_MAX + 1] = {
 	[IFLA_HSR_SUPERVISION_ADDR]	= { .len = ETH_ALEN },
 	[IFLA_HSR_SEQ_NR]		= { .type = NLA_U16 },
 	[IFLA_HSR_PROTOCOL]		= { .type = NLA_U8 },
+	[IFLA_HSR_INTERLINK]		= { .type = NLA_U32 },
 };
 
 /* Here, it seems a netdevice has already been allocated for us, and the
@@ -35,8 +36,8 @@ static int hsr_newlink(struct net *src_net, struct net_device *dev,
 	enum hsr_version proto_version;
 	unsigned char multicast_spec;
 	u8 proto = HSR_PROTOCOL_HSR;
-	struct net_device *link[2];
 
+	struct net_device *link[2], *interlink = NULL;
 	if (!data) {
 		NL_SET_ERR_MSG_MOD(extack, "No slave devices specified");
 		return -EINVAL;
@@ -64,6 +65,20 @@ static int hsr_newlink(struct net *src_net, struct net_device *dev,
 
 	if (link[0] == link[1]) {
 		NL_SET_ERR_MSG_MOD(extack, "Slave1 and Slave2 are same");
+		return -EINVAL;
+	}
+
+	if (data[IFLA_HSR_INTERLINK])
+		interlink = __dev_get_by_index(src_net,
+					       nla_get_u32(data[IFLA_HSR_INTERLINK]));
+
+	if (interlink && interlink == link[0]) {
+		NL_SET_ERR_MSG_MOD(extack, "Interlink and Slave1 are the same");
+		return -EINVAL;
+	}
+
+	if (interlink && interlink == link[1]) {
+		NL_SET_ERR_MSG_MOD(extack, "Interlink and Slave2 are the same");
 		return -EINVAL;
 	}
 
@@ -96,10 +111,17 @@ static int hsr_newlink(struct net *src_net, struct net_device *dev,
 		}
 	}
 
-	if (proto == HSR_PROTOCOL_PRP)
+	if (proto == HSR_PROTOCOL_PRP) {
 		proto_version = PRP_V1;
+		if (interlink) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Interlink only works with HSR");
+			return -EINVAL;
+		}
+	}
 
-	return hsr_dev_finalize(dev, link, multicast_spec, proto_version, extack);
+	return hsr_dev_finalize(dev, link, interlink, multicast_spec,
+				proto_version, extack);
 }
 
 static void hsr_dellink(struct net_device *dev, struct list_head *head)
@@ -107,6 +129,7 @@ static void hsr_dellink(struct net_device *dev, struct list_head *head)
 	struct hsr_priv *hsr = netdev_priv(dev);
 
 	del_timer_sync(&hsr->prune_timer);
+	del_timer_sync(&hsr->prune_proxy_timer);
 	del_timer_sync(&hsr->announce_timer);
 
 	hsr_debugfs_term(hsr);
@@ -114,6 +137,7 @@ static void hsr_dellink(struct net_device *dev, struct list_head *head)
 
 	hsr_del_self_node(hsr);
 	hsr_del_nodes(&hsr->node_db);
+	hsr_del_nodes(&hsr->proxy_node_db);
 
 	unregister_netdevice_queue(dev, head);
 }

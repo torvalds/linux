@@ -294,7 +294,7 @@ static int regcache_maple_exit(struct regmap *map)
 {
 	struct maple_tree *mt = map->cache;
 	MA_STATE(mas, mt, 0, UINT_MAX);
-	unsigned int *entry;;
+	unsigned int *entry;
 
 	/* if we've already been called then just return */
 	if (!mt)

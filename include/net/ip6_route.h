@@ -210,12 +210,11 @@ void rt6_uncached_list_del(struct rt6_info *rt);
 static inline const struct rt6_info *skb_rt6_info(const struct sk_buff *skb)
 {
 	const struct dst_entry *dst = skb_dst(skb);
-	const struct rt6_info *rt6 = NULL;
 
 	if (dst)
-		rt6 = container_of(dst, struct rt6_info, dst);
+		return dst_rt6_info(dst);
 
-	return rt6;
+	return NULL;
 }
 
 /*
@@ -227,7 +226,7 @@ static inline void ip6_dst_store(struct sock *sk, struct dst_entry *dst,
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
 
-	np->dst_cookie = rt6_get_cookie((struct rt6_info *)dst);
+	np->dst_cookie = rt6_get_cookie(dst_rt6_info(dst));
 	sk_setup_caps(sk, dst);
 	np->daddr_cache = daddr;
 #ifdef CONFIG_IPV6_SUBTREES
@@ -240,7 +239,7 @@ void ip6_sk_dst_store_flow(struct sock *sk, struct dst_entry *dst,
 
 static inline bool ipv6_unicast_destination(const struct sk_buff *skb)
 {
-	struct rt6_info *rt = (struct rt6_info *) skb_dst(skb);
+	const struct rt6_info *rt = dst_rt6_info(skb_dst(skb));
 
 	return rt->rt6i_flags & RTF_LOCAL;
 }
@@ -248,7 +247,7 @@ static inline bool ipv6_unicast_destination(const struct sk_buff *skb)
 static inline bool ipv6_anycast_destination(const struct dst_entry *dst,
 					    const struct in6_addr *daddr)
 {
-	struct rt6_info *rt = (struct rt6_info *)dst;
+	const struct rt6_info *rt = dst_rt6_info(dst);
 
 	return rt->rt6i_flags & RTF_ANYCAST ||
 		(rt->rt6i_dst.plen < 127 &&

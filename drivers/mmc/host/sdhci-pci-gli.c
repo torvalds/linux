@@ -25,12 +25,6 @@
 #define   GLI_9750_WT_EN_ON	    0x1
 #define   GLI_9750_WT_EN_OFF	    0x0
 
-#define PCI_GLI_9750_PM_CTRL	0xFC
-#define   PCI_GLI_9750_PM_STATE	  GENMASK(1, 0)
-
-#define PCI_GLI_9750_CORRERR_MASK				0x214
-#define   PCI_GLI_9750_CORRERR_MASK_REPLAY_TIMER_TIMEOUT	  BIT(12)
-
 #define SDHCI_GLI_9750_CFG2          0x848
 #define   SDHCI_GLI_9750_CFG2_L1DLY    GENMASK(28, 24)
 #define   GLI_9750_CFG2_L1DLY_VALUE    0x1F
@@ -151,12 +145,6 @@
 
 #define PCI_GLI_9755_MISC	    0x78
 #define   PCI_GLI_9755_MISC_SSC_OFF    BIT(26)
-
-#define PCI_GLI_9755_PM_CTRL     0xFC
-#define   PCI_GLI_9755_PM_STATE    GENMASK(1, 0)
-
-#define PCI_GLI_9755_CORRERR_MASK				0x214
-#define   PCI_GLI_9755_CORRERR_MASK_REPLAY_TIMER_TIMEOUT	  BIT(12)
 
 #define SDHCI_GLI_9767_GM_BURST_SIZE			0x510
 #define   SDHCI_GLI_9767_GM_BURST_SIZE_AXI_ALWAYS_SET	  BIT(8)
@@ -547,6 +535,7 @@ static void gl9750_hw_setting(struct sdhci_host *host)
 {
 	struct sdhci_pci_slot *slot = sdhci_priv(host);
 	struct pci_dev *pdev;
+	int aer;
 	u32 value;
 
 	pdev = slot->chip->pdev;
@@ -561,16 +550,16 @@ static void gl9750_hw_setting(struct sdhci_host *host)
 	sdhci_writel(host, value, SDHCI_GLI_9750_CFG2);
 
 	/* toggle PM state to allow GL9750 to enter ASPM L1.2 */
-	pci_read_config_dword(pdev, PCI_GLI_9750_PM_CTRL, &value);
-	value |= PCI_GLI_9750_PM_STATE;
-	pci_write_config_dword(pdev, PCI_GLI_9750_PM_CTRL, value);
-	value &= ~PCI_GLI_9750_PM_STATE;
-	pci_write_config_dword(pdev, PCI_GLI_9750_PM_CTRL, value);
+	pci_set_power_state(pdev, PCI_D3hot);
+	pci_set_power_state(pdev, PCI_D0);
 
 	/* mask the replay timer timeout of AER */
-	pci_read_config_dword(pdev, PCI_GLI_9750_CORRERR_MASK, &value);
-	value |= PCI_GLI_9750_CORRERR_MASK_REPLAY_TIMER_TIMEOUT;
-	pci_write_config_dword(pdev, PCI_GLI_9750_CORRERR_MASK, value);
+	aer = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_ERR);
+	if (aer) {
+		pci_read_config_dword(pdev, aer + PCI_ERR_COR_MASK, &value);
+		value |= PCI_ERR_COR_REP_TIMER;
+		pci_write_config_dword(pdev, aer + PCI_ERR_COR_MASK, value);
+	}
 
 	gl9750_wt_off(host);
 }
@@ -745,6 +734,7 @@ static void sdhci_gl9755_set_clock(struct sdhci_host *host, unsigned int clock)
 static void gl9755_hw_setting(struct sdhci_pci_slot *slot)
 {
 	struct pci_dev *pdev = slot->chip->pdev;
+	int aer;
 	u32 value;
 
 	gl9755_wt_on(pdev);
@@ -775,16 +765,16 @@ static void gl9755_hw_setting(struct sdhci_pci_slot *slot)
 	pci_write_config_dword(pdev, PCI_GLI_9755_CFG2, value);
 
 	/* toggle PM state to allow GL9755 to enter ASPM L1.2 */
-	pci_read_config_dword(pdev, PCI_GLI_9755_PM_CTRL, &value);
-	value |= PCI_GLI_9755_PM_STATE;
-	pci_write_config_dword(pdev, PCI_GLI_9755_PM_CTRL, value);
-	value &= ~PCI_GLI_9755_PM_STATE;
-	pci_write_config_dword(pdev, PCI_GLI_9755_PM_CTRL, value);
+	pci_set_power_state(pdev, PCI_D3hot);
+	pci_set_power_state(pdev, PCI_D0);
 
 	/* mask the replay timer timeout of AER */
-	pci_read_config_dword(pdev, PCI_GLI_9755_CORRERR_MASK, &value);
-	value |= PCI_GLI_9755_CORRERR_MASK_REPLAY_TIMER_TIMEOUT;
-	pci_write_config_dword(pdev, PCI_GLI_9755_CORRERR_MASK, value);
+	aer = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_ERR);
+	if (aer) {
+		pci_read_config_dword(pdev, aer + PCI_ERR_COR_MASK, &value);
+		value |= PCI_ERR_COR_REP_TIMER;
+		pci_write_config_dword(pdev, aer + PCI_ERR_COR_MASK, value);
+	}
 
 	gl9755_wt_off(pdev);
 }

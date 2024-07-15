@@ -1097,7 +1097,7 @@ MODULE_DEVICE_TABLE(of, rt274_of_match);
 #endif
 
 static const struct i2c_device_id rt274_i2c_id[] = {
-	{"rt274", 0},
+	{"rt274"},
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, rt274_i2c_id);

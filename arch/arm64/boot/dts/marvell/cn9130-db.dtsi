@@ -30,7 +30,7 @@
 		reg = <0x0 0x0 0x0 0x80000000>;
 	};
 
-	ap0_reg_sd_vccq: ap0_sd_vccq@0 {
+	ap0_reg_sd_vccq: regulator-1 {
 		compatible = "regulator-gpio";
 		regulator-name = "ap0_sd_vccq";
 		regulator-min-microvolt = <1800000>;
@@ -39,7 +39,7 @@
 		states = <1800000 0x1 3300000 0x0>;
 	};
 
-	cp0_reg_usb3_vbus0: cp0_usb3_vbus@0 {
+	cp0_reg_usb3_vbus0: regulator-2 {
 		compatible = "regulator-fixed";
 		regulator-name = "cp0-xhci0-vbus";
 		regulator-min-microvolt = <5000000>;
@@ -48,12 +48,12 @@
 		gpio = <&expander0 0 GPIO_ACTIVE_HIGH>;
 	};
 
-	cp0_usb3_0_phy0: cp0_usb3_phy@0 {
+	cp0_usb3_0_phy0: usb-phy-1 {
 		compatible = "usb-nop-xceiv";
 		vcc-supply = <&cp0_reg_usb3_vbus0>;
 	};
 
-	cp0_reg_usb3_vbus1: cp0_usb3_vbus@1 {
+	cp0_reg_usb3_vbus1: regulator-3 {
 		compatible = "regulator-fixed";
 		regulator-name = "cp0-xhci1-vbus";
 		regulator-min-microvolt = <5000000>;
@@ -62,12 +62,12 @@
 		gpio = <&expander0 1 GPIO_ACTIVE_HIGH>;
 	};
 
-	cp0_usb3_0_phy1: cp0_usb3_phy@1 {
+	cp0_usb3_0_phy1: usb-phy-2 {
 		compatible = "usb-nop-xceiv";
 		vcc-supply = <&cp0_reg_usb3_vbus1>;
 	};
 
-	cp0_reg_sd_vccq: cp0_sd_vccq@0 {
+	cp0_reg_sd_vccq: regulator-4 {
 		compatible = "regulator-gpio";
 		regulator-name = "cp0_sd_vccq";
 		regulator-min-microvolt = <1800000>;
@@ -77,7 +77,7 @@
 			  3300000 0x0>;
 	};
 
-	cp0_reg_sd_vcc: cp0_sd_vcc@0 {
+	cp0_reg_sd_vcc: regulator-5 {
 		compatible = "regulator-fixed";
 		regulator-name = "cp0_sd_vcc";
 		regulator-min-microvolt = <3300000>;
@@ -87,7 +87,7 @@
 		regulator-always-on;
 	};
 
-	cp0_sfp_eth0: sfp-eth@0 {
+	cp0_sfp_eth0: sfp-eth-1 {
 		compatible = "sff,sfp";
 		i2c-bus = <&cp0_sfpp0_i2c>;
 		los-gpios = <&cp0_module_expander1 11 GPIO_ACTIVE_HIGH>;
@@ -311,8 +311,6 @@
 	reg = <0x700680 0x50>;
 
 	flash@0 {
-		#address-cells = <0x1>;
-		#size-cells = <0x1>;
 		compatible = "jedec,spi-nor";
 		reg = <0x0>;
 		/* On-board MUX does not allow higher frequencies */

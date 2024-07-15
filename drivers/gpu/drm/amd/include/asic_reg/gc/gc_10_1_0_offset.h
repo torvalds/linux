@@ -4830,6 +4830,8 @@
 #define mmCP_ECC_FIRSTOCCURRENCE_RING2_BASE_IDX                                                        0
 #define mmGB_EDC_MODE                                                                                  0x1e1e
 #define mmGB_EDC_MODE_BASE_IDX                                                                         0
+#define mmCP_DEBUG                                                                                     0x1e1f
+#define mmCP_DEBUG_BASE_IDX                                                                            0
 #define mmCP_FETCHER_SOURCE                                                                            0x1e22
 #define mmCP_FETCHER_SOURCE_BASE_IDX                                                                   0
 #define mmCP_PQ_WPTR_POLL_CNTL                                                                         0x1e23
@@ -7778,6 +7780,8 @@
 #define mmCP_MES_DOORBELL_CONTROL5_BASE_IDX                                                            1
 #define mmCP_MES_DOORBELL_CONTROL6                                                                     0x2841
 #define mmCP_MES_DOORBELL_CONTROL6_BASE_IDX                                                            1
+#define mmCP_MES_DEBUG_INTERRUPT_INSTR_PNTR                                                            0x2842
+#define mmCP_MES_DEBUG_INTERRUPT_INSTR_PNTR_BASE_IDX                                                   1
 #define mmCP_MES_GP0_LO                                                                                0x2843
 #define mmCP_MES_GP0_LO_BASE_IDX                                                                       1
 #define mmCP_MES_GP0_HI                                                                                0x2844
@@ -9332,10 +9336,16 @@
 #define mmRLC_LB_CNTR_INIT_1_BASE_IDX                                                                  1
 #define mmRLC_LB_CNTR_1                                                                                0x4c1c
 #define mmRLC_LB_CNTR_1_BASE_IDX                                                                       1
+#define mmRLC_GPM_DEBUG_INST_ADDR                                                                      0x4c1d
+#define mmRLC_GPM_DEBUG_INST_ADDR_BASE_IDX                                                             1
 #define mmRLC_JUMP_TABLE_RESTORE                                                                       0x4c1e
 #define mmRLC_JUMP_TABLE_RESTORE_BASE_IDX                                                              1
 #define mmRLC_PG_DELAY_2                                                                               0x4c1f
 #define mmRLC_PG_DELAY_2_BASE_IDX                                                                      1
+#define mmRLC_GPM_DEBUG_INST_A                                                                         0x4c22
+#define mmRLC_GPM_DEBUG_INST_A_BASE_IDX                                                                1
+#define mmRLC_GPM_DEBUG_INST_B                                                                         0x4c23
+#define mmRLC_GPM_DEBUG_INST_B_BASE_IDX                                                                1
 #define mmRLC_GPU_CLOCK_COUNT_LSB                                                                      0x4c24
 #define mmRLC_GPU_CLOCK_COUNT_LSB_BASE_IDX                                                             1
 #define mmRLC_GPU_CLOCK_COUNT_MSB                                                                      0x4c25
@@ -9720,6 +9730,8 @@
 #define mmRLC_SPM_THREAD_TRACE_CTRL_BASE_IDX                                                           1
 #define mmRLC_LB_CNTR_2                                                                                0x4de7
 #define mmRLC_LB_CNTR_2_BASE_IDX                                                                       1
+#define mmRLC_LX6_CORE_PDEBUG_INST                                                                     0x4deb
+#define mmRLC_LX6_CORE_PDEBUG_INST_BASE_IDX                                                            1
 #define mmRLC_CPAXI_DOORBELL_MON_CTRL                                                                  0x4df1
 #define mmRLC_CPAXI_DOORBELL_MON_CTRL_BASE_IDX                                                         1
 #define mmRLC_CPAXI_DOORBELL_MON_STAT                                                                  0x4df2

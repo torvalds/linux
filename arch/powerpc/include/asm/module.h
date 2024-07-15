@@ -48,11 +48,6 @@ struct mod_arch_specific {
 	unsigned long tramp;
 	unsigned long tramp_regs;
 #endif
-
-	/* List of BUG addresses, source line numbers and filenames */
-	struct list_head bug_list;
-	struct bug_entry *bug_table;
-	unsigned int num_bugs;
 };
 
 /*

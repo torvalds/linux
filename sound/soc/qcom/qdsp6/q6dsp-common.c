@@ -98,4 +98,6 @@ int q6dsp_get_channel_allocation(int channels)
 	return channel_allocation;
 }
 EXPORT_SYMBOL_GPL(q6dsp_get_channel_allocation);
+
+MODULE_DESCRIPTION("ASoC MSM QDSP6 helper functions");
 MODULE_LICENSE("GPL v2");

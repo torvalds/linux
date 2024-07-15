@@ -14,6 +14,7 @@
 #include <sound/dmaengine_pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
+#include <sound/tlv.h>
 
 #define SUN50I_DMIC_EN_CTL			(0x00)
 	#define SUN50I_DMIC_EN_CTL_GLOBE			BIT(8)
@@ -43,6 +44,17 @@
 	#define SUN50I_DMIC_CH_NUM_N_MASK			GENMASK(2, 0)
 #define SUN50I_DMIC_CNT				(0x2c)
 	#define SUN50I_DMIC_CNT_N				(1 << 0)
+#define SUN50I_DMIC_D0D1_VOL_CTR		(0x30)
+	#define SUN50I_DMIC_D0D1_VOL_CTR_0R			(0)
+	#define SUN50I_DMIC_D0D1_VOL_CTR_0L			(8)
+	#define SUN50I_DMIC_D0D1_VOL_CTR_1R			(16)
+	#define SUN50I_DMIC_D0D1_VOL_CTR_1L			(24)
+#define SUN50I_DMIC_D2D3_VOL_CTR                (0x34)
+        #define SUN50I_DMIC_D2D3_VOL_CTR_2R                     (0)
+        #define SUN50I_DMIC_D2D3_VOL_CTR_2L                     (8)
+        #define SUN50I_DMIC_D2D3_VOL_CTR_3R                     (16)
+        #define SUN50I_DMIC_D2D3_VOL_CTR_3L                     (24)
+
 #define SUN50I_DMIC_HPF_CTRL			(0x38)
 #define SUN50I_DMIC_VERSION			(0x50)
 
@@ -74,7 +86,7 @@ static const struct dmic_rate dmic_rate_s[] = {
 static int sun50i_dmic_startup(struct snd_pcm_substream *substream,
 			       struct snd_soc_dai *cpu_dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct sun50i_dmic_dev *host = snd_soc_dai_get_drvdata(snd_soc_rtd_to_cpu(rtd, 0));
 
 	/* only support capture */
@@ -273,8 +285,30 @@ static const struct of_device_id sun50i_dmic_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, sun50i_dmic_of_match);
 
+static const SNDRV_CTL_TLVD_DECLARE_DB_SCALE(sun50i_dmic_vol_scale, -12000, 75, 1);
+
+static const struct snd_kcontrol_new sun50i_dmic_controls[] = {
+
+        SOC_DOUBLE_TLV("DMIC Channel 0 Capture Volume", SUN50I_DMIC_D0D1_VOL_CTR,
+                       SUN50I_DMIC_D0D1_VOL_CTR_0L, SUN50I_DMIC_D0D1_VOL_CTR_0R,
+                       0xFF, 0, sun50i_dmic_vol_scale),
+        SOC_DOUBLE_TLV("DMIC Channel 1 Capture Volume", SUN50I_DMIC_D0D1_VOL_CTR,
+                       SUN50I_DMIC_D0D1_VOL_CTR_1L, SUN50I_DMIC_D0D1_VOL_CTR_1R,
+                       0xFF, 0, sun50i_dmic_vol_scale),
+        SOC_DOUBLE_TLV("DMIC Channel 2 Capture Volume", SUN50I_DMIC_D2D3_VOL_CTR,
+                       SUN50I_DMIC_D2D3_VOL_CTR_2L, SUN50I_DMIC_D2D3_VOL_CTR_2R,
+                       0xFF, 0, sun50i_dmic_vol_scale),
+        SOC_DOUBLE_TLV("DMIC Channel 3 Capture Volume", SUN50I_DMIC_D2D3_VOL_CTR,
+                       SUN50I_DMIC_D2D3_VOL_CTR_3L, SUN50I_DMIC_D2D3_VOL_CTR_3R,
+                       0xFF, 0, sun50i_dmic_vol_scale),
+
+
+};
+
 static const struct snd_soc_component_driver sun50i_dmic_component = {
 	.name           = "sun50i-dmic",
+	.controls	= sun50i_dmic_controls,
+	.num_controls	= ARRAY_SIZE(sun50i_dmic_controls),
 };
 
 static int sun50i_dmic_runtime_suspend(struct device *dev)

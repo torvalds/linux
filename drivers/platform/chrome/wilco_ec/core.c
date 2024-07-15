@@ -10,6 +10,7 @@
 #include <linux/acpi.h>
 #include <linux/device.h>
 #include <linux/ioport.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_data/wilco-ec.h>
 #include <linux/platform_device.h>
@@ -150,6 +151,12 @@ static const struct acpi_device_id wilco_ec_acpi_device_ids[] = {
 };
 MODULE_DEVICE_TABLE(acpi, wilco_ec_acpi_device_ids);
 
+static const struct platform_device_id wilco_ec_id[] = {
+	{ DRV_NAME, 0 },
+	{}
+};
+MODULE_DEVICE_TABLE(platform, wilco_ec_id);
+
 static struct platform_driver wilco_ec_driver = {
 	.driver = {
 		.name = DRV_NAME,
@@ -157,6 +164,7 @@ static struct platform_driver wilco_ec_driver = {
 	},
 	.probe = wilco_ec_probe,
 	.remove_new = wilco_ec_remove,
+	.id_table = wilco_ec_id,
 };
 
 module_platform_driver(wilco_ec_driver);
@@ -165,4 +173,3 @@ MODULE_AUTHOR("Nick Crews <ncrews@chromium.org>");
 MODULE_AUTHOR("Duncan Laurie <dlaurie@chromium.org>");
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("ChromeOS Wilco Embedded Controller driver");
-MODULE_ALIAS("platform:" DRV_NAME);

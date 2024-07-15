@@ -155,12 +155,18 @@ int i915_getparam_ioctl(struct drm_device *dev, void *data,
 		 */
 		value = 1;
 		break;
+	case I915_PARAM_HAS_CONTEXT_FREQ_HINT:
+		if (intel_uc_uses_guc_submission(&to_gt(i915)->uc))
+			value = 1;
+		else
+			value = -EINVAL;
+		break;
 	case I915_PARAM_HAS_CONTEXT_ISOLATION:
 		value = intel_engines_has_context_isolation(i915);
 		break;
 	case I915_PARAM_SLICE_MASK:
 		/* Not supported from Xe_HP onward; use topology queries */
-		if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50))
+		if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 55))
 			return -EINVAL;
 
 		value = sseu->slice_mask;
@@ -169,7 +175,7 @@ int i915_getparam_ioctl(struct drm_device *dev, void *data,
 		break;
 	case I915_PARAM_SUBSLICE_MASK:
 		/* Not supported from Xe_HP onward; use topology queries */
-		if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50))
+		if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 55))
 			return -EINVAL;
 
 		/* Only copy bits from the first slice */

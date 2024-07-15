@@ -20,9 +20,12 @@ properties:
   compatible:
     const: sony,td4353-jdi-tama
 
-  reg: true
+  reg:
+    maxItems: 1
 
   backlight: true
+  width-mm: true
+  height-mm: true
 
   vddio-supply:
     description: VDDIO 1.8V supply

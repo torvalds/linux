@@ -21,6 +21,8 @@
 #include <linux/sched/hotplug.h>
 #include <linux/atomic.h>
 #include <linux/clockchips.h>
+#include <linux/profile.h>
+
 #include <asm/processor.h>
 #include <asm/mmu_context.h>
 #include <asm/smp.h>
@@ -170,7 +172,7 @@ void native_play_dead(void)
 }
 #endif
 
-asmlinkage void start_secondary(void)
+static asmlinkage void start_secondary(void)
 {
 	unsigned int cpu = smp_processor_id();
 	struct mm_struct *mm = &init_mm;
@@ -320,11 +322,13 @@ void smp_message_recv(unsigned int msg)
 	}
 }
 
+#ifdef CONFIG_PROFILING
 /* Not really SMP stuff ... */
 int setup_profiling_timer(unsigned int multiplier)
 {
 	return 0;
 }
+#endif
 
 #ifdef CONFIG_MMU
 

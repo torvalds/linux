@@ -191,7 +191,7 @@ struct drm_dp_tunnel_mgr {
 	struct drm_dp_tunnel_group *groups;
 	wait_queue_head_t bw_req_queue;
 
-#ifdef CONFIG_DRM_DISPLAY_DEBUG_DP_TUNNEL_STATE
+#ifdef CONFIG_DRM_DISPLAY_DP_TUNNEL_STATE_DEBUG
 	struct ref_tracker_dir ref_tracker;
 #endif
 };
@@ -385,7 +385,7 @@ static void tunnel_put(struct drm_dp_tunnel *tunnel)
 	kref_put(&tunnel->kref, free_tunnel);
 }
 
-#ifdef CONFIG_DRM_DISPLAY_DEBUG_DP_TUNNEL_STATE
+#ifdef CONFIG_DRM_DISPLAY_DP_TUNNEL_STATE_DEBUG
 static void track_tunnel_ref(struct drm_dp_tunnel *tunnel,
 			     struct ref_tracker **tracker)
 {
@@ -436,8 +436,8 @@ EXPORT_SYMBOL(drm_dp_tunnel_get);
 
 /**
  * drm_dp_tunnel_put - Put a reference for a DP tunnel
- * @tunnel - Tunnel object
- * @tracker - Debug tracker for the reference
+ * @tunnel: Tunnel object
+ * @tracker: Debug tracker for the reference
  *
  * Put a reference for @tunnel along with its debug *@tracker, which
  * was obtained with drm_dp_tunnel_get().
@@ -1170,7 +1170,7 @@ int drm_dp_tunnel_alloc_bw(struct drm_dp_tunnel *tunnel, int bw)
 EXPORT_SYMBOL(drm_dp_tunnel_alloc_bw);
 
 /**
- * drm_dp_tunnel_atomic_get_allocated_bw - Get the BW allocated for a DP tunnel
+ * drm_dp_tunnel_get_allocated_bw - Get the BW allocated for a DP tunnel
  * @tunnel: Tunnel object
  *
  * Get the current BW allocated for @tunnel. After the tunnel is created /
@@ -1603,7 +1603,7 @@ static void cleanup_group(struct drm_dp_tunnel_group *group)
 	drm_atomic_private_obj_fini(&group->base);
 }
 
-#ifdef CONFIG_DRM_DISPLAY_DEBUG_DP_TUNNEL_STATE
+#ifdef CONFIG_DRM_DISPLAY_DP_TUNNEL_STATE_DEBUG
 static void check_unique_stream_ids(const struct drm_dp_tunnel_group_state *group_state)
 {
 	const struct drm_dp_tunnel_state *tunnel_state;
@@ -1881,7 +1881,7 @@ static void destroy_mgr(struct drm_dp_tunnel_mgr *mgr)
 		drm_WARN_ON(mgr->dev, !list_empty(&mgr->groups[i].tunnels));
 	}
 
-#ifdef CONFIG_DRM_DISPLAY_DEBUG_DP_TUNNEL_STATE
+#ifdef CONFIG_DRM_DISPLAY_DP_TUNNEL_STATE_DEBUG
 	ref_tracker_dir_exit(&mgr->ref_tracker);
 #endif
 
@@ -1892,6 +1892,7 @@ static void destroy_mgr(struct drm_dp_tunnel_mgr *mgr)
 /**
  * drm_dp_tunnel_mgr_create - Create a DP tunnel manager
  * @dev: DRM device object
+ * @max_group_count: Maximum number of tunnel groups
  *
  * Creates a DP tunnel manager for @dev.
  *
@@ -1918,7 +1919,7 @@ drm_dp_tunnel_mgr_create(struct drm_device *dev, int max_group_count)
 		return NULL;
 	}
 
-#ifdef CONFIG_DRM_DISPLAY_DEBUG_DP_TUNNEL_STATE
+#ifdef CONFIG_DRM_DISPLAY_DP_TUNNEL_STATE_DEBUG
 	ref_tracker_dir_init(&mgr->ref_tracker, 16, "dptun");
 #endif
 

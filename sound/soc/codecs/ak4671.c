@@ -646,7 +646,7 @@ static int ak4671_i2c_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ak4671_i2c_id[] = {
-	{ "ak4671", 0 },
+	{ "ak4671" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ak4671_i2c_id);

@@ -285,10 +285,8 @@ static int ali1535_transaction(struct i2c_adapter *adap)
 		 && (timeout++ < MAX_TIMEOUT));
 
 	/* If the SMBus is still busy, we give up */
-	if (timeout > MAX_TIMEOUT) {
+	if (timeout > MAX_TIMEOUT)
 		result = -ETIMEDOUT;
-		dev_err(&adap->dev, "SMBus Timeout!\n");
-	}
 
 	if (temp & ALI1535_STS_FAIL) {
 		result = -EIO;
@@ -313,10 +311,8 @@ static int ali1535_transaction(struct i2c_adapter *adap)
 	}
 
 	/* check to see if the "command complete" indication is set */
-	if (!(temp & ALI1535_STS_DONE)) {
+	if (!(temp & ALI1535_STS_DONE))
 		result = -ETIMEDOUT;
-		dev_err(&adap->dev, "Error: command never completed\n");
-	}
 
 	dev_dbg(&adap->dev, "Transaction (post): STS=%02x, TYP=%02x, "
 		"CMD=%02x, ADD=%02x, DAT0=%02x, DAT1=%02x\n",

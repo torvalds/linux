@@ -59,14 +59,14 @@ patternProperties:
       "#phy-cells":
         const: 0
 
-      "brcm,enable-ssc":
+      brcm,enable-ssc:
         $ref: /schemas/types.yaml#/definitions/flag
         description: |
           Use spread spectrum clocking (SSC) on this port
           This property is not applicable for "brcm,iproc-ns2-sata-phy",
           "brcm,iproc-nsp-sata-phy" and "brcm,iproc-sr-sata-phy".
 
-      "brcm,rxaeq-mode":
+      brcm,rxaeq-mode:
         $ref: /schemas/types.yaml#/definitions/string
         description:
           String that indicates the desired RX equalizer mode.
@@ -75,7 +75,7 @@ patternProperties:
           - auto
           - manual
 
-      "brcm,rxaeq-value":
+      brcm,rxaeq-value:
         $ref: /schemas/types.yaml#/definitions/uint32
         description: |
             When 'brcm,rxaeq-mode' is set to "manual", provides the RX
@@ -83,7 +83,7 @@ patternProperties:
         minimum: 0
         maximum: 63
 
-      "brcm,tx-amplitude-millivolt":
+      brcm,tx-amplitude-millivolt:
         description: |
             Transmit amplitude voltage in millivolt.
         $ref: /schemas/types.yaml#/definitions/uint32

@@ -99,16 +99,16 @@
 	ld1		{v15.4s}, [\rk]
 	add		\rkp, \rk, #16
 	mov		\i, \rounds
-1111:	eor		\in\().16b, \in\().16b, v15.16b		/* ^round key */
+.La\@:	eor		\in\().16b, \in\().16b, v15.16b		/* ^round key */
 	movi		v15.16b, #0x40
 	tbl		\in\().16b, {\in\().16b}, v13.16b	/* ShiftRows */
 	sub_bytes	\in
-	subs		\i, \i, #1
+	sub		\i, \i, #1
 	ld1		{v15.4s}, [\rkp], #16
-	beq		2222f
+	cbz		\i, .Lb\@
 	mix_columns	\in, \enc
-	b		1111b
-2222:	eor		\in\().16b, \in\().16b, v15.16b		/* ^round key */
+	b		.La\@
+.Lb\@:	eor		\in\().16b, \in\().16b, v15.16b		/* ^round key */
 	.endm
 
 	.macro		encrypt_block, in, rounds, rk, rkp, i
@@ -206,7 +206,7 @@
 	ld1		{v15.4s}, [\rk]
 	add		\rkp, \rk, #16
 	mov		\i, \rounds
-1111:	eor		\in0\().16b, \in0\().16b, v15.16b	/* ^round key */
+.La\@:	eor		\in0\().16b, \in0\().16b, v15.16b	/* ^round key */
 	eor		\in1\().16b, \in1\().16b, v15.16b	/* ^round key */
 	eor		\in2\().16b, \in2\().16b, v15.16b	/* ^round key */
 	eor		\in3\().16b, \in3\().16b, v15.16b	/* ^round key */
@@ -216,13 +216,13 @@
 	tbl		\in2\().16b, {\in2\().16b}, v13.16b	/* ShiftRows */
 	tbl		\in3\().16b, {\in3\().16b}, v13.16b	/* ShiftRows */
 	sub_bytes_4x	\in0, \in1, \in2, \in3
-	subs		\i, \i, #1
+	sub		\i, \i, #1
 	ld1		{v15.4s}, [\rkp], #16
-	beq		2222f
+	cbz		\i, .Lb\@
 	mix_columns_2x	\in0, \in1, \enc
 	mix_columns_2x	\in2, \in3, \enc
-	b		1111b
-2222:	eor		\in0\().16b, \in0\().16b, v15.16b	/* ^round key */
+	b		.La\@
+.Lb\@:	eor		\in0\().16b, \in0\().16b, v15.16b	/* ^round key */
 	eor		\in1\().16b, \in1\().16b, v15.16b	/* ^round key */
 	eor		\in2\().16b, \in2\().16b, v15.16b	/* ^round key */
 	eor		\in3\().16b, \in3\().16b, v15.16b	/* ^round key */

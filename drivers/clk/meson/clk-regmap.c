@@ -183,4 +183,4 @@ EXPORT_SYMBOL_GPL(clk_regmap_mux_ro_ops);
 
 MODULE_DESCRIPTION("Amlogic regmap backed clock driver");
 MODULE_AUTHOR("Jerome Brunet <jbrunet@baylibre.com>");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");

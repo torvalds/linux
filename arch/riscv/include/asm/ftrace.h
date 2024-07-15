@@ -124,20 +124,82 @@ struct dyn_ftrace;
 int ftrace_init_nop(struct module *mod, struct dyn_ftrace *rec);
 #define ftrace_init_nop ftrace_init_nop
 
-#ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_ARGS
+#define arch_ftrace_get_regs(regs) NULL
 struct ftrace_ops;
-struct ftrace_regs;
+struct ftrace_regs {
+	unsigned long epc;
+	unsigned long ra;
+	unsigned long sp;
+	unsigned long s0;
+	unsigned long t1;
+	union {
+		unsigned long args[8];
+		struct {
+			unsigned long a0;
+			unsigned long a1;
+			unsigned long a2;
+			unsigned long a3;
+			unsigned long a4;
+			unsigned long a5;
+			unsigned long a6;
+			unsigned long a7;
+		};
+	};
+};
+
+static __always_inline unsigned long ftrace_regs_get_instruction_pointer(const struct ftrace_regs
+									 *fregs)
+{
+	return fregs->epc;
+}
+
+static __always_inline void ftrace_regs_set_instruction_pointer(struct ftrace_regs *fregs,
+								unsigned long pc)
+{
+	fregs->epc = pc;
+}
+
+static __always_inline unsigned long ftrace_regs_get_stack_pointer(const struct ftrace_regs *fregs)
+{
+	return fregs->sp;
+}
+
+static __always_inline unsigned long ftrace_regs_get_argument(struct ftrace_regs *fregs,
+							      unsigned int n)
+{
+	if (n < 8)
+		return fregs->args[n];
+	return 0;
+}
+
+static __always_inline unsigned long ftrace_regs_get_return_value(const struct ftrace_regs *fregs)
+{
+	return fregs->a0;
+}
+
+static __always_inline void ftrace_regs_set_return_value(struct ftrace_regs *fregs,
+							 unsigned long ret)
+{
+	fregs->a0 = ret;
+}
+
+static __always_inline void ftrace_override_function_with_return(struct ftrace_regs *fregs)
+{
+	fregs->epc = fregs->ra;
+}
+
+int ftrace_regs_query_register_offset(const char *name);
+
 void ftrace_graph_func(unsigned long ip, unsigned long parent_ip,
 		       struct ftrace_ops *op, struct ftrace_regs *fregs);
 #define ftrace_graph_func ftrace_graph_func
 
-static inline void __arch_ftrace_set_direct_caller(struct pt_regs *regs, unsigned long addr)
+static inline void arch_ftrace_set_direct_caller(struct ftrace_regs *fregs, unsigned long addr)
 {
-		regs->t1 = addr;
+	fregs->t1 = addr;
 }
-#define arch_ftrace_set_direct_caller(fregs, addr) \
-	__arch_ftrace_set_direct_caller(&(fregs)->regs, addr)
-#endif /* CONFIG_DYNAMIC_FTRACE_WITH_REGS */
+#endif /* CONFIG_DYNAMIC_FTRACE_WITH_ARGS */
 
 #endif /* __ASSEMBLY__ */
 

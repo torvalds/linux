@@ -24,7 +24,6 @@
 #include <asm/crw.h>
 #include <asm/isc.h>
 #include <asm/ebcdic.h>
-#include <asm/ap.h>
 
 #include "css.h"
 #include "cio.h"
@@ -39,6 +38,20 @@ static DEFINE_SPINLOCK(chsc_page_lock);
 
 #define SEI_VF_FLA	0xc0 /* VF flag for Full Link Address */
 #define SEI_RS_CHPID	0x4  /* 4 in RS field indicates CHPID */
+
+static BLOCKING_NOTIFIER_HEAD(chsc_notifiers);
+
+int chsc_notifier_register(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_register(&chsc_notifiers, nb);
+}
+EXPORT_SYMBOL(chsc_notifier_register);
+
+int chsc_notifier_unregister(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_unregister(&chsc_notifiers, nb);
+}
+EXPORT_SYMBOL(chsc_notifier_unregister);
 
 /**
  * chsc_error_from_response() - convert a chsc response to an error
@@ -581,7 +594,8 @@ static void chsc_process_sei_ap_cfg_chg(struct chsc_sei_nt0_area *sei_area)
 	if (sei_area->rs != 5)
 		return;
 
-	ap_bus_cfg_chg();
+	blocking_notifier_call_chain(&chsc_notifiers,
+				     CHSC_NOTIFY_AP_CFG, NULL);
 }
 
 static void chsc_process_sei_fces_event(struct chsc_sei_nt0_area *sei_area)
@@ -857,22 +871,22 @@ int __chsc_do_secm(struct channel_subsystem *css, int enable)
 	struct {
 		struct chsc_header request;
 		u32 operation_code : 2;
-		u32 : 30;
+		u32 : 1;
+		u32 e : 1;
+		u32 : 28;
 		u32 key : 4;
 		u32 : 28;
-		u32 zeroes1;
-		dma32_t cub_addr1;
-		u32 zeroes2;
-		dma32_t cub_addr2;
-		u32 reserved[13];
+		dma64_t cub[CSS_NUM_CUB_PAGES];
+		dma64_t ecub[CSS_NUM_ECUB_PAGES];
+		u32 reserved[5];
 		struct chsc_header response;
 		u32 status : 8;
 		u32 : 4;
 		u32 fmt : 4;
 		u32 : 16;
-	} *secm_area;
+	} __packed *secm_area;
 	unsigned long flags;
-	int ret, ccode;
+	int ret, ccode, i;
 
 	spin_lock_irqsave(&chsc_page_lock, flags);
 	memset(chsc_page, 0, PAGE_SIZE);
@@ -881,8 +895,12 @@ int __chsc_do_secm(struct channel_subsystem *css, int enable)
 	secm_area->request.code = 0x0016;
 
 	secm_area->key = PAGE_DEFAULT_KEY >> 4;
-	secm_area->cub_addr1 = virt_to_dma32(css->cub_addr1);
-	secm_area->cub_addr2 = virt_to_dma32(css->cub_addr2);
+	secm_area->e = 1;
+
+	for (i = 0; i < CSS_NUM_CUB_PAGES; i++)
+		secm_area->cub[i] = (__force dma64_t)virt_to_dma32(css->cub[i]);
+	for (i = 0; i < CSS_NUM_ECUB_PAGES; i++)
+		secm_area->ecub[i] = virt_to_dma64(css->ecub[i]);
 
 	secm_area->operation_code = enable ? 0 : 1;
 
@@ -908,19 +926,47 @@ out:
 	return ret;
 }
 
+static int cub_alloc(struct channel_subsystem *css)
+{
+	int i;
+
+	for (i = 0; i < CSS_NUM_CUB_PAGES; i++) {
+		css->cub[i] = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
+		if (!css->cub[i])
+			return -ENOMEM;
+	}
+	for (i = 0; i < CSS_NUM_ECUB_PAGES; i++) {
+		css->ecub[i] = (void *)get_zeroed_page(GFP_KERNEL);
+		if (!css->ecub[i])
+			return -ENOMEM;
+	}
+
+	return 0;
+}
+
+static void cub_free(struct channel_subsystem *css)
+{
+	int i;
+
+	for (i = 0; i < CSS_NUM_CUB_PAGES; i++) {
+		free_page((unsigned long)css->cub[i]);
+		css->cub[i] = NULL;
+	}
+	for (i = 0; i < CSS_NUM_ECUB_PAGES; i++) {
+		free_page((unsigned long)css->ecub[i]);
+		css->ecub[i] = NULL;
+	}
+}
+
 int
 chsc_secm(struct channel_subsystem *css, int enable)
 {
 	int ret;
 
 	if (enable && !css->cm_enabled) {
-		css->cub_addr1 = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
-		css->cub_addr2 = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
-		if (!css->cub_addr1 || !css->cub_addr2) {
-			free_page((unsigned long)css->cub_addr1);
-			free_page((unsigned long)css->cub_addr2);
-			return -ENOMEM;
-		}
+		ret = cub_alloc(css);
+		if (ret)
+			goto out;
 	}
 	ret = __chsc_do_secm(css, enable);
 	if (!ret) {
@@ -934,10 +980,11 @@ chsc_secm(struct channel_subsystem *css, int enable)
 		} else
 			chsc_remove_cmg_attr(css);
 	}
-	if (!css->cm_enabled) {
-		free_page((unsigned long)css->cub_addr1);
-		free_page((unsigned long)css->cub_addr2);
-	}
+
+out:
+	if (!css->cm_enabled)
+		cub_free(css);
+
 	return ret;
 }
 
@@ -1019,6 +1066,18 @@ chsc_initialize_cmg_chars(struct channel_path *chp, u8 cmcv,
 	}
 }
 
+static unsigned long scmc_get_speed(u32 s, u32 p)
+{
+	unsigned long speed = s;
+
+	if (!p)
+		p = 8;
+	while (p--)
+		speed *= 10;
+
+	return speed;
+}
+
 int chsc_get_channel_measurement_chars(struct channel_path *chp)
 {
 	unsigned long flags;
@@ -1035,18 +1094,23 @@ int chsc_get_channel_measurement_chars(struct channel_path *chp)
 		u32 zeroes2;
 		u32 not_valid : 1;
 		u32 shared : 1;
-		u32 : 22;
+		u32 extended : 1;
+		u32 : 21;
 		u32 chpid : 8;
 		u32 cmcv : 5;
-		u32 : 11;
+		u32 : 7;
+		u32 cmgp : 4;
 		u32 cmgq : 8;
 		u32 cmg : 8;
-		u32 zeroes3;
+		u32 : 16;
+		u32 cmgs : 16;
 		u32 data[NR_MEASUREMENT_CHARS];
 	} *scmc_area;
 
 	chp->shared = -1;
 	chp->cmg = -1;
+	chp->extended = 0;
+	chp->speed = 0;
 
 	if (!css_chsc_characteristics.scmc || !css_chsc_characteristics.secm)
 		return -EINVAL;
@@ -1076,10 +1140,8 @@ int chsc_get_channel_measurement_chars(struct channel_path *chp)
 
 	chp->cmg = scmc_area->cmg;
 	chp->shared = scmc_area->shared;
-	if (chp->cmg != 2 && chp->cmg != 3) {
-		/* No cmg-dependent data. */
-		goto out;
-	}
+	chp->extended = scmc_area->extended;
+	chp->speed = scmc_get_speed(scmc_area->cmgs, scmc_area->cmgp);
 	chsc_initialize_cmg_chars(chp, scmc_area->cmcv,
 				  (struct cmg_chars *) &scmc_area->data);
 out:

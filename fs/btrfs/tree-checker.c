@@ -2021,7 +2021,7 @@ int btrfs_check_eb_owner(const struct extent_buffer *eb, u64 root_owner)
 	 * Skip dummy fs, as selftests don't create unique ebs for each dummy
 	 * root.
 	 */
-	if (test_bit(BTRFS_FS_STATE_DUMMY_FS_INFO, &eb->fs_info->fs_state))
+	if (btrfs_is_testing(eb->fs_info))
 		return 0;
 	/*
 	 * There are several call sites (backref walking, qgroup, and data

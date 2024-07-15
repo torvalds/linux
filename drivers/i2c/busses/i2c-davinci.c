@@ -489,7 +489,6 @@ i2c_davinci_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg, int stop)
 	time_left = wait_for_completion_timeout(&dev->cmd_complete,
 						dev->adapter.timeout);
 	if (!time_left) {
-		dev_err(dev->dev, "controller timed out\n");
 		i2c_recover_bus(adap);
 		dev->buf_len = 0;
 		return -ETIMEDOUT;

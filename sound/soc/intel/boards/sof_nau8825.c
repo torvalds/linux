@@ -24,27 +24,8 @@
 #include "sof_realtek_common.h"
 #include "sof_maxim_common.h"
 #include "sof_nuvoton_common.h"
-#include "sof_ssp_common.h"
 
-#define SOF_NAU8825_SSP_CODEC(quirk)		((quirk) & GENMASK(2, 0))
-#define SOF_NAU8825_SSP_CODEC_MASK		(GENMASK(2, 0))
-#define SOF_NAU8825_SSP_AMP_SHIFT		4
-#define SOF_NAU8825_SSP_AMP_MASK		(GENMASK(6, 4))
-#define SOF_NAU8825_SSP_AMP(quirk)	\
-	(((quirk) << SOF_NAU8825_SSP_AMP_SHIFT) & SOF_NAU8825_SSP_AMP_MASK)
-#define SOF_NAU8825_NUM_HDMIDEV_SHIFT		7
-#define SOF_NAU8825_NUM_HDMIDEV_MASK		(GENMASK(9, 7))
-#define SOF_NAU8825_NUM_HDMIDEV(quirk)	\
-	(((quirk) << SOF_NAU8825_NUM_HDMIDEV_SHIFT) & SOF_NAU8825_NUM_HDMIDEV_MASK)
-
-/* BT audio offload: reserve 3 bits for future */
-#define SOF_BT_OFFLOAD_SSP_SHIFT		10
-#define SOF_BT_OFFLOAD_SSP_MASK		(GENMASK(12, 10))
-#define SOF_BT_OFFLOAD_SSP(quirk)	\
-	(((quirk) << SOF_BT_OFFLOAD_SSP_SHIFT) & SOF_BT_OFFLOAD_SSP_MASK)
-#define SOF_SSP_BT_OFFLOAD_PRESENT		BIT(13)
-
-static unsigned long sof_nau8825_quirk = SOF_NAU8825_SSP_CODEC(0);
+static unsigned long sof_nau8825_quirk = SOF_SSP_PORT_CODEC(0);
 
 static struct snd_soc_jack_pin jack_pins[] = {
 	{
@@ -159,15 +140,11 @@ static int sof_card_late_probe(struct snd_soc_card *card)
 static const struct snd_kcontrol_new sof_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Headphone Jack"),
 	SOC_DAPM_PIN_SWITCH("Headset Mic"),
-	SOC_DAPM_PIN_SWITCH("Left Spk"),
-	SOC_DAPM_PIN_SWITCH("Right Spk"),
 };
 
 static const struct snd_soc_dapm_widget sof_widgets[] = {
 	SND_SOC_DAPM_HP("Headphone Jack", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
-	SND_SOC_DAPM_SPK("Left Spk", NULL),
-	SND_SOC_DAPM_SPK("Right Spk", NULL),
 };
 
 static const struct snd_soc_dapm_route sof_map[] = {
@@ -236,10 +213,7 @@ sof_card_dai_links_create(struct device *dev, struct snd_soc_card *card,
 		max_98360a_dai_link(ctx->amp_link);
 		break;
 	case CODEC_MAX98373:
-		ctx->amp_link->codecs = max_98373_components;
-		ctx->amp_link->num_codecs = ARRAY_SIZE(max_98373_components);
-		ctx->amp_link->init = max_98373_spk_codec_init;
-		ctx->amp_link->ops = &max_98373_ops;
+		max_98373_dai_link(dev, ctx->amp_link);
 		break;
 	case CODEC_NAU8318:
 		nau8318_set_dai_link(ctx->amp_link);
@@ -264,40 +238,18 @@ static int sof_audio_probe(struct platform_device *pdev)
 	struct sof_card_private *ctx;
 	int ret;
 
-	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
-	if (!ctx)
-		return -ENOMEM;
-
 	if (pdev->id_entry && pdev->id_entry->driver_data)
 		sof_nau8825_quirk = (unsigned long)pdev->id_entry->driver_data;
 
-	ctx->codec_type = sof_ssp_detect_codec_type(&pdev->dev);
-	ctx->amp_type = sof_ssp_detect_amp_type(&pdev->dev);
-
 	dev_dbg(&pdev->dev, "sof_nau8825_quirk = %lx\n", sof_nau8825_quirk);
 
-	/* default number of DMIC DAI's */
-	ctx->dmic_be_num = 2;
-	ctx->hdmi_num = (sof_nau8825_quirk & SOF_NAU8825_NUM_HDMIDEV_MASK) >>
-			SOF_NAU8825_NUM_HDMIDEV_SHIFT;
-	/* default number of HDMI DAI's */
-	if (!ctx->hdmi_num)
-		ctx->hdmi_num = 3;
+	/* initialize ctx with board quirk */
+	ctx = sof_intel_board_get_ctx(&pdev->dev, sof_nau8825_quirk);
+	if (!ctx)
+		return -ENOMEM;
 
 	if (mach->mach_params.codec_mask & IDISP_CODEC_MASK)
 		ctx->hdmi.idisp_codec = true;
-
-	/* port number of peripherals attached to ssp interface */
-	ctx->ssp_bt = (sof_nau8825_quirk & SOF_BT_OFFLOAD_SSP_MASK) >>
-			SOF_BT_OFFLOAD_SSP_SHIFT;
-
-	ctx->ssp_amp = (sof_nau8825_quirk & SOF_NAU8825_SSP_AMP_MASK) >>
-			SOF_NAU8825_SSP_AMP_SHIFT;
-
-	ctx->ssp_codec = sof_nau8825_quirk & SOF_NAU8825_SSP_CODEC_MASK;
-
-	if (sof_nau8825_quirk & SOF_SSP_BT_OFFLOAD_PRESENT)
-		ctx->bt_offload_present = true;
 
 	/* update dai_link */
 	ret = sof_card_dai_links_create(&pdev->dev, &sof_audio_card_nau8825, ctx);
@@ -312,10 +264,10 @@ static int sof_audio_probe(struct platform_device *pdev)
 	case CODEC_RT1015P:
 		sof_rt1015p_codec_conf(&sof_audio_card_nau8825);
 		break;
-	case CODEC_NONE:
 	case CODEC_MAX98360A:
 	case CODEC_NAU8318:
 	case CODEC_RT1019P:
+	case CODEC_NONE:
 		/* no codec conf required */
 		break;
 	default:
@@ -339,34 +291,33 @@ static int sof_audio_probe(struct platform_device *pdev)
 
 static const struct platform_device_id board_ids[] = {
 	{
-		.name = "sof_nau8825",
-		.driver_data = (kernel_ulong_t)(SOF_NAU8825_SSP_CODEC(0) |
-					SOF_NAU8825_NUM_HDMIDEV(4) |
-					SOF_BT_OFFLOAD_SSP(2) |
-					SOF_SSP_BT_OFFLOAD_PRESENT),
-
-	},
-	{
 		.name = "adl_rt1019p_8825",
-		.driver_data = (kernel_ulong_t)(SOF_NAU8825_SSP_CODEC(0) |
-					SOF_NAU8825_SSP_AMP(2) |
-					SOF_NAU8825_NUM_HDMIDEV(4)),
+		.driver_data = (kernel_ulong_t)(SOF_SSP_PORT_CODEC(0) |
+					SOF_SSP_PORT_AMP(2) |
+					SOF_NUM_IDISP_HDMI(4)),
 	},
 	{
 		.name = "adl_nau8825_def",
-		.driver_data = (kernel_ulong_t)(SOF_NAU8825_SSP_CODEC(0) |
-					SOF_NAU8825_SSP_AMP(1) |
-					SOF_NAU8825_NUM_HDMIDEV(4) |
-					SOF_BT_OFFLOAD_SSP(2) |
-					SOF_SSP_BT_OFFLOAD_PRESENT),
+		.driver_data = (kernel_ulong_t)(SOF_SSP_PORT_CODEC(0) |
+					SOF_SSP_PORT_AMP(1) |
+					SOF_NUM_IDISP_HDMI(4) |
+					SOF_SSP_PORT_BT_OFFLOAD(2) |
+					SOF_BT_OFFLOAD_PRESENT),
 	},
 	{
 		.name = "rpl_nau8825_def",
-		.driver_data = (kernel_ulong_t)(SOF_NAU8825_SSP_CODEC(0) |
-					SOF_NAU8825_SSP_AMP(1) |
-					SOF_NAU8825_NUM_HDMIDEV(4) |
-					SOF_BT_OFFLOAD_SSP(2) |
-					SOF_SSP_BT_OFFLOAD_PRESENT),
+		.driver_data = (kernel_ulong_t)(SOF_SSP_PORT_CODEC(0) |
+					SOF_SSP_PORT_AMP(1) |
+					SOF_NUM_IDISP_HDMI(4) |
+					SOF_SSP_PORT_BT_OFFLOAD(2) |
+					SOF_BT_OFFLOAD_PRESENT),
+	},
+	{
+		.name = "mtl_nau8825_def",
+		.driver_data = (kernel_ulong_t)(SOF_SSP_PORT_CODEC(2) |
+					SOF_SSP_PORT_AMP(0) |
+					SOF_SSP_PORT_BT_OFFLOAD(1) |
+					SOF_BT_OFFLOAD_PRESENT),
 	},
 	{ }
 };
@@ -392,4 +343,3 @@ MODULE_IMPORT_NS(SND_SOC_INTEL_SOF_BOARD_HELPERS);
 MODULE_IMPORT_NS(SND_SOC_INTEL_SOF_MAXIM_COMMON);
 MODULE_IMPORT_NS(SND_SOC_INTEL_SOF_NUVOTON_COMMON);
 MODULE_IMPORT_NS(SND_SOC_INTEL_SOF_REALTEK_COMMON);
-MODULE_IMPORT_NS(SND_SOC_INTEL_SOF_SSP_COMMON);

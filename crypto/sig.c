@@ -45,16 +45,6 @@ static int __maybe_unused crypto_sig_report(struct sk_buff *skb,
 	return nla_put(skb, CRYPTOCFGA_REPORT_AKCIPHER, sizeof(rsig), &rsig);
 }
 
-static int __maybe_unused crypto_sig_report_stat(struct sk_buff *skb,
-						 struct crypto_alg *alg)
-{
-	struct crypto_stat_akcipher rsig = {};
-
-	strscpy(rsig.type, "sig", sizeof(rsig.type));
-
-	return nla_put(skb, CRYPTOCFGA_STAT_AKCIPHER, sizeof(rsig), &rsig);
-}
-
 static const struct crypto_type crypto_sig_type = {
 	.extsize = crypto_alg_extsize,
 	.init_tfm = crypto_sig_init_tfm,
@@ -63,9 +53,6 @@ static const struct crypto_type crypto_sig_type = {
 #endif
 #if IS_ENABLED(CONFIG_CRYPTO_USER)
 	.report = crypto_sig_report,
-#endif
-#ifdef CONFIG_CRYPTO_STATS
-	.report_stat = crypto_sig_report_stat,
 #endif
 	.maskclear = ~CRYPTO_ALG_TYPE_MASK,
 	.maskset = CRYPTO_ALG_TYPE_SIG_MASK,

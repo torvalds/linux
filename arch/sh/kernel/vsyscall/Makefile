@@ -19,14 +19,14 @@ vsyscall-flags = -shared -s -Wl,-soname=linux-gate.so.1 -Wl,--hash-style=sysv
 SYSCFLAGS_vsyscall-trapa.so	= $(vsyscall-flags)
 
 $(obj)/vsyscall-trapa.so: \
-$(obj)/vsyscall-%.so: $(src)/vsyscall.lds $(obj)/vsyscall-%.o FORCE
+$(obj)/vsyscall-%.so: $(obj)/vsyscall.lds $(obj)/vsyscall-%.o FORCE
 	$(call if_changed,syscall)
 
 # We also create a special relocatable object that should mirror the symbol
 # table and layout of the linked DSO.  With ld -R we can then refer to
 # these symbols in the kernel code rather than hand-coded addresses.
 SYSCFLAGS_vsyscall-dummy.o = -r
-$(obj)/vsyscall-dummy.o: $(src)/vsyscall.lds \
+$(obj)/vsyscall-dummy.o: $(obj)/vsyscall.lds \
 			$(obj)/vsyscall-trapa.o $(obj)/vsyscall-note.o FORCE
 	$(call if_changed,syscall)
 

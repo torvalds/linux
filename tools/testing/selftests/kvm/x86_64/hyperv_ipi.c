@@ -5,8 +5,6 @@
  * Copyright (C) 2022, Red Hat, Inc.
  *
  */
-
-#define _GNU_SOURCE /* for program_invocation_short_name */
 #include <pthread.h>
 #include <inttypes.h>
 
@@ -256,16 +254,13 @@ int main(int argc, char *argv[])
 	hcall_page = vm_vaddr_alloc_pages(vm, 2);
 	memset(addr_gva2hva(vm, hcall_page), 0x0, 2 * getpagesize());
 
-	vm_init_descriptor_tables(vm);
 
 	vcpu[1] = vm_vcpu_add(vm, RECEIVER_VCPU_ID_1, receiver_code);
-	vcpu_init_descriptor_tables(vcpu[1]);
 	vcpu_args_set(vcpu[1], 2, hcall_page, addr_gva2gpa(vm, hcall_page));
 	vcpu_set_msr(vcpu[1], HV_X64_MSR_VP_INDEX, RECEIVER_VCPU_ID_1);
 	vcpu_set_hv_cpuid(vcpu[1]);
 
 	vcpu[2] = vm_vcpu_add(vm, RECEIVER_VCPU_ID_2, receiver_code);
-	vcpu_init_descriptor_tables(vcpu[2]);
 	vcpu_args_set(vcpu[2], 2, hcall_page, addr_gva2gpa(vm, hcall_page));
 	vcpu_set_msr(vcpu[2], HV_X64_MSR_VP_INDEX, RECEIVER_VCPU_ID_2);
 	vcpu_set_hv_cpuid(vcpu[2]);

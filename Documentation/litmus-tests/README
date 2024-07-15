@@ -21,6 +21,51 @@ Atomic-RMW-ops-are-atomic-WRT-atomic_set.litmus
     Test that atomic_set() cannot break the atomicity of atomic RMWs.
     NOTE: Require herd7 7.56 or later which supports "(void)expr".
 
+cmpxchg-fail-ordered-1.litmus
+    Demonstrate that a failing cmpxchg() operation acts as a full barrier
+    when followed by smp_mb__after_atomic().
+
+cmpxchg-fail-ordered-2.litmus
+    Demonstrate that a failing cmpxchg() operation acts as an acquire
+    operation when followed by smp_mb__after_atomic().
+
+cmpxchg-fail-unordered-1.litmus
+    Demonstrate that a failing cmpxchg() operation does not act as a
+    full barrier.
+
+cmpxchg-fail-unordered-2.litmus
+    Demonstrate that a failing cmpxchg() operation does not act as an
+    acquire operation.
+
+
+locking (/locking directory)
+----------------------------
+
+DCL-broken.litmus
+    Demonstrates that double-checked locking needs more than just
+    the obvious lock acquisitions and releases.
+
+DCL-fixed.litmus
+    Demonstrates corrected double-checked locking that uses
+    smp_store_release() and smp_load_acquire() in addition to the
+    obvious lock acquisitions and releases.
+
+RM-broken.litmus
+    Demonstrates problems with "roach motel" locking, where code is
+    freely moved into lock-based critical sections.  This example also
+    shows how to use the "filter" clause to discard executions that
+    would be excluded by other code not modeled in the litmus test.
+    Note also that this "roach motel" optimization is emulated by
+    physically moving P1()'s two reads from x under the lock.
+
+    What is a roach motel?  This is from an old advertisement for
+    a cockroach trap, much later featured in one of the "Men in
+    Black" movies.  "The roaches check in.  They don't check out."
+
+RM-fixed.litmus
+    The counterpart to RM-broken.litmus, showing P0()'s two loads from
+    x safely outside of the critical section.
+
 
 RCU (/rcu directory)
 --------------------

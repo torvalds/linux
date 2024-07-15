@@ -3852,7 +3852,7 @@ static int et131x_change_mtu(struct net_device *netdev, int new_mtu)
 
 	et131x_disable_txrx(netdev);
 
-	netdev->mtu = new_mtu;
+	WRITE_ONCE(netdev->mtu, new_mtu);
 
 	et131x_adapter_memory_free(adapter);
 

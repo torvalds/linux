@@ -16,6 +16,10 @@ definitions:
     name: stringset
     type: enum
     entries: []
+  -
+    name: header-flags
+    type: flags
+    entries: [ compact-bitsets, omit-reply, stats ]
 
 attribute-sets:
   -
@@ -30,6 +34,7 @@ attribute-sets:
       -
         name: flags
         type: u32
+        enum: header-flags
 
   -
     name: bitset-bit
@@ -560,6 +565,18 @@ attribute-sets:
         name: tx-lpi-timer
         type: u32
   -
+    name: ts-stat
+    attributes:
+      -
+        name: tx-pkts
+        type: uint
+      -
+        name: tx-lost
+        type: uint
+      -
+        name: tx-err
+        type: uint
+  -
     name: tsinfo
     attributes:
       -
@@ -581,6 +598,10 @@ attribute-sets:
       -
         name: phc-index
         type: u32
+      -
+        name: stats
+        type: nest
+        nested-attributes: ts-stat
   -
     name: cable-result
     attributes:
@@ -878,17 +899,29 @@ attribute-sets:
         type: nest
         nested-attributes: header
       -
-        name: admin-state
+        name: podl-pse-admin-state
         type: u32
-        name-prefix: ethtool-a-podl-pse-
+        name-prefix: ethtool-a-
       -
-        name: admin-control
+        name: podl-pse-admin-control
         type: u32
-        name-prefix: ethtool-a-podl-pse-
+        name-prefix: ethtool-a-
       -
-        name: pw-d-status
+        name: podl-pse-pw-d-status
         type: u32
-        name-prefix: ethtool-a-podl-pse-
+        name-prefix: ethtool-a-
+      -
+        name: c33-pse-admin-state
+        type: u32
+        name-prefix: ethtool-a-
+      -
+        name: c33-pse-admin-control
+        type: u32
+        name-prefix: ethtool-a-
+      -
+        name: c33-pse-pw-d-status
+        type: u32
+        name-prefix: ethtool-a-
   -
     name: rss
     attributes:
@@ -1388,6 +1421,7 @@ operations:
             - tx-types
             - rx-filters
             - phc-index
+            - stats
       dump: *tsinfo-get-op
     -
       name: cable-test-act
@@ -1569,11 +1603,14 @@ operations:
           attributes:
             - header
         reply:
-          attributes: &pse
+          attributes:
             - header
-            - admin-state
-            - admin-control
-            - pw-d-status
+            - podl-pse-admin-state
+            - podl-pse-admin-control
+            - podl-pse-pw-d-status
+            - c33-pse-admin-state
+            - c33-pse-admin-control
+            - c33-pse-pw-d-status
       dump: *pse-get-op
     -
       name: pse-set
@@ -1583,7 +1620,10 @@ operations:
 
       do:
         request:
-          attributes: *pse
+          attributes:
+            - header
+            - podl-pse-admin-control
+            - c33-pse-admin-control
     -
       name: rss-get
       doc: Get RSS params.

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2023 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  */
 #include <linux/etherdevice.h>
 #include <linux/math64.h>
@@ -553,6 +553,15 @@ iwl_mvm_ftm_put_target(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			break;
 		}
 		rcu_read_unlock();
+
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+		if (mvmvif->ftm_unprotected) {
+			target->sta_id = IWL_MVM_INVALID_STA;
+			target->initiator_ap_flags &=
+				~cpu_to_le32(IWL_INITIATOR_AP_FLAGS_PMF);
+		}
+
+#endif
 	} else {
 		target->sta_id = IWL_MVM_INVALID_STA;
 	}
@@ -715,6 +724,12 @@ iwl_mvm_ftm_set_secured_ranging(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 {
 	struct iwl_mvm_ftm_pasn_entry *entry;
 	u32 flags = le32_to_cpu(target->initiator_ap_flags);
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+	if (mvmvif->ftm_unprotected)
+		return;
+#endif
 
 	if (!(flags & (IWL_INITIATOR_AP_FLAGS_NON_TB |
 		       IWL_INITIATOR_AP_FLAGS_TB)))

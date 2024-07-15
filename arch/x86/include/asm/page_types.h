@@ -31,10 +31,12 @@
 
 #define VM_DATA_DEFAULT_FLAGS	VM_DATA_FLAGS_TSK_EXEC
 
-#define __PHYSICAL_START	ALIGN(CONFIG_PHYSICAL_START, \
-				      CONFIG_PHYSICAL_ALIGN)
+/* Physical address where kernel should be loaded. */
+#define LOAD_PHYSICAL_ADDR ((CONFIG_PHYSICAL_START \
+				+ (CONFIG_PHYSICAL_ALIGN - 1)) \
+				& ~(CONFIG_PHYSICAL_ALIGN - 1))
 
-#define __START_KERNEL		(__START_KERNEL_map + __PHYSICAL_START)
+#define __START_KERNEL		(__START_KERNEL_map + LOAD_PHYSICAL_ADDR)
 
 #ifdef CONFIG_X86_64
 #include <asm/page_64_types.h>

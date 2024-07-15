@@ -4,7 +4,6 @@
  *
  * Copyright (C) 2020, Red Hat, Inc.
  */
-#define _GNU_SOURCE
 #include <linux/kernel.h>
 #include <sys/syscall.h>
 #include <asm/kvm.h>

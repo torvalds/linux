@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * polling/bitbanging SPI master controller driver utilities
+ * Polling/bitbanging SPI host controller controller driver utilities
  */
 
 #include <linux/spinlock.h>
@@ -11,6 +11,7 @@
 #include <linux/errno.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+#include <linux/time64.h>
 
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_bitbang.h>
@@ -168,8 +169,8 @@ int spi_bitbang_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 	if (!hz)
 		hz = spi->max_speed_hz;
 	if (hz) {
-		cs->nsecs = (1000000000/2) / hz;
-		if (cs->nsecs > (MAX_UDELAY_MS * 1000 * 1000))
+		cs->nsecs = (NSEC_PER_SEC / 2) / hz;
+		if (cs->nsecs > (MAX_UDELAY_MS * NSEC_PER_MSEC))
 			return -EINVAL;
 	}
 
@@ -393,12 +394,12 @@ int spi_bitbang_init(struct spi_bitbang *bitbang)
 EXPORT_SYMBOL_GPL(spi_bitbang_init);
 
 /**
- * spi_bitbang_start - start up a polled/bitbanging SPI master driver
+ * spi_bitbang_start - start up a polled/bitbanging SPI host controller driver
  * @bitbang: driver handle
  *
  * Caller should have zero-initialized all parts of the structure, and then
- * provided callbacks for chip selection and I/O loops.  If the master has
- * a transfer method, its final step should call spi_bitbang_transfer; or,
+ * provided callbacks for chip selection and I/O loops.  If the host controller has
+ * a transfer method, its final step should call spi_bitbang_transfer(); or,
  * that's the default if the transfer routine is not initialized.  It should
  * also set up the bus number and number of chipselects.
  *
@@ -406,9 +407,9 @@ EXPORT_SYMBOL_GPL(spi_bitbang_init);
  * hardware that basically exposes a shift register) or per-spi_transfer
  * (which takes better advantage of hardware like fifos or DMA engines).
  *
- * Drivers using per-word I/O loops should use (or call) spi_bitbang_setup,
- * spi_bitbang_cleanup and spi_bitbang_setup_transfer to handle those spi
- * master methods.  Those methods are the defaults if the bitbang->txrx_bufs
+ * Drivers using per-word I/O loops should use (or call) spi_bitbang_setup(),
+ * spi_bitbang_cleanup() and spi_bitbang_setup_transfer() to handle those SPI
+ * host controller methods.  Those methods are the defaults if the bitbang->txrx_bufs
  * routine isn't initialized.
  *
  * This routine registers the spi_controller, which will process requests in a
@@ -417,7 +418,7 @@ EXPORT_SYMBOL_GPL(spi_bitbang_init);
  *
  * On success, this routine will take a reference to the controller. The caller
  * is responsible for calling spi_bitbang_stop() to decrement the reference and
- * spi_controller_put() as counterpart of spi_alloc_master() to prevent a memory
+ * spi_controller_put() as counterpart of spi_alloc_host() to prevent a memory
  * leak.
  */
 int spi_bitbang_start(struct spi_bitbang *bitbang)
@@ -450,4 +451,4 @@ void spi_bitbang_stop(struct spi_bitbang *bitbang)
 EXPORT_SYMBOL_GPL(spi_bitbang_stop);
 
 MODULE_LICENSE("GPL");
-
+MODULE_DESCRIPTION("Utilities for Bitbanging SPI host controllers");

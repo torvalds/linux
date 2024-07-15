@@ -161,6 +161,14 @@ enum {
 
 #define IFLA_VTI_MAX	(__IFLA_VTI_MAX - 1)
 
+#ifndef __KERNEL__
+/* Historically, tunnel flags have been defined as __be16 and now there are
+ * no free bits left. It is strongly advised to switch the already existing
+ * userspace code to the new *_BIT definitions from down below, as __be16
+ * can't be simply cast to a wider type on LE systems. All new flags and
+ * code must use *_BIT only.
+ */
+
 #define TUNNEL_CSUM		__cpu_to_be16(0x01)
 #define TUNNEL_ROUTING		__cpu_to_be16(0x02)
 #define TUNNEL_KEY		__cpu_to_be16(0x04)
@@ -181,5 +189,33 @@ enum {
 #define TUNNEL_OPTIONS_PRESENT \
 		(TUNNEL_GENEVE_OPT | TUNNEL_VXLAN_OPT | TUNNEL_ERSPAN_OPT | \
 		TUNNEL_GTP_OPT)
+#endif
+
+enum {
+	IP_TUNNEL_CSUM_BIT		= 0U,
+	IP_TUNNEL_ROUTING_BIT,
+	IP_TUNNEL_KEY_BIT,
+	IP_TUNNEL_SEQ_BIT,
+	IP_TUNNEL_STRICT_BIT,
+	IP_TUNNEL_REC_BIT,
+	IP_TUNNEL_VERSION_BIT,
+	IP_TUNNEL_NO_KEY_BIT,
+	IP_TUNNEL_DONT_FRAGMENT_BIT,
+	IP_TUNNEL_OAM_BIT,
+	IP_TUNNEL_CRIT_OPT_BIT,
+	IP_TUNNEL_GENEVE_OPT_BIT,	/* OPTIONS_PRESENT */
+	IP_TUNNEL_VXLAN_OPT_BIT,	/* OPTIONS_PRESENT */
+	IP_TUNNEL_NOCACHE_BIT,
+	IP_TUNNEL_ERSPAN_OPT_BIT,	/* OPTIONS_PRESENT */
+	IP_TUNNEL_GTP_OPT_BIT,		/* OPTIONS_PRESENT */
+
+	IP_TUNNEL_VTI_BIT,
+	IP_TUNNEL_SIT_ISATAP_BIT	= IP_TUNNEL_VTI_BIT,
+
+	/* Flags starting from here are not available via the old UAPI */
+	IP_TUNNEL_PFCP_OPT_BIT,		/* OPTIONS_PRESENT */
+
+	__IP_TUNNEL_FLAG_NUM,
+};
 
 #endif /* _UAPI_IF_TUNNEL_H_ */

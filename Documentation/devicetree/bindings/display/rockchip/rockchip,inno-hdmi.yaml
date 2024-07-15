@@ -37,6 +37,9 @@ properties:
   power-domains:
     maxItems: 1
 
+  "#sound-dai-cells":
+    const: 0
+
   ports:
     $ref: /schemas/graph.yaml#/properties/ports
 
@@ -66,6 +69,7 @@ required:
   - ports
 
 allOf:
+  - $ref: /schemas/sound/dai-common.yaml#
   - if:
       properties:
         compatible:
@@ -106,6 +110,7 @@ examples:
       clock-names = "pclk";
       pinctrl-names = "default";
       pinctrl-0 = <&hdmi_ctl>;
+      #sound-dai-cells = <0>;
 
       ports {
         #address-cells = <1>;

@@ -52,7 +52,7 @@
 		ethernet0 = &esp8089;
 	};
 
-	wifi_pwrseq: wifi_pwrseq {
+	wifi_pwrseq: pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		reset-gpios = <&r_pio 0 6 GPIO_ACTIVE_LOW>; /* PL6 */
 		/* The esp8089 needs 200 ms after driving wifi-en high */
@@ -69,7 +69,7 @@
 	non-removable;
 	status = "okay";
 
-	esp8089: sdio_wifi@1 {
+	esp8089: wifi@1 {
 		compatible = "esp,esp8089";
 		reg = <1>;
 		esp,crystal-26M-en = <2>;

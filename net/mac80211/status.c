@@ -5,7 +5,7 @@
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2008-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
- * Copyright 2021-2023  Intel Corporation
+ * Copyright 2021-2024  Intel Corporation
  */
 
 #include <linux/export.h>
@@ -696,6 +696,23 @@ static void ieee80211_handle_smps_status(struct ieee80211_sub_if_data *sdata,
 	wiphy_work_queue(sdata->local->hw.wiphy, &link->u.mgd.recalc_smps);
 }
 
+static void
+ieee80211_handle_teardown_ttlm_status(struct ieee80211_sub_if_data *sdata,
+				      bool acked)
+{
+	if (!sdata || !ieee80211_sdata_running(sdata))
+		return;
+
+	if (!acked)
+		return;
+
+	if (sdata->vif.type != NL80211_IFTYPE_STATION)
+		return;
+
+	wiphy_work_queue(sdata->local->hw.wiphy,
+			 &sdata->u.mgd.teardown_ttlm_work);
+}
+
 static void ieee80211_report_used_skb(struct ieee80211_local *local,
 				      struct sk_buff *skb, bool dropped,
 				      ktime_t ack_hwtstamp)
@@ -772,6 +789,9 @@ static void ieee80211_report_used_skb(struct ieee80211_local *local,
 		case IEEE80211_STATUS_TYPE_SMPS:
 			ieee80211_handle_smps_status(sdata, acked,
 						     info->status_data);
+			break;
+		case IEEE80211_STATUS_TYPE_NEG_TTLM:
+			ieee80211_handle_teardown_ttlm_status(sdata, acked);
 			break;
 		}
 		rcu_read_unlock();

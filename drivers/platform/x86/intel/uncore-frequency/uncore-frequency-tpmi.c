@@ -240,6 +240,7 @@ static int uncore_probe(struct auxiliary_device *auxdev, const struct auxiliary_
 	bool read_blocked = 0, write_blocked = 0;
 	struct intel_tpmi_plat_info *plat_info;
 	struct tpmi_uncore_struct *tpmi_uncore;
+	bool uncore_sysfs_added = false;
 	int ret, i, pkg = 0;
 	int num_resources;
 
@@ -384,7 +385,13 @@ static int uncore_probe(struct auxiliary_device *auxdev, const struct auxiliary_
 			}
 			/* Point to next cluster offset */
 			cluster_offset >>= UNCORE_MAX_CLUSTER_PER_DOMAIN;
+			uncore_sysfs_added = true;
 		}
+	}
+
+	if (!uncore_sysfs_added) {
+		ret = -ENODEV;
+		goto remove_clusters;
 	}
 
 	auxiliary_set_drvdata(auxdev, tpmi_uncore);

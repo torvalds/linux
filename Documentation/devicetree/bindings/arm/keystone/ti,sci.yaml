@@ -61,10 +61,6 @@ properties:
   mboxes:
     minItems: 2
 
-  ti,system-reboot-controller:
-    description: Determines If system reboot can be triggered by SoC reboot
-    type: boolean
-
   ti,host-id:
     $ref: /schemas/types.yaml#/definitions/uint32
     description: |
@@ -94,7 +90,6 @@ examples:
   - |
     pmmc: system-controller@2921800 {
       compatible = "ti,k2g-sci";
-      ti,system-reboot-controller;
       mbox-names = "rx", "tx";
       mboxes = <&msgmgr 5 2>,
                <&msgmgr 0 0>;

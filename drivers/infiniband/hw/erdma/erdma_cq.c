@@ -26,7 +26,7 @@ static void notify_cq(struct erdma_cq *cq, u8 solcitied)
 		FIELD_PREP(ERDMA_CQDB_CMDSN_MASK, cq->kern_cq.cmdsn) |
 		FIELD_PREP(ERDMA_CQDB_CI_MASK, cq->kern_cq.ci);
 
-	*cq->kern_cq.db_record = db_data;
+	*cq->kern_cq.dbrec = db_data;
 	writeq(db_data, cq->kern_cq.db);
 }
 

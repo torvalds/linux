@@ -9,7 +9,7 @@ PMU with device name l3cache_<socket>_<instance>. User space is responsible
 for aggregating across slices.
 
 The driver provides a description of its available events and configuration
-options in sysfs, see /sys/devices/l3cache*. Given that these are uncore PMUs
+options in sysfs, see /sys/bus/event_source/devices/l3cache*. Given that these are uncore PMUs
 the driver also exposes a "cpumask" sysfs attribute which contains a mask
 consisting of one CPU per socket which will be used to handle all the PMU
 events on that socket.

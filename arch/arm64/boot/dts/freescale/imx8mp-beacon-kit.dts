@@ -340,7 +340,7 @@
 &i2c3 {
 	/* Connected to USB Hub */
 	usb-typec@52 {
-		compatible = "nxp,ptn5110";
+		compatible = "nxp,ptn5110", "tcpci";
 		reg = <0x52>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_typec>;

@@ -12,6 +12,8 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
 
+#include "bind_prog.h"
+
 #define SERV4_IP		0xc0a801feU /* 192.168.1.254 */
 #define SERV4_PORT		4040
 #define SERV4_REWRITE_IP	0x7f000001U /* 127.0.0.1 */
@@ -118,23 +120,23 @@ int bind_v4_prog(struct bpf_sock_addr *ctx)
 
 	// u8 narrow loads:
 	user_ip4 = 0;
-	user_ip4 |= ((volatile __u8 *)&ctx->user_ip4)[0] << 0;
-	user_ip4 |= ((volatile __u8 *)&ctx->user_ip4)[1] << 8;
-	user_ip4 |= ((volatile __u8 *)&ctx->user_ip4)[2] << 16;
-	user_ip4 |= ((volatile __u8 *)&ctx->user_ip4)[3] << 24;
+	user_ip4 |= load_byte(ctx->user_ip4, 0, sizeof(user_ip4));
+	user_ip4 |= load_byte(ctx->user_ip4, 1, sizeof(user_ip4));
+	user_ip4 |= load_byte(ctx->user_ip4, 2, sizeof(user_ip4));
+	user_ip4 |= load_byte(ctx->user_ip4, 3, sizeof(user_ip4));
 	if (ctx->user_ip4 != user_ip4)
 		return 0;
 
 	user_port = 0;
-	user_port |= ((volatile __u8 *)&ctx->user_port)[0] << 0;
-	user_port |= ((volatile __u8 *)&ctx->user_port)[1] << 8;
+	user_port |= load_byte(ctx->user_port, 0, sizeof(user_port));
+	user_port |= load_byte(ctx->user_port, 1, sizeof(user_port));
 	if (ctx->user_port != user_port)
 		return 0;
 
 	// u16 narrow loads:
 	user_ip4 = 0;
-	user_ip4 |= ((volatile __u16 *)&ctx->user_ip4)[0] << 0;
-	user_ip4 |= ((volatile __u16 *)&ctx->user_ip4)[1] << 16;
+	user_ip4 |= load_word(ctx->user_ip4, 0, sizeof(user_ip4));
+	user_ip4 |= load_word(ctx->user_ip4, 1, sizeof(user_ip4));
 	if (ctx->user_ip4 != user_ip4)
 		return 0;
 
@@ -154,6 +156,12 @@ int bind_v4_prog(struct bpf_sock_addr *ctx)
 	ctx->user_port = bpf_htons(SERV4_REWRITE_PORT);
 
 	return 1;
+}
+
+SEC("cgroup/bind4")
+int bind_v4_deny_prog(struct bpf_sock_addr *ctx)
+{
+	return 0;
 }
 
 char _license[] SEC("license") = "GPL";

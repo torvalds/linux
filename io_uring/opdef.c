@@ -67,7 +67,8 @@ const struct io_issue_def io_issue_defs[] = {
 		.iopoll			= 1,
 		.iopoll_queue		= 1,
 		.vectored		= 1,
-		.prep			= io_prep_rwv,
+		.async_size		= sizeof(struct io_async_rw),
+		.prep			= io_prep_readv,
 		.issue			= io_read,
 	},
 	[IORING_OP_WRITEV] = {
@@ -81,7 +82,8 @@ const struct io_issue_def io_issue_defs[] = {
 		.iopoll			= 1,
 		.iopoll_queue		= 1,
 		.vectored		= 1,
-		.prep			= io_prep_rwv,
+		.async_size		= sizeof(struct io_async_rw),
+		.prep			= io_prep_writev,
 		.issue			= io_write,
 	},
 	[IORING_OP_FSYNC] = {
@@ -99,7 +101,8 @@ const struct io_issue_def io_issue_defs[] = {
 		.ioprio			= 1,
 		.iopoll			= 1,
 		.iopoll_queue		= 1,
-		.prep			= io_prep_rw_fixed,
+		.async_size		= sizeof(struct io_async_rw),
+		.prep			= io_prep_read_fixed,
 		.issue			= io_read,
 	},
 	[IORING_OP_WRITE_FIXED] = {
@@ -112,7 +115,8 @@ const struct io_issue_def io_issue_defs[] = {
 		.ioprio			= 1,
 		.iopoll			= 1,
 		.iopoll_queue		= 1,
-		.prep			= io_prep_rw_fixed,
+		.async_size		= sizeof(struct io_async_rw),
+		.prep			= io_prep_write_fixed,
 		.issue			= io_write,
 	},
 	[IORING_OP_POLL_ADD] = {
@@ -138,8 +142,8 @@ const struct io_issue_def io_issue_defs[] = {
 		.unbound_nonreg_file	= 1,
 		.pollout		= 1,
 		.ioprio			= 1,
-		.manual_alloc		= 1,
 #if defined(CONFIG_NET)
+		.async_size		= sizeof(struct io_async_msghdr),
 		.prep			= io_sendmsg_prep,
 		.issue			= io_sendmsg,
 #else
@@ -152,8 +156,8 @@ const struct io_issue_def io_issue_defs[] = {
 		.pollin			= 1,
 		.buffer_select		= 1,
 		.ioprio			= 1,
-		.manual_alloc		= 1,
 #if defined(CONFIG_NET)
+		.async_size		= sizeof(struct io_async_msghdr),
 		.prep			= io_recvmsg_prep,
 		.issue			= io_recvmsg,
 #else
@@ -162,6 +166,7 @@ const struct io_issue_def io_issue_defs[] = {
 	},
 	[IORING_OP_TIMEOUT] = {
 		.audit_skip		= 1,
+		.async_size		= sizeof(struct io_timeout_data),
 		.prep			= io_timeout_prep,
 		.issue			= io_timeout,
 	},
@@ -191,6 +196,7 @@ const struct io_issue_def io_issue_defs[] = {
 	},
 	[IORING_OP_LINK_TIMEOUT] = {
 		.audit_skip		= 1,
+		.async_size		= sizeof(struct io_timeout_data),
 		.prep			= io_link_timeout_prep,
 		.issue			= io_no_issue,
 	},
@@ -199,6 +205,7 @@ const struct io_issue_def io_issue_defs[] = {
 		.unbound_nonreg_file	= 1,
 		.pollout		= 1,
 #if defined(CONFIG_NET)
+		.async_size		= sizeof(struct io_async_msghdr),
 		.prep			= io_connect_prep,
 		.issue			= io_connect,
 #else
@@ -239,7 +246,8 @@ const struct io_issue_def io_issue_defs[] = {
 		.ioprio			= 1,
 		.iopoll			= 1,
 		.iopoll_queue		= 1,
-		.prep			= io_prep_rw,
+		.async_size		= sizeof(struct io_async_rw),
+		.prep			= io_prep_read,
 		.issue			= io_read,
 	},
 	[IORING_OP_WRITE] = {
@@ -252,7 +260,8 @@ const struct io_issue_def io_issue_defs[] = {
 		.ioprio			= 1,
 		.iopoll			= 1,
 		.iopoll_queue		= 1,
-		.prep			= io_prep_rw,
+		.async_size		= sizeof(struct io_async_rw),
+		.prep			= io_prep_write,
 		.issue			= io_write,
 	},
 	[IORING_OP_FADVISE] = {
@@ -272,8 +281,9 @@ const struct io_issue_def io_issue_defs[] = {
 		.pollout		= 1,
 		.audit_skip		= 1,
 		.ioprio			= 1,
-		.manual_alloc		= 1,
+		.buffer_select		= 1,
 #if defined(CONFIG_NET)
+		.async_size		= sizeof(struct io_async_msghdr),
 		.prep			= io_sendmsg_prep,
 		.issue			= io_send,
 #else
@@ -288,6 +298,7 @@ const struct io_issue_def io_issue_defs[] = {
 		.audit_skip		= 1,
 		.ioprio			= 1,
 #if defined(CONFIG_NET)
+		.async_size		= sizeof(struct io_async_msghdr),
 		.prep			= io_recvmsg_prep,
 		.issue			= io_recv,
 #else
@@ -403,6 +414,7 @@ const struct io_issue_def io_issue_defs[] = {
 		.plug			= 1,
 		.iopoll			= 1,
 		.iopoll_queue		= 1,
+		.async_size		= 2 * sizeof(struct io_uring_sqe),
 		.prep			= io_uring_cmd_prep,
 		.issue			= io_uring_cmd,
 	},
@@ -412,8 +424,8 @@ const struct io_issue_def io_issue_defs[] = {
 		.pollout		= 1,
 		.audit_skip		= 1,
 		.ioprio			= 1,
-		.manual_alloc		= 1,
 #if defined(CONFIG_NET)
+		.async_size		= sizeof(struct io_async_msghdr),
 		.prep			= io_send_zc_prep,
 		.issue			= io_send_zc,
 #else
@@ -425,8 +437,8 @@ const struct io_issue_def io_issue_defs[] = {
 		.unbound_nonreg_file	= 1,
 		.pollout		= 1,
 		.ioprio			= 1,
-		.manual_alloc		= 1,
 #if defined(CONFIG_NET)
+		.async_size		= sizeof(struct io_async_msghdr),
 		.prep			= io_send_zc_prep,
 		.issue			= io_sendmsg_zc,
 #else
@@ -439,10 +451,12 @@ const struct io_issue_def io_issue_defs[] = {
 		.pollin			= 1,
 		.buffer_select		= 1,
 		.audit_skip		= 1,
+		.async_size		= sizeof(struct io_async_rw),
 		.prep			= io_read_mshot_prep,
 		.issue			= io_read_mshot,
 	},
 	[IORING_OP_WAITID] = {
+		.async_size		= sizeof(struct io_waitid_async),
 		.prep			= io_waitid_prep,
 		.issue			= io_waitid,
 	},
@@ -488,16 +502,12 @@ const struct io_cold_def io_cold_defs[] = {
 		.name			= "NOP",
 	},
 	[IORING_OP_READV] = {
-		.async_size		= sizeof(struct io_async_rw),
 		.name			= "READV",
-		.prep_async		= io_readv_prep_async,
 		.cleanup		= io_readv_writev_cleanup,
 		.fail			= io_rw_fail,
 	},
 	[IORING_OP_WRITEV] = {
-		.async_size		= sizeof(struct io_async_rw),
 		.name			= "WRITEV",
-		.prep_async		= io_writev_prep_async,
 		.cleanup		= io_readv_writev_cleanup,
 		.fail			= io_rw_fail,
 	},
@@ -505,13 +515,13 @@ const struct io_cold_def io_cold_defs[] = {
 		.name			= "FSYNC",
 	},
 	[IORING_OP_READ_FIXED] = {
-		.async_size		= sizeof(struct io_async_rw),
 		.name			= "READ_FIXED",
+		.cleanup		= io_readv_writev_cleanup,
 		.fail			= io_rw_fail,
 	},
 	[IORING_OP_WRITE_FIXED] = {
-		.async_size		= sizeof(struct io_async_rw),
 		.name			= "WRITE_FIXED",
+		.cleanup		= io_readv_writev_cleanup,
 		.fail			= io_rw_fail,
 	},
 	[IORING_OP_POLL_ADD] = {
@@ -526,8 +536,6 @@ const struct io_cold_def io_cold_defs[] = {
 	[IORING_OP_SENDMSG] = {
 		.name			= "SENDMSG",
 #if defined(CONFIG_NET)
-		.async_size		= sizeof(struct io_async_msghdr),
-		.prep_async		= io_sendmsg_prep_async,
 		.cleanup		= io_sendmsg_recvmsg_cleanup,
 		.fail			= io_sendrecv_fail,
 #endif
@@ -535,14 +543,11 @@ const struct io_cold_def io_cold_defs[] = {
 	[IORING_OP_RECVMSG] = {
 		.name			= "RECVMSG",
 #if defined(CONFIG_NET)
-		.async_size		= sizeof(struct io_async_msghdr),
-		.prep_async		= io_recvmsg_prep_async,
 		.cleanup		= io_sendmsg_recvmsg_cleanup,
 		.fail			= io_sendrecv_fail,
 #endif
 	},
 	[IORING_OP_TIMEOUT] = {
-		.async_size		= sizeof(struct io_timeout_data),
 		.name			= "TIMEOUT",
 	},
 	[IORING_OP_TIMEOUT_REMOVE] = {
@@ -555,15 +560,10 @@ const struct io_cold_def io_cold_defs[] = {
 		.name			= "ASYNC_CANCEL",
 	},
 	[IORING_OP_LINK_TIMEOUT] = {
-		.async_size		= sizeof(struct io_timeout_data),
 		.name			= "LINK_TIMEOUT",
 	},
 	[IORING_OP_CONNECT] = {
 		.name			= "CONNECT",
-#if defined(CONFIG_NET)
-		.async_size		= sizeof(struct io_async_connect),
-		.prep_async		= io_connect_prep_async,
-#endif
 	},
 	[IORING_OP_FALLOCATE] = {
 		.name			= "FALLOCATE",
@@ -583,13 +583,13 @@ const struct io_cold_def io_cold_defs[] = {
 		.cleanup		= io_statx_cleanup,
 	},
 	[IORING_OP_READ] = {
-		.async_size		= sizeof(struct io_async_rw),
 		.name			= "READ",
+		.cleanup		= io_readv_writev_cleanup,
 		.fail			= io_rw_fail,
 	},
 	[IORING_OP_WRITE] = {
-		.async_size		= sizeof(struct io_async_rw),
 		.name			= "WRITE",
+		.cleanup		= io_readv_writev_cleanup,
 		.fail			= io_rw_fail,
 	},
 	[IORING_OP_FADVISE] = {
@@ -601,14 +601,14 @@ const struct io_cold_def io_cold_defs[] = {
 	[IORING_OP_SEND] = {
 		.name			= "SEND",
 #if defined(CONFIG_NET)
-		.async_size		= sizeof(struct io_async_msghdr),
+		.cleanup		= io_sendmsg_recvmsg_cleanup,
 		.fail			= io_sendrecv_fail,
-		.prep_async		= io_send_prep_async,
 #endif
 	},
 	[IORING_OP_RECV] = {
 		.name			= "RECV",
 #if defined(CONFIG_NET)
+		.cleanup		= io_sendmsg_recvmsg_cleanup,
 		.fail			= io_sendrecv_fail,
 #endif
 	},
@@ -679,14 +679,10 @@ const struct io_cold_def io_cold_defs[] = {
 	},
 	[IORING_OP_URING_CMD] = {
 		.name			= "URING_CMD",
-		.async_size		= 2 * sizeof(struct io_uring_sqe),
-		.prep_async		= io_uring_cmd_prep_async,
 	},
 	[IORING_OP_SEND_ZC] = {
 		.name			= "SEND_ZC",
 #if defined(CONFIG_NET)
-		.async_size		= sizeof(struct io_async_msghdr),
-		.prep_async		= io_send_prep_async,
 		.cleanup		= io_send_zc_cleanup,
 		.fail			= io_sendrecv_fail,
 #endif
@@ -694,18 +690,16 @@ const struct io_cold_def io_cold_defs[] = {
 	[IORING_OP_SENDMSG_ZC] = {
 		.name			= "SENDMSG_ZC",
 #if defined(CONFIG_NET)
-		.async_size		= sizeof(struct io_async_msghdr),
-		.prep_async		= io_sendmsg_prep_async,
 		.cleanup		= io_send_zc_cleanup,
 		.fail			= io_sendrecv_fail,
 #endif
 	},
 	[IORING_OP_READ_MULTISHOT] = {
 		.name			= "READ_MULTISHOT",
+		.cleanup		= io_readv_writev_cleanup,
 	},
 	[IORING_OP_WAITID] = {
 		.name			= "WAITID",
-		.async_size		= sizeof(struct io_waitid_async),
 	},
 	[IORING_OP_FUTEX_WAIT] = {
 		.name			= "FUTEX_WAIT",

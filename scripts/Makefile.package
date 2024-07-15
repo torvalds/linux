@@ -103,7 +103,7 @@ debian-orig: private version = $(shell dpkg-parsechangelog -S Version | sed 's/-
 debian-orig: private orig-name = $(source)_$(version).orig.tar$(debian-orig-suffix)
 debian-orig: mkdebian-opts = --need-source
 debian-orig: linux.tar$(debian-orig-suffix) debian
-	$(Q)if [ "$(df  --output=target .. 2>/dev/null)" = "$(df --output=target $< 2>/dev/null)" ]; then \
+	$(Q)if [ "$$(df  --output=target .. 2>/dev/null)" = "$$(df --output=target $< 2>/dev/null)" ]; then \
 		ln -f $< ../$(orig-name); \
 	else \
 		cp $< ../$(orig-name); \

@@ -1444,7 +1444,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "This event is deprecated. Refer to new event UNC_CHA_LLC_LOOKUP.DATA_READ_LOCAL",
+        "BriefDescription": "This event is deprecated.",
         "Deprecated": "1",
         "EventCode": "0x34",
         "EventName": "UNC_CHA_LLC_LOOKUP.DMND_READ_LOCAL",
@@ -1638,7 +1638,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "This event is deprecated. Refer to new event UNC_CHA_LLC_LOOKUP.RFO_LOCAL",
+        "BriefDescription": "This event is deprecated.",
         "Deprecated": "1",
         "EventCode": "0x34",
         "EventName": "UNC_CHA_LLC_LOOKUP.RFO_PREF_LOCAL",

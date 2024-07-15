@@ -65,10 +65,14 @@
 	SF(OTG0_OTG_CRC1_WINDOWB_X_CONTROL_READBACK, OTG_CRC1_WINDOWB_X_END_READBACK, mask_sh),\
 	SF(OTG0_OTG_CRC1_WINDOWB_Y_CONTROL_READBACK, OTG_CRC1_WINDOWB_Y_START_READBACK, mask_sh),\
 	SF(OTG0_OTG_CRC1_WINDOWB_Y_CONTROL_READBACK, OTG_CRC1_WINDOWB_Y_END_READBACK, mask_sh),\
-	SF(OPTC_CLOCK_CONTROL, OPTC_FGCG_REP_DIS, mask_sh)
+	SF(OPTC_CLOCK_CONTROL, OPTC_FGCG_REP_DIS, mask_sh),\
+	SF(OTG0_OTG_V_COUNT_STOP_CONTROL, OTG_V_COUNT_STOP, mask_sh),\
+	SF(OTG0_OTG_V_COUNT_STOP_CONTROL2, OTG_V_COUNT_STOP_TIMER, mask_sh)
 
 void dcn35_timing_generator_init(struct optc *optc1);
 
 void dcn35_timing_generator_set_fgcg(struct optc *optc1, bool enable);
+
+void optc35_set_drr(struct timing_generator *optc, const struct drr_params *params);
 
 #endif /* __DC_OPTC_DCN35_H__ */

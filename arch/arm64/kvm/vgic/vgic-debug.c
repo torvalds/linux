@@ -28,15 +28,29 @@ struct vgic_state_iter {
 	int nr_lpis;
 	int dist_id;
 	int vcpu_id;
-	int intid;
+	unsigned long intid;
 	int lpi_idx;
-	u32 *lpi_array;
 };
 
-static void iter_next(struct vgic_state_iter *iter)
+static void iter_next(struct kvm *kvm, struct vgic_state_iter *iter)
 {
+	struct vgic_dist *dist = &kvm->arch.vgic;
+
 	if (iter->dist_id == 0) {
 		iter->dist_id++;
+		return;
+	}
+
+	/*
+	 * Let the xarray drive the iterator after the last SPI, as the iterator
+	 * has exhausted the sequentially-allocated INTID space.
+	 */
+	if (iter->intid >= (iter->nr_spis + VGIC_NR_PRIVATE_IRQS - 1)) {
+		if (iter->lpi_idx < iter->nr_lpis)
+			xa_find_after(&dist->lpi_xa, &iter->intid,
+				      VGIC_LPI_MAX_INTID,
+				      LPI_XA_MARK_DEBUG_ITER);
+		iter->lpi_idx++;
 		return;
 	}
 
@@ -44,11 +58,35 @@ static void iter_next(struct vgic_state_iter *iter)
 	if (iter->intid == VGIC_NR_PRIVATE_IRQS &&
 	    ++iter->vcpu_id < iter->nr_cpus)
 		iter->intid = 0;
+}
 
-	if (iter->intid >= (iter->nr_spis + VGIC_NR_PRIVATE_IRQS)) {
-		if (iter->lpi_idx < iter->nr_lpis)
-			iter->intid = iter->lpi_array[iter->lpi_idx];
-		iter->lpi_idx++;
+static int iter_mark_lpis(struct kvm *kvm)
+{
+	struct vgic_dist *dist = &kvm->arch.vgic;
+	struct vgic_irq *irq;
+	unsigned long intid;
+	int nr_lpis = 0;
+
+	xa_for_each(&dist->lpi_xa, intid, irq) {
+		if (!vgic_try_get_irq_kref(irq))
+			continue;
+
+		xa_set_mark(&dist->lpi_xa, intid, LPI_XA_MARK_DEBUG_ITER);
+		nr_lpis++;
+	}
+
+	return nr_lpis;
+}
+
+static void iter_unmark_lpis(struct kvm *kvm)
+{
+	struct vgic_dist *dist = &kvm->arch.vgic;
+	struct vgic_irq *irq;
+	unsigned long intid;
+
+	xa_for_each(&dist->lpi_xa, intid, irq) {
+		xa_clear_mark(&dist->lpi_xa, intid, LPI_XA_MARK_DEBUG_ITER);
+		vgic_put_irq(kvm, irq);
 	}
 }
 
@@ -61,15 +99,12 @@ static void iter_init(struct kvm *kvm, struct vgic_state_iter *iter,
 
 	iter->nr_cpus = nr_cpus;
 	iter->nr_spis = kvm->arch.vgic.nr_spis;
-	if (kvm->arch.vgic.vgic_model == KVM_DEV_TYPE_ARM_VGIC_V3) {
-		iter->nr_lpis = vgic_copy_lpi_list(kvm, NULL, &iter->lpi_array);
-		if (iter->nr_lpis < 0)
-			iter->nr_lpis = 0;
-	}
+	if (kvm->arch.vgic.vgic_model == KVM_DEV_TYPE_ARM_VGIC_V3)
+		iter->nr_lpis = iter_mark_lpis(kvm);
 
 	/* Fast forward to the right position if needed */
 	while (pos--)
-		iter_next(iter);
+		iter_next(kvm, iter);
 }
 
 static bool end_of_vgic(struct vgic_state_iter *iter)
@@ -114,7 +149,7 @@ static void *vgic_debug_next(struct seq_file *s, void *v, loff_t *pos)
 	struct vgic_state_iter *iter = kvm->arch.vgic.iter;
 
 	++*pos;
-	iter_next(iter);
+	iter_next(kvm, iter);
 	if (end_of_vgic(iter))
 		iter = NULL;
 	return iter;
@@ -134,13 +169,14 @@ static void vgic_debug_stop(struct seq_file *s, void *v)
 
 	mutex_lock(&kvm->arch.config_lock);
 	iter = kvm->arch.vgic.iter;
-	kfree(iter->lpi_array);
+	iter_unmark_lpis(kvm);
 	kfree(iter);
 	kvm->arch.vgic.iter = NULL;
 	mutex_unlock(&kvm->arch.config_lock);
 }
 
-static void print_dist_state(struct seq_file *s, struct vgic_dist *dist)
+static void print_dist_state(struct seq_file *s, struct vgic_dist *dist,
+			     struct vgic_state_iter *iter)
 {
 	bool v3 = dist->vgic_model == KVM_DEV_TYPE_ARM_VGIC_V3;
 
@@ -149,7 +185,7 @@ static void print_dist_state(struct seq_file *s, struct vgic_dist *dist)
 	seq_printf(s, "vgic_model:\t%s\n", v3 ? "GICv3" : "GICv2");
 	seq_printf(s, "nr_spis:\t%d\n", dist->nr_spis);
 	if (v3)
-		seq_printf(s, "nr_lpis:\t%d\n", atomic_read(&dist->lpi_count));
+		seq_printf(s, "nr_lpis:\t%d\n", iter->nr_lpis);
 	seq_printf(s, "enabled:\t%d\n", dist->enabled);
 	seq_printf(s, "\n");
 
@@ -236,7 +272,7 @@ static int vgic_debug_show(struct seq_file *s, void *v)
 	unsigned long flags;
 
 	if (iter->dist_id == 0) {
-		print_dist_state(s, &kvm->arch.vgic);
+		print_dist_state(s, &kvm->arch.vgic, iter);
 		return 0;
 	}
 
@@ -246,11 +282,13 @@ static int vgic_debug_show(struct seq_file *s, void *v)
 	if (iter->vcpu_id < iter->nr_cpus)
 		vcpu = kvm_get_vcpu(kvm, iter->vcpu_id);
 
+	/*
+	 * Expect this to succeed, as iter_mark_lpis() takes a reference on
+	 * every LPI to be visited.
+	 */
 	irq = vgic_get_irq(kvm, vcpu, iter->intid);
-	if (!irq) {
-		seq_printf(s, "       LPI %4d freed\n", iter->intid);
-		return 0;
-	}
+	if (WARN_ON_ONCE(!irq))
+		return -EINVAL;
 
 	raw_spin_lock_irqsave(&irq->irq_lock, flags);
 	print_irq_state(s, irq, vcpu);

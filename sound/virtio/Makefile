@@ -2,7 +2,7 @@
 
 obj-$(CONFIG_SND_VIRTIO) += virtio_snd.o
 
-virtio_snd-objs := \
+virtio_snd-y := \
 	virtio_card.o \
 	virtio_chmap.o \
 	virtio_ctl_msg.o \

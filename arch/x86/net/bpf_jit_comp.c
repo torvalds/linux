@@ -816,9 +816,10 @@ done:
 static void emit_mov_imm64(u8 **pprog, u32 dst_reg,
 			   const u32 imm32_hi, const u32 imm32_lo)
 {
+	u64 imm64 = ((u64)imm32_hi << 32) | (u32)imm32_lo;
 	u8 *prog = *pprog;
 
-	if (is_uimm32(((u64)imm32_hi << 32) | (u32)imm32_lo)) {
+	if (is_uimm32(imm64)) {
 		/*
 		 * For emitting plain u32, where sign bit must not be
 		 * propagated LLVM tends to load imm64 over mov32
@@ -826,6 +827,8 @@ static void emit_mov_imm64(u8 **pprog, u32 dst_reg,
 		 * 'mov %eax, imm32' instead.
 		 */
 		emit_mov_imm32(&prog, false, dst_reg, imm32_lo);
+	} else if (is_simm32(imm64)) {
+		emit_mov_imm32(&prog, true, dst_reg, imm32_lo);
 	} else {
 		/* movabsq rax, imm64 */
 		EMIT2(add_1mod(0x48, dst_reg), add_1reg(0xB8, dst_reg));
@@ -1169,6 +1172,54 @@ static int emit_atomic(u8 **pprog, u8 atomic_op,
 	return 0;
 }
 
+static int emit_atomic_index(u8 **pprog, u8 atomic_op, u32 size,
+			     u32 dst_reg, u32 src_reg, u32 index_reg, int off)
+{
+	u8 *prog = *pprog;
+
+	EMIT1(0xF0); /* lock prefix */
+	switch (size) {
+	case BPF_W:
+		EMIT1(add_3mod(0x40, dst_reg, src_reg, index_reg));
+		break;
+	case BPF_DW:
+		EMIT1(add_3mod(0x48, dst_reg, src_reg, index_reg));
+		break;
+	default:
+		pr_err("bpf_jit: 1 and 2 byte atomics are not supported\n");
+		return -EFAULT;
+	}
+
+	/* emit opcode */
+	switch (atomic_op) {
+	case BPF_ADD:
+	case BPF_AND:
+	case BPF_OR:
+	case BPF_XOR:
+		/* lock *(u32/u64*)(dst_reg + idx_reg + off) <op>= src_reg */
+		EMIT1(simple_alu_opcodes[atomic_op]);
+		break;
+	case BPF_ADD | BPF_FETCH:
+		/* src_reg = atomic_fetch_add(dst_reg + idx_reg + off, src_reg); */
+		EMIT2(0x0F, 0xC1);
+		break;
+	case BPF_XCHG:
+		/* src_reg = atomic_xchg(dst_reg + idx_reg + off, src_reg); */
+		EMIT1(0x87);
+		break;
+	case BPF_CMPXCHG:
+		/* r0 = atomic_cmpxchg(dst_reg + idx_reg + off, r0, src_reg); */
+		EMIT2(0x0F, 0xB1);
+		break;
+	default:
+		pr_err("bpf_jit: unknown atomic opcode %02x\n", atomic_op);
+		return -EFAULT;
+	}
+	emit_insn_suffix_SIB(&prog, dst_reg, src_reg, index_reg, off);
+	*pprog = prog;
+	return 0;
+}
+
 #define DONT_CLEAR 1
 
 bool ex_handler_bpf(const struct exception_table_entry *x, struct pt_regs *regs)
@@ -1351,8 +1402,7 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image, u8 *rw_image
 			break;
 
 		case BPF_ALU64 | BPF_MOV | BPF_X:
-			if (insn->off == BPF_ADDR_SPACE_CAST &&
-			    insn->imm == 1U << 16) {
+			if (insn_is_cast_user(insn)) {
 				if (dst_reg != src_reg)
 					/* 32-bit mov */
 					emit_mov_reg(&prog, false, dst_reg, src_reg);
@@ -1382,6 +1432,16 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image, u8 *rw_image
 				/* WARNING: Intel swapped src/dst register encoding in CMOVcc !!! */
 				maybe_emit_mod(&prog, AUX_REG, dst_reg, true);
 				EMIT3(0x0F, 0x44, add_2reg(0xC0, AUX_REG, dst_reg));
+				break;
+			} else if (insn_is_mov_percpu_addr(insn)) {
+				/* mov <dst>, <src> (if necessary) */
+				EMIT_mov(dst_reg, src_reg);
+#ifdef CONFIG_SMP
+				/* add <dst>, gs:[<off>] */
+				EMIT2(0x65, add_1mod(0x48, dst_reg));
+				EMIT3(0x03, add_2reg(0x04, 0, dst_reg), 0x25);
+				EMIT((u32)(unsigned long)&this_cpu_off, 4);
+#endif
 				break;
 			}
 			fallthrough;
@@ -1962,6 +2022,15 @@ populate_extable:
 			if (err)
 				return err;
 			break;
+
+		case BPF_STX | BPF_PROBE_ATOMIC | BPF_W:
+		case BPF_STX | BPF_PROBE_ATOMIC | BPF_DW:
+			start_of_ldx = prog;
+			err = emit_atomic_index(&prog, insn->imm, BPF_SIZE(insn->code),
+						dst_reg, src_reg, X86_REG_R12, insn->off);
+			if (err)
+				return err;
+			goto populate_extable;
 
 			/* call */
 		case BPF_JMP | BPF_CALL: {
@@ -2994,12 +3063,9 @@ void arch_free_bpf_trampoline(void *image, unsigned int size)
 	bpf_prog_pack_free(image, size);
 }
 
-void arch_protect_bpf_trampoline(void *image, unsigned int size)
+int arch_protect_bpf_trampoline(void *image, unsigned int size)
 {
-}
-
-void arch_unprotect_bpf_trampoline(void *image, unsigned int size)
-{
+	return 0;
 }
 
 int arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *image, void *image_end,
@@ -3359,6 +3425,11 @@ bool bpf_jit_supports_subprog_tailcalls(void)
 	return true;
 }
 
+bool bpf_jit_supports_percpu_insn(void)
+{
+	return true;
+}
+
 void bpf_jit_free(struct bpf_prog *prog)
 {
 	if (prog->jited) {
@@ -3459,6 +3530,21 @@ void bpf_arch_poke_desc_update(struct bpf_jit_poke_descriptor *poke,
 
 bool bpf_jit_supports_arena(void)
 {
+	return true;
+}
+
+bool bpf_jit_supports_insn(struct bpf_insn *insn, bool in_arena)
+{
+	if (!in_arena)
+		return true;
+	switch (insn->code) {
+	case BPF_STX | BPF_ATOMIC | BPF_W:
+	case BPF_STX | BPF_ATOMIC | BPF_DW:
+		if (insn->imm == (BPF_AND | BPF_FETCH) ||
+		    insn->imm == (BPF_OR | BPF_FETCH) ||
+		    insn->imm == (BPF_XOR | BPF_FETCH))
+			return false;
+	}
 	return true;
 }
 

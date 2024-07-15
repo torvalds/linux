@@ -21,7 +21,7 @@ struct i915_gsc_proxy_component_ops {
 	struct module *owner;
 
 	/**
-	 * send - Sends a proxy message to ME FW.
+	 * @send: Sends a proxy message to ME FW.
 	 * @dev: device struct corresponding to the mei device
 	 * @buf: message buffer to send
 	 * @size: size of the message
@@ -30,7 +30,7 @@ struct i915_gsc_proxy_component_ops {
 	int (*send)(struct device *dev, const void *buf, size_t size);
 
 	/**
-	 * recv - Receives a proxy message from ME FW.
+	 * @recv: Receives a proxy message from ME FW.
 	 * @dev: device struct corresponding to the mei device
 	 * @buf: message buffer to contain the received message
 	 * @size: size of the buffer

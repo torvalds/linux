@@ -5,7 +5,11 @@
 BPF Instruction Set Architecture (ISA)
 ======================================
 
-This document specifies the BPF instruction set architecture (ISA).
+eBPF (which is no longer an acronym for anything), also commonly
+referred to as BPF, is a technology with origins in the Linux kernel
+that can run untrusted programs in a privileged context such as an
+operating system kernel. This document specifies the BPF instruction
+set architecture (ISA).
 
 Documentation conventions
 =========================
@@ -43,7 +47,7 @@ a type's signedness (`S`) and bit width (`N`), respectively.
   ===== =========
 
 For example, `u32` is a type whose valid values are all the 32-bit unsigned
-numbers and `s16` is a types whose valid values are all the 16-bit signed
+numbers and `s16` is a type whose valid values are all the 16-bit signed
 numbers.
 
 Functions
@@ -108,7 +112,7 @@ conformance group means it must support all instructions in that conformance
 group.
 
 The use of named conformance groups enables interoperability between a runtime
-that executes instructions, and tools as such compilers that generate
+that executes instructions, and tools such as compilers that generate
 instructions for the runtime.  Thus, capability discovery in terms of
 conformance groups might be done manually by users or automatically by tools.
 
@@ -181,10 +185,13 @@ A basic instruction is encoded as follows::
     (`64-bit immediate instructions`_ reuse this field for other purposes)
 
   **dst_reg**
-    destination register number (0-10)
+    destination register number (0-10), unless otherwise specified
+    (future instructions might reuse this field for other purposes)
 
 **offset**
-  signed integer offset used with pointer arithmetic
+  signed integer offset used with pointer arithmetic, except where
+  otherwise specified (some arithmetic instructions reuse this field
+  for other purposes)
 
 **imm**
   signed integer immediate value
@@ -228,10 +235,12 @@ This is depicted in the following figure::
   operation to perform, encoded as explained above
 
 **regs**
-  The source and destination register numbers, encoded as explained above
+  The source and destination register numbers (unless otherwise
+  specified), encoded as explained above
 
 **offset**
-  signed integer offset used with pointer arithmetic
+  signed integer offset used with pointer arithmetic, unless
+  otherwise specified
 
 **imm**
   signed integer immediate value
@@ -292,8 +301,9 @@ Arithmetic instructions
 ``ALU`` uses 32-bit wide operands while ``ALU64`` uses 64-bit wide operands for
 otherwise identical operations. ``ALU64`` instructions belong to the
 base64 conformance group unless noted otherwise.
-The 'code' field encodes the operation as below, where 'src' and 'dst' refer
-to the values of the source and destination registers, respectively.
+The 'code' field encodes the operation as below, where 'src' refers to the
+the source operand and 'dst' refers to the value of the destination
+register.
 
 =====  =====  =======  ==========================================================
 name   code   offset   description
@@ -342,8 +352,8 @@ where '(u32)' indicates that the upper 32 bits are zeroed.
 
   dst = dst ^ imm
 
-Note that most instructions have instruction offset of 0. Only three instructions
-(``SDIV``, ``SMOD``, ``MOVSX``) have a non-zero offset.
+Note that most arithmetic instructions have 'offset' set to 0. Only three instructions
+(``SDIV``, ``SMOD``, ``MOVSX``) have a non-zero 'offset'.
 
 Division, multiplication, and modulo operations for ``ALU`` are part
 of the "divmul32" conformance group, and division, multiplication, and
@@ -365,15 +375,15 @@ Note that there are varying definitions of the signed modulo operation
 when the dividend or divisor are negative, where implementations often
 vary by language such that Python, Ruby, etc.  differ from C, Go, Java,
 etc. This specification requires that signed modulo use truncated division
-(where -13 % 3 == -1) as implemented in C, Go, etc.:
+(where -13 % 3 == -1) as implemented in C, Go, etc.::
 
    a % n = a - n * trunc(a / n)
 
 The ``MOVSX`` instruction does a move operation with sign extension.
-``{MOVSX, X, ALU}`` :term:`sign extends<Sign Extend>` 8-bit and 16-bit operands into 32
-bit operands, and zeroes the remaining upper 32 bits.
+``{MOVSX, X, ALU}`` :term:`sign extends<Sign Extend>` 8-bit and 16-bit operands into
+32-bit operands, and zeroes the remaining upper 32 bits.
 ``{MOVSX, X, ALU64}`` :term:`sign extends<Sign Extend>` 8-bit, 16-bit, and 32-bit
-operands into 64 bit operands.  Unlike other arithmetic instructions,
+operands into 64-bit operands.  Unlike other arithmetic instructions,
 ``MOVSX`` is only defined for register source operands (``X``).
 
 The ``NEG`` instruction is only defined when the source bit is clear
@@ -411,19 +421,19 @@ conformance group.
 
 Examples:
 
-``{END, TO_LE, ALU}`` with imm = 16/32/64 means::
+``{END, TO_LE, ALU}`` with 'imm' = 16/32/64 means::
 
   dst = htole16(dst)
   dst = htole32(dst)
   dst = htole64(dst)
 
-``{END, TO_BE, ALU}`` with imm = 16/32/64 means::
+``{END, TO_BE, ALU}`` with 'imm' = 16/32/64 means::
 
   dst = htobe16(dst)
   dst = htobe32(dst)
   dst = htobe64(dst)
 
-``{END, TO_LE, ALU64}`` with imm = 16/32/64 means::
+``{END, TO_LE, ALU64}`` with 'imm' = 16/32/64 means::
 
   dst = bswap16(dst)
   dst = bswap32(dst)
@@ -438,27 +448,33 @@ otherwise identical operations, and indicates the base64 conformance
 group unless otherwise specified.
 The 'code' field encodes the operation as below:
 
-========  =====  =======  ===============================  ===================================================
-code      value  src_reg  description                      notes
-========  =====  =======  ===============================  ===================================================
-JA        0x0    0x0      PC += offset                     {JA, K, JMP} only
-JA        0x0    0x0      PC += imm                        {JA, K, JMP32} only
+========  =====  =======  =================================  ===================================================
+code      value  src_reg  description                        notes
+========  =====  =======  =================================  ===================================================
+JA        0x0    0x0      PC += offset                       {JA, K, JMP} only
+JA        0x0    0x0      PC += imm                          {JA, K, JMP32} only
 JEQ       0x1    any      PC += offset if dst == src
-JGT       0x2    any      PC += offset if dst > src        unsigned
-JGE       0x3    any      PC += offset if dst >= src       unsigned
+JGT       0x2    any      PC += offset if dst > src          unsigned
+JGE       0x3    any      PC += offset if dst >= src         unsigned
 JSET      0x4    any      PC += offset if dst & src
 JNE       0x5    any      PC += offset if dst != src
-JSGT      0x6    any      PC += offset if dst > src        signed
-JSGE      0x7    any      PC += offset if dst >= src       signed
-CALL      0x8    0x0      call helper function by address  {CALL, K, JMP} only, see `Helper functions`_
-CALL      0x8    0x1      call PC += imm                   {CALL, K, JMP} only, see `Program-local functions`_
-CALL      0x8    0x2      call helper function by BTF ID   {CALL, K, JMP} only, see `Helper functions`_
-EXIT      0x9    0x0      return                           {CALL, K, JMP} only
-JLT       0xa    any      PC += offset if dst < src        unsigned
-JLE       0xb    any      PC += offset if dst <= src       unsigned
-JSLT      0xc    any      PC += offset if dst < src        signed
-JSLE      0xd    any      PC += offset if dst <= src       signed
-========  =====  =======  ===============================  ===================================================
+JSGT      0x6    any      PC += offset if dst > src          signed
+JSGE      0x7    any      PC += offset if dst >= src         signed
+CALL      0x8    0x0      call helper function by static ID  {CALL, K, JMP} only, see `Helper functions`_
+CALL      0x8    0x1      call PC += imm                     {CALL, K, JMP} only, see `Program-local functions`_
+CALL      0x8    0x2      call helper function by BTF ID     {CALL, K, JMP} only, see `Helper functions`_
+EXIT      0x9    0x0      return                             {CALL, K, JMP} only
+JLT       0xa    any      PC += offset if dst < src          unsigned
+JLE       0xb    any      PC += offset if dst <= src         unsigned
+JSLT      0xc    any      PC += offset if dst < src          signed
+JSLE      0xd    any      PC += offset if dst <= src         signed
+========  =====  =======  =================================  ===================================================
+
+where 'PC' denotes the program counter, and the offset to increment by
+is in units of 64-bit instructions relative to the instruction following
+the jump instruction.  Thus 'PC += 1' skips execution of the next
+instruction if it's a basic instruction or results in undefined behavior
+if the next instruction is a 128-bit wide instruction.
 
 The BPF program needs to store the return value into register R0 before doing an
 ``EXIT``.
@@ -475,7 +491,7 @@ where 's>=' indicates a signed '>=' comparison.
 
   gotol +imm
 
-where 'imm' means the branch offset comes from insn 'imm' field.
+where 'imm' means the branch offset comes from the 'imm' field.
 
 Note that there are two flavors of ``JA`` instructions. The
 ``JMP`` class permits a 16-bit jump offset specified by the 'offset'
@@ -493,26 +509,26 @@ Helper functions
 Helper functions are a concept whereby BPF programs can call into a
 set of function calls exposed by the underlying platform.
 
-Historically, each helper function was identified by an address
-encoded in the imm field.  The available helper functions may differ
-for each program type, but address values are unique across all program types.
+Historically, each helper function was identified by a static ID
+encoded in the 'imm' field.  The available helper functions may differ
+for each program type, but static IDs are unique across all program types.
 
 Platforms that support the BPF Type Format (BTF) support identifying
-a helper function by a BTF ID encoded in the imm field, where the BTF ID
+a helper function by a BTF ID encoded in the 'imm' field, where the BTF ID
 identifies the helper name and type.
 
 Program-local functions
 ~~~~~~~~~~~~~~~~~~~~~~~
 Program-local functions are functions exposed by the same BPF program as the
 caller, and are referenced by offset from the call instruction, similar to
-``JA``.  The offset is encoded in the imm field of the call instruction.
-A ``EXIT`` within the program-local function will return to the caller.
+``JA``.  The offset is encoded in the 'imm' field of the call instruction.
+An ``EXIT`` within the program-local function will return to the caller.
 
 Load and store instructions
 ===========================
 
 For load and store instructions (``LD``, ``LDX``, ``ST``, and ``STX``), the
-8-bit 'opcode' field is divided as::
+8-bit 'opcode' field is divided as follows::
 
   +-+-+-+-+-+-+-+-+
   |mode |sz |class|
@@ -580,7 +596,7 @@ instructions that transfer data between a register and memory.
 
   dst = *(signed size *) (src + offset)
 
-Where size is one of: ``B``, ``H``, or ``W``, and
+Where '<size>' is one of: ``B``, ``H``, or ``W``, and
 'signed size' is one of: s8, s16, or s32.
 
 Atomic operations
@@ -662,11 +678,11 @@ src_reg  pseudocode                                 imm type     dst type
 =======  =========================================  ===========  ==============
 0x0      dst = (next_imm << 32) | imm               integer      integer
 0x1      dst = map_by_fd(imm)                       map fd       map
-0x2      dst = map_val(map_by_fd(imm)) + next_imm   map fd       data pointer
-0x3      dst = var_addr(imm)                        variable id  data pointer
-0x4      dst = code_addr(imm)                       integer      code pointer
+0x2      dst = map_val(map_by_fd(imm)) + next_imm   map fd       data address
+0x3      dst = var_addr(imm)                        variable id  data address
+0x4      dst = code_addr(imm)                       integer      code address
 0x5      dst = map_by_idx(imm)                      map index    map
-0x6      dst = map_val(map_by_idx(imm)) + next_imm  map index    data pointer
+0x6      dst = map_val(map_by_idx(imm)) + next_imm  map index    data address
 =======  =========================================  ===========  ==============
 
 where

@@ -19,7 +19,7 @@ description:
   either through a parallel interface or through MIPI CSI-2.
 
 allOf:
-  - $ref: ../video-interface-devices.yaml#
+  - $ref: /schemas/media/video-interface-devices.yaml#
 
 properties:
   compatible:

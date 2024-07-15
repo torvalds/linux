@@ -677,7 +677,7 @@ static int uss720_probe(struct usb_interface *intf,
 	struct parport_uss720_private *priv;
 	struct parport *pp;
 	unsigned char reg;
-	int i;
+	int ret;
 
 	dev_dbg(&intf->dev, "probe: vendor id 0x%x, device id 0x%x\n",
 		le16_to_cpu(usbdev->descriptor.idVendor),
@@ -688,12 +688,12 @@ static int uss720_probe(struct usb_interface *intf,
 		usb_put_dev(usbdev);
 		return -ENODEV;
 	}
-	i = usb_set_interface(usbdev, intf->altsetting->desc.bInterfaceNumber, 2);
-	dev_dbg(&intf->dev, "set interface result %d\n", i);
+	ret = usb_set_interface(usbdev, intf->altsetting->desc.bInterfaceNumber, 2);
+	dev_dbg(&intf->dev, "set interface result %d\n", ret);
 
 	interface = intf->cur_altsetting;
 
-	if (interface->desc.bNumEndpoints < 3) {
+	if (interface->desc.bNumEndpoints < 2) {
 		usb_put_dev(usbdev);
 		return -ENODEV;
 	}
@@ -719,18 +719,27 @@ static int uss720_probe(struct usb_interface *intf,
 
 	priv->pp = pp;
 	pp->private_data = priv;
-	pp->modes = PARPORT_MODE_PCSPP | PARPORT_MODE_TRISTATE | PARPORT_MODE_EPP | PARPORT_MODE_ECP | PARPORT_MODE_COMPAT;
+	pp->modes = PARPORT_MODE_PCSPP | PARPORT_MODE_TRISTATE | PARPORT_MODE_EPP | PARPORT_MODE_COMPAT;
+	if (interface->desc.bNumEndpoints >= 3)
+		pp->modes |= PARPORT_MODE_ECP;
+	pp->dev = &usbdev->dev;
 
 	/* set the USS720 control register to manual mode, no ECP compression, enable all ints */
 	set_1284_register(pp, 7, 0x00, GFP_KERNEL);
 	set_1284_register(pp, 6, 0x30, GFP_KERNEL);  /* PS/2 mode */
 	set_1284_register(pp, 2, 0x0c, GFP_KERNEL);
-	/* debugging */
-	get_1284_register(pp, 0, &reg, GFP_KERNEL);
-	dev_dbg(&intf->dev, "reg: %7ph\n", priv->reg);
 
-	i = usb_find_last_int_in_endpoint(interface, &epd);
-	if (!i) {
+	/* The Belkin F5U002 Rev 2 P80453-B USB parallel port adapter shares the
+	 * device ID 050d:0002 with some other device that works with this
+	 * driver, but it itself does not. Detect and handle the bad cable
+	 * here. */
+	ret = get_1284_register(pp, 0, &reg, GFP_KERNEL);
+	dev_dbg(&intf->dev, "reg: %7ph\n", priv->reg);
+	if (ret < 0)
+		return ret;
+
+	ret = usb_find_last_int_in_endpoint(interface, &epd);
+	if (!ret) {
 		dev_dbg(&intf->dev, "epaddr %d interval %d\n",
 				epd->bEndpointAddress, epd->bInterval);
 	}
@@ -766,14 +775,15 @@ static void uss720_disconnect(struct usb_interface *intf)
 
 /* table of cables that work through this driver */
 static const struct usb_device_id uss720_table[] = {
-	{ USB_DEVICE(0x047e, 0x1001) },
-	{ USB_DEVICE(0x04b8, 0x0002) },
-	{ USB_DEVICE(0x04b8, 0x0003) },
+	{ USB_DEVICE(0x047e, 0x1001) }, /* Infowave 901-0030 */
+	{ USB_DEVICE(0x04b8, 0x0002) }, /* Epson CAEUL0002 ISD-103 */
+	{ USB_DEVICE(0x04b8, 0x0003) }, /* Epson ISD-101 */
 	{ USB_DEVICE(0x050d, 0x0002) },
-	{ USB_DEVICE(0x050d, 0x1202) },
+	{ USB_DEVICE(0x050d, 0x1202) }, /* Belkin F5U120-PC */
 	{ USB_DEVICE(0x0557, 0x2001) },
-	{ USB_DEVICE(0x05ab, 0x0002) },
-	{ USB_DEVICE(0x06c6, 0x0100) },
+	{ USB_DEVICE(0x05ab, 0x0002) }, /* Belkin F5U002 ISD-101 */
+	{ USB_DEVICE(0x05ab, 0x1001) }, /* Belkin F5U002 P80453-A */
+	{ USB_DEVICE(0x06c6, 0x0100) }, /* Infowave ISD-103 */
 	{ USB_DEVICE(0x0729, 0x1284) },
 	{ USB_DEVICE(0x1293, 0x0002) },
 	{ }						/* Terminating entry */

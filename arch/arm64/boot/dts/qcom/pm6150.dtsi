@@ -64,15 +64,15 @@
 		};
 
 		pm6150_vbus: usb-vbus-regulator@1100 {
-			compatible = "qcom,pm6150-vbus-reg,
-				      qcom,pm8150b-vbus-reg";
+			compatible = "qcom,pm6150-vbus-reg",
+				     "qcom,pm8150b-vbus-reg";
 			reg = <0x1100>;
 			status = "disabled";
 		};
 
 		pm6150_typec: typec@1500 {
-			compatible = "qcom,pm6150-typec,
-				      qcom,pm8150b-typec";
+			compatible = "qcom,pm6150-typec",
+				     "qcom,pm8150b-typec";
 			reg = <0x1500>, <0x1700>;
 			interrupts = <0x0 0x15 0x00 IRQ_TYPE_EDGE_RISING>,
 				     <0x0 0x15 0x01 IRQ_TYPE_EDGE_BOTH>,

@@ -7,7 +7,7 @@
 #include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of.h>
+#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
 #include <linux/slab.h>
@@ -459,7 +459,6 @@ static const struct iio_chan_spec hx711_chan_spec[] = {
 static int hx711_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
 	struct hx711_data *hx711_data;
 	struct iio_dev *indio_dev;
 	int ret;
@@ -533,7 +532,7 @@ static int hx711_probe(struct platform_device *pdev)
 	hx711_data->gain_chan_a = 128;
 
 	hx711_data->clock_frequency = 400000;
-	ret = of_property_read_u32(np, "clock-frequency",
+	ret = device_property_read_u32(&pdev->dev, "clock-frequency",
 					&hx711_data->clock_frequency);
 
 	/*

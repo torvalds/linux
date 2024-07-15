@@ -1,0 +1,69 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+
+$id: http://devicetree.org/schemas/hwmon/ti,lm87.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments LM87 Hardware Monitor
+
+maintainers:
+  - Javier Carrasco <javier.carrasco.cruz@gmail.com>
+
+description: |
+  The LM87 is a serial interface system hardware monitor
+  with remote diode temperature sensing.
+
+  Datasheets:
+    https://www.ti.com/product/LM87
+
+properties:
+  compatible:
+    const: ti,lm87
+
+  reg:
+    maxItems: 1
+
+  has-temp3:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      This configures pins 18 and 19 to be used as a second
+      remote temperature sensing channel. By default the pins
+      are configured as voltage input pins in0 and in5.
+
+  has-in6:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      When set, pin 5 is configured to be used as voltage input
+      in6. Otherwise the pin is set as FAN1 input.
+
+  has-in7:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      When set, pin 6 is configured to be used as voltage input
+      in7. Otherwise the pin is set as FAN2 input.
+
+  vcc-supply:
+    description:
+      Regulator supplying power, can be configured to measure
+      5.0V power supply. Default is 3.3V.
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        hwmon@2e {
+            compatible = "ti,lm87";
+            reg = <0x2e>;
+            has-temp3;
+            vcc-supply = <&reg_5v0>;
+        };
+    };

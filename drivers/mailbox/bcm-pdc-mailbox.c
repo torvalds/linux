@@ -43,6 +43,7 @@
 #include <linux/dma-direction.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmapool.h>
+#include <linux/workqueue.h>
 
 #define PDC_SUCCESS  0
 
@@ -293,8 +294,8 @@ struct pdc_state {
 
 	unsigned int pdc_irq;
 
-	/* tasklet for deferred processing after DMA rx interrupt */
-	struct tasklet_struct rx_tasklet;
+	/* work for deferred processing after DMA rx interrupt */
+	struct work_struct rx_work;
 
 	/* Number of bytes of receive status prior to each rx frame */
 	u32 rx_status_len;
@@ -952,18 +953,18 @@ static irqreturn_t pdc_irq_handler(int irq, void *data)
 	iowrite32(intstatus, pdcs->pdc_reg_vbase + PDC_INTSTATUS_OFFSET);
 
 	/* Wakeup IRQ thread */
-	tasklet_schedule(&pdcs->rx_tasklet);
+	queue_work(system_bh_wq, &pdcs->rx_work);
 	return IRQ_HANDLED;
 }
 
 /**
- * pdc_tasklet_cb() - Tasklet callback that runs the deferred processing after
+ * pdc_work_cb() - Work callback that runs the deferred processing after
  * a DMA receive interrupt. Reenables the receive interrupt.
  * @t: Pointer to the Altera sSGDMA channel structure
  */
-static void pdc_tasklet_cb(struct tasklet_struct *t)
+static void pdc_work_cb(struct work_struct *t)
 {
-	struct pdc_state *pdcs = from_tasklet(pdcs, t, rx_tasklet);
+	struct pdc_state *pdcs = from_work(pdcs, t, rx_work);
 
 	pdc_receive(pdcs);
 
@@ -1577,8 +1578,8 @@ static int pdc_probe(struct platform_device *pdev)
 
 	pdc_hw_init(pdcs);
 
-	/* Init tasklet for deferred DMA rx processing */
-	tasklet_setup(&pdcs->rx_tasklet, pdc_tasklet_cb);
+	/* Init work for deferred DMA rx processing */
+	INIT_WORK(&pdcs->rx_work, pdc_work_cb);
 
 	err = pdc_interrupts_init(pdcs);
 	if (err)
@@ -1595,7 +1596,7 @@ static int pdc_probe(struct platform_device *pdev)
 	return PDC_SUCCESS;
 
 cleanup_buf_pool:
-	tasklet_kill(&pdcs->rx_tasklet);
+	cancel_work_sync(&pdcs->rx_work);
 	dma_pool_destroy(pdcs->rx_buf_pool);
 
 cleanup_ring_pool:
@@ -1611,7 +1612,7 @@ static void pdc_remove(struct platform_device *pdev)
 
 	pdc_free_debugfs();
 
-	tasklet_kill(&pdcs->rx_tasklet);
+	cancel_work_sync(&pdcs->rx_work);
 
 	pdc_hw_disable(pdcs);
 

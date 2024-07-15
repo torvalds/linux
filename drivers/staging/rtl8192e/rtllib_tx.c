@@ -313,7 +313,7 @@ static void rtllib_tx_query_agg_cap(struct rtllib_device *ieee,
 		}
 		if (ieee->iw_mode == IW_MODE_INFRA) {
 			tcb_desc->ampdu_enable = true;
-			tcb_desc->ampdu_factor = ht_info->CurrentAMPDUFactor;
+			tcb_desc->ampdu_factor = ht_info->current_ampdu_factor;
 			tcb_desc->ampdu_density = ht_info->current_mpdu_density;
 		}
 	}

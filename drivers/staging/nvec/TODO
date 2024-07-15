@@ -1,5 +1,4 @@
 ToDo list (incomplete, unordered)
 	- move the driver to the new i2c slave framework
 	- finish suspend/resume support
-	- fix udelay in the isr
 	- add atomic ops in order to fix shutoff/reboot problems

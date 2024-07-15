@@ -1567,6 +1567,10 @@ u32 ieee80211_sta_get_rates(struct ieee80211_sub_if_data *sdata,
 
 void ieee80211_stop_device(struct ieee80211_local *local)
 {
+	local_bh_disable();
+	ieee80211_handle_queued_frames(local);
+	local_bh_enable();
+
 	ieee80211_led_radio(local, false);
 	ieee80211_mod_tpt_led_trig(local, 0, IEEE80211_TPT_LEDTRIG_FL_RADIO);
 
@@ -1841,7 +1845,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 
 	/* add interfaces */
 	sdata = wiphy_dereference(local->hw.wiphy, local->monitor_sdata);
-	if (sdata) {
+	if (sdata && ieee80211_hw_check(&local->hw, WANT_MONITOR_VIF)) {
 		/* in HW restart it exists already */
 		WARN_ON(local->resuming);
 		res = drv_add_interface(local, sdata);
@@ -1931,6 +1935,8 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 					     sdata->vif.active_links,
 					     old);
 		}
+
+		sdata->restart_active_links = active_links;
 
 		for (link_id = 0;
 		     link_id < ARRAY_SIZE(sdata->vif.link_conf);
@@ -2059,9 +2065,6 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 			WARN_ON(1);
 			break;
 		}
-
-		if (active_links)
-			ieee80211_set_active_links(&sdata->vif, active_links);
 	}
 
 	ieee80211_recalc_ps(local);
@@ -2101,6 +2104,20 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	/* add back keys */
 	list_for_each_entry(sdata, &local->interfaces, list)
 		ieee80211_reenable_keys(sdata);
+
+	/* re-enable multi-link for client interfaces */
+	list_for_each_entry(sdata, &local->interfaces, list) {
+		if (sdata->restart_active_links)
+			ieee80211_set_active_links(&sdata->vif,
+						   sdata->restart_active_links);
+		/*
+		 * If a link switch was scheduled before the restart, and ran
+		 * before reconfig, it will do nothing, so re-schedule.
+		 */
+		if (sdata->desired_active_links)
+			wiphy_work_queue(sdata->local->hw.wiphy,
+					 &sdata->activate_links_work);
+	}
 
 	/* Reconfigure sched scan if it was interrupted by FW restart */
 	sched_scan_sdata = rcu_dereference_protected(local->sched_scan_sdata,
@@ -3136,6 +3153,8 @@ bool ieee80211_chandef_he_6ghz_oper(struct ieee80211_local *local,
 	} else {
 		ieee80211_chandef_eht_oper((const void *)eht_oper->optional,
 					   &he_chandef);
+		he_chandef.punctured =
+			ieee80211_eht_oper_dis_subchan_bitmap(eht_oper);
 	}
 
 	if (!cfg80211_chandef_valid(&he_chandef))

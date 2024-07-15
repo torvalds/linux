@@ -52,6 +52,8 @@ struct ipv6_packet pkt_v6 = {
 	.tcp.doff = 5,
 };
 
+static const struct network_helper_opts default_opts;
+
 int settimeo(int fd, int timeout_ms)
 {
 	struct timeval timeout = { .tv_sec = 3 };
@@ -78,24 +80,22 @@ int settimeo(int fd, int timeout_ms)
 
 #define save_errno_close(fd) ({ int __save = errno; close(fd); errno = __save; })
 
-static int __start_server(int type, int protocol, const struct sockaddr *addr,
-			  socklen_t addrlen, int timeout_ms, bool reuseport)
+static int __start_server(int type, const struct sockaddr *addr, socklen_t addrlen,
+			  const struct network_helper_opts *opts)
 {
-	int on = 1;
 	int fd;
 
-	fd = socket(addr->sa_family, type, protocol);
+	fd = socket(addr->sa_family, type, opts->proto);
 	if (fd < 0) {
 		log_err("Failed to create server socket");
 		return -1;
 	}
 
-	if (settimeo(fd, timeout_ms))
+	if (settimeo(fd, opts->timeout_ms))
 		goto error_close;
 
-	if (reuseport &&
-	    setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &on, sizeof(on))) {
-		log_err("Failed to set SO_REUSEPORT");
+	if (opts->post_socket_cb && opts->post_socket_cb(fd, NULL)) {
+		log_err("Failed to call post_socket_cb");
 		goto error_close;
 	}
 
@@ -118,35 +118,35 @@ error_close:
 	return -1;
 }
 
-static int start_server_proto(int family, int type, int protocol,
-			      const char *addr_str, __u16 port, int timeout_ms)
+int start_server(int family, int type, const char *addr_str, __u16 port,
+		 int timeout_ms)
 {
+	struct network_helper_opts opts = {
+		.timeout_ms	= timeout_ms,
+	};
 	struct sockaddr_storage addr;
 	socklen_t addrlen;
 
 	if (make_sockaddr(family, addr_str, port, &addr, &addrlen))
 		return -1;
 
-	return __start_server(type, protocol, (struct sockaddr *)&addr,
-			      addrlen, timeout_ms, false);
+	return __start_server(type, (struct sockaddr *)&addr, addrlen, &opts);
 }
 
-int start_server(int family, int type, const char *addr_str, __u16 port,
-		 int timeout_ms)
+static int reuseport_cb(int fd, const struct post_socket_opts *opts)
 {
-	return start_server_proto(family, type, 0, addr_str, port, timeout_ms);
-}
+	int on = 1;
 
-int start_mptcp_server(int family, const char *addr_str, __u16 port,
-		       int timeout_ms)
-{
-	return start_server_proto(family, SOCK_STREAM, IPPROTO_MPTCP, addr_str,
-				  port, timeout_ms);
+	return setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &on, sizeof(on));
 }
 
 int *start_reuseport_server(int family, int type, const char *addr_str,
 			    __u16 port, int timeout_ms, unsigned int nr_listens)
 {
+	struct network_helper_opts opts = {
+		.timeout_ms = timeout_ms,
+		.post_socket_cb = reuseport_cb,
+	};
 	struct sockaddr_storage addr;
 	unsigned int nr_fds = 0;
 	socklen_t addrlen;
@@ -162,8 +162,7 @@ int *start_reuseport_server(int family, int type, const char *addr_str,
 	if (!fds)
 		return NULL;
 
-	fds[0] = __start_server(type, 0, (struct sockaddr *)&addr, addrlen,
-				timeout_ms, true);
+	fds[0] = __start_server(type, (struct sockaddr *)&addr, addrlen, &opts);
 	if (fds[0] == -1)
 		goto close_fds;
 	nr_fds = 1;
@@ -172,8 +171,7 @@ int *start_reuseport_server(int family, int type, const char *addr_str,
 		goto close_fds;
 
 	for (; nr_fds < nr_listens; nr_fds++) {
-		fds[nr_fds] = __start_server(type, 0, (struct sockaddr *)&addr,
-					     addrlen, timeout_ms, true);
+		fds[nr_fds] = __start_server(type, (struct sockaddr *)&addr, addrlen, &opts);
 		if (fds[nr_fds] == -1)
 			goto close_fds;
 	}
@@ -183,6 +181,15 @@ int *start_reuseport_server(int family, int type, const char *addr_str,
 close_fds:
 	free_fds(fds, nr_fds);
 	return NULL;
+}
+
+int start_server_addr(int type, const struct sockaddr_storage *addr, socklen_t len,
+		      const struct network_helper_opts *opts)
+{
+	if (!opts)
+		opts = &default_opts;
+
+	return __start_server(type, (struct sockaddr *)addr, len, opts);
 }
 
 void free_fds(int *fds, unsigned int nr_close_fds)
@@ -258,17 +265,24 @@ static int connect_fd_to_addr(int fd,
 	return 0;
 }
 
-int connect_to_addr(const struct sockaddr_storage *addr, socklen_t addrlen, int type)
+int connect_to_addr(int type, const struct sockaddr_storage *addr, socklen_t addrlen,
+		    const struct network_helper_opts *opts)
 {
 	int fd;
 
-	fd = socket(addr->ss_family, type, 0);
+	if (!opts)
+		opts = &default_opts;
+
+	fd = socket(addr->ss_family, type, opts->proto);
 	if (fd < 0) {
 		log_err("Failed to create client socket");
 		return -1;
 	}
 
-	if (connect_fd_to_addr(fd, addr, addrlen, false))
+	if (settimeo(fd, opts->timeout_ms))
+		goto error_close;
+
+	if (connect_fd_to_addr(fd, addr, addrlen, opts->must_fail))
 		goto error_close;
 
 	return fd;
@@ -277,8 +291,6 @@ error_close:
 	save_errno_close(fd);
 	return -1;
 }
-
-static const struct network_helper_opts default_opts;
 
 int connect_to_fd_opts(int server_fd, const struct network_helper_opts *opts)
 {
@@ -442,25 +454,35 @@ struct nstoken *open_netns(const char *name)
 	struct nstoken *token;
 
 	token = calloc(1, sizeof(struct nstoken));
-	if (!ASSERT_OK_PTR(token, "malloc token"))
+	if (!token) {
+		log_err("Failed to malloc token");
 		return NULL;
+	}
 
 	token->orig_netns_fd = open("/proc/self/ns/net", O_RDONLY);
-	if (!ASSERT_GE(token->orig_netns_fd, 0, "open /proc/self/ns/net"))
+	if (token->orig_netns_fd == -1) {
+		log_err("Failed to open(/proc/self/ns/net)");
 		goto fail;
+	}
 
 	snprintf(nspath, sizeof(nspath), "%s/%s", "/var/run/netns", name);
 	nsfd = open(nspath, O_RDONLY | O_CLOEXEC);
-	if (!ASSERT_GE(nsfd, 0, "open netns fd"))
+	if (nsfd == -1) {
+		log_err("Failed to open(%s)", nspath);
 		goto fail;
+	}
 
 	err = setns(nsfd, CLONE_NEWNET);
 	close(nsfd);
-	if (!ASSERT_OK(err, "setns"))
+	if (err) {
+		log_err("Failed to setns(nsfd)");
 		goto fail;
+	}
 
 	return token;
 fail:
+	if (token->orig_netns_fd != -1)
+		close(token->orig_netns_fd);
 	free(token);
 	return NULL;
 }
@@ -470,7 +492,8 @@ void close_netns(struct nstoken *token)
 	if (!token)
 		return;
 
-	ASSERT_OK(setns(token->orig_netns_fd, CLONE_NEWNET), "setns");
+	if (setns(token->orig_netns_fd, CLONE_NEWNET))
+		log_err("Failed to setns(orig_netns_fd)");
 	close(token->orig_netns_fd);
 	free(token);
 }
@@ -496,4 +519,154 @@ int get_socket_local_port(int sock_fd)
 	}
 
 	return -1;
+}
+
+int get_hw_ring_size(char *ifname, struct ethtool_ringparam *ring_param)
+{
+	struct ifreq ifr = {0};
+	int sockfd, err;
+
+	sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+	if (sockfd < 0)
+		return -errno;
+
+	memcpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name));
+
+	ring_param->cmd = ETHTOOL_GRINGPARAM;
+	ifr.ifr_data = (char *)ring_param;
+
+	if (ioctl(sockfd, SIOCETHTOOL, &ifr) < 0) {
+		err = errno;
+		close(sockfd);
+		return -err;
+	}
+
+	close(sockfd);
+	return 0;
+}
+
+int set_hw_ring_size(char *ifname, struct ethtool_ringparam *ring_param)
+{
+	struct ifreq ifr = {0};
+	int sockfd, err;
+
+	sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+	if (sockfd < 0)
+		return -errno;
+
+	memcpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name));
+
+	ring_param->cmd = ETHTOOL_SRINGPARAM;
+	ifr.ifr_data = (char *)ring_param;
+
+	if (ioctl(sockfd, SIOCETHTOOL, &ifr) < 0) {
+		err = errno;
+		close(sockfd);
+		return -err;
+	}
+
+	close(sockfd);
+	return 0;
+}
+
+struct send_recv_arg {
+	int		fd;
+	uint32_t	bytes;
+	int		stop;
+};
+
+static void *send_recv_server(void *arg)
+{
+	struct send_recv_arg *a = (struct send_recv_arg *)arg;
+	ssize_t nr_sent = 0, bytes = 0;
+	char batch[1500];
+	int err = 0, fd;
+
+	fd = accept(a->fd, NULL, NULL);
+	while (fd == -1) {
+		if (errno == EINTR)
+			continue;
+		err = -errno;
+		goto done;
+	}
+
+	if (settimeo(fd, 0)) {
+		err = -errno;
+		goto done;
+	}
+
+	while (bytes < a->bytes && !READ_ONCE(a->stop)) {
+		nr_sent = send(fd, &batch,
+			       MIN(a->bytes - bytes, sizeof(batch)), 0);
+		if (nr_sent == -1 && errno == EINTR)
+			continue;
+		if (nr_sent == -1) {
+			err = -errno;
+			break;
+		}
+		bytes += nr_sent;
+	}
+
+	if (bytes != a->bytes) {
+		log_err("send %zd expected %u", bytes, a->bytes);
+		if (!err)
+			err = bytes > a->bytes ? -E2BIG : -EINTR;
+	}
+
+done:
+	if (fd >= 0)
+		close(fd);
+	if (err) {
+		WRITE_ONCE(a->stop, 1);
+		return ERR_PTR(err);
+	}
+	return NULL;
+}
+
+int send_recv_data(int lfd, int fd, uint32_t total_bytes)
+{
+	ssize_t nr_recv = 0, bytes = 0;
+	struct send_recv_arg arg = {
+		.fd	= lfd,
+		.bytes	= total_bytes,
+		.stop	= 0,
+	};
+	pthread_t srv_thread;
+	void *thread_ret;
+	char batch[1500];
+	int err = 0;
+
+	err = pthread_create(&srv_thread, NULL, send_recv_server, (void *)&arg);
+	if (err) {
+		log_err("Failed to pthread_create");
+		return err;
+	}
+
+	/* recv total_bytes */
+	while (bytes < total_bytes && !READ_ONCE(arg.stop)) {
+		nr_recv = recv(fd, &batch,
+			       MIN(total_bytes - bytes, sizeof(batch)), 0);
+		if (nr_recv == -1 && errno == EINTR)
+			continue;
+		if (nr_recv == -1) {
+			err = -errno;
+			break;
+		}
+		bytes += nr_recv;
+	}
+
+	if (bytes != total_bytes) {
+		log_err("recv %zd expected %u", bytes, total_bytes);
+		if (!err)
+			err = bytes > total_bytes ? -E2BIG : -EINTR;
+	}
+
+	WRITE_ONCE(arg.stop, 1);
+	pthread_join(srv_thread, &thread_ret);
+	if (IS_ERR(thread_ret)) {
+		log_err("Failed in thread_ret %ld", PTR_ERR(thread_ret));
+		err = err ? : PTR_ERR(thread_ret);
+	}
+
+	return err;
 }

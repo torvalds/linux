@@ -16,7 +16,7 @@
 #include "rk3399-opp.dtsi"
 
 / {
-	model = "Pine64 PinePhonePro";
+	model = "Pine64 PinePhone Pro";
 	compatible = "pine64,pinephone-pro", "rockchip,rk3399";
 	chassis-type = "handset";
 

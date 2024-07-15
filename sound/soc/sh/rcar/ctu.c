@@ -284,7 +284,7 @@ static void rsnd_ctu_debug_info(struct seq_file *m,
 				struct rsnd_dai_stream *io,
 				struct rsnd_mod *mod)
 {
-	rsnd_debugfs_mod_reg_show(m, mod, RSND_GEN2_SCU,
+	rsnd_debugfs_mod_reg_show(m, mod, RSND_BASE_SCU,
 				  0x500 + rsnd_mod_id_raw(mod) * 0x100, 0x100);
 }
 #define DEBUG_INFO .debug_info = rsnd_ctu_debug_info
@@ -322,10 +322,6 @@ int rsnd_ctu_probe(struct rsnd_priv *priv)
 	struct clk *clk;
 	char name[CTU_NAME_SIZE];
 	int i, nr, ret;
-
-	/* This driver doesn't support Gen1 at this point */
-	if (rsnd_is_gen1(priv))
-		return 0;
 
 	node = rsnd_ctu_of_node(priv);
 	if (!node)

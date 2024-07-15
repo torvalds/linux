@@ -156,6 +156,34 @@ static int fill_res_cq_entry_raw(struct sk_buff *msg, struct ib_cq *ibcq)
 	return fill_res_raw(msg, dev, MLX5_SGMT_TYPE_PRM_QUERY_CQ, cq->mcq.cqn);
 }
 
+static int fill_res_qp_entry(struct sk_buff *msg, struct ib_qp *ibqp)
+{
+	struct mlx5_ib_qp *qp = to_mqp(ibqp);
+	int ret;
+
+	if (qp->type < IB_QPT_DRIVER)
+		return 0;
+
+	switch (qp->type) {
+	case MLX5_IB_QPT_REG_UMR:
+		ret = nla_put_string(msg, RDMA_NLDEV_ATTR_RES_SUBTYPE,
+				     "REG_UMR");
+		break;
+	case MLX5_IB_QPT_DCT:
+		ret = nla_put_string(msg, RDMA_NLDEV_ATTR_RES_SUBTYPE, "DCT");
+		break;
+	case MLX5_IB_QPT_DCI:
+		ret = nla_put_string(msg, RDMA_NLDEV_ATTR_RES_SUBTYPE, "DCI");
+		break;
+	default:
+		return 0;
+	}
+	if (ret)
+		return ret;
+
+	return nla_put_u8(msg, RDMA_NLDEV_ATTR_RES_TYPE, IB_QPT_DRIVER);
+}
+
 static int fill_res_qp_entry_raw(struct sk_buff *msg, struct ib_qp *ibqp)
 {
 	struct mlx5_ib_dev *dev = to_mdev(ibqp->device);
@@ -168,6 +196,7 @@ static const struct ib_device_ops restrack_ops = {
 	.fill_res_cq_entry_raw = fill_res_cq_entry_raw,
 	.fill_res_mr_entry = fill_res_mr_entry,
 	.fill_res_mr_entry_raw = fill_res_mr_entry_raw,
+	.fill_res_qp_entry = fill_res_qp_entry,
 	.fill_res_qp_entry_raw = fill_res_qp_entry_raw,
 	.fill_stat_mr_entry = fill_stat_mr_entry,
 };

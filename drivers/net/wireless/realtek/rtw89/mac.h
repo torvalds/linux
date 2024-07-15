@@ -419,6 +419,13 @@ enum rtw89_mac_c2h_mrc_func {
 	NUM_OF_RTW89_MAC_C2H_FUNC_MRC,
 };
 
+enum rtw89_mac_c2h_wow_func {
+	RTW89_MAC_C2H_FUNC_AOAC_REPORT,
+	RTW89_MAC_C2H_FUNC_READ_WOW_CAM,
+
+	NUM_OF_RTW89_MAC_C2H_FUNC_WOW,
+};
+
 enum rtw89_mac_c2h_class {
 	RTW89_MAC_C2H_CLASS_INFO = 0x0,
 	RTW89_MAC_C2H_CLASS_OFLD = 0x1,

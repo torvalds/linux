@@ -10,6 +10,9 @@ maintainers:
   - Sandy Huang <hjc@rock-chips.com>
   - Heiko Stuebner <heiko@sntech.de>
 
+allOf:
+  - $ref: /schemas/sound/dai-common.yaml#
+
 properties:
   compatible:
     const: rockchip,rk3066-hdmi
@@ -33,6 +36,9 @@ properties:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
       This soc uses GRF regs to switch the HDMI TX input between vop0 and vop1.
+
+  "#sound-dai-cells":
+    const: 0
 
   ports:
     $ref: /schemas/graph.yaml#/properties/ports
@@ -83,6 +89,7 @@ examples:
       pinctrl-names = "default";
       power-domains = <&power RK3066_PD_VIO>;
       rockchip,grf = <&grf>;
+      #sound-dai-cells = <0>;
 
       ports {
         #address-cells = <1>;

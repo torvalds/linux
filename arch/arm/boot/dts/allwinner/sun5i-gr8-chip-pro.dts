@@ -77,7 +77,7 @@
 		};
 	};
 
-	mmc0_pwrseq: mmc0_pwrseq {
+	mmc0_pwrseq: pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		reset-gpios = <&pio 1 10 GPIO_ACTIVE_LOW>; /* PB10 */
 	};

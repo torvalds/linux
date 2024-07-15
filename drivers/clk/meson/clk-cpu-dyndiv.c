@@ -69,4 +69,4 @@ EXPORT_SYMBOL_GPL(meson_clk_cpu_dyndiv_ops);
 
 MODULE_DESCRIPTION("Amlogic CPU Dynamic Clock divider");
 MODULE_AUTHOR("Neil Armstrong <narmstrong@baylibre.com>");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");

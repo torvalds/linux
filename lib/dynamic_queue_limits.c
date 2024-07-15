@@ -15,12 +15,10 @@
 #define POSDIFF(A, B) ((int)((A) - (B)) > 0 ? (A) - (B) : 0)
 #define AFTER_EQ(A, B) ((int)((A) - (B)) >= 0)
 
-static void dql_check_stall(struct dql *dql)
+static void dql_check_stall(struct dql *dql, unsigned short stall_thrs)
 {
-	unsigned short stall_thrs;
 	unsigned long now;
 
-	stall_thrs = READ_ONCE(dql->stall_thrs);
 	if (!stall_thrs)
 		return;
 
@@ -86,9 +84,16 @@ void dql_completed(struct dql *dql, unsigned int count)
 {
 	unsigned int inprogress, prev_inprogress, limit;
 	unsigned int ovlimit, completed, num_queued;
+	unsigned short stall_thrs;
 	bool all_prev_completed;
 
 	num_queued = READ_ONCE(dql->num_queued);
+	/* Read stall_thrs in advance since it belongs to the same (first)
+	 * cache line as ->num_queued. This way, dql_check_stall() does not
+	 * need to touch the first cache line again later, reducing the window
+	 * of possible false sharing.
+	 */
+	stall_thrs = READ_ONCE(dql->stall_thrs);
 
 	/* Can't complete more than what's in queue */
 	BUG_ON(count > num_queued - dql->num_completed);
@@ -178,7 +183,7 @@ void dql_completed(struct dql *dql, unsigned int count)
 	dql->num_completed = completed;
 	dql->prev_num_queued = num_queued;
 
-	dql_check_stall(dql);
+	dql_check_stall(dql, stall_thrs);
 }
 EXPORT_SYMBOL(dql_completed);
 

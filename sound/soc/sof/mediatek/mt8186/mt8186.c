@@ -481,7 +481,7 @@ static struct snd_soc_dai_driver mt8186_dai[] = {
 };
 
 /* mt8186 ops */
-static struct snd_sof_dsp_ops sof_mt8186_ops = {
+static const struct snd_sof_dsp_ops sof_mt8186_ops = {
 	/* probe and remove */
 	.probe		= mt8186_dsp_probe,
 	.remove		= mt8186_dsp_remove,
@@ -666,6 +666,7 @@ static struct platform_driver snd_sof_of_mt8186_driver = {
 };
 module_platform_driver(snd_sof_of_mt8186_driver);
 
+MODULE_LICENSE("Dual BSD/GPL");
+MODULE_DESCRIPTION("SOF support for MT8186/MT8188 platforms");
 MODULE_IMPORT_NS(SND_SOC_SOF_XTENSA);
 MODULE_IMPORT_NS(SND_SOC_SOF_MTK_COMMON);
-MODULE_LICENSE("Dual BSD/GPL");

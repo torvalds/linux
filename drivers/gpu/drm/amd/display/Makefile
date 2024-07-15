@@ -33,6 +33,7 @@ subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/dc/hwss
 subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/dc/resource
 subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/dc/dsc
 subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/dc/optc
+subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/dc/dpp
 subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/modules/inc
 subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/modules/freesync
 subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/modules/color

@@ -28,12 +28,12 @@ bool fscache_wait_for_operation(struct netfs_cache_resources *cres,
 
 again:
 	if (!fscache_cache_is_live(cookie->volume->cache)) {
-		_leave(" [broken]");
+		kleave(" [broken]");
 		return false;
 	}
 
 	state = fscache_cookie_state(cookie);
-	_enter("c=%08x{%u},%x", cookie->debug_id, state, want_state);
+	kenter("c=%08x{%u},%x", cookie->debug_id, state, want_state);
 
 	switch (state) {
 	case FSCACHE_COOKIE_STATE_CREATING:
@@ -52,7 +52,7 @@ again:
 	case FSCACHE_COOKIE_STATE_DROPPED:
 	case FSCACHE_COOKIE_STATE_RELINQUISHING:
 	default:
-		_leave(" [not live]");
+		kleave(" [not live]");
 		return false;
 	}
 
@@ -92,7 +92,7 @@ again:
 	spin_lock(&cookie->lock);
 
 	state = fscache_cookie_state(cookie);
-	_enter("c=%08x{%u},%x", cookie->debug_id, state, want_state);
+	kenter("c=%08x{%u},%x", cookie->debug_id, state, want_state);
 
 	switch (state) {
 	case FSCACHE_COOKIE_STATE_LOOKING_UP:
@@ -140,7 +140,7 @@ failed:
 	cres->cache_priv = NULL;
 	cres->ops = NULL;
 	fscache_end_cookie_access(cookie, fscache_access_io_not_live);
-	_leave(" = -ENOBUFS");
+	kleave(" = -ENOBUFS");
 	return -ENOBUFS;
 }
 
@@ -166,6 +166,7 @@ struct fscache_write_request {
 	loff_t			start;
 	size_t			len;
 	bool			set_bits;
+	bool			using_pgpriv2;
 	netfs_io_terminated_t	term_func;
 	void			*term_func_priv;
 };
@@ -182,7 +183,7 @@ void __fscache_clear_page_bits(struct address_space *mapping,
 
 		rcu_read_lock();
 		xas_for_each(&xas, page, last) {
-			end_page_fscache(page);
+			folio_end_private_2(page_folio(page));
 		}
 		rcu_read_unlock();
 	}
@@ -197,8 +198,9 @@ static void fscache_wreq_done(void *priv, ssize_t transferred_or_error,
 {
 	struct fscache_write_request *wreq = priv;
 
-	fscache_clear_page_bits(wreq->mapping, wreq->start, wreq->len,
-				wreq->set_bits);
+	if (wreq->using_pgpriv2)
+		fscache_clear_page_bits(wreq->mapping, wreq->start, wreq->len,
+					wreq->set_bits);
 
 	if (wreq->term_func)
 		wreq->term_func(wreq->term_func_priv, transferred_or_error,
@@ -212,7 +214,7 @@ void __fscache_write_to_cache(struct fscache_cookie *cookie,
 			      loff_t start, size_t len, loff_t i_size,
 			      netfs_io_terminated_t term_func,
 			      void *term_func_priv,
-			      bool cond)
+			      bool using_pgpriv2, bool cond)
 {
 	struct fscache_write_request *wreq;
 	struct netfs_cache_resources *cres;
@@ -222,7 +224,7 @@ void __fscache_write_to_cache(struct fscache_cookie *cookie,
 	if (len == 0)
 		goto abandon;
 
-	_enter("%llx,%zx", start, len);
+	kenter("%llx,%zx", start, len);
 
 	wreq = kzalloc(sizeof(struct fscache_write_request), GFP_NOFS);
 	if (!wreq)
@@ -230,6 +232,7 @@ void __fscache_write_to_cache(struct fscache_cookie *cookie,
 	wreq->mapping		= mapping;
 	wreq->start		= start;
 	wreq->len		= len;
+	wreq->using_pgpriv2	= using_pgpriv2;
 	wreq->set_bits		= cond;
 	wreq->term_func		= term_func;
 	wreq->term_func_priv	= term_func_priv;
@@ -257,7 +260,8 @@ abandon_end:
 abandon_free:
 	kfree(wreq);
 abandon:
-	fscache_clear_page_bits(mapping, start, len, cond);
+	if (using_pgpriv2)
+		fscache_clear_page_bits(mapping, start, len, cond);
 	if (term_func)
 		term_func(term_func_priv, ret, false);
 }

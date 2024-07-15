@@ -692,18 +692,16 @@ static int exynos_ppmu_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int exynos_ppmu_remove(struct platform_device *pdev)
+static void exynos_ppmu_remove(struct platform_device *pdev)
 {
 	struct exynos_ppmu *info = platform_get_drvdata(pdev);
 
 	clk_disable_unprepare(info->ppmu.clk);
-
-	return 0;
 }
 
 static struct platform_driver exynos_ppmu_driver = {
 	.probe	= exynos_ppmu_probe,
-	.remove	= exynos_ppmu_remove,
+	.remove_new = exynos_ppmu_remove,
 	.driver = {
 		.name	= "exynos-ppmu",
 		.of_match_table = exynos_ppmu_id_match,

@@ -36,6 +36,16 @@ xfs_dir2_samename(
 	return !memcmp(n1->name, n2->name, n1->len);
 }
 
+enum xfs_dir2_fmt {
+	XFS_DIR2_FMT_SF,
+	XFS_DIR2_FMT_BLOCK,
+	XFS_DIR2_FMT_LEAF,
+	XFS_DIR2_FMT_NODE,
+	XFS_DIR2_FMT_ERROR,
+};
+
+enum xfs_dir2_fmt xfs_dir2_format(struct xfs_da_args *args, int *error);
+
 /*
  * Convert inode mode to directory entry filetype
  */
@@ -58,13 +68,18 @@ extern int xfs_dir_lookup(struct xfs_trans *tp, struct xfs_inode *dp,
 				const struct xfs_name *name, xfs_ino_t *inum,
 				struct xfs_name *ci_name);
 extern int xfs_dir_removename(struct xfs_trans *tp, struct xfs_inode *dp,
-				struct xfs_name *name, xfs_ino_t ino,
+				const struct xfs_name *name, xfs_ino_t ino,
 				xfs_extlen_t tot);
 extern int xfs_dir_replace(struct xfs_trans *tp, struct xfs_inode *dp,
 				const struct xfs_name *name, xfs_ino_t inum,
 				xfs_extlen_t tot);
 extern int xfs_dir_canenter(struct xfs_trans *tp, struct xfs_inode *dp,
 				struct xfs_name *name);
+
+int xfs_dir_lookup_args(struct xfs_da_args *args);
+int xfs_dir_createname_args(struct xfs_da_args *args);
+int xfs_dir_removename_args(struct xfs_da_args *args);
+int xfs_dir_replace_args(struct xfs_da_args *args);
 
 /*
  * Direct call from the bmap code, bypassing the generic directory layer.
@@ -74,8 +89,6 @@ extern int xfs_dir2_sf_to_block(struct xfs_da_args *args);
 /*
  * Interface routines used by userspace utilities
  */
-extern int xfs_dir2_isblock(struct xfs_da_args *args, bool *isblock);
-extern int xfs_dir2_isleaf(struct xfs_da_args *args, bool *isleaf);
 extern int xfs_dir2_shrink_inode(struct xfs_da_args *args, xfs_dir2_db_t db,
 				struct xfs_buf *bp);
 
@@ -100,6 +113,10 @@ extern struct xfs_dir2_data_free *xfs_dir2_data_freefind(
 		struct xfs_dir2_data_unused *dup);
 
 extern int xfs_dir_ino_validate(struct xfs_mount *mp, xfs_ino_t ino);
+
+xfs_failaddr_t xfs_dir3_leaf_header_check(struct xfs_buf *bp, xfs_ino_t owner);
+xfs_failaddr_t xfs_dir3_data_header_check(struct xfs_buf *bp, xfs_ino_t owner);
+xfs_failaddr_t xfs_dir3_block_header_check(struct xfs_buf *bp, xfs_ino_t owner);
 
 extern const struct xfs_buf_ops xfs_dir3_block_buf_ops;
 extern const struct xfs_buf_ops xfs_dir3_leafn_buf_ops;

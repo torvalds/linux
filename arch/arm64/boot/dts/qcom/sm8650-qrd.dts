@@ -766,6 +766,14 @@
 	status = "okay";
 };
 
+&gpu {
+	status = "okay";
+
+	zap-shader {
+		firmware-name = "qcom/sm8650/gen70900_zap.mbn";
+	};
+};
+
 &lpass_tlmm {
 	spkr_1_sd_n_active: spkr-1-sd-n-active-state {
 		pins = "gpio21";
@@ -825,10 +833,6 @@
 &mdss_dp0_out {
 	data-lanes = <0 1>;
 	remote-endpoint = <&usb_dp_qmpphy_dp_in>;
-};
-
-&mdss_mdp {
-	status = "okay";
 };
 
 &pcie_1_phy_aux_clk {

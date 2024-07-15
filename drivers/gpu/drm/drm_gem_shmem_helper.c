@@ -10,7 +10,6 @@
 #include <linux/shmem_fs.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
-#include <linux/module.h>
 
 #ifdef CONFIG_X86
 #include <asm/set_memory.h>
@@ -228,23 +227,27 @@ void drm_gem_shmem_put_pages(struct drm_gem_shmem_object *shmem)
 }
 EXPORT_SYMBOL(drm_gem_shmem_put_pages);
 
-static int drm_gem_shmem_pin_locked(struct drm_gem_shmem_object *shmem)
+int drm_gem_shmem_pin_locked(struct drm_gem_shmem_object *shmem)
 {
 	int ret;
 
 	dma_resv_assert_held(shmem->base.resv);
 
+	drm_WARN_ON(shmem->base.dev, shmem->base.import_attach);
+
 	ret = drm_gem_shmem_get_pages(shmem);
 
 	return ret;
 }
+EXPORT_SYMBOL(drm_gem_shmem_pin_locked);
 
-static void drm_gem_shmem_unpin_locked(struct drm_gem_shmem_object *shmem)
+void drm_gem_shmem_unpin_locked(struct drm_gem_shmem_object *shmem)
 {
 	dma_resv_assert_held(shmem->base.resv);
 
 	drm_gem_shmem_put_pages(shmem);
 }
+EXPORT_SYMBOL(drm_gem_shmem_unpin_locked);
 
 /**
  * drm_gem_shmem_pin - Pin backing pages for a shmem GEM object
@@ -609,6 +612,9 @@ int drm_gem_shmem_mmap(struct drm_gem_shmem_object *shmem, struct vm_area_struct
 
 		return ret;
 	}
+
+	if (is_cow_mapping(vma->vm_flags))
+		return -EINVAL;
 
 	dma_resv_lock(shmem->base.resv, NULL);
 	ret = drm_gem_shmem_get_pages(shmem);

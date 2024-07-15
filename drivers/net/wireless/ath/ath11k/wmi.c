@@ -20,6 +20,7 @@
 #include "hw.h"
 #include "peer.h"
 #include "testmode.h"
+#include "p2p.h"
 
 struct wmi_tlv_policy {
 	size_t min_len;
@@ -154,6 +155,10 @@ static const struct wmi_tlv_policy wmi_tlv_policies[] = {
 		.min_len = sizeof(struct wmi_per_chain_rssi_stats) },
 	[WMI_TAG_TWT_ADD_DIALOG_COMPLETE_EVENT] = {
 		.min_len = sizeof(struct wmi_twt_add_dialog_event) },
+	[WMI_TAG_P2P_NOA_INFO] = {
+		.min_len = sizeof(struct ath11k_wmi_p2p_noa_info) },
+	[WMI_TAG_P2P_NOA_EVENT] = {
+		.min_len = sizeof(struct wmi_p2p_noa_event) },
 };
 
 #define PRIMAP(_hw_mode_) \
@@ -981,7 +986,7 @@ int ath11k_wmi_vdev_start(struct ath11k *ar, struct wmi_vdev_start_req_arg *arg,
 		      FIELD_PREP(WMI_TLV_LEN, 0);
 
 	/* Note: This is a nested TLV containing:
-	 * [wmi_tlv][wmi_p2p_noa_descriptor][wmi_tlv]..
+	 * [wmi_tlv][ath11k_wmi_p2p_noa_descriptor][wmi_tlv]..
 	 */
 
 	ptr += sizeof(*tlv);
@@ -1700,6 +1705,45 @@ int ath11k_wmi_send_bcn_offload_control_cmd(struct ath11k *ar,
 	ath11k_dbg(ar->ab, ATH11K_DBG_WMI,
 		   "cmd bcn offload ctrl vdev id %d ctrl_op %d\n",
 		   vdev_id, bcn_ctrl_op);
+
+	return ret;
+}
+
+int ath11k_wmi_p2p_go_bcn_ie(struct ath11k *ar, u32 vdev_id,
+			     const u8 *p2p_ie)
+{
+	struct ath11k_pdev_wmi *wmi = ar->wmi;
+	struct wmi_p2p_go_set_beacon_ie_cmd *cmd;
+	size_t p2p_ie_len, aligned_len;
+	struct wmi_tlv *tlv;
+	struct sk_buff *skb;
+	int ret, len;
+
+	p2p_ie_len = p2p_ie[1] + 2;
+	aligned_len = roundup(p2p_ie_len, 4);
+
+	len = sizeof(*cmd) + TLV_HDR_SIZE + aligned_len;
+
+	skb = ath11k_wmi_alloc_skb(wmi->wmi_ab, len);
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct wmi_p2p_go_set_beacon_ie_cmd *)skb->data;
+	cmd->tlv_header = FIELD_PREP(WMI_TLV_TAG, WMI_TAG_P2P_GO_SET_BEACON_IE) |
+			  FIELD_PREP(WMI_TLV_LEN, sizeof(*cmd) - TLV_HDR_SIZE);
+	cmd->vdev_id = vdev_id;
+	cmd->ie_buf_len = p2p_ie_len;
+
+	tlv = (struct wmi_tlv *)cmd->tlv;
+	tlv->header = FIELD_PREP(WMI_TLV_TAG, WMI_TAG_ARRAY_BYTE) |
+		      FIELD_PREP(WMI_TLV_LEN, aligned_len);
+	memcpy(tlv->value, p2p_ie, p2p_ie_len);
+
+	ret = ath11k_wmi_cmd_send(wmi, skb, WMI_P2P_GO_SET_BEACON_IE);
+	if (ret) {
+		ath11k_warn(ar->ab, "failed to send WMI_P2P_GO_SET_BEACON_IE\n");
+		dev_kfree_skb(skb);
+	}
 
 	return ret;
 }
@@ -4020,7 +4064,8 @@ ath11k_wmi_obss_color_collision_event(struct ath11k_base *ab, struct sk_buff *sk
 
 	switch (ev->evt_type) {
 	case WMI_BSS_COLOR_COLLISION_DETECTION:
-		ieee80211_obss_color_collision_notify(arvif->vif, ev->obss_color_bitmap);
+		ieee80211_obss_color_collision_notify(arvif->vif, ev->obss_color_bitmap,
+						      0);
 		ath11k_dbg(ab, ATH11K_DBG_WMI,
 			   "OBSS color collision detected vdev:%d, event:%d, bitmap:%08llx\n",
 			   ev->vdev_id, ev->evt_type, ev->obss_color_bitmap);
@@ -8606,6 +8651,58 @@ exit:
 	kfree(tb);
 }
 
+static void ath11k_wmi_p2p_noa_event(struct ath11k_base *ab,
+				     struct sk_buff *skb)
+{
+	const void **tb;
+	const struct wmi_p2p_noa_event *ev;
+	const struct ath11k_wmi_p2p_noa_info *noa;
+	struct ath11k *ar;
+	int vdev_id;
+	u8 noa_descriptors;
+
+	tb = ath11k_wmi_tlv_parse_alloc(ab, skb, GFP_ATOMIC);
+	if (IS_ERR(tb)) {
+		ath11k_warn(ab, "failed to parse tlv: %ld\n", PTR_ERR(tb));
+		return;
+	}
+
+	ev = tb[WMI_TAG_P2P_NOA_EVENT];
+	noa = tb[WMI_TAG_P2P_NOA_INFO];
+
+	if (!ev || !noa)
+		goto out;
+
+	vdev_id = ev->vdev_id;
+	noa_descriptors = u32_get_bits(noa->noa_attr,
+				       WMI_P2P_NOA_INFO_DESC_NUM);
+
+	if (noa_descriptors > WMI_P2P_MAX_NOA_DESCRIPTORS) {
+		ath11k_warn(ab, "invalid descriptor num %d in P2P NoA event\n",
+			    noa_descriptors);
+		goto out;
+	}
+
+	ath11k_dbg(ab, ATH11K_DBG_WMI,
+		   "wmi tlv p2p noa vdev_id %i descriptors %u\n",
+		   vdev_id, noa_descriptors);
+
+	rcu_read_lock();
+	ar = ath11k_mac_get_ar_by_vdev_id(ab, vdev_id);
+	if (!ar) {
+		ath11k_warn(ab, "invalid vdev id %d in P2P NoA event\n",
+			    vdev_id);
+		goto unlock;
+	}
+
+	ath11k_p2p_noa_update_by_vdev_id(ar, vdev_id, noa);
+
+unlock:
+	rcu_read_unlock();
+out:
+	kfree(tb);
+}
+
 static void ath11k_wmi_tlv_op_rx(struct ath11k_base *ab, struct sk_buff *skb)
 {
 	struct wmi_cmd_hdr *cmd_hdr;
@@ -8732,6 +8829,9 @@ static void ath11k_wmi_tlv_op_rx(struct ath11k_base *ab, struct sk_buff *skb)
 		break;
 	case WMI_GTK_OFFLOAD_STATUS_EVENTID:
 		ath11k_wmi_gtk_offload_status_event(ab, skb);
+		break;
+	case WMI_P2P_NOA_EVENTID:
+		ath11k_wmi_p2p_noa_event(ab, skb);
 		break;
 	default:
 		ath11k_dbg(ab, ATH11K_DBG_WMI, "unsupported event id 0x%x\n", id);

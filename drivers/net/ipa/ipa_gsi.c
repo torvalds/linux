@@ -1,16 +1,17 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2019-2020 Linaro Ltd.
+ * Copyright (C) 2019-2024 Linaro Ltd.
  */
 
 #include <linux/types.h>
 
-#include "ipa_gsi.h"
 #include "gsi_trans.h"
 #include "ipa.h"
-#include "ipa_endpoint.h"
 #include "ipa_data.h"
+#include "ipa_endpoint.h"
+#include "ipa_gsi.h"
+#include "ipa_version.h"
 
 void ipa_gsi_trans_complete(struct gsi_trans *trans)
 {

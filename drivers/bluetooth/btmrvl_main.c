@@ -121,13 +121,6 @@ int btmrvl_process_event(struct btmrvl_private *priv, struct sk_buff *skb)
 				((event->data[2] == MODULE_BROUGHT_UP) ||
 				(event->data[2] == MODULE_ALREADY_UP)) ?
 				"Bring-up succeed" : "Bring-up failed");
-
-			if (event->length > 3 && event->data[3])
-				priv->btmrvl_dev.dev_type = HCI_AMP;
-			else
-				priv->btmrvl_dev.dev_type = HCI_PRIMARY;
-
-			BT_DBG("dev_type: %d", priv->btmrvl_dev.dev_type);
 		} else if (priv->btmrvl_dev.sendcmdflag &&
 				event->data[1] == MODULE_SHUTDOWN_REQ) {
 			BT_DBG("EVENT:%s", (event->data[2]) ?
@@ -685,8 +678,6 @@ int btmrvl_register_hdev(struct btmrvl_private *priv)
 	hdev->set_bdaddr = btmrvl_set_bdaddr;
 	hdev->wakeup = btmrvl_wakeup;
 	SET_HCIDEV_DEV(hdev, &card->func->dev);
-
-	hdev->dev_type = priv->btmrvl_dev.dev_type;
 
 	ret = hci_register_dev(hdev);
 	if (ret < 0) {

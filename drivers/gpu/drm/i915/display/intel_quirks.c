@@ -9,72 +9,72 @@
 #include "intel_display_types.h"
 #include "intel_quirks.h"
 
-static void intel_set_quirk(struct drm_i915_private *i915, enum intel_quirk_id quirk)
+static void intel_set_quirk(struct intel_display *display, enum intel_quirk_id quirk)
 {
-	i915->display.quirks.mask |= BIT(quirk);
+	display->quirks.mask |= BIT(quirk);
 }
 
 /*
  * Some machines (Lenovo U160) do not work with SSC on LVDS for some reason
  */
-static void quirk_ssc_force_disable(struct drm_i915_private *i915)
+static void quirk_ssc_force_disable(struct intel_display *display)
 {
-	intel_set_quirk(i915, QUIRK_LVDS_SSC_DISABLE);
-	drm_info(&i915->drm, "applying lvds SSC disable quirk\n");
+	intel_set_quirk(display, QUIRK_LVDS_SSC_DISABLE);
+	drm_info(display->drm, "applying lvds SSC disable quirk\n");
 }
 
 /*
  * A machine (e.g. Acer Aspire 5734Z) may need to invert the panel backlight
  * brightness value
  */
-static void quirk_invert_brightness(struct drm_i915_private *i915)
+static void quirk_invert_brightness(struct intel_display *display)
 {
-	intel_set_quirk(i915, QUIRK_INVERT_BRIGHTNESS);
-	drm_info(&i915->drm, "applying inverted panel brightness quirk\n");
+	intel_set_quirk(display, QUIRK_INVERT_BRIGHTNESS);
+	drm_info(display->drm, "applying inverted panel brightness quirk\n");
 }
 
 /* Some VBT's incorrectly indicate no backlight is present */
-static void quirk_backlight_present(struct drm_i915_private *i915)
+static void quirk_backlight_present(struct intel_display *display)
 {
-	intel_set_quirk(i915, QUIRK_BACKLIGHT_PRESENT);
-	drm_info(&i915->drm, "applying backlight present quirk\n");
+	intel_set_quirk(display, QUIRK_BACKLIGHT_PRESENT);
+	drm_info(display->drm, "applying backlight present quirk\n");
 }
 
 /* Toshiba Satellite P50-C-18C requires T12 delay to be min 800ms
  * which is 300 ms greater than eDP spec T12 min.
  */
-static void quirk_increase_t12_delay(struct drm_i915_private *i915)
+static void quirk_increase_t12_delay(struct intel_display *display)
 {
-	intel_set_quirk(i915, QUIRK_INCREASE_T12_DELAY);
-	drm_info(&i915->drm, "Applying T12 delay quirk\n");
+	intel_set_quirk(display, QUIRK_INCREASE_T12_DELAY);
+	drm_info(display->drm, "Applying T12 delay quirk\n");
 }
 
 /*
  * GeminiLake NUC HDMI outputs require additional off time
  * this allows the onboard retimer to correctly sync to signal
  */
-static void quirk_increase_ddi_disabled_time(struct drm_i915_private *i915)
+static void quirk_increase_ddi_disabled_time(struct intel_display *display)
 {
-	intel_set_quirk(i915, QUIRK_INCREASE_DDI_DISABLED_TIME);
-	drm_info(&i915->drm, "Applying Increase DDI Disabled quirk\n");
+	intel_set_quirk(display, QUIRK_INCREASE_DDI_DISABLED_TIME);
+	drm_info(display->drm, "Applying Increase DDI Disabled quirk\n");
 }
 
-static void quirk_no_pps_backlight_power_hook(struct drm_i915_private *i915)
+static void quirk_no_pps_backlight_power_hook(struct intel_display *display)
 {
-	intel_set_quirk(i915, QUIRK_NO_PPS_BACKLIGHT_POWER_HOOK);
-	drm_info(&i915->drm, "Applying no pps backlight power quirk\n");
+	intel_set_quirk(display, QUIRK_NO_PPS_BACKLIGHT_POWER_HOOK);
+	drm_info(display->drm, "Applying no pps backlight power quirk\n");
 }
 
 struct intel_quirk {
 	int device;
 	int subsystem_vendor;
 	int subsystem_device;
-	void (*hook)(struct drm_i915_private *i915);
+	void (*hook)(struct intel_display *display);
 };
 
 /* For systems that don't have a meaningful PCI subdevice/subvendor ID */
 struct intel_dmi_quirk {
-	void (*hook)(struct drm_i915_private *i915);
+	void (*hook)(struct intel_display *display);
 	const struct dmi_system_id (*dmi_id_list)[];
 };
 
@@ -203,9 +203,9 @@ static struct intel_quirk intel_quirks[] = {
 	{ 0x0f31, 0x103c, 0x220f, quirk_invert_brightness },
 };
 
-void intel_init_quirks(struct drm_i915_private *i915)
+void intel_init_quirks(struct intel_display *display)
 {
-	struct pci_dev *d = to_pci_dev(i915->drm.dev);
+	struct pci_dev *d = to_pci_dev(display->drm->dev);
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(intel_quirks); i++) {
@@ -216,15 +216,15 @@ void intel_init_quirks(struct drm_i915_private *i915)
 		     q->subsystem_vendor == PCI_ANY_ID) &&
 		    (d->subsystem_device == q->subsystem_device ||
 		     q->subsystem_device == PCI_ANY_ID))
-			q->hook(i915);
+			q->hook(display);
 	}
 	for (i = 0; i < ARRAY_SIZE(intel_dmi_quirks); i++) {
 		if (dmi_check_system(*intel_dmi_quirks[i].dmi_id_list) != 0)
-			intel_dmi_quirks[i].hook(i915);
+			intel_dmi_quirks[i].hook(display);
 	}
 }
 
-bool intel_has_quirk(struct drm_i915_private *i915, enum intel_quirk_id quirk)
+bool intel_has_quirk(struct intel_display *display, enum intel_quirk_id quirk)
 {
-	return i915->display.quirks.mask & BIT(quirk);
+	return display->quirks.mask & BIT(quirk);
 }

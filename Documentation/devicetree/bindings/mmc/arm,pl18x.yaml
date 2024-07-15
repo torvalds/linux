@@ -79,6 +79,10 @@ properties:
           - const: rx
           - const: tx
 
+  access-controllers:
+    minItems: 1
+    maxItems: 2
+
   power-domains: true
 
   resets:

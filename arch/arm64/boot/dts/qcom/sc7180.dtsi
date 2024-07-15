@@ -1585,9 +1585,12 @@
 			compatible = "qcom,sc7180-qmp-ufs-phy",
 				     "qcom,sm7150-qmp-ufs-phy";
 			reg = <0 0x01d87000 0 0x1000>;
-			clocks = <&gcc GCC_UFS_MEM_CLKREF_CLK>,
-				 <&gcc GCC_UFS_PHY_PHY_AUX_CLK>;
-			clock-names = "ref", "ref_aux";
+			clocks = <&rpmhcc RPMH_CXO_CLK>,
+				 <&gcc GCC_UFS_PHY_PHY_AUX_CLK>,
+				 <&gcc GCC_UFS_MEM_CLKREF_CLK>;
+			clock-names = "ref",
+				      "ref_aux",
+				      "qref";
 			power-domains = <&gcc UFS_PHY_GDSC>;
 			resets = <&ufs_mem_hc 0>;
 			reset-names = "ufsphy";
@@ -2309,6 +2312,7 @@
 			compatible = "qcom,sc7180-dcc", "qcom,dcc";
 			reg = <0x0 0x010a2000 0x0 0x1000>,
 			      <0x0 0x010ae000 0x0 0x2000>;
+			status = "disabled";
 		};
 
 		stm@6002000 {

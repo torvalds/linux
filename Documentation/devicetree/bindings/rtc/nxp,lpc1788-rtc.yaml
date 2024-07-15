@@ -1,0 +1,58 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/rtc/nxp,lpc1788-rtc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NXP LPC1788 real-time clock
+
+description:
+  The LPC1788 RTC provides calendar and clock functionality
+  together with periodic tick and alarm interrupt support.
+
+maintainers:
+  - Javier Carrasco <javier.carrasco.cruz@gmail.com>
+
+allOf:
+  - $ref: rtc.yaml#
+
+properties:
+  compatible:
+    const: nxp,lpc1788-rtc
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    items:
+      - description: RTC clock
+      - description: Register clock
+
+  clock-names:
+    items:
+      - const: rtc
+      - const: reg
+
+  interrupts:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - interrupts
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/lpc18xx-ccu.h>
+
+    rtc@40046000 {
+        compatible = "nxp,lpc1788-rtc";
+        reg = <0x40046000 0x1000>;
+        clocks = <&creg_clk 0>, <&ccu1 CLK_CPU_BUS>;
+        clock-names = "rtc", "reg";
+        interrupts = <47>;
+    };

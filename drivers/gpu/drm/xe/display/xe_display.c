@@ -51,14 +51,6 @@ bool xe_display_driver_probe_defer(struct pci_dev *pdev)
 	return intel_display_driver_probe_defer(pdev);
 }
 
-static void xe_display_last_close(struct drm_device *dev)
-{
-	struct xe_device *xe = to_xe_device(dev);
-
-	if (xe->info.enable_display)
-		intel_fbdev_restore_mode(to_xe_device(dev));
-}
-
 /**
  * xe_display_driver_set_hooks - Add driver flags and hooks for display
  * @driver: DRM device driver
@@ -73,7 +65,6 @@ void xe_display_driver_set_hooks(struct drm_driver *driver)
 		return;
 
 	driver->driver_features |= DRIVER_MODESET | DRIVER_ATOMIC;
-	driver->lastclose = xe_display_last_close;
 }
 
 static void unset_display_features(struct xe_device *xe)
@@ -101,8 +92,6 @@ static void display_destroy(struct drm_device *dev, void *dummy)
  */
 int xe_display_create(struct xe_device *xe)
 {
-	int err;
-
 	spin_lock_init(&xe->display.fb_tracking.lock);
 
 	xe->display.hotplug.dp_wq = alloc_ordered_workqueue("xe-dp", 0);
@@ -110,11 +99,7 @@ int xe_display_create(struct xe_device *xe)
 	drmm_mutex_init(&xe->drm, &xe->sb_lock);
 	xe->enabled_irq_mask = ~0;
 
-	err = drmm_add_action_or_reset(&xe->drm, display_destroy, NULL);
-	if (err)
-		return err;
-
-	return 0;
+	return drmm_add_action_or_reset(&xe->drm, display_destroy, NULL);
 }
 
 static void xe_display_fini_nommio(struct drm_device *dev, void *dummy)
@@ -218,9 +203,7 @@ void xe_display_fini(struct xe_device *xe)
 	if (!xe->info.enable_display)
 		return;
 
-	/* poll work can call into fbdev, hence clean that up afterwards */
 	intel_hpd_poll_fini(xe);
-	intel_fbdev_fini(xe);
 
 	intel_hdcp_component_fini(xe);
 	intel_audio_deinit(xe);

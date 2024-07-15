@@ -94,6 +94,7 @@ dml_get_var_decl(wm_usr_retraining, dml_float_t);
 dml_get_var_decl(urgent_latency, dml_float_t);
 
 dml_get_var_decl(wm_writeback_dram_clock_change, dml_float_t);
+dml_get_var_decl(wm_writeback_urgent, dml_float_t);
 dml_get_var_decl(stutter_efficiency_no_vblank, dml_float_t);
 dml_get_var_decl(stutter_efficiency, dml_float_t);
 dml_get_var_decl(stutter_efficiency_z8, dml_float_t);

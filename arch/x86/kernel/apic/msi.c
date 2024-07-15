@@ -184,7 +184,6 @@ static int x86_msi_prepare(struct irq_domain *domain, struct device *dev,
 		alloc->type = X86_IRQ_ALLOC_TYPE_PCI_MSI;
 		return 0;
 	case DOMAIN_BUS_PCI_DEVICE_MSIX:
-	case DOMAIN_BUS_PCI_DEVICE_IMS:
 		alloc->type = X86_IRQ_ALLOC_TYPE_PCI_MSIX;
 		return 0;
 	default:
@@ -228,10 +227,6 @@ static bool x86_init_dev_msi_info(struct device *dev, struct irq_domain *domain,
 	switch(info->bus_token) {
 	case DOMAIN_BUS_PCI_DEVICE_MSI:
 	case DOMAIN_BUS_PCI_DEVICE_MSIX:
-		break;
-	case DOMAIN_BUS_PCI_DEVICE_IMS:
-		if (!(pops->supported_flags & MSI_FLAG_PCI_IMS))
-			return false;
 		break;
 	default:
 		WARN_ON_ONCE(1);

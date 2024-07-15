@@ -72,7 +72,7 @@
 		#size-cells = <1>;
 		ranges;
 
-		onenand: onenand@b0600000 {
+		onenand: nand-controller@b0600000 {
 			compatible = "samsung,s5pv210-onenand";
 			reg = <0xb0600000 0x2000>,
 				<0xb0000000 0x20000>,
@@ -82,7 +82,7 @@
 			clocks = <&clocks CLK_NANDXL>, <&clocks DOUT_FLASH>;
 			clock-names = "bus", "onenand";
 			#address-cells = <1>;
-			#size-cells = <1>;
+			#size-cells = <0>;
 			status = "disabled";
 		};
 
@@ -161,6 +161,7 @@
 			pinctrl-0 = <&spi0_bus>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			fifo-depth = <256>;
 			status = "disabled";
 		};
 
@@ -177,6 +178,7 @@
 			pinctrl-0 = <&spi1_bus>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			fifo-depth = <64>;
 			status = "disabled";
 		};
 

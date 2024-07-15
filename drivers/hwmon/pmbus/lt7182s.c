@@ -168,7 +168,7 @@ static int lt7182s_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id lt7182s_id[] = {
-	{ "lt7182s", 0 },
+	{ "lt7182s" },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, lt7182s_id);

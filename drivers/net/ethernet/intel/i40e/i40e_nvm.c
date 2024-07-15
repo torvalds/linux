@@ -734,37 +734,7 @@ int i40e_validate_nvm_checksum(struct i40e_hw *hw,
 	return ret_code;
 }
 
-static int i40e_nvmupd_state_init(struct i40e_hw *hw,
-				  struct i40e_nvm_access *cmd,
-				  u8 *bytes, int *perrno);
-static int i40e_nvmupd_state_reading(struct i40e_hw *hw,
-				     struct i40e_nvm_access *cmd,
-				     u8 *bytes, int *perrno);
-static int i40e_nvmupd_state_writing(struct i40e_hw *hw,
-				     struct i40e_nvm_access *cmd,
-				     u8 *bytes, int *errno);
-static enum i40e_nvmupd_cmd i40e_nvmupd_validate_command(struct i40e_hw *hw,
-						struct i40e_nvm_access *cmd,
-						int *perrno);
-static int i40e_nvmupd_nvm_erase(struct i40e_hw *hw,
-				 struct i40e_nvm_access *cmd,
-				 int *perrno);
-static int i40e_nvmupd_nvm_write(struct i40e_hw *hw,
-				 struct i40e_nvm_access *cmd,
-				 u8 *bytes, int *perrno);
-static int i40e_nvmupd_nvm_read(struct i40e_hw *hw,
-				struct i40e_nvm_access *cmd,
-				u8 *bytes, int *perrno);
-static int i40e_nvmupd_exec_aq(struct i40e_hw *hw,
-			       struct i40e_nvm_access *cmd,
-			       u8 *bytes, int *perrno);
-static int i40e_nvmupd_get_aq_result(struct i40e_hw *hw,
-				     struct i40e_nvm_access *cmd,
-				     u8 *bytes, int *perrno);
-static int i40e_nvmupd_get_aq_event(struct i40e_hw *hw,
-				    struct i40e_nvm_access *cmd,
-				    u8 *bytes, int *perrno);
-static inline u8 i40e_nvmupd_get_module(u32 val)
+static u8 i40e_nvmupd_get_module(u32 val)
 {
 	return (u8)(val & I40E_NVM_MOD_PNT_MASK);
 }
@@ -799,474 +769,6 @@ static const char * const i40e_nvm_update_state_str[] = {
 };
 
 /**
- * i40e_nvmupd_command - Process an NVM update command
- * @hw: pointer to hardware structure
- * @cmd: pointer to nvm update command
- * @bytes: pointer to the data buffer
- * @perrno: pointer to return error code
- *
- * Dispatches command depending on what update state is current
- **/
-int i40e_nvmupd_command(struct i40e_hw *hw,
-			struct i40e_nvm_access *cmd,
-			u8 *bytes, int *perrno)
-{
-	enum i40e_nvmupd_cmd upd_cmd;
-	int status;
-
-	/* assume success */
-	*perrno = 0;
-
-	/* early check for status command and debug msgs */
-	upd_cmd = i40e_nvmupd_validate_command(hw, cmd, perrno);
-
-	i40e_debug(hw, I40E_DEBUG_NVM, "%s state %d nvm_release_on_hold %d opc 0x%04x cmd 0x%08x config 0x%08x offset 0x%08x data_size 0x%08x\n",
-		   i40e_nvm_update_state_str[upd_cmd],
-		   hw->nvmupd_state,
-		   hw->nvm_release_on_done, hw->nvm_wait_opcode,
-		   cmd->command, cmd->config, cmd->offset, cmd->data_size);
-
-	if (upd_cmd == I40E_NVMUPD_INVALID) {
-		*perrno = -EFAULT;
-		i40e_debug(hw, I40E_DEBUG_NVM,
-			   "i40e_nvmupd_validate_command returns %d errno %d\n",
-			   upd_cmd, *perrno);
-	}
-
-	/* a status request returns immediately rather than
-	 * going into the state machine
-	 */
-	if (upd_cmd == I40E_NVMUPD_STATUS) {
-		if (!cmd->data_size) {
-			*perrno = -EFAULT;
-			return -EINVAL;
-		}
-
-		bytes[0] = hw->nvmupd_state;
-
-		if (cmd->data_size >= 4) {
-			bytes[1] = 0;
-			*((u16 *)&bytes[2]) = hw->nvm_wait_opcode;
-		}
-
-		/* Clear error status on read */
-		if (hw->nvmupd_state == I40E_NVMUPD_STATE_ERROR)
-			hw->nvmupd_state = I40E_NVMUPD_STATE_INIT;
-
-		return 0;
-	}
-
-	/* Clear status even it is not read and log */
-	if (hw->nvmupd_state == I40E_NVMUPD_STATE_ERROR) {
-		i40e_debug(hw, I40E_DEBUG_NVM,
-			   "Clearing I40E_NVMUPD_STATE_ERROR state without reading\n");
-		hw->nvmupd_state = I40E_NVMUPD_STATE_INIT;
-	}
-
-	/* Acquire lock to prevent race condition where adminq_task
-	 * can execute after i40e_nvmupd_nvm_read/write but before state
-	 * variables (nvm_wait_opcode, nvm_release_on_done) are updated.
-	 *
-	 * During NVMUpdate, it is observed that lock could be held for
-	 * ~5ms for most commands. However lock is held for ~60ms for
-	 * NVMUPD_CSUM_LCB command.
-	 */
-	mutex_lock(&hw->aq.arq_mutex);
-	switch (hw->nvmupd_state) {
-	case I40E_NVMUPD_STATE_INIT:
-		status = i40e_nvmupd_state_init(hw, cmd, bytes, perrno);
-		break;
-
-	case I40E_NVMUPD_STATE_READING:
-		status = i40e_nvmupd_state_reading(hw, cmd, bytes, perrno);
-		break;
-
-	case I40E_NVMUPD_STATE_WRITING:
-		status = i40e_nvmupd_state_writing(hw, cmd, bytes, perrno);
-		break;
-
-	case I40E_NVMUPD_STATE_INIT_WAIT:
-	case I40E_NVMUPD_STATE_WRITE_WAIT:
-		/* if we need to stop waiting for an event, clear
-		 * the wait info and return before doing anything else
-		 */
-		if (cmd->offset == 0xffff) {
-			i40e_nvmupd_clear_wait_state(hw);
-			status = 0;
-			break;
-		}
-
-		status = -EBUSY;
-		*perrno = -EBUSY;
-		break;
-
-	default:
-		/* invalid state, should never happen */
-		i40e_debug(hw, I40E_DEBUG_NVM,
-			   "NVMUPD: no such state %d\n", hw->nvmupd_state);
-		status = -EOPNOTSUPP;
-		*perrno = -ESRCH;
-		break;
-	}
-
-	mutex_unlock(&hw->aq.arq_mutex);
-	return status;
-}
-
-/**
- * i40e_nvmupd_state_init - Handle NVM update state Init
- * @hw: pointer to hardware structure
- * @cmd: pointer to nvm update command buffer
- * @bytes: pointer to the data buffer
- * @perrno: pointer to return error code
- *
- * Process legitimate commands of the Init state and conditionally set next
- * state. Reject all other commands.
- **/
-static int i40e_nvmupd_state_init(struct i40e_hw *hw,
-				  struct i40e_nvm_access *cmd,
-				  u8 *bytes, int *perrno)
-{
-	enum i40e_nvmupd_cmd upd_cmd;
-	int status = 0;
-
-	upd_cmd = i40e_nvmupd_validate_command(hw, cmd, perrno);
-
-	switch (upd_cmd) {
-	case I40E_NVMUPD_READ_SA:
-		status = i40e_acquire_nvm(hw, I40E_RESOURCE_READ);
-		if (status) {
-			*perrno = i40e_aq_rc_to_posix(status,
-						     hw->aq.asq_last_status);
-		} else {
-			status = i40e_nvmupd_nvm_read(hw, cmd, bytes, perrno);
-			i40e_release_nvm(hw);
-		}
-		break;
-
-	case I40E_NVMUPD_READ_SNT:
-		status = i40e_acquire_nvm(hw, I40E_RESOURCE_READ);
-		if (status) {
-			*perrno = i40e_aq_rc_to_posix(status,
-						     hw->aq.asq_last_status);
-		} else {
-			status = i40e_nvmupd_nvm_read(hw, cmd, bytes, perrno);
-			if (status)
-				i40e_release_nvm(hw);
-			else
-				hw->nvmupd_state = I40E_NVMUPD_STATE_READING;
-		}
-		break;
-
-	case I40E_NVMUPD_WRITE_ERA:
-		status = i40e_acquire_nvm(hw, I40E_RESOURCE_WRITE);
-		if (status) {
-			*perrno = i40e_aq_rc_to_posix(status,
-						     hw->aq.asq_last_status);
-		} else {
-			status = i40e_nvmupd_nvm_erase(hw, cmd, perrno);
-			if (status) {
-				i40e_release_nvm(hw);
-			} else {
-				hw->nvm_release_on_done = true;
-				hw->nvm_wait_opcode = i40e_aqc_opc_nvm_erase;
-				hw->nvmupd_state = I40E_NVMUPD_STATE_INIT_WAIT;
-			}
-		}
-		break;
-
-	case I40E_NVMUPD_WRITE_SA:
-		status = i40e_acquire_nvm(hw, I40E_RESOURCE_WRITE);
-		if (status) {
-			*perrno = i40e_aq_rc_to_posix(status,
-						     hw->aq.asq_last_status);
-		} else {
-			status = i40e_nvmupd_nvm_write(hw, cmd, bytes, perrno);
-			if (status) {
-				i40e_release_nvm(hw);
-			} else {
-				hw->nvm_release_on_done = true;
-				hw->nvm_wait_opcode = i40e_aqc_opc_nvm_update;
-				hw->nvmupd_state = I40E_NVMUPD_STATE_INIT_WAIT;
-			}
-		}
-		break;
-
-	case I40E_NVMUPD_WRITE_SNT:
-		status = i40e_acquire_nvm(hw, I40E_RESOURCE_WRITE);
-		if (status) {
-			*perrno = i40e_aq_rc_to_posix(status,
-						     hw->aq.asq_last_status);
-		} else {
-			status = i40e_nvmupd_nvm_write(hw, cmd, bytes, perrno);
-			if (status) {
-				i40e_release_nvm(hw);
-			} else {
-				hw->nvm_wait_opcode = i40e_aqc_opc_nvm_update;
-				hw->nvmupd_state = I40E_NVMUPD_STATE_WRITE_WAIT;
-			}
-		}
-		break;
-
-	case I40E_NVMUPD_CSUM_SA:
-		status = i40e_acquire_nvm(hw, I40E_RESOURCE_WRITE);
-		if (status) {
-			*perrno = i40e_aq_rc_to_posix(status,
-						     hw->aq.asq_last_status);
-		} else {
-			status = i40e_update_nvm_checksum(hw);
-			if (status) {
-				*perrno = hw->aq.asq_last_status ?
-				   i40e_aq_rc_to_posix(status,
-						       hw->aq.asq_last_status) :
-				   -EIO;
-				i40e_release_nvm(hw);
-			} else {
-				hw->nvm_release_on_done = true;
-				hw->nvm_wait_opcode = i40e_aqc_opc_nvm_update;
-				hw->nvmupd_state = I40E_NVMUPD_STATE_INIT_WAIT;
-			}
-		}
-		break;
-
-	case I40E_NVMUPD_EXEC_AQ:
-		status = i40e_nvmupd_exec_aq(hw, cmd, bytes, perrno);
-		break;
-
-	case I40E_NVMUPD_GET_AQ_RESULT:
-		status = i40e_nvmupd_get_aq_result(hw, cmd, bytes, perrno);
-		break;
-
-	case I40E_NVMUPD_GET_AQ_EVENT:
-		status = i40e_nvmupd_get_aq_event(hw, cmd, bytes, perrno);
-		break;
-
-	default:
-		i40e_debug(hw, I40E_DEBUG_NVM,
-			   "NVMUPD: bad cmd %s in init state\n",
-			   i40e_nvm_update_state_str[upd_cmd]);
-		status = -EIO;
-		*perrno = -ESRCH;
-		break;
-	}
-	return status;
-}
-
-/**
- * i40e_nvmupd_state_reading - Handle NVM update state Reading
- * @hw: pointer to hardware structure
- * @cmd: pointer to nvm update command buffer
- * @bytes: pointer to the data buffer
- * @perrno: pointer to return error code
- *
- * NVM ownership is already held.  Process legitimate commands and set any
- * change in state; reject all other commands.
- **/
-static int i40e_nvmupd_state_reading(struct i40e_hw *hw,
-				     struct i40e_nvm_access *cmd,
-				     u8 *bytes, int *perrno)
-{
-	enum i40e_nvmupd_cmd upd_cmd;
-	int status = 0;
-
-	upd_cmd = i40e_nvmupd_validate_command(hw, cmd, perrno);
-
-	switch (upd_cmd) {
-	case I40E_NVMUPD_READ_SA:
-	case I40E_NVMUPD_READ_CON:
-		status = i40e_nvmupd_nvm_read(hw, cmd, bytes, perrno);
-		break;
-
-	case I40E_NVMUPD_READ_LCB:
-		status = i40e_nvmupd_nvm_read(hw, cmd, bytes, perrno);
-		i40e_release_nvm(hw);
-		hw->nvmupd_state = I40E_NVMUPD_STATE_INIT;
-		break;
-
-	default:
-		i40e_debug(hw, I40E_DEBUG_NVM,
-			   "NVMUPD: bad cmd %s in reading state.\n",
-			   i40e_nvm_update_state_str[upd_cmd]);
-		status = -EOPNOTSUPP;
-		*perrno = -ESRCH;
-		break;
-	}
-	return status;
-}
-
-/**
- * i40e_nvmupd_state_writing - Handle NVM update state Writing
- * @hw: pointer to hardware structure
- * @cmd: pointer to nvm update command buffer
- * @bytes: pointer to the data buffer
- * @perrno: pointer to return error code
- *
- * NVM ownership is already held.  Process legitimate commands and set any
- * change in state; reject all other commands
- **/
-static int i40e_nvmupd_state_writing(struct i40e_hw *hw,
-				     struct i40e_nvm_access *cmd,
-				     u8 *bytes, int *perrno)
-{
-	enum i40e_nvmupd_cmd upd_cmd;
-	bool retry_attempt = false;
-	int status = 0;
-
-	upd_cmd = i40e_nvmupd_validate_command(hw, cmd, perrno);
-
-retry:
-	switch (upd_cmd) {
-	case I40E_NVMUPD_WRITE_CON:
-		status = i40e_nvmupd_nvm_write(hw, cmd, bytes, perrno);
-		if (!status) {
-			hw->nvm_wait_opcode = i40e_aqc_opc_nvm_update;
-			hw->nvmupd_state = I40E_NVMUPD_STATE_WRITE_WAIT;
-		}
-		break;
-
-	case I40E_NVMUPD_WRITE_LCB:
-		status = i40e_nvmupd_nvm_write(hw, cmd, bytes, perrno);
-		if (status) {
-			*perrno = hw->aq.asq_last_status ?
-				   i40e_aq_rc_to_posix(status,
-						       hw->aq.asq_last_status) :
-				   -EIO;
-			hw->nvmupd_state = I40E_NVMUPD_STATE_INIT;
-		} else {
-			hw->nvm_release_on_done = true;
-			hw->nvm_wait_opcode = i40e_aqc_opc_nvm_update;
-			hw->nvmupd_state = I40E_NVMUPD_STATE_INIT_WAIT;
-		}
-		break;
-
-	case I40E_NVMUPD_CSUM_CON:
-		/* Assumes the caller has acquired the nvm */
-		status = i40e_update_nvm_checksum(hw);
-		if (status) {
-			*perrno = hw->aq.asq_last_status ?
-				   i40e_aq_rc_to_posix(status,
-						       hw->aq.asq_last_status) :
-				   -EIO;
-			hw->nvmupd_state = I40E_NVMUPD_STATE_INIT;
-		} else {
-			hw->nvm_wait_opcode = i40e_aqc_opc_nvm_update;
-			hw->nvmupd_state = I40E_NVMUPD_STATE_WRITE_WAIT;
-		}
-		break;
-
-	case I40E_NVMUPD_CSUM_LCB:
-		/* Assumes the caller has acquired the nvm */
-		status = i40e_update_nvm_checksum(hw);
-		if (status) {
-			*perrno = hw->aq.asq_last_status ?
-				   i40e_aq_rc_to_posix(status,
-						       hw->aq.asq_last_status) :
-				   -EIO;
-			hw->nvmupd_state = I40E_NVMUPD_STATE_INIT;
-		} else {
-			hw->nvm_release_on_done = true;
-			hw->nvm_wait_opcode = i40e_aqc_opc_nvm_update;
-			hw->nvmupd_state = I40E_NVMUPD_STATE_INIT_WAIT;
-		}
-		break;
-
-	default:
-		i40e_debug(hw, I40E_DEBUG_NVM,
-			   "NVMUPD: bad cmd %s in writing state.\n",
-			   i40e_nvm_update_state_str[upd_cmd]);
-		status = -EOPNOTSUPP;
-		*perrno = -ESRCH;
-		break;
-	}
-
-	/* In some circumstances, a multi-write transaction takes longer
-	 * than the default 3 minute timeout on the write semaphore.  If
-	 * the write failed with an EBUSY status, this is likely the problem,
-	 * so here we try to reacquire the semaphore then retry the write.
-	 * We only do one retry, then give up.
-	 */
-	if (status && (hw->aq.asq_last_status == I40E_AQ_RC_EBUSY) &&
-	    !retry_attempt) {
-		u32 old_asq_status = hw->aq.asq_last_status;
-		int old_status = status;
-		u32 gtime;
-
-		gtime = rd32(hw, I40E_GLVFGEN_TIMER);
-		if (gtime >= hw->nvm.hw_semaphore_timeout) {
-			i40e_debug(hw, I40E_DEBUG_ALL,
-				   "NVMUPD: write semaphore expired (%d >= %lld), retrying\n",
-				   gtime, hw->nvm.hw_semaphore_timeout);
-			i40e_release_nvm(hw);
-			status = i40e_acquire_nvm(hw, I40E_RESOURCE_WRITE);
-			if (status) {
-				i40e_debug(hw, I40E_DEBUG_ALL,
-					   "NVMUPD: write semaphore reacquire failed aq_err = %d\n",
-					   hw->aq.asq_last_status);
-				status = old_status;
-				hw->aq.asq_last_status = old_asq_status;
-			} else {
-				retry_attempt = true;
-				goto retry;
-			}
-		}
-	}
-
-	return status;
-}
-
-/**
- * i40e_nvmupd_clear_wait_state - clear wait state on hw
- * @hw: pointer to the hardware structure
- **/
-void i40e_nvmupd_clear_wait_state(struct i40e_hw *hw)
-{
-	i40e_debug(hw, I40E_DEBUG_NVM,
-		   "NVMUPD: clearing wait on opcode 0x%04x\n",
-		   hw->nvm_wait_opcode);
-
-	if (hw->nvm_release_on_done) {
-		i40e_release_nvm(hw);
-		hw->nvm_release_on_done = false;
-	}
-	hw->nvm_wait_opcode = 0;
-
-	if (hw->aq.arq_last_status) {
-		hw->nvmupd_state = I40E_NVMUPD_STATE_ERROR;
-		return;
-	}
-
-	switch (hw->nvmupd_state) {
-	case I40E_NVMUPD_STATE_INIT_WAIT:
-		hw->nvmupd_state = I40E_NVMUPD_STATE_INIT;
-		break;
-
-	case I40E_NVMUPD_STATE_WRITE_WAIT:
-		hw->nvmupd_state = I40E_NVMUPD_STATE_WRITING;
-		break;
-
-	default:
-		break;
-	}
-}
-
-/**
- * i40e_nvmupd_check_wait_event - handle NVM update operation events
- * @hw: pointer to the hardware structure
- * @opcode: the event that just happened
- * @desc: AdminQ descriptor
- **/
-void i40e_nvmupd_check_wait_event(struct i40e_hw *hw, u16 opcode,
-				  struct i40e_aq_desc *desc)
-{
-	u32 aq_desc_len = sizeof(struct i40e_aq_desc);
-
-	if (opcode == hw->nvm_wait_opcode) {
-		memcpy(&hw->nvm_aq_event_desc, desc, aq_desc_len);
-		i40e_nvmupd_clear_wait_state(hw);
-	}
-}
-
-/**
  * i40e_nvmupd_validate_command - Validate given command
  * @hw: pointer to hardware structure
  * @cmd: pointer to nvm update command buffer
@@ -1274,9 +776,9 @@ void i40e_nvmupd_check_wait_event(struct i40e_hw *hw, u16 opcode,
  *
  * Return one of the valid command types or I40E_NVMUPD_INVALID
  **/
-static enum i40e_nvmupd_cmd i40e_nvmupd_validate_command(struct i40e_hw *hw,
-						 struct i40e_nvm_access *cmd,
-						 int *perrno)
+static enum i40e_nvmupd_cmd
+i40e_nvmupd_validate_command(struct i40e_hw *hw, struct i40e_nvm_access *cmd,
+			     int *perrno)
 {
 	enum i40e_nvmupd_cmd upd_cmd;
 	u8 module, transaction;
@@ -1288,11 +790,9 @@ static enum i40e_nvmupd_cmd i40e_nvmupd_validate_command(struct i40e_hw *hw,
 	module = i40e_nvmupd_get_module(cmd->config);
 
 	/* limits on data size */
-	if ((cmd->data_size < 1) ||
-	    (cmd->data_size > I40E_NVMUPD_MAX_DATA)) {
+	if (cmd->data_size < 1 || cmd->data_size > I40E_NVMUPD_MAX_DATA) {
 		i40e_debug(hw, I40E_DEBUG_NVM,
-			   "i40e_nvmupd_validate_command data_size %d\n",
-			   cmd->data_size);
+			   "%s data_size %d\n", __func__, cmd->data_size);
 		*perrno = -EFAULT;
 		return I40E_NVMUPD_INVALID;
 	}
@@ -1344,10 +844,10 @@ static enum i40e_nvmupd_cmd i40e_nvmupd_validate_command(struct i40e_hw *hw,
 		case I40E_NVM_CSUM:
 			upd_cmd = I40E_NVMUPD_CSUM_CON;
 			break;
-		case (I40E_NVM_CSUM|I40E_NVM_SA):
+		case (I40E_NVM_CSUM | I40E_NVM_SA):
 			upd_cmd = I40E_NVMUPD_CSUM_SA;
 			break;
-		case (I40E_NVM_CSUM|I40E_NVM_LCB):
+		case (I40E_NVM_CSUM | I40E_NVM_LCB):
 			upd_cmd = I40E_NVMUPD_CSUM_LCB;
 			break;
 		case I40E_NVM_EXEC:
@@ -1359,6 +859,128 @@ static enum i40e_nvmupd_cmd i40e_nvmupd_validate_command(struct i40e_hw *hw,
 	}
 
 	return upd_cmd;
+}
+
+/**
+ * i40e_nvmupd_nvm_erase - Erase an NVM module
+ * @hw: pointer to hardware structure
+ * @cmd: pointer to nvm update command buffer
+ * @perrno: pointer to return error code
+ *
+ * module, offset, data_size and data are in cmd structure
+ **/
+static int i40e_nvmupd_nvm_erase(struct i40e_hw *hw,
+				 struct i40e_nvm_access *cmd,
+				 int *perrno)
+{
+	struct i40e_asq_cmd_details cmd_details;
+	u8 module, transaction;
+	int status = 0;
+	bool last;
+
+	transaction = i40e_nvmupd_get_transaction(cmd->config);
+	module = i40e_nvmupd_get_module(cmd->config);
+	last = (transaction & I40E_NVM_LCB);
+
+	memset(&cmd_details, 0, sizeof(cmd_details));
+	cmd_details.wb_desc = &hw->nvm_wb_desc;
+
+	status = i40e_aq_erase_nvm(hw, module, cmd->offset, (u16)cmd->data_size,
+				   last, &cmd_details);
+	if (status) {
+		i40e_debug(hw, I40E_DEBUG_NVM,
+			   "%s mod 0x%x  off 0x%x len 0x%x\n",
+			   __func__, module, cmd->offset, cmd->data_size);
+		i40e_debug(hw, I40E_DEBUG_NVM,
+			   "%s status %d aq %d\n",
+			   __func__, status, hw->aq.asq_last_status);
+		*perrno = i40e_aq_rc_to_posix(status, hw->aq.asq_last_status);
+	}
+
+	return status;
+}
+
+/**
+ * i40e_nvmupd_nvm_write - Write NVM
+ * @hw: pointer to hardware structure
+ * @cmd: pointer to nvm update command buffer
+ * @bytes: pointer to the data buffer
+ * @perrno: pointer to return error code
+ *
+ * module, offset, data_size and data are in cmd structure
+ **/
+static int i40e_nvmupd_nvm_write(struct i40e_hw *hw,
+				 struct i40e_nvm_access *cmd,
+				 u8 *bytes, int *perrno)
+{
+	struct i40e_asq_cmd_details cmd_details;
+	u8 module, transaction;
+	u8 preservation_flags;
+	int status = 0;
+	bool last;
+
+	transaction = i40e_nvmupd_get_transaction(cmd->config);
+	module = i40e_nvmupd_get_module(cmd->config);
+	last = (transaction & I40E_NVM_LCB);
+	preservation_flags = i40e_nvmupd_get_preservation_flags(cmd->config);
+
+	memset(&cmd_details, 0, sizeof(cmd_details));
+	cmd_details.wb_desc = &hw->nvm_wb_desc;
+
+	status = i40e_aq_update_nvm(hw, module, cmd->offset,
+				    (u16)cmd->data_size, bytes, last,
+				    preservation_flags, &cmd_details);
+	if (status) {
+		i40e_debug(hw, I40E_DEBUG_NVM,
+			   "%s mod 0x%x off 0x%x len 0x%x\n",
+			   __func__, module, cmd->offset, cmd->data_size);
+		i40e_debug(hw, I40E_DEBUG_NVM,
+			   "%s status %d aq %d\n",
+			   __func__, status, hw->aq.asq_last_status);
+		*perrno = i40e_aq_rc_to_posix(status, hw->aq.asq_last_status);
+	}
+
+	return status;
+}
+
+/**
+ * i40e_nvmupd_nvm_read - Read NVM
+ * @hw: pointer to hardware structure
+ * @cmd: pointer to nvm update command buffer
+ * @bytes: pointer to the data buffer
+ * @perrno: pointer to return error code
+ *
+ * cmd structure contains identifiers and data buffer
+ **/
+static int i40e_nvmupd_nvm_read(struct i40e_hw *hw,
+				struct i40e_nvm_access *cmd,
+				u8 *bytes, int *perrno)
+{
+	struct i40e_asq_cmd_details cmd_details;
+	u8 module, transaction;
+	int status;
+	bool last;
+
+	transaction = i40e_nvmupd_get_transaction(cmd->config);
+	module = i40e_nvmupd_get_module(cmd->config);
+	last = (transaction == I40E_NVM_LCB) || (transaction == I40E_NVM_SA);
+
+	memset(&cmd_details, 0, sizeof(cmd_details));
+	cmd_details.wb_desc = &hw->nvm_wb_desc;
+
+	status = i40e_aq_read_nvm(hw, module, cmd->offset, (u16)cmd->data_size,
+				  bytes, last, &cmd_details);
+	if (status) {
+		i40e_debug(hw, I40E_DEBUG_NVM,
+			   "%s mod 0x%x  off 0x%x  len 0x%x\n",
+			   __func__, module, cmd->offset, cmd->data_size);
+		i40e_debug(hw, I40E_DEBUG_NVM,
+			   "%s status %d aq %d\n",
+			   __func__, status, hw->aq.asq_last_status);
+		*perrno = i40e_aq_rc_to_posix(status, hw->aq.asq_last_status);
+	}
+
+	return status;
 }
 
 /**
@@ -1549,123 +1171,469 @@ static int i40e_nvmupd_get_aq_event(struct i40e_hw *hw,
 }
 
 /**
- * i40e_nvmupd_nvm_read - Read NVM
+ * i40e_nvmupd_state_init - Handle NVM update state Init
  * @hw: pointer to hardware structure
  * @cmd: pointer to nvm update command buffer
  * @bytes: pointer to the data buffer
  * @perrno: pointer to return error code
  *
- * cmd structure contains identifiers and data buffer
+ * Process legitimate commands of the Init state and conditionally set next
+ * state. Reject all other commands.
  **/
-static int i40e_nvmupd_nvm_read(struct i40e_hw *hw,
-				struct i40e_nvm_access *cmd,
-				u8 *bytes, int *perrno)
+static int i40e_nvmupd_state_init(struct i40e_hw *hw,
+				  struct i40e_nvm_access *cmd,
+				  u8 *bytes, int *perrno)
 {
-	struct i40e_asq_cmd_details cmd_details;
-	u8 module, transaction;
+	enum i40e_nvmupd_cmd upd_cmd;
+	int status = 0;
+
+	upd_cmd = i40e_nvmupd_validate_command(hw, cmd, perrno);
+
+	switch (upd_cmd) {
+	case I40E_NVMUPD_READ_SA:
+		status = i40e_acquire_nvm(hw, I40E_RESOURCE_READ);
+		if (status) {
+			*perrno = i40e_aq_rc_to_posix(status,
+						      hw->aq.asq_last_status);
+		} else {
+			status = i40e_nvmupd_nvm_read(hw, cmd, bytes, perrno);
+			i40e_release_nvm(hw);
+		}
+		break;
+
+	case I40E_NVMUPD_READ_SNT:
+		status = i40e_acquire_nvm(hw, I40E_RESOURCE_READ);
+		if (status) {
+			*perrno = i40e_aq_rc_to_posix(status,
+						      hw->aq.asq_last_status);
+		} else {
+			status = i40e_nvmupd_nvm_read(hw, cmd, bytes, perrno);
+			if (status)
+				i40e_release_nvm(hw);
+			else
+				hw->nvmupd_state = I40E_NVMUPD_STATE_READING;
+		}
+		break;
+
+	case I40E_NVMUPD_WRITE_ERA:
+		status = i40e_acquire_nvm(hw, I40E_RESOURCE_WRITE);
+		if (status) {
+			*perrno = i40e_aq_rc_to_posix(status,
+						      hw->aq.asq_last_status);
+		} else {
+			status = i40e_nvmupd_nvm_erase(hw, cmd, perrno);
+			if (status) {
+				i40e_release_nvm(hw);
+			} else {
+				hw->nvm_release_on_done = true;
+				hw->nvm_wait_opcode = i40e_aqc_opc_nvm_erase;
+				hw->nvmupd_state = I40E_NVMUPD_STATE_INIT_WAIT;
+			}
+		}
+		break;
+
+	case I40E_NVMUPD_WRITE_SA:
+		status = i40e_acquire_nvm(hw, I40E_RESOURCE_WRITE);
+		if (status) {
+			*perrno = i40e_aq_rc_to_posix(status,
+						      hw->aq.asq_last_status);
+		} else {
+			status = i40e_nvmupd_nvm_write(hw, cmd, bytes, perrno);
+			if (status) {
+				i40e_release_nvm(hw);
+			} else {
+				hw->nvm_release_on_done = true;
+				hw->nvm_wait_opcode = i40e_aqc_opc_nvm_update;
+				hw->nvmupd_state = I40E_NVMUPD_STATE_INIT_WAIT;
+			}
+		}
+		break;
+
+	case I40E_NVMUPD_WRITE_SNT:
+		status = i40e_acquire_nvm(hw, I40E_RESOURCE_WRITE);
+		if (status) {
+			*perrno = i40e_aq_rc_to_posix(status,
+						      hw->aq.asq_last_status);
+		} else {
+			status = i40e_nvmupd_nvm_write(hw, cmd, bytes, perrno);
+			if (status) {
+				i40e_release_nvm(hw);
+			} else {
+				hw->nvm_wait_opcode = i40e_aqc_opc_nvm_update;
+				hw->nvmupd_state = I40E_NVMUPD_STATE_WRITE_WAIT;
+			}
+		}
+		break;
+
+	case I40E_NVMUPD_CSUM_SA:
+		status = i40e_acquire_nvm(hw, I40E_RESOURCE_WRITE);
+		if (status) {
+			*perrno = i40e_aq_rc_to_posix(status,
+						      hw->aq.asq_last_status);
+		} else {
+			status = i40e_update_nvm_checksum(hw);
+			if (status) {
+				*perrno = hw->aq.asq_last_status ?
+				   i40e_aq_rc_to_posix(status,
+						       hw->aq.asq_last_status) :
+				   -EIO;
+				i40e_release_nvm(hw);
+			} else {
+				hw->nvm_release_on_done = true;
+				hw->nvm_wait_opcode = i40e_aqc_opc_nvm_update;
+				hw->nvmupd_state = I40E_NVMUPD_STATE_INIT_WAIT;
+			}
+		}
+		break;
+
+	case I40E_NVMUPD_EXEC_AQ:
+		status = i40e_nvmupd_exec_aq(hw, cmd, bytes, perrno);
+		break;
+
+	case I40E_NVMUPD_GET_AQ_RESULT:
+		status = i40e_nvmupd_get_aq_result(hw, cmd, bytes, perrno);
+		break;
+
+	case I40E_NVMUPD_GET_AQ_EVENT:
+		status = i40e_nvmupd_get_aq_event(hw, cmd, bytes, perrno);
+		break;
+
+	default:
+		i40e_debug(hw, I40E_DEBUG_NVM,
+			   "NVMUPD: bad cmd %s in init state\n",
+			   i40e_nvm_update_state_str[upd_cmd]);
+		status = -EIO;
+		*perrno = -ESRCH;
+		break;
+	}
+	return status;
+}
+
+/**
+ * i40e_nvmupd_state_reading - Handle NVM update state Reading
+ * @hw: pointer to hardware structure
+ * @cmd: pointer to nvm update command buffer
+ * @bytes: pointer to the data buffer
+ * @perrno: pointer to return error code
+ *
+ * NVM ownership is already held.  Process legitimate commands and set any
+ * change in state; reject all other commands.
+ **/
+static int i40e_nvmupd_state_reading(struct i40e_hw *hw,
+				     struct i40e_nvm_access *cmd,
+				     u8 *bytes, int *perrno)
+{
+	enum i40e_nvmupd_cmd upd_cmd;
+	int status = 0;
+
+	upd_cmd = i40e_nvmupd_validate_command(hw, cmd, perrno);
+
+	switch (upd_cmd) {
+	case I40E_NVMUPD_READ_SA:
+	case I40E_NVMUPD_READ_CON:
+		status = i40e_nvmupd_nvm_read(hw, cmd, bytes, perrno);
+		break;
+
+	case I40E_NVMUPD_READ_LCB:
+		status = i40e_nvmupd_nvm_read(hw, cmd, bytes, perrno);
+		i40e_release_nvm(hw);
+		hw->nvmupd_state = I40E_NVMUPD_STATE_INIT;
+		break;
+
+	default:
+		i40e_debug(hw, I40E_DEBUG_NVM,
+			   "NVMUPD: bad cmd %s in reading state.\n",
+			   i40e_nvm_update_state_str[upd_cmd]);
+		status = -EOPNOTSUPP;
+		*perrno = -ESRCH;
+		break;
+	}
+	return status;
+}
+
+/**
+ * i40e_nvmupd_state_writing - Handle NVM update state Writing
+ * @hw: pointer to hardware structure
+ * @cmd: pointer to nvm update command buffer
+ * @bytes: pointer to the data buffer
+ * @perrno: pointer to return error code
+ *
+ * NVM ownership is already held.  Process legitimate commands and set any
+ * change in state; reject all other commands
+ **/
+static int i40e_nvmupd_state_writing(struct i40e_hw *hw,
+				     struct i40e_nvm_access *cmd,
+				     u8 *bytes, int *perrno)
+{
+	enum i40e_nvmupd_cmd upd_cmd;
+	bool retry_attempt = false;
+	int status = 0;
+
+	upd_cmd = i40e_nvmupd_validate_command(hw, cmd, perrno);
+
+retry:
+	switch (upd_cmd) {
+	case I40E_NVMUPD_WRITE_CON:
+		status = i40e_nvmupd_nvm_write(hw, cmd, bytes, perrno);
+		if (!status) {
+			hw->nvm_wait_opcode = i40e_aqc_opc_nvm_update;
+			hw->nvmupd_state = I40E_NVMUPD_STATE_WRITE_WAIT;
+		}
+		break;
+
+	case I40E_NVMUPD_WRITE_LCB:
+		status = i40e_nvmupd_nvm_write(hw, cmd, bytes, perrno);
+		if (status) {
+			*perrno = hw->aq.asq_last_status ?
+				   i40e_aq_rc_to_posix(status,
+						       hw->aq.asq_last_status) :
+				   -EIO;
+			hw->nvmupd_state = I40E_NVMUPD_STATE_INIT;
+		} else {
+			hw->nvm_release_on_done = true;
+			hw->nvm_wait_opcode = i40e_aqc_opc_nvm_update;
+			hw->nvmupd_state = I40E_NVMUPD_STATE_INIT_WAIT;
+		}
+		break;
+
+	case I40E_NVMUPD_CSUM_CON:
+		/* Assumes the caller has acquired the nvm */
+		status = i40e_update_nvm_checksum(hw);
+		if (status) {
+			*perrno = hw->aq.asq_last_status ?
+				   i40e_aq_rc_to_posix(status,
+						       hw->aq.asq_last_status) :
+				   -EIO;
+			hw->nvmupd_state = I40E_NVMUPD_STATE_INIT;
+		} else {
+			hw->nvm_wait_opcode = i40e_aqc_opc_nvm_update;
+			hw->nvmupd_state = I40E_NVMUPD_STATE_WRITE_WAIT;
+		}
+		break;
+
+	case I40E_NVMUPD_CSUM_LCB:
+		/* Assumes the caller has acquired the nvm */
+		status = i40e_update_nvm_checksum(hw);
+		if (status) {
+			*perrno = hw->aq.asq_last_status ?
+				   i40e_aq_rc_to_posix(status,
+						       hw->aq.asq_last_status) :
+				   -EIO;
+			hw->nvmupd_state = I40E_NVMUPD_STATE_INIT;
+		} else {
+			hw->nvm_release_on_done = true;
+			hw->nvm_wait_opcode = i40e_aqc_opc_nvm_update;
+			hw->nvmupd_state = I40E_NVMUPD_STATE_INIT_WAIT;
+		}
+		break;
+
+	default:
+		i40e_debug(hw, I40E_DEBUG_NVM,
+			   "NVMUPD: bad cmd %s in writing state.\n",
+			   i40e_nvm_update_state_str[upd_cmd]);
+		status = -EOPNOTSUPP;
+		*perrno = -ESRCH;
+		break;
+	}
+
+	/* In some circumstances, a multi-write transaction takes longer
+	 * than the default 3 minute timeout on the write semaphore.  If
+	 * the write failed with an EBUSY status, this is likely the problem,
+	 * so here we try to reacquire the semaphore then retry the write.
+	 * We only do one retry, then give up.
+	 */
+	if (status && hw->aq.asq_last_status == I40E_AQ_RC_EBUSY &&
+	    !retry_attempt) {
+		u32 old_asq_status = hw->aq.asq_last_status;
+		int old_status = status;
+		u32 gtime;
+
+		gtime = rd32(hw, I40E_GLVFGEN_TIMER);
+		if (gtime >= hw->nvm.hw_semaphore_timeout) {
+			i40e_debug(hw, I40E_DEBUG_ALL,
+				   "NVMUPD: write semaphore expired (%d >= %lld), retrying\n",
+				   gtime, hw->nvm.hw_semaphore_timeout);
+			i40e_release_nvm(hw);
+			status = i40e_acquire_nvm(hw, I40E_RESOURCE_WRITE);
+			if (status) {
+				i40e_debug(hw, I40E_DEBUG_ALL,
+					   "NVMUPD: write semaphore reacquire failed aq_err = %d\n",
+					   hw->aq.asq_last_status);
+				status = old_status;
+				hw->aq.asq_last_status = old_asq_status;
+			} else {
+				retry_attempt = true;
+				goto retry;
+			}
+		}
+	}
+
+	return status;
+}
+
+/**
+ * i40e_nvmupd_command - Process an NVM update command
+ * @hw: pointer to hardware structure
+ * @cmd: pointer to nvm update command
+ * @bytes: pointer to the data buffer
+ * @perrno: pointer to return error code
+ *
+ * Dispatches command depending on what update state is current
+ **/
+int i40e_nvmupd_command(struct i40e_hw *hw,
+			struct i40e_nvm_access *cmd,
+			u8 *bytes, int *perrno)
+{
+	enum i40e_nvmupd_cmd upd_cmd;
 	int status;
-	bool last;
 
-	transaction = i40e_nvmupd_get_transaction(cmd->config);
-	module = i40e_nvmupd_get_module(cmd->config);
-	last = (transaction == I40E_NVM_LCB) || (transaction == I40E_NVM_SA);
+	/* assume success */
+	*perrno = 0;
 
-	memset(&cmd_details, 0, sizeof(cmd_details));
-	cmd_details.wb_desc = &hw->nvm_wb_desc;
+	/* early check for status command and debug msgs */
+	upd_cmd = i40e_nvmupd_validate_command(hw, cmd, perrno);
 
-	status = i40e_aq_read_nvm(hw, module, cmd->offset, (u16)cmd->data_size,
-				  bytes, last, &cmd_details);
-	if (status) {
+	i40e_debug(hw, I40E_DEBUG_NVM, "%s state %d nvm_release_on_hold %d opc 0x%04x cmd 0x%08x config 0x%08x offset 0x%08x data_size 0x%08x\n",
+		   i40e_nvm_update_state_str[upd_cmd],
+		   hw->nvmupd_state,
+		   hw->nvm_release_on_done, hw->nvm_wait_opcode,
+		   cmd->command, cmd->config, cmd->offset, cmd->data_size);
+
+	if (upd_cmd == I40E_NVMUPD_INVALID) {
+		*perrno = -EFAULT;
 		i40e_debug(hw, I40E_DEBUG_NVM,
-			   "i40e_nvmupd_nvm_read mod 0x%x  off 0x%x  len 0x%x\n",
-			   module, cmd->offset, cmd->data_size);
-		i40e_debug(hw, I40E_DEBUG_NVM,
-			   "i40e_nvmupd_nvm_read status %d aq %d\n",
-			   status, hw->aq.asq_last_status);
-		*perrno = i40e_aq_rc_to_posix(status, hw->aq.asq_last_status);
+			   "i40e_nvmupd_validate_command returns %d errno %d\n",
+			   upd_cmd, *perrno);
 	}
 
+	/* a status request returns immediately rather than
+	 * going into the state machine
+	 */
+	if (upd_cmd == I40E_NVMUPD_STATUS) {
+		if (!cmd->data_size) {
+			*perrno = -EFAULT;
+			return -EINVAL;
+		}
+
+		bytes[0] = hw->nvmupd_state;
+
+		if (cmd->data_size >= 4) {
+			bytes[1] = 0;
+			*((u16 *)&bytes[2]) = hw->nvm_wait_opcode;
+		}
+
+		/* Clear error status on read */
+		if (hw->nvmupd_state == I40E_NVMUPD_STATE_ERROR)
+			hw->nvmupd_state = I40E_NVMUPD_STATE_INIT;
+
+		return 0;
+	}
+
+	/* Clear status even it is not read and log */
+	if (hw->nvmupd_state == I40E_NVMUPD_STATE_ERROR) {
+		i40e_debug(hw, I40E_DEBUG_NVM,
+			   "Clearing I40E_NVMUPD_STATE_ERROR state without reading\n");
+		hw->nvmupd_state = I40E_NVMUPD_STATE_INIT;
+	}
+
+	/* Acquire lock to prevent race condition where adminq_task
+	 * can execute after i40e_nvmupd_nvm_read/write but before state
+	 * variables (nvm_wait_opcode, nvm_release_on_done) are updated.
+	 *
+	 * During NVMUpdate, it is observed that lock could be held for
+	 * ~5ms for most commands. However lock is held for ~60ms for
+	 * NVMUPD_CSUM_LCB command.
+	 */
+	mutex_lock(&hw->aq.arq_mutex);
+	switch (hw->nvmupd_state) {
+	case I40E_NVMUPD_STATE_INIT:
+		status = i40e_nvmupd_state_init(hw, cmd, bytes, perrno);
+		break;
+
+	case I40E_NVMUPD_STATE_READING:
+		status = i40e_nvmupd_state_reading(hw, cmd, bytes, perrno);
+		break;
+
+	case I40E_NVMUPD_STATE_WRITING:
+		status = i40e_nvmupd_state_writing(hw, cmd, bytes, perrno);
+		break;
+
+	case I40E_NVMUPD_STATE_INIT_WAIT:
+	case I40E_NVMUPD_STATE_WRITE_WAIT:
+		/* if we need to stop waiting for an event, clear
+		 * the wait info and return before doing anything else
+		 */
+		if (cmd->offset == 0xffff) {
+			i40e_nvmupd_clear_wait_state(hw);
+			status = 0;
+			break;
+		}
+
+		status = -EBUSY;
+		*perrno = -EBUSY;
+		break;
+
+	default:
+		/* invalid state, should never happen */
+		i40e_debug(hw, I40E_DEBUG_NVM,
+			   "NVMUPD: no such state %d\n", hw->nvmupd_state);
+		status = -EOPNOTSUPP;
+		*perrno = -ESRCH;
+		break;
+	}
+
+	mutex_unlock(&hw->aq.arq_mutex);
 	return status;
 }
 
 /**
- * i40e_nvmupd_nvm_erase - Erase an NVM module
- * @hw: pointer to hardware structure
- * @cmd: pointer to nvm update command buffer
- * @perrno: pointer to return error code
- *
- * module, offset, data_size and data are in cmd structure
+ * i40e_nvmupd_clear_wait_state - clear wait state on hw
+ * @hw: pointer to the hardware structure
  **/
-static int i40e_nvmupd_nvm_erase(struct i40e_hw *hw,
-				 struct i40e_nvm_access *cmd,
-				 int *perrno)
+void i40e_nvmupd_clear_wait_state(struct i40e_hw *hw)
 {
-	struct i40e_asq_cmd_details cmd_details;
-	u8 module, transaction;
-	int status = 0;
-	bool last;
+	i40e_debug(hw, I40E_DEBUG_NVM,
+		   "NVMUPD: clearing wait on opcode 0x%04x\n",
+		   hw->nvm_wait_opcode);
 
-	transaction = i40e_nvmupd_get_transaction(cmd->config);
-	module = i40e_nvmupd_get_module(cmd->config);
-	last = (transaction & I40E_NVM_LCB);
+	if (hw->nvm_release_on_done) {
+		i40e_release_nvm(hw);
+		hw->nvm_release_on_done = false;
+	}
+	hw->nvm_wait_opcode = 0;
 
-	memset(&cmd_details, 0, sizeof(cmd_details));
-	cmd_details.wb_desc = &hw->nvm_wb_desc;
-
-	status = i40e_aq_erase_nvm(hw, module, cmd->offset, (u16)cmd->data_size,
-				   last, &cmd_details);
-	if (status) {
-		i40e_debug(hw, I40E_DEBUG_NVM,
-			   "i40e_nvmupd_nvm_erase mod 0x%x  off 0x%x len 0x%x\n",
-			   module, cmd->offset, cmd->data_size);
-		i40e_debug(hw, I40E_DEBUG_NVM,
-			   "i40e_nvmupd_nvm_erase status %d aq %d\n",
-			   status, hw->aq.asq_last_status);
-		*perrno = i40e_aq_rc_to_posix(status, hw->aq.asq_last_status);
+	if (hw->aq.arq_last_status) {
+		hw->nvmupd_state = I40E_NVMUPD_STATE_ERROR;
+		return;
 	}
 
-	return status;
+	switch (hw->nvmupd_state) {
+	case I40E_NVMUPD_STATE_INIT_WAIT:
+		hw->nvmupd_state = I40E_NVMUPD_STATE_INIT;
+		break;
+
+	case I40E_NVMUPD_STATE_WRITE_WAIT:
+		hw->nvmupd_state = I40E_NVMUPD_STATE_WRITING;
+		break;
+
+	default:
+		break;
+	}
 }
 
 /**
- * i40e_nvmupd_nvm_write - Write NVM
- * @hw: pointer to hardware structure
- * @cmd: pointer to nvm update command buffer
- * @bytes: pointer to the data buffer
- * @perrno: pointer to return error code
- *
- * module, offset, data_size and data are in cmd structure
+ * i40e_nvmupd_check_wait_event - handle NVM update operation events
+ * @hw: pointer to the hardware structure
+ * @opcode: the event that just happened
+ * @desc: AdminQ descriptor
  **/
-static int i40e_nvmupd_nvm_write(struct i40e_hw *hw,
-				 struct i40e_nvm_access *cmd,
-				 u8 *bytes, int *perrno)
+void i40e_nvmupd_check_wait_event(struct i40e_hw *hw, u16 opcode,
+				  struct i40e_aq_desc *desc)
 {
-	struct i40e_asq_cmd_details cmd_details;
-	u8 module, transaction;
-	u8 preservation_flags;
-	int status = 0;
-	bool last;
+	u32 aq_desc_len = sizeof(struct i40e_aq_desc);
 
-	transaction = i40e_nvmupd_get_transaction(cmd->config);
-	module = i40e_nvmupd_get_module(cmd->config);
-	last = (transaction & I40E_NVM_LCB);
-	preservation_flags = i40e_nvmupd_get_preservation_flags(cmd->config);
-
-	memset(&cmd_details, 0, sizeof(cmd_details));
-	cmd_details.wb_desc = &hw->nvm_wb_desc;
-
-	status = i40e_aq_update_nvm(hw, module, cmd->offset,
-				    (u16)cmd->data_size, bytes, last,
-				    preservation_flags, &cmd_details);
-	if (status) {
-		i40e_debug(hw, I40E_DEBUG_NVM,
-			   "i40e_nvmupd_nvm_write mod 0x%x off 0x%x len 0x%x\n",
-			   module, cmd->offset, cmd->data_size);
-		i40e_debug(hw, I40E_DEBUG_NVM,
-			   "i40e_nvmupd_nvm_write status %d aq %d\n",
-			   status, hw->aq.asq_last_status);
-		*perrno = i40e_aq_rc_to_posix(status, hw->aq.asq_last_status);
+	if (opcode == hw->nvm_wait_opcode) {
+		memcpy(&hw->nvm_aq_event_desc, desc, aq_desc_len);
+		i40e_nvmupd_clear_wait_state(hw);
 	}
-
-	return status;
 }

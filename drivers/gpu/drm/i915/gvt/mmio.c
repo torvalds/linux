@@ -33,10 +33,12 @@
  *
  */
 
+#include <linux/vmalloc.h>
 #include "i915_drv.h"
 #include "i915_reg.h"
 #include "gvt.h"
 
+#include "display/bxt_dpio_phy_regs.h"
 #include "display/intel_dpio_phy.h"
 #include "gt/intel_gt_regs.h"
 

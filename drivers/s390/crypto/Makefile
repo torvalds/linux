@@ -4,7 +4,7 @@
 #
 
 ap-objs := ap_bus.o ap_card.o ap_queue.o
-obj-$(subst m,y,$(CONFIG_ZCRYPT)) += ap.o
+obj-$(CONFIG_AP) += ap.o
 # zcrypt_api.o and zcrypt_msgtype*.o depend on ap.o
 zcrypt-objs := zcrypt_api.o zcrypt_card.o zcrypt_queue.o
 zcrypt-objs += zcrypt_msgtype6.o zcrypt_msgtype50.o

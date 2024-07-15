@@ -3,8 +3,6 @@
 # Makefile for the linux ppc-specific parts of the memory manager.
 #
 
-ccflags-$(CONFIG_PPC64)	:= $(NO_MINIMAL_TOC)
-
 obj-y				:= fault.o mem.o pgtable.o maccess.o pageattr.o \
 				   init_$(BITS).o pgtable_$(BITS).o \
 				   pgtable-frag.o ioremap.o ioremap_$(BITS).o \

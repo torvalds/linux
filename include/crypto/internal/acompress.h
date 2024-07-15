@@ -31,7 +31,6 @@
  *		@init.
  *
  * @reqsize:	Context size for (de)compression requests
- * @stat:	Statistics for compress algorithm
  * @base:	Common crypto API algorithm data structure
  * @calg:	Cmonn algorithm data structure shared with scomp
  */
@@ -69,15 +68,16 @@ static inline void acomp_request_complete(struct acomp_req *req,
 	crypto_request_complete(&req->base, err);
 }
 
-static inline struct acomp_req *__acomp_request_alloc(struct crypto_acomp *tfm)
+static inline struct acomp_req *__acomp_request_alloc_noprof(struct crypto_acomp *tfm)
 {
 	struct acomp_req *req;
 
-	req = kzalloc(sizeof(*req) + crypto_acomp_reqsize(tfm), GFP_KERNEL);
+	req = kzalloc_noprof(sizeof(*req) + crypto_acomp_reqsize(tfm), GFP_KERNEL);
 	if (likely(req))
 		acomp_request_set_tfm(req, tfm);
 	return req;
 }
+#define __acomp_request_alloc(...)	alloc_hooks(__acomp_request_alloc_noprof(__VA_ARGS__))
 
 static inline void __acomp_request_free(struct acomp_req *req)
 {

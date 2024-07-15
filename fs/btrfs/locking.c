@@ -97,7 +97,7 @@ void btrfs_set_buffer_lockdep_class(u64 objectid, struct extent_buffer *eb, int 
 void btrfs_maybe_reset_lockdep_class(struct btrfs_root *root, struct extent_buffer *eb)
 {
 	if (test_bit(BTRFS_ROOT_RESET_LOCKDEP_CLASS, &root->state))
-		btrfs_set_buffer_lockdep_class(root->root_key.objectid,
+		btrfs_set_buffer_lockdep_class(btrfs_root_id(root),
 					       eb, btrfs_header_level(eb));
 }
 
@@ -129,14 +129,14 @@ static void btrfs_set_eb_lock_owner(struct extent_buffer *eb, pid_t owner) { }
  */
 
 /*
- * __btrfs_tree_read_lock - lock extent buffer for read
+ * btrfs_tree_read_lock_nested - lock extent buffer for read
  * @eb:		the eb to be locked
  * @nest:	the nesting level to be used for lockdep
  *
  * This takes the read lock on the extent buffer, using the specified nesting
  * level for lockdep purposes.
  */
-void __btrfs_tree_read_lock(struct extent_buffer *eb, enum btrfs_lock_nesting nest)
+void btrfs_tree_read_lock_nested(struct extent_buffer *eb, enum btrfs_lock_nesting nest)
 {
 	u64 start_ns = 0;
 
@@ -145,11 +145,6 @@ void __btrfs_tree_read_lock(struct extent_buffer *eb, enum btrfs_lock_nesting ne
 
 	down_read_nested(&eb->lock, nest);
 	trace_btrfs_tree_read_lock(eb, start_ns);
-}
-
-void btrfs_tree_read_lock(struct extent_buffer *eb)
-{
-	__btrfs_tree_read_lock(eb, BTRFS_NESTING_NORMAL);
 }
 
 /*
@@ -198,7 +193,7 @@ void btrfs_tree_read_unlock(struct extent_buffer *eb)
  *
  * Returns with the eb->lock write locked.
  */
-void __btrfs_tree_lock(struct extent_buffer *eb, enum btrfs_lock_nesting nest)
+void btrfs_tree_lock_nested(struct extent_buffer *eb, enum btrfs_lock_nesting nest)
 	__acquires(&eb->lock)
 {
 	u64 start_ns = 0;
@@ -209,11 +204,6 @@ void __btrfs_tree_lock(struct extent_buffer *eb, enum btrfs_lock_nesting nest)
 	down_write_nested(&eb->lock, nest);
 	btrfs_set_eb_lock_owner(eb, current->pid);
 	trace_btrfs_tree_lock(eb, start_ns);
-}
-
-void btrfs_tree_lock(struct extent_buffer *eb)
-{
-	__btrfs_tree_lock(eb, BTRFS_NESTING_NORMAL);
 }
 
 /*
@@ -374,8 +364,12 @@ void btrfs_drew_write_lock(struct btrfs_drew_lock *lock)
 
 void btrfs_drew_write_unlock(struct btrfs_drew_lock *lock)
 {
-	atomic_dec(&lock->writers);
-	cond_wake_up(&lock->pending_readers);
+	/*
+	 * atomic_dec_and_test() implies a full barrier, so woken up readers are
+	 * guaranteed to see the decrement.
+	 */
+	if (atomic_dec_and_test(&lock->writers))
+		wake_up(&lock->pending_readers);
 }
 
 void btrfs_drew_read_lock(struct btrfs_drew_lock *lock)

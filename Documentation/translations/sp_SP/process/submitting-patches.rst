@@ -1,7 +1,7 @@
 .. include:: ../disclaimer-sp.rst
 
 :Original: :ref:`Documentation/process/submitting-patches.rst <submittingpatches>`
-:Translator: Carlos Bilbao <carlos.bilbao@amd.com>
+:Translator: Carlos Bilbao <carlos.bilbao.osdev@gmail.com>
 
 .. _sp_submittingpatches:
 
@@ -355,6 +355,34 @@ diferencia con la presentación anterior (ver
 Consulte Documentation/process/email-clients.rst para obtener
 recomendaciones sobre clientes de correo electrónico y normas de etiqueta
 en la lista de correo.
+
+.. _sp_interleaved_replies:
+
+Uso de respuestas intercaladas recortadas en las discusiones por correo electrónico
+-----------------------------------------------------------------------------------
+
+Se desaconseja encarecidamente la publicación en la parte superior de las
+discusiones sobre el desarrollo del kernel de Linux. Las respuestas
+intercaladas (o "en línea") hacen que las conversaciones sean mucho más
+fáciles de seguir. Para obtener más detalles, consulte:
+https://en.wikipedia.org/wiki/Posting_style#Interleaved_style
+
+Como se cita frecuentemente en la lista de correo::
+
+  A: http://en.wikipedia.org/wiki/Top_post
+  Q: ¿Dónde puedo encontrar información sobre esto que se llama top-posting?
+  A: Porque desordena el orden en el que la gente normalmente lee el texto.
+  Q: ¿Por qué es tan malo el top-posting?
+  A: Top-posting.
+  Q: ¿Qué es lo más molesto del correo electrónico?
+
+Del mismo modo, por favor, recorte todas las citas innecesarias que no
+sean relevantes para su respuesta. Esto hace que las respuestas sean más
+fáciles de encontrar y ahorra tiempo y espacio. Para obtener más
+información, consulte: http://daringfireball.net/2007/07/on_top ::
+
+  A: No.
+  Q: ¿Debo incluir citas después de mi respuesta?
 
 .. _sp_resend_reminders:
 

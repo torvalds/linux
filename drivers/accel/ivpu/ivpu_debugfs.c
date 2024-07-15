@@ -3,6 +3,8 @@
  * Copyright (C) 2020-2023 Intel Corporation
  */
 
+#include <linux/debugfs.h>
+
 #include <drm/drm_debugfs.h>
 #include <drm/drm_file.h>
 #include <drm/drm_print.h>

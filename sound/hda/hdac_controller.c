@@ -62,7 +62,8 @@ void snd_hdac_bus_init_cmd_io(struct hdac_bus *bus)
 		azx_clear_corbrp(bus);
 
 	/* enable corb dma */
-	snd_hdac_chip_writeb(bus, CORBCTL, AZX_CORBCTL_RUN);
+	if (!bus->use_pio_for_commands)
+		snd_hdac_chip_writeb(bus, CORBCTL, AZX_CORBCTL_RUN);
 
 	/* RIRB set up */
 	bus->rirb.addr = bus->rb.addr + 2048;
@@ -135,14 +136,94 @@ static unsigned int azx_command_addr(u32 cmd)
 	return addr;
 }
 
+/* receive an Immediate Response with PIO */
+static int snd_hdac_bus_wait_for_pio_response(struct hdac_bus *bus,
+					      unsigned int addr)
+{
+	int timeout = 50;
+
+	while (timeout--) {
+		/* check IRV bit */
+		if (snd_hdac_chip_readw(bus, IRS) & AZX_IRS_VALID) {
+			/* reuse rirb.res as the response return value */
+			bus->rirb.res[addr] = snd_hdac_chip_readl(bus, IR);
+			return 0;
+		}
+		udelay(1);
+	}
+
+	dev_dbg_ratelimited(bus->dev, "get_response_pio timeout: IRS=%#x\n",
+			    snd_hdac_chip_readw(bus, IRS));
+
+	bus->rirb.res[addr] = -1;
+
+	return -EIO;
+}
+
 /**
- * snd_hdac_bus_send_cmd - send a command verb via CORB
+ * snd_hdac_bus_send_cmd_pio - send a command verb via Immediate Command
  * @bus: HD-audio core bus
  * @val: encoded verb value to send
  *
  * Returns zero for success or a negative error code.
  */
-int snd_hdac_bus_send_cmd(struct hdac_bus *bus, unsigned int val)
+static int snd_hdac_bus_send_cmd_pio(struct hdac_bus *bus, unsigned int val)
+{
+	unsigned int addr = azx_command_addr(val);
+	int timeout = 50;
+	int ret = -EIO;
+
+	spin_lock_irq(&bus->reg_lock);
+
+	while (timeout--) {
+		/* check ICB bit */
+		if (!((snd_hdac_chip_readw(bus, IRS) & AZX_IRS_BUSY))) {
+			/* Clear IRV bit */
+			snd_hdac_chip_updatew(bus, IRS, AZX_IRS_VALID, AZX_IRS_VALID);
+			snd_hdac_chip_writel(bus, IC, val);
+			/* Set ICB bit */
+			snd_hdac_chip_updatew(bus, IRS, AZX_IRS_BUSY, AZX_IRS_BUSY);
+
+			ret = snd_hdac_bus_wait_for_pio_response(bus, addr);
+			goto out;
+		}
+		udelay(1);
+	}
+
+	dev_dbg_ratelimited(bus->dev, "send_cmd_pio timeout: IRS=%#x, val=%#x\n",
+			    snd_hdac_chip_readw(bus, IRS), val);
+
+out:
+	spin_unlock_irq(&bus->reg_lock);
+
+	return ret;
+}
+
+/**
+ * snd_hdac_bus_get_response_pio - receive a response via Immediate Response
+ * @bus: HD-audio core bus
+ * @addr: codec address
+ * @res: pointer to store the value, NULL when not needed
+ *
+ * Returns zero if a value is read, or a negative error code.
+ */
+static int snd_hdac_bus_get_response_pio(struct hdac_bus *bus,
+					 unsigned int addr, unsigned int *res)
+{
+	if (res)
+		*res = bus->rirb.res[addr];
+
+	return 0;
+}
+
+/**
+ * snd_hdac_bus_send_cmd_corb - send a command verb via CORB
+ * @bus: HD-audio core bus
+ * @val: encoded verb value to send
+ *
+ * Returns zero for success or a negative error code.
+ */
+static int snd_hdac_bus_send_cmd_corb(struct hdac_bus *bus, unsigned int val)
 {
 	unsigned int addr = azx_command_addr(val);
 	unsigned int wp, rp;
@@ -176,7 +257,6 @@ int snd_hdac_bus_send_cmd(struct hdac_bus *bus, unsigned int val)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(snd_hdac_bus_send_cmd);
 
 #define AZX_RIRB_EX_UNSOL_EV	(1<<4)
 
@@ -234,15 +314,15 @@ void snd_hdac_bus_update_rirb(struct hdac_bus *bus)
 EXPORT_SYMBOL_GPL(snd_hdac_bus_update_rirb);
 
 /**
- * snd_hdac_bus_get_response - receive a response via RIRB
+ * snd_hdac_bus_get_response_rirb - receive a response via RIRB
  * @bus: HD-audio core bus
  * @addr: codec address
  * @res: pointer to store the value, NULL when not needed
  *
  * Returns zero if a value is read, or a negative error code.
  */
-int snd_hdac_bus_get_response(struct hdac_bus *bus, unsigned int addr,
-			      unsigned int *res)
+static int snd_hdac_bus_get_response_rirb(struct hdac_bus *bus,
+					  unsigned int addr, unsigned int *res)
 {
 	unsigned long timeout;
 	unsigned long loopcounter;
@@ -292,6 +372,39 @@ int snd_hdac_bus_get_response(struct hdac_bus *bus, unsigned int addr,
 		finish_wait(&bus->rirb_wq, &wait);
 
 	return -EIO;
+}
+
+/**
+ * snd_hdac_bus_send_cmd - send a command verb via CORB or PIO
+ * @bus: HD-audio core bus
+ * @val: encoded verb value to send
+ *
+ * Returns zero for success or a negative error code.
+ */
+int snd_hdac_bus_send_cmd(struct hdac_bus *bus, unsigned int val)
+{
+	if (bus->use_pio_for_commands)
+		return snd_hdac_bus_send_cmd_pio(bus, val);
+
+	return snd_hdac_bus_send_cmd_corb(bus, val);
+}
+EXPORT_SYMBOL_GPL(snd_hdac_bus_send_cmd);
+
+/**
+ * snd_hdac_bus_get_response - receive a response via RIRB or PIO
+ * @bus: HD-audio core bus
+ * @addr: codec address
+ * @res: pointer to store the value, NULL when not needed
+ *
+ * Returns zero if a value is read, or a negative error code.
+ */
+int snd_hdac_bus_get_response(struct hdac_bus *bus, unsigned int addr,
+			      unsigned int *res)
+{
+	if (bus->use_pio_for_commands)
+		return snd_hdac_bus_get_response_pio(bus, addr, res);
+
+	return snd_hdac_bus_get_response_rirb(bus, addr, res);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_bus_get_response);
 

@@ -149,7 +149,7 @@ struct agp_bridge_driver alpha_core_agp_driver = {
 
 struct agp_bridge_data *alpha_bridge;
 
-int __init
+static int __init
 alpha_core_agp_setup(void)
 {
 	alpha_agp_info *agp = alpha_mv.agp_info();

@@ -369,8 +369,7 @@ void vdo_dump_flusher(const struct flusher *flusher)
 static void initialize_flush(struct vdo_flush *flush, struct vdo *vdo)
 {
 	bio_list_init(&flush->bios);
-	bio_list_merge(&flush->bios, &vdo->flusher->waiting_flush_bios);
-	bio_list_init(&vdo->flusher->waiting_flush_bios);
+	bio_list_merge_init(&flush->bios, &vdo->flusher->waiting_flush_bios);
 }
 
 static void launch_flush(struct vdo_flush *flush)

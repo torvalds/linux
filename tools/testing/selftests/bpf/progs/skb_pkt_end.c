@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
+#ifndef BPF_NO_PRESERVE_ACCESS_INDEX
 #define BPF_NO_PRESERVE_ACCESS_INDEX
+#endif
 #include <vmlinux.h>
 #include <bpf/bpf_core_read.h>
 #include <bpf/bpf_helpers.h>

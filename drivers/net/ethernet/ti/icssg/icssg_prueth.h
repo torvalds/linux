@@ -55,6 +55,8 @@
 #define ICSSG_NUM_STANDARD_STATS 31
 #define ICSSG_NUM_ETHTOOL_STATS (ICSSG_NUM_STATS - ICSSG_NUM_STANDARD_STATS)
 
+#define IEP_DEFAULT_CYCLE_TIME_NS	1000000	/* 1 ms */
+
 /* Firmware status codes */
 #define ICSS_HS_FW_READY 0x55555555
 #define ICSS_HS_FW_DEAD 0xDEAD0000	/* lower 16 bits contain error code */
@@ -106,6 +108,8 @@ struct prueth_tx_chn {
 	u32 descs_num;
 	unsigned int irq;
 	char name[32];
+	struct hrtimer tx_hrtimer;
+	unsigned long tx_pace_timeout_ns;
 };
 
 struct prueth_rx_chn {
@@ -125,8 +129,12 @@ struct prueth_rx_chn {
 
 #define PRUETH_MAX_TX_TS_REQUESTS	50 /* Max simultaneous TX_TS requests */
 
+/* Minimum coalesce time in usecs for both Tx and Rx */
+#define ICSSG_MIN_COALESCE_USECS 20
+
 /* data for each emac port */
 struct prueth_emac {
+	bool is_sr1;
 	bool fw_running;
 	struct prueth *prueth;
 	struct net_device *ndev;
@@ -155,6 +163,10 @@ struct prueth_emac {
 	int rx_flow_id_base;
 	int tx_ch_num;
 
+	/* SR1.0 Management channel */
+	struct prueth_rx_chn rx_mgm_chn;
+	int rx_mgm_flow_id_base;
+
 	spinlock_t lock;	/* serialize access */
 
 	/* TX HW Timestamping */
@@ -165,7 +177,7 @@ struct prueth_emac {
 
 	u8 cmd_seq;
 	/* shutdown related */
-	u32 cmd_data[4];
+	__le32 cmd_data[4];
 	struct completion cmd_complete;
 	/* Mutex to serialize access to firmware command interface */
 	struct mutex cmd_lock;
@@ -176,6 +188,10 @@ struct prueth_emac {
 
 	struct delayed_work stats_work;
 	u64 stats[ICSSG_NUM_STATS];
+
+	/* RX IRQ Coalescing Related */
+	struct hrtimer rx_hrtimer;
+	unsigned long rx_pace_timeout_ns;
 };
 
 /**
@@ -186,6 +202,12 @@ struct prueth_emac {
 struct prueth_pdata {
 	enum k3_ring_mode fdqring_mode;
 	u32	quirk_10m_link_issue:1;
+};
+
+struct icssg_firmwares {
+	char *pru;
+	char *rtu;
+	char *txpru;
 };
 
 /**
@@ -243,6 +265,13 @@ struct emac_tx_ts_response {
 	u32 hi_ts;
 };
 
+struct emac_tx_ts_response_sr1 {
+	__le32 lo_ts;
+	__le32 hi_ts;
+	__le32 reserved;
+	__le32 cookie;
+};
+
 /* get PRUSS SLICE number from prueth_emac */
 static inline int prueth_emac_slice(struct prueth_emac *emac)
 {
@@ -257,12 +286,17 @@ static inline int prueth_emac_slice(struct prueth_emac *emac)
 }
 
 extern const struct ethtool_ops icssg_ethtool_ops;
+extern const struct dev_pm_ops prueth_dev_pm_ops;
 
 /* Classifier helpers */
 void icssg_class_set_mac_addr(struct regmap *miig_rt, int slice, u8 *mac);
 void icssg_class_set_host_mac_addr(struct regmap *miig_rt, const u8 *mac);
 void icssg_class_disable(struct regmap *miig_rt, int slice);
-void icssg_class_default(struct regmap *miig_rt, int slice, bool allmulti);
+void icssg_class_default(struct regmap *miig_rt, int slice, bool allmulti,
+			 bool is_sr1);
+void icssg_class_promiscuous_sr1(struct regmap *miig_rt, int slice);
+void icssg_class_add_mcast_sr1(struct regmap *miig_rt, int slice,
+			       struct net_device *ndev);
 void icssg_ft1_set_mac_addr(struct regmap *miig_rt, int slice, u8 *mac_addr);
 
 /* config helpers */
@@ -285,4 +319,54 @@ u32 icssg_queue_level(struct prueth *prueth, int queue);
 void emac_stats_work_handler(struct work_struct *work);
 void emac_update_hardware_stats(struct prueth_emac *emac);
 int emac_get_stat_by_name(struct prueth_emac *emac, char *stat_name);
+
+/* Common functions */
+void prueth_cleanup_rx_chns(struct prueth_emac *emac,
+			    struct prueth_rx_chn *rx_chn,
+			    int max_rflows);
+void prueth_cleanup_tx_chns(struct prueth_emac *emac);
+void prueth_ndev_del_tx_napi(struct prueth_emac *emac, int num);
+void prueth_xmit_free(struct prueth_tx_chn *tx_chn,
+		      struct cppi5_host_desc_t *desc);
+int emac_tx_complete_packets(struct prueth_emac *emac, int chn,
+			     int budget, bool *tdown);
+int prueth_ndev_add_tx_napi(struct prueth_emac *emac);
+int prueth_init_tx_chns(struct prueth_emac *emac);
+int prueth_init_rx_chns(struct prueth_emac *emac,
+			struct prueth_rx_chn *rx_chn,
+			char *name, u32 max_rflows,
+			u32 max_desc_num);
+int prueth_dma_rx_push(struct prueth_emac *emac,
+		       struct sk_buff *skb,
+		       struct prueth_rx_chn *rx_chn);
+void emac_rx_timestamp(struct prueth_emac *emac,
+		       struct sk_buff *skb, u32 *psdata);
+enum netdev_tx emac_ndo_start_xmit(struct sk_buff *skb, struct net_device *ndev);
+irqreturn_t prueth_rx_irq(int irq, void *dev_id);
+void prueth_emac_stop(struct prueth_emac *emac);
+void prueth_cleanup_tx_ts(struct prueth_emac *emac);
+int emac_napi_rx_poll(struct napi_struct *napi_rx, int budget);
+int prueth_prepare_rx_chan(struct prueth_emac *emac,
+			   struct prueth_rx_chn *chn,
+			   int buf_size);
+void prueth_reset_tx_chan(struct prueth_emac *emac, int ch_num,
+			  bool free_skb);
+void prueth_reset_rx_chan(struct prueth_rx_chn *chn,
+			  int num_flows, bool disable);
+void emac_ndo_tx_timeout(struct net_device *ndev, unsigned int txqueue);
+int emac_ndo_ioctl(struct net_device *ndev, struct ifreq *ifr, int cmd);
+void emac_ndo_get_stats64(struct net_device *ndev,
+			  struct rtnl_link_stats64 *stats);
+int emac_ndo_get_phys_port_name(struct net_device *ndev, char *name,
+				size_t len);
+int prueth_node_port(struct device_node *eth_node);
+int prueth_node_mac(struct device_node *eth_node);
+void prueth_netdev_exit(struct prueth *prueth,
+			struct device_node *eth_node);
+int prueth_get_cores(struct prueth *prueth, int slice, bool is_sr1);
+void prueth_put_cores(struct prueth *prueth, int slice);
+
+/* Revision specific helper */
+u64 icssg_ts_to_ns(u32 hi_sw, u32 hi, u32 lo, u32 cycle_time_ns);
+
 #endif /* __NET_TI_ICSSG_PRUETH_H */

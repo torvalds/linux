@@ -23,6 +23,7 @@
 #define VALIDATION_NO_THRESHOLD 0	/* Verify the entire region */
 
 #define MIN(X, Y) ((X) < (Y) ? (X) : (Y))
+#define MAX(X, Y) ((X) > (Y) ? (X) : (Y))
 #define SIZE_MB(m) ((size_t)m * (1024 * 1024))
 #define SIZE_KB(k) ((size_t)k * 1024)
 
@@ -67,6 +68,27 @@ enum {
 		.overlapping = overlaps,			\
 	},							\
 	.expect_failure = should_fail				\
+}
+
+/* compute square root using binary search */
+static unsigned long get_sqrt(unsigned long val)
+{
+	unsigned long low = 1;
+
+	/* assuming rand_size is less than 1TB */
+	unsigned long high = (1UL << 20);
+
+	while (low <= high) {
+		unsigned long mid = low + (high - low) / 2;
+		unsigned long temp = mid * mid;
+
+		if (temp == val)
+			return mid;
+		if (temp < val)
+			low = mid + 1;
+		high = mid - 1;
+	}
+	return low;
 }
 
 /*
@@ -126,19 +148,21 @@ static unsigned long long get_mmap_min_addr(void)
  * Using /proc/self/maps, assert that the specified address range is contained
  * within a single mapping.
  */
-static bool is_range_mapped(FILE *maps_fp, void *start, void *end)
+static bool is_range_mapped(FILE *maps_fp, unsigned long start,
+			    unsigned long end)
 {
 	char *line = NULL;
 	size_t len = 0;
 	bool success = false;
+	unsigned long first_val, second_val;
 
 	rewind(maps_fp);
 
 	while (getline(&line, &len, maps_fp) != -1) {
-		char *first = strtok(line, "- ");
-		void *first_val = (void *)strtol(first, NULL, 16);
-		char *second = strtok(NULL, "- ");
-		void *second_val = (void *) strtol(second, NULL, 16);
+		if (sscanf(line, "%lx-%lx", &first_val, &second_val) != 2) {
+			ksft_exit_fail_msg("cannot parse /proc/self/maps\n");
+			break;
+		}
 
 		if (first_val <= start && second_val >= end) {
 			success = true;
@@ -233,7 +257,8 @@ static void mremap_expand_merge(FILE *maps_fp, unsigned long page_size)
 		goto out;
 	}
 
-	success = is_range_mapped(maps_fp, start, start + 3 * page_size);
+	success = is_range_mapped(maps_fp, (unsigned long)start,
+				  (unsigned long)(start + 3 * page_size));
 	munmap(start, 3 * page_size);
 
 out:
@@ -272,7 +297,8 @@ static void mremap_expand_merge_offset(FILE *maps_fp, unsigned long page_size)
 		goto out;
 	}
 
-	success = is_range_mapped(maps_fp, start, start + 3 * page_size);
+	success = is_range_mapped(maps_fp, (unsigned long)start,
+				  (unsigned long)(start + 3 * page_size));
 	munmap(start, 3 * page_size);
 
 out:
@@ -296,7 +322,7 @@ out:
  *
  * |DDDDddddSSSSssss|
  */
-static void mremap_move_within_range(char pattern_seed)
+static void mremap_move_within_range(unsigned int pattern_seed, char *rand_addr)
 {
 	char *test_name = "mremap mremap move within range";
 	void *src, *dest;
@@ -316,10 +342,7 @@ static void mremap_move_within_range(char pattern_seed)
 	src = (void *)((unsigned long)src & ~(SIZE_MB(2) - 1));
 
 	/* Set byte pattern for source block. */
-	srand(pattern_seed);
-	for (i = 0; i < SIZE_MB(2); i++) {
-		((char *)src)[i] = (char) rand();
-	}
+	memcpy(src, rand_addr, SIZE_MB(2));
 
 	dest = src - SIZE_MB(2);
 
@@ -357,14 +380,14 @@ out:
 
 /* Returns the time taken for the remap on success else returns -1. */
 static long long remap_region(struct config c, unsigned int threshold_mb,
-			      char pattern_seed)
+			      char *rand_addr)
 {
 	void *addr, *src_addr, *dest_addr, *dest_preamble_addr;
-	int d;
-	unsigned long long t;
+	unsigned long long t, d;
 	struct timespec t_start = {0, 0}, t_end = {0, 0};
 	long long  start_ns, end_ns, align_mask, ret, offset;
 	unsigned long long threshold;
+	unsigned long num_chunks;
 
 	if (threshold_mb == VALIDATION_NO_THRESHOLD)
 		threshold = c.region_size;
@@ -378,9 +401,7 @@ static long long remap_region(struct config c, unsigned int threshold_mb,
 	}
 
 	/* Set byte pattern for source block. */
-	srand(pattern_seed);
-	for (t = 0; t < threshold; t++)
-		memset((char *) src_addr + t, (char) rand(), 1);
+	memcpy(src_addr, rand_addr, threshold);
 
 	/* Mask to zero out lower bits of address for alignment */
 	align_mask = ~(c.dest_alignment - 1);
@@ -420,9 +441,7 @@ static long long remap_region(struct config c, unsigned int threshold_mb,
 		}
 
 		/* Set byte pattern for the dest preamble block. */
-		srand(pattern_seed);
-		for (d = 0; d < c.dest_preamble_size; d++)
-			memset((char *) dest_preamble_addr + d, (char) rand(), 1);
+		memcpy(dest_preamble_addr, rand_addr, c.dest_preamble_size);
 	}
 
 	clock_gettime(CLOCK_MONOTONIC, &t_start);
@@ -436,15 +455,42 @@ static long long remap_region(struct config c, unsigned int threshold_mb,
 		goto clean_up_dest_preamble;
 	}
 
-	/* Verify byte pattern after remapping */
-	srand(pattern_seed);
-	for (t = 0; t < threshold; t++) {
-		char c = (char) rand();
+	/*
+	 * Verify byte pattern after remapping. Employ an algorithm with a
+	 * square root time complexity in threshold: divide the range into
+	 * chunks, if memcmp() returns non-zero, only then perform an
+	 * iteration in that chunk to find the mismatch index.
+	 */
+	num_chunks = get_sqrt(threshold);
+	for (unsigned long i = 0; i < num_chunks; ++i) {
+		size_t chunk_size = threshold / num_chunks;
+		unsigned long shift = i * chunk_size;
 
-		if (((char *) dest_addr)[t] != c) {
+		if (!memcmp(dest_addr + shift, rand_addr + shift, chunk_size))
+			continue;
+
+		/* brute force iteration only over mismatch segment */
+		for (t = shift; t < shift + chunk_size; ++t) {
+			if (((char *) dest_addr)[t] != rand_addr[t]) {
+				ksft_print_msg("Data after remap doesn't match at offset %llu\n",
+						t);
+				ksft_print_msg("Expected: %#x\t Got: %#x\n", rand_addr[t] & 0xff,
+						((char *) dest_addr)[t] & 0xff);
+				ret = -1;
+				goto clean_up_dest;
+			}
+		}
+	}
+
+	/*
+	 * if threshold is not divisible by num_chunks, then check the
+	 * last chunk
+	 */
+	for (t = num_chunks * (threshold / num_chunks); t < threshold; ++t) {
+		if (((char *) dest_addr)[t] != rand_addr[t]) {
 			ksft_print_msg("Data after remap doesn't match at offset %llu\n",
-				       t);
-			ksft_print_msg("Expected: %#x\t Got: %#x\n", c & 0xff,
+					t);
+			ksft_print_msg("Expected: %#x\t Got: %#x\n", rand_addr[t] & 0xff,
 					((char *) dest_addr)[t] & 0xff);
 			ret = -1;
 			goto clean_up_dest;
@@ -452,22 +498,44 @@ static long long remap_region(struct config c, unsigned int threshold_mb,
 	}
 
 	/* Verify the dest preamble byte pattern after remapping */
-	if (c.dest_preamble_size) {
-		srand(pattern_seed);
-		for (d = 0; d < c.dest_preamble_size; d++) {
-			char c = (char) rand();
+	if (!c.dest_preamble_size)
+		goto no_preamble;
 
-			if (((char *) dest_preamble_addr)[d] != c) {
-				ksft_print_msg("Preamble data after remap doesn't match at offset %d\n",
-					       d);
-				ksft_print_msg("Expected: %#x\t Got: %#x\n", c & 0xff,
-					       ((char *) dest_preamble_addr)[d] & 0xff);
+	num_chunks = get_sqrt(c.dest_preamble_size);
+
+	for (unsigned long i = 0; i < num_chunks; ++i) {
+		size_t chunk_size = c.dest_preamble_size / num_chunks;
+		unsigned long shift = i * chunk_size;
+
+		if (!memcmp(dest_preamble_addr + shift, rand_addr + shift,
+			    chunk_size))
+			continue;
+
+		/* brute force iteration only over mismatched segment */
+		for (d = shift; d < shift + chunk_size; ++d) {
+			if (((char *) dest_preamble_addr)[d] != rand_addr[d]) {
+				ksft_print_msg("Preamble data after remap doesn't match at offset %llu\n",
+						d);
+				ksft_print_msg("Expected: %#x\t Got: %#x\n", rand_addr[d] & 0xff,
+						((char *) dest_preamble_addr)[d] & 0xff);
 				ret = -1;
 				goto clean_up_dest;
 			}
 		}
 	}
 
+	for (d = num_chunks * (c.dest_preamble_size / num_chunks); d < c.dest_preamble_size; ++d) {
+		if (((char *) dest_preamble_addr)[d] != rand_addr[d]) {
+			ksft_print_msg("Preamble data after remap doesn't match at offset %llu\n",
+					d);
+			ksft_print_msg("Expected: %#x\t Got: %#x\n", rand_addr[d] & 0xff,
+					((char *) dest_preamble_addr)[d] & 0xff);
+			ret = -1;
+			goto clean_up_dest;
+		}
+	}
+
+no_preamble:
 	start_ns = t_start.tv_sec * NS_PER_SEC + t_start.tv_nsec;
 	end_ns = t_end.tv_sec * NS_PER_SEC + t_end.tv_nsec;
 	ret = end_ns - start_ns;
@@ -494,7 +562,8 @@ out:
  * the beginning of the mapping just because the aligned
  * down address landed on a mapping that maybe does not exist.
  */
-static void mremap_move_1mb_from_start(char pattern_seed)
+static void mremap_move_1mb_from_start(unsigned int pattern_seed,
+				       char *rand_addr)
 {
 	char *test_name = "mremap move 1mb from start at 1MB+256KB aligned src";
 	void *src = NULL, *dest = NULL;
@@ -520,10 +589,7 @@ static void mremap_move_1mb_from_start(char pattern_seed)
 	}
 
 	/* Set byte pattern for source block. */
-	srand(pattern_seed);
-	for (i = 0; i < SIZE_MB(2); i++) {
-		((char *)src)[i] = (char) rand();
-	}
+	memcpy(src, rand_addr, SIZE_MB(2));
 
 	/*
 	 * Unmap the beginning of dest so that the aligned address
@@ -568,10 +634,10 @@ out:
 
 static void run_mremap_test_case(struct test test_case, int *failures,
 				 unsigned int threshold_mb,
-				 unsigned int pattern_seed)
+				 unsigned int pattern_seed, char *rand_addr)
 {
 	long long remap_time = remap_region(test_case.config, threshold_mb,
-					    pattern_seed);
+					    rand_addr);
 
 	if (remap_time < 0) {
 		if (test_case.expect_failure)
@@ -642,7 +708,15 @@ int main(int argc, char **argv)
 	int failures = 0;
 	int i, run_perf_tests;
 	unsigned int threshold_mb = VALIDATION_DEFAULT_THRESHOLD;
+
+	/* hard-coded test configs */
+	size_t max_test_variable_region_size = _2GB;
+	size_t max_test_constant_region_size = _2MB;
+	size_t dest_preamble_size = 10 * _4MB;
+
 	unsigned int pattern_seed;
+	char *rand_addr;
+	size_t rand_size;
 	int num_expand_tests = 2;
 	int num_misc_tests = 2;
 	struct test test_cases[MAX_TEST] = {};
@@ -658,6 +732,31 @@ int main(int argc, char **argv)
 
 	ksft_print_msg("Test configs:\n\tthreshold_mb=%u\n\tpattern_seed=%u\n\n",
 		       threshold_mb, pattern_seed);
+
+	/*
+	 * set preallocated random array according to test configs; see the
+	 * functions for the logic of setting the size
+	 */
+	if (!threshold_mb)
+		rand_size = MAX(max_test_variable_region_size,
+				max_test_constant_region_size);
+	else
+		rand_size = MAX(MIN(threshold_mb * _1MB,
+				    max_test_variable_region_size),
+				max_test_constant_region_size);
+	rand_size = MAX(dest_preamble_size, rand_size);
+
+	rand_addr = (char *)mmap(NULL, rand_size, PROT_READ | PROT_WRITE,
+				 MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	if (rand_addr == MAP_FAILED) {
+		perror("mmap");
+		ksft_exit_fail_msg("cannot mmap rand_addr\n");
+	}
+
+	/* fill stream of random bytes */
+	srand(pattern_seed);
+	for (unsigned long i = 0; i < rand_size; ++i)
+		rand_addr[i] = (char) rand();
 
 	page_size = sysconf(_SC_PAGESIZE);
 
@@ -730,13 +829,13 @@ int main(int argc, char **argv)
 
 	for (i = 0; i < ARRAY_SIZE(test_cases); i++)
 		run_mremap_test_case(test_cases[i], &failures, threshold_mb,
-				     pattern_seed);
+				     pattern_seed, rand_addr);
 
 	maps_fp = fopen("/proc/self/maps", "r");
 
 	if (maps_fp == NULL) {
-		ksft_print_msg("Failed to read /proc/self/maps: %s\n", strerror(errno));
-		exit(KSFT_FAIL);
+		munmap(rand_addr, rand_size);
+		ksft_exit_fail_msg("Failed to read /proc/self/maps: %s\n", strerror(errno));
 	}
 
 	mremap_expand_merge(maps_fp, page_size);
@@ -744,16 +843,19 @@ int main(int argc, char **argv)
 
 	fclose(maps_fp);
 
-	mremap_move_within_range(pattern_seed);
-	mremap_move_1mb_from_start(pattern_seed);
+	mremap_move_within_range(pattern_seed, rand_addr);
+	mremap_move_1mb_from_start(pattern_seed, rand_addr);
 
 	if (run_perf_tests) {
 		ksft_print_msg("\n%s\n",
 		 "mremap HAVE_MOVE_PMD/PUD optimization time comparison for 1GB region:");
 		for (i = 0; i < ARRAY_SIZE(perf_test_cases); i++)
 			run_mremap_test_case(perf_test_cases[i], &failures,
-					     threshold_mb, pattern_seed);
+					     threshold_mb, pattern_seed,
+					     rand_addr);
 	}
+
+	munmap(rand_addr, rand_size);
 
 	if (failures > 0)
 		ksft_exit_fail();

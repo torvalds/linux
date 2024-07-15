@@ -98,7 +98,8 @@ done:
 
 static void test_dummy_multiple_args(void)
 {
-	__u64 args[5] = {0, -100, 0x8a5f, 'c', 0x1234567887654321ULL};
+	struct bpf_dummy_ops_state st = { 7 };
+	__u64 args[5] = {(__u64)&st, -100, 0x8a5f, 'c', 0x1234567887654321ULL};
 	LIBBPF_OPTS(bpf_test_run_opts, attr,
 		.ctx_in = args,
 		.ctx_size_in = sizeof(args),
@@ -115,6 +116,7 @@ static void test_dummy_multiple_args(void)
 	fd = bpf_program__fd(skel->progs.test_2);
 	err = bpf_prog_test_run_opts(fd, &attr);
 	ASSERT_OK(err, "test_run");
+	args[0] = 7;
 	for (i = 0; i < ARRAY_SIZE(args); i++) {
 		snprintf(name, sizeof(name), "arg %zu", i);
 		ASSERT_EQ(skel->bss->test_2_args[i], args[i], name);
@@ -125,7 +127,8 @@ static void test_dummy_multiple_args(void)
 
 static void test_dummy_sleepable(void)
 {
-	__u64 args[1] = {0};
+	struct bpf_dummy_ops_state st;
+	__u64 args[1] = {(__u64)&st};
 	LIBBPF_OPTS(bpf_test_run_opts, attr,
 		.ctx_in = args,
 		.ctx_size_in = sizeof(args),
@@ -144,6 +147,31 @@ static void test_dummy_sleepable(void)
 	dummy_st_ops_success__destroy(skel);
 }
 
+/* dummy_st_ops.test_sleepable() parameter is not marked as nullable,
+ * thus bpf_prog_test_run_opts() below should be rejected as it tries
+ * to pass NULL for this parameter.
+ */
+static void test_dummy_sleepable_reject_null(void)
+{
+	__u64 args[1] = {0};
+	LIBBPF_OPTS(bpf_test_run_opts, attr,
+		.ctx_in = args,
+		.ctx_size_in = sizeof(args),
+	);
+	struct dummy_st_ops_success *skel;
+	int fd, err;
+
+	skel = dummy_st_ops_success__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "dummy_st_ops_load"))
+		return;
+
+	fd = bpf_program__fd(skel->progs.test_sleepable);
+	err = bpf_prog_test_run_opts(fd, &attr);
+	ASSERT_EQ(err, -EINVAL, "test_run");
+
+	dummy_st_ops_success__destroy(skel);
+}
+
 void test_dummy_st_ops(void)
 {
 	if (test__start_subtest("dummy_st_ops_attach"))
@@ -156,6 +184,8 @@ void test_dummy_st_ops(void)
 		test_dummy_multiple_args();
 	if (test__start_subtest("dummy_sleepable"))
 		test_dummy_sleepable();
+	if (test__start_subtest("dummy_sleepable_reject_null"))
+		test_dummy_sleepable_reject_null();
 
 	RUN_TESTS(dummy_st_ops_fail);
 }

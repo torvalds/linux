@@ -5,6 +5,9 @@
 /* SM5504 MUIC instead of SM5502 */
 /delete-node/ &muic;
 
+/* Touchscreen varies depending on model variant */
+/delete-node/ &touchscreen;
+
 &blsp_i2c1 {
 	muic: extcon@14 {
 		compatible = "siliconmitus,sm5504-muic";
@@ -13,4 +16,13 @@
 		pinctrl-0 = <&muic_int_default>;
 		pinctrl-names = "default";
 	};
+};
+
+/* On rossa backlight is controlled with MIPI DCS commands */
+&clk_pwm {
+	status = "disabled";
+};
+
+&clk_pwm_backlight {
+	status = "disabled";
 };

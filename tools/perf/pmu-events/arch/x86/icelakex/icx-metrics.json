@@ -667,23 +667,20 @@
     {
         "BriefDescription": "Probability of Core Bound bottleneck hidden by SMT-profiling artifacts",
         "MetricExpr": "(100 * (1 - max(0, topdown\\-be\\-bound / (topdown\\-fe\\-bound + topdown\\-bad\\-spec + topdown\\-retiring + topdown\\-be\\-bound) + 5 * INT_MISC.CLEARS_COUNT / slots - (CYCLE_ACTIVITY.STALLS_MEM_ANY + EXE_ACTIVITY.BOUND_ON_STORES) / (CYCLE_ACTIVITY.STALLS_TOTAL + (EXE_ACTIVITY.1_PORTS_UTIL + topdown\\-retiring / (topdown\\-fe\\-bound + topdown\\-bad\\-spec + topdown\\-retiring + topdown\\-be\\-bound) * EXE_ACTIVITY.2_PORTS_UTIL) + EXE_ACTIVITY.BOUND_ON_STORES) * (topdown\\-be\\-bound / (topdown\\-fe\\-bound + topdown\\-bad\\-spec + topdown\\-retiring + topdown\\-be\\-bound) + 5 * INT_MISC.CLEARS_COUNT / slots)) / (((cpu@EXE_ACTIVITY.3_PORTS_UTIL\\,umask\\=0x80@ + max(0, topdown\\-be\\-bound / (topdown\\-fe\\-bound + topdown\\-bad\\-spec + topdown\\-retiring + topdown\\-be\\-bound) + 5 * INT_MISC.CLEARS_COUNT / slots - (CYCLE_ACTIVITY.STALLS_MEM_ANY + EXE_ACTIVITY.BOUND_ON_STORES) / (CYCLE_ACTIVITY.STALLS_TOTAL + (EXE_ACTIVITY.1_PORTS_UTIL + topdown\\-retiring / (topdown\\-fe\\-bound + topdown\\-bad\\-spec + topdown\\-retiring + topdown\\-be\\-bound) * EXE_ACTIVITY.2_PORTS_UTIL) + EXE_ACTIVITY.BOUND_ON_STORES) * (topdown\\-be\\-bound / (topdown\\-fe\\-bound + topdown\\-bad\\-spec + topdown\\-retiring + topdown\\-be\\-bound) + 5 * INT_MISC.CLEARS_COUNT / slots)) * RS_EVENTS.EMPTY_CYCLES) / CPU_CLK_UNHALTED.THREAD * (CYCLE_ACTIVITY.STALLS_TOTAL - CYCLE_ACTIVITY.STALLS_MEM_ANY) / CPU_CLK_UNHALTED.THREAD * CPU_CLK_UNHALTED.THREAD + (EXE_ACTIVITY.1_PORTS_UTIL + topdown\\-retiring / (topdown\\-fe\\-bound + topdown\\-bad\\-spec + topdown\\-retiring + topdown\\-be\\-bound) * EXE_ACTIVITY.2_PORTS_UTIL)) / CPU_CLK_UNHALTED.THREAD if ARITH.DIVIDER_ACTIVE < CYCLE_ACTIVITY.STALLS_TOTAL - CYCLE_ACTIVITY.STALLS_MEM_ANY else (EXE_ACTIVITY.1_PORTS_UTIL + topdown\\-retiring / (topdown\\-fe\\-bound + topdown\\-bad\\-spec + topdown\\-retiring + topdown\\-be\\-bound) * EXE_ACTIVITY.2_PORTS_UTIL) / CPU_CLK_UNHALTED.THREAD) if max(0, topdown\\-be\\-bound / (topdown\\-fe\\-bound + topdown\\-bad\\-spec + topdown\\-retiring + topdown\\-be\\-bound) + 5 * INT_MISC.CLEARS_COUNT / slots - (CYCLE_ACTIVITY.STALLS_MEM_ANY + EXE_ACTIVITY.BOUND_ON_STORES) / (CYCLE_ACTIVITY.STALLS_TOTAL + (EXE_ACTIVITY.1_PORTS_UTIL + topdown\\-retiring / (topdown\\-fe\\-bound + topdown\\-bad\\-spec + topdown\\-retiring + topdown\\-be\\-bound) * EXE_ACTIVITY.2_PORTS_UTIL) + EXE_ACTIVITY.BOUND_ON_STORES) * (topdown\\-be\\-bound / (topdown\\-fe\\-bound + topdown\\-bad\\-spec + topdown\\-retiring + topdown\\-be\\-bound) + 5 * INT_MISC.CLEARS_COUNT / slots)) < (((cpu@EXE_ACTIVITY.3_PORTS_UTIL\\,umask\\=0x80@ + max(0, topdown\\-be\\-bound / (topdown\\-fe\\-bound + topdown\\-bad\\-spec + topdown\\-retiring + topdown\\-be\\-bound) + 5 * INT_MISC.CLEARS_COUNT / slots - (CYCLE_ACTIVITY.STALLS_MEM_ANY + EXE_ACTIVITY.BOUND_ON_STORES) / (CYCLE_ACTIVITY.STALLS_TOTAL + (EXE_ACTIVITY.1_PORTS_UTIL + topdown\\-retiring / (topdown\\-fe\\-bound + topdown\\-bad\\-spec + topdown\\-retiring + topdown\\-be\\-bound) * EXE_ACTIVITY.2_PORTS_UTIL) + EXE_ACTIVITY.BOUND_ON_STORES) * (topdown\\-be\\-bound / (topdown\\-fe\\-bound + topdown\\-bad\\-spec + topdown\\-retiring + topdown\\-be\\-bound) + 5 * INT_MISC.CLEARS_COUNT / slots)) * RS_EVENTS.EMPTY_CYCLES) / CPU_CLK_UNHALTED.THREAD * (CYCLE_ACTIVITY.STALLS_TOTAL - CYCLE_ACTIVITY.STALLS_MEM_ANY) / CPU_CLK_UNHALTED.THREAD * CPU_CLK_UNHALTED.THREAD + (EXE_ACTIVITY.1_PORTS_UTIL + topdown\\-retiring / (topdown\\-fe\\-bound + topdown\\-bad\\-spec + topdown\\-retiring + topdown\\-be\\-bound) * EXE_ACTIVITY.2_PORTS_UTIL)) / CPU_CLK_UNHALTED.THREAD if ARITH.DIVIDER_ACTIVE < CYCLE_ACTIVITY.STALLS_TOTAL - CYCLE_ACTIVITY.STALLS_MEM_ANY else (EXE_ACTIVITY.1_PORTS_UTIL + topdown\\-retiring / (topdown\\-fe\\-bound + topdown\\-bad\\-spec + topdown\\-retiring + topdown\\-be\\-bound) * EXE_ACTIVITY.2_PORTS_UTIL) / CPU_CLK_UNHALTED.THREAD) else 1) if tma_info_system_smt_2t_utilization > 0.5 else 0)",
-        "MetricGroup": "Cor;SMT;TopdownL1;tma_L1_group",
-        "MetricName": "tma_info_botlnk_core_bound_likely",
-        "MetricgroupNoGroup": "TopdownL1"
+        "MetricGroup": "Cor;SMT",
+        "MetricName": "tma_info_botlnk_core_bound_likely"
     },
     {
         "BriefDescription": "Total pipeline cost of DSB (uop cache) misses - subset of the Instruction_Fetch_BW Bottleneck.",
         "MetricExpr": "100 * (100 * ((5 * IDQ_UOPS_NOT_DELIVERED.CYCLES_0_UOPS_DELIV.CORE - INT_MISC.UOP_DROPPING) / slots * (DSB2MITE_SWITCHES.PENALTY_CYCLES / CPU_CLK_UNHALTED.THREAD) / (ICACHE_DATA.STALLS / CPU_CLK_UNHALTED.THREAD + ICACHE_TAG.STALLS / CPU_CLK_UNHALTED.THREAD + (INT_MISC.CLEAR_RESTEER_CYCLES / CPU_CLK_UNHALTED.THREAD + 10 * BACLEARS.ANY / CPU_CLK_UNHALTED.THREAD) + min(3 * IDQ.MS_SWITCHES / CPU_CLK_UNHALTED.THREAD, 1) + DECODE.LCP / CPU_CLK_UNHALTED.THREAD + DSB2MITE_SWITCHES.PENALTY_CYCLES / CPU_CLK_UNHALTED.THREAD) + max(0, topdown\\-fe\\-bound / (topdown\\-fe\\-bound + topdown\\-bad\\-spec + topdown\\-retiring + topdown\\-be\\-bound) - INT_MISC.UOP_DROPPING / slots - (5 * IDQ_UOPS_NOT_DELIVERED.CYCLES_0_UOPS_DELIV.CORE - INT_MISC.UOP_DROPPING) / slots) * ((IDQ.MITE_CYCLES_ANY - IDQ.MITE_CYCLES_OK) / (CPU_CLK_UNHALTED.DISTRIBUTED if #SMT_on else CPU_CLK_UNHALTED.THREAD) / 2) / ((IDQ.MITE_CYCLES_ANY - IDQ.MITE_CYCLES_OK) / (CPU_CLK_UNHALTED.DISTRIBUTED if #SMT_on else CPU_CLK_UNHALTED.THREAD) / 2 + (IDQ.DSB_CYCLES_ANY - IDQ.DSB_CYCLES_OK) / (CPU_CLK_UNHALTED.DISTRIBUTED if #SMT_on else CPU_CLK_UNHALTED.THREAD) / 2)))",
-        "MetricGroup": "DSBmiss;Fed;TopdownL1;tma_L1_group",
-        "MetricName": "tma_info_botlnk_dsb_misses",
-        "MetricgroupNoGroup": "TopdownL1"
+        "MetricGroup": "DSBmiss;Fed",
+        "MetricName": "tma_info_botlnk_dsb_misses"
     },
     {
         "BriefDescription": "Total pipeline cost of Instruction Cache misses - subset of the Big_Code Bottleneck.",
         "MetricExpr": "100 * (100 * ((5 * IDQ_UOPS_NOT_DELIVERED.CYCLES_0_UOPS_DELIV.CORE - INT_MISC.UOP_DROPPING) / slots * (ICACHE_DATA.STALLS / CPU_CLK_UNHALTED.THREAD) / (ICACHE_DATA.STALLS / CPU_CLK_UNHALTED.THREAD + ICACHE_TAG.STALLS / CPU_CLK_UNHALTED.THREAD + (INT_MISC.CLEAR_RESTEER_CYCLES / CPU_CLK_UNHALTED.THREAD + 10 * BACLEARS.ANY / CPU_CLK_UNHALTED.THREAD) + min(3 * IDQ.MS_SWITCHES / CPU_CLK_UNHALTED.THREAD, 1) + DECODE.LCP / CPU_CLK_UNHALTED.THREAD + DSB2MITE_SWITCHES.PENALTY_CYCLES / CPU_CLK_UNHALTED.THREAD)))",
-        "MetricGroup": "Fed;FetchLat;IcMiss;TopdownL1;tma_L1_group",
-        "MetricName": "tma_info_botlnk_ic_misses",
-        "MetricgroupNoGroup": "TopdownL1"
+        "MetricGroup": "Fed;FetchLat;IcMiss",
+        "MetricName": "tma_info_botlnk_ic_misses"
     },
     {
         "BriefDescription": "Probability of Core Bound bottleneck hidden by SMT-profiling artifacts",
@@ -1045,16 +1042,14 @@
     {
         "BriefDescription": "\"Bus lock\" per kilo instruction",
         "MetricExpr": "tma_info_memory_mix_bus_lock_pki",
-        "MetricGroup": "Mem;TopdownL1;tma_L1_group",
-        "MetricName": "tma_info_memory_bus_lock_pki",
-        "MetricgroupNoGroup": "TopdownL1"
+        "MetricGroup": "Mem",
+        "MetricName": "tma_info_memory_bus_lock_pki"
     },
     {
         "BriefDescription": "STLB (2nd level TLB) code speculative misses per kilo instruction (misses of any page-size that complete the page walk)",
         "MetricExpr": "tma_info_memory_tlb_code_stlb_mpki",
-        "MetricGroup": "Fed;MemoryTLB;TopdownL1;tma_L1_group",
-        "MetricName": "tma_info_memory_code_stlb_mpki",
-        "MetricgroupNoGroup": "TopdownL1"
+        "MetricGroup": "Fed;MemoryTLB",
+        "MetricName": "tma_info_memory_code_stlb_mpki"
     },
     {
         "BriefDescription": "Average per-core data fill bandwidth to the L1 data cache [GB / sec]",
@@ -1095,9 +1090,8 @@
     {
         "BriefDescription": "Average Parallel L2 cache miss data reads",
         "MetricExpr": "tma_info_memory_latency_data_l2_mlp",
-        "MetricGroup": "Memory_BW;Offcore;TopdownL1;tma_L1_group",
-        "MetricName": "tma_info_memory_data_l2_mlp",
-        "MetricgroupNoGroup": "TopdownL1"
+        "MetricGroup": "Memory_BW;Offcore",
+        "MetricName": "tma_info_memory_data_l2_mlp"
     },
     {
         "BriefDescription": "Fill Buffer (FB) hits per kilo instructions for retired demand loads (L1D misses that merge into ongoing miss-handling entries)",
@@ -1114,9 +1108,8 @@
     {
         "BriefDescription": "Average per-core data fill bandwidth to the L1 data cache [GB / sec]",
         "MetricExpr": "64 * L1D.REPLACEMENT / 1e9 / (duration_time * 1e3 / 1e3)",
-        "MetricGroup": "Mem;MemoryBW;TopdownL1;tma_L1_group",
-        "MetricName": "tma_info_memory_l1d_cache_fill_bw_2t",
-        "MetricgroupNoGroup": "TopdownL1"
+        "MetricGroup": "Mem;MemoryBW",
+        "MetricName": "tma_info_memory_l1d_cache_fill_bw_2t"
     },
     {
         "BriefDescription": "L1 cache true misses per kilo instruction for retired demand loads",
@@ -1139,23 +1132,20 @@
     {
         "BriefDescription": "Average per-core data fill bandwidth to the L2 cache [GB / sec]",
         "MetricExpr": "64 * L2_LINES_IN.ALL / 1e9 / (duration_time * 1e3 / 1e3)",
-        "MetricGroup": "Mem;MemoryBW;TopdownL1;tma_L1_group",
-        "MetricName": "tma_info_memory_l2_cache_fill_bw_2t",
-        "MetricgroupNoGroup": "TopdownL1"
+        "MetricGroup": "Mem;MemoryBW",
+        "MetricName": "tma_info_memory_l2_cache_fill_bw_2t"
     },
     {
         "BriefDescription": "Rate of non silent evictions from the L2 cache per Kilo instruction",
         "MetricExpr": "1e3 * L2_LINES_OUT.NON_SILENT / INST_RETIRED.ANY",
-        "MetricGroup": "L2Evicts;Mem;Server;TopdownL1;tma_L1_group",
-        "MetricName": "tma_info_memory_l2_evictions_nonsilent_pki",
-        "MetricgroupNoGroup": "TopdownL1"
+        "MetricGroup": "L2Evicts;Mem;Server",
+        "MetricName": "tma_info_memory_l2_evictions_nonsilent_pki"
     },
     {
         "BriefDescription": "Rate of silent evictions from the L2 cache per Kilo instruction where the evicted lines are dropped (no writeback to L3 or memory)",
         "MetricExpr": "1e3 * L2_LINES_OUT.SILENT / INST_RETIRED.ANY",
-        "MetricGroup": "L2Evicts;Mem;Server;TopdownL1;tma_L1_group",
-        "MetricName": "tma_info_memory_l2_evictions_silent_pki",
-        "MetricgroupNoGroup": "TopdownL1"
+        "MetricGroup": "L2Evicts;Mem;Server",
+        "MetricName": "tma_info_memory_l2_evictions_silent_pki"
     },
     {
         "BriefDescription": "L2 cache hits per kilo instruction for all demand loads  (including speculative)",
@@ -1190,9 +1180,8 @@
     {
         "BriefDescription": "Average per-core data access bandwidth to the L3 cache [GB / sec]",
         "MetricExpr": "64 * OFFCORE_REQUESTS.ALL_REQUESTS / 1e9 / (duration_time * 1e3 / 1e3)",
-        "MetricGroup": "Mem;MemoryBW;Offcore;TopdownL1;tma_L1_group",
-        "MetricName": "tma_info_memory_l3_cache_access_bw_2t",
-        "MetricgroupNoGroup": "TopdownL1"
+        "MetricGroup": "Mem;MemoryBW;Offcore",
+        "MetricName": "tma_info_memory_l3_cache_access_bw_2t"
     },
     {
         "BriefDescription": "",
@@ -1203,9 +1192,8 @@
     {
         "BriefDescription": "Average per-core data fill bandwidth to the L3 cache [GB / sec]",
         "MetricExpr": "64 * LONGEST_LAT_CACHE.MISS / 1e9 / (duration_time * 1e3 / 1e3)",
-        "MetricGroup": "Mem;MemoryBW;TopdownL1;tma_L1_group",
-        "MetricName": "tma_info_memory_l3_cache_fill_bw_2t",
-        "MetricgroupNoGroup": "TopdownL1"
+        "MetricGroup": "Mem;MemoryBW",
+        "MetricName": "tma_info_memory_l3_cache_fill_bw_2t"
     },
     {
         "BriefDescription": "L3 cache true misses per kilo instruction for retired demand loads",
@@ -1240,23 +1228,20 @@
     {
         "BriefDescription": "Average Latency for L2 cache miss demand Loads",
         "MetricExpr": "OFFCORE_REQUESTS_OUTSTANDING.DEMAND_DATA_RD / OFFCORE_REQUESTS.DEMAND_DATA_RD",
-        "MetricGroup": "Memory_Lat;Offcore;TopdownL1;tma_L1_group",
-        "MetricName": "tma_info_memory_load_l2_miss_latency",
-        "MetricgroupNoGroup": "TopdownL1"
+        "MetricGroup": "Memory_Lat;Offcore",
+        "MetricName": "tma_info_memory_load_l2_miss_latency"
     },
     {
         "BriefDescription": "Average Parallel L2 cache miss demand Loads",
         "MetricExpr": "OFFCORE_REQUESTS_OUTSTANDING.DEMAND_DATA_RD / cpu@OFFCORE_REQUESTS_OUTSTANDING.DEMAND_DATA_RD\\,cmask\\=0x1@",
-        "MetricGroup": "Memory_BW;Offcore;TopdownL1;tma_L1_group",
-        "MetricName": "tma_info_memory_load_l2_mlp",
-        "MetricgroupNoGroup": "TopdownL1"
+        "MetricGroup": "Memory_BW;Offcore",
+        "MetricName": "tma_info_memory_load_l2_mlp"
     },
     {
         "BriefDescription": "Average Latency for L3 cache miss demand Loads",
         "MetricExpr": "cpu@OFFCORE_REQUESTS_OUTSTANDING.DEMAND_DATA_RD\\,umask\\=0x10@ / OFFCORE_REQUESTS.L3_MISS_DEMAND_DATA_RD",
-        "MetricGroup": "Memory_Lat;Offcore;TopdownL1;tma_L1_group",
-        "MetricName": "tma_info_memory_load_l3_miss_latency",
-        "MetricgroupNoGroup": "TopdownL1"
+        "MetricGroup": "Memory_Lat;Offcore",
+        "MetricName": "tma_info_memory_load_l3_miss_latency"
     },
     {
         "BriefDescription": "Actual Average Latency for L1 data-cache miss demand load operations (in core cycles)",
@@ -1267,9 +1252,8 @@
     {
         "BriefDescription": "STLB (2nd level TLB) data load speculative misses per kilo instruction (misses of any page-size that complete the page walk)",
         "MetricExpr": "tma_info_memory_tlb_load_stlb_mpki",
-        "MetricGroup": "Mem;MemoryTLB;TopdownL1;tma_L1_group",
-        "MetricName": "tma_info_memory_load_stlb_mpki",
-        "MetricgroupNoGroup": "TopdownL1"
+        "MetricGroup": "Mem;MemoryTLB",
+        "MetricName": "tma_info_memory_load_stlb_mpki"
     },
     {
         "BriefDescription": "\"Bus lock\" per kilo instruction",
@@ -1293,16 +1277,14 @@
     {
         "BriefDescription": "Utilization of the core's Page Walker(s) serving STLB misses triggered by instruction/Load/Store accesses",
         "MetricExpr": "(ITLB_MISSES.WALK_PENDING + DTLB_LOAD_MISSES.WALK_PENDING + DTLB_STORE_MISSES.WALK_PENDING) / (2 * (CPU_CLK_UNHALTED.DISTRIBUTED if #SMT_on else CPU_CLK_UNHALTED.THREAD))",
-        "MetricGroup": "Mem;MemoryTLB;TopdownL1;tma_L1_group",
-        "MetricName": "tma_info_memory_page_walks_utilization",
-        "MetricgroupNoGroup": "TopdownL1"
+        "MetricGroup": "Mem;MemoryTLB",
+        "MetricName": "tma_info_memory_page_walks_utilization"
     },
     {
         "BriefDescription": "STLB (2nd level TLB) data store speculative misses per kilo instruction (misses of any page-size that complete the page walk)",
         "MetricExpr": "tma_info_memory_tlb_store_stlb_mpki",
-        "MetricGroup": "Mem;MemoryTLB;TopdownL1;tma_L1_group",
-        "MetricName": "tma_info_memory_store_stlb_mpki",
-        "MetricgroupNoGroup": "TopdownL1"
+        "MetricGroup": "Mem;MemoryTLB",
+        "MetricName": "tma_info_memory_store_stlb_mpki"
     },
     {
         "BriefDescription": "STLB (2nd level TLB) code speculative misses per kilo instruction (misses of any page-size that complete the page walk)",
@@ -1332,9 +1314,8 @@
     {
         "BriefDescription": "Un-cacheable retired load per kilo instruction",
         "MetricExpr": "1e3 * MEM_LOAD_MISC_RETIRED.UC / INST_RETIRED.ANY",
-        "MetricGroup": "Mem;TopdownL1;tma_L1_group",
-        "MetricName": "tma_info_memory_uc_load_pki",
-        "MetricgroupNoGroup": "TopdownL1"
+        "MetricGroup": "Mem",
+        "MetricName": "tma_info_memory_uc_load_pki"
     },
     {
         "BriefDescription": "",

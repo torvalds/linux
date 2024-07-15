@@ -48,7 +48,7 @@ static int pm6764tr_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id pm6764tr_id[] = {
-	{"pm6764tr", 0},
+	{"pm6764tr"},
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, pm6764tr_id);

@@ -1133,7 +1133,7 @@ static int isabelle_i2c_probe(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id isabelle_i2c_id[] = {
-	{ "isabelle", 0 },
+	{ "isabelle" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, isabelle_i2c_id);

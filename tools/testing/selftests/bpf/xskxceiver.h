@@ -44,7 +44,7 @@
 #define MAX_ETH_JUMBO_SIZE 9000
 #define USLEEP_MAX 10000
 #define SOCK_RECONF_CTR 10
-#define BATCH_SIZE 64
+#define DEFAULT_BATCH_SIZE 64
 #define POLL_TMOUT 1000
 #define THREAD_TMOUT 3
 #define DEFAULT_PKT_CNT (4 * 1024)
@@ -91,6 +91,7 @@ struct xsk_socket_info {
 	struct pkt_stream *pkt_stream;
 	u32 outstanding_tx;
 	u32 rxqsize;
+	u32 batch_size;
 	u8 dst_mac[ETH_ALEN];
 	u8 src_mac[ETH_ALEN];
 };
@@ -113,6 +114,11 @@ struct pkt_stream {
 	bool verbatim;
 };
 
+struct set_hw_ring {
+	u32 default_tx;
+	u32 default_rx;
+};
+
 struct ifobject;
 struct test_spec;
 typedef int (*validation_func_t)(struct ifobject *ifobj);
@@ -129,6 +135,8 @@ struct ifobject {
 	struct xsk_xdp_progs *xdp_progs;
 	struct bpf_map *xskmap;
 	struct bpf_program *xdp_prog;
+	struct ethtool_ringparam ring;
+	struct set_hw_ring set_ring;
 	enum test_mode mode;
 	int ifindex;
 	int mtu;
@@ -145,6 +153,7 @@ struct ifobject {
 	bool unaligned_supp;
 	bool multi_buff_supp;
 	bool multi_buff_zc_supp;
+	bool hw_ring_size_supp;
 };
 
 struct test_spec {
@@ -162,6 +171,7 @@ struct test_spec {
 	u16 current_step;
 	u16 nb_sockets;
 	bool fail;
+	bool set_ring;
 	enum test_mode mode;
 	char name[MAX_TEST_NAME_SIZE];
 };

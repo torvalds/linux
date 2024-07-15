@@ -1071,7 +1071,7 @@ enum dc_status dpcd_set_link_settings(
 		 * MUX chip gets link rate set back before link training.
 		 */
 		if (link->connector_signal == SIGNAL_TYPE_EDP) {
-			uint8_t supported_link_rates[16];
+			uint8_t supported_link_rates[16] = {0};
 
 			core_link_read_dpcd(link, DP_SUPPORTED_LINK_RATES,
 					supported_link_rates, sizeof(supported_link_rates));
@@ -1587,21 +1587,7 @@ bool perform_link_training_with_retries(
 			msleep(delay_dp_power_up_in_ms);
 		}
 
-		if (panel_mode == DP_PANEL_MODE_EDP) {
-			struct cp_psp *cp_psp = &stream->ctx->cp_psp;
-
-			if (cp_psp && cp_psp->funcs.enable_assr) {
-				/* ASSR is bound to fail with unsigned PSP
-				 * verstage used during devlopment phase.
-				 * Report and continue with eDP panel mode to
-				 * perform eDP link training with right settings
-				 */
-				bool result;
-				result = cp_psp->funcs.enable_assr(cp_psp->handle, link);
-				if (!result && link->panel_mode != DP_PANEL_MODE_EDP)
-					panel_mode = DP_PANEL_MODE_DEFAULT;
-			}
-		}
+		edp_set_panel_assr(link, pipe_ctx, &panel_mode, true);
 
 		dp_set_panel_mode(link, panel_mode);
 

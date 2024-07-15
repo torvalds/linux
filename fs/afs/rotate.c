@@ -541,11 +541,13 @@ pick_server:
 		    test_bit(AFS_SE_EXCLUDED, &se->flags) ||
 		    !test_bit(AFS_SERVER_FL_RESPONDING, &s->flags))
 			continue;
-		es = op->server_states->endpoint_state;
+		es = op->server_states[i].endpoint_state;
 		sal = es->addresses;
 
 		afs_get_address_preferences_rcu(op->net, sal);
 		for (j = 0; j < sal->nr_addrs; j++) {
+			if (es->failed_set & (1 << j))
+				continue;
 			if (!sal->addrs[j].peer)
 				continue;
 			if (sal->addrs[j].prio > best_prio) {
@@ -605,6 +607,8 @@ iterate_address:
 	best_prio = -1;
 	addr_index = 0;
 	for (i = 0; i < alist->nr_addrs; i++) {
+		if (!(set & (1 << i)))
+			continue;
 		if (alist->addrs[i].prio > best_prio) {
 			addr_index = i;
 			best_prio = alist->addrs[i].prio;
@@ -674,7 +678,7 @@ no_more_servers:
 	for (i = 0; i < op->server_list->nr_servers; i++) {
 		struct afs_endpoint_state *estate;
 
-		estate = op->server_states->endpoint_state;
+		estate = op->server_states[i].endpoint_state;
 		error = READ_ONCE(estate->error);
 		if (error < 0)
 			afs_op_accumulate_error(op, error, estate->abort_code);

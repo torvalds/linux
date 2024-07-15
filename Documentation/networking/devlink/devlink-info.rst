@@ -146,6 +146,11 @@ board.manufacture
 
 An identifier of the company or the facility which produced the part.
 
+board.part_number
+-----------------
+
+Part number of the board and its components.
+
 fw
 --
 

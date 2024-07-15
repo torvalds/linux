@@ -71,8 +71,6 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			spi-max-frequency = <25000000>;
-
 			reg = <0x40 0x8>;
 
 			sdcard@0 {

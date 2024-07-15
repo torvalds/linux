@@ -510,6 +510,17 @@ int recource_find_free_pipe_used_as_otg_master_in_cur_res_ctx(
 
 /*
  * Look for a free pipe in new resource context that is used as a secondary DPP
+ * pipe in current resource context.
+ * return - FREE_PIPE_INDEX_NOT_FOUND if free pipe is not found, otherwise
+ * pipe idx of the free pipe
+ */
+int resource_find_free_pipe_used_as_cur_sec_dpp(
+		const struct resource_context *cur_res_ctx,
+		struct resource_context *new_res_ctx,
+		const struct resource_pool *pool);
+
+/*
+ * Look for a free pipe in new resource context that is used as a secondary DPP
  * pipe in any MPCC combine in current resource context.
  * return - FREE_PIPE_INDEX_NOT_FOUND if free pipe is not found, otherwise
  * pipe idx of the free pipe
@@ -573,13 +584,6 @@ bool get_temp_dp_link_res(struct dc_link *link,
 		struct link_resource *link_res,
 		struct dc_link_settings *link_settings);
 
-#if defined(CONFIG_DRM_AMD_DC_FP)
-struct hpo_dp_link_encoder *resource_get_hpo_dp_link_enc_for_det_lt(
-		const struct resource_context *res_ctx,
-		const struct resource_pool *pool,
-		const struct dc_link *link);
-#endif
-
 void reset_syncd_pipes_from_disabled_pipes(struct dc *dc,
 	struct dc_state *context);
 
@@ -615,4 +619,10 @@ enum dc_status update_dp_encoder_resources_for_test_harness(const struct dc *dc,
 		struct pipe_ctx *pipe_ctx);
 
 bool check_subvp_sw_cursor_fallback_req(const struct dc *dc, struct dc_stream_state *stream);
+
+/* Setup dc callbacks for dml2
+ * @dc: the display core structure
+ * @dml2_options: struct to hold callbacks
+ */
+void resource_init_common_dml2_callbacks(struct dc *dc, struct dml2_configuration_options *dml2_options);
 #endif /* DRIVERS_GPU_DRM_AMD_DC_DEV_DC_INC_RESOURCE_H_ */

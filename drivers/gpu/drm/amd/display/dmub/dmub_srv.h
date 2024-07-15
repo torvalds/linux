@@ -71,6 +71,8 @@
 extern "C" {
 #endif
 
+#define DMUB_PC_SNAPSHOT_COUNT 10
+
 /* Forward declarations */
 struct dmub_srv;
 struct dmub_srv_common_regs;
@@ -295,8 +297,20 @@ struct dmub_srv_hw_params {
 	bool dpia_hpd_int_enable_supported;
 	bool disable_clock_gate;
 	bool disallow_dispclk_dppclk_ds;
+	bool ips_sequential_ono;
 	enum dmub_memory_access_type mem_access_type;
 	enum dmub_ips_disable_type disable_ips;
+};
+
+/**
+ * struct dmub_srv_debug - Debug info for dmub_srv
+ * @timeout_occured: Indicates a timeout occured on any message from driver to dmub
+ * @timeout_cmd: first cmd sent from driver that timed out - subsequent timeouts are not stored
+ */
+struct dmub_srv_debug {
+	bool timeout_occured;
+	union dmub_rb_cmd timeout_cmd;
+	unsigned long long timestamp;
 };
 
 /**
@@ -306,7 +320,7 @@ struct dmub_srv_hw_params {
 struct dmub_diagnostic_data {
 	uint32_t dmcub_version;
 	uint32_t scratch[17];
-	uint32_t pc;
+	uint32_t pc[DMUB_PC_SNAPSHOT_COUNT];
 	uint32_t undefined_address_fault_addr;
 	uint32_t inst_fetch_fault_addr;
 	uint32_t data_write_fault_addr;
@@ -317,6 +331,7 @@ struct dmub_diagnostic_data {
 	uint32_t inbox0_wptr;
 	uint32_t inbox0_size;
 	uint32_t gpint_datain0;
+	struct dmub_srv_debug timeout_info;
 	uint8_t is_dmcub_enabled : 1;
 	uint8_t is_dmcub_soft_reset : 1;
 	uint8_t is_dmcub_secure_reset : 1;
@@ -506,6 +521,7 @@ struct dmub_srv {
 	struct dmub_visual_confirm_color visual_confirm_color;
 
 	enum dmub_srv_power_state_type power_state;
+	struct dmub_srv_debug debug;
 };
 
 /**

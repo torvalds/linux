@@ -89,9 +89,8 @@ static void amd_enable_sdw_interrupts(struct amd_sdw_manager *amd_manager)
 	u32 val;
 
 	mutex_lock(amd_manager->acp_sdw_lock);
-	val = readl(amd_manager->acp_mmio + ACP_EXTERNAL_INTR_CNTL(amd_manager->instance));
-	val |= sdw_manager_reg_mask_array[amd_manager->instance];
-	writel(val, amd_manager->acp_mmio + ACP_EXTERNAL_INTR_CNTL(amd_manager->instance));
+	val = sdw_manager_reg_mask_array[amd_manager->instance];
+	amd_updatel(amd_manager->acp_mmio, ACP_EXTERNAL_INTR_CNTL(amd_manager->instance), val, val);
 	mutex_unlock(amd_manager->acp_sdw_lock);
 
 	writel(AMD_SDW_IRQ_MASK_0TO7, amd_manager->mmio +
@@ -103,12 +102,12 @@ static void amd_enable_sdw_interrupts(struct amd_sdw_manager *amd_manager)
 
 static void amd_disable_sdw_interrupts(struct amd_sdw_manager *amd_manager)
 {
-	u32 val;
+	u32 irq_mask;
 
 	mutex_lock(amd_manager->acp_sdw_lock);
-	val = readl(amd_manager->acp_mmio + ACP_EXTERNAL_INTR_CNTL(amd_manager->instance));
-	val &= ~sdw_manager_reg_mask_array[amd_manager->instance];
-	writel(val, amd_manager->acp_mmio + ACP_EXTERNAL_INTR_CNTL(amd_manager->instance));
+	irq_mask = sdw_manager_reg_mask_array[amd_manager->instance];
+	amd_updatel(amd_manager->acp_mmio, ACP_EXTERNAL_INTR_CNTL(amd_manager->instance),
+		    irq_mask, 0);
 	mutex_unlock(amd_manager->acp_sdw_lock);
 
 	writel(0x00, amd_manager->mmio + ACP_SW_STATE_CHANGE_STATUS_MASK_0TO7);
@@ -572,6 +571,9 @@ static int sdw_master_read_amd_prop(struct sdw_bus *bus)
 	amd_manager->wake_en_mask = wake_en_mask;
 	fwnode_property_read_u32(link, "amd-sdw-power-mode", &power_mode_mask);
 	amd_manager->power_mode_mask = power_mode_mask;
+
+	fwnode_handle_put(link);
+
 	return 0;
 }
 

@@ -22,13 +22,19 @@
 #ifndef __DRM_DEBUGFS_CRC_H__
 #define __DRM_DEBUGFS_CRC_H__
 
+#include <linux/spinlock_types.h>
+#include <linux/types.h>
+#include <linux/wait.h>
+
+struct drm_crtc;
+
 #define DRM_MAX_CRC_NR		10
 
 /**
  * struct drm_crtc_crc_entry - entry describing a frame's content
  * @has_frame_counter: whether the source was able to provide a frame number
  * @frame: number of the frame this CRC is about, if @has_frame_counter is true
- * @crc: array of values that characterize the frame
+ * @crcs: array of values that characterize the frame
  */
 struct drm_crtc_crc_entry {
 	bool has_frame_counter;

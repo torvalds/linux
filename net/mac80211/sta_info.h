@@ -886,7 +886,7 @@ void sta_info_stop(struct ieee80211_local *local);
 /**
  * __sta_info_flush - flush matching STA entries from the STA table
  *
- * Returns the number of removed STA entries.
+ * Return: the number of removed STA entries.
  *
  * @sdata: sdata to remove all stations from
  * @vlans: if the given interface is an AP interface, also flush VLANs
@@ -900,7 +900,7 @@ int __sta_info_flush(struct ieee80211_sub_if_data *sdata, bool vlans,
 /**
  * sta_info_flush - flush matching STA entries from the STA table
  *
- * Returns the number of removed STA entries.
+ * Return: the number of removed STA entries.
  *
  * @sdata: sdata to remove all stations from
  * @link_id: if given (>=0), all those STA entries using @link_id only

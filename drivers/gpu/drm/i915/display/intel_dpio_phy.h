@@ -29,18 +29,18 @@ enum dpio_phy {
 #ifdef I915
 void bxt_port_to_phy_channel(struct drm_i915_private *dev_priv, enum port port,
 			     enum dpio_phy *phy, enum dpio_channel *ch);
-void bxt_ddi_phy_set_signal_levels(struct intel_encoder *encoder,
-				   const struct intel_crtc_state *crtc_state);
-void bxt_ddi_phy_init(struct drm_i915_private *dev_priv, enum dpio_phy phy);
-void bxt_ddi_phy_uninit(struct drm_i915_private *dev_priv, enum dpio_phy phy);
-bool bxt_ddi_phy_is_enabled(struct drm_i915_private *dev_priv,
-			    enum dpio_phy phy);
-bool bxt_ddi_phy_verify_state(struct drm_i915_private *dev_priv,
-			      enum dpio_phy phy);
-u8 bxt_ddi_phy_calc_lane_lat_optim_mask(u8 lane_count);
-void bxt_ddi_phy_set_lane_optim_mask(struct intel_encoder *encoder,
-				     u8 lane_lat_optim_mask);
-u8 bxt_ddi_phy_get_lane_lat_optim_mask(struct intel_encoder *encoder);
+void bxt_dpio_phy_set_signal_levels(struct intel_encoder *encoder,
+				    const struct intel_crtc_state *crtc_state);
+void bxt_dpio_phy_init(struct drm_i915_private *dev_priv, enum dpio_phy phy);
+void bxt_dpio_phy_uninit(struct drm_i915_private *dev_priv, enum dpio_phy phy);
+bool bxt_dpio_phy_is_enabled(struct drm_i915_private *dev_priv,
+			     enum dpio_phy phy);
+bool bxt_dpio_phy_verify_state(struct drm_i915_private *dev_priv,
+			       enum dpio_phy phy);
+u8 bxt_dpio_phy_calc_lane_lat_optim_mask(u8 lane_count);
+void bxt_dpio_phy_set_lane_optim_mask(struct intel_encoder *encoder,
+				      u8 lane_lat_optim_mask);
+u8 bxt_dpio_phy_get_lane_lat_optim_mask(struct intel_encoder *encoder);
 
 enum dpio_channel vlv_dig_port_to_channel(struct intel_digital_port *dig_port);
 enum dpio_phy vlv_dig_port_to_phy(struct intel_digital_port *dig_port);
@@ -77,35 +77,35 @@ static inline void bxt_port_to_phy_channel(struct drm_i915_private *dev_priv, en
 					   enum dpio_phy *phy, enum dpio_channel *ch)
 {
 }
-static inline void bxt_ddi_phy_set_signal_levels(struct intel_encoder *encoder,
-						 const struct intel_crtc_state *crtc_state)
+static inline void bxt_dpio_phy_set_signal_levels(struct intel_encoder *encoder,
+						  const struct intel_crtc_state *crtc_state)
 {
 }
-static inline void bxt_ddi_phy_init(struct drm_i915_private *dev_priv, enum dpio_phy phy)
+static inline void bxt_dpio_phy_init(struct drm_i915_private *dev_priv, enum dpio_phy phy)
 {
 }
-static inline void bxt_ddi_phy_uninit(struct drm_i915_private *dev_priv, enum dpio_phy phy)
+static inline void bxt_dpio_phy_uninit(struct drm_i915_private *dev_priv, enum dpio_phy phy)
 {
 }
-static inline bool bxt_ddi_phy_is_enabled(struct drm_i915_private *dev_priv,
-					  enum dpio_phy phy)
+static inline bool bxt_dpio_phy_is_enabled(struct drm_i915_private *dev_priv,
+					   enum dpio_phy phy)
 {
 	return false;
 }
-static inline bool bxt_ddi_phy_verify_state(struct drm_i915_private *dev_priv,
-					    enum dpio_phy phy)
+static inline bool bxt_dpio_phy_verify_state(struct drm_i915_private *dev_priv,
+					     enum dpio_phy phy)
 {
 	return true;
 }
-static inline u8 bxt_ddi_phy_calc_lane_lat_optim_mask(u8 lane_count)
+static inline u8 bxt_dpio_phy_calc_lane_lat_optim_mask(u8 lane_count)
 {
 	return 0;
 }
-static inline void bxt_ddi_phy_set_lane_optim_mask(struct intel_encoder *encoder,
-						   u8 lane_lat_optim_mask)
+static inline void bxt_dpio_phy_set_lane_optim_mask(struct intel_encoder *encoder,
+						    u8 lane_lat_optim_mask)
 {
 }
-static inline u8 bxt_ddi_phy_get_lane_lat_optim_mask(struct intel_encoder *encoder)
+static inline u8 bxt_dpio_phy_get_lane_lat_optim_mask(struct intel_encoder *encoder)
 {
 	return 0;
 }

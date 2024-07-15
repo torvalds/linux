@@ -60,7 +60,20 @@ static inline u64 translate_ttbr0_el2_to_ttbr0_el1(u64 ttbr0)
 	return ttbr0 & ~GENMASK_ULL(63, 48);
 }
 
+extern bool forward_smc_trap(struct kvm_vcpu *vcpu);
 
 int kvm_init_nv_sysregs(struct kvm *kvm);
+
+#ifdef CONFIG_ARM64_PTR_AUTH
+bool kvm_auth_eretax(struct kvm_vcpu *vcpu, u64 *elr);
+#else
+static inline bool kvm_auth_eretax(struct kvm_vcpu *vcpu, u64 *elr)
+{
+	/* We really should never execute this... */
+	WARN_ON_ONCE(1);
+	*elr = 0xbad9acc0debadbad;
+	return false;
+}
+#endif
 
 #endif /* __ARM64_KVM_NESTED_H */

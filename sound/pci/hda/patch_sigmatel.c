@@ -2154,10 +2154,8 @@ static void stac92hd83xxx_fixup_hp_mic_led(struct hda_codec *codec,
 
 	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
 		spec->mic_mute_led_gpio = 0x08; /* GPIO3 */
-#ifdef CONFIG_PM
 		/* resetting controller clears GPIO, so we need to keep on */
 		codec->core.power_caps &= ~AC_PWRST_CLKSTOP;
-#endif
 	}
 }
 
@@ -4442,7 +4440,6 @@ static void stac927x_proc_hook(struct snd_info_buffer *buffer,
 #define stac927x_proc_hook	NULL
 #endif
 
-#ifdef CONFIG_PM
 static int stac_suspend(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec = codec->spec;
@@ -4456,9 +4453,6 @@ static int stac_suspend(struct hda_codec *codec)
 
 	return 0;
 }
-#else
-#define stac_suspend		NULL
-#endif /* CONFIG_PM */
 
 static const struct hda_codec_ops stac_patch_ops = {
 	.build_controls = snd_hda_gen_build_controls,
@@ -4466,9 +4460,7 @@ static const struct hda_codec_ops stac_patch_ops = {
 	.init = stac_init,
 	.free = stac_free,
 	.unsol_event = snd_hda_jack_unsol_event,
-#ifdef CONFIG_PM
 	.suspend = stac_suspend,
-#endif
 };
 
 static int alloc_stac_spec(struct hda_codec *codec)

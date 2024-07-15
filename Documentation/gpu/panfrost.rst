@@ -38,3 +38,12 @@ the currently possible format options:
 
 Possible `drm-engine-` key names are: `fragment`, and  `vertex-tiler`.
 `drm-curfreq-` values convey the current operating frequency for that engine.
+
+Users must bear in mind that engine and cycle sampling are disabled by default,
+because of power saving concerns. `fdinfo` users and benchmark applications which
+query the fdinfo file must make sure to toggle the job profiling status of the
+driver by writing into the appropriate sysfs node::
+
+    echo <N> > /sys/bus/platform/drivers/panfrost/[a-f0-9]*.gpu/profiling
+
+Where `N` is either `0` or `1`, depending on the desired enablement status.

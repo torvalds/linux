@@ -3,6 +3,7 @@
 #define _GNU_SOURCE
 
 #include <assert.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <sched.h>
 #include <fcntl.h>
@@ -124,8 +125,16 @@ static uint32_t old_root_id, old_parent_id;
 
 static void cleanup_namespace(void)
 {
-	fchdir(orig_root);
-	chroot(".");
+	int ret;
+
+	ret = fchdir(orig_root);
+	if (ret == -1)
+		ksft_perror("fchdir to original root");
+
+	ret = chroot(".");
+	if (ret == -1)
+		ksft_perror("chroot to original root");
+
 	umount2(root_mntpoint, MNT_DETACH);
 	rmdir(root_mntpoint);
 }

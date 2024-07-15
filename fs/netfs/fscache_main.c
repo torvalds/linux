@@ -99,7 +99,7 @@ error_wq:
  */
 void __exit fscache_exit(void)
 {
-	_enter("");
+	kenter("");
 
 	kmem_cache_destroy(fscache_cookie_jar);
 	fscache_proc_cleanup();

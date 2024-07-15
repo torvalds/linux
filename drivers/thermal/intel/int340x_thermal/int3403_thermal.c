@@ -284,6 +284,7 @@ static const struct acpi_device_id int3403_device_ids[] = {
 	{"INTC1043", 0},
 	{"INTC1046", 0},
 	{"INTC1062", 0},
+	{"INTC1069", 0},
 	{"INTC10A1", 0},
 	{"", 0},
 };

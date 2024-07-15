@@ -277,7 +277,6 @@ void __init arch_init_irq(void)
 {
 	struct irq_domain *domain;
 	struct fwnode_handle *fn;
-	int i;
 
 	mips_cpu_irq_init();
 
@@ -286,20 +285,16 @@ void __init arch_init_irq(void)
 	 * Mark these as reserved right away so they won't be used accidentally
 	 * later.
 	 */
-	for (i = 0; i <= CPU_CALL_B_IRQ; i++)
-		set_bit(i, hub_irq_map);
-
-	for (i = NI_BRDCAST_ERR_A; i <= MSC_PANIC_INTR; i++)
-		set_bit(i, hub_irq_map);
+	bitmap_set(hub_irq_map, 0, CPU_CALL_B_IRQ + 1);
+	bitmap_set(hub_irq_map, NI_BRDCAST_ERR_A, MSC_PANIC_INTR - NI_BRDCAST_ERR_A + 1);
 
 	fn = irq_domain_alloc_named_fwnode("HUB");
-	WARN_ON(fn == NULL);
-	if (!fn)
+	if (WARN_ON(fn == NULL))
 		return;
+
 	domain = irq_domain_create_linear(fn, IP27_HUB_IRQ_COUNT,
 					  &hub_domain_ops, NULL);
-	WARN_ON(domain == NULL);
-	if (!domain)
+	if (WARN_ON(domain == NULL))
 		return;
 
 	irq_set_default_host(domain);

@@ -908,7 +908,6 @@ static struct class_interface ses_interface = {
 static struct scsi_driver ses_template = {
 	.gendrv = {
 		.name		= "ses",
-		.owner		= THIS_MODULE,
 		.probe		= ses_probe,
 		.remove		= ses_remove,
 	},

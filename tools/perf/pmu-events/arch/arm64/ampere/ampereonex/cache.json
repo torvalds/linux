@@ -9,7 +9,9 @@
         "ArchStdEvent": "L1D_CACHE_REFILL_RD"
     },
     {
-        "ArchStdEvent": "L1D_CACHE_INVAL"
+        "ArchStdEvent": "L1D_CACHE_INVAL",
+        "Errata": "Errata AC04_CPU_1",
+        "BriefDescription": "L1D cache invalidate. Impacted by errata -"
     },
     {
         "ArchStdEvent": "L1D_TLB_REFILL_RD"

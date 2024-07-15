@@ -27,14 +27,14 @@ bool srcline_full_filename;
 
 char *srcline__unknown = (char *)"??:0";
 
-static const char *dso__name(struct dso *dso)
+static const char *srcline_dso_name(struct dso *dso)
 {
 	const char *dso_name;
 
-	if (dso->symsrc_filename)
-		dso_name = dso->symsrc_filename;
+	if (dso__symsrc_filename(dso))
+		dso_name = dso__symsrc_filename(dso);
 	else
-		dso_name = dso->long_name;
+		dso_name = dso__long_name(dso);
 
 	if (dso_name[0] == '[')
 		return NULL;
@@ -638,7 +638,7 @@ static int addr2line(const char *dso_name, u64 addr,
 		     struct inline_node *node,
 		     struct symbol *sym __maybe_unused)
 {
-	struct child_process *a2l = dso->a2l;
+	struct child_process *a2l = dso__a2l(dso);
 	char *record_function = NULL;
 	char *record_filename = NULL;
 	unsigned int record_line_nr = 0;
@@ -655,8 +655,9 @@ static int addr2line(const char *dso_name, u64 addr,
 		if (!filename__has_section(dso_name, ".debug_line"))
 			goto out;
 
-		dso->a2l = addr2line_subprocess_init(symbol_conf.addr2line_path, dso_name);
-		a2l = dso->a2l;
+		dso__set_a2l(dso,
+			     addr2line_subprocess_init(symbol_conf.addr2line_path, dso_name));
+		a2l = dso__a2l(dso);
 	}
 
 	if (a2l == NULL) {
@@ -770,7 +771,7 @@ out:
 	free(record_function);
 	free(record_filename);
 	if (io.eof) {
-		dso->a2l = NULL;
+		dso__set_a2l(dso, NULL);
 		addr2line_subprocess_cleanup(a2l);
 	}
 	return ret;
@@ -778,14 +779,14 @@ out:
 
 void dso__free_a2l(struct dso *dso)
 {
-	struct child_process *a2l = dso->a2l;
+	struct child_process *a2l = dso__a2l(dso);
 
 	if (!a2l)
 		return;
 
 	addr2line_subprocess_cleanup(a2l);
 
-	dso->a2l = NULL;
+	dso__set_a2l(dso, NULL);
 }
 
 #endif /* HAVE_LIBBFD_SUPPORT */
@@ -823,33 +824,34 @@ char *__get_srcline(struct dso *dso, u64 addr, struct symbol *sym,
 	char *srcline;
 	const char *dso_name;
 
-	if (!dso->has_srcline)
+	if (!dso__has_srcline(dso))
 		goto out;
 
-	dso_name = dso__name(dso);
+	dso_name = srcline_dso_name(dso);
 	if (dso_name == NULL)
-		goto out;
+		goto out_err;
 
 	if (!addr2line(dso_name, addr, &file, &line, dso,
 		       unwind_inlines, NULL, sym))
-		goto out;
+		goto out_err;
 
 	srcline = srcline_from_fileline(file, line);
 	free(file);
 
 	if (!srcline)
-		goto out;
+		goto out_err;
 
-	dso->a2l_fails = 0;
+	dso__set_a2l_fails(dso, 0);
 
 	return srcline;
 
-out:
-	if (dso->a2l_fails && ++dso->a2l_fails > A2L_FAIL_LIMIT) {
-		dso->has_srcline = 0;
+out_err:
+	dso__set_a2l_fails(dso, dso__a2l_fails(dso) + 1);
+	if (dso__a2l_fails(dso) > A2L_FAIL_LIMIT) {
+		dso__set_has_srcline(dso, false);
 		dso__free_a2l(dso);
 	}
-
+out:
 	if (!show_addr)
 		return (show_sym && sym) ?
 			    strndup(sym->name, sym->namelen) : SRCLINE_UNKNOWN;
@@ -858,7 +860,7 @@ out:
 		if (asprintf(&srcline, "%s+%" PRIu64, show_sym ? sym->name : "",
 					ip - sym->start) < 0)
 			return SRCLINE_UNKNOWN;
-	} else if (asprintf(&srcline, "%s[%" PRIx64 "]", dso->short_name, addr) < 0)
+	} else if (asprintf(&srcline, "%s[%" PRIx64 "]", dso__short_name(dso), addr) < 0)
 		return SRCLINE_UNKNOWN;
 	return srcline;
 }
@@ -869,22 +871,23 @@ char *get_srcline_split(struct dso *dso, u64 addr, unsigned *line)
 	char *file = NULL;
 	const char *dso_name;
 
-	if (!dso->has_srcline)
-		goto out;
+	if (!dso__has_srcline(dso))
+		return NULL;
 
-	dso_name = dso__name(dso);
+	dso_name = srcline_dso_name(dso);
 	if (dso_name == NULL)
-		goto out;
+		goto out_err;
 
 	if (!addr2line(dso_name, addr, &file, line, dso, true, NULL, NULL))
-		goto out;
+		goto out_err;
 
-	dso->a2l_fails = 0;
+	dso__set_a2l_fails(dso, 0);
 	return file;
 
-out:
-	if (dso->a2l_fails && ++dso->a2l_fails > A2L_FAIL_LIMIT) {
-		dso->has_srcline = 0;
+out_err:
+	dso__set_a2l_fails(dso, dso__a2l_fails(dso) + 1);
+	if (dso__a2l_fails(dso) > A2L_FAIL_LIMIT) {
+		dso__set_has_srcline(dso, false);
 		dso__free_a2l(dso);
 	}
 
@@ -982,7 +985,7 @@ struct inline_node *dso__parse_addr_inlines(struct dso *dso, u64 addr,
 {
 	const char *dso_name;
 
-	dso_name = dso__name(dso);
+	dso_name = srcline_dso_name(dso);
 	if (dso_name == NULL)
 		return NULL;
 

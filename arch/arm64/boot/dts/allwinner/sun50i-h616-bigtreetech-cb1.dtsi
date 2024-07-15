@@ -6,6 +6,7 @@
 /dts-v1/;
 
 #include "sun50i-h616.dtsi"
+#include "sun50i-h616-cpu-opp.dtsi"
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
@@ -60,6 +61,10 @@
 		reset-gpios = <&pio 6 18 GPIO_ACTIVE_LOW>; /* PG18 */
 		post-power-on-delay-ms = <200>;
 	};
+};
+
+&cpu0 {
+	cpu-supply = <&reg_dcdc2>;
 };
 
 &mmc0 {

@@ -47,6 +47,7 @@ struct xe_gsc {
 	u32 work_actions;
 #define GSC_ACTION_FW_LOAD BIT(0)
 #define GSC_ACTION_SW_PROXY BIT(1)
+#define GSC_ACTION_ER_COMPLETE BIT(2)
 
 	/** @proxy: sub-structure containing the SW proxy-related variables */
 	struct {

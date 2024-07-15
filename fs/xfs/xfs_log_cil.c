@@ -1378,7 +1378,7 @@ out_abort_free_ticket:
  */
 static void
 xlog_cil_push_background(
-	struct xlog	*log) __releases(cil->xc_ctx_lock)
+	struct xlog	*log)
 {
 	struct xfs_cil	*cil = log->l_cilp;
 	int		space_used = atomic_read(&cil->xc_ctx->space_used);

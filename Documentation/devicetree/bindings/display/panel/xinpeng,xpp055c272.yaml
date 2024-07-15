@@ -15,7 +15,10 @@ allOf:
 properties:
   compatible:
     const: xinpeng,xpp055c272
-  reg: true
+
+  reg:
+    maxItems: 1
+
   backlight: true
   port: true
   reset-gpios: true

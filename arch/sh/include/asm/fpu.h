@@ -64,6 +64,9 @@ static inline void clear_fpu(struct task_struct *tsk, struct pt_regs *regs)
 	preempt_enable();
 }
 
+void float_raise(unsigned int flags);
+int float_rounding_mode(void);
+
 #endif /* __ASSEMBLY__ */
 
 #endif /* __ASM_SH_FPU_H */

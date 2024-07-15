@@ -4292,7 +4292,7 @@ static int ixgbevf_change_mtu(struct net_device *netdev, int new_mtu)
 	       netdev->mtu, new_mtu);
 
 	/* must set new MTU before calling down or up */
-	netdev->mtu = new_mtu;
+	WRITE_ONCE(netdev->mtu, new_mtu);
 
 	if (netif_running(netdev))
 		ixgbevf_reinit_locked(adapter);
@@ -4300,7 +4300,7 @@ static int ixgbevf_change_mtu(struct net_device *netdev, int new_mtu)
 	return 0;
 }
 
-static int __maybe_unused ixgbevf_suspend(struct device *dev_d)
+static int ixgbevf_suspend(struct device *dev_d)
 {
 	struct net_device *netdev = dev_get_drvdata(dev_d);
 	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
@@ -4317,7 +4317,7 @@ static int __maybe_unused ixgbevf_suspend(struct device *dev_d)
 	return 0;
 }
 
-static int __maybe_unused ixgbevf_resume(struct device *dev_d)
+static int ixgbevf_resume(struct device *dev_d)
 {
 	struct pci_dev *pdev = to_pci_dev(dev_d);
 	struct net_device *netdev = pci_get_drvdata(pdev);
@@ -4854,7 +4854,7 @@ static const struct pci_error_handlers ixgbevf_err_handler = {
 	.resume = ixgbevf_io_resume,
 };
 
-static SIMPLE_DEV_PM_OPS(ixgbevf_pm_ops, ixgbevf_suspend, ixgbevf_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(ixgbevf_pm_ops, ixgbevf_suspend, ixgbevf_resume);
 
 static struct pci_driver ixgbevf_driver = {
 	.name		= ixgbevf_driver_name,
@@ -4863,7 +4863,7 @@ static struct pci_driver ixgbevf_driver = {
 	.remove		= ixgbevf_remove,
 
 	/* Power Management Hooks */
-	.driver.pm	= &ixgbevf_pm_ops,
+	.driver.pm	= pm_sleep_ptr(&ixgbevf_pm_ops),
 
 	.shutdown	= ixgbevf_shutdown,
 	.err_handler	= &ixgbevf_err_handler

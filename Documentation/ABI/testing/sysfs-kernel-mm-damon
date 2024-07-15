@@ -314,9 +314,9 @@ Date:		Dec 2022
 Contact:	SeongJae Park <sj@kernel.org>
 Description:	Writing to and reading from this file sets and gets the type of
 		the memory of the interest.  'anon' for anonymous pages,
-		'memcg' for specific memory cgroup, 'addr' for address range
-		(an open-ended interval), or 'target' for DAMON monitoring
-		target can be written and read.
+		'memcg' for specific memory cgroup, 'young' for young pages,
+		'addr' for address range (an open-ended interval), or 'target'
+		for DAMON monitoring target can be written and read.
 
 What:		/sys/kernel/mm/damon/admin/kdamonds/<K>/contexts/<C>/schemes/<S>/filters/<F>/memcg_path
 Date:		Dec 2022

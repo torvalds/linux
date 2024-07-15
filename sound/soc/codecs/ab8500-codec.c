@@ -2571,4 +2571,5 @@ static struct platform_driver ab8500_codec_platform_driver = {
 };
 module_platform_driver(ab8500_codec_platform_driver);
 
+MODULE_DESCRIPTION("ASoC AB8500 codec driver");
 MODULE_LICENSE("GPL v2");

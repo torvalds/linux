@@ -66,7 +66,7 @@
 		assigned-clock-parents = <&k3_clks 153 8>, <&k3_clks 153 4>;
 		ti,serdes-clk = <&serdes0_clk>;
 		#clock-cells = <1>;
-		mux-controls = <&serdes_mux 0>;
+		mux-controls = <&serdes0_mux 0>;
 	};
 
 	serdes1: serdes@910000 {
@@ -81,7 +81,7 @@
 		assigned-clock-parents = <&k3_clks 154 9>, <&k3_clks 154 5>;
 		ti,serdes-clk = <&serdes1_clk>;
 		#clock-cells = <1>;
-		mux-controls = <&serdes_mux 1>;
+		mux-controls = <&serdes1_mux 0>;
 	};
 
 	main_uart0: serial@2800000 {
@@ -89,7 +89,6 @@
 		reg = <0x00 0x02800000 0x00 0x100>;
 		interrupts = <GIC_SPI 192 IRQ_TYPE_LEVEL_HIGH>;
 		clock-frequency = <48000000>;
-		current-speed = <115200>;
 		power-domains = <&k3_pds 146 TI_SCI_PD_EXCLUSIVE>;
 		status = "disabled";
 	};
@@ -436,18 +435,13 @@
 		interrupts = <GIC_SPI 136 IRQ_TYPE_LEVEL_HIGH>;
 		mmc-ddr-1_8v;
 		mmc-hs200-1_8v;
+		ti,clkbuf-sel = <0x7>;
+		ti,trm-icp = <0x8>;
 		ti,otap-del-sel-legacy = <0x0>;
 		ti,otap-del-sel-mmc-hs = <0x0>;
-		ti,otap-del-sel-sd-hs = <0x0>;
-		ti,otap-del-sel-sdr12 = <0x0>;
-		ti,otap-del-sel-sdr25 = <0x0>;
-		ti,otap-del-sel-sdr50 = <0x8>;
-		ti,otap-del-sel-sdr104 = <0x7>;
-		ti,otap-del-sel-ddr50 = <0x5>;
 		ti,otap-del-sel-ddr52 = <0x5>;
 		ti,otap-del-sel-hs200 = <0x5>;
-		ti,otap-del-sel-hs400 = <0x0>;
-		ti,trm-icp = <0x8>;
+		ti,itap-del-sel-ddr52 = <0x0>;
 		dma-coherent;
 		status = "disabled";
 	};
@@ -459,18 +453,19 @@
 		clocks = <&k3_clks 48 0>, <&k3_clks 48 1>;
 		clock-names = "clk_ahb", "clk_xin";
 		interrupts = <GIC_SPI 137 IRQ_TYPE_LEVEL_HIGH>;
+		ti,clkbuf-sel = <0x7>;
+		ti,trm-icp = <0x8>;
 		ti,otap-del-sel-legacy = <0x0>;
-		ti,otap-del-sel-mmc-hs = <0x0>;
 		ti,otap-del-sel-sd-hs = <0x0>;
-		ti,otap-del-sel-sdr12 = <0x0>;
-		ti,otap-del-sel-sdr25 = <0x0>;
+		ti,otap-del-sel-sdr12 = <0xf>;
+		ti,otap-del-sel-sdr25 = <0xf>;
 		ti,otap-del-sel-sdr50 = <0x8>;
 		ti,otap-del-sel-sdr104 = <0x7>;
 		ti,otap-del-sel-ddr50 = <0x4>;
-		ti,otap-del-sel-ddr52 = <0x4>;
-		ti,otap-del-sel-hs200 = <0x7>;
-		ti,clkbuf-sel = <0x7>;
-		ti,trm-icp = <0x8>;
+		ti,itap-del-sel-legacy = <0xa>;
+		ti,itap-del-sel-sd-hs = <0x1>;
+		ti,itap-del-sel-sdr12 = <0xa>;
+		ti,itap-del-sel-sdr25 = <0x1>;
 		dma-coherent;
 		status = "disabled";
 	};
@@ -483,20 +478,25 @@
 		ranges = <0x0 0x0 0x00100000 0x1c000>;
 
 		serdes0_clk: clock@4080 {
-			compatible = "syscon";
-			reg = <0x00004080 0x4>;
+			compatible = "ti,am654-serdes-ctrl", "syscon";
+			reg = <0x4080 0x4>;
+
+			serdes0_mux: mux-controller {
+				compatible = "mmio-mux";
+				#mux-control-cells = <1>;
+				mux-reg-masks = <0x0 0x3>; /* lane select */
+			};
 		};
 
 		serdes1_clk: clock@4090 {
-			compatible = "syscon";
-			reg = <0x00004090 0x4>;
-		};
+			compatible = "ti,am654-serdes-ctrl", "syscon";
+			reg = <0x4090 0x4>;
 
-		serdes_mux: mux-controller {
-			compatible = "mmio-mux";
-			#mux-control-cells = <1>;
-			mux-reg-masks = <0x4080 0x3>, /* SERDES0 lane select */
-					<0x4090 0x3>; /* SERDES1 lane select */
+			serdes1_mux: mux-controller {
+				compatible = "mmio-mux";
+				#mux-control-cells = <1>;
+				mux-reg-masks = <0x0 0x3>; /* lane select */
+			};
 		};
 
 		dss_oldi_io_ctrl: dss-oldi-io-ctrl@41e0 {

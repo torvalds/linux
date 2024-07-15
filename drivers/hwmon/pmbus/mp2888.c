@@ -378,7 +378,7 @@ static int mp2888_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id mp2888_id[] = {
-	{"mp2888", 0},
+	{"mp2888"},
 	{}
 };
 

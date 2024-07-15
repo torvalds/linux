@@ -1,38 +1,37 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2018-2023 Linaro Ltd.
+ * Copyright (C) 2018-2024 Linaro Ltd.
  */
 
-#include <linux/types.h>
-#include <linux/atomic.h>
-#include <linux/bitfield.h>
 #include <linux/bug.h>
-#include <linux/io.h>
 #include <linux/firmware.h>
+#include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/types.h>
+
 #include <linux/firmware/qcom/qcom_scm.h>
 #include <linux/soc/qcom/mdt_loader.h>
 
 #include "ipa.h"
-#include "ipa_power.h"
+#include "ipa_cmd.h"
 #include "ipa_data.h"
 #include "ipa_endpoint.h"
-#include "ipa_resource.h"
-#include "ipa_cmd.h"
-#include "ipa_reg.h"
-#include "ipa_mem.h"
-#include "ipa_table.h"
-#include "ipa_smp2p.h"
-#include "ipa_modem.h"
-#include "ipa_uc.h"
 #include "ipa_interrupt.h"
-#include "gsi_trans.h"
+#include "ipa_mem.h"
+#include "ipa_modem.h"
+#include "ipa_power.h"
+#include "ipa_reg.h"
+#include "ipa_resource.h"
+#include "ipa_smp2p.h"
 #include "ipa_sysfs.h"
+#include "ipa_table.h"
+#include "ipa_uc.h"
+#include "ipa_version.h"
 
 /**
  * DOC: The IP Accelerator
@@ -120,10 +119,6 @@ int ipa_setup(struct ipa *ipa)
 	if (ret)
 		return ret;
 
-	ret = ipa_power_setup(ipa);
-	if (ret)
-		goto err_gsi_teardown;
-
 	ipa_endpoint_setup(ipa);
 
 	/* We need to use the AP command TX endpoint to perform other
@@ -170,8 +165,6 @@ err_command_disable:
 	ipa_endpoint_disable_one(command_endpoint);
 err_endpoint_teardown:
 	ipa_endpoint_teardown(ipa);
-	ipa_power_teardown(ipa);
-err_gsi_teardown:
 	gsi_teardown(&ipa->gsi);
 
 	return ret;
@@ -196,7 +189,6 @@ static void ipa_teardown(struct ipa *ipa)
 	command_endpoint = ipa->name_map[IPA_ENDPOINT_AP_COMMAND_TX];
 	ipa_endpoint_disable_one(command_endpoint);
 	ipa_endpoint_teardown(ipa);
-	ipa_power_teardown(ipa);
 	gsi_teardown(&ipa->gsi);
 }
 
@@ -818,11 +810,6 @@ static int ipa_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	if (!ipa_version_supported(data->version)) {
-		dev_err(dev, "unsupported IPA version %u\n", data->version);
-		return -EINVAL;
-	}
-
 	if (!data->modem_route_count) {
 		dev_err(dev, "modem_route_count cannot be zero\n");
 		return -EINVAL;
@@ -872,6 +859,10 @@ static int ipa_probe(struct platform_device *pdev)
 	ret = ipa_mem_init(ipa, pdev, data->mem_data);
 	if (ret)
 		goto err_reg_exit;
+
+	ret = ipa_cmd_init(ipa);
+	if (ret)
+		goto err_mem_exit;
 
 	ret = gsi_init(&ipa->gsi, pdev, ipa->version, data->endpoint_count,
 		       data->endpoint_data);

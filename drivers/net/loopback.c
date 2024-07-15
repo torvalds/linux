@@ -141,9 +141,6 @@ static const struct ethtool_ops loopback_ethtool_ops = {
 
 static int loopback_dev_init(struct net_device *dev)
 {
-	dev->lstats = netdev_alloc_pcpu_stats(struct pcpu_lstats);
-	if (!dev->lstats)
-		return -ENOMEM;
 	netdev_lockdep_set_classes(dev);
 	return 0;
 }
@@ -151,7 +148,6 @@ static int loopback_dev_init(struct net_device *dev)
 static void loopback_dev_free(struct net_device *dev)
 {
 	dev_net(dev)->loopback_dev = NULL;
-	free_percpu(dev->lstats);
 }
 
 static const struct net_device_ops loopback_ops = {
@@ -191,6 +187,7 @@ static void gen_lo_setup(struct net_device *dev,
 	dev->header_ops		= hdr_ops;
 	dev->netdev_ops		= dev_ops;
 	dev->needs_free_netdev	= true;
+	dev->pcpu_stat_type	= NETDEV_PCPU_STAT_LSTATS;
 	dev->priv_destructor	= dev_destructor;
 
 	netif_set_tso_max_size(dev, GSO_MAX_SIZE);

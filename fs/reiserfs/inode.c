@@ -2503,8 +2503,8 @@ out:
  * start/recovery path as __block_write_full_folio, along with special
  * code to handle reiserfs tails.
  */
-static int reiserfs_write_full_folio(struct folio *folio,
-				    struct writeback_control *wbc)
+static int reiserfs_write_folio(struct folio *folio,
+		struct writeback_control *wbc, void *data)
 {
 	struct inode *inode = folio->mapping->host;
 	unsigned long end_index = inode->i_size >> PAGE_SHIFT;
@@ -2721,12 +2721,11 @@ static int reiserfs_read_folio(struct file *f, struct folio *folio)
 	return block_read_full_folio(folio, reiserfs_get_block);
 }
 
-static int reiserfs_writepage(struct page *page, struct writeback_control *wbc)
+static int reiserfs_writepages(struct address_space *mapping,
+		struct writeback_control *wbc)
 {
-	struct folio *folio = page_folio(page);
-	struct inode *inode = folio->mapping->host;
-	reiserfs_wait_on_write_block(inode->i_sb);
-	return reiserfs_write_full_folio(folio, wbc);
+	reiserfs_wait_on_write_block(mapping->host->i_sb);
+	return write_cache_pages(mapping, wbc, reiserfs_write_folio, NULL);
 }
 
 static void reiserfs_truncate_failed_write(struct inode *inode)
@@ -3405,7 +3404,7 @@ out:
 }
 
 const struct address_space_operations reiserfs_address_space_operations = {
-	.writepage = reiserfs_writepage,
+	.writepages = reiserfs_writepages,
 	.read_folio = reiserfs_read_folio,
 	.readahead = reiserfs_readahead,
 	.release_folio = reiserfs_release_folio,
@@ -3415,4 +3414,5 @@ const struct address_space_operations reiserfs_address_space_operations = {
 	.bmap = reiserfs_aop_bmap,
 	.direct_IO = reiserfs_direct_IO,
 	.dirty_folio = reiserfs_dirty_folio,
+	.migrate_folio = buffer_migrate_folio,
 };

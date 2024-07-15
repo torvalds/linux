@@ -14,6 +14,10 @@ config CRYPTO_DEV_JH7110
 	select CRYPTO_RSA
 	select CRYPTO_AES
 	select CRYPTO_CCM
+	select CRYPTO_GCM
+	select CRYPTO_ECB
+	select CRYPTO_CBC
+	select CRYPTO_CTR
 	help
 	  Support for StarFive JH7110 crypto hardware acceleration engine.
 	  This module provides acceleration for public key algo,

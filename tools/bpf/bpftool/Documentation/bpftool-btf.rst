@@ -14,82 +14,76 @@ tool for inspection of BTF data
 SYNOPSIS
 ========
 
-	**bpftool** [*OPTIONS*] **btf** *COMMAND*
+**bpftool** [*OPTIONS*] **btf** *COMMAND*
 
-	*OPTIONS* := { |COMMON_OPTIONS| | { **-B** | **--base-btf** } }
+*OPTIONS* := { |COMMON_OPTIONS| | { **-B** | **--base-btf** } }
 
-	*COMMANDS* := { **dump** | **help** }
+*COMMANDS* := { **dump** | **help** }
 
 BTF COMMANDS
 =============
 
-|	**bpftool** **btf** { **show** | **list** } [**id** *BTF_ID*]
-|	**bpftool** **btf dump** *BTF_SRC* [**format** *FORMAT*]
-|	**bpftool** **btf help**
+| **bpftool** **btf** { **show** | **list** } [**id** *BTF_ID*]
+| **bpftool** **btf dump** *BTF_SRC* [**format** *FORMAT*]
+| **bpftool** **btf help**
 |
-|	*BTF_SRC* := { **id** *BTF_ID* | **prog** *PROG* | **map** *MAP* [{**key** | **value** | **kv** | **all**}] | **file** *FILE* }
-|	*FORMAT* := { **raw** | **c** }
-|	*MAP* := { **id** *MAP_ID* | **pinned** *FILE* }
-|	*PROG* := { **id** *PROG_ID* | **pinned** *FILE* | **tag** *PROG_TAG* }
+| *BTF_SRC* := { **id** *BTF_ID* | **prog** *PROG* | **map** *MAP* [{**key** | **value** | **kv** | **all**}] | **file** *FILE* }
+| *FORMAT* := { **raw** | **c** }
+| *MAP* := { **id** *MAP_ID* | **pinned** *FILE* }
+| *PROG* := { **id** *PROG_ID* | **pinned** *FILE* | **tag** *PROG_TAG* | **name** *PROG_NAME* }
 
 DESCRIPTION
 ===========
-	**bpftool btf { show | list }** [**id** *BTF_ID*]
-		  Show information about loaded BTF objects. If a BTF ID is
-		  specified, show information only about given BTF object,
-		  otherwise list all BTF objects currently loaded on the
-		  system.
+bpftool btf { show | list } [id *BTF_ID*]
+    Show information about loaded BTF objects. If a BTF ID is specified, show
+    information only about given BTF object, otherwise list all BTF objects
+    currently loaded on the system.
 
-		  Since Linux 5.8 bpftool is able to discover information about
-		  processes that hold open file descriptors (FDs) against BTF
-		  objects. On such kernels bpftool will automatically emit this
-		  information as well.
+    Since Linux 5.8 bpftool is able to discover information about processes
+    that hold open file descriptors (FDs) against BTF objects. On such kernels
+    bpftool will automatically emit this information as well.
 
-	**bpftool btf dump** *BTF_SRC*
-		  Dump BTF entries from a given *BTF_SRC*.
+bpftool btf dump *BTF_SRC*
+    Dump BTF entries from a given *BTF_SRC*.
 
-		  When **id** is specified, BTF object with that ID will be
-		  loaded and all its BTF types emitted.
+    When **id** is specified, BTF object with that ID will be loaded and all
+    its BTF types emitted.
 
-		  When **map** is provided, it's expected that map has
-		  associated BTF object with BTF types describing key and
-		  value. It's possible to select whether to dump only BTF
-		  type(s) associated with key (**key**), value (**value**),
-		  both key and value (**kv**), or all BTF types present in
-		  associated BTF object (**all**). If not specified, **kv**
-		  is assumed.
+    When **map** is provided, it's expected that map has associated BTF object
+    with BTF types describing key and value. It's possible to select whether to
+    dump only BTF type(s) associated with key (**key**), value (**value**),
+    both key and value (**kv**), or all BTF types present in associated BTF
+    object (**all**). If not specified, **kv** is assumed.
 
-		  When **prog** is provided, it's expected that program has
-		  associated BTF object with BTF types.
+    When **prog** is provided, it's expected that program has associated BTF
+    object with BTF types.
 
-		  When specifying *FILE*, an ELF file is expected, containing
-		  .BTF section with well-defined BTF binary format data,
-		  typically produced by clang or pahole.
+    When specifying *FILE*, an ELF file is expected, containing .BTF section
+    with well-defined BTF binary format data, typically produced by clang or
+    pahole.
 
-		  **format** option can be used to override default (raw)
-		  output format. Raw (**raw**) or C-syntax (**c**) output
-		  formats are supported.
+    **format** option can be used to override default (raw) output format. Raw
+    (**raw**) or C-syntax (**c**) output formats are supported.
 
-	**bpftool btf help**
-		  Print short help message.
+bpftool btf help
+    Print short help message.
 
 OPTIONS
 =======
-	.. include:: common_options.rst
+.. include:: common_options.rst
 
-	-B, --base-btf *FILE*
-		  Pass a base BTF object. Base BTF objects are typically used
-		  with BTF objects for kernel modules. To avoid duplicating
-		  all kernel symbols required by modules, BTF objects for
-		  modules are "split", they are built incrementally on top of
-		  the kernel (vmlinux) BTF object. So the base BTF reference
-		  should usually point to the kernel BTF.
+-B, --base-btf *FILE*
+    Pass a base BTF object. Base BTF objects are typically used with BTF
+    objects for kernel modules. To avoid duplicating all kernel symbols
+    required by modules, BTF objects for modules are "split", they are
+    built incrementally on top of the kernel (vmlinux) BTF object. So the
+    base BTF reference should usually point to the kernel BTF.
 
-		  When the main BTF object to process (for example, the
-		  module BTF to dump) is passed as a *FILE*, bpftool attempts
-		  to autodetect the path for the base object, and passing
-		  this option is optional. When the main BTF object is passed
-		  through other handles, this option becomes necessary.
+    When the main BTF object to process (for example, the module BTF to
+    dump) is passed as a *FILE*, bpftool attempts to autodetect the path
+    for the base object, and passing this option is optional. When the main
+    BTF object is passed through other handles, this option becomes
+    necessary.
 
 EXAMPLES
 ========

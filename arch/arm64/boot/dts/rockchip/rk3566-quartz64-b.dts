@@ -8,7 +8,7 @@
 #include "rk3566.dtsi"
 
 / {
-	model = "Pine64 RK3566 Quartz64-B Board";
+	model = "Pine64 Quartz64 Model B";
 	compatible = "pine64,quartz64-b", "rockchip,rk3566";
 
 	aliases {
@@ -289,7 +289,7 @@
 				regulator-name = "vdd_gpu";
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-min-microvolt = <900000>;
+				regulator-min-microvolt = <500000>;
 				regulator-max-microvolt = <1350000>;
 				regulator-ramp-delay = <6001>;
 

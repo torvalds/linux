@@ -75,9 +75,7 @@ pids_css_alloc(struct cgroup_subsys_state *parent)
 	if (!pids)
 		return ERR_PTR(-ENOMEM);
 
-	atomic64_set(&pids->counter, 0);
 	atomic64_set(&pids->limit, PIDS_MAX);
-	atomic64_set(&pids->events_limit, 0);
 	return &pids->css;
 }
 

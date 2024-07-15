@@ -71,6 +71,9 @@ properties:
           - shineworld,lh133k
       - const: panel-mipi-dbi-spi
 
+  reg:
+    maxItems: 1
+
   write-only:
     type: boolean
     description:

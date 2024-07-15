@@ -59,7 +59,7 @@ unsigned long wildfire_pca_mask;
 unsigned long wildfire_cpu_mask;
 unsigned long wildfire_mem_mask;
 
-void __init
+static void __init
 wildfire_init_hose(int qbbno, int hoseno)
 {
 	struct pci_controller *hose;
@@ -137,7 +137,7 @@ wildfire_init_hose(int qbbno, int hoseno)
 	wildfire_pci_tbi(hose, 0, 0); /* Flush TLB at the end. */
 }
 
-void __init
+static void __init
 wildfire_init_pca(int qbbno, int pcano)
 {
 
@@ -154,7 +154,7 @@ wildfire_init_pca(int qbbno, int pcano)
 	wildfire_init_hose(qbbno, (pcano << 1) + 1);
 }
 
-void __init
+static void __init
 wildfire_init_qbb(int qbbno)
 {
 	int pcano;
@@ -176,7 +176,7 @@ wildfire_init_qbb(int qbbno)
 	}
 }
 
-void __init
+static void __init
 wildfire_hardware_probe(void)
 {
 	unsigned long temp;

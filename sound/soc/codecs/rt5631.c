@@ -1669,8 +1669,8 @@ static const struct snd_soc_component_driver soc_component_dev_rt5631 = {
 };
 
 static const struct i2c_device_id rt5631_i2c_id[] = {
-	{ "rt5631", 0 },
-	{ "alc5631", 0 },
+	{ "rt5631" },
+	{ "alc5631" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, rt5631_i2c_id);

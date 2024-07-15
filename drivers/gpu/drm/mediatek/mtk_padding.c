@@ -11,9 +11,9 @@
 #include <linux/pm_runtime.h>
 #include <linux/soc/mediatek/mtk-cmdq.h>
 
+#include "mtk_crtc.h"
+#include "mtk_ddp_comp.h"
 #include "mtk_disp_drv.h"
-#include "mtk_drm_crtc.h"
-#include "mtk_drm_ddp_comp.h"
 
 #define PADDING_CONTROL_REG	0x00
 #define PADDING_BYPASS			BIT(0)
@@ -154,7 +154,6 @@ struct platform_driver mtk_padding_driver = {
 	.remove		= mtk_padding_remove,
 	.driver		= {
 		.name	= "mediatek-disp-padding",
-		.owner	= THIS_MODULE,
 		.of_match_table = mtk_padding_driver_dt_match,
 	},
 };

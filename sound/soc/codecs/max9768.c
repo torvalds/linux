@@ -206,7 +206,7 @@ static int max9768_i2c_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id max9768_i2c_id[] = {
-	{ "max9768", 0 },
+	{ "max9768" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, max9768_i2c_id);

@@ -48,12 +48,9 @@ int main(int argc, char *argv[])
 	TEST_REQUIRE(kvm_cpu_has(X86_FEATURE_SVM));
 
 	vm = vm_create_with_one_vcpu(&vcpu, l1_guest_code);
-	vm_init_descriptor_tables(vm);
-	vcpu_init_descriptor_tables(vcpu);
-
 	vcpu_alloc_svm(vm, &svm_gva);
 
-	vcpu_args_set(vcpu, 2, svm_gva, vm->idt);
+	vcpu_args_set(vcpu, 2, svm_gva, vm->arch.idt);
 
 	vcpu_run(vcpu);
 	TEST_ASSERT_KVM_EXIT_REASON(vcpu, KVM_EXIT_SHUTDOWN);

@@ -83,6 +83,9 @@ enum ttm_bo_type {
  * @resource: structure describing current placement.
  * @ttm: TTM structure holding system pages.
  * @deleted: True if the object is only a zombie and already deleted.
+ * @bulk_move: The bulk move object.
+ * @priority: Priority for LRU, BOs with lower priority are evicted first.
+ * @pin_count: Pin count.
  *
  * Base class for TTM buffer object, that deals with data placement and CPU
  * mappings. GPU mappings are really up to the driver, but for simpler GPUs
@@ -128,12 +131,13 @@ struct ttm_buffer_object {
 	struct work_struct delayed_delete;
 
 	/**
-	 * Special members that are protected by the reserve lock
-	 * and the bo::lock when written to. Can be read with
-	 * either of these locks held.
+	 * @sg: external source of pages and DMA addresses, protected by the
+	 * reservation lock.
 	 */
 	struct sg_table *sg;
 };
+
+#define TTM_BO_MAP_IOMEM_MASK 0x80
 
 /**
  * struct ttm_bo_kmap_obj
@@ -141,13 +145,13 @@ struct ttm_buffer_object {
  * @virtual: The current kernel virtual address.
  * @page: The page when kmap'ing a single page.
  * @bo_kmap_type: Type of bo_kmap.
+ * @bo: The TTM BO.
  *
  * Object describing a kernel mapping. Since a TTM bo may be located
  * in various memory types with various caching policies, the
  * mapping can either be an ioremap, a vmap, a kmap or part of a
  * premapped region.
  */
-#define TTM_BO_MAP_IOMEM_MASK 0x80
 struct ttm_bo_kmap_obj {
 	void *virtual;
 	struct page *page;
@@ -171,6 +175,7 @@ struct ttm_bo_kmap_obj {
  * @force_alloc: Don't check the memory account during suspend or CPU page
  * faults. Should only be used by TTM internally.
  * @resv: Reservation object to allow reserved evictions with.
+ * @bytes_moved: Statistics on how many bytes have been moved.
  *
  * Context for TTM operations like changing buffer placement or general memory
  * allocation.
@@ -264,7 +269,7 @@ static inline int ttm_bo_reserve(struct ttm_buffer_object *bo,
  * ttm_bo_reserve_slowpath:
  * @bo: A pointer to a struct ttm_buffer_object.
  * @interruptible: Sleep interruptible if waiting.
- * @sequence: Set (@bo)->sequence to this value after lock
+ * @ticket: Ticket used to acquire the ww_mutex.
  *
  * This is called after ttm_bo_reserve returns -EAGAIN and we backed off
  * from all our other reservations. Because there are no other reservations
@@ -303,7 +308,7 @@ static inline void ttm_bo_assign_mem(struct ttm_buffer_object *bo,
 }
 
 /**
- * ttm_bo_move_null = assign memory for a buffer object.
+ * ttm_bo_move_null - assign memory for a buffer object.
  * @bo: The bo to assign the memory to
  * @new_mem: The memory to be assigned.
  *

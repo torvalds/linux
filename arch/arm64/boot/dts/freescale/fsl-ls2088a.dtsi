@@ -12,6 +12,13 @@
 #include <dt-bindings/clock/fsl,qoriq-clockgen.h>
 #include "fsl-ls208xa.dtsi"
 
+/ {
+	pmu {
+		compatible = "arm,cortex-a72-pmu";
+		interrupts = <1 7 0x8>; /* PMU PPI, Level low type */
+	};
+};
+
 &cpu {
 	cpu0: cpu@0 {
 		device_type = "cpu";

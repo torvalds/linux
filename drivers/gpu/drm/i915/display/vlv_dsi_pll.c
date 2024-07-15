@@ -365,13 +365,13 @@ u32 bxt_dsi_get_pclk(struct intel_encoder *encoder,
 
 void vlv_dsi_reset_clocks(struct intel_encoder *encoder, enum port port)
 {
-	u32 temp;
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_display *display = to_intel_display(encoder);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
+	u32 temp;
 
-	temp = intel_de_read(dev_priv, MIPI_CTRL(port));
+	temp = intel_de_read(display, MIPI_CTRL(display, port));
 	temp &= ~ESCAPE_CLOCK_DIVIDER_MASK;
-	intel_de_write(dev_priv, MIPI_CTRL(port),
+	intel_de_write(display, MIPI_CTRL(display, port),
 		       temp | intel_dsi->escape_clk_div << ESCAPE_CLOCK_DIVIDER_SHIFT);
 }
 
@@ -570,24 +570,24 @@ void bxt_dsi_pll_enable(struct intel_encoder *encoder,
 
 void bxt_dsi_reset_clocks(struct intel_encoder *encoder, enum port port)
 {
+	struct intel_display *display = to_intel_display(encoder);
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	u32 tmp;
-	struct drm_device *dev = encoder->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
 
 	/* Clear old configurations */
 	if (IS_BROXTON(dev_priv)) {
-		tmp = intel_de_read(dev_priv, BXT_MIPI_CLOCK_CTL);
+		tmp = intel_de_read(display, BXT_MIPI_CLOCK_CTL);
 		tmp &= ~(BXT_MIPI_TX_ESCLK_FIXDIV_MASK(port));
 		tmp &= ~(BXT_MIPI_RX_ESCLK_UPPER_FIXDIV_MASK(port));
 		tmp &= ~(BXT_MIPI_8X_BY3_DIVIDER_MASK(port));
 		tmp &= ~(BXT_MIPI_RX_ESCLK_LOWER_FIXDIV_MASK(port));
-		intel_de_write(dev_priv, BXT_MIPI_CLOCK_CTL, tmp);
+		intel_de_write(display, BXT_MIPI_CLOCK_CTL, tmp);
 	} else {
-		intel_de_rmw(dev_priv, MIPIO_TXESC_CLK_DIV1, GLK_TX_ESC_CLK_DIV1_MASK, 0);
+		intel_de_rmw(display, MIPIO_TXESC_CLK_DIV1, GLK_TX_ESC_CLK_DIV1_MASK, 0);
 
-		intel_de_rmw(dev_priv, MIPIO_TXESC_CLK_DIV2, GLK_TX_ESC_CLK_DIV2_MASK, 0);
+		intel_de_rmw(display, MIPIO_TXESC_CLK_DIV2, GLK_TX_ESC_CLK_DIV2_MASK, 0);
 	}
-	intel_de_write(dev_priv, MIPI_EOT_DISABLE(port), CLOCKSTOP);
+	intel_de_write(display, MIPI_EOT_DISABLE(display, port), CLOCKSTOP);
 }
 
 static void assert_dsi_pll(struct drm_i915_private *i915, bool state)

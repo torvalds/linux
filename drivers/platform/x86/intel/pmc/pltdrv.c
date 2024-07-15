@@ -86,4 +86,5 @@ static void __exit pmc_core_platform_exit(void)
 
 module_init(pmc_core_platform_init);
 module_exit(pmc_core_platform_exit);
+MODULE_DESCRIPTION("Intel PMC Core platform driver");
 MODULE_LICENSE("GPL v2");

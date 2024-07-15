@@ -88,9 +88,13 @@ static int mlx5_lag_create_port_sel_table(struct mlx5_lag *ldev,
 								      &dest, 1);
 			if (IS_ERR(lag_definer->rules[idx])) {
 				err = PTR_ERR(lag_definer->rules[idx]);
-				while (i--)
-					while (j--)
+				do {
+					while (j--) {
+						idx = i * ldev->buckets + j;
 						mlx5_del_flow_rules(lag_definer->rules[idx]);
+					}
+					j = ldev->buckets;
+				} while (i--);
 				goto destroy_fg;
 			}
 		}
@@ -449,13 +453,11 @@ static void set_tt_map(struct mlx5_lag_port_sel *port_sel,
 static void mlx5_lag_set_inner_ttc_params(struct mlx5_lag *ldev,
 					  struct ttc_params *ttc_params)
 {
-	struct mlx5_core_dev *dev = ldev->pf[MLX5_LAG_P1].dev;
 	struct mlx5_lag_port_sel *port_sel = &ldev->port_sel;
 	struct mlx5_flow_table_attr *ft_attr;
 	int tt;
 
-	ttc_params->ns = mlx5_get_flow_namespace(dev,
-						 MLX5_FLOW_NAMESPACE_PORT_SEL);
+	ttc_params->ns_type = MLX5_FLOW_NAMESPACE_PORT_SEL;
 	ft_attr = &ttc_params->ft_attr;
 	ft_attr->level = MLX5_LAG_FT_LEVEL_INNER_TTC;
 
@@ -470,13 +472,11 @@ static void mlx5_lag_set_inner_ttc_params(struct mlx5_lag *ldev,
 static void mlx5_lag_set_outer_ttc_params(struct mlx5_lag *ldev,
 					  struct ttc_params *ttc_params)
 {
-	struct mlx5_core_dev *dev = ldev->pf[MLX5_LAG_P1].dev;
 	struct mlx5_lag_port_sel *port_sel = &ldev->port_sel;
 	struct mlx5_flow_table_attr *ft_attr;
 	int tt;
 
-	ttc_params->ns = mlx5_get_flow_namespace(dev,
-						 MLX5_FLOW_NAMESPACE_PORT_SEL);
+	ttc_params->ns_type = MLX5_FLOW_NAMESPACE_PORT_SEL;
 	ft_attr = &ttc_params->ft_attr;
 	ft_attr->level = MLX5_LAG_FT_LEVEL_TTC;
 

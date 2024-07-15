@@ -196,8 +196,8 @@ eisa_bus.disable_dev
 virtual_root.force_probe
 	Force the probing code to probe EISA slots even when it cannot find an
 	EISA compliant mainboard (nothing appears on slot 0). Defaults to 0
-	(don't force), and set to 1 (force probing) when either
-	CONFIG_ALPHA_JENSEN or CONFIG_EISA_VLB_PRIMING are set.
+	(don't force), and set to 1 (force probing) when
+	CONFIG_EISA_VLB_PRIMING is set.
 
 Random notes
 ============

@@ -29,10 +29,13 @@ description: |
 properties:
   compatible:
     items:
-      - const: airoha,en7523-scu
+      - enum:
+          - airoha,en7523-scu
+          - airoha,en7581-scu
 
   reg:
-    maxItems: 2
+    minItems: 2
+    maxItems: 3
 
   "#clock-cells":
     description:
@@ -44,6 +47,30 @@ required:
   - compatible
   - reg
   - '#clock-cells'
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          const: airoha,en7523-scu
+    then:
+      properties:
+        reg:
+          items:
+            - description: scu base address
+            - description: misc scu base address
+
+  - if:
+      properties:
+        compatible:
+          const: airoha,en7581-scu
+    then:
+      properties:
+        reg:
+          items:
+            - description: scu base address
+            - description: misc scu base address
+            - description: pb scu base address
 
 additionalProperties: false
 

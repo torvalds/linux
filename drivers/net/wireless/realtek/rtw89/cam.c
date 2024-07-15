@@ -150,8 +150,6 @@ static int rtw89_cam_get_addr_cam_key_idx(struct rtw89_addr_cam_entry *addr_cam,
 	case RTW89_ADDR_CAM_SEC_NONE:
 		return -EINVAL;
 	case RTW89_ADDR_CAM_SEC_ALL_UNI:
-		if (!(key->flags & IEEE80211_KEY_FLAG_PAIRWISE))
-			return -EINVAL;
 		idx = find_first_zero_bit(addr_cam->sec_cam_map,
 					  RTW89_SEC_CAM_IN_ADDR_CAM);
 		if (idx >= RTW89_SEC_CAM_IN_ADDR_CAM)
@@ -232,6 +230,11 @@ static int rtw89_cam_attach_sec_cam(struct rtw89_dev *rtwdev,
 
 	rtwvif = (struct rtw89_vif *)vif->drv_priv;
 	addr_cam = rtw89_get_addr_cam_of(rtwvif, rtwsta);
+
+	if (key->cipher == WLAN_CIPHER_SUITE_WEP40 ||
+	    key->cipher == WLAN_CIPHER_SUITE_WEP104)
+		addr_cam->sec_ent_mode = RTW89_ADDR_CAM_SEC_ALL_UNI;
+
 	ret = rtw89_cam_get_addr_cam_key_idx(addr_cam, sec_cam, key, &key_idx);
 	if (ret) {
 		rtw89_err(rtwdev, "failed to get addr cam key idx %d, %d\n",
@@ -355,6 +358,9 @@ int rtw89_cam_sec_key_add(struct rtw89_dev *rtwdev,
 		hw_key_type = RTW89_SEC_KEY_TYPE_GCMP256;
 		key->flags |= IEEE80211_KEY_FLAG_SW_MGMT_TX;
 		ext_key = true;
+		break;
+	case WLAN_CIPHER_SUITE_AES_CMAC:
+		hw_key_type = RTW89_SEC_KEY_TYPE_BIP_CCMP128;
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -753,29 +759,80 @@ void rtw89_cam_fill_addr_cam_info(struct rtw89_dev *rtwdev,
 void rtw89_cam_fill_dctl_sec_cam_info_v1(struct rtw89_dev *rtwdev,
 					 struct rtw89_vif *rtwvif,
 					 struct rtw89_sta *rtwsta,
-					 u8 *cmd)
+					 struct rtw89_h2c_dctlinfo_ud_v1 *h2c)
 {
 	struct rtw89_addr_cam_entry *addr_cam = rtw89_get_addr_cam_of(rtwvif, rtwsta);
+	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
+	u8 *ptk_tx_iv = rtw_wow->key_info.ptk_tx_iv;
 
-	SET_DCTL_MACID_V1(cmd, rtwsta ? rtwsta->mac_id : rtwvif->mac_id);
-	SET_DCTL_OPERATION_V1(cmd, 1);
+	h2c->c0 = le32_encode_bits(rtwsta ? rtwsta->mac_id : rtwvif->mac_id,
+				   DCTLINFO_V1_C0_MACID) |
+		  le32_encode_bits(1, DCTLINFO_V1_C0_OP);
 
-	SET_DCTL_SEC_ENT0_KEYID_V1(cmd, addr_cam->sec_ent_keyid[0]);
-	SET_DCTL_SEC_ENT1_KEYID_V1(cmd, addr_cam->sec_ent_keyid[1]);
-	SET_DCTL_SEC_ENT2_KEYID_V1(cmd, addr_cam->sec_ent_keyid[2]);
-	SET_DCTL_SEC_ENT3_KEYID_V1(cmd, addr_cam->sec_ent_keyid[3]);
-	SET_DCTL_SEC_ENT4_KEYID_V1(cmd, addr_cam->sec_ent_keyid[4]);
-	SET_DCTL_SEC_ENT5_KEYID_V1(cmd, addr_cam->sec_ent_keyid[5]);
-	SET_DCTL_SEC_ENT6_KEYID_V1(cmd, addr_cam->sec_ent_keyid[6]);
+	h2c->w4 = le32_encode_bits(addr_cam->sec_ent_keyid[0],
+				   DCTLINFO_V1_W4_SEC_ENT0_KEYID) |
+		  le32_encode_bits(addr_cam->sec_ent_keyid[1],
+				   DCTLINFO_V1_W4_SEC_ENT1_KEYID) |
+		  le32_encode_bits(addr_cam->sec_ent_keyid[2],
+				   DCTLINFO_V1_W4_SEC_ENT2_KEYID) |
+		  le32_encode_bits(addr_cam->sec_ent_keyid[3],
+				   DCTLINFO_V1_W4_SEC_ENT3_KEYID) |
+		  le32_encode_bits(addr_cam->sec_ent_keyid[4],
+				   DCTLINFO_V1_W4_SEC_ENT4_KEYID) |
+		  le32_encode_bits(addr_cam->sec_ent_keyid[5],
+				   DCTLINFO_V1_W4_SEC_ENT5_KEYID) |
+		  le32_encode_bits(addr_cam->sec_ent_keyid[6],
+				   DCTLINFO_V1_W4_SEC_ENT6_KEYID);
+	h2c->m4 = cpu_to_le32(DCTLINFO_V1_W4_SEC_ENT0_KEYID |
+			      DCTLINFO_V1_W4_SEC_ENT1_KEYID |
+			      DCTLINFO_V1_W4_SEC_ENT2_KEYID |
+			      DCTLINFO_V1_W4_SEC_ENT3_KEYID |
+			      DCTLINFO_V1_W4_SEC_ENT4_KEYID |
+			      DCTLINFO_V1_W4_SEC_ENT5_KEYID |
+			      DCTLINFO_V1_W4_SEC_ENT6_KEYID);
 
-	SET_DCTL_SEC_ENT_VALID_V1(cmd, addr_cam->sec_cam_map[0] & 0xff);
-	SET_DCTL_SEC_ENT0_V1(cmd, addr_cam->sec_ent[0]);
-	SET_DCTL_SEC_ENT1_V1(cmd, addr_cam->sec_ent[1]);
-	SET_DCTL_SEC_ENT2_V1(cmd, addr_cam->sec_ent[2]);
-	SET_DCTL_SEC_ENT3_V1(cmd, addr_cam->sec_ent[3]);
-	SET_DCTL_SEC_ENT4_V1(cmd, addr_cam->sec_ent[4]);
-	SET_DCTL_SEC_ENT5_V1(cmd, addr_cam->sec_ent[5]);
-	SET_DCTL_SEC_ENT6_V1(cmd, addr_cam->sec_ent[6]);
+	h2c->w5 = le32_encode_bits(addr_cam->sec_cam_map[0] & 0xff,
+				   DCTLINFO_V1_W5_SEC_ENT_VALID) |
+		  le32_encode_bits(addr_cam->sec_ent[0],
+				   DCTLINFO_V1_W5_SEC_ENT0) |
+		  le32_encode_bits(addr_cam->sec_ent[1],
+				   DCTLINFO_V1_W5_SEC_ENT1) |
+		  le32_encode_bits(addr_cam->sec_ent[2],
+				   DCTLINFO_V1_W5_SEC_ENT2);
+	h2c->m5 = cpu_to_le32(DCTLINFO_V1_W5_SEC_ENT_VALID |
+			      DCTLINFO_V1_W5_SEC_ENT0      |
+			      DCTLINFO_V1_W5_SEC_ENT1      |
+			      DCTLINFO_V1_W5_SEC_ENT2);
+
+	h2c->w6 = le32_encode_bits(addr_cam->sec_ent[3],
+				   DCTLINFO_V1_W6_SEC_ENT3) |
+		  le32_encode_bits(addr_cam->sec_ent[4],
+				   DCTLINFO_V1_W6_SEC_ENT4) |
+		  le32_encode_bits(addr_cam->sec_ent[5],
+				   DCTLINFO_V1_W6_SEC_ENT5) |
+		  le32_encode_bits(addr_cam->sec_ent[6],
+				   DCTLINFO_V1_W6_SEC_ENT6);
+	h2c->m6 = cpu_to_le32(DCTLINFO_V1_W6_SEC_ENT3 |
+			      DCTLINFO_V1_W6_SEC_ENT4 |
+			      DCTLINFO_V1_W6_SEC_ENT5 |
+			      DCTLINFO_V1_W6_SEC_ENT6);
+
+	if (rtw_wow->ptk_alg) {
+		h2c->w0 = le32_encode_bits(ptk_tx_iv[0] | ptk_tx_iv[1] << 8,
+					   DCTLINFO_V1_W0_AES_IV_L);
+		h2c->m0 = cpu_to_le32(DCTLINFO_V1_W0_AES_IV_L);
+
+		h2c->w1 = le32_encode_bits(ptk_tx_iv[4]       |
+					   ptk_tx_iv[5] << 8  |
+					   ptk_tx_iv[6] << 16 |
+					   ptk_tx_iv[7] << 24,
+					   DCTLINFO_V1_W1_AES_IV_H);
+		h2c->m1 = cpu_to_le32(DCTLINFO_V1_W1_AES_IV_H);
+
+		h2c->w4 |= le32_encode_bits(rtw_wow->ptk_keyidx,
+					    DCTLINFO_V1_W4_SEC_KEY_ID);
+		h2c->m4 |= cpu_to_le32(DCTLINFO_V1_W4_SEC_KEY_ID);
+	}
 }
 
 void rtw89_cam_fill_dctl_sec_cam_info_v2(struct rtw89_dev *rtwdev,
@@ -784,6 +841,8 @@ void rtw89_cam_fill_dctl_sec_cam_info_v2(struct rtw89_dev *rtwdev,
 					 struct rtw89_h2c_dctlinfo_ud_v2 *h2c)
 {
 	struct rtw89_addr_cam_entry *addr_cam = rtw89_get_addr_cam_of(rtwvif, rtwsta);
+	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
+	u8 *ptk_tx_iv = rtw_wow->key_info.ptk_tx_iv;
 
 	h2c->c0 = le32_encode_bits(rtwsta ? rtwsta->mac_id : rtwvif->mac_id,
 				   DCTLINFO_V2_C0_MACID) |
@@ -837,4 +896,21 @@ void rtw89_cam_fill_dctl_sec_cam_info_v2(struct rtw89_dev *rtwdev,
 				   DCTLINFO_V2_W7_SEC_ENT6_V1);
 	h2c->m7 = cpu_to_le32(DCTLINFO_V2_W7_SEC_ENT5_V1 |
 			      DCTLINFO_V2_W7_SEC_ENT6_V1);
+
+	if (rtw_wow->ptk_alg) {
+		h2c->w0 = le32_encode_bits(ptk_tx_iv[0] | ptk_tx_iv[1] << 8,
+					   DCTLINFO_V2_W0_AES_IV_L);
+		h2c->m0 = cpu_to_le32(DCTLINFO_V2_W0_AES_IV_L);
+
+		h2c->w1 = le32_encode_bits(ptk_tx_iv[4] |
+					   ptk_tx_iv[5] << 8 |
+					   ptk_tx_iv[6] << 16 |
+					   ptk_tx_iv[7] << 24,
+					   DCTLINFO_V2_W1_AES_IV_H);
+		h2c->m1 = cpu_to_le32(DCTLINFO_V2_W1_AES_IV_H);
+
+		h2c->w4 |= le32_encode_bits(rtw_wow->ptk_keyidx,
+					    DCTLINFO_V2_W4_SEC_KEY_ID);
+		h2c->m4 |= cpu_to_le32(DCTLINFO_V2_W4_SEC_KEY_ID);
+	}
 }

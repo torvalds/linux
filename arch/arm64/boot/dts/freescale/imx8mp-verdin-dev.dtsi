@@ -22,7 +22,7 @@
 		simple-audio-card,format = "i2s";
 		simple-audio-card,frame-master = <&codec_dai>;
 		simple-audio-card,mclk-fs = <256>;
-		simple-audio-card,name = "imx8mp-nau8822";
+		simple-audio-card,name = "verdin-nau8822";
 		simple-audio-card,routing =
 			"Headphones", "LHP",
 			"Headphones", "RHP",
@@ -93,6 +93,11 @@
 	status = "okay";
 };
 
+&gpio4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ctrl_sleep_moci>;
+};
+
 &gpio_expander_21 {
 	status = "okay";
 	vcc-supply = <&reg_1p8v>;
@@ -129,6 +134,11 @@
 		pinctrl-0 = <&pinctrl_sai1>;
 		#sound-dai-cells = <0>;
 	};
+};
+
+/* Verdin I2C_3_HDMI */
+&i2c5 {
+	status = "okay";
 };
 
 /* Verdin PCIE_1 */

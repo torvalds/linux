@@ -489,7 +489,7 @@ free_mipi_frames(struct ia_css_pipe *pipe)
 		}
 	} else { /* pipe ==NULL */
 		/* AM TEMP: free-ing all mipi buffers just like a legacy code. */
-		for (port = CSI_PORT0_ID; port < N_CSI_PORTS; port++) {
+		for (port = 0; port < N_CSI_PORTS; port++) {
 			unsigned int i;
 
 			for (i = 0; i < my_css.num_mipi_frames[port]; i++) {

@@ -11,5 +11,5 @@
 struct xe_gt;
 
 int xe_gt_clock_init(struct xe_gt *gt);
-u64 xe_gt_clock_cycles_to_ns(const struct xe_gt *gt, u64 count);
+
 #endif

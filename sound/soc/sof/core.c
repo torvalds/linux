@@ -3,7 +3,7 @@
 // This file is provided under a dual BSD/GPLv2 license.  When using or
 // redistributing this file, you may do so under either license.
 //
-// Copyright(c) 2018 Intel Corporation. All rights reserved.
+// Copyright(c) 2018 Intel Corporation
 //
 // Author: Liam Girdwood <liam.r.girdwood@linux.intel.com>
 //
@@ -769,7 +769,7 @@ void sof_machine_unregister(struct snd_sof_dev *sdev, void *pdata)
 EXPORT_SYMBOL(sof_machine_unregister);
 
 MODULE_AUTHOR("Liam Girdwood");
-MODULE_DESCRIPTION("Sound Open Firmware (SOF) Core");
 MODULE_LICENSE("Dual BSD/GPL");
+MODULE_DESCRIPTION("Sound Open Firmware (SOF) Core");
 MODULE_ALIAS("platform:sof-audio");
 MODULE_IMPORT_NS(SND_SOC_SOF_CLIENT);

@@ -3,6 +3,10 @@
 #ifndef _LINUX_CXL_EVENT_H
 #define _LINUX_CXL_EVENT_H
 
+#include <linux/types.h>
+#include <linux/uuid.h>
+#include <linux/workqueue_types.h>
+
 /*
  * Common Event Record Format
  * CXL rev 3.0 section 8.2.9.2.1; Table 8-42
@@ -91,11 +95,21 @@ struct cxl_event_mem_module {
 	u8 reserved[0x3d];
 } __packed;
 
+/*
+ * General Media or DRAM Event Common Fields
+ * - provides common access to phys_addr
+ */
+struct cxl_event_common {
+	struct cxl_event_record_hdr hdr;
+	__le64 phys_addr;
+} __packed;
+
 union cxl_event {
 	struct cxl_event_generic generic;
 	struct cxl_event_gen_media gen_media;
 	struct cxl_event_dram dram;
 	struct cxl_event_mem_module mem_module;
+	struct cxl_event_common common;
 } __packed;
 
 /*
@@ -139,5 +153,30 @@ struct cxl_cper_event_rec {
 
 	union cxl_event event;
 } __packed;
+
+struct cxl_cper_work_data {
+	enum cxl_event_type event_type;
+	struct cxl_cper_event_rec rec;
+};
+
+#ifdef CONFIG_ACPI_APEI_GHES
+int cxl_cper_register_work(struct work_struct *work);
+int cxl_cper_unregister_work(struct work_struct *work);
+int cxl_cper_kfifo_get(struct cxl_cper_work_data *wd);
+#else
+static inline int cxl_cper_register_work(struct work_struct *work)
+{
+	return 0;
+}
+
+static inline int cxl_cper_unregister_work(struct work_struct *work)
+{
+	return 0;
+}
+static inline int cxl_cper_kfifo_get(struct cxl_cper_work_data *wd)
+{
+	return 0;
+}
+#endif
 
 #endif /* _LINUX_CXL_EVENT_H */

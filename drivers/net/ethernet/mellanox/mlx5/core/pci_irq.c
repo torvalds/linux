@@ -508,58 +508,6 @@ struct mlx5_irq *mlx5_irq_request(struct mlx5_core_dev *dev, u16 vecidx,
 }
 
 /**
- * mlx5_msix_alloc - allocate msix interrupt
- * @dev: mlx5 device from which to request
- * @handler: interrupt handler
- * @affdesc: affinity descriptor
- * @name: interrupt name
- *
- * Returns: struct msi_map with result encoded.
- * Note: the caller must make sure to release the irq by calling
- *       mlx5_msix_free() if shutdown was initiated.
- */
-struct msi_map mlx5_msix_alloc(struct mlx5_core_dev *dev,
-			       irqreturn_t (*handler)(int, void *),
-			       const struct irq_affinity_desc *affdesc,
-			       const char *name)
-{
-	struct msi_map map;
-	int err;
-
-	if (!dev->pdev) {
-		map.virq = 0;
-		map.index = -EINVAL;
-		return map;
-	}
-
-	map = pci_msix_alloc_irq_at(dev->pdev, MSI_ANY_INDEX, affdesc);
-	if (!map.virq)
-		return map;
-
-	err = request_irq(map.virq, handler, 0, name, NULL);
-	if (err) {
-		mlx5_core_warn(dev, "err %d\n", err);
-		pci_msix_free_irq(dev->pdev, map);
-		map.virq = 0;
-		map.index = -ENOMEM;
-	}
-	return map;
-}
-EXPORT_SYMBOL(mlx5_msix_alloc);
-
-/**
- * mlx5_msix_free - free a previously allocated msix interrupt
- * @dev: mlx5 device associated with interrupt
- * @map: map previously returned by mlx5_msix_alloc()
- */
-void mlx5_msix_free(struct mlx5_core_dev *dev, struct msi_map map)
-{
-	free_irq(map.virq, NULL);
-	pci_msix_free_irq(dev->pdev, map);
-}
-EXPORT_SYMBOL(mlx5_msix_free);
-
-/**
  * mlx5_irq_release_vector - release one IRQ back to the system.
  * @irq: the irq to release.
  */
@@ -763,9 +711,7 @@ int mlx5_irq_table_get_num_comp(struct mlx5_irq_table *table)
 
 int mlx5_irq_table_create(struct mlx5_core_dev *dev)
 {
-	int num_eqs = MLX5_CAP_GEN(dev, max_num_eqs) ?
-		      MLX5_CAP_GEN(dev, max_num_eqs) :
-		      1 << MLX5_CAP_GEN(dev, log_max_eq);
+	int num_eqs = mlx5_max_eq_cap_get(dev);
 	int total_vec;
 	int pcif_vec;
 	int req_vec;

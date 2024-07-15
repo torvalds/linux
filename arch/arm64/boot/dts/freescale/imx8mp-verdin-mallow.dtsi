@@ -112,6 +112,11 @@
 	status = "okay";
 };
 
+/* Verdin I2C_3_HDMI */
+&i2c5 {
+	status = "okay";
+};
+
 /* Verdin PCIE_1 */
 &pcie {
 	status = "okay";

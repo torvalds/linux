@@ -22,22 +22,8 @@ long kvm_arch_dev_ioctl(struct file *filp,
 
 int kvm_arch_hardware_enable(void)
 {
-	unsigned long hideleg, hedeleg;
-
-	hedeleg = 0;
-	hedeleg |= (1UL << EXC_INST_MISALIGNED);
-	hedeleg |= (1UL << EXC_BREAKPOINT);
-	hedeleg |= (1UL << EXC_SYSCALL);
-	hedeleg |= (1UL << EXC_INST_PAGE_FAULT);
-	hedeleg |= (1UL << EXC_LOAD_PAGE_FAULT);
-	hedeleg |= (1UL << EXC_STORE_PAGE_FAULT);
-	csr_write(CSR_HEDELEG, hedeleg);
-
-	hideleg = 0;
-	hideleg |= (1UL << IRQ_VS_SOFT);
-	hideleg |= (1UL << IRQ_VS_TIMER);
-	hideleg |= (1UL << IRQ_VS_EXT);
-	csr_write(CSR_HIDELEG, hideleg);
+	csr_write(CSR_HEDELEG, KVM_HEDELEG_DEFAULT);
+	csr_write(CSR_HIDELEG, KVM_HIDELEG_DEFAULT);
 
 	/* VS should access only the time counter directly. Everything else should trap */
 	csr_write(CSR_HCOUNTEREN, 0x02);

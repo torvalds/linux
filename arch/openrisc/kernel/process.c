@@ -36,6 +36,7 @@
 #include <linux/reboot.h>
 
 #include <linux/uaccess.h>
+#include <asm/fpu.h>
 #include <asm/io.h>
 #include <asm/processor.h>
 #include <asm/spr_defs.h>
@@ -65,7 +66,7 @@ void machine_restart(char *cmd)
 }
 
 /*
- * This is used if pm_power_off has not been set by a power management
+ * This is used if a sys-off handler was not set by a power management
  * driver, in this case we can assume we are on a simulator.  On
  * OpenRISC simulators l.nop 1 will trigger the simulator exit.
  */
@@ -89,10 +90,8 @@ void machine_halt(void)
 void machine_power_off(void)
 {
 	printk(KERN_INFO "*** MACHINE POWER OFF ***\n");
-	if (pm_power_off != NULL)
-		pm_power_off();
-	else
-		default_power_off();
+	do_kernel_power_off();
+	default_power_off();
 }
 
 /*
@@ -246,6 +245,8 @@ struct task_struct *__switch_to(struct task_struct *old,
 
 	local_irq_save(flags);
 
+	save_fpu(current);
+
 	/* current_set is an array of saved current pointers
 	 * (one for each cpu). we need them at user->kernel transition,
 	 * while we save them at kernel->user transition
@@ -257,6 +258,8 @@ struct task_struct *__switch_to(struct task_struct *old,
 
 	current_thread_info_set[smp_processor_id()] = new_ti;
 	last = (_switch(old_ti, new_ti))->task;
+
+	restore_fpu(current);
 
 	local_irq_restore(flags);
 

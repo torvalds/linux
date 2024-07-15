@@ -23,7 +23,7 @@ simple_get_bytes(const void *p, const void *end, void *res, size_t len)
 }
 
 static inline const void *
-simple_get_netobj(const void *p, const void *end, struct xdr_netobj *dest)
+simple_get_netobj_noprof(const void *p, const void *end, struct xdr_netobj *dest)
 {
 	const void *q;
 	unsigned int len;
@@ -35,7 +35,7 @@ simple_get_netobj(const void *p, const void *end, struct xdr_netobj *dest)
 	if (unlikely(q > end || q < p))
 		return ERR_PTR(-EFAULT);
 	if (len) {
-		dest->data = kmemdup(p, len, GFP_KERNEL);
+		dest->data = kmemdup_noprof(p, len, GFP_KERNEL);
 		if (unlikely(dest->data == NULL))
 			return ERR_PTR(-ENOMEM);
 	} else
@@ -43,3 +43,5 @@ simple_get_netobj(const void *p, const void *end, struct xdr_netobj *dest)
 	dest->len = len;
 	return q;
 }
+
+#define simple_get_netobj(...)	alloc_hooks(simple_get_netobj_noprof(__VA_ARGS__))

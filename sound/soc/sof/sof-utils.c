@@ -3,7 +3,7 @@
 // This file is provided under a dual BSD/GPLv2 license.  When using or
 // redistributing this file, you may do so under either license.
 //
-// Copyright(c) 2018-2022 Intel Corporation. All rights reserved.
+// Copyright(c) 2018-2022 Intel Corporation
 //
 // Author: Keyon Jie <yang.jie@linux.intel.com>
 //
@@ -73,3 +73,4 @@ int snd_sof_create_page_table(struct device *dev,
 EXPORT_SYMBOL(snd_sof_create_page_table);
 
 MODULE_LICENSE("Dual BSD/GPL");
+MODULE_DESCRIPTION("SOF utils");

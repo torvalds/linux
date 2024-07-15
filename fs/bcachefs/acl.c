@@ -282,18 +282,12 @@ struct posix_acl *bch2_get_acl(struct mnt_idmap *idmap,
 	struct btree_trans *trans = bch2_trans_get(c);
 	struct btree_iter iter = { NULL };
 	struct posix_acl *acl = NULL;
-	struct bkey_s_c k;
-	int ret;
 retry:
 	bch2_trans_begin(trans);
 
-	ret = bch2_hash_lookup(trans, &iter, bch2_xattr_hash_desc,
-			&hash, inode_inum(inode), &search, 0);
-	if (ret)
-		goto err;
-
-	k = bch2_btree_iter_peek_slot(&iter);
-	ret = bkey_err(k);
+	struct bkey_s_c k = bch2_hash_lookup(trans, &iter, bch2_xattr_hash_desc,
+					     &hash, inode_inum(inode), &search, 0);
+	int ret = bkey_err(k);
 	if (ret)
 		goto err;
 
@@ -366,7 +360,7 @@ retry:
 
 	ret   = bch2_subvol_is_ro_trans(trans, inode->ei_subvol) ?:
 		bch2_inode_peek(trans, &inode_iter, &inode_u, inode_inum(inode),
-			      BTREE_ITER_INTENT);
+			      BTREE_ITER_intent);
 	if (ret)
 		goto btree_err;
 
@@ -414,39 +408,30 @@ int bch2_acl_chmod(struct btree_trans *trans, subvol_inum inum,
 	struct bch_hash_info hash_info = bch2_hash_info_init(trans->c, inode);
 	struct xattr_search_key search = X_SEARCH(KEY_TYPE_XATTR_INDEX_POSIX_ACL_ACCESS, "", 0);
 	struct btree_iter iter;
-	struct bkey_s_c_xattr xattr;
-	struct bkey_i_xattr *new;
 	struct posix_acl *acl = NULL;
-	struct bkey_s_c k;
-	int ret;
 
-	ret = bch2_hash_lookup(trans, &iter, bch2_xattr_hash_desc,
-			       &hash_info, inum, &search, BTREE_ITER_INTENT);
+	struct bkey_s_c k = bch2_hash_lookup(trans, &iter, bch2_xattr_hash_desc,
+			       &hash_info, inum, &search, BTREE_ITER_intent);
+	int ret = bkey_err(k);
 	if (ret)
 		return bch2_err_matches(ret, ENOENT) ? 0 : ret;
 
-	k = bch2_btree_iter_peek_slot(&iter);
-	ret = bkey_err(k);
-	if (ret)
-		goto err;
-	xattr = bkey_s_c_to_xattr(k);
+	struct bkey_s_c_xattr xattr = bkey_s_c_to_xattr(k);
 
 	acl = bch2_acl_from_disk(trans, xattr_val(xattr.v),
 			le16_to_cpu(xattr.v->x_val_len));
 	ret = PTR_ERR_OR_ZERO(acl);
-	if (IS_ERR_OR_NULL(acl))
-		goto err;
-
-	ret = allocate_dropping_locks_errcode(trans,
-				__posix_acl_chmod(&acl, _gfp, mode));
 	if (ret)
 		goto err;
 
-	new = bch2_acl_to_xattr(trans, acl, ACL_TYPE_ACCESS);
-	if (IS_ERR(new)) {
-		ret = PTR_ERR(new);
+	ret = allocate_dropping_locks_errcode(trans, __posix_acl_chmod(&acl, _gfp, mode));
+	if (ret)
 		goto err;
-	}
+
+	struct bkey_i_xattr *new = bch2_acl_to_xattr(trans, acl, ACL_TYPE_ACCESS);
+	ret = PTR_ERR_OR_ZERO(new);
+	if (ret)
+		goto err;
 
 	new->k.p = iter.pos;
 	ret = bch2_trans_update(trans, &iter, &new->k_i, 0);

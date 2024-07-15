@@ -128,7 +128,7 @@ struct gpio *dal_gpio_service_create_irq(
 	uint32_t offset,
 	uint32_t mask)
 {
-	enum gpio_id id;
+	enum gpio_id id = 0;
 	uint32_t en;
 
 	if (!service->translate.funcs->offset_to_id(offset, mask, &id, &en)) {
@@ -144,7 +144,7 @@ struct gpio *dal_gpio_service_create_generic_mux(
 	uint32_t offset,
 	uint32_t mask)
 {
-	enum gpio_id id;
+	enum gpio_id id = 0;
 	uint32_t en;
 	struct gpio *generic;
 
@@ -178,7 +178,7 @@ struct gpio_pin_info dal_gpio_get_generic_pin_info(
 	enum gpio_id id,
 	uint32_t en)
 {
-	struct gpio_pin_info pin;
+	struct gpio_pin_info pin = {0};
 
 	if (service->translate.funcs->id_to_offset) {
 		service->translate.funcs->id_to_offset(id, en, &pin);

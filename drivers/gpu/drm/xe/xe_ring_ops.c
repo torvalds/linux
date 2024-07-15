@@ -17,6 +17,7 @@
 #include "xe_lrc.h"
 #include "xe_macros.h"
 #include "xe_sched_job.h"
+#include "xe_sriov.h"
 #include "xe_vm_types.h"
 #include "xe_vm.h"
 #include "xe_wa.h"
@@ -75,6 +76,16 @@ static int emit_store_imm_ggtt(u32 addr, u32 value, u32 *dw, int i)
 	dw[i++] = addr;
 	dw[i++] = 0;
 	dw[i++] = value;
+
+	return i;
+}
+
+static int emit_flush_dw(u32 *dw, int i)
+{
+	dw[i++] = MI_FLUSH_DW | MI_FLUSH_IMM_DW;
+	dw[i++] = 0;
+	dw[i++] = 0;
+	dw[i++] = 0;
 
 	return i;
 }
@@ -233,10 +244,12 @@ static void __emit_job_gen12_simple(struct xe_sched_job *job, struct xe_lrc *lrc
 
 	i = emit_bb_start(batch_addr, ppgtt_flag, dw, i);
 
-	if (job->user_fence.used)
+	if (job->user_fence.used) {
+		i = emit_flush_dw(dw, i);
 		i = emit_store_imm_ppgtt_posted(job->user_fence.addr,
 						job->user_fence.value,
 						dw, i);
+	}
 
 	i = emit_flush_imm_ggtt(xe_lrc_seqno_ggtt_addr(lrc), seqno, false, dw, i);
 
@@ -292,10 +305,12 @@ static void __emit_job_gen12_video(struct xe_sched_job *job, struct xe_lrc *lrc,
 
 	i = emit_bb_start(batch_addr, ppgtt_flag, dw, i);
 
-	if (job->user_fence.used)
+	if (job->user_fence.used) {
+		i = emit_flush_dw(dw, i);
 		i = emit_store_imm_ppgtt_posted(job->user_fence.addr,
 						job->user_fence.value,
 						dw, i);
+	}
 
 	i = emit_flush_imm_ggtt(xe_lrc_seqno_ggtt_addr(lrc), seqno, false, dw, i);
 
@@ -367,10 +382,12 @@ static void emit_migration_job_gen12(struct xe_sched_job *job,
 
 	i = emit_bb_start(job->batch_addr[0], BIT(8), dw, i);
 
-	/* XXX: Do we need this? Leaving for now. */
-	dw[i++] = preparser_disable(true);
-	i = emit_flush_invalidate(0, dw, i);
-	dw[i++] = preparser_disable(false);
+	if (!IS_SRIOV_VF(gt_to_xe(job->q->gt))) {
+		/* XXX: Do we need this? Leaving for now. */
+		dw[i++] = preparser_disable(true);
+		i = emit_flush_invalidate(0, dw, i);
+		dw[i++] = preparser_disable(false);
+	}
 
 	i = emit_bb_start(job->batch_addr[1], BIT(8), dw, i);
 

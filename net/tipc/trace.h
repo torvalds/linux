@@ -145,7 +145,7 @@ DECLARE_EVENT_CLASS(tipc_skb_class,
 	),
 
 	TP_fast_assign(
-		__assign_str(header, header);
+		__assign_str(header);
 		tipc_skb_dump(skb, more, __get_str(buf));
 	),
 
@@ -172,7 +172,7 @@ DECLARE_EVENT_CLASS(tipc_list_class,
 	),
 
 	TP_fast_assign(
-		__assign_str(header, header);
+		__assign_str(header);
 		tipc_list_dump(list, more, __get_str(buf));
 	),
 
@@ -200,7 +200,7 @@ DECLARE_EVENT_CLASS(tipc_sk_class,
 	),
 
 	TP_fast_assign(
-		__assign_str(header, header);
+		__assign_str(header);
 		__entry->portid = tipc_sock_get_portid(sk);
 		tipc_sk_dump(sk, dqueues, __get_str(buf));
 		if (skb)
@@ -254,7 +254,7 @@ DECLARE_EVENT_CLASS(tipc_link_class,
 	),
 
 	TP_fast_assign(
-		__assign_str(header, header);
+		__assign_str(header);
 		memcpy(__entry->name, tipc_link_name(l), TIPC_MAX_LINK_NAME);
 		tipc_link_dump(l, dqueues, __get_str(buf));
 	),
@@ -337,7 +337,7 @@ DECLARE_EVENT_CLASS(tipc_node_class,
 	),
 
 	TP_fast_assign(
-		__assign_str(header, header);
+		__assign_str(header);
 		__entry->addr = tipc_node_get_addr(n);
 		tipc_node_dump(n, more, __get_str(buf));
 	),
@@ -374,7 +374,7 @@ DECLARE_EVENT_CLASS(tipc_fsm_class,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, name);
+		__assign_str(name);
 		__entry->os = os;
 		__entry->ns = ns;
 		__entry->evt = evt;
@@ -409,8 +409,8 @@ TRACE_EVENT(tipc_l2_device_event,
 	),
 
 	TP_fast_assign(
-		__assign_str(dev_name, dev->name);
-		__assign_str(b_name, b->name);
+		__assign_str(dev_name);
+		__assign_str(b_name);
 		__entry->evt = evt;
 		__entry->b_up = test_bit(0, &b->up);
 		__entry->carrier = netif_carrier_ok(dev);

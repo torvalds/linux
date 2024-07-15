@@ -30,7 +30,7 @@ static inline unsigned bch2_sb_field_errors_u64s(unsigned nr)
 }
 
 static int bch2_sb_errors_validate(struct bch_sb *sb, struct bch_sb_field *f,
-				   struct printbuf *err)
+				   enum bch_validate_flags flags, struct printbuf *err)
 {
 	struct bch_sb_field_errors *e = field_to_type(f, errors);
 	unsigned i, nr = bch2_sb_field_errors_nr_entries(e);
@@ -110,19 +110,25 @@ out:
 void bch2_sb_errors_from_cpu(struct bch_fs *c)
 {
 	bch_sb_errors_cpu *src = &c->fsck_error_counts;
-	struct bch_sb_field_errors *dst =
-		bch2_sb_field_resize(&c->disk_sb, errors,
-				     bch2_sb_field_errors_u64s(src->nr));
+	struct bch_sb_field_errors *dst;
 	unsigned i;
 
+	mutex_lock(&c->fsck_error_counts_lock);
+
+	dst = bch2_sb_field_resize(&c->disk_sb, errors,
+				   bch2_sb_field_errors_u64s(src->nr));
+
 	if (!dst)
-		return;
+		goto err;
 
 	for (i = 0; i < src->nr; i++) {
 		SET_BCH_SB_ERROR_ENTRY_ID(&dst->entries[i], src->data[i].id);
 		SET_BCH_SB_ERROR_ENTRY_NR(&dst->entries[i], src->data[i].nr);
 		dst->entries[i].last_error_time = cpu_to_le64(src->data[i].last_error_time);
 	}
+
+err:
+	mutex_unlock(&c->fsck_error_counts_lock);
 }
 
 static int bch2_sb_errors_to_cpu(struct bch_fs *c)

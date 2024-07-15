@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
  * Copyright (C) 2017 Intel Deutschland GmbH
- * Copyright (C) 2019-2023 Intel Corporation
+ * Copyright (C) 2019-2024 Intel Corporation
  */
 #include <linux/uuid.h>
 #include "iwl-drv.h"
@@ -960,3 +960,37 @@ out_free:
 	kfree(data);
 }
 IWL_EXPORT_SYMBOL(iwl_acpi_get_guid_lock_status);
+
+int iwl_acpi_get_wbem(struct iwl_fw_runtime *fwrt, u32 *value)
+{
+	union acpi_object *wifi_pkg, *data;
+	int ret = -ENOENT;
+	int tbl_rev;
+
+	data = iwl_acpi_get_object(fwrt->dev, ACPI_WBEM_METHOD);
+	if (IS_ERR(data))
+		return ret;
+
+	wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
+					 ACPI_WBEM_WIFI_DATA_SIZE,
+					 &tbl_rev);
+	if (IS_ERR(wifi_pkg))
+		goto out_free;
+
+	if (tbl_rev != IWL_ACPI_WBEM_REVISION) {
+		IWL_DEBUG_RADIO(fwrt, "Unsupported ACPI WBEM revision:%d\n",
+				tbl_rev);
+		goto out_free;
+	}
+
+	if (wifi_pkg->package.elements[1].type != ACPI_TYPE_INTEGER)
+		goto out_free;
+
+	*value = wifi_pkg->package.elements[1].integer.value &
+		 IWL_ACPI_WBEM_REV0_MASK;
+	IWL_DEBUG_RADIO(fwrt, "Loaded WBEM config from ACPI\n");
+	ret = 0;
+out_free:
+	kfree(data);
+	return ret;
+}

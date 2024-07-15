@@ -302,6 +302,8 @@ static int intel_rapl_tpmi_probe(struct auxiliary_device *auxdev,
 		goto err;
 	}
 
+	rapl_package_add_pmu(trp->rp);
+
 	auxiliary_set_drvdata(auxdev, trp);
 
 	return 0;
@@ -314,6 +316,7 @@ static void intel_rapl_tpmi_remove(struct auxiliary_device *auxdev)
 {
 	struct tpmi_rapl_package *trp = auxiliary_get_drvdata(auxdev);
 
+	rapl_package_remove_pmu(trp->rp);
 	rapl_remove_package(trp->rp);
 	trp_release(trp);
 }

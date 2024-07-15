@@ -92,7 +92,7 @@ static void mptcp_pernet_set_defaults(struct mptcp_pernet *pernet)
 	pernet->allow_join_initial_addr_port = 1;
 	pernet->stale_loss_cnt = 4;
 	pernet->pm_type = MPTCP_PM_TYPE_KERNEL;
-	strcpy(pernet->scheduler, "default");
+	strscpy(pernet->scheduler, "default", sizeof(pernet->scheduler));
 }
 
 #ifdef CONFIG_SYSCTL
@@ -129,6 +129,24 @@ static int proc_scheduler(struct ctl_table *ctl, int write,
 	ret = proc_dostring(&tbl, write, buffer, lenp, ppos);
 	if (write && ret == 0)
 		ret = mptcp_set_scheduler(net, val);
+
+	return ret;
+}
+
+static int proc_available_schedulers(struct ctl_table *ctl,
+				     int write, void *buffer,
+				     size_t *lenp, loff_t *ppos)
+{
+	struct ctl_table tbl = { .maxlen = MPTCP_SCHED_BUF_MAX, };
+	int ret;
+
+	tbl.data = kmalloc(tbl.maxlen, GFP_USER);
+	if (!tbl.data)
+		return -ENOMEM;
+
+	mptcp_get_available_schedulers(tbl.data, MPTCP_SCHED_BUF_MAX);
+	ret = proc_dostring(&tbl, write, buffer, lenp, ppos);
+	kfree(tbl.data);
 
 	return ret;
 }
@@ -188,12 +206,17 @@ static struct ctl_table mptcp_sysctl_table[] = {
 		.proc_handler = proc_scheduler,
 	},
 	{
+		.procname = "available_schedulers",
+		.maxlen	= MPTCP_SCHED_BUF_MAX,
+		.mode = 0644,
+		.proc_handler = proc_available_schedulers,
+	},
+	{
 		.procname = "close_timeout",
 		.maxlen = sizeof(unsigned int),
 		.mode = 0644,
 		.proc_handler = proc_dointvec_jiffies,
 	},
-	{}
 };
 
 static int mptcp_pernet_new_table(struct net *net, struct mptcp_pernet *pernet)
@@ -215,7 +238,8 @@ static int mptcp_pernet_new_table(struct net *net, struct mptcp_pernet *pernet)
 	table[4].data = &pernet->stale_loss_cnt;
 	table[5].data = &pernet->pm_type;
 	table[6].data = &pernet->scheduler;
-	table[7].data = &pernet->close_timeout;
+	/* table[7] is for available_schedulers which is read-only info */
+	table[8].data = &pernet->close_timeout;
 
 	hdr = register_net_sysctl_sz(net, MPTCP_SYSCTL_PATH, table,
 				     ARRAY_SIZE(mptcp_sysctl_table));
@@ -235,7 +259,7 @@ err_alloc:
 
 static void mptcp_pernet_del_table(struct mptcp_pernet *pernet)
 {
-	struct ctl_table *table = pernet->ctl_table_hdr->ctl_table_arg;
+	const struct ctl_table *table = pernet->ctl_table_hdr->ctl_table_arg;
 
 	unregister_net_sysctl_table(pernet->ctl_table_hdr);
 

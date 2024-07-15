@@ -100,7 +100,6 @@ config BLK_DEV_WRITE_MOUNTED
 
 config BLK_DEV_ZONED
 	bool "Zoned block device support"
-	select MQ_IOSCHED_DEADLINE
 	help
 	Block layer zoned block device support. This option enables
 	support for ZAC/ZBC/ZNS host-managed and host-aware zoned block
@@ -119,17 +118,6 @@ config BLK_DEV_THROTTLING
 	cgroups and specifying per device IO rate policies.
 
 	See Documentation/admin-guide/cgroup-v1/blkio-controller.rst for more information.
-
-config BLK_DEV_THROTTLING_LOW
-	bool "Block throttling .low limit interface support (EXPERIMENTAL)"
-	depends on BLK_DEV_THROTTLING
-	help
-	Add .low limit interface for block throttling. The low limit is a best
-	effort limit to prioritize cgroups. Depending on the setting, the limit
-	can be used to protect cgroups in terms of bandwidth/iops and better
-	utilize disk resource.
-
-	Note, this is an experimental interface and could be changed someday.
 
 config BLK_WBT
 	bool "Enable support for block device writeback throttling"
@@ -197,10 +185,6 @@ config BLK_DEBUG_FS
 
 	Unless you are building a kernel for a tiny system, you should
 	say Y here.
-
-config BLK_DEBUG_FS_ZONED
-       bool
-       default BLK_DEBUG_FS && BLK_DEV_ZONED
 
 config BLK_SED_OPAL
 	bool "Logic for interfacing with Opal enabled SEDs"

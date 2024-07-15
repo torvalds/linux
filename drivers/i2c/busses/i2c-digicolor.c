@@ -213,7 +213,7 @@ out:
 static int dc_i2c_xfer_msg(struct dc_i2c *i2c, struct i2c_msg *msg, int first,
 			   int last)
 {
-	unsigned long timeout = msecs_to_jiffies(TIMEOUT_MS);
+	unsigned long time_left = msecs_to_jiffies(TIMEOUT_MS);
 	unsigned long flags;
 
 	spin_lock_irqsave(&i2c->lock, flags);
@@ -227,9 +227,9 @@ static int dc_i2c_xfer_msg(struct dc_i2c *i2c, struct i2c_msg *msg, int first,
 	dc_i2c_start_msg(i2c, first);
 	spin_unlock_irqrestore(&i2c->lock, flags);
 
-	timeout = wait_for_completion_timeout(&i2c->done, timeout);
+	time_left = wait_for_completion_timeout(&i2c->done, time_left);
 	dc_i2c_set_irq(i2c, 0);
-	if (timeout == 0) {
+	if (time_left == 0) {
 		i2c->state = STATE_IDLE;
 		return -ETIMEDOUT;
 	}

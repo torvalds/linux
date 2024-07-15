@@ -33,35 +33,38 @@
 			bosch,mram-cfg = <0x1400 0 0 32 0 0 2 2>;
 			status = "disabled";
 		};
+	};
+};
 
-		adc_1: adc@48003000 {
-			compatible = "st,stm32mp13-adc-core";
-			reg = <0x48003000 0x400>;
-			interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&rcc ADC1>, <&rcc ADC1_K>;
-			clock-names = "bus", "adc";
-			interrupt-controller;
-			#interrupt-cells = <1>;
+&etzpc {
+	adc_1: adc@48003000 {
+		compatible = "st,stm32mp13-adc-core";
+		reg = <0x48003000 0x400>;
+		interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&rcc ADC1>, <&rcc ADC1_K>;
+		clock-names = "bus", "adc";
+		interrupt-controller;
+		#interrupt-cells = <1>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		access-controllers = <&etzpc 32>;
+		status = "disabled";
+
+		adc1: adc@0 {
+			compatible = "st,stm32mp13-adc";
+			#io-channel-cells = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			reg = <0x0>;
+			interrupt-parent = <&adc_1>;
+			interrupts = <0>;
+			dmas = <&dmamux1 9 0x400 0x80000001>;
+			dma-names = "rx";
 			status = "disabled";
 
-			adc1: adc@0 {
-				compatible = "st,stm32mp13-adc";
-				#io-channel-cells = <1>;
-				#address-cells = <1>;
-				#size-cells = <0>;
-				reg = <0x0>;
-				interrupt-parent = <&adc_1>;
-				interrupts = <0>;
-				dmas = <&dmamux1 9 0x400 0x80000001>;
-				dma-names = "rx";
-				status = "disabled";
-
-				channel@18 {
-					reg = <18>;
-					label = "vrefint";
-				};
+			channel@18 {
+				reg = <18>;
+				label = "vrefint";
 			};
 		};
 	};

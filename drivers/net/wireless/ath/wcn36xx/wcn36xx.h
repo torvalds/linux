@@ -100,11 +100,14 @@ enum wcn36xx_ampdu_state {
 #define RF_IRIS_WCN3660	0x3660
 #define RF_IRIS_WCN3680	0x3680
 
-static inline void buff_to_be(u32 *buf, size_t len)
+static inline void buff_to_be(void *buf, size_t len)
 {
+	__be32 *to = buf;
+	u32 *from = buf;
 	int i;
+
 	for (i = 0; i < len; i++)
-		buf[i] = cpu_to_be32(buf[i]);
+		to[i] = cpu_to_be32(from[i]);
 }
 
 struct nv_data {

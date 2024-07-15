@@ -1442,7 +1442,7 @@ static int lm49453_i2c_probe(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id lm49453_i2c_id[] = {
-	{ "lm49453", 0 },
+	{ "lm49453" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lm49453_i2c_id);

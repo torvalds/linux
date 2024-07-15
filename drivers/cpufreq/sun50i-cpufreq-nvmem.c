@@ -10,6 +10,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/arm-smccc.h>
 #include <linux/cpu.h>
 #include <linux/module.h>
 #include <linux/nvmem-consumer.h>
@@ -18,26 +19,155 @@
 #include <linux/pm_opp.h>
 #include <linux/slab.h>
 
-#define MAX_NAME_LEN	7
-
 #define NVMEM_MASK	0x7
 #define NVMEM_SHIFT	5
 
 static struct platform_device *cpufreq_dt_pdev, *sun50i_cpufreq_pdev;
 
+struct sunxi_cpufreq_data {
+	u32 (*efuse_xlate)(u32 speedbin);
+};
+
+static u32 sun50i_h6_efuse_xlate(u32 speedbin)
+{
+	u32 efuse_value;
+
+	efuse_value = (speedbin >> NVMEM_SHIFT) & NVMEM_MASK;
+
+	/*
+	 * We treat unexpected efuse values as if the SoC was from
+	 * the slowest bin. Expected efuse values are 1-3, slowest
+	 * to fastest.
+	 */
+	if (efuse_value >= 1 && efuse_value <= 3)
+		return efuse_value - 1;
+	else
+		return 0;
+}
+
+static int get_soc_id_revision(void)
+{
+#ifdef CONFIG_HAVE_ARM_SMCCC_DISCOVERY
+	return arm_smccc_get_soc_id_revision();
+#else
+	return SMCCC_RET_NOT_SUPPORTED;
+#endif
+}
+
+/*
+ * Judging by the OPP tables in the vendor BSP, the quality order of the
+ * returned speedbin index is 4 -> 0/2 -> 3 -> 1, from worst to best.
+ * 0 and 2 seem identical from the OPP tables' point of view.
+ */
+static u32 sun50i_h616_efuse_xlate(u32 speedbin)
+{
+	int ver_bits = get_soc_id_revision();
+	u32 value = 0;
+
+	switch (speedbin & 0xffff) {
+	case 0x2000:
+		value = 0;
+		break;
+	case 0x2400:
+	case 0x7400:
+	case 0x2c00:
+	case 0x7c00:
+		if (ver_bits != SMCCC_RET_NOT_SUPPORTED && ver_bits <= 1) {
+			/* ic version A/B */
+			value = 1;
+		} else {
+			/* ic version C and later version */
+			value = 2;
+		}
+		break;
+	case 0x5000:
+	case 0x5400:
+	case 0x6000:
+		value = 3;
+		break;
+	case 0x5c00:
+		value = 4;
+		break;
+	case 0x5d00:
+		value = 0;
+		break;
+	default:
+		pr_warn("sun50i-cpufreq-nvmem: unknown speed bin 0x%x, using default bin 0\n",
+			speedbin & 0xffff);
+		value = 0;
+		break;
+	}
+
+	return value;
+}
+
+static struct sunxi_cpufreq_data sun50i_h6_cpufreq_data = {
+	.efuse_xlate = sun50i_h6_efuse_xlate,
+};
+
+static struct sunxi_cpufreq_data sun50i_h616_cpufreq_data = {
+	.efuse_xlate = sun50i_h616_efuse_xlate,
+};
+
+static const struct of_device_id cpu_opp_match_list[] = {
+	{ .compatible = "allwinner,sun50i-h6-operating-points",
+	  .data = &sun50i_h6_cpufreq_data,
+	},
+	{ .compatible = "allwinner,sun50i-h616-operating-points",
+	  .data = &sun50i_h616_cpufreq_data,
+	},
+	{}
+};
+
+/**
+ * dt_has_supported_hw() - Check if any OPPs use opp-supported-hw
+ *
+ * If we ask the cpufreq framework to use the opp-supported-hw feature, it
+ * will ignore every OPP node without that DT property. If none of the OPPs
+ * have it, the driver will fail probing, due to the lack of OPPs.
+ *
+ * Returns true if we have at least one OPP with the opp-supported-hw property.
+ */
+static bool dt_has_supported_hw(void)
+{
+	bool has_opp_supported_hw = false;
+	struct device_node *np, *opp;
+	struct device *cpu_dev;
+
+	cpu_dev = get_cpu_device(0);
+	if (!cpu_dev)
+		return false;
+
+	np = dev_pm_opp_of_get_opp_desc_node(cpu_dev);
+	if (!np)
+		return false;
+
+	for_each_child_of_node(np, opp) {
+		if (of_find_property(opp, "opp-supported-hw", NULL)) {
+			has_opp_supported_hw = true;
+			break;
+		}
+	}
+
+	of_node_put(np);
+
+	return has_opp_supported_hw;
+}
+
 /**
  * sun50i_cpufreq_get_efuse() - Determine speed grade from efuse value
- * @versions: Set to the value parsed from efuse
  *
- * Returns 0 if success.
+ * Returns non-negative speed bin index on success, a negative error
+ * value otherwise.
  */
-static int sun50i_cpufreq_get_efuse(u32 *versions)
+static int sun50i_cpufreq_get_efuse(void)
 {
+	const struct sunxi_cpufreq_data *opp_data;
 	struct nvmem_cell *speedbin_nvmem;
+	const struct of_device_id *match;
 	struct device_node *np;
 	struct device *cpu_dev;
-	u32 *speedbin, efuse_value;
-	size_t len;
+	u32 *speedbin;
 	int ret;
 
 	cpu_dev = get_cpu_device(0);
@@ -48,12 +178,12 @@ static int sun50i_cpufreq_get_efuse(u32 *versions)
 	if (!np)
 		return -ENOENT;
 
-	ret = of_device_is_compatible(np,
-				      "allwinner,sun50i-h6-operating-points");
-	if (!ret) {
+	match = of_match_node(cpu_opp_match_list, np);
+	if (!match) {
 		of_node_put(np);
 		return -ENOENT;
 	}
+	opp_data = match->data;
 
 	speedbin_nvmem = of_nvmem_cell_get(np, NULL);
 	of_node_put(np);
@@ -61,33 +191,25 @@ static int sun50i_cpufreq_get_efuse(u32 *versions)
 		return dev_err_probe(cpu_dev, PTR_ERR(speedbin_nvmem),
 				     "Could not get nvmem cell\n");
 
-	speedbin = nvmem_cell_read(speedbin_nvmem, &len);
+	speedbin = nvmem_cell_read(speedbin_nvmem, NULL);
 	nvmem_cell_put(speedbin_nvmem);
 	if (IS_ERR(speedbin))
 		return PTR_ERR(speedbin);
 
-	efuse_value = (*speedbin >> NVMEM_SHIFT) & NVMEM_MASK;
-
-	/*
-	 * We treat unexpected efuse values as if the SoC was from
-	 * the slowest bin. Expected efuse values are 1-3, slowest
-	 * to fastest.
-	 */
-	if (efuse_value >= 1 && efuse_value <= 3)
-		*versions = efuse_value - 1;
-	else
-		*versions = 0;
+	ret = opp_data->efuse_xlate(*speedbin);
 
 	kfree(speedbin);
-	return 0;
+
+	return ret;
 };
 
 static int sun50i_cpufreq_nvmem_probe(struct platform_device *pdev)
 {
 	int *opp_tokens;
-	char name[MAX_NAME_LEN];
-	unsigned int cpu;
-	u32 speed = 0;
+	char name[] = "speedXXXXXXXXXXX"; /* Integers can take 11 chars max */
+	unsigned int cpu, supported_hw;
+	struct dev_pm_opp_config config = {};
+	int speed;
 	int ret;
 
 	opp_tokens = kcalloc(num_possible_cpus(), sizeof(*opp_tokens),
@@ -95,13 +217,24 @@ static int sun50i_cpufreq_nvmem_probe(struct platform_device *pdev)
 	if (!opp_tokens)
 		return -ENOMEM;
 
-	ret = sun50i_cpufreq_get_efuse(&speed);
-	if (ret) {
+	speed = sun50i_cpufreq_get_efuse();
+	if (speed < 0) {
 		kfree(opp_tokens);
-		return ret;
+		return speed;
 	}
 
-	snprintf(name, MAX_NAME_LEN, "speed%d", speed);
+	/*
+	 * We need at least one OPP with the "opp-supported-hw" property,
+	 * or else the upper layers will ignore every OPP and will bail out.
+	 */
+	if (dt_has_supported_hw()) {
+		supported_hw = 1U << speed;
+		config.supported_hw = &supported_hw;
+		config.supported_hw_count = 1;
+	}
+
+	snprintf(name, sizeof(name), "speed%d", speed);
+	config.prop_name = name;
 
 	for_each_possible_cpu(cpu) {
 		struct device *cpu_dev = get_cpu_device(cpu);
@@ -111,12 +244,11 @@ static int sun50i_cpufreq_nvmem_probe(struct platform_device *pdev)
 			goto free_opp;
 		}
 
-		opp_tokens[cpu] = dev_pm_opp_set_prop_name(cpu_dev, name);
-		if (opp_tokens[cpu] < 0) {
-			ret = opp_tokens[cpu];
-			pr_err("Failed to set prop name\n");
+		ret = dev_pm_opp_set_config(cpu_dev, &config);
+		if (ret < 0)
 			goto free_opp;
-		}
+
+		opp_tokens[cpu] = ret;
 	}
 
 	cpufreq_dt_pdev = platform_device_register_simple("cpufreq-dt", -1,
@@ -131,7 +263,7 @@ static int sun50i_cpufreq_nvmem_probe(struct platform_device *pdev)
 
 free_opp:
 	for_each_possible_cpu(cpu)
-		dev_pm_opp_put_prop_name(opp_tokens[cpu]);
+		dev_pm_opp_clear_config(opp_tokens[cpu]);
 	kfree(opp_tokens);
 
 	return ret;
@@ -145,7 +277,7 @@ static void sun50i_cpufreq_nvmem_remove(struct platform_device *pdev)
 	platform_device_unregister(cpufreq_dt_pdev);
 
 	for_each_possible_cpu(cpu)
-		dev_pm_opp_put_prop_name(opp_tokens[cpu]);
+		dev_pm_opp_clear_config(opp_tokens[cpu]);
 
 	kfree(opp_tokens);
 }
@@ -160,6 +292,9 @@ static struct platform_driver sun50i_cpufreq_driver = {
 
 static const struct of_device_id sun50i_cpufreq_match_list[] = {
 	{ .compatible = "allwinner,sun50i-h6" },
+	{ .compatible = "allwinner,sun50i-h616" },
+	{ .compatible = "allwinner,sun50i-h618" },
+	{ .compatible = "allwinner,sun50i-h700" },
 	{}
 };
 MODULE_DEVICE_TABLE(of, sun50i_cpufreq_match_list);

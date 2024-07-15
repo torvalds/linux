@@ -62,6 +62,59 @@ attribute-sets:
         name: compound-ops
         type: u32
         multi-attr: true
+  -
+    name: server
+    attributes:
+      -
+        name: threads
+        type: u32
+        multi-attr: true
+      -
+        name: gracetime
+        type: u32
+      -
+        name: leasetime
+        type: u32
+      -
+        name: scope
+        type: string
+  -
+    name: version
+    attributes:
+      -
+        name: major
+        type: u32
+      -
+        name: minor
+        type: u32
+      -
+        name: enabled
+        type: flag
+  -
+    name: server-proto
+    attributes:
+      -
+        name: version
+        type: nest
+        nested-attributes: version
+        multi-attr: true
+  -
+    name: sock
+    attributes:
+      -
+        name: addr
+        type: binary
+      -
+        name: transport-name
+        type: string
+  -
+    name: server-sock
+    attributes:
+      -
+        name: addr
+        type: nest
+        nested-attributes: sock
+        multi-attr: true
 
 operations:
   list:
@@ -70,8 +123,6 @@ operations:
       doc: dump pending nfsd rpc
       attribute-set: rpc-status
       dump:
-        pre: nfsd-nl-rpc-status-get-start
-        post: nfsd-nl-rpc-status-get-done
         reply:
           attributes:
             - xid
@@ -87,3 +138,60 @@ operations:
             - sport
             - dport
             - compound-ops
+    -
+      name: threads-set
+      doc: set the number of running threads
+      attribute-set: server
+      flags: [ admin-perm ]
+      do:
+        request:
+          attributes:
+            - threads
+            - gracetime
+            - leasetime
+            - scope
+    -
+      name: threads-get
+      doc: get the number of running threads
+      attribute-set: server
+      do:
+        reply:
+          attributes:
+            - threads
+            - gracetime
+            - leasetime
+            - scope
+    -
+      name: version-set
+      doc: set nfs enabled versions
+      attribute-set: server-proto
+      flags: [ admin-perm ]
+      do:
+        request:
+          attributes:
+            - version
+    -
+      name: version-get
+      doc: get nfs enabled versions
+      attribute-set: server-proto
+      do:
+        reply:
+          attributes:
+            - version
+    -
+      name: listener-set
+      doc: set nfs running sockets
+      attribute-set: server-sock
+      flags: [ admin-perm ]
+      do:
+        request:
+          attributes:
+            - addr
+    -
+      name: listener-get
+      doc: get nfs running listeners
+      attribute-set: server-sock
+      do:
+        reply:
+          attributes:
+            - addr

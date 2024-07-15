@@ -12,7 +12,7 @@
 static void netfs_cleanup_dio_write(struct netfs_io_request *wreq)
 {
 	struct inode *inode = wreq->inode;
-	unsigned long long end = wreq->start + wreq->len;
+	unsigned long long end = wreq->start + wreq->transferred;
 
 	if (!wreq->error &&
 	    i_size_read(inode) < end) {
@@ -27,16 +27,17 @@ static void netfs_cleanup_dio_write(struct netfs_io_request *wreq)
  * Perform an unbuffered write where we may have to do an RMW operation on an
  * encrypted file.  This can also be used for direct I/O writes.
  */
-static ssize_t netfs_unbuffered_write_iter_locked(struct kiocb *iocb, struct iov_iter *iter,
+ssize_t netfs_unbuffered_write_iter_locked(struct kiocb *iocb, struct iov_iter *iter,
 						  struct netfs_group *netfs_group)
 {
 	struct netfs_io_request *wreq;
 	unsigned long long start = iocb->ki_pos;
 	unsigned long long end = start + iov_iter_count(iter);
 	ssize_t ret, n;
+	size_t len = iov_iter_count(iter);
 	bool async = !is_sync_kiocb(iocb);
 
-	_enter("");
+	kenter("");
 
 	/* We're going to need a bounce buffer if what we transmit is going to
 	 * be different in some way to the source buffer, e.g. because it gets
@@ -44,14 +45,18 @@ static ssize_t netfs_unbuffered_write_iter_locked(struct kiocb *iocb, struct iov
 	 */
 	// TODO
 
-	_debug("uw %llx-%llx", start, end);
+	kdebug("uw %llx-%llx", start, end);
 
-	wreq = netfs_alloc_request(iocb->ki_filp->f_mapping, iocb->ki_filp,
-				   start, end - start,
-				   iocb->ki_flags & IOCB_DIRECT ?
-				   NETFS_DIO_WRITE : NETFS_UNBUFFERED_WRITE);
+	wreq = netfs_create_write_req(iocb->ki_filp->f_mapping, iocb->ki_filp, start,
+				      iocb->ki_flags & IOCB_DIRECT ?
+				      NETFS_DIO_WRITE : NETFS_UNBUFFERED_WRITE);
 	if (IS_ERR(wreq))
 		return PTR_ERR(wreq);
+
+	wreq->io_streams[0].avail = true;
+	trace_netfs_write(wreq, (iocb->ki_flags & IOCB_DIRECT ?
+				 netfs_write_trace_dio_write :
+				 netfs_write_trace_unbuffered_write));
 
 	{
 		/* If this is an async op and we're not using a bounce buffer,
@@ -63,7 +68,7 @@ static ssize_t netfs_unbuffered_write_iter_locked(struct kiocb *iocb, struct iov
 		 * request.
 		 */
 		if (async || user_backed_iter(iter)) {
-			n = netfs_extract_user_iter(iter, wreq->len, &wreq->iter, 0);
+			n = netfs_extract_user_iter(iter, len, &wreq->iter, 0);
 			if (n < 0) {
 				ret = n;
 				goto out;
@@ -71,13 +76,14 @@ static ssize_t netfs_unbuffered_write_iter_locked(struct kiocb *iocb, struct iov
 			wreq->direct_bv = (struct bio_vec *)wreq->iter.bvec;
 			wreq->direct_bv_count = n;
 			wreq->direct_bv_unpin = iov_iter_extract_will_pin(iter);
-			wreq->len = iov_iter_count(&wreq->iter);
 		} else {
 			wreq->iter = *iter;
 		}
 
 		wreq->io_iter = wreq->iter;
 	}
+
+	__set_bit(NETFS_RREQ_USE_IO_ITER, &wreq->flags);
 
 	/* Copy the data into the bounce buffer and encrypt it. */
 	// TODO
@@ -86,13 +92,11 @@ static ssize_t netfs_unbuffered_write_iter_locked(struct kiocb *iocb, struct iov
 	__set_bit(NETFS_RREQ_UPLOAD_TO_SERVER, &wreq->flags);
 	if (async)
 		wreq->iocb = iocb;
+	wreq->len = iov_iter_count(&wreq->io_iter);
 	wreq->cleanup = netfs_cleanup_dio_write;
-	ret = netfs_begin_write(wreq, is_sync_kiocb(iocb),
-				iocb->ki_flags & IOCB_DIRECT ?
-				netfs_write_trace_dio_write :
-				netfs_write_trace_unbuffered_write);
+	ret = netfs_unbuffered_write(wreq, is_sync_kiocb(iocb), wreq->len);
 	if (ret < 0) {
-		_debug("begin = %zd", ret);
+		kdebug("begin = %zd", ret);
 		goto out;
 	}
 
@@ -100,9 +104,8 @@ static ssize_t netfs_unbuffered_write_iter_locked(struct kiocb *iocb, struct iov
 		trace_netfs_rreq(wreq, netfs_rreq_trace_wait_ip);
 		wait_on_bit(&wreq->flags, NETFS_RREQ_IN_PROGRESS,
 			    TASK_UNINTERRUPTIBLE);
-
+		smp_rmb(); /* Read error/transferred after RIP flag */
 		ret = wreq->error;
-		_debug("waited = %zd", ret);
 		if (ret == 0) {
 			ret = wreq->transferred;
 			iocb->ki_pos += ret;
@@ -115,6 +118,7 @@ out:
 	netfs_put_request(wreq, false, netfs_rreq_trace_put_return);
 	return ret;
 }
+EXPORT_SYMBOL(netfs_unbuffered_write_iter_locked);
 
 /**
  * netfs_unbuffered_write_iter - Unbuffered write to a file
@@ -132,18 +136,20 @@ out:
 ssize_t netfs_unbuffered_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
-	struct inode *inode = file->f_mapping->host;
+	struct address_space *mapping = file->f_mapping;
+	struct inode *inode = mapping->host;
 	struct netfs_inode *ictx = netfs_inode(inode);
-	unsigned long long end;
 	ssize_t ret;
+	loff_t pos = iocb->ki_pos;
+	unsigned long long end = pos + iov_iter_count(from) - 1;
 
-	_enter("%llx,%zx,%llx", iocb->ki_pos, iov_iter_count(from), i_size_read(inode));
+	kenter("%llx,%zx,%llx", pos, iov_iter_count(from), i_size_read(inode));
 
 	if (!iov_iter_count(from))
 		return 0;
 
 	trace_netfs_write_iter(iocb, from);
-	netfs_stat(&netfs_n_rh_dio_write);
+	netfs_stat(&netfs_n_wh_dio_write);
 
 	ret = netfs_start_io_direct(inode);
 	if (ret < 0)
@@ -157,7 +163,25 @@ ssize_t netfs_unbuffered_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	ret = file_update_time(file);
 	if (ret < 0)
 		goto out;
-	ret = kiocb_invalidate_pages(iocb, iov_iter_count(from));
+	if (iocb->ki_flags & IOCB_NOWAIT) {
+		/* We could block if there are any pages in the range. */
+		ret = -EAGAIN;
+		if (filemap_range_has_page(mapping, pos, end))
+			if (filemap_invalidate_inode(inode, true, pos, end))
+				goto out;
+	} else {
+		ret = filemap_write_and_wait_range(mapping, pos, end);
+		if (ret < 0)
+			goto out;
+	}
+
+	/*
+	 * After a write we want buffered reads to be sure to go to disk to get
+	 * the new data.  We invalidate clean cached page from the region we're
+	 * about to write.  We do this *before* the write so that we can return
+	 * without clobbering -EIOCBQUEUED from ->direct_IO().
+	 */
+	ret = filemap_invalidate_inode(inode, true, pos, end);
 	if (ret < 0)
 		goto out;
 	end = iocb->ki_pos + iov_iter_count(from);

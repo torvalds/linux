@@ -2307,6 +2307,14 @@ static void user_feature_fixup(void)
 		if (regp)
 			regp->user_mask &= ~ID_AA64ISAR1_EL1_BF16_MASK;
 	}
+
+	if (cpus_have_cap(ARM64_WORKAROUND_SPECULATIVE_SSBS)) {
+		struct arm64_ftr_reg *regp;
+
+		regp = get_arm64_ftr_reg(SYS_ID_AA64PFR1_EL1);
+		if (regp)
+			regp->user_mask &= ~ID_AA64PFR1_EL1_SSBS_MASK;
+	}
 }
 
 static void elf_hwcap_fixup(void)

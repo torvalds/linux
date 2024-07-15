@@ -81,6 +81,7 @@ static const struct reg_sequence init_list[] = {
 static const struct reg_sequence rt5650_init_list[] = {
 	{0xf6,	0x0100},
 	{RT5645_PWR_ANLG1, 0x02},
+	{RT5645_IL_CMD3, 0x6728},
 };
 
 static const struct reg_default rt5645_reg[] = {
@@ -3129,20 +3130,32 @@ static void rt5645_enable_push_button_irq(struct snd_soc_component *component,
 	bool enable)
 {
 	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	int ret;
 
 	if (enable) {
 		snd_soc_dapm_force_enable_pin(dapm, "ADC L power");
 		snd_soc_dapm_force_enable_pin(dapm, "ADC R power");
 		snd_soc_dapm_sync(dapm);
 
+		snd_soc_component_update_bits(component, RT5650_4BTN_IL_CMD2,
+			RT5645_EN_4BTN_IL_MASK | RT5645_RST_4BTN_IL_MASK,
+			RT5645_EN_4BTN_IL_EN | RT5645_RST_4BTN_IL_RST);
+		usleep_range(10000, 15000);
+		snd_soc_component_update_bits(component, RT5650_4BTN_IL_CMD2,
+			RT5645_EN_4BTN_IL_MASK | RT5645_RST_4BTN_IL_MASK,
+			RT5645_EN_4BTN_IL_EN | RT5645_RST_4BTN_IL_NORM);
+		msleep(50);
+		ret = snd_soc_component_read(component, RT5645_INT_IRQ_ST);
+		pr_debug("%s read %x = %x\n", __func__, RT5645_INT_IRQ_ST,
+			snd_soc_component_read(component, RT5645_INT_IRQ_ST));
+		snd_soc_component_write(component, RT5645_INT_IRQ_ST, ret);
+		ret = snd_soc_component_read(component, RT5650_4BTN_IL_CMD1);
+		pr_debug("%s read %x = %x\n", __func__, RT5650_4BTN_IL_CMD1,
+			snd_soc_component_read(component, RT5650_4BTN_IL_CMD1));
+		snd_soc_component_write(component, RT5650_4BTN_IL_CMD1, ret);
 		snd_soc_component_update_bits(component, RT5650_4BTN_IL_CMD1, 0x3, 0x3);
 		snd_soc_component_update_bits(component,
 					RT5645_INT_IRQ_ST, 0x8, 0x8);
-		snd_soc_component_update_bits(component,
-					RT5650_4BTN_IL_CMD2, 0x8000, 0x8000);
-		snd_soc_component_read(component, RT5650_4BTN_IL_CMD1);
-		pr_debug("%s read %x = %x\n", __func__, RT5650_4BTN_IL_CMD1,
-			snd_soc_component_read(component, RT5650_4BTN_IL_CMD1));
 	} else {
 		snd_soc_component_update_bits(component, RT5650_4BTN_IL_CMD2, 0x8000, 0x0);
 		snd_soc_component_update_bits(component, RT5645_INT_IRQ_ST, 0x8, 0x0);
@@ -3630,8 +3643,8 @@ static const struct regmap_config temp_regmap = {
 };
 
 static const struct i2c_device_id rt5645_i2c_id[] = {
-	{ "rt5645", 0 },
-	{ "rt5650", 0 },
+	{ "rt5645" },
+	{ "rt5650" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, rt5645_i2c_id);

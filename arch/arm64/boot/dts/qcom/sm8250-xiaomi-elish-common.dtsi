@@ -636,7 +636,8 @@
 	connector {
 		compatible = "usb-c-connector";
 
-		power-role = "source";
+		op-sink-microwatt = <10000000>;
+		power-role = "dual";
 		data-role = "dual";
 		self-powered;
 
@@ -644,6 +645,12 @@
 					 PDO_FIXED_DUAL_ROLE |
 					 PDO_FIXED_USB_COMM |
 					 PDO_FIXED_DATA_SWAP)>;
+
+		sink-pdos = <PDO_FIXED(5000, 3000,
+				       PDO_FIXED_DUAL_ROLE |
+				       PDO_FIXED_USB_COMM |
+				       PDO_FIXED_DATA_SWAP)
+				       PDO_VAR(5000, 12000, 5000)>;
 
 		ports {
 			#address-cells = <1>;
@@ -661,6 +668,8 @@
 };
 
 &pm8150b_vbus {
+	regulator-min-microamp = <500000>;
+	regulator-max-microamp = <3000000>;
 	status = "okay";
 };
 

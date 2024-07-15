@@ -132,7 +132,7 @@ struct amdgpu_buffer_funcs {
 				 uint64_t dst_offset,
 				 /* number of byte to transfer */
 				 uint32_t byte_count,
-				 bool tmz);
+				 uint32_t copy_flags);
 
 	/* maximum bytes in a single operation */
 	uint32_t	fill_max_bytes;

@@ -206,7 +206,7 @@ struct dentry *kernfs_node_dentry(struct kernfs_node *kn,
 				  struct super_block *sb)
 {
 	struct dentry *dentry;
-	struct kernfs_node *knparent = NULL;
+	struct kernfs_node *knparent;
 
 	BUG_ON(sb->s_op != &kernfs_sops);
 

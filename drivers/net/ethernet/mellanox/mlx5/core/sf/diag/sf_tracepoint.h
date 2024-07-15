@@ -24,7 +24,7 @@ TRACE_EVENT(mlx5_sf_add,
 			     __field(u16, hw_fn_id)
 			     __field(u32, sfnum)
 			    ),
-	    TP_fast_assign(__assign_str(devname, dev_name(dev->device));
+	    TP_fast_assign(__assign_str(devname);
 		    __entry->port_index = port_index;
 		    __entry->controller = controller;
 		    __entry->hw_fn_id = hw_fn_id;
@@ -46,7 +46,7 @@ TRACE_EVENT(mlx5_sf_free,
 			     __field(u32, controller)
 			     __field(u16, hw_fn_id)
 			    ),
-	    TP_fast_assign(__assign_str(devname, dev_name(dev->device));
+	    TP_fast_assign(__assign_str(devname);
 		    __entry->port_index = port_index;
 		    __entry->controller = controller;
 		    __entry->hw_fn_id = hw_fn_id;
@@ -67,7 +67,7 @@ TRACE_EVENT(mlx5_sf_hwc_alloc,
 			     __field(u16, hw_fn_id)
 			     __field(u32, sfnum)
 			    ),
-	    TP_fast_assign(__assign_str(devname, dev_name(dev->device));
+	    TP_fast_assign(__assign_str(devname);
 		    __entry->controller = controller;
 		    __entry->hw_fn_id = hw_fn_id;
 		    __entry->sfnum = sfnum;
@@ -84,7 +84,7 @@ TRACE_EVENT(mlx5_sf_hwc_free,
 	    TP_STRUCT__entry(__string(devname, dev_name(dev->device))
 			     __field(u16, hw_fn_id)
 			    ),
-	    TP_fast_assign(__assign_str(devname, dev_name(dev->device));
+	    TP_fast_assign(__assign_str(devname);
 		    __entry->hw_fn_id = hw_fn_id;
 	    ),
 	    TP_printk("(%s) hw_id=0x%x\n", __get_str(devname), __entry->hw_fn_id)
@@ -97,7 +97,7 @@ TRACE_EVENT(mlx5_sf_hwc_deferred_free,
 	    TP_STRUCT__entry(__string(devname, dev_name(dev->device))
 			     __field(u16, hw_fn_id)
 			    ),
-	    TP_fast_assign(__assign_str(devname, dev_name(dev->device));
+	    TP_fast_assign(__assign_str(devname);
 		    __entry->hw_fn_id = hw_fn_id;
 	    ),
 	    TP_printk("(%s) hw_id=0x%x\n", __get_str(devname), __entry->hw_fn_id)
@@ -113,7 +113,7 @@ DECLARE_EVENT_CLASS(mlx5_sf_state_template,
 				     __field(unsigned int, port_index)
 				     __field(u32, controller)
 				     __field(u16, hw_fn_id)),
-		    TP_fast_assign(__assign_str(devname, dev_name(dev->device));
+		    TP_fast_assign(__assign_str(devname);
 				   __entry->port_index = port_index;
 				   __entry->controller = controller;
 				   __entry->hw_fn_id = hw_fn_id;
@@ -152,7 +152,7 @@ TRACE_EVENT(mlx5_sf_update_state,
 			     __field(u16, hw_fn_id)
 			     __field(u8, state)
 			    ),
-	    TP_fast_assign(__assign_str(devname, dev_name(dev->device));
+	    TP_fast_assign(__assign_str(devname);
 		    __entry->port_index = port_index;
 		    __entry->controller = controller;
 		    __entry->hw_fn_id = hw_fn_id;

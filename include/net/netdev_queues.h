@@ -9,11 +9,41 @@ struct netdev_queue_stats_rx {
 	u64 bytes;
 	u64 packets;
 	u64 alloc_fail;
+
+	u64 hw_drops;
+	u64 hw_drop_overruns;
+
+	u64 csum_unnecessary;
+	u64 csum_none;
+	u64 csum_bad;
+
+	u64 hw_gro_packets;
+	u64 hw_gro_bytes;
+	u64 hw_gro_wire_packets;
+	u64 hw_gro_wire_bytes;
+
+	u64 hw_drop_ratelimits;
 };
 
 struct netdev_queue_stats_tx {
 	u64 bytes;
 	u64 packets;
+
+	u64 hw_drops;
+	u64 hw_drop_errors;
+
+	u64 csum_none;
+	u64 needs_csum;
+
+	u64 hw_gso_packets;
+	u64 hw_gso_bytes;
+	u64 hw_gso_wire_packets;
+	u64 hw_gso_wire_bytes;
+
+	u64 hw_drop_ratelimits;
+
+	u64 stop;
+	u64 wake;
 };
 
 /**
@@ -58,6 +88,37 @@ struct netdev_stat_ops {
 	void (*get_base_stats)(struct net_device *dev,
 			       struct netdev_queue_stats_rx *rx,
 			       struct netdev_queue_stats_tx *tx);
+};
+
+/**
+ * struct netdev_queue_mgmt_ops - netdev ops for queue management
+ *
+ * @ndo_queue_mem_size: Size of the struct that describes a queue's memory.
+ *
+ * @ndo_queue_mem_alloc: Allocate memory for an RX queue at the specified index.
+ *			 The new memory is written at the specified address.
+ *
+ * @ndo_queue_mem_free:	Free memory from an RX queue.
+ *
+ * @ndo_queue_start:	Start an RX queue with the specified memory and at the
+ *			specified index.
+ *
+ * @ndo_queue_stop:	Stop the RX queue at the specified index. The stopped
+ *			queue's memory is written at the specified address.
+ */
+struct netdev_queue_mgmt_ops {
+	size_t			ndo_queue_mem_size;
+	int			(*ndo_queue_mem_alloc)(struct net_device *dev,
+						       void *per_queue_mem,
+						       int idx);
+	void			(*ndo_queue_mem_free)(struct net_device *dev,
+						      void *per_queue_mem);
+	int			(*ndo_queue_start)(struct net_device *dev,
+						   void *per_queue_mem,
+						   int idx);
+	int			(*ndo_queue_stop)(struct net_device *dev,
+						  void *per_queue_mem,
+						  int idx);
 };
 
 /**

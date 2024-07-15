@@ -25,6 +25,9 @@ properties:
       - items:
           - const: microchip,sama7g5-pwm
           - const: atmel,sama5d2-pwm
+      - items:
+          - const: microchip,sam9x7-pwm
+          - const: microchip,sam9x60-pwm
 
   reg:
     maxItems: 1

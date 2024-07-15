@@ -371,6 +371,11 @@ static int kfd_ioctl_create_queue(struct file *filep, struct kfd_process *p,
 			err = -EINVAL;
 			goto err_wptr_map_gart;
 		}
+		if (dev->adev != amdgpu_ttm_adev(wptr_bo->tbo.bdev)) {
+			pr_err("Queue memory allocated to wrong device\n");
+			err = -EINVAL;
+			goto err_wptr_map_gart;
+		}
 
 		err = amdgpu_amdkfd_map_gtt_bo_to_gart(wptr_bo);
 		if (err) {

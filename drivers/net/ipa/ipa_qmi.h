@@ -1,12 +1,14 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
 /* Copyright (c) 2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2018-2022 Linaro Ltd.
+ * Copyright (C) 2018-2024 Linaro Ltd.
  */
 #ifndef _IPA_QMI_H_
 #define _IPA_QMI_H_
 
 #include <linux/types.h>
+#include <linux/workqueue.h>
+
 #include <linux/soc/qcom/qmi.h>
 
 struct ipa;

@@ -101,6 +101,16 @@ Description:
 		devices that support receiving integrity metadata.
 
 
+What:		/sys/block/<disk>/partscan
+Date:		May 2024
+Contact:	Christoph Hellwig <hch@lst.de>
+Description:
+		The /sys/block/<disk>/partscan files reports if partition
+		scanning is enabled for the disk.  It returns "1" if partition
+		scanning is enabled, or "0" if not.  The value type is a 32-bit
+		unsigned integer, but only "0" and "1" are valid values.
+
+
 What:		/sys/block/<disk>/<partition>/alignment_offset
 Date:		April 2009
 Contact:	Martin K. Petersen <martin.petersen@oracle.com>
@@ -583,18 +593,6 @@ Description:
 		example, once to calculate a checksum and once to actually write
 		the data.  If no such restriction exists, this file will contain
 		'0'.  This file is writable for testing purposes.
-
-
-What:		/sys/block/<disk>/queue/throttle_sample_time
-Date:		March 2017
-Contact:	linux-block@vger.kernel.org
-Description:
-		[RW] This is the time window that blk-throttle samples data, in
-		millisecond.  blk-throttle makes decision based on the
-		samplings. Lower time means cgroups have more smooth throughput,
-		but higher CPU overhead. This exists only when
-		CONFIG_BLK_DEV_THROTTLING_LOW is enabled.
-
 
 What:		/sys/block/<disk>/queue/virt_boundary_mask
 Date:		April 2021

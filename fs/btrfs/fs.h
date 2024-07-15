@@ -9,7 +9,6 @@
 #include <linux/compiler.h>
 #include <linux/math.h>
 #include <linux/atomic.h>
-#include <linux/blkdev.h>
 #include <linux/percpu_counter.h>
 #include <linux/completion.h>
 #include <linux/lockdep.h>
@@ -629,6 +628,11 @@ struct btrfs_fs_info {
 	struct percpu_counter ordered_bytes;
 	s32 dirty_metadata_batch;
 	s32 delalloc_batch;
+
+	struct percpu_counter evictable_extent_maps;
+	spinlock_t extent_map_shrinker_lock;
+	u64 extent_map_shrinker_last_root;
+	u64 extent_map_shrinker_last_ino;
 
 	/* Protected by 'trans_lock'. */
 	struct list_head dirty_cowonly_roots;

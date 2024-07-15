@@ -83,7 +83,7 @@ static int io_msg_exec_remote(struct io_kiocb *req, task_work_func_t func)
 		return -EOWNERDEAD;
 
 	init_task_work(&msg->tw, func);
-	if (task_work_add(ctx->submitter_task, &msg->tw, TWA_SIGNAL))
+	if (task_work_add(task, &msg->tw, TWA_SIGNAL))
 		return -EOWNERDEAD;
 
 	return IOU_ISSUE_SKIP_COMPLETE;
@@ -147,13 +147,11 @@ static int io_msg_ring_data(struct io_kiocb *req, unsigned int issue_flags)
 	if (target_ctx->flags & IORING_SETUP_IOPOLL) {
 		if (unlikely(io_double_lock_ctx(target_ctx, issue_flags)))
 			return -EAGAIN;
-		if (io_post_aux_cqe(target_ctx, msg->user_data, msg->len, flags))
-			ret = 0;
-		io_double_unlock_ctx(target_ctx);
-	} else {
-		if (io_post_aux_cqe(target_ctx, msg->user_data, msg->len, flags))
-			ret = 0;
 	}
+	if (io_post_aux_cqe(target_ctx, msg->user_data, msg->len, flags))
+		ret = 0;
+	if (target_ctx->flags & IORING_SETUP_IOPOLL)
+		io_double_unlock_ctx(target_ctx);
 	return ret;
 }
 

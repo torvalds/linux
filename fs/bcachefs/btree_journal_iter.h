@@ -70,4 +70,6 @@ void bch2_shoot_down_journal_keys(struct bch_fs *, enum btree_id,
 				  unsigned, unsigned,
 				  struct bpos, struct bpos);
 
+void bch2_journal_keys_dump(struct bch_fs *);
+
 #endif /* _BCACHEFS_BTREE_JOURNAL_ITER_H */

@@ -419,15 +419,6 @@ struct prestera_msg_vtcam_destroy_req {
 	__le32 vtcam_id;
 };
 
-struct prestera_msg_vtcam_rule_add_req {
-	struct prestera_msg_cmd cmd;
-	__le32 key[__PRESTERA_ACL_RULE_MATCH_TYPE_MAX];
-	__le32 keymask[__PRESTERA_ACL_RULE_MATCH_TYPE_MAX];
-	__le32 vtcam_id;
-	__le32 prio;
-	__le32 n_act;
-};
-
 struct prestera_msg_vtcam_rule_del_req {
 	struct prestera_msg_cmd cmd;
 	__le32 vtcam_id;
@@ -469,6 +460,16 @@ struct prestera_msg_acl_action {
 		} count;
 		__le32 reserved[6];
 	};
+};
+
+struct prestera_msg_vtcam_rule_add_req {
+	struct prestera_msg_cmd cmd;
+	__le32 key[__PRESTERA_ACL_RULE_MATCH_TYPE_MAX];
+	__le32 keymask[__PRESTERA_ACL_RULE_MATCH_TYPE_MAX];
+	__le32 vtcam_id;
+	__le32 prio;
+	__le32 n_act;
+	struct prestera_msg_acl_action actions_msg[] __counted_by_le(n_act);
 };
 
 struct prestera_msg_counter_req {
@@ -702,12 +703,6 @@ struct prestera_msg_flood_domain_destroy_req {
 	__le32 flood_domain_idx;
 };
 
-struct prestera_msg_flood_domain_ports_set_req {
-	struct prestera_msg_cmd cmd;
-	__le32 flood_domain_idx;
-	__le32 ports_num;
-};
-
 struct prestera_msg_flood_domain_ports_reset_req {
 	struct prestera_msg_cmd cmd;
 	__le32 flood_domain_idx;
@@ -723,6 +718,13 @@ struct prestera_msg_flood_domain_port {
 	};
 	__le16 vid;
 	__le16 port_type;
+};
+
+struct prestera_msg_flood_domain_ports_set_req {
+	struct prestera_msg_cmd cmd;
+	__le32 flood_domain_idx;
+	__le32 ports_num;
+	struct prestera_msg_flood_domain_port ports[] __counted_by_le(ports_num);
 };
 
 struct prestera_msg_mdb_create_req {
@@ -1371,23 +1373,18 @@ int prestera_hw_vtcam_rule_add(struct prestera_switch *sw,
 			       struct prestera_acl_hw_action_info *act,
 			       u8 n_act, u32 *rule_id)
 {
-	struct prestera_msg_acl_action *actions_msg;
 	struct prestera_msg_vtcam_rule_add_req *req;
 	struct prestera_msg_vtcam_resp resp;
-	void *buff;
-	u32 size;
+	size_t size;
 	int err;
 	u8 i;
 
-	size = sizeof(*req) + sizeof(*actions_msg) * n_act;
-
-	buff = kzalloc(size, GFP_KERNEL);
-	if (!buff)
+	size = struct_size(req, actions_msg, n_act);
+	req = kzalloc(size, GFP_KERNEL);
+	if (!req)
 		return -ENOMEM;
 
-	req = buff;
 	req->n_act = __cpu_to_le32(n_act);
-	actions_msg = buff + sizeof(*req);
 
 	/* put acl matches into the message */
 	memcpy(req->key, key, sizeof(req->key));
@@ -1395,7 +1392,7 @@ int prestera_hw_vtcam_rule_add(struct prestera_switch *sw,
 
 	/* put acl actions into the message */
 	for (i = 0; i < n_act; i++) {
-		err = prestera_acl_rule_add_put_action(&actions_msg[i],
+		err = prestera_acl_rule_add_put_action(&req->actions_msg[i],
 						       &act[i]);
 		if (err)
 			goto free_buff;
@@ -1411,7 +1408,7 @@ int prestera_hw_vtcam_rule_add(struct prestera_switch *sw,
 
 	*rule_id = __le32_to_cpu(resp.rule_id);
 free_buff:
-	kfree(buff);
+	kfree(req);
 	return err;
 }
 
@@ -2461,14 +2458,13 @@ int prestera_hw_flood_domain_ports_set(struct prestera_flood_domain *domain)
 {
 	struct prestera_flood_domain_port *flood_domain_port;
 	struct prestera_msg_flood_domain_ports_set_req *req;
-	struct prestera_msg_flood_domain_port *ports;
 	struct prestera_switch *sw = domain->sw;
 	struct prestera_port *port;
 	u32 ports_num = 0;
-	int buf_size;
-	void *buff;
+	size_t buf_size;
 	u16 lag_id;
 	int err;
+	int i = 0;
 
 	list_for_each_entry(flood_domain_port, &domain->flood_domain_port_list,
 			    flood_domain_port_node)
@@ -2477,14 +2473,10 @@ int prestera_hw_flood_domain_ports_set(struct prestera_flood_domain *domain)
 	if (!ports_num)
 		return -EINVAL;
 
-	buf_size = sizeof(*req) + sizeof(*ports) * ports_num;
-
-	buff = kmalloc(buf_size, GFP_KERNEL);
-	if (!buff)
+	buf_size = struct_size(req, ports, ports_num);
+	req = kmalloc(buf_size, GFP_KERNEL);
+	if (!req)
 		return -ENOMEM;
-
-	req = buff;
-	ports = buff + sizeof(*req);
 
 	req->flood_domain_idx = __cpu_to_le32(domain->idx);
 	req->ports_num = __cpu_to_le32(ports_num);
@@ -2494,31 +2486,30 @@ int prestera_hw_flood_domain_ports_set(struct prestera_flood_domain *domain)
 		if (netif_is_lag_master(flood_domain_port->dev)) {
 			if (prestera_lag_id(sw, flood_domain_port->dev,
 					    &lag_id)) {
-				kfree(buff);
+				kfree(req);
 				return -EINVAL;
 			}
 
-			ports->port_type =
+			req->ports[i].port_type =
 				__cpu_to_le16(PRESTERA_HW_FLOOD_DOMAIN_PORT_TYPE_LAG);
-			ports->lag_id = __cpu_to_le16(lag_id);
+			req->ports[i].lag_id = __cpu_to_le16(lag_id);
 		} else {
 			port = prestera_port_dev_lower_find(flood_domain_port->dev);
 
-			ports->port_type =
+			req->ports[i].port_type =
 				__cpu_to_le16(PRESTERA_HW_FDB_ENTRY_TYPE_REG_PORT);
-			ports->dev_num = __cpu_to_le32(port->dev_id);
-			ports->port_num = __cpu_to_le32(port->hw_id);
+			req->ports[i].dev_num = __cpu_to_le32(port->dev_id);
+			req->ports[i].port_num = __cpu_to_le32(port->hw_id);
 		}
 
-		ports->vid = __cpu_to_le16(flood_domain_port->vid);
-
-		ports++;
+		req->ports[i].vid = __cpu_to_le16(flood_domain_port->vid);
+		i++;
 	}
 
 	err = prestera_cmd(sw, PRESTERA_CMD_TYPE_FLOOD_DOMAIN_PORTS_SET,
 			   &req->cmd, buf_size);
 
-	kfree(buff);
+	kfree(req);
 
 	return err;
 }

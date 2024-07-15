@@ -15,42 +15,42 @@
 
 	leds {
 		compatible = "gpio-leds";
-		led@0 {
+		led-0 {
 			label = "eth60:yellow";
 			gpios = <&sgpio_out1 28 0 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 		};
-		led@1 {
+		led-1 {
 			label = "eth60:green";
 			gpios = <&sgpio_out1 28 1 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 		};
-		led@2 {
+		led-2 {
 			label = "eth61:yellow";
 			gpios = <&sgpio_out1 29 0 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 		};
-		led@3 {
+		led-3 {
 			label = "eth61:green";
 			gpios = <&sgpio_out1 29 1 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 		};
-		led@4 {
+		led-4 {
 			label = "eth62:yellow";
 			gpios = <&sgpio_out1 30 0 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 		};
-		led@5 {
+		led-5 {
 			label = "eth62:green";
 			gpios = <&sgpio_out1 30 1 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 		};
-		led@6 {
+		led-6 {
 			label = "eth63:yellow";
 			gpios = <&sgpio_out1 31 0 GPIO_ACTIVE_LOW>;
 			default-state = "off";
 		};
-		led@7 {
+		led-7 {
 			label = "eth63:green";
 			gpios = <&sgpio_out1 31 1 GPIO_ACTIVE_LOW>;
 			default-state = "off";
@@ -89,15 +89,6 @@
 
 &spi0 {
 	status = "okay";
-	flash@0 {
-		compatible = "jedec,spi-nor";
-		spi-max-frequency = <8000000>;
-		reg = <0>;
-	};
-};
-
-&spi0 {
-	status = "okay";
 	spi@0 {
 		compatible = "spi-mux";
 		mux-controls = <&mux>;
@@ -129,7 +120,7 @@
 };
 
 &axi {
-	i2c0_imux: i2c0-imux@0 {
+	i2c0_imux: i2c-mux {
 		compatible = "i2c-mux-pinctrl";
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -146,22 +137,22 @@
 	pinctrl-2 = <&i2cmux_s31>;
 	pinctrl-3 = <&i2cmux_s32>;
 	pinctrl-4 = <&i2cmux_pins_i>;
-	i2c_sfp1: i2c_sfp1 {
+	i2c_sfp1: i2c@0 {
 		reg = <0x0>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c_sfp2: i2c_sfp2 {
+	i2c_sfp2: i2c@1 {
 		reg = <0x1>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c_sfp3: i2c_sfp3 {
+	i2c_sfp3: i2c@2 {
 		reg = <0x2>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c_sfp4: i2c_sfp4 {
+	i2c_sfp4: i2c@3 {
 		reg = <0x3>;
 		#address-cells = <1>;
 		#size-cells = <0>;

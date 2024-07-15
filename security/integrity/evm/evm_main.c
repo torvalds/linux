@@ -151,11 +151,11 @@ static int evm_find_protected_xattrs(struct dentry *dentry)
 	return count;
 }
 
-static int is_unsupported_fs(struct dentry *dentry)
+static int is_unsupported_hmac_fs(struct dentry *dentry)
 {
 	struct inode *inode = d_backing_inode(dentry);
 
-	if (inode->i_sb->s_iflags & SB_I_EVM_UNSUPPORTED) {
+	if (inode->i_sb->s_iflags & SB_I_EVM_HMAC_UNSUPPORTED) {
 		pr_info_once("%s not supported\n", inode->i_sb->s_type->name);
 		return 1;
 	}
@@ -192,7 +192,12 @@ static enum integrity_status evm_verify_hmac(struct dentry *dentry,
 		     iint->evm_status == INTEGRITY_PASS_IMMUTABLE))
 		return iint->evm_status;
 
-	if (is_unsupported_fs(dentry))
+	/*
+	 * On unsupported filesystems without EVM_INIT_X509 enabled, skip
+	 * signature verification.
+	 */
+	if (!(evm_initialized & EVM_INIT_X509) &&
+	    is_unsupported_hmac_fs(dentry))
 		return INTEGRITY_UNKNOWN;
 
 	/* if status is not PASS, try to check again - against -ENOMEM */
@@ -226,7 +231,7 @@ static enum integrity_status evm_verify_hmac(struct dentry *dentry,
 
 		digest.hdr.algo = HASH_ALGO_SHA1;
 		rc = evm_calc_hmac(dentry, xattr_name, xattr_value,
-				   xattr_value_len, &digest);
+				   xattr_value_len, &digest, iint);
 		if (rc)
 			break;
 		rc = crypto_memneq(xattr_data->data, digest.digest,
@@ -247,7 +252,8 @@ static enum integrity_status evm_verify_hmac(struct dentry *dentry,
 		hdr = (struct signature_v2_hdr *)xattr_data;
 		digest.hdr.algo = hdr->hash_algo;
 		rc = evm_calc_hash(dentry, xattr_name, xattr_value,
-				   xattr_value_len, xattr_data->type, &digest);
+				   xattr_value_len, xattr_data->type, &digest,
+				   iint);
 		if (rc)
 			break;
 		rc = integrity_digsig_verify(INTEGRITY_KEYRING_EVM,
@@ -260,7 +266,8 @@ static enum integrity_status evm_verify_hmac(struct dentry *dentry,
 				evm_status = INTEGRITY_PASS_IMMUTABLE;
 			} else if (!IS_RDONLY(inode) &&
 				   !(inode->i_sb->s_readonly_remount) &&
-				   !IS_IMMUTABLE(inode)) {
+				   !IS_IMMUTABLE(inode) &&
+				   !is_unsupported_hmac_fs(dentry)) {
 				evm_update_evmxattr(dentry, xattr_name,
 						    xattr_value,
 						    xattr_value_len);
@@ -418,9 +425,6 @@ enum integrity_status evm_verifyxattr(struct dentry *dentry,
 	if (!evm_key_loaded() || !evm_protected_xattr(xattr_name))
 		return INTEGRITY_UNKNOWN;
 
-	if (is_unsupported_fs(dentry))
-		return INTEGRITY_UNKNOWN;
-
 	return evm_verify_hmac(dentry, xattr_name, xattr_value,
 				 xattr_value_len);
 }
@@ -499,12 +503,12 @@ static int evm_protect_xattr(struct mnt_idmap *idmap,
 	if (strcmp(xattr_name, XATTR_NAME_EVM) == 0) {
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
-		if (is_unsupported_fs(dentry))
+		if (is_unsupported_hmac_fs(dentry))
 			return -EPERM;
 	} else if (!evm_protected_xattr(xattr_name)) {
 		if (!posix_xattr_acl(xattr_name))
 			return 0;
-		if (is_unsupported_fs(dentry))
+		if (is_unsupported_hmac_fs(dentry))
 			return 0;
 
 		evm_status = evm_verify_current_integrity(dentry);
@@ -512,7 +516,7 @@ static int evm_protect_xattr(struct mnt_idmap *idmap,
 		    (evm_status == INTEGRITY_NOXATTRS))
 			return 0;
 		goto out;
-	} else if (is_unsupported_fs(dentry))
+	} else if (is_unsupported_hmac_fs(dentry))
 		return 0;
 
 	evm_status = evm_verify_current_integrity(dentry);
@@ -734,6 +738,31 @@ static void evm_reset_status(struct inode *inode)
 }
 
 /**
+ * evm_metadata_changed: Detect changes to the metadata
+ * @inode: a file's inode
+ * @metadata_inode: metadata inode
+ *
+ * On a stacked filesystem detect whether the metadata has changed. If this is
+ * the case reset the evm_status associated with the inode that represents the
+ * file.
+ */
+bool evm_metadata_changed(struct inode *inode, struct inode *metadata_inode)
+{
+	struct evm_iint_cache *iint = evm_iint_inode(inode);
+	bool ret = false;
+
+	if (iint) {
+		ret = (!IS_I_VERSION(metadata_inode) ||
+		       integrity_inode_attrs_changed(&iint->metadata_inode,
+						     metadata_inode));
+		if (ret)
+			iint->evm_status = INTEGRITY_UNKNOWN;
+	}
+
+	return ret;
+}
+
+/**
  * evm_revalidate_status - report whether EVM status re-validation is necessary
  * @xattr_name: pointer to the affected extended attribute name
  *
@@ -789,7 +818,7 @@ static void evm_inode_post_setxattr(struct dentry *dentry,
 	if (!(evm_initialized & EVM_INIT_HMAC))
 		return;
 
-	if (is_unsupported_fs(dentry))
+	if (is_unsupported_hmac_fs(dentry))
 		return;
 
 	evm_update_evmxattr(dentry, xattr_name, xattr_value, xattr_value_len);
@@ -888,7 +917,7 @@ static int evm_inode_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 	if (evm_initialized & EVM_ALLOW_METADATA_WRITES)
 		return 0;
 
-	if (is_unsupported_fs(dentry))
+	if (is_unsupported_hmac_fs(dentry))
 		return 0;
 
 	if (!(ia_valid & (ATTR_MODE | ATTR_UID | ATTR_GID)))
@@ -939,18 +968,43 @@ static void evm_inode_post_setattr(struct mnt_idmap *idmap,
 	if (!(evm_initialized & EVM_INIT_HMAC))
 		return;
 
-	if (is_unsupported_fs(dentry))
+	if (is_unsupported_hmac_fs(dentry))
 		return;
 
 	if (ia_valid & (ATTR_MODE | ATTR_UID | ATTR_GID))
 		evm_update_evmxattr(dentry, NULL, NULL, 0);
 }
 
-static int evm_inode_copy_up_xattr(const char *name)
+static int evm_inode_copy_up_xattr(struct dentry *src, const char *name)
 {
-	if (strcmp(name, XATTR_NAME_EVM) == 0)
-		return 1; /* Discard */
-	return -EOPNOTSUPP;
+	struct evm_ima_xattr_data *xattr_data = NULL;
+	int rc;
+
+	if (strcmp(name, XATTR_NAME_EVM) != 0)
+		return -EOPNOTSUPP;
+
+	/* first need to know the sig type */
+	rc = vfs_getxattr_alloc(&nop_mnt_idmap, src, XATTR_NAME_EVM,
+				(char **)&xattr_data, 0, GFP_NOFS);
+	if (rc <= 0)
+		return -EPERM;
+
+	if (rc < offsetof(struct evm_ima_xattr_data, type) +
+		 sizeof(xattr_data->type))
+		return -EPERM;
+
+	switch (xattr_data->type) {
+	case EVM_XATTR_PORTABLE_DIGSIG:
+		rc = 0; /* allow copy-up */
+		break;
+	case EVM_XATTR_HMAC:
+	case EVM_IMA_XATTR_DIGSIG:
+	default:
+		rc = 1; /* discard */
+	}
+
+	kfree(xattr_data);
+	return rc;
 }
 
 /*

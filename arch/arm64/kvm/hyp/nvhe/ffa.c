@@ -177,6 +177,14 @@ static void ffa_retrieve_req(struct arm_smccc_res *res, u32 len)
 			  res);
 }
 
+static void ffa_rx_release(struct arm_smccc_res *res)
+{
+	arm_smccc_1_1_smc(FFA_RX_RELEASE,
+			  0, 0,
+			  0, 0, 0, 0, 0,
+			  res);
+}
+
 static void do_ffa_rxtx_map(struct arm_smccc_res *res,
 			    struct kvm_cpu_context *ctxt)
 {
@@ -543,16 +551,19 @@ static void do_ffa_mem_reclaim(struct arm_smccc_res *res,
 	if (WARN_ON(offset > len ||
 		    fraglen > KVM_FFA_MBOX_NR_PAGES * PAGE_SIZE)) {
 		ret = FFA_RET_ABORTED;
+		ffa_rx_release(res);
 		goto out_unlock;
 	}
 
 	if (len > ffa_desc_buf.len) {
 		ret = FFA_RET_NO_MEMORY;
+		ffa_rx_release(res);
 		goto out_unlock;
 	}
 
 	buf = ffa_desc_buf.buf;
 	memcpy(buf, hyp_buffers.rx, fraglen);
+	ffa_rx_release(res);
 
 	for (fragoff = fraglen; fragoff < len; fragoff += fraglen) {
 		ffa_mem_frag_rx(res, handle_lo, handle_hi, fragoff);
@@ -563,6 +574,7 @@ static void do_ffa_mem_reclaim(struct arm_smccc_res *res,
 
 		fraglen = res->a3;
 		memcpy((void *)buf + fragoff, hyp_buffers.rx, fraglen);
+		ffa_rx_release(res);
 	}
 
 	ffa_mem_reclaim(res, handle_lo, handle_hi, flags);
@@ -600,7 +612,6 @@ static bool ffa_call_supported(u64 func_id)
 	case FFA_MSG_POLL:
 	case FFA_MSG_WAIT:
 	/* 32-bit variants of 64-bit calls */
-	case FFA_MSG_SEND_DIRECT_REQ:
 	case FFA_MSG_SEND_DIRECT_RESP:
 	case FFA_RXTX_MAP:
 	case FFA_MEM_DONATE:

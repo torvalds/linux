@@ -56,3 +56,36 @@ o Checks shall be added to lib.sh for any external dependencies.
 o Code shall be checked using ShellCheck [1] prior to submission.
 
 1. https://www.shellcheck.net/
+
+Customization
+=============
+
+The forwarding selftests framework uses a number of variables that
+influence its behavior and tools it invokes, and how it invokes them, in
+various ways. A number of these variables can be overridden. The way these
+overridable variables are specified is typically one of the following two
+syntaxes:
+
+	: "${VARIABLE:=default_value}"
+	VARIABLE=${VARIABLE:=default_value}
+
+Any of these variables can be overridden. Notably net/forwarding/lib.sh and
+net/lib.sh contain a number of overridable variables.
+
+One way of overriding these variables is through the environment:
+
+	PAUSE_ON_FAIL=yes ./some_test.sh
+
+The variable NETIFS is special. Since it is an array variable, there is no
+way to pass it through the environment. Its value can instead be given as
+consecutive arguments to the selftest:
+
+	./some_test.sh swp{1..8}
+
+A way to customize variables in a persistent fashion is to create a file
+named forwarding.config in this directory. lib.sh sources the file if
+present, so it can contain any shell code. Typically it will contain
+assignments of variables whose value should be overridden.
+
+forwarding.config.sample is available in the directory as an example of
+how forwarding.config might look.

@@ -18,7 +18,7 @@ exceptions`_, `NMI and NMI-like exceptions`_.
 Non-instrumentable code - noinstr
 ---------------------------------
 
-Most instrumentation facilities depend on RCU, so intrumentation is prohibited
+Most instrumentation facilities depend on RCU, so instrumentation is prohibited
 for entry code before RCU starts watching and exit code after RCU stops
 watching. In addition, many architectures must save and restore register state,
 which means that (for example) a breakpoint in the breakpoint entry code would

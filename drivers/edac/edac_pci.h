@@ -22,7 +22,6 @@
 #ifndef _EDAC_PCI_H_
 #define _EDAC_PCI_H_
 
-#include <linux/completion.h>
 #include <linux/device.h>
 #include <linux/edac.h>
 #include <linux/kobject.h>
@@ -48,8 +47,6 @@ struct edac_pci_ctl_info {
 
 	int pci_idx;
 
-	struct bus_type *edac_subsys;	/* pointer to subsystem */
-
 	/* the internal state of this controller instance */
 	int op_state;
 	/* work struct for this instance */
@@ -71,8 +68,6 @@ struct edac_pci_ctl_info {
 	void *pvt_info;		/* pointer to 'private driver' info */
 
 	unsigned long start_time;	/* edac_pci load start time (jiffies) */
-
-	struct completion complete;
 
 	/* sysfs top name under 'edac' directory
 	 * and instance name:

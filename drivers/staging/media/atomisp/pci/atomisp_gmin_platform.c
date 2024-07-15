@@ -75,7 +75,6 @@ struct gmin_subdev {
 	struct regulator *v1p8_reg;
 	struct regulator *v2p8_reg;
 	struct regulator *v1p2_reg;
-	struct regulator *v2p8_vcm_reg;
 	enum atomisp_camera_port csi_port;
 	unsigned int csi_lanes;
 	enum atomisp_input_format csi_fmt;
@@ -85,7 +84,6 @@ struct gmin_subdev {
 	bool v1p8_on;
 	bool v2p8_on;
 	bool v1p2_on;
-	bool v2p8_vcm_on;
 
 	int v1p8_gpio;
 	int v2p8_gpio;
@@ -126,34 +124,24 @@ static DEFINE_MUTEX(gmin_regulator_mutex);
 static int gmin_v1p8_enable_count;
 static int gmin_v2p8_enable_count;
 
-/* The atomisp uses type==0 for the end-of-list marker, so leave space. */
+/* The atomisp uses subdev==NULL for the end-of-list marker, so leave space. */
 static struct intel_v4l2_subdev_table pdata_subdevs[MAX_SUBDEVS + 1];
-
-static const struct atomisp_platform_data pdata = {
-	.subdevs = pdata_subdevs,
-};
-
-static LIST_HEAD(vcm_devices);
-static DEFINE_MUTEX(vcm_lock);
 
 static struct gmin_subdev *find_gmin_subdev(struct v4l2_subdev *subdev);
 
-const struct atomisp_platform_data *atomisp_get_platform_data(void)
+const struct intel_v4l2_subdev_table *atomisp_platform_get_subdevs(void)
 {
-	return &pdata;
+	return pdata_subdevs;
 }
-EXPORT_SYMBOL_GPL(atomisp_get_platform_data);
+EXPORT_SYMBOL_GPL(atomisp_platform_get_subdevs);
 
 int atomisp_register_i2c_module(struct v4l2_subdev *subdev,
-				struct camera_sensor_platform_data *plat_data,
-				enum intel_v4l2_subdev_type type)
+				struct camera_sensor_platform_data *plat_data)
 {
 	int i;
 	struct gmin_subdev *gs;
 	struct i2c_client *client = v4l2_get_subdevdata(subdev);
 	struct acpi_device *adev = ACPI_COMPANION(&client->dev);
-
-	dev_info(&client->dev, "register atomisp i2c module type %d\n", type);
 
 	/* The windows driver model (and thus most BIOSes by default)
 	 * uses ACPI runtime power management for camera devices, but
@@ -172,10 +160,10 @@ int atomisp_register_i2c_module(struct v4l2_subdev *subdev,
 	adev->power.flags.power_resources = 0;
 
 	for (i = 0; i < MAX_SUBDEVS; i++)
-		if (!pdata.subdevs[i].type)
+		if (!pdata_subdevs[i].subdev)
 			break;
 
-	if (pdata.subdevs[i].type)
+	if (i == MAX_SUBDEVS)
 		return -ENOMEM;
 
 	/* Note subtlety of initialization order: at the point where
@@ -187,10 +175,9 @@ int atomisp_register_i2c_module(struct v4l2_subdev *subdev,
 	if (!gs)
 		return -ENODEV;
 
-	pdata.subdevs[i].type = type;
-	pdata.subdevs[i].port = gs->csi_port;
-	pdata.subdevs[i].lanes = gs->csi_lanes;
-	pdata.subdevs[i].subdev = subdev;
+	pdata_subdevs[i].port = gs->csi_port;
+	pdata_subdevs[i].lanes = gs->csi_lanes;
+	pdata_subdevs[i].subdev = subdev;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(atomisp_register_i2c_module);
@@ -203,9 +190,9 @@ int atomisp_gmin_remove_subdev(struct v4l2_subdev *sd)
 		return 0;
 
 	for (i = 0; i < MAX_SUBDEVS; i++) {
-		if (pdata.subdevs[i].subdev == sd) {
+		if (pdata_subdevs[i].subdev == sd) {
 			for (j = i + 1; j <= MAX_SUBDEVS; j++)
-				pdata.subdevs[j - 1] = pdata.subdevs[j];
+				pdata_subdevs[j - 1] = pdata_subdevs[j];
 		}
 		if (gmin_subdevs[i].subdev == sd) {
 			if (gmin_subdevs[i].gpio0)
@@ -218,7 +205,6 @@ int atomisp_gmin_remove_subdev(struct v4l2_subdev *sd)
 				regulator_put(gmin_subdevs[i].v1p8_reg);
 				regulator_put(gmin_subdevs[i].v2p8_reg);
 				regulator_put(gmin_subdevs[i].v1p2_reg);
-				regulator_put(gmin_subdevs[i].v2p8_vcm_reg);
 			}
 			gmin_subdevs[i].subdev = NULL;
 		}
@@ -388,19 +374,15 @@ static struct i2c_client *gmin_i2c_dev_exists(struct device *dev, char *name,
 					      struct i2c_client **client)
 {
 	struct acpi_device *adev;
-	struct device *d;
 
 	adev = acpi_dev_get_first_match_dev(name, NULL, -1);
 	if (!adev)
 		return NULL;
 
-	d = bus_find_device_by_acpi_dev(&i2c_bus_type, adev);
+	*client = i2c_find_device_by_fwnode(acpi_fwnode_handle(adev));
 	acpi_dev_put(adev);
-	if (!d)
+	if (!*client)
 		return NULL;
-
-	*client = i2c_verify_client(d);
-	put_device(d);
 
 	dev_dbg(dev, "found '%s' at address 0x%02x, adapter %d\n",
 		(*client)->name, (*client)->addr, (*client)->adapter->nr);
@@ -497,16 +479,19 @@ static u8 gmin_get_pmic_id_and_addr(struct device *dev)
 	if (pmic_id)
 		return pmic_i2c_addr;
 
-	if (gmin_i2c_dev_exists(dev, PMIC_ACPI_TI, &power))
+	if (gmin_i2c_dev_exists(dev, PMIC_ACPI_TI, &power)) {
 		pmic_id = PMIC_TI;
-	else if (gmin_i2c_dev_exists(dev, PMIC_ACPI_AXP, &power))
+	} else if (gmin_i2c_dev_exists(dev, PMIC_ACPI_AXP, &power)) {
 		pmic_id = PMIC_AXP;
-	else if (gmin_i2c_dev_exists(dev, PMIC_ACPI_CRYSTALCOVE, &power))
+	} else if (gmin_i2c_dev_exists(dev, PMIC_ACPI_CRYSTALCOVE, &power)) {
 		pmic_id = PMIC_CRYSTALCOVE;
-	else
+	} else {
 		pmic_id = PMIC_REGULATOR;
+		return 0;
+	}
 
-	pmic_i2c_addr = power ? power->addr : 0;
+	pmic_i2c_addr = power->addr;
+	put_device(&power->dev);
 	return pmic_i2c_addr;
 }
 
@@ -669,7 +654,6 @@ static int gmin_subdev_add(struct gmin_subdev *gs)
 		gs->v2p8_reg = regulator_get(dev, "V2P8SX");
 
 		gs->v1p2_reg = regulator_get(dev, "V1P2A");
-		gs->v2p8_vcm_reg = regulator_get(dev, "VPROG4B");
 
 		/* Note: ideally we would initialize v[12]p8_on to the
 		 * output of regulator_is_enabled(), but sadly that
@@ -1137,7 +1121,7 @@ int atomisp_register_sensor_no_gmin(struct v4l2_subdev *subdev, u32 lanes,
 	}
 
 	for (i = 0; i < MAX_SUBDEVS; i++)
-		if (!pdata.subdevs[i].type)
+		if (!pdata_subdevs[i].subdev)
 			break;
 
 	if (i >= MAX_SUBDEVS) {
@@ -1149,10 +1133,9 @@ int atomisp_register_sensor_no_gmin(struct v4l2_subdev *subdev, u32 lanes,
 	if (ret)
 		return ret;
 
-	pdata.subdevs[i].type = RAW_CAMERA;
-	pdata.subdevs[i].port = port;
-	pdata.subdevs[i].lanes = lanes;
-	pdata.subdevs[i].subdev = subdev;
+	pdata_subdevs[i].port = port;
+	pdata_subdevs[i].lanes = lanes;
+	pdata_subdevs[i].subdev = subdev;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(atomisp_register_sensor_no_gmin);
@@ -1162,42 +1145,16 @@ void atomisp_unregister_subdev(struct v4l2_subdev *subdev)
 	int i;
 
 	for (i = 0; i < MAX_SUBDEVS; i++) {
-		if (pdata.subdevs[i].subdev != subdev)
+		if (pdata_subdevs[i].subdev != subdev)
 			continue;
 
 		camera_sensor_csi_free(subdev);
-		pdata.subdevs[i].subdev = NULL;
-		pdata.subdevs[i].type = 0;
-		pdata.subdevs[i].port = 0;
+		pdata_subdevs[i].subdev = NULL;
+		pdata_subdevs[i].port = 0;
 		break;
 	}
 }
 EXPORT_SYMBOL_GPL(atomisp_unregister_subdev);
-
-static struct camera_vcm_control *gmin_get_vcm_ctrl(struct v4l2_subdev *subdev,
-	char *camera_module)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(subdev);
-	struct gmin_subdev *gs = find_gmin_subdev(subdev);
-	struct camera_vcm_control *vcm;
-
-	if (!client || !gs)
-		return NULL;
-
-	if (!camera_module)
-		return NULL;
-
-	mutex_lock(&vcm_lock);
-	list_for_each_entry(vcm, &vcm_devices, list) {
-		if (!strcmp(camera_module, vcm->camera_module)) {
-			mutex_unlock(&vcm_lock);
-			return vcm;
-		}
-	}
-
-	mutex_unlock(&vcm_lock);
-	return NULL;
-}
 
 static struct camera_sensor_platform_data pmic_gmin_plat = {
 	.gpio0_ctrl = gmin_gpio0_ctrl,
@@ -1207,7 +1164,6 @@ static struct camera_sensor_platform_data pmic_gmin_plat = {
 	.v1p2_ctrl = gmin_v1p2_ctrl,
 	.flisclk_ctrl = gmin_flisclk_ctrl,
 	.csi_cfg = gmin_csi_cfg,
-	.get_vcm_ctrl = gmin_get_vcm_ctrl,
 };
 
 static struct camera_sensor_platform_data acpi_gmin_plat = {
@@ -1218,7 +1174,6 @@ static struct camera_sensor_platform_data acpi_gmin_plat = {
 	.v1p2_ctrl = gmin_acpi_pm_ctrl,
 	.flisclk_ctrl = gmin_acpi_pm_ctrl,
 	.csi_cfg = gmin_csi_cfg,
-	.get_vcm_ctrl = gmin_get_vcm_ctrl,
 };
 
 struct camera_sensor_platform_data *
@@ -1242,19 +1197,6 @@ gmin_camera_platform_data(struct v4l2_subdev *subdev,
 		return &acpi_gmin_plat;
 }
 EXPORT_SYMBOL_GPL(gmin_camera_platform_data);
-
-int atomisp_gmin_register_vcm_control(struct camera_vcm_control *vcmCtrl)
-{
-	if (!vcmCtrl)
-		return -EINVAL;
-
-	mutex_lock(&vcm_lock);
-	list_add_tail(&vcmCtrl->list, &vcm_devices);
-	mutex_unlock(&vcm_lock);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(atomisp_gmin_register_vcm_control);
 
 static int gmin_get_hardcoded_var(struct device *dev,
 				  struct gmin_cfg_var *varlist,
@@ -1416,13 +1358,12 @@ static int gmin_get_config_var(struct device *maindev,
 	if (efi_rt_services_supported(EFI_RT_SUPPORTED_GET_VARIABLE))
 		status = efi.get_variable(var16, &GMIN_CFG_VAR_EFI_GUID, NULL,
 					  (unsigned long *)out_len, out);
-	if (status == EFI_SUCCESS) {
+	if (status == EFI_SUCCESS)
 		dev_info(maindev, "found EFI entry for '%s'\n", var8);
-	} else if (is_gmin) {
+	else if (is_gmin)
 		dev_info(maindev, "Failed to find EFI gmin variable %s\n", var8);
-	} else {
+	else
 		dev_info(maindev, "Failed to find EFI variable %s\n", var8);
-	}
 
 	return ret;
 }

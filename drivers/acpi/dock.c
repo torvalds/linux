@@ -88,43 +88,29 @@ static void dock_hotplug_event(struct dock_dependent_device *dd, u32 event,
 			       enum dock_callback_type cb_type)
 {
 	struct acpi_device *adev = dd->adev;
+	acpi_hp_fixup fixup = NULL;
+	acpi_hp_uevent uevent = NULL;
+	acpi_hp_notify notify = NULL;
 
 	acpi_lock_hp_context();
 
-	if (!adev->hp)
-		goto out;
-
-	if (cb_type == DOCK_CALL_FIXUP) {
-		void (*fixup)(struct acpi_device *);
-
-		fixup = adev->hp->fixup;
-		if (fixup) {
-			acpi_unlock_hp_context();
-			fixup(adev);
-			return;
-		}
-	} else if (cb_type == DOCK_CALL_UEVENT) {
-		void (*uevent)(struct acpi_device *, u32);
-
-		uevent = adev->hp->uevent;
-		if (uevent) {
-			acpi_unlock_hp_context();
-			uevent(adev, event);
-			return;
-		}
-	} else {
-		int (*notify)(struct acpi_device *, u32);
-
-		notify = adev->hp->notify;
-		if (notify) {
-			acpi_unlock_hp_context();
-			notify(adev, event);
-			return;
-		}
+	if (adev->hp) {
+		if (cb_type == DOCK_CALL_FIXUP)
+			fixup = adev->hp->fixup;
+		else if (cb_type == DOCK_CALL_UEVENT)
+			uevent = adev->hp->uevent;
+		else
+			notify = adev->hp->notify;
 	}
 
- out:
 	acpi_unlock_hp_context();
+
+	if (fixup)
+		fixup(adev);
+	else if (uevent)
+		uevent(adev, event);
+	else if (notify)
+		notify(adev, event);
 }
 
 static struct dock_station *find_dock_station(acpi_handle handle)

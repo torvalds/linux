@@ -39,8 +39,8 @@ DECLARE_EVENT_CLASS(dsa_port_addr_op_hw,
 	),
 
 	TP_fast_assign(
-		__assign_str(dev, dev_name(dp->ds->dev));
-		__assign_str(kind, dsa_port_kind(dp));
+		__assign_str(dev);
+		__assign_str(kind);
 		__entry->port = dp->index;
 		ether_addr_copy(__entry->addr, addr);
 		__entry->vid = vid;
@@ -98,8 +98,8 @@ DECLARE_EVENT_CLASS(dsa_port_addr_op_refcount,
 	),
 
 	TP_fast_assign(
-		__assign_str(dev, dev_name(dp->ds->dev));
-		__assign_str(kind, dsa_port_kind(dp));
+		__assign_str(dev);
+		__assign_str(kind);
 		__entry->port = dp->index;
 		ether_addr_copy(__entry->addr, addr);
 		__entry->vid = vid;
@@ -157,8 +157,8 @@ DECLARE_EVENT_CLASS(dsa_port_addr_del_not_found,
 	),
 
 	TP_fast_assign(
-		__assign_str(dev, dev_name(dp->ds->dev));
-		__assign_str(kind, dsa_port_kind(dp));
+		__assign_str(dev);
+		__assign_str(kind);
 		__entry->port = dp->index;
 		ether_addr_copy(__entry->addr, addr);
 		__entry->vid = vid;
@@ -199,7 +199,7 @@ TRACE_EVENT(dsa_lag_fdb_add_hw,
 	),
 
 	TP_fast_assign(
-		__assign_str(dev, lag_dev->name);
+		__assign_str(dev);
 		ether_addr_copy(__entry->addr, addr);
 		__entry->vid = vid;
 		dsa_db_print(db, __entry->db_buf);
@@ -227,7 +227,7 @@ TRACE_EVENT(dsa_lag_fdb_add_bump,
 	),
 
 	TP_fast_assign(
-		__assign_str(dev, lag_dev->name);
+		__assign_str(dev);
 		ether_addr_copy(__entry->addr, addr);
 		__entry->vid = vid;
 		dsa_db_print(db, __entry->db_buf);
@@ -255,7 +255,7 @@ TRACE_EVENT(dsa_lag_fdb_del_hw,
 	),
 
 	TP_fast_assign(
-		__assign_str(dev, lag_dev->name);
+		__assign_str(dev);
 		ether_addr_copy(__entry->addr, addr);
 		__entry->vid = vid;
 		dsa_db_print(db, __entry->db_buf);
@@ -283,7 +283,7 @@ TRACE_EVENT(dsa_lag_fdb_del_drop,
 	),
 
 	TP_fast_assign(
-		__assign_str(dev, lag_dev->name);
+		__assign_str(dev);
 		ether_addr_copy(__entry->addr, addr);
 		__entry->vid = vid;
 		dsa_db_print(db, __entry->db_buf);
@@ -310,7 +310,7 @@ TRACE_EVENT(dsa_lag_fdb_del_not_found,
 	),
 
 	TP_fast_assign(
-		__assign_str(dev, lag_dev->name);
+		__assign_str(dev);
 		ether_addr_copy(__entry->addr, addr);
 		__entry->vid = vid;
 		dsa_db_print(db, __entry->db_buf);
@@ -338,8 +338,8 @@ DECLARE_EVENT_CLASS(dsa_vlan_op_hw,
 	),
 
 	TP_fast_assign(
-		__assign_str(dev, dev_name(dp->ds->dev));
-		__assign_str(kind, dsa_port_kind(dp));
+		__assign_str(dev);
+		__assign_str(kind);
 		__entry->port = dp->index;
 		__entry->vid = vlan->vid;
 		__entry->flags = vlan->flags;
@@ -383,8 +383,8 @@ DECLARE_EVENT_CLASS(dsa_vlan_op_refcount,
 	),
 
 	TP_fast_assign(
-		__assign_str(dev, dev_name(dp->ds->dev));
-		__assign_str(kind, dsa_port_kind(dp));
+		__assign_str(dev);
+		__assign_str(kind);
 		__entry->port = dp->index;
 		__entry->vid = vlan->vid;
 		__entry->flags = vlan->flags;
@@ -426,8 +426,8 @@ TRACE_EVENT(dsa_vlan_del_not_found,
 	),
 
 	TP_fast_assign(
-		__assign_str(dev, dev_name(dp->ds->dev));
-		__assign_str(kind, dsa_port_kind(dp));
+		__assign_str(dev);
+		__assign_str(kind);
 		__entry->port = dp->index;
 		__entry->vid = vlan->vid;
 	),

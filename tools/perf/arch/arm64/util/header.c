@@ -4,8 +4,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <perf/cpumap.h>
-#include <util/cpumap.h>
-#include <internal/cpumap.h>
 #include <api/fs/fs.h>
 #include <errno.h>
 #include "debug.h"
@@ -19,20 +17,18 @@
 static int _get_cpuid(char *buf, size_t sz, struct perf_cpu_map *cpus)
 {
 	const char *sysfs = sysfs__mountpoint();
-	int cpu;
-	int ret = EINVAL;
+	struct perf_cpu cpu;
+	int idx, ret = EINVAL;
 
 	if (!sysfs || sz < MIDR_SIZE)
 		return EINVAL;
 
-	cpus = perf_cpu_map__get(cpus);
-
-	for (cpu = 0; cpu < perf_cpu_map__nr(cpus); cpu++) {
+	perf_cpu_map__for_each_cpu(cpu, idx, cpus) {
 		char path[PATH_MAX];
 		FILE *file;
 
 		scnprintf(path, PATH_MAX, "%s/devices/system/cpu/cpu%d" MIDR,
-			  sysfs, RC_CHK_ACCESS(cpus)->map[cpu].cpu);
+			  sysfs, cpu.cpu);
 
 		file = fopen(path, "r");
 		if (!file) {
@@ -51,7 +47,6 @@ static int _get_cpuid(char *buf, size_t sz, struct perf_cpu_map *cpus)
 		break;
 	}
 
-	perf_cpu_map__put(cpus);
 	return ret;
 }
 

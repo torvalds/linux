@@ -77,8 +77,6 @@ xrep_quota_item_fill_bmap_hole(
 			irec, &nmaps);
 	if (error)
 		return error;
-	if (nmaps != 1)
-		return -ENOSPC;
 
 	dq->q_blkno = XFS_FSB_TO_DADDR(mp, irec->br_startblock);
 
@@ -444,10 +442,6 @@ xrep_quota_data_fork(
 					XFS_BMAPI_CONVERT, 0, &nrec, &nmap);
 			if (error)
 				goto out;
-			if (nmap != 1) {
-				error = -ENOSPC;
-				goto out;
-			}
 			ASSERT(nrec.br_startoff == irec.br_startoff);
 			ASSERT(nrec.br_blockcount == irec.br_blockcount);
 

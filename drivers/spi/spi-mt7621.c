@@ -52,6 +52,8 @@
 #define MT7621_CPOL		BIT(4)
 #define MT7621_LSB_FIRST	BIT(3)
 
+#define MT7621_NATIVE_CS_COUNT	2
+
 struct mt7621_spi {
 	struct spi_controller	*host;
 	void __iomem		*base;
@@ -75,10 +77,11 @@ static inline void mt7621_spi_write(struct mt7621_spi *rs, u32 reg, u32 val)
 	iowrite32(val, rs->base + reg);
 }
 
-static void mt7621_spi_set_cs(struct spi_device *spi, int enable)
+static void mt7621_spi_set_native_cs(struct spi_device *spi, bool enable)
 {
 	struct mt7621_spi *rs = spidev_to_mt7621_spi(spi);
 	int cs = spi_get_chipselect(spi, 0);
+	bool active = spi->mode & SPI_CS_HIGH ? enable : !enable;
 	u32 polar = 0;
 	u32 host;
 
@@ -94,7 +97,7 @@ static void mt7621_spi_set_cs(struct spi_device *spi, int enable)
 
 	rs->pending_write = 0;
 
-	if (enable)
+	if (active)
 		polar = BIT(cs);
 	mt7621_spi_write(rs, MT7621_SPI_POLAR, polar);
 }
@@ -152,6 +155,23 @@ static inline int mt7621_spi_wait_till_ready(struct mt7621_spi *rs)
 	}
 
 	return -ETIMEDOUT;
+}
+
+static int mt7621_spi_prepare_message(struct spi_controller *host,
+				      struct spi_message *m)
+{
+	struct mt7621_spi *rs = spi_controller_get_devdata(host);
+	struct spi_device *spi = m->spi;
+	unsigned int speed = spi->max_speed_hz;
+	struct spi_transfer *t = NULL;
+
+	mt7621_spi_wait_till_ready(rs);
+
+	list_for_each_entry(t, &m->transfers, transfer_list)
+		if (t->speed_hz < speed)
+			speed = t->speed_hz;
+
+	return mt7621_spi_prepare(spi, speed);
 }
 
 static void mt7621_spi_read_half_duplex(struct mt7621_spi *rs,
@@ -243,58 +263,29 @@ static void mt7621_spi_write_half_duplex(struct mt7621_spi *rs,
 	}
 
 	rs->pending_write = len;
+	mt7621_spi_flush(rs);
 }
 
-static int mt7621_spi_transfer_one_message(struct spi_controller *host,
-					   struct spi_message *m)
+static int mt7621_spi_transfer_one(struct spi_controller *host,
+				   struct spi_device *spi,
+				   struct spi_transfer *t)
 {
 	struct mt7621_spi *rs = spi_controller_get_devdata(host);
-	struct spi_device *spi = m->spi;
-	unsigned int speed = spi->max_speed_hz;
-	struct spi_transfer *t = NULL;
-	int status = 0;
 
-	mt7621_spi_wait_till_ready(rs);
-
-	list_for_each_entry(t, &m->transfers, transfer_list)
-		if (t->speed_hz < speed)
-			speed = t->speed_hz;
-
-	if (mt7621_spi_prepare(spi, speed)) {
-		status = -EIO;
-		goto msg_done;
+	if ((t->rx_buf) && (t->tx_buf)) {
+		/*
+		 * This controller will shift some extra data out
+		 * of spi_opcode if (mosi_bit_cnt > 0) &&
+		 * (cmd_bit_cnt == 0). So the claimed full-duplex
+		 * support is broken since we have no way to read
+		 * the MISO value during that bit.
+		 */
+		return -EIO;
+	} else if (t->rx_buf) {
+		mt7621_spi_read_half_duplex(rs, t->len, t->rx_buf);
+	} else if (t->tx_buf) {
+		mt7621_spi_write_half_duplex(rs, t->len, t->tx_buf);
 	}
-
-	/* Assert CS */
-	mt7621_spi_set_cs(spi, 1);
-
-	m->actual_length = 0;
-	list_for_each_entry(t, &m->transfers, transfer_list) {
-		if ((t->rx_buf) && (t->tx_buf)) {
-			/*
-			 * This controller will shift some extra data out
-			 * of spi_opcode if (mosi_bit_cnt > 0) &&
-			 * (cmd_bit_cnt == 0). So the claimed full-duplex
-			 * support is broken since we have no way to read
-			 * the MISO value during that bit.
-			 */
-			status = -EIO;
-			goto msg_done;
-		} else if (t->rx_buf) {
-			mt7621_spi_read_half_duplex(rs, t->len, t->rx_buf);
-		} else if (t->tx_buf) {
-			mt7621_spi_write_half_duplex(rs, t->len, t->tx_buf);
-		}
-		m->actual_length += t->len;
-	}
-
-	/* Flush data and deassert CS */
-	mt7621_spi_flush(rs);
-	mt7621_spi_set_cs(spi, 0);
-
-msg_done:
-	m->status = status;
-	spi_finalize_current_message(host);
 
 	return 0;
 }
@@ -353,10 +344,14 @@ static int mt7621_spi_probe(struct platform_device *pdev)
 	host->mode_bits = SPI_LSB_FIRST;
 	host->flags = SPI_CONTROLLER_HALF_DUPLEX;
 	host->setup = mt7621_spi_setup;
-	host->transfer_one_message = mt7621_spi_transfer_one_message;
+	host->prepare_message = mt7621_spi_prepare_message;
+	host->set_cs = mt7621_spi_set_native_cs;
+	host->transfer_one = mt7621_spi_transfer_one;
 	host->bits_per_word_mask = SPI_BPW_MASK(8);
 	host->dev.of_node = pdev->dev.of_node;
-	host->num_chipselect = 2;
+	host->max_native_cs = MT7621_NATIVE_CS_COUNT;
+	host->num_chipselect = MT7621_NATIVE_CS_COUNT;
+	host->use_gpio_descriptors = true;
 
 	dev_set_drvdata(&pdev->dev, host);
 

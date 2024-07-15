@@ -383,7 +383,7 @@ static int max9286_i2c_mux_init(struct max9286_priv *priv)
 	for_each_source(priv, source) {
 		unsigned int index = to_index(priv, source);
 
-		ret = i2c_mux_add_adapter(priv->mux, 0, index, 0);
+		ret = i2c_mux_add_adapter(priv->mux, 0, index);
 		if (ret < 0)
 			goto error;
 	}

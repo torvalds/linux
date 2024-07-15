@@ -630,7 +630,7 @@ static const struct acpi_device_id __maybe_unused pt5161l_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, pt5161l_acpi_match);
 
 static const struct i2c_device_id pt5161l_id[] = {
-	{ "pt5161l", 0 },
+	{ "pt5161l" },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, pt5161l_id);

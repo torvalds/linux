@@ -231,6 +231,7 @@ static void __exit simatic_ipc_exit_module(void)
 module_init(simatic_ipc_init_module);
 module_exit(simatic_ipc_exit_module);
 
+MODULE_DESCRIPTION("Siemens SIMATIC IPC platform driver");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Gerd Haeussler <gerd.haeussler.ext@siemens.com>");
 MODULE_ALIAS("dmi:*:svnSIEMENSAG:*");

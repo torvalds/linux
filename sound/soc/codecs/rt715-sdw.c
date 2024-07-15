@@ -578,7 +578,6 @@ static const struct dev_pm_ops rt715_pm = {
 static struct sdw_driver rt715_sdw_driver = {
 	.driver = {
 		   .name = "rt715",
-		   .owner = THIS_MODULE,
 		   .pm = &rt715_pm,
 		   },
 	.probe = rt715_sdw_probe,

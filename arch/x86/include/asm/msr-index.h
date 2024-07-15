@@ -170,6 +170,10 @@
 						 * CPU is not affected by Branch
 						 * History Injection.
 						 */
+#define ARCH_CAP_XAPIC_DISABLE		BIT(21)	/*
+						 * IA32_XAPIC_DISABLE_STATUS MSR
+						 * supported
+						 */
 #define ARCH_CAP_PBRSB_NO		BIT(24)	/*
 						 * Not susceptible to Post-Barrier
 						 * Return Stack Buffer Predictions.
@@ -190,11 +194,6 @@
 #define ARCH_CAP_RFDS_CLEAR		BIT(28)	/*
 						 * VERW clears CPU Register
 						 * File.
-						 */
-
-#define ARCH_CAP_XAPIC_DISABLE		BIT(21)	/*
-						 * IA32_XAPIC_DISABLE_STATUS MSR
-						 * supported
 						 */
 
 #define MSR_IA32_FLUSH_CMD		0x0000010b

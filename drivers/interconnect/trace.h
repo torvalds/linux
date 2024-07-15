@@ -32,9 +32,9 @@ TRACE_EVENT(icc_set_bw,
 	),
 
 	TP_fast_assign(
-		__assign_str(path_name, p->name);
-		__assign_str(dev, dev_name(p->reqs[i].dev));
-		__assign_str(node_name, n->name);
+		__assign_str(path_name);
+		__assign_str(dev);
+		__assign_str(node_name);
 		__entry->avg_bw = avg_bw;
 		__entry->peak_bw = peak_bw;
 		__entry->node_avg_bw = n->avg_bw;
@@ -64,8 +64,8 @@ TRACE_EVENT(icc_set_bw_end,
 	),
 
 	TP_fast_assign(
-		__assign_str(path_name, p->name);
-		__assign_str(dev, dev_name(p->reqs[0].dev));
+		__assign_str(path_name);
+		__assign_str(dev);
 		__entry->ret = ret;
 	),
 

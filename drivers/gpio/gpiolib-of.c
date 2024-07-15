@@ -203,6 +203,24 @@ static void of_gpio_try_fixup_polarity(const struct device_node *np,
 		 */
 		{ "qi,lb60",		"rb-gpios",	true },
 #endif
+#if IS_ENABLED(CONFIG_PCI_LANTIQ)
+		/*
+		 * According to the PCI specification, the RST# pin is an
+		 * active-low signal. However, most of the device trees that
+		 * have been widely used for a long time incorrectly describe
+		 * reset GPIO as active-high, and were also using wrong name
+		 * for the property.
+		 */
+		{ "lantiq,pci-xway",	"gpio-reset",	false },
+#endif
+#if IS_ENABLED(CONFIG_TOUCHSCREEN_TSC2005)
+		/*
+		 * DTS for Nokia N900 incorrectly specified "active high"
+		 * polarity for the reset line, while the chip actually
+		 * treats it as "active low".
+		 */
+		{ "ti,tsc2005",		"reset-gpios",	false },
+#endif
 	};
 	unsigned int i;
 
@@ -504,9 +522,9 @@ static struct gpio_desc *of_find_gpio_rename(struct device_node *np,
 		{ "reset",	"reset-n-io",	"marvell,nfc-uart" },
 		{ "reset",	"reset-n-io",	"mrvl,nfc-uart" },
 #endif
-#if !IS_ENABLED(CONFIG_PCI_LANTIQ)
+#if IS_ENABLED(CONFIG_PCI_LANTIQ)
 		/* MIPS Lantiq PCI */
-		{ "reset",	"gpios-reset",	"lantiq,pci-xway" },
+		{ "reset",	"gpio-reset",	"lantiq,pci-xway" },
 #endif
 
 		/*
@@ -1037,7 +1055,7 @@ static int of_gpiochip_add_pin_range(struct gpio_chip *chip)
 	struct of_phandle_args pinspec;
 	struct pinctrl_dev *pctldev;
 	struct device_node *np;
-	int index = 0, ret;
+	int index = 0, ret, trim;
 	const char *name;
 	static const char group_names_propname[] = "gpio-ranges-group-names";
 	struct property *group_names;
@@ -1059,7 +1077,14 @@ static int of_gpiochip_add_pin_range(struct gpio_chip *chip)
 		if (!pctldev)
 			return -EPROBE_DEFER;
 
+		/* Ignore ranges outside of this GPIO chip */
+		if (pinspec.args[0] >= (chip->offset + chip->ngpio))
+			continue;
+		if (pinspec.args[0] + pinspec.args[2] <= chip->offset)
+			continue;
+
 		if (pinspec.args[2]) {
+			/* npins != 0: linear range */
 			if (group_names) {
 				of_property_read_string_index(np,
 						group_names_propname,
@@ -1070,7 +1095,19 @@ static int of_gpiochip_add_pin_range(struct gpio_chip *chip)
 					break;
 				}
 			}
-			/* npins != 0: linear range */
+
+			/* Trim the range to fit this GPIO chip */
+			if (chip->offset > pinspec.args[0]) {
+				trim = chip->offset - pinspec.args[0];
+				pinspec.args[2] -= trim;
+				pinspec.args[1] += trim;
+				pinspec.args[0] = 0;
+			} else {
+				pinspec.args[0] -= chip->offset;
+			}
+			if ((pinspec.args[0] + pinspec.args[2]) > chip->ngpio)
+				pinspec.args[2] = chip->ngpio - pinspec.args[0];
+
 			ret = gpiochip_add_pin_range(chip,
 					pinctrl_dev_get_devname(pctldev),
 					pinspec.args[0],

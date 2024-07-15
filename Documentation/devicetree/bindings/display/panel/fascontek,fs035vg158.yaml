@@ -17,6 +17,9 @@ properties:
   compatible:
     const: fascontek,fs035vg158
 
+  reg:
+    maxItems: 1
+
   spi-3wire: true
 
 required:

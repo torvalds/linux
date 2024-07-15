@@ -12,6 +12,7 @@
  */
 struct imx_audio_rpmsg {
 	struct platform_device *rpmsg_pdev;
+	struct platform_device *card_pdev;
 };
 
 static int imx_audio_rpmsg_cb(struct rpmsg_device *rpdev, void *data, int len,
@@ -87,12 +88,22 @@ static int imx_audio_rpmsg_probe(struct rpmsg_device *rpdev)
 
 	/* Register platform driver for rpmsg routine */
 	data->rpmsg_pdev = platform_device_register_data(&rpdev->dev,
-							 IMX_PCM_DRV_NAME,
-							 PLATFORM_DEVID_AUTO,
+							 rpdev->id.name,
+							 PLATFORM_DEVID_NONE,
 							 NULL, 0);
 	if (IS_ERR(data->rpmsg_pdev)) {
 		dev_err(&rpdev->dev, "failed to register rpmsg platform.\n");
 		ret = PTR_ERR(data->rpmsg_pdev);
+	}
+
+	data->card_pdev = platform_device_register_data(&rpdev->dev,
+							"imx-audio-rpmsg",
+							PLATFORM_DEVID_AUTO,
+							rpdev->id.name,
+							strlen(rpdev->id.name) + 1);
+	if (IS_ERR(data->card_pdev)) {
+		dev_err(&rpdev->dev, "failed to register rpmsg card.\n");
+		ret = PTR_ERR(data->card_pdev);
 	}
 
 	return ret;
@@ -105,6 +116,9 @@ static void imx_audio_rpmsg_remove(struct rpmsg_device *rpdev)
 	if (data->rpmsg_pdev)
 		platform_device_unregister(data->rpmsg_pdev);
 
+	if (data->card_pdev)
+		platform_device_unregister(data->card_pdev);
+
 	dev_info(&rpdev->dev, "audio rpmsg driver is removed\n");
 }
 
@@ -113,6 +127,7 @@ static struct rpmsg_device_id imx_audio_rpmsg_id_table[] = {
 	{ .name = "rpmsg-micfil-channel" },
 	{ },
 };
+MODULE_DEVICE_TABLE(rpmsg, imx_audio_rpmsg_id_table);
 
 static struct rpmsg_driver imx_audio_rpmsg_driver = {
 	.drv.name	= "imx_audio_rpmsg",
@@ -126,5 +141,5 @@ module_rpmsg_driver(imx_audio_rpmsg_driver);
 
 MODULE_DESCRIPTION("Freescale SoC Audio RPMSG interface");
 MODULE_AUTHOR("Shengjiu Wang <shengjiu.wang@nxp.com>");
-MODULE_ALIAS("platform:imx_audio_rpmsg");
+MODULE_ALIAS("rpmsg:imx_audio_rpmsg");
 MODULE_LICENSE("GPL v2");

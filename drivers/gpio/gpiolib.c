@@ -164,9 +164,6 @@ struct gpio_desc *gpio_to_desc(unsigned gpio)
 		}
 	}
 
-	if (!gpio_is_valid(gpio))
-		pr_warn("invalid GPIO %d\n", gpio);
-
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(gpio_to_desc);
@@ -311,10 +308,10 @@ struct gpio_chip *gpio_device_get_chip(struct gpio_device *gdev)
 EXPORT_SYMBOL_GPL(gpio_device_get_chip);
 
 /* dynamic allocation of GPIOs, e.g. on a hotplugged device */
-static int gpiochip_find_base_unlocked(int ngpio)
+static int gpiochip_find_base_unlocked(u16 ngpio)
 {
+	unsigned int base = GPIO_DYNAMIC_BASE;
 	struct gpio_device *gdev;
-	int base = GPIO_DYNAMIC_BASE;
 
 	list_for_each_entry_srcu(gdev, &gpio_devices, list,
 				 lockdep_is_held(&gpio_devices_lock)) {
@@ -325,9 +322,11 @@ static int gpiochip_find_base_unlocked(int ngpio)
 		base = gdev->base + gdev->ngpio;
 		if (base < GPIO_DYNAMIC_BASE)
 			base = GPIO_DYNAMIC_BASE;
+		if (base > GPIO_DYNAMIC_MAX - ngpio)
+			break;
 	}
 
-	if (gpio_is_valid(base)) {
+	if (base <= GPIO_DYNAMIC_MAX - ngpio) {
 		pr_debug("%s: found new base at %d\n", __func__, base);
 		return base;
 	} else {
@@ -379,7 +378,10 @@ int gpiod_get_direction(struct gpio_desc *desc)
 	if (ret < 0)
 		return ret;
 
-	/* GPIOF_DIR_IN or other positive, otherwise GPIOF_DIR_OUT */
+	/*
+	 * GPIO_LINE_DIRECTION_IN or other positive,
+	 * otherwise GPIO_LINE_DIRECTION_OUT.
+	 */
 	if (ret > 0)
 		ret = 1;
 
@@ -760,7 +762,7 @@ static int gpiochip_setup_dev(struct gpio_device *gdev)
 	if (ret)
 		goto err_remove_device;
 
-	dev_dbg(&gdev->dev, "registered GPIOs %d to %d on %s\n", gdev->base,
+	dev_dbg(&gdev->dev, "registered GPIOs %u to %u on %s\n", gdev->base,
 		gdev->base + gdev->ngpio - 1, gdev->label);
 
 	return 0;
@@ -4254,7 +4256,7 @@ struct gpio_desc *gpiod_find_and_request(struct device *consumer,
 	ret = gpiod_configure_flags(desc, con_id, lookupflags, flags);
 	if (ret < 0) {
 		gpiod_put(desc);
-		dev_dbg(consumer, "setup of GPIO %s failed\n", name);
+		dev_err(consumer, "setup of GPIO %s failed: %d\n", name, ret);
 		return ERR_PTR(ret);
 	}
 
@@ -4802,14 +4804,14 @@ static void gpiolib_dbg_show(struct seq_file *s, struct gpio_device *gdev)
 			value = gpio_chip_get_value(gc, desc);
 			is_irq = test_bit(FLAG_USED_AS_IRQ, &desc->flags);
 			active_low = test_bit(FLAG_ACTIVE_LOW, &desc->flags);
-			seq_printf(s, " gpio-%-3d (%-20.20s|%-20.20s) %s %s %s%s\n",
+			seq_printf(s, " gpio-%-3u (%-20.20s|%-20.20s) %s %s %s%s\n",
 				   gpio, desc->name ?: "", gpiod_get_label(desc),
 				   is_out ? "out" : "in ",
 				   value >= 0 ? (value ? "hi" : "lo") : "?  ",
 				   is_irq ? "IRQ " : "",
 				   active_low ? "ACTIVE LOW" : "");
 		} else if (desc->name) {
-			seq_printf(s, " gpio-%-3d (%-20.20s)\n", gpio, desc->name);
+			seq_printf(s, " gpio-%-3u (%-20.20s)\n", gpio, desc->name);
 		}
 
 		gpio++;
@@ -4881,7 +4883,7 @@ static int gpiolib_seq_show(struct seq_file *s, void *v)
 		return 0;
 	}
 
-	seq_printf(s, "%s%s: GPIOs %d-%d", priv->newline ? "\n" : "",
+	seq_printf(s, "%s%s: GPIOs %u-%u", priv->newline ? "\n" : "",
 		   dev_name(&gdev->dev),
 		   gdev->base, gdev->base + gdev->ngpio - 1);
 	parent = gc->parent;

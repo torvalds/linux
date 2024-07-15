@@ -112,34 +112,21 @@ static void page_cache_release(struct folio *folio)
 		unlock_page_lruvec_irqrestore(lruvec, flags);
 }
 
-static void __folio_put_small(struct folio *folio)
-{
-	page_cache_release(folio);
-	mem_cgroup_uncharge(folio);
-	free_unref_page(&folio->page, 0);
-}
-
-static void __folio_put_large(struct folio *folio)
-{
-	/*
-	 * __page_cache_release() is supposed to be called for thp, not for
-	 * hugetlb. This is because hugetlb page does never have PageLRU set
-	 * (it's never listed to any LRU lists) and no memcg routines should
-	 * be called for hugetlb (it has a separate hugetlb_cgroup.)
-	 */
-	if (!folio_test_hugetlb(folio))
-		page_cache_release(folio);
-	destroy_large_folio(folio);
-}
-
 void __folio_put(struct folio *folio)
 {
-	if (unlikely(folio_is_zone_device(folio)))
-		free_zone_device_page(&folio->page);
-	else if (unlikely(folio_test_large(folio)))
-		__folio_put_large(folio);
-	else
-		__folio_put_small(folio);
+	if (unlikely(folio_is_zone_device(folio))) {
+		free_zone_device_folio(folio);
+		return;
+	} else if (folio_test_hugetlb(folio)) {
+		free_huge_folio(folio);
+		return;
+	}
+
+	page_cache_release(folio);
+	if (folio_test_large(folio) && folio_test_large_rmappable(folio))
+		folio_undo_large_rmappable(folio);
+	mem_cgroup_uncharge(folio);
+	free_unref_page(&folio->page, folio_order(folio));
 }
 EXPORT_SYMBOL(__folio_put);
 
@@ -158,8 +145,8 @@ void put_pages_list(struct list_head *pages)
 	list_for_each_entry_safe(folio, next, pages, lru) {
 		if (!folio_put_testzero(folio))
 			continue;
-		if (folio_test_large(folio)) {
-			__folio_put_large(folio);
+		if (folio_test_hugetlb(folio)) {
+			free_huge_folio(folio);
 			continue;
 		}
 		/* LRU flag must be clear because it's passed using the lru */
@@ -460,15 +447,18 @@ static void folio_inc_refs(struct folio *folio)
 }
 #endif /* CONFIG_LRU_GEN */
 
-/*
- * Mark a page as having seen activity.
+/**
+ * folio_mark_accessed - Mark a folio as having seen activity.
+ * @folio: The folio to mark.
  *
- * inactive,unreferenced	->	inactive,referenced
- * inactive,referenced		->	active,unreferenced
- * active,unreferenced		->	active,referenced
+ * This function will perform one of the following transitions:
  *
- * When a newly allocated page is not yet visible, so safe for non-atomic ops,
- * __SetPageReferenced(page) may be substituted for mark_page_accessed(page).
+ * * inactive,unreferenced	->	inactive,referenced
+ * * inactive,referenced	->	active,unreferenced
+ * * active,unreferenced	->	active,referenced
+ *
+ * When a newly allocated folio is not yet visible, so safe for non-atomic ops,
+ * __folio_set_referenced() may be substituted for folio_mark_accessed().
  */
 void folio_mark_accessed(struct folio *folio)
 {
@@ -985,7 +975,7 @@ void folios_put_refs(struct folio_batch *folios, unsigned int *refs)
 		struct folio *folio = folios->folios[i];
 		unsigned int nr_refs = refs ? refs[i] : 1;
 
-		if (is_huge_zero_page(&folio->page))
+		if (is_huge_zero_folio(folio))
 			continue;
 
 		if (folio_is_zone_device(folio)) {
@@ -993,10 +983,10 @@ void folios_put_refs(struct folio_batch *folios, unsigned int *refs)
 				unlock_page_lruvec_irqrestore(lruvec, flags);
 				lruvec = NULL;
 			}
-			if (put_devmap_managed_page_refs(&folio->page, nr_refs))
+			if (put_devmap_managed_folio_refs(folio, nr_refs))
 				continue;
 			if (folio_ref_sub_and_test(folio, nr_refs))
-				free_zone_device_page(&folio->page);
+				free_zone_device_folio(folio);
 			continue;
 		}
 

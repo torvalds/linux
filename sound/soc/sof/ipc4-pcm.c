@@ -3,7 +3,7 @@
 // This file is provided under a dual BSD/GPLv2 license.  When using or
 // redistributing this file, you may do so under either license.
 //
-// Copyright(c) 2022 Intel Corporation. All rights reserved.
+// Copyright(c) 2022 Intel Corporation
 //
 
 #include <sound/pcm_params.h>
@@ -650,7 +650,7 @@ static int sof_ipc4_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd,
 	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(rtd, 0);
 	struct sof_ipc4_audio_format *ipc4_fmt;
 	struct sof_ipc4_copier *ipc4_copier;
-	bool single_fmt = false;
+	bool single_bitdepth = false;
 	u32 valid_bits = 0;
 	int dir, ret;
 
@@ -682,18 +682,18 @@ static int sof_ipc4_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd,
 				return 0;
 
 			if (dir == SNDRV_PCM_STREAM_PLAYBACK) {
-				if (sof_ipc4_copier_is_single_format(sdev,
+				if (sof_ipc4_copier_is_single_bitdepth(sdev,
 					available_fmt->output_pin_fmts,
 					available_fmt->num_output_formats)) {
 					ipc4_fmt = &available_fmt->output_pin_fmts->audio_fmt;
-					single_fmt = true;
+					single_bitdepth = true;
 				}
 			} else {
-				if (sof_ipc4_copier_is_single_format(sdev,
+				if (sof_ipc4_copier_is_single_bitdepth(sdev,
 					available_fmt->input_pin_fmts,
 					available_fmt->num_input_formats)) {
 					ipc4_fmt = &available_fmt->input_pin_fmts->audio_fmt;
-					single_fmt = true;
+					single_bitdepth = true;
 				}
 			}
 		}
@@ -703,7 +703,7 @@ static int sof_ipc4_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd,
 	if (ret)
 		return ret;
 
-	if (single_fmt) {
+	if (single_bitdepth) {
 		snd_mask_none(fmt);
 		valid_bits = SOF_IPC4_AUDIO_FORMAT_CFG_V_BIT_DEPTH(ipc4_fmt->fmt_cfg);
 		dev_dbg(component->dev, "Set %s to %d bit format\n", dai->name, valid_bits);

@@ -3,7 +3,7 @@
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
- * Copyright(c) 2021 Intel Corporation. All rights reserved.
+ * Copyright(c) 2021 Intel Corporation
  */
 
 #ifndef __SOUND_SOC_SOF_IPC3_PRIV_H
@@ -36,7 +36,7 @@ static inline int sof_dtrace_host_init(struct snd_sof_dev *sdev,
 				       struct snd_dma_buffer *dmatb,
 				       struct sof_ipc_dma_trace_params_ext *dtrace_params)
 {
-	struct snd_sof_dsp_ops *dsp_ops = sdev->pdata->desc->ops;
+	const struct snd_sof_dsp_ops *dsp_ops = sdev->pdata->desc->ops;
 
 	if (dsp_ops->trace_init)
 		return dsp_ops->trace_init(sdev, dmatb, dtrace_params);
@@ -46,7 +46,7 @@ static inline int sof_dtrace_host_init(struct snd_sof_dev *sdev,
 
 static inline int sof_dtrace_host_release(struct snd_sof_dev *sdev)
 {
-	struct snd_sof_dsp_ops *dsp_ops = sdev->pdata->desc->ops;
+	const struct snd_sof_dsp_ops *dsp_ops = sdev->pdata->desc->ops;
 
 	if (dsp_ops->trace_release)
 		return dsp_ops->trace_release(sdev);
@@ -56,7 +56,7 @@ static inline int sof_dtrace_host_release(struct snd_sof_dev *sdev)
 
 static inline int sof_dtrace_host_trigger(struct snd_sof_dev *sdev, int cmd)
 {
-	struct snd_sof_dsp_ops *dsp_ops = sdev->pdata->desc->ops;
+	const struct snd_sof_dsp_ops *dsp_ops = sdev->pdata->desc->ops;
 
 	if (dsp_ops->trace_trigger)
 		return dsp_ops->trace_trigger(sdev, cmd);

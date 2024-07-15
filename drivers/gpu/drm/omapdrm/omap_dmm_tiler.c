@@ -1212,7 +1212,6 @@ struct platform_driver omap_dmm_driver = {
 	.probe = omap_dmm_probe,
 	.remove_new = omap_dmm_remove,
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = DMM_DRIVER_NAME,
 		.of_match_table = of_match_ptr(dmm_of_match),
 		.pm = &omap_dmm_pm_ops,

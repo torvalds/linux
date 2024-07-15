@@ -25,16 +25,8 @@
 #define T2_MEM_R1_MASK 0x07ffffff  /* Mem sparse region 1 mask is 27 bits */
 
 /* GAMMA-SABLE is a SABLE with EV5-based CPUs */
-/* All LYNX machines, EV4 or EV5, use the GAMMA bias also */
 #define _GAMMA_BIAS		0x8000000000UL
-
-#if defined(CONFIG_ALPHA_GENERIC)
-#define GAMMA_BIAS		alpha_mv.sys.t2.gamma_bias
-#elif defined(CONFIG_ALPHA_GAMMA)
 #define GAMMA_BIAS		_GAMMA_BIAS
-#else
-#define GAMMA_BIAS		0
-#endif
 
 /*
  * Memory spaces:

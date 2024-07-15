@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include "bcachefs.h"
+#include "bkey_buf.h"
 #include "btree_locking.h"
 #include "btree_update.h"
 #include "btree_update_interior.h"
 #include "btree_write_buffer.h"
 #include "error.h"
+#include "extents.h"
 #include "journal.h"
 #include "journal_io.h"
 #include "journal_reclaim.h"
@@ -122,7 +124,7 @@ static noinline int wb_flush_one_slowpath(struct btree_trans *trans,
 	trans->journal_res.seq = wb->journal_seq;
 
 	return bch2_trans_update(trans, iter, &wb->k,
-				 BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE) ?:
+				 BTREE_UPDATE_internal_snapshot_node) ?:
 		bch2_trans_commit(trans, NULL, NULL,
 				  BCH_TRANS_COMMIT_no_enospc|
 				  BCH_TRANS_COMMIT_no_check_rw|
@@ -191,13 +193,13 @@ btree_write_buffered_insert(struct btree_trans *trans,
 	int ret;
 
 	bch2_trans_iter_init(trans, &iter, wb->btree, bkey_start_pos(&wb->k.k),
-			     BTREE_ITER_CACHED|BTREE_ITER_INTENT);
+			     BTREE_ITER_cached|BTREE_ITER_intent);
 
 	trans->journal_res.seq = wb->journal_seq;
 
 	ret   = bch2_btree_iter_traverse(&iter) ?:
 		bch2_trans_update(trans, &iter, &wb->k,
-				  BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
+				  BTREE_UPDATE_internal_snapshot_node);
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }
@@ -332,7 +334,7 @@ static int bch2_btree_write_buffer_flush_locked(struct btree_trans *trans)
 		if (!iter.path || iter.btree_id != k->btree) {
 			bch2_trans_iter_exit(trans, &iter);
 			bch2_trans_iter_init(trans, &iter, k->btree, k->k.k.p,
-					     BTREE_ITER_INTENT|BTREE_ITER_ALL_SNAPSHOTS);
+					     BTREE_ITER_intent|BTREE_ITER_all_snapshots);
 		}
 
 		bch2_btree_iter_set_pos(&iter, k->k.k.p);
@@ -489,6 +491,41 @@ int bch2_btree_write_buffer_tryflush(struct btree_trans *trans)
 
 	int ret = bch2_btree_write_buffer_flush_nocheck_rw(trans);
 	bch2_write_ref_put(c, BCH_WRITE_REF_btree_write_buffer);
+	return ret;
+}
+
+/**
+ * In check and repair code, when checking references to write buffer btrees we
+ * need to issue a flush before we have a definitive error: this issues a flush
+ * if this is a key we haven't yet checked.
+ */
+int bch2_btree_write_buffer_maybe_flush(struct btree_trans *trans,
+					struct bkey_s_c referring_k,
+					struct bkey_buf *last_flushed)
+{
+	struct bch_fs *c = trans->c;
+	struct bkey_buf tmp;
+	int ret = 0;
+
+	bch2_bkey_buf_init(&tmp);
+
+	if (!bkey_and_val_eq(referring_k, bkey_i_to_s_c(last_flushed->k))) {
+		bch2_bkey_buf_reassemble(&tmp, c, referring_k);
+
+		if (bkey_is_btree_ptr(referring_k.k)) {
+			bch2_trans_unlock(trans);
+			bch2_btree_interior_updates_flush(c);
+		}
+
+		ret = bch2_btree_write_buffer_flush_sync(trans);
+		if (ret)
+			goto err;
+
+		bch2_bkey_buf_copy(last_flushed, c, tmp.k);
+		ret = -BCH_ERR_transaction_restart_write_buffer_flush;
+	}
+err:
+	bch2_bkey_buf_exit(&tmp, c);
 	return ret;
 }
 

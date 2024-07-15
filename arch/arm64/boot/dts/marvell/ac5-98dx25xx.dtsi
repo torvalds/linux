@@ -68,7 +68,7 @@
 	};
 
 	pmu {
-		compatible = "arm,armv8-pmuv3";
+		compatible = "arm,cortex-a55-pmu";
 		interrupts = <GIC_PPI 12 IRQ_TYPE_LEVEL_HIGH>;
 	};
 

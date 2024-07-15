@@ -56,6 +56,9 @@ static void rx_callback(struct mbox_client *cl, void *m)
 	 */
 	if (cl->knows_txdone && !shmem_channel_free(smbox->shmem)) {
 		dev_warn(smbox->cinfo->dev, "Ignoring spurious A2P IRQ !\n");
+		scmi_bad_message_trace(smbox->cinfo,
+				       shmem_read_header(smbox->shmem),
+				       MSG_MBOX_SPURIOUS);
 		return;
 	}
 

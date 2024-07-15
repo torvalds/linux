@@ -8,6 +8,10 @@
 #include <dt-bindings/phy/phy-imx8-pcie.h>
 
 / {
+	aliases {
+		ethernet1 = &eth1;
+	};
+
 	connector {
 		compatible = "gpio-usb-b-connector", "usb-b-connector";
 		pinctrl-names = "default";
@@ -164,6 +168,38 @@
 	pinctrl-0 = <&pinctrl_pcie0>;
 	reset-gpio = <&gpio4 29 GPIO_ACTIVE_LOW>;
 	status = "okay";
+
+	pcie@0,0 {
+		reg = <0x0000 0 0 0 0>;
+		device_type = "pci";
+		#address-cells = <3>;
+		#size-cells = <2>;
+		ranges;
+
+		pcie@0,0 {
+			reg = <0x0000 0 0 0 0>;
+			device_type = "pci";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			ranges;
+
+			pcie@4,0 {
+				reg = <0x2000 0 0 0 0>;
+				device_type = "pci";
+				#address-cells = <3>;
+				#size-cells = <2>;
+				ranges;
+
+				eth1: ethernet@0,0 {
+					reg = <0x0000 0 0 0 0>;
+					#address-cells = <3>;
+					#size-cells = <2>;
+					ranges;
+					local-mac-address = [00 00 00 00 00 00];
+				};
+			};
+		};
+	};
 };
 
 /* GPS */
@@ -183,7 +219,7 @@
 
 	bluetooth {
 		compatible = "brcm,bcm4330-bt";
-		shutdown-gpios = <&gpio4 16 GPIO_ACTIVE_HIGH>;
+		shutdown-gpios = <&gpio1 3 GPIO_ACTIVE_HIGH>;
 	};
 };
 

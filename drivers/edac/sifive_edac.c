@@ -52,8 +52,7 @@ static int ecc_register(struct platform_device *pdev)
 	platform_set_drvdata(pdev, p);
 
 	p->dci = edac_device_alloc_ctl_info(0, "sifive_ecc", 1, "sifive_ecc",
-					    1, 1, NULL, 0,
-					    edac_device_alloc_index());
+					    1, 1, edac_device_alloc_index());
 	if (!p->dci)
 		return -ENOMEM;
 

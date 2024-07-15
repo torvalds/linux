@@ -121,6 +121,9 @@ OPTIONS
 	- type: Data type of sample memory access.
 	- typeoff: Offset in the data type of sample memory access.
 	- symoff: Offset in the symbol.
+	- weight1: Average value of event specific weight (1st field of weight_struct).
+	- weight2: Average value of event specific weight (2nd field of weight_struct).
+	- weight3: Average value of event specific weight (3rd field of weight_struct).
 
 	By default, comm, dso and symbol keys are used.
 	(i.e. --sort comm,dso,symbol)
@@ -198,7 +201,11 @@ OPTIONS
 --fields=::
 	Specify output field - multiple keys can be specified in CSV format.
 	Following fields are available:
-	overhead, overhead_sys, overhead_us, overhead_children, sample and period.
+	overhead, overhead_sys, overhead_us, overhead_children, sample, period,
+	weight1, weight2, weight3, ins_lat, p_stage_cyc and retire_lat.  The
+	last 3 names are alias for the corresponding weights.  When the weight
+	fields are used, they will show the average value of the weight.
+
 	Also it can contain any sort key(s).
 
 	By default, every sort keys not specified in -F will be appended

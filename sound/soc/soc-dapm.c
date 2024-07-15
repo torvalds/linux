@@ -2094,6 +2094,48 @@ static int dapm_power_widgets(struct snd_soc_card *card, int event)
 }
 
 #ifdef CONFIG_DEBUG_FS
+
+static const char * const snd_soc_dapm_type_name[] = {
+	[snd_soc_dapm_input]            = "input",
+	[snd_soc_dapm_output]           = "output",
+	[snd_soc_dapm_mux]              = "mux",
+	[snd_soc_dapm_demux]            = "demux",
+	[snd_soc_dapm_mixer]            = "mixer",
+	[snd_soc_dapm_mixer_named_ctl]  = "mixer_named_ctl",
+	[snd_soc_dapm_pga]              = "pga",
+	[snd_soc_dapm_out_drv]          = "out_drv",
+	[snd_soc_dapm_adc]              = "adc",
+	[snd_soc_dapm_dac]              = "dac",
+	[snd_soc_dapm_micbias]          = "micbias",
+	[snd_soc_dapm_mic]              = "mic",
+	[snd_soc_dapm_hp]               = "hp",
+	[snd_soc_dapm_spk]              = "spk",
+	[snd_soc_dapm_line]             = "line",
+	[snd_soc_dapm_switch]           = "switch",
+	[snd_soc_dapm_vmid]             = "vmid",
+	[snd_soc_dapm_pre]              = "pre",
+	[snd_soc_dapm_post]             = "post",
+	[snd_soc_dapm_supply]           = "supply",
+	[snd_soc_dapm_pinctrl]          = "pinctrl",
+	[snd_soc_dapm_regulator_supply] = "regulator_supply",
+	[snd_soc_dapm_clock_supply]     = "clock_supply",
+	[snd_soc_dapm_aif_in]           = "aif_in",
+	[snd_soc_dapm_aif_out]          = "aif_out",
+	[snd_soc_dapm_siggen]           = "siggen",
+	[snd_soc_dapm_sink]             = "sink",
+	[snd_soc_dapm_dai_in]           = "dai_in",
+	[snd_soc_dapm_dai_out]          = "dai_out",
+	[snd_soc_dapm_dai_link]         = "dai_link",
+	[snd_soc_dapm_kcontrol]         = "kcontrol",
+	[snd_soc_dapm_buffer]           = "buffer",
+	[snd_soc_dapm_scheduler]        = "scheduler",
+	[snd_soc_dapm_effect]           = "effect",
+	[snd_soc_dapm_src]              = "src",
+	[snd_soc_dapm_asrc]             = "asrc",
+	[snd_soc_dapm_encoder]          = "encoder",
+	[snd_soc_dapm_decoder]          = "decoder",
+};
+
 static ssize_t dapm_widget_power_read_file(struct file *file,
 					   char __user *user_buf,
 					   size_t count, loff_t *ppos)
@@ -2104,6 +2146,9 @@ static ssize_t dapm_widget_power_read_file(struct file *file,
 	int in, out;
 	ssize_t ret;
 	struct snd_soc_dapm_path *p = NULL;
+	const char *c_name;
+
+	BUILD_BUG_ON(ARRAY_SIZE(snd_soc_dapm_type_name) != SND_SOC_DAPM_TYPE_COUNT);
 
 	buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!buf)
@@ -2136,6 +2181,9 @@ static ssize_t dapm_widget_power_read_file(struct file *file,
 				w->sname,
 				w->active ? "active" : "inactive");
 
+	ret += scnprintf(buf + ret, PAGE_SIZE - ret, " widget-type %s\n",
+			 snd_soc_dapm_type_name[w->id]);
+
 	snd_soc_dapm_for_each_direction(dir) {
 		rdir = SND_SOC_DAPM_DIR_REVERSE(dir);
 		snd_soc_dapm_widget_for_each_path(w, dir, p) {
@@ -2145,11 +2193,13 @@ static ssize_t dapm_widget_power_read_file(struct file *file,
 			if (!p->connect)
 				continue;
 
+			c_name = p->node[rdir]->dapm->component ?
+				p->node[rdir]->dapm->component->name : NULL;
 			ret += scnprintf(buf + ret, PAGE_SIZE - ret,
-					" %s  \"%s\" \"%s\"\n",
+					" %s  \"%s\" \"%s\" \"%s\"\n",
 					(rdir == SND_SOC_DAPM_DIR_IN) ? "in" : "out",
 					p->name ? p->name : "static",
-					p->node[rdir]->name);
+					p->node[rdir]->name, c_name);
 		}
 	}
 

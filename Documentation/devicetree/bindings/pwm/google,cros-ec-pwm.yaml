@@ -35,7 +35,6 @@ properties:
 
 required:
   - compatible
-  - '#pwm-cells'
 
 additionalProperties: false
 

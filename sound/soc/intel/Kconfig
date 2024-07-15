@@ -214,6 +214,7 @@ config SND_SOC_INTEL_AVS
 	depends on X86 || COMPILE_TEST
 	depends on PCI
 	depends on COMMON_CLK
+	select ACPI_NHLT if ACPI
 	select SND_SOC_ACPI if ACPI
 	select SND_SOC_TOPOLOGY
 	select SND_SOC_HDA

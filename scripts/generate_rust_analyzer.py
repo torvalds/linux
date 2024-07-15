@@ -66,7 +66,7 @@ def generate_crates(srctree, objtree, sysroot_src, external_src, cfgs):
 
     append_crate(
         "alloc",
-        srctree / "rust" / "alloc" / "lib.rs",
+        sysroot_src / "alloc" / "src" / "lib.rs",
         ["core", "compiler_builtins"],
         cfg=crates_cfgs.get("alloc", []),
     )

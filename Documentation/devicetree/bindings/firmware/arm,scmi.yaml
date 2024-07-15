@@ -247,6 +247,37 @@ properties:
       reg:
         const: 0x18
 
+  protocol@19:
+    type: object
+    allOf:
+      - $ref: '#/$defs/protocol-node'
+      - $ref: /schemas/pinctrl/pinctrl.yaml
+
+    unevaluatedProperties: false
+
+    properties:
+      reg:
+        const: 0x19
+
+    patternProperties:
+      '-pins$':
+        type: object
+        allOf:
+          - $ref: /schemas/pinctrl/pincfg-node.yaml#
+          - $ref: /schemas/pinctrl/pinmux-node.yaml#
+        unevaluatedProperties: false
+
+        description:
+          A pin multiplexing sub-node describes how to configure a
+          set of pins in some desired function.
+          A single sub-node may define several pin configurations.
+          This sub-node is using the default pinctrl bindings to configure
+          pin multiplexing and using SCMI protocol to apply a specified
+          configuration.
+
+    required:
+      - reg
+
 additionalProperties: false
 
 $defs:
@@ -355,7 +386,7 @@ examples:
 
             scmi_dvfs: protocol@13 {
                 reg = <0x13>;
-                #clock-cells = <1>;
+                #power-domain-cells = <1>;
 
                 mboxes = <&mhuB 1 0>,
                          <&mhuB 1 1>;
@@ -400,6 +431,25 @@ examples:
 
             scmi_powercap: protocol@18 {
                 reg = <0x18>;
+            };
+
+            scmi_pinctrl: protocol@19 {
+                reg = <0x19>;
+
+                i2c2-pins {
+                    groups = "g_i2c2_a", "g_i2c2_b";
+                    function = "f_i2c2";
+                };
+
+                mdio-pins {
+                    groups = "g_avb_mdio";
+                    drive-strength = <24>;
+                };
+
+                keys_pins: keys-pins {
+                    pins = "gpio_5_17", "gpio_5_20", "gpio_5_22", "gpio_2_1";
+                    bias-pull-up;
+                };
             };
         };
     };
@@ -468,7 +518,7 @@ examples:
                 reg = <0x13>;
                 linaro,optee-channel-id = <1>;
                 shmem = <&cpu_optee_lpri0>;
-                #clock-cells = <1>;
+                #power-domain-cells = <1>;
             };
 
             scmi_clk0: protocol@14 {

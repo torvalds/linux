@@ -1,109 +1,13 @@
 // SPDX-License-Identifier: (BSD-3-Clause OR GPL-2.0-only)
 /* Copyright(c) 2020 Intel Corporation */
 #include <linux/iopoll.h>
+#include <asm/div64.h>
 #include "adf_accel_devices.h"
 #include "adf_cfg_services.h"
 #include "adf_common_drv.h"
 #include "adf_fw_config.h"
 #include "adf_gen4_hw_data.h"
 #include "adf_gen4_pm.h"
-
-static u64 build_csr_ring_base_addr(dma_addr_t addr, u32 size)
-{
-	return BUILD_RING_BASE_ADDR(addr, size);
-}
-
-static u32 read_csr_ring_head(void __iomem *csr_base_addr, u32 bank, u32 ring)
-{
-	return READ_CSR_RING_HEAD(csr_base_addr, bank, ring);
-}
-
-static void write_csr_ring_head(void __iomem *csr_base_addr, u32 bank, u32 ring,
-				u32 value)
-{
-	WRITE_CSR_RING_HEAD(csr_base_addr, bank, ring, value);
-}
-
-static u32 read_csr_ring_tail(void __iomem *csr_base_addr, u32 bank, u32 ring)
-{
-	return READ_CSR_RING_TAIL(csr_base_addr, bank, ring);
-}
-
-static void write_csr_ring_tail(void __iomem *csr_base_addr, u32 bank, u32 ring,
-				u32 value)
-{
-	WRITE_CSR_RING_TAIL(csr_base_addr, bank, ring, value);
-}
-
-static u32 read_csr_e_stat(void __iomem *csr_base_addr, u32 bank)
-{
-	return READ_CSR_E_STAT(csr_base_addr, bank);
-}
-
-static void write_csr_ring_config(void __iomem *csr_base_addr, u32 bank, u32 ring,
-				  u32 value)
-{
-	WRITE_CSR_RING_CONFIG(csr_base_addr, bank, ring, value);
-}
-
-static void write_csr_ring_base(void __iomem *csr_base_addr, u32 bank, u32 ring,
-				dma_addr_t addr)
-{
-	WRITE_CSR_RING_BASE(csr_base_addr, bank, ring, addr);
-}
-
-static void write_csr_int_flag(void __iomem *csr_base_addr, u32 bank,
-			       u32 value)
-{
-	WRITE_CSR_INT_FLAG(csr_base_addr, bank, value);
-}
-
-static void write_csr_int_srcsel(void __iomem *csr_base_addr, u32 bank)
-{
-	WRITE_CSR_INT_SRCSEL(csr_base_addr, bank);
-}
-
-static void write_csr_int_col_en(void __iomem *csr_base_addr, u32 bank, u32 value)
-{
-	WRITE_CSR_INT_COL_EN(csr_base_addr, bank, value);
-}
-
-static void write_csr_int_col_ctl(void __iomem *csr_base_addr, u32 bank,
-				  u32 value)
-{
-	WRITE_CSR_INT_COL_CTL(csr_base_addr, bank, value);
-}
-
-static void write_csr_int_flag_and_col(void __iomem *csr_base_addr, u32 bank,
-				       u32 value)
-{
-	WRITE_CSR_INT_FLAG_AND_COL(csr_base_addr, bank, value);
-}
-
-static void write_csr_ring_srv_arb_en(void __iomem *csr_base_addr, u32 bank,
-				      u32 value)
-{
-	WRITE_CSR_RING_SRV_ARB_EN(csr_base_addr, bank, value);
-}
-
-void adf_gen4_init_hw_csr_ops(struct adf_hw_csr_ops *csr_ops)
-{
-	csr_ops->build_csr_ring_base_addr = build_csr_ring_base_addr;
-	csr_ops->read_csr_ring_head = read_csr_ring_head;
-	csr_ops->write_csr_ring_head = write_csr_ring_head;
-	csr_ops->read_csr_ring_tail = read_csr_ring_tail;
-	csr_ops->write_csr_ring_tail = write_csr_ring_tail;
-	csr_ops->read_csr_e_stat = read_csr_e_stat;
-	csr_ops->write_csr_ring_config = write_csr_ring_config;
-	csr_ops->write_csr_ring_base = write_csr_ring_base;
-	csr_ops->write_csr_int_flag = write_csr_int_flag;
-	csr_ops->write_csr_int_srcsel = write_csr_int_srcsel;
-	csr_ops->write_csr_int_col_en = write_csr_int_col_en;
-	csr_ops->write_csr_int_col_ctl = write_csr_int_col_ctl;
-	csr_ops->write_csr_int_flag_and_col = write_csr_int_flag_and_col;
-	csr_ops->write_csr_ring_srv_arb_en = write_csr_ring_srv_arb_en;
-}
-EXPORT_SYMBOL_GPL(adf_gen4_init_hw_csr_ops);
 
 u32 adf_gen4_get_accel_mask(struct adf_hw_device_data *self)
 {
@@ -321,8 +225,7 @@ static int reset_ring_pair(void __iomem *csr, u32 bank_number)
 int adf_gen4_ring_pair_reset(struct adf_accel_dev *accel_dev, u32 bank_number)
 {
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
-	u32 etr_bar_id = hw_data->get_etr_bar_id(hw_data);
-	void __iomem *csr;
+	void __iomem *csr = adf_get_etr_base(accel_dev);
 	int ret;
 
 	if (bank_number >= hw_data->num_banks)
@@ -331,7 +234,6 @@ int adf_gen4_ring_pair_reset(struct adf_accel_dev *accel_dev, u32 bank_number)
 	dev_dbg(&GET_DEV(accel_dev),
 		"ring pair reset for bank:%d\n", bank_number);
 
-	csr = (&GET_BARS(accel_dev)[etr_bar_id])->virt_addr;
 	ret = reset_ring_pair(csr, bank_number);
 	if (ret)
 		dev_err(&GET_DEV(accel_dev),
@@ -489,3 +391,281 @@ set_mask:
 	return ring_to_svc_map;
 }
 EXPORT_SYMBOL_GPL(adf_gen4_get_ring_to_svc_map);
+
+/*
+ * adf_gen4_bank_quiesce_coal_timer() - quiesce bank coalesced interrupt timer
+ * @accel_dev: Pointer to the device structure
+ * @bank_idx: Offset to the bank within this device
+ * @timeout_ms: Timeout in milliseconds for the operation
+ *
+ * This function tries to quiesce the coalesced interrupt timer of a bank if
+ * it has been enabled and triggered.
+ *
+ * Returns 0 on success, error code otherwise
+ *
+ */
+int adf_gen4_bank_quiesce_coal_timer(struct adf_accel_dev *accel_dev,
+				     u32 bank_idx, int timeout_ms)
+{
+	struct adf_hw_device_data *hw_data = GET_HW_DATA(accel_dev);
+	struct adf_hw_csr_ops *csr_ops = GET_CSR_OPS(accel_dev);
+	void __iomem *csr_misc = adf_get_pmisc_base(accel_dev);
+	void __iomem *csr_etr = adf_get_etr_base(accel_dev);
+	u32 int_col_ctl, int_col_mask, int_col_en;
+	u32 e_stat, intsrc;
+	u64 wait_us;
+	int ret;
+
+	if (timeout_ms < 0)
+		return -EINVAL;
+
+	int_col_ctl = csr_ops->read_csr_int_col_ctl(csr_etr, bank_idx);
+	int_col_mask = csr_ops->get_int_col_ctl_enable_mask();
+	if (!(int_col_ctl & int_col_mask))
+		return 0;
+
+	int_col_en = csr_ops->read_csr_int_col_en(csr_etr, bank_idx);
+	int_col_en &= BIT(ADF_WQM_CSR_RP_IDX_RX);
+
+	e_stat = csr_ops->read_csr_e_stat(csr_etr, bank_idx);
+	if (!(~e_stat & int_col_en))
+		return 0;
+
+	wait_us = 2 * ((int_col_ctl & ~int_col_mask) << 8) * USEC_PER_SEC;
+	do_div(wait_us, hw_data->clock_frequency);
+	wait_us = min(wait_us, (u64)timeout_ms * USEC_PER_MSEC);
+	dev_dbg(&GET_DEV(accel_dev),
+		"wait for bank %d - coalesced timer expires in %llu us (max=%u ms estat=0x%x intcolen=0x%x)\n",
+		bank_idx, wait_us, timeout_ms, e_stat, int_col_en);
+
+	ret = read_poll_timeout(ADF_CSR_RD, intsrc, intsrc,
+				ADF_COALESCED_POLL_DELAY_US, wait_us, true,
+				csr_misc, ADF_WQM_CSR_RPINTSOU(bank_idx));
+	if (ret)
+		dev_warn(&GET_DEV(accel_dev),
+			 "coalesced timer for bank %d expired (%llu us)\n",
+			 bank_idx, wait_us);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(adf_gen4_bank_quiesce_coal_timer);
+
+static int drain_bank(void __iomem *csr, u32 bank_number, int timeout_us)
+{
+	u32 status;
+
+	ADF_CSR_WR(csr, ADF_WQM_CSR_RPRESETCTL(bank_number),
+		   ADF_WQM_CSR_RPRESETCTL_DRAIN);
+
+	return read_poll_timeout(ADF_CSR_RD, status,
+				status & ADF_WQM_CSR_RPRESETSTS_STATUS,
+				ADF_RPRESET_POLL_DELAY_US, timeout_us, true,
+				csr, ADF_WQM_CSR_RPRESETSTS(bank_number));
+}
+
+void adf_gen4_bank_drain_finish(struct adf_accel_dev *accel_dev,
+				u32 bank_number)
+{
+	void __iomem *csr = adf_get_etr_base(accel_dev);
+
+	ADF_CSR_WR(csr, ADF_WQM_CSR_RPRESETSTS(bank_number),
+		   ADF_WQM_CSR_RPRESETSTS_STATUS);
+}
+
+int adf_gen4_bank_drain_start(struct adf_accel_dev *accel_dev,
+			      u32 bank_number, int timeout_us)
+{
+	void __iomem *csr = adf_get_etr_base(accel_dev);
+	int ret;
+
+	dev_dbg(&GET_DEV(accel_dev), "Drain bank %d\n", bank_number);
+
+	ret = drain_bank(csr, bank_number, timeout_us);
+	if (ret)
+		dev_err(&GET_DEV(accel_dev), "Bank drain failed (timeout)\n");
+	else
+		dev_dbg(&GET_DEV(accel_dev), "Bank drain successful\n");
+
+	return ret;
+}
+
+static void bank_state_save(struct adf_hw_csr_ops *ops, void __iomem *base,
+			    u32 bank, struct bank_state *state, u32 num_rings)
+{
+	u32 i;
+
+	state->ringstat0 = ops->read_csr_stat(base, bank);
+	state->ringuostat = ops->read_csr_uo_stat(base, bank);
+	state->ringestat = ops->read_csr_e_stat(base, bank);
+	state->ringnestat = ops->read_csr_ne_stat(base, bank);
+	state->ringnfstat = ops->read_csr_nf_stat(base, bank);
+	state->ringfstat = ops->read_csr_f_stat(base, bank);
+	state->ringcstat0 = ops->read_csr_c_stat(base, bank);
+	state->iaintflagen = ops->read_csr_int_en(base, bank);
+	state->iaintflagreg = ops->read_csr_int_flag(base, bank);
+	state->iaintflagsrcsel0 = ops->read_csr_int_srcsel(base, bank);
+	state->iaintcolen = ops->read_csr_int_col_en(base, bank);
+	state->iaintcolctl = ops->read_csr_int_col_ctl(base, bank);
+	state->iaintflagandcolen = ops->read_csr_int_flag_and_col(base, bank);
+	state->ringexpstat = ops->read_csr_exp_stat(base, bank);
+	state->ringexpintenable = ops->read_csr_exp_int_en(base, bank);
+	state->ringsrvarben = ops->read_csr_ring_srv_arb_en(base, bank);
+
+	for (i = 0; i < num_rings; i++) {
+		state->rings[i].head = ops->read_csr_ring_head(base, bank, i);
+		state->rings[i].tail = ops->read_csr_ring_tail(base, bank, i);
+		state->rings[i].config = ops->read_csr_ring_config(base, bank, i);
+		state->rings[i].base = ops->read_csr_ring_base(base, bank, i);
+	}
+}
+
+#define CHECK_STAT(op, expect_val, name, args...) \
+({ \
+	u32 __expect_val = (expect_val); \
+	u32 actual_val = op(args); \
+	(__expect_val == actual_val) ? 0 : \
+		(pr_err("QAT: Fail to restore %s register. Expected 0x%x, actual 0x%x\n", \
+			name, __expect_val, actual_val), -EINVAL); \
+})
+
+static int bank_state_restore(struct adf_hw_csr_ops *ops, void __iomem *base,
+			      u32 bank, struct bank_state *state, u32 num_rings,
+			      int tx_rx_gap)
+{
+	u32 val, tmp_val, i;
+	int ret;
+
+	for (i = 0; i < num_rings; i++)
+		ops->write_csr_ring_base(base, bank, i, state->rings[i].base);
+
+	for (i = 0; i < num_rings; i++)
+		ops->write_csr_ring_config(base, bank, i, state->rings[i].config);
+
+	for (i = 0; i < num_rings / 2; i++) {
+		int tx = i * (tx_rx_gap + 1);
+		int rx = tx + tx_rx_gap;
+
+		ops->write_csr_ring_head(base, bank, tx, state->rings[tx].head);
+		ops->write_csr_ring_tail(base, bank, tx, state->rings[tx].tail);
+
+		/*
+		 * The TX ring head needs to be updated again to make sure that
+		 * the HW will not consider the ring as full when it is empty
+		 * and the correct state flags are set to match the recovered state.
+		 */
+		if (state->ringestat & BIT(tx)) {
+			val = ops->read_csr_int_srcsel(base, bank);
+			val |= ADF_RP_INT_SRC_SEL_F_RISE_MASK;
+			ops->write_csr_int_srcsel_w_val(base, bank, val);
+			ops->write_csr_ring_head(base, bank, tx, state->rings[tx].head);
+		}
+
+		ops->write_csr_ring_tail(base, bank, rx, state->rings[rx].tail);
+		val = ops->read_csr_int_srcsel(base, bank);
+		val |= ADF_RP_INT_SRC_SEL_F_RISE_MASK << ADF_RP_INT_SRC_SEL_RANGE_WIDTH;
+		ops->write_csr_int_srcsel_w_val(base, bank, val);
+
+		ops->write_csr_ring_head(base, bank, rx, state->rings[rx].head);
+		val = ops->read_csr_int_srcsel(base, bank);
+		val |= ADF_RP_INT_SRC_SEL_F_FALL_MASK << ADF_RP_INT_SRC_SEL_RANGE_WIDTH;
+		ops->write_csr_int_srcsel_w_val(base, bank, val);
+
+		/*
+		 * The RX ring tail needs to be updated again to make sure that
+		 * the HW will not consider the ring as empty when it is full
+		 * and the correct state flags are set to match the recovered state.
+		 */
+		if (state->ringfstat & BIT(rx))
+			ops->write_csr_ring_tail(base, bank, rx, state->rings[rx].tail);
+	}
+
+	ops->write_csr_int_flag_and_col(base, bank, state->iaintflagandcolen);
+	ops->write_csr_int_en(base, bank, state->iaintflagen);
+	ops->write_csr_int_col_en(base, bank, state->iaintcolen);
+	ops->write_csr_int_srcsel_w_val(base, bank, state->iaintflagsrcsel0);
+	ops->write_csr_exp_int_en(base, bank, state->ringexpintenable);
+	ops->write_csr_int_col_ctl(base, bank, state->iaintcolctl);
+	ops->write_csr_ring_srv_arb_en(base, bank, state->ringsrvarben);
+
+	/* Check that all ring statuses match the saved state. */
+	ret = CHECK_STAT(ops->read_csr_stat, state->ringstat0, "ringstat",
+			 base, bank);
+	if (ret)
+		return ret;
+
+	ret = CHECK_STAT(ops->read_csr_e_stat, state->ringestat, "ringestat",
+			 base, bank);
+	if (ret)
+		return ret;
+
+	ret = CHECK_STAT(ops->read_csr_ne_stat, state->ringnestat, "ringnestat",
+			 base, bank);
+	if (ret)
+		return ret;
+
+	ret = CHECK_STAT(ops->read_csr_nf_stat, state->ringnfstat, "ringnfstat",
+			 base, bank);
+	if (ret)
+		return ret;
+
+	ret = CHECK_STAT(ops->read_csr_f_stat, state->ringfstat, "ringfstat",
+			 base, bank);
+	if (ret)
+		return ret;
+
+	ret = CHECK_STAT(ops->read_csr_c_stat, state->ringcstat0, "ringcstat",
+			 base, bank);
+	if (ret)
+		return ret;
+
+	tmp_val = ops->read_csr_exp_stat(base, bank);
+	val = state->ringexpstat;
+	if (tmp_val && !val) {
+		pr_err("QAT: Bank was restored with exception: 0x%x\n", val);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+int adf_gen4_bank_state_save(struct adf_accel_dev *accel_dev, u32 bank_number,
+			     struct bank_state *state)
+{
+	struct adf_hw_device_data *hw_data = GET_HW_DATA(accel_dev);
+	struct adf_hw_csr_ops *csr_ops = GET_CSR_OPS(accel_dev);
+	void __iomem *csr_base = adf_get_etr_base(accel_dev);
+
+	if (bank_number >= hw_data->num_banks || !state)
+		return -EINVAL;
+
+	dev_dbg(&GET_DEV(accel_dev), "Saving state of bank %d\n", bank_number);
+
+	bank_state_save(csr_ops, csr_base, bank_number, state,
+			hw_data->num_rings_per_bank);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(adf_gen4_bank_state_save);
+
+int adf_gen4_bank_state_restore(struct adf_accel_dev *accel_dev, u32 bank_number,
+				struct bank_state *state)
+{
+	struct adf_hw_device_data *hw_data = GET_HW_DATA(accel_dev);
+	struct adf_hw_csr_ops *csr_ops = GET_CSR_OPS(accel_dev);
+	void __iomem *csr_base = adf_get_etr_base(accel_dev);
+	int ret;
+
+	if (bank_number >= hw_data->num_banks  || !state)
+		return -EINVAL;
+
+	dev_dbg(&GET_DEV(accel_dev), "Restoring state of bank %d\n", bank_number);
+
+	ret = bank_state_restore(csr_ops, csr_base, bank_number, state,
+				 hw_data->num_rings_per_bank, hw_data->tx_rx_gap);
+	if (ret)
+		dev_err(&GET_DEV(accel_dev),
+			"Unable to restore state of bank %d\n", bank_number);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(adf_gen4_bank_state_restore);

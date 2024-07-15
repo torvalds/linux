@@ -9,7 +9,7 @@
 
 int err;
 
-#define private(name) SEC(".bss." #name) __hidden __attribute__((aligned(8)))
+#define private(name) SEC(".bss." #name) __attribute__((aligned(8)))
 private(MASK) static struct bpf_cpumask __kptr * global_mask;
 
 struct __cpumask_map_value {

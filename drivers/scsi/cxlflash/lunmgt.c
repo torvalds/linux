@@ -216,7 +216,7 @@ void cxlflash_term_global_luns(void)
 /**
  * cxlflash_manage_lun() - handles LUN management activities
  * @sdev:	SCSI device associated with LUN.
- * @manage:	Manage ioctl data structure.
+ * @arg:	Manage ioctl data structure.
  *
  * This routine is used to notify the driver about a LUN's WWID and associate
  * SCSI devices (sdev) with a global LUN instance. Additionally it serves to
@@ -224,9 +224,9 @@ void cxlflash_term_global_luns(void)
  *
  * Return: 0 on success, -errno on failure
  */
-int cxlflash_manage_lun(struct scsi_device *sdev,
-			struct dk_cxlflash_manage_lun *manage)
+int cxlflash_manage_lun(struct scsi_device *sdev, void *arg)
 {
+	struct dk_cxlflash_manage_lun *manage = arg;
 	struct cxlflash_cfg *cfg = shost_priv(sdev->host);
 	struct device *dev = &cfg->dev->dev;
 	struct llun_info *lli = NULL;

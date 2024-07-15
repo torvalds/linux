@@ -2146,6 +2146,14 @@ struct sli4_sge {	/* SLI-4 */
 	uint32_t sge_len;
 };
 
+struct sli4_sge_le {
+	__le32 addr_hi;
+	__le32 addr_lo;
+
+	__le32 word2;
+	__le32 sge_len;
+};
+
 struct sli4_hybrid_sgl {
 	struct list_head list_node;
 	struct sli4_sge *dma_sgl;

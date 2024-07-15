@@ -456,21 +456,6 @@ TRACE_EVENT(kvm_unmap_hva_range,
 		  __entry->start, __entry->end)
 );
 
-TRACE_EVENT(kvm_set_spte_hva,
-	TP_PROTO(unsigned long hva),
-	TP_ARGS(hva),
-
-	TP_STRUCT__entry(
-		__field(	unsigned long,	hva		)
-	),
-
-	TP_fast_assign(
-		__entry->hva		= hva;
-	),
-
-	TP_printk("mmu notifier set pte hva: %#016lx", __entry->hva)
-);
-
 TRACE_EVENT(kvm_age_hva,
 	TP_PROTO(unsigned long start, unsigned long end),
 	TP_ARGS(start, end),

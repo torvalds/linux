@@ -24,8 +24,6 @@ menuconfig STAGING
 
 if STAGING
 
-source "drivers/staging/wlan-ng/Kconfig"
-
 source "drivers/staging/olpc_dcon/Kconfig"
 
 source "drivers/staging/rtl8192e/Kconfig"
@@ -61,8 +59,6 @@ source "drivers/staging/ks7010/Kconfig"
 source "drivers/staging/greybus/Kconfig"
 
 source "drivers/staging/vc04_services/Kconfig"
-
-source "drivers/staging/pi433/Kconfig"
 
 source "drivers/staging/axis-fifo/Kconfig"
 

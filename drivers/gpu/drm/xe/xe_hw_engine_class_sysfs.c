@@ -7,8 +7,10 @@
 #include <linux/kobject.h>
 #include <linux/sysfs.h>
 
+#include "xe_device.h"
 #include "xe_gt.h"
 #include "xe_hw_engine_class_sysfs.h"
+#include "xe_pm.h"
 
 #define MAX_ENGINE_CLASS_NAME_LEN    16
 static int xe_add_hw_engine_class_defaults(struct xe_device *xe,
@@ -70,7 +72,7 @@ static ssize_t job_timeout_max_show(struct kobject *kobj,
 {
 	struct xe_hw_engine_class_intf *eclass = kobj_to_eclass(kobj);
 
-	return sprintf(buf, "%u\n", eclass->sched_props.job_timeout_max);
+	return sysfs_emit(buf, "%u\n", eclass->sched_props.job_timeout_max);
 }
 
 static const struct kobj_attribute job_timeout_max_attr =
@@ -106,7 +108,7 @@ static ssize_t job_timeout_min_show(struct kobject *kobj,
 {
 	struct xe_hw_engine_class_intf *eclass = kobj_to_eclass(kobj);
 
-	return sprintf(buf, "%u\n", eclass->sched_props.job_timeout_min);
+	return sysfs_emit(buf, "%u\n", eclass->sched_props.job_timeout_min);
 }
 
 static const struct kobj_attribute job_timeout_min_attr =
@@ -139,7 +141,7 @@ static ssize_t job_timeout_show(struct kobject *kobj,
 {
 	struct xe_hw_engine_class_intf *eclass = kobj_to_eclass(kobj);
 
-	return sprintf(buf, "%u\n", eclass->sched_props.job_timeout_ms);
+	return sysfs_emit(buf, "%u\n", eclass->sched_props.job_timeout_ms);
 }
 
 static const struct kobj_attribute job_timeout_attr =
@@ -150,7 +152,7 @@ static ssize_t job_timeout_default(struct kobject *kobj,
 {
 	struct xe_hw_engine_class_intf *eclass = kobj_to_eclass(kobj->parent);
 
-	return sprintf(buf, "%u\n", eclass->defaults.job_timeout_ms);
+	return sysfs_emit(buf, "%u\n", eclass->defaults.job_timeout_ms);
 }
 
 static const struct kobj_attribute job_timeout_def =
@@ -161,7 +163,7 @@ static ssize_t job_timeout_min_default(struct kobject *kobj,
 {
 	struct xe_hw_engine_class_intf *eclass = kobj_to_eclass(kobj->parent);
 
-	return sprintf(buf, "%u\n", eclass->defaults.job_timeout_min);
+	return sysfs_emit(buf, "%u\n", eclass->defaults.job_timeout_min);
 }
 
 static const struct kobj_attribute job_timeout_min_def =
@@ -172,7 +174,7 @@ static ssize_t job_timeout_max_default(struct kobject *kobj,
 {
 	struct xe_hw_engine_class_intf *eclass = kobj_to_eclass(kobj->parent);
 
-	return sprintf(buf, "%u\n", eclass->defaults.job_timeout_max);
+	return sysfs_emit(buf, "%u\n", eclass->defaults.job_timeout_max);
 }
 
 static const struct kobj_attribute job_timeout_max_def =
@@ -231,7 +233,7 @@ static ssize_t timeslice_duration_max_show(struct kobject *kobj,
 {
 	struct xe_hw_engine_class_intf *eclass = kobj_to_eclass(kobj);
 
-	return sprintf(buf, "%u\n", eclass->sched_props.timeslice_max);
+	return sysfs_emit(buf, "%u\n", eclass->sched_props.timeslice_max);
 }
 
 static const struct kobj_attribute timeslice_duration_max_attr =
@@ -269,7 +271,7 @@ static ssize_t timeslice_duration_min_show(struct kobject *kobj,
 {
 	struct xe_hw_engine_class_intf *eclass = kobj_to_eclass(kobj);
 
-	return sprintf(buf, "%u\n", eclass->sched_props.timeslice_min);
+	return sysfs_emit(buf, "%u\n", eclass->sched_props.timeslice_min);
 }
 
 static const struct kobj_attribute timeslice_duration_min_attr =
@@ -281,7 +283,7 @@ static ssize_t timeslice_duration_show(struct kobject *kobj,
 {
 	struct xe_hw_engine_class_intf *eclass = kobj_to_eclass(kobj);
 
-	return sprintf(buf, "%u\n", eclass->sched_props.timeslice_us);
+	return sysfs_emit(buf, "%u\n", eclass->sched_props.timeslice_us);
 }
 
 static const struct kobj_attribute timeslice_duration_attr =
@@ -293,7 +295,7 @@ static ssize_t timeslice_default(struct kobject *kobj,
 {
 	struct xe_hw_engine_class_intf *eclass = kobj_to_eclass(kobj->parent);
 
-	return sprintf(buf, "%u\n", eclass->defaults.timeslice_us);
+	return sysfs_emit(buf, "%u\n", eclass->defaults.timeslice_us);
 }
 
 static const struct kobj_attribute timeslice_duration_def =
@@ -304,7 +306,7 @@ static ssize_t timeslice_min_default(struct kobject *kobj,
 {
 	struct xe_hw_engine_class_intf *eclass = kobj_to_eclass(kobj->parent);
 
-	return sprintf(buf, "%u\n", eclass->defaults.timeslice_min);
+	return sysfs_emit(buf, "%u\n", eclass->defaults.timeslice_min);
 }
 
 static const struct kobj_attribute timeslice_duration_min_def =
@@ -315,7 +317,7 @@ static ssize_t timeslice_max_default(struct kobject *kobj,
 {
 	struct xe_hw_engine_class_intf *eclass = kobj_to_eclass(kobj->parent);
 
-	return sprintf(buf, "%u\n", eclass->defaults.timeslice_max);
+	return sysfs_emit(buf, "%u\n", eclass->defaults.timeslice_max);
 }
 
 static const struct kobj_attribute timeslice_duration_max_def =
@@ -348,7 +350,7 @@ static ssize_t preempt_timeout_show(struct kobject *kobj,
 {
 	struct xe_hw_engine_class_intf *eclass = kobj_to_eclass(kobj);
 
-	return sprintf(buf, "%u\n", eclass->sched_props.preempt_timeout_us);
+	return sysfs_emit(buf, "%u\n", eclass->sched_props.preempt_timeout_us);
 }
 
 static const struct kobj_attribute preempt_timeout_attr =
@@ -360,7 +362,7 @@ static ssize_t preempt_timeout_default(struct kobject *kobj,
 {
 	struct xe_hw_engine_class_intf *eclass = kobj_to_eclass(kobj->parent);
 
-	return sprintf(buf, "%u\n", eclass->defaults.preempt_timeout_us);
+	return sysfs_emit(buf, "%u\n", eclass->defaults.preempt_timeout_us);
 }
 
 static const struct kobj_attribute preempt_timeout_def =
@@ -372,7 +374,7 @@ static ssize_t preempt_timeout_min_default(struct kobject *kobj,
 {
 	struct xe_hw_engine_class_intf *eclass = kobj_to_eclass(kobj->parent);
 
-	return sprintf(buf, "%u\n", eclass->defaults.preempt_timeout_min);
+	return sysfs_emit(buf, "%u\n", eclass->defaults.preempt_timeout_min);
 }
 
 static const struct kobj_attribute preempt_timeout_min_def =
@@ -384,7 +386,7 @@ static ssize_t preempt_timeout_max_default(struct kobject *kobj,
 {
 	struct xe_hw_engine_class_intf *eclass = kobj_to_eclass(kobj->parent);
 
-	return sprintf(buf, "%u\n", eclass->defaults.preempt_timeout_max);
+	return sysfs_emit(buf, "%u\n", eclass->defaults.preempt_timeout_max);
 }
 
 static const struct kobj_attribute preempt_timeout_max_def =
@@ -420,7 +422,7 @@ static ssize_t preempt_timeout_max_show(struct kobject *kobj,
 {
 	struct xe_hw_engine_class_intf *eclass = kobj_to_eclass(kobj);
 
-	return sprintf(buf, "%u\n", eclass->sched_props.preempt_timeout_max);
+	return sysfs_emit(buf, "%u\n", eclass->sched_props.preempt_timeout_max);
 }
 
 static const struct kobj_attribute preempt_timeout_max_attr =
@@ -457,7 +459,7 @@ static ssize_t preempt_timeout_min_show(struct kobject *kobj,
 {
 	struct xe_hw_engine_class_intf *eclass = kobj_to_eclass(kobj);
 
-	return sprintf(buf, "%u\n", eclass->sched_props.preempt_timeout_min);
+	return sysfs_emit(buf, "%u\n", eclass->sched_props.preempt_timeout_min);
 }
 
 static const struct kobj_attribute preempt_timeout_min_attr =
@@ -498,8 +500,8 @@ static void kobj_xe_hw_engine_class_fini(struct drm_device *drm, void *arg)
 	kobject_put(kobj);
 }
 
-	static struct kobj_eclass *
-kobj_xe_hw_engine_class(struct xe_device *xe, struct kobject *parent, char *name)
+static struct kobj_eclass *
+kobj_xe_hw_engine_class(struct xe_device *xe, struct kobject *parent, const char *name)
 {
 	struct kobj_eclass *keclass;
 	int err = 0;
@@ -513,13 +515,13 @@ kobj_xe_hw_engine_class(struct xe_device *xe, struct kobject *parent, char *name
 		kobject_put(&keclass->base);
 		return NULL;
 	}
+	keclass->xe = xe;
 
 	err = drmm_add_action_or_reset(&xe->drm, kobj_xe_hw_engine_class_fini,
 				       &keclass->base);
 	if (err)
-		drm_warn(&xe->drm,
-			 "%s: drmm_add_action_or_reset failed, err: %d\n",
-			 __func__, err);
+		return NULL;
+
 	return keclass;
 }
 
@@ -550,13 +552,8 @@ static int xe_add_hw_engine_class_defaults(struct xe_device *xe,
 	if (err)
 		goto err_object;
 
-	err = drmm_add_action_or_reset(&xe->drm, hw_engine_class_defaults_fini,
-				       kobj);
-	if (err)
-		drm_warn(&xe->drm,
-			 "%s: drmm_add_action_or_reset failed, err: %d\n",
-			 __func__, err);
-	return err;
+	return drmm_add_action_or_reset(&xe->drm, hw_engine_class_defaults_fini, kobj);
+
 err_object:
 	kobject_put(kobj);
 	return err;
@@ -567,9 +564,51 @@ static void xe_hw_engine_sysfs_kobj_release(struct kobject *kobj)
 	kfree(kobj);
 }
 
+static ssize_t xe_hw_engine_class_sysfs_attr_show(struct kobject *kobj,
+						  struct attribute *attr,
+						  char *buf)
+{
+	struct xe_device *xe = kobj_to_xe(kobj);
+	struct kobj_attribute *kattr;
+	ssize_t ret = -EIO;
+
+	kattr = container_of(attr, struct kobj_attribute, attr);
+	if (kattr->show) {
+		xe_pm_runtime_get(xe);
+		ret = kattr->show(kobj, kattr, buf);
+		xe_pm_runtime_put(xe);
+	}
+
+	return ret;
+}
+
+static ssize_t xe_hw_engine_class_sysfs_attr_store(struct kobject *kobj,
+						   struct attribute *attr,
+						   const char *buf,
+						   size_t count)
+{
+	struct xe_device *xe = kobj_to_xe(kobj);
+	struct kobj_attribute *kattr;
+	ssize_t ret = -EIO;
+
+	kattr = container_of(attr, struct kobj_attribute, attr);
+	if (kattr->store) {
+		xe_pm_runtime_get(xe);
+		ret = kattr->store(kobj, kattr, buf, count);
+		xe_pm_runtime_put(xe);
+	}
+
+	return ret;
+}
+
+static const struct sysfs_ops xe_hw_engine_class_sysfs_ops = {
+	.show = xe_hw_engine_class_sysfs_attr_show,
+	.store = xe_hw_engine_class_sysfs_attr_store,
+};
+
 static const struct kobj_type xe_hw_engine_sysfs_kobj_type = {
 	.release = xe_hw_engine_sysfs_kobj_release,
-	.sysfs_ops = &kobj_sysfs_ops,
+	.sysfs_ops = &xe_hw_engine_class_sysfs_ops,
 };
 
 static void hw_engine_class_sysfs_fini(struct drm_device *drm, void *arg)
@@ -577,6 +616,24 @@ static void hw_engine_class_sysfs_fini(struct drm_device *drm, void *arg)
 	struct kobject *kobj = arg;
 
 	kobject_put(kobj);
+}
+
+static const char *xe_hw_engine_class_to_str(enum xe_engine_class class)
+{
+	switch (class) {
+	case XE_ENGINE_CLASS_RENDER:
+		return "rcs";
+	case XE_ENGINE_CLASS_VIDEO_DECODE:
+		return "vcs";
+	case XE_ENGINE_CLASS_VIDEO_ENHANCE:
+		return "vecs";
+	case XE_ENGINE_CLASS_COPY:
+		return "bcs";
+	case XE_ENGINE_CLASS_COMPUTE:
+		return "ccs";
+	default:
+		return NULL;
+	}
 }
 
 /**
@@ -608,7 +665,7 @@ int xe_hw_engine_class_sysfs_init(struct xe_gt *gt)
 		goto err_object;
 
 	for_each_hw_engine(hwe, gt, id) {
-		char name[MAX_ENGINE_CLASS_NAME_LEN];
+		const char *name;
 		struct kobj_eclass *keclass;
 
 		if (hwe->class == XE_ENGINE_CLASS_OTHER ||
@@ -619,24 +676,8 @@ int xe_hw_engine_class_sysfs_init(struct xe_gt *gt)
 			continue;
 
 		class_mask |= 1 << hwe->class;
-
-		switch (hwe->class) {
-		case XE_ENGINE_CLASS_RENDER:
-			strcpy(name, "rcs");
-			break;
-		case XE_ENGINE_CLASS_VIDEO_DECODE:
-			strcpy(name, "vcs");
-			break;
-		case XE_ENGINE_CLASS_VIDEO_ENHANCE:
-			strcpy(name, "vecs");
-			break;
-		case XE_ENGINE_CLASS_COPY:
-			strcpy(name, "bcs");
-			break;
-		case XE_ENGINE_CLASS_COMPUTE:
-			strcpy(name, "ccs");
-			break;
-		default:
+		name = xe_hw_engine_class_to_str(hwe->class);
+		if (!name) {
 			err = -EINVAL;
 			goto err_object;
 		}
@@ -649,26 +690,16 @@ int xe_hw_engine_class_sysfs_init(struct xe_gt *gt)
 
 		keclass->eclass = hwe->eclass;
 		err = xe_add_hw_engine_class_defaults(xe, &keclass->base);
-		if (err) {
-			drm_warn(&xe->drm,
-				 "Add .defaults to engines failed!, err: %d\n",
-				 err);
+		if (err)
 			goto err_object;
-		}
 
 		err = sysfs_create_files(&keclass->base, files);
 		if (err)
 			goto err_object;
 	}
 
-	err = drmm_add_action_or_reset(&xe->drm, hw_engine_class_sysfs_fini,
-				       kobj);
-	if (err)
-		drm_warn(&xe->drm,
-			 "%s: drmm_add_action_or_reset failed, err: %d\n",
-			 __func__, err);
+	return drmm_add_action_or_reset(&xe->drm, hw_engine_class_sysfs_fini, kobj);
 
-	return err;
 err_object:
 	kobject_put(kobj);
 	return err;

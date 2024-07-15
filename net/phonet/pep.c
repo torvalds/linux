@@ -759,8 +759,8 @@ static void pep_sock_close(struct sock *sk, long timeout)
 	sock_put(sk);
 }
 
-static struct sock *pep_sock_accept(struct sock *sk, int flags, int *errp,
-				    bool kern)
+static struct sock *pep_sock_accept(struct sock *sk,
+				    struct proto_accept_arg *arg)
 {
 	struct pep_sock *pn = pep_sk(sk), *newpn;
 	struct sock *newsk = NULL;
@@ -772,8 +772,8 @@ static struct sock *pep_sock_accept(struct sock *sk, int flags, int *errp,
 	u8 pipe_handle, enabled, n_sb;
 	u8 aligned = 0;
 
-	skb = skb_recv_datagram(sk, (flags & O_NONBLOCK) ? MSG_DONTWAIT : 0,
-				errp);
+	skb = skb_recv_datagram(sk, (arg->flags & O_NONBLOCK) ? MSG_DONTWAIT : 0,
+				&arg->err);
 	if (!skb)
 		return NULL;
 
@@ -836,7 +836,7 @@ static struct sock *pep_sock_accept(struct sock *sk, int flags, int *errp,
 
 	/* Create a new to-be-accepted sock */
 	newsk = sk_alloc(sock_net(sk), PF_PHONET, GFP_KERNEL, sk->sk_prot,
-			 kern);
+			 arg->kern);
 	if (!newsk) {
 		pep_reject_conn(sk, skb, PN_PIPE_ERR_OVERLOAD, GFP_KERNEL);
 		err = -ENOBUFS;
@@ -878,7 +878,7 @@ static struct sock *pep_sock_accept(struct sock *sk, int flags, int *errp,
 drop:
 	release_sock(sk);
 	kfree_skb(skb);
-	*errp = err;
+	arg->err = err;
 	return newsk;
 }
 

@@ -145,10 +145,10 @@ int drm_atomic_set_mode_prop_for_crtc(struct drm_crtc_state *state,
 					     &state->mode, blob->data);
 		if (ret) {
 			drm_dbg_atomic(crtc->dev,
-				       "[CRTC:%d:%s] invalid mode (ret=%d, status=%s):\n",
+				       "[CRTC:%d:%s] invalid mode (%s, %pe): " DRM_MODE_FMT "\n",
 				       crtc->base.id, crtc->name,
-				       ret, drm_get_mode_status_name(state->mode.status));
-			drm_mode_debug_printmodeline(&state->mode);
+				       drm_get_mode_status_name(state->mode.status),
+				       ERR_PTR(ret), DRM_MODE_ARG(&state->mode));
 			return -EINVAL;
 		}
 

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2005-2014, 2018-2023 Intel Corporation
+ * Copyright (C) 2005-2014, 2018-2024 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016 Intel Deutschland GmbH
  */
@@ -371,7 +371,10 @@ enum {
 #define CNVI_AUX_MISC_CHIP			0xA200B0
 #define CNVI_AUX_MISC_CHIP_MAC_STEP(_val)	(((_val) & 0xf000000) >> 24)
 #define CNVI_AUX_MISC_CHIP_PROD_TYPE(_val)	((_val) & 0xfff)
+#define CNVI_AUX_MISC_CHIP_PROD_TYPE_GL		0x910
 #define CNVI_AUX_MISC_CHIP_PROD_TYPE_BZ_U	0x930
+#define CNVI_AUX_MISC_CHIP_PROD_TYPE_BZ_I	0x900
+#define CNVI_AUX_MISC_CHIP_PROD_TYPE_BZ_W	0x901
 
 #define CNVR_AUX_MISC_CHIP				0xA2B800
 #define CNVR_SCU_SD_REGS_SD_REG_DIG_DCDC_VTRIM		0xA29890
@@ -453,11 +456,7 @@ enum {
 #define REG_CRF_ID_TYPE_HR_NONE_CDB_1X1	0x501
 #define REG_CRF_ID_TYPE_HR_NONE_CDB_CCP	0x532
 #define REG_CRF_ID_TYPE_GF			0x410
-#define REG_CRF_ID_TYPE_GF_TC			0xF08
-#define REG_CRF_ID_TYPE_MR			0x810
 #define REG_CRF_ID_TYPE_FM			0x910
-#define REG_CRF_ID_TYPE_FMI			0x930
-#define REG_CRF_ID_TYPE_FMR			0x900
 #define REG_CRF_ID_TYPE_WHP			0xA10
 
 #define HPM_DEBUG			0xA03440

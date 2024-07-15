@@ -605,20 +605,15 @@ static int nt36672a_panel_add(struct nt36672a_panel *pinfo)
 	struct device *dev = &pinfo->link->dev;
 	int i, ret;
 
-	for (i = 0; i < ARRAY_SIZE(pinfo->supplies); i++)
+	for (i = 0; i < ARRAY_SIZE(pinfo->supplies); i++) {
 		pinfo->supplies[i].supply = nt36672a_regulator_names[i];
+		pinfo->supplies[i].init_load_uA = nt36672a_regulator_enable_loads[i];
+	}
 
 	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(pinfo->supplies),
 				      pinfo->supplies);
 	if (ret < 0)
 		return dev_err_probe(dev, ret, "failed to get regulators\n");
-
-	for (i = 0; i < ARRAY_SIZE(pinfo->supplies); i++) {
-		ret = regulator_set_load(pinfo->supplies[i].consumer,
-					 nt36672a_regulator_enable_loads[i]);
-		if (ret)
-			return dev_err_probe(dev, ret, "failed to set regulator enable loads\n");
-	}
 
 	pinfo->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(pinfo->reset_gpio))

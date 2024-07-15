@@ -25,7 +25,7 @@ sk_buff->head使用，或者用于skb_shared_info的 “frags” 部分。
 
 网络堆栈在每个CPU使用两个独立的缓存来处理碎片分配。netdev_alloc_cache被使用
 netdev_alloc_frag和__netdev_alloc_skb调用的调用者使用。napi_alloc_cache
-被调用__napi_alloc_frag和__napi_alloc_skb的调用者使用。这两个调用的主要区别是
+被调用__napi_alloc_frag和napi_alloc_skb的调用者使用。这两个调用的主要区别是
 它们可能被调用的环境。“netdev” 前缀的函数可以在任何上下文中使用，因为这些函数
 将禁用中断，而 ”napi“ 前缀的函数只可以在softirq上下文中使用。
 

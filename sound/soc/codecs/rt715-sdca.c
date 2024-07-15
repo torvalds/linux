@@ -933,7 +933,7 @@ static const struct snd_soc_dai_ops rt715_sdca_ops = {
 
 static struct snd_soc_dai_driver rt715_sdca_dai[] = {
 	{
-		.name = "rt715-aif1",
+		.name = "rt715-sdca-aif1",
 		.id = RT715_AIF1,
 		.capture = {
 			.stream_name = "DP6 Capture",
@@ -945,7 +945,7 @@ static struct snd_soc_dai_driver rt715_sdca_dai[] = {
 		.ops = &rt715_sdca_ops,
 	},
 	{
-		.name = "rt715-aif2",
+		.name = "rt715-sdca-aif2",
 		.id = RT715_AIF2,
 		.capture = {
 			.stream_name = "DP4 Capture",

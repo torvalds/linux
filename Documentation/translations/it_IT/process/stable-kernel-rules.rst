@@ -44,7 +44,7 @@ Procedura per sottomettere patch per i sorgenti -stable
 .. note::
   Una patch di sicurezza non dovrebbe essere gestita (solamente) dal processo
   di revisione -stable, ma dovrebbe seguire le procedure descritte in
-  :ref:`Documentation/translations/it_IT/admin-guide/security-bugs.rst <it_securitybugs>`.
+  :ref:`Documentation/translations/it_IT/process/security-bugs.rst <it_securitybugs>`.
 
 Per tutte le altre sottomissioni, scegliere una delle seguenti procedure
 ------------------------------------------------------------------------

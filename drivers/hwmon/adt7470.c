@@ -1304,7 +1304,7 @@ static void adt7470_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id adt7470_id[] = {
-	{ "adt7470", 0 },
+	{ "adt7470" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, adt7470_id);

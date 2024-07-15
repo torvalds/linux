@@ -34,6 +34,32 @@
 /* True if ACPI device is present */
 static bool cros_ec_lpc_acpi_device_found;
 
+/*
+ * Indicates that lpc_driver_data.quirk_mmio_memory_base should
+ * be used as the base port for EC mapped memory.
+ */
+#define CROS_EC_LPC_QUIRK_REMAP_MEMORY              BIT(0)
+
+/**
+ * struct lpc_driver_data - driver data attached to a DMI device ID to indicate
+ *                          hardware quirks.
+ * @quirks: a bitfield composed of quirks from CROS_EC_LPC_QUIRK_*
+ * @quirk_mmio_memory_base: The first I/O port addressing EC mapped memory (used
+ *                          when quirk ...REMAP_MEMORY is set.)
+ */
+struct lpc_driver_data {
+	u32 quirks;
+	u16 quirk_mmio_memory_base;
+};
+
+/**
+ * struct cros_ec_lpc - LPC device-specific data
+ * @mmio_memory_base: The first I/O port addressing EC mapped memory.
+ */
+struct cros_ec_lpc {
+	u16 mmio_memory_base;
+};
+
 /**
  * struct lpc_driver_ops - LPC driver operations
  * @read: Copy length bytes from EC address offset into buffer dest. Returns
@@ -290,6 +316,7 @@ done:
 static int cros_ec_lpc_readmem(struct cros_ec_device *ec, unsigned int offset,
 			       unsigned int bytes, void *dest)
 {
+	struct cros_ec_lpc *ec_lpc = ec->priv;
 	int i = offset;
 	char *s = dest;
 	int cnt = 0;
@@ -299,13 +326,13 @@ static int cros_ec_lpc_readmem(struct cros_ec_device *ec, unsigned int offset,
 
 	/* fixed length */
 	if (bytes) {
-		cros_ec_lpc_ops.read(EC_LPC_ADDR_MEMMAP + offset, bytes, s);
+		cros_ec_lpc_ops.read(ec_lpc->mmio_memory_base + offset, bytes, s);
 		return bytes;
 	}
 
 	/* string */
 	for (; i < EC_MEMMAP_SIZE; i++, s++) {
-		cros_ec_lpc_ops.read(EC_LPC_ADDR_MEMMAP + i, 1, s);
+		cros_ec_lpc_ops.read(ec_lpc->mmio_memory_base + i, 1, s);
 		cnt++;
 		if (!*s)
 			break;
@@ -353,8 +380,28 @@ static int cros_ec_lpc_probe(struct platform_device *pdev)
 	struct acpi_device *adev;
 	acpi_status status;
 	struct cros_ec_device *ec_dev;
+	struct cros_ec_lpc *ec_lpc;
+	struct lpc_driver_data *driver_data;
 	u8 buf[2] = {};
 	int irq, ret;
+	u32 quirks;
+
+	ec_lpc = devm_kzalloc(dev, sizeof(*ec_lpc), GFP_KERNEL);
+	if (!ec_lpc)
+		return -ENOMEM;
+
+	ec_lpc->mmio_memory_base = EC_LPC_ADDR_MEMMAP;
+
+	driver_data = platform_get_drvdata(pdev);
+	if (driver_data) {
+		quirks = driver_data->quirks;
+
+		if (quirks)
+			dev_info(dev, "loaded with quirks %8.08x\n", quirks);
+
+		if (quirks & CROS_EC_LPC_QUIRK_REMAP_MEMORY)
+			ec_lpc->mmio_memory_base = driver_data->quirk_mmio_memory_base;
+	}
 
 	/*
 	 * The Framework Laptop (and possibly other non-ChromeOS devices)
@@ -380,7 +427,7 @@ static int cros_ec_lpc_probe(struct platform_device *pdev)
 	cros_ec_lpc_ops.write = cros_ec_lpc_mec_write_bytes;
 	cros_ec_lpc_ops.read(EC_LPC_ADDR_MEMMAP + EC_MEMMAP_ID, 2, buf);
 	if (buf[0] != 'E' || buf[1] != 'C') {
-		if (!devm_request_region(dev, EC_LPC_ADDR_MEMMAP, EC_MEMMAP_SIZE,
+		if (!devm_request_region(dev, ec_lpc->mmio_memory_base, EC_MEMMAP_SIZE,
 					 dev_name(dev))) {
 			dev_err(dev, "couldn't reserve memmap region\n");
 			return -EBUSY;
@@ -389,7 +436,7 @@ static int cros_ec_lpc_probe(struct platform_device *pdev)
 		/* Re-assign read/write operations for the non MEC variant */
 		cros_ec_lpc_ops.read = cros_ec_lpc_read_bytes;
 		cros_ec_lpc_ops.write = cros_ec_lpc_write_bytes;
-		cros_ec_lpc_ops.read(EC_LPC_ADDR_MEMMAP + EC_MEMMAP_ID, 2,
+		cros_ec_lpc_ops.read(ec_lpc->mmio_memory_base + EC_MEMMAP_ID, 2,
 				     buf);
 		if (buf[0] != 'E' || buf[1] != 'C') {
 			dev_err(dev, "EC ID not detected\n");
@@ -423,6 +470,7 @@ static int cros_ec_lpc_probe(struct platform_device *pdev)
 	ec_dev->din_size = sizeof(struct ec_host_response) +
 			   sizeof(struct ec_response_get_protocol_info);
 	ec_dev->dout_size = sizeof(struct ec_host_request);
+	ec_dev->priv = ec_lpc;
 
 	/*
 	 * Some boards do not have an IRQ allotted for cros_ec_lpc,
@@ -479,6 +527,11 @@ static const struct acpi_device_id cros_ec_lpc_acpi_device_ids[] = {
 };
 MODULE_DEVICE_TABLE(acpi, cros_ec_lpc_acpi_device_ids);
 
+static const struct lpc_driver_data framework_laptop_amd_lpc_driver_data __initconst = {
+	.quirks = CROS_EC_LPC_QUIRK_REMAP_MEMORY,
+	.quirk_mmio_memory_base = 0xE00,
+};
+
 static const struct dmi_system_id cros_ec_lpc_dmi_table[] __initconst = {
 	{
 		/*
@@ -533,7 +586,16 @@ static const struct dmi_system_id cros_ec_lpc_dmi_table[] __initconst = {
 	},
 	/* A small number of non-Chromebook/box machines also use the ChromeOS EC */
 	{
-		/* the Framework Laptop */
+		/* the Framework Laptop 13 (AMD Ryzen) and 16 (AMD Ryzen) */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Framework"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "AMD Ryzen"),
+			DMI_MATCH(DMI_PRODUCT_FAMILY, "Laptop"),
+		},
+		.driver_data = (void *)&framework_laptop_amd_lpc_driver_data,
+	},
+	{
+		/* the Framework Laptop (Intel 11th, 12th, 13th Generation) */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Framework"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Laptop"),
@@ -610,14 +672,16 @@ static int __init cros_ec_lpc_init(void)
 {
 	int ret;
 	acpi_status status;
+	const struct dmi_system_id *dmi_match;
 
 	status = acpi_get_devices(ACPI_DRV_NAME, cros_ec_lpc_parse_device,
 				  &cros_ec_lpc_acpi_device_found, NULL);
 	if (ACPI_FAILURE(status))
 		pr_warn(DRV_NAME ": Looking for %s failed\n", ACPI_DRV_NAME);
 
-	if (!cros_ec_lpc_acpi_device_found &&
-	    !dmi_check_system(cros_ec_lpc_dmi_table)) {
+	dmi_match = dmi_first_match(cros_ec_lpc_dmi_table);
+
+	if (!cros_ec_lpc_acpi_device_found && !dmi_match) {
 		pr_err(DRV_NAME ": unsupported system.\n");
 		return -ENODEV;
 	}
@@ -630,6 +694,9 @@ static int __init cros_ec_lpc_init(void)
 	}
 
 	if (!cros_ec_lpc_acpi_device_found) {
+		/* Pass the DMI match's driver data down to the platform device */
+		platform_set_drvdata(&cros_ec_lpc_device, dmi_match->driver_data);
+
 		/* Register the device, and it'll get hooked up automatically */
 		ret = platform_device_register(&cros_ec_lpc_device);
 		if (ret) {

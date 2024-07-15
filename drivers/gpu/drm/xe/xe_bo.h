@@ -13,48 +13,34 @@
 #include "xe_vm_types.h"
 #include "xe_vm.h"
 
-/**
- * xe_vm_assert_held(vm) - Assert that the vm's reservation object is held.
- * @vm: The vm
- */
-#define xe_vm_assert_held(vm) dma_resv_assert_held(xe_vm_resv(vm))
-
-
-
 #define XE_DEFAULT_GTT_SIZE_MB          3072ULL /* 3GB by default */
 
-#define XE_BO_CREATE_USER_BIT		BIT(0)
+#define XE_BO_FLAG_USER		BIT(0)
 /* The bits below need to be contiguous, or things break */
-#define XE_BO_CREATE_SYSTEM_BIT		BIT(1)
-#define XE_BO_CREATE_VRAM0_BIT		BIT(2)
-#define XE_BO_CREATE_VRAM1_BIT		BIT(3)
-#define XE_BO_CREATE_VRAM_MASK		(XE_BO_CREATE_VRAM0_BIT | \
-					 XE_BO_CREATE_VRAM1_BIT)
+#define XE_BO_FLAG_SYSTEM		BIT(1)
+#define XE_BO_FLAG_VRAM0		BIT(2)
+#define XE_BO_FLAG_VRAM1		BIT(3)
+#define XE_BO_FLAG_VRAM_MASK		(XE_BO_FLAG_VRAM0 | XE_BO_FLAG_VRAM1)
 /* -- */
-#define XE_BO_CREATE_STOLEN_BIT		BIT(4)
-#define XE_BO_CREATE_VRAM_IF_DGFX(tile) \
-	(IS_DGFX(tile_to_xe(tile)) ? XE_BO_CREATE_VRAM0_BIT << (tile)->id : \
-	 XE_BO_CREATE_SYSTEM_BIT)
-#define XE_BO_CREATE_GGTT_BIT		BIT(5)
-#define XE_BO_CREATE_IGNORE_MIN_PAGE_SIZE_BIT BIT(6)
-#define XE_BO_CREATE_PINNED_BIT		BIT(7)
-#define XE_BO_CREATE_NO_RESV_EVICT	BIT(8)
-#define XE_BO_DEFER_BACKING		BIT(9)
-#define XE_BO_SCANOUT_BIT		BIT(10)
-#define XE_BO_FIXED_PLACEMENT_BIT	BIT(11)
-#define XE_BO_PAGETABLE			BIT(12)
-#define XE_BO_NEEDS_CPU_ACCESS		BIT(13)
-#define XE_BO_NEEDS_UC			BIT(14)
+#define XE_BO_FLAG_STOLEN		BIT(4)
+#define XE_BO_FLAG_VRAM_IF_DGFX(tile)	(IS_DGFX(tile_to_xe(tile)) ? \
+					 XE_BO_FLAG_VRAM0 << (tile)->id : \
+					 XE_BO_FLAG_SYSTEM)
+#define XE_BO_FLAG_GGTT			BIT(5)
+#define XE_BO_FLAG_IGNORE_MIN_PAGE_SIZE BIT(6)
+#define XE_BO_FLAG_PINNED		BIT(7)
+#define XE_BO_FLAG_NO_RESV_EVICT	BIT(8)
+#define XE_BO_FLAG_DEFER_BACKING	BIT(9)
+#define XE_BO_FLAG_SCANOUT		BIT(10)
+#define XE_BO_FLAG_FIXED_PLACEMENT	BIT(11)
+#define XE_BO_FLAG_PAGETABLE		BIT(12)
+#define XE_BO_FLAG_NEEDS_CPU_ACCESS	BIT(13)
+#define XE_BO_FLAG_NEEDS_UC		BIT(14)
+#define XE_BO_NEEDS_64K			BIT(15)
+#define XE_BO_FLAG_GGTT_INVALIDATE	BIT(16)
 /* this one is trigger internally only */
-#define XE_BO_INTERNAL_TEST		BIT(30)
-#define XE_BO_INTERNAL_64K		BIT(31)
-
-#define XELPG_PPGTT_PTE_PAT3		BIT_ULL(62)
-#define XE2_PPGTT_PTE_PAT4		BIT_ULL(61)
-#define XE_PPGTT_PDE_PDPE_PAT2		BIT_ULL(12)
-#define XE_PPGTT_PTE_PAT2		BIT_ULL(7)
-#define XE_PPGTT_PTE_PAT1		BIT_ULL(4)
-#define XE_PPGTT_PTE_PAT0		BIT_ULL(3)
+#define XE_BO_FLAG_INTERNAL_TEST	BIT(30)
+#define XE_BO_FLAG_INTERNAL_64K		BIT(31)
 
 #define XE_PTE_SHIFT			12
 #define XE_PAGE_SIZE			(1 << XE_PTE_SHIFT)
@@ -67,20 +53,6 @@
 #define XE_64K_PAGE_SIZE		(1 << XE_64K_PTE_SHIFT)
 #define XE_64K_PTE_MASK			(XE_64K_PAGE_SIZE - 1)
 #define XE_64K_PDE_MASK			(XE_PDE_MASK >> 4)
-
-#define XE_PDE_PS_2M			BIT_ULL(7)
-#define XE_PDPE_PS_1G			BIT_ULL(7)
-#define XE_PDE_IPS_64K			BIT_ULL(11)
-
-#define XE_GGTT_PTE_DM			BIT_ULL(1)
-#define XE_USM_PPGTT_PTE_AE		BIT_ULL(10)
-#define XE_PPGTT_PTE_DM			BIT_ULL(11)
-#define XE_PDE_64K			BIT_ULL(6)
-#define XE_PTE_PS64			BIT_ULL(8)
-#define XE_PTE_NULL			BIT_ULL(9)
-
-#define XE_PAGE_PRESENT			BIT_ULL(0)
-#define XE_PAGE_RW			BIT_ULL(1)
 
 #define XE_PL_SYSTEM		TTM_PL_SYSTEM
 #define XE_PL_TT		TTM_PL_TT

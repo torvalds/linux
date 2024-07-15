@@ -7,7 +7,6 @@
 #include <linux/export.h>
 #include <linux/module.h>
 #include <linux/blkdev.h>
-#include <linux/blk-integrity.h>
 #include <linux/device.h>
 #include <linux/ctype.h>
 #include <linux/ndctl.h>
@@ -507,35 +506,6 @@ int nvdimm_bus_add_badrange(struct nvdimm_bus *nvdimm_bus, u64 addr, u64 length)
 	return badrange_add(&nvdimm_bus->badrange, addr, length);
 }
 EXPORT_SYMBOL_GPL(nvdimm_bus_add_badrange);
-
-#ifdef CONFIG_BLK_DEV_INTEGRITY
-int nd_integrity_init(struct gendisk *disk, unsigned long meta_size)
-{
-	struct blk_integrity bi;
-
-	if (meta_size == 0)
-		return 0;
-
-	memset(&bi, 0, sizeof(bi));
-
-	bi.tuple_size = meta_size;
-	bi.tag_size = meta_size;
-
-	blk_integrity_register(disk, &bi);
-	blk_queue_max_integrity_segments(disk->queue, 1);
-
-	return 0;
-}
-EXPORT_SYMBOL(nd_integrity_init);
-
-#else /* CONFIG_BLK_DEV_INTEGRITY */
-int nd_integrity_init(struct gendisk *disk, unsigned long meta_size)
-{
-	return 0;
-}
-EXPORT_SYMBOL(nd_integrity_init);
-
-#endif
 
 static __init int libnvdimm_init(void)
 {

@@ -78,4 +78,8 @@ enum ath12k_supported_bw ath12k_mac_mac80211_bw_to_ath12k_bw(enum rate_info_bw b
 enum hal_encrypt_type ath12k_dp_tx_get_encrypt_type(u32 cipher);
 int ath12k_mac_rfkill_enable_radio(struct ath12k *ar, bool enable);
 int ath12k_mac_rfkill_config(struct ath12k *ar);
+int ath12k_mac_wait_tx_complete(struct ath12k *ar);
+void ath12k_mac_handle_beacon(struct ath12k *ar, struct sk_buff *skb);
+void ath12k_mac_handle_beacon_miss(struct ath12k *ar, u32 vdev_id);
+
 #endif

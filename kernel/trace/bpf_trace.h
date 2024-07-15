@@ -19,7 +19,7 @@ TRACE_EVENT(bpf_trace_printk,
 	),
 
 	TP_fast_assign(
-		__assign_str(bpf_string, bpf_string);
+		__assign_str(bpf_string);
 	),
 
 	TP_printk("%s", __get_str(bpf_string))

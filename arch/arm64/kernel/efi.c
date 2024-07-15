@@ -9,7 +9,9 @@
 
 #include <linux/efi.h>
 #include <linux/init.h>
+#include <linux/kmemleak.h>
 #include <linux/screen_info.h>
+#include <linux/vmalloc.h>
 
 #include <asm/efi.h>
 #include <asm/stacktrace.h>
@@ -212,6 +214,7 @@ l:	if (!p) {
 		return -ENOMEM;
 	}
 
+	kmemleak_not_leak(p);
 	efi_rt_stack_top = p + THREAD_SIZE;
 	return 0;
 }

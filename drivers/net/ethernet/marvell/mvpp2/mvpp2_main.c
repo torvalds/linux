@@ -1375,7 +1375,7 @@ static int mvpp2_bm_update_mtu(struct net_device *dev, int mtu)
 	}
 
 out_set:
-	dev->mtu = mtu;
+	WRITE_ONCE(dev->mtu, mtu);
 	dev->wanted_features = dev->features;
 
 	netdev_update_features(dev);
@@ -3434,12 +3434,13 @@ static void mvpp2_isr_handle_ptp(struct mvpp2_port *port)
 		mvpp2_isr_handle_ptp_queue(port, 1);
 }
 
-static void mvpp2_isr_handle_link(struct mvpp2_port *port, bool link)
+static void mvpp2_isr_handle_link(struct mvpp2_port *port,
+				  struct phylink_pcs *pcs, bool link)
 {
 	struct net_device *dev = port->dev;
 
 	if (port->phylink) {
-		phylink_mac_change(port->phylink, link);
+		phylink_pcs_change(pcs, link);
 		return;
 	}
 
@@ -3472,7 +3473,7 @@ static void mvpp2_isr_handle_xlg(struct mvpp2_port *port)
 	if (val & MVPP22_XLG_INT_STAT_LINK) {
 		val = readl(port->base + MVPP22_XLG_STATUS);
 		link = (val & MVPP22_XLG_STATUS_LINK_UP);
-		mvpp2_isr_handle_link(port, link);
+		mvpp2_isr_handle_link(port, &port->pcs_xlg, link);
 	}
 }
 
@@ -3488,7 +3489,7 @@ static void mvpp2_isr_handle_gmac_internal(struct mvpp2_port *port)
 		if (val & MVPP22_GMAC_INT_STAT_LINK) {
 			val = readl(port->base + MVPP2_GMAC_STATUS0);
 			link = (val & MVPP2_GMAC_STATUS0_LINK_UP);
-			mvpp2_isr_handle_link(port, link);
+			mvpp2_isr_handle_link(port, &port->pcs_gmac, link);
 		}
 	}
 }
@@ -4013,7 +4014,10 @@ static int mvpp2_rx(struct mvpp2_port *port, struct napi_struct *napi,
 			}
 		}
 
-		skb = build_skb(data, frag_size);
+		if (frag_size)
+			skb = build_skb(data, frag_size);
+		else
+			skb = slab_build_skb(data);
 		if (!skb) {
 			netdev_warn(port->dev, "skb build failed\n");
 			goto err_drop_frame;
@@ -6903,6 +6907,7 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 	/* 9704 == 9728 - 20 and rounding to 8 */
 	dev->max_mtu = MVPP2_BM_JUMBO_PKT_SIZE;
 	device_set_node(&dev->dev, port_fwnode);
+	dev->dev_port = port->id;
 
 	port->pcs_gmac.ops = &mvpp2_phylink_gmac_pcs_ops;
 	port->pcs_gmac.neg_mode = true;

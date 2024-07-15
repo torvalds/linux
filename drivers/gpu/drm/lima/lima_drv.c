@@ -371,6 +371,7 @@ static int lima_pdev_probe(struct platform_device *pdev)
 {
 	struct lima_device *ldev;
 	struct drm_device *ddev;
+	const struct lima_compatible *comp;
 	int err;
 
 	err = lima_sched_slab_init();
@@ -384,7 +385,13 @@ static int lima_pdev_probe(struct platform_device *pdev)
 	}
 
 	ldev->dev = &pdev->dev;
-	ldev->id = (enum lima_gpu_id)of_device_get_match_data(&pdev->dev);
+	comp = of_device_get_match_data(&pdev->dev);
+	if (!comp) {
+		err = -ENODEV;
+		goto err_out0;
+	}
+
+	ldev->id = comp->id;
 
 	platform_set_drvdata(pdev, ldev);
 
@@ -459,9 +466,17 @@ static void lima_pdev_remove(struct platform_device *pdev)
 	lima_sched_slab_fini();
 }
 
+static const struct lima_compatible lima_mali400_data = {
+	.id = lima_gpu_mali400,
+};
+
+static const struct lima_compatible lima_mali450_data = {
+	.id = lima_gpu_mali450,
+};
+
 static const struct of_device_id dt_match[] = {
-	{ .compatible = "arm,mali-400", .data = (void *)lima_gpu_mali400 },
-	{ .compatible = "arm,mali-450", .data = (void *)lima_gpu_mali450 },
+	{ .compatible = "arm,mali-400", .data = &lima_mali400_data },
+	{ .compatible = "arm,mali-450", .data = &lima_mali450_data },
 	{}
 };
 MODULE_DEVICE_TABLE(of, dt_match);

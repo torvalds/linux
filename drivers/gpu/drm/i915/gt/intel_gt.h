@@ -124,6 +124,11 @@ static inline struct drm_i915_private *guc_to_i915(struct intel_guc *guc)
 	return guc_to_gt(guc)->i915;
 }
 
+static inline struct intel_guc *gt_to_guc(struct intel_gt *gt)
+{
+	return &gt->uc.guc;
+}
+
 void intel_gt_common_init_early(struct intel_gt *gt);
 int intel_root_gt_init_early(struct drm_i915_private *i915);
 int intel_gt_assign_ggtt(struct intel_gt *gt);

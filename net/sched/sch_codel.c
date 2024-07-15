@@ -118,26 +118,31 @@ static int codel_change(struct Qdisc *sch, struct nlattr *opt,
 	if (tb[TCA_CODEL_TARGET]) {
 		u32 target = nla_get_u32(tb[TCA_CODEL_TARGET]);
 
-		q->params.target = ((u64)target * NSEC_PER_USEC) >> CODEL_SHIFT;
+		WRITE_ONCE(q->params.target,
+			   ((u64)target * NSEC_PER_USEC) >> CODEL_SHIFT);
 	}
 
 	if (tb[TCA_CODEL_CE_THRESHOLD]) {
 		u64 val = nla_get_u32(tb[TCA_CODEL_CE_THRESHOLD]);
 
-		q->params.ce_threshold = (val * NSEC_PER_USEC) >> CODEL_SHIFT;
+		WRITE_ONCE(q->params.ce_threshold,
+			   (val * NSEC_PER_USEC) >> CODEL_SHIFT);
 	}
 
 	if (tb[TCA_CODEL_INTERVAL]) {
 		u32 interval = nla_get_u32(tb[TCA_CODEL_INTERVAL]);
 
-		q->params.interval = ((u64)interval * NSEC_PER_USEC) >> CODEL_SHIFT;
+		WRITE_ONCE(q->params.interval,
+			   ((u64)interval * NSEC_PER_USEC) >> CODEL_SHIFT);
 	}
 
 	if (tb[TCA_CODEL_LIMIT])
-		sch->limit = nla_get_u32(tb[TCA_CODEL_LIMIT]);
+		WRITE_ONCE(sch->limit,
+			   nla_get_u32(tb[TCA_CODEL_LIMIT]));
 
 	if (tb[TCA_CODEL_ECN])
-		q->params.ecn = !!nla_get_u32(tb[TCA_CODEL_ECN]);
+		WRITE_ONCE(q->params.ecn,
+			   !!nla_get_u32(tb[TCA_CODEL_ECN]));
 
 	qlen = sch->q.qlen;
 	while (sch->q.qlen > sch->limit) {
@@ -183,6 +188,7 @@ static int codel_init(struct Qdisc *sch, struct nlattr *opt,
 static int codel_dump(struct Qdisc *sch, struct sk_buff *skb)
 {
 	struct codel_sched_data *q = qdisc_priv(sch);
+	codel_time_t ce_threshold;
 	struct nlattr *opts;
 
 	opts = nla_nest_start_noflag(skb, TCA_OPTIONS);
@@ -190,17 +196,18 @@ static int codel_dump(struct Qdisc *sch, struct sk_buff *skb)
 		goto nla_put_failure;
 
 	if (nla_put_u32(skb, TCA_CODEL_TARGET,
-			codel_time_to_us(q->params.target)) ||
+			codel_time_to_us(READ_ONCE(q->params.target))) ||
 	    nla_put_u32(skb, TCA_CODEL_LIMIT,
-			sch->limit) ||
+			READ_ONCE(sch->limit)) ||
 	    nla_put_u32(skb, TCA_CODEL_INTERVAL,
-			codel_time_to_us(q->params.interval)) ||
+			codel_time_to_us(READ_ONCE(q->params.interval))) ||
 	    nla_put_u32(skb, TCA_CODEL_ECN,
-			q->params.ecn))
+			READ_ONCE(q->params.ecn)))
 		goto nla_put_failure;
-	if (q->params.ce_threshold != CODEL_DISABLED_THRESHOLD &&
+	ce_threshold = READ_ONCE(q->params.ce_threshold);
+	if (ce_threshold != CODEL_DISABLED_THRESHOLD &&
 	    nla_put_u32(skb, TCA_CODEL_CE_THRESHOLD,
-			codel_time_to_us(q->params.ce_threshold)))
+			codel_time_to_us(ce_threshold)))
 		goto nla_put_failure;
 	return nla_nest_end(skb, opts);
 

@@ -15,6 +15,7 @@
 #include "test_util.h"
 #include "kvm_util.h"
 #include "kselftest.h"
+#include "ucall_common.h"
 
 enum mop_target {
 	LOGICAL,

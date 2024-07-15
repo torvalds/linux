@@ -177,7 +177,7 @@ struct _vcs_dpi_soc_bounding_box_st dcn3_5_soc = {
 	.urgent_latency_pixel_data_only_us = 4.0,
 	.urgent_latency_pixel_mixed_with_vm_data_us = 4.0,
 	.urgent_latency_vm_data_only_us = 4.0,
-	.dram_clock_change_latency_us = 11.72,
+	.dram_clock_change_latency_us = 34.0,
 	.urgent_out_of_order_return_per_channel_pixel_only_bytes = 4096,
 	.urgent_out_of_order_return_per_channel_pixel_and_vm_bytes = 4096,
 	.urgent_out_of_order_return_per_channel_vm_only_bytes = 4096,
@@ -439,7 +439,7 @@ int dcn35_populate_dml_pipes_from_context_fpu(struct dc *dc,
 {
 	int i, pipe_cnt;
 	struct resource_context *res_ctx = &context->res_ctx;
-	struct pipe_ctx *pipe;
+	struct pipe_ctx *pipe = 0;
 	bool upscaled = false;
 	const unsigned int max_allowed_vblank_nom = 1023;
 
@@ -577,6 +577,7 @@ void dcn35_decide_zstate_support(struct dc *dc, struct dc_state *context)
 {
 	enum dcn_zstate_support_state support = DCN_ZSTATE_SUPPORT_DISALLOW;
 	unsigned int i, plane_count = 0;
+	DC_LOGGER_INIT(dc->ctx->logger);
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		if (context->res_ctx.pipe_ctx[i].plane_state)
@@ -602,11 +603,14 @@ void dcn35_decide_zstate_support(struct dc *dc, struct dc_state *context)
 		if (is_pwrseq0 && allow_z10)
 			support = DCN_ZSTATE_SUPPORT_ALLOW;
 		else if (is_pwrseq0 && (is_psr || is_replay))
-			support = allow_z8 ? DCN_ZSTATE_SUPPORT_ALLOW_Z8_Z10_ONLY : DCN_ZSTATE_SUPPORT_ALLOW_Z10_ONLY;
+			support = DCN_ZSTATE_SUPPORT_ALLOW_Z8_Z10_ONLY;
 		else if (allow_z8)
 			support = DCN_ZSTATE_SUPPORT_ALLOW_Z8_ONLY;
 
 	}
+
+	DC_LOG_SMU("zstate_support: %d, StutterPeriod: %d\n", support,
+		   (int)context->bw_ctx.dml.vba.StutterPeriod);
 
 	context->bw_ctx.bw.dcn.clk.zstate_support = support;
 }

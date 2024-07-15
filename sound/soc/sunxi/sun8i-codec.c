@@ -12,12 +12,16 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
+#include <linux/input.h>
 #include <linux/io.h>
+#include <linux/irq.h>
+#include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/log2.h>
 
+#include <sound/jack.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
@@ -118,6 +122,23 @@
 #define SUN8I_ADC_VOL_CTRL				0x104
 #define SUN8I_ADC_VOL_CTRL_ADCL_VOL			8
 #define SUN8I_ADC_VOL_CTRL_ADCR_VOL			0
+#define SUN8I_HMIC_CTRL1				0x110
+#define SUN8I_HMIC_CTRL1_HMIC_M				12
+#define SUN8I_HMIC_CTRL1_HMIC_N				8
+#define SUN8I_HMIC_CTRL1_MDATA_THRESHOLD_DB		5
+#define SUN8I_HMIC_CTRL1_JACK_OUT_IRQ_EN		4
+#define SUN8I_HMIC_CTRL1_JACK_IN_IRQ_EN			3
+#define SUN8I_HMIC_CTRL1_HMIC_DATA_IRQ_EN		0
+#define SUN8I_HMIC_CTRL2				0x114
+#define SUN8I_HMIC_CTRL2_HMIC_SAMPLE			14
+#define SUN8I_HMIC_CTRL2_HMIC_MDATA_THRESHOLD		8
+#define SUN8I_HMIC_CTRL2_HMIC_SF			6
+#define SUN8I_HMIC_STS					0x118
+#define SUN8I_HMIC_STS_MDATA_DISCARD			13
+#define SUN8I_HMIC_STS_HMIC_DATA			8
+#define SUN8I_HMIC_STS_JACK_OUT_IRQ_ST			4
+#define SUN8I_HMIC_STS_JACK_IN_IRQ_ST			3
+#define SUN8I_HMIC_STS_HMIC_DATA_IRQ_ST			0
 #define SUN8I_DAC_DIG_CTRL				0x120
 #define SUN8I_DAC_DIG_CTRL_ENDA				15
 #define SUN8I_DAC_VOL_CTRL				0x124
@@ -143,6 +164,17 @@
 #define SUN8I_AIF_CLK_CTRL_WORD_SIZ_MASK	GENMASK(5, 4)
 #define SUN8I_AIF_CLK_CTRL_DATA_FMT_MASK	GENMASK(3, 2)
 #define SUN8I_AIF3_CLK_CTRL_AIF3_CLK_SRC_MASK	GENMASK(1, 0)
+#define SUN8I_HMIC_CTRL1_HMIC_M_MASK		GENMASK(15, 12)
+#define SUN8I_HMIC_CTRL1_HMIC_N_MASK		GENMASK(11, 8)
+#define SUN8I_HMIC_CTRL1_MDATA_THRESHOLD_DB_MASK GENMASK(6, 5)
+#define SUN8I_HMIC_CTRL2_HMIC_SAMPLE_MASK	GENMASK(15, 14)
+#define SUN8I_HMIC_CTRL2_HMIC_SF_MASK		GENMASK(7, 6)
+#define SUN8I_HMIC_STS_HMIC_DATA_MASK		GENMASK(12, 8)
+
+#define SUN8I_CODEC_BUTTONS	(SND_JACK_BTN_0|\
+				 SND_JACK_BTN_1|\
+				 SND_JACK_BTN_2|\
+				 SND_JACK_BTN_3)
 
 #define SUN8I_CODEC_PASSTHROUGH_SAMPLE_RATE 48000
 
@@ -177,15 +209,34 @@ struct sun8i_codec_aif {
 };
 
 struct sun8i_codec_quirks {
-	bool legacy_widgets	: 1;
-	bool lrck_inversion	: 1;
+	bool	bus_clock	: 1;
+	bool	jack_detection	: 1;
+	bool	legacy_widgets	: 1;
+	bool	lrck_inversion	: 1;
+};
+
+enum {
+	SUN8I_JACK_STATUS_DISCONNECTED,
+	SUN8I_JACK_STATUS_WAITING_HBIAS,
+	SUN8I_JACK_STATUS_CONNECTED,
 };
 
 struct sun8i_codec {
+	struct snd_soc_component	*component;
 	struct regmap			*regmap;
+	struct clk			*clk_bus;
 	struct clk			*clk_module;
 	const struct sun8i_codec_quirks	*quirks;
 	struct sun8i_codec_aif		aifs[SUN8I_CODEC_NAIFS];
+	struct snd_soc_jack		*jack;
+	struct delayed_work		jack_work;
+	int				jack_irq;
+	int				jack_status;
+	int				jack_type;
+	int				jack_last_sample;
+	ktime_t				jack_hbias_ready;
+	struct mutex			jack_mutex;
+	int				last_hmic_irq;
 	unsigned int			sysclk_rate;
 	int				sysclk_refcnt;
 };
@@ -196,6 +247,14 @@ static int sun8i_codec_runtime_resume(struct device *dev)
 {
 	struct sun8i_codec *scodec = dev_get_drvdata(dev);
 	int ret;
+
+	if (scodec->clk_bus) {
+		ret = clk_prepare_enable(scodec->clk_bus);
+		if (ret) {
+			dev_err(dev, "Failed to enable the bus clock\n");
+			return ret;
+		}
+	}
 
 	regcache_cache_only(scodec->regmap, false);
 
@@ -214,6 +273,9 @@ static int sun8i_codec_runtime_suspend(struct device *dev)
 
 	regcache_cache_only(scodec->regmap, true);
 	regcache_mark_dirty(scodec->regmap);
+
+	if (scodec->clk_bus)
+		clk_disable_unprepare(scodec->clk_bus);
 
 	return 0;
 }
@@ -1232,6 +1294,8 @@ static int sun8i_codec_component_probe(struct snd_soc_component *component)
 	struct sun8i_codec *scodec = snd_soc_component_get_drvdata(component);
 	int ret;
 
+	scodec->component = component;
+
 	/* Add widgets for backward compatibility with old device trees. */
 	if (scodec->quirks->legacy_widgets) {
 		ret = snd_soc_dapm_new_controls(dapm, sun8i_codec_legacy_widgets,
@@ -1268,6 +1332,250 @@ static int sun8i_codec_component_probe(struct snd_soc_component *component)
 	return 0;
 }
 
+static void sun8i_codec_set_hmic_bias(struct sun8i_codec *scodec, bool enable)
+{
+	struct snd_soc_dapm_context *dapm = &scodec->component->card->dapm;
+	int irq_mask = BIT(SUN8I_HMIC_CTRL1_HMIC_DATA_IRQ_EN);
+
+	if (enable)
+		snd_soc_dapm_force_enable_pin(dapm, "HBIAS");
+	else
+		snd_soc_dapm_disable_pin(dapm, "HBIAS");
+
+	snd_soc_dapm_sync(dapm);
+
+	regmap_update_bits(scodec->regmap, SUN8I_HMIC_CTRL1,
+			   irq_mask, enable ? irq_mask : 0);
+}
+
+static void sun8i_codec_jack_work(struct work_struct *work)
+{
+	struct sun8i_codec *scodec = container_of(work, struct sun8i_codec,
+						  jack_work.work);
+	unsigned int mdata;
+	int type;
+
+	guard(mutex)(&scodec->jack_mutex);
+
+	if (scodec->jack_status == SUN8I_JACK_STATUS_DISCONNECTED) {
+		if (scodec->last_hmic_irq != SUN8I_HMIC_STS_JACK_IN_IRQ_ST)
+			return;
+
+		scodec->jack_last_sample = -1;
+
+		if (scodec->jack_type & SND_JACK_MICROPHONE) {
+			/*
+			 * If we were in disconnected state, we enable HBIAS and
+			 * wait 600ms before reading initial HDATA value.
+			 */
+			scodec->jack_hbias_ready = ktime_add_ms(ktime_get(), 600);
+			sun8i_codec_set_hmic_bias(scodec, true);
+			queue_delayed_work(system_power_efficient_wq,
+					   &scodec->jack_work,
+					   msecs_to_jiffies(610));
+			scodec->jack_status = SUN8I_JACK_STATUS_WAITING_HBIAS;
+		} else {
+			snd_soc_jack_report(scodec->jack, SND_JACK_HEADPHONE,
+					    scodec->jack_type);
+			scodec->jack_status = SUN8I_JACK_STATUS_CONNECTED;
+		}
+	} else if (scodec->jack_status == SUN8I_JACK_STATUS_WAITING_HBIAS) {
+		/*
+		 * If we're waiting for HBIAS to stabilize, and we get plug-out
+		 * interrupt and nothing more for > 100ms, just cancel the
+		 * initialization.
+		 */
+		if (scodec->last_hmic_irq == SUN8I_HMIC_STS_JACK_OUT_IRQ_ST) {
+			scodec->jack_status = SUN8I_JACK_STATUS_DISCONNECTED;
+			sun8i_codec_set_hmic_bias(scodec, false);
+			return;
+		}
+
+		/*
+		 * If we're not done waiting for HBIAS to stabilize, wait more.
+		 */
+		if (!ktime_after(ktime_get(), scodec->jack_hbias_ready)) {
+			s64 msecs = ktime_ms_delta(scodec->jack_hbias_ready,
+						   ktime_get());
+
+			queue_delayed_work(system_power_efficient_wq,
+					   &scodec->jack_work,
+					   msecs_to_jiffies(msecs + 10));
+			return;
+		}
+
+		/*
+		 * Everything is stabilized, determine jack type and report it.
+		 */
+		regmap_read(scodec->regmap, SUN8I_HMIC_STS, &mdata);
+		mdata &= SUN8I_HMIC_STS_HMIC_DATA_MASK;
+		mdata >>= SUN8I_HMIC_STS_HMIC_DATA;
+
+		regmap_write(scodec->regmap, SUN8I_HMIC_STS, 0);
+
+		type = mdata < 16 ? SND_JACK_HEADPHONE : SND_JACK_HEADSET;
+		if (type == SND_JACK_HEADPHONE)
+			sun8i_codec_set_hmic_bias(scodec, false);
+
+		snd_soc_jack_report(scodec->jack, type, scodec->jack_type);
+		scodec->jack_status = SUN8I_JACK_STATUS_CONNECTED;
+	} else if (scodec->jack_status == SUN8I_JACK_STATUS_CONNECTED) {
+		if (scodec->last_hmic_irq != SUN8I_HMIC_STS_JACK_OUT_IRQ_ST)
+			return;
+
+		scodec->jack_status = SUN8I_JACK_STATUS_DISCONNECTED;
+		if (scodec->jack_type & SND_JACK_MICROPHONE)
+			sun8i_codec_set_hmic_bias(scodec, false);
+
+		snd_soc_jack_report(scodec->jack, 0, scodec->jack_type);
+	}
+}
+
+static irqreturn_t sun8i_codec_jack_irq(int irq, void *dev_id)
+{
+	struct sun8i_codec *scodec = dev_id;
+	int type = SND_JACK_HEADSET;
+	unsigned int status, value;
+
+	guard(mutex)(&scodec->jack_mutex);
+
+	regmap_read(scodec->regmap, SUN8I_HMIC_STS, &status);
+	regmap_write(scodec->regmap, SUN8I_HMIC_STS, status);
+
+	/*
+	 * De-bounce in/out interrupts via a delayed work re-scheduling to
+	 * 100ms after each interrupt..
+	 */
+	if (status & BIT(SUN8I_HMIC_STS_JACK_OUT_IRQ_ST)) {
+		/*
+		 * Out interrupt has priority over in interrupt so that if
+		 * we get both, we assume the disconnected state, which is
+		 * safer.
+		 */
+		scodec->last_hmic_irq = SUN8I_HMIC_STS_JACK_OUT_IRQ_ST;
+		mod_delayed_work(system_power_efficient_wq, &scodec->jack_work,
+				 msecs_to_jiffies(100));
+	} else if (status & BIT(SUN8I_HMIC_STS_JACK_IN_IRQ_ST)) {
+		scodec->last_hmic_irq = SUN8I_HMIC_STS_JACK_IN_IRQ_ST;
+		mod_delayed_work(system_power_efficient_wq, &scodec->jack_work,
+				 msecs_to_jiffies(100));
+	} else if (status & BIT(SUN8I_HMIC_STS_HMIC_DATA_IRQ_ST)) {
+		/*
+		 * Ignore data interrupts until jack status turns to connected
+		 * state, which is after HMIC enable stabilization is completed.
+		 * Until then tha data are bogus.
+		 */
+		if (scodec->jack_status != SUN8I_JACK_STATUS_CONNECTED)
+			return IRQ_HANDLED;
+
+		value = (status & SUN8I_HMIC_STS_HMIC_DATA_MASK) >>
+			SUN8I_HMIC_STS_HMIC_DATA;
+
+		/*
+		 * Assumes 60 mV per ADC LSB increment, 2V bias voltage, 2.2kOhm
+		 * bias resistor.
+		 */
+		if (value == 0)
+			type |= SND_JACK_BTN_0;
+		else if (value == 1)
+			type |= SND_JACK_BTN_3;
+		else if (value <= 3)
+			type |= SND_JACK_BTN_1;
+		else if (value <= 8)
+			type |= SND_JACK_BTN_2;
+
+		/*
+		 * De-bounce. Only report button after two consecutive A/D
+		 * samples are identical.
+		 */
+		if (scodec->jack_last_sample >= 0 &&
+		    scodec->jack_last_sample == value)
+			snd_soc_jack_report(scodec->jack, type,
+					    scodec->jack_type);
+
+		scodec->jack_last_sample = value;
+	}
+
+	return IRQ_HANDLED;
+}
+
+static int sun8i_codec_enable_jack_detect(struct snd_soc_component *component,
+					  struct snd_soc_jack *jack, void *data)
+{
+	struct sun8i_codec *scodec = snd_soc_component_get_drvdata(component);
+	struct platform_device *pdev = to_platform_device(component->dev);
+	int ret;
+
+	if (!scodec->quirks->jack_detection)
+		return 0;
+
+	scodec->jack = jack;
+
+	scodec->jack_irq = platform_get_irq(pdev, 0);
+	if (scodec->jack_irq < 0)
+		return scodec->jack_irq;
+
+	/* Reserved value required for jack IRQs to trigger. */
+	regmap_write(scodec->regmap, SUN8I_HMIC_CTRL1,
+			   0xf << SUN8I_HMIC_CTRL1_HMIC_N |
+			   0x0 << SUN8I_HMIC_CTRL1_MDATA_THRESHOLD_DB |
+			   0x4 << SUN8I_HMIC_CTRL1_HMIC_M);
+
+	/* Sample the ADC at 128 Hz; bypass smooth filter. */
+	regmap_write(scodec->regmap, SUN8I_HMIC_CTRL2,
+			   0x0 << SUN8I_HMIC_CTRL2_HMIC_SAMPLE |
+			   0x17 << SUN8I_HMIC_CTRL2_HMIC_MDATA_THRESHOLD |
+			   0x0 << SUN8I_HMIC_CTRL2_HMIC_SF);
+
+	/* Do not discard any MDATA, enable user written MDATA threshold. */
+	regmap_write(scodec->regmap, SUN8I_HMIC_STS, 0);
+
+	regmap_set_bits(scodec->regmap, SUN8I_HMIC_CTRL1,
+			BIT(SUN8I_HMIC_CTRL1_JACK_OUT_IRQ_EN) |
+			BIT(SUN8I_HMIC_CTRL1_JACK_IN_IRQ_EN));
+
+	ret = devm_request_threaded_irq(&pdev->dev, scodec->jack_irq,
+					NULL, sun8i_codec_jack_irq,
+					IRQF_ONESHOT,
+					dev_name(&pdev->dev), scodec);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static void sun8i_codec_disable_jack_detect(struct snd_soc_component *component)
+{
+	struct sun8i_codec *scodec = snd_soc_component_get_drvdata(component);
+
+	if (!scodec->quirks->jack_detection)
+		return;
+
+	devm_free_irq(component->dev, scodec->jack_irq, scodec);
+
+	cancel_delayed_work_sync(&scodec->jack_work);
+
+	regmap_clear_bits(scodec->regmap, SUN8I_HMIC_CTRL1,
+			  BIT(SUN8I_HMIC_CTRL1_JACK_OUT_IRQ_EN) |
+			  BIT(SUN8I_HMIC_CTRL1_JACK_IN_IRQ_EN) |
+			  BIT(SUN8I_HMIC_CTRL1_HMIC_DATA_IRQ_EN));
+
+	scodec->jack = NULL;
+}
+
+static int sun8i_codec_component_set_jack(struct snd_soc_component *component,
+					  struct snd_soc_jack *jack, void *data)
+{
+	int ret = 0;
+
+	if (jack)
+		ret = sun8i_codec_enable_jack_detect(component, jack, data);
+	else
+		sun8i_codec_disable_jack_detect(component);
+
+	return ret;
+}
+
 static const struct snd_soc_component_driver sun8i_soc_component = {
 	.controls		= sun8i_codec_controls,
 	.num_controls		= ARRAY_SIZE(sun8i_codec_controls),
@@ -1275,15 +1583,23 @@ static const struct snd_soc_component_driver sun8i_soc_component = {
 	.num_dapm_widgets	= ARRAY_SIZE(sun8i_codec_dapm_widgets),
 	.dapm_routes		= sun8i_codec_dapm_routes,
 	.num_dapm_routes	= ARRAY_SIZE(sun8i_codec_dapm_routes),
+	.set_jack		= sun8i_codec_component_set_jack,
 	.probe			= sun8i_codec_component_probe,
 	.idle_bias_on		= 1,
+	.suspend_bias_off	= 1,
 	.endianness		= 1,
 };
+
+static bool sun8i_codec_volatile_reg(struct device *dev, unsigned int reg)
+{
+	return reg == SUN8I_HMIC_STS;
+}
 
 static const struct regmap_config sun8i_codec_regmap_config = {
 	.reg_bits	= 32,
 	.reg_stride	= 4,
 	.val_bits	= 32,
+	.volatile_reg	= sun8i_codec_volatile_reg,
 	.max_register	= SUN8I_DAC_MXR_SRC,
 
 	.cache_type	= REGCACHE_FLAT,
@@ -1299,6 +1615,20 @@ static int sun8i_codec_probe(struct platform_device *pdev)
 	if (!scodec)
 		return -ENOMEM;
 
+	scodec->quirks = of_device_get_match_data(&pdev->dev);
+	INIT_DELAYED_WORK(&scodec->jack_work, sun8i_codec_jack_work);
+	mutex_init(&scodec->jack_mutex);
+
+	platform_set_drvdata(pdev, scodec);
+
+	if (scodec->quirks->bus_clock) {
+		scodec->clk_bus = devm_clk_get(&pdev->dev, "bus");
+		if (IS_ERR(scodec->clk_bus)) {
+			dev_err(&pdev->dev, "Failed to get the bus clock\n");
+			return PTR_ERR(scodec->clk_bus);
+		}
+	}
+
 	scodec->clk_module = devm_clk_get(&pdev->dev, "mod");
 	if (IS_ERR(scodec->clk_module)) {
 		dev_err(&pdev->dev, "Failed to get the module clock\n");
@@ -1311,17 +1641,14 @@ static int sun8i_codec_probe(struct platform_device *pdev)
 		return PTR_ERR(base);
 	}
 
-	scodec->regmap = devm_regmap_init_mmio_clk(&pdev->dev, "bus", base,
-						   &sun8i_codec_regmap_config);
+	scodec->regmap = devm_regmap_init_mmio(&pdev->dev, base,
+					       &sun8i_codec_regmap_config);
 	if (IS_ERR(scodec->regmap)) {
 		dev_err(&pdev->dev, "Failed to create our regmap\n");
 		return PTR_ERR(scodec->regmap);
 	}
 
-	scodec->quirks = of_device_get_match_data(&pdev->dev);
-
-	platform_set_drvdata(pdev, scodec);
-
+	regcache_cache_only(scodec->regmap, true);
 	pm_runtime_enable(&pdev->dev);
 	if (!pm_runtime_enabled(&pdev->dev)) {
 		ret = sun8i_codec_runtime_resume(&pdev->dev);
@@ -1357,11 +1684,14 @@ static void sun8i_codec_remove(struct platform_device *pdev)
 }
 
 static const struct sun8i_codec_quirks sun8i_a33_quirks = {
+	.bus_clock	= true,
 	.legacy_widgets	= true,
 	.lrck_inversion	= true,
 };
 
 static const struct sun8i_codec_quirks sun50i_a64_quirks = {
+	.bus_clock	= true,
+	.jack_detection	= true,
 };
 
 static const struct of_device_id sun8i_codec_of_match[] = {

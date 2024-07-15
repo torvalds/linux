@@ -71,7 +71,7 @@ static int tas2780_codec_resume(struct snd_soc_component *component)
 {
 	struct tas2780_priv *tas2780 =
 		snd_soc_component_get_drvdata(component);
-	int ret = 0;
+	int ret;
 
 	ret = snd_soc_component_update_bits(component, TAS2780_PWR_CTRL,
 		TAS2780_PWR_CTRL_MASK, TAS2780_PWR_CTRL_ACTIVE);
@@ -81,7 +81,6 @@ static int tas2780_codec_resume(struct snd_soc_component *component)
 			__func__, ret);
 		goto err;
 	}
-	ret = 0;
 	regcache_cache_only(tas2780->regmap, false);
 	ret = regcache_sync(tas2780->regmap);
 err:
@@ -627,7 +626,7 @@ static int tas2780_i2c_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id tas2780_i2c_id[] = {
-	{ "tas2780", 0},
+	{ "tas2780"},
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tas2780_i2c_id);
