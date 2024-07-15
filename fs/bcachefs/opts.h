@@ -70,6 +70,7 @@ enum opt_type {
 	BCH_OPT_BOOL,
 	BCH_OPT_UINT,
 	BCH_OPT_STR,
+	BCH_OPT_BITFIELD,
 	BCH_OPT_FN,
 };
 
@@ -477,6 +478,11 @@ enum fsck_err_opts {
 	  BCH2_NO_SB_OPT,		1,				\
 	  "n",		"Data written to this device will be considered\n"\
 			"to have already been replicated n times")	\
+	x(data_allowed,			u8,				\
+	  OPT_DEVICE,							\
+	  OPT_BITFIELD(__bch2_data_types),				\
+	  BCH2_NO_SB_OPT,		BIT(BCH_DATA_journal)|BIT(BCH_DATA_btree)|BIT(BCH_DATA_user),\
+	  "types",	"Allowed data types for this device: journal, btree, and/or user")\
 	x(btree_node_prefetch,		u8,				\
 	  OPT_FS|OPT_MOUNT|OPT_RUNTIME,					\
 	  OPT_BOOL(),							\

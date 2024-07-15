@@ -204,7 +204,7 @@ STRTO_H(strtoll, long long)
 STRTO_H(strtoull, unsigned long long)
 STRTO_H(strtou64, u64)
 
-u64 bch2_read_flag_list(char *opt, const char * const list[])
+u64 bch2_read_flag_list(const char *opt, const char * const list[])
 {
 	u64 ret = 0;
 	char *p, *s, *d = kstrdup(opt, GFP_KERNEL);

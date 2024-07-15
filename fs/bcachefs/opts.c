@@ -230,6 +230,8 @@ const struct bch_option bch2_opt_table[] = {
 #define OPT_STR_NOLIMIT(_choices)	.type = BCH_OPT_STR,		\
 				.min = 0, .max = U64_MAX,		\
 				.choices = _choices
+#define OPT_BITFIELD(_choices)	.type = BCH_OPT_BITFIELD,		\
+				.choices = _choices
 #define OPT_FN(_fn)		.type = BCH_OPT_FN, .fn	= _fn
 
 #define x(_name, _bits, _flags, _type, _sb_opt, _default, _hint, _help)	\
@@ -376,6 +378,13 @@ int bch2_opt_parse(struct bch_fs *c,
 
 		*res = ret;
 		break;
+	case BCH_OPT_BITFIELD: {
+		s64 v = bch2_read_flag_list(val, opt->choices);
+		if (v < 0)
+			return v;
+		*res = v;
+		break;
+	}
 	case BCH_OPT_FN:
 		ret = opt->fn.parse(c, val, res, err);
 
