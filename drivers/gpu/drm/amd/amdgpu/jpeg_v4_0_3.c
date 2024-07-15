@@ -32,6 +32,9 @@
 #include "vcn/vcn_4_0_3_sh_mask.h"
 #include "ivsrcid/vcn/irqsrcs_vcn_4_0.h"
 
+#define NORMALIZE_JPEG_REG_OFFSET(offset) \
+		(offset & 0x1FFFF)
+
 enum jpeg_engin_status {
 	UVD_PGFSM_STATUS__UVDJ_PWR_ON  = 0,
 	UVD_PGFSM_STATUS__UVDJ_PWR_OFF = 2,
@@ -824,7 +827,13 @@ void jpeg_v4_0_3_dec_ring_emit_ib(struct amdgpu_ring *ring,
 void jpeg_v4_0_3_dec_ring_emit_reg_wait(struct amdgpu_ring *ring, uint32_t reg,
 				uint32_t val, uint32_t mask)
 {
-	uint32_t reg_offset = (reg << 2);
+	uint32_t reg_offset;
+
+	/* For VF, only local offsets should be used */
+	if (amdgpu_sriov_vf(ring->adev))
+		reg = NORMALIZE_JPEG_REG_OFFSET(reg);
+
+	reg_offset = (reg << 2);
 
 	amdgpu_ring_write(ring, PACKETJ(regUVD_JRBC_RB_COND_RD_TIMER_INTERNAL_OFFSET,
 		0, 0, PACKETJ_TYPE0));
@@ -865,7 +874,13 @@ void jpeg_v4_0_3_dec_ring_emit_vm_flush(struct amdgpu_ring *ring,
 
 void jpeg_v4_0_3_dec_ring_emit_wreg(struct amdgpu_ring *ring, uint32_t reg, uint32_t val)
 {
-	uint32_t reg_offset = (reg << 2);
+	uint32_t reg_offset;
+
+	/* For VF, only local offsets should be used */
+	if (amdgpu_sriov_vf(ring->adev))
+		reg = NORMALIZE_JPEG_REG_OFFSET(reg);
+
+	reg_offset = (reg << 2);
 
 	amdgpu_ring_write(ring,	PACKETJ(regUVD_JRBC_EXTERNAL_REG_INTERNAL_OFFSET,
 		0, 0, PACKETJ_TYPE0));
