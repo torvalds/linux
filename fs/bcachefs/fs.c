@@ -244,7 +244,6 @@ static struct bch_inode_info *__bch2_new_inode(struct bch_fs *c)
 	inode->ei_flags = 0;
 	mutex_init(&inode->ei_quota_lock);
 	memset(&inode->ei_devs_need_flush, 0, sizeof(inode->ei_devs_need_flush));
-	inode->v.i_state = 0;
 
 	if (unlikely(inode_init_always(c->vfs_sb, &inode->v))) {
 		kmem_cache_free(bch2_inode_cache, inode);
