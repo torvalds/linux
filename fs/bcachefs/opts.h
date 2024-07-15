@@ -53,17 +53,18 @@ void SET_BCH2_NO_SB_OPT(struct bch_sb *, u64);
 
 /* When can be set: */
 enum opt_flags {
-	OPT_FS		= (1 << 0),	/* Filesystem option */
-	OPT_DEVICE	= (1 << 1),	/* Device option */
-	OPT_INODE	= (1 << 2),	/* Inode option */
-	OPT_FORMAT	= (1 << 3),	/* May be specified at format time */
-	OPT_MOUNT	= (1 << 4),	/* May be specified at mount time */
-	OPT_RUNTIME	= (1 << 5),	/* May be specified at runtime */
-	OPT_HUMAN_READABLE = (1 << 6),
-	OPT_MUST_BE_POW_2 = (1 << 7),	/* Must be power of 2 */
-	OPT_SB_FIELD_SECTORS = (1 << 8),/* Superblock field is >> 9 of actual value */
-	OPT_SB_FIELD_ILOG2 = (1 << 9),	/* Superblock field is ilog2 of actual value */
-	OPT_HIDDEN	= (1 << 10),
+	OPT_FS			= BIT(0),	/* Filesystem option */
+	OPT_DEVICE		= BIT(1),	/* Device option */
+	OPT_INODE		= BIT(2),	/* Inode option */
+	OPT_FORMAT		= BIT(3),	/* May be specified at format time */
+	OPT_MOUNT		= BIT(4),	/* May be specified at mount time */
+	OPT_RUNTIME		= BIT(5),	/* May be specified at runtime */
+	OPT_HUMAN_READABLE	= BIT(6),
+	OPT_MUST_BE_POW_2	= BIT(7),	/* Must be power of 2 */
+	OPT_SB_FIELD_SECTORS	= BIT(8),	/* Superblock field is >> 9 of actual value */
+	OPT_SB_FIELD_ILOG2	= BIT(9),	/* Superblock field is ilog2 of actual value */
+	OPT_SB_FIELD_ONE_BIAS	= BIT(10),	/* 0 means default value */
+	OPT_HIDDEN		= BIT(11),
 };
 
 enum opt_type {
@@ -473,7 +474,7 @@ enum fsck_err_opts {
 	  BCH2_NO_SB_OPT,		0,				\
 	  "size",	"Size of filesystem on device")			\
 	x(durability,			u8,				\
-	  OPT_DEVICE,							\
+	  OPT_DEVICE|OPT_SB_FIELD_ONE_BIAS,				\
 	  OPT_UINT(0, BCH_REPLICAS_MAX),				\
 	  BCH2_NO_SB_OPT,		1,				\
 	  "n",		"Data written to this device will be considered\n"\
@@ -490,8 +491,9 @@ enum fsck_err_opts {
 	  NULL,		"BTREE_ITER_prefetch casuse btree nodes to be\n"\
 	  " prefetched sequentially")
 
-#define BCH_DEV_OPTS()							\
+#define BCH_DEV_OPT_SETTERS()						\
 	x(discard,		BCH_MEMBER_DISCARD)			\
+	x(durability,		BCH_MEMBER_DURABILITY)			\
 	x(data_allowed,		BCH_MEMBER_DATA_ALLOWED)
 
 struct bch_opts {

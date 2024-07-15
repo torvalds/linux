@@ -623,7 +623,7 @@ struct bch_dev_sb_opt_set {
 
 static const struct bch_dev_sb_opt_set bch2_dev_sb_opt_setters [] = {
 #define x(n, set)	[Opt_##n] = { .set_sb = SET_##set },
-	BCH_DEV_OPTS()
+	BCH_DEV_OPT_SETTERS()
 #undef x
 };
 
@@ -637,6 +637,9 @@ void __bch2_opt_set_sb(struct bch_sb *sb, int dev_idx,
 
 	if (opt->flags & OPT_SB_FIELD_ILOG2)
 		v = ilog2(v);
+
+	if (opt->flags & OPT_SB_FIELD_ONE_BIAS)
+		v++;
 
 	if (opt->flags & OPT_FS) {
 		if (opt->set_sb != SET_BCH2_NO_SB_OPT)
@@ -654,6 +657,8 @@ void __bch2_opt_set_sb(struct bch_sb *sb, int dev_idx,
 		const struct bch_dev_sb_opt_set *set = bch2_dev_sb_opt_setters + id;
 		if (set->set_sb)
 			set->set_sb(m, v);
+		else
+			pr_err("option %s cannot be set via opt_set_sb()", opt->attr.name);
 	}
 }
 

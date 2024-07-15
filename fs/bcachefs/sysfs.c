@@ -821,7 +821,6 @@ STORE(bch2_dev)
 {
 	struct bch_dev *ca = container_of(kobj, struct bch_dev, kobj);
 	struct bch_fs *c = ca->fs;
-	struct bch_member *mi;
 
 	if (attr == &sysfs_discard) {
 		bool v = strtoul_or_return(buf);
@@ -832,14 +831,7 @@ STORE(bch2_dev)
 	if (attr == &sysfs_durability) {
 		u64 v = strtoul_or_return(buf);
 
-		mutex_lock(&c->sb_lock);
-		mi = bch2_members_v2_get_mut(c->disk_sb.sb, ca->dev_idx);
-
-		if (v + 1 != BCH_MEMBER_DURABILITY(mi)) {
-			SET_BCH_MEMBER_DURABILITY(mi, v + 1);
-			bch2_write_super(c);
-		}
-		mutex_unlock(&c->sb_lock);
+		bch2_opt_set_sb(c, ca, bch2_opt_table + Opt_durability, v);
 	}
 
 	if (attr == &sysfs_label) {
