@@ -617,10 +617,20 @@ int bch2_opts_from_sb(struct bch_opts *opts, struct bch_sb *sb)
 	return 0;
 }
 
-void __bch2_opt_set_sb(struct bch_sb *sb, const struct bch_option *opt, u64 v)
+struct bch_dev_sb_opt_set {
+	void			(*set_sb)(struct bch_member *, u64);
+};
+
+static const struct bch_dev_sb_opt_set bch2_dev_sb_opt_setters [] = {
+#define x(n, set)	[Opt_##n] = { .set_sb = SET_##set },
+	BCH_DEV_OPTS()
+#undef x
+};
+
+void __bch2_opt_set_sb(struct bch_sb *sb, int dev_idx,
+		       const struct bch_option *opt, u64 v)
 {
-	if (opt->set_sb == SET_BCH2_NO_SB_OPT)
-		return;
+	enum bch_opt_id id = opt - bch2_opt_table;
 
 	if (opt->flags & OPT_SB_FIELD_SECTORS)
 		v >>= 9;
@@ -628,16 +638,30 @@ void __bch2_opt_set_sb(struct bch_sb *sb, const struct bch_option *opt, u64 v)
 	if (opt->flags & OPT_SB_FIELD_ILOG2)
 		v = ilog2(v);
 
-	opt->set_sb(sb, v);
+	if (opt->flags & OPT_FS) {
+		if (opt->set_sb != SET_BCH2_NO_SB_OPT)
+			opt->set_sb(sb, v);
+	}
+
+	if ((opt->flags & OPT_DEVICE) && dev_idx >= 0) {
+		if (WARN(!bch2_member_exists(sb, dev_idx),
+			 "tried to set device option %s on nonexistent device %i",
+			 opt->attr.name, dev_idx))
+			return;
+
+		struct bch_member *m = bch2_members_v2_get_mut(sb, dev_idx);
+
+		const struct bch_dev_sb_opt_set *set = bch2_dev_sb_opt_setters + id;
+		if (set->set_sb)
+			set->set_sb(m, v);
+	}
 }
 
-void bch2_opt_set_sb(struct bch_fs *c, const struct bch_option *opt, u64 v)
+void bch2_opt_set_sb(struct bch_fs *c, struct bch_dev *ca,
+		     const struct bch_option *opt, u64 v)
 {
-	if (opt->set_sb == SET_BCH2_NO_SB_OPT)
-		return;
-
 	mutex_lock(&c->sb_lock);
-	__bch2_opt_set_sb(c->disk_sb.sb, opt, v);
+	__bch2_opt_set_sb(c->disk_sb.sb, ca ? ca->dev_idx : -1, opt, v);
 	bch2_write_super(c);
 	mutex_unlock(&c->sb_lock);
 }

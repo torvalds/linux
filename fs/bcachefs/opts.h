@@ -490,6 +490,10 @@ enum fsck_err_opts {
 	  NULL,		"BTREE_ITER_prefetch casuse btree nodes to be\n"\
 	  " prefetched sequentially")
 
+#define BCH_DEV_OPTS()							\
+	x(discard,		BCH_MEMBER_DISCARD)			\
+	x(data_allowed,		BCH_MEMBER_DATA_ALLOWED)
+
 struct bch_opts {
 #define x(_name, _bits, ...)	unsigned _name##_defined:1;
 	BCH_OPTS()
@@ -569,8 +573,10 @@ void bch2_opt_set_by_id(struct bch_opts *, enum bch_opt_id, u64);
 
 u64 bch2_opt_from_sb(struct bch_sb *, enum bch_opt_id);
 int bch2_opts_from_sb(struct bch_opts *, struct bch_sb *);
-void __bch2_opt_set_sb(struct bch_sb *, const struct bch_option *, u64);
-void bch2_opt_set_sb(struct bch_fs *, const struct bch_option *, u64);
+void __bch2_opt_set_sb(struct bch_sb *, int, const struct bch_option *, u64);
+
+struct bch_dev;
+void bch2_opt_set_sb(struct bch_fs *, struct bch_dev *, const struct bch_option *, u64);
 
 int bch2_opt_lookup(const char *);
 int bch2_opt_validate(const struct bch_option *, u64, struct printbuf *);

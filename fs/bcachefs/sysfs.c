@@ -674,7 +674,7 @@ STORE(bch2_fs_opts_dir)
 	if (ret < 0)
 		goto err;
 
-	bch2_opt_set_sb(c, opt, v);
+	bch2_opt_set_sb(c, NULL, opt, v);
 	bch2_opt_set_by_id(&c->opts, id, v);
 
 	if (v &&
@@ -826,14 +826,7 @@ STORE(bch2_dev)
 	if (attr == &sysfs_discard) {
 		bool v = strtoul_or_return(buf);
 
-		mutex_lock(&c->sb_lock);
-		mi = bch2_members_v2_get_mut(c->disk_sb.sb, ca->dev_idx);
-
-		if (v != BCH_MEMBER_DISCARD(mi)) {
-			SET_BCH_MEMBER_DISCARD(mi, v);
-			bch2_write_super(c);
-		}
-		mutex_unlock(&c->sb_lock);
+		bch2_opt_set_sb(c, ca, bch2_opt_table + Opt_discard, v);
 	}
 
 	if (attr == &sysfs_durability) {
