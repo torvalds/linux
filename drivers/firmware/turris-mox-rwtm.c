@@ -499,6 +499,7 @@ static int turris_mox_rwtm_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, rwtm);
 
 	mutex_init(&rwtm->busy);
+	init_completion(&rwtm->cmd_done);
 
 	rwtm->mbox_client.dev = dev;
 	rwtm->mbox_client.rx_callback = mox_rwtm_rx_callback;
@@ -511,8 +512,6 @@ static int turris_mox_rwtm_probe(struct platform_device *pdev)
 				ret);
 		goto remove_files;
 	}
-
-	init_completion(&rwtm->cmd_done);
 
 	ret = mox_get_board_info(rwtm);
 	if (ret < 0)
