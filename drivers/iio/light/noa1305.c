@@ -102,8 +102,28 @@ static const struct iio_chan_spec noa1305_channels[] = {
 		.type = IIO_LIGHT,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),
+		.info_mask_shared_by_type_available = BIT(IIO_CHAN_INFO_SCALE),
 	}
 };
+
+static int noa1305_read_avail(struct iio_dev *indio_dev,
+			      struct iio_chan_spec const *chan,
+			      const int **vals, int *type,
+			      int *length, long mask)
+{
+	if (chan->type != IIO_LIGHT)
+		return -EINVAL;
+
+	switch (mask) {
+	case IIO_CHAN_INFO_SCALE:
+		*vals = noa1305_scale_available;
+		*length = ARRAY_SIZE(noa1305_scale_available);
+		*type = IIO_VAL_FRACTIONAL;
+		return IIO_AVAIL_LIST;
+	default:
+		return -EINVAL;
+	}
+}
 
 static int noa1305_read_raw(struct iio_dev *indio_dev,
 			    struct iio_chan_spec const *chan,
@@ -125,6 +145,7 @@ static int noa1305_read_raw(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info noa1305_info = {
+	.read_avail = noa1305_read_avail,
 	.read_raw = noa1305_read_raw,
 };
 
