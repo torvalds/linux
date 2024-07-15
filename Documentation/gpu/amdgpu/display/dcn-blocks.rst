@@ -11,17 +11,11 @@ DCHUBBUB
 .. kernel-doc:: drivers/gpu/drm/amd/display/dc/inc/hw/dchubbub.h
    :doc: overview
 
-.. kernel-doc:: drivers/gpu/drm/amd/display/dc/inc/hw/dchubbub.h
-   :internal:
-
 HUBP
 ----
 
 .. kernel-doc:: drivers/gpu/drm/amd/display/dc/inc/hw/hubp.h
    :doc: overview
-
-.. kernel-doc:: drivers/gpu/drm/amd/display/dc/inc/hw/hubp.h
-   :internal:
 
 DPP
 ---
