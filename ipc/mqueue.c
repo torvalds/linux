@@ -1355,13 +1355,7 @@ static int do_mq_notify(mqd_t mqdes, const struct sigevent *notification)
 			skb_put(nc, NOTIFY_COOKIE_LEN);
 			/* and attach it to the socket */
 retry:
-			f = fdget(notification->sigev_signo);
-			if (!fd_file(f)) {
-				ret = -EBADF;
-				goto out;
-			}
-			sock = netlink_getsockbyfilp(fd_file(f));
-			fdput(f);
+			sock = netlink_getsockbyfd(notification->sigev_signo);
 			if (IS_ERR(sock)) {
 				ret = PTR_ERR(sock);
 				goto free_skb;
