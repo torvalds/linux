@@ -871,7 +871,6 @@
 			compatible = "qcom,apq8064-sata-phy";
 			status = "disabled";
 			reg = <0x1b400000 0x200>;
-			reg-names = "phy_mem";
 			clocks = <&gcc SATA_PHY_CFG_CLK>;
 			clock-names = "cfg";
 			#phy-cells = <0>;
