@@ -84,40 +84,47 @@ int ns_get_path(struct path *path, struct task_struct *task,
 	return ns_get_path_cb(path, ns_get_path_task, &args);
 }
 
-int open_related_ns(struct ns_common *ns,
-		   struct ns_common *(*get_ns)(struct ns_common *ns))
+/**
+ * open_namespace - open a namespace
+ * @ns: the namespace to open
+ *
+ * This will consume a reference to @ns indendent of success or failure.
+ *
+ * Return: A file descriptor on success or a negative error code on failure.
+ */
+int open_namespace(struct ns_common *ns)
 {
-	struct path path = {};
-	struct ns_common *relative;
+	struct path path __free(path_put) = {};
 	struct file *f;
 	int err;
-	int fd;
 
-	fd = get_unused_fd_flags(O_CLOEXEC);
+	/* call first to consume reference */
+	err = path_from_stashed(&ns->stashed, nsfs_mnt, ns, &path);
+	if (err < 0)
+		return err;
+
+	CLASS(get_unused_fd, fd)(O_CLOEXEC);
 	if (fd < 0)
 		return fd;
 
-	relative = get_ns(ns);
-	if (IS_ERR(relative)) {
-		put_unused_fd(fd);
-		return PTR_ERR(relative);
-	}
-
-	err = path_from_stashed(&relative->stashed, nsfs_mnt, relative, &path);
-	if (err < 0) {
-		put_unused_fd(fd);
-		return err;
-	}
-
 	f = dentry_open(&path, O_RDONLY, current_cred());
-	path_put(&path);
-	if (IS_ERR(f)) {
-		put_unused_fd(fd);
-		fd = PTR_ERR(f);
-	} else
-		fd_install(fd, f);
+	if (IS_ERR(f))
+		return PTR_ERR(f);
 
-	return fd;
+	fd_install(fd, f);
+	return take_fd(fd);
+}
+
+int open_related_ns(struct ns_common *ns,
+		   struct ns_common *(*get_ns)(struct ns_common *ns))
+{
+	struct ns_common *relative;
+
+	relative = get_ns(ns);
+	if (IS_ERR(relative))
+		return PTR_ERR(relative);
+
+	return open_namespace(relative);
 }
 EXPORT_SYMBOL_GPL(open_related_ns);
 
