@@ -51,6 +51,7 @@
 
 #include "rcu.h"
 
+MODULE_DESCRIPTION("Read-Copy Update module-based torture test facility");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Paul E. McKenney <paulmck@linux.ibm.com> and Josh Triplett <josh@joshtriplett.org>");
 
@@ -390,6 +391,7 @@ struct rcu_torture_ops {
 	int extendables;
 	int slow_gps;
 	int no_pi_lock;
+	int debug_objects;
 	const char *name;
 };
 
@@ -577,6 +579,7 @@ static struct rcu_torture_ops rcu_ops = {
 	.irq_capable		= 1,
 	.can_boost		= IS_ENABLED(CONFIG_RCU_BOOST),
 	.extendables		= RCUTORTURE_MAX_EXTEND,
+	.debug_objects		= 1,
 	.name			= "rcu"
 };
 
@@ -747,6 +750,7 @@ static struct rcu_torture_ops srcu_ops = {
 	.cbflood_max	= 50000,
 	.irq_capable	= 1,
 	.no_pi_lock	= IS_ENABLED(CONFIG_TINY_SRCU),
+	.debug_objects	= 1,
 	.name		= "srcu"
 };
 
@@ -786,6 +790,7 @@ static struct rcu_torture_ops srcud_ops = {
 	.cbflood_max	= 50000,
 	.irq_capable	= 1,
 	.no_pi_lock	= IS_ENABLED(CONFIG_TINY_SRCU),
+	.debug_objects	= 1,
 	.name		= "srcud"
 };
 
@@ -2626,7 +2631,7 @@ static void rcu_torture_fwd_cb_cr(struct rcu_head *rhp)
 	spin_lock_irqsave(&rfp->rcu_fwd_lock, flags);
 	rfcpp = rfp->rcu_fwd_cb_tail;
 	rfp->rcu_fwd_cb_tail = &rfcp->rfc_next;
-	WRITE_ONCE(*rfcpp, rfcp);
+	smp_store_release(rfcpp, rfcp);
 	WRITE_ONCE(rfp->n_launders_cb, rfp->n_launders_cb + 1);
 	i = ((jiffies - rfp->rcu_fwd_startat) / (HZ / FWD_CBS_HIST_DIV));
 	if (i >= ARRAY_SIZE(rfp->n_launders_hist))
@@ -3455,7 +3460,6 @@ rcu_torture_cleanup(void)
 		cur_ops->gp_slow_unregister(NULL);
 }
 
-#ifdef CONFIG_DEBUG_OBJECTS_RCU_HEAD
 static void rcu_torture_leak_cb(struct rcu_head *rhp)
 {
 }
@@ -3473,7 +3477,6 @@ static void rcu_torture_err_cb(struct rcu_head *rhp)
 	 */
 	pr_alert("%s: duplicated callback was invoked.\n", KBUILD_MODNAME);
 }
-#endif /* #ifdef CONFIG_DEBUG_OBJECTS_RCU_HEAD */
 
 /*
  * Verify that double-free causes debug-objects to complain, but only
@@ -3482,39 +3485,43 @@ static void rcu_torture_err_cb(struct rcu_head *rhp)
  */
 static void rcu_test_debug_objects(void)
 {
-#ifdef CONFIG_DEBUG_OBJECTS_RCU_HEAD
 	struct rcu_head rh1;
 	struct rcu_head rh2;
+	int idx;
+
+	if (!IS_ENABLED(CONFIG_DEBUG_OBJECTS_RCU_HEAD)) {
+		pr_alert("%s: !CONFIG_DEBUG_OBJECTS_RCU_HEAD, not testing duplicate call_%s()\n",
+					KBUILD_MODNAME, cur_ops->name);
+		return;
+	}
+
+	if (WARN_ON_ONCE(cur_ops->debug_objects &&
+			(!cur_ops->call || !cur_ops->cb_barrier)))
+		return;
+
 	struct rcu_head *rhp = kmalloc(sizeof(*rhp), GFP_KERNEL);
 
 	init_rcu_head_on_stack(&rh1);
 	init_rcu_head_on_stack(&rh2);
-	pr_alert("%s: WARN: Duplicate call_rcu() test starting.\n", KBUILD_MODNAME);
+	pr_alert("%s: WARN: Duplicate call_%s() test starting.\n", KBUILD_MODNAME, cur_ops->name);
 
 	/* Try to queue the rh2 pair of callbacks for the same grace period. */
-	preempt_disable(); /* Prevent preemption from interrupting test. */
-	rcu_read_lock(); /* Make it impossible to finish a grace period. */
-	call_rcu_hurry(&rh1, rcu_torture_leak_cb); /* Start grace period. */
-	local_irq_disable(); /* Make it harder to start a new grace period. */
-	call_rcu_hurry(&rh2, rcu_torture_leak_cb);
-	call_rcu_hurry(&rh2, rcu_torture_err_cb); /* Duplicate callback. */
+	idx = cur_ops->readlock(); /* Make it impossible to finish a grace period. */
+	cur_ops->call(&rh1, rcu_torture_leak_cb); /* Start grace period. */
+	cur_ops->call(&rh2, rcu_torture_leak_cb);
+	cur_ops->call(&rh2, rcu_torture_err_cb); /* Duplicate callback. */
 	if (rhp) {
-		call_rcu_hurry(rhp, rcu_torture_leak_cb);
-		call_rcu_hurry(rhp, rcu_torture_err_cb); /* Another duplicate callback. */
+		cur_ops->call(rhp, rcu_torture_leak_cb);
+		cur_ops->call(rhp, rcu_torture_err_cb); /* Another duplicate callback. */
 	}
-	local_irq_enable();
-	rcu_read_unlock();
-	preempt_enable();
+	cur_ops->readunlock(idx);
 
 	/* Wait for them all to get done so we can safely return. */
-	rcu_barrier();
-	pr_alert("%s: WARN: Duplicate call_rcu() test complete.\n", KBUILD_MODNAME);
+	cur_ops->cb_barrier();
+	pr_alert("%s: WARN: Duplicate call_%s() test complete.\n", KBUILD_MODNAME, cur_ops->name);
 	destroy_rcu_head_on_stack(&rh1);
 	destroy_rcu_head_on_stack(&rh2);
 	kfree(rhp);
-#else /* #ifdef CONFIG_DEBUG_OBJECTS_RCU_HEAD */
-	pr_alert("%s: !CONFIG_DEBUG_OBJECTS_RCU_HEAD, not testing duplicate call_rcu()\n", KBUILD_MODNAME);
-#endif /* #else #ifdef CONFIG_DEBUG_OBJECTS_RCU_HEAD */
 }
 
 static void rcutorture_sync(void)

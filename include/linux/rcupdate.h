@@ -209,7 +209,6 @@ void synchronize_rcu_tasks_rude(void);
 
 #define rcu_note_voluntary_context_switch(t) rcu_tasks_qs(t, false)
 void exit_tasks_rcu_start(void);
-void exit_tasks_rcu_stop(void);
 void exit_tasks_rcu_finish(void);
 #else /* #ifdef CONFIG_TASKS_RCU_GENERIC */
 #define rcu_tasks_classic_qs(t, preempt) do { } while (0)
@@ -218,7 +217,6 @@ void exit_tasks_rcu_finish(void);
 #define call_rcu_tasks call_rcu
 #define synchronize_rcu_tasks synchronize_rcu
 static inline void exit_tasks_rcu_start(void) { }
-static inline void exit_tasks_rcu_stop(void) { }
 static inline void exit_tasks_rcu_finish(void) { }
 #endif /* #else #ifdef CONFIG_TASKS_RCU_GENERIC */
 
@@ -421,10 +419,70 @@ static inline void rcu_preempt_sleep_check(void) { }
 				 "Illegal context switch in RCU-sched read-side critical section"); \
 	} while (0)
 
+// See RCU_LOCKDEP_WARN() for an explanation of the double call to
+// debug_lockdep_rcu_enabled().
+static inline bool lockdep_assert_rcu_helper(bool c)
+{
+	return debug_lockdep_rcu_enabled() &&
+	       (c || !rcu_is_watching() || !rcu_lockdep_current_cpu_online()) &&
+	       debug_lockdep_rcu_enabled();
+}
+
+/**
+ * lockdep_assert_in_rcu_read_lock - WARN if not protected by rcu_read_lock()
+ *
+ * Splats if lockdep is enabled and there is no rcu_read_lock() in effect.
+ */
+#define lockdep_assert_in_rcu_read_lock() \
+	WARN_ON_ONCE(lockdep_assert_rcu_helper(!lock_is_held(&rcu_lock_map)))
+
+/**
+ * lockdep_assert_in_rcu_read_lock_bh - WARN if not protected by rcu_read_lock_bh()
+ *
+ * Splats if lockdep is enabled and there is no rcu_read_lock_bh() in effect.
+ * Note that local_bh_disable() and friends do not suffice here, instead an
+ * actual rcu_read_lock_bh() is required.
+ */
+#define lockdep_assert_in_rcu_read_lock_bh() \
+	WARN_ON_ONCE(lockdep_assert_rcu_helper(!lock_is_held(&rcu_bh_lock_map)))
+
+/**
+ * lockdep_assert_in_rcu_read_lock_sched - WARN if not protected by rcu_read_lock_sched()
+ *
+ * Splats if lockdep is enabled and there is no rcu_read_lock_sched()
+ * in effect.  Note that preempt_disable() and friends do not suffice here,
+ * instead an actual rcu_read_lock_sched() is required.
+ */
+#define lockdep_assert_in_rcu_read_lock_sched() \
+	WARN_ON_ONCE(lockdep_assert_rcu_helper(!lock_is_held(&rcu_sched_lock_map)))
+
+/**
+ * lockdep_assert_in_rcu_reader - WARN if not within some type of RCU reader
+ *
+ * Splats if lockdep is enabled and there is no RCU reader of any
+ * type in effect.  Note that regions of code protected by things like
+ * preempt_disable, local_bh_disable(), and local_irq_disable() all qualify
+ * as RCU readers.
+ *
+ * Note that this will never trigger in PREEMPT_NONE or PREEMPT_VOLUNTARY
+ * kernels that are not also built with PREEMPT_COUNT.  But if you have
+ * lockdep enabled, you might as well also enable PREEMPT_COUNT.
+ */
+#define lockdep_assert_in_rcu_reader()								\
+	WARN_ON_ONCE(lockdep_assert_rcu_helper(!lock_is_held(&rcu_lock_map) &&			\
+					       !lock_is_held(&rcu_bh_lock_map) &&		\
+					       !lock_is_held(&rcu_sched_lock_map) &&		\
+					       preemptible()))
+
 #else /* #ifdef CONFIG_PROVE_RCU */
 
 #define RCU_LOCKDEP_WARN(c, s) do { } while (0 && (c))
 #define rcu_sleep_check() do { } while (0)
+
+#define lockdep_assert_in_rcu_read_lock() do { } while (0)
+#define lockdep_assert_in_rcu_read_lock_bh() do { } while (0)
+#define lockdep_assert_in_rcu_read_lock_sched() do { } while (0)
+#define lockdep_assert_in_rcu_reader() do { } while (0)
 
 #endif /* #else #ifdef CONFIG_PROVE_RCU */
 
