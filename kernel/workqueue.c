@@ -5342,16 +5342,12 @@ static int apply_workqueue_attrs_locked(struct workqueue_struct *wq,
  *
  * Performs GFP_KERNEL allocations.
  *
- * Assumes caller has CPU hotplug read exclusion, i.e. cpus_read_lock().
- *
  * Return: 0 on success and -errno on failure.
  */
 int apply_workqueue_attrs(struct workqueue_struct *wq,
 			  const struct workqueue_attrs *attrs)
 {
 	int ret;
-
-	lockdep_assert_cpus_held();
 
 	mutex_lock(&wq_pool_mutex);
 	ret = apply_workqueue_attrs_locked(wq, attrs);
@@ -5434,7 +5430,6 @@ static int alloc_and_link_pwqs(struct workqueue_struct *wq)
 	bool highpri = wq->flags & WQ_HIGHPRI;
 	int cpu, ret;
 
-	lockdep_assert_cpus_held();
 	lockdep_assert_held(&wq_pool_mutex);
 
 	wq->cpu_pwq = alloc_percpu(struct pool_workqueue *);
@@ -5695,8 +5690,7 @@ struct workqueue_struct *alloc_workqueue(const char *fmt,
 
 	/*
 	 * wq_pool_mutex protects the workqueues list, allocations of PWQs,
-	 * and the global freeze state.  alloc_and_link_pwqs() also requires
-	 * cpus_read_lock() for PWQs' affinities.
+	 * and the global freeze state.
 	 */
 	apply_wqattrs_lock();
 
@@ -6862,8 +6856,7 @@ static int workqueue_apply_unbound_cpumask(const cpumask_var_t unbound_cpumask)
  * @exclude_cpumask: the cpumask to be excluded from wq_unbound_cpumask
  *
  * This function can be called from cpuset code to provide a set of isolated
- * CPUs that should be excluded from wq_unbound_cpumask. The caller must hold
- * either cpus_read_lock or cpus_write_lock.
+ * CPUs that should be excluded from wq_unbound_cpumask.
  */
 int workqueue_unbound_exclude_cpumask(cpumask_var_t exclude_cpumask)
 {
@@ -6873,7 +6866,6 @@ int workqueue_unbound_exclude_cpumask(cpumask_var_t exclude_cpumask)
 	if (!zalloc_cpumask_var(&cpumask, GFP_KERNEL))
 		return -ENOMEM;
 
-	lockdep_assert_cpus_held();
 	mutex_lock(&wq_pool_mutex);
 
 	/*
