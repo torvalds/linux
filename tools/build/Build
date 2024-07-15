@@ -1,3 +1,0 @@
-hostprogs := fixdep
-
-fixdep-y := fixdep.o
