@@ -3331,7 +3331,7 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 		fri.tb_id = table_id;
 		fri.dst = res.prefix;
 		fri.dst_len = res.prefixlen;
-		fri.dscp = inet_dsfield_to_dscp(fl4.flowi4_tos);
+		fri.dscp = res.dscp;
 		fri.type = rt->rt_type;
 		fri.offload = 0;
 		fri.trap = 0;
