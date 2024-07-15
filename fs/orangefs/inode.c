@@ -309,7 +309,7 @@ static int orangefs_read_folio(struct file *file, struct folio *folio)
 
 static int orangefs_write_begin(struct file *file,
 		struct address_space *mapping, loff_t pos, unsigned len,
-		struct page **pagep, void **fsdata)
+		struct folio **foliop, void **fsdata)
 {
 	struct orangefs_write_range *wr;
 	struct folio *folio;
@@ -320,7 +320,7 @@ static int orangefs_write_begin(struct file *file,
 	if (IS_ERR(folio))
 		return PTR_ERR(folio);
 
-	*pagep = &folio->page;
+	*foliop = folio;
 
 	if (folio_test_dirty(folio) && !folio_test_private(folio)) {
 		/*

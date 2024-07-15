@@ -1486,20 +1486,18 @@ static int ceph_netfs_check_write_begin(struct file *file, loff_t pos, unsigned 
  */
 static int ceph_write_begin(struct file *file, struct address_space *mapping,
 			    loff_t pos, unsigned len,
-			    struct page **pagep, void **fsdata)
+			    struct folio **foliop, void **fsdata)
 {
 	struct inode *inode = file_inode(file);
 	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct folio *folio = NULL;
 	int r;
 
-	r = netfs_write_begin(&ci->netfs, file, inode->i_mapping, pos, len, &folio, NULL);
+	r = netfs_write_begin(&ci->netfs, file, inode->i_mapping, pos, len, foliop, NULL);
 	if (r < 0)
 		return r;
 
-	folio_wait_private_2(folio); /* [DEPRECATED] */
-	WARN_ON_ONCE(!folio_test_locked(folio));
-	*pagep = &folio->page;
+	folio_wait_private_2(*foliop); /* [DEPRECATED] */
+	WARN_ON_ONCE(!folio_test_locked(*foliop));
 	return 0;
 }
 

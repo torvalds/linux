@@ -221,13 +221,12 @@ static void fat_write_failed(struct address_space *mapping, loff_t to)
 
 static int fat_write_begin(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len,
-			struct page **pagep, void **fsdata)
+			struct folio **foliop, void **fsdata)
 {
 	int err;
 
-	*pagep = NULL;
 	err = cont_write_begin(file, mapping, pos, len,
-				pagep, fsdata, fat_get_block,
+				foliop, fsdata, fat_get_block,
 				&MSDOS_I(mapping->host)->mmu_private);
 	if (err < 0)
 		fat_write_failed(mapping, pos + len);

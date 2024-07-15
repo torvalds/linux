@@ -417,12 +417,11 @@ affs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 
 static int affs_write_begin(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len,
-			struct page **pagep, void **fsdata)
+			struct folio **foliop, void **fsdata)
 {
 	int ret;
 
-	*pagep = NULL;
-	ret = cont_write_begin(file, mapping, pos, len, pagep, fsdata,
+	ret = cont_write_begin(file, mapping, pos, len, foliop, fsdata,
 				affs_get_block,
 				&AFFS_I(mapping->host)->mmu_private);
 	if (unlikely(ret))
@@ -648,7 +647,7 @@ static int affs_read_folio_ofs(struct file *file, struct folio *folio)
 
 static int affs_write_begin_ofs(struct file *file, struct address_space *mapping,
 				loff_t pos, unsigned len,
-				struct page **pagep, void **fsdata)
+				struct folio **foliop, void **fsdata)
 {
 	struct inode *inode = mapping->host;
 	struct folio *folio;
@@ -671,7 +670,7 @@ static int affs_write_begin_ofs(struct file *file, struct address_space *mapping
 			mapping_gfp_mask(mapping));
 	if (IS_ERR(folio))
 		return PTR_ERR(folio);
-	*pagep = &folio->page;
+	*foliop = folio;
 
 	if (folio_test_uptodate(folio))
 		return 0;
@@ -881,14 +880,14 @@ affs_truncate(struct inode *inode)
 
 	if (inode->i_size > AFFS_I(inode)->mmu_private) {
 		struct address_space *mapping = inode->i_mapping;
-		struct page *page;
+		struct folio *folio;
 		void *fsdata = NULL;
 		loff_t isize = inode->i_size;
 		int res;
 
-		res = mapping->a_ops->write_begin(NULL, mapping, isize, 0, &page, &fsdata);
+		res = mapping->a_ops->write_begin(NULL, mapping, isize, 0, &folio, &fsdata);
 		if (!res)
-			res = mapping->a_ops->write_end(NULL, mapping, isize, 0, 0, page_folio(page), fsdata);
+			res = mapping->a_ops->write_end(NULL, mapping, isize, 0, 0, folio, fsdata);
 		else
 			inode->i_size = AFFS_I(inode)->mmu_private;
 		mark_inode_dirty(inode);

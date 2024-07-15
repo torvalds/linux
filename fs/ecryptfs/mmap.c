@@ -255,7 +255,7 @@ out:
  * @mapping: The eCryptfs object
  * @pos: The file offset at which to start writing
  * @len: Length of the write
- * @pagep: Pointer to return the page
+ * @foliop: Pointer to return the folio
  * @fsdata: Pointer to return fs data (unused)
  *
  * This function must zero any hole we create
@@ -265,7 +265,7 @@ out:
 static int ecryptfs_write_begin(struct file *file,
 			struct address_space *mapping,
 			loff_t pos, unsigned len,
-			struct page **pagep, void **fsdata)
+			struct folio **foliop, void **fsdata)
 {
 	pgoff_t index = pos >> PAGE_SHIFT;
 	struct folio *folio;
@@ -276,7 +276,7 @@ static int ecryptfs_write_begin(struct file *file,
 			mapping_gfp_mask(mapping));
 	if (IS_ERR(folio))
 		return PTR_ERR(folio);
-	*pagep = &folio->page;
+	*foliop = folio;
 
 	prev_page_end_size = ((loff_t)index << PAGE_SHIFT);
 	if (!folio_test_uptodate(folio)) {
@@ -365,7 +365,6 @@ out:
 	if (unlikely(rc)) {
 		folio_unlock(folio);
 		folio_put(folio);
-		*pagep = NULL;
 	}
 	return rc;
 }

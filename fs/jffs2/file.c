@@ -26,7 +26,7 @@ static int jffs2_write_end(struct file *filp, struct address_space *mapping,
 			struct folio *folio, void *fsdata);
 static int jffs2_write_begin(struct file *filp, struct address_space *mapping,
 			loff_t pos, unsigned len,
-			struct page **pagep, void **fsdata);
+			struct folio **foliop, void **fsdata);
 static int jffs2_read_folio(struct file *filp, struct folio *folio);
 
 int jffs2_fsync(struct file *filp, loff_t start, loff_t end, int datasync)
@@ -125,7 +125,7 @@ static int jffs2_read_folio(struct file *file, struct folio *folio)
 
 static int jffs2_write_begin(struct file *filp, struct address_space *mapping,
 			loff_t pos, unsigned len,
-			struct page **pagep, void **fsdata)
+			struct folio **foliop, void **fsdata)
 {
 	struct folio *folio;
 	struct inode *inode = mapping->host;
@@ -212,7 +212,7 @@ static int jffs2_write_begin(struct file *filp, struct address_space *mapping,
 		ret = PTR_ERR(folio);
 		goto release_sem;
 	}
-	*pagep = &folio->page;
+	*foliop = folio;
 
 	/*
 	 * Read in the folio if it wasn't already present. Cannot optimize away

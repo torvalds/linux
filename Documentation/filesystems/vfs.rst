@@ -926,12 +926,12 @@ cache in your filesystem.  The following members are defined:
 	(if they haven't been read already) so that the updated blocks
 	can be written out properly.
 
-	The filesystem must return the locked pagecache page for the
-	specified offset, in ``*pagep``, for the caller to write into.
+	The filesystem must return the locked pagecache folio for the
+	specified offset, in ``*foliop``, for the caller to write into.
 
 	It must be able to cope with short writes (where the length
 	passed to write_begin is greater than the number of bytes copied
-	into the page).
+	into the folio).
 
 	A void * may be returned in fsdata, which then gets passed into
 	write_end.

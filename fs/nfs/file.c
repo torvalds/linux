@@ -336,7 +336,7 @@ static bool nfs_want_read_modify_write(struct file *file, struct folio *folio,
  * increment the page use counts until he is done with the page.
  */
 static int nfs_write_begin(struct file *file, struct address_space *mapping,
-			   loff_t pos, unsigned len, struct page **pagep,
+			   loff_t pos, unsigned len, struct folio **foliop,
 			   void **fsdata)
 {
 	fgf_t fgp = FGP_WRITEBEGIN;
@@ -353,7 +353,7 @@ start:
 				    mapping_gfp_mask(mapping));
 	if (IS_ERR(folio))
 		return PTR_ERR(folio);
-	*pagep = &folio->page;
+	*foliop = folio;
 
 	ret = nfs_flush_incompatible(file, folio);
 	if (ret) {

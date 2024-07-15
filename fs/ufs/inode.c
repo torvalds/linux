@@ -498,11 +498,11 @@ static void ufs_write_failed(struct address_space *mapping, loff_t to)
 
 static int ufs_write_begin(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len,
-			struct page **pagep, void **fsdata)
+			struct folio **foliop, void **fsdata)
 {
 	int ret;
 
-	ret = block_write_begin(mapping, pos, len, pagep, ufs_getfrag_block);
+	ret = block_write_begin(mapping, pos, len, foliop, ufs_getfrag_block);
 	if (unlikely(ret))
 		ufs_write_failed(mapping, pos + len);
 

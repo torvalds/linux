@@ -2735,7 +2735,7 @@ static void reiserfs_truncate_failed_write(struct inode *inode)
 static int reiserfs_write_begin(struct file *file,
 				struct address_space *mapping,
 				loff_t pos, unsigned len,
-				struct page **pagep, void **fsdata)
+				struct folio **foliop, void **fsdata)
 {
 	struct inode *inode;
 	struct folio *folio;
@@ -2749,7 +2749,7 @@ static int reiserfs_write_begin(struct file *file,
 			mapping_gfp_mask(mapping));
 	if (IS_ERR(folio))
 		return PTR_ERR(folio);
-	*pagep = &folio->page;
+	*foliop = folio;
 
 	reiserfs_wait_on_write_block(inode->i_sb);
 	fix_tail_page_for_writing(&folio->page);

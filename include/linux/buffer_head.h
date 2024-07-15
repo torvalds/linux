@@ -258,7 +258,7 @@ int __block_write_full_folio(struct inode *inode, struct folio *folio,
 int block_read_full_folio(struct folio *, get_block_t *);
 bool block_is_partially_uptodate(struct folio *, size_t from, size_t count);
 int block_write_begin(struct address_space *mapping, loff_t pos, unsigned len,
-		struct page **pagep, get_block_t *get_block);
+		struct folio **foliop, get_block_t *get_block);
 int __block_write_begin(struct page *page, loff_t pos, unsigned len,
 		get_block_t *get_block);
 int block_write_end(struct file *, struct address_space *,
@@ -269,7 +269,7 @@ int generic_write_end(struct file *, struct address_space *,
 				struct folio *, void *);
 void folio_zero_new_buffers(struct folio *folio, size_t from, size_t to);
 int cont_write_begin(struct file *, struct address_space *, loff_t,
-			unsigned, struct page **, void **,
+			unsigned, struct folio **, void **,
 			get_block_t *, loff_t *);
 int generic_cont_expand_simple(struct inode *inode, loff_t size);
 void block_commit_write(struct page *page, unsigned int from, unsigned int to);

@@ -448,12 +448,11 @@ static void exfat_write_failed(struct address_space *mapping, loff_t to)
 
 static int exfat_write_begin(struct file *file, struct address_space *mapping,
 		loff_t pos, unsigned int len,
-		struct page **pagep, void **fsdata)
+		struct folio **foliop, void **fsdata)
 {
 	int ret;
 
-	*pagep = NULL;
-	ret = block_write_begin(mapping, pos, len, pagep, exfat_get_block);
+	ret = block_write_begin(mapping, pos, len, foliop, exfat_get_block);
 
 	if (ret < 0)
 		exfat_write_failed(mapping, pos+len);

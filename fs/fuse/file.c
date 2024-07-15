@@ -2387,7 +2387,7 @@ out:
  * but how to implement it without killing performance need more thinking.
  */
 static int fuse_write_begin(struct file *file, struct address_space *mapping,
-		loff_t pos, unsigned len, struct page **pagep, void **fsdata)
+		loff_t pos, unsigned len, struct folio **foliop, void **fsdata)
 {
 	pgoff_t index = pos >> PAGE_SHIFT;
 	struct fuse_conn *fc = get_fuse_conn(file_inode(file));
@@ -2421,7 +2421,7 @@ static int fuse_write_begin(struct file *file, struct address_space *mapping,
 	if (err)
 		goto cleanup;
 success:
-	*pagep = &folio->page;
+	*foliop = folio;
 	return 0;
 
 cleanup:

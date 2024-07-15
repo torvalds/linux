@@ -659,7 +659,7 @@ int bch2_writepages(struct address_space *mapping, struct writeback_control *wbc
 
 int bch2_write_begin(struct file *file, struct address_space *mapping,
 		     loff_t pos, unsigned len,
-		     struct page **pagep, void **fsdata)
+		     struct folio **foliop, void **fsdata)
 {
 	struct bch_inode_info *inode = to_bch_ei(mapping->host);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
@@ -728,12 +728,11 @@ out:
 		goto err;
 	}
 
-	*pagep = &folio->page;
+	*foliop = folio;
 	return 0;
 err:
 	folio_unlock(folio);
 	folio_put(folio);
-	*pagep = NULL;
 err_unlock:
 	bch2_pagecache_add_put(inode);
 	kfree(res);

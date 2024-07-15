@@ -901,7 +901,7 @@ static int ntfs_get_block_write_begin(struct inode *inode, sector_t vbn,
 }
 
 int ntfs_write_begin(struct file *file, struct address_space *mapping,
-		     loff_t pos, u32 len, struct page **pagep, void **fsdata)
+		     loff_t pos, u32 len, struct folio **foliop, void **fsdata)
 {
 	int err;
 	struct inode *inode = mapping->host;
@@ -910,7 +910,6 @@ int ntfs_write_begin(struct file *file, struct address_space *mapping,
 	if (unlikely(ntfs3_forced_shutdown(inode->i_sb)))
 		return -EIO;
 
-	*pagep = NULL;
 	if (is_resident(ni)) {
 		struct folio *folio = __filemap_get_folio(
 			mapping, pos >> PAGE_SHIFT, FGP_WRITEBEGIN,
@@ -926,7 +925,7 @@ int ntfs_write_begin(struct file *file, struct address_space *mapping,
 		ni_unlock(ni);
 
 		if (!err) {
-			*pagep = &folio->page;
+			*foliop = folio;
 			goto out;
 		}
 		folio_unlock(folio);
@@ -936,7 +935,7 @@ int ntfs_write_begin(struct file *file, struct address_space *mapping,
 			goto out;
 	}
 
-	err = block_write_begin(mapping, pos, len, pagep,
+	err = block_write_begin(mapping, pos, len, foliop,
 				ntfs_get_block_write_begin);
 
 out:

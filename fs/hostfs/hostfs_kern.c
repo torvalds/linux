@@ -465,12 +465,13 @@ static int hostfs_read_folio(struct file *file, struct folio *folio)
 
 static int hostfs_write_begin(struct file *file, struct address_space *mapping,
 			      loff_t pos, unsigned len,
-			      struct page **pagep, void **fsdata)
+			      struct folio **foliop, void **fsdata)
 {
 	pgoff_t index = pos >> PAGE_SHIFT;
 
-	*pagep = grab_cache_page_write_begin(mapping, index);
-	if (!*pagep)
+	*foliop = __filemap_get_folio(mapping, index, FGP_WRITEBEGIN,
+			mapping_gfp_mask(mapping));
+	if (!*foliop)
 		return -ENOMEM;
 	return 0;
 }
