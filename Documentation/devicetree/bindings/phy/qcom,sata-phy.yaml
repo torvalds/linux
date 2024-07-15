@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/phy/qcom,sata-phy.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm SATA PHY Controller
+
+maintainers:
+  - Bjorn Andersson <andersson@kernel.org>
+  - Konrad Dybcio <konrad.dybcio@linaro.org>
+
+description:
+  The Qualcomm SATA PHY describes on-chip SATA Physical layer controllers.
+
+properties:
+  compatible:
+    enum:
+      - qcom,ipq806x-sata-phy
+      - qcom,apq8064-sata-phy
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    const: cfg
+
+  '#phy-cells':
+    const: 0
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - '#phy-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/qcom,gcc-ipq806x.h>
+    sata_phy: sata-phy@1b400000 {
+        compatible = "qcom,ipq806x-sata-phy";
+        reg = <0x1b400000 0x200>;
+
+        clocks = <&gcc SATA_PHY_CFG_CLK>;
+        clock-names = "cfg";
+
+        #phy-cells = <0>;
+    };
+
