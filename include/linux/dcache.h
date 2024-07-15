@@ -278,6 +278,8 @@ static inline unsigned d_count(const struct dentry *dentry)
 	return dentry->d_lockref.count;
 }
 
+ino_t d_parent_ino(struct dentry *dentry);
+
 /*
  * helper function for dentry_operations.d_dname() members
  */

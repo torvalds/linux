@@ -126,7 +126,7 @@
 #define EMBEDDED_NAME_MAX	(PATH_MAX - offsetof(struct filename, iname))
 
 struct filename *
-getname_flags(const char __user *filename, int flags, int *empty)
+getname_flags(const char __user *filename, int flags)
 {
 	struct filename *result;
 	char *kname;
@@ -148,9 +148,20 @@ getname_flags(const char __user *filename, int flags, int *empty)
 	result->name = kname;
 
 	len = strncpy_from_user(kname, filename, EMBEDDED_NAME_MAX);
-	if (unlikely(len < 0)) {
-		__putname(result);
-		return ERR_PTR(len);
+	/*
+	 * Handle both empty path and copy failure in one go.
+	 */
+	if (unlikely(len <= 0)) {
+		if (unlikely(len < 0)) {
+			__putname(result);
+			return ERR_PTR(len);
+		}
+
+		/* The empty path is special. */
+		if (!(flags & LOOKUP_EMPTY)) {
+			__putname(result);
+			return ERR_PTR(-ENOENT);
+		}
 	}
 
 	/*
@@ -180,6 +191,12 @@ getname_flags(const char __user *filename, int flags, int *empty)
 			kfree(result);
 			return ERR_PTR(len);
 		}
+		/* The empty path is special. */
+		if (unlikely(!len) && !(flags & LOOKUP_EMPTY)) {
+			__putname(kname);
+			kfree(result);
+			return ERR_PTR(-ENOENT);
+		}
 		if (unlikely(len == PATH_MAX)) {
 			__putname(kname);
 			kfree(result);
@@ -188,16 +205,6 @@ getname_flags(const char __user *filename, int flags, int *empty)
 	}
 
 	atomic_set(&result->refcnt, 1);
-	/* The empty path is special. */
-	if (unlikely(!len)) {
-		if (empty)
-			*empty = 1;
-		if (!(flags & LOOKUP_EMPTY)) {
-			putname(result);
-			return ERR_PTR(-ENOENT);
-		}
-	}
-
 	result->uptr = filename;
 	result->aname = NULL;
 	audit_getname(result);
@@ -209,13 +216,13 @@ getname_uflags(const char __user *filename, int uflags)
 {
 	int flags = (uflags & AT_EMPTY_PATH) ? LOOKUP_EMPTY : 0;
 
-	return getname_flags(filename, flags, NULL);
+	return getname_flags(filename, flags);
 }
 
 struct filename *
 getname(const char __user * filename)
 {
-	return getname_flags(filename, 0, NULL);
+	return getname_flags(filename, 0);
 }
 
 struct filename *
@@ -1233,29 +1240,48 @@ int may_linkat(struct mnt_idmap *idmap, const struct path *link)
  *
  * Returns 0 if the open is allowed, -ve on error.
  */
-static int may_create_in_sticky(struct mnt_idmap *idmap,
-				struct nameidata *nd, struct inode *const inode)
+static int may_create_in_sticky(struct mnt_idmap *idmap, struct nameidata *nd,
+				struct inode *const inode)
 {
 	umode_t dir_mode = nd->dir_mode;
-	vfsuid_t dir_vfsuid = nd->dir_vfsuid;
+	vfsuid_t dir_vfsuid = nd->dir_vfsuid, i_vfsuid;
 
-	if ((!sysctl_protected_fifos && S_ISFIFO(inode->i_mode)) ||
-	    (!sysctl_protected_regular && S_ISREG(inode->i_mode)) ||
-	    likely(!(dir_mode & S_ISVTX)) ||
-	    vfsuid_eq(i_uid_into_vfsuid(idmap, inode), dir_vfsuid) ||
-	    vfsuid_eq_kuid(i_uid_into_vfsuid(idmap, inode), current_fsuid()))
+	if (likely(!(dir_mode & S_ISVTX)))
 		return 0;
 
-	if (likely(dir_mode & 0002) ||
-	    (dir_mode & 0020 &&
-	     ((sysctl_protected_fifos >= 2 && S_ISFIFO(inode->i_mode)) ||
-	      (sysctl_protected_regular >= 2 && S_ISREG(inode->i_mode))))) {
-		const char *operation = S_ISFIFO(inode->i_mode) ?
-					"sticky_create_fifo" :
-					"sticky_create_regular";
-		audit_log_path_denied(AUDIT_ANOM_CREAT, operation);
+	if (S_ISREG(inode->i_mode) && !sysctl_protected_regular)
+		return 0;
+
+	if (S_ISFIFO(inode->i_mode) && !sysctl_protected_fifos)
+		return 0;
+
+	i_vfsuid = i_uid_into_vfsuid(idmap, inode);
+
+	if (vfsuid_eq(i_vfsuid, dir_vfsuid))
+		return 0;
+
+	if (vfsuid_eq_kuid(i_vfsuid, current_fsuid()))
+		return 0;
+
+	if (likely(dir_mode & 0002)) {
+		audit_log_path_denied(AUDIT_ANOM_CREAT, "sticky_create");
 		return -EACCES;
 	}
+
+	if (dir_mode & 0020) {
+		if (sysctl_protected_fifos >= 2 && S_ISFIFO(inode->i_mode)) {
+			audit_log_path_denied(AUDIT_ANOM_CREAT,
+					      "sticky_create_fifo");
+			return -EACCES;
+		}
+
+		if (sysctl_protected_regular >= 2 && S_ISREG(inode->i_mode)) {
+			audit_log_path_denied(AUDIT_ANOM_CREAT,
+					      "sticky_create_regular");
+			return -EACCES;
+		}
+	}
+
 	return 0;
 }
 
@@ -2969,16 +2995,16 @@ int path_pts(struct path *path)
 }
 #endif
 
-int user_path_at_empty(int dfd, const char __user *name, unsigned flags,
-		 struct path *path, int *empty)
+int user_path_at(int dfd, const char __user *name, unsigned flags,
+		 struct path *path)
 {
-	struct filename *filename = getname_flags(name, flags, empty);
+	struct filename *filename = getname_flags(name, flags);
 	int ret = filename_lookup(dfd, filename, flags, path, NULL);
 
 	putname(filename);
 	return ret;
 }
-EXPORT_SYMBOL(user_path_at_empty);
+EXPORT_SYMBOL(user_path_at);
 
 int __check_sticky(struct mnt_idmap *idmap, struct inode *dir,
 		   struct inode *inode)

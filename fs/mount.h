@@ -152,3 +152,4 @@ static inline void move_from_ns(struct mount *mnt, struct list_head *dt_list)
 }
 
 extern void mnt_cursor_del(struct mnt_namespace *ns, struct mount *cursor);
+bool has_locked_children(struct mount *mnt, struct dentry *dentry);

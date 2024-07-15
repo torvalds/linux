@@ -1555,7 +1555,7 @@ void shrink_dcache_for_umount(struct super_block *sb)
 {
 	struct dentry *dentry;
 
-	WARN(down_read_trylock(&sb->s_umount), "s_umount should've been locked");
+	rwsem_assert_held_write(&sb->s_umount);
 
 	dentry = sb->s_root;
 	sb->s_root = NULL;
@@ -3105,6 +3105,34 @@ void d_tmpfile(struct file *file, struct inode *inode)
 	d_instantiate(dentry, inode);
 }
 EXPORT_SYMBOL(d_tmpfile);
+
+/*
+ * Obtain inode number of the parent dentry.
+ */
+ino_t d_parent_ino(struct dentry *dentry)
+{
+	struct dentry *parent;
+	struct inode *iparent;
+	unsigned seq;
+	ino_t ret;
+
+	scoped_guard(rcu) {
+		seq = raw_seqcount_begin(&dentry->d_seq);
+		parent = READ_ONCE(dentry->d_parent);
+		iparent = d_inode_rcu(parent);
+		if (likely(iparent)) {
+			ret = iparent->i_ino;
+			if (!read_seqcount_retry(&dentry->d_seq, seq))
+				return ret;
+		}
+	}
+
+	spin_lock(&dentry->d_lock);
+	ret = dentry->d_parent->d_inode->i_ino;
+	spin_unlock(&dentry->d_lock);
+	return ret;
+}
+EXPORT_SYMBOL(d_parent_ino);
 
 static __initdata unsigned long dhash_entries;
 static int __init set_dhash_entries(char *str)
