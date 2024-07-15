@@ -34,6 +34,7 @@ MPC
 
 .. kernel-doc:: drivers/gpu/drm/amd/display/dc/inc/hw/mpc.h
    :internal:
+   :no-identifiers: mpcc_blnd_cfg mpcc_alpha_blend_mode
 
 OPP
 ---
