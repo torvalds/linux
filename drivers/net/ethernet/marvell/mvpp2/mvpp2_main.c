@@ -2766,29 +2766,29 @@ static void mvpp2_tx_pkts_coal_set(struct mvpp2_port *port,
 	}
 }
 
-static u32 mvpp2_usec_to_cycles(u32 usec, u32 clk_hz)
+static u32 mvpp2_usec_to_cycles(u32 usec, unsigned long clk_hz)
 {
 	u64 tmp = (u64)clk_hz * usec;
 
 	do_div(tmp, USEC_PER_SEC);
 
-	return min(tmp, U32_MAX);
+	return tmp > U32_MAX ? U32_MAX : tmp;
 }
 
-static u32 mvpp2_cycles_to_usec(u32 cycles, u32 clk_hz)
+static u32 mvpp2_cycles_to_usec(u32 cycles, unsigned long clk_hz)
 {
 	u64 tmp = (u64)cycles * USEC_PER_SEC;
 
 	do_div(tmp, clk_hz);
 
-	return min(tmp, U32_MAX);
+	return tmp > U32_MAX ? U32_MAX : tmp;
 }
 
 /* Set the time delay in usec before Rx interrupt */
 static void mvpp2_rx_time_coal_set(struct mvpp2_port *port,
 				   struct mvpp2_rx_queue *rxq)
 {
-	u32 freq = port->priv->tclk;
+	unsigned long freq = port->priv->tclk;
 	u32 val = mvpp2_usec_to_cycles(rxq->time_coal, freq);
 
 	if (val > MVPP2_MAX_ISR_RX_THRESHOLD) {
@@ -2804,7 +2804,7 @@ static void mvpp2_rx_time_coal_set(struct mvpp2_port *port,
 
 static void mvpp2_tx_time_coal_set(struct mvpp2_port *port)
 {
-	u32 freq = port->priv->tclk;
+	unsigned long freq = port->priv->tclk;
 	u32 val = mvpp2_usec_to_cycles(port->tx_time_coal, freq);
 
 	if (val > MVPP2_MAX_ISR_TX_THRESHOLD) {
