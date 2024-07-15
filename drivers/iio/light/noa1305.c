@@ -29,6 +29,7 @@
 #define   NOA1305_INTEGR_TIME_25MS	0x05
 #define   NOA1305_INTEGR_TIME_12_5MS	0x06
 #define   NOA1305_INTEGR_TIME_6_25MS	0x07
+#define   NOA1305_INTEGR_TIME_MASK	0x07
 #define NOA1305_REG_INT_SELECT		0x3
 #define   NOA1305_INT_SEL_ACTIVE_HIGH	0x01
 #define   NOA1305_INT_SEL_ACTIVE_LOW	0x02
@@ -42,6 +43,17 @@
 
 #define NOA1305_DEVICE_ID	0x0519
 #define NOA1305_DRIVER_NAME	"noa1305"
+
+static int noa1305_scale_available[] = {
+	100, 8 * 77,		/* 800 ms */
+	100, 4 * 77,		/* 400 ms */
+	100, 2 * 77,		/* 200 ms */
+	100, 1 * 77,		/* 100 ms */
+	1000, 5 * 77,		/* 50 ms */
+	10000, 25 * 77,		/* 25 ms */
+	100000, 125 * 77,	/* 12.5 ms */
+	1000000, 625 * 77,	/* 6.25 ms */
+};
 
 struct noa1305_priv {
 	struct i2c_client *client;
@@ -78,42 +90,9 @@ static int noa1305_scale(struct noa1305_priv *priv, int *val, int *val2)
 	 * Integration Constant = 7.7
 	 * Integration Time in Seconds
 	 */
-	switch (data) {
-	case NOA1305_INTEGR_TIME_800MS:
-		*val = 100;
-		*val2 = 77 * 8;
-		break;
-	case NOA1305_INTEGR_TIME_400MS:
-		*val = 100;
-		*val2 = 77 * 4;
-		break;
-	case NOA1305_INTEGR_TIME_200MS:
-		*val = 100;
-		*val2 = 77 * 2;
-		break;
-	case NOA1305_INTEGR_TIME_100MS:
-		*val = 100;
-		*val2 = 77;
-		break;
-	case NOA1305_INTEGR_TIME_50MS:
-		*val = 1000;
-		*val2 = 77 * 5;
-		break;
-	case NOA1305_INTEGR_TIME_25MS:
-		*val = 10000;
-		*val2 = 77 * 25;
-		break;
-	case NOA1305_INTEGR_TIME_12_5MS:
-		*val = 100000;
-		*val2 = 77 * 125;
-		break;
-	case NOA1305_INTEGR_TIME_6_25MS:
-		*val = 1000000;
-		*val2 = 77 * 625;
-		break;
-	default:
-		return -EINVAL;
-	}
+	data &= NOA1305_INTEGR_TIME_MASK;
+	*val = noa1305_scale_available[2 * data + 0];
+	*val2 = noa1305_scale_available[2 * data + 1];
 
 	return IIO_VAL_FRACTIONAL;
 }
