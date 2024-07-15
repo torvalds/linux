@@ -4963,7 +4963,7 @@ void drm_dp_mst_dump_topology(struct seq_file *m,
 		seq_printf(m, "branch oui: %*phN devid: ", 3, buf);
 
 		for (i = 0x3; i < 0x8 && buf[i]; i++)
-			seq_printf(m, "%c", buf[i]);
+			seq_putc(m, buf[i]);
 		seq_printf(m, " revision: hw: %x.%x sw: %x.%x\n",
 			   buf[0x9] >> 4, buf[0x9] & 0xf, buf[0xa], buf[0xb]);
 		if (dump_dp_payload_table(mgr, buf))
