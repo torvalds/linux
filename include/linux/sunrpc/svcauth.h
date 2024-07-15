@@ -151,7 +151,6 @@ struct auth_ops {
 
 struct svc_xprt;
 
-extern enum svc_auth_status svc_authenticate(struct svc_rqst *rqstp);
 extern rpc_authflavor_t svc_auth_flavor(struct svc_rqst *rqstp);
 extern int	svc_authorise(struct svc_rqst *rqstp);
 extern enum svc_auth_status svc_set_client(struct svc_rqst *rqstp);
