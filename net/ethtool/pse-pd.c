@@ -277,17 +277,21 @@ ethnl_set_pse(struct ethnl_req_info *req_info, struct genl_info *info)
 	    tb[ETHTOOL_A_C33_PSE_ADMIN_CONTROL]) {
 		struct pse_control_config config = {};
 
-		if (pse_has_podl(phydev->psec))
+		if (tb[ETHTOOL_A_PODL_PSE_ADMIN_CONTROL])
 			config.podl_admin_control = nla_get_u32(tb[ETHTOOL_A_PODL_PSE_ADMIN_CONTROL]);
-		if (pse_has_c33(phydev->psec))
+		if (tb[ETHTOOL_A_C33_PSE_ADMIN_CONTROL])
 			config.c33_admin_control = nla_get_u32(tb[ETHTOOL_A_C33_PSE_ADMIN_CONTROL]);
 
+		/* pse_ethtool_set_config() will do nothing if the config
+		 * is zero
+		 */
 		ret = pse_ethtool_set_config(phydev->psec, info->extack,
 					     &config);
 		if (ret)
 			return ret;
 	}
 
+	/* Return errno or zero - PSE has no notification */
 	return ret;
 }
 
