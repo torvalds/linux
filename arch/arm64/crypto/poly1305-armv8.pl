@@ -885,10 +885,13 @@ poly1305_blocks_neon:
 	ret
 .size	poly1305_blocks_neon,.-poly1305_blocks_neon
 
+.pushsection .rodata
 .align	5
 .Lzeros:
 .long	0,0,0,0,0,0,0,0
 .asciz	"Poly1305 for ARMv8, CRYPTOGAMS by \@dot-asm"
+.popsection
+
 .align	2
 #if !defined(__KERNEL__) && !defined(_WIN64)
 .comm	OPENSSL_armcap_P,4,4
