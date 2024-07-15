@@ -5057,7 +5057,7 @@ static void bpf_scx_unreg(void *kdata, struct bpf_link *link)
 
 static int bpf_scx_init(struct btf *btf)
 {
-	u32 type_id;
+	s32 type_id;
 
 	type_id = btf_find_by_name_kind(btf, "task_struct", BTF_KIND_STRUCT);
 	if (type_id < 0)
