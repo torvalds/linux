@@ -6,6 +6,7 @@
  * some credit to Christoph Scheurer, but largely a rewrite
  */
 
+#include <linux/bits.h>
 #include <linux/err.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
@@ -172,7 +173,7 @@ static ssize_t show_alarm(struct device *dev, struct device_attribute *attr,
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
-	return sprintf(buf, "%u\n", (data->alarms >> index) & 0x1);
+	return sprintf(buf, "%u\n", !!(data->alarms & BIT(index)));
 }
 
 static ssize_t show_fault(struct device *dev,
@@ -185,7 +186,7 @@ static ssize_t show_fault(struct device *dev,
 		return PTR_ERR(data);
 
 	return sprintf(buf, "%u\n",
-		       (data->alarms & (1 << 12)) && data->temp[index] == 127);
+		       (data->alarms & BIT(12)) && data->temp[index] == 127);
 }
 
 static ssize_t set_temp_max(struct device *dev,
