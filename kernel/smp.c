@@ -254,6 +254,14 @@ static bool csd_lock_wait_toolong(call_single_data_t *csd, u64 ts0, u64 *ts1, in
 		   csd_lock_timeout_ns == 0))
 		return false;
 
+	if (ts0 > ts2) {
+		/* Our own sched_clock went backward; don't blame another CPU. */
+		ts_delta = ts0 - ts2;
+		pr_alert("sched_clock on CPU %d went backward by %llu ns\n", raw_smp_processor_id(), ts_delta);
+		*ts1 = ts2;
+		return false;
+	}
+
 	firsttime = !*bug_id;
 	if (firsttime)
 		*bug_id = atomic_inc_return(&csd_bug_count);
