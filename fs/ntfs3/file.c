@@ -842,10 +842,12 @@ out:
 	return err;
 }
 
-static ssize_t ntfs_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
+/*
+ * check_read_restriction:
+ * common code for ntfs_file_read_iter and ntfs_file_splice_read
+ */
+static int check_read_restriction(struct inode *inode)
 {
-	struct file *file = iocb->ki_filp;
-	struct inode *inode = file_inode(file);
 	struct ntfs_inode *ni = ntfs_i(inode);
 
 	if (unlikely(ntfs3_forced_shutdown(inode->i_sb)))
@@ -855,57 +857,59 @@ static ssize_t ntfs_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 		ntfs_inode_warn(inode, "encrypted i/o not supported");
 		return -EOPNOTSUPP;
 	}
+
+#ifndef CONFIG_NTFS3_LZX_XPRESS
+	if (ni->ni_flags & NI_FLAG_COMPRESSED_MASK) {
+		ntfs_inode_warn(
+			inode,
+			"activate CONFIG_NTFS3_LZX_XPRESS to read external compressed files");
+		return -EOPNOTSUPP;
+	}
+#endif
+
+	if (is_dedup(ni)) {
+		ntfs_inode_warn(inode, "read deduplicated not supported");
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+/*
+ * ntfs_file_read_iter - file_operations::read_iter
+ */
+static ssize_t ntfs_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
+{
+	struct file *file = iocb->ki_filp;
+	struct inode *inode = file_inode(file);
+	struct ntfs_inode *ni = ntfs_i(inode);
+	ssize_t err;
+
+	err = check_read_restriction(inode);
+	if (err)
+		return err;
 
 	if (is_compressed(ni) && (iocb->ki_flags & IOCB_DIRECT)) {
 		ntfs_inode_warn(inode, "direct i/o + compressed not supported");
 		return -EOPNOTSUPP;
 	}
 
-#ifndef CONFIG_NTFS3_LZX_XPRESS
-	if (ni->ni_flags & NI_FLAG_COMPRESSED_MASK) {
-		ntfs_inode_warn(
-			inode,
-			"activate CONFIG_NTFS3_LZX_XPRESS to read external compressed files");
-		return -EOPNOTSUPP;
-	}
-#endif
-
-	if (is_dedup(ni)) {
-		ntfs_inode_warn(inode, "read deduplicated not supported");
-		return -EOPNOTSUPP;
-	}
-
 	return generic_file_read_iter(iocb, iter);
 }
 
+/*
+ * ntfs_file_splice_read - file_operations::splice_read
+ */
 static ssize_t ntfs_file_splice_read(struct file *in, loff_t *ppos,
 				     struct pipe_inode_info *pipe, size_t len,
 				     unsigned int flags)
 {
 	struct inode *inode = file_inode(in);
-	struct ntfs_inode *ni = ntfs_i(inode);
+	ssize_t err;
 
-	if (unlikely(ntfs3_forced_shutdown(inode->i_sb)))
-		return -EIO;
-
-	if (is_encrypted(ni)) {
-		ntfs_inode_warn(inode, "encrypted i/o not supported");
-		return -EOPNOTSUPP;
-	}
-
-#ifndef CONFIG_NTFS3_LZX_XPRESS
-	if (ni->ni_flags & NI_FLAG_COMPRESSED_MASK) {
-		ntfs_inode_warn(
-			inode,
-			"activate CONFIG_NTFS3_LZX_XPRESS to read external compressed files");
-		return -EOPNOTSUPP;
-	}
-#endif
-
-	if (is_dedup(ni)) {
-		ntfs_inode_warn(inode, "read deduplicated not supported");
-		return -EOPNOTSUPP;
-	}
+	err = check_read_restriction(inode);
+	if (err)
+		return err;
 
 	return filemap_splice_read(in, ppos, pipe, len, flags);
 }
@@ -1173,14 +1177,11 @@ out:
 }
 
 /*
- * ntfs_file_write_iter - file_operations::write_iter
+ * check_write_restriction:
+ * common code for ntfs_file_write_iter and ntfs_file_splice_write
  */
-static ssize_t ntfs_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
+static int check_write_restriction(struct inode *inode)
 {
-	struct file *file = iocb->ki_filp;
-	struct inode *inode = file_inode(file);
-	ssize_t ret;
-	int err;
 	struct ntfs_inode *ni = ntfs_i(inode);
 
 	if (unlikely(ntfs3_forced_shutdown(inode->i_sb)))
@@ -1191,13 +1192,31 @@ static ssize_t ntfs_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 		return -EOPNOTSUPP;
 	}
 
-	if (is_compressed(ni) && (iocb->ki_flags & IOCB_DIRECT)) {
-		ntfs_inode_warn(inode, "direct i/o + compressed not supported");
+	if (is_dedup(ni)) {
+		ntfs_inode_warn(inode, "write into deduplicated not supported");
 		return -EOPNOTSUPP;
 	}
 
-	if (is_dedup(ni)) {
-		ntfs_inode_warn(inode, "write into deduplicated not supported");
+	return 0;
+}
+
+/*
+ * ntfs_file_write_iter - file_operations::write_iter
+ */
+static ssize_t ntfs_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
+{
+	struct file *file = iocb->ki_filp;
+	struct inode *inode = file_inode(file);
+	struct ntfs_inode *ni = ntfs_i(inode);
+	ssize_t ret;
+	int err;
+
+	err = check_write_restriction(inode);
+	if (err)
+		return err;
+
+	if (is_compressed(ni) && (iocb->ki_flags & IOCB_DIRECT)) {
+		ntfs_inode_warn(inode, "direct i/o + compressed not supported");
 		return -EOPNOTSUPP;
 	}
 
@@ -1321,6 +1340,23 @@ int ntfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	return err;
 }
 
+/*
+ * ntfs_file_splice_write - file_operations::splice_write
+ */
+static ssize_t ntfs_file_splice_write(struct pipe_inode_info *pipe,
+				      struct file *file, loff_t *ppos,
+				      size_t len, unsigned int flags)
+{
+	ssize_t err;
+	struct inode *inode = file_inode(file);
+
+	err = check_write_restriction(inode);
+	if (err)
+		return err;
+
+	return iter_file_splice_write(pipe, file, ppos, len, flags);
+}
+
 // clang-format off
 const struct inode_operations ntfs_file_inode_operations = {
 	.getattr	= ntfs_getattr,
@@ -1342,10 +1378,10 @@ const struct file_operations ntfs_file_operations = {
 	.compat_ioctl	= ntfs_compat_ioctl,
 #endif
 	.splice_read	= ntfs_file_splice_read,
+	.splice_write	= ntfs_file_splice_write,
 	.mmap		= ntfs_file_mmap,
 	.open		= ntfs_file_open,
 	.fsync		= generic_file_fsync,
-	.splice_write	= iter_file_splice_write,
 	.fallocate	= ntfs_fallocate,
 	.release	= ntfs_file_release,
 };
