@@ -311,7 +311,6 @@ static void nfs_mapping_set_error(struct folio *folio, int error)
 {
 	struct address_space *mapping = folio_file_mapping(folio);
 
-	folio_set_error(folio);
 	filemap_set_wb_err(mapping, error);
 	if (mapping->host)
 		errseq_set(&mapping->host->i_sb->s_wb_err,

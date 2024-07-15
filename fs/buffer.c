@@ -258,7 +258,6 @@ static void end_buffer_async_read(struct buffer_head *bh, int uptodate)
 	} else {
 		clear_buffer_uptodate(bh);
 		buffer_io_error(bh, ", async page read");
-		folio_set_error(folio);
 	}
 
 	/*
@@ -391,7 +390,6 @@ static void end_buffer_async_write(struct buffer_head *bh, int uptodate)
 		buffer_io_error(bh, ", lost async page write");
 		mark_buffer_write_io_error(bh);
 		clear_buffer_uptodate(bh);
-		folio_set_error(folio);
 	}
 
 	first = folio_buffers(folio);
@@ -1960,7 +1958,6 @@ recover:
 			clear_buffer_dirty(bh);
 		}
 	} while ((bh = bh->b_this_page) != head);
-	folio_set_error(folio);
 	BUG_ON(folio_test_writeback(folio));
 	mapping_set_error(folio->mapping, err);
 	folio_start_writeback(folio);
@@ -2405,10 +2402,8 @@ int block_read_full_folio(struct folio *folio, get_block_t *get_block)
 			if (iblock < lblock) {
 				WARN_ON(bh->b_size != blocksize);
 				err = get_block(inode, iblock, bh, 0);
-				if (err) {
-					folio_set_error(folio);
+				if (err)
 					page_error = true;
-				}
 			}
 			if (!buffer_mapped(bh)) {
 				folio_zero_range(folio, i * blocksize,
