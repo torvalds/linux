@@ -137,6 +137,13 @@ struct vblank_control_work {
 	bool enable;
 };
 
+/**
+ * struct idle_workqueue - Work data for periodic action in idle
+ * @work: Kernel work data for the work event
+ * @dm: amdgpu display manager device
+ * @enable: true if idle worker is enabled
+ * @running: true if idle worker is running
+ */
 struct idle_workqueue {
 	struct work_struct work;
 	struct amdgpu_display_manager *dm;
@@ -502,6 +509,12 @@ struct amdgpu_display_manager {
 	 * Deferred work for vblank control events.
 	 */
 	struct workqueue_struct *vblank_control_workqueue;
+
+	/**
+	 * @idle_workqueue:
+	 *
+	 * Periodic work for idle events.
+	 */
 	struct idle_workqueue *idle_workqueue;
 
 	struct drm_atomic_state *cached_state;
