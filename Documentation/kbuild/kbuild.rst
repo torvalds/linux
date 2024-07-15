@@ -32,6 +32,11 @@ Additional options to pass when preprocessing. The preprocessing options
 will be used in all cases where kbuild does preprocessing including
 building C files and assembler files.
 
+KCPPFLAGS_COMPAT
+----------------
+Additional options to pass to $(CC_COMPAT) when preprocessing C and assembler
+files.
+
 KAFLAGS
 -------
 Additional options to the assembler (for built-in and modules).

@@ -24,6 +24,7 @@
 #include <linux/bug.h>
 #include <linux/mm.h>
 #include <linux/mmzone.h>
+#include <linux/kfence.h>
 
 static void *trans_alloc(struct trans_pgd_info *info)
 {
@@ -41,7 +42,8 @@ static void _copy_pte(pte_t *dst_ptep, pte_t *src_ptep, unsigned long addr)
 		 * the temporary mappings we use during restore.
 		 */
 		set_pte(dst_ptep, pte_mkwrite(pte));
-	} else if (debug_pagealloc_enabled() && !pte_none(pte)) {
+	} else if ((debug_pagealloc_enabled() ||
+		   is_kfence_address((void *)addr)) && !pte_none(pte)) {
 		/*
 		 * debug_pagealloc will removed the PTE_VALID bit if
 		 * the page isn't in use by the resume kernel. It may have

@@ -430,6 +430,11 @@ int z_erofs_fill_inode(struct inode *inode);
 int z_erofs_map_blocks_iter(struct inode *inode,
 			    struct erofs_map_blocks *map,
 			    int flags);
+void *z_erofs_get_gbuf(unsigned int requiredpages);
+void z_erofs_put_gbuf(void *ptr);
+int z_erofs_gbuf_growsize(unsigned int nrpages);
+int __init z_erofs_gbuf_init(void);
+void z_erofs_gbuf_exit(void);
 #else
 static inline int z_erofs_fill_inode(struct inode *inode) { return -EOPNOTSUPP; }
 static inline int z_erofs_map_blocks_iter(struct inode *inode,
@@ -438,6 +443,8 @@ static inline int z_erofs_map_blocks_iter(struct inode *inode,
 {
 	return -EOPNOTSUPP;
 }
+static inline int z_erofs_gbuf_init(void) { return 0; }
+static inline void z_erofs_gbuf_exit(void) {}
 #endif	/* !CONFIG_EROFS_FS_ZIP */
 
 struct erofs_map_dev {
@@ -509,13 +516,6 @@ static inline void *erofs_vm_map_ram(struct page **pages, unsigned int count)
 	return NULL;
 }
 
-/* pcpubuf.c */
-void *erofs_get_pcpubuf(unsigned int requiredpages);
-void erofs_put_pcpubuf(void *ptr);
-int erofs_pcpubuf_growsize(unsigned int nrpages);
-void erofs_pcpubuf_init(void);
-void erofs_pcpubuf_exit(void);
-
 /* sysfs.c */
 int erofs_register_sysfs(struct super_block *sb);
 void erofs_unregister_sysfs(struct super_block *sb);
@@ -523,7 +523,11 @@ int __init erofs_init_sysfs(void);
 void erofs_exit_sysfs(void);
 
 /* utils.c / zdata.c */
-struct page *erofs_allocpage(struct page **pagepool, gfp_t gfp);
+struct page *__erofs_allocpage(struct page **pagepool, gfp_t gfp, bool tryrsv);
+static inline struct page *erofs_allocpage(struct page **pagepool, gfp_t gfp)
+{
+	return __erofs_allocpage(pagepool, gfp, false);
+}
 static inline void erofs_pagepool_add(struct page **pagepool,
 		struct page *page)
 {

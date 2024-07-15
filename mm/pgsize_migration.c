@@ -18,6 +18,7 @@
 #include <linux/kstrtox.h>
 #include <linux/sched/task_stack.h>
 #include <linux/slab.h>
+#include <linux/string.h>
 #include <linux/sysfs.h>
 
 typedef void (*show_pad_maps_fn)	(struct seq_file *m, struct vm_area_struct *vma);
@@ -116,8 +117,22 @@ void vma_set_pad_pages(struct vm_area_struct *vma,
 	if (!is_pgsize_migration_enabled())
 		return;
 
-	vm_flags_clear(vma, VM_PAD_MASK);
-	vm_flags_set(vma, nr_pages << VM_PAD_SHIFT);
+	/*
+	 * Usually to modify vm_flags we need to take exclusive mmap_lock but here
+	 * only have the lock in read mode, to avoid all DONTNEED/DONTNEED_LOCKED
+	 * calls needing the write lock.
+	 *
+	 * A race to the flags update can only happen with another MADV_DONTNEED on
+	 * the same process and same range (VMA).
+	 *
+	 * In practice, this specific scenario is not possible because the action that
+	 * could cause it is usually performed at most once per VMA and only by the
+	 * dynamic linker.
+	 *
+	 * Forego protection for this case, to avoid penalties in the common cases.
+	 */
+	__vm_flags_mod(vma, 0, VM_PAD_MASK);
+	__vm_flags_mod(vma, nr_pages << VM_PAD_SHIFT, 0);
 }
 
 unsigned long vma_pad_pages(struct vm_area_struct *vma)
@@ -182,7 +197,15 @@ static inline bool linker_ctx(void)
 		memset(buf, 0, bufsize);
 		path = d_path(&file->f_path, buf, bufsize);
 
-		if (!strcmp(path, "/system/bin/linker64"))
+		/*
+		 * Depending on interpreter requested, valid paths could be any of:
+		 *   1. /system/bin/bootstrap/linker64
+		 *   2. /system/bin/linker64
+		 *   3. /apex/com.android.runtime/bin/linker64
+		 *
+		 * Check the base name (linker64).
+		 */
+		if (!strcmp(kbasename(path), "linker64"))
 			return true;
 	}
 
@@ -271,11 +294,14 @@ struct vm_area_struct *get_pad_vma(struct vm_area_struct *vma)
 	/* Adjust the start to begin at the start of the padding section */
 	pad->vm_start = VMA_PAD_START(pad);
 
+	/*
+	 * The below modifications to vm_flags don't need mmap write lock,
+	 * since, pad does not belong to the VMA tree.
+	 */
 	/* Make the pad vma PROT_NONE */
-	vm_flags_clear(pad, VM_READ|VM_WRITE|VM_EXEC);
-
+	__vm_flags_mod(pad, 0, VM_READ|VM_WRITE|VM_EXEC);
 	/* Remove padding bits */
-	vm_flags_clear(pad, VM_PAD_MASK);
+	__vm_flags_mod(pad, 0, VM_PAD_MASK);
 
 	return pad;
 }
