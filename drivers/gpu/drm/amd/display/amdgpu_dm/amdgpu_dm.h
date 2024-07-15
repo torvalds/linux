@@ -587,7 +587,9 @@ struct amdgpu_display_manager {
 	 */
 	struct mutex dpia_aux_lock;
 
-	/*
+	/**
+	 * @bb_from_dmub:
+	 *
 	 * Bounding box data read from dmub during early initialization for DCN4+
 	 */
 	struct dml2_soc_bb *bb_from_dmub;
