@@ -1084,10 +1084,3 @@ bool nfssvc_encode_voidres(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 {
 	return true;
 }
-
-int nfsd_pool_stats_open(struct inode *inode, struct file *file)
-{
-	struct nfsd_net *nn = net_generic(inode->i_sb->s_fs_info, nfsd_net_id);
-
-	return svc_pool_stats_open(&nn->nfsd_info, file);
-}
