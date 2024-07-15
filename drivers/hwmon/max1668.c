@@ -47,12 +47,10 @@ static bool read_only;
 module_param(read_only, bool, 0);
 MODULE_PARM_DESC(read_only, "Don't set any values, read only mode");
 
-enum chips { max1668, max1805, max1989 };
-
 struct max1668_data {
 	struct regmap *regmap;
 	const struct attribute_group *groups[3];
-	enum chips type;
+	int channels;
 };
 
 static ssize_t show_temp(struct device *dev,
@@ -391,11 +389,11 @@ static int max1668_probe(struct i2c_client *client)
 	if (IS_ERR(data->regmap))
 		return PTR_ERR(data->regmap);
 
-	data->type = (uintptr_t)i2c_get_match_data(client);
+	data->channels = (uintptr_t)i2c_get_match_data(client);
 
 	/* sysfs hooks */
 	data->groups[0] = &max1668_group_common;
-	if (data->type == max1668 || data->type == max1989)
+	if (data->channels == 5)
 		data->groups[1] = &max1668_group_unique;
 
 	hwmon_dev = devm_hwmon_device_register_with_groups(dev, client->name,
@@ -404,9 +402,9 @@ static int max1668_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id max1668_id[] = {
-	{ "max1668", max1668 },
-	{ "max1805", max1805 },
-	{ "max1989", max1989 },
+	{ "max1668", 5 },
+	{ "max1805", 3 },
+	{ "max1989", 5 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, max1668_id);
