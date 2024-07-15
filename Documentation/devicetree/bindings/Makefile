@@ -6,7 +6,7 @@ DT_MK_SCHEMA ?= dt-mk-schema
 DT_SCHEMA_LINT = $(shell which yamllint || \
   echo "warning: python package 'yamllint' not installed, skipping" >&2)
 
-DT_SCHEMA_MIN_VERSION = 2022.3
+DT_SCHEMA_MIN_VERSION = 2023.9
 
 PHONY += check_dtschema_version
 check_dtschema_version:
@@ -28,7 +28,10 @@ $(obj)/%.example.dts: $(src)/%.yaml check_dtschema_version FORCE
 find_all_cmd = find $(srctree)/$(src) \( -name '*.yaml' ! \
 		-name 'processed-schema*' \)
 
-find_cmd = $(find_all_cmd) | grep -F -e "$(subst :," -e ",$(DT_SCHEMA_FILES))"
+find_cmd = $(find_all_cmd) | \
+		sed 's|^$(srctree)/||' | \
+		grep -F -e "$(subst :," -e ",$(DT_SCHEMA_FILES))" | \
+		sed 's|^|$(srctree)/|'
 CHK_DT_DOCS := $(shell $(find_cmd))
 
 quiet_cmd_yamllint = LINT    $(src)
@@ -60,9 +63,6 @@ override DTC_FLAGS := \
 	-Wno-interrupt_provider \
 	-Wno-unique_unit_address \
 	-Wunique_unit_address_if_enabled
-
-# Disable undocumented compatible checks until warning free
-override DT_CHECKER_FLAGS ?=
 
 $(obj)/processed-schema.json: $(DT_DOCS) $(src)/.yamllint check_dtschema_version FORCE
 	$(call if_changed_rule,chkdt)

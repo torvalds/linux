@@ -225,13 +225,9 @@ void rtl92de_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 	}
 	case HW_VAR_AMPDU_MIN_SPACE: {
 		u8 min_spacing_to_set;
-		u8 sec_min_space;
 
 		min_spacing_to_set = *val;
 		if (min_spacing_to_set <= 7) {
-			sec_min_space = 0;
-			if (min_spacing_to_set < sec_min_space)
-				min_spacing_to_set = sec_min_space;
 			mac->min_space_cfg = ((mac->min_space_cfg & 0xf8) |
 					      min_spacing_to_set);
 			*val = min_spacing_to_set;
@@ -1673,10 +1669,8 @@ static void _rtl92de_efuse_update_chip_version(struct ieee80211_hw *hw)
 	u8 cutvalue[2];
 	u16 chipvalue;
 
-	rtlpriv->intf_ops->read_efuse_byte(hw, EEPROME_CHIP_VERSION_H,
-					   &cutvalue[1]);
-	rtlpriv->intf_ops->read_efuse_byte(hw, EEPROME_CHIP_VERSION_L,
-					   &cutvalue[0]);
+	read_efuse_byte(hw, EEPROME_CHIP_VERSION_H, &cutvalue[1]);
+	read_efuse_byte(hw, EEPROME_CHIP_VERSION_L, &cutvalue[0]);
 	chipvalue = (cutvalue[1] << 8) | cutvalue[0];
 	switch (chipvalue) {
 	case 0xAA55:

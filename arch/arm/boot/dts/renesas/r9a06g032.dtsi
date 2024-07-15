@@ -437,7 +437,7 @@
 		};
 
 		can0: can@52104000 {
-			compatible = "renesas,r9a06g032-sja1000","renesas,rzn1-sja1000";
+			compatible = "renesas,r9a06g032-sja1000", "renesas,rzn1-sja1000";
 			reg = <0x52104000 0x800>;
 			reg-io-width = <4>;
 			interrupts = <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>;

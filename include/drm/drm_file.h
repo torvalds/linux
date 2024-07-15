@@ -50,16 +50,16 @@ struct file;
  * header include loops we need it here for now.
  */
 
-/* Note that the order of this enum is ABI (it determines
+/* Note that the values of this enum are ABI (it determines
  * /dev/dri/renderD* numbers).
  *
  * Setting DRM_MINOR_ACCEL to 32 gives enough space for more drm minors to
  * be implemented before we hit any future
  */
 enum drm_minor_type {
-	DRM_MINOR_PRIMARY,
-	DRM_MINOR_CONTROL,
-	DRM_MINOR_RENDER,
+	DRM_MINOR_PRIMARY = 0,
+	DRM_MINOR_CONTROL = 1,
+	DRM_MINOR_RENDER = 2,
 	DRM_MINOR_ACCEL = 32,
 };
 
@@ -79,10 +79,8 @@ struct drm_minor {
 	struct device *kdev;		/* Linux device */
 	struct drm_device *dev;
 
+	struct dentry *debugfs_symlink;
 	struct dentry *debugfs_root;
-
-	struct list_head debugfs_list;
-	struct mutex debugfs_lock; /* Protects debugfs_list. */
 };
 
 /**
@@ -229,6 +227,18 @@ struct drm_file {
 	bool is_master;
 
 	/**
+	 * @supports_virtualized_cursor_plane:
+	 *
+	 * This client is capable of handling the cursor plane with the
+	 * restrictions imposed on it by the virtualized drivers.
+	 *
+	 * This implies that the cursor plane has to behave like a cursor
+	 * i.e. track cursor movement. It also requires setting of the
+	 * hotspot properties by the client on the cursor plane.
+	 */
+	bool supports_virtualized_cursor_plane;
+
+	/**
 	 * @master:
 	 *
 	 * Master this node is currently associated with. Protected by struct
@@ -256,8 +266,15 @@ struct drm_file {
 	/** @master_lookup_lock: Serializes @master. */
 	spinlock_t master_lookup_lock;
 
-	/** @pid: Process that opened this file. */
-	struct pid *pid;
+	/**
+	 * @pid: Process that is using this file.
+	 *
+	 * Must only be dereferenced under a rcu_read_lock or equivalent.
+	 *
+	 * Updates are guarded with dev->filelist_mutex and reference must be
+	 * dropped after a RCU grace period to accommodate lockless readers.
+	 */
+	struct pid __rcu *pid;
 
 	/** @client_id: A unique id for fdinfo */
 	u64 client_id;
@@ -369,11 +386,6 @@ struct drm_file {
 	 * Per-file buffer caches used by the PRIME buffer sharing code.
 	 */
 	struct drm_prime_file_private prime;
-
-	/* private: */
-#if IS_ENABLED(CONFIG_DRM_LEGACY)
-	unsigned long lock_count; /* DRI1 legacy lock count */
-#endif
 };
 
 /**
@@ -419,6 +431,8 @@ static inline bool drm_is_accel_client(const struct drm_file *file_priv)
 {
 	return file_priv->minor->type == DRM_MINOR_ACCEL;
 }
+
+void drm_file_update_pid(struct drm_file *);
 
 int drm_open(struct inode *inode, struct file *filp);
 int drm_open_helper(struct file *filp, struct drm_minor *minor);

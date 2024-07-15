@@ -61,7 +61,7 @@ the spidev driver failing to probe.
 
 Sysfs also supports userspace driven binding/unbinding of drivers to
 devices that do not bind automatically using one of the tables above.
-To make the spidev driver bind to such a device, use the following:
+To make the spidev driver bind to such a device, use the following::
 
     echo spidev > /sys/bus/spi/devices/spiB.C/driver_override
     echo spiB.C > /sys/bus/spi/drivers/spidev/bind

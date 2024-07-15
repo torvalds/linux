@@ -10,7 +10,7 @@ maintainers:
   - Matt Ranostay <matt.ranostay@konsulko.com>
 
 description:
-  This lightening distance sensor uses an I2C or SPI interface. The
+  This lightning distance sensor uses an I2C or SPI interface. The
   binding currently only covers the SPI option.
 
 properties:

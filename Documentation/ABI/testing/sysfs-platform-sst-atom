@@ -4,7 +4,7 @@ KernelVersion:	4.10
 Contact:	"Sebastien Guiriec" <sebastien.guiriec@intel.com>
 Description:
 		LPE Firmware version for SST driver on all atom
-		plaforms (BYT/CHT/Merrifield/BSW).
+		platforms (BYT/CHT/Merrifield/BSW).
 		If the FW has never been loaded it will display::
 
 			"FW not yet loaded"

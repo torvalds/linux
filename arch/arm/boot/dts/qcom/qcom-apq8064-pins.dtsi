@@ -233,6 +233,22 @@
 		};
 	};
 
+	gsbi4_uart_pin_a: gsbi4-uart-pin-active-state {
+		rx-pins {
+			pins = "gpio11";
+			function = "gsbi4";
+			drive-strength = <2>;
+			bias-disable;
+		};
+
+		tx-pins {
+			pins = "gpio10";
+			function = "gsbi4";
+			drive-strength = <4>;
+			bias-disable;
+		};
+	};
+
 	gsbi6_uart_2pins: gsbi6_uart_2pins {
 		mux {
 			pins = "gpio14", "gpio15";

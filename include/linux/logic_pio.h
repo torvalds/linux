@@ -39,9 +39,6 @@ struct logic_pio_host_ops {
 
 #ifdef CONFIG_INDIRECT_PIO
 u8 logic_inb(unsigned long addr);
-void logic_outb(u8 value, unsigned long addr);
-void logic_outw(u16 value, unsigned long addr);
-void logic_outl(u32 value, unsigned long addr);
 u16 logic_inw(unsigned long addr);
 u32 logic_inl(unsigned long addr);
 void logic_outb(u8 value, unsigned long addr);

@@ -6,7 +6,8 @@
 /dts-v1/;
 
 #include "qcom-msm8226.dtsi"
-#include "qcom-pm8226.dtsi"
+#include "pm8226.dtsi"
+#include <dt-bindings/clock/qcom,mmcc-msm8974.h>
 
 /delete-node/ &adsp_region;
 
@@ -55,6 +56,29 @@
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&wlan_regulator_default_state>;
+	};
+
+	pwm_vibrator: pwm {
+		compatible = "clk-pwm";
+		clocks = <&mmcc CAMSS_GP0_CLK>;
+
+		pinctrl-0 = <&vibrator_clk_default_state>;
+		pinctrl-names = "default";
+
+		#pwm-cells = <2>;
+	};
+
+	vibrator {
+		compatible = "pwm-vibrator";
+
+		pwms = <&pwm_vibrator 0 10000>;
+		pwm-names = "enable";
+
+		vcc-supply = <&pm8226_l28>;
+		enable-gpios = <&tlmm 62 GPIO_ACTIVE_HIGH>;
+
+		pinctrl-0 = <&vibrator_en_default_state>;
+		pinctrl-names = "default";
 	};
 };
 
@@ -292,6 +316,8 @@
 	qcom,fast-charge-high-threshold-voltage = <4350000>;
 	qcom,auto-recharge-threshold-voltage = <4240000>;
 	qcom,minimum-input-voltage = <4450000>;
+
+	status = "okay";
 };
 
 &tlmm {
@@ -326,6 +352,20 @@
 			bias-disable;
 			output-high;
 		};
+	};
+
+	vibrator_clk_default_state: vibrator-clk-default-state {
+		pins = "gpio33";
+		function = "gp0_clk";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	vibrator_en_default_state: vibrator-en-default-state {
+		pins = "gpio62";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
 	};
 
 	wlan_hostwake_default_state: wlan-hostwake-default-state {

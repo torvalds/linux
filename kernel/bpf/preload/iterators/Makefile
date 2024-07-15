@@ -50,7 +50,7 @@ iterators.lskel-%.h: $(OUTPUT)/%/iterators.bpf.o | $(BPFTOOL)
 $(OUTPUT)/%/iterators.bpf.o: iterators.bpf.c $(BPFOBJ) | $(OUTPUT)
 	$(call msg,BPF,$@)
 	$(Q)mkdir -p $(@D)
-	$(Q)$(CLANG) -g -O2 -target bpf -m$* $(INCLUDES)		      \
+	$(Q)$(CLANG) -g -O2 --target=bpf -m$* $(INCLUDES)		      \
 		 -c $(filter %.c,$^) -o $@ &&				      \
 	$(LLVM_STRIP) -g $@
 

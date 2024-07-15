@@ -22,6 +22,10 @@ struct nvkm_disp_chan {
 	u64 push;
 
 	u32 suspend_put;
+
+	struct {
+		struct nvkm_gsp_object object;
+	} rm;
 };
 
 int nvkm_disp_core_new(const struct nvkm_oclass *, void *, u32, struct nvkm_object **);

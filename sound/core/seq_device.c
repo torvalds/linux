@@ -49,7 +49,7 @@ static int snd_seq_bus_match(struct device *dev, struct device_driver *drv)
 		sdrv->argsize == sdev->argsize;
 }
 
-static struct bus_type snd_seq_bus_type = {
+static const struct bus_type snd_seq_bus_type = {
 	.name = "snd_seq",
 	.match = snd_seq_bus_match,
 };

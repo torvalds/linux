@@ -35,10 +35,10 @@ static void test_guest_cpuids(struct kvm_cpuid2 *guest_cpuid)
 			guest_cpuid->entries[i].index,
 			&eax, &ebx, &ecx, &edx);
 
-		GUEST_ASSERT(eax == guest_cpuid->entries[i].eax &&
-			     ebx == guest_cpuid->entries[i].ebx &&
-			     ecx == guest_cpuid->entries[i].ecx &&
-			     edx == guest_cpuid->entries[i].edx);
+		GUEST_ASSERT_EQ(eax, guest_cpuid->entries[i].eax);
+		GUEST_ASSERT_EQ(ebx, guest_cpuid->entries[i].ebx);
+		GUEST_ASSERT_EQ(ecx, guest_cpuid->entries[i].ecx);
+		GUEST_ASSERT_EQ(edx, guest_cpuid->entries[i].edx);
 	}
 
 }
@@ -51,7 +51,7 @@ static void guest_main(struct kvm_cpuid2 *guest_cpuid)
 
 	GUEST_SYNC(2);
 
-	GUEST_ASSERT(this_cpu_property(X86_PROPERTY_MAX_KVM_LEAF) == 0x40000001);
+	GUEST_ASSERT_EQ(this_cpu_property(X86_PROPERTY_MAX_KVM_LEAF), 0x40000001);
 
 	GUEST_DONE();
 }
@@ -84,7 +84,7 @@ static void compare_cpuids(const struct kvm_cpuid2 *cpuid1,
 
 		TEST_ASSERT(e1->function == e2->function &&
 			    e1->index == e2->index && e1->flags == e2->flags,
-			    "CPUID entries[%d] mismtach: 0x%x.%d.%x vs. 0x%x.%d.%x\n",
+			    "CPUID entries[%d] mismtach: 0x%x.%d.%x vs. 0x%x.%d.%x",
 			    i, e1->function, e1->index, e1->flags,
 			    e2->function, e2->index, e2->flags);
 
@@ -116,7 +116,7 @@ static void run_vcpu(struct kvm_vcpu *vcpu, int stage)
 	case UCALL_DONE:
 		return;
 	case UCALL_ABORT:
-		REPORT_GUEST_ASSERT_2(uc, "values: %#lx, %#lx");
+		REPORT_GUEST_ASSERT(uc);
 	default:
 		TEST_ASSERT(false, "Unexpected exit: %s",
 			    exit_reason_str(vcpu->run->exit_reason));
@@ -170,7 +170,7 @@ static void test_get_cpuid2(struct kvm_vcpu *vcpu)
 
 	vcpu_ioctl(vcpu, KVM_GET_CPUID2, cpuid);
 	TEST_ASSERT(cpuid->nent == vcpu->cpuid->nent,
-		    "KVM didn't update nent on success, wanted %u, got %u\n",
+		    "KVM didn't update nent on success, wanted %u, got %u",
 		    vcpu->cpuid->nent, cpuid->nent);
 
 	for (i = 0; i < vcpu->cpuid->nent; i++) {

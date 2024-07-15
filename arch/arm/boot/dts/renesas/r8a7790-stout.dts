@@ -44,6 +44,15 @@
 		};
 	};
 
+	fixedregulator1v8: regulator-1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "fixed-1.8V";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
 	fixedregulator3v3: regulator-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "fixed-3.3V";
@@ -296,6 +305,12 @@
 		clocks = <&osc4_clk>;
 		clock-names = "cec";
 
+		avdd-supply = <&fixedregulator1v8>;
+		dvdd-supply = <&fixedregulator1v8>;
+		pvdd-supply = <&fixedregulator1v8>;
+		dvdd-3v-supply = <&fixedregulator3v3>;
+		bgvdd-supply = <&fixedregulator1v8>;
+
 		adi,input-depth = <8>;
 		adi,input-colorspace = "rgb";
 		adi,input-clock = "1x";
@@ -332,6 +347,7 @@
 		interrupt-parent = <&irqc0>;
 		interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
 		interrupt-controller;
+		#interrupt-cells = <2>;
 
 		onkey {
 			compatible = "dlg,da9063-onkey";

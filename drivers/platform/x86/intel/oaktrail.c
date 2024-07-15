@@ -365,7 +365,7 @@ static void __exit oaktrail_cleanup(void)
 module_init(oaktrail_init);
 module_exit(oaktrail_cleanup);
 
-MODULE_AUTHOR("Yin Kangkai (kangkai.yin@intel.com)");
+MODULE_AUTHOR("Yin Kangkai <kangkai.yin@intel.com>");
 MODULE_DESCRIPTION("Intel Oaktrail Platform ACPI Extras");
 MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");

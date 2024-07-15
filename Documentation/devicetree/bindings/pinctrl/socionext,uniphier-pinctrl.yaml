@@ -32,7 +32,6 @@ additionalProperties:
     - $ref: pinmux-node.yaml#
 
   properties:
-    phandle: true
     function: true
     groups: true
     pins: true
@@ -49,7 +48,6 @@ additionalProperties:
       - $ref: pinmux-node.yaml#
 
     properties:
-      phandle: true
       function: true
       groups: true
       pins: true

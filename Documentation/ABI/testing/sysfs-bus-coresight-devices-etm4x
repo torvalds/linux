@@ -446,7 +446,7 @@ Date:		April 2015
 KernelVersion:	4.01
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description:	(Read) Returns the maximum size of the data value, data address,
-		VMID, context ID and instuction address in the trace unit
+		VMID, context ID and instruction address in the trace unit
 		(0x1E8).  The value is taken directly from the HW.
 
 What:		/sys/bus/coresight/devices/etm<N>/trcidr/trcidr3

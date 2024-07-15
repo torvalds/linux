@@ -333,7 +333,7 @@ static int sdw_select_row_col(struct sdw_bus *bus, int clk_freq)
  */
 static int sdw_compute_bus_params(struct sdw_bus *bus)
 {
-	unsigned int max_dr_freq, curr_dr_freq = 0;
+	unsigned int curr_dr_freq = 0;
 	struct sdw_master_prop *mstr_prop = &bus->prop;
 	int i, clk_values, ret;
 	bool is_gear = false;
@@ -351,14 +351,12 @@ static int sdw_compute_bus_params(struct sdw_bus *bus)
 		clk_buf = NULL;
 	}
 
-	max_dr_freq = mstr_prop->max_clk_freq * SDW_DOUBLE_RATE_FACTOR;
-
 	for (i = 0; i < clk_values; i++) {
 		if (!clk_buf)
-			curr_dr_freq = max_dr_freq;
+			curr_dr_freq = bus->params.max_dr_freq;
 		else
 			curr_dr_freq = (is_gear) ?
-				(max_dr_freq >>  clk_buf[i]) :
+				(bus->params.max_dr_freq >>  clk_buf[i]) :
 				clk_buf[i] * SDW_DOUBLE_RATE_FACTOR;
 
 		if (curr_dr_freq <= bus->params.bandwidth)

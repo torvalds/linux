@@ -45,15 +45,40 @@
 /* Group hold register */
 #define IMX335_REG_HOLD		0x3001
 
+/* Test pattern generator */
+#define IMX335_REG_TPG		0x329e
+#define IMX335_TPG_ALL_000	0
+#define IMX335_TPG_ALL_FFF	1
+#define IMX335_TPG_ALL_555	2
+#define IMX335_TPG_ALL_AAA	3
+#define IMX335_TPG_TOG_555_AAA	4
+#define IMX335_TPG_TOG_AAA_555	5
+#define IMX335_TPG_TOG_000_555	6
+#define IMX335_TPG_TOG_555_000	7
+#define IMX335_TPG_TOG_000_FFF	8
+#define IMX335_TPG_TOG_FFF_000	9
+#define IMX335_TPG_H_COLOR_BARS 10
+#define IMX335_TPG_V_COLOR_BARS 11
+
 /* Input clock rate */
 #define IMX335_INCLK_RATE	24000000
 
 /* CSI2 HW configuration */
-#define IMX335_LINK_FREQ	594000000
+#define IMX335_LINK_FREQ_594MHz		594000000LL
+#define IMX335_LINK_FREQ_445MHz		445500000LL
+
 #define IMX335_NUM_DATA_LANES	4
 
 #define IMX335_REG_MIN		0x00
 #define IMX335_REG_MAX		0xfffff
+
+/* IMX335 native and active pixel array size. */
+#define IMX335_NATIVE_WIDTH		2616U
+#define IMX335_NATIVE_HEIGHT		1964U
+#define IMX335_PIXEL_ARRAY_LEFT		12U
+#define IMX335_PIXEL_ARRAY_TOP		12U
+#define IMX335_PIXEL_ARRAY_WIDTH	2592U
+#define IMX335_PIXEL_ARRAY_HEIGHT	1944U
 
 /**
  * struct imx335_reg - imx335 sensor register
@@ -75,6 +100,12 @@ struct imx335_reg_list {
 	const struct imx335_reg *regs;
 };
 
+static const char * const imx335_supply_name[] = {
+	"avdd", /* Analog (2.9V) supply */
+	"ovdd", /* Digital I/O (1.8V) supply */
+	"dvdd", /* Digital Core (1.2V) supply */
+};
+
 /**
  * struct imx335_mode - imx335 sensor mode structure
  * @width: Frame width
@@ -85,7 +116,6 @@ struct imx335_reg_list {
  * @vblank_min: Minimum vertical blanking in lines
  * @vblank_max: Maximum vertical blanking in lines
  * @pclk: Sensor pixel clock
- * @link_freq_idx: Link frequency index
  * @reg_list: Register list for sensor mode
  */
 struct imx335_mode {
@@ -97,7 +127,6 @@ struct imx335_mode {
 	u32 vblank_min;
 	u32 vblank_max;
 	u64 pclk;
-	u32 link_freq_idx;
 	struct imx335_reg_list reg_list;
 };
 
@@ -108,6 +137,7 @@ struct imx335_mode {
  * @sd: V4L2 sub-device
  * @pad: Media pad. Only one pad supported
  * @reset_gpio: Sensor reset gpio
+ * @supplies: Regulator supplies to handle power control
  * @inclk: Sensor input clock
  * @ctrl_handler: V4L2 control handler
  * @link_freq_ctrl: Pointer to link frequency control
@@ -119,7 +149,8 @@ struct imx335_mode {
  * @vblank: Vertical blanking in lines
  * @cur_mode: Pointer to current selected sensor mode
  * @mutex: Mutex for serializing sensor controls
- * @streaming: Flag indicating streaming state
+ * @link_freq_bitmap: Menu bitmap for link_freq_ctrl
+ * @cur_mbus_code: Currently selected media bus format code
  */
 struct imx335 {
 	struct device *dev;
@@ -127,6 +158,8 @@ struct imx335 {
 	struct v4l2_subdev sd;
 	struct media_pad pad;
 	struct gpio_desc *reset_gpio;
+	struct regulator_bulk_data supplies[ARRAY_SIZE(imx335_supply_name)];
+
 	struct clk *inclk;
 	struct v4l2_ctrl_handler ctrl_handler;
 	struct v4l2_ctrl *link_freq_ctrl;
@@ -140,19 +173,46 @@ struct imx335 {
 	u32 vblank;
 	const struct imx335_mode *cur_mode;
 	struct mutex mutex;
-	bool streaming;
+	unsigned long link_freq_bitmap;
+	u32 cur_mbus_code;
 };
 
-static const s64 link_freq[] = {
-	IMX335_LINK_FREQ,
+static const char * const imx335_tpg_menu[] = {
+	"Disabled",
+	"All 000h",
+	"All FFFh",
+	"All 555h",
+	"All AAAh",
+	"Toggle 555/AAAh",
+	"Toggle AAA/555h",
+	"Toggle 000/555h",
+	"Toggle 555/000h",
+	"Toggle 000/FFFh",
+	"Toggle FFF/000h",
+	"Horizontal color bars",
+	"Vertical color bars",
+};
+
+static const int imx335_tpg_val[] = {
+	IMX335_TPG_ALL_000,
+	IMX335_TPG_ALL_000,
+	IMX335_TPG_ALL_FFF,
+	IMX335_TPG_ALL_555,
+	IMX335_TPG_ALL_AAA,
+	IMX335_TPG_TOG_555_AAA,
+	IMX335_TPG_TOG_AAA_555,
+	IMX335_TPG_TOG_000_555,
+	IMX335_TPG_TOG_555_000,
+	IMX335_TPG_TOG_000_FFF,
+	IMX335_TPG_TOG_FFF_000,
+	IMX335_TPG_H_COLOR_BARS,
+	IMX335_TPG_V_COLOR_BARS,
 };
 
 /* Sensor mode registers */
 static const struct imx335_reg mode_2592x1940_regs[] = {
 	{0x3000, 0x01},
 	{0x3002, 0x00},
-	{0x300c, 0x3b},
-	{0x300d, 0x2a},
 	{0x3018, 0x04},
 	{0x302c, 0x3c},
 	{0x302e, 0x20},
@@ -160,10 +220,6 @@ static const struct imx335_reg mode_2592x1940_regs[] = {
 	{0x3074, 0xc8},
 	{0x3076, 0x28},
 	{0x304c, 0x00},
-	{0x314c, 0xc6},
-	{0x315a, 0x02},
-	{0x3168, 0xa0},
-	{0x316a, 0x7e},
 	{0x31a1, 0x00},
 	{0x3288, 0x21},
 	{0x328a, 0x02},
@@ -232,7 +288,85 @@ static const struct imx335_reg mode_2592x1940_regs[] = {
 	{0x3794, 0x7a},
 	{0x3796, 0xa1},
 	{0x37b0, 0x36},
-	{0x3a00, 0x01},
+	{0x3a00, 0x00},
+};
+
+static const struct imx335_reg raw10_framefmt_regs[] = {
+	{0x3050, 0x00},
+	{0x319d, 0x00},
+	{0x341c, 0xff},
+	{0x341d, 0x01},
+};
+
+static const struct imx335_reg raw12_framefmt_regs[] = {
+	{0x3050, 0x01},
+	{0x319d, 0x01},
+	{0x341c, 0x47},
+	{0x341d, 0x00},
+};
+
+static const struct imx335_reg mipi_data_rate_1188Mbps[] = {
+	{0x300c, 0x3b},
+	{0x300d, 0x2a},
+	{0x314c, 0xc6},
+	{0x314d, 0x00},
+	{0x315a, 0x02},
+	{0x3168, 0xa0},
+	{0x316a, 0x7e},
+	{0x319e, 0x01},
+	{0x3a18, 0x8f},
+	{0x3a1a, 0x4f},
+	{0x3a1c, 0x47},
+	{0x3a1e, 0x37},
+	{0x3a1f, 0x01},
+	{0x3a20, 0x4f},
+	{0x3a22, 0x87},
+	{0x3a24, 0x4f},
+	{0x3a26, 0x7f},
+	{0x3a28, 0x3f},
+};
+
+static const struct imx335_reg mipi_data_rate_891Mbps[] = {
+	{0x300c, 0x3b},
+	{0x300d, 0x2a},
+	{0x314c, 0x29},
+	{0x314d, 0x01},
+	{0x315a, 0x06},
+	{0x3168, 0xa0},
+	{0x316a, 0x7e},
+	{0x319e, 0x02},
+	{0x3a18, 0x7f},
+	{0x3a1a, 0x37},
+	{0x3a1c, 0x37},
+	{0x3a1e, 0xf7},
+	{0x3a20, 0x3f},
+	{0x3a22, 0x6f},
+	{0x3a24, 0x3f},
+	{0x3a26, 0x5f},
+	{0x3a28, 0x2f},
+};
+
+static const s64 link_freq[] = {
+	/* Corresponds to 1188Mbps data lane rate */
+	IMX335_LINK_FREQ_594MHz,
+	/* Corresponds to 891Mbps data lane rate */
+	IMX335_LINK_FREQ_445MHz,
+};
+
+static const struct imx335_reg_list link_freq_reglist[] = {
+	{
+		.num_of_regs = ARRAY_SIZE(mipi_data_rate_1188Mbps),
+		.regs = mipi_data_rate_1188Mbps,
+	},
+	{
+		.num_of_regs = ARRAY_SIZE(mipi_data_rate_891Mbps),
+		.regs = mipi_data_rate_891Mbps,
+	},
+};
+
+static const u32 imx335_mbus_codes[] = {
+	MEDIA_BUS_FMT_SRGGB12_1X12,
+	MEDIA_BUS_FMT_SRGGB10_1X10,
 };
 
 /* Supported sensor mode configurations */
@@ -244,8 +378,6 @@ static const struct imx335_mode supported_mode = {
 	.vblank_min = 2560,
 	.vblank_max = 133060,
 	.pclk = 396000000,
-	.link_freq_idx = 0,
-	.code = MEDIA_BUS_FMT_SRGGB12_1X12,
 	.reg_list = {
 		.num_of_regs = ARRAY_SIZE(mode_2592x1940_regs),
 		.regs = mode_2592x1940_regs,
@@ -370,7 +502,8 @@ static int imx335_update_controls(struct imx335 *imx335,
 {
 	int ret;
 
-	ret = __v4l2_ctrl_s_ctrl(imx335->link_freq_ctrl, mode->link_freq_idx);
+	ret = __v4l2_ctrl_s_ctrl(imx335->link_freq_ctrl,
+				 __ffs(imx335->link_freq_bitmap));
 	if (ret)
 		return ret;
 
@@ -398,7 +531,7 @@ static int imx335_update_exp_gain(struct imx335 *imx335, u32 exposure, u32 gain)
 	lpfr = imx335->vblank + imx335->cur_mode->height;
 	shutter = lpfr - exposure;
 
-	dev_dbg(imx335->dev, "Set exp %u, analog gain %u, shutter %u, lpfr %u",
+	dev_dbg(imx335->dev, "Set exp %u, analog gain %u, shutter %u, lpfr %u\n",
 		exposure, gain, shutter, lpfr);
 
 	ret = imx335_write_reg(imx335, IMX335_REG_HOLD, 1, 1);
@@ -417,6 +550,49 @@ static int imx335_update_exp_gain(struct imx335 *imx335, u32 exposure, u32 gain)
 
 error_release_group_hold:
 	imx335_write_reg(imx335, IMX335_REG_HOLD, 1, 0);
+
+	return ret;
+}
+
+static int imx335_update_test_pattern(struct imx335 *imx335, u32 pattern_index)
+{
+	int ret;
+
+	if (pattern_index >= ARRAY_SIZE(imx335_tpg_val))
+		return -EINVAL;
+
+	if (pattern_index) {
+		const struct imx335_reg tpg_enable_regs[] = {
+			{ 0x3148, 0x10 },
+			{ 0x3280, 0x00 },
+			{ 0x329c, 0x01 },
+			{ 0x32a0, 0x11 },
+			{ 0x3302, 0x00 },
+			{ 0x3303, 0x00 },
+			{ 0x336c, 0x00 },
+		};
+
+		ret = imx335_write_reg(imx335, IMX335_REG_TPG, 1,
+				       imx335_tpg_val[pattern_index]);
+		if (ret)
+			return ret;
+
+		ret = imx335_write_regs(imx335, tpg_enable_regs,
+					ARRAY_SIZE(tpg_enable_regs));
+	} else {
+		const struct imx335_reg tpg_disable_regs[] = {
+			{ 0x3148, 0x00 },
+			{ 0x3280, 0x01 },
+			{ 0x329c, 0x00 },
+			{ 0x32a0, 0x10 },
+			{ 0x3302, 0x32 },
+			{ 0x3303, 0x00 },
+			{ 0x336c, 0x01 },
+		};
+
+		ret = imx335_write_regs(imx335, tpg_disable_regs,
+					ARRAY_SIZE(tpg_disable_regs));
+	}
 
 	return ret;
 }
@@ -441,41 +617,50 @@ static int imx335_set_ctrl(struct v4l2_ctrl *ctrl)
 	u32 exposure;
 	int ret;
 
-	switch (ctrl->id) {
-	case V4L2_CID_VBLANK:
+	/* Propagate change of current control to all related controls */
+	if (ctrl->id == V4L2_CID_VBLANK) {
 		imx335->vblank = imx335->vblank_ctrl->val;
 
-		dev_dbg(imx335->dev, "Received vblank %u, new lpfr %u",
+		dev_dbg(imx335->dev, "Received vblank %u, new lpfr %u\n",
 			imx335->vblank,
 			imx335->vblank + imx335->cur_mode->height);
 
-		ret = __v4l2_ctrl_modify_range(imx335->exp_ctrl,
-					       IMX335_EXPOSURE_MIN,
-					       imx335->vblank +
-					       imx335->cur_mode->height -
-					       IMX335_EXPOSURE_OFFSET,
-					       1, IMX335_EXPOSURE_DEFAULT);
-		break;
-	case V4L2_CID_EXPOSURE:
-		/* Set controls only if sensor is in power on state */
-		if (!pm_runtime_get_if_in_use(imx335->dev))
-			return 0;
+		return __v4l2_ctrl_modify_range(imx335->exp_ctrl,
+						IMX335_EXPOSURE_MIN,
+						imx335->vblank +
+						imx335->cur_mode->height -
+						IMX335_EXPOSURE_OFFSET,
+						1, IMX335_EXPOSURE_DEFAULT);
+	}
 
+	/*
+	 * Applying V4L2 control value only happens
+	 * when power is up for streaming.
+	 */
+	if (pm_runtime_get_if_in_use(imx335->dev) == 0)
+		return 0;
+
+	switch (ctrl->id) {
+	case V4L2_CID_EXPOSURE:
 		exposure = ctrl->val;
 		analog_gain = imx335->again_ctrl->val;
 
-		dev_dbg(imx335->dev, "Received exp %u, analog gain %u",
+		dev_dbg(imx335->dev, "Received exp %u, analog gain %u\n",
 			exposure, analog_gain);
 
 		ret = imx335_update_exp_gain(imx335, exposure, analog_gain);
 
-		pm_runtime_put(imx335->dev);
+		break;
+	case V4L2_CID_TEST_PATTERN:
+		ret = imx335_update_test_pattern(imx335, ctrl->val);
 
 		break;
 	default:
-		dev_err(imx335->dev, "Invalid control %d", ctrl->id);
+		dev_err(imx335->dev, "Invalid control %d\n", ctrl->id);
 		ret = -EINVAL;
 	}
+
+	pm_runtime_put(imx335->dev);
 
 	return ret;
 }
@@ -484,6 +669,18 @@ static int imx335_set_ctrl(struct v4l2_ctrl *ctrl)
 static const struct v4l2_ctrl_ops imx335_ctrl_ops = {
 	.s_ctrl = imx335_set_ctrl,
 };
+
+static int imx335_get_format_code(struct imx335 *imx335, u32 code)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(imx335_mbus_codes); i++) {
+		if (imx335_mbus_codes[i] == code)
+			return imx335_mbus_codes[i];
+	}
+
+	return imx335_mbus_codes[0];
+}
 
 /**
  * imx335_enum_mbus_code() - Enumerate V4L2 sub-device mbus codes
@@ -497,10 +694,10 @@ static int imx335_enum_mbus_code(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
-	if (code->index > 0)
+	if (code->index >= ARRAY_SIZE(imx335_mbus_codes))
 		return -EINVAL;
 
-	code->code = supported_mode.code;
+	code->code = imx335_mbus_codes[code->index];
 
 	return 0;
 }
@@ -517,10 +714,14 @@ static int imx335_enum_frame_size(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_frame_size_enum *fsize)
 {
-	if (fsize->index > 0)
+	struct imx335 *imx335 = to_imx335(sd);
+	u32 code;
+
+	if (fsize->index > ARRAY_SIZE(imx335_mbus_codes))
 		return -EINVAL;
 
-	if (fsize->code != supported_mode.code)
+	code = imx335_get_format_code(imx335, fsize->code);
+	if (fsize->code != code)
 		return -EINVAL;
 
 	fsize->min_width = supported_mode.width;
@@ -544,7 +745,7 @@ static void imx335_fill_pad_format(struct imx335 *imx335,
 {
 	fmt->format.width = mode->width;
 	fmt->format.height = mode->height;
-	fmt->format.code = mode->code;
+	fmt->format.code = imx335->cur_mbus_code;
 	fmt->format.field = V4L2_FIELD_NONE;
 	fmt->format.colorspace = V4L2_COLORSPACE_RAW;
 	fmt->format.ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
@@ -571,7 +772,7 @@ static int imx335_get_pad_format(struct v4l2_subdev *sd,
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 		struct v4l2_mbus_framefmt *framefmt;
 
-		framefmt = v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
+		framefmt = v4l2_subdev_state_get_format(sd_state, fmt->pad);
 		fmt->format = *framefmt;
 	} else {
 		imx335_fill_pad_format(imx335, imx335->cur_mode, fmt);
@@ -596,17 +797,22 @@ static int imx335_set_pad_format(struct v4l2_subdev *sd,
 {
 	struct imx335 *imx335 = to_imx335(sd);
 	const struct imx335_mode *mode;
-	int ret = 0;
+	int i, ret = 0;
 
 	mutex_lock(&imx335->mutex);
 
 	mode = &supported_mode;
+	for (i = 0; i < ARRAY_SIZE(imx335_mbus_codes); i++) {
+		if (imx335_mbus_codes[i] == fmt->format.code)
+			imx335->cur_mbus_code = imx335_mbus_codes[i];
+	}
+
 	imx335_fill_pad_format(imx335, mode, fmt);
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 		struct v4l2_mbus_framefmt *framefmt;
 
-		framefmt = v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
+		framefmt = v4l2_subdev_state_get_format(sd_state, fmt->pad);
 		*framefmt = fmt->format;
 	} else {
 		ret = imx335_update_controls(imx335, mode);
@@ -620,14 +826,14 @@ static int imx335_set_pad_format(struct v4l2_subdev *sd,
 }
 
 /**
- * imx335_init_pad_cfg() - Initialize sub-device pad configuration
+ * imx335_init_state() - Initialize sub-device state
  * @sd: pointer to imx335 V4L2 sub-device structure
  * @sd_state: V4L2 sub-device configuration
  *
  * Return: 0 if successful, error code otherwise.
  */
-static int imx335_init_pad_cfg(struct v4l2_subdev *sd,
-			       struct v4l2_subdev_state *sd_state)
+static int imx335_init_state(struct v4l2_subdev *sd,
+			     struct v4l2_subdev_state *sd_state)
 {
 	struct imx335 *imx335 = to_imx335(sd);
 	struct v4l2_subdev_format fmt = { 0 };
@@ -635,7 +841,64 @@ static int imx335_init_pad_cfg(struct v4l2_subdev *sd,
 	fmt.which = sd_state ? V4L2_SUBDEV_FORMAT_TRY : V4L2_SUBDEV_FORMAT_ACTIVE;
 	imx335_fill_pad_format(imx335, &supported_mode, &fmt);
 
+	mutex_lock(&imx335->mutex);
+	__v4l2_ctrl_modify_range(imx335->link_freq_ctrl, 0,
+				 __fls(imx335->link_freq_bitmap),
+				 ~(imx335->link_freq_bitmap),
+				 __ffs(imx335->link_freq_bitmap));
+	mutex_unlock(&imx335->mutex);
+
 	return imx335_set_pad_format(sd, sd_state, &fmt);
+}
+
+/**
+ * imx335_get_selection() - Selection API
+ * @sd: pointer to imx335 V4L2 sub-device structure
+ * @sd_state: V4L2 sub-device configuration
+ * @sel: V4L2 selection info
+ *
+ * Return: 0 if successful, error code otherwise.
+ */
+static int imx335_get_selection(struct v4l2_subdev *sd,
+				struct v4l2_subdev_state *sd_state,
+				struct v4l2_subdev_selection *sel)
+{
+	switch (sel->target) {
+	case V4L2_SEL_TGT_NATIVE_SIZE:
+		sel->r.top = 0;
+		sel->r.left = 0;
+		sel->r.width = IMX335_NATIVE_WIDTH;
+		sel->r.height = IMX335_NATIVE_HEIGHT;
+
+		return 0;
+
+	case V4L2_SEL_TGT_CROP:
+	case V4L2_SEL_TGT_CROP_DEFAULT:
+	case V4L2_SEL_TGT_CROP_BOUNDS:
+		sel->r.top = IMX335_PIXEL_ARRAY_TOP;
+		sel->r.left = IMX335_PIXEL_ARRAY_LEFT;
+		sel->r.width = IMX335_PIXEL_ARRAY_WIDTH;
+		sel->r.height = IMX335_PIXEL_ARRAY_HEIGHT;
+
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
+static int imx335_set_framefmt(struct imx335 *imx335)
+{
+	switch (imx335->cur_mbus_code) {
+	case MEDIA_BUS_FMT_SRGGB10_1X10:
+		return imx335_write_regs(imx335, raw10_framefmt_regs,
+					 ARRAY_SIZE(raw10_framefmt_regs));
+
+	case MEDIA_BUS_FMT_SRGGB12_1X12:
+		return imx335_write_regs(imx335, raw12_framefmt_regs,
+					 ARRAY_SIZE(raw12_framefmt_regs));
+	}
+
+	return -EINVAL;
 }
 
 /**
@@ -649,19 +912,34 @@ static int imx335_start_streaming(struct imx335 *imx335)
 	const struct imx335_reg_list *reg_list;
 	int ret;
 
+	/* Setup PLL */
+	reg_list = &link_freq_reglist[__ffs(imx335->link_freq_bitmap)];
+	ret = imx335_write_regs(imx335, reg_list->regs, reg_list->num_of_regs);
+	if (ret) {
+		dev_err(imx335->dev, "%s failed to set plls\n", __func__);
+		return ret;
+	}
+
 	/* Write sensor mode registers */
 	reg_list = &imx335->cur_mode->reg_list;
 	ret = imx335_write_regs(imx335, reg_list->regs,
 				reg_list->num_of_regs);
 	if (ret) {
-		dev_err(imx335->dev, "fail to write initial registers");
+		dev_err(imx335->dev, "fail to write initial registers\n");
+		return ret;
+	}
+
+	ret = imx335_set_framefmt(imx335);
+	if (ret) {
+		dev_err(imx335->dev, "%s failed to set frame format: %d\n",
+			__func__, ret);
 		return ret;
 	}
 
 	/* Setup handler will write actual exposure and gain */
 	ret =  __v4l2_ctrl_handler_setup(imx335->sd.ctrl_handler);
 	if (ret) {
-		dev_err(imx335->dev, "fail to setup handler");
+		dev_err(imx335->dev, "fail to setup handler\n");
 		return ret;
 	}
 
@@ -669,7 +947,7 @@ static int imx335_start_streaming(struct imx335 *imx335)
 	ret = imx335_write_reg(imx335, IMX335_REG_MODE_SELECT,
 			       1, IMX335_MODE_STREAMING);
 	if (ret) {
-		dev_err(imx335->dev, "fail to start streaming");
+		dev_err(imx335->dev, "fail to start streaming\n");
 		return ret;
 	}
 
@@ -705,11 +983,6 @@ static int imx335_set_stream(struct v4l2_subdev *sd, int enable)
 
 	mutex_lock(&imx335->mutex);
 
-	if (imx335->streaming == enable) {
-		mutex_unlock(&imx335->mutex);
-		return 0;
-	}
-
 	if (enable) {
 		ret = pm_runtime_resume_and_get(imx335->dev);
 		if (ret)
@@ -722,8 +995,6 @@ static int imx335_set_stream(struct v4l2_subdev *sd, int enable)
 		imx335_stop_streaming(imx335);
 		pm_runtime_put(imx335->dev);
 	}
-
-	imx335->streaming = enable;
 
 	mutex_unlock(&imx335->mutex);
 
@@ -753,7 +1024,7 @@ static int imx335_detect(struct imx335 *imx335)
 		return ret;
 
 	if (val != IMX335_ID) {
-		dev_err(imx335->dev, "chip id mismatch: %x!=%x",
+		dev_err(imx335->dev, "chip id mismatch: %x!=%x\n",
 			IMX335_ID, val);
 		return -ENXIO;
 	}
@@ -785,27 +1056,40 @@ static int imx335_parse_hw_config(struct imx335 *imx335)
 	imx335->reset_gpio = devm_gpiod_get_optional(imx335->dev, "reset",
 						     GPIOD_OUT_LOW);
 	if (IS_ERR(imx335->reset_gpio)) {
-		dev_err(imx335->dev, "failed to get reset gpio %ld",
+		dev_err(imx335->dev, "failed to get reset gpio %ld\n",
 			PTR_ERR(imx335->reset_gpio));
 		return PTR_ERR(imx335->reset_gpio);
+	}
+
+	for (i = 0; i < ARRAY_SIZE(imx335_supply_name); i++)
+		imx335->supplies[i].supply = imx335_supply_name[i];
+
+	ret = devm_regulator_bulk_get(imx335->dev,
+				      ARRAY_SIZE(imx335_supply_name),
+				      imx335->supplies);
+	if (ret) {
+		dev_err(imx335->dev, "Failed to get regulators\n");
+		return ret;
 	}
 
 	/* Get sensor input clock */
 	imx335->inclk = devm_clk_get(imx335->dev, NULL);
 	if (IS_ERR(imx335->inclk)) {
-		dev_err(imx335->dev, "could not get inclk");
+		dev_err(imx335->dev, "could not get inclk\n");
 		return PTR_ERR(imx335->inclk);
 	}
 
 	rate = clk_get_rate(imx335->inclk);
 	if (rate != IMX335_INCLK_RATE) {
-		dev_err(imx335->dev, "inclk frequency mismatch");
+		dev_err(imx335->dev, "inclk frequency mismatch\n");
 		return -EINVAL;
 	}
 
 	ep = fwnode_graph_get_next_endpoint(fwnode, NULL);
-	if (!ep)
+	if (!ep) {
+		dev_err(imx335->dev, "Failed to get next endpoint\n");
 		return -ENXIO;
+	}
 
 	ret = v4l2_fwnode_endpoint_alloc_parse(ep, &bus_cfg);
 	fwnode_handle_put(ep);
@@ -814,23 +1098,16 @@ static int imx335_parse_hw_config(struct imx335 *imx335)
 
 	if (bus_cfg.bus.mipi_csi2.num_data_lanes != IMX335_NUM_DATA_LANES) {
 		dev_err(imx335->dev,
-			"number of CSI2 data lanes %d is not supported",
+			"number of CSI2 data lanes %d is not supported\n",
 			bus_cfg.bus.mipi_csi2.num_data_lanes);
 		ret = -EINVAL;
 		goto done_endpoint_free;
 	}
 
-	if (!bus_cfg.nr_of_link_frequencies) {
-		dev_err(imx335->dev, "no link frequencies defined");
-		ret = -EINVAL;
-		goto done_endpoint_free;
-	}
-
-	for (i = 0; i < bus_cfg.nr_of_link_frequencies; i++)
-		if (bus_cfg.link_frequencies[i] == IMX335_LINK_FREQ)
-			goto done_endpoint_free;
-
-	ret = -EINVAL;
+	ret = v4l2_link_freq_to_bitmap(imx335->dev, bus_cfg.link_frequencies,
+				       bus_cfg.nr_of_link_frequencies,
+				       link_freq, ARRAY_SIZE(link_freq),
+				       &imx335->link_freq_bitmap);
 
 done_endpoint_free:
 	v4l2_fwnode_endpoint_free(&bus_cfg);
@@ -844,9 +1121,10 @@ static const struct v4l2_subdev_video_ops imx335_video_ops = {
 };
 
 static const struct v4l2_subdev_pad_ops imx335_pad_ops = {
-	.init_cfg = imx335_init_pad_cfg,
 	.enum_mbus_code = imx335_enum_mbus_code,
 	.enum_frame_size = imx335_enum_frame_size,
+	.get_selection = imx335_get_selection,
+	.set_selection = imx335_get_selection,
 	.get_fmt = imx335_get_pad_format,
 	.set_fmt = imx335_set_pad_format,
 };
@@ -854,6 +1132,10 @@ static const struct v4l2_subdev_pad_ops imx335_pad_ops = {
 static const struct v4l2_subdev_ops imx335_subdev_ops = {
 	.video = &imx335_video_ops,
 	.pad = &imx335_pad_ops,
+};
+
+static const struct v4l2_subdev_internal_ops imx335_internal_ops = {
+	.init_state = imx335_init_state,
 };
 
 /**
@@ -868,20 +1150,32 @@ static int imx335_power_on(struct device *dev)
 	struct imx335 *imx335 = to_imx335(sd);
 	int ret;
 
+	ret = regulator_bulk_enable(ARRAY_SIZE(imx335_supply_name),
+				    imx335->supplies);
+	if (ret) {
+		dev_err(dev, "%s: failed to enable regulators\n",
+			__func__);
+		return ret;
+	}
+
+	usleep_range(500, 550); /* Tlow */
+
+	/* Set XCLR */
 	gpiod_set_value_cansleep(imx335->reset_gpio, 1);
 
 	ret = clk_prepare_enable(imx335->inclk);
 	if (ret) {
-		dev_err(imx335->dev, "fail to enable inclk");
+		dev_err(imx335->dev, "fail to enable inclk\n");
 		goto error_reset;
 	}
 
-	usleep_range(20, 22);
+	usleep_range(20, 22); /* T4 */
 
 	return 0;
 
 error_reset:
 	gpiod_set_value_cansleep(imx335->reset_gpio, 0);
+	regulator_bulk_disable(ARRAY_SIZE(imx335_supply_name), imx335->supplies);
 
 	return ret;
 }
@@ -898,8 +1192,8 @@ static int imx335_power_off(struct device *dev)
 	struct imx335 *imx335 = to_imx335(sd);
 
 	gpiod_set_value_cansleep(imx335->reset_gpio, 0);
-
 	clk_disable_unprepare(imx335->inclk);
+	regulator_bulk_disable(ARRAY_SIZE(imx335_supply_name), imx335->supplies);
 
 	return 0;
 }
@@ -917,7 +1211,7 @@ static int imx335_init_controls(struct imx335 *imx335)
 	u32 lpfr;
 	int ret;
 
-	ret = v4l2_ctrl_handler_init(ctrl_hdlr, 6);
+	ret = v4l2_ctrl_handler_init(ctrl_hdlr, 7);
 	if (ret)
 		return ret;
 
@@ -951,6 +1245,12 @@ static int imx335_init_controls(struct imx335 *imx335)
 						mode->vblank_max,
 						1, mode->vblank);
 
+	v4l2_ctrl_new_std_menu_items(ctrl_hdlr,
+				     &imx335_ctrl_ops,
+				     V4L2_CID_TEST_PATTERN,
+				     ARRAY_SIZE(imx335_tpg_menu) - 1,
+				     0, 0, imx335_tpg_menu);
+
 	/* Read only controls */
 	imx335->pclk_ctrl = v4l2_ctrl_new_std(ctrl_hdlr,
 					      &imx335_ctrl_ops,
@@ -961,9 +1261,8 @@ static int imx335_init_controls(struct imx335 *imx335)
 	imx335->link_freq_ctrl = v4l2_ctrl_new_int_menu(ctrl_hdlr,
 							&imx335_ctrl_ops,
 							V4L2_CID_LINK_FREQ,
-							ARRAY_SIZE(link_freq) -
-							1,
-							mode->link_freq_idx,
+							__fls(imx335->link_freq_bitmap),
+							__ffs(imx335->link_freq_bitmap),
 							link_freq);
 	if (imx335->link_freq_ctrl)
 		imx335->link_freq_ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
@@ -971,14 +1270,14 @@ static int imx335_init_controls(struct imx335 *imx335)
 	imx335->hblank_ctrl = v4l2_ctrl_new_std(ctrl_hdlr,
 						&imx335_ctrl_ops,
 						V4L2_CID_HBLANK,
-						IMX335_REG_MIN,
-						IMX335_REG_MAX,
+						mode->hblank,
+						mode->hblank,
 						1, mode->hblank);
 	if (imx335->hblank_ctrl)
 		imx335->hblank_ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
 	if (ctrl_hdlr->error) {
-		dev_err(imx335->dev, "control init failed: %d",
+		dev_err(imx335->dev, "control init failed: %d\n",
 			ctrl_hdlr->error);
 		v4l2_ctrl_handler_free(ctrl_hdlr);
 		return ctrl_hdlr->error;
@@ -1008,10 +1307,11 @@ static int imx335_probe(struct i2c_client *client)
 
 	/* Initialize subdev */
 	v4l2_i2c_subdev_init(&imx335->sd, client, &imx335_subdev_ops);
+	imx335->sd.internal_ops = &imx335_internal_ops;
 
 	ret = imx335_parse_hw_config(imx335);
 	if (ret) {
-		dev_err(imx335->dev, "HW configuration is not supported");
+		dev_err(imx335->dev, "HW configuration is not supported\n");
 		return ret;
 	}
 
@@ -1019,24 +1319,25 @@ static int imx335_probe(struct i2c_client *client)
 
 	ret = imx335_power_on(imx335->dev);
 	if (ret) {
-		dev_err(imx335->dev, "failed to power-on the sensor");
+		dev_err(imx335->dev, "failed to power-on the sensor\n");
 		goto error_mutex_destroy;
 	}
 
 	/* Check module identity */
 	ret = imx335_detect(imx335);
 	if (ret) {
-		dev_err(imx335->dev, "failed to find sensor: %d", ret);
+		dev_err(imx335->dev, "failed to find sensor: %d\n", ret);
 		goto error_power_off;
 	}
 
 	/* Set default mode to max resolution */
 	imx335->cur_mode = &supported_mode;
+	imx335->cur_mbus_code = imx335_mbus_codes[0];
 	imx335->vblank = imx335->cur_mode->vblank;
 
 	ret = imx335_init_controls(imx335);
 	if (ret) {
-		dev_err(imx335->dev, "failed to init controls: %d", ret);
+		dev_err(imx335->dev, "failed to init controls: %d\n", ret);
 		goto error_power_off;
 	}
 
@@ -1048,14 +1349,14 @@ static int imx335_probe(struct i2c_client *client)
 	imx335->pad.flags = MEDIA_PAD_FL_SOURCE;
 	ret = media_entity_pads_init(&imx335->sd.entity, 1, &imx335->pad);
 	if (ret) {
-		dev_err(imx335->dev, "failed to init entity pads: %d", ret);
+		dev_err(imx335->dev, "failed to init entity pads: %d\n", ret);
 		goto error_handler_free;
 	}
 
 	ret = v4l2_async_register_subdev_sensor(&imx335->sd);
 	if (ret < 0) {
 		dev_err(imx335->dev,
-			"failed to register async subdev: %d", ret);
+			"failed to register async subdev: %d\n", ret);
 		goto error_media_entity;
 	}
 

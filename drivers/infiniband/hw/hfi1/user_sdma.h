@@ -1,6 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0 or BSD-3-Clause */
+/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright(c) 2020 - Cornelis Networks, Inc.
+ * Copyright(c) 2023 - Cornelis Networks, Inc.
  * Copyright(c) 2015 - 2018 Intel Corporation.
  */
 #ifndef _HFI1_USER_SDMA_H
@@ -13,6 +13,8 @@
 #include "iowait.h"
 #include "user_exp_rcv.h"
 #include "mmu_rb.h"
+#include "pinning.h"
+#include "sdma.h"
 
 /* The maximum number of Data io vectors per message/request */
 #define MAX_VECTORS_PER_REQ 8
@@ -99,13 +101,6 @@ struct hfi1_user_sdma_pkt_q {
 struct hfi1_user_sdma_comp_q {
 	u16 nentries;
 	struct hfi1_sdma_comp_entry *comps;
-};
-
-struct sdma_mmu_node {
-	struct mmu_rb_node rb;
-	struct hfi1_user_sdma_pkt_q *pq;
-	struct page **pages;
-	unsigned int npages;
 };
 
 struct user_sdma_iovec {
@@ -203,10 +198,4 @@ int hfi1_user_sdma_free_queues(struct hfi1_filedata *fd,
 int hfi1_user_sdma_process_request(struct hfi1_filedata *fd,
 				   struct iovec *iovec, unsigned long dim,
 				   unsigned long *count);
-
-static inline struct mm_struct *mm_from_sdma_node(struct sdma_mmu_node *node)
-{
-	return node->rb.handler->mn.mm;
-}
-
 #endif /* _HFI1_USER_SDMA_H */

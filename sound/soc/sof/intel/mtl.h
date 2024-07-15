@@ -6,12 +6,6 @@
  * Copyright(c) 2020-2022 Intel Corporation. All rights reserved.
  */
 
-/* HDA Registers */
-#define MTL_PPLCLLPL_BASE		0x948
-#define MTL_PPLCLLPU_STRIDE		0x10
-#define MTL_PPLCLLPL(x)			(MTL_PPLCLLPL_BASE + (x) * MTL_PPLCLLPU_STRIDE)
-#define MTL_PPLCLLPU(x)			(MTL_PPLCLLPL_BASE + 0x4 + (x) * MTL_PPLCLLPU_STRIDE)
-
 /* DSP Registers */
 #define MTL_HFDSSCS			0x1000
 #define MTL_HFDSSCS_SPA_MASK		BIT(16)
@@ -62,7 +56,6 @@
 #define MTL_DSP_IRQSTS_IPC		BIT(0)
 #define MTL_DSP_IRQSTS_SDW		BIT(6)
 
-#define MTL_DSP_PURGE_TIMEOUT_US	20000000 /* 20s */
 #define MTL_DSP_REG_POLL_INTERVAL_US	10	/* 10 us */
 
 /* Memory windows */
@@ -82,10 +75,27 @@
 #define MTL_DSP_REG_HfIMRIS1		0x162088
 #define MTL_DSP_REG_HfIMRIS1_IU_MASK	BIT(0)
 
+bool mtl_dsp_check_ipc_irq(struct snd_sof_dev *sdev);
+int mtl_ipc_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg);
+
 void mtl_enable_ipc_interrupts(struct snd_sof_dev *sdev);
 void mtl_disable_ipc_interrupts(struct snd_sof_dev *sdev);
-bool mtl_dsp_check_ipc_irq(struct snd_sof_dev *sdev);
 
 int mtl_enable_interrupts(struct snd_sof_dev *sdev, bool enable);
-int mtl_dsp_cl_init(struct snd_sof_dev *sdev, int stream_tag, bool imr_boot);
+
+int mtl_dsp_pre_fw_run(struct snd_sof_dev *sdev);
+int mtl_dsp_post_fw_run(struct snd_sof_dev *sdev);
+void mtl_dsp_dump(struct snd_sof_dev *sdev, u32 flags);
+
 int mtl_power_down_dsp(struct snd_sof_dev *sdev);
+int mtl_dsp_cl_init(struct snd_sof_dev *sdev, int stream_tag, bool imr_boot);
+
+irqreturn_t mtl_ipc_irq_thread(int irq, void *context);
+
+int mtl_dsp_ipc_get_mailbox_offset(struct snd_sof_dev *sdev);
+int mtl_dsp_ipc_get_window_offset(struct snd_sof_dev *sdev, u32 id);
+
+void mtl_ipc_dump(struct snd_sof_dev *sdev);
+
+int mtl_dsp_core_get(struct snd_sof_dev *sdev, int core);
+int mtl_dsp_core_put(struct snd_sof_dev *sdev, int core);

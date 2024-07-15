@@ -3,7 +3,6 @@
 #define _BBC_I2C_H
 
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/list.h>
 
 struct bbc_i2c_client {
@@ -82,5 +81,8 @@ extern int bbc_i2c_writeb(struct bbc_i2c_client *, unsigned char val, int off);
 extern int bbc_i2c_readb(struct bbc_i2c_client *, unsigned char *byte, int off);
 extern int bbc_i2c_write_buf(struct bbc_i2c_client *, char *buf, int len, int off);
 extern int bbc_i2c_read_buf(struct bbc_i2c_client *, char *buf, int len, int off);
+
+extern int bbc_envctrl_init(struct bbc_i2c_bus *bp);
+extern void bbc_envctrl_cleanup(struct bbc_i2c_bus *bp);
 
 #endif /* _BBC_I2C_H */

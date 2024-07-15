@@ -10,7 +10,7 @@
 
 #include <uapi/drm/habanalabs_accel.h>
 #include "../common/habanalabs.h"
-#include "../include/common/hl_boot_if.h"
+#include <linux/habanalabs/hl_boot_if.h>
 #include "../include/gaudi2/gaudi2.h"
 #include "../include/gaudi2/gaudi2_packets.h"
 #include "../include/gaudi2/gaudi2_fw_if.h"
@@ -18,8 +18,6 @@
 
 #define GAUDI2_LINUX_FW_FILE	"habanalabs/gaudi2/gaudi2-fit.itb"
 #define GAUDI2_BOOT_FIT_FILE	"habanalabs/gaudi2/gaudi2-boot-fit.itb"
-
-#define MMU_PAGE_TABLES_INITIAL_SIZE	0x10000000	/* 256MB */
 
 #define GAUDI2_CPU_TIMEOUT_USEC		30000000	/* 30s */
 
@@ -84,6 +82,7 @@
 #define CORESIGHT_TIMEOUT_USEC			100000		/* 100 ms */
 
 #define GAUDI2_PREBOOT_REQ_TIMEOUT_USEC		25000000	/* 25s */
+#define GAUDI2_PREBOOT_EXTENDED_REQ_TIMEOUT_USEC 85000000	/* 85s */
 
 #define GAUDI2_BOOT_FIT_REQ_TIMEOUT_USEC	10000000	/* 10s */
 
@@ -108,13 +107,11 @@
 /* DRAM Memory Map */
 
 #define CPU_FW_IMAGE_SIZE			0x10000000	/* 256MB */
-
-/* This define should be used only when working in a debug mode without dram.
- * When working with dram, the driver size will be calculated dynamically.
- */
-#define NIC_DEFAULT_DRV_SIZE			0x20000000	/* 512MB */
-
 #define CPU_FW_IMAGE_ADDR			DRAM_PHYS_BASE
+#define PMMU_PAGE_TABLES_SIZE			0x10000000      /* 256MB */
+#define EDMA_PQS_SIZE				SZ_2M
+#define EDMA_SCRATCHPAD_SIZE			SZ_1M
+#define HMMU_PAGE_TABLES_SIZE			SZ_1M
 
 #define NIC_NUMBER_OF_PORTS			NIC_NUMBER_OF_ENGINES
 
@@ -240,9 +237,8 @@
 #define GAUDI2_SOB_INCREMENT_BY_ONE	(FIELD_PREP(DCORE0_SYNC_MNGR_OBJS_SOB_OBJ_VAL_MASK, 1) | \
 					FIELD_PREP(DCORE0_SYNC_MNGR_OBJS_SOB_OBJ_INC_MASK, 1))
 
-#define GAUDI2_NUM_TESTED_QS (GAUDI2_QUEUE_ID_CPU_PQ - GAUDI2_QUEUE_ID_PDMA_0_0)
+#define GAUDI2_NUM_TESTED_QS		(GAUDI2_QUEUE_ID_CPU_PQ - GAUDI2_QUEUE_ID_PDMA_0_0)
 
-#define GAUDI2_NUM_OF_GLBL_ERR_CAUSE		8
 
 enum gaudi2_reserved_sob_id {
 	GAUDI2_RESERVED_SOB_CS_COMPLETION_FIRST,
@@ -419,6 +415,7 @@ enum gaudi2_irq_num {
 	GAUDI2_IRQ_NUM_NIC_PORT_FIRST,
 	GAUDI2_IRQ_NUM_NIC_PORT_LAST = (GAUDI2_IRQ_NUM_NIC_PORT_FIRST + NIC_NUMBER_OF_PORTS - 1),
 	GAUDI2_IRQ_NUM_TPC_ASSERT,
+	GAUDI2_IRQ_NUM_EQ_ERROR,
 	GAUDI2_IRQ_NUM_RESERVED_FIRST,
 	GAUDI2_IRQ_NUM_RESERVED_LAST = (GAUDI2_MSIX_ENTRIES - GAUDI2_TOTAL_USER_INTERRUPTS - 1),
 	GAUDI2_IRQ_NUM_UNEXPECTED_ERROR = RESERVED_MSIX_UNEXPECTED_USER_ERROR_INTERRUPT,

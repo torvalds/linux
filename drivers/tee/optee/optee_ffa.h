@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
- * Copyright (c) 2019-2021, Linaro Limited
+ * Copyright (c) 2019-2021, 2023 Linaro Limited
  */
 
 /*
@@ -73,7 +73,7 @@
  *
  * Call register usage:
  * w3:    Service ID, OPTEE_FFA_EXCHANGE_CAPABILITIES
- * w4-w7: Note used (MBZ)
+ * w4-w7: Not used (MBZ)
  *
  * Return register usage:
  * w3:    Error code, 0 on success
@@ -82,14 +82,16 @@
  *                   OPTEE_FFA_YIELDING_CALL_WITH_ARG.
  *        Bit[31:8]: Reserved (MBZ)
  * w5:	  Bitfield of secure world capabilities OPTEE_FFA_SEC_CAP_* below,
- *	  unused bits MBZ.
- * w6-w7: Not used (MBZ)
+ * w6:	  The maximum secure world notification number
+ * w7:	  Not used (MBZ)
  */
 /*
  * Secure world supports giving an offset into the argument shared memory
  * object, see also OPTEE_FFA_YIELDING_CALL_WITH_ARG
  */
 #define OPTEE_FFA_SEC_CAP_ARG_OFFSET	BIT(0)
+/* OP-TEE supports asynchronous notification via FF-A */
+#define OPTEE_FFA_SEC_CAP_ASYNC_NOTIF	BIT(1)
 
 #define OPTEE_FFA_EXCHANGE_CAPABILITIES OPTEE_FFA_BLOCKING_CALL(2)
 
@@ -107,6 +109,24 @@
  * w4-w7: Note used (MBZ)
  */
 #define OPTEE_FFA_UNREGISTER_SHM	OPTEE_FFA_BLOCKING_CALL(3)
+
+/*
+ * Inform OP-TEE that the normal world is able to receive asynchronous
+ * notifications.
+ *
+ * Call register usage:
+ * w3:    Service ID, OPTEE_FFA_ENABLE_ASYNC_NOTIF
+ * w4:	  Notification value to request bottom half processing, should be
+ *	  less than OPTEE_FFA_MAX_ASYNC_NOTIF_VALUE.
+ * w5-w7: Not used (MBZ)
+ *
+ * Return register usage:
+ * w3:    Error code, 0 on success
+ * w4-w7: Note used (MBZ)
+ */
+#define OPTEE_FFA_ENABLE_ASYNC_NOTIF	OPTEE_FFA_BLOCKING_CALL(5)
+
+#define OPTEE_FFA_MAX_ASYNC_NOTIF_VALUE 64
 
 /*
  * Call with struct optee_msg_arg as argument in the supplied shared memory

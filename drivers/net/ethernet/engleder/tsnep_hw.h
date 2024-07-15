@@ -181,6 +181,8 @@ struct tsnep_gcl_operation {
 #define TSNEP_DESC_SIZE 256
 #define TSNEP_DESC_SIZE_DATA_AFTER 2048
 #define TSNEP_DESC_OFFSET 128
+#define TSNEP_DESC_SIZE_DATA_AFTER_INLINE (64 - sizeof(struct tsnep_tx_desc) + \
+					   sizeof_field(struct tsnep_tx_desc, tx))
 #define TSNEP_DESC_OWNER_COUNTER_MASK 0xC0000000
 #define TSNEP_DESC_OWNER_COUNTER_SHIFT 30
 #define TSNEP_DESC_LENGTH_MASK 0x00003FFF

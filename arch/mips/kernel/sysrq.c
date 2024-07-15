@@ -44,7 +44,7 @@ static void sysrq_tlbdump_othercpus(struct work_struct *dummy)
 static DECLARE_WORK(sysrq_tlbdump, sysrq_tlbdump_othercpus);
 #endif
 
-static void sysrq_handle_tlbdump(int key)
+static void sysrq_handle_tlbdump(u8 key)
 {
 	sysrq_tlbdump_single(NULL);
 #ifdef CONFIG_SMP

@@ -80,10 +80,10 @@ static void __init ipmi_hardcode_init_one(const char *si_type_str,
 	}
 
 	p.regsize = regsizes[i];
+	p.regspacing = regspacings[i];
 	p.slave_addr = slave_addrs[i];
 	p.addr_source = SI_HARDCODED;
 	p.regshift = regshifts[i];
-	p.regsize = regsizes[i];
 	p.addr = addr;
 	p.space = addr_space;
 

@@ -6,6 +6,7 @@
 #include <linux/types.h>
 #include "btrfs-tests.h"
 #include "../ctree.h"
+#include "../btrfs_inode.h"
 #include "../volumes.h"
 #include "../disk-io.h"
 #include "../block-group.h"
@@ -24,7 +25,7 @@ static void free_extent_map_tree(struct extent_map_tree *em_tree)
 #ifdef CONFIG_BTRFS_DEBUG
 		if (refcount_read(&em->refs) != 1) {
 			test_err(
-"em leak: em (start 0x%llx len 0x%llx block_start 0x%llx block_len 0x%llx) refs %d",
+"em leak: em (start %llu len %llu block_start %llu block_len %llu) refs %d",
 				 em->start, em->len, em->block_start,
 				 em->block_len, refcount_read(&em->refs));
 
@@ -72,7 +73,7 @@ static int test_case_1(struct btrfs_fs_info *fs_info,
 	em->block_start = 0;
 	em->block_len = SZ_16K;
 	write_lock(&em_tree->lock);
-	ret = add_extent_mapping(em_tree, em, 0);
+	ret = btrfs_add_extent_mapping(fs_info, em_tree, &em, em->start, em->len);
 	write_unlock(&em_tree->lock);
 	if (ret < 0) {
 		test_err("cannot add extent range [0, 16K)");
@@ -93,7 +94,7 @@ static int test_case_1(struct btrfs_fs_info *fs_info,
 	em->block_start = SZ_32K; /* avoid merging */
 	em->block_len = SZ_4K;
 	write_lock(&em_tree->lock);
-	ret = add_extent_mapping(em_tree, em, 0);
+	ret = btrfs_add_extent_mapping(fs_info, em_tree, &em, em->start, em->len);
 	write_unlock(&em_tree->lock);
 	if (ret < 0) {
 		test_err("cannot add extent range [16K, 20K)");
@@ -120,9 +121,14 @@ static int test_case_1(struct btrfs_fs_info *fs_info,
 		test_err("case1 [%llu %llu]: ret %d", start, start + len, ret);
 		goto out;
 	}
-	if (em &&
-	    (em->start != 0 || extent_map_end(em) != SZ_16K ||
-	     em->block_start != 0 || em->block_len != SZ_16K)) {
+	if (!em) {
+		test_err("case1 [%llu %llu]: no extent map returned",
+			 start, start + len);
+		ret = -ENOENT;
+		goto out;
+	}
+	if (em->start != 0 || extent_map_end(em) != SZ_16K ||
+	    em->block_start != 0 || em->block_len != SZ_16K) {
 		test_err(
 "case1 [%llu %llu]: ret %d return a wrong em (start %llu len %llu block_start %llu block_len %llu",
 			 start, start + len, ret, em->start, em->len,
@@ -160,7 +166,7 @@ static int test_case_2(struct btrfs_fs_info *fs_info,
 	em->block_start = EXTENT_MAP_INLINE;
 	em->block_len = (u64)-1;
 	write_lock(&em_tree->lock);
-	ret = add_extent_mapping(em_tree, em, 0);
+	ret = btrfs_add_extent_mapping(fs_info, em_tree, &em, em->start, em->len);
 	write_unlock(&em_tree->lock);
 	if (ret < 0) {
 		test_err("cannot add extent range [0, 1K)");
@@ -181,7 +187,7 @@ static int test_case_2(struct btrfs_fs_info *fs_info,
 	em->block_start = SZ_4K;
 	em->block_len = SZ_4K;
 	write_lock(&em_tree->lock);
-	ret = add_extent_mapping(em_tree, em, 0);
+	ret = btrfs_add_extent_mapping(fs_info, em_tree, &em, em->start, em->len);
 	write_unlock(&em_tree->lock);
 	if (ret < 0) {
 		test_err("cannot add extent range [4K, 8K)");
@@ -208,9 +214,13 @@ static int test_case_2(struct btrfs_fs_info *fs_info,
 		test_err("case2 [0 1K]: ret %d", ret);
 		goto out;
 	}
-	if (em &&
-	    (em->start != 0 || extent_map_end(em) != SZ_1K ||
-	     em->block_start != EXTENT_MAP_INLINE || em->block_len != (u64)-1)) {
+	if (!em) {
+		test_err("case2 [0 1K]: no extent map returned");
+		ret = -ENOENT;
+		goto out;
+	}
+	if (em->start != 0 || extent_map_end(em) != SZ_1K ||
+	    em->block_start != EXTENT_MAP_INLINE || em->block_len != (u64)-1) {
 		test_err(
 "case2 [0 1K]: ret %d return a wrong em (start %llu len %llu block_start %llu block_len %llu",
 			 ret, em->start, em->len, em->block_start,
@@ -243,7 +253,7 @@ static int __test_case_3(struct btrfs_fs_info *fs_info,
 	em->block_start = SZ_4K;
 	em->block_len = SZ_4K;
 	write_lock(&em_tree->lock);
-	ret = add_extent_mapping(em_tree, em, 0);
+	ret = btrfs_add_extent_mapping(fs_info, em_tree, &em, em->start, em->len);
 	write_unlock(&em_tree->lock);
 	if (ret < 0) {
 		test_err("cannot add extent range [4K, 8K)");
@@ -267,19 +277,24 @@ static int __test_case_3(struct btrfs_fs_info *fs_info,
 	ret = btrfs_add_extent_mapping(fs_info, em_tree, &em, start, len);
 	write_unlock(&em_tree->lock);
 	if (ret) {
-		test_err("case3 [0x%llx 0x%llx): ret %d",
+		test_err("case3 [%llu %llu): ret %d",
 			 start, start + len, ret);
+		goto out;
+	}
+	if (!em) {
+		test_err("case3 [%llu %llu): no extent map returned",
+			 start, start + len);
+		ret = -ENOENT;
 		goto out;
 	}
 	/*
 	 * Since bytes within em are contiguous, em->block_start is identical to
 	 * em->start.
 	 */
-	if (em &&
-	    (start < em->start || start + len > extent_map_end(em) ||
-	     em->start != em->block_start || em->len != em->block_len)) {
+	if (start < em->start || start + len > extent_map_end(em) ||
+	    em->start != em->block_start || em->len != em->block_len) {
 		test_err(
-"case3 [0x%llx 0x%llx): ret %d em (start 0x%llx len 0x%llx block_start 0x%llx block_len 0x%llx)",
+"case3 [%llu %llu): ret %d em (start %llu len %llu block_start %llu block_len %llu)",
 			 start, start + len, ret, em->start, em->len,
 			 em->block_start, em->block_len);
 		ret = -EINVAL;
@@ -342,7 +357,7 @@ static int __test_case_4(struct btrfs_fs_info *fs_info,
 	em->block_start = 0;
 	em->block_len = SZ_8K;
 	write_lock(&em_tree->lock);
-	ret = add_extent_mapping(em_tree, em, 0);
+	ret = btrfs_add_extent_mapping(fs_info, em_tree, &em, em->start, em->len);
 	write_unlock(&em_tree->lock);
 	if (ret < 0) {
 		test_err("cannot add extent range [0, 8K)");
@@ -363,7 +378,7 @@ static int __test_case_4(struct btrfs_fs_info *fs_info,
 	em->block_start = SZ_16K; /* avoid merging */
 	em->block_len = 24 * SZ_1K;
 	write_lock(&em_tree->lock);
-	ret = add_extent_mapping(em_tree, em, 0);
+	ret = btrfs_add_extent_mapping(fs_info, em_tree, &em, em->start, em->len);
 	write_unlock(&em_tree->lock);
 	if (ret < 0) {
 		test_err("cannot add extent range [8K, 32K)");
@@ -386,14 +401,20 @@ static int __test_case_4(struct btrfs_fs_info *fs_info,
 	ret = btrfs_add_extent_mapping(fs_info, em_tree, &em, start, len);
 	write_unlock(&em_tree->lock);
 	if (ret) {
-		test_err("case4 [0x%llx 0x%llx): ret %d",
-			 start, len, ret);
+		test_err("case4 [%llu %llu): ret %d",
+			 start, start + len, ret);
 		goto out;
 	}
-	if (em && (start < em->start || start + len > extent_map_end(em))) {
+	if (!em) {
+		test_err("case4 [%llu %llu): no extent map returned",
+			 start, start + len);
+		ret = -ENOENT;
+		goto out;
+	}
+	if (start < em->start || start + len > extent_map_end(em)) {
 		test_err(
-"case4 [0x%llx 0x%llx): ret %d, added wrong em (start 0x%llx len 0x%llx block_start 0x%llx block_len 0x%llx)",
-			 start, len, ret, em->start, em->len, em->block_start,
+"case4 [%llu %llu): ret %d, added wrong em (start %llu len %llu block_start %llu block_len %llu)",
+			 start, start + len, ret, em->start, em->len, em->block_start,
 			 em->block_len);
 		ret = -EINVAL;
 	}
@@ -442,6 +463,412 @@ static int test_case_4(struct btrfs_fs_info *fs_info,
 	return ret;
 }
 
+static int add_compressed_extent(struct btrfs_fs_info *fs_info,
+				 struct extent_map_tree *em_tree,
+				 u64 start, u64 len, u64 block_start)
+{
+	struct extent_map *em;
+	int ret;
+
+	em = alloc_extent_map();
+	if (!em) {
+		test_std_err(TEST_ALLOC_EXTENT_MAP);
+		return -ENOMEM;
+	}
+
+	em->start = start;
+	em->len = len;
+	em->block_start = block_start;
+	em->block_len = SZ_4K;
+	em->flags |= EXTENT_FLAG_COMPRESS_ZLIB;
+	write_lock(&em_tree->lock);
+	ret = btrfs_add_extent_mapping(fs_info, em_tree, &em, em->start, em->len);
+	write_unlock(&em_tree->lock);
+	free_extent_map(em);
+	if (ret < 0) {
+		test_err("cannot add extent map [%llu, %llu)", start, start + len);
+		return ret;
+	}
+
+	return 0;
+}
+
+struct extent_range {
+	u64 start;
+	u64 len;
+};
+
+/* The valid states of the tree after every drop, as described below. */
+struct extent_range valid_ranges[][7] = {
+	{
+	  { .start = 0,			.len = SZ_8K },		/* [0, 8K) */
+	  { .start = SZ_4K * 3,		.len = SZ_4K * 3},	/* [12k, 24k) */
+	  { .start = SZ_4K * 6,		.len = SZ_4K * 3},	/* [24k, 36k) */
+	  { .start = SZ_32K + SZ_4K,	.len = SZ_4K},		/* [36k, 40k) */
+	  { .start = SZ_4K * 10,	.len = SZ_4K * 6},	/* [40k, 64k) */
+	},
+	{
+	  { .start = 0,			.len = SZ_8K },		/* [0, 8K) */
+	  { .start = SZ_4K * 5,		.len = SZ_4K},		/* [20k, 24k) */
+	  { .start = SZ_4K * 6,		.len = SZ_4K * 3},	/* [24k, 36k) */
+	  { .start = SZ_32K + SZ_4K,	.len = SZ_4K},		/* [36k, 40k) */
+	  { .start = SZ_4K * 10,	.len = SZ_4K * 6},	/* [40k, 64k) */
+	},
+	{
+	  { .start = 0,			.len = SZ_8K },		/* [0, 8K) */
+	  { .start = SZ_4K * 5,		.len = SZ_4K},		/* [20k, 24k) */
+	  { .start = SZ_4K * 6,		.len = SZ_4K},		/* [24k, 28k) */
+	  { .start = SZ_32K,		.len = SZ_4K},		/* [32k, 36k) */
+	  { .start = SZ_32K + SZ_4K,	.len = SZ_4K},		/* [36k, 40k) */
+	  { .start = SZ_4K * 10,	.len = SZ_4K * 6},	/* [40k, 64k) */
+	},
+	{
+	  { .start = 0,			.len = SZ_8K},		/* [0, 8K) */
+	  { .start = SZ_4K * 5,		.len = SZ_4K},		/* [20k, 24k) */
+	  { .start = SZ_4K * 6,		.len = SZ_4K},		/* [24k, 28k) */
+	}
+};
+
+static int validate_range(struct extent_map_tree *em_tree, int index)
+{
+	struct rb_node *n;
+	int i;
+
+	for (i = 0, n = rb_first_cached(&em_tree->map);
+	     valid_ranges[index][i].len && n;
+	     i++, n = rb_next(n)) {
+		struct extent_map *entry = rb_entry(n, struct extent_map, rb_node);
+
+		if (entry->start != valid_ranges[index][i].start) {
+			test_err("mapping has start %llu expected %llu",
+				 entry->start, valid_ranges[index][i].start);
+			return -EINVAL;
+		}
+
+		if (entry->len != valid_ranges[index][i].len) {
+			test_err("mapping has len %llu expected %llu",
+				 entry->len, valid_ranges[index][i].len);
+			return -EINVAL;
+		}
+	}
+
+	/*
+	 * We exited because we don't have any more entries in the extent_map
+	 * but we still expect more valid entries.
+	 */
+	if (valid_ranges[index][i].len) {
+		test_err("missing an entry");
+		return -EINVAL;
+	}
+
+	/* We exited the loop but still have entries in the extent map. */
+	if (n) {
+		test_err("we have a left over entry in the extent map we didn't expect");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/*
+ * Test scenario:
+ *
+ * Test the various edge cases of btrfs_drop_extent_map_range, create the
+ * following ranges
+ *
+ * [0, 12k)[12k, 24k)[24k, 36k)[36k, 40k)[40k,64k)
+ *
+ * And then we'll drop:
+ *
+ * [8k, 12k) - test the single front split
+ * [12k, 20k) - test the single back split
+ * [28k, 32k) - test the double split
+ * [32k, 64k) - test whole em dropping
+ *
+ * They'll have the EXTENT_FLAG_COMPRESSED flag set to keep the em tree from
+ * merging the em's.
+ */
+static int test_case_5(struct btrfs_fs_info *fs_info)
+{
+	struct extent_map_tree *em_tree;
+	struct inode *inode;
+	u64 start, end;
+	int ret;
+
+	test_msg("Running btrfs_drop_extent_map_range tests");
+
+	inode = btrfs_new_test_inode();
+	if (!inode) {
+		test_std_err(TEST_ALLOC_INODE);
+		return -ENOMEM;
+	}
+
+	em_tree = &BTRFS_I(inode)->extent_tree;
+
+	/* [0, 12k) */
+	ret = add_compressed_extent(fs_info, em_tree, 0, SZ_4K * 3, 0);
+	if (ret) {
+		test_err("cannot add extent range [0, 12K)");
+		goto out;
+	}
+
+	/* [12k, 24k) */
+	ret = add_compressed_extent(fs_info, em_tree, SZ_4K * 3, SZ_4K * 3, SZ_4K);
+	if (ret) {
+		test_err("cannot add extent range [12k, 24k)");
+		goto out;
+	}
+
+	/* [24k, 36k) */
+	ret = add_compressed_extent(fs_info, em_tree, SZ_4K * 6, SZ_4K * 3, SZ_8K);
+	if (ret) {
+		test_err("cannot add extent range [12k, 24k)");
+		goto out;
+	}
+
+	/* [36k, 40k) */
+	ret = add_compressed_extent(fs_info, em_tree, SZ_32K + SZ_4K, SZ_4K, SZ_4K * 3);
+	if (ret) {
+		test_err("cannot add extent range [12k, 24k)");
+		goto out;
+	}
+
+	/* [40k, 64k) */
+	ret = add_compressed_extent(fs_info, em_tree, SZ_4K * 10, SZ_4K * 6, SZ_16K);
+	if (ret) {
+		test_err("cannot add extent range [12k, 24k)");
+		goto out;
+	}
+
+	/* Drop [8k, 12k) */
+	start = SZ_8K;
+	end = (3 * SZ_4K) - 1;
+	btrfs_drop_extent_map_range(BTRFS_I(inode), start, end, false);
+	ret = validate_range(&BTRFS_I(inode)->extent_tree, 0);
+	if (ret)
+		goto out;
+
+	/* Drop [12k, 20k) */
+	start = SZ_4K * 3;
+	end = SZ_16K + SZ_4K - 1;
+	btrfs_drop_extent_map_range(BTRFS_I(inode), start, end, false);
+	ret = validate_range(&BTRFS_I(inode)->extent_tree, 1);
+	if (ret)
+		goto out;
+
+	/* Drop [28k, 32k) */
+	start = SZ_32K - SZ_4K;
+	end = SZ_32K - 1;
+	btrfs_drop_extent_map_range(BTRFS_I(inode), start, end, false);
+	ret = validate_range(&BTRFS_I(inode)->extent_tree, 2);
+	if (ret)
+		goto out;
+
+	/* Drop [32k, 64k) */
+	start = SZ_32K;
+	end = SZ_64K - 1;
+	btrfs_drop_extent_map_range(BTRFS_I(inode), start, end, false);
+	ret = validate_range(&BTRFS_I(inode)->extent_tree, 3);
+	if (ret)
+		goto out;
+out:
+	iput(inode);
+	return ret;
+}
+
+/*
+ * Test the btrfs_add_extent_mapping helper which will attempt to create an em
+ * for areas between two existing ems.  Validate it doesn't do this when there
+ * are two unmerged em's side by side.
+ */
+static int test_case_6(struct btrfs_fs_info *fs_info, struct extent_map_tree *em_tree)
+{
+	struct extent_map *em = NULL;
+	int ret;
+
+	ret = add_compressed_extent(fs_info, em_tree, 0, SZ_4K, 0);
+	if (ret)
+		goto out;
+
+	ret = add_compressed_extent(fs_info, em_tree, SZ_4K, SZ_4K, 0);
+	if (ret)
+		goto out;
+
+	em = alloc_extent_map();
+	if (!em) {
+		test_std_err(TEST_ALLOC_EXTENT_MAP);
+		return -ENOMEM;
+	}
+
+	em->start = SZ_4K;
+	em->len = SZ_4K;
+	em->block_start = SZ_16K;
+	em->block_len = SZ_16K;
+	write_lock(&em_tree->lock);
+	ret = btrfs_add_extent_mapping(fs_info, em_tree, &em, 0, SZ_8K);
+	write_unlock(&em_tree->lock);
+
+	if (ret != 0) {
+		test_err("got an error when adding our em: %d", ret);
+		goto out;
+	}
+
+	ret = -EINVAL;
+	if (em->start != 0) {
+		test_err("unexpected em->start at %llu, wanted 0", em->start);
+		goto out;
+	}
+	if (em->len != SZ_4K) {
+		test_err("unexpected em->len %llu, expected 4K", em->len);
+		goto out;
+	}
+	ret = 0;
+out:
+	free_extent_map(em);
+	free_extent_map_tree(em_tree);
+	return ret;
+}
+
+/*
+ * Regression test for btrfs_drop_extent_map_range.  Calling with skip_pinned ==
+ * true would mess up the start/end calculations and subsequent splits would be
+ * incorrect.
+ */
+static int test_case_7(struct btrfs_fs_info *fs_info)
+{
+	struct extent_map_tree *em_tree;
+	struct extent_map *em;
+	struct inode *inode;
+	int ret;
+
+	test_msg("Running btrfs_drop_extent_cache with pinned");
+
+	inode = btrfs_new_test_inode();
+	if (!inode) {
+		test_std_err(TEST_ALLOC_INODE);
+		return -ENOMEM;
+	}
+
+	em_tree = &BTRFS_I(inode)->extent_tree;
+
+	em = alloc_extent_map();
+	if (!em) {
+		test_std_err(TEST_ALLOC_EXTENT_MAP);
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	/* [0, 16K), pinned */
+	em->start = 0;
+	em->len = SZ_16K;
+	em->block_start = 0;
+	em->block_len = SZ_4K;
+	em->flags |= EXTENT_FLAG_PINNED;
+	write_lock(&em_tree->lock);
+	ret = btrfs_add_extent_mapping(fs_info, em_tree, &em, em->start, em->len);
+	write_unlock(&em_tree->lock);
+	if (ret < 0) {
+		test_err("couldn't add extent map");
+		goto out;
+	}
+	free_extent_map(em);
+
+	em = alloc_extent_map();
+	if (!em) {
+		test_std_err(TEST_ALLOC_EXTENT_MAP);
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	/* [32K, 48K), not pinned */
+	em->start = SZ_32K;
+	em->len = SZ_16K;
+	em->block_start = SZ_32K;
+	em->block_len = SZ_16K;
+	write_lock(&em_tree->lock);
+	ret = btrfs_add_extent_mapping(fs_info, em_tree, &em, em->start, em->len);
+	write_unlock(&em_tree->lock);
+	if (ret < 0) {
+		test_err("couldn't add extent map");
+		goto out;
+	}
+	free_extent_map(em);
+
+	/*
+	 * Drop [0, 36K) This should skip the [0, 4K) extent and then split the
+	 * [32K, 48K) extent.
+	 */
+	btrfs_drop_extent_map_range(BTRFS_I(inode), 0, (36 * SZ_1K) - 1, true);
+
+	/* Make sure our extent maps look sane. */
+	ret = -EINVAL;
+
+	em = lookup_extent_mapping(em_tree, 0, SZ_16K);
+	if (!em) {
+		test_err("didn't find an em at 0 as expected");
+		goto out;
+	}
+
+	if (em->start != 0) {
+		test_err("em->start is %llu, expected 0", em->start);
+		goto out;
+	}
+
+	if (em->len != SZ_16K) {
+		test_err("em->len is %llu, expected 16K", em->len);
+		goto out;
+	}
+
+	free_extent_map(em);
+
+	read_lock(&em_tree->lock);
+	em = lookup_extent_mapping(em_tree, SZ_16K, SZ_16K);
+	read_unlock(&em_tree->lock);
+	if (em) {
+		test_err("found an em when we weren't expecting one");
+		goto out;
+	}
+
+	read_lock(&em_tree->lock);
+	em = lookup_extent_mapping(em_tree, SZ_32K, SZ_16K);
+	read_unlock(&em_tree->lock);
+	if (!em) {
+		test_err("didn't find an em at 32K as expected");
+		goto out;
+	}
+
+	if (em->start != (36 * SZ_1K)) {
+		test_err("em->start is %llu, expected 36K", em->start);
+		goto out;
+	}
+
+	if (em->len != (12 * SZ_1K)) {
+		test_err("em->len is %llu, expected 12K", em->len);
+		goto out;
+	}
+
+	if (em->block_start != SZ_32K + SZ_4K) {
+		test_err("em->block_start is %llu, expected 36K", em->block_start);
+		goto out;
+	}
+
+	free_extent_map(em);
+
+	read_lock(&em_tree->lock);
+	em = lookup_extent_mapping(em_tree, 48 * SZ_1K, (u64)-1);
+	read_unlock(&em_tree->lock);
+	if (em) {
+		test_err("found an unexpected em above 48K");
+		goto out;
+	}
+
+	ret = 0;
+out:
+	free_extent_map(em);
+	iput(inode);
+	return ret;
+}
+
 struct rmap_test_vector {
 	u64 raid_type;
 	u64 physical_start;
@@ -458,33 +885,21 @@ struct rmap_test_vector {
 static int test_rmap_block(struct btrfs_fs_info *fs_info,
 			   struct rmap_test_vector *test)
 {
-	struct extent_map *em;
-	struct map_lookup *map = NULL;
+	struct btrfs_chunk_map *map;
 	u64 *logical = NULL;
 	int i, out_ndaddrs, out_stripe_len;
 	int ret;
 
-	em = alloc_extent_map();
-	if (!em) {
-		test_std_err(TEST_ALLOC_EXTENT_MAP);
-		return -ENOMEM;
-	}
-
-	map = kmalloc(map_lookup_size(test->num_stripes), GFP_KERNEL);
+	map = btrfs_alloc_chunk_map(test->num_stripes, GFP_KERNEL);
 	if (!map) {
-		kfree(em);
-		test_std_err(TEST_ALLOC_EXTENT_MAP);
+		test_std_err(TEST_ALLOC_CHUNK_MAP);
 		return -ENOMEM;
 	}
 
-	set_bit(EXTENT_FLAG_FS_MAPPING, &em->flags);
 	/* Start at 4GiB logical address */
-	em->start = SZ_4G;
-	em->len = test->data_stripe_size * test->num_data_stripes;
-	em->block_len = em->len;
-	em->orig_block_len = test->data_stripe_size;
-	em->map_lookup = map;
-
+	map->start = SZ_4G;
+	map->chunk_len = test->data_stripe_size * test->num_data_stripes;
+	map->stripe_size = test->data_stripe_size;
 	map->num_stripes = test->num_stripes;
 	map->type = test->raid_type;
 
@@ -500,15 +915,13 @@ static int test_rmap_block(struct btrfs_fs_info *fs_info,
 		map->stripes[i].physical = test->data_stripe_phys_start[i];
 	}
 
-	write_lock(&fs_info->mapping_tree.lock);
-	ret = add_extent_mapping(&fs_info->mapping_tree, em, 0);
-	write_unlock(&fs_info->mapping_tree.lock);
+	ret = btrfs_add_chunk_map(fs_info, map);
 	if (ret) {
-		test_err("error adding block group mapping to mapping tree");
+		test_err("error adding chunk map to mapping tree");
 		goto out_free;
 	}
 
-	ret = btrfs_rmap_block(fs_info, em->start, btrfs_sb_offset(1),
+	ret = btrfs_rmap_block(fs_info, map->start, btrfs_sb_offset(1),
 			       &logical, &out_ndaddrs, &out_stripe_len);
 	if (ret || (out_ndaddrs == 0 && test->expected_mapped_addr)) {
 		test_err("didn't rmap anything but expected %d",
@@ -537,14 +950,8 @@ static int test_rmap_block(struct btrfs_fs_info *fs_info,
 
 	ret = 0;
 out:
-	write_lock(&fs_info->mapping_tree.lock);
-	remove_extent_mapping(&fs_info->mapping_tree, em);
-	write_unlock(&fs_info->mapping_tree.lock);
-	/* For us */
-	free_extent_map(em);
+	btrfs_remove_chunk_map(fs_info, map);
 out_free:
-	/* For the tree */
-	free_extent_map(em);
 	kfree(logical);
 	return ret;
 }
@@ -619,6 +1026,17 @@ int btrfs_test_extent_map(void)
 	if (ret)
 		goto out;
 	ret = test_case_4(fs_info, em_tree);
+	if (ret)
+		goto out;
+	ret = test_case_5(fs_info);
+	if (ret)
+		goto out;
+	ret = test_case_6(fs_info, em_tree);
+	if (ret)
+		goto out;
+	ret = test_case_7(fs_info);
+	if (ret)
+		goto out;
 
 	test_msg("running rmap tests");
 	for (i = 0; i < ARRAY_SIZE(rmap_tests); i++) {

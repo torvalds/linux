@@ -40,8 +40,9 @@
 #include <asm/io.h>
 #include <asm/rheap.h>
 #include <asm/cpm.h>
+#include <asm/fixmap.h>
 
-#include <asm/fs_pd.h>
+#include <sysdev/fsl_soc.h>
 
 #ifdef CONFIG_8xx_GPIO
 #include <linux/gpio/legacy-of-mm-gpiochip.h>
@@ -54,8 +55,6 @@ immap_t __iomem *mpc8xx_immr = (void __iomem *)VIRT_IMMR_BASE;
 
 void __init cpm_reset(void)
 {
-	sysconf8xx_t __iomem *siu_conf;
-
 	cpmp = &mpc8xx_immr->im_cpm;
 
 #ifndef CONFIG_PPC_EARLY_DEBUG_CPM
@@ -77,12 +76,10 @@ void __init cpm_reset(void)
 	 * manual recommends it.
 	 * Bit 25, FAM can also be set to use FEC aggressive mode (860T).
 	 */
-	siu_conf = immr_map(im_siu_conf);
 	if ((mfspr(SPRN_IMMR) & 0xffff) == 0x0900) /* MPC885 */
-		out_be32(&siu_conf->sc_sdcr, 0x40);
+		out_be32(&mpc8xx_immr->im_siu_conf.sc_sdcr, 0x40);
 	else
-		out_be32(&siu_conf->sc_sdcr, 1);
-	immr_unmap(siu_conf);
+		out_be32(&mpc8xx_immr->im_siu_conf.sc_sdcr, 1);
 }
 
 static DEFINE_SPINLOCK(cmd_lock);

@@ -114,10 +114,6 @@ static bool icl_verify_procmon_ref_values(struct drm_i915_private *dev_priv,
 
 	procmon = icl_get_procmon_ref_values(dev_priv, phy);
 
-	drm_dbg_kms(&dev_priv->drm,
-		    "Combo PHY %c Voltage/Process Info : %s\n",
-		    phy_name(phy), procmon->name);
-
 	ret = check_phy_reg(dev_priv, phy, ICL_PORT_COMP_DW1(phy),
 			    (0xff << 16) | 0xff, procmon->dw1);
 	ret &= check_phy_reg(dev_priv, phy, ICL_PORT_COMP_DW9(phy),
@@ -141,7 +137,7 @@ static bool has_phy_misc(struct drm_i915_private *i915, enum phy phy)
 
 	if (IS_ALDERLAKE_S(i915))
 		return phy == PHY_A;
-	else if (IS_JSL_EHL(i915) ||
+	else if ((IS_JASPERLAKE(i915) || IS_ELKHARTLAKE(i915)) ||
 		 IS_ROCKETLAKE(i915) ||
 		 IS_DG1(i915))
 		return phy < PHY_C;
@@ -242,7 +238,7 @@ static bool icl_combo_phy_verify_state(struct drm_i915_private *dev_priv,
 		ret &= check_phy_reg(dev_priv, phy, ICL_PORT_COMP_DW8(phy),
 				     IREFGEN, IREFGEN);
 
-		if (IS_JSL_EHL(dev_priv)) {
+		if (IS_JASPERLAKE(dev_priv) || IS_ELKHARTLAKE(dev_priv)) {
 			if (ehl_vbt_ddi_d_present(dev_priv))
 				expected_val = ICL_PHY_MISC_MUX_DDID;
 
@@ -312,14 +308,17 @@ static void icl_combo_phys_init(struct drm_i915_private *dev_priv)
 	enum phy phy;
 
 	for_each_combo_phy(dev_priv, phy) {
+		const struct icl_procmon *procmon;
 		u32 val;
 
-		if (icl_combo_phy_verify_state(dev_priv, phy)) {
-			drm_dbg(&dev_priv->drm,
-				"Combo PHY %c already enabled, won't reprogram it.\n",
-				phy_name(phy));
+		if (icl_combo_phy_verify_state(dev_priv, phy))
 			continue;
-		}
+
+		procmon = icl_get_procmon_ref_values(dev_priv, phy);
+
+		drm_dbg(&dev_priv->drm,
+			"Initializing combo PHY %c (Voltage/Process Info : %s)\n",
+			phy_name(phy), procmon->name);
 
 		if (!has_phy_misc(dev_priv, phy))
 			goto skip_phy_misc;
@@ -333,7 +332,8 @@ static void icl_combo_phys_init(struct drm_i915_private *dev_priv)
 		 * "internal" child devices.
 		 */
 		val = intel_de_read(dev_priv, ICL_PHY_MISC(phy));
-		if (IS_JSL_EHL(dev_priv) && phy == PHY_A) {
+		if ((IS_JASPERLAKE(dev_priv) || IS_ELKHARTLAKE(dev_priv)) &&
+		    phy == PHY_A) {
 			val &= ~ICL_PHY_MISC_MUX_DDID;
 
 			if (ehl_vbt_ddi_d_present(dev_priv))

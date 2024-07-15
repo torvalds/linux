@@ -139,18 +139,6 @@
 		regulator-always-on;
 	};
 
-	reg_usdhc2_vmmc: regulator-usdhc2-vmmc {
-		compatible = "regulator-fixed";
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_usdhc2_pwr>;
-		regulator-name = "VSD_3V3";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		gpio = <&gpio2 19 GPIO_ACTIVE_HIGH>;
-		enable-active-high;
-		regulator-always-on;
-	};
-
 	wwan_codec: sound-wwan-codec {
 		compatible = "option,gtm601";
 		#sound-dai-cells = <0>;
@@ -242,6 +230,13 @@
 		enable-active-high;
 		regulator-always-on;
 	};
+
+	wifi_pwr_seq: pwrseq {
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_usdhc2_rst>;
+		compatible = "mmc-pwrseq-simple";
+		reset-gpios = <&gpio2 19 GPIO_ACTIVE_LOW>;
+	};
 };
 
 &A53_0 {
@@ -324,6 +319,7 @@
 				regulator-ramp-delay = <1250>;
 				rohm,dvs-run-voltage = <1000000>;
 				rohm,dvs-idle-voltage = <900000>;
+				regulator-always-on;
 			};
 
 			buck3_reg: BUCK3 {
@@ -561,9 +557,9 @@
 		reg = <0x6a>;
 		vdd-supply = <&reg_3v3_p>;
 		vddio-supply = <&reg_3v3_p>;
-		mount-matrix =  "1",  "0",  "0",
-				"0",  "1",  "0",
-				"0",  "0", "-1";
+		mount-matrix = "1",  "0",  "0",
+			       "0",  "1",  "0",
+			       "0",  "0", "-1";
 	};
 };
 
@@ -807,7 +803,7 @@
 		>;
 	};
 
-	pinctrl_usdhc2_pwr: usdhc2pwrgrp {
+	pinctrl_usdhc2_rst: usdhc2rstgrp {
 		fsl,pins = <
 			MX8MQ_IOMUXC_SD2_RESET_B_GPIO2_IO19	0x41
 		>;
@@ -1030,8 +1026,8 @@
 	pinctrl-1 = <&pinctrl_usdhc2_100mhz>;
 	pinctrl-2 = <&pinctrl_usdhc2_200mhz>;
 	bus-width = <4>;
-	vmmc-supply = <&reg_usdhc2_vmmc>;
-	power-supply = <&wifi_pwr_en>;
+	vmmc-supply = <&wifi_pwr_en>;
+	mmc-pwrseq = <&wifi_pwr_seq>;
 	broken-cd;
 	disable-wp;
 	cap-sdio-irq;

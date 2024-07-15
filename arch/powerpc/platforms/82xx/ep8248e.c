@@ -13,13 +13,13 @@
 #include <linux/of_mdio.h>
 #include <linux/slab.h>
 #include <linux/of_platform.h>
+#include <linux/platform_device.h>
 
 #include <asm/io.h>
 #include <asm/cpm2.h>
 #include <asm/udbg.h>
 #include <asm/machdep.h>
 #include <asm/time.h>
-#include <asm/mpc8260.h>
 
 #include <sysdev/fsl_soc.h>
 #include <sysdev/cpm2_pic.h>
@@ -140,12 +140,6 @@ err_free_bus:
 	return ret;
 }
 
-static int ep8248e_mdio_remove(struct platform_device *ofdev)
-{
-	BUG();
-	return 0;
-}
-
 static const struct of_device_id ep8248e_mdio_match[] = {
 	{
 		.compatible = "fsl,ep8248e-mdio-bitbang",
@@ -157,9 +151,9 @@ static struct platform_driver ep8248e_mdio_driver = {
 	.driver = {
 		.name = "ep8248e-mdio-bitbang",
 		.of_match_table = ep8248e_mdio_match,
+		.suppress_bind_attrs = true,
 	},
 	.probe = ep8248e_mdio_probe,
-	.remove = ep8248e_mdio_remove,
 };
 
 struct cpm_pin {

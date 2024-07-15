@@ -29,8 +29,6 @@
 #define CACHE_MIN_TTL		120 /* 2 minutes */
 #define CACHE_DEFAULT_TTL	300 /* 5 minutes */
 
-#define IS_DFS_INTERLINK(v) (((v) & DFSREF_REFERRAL_SERVER) && !((v) & DFSREF_STORAGE_SERVER))
-
 struct cache_dfs_tgt {
 	char *name;
 	int path_consumed;
@@ -174,7 +172,7 @@ static int dfscache_proc_show(struct seq_file *m, void *v)
 				   "cache entry: path=%s,type=%s,ttl=%d,etime=%ld,hdr_flags=0x%x,ref_flags=0x%x,interlink=%s,path_consumed=%d,expired=%s\n",
 				   ce->path, ce->srvtype == DFS_TYPE_ROOT ? "root" : "link",
 				   ce->ttl, ce->etime.tv_nsec, ce->hdr_flags, ce->ref_flags,
-				   IS_DFS_INTERLINK(ce->hdr_flags) ? "yes" : "no",
+				   DFS_INTERLINK(ce->hdr_flags) ? "yes" : "no",
 				   ce->path_consumed, cache_entry_expired(ce) ? "yes" : "no");
 
 			list_for_each_entry(t, &ce->tlist, list) {
@@ -243,7 +241,7 @@ static inline void dump_ce(const struct cache_entry *ce)
 		 ce->srvtype == DFS_TYPE_ROOT ? "root" : "link", ce->ttl,
 		 ce->etime.tv_nsec,
 		 ce->hdr_flags, ce->ref_flags,
-		 IS_DFS_INTERLINK(ce->hdr_flags) ? "yes" : "no",
+		 DFS_INTERLINK(ce->hdr_flags) ? "yes" : "no",
 		 ce->path_consumed,
 		 cache_entry_expired(ce) ? "yes" : "no");
 	dump_tgts(ce);
@@ -1174,18 +1172,29 @@ static bool is_ses_good(struct cifs_ses *ses)
 	return ret;
 }
 
-/* Refresh dfs referral of tcon and mark it for reconnect if needed */
-static int __refresh_tcon(const char *path, struct cifs_ses *ses, bool force_refresh)
+/* Refresh dfs referral of @ses and mark it for reconnect if needed */
+static void __refresh_ses_referral(struct cifs_ses *ses, bool force_refresh)
 {
-	struct dfs_cache_tgt_list old_tl = DFS_CACHE_TGT_LIST_INIT(old_tl);
-	struct dfs_cache_tgt_list new_tl = DFS_CACHE_TGT_LIST_INIT(new_tl);
 	struct TCP_Server_Info *server = ses->server;
+	DFS_CACHE_TGT_LIST(old_tl);
+	DFS_CACHE_TGT_LIST(new_tl);
 	bool needs_refresh = false;
 	struct cache_entry *ce;
 	unsigned int xid;
+	char *path = NULL;
 	int rc = 0;
 
 	xid = get_xid();
+
+	mutex_lock(&server->refpath_lock);
+	if (server->leaf_fullpath) {
+		path = kstrdup(server->leaf_fullpath + 1, GFP_ATOMIC);
+		if (!path)
+			rc = -ENOMEM;
+	}
+	mutex_unlock(&server->refpath_lock);
+	if (!path)
+		goto out;
 
 	down_read(&htable_rw_lock);
 	ce = lookup_cache_entry(path);
@@ -1220,19 +1229,17 @@ out:
 	free_xid(xid);
 	dfs_cache_free_tgts(&old_tl);
 	dfs_cache_free_tgts(&new_tl);
-	return rc;
+	kfree(path);
 }
 
-static int refresh_tcon(struct cifs_tcon *tcon, bool force_refresh)
+static inline void refresh_ses_referral(struct cifs_ses *ses)
 {
-	struct TCP_Server_Info *server = tcon->ses->server;
-	struct cifs_ses *ses = tcon->ses;
+	__refresh_ses_referral(ses, false);
+}
 
-	mutex_lock(&server->refpath_lock);
-	if (server->leaf_fullpath)
-		__refresh_tcon(server->leaf_fullpath + 1, ses, force_refresh);
-	mutex_unlock(&server->refpath_lock);
-	return 0;
+static inline void force_refresh_ses_referral(struct cifs_ses *ses)
+{
+	__refresh_ses_referral(ses, true);
 }
 
 /**
@@ -1273,34 +1280,20 @@ int dfs_cache_remount_fs(struct cifs_sb_info *cifs_sb)
 	 */
 	cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_USE_PREFIX_PATH;
 
-	return refresh_tcon(tcon, true);
+	force_refresh_ses_referral(tcon->ses);
+	return 0;
 }
 
 /* Refresh all DFS referrals related to DFS tcon */
 void dfs_cache_refresh(struct work_struct *work)
 {
-	struct TCP_Server_Info *server;
-	struct dfs_root_ses *rses;
 	struct cifs_tcon *tcon;
 	struct cifs_ses *ses;
 
 	tcon = container_of(work, struct cifs_tcon, dfs_cache_work.work);
-	ses = tcon->ses;
-	server = ses->server;
 
-	mutex_lock(&server->refpath_lock);
-	if (server->leaf_fullpath)
-		__refresh_tcon(server->leaf_fullpath + 1, ses, false);
-	mutex_unlock(&server->refpath_lock);
-
-	list_for_each_entry(rses, &tcon->dfs_ses_list, list) {
-		ses = rses->ses;
-		server = ses->server;
-		mutex_lock(&server->refpath_lock);
-		if (server->leaf_fullpath)
-			__refresh_tcon(server->leaf_fullpath + 1, ses, false);
-		mutex_unlock(&server->refpath_lock);
-	}
+	for (ses = tcon->ses; ses; ses = ses->dfs_root_ses)
+		refresh_ses_referral(ses);
 
 	queue_delayed_work(dfscache_wq, &tcon->dfs_cache_work,
 			   atomic_read(&dfs_cache_ttl) * HZ);

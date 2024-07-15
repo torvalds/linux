@@ -2,7 +2,7 @@
 # Most of this file is copied from tools/lib/traceevent/Makefile
 
 RM ?= rm
-srctree = $(abs_srctree)
+srctree := $(realpath $(srctree))
 
 VERSION_SCRIPT := libbpf.map
 LIBBPF_VERSION := $(shell \
@@ -293,11 +293,11 @@ help:
 	@echo '  HINT: use "V=1" to enable verbose build'
 	@echo '  all     - build libraries and pkgconfig'
 	@echo '  clean   - remove all generated files'
-	@echo '  check   - check abi and version info'
+	@echo '  check   - check ABI and version info'
 	@echo ''
 	@echo 'libbpf install targets:'
 	@echo '  HINT: use "prefix"(defaults to "/usr/local") or "DESTDIR" (defaults to "/")'
-	@echo '        to adjust target desitantion, e.g. "make prefix=/usr/local install"'
+	@echo '        to adjust target destination, e.g. "make prefix=/usr/local install"'
 	@echo '  install          - build and install all headers, libraries and pkgconfig'
 	@echo '  install_headers  - install only headers to include/bpf'
 	@echo ''

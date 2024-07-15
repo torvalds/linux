@@ -60,7 +60,7 @@ struct vm_memory_region_batch {
 	u16			   reserved[3];
 	u32			   regions_num;
 	u64			   regions_gpa;
-	struct vm_memory_region_op regions_op[];
+	struct vm_memory_region_op regions_op[] __counted_by(regions_num);
 };
 
 /**

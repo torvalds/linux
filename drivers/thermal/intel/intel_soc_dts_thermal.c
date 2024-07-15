@@ -51,7 +51,8 @@ static int __init intel_soc_thermal_init(void)
 		return -ENODEV;
 
 	/* Create a zone with 2 trips with marked as read only */
-	soc_dts = intel_soc_dts_iosf_init(INTEL_SOC_DTS_INTERRUPT_APIC, 2, 1);
+	soc_dts = intel_soc_dts_iosf_init(INTEL_SOC_DTS_INTERRUPT_APIC, true,
+					  crit_offset);
 	if (IS_ERR(soc_dts)) {
 		err = PTR_ERR(soc_dts);
 		return err;
@@ -88,21 +89,7 @@ static int __init intel_soc_thermal_init(void)
 		}
 	}
 
-	err = intel_soc_dts_iosf_add_read_only_critical_trip(soc_dts,
-							     crit_offset);
-	if (err)
-		goto error_trips;
-
 	return 0;
-
-error_trips:
-	if (soc_dts_thres_irq) {
-		free_irq(soc_dts_thres_irq, soc_dts);
-		acpi_unregister_gsi(soc_dts_thres_gsi);
-	}
-	intel_soc_dts_iosf_exit(soc_dts);
-
-	return err;
 }
 
 static void __exit intel_soc_thermal_exit(void)

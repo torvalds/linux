@@ -9,12 +9,15 @@
 #include <asm/asmmacro.h>
 #include <asm/cpu.h>
 #include <asm/regdef.h>
+#include <asm/unwind_hints.h>
 
 .macro fill_to_64 r0
 	bstrins.d \r0, \r0, 15, 8
 	bstrins.d \r0, \r0, 31, 16
 	bstrins.d \r0, \r0, 63, 32
 .endm
+
+.section .noinstr.text, "ax"
 
 SYM_FUNC_START(memset)
 	/*
@@ -23,9 +26,13 @@ SYM_FUNC_START(memset)
 	ALTERNATIVE	"b __memset_generic", \
 			"b __memset_fast", CPU_FEATURE_UAL
 SYM_FUNC_END(memset)
-_ASM_NOKPROBE(memset)
+SYM_FUNC_ALIAS(__memset, memset)
 
 EXPORT_SYMBOL(memset)
+EXPORT_SYMBOL(__memset)
+
+_ASM_NOKPROBE(memset)
+_ASM_NOKPROBE(__memset)
 
 /*
  * void *__memset_generic(void *s, int c, size_t n)
@@ -160,3 +167,5 @@ SYM_FUNC_START(__memset_fast)
 	jr	ra
 SYM_FUNC_END(__memset_fast)
 _ASM_NOKPROBE(__memset_fast)
+
+STACK_FRAME_NON_STANDARD __memset_fast

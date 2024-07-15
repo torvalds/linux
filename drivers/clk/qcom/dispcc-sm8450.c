@@ -9,8 +9,8 @@
 #include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
 #include <linux/of.h>
+#include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/pm_runtime.h>
 
@@ -1776,8 +1776,10 @@ static int disp_cc_sm8450_probe(struct platform_device *pdev)
 		return ret;
 
 	regmap = qcom_cc_map(pdev, &disp_cc_sm8450_desc);
-	if (IS_ERR(regmap))
-		return PTR_ERR(regmap);
+	if (IS_ERR(regmap)) {
+		ret = PTR_ERR(regmap);
+		goto err_put_rpm;
+	}
 
 	clk_lucid_evo_pll_configure(&disp_cc_pll0, regmap, &disp_cc_pll0_config);
 	clk_lucid_evo_pll_configure(&disp_cc_pll1, regmap, &disp_cc_pll1_config);
@@ -1785,15 +1787,19 @@ static int disp_cc_sm8450_probe(struct platform_device *pdev)
 	/* Enable clock gating for MDP clocks */
 	regmap_update_bits(regmap, DISP_CC_MISC_CMD, 0x10, 0x10);
 
-	/*
-	 * Keep clocks always enabled:
-	 *	disp_cc_xo_clk
-	 */
-	regmap_update_bits(regmap, 0xe05c, BIT(0), BIT(0));
+	/* Keep some clocks always-on */
+	qcom_branch_set_clk_en(regmap, 0xe05c); /* DISP_CC_XO_CLK */
 
 	ret = qcom_cc_really_probe(pdev, &disp_cc_sm8450_desc, regmap);
+	if (ret)
+		goto err_put_rpm;
 
 	pm_runtime_put(&pdev->dev);
+
+	return 0;
+
+err_put_rpm:
+	pm_runtime_put_sync(&pdev->dev);
 
 	return ret;
 }
@@ -1806,17 +1812,7 @@ static struct platform_driver disp_cc_sm8450_driver = {
 	},
 };
 
-static int __init disp_cc_sm8450_init(void)
-{
-	return platform_driver_register(&disp_cc_sm8450_driver);
-}
-subsys_initcall(disp_cc_sm8450_init);
-
-static void __exit disp_cc_sm8450_exit(void)
-{
-	platform_driver_unregister(&disp_cc_sm8450_driver);
-}
-module_exit(disp_cc_sm8450_exit);
+module_platform_driver(disp_cc_sm8450_driver);
 
 MODULE_DESCRIPTION("QTI DISPCC SM8450 Driver");
 MODULE_LICENSE("GPL");

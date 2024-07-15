@@ -17,7 +17,6 @@
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/power_supply.h>
 
 #include <linux/mfd/core.h>
@@ -238,7 +237,7 @@ static int tps65217_charger_probe(struct platform_device *pdev)
 	for (i = 0; i < NUM_CHARGER_IRQS; i++) {
 		ret = devm_request_threaded_irq(&pdev->dev, irq[i], NULL,
 						tps65217_charger_irq,
-						IRQF_ONESHOT, "tps65217-charger",
+						IRQF_SHARED, "tps65217-charger",
 						charger);
 		if (ret) {
 			dev_err(charger->dev,
@@ -254,14 +253,12 @@ static int tps65217_charger_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int tps65217_charger_remove(struct platform_device *pdev)
+static void tps65217_charger_remove(struct platform_device *pdev)
 {
 	struct tps65217_charger *charger = platform_get_drvdata(pdev);
 
 	if (charger->poll_task)
 		kthread_stop(charger->poll_task);
-
-	return 0;
 }
 
 static const struct of_device_id tps65217_charger_match_table[] = {
@@ -272,7 +269,7 @@ MODULE_DEVICE_TABLE(of, tps65217_charger_match_table);
 
 static struct platform_driver tps65217_charger_driver = {
 	.probe	= tps65217_charger_probe,
-	.remove = tps65217_charger_remove,
+	.remove_new = tps65217_charger_remove,
 	.driver	= {
 		.name	= "tps65217-charger",
 		.of_match_table = of_match_ptr(tps65217_charger_match_table),

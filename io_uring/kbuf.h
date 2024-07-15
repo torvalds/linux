@@ -15,6 +15,7 @@ struct io_buffer_list {
 			struct page **buf_pages;
 			struct io_uring_buf_ring *buf_ring;
 		};
+		struct rcu_head rcu;
 	};
 	__u16 bgid;
 
@@ -24,8 +25,10 @@ struct io_buffer_list {
 	__u16 head;
 	__u16 mask;
 
+	atomic_t refs;
+
 	/* ring mapped provided buffers */
-	__u8 is_mapped;
+	__u8 is_buf_ring;
 	/* ring mapped provided buffers, but mmap'ed by application */
 	__u8 is_mmap;
 };
@@ -50,14 +53,19 @@ int io_provide_buffers(struct io_kiocb *req, unsigned int issue_flags);
 
 int io_register_pbuf_ring(struct io_ring_ctx *ctx, void __user *arg);
 int io_unregister_pbuf_ring(struct io_ring_ctx *ctx, void __user *arg);
+int io_register_pbuf_status(struct io_ring_ctx *ctx, void __user *arg);
 
-unsigned int __io_put_kbuf(struct io_kiocb *req, unsigned issue_flags);
+void io_kbuf_mmap_list_free(struct io_ring_ctx *ctx);
 
-void io_kbuf_recycle_legacy(struct io_kiocb *req, unsigned issue_flags);
+void __io_put_kbuf(struct io_kiocb *req, unsigned issue_flags);
 
-void *io_pbuf_get_address(struct io_ring_ctx *ctx, unsigned long bgid);
+bool io_kbuf_recycle_legacy(struct io_kiocb *req, unsigned issue_flags);
 
-static inline void io_kbuf_recycle_ring(struct io_kiocb *req)
+void io_put_bl(struct io_ring_ctx *ctx, struct io_buffer_list *bl);
+struct io_buffer_list *io_pbuf_get_bl(struct io_ring_ctx *ctx,
+				      unsigned long bgid);
+
+static inline bool io_kbuf_recycle_ring(struct io_kiocb *req)
 {
 	/*
 	 * We don't need to recycle for REQ_F_BUFFER_RING, we can just clear
@@ -67,21 +75,11 @@ static inline void io_kbuf_recycle_ring(struct io_kiocb *req)
 	 * to monopolize the buffer.
 	 */
 	if (req->buf_list) {
-		if (req->flags & REQ_F_PARTIAL_IO) {
-			/*
-			 * If we end up here, then the io_uring_lock has
-			 * been kept held since we retrieved the buffer.
-			 * For the io-wq case, we already cleared
-			 * req->buf_list when the buffer was retrieved,
-			 * hence it cannot be set here for that case.
-			 */
-			req->buf_list->head++;
-			req->buf_list = NULL;
-		} else {
-			req->buf_index = req->buf_list->bgid;
-			req->flags &= ~REQ_F_BUFFER_RING;
-		}
+		req->buf_index = req->buf_list->bgid;
+		req->flags &= ~REQ_F_BUFFER_RING;
+		return true;
 	}
+	return false;
 }
 
 static inline bool io_do_buffer_select(struct io_kiocb *req)
@@ -91,49 +89,65 @@ static inline bool io_do_buffer_select(struct io_kiocb *req)
 	return !(req->flags & (REQ_F_BUFFER_SELECTED|REQ_F_BUFFER_RING));
 }
 
-static inline void io_kbuf_recycle(struct io_kiocb *req, unsigned issue_flags)
+static inline bool io_kbuf_recycle(struct io_kiocb *req, unsigned issue_flags)
 {
+	if (req->flags & REQ_F_BL_NO_RECYCLE)
+		return false;
 	if (req->flags & REQ_F_BUFFER_SELECTED)
-		io_kbuf_recycle_legacy(req, issue_flags);
+		return io_kbuf_recycle_legacy(req, issue_flags);
 	if (req->flags & REQ_F_BUFFER_RING)
-		io_kbuf_recycle_ring(req);
+		return io_kbuf_recycle_ring(req);
+	return false;
 }
 
-static inline unsigned int __io_put_kbuf_list(struct io_kiocb *req,
-					      struct list_head *list)
+static inline void __io_put_kbuf_ring(struct io_kiocb *req)
 {
-	unsigned int ret = IORING_CQE_F_BUFFER | (req->buf_index << IORING_CQE_BUFFER_SHIFT);
+	if (req->buf_list) {
+		req->buf_index = req->buf_list->bgid;
+		req->buf_list->head++;
+	}
+	req->flags &= ~REQ_F_BUFFER_RING;
+}
 
+static inline void __io_put_kbuf_list(struct io_kiocb *req,
+				      struct list_head *list)
+{
 	if (req->flags & REQ_F_BUFFER_RING) {
-		if (req->buf_list) {
-			req->buf_index = req->buf_list->bgid;
-			req->buf_list->head++;
-		}
-		req->flags &= ~REQ_F_BUFFER_RING;
+		__io_put_kbuf_ring(req);
 	} else {
 		req->buf_index = req->kbuf->bgid;
 		list_add(&req->kbuf->list, list);
 		req->flags &= ~REQ_F_BUFFER_SELECTED;
 	}
-
-	return ret;
 }
 
 static inline unsigned int io_put_kbuf_comp(struct io_kiocb *req)
 {
+	unsigned int ret;
+
 	lockdep_assert_held(&req->ctx->completion_lock);
 
 	if (!(req->flags & (REQ_F_BUFFER_SELECTED|REQ_F_BUFFER_RING)))
 		return 0;
-	return __io_put_kbuf_list(req, &req->ctx->io_buffers_comp);
+
+	ret = IORING_CQE_F_BUFFER | (req->buf_index << IORING_CQE_BUFFER_SHIFT);
+	__io_put_kbuf_list(req, &req->ctx->io_buffers_comp);
+	return ret;
 }
 
 static inline unsigned int io_put_kbuf(struct io_kiocb *req,
 				       unsigned issue_flags)
 {
+	unsigned int ret;
 
-	if (!(req->flags & (REQ_F_BUFFER_SELECTED|REQ_F_BUFFER_RING)))
+	if (!(req->flags & (REQ_F_BUFFER_RING | REQ_F_BUFFER_SELECTED)))
 		return 0;
-	return __io_put_kbuf(req, issue_flags);
+
+	ret = IORING_CQE_F_BUFFER | (req->buf_index << IORING_CQE_BUFFER_SHIFT);
+	if (req->flags & REQ_F_BUFFER_RING)
+		__io_put_kbuf_ring(req);
+	else
+		__io_put_kbuf(req, issue_flags);
+	return ret;
 }
 #endif

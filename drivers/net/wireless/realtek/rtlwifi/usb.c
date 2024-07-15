@@ -23,86 +23,23 @@ MODULE_DESCRIPTION("USB basic driver for rtlwifi");
 
 #define MAX_USBCTRL_VENDORREQ_TIMES		10
 
-static void usbctrl_async_callback(struct urb *urb)
-{
-	if (urb) {
-		/* free dr */
-		kfree(urb->setup_packet);
-		/* free databuf */
-		kfree(urb->transfer_buffer);
-	}
-}
-
-static int _usbctrl_vendorreq_async_write(struct usb_device *udev, u8 request,
-					  u16 value, u16 index, void *pdata,
-					  u16 len)
-{
-	int rc;
-	unsigned int pipe;
-	u8 reqtype;
-	struct usb_ctrlrequest *dr;
-	struct urb *urb;
-	const u16 databuf_maxlen = REALTEK_USB_VENQT_MAX_BUF_SIZE;
-	u8 *databuf;
-
-	if (WARN_ON_ONCE(len > databuf_maxlen))
-		len = databuf_maxlen;
-
-	pipe = usb_sndctrlpipe(udev, 0); /* write_out */
-	reqtype =  REALTEK_USB_VENQT_WRITE;
-
-	dr = kzalloc(sizeof(*dr), GFP_ATOMIC);
-	if (!dr)
-		return -ENOMEM;
-
-	databuf = kzalloc(databuf_maxlen, GFP_ATOMIC);
-	if (!databuf) {
-		kfree(dr);
-		return -ENOMEM;
-	}
-
-	urb = usb_alloc_urb(0, GFP_ATOMIC);
-	if (!urb) {
-		kfree(databuf);
-		kfree(dr);
-		return -ENOMEM;
-	}
-
-	dr->bRequestType = reqtype;
-	dr->bRequest = request;
-	dr->wValue = cpu_to_le16(value);
-	dr->wIndex = cpu_to_le16(index);
-	dr->wLength = cpu_to_le16(len);
-	/* data are already in little-endian order */
-	memcpy(databuf, pdata, len);
-	usb_fill_control_urb(urb, udev, pipe,
-			     (unsigned char *)dr, databuf, len,
-			     usbctrl_async_callback, NULL);
-	rc = usb_submit_urb(urb, GFP_ATOMIC);
-	if (rc < 0) {
-		kfree(databuf);
-		kfree(dr);
-	}
-	usb_free_urb(urb);
-	return rc;
-}
-
-static int _usbctrl_vendorreq_sync_read(struct usb_device *udev, u8 request,
-					u16 value, u16 index, void *pdata,
-					u16 len)
+static void _usbctrl_vendorreq_sync(struct usb_device *udev, u8 reqtype,
+				   u16 value, void *pdata, u16 len)
 {
 	unsigned int pipe;
 	int status;
-	u8 reqtype;
 	int vendorreq_times = 0;
 	static int count;
 
-	pipe = usb_rcvctrlpipe(udev, 0); /* read_in */
-	reqtype =  REALTEK_USB_VENQT_READ;
+	if (reqtype == REALTEK_USB_VENQT_READ)
+		pipe = usb_rcvctrlpipe(udev, 0); /* read_in */
+	else
+		pipe = usb_sndctrlpipe(udev, 0); /* write_out */
 
 	do {
-		status = usb_control_msg(udev, pipe, request, reqtype, value,
-					 index, pdata, len, 1000);
+		status = usb_control_msg(udev, pipe, REALTEK_USB_VENQT_CMD_REQ,
+					 reqtype, value, REALTEK_USB_VENQT_CMD_IDX,
+					 pdata, len, 1000);
 		if (status < 0) {
 			/* firmware download is checksumed, don't retry */
 			if ((value >= FW_8192C_START_ADDRESS &&
@@ -114,18 +51,15 @@ static int _usbctrl_vendorreq_sync_read(struct usb_device *udev, u8 request,
 	} while (++vendorreq_times < MAX_USBCTRL_VENDORREQ_TIMES);
 
 	if (status < 0 && count++ < 4)
-		pr_err("reg 0x%x, usbctrl_vendorreq TimeOut! status:0x%x value=0x%x\n",
-		       value, status, *(u32 *)pdata);
-	return status;
+		dev_err(&udev->dev, "reg 0x%x, usbctrl_vendorreq TimeOut! status:0x%x value=0x%x reqtype=0x%x\n",
+		       value, status, *(u32 *)pdata, reqtype);
 }
 
 static u32 _usb_read_sync(struct rtl_priv *rtlpriv, u32 addr, u16 len)
 {
 	struct device *dev = rtlpriv->io.dev;
 	struct usb_device *udev = to_usb_device(dev);
-	u8 request;
 	u16 wvalue;
-	u16 index;
 	__le32 *data;
 	unsigned long flags;
 
@@ -134,12 +68,31 @@ static u32 _usb_read_sync(struct rtl_priv *rtlpriv, u32 addr, u16 len)
 		rtlpriv->usb_data_index = 0;
 	data = &rtlpriv->usb_data[rtlpriv->usb_data_index];
 	spin_unlock_irqrestore(&rtlpriv->locks.usb_lock, flags);
-	request = REALTEK_USB_VENQT_CMD_REQ;
-	index = REALTEK_USB_VENQT_CMD_IDX; /* n/a */
 
 	wvalue = (u16)addr;
-	_usbctrl_vendorreq_sync_read(udev, request, wvalue, index, data, len);
+	_usbctrl_vendorreq_sync(udev, REALTEK_USB_VENQT_READ, wvalue, data, len);
 	return le32_to_cpu(*data);
+}
+
+
+static void _usb_write_sync(struct rtl_priv *rtlpriv, u32 addr, u32 val, u16 len)
+{
+	struct device *dev = rtlpriv->io.dev;
+	struct usb_device *udev = to_usb_device(dev);
+	unsigned long flags;
+	__le32 *data;
+	u16 wvalue;
+
+	spin_lock_irqsave(&rtlpriv->locks.usb_lock, flags);
+	if (++rtlpriv->usb_data_index >= RTL_USB_MAX_RX_COUNT)
+		rtlpriv->usb_data_index = 0;
+	data = &rtlpriv->usb_data[rtlpriv->usb_data_index];
+	spin_unlock_irqrestore(&rtlpriv->locks.usb_lock, flags);
+
+	wvalue = (u16)(addr & 0x0000ffff);
+	*data = cpu_to_le32(val);
+
+	_usbctrl_vendorreq_sync(udev, REALTEK_USB_VENQT_WRITE, wvalue, data, len);
 }
 
 static u8 _usb_read8_sync(struct rtl_priv *rtlpriv, u32 addr)
@@ -157,45 +110,27 @@ static u32 _usb_read32_sync(struct rtl_priv *rtlpriv, u32 addr)
 	return _usb_read_sync(rtlpriv, addr, 4);
 }
 
-static void _usb_write_async(struct usb_device *udev, u32 addr, u32 val,
-			     u16 len)
+static void _usb_write8_sync(struct rtl_priv *rtlpriv, u32 addr, u8 val)
 {
-	u8 request;
-	u16 wvalue;
-	u16 index;
-	__le32 data;
-	int ret;
-
-	request = REALTEK_USB_VENQT_CMD_REQ;
-	index = REALTEK_USB_VENQT_CMD_IDX; /* n/a */
-	wvalue = (u16)(addr&0x0000ffff);
-	data = cpu_to_le32(val);
-
-	ret = _usbctrl_vendorreq_async_write(udev, request, wvalue,
-					     index, &data, len);
-	if (ret < 0)
-		dev_err(&udev->dev, "error %d writing at 0x%x\n", ret, addr);
+	_usb_write_sync(rtlpriv, addr, val, 1);
 }
 
-static void _usb_write8_async(struct rtl_priv *rtlpriv, u32 addr, u8 val)
+static void _usb_write16_sync(struct rtl_priv *rtlpriv, u32 addr, u16 val)
 {
-	struct device *dev = rtlpriv->io.dev;
-
-	_usb_write_async(to_usb_device(dev), addr, val, 1);
+	_usb_write_sync(rtlpriv, addr, val, 2);
 }
 
-static void _usb_write16_async(struct rtl_priv *rtlpriv, u32 addr, u16 val)
+static void _usb_write32_sync(struct rtl_priv *rtlpriv, u32 addr, u32 val)
 {
-	struct device *dev = rtlpriv->io.dev;
-
-	_usb_write_async(to_usb_device(dev), addr, val, 2);
+	_usb_write_sync(rtlpriv, addr, val, 4);
 }
 
-static void _usb_write32_async(struct rtl_priv *rtlpriv, u32 addr, u32 val)
+static void _usb_write_chunk_sync(struct rtl_priv *rtlpriv, u32 addr,
+				  u32 length, u8 *data)
 {
-	struct device *dev = rtlpriv->io.dev;
+	struct usb_device *udev = to_usb_device(rtlpriv->io.dev);
 
-	_usb_write_async(to_usb_device(dev), addr, val, 4);
+	_usbctrl_vendorreq_sync(udev, REALTEK_USB_VENQT_WRITE, addr, data, length);
 }
 
 static void _rtl_usb_io_handler_init(struct device *dev,
@@ -205,12 +140,13 @@ static void _rtl_usb_io_handler_init(struct device *dev,
 
 	rtlpriv->io.dev = dev;
 	mutex_init(&rtlpriv->io.bb_mutex);
-	rtlpriv->io.write8_async	= _usb_write8_async;
-	rtlpriv->io.write16_async	= _usb_write16_async;
-	rtlpriv->io.write32_async	= _usb_write32_async;
-	rtlpriv->io.read8_sync		= _usb_read8_sync;
-	rtlpriv->io.read16_sync		= _usb_read16_sync;
-	rtlpriv->io.read32_sync		= _usb_read32_sync;
+	rtlpriv->io.write8	= _usb_write8_sync;
+	rtlpriv->io.write16	= _usb_write16_sync;
+	rtlpriv->io.write32	= _usb_write32_sync;
+	rtlpriv->io.write_chunk	= _usb_write_chunk_sync;
+	rtlpriv->io.read8	= _usb_read8_sync;
+	rtlpriv->io.read16	= _usb_read16_sync;
+	rtlpriv->io.read32	= _usb_read32_sync;
 }
 
 static void _rtl_usb_io_handler_release(struct ieee80211_hw *hw)
@@ -280,7 +216,6 @@ static int _rtl_usb_init_rx(struct ieee80211_hw *hw)
 
 	rtlusb->rx_max_size = rtlpriv->cfg->usb_interface_cfg->rx_max_size;
 	rtlusb->rx_urb_num = rtlpriv->cfg->usb_interface_cfg->rx_urb_num;
-	rtlusb->in_ep = rtlpriv->cfg->usb_interface_cfg->in_ep_num;
 	rtlusb->usb_rx_hdl = rtlpriv->cfg->usb_interface_cfg->usb_rx_hdl;
 	rtlusb->usb_rx_segregate_hdl =
 		rtlpriv->cfg->usb_interface_cfg->usb_rx_segregate_hdl;
@@ -312,20 +247,38 @@ static int _rtl_usb_init(struct ieee80211_hw *hw)
 
 		pep_desc = &usb_intf->cur_altsetting->endpoint[epidx].desc;
 
-		if (usb_endpoint_dir_in(pep_desc))
+		if (usb_endpoint_dir_in(pep_desc)) {
+			if (usb_endpoint_xfer_bulk(pep_desc)) {
+				/* The vendor drivers assume there is only one
+				 * bulk in ep and that it's the first in ep.
+				 */
+				if (rtlusb->in_ep_nums == 0)
+					rtlusb->in_ep = usb_endpoint_num(pep_desc);
+				else
+					pr_warn("%s: bulk in endpoint is not the first in endpoint\n",
+						__func__);
+			}
+
 			rtlusb->in_ep_nums++;
-		else if (usb_endpoint_dir_out(pep_desc))
+		} else if (usb_endpoint_dir_out(pep_desc)) {
+			if (rtlusb->out_ep_nums < RTL_USB_MAX_BULKOUT_NUM) {
+				if (usb_endpoint_xfer_bulk(pep_desc))
+					rtlusb->out_eps[rtlusb->out_ep_nums] =
+							usb_endpoint_num(pep_desc);
+			} else {
+				pr_warn("%s: found more bulk out endpoints than the expected %d\n",
+					__func__, RTL_USB_MAX_BULKOUT_NUM);
+			}
+
 			rtlusb->out_ep_nums++;
+		}
 
 		rtl_dbg(rtlpriv, COMP_INIT, DBG_DMESG,
 			"USB EP(0x%02x), MaxPacketSize=%d, Interval=%d\n",
 			pep_desc->bEndpointAddress, pep_desc->wMaxPacketSize,
 			pep_desc->bInterval);
 	}
-	if (rtlusb->in_ep_nums <  rtlpriv->cfg->usb_interface_cfg->in_ep_num) {
-		pr_err("Too few input end points found\n");
-		return -EINVAL;
-	}
+
 	if (rtlusb->out_ep_nums == 0) {
 		pr_err("No output end points found\n");
 		return -EINVAL;

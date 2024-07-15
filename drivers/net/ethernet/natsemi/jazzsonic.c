@@ -227,7 +227,7 @@ MODULE_ALIAS("platform:jazzsonic");
 
 #include "sonic.c"
 
-static int jazz_sonic_device_remove(struct platform_device *pdev)
+static void jazz_sonic_device_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
 	struct sonic_local* lp = netdev_priv(dev);
@@ -237,13 +237,11 @@ static int jazz_sonic_device_remove(struct platform_device *pdev)
 	                  lp->descriptors, lp->descriptors_laddr);
 	release_mem_region(dev->base_addr, SONIC_MEM_SIZE);
 	free_netdev(dev);
-
-	return 0;
 }
 
 static struct platform_driver jazz_sonic_driver = {
 	.probe	= jazz_sonic_probe,
-	.remove	= jazz_sonic_device_remove,
+	.remove_new = jazz_sonic_device_remove,
 	.driver	= {
 		.name	= jazz_sonic_string,
 	},

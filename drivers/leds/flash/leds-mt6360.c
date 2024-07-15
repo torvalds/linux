@@ -91,7 +91,7 @@ struct mt6360_priv {
 	unsigned int fled_torch_used;
 	unsigned int leds_active;
 	unsigned int leds_count;
-	struct mt6360_led leds[];
+	struct mt6360_led leds[] __counted_by(leds_count);
 };
 
 static int mt6360_mc_brightness_set(struct led_classdev *lcdev,
@@ -855,12 +855,11 @@ out_flash_release:
 	return ret;
 }
 
-static int mt6360_led_remove(struct platform_device *pdev)
+static void mt6360_led_remove(struct platform_device *pdev)
 {
 	struct mt6360_priv *priv = platform_get_drvdata(pdev);
 
 	mt6360_v4l2_flash_release(priv);
-	return 0;
 }
 
 static const struct of_device_id __maybe_unused mt6360_led_of_id[] = {
@@ -875,7 +874,7 @@ static struct platform_driver mt6360_led_driver = {
 		.of_match_table = mt6360_led_of_id,
 	},
 	.probe = mt6360_led_probe,
-	.remove = mt6360_led_remove,
+	.remove_new = mt6360_led_remove,
 };
 module_platform_driver(mt6360_led_driver);
 

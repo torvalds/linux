@@ -261,6 +261,8 @@ static int __uac_clock_find_source(struct snd_usb_audio *chip,
 	int ret, i, cur, err, pins, clock_id;
 	const u8 *sources;
 	int proto = fmt->protocol;
+	bool readable, writeable;
+	u32 bmControls;
 
 	entity_id &= 0xff;
 
@@ -292,10 +294,26 @@ static int __uac_clock_find_source(struct snd_usb_audio *chip,
 		sources = GET_VAL(selector, proto, baCSourceID);
 		cur = 0;
 
+		if (proto == UAC_VERSION_3)
+			bmControls = le32_to_cpu(*(__le32 *)(&selector->v3.baCSourceID[0] + pins));
+		else
+			bmControls = *(__u8 *)(&selector->v2.baCSourceID[0] + pins);
+
+		readable = uac_v2v3_control_is_readable(bmControls,
+							UAC2_CX_CLOCK_SELECTOR);
+		writeable = uac_v2v3_control_is_writeable(bmControls,
+							  UAC2_CX_CLOCK_SELECTOR);
+
 		if (pins == 1) {
 			ret = 1;
 			goto find_source;
 		}
+
+		/* for now just warn about buggy device */
+		if (!readable)
+			usb_audio_warn(chip,
+				"%s(): clock selector control is not readable, id %d\n",
+				__func__, clock_id);
 
 		/* the entity ID we are looking at is a selector.
 		 * find out what it currently selects */
@@ -325,17 +343,29 @@ static int __uac_clock_find_source(struct snd_usb_audio *chip,
 					      visited, validate);
 		if (ret > 0) {
 			/* Skip setting clock selector again for some devices */
-			if (chip->quirk_flags & QUIRK_FLAG_SKIP_CLOCK_SELECTOR)
+			if (chip->quirk_flags & QUIRK_FLAG_SKIP_CLOCK_SELECTOR ||
+			    !writeable)
 				return ret;
 			err = uac_clock_selector_set_val(chip, entity_id, cur);
-			if (err < 0)
+			if (err < 0) {
+				if (pins == 1) {
+					usb_audio_dbg(chip,
+						      "%s(): selector returned an error, "
+						      "assuming a firmware bug, id %d, ret %d\n",
+						      __func__, clock_id, err);
+					return ret;
+				}
 				return err;
+			}
 		}
 
 		if (!validate || ret > 0 || !chip->autoclock)
 			return ret;
 
 	find_others:
+		if (!writeable)
+			return -ENXIO;
+
 		/* The current clock source is invalid, try others. */
 		for (i = 1; i <= pins; i++) {
 			if (i == cur)

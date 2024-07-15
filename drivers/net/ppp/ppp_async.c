@@ -87,6 +87,7 @@ struct asyncppp {
 static int flag_time = HZ;
 module_param(flag_time, int, 0);
 MODULE_PARM_DESC(flag_time, "ppp_async: interval between flagged packets (in clock ticks)");
+MODULE_DESCRIPTION("PPP async serial channel module");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_LDISC(N_PPP);
 
@@ -98,7 +99,7 @@ static int ppp_async_send(struct ppp_channel *chan, struct sk_buff *skb);
 static int ppp_async_push(struct asyncppp *ap);
 static void ppp_async_flush_output(struct asyncppp *ap);
 static void ppp_async_input(struct asyncppp *ap, const unsigned char *buf,
-			    const char *flags, int count);
+			    const u8 *flags, int count);
 static int ppp_async_ioctl(struct ppp_channel *chan, unsigned int cmd,
 			   unsigned long arg);
 static void ppp_async_process(struct tasklet_struct *t);
@@ -257,9 +258,8 @@ static void ppp_asynctty_hangup(struct tty_struct *tty)
  * Pppd reads and writes packets via /dev/ppp instead.
  */
 static ssize_t
-ppp_asynctty_read(struct tty_struct *tty, struct file *file,
-		  unsigned char *buf, size_t count,
-		  void **cookie, unsigned long offset)
+ppp_asynctty_read(struct tty_struct *tty, struct file *file, u8 *buf,
+		  size_t count, void **cookie, unsigned long offset)
 {
 	return -EAGAIN;
 }
@@ -269,8 +269,8 @@ ppp_asynctty_read(struct tty_struct *tty, struct file *file,
  * from the ppp generic stuff.
  */
 static ssize_t
-ppp_asynctty_write(struct tty_struct *tty, struct file *file,
-		   const unsigned char *buf, size_t count)
+ppp_asynctty_write(struct tty_struct *tty, struct file *file, const u8 *buf,
+		   size_t count)
 {
 	return -EAGAIN;
 }
@@ -328,17 +328,10 @@ ppp_asynctty_ioctl(struct tty_struct *tty, unsigned int cmd, unsigned long arg)
 	return err;
 }
 
-/* No kernel lock - fine */
-static __poll_t
-ppp_asynctty_poll(struct tty_struct *tty, struct file *file, poll_table *wait)
-{
-	return 0;
-}
-
 /* May sleep, don't call from interrupt level or with interrupts disabled */
 static void
-ppp_asynctty_receive(struct tty_struct *tty, const unsigned char *buf,
-		  const char *cflags, int count)
+ppp_asynctty_receive(struct tty_struct *tty, const u8 *buf, const u8 *cflags,
+		     size_t count)
 {
 	struct asyncppp *ap = ap_get(tty);
 	unsigned long flags;
@@ -378,7 +371,6 @@ static struct tty_ldisc_ops ppp_ldisc = {
 	.read	= ppp_asynctty_read,
 	.write	= ppp_asynctty_write,
 	.ioctl	= ppp_asynctty_ioctl,
-	.poll	= ppp_asynctty_poll,
 	.receive_buf = ppp_asynctty_receive,
 	.write_wakeup = ppp_asynctty_wakeup,
 };
@@ -469,6 +461,10 @@ ppp_async_ioctl(struct ppp_channel *chan, unsigned int cmd, unsigned long arg)
 	case PPPIOCSMRU:
 		if (get_user(val, p))
 			break;
+		if (val > U16_MAX) {
+			err = -EINVAL;
+			break;
+		}
 		if (val < PPP_MRU)
 			val = PPP_MRU;
 		ap->mru = val;
@@ -542,7 +538,7 @@ ppp_async_encode(struct asyncppp *ap)
 	proto = get_unaligned_be16(data);
 
 	/*
-	 * LCP packets with code values between 1 (configure-reqest)
+	 * LCP packets with code values between 1 (configure-request)
 	 * and 7 (code-reject) must be sent as though no options
 	 * had been negotiated.
 	 */
@@ -827,8 +823,7 @@ process_input_packet(struct asyncppp *ap)
    other ldisc functions but will not be re-entered */
 
 static void
-ppp_async_input(struct asyncppp *ap, const unsigned char *buf,
-		const char *flags, int count)
+ppp_async_input(struct asyncppp *ap, const u8 *buf, const u8 *flags, int count)
 {
 	struct sk_buff *skb;
 	int c, i, j, n, s, f;

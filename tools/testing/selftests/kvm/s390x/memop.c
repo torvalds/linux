@@ -4,7 +4,6 @@
  *
  * Copyright (C) 2019, Red Hat, Inc.
  */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -279,10 +278,10 @@ enum stage {
 	vcpu_run(__vcpu);						\
 	get_ucall(__vcpu, &uc);						\
 	if (uc.cmd == UCALL_ABORT) {					\
-		REPORT_GUEST_ASSERT_2(uc, "hints: %lu, %lu");		\
+		REPORT_GUEST_ASSERT(uc);				\
 	}								\
-	ASSERT_EQ(uc.cmd, UCALL_SYNC);					\
-	ASSERT_EQ(uc.args[1], __stage);					\
+	TEST_ASSERT_EQ(uc.cmd, UCALL_SYNC);				\
+	TEST_ASSERT_EQ(uc.args[1], __stage);				\
 })									\
 
 static void prepare_mem12(void)
@@ -372,6 +371,32 @@ static void test_copy(void)
 	HOST_SYNC(t.vcpu, STAGE_INITED);
 
 	default_write_read(t.vcpu, t.vcpu, LOGICAL, t.size, NO_KEY);
+
+	kvm_vm_free(t.kvm_vm);
+}
+
+static void test_copy_access_register(void)
+{
+	struct test_default t = test_default_init(guest_copy);
+
+	HOST_SYNC(t.vcpu, STAGE_INITED);
+
+	prepare_mem12();
+	t.run->psw_mask &= ~(3UL << (63 - 17));
+	t.run->psw_mask |= 1UL << (63 - 17);  /* Enable AR mode */
+
+	/*
+	 * Primary address space gets used if an access register
+	 * contains zero. The host makes use of AR[1] so is a good
+	 * candidate to ensure the guest AR (of zero) is used.
+	 */
+	CHECK_N_DO(MOP, t.vcpu, LOGICAL, WRITE, mem1, t.size,
+		   GADDR_V(mem1), AR(1));
+	HOST_SYNC(t.vcpu, STAGE_COPIED);
+
+	CHECK_N_DO(MOP, t.vcpu, LOGICAL, READ, mem2, t.size,
+		   GADDR_V(mem2), AR(1));
+	ASSERT_MEM_EQ(mem1, mem2, t.size);
 
 	kvm_vm_free(t.kvm_vm);
 }
@@ -469,7 +494,7 @@ static __uint128_t cut_to_size(int size, __uint128_t val)
 	case 16:
 		return val;
 	}
-	GUEST_ASSERT_1(false, "Invalid size");
+	GUEST_FAIL("Invalid size = %u", size);
 	return 0;
 }
 
@@ -490,6 +515,8 @@ static __uint128_t rotate(int size, __uint128_t val, int amount)
 
 	amount = (amount + bits) % bits;
 	val = cut_to_size(size, val);
+	if (!amount)
+		return val;
 	return (val << (bits - amount)) | (val >> amount);
 }
 
@@ -598,7 +625,7 @@ static bool _cmpxchg(int size, void *target, __uint128_t *old_addr, __uint128_t 
 			return ret;
 		}
 	}
-	GUEST_ASSERT_1(false, "Invalid size");
+	GUEST_FAIL("Invalid size = %u", size);
 	return 0;
 }
 
@@ -808,7 +835,7 @@ static void test_termination(void)
 	HOST_SYNC(t.vcpu, STAGE_IDLED);
 	MOP(t.vm, ABSOLUTE, READ, &teid, sizeof(teid), GADDR(prefix + 168));
 	/* Bits 56, 60, 61 form a code, 0 being the only one allowing for termination */
-	ASSERT_EQ(teid & teid_mask, 0);
+	TEST_ASSERT_EQ(teid & teid_mask, 0);
 
 	kvm_vm_free(t.kvm_vm);
 }
@@ -1101,6 +1128,11 @@ int main(int argc, char *argv[])
 			.name = "copy with key fetch protection override",
 			.test = test_copy_key_fetch_prot_override,
 			.requirements_met = extension_cap > 0,
+		},
+		{
+			.name = "copy with access register mode",
+			.test = test_copy_access_register,
+			.requirements_met = true,
 		},
 		{
 			.name = "error checks with key",

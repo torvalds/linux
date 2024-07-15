@@ -979,7 +979,7 @@ out:
 
 static void sparc_pmu_start(struct perf_event *event, int flags);
 
-/* On this PMU each PIC has it's own PCR control register.  */
+/* On this PMU each PIC has its own PCR control register.  */
 static void calculate_multiple_pcrs(struct cpu_hw_events *cpuc)
 {
 	int i;

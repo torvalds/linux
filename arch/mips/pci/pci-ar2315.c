@@ -16,7 +16,7 @@
  * the CFG_SEL bit in the PCI_MISC_CONFIG register.
  *
  * Devices on the bus can perform DMA requests via chip BAR1. PCI host
- * controller BARs are programmend as if an external device is programmed.
+ * controller BARs are programmed as if an external device is programmed.
  * Which means that during configuration, IDSEL pin of the chip should be
  * asserted.
  *

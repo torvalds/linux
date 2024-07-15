@@ -157,7 +157,7 @@ static void *vcpu_worker(void *__data)
 				goto done;
 			break;
 		case UCALL_ABORT:
-			REPORT_GUEST_ASSERT_1(uc, "val = %lu");
+			REPORT_GUEST_ASSERT(uc);
 			break;
 		case UCALL_DONE:
 			goto done;
@@ -175,11 +175,11 @@ static void wait_for_vcpu(void)
 	struct timespec ts;
 
 	TEST_ASSERT(!clock_gettime(CLOCK_REALTIME, &ts),
-		    "clock_gettime() failed: %d\n", errno);
+		    "clock_gettime() failed: %d", errno);
 
 	ts.tv_sec += 2;
 	TEST_ASSERT(!sem_timedwait(&vcpu_ready, &ts),
-		    "sem_timedwait() failed: %d\n", errno);
+		    "sem_timedwait() failed: %d", errno);
 }
 
 static void *vm_gpa2hva(struct vm_data *data, uint64_t gpa, uint64_t *rempages)
@@ -336,7 +336,7 @@ static bool prepare_vm(struct vm_data *data, int nslots, uint64_t *maxslots,
 
 		gpa = vm_phy_pages_alloc(data->vm, npages, guest_addr, slot);
 		TEST_ASSERT(gpa == guest_addr,
-			    "vm_phy_pages_alloc() failed\n");
+			    "vm_phy_pages_alloc() failed");
 
 		data->hva_slots[slot - 1] = addr_gpa2hva(data->vm, guest_addr);
 		memset(data->hva_slots[slot - 1], 0, npages * guest_page_size);
@@ -560,7 +560,7 @@ static void guest_code_test_memslot_rw(void)
 		     ptr < MEM_TEST_GPA + MEM_TEST_SIZE; ptr += page_size) {
 			uint64_t val = *(uint64_t *)ptr;
 
-			GUEST_ASSERT_1(val == MEM_TEST_VAL_2, val);
+			GUEST_ASSERT_EQ(val, MEM_TEST_VAL_2);
 			*(uint64_t *)ptr = 0;
 		}
 
@@ -1033,9 +1033,8 @@ static bool test_loop(const struct test_data *data,
 		      struct test_result *rbestruntime)
 {
 	uint64_t maxslots;
-	struct test_result result;
+	struct test_result result = {};
 
-	result.nloops = 0;
 	if (!test_execute(targs->nslots, &maxslots, targs->seconds, data,
 			  &result.nloops,
 			  &result.slot_runtime, &result.guest_runtime)) {
@@ -1089,7 +1088,7 @@ int main(int argc, char *argv[])
 		.seconds = 5,
 		.runs = 1,
 	};
-	struct test_result rbestslottime;
+	struct test_result rbestslottime = {};
 	int tctr;
 
 	if (!check_memory_sizes())
@@ -1098,11 +1097,10 @@ int main(int argc, char *argv[])
 	if (!parse_args(argc, argv, &targs))
 		return -1;
 
-	rbestslottime.slottimens = 0;
 	for (tctr = targs.tfirst; tctr <= targs.tlast; tctr++) {
 		const struct test_data *data = &tests[tctr];
 		unsigned int runctr;
-		struct test_result rbestruntime;
+		struct test_result rbestruntime = {};
 
 		if (tctr > targs.tfirst)
 			pr_info("\n");
@@ -1110,7 +1108,6 @@ int main(int argc, char *argv[])
 		pr_info("Testing %s performance with %i runs, %d seconds each\n",
 			data->name, targs.runs, targs.seconds);
 
-		rbestruntime.runtimens = 0;
 		for (runctr = 0; runctr < targs.runs; runctr++)
 			if (!test_loop(data, &targs,
 				       &rbestslottime, &rbestruntime))

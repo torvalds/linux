@@ -1,0 +1,141 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/media/i2c/ovti,ov5642.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: OmniVision OV5642 Image Sensor
+
+maintainers:
+  - Fabio Estevam <festevam@gmail.com>
+
+allOf:
+  - $ref: /schemas/media/video-interface-devices.yaml#
+
+properties:
+  compatible:
+    const: ovti,ov5642
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    description: XCLK Input Clock
+
+  AVDD-supply:
+    description: Analog voltage supply, 2.8V.
+
+  DVDD-supply:
+    description: Digital core voltage supply, 1.5V.
+
+  DOVDD-supply:
+    description: Digital I/O voltage supply, 1.8V.
+
+  powerdown-gpios:
+    maxItems: 1
+    description: Reference to the GPIO connected to the powerdown pin, if any.
+
+  reset-gpios:
+    maxItems: 1
+    description: Reference to the GPIO connected to the reset pin, if any.
+
+  port:
+    $ref: /schemas/graph.yaml#/$defs/port-base
+    description: |
+      Video output port.
+
+    properties:
+      endpoint:
+        $ref: /schemas/media/video-interfaces.yaml#
+        unevaluatedProperties: false
+
+        properties:
+          bus-type:
+            enum: [5, 6]
+
+          bus-width:
+            enum: [8, 10]
+            default: 10
+
+          data-shift:
+            enum: [0, 2]
+            default: 0
+
+          hsync-active:
+            enum: [0, 1]
+            default: 1
+
+          vsync-active:
+            enum: [0, 1]
+            default: 1
+
+          pclk-sample:
+            enum: [0, 1]
+            default: 1
+
+        allOf:
+          - if:
+              properties:
+                bus-type:
+                  const: 6
+            then:
+              properties:
+                hsync-active: false
+                vsync-active: false
+
+          - if:
+              properties:
+                bus-width:
+                  const: 10
+            then:
+              properties:
+                data-shift:
+                  const: 0
+
+        required:
+          - bus-type
+
+    additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - port
+
+additionalProperties: false
+
+examples:
+  - |
+      #include <dt-bindings/gpio/gpio.h>
+      #include <dt-bindings/media/video-interfaces.h>
+
+      i2c {
+          #address-cells = <1>;
+          #size-cells = <0>;
+
+          camera@3c {
+              compatible = "ovti,ov5642";
+              reg = <0x3c>;
+              pinctrl-names = "default";
+              pinctrl-0 = <&pinctrl_ov5642>;
+              clocks = <&clk_ext_camera>;
+              DOVDD-supply = <&vgen4_reg>;
+              AVDD-supply = <&vgen3_reg>;
+              DVDD-supply = <&vgen2_reg>;
+              powerdown-gpios = <&gpio1 19 GPIO_ACTIVE_HIGH>;
+              reset-gpios = <&gpio1 20 GPIO_ACTIVE_LOW>;
+
+              port {
+                  ov5642_to_parallel: endpoint {
+                      bus-type = <MEDIA_BUS_TYPE_PARALLEL>;
+                      remote-endpoint = <&parallel_from_ov5642>;
+                      bus-width = <8>;
+                      data-shift = <2>; /* lines 9:2 are used */
+                      hsync-active = <0>;
+                      vsync-active = <0>;
+                      pclk-sample = <1>;
+                  };
+              };
+          };
+      };

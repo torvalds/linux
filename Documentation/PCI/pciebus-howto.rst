@@ -213,8 +213,12 @@ PCI Config Registers
 --------------------
 
 Each service driver runs its PCI config operations on its own
-capability structure except the PCI Express capability structure, in
-which Root Control register and Device Control register are shared
-between PME and AER. This patch assumes that all service drivers
-will be well behaved and not overwrite other service driver's
-configuration settings.
+capability structure except the PCI Express capability structure,
+that is shared between many drivers including the service drivers.
+RMW Capability accessors (pcie_capability_clear_and_set_word(),
+pcie_capability_set_word(), and pcie_capability_clear_word()) protect
+a selected set of PCI Express Capability Registers (Link Control
+Register and Root Control Register). Any change to those registers
+should be performed using RMW accessors to avoid problems due to
+concurrent updates. For the up-to-date list of protected registers,
+see pcie_capability_clear_and_set_word().

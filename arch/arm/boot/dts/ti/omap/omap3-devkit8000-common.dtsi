@@ -275,8 +275,8 @@
 
 	ethernet@6,0 {
 		compatible = "davicom,dm9000";
-		reg =  <6 0x000 2
-			6 0x400 2>; /* CS6, offset 0 and 0x400, IO size 2 */
+		reg =  <6 0x000 2>,
+		       <6 0x400 2>; /* CS6, offset 0 and 0x400, IO size 2 */
 		bank-width = <2>;
 		interrupt-parent = <&gpio1>;
 		interrupts = <25 IRQ_TYPE_LEVEL_LOW>;

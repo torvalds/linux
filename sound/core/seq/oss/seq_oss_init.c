@@ -63,20 +63,18 @@ int __init
 snd_seq_oss_create_client(void)
 {
 	int rc;
-	struct snd_seq_port_info *port;
+	struct snd_seq_port_info *port __free(kfree) = NULL;
 	struct snd_seq_port_callback port_callback;
 
 	port = kzalloc(sizeof(*port), GFP_KERNEL);
-	if (!port) {
-		rc = -ENOMEM;
-		goto __error;
-	}
+	if (!port)
+		return -ENOMEM;
 
 	/* create ALSA client */
 	rc = snd_seq_create_kernel_client(NULL, SNDRV_SEQ_CLIENT_OSS,
 					  "OSS sequencer");
 	if (rc < 0)
-		goto __error;
+		return rc;
 
 	system_client = rc;
 
@@ -104,14 +102,11 @@ snd_seq_oss_create_client(void)
 		subs.dest.port = system_port;
 		call_ctl(SNDRV_SEQ_IOCTL_SUBSCRIBE_PORT, &subs);
 	}
-	rc = 0;
 
 	/* look up midi devices */
 	schedule_work(&async_lookup_work);
 
- __error:
-	kfree(port);
-	return rc;
+	return 0;
 }
 
 
@@ -455,9 +450,9 @@ snd_seq_oss_reset(struct seq_oss_devinfo *dp)
  * misc. functions for proc interface
  */
 char *
-enabled_str(int bool)
+enabled_str(bool b)
 {
-	return bool ? "enabled" : "disabled";
+	return b ? "enabled" : "disabled";
 }
 
 static const char *

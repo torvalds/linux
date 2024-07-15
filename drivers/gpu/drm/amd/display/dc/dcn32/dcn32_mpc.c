@@ -47,7 +47,7 @@ void mpc32_mpc_init(struct mpc *mpc)
 	struct dcn30_mpc *mpc30 = TO_DCN30_MPC(mpc);
 	int mpcc_id;
 
-	mpc1_mpc_init(mpc);
+	mpc3_mpc_init(mpc);
 
 	if (mpc->ctx->dc->debug.enable_mem_low_power.bits.mpc) {
 		if (mpc30->mpc_mask->MPCC_MCM_SHAPER_MEM_LOW_PWR_MODE && mpc30->mpc_mask->MPCC_MCM_3DLUT_MEM_LOW_PWR_MODE) {
@@ -64,19 +64,20 @@ void mpc32_mpc_init(struct mpc *mpc)
 	}
 }
 
-static void mpc32_power_on_blnd_lut(
+void mpc32_power_on_blnd_lut(
 	struct mpc *mpc,
 	uint32_t mpcc_id,
 	bool power_on)
 {
 	struct dcn30_mpc *mpc30 = TO_DCN30_MPC(mpc);
 
+	REG_SET(MPCC_MCM_MEM_PWR_CTRL[mpcc_id], 0, MPCC_MCM_1DLUT_MEM_PWR_DIS, power_on);
+
 	if (mpc->ctx->dc->debug.enable_mem_low_power.bits.cm) {
 		if (power_on) {
 			REG_UPDATE(MPCC_MCM_MEM_PWR_CTRL[mpcc_id], MPCC_MCM_1DLUT_MEM_PWR_FORCE, 0);
 			REG_WAIT(MPCC_MCM_MEM_PWR_CTRL[mpcc_id], MPCC_MCM_1DLUT_MEM_PWR_STATE, 0, 1, 5);
-		} else {
-			ASSERT(false);
+		} else if (!mpc->ctx->dc->debug.disable_mem_low_power) {
 			/* TODO: change to mpc
 			 *  dpp_base->ctx->dc->optimized_required = true;
 			 *  dpp_base->deferred_reg_writes.bits.disable_blnd_lut = true;
@@ -120,7 +121,7 @@ static enum dc_lut_mode mpc32_get_post1dlut_current(struct mpc *mpc, uint32_t mp
 	return mode;
 }
 
-static void mpc32_configure_post1dlut(
+void mpc32_configure_post1dlut(
 		struct mpc *mpc,
 		uint32_t mpcc_id,
 		bool is_ram_a)
@@ -163,7 +164,7 @@ static void mpc32_post1dlut_get_reg_field(
 }
 
 /*program blnd lut RAM A*/
-static void mpc32_program_post1dluta_settings(
+void mpc32_program_post1dluta_settings(
 		struct mpc *mpc,
 		uint32_t mpcc_id,
 		const struct pwl_params *params)
@@ -192,7 +193,7 @@ static void mpc32_program_post1dluta_settings(
 }
 
 /*program blnd lut RAM B*/
-static void mpc32_program_post1dlutb_settings(
+void mpc32_program_post1dlutb_settings(
 		struct mpc *mpc,
 		uint32_t mpcc_id,
 		const struct pwl_params *params)
@@ -220,7 +221,7 @@ static void mpc32_program_post1dlutb_settings(
 	cm_helper_program_gamcor_xfer_func(mpc->ctx, params, &gam_regs);
 }
 
-static void mpc32_program_post1dlut_pwl(
+void mpc32_program_post1dlut_pwl(
 		struct mpc *mpc,
 		uint32_t mpcc_id,
 		const struct pwl_result_data *rgb,
@@ -237,16 +238,19 @@ static void mpc32_program_post1dlut_pwl(
 			REG_SET(MPCC_MCM_1DLUT_LUT_DATA[mpcc_id], 0, MPCC_MCM_1DLUT_LUT_DATA, rgb[i].red_reg);
 		REG_SET(MPCC_MCM_1DLUT_LUT_DATA[mpcc_id], 0, MPCC_MCM_1DLUT_LUT_DATA, last_base_value_red);
 	} else {
+		REG_SET(MPCC_MCM_1DLUT_LUT_INDEX[mpcc_id], 0, MPCC_MCM_1DLUT_LUT_INDEX, 0);
 		REG_UPDATE(MPCC_MCM_1DLUT_LUT_CONTROL[mpcc_id], MPCC_MCM_1DLUT_LUT_WRITE_COLOR_MASK, 4);
 		for (i = 0 ; i < num; i++)
 			REG_SET(MPCC_MCM_1DLUT_LUT_DATA[mpcc_id], 0, MPCC_MCM_1DLUT_LUT_DATA, rgb[i].red_reg);
 		REG_SET(MPCC_MCM_1DLUT_LUT_DATA[mpcc_id], 0, MPCC_MCM_1DLUT_LUT_DATA, last_base_value_red);
 
+		REG_SET(MPCC_MCM_1DLUT_LUT_INDEX[mpcc_id], 0, MPCC_MCM_1DLUT_LUT_INDEX, 0);
 		REG_UPDATE(MPCC_MCM_1DLUT_LUT_CONTROL[mpcc_id], MPCC_MCM_1DLUT_LUT_WRITE_COLOR_MASK, 2);
 		for (i = 0 ; i < num; i++)
 			REG_SET(MPCC_MCM_1DLUT_LUT_DATA[mpcc_id], 0, MPCC_MCM_1DLUT_LUT_DATA, rgb[i].green_reg);
 		REG_SET(MPCC_MCM_1DLUT_LUT_DATA[mpcc_id], 0, MPCC_MCM_1DLUT_LUT_DATA, last_base_value_green);
 
+		REG_SET(MPCC_MCM_1DLUT_LUT_INDEX[mpcc_id], 0, MPCC_MCM_1DLUT_LUT_INDEX, 0);
 		REG_UPDATE(MPCC_MCM_1DLUT_LUT_CONTROL[mpcc_id], MPCC_MCM_1DLUT_LUT_WRITE_COLOR_MASK, 1);
 		for (i = 0 ; i < num; i++)
 			REG_SET(MPCC_MCM_1DLUT_LUT_DATA[mpcc_id], 0, MPCC_MCM_1DLUT_LUT_DATA, rgb[i].blue_reg);
@@ -321,7 +325,7 @@ static enum dc_lut_mode mpc32_get_shaper_current(struct mpc *mpc, uint32_t mpcc_
 }
 
 
-static void mpc32_configure_shaper_lut(
+void mpc32_configure_shaper_lut(
 		struct mpc *mpc,
 		bool is_ram_a,
 		uint32_t mpcc_id)
@@ -336,7 +340,7 @@ static void mpc32_configure_shaper_lut(
 }
 
 
-static void mpc32_program_shaper_luta_settings(
+void mpc32_program_shaper_luta_settings(
 		struct mpc *mpc,
 		const struct pwl_params *params,
 		uint32_t mpcc_id)
@@ -486,7 +490,7 @@ static void mpc32_program_shaper_luta_settings(
 }
 
 
-static void mpc32_program_shaper_lutb_settings(
+void mpc32_program_shaper_lutb_settings(
 		struct mpc *mpc,
 		const struct pwl_params *params,
 		uint32_t mpcc_id)
@@ -637,7 +641,7 @@ static void mpc32_program_shaper_lutb_settings(
 }
 
 
-static void mpc32_program_shaper_lut(
+void mpc32_program_shaper_lut(
 		struct mpc *mpc,
 		const struct pwl_result_data *rgb,
 		uint32_t num,
@@ -671,7 +675,7 @@ static void mpc32_program_shaper_lut(
 }
 
 
-static void mpc32_power_on_shaper_3dlut(
+void mpc32_power_on_shaper_3dlut(
 		struct mpc *mpc,
 		uint32_t mpcc_id,
 		bool power_on)
@@ -789,7 +793,7 @@ static enum dc_lut_mode get3dlut_config(
 }
 
 
-static void mpc32_select_3dlut_ram(
+void mpc32_select_3dlut_ram(
 		struct mpc *mpc,
 		enum dc_lut_mode mode,
 		bool is_color_channel_12bits,
@@ -803,7 +807,7 @@ static void mpc32_select_3dlut_ram(
 }
 
 
-static void mpc32_select_3dlut_ram_mask(
+void mpc32_select_3dlut_ram_mask(
 		struct mpc *mpc,
 		uint32_t ram_selection_mask,
 		uint32_t mpcc_id)
@@ -816,7 +820,7 @@ static void mpc32_select_3dlut_ram_mask(
 }
 
 
-static void mpc32_set3dlut_ram12(
+void mpc32_set3dlut_ram12(
 		struct mpc *mpc,
 		const struct dc_rgb *lut,
 		uint32_t entries,
@@ -848,7 +852,7 @@ static void mpc32_set3dlut_ram12(
 }
 
 
-static void mpc32_set3dlut_ram10(
+void mpc32_set3dlut_ram10(
 		struct mpc *mpc,
 		const struct dc_rgb *lut,
 		uint32_t entries,
@@ -987,7 +991,7 @@ static const struct mpc_funcs dcn32_mpc_funcs = {
 	.insert_plane = mpc1_insert_plane,
 	.remove_mpcc = mpc1_remove_mpcc,
 	.mpc_init = mpc32_mpc_init,
-	.mpc_init_single_inst = mpc1_mpc_init_single_inst,
+	.mpc_init_single_inst = mpc3_mpc_init_single_inst,
 	.update_blending = mpc2_update_blending,
 	.cursor_lock = mpc1_cursor_lock,
 	.get_mpcc_for_dpp = mpc1_get_mpcc_for_dpp,
@@ -1004,7 +1008,6 @@ static const struct mpc_funcs dcn32_mpc_funcs = {
 	.set_dwb_mux = mpc3_set_dwb_mux,
 	.disable_dwb_mux = mpc3_disable_dwb_mux,
 	.is_dwb_idle = mpc3_is_dwb_idle,
-	.set_out_rate_control = mpc3_set_out_rate_control,
 	.set_gamut_remap = mpc3_set_gamut_remap,
 	.program_shaper = mpc32_program_shaper,
 	.program_3dlut = mpc32_program_3dlut,

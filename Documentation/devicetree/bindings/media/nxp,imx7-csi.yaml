@@ -59,7 +59,6 @@ allOf:
         compatible:
           contains:
             enum:
-              - fsl,imx8mq-csi
               - fsl,imx8mm-csi
     then:
       required:

@@ -341,13 +341,6 @@ config MTD_UCLINUX
 	help
 	  Map driver to support image based filesystems for uClinux.
 
-config MTD_INTEL_VR_NOR
-	tristate "NOR flash on Intel Vermilion Range Expansion Bus CS0"
-	depends on PCI
-	help
-	  Map driver for a NOR flash bank located on the Expansion Bus of the
-	  Intel Vermilion Range chipset.
-
 config MTD_PLATRAM
 	tristate "Map driver for platform device RAM (mtd-ram)"
 	select MTD_RAM

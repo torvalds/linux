@@ -22,6 +22,7 @@ struct serial_ctrl_device {
 struct serial_port_device {
 	struct device dev;
 	struct uart_port *port;
+	unsigned int tx_enabled:1;
 };
 
 int serial_base_ctrl_init(void);
@@ -29,6 +30,9 @@ void serial_base_ctrl_exit(void);
 
 int serial_base_port_init(void);
 void serial_base_port_exit(void);
+
+void serial_base_port_startup(struct uart_port *port);
+void serial_base_port_shutdown(struct uart_port *port);
 
 int serial_base_driver_register(struct device_driver *driver);
 void serial_base_driver_unregister(struct device_driver *driver);

@@ -13,19 +13,15 @@
 #include <linux/mlx5/cq.h>
 #include <linux/mlx5/qp.h>
 
-#define MLX5VF_PRE_COPY_SUPP(mvdev) \
-	((mvdev)->core_device.vdev.migration_flags & VFIO_MIGRATION_PRE_COPY)
-
 enum mlx5_vf_migf_state {
 	MLX5_MIGF_STATE_ERROR = 1,
 	MLX5_MIGF_STATE_PRE_COPY_ERROR,
 	MLX5_MIGF_STATE_PRE_COPY,
-	MLX5_MIGF_STATE_SAVE_LAST,
+	MLX5_MIGF_STATE_SAVE_STOP_COPY_CHUNK,
 	MLX5_MIGF_STATE_COMPLETE,
 };
 
 enum mlx5_vf_load_state {
-	MLX5_VF_LOAD_STATE_READ_IMAGE_NO_HEADER,
 	MLX5_VF_LOAD_STATE_READ_HEADER,
 	MLX5_VF_LOAD_STATE_PREP_HEADER_DATA,
 	MLX5_VF_LOAD_STATE_READ_HEADER_DATA,
@@ -64,6 +60,7 @@ struct mlx5_vhca_data_buffer {
 	u32 mkey;
 	enum dma_data_direction dma_dir;
 	u8 dmaed:1;
+	u8 stop_copy_chunk_num;
 	struct list_head buf_elm;
 	struct mlx5_vf_migration_file *migf;
 	/* Optimize mlx5vf_get_migration_page() for sequential access */
@@ -78,9 +75,18 @@ struct mlx5vf_async_data {
 	struct mlx5_vhca_data_buffer *buf;
 	struct mlx5_vhca_data_buffer *header_buf;
 	int status;
-	u8 last_chunk:1;
+	u8 stop_copy_chunk:1;
 	void *out;
 };
+
+struct mlx5vf_save_work_data {
+	struct mlx5_vf_migration_file *migf;
+	size_t next_required_umem_size;
+	struct work_struct work;
+	u8 chunk_num;
+};
+
+#define MAX_NUM_CHUNKS 2
 
 struct mlx5_vf_migration_file {
 	struct file *filp;
@@ -94,8 +100,12 @@ struct mlx5_vf_migration_file {
 	u32 record_tag;
 	u64 stop_copy_prep_size;
 	u64 pre_copy_initial_bytes;
-	struct mlx5_vhca_data_buffer *buf;
-	struct mlx5_vhca_data_buffer *buf_header;
+	size_t next_required_umem_size;
+	u8 num_ready_chunks;
+	/* Upon chunk mode preserve another set of buffers for stop_copy phase */
+	struct mlx5_vhca_data_buffer *buf[MAX_NUM_CHUNKS];
+	struct mlx5_vhca_data_buffer *buf_header[MAX_NUM_CHUNKS];
+	struct mlx5vf_save_work_data save_data[MAX_NUM_CHUNKS];
 	spinlock_t list_lock;
 	struct list_head buf_list;
 	struct list_head avail_list;
@@ -148,6 +158,7 @@ struct mlx5_vhca_page_tracker {
 	u32 id;
 	u32 pdn;
 	u8 is_err:1;
+	u8 object_changed:1;
 	struct mlx5_uars_page *uar;
 	struct mlx5_vhca_cq cq;
 	struct mlx5_vhca_qp *host_qp;
@@ -164,6 +175,7 @@ struct mlx5vf_pci_core_device {
 	u8 deferred_reset:1;
 	u8 mdev_detach:1;
 	u8 log_active:1;
+	u8 chunk_mode:1;
 	struct completion tracker_comp;
 	/* protect migration state */
 	struct mutex state_mutex;
@@ -181,12 +193,14 @@ struct mlx5vf_pci_core_device {
 enum {
 	MLX5VF_QUERY_INC = (1UL << 0),
 	MLX5VF_QUERY_FINAL = (1UL << 1),
+	MLX5VF_QUERY_CLEANUP = (1UL << 2),
 };
 
 int mlx5vf_cmd_suspend_vhca(struct mlx5vf_pci_core_device *mvdev, u16 op_mod);
 int mlx5vf_cmd_resume_vhca(struct mlx5vf_pci_core_device *mvdev, u16 op_mod);
 int mlx5vf_cmd_query_vhca_migration_state(struct mlx5vf_pci_core_device *mvdev,
-					  size_t *state_size, u8 query_flags);
+					  size_t *state_size, u64 *total_size,
+					  u8 query_flags);
 void mlx5vf_cmd_set_migratable(struct mlx5vf_pci_core_device *mvdev,
 			       const struct vfio_migration_ops *mig_ops,
 			       const struct vfio_log_ops *log_ops);
@@ -210,13 +224,14 @@ struct mlx5_vhca_data_buffer *
 mlx5vf_get_data_buffer(struct mlx5_vf_migration_file *migf,
 		       size_t length, enum dma_data_direction dma_dir);
 void mlx5vf_put_data_buffer(struct mlx5_vhca_data_buffer *buf);
-int mlx5vf_add_migration_pages(struct mlx5_vhca_data_buffer *buf,
-			       unsigned int npages);
 struct page *mlx5vf_get_migration_page(struct mlx5_vhca_data_buffer *buf,
 				       unsigned long offset);
 void mlx5vf_state_mutex_unlock(struct mlx5vf_pci_core_device *mvdev);
-void mlx5vf_disable_fds(struct mlx5vf_pci_core_device *mvdev);
+void mlx5vf_disable_fds(struct mlx5vf_pci_core_device *mvdev,
+			enum mlx5_vf_migf_state *last_save_state);
 void mlx5vf_mig_file_cleanup_cb(struct work_struct *_work);
+void mlx5vf_mig_file_set_save_work(struct mlx5_vf_migration_file *migf,
+				   u8 chunk_num, size_t next_required_umem_size);
 int mlx5vf_start_page_tracker(struct vfio_device *vdev,
 		struct rb_root_cached *ranges, u32 nnodes, u64 *page_size);
 int mlx5vf_stop_page_tracker(struct vfio_device *vdev);

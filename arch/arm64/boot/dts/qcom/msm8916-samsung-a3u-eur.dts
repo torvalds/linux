@@ -49,11 +49,6 @@
 	};
 };
 
-&touchkey {
-	vcc-supply = <&reg_touch_key>;
-	vdd-supply = <&reg_key_led>;
-};
-
 &accelerometer {
 	mount-matrix = "0", "1", "0",
 		       "1", "0", "0",
@@ -108,6 +103,11 @@
 	remote-endpoint = <&panel_in>;
 };
 
+&touchkey {
+	vcc-supply = <&reg_touch_key>;
+	vdd-supply = <&reg_key_led>;
+};
+
 &vibrator {
 	status = "okay";
 };
@@ -118,6 +118,10 @@
 
 &wcnss_iris {
 	compatible = "qcom,wcn3620";
+};
+
+&wcnss_mem {
+	status = "okay";
 };
 
 &tlmm {

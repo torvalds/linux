@@ -15,9 +15,26 @@
 #include <unistd.h>
 
 #include "../kselftest_harness.h"
+#include "user_events_selftests.h"
 
+const char *dyn_file = "/sys/kernel/tracing/dynamic_events";
 const char *abi_file = "/sys/kernel/tracing/user_events_data";
 const char *enable_file = "/sys/kernel/tracing/events/user_events/__test_event/enable";
+
+static int event_delete(void)
+{
+	int fd = open(abi_file, O_RDWR);
+	int ret;
+
+	if (fd < 0)
+		return -1;
+
+	ret = ioctl(fd, DIAG_IOCSDEL, "__test_event");
+
+	close(fd);
+
+	return ret;
+}
 
 static bool wait_for_delete(void)
 {
@@ -63,7 +80,31 @@ static int unreg_event(int fd, int *check, int bit)
 	return ioctl(fd, DIAG_IOCSUNREG, &unreg);
 }
 
-static int parse(int *check, const char *value)
+static int parse_dyn(const char *value)
+{
+	int fd = open(dyn_file, O_RDWR | O_APPEND);
+	int len = strlen(value);
+	int ret;
+
+	if (fd == -1)
+		return -1;
+
+	ret = write(fd, value, len);
+
+	if (ret == len)
+		ret = 0;
+	else
+		ret = -1;
+
+	close(fd);
+
+	if (ret == 0)
+		event_delete();
+
+	return ret;
+}
+
+static int parse_abi(int *check, const char *value)
 {
 	int fd = open(abi_file, O_RDWR);
 	int ret;
@@ -87,6 +128,18 @@ static int parse(int *check, const char *value)
 	close(fd);
 
 	return ret;
+}
+
+static int parse(int *check, const char *value)
+{
+	int abi_ret = parse_abi(check, value);
+	int dyn_ret = parse_dyn(value);
+
+	/* Ensure both ABI and DYN parse the same way */
+	if (dyn_ret != abi_ret)
+		return -1;
+
+	return dyn_ret;
 }
 
 static int check_match(int *check, const char *first, const char *second, bool *match)
@@ -143,12 +196,16 @@ do { \
 
 FIXTURE(user) {
 	int check;
+	bool umount;
 };
 
 FIXTURE_SETUP(user) {
+	USER_EVENT_FIXTURE_SETUP(return, self->umount);
 }
 
 FIXTURE_TEARDOWN(user) {
+	USER_EVENT_FIXTURE_TEARDOWN(self->umount);
+
 	wait_for_delete();
 }
 

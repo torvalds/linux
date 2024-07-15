@@ -10,11 +10,12 @@ maintainers:
   - Thierry Reding <thierry.reding@gmail.com>
   - Jon Hunter <jonathanh@nvidia.com>
 
-$ref: nvidia,tegra234-pinmux-common.yaml
-
 properties:
   compatible:
     const: nvidia,tegra234-pinmux-aon
+
+  reg:
+    maxItems: 1
 
 patternProperties:
   "^pinmux(-[a-z0-9-]+)?$":
@@ -22,6 +23,8 @@ patternProperties:
 
     # pin groups
     additionalProperties:
+      $ref: nvidia,tegra234-pinmux-common.yaml
+
       properties:
         nvidia,pins:
           items:

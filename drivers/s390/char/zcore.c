@@ -3,7 +3,7 @@
  * zcore module to export memory content and register sets for creating system
  * dumps on SCSI/NVMe disks (zfcp/nvme dump).
  *
- * For more information please refer to Documentation/s390/zfcpdump.rst
+ * For more information please refer to Documentation/arch/s390/zfcpdump.rst
  *
  * Copyright IBM Corp. 2003, 2008
  * Author(s): Michael Holzheu
@@ -29,7 +29,6 @@
 #include <asm/irqflags.h>
 #include <asm/checksum.h>
 #include <asm/os_info.h>
-#include <asm/switch_to.h>
 #include <asm/maccess.h>
 #include "sclp.h"
 

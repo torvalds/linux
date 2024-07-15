@@ -22,6 +22,9 @@
 
 #define MPMU_UART_PLL	0x14
 
+#define APBC_NR_CLKS	48
+#define APMU_NR_CLKS	96
+
 struct pxa1928_clk_unit {
 	struct mmp_clk_unit unit;
 	void __iomem *mpmu_base;
@@ -235,7 +238,7 @@ static void __init pxa1928_apmu_clk_init(struct device_node *np)
 		return;
 	}
 
-	mmp_clk_init(np, &pxa_unit->unit, PXA1928_APMU_NR_CLKS);
+	mmp_clk_init(np, &pxa_unit->unit, APMU_NR_CLKS);
 
 	pxa1928_axi_periph_clk_init(pxa_unit);
 }
@@ -256,7 +259,7 @@ static void __init pxa1928_apbc_clk_init(struct device_node *np)
 		return;
 	}
 
-	mmp_clk_init(np, &pxa_unit->unit, PXA1928_APBC_NR_CLKS);
+	mmp_clk_init(np, &pxa_unit->unit, APBC_NR_CLKS);
 
 	pxa1928_apb_periph_clk_init(pxa_unit);
 	pxa1928_clk_reset_init(np, pxa_unit);

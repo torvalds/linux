@@ -597,6 +597,9 @@
 
 #include <asm/cpu.h>
 
+void alchemy_set_lpj(void);
+void board_setup(void);
+
 /* helpers to access the SYS_* registers */
 static inline unsigned long alchemy_rdsys(int regofs)
 {

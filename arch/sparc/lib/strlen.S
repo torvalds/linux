@@ -6,9 +6,9 @@
  * Copyright (C) 1996, 1997 Jakub Jelinek (jj@sunsite.mff.cuni.cz)
  */
 
+#include <linux/export.h>
 #include <linux/linkage.h>
 #include <asm/asm.h>
-#include <asm/export.h>
 
 #define LO_MAGIC 0x01010101
 #define HI_MAGIC 0x80808080

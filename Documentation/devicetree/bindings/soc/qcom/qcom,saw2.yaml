@@ -1,0 +1,119 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/soc/qcom/qcom,saw2.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm Subsystem Power Manager / SPM AVS Wrapper 2 (SAW2)
+
+maintainers:
+  - Andy Gross <agross@kernel.org>
+  - Bjorn Andersson <bjorn.andersson@linaro.org>
+
+description: |
+  The Qualcomm Subsystem Power Manager is used to control the peripheral logic
+  surrounding the application cores in Qualcomm platforms.
+
+  The SAW2 is a wrapper around the Subsystem Power Manager (SPM) and the
+  Adaptive Voltage Scaling (AVS) hardware. The SPM is a programmable
+  power-controller that transitions a piece of hardware (like a processor or
+  subsystem) into and out of low power modes via a direct connection to
+  the PMIC. It can also be wired up to interact with other processors in the
+  system, notifying them when a low power state is entered or exited.
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - qcom,ipq4019-saw2-cpu
+          - qcom,ipq4019-saw2-l2
+          - qcom,ipq8064-saw2-cpu
+          - qcom,sdm660-gold-saw2-v4.1-l2
+          - qcom,sdm660-silver-saw2-v4.1-l2
+          - qcom,msm8998-gold-saw2-v4.1-l2
+          - qcom,msm8998-silver-saw2-v4.1-l2
+          - qcom,msm8909-saw2-v3.0-cpu
+          - qcom,msm8916-saw2-v3.0-cpu
+          - qcom,msm8939-saw2-v3.0-cpu
+          - qcom,msm8226-saw2-v2.1-cpu
+          - qcom,msm8226-saw2-v2.1-l2
+          - qcom,msm8960-saw2-cpu
+          - qcom,msm8974-saw2-v2.1-cpu
+          - qcom,msm8974-saw2-v2.1-l2
+          - qcom,msm8976-gold-saw2-v2.3-l2
+          - qcom,msm8976-silver-saw2-v2.3-l2
+          - qcom,apq8084-saw2-v2.1-cpu
+          - qcom,apq8084-saw2-v2.1-l2
+          - qcom,apq8064-saw2-v1.1-cpu
+      - const: qcom,saw2
+
+  reg:
+    items:
+      - description: Base address and size of the SPM register region
+      - description: Base address and size of the alias register region
+    minItems: 1
+
+  regulator:
+    $ref: /schemas/regulator/regulator.yaml#
+    description: Indicates that this SPM device acts as a regulator device
+      device for the core (CPU or Cache) the SPM is attached to.
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+
+    /* Example 1: SoC using SAW2 and kpss-acc-v2 CPUIdle */
+    cpus {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        cpu@0 {
+            compatible = "qcom,kryo";
+            device_type = "cpu";
+            enable-method = "qcom,kpss-acc-v2";
+            qcom,saw = <&saw0>;
+            reg = <0x0>;
+            operating-points-v2 = <&cpu_opp_table>;
+        };
+    };
+
+    saw0: power-manager@f9089000 {
+        compatible = "qcom,msm8974-saw2-v2.1-cpu", "qcom,saw2";
+        reg = <0xf9089000 0x1000>;
+    };
+
+  - |
+
+    /*
+     * Example 2: New-gen multi cluster SoC using SAW only for L2;
+     * This does not require any cpuidle driver, nor any cpu phandle.
+     */
+    power-manager@17812000 {
+        compatible = "qcom,msm8998-gold-saw2-v4.1-l2", "qcom,saw2";
+        reg = <0x17812000 0x1000>;
+    };
+
+    power-manager@17912000 {
+        compatible = "qcom,msm8998-silver-saw2-v4.1-l2", "qcom,saw2";
+        reg = <0x17912000 0x1000>;
+    };
+
+  - |
+    /*
+     * Example 3: SAW2 with the bundled regulator definition.
+     */
+    power-manager@2089000 {
+        compatible = "qcom,apq8064-saw2-v1.1-cpu", "qcom,saw2";
+        reg = <0x02089000 0x1000>, <0x02009000 0x1000>;
+
+        regulator {
+            regulator-min-microvolt = <850000>;
+            regulator-max-microvolt = <1300000>;
+        };
+    };
+...

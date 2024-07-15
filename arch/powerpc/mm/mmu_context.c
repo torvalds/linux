@@ -43,11 +43,13 @@ static inline void switch_mm_pgdir(struct task_struct *tsk,
 void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 			struct task_struct *tsk)
 {
+	int cpu = smp_processor_id();
 	bool new_on_cpu = false;
 
 	/* Mark this context has been used on the new CPU */
-	if (!cpumask_test_cpu(smp_processor_id(), mm_cpumask(next))) {
-		cpumask_set_cpu(smp_processor_id(), mm_cpumask(next));
+	if (!cpumask_test_cpu(cpu, mm_cpumask(next))) {
+		VM_WARN_ON_ONCE(next == &init_mm);
+		cpumask_set_cpu(cpu, mm_cpumask(next));
 		inc_mm_active_cpus(next);
 
 		/*
@@ -100,6 +102,8 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 	 * sub architectures. Out of line for now
 	 */
 	switch_mmu_context(prev, next, tsk);
+
+	VM_WARN_ON_ONCE(!cpumask_test_cpu(cpu, mm_cpumask(prev)));
 }
 
 #ifndef CONFIG_PPC_BOOK3S_64

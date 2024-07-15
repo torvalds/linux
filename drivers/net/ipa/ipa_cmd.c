@@ -174,7 +174,7 @@ bool ipa_cmd_table_init_valid(struct ipa *ipa, const struct ipa_mem *mem,
 	u32 offset_max = field_max(IP_FLTRT_FLAGS_NHASH_ADDR_FMASK);
 	u32 size_max = field_max(IP_FLTRT_FLAGS_NHASH_SIZE_FMASK);
 	const char *table = route ? "route" : "filter";
-	struct device *dev = &ipa->pdev->dev;
+	struct device *dev = ipa->dev;
 	u32 size;
 
 	size = route ? ipa->route_count : ipa->filter_count + 1;
@@ -204,7 +204,7 @@ bool ipa_cmd_table_init_valid(struct ipa *ipa, const struct ipa_mem *mem,
 /* Validate the memory region that holds headers */
 static bool ipa_cmd_header_init_local_valid(struct ipa *ipa)
 {
-	struct device *dev = &ipa->pdev->dev;
+	struct device *dev = ipa->dev;
 	const struct ipa_mem *mem;
 	u32 offset_max;
 	u32 size_max;
@@ -256,7 +256,7 @@ static bool ipa_cmd_register_write_offset_valid(struct ipa *ipa,
 						const char *name, u32 offset)
 {
 	struct ipa_cmd_register_write *payload;
-	struct device *dev = &ipa->pdev->dev;
+	struct device *dev = ipa->dev;
 	u32 offset_max;
 	u32 bit_count;
 

@@ -55,6 +55,7 @@ static vm_fault_t secretmem_fault(struct vm_fault *vmf)
 	gfp_t gfp = vmf->gfp_mask;
 	unsigned long addr;
 	struct page *page;
+	struct folio *folio;
 	vm_fault_t ret;
 	int err;
 
@@ -66,23 +67,24 @@ static vm_fault_t secretmem_fault(struct vm_fault *vmf)
 retry:
 	page = find_lock_page(mapping, offset);
 	if (!page) {
-		page = alloc_page(gfp | __GFP_ZERO);
-		if (!page) {
+		folio = folio_alloc(gfp | __GFP_ZERO, 0);
+		if (!folio) {
 			ret = VM_FAULT_OOM;
 			goto out;
 		}
 
+		page = &folio->page;
 		err = set_direct_map_invalid_noflush(page);
 		if (err) {
-			put_page(page);
+			folio_put(folio);
 			ret = vmf_error(err);
 			goto out;
 		}
 
-		__SetPageUptodate(page);
-		err = add_to_page_cache_lru(page, mapping, offset, gfp);
+		__folio_mark_uptodate(folio);
+		err = filemap_add_folio(mapping, folio, offset, gfp);
 		if (unlikely(err)) {
-			put_page(page);
+			folio_put(folio);
 			/*
 			 * If a split of large page was required, it
 			 * already happened when we marked the page invalid

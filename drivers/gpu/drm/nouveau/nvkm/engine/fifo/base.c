@@ -210,6 +210,8 @@ nvkm_fifo_info(struct nvkm_engine *engine, u64 mthd, u64 *data)
 				CASE(SEC2  );
 				CASE(NVDEC );
 				CASE(NVENC );
+				CASE(NVJPG );
+				CASE(OFA   );
 				default:
 					WARN_ON(1);
 					break;
@@ -283,11 +285,21 @@ nvkm_fifo_oneinit(struct nvkm_engine *engine)
 	}
 
 	/* Initialise non-stall intr handling. */
-	if (fifo->func->nonstall_ctor) {
-		ret = fifo->func->nonstall_ctor(fifo);
-		if (ret) {
-			nvkm_error(subdev, "nonstall %d\n", ret);
+	if (fifo->func->nonstall) {
+		if (fifo->func->nonstall_ctor) {
+			ret = fifo->func->nonstall_ctor(fifo);
+			if (ret < 0) {
+				nvkm_error(subdev, "nonstall %d\n", ret);
+				return ret;
+			}
+		} else {
+			ret = 1;
 		}
+
+		ret = nvkm_event_init(fifo->func->nonstall, &fifo->engine.subdev, 1, ret,
+				      &fifo->nonstall.event);
+		if (ret)
+			return ret;
 	}
 
 	/* Allocate USERD + BAR1 polling area. */
@@ -337,8 +349,14 @@ nvkm_fifo_dtor(struct nvkm_engine *engine)
 	nvkm_chid_unref(&fifo->cgid);
 	nvkm_chid_unref(&fifo->chid);
 
+	mutex_destroy(&fifo->userd.mutex);
+
 	nvkm_event_fini(&fifo->nonstall.event);
 	mutex_destroy(&fifo->mutex);
+
+	if (fifo->func->dtor)
+		fifo->func->dtor(fifo);
+
 	return fifo;
 }
 
@@ -358,7 +376,6 @@ nvkm_fifo_new_(const struct nvkm_fifo_func *func, struct nvkm_device *device,
 	       enum nvkm_subdev_type type, int inst, struct nvkm_fifo **pfifo)
 {
 	struct nvkm_fifo *fifo;
-	int ret;
 
 	if (!(fifo = *pfifo = kzalloc(sizeof(*fifo), GFP_KERNEL)))
 		return -ENOMEM;
@@ -374,16 +391,8 @@ nvkm_fifo_new_(const struct nvkm_fifo_func *func, struct nvkm_device *device,
 	spin_lock_init(&fifo->lock);
 	mutex_init(&fifo->mutex);
 
-	ret = nvkm_engine_ctor(&nvkm_fifo, device, type, inst, true, &fifo->engine);
-	if (ret)
-		return ret;
+	INIT_LIST_HEAD(&fifo->userd.list);
+	mutex_init(&fifo->userd.mutex);
 
-	if (func->nonstall) {
-		ret = nvkm_event_init(func->nonstall, &fifo->engine.subdev, 1, 1,
-				      &fifo->nonstall.event);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
+	return nvkm_engine_ctor(&nvkm_fifo, device, type, inst, true, &fifo->engine);
 }

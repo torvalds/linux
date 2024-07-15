@@ -1,14 +1,12 @@
 Binding for TI mux clock.
 
-Binding status: Unstable - ABI compatibility may be broken in the future
-
 This binding uses the common clock binding[1].  It assumes a
 register-mapped multiplexer with multiple input clock signals or
 parents, one of which can be selected as output.  This clock does not
 gate or adjust the parent rate via a divider or multiplier.
 
 By default the "clocks" property lists the parents in the same order
-as they are programmed into the regster.  E.g:
+as they are programmed into the register.  E.g:
 
 	clocks = <&foo_clock>, <&bar_clock>, <&baz_clock>;
 

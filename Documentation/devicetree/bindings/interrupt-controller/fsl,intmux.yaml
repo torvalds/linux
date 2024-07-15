@@ -37,6 +37,9 @@ properties:
   clock-names:
     const: ipg
 
+  power-domains:
+    maxItems: 1
+
 required:
   - compatible
   - reg

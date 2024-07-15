@@ -14,30 +14,13 @@
 #include <linux/device.h>
 #include <linux/dmi.h>
 #include <linux/property.h>
+
+#include <media/ipu-bridge.h>
 #include <media/v4l2-fwnode.h>
 
 #include "atomisp_cmd.h"
 #include "atomisp_csi2.h"
 #include "atomisp_internal.h"
-
-#define NODE_SENSOR(_HID, _PROPS)		\
-	((const struct software_node) {		\
-		.name = _HID,			\
-		.properties = _PROPS,		\
-	})
-
-#define NODE_PORT(_PORT, _SENSOR_NODE)		\
-	((const struct software_node) {		\
-		.name = _PORT,			\
-		.parent = _SENSOR_NODE,		\
-	})
-
-#define NODE_ENDPOINT(_EP, _PORT, _PROPS)	\
-	((const struct software_node) {		\
-		.name = _EP,			\
-		.parent = _PORT,		\
-		.properties = _PROPS,		\
-	})
 
 #define PMC_CLK_RATE_19_2MHZ			19200000
 
@@ -84,19 +67,26 @@ static const guid_t atomisp_dsm_guid =
 		  0x97, 0xb9, 0x88, 0x2a, 0x68, 0x60, 0xa4, 0xbe);
 
 /*
- * Extend this array with ACPI Hardware IDs of sensors known to be working
- * plus the default number of links + link-frequencies.
- *
- * Do not add an entry for a sensor that is not actually supported,
- * or which have not yet been converted to work without atomisp_gmin
- * power-management and with v4l2-async probing.
+ * 75c9a639-5c8a-4a00-9f48-a9c3b5da789f
+ * This _DSM GUID returns a string giving the VCM type e.g. "AD5823".
  */
-static const struct atomisp_csi2_sensor_config supported_sensors[] = {
-	/* GalaxyCore GC0310 */
-	{ "INT0310", 1 },
-	/* Omnivision OV2680 */
-	{ "OVTI2680", 1 },
+static const guid_t vcm_dsm_guid =
+	GUID_INIT(0x75c9a639, 0x5c8a, 0x4a00,
+		  0x9f, 0x48, 0xa9, 0xc3, 0xb5, 0xda, 0x78, 0x9f);
+
+struct atomisp_sensor_config {
+	int lanes;
+	bool vcm;
 };
+
+#define ATOMISP_SENSOR_CONFIG(_HID, _LANES, _VCM)			\
+{									\
+	.id = _HID,							\
+	.driver_data = (long)&((const struct atomisp_sensor_config) {	\
+		.lanes = _LANES,					\
+		.vcm = _VCM,						\
+	})								\
+}
 
 /*
  * gmin_cfg parsing code. This is a cleaned up version of the gmin_cfg parsing
@@ -151,7 +141,8 @@ static char *gmin_cfg_get_dsm(struct acpi_device *adev, const char *key)
 			if (!val)
 				break;
 
-			acpi_handle_info(adev->handle, "Using DSM entry %s=%s\n", key, val);
+			acpi_handle_info(adev->handle, "%s: Using DSM entry %s=%s\n",
+					 dev_name(&adev->dev), key, val);
 			break;
 		}
 	}
@@ -176,7 +167,8 @@ static char *gmin_cfg_get_dmi_override(struct acpi_device *adev, const char *key
 		if (strcmp(key, gv->key))
 			continue;
 
-		acpi_handle_info(adev->handle, "Using DMI entry %s=%s\n", key, gv->val);
+		acpi_handle_info(adev->handle, "%s: Using DMI entry %s=%s\n",
+				 dev_name(&adev->dev), key, gv->val);
 		return kstrdup(gv->val, GFP_KERNEL);
 	}
 
@@ -212,7 +204,8 @@ static int gmin_cfg_get_int(struct acpi_device *adev, const char *key, int defau
 	return int_val;
 
 out_use_default:
-	acpi_handle_info(adev->handle, "Using default %s=%d\n", key, default_val);
+	acpi_handle_info(adev->handle, "%s: Using default %s=%d\n",
+			 dev_name(&adev->dev), key, default_val);
 	return default_val;
 }
 
@@ -255,7 +248,8 @@ static int atomisp_csi2_get_pmc_clk_nr_from_acpi_pr0(struct acpi_device *adev)
 	ACPI_FREE(buffer.pointer);
 
 	if (ret < 0)
-		acpi_handle_warn(adev->handle, "Could not find PMC clk in _PR0\n");
+		acpi_handle_warn(adev->handle, "%s: Could not find PMC clk in _PR0\n",
+				 dev_name(&adev->dev));
 
 	return ret;
 }
@@ -274,7 +268,8 @@ static int atomisp_csi2_set_pmc_clk_freq(struct acpi_device *adev, int clock_num
 	clk = clk_get(NULL, name);
 	if (IS_ERR(clk)) {
 		ret = PTR_ERR(clk);
-		acpi_handle_err(adev->handle, "Error getting clk %s:%d\n", name, ret);
+		acpi_handle_err(adev->handle, "%s: Error getting clk %s: %d\n",
+				dev_name(&adev->dev), name, ret);
 		return ret;
 	}
 
@@ -288,7 +283,8 @@ static int atomisp_csi2_set_pmc_clk_freq(struct acpi_device *adev, int clock_num
 	if (!ret)
 		ret = clk_set_rate(clk, PMC_CLK_RATE_19_2MHZ);
 	if (ret)
-		acpi_handle_err(adev->handle, "Error setting clk-rate for %s:%d\n", name, ret);
+		acpi_handle_err(adev->handle, "%s: Error setting clk-rate for %s: %d\n",
+				dev_name(&adev->dev), name, ret);
 
 	clk_put(clk);
 	return ret;
@@ -337,7 +333,8 @@ static int atomisp_csi2_handle_acpi_gpio_res(struct acpi_resource *ares, void *_
 
 	if (i == data->settings_count) {
 		acpi_handle_warn(data->adev->handle,
-				 "Could not find DSM GPIO settings for pin %u\n", pin);
+				 "%s: Could not find DSM GPIO settings for pin %u\n",
+				 dev_name(&data->adev->dev), pin);
 		return 1;
 	}
 
@@ -349,7 +346,8 @@ static int atomisp_csi2_handle_acpi_gpio_res(struct acpi_resource *ares, void *_
 		name = "powerdown-gpios";
 		break;
 	default:
-		acpi_handle_warn(data->adev->handle, "Unknown GPIO type 0x%02lx for pin %u\n",
+		acpi_handle_warn(data->adev->handle, "%s: Unknown GPIO type 0x%02lx for pin %u\n",
+				 dev_name(&data->adev->dev),
 				 INTEL_GPIO_DSM_TYPE(settings), pin);
 		return 1;
 	}
@@ -374,7 +372,8 @@ static int atomisp_csi2_handle_acpi_gpio_res(struct acpi_resource *ares, void *_
 	data->map->mapping[i].size = 1;
 	data->map_count++;
 
-	acpi_handle_info(data->adev->handle, "%s crs %d %s pin %u active-%s\n", name,
+	acpi_handle_info(data->adev->handle, "%s: %s crs %d %s pin %u active-%s\n",
+			 dev_name(&data->adev->dev), name,
 			 data->res_count - 1, agpio->resource_source.string_ptr,
 			 pin, active_low ? "low" : "high");
 
@@ -400,8 +399,7 @@ static int atomisp_csi2_handle_acpi_gpio_res(struct acpi_resource *ares, void *_
  * the INT3472 discrete.c code and there is some overlap, but there are
  * enough differences that it is difficult to share the code.
  */
-static int atomisp_csi2_add_gpio_mappings(struct atomisp_csi2_sensor *sensor,
-					  struct acpi_device *adev)
+static int atomisp_csi2_add_gpio_mappings(struct acpi_device *adev)
 {
 	struct atomisp_csi2_acpi_gpio_parsing_data data = { };
 	LIST_HEAD(resource_list);
@@ -412,7 +410,8 @@ static int atomisp_csi2_add_gpio_mappings(struct atomisp_csi2_sensor *sensor,
 	obj = acpi_evaluate_dsm_typed(adev->handle, &intel_sensor_module_guid,
 				      0x00, 1, NULL, ACPI_TYPE_STRING);
 	if (obj) {
-		acpi_handle_info(adev->handle, "Sensor module id: '%s'\n", obj->string.pointer);
+		acpi_handle_info(adev->handle, "%s: Sensor module id: '%s'\n",
+				 dev_name(&adev->dev), obj->string.pointer);
 		ACPI_FREE(obj);
 	}
 
@@ -426,7 +425,8 @@ static int atomisp_csi2_add_gpio_mappings(struct atomisp_csi2_sensor *sensor,
 				      &intel_sensor_gpio_info_guid, 0x00, 1,
 				      NULL, ACPI_TYPE_INTEGER);
 	if (!obj) {
-		acpi_handle_err(adev->handle, "No _DSM entry for GPIO pin count\n");
+		acpi_handle_err(adev->handle, "%s: No _DSM entry for GPIO pin count\n",
+				dev_name(&adev->dev));
 		return -EIO;
 	}
 
@@ -434,7 +434,9 @@ static int atomisp_csi2_add_gpio_mappings(struct atomisp_csi2_sensor *sensor,
 	ACPI_FREE(obj);
 
 	if (data.settings_count > CSI2_MAX_ACPI_GPIOS) {
-		acpi_handle_err(adev->handle, "Too many GPIOs %u > %u\n", data.settings_count, CSI2_MAX_ACPI_GPIOS);
+		acpi_handle_err(adev->handle, "%s: Too many GPIOs %u > %u\n",
+				dev_name(&adev->dev), data.settings_count,
+				CSI2_MAX_ACPI_GPIOS);
 		return -EOVERFLOW;
 	}
 
@@ -448,7 +450,8 @@ static int atomisp_csi2_add_gpio_mappings(struct atomisp_csi2_sensor *sensor,
 					      0x00, i + 2,
 					      NULL, ACPI_TYPE_INTEGER);
 		if (!obj) {
-			acpi_handle_err(adev->handle, "No _DSM entry for pin %u\n", i);
+			acpi_handle_err(adev->handle, "%s: No _DSM entry for pin %u\n",
+					dev_name(&adev->dev), i);
 			return -EIO;
 		}
 
@@ -463,15 +466,19 @@ static int atomisp_csi2_add_gpio_mappings(struct atomisp_csi2_sensor *sensor,
 			    INTEL_GPIO_DSM_PIN(data.settings[j]))
 				continue;
 
-			acpi_handle_err(adev->handle, "Duplicate pin number %lu\n",
+			acpi_handle_err(adev->handle, "%s: Duplicate pin number %lu\n",
+					dev_name(&adev->dev),
 					INTEL_GPIO_DSM_PIN(data.settings[i]));
 			return -EIO;
 		}
 	}
 
+	data.map = kzalloc(sizeof(*data.map), GFP_KERNEL);
+	if (!data.map)
+		return -ENOMEM;
+
 	/* Now parse the ACPI resources and build the lookup table */
 	data.adev = adev;
-	data.map = &sensor->gpio_map;
 	ret = acpi_dev_get_resources(adev, &resource_list,
 				     atomisp_csi2_handle_acpi_gpio_res, &data);
 	if (ret < 0)
@@ -481,230 +488,110 @@ static int atomisp_csi2_add_gpio_mappings(struct atomisp_csi2_sensor *sensor,
 
 	if (data.map_count != data.settings_count ||
 	    data.res_count != data.settings_count)
-		acpi_handle_warn(adev->handle, "ACPI GPIO resources vs DSM GPIO-info count mismatch (dsm: %d res: %d map %d\n",
-				 data.settings_count, data.res_count, data.map_count);
+		acpi_handle_warn(adev->handle, "%s: ACPI GPIO resources vs DSM GPIO-info count mismatch (dsm: %d res: %d map %d\n",
+				 dev_name(&adev->dev), data.settings_count,
+				 data.res_count, data.map_count);
 
 	ret = acpi_dev_add_driver_gpios(adev, data.map->mapping);
 	if (ret)
-		acpi_handle_err(adev->handle, "Error adding driver GPIOs: %d\n", ret);
+		acpi_handle_err(adev->handle, "%s: Error adding driver GPIOs: %d\n",
+				dev_name(&adev->dev), ret);
 
 	return ret;
 }
 
-static const struct atomisp_csi2_property_names prop_names = {
-	.clock_frequency = "clock-frequency",
-	.rotation = "rotation",
-	.bus_type = "bus-type",
-	.data_lanes = "data-lanes",
-	.remote_endpoint = "remote-endpoint",
-	.link_frequencies = "link-frequencies",
+static char *atomisp_csi2_get_vcm_type(struct acpi_device *adev)
+{
+	union acpi_object *obj;
+	char *vcm_type;
+
+	obj = acpi_evaluate_dsm_typed(adev->handle, &vcm_dsm_guid, 0, 0,
+				      NULL, ACPI_TYPE_STRING);
+	if (!obj)
+		return NULL;
+
+	vcm_type = kstrdup(obj->string.pointer, GFP_KERNEL);
+	ACPI_FREE(obj);
+
+	if (!vcm_type)
+		return NULL;
+
+	string_lower(vcm_type, vcm_type);
+	return vcm_type;
+}
+
+static const struct acpi_device_id atomisp_sensor_configs[] = {
+	/*
+	 * FIXME ov5693 modules have a VCM, but for unknown reasons
+	 * the sensor fails to start streaming when instantiating
+	 * an i2c-client for the VCM, so it is disabled for now.
+	 */
+	ATOMISP_SENSOR_CONFIG("INT33BE", 2, false),	/* OV5693 */
+	{}
 };
 
-static void atomisp_csi2_create_fwnode_properties(struct atomisp_csi2_sensor *sensor,
-						  struct atomisp_csi2_bridge *bridge,
-						  const struct atomisp_csi2_sensor_config *cfg)
+static int atomisp_csi2_parse_sensor_fwnode(struct acpi_device *adev,
+					    struct ipu_sensor *sensor)
 {
-	sensor->prop_names = prop_names;
-
-	sensor->local_ref[0] = SOFTWARE_NODE_REFERENCE(&sensor->swnodes[SWNODE_CSI2_ENDPOINT]);
-	sensor->remote_ref[0] = SOFTWARE_NODE_REFERENCE(&sensor->swnodes[SWNODE_SENSOR_ENDPOINT]);
-
-	sensor->dev_properties[0] = PROPERTY_ENTRY_U32(sensor->prop_names.clock_frequency,
-						       PMC_CLK_RATE_19_2MHZ);
-	sensor->dev_properties[1] = PROPERTY_ENTRY_U32(sensor->prop_names.rotation, 0);
-
-	sensor->ep_properties[0] = PROPERTY_ENTRY_U32(sensor->prop_names.bus_type,
-						      V4L2_FWNODE_BUS_TYPE_CSI2_DPHY);
-	sensor->ep_properties[1] = PROPERTY_ENTRY_U32_ARRAY_LEN(sensor->prop_names.data_lanes,
-								bridge->data_lanes,
-								sensor->lanes);
-	sensor->ep_properties[2] = PROPERTY_ENTRY_REF_ARRAY(sensor->prop_names.remote_endpoint,
-							    sensor->local_ref);
-	if (cfg->nr_link_freqs > 0)
-		sensor->ep_properties[3] =
-			PROPERTY_ENTRY_U64_ARRAY_LEN(sensor->prop_names.link_frequencies,
-						     cfg->link_freqs, cfg->nr_link_freqs);
-
-	sensor->csi2_properties[0] = PROPERTY_ENTRY_U32_ARRAY_LEN(sensor->prop_names.data_lanes,
-								  bridge->data_lanes,
-								  sensor->lanes);
-	sensor->csi2_properties[1] = PROPERTY_ENTRY_REF_ARRAY(sensor->prop_names.remote_endpoint,
-							      sensor->remote_ref);
-}
-
-static void atomisp_csi2_init_swnode_names(struct atomisp_csi2_sensor *sensor)
-{
-	snprintf(sensor->node_names.remote_port,
-		 sizeof(sensor->node_names.remote_port),
-		 SWNODE_GRAPH_PORT_NAME_FMT, sensor->port);
-	snprintf(sensor->node_names.port,
-		 sizeof(sensor->node_names.port),
-		 SWNODE_GRAPH_PORT_NAME_FMT, 0); /* Always port 0 */
-	snprintf(sensor->node_names.endpoint,
-		 sizeof(sensor->node_names.endpoint),
-		 SWNODE_GRAPH_ENDPOINT_NAME_FMT, 0); /* And endpoint 0 */
-}
-
-static void atomisp_csi2_init_swnode_group(struct atomisp_csi2_sensor *sensor)
-{
-	struct software_node *nodes = sensor->swnodes;
-
-	sensor->group[SWNODE_SENSOR] = &nodes[SWNODE_SENSOR];
-	sensor->group[SWNODE_SENSOR_PORT] = &nodes[SWNODE_SENSOR_PORT];
-	sensor->group[SWNODE_SENSOR_ENDPOINT] = &nodes[SWNODE_SENSOR_ENDPOINT];
-	sensor->group[SWNODE_CSI2_PORT] = &nodes[SWNODE_CSI2_PORT];
-	sensor->group[SWNODE_CSI2_ENDPOINT] = &nodes[SWNODE_CSI2_ENDPOINT];
-}
-
-static void atomisp_csi2_create_connection_swnodes(struct atomisp_csi2_bridge *bridge,
-						   struct atomisp_csi2_sensor *sensor)
-{
-	struct software_node *nodes = sensor->swnodes;
-
-	atomisp_csi2_init_swnode_names(sensor);
-
-	nodes[SWNODE_SENSOR] = NODE_SENSOR(sensor->name,
-					   sensor->dev_properties);
-	nodes[SWNODE_SENSOR_PORT] = NODE_PORT(sensor->node_names.port,
-					      &nodes[SWNODE_SENSOR]);
-	nodes[SWNODE_SENSOR_ENDPOINT] = NODE_ENDPOINT(sensor->node_names.endpoint,
-						      &nodes[SWNODE_SENSOR_PORT],
-						      sensor->ep_properties);
-	nodes[SWNODE_CSI2_PORT] = NODE_PORT(sensor->node_names.remote_port,
-					    &bridge->csi2_node);
-	nodes[SWNODE_CSI2_ENDPOINT] = NODE_ENDPOINT(sensor->node_names.endpoint,
-						    &nodes[SWNODE_CSI2_PORT],
-						    sensor->csi2_properties);
-
-	atomisp_csi2_init_swnode_group(sensor);
-}
-
-static void atomisp_csi2_unregister_sensors(struct atomisp_csi2_bridge *bridge)
-{
-	struct atomisp_csi2_sensor *sensor;
-	unsigned int i;
-
-	for (i = 0; i < bridge->n_sensors; i++) {
-		sensor = &bridge->sensors[i];
-		software_node_unregister_node_group(sensor->group);
-		acpi_dev_remove_driver_gpios(sensor->adev);
-		acpi_dev_put(sensor->adev);
-	}
-}
-
-static int atomisp_csi2_connect_sensor(const struct atomisp_csi2_sensor_config *cfg,
-				       struct atomisp_csi2_bridge *bridge,
-				       struct atomisp_device *isp)
-{
-	struct fwnode_handle *fwnode, *primary;
-	struct atomisp_csi2_sensor *sensor;
-	struct acpi_device *adev;
+	const struct acpi_device_id *id;
 	int ret, clock_num;
+	bool vcm = false;
+	int lanes = 1;
 
-	for_each_acpi_dev_match(adev, cfg->hid, NULL, -1) {
-		if (!adev->status.enabled)
-			continue;
+	id = acpi_match_acpi_device(atomisp_sensor_configs, adev);
+	if (id) {
+		struct atomisp_sensor_config *cfg =
+			(struct atomisp_sensor_config *)id->driver_data;
 
-		if (bridge->n_sensors >= ATOMISP_CAMERA_NR_PORTS) {
-			dev_err(isp->dev, "Exceeded available CSI2 ports\n");
-			ret = -EOVERFLOW;
-			goto err_put_adev;
-		}
-
-		sensor = &bridge->sensors[bridge->n_sensors];
-
-		/*
-		 * ACPI takes care of turning the PMC clock on and off, but on BYT
-		 * the clock defaults to 25 MHz instead of the expected 19.2 MHz.
-		 * Get the PMC-clock number from ACPI _PR0 method and set it to 19.2 MHz.
-		 * The PMC-clock number is also used to determine the default CSI port.
-		 */
-		clock_num = atomisp_csi2_get_pmc_clk_nr_from_acpi_pr0(adev);
-
-		ret = atomisp_csi2_set_pmc_clk_freq(adev, clock_num);
-		if (ret)
-			goto err_put_adev;
-
-		sensor->port = atomisp_csi2_get_port(adev, clock_num);
-		if (sensor->port >= ATOMISP_CAMERA_NR_PORTS) {
-			acpi_handle_err(adev->handle, "Invalid port: %d\n", sensor->port);
-			ret = -EINVAL;
-			goto err_put_adev;
-		}
-
-		sensor->lanes = gmin_cfg_get_int(adev, "CsiLanes", cfg->lanes);
-		if (sensor->lanes > CSI2_MAX_LANES) {
-			acpi_handle_err(adev->handle, "Invalid number of lanes: %d\n", sensor->lanes);
-			ret = -EINVAL;
-			goto err_put_adev;
-		}
-
-		ret = atomisp_csi2_add_gpio_mappings(sensor, adev);
-		if (ret)
-			goto err_put_adev;
-
-		snprintf(sensor->name, sizeof(sensor->name), "%s-%u",
-			 cfg->hid, sensor->port);
-
-		atomisp_csi2_create_fwnode_properties(sensor, bridge, cfg);
-		atomisp_csi2_create_connection_swnodes(bridge, sensor);
-
-		ret = software_node_register_node_group(sensor->group);
-		if (ret)
-			goto err_remove_mappings;
-
-		fwnode = software_node_fwnode(&sensor->swnodes[SWNODE_SENSOR]);
-		if (!fwnode) {
-			ret = -ENODEV;
-			goto err_free_swnodes;
-		}
-
-		sensor->adev = acpi_dev_get(adev);
-
-		primary = acpi_fwnode_handle(adev);
-		primary->secondary = fwnode;
-
-		bridge->n_sensors++;
+		lanes = cfg->lanes;
+		vcm = cfg->vcm;
 	}
 
-	return 0;
+	/*
+	 * ACPI takes care of turning the PMC clock on and off, but on BYT
+	 * the clock defaults to 25 MHz instead of the expected 19.2 MHz.
+	 * Get the PMC-clock number from ACPI PR0 method and set it to 19.2 MHz.
+	 * The PMC-clock number is also used to determine the default CSI port.
+	 */
+	clock_num = atomisp_csi2_get_pmc_clk_nr_from_acpi_pr0(adev);
 
-err_free_swnodes:
-	software_node_unregister_node_group(sensor->group);
-err_remove_mappings:
-	acpi_dev_remove_driver_gpios(adev);
-err_put_adev:
-	acpi_dev_put(adev);
-	return ret;
-}
+	ret = atomisp_csi2_set_pmc_clk_freq(adev, clock_num);
+	if (ret)
+		return ret;
 
-static int atomisp_csi2_connect_sensors(struct atomisp_csi2_bridge *bridge,
-					struct atomisp_device *isp)
-{
-	unsigned int i;
-	int ret;
-
-	for (i = 0; i < ARRAY_SIZE(supported_sensors); i++) {
-		const struct atomisp_csi2_sensor_config *cfg = &supported_sensors[i];
-
-		ret = atomisp_csi2_connect_sensor(cfg, bridge, isp);
-		if (ret)
-			goto err_unregister_sensors;
+	sensor->link = atomisp_csi2_get_port(adev, clock_num);
+	if (sensor->link >= ATOMISP_CAMERA_NR_PORTS) {
+		acpi_handle_err(adev->handle, "%s: Invalid port: %u\n",
+				dev_name(&adev->dev), sensor->link);
+		return -EINVAL;
 	}
 
-	return 0;
+	sensor->lanes = gmin_cfg_get_int(adev, "CsiLanes", lanes);
+	if (sensor->lanes > IPU_MAX_LANES) {
+		acpi_handle_err(adev->handle, "%s: Invalid lane-count: %d\n",
+				dev_name(&adev->dev), sensor->lanes);
+		return -EINVAL;
+	}
 
-err_unregister_sensors:
-	atomisp_csi2_unregister_sensors(bridge);
-	return ret;
+	ret = atomisp_csi2_add_gpio_mappings(adev);
+	if (ret)
+		return ret;
+
+	sensor->mclkspeed = PMC_CLK_RATE_19_2MHZ;
+	sensor->rotation = 0;
+	sensor->orientation = (sensor->link == 1) ?
+		V4L2_FWNODE_ORIENTATION_BACK : V4L2_FWNODE_ORIENTATION_FRONT;
+
+	if (vcm)
+		sensor->vcm_type = atomisp_csi2_get_vcm_type(adev);
+
+	return 0;
 }
 
 int atomisp_csi2_bridge_init(struct atomisp_device *isp)
 {
-	struct atomisp_csi2_bridge *bridge;
 	struct device *dev = isp->dev;
 	struct fwnode_handle *fwnode;
-	int i, ret;
 
 	/*
 	 * This function is intended to run only once and then leave
@@ -716,58 +603,13 @@ int atomisp_csi2_bridge_init(struct atomisp_device *isp)
 	if (fwnode && fwnode->secondary)
 		return 0;
 
-	bridge = kzalloc(sizeof(*bridge), GFP_KERNEL);
-	if (!bridge)
-		return -ENOMEM;
-
-	strscpy(bridge->csi2_node_name, "atomisp-csi2", sizeof(bridge->csi2_node_name));
-	bridge->csi2_node.name = bridge->csi2_node_name;
-
-	ret = software_node_register(&bridge->csi2_node);
-	if (ret < 0) {
-		dev_err(dev, "Failed to register the CSI2 HID node\n");
-		goto err_free_bridge;
-	}
-
-	/*
-	 * Map the lane arrangement, which is fixed for the ISP2 (meaning we
-	 * only need one, rather than one per sensor). We include it as a
-	 * member of the bridge struct rather than a global variable so
-	 * that it survives if the module is unloaded along with the rest of
-	 * the struct.
-	 */
-	for (i = 0; i < CSI2_MAX_LANES; i++)
-		bridge->data_lanes[i] = i + 1;
-
-	ret = atomisp_csi2_connect_sensors(bridge, isp);
-	if (ret || bridge->n_sensors == 0)
-		goto err_unregister_csi2;
-
-	fwnode = software_node_fwnode(&bridge->csi2_node);
-	if (!fwnode) {
-		dev_err(dev, "Error getting fwnode from csi2 software_node\n");
-		ret = -ENODEV;
-		goto err_unregister_sensors;
-	}
-
-	set_secondary_fwnode(dev, fwnode);
-
-	return 0;
-
-err_unregister_sensors:
-	atomisp_csi2_unregister_sensors(bridge);
-err_unregister_csi2:
-	software_node_unregister(&bridge->csi2_node);
-err_free_bridge:
-	kfree(bridge);
-
-	return ret;
+	return ipu_bridge_init(dev, atomisp_csi2_parse_sensor_fwnode);
 }
 
 /******* V4L2 sub-device asynchronous registration callbacks***********/
 
 struct sensor_async_subdev {
-	struct v4l2_async_subdev asd;
+	struct v4l2_async_connection asd;
 	int port;
 };
 
@@ -777,10 +619,11 @@ struct sensor_async_subdev {
 /* .bound() notifier callback when a match is found */
 static int atomisp_notifier_bound(struct v4l2_async_notifier *notifier,
 				  struct v4l2_subdev *sd,
-				  struct v4l2_async_subdev *asd)
+				  struct v4l2_async_connection *asd)
 {
 	struct atomisp_device *isp = notifier_to_atomisp(notifier);
 	struct sensor_async_subdev *s_asd = to_sensor_asd(asd);
+	int ret;
 
 	if (s_asd->port >= ATOMISP_CAMERA_NR_PORTS) {
 		dev_err(isp->dev, "port %d not supported\n", s_asd->port);
@@ -792,6 +635,10 @@ static int atomisp_notifier_bound(struct v4l2_async_notifier *notifier,
 		return -EBUSY;
 	}
 
+	ret = ipu_bridge_instantiate_vcm(sd->dev);
+	if (ret)
+		return ret;
+
 	isp->sensor_subdevs[s_asd->port] = sd;
 	return 0;
 }
@@ -799,7 +646,7 @@ static int atomisp_notifier_bound(struct v4l2_async_notifier *notifier,
 /* The .unbind callback */
 static void atomisp_notifier_unbind(struct v4l2_async_notifier *notifier,
 				    struct v4l2_subdev *sd,
-				    struct v4l2_async_subdev *asd)
+				    struct v4l2_async_connection *asd)
 {
 	struct atomisp_device *isp = notifier_to_atomisp(notifier);
 	struct sensor_async_subdev *s_asd = to_sensor_asd(asd);
@@ -825,7 +672,7 @@ int atomisp_csi2_bridge_parse_firmware(struct atomisp_device *isp)
 {
 	int i, mipi_port, ret;
 
-	v4l2_async_nf_init(&isp->notifier);
+	v4l2_async_nf_init(&isp->notifier, &isp->v4l2_dev);
 	isp->notifier.ops = &atomisp_async_ops;
 
 	for (i = 0; i < ATOMISP_CAMERA_NR_PORTS; i++) {

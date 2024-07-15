@@ -81,11 +81,6 @@ div[class^="highlight"] pre {
      *   - hide the permalink symbol as long as link is not hovered
      */
 
-    .toc-title {
-        font-size: 150%;
-	font-weight: bold;
-    }
-
     caption, .wy-table caption, .rst-content table.field-list caption {
         font-size: 100%;
     }

@@ -87,6 +87,7 @@ static void __exit exit_em_cmp(void)
 	tcf_em_unregister(&em_cmp_ops);
 }
 
+MODULE_DESCRIPTION("ematch classifier for basic data types(8/16/32 bit) against skb data");
 MODULE_LICENSE("GPL");
 
 module_init(init_em_cmp);

@@ -56,10 +56,14 @@
 };
 
 &enetc_port2 {
+	nvmem-cells = <&base_mac_address 2>;
+	nvmem-cell-names = "mac-address";
 	status = "okay";
 };
 
 &enetc_port3 {
+	nvmem-cells = <&base_mac_address 3>;
+	nvmem-cell-names = "mac-address";
 	status = "okay";
 };
 
@@ -80,6 +84,8 @@
 	managed = "in-band-status";
 	phy-handle = <&qsgmii_phy0>;
 	phy-mode = "qsgmii";
+	nvmem-cells = <&base_mac_address 4>;
+	nvmem-cell-names = "mac-address";
 	status = "okay";
 };
 
@@ -88,6 +94,8 @@
 	managed = "in-band-status";
 	phy-handle = <&qsgmii_phy1>;
 	phy-mode = "qsgmii";
+	nvmem-cells = <&base_mac_address 5>;
+	nvmem-cell-names = "mac-address";
 	status = "okay";
 };
 
@@ -96,6 +104,8 @@
 	managed = "in-band-status";
 	phy-handle = <&qsgmii_phy2>;
 	phy-mode = "qsgmii";
+	nvmem-cells = <&base_mac_address 6>;
+	nvmem-cell-names = "mac-address";
 	status = "okay";
 };
 
@@ -104,6 +114,8 @@
 	managed = "in-band-status";
 	phy-handle = <&qsgmii_phy3>;
 	phy-mode = "qsgmii";
+	nvmem-cells = <&base_mac_address 7>;
+	nvmem-cell-names = "mac-address";
 	status = "okay";
 };
 

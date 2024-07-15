@@ -10,6 +10,11 @@ static inline void linkmode_zero(unsigned long *dst)
 	bitmap_zero(dst, __ETHTOOL_LINK_MODE_MASK_NBITS);
 }
 
+static inline void linkmode_fill(unsigned long *dst)
+{
+	bitmap_fill(dst, __ETHTOOL_LINK_MODE_MASK_NBITS);
+}
+
 static inline void linkmode_copy(unsigned long *dst, const unsigned long *src)
 {
 	bitmap_copy(dst, src, __ETHTOOL_LINK_MODE_MASK_NBITS);
@@ -43,15 +48,6 @@ static inline void linkmode_set_bit(int nr, volatile unsigned long *addr)
 	__set_bit(nr, addr);
 }
 
-static inline void linkmode_set_bit_array(const int *array, int array_size,
-					  unsigned long *addr)
-{
-	int i;
-
-	for (i = 0; i < array_size; i++)
-		linkmode_set_bit(array[i], addr);
-}
-
 static inline void linkmode_clear_bit(int nr, volatile unsigned long *addr)
 {
 	__clear_bit(nr, addr);
@@ -69,6 +65,15 @@ static inline void linkmode_mod_bit(int nr, volatile unsigned long *addr,
 static inline int linkmode_test_bit(int nr, const volatile unsigned long *addr)
 {
 	return test_bit(nr, addr);
+}
+
+static inline void linkmode_set_bit_array(const int *array, int array_size,
+					  unsigned long *addr)
+{
+	int i;
+
+	for (i = 0; i < array_size; i++)
+		linkmode_set_bit(array[i], addr);
 }
 
 static inline int linkmode_equal(const unsigned long *src1,

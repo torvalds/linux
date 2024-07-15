@@ -29,10 +29,12 @@ properties:
     patternProperties:
       "^buck[1-4]$":
         $ref: regulator.yaml#
+        unevaluatedProperties: false
         type: object
 
       "^ldo[1-4]$":
         $ref: regulator.yaml#
+        unevaluatedProperties: false
         type: object
 
     additionalProperties: false
@@ -60,8 +62,8 @@ examples:
              regulator-name = "buck1";
              regulator-min-microvolt = <600000>;
              regulator-max-microvolt = <2187500>;
-             regulator-min-microamp  = <3800000>;
-             regulator-max-microamp  = <6800000>;
+             regulator-min-microamp = <3800000>;
+             regulator-max-microamp = <6800000>;
              regulator-boot-on;
             };
 

@@ -301,7 +301,7 @@ static void drm_fb_helper_restore_work_fn(struct work_struct *ignored)
 
 static DECLARE_WORK(drm_fb_helper_restore_work, drm_fb_helper_restore_work_fn);
 
-static void drm_fb_helper_sysrq(int dummy1)
+static void drm_fb_helper_sysrq(u8 dummy1)
 {
 	schedule_work(&drm_fb_helper_restore_work);
 }

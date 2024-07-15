@@ -12,12 +12,12 @@
 #define PREEMPT_NEED_RESCHED	0x80000000
 #define PREEMPT_ENABLED	(0 + PREEMPT_NEED_RESCHED)
 
-static inline int preempt_count(void)
+static __always_inline int preempt_count(void)
 {
 	return READ_ONCE(S390_lowcore.preempt_count) & ~PREEMPT_NEED_RESCHED;
 }
 
-static inline void preempt_count_set(int pc)
+static __always_inline void preempt_count_set(int pc)
 {
 	int old, new;
 
@@ -29,22 +29,22 @@ static inline void preempt_count_set(int pc)
 				  old, new) != old);
 }
 
-static inline void set_preempt_need_resched(void)
+static __always_inline void set_preempt_need_resched(void)
 {
 	__atomic_and(~PREEMPT_NEED_RESCHED, &S390_lowcore.preempt_count);
 }
 
-static inline void clear_preempt_need_resched(void)
+static __always_inline void clear_preempt_need_resched(void)
 {
 	__atomic_or(PREEMPT_NEED_RESCHED, &S390_lowcore.preempt_count);
 }
 
-static inline bool test_preempt_need_resched(void)
+static __always_inline bool test_preempt_need_resched(void)
 {
 	return !(READ_ONCE(S390_lowcore.preempt_count) & PREEMPT_NEED_RESCHED);
 }
 
-static inline void __preempt_count_add(int val)
+static __always_inline void __preempt_count_add(int val)
 {
 	/*
 	 * With some obscure config options and CONFIG_PROFILE_ALL_BRANCHES
@@ -59,17 +59,17 @@ static inline void __preempt_count_add(int val)
 	__atomic_add(val, &S390_lowcore.preempt_count);
 }
 
-static inline void __preempt_count_sub(int val)
+static __always_inline void __preempt_count_sub(int val)
 {
 	__preempt_count_add(-val);
 }
 
-static inline bool __preempt_count_dec_and_test(void)
+static __always_inline bool __preempt_count_dec_and_test(void)
 {
 	return __atomic_add(-1, &S390_lowcore.preempt_count) == 1;
 }
 
-static inline bool should_resched(int preempt_offset)
+static __always_inline bool should_resched(int preempt_offset)
 {
 	return unlikely(READ_ONCE(S390_lowcore.preempt_count) ==
 			preempt_offset);
@@ -79,45 +79,45 @@ static inline bool should_resched(int preempt_offset)
 
 #define PREEMPT_ENABLED	(0)
 
-static inline int preempt_count(void)
+static __always_inline int preempt_count(void)
 {
 	return READ_ONCE(S390_lowcore.preempt_count);
 }
 
-static inline void preempt_count_set(int pc)
+static __always_inline void preempt_count_set(int pc)
 {
 	S390_lowcore.preempt_count = pc;
 }
 
-static inline void set_preempt_need_resched(void)
+static __always_inline void set_preempt_need_resched(void)
 {
 }
 
-static inline void clear_preempt_need_resched(void)
+static __always_inline void clear_preempt_need_resched(void)
 {
 }
 
-static inline bool test_preempt_need_resched(void)
+static __always_inline bool test_preempt_need_resched(void)
 {
 	return false;
 }
 
-static inline void __preempt_count_add(int val)
+static __always_inline void __preempt_count_add(int val)
 {
 	S390_lowcore.preempt_count += val;
 }
 
-static inline void __preempt_count_sub(int val)
+static __always_inline void __preempt_count_sub(int val)
 {
 	S390_lowcore.preempt_count -= val;
 }
 
-static inline bool __preempt_count_dec_and_test(void)
+static __always_inline bool __preempt_count_dec_and_test(void)
 {
 	return !--S390_lowcore.preempt_count && tif_need_resched();
 }
 
-static inline bool should_resched(int preempt_offset)
+static __always_inline bool should_resched(int preempt_offset)
 {
 	return unlikely(preempt_count() == preempt_offset &&
 			tif_need_resched());

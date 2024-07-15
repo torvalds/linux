@@ -6,10 +6,10 @@
 #include "setup.h"
 #include "en/params.h"
 
-static int mlx5e_xsk_map_pool(struct mlx5e_priv *priv,
+static int mlx5e_xsk_map_pool(struct mlx5_core_dev *mdev,
 			      struct xsk_buff_pool *pool)
 {
-	struct device *dev = mlx5_core_dma_dev(priv->mdev);
+	struct device *dev = mlx5_core_dma_dev(mdev);
 
 	return xsk_pool_dma_map(pool, dev, DMA_ATTR_SKIP_CPU_SYNC);
 }
@@ -89,7 +89,7 @@ static int mlx5e_xsk_enable_locked(struct mlx5e_priv *priv,
 	if (unlikely(!mlx5e_xsk_is_pool_sane(pool)))
 		return -EINVAL;
 
-	err = mlx5e_xsk_map_pool(priv, pool);
+	err = mlx5e_xsk_map_pool(mlx5_sd_ch_ix_get_dev(priv->mdev, ix), pool);
 	if (unlikely(err))
 		return err;
 

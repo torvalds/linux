@@ -45,7 +45,7 @@ APMT   Signature Reserved (signature == "APMT")
 
        **Arm Performance Monitoring Table**
 
-       This table describes the properties of PMU support implmented by
+       This table describes the properties of PMU support implemented by
        components in the system.
 
 BERT   Section 18.3 (signature == "BERT")

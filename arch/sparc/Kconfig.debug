@@ -8,11 +8,8 @@ config MCOUNT
 	bool
 	depends on SPARC64
 	depends on FUNCTION_TRACER
-	default y
-
-config FRAME_POINTER
-	bool
-	depends on MCOUNT
+	select ARCH_WANT_FRAME_POINTERS
+	select FRAME_POINTER
 	default y
 
 config HAVE_HARDLOCKUP_DETECTOR_SPARC64

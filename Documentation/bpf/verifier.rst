@@ -562,7 +562,7 @@ works::
   * ``checkpoint[0].r1`` is marked as read;
 
 * At instruction #5 exit is reached and ``checkpoint[0]`` can now be processed
-  by ``clean_live_states()``. After this processing ``checkpoint[0].r0`` has a
+  by ``clean_live_states()``. After this processing ``checkpoint[0].r1`` has a
   read mark and all other registers and stack slots are marked as ``NOT_INIT``
   or ``STACK_INVALID``
 

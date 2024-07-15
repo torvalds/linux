@@ -4,7 +4,7 @@
 
 /*
  * Our IMM is signed, as such it must live at the top end of the word. Also,
- * since C99 hex constants are of ambigious type, force cast the mask to 'int'
+ * since C99 hex constants are of ambiguous type, force cast the mask to 'int'
  * so that FIELD_GET() will DTRT and sign extend the value when it extracts it.
  */
 #define EX_DATA_TYPE_MASK		((int)0x000000FF)
@@ -64,6 +64,8 @@
 #define	EX_TYPE_UCOPY_LEN4		(EX_TYPE_UCOPY_LEN | EX_DATA_IMM(4))
 #define	EX_TYPE_UCOPY_LEN8		(EX_TYPE_UCOPY_LEN | EX_DATA_IMM(8))
 
-#define EX_TYPE_ZEROPAD			20 /* longword load with zeropad on fault */
+#define	EX_TYPE_ZEROPAD			20 /* longword load with zeropad on fault */
+
+#define	EX_TYPE_ERETU			21
 
 #endif

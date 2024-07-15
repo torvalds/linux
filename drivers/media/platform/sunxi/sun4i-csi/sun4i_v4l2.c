@@ -266,12 +266,12 @@ static const struct v4l2_mbus_framefmt sun4i_csi_pad_fmt_default = {
 	.xfer_func = V4L2_XFER_FUNC_DEFAULT,
 };
 
-static int sun4i_csi_subdev_init_cfg(struct v4l2_subdev *subdev,
-				     struct v4l2_subdev_state *sd_state)
+static int sun4i_csi_subdev_init_state(struct v4l2_subdev *subdev,
+				       struct v4l2_subdev_state *sd_state)
 {
 	struct v4l2_mbus_framefmt *fmt;
 
-	fmt = v4l2_subdev_get_try_format(subdev, sd_state, CSI_SUBDEV_SINK);
+	fmt = v4l2_subdev_state_get_format(sd_state, CSI_SUBDEV_SINK);
 	*fmt = sun4i_csi_pad_fmt_default;
 
 	return 0;
@@ -285,8 +285,7 @@ static int sun4i_csi_subdev_get_fmt(struct v4l2_subdev *subdev,
 	struct v4l2_mbus_framefmt *subdev_fmt;
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY)
-		subdev_fmt = v4l2_subdev_get_try_format(subdev, sd_state,
-							fmt->pad);
+		subdev_fmt = v4l2_subdev_state_get_format(sd_state, fmt->pad);
 	else
 		subdev_fmt = &csi->subdev_fmt;
 
@@ -303,8 +302,7 @@ static int sun4i_csi_subdev_set_fmt(struct v4l2_subdev *subdev,
 	struct v4l2_mbus_framefmt *subdev_fmt;
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY)
-		subdev_fmt = v4l2_subdev_get_try_format(subdev, sd_state,
-							fmt->pad);
+		subdev_fmt = v4l2_subdev_state_get_format(sd_state, fmt->pad);
 	else
 		subdev_fmt = &csi->subdev_fmt;
 
@@ -336,7 +334,6 @@ sun4i_csi_subdev_enum_mbus_code(struct v4l2_subdev *subdev,
 
 static const struct v4l2_subdev_pad_ops sun4i_csi_subdev_pad_ops = {
 	.link_validate	= v4l2_subdev_link_validate_default,
-	.init_cfg	= sun4i_csi_subdev_init_cfg,
 	.get_fmt	= sun4i_csi_subdev_get_fmt,
 	.set_fmt	= sun4i_csi_subdev_set_fmt,
 	.enum_mbus_code	= sun4i_csi_subdev_enum_mbus_code,
@@ -344,6 +341,10 @@ static const struct v4l2_subdev_pad_ops sun4i_csi_subdev_pad_ops = {
 
 const struct v4l2_subdev_ops sun4i_csi_subdev_ops = {
 	.pad = &sun4i_csi_subdev_pad_ops,
+};
+
+const struct v4l2_subdev_internal_ops sun4i_csi_subdev_internal_ops = {
+	.init_state	= sun4i_csi_subdev_init_state,
 };
 
 int sun4i_csi_v4l2_register(struct sun4i_csi *csi)

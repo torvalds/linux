@@ -7,7 +7,7 @@
 #include <linux/device.h>
 #include <linux/io.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/of_graph.h>
 #include <linux/platform_device.h>
 
@@ -141,6 +141,7 @@ static int sun8i_tcon_top_bind(struct device *dev, struct device *master,
 				GFP_KERNEL);
 	if (!clk_data)
 		return -ENOMEM;
+	clk_data->num = CLK_NUM;
 	tcon_top->clk_data = clk_data;
 
 	spin_lock_init(&tcon_top->reg_lock);
@@ -213,8 +214,6 @@ static int sun8i_tcon_top_bind(struct device *dev, struct device *master,
 			goto err_unregister_gates;
 		}
 
-	clk_data->num = CLK_NUM;
-
 	ret = of_clk_add_hw_provider(dev->of_node, of_clk_hw_onecell_get,
 				     clk_data);
 	if (ret)
@@ -261,11 +260,9 @@ static int sun8i_tcon_top_probe(struct platform_device *pdev)
 	return component_add(&pdev->dev, &sun8i_tcon_top_ops);
 }
 
-static int sun8i_tcon_top_remove(struct platform_device *pdev)
+static void sun8i_tcon_top_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &sun8i_tcon_top_ops);
-
-	return 0;
 }
 
 static const struct sun8i_tcon_top_quirks sun8i_r40_tcon_top_quirks = {
@@ -302,7 +299,7 @@ EXPORT_SYMBOL(sun8i_tcon_top_of_table);
 
 static struct platform_driver sun8i_tcon_top_platform_driver = {
 	.probe		= sun8i_tcon_top_probe,
-	.remove		= sun8i_tcon_top_remove,
+	.remove_new	= sun8i_tcon_top_remove,
 	.driver		= {
 		.name		= "sun8i-tcon-top",
 		.of_match_table	= sun8i_tcon_top_of_table,

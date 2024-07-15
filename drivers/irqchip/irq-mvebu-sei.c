@@ -377,8 +377,7 @@ static int mvebu_sei_probe(struct platform_device *pdev)
 	mutex_init(&sei->cp_msi_lock);
 	raw_spin_lock_init(&sei->mask_lock);
 
-	sei->res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	sei->base = devm_ioremap_resource(sei->dev, sei->res);
+	sei->base = devm_platform_get_and_ioremap_resource(pdev, 0, &sei->res);
 	if (IS_ERR(sei->base))
 		return PTR_ERR(sei->base);
 

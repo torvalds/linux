@@ -84,8 +84,9 @@ static DEFINE_MUTEX(hwspinlock_tree_lock);
  * should decide between spin_trylock, spin_trylock_irq and
  * spin_trylock_irqsave.
  *
- * Returns 0 if we successfully locked the hwspinlock or -EBUSY if
+ * Returns: %0 if we successfully locked the hwspinlock or -EBUSY if
  * the hwspinlock was already taken.
+ *
  * This function will never sleep.
  */
 int __hwspin_trylock(struct hwspinlock *hwlock, int mode, unsigned long *flags)
@@ -171,7 +172,7 @@ EXPORT_SYMBOL_GPL(__hwspin_trylock);
 /**
  * __hwspin_lock_timeout() - lock an hwspinlock with timeout limit
  * @hwlock: the hwspinlock to be locked
- * @timeout: timeout value in msecs
+ * @to: timeout value in msecs
  * @mode: mode which controls whether local interrupts are disabled or not
  * @flags: a pointer to where the caller's interrupt state will be saved at (if
  *         requested)
@@ -199,9 +200,11 @@ EXPORT_SYMBOL_GPL(__hwspin_trylock);
  * to choose the appropriate @mode of operation, exactly the same way users
  * should decide between spin_lock, spin_lock_irq and spin_lock_irqsave.
  *
- * Returns 0 when the @hwlock was successfully taken, and an appropriate
+ * Returns: %0 when the @hwlock was successfully taken, and an appropriate
  * error code otherwise (most notably -ETIMEDOUT if the @hwlock is still
- * busy after @timeout msecs). The function will never sleep.
+ * busy after @timeout msecs).
+ *
+ * The function will never sleep.
  */
 int __hwspin_lock_timeout(struct hwspinlock *hwlock, unsigned int to,
 					int mode, unsigned long *flags)
@@ -304,13 +307,12 @@ EXPORT_SYMBOL_GPL(__hwspin_unlock);
 
 /**
  * of_hwspin_lock_simple_xlate - translate hwlock_spec to return a lock id
- * @bank: the hwspinlock device bank
  * @hwlock_spec: hwlock specifier as found in the device tree
  *
  * This is a simple translation function, suitable for hwspinlock platform
  * drivers that only has a lock specifier length of 1.
  *
- * Returns a relative index of the lock within a specified bank on success,
+ * Returns: a relative index of the lock within a specified bank on success,
  * or -EINVAL on invalid specifier cell count.
  */
 static inline int
@@ -332,9 +334,10 @@ of_hwspin_lock_simple_xlate(const struct of_phandle_args *hwlock_spec)
  * hwspinlock device, so that it can be requested using the normal
  * hwspin_lock_request_specific() API.
  *
- * Returns the global lock id number on success, -EPROBE_DEFER if the hwspinlock
- * device is not yet registered, -EINVAL on invalid args specifier value or an
- * appropriate error as returned from the OF parsing of the DT client node.
+ * Returns: the global lock id number on success, -EPROBE_DEFER if the
+ * hwspinlock device is not yet registered, -EINVAL on invalid args
+ * specifier value or an appropriate error as returned from the OF parsing
+ * of the DT client node.
  */
 int of_hwspin_lock_get_id(struct device_node *np, int index)
 {
@@ -399,9 +402,10 @@ EXPORT_SYMBOL_GPL(of_hwspin_lock_get_id);
  * the hwspinlock device, so that it can be requested using the normal
  * hwspin_lock_request_specific() API.
  *
- * Returns the global lock id number on success, -EPROBE_DEFER if the hwspinlock
- * device is not yet registered, -EINVAL on invalid args specifier value or an
- * appropriate error as returned from the OF parsing of the DT client node.
+ * Returns: the global lock id number on success, -EPROBE_DEFER if the
+ * hwspinlock device is not yet registered, -EINVAL on invalid args
+ * specifier value or an appropriate error as returned from the OF parsing
+ * of the DT client node.
  */
 int of_hwspin_lock_get_id_byname(struct device_node *np, const char *name)
 {
@@ -481,7 +485,7 @@ out:
  *
  * Should be called from a process context (might sleep)
  *
- * Returns 0 on success, or an appropriate error code on failure
+ * Returns: %0 on success, or an appropriate error code on failure
  */
 int hwspin_lock_register(struct hwspinlock_device *bank, struct device *dev,
 		const struct hwspinlock_ops *ops, int base_id, int num_locks)
@@ -529,7 +533,7 @@ EXPORT_SYMBOL_GPL(hwspin_lock_register);
  *
  * Should be called from a process context (might sleep)
  *
- * Returns 0 on success, or an appropriate error code on failure
+ * Returns: %0 on success, or an appropriate error code on failure
  */
 int hwspin_lock_unregister(struct hwspinlock_device *bank)
 {
@@ -578,7 +582,7 @@ static int devm_hwspin_lock_device_match(struct device *dev, void *res,
  *
  * Should be called from a process context (might sleep)
  *
- * Returns 0 on success, or an appropriate error code on failure
+ * Returns: %0 on success, or an appropriate error code on failure
  */
 int devm_hwspin_lock_unregister(struct device *dev,
 				struct hwspinlock_device *bank)
@@ -607,7 +611,7 @@ EXPORT_SYMBOL_GPL(devm_hwspin_lock_unregister);
  *
  * Should be called from a process context (might sleep)
  *
- * Returns 0 on success, or an appropriate error code on failure
+ * Returns: %0 on success, or an appropriate error code on failure
  */
 int devm_hwspin_lock_register(struct device *dev,
 			      struct hwspinlock_device *bank,
@@ -635,12 +639,13 @@ EXPORT_SYMBOL_GPL(devm_hwspin_lock_register);
 
 /**
  * __hwspin_lock_request() - tag an hwspinlock as used and power it up
+ * @hwlock: the target hwspinlock
  *
  * This is an internal function that prepares an hwspinlock instance
  * before it is given to the user. The function assumes that
  * hwspinlock_tree_lock is taken.
  *
- * Returns 0 or positive to indicate success, and a negative value to
+ * Returns: %0 or positive to indicate success, and a negative value to
  * indicate an error (with the appropriate error code)
  */
 static int __hwspin_lock_request(struct hwspinlock *hwlock)
@@ -680,7 +685,7 @@ static int __hwspin_lock_request(struct hwspinlock *hwlock)
  * hwspin_lock_get_id() - retrieve id number of a given hwspinlock
  * @hwlock: a valid hwspinlock instance
  *
- * Returns the id number of a given @hwlock, or -EINVAL if @hwlock is invalid.
+ * Returns: the id number of a given @hwlock, or -EINVAL if @hwlock is invalid.
  */
 int hwspin_lock_get_id(struct hwspinlock *hwlock)
 {
@@ -704,7 +709,7 @@ EXPORT_SYMBOL_GPL(hwspin_lock_get_id);
  *
  * Should be called from a process context (might sleep)
  *
- * Returns the address of the assigned hwspinlock, or NULL on error
+ * Returns: the address of the assigned hwspinlock, or %NULL on error
  */
 struct hwspinlock *hwspin_lock_request(void)
 {
@@ -747,7 +752,7 @@ EXPORT_SYMBOL_GPL(hwspin_lock_request);
  *
  * Should be called from a process context (might sleep)
  *
- * Returns the address of the assigned hwspinlock, or NULL on error
+ * Returns: the address of the assigned hwspinlock, or %NULL on error
  */
 struct hwspinlock *hwspin_lock_request_specific(unsigned int id)
 {
@@ -795,7 +800,7 @@ EXPORT_SYMBOL_GPL(hwspin_lock_request_specific);
  *
  * Should be called from a process context (might sleep)
  *
- * Returns 0 on success, or an appropriate error code on failure
+ * Returns: %0 on success, or an appropriate error code on failure
  */
 int hwspin_lock_free(struct hwspinlock *hwlock)
 {
@@ -865,7 +870,7 @@ static void devm_hwspin_lock_release(struct device *dev, void *res)
  *
  * Should be called from a process context (might sleep)
  *
- * Returns 0 on success, or an appropriate error code on failure
+ * Returns: %0 on success, or an appropriate error code on failure
  */
 int devm_hwspin_lock_free(struct device *dev, struct hwspinlock *hwlock)
 {
@@ -891,7 +896,7 @@ EXPORT_SYMBOL_GPL(devm_hwspin_lock_free);
  *
  * Should be called from a process context (might sleep)
  *
- * Returns the address of the assigned hwspinlock, or NULL on error
+ * Returns: the address of the assigned hwspinlock, or %NULL on error
  */
 struct hwspinlock *devm_hwspin_lock_request(struct device *dev)
 {
@@ -926,7 +931,7 @@ EXPORT_SYMBOL_GPL(devm_hwspin_lock_request);
  *
  * Should be called from a process context (might sleep)
  *
- * Returns the address of the assigned hwspinlock, or NULL on error
+ * Returns: the address of the assigned hwspinlock, or %NULL on error
  */
 struct hwspinlock *devm_hwspin_lock_request_specific(struct device *dev,
 						     unsigned int id)

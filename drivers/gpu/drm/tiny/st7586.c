@@ -64,7 +64,8 @@ static const u8 st7586_lookup[] = { 0x7, 0x4, 0x2, 0x0 };
 
 static void st7586_xrgb8888_to_gray332(u8 *dst, void *vaddr,
 				       struct drm_framebuffer *fb,
-				       struct drm_rect *clip)
+				       struct drm_rect *clip,
+				       struct drm_format_conv_state *fmtcnv_state)
 {
 	size_t len = (clip->x2 - clip->x1) * (clip->y2 - clip->y1);
 	unsigned int x, y;
@@ -77,7 +78,7 @@ static void st7586_xrgb8888_to_gray332(u8 *dst, void *vaddr,
 
 	iosys_map_set_vaddr(&dst_map, buf);
 	iosys_map_set_vaddr(&vmap, vaddr);
-	drm_fb_xrgb8888_to_gray8(&dst_map, NULL, &vmap, fb, clip);
+	drm_fb_xrgb8888_to_gray8(&dst_map, NULL, &vmap, fb, clip, fmtcnv_state);
 	src = buf;
 
 	for (y = clip->y1; y < clip->y2; y++) {
@@ -93,7 +94,7 @@ static void st7586_xrgb8888_to_gray332(u8 *dst, void *vaddr,
 }
 
 static int st7586_buf_copy(void *dst, struct iosys_map *src, struct drm_framebuffer *fb,
-			   struct drm_rect *clip)
+			   struct drm_rect *clip, struct drm_format_conv_state *fmtcnv_state)
 {
 	int ret;
 
@@ -101,7 +102,7 @@ static int st7586_buf_copy(void *dst, struct iosys_map *src, struct drm_framebuf
 	if (ret)
 		return ret;
 
-	st7586_xrgb8888_to_gray332(dst, src->vaddr, fb, clip);
+	st7586_xrgb8888_to_gray332(dst, src->vaddr, fb, clip, fmtcnv_state);
 
 	drm_gem_fb_end_cpu_access(fb, DMA_FROM_DEVICE);
 
@@ -109,7 +110,7 @@ static int st7586_buf_copy(void *dst, struct iosys_map *src, struct drm_framebuf
 }
 
 static void st7586_fb_dirty(struct iosys_map *src, struct drm_framebuffer *fb,
-			    struct drm_rect *rect)
+			    struct drm_rect *rect, struct drm_format_conv_state *fmtcnv_state)
 {
 	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(fb->dev);
 	struct mipi_dbi *dbi = &dbidev->dbi;
@@ -121,7 +122,7 @@ static void st7586_fb_dirty(struct iosys_map *src, struct drm_framebuffer *fb,
 
 	DRM_DEBUG_KMS("Flushing [FB:%d] " DRM_RECT_FMT "\n", fb->base.id, DRM_RECT_ARG(rect));
 
-	ret = st7586_buf_copy(dbidev->tx_buf, src, fb, rect);
+	ret = st7586_buf_copy(dbidev->tx_buf, src, fb, rect, fmtcnv_state);
 	if (ret)
 		goto err_msg;
 
@@ -160,7 +161,8 @@ static void st7586_pipe_update(struct drm_simple_display_pipe *pipe,
 		return;
 
 	if (drm_atomic_helper_damage_merged(old_state, state, &rect))
-		st7586_fb_dirty(&shadow_plane_state->data[0], fb, &rect);
+		st7586_fb_dirty(&shadow_plane_state->data[0], fb, &rect,
+				&shadow_plane_state->fmtcnv_state);
 
 	drm_dev_exit(idx);
 }
@@ -238,7 +240,8 @@ static void st7586_pipe_enable(struct drm_simple_display_pipe *pipe,
 
 	msleep(100);
 
-	st7586_fb_dirty(&shadow_plane_state->data[0], fb, &rect);
+	st7586_fb_dirty(&shadow_plane_state->data[0], fb, &rect,
+			&shadow_plane_state->fmtcnv_state);
 
 	mipi_dbi_command(dbi, MIPI_DCS_SET_DISPLAY_ON);
 out_exit:

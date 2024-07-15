@@ -11,8 +11,6 @@
  *
  */
 
-#define KMSG_COMPONENT "dasd"
-
 #include <linux/ctype.h>
 #include <linux/slab.h>
 #include <linux/string.h>
@@ -22,9 +20,6 @@
 
 #include <asm/debug.h>
 #include <linux/uaccess.h>
-
-/* This is ugly... */
-#define PRINTK_HEADER "dasd_proc:"
 
 #include "dasd_int.h"
 

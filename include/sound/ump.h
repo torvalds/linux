@@ -45,6 +45,7 @@ struct snd_ump_endpoint {
 	spinlock_t legacy_locks[2];
 	struct snd_rawmidi *legacy_rmidi;
 	struct snd_rawmidi_substream *legacy_substreams[2][SNDRV_UMP_MAX_GROUPS];
+	unsigned char legacy_mapping[SNDRV_UMP_MAX_GROUPS];
 
 	/* for legacy output; need to open the actual substream unlike input */
 	int legacy_out_opens;

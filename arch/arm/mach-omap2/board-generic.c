@@ -9,11 +9,10 @@
  * to support the OMAP2+ device tree boards with an unique board file.
  */
 #include <linux/io.h>
-#include <linux/of_irq.h>
-#include <linux/of_platform.h>
 #include <linux/irqdomain.h>
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
+#include <linux/mod_devicetable.h>
 
 #include <asm/setup.h>
 #include <asm/mach/arch.h>
@@ -247,6 +246,12 @@ DT_MACHINE_START(AM33XX_DT, "Generic AM33XX (Flattened Device Tree)")
 	.init_time	= omap_init_time_of,
 	.dt_compat	= am33xx_boards_compat,
 	.restart	= am33xx_restart,
+	/*
+	 * Historically am33xx supported only REBOOT_WARM even though default
+	 * reboot_mode was REBOOT_COLD. Reflect legacy de-facto behaviour in
+	 * SYSFS.
+	 */
+	.reboot_mode	= REBOOT_WARM,
 MACHINE_END
 #endif
 

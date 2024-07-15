@@ -60,7 +60,7 @@ static void __init eisa_name_device(struct eisa_device *edev)
 	int i;
 	for (i = 0; i < EISA_INFOS; i++) {
 		if (!strcmp(edev->id.sig, eisa_table[i].id.sig)) {
-			strlcpy(edev->pretty_name,
+			strscpy(edev->pretty_name,
 				eisa_table[i].name,
 				sizeof(edev->pretty_name));
 			return;

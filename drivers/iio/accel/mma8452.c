@@ -28,7 +28,7 @@
 #include <linux/iio/triggered_buffer.h>
 #include <linux/iio/events.h>
 #include <linux/delay.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
@@ -1535,19 +1535,18 @@ static int mma8452_reset(struct i2c_client *client)
 }
 
 static const struct of_device_id mma8452_dt_ids[] = {
+	{ .compatible = "fsl,fxls8471", .data = &mma_chip_info_table[fxls8471] },
 	{ .compatible = "fsl,mma8451", .data = &mma_chip_info_table[mma8451] },
 	{ .compatible = "fsl,mma8452", .data = &mma_chip_info_table[mma8452] },
 	{ .compatible = "fsl,mma8453", .data = &mma_chip_info_table[mma8453] },
 	{ .compatible = "fsl,mma8652", .data = &mma_chip_info_table[mma8652] },
 	{ .compatible = "fsl,mma8653", .data = &mma_chip_info_table[mma8653] },
-	{ .compatible = "fsl,fxls8471", .data = &mma_chip_info_table[fxls8471] },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, mma8452_dt_ids);
 
 static int mma8452_probe(struct i2c_client *client)
 {
-	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct mma8452_data *data;
 	struct iio_dev *indio_dev;
 	int ret;
@@ -1560,15 +1559,10 @@ static int mma8452_probe(struct i2c_client *client)
 	data->client = client;
 	mutex_init(&data->lock);
 
-	data->chip_info = device_get_match_data(&client->dev);
-	if (!data->chip_info) {
-		if (id) {
-			data->chip_info = &mma_chip_info_table[id->driver_data];
-		} else {
-			dev_err(&client->dev, "unknown device model\n");
-			return -ENODEV;
-		}
-	}
+	data->chip_info = i2c_get_match_data(client);
+	if (!data->chip_info)
+		return dev_err_probe(&client->dev, -ENODEV,
+				     "unknown device model\n");
 
 	ret = iio_read_mount_matrix(&client->dev, &data->orientation);
 	if (ret)
@@ -1830,12 +1824,12 @@ static const struct dev_pm_ops mma8452_pm_ops = {
 };
 
 static const struct i2c_device_id mma8452_id[] = {
-	{ "mma8451", mma8451 },
-	{ "mma8452", mma8452 },
-	{ "mma8453", mma8453 },
-	{ "mma8652", mma8652 },
-	{ "mma8653", mma8653 },
-	{ "fxls8471", fxls8471 },
+	{ "fxls8471", (kernel_ulong_t)&mma_chip_info_table[fxls8471] },
+	{ "mma8451", (kernel_ulong_t)&mma_chip_info_table[mma8451] },
+	{ "mma8452", (kernel_ulong_t)&mma_chip_info_table[mma8452] },
+	{ "mma8453", (kernel_ulong_t)&mma_chip_info_table[mma8453] },
+	{ "mma8652", (kernel_ulong_t)&mma_chip_info_table[mma8652] },
+	{ "mma8653", (kernel_ulong_t)&mma_chip_info_table[mma8653] },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mma8452_id);

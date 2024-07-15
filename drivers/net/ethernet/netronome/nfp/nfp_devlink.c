@@ -75,8 +75,10 @@ nfp_devlink_port_split(struct devlink *devlink, struct devlink_port *port,
 	if (ret)
 		return ret;
 
-	if (eth_port.port_lanes % count)
+	if (eth_port.port_lanes % count) {
+		NL_SET_ERR_MSG_MOD(extack, "invalid count");
 		return -EINVAL;
+	}
 
 	/* Special case the 100G CXP -> 2x40G split */
 	lanes = eth_port.port_lanes / count;
@@ -101,8 +103,10 @@ nfp_devlink_port_unsplit(struct devlink *devlink, struct devlink_port *port,
 	if (ret)
 		return ret;
 
-	if (!eth_port.is_split)
+	if (!eth_port.is_split) {
+		NL_SET_ERR_MSG_MOD(extack, "port is not split");
 		return -EINVAL;
+	}
 
 	/* Special case the 100G CXP -> 2x40G unsplit */
 	lanes = eth_port.port_lanes;

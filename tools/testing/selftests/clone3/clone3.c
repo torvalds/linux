@@ -7,6 +7,7 @@
 #include <inttypes.h>
 #include <linux/types.h>
 #include <linux/sched.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -103,8 +104,8 @@ static int call_clone3(uint64_t flags, size_t size, enum test_mode test_mode)
 	return 0;
 }
 
-static void test_clone3(uint64_t flags, size_t size, int expected,
-		       enum test_mode test_mode)
+static bool test_clone3(uint64_t flags, size_t size, int expected,
+			enum test_mode test_mode)
 {
 	int ret;
 
@@ -114,92 +115,223 @@ static void test_clone3(uint64_t flags, size_t size, int expected,
 	ret = call_clone3(flags, size, test_mode);
 	ksft_print_msg("[%d] clone3() with flags says: %d expected %d\n",
 			getpid(), ret, expected);
-	if (ret != expected)
-		ksft_test_result_fail(
+	if (ret != expected) {
+		ksft_print_msg(
 			"[%d] Result (%d) is different than expected (%d)\n",
 			getpid(), ret, expected);
-	else
-		ksft_test_result_pass(
-			"[%d] Result (%d) matches expectation (%d)\n",
-			getpid(), ret, expected);
+		return false;
+	}
+
+	return true;
 }
+
+typedef bool (*filter_function)(void);
+typedef size_t (*size_function)(void);
+
+static bool not_root(void)
+{
+	if (getuid() != 0) {
+		ksft_print_msg("Not running as root\n");
+		return true;
+	}
+
+	return false;
+}
+
+static bool no_timenamespace(void)
+{
+	if (not_root())
+		return true;
+
+	if (!access("/proc/self/ns/time", F_OK))
+		return false;
+
+	ksft_print_msg("Time namespaces are not supported\n");
+	return true;
+}
+
+static size_t page_size_plus_8(void)
+{
+	return getpagesize() + 8;
+}
+
+struct test {
+	const char *name;
+	uint64_t flags;
+	size_t size;
+	size_function size_function;
+	int expected;
+	enum test_mode test_mode;
+	filter_function filter;
+};
+
+static const struct test tests[] = {
+	{
+		.name = "simple clone3()",
+		.flags = 0,
+		.size = 0,
+		.expected = 0,
+		.test_mode = CLONE3_ARGS_NO_TEST,
+	},
+	{
+		.name = "clone3() in a new PID_NS",
+		.flags = CLONE_NEWPID,
+		.size = 0,
+		.expected = 0,
+		.test_mode = CLONE3_ARGS_NO_TEST,
+		.filter = not_root,
+	},
+	{
+		.name = "CLONE_ARGS_SIZE_VER0",
+		.flags = 0,
+		.size = CLONE_ARGS_SIZE_VER0,
+		.expected = 0,
+		.test_mode = CLONE3_ARGS_NO_TEST,
+	},
+	{
+		.name = "CLONE_ARGS_SIZE_VER0 - 8",
+		.flags = 0,
+		.size = CLONE_ARGS_SIZE_VER0 - 8,
+		.expected = -EINVAL,
+		.test_mode = CLONE3_ARGS_NO_TEST,
+	},
+	{
+		.name = "sizeof(struct clone_args) + 8",
+		.flags = 0,
+		.size = sizeof(struct __clone_args) + 8,
+		.expected = 0,
+		.test_mode = CLONE3_ARGS_NO_TEST,
+	},
+	{
+		.name = "exit_signal with highest 32 bits non-zero",
+		.flags = 0,
+		.size = 0,
+		.expected = -EINVAL,
+		.test_mode = CLONE3_ARGS_INVAL_EXIT_SIGNAL_BIG,
+	},
+	{
+		.name = "negative 32-bit exit_signal",
+		.flags = 0,
+		.size = 0,
+		.expected = -EINVAL,
+		.test_mode = CLONE3_ARGS_INVAL_EXIT_SIGNAL_NEG,
+	},
+	{
+		.name = "exit_signal not fitting into CSIGNAL mask",
+		.flags = 0,
+		.size = 0,
+		.expected = -EINVAL,
+		.test_mode = CLONE3_ARGS_INVAL_EXIT_SIGNAL_CSIG,
+	},
+	{
+		.name = "NSIG < exit_signal < CSIG",
+		.flags = 0,
+		.size = 0,
+		.expected = -EINVAL,
+		.test_mode = CLONE3_ARGS_INVAL_EXIT_SIGNAL_NSIG,
+	},
+	{
+		.name = "Arguments sizeof(struct clone_args) + 8",
+		.flags = 0,
+		.size = sizeof(struct __clone_args) + 8,
+		.expected = 0,
+		.test_mode = CLONE3_ARGS_ALL_0,
+	},
+	{
+		.name = "Arguments sizeof(struct clone_args) + 16",
+		.flags = 0,
+		.size = sizeof(struct __clone_args) + 16,
+		.expected = -E2BIG,
+		.test_mode = CLONE3_ARGS_ALL_0,
+	},
+	{
+		.name = "Arguments sizeof(struct clone_arg) * 2",
+		.flags = 0,
+		.size = sizeof(struct __clone_args) + 16,
+		.expected = -E2BIG,
+		.test_mode = CLONE3_ARGS_ALL_0,
+	},
+	{
+		.name = "Arguments > page size",
+		.flags = 0,
+		.size_function = page_size_plus_8,
+		.expected = -E2BIG,
+		.test_mode = CLONE3_ARGS_NO_TEST,
+	},
+	{
+		.name = "CLONE_ARGS_SIZE_VER0 in a new PID NS",
+		.flags = CLONE_NEWPID,
+		.size = CLONE_ARGS_SIZE_VER0,
+		.expected = 0,
+		.test_mode = CLONE3_ARGS_NO_TEST,
+		.filter = not_root,
+	},
+	{
+		.name = "CLONE_ARGS_SIZE_VER0 - 8 in a new PID NS",
+		.flags = CLONE_NEWPID,
+		.size = CLONE_ARGS_SIZE_VER0 - 8,
+		.expected = -EINVAL,
+		.test_mode = CLONE3_ARGS_NO_TEST,
+	},
+	{
+		.name = "sizeof(struct clone_args) + 8 in a new PID NS",
+		.flags = CLONE_NEWPID,
+		.size = sizeof(struct __clone_args) + 8,
+		.expected = 0,
+		.test_mode = CLONE3_ARGS_NO_TEST,
+		.filter = not_root,
+	},
+	{
+		.name = "Arguments > page size in a new PID NS",
+		.flags = CLONE_NEWPID,
+		.size_function = page_size_plus_8,
+		.expected = -E2BIG,
+		.test_mode = CLONE3_ARGS_NO_TEST,
+	},
+	{
+		.name = "New time NS",
+		.flags = CLONE_NEWTIME,
+		.size = 0,
+		.expected = 0,
+		.test_mode = CLONE3_ARGS_NO_TEST,
+		.filter = no_timenamespace,
+	},
+	{
+		.name = "exit signal (SIGCHLD) in flags",
+		.flags = SIGCHLD,
+		.size = 0,
+		.expected = -EINVAL,
+		.test_mode = CLONE3_ARGS_NO_TEST,
+	},
+};
 
 int main(int argc, char *argv[])
 {
-	uid_t uid = getuid();
+	size_t size;
+	int i;
 
 	ksft_print_header();
-	ksft_set_plan(19);
+	ksft_set_plan(ARRAY_SIZE(tests));
 	test_clone3_supported();
 
-	/* Just a simple clone3() should return 0.*/
-	test_clone3(0, 0, 0, CLONE3_ARGS_NO_TEST);
+	for (i = 0; i < ARRAY_SIZE(tests); i++) {
+		if (tests[i].filter && tests[i].filter()) {
+			ksft_test_result_skip("%s\n", tests[i].name);
+			continue;
+		}
 
-	/* Do a clone3() in a new PID NS.*/
-	if (uid == 0)
-		test_clone3(CLONE_NEWPID, 0, 0, CLONE3_ARGS_NO_TEST);
-	else
-		ksft_test_result_skip("Skipping clone3() with CLONE_NEWPID\n");
+		if (tests[i].size_function)
+			size = tests[i].size_function();
+		else
+			size = tests[i].size;
 
-	/* Do a clone3() with CLONE_ARGS_SIZE_VER0. */
-	test_clone3(0, CLONE_ARGS_SIZE_VER0, 0, CLONE3_ARGS_NO_TEST);
+		ksft_print_msg("Running test '%s'\n", tests[i].name);
 
-	/* Do a clone3() with CLONE_ARGS_SIZE_VER0 - 8 */
-	test_clone3(0, CLONE_ARGS_SIZE_VER0 - 8, -EINVAL, CLONE3_ARGS_NO_TEST);
-
-	/* Do a clone3() with sizeof(struct clone_args) + 8 */
-	test_clone3(0, sizeof(struct __clone_args) + 8, 0, CLONE3_ARGS_NO_TEST);
-
-	/* Do a clone3() with exit_signal having highest 32 bits non-zero */
-	test_clone3(0, 0, -EINVAL, CLONE3_ARGS_INVAL_EXIT_SIGNAL_BIG);
-
-	/* Do a clone3() with negative 32-bit exit_signal */
-	test_clone3(0, 0, -EINVAL, CLONE3_ARGS_INVAL_EXIT_SIGNAL_NEG);
-
-	/* Do a clone3() with exit_signal not fitting into CSIGNAL mask */
-	test_clone3(0, 0, -EINVAL, CLONE3_ARGS_INVAL_EXIT_SIGNAL_CSIG);
-
-	/* Do a clone3() with NSIG < exit_signal < CSIG */
-	test_clone3(0, 0, -EINVAL, CLONE3_ARGS_INVAL_EXIT_SIGNAL_NSIG);
-
-	test_clone3(0, sizeof(struct __clone_args) + 8, 0, CLONE3_ARGS_ALL_0);
-
-	test_clone3(0, sizeof(struct __clone_args) + 16, -E2BIG,
-			CLONE3_ARGS_ALL_0);
-
-	test_clone3(0, sizeof(struct __clone_args) * 2, -E2BIG,
-			CLONE3_ARGS_ALL_0);
-
-	/* Do a clone3() with > page size */
-	test_clone3(0, getpagesize() + 8, -E2BIG, CLONE3_ARGS_NO_TEST);
-
-	/* Do a clone3() with CLONE_ARGS_SIZE_VER0 in a new PID NS. */
-	if (uid == 0)
-		test_clone3(CLONE_NEWPID, CLONE_ARGS_SIZE_VER0, 0,
-				CLONE3_ARGS_NO_TEST);
-	else
-		ksft_test_result_skip("Skipping clone3() with CLONE_NEWPID\n");
-
-	/* Do a clone3() with CLONE_ARGS_SIZE_VER0 - 8 in a new PID NS */
-	test_clone3(CLONE_NEWPID, CLONE_ARGS_SIZE_VER0 - 8, -EINVAL,
-			CLONE3_ARGS_NO_TEST);
-
-	/* Do a clone3() with sizeof(struct clone_args) + 8 in a new PID NS */
-	if (uid == 0)
-		test_clone3(CLONE_NEWPID, sizeof(struct __clone_args) + 8, 0,
-				CLONE3_ARGS_NO_TEST);
-	else
-		ksft_test_result_skip("Skipping clone3() with CLONE_NEWPID\n");
-
-	/* Do a clone3() with > page size in a new PID NS */
-	test_clone3(CLONE_NEWPID, getpagesize() + 8, -E2BIG,
-			CLONE3_ARGS_NO_TEST);
-
-	/* Do a clone3() in a new time namespace */
-	test_clone3(CLONE_NEWTIME, 0, 0, CLONE3_ARGS_NO_TEST);
-
-	/* Do a clone3() with exit signal (SIGCHLD) in flags */
-	test_clone3(SIGCHLD, 0, -EINVAL, CLONE3_ARGS_NO_TEST);
+		ksft_test_result(test_clone3(tests[i].flags, size,
+					     tests[i].expected,
+					     tests[i].test_mode),
+				 "%s\n", tests[i].name);
+	}
 
 	ksft_finished();
 }

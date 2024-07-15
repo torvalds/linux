@@ -639,6 +639,7 @@ TRACE_EVENT(rpc_stats_latency,
 		__field(unsigned long, backlog)
 		__field(unsigned long, rtt)
 		__field(unsigned long, execute)
+		__field(u32, xprt_id)
 	),
 
 	TP_fast_assign(
@@ -651,13 +652,16 @@ TRACE_EVENT(rpc_stats_latency,
 		__entry->backlog = ktime_to_us(backlog);
 		__entry->rtt = ktime_to_us(rtt);
 		__entry->execute = ktime_to_us(execute);
+		__entry->xprt_id = task->tk_xprt->id;
 	),
 
 	TP_printk(SUNRPC_TRACE_TASK_SPECIFIER
-		  " xid=0x%08x %sv%d %s backlog=%lu rtt=%lu execute=%lu",
+		  " xid=0x%08x %sv%d %s backlog=%lu rtt=%lu execute=%lu"
+		  " xprt_id=%d",
 		__entry->task_id, __entry->client_id, __entry->xid,
 		__get_str(progname), __entry->version, __get_str(procname),
-		__entry->backlog, __entry->rtt, __entry->execute)
+		__entry->backlog, __entry->rtt, __entry->execute,
+		__entry->xprt_id)
 );
 
 TRACE_EVENT(rpc_xdr_overflow,
@@ -1327,18 +1331,18 @@ TRACE_EVENT(xs_stream_read_data,
 		__field(ssize_t, err)
 		__field(size_t, total)
 		__string(addr, xprt ? xprt->address_strings[RPC_DISPLAY_ADDR] :
-				"(null)")
+				EVENT_NULL_STR)
 		__string(port, xprt ? xprt->address_strings[RPC_DISPLAY_PORT] :
-				"(null)")
+				EVENT_NULL_STR)
 	),
 
 	TP_fast_assign(
 		__entry->err = err;
 		__entry->total = total;
 		__assign_str(addr, xprt ?
-			xprt->address_strings[RPC_DISPLAY_ADDR] : "(null)");
+			xprt->address_strings[RPC_DISPLAY_ADDR] : EVENT_NULL_STR);
 		__assign_str(port, xprt ?
-			xprt->address_strings[RPC_DISPLAY_PORT] : "(null)");
+			xprt->address_strings[RPC_DISPLAY_PORT] : EVENT_NULL_STR);
 	),
 
 	TP_printk("peer=[%s]:%s err=%zd total=%zu", __get_str(addr),
@@ -1675,9 +1679,7 @@ DEFINE_SVCXDRBUF_EVENT(sendto);
 	svc_rqst_flag(LOCAL)						\
 	svc_rqst_flag(USEDEFERRAL)					\
 	svc_rqst_flag(DROPME)						\
-	svc_rqst_flag(SPLICE_OK)					\
 	svc_rqst_flag(VICTIM)						\
-	svc_rqst_flag(BUSY)						\
 	svc_rqst_flag_end(DATA)
 
 #undef svc_rqst_flag
@@ -1706,7 +1708,7 @@ TRACE_DEFINE_ENUM(SVC_DENIED);
 TRACE_DEFINE_ENUM(SVC_PENDING);
 TRACE_DEFINE_ENUM(SVC_COMPLETE);
 
-#define svc_show_status(status)				\
+#define show_svc_auth_status(status)			\
 	__print_symbolic(status,			\
 		{ SVC_GARBAGE,	"SVC_GARBAGE" },	\
 		{ SVC_SYSERR,	"SVC_SYSERR" },		\
@@ -1743,7 +1745,10 @@ TRACE_DEFINE_ENUM(SVC_COMPLETE);
 		__entry->xid, __get_sockaddr(server), __get_sockaddr(client)
 
 TRACE_EVENT_CONDITION(svc_authenticate,
-	TP_PROTO(const struct svc_rqst *rqst, int auth_res),
+	TP_PROTO(
+		const struct svc_rqst *rqst,
+		enum svc_auth_status auth_res
+	),
 
 	TP_ARGS(rqst, auth_res),
 
@@ -1766,7 +1771,7 @@ TRACE_EVENT_CONDITION(svc_authenticate,
 	TP_printk(SVC_RQST_ENDPOINT_FORMAT
 		" auth_res=%s auth_stat=%s",
 		SVC_RQST_ENDPOINT_VARARGS,
-		svc_show_status(__entry->svc_status),
+		show_svc_auth_status(__entry->svc_status),
 		rpc_show_auth_stat(__entry->auth_stat))
 );
 
@@ -1782,7 +1787,7 @@ TRACE_EVENT(svc_process,
 		__string(service, name)
 		__string(procedure, svc_proc_name(rqst))
 		__string(addr, rqst->rq_xprt ?
-			 rqst->rq_xprt->xpt_remotebuf : "(null)")
+			 rqst->rq_xprt->xpt_remotebuf : EVENT_NULL_STR)
 	),
 
 	TP_fast_assign(
@@ -1792,7 +1797,7 @@ TRACE_EVENT(svc_process,
 		__assign_str(service, name);
 		__assign_str(procedure, svc_proc_name(rqst));
 		__assign_str(addr, rqst->rq_xprt ?
-			     rqst->rq_xprt->xpt_remotebuf : "(null)");
+			     rqst->rq_xprt->xpt_remotebuf : EVENT_NULL_STR);
 	),
 
 	TP_printk("addr=%s xid=0x%08x service=%s vers=%u proc=%s",
@@ -1918,25 +1923,42 @@ TRACE_EVENT(svc_stats_latency,
 		__get_str(procedure), __entry->execute)
 );
 
+/*
+ * from include/linux/sunrpc/svc_xprt.h
+ */
+#define SVC_XPRT_FLAG_LIST						\
+	svc_xprt_flag(BUSY)						\
+	svc_xprt_flag(CONN)						\
+	svc_xprt_flag(CLOSE)						\
+	svc_xprt_flag(DATA)						\
+	svc_xprt_flag(TEMP)						\
+	svc_xprt_flag(DEAD)						\
+	svc_xprt_flag(CHNGBUF)						\
+	svc_xprt_flag(DEFERRED)						\
+	svc_xprt_flag(OLD)						\
+	svc_xprt_flag(LISTENER)						\
+	svc_xprt_flag(CACHE_AUTH)					\
+	svc_xprt_flag(LOCAL)						\
+	svc_xprt_flag(KILL_TEMP)					\
+	svc_xprt_flag(CONG_CTRL)					\
+	svc_xprt_flag(HANDSHAKE)					\
+	svc_xprt_flag(TLS_SESSION)					\
+	svc_xprt_flag_end(PEER_AUTH)
+
+#undef svc_xprt_flag
+#undef svc_xprt_flag_end
+#define svc_xprt_flag(x)	TRACE_DEFINE_ENUM(XPT_##x);
+#define svc_xprt_flag_end(x)	TRACE_DEFINE_ENUM(XPT_##x);
+
+SVC_XPRT_FLAG_LIST
+
+#undef svc_xprt_flag
+#undef svc_xprt_flag_end
+#define svc_xprt_flag(x)	{ BIT(XPT_##x), #x },
+#define svc_xprt_flag_end(x)	{ BIT(XPT_##x), #x }
+
 #define show_svc_xprt_flags(flags)					\
-	__print_flags(flags, "|",					\
-		{ BIT(XPT_BUSY),		"BUSY" },		\
-		{ BIT(XPT_CONN),		"CONN" },		\
-		{ BIT(XPT_CLOSE),		"CLOSE" },		\
-		{ BIT(XPT_DATA),		"DATA" },		\
-		{ BIT(XPT_TEMP),		"TEMP" },		\
-		{ BIT(XPT_DEAD),		"DEAD" },		\
-		{ BIT(XPT_CHNGBUF),		"CHNGBUF" },		\
-		{ BIT(XPT_DEFERRED),		"DEFERRED" },		\
-		{ BIT(XPT_OLD),			"OLD" },		\
-		{ BIT(XPT_LISTENER),		"LISTENER" },		\
-		{ BIT(XPT_CACHE_AUTH),		"CACHE_AUTH" },		\
-		{ BIT(XPT_LOCAL),		"LOCAL" },		\
-		{ BIT(XPT_KILL_TEMP),		"KILL_TEMP" },		\
-		{ BIT(XPT_CONG_CTRL),		"CONG_CTRL" },		\
-		{ BIT(XPT_HANDSHAKE),		"HANDSHAKE" },		\
-		{ BIT(XPT_TLS_SESSION),		"TLS_SESSION" },	\
-		{ BIT(XPT_PEER_AUTH),		"PEER_AUTH" })
+	__print_flags(flags, "|", SVC_XPRT_FLAG_LIST)
 
 TRACE_EVENT(svc_xprt_create_err,
 	TP_PROTO(
@@ -1994,25 +2016,25 @@ TRACE_EVENT(svc_xprt_create_err,
 TRACE_EVENT(svc_xprt_enqueue,
 	TP_PROTO(
 		const struct svc_xprt *xprt,
-		const struct svc_rqst *rqst
+		unsigned long flags
 	),
 
-	TP_ARGS(xprt, rqst),
+	TP_ARGS(xprt, flags),
 
 	TP_STRUCT__entry(
 		SVC_XPRT_ENDPOINT_FIELDS(xprt)
-
-		__field(int, pid)
 	),
 
 	TP_fast_assign(
-		SVC_XPRT_ENDPOINT_ASSIGNMENTS(xprt);
-
-		__entry->pid = rqst? rqst->rq_task->pid : 0;
+		__assign_sockaddr(server, &xprt->xpt_local,
+				  xprt->xpt_locallen);
+		__assign_sockaddr(client, &xprt->xpt_remote,
+				  xprt->xpt_remotelen);
+		__entry->flags = flags;
+		__entry->netns_ino = xprt->xpt_net->ns.inum;
 	),
 
-	TP_printk(SVC_XPRT_ENDPOINT_FORMAT " pid=%d",
-		SVC_XPRT_ENDPOINT_VARARGS, __entry->pid)
+	TP_printk(SVC_XPRT_ENDPOINT_FORMAT, SVC_XPRT_ENDPOINT_VARARGS)
 );
 
 TRACE_EVENT(svc_xprt_dequeue,

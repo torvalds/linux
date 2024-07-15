@@ -285,6 +285,83 @@ for GPU1 and GPU2 from different vendors, and a third handler for
 mmapped regular files. Threads cause additional pain with signal
 handling as well.
 
+Device reset
+============
+
+The GPU stack is really complex and is prone to errors, from hardware bugs,
+faulty applications and everything in between the many layers. Some errors
+require resetting the device in order to make the device usable again. This
+section describes the expectations for DRM and usermode drivers when a
+device resets and how to propagate the reset status.
+
+Device resets can not be disabled without tainting the kernel, which can lead to
+hanging the entire kernel through shrinkers/mmu_notifiers. Userspace role in
+device resets is to propagate the message to the application and apply any
+special policy for blocking guilty applications, if any. Corollary is that
+debugging a hung GPU context require hardware support to be able to preempt such
+a GPU context while it's stopped.
+
+Kernel Mode Driver
+------------------
+
+The KMD is responsible for checking if the device needs a reset, and to perform
+it as needed. Usually a hang is detected when a job gets stuck executing. KMD
+should keep track of resets, because userspace can query any time about the
+reset status for a specific context. This is needed to propagate to the rest of
+the stack that a reset has happened. Currently, this is implemented by each
+driver separately, with no common DRM interface. Ideally this should be properly
+integrated at DRM scheduler to provide a common ground for all drivers. After a
+reset, KMD should reject new command submissions for affected contexts.
+
+User Mode Driver
+----------------
+
+After command submission, UMD should check if the submission was accepted or
+rejected. After a reset, KMD should reject submissions, and UMD can issue an
+ioctl to the KMD to check the reset status, and this can be checked more often
+if the UMD requires it. After detecting a reset, UMD will then proceed to report
+it to the application using the appropriate API error code, as explained in the
+section below about robustness.
+
+Robustness
+----------
+
+The only way to try to keep a graphical API context working after a reset is if
+it complies with the robustness aspects of the graphical API that it is using.
+
+Graphical APIs provide ways to applications to deal with device resets. However,
+there is no guarantee that the app will use such features correctly, and a
+userspace that doesn't support robust interfaces (like a non-robust
+OpenGL context or API without any robustness support like libva) leave the
+robustness handling entirely to the userspace driver. There is no strong
+community consensus on what the userspace driver should do in that case,
+since all reasonable approaches have some clear downsides.
+
+OpenGL
+~~~~~~
+
+Apps using OpenGL should use the available robust interfaces, like the
+extension ``GL_ARB_robustness`` (or ``GL_EXT_robustness`` for OpenGL ES). This
+interface tells if a reset has happened, and if so, all the context state is
+considered lost and the app proceeds by creating new ones. There's no consensus
+on what to do to if robustness is not in use.
+
+Vulkan
+~~~~~~
+
+Apps using Vulkan should check for ``VK_ERROR_DEVICE_LOST`` for submissions.
+This error code means, among other things, that a device reset has happened and
+it needs to recreate the contexts to keep going.
+
+Reporting causes of resets
+--------------------------
+
+Apart from propagating the reset through the stack so apps can recover, it's
+really useful for driver developers to learn more about what caused the reset in
+the first place. DRM devices should make use of devcoredump to store relevant
+information about the reset, so this information can be added to user bug
+reports.
+
 .. _drm_driver_ioctl:
 
 IOCTL Support on Device Nodes
@@ -450,12 +527,12 @@ VBlank event handling
 
 The DRM core exposes two vertical blank related ioctls:
 
-DRM_IOCTL_WAIT_VBLANK
+:c:macro:`DRM_IOCTL_WAIT_VBLANK`
     This takes a struct drm_wait_vblank structure as its argument, and
     it is used to block or request a signal when a specified vblank
     event occurs.
 
-DRM_IOCTL_MODESET_CTL
+:c:macro:`DRM_IOCTL_MODESET_CTL`
     This was only used for user-mode-settind drivers around modesetting
     changes to allow the kernel to update the vblank interrupt after
     mode setting, since on many devices the vertical blank counter is
@@ -478,11 +555,18 @@ The index is used in cases where a densely packed identifier for a CRTC is
 needed, for instance a bitmask of CRTC's. The member possible_crtcs of struct
 drm_mode_get_plane is an example.
 
-DRM_IOCTL_MODE_GETRESOURCES populates a structure with an array of CRTC ID's,
-and the CRTC index is its position in this array.
+:c:macro:`DRM_IOCTL_MODE_GETRESOURCES` populates a structure with an array of
+CRTC ID's, and the CRTC index is its position in this array.
 
 .. kernel-doc:: include/uapi/drm/drm.h
    :internal:
 
 .. kernel-doc:: include/uapi/drm/drm_mode.h
    :internal:
+
+
+dma-buf interoperability
+========================
+
+Please see Documentation/userspace-api/dma-buf-alloc-exchange.rst for
+information on how dma-buf is integrated and exposed within DRM.

@@ -66,6 +66,8 @@ struct sof_ipc4_fw_library {
  * @nhlt: NHLT table either from the BIOS or the topology manifest
  * @mtrace_type: mtrace type supported on the booted platform
  * @mtrace_log_bytes: log bytes as reported by the firmware via fw_config reply
+ * @num_playback_streams: max number of playback DMAs, needed for CHAIN_DMA offset
+ * @num_capture_streams: max number of capture DMAs
  * @max_num_pipelines: max number of pipelines
  * @max_libs_count: Maximum number of libraries support by the FW including the
  *		    base firmware
@@ -79,26 +81,15 @@ struct sof_ipc4_fw_data {
 	void *nhlt;
 	enum sof_ipc4_mtrace_type mtrace_type;
 	u32 mtrace_log_bytes;
+	int num_playback_streams;
+	int num_capture_streams;
 	int max_num_pipelines;
 	u32 max_libs_count;
+	bool fw_context_save;
 
 	int (*load_library)(struct snd_sof_dev *sdev,
 			    struct sof_ipc4_fw_library *fw_lib, bool reload);
 	struct mutex pipeline_state_mutex; /* protect pipeline triggers, ref counts and states */
-};
-
-/**
- * struct sof_ipc4_timestamp_info - IPC4 timestamp info
- * @host_copier: the host copier of the pcm stream
- * @dai_copier: the dai copier of the pcm stream
- * @stream_start_offset: reported by fw in memory window
- * @llp_offset: llp offset in memory window
- */
-struct sof_ipc4_timestamp_info {
-	struct sof_ipc4_copier *host_copier;
-	struct sof_ipc4_copier *dai_copier;
-	u64 stream_start_offset;
-	u32 llp_offset;
 };
 
 extern const struct sof_ipc_fw_loader_ops ipc4_loader_ops;
@@ -115,9 +106,15 @@ int sof_ipc4_reload_fw_libraries(struct snd_sof_dev *sdev);
 struct sof_ipc4_fw_module *sof_ipc4_find_module_by_uuid(struct snd_sof_dev *sdev,
 							const guid_t *uuid);
 
+struct snd_sof_widget *sof_ipc4_find_swidget_by_ids(struct snd_sof_dev *sdev,
+						    u32 module_id, int instance_id);
+
 struct sof_ipc4_base_module_cfg;
 void sof_ipc4_update_cpc_from_manifest(struct snd_sof_dev *sdev,
 				       struct sof_ipc4_fw_module *fw_module,
 				       struct sof_ipc4_base_module_cfg *basecfg);
+
+size_t sof_ipc4_find_debug_slot_offset_by_type(struct snd_sof_dev *sdev,
+					       u32 slot_type);
 
 #endif

@@ -351,9 +351,9 @@ static int admv1013_update_mixer_vgate(struct admv1013_state *st)
 	if (vcm < 0)
 		return vcm;
 
-	if (vcm < 1800000)
+	if (vcm <= 1800000)
 		mixer_vgate = (2389 * vcm / 1000000 + 8100) / 100;
-	else if (vcm > 1800000 && vcm < 2600000)
+	else if (vcm > 1800000 && vcm <= 2600000)
 		mixer_vgate = (2375 * vcm / 1000000 + 125) / 100;
 	else
 		return -EINVAL;
@@ -380,6 +380,11 @@ static const struct iio_info admv1013_info = {
 	.read_raw = admv1013_read_raw,
 	.write_raw = admv1013_write_raw,
 	.debugfs_reg_access = &admv1013_reg_access,
+};
+
+static const char * const admv1013_vcc_regs[] = {
+	 "vcc-drv", "vcc2-drv", "vcc-vva", "vcc-amp1", "vcc-amp2",
+	 "vcc-env", "vcc-bg", "vcc-bg2", "vcc-mixer", "vcc-quad"
 };
 
 static int admv1013_freq_change(struct notifier_block *nb, unsigned long action, void *data)
@@ -556,6 +561,15 @@ static int admv1013_properties_parse(struct admv1013_state *st)
 	if (IS_ERR(st->reg))
 		return dev_err_probe(&spi->dev, PTR_ERR(st->reg),
 				     "failed to get the common-mode voltage\n");
+
+	ret = devm_regulator_bulk_get_enable(&st->spi->dev,
+					     ARRAY_SIZE(admv1013_vcc_regs),
+					     admv1013_vcc_regs);
+	if (ret) {
+		dev_err_probe(&spi->dev, ret,
+			      "Failed to request VCC regulators\n");
+		return ret;
+	}
 
 	return 0;
 }

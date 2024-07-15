@@ -3,6 +3,7 @@
 #include <linux/context_tracking.h>
 #include <linux/err.h>
 #include <linux/compat.h>
+#include <linux/rseq.h>
 #include <linux/sched/debug.h> /* for show_regs */
 
 #include <asm/kup.h>

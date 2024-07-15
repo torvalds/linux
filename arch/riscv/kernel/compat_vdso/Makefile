@@ -74,15 +74,5 @@ quiet_cmd_compat_vdsold = VDSOLD  $@
                    rm $@.tmp
 
 # actual build commands
-quiet_cmd_compat_vdsoas = VDSOAS $@
+quiet_cmd_compat_vdsoas = VDSOAS  $@
       cmd_compat_vdsoas = $(COMPAT_CC) $(a_flags) $(COMPAT_CC_FLAGS) -c -o $@ $<
-
-# install commands for the unstripped file
-quiet_cmd_compat_vdso_install = INSTALL $@
-      cmd_compat_vdso_install = cp $(obj)/$@.dbg $(MODLIB)/compat_vdso/$@
-
-compat_vdso.so: $(obj)/compat_vdso.so.dbg
-	@mkdir -p $(MODLIB)/compat_vdso
-	$(call cmd,compat_vdso_install)
-
-compat_vdso_install: compat_vdso.so

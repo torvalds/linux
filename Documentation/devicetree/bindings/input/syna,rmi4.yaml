@@ -1,0 +1,273 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/input/syna,rmi4.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Synaptics RMI4 compliant devices
+
+maintainers:
+  - Jason A. Donenfeld <Jason@zx2c4.com>
+  - Matthias Schiffer <matthias.schiffer@ew.tq-group.com
+  - Vincent Huang <vincent.huang@tw.synaptics.com>
+
+description: |
+  The Synaptics RMI4 (Register Mapped Interface 4) core is able to support RMI4
+  devices using different transports (I2C, SPI) and different functions (e.g.
+  Function 1, 2D sensors using Function 11 or 12).
+
+properties:
+  compatible:
+    enum:
+      - syna,rmi4-i2c
+      - syna,rmi4-spi
+
+  reg:
+    maxItems: 1
+
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 0
+
+  interrupts:
+    maxItems: 1
+
+  reset-gpios:
+    maxItems: 1
+    description: Active low signal
+
+  spi-cpha: true
+  spi-cpol: true
+
+  syna,reset-delay-ms:
+    description:
+      Delay to wait after resetting the device.
+
+  syna,startup-delay-ms:
+    description:
+      Delay to wait after powering on the device.
+
+  vdd-supply: true
+  vio-supply: true
+
+  rmi4-f01@1:
+    type: object
+    additionalProperties: false
+    description:
+      Function 1
+
+    properties:
+      reg:
+        maxItems: 1
+
+      syna,nosleep-mode:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        enum: [0, 1, 2]
+        description:
+          If set the device will run at full power without sleeping.  nosleep
+          has 3 modes, 0 will not change the default setting, 1 will disable
+          nosleep (allow sleeping), and 2 will enable nosleep (disabling
+          sleep).
+
+      syna,wakeup-threshold:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description:
+          Defines the amplitude of the disturbance to the background
+          capacitance that will cause the device to wake from dozing.
+
+      syna,doze-holdoff-ms:
+        description:
+          The delay to wait after the last finger lift and the first doze
+          cycle.
+
+      syna,doze-interval-ms:
+        description:
+          The time period that the device sleeps between finger activity.
+
+    required:
+      - reg
+
+patternProperties:
+  "^rmi4-f1[12]@1[12]$":
+    type: object
+    unevaluatedProperties: false
+    $ref: /schemas/input/touchscreen/touchscreen.yaml#
+    description:
+      RMI4 Function 11 and Function 12 are for 2D touch position sensing.
+
+    properties:
+      reg:
+        maxItems: 1
+
+      syna,clip-x-low:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description:
+          Minimum value for X.
+
+      syna,clip-y-low:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description:
+          Minimum value for Y.
+
+      syna,clip-x-high:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description:
+          Maximum value for X.
+
+      syna,clip-y-high:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description:
+          Maximum value for Y.
+
+      syna,offset-x:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description:
+          Add an offset to X.
+
+      syna,offset-y:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description:
+          Add an offset to Y.
+
+      syna,delta-x-threshold:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description:
+          Minimum distance on the X axis required to generate an interrupt in
+          reduced reporting mode.
+
+      syna,delta-y-threshold:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description:
+          Minimum distance on the Y axis required to generate an interrupt in
+          reduced reporting mode.
+
+      syna,sensor-type:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        enum: [1, 2]
+        description: |
+          Sensor type: 1 for touchscreen 2 for touchpad.
+
+      syna,disable-report-mask:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description:
+          Mask for disabling posiiton reporting. Used to disable reporing
+          absolute position data.
+
+      syna,rezero-wait-ms:
+        description:
+          Time to wait after issuing a rezero command.
+
+    required:
+      - reg
+
+  "^rmi4-f[0-9a-f]+@[0-9a-f]+$":
+    type: object
+    additionalProperties: true
+
+    description:
+      Other functions, not documented yet.
+
+    properties:
+      reg:
+        maxItems: 1
+
+    required:
+      - reg
+
+required:
+  - compatible
+  - reg
+
+unevaluatedProperties: false
+
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: syna,rmi4-i2c
+    then:
+      properties:
+        spi-rx-delay-us: false
+        spi-tx-delay-us: false
+    else:
+      properties:
+        syna,reset-delay-ms: false
+        syna,startup-delay-ms: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        touchscreen@20 {
+            compatible = "syna,rmi4-i2c";
+            reg = <0x20>;
+            interrupt-parent = <&gpx1>;
+            interrupts = <6 IRQ_TYPE_EDGE_FALLING>;
+
+            syna,startup-delay-ms = <100>;
+            vdd-supply = <&tsp_vdd>;
+            vio-supply = <&ldo32_reg>;
+
+            pinctrl-0 = <&touch_irq>;
+            pinctrl-names = "default";
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            rmi4-f01@1 {
+                reg = <0x1>;
+                syna,nosleep-mode = <1>;
+            };
+
+            rmi4-f12@12 {
+                reg = <0x12>;
+                syna,sensor-type = <1>;
+            };
+
+            rmi4-f1a@1a {
+                reg = <0x1a>;
+            };
+        };
+    };
+
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        touchscreen@0 {
+            compatible = "syna,rmi4-spi";
+            reg = <0x0>;
+            interrupt-parent = <&gpx1>;
+            interrupts = <6 IRQ_TYPE_EDGE_FALLING>;
+
+            spi-max-frequency = <4000000>;
+            spi-rx-delay-us = <30>;
+            spi-cpha;
+            spi-cpol;
+
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            rmi4-f01@1 {
+                reg = <0x1>;
+                syna,nosleep-mode = <1>;
+            };
+
+            rmi4-f11@11 {
+                reg = <0x11>;
+                touchscreen-inverted-y;
+                syna,sensor-type = <2>;
+            };
+        };
+    };

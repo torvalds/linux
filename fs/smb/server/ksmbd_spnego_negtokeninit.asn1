@@ -1,3 +1,11 @@
+-- SPDX-License-Identifier: BSD-3-Clause
+--
+-- Copyright (C) 1998, 2000 IETF Trust and the persons identified as authors
+-- of the code
+--
+-- https://www.rfc-editor.org/rfc/rfc2478#section-3.2.1
+-- https://www.rfc-editor.org/rfc/rfc2743#section-3.1
+
 GSSAPI ::=
 	[APPLICATION 0] IMPLICIT SEQUENCE {
 		thisMech

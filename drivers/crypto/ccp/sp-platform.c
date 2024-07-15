@@ -180,7 +180,7 @@ e_err:
 	return ret;
 }
 
-static int sp_platform_remove(struct platform_device *pdev)
+static void sp_platform_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct sp_device *sp = dev_get_drvdata(dev);
@@ -188,8 +188,6 @@ static int sp_platform_remove(struct platform_device *pdev)
 	sp_destroy(sp);
 
 	dev_notice(dev, "disabled\n");
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -222,7 +220,7 @@ static struct platform_driver sp_platform_driver = {
 #endif
 	},
 	.probe = sp_platform_probe,
-	.remove = sp_platform_remove,
+	.remove_new = sp_platform_remove,
 #ifdef CONFIG_PM
 	.suspend = sp_platform_suspend,
 	.resume = sp_platform_resume,

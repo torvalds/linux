@@ -289,8 +289,8 @@
 	 * For details, see linux-omap mailing list May 2015 thread
 	 *	[PATCH] ARM: dts: am335x-bone* enable pmic-shutdown-controller
 	 * In particular, messages:
-	 *	http://www.spinics.net/lists/linux-omap/msg118585.html
-	 *	http://www.spinics.net/lists/linux-omap/msg118615.html
+	 *	https://www.spinics.net/lists/linux-omap/msg118585.html
+	 *	https://www.spinics.net/lists/linux-omap/msg118615.html
 	 *
 	 * You can override this later with
 	 *	&tps {  /delete-property/ ti,pmic-shutdown-controller;  }

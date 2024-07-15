@@ -8,8 +8,9 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 
 #define REG_MEMC_CNTRLR_CONFIG		0x00
 #define  CNTRLR_CONFIG_LPDDR4_SHIFT	5
@@ -121,12 +122,9 @@ static struct attribute_group dev_attr_group = {
 	.attrs = dev_attrs,
 };
 
-static const struct of_device_id brcmstb_memc_of_match[];
-
 static int brcmstb_memc_probe(struct platform_device *pdev)
 {
 	const struct brcmstb_memc_data *memc_data;
-	const struct of_device_id *of_id;
 	struct device *dev = &pdev->dev;
 	struct brcmstb_memc *memc;
 	int ret;
@@ -137,8 +135,7 @@ static int brcmstb_memc_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(dev, memc);
 
-	of_id = of_match_device(brcmstb_memc_of_match, dev);
-	memc_data = of_id->data;
+	memc_data = device_get_match_data(dev);
 	memc->srpd_offset = memc_data->srpd_offset;
 
 	memc->ddr_ctrl = devm_platform_ioremap_resource(pdev, 0);
@@ -155,13 +152,11 @@ static int brcmstb_memc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int brcmstb_memc_remove(struct platform_device *pdev)
+static void brcmstb_memc_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 
 	sysfs_remove_group(&dev->kobj, &dev_attr_group);
-
-	return 0;
 }
 
 enum brcmstb_memc_hwtype {
@@ -287,7 +282,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(brcmstb_memc_pm_ops, brcmstb_memc_suspend,
 
 static struct platform_driver brcmstb_memc_driver = {
 	.probe = brcmstb_memc_probe,
-	.remove = brcmstb_memc_remove,
+	.remove_new = brcmstb_memc_remove,
 	.driver = {
 		.name		= "brcmstb_memc",
 		.of_match_table	= brcmstb_memc_of_match,

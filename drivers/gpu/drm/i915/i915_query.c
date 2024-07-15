@@ -502,7 +502,7 @@ static int query_memregion_info(struct drm_i915_private *i915,
 		info.probed_size = mr->total;
 
 		if (mr->type == INTEL_MEMORY_LOCAL)
-			info.probed_cpu_visible_size = mr->io_size;
+			info.probed_cpu_visible_size = resource_size(&mr->io);
 		else
 			info.probed_cpu_visible_size = mr->total;
 
@@ -551,6 +551,38 @@ static int query_hwconfig_blob(struct drm_i915_private *i915,
 	return hwconfig->size;
 }
 
+static int
+query_guc_submission_version(struct drm_i915_private *i915,
+			     struct drm_i915_query_item *query)
+{
+	struct drm_i915_query_guc_submission_version __user *query_ptr =
+					    u64_to_user_ptr(query->data_ptr);
+	struct drm_i915_query_guc_submission_version ver;
+	struct intel_guc *guc = &to_gt(i915)->uc.guc;
+	const size_t size = sizeof(ver);
+	int ret;
+
+	if (!intel_uc_uses_guc_submission(&to_gt(i915)->uc))
+		return -ENODEV;
+
+	ret = copy_query_item(&ver, size, size, query);
+	if (ret != 0)
+		return ret;
+
+	if (ver.branch || ver.major || ver.minor || ver.patch)
+		return -EINVAL;
+
+	ver.branch = 0;
+	ver.major = guc->submission_version.major;
+	ver.minor = guc->submission_version.minor;
+	ver.patch = guc->submission_version.patch;
+
+	if (copy_to_user(query_ptr, &ver, size))
+		return -EFAULT;
+
+	return 0;
+}
+
 static int (* const i915_query_funcs[])(struct drm_i915_private *dev_priv,
 					struct drm_i915_query_item *query_item) = {
 	query_topology_info,
@@ -559,6 +591,7 @@ static int (* const i915_query_funcs[])(struct drm_i915_private *dev_priv,
 	query_memregion_info,
 	query_hwconfig_blob,
 	query_geometry_subslices,
+	query_guc_submission_version,
 };
 
 int i915_query_ioctl(struct drm_device *dev, void *data, struct drm_file *file)

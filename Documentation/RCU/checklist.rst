@@ -68,7 +68,8 @@ over a rather long period of time, but improvements are always welcome!
 	rcu_read_lock_sched(), or by the appropriate update-side lock.
 	Explicit disabling of preemption (preempt_disable(), for example)
 	can serve as rcu_read_lock_sched(), but is less readable and
-	prevents lockdep from detecting locking issues.
+	prevents lockdep from detecting locking issues.  Acquiring a
+	spinlock also enters an RCU read-side critical section.
 
 	Please note that you *cannot* rely on code known to be built
 	only in non-preemptible kernels.  Such code can and will break,
@@ -241,15 +242,22 @@ over a rather long period of time, but improvements are always welcome!
 	srcu_struct.  The rules for the expedited RCU grace-period-wait
 	primitives are the same as for their non-expedited counterparts.
 
-	If the updater uses call_rcu_tasks() or synchronize_rcu_tasks(),
-	then the readers must refrain from executing voluntary
-	context switches, that is, from blocking.  If the updater uses
-	call_rcu_tasks_trace() or synchronize_rcu_tasks_trace(), then
-	the corresponding readers must use rcu_read_lock_trace() and
-	rcu_read_unlock_trace().  If an updater uses call_rcu_tasks_rude()
-	or synchronize_rcu_tasks_rude(), then the corresponding readers
-	must use anything that disables preemption, for example,
-	preempt_disable() and preempt_enable().
+	Similarly, it is necessary to correctly use the RCU Tasks flavors:
+
+	a.	If the updater uses synchronize_rcu_tasks() or
+		call_rcu_tasks(), then the readers must refrain from
+		executing voluntary context switches, that is, from
+		blocking.
+
+	b.	If the updater uses call_rcu_tasks_trace()
+		or synchronize_rcu_tasks_trace(), then the
+		corresponding readers must use rcu_read_lock_trace()
+		and rcu_read_unlock_trace().
+
+	c.	If an updater uses call_rcu_tasks_rude() or
+		synchronize_rcu_tasks_rude(), then the corresponding
+		readers must use anything that disables preemption,
+		for example, preempt_disable() and preempt_enable().
 
 	Mixing things up will result in confusion and broken kernels, and
 	has even resulted in an exploitable security issue.  Therefore,
@@ -375,16 +383,17 @@ over a rather long period of time, but improvements are always welcome!
 	must use whatever locking or other synchronization is required
 	to safely access and/or modify that data structure.
 
-	Do not assume that RCU callbacks will be executed on the same
-	CPU that executed the corresponding call_rcu() or call_srcu().
-	For example, if a given CPU goes offline while having an RCU
-	callback pending, then that RCU callback will execute on some
-	surviving CPU.	(If this was not the case, a self-spawning RCU
-	callback would prevent the victim CPU from ever going offline.)
-	Furthermore, CPUs designated by rcu_nocbs= might well *always*
-	have their RCU callbacks executed on some other CPUs, in fact,
-	for some  real-time workloads, this is the whole point of using
-	the rcu_nocbs= kernel boot parameter.
+	Do not assume that RCU callbacks will be executed on
+	the same CPU that executed the corresponding call_rcu(),
+	call_srcu(), call_rcu_tasks(), call_rcu_tasks_rude(), or
+	call_rcu_tasks_trace().  For example, if a given CPU goes offline
+	while having an RCU callback pending, then that RCU callback
+	will execute on some surviving CPU.  (If this was not the case,
+	a self-spawning RCU callback would prevent the victim CPU from
+	ever going offline.)  Furthermore, CPUs designated by rcu_nocbs=
+	might well *always* have their RCU callbacks executed on some
+	other CPUs, in fact, for some  real-time workloads, this is the
+	whole point of using the rcu_nocbs= kernel boot parameter.
 
 	In addition, do not assume that callbacks queued in a given order
 	will be invoked in that order, even if they all are queued on the
@@ -437,7 +446,7 @@ over a rather long period of time, but improvements are always welcome!
 	real-time workloads than is synchronize_rcu_expedited().
 
 	It is also permissible to sleep in RCU Tasks Trace read-side
-	critical, which are delimited by rcu_read_lock_trace() and
+	critical section, which are delimited by rcu_read_lock_trace() and
 	rcu_read_unlock_trace().  However, this is a specialized flavor
 	of RCU, and you should not use it without first checking with
 	its current users.  In most cases, you should instead use SRCU.
@@ -482,6 +491,12 @@ over a rather long period of time, but improvements are always welcome!
 		(or friends) before an RCU grace period has elapsed
 		since the last time that you passed that same object to
 		call_rcu() (or friends).
+
+	CONFIG_RCU_STRICT_GRACE_PERIOD:
+		combine with KASAN to check for pointers leaked out
+		of RCU read-side critical sections.  This Kconfig
+		option is tough on both performance and scalability,
+		and so is limited to four-CPU systems.
 
 	__rcu sparse checks:
 		tag the pointer to the RCU-protected data structure

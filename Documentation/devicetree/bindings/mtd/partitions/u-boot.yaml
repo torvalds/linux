@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: U-Boot bootloader partition
 
 description: |
-  U-Boot is a bootlodaer commonly used in embedded devices. It's almost always
+  U-Boot is a bootloader commonly used in embedded devices. It's almost always
   located on some kind of flash device.
 
   Device configuration is stored as a set of environment variables that are

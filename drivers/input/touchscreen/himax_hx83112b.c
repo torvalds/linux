@@ -4,6 +4,9 @@
  *
  * Copyright (C) 2022 Job Noorman <job@noorman.info>
  *
+ * HX83100A support
+ * Copyright (C) 2024 Felix Kaechele <felix@kaechele.ca>
+ *
  * This code is based on "Himax Android Driver Sample Code for QCT platform":
  *
  * Copyright (C) 2017 Himax Corporation.
@@ -20,16 +23,22 @@
 #include <linux/kernel.h>
 #include <linux/regmap.h>
 
-#define HIMAX_ID_83112B			0x83112b
-
 #define HIMAX_MAX_POINTS		10
 
-#define HIMAX_REG_CFG_SET_ADDR		0x00
-#define HIMAX_REG_CFG_INIT_READ		0x0c
-#define HIMAX_REG_CFG_READ_VALUE	0x08
-#define HIMAX_REG_READ_EVENT		0x30
+#define HIMAX_AHB_ADDR_BYTE_0			0x00
+#define HIMAX_AHB_ADDR_RDATA_BYTE_0		0x08
+#define HIMAX_AHB_ADDR_ACCESS_DIRECTION		0x0c
+#define HIMAX_AHB_ADDR_INCR4			0x0d
+#define HIMAX_AHB_ADDR_CONTI			0x13
+#define HIMAX_AHB_ADDR_EVENT_STACK		0x30
 
-#define HIMAX_CFG_PRODUCT_ID		0x900000d0
+#define HIMAX_AHB_CMD_ACCESS_DIRECTION_READ	0x00
+#define HIMAX_AHB_CMD_INCR4			0x10
+#define HIMAX_AHB_CMD_CONTI			0x31
+
+#define HIMAX_REG_ADDR_ICID			0x900000d0
+
+#define HX83100A_REG_FW_EVENT_STACK		0x90060000
 
 #define HIMAX_INVALID_COORD		0xffff
 
@@ -49,7 +58,16 @@ struct himax_event {
 
 static_assert(sizeof(struct himax_event) == 56);
 
+struct himax_ts_data;
+struct himax_chip {
+	u32 id;
+	int (*check_id)(struct himax_ts_data *ts);
+	int (*read_events)(struct himax_ts_data *ts, struct himax_event *event,
+			   size_t length);
+};
+
 struct himax_ts_data {
+	const struct himax_chip *chip;
 	struct gpio_desc *gpiod_rst;
 	struct input_dev *input_dev;
 	struct i2c_client *client;
@@ -63,19 +81,60 @@ static const struct regmap_config himax_regmap_config = {
 	.val_format_endian = REGMAP_ENDIAN_LITTLE,
 };
 
-static int himax_read_config(struct himax_ts_data *ts, u32 address, u32 *dst)
+static int himax_bus_enable_burst(struct himax_ts_data *ts)
 {
 	int error;
 
-	error = regmap_write(ts->regmap, HIMAX_REG_CFG_SET_ADDR, address);
+	error = regmap_write(ts->regmap, HIMAX_AHB_ADDR_CONTI,
+			     HIMAX_AHB_CMD_CONTI);
 	if (error)
 		return error;
 
-	error = regmap_write(ts->regmap, HIMAX_REG_CFG_INIT_READ, 0x0);
+	error = regmap_write(ts->regmap, HIMAX_AHB_ADDR_INCR4,
+			     HIMAX_AHB_CMD_INCR4);
 	if (error)
 		return error;
 
-	error = regmap_read(ts->regmap, HIMAX_REG_CFG_READ_VALUE, dst);
+	return 0;
+}
+
+static int himax_bus_read(struct himax_ts_data *ts, u32 address, void *dst,
+			  size_t length)
+{
+	int error;
+
+	if (length > 4) {
+		error = himax_bus_enable_burst(ts);
+		if (error)
+			return error;
+	}
+
+	error = regmap_write(ts->regmap, HIMAX_AHB_ADDR_BYTE_0, address);
+	if (error)
+		return error;
+
+	error = regmap_write(ts->regmap, HIMAX_AHB_ADDR_ACCESS_DIRECTION,
+			     HIMAX_AHB_CMD_ACCESS_DIRECTION_READ);
+	if (error)
+		return error;
+
+	if (length > 4)
+		error = regmap_noinc_read(ts->regmap, HIMAX_AHB_ADDR_RDATA_BYTE_0,
+					  dst, length);
+	else
+		error = regmap_read(ts->regmap, HIMAX_AHB_ADDR_RDATA_BYTE_0,
+				    dst);
+	if (error)
+		return error;
+
+	return 0;
+}
+
+static int himax_read_mcu(struct himax_ts_data *ts, u32 address, u32 *dst)
+{
+	int error;
+
+	error = himax_bus_read(ts, address, dst, sizeof(dst));
 	if (error)
 		return error;
 
@@ -101,7 +160,7 @@ static int himax_read_product_id(struct himax_ts_data *ts, u32 *product_id)
 {
 	int error;
 
-	error = himax_read_config(ts, HIMAX_CFG_PRODUCT_ID, product_id);
+	error = himax_read_mcu(ts, HIMAX_REG_ADDR_ICID, product_id);
 	if (error)
 		return error;
 
@@ -120,15 +179,12 @@ static int himax_check_product_id(struct himax_ts_data *ts)
 
 	dev_dbg(&ts->client->dev, "Product id: %x\n", product_id);
 
-	switch (product_id) {
-	case HIMAX_ID_83112B:
+	if (product_id == ts->chip->id)
 		return 0;
 
-	default:
-		dev_err(&ts->client->dev,
-			"Unknown product id: %x\n", product_id);
-		return -EINVAL;
-	}
+	dev_err(&ts->client->dev, "Unknown product id: %x\n",
+		product_id);
+	return -EINVAL;
 }
 
 static int himax_input_register(struct himax_ts_data *ts)
@@ -230,13 +286,25 @@ static bool himax_verify_checksum(struct himax_ts_data *ts,
 	return true;
 }
 
+static int himax_read_events(struct himax_ts_data *ts,
+			     struct himax_event *event, size_t length)
+{
+	return regmap_raw_read(ts->regmap, HIMAX_AHB_ADDR_EVENT_STACK, event,
+			       length);
+}
+
+static int hx83100a_read_events(struct himax_ts_data *ts,
+				struct himax_event *event, size_t length)
+{
+	return himax_bus_read(ts, HX83100A_REG_FW_EVENT_STACK, event, length);
+};
+
 static int himax_handle_input(struct himax_ts_data *ts)
 {
 	int error;
 	struct himax_event event;
 
-	error = regmap_raw_read(ts->regmap, HIMAX_REG_READ_EVENT, &event,
-				sizeof(event));
+	error = ts->chip->read_events(ts, &event, sizeof(event));
 	if (error) {
 		dev_err(&ts->client->dev, "Failed to read input event: %d\n",
 			error);
@@ -282,6 +350,7 @@ static int himax_probe(struct i2c_client *client)
 
 	i2c_set_clientdata(client, ts);
 	ts->client = client;
+	ts->chip = i2c_get_match_data(client);
 
 	ts->regmap = devm_regmap_init_i2c(client, &himax_regmap_config);
 	error = PTR_ERR_OR_ZERO(ts->regmap);
@@ -299,9 +368,11 @@ static int himax_probe(struct i2c_client *client)
 
 	himax_reset(ts);
 
-	error = himax_check_product_id(ts);
-	if (error)
-		return error;
+	if (ts->chip->check_id) {
+		error = himax_check_product_id(ts);
+		if (error)
+			return error;
+	}
 
 	error = himax_input_register(ts);
 	if (error)
@@ -334,15 +405,27 @@ static int himax_resume(struct device *dev)
 
 static DEFINE_SIMPLE_DEV_PM_OPS(himax_pm_ops, himax_suspend, himax_resume);
 
+static const struct himax_chip hx83100a_chip = {
+	.read_events = hx83100a_read_events,
+};
+
+static const struct himax_chip hx83112b_chip = {
+	.id = 0x83112b,
+	.check_id = himax_check_product_id,
+	.read_events = himax_read_events,
+};
+
 static const struct i2c_device_id himax_ts_id[] = {
-	{ "hx83112b" },
+	{ "hx83100a", (kernel_ulong_t)&hx83100a_chip },
+	{ "hx83112b", (kernel_ulong_t)&hx83112b_chip },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(i2c, himax_ts_id);
 
 #ifdef CONFIG_OF
 static const struct of_device_id himax_of_match[] = {
-	{ .compatible = "himax,hx83112b" },
+	{ .compatible = "himax,hx83100a", .data = &hx83100a_chip },
+	{ .compatible = "himax,hx83112b", .data = &hx83112b_chip },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, himax_of_match);

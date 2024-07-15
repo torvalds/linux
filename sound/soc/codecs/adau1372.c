@@ -1056,7 +1056,7 @@ const struct regmap_config adau1372_regmap_config = {
 	.reg_defaults = adau1372_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(adau1372_reg_defaults),
 	.volatile_reg = adau1372_volatile_register,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 EXPORT_SYMBOL_GPL(adau1372_regmap_config);
 

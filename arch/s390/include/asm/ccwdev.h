@@ -217,7 +217,8 @@ extern void ccw_device_destroy_console(struct ccw_device *);
 extern int ccw_device_enable_console(struct ccw_device *);
 extern void ccw_device_wait_idle(struct ccw_device *);
 
-extern void *ccw_device_dma_zalloc(struct ccw_device *cdev, size_t size);
+extern void *ccw_device_dma_zalloc(struct ccw_device *cdev, size_t size,
+				   dma32_t *dma_handle);
 extern void ccw_device_dma_free(struct ccw_device *cdev,
 				void *cpu_addr, size_t size);
 

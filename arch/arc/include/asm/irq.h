@@ -10,7 +10,7 @@
  * ARCv2 can support 240 interrupts in the core interrupts controllers and
  * 128 interrupts in IDU. Thus 512 virtual IRQs must be enough for most
  * configurations of boards.
- * This doesnt affect ARCompact, but we change it to same value
+ * This doesn't affect ARCompact, but we change it to same value
  */
 #define NR_IRQS		512
 
@@ -25,5 +25,6 @@
 #include <asm-generic/irq.h>
 
 extern void arc_init_IRQ(void);
+extern void arch_do_IRQ(unsigned int, struct pt_regs *);
 
 #endif

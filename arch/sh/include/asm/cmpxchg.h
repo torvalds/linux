@@ -71,4 +71,13 @@ static inline unsigned long __cmpxchg(volatile void * ptr, unsigned long old,
 				    (unsigned long)_n_, sizeof(*(ptr))); \
   })
 
+#include <asm-generic/cmpxchg-local.h>
+
+#define arch_cmpxchg_local(ptr, o, n) ({				\
+	(__typeof__(*ptr))__generic_cmpxchg_local((ptr),		\
+						  (unsigned long)(o),	\
+						  (unsigned long)(n),	\
+						  sizeof(*(ptr)));	\
+})
+
 #endif /* __ASM_SH_CMPXCHG_H */

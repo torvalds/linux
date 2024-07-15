@@ -32,9 +32,10 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
-#include <linux/of_device.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/pci.h>
+#include <linux/platform_device.h>
 #include <linux/random.h>
 #include <linux/skbuff.h>
 #include <linux/slab.h>
@@ -58,7 +59,7 @@
 
 #define DRV_NAME	"sunhme"
 
-MODULE_AUTHOR("David S. Miller (davem@davemloft.net)");
+MODULE_AUTHOR("David S. Miller <davem@davemloft.net>");
 MODULE_DESCRIPTION("Sun HappyMealEthernet(HME) 10/100baseT ethernet driver");
 MODULE_LICENSE("GPL");
 

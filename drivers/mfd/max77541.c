@@ -162,7 +162,6 @@ static int max77541_pmic_setup(struct device *dev)
 
 static int max77541_probe(struct i2c_client *client)
 {
-	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct device *dev = &client->dev;
 	struct max77541 *max77541;
 
@@ -173,10 +172,7 @@ static int max77541_probe(struct i2c_client *client)
 	i2c_set_clientdata(client, max77541);
 	max77541->i2c = client;
 
-	max77541->id  = (enum max7754x_ids)device_get_match_data(dev);
-	if (!max77541->id)
-		max77541->id  = (enum max7754x_ids)id->driver_data;
-
+	max77541->id = (uintptr_t)i2c_get_match_data(client);
 	if (!max77541->id)
 		return -EINVAL;
 

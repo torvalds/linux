@@ -11,8 +11,4 @@ obj-$(CONFIG_MACH_MMP_DT) += clk-of-pxa168.o clk-of-pxa910.o
 obj-$(CONFIG_COMMON_CLK_MMP2) += clk-of-mmp2.o clk-pll.o pwr-island.o
 obj-$(CONFIG_COMMON_CLK_MMP2_AUDIO) += clk-audio.o
 
-obj-$(CONFIG_CPU_PXA168) += clk-pxa168.o
-obj-$(CONFIG_CPU_PXA910) += clk-pxa910.o
-obj-$(CONFIG_CPU_MMP2) += clk-mmp2.o
-
 obj-y += clk-of-pxa1928.o

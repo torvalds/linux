@@ -16,7 +16,6 @@
 #include <subcmd/exec-cmd.h>
 #include "util/event.h"  /* proc_map_timeout */
 #include "util/hist.h"  /* perf_hist_config */
-#include "util/llvm-utils.h"   /* perf_llvm_config */
 #include "util/stat.h"  /* perf_stat__set_big_num */
 #include "util/evsel.h"  /* evsel__hw_names, evsel__use_bpf_counters */
 #include "util/srcline.h"  /* addr2line_timeout_ms */
@@ -485,9 +484,6 @@ int perf_default_config(const char *var, const char *value,
 
 	if (strstarts(var, "call-graph."))
 		return perf_callchain_config(var, value);
-
-	if (strstarts(var, "llvm."))
-		return perf_llvm_config(var, value);
 
 	if (strstarts(var, "buildid."))
 		return perf_buildid_config(var, value);

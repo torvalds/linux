@@ -103,18 +103,14 @@ static __always_inline int do_inline_hash_lookup(void *inner_map, u32 port)
 	return result ? *result : -ENOENT;
 }
 
-SEC("kprobe/__sys_connect")
-int trace_sys_connect(struct pt_regs *ctx)
+SEC("ksyscall/connect")
+int BPF_KSYSCALL(trace_sys_connect, unsigned int fd, struct sockaddr_in6 *in6, int addrlen)
 {
-	struct sockaddr_in6 *in6;
 	u16 test_case, port, dst6[8];
-	int addrlen, ret, inline_ret, ret_key = 0;
+	int ret, inline_ret, ret_key = 0;
 	u32 port_key;
 	void *outer_map, *inner_map;
 	bool inline_hash = false;
-
-	in6 = (struct sockaddr_in6 *)PT_REGS_PARM2_CORE(ctx);
-	addrlen = (int)PT_REGS_PARM3_CORE(ctx);
 
 	if (addrlen != sizeof(*in6))
 		return 0;

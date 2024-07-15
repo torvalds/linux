@@ -43,6 +43,19 @@
 				BIT_ORED_DEDICATED_IRQ_GPSC | \
 				BIT_SHARED_IRQ_GPSS)
 
+/* External clk generator settings */
+#define PMC_CLK_CTL_OFFSET		0x60
+#define PMC_CLK_CTL_SIZE		4
+#define PMC_CLK_NUM			6
+#define PMC_CLK_CTL_GATED_ON_D3		0x0
+#define PMC_CLK_CTL_FORCE_ON		0x1
+#define PMC_CLK_CTL_FORCE_OFF		0x2
+#define PMC_CLK_CTL_RESERVED		0x3
+#define PMC_MASK_CLK_CTL		GENMASK(1, 0)
+#define PMC_MASK_CLK_FREQ		BIT(2)
+#define PMC_CLK_FREQ_XTAL		(0 << 2)	/* 25 MHz */
+#define PMC_CLK_FREQ_PLL		(1 << 2)	/* 19.2 MHz */
+
 /* The timers accumulate time spent in sleep state */
 #define	PMC_S0IR_TMR		0x80
 #define	PMC_S0I1_TMR		0x84
@@ -104,14 +117,14 @@
 #define	BIT_SCC_SDIO		BIT(9)
 #define	BIT_SCC_SDCARD		BIT(10)
 #define	BIT_SCC_MIPI		BIT(11)
-#define	BIT_HDA			BIT(12)
+#define	BIT_HDA			BIT(12) /* CHT datasheet: reserved */
 #define	BIT_LPE			BIT(13)
 #define	BIT_OTG			BIT(14)
-#define	BIT_USH			BIT(15)
-#define	BIT_GBE			BIT(16)
-#define	BIT_SATA		BIT(17)
-#define	BIT_USB_EHCI		BIT(18)
-#define	BIT_SEC			BIT(19)
+#define	BIT_USH			BIT(15) /* CHT datasheet: reserved */
+#define	BIT_GBE			BIT(16) /* CHT datasheet: reserved */
+#define	BIT_SATA		BIT(17) /* CHT datasheet: reserved */
+#define	BIT_USB_EHCI		BIT(18) /* CHT datasheet: XHCI!    */
+#define	BIT_SEC			BIT(19) /* BYT datasheet: reserved */
 #define	BIT_PCIE_PORT0		BIT(20)
 #define	BIT_PCIE_PORT1		BIT(21)
 #define	BIT_PCIE_PORT2		BIT(22)

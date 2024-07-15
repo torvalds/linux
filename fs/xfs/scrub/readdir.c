@@ -36,16 +36,14 @@ xchk_dir_walk_sf(
 	struct xfs_mount	*mp = dp->i_mount;
 	struct xfs_da_geometry	*geo = mp->m_dir_geo;
 	struct xfs_dir2_sf_entry *sfep;
-	struct xfs_dir2_sf_hdr	*sfp;
+	struct xfs_dir2_sf_hdr	*sfp = dp->i_df.if_data;
 	xfs_ino_t		ino;
 	xfs_dir2_dataptr_t	dapos;
 	unsigned int		i;
 	int			error;
 
 	ASSERT(dp->i_df.if_bytes == dp->i_disk_size);
-	ASSERT(dp->i_df.if_u1.if_data != NULL);
-
-	sfp = (struct xfs_dir2_sf_hdr *)dp->i_df.if_u1.if_data;
+	ASSERT(sfp != NULL);
 
 	/* dot entry */
 	dapos = xfs_dir2_db_off_to_dataptr(geo, geo->datablk,
@@ -283,7 +281,7 @@ xchk_dir_walk(
 		return -EIO;
 
 	ASSERT(S_ISDIR(VFS_I(dp)->i_mode));
-	ASSERT(xfs_isilocked(dp, XFS_ILOCK_SHARED | XFS_ILOCK_EXCL));
+	xfs_assert_ilocked(dp, XFS_ILOCK_SHARED | XFS_ILOCK_EXCL);
 
 	if (dp->i_df.if_format == XFS_DINODE_FMT_LOCAL)
 		return xchk_dir_walk_sf(sc, dp, dirent_fn, priv);
@@ -334,7 +332,7 @@ xchk_dir_lookup(
 		return -EIO;
 
 	ASSERT(S_ISDIR(VFS_I(dp)->i_mode));
-	ASSERT(xfs_isilocked(dp, XFS_ILOCK_SHARED | XFS_ILOCK_EXCL));
+	xfs_assert_ilocked(dp, XFS_ILOCK_SHARED | XFS_ILOCK_EXCL);
 
 	if (dp->i_df.if_format == XFS_DINODE_FMT_LOCAL) {
 		error = xfs_dir2_sf_lookup(&args);

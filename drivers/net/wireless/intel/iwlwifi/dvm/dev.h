@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2014, 2020 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2014, 2020, 2023 Intel Corporation. All rights reserved.
  *****************************************************************************/
 /*
  * Please use this file (dev.h) for driver implementation definitions.
@@ -126,11 +126,11 @@ enum iwl_agg_state {
 
 /**
  * struct iwl_ht_agg - aggregation state machine
-
+ *
  * This structs holds the states for the BA agreement establishment and tear
  * down. It also holds the state during the BA session itself. This struct is
  * duplicated for each RA / TID.
-
+ *
  * @rate_n_flags: Rate at which Tx was attempted. Holds the data between the
  *	Tx response (REPLY_TX), and the block ack notification
  *	(REPLY_COMPRESSED_BA).
@@ -152,9 +152,9 @@ struct iwl_ht_agg {
 
 /**
  * struct iwl_tid_data - one for each RA / TID
-
+ *
  * This structs holds the states for each RA / TID.
-
+ *
  * @seq_number: the next WiFi sequence number to use
  * @next_reclaimed: the WiFi sequence number of the next packet to be acked.
  *	This is basically (last acked packet++).
@@ -195,7 +195,7 @@ struct iwl_station_priv {
 	u8 sta_id;
 };
 
-/**
+/*
  * struct iwl_vif_priv - driver's private per-interface information
  *
  * When mac80211 allocates a virtual interface, it can allocate
@@ -529,6 +529,7 @@ enum iwl_scan_type {
  *	relevant for 1000, 6000 and up
  * @struct iwl_sensitivity_ranges: range of sensitivity values
  * @use_rts_for_aggregation: use rts/cts protection for HT traffic
+ * @sens: sensitivity ranges pointer
  */
 struct iwl_hw_params {
 	u8  tx_chains_num;
@@ -547,6 +548,7 @@ struct iwl_hw_params {
  * @bt_prio_boost: default bt priority boost value
  * @agg_time_limit: maximum number of uSec in aggregation
  * @bt_sco_disable: uCode should not response to BT in SCO/ESCO mode
+ * @bt_session_2: indicates version 2 of the BT command is used
  */
 struct iwl_dvm_bt_params {
 	bool advanced_bt_coexist;

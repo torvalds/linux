@@ -473,11 +473,8 @@ static int xen_upload_processor_pm_data(void)
 		if (!_pr)
 			continue;
 
-		if (!pr_backup) {
-			pr_backup = kzalloc(sizeof(struct acpi_processor), GFP_KERNEL);
-			if (pr_backup)
-				memcpy(pr_backup, _pr, sizeof(struct acpi_processor));
-		}
+		if (!pr_backup)
+			pr_backup = kmemdup(_pr, sizeof(*_pr), GFP_KERNEL);
 		(void)upload_pm_data(_pr);
 	}
 

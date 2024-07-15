@@ -84,7 +84,7 @@ struct ia_css_blob_info {
 		memory_offsets;  /** offset wrt hdr in bytes */
 	u32 prog_name_offset;  /** offset wrt hdr in bytes */
 	u32 size;			/** Size of blob */
-	u32 padding_size;	/** total cummulative of bytes added due to section alignment */
+	u32 padding_size;	/** total accumulation of bytes added due to section alignment */
 	u32 icache_source;	/** Position of icache in blob */
 	u32 icache_size;	/** Size of icache section */
 	u32 icache_padding;/** bytes added due to icache section alignment */
@@ -331,11 +331,7 @@ struct ia_css_sp_info {
 	of DDR debug queue */
 	u32 perf_counter_input_system_error; /** input system perf
 	counter array */
-#ifdef HAS_WATCHDOG_SP_THREAD_DEBUG
-	u32 debug_wait; /** thread/pipe post mortem debug */
-	u32 debug_stage; /** thread/pipe post mortem debug */
-	u32 debug_stripe; /** thread/pipe post mortem debug */
-#endif
+
 	u32 threads_stack; /** sp thread's stack pointers */
 	u32 threads_stack_size; /** sp thread's stack sizes */
 	u32 curr_binary_id;        /** current binary id */
@@ -412,7 +408,7 @@ struct ia_css_acc_sp {
 };
 
 /* Acceleration firmware descriptor.
-  * This descriptor descibes either SP code (stand-alone), or
+  * This descriptor describes either SP code (stand-alone), or
   * ISP code (a separate pipeline stage).
   */
 struct ia_css_acc_fw_hdr {

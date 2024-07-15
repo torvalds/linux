@@ -675,7 +675,7 @@ Bit assignments shown below:-
     reconstructed using only conditional branches.
 
     There is currently no support in Perf for supplying modified binaries to the decoder, so this
-    feature is only inteded to be used for debugging purposes or with a 3rd party tool.
+    feature is only intended to be used for debugging purposes or with a 3rd party tool.
 
     Choosing this option will result in a significant increase in the amount of trace generated -
     possible danger of overflows, or fewer instructions covered. Note, that this option also

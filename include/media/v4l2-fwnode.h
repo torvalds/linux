@@ -21,10 +21,6 @@
 
 #include <media/v4l2-mediabus.h>
 
-struct fwnode_handle;
-struct v4l2_async_notifier;
-struct v4l2_async_subdev;
-
 /**
  * struct v4l2_fwnode_endpoint - the endpoint data structure
  * @base: fwnode endpoint of the v4l2_fwnode
@@ -392,72 +388,6 @@ int v4l2_fwnode_connector_add_link(struct fwnode_handle *fwnode,
  */
 int v4l2_fwnode_device_parse(struct device *dev,
 			     struct v4l2_fwnode_device_properties *props);
-
-/**
- * typedef parse_endpoint_func - Driver's callback function to be called on
- *	each V4L2 fwnode endpoint.
- *
- * @dev: pointer to &struct device
- * @vep: pointer to &struct v4l2_fwnode_endpoint
- * @asd: pointer to &struct v4l2_async_subdev
- *
- * Return:
- * * %0 on success
- * * %-ENOTCONN if the endpoint is to be skipped but this
- *   should not be considered as an error
- * * %-EINVAL if the endpoint configuration is invalid
- */
-typedef int (*parse_endpoint_func)(struct device *dev,
-				  struct v4l2_fwnode_endpoint *vep,
-				  struct v4l2_async_subdev *asd);
-
-/**
- * v4l2_async_nf_parse_fwnode_endpoints - Parse V4L2 fwnode endpoints in a
- *						device node
- * @dev: the device the endpoints of which are to be parsed
- * @notifier: notifier for @dev
- * @asd_struct_size: size of the driver's async sub-device struct, including
- *		     sizeof(struct v4l2_async_subdev). The &struct
- *		     v4l2_async_subdev shall be the first member of
- *		     the driver's async sub-device struct, i.e. both
- *		     begin at the same memory address.
- * @parse_endpoint: Driver's callback function called on each V4L2 fwnode
- *		    endpoint. Optional.
- *
- * DEPRECATED! This function is deprecated. Don't use it in new drivers.
- * Instead see an example in cio2_parse_firmware() function in
- * drivers/media/pci/intel/ipu3/ipu3-cio2.c .
- *
- * Parse the fwnode endpoints of the @dev device and populate the async sub-
- * devices list in the notifier. The @parse_endpoint callback function is
- * called for each endpoint with the corresponding async sub-device pointer to
- * let the caller initialize the driver-specific part of the async sub-device
- * structure.
- *
- * The notifier memory shall be zeroed before this function is called on the
- * notifier.
- *
- * This function may not be called on a registered notifier and may be called on
- * a notifier only once.
- *
- * The &struct v4l2_fwnode_endpoint passed to the callback function
- * @parse_endpoint is released once the function is finished. If there is a need
- * to retain that configuration, the user needs to allocate memory for it.
- *
- * Any notifier populated using this function must be released with a call to
- * v4l2_async_nf_cleanup() after it has been unregistered and the async
- * sub-devices are no longer in use, even if the function returned an error.
- *
- * Return: %0 on success, including when no async sub-devices are found
- *	   %-ENOMEM if memory allocation failed
- *	   %-EINVAL if graph or endpoint parsing failed
- *	   Other error codes as returned by @parse_endpoint
- */
-int
-v4l2_async_nf_parse_fwnode_endpoints(struct device *dev,
-				     struct v4l2_async_notifier *notifier,
-				     size_t asd_struct_size,
-				     parse_endpoint_func parse_endpoint);
 
 /* Helper macros to access the connector links. */
 

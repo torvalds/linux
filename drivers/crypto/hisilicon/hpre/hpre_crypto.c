@@ -57,6 +57,9 @@ struct hpre_ctx;
 #define HPRE_DRV_ECDH_MASK_CAP		BIT(2)
 #define HPRE_DRV_X25519_MASK_CAP	BIT(5)
 
+static DEFINE_MUTEX(hpre_algs_lock);
+static unsigned int hpre_available_devs;
+
 typedef void (*hpre_cb)(struct hpre_ctx *ctx, void *sqe);
 
 struct hpre_rsa_ctx {
@@ -1392,9 +1395,9 @@ static int hpre_ecdh_set_secret(struct crypto_kpp *tfm, const void *buf,
 				unsigned int len)
 {
 	struct hpre_ctx *ctx = kpp_tfm_ctx(tfm);
+	unsigned int sz, sz_shift, curve_sz;
 	struct device *dev = ctx->dev;
 	char key[HPRE_ECC_MAX_KSZ];
-	unsigned int sz, sz_shift;
 	struct ecdh params;
 	int ret;
 
@@ -1406,7 +1409,13 @@ static int hpre_ecdh_set_secret(struct crypto_kpp *tfm, const void *buf,
 	/* Use stdrng to generate private key */
 	if (!params.key || !params.key_size) {
 		params.key = key;
-		params.key_size = hpre_ecdh_get_curvesz(ctx->curve_id);
+		curve_sz = hpre_ecdh_get_curvesz(ctx->curve_id);
+		if (!curve_sz) {
+			dev_err(dev, "Invalid curve size!\n");
+			return -EINVAL;
+		}
+
+		params.key_size = curve_sz - 1;
 		ret = ecdh_gen_privkey(ctx, &params);
 		if (ret)
 			return ret;
@@ -2196,11 +2205,17 @@ static void hpre_unregister_x25519(struct hisi_qm *qm)
 
 int hpre_algs_register(struct hisi_qm *qm)
 {
-	int ret;
+	int ret = 0;
+
+	mutex_lock(&hpre_algs_lock);
+	if (hpre_available_devs) {
+		hpre_available_devs++;
+		goto unlock;
+	}
 
 	ret = hpre_register_rsa(qm);
 	if (ret)
-		return ret;
+		goto unlock;
 
 	ret = hpre_register_dh(qm);
 	if (ret)
@@ -2214,6 +2229,9 @@ int hpre_algs_register(struct hisi_qm *qm)
 	if (ret)
 		goto unreg_ecdh;
 
+	hpre_available_devs++;
+	mutex_unlock(&hpre_algs_lock);
+
 	return ret;
 
 unreg_ecdh:
@@ -2222,13 +2240,22 @@ unreg_dh:
 	hpre_unregister_dh(qm);
 unreg_rsa:
 	hpre_unregister_rsa(qm);
+unlock:
+	mutex_unlock(&hpre_algs_lock);
 	return ret;
 }
 
 void hpre_algs_unregister(struct hisi_qm *qm)
 {
+	mutex_lock(&hpre_algs_lock);
+	if (--hpre_available_devs)
+		goto unlock;
+
 	hpre_unregister_x25519(qm);
 	hpre_unregister_ecdh(qm);
 	hpre_unregister_dh(qm);
 	hpre_unregister_rsa(qm);
+
+unlock:
+	mutex_unlock(&hpre_algs_lock);
 }

@@ -557,7 +557,7 @@ static int sscape_upload_microcode(struct snd_card *card, int version)
 	char name[14];
 	int err;
 
-	snprintf(name, sizeof(name), "sndscape.co%d", version);
+	scnprintf(name, sizeof(name), "sndscape.co%d", version);
 
 	err = request_firmware(&init_fw, name, card->dev);
 	if (err < 0) {

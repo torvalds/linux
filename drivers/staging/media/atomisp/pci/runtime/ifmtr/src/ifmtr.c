@@ -16,7 +16,6 @@
 #include "system_global.h"
 #include <linux/kernel.h>
 
-#ifndef ISP2401
 
 #include "ia_css_ifmtr.h"
 #include <math_support.h>
@@ -550,4 +549,3 @@ static int ifmtr_input_start_line(
 	return 0;
 }
 
-#endif

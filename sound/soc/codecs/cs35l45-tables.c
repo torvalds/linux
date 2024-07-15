@@ -91,6 +91,7 @@ static const struct reg_default cs35l45_defaults[] = {
 	{ CS35L45_DSP1RX7_INPUT,		0x0000003A },
 	{ CS35L45_DSP1RX8_INPUT,		0x00000028 },
 	{ CS35L45_AMP_PCM_CONTROL,		0x00100000 },
+	{ CS35L45_AMP_GAIN,			0x00002300 },
 	{ CS35L45_IRQ1_CFG,			0x00000000 },
 	{ CS35L45_IRQ1_MASK_1,			0xBFEFFFBF },
 	{ CS35L45_IRQ1_MASK_2,			0xFFFFFFFF },
@@ -156,7 +157,9 @@ static bool cs35l45_readable_reg(struct device *dev, unsigned int reg)
 	case CS35L45_DSP1RX6_INPUT:
 	case CS35L45_DSP1RX7_INPUT:
 	case CS35L45_DSP1RX8_INPUT:
+	case CS35L45_HVLV_CONFIG:
 	case CS35L45_AMP_PCM_CONTROL:
+	case CS35L45_AMP_GAIN:
 	case CS35L45_AMP_PCM_HPF_TST:
 	case CS35L45_IRQ1_CFG:
 	case CS35L45_IRQ1_STATUS:
@@ -255,7 +258,7 @@ const struct regmap_config cs35l45_i2c_regmap = {
 	.num_reg_defaults = ARRAY_SIZE(cs35l45_defaults),
 	.volatile_reg = cs35l45_volatile_reg,
 	.readable_reg = cs35l45_readable_reg,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 EXPORT_SYMBOL_NS_GPL(cs35l45_i2c_regmap, SND_SOC_CS35L45);
 
@@ -271,7 +274,7 @@ const struct regmap_config cs35l45_spi_regmap = {
 	.num_reg_defaults = ARRAY_SIZE(cs35l45_defaults),
 	.volatile_reg = cs35l45_volatile_reg,
 	.readable_reg = cs35l45_readable_reg,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 EXPORT_SYMBOL_NS_GPL(cs35l45_spi_regmap, SND_SOC_CS35L45);
 

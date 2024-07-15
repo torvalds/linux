@@ -38,6 +38,7 @@ properties:
     default: 0x0f
 
   everest,mic1-src:
+    deprecated: true
     $ref: /schemas/types.yaml#/definitions/uint8
     description:
       the value of reg 2A when headset plugged.
@@ -46,6 +47,7 @@ properties:
     default: 0x22
 
   everest,mic2-src:
+    deprecated: true
     $ref: /schemas/types.yaml#/definitions/uint8
     description:
       the value of reg 2A when headset unplugged.
@@ -87,7 +89,7 @@ properties:
        0 means the chip detect jack type again after button released.
     minimum: 0
     maximum: 0x7f
-    default: 0x45
+    default: 0x00
 
 required:
   - compatible
@@ -107,10 +109,8 @@ examples:
         clocks = <&clks 10>;
         clock-names = "mclk";
         #sound-dai-cells = <0>;
-        everest,mic1-src = [22];
-        everest,mic2-src = [44];
         everest,jack-pol = [0e];
         everest,interrupt-src = [08];
-        everest,interrupt-clk = [45];
+        everest,interrupt-clk = [00];
       };
     };

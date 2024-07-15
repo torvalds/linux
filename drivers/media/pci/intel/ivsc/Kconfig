@@ -1,0 +1,21 @@
+# SPDX-License-Identifier: GPL-2.0-only
+# Copyright (C) 2023, Intel Corporation. All rights reserved.
+
+config INTEL_VSC
+	tristate "Intel Visual Sensing Controller"
+	depends on INTEL_MEI && ACPI && VIDEO_DEV
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  This adds support for Intel Visual Sensing Controller (IVSC).
+
+	  The IVSC support is split into two devices, ACE (Algorithm
+	  Context Engine) and CSI (Camera Serial Interface), each of which
+	  have their own drivers. The ACE is used to select the ownership
+	  of the sensor between the IVSC and the host CPU while the CSI is
+	  used to both select the routing destination for the data the
+	  sensor transmits over the CSI-2 bus between the IVSC and the
+	  host CPU and to configure the CSI-2 bus itself.
+
+	  The modules will be called ivsc-ace and ivsc-csi.

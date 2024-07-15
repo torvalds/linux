@@ -318,14 +318,14 @@ nvkm_falcon_init(struct nvkm_engine *engine)
 }
 
 static void *
-nvkm_falcon_dtor(struct nvkm_engine *engine)
+nvkm_falcon_dtor_engine(struct nvkm_engine *engine)
 {
 	return nvkm_falcon(engine);
 }
 
 static const struct nvkm_engine_func
 nvkm_falcon = {
-	.dtor = nvkm_falcon_dtor,
+	.dtor = nvkm_falcon_dtor_engine,
 	.oneinit = nvkm_falcon_oneinit,
 	.init = nvkm_falcon_init,
 	.fini = nvkm_falcon_fini,

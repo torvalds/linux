@@ -2,7 +2,7 @@
 /*
  * Keystone 2 lamarr SoC clock nodes
  *
- * Copyright (C) 2013-2017 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2013-2017 Texas Instruments Incorporated - https://www.ti.com/
  */
 
 clocks {

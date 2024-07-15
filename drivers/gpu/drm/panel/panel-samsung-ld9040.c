@@ -8,6 +8,7 @@
  * Andrzej Hajda <a.hajda@samsung.com>
 */
 
+#include <linux/backlight.h>
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
@@ -180,15 +181,15 @@ static void ld9040_init(struct ld9040 *ctx)
 {
 	ld9040_dcs_write_seq_static(ctx, MCS_USER_SETTING, 0x5a, 0x5a);
 	ld9040_dcs_write_seq_static(ctx, MCS_PANEL_CONDITION,
-		0x05, 0x65, 0x96, 0x71, 0x7d, 0x19, 0x3b, 0x0d,
-		0x19, 0x7e, 0x0d, 0xe2, 0x00, 0x00, 0x7e, 0x7d,
-		0x07, 0x07, 0x20, 0x20, 0x20, 0x02, 0x02);
+		0x05, 0x5e, 0x96, 0x6b, 0x7d, 0x0d, 0x3f, 0x00,
+		0x00, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x07, 0x05, 0x1f, 0x1f, 0x1f, 0x00, 0x00);
 	ld9040_dcs_write_seq_static(ctx, MCS_DISPCTL,
-		0x02, 0x08, 0x08, 0x10, 0x10);
+		0x02, 0x06, 0x0a, 0x10, 0x10);
 	ld9040_dcs_write_seq_static(ctx, MCS_MANPWR, 0x04);
 	ld9040_dcs_write_seq_static(ctx, MCS_POWER_CTRL,
 		0x0a, 0x87, 0x25, 0x6a, 0x44, 0x02, 0x88);
-	ld9040_dcs_write_seq_static(ctx, MCS_ELVSS_ON, 0x0d, 0x00, 0x16);
+	ld9040_dcs_write_seq_static(ctx, MCS_ELVSS_ON, 0x0f, 0x00, 0x16);
 	ld9040_dcs_write_seq_static(ctx, MCS_GTCON, 0x09, 0x00, 0x00);
 	ld9040_brightness_set(ctx);
 	ld9040_dcs_write_seq_static(ctx, MIPI_DCS_EXIT_SLEEP_MODE);
@@ -310,8 +311,30 @@ static int ld9040_parse_dt(struct ld9040 *ctx)
 	return 0;
 }
 
+static int ld9040_bl_update_status(struct backlight_device *dev)
+{
+	struct ld9040 *ctx = bl_get_data(dev);
+
+	ctx->brightness = backlight_get_brightness(dev);
+	ld9040_brightness_set(ctx);
+
+	return 0;
+}
+
+static const struct backlight_ops ld9040_bl_ops = {
+	.update_status  = ld9040_bl_update_status,
+};
+
+static const struct backlight_properties ld9040_bl_props = {
+	.type = BACKLIGHT_RAW,
+	.scale = BACKLIGHT_SCALE_NON_LINEAR,
+	.max_brightness = ARRAY_SIZE(ld9040_gammas) - 1,
+	.brightness = ARRAY_SIZE(ld9040_gammas) - 1,
+};
+
 static int ld9040_probe(struct spi_device *spi)
 {
+	struct backlight_device *bldev;
 	struct device *dev = &spi->dev;
 	struct ld9040 *ctx;
 	int ret;
@@ -323,7 +346,7 @@ static int ld9040_probe(struct spi_device *spi)
 	spi_set_drvdata(spi, ctx);
 
 	ctx->dev = dev;
-	ctx->brightness = ARRAY_SIZE(ld9040_gammas) - 1;
+	ctx->brightness = ld9040_bl_props.brightness;
 
 	ret = ld9040_parse_dt(ctx);
 	if (ret < 0)
@@ -352,6 +375,12 @@ static int ld9040_probe(struct spi_device *spi)
 
 	drm_panel_init(&ctx->panel, dev, &ld9040_drm_funcs,
 		       DRM_MODE_CONNECTOR_DPI);
+
+	bldev = devm_backlight_device_register(dev, dev_name(dev), dev,
+					       ctx, &ld9040_bl_ops,
+					       &ld9040_bl_props);
+	if (IS_ERR(bldev))
+		return PTR_ERR(bldev);
 
 	drm_panel_add(&ctx->panel);
 

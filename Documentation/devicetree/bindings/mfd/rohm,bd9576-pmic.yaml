@@ -34,7 +34,7 @@ properties:
       BD9576 and BD9573 VOUT1 regulator enable state can be individually
       controlled by a GPIO. This is dictated by state of vout1-en pin during
       the PMIC startup. If vout1-en is LOW during PMIC startup then the VOUT1
-      enable sate is controlled via this pin. Set this property if vout1-en
+      enable state is controlled via this pin. Set this property if vout1-en
       is wired to be down at PMIC start-up.
     type: boolean
 
@@ -61,7 +61,7 @@ properties:
   rohm,hw-timeout-ms:
     maxItems: 2
     description:
-      Watchog timeout in milliseconds. If single value is given it is
+      Watchdog timeout in milliseconds. If single value is given it is
       the maximum timeout. Eg. if pinging watchdog is not done within this time
       limit the watchdog will be triggered. If two values are given watchdog
       is configured in "window mode". Then first value is limit for short-ping

@@ -11,10 +11,10 @@
 #include <linux/init.h>
 #include <linux/mfd/da8xx-cfgchip.h>
 #include <linux/mfd/syscon.h>
-#include <linux/of_device.h>
 #include <linux/of.h>
 #include <linux/platform_data/clk-da8xx-cfgchip.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
 
@@ -744,15 +744,13 @@ static int da8xx_cfgchip_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct da8xx_cfgchip_clk_platform_data *pdata = dev->platform_data;
-	const struct of_device_id *of_id;
 	da8xx_cfgchip_init clk_init = NULL;
 	struct regmap *regmap = NULL;
 
-	of_id = of_match_device(da8xx_cfgchip_of_match, dev);
-	if (of_id) {
+	clk_init = device_get_match_data(dev);
+	if (clk_init) {
 		struct device_node *parent;
 
-		clk_init = of_id->data;
 		parent = of_get_parent(dev->of_node);
 		regmap = syscon_node_to_regmap(parent);
 		of_node_put(parent);

@@ -37,7 +37,8 @@ CFLAGS_sclp_early_core.o += -I$(srctree)/drivers/s390/char
 
 obj-y	:= head.o als.o startup.o physmem_info.o ipl_parm.o ipl_report.o vmem.o
 obj-y	+= string.o ebcdic.o sclp_early_core.o mem.o ipl_vmparm.o cmdline.o
-obj-y	+= version.o pgm_check_info.o ctype.o ipl_data.o machine_kexec_reloc.o
+obj-y	+= version.o pgm_check_info.o ctype.o ipl_data.o
+obj-y	+= $(if $(CONFIG_PIE_BUILD),machine_kexec_reloc.o,relocs.o)
 obj-$(findstring y, $(CONFIG_PROTECTED_VIRTUALIZATION_GUEST) $(CONFIG_PGSTE))	+= uv.o
 obj-$(CONFIG_RANDOMIZE_BASE)	+= kaslr.o
 obj-y	+= $(if $(CONFIG_KERNEL_UNCOMPRESSED),,decompressor.o) info.o
@@ -48,6 +49,9 @@ targets	:= bzImage section_cmp.boot.data section_cmp.boot.preserved.data $(obj-y
 targets	+= vmlinux.lds vmlinux vmlinux.bin vmlinux.bin.gz vmlinux.bin.bz2
 targets += vmlinux.bin.xz vmlinux.bin.lzma vmlinux.bin.lzo vmlinux.bin.lz4
 targets += vmlinux.bin.zst info.bin syms.bin vmlinux.syms $(obj-all)
+ifndef CONFIG_PIE_BUILD
+targets += relocs.S
+endif
 
 OBJECTS := $(addprefix $(obj)/,$(obj-y))
 OBJECTS_ALL := $(addprefix $(obj)/,$(obj-all))
@@ -56,9 +60,9 @@ clean-files += vmlinux.map
 
 quiet_cmd_section_cmp = SECTCMP $*
 define cmd_section_cmp
-	s1=`$(OBJDUMP) -t -j "$*" "$<" | sort | \
+	s1=`$(OBJDUMP) -t "$<" | grep "\s$*\s\+" | sort | \
 		sed -n "/0000000000000000/! s/.*\s$*\s\+//p" | sha256sum`; \
-	s2=`$(OBJDUMP) -t -j "$*" "$(word 2,$^)" | sort | \
+	s2=`$(OBJDUMP) -t "$(word 2,$^)" | grep "\s$*\s\+" | sort | \
 		sed -n "/0000000000000000/! s/.*\s$*\s\+//p" | sha256sum`; \
 	if [ "$$s1" != "$$s2" ]; then \
 		echo "error: section $* differs between $< and $(word 2,$^)" >&2; \
@@ -73,11 +77,12 @@ $(obj)/bzImage: $(obj)/vmlinux $(obj)/section_cmp.boot.data $(obj)/section_cmp.b
 $(obj)/section_cmp%: vmlinux $(obj)/vmlinux FORCE
 	$(call if_changed,section_cmp)
 
-LDFLAGS_vmlinux := --oformat $(LD_BFD) -e startup $(if $(CONFIG_VMLINUX_MAP),-Map=$(obj)/vmlinux.map) --build-id=sha1 -T
+LDFLAGS_vmlinux-$(CONFIG_LD_ORPHAN_WARN) := --orphan-handling=$(CONFIG_LD_ORPHAN_WARN_LEVEL)
+LDFLAGS_vmlinux := $(LDFLAGS_vmlinux-y) --oformat $(LD_BFD) -e startup $(if $(CONFIG_VMLINUX_MAP),-Map=$(obj)/vmlinux.map) --build-id=sha1 -T
 $(obj)/vmlinux: $(obj)/vmlinux.lds $(OBJECTS_ALL) FORCE
 	$(call if_changed,ld)
 
-LDFLAGS_vmlinux.syms := --oformat $(LD_BFD) -e startup -T
+LDFLAGS_vmlinux.syms := $(LDFLAGS_vmlinux-y) --oformat $(LD_BFD) -e startup -T
 $(obj)/vmlinux.syms: $(obj)/vmlinux.lds $(OBJECTS) FORCE
 	$(call if_changed,ld)
 
@@ -93,7 +98,7 @@ OBJCOPYFLAGS_syms.o := -I binary -O elf64-s390 -B s390:64-bit --rename-section .
 $(obj)/syms.o: $(obj)/syms.bin FORCE
 	$(call if_changed,objcopy)
 
-OBJCOPYFLAGS_info.bin := -O binary --only-section=.vmlinux.info --set-section-flags .vmlinux.info=load
+OBJCOPYFLAGS_info.bin := -O binary --only-section=.vmlinux.info --set-section-flags .vmlinux.info=alloc,load
 $(obj)/info.bin: vmlinux FORCE
 	$(call if_changed,objcopy)
 
@@ -104,6 +109,14 @@ $(obj)/info.o: $(obj)/info.bin FORCE
 OBJCOPYFLAGS_vmlinux.bin := -O binary --remove-section=.comment --remove-section=.vmlinux.info -S
 $(obj)/vmlinux.bin: vmlinux FORCE
 	$(call if_changed,objcopy)
+
+ifndef CONFIG_PIE_BUILD
+CMD_RELOCS=arch/s390/tools/relocs
+quiet_cmd_relocs = RELOCS $@
+	cmd_relocs = $(CMD_RELOCS) $< > $@
+$(obj)/relocs.S: vmlinux FORCE
+	$(call if_changed,relocs)
+endif
 
 suffix-$(CONFIG_KERNEL_GZIP)  := .gz
 suffix-$(CONFIG_KERNEL_BZIP2) := .bz2

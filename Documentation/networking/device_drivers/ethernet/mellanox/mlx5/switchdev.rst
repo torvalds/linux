@@ -190,6 +190,26 @@ explicitly enable the VF migratable capability.
 mlx5 driver support devlink port function attr mechanism to setup migratable
 capability. (refer to Documentation/networking/devlink/devlink-port.rst)
 
+IPsec crypto capability setup
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+User who wants mlx5 PCI VFs to be able to perform IPsec crypto offloading need
+to explicitly enable the VF ipsec_crypto capability. Enabling IPsec capability
+for VFs is supported starting with ConnectX6dx devices and above. When a VF has
+IPsec capability enabled, any IPsec offloading is blocked on the PF.
+
+mlx5 driver support devlink port function attr mechanism to setup ipsec_crypto
+capability. (refer to Documentation/networking/devlink/devlink-port.rst)
+
+IPsec packet capability setup
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+User who wants mlx5 PCI VFs to be able to perform IPsec packet offloading need
+to explicitly enable the VF ipsec_packet capability. Enabling IPsec capability
+for VFs is supported starting with ConnectX6dx devices and above. When a VF has
+IPsec capability enabled, any IPsec offloading is blocked on the PF.
+
+mlx5 driver support devlink port function attr mechanism to setup ipsec_packet
+capability. (refer to Documentation/networking/devlink/devlink-port.rst)
+
 SF state setup
 --------------
 

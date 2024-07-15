@@ -148,6 +148,13 @@ static const struct dw_pcie_ops keembay_pcie_ops = {
 	.stop_link	= keembay_pcie_stop_link,
 };
 
+static inline void keembay_pcie_disable_clock(void *data)
+{
+	struct clk *clk = data;
+
+	clk_disable_unprepare(clk);
+}
+
 static inline struct clk *keembay_pcie_probe_clock(struct device *dev,
 						   const char *id, u64 rate)
 {
@@ -168,9 +175,7 @@ static inline struct clk *keembay_pcie_probe_clock(struct device *dev,
 	if (ret)
 		return ERR_PTR(ret);
 
-	ret = devm_add_action_or_reset(dev,
-				       (void(*)(void *))clk_disable_unprepare,
-				       clk);
+	ret = devm_add_action_or_reset(dev, keembay_pcie_disable_clock, clk);
 	if (ret)
 		return ERR_PTR(ret);
 
@@ -284,19 +289,18 @@ static void keembay_pcie_ep_init(struct dw_pcie_ep *ep)
 }
 
 static int keembay_pcie_ep_raise_irq(struct dw_pcie_ep *ep, u8 func_no,
-				     enum pci_epc_irq_type type,
-				     u16 interrupt_num)
+				     unsigned int type, u16 interrupt_num)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
 
 	switch (type) {
-	case PCI_EPC_IRQ_LEGACY:
-		/* Legacy interrupts are not supported in Keem Bay */
-		dev_err(pci->dev, "Legacy IRQ is not supported\n");
+	case PCI_IRQ_INTX:
+		/* INTx interrupts are not supported in Keem Bay */
+		dev_err(pci->dev, "INTx IRQ is not supported\n");
 		return -EINVAL;
-	case PCI_EPC_IRQ_MSI:
+	case PCI_IRQ_MSI:
 		return dw_pcie_ep_raise_msi_irq(ep, func_no, interrupt_num);
-	case PCI_EPC_IRQ_MSIX:
+	case PCI_IRQ_MSIX:
 		return dw_pcie_ep_raise_msix_irq(ep, func_no, interrupt_num);
 	default:
 		dev_err(pci->dev, "Unknown IRQ type %d\n", type);
@@ -308,8 +312,12 @@ static const struct pci_epc_features keembay_pcie_epc_features = {
 	.linkup_notifier	= false,
 	.msi_capable		= true,
 	.msix_capable		= true,
-	.reserved_bar		= BIT(BAR_1) | BIT(BAR_3) | BIT(BAR_5),
-	.bar_fixed_64bit	= BIT(BAR_0) | BIT(BAR_2) | BIT(BAR_4),
+	.bar[BAR_0]		= { .only_64bit = true, },
+	.bar[BAR_1]		= { .type = BAR_RESERVED, },
+	.bar[BAR_2]		= { .only_64bit = true, },
+	.bar[BAR_3]		= { .type = BAR_RESERVED, },
+	.bar[BAR_4]		= { .only_64bit = true, },
+	.bar[BAR_5]		= { .type = BAR_RESERVED, },
 	.align			= SZ_16K,
 };
 
@@ -320,7 +328,7 @@ keembay_pcie_get_features(struct dw_pcie_ep *ep)
 }
 
 static const struct dw_pcie_ep_ops keembay_pcie_ep_ops = {
-	.ep_init	= keembay_pcie_ep_init,
+	.init		= keembay_pcie_ep_init,
 	.raise_irq	= keembay_pcie_ep_raise_irq,
 	.get_features	= keembay_pcie_get_features,
 };

@@ -71,6 +71,8 @@ struct xdma_chan {
 	enum dma_transfer_direction	dir;
 	struct dma_slave_config		cfg;
 	u32				irq;
+	struct completion		last_interrupt;
+	bool				stop_requested;
 };
 
 /**
@@ -78,21 +80,31 @@ struct xdma_chan {
  * @vdesc: Virtual DMA descriptor
  * @chan: DMA channel pointer
  * @dir: Transferring direction of the request
- * @dev_addr: Physical address on DMA device side
  * @desc_blocks: Hardware descriptor blocks
  * @dblk_num: Number of hardware descriptor blocks
  * @desc_num: Number of hardware descriptors
  * @completed_desc_num: Completed hardware descriptors
+ * @cyclic: Cyclic transfer vs. scatter-gather
+ * @interleaved_dma: Interleaved DMA transfer
+ * @periods: Number of periods in the cyclic transfer
+ * @period_size: Size of a period in bytes in cyclic transfers
+ * @frames_left: Number of frames left in interleaved DMA transfer
+ * @error: tx error flag
  */
 struct xdma_desc {
 	struct virt_dma_desc		vdesc;
 	struct xdma_chan		*chan;
 	enum dma_transfer_direction	dir;
-	u64				dev_addr;
 	struct xdma_desc_block		*desc_blocks;
 	u32				dblk_num;
 	u32				desc_num;
 	u32				completed_desc_num;
+	bool				cyclic;
+	bool				interleaved_dma;
+	u32				periods;
+	u32				period_size;
+	u32				frames_left;
+	bool				error;
 };
 
 #define XDMA_DEV_STATUS_REG_DMA		BIT(0)
@@ -137,10 +149,10 @@ static inline void *xdma_blk_last_desc(struct xdma_desc_block *block)
 }
 
 /**
- * xdma_link_desc_blocks - Link descriptor blocks for DMA transfer
+ * xdma_link_sg_desc_blocks - Link SG descriptor blocks for DMA transfer
  * @sw_desc: Tx descriptor pointer
  */
-static void xdma_link_desc_blocks(struct xdma_desc *sw_desc)
+static void xdma_link_sg_desc_blocks(struct xdma_desc *sw_desc)
 {
 	struct xdma_desc_block *block;
 	u32 last_blk_desc, desc_control;
@@ -172,6 +184,25 @@ static void xdma_link_desc_blocks(struct xdma_desc *sw_desc)
 	block = &sw_desc->desc_blocks[sw_desc->dblk_num - 1];
 	desc = block->virt_addr + last_blk_desc * XDMA_DESC_SIZE;
 	desc->control = cpu_to_le32(XDMA_DESC_CONTROL_LAST);
+}
+
+/**
+ * xdma_link_cyclic_desc_blocks - Link cyclic descriptor blocks for DMA transfer
+ * @sw_desc: Tx descriptor pointer
+ */
+static void xdma_link_cyclic_desc_blocks(struct xdma_desc *sw_desc)
+{
+	struct xdma_desc_block *block;
+	struct xdma_hw_desc *desc;
+	int i;
+
+	block = sw_desc->desc_blocks;
+	for (i = 0; i < sw_desc->desc_num - 1; i++) {
+		desc = block->virt_addr + i * XDMA_DESC_SIZE;
+		desc->next_desc = cpu_to_le64(block->dma_addr + ((i + 1) * XDMA_DESC_SIZE));
+	}
+	desc = block->virt_addr + i * XDMA_DESC_SIZE;
+	desc->next_desc = cpu_to_le64(block->dma_addr);
 }
 
 static inline struct xdma_chan *to_xdma_chan(struct dma_chan *chan)
@@ -231,14 +262,16 @@ static void xdma_free_desc(struct virt_dma_desc *vdesc)
  * xdma_alloc_desc - Allocate descriptor
  * @chan: DMA channel pointer
  * @desc_num: Number of hardware descriptors
+ * @cyclic: Whether this is a cyclic transfer
  */
 static struct xdma_desc *
-xdma_alloc_desc(struct xdma_chan *chan, u32 desc_num)
+xdma_alloc_desc(struct xdma_chan *chan, u32 desc_num, bool cyclic)
 {
 	struct xdma_desc *sw_desc;
 	struct xdma_hw_desc *desc;
 	dma_addr_t dma_addr;
 	u32 dblk_num;
+	u32 control;
 	void *addr;
 	int i, j;
 
@@ -248,11 +281,18 @@ xdma_alloc_desc(struct xdma_chan *chan, u32 desc_num)
 
 	sw_desc->chan = chan;
 	sw_desc->desc_num = desc_num;
+	sw_desc->cyclic = cyclic;
+	sw_desc->error = false;
 	dblk_num = DIV_ROUND_UP(desc_num, XDMA_DESC_ADJACENT);
 	sw_desc->desc_blocks = kcalloc(dblk_num, sizeof(*sw_desc->desc_blocks),
 				       GFP_NOWAIT);
 	if (!sw_desc->desc_blocks)
 		goto failed;
+
+	if (cyclic)
+		control = XDMA_DESC_CONTROL_CYCLIC;
+	else
+		control = XDMA_DESC_CONTROL(1, 0);
 
 	sw_desc->dblk_num = dblk_num;
 	for (i = 0; i < sw_desc->dblk_num; i++) {
@@ -263,10 +303,13 @@ xdma_alloc_desc(struct xdma_chan *chan, u32 desc_num)
 		sw_desc->desc_blocks[i].virt_addr = addr;
 		sw_desc->desc_blocks[i].dma_addr = dma_addr;
 		for (j = 0, desc = addr; j < XDMA_DESC_ADJACENT; j++)
-			desc[j].control = cpu_to_le32(XDMA_DESC_CONTROL(1, 0));
+			desc[j].control = cpu_to_le32(control);
 	}
 
-	xdma_link_desc_blocks(sw_desc);
+	if (cyclic)
+		xdma_link_cyclic_desc_blocks(sw_desc);
+	else
+		xdma_link_sg_desc_blocks(sw_desc);
 
 	return sw_desc;
 
@@ -335,7 +378,27 @@ static int xdma_xfer_start(struct xdma_chan *xchan)
 		return ret;
 
 	xchan->busy = true;
+	xchan->stop_requested = false;
+	reinit_completion(&xchan->last_interrupt);
+
 	return 0;
+}
+
+/**
+ * xdma_xfer_stop - Stop DMA transfer
+ * @xchan: DMA channel pointer
+ */
+static int xdma_xfer_stop(struct xdma_chan *xchan)
+{
+	int ret;
+	struct xdma_device *xdev = xchan->xdev_hdl;
+
+	/* clear run stop bit to prevent any further auto-triggering */
+	ret = regmap_write(xdev->rmap, xchan->base + XDMA_CHAN_CONTROL_W1C,
+			   CHAN_CTRL_RUN_STOP);
+	if (ret)
+		return ret;
+	return ret;
 }
 
 /**
@@ -408,6 +471,8 @@ static int xdma_alloc_channels(struct xdma_device *xdev,
 		xchan->xdev_hdl = xdev;
 		xchan->base = base + i * XDMA_CHAN_STRIDE;
 		xchan->dir = dir;
+		xchan->stop_requested = false;
+		init_completion(&xchan->last_interrupt);
 
 		ret = xdma_channel_init(xchan);
 		if (ret)
@@ -440,6 +505,94 @@ static void xdma_issue_pending(struct dma_chan *chan)
 }
 
 /**
+ * xdma_terminate_all - Terminate all transactions
+ * @chan: DMA channel pointer
+ */
+static int xdma_terminate_all(struct dma_chan *chan)
+{
+	struct xdma_chan *xdma_chan = to_xdma_chan(chan);
+	struct virt_dma_desc *vd;
+	unsigned long flags;
+	LIST_HEAD(head);
+
+	xdma_xfer_stop(xdma_chan);
+
+	spin_lock_irqsave(&xdma_chan->vchan.lock, flags);
+
+	xdma_chan->busy = false;
+	xdma_chan->stop_requested = true;
+	vd = vchan_next_desc(&xdma_chan->vchan);
+	if (vd) {
+		list_del(&vd->node);
+		dma_cookie_complete(&vd->tx);
+		vchan_terminate_vdesc(vd);
+	}
+	vchan_get_all_descriptors(&xdma_chan->vchan, &head);
+	list_splice_tail(&head, &xdma_chan->vchan.desc_terminated);
+
+	spin_unlock_irqrestore(&xdma_chan->vchan.lock, flags);
+
+	return 0;
+}
+
+/**
+ * xdma_synchronize - Synchronize terminated transactions
+ * @chan: DMA channel pointer
+ */
+static void xdma_synchronize(struct dma_chan *chan)
+{
+	struct xdma_chan *xdma_chan = to_xdma_chan(chan);
+	struct xdma_device *xdev = xdma_chan->xdev_hdl;
+	int st = 0;
+
+	/* If the engine continues running, wait for the last interrupt */
+	regmap_read(xdev->rmap, xdma_chan->base + XDMA_CHAN_STATUS, &st);
+	if (st & XDMA_CHAN_STATUS_BUSY)
+		wait_for_completion_timeout(&xdma_chan->last_interrupt, msecs_to_jiffies(1000));
+
+	vchan_synchronize(&xdma_chan->vchan);
+}
+
+/**
+ * xdma_fill_descs() - Fill hardware descriptors for one contiguous memory chunk.
+ *		       More than one descriptor will be used if the size is bigger
+ *		       than XDMA_DESC_BLEN_MAX.
+ * @sw_desc: Descriptor container
+ * @src_addr: First value for the ->src_addr field
+ * @dst_addr: First value for the ->dst_addr field
+ * @size: Size of the contiguous memory block
+ * @filled_descs_num: Index of the first descriptor to take care of in @sw_desc
+ */
+static inline u32 xdma_fill_descs(struct xdma_desc *sw_desc, u64 src_addr,
+				  u64 dst_addr, u32 size, u32 filled_descs_num)
+{
+	u32 left = size, len, desc_num = filled_descs_num;
+	struct xdma_desc_block *dblk;
+	struct xdma_hw_desc *desc;
+
+	dblk = sw_desc->desc_blocks + (desc_num / XDMA_DESC_ADJACENT);
+	desc = dblk->virt_addr;
+	desc += desc_num & XDMA_DESC_ADJACENT_MASK;
+	do {
+		len = min_t(u32, left, XDMA_DESC_BLEN_MAX);
+		/* set hardware descriptor */
+		desc->bytes = cpu_to_le32(len);
+		desc->src_addr = cpu_to_le64(src_addr);
+		desc->dst_addr = cpu_to_le64(dst_addr);
+		if (!(++desc_num & XDMA_DESC_ADJACENT_MASK))
+			desc = (++dblk)->virt_addr;
+		else
+			desc++;
+
+		src_addr += len;
+		dst_addr += len;
+		left -= len;
+	} while (left);
+
+	return desc_num - filled_descs_num;
+}
+
+/**
  * xdma_prep_device_sg - prepare a descriptor for a DMA transaction
  * @chan: DMA channel pointer
  * @sgl: Transfer scatter gather list
@@ -455,21 +608,20 @@ xdma_prep_device_sg(struct dma_chan *chan, struct scatterlist *sgl,
 {
 	struct xdma_chan *xdma_chan = to_xdma_chan(chan);
 	struct dma_async_tx_descriptor *tx_desc;
-	u32 desc_num = 0, i, len, rest;
-	struct xdma_desc_block *dblk;
-	struct xdma_hw_desc *desc;
 	struct xdma_desc *sw_desc;
-	u64 dev_addr, *src, *dst;
+	u32 desc_num = 0, i;
+	u64 addr, dev_addr, *src, *dst;
 	struct scatterlist *sg;
-	u64 addr;
 
 	for_each_sg(sgl, sg, sg_len, i)
 		desc_num += DIV_ROUND_UP(sg_dma_len(sg), XDMA_DESC_BLEN_MAX);
 
-	sw_desc = xdma_alloc_desc(xdma_chan, desc_num);
+	sw_desc = xdma_alloc_desc(xdma_chan, desc_num, false);
 	if (!sw_desc)
 		return NULL;
 	sw_desc->dir = dir;
+	sw_desc->cyclic = false;
+	sw_desc->interleaved_dma = false;
 
 	if (dir == DMA_MEM_TO_DEV) {
 		dev_addr = xdma_chan->cfg.dst_addr;
@@ -481,32 +633,11 @@ xdma_prep_device_sg(struct dma_chan *chan, struct scatterlist *sgl,
 		dst = &addr;
 	}
 
-	dblk = sw_desc->desc_blocks;
-	desc = dblk->virt_addr;
-	desc_num = 1;
+	desc_num = 0;
 	for_each_sg(sgl, sg, sg_len, i) {
 		addr = sg_dma_address(sg);
-		rest = sg_dma_len(sg);
-
-		do {
-			len = min_t(u32, rest, XDMA_DESC_BLEN_MAX);
-			/* set hardware descriptor */
-			desc->bytes = cpu_to_le32(len);
-			desc->src_addr = cpu_to_le64(*src);
-			desc->dst_addr = cpu_to_le64(*dst);
-
-			if (!(desc_num & XDMA_DESC_ADJACENT_MASK)) {
-				dblk++;
-				desc = dblk->virt_addr;
-			} else {
-				desc++;
-			}
-
-			desc_num++;
-			dev_addr += len;
-			addr += len;
-			rest -= len;
-		} while (rest);
+		desc_num += xdma_fill_descs(sw_desc, *src, *dst, sg_dma_len(sg), desc_num);
+		dev_addr += sg_dma_len(sg);
 	}
 
 	tx_desc = vchan_tx_prep(&xdma_chan->vchan, &sw_desc->vdesc, flags);
@@ -518,6 +649,133 @@ xdma_prep_device_sg(struct dma_chan *chan, struct scatterlist *sgl,
 failed:
 	xdma_free_desc(&sw_desc->vdesc);
 
+	return NULL;
+}
+
+/**
+ * xdma_prep_dma_cyclic - prepare for cyclic DMA transactions
+ * @chan: DMA channel pointer
+ * @address: Device DMA address to access
+ * @size: Total length to transfer
+ * @period_size: Period size to use for each transfer
+ * @dir: Transfer direction
+ * @flags: Transfer ack flags
+ */
+static struct dma_async_tx_descriptor *
+xdma_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t address,
+		     size_t size, size_t period_size,
+		     enum dma_transfer_direction dir,
+		     unsigned long flags)
+{
+	struct xdma_chan *xdma_chan = to_xdma_chan(chan);
+	struct xdma_device *xdev = xdma_chan->xdev_hdl;
+	unsigned int periods = size / period_size;
+	struct dma_async_tx_descriptor *tx_desc;
+	struct xdma_desc *sw_desc;
+	u64 addr, dev_addr, *src, *dst;
+	u32 desc_num;
+	unsigned int i;
+
+	/*
+	 * Simplify the whole logic by preventing an abnormally high number of
+	 * periods and periods size.
+	 */
+	if (period_size > XDMA_DESC_BLEN_MAX) {
+		xdma_err(xdev, "period size limited to %lu bytes\n", XDMA_DESC_BLEN_MAX);
+		return NULL;
+	}
+
+	if (periods > XDMA_DESC_ADJACENT) {
+		xdma_err(xdev, "number of periods limited to %u\n", XDMA_DESC_ADJACENT);
+		return NULL;
+	}
+
+	sw_desc = xdma_alloc_desc(xdma_chan, periods, true);
+	if (!sw_desc)
+		return NULL;
+
+	sw_desc->periods = periods;
+	sw_desc->period_size = period_size;
+	sw_desc->dir = dir;
+	sw_desc->interleaved_dma = false;
+
+	addr = address;
+	if (dir == DMA_MEM_TO_DEV) {
+		dev_addr = xdma_chan->cfg.dst_addr;
+		src = &addr;
+		dst = &dev_addr;
+	} else {
+		dev_addr = xdma_chan->cfg.src_addr;
+		src = &dev_addr;
+		dst = &addr;
+	}
+
+	desc_num = 0;
+	for (i = 0; i < periods; i++) {
+		desc_num += xdma_fill_descs(sw_desc, *src, *dst, period_size, desc_num);
+		addr += period_size;
+	}
+
+	tx_desc = vchan_tx_prep(&xdma_chan->vchan, &sw_desc->vdesc, flags);
+	if (!tx_desc)
+		goto failed;
+
+	return tx_desc;
+
+failed:
+	xdma_free_desc(&sw_desc->vdesc);
+
+	return NULL;
+}
+
+/**
+ * xdma_prep_interleaved_dma - Prepare virtual descriptor for interleaved DMA transfers
+ * @chan: DMA channel
+ * @xt: DMA transfer template
+ * @flags: tx flags
+ */
+static struct dma_async_tx_descriptor *
+xdma_prep_interleaved_dma(struct dma_chan *chan,
+			  struct dma_interleaved_template *xt,
+			  unsigned long flags)
+{
+	int i;
+	u32 desc_num = 0, period_size = 0;
+	struct dma_async_tx_descriptor *tx_desc;
+	struct xdma_chan *xchan = to_xdma_chan(chan);
+	struct xdma_desc *sw_desc;
+	u64 src_addr, dst_addr;
+
+	for (i = 0; i < xt->frame_size; ++i)
+		desc_num += DIV_ROUND_UP(xt->sgl[i].size, XDMA_DESC_BLEN_MAX);
+
+	sw_desc = xdma_alloc_desc(xchan, desc_num, false);
+	if (!sw_desc)
+		return NULL;
+	sw_desc->dir = xt->dir;
+	sw_desc->interleaved_dma = true;
+	sw_desc->cyclic = flags & DMA_PREP_REPEAT;
+	sw_desc->frames_left = xt->numf;
+	sw_desc->periods = xt->numf;
+
+	desc_num = 0;
+	src_addr = xt->src_start;
+	dst_addr = xt->dst_start;
+	for (i = 0; i < xt->frame_size; ++i) {
+		desc_num += xdma_fill_descs(sw_desc, src_addr, dst_addr, xt->sgl[i].size, desc_num);
+		src_addr += dmaengine_get_src_icg(xt, &xt->sgl[i]) + (xt->src_inc ?
+							      xt->sgl[i].size : 0);
+		dst_addr += dmaengine_get_dst_icg(xt, &xt->sgl[i]) + (xt->dst_inc ?
+							      xt->sgl[i].size : 0);
+		period_size += xt->sgl[i].size;
+	}
+	sw_desc->period_size = period_size;
+
+	tx_desc = vchan_tx_prep(&xchan->vchan, &sw_desc->vdesc, flags);
+	if (tx_desc)
+		return tx_desc;
+
+	xdma_free_desc(&sw_desc->vdesc);
 	return NULL;
 }
 
@@ -566,15 +824,49 @@ static int xdma_alloc_chan_resources(struct dma_chan *chan)
 		return -EINVAL;
 	}
 
-	xdma_chan->desc_pool = dma_pool_create(dma_chan_name(chan),
-					       dev, XDMA_DESC_BLOCK_SIZE,
-					       XDMA_DESC_BLOCK_ALIGN, 0);
+	xdma_chan->desc_pool = dma_pool_create(dma_chan_name(chan), dev, XDMA_DESC_BLOCK_SIZE,
+					       XDMA_DESC_BLOCK_ALIGN, XDMA_DESC_BLOCK_BOUNDARY);
 	if (!xdma_chan->desc_pool) {
 		xdma_err(xdev, "unable to allocate descriptor pool");
 		return -ENOMEM;
 	}
 
 	return 0;
+}
+
+static enum dma_status xdma_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
+				      struct dma_tx_state *state)
+{
+	struct xdma_chan *xdma_chan = to_xdma_chan(chan);
+	struct xdma_desc *desc = NULL;
+	struct virt_dma_desc *vd;
+	enum dma_status ret;
+	unsigned long flags;
+	unsigned int period_idx;
+	u32 residue = 0;
+
+	ret = dma_cookie_status(chan, cookie, state);
+	if (ret == DMA_COMPLETE)
+		return ret;
+
+	spin_lock_irqsave(&xdma_chan->vchan.lock, flags);
+
+	vd = vchan_find_desc(&xdma_chan->vchan, cookie);
+	if (!vd)
+		goto out;
+
+	desc = to_xdma_desc(vd);
+	if (desc->error) {
+		ret = DMA_ERROR;
+	} else if (desc->cyclic) {
+		period_idx = desc->completed_desc_num % desc->periods;
+		residue = (desc->periods - period_idx) * desc->period_size;
+		dma_set_residue(state, residue);
+	}
+out:
+	spin_unlock_irqrestore(&xdma_chan->vchan.lock, flags);
+
+	return ret;
 }
 
 /**
@@ -586,10 +878,15 @@ static irqreturn_t xdma_channel_isr(int irq, void *dev_id)
 {
 	struct xdma_chan *xchan = dev_id;
 	u32 complete_desc_num = 0;
-	struct xdma_device *xdev;
-	struct virt_dma_desc *vd;
+	struct xdma_device *xdev = xchan->xdev_hdl;
+	struct virt_dma_desc *vd, *next_vd;
 	struct xdma_desc *desc;
 	int ret;
+	u32 st;
+	bool repeat_tx;
+
+	if (xchan->stop_requested)
+		complete(&xchan->last_interrupt);
 
 	spin_lock(&xchan->vchan.lock);
 
@@ -598,31 +895,75 @@ static irqreturn_t xdma_channel_isr(int irq, void *dev_id)
 	if (!vd)
 		goto out;
 
-	xchan->busy = false;
+	/* Clear-on-read the status register */
+	ret = regmap_read(xdev->rmap, xchan->base + XDMA_CHAN_STATUS_RC, &st);
+	if (ret)
+		goto out;
+
 	desc = to_xdma_desc(vd);
-	xdev = xchan->xdev_hdl;
+
+	st &= XDMA_CHAN_STATUS_MASK;
+	if ((st & XDMA_CHAN_ERROR_MASK) ||
+	    !(st & (CHAN_CTRL_IE_DESC_COMPLETED | CHAN_CTRL_IE_DESC_STOPPED))) {
+		desc->error = true;
+		xdma_err(xdev, "channel error, status register value: 0x%x", st);
+		goto out;
+	}
 
 	ret = regmap_read(xdev->rmap, xchan->base + XDMA_CHAN_COMPLETED_DESC,
 			  &complete_desc_num);
 	if (ret)
 		goto out;
 
-	desc->completed_desc_num += complete_desc_num;
-	/*
-	 * if all data blocks are transferred, remove and complete the request
-	 */
-	if (desc->completed_desc_num == desc->desc_num) {
-		list_del(&vd->node);
-		vchan_cookie_complete(vd);
-		goto out;
+	if (desc->interleaved_dma) {
+		xchan->busy = false;
+		desc->completed_desc_num += complete_desc_num;
+		if (complete_desc_num == XDMA_DESC_BLOCK_NUM * XDMA_DESC_ADJACENT) {
+			xdma_xfer_start(xchan);
+			goto out;
+		}
+
+		/* last desc of any frame */
+		desc->frames_left--;
+		if (desc->frames_left)
+			goto out;
+
+		/* last desc of the last frame  */
+		repeat_tx = vd->tx.flags & DMA_PREP_REPEAT;
+		next_vd = list_first_entry_or_null(&vd->node, struct virt_dma_desc, node);
+		if (next_vd)
+			repeat_tx = repeat_tx && !(next_vd->tx.flags & DMA_PREP_LOAD_EOT);
+		if (repeat_tx) {
+			desc->frames_left = desc->periods;
+			desc->completed_desc_num = 0;
+			vchan_cyclic_callback(vd);
+		} else {
+			list_del(&vd->node);
+			vchan_cookie_complete(vd);
+		}
+		/* start (or continue) the tx of a first desc on the vc.desc_issued list, if any */
+		xdma_xfer_start(xchan);
+	} else if (!desc->cyclic) {
+		xchan->busy = false;
+		desc->completed_desc_num += complete_desc_num;
+
+		/* if all data blocks are transferred, remove and complete the request */
+		if (desc->completed_desc_num == desc->desc_num) {
+			list_del(&vd->node);
+			vchan_cookie_complete(vd);
+			goto out;
+		}
+
+		if (desc->completed_desc_num > desc->desc_num ||
+		    complete_desc_num != XDMA_DESC_BLOCK_NUM * XDMA_DESC_ADJACENT)
+			goto out;
+
+		/* transfer the rest of data */
+		xdma_xfer_start(xchan);
+	} else {
+		desc->completed_desc_num = complete_desc_num;
+		vchan_cyclic_callback(vd);
 	}
-
-	if (desc->completed_desc_num > desc->desc_num ||
-	    complete_desc_num != XDMA_DESC_BLOCK_NUM * XDMA_DESC_ADJACENT)
-		goto out;
-
-	/* transfer the rest of data */
-	xdma_xfer_start(xchan);
 
 out:
 	spin_unlock(&xchan->vchan.lock);
@@ -841,7 +1182,7 @@ EXPORT_SYMBOL(xdma_get_user_irq);
  * xdma_remove - Driver remove function
  * @pdev: Pointer to the platform_device structure
  */
-static int xdma_remove(struct platform_device *pdev)
+static void xdma_remove(struct platform_device *pdev)
 {
 	struct xdma_device *xdev = platform_get_drvdata(pdev);
 
@@ -850,8 +1191,6 @@ static int xdma_remove(struct platform_device *pdev)
 
 	if (xdev->status & XDMA_DEV_STATUS_REG_DMA)
 		dma_async_device_unregister(&xdev->dma_dev);
-
-	return 0;
 }
 
 /**
@@ -885,7 +1224,7 @@ static int xdma_probe(struct platform_device *pdev)
 		goto failed;
 	}
 	xdev->irq_start = res->start;
-	xdev->irq_num = res->end - res->start + 1;
+	xdev->irq_num = resource_size(res);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
@@ -921,17 +1260,26 @@ static int xdma_probe(struct platform_device *pdev)
 
 	dma_cap_set(DMA_SLAVE, xdev->dma_dev.cap_mask);
 	dma_cap_set(DMA_PRIVATE, xdev->dma_dev.cap_mask);
+	dma_cap_set(DMA_CYCLIC, xdev->dma_dev.cap_mask);
+	dma_cap_set(DMA_INTERLEAVE, xdev->dma_dev.cap_mask);
+	dma_cap_set(DMA_REPEAT, xdev->dma_dev.cap_mask);
+	dma_cap_set(DMA_LOAD_EOT, xdev->dma_dev.cap_mask);
 
 	xdev->dma_dev.dev = &pdev->dev;
+	xdev->dma_dev.residue_granularity = DMA_RESIDUE_GRANULARITY_SEGMENT;
 	xdev->dma_dev.device_free_chan_resources = xdma_free_chan_resources;
 	xdev->dma_dev.device_alloc_chan_resources = xdma_alloc_chan_resources;
-	xdev->dma_dev.device_tx_status = dma_cookie_status;
+	xdev->dma_dev.device_tx_status = xdma_tx_status;
 	xdev->dma_dev.device_prep_slave_sg = xdma_prep_device_sg;
 	xdev->dma_dev.device_config = xdma_device_config;
 	xdev->dma_dev.device_issue_pending = xdma_issue_pending;
+	xdev->dma_dev.device_terminate_all = xdma_terminate_all;
+	xdev->dma_dev.device_synchronize = xdma_synchronize;
 	xdev->dma_dev.filter.map = pdata->device_map;
 	xdev->dma_dev.filter.mapcnt = pdata->device_map_cnt;
 	xdev->dma_dev.filter.fn = xdma_filter_fn;
+	xdev->dma_dev.device_prep_dma_cyclic = xdma_prep_dma_cyclic;
+	xdev->dma_dev.device_prep_interleaved_dma = xdma_prep_interleaved_dma;
 
 	ret = dma_async_device_register(&xdev->dma_dev);
 	if (ret) {
@@ -966,7 +1314,7 @@ static struct platform_driver xdma_driver = {
 	},
 	.id_table	= xdma_id_table,
 	.probe		= xdma_probe,
-	.remove		= xdma_remove,
+	.remove_new	= xdma_remove,
 };
 
 module_platform_driver(xdma_driver);

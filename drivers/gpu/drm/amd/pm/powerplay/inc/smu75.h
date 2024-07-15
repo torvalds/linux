@@ -224,8 +224,8 @@ struct SMU7_LocalDpmScoreboard {
 	uint8_t  DteClampMode;
 	uint8_t  FpsClampMode;
 
-	uint16_t LevelResidencyCounters [SMU75_MAX_LEVELS_GRAPHICS];
-	uint16_t LevelSwitchCounters [SMU75_MAX_LEVELS_GRAPHICS];
+	uint16_t LevelResidencyCounters[SMU75_MAX_LEVELS_GRAPHICS];
+	uint16_t LevelSwitchCounters[SMU75_MAX_LEVELS_GRAPHICS];
 
 	void     (*TargetStateCalculator)(uint8_t);
 	void     (*SavedTargetStateCalculator)(uint8_t);
@@ -316,7 +316,7 @@ struct SMU7_VoltageScoreboard {
 
 	VoltageChangeHandler_t functionLinks[6];
 
-	uint16_t * VddcFollower1;
+	uint16_t *VddcFollower1;
 	int16_t  Driver_OD_RequestedVidOffset1;
 	int16_t  Driver_OD_RequestedVidOffset2;
 };
@@ -677,9 +677,9 @@ typedef struct SCS_CELL_t SCS_CELL_t;
 
 struct VFT_TABLE_t {
 	VFT_CELL_t    Cell[TEMP_RANGE_MAXSTEPS][NUM_VFT_COLUMNS];
-	uint16_t      AvfsGbv [NUM_VFT_COLUMNS];
-	uint16_t      BtcGbv  [NUM_VFT_COLUMNS];
-	int16_t       Temperature [TEMP_RANGE_MAXSTEPS];
+	uint16_t      AvfsGbv[NUM_VFT_COLUMNS];
+	uint16_t      BtcGbv[NUM_VFT_COLUMNS];
+	int16_t       Temperature[TEMP_RANGE_MAXSTEPS];
 
 #ifdef SMU__FIRMWARE_SCKS_PRESENT__1
 	SCS_CELL_t    ScksCell[TEMP_RANGE_MAXSTEPS][NUM_VFT_COLUMNS];

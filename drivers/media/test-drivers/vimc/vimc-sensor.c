@@ -41,15 +41,15 @@ static const struct v4l2_mbus_framefmt fmt_default = {
 	.colorspace = V4L2_COLORSPACE_SRGB,
 };
 
-static int vimc_sensor_init_cfg(struct v4l2_subdev *sd,
-				struct v4l2_subdev_state *sd_state)
+static int vimc_sensor_init_state(struct v4l2_subdev *sd,
+				  struct v4l2_subdev_state *sd_state)
 {
 	unsigned int i;
 
 	for (i = 0; i < sd->entity.num_pads; i++) {
 		struct v4l2_mbus_framefmt *mf;
 
-		mf = v4l2_subdev_get_try_format(sd, sd_state, i);
+		mf = v4l2_subdev_state_get_format(sd_state, i);
 		*mf = fmt_default;
 	}
 
@@ -100,7 +100,7 @@ static int vimc_sensor_get_fmt(struct v4l2_subdev *sd,
 				container_of(sd, struct vimc_sensor_device, sd);
 
 	fmt->format = fmt->which == V4L2_SUBDEV_FORMAT_TRY ?
-		      *v4l2_subdev_get_try_format(sd, sd_state, fmt->pad) :
+		      *v4l2_subdev_state_get_format(sd_state, fmt->pad) :
 		      vsensor->mbus_format;
 
 	return 0;
@@ -159,7 +159,7 @@ static int vimc_sensor_set_fmt(struct v4l2_subdev *sd,
 
 		mf = &vsensor->mbus_format;
 	} else {
-		mf = v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
+		mf = v4l2_subdev_state_get_format(sd_state, fmt->pad);
 	}
 
 	/* Set the new format */
@@ -183,7 +183,6 @@ static int vimc_sensor_set_fmt(struct v4l2_subdev *sd,
 }
 
 static const struct v4l2_subdev_pad_ops vimc_sensor_pad_ops = {
-	.init_cfg		= vimc_sensor_init_cfg,
 	.enum_mbus_code		= vimc_sensor_enum_mbus_code,
 	.enum_frame_size	= vimc_sensor_enum_frame_size,
 	.get_fmt		= vimc_sensor_get_fmt,
@@ -292,6 +291,10 @@ static const struct v4l2_subdev_ops vimc_sensor_ops = {
 	.core = &vimc_sensor_core_ops,
 	.pad = &vimc_sensor_pad_ops,
 	.video = &vimc_sensor_video_ops,
+};
+
+static const struct v4l2_subdev_internal_ops vimc_sensor_internal_ops = {
+	.init_state = vimc_sensor_init_state,
 };
 
 static int vimc_sensor_s_ctrl(struct v4l2_ctrl *ctrl)
@@ -428,6 +431,8 @@ static struct vimc_ent_device *vimc_sensor_add(struct vimc_device *vimc,
 				   &vimc_sensor_ops);
 	if (ret)
 		goto err_free_tpg;
+
+	vsensor->sd.internal_ops = &vimc_sensor_internal_ops;
 
 	vsensor->ved.process_frame = vimc_sensor_process_frame;
 	vsensor->ved.dev = vimc->mdev.dev;

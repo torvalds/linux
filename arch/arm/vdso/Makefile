@@ -63,28 +63,3 @@ quiet_cmd_vdsold_and_vdso_check = LD      $@
 
 quiet_cmd_vdsomunge = MUNGE   $@
       cmd_vdsomunge = $(objtree)/$(obj)/vdsomunge $< $@
-
-#
-# Install the unstripped copy of vdso.so.dbg.  If our toolchain
-# supports build-id, install .build-id links as well.
-#
-# Cribbed from arch/x86/vdso/Makefile.
-#
-quiet_cmd_vdso_install = INSTALL $<
-define cmd_vdso_install
-	cp $< "$(MODLIB)/vdso/vdso.so"; \
-	if readelf -n $< | grep -q 'Build ID'; then \
-	  buildid=`readelf -n $< |grep 'Build ID' |sed -e 's/^.*Build ID: \(.*\)$$/\1/'`; \
-	  first=`echo $$buildid | cut -b-2`; \
-	  last=`echo $$buildid | cut -b3-`; \
-	  mkdir -p "$(MODLIB)/vdso/.build-id/$$first"; \
-	  ln -sf "../../vdso.so" "$(MODLIB)/vdso/.build-id/$$first/$$last.debug"; \
-	fi
-endef
-
-$(MODLIB)/vdso: FORCE
-	@mkdir -p $(MODLIB)/vdso
-
-PHONY += vdso_install
-vdso_install: $(obj)/vdso.so.dbg $(MODLIB)/vdso
-	$(call cmd,vdso_install)

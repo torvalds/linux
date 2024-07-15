@@ -21,6 +21,12 @@
  */
 #include "priv.h"
 
+void
+ga100_flcn_intr_retrigger(struct nvkm_falcon *falcon)
+{
+	nvkm_falcon_wr32(falcon, 0x3e8, 0x00000001);
+}
+
 int
 ga100_flcn_fw_signature(struct nvkm_falcon_fw *fw, u32 *src_base_src)
 {

@@ -33,8 +33,8 @@ struct vm_area_struct;
  * struct drm_gem_vram_object - GEM object backed by VRAM
  * @bo:		TTM buffer object
  * @map:	Mapping information for @bo
- * @placement:	TTM placement information. Supported placements are \
-	%TTM_PL_VRAM and %TTM_PL_SYSTEM
+ * @placement:	TTM placement information. Supported placements are %TTM_PL_VRAM
+ *		and %TTM_PL_SYSTEM
  * @placements:	TTM placement information.
  *
  * The type struct drm_gem_vram_object represents a GEM object that is
@@ -126,8 +126,8 @@ drm_gem_vram_plane_helper_cleanup_fb(struct drm_plane *plane,
 				     struct drm_plane_state *old_state);
 
 /**
- * DRM_GEM_VRAM_PLANE_HELPER_FUNCS -
- *	Initializes struct drm_plane_helper_funcs for VRAM handling
+ * DRM_GEM_VRAM_PLANE_HELPER_FUNCS - Initializes struct drm_plane_helper_funcs
+ *				     for VRAM handling
  *
  * Drivers may use GEM BOs as VRAM helpers for the framebuffer memory. This
  * macro initializes struct drm_plane_helper_funcs to use the respective helper
@@ -150,19 +150,16 @@ void drm_gem_vram_simple_display_pipe_cleanup_fb(
 	struct drm_plane_state *old_state);
 
 /**
- * define DRM_GEM_VRAM_DRIVER - default callback functions for \
-	&struct drm_driver
+ * define DRM_GEM_VRAM_DRIVER - default callback functions for
+ *				&struct drm_driver
  *
  * Drivers that use VRAM MM and GEM VRAM can use this macro to initialize
  * &struct drm_driver with default functions.
  */
 #define DRM_GEM_VRAM_DRIVER \
-	.debugfs_init             = drm_vram_mm_debugfs_init, \
-	.dumb_create		  = drm_gem_vram_driver_dumb_create, \
-	.dumb_map_offset	  = drm_gem_ttm_dumb_map_offset, \
-	.gem_prime_mmap		  = drm_gem_prime_mmap, \
-	.prime_handle_to_fd	  = drm_gem_prime_handle_to_fd, \
-	.prime_fd_to_handle	  = drm_gem_prime_fd_to_handle
+	.debugfs_init	 = drm_vram_mm_debugfs_init, \
+	.dumb_create	 = drm_gem_vram_driver_dumb_create, \
+	.dumb_map_offset = drm_gem_ttm_dumb_map_offset
 
 /*
  *  VRAM memory manager
@@ -188,8 +185,8 @@ struct drm_vram_mm {
 };
 
 /**
- * drm_vram_mm_of_bdev() - \
-	Returns the container of type &struct ttm_device for field bdev.
+ * drm_vram_mm_of_bdev() - Returns the container of type &struct ttm_device for
+ *			   field bdev.
  * @bdev:	the TTM BO device
  *
  * Returns:

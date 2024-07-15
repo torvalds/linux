@@ -337,72 +337,6 @@ static unsigned long gru_chiplet_cpu_to_mmr(int chiplet, int cpu, int *corep)
 	return mmr;
 }
 
-#ifdef CONFIG_IA64
-
-static int gru_irq_count[GRU_CHIPLETS_PER_BLADE];
-
-static void gru_noop(struct irq_data *d)
-{
-}
-
-static struct irq_chip gru_chip[GRU_CHIPLETS_PER_BLADE] = {
-	[0 ... GRU_CHIPLETS_PER_BLADE - 1] {
-		.irq_mask	= gru_noop,
-		.irq_unmask	= gru_noop,
-		.irq_ack	= gru_noop
-	}
-};
-
-static int gru_chiplet_setup_tlb_irq(int chiplet, char *irq_name,
-			irq_handler_t irq_handler, int cpu, int blade)
-{
-	unsigned long mmr;
-	int irq = IRQ_GRU + chiplet;
-	int ret, core;
-
-	mmr = gru_chiplet_cpu_to_mmr(chiplet, cpu, &core);
-	if (mmr == 0)
-		return 0;
-
-	if (gru_irq_count[chiplet] == 0) {
-		gru_chip[chiplet].name = irq_name;
-		ret = irq_set_chip(irq, &gru_chip[chiplet]);
-		if (ret) {
-			printk(KERN_ERR "%s: set_irq_chip failed, errno=%d\n",
-			       GRU_DRIVER_ID_STR, -ret);
-			return ret;
-		}
-
-		ret = request_irq(irq, irq_handler, 0, irq_name, NULL);
-		if (ret) {
-			printk(KERN_ERR "%s: request_irq failed, errno=%d\n",
-			       GRU_DRIVER_ID_STR, -ret);
-			return ret;
-		}
-	}
-	gru_irq_count[chiplet]++;
-
-	return 0;
-}
-
-static void gru_chiplet_teardown_tlb_irq(int chiplet, int cpu, int blade)
-{
-	unsigned long mmr;
-	int core, irq = IRQ_GRU + chiplet;
-
-	if (gru_irq_count[chiplet] == 0)
-		return;
-
-	mmr = gru_chiplet_cpu_to_mmr(chiplet, cpu, &core);
-	if (mmr == 0)
-		return;
-
-	if (--gru_irq_count[chiplet] == 0)
-		free_irq(irq, NULL);
-}
-
-#elif defined CONFIG_X86_64
-
 static int gru_chiplet_setup_tlb_irq(int chiplet, char *irq_name,
 			irq_handler_t irq_handler, int cpu, int blade)
 {
@@ -446,8 +380,6 @@ static void gru_chiplet_teardown_tlb_irq(int chiplet, int cpu, int blade)
 		}
 	}
 }
-
-#endif
 
 static void gru_teardown_tlb_irqs(void)
 {
@@ -514,12 +446,8 @@ static int __init gru_init(void)
 	if (!gru_supported())
 		return 0;
 
-#if defined CONFIG_IA64
-	gru_start_paddr = 0xd000000000UL; /* ZZZZZZZZZZZZZZZZZZZ fixme */
-#else
 	gru_start_paddr = uv_read_local_mmr(UVH_RH_GAM_GRU_OVERLAY_CONFIG) &
 				0x7fffffffffffUL;
-#endif
 	gru_start_vaddr = __va(gru_start_paddr);
 	gru_end_paddr = gru_start_paddr + GRU_MAX_BLADES * GRU_SIZE;
 	printk(KERN_INFO "GRU space: 0x%lx - 0x%lx\n",

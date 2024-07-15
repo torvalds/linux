@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/device.h>
@@ -125,7 +126,7 @@ ATTRIBUTE_GROUPS(ath11k_hwmon);
 
 int ath11k_thermal_set_throttling(struct ath11k *ar, u32 throttle_state)
 {
-	struct ath11k_base *sc = ar->ab;
+	struct ath11k_base *ab = ar->ab;
 	struct thermal_mitigation_params param;
 	int ret = 0;
 
@@ -147,14 +148,14 @@ int ath11k_thermal_set_throttling(struct ath11k *ar, u32 throttle_state)
 
 	ret = ath11k_wmi_send_thermal_mitigation_param_cmd(ar, &param);
 	if (ret) {
-		ath11k_warn(sc, "failed to send thermal mitigation duty cycle %u ret %d\n",
+		ath11k_warn(ab, "failed to send thermal mitigation duty cycle %u ret %d\n",
 			    throttle_state, ret);
 	}
 
 	return ret;
 }
 
-int ath11k_thermal_register(struct ath11k_base *sc)
+int ath11k_thermal_register(struct ath11k_base *ab)
 {
 	struct thermal_cooling_device *cdev;
 	struct device *hwmon_dev;
@@ -162,8 +163,11 @@ int ath11k_thermal_register(struct ath11k_base *sc)
 	struct ath11k_pdev *pdev;
 	int i, ret;
 
-	for (i = 0; i < sc->num_radios; i++) {
-		pdev = &sc->pdevs[i];
+	if (test_bit(ATH11K_FLAG_REGISTERED, &ab->dev_flags))
+		return 0;
+
+	for (i = 0; i < ab->num_radios; i++) {
+		pdev = &ab->pdevs[i];
 		ar = pdev->ar;
 		if (!ar)
 			continue;
@@ -172,7 +176,7 @@ int ath11k_thermal_register(struct ath11k_base *sc)
 						       &ath11k_thermal_ops);
 
 		if (IS_ERR(cdev)) {
-			ath11k_err(sc, "failed to setup thermal device result: %ld\n",
+			ath11k_err(ab, "failed to setup thermal device result: %ld\n",
 				   PTR_ERR(cdev));
 			ret = -EINVAL;
 			goto err_thermal_destroy;
@@ -183,7 +187,7 @@ int ath11k_thermal_register(struct ath11k_base *sc)
 		ret = sysfs_create_link(&ar->hw->wiphy->dev.kobj, &cdev->device.kobj,
 					"cooling_device");
 		if (ret) {
-			ath11k_err(sc, "failed to create cooling device symlink\n");
+			ath11k_err(ab, "failed to create cooling device symlink\n");
 			goto err_thermal_destroy;
 		}
 
@@ -204,18 +208,18 @@ int ath11k_thermal_register(struct ath11k_base *sc)
 	return 0;
 
 err_thermal_destroy:
-	ath11k_thermal_unregister(sc);
+	ath11k_thermal_unregister(ab);
 	return ret;
 }
 
-void ath11k_thermal_unregister(struct ath11k_base *sc)
+void ath11k_thermal_unregister(struct ath11k_base *ab)
 {
 	struct ath11k *ar;
 	struct ath11k_pdev *pdev;
 	int i;
 
-	for (i = 0; i < sc->num_radios; i++) {
-		pdev = &sc->pdevs[i];
+	for (i = 0; i < ab->num_radios; i++) {
+		pdev = &ab->pdevs[i];
 		ar = pdev->ar;
 		if (!ar)
 			continue;

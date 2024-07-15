@@ -44,7 +44,7 @@ gm107_nvdec_nofw(struct nvkm_nvdec *nvdec, int ver,
 	return 0;
 }
 
-static const struct nvkm_nvdec_fwif
+const struct nvkm_nvdec_fwif
 gm107_nvdec_fwif[] = {
 	{ -1, gm107_nvdec_nofw, &gm107_nvdec },
 	{}

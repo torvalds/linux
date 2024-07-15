@@ -141,11 +141,9 @@ static int pch_fivr_add(struct platform_device *pdev)
 	return 0;
 }
 
-static int pch_fivr_remove(struct platform_device *pdev)
+static void pch_fivr_remove(struct platform_device *pdev)
 {
 	sysfs_remove_group(&pdev->dev.kobj, &pch_fivr_attribute_group);
-
-	return 0;
 }
 
 static const struct acpi_device_id pch_fivr_device_ids[] = {
@@ -159,7 +157,7 @@ MODULE_DEVICE_TABLE(acpi, pch_fivr_device_ids);
 
 static struct platform_driver pch_fivr_driver = {
 	.probe = pch_fivr_add,
-	.remove = pch_fivr_remove,
+	.remove_new = pch_fivr_remove,
 	.driver = {
 		.name = "dptf_pch_fivr",
 		.acpi_match_table = pch_fivr_device_ids,

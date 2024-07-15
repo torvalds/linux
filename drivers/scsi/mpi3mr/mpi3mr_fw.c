@@ -475,7 +475,7 @@ int mpi3mr_process_admin_reply_q(struct mpi3mr_ioc *mrioc)
  * @op_reply_q: op_reply_qinfo object
  * @reply_ci: operational reply descriptor's queue consumer index
  *
- * Returns reply descriptor frame address
+ * Returns: reply descriptor frame address
  */
 static inline struct mpi3_default_reply_descriptor *
 mpi3mr_get_reply_desc(struct op_reply_qinfo *op_reply_q, u32 reply_ci)
@@ -1059,6 +1059,112 @@ enum mpi3mr_iocstate mpi3mr_get_iocstate(struct mpi3mr_ioc *mrioc)
 }
 
 /**
+ * mpi3mr_free_ioctl_dma_memory - free memory for ioctl dma
+ * @mrioc: Adapter instance reference
+ *
+ * Free the DMA memory allocated for IOCTL handling purpose.
+ *
+ * Return: None
+ */
+static void mpi3mr_free_ioctl_dma_memory(struct mpi3mr_ioc *mrioc)
+{
+	struct dma_memory_desc *mem_desc;
+	u16 i;
+
+	if (!mrioc->ioctl_dma_pool)
+		return;
+
+	for (i = 0; i < MPI3MR_NUM_IOCTL_SGE; i++) {
+		mem_desc = &mrioc->ioctl_sge[i];
+		if (mem_desc->addr) {
+			dma_pool_free(mrioc->ioctl_dma_pool,
+				      mem_desc->addr,
+				      mem_desc->dma_addr);
+			mem_desc->addr = NULL;
+		}
+	}
+	dma_pool_destroy(mrioc->ioctl_dma_pool);
+	mrioc->ioctl_dma_pool = NULL;
+	mem_desc = &mrioc->ioctl_chain_sge;
+
+	if (mem_desc->addr) {
+		dma_free_coherent(&mrioc->pdev->dev, mem_desc->size,
+				  mem_desc->addr, mem_desc->dma_addr);
+		mem_desc->addr = NULL;
+	}
+	mem_desc = &mrioc->ioctl_resp_sge;
+	if (mem_desc->addr) {
+		dma_free_coherent(&mrioc->pdev->dev, mem_desc->size,
+				  mem_desc->addr, mem_desc->dma_addr);
+		mem_desc->addr = NULL;
+	}
+
+	mrioc->ioctl_sges_allocated = false;
+}
+
+/**
+ * mpi3mr_alloc_ioctl_dma_memory - Alloc memory for ioctl dma
+ * @mrioc: Adapter instance reference
+ *
+ * This function allocates dmaable memory required to handle the
+ * application issued MPI3 IOCTL requests.
+ *
+ * Return: None
+ */
+static void mpi3mr_alloc_ioctl_dma_memory(struct mpi3mr_ioc *mrioc)
+
+{
+	struct dma_memory_desc *mem_desc;
+	u16 i;
+
+	mrioc->ioctl_dma_pool = dma_pool_create("ioctl dma pool",
+						&mrioc->pdev->dev,
+						MPI3MR_IOCTL_SGE_SIZE,
+						MPI3MR_PAGE_SIZE_4K, 0);
+
+	if (!mrioc->ioctl_dma_pool) {
+		ioc_err(mrioc, "ioctl_dma_pool: dma_pool_create failed\n");
+		goto out_failed;
+	}
+
+	for (i = 0; i < MPI3MR_NUM_IOCTL_SGE; i++) {
+		mem_desc = &mrioc->ioctl_sge[i];
+		mem_desc->size = MPI3MR_IOCTL_SGE_SIZE;
+		mem_desc->addr = dma_pool_zalloc(mrioc->ioctl_dma_pool,
+						 GFP_KERNEL,
+						 &mem_desc->dma_addr);
+		if (!mem_desc->addr)
+			goto out_failed;
+	}
+
+	mem_desc = &mrioc->ioctl_chain_sge;
+	mem_desc->size = MPI3MR_PAGE_SIZE_4K;
+	mem_desc->addr = dma_alloc_coherent(&mrioc->pdev->dev,
+					    mem_desc->size,
+					    &mem_desc->dma_addr,
+					    GFP_KERNEL);
+	if (!mem_desc->addr)
+		goto out_failed;
+
+	mem_desc = &mrioc->ioctl_resp_sge;
+	mem_desc->size = MPI3MR_PAGE_SIZE_4K;
+	mem_desc->addr = dma_alloc_coherent(&mrioc->pdev->dev,
+					    mem_desc->size,
+					    &mem_desc->dma_addr,
+					    GFP_KERNEL);
+	if (!mem_desc->addr)
+		goto out_failed;
+
+	mrioc->ioctl_sges_allocated = true;
+
+	return;
+out_failed:
+	ioc_warn(mrioc, "cannot allocate DMA memory for the mpt commands\n"
+		 "from the applications, application interface for MPT command is disabled\n");
+	mpi3mr_free_ioctl_dma_memory(mrioc);
+}
+
+/**
  * mpi3mr_clear_reset_history - clear reset history
  * @mrioc: Adapter instance reference
  *
@@ -1133,7 +1239,7 @@ static int mpi3mr_issue_and_process_mur(struct mpi3mr_ioc *mrioc,
  * during reset/resume
  * @mrioc: Adapter instance reference
  *
- * Return zero if the new IOCFacts parameters value is compatible with
+ * Return: zero if the new IOCFacts parameters value is compatible with
  * older values else return -EPERM
  */
 static int
@@ -1162,6 +1268,12 @@ mpi3mr_revalidate_factsdata(struct mpi3mr_ioc *mrioc)
 		    mrioc->num_op_req_q, mrioc->facts.max_op_req_q);
 		return -EPERM;
 	}
+
+	if (mrioc->shost->max_sectors != (mrioc->facts.max_data_length / 512))
+		ioc_err(mrioc, "Warning: The maximum data transfer length\n"
+			    "\tchanged after reset: previous(%d), new(%d),\n"
+			    "the driver cannot change this at run time\n",
+			    mrioc->shost->max_sectors * 512, mrioc->facts.max_data_length);
 
 	if ((mrioc->sas_transport_enabled) && (mrioc->facts.ioc_capabilities &
 	    MPI3_IOCFACTS_CAPABILITY_MULTIPATH_ENABLED))
@@ -1886,7 +1998,8 @@ static int mpi3mr_create_op_reply_q(struct mpi3mr_ioc *mrioc, u16 qidx)
 
 	reply_qid = qidx + 1;
 	op_reply_q->num_replies = MPI3MR_OP_REP_Q_QD;
-	if (!mrioc->pdev->revision)
+	if ((mrioc->pdev->device == MPI3_MFGPAGE_DEVID_SAS4116) &&
+		!mrioc->pdev->revision)
 		op_reply_q->num_replies = MPI3MR_OP_REP_Q_QD4K;
 	op_reply_q->ci = 0;
 	op_reply_q->ephase = 1;
@@ -2343,8 +2456,8 @@ static int mpi3mr_sync_timestamp(struct mpi3mr_ioc *mrioc)
 		ioc_err(mrioc, "Issue IOUCTL time_stamp: command timed out\n");
 		mrioc->init_cmds.is_waiting = 0;
 		if (!(mrioc->init_cmds.state & MPI3MR_CMD_RESET))
-			mpi3mr_soft_reset_handler(mrioc,
-			    MPI3MR_RESET_FROM_TSU_TIMEOUT, 1);
+			mpi3mr_check_rh_fault_ioc(mrioc,
+			    MPI3MR_RESET_FROM_TSU_TIMEOUT);
 		retval = -1;
 		goto out_unlock;
 	}
@@ -2856,6 +2969,7 @@ static void mpi3mr_process_factsdata(struct mpi3mr_ioc *mrioc,
 	    le16_to_cpu(facts_data->max_pcie_switches);
 	mrioc->facts.max_sasexpanders =
 	    le16_to_cpu(facts_data->max_sas_expanders);
+	mrioc->facts.max_data_length = le16_to_cpu(facts_data->max_data_length);
 	mrioc->facts.max_sasinitiators =
 	    le16_to_cpu(facts_data->max_sas_initiators);
 	mrioc->facts.max_enclosures = le16_to_cpu(facts_data->max_enclosures);
@@ -2893,13 +3007,18 @@ static void mpi3mr_process_factsdata(struct mpi3mr_ioc *mrioc,
 	mrioc->facts.io_throttle_high =
 	    le16_to_cpu(facts_data->io_throttle_high);
 
+	if (mrioc->facts.max_data_length ==
+	    MPI3_IOCFACTS_MAX_DATA_LENGTH_NOT_REPORTED)
+		mrioc->facts.max_data_length = MPI3MR_DEFAULT_MAX_IO_SIZE;
+	else
+		mrioc->facts.max_data_length *= MPI3MR_PAGE_SIZE_4K;
 	/* Store in 512b block count */
 	if (mrioc->facts.io_throttle_data_length)
 		mrioc->io_throttle_data_length =
 		    (mrioc->facts.io_throttle_data_length * 2 * 4);
 	else
 		/* set the length to 1MB + 1K to disable throttle */
-		mrioc->io_throttle_data_length = MPI3MR_MAX_SECTORS + 2;
+		mrioc->io_throttle_data_length = (mrioc->facts.max_data_length / 512) + 2;
 
 	mrioc->io_throttle_high = (mrioc->facts.io_throttle_high * 2 * 1024);
 	mrioc->io_throttle_low = (mrioc->facts.io_throttle_low * 2 * 1024);
@@ -2914,9 +3033,9 @@ static void mpi3mr_process_factsdata(struct mpi3mr_ioc *mrioc,
 	ioc_info(mrioc, "SGEModMask 0x%x SGEModVal 0x%x SGEModShift 0x%x ",
 	    mrioc->facts.sge_mod_mask, mrioc->facts.sge_mod_value,
 	    mrioc->facts.sge_mod_shift);
-	ioc_info(mrioc, "DMA mask %d InitialPE status 0x%x\n",
+	ioc_info(mrioc, "DMA mask %d InitialPE status 0x%x max_data_len (%d)\n",
 	    mrioc->facts.dma_mask, (facts_flags &
-	    MPI3_IOCFACTS_FLAGS_INITIAL_PORT_ENABLE_MASK));
+	    MPI3_IOCFACTS_FLAGS_INITIAL_PORT_ENABLE_MASK), mrioc->facts.max_data_length);
 	ioc_info(mrioc,
 	    "max_dev_per_throttle_group(%d), max_throttle_groups(%d)\n",
 	    mrioc->facts.max_dev_per_tg, mrioc->facts.max_io_throttle_group);
@@ -3181,6 +3300,9 @@ static int mpi3mr_issue_iocinit(struct mpi3mr_ioc *mrioc)
 	current_time = ktime_get_real();
 	iocinit_req.time_stamp = cpu_to_le64(ktime_to_ms(current_time));
 
+	iocinit_req.msg_flags |=
+	    MPI3_IOCINIT_MSGFLAGS_SCSIIOSTATUSREPLY_SUPPORTED;
+
 	init_completion(&mrioc->init_cmds.done);
 	retval = mpi3mr_admin_request_post(mrioc, &iocinit_req,
 	    sizeof(iocinit_req), 1);
@@ -3359,8 +3481,8 @@ int mpi3mr_process_event_ack(struct mpi3mr_ioc *mrioc, u8 event,
 	if (!(mrioc->init_cmds.state & MPI3MR_CMD_COMPLETE)) {
 		ioc_err(mrioc, "Issue EvtNotify: command timed out\n");
 		if (!(mrioc->init_cmds.state & MPI3MR_CMD_RESET))
-			mpi3mr_soft_reset_handler(mrioc,
-			    MPI3MR_RESET_FROM_EVTACK_TIMEOUT, 1);
+			mpi3mr_check_rh_fault_ioc(mrioc,
+			    MPI3MR_RESET_FROM_EVTACK_TIMEOUT);
 		retval = -1;
 		goto out_unlock;
 	}
@@ -3414,7 +3536,14 @@ static int mpi3mr_alloc_chain_bufs(struct mpi3mr_ioc *mrioc)
 	if (!mrioc->chain_sgl_list)
 		goto out_failed;
 
-	sz = MPI3MR_PAGE_SIZE_4K;
+	if (mrioc->max_sgl_entries > (mrioc->facts.max_data_length /
+		MPI3MR_PAGE_SIZE_4K))
+		mrioc->max_sgl_entries = mrioc->facts.max_data_length /
+			MPI3MR_PAGE_SIZE_4K;
+	sz = mrioc->max_sgl_entries * sizeof(struct mpi3_sge_common);
+	ioc_info(mrioc, "number of sgl entries=%d chain buffer size=%dKB\n",
+			mrioc->max_sgl_entries, sz/1024);
+
 	mrioc->chain_buf_pool = dma_pool_create("chain_buf pool",
 	    &mrioc->pdev->dev, sz, 16, 0);
 	if (!mrioc->chain_buf_pool) {
@@ -3813,7 +3942,7 @@ retry_init:
 	}
 
 	mrioc->max_host_ios = mrioc->facts.max_reqs - MPI3MR_INTERNAL_CMDS_RESVD;
-
+	mrioc->shost->max_sectors = mrioc->facts.max_data_length / 512;
 	mrioc->num_io_throttle_group = mrioc->facts.max_io_throttle_group;
 	atomic_set(&mrioc->pend_large_data_sz, 0);
 
@@ -3850,6 +3979,9 @@ retry_init:
 			goto out_failed_noretry;
 		}
 	}
+
+	dprint_init(mrioc, "allocating ioctl dma buffers\n");
+	mpi3mr_alloc_ioctl_dma_memory(mrioc);
 
 	if (!mrioc->init_cmds.reply) {
 		retval = mpi3mr_alloc_reply_sense_bufs(mrioc);
@@ -4270,6 +4402,7 @@ void mpi3mr_free_mem(struct mpi3mr_ioc *mrioc)
 	struct mpi3mr_intr_info *intr_info;
 
 	mpi3mr_free_enclosure_list(mrioc);
+	mpi3mr_free_ioctl_dma_memory(mrioc);
 
 	if (mrioc->sense_buf_pool) {
 		if (mrioc->sense_buf)

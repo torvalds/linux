@@ -324,7 +324,7 @@ out_unmap:
 	return NULL;
 }
 
-static void newport_init(struct vc_data *vc, int init)
+static void newport_init(struct vc_data *vc, bool init)
 {
 	int cols, rows;
 
@@ -346,12 +346,12 @@ static void newport_deinit(struct vc_data *c)
 	}
 }
 
-static void newport_clear(struct vc_data *vc, int sy, int sx, int height,
-			  int width)
+static void newport_clear(struct vc_data *vc, unsigned int sy, unsigned int sx,
+			  unsigned int width)
 {
 	int xend = ((sx + width) << 3) - 1;
 	int ystart = ((sy << 4) + topscan) & 0x3ff;
-	int yend = (((sy + height) << 4) + topscan - 1) & 0x3ff;
+	int yend = (((sy + 1) << 4) + topscan - 1) & 0x3ff;
 
 	if (logo_active)
 		return;
@@ -367,8 +367,8 @@ static void newport_clear(struct vc_data *vc, int sy, int sx, int height,
 	}
 }
 
-static void newport_putc(struct vc_data *vc, int charattr, int ypos,
-			 int xpos)
+static void newport_putc(struct vc_data *vc, u16 charattr, unsigned int ypos,
+			 unsigned int xpos)
 {
 	unsigned char *p;
 
@@ -396,12 +396,13 @@ static void newport_putc(struct vc_data *vc, int charattr, int ypos,
 	RENDER(npregs, p);
 }
 
-static void newport_putcs(struct vc_data *vc, const unsigned short *s,
-			  int count, int ypos, int xpos)
+static void newport_putcs(struct vc_data *vc, const u16 *s,
+			  unsigned int count, unsigned int ypos,
+			  unsigned int xpos)
 {
-	int i;
-	int charattr;
 	unsigned char *p;
+	unsigned int i;
+	u16 charattr;
 
 	charattr = (scr_readw(s) >> 8) & 0xff;
 
@@ -437,32 +438,28 @@ static void newport_putcs(struct vc_data *vc, const unsigned short *s,
 	}
 }
 
-static void newport_cursor(struct vc_data *vc, int mode)
+static void newport_cursor(struct vc_data *vc, bool enable)
 {
 	unsigned short treg;
 	int xcurs, ycurs;
 
-	switch (mode) {
-	case CM_ERASE:
-		treg = newport_vc2_get(npregs, VC2_IREG_CONTROL);
+	treg = newport_vc2_get(npregs, VC2_IREG_CONTROL);
+
+	if (!enable) {
 		newport_vc2_set(npregs, VC2_IREG_CONTROL,
 				(treg & ~(VC2_CTRL_ECDISP)));
-		break;
-
-	case CM_MOVE:
-	case CM_DRAW:
-		treg = newport_vc2_get(npregs, VC2_IREG_CONTROL);
-		newport_vc2_set(npregs, VC2_IREG_CONTROL,
-				(treg | VC2_CTRL_ECDISP));
-		xcurs = (vc->vc_pos - vc->vc_visible_origin) / 2;
-		ycurs = ((xcurs / vc->vc_cols) << 4) + 31;
-		xcurs = ((xcurs % vc->vc_cols) << 3) + xcurs_correction;
-		newport_vc2_set(npregs, VC2_IREG_CURSX, xcurs);
-		newport_vc2_set(npregs, VC2_IREG_CURSY, ycurs);
+		return;
 	}
+
+	newport_vc2_set(npregs, VC2_IREG_CONTROL, (treg | VC2_CTRL_ECDISP));
+	xcurs = (vc->vc_pos - vc->vc_visible_origin) / 2;
+	ycurs = ((xcurs / vc->vc_cols) << 4) + 31;
+	xcurs = ((xcurs % vc->vc_cols) << 3) + xcurs_correction;
+	newport_vc2_set(npregs, VC2_IREG_CURSX, xcurs);
+	newport_vc2_set(npregs, VC2_IREG_CURSY, ycurs);
 }
 
-static int newport_switch(struct vc_data *vc)
+static bool newport_switch(struct vc_data *vc)
 {
 	static int logo_drawn = 0;
 
@@ -476,14 +473,15 @@ static int newport_switch(struct vc_data *vc)
 		}
 	}
 
-	return 1;
+	return true;
 }
 
-static int newport_blank(struct vc_data *c, int blank, int mode_switch)
+static bool newport_blank(struct vc_data *c, enum vesa_blank_mode blank,
+			  bool mode_switch)
 {
 	unsigned short treg;
 
-	if (blank == 0) {
+	if (blank == VESA_NO_BLANKING) {
 		/* unblank console */
 		treg = newport_vc2_get(npregs, VC2_IREG_CONTROL);
 		newport_vc2_set(npregs, VC2_IREG_CONTROL,
@@ -494,10 +492,12 @@ static int newport_blank(struct vc_data *c, int blank, int mode_switch)
 		newport_vc2_set(npregs, VC2_IREG_CONTROL,
 				(treg & ~(VC2_CTRL_EDISP)));
 	}
-	return 1;
+
+	return true;
 }
 
-static int newport_set_font(int unit, struct console_font *op, unsigned int vpitch)
+static int newport_set_font(int unit, const struct console_font *op,
+			    unsigned int vpitch)
 {
 	int w = op->width;
 	int h = op->height;
@@ -564,12 +564,13 @@ static int newport_set_def_font(int unit, struct console_font *op)
 	return 0;
 }
 
-static int newport_font_default(struct vc_data *vc, struct console_font *op, char *name)
+static int newport_font_default(struct vc_data *vc, struct console_font *op,
+				const char *name)
 {
 	return newport_set_def_font(vc->vc_num, op);
 }
 
-static int newport_font_set(struct vc_data *vc, struct console_font *font,
+static int newport_font_set(struct vc_data *vc, const struct console_font *font,
 			    unsigned int vpitch, unsigned int flags)
 {
 	return newport_set_font(vc->vc_num, font, vpitch);

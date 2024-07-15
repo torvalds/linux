@@ -244,7 +244,7 @@
 &usb2 {
 	status = "okay";
 	usb-role-switch;
-	connector{
+	connector {
 		compatible = "gpio-usb-b-connector", "usb-b-connector";
 		type = "micro";
 		id-gpios = <&pio 44 GPIO_ACTIVE_HIGH>;

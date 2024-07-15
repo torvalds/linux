@@ -8,7 +8,7 @@ title: Qualcomm Global Clock & Reset Controller on SDM670 and SDM845
 
 maintainers:
   - Stephen Boyd <sboyd@kernel.org>
-  - Taniya Das <tdas@codeaurora.org>
+  - Taniya Das <quic_tdas@quicinc.com>
 
 description: |
   Qualcomm global clock control module provides the clocks, resets and power

@@ -62,10 +62,8 @@ typedef int (*gvt_mmio_func)(struct intel_vgpu *, unsigned int, void *,
 struct intel_gvt_mmio_info {
 	u32 offset;
 	u64 ro_mask;
-	u32 device;
 	gvt_mmio_func read;
 	gvt_mmio_func write;
-	u32 addr_range;
 	struct hlist_node node;
 };
 

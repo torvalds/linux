@@ -94,7 +94,6 @@ static int zynq_reset_probe(struct platform_device *pdev)
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
-	platform_set_drvdata(pdev, priv);
 
 	priv->slcr = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
 						     "syscon");

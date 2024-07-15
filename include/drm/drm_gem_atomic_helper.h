@@ -5,6 +5,7 @@
 
 #include <linux/iosys-map.h>
 
+#include <drm/drm_format_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_plane.h>
 
@@ -48,6 +49,15 @@ int drm_gem_plane_helper_prepare_fb(struct drm_plane *plane, struct drm_plane_st
 struct drm_shadow_plane_state {
 	/** @base: plane state */
 	struct drm_plane_state base;
+
+	/**
+	 * @fmtcnv_state: Format-conversion state
+	 *
+	 * Per-plane state for format conversion.
+	 * Flags for copying shadow buffers into backend storage. Also holds
+	 * temporary storage for format conversion.
+	 */
+	struct drm_format_conv_state fmtcnv_state;
 
 	/* Transitional state - do not export or duplicate */
 

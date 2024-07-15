@@ -24,7 +24,7 @@ config BLK_DEV_PMEM
 	select ND_PFN if NVDIMM_PFN
 	help
 	  Memory ranges for PMEM are described by either an NFIT
-	  (NVDIMM Firmware Interface Table, see CONFIG_NFIT_ACPI), a
+	  (NVDIMM Firmware Interface Table, see CONFIG_ACPI_NFIT), a
 	  non-standard OEM-specific E820 memory type (type-12, see
 	  CONFIG_X86_PMEM_LEGACY), or it is manually specified by the
 	  'memmap=nn[KMG]!ss[KMG]' kernel command line (see

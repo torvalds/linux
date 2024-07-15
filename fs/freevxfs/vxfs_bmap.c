@@ -29,7 +29,7 @@ vxfs_typdump(struct vxfs_typed *typ)
 /**
  * vxfs_bmap_ext4 - do bmap for ext4 extents
  * @ip:		pointer to the inode we do bmap for
- * @iblock:	logical block.
+ * @bn:		logical block.
  *
  * Description:
  *   vxfs_bmap_ext4 performs the bmap operation for inodes with
@@ -97,7 +97,7 @@ fail_buf:
  *   vxfs_bmap_indir reads a &struct vxfs_typed at @indir
  *   and performs the type-defined action.
  *
- * Return Value:
+ * Returns:
  *   The physical block number on success, else Zero.
  *
  * Note:
@@ -179,7 +179,7 @@ out:
  * Description:
  *   Performs the bmap operation for typed extents.
  *
- * Return Value:
+ * Returns:
  *   The physical block number on success, else Zero.
  */
 static daddr_t
@@ -243,7 +243,7 @@ vxfs_bmap_typed(struct inode *ip, long iblock)
  *   vxfs_bmap1 perfoms a logical to physical block mapping
  *   for vxfs-internal purposes.
  *
- * Return Value:
+ * Returns:
  *   The physical block number on success, else Zero.
  */
 daddr_t

@@ -23,20 +23,26 @@ bool mlx5e_channels_is_xsk(struct mlx5e_channels *chs, unsigned int ix)
 	return test_bit(MLX5E_CHANNEL_STATE_XSK, c->state);
 }
 
-void mlx5e_channels_get_regular_rqn(struct mlx5e_channels *chs, unsigned int ix, u32 *rqn)
+void mlx5e_channels_get_regular_rqn(struct mlx5e_channels *chs, unsigned int ix, u32 *rqn,
+				    u32 *vhca_id)
 {
 	struct mlx5e_channel *c = mlx5e_channels_get(chs, ix);
 
 	*rqn = c->rq.rqn;
+	if (vhca_id)
+		*vhca_id = MLX5_CAP_GEN(c->mdev, vhca_id);
 }
 
-void mlx5e_channels_get_xsk_rqn(struct mlx5e_channels *chs, unsigned int ix, u32 *rqn)
+void mlx5e_channels_get_xsk_rqn(struct mlx5e_channels *chs, unsigned int ix, u32 *rqn,
+				u32 *vhca_id)
 {
 	struct mlx5e_channel *c = mlx5e_channels_get(chs, ix);
 
 	WARN_ON_ONCE(!test_bit(MLX5E_CHANNEL_STATE_XSK, c->state));
 
 	*rqn = c->xskrq.rqn;
+	if (vhca_id)
+		*vhca_id = MLX5_CAP_GEN(c->mdev, vhca_id);
 }
 
 bool mlx5e_channels_get_ptp_rqn(struct mlx5e_channels *chs, u32 *rqn)

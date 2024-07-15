@@ -17,8 +17,8 @@
 #include <linux/delay.h>
 #include <linux/seq_file.h>
 #include <linux/interrupt.h>
+#include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_platform.h>
 
 #include <asm/time.h>
 #include <asm/machdep.h>
@@ -38,7 +38,7 @@
 
 void __iomem *imp3a_regs;
 
-void __init ge_imp3a_pic_init(void)
+static void __init ge_imp3a_pic_init(void)
 {
 	struct mpic *mpic;
 	struct device_node *np;

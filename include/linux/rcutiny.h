@@ -138,6 +138,8 @@ static inline int rcu_needs_cpu(void)
 	return 0;
 }
 
+static inline void rcu_request_urgent_qs_task(struct task_struct *t) { }
+
 /*
  * Take advantage of the fact that there is only one CPU, which
  * allows us to ignore virtualization-based context switches.
@@ -169,6 +171,6 @@ static inline void rcu_all_qs(void) { barrier(); }
 #define rcutree_offline_cpu      NULL
 #define rcutree_dead_cpu         NULL
 #define rcutree_dying_cpu        NULL
-static inline void rcu_cpu_starting(unsigned int cpu) { }
+static inline void rcutree_report_cpu_starting(unsigned int cpu) { }
 
 #endif /* __LINUX_RCUTINY_H */

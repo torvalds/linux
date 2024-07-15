@@ -27,7 +27,10 @@
 #include "mei_dev.h"
 #include "client.h"
 
-static struct class *mei_class;
+static const struct class mei_class = {
+	.name = "mei",
+};
+
 static dev_t mei_devt;
 #define MEI_MAX_DEVS  MINORMASK
 static DEFINE_MUTEX(mei_minor_lock);
@@ -457,10 +460,10 @@ end:
 /**
  * mei_vt_support_check - check if client support vtags
  *
- * Locking: called under "dev->device_lock" lock
- *
  * @dev: mei_device
  * @uuid: client UUID
+ *
+ * Locking: called under "dev->device_lock" lock
  *
  * Return:
  *	0 - supported
@@ -584,8 +587,8 @@ static int mei_ioctl_connect_vtag(struct file *file,
 }
 
 /**
- * mei_ioctl_client_notify_request -
- *     propagate event notification request to client
+ * mei_ioctl_client_notify_request - propagate event notification
+ *                                   request to client
  *
  * @file: pointer to file structure
  * @request: 0 - disable, 1 - enable
@@ -1115,7 +1118,7 @@ void mei_set_devstate(struct mei_device *dev, enum mei_dev_state state)
 
 	dev->dev_state = state;
 
-	clsdev = class_find_device_by_devt(mei_class, dev->cdev.dev);
+	clsdev = class_find_device_by_devt(&mei_class, dev->cdev.dev);
 	if (clsdev) {
 		sysfs_notify(&clsdev->kobj, NULL, "dev_state");
 		put_device(clsdev);
@@ -1232,7 +1235,7 @@ int mei_register(struct mei_device *dev, struct device *parent)
 		goto err_dev_add;
 	}
 
-	clsdev = device_create_with_groups(mei_class, parent, devno,
+	clsdev = device_create_with_groups(&mei_class, parent, devno,
 					   dev, mei_groups,
 					   "mei%d", dev->minor);
 
@@ -1264,7 +1267,7 @@ void mei_deregister(struct mei_device *dev)
 
 	mei_dbgfs_deregister(dev);
 
-	device_destroy(mei_class, devno);
+	device_destroy(&mei_class, devno);
 
 	mei_minor_free(dev);
 }
@@ -1274,12 +1277,9 @@ static int __init mei_init(void)
 {
 	int ret;
 
-	mei_class = class_create("mei");
-	if (IS_ERR(mei_class)) {
-		pr_err("couldn't create class\n");
-		ret = PTR_ERR(mei_class);
-		goto err;
-	}
+	ret = class_register(&mei_class);
+	if (ret)
+		return ret;
 
 	ret = alloc_chrdev_region(&mei_devt, 0, MEI_MAX_DEVS, "mei");
 	if (ret < 0) {
@@ -1298,15 +1298,14 @@ static int __init mei_init(void)
 err_chrdev:
 	unregister_chrdev_region(mei_devt, MEI_MAX_DEVS);
 err_class:
-	class_destroy(mei_class);
-err:
+	class_unregister(&mei_class);
 	return ret;
 }
 
 static void __exit mei_exit(void)
 {
 	unregister_chrdev_region(mei_devt, MEI_MAX_DEVS);
-	class_destroy(mei_class);
+	class_unregister(&mei_class);
 	mei_cl_bus_exit();
 }
 

@@ -223,7 +223,7 @@ struct mtd_part {
  * @partitions_lock: lock protecting accesses to the partition list. Protects
  *		     not only the master partition list, but also all
  *		     sub-partitions.
- * @suspended: et to 1 when the device is suspended, 0 otherwise
+ * @suspended: set to 1 when the device is suspended, 0 otherwise
  *
  * This struct is embedded in mtd_info and contains master-specific
  * properties/fields. The master is the root MTD device from the MTD partition
@@ -379,7 +379,7 @@ struct mtd_info {
 
 	struct module *owner;
 	struct device dev;
-	int usecount;
+	struct kref refcnt;
 	struct mtd_debug_info dbg;
 	struct nvmem_device *nvmem;
 	struct nvmem_device *otp_user_nvmem;

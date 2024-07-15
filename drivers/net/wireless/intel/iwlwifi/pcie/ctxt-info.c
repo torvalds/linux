@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
  * Copyright (C) 2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2023 Intel Corporation
  */
 #include "iwl-trans.h"
 #include "iwl-fh.h"
@@ -180,7 +180,7 @@ int iwl_pcie_ctxt_info_init(struct iwl_trans *trans,
 
 	ctxt_info->version.version = 0;
 	ctxt_info->version.mac_id =
-		cpu_to_le16((u16)iwl_read32(trans, CSR_HW_REV));
+		cpu_to_le16((u16)trans->hw_rev);
 	/* size is in DWs */
 	ctxt_info->version.size = cpu_to_le16(sizeof(*ctxt_info) / 4);
 

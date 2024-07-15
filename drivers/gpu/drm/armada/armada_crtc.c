@@ -7,8 +7,9 @@
 #include <linux/clk.h>
 #include <linux/component.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
@@ -1012,26 +1013,17 @@ armada_lcd_bind(struct device *dev, struct device *master, void *data)
 	int irq = platform_get_irq(pdev, 0);
 	const struct armada_variant *variant;
 	struct device_node *port = NULL;
+	struct device_node *np, *parent = dev->of_node;
 
 	if (irq < 0)
 		return irq;
 
-	if (!dev->of_node) {
-		const struct platform_device_id *id;
 
-		id = platform_get_device_id(pdev);
-		if (!id)
-			return -ENXIO;
+	variant = device_get_match_data(dev);
+	if (!variant)
+		return -ENXIO;
 
-		variant = (const struct armada_variant *)id->driver_data;
-	} else {
-		const struct of_device_id *match;
-		struct device_node *np, *parent = dev->of_node;
-
-		match = of_match_device(dev->driver->of_match_table, dev);
-		if (!match)
-			return -ENXIO;
-
+	if (parent) {
 		np = of_get_child_by_name(parent, "ports");
 		if (np)
 			parent = np;
@@ -1041,8 +1033,6 @@ armada_lcd_bind(struct device *dev, struct device *master, void *data)
 			dev_err(dev, "no port node found in %pOF\n", parent);
 			return -ENXIO;
 		}
-
-		variant = match->data;
 	}
 
 	return armada_drm_crtc_create(drm, dev, res, irq, variant, port);
@@ -1066,10 +1056,9 @@ static int armada_lcd_probe(struct platform_device *pdev)
 	return component_add(&pdev->dev, &armada_lcd_ops);
 }
 
-static int armada_lcd_remove(struct platform_device *pdev)
+static void armada_lcd_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &armada_lcd_ops);
-	return 0;
 }
 
 static const struct of_device_id armada_lcd_of_match[] = {
@@ -1095,7 +1084,7 @@ MODULE_DEVICE_TABLE(platform, armada_lcd_platform_ids);
 
 struct platform_driver armada_lcd_platform_driver = {
 	.probe	= armada_lcd_probe,
-	.remove	= armada_lcd_remove,
+	.remove_new = armada_lcd_remove,
 	.driver = {
 		.name	= "armada-lcd",
 		.owner	=  THIS_MODULE,

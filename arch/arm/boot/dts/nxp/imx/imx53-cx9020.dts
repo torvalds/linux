@@ -22,7 +22,7 @@
 	};
 
 	display-0 {
-		#address-cells =<1>;
+		#address-cells = <1>;
 		#size-cells = <0>;
 		compatible = "fsl,imx-parallel-display";
 		interface-pix-fmt = "rgb24";

@@ -1906,9 +1906,10 @@ static int s2255_get_fx2fw(struct s2255_dev *dev)
 {
 	int fw;
 	int ret;
-	unsigned char transBuffer[64];
-	ret = s2255_vendor_req(dev, S2255_VR_FW, 0, 0, transBuffer, 2,
-			       S2255_VR_IN);
+	u8 transBuffer[2] = {};
+
+	ret = s2255_vendor_req(dev, S2255_VR_FW, 0, 0, transBuffer,
+			       sizeof(transBuffer), S2255_VR_IN);
 	if (ret < 0)
 		dprintk(dev, 2, "get fw error: %x\n", ret);
 	fw = transBuffer[0] + (transBuffer[1] << 8);

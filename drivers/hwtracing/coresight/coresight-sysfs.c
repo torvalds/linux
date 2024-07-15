@@ -5,9 +5,400 @@
  */
 
 #include <linux/device.h>
+#include <linux/idr.h>
 #include <linux/kernel.h>
 
 #include "coresight-priv.h"
+
+/*
+ * Use IDR to map the hash of the source's device name
+ * to the pointer of path for the source. The idr is for
+ * the sources which aren't associated with CPU.
+ */
+static DEFINE_IDR(path_idr);
+
+/*
+ * When operating Coresight drivers from the sysFS interface, only a single
+ * path can exist from a tracer (associated to a CPU) to a sink.
+ */
+static DEFINE_PER_CPU(struct list_head *, tracer_path);
+
+ssize_t coresight_simple_show_pair(struct device *_dev,
+			      struct device_attribute *attr, char *buf)
+{
+	struct coresight_device *csdev = container_of(_dev, struct coresight_device, dev);
+	struct cs_pair_attribute *cs_attr = container_of(attr, struct cs_pair_attribute, attr);
+	u64 val;
+
+	pm_runtime_get_sync(_dev->parent);
+	val = csdev_access_relaxed_read_pair(&csdev->access, cs_attr->lo_off, cs_attr->hi_off);
+	pm_runtime_put_sync(_dev->parent);
+	return sysfs_emit(buf, "0x%llx\n", val);
+}
+EXPORT_SYMBOL_GPL(coresight_simple_show_pair);
+
+ssize_t coresight_simple_show32(struct device *_dev,
+			      struct device_attribute *attr, char *buf)
+{
+	struct coresight_device *csdev = container_of(_dev, struct coresight_device, dev);
+	struct cs_off_attribute *cs_attr = container_of(attr, struct cs_off_attribute, attr);
+	u64 val;
+
+	pm_runtime_get_sync(_dev->parent);
+	val = csdev_access_relaxed_read32(&csdev->access, cs_attr->off);
+	pm_runtime_put_sync(_dev->parent);
+	return sysfs_emit(buf, "0x%llx\n", val);
+}
+EXPORT_SYMBOL_GPL(coresight_simple_show32);
+
+static int coresight_enable_source_sysfs(struct coresight_device *csdev,
+					 enum cs_mode mode, void *data)
+{
+	int ret;
+
+	/*
+	 * Comparison with CS_MODE_SYSFS works without taking any device
+	 * specific spinlock because the truthyness of that comparison can only
+	 * change with coresight_mutex held, which we already have here.
+	 */
+	lockdep_assert_held(&coresight_mutex);
+	if (coresight_get_mode(csdev) != CS_MODE_SYSFS) {
+		ret = source_ops(csdev)->enable(csdev, data, mode);
+		if (ret)
+			return ret;
+	}
+
+	csdev->refcnt++;
+
+	return 0;
+}
+
+/**
+ *  coresight_disable_source_sysfs - Drop the reference count by 1 and disable
+ *  the device if there are no users left.
+ *
+ *  @csdev: The coresight device to disable
+ *  @data: Opaque data to pass on to the disable function of the source device.
+ *         For example in perf mode this is a pointer to the struct perf_event.
+ *
+ *  Returns true if the device has been disabled.
+ */
+static bool coresight_disable_source_sysfs(struct coresight_device *csdev,
+					   void *data)
+{
+	lockdep_assert_held(&coresight_mutex);
+	if (coresight_get_mode(csdev) != CS_MODE_SYSFS)
+		return false;
+
+	csdev->refcnt--;
+	if (csdev->refcnt == 0) {
+		coresight_disable_source(csdev, data);
+		return true;
+	}
+	return false;
+}
+
+/**
+ * coresight_find_activated_sysfs_sink - returns the first sink activated via
+ * sysfs using connection based search starting from the source reference.
+ *
+ * @csdev: Coresight source device reference
+ */
+static struct coresight_device *
+coresight_find_activated_sysfs_sink(struct coresight_device *csdev)
+{
+	int i;
+	struct coresight_device *sink = NULL;
+
+	if ((csdev->type == CORESIGHT_DEV_TYPE_SINK ||
+	     csdev->type == CORESIGHT_DEV_TYPE_LINKSINK) &&
+	     csdev->sysfs_sink_activated)
+		return csdev;
+
+	/*
+	 * Recursively explore each port found on this element.
+	 */
+	for (i = 0; i < csdev->pdata->nr_outconns; i++) {
+		struct coresight_device *child_dev;
+
+		child_dev = csdev->pdata->out_conns[i]->dest_dev;
+		if (child_dev)
+			sink = coresight_find_activated_sysfs_sink(child_dev);
+		if (sink)
+			return sink;
+	}
+
+	return NULL;
+}
+
+/** coresight_validate_source - make sure a source has the right credentials to
+ *  be used via sysfs.
+ *  @csdev:	the device structure for a source.
+ *  @function:	the function this was called from.
+ *
+ * Assumes the coresight_mutex is held.
+ */
+static int coresight_validate_source_sysfs(struct coresight_device *csdev,
+				     const char *function)
+{
+	u32 type, subtype;
+
+	type = csdev->type;
+	subtype = csdev->subtype.source_subtype;
+
+	if (type != CORESIGHT_DEV_TYPE_SOURCE) {
+		dev_err(&csdev->dev, "wrong device type in %s\n", function);
+		return -EINVAL;
+	}
+
+	if (subtype != CORESIGHT_DEV_SUBTYPE_SOURCE_PROC &&
+	    subtype != CORESIGHT_DEV_SUBTYPE_SOURCE_SOFTWARE &&
+	    subtype != CORESIGHT_DEV_SUBTYPE_SOURCE_TPDM &&
+	    subtype != CORESIGHT_DEV_SUBTYPE_SOURCE_OTHERS) {
+		dev_err(&csdev->dev, "wrong device subtype in %s\n", function);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+int coresight_enable_sysfs(struct coresight_device *csdev)
+{
+	int cpu, ret = 0;
+	struct coresight_device *sink;
+	struct list_head *path;
+	enum coresight_dev_subtype_source subtype;
+	u32 hash;
+
+	subtype = csdev->subtype.source_subtype;
+
+	mutex_lock(&coresight_mutex);
+
+	ret = coresight_validate_source_sysfs(csdev, __func__);
+	if (ret)
+		goto out;
+
+	/*
+	 * mode == SYSFS implies that it's already enabled. Don't look at the
+	 * refcount to determine this because we don't claim the source until
+	 * coresight_enable_source() so can still race with Perf mode which
+	 * doesn't hold coresight_mutex.
+	 */
+	if (coresight_get_mode(csdev) == CS_MODE_SYSFS) {
+		/*
+		 * There could be multiple applications driving the software
+		 * source. So keep the refcount for each such user when the
+		 * source is already enabled.
+		 */
+		if (subtype == CORESIGHT_DEV_SUBTYPE_SOURCE_SOFTWARE)
+			csdev->refcnt++;
+		goto out;
+	}
+
+	sink = coresight_find_activated_sysfs_sink(csdev);
+	if (!sink) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	path = coresight_build_path(csdev, sink);
+	if (IS_ERR(path)) {
+		pr_err("building path(s) failed\n");
+		ret = PTR_ERR(path);
+		goto out;
+	}
+
+	ret = coresight_enable_path(path, CS_MODE_SYSFS, NULL);
+	if (ret)
+		goto err_path;
+
+	ret = coresight_enable_source_sysfs(csdev, CS_MODE_SYSFS, NULL);
+	if (ret)
+		goto err_source;
+
+	switch (subtype) {
+	case CORESIGHT_DEV_SUBTYPE_SOURCE_PROC:
+		/*
+		 * When working from sysFS it is important to keep track
+		 * of the paths that were created so that they can be
+		 * undone in 'coresight_disable()'.  Since there can only
+		 * be a single session per tracer (when working from sysFS)
+		 * a per-cpu variable will do just fine.
+		 */
+		cpu = source_ops(csdev)->cpu_id(csdev);
+		per_cpu(tracer_path, cpu) = path;
+		break;
+	case CORESIGHT_DEV_SUBTYPE_SOURCE_SOFTWARE:
+	case CORESIGHT_DEV_SUBTYPE_SOURCE_TPDM:
+	case CORESIGHT_DEV_SUBTYPE_SOURCE_OTHERS:
+		/*
+		 * Use the hash of source's device name as ID
+		 * and map the ID to the pointer of the path.
+		 */
+		hash = hashlen_hash(hashlen_string(NULL, dev_name(&csdev->dev)));
+		ret = idr_alloc_u32(&path_idr, path, &hash, hash, GFP_KERNEL);
+		if (ret)
+			goto err_source;
+		break;
+	default:
+		/* We can't be here */
+		break;
+	}
+
+out:
+	mutex_unlock(&coresight_mutex);
+	return ret;
+
+err_source:
+	coresight_disable_path(path);
+
+err_path:
+	coresight_release_path(path);
+	goto out;
+}
+EXPORT_SYMBOL_GPL(coresight_enable_sysfs);
+
+void coresight_disable_sysfs(struct coresight_device *csdev)
+{
+	int cpu, ret;
+	struct list_head *path = NULL;
+	u32 hash;
+
+	mutex_lock(&coresight_mutex);
+
+	ret = coresight_validate_source_sysfs(csdev, __func__);
+	if (ret)
+		goto out;
+
+	if (!coresight_disable_source_sysfs(csdev, NULL))
+		goto out;
+
+	switch (csdev->subtype.source_subtype) {
+	case CORESIGHT_DEV_SUBTYPE_SOURCE_PROC:
+		cpu = source_ops(csdev)->cpu_id(csdev);
+		path = per_cpu(tracer_path, cpu);
+		per_cpu(tracer_path, cpu) = NULL;
+		break;
+	case CORESIGHT_DEV_SUBTYPE_SOURCE_SOFTWARE:
+	case CORESIGHT_DEV_SUBTYPE_SOURCE_TPDM:
+	case CORESIGHT_DEV_SUBTYPE_SOURCE_OTHERS:
+		hash = hashlen_hash(hashlen_string(NULL, dev_name(&csdev->dev)));
+		/* Find the path by the hash. */
+		path = idr_find(&path_idr, hash);
+		if (path == NULL) {
+			pr_err("Path is not found for %s\n", dev_name(&csdev->dev));
+			goto out;
+		}
+		idr_remove(&path_idr, hash);
+		break;
+	default:
+		/* We can't be here */
+		break;
+	}
+
+	coresight_disable_path(path);
+	coresight_release_path(path);
+
+out:
+	mutex_unlock(&coresight_mutex);
+}
+EXPORT_SYMBOL_GPL(coresight_disable_sysfs);
+
+static ssize_t enable_sink_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct coresight_device *csdev = to_coresight_device(dev);
+
+	return scnprintf(buf, PAGE_SIZE, "%u\n", csdev->sysfs_sink_activated);
+}
+
+static ssize_t enable_sink_store(struct device *dev,
+				 struct device_attribute *attr,
+				 const char *buf, size_t size)
+{
+	int ret;
+	unsigned long val;
+	struct coresight_device *csdev = to_coresight_device(dev);
+
+	ret = kstrtoul(buf, 10, &val);
+	if (ret)
+		return ret;
+
+	csdev->sysfs_sink_activated = !!val;
+
+	return size;
+
+}
+static DEVICE_ATTR_RW(enable_sink);
+
+static ssize_t enable_source_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
+{
+	struct coresight_device *csdev = to_coresight_device(dev);
+
+	guard(mutex)(&coresight_mutex);
+	return scnprintf(buf, PAGE_SIZE, "%u\n",
+			 coresight_get_mode(csdev) == CS_MODE_SYSFS);
+}
+
+static ssize_t enable_source_store(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t size)
+{
+	int ret = 0;
+	unsigned long val;
+	struct coresight_device *csdev = to_coresight_device(dev);
+
+	ret = kstrtoul(buf, 10, &val);
+	if (ret)
+		return ret;
+
+	if (val) {
+		ret = coresight_enable_sysfs(csdev);
+		if (ret)
+			return ret;
+	} else {
+		coresight_disable_sysfs(csdev);
+	}
+
+	return size;
+}
+static DEVICE_ATTR_RW(enable_source);
+
+static struct attribute *coresight_sink_attrs[] = {
+	&dev_attr_enable_sink.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(coresight_sink);
+
+static struct attribute *coresight_source_attrs[] = {
+	&dev_attr_enable_source.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(coresight_source);
+
+struct device_type coresight_dev_type[] = {
+	[CORESIGHT_DEV_TYPE_SINK] = {
+		.name = "sink",
+		.groups = coresight_sink_groups,
+	},
+	[CORESIGHT_DEV_TYPE_LINK] = {
+		.name = "link",
+	},
+	[CORESIGHT_DEV_TYPE_LINKSINK] = {
+		.name = "linksink",
+		.groups = coresight_sink_groups,
+	},
+	[CORESIGHT_DEV_TYPE_SOURCE] = {
+		.name = "source",
+		.groups = coresight_source_groups,
+	},
+	[CORESIGHT_DEV_TYPE_HELPER] = {
+		.name = "helper",
+	}
+};
+/* Ensure the enum matches the names and groups */
+static_assert(ARRAY_SIZE(coresight_dev_type) == CORESIGHT_DEV_TYPE_MAX);
 
 /*
  * Connections group - links attribute.

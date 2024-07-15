@@ -45,7 +45,21 @@ static u64 prefetch_disable_bits;
  */
 static unsigned int pseudo_lock_major;
 static unsigned long pseudo_lock_minor_avail = GENMASK(MINORBITS, 0);
-static struct class *pseudo_lock_class;
+
+static char *pseudo_lock_devnode(const struct device *dev, umode_t *mode)
+{
+	const struct rdtgroup *rdtgrp;
+
+	rdtgrp = dev_get_drvdata(dev);
+	if (mode)
+		*mode = 0600;
+	return kasprintf(GFP_KERNEL, "pseudo_lock/%s", rdtgrp->kn->name);
+}
+
+static const struct class pseudo_lock_class = {
+	.name = "pseudo_lock",
+	.devnode = pseudo_lock_devnode,
+};
 
 /**
  * get_prefetch_disable_bits - prefetch disable bits of supported platforms
@@ -567,7 +581,7 @@ static int rdtgroup_locksetup_user_restrict(struct rdtgroup *rdtgrp)
 	if (ret)
 		goto err_cpus;
 
-	if (rdt_mon_capable) {
+	if (resctrl_arch_mon_capable()) {
 		ret = rdtgroup_kn_mode_restrict(rdtgrp, "mon_groups");
 		if (ret)
 			goto err_cpus_list;
@@ -614,7 +628,7 @@ static int rdtgroup_locksetup_user_restore(struct rdtgroup *rdtgrp)
 	if (ret)
 		goto err_cpus;
 
-	if (rdt_mon_capable) {
+	if (resctrl_arch_mon_capable()) {
 		ret = rdtgroup_kn_mode_restore(rdtgrp, "mon_groups", 0777);
 		if (ret)
 			goto err_cpus_list;
@@ -738,7 +752,7 @@ int rdtgroup_locksetup_enter(struct rdtgroup *rdtgrp)
 	 * anymore when this group would be used for pseudo-locking. This
 	 * is safe to call on platforms not capable of monitoring.
 	 */
-	free_rmid(rdtgrp->mon.rmid);
+	free_rmid(rdtgrp->closid, rdtgrp->mon.rmid);
 
 	ret = 0;
 	goto out;
@@ -762,8 +776,8 @@ int rdtgroup_locksetup_exit(struct rdtgroup *rdtgrp)
 {
 	int ret;
 
-	if (rdt_mon_capable) {
-		ret = alloc_rmid();
+	if (resctrl_arch_mon_capable()) {
+		ret = alloc_rmid(rdtgrp->closid);
 		if (ret < 0) {
 			rdt_last_cmd_puts("Out of RMIDs\n");
 			return ret;
@@ -773,7 +787,7 @@ int rdtgroup_locksetup_exit(struct rdtgroup *rdtgrp)
 
 	ret = rdtgroup_locksetup_user_restore(rdtgrp);
 	if (ret) {
-		free_rmid(rdtgrp->mon.rmid);
+		free_rmid(rdtgrp->closid, rdtgrp->mon.rmid);
 		return ret;
 	}
 
@@ -829,6 +843,9 @@ bool rdtgroup_pseudo_locked_in_hierarchy(struct rdt_domain *d)
 	struct rdt_resource *r;
 	struct rdt_domain *d_i;
 	bool ret = false;
+
+	/* Walking r->domains, ensure it can't race with cpuhp */
+	lockdep_assert_cpus_held();
 
 	if (!zalloc_cpumask_var(&cpu_with_psl, GFP_KERNEL))
 		return true;
@@ -1353,7 +1370,7 @@ int rdtgroup_pseudo_lock_create(struct rdtgroup *rdtgrp)
 					    &pseudo_measure_fops);
 	}
 
-	dev = device_create(pseudo_lock_class, NULL,
+	dev = device_create(&pseudo_lock_class, NULL,
 			    MKDEV(pseudo_lock_major, new_minor),
 			    rdtgrp, "%s", rdtgrp->kn->name);
 
@@ -1383,7 +1400,7 @@ int rdtgroup_pseudo_lock_create(struct rdtgroup *rdtgrp)
 	goto out;
 
 out_device:
-	device_destroy(pseudo_lock_class, MKDEV(pseudo_lock_major, new_minor));
+	device_destroy(&pseudo_lock_class, MKDEV(pseudo_lock_major, new_minor));
 out_debugfs:
 	debugfs_remove_recursive(plr->debugfs_dir);
 	pseudo_lock_minor_release(new_minor);
@@ -1424,7 +1441,7 @@ void rdtgroup_pseudo_lock_remove(struct rdtgroup *rdtgrp)
 
 	pseudo_lock_cstates_relax(plr);
 	debugfs_remove_recursive(rdtgrp->plr->debugfs_dir);
-	device_destroy(pseudo_lock_class, MKDEV(pseudo_lock_major, plr->minor));
+	device_destroy(&pseudo_lock_class, MKDEV(pseudo_lock_major, plr->minor));
 	pseudo_lock_minor_release(plr->minor);
 
 free:
@@ -1560,16 +1577,6 @@ static const struct file_operations pseudo_lock_dev_fops = {
 	.mmap =		pseudo_lock_dev_mmap,
 };
 
-static char *pseudo_lock_devnode(const struct device *dev, umode_t *mode)
-{
-	const struct rdtgroup *rdtgrp;
-
-	rdtgrp = dev_get_drvdata(dev);
-	if (mode)
-		*mode = 0600;
-	return kasprintf(GFP_KERNEL, "pseudo_lock/%s", rdtgrp->kn->name);
-}
-
 int rdt_pseudo_lock_init(void)
 {
 	int ret;
@@ -1580,21 +1587,18 @@ int rdt_pseudo_lock_init(void)
 
 	pseudo_lock_major = ret;
 
-	pseudo_lock_class = class_create("pseudo_lock");
-	if (IS_ERR(pseudo_lock_class)) {
-		ret = PTR_ERR(pseudo_lock_class);
+	ret = class_register(&pseudo_lock_class);
+	if (ret) {
 		unregister_chrdev(pseudo_lock_major, "pseudo_lock");
 		return ret;
 	}
 
-	pseudo_lock_class->devnode = pseudo_lock_devnode;
 	return 0;
 }
 
 void rdt_pseudo_lock_release(void)
 {
-	class_destroy(pseudo_lock_class);
-	pseudo_lock_class = NULL;
+	class_unregister(&pseudo_lock_class);
 	unregister_chrdev(pseudo_lock_major, "pseudo_lock");
 	pseudo_lock_major = 0;
 }

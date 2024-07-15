@@ -47,7 +47,7 @@ patternProperties:
     $ref: ../mailbox/fsl,mu.yaml#
 
 
-  "^vpu_core@[0-9a-f]+$":
+  "^vpu-core@[0-9a-f]+$":
     description:
       Each core correspond a decoder or encoder, need to configure them
       separately. NXP i.MX8QM SoC has one decoder and two encoder, i.MX8QXP SoC
@@ -143,7 +143,7 @@ examples:
         power-domains = <&pd IMX_SC_R_VPU_MU_2>;
       };
 
-      vpu_core0: vpu_core@2d080000 {
+      vpu_core0: vpu-core@2d080000 {
         compatible = "nxp,imx8q-vpu-decoder";
         reg = <0x2d080000 0x10000>;
         power-domains = <&pd IMX_SC_R_VPU_DEC_0>;
@@ -154,7 +154,7 @@ examples:
         memory-region = <&decoder_boot>, <&decoder_rpc>;
       };
 
-      vpu_core1: vpu_core@2d090000 {
+      vpu_core1: vpu-core@2d090000 {
         compatible = "nxp,imx8q-vpu-encoder";
         reg = <0x2d090000 0x10000>;
         power-domains = <&pd IMX_SC_R_VPU_ENC_0>;
@@ -165,7 +165,7 @@ examples:
         memory-region = <&encoder1_boot>, <&encoder1_rpc>;
       };
 
-      vpu_core2: vpu_core@2d0a0000 {
+      vpu_core2: vpu-core@2d0a0000 {
         reg = <0x2d0a0000 0x10000>;
         compatible = "nxp,imx8q-vpu-encoder";
         power-domains = <&pd IMX_SC_R_VPU_ENC_1>;

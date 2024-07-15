@@ -9,34 +9,23 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
-#include <sound/wm1250-ev1.h>
-
-static const char *wm1250_gpio_names[WM1250_EV1_NUM_GPIOS] = {
-	"WM1250 CLK_ENA",
-	"WM1250 CLK_SEL0",
-	"WM1250 CLK_SEL1",
-	"WM1250 OSR",
-	"WM1250 MASTER",
-};
 
 struct wm1250_priv {
-	struct gpio gpios[WM1250_EV1_NUM_GPIOS];
+	struct gpio_desc *clk_ena;
+	struct gpio_desc *clk_sel0;
+	struct gpio_desc *clk_sel1;
+	struct gpio_desc *osr;
+	struct gpio_desc *master;
 };
 
 static int wm1250_ev1_set_bias_level(struct snd_soc_component *component,
 				     enum snd_soc_bias_level level)
 {
 	struct wm1250_priv *wm1250 = dev_get_drvdata(component->dev);
-	int ena;
-
-	if (wm1250)
-		ena = wm1250->gpios[WM1250_EV1_GPIO_CLK_ENA].gpio;
-	else
-		ena = -1;
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
@@ -46,13 +35,11 @@ static int wm1250_ev1_set_bias_level(struct snd_soc_component *component,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (ena >= 0)
-			gpio_set_value_cansleep(ena, 1);
+		gpiod_set_value_cansleep(wm1250->clk_ena, 1);
 		break;
 
 	case SND_SOC_BIAS_OFF:
-		if (ena >= 0)
-			gpio_set_value_cansleep(ena, 0);
+		gpiod_set_value_cansleep(wm1250->clk_ena, 0);
 		break;
 	}
 
@@ -80,28 +67,20 @@ static int wm1250_ev1_hw_params(struct snd_pcm_substream *substream,
 
 	switch (params_rate(params)) {
 	case 8000:
-		gpio_set_value(wm1250->gpios[WM1250_EV1_GPIO_CLK_SEL0].gpio,
-			       1);
-		gpio_set_value(wm1250->gpios[WM1250_EV1_GPIO_CLK_SEL1].gpio,
-			       1);
+		gpiod_set_value(wm1250->clk_sel0, 1);
+		gpiod_set_value(wm1250->clk_sel1, 1);
 		break;
 	case 16000:
-		gpio_set_value(wm1250->gpios[WM1250_EV1_GPIO_CLK_SEL0].gpio,
-			       0);
-		gpio_set_value(wm1250->gpios[WM1250_EV1_GPIO_CLK_SEL1].gpio,
-			       1);
+		gpiod_set_value(wm1250->clk_sel0, 0);
+		gpiod_set_value(wm1250->clk_sel1, 1);
 		break;
 	case 32000:
-		gpio_set_value(wm1250->gpios[WM1250_EV1_GPIO_CLK_SEL0].gpio,
-			       1);
-		gpio_set_value(wm1250->gpios[WM1250_EV1_GPIO_CLK_SEL1].gpio,
-			       0);
+		gpiod_set_value(wm1250->clk_sel0, 1);
+		gpiod_set_value(wm1250->clk_sel1, 0);
 		break;
 	case 64000:
-		gpio_set_value(wm1250->gpios[WM1250_EV1_GPIO_CLK_SEL0].gpio,
-			       0);
-		gpio_set_value(wm1250->gpios[WM1250_EV1_GPIO_CLK_SEL1].gpio,
-			       0);
+		gpiod_set_value(wm1250->clk_sel0, 0);
+		gpiod_set_value(wm1250->clk_sel1, 0);
 		break;
 	default:
 		return -EINVAL;
@@ -150,45 +129,42 @@ static int wm1250_ev1_pdata(struct i2c_client *i2c)
 {
 	struct wm1250_ev1_pdata *pdata = dev_get_platdata(&i2c->dev);
 	struct wm1250_priv *wm1250;
-	int i, ret;
 
 	if (!pdata)
 		return 0;
 
 	wm1250 = devm_kzalloc(&i2c->dev, sizeof(*wm1250), GFP_KERNEL);
-	if (!wm1250) {
-		ret = -ENOMEM;
-		goto err;
-	}
+	if (!wm1250)
+		return -ENOMEM;
 
-	for (i = 0; i < ARRAY_SIZE(wm1250->gpios); i++) {
-		wm1250->gpios[i].gpio = pdata->gpios[i];
-		wm1250->gpios[i].label = wm1250_gpio_names[i];
-		wm1250->gpios[i].flags = GPIOF_OUT_INIT_LOW;
-	}
-	wm1250->gpios[WM1250_EV1_GPIO_CLK_SEL0].flags = GPIOF_OUT_INIT_HIGH;
-	wm1250->gpios[WM1250_EV1_GPIO_CLK_SEL1].flags = GPIOF_OUT_INIT_HIGH;
+	wm1250->clk_ena = devm_gpiod_get(&i2c->dev, "clk-ena", GPIOD_OUT_LOW);
+	if (IS_ERR(wm1250->clk_ena))
+		return dev_err_probe(&i2c->dev, PTR_ERR(wm1250->clk_ena),
+				     "failed to get clock enable GPIO\n");
 
-	ret = gpio_request_array(wm1250->gpios, ARRAY_SIZE(wm1250->gpios));
-	if (ret != 0) {
-		dev_err(&i2c->dev, "Failed to get GPIOs: %d\n", ret);
-		goto err;
-	}
+	wm1250->clk_sel0 = devm_gpiod_get(&i2c->dev, "clk-sel0", GPIOD_OUT_HIGH);
+	if (IS_ERR(wm1250->clk_sel0))
+		return dev_err_probe(&i2c->dev, PTR_ERR(wm1250->clk_sel0),
+				     "failed to get clock sel0 GPIO\n");
+
+	wm1250->clk_sel1 = devm_gpiod_get(&i2c->dev, "clk-sel1", GPIOD_OUT_HIGH);
+	if (IS_ERR(wm1250->clk_sel1))
+		return dev_err_probe(&i2c->dev, PTR_ERR(wm1250->clk_sel1),
+				     "failed to get clock sel1 GPIO\n");
+
+	wm1250->osr = devm_gpiod_get(&i2c->dev, "osr", GPIOD_OUT_LOW);
+	if (IS_ERR(wm1250->osr))
+		return dev_err_probe(&i2c->dev, PTR_ERR(wm1250->osr),
+				     "failed to get OSR GPIO\n");
+
+	wm1250->master = devm_gpiod_get(&i2c->dev, "master", GPIOD_OUT_LOW);
+	if (IS_ERR(wm1250->master))
+		return dev_err_probe(&i2c->dev, PTR_ERR(wm1250->master),
+				     "failed to get MASTER GPIO\n");
 
 	dev_set_drvdata(&i2c->dev, wm1250);
 
-	return ret;
-
-err:
-	return ret;
-}
-
-static void wm1250_ev1_free(struct i2c_client *i2c)
-{
-	struct wm1250_priv *wm1250 = dev_get_drvdata(&i2c->dev);
-
-	if (wm1250)
-		gpio_free_array(wm1250->gpios, ARRAY_SIZE(wm1250->gpios));
+	return 0;
 }
 
 static int wm1250_ev1_probe(struct i2c_client *i2c)
@@ -221,16 +197,10 @@ static int wm1250_ev1_probe(struct i2c_client *i2c)
 				     &wm1250_ev1_dai, 1);
 	if (ret != 0) {
 		dev_err(&i2c->dev, "Failed to register CODEC: %d\n", ret);
-		wm1250_ev1_free(i2c);
 		return ret;
 	}
 
 	return 0;
-}
-
-static void wm1250_ev1_remove(struct i2c_client *i2c)
-{
-	wm1250_ev1_free(i2c);
 }
 
 static const struct i2c_device_id wm1250_ev1_i2c_id[] = {
@@ -244,7 +214,6 @@ static struct i2c_driver wm1250_ev1_i2c_driver = {
 		.name = "wm1250-ev1",
 	},
 	.probe =    wm1250_ev1_probe,
-	.remove =   wm1250_ev1_remove,
 	.id_table = wm1250_ev1_i2c_id,
 };
 

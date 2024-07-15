@@ -245,9 +245,9 @@ static void inode_test_xtimestamp_decoding(struct kunit *test)
 	struct timestamp_expectation *test_param =
 			(struct timestamp_expectation *)(test->param_value);
 
-	timestamp.tv_sec = get_32bit_time(test_param);
-	ext4_decode_extra_time(&timestamp,
-			       cpu_to_le32(test_param->extra_bits));
+	timestamp = ext4_decode_extra_time(
+				cpu_to_le32(get_32bit_time(test_param)),
+				cpu_to_le32(test_param->extra_bits));
 
 	KUNIT_EXPECT_EQ_MSG(test,
 			    test_param->expected.tv_sec,

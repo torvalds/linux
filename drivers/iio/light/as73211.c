@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Support for AMS AS73211 JENCOLOR(R) Digital XYZ Sensor
+ * Support for AMS AS73211 JENCOLOR(R) Digital XYZ Sensor and AMS AS7331
+ * UVA, UVB and UVC (DUV) Ultraviolet Sensor
  *
  * Author: Christian Eggers <ceggers@arri.de>
  *
@@ -9,7 +10,9 @@
  * Color light sensor with 16-bit channels for x, y, z and temperature);
  * 7-bit I2C slave address 0x74 .. 0x77.
  *
- * Datasheet: https://ams.com/documents/20143/36005/AS73211_DS000556_3-01.pdf
+ * Datasheets:
+ * AS73211: https://ams.com/documents/20143/36005/AS73211_DS000556_3-01.pdf
+ * AS7331: https://ams.com/documents/20143/9106314/AS7331_DS001047_4-00.pdf
  */
 
 #include <linux/bitfield.h>
@@ -84,6 +87,20 @@ static const int as73211_hardwaregain_avail[] = {
 	1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048,
 };
 
+struct as73211_data;
+
+/**
+ * struct as73211_spec_dev_data - device-specific data
+ * @intensity_scale:  Function to retrieve intensity scale values.
+ * @channels:          Device channels.
+ * @num_channels:     Number of channels of the device.
+ */
+struct as73211_spec_dev_data {
+	int (*intensity_scale)(struct as73211_data *data, int chan, int *val, int *val2);
+	struct iio_chan_spec const *channels;
+	int num_channels;
+};
+
 /**
  * struct as73211_data - Instance data for one AS73211
  * @client: I2C client.
@@ -94,6 +111,7 @@ static const int as73211_hardwaregain_avail[] = {
  * @mutex:  Keeps cached registers in sync with the device.
  * @completion: Completion to wait for interrupt.
  * @int_time_avail: Available integration times (depend on sampling frequency).
+ * @spec_dev: device-specific configuration.
  */
 struct as73211_data {
 	struct i2c_client *client;
@@ -104,6 +122,7 @@ struct as73211_data {
 	struct mutex mutex;
 	struct completion completion;
 	int int_time_avail[AS73211_SAMPLE_TIME_NUM * 2];
+	const struct as73211_spec_dev_data *spec_dev;
 };
 
 #define AS73211_COLOR_CHANNEL(_color, _si, _addr) { \
@@ -137,6 +156,10 @@ struct as73211_data {
 #define AS73211_SCALE_X 277071108  /* nW/m^2 */
 #define AS73211_SCALE_Y 298384270  /* nW/m^2 */
 #define AS73211_SCALE_Z 160241927  /* nW/m^2 */
+
+#define AS7331_SCALE_UVA 340000  /* nW/cm^2 */
+#define AS7331_SCALE_UVB 378000  /* nW/cm^2 */
+#define AS7331_SCALE_UVC 166000  /* nW/cm^2 */
 
 /* Channel order MUST match devices result register order */
 #define AS73211_SCAN_INDEX_TEMP 0
@@ -173,6 +196,28 @@ static const struct iio_chan_spec as73211_channels[] = {
 	AS73211_COLOR_CHANNEL(X, AS73211_SCAN_INDEX_X, AS73211_OUT_MRES1),
 	AS73211_COLOR_CHANNEL(Y, AS73211_SCAN_INDEX_Y, AS73211_OUT_MRES2),
 	AS73211_COLOR_CHANNEL(Z, AS73211_SCAN_INDEX_Z, AS73211_OUT_MRES3),
+	IIO_CHAN_SOFT_TIMESTAMP(AS73211_SCAN_INDEX_TS),
+};
+
+static const struct iio_chan_spec as7331_channels[] = {
+	{
+		.type = IIO_TEMP,
+		.info_mask_separate =
+			BIT(IIO_CHAN_INFO_RAW) |
+			BIT(IIO_CHAN_INFO_OFFSET) |
+			BIT(IIO_CHAN_INFO_SCALE),
+		.address = AS73211_OUT_TEMP,
+		.scan_index = AS73211_SCAN_INDEX_TEMP,
+		.scan_type = {
+			.sign = 'u',
+			.realbits = 16,
+			.storagebits = 16,
+			.endianness = IIO_LE,
+		}
+	},
+	AS73211_COLOR_CHANNEL(LIGHT_UVA, AS73211_SCAN_INDEX_X, AS73211_OUT_MRES1),
+	AS73211_COLOR_CHANNEL(LIGHT_UVB, AS73211_SCAN_INDEX_Y, AS73211_OUT_MRES2),
+	AS73211_COLOR_CHANNEL(LIGHT_DUV, AS73211_SCAN_INDEX_Z, AS73211_OUT_MRES3),
 	IIO_CHAN_SOFT_TIMESTAMP(AS73211_SCAN_INDEX_TS),
 };
 
@@ -316,6 +361,48 @@ static int as73211_req_data(struct as73211_data *data)
 	return 0;
 }
 
+static int as73211_intensity_scale(struct as73211_data *data, int chan,
+				   int *val, int *val2)
+{
+	switch (chan) {
+	case IIO_MOD_X:
+		*val = AS73211_SCALE_X;
+		break;
+	case IIO_MOD_Y:
+		*val = AS73211_SCALE_Y;
+		break;
+	case IIO_MOD_Z:
+		*val = AS73211_SCALE_Z;
+		break;
+	default:
+		return -EINVAL;
+	}
+	*val2 = as73211_integration_time_1024cyc(data) * as73211_gain(data);
+
+	return IIO_VAL_FRACTIONAL;
+}
+
+static int as7331_intensity_scale(struct as73211_data *data, int chan,
+				  int *val, int *val2)
+{
+	switch (chan) {
+	case IIO_MOD_LIGHT_UVA:
+		*val = AS7331_SCALE_UVA;
+		break;
+	case IIO_MOD_LIGHT_UVB:
+		*val = AS7331_SCALE_UVB;
+		break;
+	case IIO_MOD_LIGHT_DUV:
+		*val = AS7331_SCALE_UVC;
+		break;
+	default:
+		return -EINVAL;
+	}
+	*val2 = as73211_integration_time_1024cyc(data) * as73211_gain(data);
+
+	return IIO_VAL_FRACTIONAL;
+}
+
 static int as73211_read_raw(struct iio_dev *indio_dev, struct iio_chan_spec const *chan,
 			     int *val, int *val2, long mask)
 {
@@ -355,30 +442,13 @@ static int as73211_read_raw(struct iio_dev *indio_dev, struct iio_chan_spec cons
 			*val2 = AS73211_SCALE_TEMP_MICRO;
 			return IIO_VAL_INT_PLUS_MICRO;
 
-		case IIO_INTENSITY: {
-			unsigned int scale;
-
-			switch (chan->channel2) {
-			case IIO_MOD_X:
-				scale = AS73211_SCALE_X;
-				break;
-			case IIO_MOD_Y:
-				scale = AS73211_SCALE_Y;
-				break;
-			case IIO_MOD_Z:
-				scale = AS73211_SCALE_Z;
-				break;
-			default:
-				return -EINVAL;
-			}
-			scale /= as73211_gain(data);
-			scale /= as73211_integration_time_1024cyc(data);
-			*val = scale;
-			return IIO_VAL_INT;
+		case IIO_INTENSITY:
+			return data->spec_dev->intensity_scale(data, chan->channel2,
+							       val, val2);
 
 		default:
 			return -EINVAL;
-		}}
+		}
 
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		/* f_samp is configured in CREG3 in powers of 2 (x 1.024 MHz) */
@@ -676,13 +746,17 @@ static int as73211_probe(struct i2c_client *client)
 	i2c_set_clientdata(client, indio_dev);
 	data->client = client;
 
+	data->spec_dev = i2c_get_match_data(client);
+	if (!data->spec_dev)
+		return -EINVAL;
+
 	mutex_init(&data->mutex);
 	init_completion(&data->completion);
 
 	indio_dev->info = &as73211_info;
 	indio_dev->name = AS73211_DRV_NAME;
-	indio_dev->channels = as73211_channels;
-	indio_dev->num_channels = ARRAY_SIZE(as73211_channels);
+	indio_dev->channels = data->spec_dev->channels;
+	indio_dev->num_channels = data->spec_dev->num_channels;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
 	ret = i2c_smbus_read_byte_data(data->client, AS73211_REG_OSR);
@@ -772,14 +846,28 @@ static int as73211_resume(struct device *dev)
 static DEFINE_SIMPLE_DEV_PM_OPS(as73211_pm_ops, as73211_suspend,
 				as73211_resume);
 
+static const struct as73211_spec_dev_data as73211_spec = {
+	.intensity_scale = as73211_intensity_scale,
+	.channels = as73211_channels,
+	.num_channels = ARRAY_SIZE(as73211_channels),
+};
+
+static const struct as73211_spec_dev_data as7331_spec = {
+	.intensity_scale = as7331_intensity_scale,
+	.channels = as7331_channels,
+	.num_channels = ARRAY_SIZE(as7331_channels),
+};
+
 static const struct of_device_id as73211_of_match[] = {
-	{ .compatible = "ams,as73211" },
+	{ .compatible = "ams,as73211", &as73211_spec },
+	{ .compatible = "ams,as7331", &as7331_spec },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, as73211_of_match);
 
 static const struct i2c_device_id as73211_id[] = {
-	{ "as73211", 0 },
+	{ "as73211", (kernel_ulong_t)&as73211_spec },
+	{ "as7331", (kernel_ulong_t)&as7331_spec },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, as73211_id);

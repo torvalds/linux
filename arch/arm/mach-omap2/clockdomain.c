@@ -990,7 +990,7 @@ void clkdm_allow_idle(struct clockdomain *clkdm)
 }
 
 /**
- * clkdm_deny_idle - disable hwsup idle transitions for clkdm
+ * clkdm_deny_idle_nolock - disable hwsup idle transitions for clkdm
  * @clkdm: struct clockdomain *
  *
  * Prevent the hardware from automatically switching the clockdomain
@@ -1110,7 +1110,7 @@ void clkdm_del_autodeps(struct clockdomain *clkdm)
 /**
  * clkdm_clk_enable - add an enabled downstream clock to this clkdm
  * @clkdm: struct clockdomain *
- * @clk: struct clk * of the enabled downstream clock
+ * @unused: struct clk * of the enabled downstream clock
  *
  * Increment the usecount of the clockdomain @clkdm and ensure that it
  * is awake before @clk is enabled.  Intended to be called by

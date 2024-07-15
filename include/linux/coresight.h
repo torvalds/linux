@@ -6,6 +6,8 @@
 #ifndef _LINUX_CORESIGHT_H
 #define _LINUX_CORESIGHT_H
 
+#include <linux/amba/bus.h>
+#include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/io.h>
 #include <linux/perf_event.h>
@@ -33,7 +35,7 @@
 
 #define CORESIGHT_UNLOCK	0xc5acce55
 
-extern struct bus_type coresight_bustype;
+extern const struct bus_type coresight_bustype;
 
 enum coresight_dev_type {
 	CORESIGHT_DEV_TYPE_SINK,
@@ -62,6 +64,7 @@ enum coresight_dev_subtype_source {
 	CORESIGHT_DEV_SUBTYPE_SOURCE_PROC,
 	CORESIGHT_DEV_SUBTYPE_SOURCE_BUS,
 	CORESIGHT_DEV_SUBTYPE_SOURCE_SOFTWARE,
+	CORESIGHT_DEV_SUBTYPE_SOURCE_TPDM,
 	CORESIGHT_DEV_SUBTYPE_SOURCE_OTHERS,
 };
 
@@ -223,13 +226,26 @@ struct coresight_sysfs_link {
  *		by @coresight_ops.
  * @access:	Device i/o access abstraction for this device.
  * @dev:	The device entity associated to this component.
- * @refcnt:	keep track of what is in use.
+ * @mode:	This tracer's mode, i.e sysFS, Perf or disabled. This is
+ *		actually an 'enum cs_mode', but is stored in an atomic type.
+ *		This is always accessed through local_read() and local_set(),
+ *		but wherever it's done from within the Coresight device's lock,
+ *		a non-atomic read would also work. This is the main point of
+ *		synchronisation between code happening inside the sysfs mode's
+ *		coresight_mutex and outside when running in Perf mode. A compare
+ *		and exchange swap is done to atomically claim one mode or the
+ *		other.
+ * @refcnt:	keep track of what is in use. Only access this outside of the
+ *		device's spinlock when the coresight_mutex held and mode ==
+ *		CS_MODE_SYSFS. Otherwise it must be accessed from inside the
+ *		spinlock.
  * @orphan:	true if the component has connections that haven't been linked.
- * @enable:	'true' if component is currently part of an active path.
- * @activated:	'true' only if a _sink_ has been activated.  A sink can be
- *		activated but not yet enabled.  Enabling for a _sink_
- *		happens when a source has been selected and a path is enabled
- *		from source to that sink.
+ * @sysfs_sink_activated: 'true' when a sink has been selected for use via sysfs
+ *		by writing a 1 to the 'enable_sink' file.  A sink can be
+ *		activated but not yet enabled.  Enabling for a _sink_ happens
+ *		when a source has been selected and a path is enabled from
+ *		source to that sink. A sink can also become enabled but not
+ *		activated if it's used via Perf.
  * @ea:		Device attribute for sink representation under PMU directory.
  * @def_sink:	cached reference to default sink found for this device.
  * @nr_links:   number of sysfs links created to other components from this
@@ -247,11 +263,11 @@ struct coresight_device {
 	const struct coresight_ops *ops;
 	struct csdev_access access;
 	struct device dev;
-	atomic_t refcnt;
+	local_t	mode;
+	int refcnt;
 	bool orphan;
-	bool enable;	/* true only if configured as part of a path */
 	/* sink specific fields */
-	bool activated;	/* true only if a sink is part of a path */
+	bool sysfs_sink_activated;
 	struct dev_ext_attribute *ea;
 	struct coresight_device *def_sink;
 	/* sysfs links between components */
@@ -375,8 +391,6 @@ struct coresight_ops {
 	const struct coresight_ops_helper *helper_ops;
 };
 
-#if IS_ENABLED(CONFIG_CORESIGHT)
-
 static inline u32 csdev_access_relaxed_read32(struct csdev_access *csa,
 					      u32 offset)
 {
@@ -384,6 +398,63 @@ static inline u32 csdev_access_relaxed_read32(struct csdev_access *csa,
 		return readl_relaxed(csa->base + offset);
 
 	return csa->read(offset, true, false);
+}
+
+#define CORESIGHT_CIDRn(i)	(0xFF0 + ((i) * 4))
+
+static inline u32 coresight_get_cid(void __iomem *base)
+{
+	u32 i, cid = 0;
+
+	for (i = 0; i < 4; i++)
+		cid |= readl(base + CORESIGHT_CIDRn(i)) << (i * 8);
+
+	return cid;
+}
+
+static inline bool is_coresight_device(void __iomem *base)
+{
+	u32 cid = coresight_get_cid(base);
+
+	return cid == CORESIGHT_CID;
+}
+
+/*
+ * Attempt to find and enable "APB clock" for the given device
+ *
+ * Returns:
+ *
+ * clk   - Clock is found and enabled
+ * NULL  - clock is not found
+ * ERROR - Clock is found but failed to enable
+ */
+static inline struct clk *coresight_get_enable_apb_pclk(struct device *dev)
+{
+	struct clk *pclk;
+	int ret;
+
+	pclk = clk_get(dev, "apb_pclk");
+	if (IS_ERR(pclk))
+		return NULL;
+
+	ret = clk_prepare_enable(pclk);
+	if (ret) {
+		clk_put(pclk);
+		return ERR_PTR(ret);
+	}
+	return pclk;
+}
+
+#define CORESIGHT_PIDRn(i)	(0xFE0 + ((i) * 4))
+
+static inline u32 coresight_get_pid(struct csdev_access *csa)
+{
+	u32 i, pid = 0;
+
+	for (i = 0; i < 4; i++)
+		pid |= csdev_access_relaxed_read32(csa, CORESIGHT_PIDRn(i)) << (i * 8);
+
+	return pid;
 }
 
 static inline u64 csdev_access_relaxed_read_pair(struct csdev_access *csa,
@@ -509,11 +580,43 @@ static inline bool coresight_is_percpu_sink(struct coresight_device *csdev)
 	       (csdev->subtype.sink_subtype == CORESIGHT_DEV_SUBTYPE_SINK_PERCPU_SYSMEM);
 }
 
+/*
+ * Atomically try to take the device and set a new mode. Returns true on
+ * success, false if the device is already taken by someone else.
+ */
+static inline bool coresight_take_mode(struct coresight_device *csdev,
+				       enum cs_mode new_mode)
+{
+	return local_cmpxchg(&csdev->mode, CS_MODE_DISABLED, new_mode) ==
+	       CS_MODE_DISABLED;
+}
+
+static inline enum cs_mode coresight_get_mode(struct coresight_device *csdev)
+{
+	return local_read(&csdev->mode);
+}
+
+static inline void coresight_set_mode(struct coresight_device *csdev,
+				      enum cs_mode new_mode)
+{
+	enum cs_mode current_mode = coresight_get_mode(csdev);
+
+	/*
+	 * Changing to a new mode must be done from an already disabled state
+	 * unless it's synchronized with coresight_take_mode(). Otherwise the
+	 * device is already in use and signifies a locking issue.
+	 */
+	WARN(new_mode != CS_MODE_DISABLED && current_mode != CS_MODE_DISABLED &&
+	     current_mode != new_mode, "Device already in use\n");
+
+	local_set(&csdev->mode, new_mode);
+}
+
 extern struct coresight_device *
 coresight_register(struct coresight_desc *desc);
 extern void coresight_unregister(struct coresight_device *csdev);
-extern int coresight_enable(struct coresight_device *csdev);
-extern void coresight_disable(struct coresight_device *csdev);
+extern int coresight_enable_sysfs(struct coresight_device *csdev);
+extern void coresight_disable_sysfs(struct coresight_device *csdev);
 extern int coresight_timeout(struct csdev_access *csa, u32 offset,
 			     int position, int value);
 
@@ -537,83 +640,6 @@ u64 coresight_read64(struct coresight_device *csdev, u32 offset);
 void coresight_relaxed_write64(struct coresight_device *csdev,
 			       u64 val, u32 offset);
 void coresight_write64(struct coresight_device *csdev, u64 val, u32 offset);
-
-#else
-static inline struct coresight_device *
-coresight_register(struct coresight_desc *desc) { return NULL; }
-static inline void coresight_unregister(struct coresight_device *csdev) {}
-static inline int
-coresight_enable(struct coresight_device *csdev) { return -ENOSYS; }
-static inline void coresight_disable(struct coresight_device *csdev) {}
-
-static inline int coresight_timeout(struct csdev_access *csa, u32 offset,
-				    int position, int value)
-{
-	return 1;
-}
-
-static inline int coresight_claim_device_unlocked(struct coresight_device *csdev)
-{
-	return -EINVAL;
-}
-
-static inline int coresight_claim_device(struct coresight_device *csdev)
-{
-	return -EINVAL;
-}
-
-static inline void coresight_disclaim_device(struct coresight_device *csdev) {}
-static inline void coresight_disclaim_device_unlocked(struct coresight_device *csdev) {}
-
-static inline bool coresight_loses_context_with_cpu(struct device *dev)
-{
-	return false;
-}
-
-static inline u32 coresight_relaxed_read32(struct coresight_device *csdev, u32 offset)
-{
-	WARN_ON_ONCE(1);
-	return 0;
-}
-
-static inline u32 coresight_read32(struct coresight_device *csdev, u32 offset)
-{
-	WARN_ON_ONCE(1);
-	return 0;
-}
-
-static inline void coresight_write32(struct coresight_device *csdev, u32 val, u32 offset)
-{
-}
-
-static inline void coresight_relaxed_write32(struct coresight_device *csdev,
-					     u32 val, u32 offset)
-{
-}
-
-static inline u64 coresight_relaxed_read64(struct coresight_device *csdev,
-					   u32 offset)
-{
-	WARN_ON_ONCE(1);
-	return 0;
-}
-
-static inline u64 coresight_read64(struct coresight_device *csdev, u32 offset)
-{
-	WARN_ON_ONCE(1);
-	return 0;
-}
-
-static inline void coresight_relaxed_write64(struct coresight_device *csdev,
-					     u64 val, u32 offset)
-{
-}
-
-static inline void coresight_write64(struct coresight_device *csdev, u64 val, u32 offset)
-{
-}
-
-#endif		/* IS_ENABLED(CONFIG_CORESIGHT) */
 
 extern int coresight_get_cpu(struct device *dev);
 

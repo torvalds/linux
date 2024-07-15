@@ -29,8 +29,6 @@
 
 #include "intel_step.h"
 
-#include "display/intel_display_device.h"
-
 #include "gt/intel_engine_types.h"
 #include "gt/intel_context_types.h"
 #include "gt/intel_sseu.h"
@@ -131,10 +129,6 @@ enum intel_platform {
 #define INTEL_SUBPLATFORM_N    1
 #define INTEL_SUBPLATFORM_RPLU  2
 
-/* MTL */
-#define INTEL_SUBPLATFORM_M	0
-#define INTEL_SUBPLATFORM_P	1
-
 enum intel_ppgtt_type {
 	INTEL_PPGTT_NONE = I915_GEM_PPGTT_NONE,
 	INTEL_PPGTT_ALIASING = I915_GEM_PPGTT_ALIASING,
@@ -152,7 +146,6 @@ enum intel_ppgtt_type {
 	func(gpu_reset_clobbers_display); \
 	func(has_reset_engine); \
 	func(has_3d_pipeline); \
-	func(has_4tile); \
 	func(has_flat_ccs); \
 	func(has_global_mocs); \
 	func(has_gmd_id); \
@@ -160,6 +153,7 @@ enum intel_ppgtt_type {
 	func(has_heci_pxp); \
 	func(has_heci_gscfi); \
 	func(has_guc_deprivilege); \
+	func(has_guc_tlb_invalidation); \
 	func(has_l3_ccs_read); \
 	func(has_l3_dpf); \
 	func(has_llc); \
@@ -212,8 +206,6 @@ struct intel_runtime_info {
 
 	u16 device_id;
 
-	intel_engine_mask_t platform_engine_mask; /* Engines supported by the HW */
-
 	u32 rawclk_freq;
 
 	struct intel_step_info step;
@@ -222,8 +214,6 @@ struct intel_runtime_info {
 
 	enum intel_ppgtt_type ppgtt_type;
 	unsigned int ppgtt_size; /* log2, e.g. 31/32/48 bits */
-
-	u32 memory_regions; /* regions supported by the HW */
 
 	bool has_pooled_eu;
 };
@@ -237,11 +227,12 @@ struct intel_device_info {
 
 	u8 gt; /* GT number, 0 if undefined */
 
+	intel_engine_mask_t platform_engine_mask; /* Engines supported by the HW */
+	u32 memory_regions; /* regions supported by the HW */
+
 #define DEFINE_FLAG(name) u8 name:1
 	DEV_INFO_FOR_EACH_FLAG(DEFINE_FLAG);
 #undef DEFINE_FLAG
-
-	const struct intel_display_device_info *display;
 
 	/*
 	 * Initial runtime info. Do not access outside of i915_driver_create().

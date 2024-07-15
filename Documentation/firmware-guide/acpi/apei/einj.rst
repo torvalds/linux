@@ -32,6 +32,10 @@ configuration::
   CONFIG_ACPI_APEI
   CONFIG_ACPI_APEI_EINJ
 
+...and to (optionally) enable CXL protocol error injection set::
+
+  CONFIG_ACPI_APEI_EINJ_CXL
+
 The EINJ user interface is in <debugfs mount point>/apei/einj.
 
 The following files belong to it:
@@ -118,6 +122,24 @@ The following files belong to it:
   this actually works depends on what operations the BIOS actually
   includes in the trigger phase.
 
+CXL error types are supported from ACPI 6.5 onwards (given a CXL port
+is present). The EINJ user interface for CXL error types is at
+<debugfs mount point>/cxl. The following files belong to it:
+
+- einj_types:
+
+  Provides the same functionality as available_error_types above, but
+  for CXL error types
+
+- $dport_dev/einj_inject:
+
+  Injects a CXL error type into the CXL port represented by $dport_dev,
+  where $dport_dev is the name of the CXL port (usually a PCIe device name).
+  Error injections targeting a CXL 2.0+ port can use the legacy interface
+  under <debugfs mount point>/apei/einj, while CXL 1.1/1.0 port injections
+  must use this file.
+
+
 BIOS versions based on the ACPI 4.0 specification have limited options
 in controlling where the errors are injected. Your BIOS may support an
 extension (enabled with the param_extension=1 module parameter, or boot
@@ -180,6 +202,18 @@ You should see something like this in dmesg::
   [22715.834759] EDAC sbridge MC3: ADDR 12345000 EDAC sbridge MC3: MISC 144780c86
   [22715.834759] EDAC sbridge MC3: PROCESSOR 0:306e7 TIME 1422553404 SOCKET 0 APIC 0
   [22716.616173] EDAC MC3: 1 CE memory read error on CPU_SrcID#0_Channel#0_DIMM#0 (channel:0 slot:0 page:0x12345 offset:0x0 grain:32 syndrome:0x0 -  area:DRAM err_code:0001:0090 socket:0 channel_mask:1 rank:0)
+
+A CXL error injection example with $dport_dev=0000:e0:01.1::
+
+    # cd /sys/kernel/debug/cxl/
+    # ls
+    0000:e0:01.1 0000:0c:00.0
+    # cat einj_types                # See which errors can be injected
+	0x00008000  CXL.mem Protocol Correctable
+	0x00010000  CXL.mem Protocol Uncorrectable non-fatal
+	0x00020000  CXL.mem Protocol Uncorrectable fatal
+    # cd 0000:e0:01.1               # Navigate to dport to inject into
+    # echo 0x8000 > einj_inject     # Inject error
 
 Special notes for injection into SGX enclaves:
 

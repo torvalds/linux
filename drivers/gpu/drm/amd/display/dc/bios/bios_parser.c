@@ -96,7 +96,7 @@ struct dc_bios *bios_parser_create(
 	struct bp_init_data *init,
 	enum dce_version dce_version)
 {
-	struct bios_parser *bp = NULL;
+	struct bios_parser *bp;
 
 	bp = kzalloc(sizeof(struct bios_parser), GFP_KERNEL);
 	if (!bp)
@@ -2576,7 +2576,7 @@ static struct integrated_info *bios_parser_create_integrated_info(
 	struct dc_bios *dcb)
 {
 	struct bios_parser *bp = BP_FROM_DCB(dcb);
-	struct integrated_info *info = NULL;
+	struct integrated_info *info;
 
 	info = kzalloc(sizeof(struct integrated_info), GFP_KERNEL);
 
@@ -2593,11 +2593,10 @@ static struct integrated_info *bios_parser_create_integrated_info(
 	return NULL;
 }
 
-static enum bp_result update_slot_layout_info(
-	struct dc_bios *dcb,
-	unsigned int i,
-	struct slot_layout_info *slot_layout_info,
-	unsigned int record_offset)
+static enum bp_result update_slot_layout_info(struct dc_bios *dcb,
+					      unsigned int i,
+					      struct slot_layout_info *slot_layout_info,
+					      unsigned int record_offset)
 {
 	unsigned int j;
 	struct bios_parser *bp;
@@ -2696,10 +2695,9 @@ static enum bp_result update_slot_layout_info(
 }
 
 
-static enum bp_result get_bracket_layout_record(
-	struct dc_bios *dcb,
-	unsigned int bracket_layout_id,
-	struct slot_layout_info *slot_layout_info)
+static enum bp_result get_bracket_layout_record(struct dc_bios *dcb,
+						unsigned int bracket_layout_id,
+						struct slot_layout_info *slot_layout_info)
 {
 	unsigned int i;
 	unsigned int record_offset;
@@ -2748,6 +2746,7 @@ static enum bp_result bios_get_board_layout_info(
 	struct board_layout_info *board_layout_info)
 {
 	unsigned int i;
+	struct bios_parser *bp;
 	enum bp_result record_result;
 
 	const unsigned int slot_index_to_vbios_id[MAX_BOARD_SLOTS] = {
@@ -2755,6 +2754,8 @@ static enum bp_result bios_get_board_layout_info(
 		GENERICOBJECT_BRACKET_LAYOUT_ENUM_ID2,
 		0, 0
 	};
+
+	bp = BP_FROM_DCB(dcb);
 
 	if (board_layout_info == NULL) {
 		DC_LOG_DETECTION_EDID_PARSER("Invalid board_layout_info\n");

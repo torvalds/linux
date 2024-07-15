@@ -29,11 +29,13 @@ properties:
       Initial data for the LDO1 regulator.
     $ref: regulator.yaml#
     type: object
+    unevaluatedProperties: false
 
   micvdd:
     description:
       Initial data for the MICVDD regulator.
     $ref: regulator.yaml#
     type: object
+    unevaluatedProperties: false
 
 additionalProperties: true

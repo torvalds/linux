@@ -46,12 +46,6 @@ properties:
       container may reference more advanced (dynamic) layout
       parsers.
 
-patternProperties:
-  "@[0-9a-f]+(,[0-7])?$":
-    type: object
-    $ref: layouts/fixed-cell.yaml
-    deprecated: true
-
 additionalProperties: true
 
 examples:

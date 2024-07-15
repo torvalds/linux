@@ -1,0 +1,51 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pwm/brcm,kona-pwm.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Broadcom Kona family PWM controller
+
+description:
+  This controller has 6 channels.
+
+maintainers:
+  - Florian Fainelli <f.fainelli@gmail.com>
+
+allOf:
+  - $ref: pwm.yaml#
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - brcm,bcm11351-pwm
+      - const: brcm,kona-pwm
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  '#pwm-cells':
+    const: 3
+
+required:
+  - compatible
+  - reg
+  - clocks
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/bcm281xx.h>
+
+    pwm@3e01a000 {
+       compatible = "brcm,bcm11351-pwm", "brcm,kona-pwm";
+       reg = <0x3e01a000 0xcc>;
+       clocks = <&slave_ccu BCM281XX_SLAVE_CCU_PWM>;
+       #pwm-cells = <3>;
+    };
+...

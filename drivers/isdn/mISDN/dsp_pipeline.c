@@ -31,7 +31,9 @@ struct dsp_element_entry {
 static LIST_HEAD(dsp_elements);
 
 /* sysfs */
-static struct class *elements_class;
+static const struct class elements_class = {
+	.name = "dsp_pipeline",
+};
 
 static ssize_t
 attr_show_args(struct device *dev, struct device_attribute *attr, char *buf)
@@ -80,7 +82,7 @@ int mISDN_dsp_element_register(struct mISDN_dsp_element *elem)
 	INIT_LIST_HEAD(&entry->list);
 	entry->elem = elem;
 
-	entry->dev.class = elements_class;
+	entry->dev.class = &elements_class;
 	entry->dev.release = mISDN_dsp_dev_release;
 	dev_set_drvdata(&entry->dev, elem);
 	dev_set_name(&entry->dev, "%s", elem->name);
@@ -131,9 +133,11 @@ EXPORT_SYMBOL(mISDN_dsp_element_unregister);
 
 int dsp_pipeline_module_init(void)
 {
-	elements_class = class_create("dsp_pipeline");
-	if (IS_ERR(elements_class))
-		return PTR_ERR(elements_class);
+	int err;
+
+	err = class_register(&elements_class);
+	if (err)
+		return err;
 
 	dsp_hwec_init();
 
@@ -146,7 +150,7 @@ void dsp_pipeline_module_exit(void)
 
 	dsp_hwec_exit();
 
-	class_destroy(elements_class);
+	class_unregister(&elements_class);
 
 	list_for_each_entry_safe(entry, n, &dsp_elements, list) {
 		list_del(&entry->list);

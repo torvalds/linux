@@ -436,6 +436,10 @@ int kvm_vgic_v4_set_forwarding(struct kvm *kvm, int virq,
 	if (ret)
 		goto out;
 
+	/* Silently exit if the vLPI is already mapped */
+	if (irq->hw)
+		goto out;
+
 	/*
 	 * Emit the mapping request. If it fails, the ITS probably
 	 * isn't v4 compatible, so let's silently bail out. Holding

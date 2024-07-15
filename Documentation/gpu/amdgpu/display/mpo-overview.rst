@@ -178,7 +178,7 @@ Multiple Display MPO
 
 AMDGPU supports display MPO when using multiple displays; however, this feature
 behavior heavily relies on the compositor implementation. Keep in mind that
-usespace can define different policies. For example, some OSes can use MPO to
+userspace can define different policies. For example, some OSes can use MPO to
 protect the plane that handles the video playback; notice that we don't have
 many limitations for a single display. Nonetheless, this manipulation can have
 many more restrictions for a multi-display scenario. The below example shows a

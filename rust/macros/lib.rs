@@ -7,9 +7,11 @@ mod quote;
 mod concat_idents;
 mod helpers;
 mod module;
+mod paste;
 mod pin_data;
 mod pinned_drop;
 mod vtable;
+mod zeroable;
 
 use proc_macro::TokenStream;
 
@@ -18,7 +20,7 @@ use proc_macro::TokenStream;
 /// The `type` argument should be a type which implements the [`Module`]
 /// trait. Also accepts various forms of kernel metadata.
 ///
-/// C header: [`include/linux/moduleparam.h`](../../../include/linux/moduleparam.h)
+/// C header: [`include/linux/moduleparam.h`](srctree/include/linux/moduleparam.h)
 ///
 /// [`Module`]: ../kernel/trait.Module.html
 ///
@@ -33,18 +35,6 @@ use proc_macro::TokenStream;
 ///     author: "Rust for Linux Contributors",
 ///     description: "My very own kernel module!",
 ///     license: "GPL",
-///     params: {
-///        my_i32: i32 {
-///            default: 42,
-///            permissions: 0o000,
-///            description: "Example of i32",
-///        },
-///        writeable_i32: i32 {
-///            default: 42,
-///            permissions: 0o644,
-///            description: "Example of i32",
-///        },
-///    },
 /// }
 ///
 /// struct MyModule;
@@ -85,27 +75,49 @@ pub fn module(ts: TokenStream) -> TokenStream {
 /// implementation could just return `Error::EINVAL`); Linux typically use C
 /// `NULL` pointers to represent these functions.
 ///
-/// This attribute is intended to close the gap. Traits can be declared and
-/// implemented with the `#[vtable]` attribute, and a `HAS_*` associated constant
-/// will be generated for each method in the trait, indicating if the implementor
-/// has overridden a method.
+/// This attribute closes that gap. A trait can be annotated with the
+/// `#[vtable]` attribute. Implementers of the trait will then also have to
+/// annotate the trait with `#[vtable]`. This attribute generates a `HAS_*`
+/// associated constant bool for each method in the trait that is set to true if
+/// the implementer has overridden the associated method.
 ///
-/// This attribute is not needed if all methods are required.
+/// For a trait method to be optional, it must have a default implementation.
+/// This is also the case for traits annotated with `#[vtable]`, but in this
+/// case the default implementation will never be executed. The reason for this
+/// is that the functions will be called through function pointers installed in
+/// C side vtables. When an optional method is not implemented on a `#[vtable]`
+/// trait, a NULL entry is installed in the vtable. Thus the default
+/// implementation is never called. Since these traits are not designed to be
+/// used on the Rust side, it should not be possible to call the default
+/// implementation. This is done to ensure that we call the vtable methods
+/// through the C vtable, and not through the Rust vtable. Therefore, the
+/// default implementation should call `kernel::build_error`, which prevents
+/// calls to this function at compile time:
+///
+/// ```compile_fail
+/// # use kernel::error::VTABLE_DEFAULT_ERROR;
+/// kernel::build_error(VTABLE_DEFAULT_ERROR)
+/// ```
+///
+/// Note that you might need to import [`kernel::error::VTABLE_DEFAULT_ERROR`].
+///
+/// This macro should not be used when all functions are required.
 ///
 /// # Examples
 ///
 /// ```ignore
+/// use kernel::error::VTABLE_DEFAULT_ERROR;
 /// use kernel::prelude::*;
 ///
 /// // Declares a `#[vtable]` trait
 /// #[vtable]
 /// pub trait Operations: Send + Sync + Sized {
 ///     fn foo(&self) -> Result<()> {
-///         Err(EINVAL)
+///         kernel::build_error(VTABLE_DEFAULT_ERROR)
 ///     }
 ///
 ///     fn bar(&self) -> Result<()> {
-///         Err(EINVAL)
+///         kernel::build_error(VTABLE_DEFAULT_ERROR)
 ///     }
 /// }
 ///
@@ -123,6 +135,8 @@ pub fn module(ts: TokenStream) -> TokenStream {
 /// assert_eq!(<Foo as Operations>::HAS_FOO, true);
 /// assert_eq!(<Foo as Operations>::HAS_BAR, false);
 /// ```
+///
+/// [`kernel::error::VTABLE_DEFAULT_ERROR`]: ../kernel/error/constant.VTABLE_DEFAULT_ERROR.html
 #[proc_macro_attribute]
 pub fn vtable(attr: TokenStream, ts: TokenStream) -> TokenStream {
     vtable::vtable(attr, ts)
@@ -245,4 +259,137 @@ pub fn pin_data(inner: TokenStream, item: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn pinned_drop(args: TokenStream, input: TokenStream) -> TokenStream {
     pinned_drop::pinned_drop(args, input)
+}
+
+/// Paste identifiers together.
+///
+/// Within the `paste!` macro, identifiers inside `[<` and `>]` are concatenated together to form a
+/// single identifier.
+///
+/// This is similar to the [`paste`] crate, but with pasting feature limited to identifiers and
+/// literals (lifetimes and documentation strings are not supported). There is a difference in
+/// supported modifiers as well.
+///
+/// # Example
+///
+/// ```ignore
+/// use kernel::macro::paste;
+///
+/// macro_rules! pub_no_prefix {
+///     ($prefix:ident, $($newname:ident),+) => {
+///         paste! {
+///             $(pub(crate) const $newname: u32 = [<$prefix $newname>];)+
+///         }
+///     };
+/// }
+///
+/// pub_no_prefix!(
+///     binder_driver_return_protocol_,
+///     BR_OK,
+///     BR_ERROR,
+///     BR_TRANSACTION,
+///     BR_REPLY,
+///     BR_DEAD_REPLY,
+///     BR_TRANSACTION_COMPLETE,
+///     BR_INCREFS,
+///     BR_ACQUIRE,
+///     BR_RELEASE,
+///     BR_DECREFS,
+///     BR_NOOP,
+///     BR_SPAWN_LOOPER,
+///     BR_DEAD_BINDER,
+///     BR_CLEAR_DEATH_NOTIFICATION_DONE,
+///     BR_FAILED_REPLY
+/// );
+///
+/// assert_eq!(BR_OK, binder_driver_return_protocol_BR_OK);
+/// ```
+///
+/// # Modifiers
+///
+/// For each identifier, it is possible to attach one or multiple modifiers to
+/// it.
+///
+/// Currently supported modifiers are:
+/// * `span`: change the span of concatenated identifier to the span of the specified token. By
+/// default the span of the `[< >]` group is used.
+/// * `lower`: change the identifier to lower case.
+/// * `upper`: change the identifier to upper case.
+///
+/// ```ignore
+/// use kernel::macro::paste;
+///
+/// macro_rules! pub_no_prefix {
+///     ($prefix:ident, $($newname:ident),+) => {
+///         kernel::macros::paste! {
+///             $(pub(crate) const fn [<$newname:lower:span>]: u32 = [<$prefix $newname:span>];)+
+///         }
+///     };
+/// }
+///
+/// pub_no_prefix!(
+///     binder_driver_return_protocol_,
+///     BR_OK,
+///     BR_ERROR,
+///     BR_TRANSACTION,
+///     BR_REPLY,
+///     BR_DEAD_REPLY,
+///     BR_TRANSACTION_COMPLETE,
+///     BR_INCREFS,
+///     BR_ACQUIRE,
+///     BR_RELEASE,
+///     BR_DECREFS,
+///     BR_NOOP,
+///     BR_SPAWN_LOOPER,
+///     BR_DEAD_BINDER,
+///     BR_CLEAR_DEATH_NOTIFICATION_DONE,
+///     BR_FAILED_REPLY
+/// );
+///
+/// assert_eq!(br_ok(), binder_driver_return_protocol_BR_OK);
+/// ```
+///
+/// # Literals
+///
+/// Literals can also be concatenated with other identifiers:
+///
+/// ```ignore
+/// macro_rules! create_numbered_fn {
+///     ($name:literal, $val:literal) => {
+///         kernel::macros::paste! {
+///             fn [<some_ $name _fn $val>]() -> u32 { $val }
+///         }
+///     };
+/// }
+///
+/// create_numbered_fn!("foo", 100);
+///
+/// assert_eq!(some_foo_fn100(), 100)
+/// ```
+///
+/// [`paste`]: https://docs.rs/paste/
+#[proc_macro]
+pub fn paste(input: TokenStream) -> TokenStream {
+    let mut tokens = input.into_iter().collect();
+    paste::expand(&mut tokens);
+    tokens.into_iter().collect()
+}
+
+/// Derives the [`Zeroable`] trait for the given struct.
+///
+/// This can only be used for structs where every field implements the [`Zeroable`] trait.
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// #[derive(Zeroable)]
+/// pub struct DriverData {
+///     id: i64,
+///     buf_ptr: *mut u8,
+///     len: usize,
+/// }
+/// ```
+#[proc_macro_derive(Zeroable)]
+pub fn derive_zeroable(input: TokenStream) -> TokenStream {
+    zeroable::derive(input)
 }

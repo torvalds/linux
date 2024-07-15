@@ -34,10 +34,6 @@ struct nf_ct_h323_master {
 int get_h225_addr(struct nf_conn *ct, unsigned char *data,
 		  TransportAddress *taddr, union nf_inet_addr *addr,
 		  __be16 *port);
-void nf_conntrack_h245_expect(struct nf_conn *new,
-			      struct nf_conntrack_expect *this);
-void nf_conntrack_q931_expect(struct nf_conn *new,
-			      struct nf_conntrack_expect *this);
 
 struct nfct_h323_nat_hooks {
 	int (*set_h245_addr)(struct sk_buff *skb, unsigned int protoff,

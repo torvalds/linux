@@ -6,7 +6,7 @@ Required properties:
 - ti,x-plate-ohms: X-plate resistance in ohms.
 
 Optional properties:
-- gpios: the interrupt gpio the chip is connected to (trough the penirq pin).
+- gpios: the interrupt gpio the chip is connected to (through the penirq pin).
   The penirq pin goes to low when the panel is touched.
   (see GPIO binding[1] for more details).
 - interrupts: (gpio) interrupt to which the chip is connected

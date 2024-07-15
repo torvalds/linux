@@ -48,7 +48,7 @@ struct worker {
 						/* A: runs through worker->node */
 
 	unsigned long		last_active;	/* K: last active timestamp */
-	unsigned int		flags;		/* X: flags */
+	unsigned int		flags;		/* L: flags */
 	int			id;		/* I: worker id */
 
 	/*

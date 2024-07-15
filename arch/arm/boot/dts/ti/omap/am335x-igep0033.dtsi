@@ -2,7 +2,7 @@
 /*
  * am335x-igep0033.dtsi - Device Tree file for IGEP COM AQUILA AM335x
  *
- * Copyright (C) 2013 ISEE 2007 SL - http://www.isee.biz
+ * Copyright (C) 2013 ISEE 2007 SL - https://www.isee.biz
  */
 
 /dts-v1/;

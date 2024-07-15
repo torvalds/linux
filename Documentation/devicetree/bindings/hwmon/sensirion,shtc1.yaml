@@ -13,7 +13,7 @@ description: |
   The SHTC1, SHTW1 and SHTC3 are digital humidity and temperature sensors
   designed especially for battery-driven high-volume consumer electronics
   applications.
-  For further information refere to Documentation/hwmon/shtc1.rst
+  For further information refer to Documentation/hwmon/shtc1.rst
 
   This binding document describes the binding for the hardware monitor
   portion of the driver.

@@ -60,7 +60,7 @@ vDSO, and gettimeofday() and related system calls can execute
 entirely in user space.  The vDSO is implemented by mapping the
 shared page with scale and offset values into user space.  User
 space code performs the same algorithm of reading the TSC and
-appying the scale and offset to get the constant 10 MHz clock.
+applying the scale and offset to get the constant 10 MHz clock.
 
 Linux clockevents are based on Hyper-V synthetic timer 0. While
 Hyper-V offers 4 synthetic timers for each CPU, Linux only uses

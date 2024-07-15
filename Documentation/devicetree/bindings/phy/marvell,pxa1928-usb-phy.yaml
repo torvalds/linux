@@ -1,0 +1,47 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/phy/marvell,pxa1928-usb-phy.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Marvell PXA1928 USB/HSIC PHY
+
+maintainers:
+  - Duje Mihanović <duje.mihanovic@skole.hr>
+
+properties:
+  compatible:
+    enum:
+      - marvell,pxa1928-usb-phy
+      - marvell,pxa1928-hsic-phy
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  '#phy-cells':
+    const: 0
+
+  resets:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - '#phy-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/marvell,pxa1928.h>
+
+    usbphy: phy@7000 {
+        compatible = "marvell,pxa1928-usb-phy";
+        reg = <0x7000 0xe0>;
+        clocks = <&apmu PXA1928_CLK_USB>;
+        #phy-cells = <0>;
+    };

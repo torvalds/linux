@@ -1,0 +1,145 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mfd/maxim,max8925.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: MAX8925 PMIC from Maxim Integrated.
+
+maintainers:
+  - Lee Jones <lee@kernel.org>
+
+properties:
+  compatible:
+    const: maxim,max8925
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  interrupt-controller: true
+
+  "#interrupt-cells":
+    const: 1
+    description:
+      The cell is the IRQ number
+
+  maxim,tsc-irq:
+    description: second interrupt from max8925
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  regulators:
+    type: object
+
+    patternProperties:
+      "^SDV[1-3]$|^LDO[1-9]$|^LDO1[0-9]$|^LDO20$":
+        description: regulator configuration for SDV1-3 and LDO1-20
+        $ref: /schemas/regulator/regulator.yaml
+        unevaluatedProperties: false
+
+    additionalProperties: false
+
+  backlight:
+    type: object
+    properties:
+      maxim,max8925-dual-string:
+        description: set to 1 to support dual string
+        $ref: /schemas/types.yaml#/definitions/uint32
+        enum: [0, 1]
+        default: 0
+
+    additionalProperties: false
+
+  charger:
+    type: object
+    properties:
+      batt-detect:
+        description: set to 1 if battery detection via ID pin is supported
+        $ref: /schemas/types.yaml#/definitions/uint32
+        enum: [0, 1]
+        default: 0
+
+      topoff-threshold:
+        description: charging current in topoff mode, configures bits 5-6 in CHG_CNTL1
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 0
+        maximum: 3
+        default: 0
+
+      fast-charge:
+        description: set charging current in fast mode, configures bits 0-3 in CHG_CNTL1
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 0
+        maximum: 7
+        default: 0
+
+      no-temp-support:
+        description: set to 1 if temperature sensing is not supported
+        $ref: /schemas/types.yaml#/definitions/uint32
+        enum: [0, 1]
+        default: 0
+
+      no-insert-detect:
+        description: set to 1 if AC detection is not supported
+        $ref: /schemas/types.yaml#/definitions/uint32
+        enum: [0, 1]
+        default: 0
+
+    additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - interrupt-controller
+  - "#interrupt-cells"
+  - regulators
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        pmic@3c {
+            compatible = "maxim,max8925";
+            reg = <0x3c>;
+            interrupts = <1>;
+            interrupt-parent = <&intcmux4>;
+            interrupt-controller;
+            #interrupt-cells = <1>;
+            maxim,tsc-irq = <0>;
+
+            regulators {
+                SDV1 {
+                    regulator-min-microvolt = <637500>;
+                    regulator-max-microvolt = <1425000>;
+                    regulator-boot-on;
+                    regulator-always-on;
+                };
+
+                LDO1 {
+                    regulator-min-microvolt = <750000>;
+                    regulator-max-microvolt = <3900000>;
+                    regulator-boot-on;
+                    regulator-always-on;
+                };
+            };
+
+            backlight {
+                maxim,max8925-dual-string = <0>;
+            };
+
+            charger {
+                batt-detect = <0>;
+                topoff-threshold = <1>;
+                fast-charge = <7>;
+                no-temp-support = <0>;
+                no-insert-detect = <0>;
+            };
+        };
+    };

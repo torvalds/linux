@@ -52,7 +52,6 @@
 #define OTMP_D1R_INT_MASK               BIT(OTMP_D1R_INT)
 
 struct hi655x_pmic {
-	struct resource *res;
 	struct device *dev;
 	struct regmap *regmap;
 	struct gpio_desc *gpio;

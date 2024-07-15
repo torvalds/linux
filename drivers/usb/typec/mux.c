@@ -469,6 +469,6 @@ void *typec_mux_get_drvdata(struct typec_mux_dev *mux_dev)
 }
 EXPORT_SYMBOL_GPL(typec_mux_get_drvdata);
 
-struct class typec_mux_class = {
+const struct class typec_mux_class = {
 	.name = "typec_mux",
 };

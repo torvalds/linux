@@ -8,6 +8,7 @@
  * Author: Shyam Sundar S K <Shyam-sundar.S-k@amd.com>
  */
 
+#include <linux/string_choices.h>
 #include <linux/workqueue.h>
 #include "pmf.h"
 
@@ -399,7 +400,7 @@ static ssize_t cnqf_enable_store(struct device *dev,
 			amd_pmf_set_sps_power_limits(pdev);
 	}
 
-	dev_dbg(pdev->dev, "Received CnQF %s\n", input ? "on" : "off");
+	dev_dbg(pdev->dev, "Received CnQF %s\n", str_on_off(input));
 	return count;
 }
 
@@ -409,7 +410,7 @@ static ssize_t cnqf_enable_show(struct device *dev,
 {
 	struct amd_pmf_dev *pdev = dev_get_drvdata(dev);
 
-	return sysfs_emit(buf, "%s\n", pdev->cnqf_enabled ? "on" : "off");
+	return sysfs_emit(buf, "%s\n", str_on_off(pdev->cnqf_enabled));
 }
 
 static DEVICE_ATTR_RW(cnqf_enable);

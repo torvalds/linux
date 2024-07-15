@@ -40,12 +40,6 @@ Command Line Switches
   supplied here is lower than the number of physically available CPUs, then
   those CPUs can not be brought online later.
 
-``additional_cpus=n``
-  Use this to limit hotpluggable CPUs. This option sets
-  ``cpu_possible_mask = cpu_present_mask + additional_cpus``
-
-  This option is limited to the IA64 architecture.
-
 ``possible_cpus=n``
   This option sets ``possible_cpus`` bits in ``cpu_possible_mask``.
 
@@ -395,8 +389,8 @@ multi-instance state the following function is available:
 * cpuhp_setup_state_multi(state, name, startup, teardown)
 
 The @state argument is either a statically allocated state or one of the
-constants for dynamically allocated states - CPUHP_PREPARE_DYN,
-CPUHP_ONLINE_DYN - depending on the state section (PREPARE, ONLINE) for
+constants for dynamically allocated states - CPUHP_BP_PREPARE_DYN,
+CPUHP_AP_ONLINE_DYN - depending on the state section (PREPARE, ONLINE) for
 which a dynamic state should be allocated.
 
 The @name argument is used for sysfs output and for instrumentation. The
@@ -588,7 +582,7 @@ notifications on online and offline operations::
 Setup and teardown a dynamically allocated state in the ONLINE section
 for notifications on offline operations::
 
-   state = cpuhp_setup_state(CPUHP_ONLINE_DYN, "subsys:offline", NULL, subsys_cpu_offline);
+   state = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "subsys:offline", NULL, subsys_cpu_offline);
    if (state < 0)
        return state;
    ....
@@ -597,7 +591,7 @@ for notifications on offline operations::
 Setup and teardown a dynamically allocated state in the ONLINE section
 for notifications on online operations without invoking the callbacks::
 
-   state = cpuhp_setup_state_nocalls(CPUHP_ONLINE_DYN, "subsys:online", subsys_cpu_online, NULL);
+   state = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN, "subsys:online", subsys_cpu_online, NULL);
    if (state < 0)
        return state;
    ....
@@ -606,7 +600,7 @@ for notifications on online operations without invoking the callbacks::
 Setup, use and teardown a dynamically allocated multi-instance state in the
 ONLINE section for notifications on online and offline operation::
 
-   state = cpuhp_setup_state_multi(CPUHP_ONLINE_DYN, "subsys:online", subsys_cpu_online, subsys_cpu_offline);
+   state = cpuhp_setup_state_multi(CPUHP_AP_ONLINE_DYN, "subsys:online", subsys_cpu_online, subsys_cpu_offline);
    if (state < 0)
        return state;
    ....
@@ -740,6 +734,24 @@ will receive all events. A script like::
   fi
 
 can process the event further.
+
+When changes to the CPUs in the system occur, the sysfs file
+/sys/devices/system/cpu/crash_hotplug contains '1' if the kernel
+updates the kdump capture kernel list of CPUs itself (via elfcorehdr),
+or '0' if userspace must update the kdump capture kernel list of CPUs.
+
+The availability depends on the CONFIG_HOTPLUG_CPU kernel configuration
+option.
+
+To skip userspace processing of CPU hot un/plug events for kdump
+(i.e. the unload-then-reload to obtain a current list of CPUs), this sysfs
+file can be used in a udev rule as follows:
+
+ SUBSYSTEM=="cpu", ATTRS{crash_hotplug}=="1", GOTO="kdump_reload_end"
+
+For a CPU hot un/plug event, if the architecture supports kernel updates
+of the elfcorehdr (which contains the list of CPUs), then the rule skips
+the unload-then-reload of the kdump capture kernel.
 
 Kernel Inline Documentations Reference
 ======================================

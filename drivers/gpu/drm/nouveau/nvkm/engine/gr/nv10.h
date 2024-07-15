@@ -9,6 +9,6 @@ int nv10_gr_init(struct nvkm_gr *);
 void nv10_gr_intr(struct nvkm_gr *);
 void nv10_gr_tile(struct nvkm_gr *, int, struct nvkm_fb_tile *);
 
-int nv10_gr_chan_new(struct nvkm_gr *, struct nvkm_fifo_chan *,
+int nv10_gr_chan_new(struct nvkm_gr *, struct nvkm_chan *,
 		     const struct nvkm_oclass *, struct nvkm_object **);
 #endif

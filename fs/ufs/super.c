@@ -137,6 +137,7 @@ static struct dentry *ufs_get_parent(struct dentry *child)
 }
 
 static const struct export_operations ufs_export_ops = {
+	.encode_fh = generic_encode_ino32_fh,
 	.fh_to_dentry	= ufs_fh_to_dentry,
 	.fh_to_parent	= ufs_fh_to_parent,
 	.get_parent	= ufs_get_parent,
@@ -1469,8 +1470,7 @@ static int __init init_inodecache(void)
 {
 	ufs_inode_cachep = kmem_cache_create_usercopy("ufs_inode_cache",
 				sizeof(struct ufs_inode_info), 0,
-				(SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD|
-					SLAB_ACCOUNT),
+				(SLAB_RECLAIM_ACCOUNT | SLAB_ACCOUNT),
 				offsetof(struct ufs_inode_info, i_u1.i_symlink),
 				sizeof_field(struct ufs_inode_info,
 					i_u1.i_symlink),

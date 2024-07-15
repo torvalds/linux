@@ -6,6 +6,8 @@
 
 #include <linux/mutex.h>
 #include <linux/completion.h>
+#include <linux/debugfs.h>
+#include <linux/dev_printk.h>
 #include <linux/kthread.h>
 #include <linux/kref.h>
 #include <linux/rcupdate.h>
@@ -30,49 +32,10 @@
 #define VCHIQ_SLOT_SIZE     4096
 #define VCHIQ_MAX_MSG_SIZE  (VCHIQ_SLOT_SIZE - sizeof(struct vchiq_header))
 
-/* Run time control of log level, based on KERN_XXX level. */
-#define VCHIQ_LOG_DEFAULT  4
-#define VCHIQ_LOG_ERROR    3
-#define VCHIQ_LOG_WARNING  4
-#define VCHIQ_LOG_INFO     6
-#define VCHIQ_LOG_TRACE    7
-
-#define VCHIQ_LOG_PREFIX   KERN_INFO "vchiq: "
-
-#ifndef vchiq_log_error
-#define vchiq_log_error(cat, fmt, ...) \
-	do { if (cat >= VCHIQ_LOG_ERROR) \
-		printk(VCHIQ_LOG_PREFIX fmt "\n", ##__VA_ARGS__); } while (0)
-#endif
-#ifndef vchiq_log_warning
-#define vchiq_log_warning(cat, fmt, ...) \
-	do { if (cat >= VCHIQ_LOG_WARNING) \
-		 printk(VCHIQ_LOG_PREFIX fmt "\n", ##__VA_ARGS__); } while (0)
-#endif
-#ifndef vchiq_log_info
-#define vchiq_log_info(cat, fmt, ...) \
-	do { if (cat >= VCHIQ_LOG_INFO) \
-		printk(VCHIQ_LOG_PREFIX fmt "\n", ##__VA_ARGS__); } while (0)
-#endif
-#ifndef vchiq_log_trace
-#define vchiq_log_trace(cat, fmt, ...) \
-	do { if (cat >= VCHIQ_LOG_TRACE) \
-		printk(VCHIQ_LOG_PREFIX fmt "\n", ##__VA_ARGS__); } while (0)
-#endif
-
-#define vchiq_loud_error(...) \
-	vchiq_log_error(vchiq_core_log_level, "===== " __VA_ARGS__)
-
 #define VCHIQ_SLOT_MASK        (VCHIQ_SLOT_SIZE - 1)
 #define VCHIQ_SLOT_QUEUE_MASK  (VCHIQ_MAX_SLOTS_PER_SIDE - 1)
 #define VCHIQ_SLOT_ZERO_SLOTS  DIV_ROUND_UP(sizeof(struct vchiq_slot_zero), \
 					    VCHIQ_SLOT_SIZE)
-
-#define VCHIQ_FOURCC_AS_4CHARS(fourcc)	\
-	((fourcc) >> 24) & 0xff, \
-	((fourcc) >> 16) & 0xff, \
-	((fourcc) >>  8) & 0xff, \
-	(fourcc) & 0xff
 
 #define BITSET_SIZE(b)        ((b + 31) >> 5)
 #define BITSET_WORD(b)        (b >> 5)
@@ -463,15 +426,11 @@ struct vchiq_config {
 
 extern spinlock_t bulk_waiter_spinlock;
 
-extern int vchiq_core_log_level;
-extern int vchiq_core_msg_log_level;
-extern int vchiq_sync_log_level;
-
 extern const char *
 get_conn_state_name(enum vchiq_connstate conn_state);
 
 extern struct vchiq_slot_zero *
-vchiq_init_slots(void *mem_base, int mem_size);
+vchiq_init_slots(struct device *dev, void *mem_base, int mem_size);
 
 extern int
 vchiq_init_state(struct vchiq_state *state, struct vchiq_slot_zero *slot_zero, struct device *dev);
@@ -508,11 +467,8 @@ vchiq_bulk_transfer(struct vchiq_instance *instance, unsigned int handle, void *
 		    void __user *uoffset, int size, void *userdata, enum vchiq_bulk_mode mode,
 		    enum vchiq_bulk_dir dir);
 
-extern int
-vchiq_dump_state(void *dump_context, struct vchiq_state *state);
-
-extern int
-vchiq_dump_service_state(void *dump_context, struct vchiq_service *service);
+extern void
+vchiq_dump_state(struct seq_file *f, struct vchiq_state *state);
 
 extern void
 vchiq_loud_error_header(void);
@@ -568,13 +524,11 @@ void vchiq_complete_bulk(struct vchiq_instance *instance, struct vchiq_bulk *bul
 
 void remote_event_signal(struct remote_event *event);
 
-int vchiq_dump(void *dump_context, const char *str, int len);
+void vchiq_dump_platform_state(struct seq_file *f);
 
-int vchiq_dump_platform_state(void *dump_context);
+void vchiq_dump_platform_instances(struct seq_file *f);
 
-int vchiq_dump_platform_instances(void *dump_context);
-
-int vchiq_dump_platform_service_state(void *dump_context, struct vchiq_service *service);
+void vchiq_dump_platform_service_state(struct seq_file *f, struct vchiq_service *service);
 
 int vchiq_use_service_internal(struct vchiq_service *service);
 
@@ -600,7 +554,8 @@ void vchiq_platform_conn_state_changed(struct vchiq_state *state,
 
 void vchiq_set_conn_state(struct vchiq_state *state, enum vchiq_connstate newstate);
 
-void vchiq_log_dump_mem(const char *label, u32 addr, const void *void_mem, size_t num_bytes);
+void vchiq_log_dump_mem(struct device *dev, const char *label, u32 addr,
+			const void *void_mem, size_t num_bytes);
 
 int vchiq_remove_service(struct vchiq_instance *instance, unsigned int service);
 

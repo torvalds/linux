@@ -26,6 +26,8 @@
 #include <asm/q40ints.h>
 #endif
 
+#include "ints.h"
+
 extern u32 auto_irqhandler_fixup[];
 extern u16 user_irqvec_fixup[];
 

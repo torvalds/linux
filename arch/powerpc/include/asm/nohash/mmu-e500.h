@@ -319,6 +319,9 @@ extern int book3e_htw_mode;
 
 #endif
 
+#include <asm/percpu.h>
+DECLARE_PER_CPU(int, next_tlbcam_idx);
+
 #endif /* !__ASSEMBLY__ */
 
 #endif /* _ASM_POWERPC_MMU_BOOK3E_H_ */

@@ -260,6 +260,24 @@ struct bfa_ioc_cbfn_s {
 /*
  * IOC event notification mechanism.
  */
+enum ioc_event {
+	IOC_E_RESET		= 1,	/*  IOC reset request		*/
+	IOC_E_ENABLE		= 2,	/*  IOC enable request		*/
+	IOC_E_DISABLE		= 3,	/*  IOC disable request	*/
+	IOC_E_DETACH		= 4,	/*  driver detach cleanup	*/
+	IOC_E_ENABLED		= 5,	/*  f/w enabled		*/
+	IOC_E_FWRSP_GETATTR	= 6,	/*  IOC get attribute response	*/
+	IOC_E_DISABLED		= 7,	/*  f/w disabled		*/
+	IOC_E_PFFAILED		= 8,	/*  failure notice by iocpf sm	*/
+	IOC_E_HBFAIL		= 9,	/*  heartbeat failure		*/
+	IOC_E_HWERROR		= 10,	/*  hardware error interrupt	*/
+	IOC_E_TIMEOUT		= 11,	/*  timeout			*/
+	IOC_E_HWFAILED		= 12,	/*  PCI mapping failure notice	*/
+};
+
+struct bfa_ioc_s;
+typedef void (*bfa_ioc_sm_t)(struct bfa_ioc_s *fsm, enum ioc_event);
+
 enum bfa_ioc_event_e {
 	BFA_IOC_E_ENABLED	= 1,
 	BFA_IOC_E_DISABLED	= 2,
@@ -282,8 +300,29 @@ struct bfa_ioc_notify_s {
 	(__notify)->cbarg = (__cbarg);      \
 } while (0)
 
+/*
+ * IOCPF state machine events
+ */
+enum iocpf_event {
+	IOCPF_E_ENABLE		= 1,	/*  IOCPF enable request	*/
+	IOCPF_E_DISABLE		= 2,	/*  IOCPF disable request	*/
+	IOCPF_E_STOP		= 3,	/*  stop on driver detach	*/
+	IOCPF_E_FWREADY		= 4,	/*  f/w initialization done	*/
+	IOCPF_E_FWRSP_ENABLE	= 5,	/*  enable f/w response	*/
+	IOCPF_E_FWRSP_DISABLE	= 6,	/*  disable f/w response	*/
+	IOCPF_E_FAIL		= 7,	/*  failure notice by ioc sm	*/
+	IOCPF_E_INITFAIL	= 8,	/*  init fail notice by ioc sm	*/
+	IOCPF_E_GETATTRFAIL	= 9,	/*  init fail notice by ioc sm	*/
+	IOCPF_E_SEMLOCKED	= 10,	/*  h/w semaphore is locked	*/
+	IOCPF_E_TIMEOUT		= 11,	/*  f/w response timeout	*/
+	IOCPF_E_SEM_ERROR	= 12,	/*  h/w sem mapping error	*/
+};
+
+struct bfa_iocpf_s;
+typedef void (*bfa_iocpf_sm_t)(struct bfa_iocpf_s *fsm, enum iocpf_event);
+
 struct bfa_iocpf_s {
-	bfa_fsm_t		fsm;
+	bfa_iocpf_sm_t		fsm;
 	struct bfa_ioc_s	*ioc;
 	bfa_boolean_t		fw_mismatch_notified;
 	bfa_boolean_t		auto_recover;
@@ -291,7 +330,7 @@ struct bfa_iocpf_s {
 };
 
 struct bfa_ioc_s {
-	bfa_fsm_t		fsm;
+	bfa_ioc_sm_t		fsm;
 	struct bfa_s		*bfa;
 	struct bfa_pcidev_s	pcidev;
 	struct bfa_timer_mod_s	*timer_mod;
@@ -361,34 +400,22 @@ struct bfa_reqq_wait_s {
 	void	*cbarg;
 };
 
-typedef void	(*bfa_cb_cbfn_t) (void *cbarg, bfa_boolean_t complete);
+typedef void (*bfa_cb_cbfn_t) (void *cbarg, bfa_boolean_t complete);
+typedef void (*bfa_cb_cbfn_status_t) (void *cbarg, bfa_status_t status);
 
 /*
  * Generic BFA callback element.
  */
 struct bfa_cb_qe_s {
 	struct list_head	qe;
-	bfa_cb_cbfn_t	cbfn;
+	union {
+		bfa_cb_cbfn_status_t	cbfn_status;
+		bfa_cb_cbfn_t		cbfn;
+	};
 	bfa_boolean_t	once;
 	bfa_boolean_t	pre_rmv;	/* set for stack based qe(s) */
 	bfa_status_t	fw_status;	/* to access fw status in comp proc */
 	void		*cbarg;
-};
-
-/*
- * IOCFC state machine definitions/declarations
- */
-enum iocfc_event {
-	IOCFC_E_INIT		= 1,	/* IOCFC init request		*/
-	IOCFC_E_START		= 2,	/* IOCFC mod start request	*/
-	IOCFC_E_STOP		= 3,	/* IOCFC stop request		*/
-	IOCFC_E_ENABLE		= 4,	/* IOCFC enable request		*/
-	IOCFC_E_DISABLE		= 5,	/* IOCFC disable request	*/
-	IOCFC_E_IOC_ENABLED	= 6,	/* IOC enabled message		*/
-	IOCFC_E_IOC_DISABLED	= 7,	/* IOC disabled message		*/
-	IOCFC_E_IOC_FAILED	= 8,	/* failure notice by IOC sm	*/
-	IOCFC_E_DCONF_DONE	= 9,	/* dconf read/write done	*/
-	IOCFC_E_CFG_DONE	= 10,	/* IOCFC config complete	*/
 };
 
 /*
@@ -775,8 +802,23 @@ struct bfa_dconf_s {
 };
 #pragma pack()
 
+/*
+ * DCONF state machine events
+ */
+enum bfa_dconf_event {
+	BFA_DCONF_SM_INIT		= 1,	/* dconf Init */
+	BFA_DCONF_SM_FLASH_COMP		= 2,	/* read/write to flash */
+	BFA_DCONF_SM_WR			= 3,	/* binding change, map */
+	BFA_DCONF_SM_TIMEOUT		= 4,	/* Start timer */
+	BFA_DCONF_SM_EXIT		= 5,	/* exit dconf module */
+	BFA_DCONF_SM_IOCDISABLE		= 6,	/* IOC disable event */
+};
+
+struct bfa_dconf_mod_s;
+typedef void (*bfa_dconf_sm_t)(struct bfa_dconf_mod_s *fsm, enum bfa_dconf_event);
+
 struct bfa_dconf_mod_s {
-	bfa_sm_t		sm;
+	bfa_dconf_sm_t		sm;
 	u8			instance;
 	bfa_boolean_t		read_data_valid;
 	bfa_boolean_t		min_cfg;

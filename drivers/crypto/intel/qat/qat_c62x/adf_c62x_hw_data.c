@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: (BSD-3-Clause OR GPL-2.0-only)
 /* Copyright(c) 2014 - 2021 Intel Corporation */
 #include <adf_accel_devices.h>
+#include <adf_admin.h>
+#include <adf_clock.h>
 #include <adf_common_drv.h>
 #include <adf_gen2_config.h>
 #include <adf_gen2_dc.h>
 #include <adf_gen2_hw_data.h>
 #include <adf_gen2_pfvf.h>
 #include "adf_c62x_hw_data.h"
+#include "adf_heartbeat.h"
 #include "icp_qat_hw.h"
 
 /* Worker thread to service arbiter mappings */
@@ -48,6 +51,28 @@ static u32 get_ae_mask(struct adf_hw_device_data *self)
 		straps |= ae_disable << (accel << 1);
 
 	return ~(fuses | straps) & ADF_C62X_ACCELENGINES_MASK;
+}
+
+static u32 get_ts_clock(struct adf_hw_device_data *self)
+{
+	/*
+	 * Timestamp update interval is 16 AE clock ticks for c62x.
+	 */
+	return self->clock_frequency / 16;
+}
+
+static int measure_clock(struct adf_accel_dev *accel_dev)
+{
+	u32 frequency;
+	int ret;
+
+	ret = adf_dev_measure_clock(accel_dev, &frequency, ADF_C62X_MIN_AE_FREQ,
+				    ADF_C62X_MAX_AE_FREQ);
+	if (ret)
+		return ret;
+
+	accel_dev->hw_device->clock_frequency = frequency;
+	return 0;
 }
 
 static u32 get_misc_bar_id(struct adf_hw_device_data *self)
@@ -129,6 +154,10 @@ void adf_init_hw_data_c62x(struct adf_hw_device_data *hw_data)
 	hw_data->set_ssm_wdtimer = adf_gen2_set_ssm_wdtimer;
 	hw_data->disable_iov = adf_disable_sriov;
 	hw_data->dev_config = adf_gen2_dev_config;
+	hw_data->measure_clock = measure_clock;
+	hw_data->get_hb_clock = get_ts_clock;
+	hw_data->num_hb_ctrs = ADF_NUM_HB_CNT_PER_AE;
+	hw_data->check_hb_ctrs = adf_heartbeat_check_ctrs;
 
 	adf_gen2_init_pf_pfvf_ops(&hw_data->pfvf_ops);
 	adf_gen2_init_hw_csr_ops(&hw_data->csr_ops);

@@ -159,14 +159,13 @@ static int __init clevo_mail_led_probe(struct platform_device *pdev)
 	return led_classdev_register(&pdev->dev, &clevo_mail_led);
 }
 
-static int clevo_mail_led_remove(struct platform_device *pdev)
+static void clevo_mail_led_remove(struct platform_device *pdev)
 {
 	led_classdev_unregister(&clevo_mail_led);
-	return 0;
 }
 
 static struct platform_driver clevo_mail_led_driver = {
-	.remove		= clevo_mail_led_remove,
+	.remove_new	= clevo_mail_led_remove,
 	.driver		= {
 		.name		= KBUILD_MODNAME,
 	},

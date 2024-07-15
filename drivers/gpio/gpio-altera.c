@@ -317,13 +317,11 @@ skip_irq:
 	return 0;
 }
 
-static int altera_gpio_remove(struct platform_device *pdev)
+static void altera_gpio_remove(struct platform_device *pdev)
 {
 	struct altera_gpio_chip *altera_gc = platform_get_drvdata(pdev);
 
 	of_mm_gpiochip_remove(&altera_gc->mmchip);
-
-	return 0;
 }
 
 static const struct of_device_id altera_gpio_of_match[] = {
@@ -338,7 +336,7 @@ static struct platform_driver altera_gpio_driver = {
 		.of_match_table = altera_gpio_of_match,
 	},
 	.probe		= altera_gpio_probe,
-	.remove		= altera_gpio_remove,
+	.remove_new	= altera_gpio_remove,
 };
 
 static int __init altera_gpio_init(void)

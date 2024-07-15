@@ -456,6 +456,11 @@ static u16 ifcvf_vdpa_get_vq_num_max(struct vdpa_device *vdpa_dev)
 	return ifcvf_get_max_vq_size(vf);
 }
 
+static u16 ifcvf_vdpa_get_vq_num_min(struct vdpa_device *vdpa_dev)
+{
+	return IFCVF_MIN_VQ_SIZE;
+}
+
 static int ifcvf_vdpa_get_vq_state(struct vdpa_device *vdpa_dev, u16 qid,
 				   struct vdpa_vq_state *state)
 {
@@ -597,6 +602,14 @@ static int ifcvf_vdpa_get_vq_irq(struct vdpa_device *vdpa_dev,
 		return -EINVAL;
 }
 
+static u16 ifcvf_vdpa_get_vq_size(struct vdpa_device *vdpa_dev,
+			     u16 qid)
+{
+	struct ifcvf_hw *vf = vdpa_to_vf(vdpa_dev);
+
+	return ifcvf_get_vq_size(vf, qid);
+}
+
 static struct vdpa_notification_area ifcvf_get_vq_notification(struct vdpa_device *vdpa_dev,
 							       u16 idx)
 {
@@ -624,6 +637,7 @@ static const struct vdpa_config_ops ifc_vdpa_ops = {
 	.set_status	= ifcvf_vdpa_set_status,
 	.reset		= ifcvf_vdpa_reset,
 	.get_vq_num_max	= ifcvf_vdpa_get_vq_num_max,
+	.get_vq_num_min	= ifcvf_vdpa_get_vq_num_min,
 	.get_vq_state	= ifcvf_vdpa_get_vq_state,
 	.set_vq_state	= ifcvf_vdpa_set_vq_state,
 	.set_vq_cb	= ifcvf_vdpa_set_vq_cb,
@@ -632,6 +646,7 @@ static const struct vdpa_config_ops ifc_vdpa_ops = {
 	.set_vq_num	= ifcvf_vdpa_set_vq_num,
 	.set_vq_address	= ifcvf_vdpa_set_vq_address,
 	.get_vq_irq	= ifcvf_vdpa_get_vq_irq,
+	.get_vq_size	= ifcvf_vdpa_get_vq_size,
 	.kick_vq	= ifcvf_vdpa_kick_vq,
 	.get_generation	= ifcvf_vdpa_get_generation,
 	.get_device_id	= ifcvf_vdpa_get_device_id,

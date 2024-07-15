@@ -10,6 +10,7 @@
  * Authors: Alexander Graf <agraf@suse.de>
  */
 
+#include <linux/export.h>
 #include <linux/linkage.h>
 #include <linux/objtool.h>
 #include <asm/ppc_asm.h>
@@ -24,7 +25,6 @@
 #include <asm/exception-64s.h>
 #include <asm/kvm_book3s_asm.h>
 #include <asm/book3s/64/mmu-hash.h>
-#include <asm/export.h>
 #include <asm/tm.h>
 #include <asm/opal.h>
 #include <asm/thread_info.h>

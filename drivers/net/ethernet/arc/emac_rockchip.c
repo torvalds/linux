@@ -244,7 +244,7 @@ out_netdev:
 	return err;
 }
 
-static int emac_rockchip_remove(struct platform_device *pdev)
+static void emac_rockchip_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct rockchip_priv_data *priv = netdev_priv(ndev);
@@ -260,12 +260,11 @@ static int emac_rockchip_remove(struct platform_device *pdev)
 		clk_disable_unprepare(priv->macclk);
 
 	free_netdev(ndev);
-	return 0;
 }
 
 static struct platform_driver emac_rockchip_driver = {
 	.probe = emac_rockchip_probe,
-	.remove = emac_rockchip_remove,
+	.remove_new = emac_rockchip_remove,
 	.driver = {
 		.name = DRV_NAME,
 		.of_match_table  = emac_rockchip_dt_ids,

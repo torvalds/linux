@@ -99,7 +99,7 @@ to replace the kernel.
 
 When a Linux driver or subsystem is first implemented using ACPI, it by
 definition ends up requiring a specific version of the ACPI specification
--- it's baseline.  ACPI firmware must continue to work, even though it may
+-- its baseline.  ACPI firmware must continue to work, even though it may
 not be optimal, with the earliest kernel version that first provides support
 for that baseline version of ACPI.  There may be a need for additional drivers,
 but adding new functionality (e.g., CPU power management) should not break
@@ -130,7 +130,7 @@ When an Arm system boots, it can either have DT information, ACPI tables,
 or in some very unusual cases, both.  If no command line parameters are used,
 the kernel will try to use DT for device enumeration; if there is no DT
 present, the kernel will try to use ACPI tables, but only if they are present.
-In neither is available, the kernel will not boot.  If acpi=force is used
+If neither is available, the kernel will not boot.  If acpi=force is used
 on the command line, the kernel will attempt to use ACPI tables first, but
 fall back to DT if there are no ACPI tables present.  The basic idea is that
 the kernel will not fail to boot unless it absolutely has no other choice.

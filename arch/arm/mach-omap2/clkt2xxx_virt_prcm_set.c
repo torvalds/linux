@@ -162,7 +162,7 @@ static int omap2_select_table_rate(struct clk_hw *hw, unsigned long rate,
 }
 
 /**
- * omap2xxx_clkt_vps_check_bootloader_rate - determine which of the rate
+ * omap2xxx_clkt_vps_check_bootloader_rates - determine which of the rate
  * table sets matches the current CORE DPLL hardware rate
  *
  * Check the MPU rate set by bootloader.  Sets the 'curr_prcm_set'

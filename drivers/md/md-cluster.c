@@ -501,7 +501,7 @@ static void process_suspend_info(struct mddev *mddev,
 	mddev->pers->quiesce(mddev, 0);
 }
 
-static void process_add_new_disk(struct mddev *mddev, struct cluster_msg *cmsg)
+static int process_add_new_disk(struct mddev *mddev, struct cluster_msg *cmsg)
 {
 	char disk_uuid[64];
 	struct md_cluster_info *cinfo = mddev->cluster_info;
@@ -509,6 +509,7 @@ static void process_add_new_disk(struct mddev *mddev, struct cluster_msg *cmsg)
 	char raid_slot[16];
 	char *envp[] = {event_name, disk_uuid, raid_slot, NULL};
 	int len;
+	int res = 0;
 
 	len = snprintf(disk_uuid, 64, "DEVICE_UUID=");
 	sprintf(disk_uuid + len, "%pU", cmsg->uuid);
@@ -517,9 +518,14 @@ static void process_add_new_disk(struct mddev *mddev, struct cluster_msg *cmsg)
 	init_completion(&cinfo->newdisk_completion);
 	set_bit(MD_CLUSTER_WAITING_FOR_NEWDISK, &cinfo->state);
 	kobject_uevent_env(&disk_to_dev(mddev->gendisk)->kobj, KOBJ_CHANGE, envp);
-	wait_for_completion_timeout(&cinfo->newdisk_completion,
-			NEW_DEV_TIMEOUT);
+	if (!wait_for_completion_timeout(&cinfo->newdisk_completion,
+					NEW_DEV_TIMEOUT)) {
+		pr_err("md-cluster(%s:%d): timeout on a new disk adding\n",
+			__func__, __LINE__);
+		res = -1;
+	}
 	clear_bit(MD_CLUSTER_WAITING_FOR_NEWDISK, &cinfo->state);
+	return res;
 }
 
 
@@ -594,7 +600,8 @@ static int process_recvd_msg(struct mddev *mddev, struct cluster_msg *msg)
 				     le64_to_cpu(msg->high));
 		break;
 	case NEWDISK:
-		process_add_new_disk(mddev, msg);
+		if (process_add_new_disk(mddev, msg))
+			ret = -1;
 		break;
 	case REMOVE:
 		process_remove_disk(mddev, msg);
@@ -952,8 +959,8 @@ static int join(struct mddev *mddev, int nodes)
 	return 0;
 err:
 	set_bit(MD_CLUSTER_HOLDING_MUTEX_FOR_RECVD, &cinfo->state);
-	md_unregister_thread(&cinfo->recovery_thread);
-	md_unregister_thread(&cinfo->recv_thread);
+	md_unregister_thread(mddev, &cinfo->recovery_thread);
+	md_unregister_thread(mddev, &cinfo->recv_thread);
 	lockres_free(cinfo->message_lockres);
 	lockres_free(cinfo->token_lockres);
 	lockres_free(cinfo->ack_lockres);
@@ -1015,8 +1022,8 @@ static int leave(struct mddev *mddev)
 		resync_bitmap(mddev);
 
 	set_bit(MD_CLUSTER_HOLDING_MUTEX_FOR_RECVD, &cinfo->state);
-	md_unregister_thread(&cinfo->recovery_thread);
-	md_unregister_thread(&cinfo->recv_thread);
+	md_unregister_thread(mddev, &cinfo->recovery_thread);
+	md_unregister_thread(mddev, &cinfo->recv_thread);
 	lockres_free(cinfo->message_lockres);
 	lockres_free(cinfo->token_lockres);
 	lockres_free(cinfo->ack_lockres);

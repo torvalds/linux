@@ -25,8 +25,8 @@ properties:
 patternProperties:
   "^(reg11|reg18|usb33)$":
     type: object
-
     $ref: regulator.yaml#
+    unevaluatedProperties: false
 
 required:
   - compatible

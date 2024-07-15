@@ -34,7 +34,7 @@ be use it for its own purposes.
 
 During the VM's launch, the virtual machine manager may inject a secret to that
 area.  In AMD SEV and SEV-ES this is performed using the
-``KVM_SEV_LAUNCH_SECRET`` command (see [sev]_).  The strucutre of the injected
+``KVM_SEV_LAUNCH_SECRET`` command (see [sev]_).  The structure of the injected
 Guest Owner secret data should be a GUIDed table of secret values; the binary
 format is described in ``drivers/virt/coco/efi_secret/efi_secret.c`` under
 "Structure of the EFI secret area".

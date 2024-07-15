@@ -62,87 +62,6 @@ static u32 float_to_u32_mul_1000000(struct i2c_client *client, u32 phloat)
 }
 
 
-/*
- * Read a 8/16/32-bit i2c register.  The value is returned in 'val'.
- * Returns zero if successful, or non-zero otherwise.
- */
-static int ____ccs_read_addr(struct ccs_sensor *sensor, u16 reg, u16 len,
-			     u32 *val)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
-	struct i2c_msg msg;
-	unsigned char data_buf[sizeof(u32)] = { 0 };
-	unsigned char offset_buf[sizeof(u16)];
-	int r;
-
-	if (len > sizeof(data_buf))
-		return -EINVAL;
-
-	msg.addr = client->addr;
-	msg.flags = 0;
-	msg.len = sizeof(offset_buf);
-	msg.buf = offset_buf;
-	put_unaligned_be16(reg, offset_buf);
-
-	r = i2c_transfer(client->adapter, &msg, 1);
-	if (r != 1) {
-		if (r >= 0)
-			r = -EBUSY;
-		goto err;
-	}
-
-	msg.len = len;
-	msg.flags = I2C_M_RD;
-	msg.buf = &data_buf[sizeof(data_buf) - len];
-
-	r = i2c_transfer(client->adapter, &msg, 1);
-	if (r != 1) {
-		if (r >= 0)
-			r = -EBUSY;
-		goto err;
-	}
-
-	*val = get_unaligned_be32(data_buf);
-
-	return 0;
-
-err:
-	dev_err(&client->dev, "read from offset 0x%x error %d\n", reg, r);
-
-	return r;
-}
-
-/* Read a register using 8-bit access only. */
-static int ____ccs_read_addr_8only(struct ccs_sensor *sensor, u16 reg,
-				   u16 len, u32 *val)
-{
-	unsigned int i;
-	int rval;
-
-	*val = 0;
-
-	for (i = 0; i < len; i++) {
-		u32 val8;
-
-		rval = ____ccs_read_addr(sensor, reg + i, 1, &val8);
-		if (rval < 0)
-			return rval;
-		*val |= val8 << ((len - i - 1) << 3);
-	}
-
-	return 0;
-}
-
-unsigned int ccs_reg_width(u32 reg)
-{
-	if (reg & CCS_FL_16BIT)
-		return sizeof(u16);
-	if (reg & CCS_FL_32BIT)
-		return sizeof(u32);
-
-	return sizeof(u8);
-}
-
 static u32 ireal32_to_u32_mul_1000000(struct i2c_client *client, u32 val)
 {
 	if (val >> 10 > U32_MAX / 15625) {
@@ -178,29 +97,22 @@ u32 ccs_reg_conv(struct ccs_sensor *sensor, u32 reg, u32 val)
 static int __ccs_read_addr(struct ccs_sensor *sensor, u32 reg, u32 *val,
 			   bool only8, bool conv)
 {
-	unsigned int len = ccs_reg_width(reg);
+	u64 __val;
 	int rval;
 
-	if (!only8)
-		rval = ____ccs_read_addr(sensor, CCS_REG_ADDR(reg), len, val);
-	else
-		rval = ____ccs_read_addr_8only(sensor, CCS_REG_ADDR(reg), len,
-					       val);
+	rval = cci_read(sensor->regmap, reg, &__val, NULL);
 	if (rval < 0)
 		return rval;
 
-	if (!conv)
-		return 0;
-
-	*val = ccs_reg_conv(sensor, reg, *val);
+	*val = conv ? ccs_reg_conv(sensor, reg, __val) : __val;
 
 	return 0;
 }
 
-static int __ccs_read_data(struct ccs_reg *regs, size_t num_regs,
-			   u32 reg, u32 *val)
+static int __ccs_static_data_read_ro_reg(struct ccs_reg *regs, size_t num_regs,
+					 u32 reg, u32 *val)
 {
-	unsigned int width = ccs_reg_width(reg);
+	unsigned int width = CCI_REG_WIDTH_BYTES(reg);
 	size_t i;
 
 	for (i = 0; i < num_regs; i++, regs++) {
@@ -235,16 +147,17 @@ static int __ccs_read_data(struct ccs_reg *regs, size_t num_regs,
 	return -ENOENT;
 }
 
-static int ccs_read_data(struct ccs_sensor *sensor, u32 reg, u32 *val)
+static int
+ccs_static_data_read_ro_reg(struct ccs_sensor *sensor, u32 reg, u32 *val)
 {
-	if (!__ccs_read_data(sensor->sdata.sensor_read_only_regs,
-			     sensor->sdata.num_sensor_read_only_regs,
-			     reg, val))
+	if (!__ccs_static_data_read_ro_reg(sensor->sdata.sensor_read_only_regs,
+					   sensor->sdata.num_sensor_read_only_regs,
+					   reg, val))
 		return 0;
 
-	return __ccs_read_data(sensor->mdata.module_read_only_regs,
-			       sensor->mdata.num_module_read_only_regs,
-			       reg, val);
+	return __ccs_static_data_read_ro_reg(sensor->mdata.module_read_only_regs,
+					     sensor->mdata.num_module_read_only_regs,
+					     reg, val);
 }
 
 static int ccs_read_addr_raw(struct ccs_sensor *sensor, u32 reg, u32 *val,
@@ -253,7 +166,7 @@ static int ccs_read_addr_raw(struct ccs_sensor *sensor, u32 reg, u32 *val,
 	int rval;
 
 	if (data) {
-		rval = ccs_read_data(sensor, reg, val);
+		rval = ccs_static_data_read_ro_reg(sensor, reg, val);
 		if (!rval)
 			return 0;
 	}
@@ -291,71 +204,13 @@ int ccs_read_addr_noconv(struct ccs_sensor *sensor, u32 reg, u32 *val)
 	return ccs_read_addr_raw(sensor, reg, val, false, true, false, true);
 }
 
-static int ccs_write_retry(struct i2c_client *client, struct i2c_msg *msg)
-{
-	unsigned int retries;
-	int r;
-
-	for (retries = 0; retries < 10; retries++) {
-		/*
-		 * Due to unknown reason sensor stops responding. This
-		 * loop is a temporaty solution until the root cause
-		 * is found.
-		 */
-		r = i2c_transfer(client->adapter, msg, 1);
-		if (r != 1) {
-			usleep_range(1000, 2000);
-			continue;
-		}
-
-		if (retries)
-			dev_err(&client->dev,
-				"sensor i2c stall encountered. retries: %d\n",
-				retries);
-		return 0;
-	}
-
-	return r;
-}
-
-int ccs_write_addr_no_quirk(struct ccs_sensor *sensor, u32 reg, u32 val)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
-	struct i2c_msg msg;
-	unsigned char data[6];
-	unsigned int len = ccs_reg_width(reg);
-	int r;
-
-	if (len > sizeof(data) - 2)
-		return -EINVAL;
-
-	msg.addr = client->addr;
-	msg.flags = 0; /* Write */
-	msg.len = 2 + len;
-	msg.buf = data;
-
-	put_unaligned_be16(CCS_REG_ADDR(reg), data);
-	put_unaligned_be32(val << (8 * (sizeof(val) - len)), data + 2);
-
-	dev_dbg(&client->dev, "writing reg 0x%4.4x value 0x%*.*x (%u)\n",
-		CCS_REG_ADDR(reg), ccs_reg_width(reg) << 1,
-		ccs_reg_width(reg) << 1, val, val);
-
-	r = ccs_write_retry(client, &msg);
-	if (r)
-		dev_err(&client->dev,
-			"wrote 0x%x to offset 0x%x error %d\n", val,
-			CCS_REG_ADDR(reg), r);
-
-	return r;
-}
-
 /*
  * Write to a 8/16-bit register.
  * Returns zero if successful, or non-zero otherwise.
  */
 int ccs_write_addr(struct ccs_sensor *sensor, u32 reg, u32 val)
 {
+	unsigned int retries = 10;
 	int rval;
 
 	rval = ccs_call_quirk(sensor, reg_access, true, &reg, &val);
@@ -364,7 +219,13 @@ int ccs_write_addr(struct ccs_sensor *sensor, u32 reg, u32 val)
 	if (rval < 0)
 		return rval;
 
-	return ccs_write_addr_no_quirk(sensor, reg, val);
+	rval = 0;
+	do {
+		if (cci_write(sensor->regmap, reg, val, &rval))
+			fsleep(1000);
+	} while (rval && --retries);
+
+	return rval;
 }
 
 #define MAX_WRITE_LEN	32U
@@ -373,40 +234,38 @@ int ccs_write_data_regs(struct ccs_sensor *sensor, struct ccs_reg *regs,
 			size_t num_regs)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
-	unsigned char buf[2 + MAX_WRITE_LEN];
-	struct i2c_msg msg = {
-		.addr = client->addr,
-		.buf = buf,
-	};
 	size_t i;
 
 	for (i = 0; i < num_regs; i++, regs++) {
 		unsigned char *regdata = regs->value;
 		unsigned int j;
+		int len;
 
-		for (j = 0; j < regs->len;
-		     j += msg.len - 2, regdata += msg.len - 2) {
+		for (j = 0; j < regs->len; j += len, regdata += len) {
 			char printbuf[(MAX_WRITE_LEN << 1) +
 				      1 /* \0 */] = { 0 };
+			unsigned int retries = 10;
 			int rval;
 
-			msg.len = min(regs->len - j, MAX_WRITE_LEN);
+			len = min(regs->len - j, MAX_WRITE_LEN);
 
-			bin2hex(printbuf, regdata, msg.len);
+			bin2hex(printbuf, regdata, len);
 			dev_dbg(&client->dev,
 				"writing msr reg 0x%4.4x value 0x%s\n",
 				regs->addr + j, printbuf);
 
-			put_unaligned_be16(regs->addr + j, buf);
-			memcpy(buf + 2, regdata, msg.len);
+			do {
+				rval = regmap_bulk_write(sensor->regmap,
+							 regs->addr + j,
+							 regdata, len);
+				if (rval)
+					fsleep(1000);
+			} while (rval && --retries);
 
-			msg.len += 2;
-
-			rval = ccs_write_retry(client, &msg);
 			if (rval) {
 				dev_err(&client->dev,
 					"error writing %u octets to address 0x%4.4x\n",
-					msg.len, regs->addr + j);
+					len, regs->addr + j);
 				return rval;
 			}
 		}

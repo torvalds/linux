@@ -37,6 +37,7 @@ gp100_sor = {
 	.state = gf119_sor_state,
 	.power = nv50_sor_power,
 	.clock = gf119_sor_clock,
+	.bl = &gt215_sor_bl,
 	.hdmi = &gm200_sor_hdmi,
 	.dp = &gm200_sor_dp,
 	.hda = &gf119_sor_hda,

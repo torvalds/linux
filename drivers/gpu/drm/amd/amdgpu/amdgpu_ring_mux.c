@@ -159,9 +159,7 @@ int amdgpu_ring_mux_init(struct amdgpu_ring_mux *mux, struct amdgpu_ring *ring,
 	mux->ring_entry_size = entry_size;
 	mux->s_resubmit = false;
 
-	amdgpu_mux_chunk_slab = kmem_cache_create("amdgpu_mux_chunk",
-						  sizeof(struct amdgpu_mux_chunk), 0,
-						  SLAB_HWCACHE_ALIGN, NULL);
+	amdgpu_mux_chunk_slab = KMEM_CACHE(amdgpu_mux_chunk, SLAB_HWCACHE_ALIGN);
 	if (!amdgpu_mux_chunk_slab) {
 		DRM_ERROR("create amdgpu_mux_chunk cache failed\n");
 		return -ENOMEM;

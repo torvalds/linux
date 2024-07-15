@@ -10,11 +10,11 @@
 #ifndef PINCTRL_INTEL_H
 #define PINCTRL_INTEL_H
 
+#include <linux/array_size.h>
 #include <linux/bits.h>
 #include <linux/compiler_types.h>
 #include <linux/gpio/driver.h>
 #include <linux/irq.h>
-#include <linux/kernel.h>
 #include <linux/pm.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/spinlock_types.h>
@@ -179,6 +179,10 @@ struct intel_community {
 		.modes = __builtin_choose_expr(__builtin_constant_p((m)), NULL, (m)),	\
 	}
 
+#define PIN_GROUP_GPIO(n, p, m)						\
+	 PIN_GROUP(n, p, m),						\
+	 PIN_GROUP(n "_gpio", p, 0)
+
 #define FUNCTION(n, g)							\
 	{								\
 		.func = PINCTRL_PINFUNCTION((n), (g), ARRAY_SIZE(g)),	\
@@ -252,18 +256,24 @@ struct intel_pinctrl {
 	int irq;
 };
 
+int intel_pinctrl_probe(struct platform_device *pdev,
+			const struct intel_pinctrl_soc_data *soc_data);
+
 int intel_pinctrl_probe_by_hid(struct platform_device *pdev);
 int intel_pinctrl_probe_by_uid(struct platform_device *pdev);
 
-#ifdef CONFIG_PM_SLEEP
-int intel_pinctrl_suspend_noirq(struct device *dev);
-int intel_pinctrl_resume_noirq(struct device *dev);
-#endif
+extern const struct dev_pm_ops intel_pinctrl_pm_ops;
 
-#define INTEL_PINCTRL_PM_OPS(_name)					\
-const struct dev_pm_ops _name = {					\
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(intel_pinctrl_suspend_noirq,	\
-				      intel_pinctrl_resume_noirq)	\
-}
+struct intel_community *intel_get_community(struct intel_pinctrl *pctrl, unsigned int pin);
+
+int intel_get_groups_count(struct pinctrl_dev *pctldev);
+const char *intel_get_group_name(struct pinctrl_dev *pctldev, unsigned int group);
+int intel_get_group_pins(struct pinctrl_dev *pctldev, unsigned int group,
+			 const unsigned int **pins, unsigned int *npins);
+
+int intel_get_functions_count(struct pinctrl_dev *pctldev);
+const char *intel_get_function_name(struct pinctrl_dev *pctldev, unsigned int function);
+int intel_get_function_groups(struct pinctrl_dev *pctldev, unsigned int function,
+			      const char * const **groups, unsigned int * const ngroups);
 
 #endif /* PINCTRL_INTEL_H */

@@ -79,14 +79,15 @@ config SND_SOC_AMD_ACP5x
 	 ACP DMA driver, CPU DAI driver.
 
 config SND_SOC_AMD_VANGOGH_MACH
-	tristate "AMD Vangogh support for NAU8821 CS35L41"
+	tristate "AMD Vangogh support for NAU8821/CS35L41/MAX98388"
 	select SND_SOC_NAU8821
 	select SND_SOC_CS35L41_SPI
+	select SND_SOC_MAX98388
 	select SND_AMD_ACP_CONFIG
 	depends on SND_SOC_AMD_ACP5x && I2C && SPI_MASTER
 	help
 	  This option enables machine driver for Vangogh platform
-	  using NAU8821 and CS35L41 codecs.
+	  using NAU8821 and either CS35L41 or MAX98388 codecs.
 	  Say m if you have such a device.
 	  If unsure select "N".
 
@@ -131,9 +132,26 @@ config SND_SOC_AMD_RPL_ACP6x
           Say m if you have such a device.
           If unsure select "N".
 
+config SND_SOC_AMD_SOUNDWIRE_LINK_BASELINE
+	tristate
+	select SOUNDWIRE_AMD if SND_SOC_AMD_SOUNDWIRE != n
+	select SND_AMD_SOUNDWIRE_ACPI if ACPI
+
+config SND_SOC_AMD_SOUNDWIRE
+	tristate "Support for SoundWire based AMD platforms"
+	default SND_SOC_AMD_SOUNDWIRE_LINK_BASELINE
+	depends on SND_SOC_AMD_SOUNDWIRE_LINK_BASELINE
+	depends on ACPI && SOUNDWIRE
+	depends on !(SOUNDWIRE=m && SND_SOC_AMD_SOUNDWIRE_LINK_BASELINE=y)
+	help
+	  This adds support for SoundWire for AMD platforms.
+	  Say Y if you want to enable SoundWire links with SOF.
+	  If unsure select "N".
+
 config SND_SOC_AMD_PS
         tristate "AMD Audio Coprocessor-v6.3 Pink Sardine support"
 	select SND_AMD_ACP_CONFIG
+	select SND_SOC_AMD_SOUNDWIRE_LINK_BASELINE
         depends on X86 && PCI && ACPI
         help
           This option enables Audio Coprocessor i.e ACP v6.3 support on

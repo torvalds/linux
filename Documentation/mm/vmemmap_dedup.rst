@@ -1,3 +1,4 @@
+
 .. SPDX-License-Identifier: GPL-2.0
 
 =========================================
@@ -10,14 +11,14 @@ HugeTLB
 This section is to explain how HugeTLB Vmemmap Optimization (HVO) works.
 
 The ``struct page`` structures are used to describe a physical page frame. By
-default, there is a one-to-one mapping from a page frame to it's corresponding
+default, there is a one-to-one mapping from a page frame to its corresponding
 ``struct page``.
 
 HugeTLB pages consist of multiple base page size pages and is supported by many
 architectures. See Documentation/admin-guide/mm/hugetlbpage.rst for more
 details. On the x86-64 architecture, HugeTLB pages of size 2MB and 1GB are
 currently supported. Since the base page size on x86 is 4KB, a 2MB HugeTLB page
-consists of 512 base pages and a 1GB HugeTLB page consists of 4096 base pages.
+consists of 512 base pages and a 1GB HugeTLB page consists of 262144 base pages.
 For each base page, there is a corresponding ``struct page``.
 
 Within the HugeTLB subsystem, only the first 4 ``struct page`` are used to
@@ -210,6 +211,7 @@ the device (altmap).
 
 The following page sizes are supported in DAX: PAGE_SIZE (4K on x86_64),
 PMD_SIZE (2M on x86_64) and PUD_SIZE (1G on x86_64).
+For powerpc equivalent details see Documentation/arch/powerpc/vmemmap_dedup.rst
 
 The differences with HugeTLB are relatively minor.
 

@@ -221,11 +221,9 @@ static irqreturn_t nvidia_smmu_context_fault(int irq, void *dev)
 	unsigned int inst;
 	irqreturn_t ret = IRQ_NONE;
 	struct arm_smmu_device *smmu;
-	struct iommu_domain *domain = dev;
-	struct arm_smmu_domain *smmu_domain;
+	struct arm_smmu_domain *smmu_domain = dev;
 	struct nvidia_smmu *nvidia;
 
-	smmu_domain = container_of(domain, struct arm_smmu_domain, domain);
 	smmu = smmu_domain->smmu;
 	nvidia = to_nvidia_smmu(smmu);
 

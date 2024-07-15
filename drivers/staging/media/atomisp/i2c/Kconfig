@@ -57,30 +57,6 @@ config VIDEO_ATOMISP_GC0310
 	  This is a Video4Linux2 sensor-level driver for the Galaxycore
 	  GC0310 0.3MP sensor.
 
-config VIDEO_ATOMISP_OV2680
-	tristate "Omnivision OV2680 sensor support"
-	depends on ACPI
-	depends on I2C && VIDEO_DEV
-	help
-	  This is a Video4Linux2 sensor-level driver for the Omnivision
-	  OV2680 raw camera.
-
-	  ov2680 is a 2M raw sensor.
-
-	  It currently only works with the atomisp driver.
-
-config VIDEO_ATOMISP_OV5693
-	tristate "Omnivision ov5693 sensor support"
-	depends on ACPI
-	depends on I2C && VIDEO_DEV
-	help
-	  This is a Video4Linux2 sensor-level driver for the Micron
-	  ov5693 5 Mpixel camera.
-
-	  ov5693 is video camera sensor.
-
-	  It currently only works with the atomisp driver.
-
 #
 # Kconfig for flash drivers
 #

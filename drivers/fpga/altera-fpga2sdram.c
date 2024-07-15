@@ -27,7 +27,7 @@
 #include <linux/kernel.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
 #include <linux/regmap.h>
 
 #define ALT_SDR_CTL_FPGAPORTRST_OFST		0x80
@@ -147,20 +147,18 @@ static int alt_fpga_bridge_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int alt_fpga_bridge_remove(struct platform_device *pdev)
+static void alt_fpga_bridge_remove(struct platform_device *pdev)
 {
 	struct fpga_bridge *br = platform_get_drvdata(pdev);
 
 	fpga_bridge_unregister(br);
-
-	return 0;
 }
 
 MODULE_DEVICE_TABLE(of, altera_fpga_of_match);
 
 static struct platform_driver altera_fpga_driver = {
 	.probe = alt_fpga_bridge_probe,
-	.remove = alt_fpga_bridge_remove,
+	.remove_new = alt_fpga_bridge_remove,
 	.driver = {
 		.name	= "altera_fpga2sdram_bridge",
 		.of_match_table = of_match_ptr(altera_fpga_of_match),

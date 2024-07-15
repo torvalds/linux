@@ -31,7 +31,7 @@ The important bits (aka "TL;DR")
    Linux kernel regression tracking bot "regzbot" track the issue by specifying
    when the regression started like this::
 
-       #regzbot introduced v5.13..v5.14-rc1
+       #regzbot introduced: v5.13..v5.14-rc1
 
 
 All the details on Linux kernel regressions relevant for users

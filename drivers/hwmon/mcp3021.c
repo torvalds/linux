@@ -20,7 +20,6 @@
 #include <linux/err.h>
 #include <linux/device.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 
 /* Vdd / reference voltage in millivolt */
 #define MCP3021_VDD_REF_MAX	5500

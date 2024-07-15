@@ -65,16 +65,10 @@ static int imx_clk_gpr_mux_set_parent(struct clk_hw *hw, u8 index)
 	return regmap_update_bits(priv->regmap, priv->reg, priv->mask, val);
 }
 
-static int imx_clk_gpr_mux_determine_rate(struct clk_hw *hw,
-					 struct clk_rate_request *req)
-{
-	return clk_mux_determine_rate_flags(hw, req, 0);
-}
-
 static const struct clk_ops imx_clk_gpr_mux_ops = {
 	.get_parent = imx_clk_gpr_mux_get_parent,
 	.set_parent = imx_clk_gpr_mux_set_parent,
-	.determine_rate = imx_clk_gpr_mux_determine_rate,
+	.determine_rate = __clk_mux_determine_rate,
 };
 
 struct clk_hw *imx_clk_gpr_mux(const char *name, const char *compatible,

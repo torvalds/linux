@@ -62,6 +62,7 @@ config EXTCON_INTEL_CHT_WC
 	tristate "Intel Cherrytrail Whiskey Cove PMIC extcon driver"
 	depends on INTEL_SOC_PMIC_CHTWC
 	depends on USB_SUPPORT
+	depends on POWER_SUPPLY
 	select USB_ROLE_SWITCH
 	help
 	  Say Y here to enable extcon support for charger detection / control
@@ -189,5 +190,16 @@ config EXTCON_USBC_TUSB320
 	help
 	  Say Y here to enable support for USB Type C cable detection extcon
 	  support using a TUSB320.
+
+config EXTCON_RTK_TYPE_C
+	tristate "Realtek RTD SoC extcon Type-C Driver"
+	depends on ARCH_REALTEK || COMPILE_TEST
+	depends on TYPEC
+	select USB_COMMON
+	help
+	  Say Y here to enable extcon support for USB Type C cable detection
+	  when using the Realtek RTD SoC USB Type-C port.
+	  The DHC (Digital Home Hub) RTD series SoC contains a type c module.
+	  This driver will detect the status of the type-c port.
 
 endif

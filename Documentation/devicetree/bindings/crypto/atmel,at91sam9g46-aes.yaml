@@ -12,7 +12,11 @@ maintainers:
 
 properties:
   compatible:
-    const: atmel,at91sam9g46-aes
+    oneOf:
+      - const: atmel,at91sam9g46-aes
+      - items:
+          - const: microchip,sam9x7-aes
+          - const: atmel,at91sam9g46-aes
 
   reg:
     maxItems: 1

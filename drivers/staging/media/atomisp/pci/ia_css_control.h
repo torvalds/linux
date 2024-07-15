@@ -30,39 +30,28 @@
  *				environment in which the CSS code runs. This is
  *				used for host side memory access and message
  *				printing. May not be NULL.
- * @param[in]	fw		Firmware package containing the firmware for all
- *				predefined ISP binaries.
- *				if fw is NULL the firmware must be loaded before
- *				through a call of ia_css_load_firmware
  * @param[in]	l1_base         Base index (isp2400)
  *                              of the L1 page table. This is a physical
  *                              address or index.
  * @param[in]	irq_type	The type of interrupt to be used (edge or level)
- * @return				Returns -EINVAL in case of any
+ * @return			Returns -EINVAL in case of any
  *				errors and 0 otherwise.
  *
  * This function initializes the API which includes allocating and initializing
- * internal data structures. This also interprets the firmware package. All
- * contents of this firmware package are copied into local data structures, so
- * the fw pointer could be freed after this function completes.
+ * internal data structures.
+ * ia_css_load_firmware() must be called to load the firmware before calling
+ * this function.
  */
 int ia_css_init(struct device           *dev,
-			    const struct ia_css_env *env,
-			    const struct ia_css_fw  *fw,
-			    u32                     l1_base,
-			    enum ia_css_irq_type    irq_type);
+		const struct ia_css_env *env,
+		u32                     l1_base,
+		enum ia_css_irq_type    irq_type);
 
 /* @brief Un-initialize the CSS API.
  * @return	None
  *
- * This function deallocates all memory that has been allocated by the CSS API
- * Exception: if you explicitly loaded firmware through ia_css_load_firmware
- * you need to call ia_css_unload_firmware to deallocate the memory reserved
- * for the firmware.
- * After this function is called, no other CSS functions should be called
- * with the exception of ia_css_init which will re-initialize the CSS code,
- * ia_css_unload_firmware to unload the firmware or ia_css_load_firmware
- * to load new firmware
+ * This function deallocates all memory that has been allocated by the CSS API.
+ * After this function is called, no other CSS functions should be called.
  */
 void
 ia_css_uninit(void);

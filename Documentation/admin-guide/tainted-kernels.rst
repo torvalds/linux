@@ -34,7 +34,7 @@ name of the command ('Comm:') that triggered the event::
 
 You'll find a 'Not tainted: ' there if the kernel was not tainted at the
 time of the event; if it was, then it will print 'Tainted: ' and characters
-either letters or blanks. In above example it looks like this::
+either letters or blanks. In the example above it looks like this::
 
 	Tainted: P        W  O
 
@@ -52,7 +52,7 @@ At runtime, you can query the tainted state by reading
 tainted; any other number indicates the reasons why it is. The easiest way to
 decode that number is the script ``tools/debugging/kernel-chktaint``, which your
 distribution might ship as part of a package called ``linux-tools`` or
-``kernel-tools``; if it doesn't you can download the script from
+``kernel-tools``; if it doesn't, you can download the script from
 `git.kernel.org <https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/plain/tools/debugging/kernel-chktaint>`_
 and execute it with ``sh kernel-chktaint``, which would print something like
 this on the machine that had the statements in the logs that were quoted earlier::

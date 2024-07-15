@@ -8,6 +8,10 @@
 #include "adf_cfg.h"
 #include "adf_common_drv.h"
 #include "adf_dbgfs.h"
+#include "adf_heartbeat.h"
+#include "adf_rl.h"
+#include "adf_sysfs_ras_counters.h"
+#include "adf_telemetry.h"
 
 static LIST_HEAD(service_table);
 static DEFINE_MUTEX(service_lock);
@@ -60,7 +64,6 @@ int adf_service_unregister(struct service_hndl *service)
 static int adf_dev_init(struct adf_accel_dev *accel_dev)
 {
 	struct service_hndl *service;
-	struct list_head *list_itr;
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
 	int ret;
 
@@ -96,6 +99,9 @@ static int adf_dev_init(struct adf_accel_dev *accel_dev)
 		return -EFAULT;
 	}
 
+	if (hw_data->get_ring_to_svc_map)
+		hw_data->ring_to_svc_map = hw_data->get_ring_to_svc_map(accel_dev);
+
 	if (adf_ae_init(accel_dev)) {
 		dev_err(&GET_DEV(accel_dev),
 			"Failed to initialise Acceleration Engine\n");
@@ -116,6 +122,9 @@ static int adf_dev_init(struct adf_accel_dev *accel_dev)
 	}
 	set_bit(ADF_STATUS_IRQ_ALLOCATED, &accel_dev->status);
 
+	if (hw_data->ras_ops.enable_ras_errors)
+		hw_data->ras_ops.enable_ras_errors(accel_dev);
+
 	hw_data->enable_ints(accel_dev);
 	hw_data->enable_error_correction(accel_dev);
 
@@ -129,13 +138,21 @@ static int adf_dev_init(struct adf_accel_dev *accel_dev)
 			return -EFAULT;
 	}
 
+	adf_heartbeat_init(accel_dev);
+	ret = adf_rl_init(accel_dev);
+	if (ret && ret != -EOPNOTSUPP)
+		return ret;
+
+	ret = adf_tl_init(accel_dev);
+	if (ret && ret != -EOPNOTSUPP)
+		return ret;
+
 	/*
 	 * Subservice initialisation is divided into two stages: init and start.
 	 * This is to facilitate any ordering dependencies between services
 	 * prior to starting any of the accelerators.
 	 */
-	list_for_each(list_itr, &service_table) {
-		service = list_entry(list_itr, struct service_hndl, list);
+	list_for_each_entry(service, &service_table, list) {
 		if (service->event_hld(accel_dev, ADF_EVENT_INIT)) {
 			dev_err(&GET_DEV(accel_dev),
 				"Failed to initialise service %s\n",
@@ -162,7 +179,7 @@ static int adf_dev_start(struct adf_accel_dev *accel_dev)
 {
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
 	struct service_hndl *service;
-	struct list_head *list_itr;
+	int ret;
 
 	set_bit(ADF_STATUS_STARTING, &accel_dev->status);
 
@@ -177,6 +194,14 @@ static int adf_dev_start(struct adf_accel_dev *accel_dev)
 		return -EFAULT;
 	}
 
+	if (hw_data->measure_clock) {
+		ret = hw_data->measure_clock(accel_dev);
+		if (ret) {
+			dev_err(&GET_DEV(accel_dev), "Failed measure device clock\n");
+			return ret;
+		}
+	}
+
 	/* Set ssm watch dog timer */
 	if (hw_data->set_ssm_wdtimer)
 		hw_data->set_ssm_wdtimer(accel_dev);
@@ -187,8 +212,24 @@ static int adf_dev_start(struct adf_accel_dev *accel_dev)
 		return -EFAULT;
 	}
 
-	list_for_each(list_itr, &service_table) {
-		service = list_entry(list_itr, struct service_hndl, list);
+	if (hw_data->start_timer) {
+		ret = hw_data->start_timer(accel_dev);
+		if (ret) {
+			dev_err(&GET_DEV(accel_dev), "Failed to start internal sync timer\n");
+			return ret;
+		}
+	}
+
+	adf_heartbeat_start(accel_dev);
+	ret = adf_rl_start(accel_dev);
+	if (ret && ret != -EOPNOTSUPP)
+		return ret;
+
+	ret = adf_tl_start(accel_dev);
+	if (ret && ret != -EOPNOTSUPP)
+		return ret;
+
+	list_for_each_entry(service, &service_table, list) {
 		if (service->event_hld(accel_dev, ADF_EVENT_START)) {
 			dev_err(&GET_DEV(accel_dev),
 				"Failed to start service %s\n",
@@ -209,6 +250,7 @@ static int adf_dev_start(struct adf_accel_dev *accel_dev)
 		clear_bit(ADF_STATUS_STARTED, &accel_dev->status);
 		return -EFAULT;
 	}
+	set_bit(ADF_STATUS_CRYPTO_ALGS_REGISTERED, &accel_dev->status);
 
 	if (!list_empty(&accel_dev->compression_list) && qat_comp_algs_register()) {
 		dev_err(&GET_DEV(accel_dev),
@@ -217,8 +259,10 @@ static int adf_dev_start(struct adf_accel_dev *accel_dev)
 		clear_bit(ADF_STATUS_STARTED, &accel_dev->status);
 		return -EFAULT;
 	}
+	set_bit(ADF_STATUS_COMP_ALGS_REGISTERED, &accel_dev->status);
 
 	adf_dbgfs_add(accel_dev);
+	adf_sysfs_start_ras(accel_dev);
 
 	return 0;
 }
@@ -235,8 +279,8 @@ static int adf_dev_start(struct adf_accel_dev *accel_dev)
  */
 static void adf_dev_stop(struct adf_accel_dev *accel_dev)
 {
+	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
 	struct service_hndl *service;
-	struct list_head *list_itr;
 	bool wait = false;
 	int ret;
 
@@ -244,21 +288,27 @@ static void adf_dev_stop(struct adf_accel_dev *accel_dev)
 	    !test_bit(ADF_STATUS_STARTING, &accel_dev->status))
 		return;
 
+	adf_tl_stop(accel_dev);
+	adf_rl_stop(accel_dev);
 	adf_dbgfs_rm(accel_dev);
+	adf_sysfs_stop_ras(accel_dev);
 
 	clear_bit(ADF_STATUS_STARTING, &accel_dev->status);
 	clear_bit(ADF_STATUS_STARTED, &accel_dev->status);
 
-	if (!list_empty(&accel_dev->crypto_list)) {
+	if (!list_empty(&accel_dev->crypto_list) &&
+	    test_bit(ADF_STATUS_CRYPTO_ALGS_REGISTERED, &accel_dev->status)) {
 		qat_algs_unregister();
 		qat_asym_algs_unregister();
 	}
+	clear_bit(ADF_STATUS_CRYPTO_ALGS_REGISTERED, &accel_dev->status);
 
-	if (!list_empty(&accel_dev->compression_list))
+	if (!list_empty(&accel_dev->compression_list) &&
+	    test_bit(ADF_STATUS_COMP_ALGS_REGISTERED, &accel_dev->status))
 		qat_comp_algs_unregister();
+	clear_bit(ADF_STATUS_COMP_ALGS_REGISTERED, &accel_dev->status);
 
-	list_for_each(list_itr, &service_table) {
-		service = list_entry(list_itr, struct service_hndl, list);
+	list_for_each_entry(service, &service_table, list) {
 		if (!test_bit(accel_dev->accel_id, service->start_status))
 			continue;
 		ret = service->event_hld(accel_dev, ADF_EVENT_STOP);
@@ -269,6 +319,9 @@ static void adf_dev_stop(struct adf_accel_dev *accel_dev)
 			clear_bit(accel_dev->accel_id, service->start_status);
 		}
 	}
+
+	if (hw_data->stop_timer)
+		hw_data->stop_timer(accel_dev);
 
 	if (wait)
 		msleep(100);
@@ -292,7 +345,6 @@ static void adf_dev_shutdown(struct adf_accel_dev *accel_dev)
 {
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
 	struct service_hndl *service;
-	struct list_head *list_itr;
 
 	if (!hw_data) {
 		dev_err(&GET_DEV(accel_dev),
@@ -314,8 +366,7 @@ static void adf_dev_shutdown(struct adf_accel_dev *accel_dev)
 				  &accel_dev->status);
 	}
 
-	list_for_each(list_itr, &service_table) {
-		service = list_entry(list_itr, struct service_hndl, list);
+	list_for_each_entry(service, &service_table, list) {
 		if (!test_bit(accel_dev->accel_id, service->init_status))
 			continue;
 		if (service->event_hld(accel_dev, ADF_EVENT_SHUTDOWN))
@@ -325,6 +376,15 @@ static void adf_dev_shutdown(struct adf_accel_dev *accel_dev)
 		else
 			clear_bit(accel_dev->accel_id, service->init_status);
 	}
+
+	adf_rl_exit(accel_dev);
+
+	if (hw_data->ras_ops.disable_ras_errors)
+		hw_data->ras_ops.disable_ras_errors(accel_dev);
+
+	adf_heartbeat_shutdown(accel_dev);
+
+	adf_tl_shutdown(accel_dev);
 
 	hw_data->disable_iov(accel_dev);
 
@@ -350,10 +410,8 @@ static void adf_dev_shutdown(struct adf_accel_dev *accel_dev)
 int adf_dev_restarting_notify(struct adf_accel_dev *accel_dev)
 {
 	struct service_hndl *service;
-	struct list_head *list_itr;
 
-	list_for_each(list_itr, &service_table) {
-		service = list_entry(list_itr, struct service_hndl, list);
+	list_for_each_entry(service, &service_table, list) {
 		if (service->event_hld(accel_dev, ADF_EVENT_RESTARTING))
 			dev_err(&GET_DEV(accel_dev),
 				"Failed to restart service %s.\n",
@@ -365,16 +423,26 @@ int adf_dev_restarting_notify(struct adf_accel_dev *accel_dev)
 int adf_dev_restarted_notify(struct adf_accel_dev *accel_dev)
 {
 	struct service_hndl *service;
-	struct list_head *list_itr;
 
-	list_for_each(list_itr, &service_table) {
-		service = list_entry(list_itr, struct service_hndl, list);
+	list_for_each_entry(service, &service_table, list) {
 		if (service->event_hld(accel_dev, ADF_EVENT_RESTARTED))
 			dev_err(&GET_DEV(accel_dev),
 				"Failed to restart service %s.\n",
 				service->name);
 	}
 	return 0;
+}
+
+void adf_error_notifier(struct adf_accel_dev *accel_dev)
+{
+	struct service_hndl *service;
+
+	list_for_each_entry(service, &service_table, list) {
+		if (service->event_hld(accel_dev, ADF_EVENT_FATAL_ERROR))
+			dev_err(&GET_DEV(accel_dev),
+				"Failed to send error event to %s.\n",
+				service->name);
+	}
 }
 
 static int adf_dev_shutdown_cache_cfg(struct adf_accel_dev *accel_dev)
@@ -411,13 +479,6 @@ int adf_dev_down(struct adf_accel_dev *accel_dev, bool reconfig)
 		return -EINVAL;
 
 	mutex_lock(&accel_dev->state_lock);
-
-	if (!adf_dev_started(accel_dev)) {
-		dev_info(&GET_DEV(accel_dev), "Device qat_dev%d already down\n",
-			 accel_dev->accel_id);
-		ret = -EINVAL;
-		goto out;
-	}
 
 	if (reconfig) {
 		ret = adf_dev_shutdown_cache_cfg(accel_dev);

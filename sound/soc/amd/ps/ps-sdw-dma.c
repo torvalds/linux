@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AMD ALSA SoC Pink Sardine SoundWire DMA Driver
  *
@@ -222,7 +222,7 @@ static int acp63_sdw_dma_open(struct snd_soc_component *component,
 	int ret;
 
 	runtime = substream->runtime;
-	cpu_dai = asoc_rtd_to_cpu(prtd, 0);
+	cpu_dai = snd_soc_rtd_to_cpu(prtd, 0);
 	amd_manager = snd_soc_dai_get_drvdata(cpu_dai);
 	stream = kzalloc(sizeof(*stream), GFP_KERNEL);
 	if (!stream)
@@ -488,10 +488,9 @@ static int acp63_sdw_platform_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int acp63_sdw_platform_remove(struct platform_device *pdev)
+static void acp63_sdw_platform_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
-	return 0;
 }
 
 static int acp_restore_sdw_dma_config(struct sdw_dma_dev_data *sdw_data)
@@ -552,7 +551,7 @@ static const struct dev_pm_ops acp63_pm_ops = {
 
 static struct platform_driver acp63_sdw_dma_driver = {
 	.probe = acp63_sdw_platform_probe,
-	.remove = acp63_sdw_platform_remove,
+	.remove_new = acp63_sdw_platform_remove,
 	.driver = {
 		.name = "amd_ps_sdw_dma",
 		.pm = &acp63_pm_ops,

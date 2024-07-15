@@ -2,7 +2,7 @@
 /*
  * am335x-cm-t335.dts - Device Tree file for Compulab CM-T335
  *
- * Copyright (C) 2014 - 2015 CompuLab Ltd. - http://www.compulab.co.il/
+ * Copyright (C) 2014 - 2015 CompuLab Ltd. - https://www.compulab.co.il/
  */
 
 /dts-v1/;

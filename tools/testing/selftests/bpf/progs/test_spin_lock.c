@@ -101,4 +101,69 @@ int bpf_spin_lock_test(struct __sk_buff *skb)
 err:
 	return err;
 }
+
+struct bpf_spin_lock lockA __hidden SEC(".data.A");
+
+__noinline
+static int static_subprog(struct __sk_buff *ctx)
+{
+	volatile int ret = 0;
+
+	if (ctx->protocol)
+		return ret;
+	return ret + ctx->len;
+}
+
+__noinline
+static int static_subprog_lock(struct __sk_buff *ctx)
+{
+	volatile int ret = 0;
+
+	ret = static_subprog(ctx);
+	bpf_spin_lock(&lockA);
+	return ret + ctx->len;
+}
+
+__noinline
+static int static_subprog_unlock(struct __sk_buff *ctx)
+{
+	volatile int ret = 0;
+
+	ret = static_subprog(ctx);
+	bpf_spin_unlock(&lockA);
+	return ret + ctx->len;
+}
+
+SEC("tc")
+int lock_static_subprog_call(struct __sk_buff *ctx)
+{
+	int ret = 0;
+
+	bpf_spin_lock(&lockA);
+	if (ctx->mark == 42)
+		ret = static_subprog(ctx);
+	bpf_spin_unlock(&lockA);
+	return ret;
+}
+
+SEC("tc")
+int lock_static_subprog_lock(struct __sk_buff *ctx)
+{
+	int ret = 0;
+
+	ret = static_subprog_lock(ctx);
+	bpf_spin_unlock(&lockA);
+	return ret;
+}
+
+SEC("tc")
+int lock_static_subprog_unlock(struct __sk_buff *ctx)
+{
+	int ret = 0;
+
+	bpf_spin_lock(&lockA);
+	ret = static_subprog_unlock(ctx);
+	return ret;
+}
+
 char _license[] SEC("license") = "GPL";

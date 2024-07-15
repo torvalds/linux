@@ -72,14 +72,14 @@ static int imx_pd_connector_get_modes(struct drm_connector *connector)
 		int ret;
 
 		if (!mode)
-			return -EINVAL;
+			return 0;
 
 		ret = of_get_drm_display_mode(np, &imxpd->mode,
 					      &imxpd->bus_flags,
 					      OF_USE_NATIVE_MODE);
 		if (ret) {
 			drm_mode_destroy(connector->dev, mode);
-			return ret;
+			return 0;
 		}
 
 		drm_mode_copy(mode, &imxpd->mode);
@@ -353,11 +353,9 @@ static int imx_pd_probe(struct platform_device *pdev)
 	return component_add(dev, &imx_pd_ops);
 }
 
-static int imx_pd_remove(struct platform_device *pdev)
+static void imx_pd_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &imx_pd_ops);
-
-	return 0;
 }
 
 static const struct of_device_id imx_pd_dt_ids[] = {
@@ -368,7 +366,7 @@ MODULE_DEVICE_TABLE(of, imx_pd_dt_ids);
 
 static struct platform_driver imx_pd_driver = {
 	.probe		= imx_pd_probe,
-	.remove		= imx_pd_remove,
+	.remove_new	= imx_pd_remove,
 	.driver		= {
 		.of_match_table = imx_pd_dt_ids,
 		.name	= "imx-parallel-display",

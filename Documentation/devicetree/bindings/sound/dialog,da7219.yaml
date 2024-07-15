@@ -74,7 +74,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
 
   dlg,mic-amp-in-sel:
-    enum: ["diff", "se_p", "se_n"]
+    enum: [diff, se_p, se_n]
     description:
       Mic input source type.
 
@@ -89,6 +89,7 @@ properties:
 
   da7219_aad:
     type: object
+    additionalProperties: false
     description:
       Configuration of advanced accessory detection.
     properties:
@@ -123,7 +124,7 @@ properties:
         $ref: /schemas/types.yaml#/definitions/uint32
 
       dlg,jack-ins-det-pty:
-        enum: ["low", "high"]
+        enum: [low, high]
         description:
           Polarity for jack insertion detection.
         $ref: /schemas/types.yaml#/definitions/string

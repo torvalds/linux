@@ -71,6 +71,19 @@ int inv_mpu_aux_init(const struct inv_mpu6050_state *st)
 	unsigned int val;
 	int ret;
 
+	/*
+	 * Code based on the vendor Linux kernel v3.0,
+	 * the exact meaning is unknown.
+	 */
+	if (st->chip_type == INV_MPU9150) {
+		unsigned int mask = BIT(7);
+
+		val = st->level_shifter ? mask : 0;
+		ret = regmap_update_bits(st->map, 0x1, mask, val);
+		if (ret)
+			return ret;
+	}
+
 	/* configure i2c master */
 	val = INV_MPU6050_BITS_I2C_MST_CLK_400KHZ |
 			INV_MPU6050_BIT_WAIT_FOR_ES;

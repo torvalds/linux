@@ -12,7 +12,7 @@
 #include <linux/err.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/param.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
@@ -659,7 +659,6 @@ MODULE_DEVICE_TABLE(of, fan53555_dt_ids);
 
 static int fan53555_regulator_probe(struct i2c_client *client)
 {
-	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct device_node *np = client->dev.of_node;
 	struct fan53555_device_info *di;
 	struct fan53555_platform_data *pdata;
@@ -682,10 +681,8 @@ static int fan53555_regulator_probe(struct i2c_client *client)
 				     "Platform data not found!\n");
 
 	di->regulator = pdata->regulator;
-	if (client->dev.of_node) {
-		di->vendor =
-			(unsigned long)of_device_get_match_data(&client->dev);
-	} else {
+	di->vendor = (uintptr_t)i2c_get_match_data(client);
+	if (!dev_fwnode(&client->dev)) {
 		/* if no ramp constraint set, get the pdata ramp_delay */
 		if (!di->regulator->constraints.ramp_delay) {
 			if (pdata->slew_rate >= ARRAY_SIZE(slew_rates))
@@ -695,8 +692,6 @@ static int fan53555_regulator_probe(struct i2c_client *client)
 			di->regulator->constraints.ramp_delay
 					= slew_rates[pdata->slew_rate];
 		}
-
-		di->vendor = id->driver_data;
 	}
 
 	regmap = devm_regmap_init_i2c(client, &fan53555_regmap_config);

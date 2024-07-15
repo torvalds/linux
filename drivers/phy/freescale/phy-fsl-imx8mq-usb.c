@@ -6,7 +6,7 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/module.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
@@ -394,7 +394,7 @@ static int imx8mq_usb_phy_probe(struct platform_device *pdev)
 
 	imx_phy->vbus = devm_regulator_get(dev, "vbus");
 	if (IS_ERR(imx_phy->vbus))
-		return PTR_ERR(imx_phy->vbus);
+		return dev_err_probe(dev, PTR_ERR(imx_phy->vbus), "failed to get vbus\n");
 
 	phy_set_drvdata(imx_phy->phy, imx_phy);
 

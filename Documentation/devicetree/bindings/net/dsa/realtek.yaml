@@ -59,6 +59,9 @@ properties:
     description: GPIO to be used to reset the whole device
     maxItems: 1
 
+  resets:
+    maxItems: 1
+
   realtek,disable-leds:
     type: boolean
     description: |
@@ -68,6 +71,8 @@ properties:
 
   interrupt-controller:
     type: object
+    additionalProperties: false
+
     description: |
       This defines an interrupt controller with an IRQ line (typically
       a GPIO) that will demultiplex and handle the interrupt from the single
@@ -125,7 +130,6 @@ else:
     - mdc-gpios
     - mdio-gpios
     - mdio
-    - reset-gpios
 
 required:
   - compatible

@@ -53,7 +53,7 @@ static int npcm7xx_ehci_hcd_drv_probe(struct platform_device *pdev)
 	int irq;
 	int retval;
 
-	dev_dbg(&pdev->dev,	"initializing npcm7xx ehci USB Controller\n");
+	dev_dbg(&pdev->dev, "initializing npcm7xx ehci USB Controller\n");
 
 	if (usb_disabled())
 		return -ENODEV;
@@ -79,8 +79,7 @@ static int npcm7xx_ehci_hcd_drv_probe(struct platform_device *pdev)
 		goto fail;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	hcd->regs = devm_ioremap_resource(&pdev->dev, res);
+	hcd->regs = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(hcd->regs)) {
 		retval = PTR_ERR(hcd->regs);
 		goto err_put_hcd;

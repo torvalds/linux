@@ -73,7 +73,8 @@ static void rpmsg_tty_close(struct tty_struct *tty, struct file *filp)
 	return tty_port_close(tty->port, tty, filp);
 }
 
-static int rpmsg_tty_write(struct tty_struct *tty, const u8 *buf, int len)
+static ssize_t rpmsg_tty_write(struct tty_struct *tty, const u8 *buf,
+			       size_t len)
 {
 	struct rpmsg_tty_port *cport = tty->driver_data;
 	struct rpmsg_device *rpdev;
@@ -86,7 +87,7 @@ static int rpmsg_tty_write(struct tty_struct *tty, const u8 *buf, int len)
 	if (msg_max_size < 0)
 		return msg_max_size;
 
-	msg_size = min(len, msg_max_size);
+	msg_size = min_t(unsigned int, len, msg_max_size);
 
 	/*
 	 * Use rpmsg_trysend instead of rpmsg_send to send the message so the caller is not

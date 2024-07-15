@@ -88,7 +88,7 @@ safe.
      (2) TEE
 
          TEEs have well-documented, standardized client interface and APIs. For
-         more details refer to ``Documentation/staging/tee.rst``.
+         more details refer to ``Documentation/driver-api/tee.rst``.
 
      (3) CAAM
 

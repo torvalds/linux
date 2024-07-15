@@ -14,8 +14,7 @@
 #include <linux/slab.h>
 #include <linux/bits.h>
 #include <linux/gpio/consumer.h>
-/* FIXME: stop poking around inside gpiolib */
-#include "../../gpio/gpiolib.h"
+#include <linux/gpio/driver.h>
 
 struct gpiomux {
 	struct i2c_mux_gpio_platform_data data;
@@ -23,7 +22,7 @@ struct gpiomux {
 	struct gpio_desc **gpios;
 };
 
-static void i2c_mux_gpio_set(const struct gpiomux *mux, unsigned val)
+static void i2c_mux_gpio_set(const struct gpiomux *mux, unsigned int val)
 {
 	DECLARE_BITMAP(values, BITS_PER_TYPE(val));
 
@@ -59,7 +58,7 @@ static int i2c_mux_gpio_probe_fw(struct gpiomux *mux,
 	struct device_node *adapter_np;
 	struct i2c_adapter *adapter = NULL;
 	struct fwnode_handle *child;
-	unsigned *values;
+	unsigned int *values;
 	int rc, i = 0;
 
 	if (is_of_node(fwnode)) {
@@ -102,11 +101,12 @@ static int i2c_mux_gpio_probe_fw(struct gpiomux *mux,
 	device_for_each_child_node(dev, child) {
 		if (is_of_node(child)) {
 			fwnode_property_read_u32(child, "reg", values + i);
-
 		} else if (is_acpi_node(child)) {
 			rc = acpi_get_local_address(ACPI_HANDLE_FWNODE(child), values + i);
-			if (rc)
+			if (rc) {
+				fwnode_handle_put(child);
 				return dev_err_probe(dev, rc, "Cannot get address\n");
+			}
 		}
 
 		i++;
@@ -125,7 +125,7 @@ static int i2c_mux_gpio_probe(struct platform_device *pdev)
 	struct gpiomux *mux;
 	struct i2c_adapter *parent;
 	struct i2c_adapter *root;
-	unsigned initial_state;
+	unsigned int initial_state;
 	int i, ngpios, ret;
 
 	mux = devm_kzalloc(&pdev->dev, sizeof(*mux), GFP_KERNEL);
@@ -176,7 +176,8 @@ static int i2c_mux_gpio_probe(struct platform_device *pdev)
 	}
 
 	for (i = 0; i < ngpios; i++) {
-		struct device *gpio_dev;
+		struct gpio_device *gdev;
+		struct device *dev;
 		struct gpio_desc *gpiod;
 		enum gpiod_flags flag;
 
@@ -195,9 +196,9 @@ static int i2c_mux_gpio_probe(struct platform_device *pdev)
 		if (!muxc->mux_locked)
 			continue;
 
-		/* FIXME: find a proper way to access the GPIO device */
-		gpio_dev = &gpiod->gdev->dev;
-		muxc->mux_locked = i2c_root_adapter(gpio_dev) == root;
+		gdev = gpiod_to_gpio_device(gpiod);
+		dev = gpio_device_to_device(gdev);
+		muxc->mux_locked = i2c_root_adapter(dev) == root;
 	}
 
 	if (muxc->mux_locked)

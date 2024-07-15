@@ -133,6 +133,16 @@ Supported chips:
 
                https://www.nxp.com/docs/en/data-sheet/PCT2075.pdf
 
+  * AMS OSRAM AS6200
+
+    Prefix: 'as6200'
+
+    Addresses scanned: none
+
+    Datasheet: Publicly available at the AMS website
+
+               https://ams.com/documents/20143/36005/AS6200_DS000449_4-00.pdf
+
 Author: Frodo Looijaard <frodol@dds.nl>
 
 Description

@@ -4,6 +4,7 @@
  *    Zheng Yang <zhengyang@rock-chips.com>
  */
 
+#include <drm/drm_atomic.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_of.h>
 #include <drm/drm_probe_helper.h>
@@ -17,7 +18,6 @@
 #include "rk3066_hdmi.h"
 
 #include "rockchip_drm_drv.h"
-#include "rockchip_drm_vop.h"
 
 #define DEFAULT_PLLA_RATE 30000000
 
@@ -55,7 +55,6 @@ struct rk3066_hdmi {
 	unsigned int tmdsclk;
 
 	struct hdmi_data_info hdmi_data;
-	struct drm_display_mode previous_mode;
 };
 
 static struct rk3066_hdmi *encoder_to_rk3066_hdmi(struct drm_encoder *encoder)
@@ -387,21 +386,21 @@ static int rk3066_hdmi_setup(struct rk3066_hdmi *hdmi,
 	return 0;
 }
 
-static void
-rk3066_hdmi_encoder_mode_set(struct drm_encoder *encoder,
-			     struct drm_display_mode *mode,
-			     struct drm_display_mode *adj_mode)
+static void rk3066_hdmi_encoder_enable(struct drm_encoder *encoder,
+				       struct drm_atomic_state *state)
 {
 	struct rk3066_hdmi *hdmi = encoder_to_rk3066_hdmi(encoder);
-
-	/* Store the display mode for plugin/DPMS poweron events. */
-	drm_mode_copy(&hdmi->previous_mode, adj_mode);
-}
-
-static void rk3066_hdmi_encoder_enable(struct drm_encoder *encoder)
-{
-	struct rk3066_hdmi *hdmi = encoder_to_rk3066_hdmi(encoder);
+	struct drm_connector_state *conn_state;
+	struct drm_crtc_state *crtc_state;
 	int mux, val;
+
+	conn_state = drm_atomic_get_new_connector_state(state, &hdmi->connector);
+	if (WARN_ON(!conn_state))
+		return;
+
+	crtc_state = drm_atomic_get_new_crtc_state(state, conn_state->crtc);
+	if (WARN_ON(!crtc_state))
+		return;
 
 	mux = drm_of_encoder_active_endpoint_id(hdmi->dev->of_node, encoder);
 	if (mux)
@@ -414,10 +413,11 @@ static void rk3066_hdmi_encoder_enable(struct drm_encoder *encoder)
 	DRM_DEV_DEBUG(hdmi->dev, "hdmi encoder enable select: vop%s\n",
 		      (mux) ? "1" : "0");
 
-	rk3066_hdmi_setup(hdmi, &hdmi->previous_mode);
+	rk3066_hdmi_setup(hdmi, &crtc_state->adjusted_mode);
 }
 
-static void rk3066_hdmi_encoder_disable(struct drm_encoder *encoder)
+static void rk3066_hdmi_encoder_disable(struct drm_encoder *encoder,
+					struct drm_atomic_state *state)
 {
 	struct rk3066_hdmi *hdmi = encoder_to_rk3066_hdmi(encoder);
 
@@ -432,14 +432,6 @@ static void rk3066_hdmi_encoder_disable(struct drm_encoder *encoder)
 		usleep_range(500, 510);
 	}
 	rk3066_hdmi_set_power_mode(hdmi, HDMI_SYS_POWER_MODE_A);
-}
-
-static bool
-rk3066_hdmi_encoder_mode_fixup(struct drm_encoder *encoder,
-			       const struct drm_display_mode *mode,
-			       struct drm_display_mode *adj_mode)
-{
-	return true;
 }
 
 static int
@@ -457,11 +449,9 @@ rk3066_hdmi_encoder_atomic_check(struct drm_encoder *encoder,
 
 static const
 struct drm_encoder_helper_funcs rk3066_hdmi_encoder_helper_funcs = {
-	.enable       = rk3066_hdmi_encoder_enable,
-	.disable      = rk3066_hdmi_encoder_disable,
-	.mode_fixup   = rk3066_hdmi_encoder_mode_fixup,
-	.mode_set     = rk3066_hdmi_encoder_mode_set,
-	.atomic_check = rk3066_hdmi_encoder_atomic_check,
+	.atomic_check   = rk3066_hdmi_encoder_atomic_check,
+	.atomic_enable  = rk3066_hdmi_encoder_enable,
+	.atomic_disable = rk3066_hdmi_encoder_disable,
 };
 
 static enum drm_connector_status
@@ -725,7 +715,6 @@ static struct i2c_adapter *rk3066_hdmi_i2c_adapter(struct rk3066_hdmi *hdmi)
 	init_completion(&i2c->cmpltn);
 
 	adap = &i2c->adap;
-	adap->class = I2C_CLASS_DDC;
 	adap->owner = THIS_MODULE;
 	adap->dev.parent = hdmi->dev;
 	adap->dev.of_node = hdmi->dev->of_node;
@@ -858,11 +847,9 @@ static int rk3066_hdmi_probe(struct platform_device *pdev)
 	return component_add(&pdev->dev, &rk3066_hdmi_ops);
 }
 
-static int rk3066_hdmi_remove(struct platform_device *pdev)
+static void rk3066_hdmi_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &rk3066_hdmi_ops);
-
-	return 0;
 }
 
 static const struct of_device_id rk3066_hdmi_dt_ids[] = {
@@ -873,7 +860,7 @@ MODULE_DEVICE_TABLE(of, rk3066_hdmi_dt_ids);
 
 struct platform_driver rk3066_hdmi_driver = {
 	.probe  = rk3066_hdmi_probe,
-	.remove = rk3066_hdmi_remove,
+	.remove_new = rk3066_hdmi_remove,
 	.driver = {
 		.name = "rockchip-rk3066-hdmi",
 		.of_match_table = rk3066_hdmi_dt_ids,

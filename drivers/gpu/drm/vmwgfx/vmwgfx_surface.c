@@ -44,7 +44,6 @@
  * struct vmw_user_surface - User-space visible surface resource
  *
  * @prime:          The TTM prime object.
- * @base:           The TTM base object handling user-space visibility.
  * @srf:            The surface metadata.
  * @master:         Master of the creating client. Used for security check.
  */
@@ -77,7 +76,7 @@ struct vmw_surface_offset {
 struct vmw_surface_dirty {
 	struct vmw_surface_cache cache;
 	u32 num_subres;
-	SVGA3dBox boxes[];
+	SVGA3dBox boxes[] __counted_by(num_subres);
 };
 
 static void vmw_user_surface_free(struct vmw_resource *res);
@@ -686,9 +685,6 @@ static void vmw_user_surface_base_release(struct ttm_base_object **p_base)
 	    container_of(base, struct vmw_user_surface, prime.base);
 	struct vmw_resource *res = &user_srf->srf.res;
 
-	if (res->guest_memory_bo)
-		drm_gem_object_put(&res->guest_memory_bo->tbo.base);
-
 	*p_base = NULL;
 	vmw_resource_unreference(&res);
 }
@@ -777,9 +773,9 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 	       sizeof(metadata->mip_levels));
 	metadata->num_sizes = num_sizes;
 	metadata->sizes =
-		memdup_user((struct drm_vmw_size __user *)(unsigned long)
+		memdup_array_user((struct drm_vmw_size __user *)(unsigned long)
 			    req->size_addr,
-			    sizeof(*metadata->sizes) * metadata->num_sizes);
+			    metadata->num_sizes, sizeof(*metadata->sizes));
 	if (IS_ERR(metadata->sizes)) {
 		ret = PTR_ERR(metadata->sizes);
 		goto out_no_sizes;
@@ -836,8 +832,6 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 		srf->snooper.image = NULL;
 	}
 
-	user_srf->prime.base.shareable = false;
-	user_srf->prime.base.tfile = NULL;
 	if (drm_is_primary_client(file_priv))
 		user_srf->master = drm_file_get_master(file_priv);
 
@@ -851,32 +845,31 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 		goto out_unlock;
 
 	/*
-	 * A gb-aware client referencing a shared surface will
-	 * expect a backup buffer to be present.
+	 * A gb-aware client referencing a surface will expect a backup
+	 * buffer to be present.
 	 */
-	if (dev_priv->has_mob && req->shareable) {
-		uint32_t backup_handle;
+	if (dev_priv->has_mob) {
+		struct vmw_bo_params params = {
+			.domain = VMW_BO_DOMAIN_SYS,
+			.busy_domain = VMW_BO_DOMAIN_SYS,
+			.bo_type = ttm_bo_type_device,
+			.size = res->guest_memory_size,
+			.pin = false
+		};
 
-		ret = vmw_gem_object_create_with_handle(dev_priv,
-							file_priv,
-							res->guest_memory_size,
-							&backup_handle,
-							&res->guest_memory_bo);
+		ret = vmw_gem_object_create(dev_priv,
+					    &params,
+					    &res->guest_memory_bo);
 		if (unlikely(ret != 0)) {
 			vmw_resource_unreference(&res);
 			goto out_unlock;
 		}
-		vmw_bo_reference(res->guest_memory_bo);
-		/*
-		 * We don't expose the handle to the userspace and surface
-		 * already holds a gem reference
-		 */
-		drm_gem_handle_delete(file_priv, backup_handle);
 	}
 
 	tmp = vmw_resource_reference(&srf->res);
-	ret = ttm_prime_object_init(tfile, res->guest_memory_size, &user_srf->prime,
-				    req->shareable, VMW_RES_SURFACE,
+	ret = ttm_prime_object_init(tfile, res->guest_memory_size,
+				    &user_srf->prime,
+				    VMW_RES_SURFACE,
 				    &vmw_user_surface_base_release);
 
 	if (unlikely(ret != 0)) {
@@ -1512,7 +1505,7 @@ vmw_gb_surface_define_internal(struct drm_device *dev,
 		if (ret == 0) {
 			if (res->guest_memory_bo->tbo.base.size < res->guest_memory_size) {
 				VMW_DEBUG_USER("Surface backup buffer too small.\n");
-				vmw_bo_unreference(&res->guest_memory_bo);
+				vmw_user_bo_unref(&res->guest_memory_bo);
 				ret = -EINVAL;
 				goto out_unlock;
 			} else {
@@ -1526,8 +1519,6 @@ vmw_gb_surface_define_internal(struct drm_device *dev,
 							res->guest_memory_size,
 							&backup_handle,
 							&res->guest_memory_bo);
-		if (ret == 0)
-			vmw_bo_reference(res->guest_memory_bo);
 	}
 
 	if (unlikely(ret != 0)) {
@@ -1557,8 +1548,6 @@ vmw_gb_surface_define_internal(struct drm_device *dev,
 
 	tmp = vmw_resource_reference(res);
 	ret = ttm_prime_object_init(tfile, res->guest_memory_size, &user_srf->prime,
-				    req->base.drm_surface_flags &
-				    drm_vmw_surface_flag_shareable,
 				    VMW_RES_SURFACE,
 				    &vmw_user_surface_base_release);
 
@@ -2060,8 +2049,6 @@ int vmw_gb_surface_define(struct vmw_private *dev_priv,
 	}
 
 	*srf_out  = &user_srf->srf;
-	user_srf->prime.base.shareable = false;
-	user_srf->prime.base.tfile = NULL;
 
 	srf = &user_srf->srf;
 	srf->metadata = *req;

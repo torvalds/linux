@@ -1,0 +1,4 @@
+What:		/sys/kernel/mm/mempolicy/
+Date:		January 2024
+Contact:	Linux memory management mailing list <linux-mm@kvack.org>
+Description:	Interface for Mempolicy

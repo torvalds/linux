@@ -55,6 +55,14 @@ properties:
   interrupts:
     maxItems: 1
 
+  io-channels:
+    items:
+      - description: battery temperature
+
+  io-channel-names:
+    items:
+      - const: temp
+
   wakeup-source:
     type: boolean
     description: |
@@ -92,6 +100,29 @@ examples:
         maxim,alert-low-soc-level = <10>;
         interrupt-parent = <&gpio7>;
         interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
+        wakeup-source;
+      };
+    };
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      fuel-gauge@36 {
+        compatible = "maxim,max17043";
+        reg = <0x36>;
+
+        interrupt-parent = <&gpio>;
+        interrupts = <144 IRQ_TYPE_EDGE_FALLING>;
+
+        monitored-battery = <&battery>;
+        power-supplies = <&charger>;
+
+        io-channels = <&adc 8>;
+        io-channel-names = "temp";
+
+        maxim,alert-low-soc-level = <10>;
         wakeup-source;
       };
     };

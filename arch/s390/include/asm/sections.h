@@ -23,7 +23,7 @@
  */
 #define __bootdata_preserved(var) __section(".boot.preserved.data." #var) var
 
-extern unsigned long __samode31, __eamode31;
-extern unsigned long __stext_amode31, __etext_amode31;
+extern char *__samode31, *__eamode31;
+extern char *__stext_amode31, *__etext_amode31;
 
 #endif

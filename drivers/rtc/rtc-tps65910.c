@@ -406,11 +406,8 @@ static int tps65910_rtc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, tps_rtc);
 
 	irq  = platform_get_irq(pdev, 0);
-	if (irq <= 0) {
-		dev_warn(&pdev->dev, "Wake up is not possible as irq = %d\n",
-			irq);
-		return -ENXIO;
-	}
+	if (irq < 0)
+		return irq;
 
 	ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
 		tps65910_rtc_interrupt, IRQF_TRIGGER_LOW,

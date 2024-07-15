@@ -63,7 +63,7 @@ ftrace_regs_get_instruction_pointer(struct ftrace_regs *fregs)
 static __always_inline void
 ftrace_regs_set_instruction_pointer(struct ftrace_regs *fregs, unsigned long ip)
 {
-	regs_set_return_value(&fregs->regs, ip);
+	instruction_pointer_set(&fregs->regs, ip);
 }
 
 #define ftrace_regs_get_argument(fregs, n) \

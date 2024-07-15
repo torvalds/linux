@@ -6,6 +6,7 @@
  * Authors: Fenghua Yu <fenghua.yu@intel.com>,
  *          H. Peter Anvin <hpa@linux.intel.com>
  */
+#include <linux/printk.h>
 
 #include <asm/processor.h>
 #include <asm/archrandom.h>

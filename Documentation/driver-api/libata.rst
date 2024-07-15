@@ -32,22 +32,6 @@ register blocks.
 :c:type:`struct ata_port_operations <ata_port_operations>`
 ----------------------------------------------------------
 
-Disable ATA port
-~~~~~~~~~~~~~~~~
-
-::
-
-    void (*port_disable) (struct ata_port *);
-
-
-Called from :c:func:`ata_bus_probe` error path, as well as when unregistering
-from the SCSI module (rmmod, hot unplug). This function should do
-whatever needs to be done to take the port out of use. In most cases,
-:c:func:`ata_port_disable` can be used as this hook.
-
-Called from :c:func:`ata_bus_probe` on a failed probe. Called from
-:c:func:`ata_scsi_release`.
-
 Post-IDENTIFY device configuration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -274,14 +258,6 @@ Exception and probe handling (EH)
 
 ::
 
-    void (*eng_timeout) (struct ata_port *ap);
-    void (*phy_reset) (struct ata_port *ap);
-
-
-Deprecated. Use ``->error_handler()`` instead.
-
-::
-
     void (*freeze) (struct ata_port *ap);
     void (*thaw) (struct ata_port *ap);
 
@@ -364,8 +340,7 @@ SATA phy read/write
                        u32 val);
 
 
-Read and write standard SATA phy registers. Currently only used if
-``->phy_reset`` hook called the :c:func:`sata_phy_reset` helper function.
+Read and write standard SATA phy registers.
 sc_reg is one of SCR_STATUS, SCR_CONTROL, SCR_ERROR, or SCR_ACTIVE.
 
 Init and shutdown
@@ -536,13 +511,12 @@ to return without deallocating the qc. This leads us to
 
 :c:func:`ata_scsi_error` is the current ``transportt->eh_strategy_handler()``
 for libata. As discussed above, this will be entered in two cases -
-timeout and ATAPI error completion. This function calls low level libata
-driver's :c:func:`eng_timeout` callback, the standard callback for which is
-:c:func:`ata_eng_timeout`. It checks if a qc is active and calls
-:c:func:`ata_qc_timeout` on the qc if so. Actual error handling occurs in
-:c:func:`ata_qc_timeout`.
+timeout and ATAPI error completion. This function will check if a qc is active
+and has not failed yet. Such a qc will be marked with AC_ERR_TIMEOUT such that
+EH will know to handle it later. Then it calls low level libata driver's
+:c:func:`error_handler` callback.
 
-If EH is invoked for timeout, :c:func:`ata_qc_timeout` stops BMDMA and
+When the :c:func:`error_handler` callback is invoked it stops BMDMA and
 completes the qc. Note that as we're currently in EH, we cannot call
 scsi_done. As described in SCSI EH doc, a recovered scmd should be
 either retried with :c:func:`scsi_queue_insert` or finished with

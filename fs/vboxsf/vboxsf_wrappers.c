@@ -114,7 +114,7 @@ int vboxsf_unmap_folder(u32 root)
  * vboxsf_create - Create a new file or folder
  * @root:         Root of the shared folder in which to create the file
  * @parsed_path:  The path of the file or folder relative to the shared folder
- * @param:        create_parms Parameters for file/folder creation.
+ * @create_parms: Parameters for file/folder creation.
  *
  * Create a new file or folder or open an existing one in a shared folder.
  * Note this function always returns 0 / success unless an exceptional condition

@@ -1850,7 +1850,7 @@ snic_dr_clean_pending_req(struct snic *snic, struct scsi_cmnd *lr_sc)
 {
 	struct scsi_device *lr_sdev = lr_sc->device;
 	u32 tag = 0;
-	int ret = FAILED;
+	int ret;
 
 	for (tag = 0; tag < snic->max_tag_id; tag++) {
 		if (tag == snic_cmd_tag(lr_sc))
@@ -1859,7 +1859,6 @@ snic_dr_clean_pending_req(struct snic *snic, struct scsi_cmnd *lr_sc)
 		ret = snic_dr_clean_single_req(snic, tag, lr_sdev);
 		if (ret) {
 			SNIC_HOST_ERR(snic->shost, "clean_err:tag = %d\n", tag);
-
 			goto clean_err;
 		}
 	}
@@ -1867,24 +1866,19 @@ snic_dr_clean_pending_req(struct snic *snic, struct scsi_cmnd *lr_sc)
 	schedule_timeout(msecs_to_jiffies(100));
 
 	/* Walk through all the cmds and check abts status. */
-	if (snic_is_abts_pending(snic, lr_sc)) {
-		ret = FAILED;
-
+	if (snic_is_abts_pending(snic, lr_sc))
 		goto clean_err;
-	}
 
-	ret = 0;
 	SNIC_SCSI_DBG(snic->shost, "clean_pending_req: Success.\n");
 
-	return ret;
+	return 0;
 
 clean_err:
-	ret = FAILED;
 	SNIC_HOST_ERR(snic->shost,
 		      "Failed to Clean Pending IOs on %s device.\n",
 		      dev_name(&lr_sdev->sdev_gendev));
 
-	return ret;
+	return FAILED;
 
 } /* end of snic_dr_clean_pending_req */
 

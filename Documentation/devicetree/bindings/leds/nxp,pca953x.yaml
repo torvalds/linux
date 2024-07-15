@@ -29,6 +29,10 @@ properties:
 
   gpio-controller: true
 
+  gpio-line-names:
+    minItems: 1
+    maxItems: 16
+
   '#gpio-cells':
     const: 2
 

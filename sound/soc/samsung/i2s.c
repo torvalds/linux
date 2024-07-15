@@ -13,8 +13,6 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
-#include <linux/of_gpio.h>
 #include <linux/pm_runtime.h>
 
 #include <sound/soc.h>
@@ -939,8 +937,8 @@ static int i2s_trigger(struct snd_pcm_substream *substream,
 {
 	struct samsung_i2s_priv *priv = snd_soc_dai_get_drvdata(dai);
 	int capture = (substream->stream == SNDRV_PCM_STREAM_CAPTURE);
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
-	struct i2s_dai *i2s = to_info(asoc_rtd_to_cpu(rtd, 0));
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct i2s_dai *i2s = to_info(snd_soc_rtd_to_cpu(rtd, 0));
 	unsigned long flags;
 
 	switch (cmd) {
@@ -1120,6 +1118,8 @@ static int samsung_i2s_dai_remove(struct snd_soc_dai *dai)
 }
 
 static const struct snd_soc_dai_ops samsung_i2s_dai_ops = {
+	.probe = samsung_i2s_dai_probe,
+	.remove = samsung_i2s_dai_remove,
 	.trigger = i2s_trigger,
 	.hw_params = i2s_hw_params,
 	.set_fmt = i2s_set_fmt,
@@ -1187,9 +1187,6 @@ static int i2s_alloc_dais(struct samsung_i2s_priv *priv,
 
 	for (i = 0; i < num_dais; i++) {
 		dai_drv = &priv->dai_drv[i];
-
-		dai_drv->probe = samsung_i2s_dai_probe;
-		dai_drv->remove = samsung_i2s_dai_remove;
 
 		dai_drv->symmetric_rate = 1;
 		dai_drv->ops = &samsung_i2s_dai_ops;
@@ -1581,8 +1578,8 @@ static void samsung_i2s_remove(struct platform_device *pdev)
 static void fsd_i2s_fixup_early(struct snd_pcm_substream *substream,
 		struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
-	struct i2s_dai *i2s = to_info(asoc_rtd_to_cpu(rtd, 0));
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct i2s_dai *i2s = to_info(snd_soc_rtd_to_cpu(rtd, 0));
 	struct i2s_dai *other = get_other_dai(i2s);
 
 	if (!is_opened(other)) {
@@ -1594,9 +1591,9 @@ static void fsd_i2s_fixup_early(struct snd_pcm_substream *substream,
 static void fsd_i2s_fixup_late(struct snd_pcm_substream *substream,
 		struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct samsung_i2s_priv *priv = snd_soc_dai_get_drvdata(dai);
-	struct i2s_dai *i2s = to_info(asoc_rtd_to_cpu(rtd, 0));
+	struct i2s_dai *i2s = to_info(snd_soc_rtd_to_cpu(rtd, 0));
 	struct i2s_dai *other = get_other_dai(i2s);
 
 	if (!is_opened(other))

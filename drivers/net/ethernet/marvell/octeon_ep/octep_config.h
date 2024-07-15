@@ -13,11 +13,15 @@
 #define OCTEP_64BYTE_INSTR  64
 
 /* Tx Queue: maximum descriptors per ring */
+/* This needs to be a power of 2 */
 #define OCTEP_IQ_MAX_DESCRIPTORS    1024
 /* Minimum input (Tx) requests to be enqueued to ring doorbell */
-#define OCTEP_DB_MIN                1
+#define OCTEP_DB_MIN                8
 /* Packet threshold for Tx queue interrupt */
 #define OCTEP_IQ_INTR_THRESHOLD     0x0
+
+/* Minimum watermark for backpressure */
+#define OCTEP_OQ_WMARK_MIN 256
 
 /* Rx Queue: maximum descriptors per ring */
 #define OCTEP_OQ_MAX_DESCRIPTORS   1024
@@ -44,16 +48,18 @@
 
 /* Minimum MTU supported by Octeon network interface */
 #define OCTEP_MIN_MTU        ETH_MIN_MTU
-/* Maximum MTU supported by Octeon interface*/
-#define OCTEP_MAX_MTU        (10000 - (ETH_HLEN + ETH_FCS_LEN))
 /* Default MTU */
 #define OCTEP_DEFAULT_MTU    1500
+
+/* pf heartbeat interval in milliseconds */
+#define OCTEP_DEFAULT_FW_HB_INTERVAL           1000
+/* pf heartbeat miss count */
+#define OCTEP_DEFAULT_FW_HB_MISS_COUNT         20
 
 /* Macros to get octeon config params */
 #define CFG_GET_IQ_CFG(cfg)             ((cfg)->iq)
 #define CFG_GET_IQ_NUM_DESC(cfg)        ((cfg)->iq.num_descs)
 #define CFG_GET_IQ_INSTR_TYPE(cfg)      ((cfg)->iq.instr_type)
-#define CFG_GET_IQ_PKIND(cfg)           ((cfg)->iq.pkind)
 #define CFG_GET_IQ_INSTR_SIZE(cfg)      (64)
 #define CFG_GET_IQ_DB_MIN(cfg)          ((cfg)->iq.db_min)
 #define CFG_GET_IQ_INTR_THRESHOLD(cfg)  ((cfg)->iq.intr_threshold)
@@ -63,12 +69,12 @@
 #define CFG_GET_OQ_REFILL_THRESHOLD(cfg)  ((cfg)->oq.refill_threshold)
 #define CFG_GET_OQ_INTR_PKT(cfg)          ((cfg)->oq.oq_intr_pkt)
 #define CFG_GET_OQ_INTR_TIME(cfg)         ((cfg)->oq.oq_intr_time)
+#define CFG_GET_OQ_WMARK(cfg)             ((cfg)->oq.wmark)
 
 #define CFG_GET_PORTS_MAX_IO_RINGS(cfg)    ((cfg)->pf_ring_cfg.max_io_rings)
 #define CFG_GET_PORTS_ACTIVE_IO_RINGS(cfg) ((cfg)->pf_ring_cfg.active_io_rings)
 #define CFG_GET_PORTS_PF_SRN(cfg)          ((cfg)->pf_ring_cfg.srn)
 
-#define CFG_GET_DPI_PKIND(cfg)            ((cfg)->core_cfg.dpi_pkind)
 #define CFG_GET_CORE_TICS_PER_US(cfg)     ((cfg)->core_cfg.core_tics_per_us)
 #define CFG_GET_COPROC_TICS_PER_US(cfg)   ((cfg)->core_cfg.coproc_tics_per_us)
 
@@ -91,9 +97,6 @@ struct octep_iq_config {
 
 	/* Command size - 32 or 64 bytes */
 	u16 instr_type;
-
-	/* pkind for packets sent to Octeon */
-	u16 pkind;
 
 	/* Minimum number of commands pending to be posted to Octeon before driver
 	 * hits the Input queue doorbell.
@@ -132,6 +135,12 @@ struct octep_oq_config {
 	 * default. The time is specified in microseconds.
 	 */
 	u32 oq_intr_time;
+
+	/* Water mark for backpressure.
+	 * Output queue sends backpressure signal to source when
+	 * free buffer count falls below wmark.
+	 */
+	u32 wmark;
 };
 
 /* Tx/Rx configuration */
@@ -181,6 +190,42 @@ struct octep_ctrl_mbox_config {
 	void __iomem *barmem_addr;
 };
 
+/* Info from firmware */
+struct octep_fw_info {
+	/* interface pkind */
+	u8 pkind;
+
+	/* front size data */
+	u8 fsz;
+
+	/* heartbeat interval in milliseconds */
+	u16 hb_interval;
+
+	/* heartbeat miss count */
+	u16 hb_miss_count;
+
+	/* reserved */
+	u16 reserved1;
+
+	/* supported rx offloads OCTEP_ETH_RX_OFFLOAD_* */
+	u16 rx_ol_flags;
+
+	/* supported tx offloads OCTEP_ETH_TX_OFFLOAD_* */
+	u16 tx_ol_flags;
+
+	/* reserved */
+	u32 reserved_offloads;
+
+	/* extra offload flags */
+	u64 ext_ol_flags;
+
+	/* supported features */
+	u64 features[2];
+
+	/* reserved */
+	u64 reserved2[3];
+};
+
 /* Data Structure to hold configuration limits and active config */
 struct octep_config {
 	/* Input Queue attributes. */
@@ -201,10 +246,7 @@ struct octep_config {
 	/* ctrl mbox config */
 	struct octep_ctrl_mbox_config ctrl_mbox_cfg;
 
-	/* Configured maximum heartbeat miss count */
-	u32 max_hb_miss_cnt;
-
-	/* Configured firmware heartbeat interval in secs */
-	u32 hb_interval;
+	/* fw info */
+	struct octep_fw_info fw_info;
 };
 #endif /* _OCTEP_CONFIG_H_ */

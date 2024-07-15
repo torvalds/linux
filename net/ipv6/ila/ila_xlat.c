@@ -5,7 +5,6 @@
 #include <linux/rhashtable.h>
 #include <linux/vmalloc.h>
 #include <net/genetlink.h>
-#include <net/ila.h>
 #include <net/netns/generic.h>
 #include <uapi/linux/genetlink.h>
 #include "ila.h"

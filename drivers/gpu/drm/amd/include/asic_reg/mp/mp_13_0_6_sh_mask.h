@@ -670,5 +670,33 @@
 #define MP1_FIRMWARE_FLAGS__INTERRUPTS_ENABLED_MASK                                                           0x00000001L
 #define MP1_FIRMWARE_FLAGS__RESERVED_MASK                                                                     0xFFFFFFFEL
 
+//MCMP1_IPIDT0
+#define MCMP1_IPIDT0__InstanceIdLo__SHIFT                                                                     0x0
+#define MCMP1_IPIDT0__HardwareID__SHIFT                                                                       0x20
+#define MCMP1_IPIDT0__InstanceIdHi__SHIFT                                                                     0x2c
+#define MCMP1_IPIDT0__McaType__SHIFT                                                                          0x30
+
+#define MCMP1_IPIDT0__InstanceIdLo_MASK                                                                       0x00000000FFFFFFFFL
+#define MCMP1_IPIDT0__HardwareID_MASK                                                                         0x00000FFF00000000L
+#define MCMP1_IPIDT0__InstanceIdHi_MASK                                                                       0x0000F00000000000L
+#define MCMP1_IPIDT0__McaType_MASK                                                                            0xFFFF000000000000L
+
+//MCMP1_STATUST0
+#define MCMP1_STATUST0__ErrorCode__SHIFT                                                                      0x0
+#define MCMP1_STATUST0__ErrorCodeExt__SHIFT                                                                   0x10
+#define MCMP1_STATUST0__PCC__SHIFT                                                                            0x39
+#define MCMP1_STATUST0__UC__SHIFT                                                                             0x3d
+#define MCMP1_STATUST0__Val__SHIFT                                                                            0x3f
+
+#define MCMP1_STATUST0__ErrorCode_MASK                                                                        0x000000000000FFFFL
+#define MCMP1_STATUST0__ErrorCodeExt_MASK                                                                     0x00000000003F0000L
+#define MCMP1_STATUST0__PCC_MASK                                                                              0x0200000000000000L
+#define MCMP1_STATUST0__UC_MASK                                                                               0x2000000000000000L
+#define MCMP1_STATUST0__Val_MASK                                                                              0x8000000000000000L
+
+//MCMP1_MISC0T0
+#define MCMP1_MISC0T0__ErrCnt__SHIFT                                                                          0x20
+
+#define MCMP1_MISC0T0__ErrCnt_MASK                                                                            0x00000FFF00000000L
 
 #endif

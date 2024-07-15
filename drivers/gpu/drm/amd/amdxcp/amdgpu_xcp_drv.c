@@ -89,9 +89,10 @@ EXPORT_SYMBOL(amdgpu_xcp_drm_dev_alloc);
 void amdgpu_xcp_drv_release(void)
 {
 	for (--pdev_num; pdev_num >= 0; --pdev_num) {
-		devres_release_group(&xcp_dev[pdev_num]->pdev->dev, NULL);
-		platform_device_unregister(xcp_dev[pdev_num]->pdev);
-		xcp_dev[pdev_num]->pdev = NULL;
+		struct platform_device *pdev = xcp_dev[pdev_num]->pdev;
+
+		devres_release_group(&pdev->dev, NULL);
+		platform_device_unregister(pdev);
 		xcp_dev[pdev_num] = NULL;
 	}
 	pdev_num = 0;

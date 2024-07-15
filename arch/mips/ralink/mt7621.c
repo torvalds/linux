@@ -175,7 +175,7 @@ void __init prom_soc_init(struct ralink_soc_info *soc_info)
 		 * mips_cm_probe() wipes out bootloader
 		 * config for CM regions and we have to configure them
 		 * again. This SoC cannot talk to pamlbus devices
-		 * witout proper iocu region set up.
+		 * without proper iocu region set up.
 		 *
 		 * FIXME: it would be better to do this with values
 		 * from DT, but we need this very early because

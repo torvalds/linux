@@ -5,6 +5,8 @@ readonly FLUSH_PATH="/sys/class/net/${dev}/gro_flush_timeout"
 readonly IRQ_PATH="/sys/class/net/${dev}/napi_defer_hard_irqs"
 readonly FLUSH_TIMEOUT="$(< ${FLUSH_PATH})"
 readonly HARD_IRQS="$(< ${IRQ_PATH})"
+readonly server_ns=$(mktemp -u server-XXXXXXXX)
+readonly client_ns=$(mktemp -u client-XXXXXXXX)
 
 netdev_check_for_carrier() {
 	local -r dev="$1"
@@ -97,12 +99,12 @@ setup_interrupt() {
 
 setup_ns() {
 	# Set up server_ns namespace and client_ns namespace
-	setup_macvlan_ns "${dev}" server_ns server "${SERVER_MAC}"
-	setup_macvlan_ns "${dev}" client_ns client "${CLIENT_MAC}"
+	setup_macvlan_ns "${dev}" ${server_ns} server "${SERVER_MAC}"
+	setup_macvlan_ns "${dev}" ${client_ns} client "${CLIENT_MAC}"
 }
 
 cleanup_ns() {
-	cleanup_macvlan_ns server_ns server client_ns client
+	cleanup_macvlan_ns ${server_ns} server ${client_ns} client
 }
 
 setup() {

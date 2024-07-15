@@ -1,7 +1,37 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
+# +------------------------+                           +----------------------+
+# | H1 (vrf)               |                           |             H2 (vrf) |
+# |    + $h1               |                           |  + $h2               |
+# |    | 192.0.2.1/28      |                           |  | 192.0.2.130/28    |
+# |    | 2001:db8:1::1/64  |                           |  | 2001:db8:2::2/64  |
+# |    |                   |                           |  |                   |
+# +----|-------------------+                           +--|-------------------+
+#      |                                                  |
+# +----|--------------------------------------------------|-------------------+
+# | SW |                                                  |                   |
+# | +--|-----------------------------+                    + $swp2             |
+# | |  + $swp1      BR1 (802.1q)     |                      192.0.2.129/28    |
+# | |               192.0.2.2/28     |                      2001:db8:2::1/64  |
+# | |               2001:db8:1::1/64 |                                        |
+# | |                                |                                        |
+# | +--------------------------------+                                        |
+# +---------------------------------------------------------------------------+
+
 ALL_TESTS="
+	ping_ipv4
+	ping_ipv6
+	config_remaster
+	ping_ipv4
+	ping_ipv6
+	config_remove_pvid
+	ping_ipv4_fails
+	ping_ipv6_fails
+	config_add_pvid
+	ping_ipv4
+	ping_ipv6
+	config_late_pvid
 	ping_ipv4
 	ping_ipv6
 "
@@ -62,6 +92,42 @@ router_destroy()
 	ip link del dev br1
 }
 
+config_remaster()
+{
+	log_info "Remaster bridge slave"
+
+	ip link set dev $swp1 nomaster
+	sleep 2
+	ip link set dev $swp1 master br1
+}
+
+config_remove_pvid()
+{
+	log_info "Remove PVID from the bridge"
+
+	bridge vlan add dev br1 vid 1 self
+	sleep 2
+}
+
+config_add_pvid()
+{
+	log_info "Add PVID to the bridge"
+
+	bridge vlan add dev br1 vid 1 self pvid untagged
+	sleep 2
+}
+
+config_late_pvid()
+{
+	log_info "Add bridge PVID after enslaving port"
+
+	ip link set dev $swp1 nomaster
+	ip link set dev br1 type bridge vlan_default_pvid 0
+	sleep 2
+	ip link set dev $swp1 master br1
+	ip link set dev br1 type bridge vlan_default_pvid 1
+}
+
 setup_prepare()
 {
 	h1=${NETIFS[p1]}
@@ -102,6 +168,16 @@ ping_ipv4()
 ping_ipv6()
 {
 	ping6_test $h1 2001:db8:2::2
+}
+
+ping_ipv4_fails()
+{
+	ping_test_fails $h1 192.0.2.130
+}
+
+ping_ipv6_fails()
+{
+	ping6_test_fails $h1 2001:db8:2::2
 }
 
 trap cleanup EXIT

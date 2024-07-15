@@ -129,6 +129,7 @@ ACPI_GLOBAL(acpi_table_handler, acpi_gbl_table_handler);
 ACPI_GLOBAL(void *, acpi_gbl_table_handler_context);
 ACPI_GLOBAL(acpi_interface_handler, acpi_gbl_interface_handler);
 ACPI_GLOBAL(struct acpi_sci_handler_info *, acpi_gbl_sci_handler_list);
+ACPI_GLOBAL(struct acpi_ged_handler_info *, acpi_gbl_ged_handler_list);
 
 /* Owner ID support */
 

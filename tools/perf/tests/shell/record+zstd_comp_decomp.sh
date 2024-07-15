@@ -13,25 +13,25 @@ skip_if_no_z_record() {
 collect_z_record() {
 	echo "Collecting compressed record file:"
 	[ "$(uname -m)" != s390x ] && gflag='-g'
-	$perf_tool record -o $trace_file $gflag -z -F 5000 -- \
+	$perf_tool record -o "$trace_file" $gflag -z -F 5000 -- \
 		dd count=500 if=/dev/urandom of=/dev/null
 }
 
 check_compressed_stats() {
 	echo "Checking compressed events stats:"
-	$perf_tool report -i $trace_file --header --stats | \
+	$perf_tool report -i "$trace_file" --header --stats | \
 		grep -E "(# compressed : Zstd,)|(COMPRESSED events:)"
 }
 
 check_compressed_output() {
-	$perf_tool inject -i $trace_file -o $trace_file.decomp &&
-	$perf_tool report -i $trace_file --stdio -F comm,dso,sym | head -n -3 > $trace_file.comp.output &&
-	$perf_tool report -i $trace_file.decomp --stdio -F comm,dso,sym | head -n -3 > $trace_file.decomp.output &&
-	diff $trace_file.comp.output $trace_file.decomp.output
+	$perf_tool inject -i "$trace_file" -o "$trace_file.decomp" &&
+	$perf_tool report -i "$trace_file" --stdio -F comm,dso,sym | head -n -3 > "$trace_file.comp.output" &&
+	$perf_tool report -i "$trace_file.decomp" --stdio -F comm,dso,sym | head -n -3 > "$trace_file.decomp.output" &&
+	diff "$trace_file.comp.output" "$trace_file.decomp.output"
 }
 
 skip_if_no_z_record || exit 2
 collect_z_record && check_compressed_stats && check_compressed_output
 err=$?
-rm -f $trace_file*
+rm -f "$trace_file*"
 exit $err

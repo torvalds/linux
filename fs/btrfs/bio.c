@@ -10,11 +10,10 @@
 #include "volumes.h"
 #include "raid56.h"
 #include "async-thread.h"
-#include "check-integrity.h"
 #include "dev-replace.h"
-#include "rcu-string.h"
 #include "zoned.h"
 #include "file-item.h"
+#include "raid-stripe-tree.h"
 
 static struct bio_set btrfs_bioset;
 static struct bio_set btrfs_clone_bioset;
@@ -194,6 +193,12 @@ static void btrfs_end_repair_bio(struct btrfs_bio *repair_bbio,
 	struct bio_vec *bv = bio_first_bvec_all(&repair_bbio->bio);
 	int mirror = repair_bbio->mirror_num;
 
+	/*
+	 * We can only trigger this for data bio, which doesn't support larger
+	 * folios yet.
+	 */
+	ASSERT(folio_order(page_folio(bv->bv_page)) == 0);
+
 	if (repair_bbio->bio.bi_status ||
 	    !btrfs_data_csum_ok(repair_bbio, dev, 0, bv)) {
 		bio_reset(&repair_bbio->bio, NULL, REQ_OP_READ);
@@ -215,7 +220,7 @@ static void btrfs_end_repair_bio(struct btrfs_bio *repair_bbio,
 		btrfs_repair_io_failure(fs_info, btrfs_ino(inode),
 				  repair_bbio->file_offset, fs_info->sectorsize,
 				  repair_bbio->saved_iter.bi_sector << SECTOR_SHIFT,
-				  bv->bv_page, bv->bv_offset, mirror);
+				  page_folio(bv->bv_page), bv->bv_offset, mirror);
 	} while (mirror != fbio->bbio->mirror_num);
 
 done:
@@ -416,6 +421,9 @@ static void btrfs_orig_write_end_io(struct bio *bio)
 	else
 		bio->bi_status = BLK_STS_OK;
 
+	if (bio_op(bio) == REQ_OP_ZONE_APPEND && !bio->bi_status)
+		stripe->physical = bio->bi_iter.bi_sector << SECTOR_SHIFT;
+
 	btrfs_orig_bbio_end_io(bbio);
 	btrfs_put_bioc(bioc);
 }
@@ -427,6 +435,8 @@ static void btrfs_clone_write_end_io(struct bio *bio)
 	if (bio->bi_status) {
 		atomic_inc(&stripe->bioc->error);
 		btrfs_log_dev_io_error(bio, stripe->dev);
+	} else if (bio_op(bio) == REQ_OP_ZONE_APPEND) {
+		stripe->physical = bio->bi_iter.bi_sector << SECTOR_SHIFT;
 	}
 
 	/* Pass on control to the original bio this one was cloned from */
@@ -463,8 +473,6 @@ static void btrfs_submit_dev_bio(struct btrfs_device *dev, struct bio *bio)
 		(unsigned long)dev->bdev->bd_dev, btrfs_dev_name(dev),
 		dev->devid, bio->bi_iter.bi_size);
 
-	btrfsic_check_bio(bio);
-
 	if (bio->bi_opf & REQ_BTRFS_CGROUP_PUNT)
 		blkcg_punt_bio_submit(bio);
 	else
@@ -490,6 +498,7 @@ static void btrfs_submit_mirrored_bio(struct btrfs_io_context *bioc, int dev_nr)
 	bio->bi_private = &bioc->stripes[dev_nr];
 	bio->bi_iter.bi_sector = bioc->stripes[dev_nr].physical >> SECTOR_SHIFT;
 	bioc->stripes[dev_nr].bioc = bioc;
+	bioc->size = bio->bi_iter.bi_size;
 	btrfs_submit_dev_bio(bioc->stripes[dev_nr].dev, bio);
 }
 
@@ -568,12 +577,19 @@ static void run_one_async_start(struct btrfs_work *work)
  *
  * At IO completion time the csums attached on the ordered extent record are
  * inserted into the tree.
+ *
+ * If called with @do_free == true, then it will free the work struct.
  */
-static void run_one_async_done(struct btrfs_work *work)
+static void run_one_async_done(struct btrfs_work *work, bool do_free)
 {
 	struct async_submit_bio *async =
 		container_of(work, struct async_submit_bio, work);
 	struct bio *bio = &async->bbio->bio;
+
+	if (do_free) {
+		kfree(container_of(work, struct async_submit_bio, work));
+		return;
+	}
 
 	/* If an error occurred we just want to clean up the bio and move on. */
 	if (bio->bi_status) {
@@ -590,15 +606,22 @@ static void run_one_async_done(struct btrfs_work *work)
 	__btrfs_submit_bio(bio, async->bioc, &async->smap, async->mirror_num);
 }
 
-static void run_one_async_free(struct btrfs_work *work)
-{
-	kfree(container_of(work, struct async_submit_bio, work));
-}
-
 static bool should_async_write(struct btrfs_bio *bbio)
 {
+	bool auto_csum_mode = true;
+
+#ifdef CONFIG_BTRFS_DEBUG
+	struct btrfs_fs_devices *fs_devices = bbio->fs_info->fs_devices;
+	enum btrfs_offload_csum_mode csum_mode = READ_ONCE(fs_devices->offload_csum_mode);
+
+	if (csum_mode == BTRFS_OFFLOAD_CSUM_FORCE_OFF)
+		return false;
+
+	auto_csum_mode = (csum_mode == BTRFS_OFFLOAD_CSUM_AUTO);
+#endif
+
 	/* Submit synchronously if the checksum implementation is fast. */
-	if (test_bit(BTRFS_FS_CSUM_IMPL_FAST, &bbio->fs_info->flags))
+	if (auto_csum_mode && test_bit(BTRFS_FS_CSUM_IMPL_FAST, &bbio->fs_info->flags))
 		return false;
 
 	/*
@@ -618,7 +641,7 @@ static bool should_async_write(struct btrfs_bio *bbio)
 /*
  * Submit bio to an async queue.
  *
- * Return true if the work has been succesfuly submitted, else false.
+ * Return true if the work has been successfully submitted, else false.
  */
 static bool btrfs_wq_submit_bio(struct btrfs_bio *bbio,
 				struct btrfs_io_context *bioc,
@@ -636,8 +659,7 @@ static bool btrfs_wq_submit_bio(struct btrfs_bio *bbio,
 	async->smap = *smap;
 	async->mirror_num = mirror_num;
 
-	btrfs_init_work(&async->work, run_one_async_start, run_one_async_done,
-			run_one_async_free);
+	btrfs_init_work(&async->work, run_one_async_start, run_one_async_done);
 	btrfs_queue_work(fs_info->workers, &async->work);
 	return true;
 }
@@ -657,9 +679,11 @@ static bool btrfs_submit_chunk(struct btrfs_bio *bbio, int mirror_num)
 	blk_status_t ret;
 	int error;
 
+	smap.is_scrub = !bbio->inode;
+
 	btrfs_bio_counter_inc_blocked(fs_info);
 	error = btrfs_map_block(fs_info, btrfs_op(bio), logical, &map_length,
-				&bioc, &smap, &mirror_num, 1);
+				&bioc, &smap, &mirror_num);
 	if (error) {
 		ret = errno_to_blk_status(error);
 		goto fail;
@@ -689,6 +713,18 @@ static bool btrfs_submit_chunk(struct btrfs_bio *bbio, int mirror_num)
 		if (use_append) {
 			bio->bi_opf &= ~REQ_OP_WRITE;
 			bio->bi_opf |= REQ_OP_ZONE_APPEND;
+		}
+
+		if (is_data_bbio(bbio) && bioc &&
+		    btrfs_need_stripe_tree_update(bioc->fs_info, bioc->map_type)) {
+			/*
+			 * No locking for the list update, as we only add to
+			 * the list in the I/O submission path, and list
+			 * iteration only happens in the completion path, which
+			 * can't happen until after the last submission.
+			 */
+			btrfs_get_bioc(bioc);
+			list_add_tail(&bioc->rst_ordered_entry, &bbio->ordered->bioc_list);
 		}
 
 		/*
@@ -746,8 +782,8 @@ void btrfs_submit_bio(struct btrfs_bio *bbio, int mirror_num)
  * freeing the bio.
  */
 int btrfs_repair_io_failure(struct btrfs_fs_info *fs_info, u64 ino, u64 start,
-			    u64 length, u64 logical, struct page *page,
-			    unsigned int pg_offset, int mirror_num)
+			    u64 length, u64 logical, struct folio *folio,
+			    unsigned int folio_offset, int mirror_num)
 {
 	struct btrfs_io_stripe smap = { 0 };
 	struct bio_vec bvec;
@@ -778,9 +814,8 @@ int btrfs_repair_io_failure(struct btrfs_fs_info *fs_info, u64 ino, u64 start,
 
 	bio_init(&bio, smap.dev->bdev, &bvec, 1, REQ_OP_WRITE | REQ_SYNC);
 	bio.bi_iter.bi_sector = smap.physical >> SECTOR_SHIFT;
-	__bio_add_page(&bio, page, length, pg_offset);
-
-	btrfsic_check_bio(&bio);
+	ret = bio_add_folio(&bio, folio, length, folio_offset);
+	ASSERT(ret);
 	ret = submit_bio_wait(&bio);
 	if (ret) {
 		/* try to remap that extent elsewhere? */

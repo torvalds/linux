@@ -17,11 +17,8 @@ Linux 内核用户空间API指南
 在代码树中仍然可以找到有关用户空间的部分信息。这个手册意在成为这些信息
 聚集的地方。
 
-.. class:: toc-title
-
-	   目录
-
 .. toctree::
+   :caption: 目录
    :maxdepth: 2
 
    no_new_privs

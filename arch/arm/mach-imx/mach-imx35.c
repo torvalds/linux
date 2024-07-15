@@ -5,15 +5,7 @@
  * based on imx27-dt.c
  */
 
-#include <linux/irq.h>
-#include <linux/irqdomain.h>
-#include <linux/of_irq.h>
-#include <linux/of_platform.h>
-#include <linux/clk-provider.h>
-#include <linux/clocksource.h>
 #include <asm/mach/arch.h>
-#include <asm/mach/time.h>
-#include <asm/hardware/cache-l2x0.h>
 #include "common.h"
 #include "mx35.h"
 

@@ -96,6 +96,6 @@ examples:
         interrupts = <43 2>;
         interrupt-parent = <&mpic>;
         clock-frequency = <400000>;
-        i2c-scl-clk-low-timeout-us = <10000>;
+        i2c-transfer-timeout-us = <10000>;
     };
 ...

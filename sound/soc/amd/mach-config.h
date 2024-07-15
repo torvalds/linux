@@ -15,11 +15,14 @@
 #define FLAG_AMD_SOF			BIT(1)
 #define FLAG_AMD_SOF_ONLY_DMIC		BIT(2)
 #define FLAG_AMD_LEGACY			BIT(3)
+#define FLAG_AMD_LEGACY_ONLY_DMIC	BIT(4)
 
 #define ACP_PCI_DEV_ID			0x15E2
 
 extern struct snd_soc_acpi_mach snd_soc_acpi_amd_sof_machines[];
 extern struct snd_soc_acpi_mach snd_soc_acpi_amd_rmb_sof_machines[];
+extern struct snd_soc_acpi_mach snd_soc_acpi_amd_vangogh_sof_machines[];
+extern struct snd_soc_acpi_mach snd_soc_acpi_amd_acp63_sof_machines[];
 
 struct config_entry {
 	u32 flags;

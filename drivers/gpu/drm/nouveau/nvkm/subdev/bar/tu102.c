@@ -22,6 +22,7 @@
 #include "gf100.h"
 
 #include <core/memory.h>
+#include <subdev/gsp.h>
 #include <subdev/timer.h>
 
 static void
@@ -95,5 +96,8 @@ int
 tu102_bar_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	      struct nvkm_bar **pbar)
 {
+	if (nvkm_gsp_rm(device->gsp))
+		return r535_bar_new_(&tu102_bar, device, type, inst, pbar);
+
 	return gf100_bar_new_(&tu102_bar, device, type, inst, pbar);
 }

@@ -7,7 +7,6 @@
 #define __CHTLS_H__
 
 #include <crypto/aes.h>
-#include <crypto/algapi.h>
 #include <crypto/hash.h>
 #include <crypto/sha1.h>
 #include <crypto/sha2.h>
@@ -22,6 +21,7 @@
 #include <crypto/internal/hash.h>
 #include <linux/tls.h>
 #include <net/tls.h>
+#include <net/tls_prot.h>
 #include <net/tls_toe.h>
 
 #include "t4fw_api.h"

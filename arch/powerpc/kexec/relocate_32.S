@@ -8,6 +8,7 @@
  * 		Author: Suzuki Poulose <suzuki@in.ibm.com>
  */
 
+#include <linux/objtool.h>
 #include <asm/reg.h>
 #include <asm/page.h>
 #include <asm/mmu.h>
@@ -349,6 +350,7 @@ write_utlb:
 	cmpwi	r10, PPC47x_TLB0_4K
 	bne	0f
 	li	r10, 0x1000			/* r10 = 4k */
+	ANNOTATE_INTRA_FUNCTION_CALL
 	bl	1f
 
 0:

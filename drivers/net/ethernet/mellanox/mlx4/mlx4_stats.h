@@ -112,7 +112,7 @@ struct mlx4_en_stat_out_flow_control_mbox {
 	__be64 tx_pause_duration;
 	/* Number of transmitter transitions from XOFF state to XON state */
 	__be64 tx_pause_transition;
-	/* Reserverd */
+	/* Reserved */
 	__be64 reserved[2];
 };
 

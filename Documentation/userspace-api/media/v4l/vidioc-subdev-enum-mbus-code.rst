@@ -158,7 +158,6 @@ appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 EINVAL
-    The struct
-    :c:type:`v4l2_subdev_mbus_code_enum`
-    ``pad`` references a non-existing pad, or the ``index`` field is out
-    of bounds.
+    The struct :c:type:`v4l2_subdev_mbus_code_enum` ``pad`` references a
+    non-existing pad, the ``which`` field has an unsupported value, or the
+    ``index`` field is out of bounds.

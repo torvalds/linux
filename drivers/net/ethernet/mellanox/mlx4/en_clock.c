@@ -96,8 +96,8 @@ void mlx4_en_remove_timestamp(struct mlx4_en_dev *mdev)
 
 #define MLX4_EN_WRAP_AROUND_SEC	10UL
 /* By scheduling the overflow check every 5 seconds, we have a reasonably
- * good chance we wont miss a wrap around.
- * TOTO: Use a timer instead of a work queue to increase the guarantee.
+ * good chance we won't miss a wrap around.
+ * TODO: Use a timer instead of a work queue to increase the guarantee.
  */
 #define MLX4_EN_OVERFLOW_PERIOD (MLX4_EN_WRAP_AROUND_SEC * HZ / 2)
 

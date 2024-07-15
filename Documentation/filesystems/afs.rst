@@ -44,7 +44,7 @@ options::
 
 	CONFIG_AF_RXRPC		- The RxRPC protocol transport
 	CONFIG_RXKAD		- The RxRPC Kerberos security handler
-	CONFIG_AFS		- The AFS filesystem
+	CONFIG_AFS_FS		- The AFS filesystem
 
 Additionally, the following can be turned on to aid debugging::
 

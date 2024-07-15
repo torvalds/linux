@@ -181,7 +181,7 @@ operations is carried out at several levels:
    of this wait (or series of waits, as the case may be) is to permit a
    concurrent CPU-hotplug operation to complete.
 #. In the case of RCU-sched, one of the last acts of an outgoing CPU is
-   to invoke ``rcu_report_dead()``, which reports a quiescent state for
+   to invoke ``rcutree_report_cpu_dead()``, which reports a quiescent state for
    that CPU. However, this is likely paranoia-induced redundancy.
 
 +-----------------------------------------------------------------------+

@@ -25,9 +25,12 @@
 #include "xfs_trans_priv.h"
 #include "xfs_da_format.h"
 #include "xfs_da_btree.h"
+#include "xfs_dir2_priv.h"
 #include "xfs_attr.h"
 #include "xfs_reflink.h"
 #include "xfs_ag.h"
+#include "xfs_error.h"
+#include "xfs_quota.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/trace.h"
@@ -81,6 +84,15 @@ __xchk_process_error(
 				sc->ip ? sc->ip : XFS_I(file_inode(sc->file)),
 				sc->sm, *error);
 		break;
+	case -ECANCELED:
+		/*
+		 * ECANCELED here means that the caller set one of the scrub
+		 * outcome flags (corrupt, xfail, xcorrupt) and wants to exit
+		 * quickly.  Set error to zero and do not continue.
+		 */
+		trace_xchk_op_error(sc, agno, bno, *error, ret_ip);
+		*error = 0;
+		break;
 	case -EFSBADCRC:
 	case -EFSCORRUPTED:
 		/* Note the badness but don't abort. */
@@ -88,8 +100,7 @@ __xchk_process_error(
 		*error = 0;
 		fallthrough;
 	default:
-		trace_xchk_op_error(sc, agno, bno, *error,
-				ret_ip);
+		trace_xchk_op_error(sc, agno, bno, *error, ret_ip);
 		break;
 	}
 	return false;
@@ -134,6 +145,16 @@ __xchk_fblock_process_error(
 	case -ECHRNG:
 		/* Used to restart an op with deadlock avoidance. */
 		trace_xchk_deadlock_retry(sc->ip, sc->sm, *error);
+		break;
+	case -ECANCELED:
+		/*
+		 * ECANCELED here means that the caller set one of the scrub
+		 * outcome flags (corrupt, xfail, xcorrupt) and wants to exit
+		 * quickly.  Set error to zero and do not continue.
+		 */
+		trace_xchk_file_op_error(sc, whichfork, offset, *error,
+				ret_ip);
+		*error = 0;
 		break;
 	case -EFSBADCRC:
 	case -EFSCORRUPTED:
@@ -225,6 +246,19 @@ xchk_block_set_corrupt(
 	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_CORRUPT;
 	trace_xchk_block_error(sc, xfs_buf_daddr(bp), __return_address);
 }
+
+#ifdef CONFIG_XFS_QUOTA
+/* Record a corrupt quota counter. */
+void
+xchk_qcheck_set_corrupt(
+	struct xfs_scrub	*sc,
+	unsigned int		dqtype,
+	xfs_dqid_t		id)
+{
+	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_CORRUPT;
+	trace_xchk_qcheck_error(sc, dqtype, id, __return_address);
+}
+#endif
 
 /* Record a corruption while cross-referencing. */
 void
@@ -426,7 +460,7 @@ xchk_perag_read_headers(
  * Grab the AG headers for the attached perag structure and wait for pending
  * intents to drain.
  */
-static int
+int
 xchk_perag_drain_and_lock(
 	struct xfs_scrub	*sc)
 {
@@ -554,46 +588,50 @@ xchk_ag_btcur_init(
 {
 	struct xfs_mount	*mp = sc->mp;
 
-	if (sa->agf_bp &&
-	    xchk_ag_btree_healthy_enough(sc, sa->pag, XFS_BTNUM_BNO)) {
+	if (sa->agf_bp) {
 		/* Set up a bnobt cursor for cross-referencing. */
-		sa->bno_cur = xfs_allocbt_init_cursor(mp, sc->tp, sa->agf_bp,
-				sa->pag, XFS_BTNUM_BNO);
-	}
-
-	if (sa->agf_bp &&
-	    xchk_ag_btree_healthy_enough(sc, sa->pag, XFS_BTNUM_CNT)) {
-		/* Set up a cntbt cursor for cross-referencing. */
-		sa->cnt_cur = xfs_allocbt_init_cursor(mp, sc->tp, sa->agf_bp,
-				sa->pag, XFS_BTNUM_CNT);
-	}
-
-	/* Set up a inobt cursor for cross-referencing. */
-	if (sa->agi_bp &&
-	    xchk_ag_btree_healthy_enough(sc, sa->pag, XFS_BTNUM_INO)) {
-		sa->ino_cur = xfs_inobt_init_cursor(sa->pag, sc->tp, sa->agi_bp,
-				XFS_BTNUM_INO);
-	}
-
-	/* Set up a finobt cursor for cross-referencing. */
-	if (sa->agi_bp && xfs_has_finobt(mp) &&
-	    xchk_ag_btree_healthy_enough(sc, sa->pag, XFS_BTNUM_FINO)) {
-		sa->fino_cur = xfs_inobt_init_cursor(sa->pag, sc->tp, sa->agi_bp,
-				XFS_BTNUM_FINO);
-	}
-
-	/* Set up a rmapbt cursor for cross-referencing. */
-	if (sa->agf_bp && xfs_has_rmapbt(mp) &&
-	    xchk_ag_btree_healthy_enough(sc, sa->pag, XFS_BTNUM_RMAP)) {
-		sa->rmap_cur = xfs_rmapbt_init_cursor(mp, sc->tp, sa->agf_bp,
+		sa->bno_cur = xfs_bnobt_init_cursor(mp, sc->tp, sa->agf_bp,
 				sa->pag);
+		xchk_ag_btree_del_cursor_if_sick(sc, &sa->bno_cur,
+				XFS_SCRUB_TYPE_BNOBT);
+
+		/* Set up a cntbt cursor for cross-referencing. */
+		sa->cnt_cur = xfs_cntbt_init_cursor(mp, sc->tp, sa->agf_bp,
+				sa->pag);
+		xchk_ag_btree_del_cursor_if_sick(sc, &sa->cnt_cur,
+				XFS_SCRUB_TYPE_CNTBT);
+
+		/* Set up a rmapbt cursor for cross-referencing. */
+		if (xfs_has_rmapbt(mp)) {
+			sa->rmap_cur = xfs_rmapbt_init_cursor(mp, sc->tp,
+					sa->agf_bp, sa->pag);
+			xchk_ag_btree_del_cursor_if_sick(sc, &sa->rmap_cur,
+					XFS_SCRUB_TYPE_RMAPBT);
+		}
+
+		/* Set up a refcountbt cursor for cross-referencing. */
+		if (xfs_has_reflink(mp)) {
+			sa->refc_cur = xfs_refcountbt_init_cursor(mp, sc->tp,
+					sa->agf_bp, sa->pag);
+			xchk_ag_btree_del_cursor_if_sick(sc, &sa->refc_cur,
+					XFS_SCRUB_TYPE_REFCNTBT);
+		}
 	}
 
-	/* Set up a refcountbt cursor for cross-referencing. */
-	if (sa->agf_bp && xfs_has_reflink(mp) &&
-	    xchk_ag_btree_healthy_enough(sc, sa->pag, XFS_BTNUM_REFC)) {
-		sa->refc_cur = xfs_refcountbt_init_cursor(mp, sc->tp,
-				sa->agf_bp, sa->pag);
+	if (sa->agi_bp) {
+		/* Set up a inobt cursor for cross-referencing. */
+		sa->ino_cur = xfs_inobt_init_cursor(sa->pag, sc->tp,
+				sa->agi_bp);
+		xchk_ag_btree_del_cursor_if_sick(sc, &sa->ino_cur,
+				XFS_SCRUB_TYPE_INOBT);
+
+		/* Set up a finobt cursor for cross-referencing. */
+		if (xfs_has_finobt(mp)) {
+			sa->fino_cur = xfs_finobt_init_cursor(sa->pag, sc->tp,
+					sa->agi_bp);
+			xchk_ag_btree_del_cursor_if_sick(sc, &sa->fino_cur,
+					XFS_SCRUB_TYPE_FINOBT);
+		}
 	}
 }
 
@@ -604,6 +642,7 @@ xchk_ag_free(
 	struct xchk_ag		*sa)
 {
 	xchk_ag_btcur_free(sa);
+	xrep_reset_perag_resv(sc);
 	if (sa->agf_bp) {
 		xfs_trans_brelse(sc->tp, sa->agf_bp);
 		sa->agf_bp = NULL;
@@ -651,6 +690,13 @@ xchk_trans_cancel(
 	sc->tp = NULL;
 }
 
+int
+xchk_trans_alloc_empty(
+	struct xfs_scrub	*sc)
+{
+	return xfs_trans_alloc_empty(sc->mp, &sc->tp);
+}
+
 /*
  * Grab an empty transaction so that we can re-grab locked buffers if
  * one of our btrees turns out to be cyclic.
@@ -670,7 +716,7 @@ xchk_trans_alloc(
 		return xfs_trans_alloc(sc->mp, &M_RES(sc->mp)->tr_itruncate,
 				resblks, 0, 0, &sc->tp);
 
-	return xfs_trans_alloc_empty(sc->mp, &sc->tp);
+	return xchk_trans_alloc_empty(sc);
 }
 
 /* Set us up with a transaction and an empty context. */
@@ -733,6 +779,8 @@ xchk_iget(
 	xfs_ino_t		inum,
 	struct xfs_inode	**ipp)
 {
+	ASSERT(sc->tp != NULL);
+
 	return xfs_iget(sc->mp, sc->tp, inum, XFS_IGET_UNTRUSTED, 0, ipp);
 }
 
@@ -816,6 +864,26 @@ again:
 	return 0;
 }
 
+#ifdef CONFIG_XFS_QUOTA
+/*
+ * Try to attach dquots to this inode if we think we might want to repair it.
+ * Callers must not hold any ILOCKs.  If the dquots are broken and cannot be
+ * attached, a quotacheck will be scheduled.
+ */
+int
+xchk_ino_dqattach(
+	struct xfs_scrub	*sc)
+{
+	ASSERT(sc->tp != NULL);
+	ASSERT(sc->ip != NULL);
+
+	if (!xchk_could_repair(sc))
+		return 0;
+
+	return xrep_ino_dqattach(sc);
+}
+#endif
+
 /* Install an inode that we opened by handle for scrubbing. */
 int
 xchk_install_handle_inode(
@@ -825,6 +893,25 @@ xchk_install_handle_inode(
 	if (VFS_I(ip)->i_generation != sc->sm->sm_gen) {
 		xchk_irele(sc, ip);
 		return -ENOENT;
+	}
+
+	sc->ip = ip;
+	return 0;
+}
+
+/*
+ * Install an already-referenced inode for scrubbing.  Get our own reference to
+ * the inode to make disposal simpler.  The inode must not be in I_FREEING or
+ * I_WILL_FREE state!
+ */
+int
+xchk_install_live_inode(
+	struct xfs_scrub	*sc,
+	struct xfs_inode	*ip)
+{
+	if (!igrab(VFS_I(ip))) {
+		xchk_ino_set_corrupt(sc, ip->i_ino);
+		return -EFSCORRUPTED;
 	}
 
 	sc->ip = ip;
@@ -854,10 +941,8 @@ xchk_iget_for_scrubbing(
 	ASSERT(sc->tp == NULL);
 
 	/* We want to scan the inode we already had opened. */
-	if (sc->sm->sm_ino == 0 || sc->sm->sm_ino == ip_in->i_ino) {
-		sc->ip = ip_in;
-		return 0;
-	}
+	if (sc->sm->sm_ino == 0 || sc->sm->sm_ino == ip_in->i_ino)
+		return xchk_install_live_inode(sc, ip_in);
 
 	/* Reject internal metadata files and obviously bad inode numbers. */
 	if (xfs_internal_inum(mp, sc->sm->sm_ino))
@@ -865,8 +950,8 @@ xchk_iget_for_scrubbing(
 	if (!xfs_verify_ino(sc->mp, sc->sm->sm_ino))
 		return -ENOENT;
 
-	/* Try a regular untrusted iget. */
-	error = xchk_iget(sc, sc->sm->sm_ino, &ip);
+	/* Try a safe untrusted iget. */
+	error = xchk_iget_safe(sc, sc->sm->sm_ino, &ip);
 	if (!error)
 		return xchk_install_handle_inode(sc, ip);
 	if (error == -ENOENT)
@@ -959,9 +1044,7 @@ xchk_irele(
 	struct xfs_scrub	*sc,
 	struct xfs_inode	*ip)
 {
-	if (current->journal_info != NULL) {
-		ASSERT(current->journal_info == sc->tp);
-
+	if (sc->tp) {
 		/*
 		 * If we are in a transaction, we /cannot/ drop the inode
 		 * ourselves, because the VFS will trigger writeback, which
@@ -1005,18 +1088,51 @@ xchk_setup_inode_contents(
 		return error;
 
 	/* Lock the inode so the VFS cannot touch this file. */
-	sc->ilock_flags = XFS_IOLOCK_EXCL;
-	xfs_ilock(sc->ip, sc->ilock_flags);
+	xchk_ilock(sc, XFS_IOLOCK_EXCL);
 
 	error = xchk_trans_alloc(sc, resblks);
 	if (error)
 		goto out;
-	sc->ilock_flags |= XFS_ILOCK_EXCL;
-	xfs_ilock(sc->ip, XFS_ILOCK_EXCL);
 
+	error = xchk_ino_dqattach(sc);
+	if (error)
+		goto out;
+
+	xchk_ilock(sc, XFS_ILOCK_EXCL);
 out:
 	/* scrub teardown will unlock and release the inode for us */
 	return error;
+}
+
+void
+xchk_ilock(
+	struct xfs_scrub	*sc,
+	unsigned int		ilock_flags)
+{
+	xfs_ilock(sc->ip, ilock_flags);
+	sc->ilock_flags |= ilock_flags;
+}
+
+bool
+xchk_ilock_nowait(
+	struct xfs_scrub	*sc,
+	unsigned int		ilock_flags)
+{
+	if (xfs_ilock_nowait(sc->ip, ilock_flags)) {
+		sc->ilock_flags |= ilock_flags;
+		return true;
+	}
+
+	return false;
+}
+
+void
+xchk_iunlock(
+	struct xfs_scrub	*sc,
+	unsigned int		ilock_flags)
+{
+	sc->ilock_flags &= ~ilock_flags;
+	xfs_iunlock(sc->ip, ilock_flags);
 }
 
 /*
@@ -1087,6 +1203,7 @@ xchk_metadata_inode_subtype(
 	unsigned int		scrub_type)
 {
 	__u32			smtype = sc->sm->sm_type;
+	unsigned int		sick_mask = sc->sick_mask;
 	int			error;
 
 	sc->sm->sm_type = scrub_type;
@@ -1104,6 +1221,7 @@ xchk_metadata_inode_subtype(
 		break;
 	}
 
+	sc->sick_mask = sick_mask;
 	sc->sm->sm_type = smtype;
 	return error;
 }
@@ -1183,5 +1301,166 @@ xchk_fsgates_enable(
 	if (scrub_fsgates & XCHK_FSGATES_DRAIN)
 		xfs_drain_wait_enable();
 
+	if (scrub_fsgates & XCHK_FSGATES_QUOTA)
+		xfs_dqtrx_hook_enable();
+
+	if (scrub_fsgates & XCHK_FSGATES_DIRENTS)
+		xfs_dir_hook_enable();
+
+	if (scrub_fsgates & XCHK_FSGATES_RMAP)
+		xfs_rmap_hook_enable();
+
 	sc->flags |= scrub_fsgates;
+}
+
+/*
+ * Decide if this is this a cached inode that's also allocated.  The caller
+ * must hold a reference to an AG and the AGI buffer lock to prevent inodes
+ * from being allocated or freed.
+ *
+ * Look up an inode by number in the given file system.  If the inode number
+ * is invalid, return -EINVAL.  If the inode is not in cache, return -ENODATA.
+ * If the inode is being reclaimed, return -ENODATA because we know the inode
+ * cache cannot be updating the ondisk metadata.
+ *
+ * Otherwise, the incore inode is the one we want, and it is either live,
+ * somewhere in the inactivation machinery, or reclaimable.  The inode is
+ * allocated if i_mode is nonzero.  In all three cases, the cached inode will
+ * be more up to date than the ondisk inode buffer, so we must use the incore
+ * i_mode.
+ */
+int
+xchk_inode_is_allocated(
+	struct xfs_scrub	*sc,
+	xfs_agino_t		agino,
+	bool			*inuse)
+{
+	struct xfs_mount	*mp = sc->mp;
+	struct xfs_perag	*pag = sc->sa.pag;
+	xfs_ino_t		ino;
+	struct xfs_inode	*ip;
+	int			error;
+
+	/* caller must hold perag reference */
+	if (pag == NULL) {
+		ASSERT(pag != NULL);
+		return -EINVAL;
+	}
+
+	/* caller must have AGI buffer */
+	if (sc->sa.agi_bp == NULL) {
+		ASSERT(sc->sa.agi_bp != NULL);
+		return -EINVAL;
+	}
+
+	/* reject inode numbers outside existing AGs */
+	ino = XFS_AGINO_TO_INO(sc->mp, pag->pag_agno, agino);
+	if (!xfs_verify_ino(mp, ino))
+		return -EINVAL;
+
+	error = -ENODATA;
+	rcu_read_lock();
+	ip = radix_tree_lookup(&pag->pag_ici_root, agino);
+	if (!ip) {
+		/* cache miss */
+		goto out_rcu;
+	}
+
+	/*
+	 * If the inode number doesn't match, the incore inode got reused
+	 * during an RCU grace period and the radix tree hasn't been updated.
+	 * This isn't the inode we want.
+	 */
+	spin_lock(&ip->i_flags_lock);
+	if (ip->i_ino != ino)
+		goto out_skip;
+
+	trace_xchk_inode_is_allocated(ip);
+
+	/*
+	 * We have an incore inode that matches the inode we want, and the
+	 * caller holds the perag structure and the AGI buffer.  Let's check
+	 * our assumptions below:
+	 */
+
+#ifdef DEBUG
+	/*
+	 * (1) If the incore inode is live (i.e. referenced from the dcache),
+	 * it will not be INEW, nor will it be in the inactivation or reclaim
+	 * machinery.  The ondisk inode had better be allocated.  This is the
+	 * most trivial case.
+	 */
+	if (!(ip->i_flags & (XFS_NEED_INACTIVE | XFS_INEW | XFS_IRECLAIMABLE |
+			     XFS_INACTIVATING))) {
+		/* live inode */
+		ASSERT(VFS_I(ip)->i_mode != 0);
+	}
+
+	/*
+	 * If the incore inode is INEW, there are several possibilities:
+	 *
+	 * (2) For a file that is being created, note that we allocate the
+	 * ondisk inode before allocating, initializing, and adding the incore
+	 * inode to the radix tree.
+	 *
+	 * (3) If the incore inode is being recycled, the inode has to be
+	 * allocated because we don't allow freed inodes to be recycled.
+	 * Recycling doesn't touch i_mode.
+	 */
+	if (ip->i_flags & XFS_INEW) {
+		/* created on disk already or recycling */
+		ASSERT(VFS_I(ip)->i_mode != 0);
+	}
+
+	/*
+	 * (4) If the inode is queued for inactivation (NEED_INACTIVE) but
+	 * inactivation has not started (!INACTIVATING), it is still allocated.
+	 */
+	if ((ip->i_flags & XFS_NEED_INACTIVE) &&
+	    !(ip->i_flags & XFS_INACTIVATING)) {
+		/* definitely before difree */
+		ASSERT(VFS_I(ip)->i_mode != 0);
+	}
+#endif
+
+	/*
+	 * If the incore inode is undergoing inactivation (INACTIVATING), there
+	 * are two possibilities:
+	 *
+	 * (5) It is before the point where it would get freed ondisk, in which
+	 * case i_mode is still nonzero.
+	 *
+	 * (6) It has already been freed, in which case i_mode is zero.
+	 *
+	 * We don't take the ILOCK here, but difree and dialloc update the AGI,
+	 * and we've taken the AGI buffer lock, which prevents that from
+	 * happening.
+	 */
+
+	/*
+	 * (7) Inodes undergoing inactivation (INACTIVATING) or queued for
+	 * reclaim (IRECLAIMABLE) could be allocated or free.  i_mode still
+	 * reflects the ondisk state.
+	 */
+
+	/*
+	 * (8) If the inode is in IFLUSHING, it's safe to query i_mode because
+	 * the flush code uses i_mode to format the ondisk inode.
+	 */
+
+	/*
+	 * (9) If the inode is in IRECLAIM and was reachable via the radix
+	 * tree, it still has the same i_mode as it did before it entered
+	 * reclaim.  The inode object is still alive because we hold the RCU
+	 * read lock.
+	 */
+
+	*inuse = VFS_I(ip)->i_mode != 0;
+	error = 0;
+
+out_skip:
+	spin_unlock(&ip->i_flags_lock);
+out_rcu:
+	rcu_read_unlock();
+	return error;
 }

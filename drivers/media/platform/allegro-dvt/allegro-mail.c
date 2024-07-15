@@ -16,7 +16,7 @@
 
 const char *msg_type_name(enum mcu_msg_type type)
 {
-	static char buf[9];
+	static char buf[13];
 
 	switch (type) {
 	case MCU_MSG_TYPE_INIT:

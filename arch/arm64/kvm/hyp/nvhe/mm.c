@@ -44,6 +44,27 @@ static int __pkvm_create_mappings(unsigned long start, unsigned long size,
 	return err;
 }
 
+static int __pkvm_alloc_private_va_range(unsigned long start, size_t size)
+{
+	unsigned long cur;
+
+	hyp_assert_lock_held(&pkvm_pgd_lock);
+
+	if (!start || start < __io_map_base)
+		return -EINVAL;
+
+	/* The allocated size is always a multiple of PAGE_SIZE */
+	cur = start + PAGE_ALIGN(size);
+
+	/* Are we overflowing on the vmemmap ? */
+	if (cur > __hyp_vmemmap)
+		return -ENOMEM;
+
+	__io_map_base = cur;
+
+	return 0;
+}
+
 /**
  * pkvm_alloc_private_va_range - Allocates a private VA range.
  * @size:	The size of the VA range to reserve.
@@ -56,26 +77,15 @@ static int __pkvm_create_mappings(unsigned long start, unsigned long size,
  */
 int pkvm_alloc_private_va_range(size_t size, unsigned long *haddr)
 {
-	unsigned long base, addr;
-	int ret = 0;
+	unsigned long addr;
+	int ret;
 
 	hyp_spin_lock(&pkvm_pgd_lock);
-
-	/* Align the allocation based on the order of its size */
-	addr = ALIGN(__io_map_base, PAGE_SIZE << get_order(size));
-
-	/* The allocated size is always a multiple of PAGE_SIZE */
-	base = addr + PAGE_ALIGN(size);
-
-	/* Are we overflowing on the vmemmap ? */
-	if (!addr || base > __hyp_vmemmap)
-		ret = -ENOMEM;
-	else {
-		__io_map_base = base;
-		*haddr = addr;
-	}
-
+	addr = __io_map_base;
+	ret = __pkvm_alloc_private_va_range(addr, size);
 	hyp_spin_unlock(&pkvm_pgd_lock);
+
+	*haddr = addr;
 
 	return ret;
 }
@@ -145,7 +155,7 @@ int hyp_back_vmemmap(phys_addr_t back)
 		start = hyp_memory[i].base;
 		start = ALIGN_DOWN((u64)hyp_phys_to_page(start), PAGE_SIZE);
 		/*
-		 * The begining of the hyp_vmemmap region for the current
+		 * The beginning of the hyp_vmemmap region for the current
 		 * memblock may already be backed by the page backing the end
 		 * the previous region, so avoid mapping it twice.
 		 */
@@ -250,7 +260,7 @@ static void fixmap_clear_slot(struct hyp_fixmap_slot *slot)
 	 * https://lore.kernel.org/kvm/20221017115209.2099-1-will@kernel.org/T/#mf10dfbaf1eaef9274c581b81c53758918c1d0f03
 	 */
 	dsb(ishst);
-	__tlbi_level(vale2is, __TLBI_VADDR(addr, 0), (KVM_PGTABLE_MAX_LEVELS - 1));
+	__tlbi_level(vale2is, __TLBI_VADDR(addr, 0), KVM_PGTABLE_LAST_LEVEL);
 	dsb(ish);
 	isb();
 }
@@ -265,7 +275,7 @@ static int __create_fixmap_slot_cb(const struct kvm_pgtable_visit_ctx *ctx,
 {
 	struct hyp_fixmap_slot *slot = per_cpu_ptr(&fixmap_slots, (u64)ctx->arg);
 
-	if (!kvm_pte_valid(ctx->old) || ctx->level != KVM_PGTABLE_MAX_LEVELS - 1)
+	if (!kvm_pte_valid(ctx->old) || ctx->level != KVM_PGTABLE_LAST_LEVEL)
 		return -EINVAL;
 
 	slot->addr = ctx->addr;
@@ -340,6 +350,45 @@ int hyp_create_idmap(u32 hyp_va_bits)
 	return __pkvm_create_mappings(start, end - start, start, PAGE_HYP_EXEC);
 }
 
+int pkvm_create_stack(phys_addr_t phys, unsigned long *haddr)
+{
+	unsigned long addr, prev_base;
+	size_t size;
+	int ret;
+
+	hyp_spin_lock(&pkvm_pgd_lock);
+
+	prev_base = __io_map_base;
+	/*
+	 * Efficient stack verification using the PAGE_SHIFT bit implies
+	 * an alignment of our allocation on the order of the size.
+	 */
+	size = PAGE_SIZE * 2;
+	addr = ALIGN(__io_map_base, size);
+
+	ret = __pkvm_alloc_private_va_range(addr, size);
+	if (!ret) {
+		/*
+		 * Since the stack grows downwards, map the stack to the page
+		 * at the higher address and leave the lower guard page
+		 * unbacked.
+		 *
+		 * Any valid stack address now has the PAGE_SHIFT bit as 1
+		 * and addresses corresponding to the guard page have the
+		 * PAGE_SHIFT bit as 0 - this is used for overflow detection.
+		 */
+		ret = kvm_pgtable_hyp_map(&pkvm_pgtable, addr + PAGE_SIZE,
+					  PAGE_SIZE, phys, PAGE_HYP);
+		if (ret)
+			__io_map_base = prev_base;
+	}
+	hyp_spin_unlock(&pkvm_pgd_lock);
+
+	*haddr = addr + size;
+
+	return ret;
+}
+
 static void *admit_host_page(void *arg)
 {
 	struct kvm_hyp_memcache *host_mc = arg;
@@ -359,7 +408,7 @@ static void *admit_host_page(void *arg)
 	return pop_hyp_memcache(host_mc, hyp_phys_to_virt);
 }
 
-/* Refill our local memcache by poping pages from the one provided by the host. */
+/* Refill our local memcache by popping pages from the one provided by the host. */
 int refill_memcache(struct kvm_hyp_memcache *mc, unsigned long min_pages,
 		    struct kvm_hyp_memcache *host_mc)
 {

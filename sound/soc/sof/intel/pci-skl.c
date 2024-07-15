@@ -24,17 +24,17 @@ static struct sof_dev_desc skl_desc = {
 	.resindex_imr_base	= -1,
 	.chip_info = &skl_chip_info,
 	.irqindex_host_ipc	= -1,
-	.ipc_supported_mask	= BIT(SOF_INTEL_IPC4),
-	.ipc_default		= SOF_INTEL_IPC4,
+	.ipc_supported_mask	= BIT(SOF_IPC_TYPE_4),
+	.ipc_default		= SOF_IPC_TYPE_4,
 	.dspless_mode_supported	= true,		/* Only supported for HDaudio */
 	.default_fw_path = {
-		[SOF_INTEL_IPC4] = "intel/avs/skl",
+		[SOF_IPC_TYPE_4] = "intel/avs/skl",
 	},
 	.default_tplg_path = {
-		[SOF_INTEL_IPC4] = "intel/avs-tplg",
+		[SOF_IPC_TYPE_4] = "intel/avs-tplg",
 	},
 	.default_fw_filename = {
-		[SOF_INTEL_IPC4] = "dsp_basefw.bin",
+		[SOF_IPC_TYPE_4] = "dsp_basefw.bin",
 	},
 	.nocodec_tplg_filename = "sof-skl-nocodec.tplg",
 	.ops = &sof_skl_ops,
@@ -49,17 +49,17 @@ static struct sof_dev_desc kbl_desc = {
 	.resindex_imr_base	= -1,
 	.chip_info = &skl_chip_info,
 	.irqindex_host_ipc	= -1,
-	.ipc_supported_mask	= BIT(SOF_INTEL_IPC4),
-	.ipc_default		= SOF_INTEL_IPC4,
+	.ipc_supported_mask	= BIT(SOF_IPC_TYPE_4),
+	.ipc_default		= SOF_IPC_TYPE_4,
 	.dspless_mode_supported	= true,		/* Only supported for HDaudio */
 	.default_fw_path = {
-		[SOF_INTEL_IPC4] = "intel/avs/kbl",
+		[SOF_IPC_TYPE_4] = "intel/avs/kbl",
 	},
 	.default_tplg_path = {
-		[SOF_INTEL_IPC4] = "intel/avs-tplg",
+		[SOF_IPC_TYPE_4] = "intel/avs-tplg",
 	},
 	.default_fw_filename = {
-		[SOF_INTEL_IPC4] = "dsp_basefw.bin",
+		[SOF_IPC_TYPE_4] = "dsp_basefw.bin",
 	},
 	.nocodec_tplg_filename = "sof-kbl-nocodec.tplg",
 	.ops = &sof_skl_ops,
@@ -69,10 +69,8 @@ static struct sof_dev_desc kbl_desc = {
 
 /* PCI IDs */
 static const struct pci_device_id sof_pci_ids[] = {
-	/* Sunrise Point-LP */
-	{ PCI_DEVICE(0x8086, 0x9d70), .driver_data = (unsigned long)&skl_desc},
-	/* KBL */
-	{ PCI_DEVICE(0x8086, 0x9d71), .driver_data = (unsigned long)&kbl_desc},
+	{ PCI_DEVICE_DATA(INTEL, HDA_SKL_LP, &skl_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_KBL_LP, &kbl_desc) },
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, sof_pci_ids);

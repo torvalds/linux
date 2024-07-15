@@ -716,7 +716,7 @@ static int xxxfb_probe(struct pci_dev *dev, const struct pci_device_id *ent)
      *
      * NOTE: These are for fbcon use only.
      */
-    info->flags = FBINFO_DEFAULT;
+    info->flags = 0;
 
 /********************* This stage is optional ******************************/
      /*

@@ -42,33 +42,33 @@ static u32 __iomem *mpic_percpu_base_vaddr;
  * Linux descriptor level callbacks
  */
 
-void ehv_pic_unmask_irq(struct irq_data *d)
+static void ehv_pic_unmask_irq(struct irq_data *d)
 {
 	unsigned int src = virq_to_hw(d->irq);
 
 	ev_int_set_mask(src, 0);
 }
 
-void ehv_pic_mask_irq(struct irq_data *d)
+static void ehv_pic_mask_irq(struct irq_data *d)
 {
 	unsigned int src = virq_to_hw(d->irq);
 
 	ev_int_set_mask(src, 1);
 }
 
-void ehv_pic_end_irq(struct irq_data *d)
+static void ehv_pic_end_irq(struct irq_data *d)
 {
 	unsigned int src = virq_to_hw(d->irq);
 
 	ev_int_eoi(src);
 }
 
-void ehv_pic_direct_end_irq(struct irq_data *d)
+static void ehv_pic_direct_end_irq(struct irq_data *d)
 {
 	out_be32(mpic_percpu_base_vaddr + MPIC_EOI / 4, 0);
 }
 
-int ehv_pic_set_affinity(struct irq_data *d, const struct cpumask *dest,
+static int ehv_pic_set_affinity(struct irq_data *d, const struct cpumask *dest,
 			 bool force)
 {
 	unsigned int src = virq_to_hw(d->irq);
@@ -109,7 +109,7 @@ static unsigned int ehv_pic_type_to_vecpri(unsigned int type)
 	}
 }
 
-int ehv_pic_set_irq_type(struct irq_data *d, unsigned int flow_type)
+static int ehv_pic_set_irq_type(struct irq_data *d, unsigned int flow_type)
 {
 	unsigned int src = virq_to_hw(d->irq);
 	unsigned int vecpri, vold, vnew, prio, cpu_dest;

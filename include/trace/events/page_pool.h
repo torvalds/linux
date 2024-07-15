@@ -9,7 +9,7 @@
 #include <linux/tracepoint.h>
 
 #include <trace/events/mmflags.h>
-#include <net/page_pool.h>
+#include <net/page_pool/types.h>
 
 TRACE_EVENT(page_pool_release,
 

@@ -209,7 +209,7 @@ static int tcf_skbedit_init(struct net *net, struct nlattr *nla,
 		return err;
 	exists = err;
 	if (exists && bind)
-		return 0;
+		return ACT_P_BOUND;
 
 	if (!flags) {
 		if (exists)
@@ -426,6 +426,7 @@ static struct tc_action_ops act_skbedit_ops = {
 	.offload_act_setup =	tcf_skbedit_offload_act_setup,
 	.size		=	sizeof(struct tcf_skbedit),
 };
+MODULE_ALIAS_NET_ACT("skbedit");
 
 static __net_init int skbedit_init_net(struct net *net)
 {

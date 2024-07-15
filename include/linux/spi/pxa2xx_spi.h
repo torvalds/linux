@@ -5,6 +5,7 @@
 #ifndef __LINUX_SPI_PXA2XX_SPI_H
 #define __LINUX_SPI_PXA2XX_SPI_H
 
+#include <linux/dmaengine.h>
 #include <linux/types.h>
 
 #include <linux/pxa2xx_ssp.h>
@@ -19,10 +20,10 @@ struct pxa2xx_spi_controller {
 	u16 num_chipselect;
 	u8 enable_dma;
 	u8 dma_burst_size;
-	bool is_slave;
+	bool is_target;
 
 	/* DMA engine specific config */
-	bool (*dma_filter)(struct dma_chan *chan, void *param);
+	dma_filter_fn dma_filter;
 	void *tx_param;
 	void *rx_param;
 
@@ -31,7 +32,7 @@ struct pxa2xx_spi_controller {
 };
 
 /*
- * The controller specific data for SPI slave devices
+ * The controller specific data for SPI target devices
  * (resides in spi_board_info.controller_data),
  * copied to spi_device.platform_data ... mostly for
  * DMA tuning.

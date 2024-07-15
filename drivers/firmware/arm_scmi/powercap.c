@@ -17,6 +17,9 @@
 #include "protocols.h"
 #include "notify.h"
 
+/* Updated only after ALL the mandatory features for that version are merged */
+#define SCMI_PROTOCOL_SUPPORTED_VERSION		0x20000
+
 enum scmi_powercap_protocol_cmd {
 	POWERCAP_DOMAIN_ATTRIBUTES = 0x3,
 	POWERCAP_CAP_GET = 0x4,
@@ -121,6 +124,8 @@ struct scmi_powercap_state {
 struct powercap_info {
 	u32 version;
 	int num_domains;
+	bool notify_cap_cmd;
+	bool notify_measurements_cmd;
 	struct scmi_powercap_state *states;
 	struct scmi_powercap_info *powercaps;
 };
@@ -154,6 +159,18 @@ scmi_powercap_attributes_get(const struct scmi_protocol_handle *ph,
 	}
 
 	ph->xops->xfer_put(ph, t);
+
+	if (!ret) {
+		if (!ph->hops->protocol_msg_check(ph,
+						  POWERCAP_CAP_NOTIFY, NULL))
+			pi->notify_cap_cmd = true;
+
+		if (!ph->hops->protocol_msg_check(ph,
+						  POWERCAP_MEASUREMENTS_NOTIFY,
+						  NULL))
+			pi->notify_measurements_cmd = true;
+	}
+
 	return ret;
 }
 
@@ -197,10 +214,12 @@ scmi_powercap_domain_attributes_get(const struct scmi_protocol_handle *ph,
 		flags = le32_to_cpu(resp->attributes);
 
 		dom_info->id = domain;
-		dom_info->notify_powercap_cap_change =
-			SUPPORTS_POWERCAP_CAP_CHANGE_NOTIFY(flags);
-		dom_info->notify_powercap_measurement_change =
-			SUPPORTS_POWERCAP_MEASUREMENTS_CHANGE_NOTIFY(flags);
+		if (pinfo->notify_cap_cmd)
+			dom_info->notify_powercap_cap_change =
+				SUPPORTS_POWERCAP_CAP_CHANGE_NOTIFY(flags);
+		if (pinfo->notify_measurements_cmd)
+			dom_info->notify_powercap_measurement_change =
+				SUPPORTS_POWERCAP_MEASUREMENTS_CHANGE_NOTIFY(flags);
 		dom_info->async_powercap_cap_set =
 			SUPPORTS_ASYNC_POWERCAP_CAP_SET(flags);
 		dom_info->powercap_cap_config =
@@ -270,7 +289,7 @@ clean:
 	 */
 	if (!ret && SUPPORTS_EXTENDED_NAMES(flags))
 		ph->hops->extended_name_get(ph, POWERCAP_DOMAIN_NAME_GET,
-					    domain, dom_info->name,
+					    domain, NULL, dom_info->name,
 					    SCMI_MAX_STR_SIZE);
 
 	return ret;
@@ -360,8 +379,8 @@ static int scmi_powercap_xfer_cap_set(const struct scmi_protocol_handle *ph,
 	msg = t->tx.buf;
 	msg->domain = cpu_to_le32(pc->id);
 	msg->flags =
-		cpu_to_le32(FIELD_PREP(CAP_SET_ASYNC, !!pc->async_powercap_cap_set) |
-			    FIELD_PREP(CAP_SET_IGNORE_DRESP, !!ignore_dresp));
+		cpu_to_le32(FIELD_PREP(CAP_SET_ASYNC, pc->async_powercap_cap_set) |
+			    FIELD_PREP(CAP_SET_IGNORE_DRESP, ignore_dresp));
 	msg->value = cpu_to_le32(power_cap);
 
 	if (!pc->async_powercap_cap_set || ignore_dresp) {
@@ -700,20 +719,24 @@ static void scmi_powercap_domain_init_fc(const struct scmi_protocol_handle *ph,
 	ph->hops->fastchannel_init(ph, POWERCAP_DESCRIBE_FASTCHANNEL,
 				   POWERCAP_CAP_SET, 4, domain,
 				   &fc[POWERCAP_FC_CAP].set_addr,
-				   &fc[POWERCAP_FC_CAP].set_db);
+				   &fc[POWERCAP_FC_CAP].set_db,
+				   &fc[POWERCAP_FC_CAP].rate_limit);
 
 	ph->hops->fastchannel_init(ph, POWERCAP_DESCRIBE_FASTCHANNEL,
 				   POWERCAP_CAP_GET, 4, domain,
-				   &fc[POWERCAP_FC_CAP].get_addr, NULL);
+				   &fc[POWERCAP_FC_CAP].get_addr, NULL,
+				   &fc[POWERCAP_FC_CAP].rate_limit);
 
 	ph->hops->fastchannel_init(ph, POWERCAP_DESCRIBE_FASTCHANNEL,
 				   POWERCAP_PAI_SET, 4, domain,
 				   &fc[POWERCAP_FC_PAI].set_addr,
-				   &fc[POWERCAP_FC_PAI].set_db);
+				   &fc[POWERCAP_FC_PAI].set_db,
+				   &fc[POWERCAP_FC_PAI].rate_limit);
 
 	ph->hops->fastchannel_init(ph, POWERCAP_DESCRIBE_FASTCHANNEL,
 				   POWERCAP_PAI_GET, 4, domain,
-				   &fc[POWERCAP_FC_PAI].get_addr, NULL);
+				   &fc[POWERCAP_FC_PAI].get_addr, NULL,
+				   &fc[POWERCAP_FC_PAI].rate_limit);
 
 	*p_fc = fc;
 }
@@ -783,6 +806,26 @@ static int scmi_powercap_notify(const struct scmi_protocol_handle *ph,
 
 	ph->xops->xfer_put(ph, t);
 	return ret;
+}
+
+static bool
+scmi_powercap_notify_supported(const struct scmi_protocol_handle *ph,
+			       u8 evt_id, u32 src_id)
+{
+	bool supported = false;
+	const struct scmi_powercap_info *dom_info;
+	struct powercap_info *pi = ph->get_priv(ph);
+
+	if (evt_id >= ARRAY_SIZE(evt_2_cmd) || src_id >= pi->num_domains)
+		return false;
+
+	dom_info = pi->powercaps + src_id;
+	if (evt_id == SCMI_EVENT_POWERCAP_CAP_CHANGED)
+		supported = dom_info->notify_powercap_cap_change;
+	else if (evt_id == SCMI_EVENT_POWERCAP_MEASUREMENTS_CHANGED)
+		supported = dom_info->notify_powercap_measurement_change;
+
+	return supported;
 }
 
 static int
@@ -901,6 +944,7 @@ static const struct scmi_event powercap_events[] = {
 };
 
 static const struct scmi_event_ops powercap_event_ops = {
+	.is_notify_supported = scmi_powercap_notify_supported,
 	.get_num_sources = scmi_powercap_get_num_sources,
 	.set_notify_enabled = scmi_powercap_set_notify_enabled,
 	.fill_custom_report = scmi_powercap_fill_custom_report,
@@ -975,7 +1019,7 @@ scmi_powercap_protocol_init(const struct scmi_protocol_handle *ph)
 	}
 
 	pinfo->version = version;
-	return ph->set_priv(ph, pinfo);
+	return ph->set_priv(ph, pinfo, version);
 }
 
 static const struct scmi_protocol scmi_powercap = {
@@ -984,6 +1028,7 @@ static const struct scmi_protocol scmi_powercap = {
 	.instance_init = &scmi_powercap_protocol_init,
 	.ops = &powercap_proto_ops,
 	.events = &powercap_protocol_events,
+	.supported_version = SCMI_PROTOCOL_SUPPORTED_VERSION,
 };
 
 DEFINE_SCMI_PROTOCOL_REGISTER_UNREGISTER(powercap, scmi_powercap)

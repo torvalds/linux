@@ -25,9 +25,14 @@ struct vmlinux_info {
 	unsigned long bootdata_size;
 	unsigned long bootdata_preserved_off;
 	unsigned long bootdata_preserved_size;
+#ifdef CONFIG_PIE_BUILD
 	unsigned long dynsym_start;
 	unsigned long rela_dyn_start;
 	unsigned long rela_dyn_end;
+#else
+	unsigned long got_start;
+	unsigned long got_end;
+#endif
 	unsigned long amode31_size;
 	unsigned long init_mm_off;
 	unsigned long swapper_pg_dir_off;
@@ -83,6 +88,7 @@ extern unsigned long vmalloc_size;
 extern int vmalloc_size_set;
 extern char __boot_data_start[], __boot_data_end[];
 extern char __boot_data_preserved_start[], __boot_data_preserved_end[];
+extern char __vmlinux_relocs_64_start[], __vmlinux_relocs_64_end[];
 extern char _decompressor_syms_start[], _decompressor_syms_end[];
 extern char _stack_start[], _stack_end[];
 extern char _end[], _decompressor_end[];

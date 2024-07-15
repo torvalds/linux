@@ -2,7 +2,6 @@
 # All platforms listed in alphabetic order
 
 platform-$(CONFIG_MIPS_ALCHEMY)		+= alchemy/
-platform-$(CONFIG_AR7)			+= ar7/
 platform-$(CONFIG_ATH25)		+= ath25/
 platform-$(CONFIG_ATH79)		+= ath79/
 platform-$(CONFIG_BCM47XX)		+= bcm47xx/
@@ -18,6 +17,7 @@ platform-$(CONFIG_MACH_LOONGSON2EF)	+= loongson2ef/
 platform-$(CONFIG_MACH_LOONGSON32)	+= loongson32/
 platform-$(CONFIG_MACH_LOONGSON64)	+= loongson64/
 platform-$(CONFIG_MIPS_MALTA)		+= mti-malta/
+platform-$(CONFIG_MACH_EYEQ5)		+= mobileye/
 platform-$(CONFIG_MACH_NINTENDO64)	+= n64/
 platform-$(CONFIG_PIC32MZDA)		+= pic32/
 platform-$(CONFIG_RALINK)		+= ralink/

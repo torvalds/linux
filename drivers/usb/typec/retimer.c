@@ -155,6 +155,6 @@ void *typec_retimer_get_drvdata(struct typec_retimer *retimer)
 }
 EXPORT_SYMBOL_GPL(typec_retimer_get_drvdata);
 
-struct class retimer_class = {
+const struct class retimer_class = {
 	.name = "retimer",
 };

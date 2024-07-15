@@ -18,13 +18,8 @@ struct proc_dir_entry;
 struct notifier_block;
 
 #if defined(CONFIG_PROFILING) && defined(CONFIG_PROC_FS)
-void create_prof_cpu_mask(void);
 int create_proc_profile(void);
 #else
-static inline void create_prof_cpu_mask(void)
-{
-}
-
 static inline int create_proc_profile(void)
 {
 	return 0;

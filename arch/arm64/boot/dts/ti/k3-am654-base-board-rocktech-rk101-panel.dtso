@@ -1,10 +1,10 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only OR MIT
 /**
  * OLDI-LCD1EVM Rocktech integrated panel and touch DT overlay for AM654-EVM.
  * Panel Link: https://www.digimax.it/en/tft-lcd/20881-RK101II01D-CT
  * AM654 LCD EVM: https://www.ti.com/tool/TMDSLCD1EVM
  *
- * Copyright (C) 2023 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2023-2024 Texas Instruments Incorporated - https://www.ti.com/
  */
 
 /dts-v1/;

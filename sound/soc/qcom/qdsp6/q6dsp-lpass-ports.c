@@ -603,9 +603,6 @@ struct snd_soc_dai_driver *q6dsp_audio_ports_set_config(struct device *dev,
 	int i;
 
 	for (i = 0; i  < ARRAY_SIZE(q6dsp_audio_fe_dais); i++) {
-		q6dsp_audio_fe_dais[i].probe = cfg->probe;
-		q6dsp_audio_fe_dais[i].remove = cfg->remove;
-
 		switch (q6dsp_audio_fe_dais[i].id) {
 		case HDMI_RX:
 		case DISPLAY_PORT_RX:

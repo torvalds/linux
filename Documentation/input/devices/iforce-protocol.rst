@@ -49,7 +49,7 @@ OP DATA
 == ====
 
 The 2B, LEN and CS fields have disappeared, probably because USB handles
-frames and data corruption is handled or unsignificant.
+frames and data corruption is handled or insignificant.
 
 First, I describe effects that are sent by the device to the computer
 

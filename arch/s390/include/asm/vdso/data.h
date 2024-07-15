@@ -3,7 +3,6 @@
 #define __S390_ASM_VDSO_DATA_H
 
 #include <linux/types.h>
-#include <vdso/datapage.h>
 
 struct arch_vdso_data {
 	__s64 tod_steering_delta;

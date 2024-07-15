@@ -13,9 +13,9 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
-#include <linux/of_device.h>
 #include <linux/thermal.h>
 
 #define HI6220_TEMP0_LAG			(0x0)
@@ -597,7 +597,7 @@ static int hisi_thermal_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int hisi_thermal_remove(struct platform_device *pdev)
+static void hisi_thermal_remove(struct platform_device *pdev)
 {
 	struct hisi_thermal_data *data = platform_get_drvdata(pdev);
 	int i;
@@ -608,8 +608,6 @@ static int hisi_thermal_remove(struct platform_device *pdev)
 		hisi_thermal_toggle_sensor(sensor, false);
 		data->ops->disable_sensor(sensor);
 	}
-
-	return 0;
 }
 
 static int hisi_thermal_suspend(struct device *dev)
@@ -644,7 +642,7 @@ static struct platform_driver hisi_thermal_driver = {
 		.of_match_table = of_hisi_thermal_match,
 	},
 	.probe	= hisi_thermal_probe,
-	.remove	= hisi_thermal_remove,
+	.remove_new = hisi_thermal_remove,
 };
 
 module_platform_driver(hisi_thermal_driver);

@@ -305,7 +305,7 @@ static int sevseg_probe(struct usb_interface *interface,
 	const struct usb_device_id *id)
 {
 	struct usb_device *udev = interface_to_usbdev(interface);
-	struct usb_sevsegdev *mydev = NULL;
+	struct usb_sevsegdev *mydev;
 	int rc = -ENOMEM;
 
 	mydev = kzalloc(sizeof(struct usb_sevsegdev), GFP_KERNEL);

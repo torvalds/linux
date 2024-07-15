@@ -584,8 +584,6 @@ static int fpa_set(struct task_struct *target,
 {
 	struct thread_info *thread = task_thread_info(target);
 
-	thread->used_cp[1] = thread->used_cp[2] = 1;
-
 	return user_regset_copyin(&pos, &count, &kbuf, &ubuf,
 		&thread->fpstate,
 		0, sizeof(struct user_fp));
@@ -783,8 +781,9 @@ long arch_ptrace(struct task_struct *child, long request,
 			break;
 
 		case PTRACE_SET_SYSCALL:
-			task_thread_info(child)->abi_syscall = data &
-							__NR_SYSCALL_MASK;
+			if (data != -1)
+				data &= __NR_SYSCALL_MASK;
+			task_thread_info(child)->abi_syscall = data;
 			ret = 0;
 			break;
 

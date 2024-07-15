@@ -91,10 +91,6 @@ struct dialog_info {
 	struct dialog_color button_label_active;
 	struct dialog_color button_label_inactive;
 	struct dialog_color inputbox;
-	struct dialog_color inputbox_border;
-	struct dialog_color searchbox;
-	struct dialog_color searchbox_title;
-	struct dialog_color searchbox_border;
 	struct dialog_color position_indicator;
 	struct dialog_color menubox;
 	struct dialog_color menubox_border;
@@ -166,17 +162,17 @@ int on_key_esc(WINDOW *win);
 int on_key_resize(void);
 
 /* minimum (re)size values */
-#define CHECKLIST_HEIGTH_MIN 6	/* For dialog_checklist() */
+#define CHECKLIST_HEIGHT_MIN 6	/* For dialog_checklist() */
 #define CHECKLIST_WIDTH_MIN 6
-#define INPUTBOX_HEIGTH_MIN 2	/* For dialog_inputbox() */
+#define INPUTBOX_HEIGHT_MIN 2	/* For dialog_inputbox() */
 #define INPUTBOX_WIDTH_MIN 2
-#define MENUBOX_HEIGTH_MIN 15	/* For dialog_menu() */
+#define MENUBOX_HEIGHT_MIN 15	/* For dialog_menu() */
 #define MENUBOX_WIDTH_MIN 65
-#define TEXTBOX_HEIGTH_MIN 8	/* For dialog_textbox() */
+#define TEXTBOX_HEIGHT_MIN 8	/* For dialog_textbox() */
 #define TEXTBOX_WIDTH_MIN 8
-#define YESNO_HEIGTH_MIN 4	/* For dialog_yesno() */
+#define YESNO_HEIGHT_MIN 4	/* For dialog_yesno() */
 #define YESNO_WIDTH_MIN 4
-#define WINDOW_HEIGTH_MIN 19	/* For init_dialog() */
+#define WINDOW_HEIGHT_MIN 19	/* For init_dialog() */
 #define WINDOW_WIDTH_MIN 80
 
 int init_dialog(const char *backtitle);
@@ -196,13 +192,9 @@ int first_alpha(const char *string, const char *exempt);
 int dialog_yesno(const char *title, const char *prompt, int height, int width);
 int dialog_msgbox(const char *title, const char *prompt, int height,
 		  int width, int pause);
-
-
-typedef void (*update_text_fn)(char *buf, size_t start, size_t end, void
-			       *_data);
-int dialog_textbox(const char *title, char *tbuf, int initial_height,
-		   int initial_width, int *keys, int *_vscroll, int *_hscroll,
-		   update_text_fn update_text, void *data);
+int dialog_textbox(const char *title, const char *tbuf, int initial_height,
+		   int initial_width, int *_vscroll, int *_hscroll,
+		   int (*extra_key_cb)(int, size_t, size_t, void *), void *data);
 int dialog_menu(const char *title, const char *prompt,
 		const void *selected, int *s_scroll);
 int dialog_checklist(const char *title, const char *prompt, int height,

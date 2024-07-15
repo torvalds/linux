@@ -54,9 +54,7 @@
 \renewcommand*\l@section{\@dottedtocline{1}{2.4em}{3.2em}}
 \renewcommand*\l@subsection{\@dottedtocline{2}{5.6em}{4.3em}}
 \makeatother
-%% Sphinx < 1.8 doesn't have \sphinxtableofcontentshook
-\providecommand{\sphinxtableofcontentshook}{}
-%% Undefine it for compatibility with Sphinx 1.7.9
+%% Prevent default \sphinxtableofcontentshook from overwriting above tweaks.
 \renewcommand{\sphinxtableofcontentshook}{} % Empty the hook
 
 % Prevent column squeezing of tabulary.  \tymin is set by Sphinx as:
@@ -136,9 +134,6 @@
     }
     \newCJKfontfamily[JPsans]\jpsans{Noto Sans CJK JP}[AutoFakeSlant]
     \newCJKfontfamily[JPmono]\jpmono{Noto Sans Mono CJK JP}[AutoFakeSlant]
-    % Dummy commands for Sphinx < 2.3 (no 'extrapackages' support)
-    \providecommand{\onehalfspacing}{}
-    \providecommand{\singlespacing}{}
     % Define custom macros to on/off CJK
     %% One and half spacing for CJK contents
     \newcommand{\kerneldocCJKon}{\makexeCJKactive\onehalfspacing}

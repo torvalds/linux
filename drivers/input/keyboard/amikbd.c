@@ -26,7 +26,7 @@ MODULE_AUTHOR("Vojtech Pavlik <vojtech@ucw.cz>");
 MODULE_DESCRIPTION("Amiga keyboard driver");
 MODULE_LICENSE("GPL");
 
-#ifdef CONFIG_HW_CONSOLE
+#ifdef CONFIG_VT
 static unsigned char amikbd_keycode[0x78] __initdata = {
 	[0]	 = KEY_GRAVE,
 	[1]	 = KEY_1,
@@ -148,9 +148,9 @@ static void __init amikbd_init_console_keymaps(void)
 		memcpy(key_maps[i], temp_map, sizeof(temp_map));
 	}
 }
-#else /* !CONFIG_HW_CONSOLE */
+#else /* !CONFIG_VT */
 static inline void amikbd_init_console_keymaps(void) {}
-#endif /* !CONFIG_HW_CONSOLE */
+#endif /* !CONFIG_VT */
 
 static const char *amikbd_messages[8] = {
 	[0] = KERN_ALERT "amikbd: Ctrl-Amiga-Amiga reset warning!!\n",

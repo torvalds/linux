@@ -22,7 +22,7 @@
 
 struct gmii2rgmii {
 	struct phy_device *phy_dev;
-	struct phy_driver *phy_drv;
+	const struct phy_driver *phy_drv;
 	struct phy_driver conv_phy_drv;
 	struct mdio_device *mdio;
 };

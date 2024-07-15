@@ -1,0 +1,84 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/timer/mediatek,timer.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: MediaTek SoC timers
+
+maintainers:
+  - Matthias Brugger <matthias.bgg@gmail.com>
+
+description:
+  MediaTek SoCs have different timers on different platforms,
+  CPUX (ARM/ARM64 System Timer), GPT (General Purpose Timer)
+  and SYST (System Timer).
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - mediatek,mt6577-timer
+              - mediatek,mt6765-timer
+              - mediatek,mt6795-systimer
+      # GPT Timers
+      - items:
+          - enum:
+              - mediatek,mt2701-timer
+              - mediatek,mt6580-timer
+              - mediatek,mt6582-timer
+              - mediatek,mt6589-timer
+              - mediatek,mt7623-timer
+              - mediatek,mt8127-timer
+              - mediatek,mt8135-timer
+              - mediatek,mt8173-timer
+              - mediatek,mt8516-timer
+          - const: mediatek,mt6577-timer
+      # SYST Timers
+      - items:
+          - enum:
+              - mediatek,mt7629-timer
+              - mediatek,mt8183-timer
+              - mediatek,mt8186-timer
+              - mediatek,mt8188-timer
+              - mediatek,mt8192-timer
+              - mediatek,mt8195-timer
+              - mediatek,mt8365-systimer
+          - const: mediatek,mt6765-timer
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    minItems: 1
+    items:
+      - description: Timer clock
+      - description: RTC or bus clock
+
+  clock-names:
+    minItems: 1
+    maxItems: 2
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    timer@10008000 {
+      compatible = "mediatek,mt6577-timer";
+      reg = <0x10008000 0x80>;
+      interrupts = <GIC_SPI 113 IRQ_TYPE_LEVEL_LOW>;
+      clocks = <&system_clk>;
+    };

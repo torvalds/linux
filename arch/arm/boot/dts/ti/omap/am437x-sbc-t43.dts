@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2015 CompuLab, Ltd. - http://www.compulab.co.il/
+ * Copyright (C) 2015 CompuLab, Ltd. - https://www.compulab.co.il/
  */
 
 #include "am437x-cm-t43.dts"

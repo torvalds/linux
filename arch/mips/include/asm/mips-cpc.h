@@ -22,7 +22,7 @@ extern void __iomem *mips_cpc_base;
  *                              the CPC
  *
  * Returns the default physical base address of the Cluster Power Controller
- * memory mapped registers. This is platform dependant & must therefore be
+ * memory mapped registers. This is platform dependent & must therefore be
  * implemented per-platform.
  */
 extern phys_addr_t mips_cpc_default_phys_base(void);

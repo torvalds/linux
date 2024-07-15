@@ -16,7 +16,6 @@
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
 #include <linux/atomic.h>
-#include <linux/of_device.h>
 
 #define USBHS_LPSTS			0x02
 #define USBHS_UGCTRL			0x80
@@ -307,7 +306,7 @@ static const struct of_device_id rcar_gen2_phy_match_table[] = {
 MODULE_DEVICE_TABLE(of, rcar_gen2_phy_match_table);
 
 static struct phy *rcar_gen2_phy_xlate(struct device *dev,
-				       struct of_phandle_args *args)
+				       const struct of_phandle_args *args)
 {
 	struct rcar_gen2_phy_driver *drv;
 	struct device_node *np = args->np;

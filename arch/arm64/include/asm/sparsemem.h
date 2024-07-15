@@ -10,7 +10,7 @@
 /*
  * Section size must be at least 512MB for 64K base
  * page size config. Otherwise it will be less than
- * MAX_ORDER and the build process will fail.
+ * MAX_PAGE_ORDER and the build process will fail.
  */
 #ifdef CONFIG_ARM64_64K_PAGES
 #define SECTION_SIZE_BITS 29

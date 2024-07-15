@@ -1,0 +1,68 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/qcom,qdu1000-ecpricc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm ECPRI Clock & Reset Controller for QDU1000 and QRU1000
+
+maintainers:
+  - Taniya Das <quic_tdas@quicinc.com>
+  - Imran Shaik <quic_imrashai@quicinc.com>
+
+description: |
+  Qualcomm ECPRI Specification V2.0 Common Public Radio Interface clock control
+  module which supports the clocks, resets on QDU1000 and QRU1000
+
+  See also:: include/dt-bindings/clock/qcom,qdu1000-ecpricc.h
+
+properties:
+  compatible:
+    enum:
+      - qcom,qdu1000-ecpricc
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    items:
+      - description: Board XO source
+      - description: GPLL0 source from GCC
+      - description: GPLL1 source from GCC
+      - description: GPLL2 source from GCC
+      - description: GPLL3 source from GCC
+      - description: GPLL4 source from GCC
+      - description: GPLL5 source from GCC
+
+  '#clock-cells':
+    const: 1
+
+  '#reset-cells':
+    const: 1
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - '#clock-cells'
+  - '#reset-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/qcom,qdu1000-gcc.h>
+    #include <dt-bindings/clock/qcom,rpmh.h>
+    clock-controller@280000 {
+      compatible = "qcom,qdu1000-ecpricc";
+      reg = <0x00280000 0x31c00>;
+      clocks = <&rpmhcc RPMH_CXO_CLK>,
+               <&gcc GCC_ECPRI_CC_GPLL0_CLK_SRC>,
+               <&gcc GCC_ECPRI_CC_GPLL1_EVEN_CLK_SRC>,
+               <&gcc GCC_ECPRI_CC_GPLL2_EVEN_CLK_SRC>,
+               <&gcc GCC_ECPRI_CC_GPLL3_CLK_SRC>,
+               <&gcc GCC_ECPRI_CC_GPLL4_CLK_SRC>,
+               <&gcc GCC_ECPRI_CC_GPLL5_EVEN_CLK_SRC>;
+      #clock-cells = <1>;
+      #reset-cells = <1>;
+    };

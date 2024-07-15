@@ -89,6 +89,22 @@ void mei_cancel_work(struct mei_device *dev)
 }
 EXPORT_SYMBOL_GPL(mei_cancel_work);
 
+static void mei_save_fw_status(struct mei_device *dev)
+{
+	struct mei_fw_status fw_status;
+	int ret;
+
+	ret = mei_fw_status(dev, &fw_status);
+	if (ret) {
+		dev_err(dev->dev, "failed to read firmware status: %d\n", ret);
+		return;
+	}
+
+	dev->saved_dev_state = dev->dev_state;
+	dev->saved_fw_status_flag = true;
+	memcpy(&dev->saved_fw_status, &fw_status, sizeof(fw_status));
+}
+
 /**
  * mei_reset - resets host and fw.
  *
@@ -109,8 +125,14 @@ int mei_reset(struct mei_device *dev)
 		char fw_sts_str[MEI_FW_STATUS_STR_SZ];
 
 		mei_fw_status_str(dev, fw_sts_str, MEI_FW_STATUS_STR_SZ);
-		dev_warn(dev->dev, "unexpected reset: dev_state = %s fw status = %s\n",
-			 mei_dev_state_str(state), fw_sts_str);
+		if (kind_is_gsc(dev) || kind_is_gscfi(dev)) {
+			dev_dbg(dev->dev, "unexpected reset: dev_state = %s fw status = %s\n",
+				mei_dev_state_str(state), fw_sts_str);
+			mei_save_fw_status(dev);
+		} else {
+			dev_warn(dev->dev, "unexpected reset: dev_state = %s fw status = %s\n",
+				 mei_dev_state_str(state), fw_sts_str);
+		}
 	}
 
 	mei_clear_interrupts(dev);
@@ -142,6 +164,9 @@ int mei_reset(struct mei_device *dev)
 
 	mei_hbm_reset(dev);
 
+	/* clean stale FW version */
+	dev->fw_ver_received = 0;
+
 	memset(dev->rd_msg_hdr, 0, sizeof(dev->rd_msg_hdr));
 
 	if (ret) {
@@ -157,7 +182,10 @@ int mei_reset(struct mei_device *dev)
 
 	ret = mei_hw_start(dev);
 	if (ret) {
-		dev_err(dev->dev, "hw_start failed ret = %d\n", ret);
+		char fw_sts_str[MEI_FW_STATUS_STR_SZ];
+
+		mei_fw_status_str(dev, fw_sts_str, MEI_FW_STATUS_STR_SZ);
+		dev_err(dev->dev, "hw_start failed ret = %d fw status = %s\n", ret, fw_sts_str);
 		return ret;
 	}
 
@@ -388,6 +416,7 @@ void mei_device_init(struct mei_device *dev,
 	dev->open_handle_count = 0;
 
 	dev->pxp_mode = MEI_DEV_PXP_DEFAULT;
+	dev->gsc_reset_to_pxp = MEI_DEV_RESET_TO_PXP_DEFAULT;
 
 	/*
 	 * Reserving the first client ID

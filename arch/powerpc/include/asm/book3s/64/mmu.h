@@ -71,10 +71,7 @@ extern unsigned int mmu_pid_bits;
 /* Base PID to allocate from */
 extern unsigned int mmu_base_pid;
 
-/*
- * memory block size used with radix translation.
- */
-extern unsigned long __ro_after_init radix_mem_block_size;
+extern unsigned long __ro_after_init memory_block_size;
 
 #define PRTB_SIZE_SHIFT	(mmu_pid_bits + 4)
 #define PRTB_ENTRIES	(1ul << mmu_pid_bits)
@@ -261,7 +258,7 @@ static inline void radix_init_pseries(void) { }
 #define arch_clear_mm_cpumask_cpu(cpu, mm)				\
 	do {								\
 		if (cpumask_test_cpu(cpu, mm_cpumask(mm))) {		\
-			atomic_dec(&(mm)->context.active_cpus);		\
+			dec_mm_active_cpus(mm);				\
 			cpumask_clear_cpu(cpu, mm_cpumask(mm));		\
 		}							\
 	} while (0)

@@ -133,8 +133,8 @@ with the dt-bindings that describe the ABI.  Please read the section
 more information on the validation of devicetrees.
 
 For new platforms, or additions to existing ones, ``make dtbs_check`` should not
-add any new warnings.  For RISC-V, as it has the advantage of being a newer
-architecture, ``make dtbs_check W=1`` is required to not add any new warnings.
+add any new warnings.  For RISC-V and Samsung SoC, ``make dtbs_check W=1`` is
+required to not add any new warnings.
 If in any doubt about a devicetree change, reach out to the devicetree
 maintainers.
 

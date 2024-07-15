@@ -78,8 +78,7 @@ struct block_report *block_info__create_report(struct evlist *evlist,
 void block_info__free_report(struct block_report *reps, int nr_reps);
 
 int report__browse_block_hists(struct block_hist *bh, float min_percent,
-			       struct evsel *evsel, struct perf_env *env,
-			       struct annotation_options *annotation_opts);
+			       struct evsel *evsel, struct perf_env *env);
 
 float block_info__total_cycles_percent(struct hist_entry *he);
 

@@ -35,7 +35,7 @@
 extern "C" {
 #endif
 
-int libbpf_set_memlock_rlim(size_t memlock_bytes);
+LIBBPF_API int libbpf_set_memlock_rlim(size_t memlock_bytes);
 
 struct bpf_map_create_opts {
 	size_t sz; /* size of this struct for forward/backward compatibility */
@@ -51,8 +51,12 @@ struct bpf_map_create_opts {
 
 	__u32 numa_node;
 	__u32 map_ifindex;
+	__s32 value_type_btf_obj_fd;
+
+	__u32 token_fd;
+	size_t :0;
 };
-#define bpf_map_create_opts__last_field map_ifindex
+#define bpf_map_create_opts__last_field token_fd
 
 LIBBPF_API int bpf_map_create(enum bpf_map_type map_type,
 			      const char *map_name,
@@ -102,9 +106,10 @@ struct bpf_prog_load_opts {
 	 * If kernel doesn't support this feature, log_size is left unchanged.
 	 */
 	__u32 log_true_size;
+	__u32 token_fd;
 	size_t :0;
 };
-#define bpf_prog_load_opts__last_field log_true_size
+#define bpf_prog_load_opts__last_field token_fd
 
 LIBBPF_API int bpf_prog_load(enum bpf_prog_type prog_type,
 			     const char *prog_name, const char *license,
@@ -130,9 +135,12 @@ struct bpf_btf_load_opts {
 	 * If kernel doesn't support this feature, log_size is left unchanged.
 	 */
 	__u32 log_true_size;
+
+	__u32 btf_flags;
+	__u32 token_fd;
 	size_t :0;
 };
-#define bpf_btf_load_opts__last_field log_true_size
+#define bpf_btf_load_opts__last_field token_fd
 
 LIBBPF_API int bpf_btf_load(const void *btf_data, size_t btf_size,
 			    struct bpf_btf_load_opts *opts);
@@ -182,10 +190,14 @@ LIBBPF_API int bpf_map_delete_batch(int fd, const void *keys,
 /**
  * @brief **bpf_map_lookup_batch()** allows for batch lookup of BPF map elements.
  *
- * The parameter *in_batch* is the address of the first element in the batch to read.
- * *out_batch* is an output parameter that should be passed as *in_batch* to subsequent
- * calls to **bpf_map_lookup_batch()**. NULL can be passed for *in_batch* to indicate
- * that the batched lookup starts from the beginning of the map.
+ * The parameter *in_batch* is the address of the first element in the batch to
+ * read. *out_batch* is an output parameter that should be passed as *in_batch*
+ * to subsequent calls to **bpf_map_lookup_batch()**. NULL can be passed for
+ * *in_batch* to indicate that the batched lookup starts from the beginning of
+ * the map. Both *in_batch* and *out_batch* must point to memory large enough to
+ * hold a single key, except for maps of type **BPF_MAP_TYPE_{HASH, PERCPU_HASH,
+ * LRU_HASH, LRU_PERCPU_HASH}**, for which the memory size must be at
+ * least 4 bytes wide regardless of key size.
  *
  * The *keys* and *values* are output parameters which must point to memory large enough to
  * hold *count* items based on the key and value size of the map *map_fd*. The *keys*
@@ -218,7 +230,10 @@ LIBBPF_API int bpf_map_lookup_batch(int fd, void *in_batch, void *out_batch,
  *
  * @param fd BPF map file descriptor
  * @param in_batch address of the first element in batch to read, can pass NULL to
- * get address of the first element in *out_batch*
+ * get address of the first element in *out_batch*. If not NULL, must be large
+ * enough to hold a key. For **BPF_MAP_TYPE_{HASH, PERCPU_HASH, LRU_HASH,
+ * LRU_PERCPU_HASH}**, the memory size must be at least 4 bytes wide regardless
+ * of key size.
  * @param out_batch output parameter that should be passed to next call as *in_batch*
  * @param keys pointer to an array of *count* keys
  * @param values pointer to an array large enough for *count* values
@@ -312,21 +327,67 @@ LIBBPF_API int bpf_obj_get(const char *pathname);
 LIBBPF_API int bpf_obj_get_opts(const char *pathname,
 				const struct bpf_obj_get_opts *opts);
 
-struct bpf_prog_attach_opts {
-	size_t sz; /* size of this struct for forward/backward compatibility */
-	unsigned int flags;
-	int replace_prog_fd;
-};
-#define bpf_prog_attach_opts__last_field replace_prog_fd
-
 LIBBPF_API int bpf_prog_attach(int prog_fd, int attachable_fd,
 			       enum bpf_attach_type type, unsigned int flags);
-LIBBPF_API int bpf_prog_attach_opts(int prog_fd, int attachable_fd,
-				     enum bpf_attach_type type,
-				     const struct bpf_prog_attach_opts *opts);
 LIBBPF_API int bpf_prog_detach(int attachable_fd, enum bpf_attach_type type);
 LIBBPF_API int bpf_prog_detach2(int prog_fd, int attachable_fd,
 				enum bpf_attach_type type);
+
+struct bpf_prog_attach_opts {
+	size_t sz; /* size of this struct for forward/backward compatibility */
+	__u32 flags;
+	union {
+		int replace_prog_fd;
+		int replace_fd;
+	};
+	int relative_fd;
+	__u32 relative_id;
+	__u64 expected_revision;
+	size_t :0;
+};
+#define bpf_prog_attach_opts__last_field expected_revision
+
+struct bpf_prog_detach_opts {
+	size_t sz; /* size of this struct for forward/backward compatibility */
+	__u32 flags;
+	int relative_fd;
+	__u32 relative_id;
+	__u64 expected_revision;
+	size_t :0;
+};
+#define bpf_prog_detach_opts__last_field expected_revision
+
+/**
+ * @brief **bpf_prog_attach_opts()** attaches the BPF program corresponding to
+ * *prog_fd* to a *target* which can represent a file descriptor or netdevice
+ * ifindex.
+ *
+ * @param prog_fd BPF program file descriptor
+ * @param target attach location file descriptor or ifindex
+ * @param type attach type for the BPF program
+ * @param opts options for configuring the attachment
+ * @return 0, on success; negative error code, otherwise (errno is also set to
+ * the error code)
+ */
+LIBBPF_API int bpf_prog_attach_opts(int prog_fd, int target,
+				    enum bpf_attach_type type,
+				    const struct bpf_prog_attach_opts *opts);
+
+/**
+ * @brief **bpf_prog_detach_opts()** detaches the BPF program corresponding to
+ * *prog_fd* from a *target* which can represent a file descriptor or netdevice
+ * ifindex.
+ *
+ * @param prog_fd BPF program file descriptor
+ * @param target detach location file descriptor or ifindex
+ * @param type detach type for the BPF program
+ * @param opts options for configuring the detachment
+ * @return 0, on success; negative error code, otherwise (errno is also set to
+ * the error code)
+ */
+LIBBPF_API int bpf_prog_detach_opts(int prog_fd, int target,
+				    enum bpf_attach_type type,
+				    const struct bpf_prog_detach_opts *opts);
 
 union bpf_iter_link_info; /* defined in up-to-date linux/bpf.h */
 struct bpf_link_create_opts {
@@ -347,12 +408,37 @@ struct bpf_link_create_opts {
 			const __u64 *cookies;
 		} kprobe_multi;
 		struct {
+			__u32 flags;
+			__u32 cnt;
+			const char *path;
+			const unsigned long *offsets;
+			const unsigned long *ref_ctr_offsets;
+			const __u64 *cookies;
+			__u32 pid;
+		} uprobe_multi;
+		struct {
 			__u64 cookie;
 		} tracing;
+		struct {
+			__u32 pf;
+			__u32 hooknum;
+			__s32 priority;
+			__u32 flags;
+		} netfilter;
+		struct {
+			__u32 relative_fd;
+			__u32 relative_id;
+			__u64 expected_revision;
+		} tcx;
+		struct {
+			__u32 relative_fd;
+			__u32 relative_id;
+			__u64 expected_revision;
+		} netkit;
 	};
 	size_t :0;
 };
-#define bpf_link_create_opts__last_field kprobe_multi.cookies
+#define bpf_link_create_opts__last_field uprobe_multi.pid
 
 LIBBPF_API int bpf_link_create(int prog_fd, int target_fd,
 			       enum bpf_attach_type attach_type,
@@ -421,7 +507,10 @@ LIBBPF_API int bpf_obj_get_info_by_fd(int bpf_fd, void *info, __u32 *info_len);
  * program corresponding to *prog_fd*.
  *
  * Populates up to *info_len* bytes of *info* and updates *info_len* with the
- * actual number of bytes written to *info*.
+ * actual number of bytes written to *info*. Note that *info* should be
+ * zero-initialized or initialized as expected by the requested *info*
+ * type. Failing to (zero-)initialize *info* under certain circumstances can
+ * result in this helper returning an error.
  *
  * @param prog_fd BPF program file descriptor
  * @param info pointer to **struct bpf_prog_info** that will be populated with
@@ -438,7 +527,10 @@ LIBBPF_API int bpf_prog_get_info_by_fd(int prog_fd, struct bpf_prog_info *info, 
  * map corresponding to *map_fd*.
  *
  * Populates up to *info_len* bytes of *info* and updates *info_len* with the
- * actual number of bytes written to *info*.
+ * actual number of bytes written to *info*. Note that *info* should be
+ * zero-initialized or initialized as expected by the requested *info*
+ * type. Failing to (zero-)initialize *info* under certain circumstances can
+ * result in this helper returning an error.
  *
  * @param map_fd BPF map file descriptor
  * @param info pointer to **struct bpf_map_info** that will be populated with
@@ -451,11 +543,14 @@ LIBBPF_API int bpf_prog_get_info_by_fd(int prog_fd, struct bpf_prog_info *info, 
 LIBBPF_API int bpf_map_get_info_by_fd(int map_fd, struct bpf_map_info *info, __u32 *info_len);
 
 /**
- * @brief **bpf_btf_get_info_by_fd()** obtains information about the 
+ * @brief **bpf_btf_get_info_by_fd()** obtains information about the
  * BTF object corresponding to *btf_fd*.
  *
  * Populates up to *info_len* bytes of *info* and updates *info_len* with the
- * actual number of bytes written to *info*.
+ * actual number of bytes written to *info*. Note that *info* should be
+ * zero-initialized or initialized as expected by the requested *info*
+ * type. Failing to (zero-)initialize *info* under certain circumstances can
+ * result in this helper returning an error.
  *
  * @param btf_fd BTF object file descriptor
  * @param info pointer to **struct bpf_btf_info** that will be populated with
@@ -472,7 +567,10 @@ LIBBPF_API int bpf_btf_get_info_by_fd(int btf_fd, struct bpf_btf_info *info, __u
  * link corresponding to *link_fd*.
  *
  * Populates up to *info_len* bytes of *info* and updates *info_len* with the
- * actual number of bytes written to *info*.
+ * actual number of bytes written to *info*. Note that *info* should be
+ * zero-initialized or initialized as expected by the requested *info*
+ * type. Failing to (zero-)initialize *info* under certain circumstances can
+ * result in this helper returning an error.
  *
  * @param link_fd BPF link file descriptor
  * @param info pointer to **struct bpf_link_info** that will be populated with
@@ -489,13 +587,31 @@ struct bpf_prog_query_opts {
 	__u32 query_flags;
 	__u32 attach_flags; /* output argument */
 	__u32 *prog_ids;
-	__u32 prog_cnt; /* input+output argument */
+	union {
+		/* input+output argument */
+		__u32 prog_cnt;
+		__u32 count;
+	};
 	__u32 *prog_attach_flags;
+	__u32 *link_ids;
+	__u32 *link_attach_flags;
+	__u64 revision;
+	size_t :0;
 };
-#define bpf_prog_query_opts__last_field prog_attach_flags
+#define bpf_prog_query_opts__last_field revision
 
-LIBBPF_API int bpf_prog_query_opts(int target_fd,
-				   enum bpf_attach_type type,
+/**
+ * @brief **bpf_prog_query_opts()** queries the BPF programs and BPF links
+ * which are attached to *target* which can represent a file descriptor or
+ * netdevice ifindex.
+ *
+ * @param target query location file descriptor or ifindex
+ * @param type attach type for the BPF program
+ * @param opts options for configuring the query
+ * @return 0, on success; negative error code, otherwise (errno is also set to
+ * the error code)
+ */
+LIBBPF_API int bpf_prog_query_opts(int target, enum bpf_attach_type type,
 				   struct bpf_prog_query_opts *opts);
 LIBBPF_API int bpf_prog_query(int target_fd, enum bpf_attach_type type,
 			      __u32 query_flags, __u32 *attach_flags,
@@ -550,6 +666,30 @@ struct bpf_test_run_opts {
 
 LIBBPF_API int bpf_prog_test_run_opts(int prog_fd,
 				      struct bpf_test_run_opts *opts);
+
+struct bpf_token_create_opts {
+	size_t sz; /* size of this struct for forward/backward compatibility */
+	__u32 flags;
+	size_t :0;
+};
+#define bpf_token_create_opts__last_field flags
+
+/**
+ * @brief **bpf_token_create()** creates a new instance of BPF token derived
+ * from specified BPF FS mount point.
+ *
+ * BPF token created with this API can be passed to bpf() syscall for
+ * commands like BPF_PROG_LOAD, BPF_MAP_CREATE, etc.
+ *
+ * @param bpffs_fd FD for BPF FS instance from which to derive a BPF token
+ * instance.
+ * @param opts optional BPF token creation options, can be NULL
+ *
+ * @return BPF token FD > 0, on success; negative error code, otherwise (errno
+ * is also set to the error code)
+ */
+LIBBPF_API int bpf_token_create(int bpffs_fd,
+				struct bpf_token_create_opts *opts);
 
 #ifdef __cplusplus
 } /* extern "C" */

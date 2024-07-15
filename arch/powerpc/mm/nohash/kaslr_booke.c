@@ -13,7 +13,7 @@
 #include <linux/delay.h>
 #include <linux/memblock.h>
 #include <linux/libfdt.h>
-#include <linux/crash_core.h>
+#include <linux/crash_reserve.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
 #include <asm/cacheflush.h>
@@ -173,12 +173,12 @@ static __init bool overlaps_region(const void *fdt, u32 start,
 
 static void __init get_crash_kernel(void *fdt, unsigned long size)
 {
-#ifdef CONFIG_CRASH_CORE
+#ifdef CONFIG_CRASH_RESERVE
 	unsigned long long crash_size, crash_base;
 	int ret;
 
 	ret = parse_crashkernel(boot_command_line, size, &crash_size,
-				&crash_base);
+				&crash_base, NULL, NULL);
 	if (ret != 0 || crash_size == 0)
 		return;
 	if (crash_base == 0)

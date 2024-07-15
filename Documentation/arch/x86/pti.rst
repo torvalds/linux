@@ -26,9 +26,9 @@ comments in pti.c).
 
 This approach helps to ensure that side-channel attacks leveraging
 the paging structures do not function when PTI is enabled.  It can be
-enabled by setting CONFIG_PAGE_TABLE_ISOLATION=y at compile time.
-Once enabled at compile-time, it can be disabled at boot with the
-'nopti' or 'pti=' kernel parameters (see kernel-parameters.txt).
+enabled by setting CONFIG_MITIGATION_PAGE_TABLE_ISOLATION=y at compile
+time.  Once enabled at compile-time, it can be disabled at boot with
+the 'nopti' or 'pti=' kernel parameters (see kernel-parameters.txt).
 
 Page Table Management
 =====================
@@ -81,11 +81,9 @@ this protection comes at a cost:
      and exit (it can be skipped when the kernel is interrupted,
      though.)  Moves to CR3 are on the order of a hundred
      cycles, and are required at every entry and exit.
-  b. A "trampoline" must be used for SYSCALL entry.  This
-     trampoline depends on a smaller set of resources than the
-     non-PTI SYSCALL entry code, so requires mapping fewer
-     things into the userspace page tables.  The downside is
-     that stacks must be switched at entry time.
+  b. Percpu TSS is mapped into the user page tables to allow SYSCALL64 path
+     to work under PTI. This doesn't have a direct runtime cost but it can
+     be argued it opens certain timing attack scenarios.
   c. Global pages are disabled for all kernel structures not
      mapped into both kernel and userspace page tables.  This
      feature of the MMU allows different processes to share TLB
@@ -167,7 +165,7 @@ that are worth noting here.
  * Failures of the selftests/x86 code.  Usually a bug in one of the
    more obscure corners of entry_64.S
  * Crashes in early boot, especially around CPU bringup.  Bugs
-   in the trampoline code or mappings cause these.
+   in the mappings cause these.
  * Crashes at the first interrupt.  Caused by bugs in entry_64.S,
    like screwing up a page table switch.  Also caused by
    incorrectly mapping the IRQ handler entry code.

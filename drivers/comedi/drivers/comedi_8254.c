@@ -24,14 +24,17 @@
  *
  * This module provides the following basic functions:
  *
- * comedi_8254_init() / comedi_8254_mm_init()
+ * comedi_8254_io_alloc() / comedi_8254_mm_alloc()
  *	Initializes this module to access the 8254 registers. The _mm version
- *	sets up the module for MMIO register access the other for PIO access.
- *	The pointer returned from these functions is normally stored in the
- *	comedi_device dev->pacer and will be freed by the comedi core during
- *	the driver (*detach). If a driver has multiple 8254 devices, they need
- *	to be stored in the drivers private data and freed when the driver is
- *	detached.
+ *	sets up the module for MMIO register access; the _io version sets it
+ *	up for PIO access.  These functions return a pointer to a struct
+ *	comedi_8254 on success, or an ERR_PTR value on failure.  The pointer
+ *	returned from these functions is normally stored in the comedi_device
+ *	dev->pacer and will be freed by the comedi core during the driver
+ *	(*detach). If a driver has multiple 8254 devices, they need to be
+ *	stored in the drivers private data and freed when the driver is
+ *	detached.  If the ERR_PTR value is stored, code should check the
+ *	pointer value with !IS_ERR(pointer) before freeing.
  *
  *	NOTE: The counters are reset by setting them to I8254_MODE0 as part of
  *	this initialization.
@@ -119,61 +122,103 @@
 #include <linux/comedi/comedidev.h>
 #include <linux/comedi/comedi_8254.h>
 
+#ifdef CONFIG_HAS_IOPORT
+
+static unsigned int i8254_io8_cb(struct comedi_8254 *i8254, int dir,
+				unsigned int reg, unsigned int val)
+{
+	unsigned long iobase = i8254->context;
+	unsigned int reg_offset = (reg * I8254_IO8) << i8254->regshift;
+
+	if (dir) {
+		outb(val, iobase + reg_offset);
+		return 0;
+	} else {
+		return inb(iobase + reg_offset);
+	}
+}
+
+static unsigned int i8254_io16_cb(struct comedi_8254 *i8254, int dir,
+				  unsigned int reg, unsigned int val)
+{
+	unsigned long iobase = i8254->context;
+	unsigned int reg_offset = (reg * I8254_IO16) << i8254->regshift;
+
+	if (dir) {
+		outw(val, iobase + reg_offset);
+		return 0;
+	} else {
+		return inw(iobase + reg_offset);
+	}
+}
+
+static unsigned int i8254_io32_cb(struct comedi_8254 *i8254, int dir,
+				  unsigned int reg, unsigned int val)
+{
+	unsigned long iobase = i8254->context;
+	unsigned int reg_offset = (reg * I8254_IO32) << i8254->regshift;
+
+	if (dir) {
+		outl(val, iobase + reg_offset);
+		return 0;
+	} else {
+		return inl(iobase + reg_offset);
+	}
+}
+
+#endif	/* CONFIG_HAS_IOPORT */
+
+static unsigned int i8254_mmio8_cb(struct comedi_8254 *i8254, int dir,
+				   unsigned int reg, unsigned int val)
+{
+	void __iomem *mmiobase = (void __iomem *)i8254->context;
+	unsigned int reg_offset = (reg * I8254_IO8) << i8254->regshift;
+
+	if (dir) {
+		writeb(val, mmiobase + reg_offset);
+		return 0;
+	} else {
+		return readb(mmiobase + reg_offset);
+	}
+}
+
+static unsigned int i8254_mmio16_cb(struct comedi_8254 *i8254, int dir,
+				    unsigned int reg, unsigned int val)
+{
+	void __iomem *mmiobase = (void __iomem *)i8254->context;
+	unsigned int reg_offset = (reg * I8254_IO16) << i8254->regshift;
+
+	if (dir) {
+		writew(val, mmiobase + reg_offset);
+		return 0;
+	} else {
+		return readw(mmiobase + reg_offset);
+	}
+}
+
+static unsigned int i8254_mmio32_cb(struct comedi_8254 *i8254, int dir,
+				    unsigned int reg, unsigned int val)
+{
+	void __iomem *mmiobase = (void __iomem *)i8254->context;
+	unsigned int reg_offset = (reg * I8254_IO32) << i8254->regshift;
+
+	if (dir) {
+		writel(val, mmiobase + reg_offset);
+		return 0;
+	} else {
+		return readl(mmiobase + reg_offset);
+	}
+}
+
 static unsigned int __i8254_read(struct comedi_8254 *i8254, unsigned int reg)
 {
-	unsigned int reg_offset = (reg * i8254->iosize) << i8254->regshift;
-	unsigned int val;
-
-	switch (i8254->iosize) {
-	default:
-	case I8254_IO8:
-		if (i8254->mmio)
-			val = readb(i8254->mmio + reg_offset);
-		else
-			val = inb(i8254->iobase + reg_offset);
-		break;
-	case I8254_IO16:
-		if (i8254->mmio)
-			val = readw(i8254->mmio + reg_offset);
-		else
-			val = inw(i8254->iobase + reg_offset);
-		break;
-	case I8254_IO32:
-		if (i8254->mmio)
-			val = readl(i8254->mmio + reg_offset);
-		else
-			val = inl(i8254->iobase + reg_offset);
-		break;
-	}
-	return val & 0xff;
+	return 0xff & i8254->iocb(i8254, 0, reg, 0);
 }
 
 static void __i8254_write(struct comedi_8254 *i8254,
 			  unsigned int val, unsigned int reg)
 {
-	unsigned int reg_offset = (reg * i8254->iosize) << i8254->regshift;
-
-	switch (i8254->iosize) {
-	default:
-	case I8254_IO8:
-		if (i8254->mmio)
-			writeb(val, i8254->mmio + reg_offset);
-		else
-			outb(val, i8254->iobase + reg_offset);
-		break;
-	case I8254_IO16:
-		if (i8254->mmio)
-			writew(val, i8254->mmio + reg_offset);
-		else
-			outw(val, i8254->iobase + reg_offset);
-		break;
-	case I8254_IO32:
-		if (i8254->mmio)
-			writel(val, i8254->mmio + reg_offset);
-		else
-			outl(val, i8254->iobase + reg_offset);
-		break;
-	}
+	i8254->iocb(i8254, 1, reg, val);
 }
 
 /**
@@ -571,8 +616,8 @@ void comedi_8254_subdevice_init(struct comedi_subdevice *s,
 }
 EXPORT_SYMBOL_GPL(comedi_8254_subdevice_init);
 
-static struct comedi_8254 *__i8254_init(unsigned long iobase,
-					void __iomem *mmio,
+static struct comedi_8254 *__i8254_init(comedi_8254_iocb_fn *iocb,
+					unsigned long context,
 					unsigned int osc_base,
 					unsigned int iosize,
 					unsigned int regshift)
@@ -583,14 +628,17 @@ static struct comedi_8254 *__i8254_init(unsigned long iobase,
 	/* sanity check that the iosize is valid */
 	if (!(iosize == I8254_IO8 || iosize == I8254_IO16 ||
 	      iosize == I8254_IO32))
-		return NULL;
+		return ERR_PTR(-EINVAL);
+
+	if (!iocb)
+		return ERR_PTR(-EINVAL);
 
 	i8254 = kzalloc(sizeof(*i8254), GFP_KERNEL);
 	if (!i8254)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
-	i8254->iobase	= iobase;
-	i8254->mmio	= mmio;
+	i8254->iocb	= iocb;
+	i8254->context	= context;
 	i8254->iosize	= iosize;
 	i8254->regshift	= regshift;
 
@@ -604,39 +652,77 @@ static struct comedi_8254 *__i8254_init(unsigned long iobase,
 	return i8254;
 }
 
+#ifdef CONFIG_HAS_IOPORT
+
 /**
- * comedi_8254_init - allocate and initialize the 8254 device for pio access
+ * comedi_8254_io_alloc - allocate and initialize the 8254 device for pio access
  * @iobase:	port I/O base address
  * @osc_base:	base time of the counter in ns
  *		OPTIONAL - only used by comedi_8254_cascade_ns_to_timer()
  * @iosize:	I/O register size
  * @regshift:	register gap shift
+ *
+ * Return: A pointer to a struct comedi_8254 or an ERR_PTR value.
  */
-struct comedi_8254 *comedi_8254_init(unsigned long iobase,
-				     unsigned int osc_base,
-				     unsigned int iosize,
-				     unsigned int regshift)
+struct comedi_8254 *comedi_8254_io_alloc(unsigned long iobase,
+					 unsigned int osc_base,
+					 unsigned int iosize,
+					 unsigned int regshift)
 {
-	return __i8254_init(iobase, NULL, osc_base, iosize, regshift);
+	comedi_8254_iocb_fn *iocb;
+
+	switch (iosize) {
+	case I8254_IO8:
+		iocb = i8254_io8_cb;
+		break;
+	case I8254_IO16:
+		iocb = i8254_io16_cb;
+		break;
+	case I8254_IO32:
+		iocb = i8254_io32_cb;
+		break;
+	default:
+		return ERR_PTR(-EINVAL);
+	}
+	return __i8254_init(iocb, iobase, osc_base, iosize, regshift);
 }
-EXPORT_SYMBOL_GPL(comedi_8254_init);
+EXPORT_SYMBOL_GPL(comedi_8254_io_alloc);
+
+#endif	/* CONFIG_HAS_IOPORT */
 
 /**
- * comedi_8254_mm_init - allocate and initialize the 8254 device for mmio access
+ * comedi_8254_mm_alloc - allocate and initialize the 8254 device for mmio access
  * @mmio:	memory mapped I/O base address
  * @osc_base:	base time of the counter in ns
  *		OPTIONAL - only used by comedi_8254_cascade_ns_to_timer()
  * @iosize:	I/O register size
  * @regshift:	register gap shift
+ *
+ * Return: A pointer to a struct comedi_8254 or an ERR_PTR value.
  */
-struct comedi_8254 *comedi_8254_mm_init(void __iomem *mmio,
-					unsigned int osc_base,
-					unsigned int iosize,
-					unsigned int regshift)
+struct comedi_8254 *comedi_8254_mm_alloc(void __iomem *mmio,
+					 unsigned int osc_base,
+					 unsigned int iosize,
+					 unsigned int regshift)
 {
-	return __i8254_init(0, mmio, osc_base, iosize, regshift);
+	comedi_8254_iocb_fn *iocb;
+
+	switch (iosize) {
+	case I8254_IO8:
+		iocb = i8254_mmio8_cb;
+		break;
+	case I8254_IO16:
+		iocb = i8254_mmio16_cb;
+		break;
+	case I8254_IO32:
+		iocb = i8254_mmio32_cb;
+		break;
+	default:
+		return ERR_PTR(-EINVAL);
+	}
+	return __i8254_init(iocb, (unsigned long)mmio, osc_base, iosize, regshift);
 }
-EXPORT_SYMBOL_GPL(comedi_8254_mm_init);
+EXPORT_SYMBOL_GPL(comedi_8254_mm_alloc);
 
 static int __init comedi_8254_module_init(void)
 {

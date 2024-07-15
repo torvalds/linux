@@ -35,7 +35,7 @@ properties:
     description: GPIO pin to enable/disable the device.
 
 patternProperties:
-  "^led@[0-6]$":
+  "^led@[0-5]$":
     type: object
     $ref: common.yaml#
     unevaluatedProperties: false
@@ -43,7 +43,7 @@ patternProperties:
     properties:
       reg:
         minimum: 0
-        maximum: 6
+        maximum: 5
 
     required:
       - reg

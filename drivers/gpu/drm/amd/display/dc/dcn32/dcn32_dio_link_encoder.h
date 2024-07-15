@@ -53,4 +53,9 @@ void dcn32_link_encoder_enable_dp_output(
 	const struct dc_link_settings *link_settings,
 	enum clock_source_id clock_source);
 
+bool dcn32_link_encoder_is_in_alt_mode(struct link_encoder *enc);
+
+void dcn32_link_encoder_get_max_link_cap(struct link_encoder *enc,
+	struct dc_link_settings *link_settings);
+
 #endif /* __DC_LINK_ENCODER__DCN32_H__ */

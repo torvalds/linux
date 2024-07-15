@@ -361,8 +361,7 @@ static void serial_cleanup(struct tty_struct *tty)
 	module_put(owner);
 }
 
-static int serial_write(struct tty_struct *tty, const unsigned char *buf,
-								int count)
+static ssize_t serial_write(struct tty_struct *tty, const u8 *buf, size_t count)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	int retval = -ENODEV;
@@ -370,7 +369,7 @@ static int serial_write(struct tty_struct *tty, const unsigned char *buf,
 	if (port->serial->dev->state == USB_STATE_NOTATTACHED)
 		goto exit;
 
-	dev_dbg(&port->dev, "%s - %d byte(s)\n", __func__, count);
+	dev_dbg(&port->dev, "%s - %zu byte(s)\n", __func__, count);
 
 	retval = port->serial->type->write(tty, port, buf, count);
 	if (retval < 0)
@@ -1522,7 +1521,7 @@ int usb_serial_register_drivers(struct usb_serial_driver *const serial_drivers[]
 
 	/* Now set udriver's id_table and look for matches */
 	udriver->id_table = id_table;
-	rc = driver_attach(&udriver->drvwrap.driver);
+	rc = driver_attach(&udriver->driver);
 	return 0;
 
 err_deregister_drivers:

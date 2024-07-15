@@ -89,9 +89,14 @@ l0_%=:	exit;						\
 	: __clobber_all);
 }
 
+/* Call a function taking a pointer and a size which doesn't allow the size to
+ * be zero (i.e. bpf_trace_printk() declares the second argument to be
+ * ARG_CONST_SIZE, not ARG_CONST_SIZE_OR_ZERO). We attempt to pass zero for the
+ * size and expect to fail.
+ */
 SEC("tracepoint")
 __description("helper access to map: empty range")
-__failure __msg("invalid access to map value, value_size=48 off=0 size=0")
+__failure __msg("R2 invalid zero-sized read: u64=[0,0]")
 __naked void access_to_map_empty_range(void)
 {
 	asm volatile ("					\
@@ -106,6 +111,38 @@ __naked void access_to_map_empty_range(void)
 	r2 = 0;						\
 	call %[bpf_trace_printk];			\
 l0_%=:	exit;						\
+"	:
+	: __imm(bpf_map_lookup_elem),
+	  __imm(bpf_trace_printk),
+	  __imm_addr(map_hash_48b)
+	: __clobber_all);
+}
+
+/* Like the test above, but this time the size register is not known to be zero;
+ * its lower-bound is zero though, which is still unacceptable.
+ */
+SEC("tracepoint")
+__description("helper access to map: possibly-empty ange")
+__failure __msg("R2 invalid zero-sized read: u64=[0,4]")
+__naked void access_to_map_possibly_empty_range(void)
+{
+	asm volatile ("                                         \
+	r2 = r10;                                               \
+	r2 += -8;                                               \
+	r1 = 0;                                                 \
+	*(u64*)(r2 + 0) = r1;                                   \
+	r1 = %[map_hash_48b] ll;                                \
+	call %[bpf_map_lookup_elem];                            \
+	if r0 == 0 goto l0_%=;                                  \
+	r1 = r0;                                                \
+	/* Read an unknown value */                             \
+	r7 = *(u64*)(r0 + 0);                                   \
+	/* Make it small and positive, to avoid other errors */ \
+	r7 &= 4;                                                \
+	r2 = 0;                                                 \
+	r2 += r7;                                               \
+	call %[bpf_trace_printk];                               \
+l0_%=:	exit;                                               \
 "	:
 	: __imm(bpf_map_lookup_elem),
 	  __imm(bpf_trace_printk),
@@ -221,7 +258,7 @@ l0_%=:	exit;						\
 
 SEC("tracepoint")
 __description("helper access to adjusted map (via const imm): empty range")
-__failure __msg("invalid access to map value, value_size=48 off=4 size=0")
+__failure __msg("R2 invalid zero-sized read")
 __naked void via_const_imm_empty_range(void)
 {
 	asm volatile ("					\
@@ -386,7 +423,7 @@ l0_%=:	exit;						\
 
 SEC("tracepoint")
 __description("helper access to adjusted map (via const reg): empty range")
-__failure __msg("R1 min value is outside of the allowed memory range")
+__failure __msg("R2 invalid zero-sized read")
 __naked void via_const_reg_empty_range(void)
 {
 	asm volatile ("					\
@@ -556,7 +593,7 @@ l0_%=:	exit;						\
 
 SEC("tracepoint")
 __description("helper access to adjusted map (via variable): empty range")
-__failure __msg("R1 min value is outside of the allowed memory range")
+__failure __msg("R2 invalid zero-sized read")
 __naked void map_via_variable_empty_range(void)
 {
 	asm volatile ("					\

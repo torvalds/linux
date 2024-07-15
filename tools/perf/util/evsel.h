@@ -191,6 +191,7 @@ struct perf_missing_features {
 	bool code_page_size;
 	bool weight_struct;
 	bool read_lost;
+	bool branch_counters;
 };
 
 extern struct perf_missing_features perf_missing_features;
@@ -330,9 +331,6 @@ int evsel__prepare_open(struct evsel *evsel, struct perf_cpu_map *cpus,
 		struct perf_thread_map *threads);
 bool evsel__detect_missing_features(struct evsel *evsel);
 
-enum rlimit_action { NO_CHANGE, SET_TO_MAX, INCREASED_MAX };
-bool evsel__increase_rlimit(enum rlimit_action *set_rlimit);
-
 bool evsel__precise_ip_fallback(struct evsel *evsel);
 
 struct perf_sample;
@@ -340,6 +338,8 @@ struct perf_sample;
 #ifdef HAVE_LIBTRACEEVENT
 void *evsel__rawptr(struct evsel *evsel, struct perf_sample *sample, const char *name);
 u64 evsel__intval(struct evsel *evsel, struct perf_sample *sample, const char *name);
+u64 evsel__intval_common(struct evsel *evsel, struct perf_sample *sample, const char *name);
+char evsel__taskstate(struct evsel *evsel, struct perf_sample *sample, const char *name);
 
 static inline char *evsel__strval(struct evsel *evsel, struct perf_sample *sample, const char *name)
 {
@@ -352,6 +352,7 @@ struct tep_format_field;
 u64 format_field__intval(struct tep_format_field *field, struct perf_sample *sample, bool needs_swap);
 
 struct tep_format_field *evsel__field(struct evsel *evsel, const char *name);
+struct tep_format_field *evsel__common_field(struct evsel *evsel, const char *name);
 
 static inline bool __evsel__match(const struct evsel *evsel, u32 type, u64 config)
 {
@@ -460,7 +461,8 @@ static inline bool evsel__is_clock(const struct evsel *evsel)
 	       evsel__match(evsel, SOFTWARE, SW_TASK_CLOCK);
 }
 
-bool evsel__fallback(struct evsel *evsel, int err, char *msg, size_t msgsize);
+bool evsel__fallback(struct evsel *evsel, struct target *target, int err,
+		     char *msg, size_t msgsize);
 int evsel__open_strerror(struct evsel *evsel, struct target *target,
 			 int err, char *msg, size_t size);
 

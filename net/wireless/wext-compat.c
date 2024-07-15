@@ -7,7 +7,7 @@
  * we directly assign the wireless handlers of wireless interfaces.
  *
  * Copyright 2008-2009	Johannes Berg <johannes@sipsolutions.net>
- * Copyright (C) 2019-2022 Intel Corporation
+ * Copyright (C) 2019-2023 Intel Corporation
  */
 
 #include <linux/export.h>
@@ -227,7 +227,7 @@ EXPORT_WEXT_HANDLER(cfg80211_wext_giwrange);
  * cfg80211_wext_freq - get wext frequency for non-"auto"
  * @freq: the wext freq encoding
  *
- * Returns a frequency, or a negative error code, or 0 for auto.
+ * Returns: a frequency, or a negative error code, or 0 for auto.
  */
 int cfg80211_wext_freq(struct iw_freq *freq)
 {
@@ -415,10 +415,10 @@ int cfg80211_wext_giwretry(struct net_device *dev,
 }
 EXPORT_WEXT_HANDLER(cfg80211_wext_giwretry);
 
-static int __cfg80211_set_encryption(struct cfg80211_registered_device *rdev,
-				     struct net_device *dev, bool pairwise,
-				     const u8 *addr, bool remove, bool tx_key,
-				     int idx, struct key_params *params)
+static int cfg80211_set_encryption(struct cfg80211_registered_device *rdev,
+				   struct net_device *dev, bool pairwise,
+				   const u8 *addr, bool remove, bool tx_key,
+				   int idx, struct key_params *params)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	int err, i;
@@ -471,7 +471,7 @@ static int __cfg80211_set_encryption(struct cfg80211_registered_device *rdev,
 			 */
 			if (idx == wdev->wext.default_key &&
 			    wdev->iftype == NL80211_IFTYPE_ADHOC) {
-				__cfg80211_leave_ibss(rdev, wdev->netdev, true);
+				cfg80211_leave_ibss(rdev, wdev->netdev, true);
 				rejoin = true;
 			}
 
@@ -552,7 +552,7 @@ static int __cfg80211_set_encryption(struct cfg80211_registered_device *rdev,
 			 */
 			if (wdev->iftype == NL80211_IFTYPE_ADHOC &&
 			    wdev->wext.default_key == -1) {
-				__cfg80211_leave_ibss(rdev, wdev->netdev, true);
+				cfg80211_leave_ibss(rdev, wdev->netdev, true);
 				rejoin = true;
 			}
 			err = rdev_set_default_key(rdev, dev, -1, idx, true,
@@ -578,21 +578,6 @@ static int __cfg80211_set_encryption(struct cfg80211_registered_device *rdev,
 	}
 
 	return 0;
-}
-
-static int cfg80211_set_encryption(struct cfg80211_registered_device *rdev,
-				   struct net_device *dev, bool pairwise,
-				   const u8 *addr, bool remove, bool tx_key,
-				   int idx, struct key_params *params)
-{
-	int err;
-
-	wdev_lock(dev->ieee80211_ptr);
-	err = __cfg80211_set_encryption(rdev, dev, pairwise, addr,
-					remove, tx_key, idx, params);
-	wdev_unlock(dev->ieee80211_ptr);
-
-	return err;
 }
 
 static int cfg80211_wext_siwencode(struct net_device *dev,
@@ -639,7 +624,6 @@ static int cfg80211_wext_siwencode(struct net_device *dev,
 	else if (erq->length == 0) {
 		/* No key data - just set the default TX key index */
 		err = 0;
-		wdev_lock(wdev);
 		if (wdev->connected ||
 		    (wdev->iftype == NL80211_IFTYPE_ADHOC &&
 		     wdev->u.ibss.current_bss))
@@ -647,7 +631,6 @@ static int cfg80211_wext_siwencode(struct net_device *dev,
 						   true);
 		if (!err)
 			wdev->wext.default_key = idx;
-		wdev_unlock(wdev);
 		goto out;
 	}
 
@@ -697,12 +680,8 @@ static int cfg80211_wext_siwencodeext(struct net_device *dev,
 	    !rdev->ops->set_default_key)
 		return -EOPNOTSUPP;
 
-	wdev_lock(wdev);
-	if (wdev->valid_links) {
-		wdev_unlock(wdev);
+	if (wdev->valid_links)
 		return -EOPNOTSUPP;
-	}
-	wdev_unlock(wdev);
 
 	switch (ext->alg) {
 	case IW_ENCODE_ALG_NONE:
@@ -1341,13 +1320,11 @@ static int cfg80211_wext_giwrate(struct net_device *dev,
 		return -EOPNOTSUPP;
 
 	err = 0;
-	wdev_lock(wdev);
 	if (!wdev->valid_links && wdev->links[0].client.current_bss)
 		memcpy(addr, wdev->links[0].client.current_bss->pub.bssid,
 		       ETH_ALEN);
 	else
 		err = -EOPNOTSUPP;
-	wdev_unlock(wdev);
 	if (err)
 		return err;
 
@@ -1387,17 +1364,15 @@ static struct iw_statistics *cfg80211_wireless_stats(struct net_device *dev)
 		return NULL;
 
 	/* Grab BSSID of current BSS, if any */
-	wdev_lock(wdev);
+	wiphy_lock(&rdev->wiphy);
 	if (wdev->valid_links || !wdev->links[0].client.current_bss) {
-		wdev_unlock(wdev);
+		wiphy_unlock(&rdev->wiphy);
 		return NULL;
 	}
 	memcpy(bssid, wdev->links[0].client.current_bss->pub.bssid, ETH_ALEN);
-	wdev_unlock(wdev);
 
 	memset(&sinfo, 0, sizeof(sinfo));
 
-	wiphy_lock(&rdev->wiphy);
 	ret = rdev_get_station(rdev, dev, bssid, &sinfo);
 	wiphy_unlock(&rdev->wiphy);
 

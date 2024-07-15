@@ -121,6 +121,8 @@
 };
 
 &usart3 {
+	atmel,use-dma-rx;
+	atmel,use-dma-tx;
 	status = "okay";
 
 	pinctrl-0 = <&pinctrl_usart3

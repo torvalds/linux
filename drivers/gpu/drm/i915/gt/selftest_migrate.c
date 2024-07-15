@@ -710,7 +710,7 @@ static int threaded_migrate(struct intel_migrate *migrate,
 		thread[i].tsk = tsk;
 	}
 
-	msleep(10); /* start all threads before we kthread_stop() */
+	msleep(10 * n_cpus); /* start all threads before we kthread_stop() */
 
 	for (i = 0; i < n_cpus; ++i) {
 		struct task_struct *tsk = thread[i].tsk;
@@ -719,11 +719,9 @@ static int threaded_migrate(struct intel_migrate *migrate,
 		if (IS_ERR_OR_NULL(tsk))
 			continue;
 
-		status = kthread_stop(tsk);
+		status = kthread_stop_put(tsk);
 		if (status && !err)
 			err = status;
-
-		put_task_struct(tsk);
 	}
 
 	kfree(thread);

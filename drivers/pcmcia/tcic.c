@@ -435,7 +435,7 @@ static int __init init_tcic(void)
     }
     
     /* Set up polling */
-    timer_setup(&poll_timer, &tcic_timer, 0);
+    timer_setup(&poll_timer, tcic_timer, 0);
 
     /* Build interrupt mask */
     printk(KERN_CONT ", %d sockets\n", sockets);

@@ -22,9 +22,7 @@ enum bpf_fou_encap_type {
 	FOU_BPF_ENCAP_GUE,
 };
 
-__diag_push();
-__diag_ignore_all("-Wmissing-prototypes",
-		  "Global functions as their definitions will be in BTF");
+__bpf_kfunc_start_defs();
 
 /* bpf_skb_set_fou_encap - Set FOU encap parameters
  *
@@ -100,12 +98,12 @@ __bpf_kfunc int bpf_skb_get_fou_encap(struct __sk_buff *skb_ctx,
 	return 0;
 }
 
-__diag_pop()
+__bpf_kfunc_end_defs();
 
-BTF_SET8_START(fou_kfunc_set)
+BTF_KFUNCS_START(fou_kfunc_set)
 BTF_ID_FLAGS(func, bpf_skb_set_fou_encap)
 BTF_ID_FLAGS(func, bpf_skb_get_fou_encap)
-BTF_SET8_END(fou_kfunc_set)
+BTF_KFUNCS_END(fou_kfunc_set)
 
 static const struct btf_kfunc_id_set fou_bpf_kfunc_set = {
 	.owner = THIS_MODULE,

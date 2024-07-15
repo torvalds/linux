@@ -8,9 +8,6 @@ config SND_PXA2XX_SOC
 	  the PXA2xx AC97, I2S or SSP interface. You will also need
 	  to select the audio interfaces to support below.
 
-config SND_PXA2XX_AC97
-	tristate
-
 config SND_PXA2XX_SOC_AC97
 	tristate "SoC AC97 support for PXA2xx"
 	depends on SND_PXA2XX_SOC
@@ -35,7 +32,6 @@ config SND_MMP_SOC_SSPA
 	tristate "SoC Audio via MMP SSPA ports"
 	depends on ARCH_MMP
 	select SND_SOC_GENERIC_DMAENGINE_PCM
-	select SND_ARM
 	help
 	  Say Y if you want to add support for codecs attached to
 	  the MMP SSPA interface.

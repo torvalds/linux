@@ -1124,11 +1124,10 @@ static void vi_program_aspm(struct amdgpu_device *adev)
 	bool bL1SS = false;
 	bool bClkReqSupport = true;
 
-	if (!amdgpu_device_should_use_aspm(adev) || !amdgpu_device_aspm_support_quirk())
+	if (!amdgpu_device_should_use_aspm(adev))
 		return;
 
-	if (adev->flags & AMD_IS_APU ||
-	    adev->asic_type < CHIP_POLARIS10)
+	if (adev->asic_type < CHIP_POLARIS10)
 		return;
 
 	orig = data = RREG32_PCIE(ixPCIE_LC_CNTL);

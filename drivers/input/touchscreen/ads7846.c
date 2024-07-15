@@ -138,6 +138,7 @@ struct ads7846 {
 	void			*filter_data;
 	int			(*get_pendown_state)(void);
 	struct gpio_desc	*gpio_pendown;
+	struct gpio_desc	*gpio_hsync;
 
 	void			(*wait_for_sync)(void);
 };
@@ -634,10 +635,6 @@ ATTRIBUTE_GROUPS(ads784x);
 
 /*--------------------------------------------------------------------------*/
 
-static void null_wait_for_sync(void)
-{
-}
-
 static int ads7846_debounce_filter(void *ads, int data_idx, int *val)
 {
 	struct ads7846 *ts = ads;
@@ -790,6 +787,28 @@ static int ads7846_filter(struct ads7846 *ts)
 	return 0;
 }
 
+static void ads7846_wait_for_hsync(struct ads7846 *ts)
+{
+	if (ts->wait_for_sync) {
+		ts->wait_for_sync();
+		return;
+	}
+
+	if (!ts->gpio_hsync)
+		return;
+
+	/*
+	 * Wait for HSYNC to assert the line should be flagged
+	 * as active low so here we are waiting for it to assert
+	 */
+	while (!gpiod_get_value(ts->gpio_hsync))
+		cpu_relax();
+
+	/* Then we wait for it do de-assert */
+	while (gpiod_get_value(ts->gpio_hsync))
+		cpu_relax();
+}
+
 static void ads7846_read_state(struct ads7846 *ts)
 {
 	struct ads7846_packet *packet = ts->packet;
@@ -800,7 +819,7 @@ static void ads7846_read_state(struct ads7846 *ts)
 	packet->last_cmd_idx = 0;
 
 	while (true) {
-		ts->wait_for_sync();
+		ads7846_wait_for_hsync(ts);
 
 		m = &ts->msg[msg_idx];
 		error = spi_sync(ts->spi, m);
@@ -1268,7 +1287,11 @@ static int ads7846_probe(struct spi_device *spi)
 		ts->penirq_recheck_delay_usecs =
 				pdata->penirq_recheck_delay_usecs;
 
-	ts->wait_for_sync = pdata->wait_for_sync ? : null_wait_for_sync;
+	ts->wait_for_sync = pdata->wait_for_sync;
+
+	ts->gpio_hsync = devm_gpiod_get_optional(dev, "ti,hsync", GPIOD_IN);
+	if (IS_ERR(ts->gpio_hsync))
+		return PTR_ERR(ts->gpio_hsync);
 
 	snprintf(ts->phys, sizeof(ts->phys), "%s/input0", dev_name(dev));
 	snprintf(ts->name, sizeof(ts->name), "ADS%d Touchscreen", ts->model);

@@ -3,7 +3,20 @@
 #ifndef BTRFS_FILE_ITEM_H
 #define BTRFS_FILE_ITEM_H
 
+#include <linux/list.h>
+#include <uapi/linux/btrfs_tree.h>
 #include "accessors.h"
+
+struct extent_map;
+struct btrfs_file_extent_item;
+struct btrfs_fs_info;
+struct btrfs_path;
+struct btrfs_bio;
+struct btrfs_trans_handle;
+struct btrfs_root;
+struct btrfs_ordered_sum;
+struct btrfs_path;
+struct btrfs_inode;
 
 #define BTRFS_FILE_EXTENT_INLINE_DATA_START		\
 		(offsetof(struct btrfs_file_extent_item, disk_bytenr))
@@ -57,9 +70,9 @@ int btrfs_lookup_csums_range(struct btrfs_root *root, u64 start, u64 end,
 int btrfs_lookup_csums_list(struct btrfs_root *root, u64 start, u64 end,
 			    struct list_head *list, int search_commit,
 			    bool nowait);
-int btrfs_lookup_csums_bitmap(struct btrfs_root *root, u64 start, u64 end,
-			      u8 *csum_buf, unsigned long *csum_bitmap,
-			      bool search_commit);
+int btrfs_lookup_csums_bitmap(struct btrfs_root *root, struct btrfs_path *path,
+			      u64 start, u64 end, u8 *csum_buf,
+			      unsigned long *csum_bitmap);
 void btrfs_extent_item_to_extent_map(struct btrfs_inode *inode,
 				     const struct btrfs_path *path,
 				     struct btrfs_file_extent_item *fi,

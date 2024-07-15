@@ -14,7 +14,9 @@ static int mt7996_check_eeprom(struct mt7996_dev *dev)
 
 	switch (val) {
 	case 0x7990:
-		return 0;
+		return is_mt7996(&dev->mt76) ? 0 : -EINVAL;
+	case 0x7992:
+		return is_mt7992(&dev->mt76) ? 0 : -EINVAL;
 	default:
 		return -EINVAL;
 	}
@@ -22,8 +24,14 @@ static int mt7996_check_eeprom(struct mt7996_dev *dev)
 
 static char *mt7996_eeprom_name(struct mt7996_dev *dev)
 {
-	/* reserve for future variants */
-	return MT7996_EEPROM_DEFAULT;
+	switch (mt76_chip(&dev->mt76)) {
+	case 0x7990:
+		return MT7996_EEPROM_DEFAULT;
+	case 0x7992:
+		return MT7992_EEPROM_DEFAULT;
+	default:
+		return MT7996_EEPROM_DEFAULT;
+	}
 }
 
 static int
@@ -103,7 +111,8 @@ static int mt7996_eeprom_parse_efuse_hw_cap(struct mt7996_dev *dev)
 		dev->wtbl_size_group = u32_get_bits(cap, WTBL_SIZE_GROUP);
 	}
 
-	if (dev->wtbl_size_group < 2 || dev->wtbl_size_group > 4)
+	if (dev->wtbl_size_group < 2 || dev->wtbl_size_group > 4 ||
+	    is_mt7992(&dev->mt76))
 		dev->wtbl_size_group = 2; /* set default */
 
 	return 0;
@@ -148,36 +157,49 @@ static int mt7996_eeprom_parse_band_config(struct mt7996_phy *phy)
 
 int mt7996_eeprom_parse_hw_cap(struct mt7996_dev *dev, struct mt7996_phy *phy)
 {
-	u8 path, nss, band_idx = phy->mt76->band_idx;
+	u8 path, rx_path, nss, band_idx = phy->mt76->band_idx;
 	u8 *eeprom = dev->mt76.eeprom.data;
 	struct mt76_phy *mphy = phy->mt76;
+	int max_path = 5, max_nss = 4;
 	int ret;
 
 	switch (band_idx) {
 	case MT_BAND1:
 		path = FIELD_GET(MT_EE_WIFI_CONF2_TX_PATH_BAND1,
 				 eeprom[MT_EE_WIFI_CONF + 2]);
+		rx_path = FIELD_GET(MT_EE_WIFI_CONF3_RX_PATH_BAND1,
+				    eeprom[MT_EE_WIFI_CONF + 3]);
 		nss = FIELD_GET(MT_EE_WIFI_CONF5_STREAM_NUM_BAND1,
 				eeprom[MT_EE_WIFI_CONF + 5]);
 		break;
 	case MT_BAND2:
 		path = FIELD_GET(MT_EE_WIFI_CONF2_TX_PATH_BAND2,
 				 eeprom[MT_EE_WIFI_CONF + 2]);
+		rx_path = FIELD_GET(MT_EE_WIFI_CONF4_RX_PATH_BAND2,
+				    eeprom[MT_EE_WIFI_CONF + 4]);
 		nss = FIELD_GET(MT_EE_WIFI_CONF5_STREAM_NUM_BAND2,
 				eeprom[MT_EE_WIFI_CONF + 5]);
 		break;
 	default:
 		path = FIELD_GET(MT_EE_WIFI_CONF1_TX_PATH_BAND0,
 				 eeprom[MT_EE_WIFI_CONF + 1]);
+		rx_path = FIELD_GET(MT_EE_WIFI_CONF3_RX_PATH_BAND0,
+				    eeprom[MT_EE_WIFI_CONF + 3]);
 		nss = FIELD_GET(MT_EE_WIFI_CONF4_STREAM_NUM_BAND0,
 				eeprom[MT_EE_WIFI_CONF + 4]);
 		break;
 	}
 
-	if (!path || path > 4)
-		path = 4;
+	if (!path || path > max_path)
+		path = max_path;
 
-	nss = min_t(u8, min_t(u8, 4, nss), path);
+	if (!nss || nss > max_nss)
+		nss = max_nss;
+
+	nss = min_t(u8, nss, path);
+
+	if (path != rx_path)
+		phy->has_aux_rx = true;
 
 	mphy->antenna_mask = BIT(nss) - 1;
 	mphy->chainmask = (BIT(path) - 1) << dev->chainshift[band_idx];

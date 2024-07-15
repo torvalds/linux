@@ -34,7 +34,6 @@ static int get_firmware(const struct firmware **fw_entry,
 	int err;
 	char name[30];
 
-#ifdef CONFIG_PM_SLEEP
 	if (chip->fw_cache[fw_index]) {
 		dev_dbg(chip->card->dev,
 			"firmware requested: %s is cached\n",
@@ -42,7 +41,6 @@ static int get_firmware(const struct firmware **fw_entry,
 		*fw_entry = chip->fw_cache[fw_index];
 		return 0;
 	}
-#endif
 
 	dev_dbg(chip->card->dev,
 		"firmware requested: %s\n", card_fw[fw_index].data);
@@ -51,10 +49,8 @@ static int get_firmware(const struct firmware **fw_entry,
 	if (err < 0)
 		dev_err(chip->card->dev,
 			"get_firmware(): Firmware not available (%d)\n", err);
-#ifdef CONFIG_PM_SLEEP
 	else
 		chip->fw_cache[fw_index] = *fw_entry;
-#endif
 	return err;
 }
 
@@ -63,18 +59,13 @@ static int get_firmware(const struct firmware **fw_entry,
 static void free_firmware(const struct firmware *fw_entry,
 			  struct echoaudio *chip)
 {
-#ifdef CONFIG_PM_SLEEP
 	dev_dbg(chip->card->dev, "firmware not released (kept in cache)\n");
-#else
-	release_firmware(fw_entry);
-#endif
 }
 
 
 
 static void free_firmware_cache(struct echoaudio *chip)
 {
-#ifdef CONFIG_PM_SLEEP
 	int i;
 
 	for (i = 0; i < 8 ; i++)
@@ -82,8 +73,6 @@ static void free_firmware_cache(struct echoaudio *chip)
 			release_firmware(chip->fw_cache[i]);
 			dev_dbg(chip->card->dev, "release_firmware(%d)\n", i);
 		}
-
-#endif
 }
 
 
@@ -2146,8 +2135,6 @@ static int snd_echo_probe(struct pci_dev *pci,
 }
 
 
-#if defined(CONFIG_PM_SLEEP)
-
 static int snd_echo_suspend(struct device *dev)
 {
 	struct echoaudio *chip = dev_get_drvdata(dev);
@@ -2237,11 +2224,7 @@ static int snd_echo_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(snd_echo_pm, snd_echo_suspend, snd_echo_resume);
-#define SND_ECHO_PM_OPS	&snd_echo_pm
-#else
-#define SND_ECHO_PM_OPS	NULL
-#endif /* CONFIG_PM_SLEEP */
+static DEFINE_SIMPLE_DEV_PM_OPS(snd_echo_pm, snd_echo_suspend, snd_echo_resume);
 
 /******************************************************************************
 	Everything starts and ends here
@@ -2253,7 +2236,7 @@ static struct pci_driver echo_driver = {
 	.id_table = snd_echo_ids,
 	.probe = snd_echo_probe,
 	.driver = {
-		.pm = SND_ECHO_PM_OPS,
+		.pm = &snd_echo_pm,
 	},
 };
 

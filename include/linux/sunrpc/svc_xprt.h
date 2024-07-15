@@ -54,25 +54,8 @@ struct svc_xprt {
 	const struct svc_xprt_ops *xpt_ops;
 	struct kref		xpt_ref;
 	struct list_head	xpt_list;
-	struct list_head	xpt_ready;
+	struct lwq_node		xpt_ready;
 	unsigned long		xpt_flags;
-#define	XPT_BUSY	0		/* enqueued/receiving */
-#define	XPT_CONN	1		/* conn pending */
-#define	XPT_CLOSE	2		/* dead or dying */
-#define	XPT_DATA	3		/* data pending */
-#define	XPT_TEMP	4		/* connected transport */
-#define	XPT_DEAD	6		/* transport closed */
-#define	XPT_CHNGBUF	7		/* need to change snd/rcv buf sizes */
-#define	XPT_DEFERRED	8		/* deferred request pending */
-#define	XPT_OLD		9		/* used for xprt aging mark+sweep */
-#define XPT_LISTENER	10		/* listening endpoint */
-#define XPT_CACHE_AUTH	11		/* cache auth info */
-#define XPT_LOCAL	12		/* connection from loopback interface */
-#define XPT_KILL_TEMP   13		/* call xpo_kill_temp_xprt before closing */
-#define XPT_CONG_CTRL	14		/* has congestion control */
-#define XPT_HANDSHAKE	15		/* xprt requests a handshake */
-#define XPT_TLS_SESSION	16		/* transport-layer security established */
-#define XPT_PEER_AUTH	17		/* peer has been authenticated */
 
 	struct svc_serv		*xpt_server;	/* service for transport */
 	atomic_t    	    	xpt_reserved;	/* space on outq that is rsvd */
@@ -95,6 +78,27 @@ struct svc_xprt {
 	const struct cred	*xpt_cred;
 	struct rpc_xprt		*xpt_bc_xprt;	/* NFSv4.1 backchannel */
 	struct rpc_xprt_switch	*xpt_bc_xps;	/* NFSv4.1 backchannel */
+};
+
+/* flag bits for xpt_flags */
+enum {
+	XPT_BUSY,		/* enqueued/receiving */
+	XPT_CONN,		/* conn pending */
+	XPT_CLOSE,		/* dead or dying */
+	XPT_DATA,		/* data pending */
+	XPT_TEMP,		/* connected transport */
+	XPT_DEAD,		/* transport closed */
+	XPT_CHNGBUF,		/* need to change snd/rcv buf sizes */
+	XPT_DEFERRED,		/* deferred request pending */
+	XPT_OLD,		/* used for xprt aging mark+sweep */
+	XPT_LISTENER,		/* listening endpoint */
+	XPT_CACHE_AUTH,		/* cache auth info */
+	XPT_LOCAL,		/* connection from loopback interface */
+	XPT_KILL_TEMP,		/* call xpo_kill_temp_xprt before closing */
+	XPT_CONG_CTRL,		/* has congestion control */
+	XPT_HANDSHAKE,		/* xprt requests a handshake */
+	XPT_TLS_SESSION,	/* transport-layer security established */
+	XPT_PEER_AUTH,		/* peer has been authenticated */
 };
 
 static inline void unregister_xpt_user(struct svc_xprt *xpt, struct svc_xpt_user *u)

@@ -4,7 +4,7 @@
 
 #include <linux/types.h>
 
-extern struct device_type sd_type;
+extern const struct device_type sd_type;
 
 struct mmc_host;
 struct mmc_card;

@@ -82,4 +82,6 @@ libnvdimm-$(CONFIG_NVDIMM_KEYS) += $(NVDIMM_SRC)/security.o
 libnvdimm-y += libnvdimm_test.o
 libnvdimm-y += config_check.o
 
+KBUILD_CFLAGS := $(filter-out -Wmissing-prototypes -Wmissing-declarations, $(KBUILD_CFLAGS))
+
 obj-m += test/

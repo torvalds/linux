@@ -1,1 +1,1 @@
-../../../net/forwarding/bridge_mld.sh
+run_net_forwarding_test.sh

@@ -195,8 +195,6 @@ static void arc_serial_start_tx(struct uart_port *port)
 
 static void arc_serial_rx_chars(struct uart_port *port, unsigned int status)
 {
-	unsigned int ch, flg = 0;
-
 	/*
 	 * UART has 4 deep RX-FIFO. Driver's recongnition of this fact
 	 * is very subtle. Here's how ...
@@ -207,24 +205,23 @@ static void arc_serial_rx_chars(struct uart_port *port, unsigned int status)
 	 * controller, which is indeed the Rx-FIFO.
 	 */
 	do {
+		u8 ch, flg = TTY_NORMAL;
+
 		/*
 		 * This could be an Rx Intr for err (no data),
 		 * so check err and clear that Intr first
 		 */
-		if (unlikely(status & (RXOERR | RXFERR))) {
-			if (status & RXOERR) {
-				port->icount.overrun++;
-				flg = TTY_OVERRUN;
-				UART_CLR_STATUS(port, RXOERR);
-			}
+		if (status & RXOERR) {
+			port->icount.overrun++;
+			flg = TTY_OVERRUN;
+			UART_CLR_STATUS(port, RXOERR);
+		}
 
-			if (status & RXFERR) {
-				port->icount.frame++;
-				flg = TTY_FRAME;
-				UART_CLR_STATUS(port, RXFERR);
-			}
-		} else
-			flg = TTY_NORMAL;
+		if (status & RXFERR) {
+			port->icount.frame++;
+			flg = TTY_FRAME;
+			UART_CLR_STATUS(port, RXFERR);
+		}
 
 		if (status & RXEMPTY)
 			continue;
@@ -282,9 +279,9 @@ static irqreturn_t arc_serial_isr(int irq, void *dev_id)
 	if (status & RXIENB) {
 
 		/* already in ISR, no need of xx_irqsave */
-		spin_lock(&port->lock);
+		uart_port_lock(port);
 		arc_serial_rx_chars(port, status);
-		spin_unlock(&port->lock);
+		uart_port_unlock(port);
 	}
 
 	if ((status & TXIENB) && (status & TXEMPTY)) {
@@ -294,12 +291,12 @@ static irqreturn_t arc_serial_isr(int irq, void *dev_id)
 		 */
 		UART_TX_IRQ_DISABLE(port);
 
-		spin_lock(&port->lock);
+		uart_port_lock(port);
 
 		if (!uart_tx_stopped(port))
 			arc_serial_tx_chars(port);
 
-		spin_unlock(&port->lock);
+		uart_port_unlock(port);
 	}
 
 	return IRQ_HANDLED;
@@ -369,7 +366,7 @@ arc_serial_set_termios(struct uart_port *port, struct ktermios *new,
 	uartl = hw_val & 0xFF;
 	uarth = (hw_val >> 8) & 0xFF;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	UART_ALL_IRQ_DISABLE(port);
 
@@ -394,7 +391,7 @@ arc_serial_set_termios(struct uart_port *port, struct ktermios *new,
 
 	uart_update_timeout(port, new->c_cflag, baud);
 
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 }
 
 static const char *arc_serial_type(struct uart_port *port)
@@ -524,9 +521,9 @@ static void arc_serial_console_write(struct console *co, const char *s,
 	struct uart_port *port = &arc_uart_ports[co->index].port;
 	unsigned long flags;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 	uart_console_write(port, s, count, arc_serial_console_putchar);
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 }
 
 static struct console arc_console = {

@@ -195,7 +195,6 @@
 	TF_SF(CM0_CM_GAMCOR_LUT_DATA, CM_GAMCOR_LUT_DATA, mask_sh),\
 	TF_SF(CM0_CM_GAMCOR_LUT_CONTROL, CM_GAMCOR_LUT_WRITE_COLOR_MASK, mask_sh),\
 	TF_SF(CM0_CM_GAMCOR_LUT_CONTROL, CM_GAMCOR_LUT_READ_COLOR_SEL, mask_sh),\
-	TF_SF(CM0_CM_GAMCOR_LUT_CONTROL, CM_GAMCOR_LUT_READ_DBG, mask_sh),\
 	TF_SF(CM0_CM_GAMCOR_LUT_CONTROL, CM_GAMCOR_LUT_HOST_SEL, mask_sh),\
 	TF_SF(CM0_CM_GAMCOR_LUT_CONTROL, CM_GAMCOR_LUT_CONFIG_MODE, mask_sh),\
 	TF_SF(CM0_CM_GAMCOR_RAMA_START_CNTL_B, CM_GAMCOR_RAMA_EXP_REGION_START_B, mask_sh),\
@@ -427,7 +426,6 @@
 	type CM_GAMCOR_LUT_DATA; \
 	type CM_GAMCOR_LUT_WRITE_COLOR_MASK; \
 	type CM_GAMCOR_LUT_READ_COLOR_SEL; \
-	type CM_GAMCOR_LUT_READ_DBG; \
 	type CM_GAMCOR_LUT_HOST_SEL; \
 	type CM_GAMCOR_LUT_CONFIG_MODE; \
 	type CM_GAMCOR_LUT_STATUS; \
@@ -639,4 +637,6 @@ void dpp3_program_cm_dealpha(
 		struct dpp *dpp_base,
 	uint32_t enable, uint32_t additive_blending);
 
+void dpp3_cm_get_gamut_remap(struct dpp *dpp_base,
+			     struct dpp_grph_csc_adjustment *adjust);
 #endif /* __DC_HWSS_DCN30_H__ */

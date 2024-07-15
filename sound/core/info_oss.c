@@ -29,20 +29,17 @@ int snd_oss_info_register(int dev, int num, char *string)
 		return -ENXIO;
 	if (snd_BUG_ON(num < 0 || num >= SNDRV_CARDS))
 		return -ENXIO;
-	mutex_lock(&strings);
+	guard(mutex)(&strings);
 	if (string == NULL) {
 		x = snd_sndstat_strings[num][dev];
 		kfree(x);
 		x = NULL;
 	} else {
 		x = kstrdup(string, GFP_KERNEL);
-		if (x == NULL) {
-			mutex_unlock(&strings);
+		if (x == NULL)
 			return -ENOMEM;
-		}
 	}
 	snd_sndstat_strings[num][dev] = x;
-	mutex_unlock(&strings);
 	return 0;
 }
 EXPORT_SYMBOL(snd_oss_info_register);
@@ -53,7 +50,7 @@ static int snd_sndstat_show_strings(struct snd_info_buffer *buf, char *id, int d
 	char *str;
 
 	snd_iprintf(buf, "\n%s:", id);
-	mutex_lock(&strings);
+	guard(mutex)(&strings);
 	for (idx = 0; idx < SNDRV_CARDS; idx++) {
 		str = snd_sndstat_strings[idx][dev];
 		if (str) {
@@ -64,7 +61,6 @@ static int snd_sndstat_show_strings(struct snd_info_buffer *buf, char *id, int d
 			snd_iprintf(buf, "%i: %s\n", idx, str);
 		}
 	}
-	mutex_unlock(&strings);
 	if (ok < 0)
 		snd_iprintf(buf, " NOT ENABLED IN CONFIG\n");
 	return ok;

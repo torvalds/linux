@@ -134,7 +134,7 @@ int msp_read_dsp(struct i2c_client *client, int addr);
 int msp_reset(struct i2c_client *client);
 void msp_set_scart(struct i2c_client *client, int in, int out);
 void msp_update_volume(struct msp_state *state);
-int msp_sleep(struct msp_state *state, int timeout);
+int msp_sleep(struct msp_state *state, int msec);
 
 /* msp3400-kthreads.c */
 const char *msp_standard_std_name(int std);

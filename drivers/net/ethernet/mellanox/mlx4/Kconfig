@@ -27,6 +27,7 @@ config MLX4_EN_DCB
 config MLX4_CORE
 	tristate
 	depends on PCI
+	select AUXILIARY_BUS
 	select NET_DEVLINK
 	default n
 

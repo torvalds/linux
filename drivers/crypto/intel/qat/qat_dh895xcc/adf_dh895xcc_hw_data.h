@@ -3,6 +3,8 @@
 #ifndef ADF_DH895x_HW_DATA_H_
 #define ADF_DH895x_HW_DATA_H_
 
+#include <linux/units.h>
+
 /* PCIe configuration space */
 #define ADF_DH895XCC_SRAM_BAR 0
 #define ADF_DH895XCC_PMISC_BAR 1
@@ -29,6 +31,9 @@
 /* AE to function mapping */
 #define ADF_DH895XCC_AE2FUNC_MAP_GRP_A_NUM_REGS 96
 #define ADF_DH895XCC_AE2FUNC_MAP_GRP_B_NUM_REGS 12
+
+/* Clocks frequency */
+#define ADF_DH895X_AE_FREQ (933 * HZ_PER_MHZ)
 
 /* FW names */
 #define ADF_DH895XCC_FW "qat_895xcc.bin"

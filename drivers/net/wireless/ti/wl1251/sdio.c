@@ -343,5 +343,6 @@ static void __exit wl1251_sdio_exit(void)
 module_init(wl1251_sdio_init);
 module_exit(wl1251_sdio_exit);
 
+MODULE_DESCRIPTION("TI WL1251 SDIO helpers");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Kalle Valo <kvalo@adurom.com>");

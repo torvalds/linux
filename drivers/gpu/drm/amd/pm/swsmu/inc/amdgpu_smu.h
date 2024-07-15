@@ -22,6 +22,9 @@
 #ifndef __AMDGPU_SMU_H__
 #define __AMDGPU_SMU_H__
 
+#include <linux/acpi_amd_wbrf.h>
+#include <linux/units.h>
+
 #include "amdgpu.h"
 #include "kgd_pp_interface.h"
 #include "dm_pp_interface.h"
@@ -200,29 +203,25 @@ struct smu_power_state {
 	struct smu_hw_power_state                     hardware;
 };
 
-enum smu_power_src_type
-{
+enum smu_power_src_type {
 	SMU_POWER_SOURCE_AC,
 	SMU_POWER_SOURCE_DC,
 	SMU_POWER_SOURCE_COUNT,
 };
 
-enum smu_ppt_limit_type
-{
+enum smu_ppt_limit_type {
 	SMU_DEFAULT_PPT_LIMIT = 0,
 	SMU_FAST_PPT_LIMIT,
 };
 
-enum smu_ppt_limit_level
-{
+enum smu_ppt_limit_level {
 	SMU_PPT_LIMIT_MIN = -1,
 	SMU_PPT_LIMIT_CURRENT,
 	SMU_PPT_LIMIT_DEFAULT,
 	SMU_PPT_LIMIT_MAX,
 };
 
-enum smu_memory_pool_size
-{
+enum smu_memory_pool_size {
     SMU_MEMORY_POOL_SIZE_ZERO   = 0,
     SMU_MEMORY_POOL_SIZE_256_MB = 0x10000000,
     SMU_MEMORY_POOL_SIZE_512_MB = 0x20000000,
@@ -257,6 +256,7 @@ struct smu_table {
 	uint64_t mc_address;
 	void *cpu_addr;
 	struct amdgpu_bo *bo;
+	uint32_t version;
 };
 
 enum smu_perf_level_designation {
@@ -282,8 +282,7 @@ struct smu_clock_info {
 	uint32_t max_bus_bandwidth;
 };
 
-struct smu_bios_boot_up_values
-{
+struct smu_bios_boot_up_values {
 	uint32_t			revision;
 	uint32_t			gfxclk;
 	uint32_t			uclk;
@@ -305,8 +304,7 @@ struct smu_bios_boot_up_values
 	uint32_t			firmware_caps;
 };
 
-enum smu_table_id
-{
+enum smu_table_id {
 	SMU_TABLE_PPTABLE = 0,
 	SMU_TABLE_WATERMARKS,
 	SMU_TABLE_CUSTOM_DPM,
@@ -323,11 +321,11 @@ enum smu_table_id
 	SMU_TABLE_PACE,
 	SMU_TABLE_ECCINFO,
 	SMU_TABLE_COMBO_PPTABLE,
+	SMU_TABLE_WIFIBAND,
 	SMU_TABLE_COUNT,
 };
 
-struct smu_table_context
-{
+struct smu_table_context {
 	void				*power_play_table;
 	uint32_t			power_play_table_size;
 	void				*hardcode_pptable;
@@ -381,6 +379,8 @@ struct smu_power_gate {
 	bool vce_gated;
 	atomic_t vcn_gated;
 	atomic_t jpeg_gated;
+	atomic_t vpe_gated;
+	atomic_t umsch_mm_gated;
 };
 
 struct smu_power_context {
@@ -390,8 +390,7 @@ struct smu_power_context {
 };
 
 #define SMU_FEATURE_MAX	(64)
-struct smu_feature
-{
+struct smu_feature {
 	uint32_t feature_num;
 	DECLARE_BITMAP(supported, SMU_FEATURE_MAX);
 	DECLARE_BITMAP(allowed, SMU_FEATURE_MAX);
@@ -416,21 +415,19 @@ struct mclock_latency_table {
 	struct mclk_latency_entries  entries[MAX_REGULAR_DPM_NUM];
 };
 
-enum smu_reset_mode
-{
+enum smu_reset_mode {
     SMU_RESET_MODE_0,
     SMU_RESET_MODE_1,
     SMU_RESET_MODE_2,
 };
 
-enum smu_baco_state
-{
+enum smu_baco_state {
 	SMU_BACO_STATE_ENTER = 0,
 	SMU_BACO_STATE_EXIT,
+	SMU_BACO_STATE_NONE,
 };
 
-struct smu_baco_context
-{
+struct smu_baco_context {
 	uint32_t state;
 	bool platform_support;
 	bool maco_support;
@@ -478,8 +475,13 @@ struct stb_context {
 
 #define WORKLOAD_POLICY_MAX 7
 
-struct smu_context
-{
+/*
+ * Configure wbrf event handling pace as there can be only one
+ * event processed every SMU_WBRF_EVENT_HANDLING_PACE ms.
+ */
+#define SMU_WBRF_EVENT_HANDLING_PACE	10
+
+struct smu_context {
 	struct amdgpu_device            *adev;
 	struct amdgpu_irq_src		irq_source;
 
@@ -510,6 +512,7 @@ struct smu_context
 	uint32_t current_power_limit;
 	uint32_t default_power_limit;
 	uint32_t max_power_limit;
+	uint32_t min_power_limit;
 
 	/* soft pptable */
 	uint32_t ppt_offset_bytes;
@@ -575,6 +578,13 @@ struct smu_context
 	u32 debug_resp_reg;
 
 	struct delayed_work		swctf_delayed_work;
+
+	enum pp_xgmi_plpd_mode plpd_mode;
+
+	/* data structures for wbrf feature support */
+	bool				wbrf_supported;
+	struct notifier_block		wbrf_notifier;
+	struct delayed_work		wbrf_delayed_work;
 };
 
 struct i2c_adapter;
@@ -829,9 +839,10 @@ struct pptable_funcs {
 	 * @get_power_limit: Get the device's power limits.
 	 */
 	int (*get_power_limit)(struct smu_context *smu,
-			       uint32_t *current_power_limit,
-			       uint32_t *default_power_limit,
-			       uint32_t *max_power_limit);
+					uint32_t *current_power_limit,
+					uint32_t *default_power_limit,
+					uint32_t *max_power_limit,
+					uint32_t *min_power_limit);
 
 	/**
 	 * @get_ppt_limit: Get the device's ppt limits.
@@ -845,10 +856,10 @@ struct pptable_funcs {
 	int (*set_df_cstate)(struct smu_context *smu, enum pp_df_cstate state);
 
 	/**
-	 * @allow_xgmi_power_down: Enable/disable external global memory
-	 *                         interconnect power down.
+	 * @select_xgmi_plpd_policy: Select xgmi per-link power down policy.
 	 */
-	int (*allow_xgmi_power_down)(struct smu_context *smu, bool en);
+	int (*select_xgmi_plpd_policy)(struct smu_context *smu,
+				       enum pp_xgmi_plpd_mode mode);
 
 	/**
 	 * @update_pcie_parameters: Update and upload the system's PCIe
@@ -856,7 +867,7 @@ struct pptable_funcs {
 	 * &pcie_gen_cap: Maximum allowed PCIe generation.
 	 * &pcie_width_cap: Maximum allowed PCIe width.
 	 */
-	int (*update_pcie_parameters)(struct smu_context *smu, uint32_t pcie_gen_cap, uint32_t pcie_width_cap);
+	int (*update_pcie_parameters)(struct smu_context *smu, uint8_t pcie_gen_cap, uint8_t pcie_width_cap);
 
 	/**
 	 * @i2c_init: Initialize i2c.
@@ -1043,10 +1054,7 @@ struct pptable_funcs {
 						   enum smu_feature_mask mask);
 
 	/**
-	 * @notify_display_change: Enable fast memory clock switching.
-	 *
-	 * Allows for fine grained memory clock switching but has more stringent
-	 * timing requirements.
+	 * @notify_display_change: General interface call to let SMU know about DC change
 	 */
 	int (*notify_display_change)(struct smu_context *smu);
 
@@ -1261,6 +1269,15 @@ struct pptable_funcs {
 	ssize_t (*get_gpu_metrics)(struct smu_context *smu, void **table);
 
 	/**
+	 * @get_pm_metrics: Get one snapshot of power management metrics from
+	 * PMFW.
+	 *
+	 * Return: Size of the metrics sample
+	 */
+	ssize_t (*get_pm_metrics)(struct smu_context *smu, void *pm_metrics,
+				  size_t size);
+
+	/**
 	 * @enable_mgpu_fan_boost: Enable multi-GPU fan boost.
 	 */
 	int (*enable_mgpu_fan_boost)(struct smu_context *smu);
@@ -1326,6 +1343,11 @@ struct pptable_funcs {
 	int (*send_hbm_bad_pages_num)(struct smu_context *smu, uint32_t size);
 
 	/**
+	 * @send_rma_reason: message rma reason event to SMU.
+	 */
+	int (*send_rma_reason)(struct smu_context *smu);
+
+	/**
 	 * @get_ecc_table:  message SMU to get ECC INFO table.
 	 */
 	ssize_t (*get_ecc_info)(struct smu_context *smu, void *table);
@@ -1356,6 +1378,39 @@ struct pptable_funcs {
 	 * @init_pptable_microcode: Prepare the pptable microcode to upload via PSP
 	 */
 	int (*init_pptable_microcode)(struct smu_context *smu);
+
+	/**
+	 * @dpm_set_vpe_enable: Enable/disable VPE engine dynamic power
+	 *                       management.
+	 */
+	int (*dpm_set_vpe_enable)(struct smu_context *smu, bool enable);
+
+	/**
+	 * @dpm_set_umsch_mm_enable: Enable/disable UMSCH engine dynamic power
+	 *                       management.
+	 */
+	int (*dpm_set_umsch_mm_enable)(struct smu_context *smu, bool enable);
+
+	/**
+	 * @notify_rlc_state: Notify RLC power state to SMU.
+	 */
+	int (*notify_rlc_state)(struct smu_context *smu, bool en);
+
+	/**
+	 * @is_asic_wbrf_supported: check whether PMFW supports the wbrf feature
+	 */
+	bool (*is_asic_wbrf_supported)(struct smu_context *smu);
+
+	/**
+	 * @enable_uclk_shadow: Enable the uclk shadow feature on wbrf supported
+	 */
+	int (*enable_uclk_shadow)(struct smu_context *smu, bool enable);
+
+	/**
+	 * @set_wbrf_exclusion_ranges: notify SMU the wifi bands occupied
+	 */
+	int (*set_wbrf_exclusion_ranges)(struct smu_context *smu,
+					struct freq_band_range *exclusion_ranges);
 };
 
 typedef enum {
@@ -1398,6 +1453,17 @@ typedef enum {
 	METRICS_PCIE_RATE,
 	METRICS_PCIE_WIDTH,
 	METRICS_CURR_FANPWM,
+	METRICS_CURR_SOCKETPOWER,
+	METRICS_AVERAGE_VPECLK,
+	METRICS_AVERAGE_IPUCLK,
+	METRICS_AVERAGE_MPIPUCLK,
+	METRICS_THROTTLER_RESIDENCY_PROCHOT,
+	METRICS_THROTTLER_RESIDENCY_SPL,
+	METRICS_THROTTLER_RESIDENCY_FPPT,
+	METRICS_THROTTLER_RESIDENCY_SPPT,
+	METRICS_THROTTLER_RESIDENCY_THM_CORE,
+	METRICS_THROTTLER_RESIDENCY_THM_GFX,
+	METRICS_THROTTLER_RESIDENCY_THM_SOC,
 } MetricsMember_t;
 
 enum smu_cmn2asic_mapping_type {
@@ -1471,6 +1537,17 @@ enum smu_baco_seq {
 			 __dst_size);					   \
 })
 
+typedef struct {
+	uint16_t     LowFreq;
+	uint16_t     HighFreq;
+} WifiOneBand_t;
+
+typedef struct {
+	uint32_t		WifiBandEntryNum;
+	WifiOneBand_t	WifiBandEntry[11];
+	uint32_t		MmHubPadding[8];
+} WifiBandEntryTable_t;
+
 #if !defined(SWSMU_CODE_LAYER_L2) && !defined(SWSMU_CODE_LAYER_L3) && !defined(SWSMU_CODE_LAYER_L4)
 int smu_get_power_limit(void *handle,
 			uint32_t *limit,
@@ -1497,7 +1574,8 @@ int smu_set_gfx_power_up_by_imu(struct smu_context *smu);
 
 int smu_set_ac_dc(struct smu_context *smu);
 
-int smu_allow_xgmi_power_down(struct smu_context *smu, bool en);
+int smu_set_xgmi_plpd_mode(struct smu_context *smu,
+			   enum pp_xgmi_plpd_mode mode);
 
 int smu_get_entrycount_gfxoff(struct smu_context *smu, u64 *value);
 
@@ -1516,5 +1594,6 @@ int smu_stb_collect_info(struct smu_context *smu, void *buff, uint32_t size);
 void amdgpu_smu_stb_debug_fs_init(struct amdgpu_device *adev);
 int smu_send_hbm_bad_pages_num(struct smu_context *smu, uint32_t size);
 int smu_send_hbm_bad_channel_flag(struct smu_context *smu, uint32_t size);
+int smu_send_rma_reason(struct smu_context *smu);
 #endif
 #endif

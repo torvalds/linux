@@ -133,7 +133,7 @@
 	};
 };
 
-&pgc_gpu{
+&pgc_gpu {
 	power-supply = <&sw1a_reg>;
 };
 

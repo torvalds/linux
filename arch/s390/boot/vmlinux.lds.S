@@ -31,6 +31,7 @@ SECTIONS
 		_text = .;	/* Text */
 		*(.text)
 		*(.text.*)
+		INIT_TEXT
 		_etext = . ;
 	}
 	.rodata : {
@@ -38,6 +39,9 @@ SECTIONS
 		*(.rodata)	 /* read-only data */
 		*(.rodata.*)
 		_erodata = . ;
+	}
+	.got : {
+		*(.got)
 	}
 	NOTES
 	.data :	{
@@ -106,6 +110,24 @@ SECTIONS
 		_compressed_end = .;
 	}
 
+#ifndef CONFIG_PIE_BUILD
+	/*
+	 * When the kernel is built with CONFIG_KERNEL_UNCOMPRESSED, the entire
+	 * uncompressed vmlinux.bin is positioned in the bzImage decompressor
+	 * image at the default kernel LMA of 0x100000, enabling it to be
+	 * executed in-place. However, the size of .vmlinux.relocs could be
+	 * large enough to cause an overlap with the uncompressed kernel at the
+	 * address 0x100000. To address this issue, .vmlinux.relocs is
+	 * positioned after the .rodata.compressed.
+	 */
+	. = ALIGN(4);
+	.vmlinux.relocs : {
+		__vmlinux_relocs_64_start = .;
+		*(.vmlinux.relocs_64)
+		__vmlinux_relocs_64_end = .;
+	}
+#endif
+
 #define SB_TRAILER_SIZE 32
 	/* Trailer needed for Secure Boot */
 	. += SB_TRAILER_SIZE; /* make sure .sb.trailer does not overwrite the previous section */
@@ -118,8 +140,34 @@ SECTIONS
 	}
 	_end = .;
 
+	DWARF_DEBUG
+	ELF_DETAILS
+
+	/*
+	 * Make sure that the .got.plt is either completely empty or it
+	 * contains only the three reserved double words.
+	 */
+	.got.plt : {
+		*(.got.plt)
+	}
+	ASSERT(SIZEOF(.got.plt) == 0 || SIZEOF(.got.plt) == 0x18, "Unexpected GOT/PLT entries detected!")
+
+	/*
+	 * Sections that should stay zero sized, which is safer to
+	 * explicitly check instead of blindly discarding.
+	 */
+	.plt : {
+		*(.plt) *(.plt.*) *(.iplt) *(.igot .igot.plt)
+	}
+	ASSERT(SIZEOF(.plt) == 0, "Unexpected run-time procedure linkages detected!")
+	.rela.dyn : {
+		*(.rela.*) *(.rela_*)
+	}
+	ASSERT(SIZEOF(.rela.dyn) == 0, "Unexpected run-time relocations (.rela) detected!")
+
 	/* Sections to be discarded */
 	/DISCARD/ : {
+		COMMON_DISCARDS
 		*(.eh_frame)
 		*(__ex_table)
 		*(*__ksymtab*)

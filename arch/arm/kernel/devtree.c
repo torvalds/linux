@@ -13,7 +13,6 @@
 #include <linux/of.h>
 #include <linux/of_fdt.h>
 #include <linux/of_irq.h>
-#include <linux/of_platform.h>
 #include <linux/smp.h>
 
 #include <asm/cputype.h>

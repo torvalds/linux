@@ -193,10 +193,7 @@ static int rt715_sdca_sdw_probe(struct sdw_slave *slave,
 
 static int rt715_sdca_sdw_remove(struct sdw_slave *slave)
 {
-	struct rt715_sdca_priv *rt715 = dev_get_drvdata(&slave->dev);
-
-	if (rt715->first_hw_init)
-		pm_runtime_disable(&slave->dev);
+	pm_runtime_disable(&slave->dev);
 
 	return 0;
 }
@@ -240,7 +237,7 @@ static int __maybe_unused rt715_dev_resume(struct device *dev)
 	time = wait_for_completion_timeout(&slave->enumeration_complete,
 					   msecs_to_jiffies(RT715_PROBE_TIMEOUT));
 	if (!time) {
-		dev_err(&slave->dev, "Enumeration not complete, timed out\n");
+		dev_err(&slave->dev, "%s: Enumeration not complete, timed out\n", __func__);
 		sdw_show_ping_status(slave->bus, true);
 
 		return -ETIMEDOUT;

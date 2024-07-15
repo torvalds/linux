@@ -113,22 +113,25 @@ struct cec_fh {
 #define CEC_FREE_TIME_TO_USEC(ft)		((ft) * 2400)
 
 struct cec_adap_ops {
-	/* Low-level callbacks */
+	/* Low-level callbacks, called with adap->lock held */
 	int (*adap_enable)(struct cec_adapter *adap, bool enable);
 	int (*adap_monitor_all_enable)(struct cec_adapter *adap, bool enable);
 	int (*adap_monitor_pin_enable)(struct cec_adapter *adap, bool enable);
 	int (*adap_log_addr)(struct cec_adapter *adap, u8 logical_addr);
-	void (*adap_configured)(struct cec_adapter *adap, bool configured);
+	void (*adap_unconfigured)(struct cec_adapter *adap);
 	int (*adap_transmit)(struct cec_adapter *adap, u8 attempts,
 			     u32 signal_free_time, struct cec_msg *msg);
+	void (*adap_nb_transmit_canceled)(struct cec_adapter *adap,
+					  const struct cec_msg *msg);
 	void (*adap_status)(struct cec_adapter *adap, struct seq_file *file);
 	void (*adap_free)(struct cec_adapter *adap);
 
-	/* Error injection callbacks */
+	/* Error injection callbacks, called without adap->lock held */
 	int (*error_inj_show)(struct cec_adapter *adap, struct seq_file *sf);
 	bool (*error_inj_parse_line)(struct cec_adapter *adap, char *line);
 
-	/* High-level CEC message callback */
+	/* High-level CEC message callback, called without adap->lock held */
+	void (*configured)(struct cec_adapter *adap);
 	int (*received)(struct cec_adapter *adap, struct cec_msg *msg);
 };
 
@@ -204,12 +207,23 @@ struct cec_adap_ops {
  *	passthrough mode.
  * @log_addrs:		current logical addresses
  * @conn_info:		current connector info
- * @tx_timeouts:	number of transmit timeouts
+ * @tx_timeout_cnt:	count the number of Timed Out transmits.
+ *			Reset to 0 when this is reported in cec_adap_status().
+ * @tx_low_drive_cnt:	count the number of Low Drive transmits.
+ *			Reset to 0 when this is reported in cec_adap_status().
+ * @tx_error_cnt:	count the number of Error transmits.
+ *			Reset to 0 when this is reported in cec_adap_status().
+ * @tx_arb_lost_cnt:	count the number of Arb Lost transmits.
+ *			Reset to 0 when this is reported in cec_adap_status().
+ * @tx_low_drive_log_cnt: number of logged Low Drive transmits since the
+ *			adapter was enabled. Used to avoid flooding the kernel
+ *			log if this happens a lot.
+ * @tx_error_log_cnt:	number of logged Error transmits since the adapter was
+ *                      enabled. Used to avoid flooding the kernel log if this
+ *                      happens a lot.
  * @notifier:		CEC notifier
  * @pin:		CEC pin status struct
  * @cec_dir:		debugfs cec directory
- * @status_file:	debugfs cec status file
- * @error_inj_file:	debugfs cec error injection file
  * @sequence:		transmit sequence counter
  * @input_phys:		remote control input_phys name
  *
@@ -259,7 +273,12 @@ struct cec_adapter {
 	struct cec_log_addrs log_addrs;
 	struct cec_connector_info conn_info;
 
-	u32 tx_timeouts;
+	u32 tx_timeout_cnt;
+	u32 tx_low_drive_cnt;
+	u32 tx_error_cnt;
+	u32 tx_arb_lost_cnt;
+	u32 tx_low_drive_log_cnt;
+	u32 tx_error_log_cnt;
 
 #ifdef CONFIG_CEC_NOTIFIER
 	struct cec_notifier *notifier;
@@ -272,7 +291,7 @@ struct cec_adapter {
 
 	u32 sequence;
 
-	char input_phys[32];
+	char input_phys[40];
 };
 
 static inline void *cec_get_drvdata(const struct cec_adapter *adap)

@@ -6,7 +6,13 @@
 #ifndef BTRFS_FREE_SPACE_TREE_H
 #define BTRFS_FREE_SPACE_TREE_H
 
+#include <linux/bits.h>
+
 struct btrfs_caching_control;
+struct btrfs_fs_info;
+struct btrfs_path;
+struct btrfs_block_group;
+struct btrfs_trans_handle;
 
 /*
  * The default size for new free space bitmap items. The last bitmap in a block

@@ -10,7 +10,7 @@ subdir- := compressed
 $(obj)/image: vmlinux FORCE
 	$(call if_changed,objcopy)
 
-$(obj)/bzImage: $(obj)/compressed/vmlinux FORCE
+$(obj)/bzImage: $(if $(CONFIG_KERNEL_UNCOMPRESSED),$(objtree)/vmlinux,$(obj)/compressed/vmlinux) FORCE
 	$(call if_changed,objcopy)
 
 $(obj)/compressed/vmlinux: FORCE

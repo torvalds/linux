@@ -1,0 +1,15 @@
+<!-- SPDX-License-Identifier: GPL-2.0 -->
+<!-- Copyright © 2023, Oracle and/or its affiliates. -->
+
+{# Create a language menu for translations #}
+{% if languages|length > 0: %}
+<div class="language-selection">
+{{ current_language }}
+
+<ul>
+{% for ref in languages: %}
+<li><a href="{{ ref.refuri }}">{{ ref.astext() }}</a></li>
+{% endfor %}
+</ul>
+</div>
+{% endif %}

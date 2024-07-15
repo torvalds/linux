@@ -109,65 +109,60 @@
 		};
 	};
 
-	regulators {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
-		pinctrl-0 = <&sata1_pwr_pin &sata2_pwr_pin
-			     &sata3_pwr_pin &sata4_pwr_pin>;
+	sata1_regulator: sata1-regulator-1 {
+		compatible = "regulator-fixed";
+		regulator-name = "SATA1 Power";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		startup-delay-us = <2000000>;
+		enable-active-high;
+		regulator-always-on;
+		regulator-boot-on;
+		gpio = <&gpio1 10 GPIO_ACTIVE_HIGH>;
+		pinctrl-0 = <&sata1_pwr_pin>;
 		pinctrl-names = "default";
+	};
 
-		sata1_regulator: sata1-regulator@1 {
-			compatible = "regulator-fixed";
-			reg = <1>;
-			regulator-name = "SATA1 Power";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			startup-delay-us = <2000000>;
-			enable-active-high;
-			regulator-always-on;
-			regulator-boot-on;
-			gpio = <&gpio1 10 GPIO_ACTIVE_HIGH>;
-		};
+	sata2_regulator: sata2-regulator-2 {
+		compatible = "regulator-fixed";
+		regulator-name = "SATA2 Power";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		startup-delay-us = <4000000>;
+		enable-active-high;
+		regulator-always-on;
+		regulator-boot-on;
+		gpio = <&gpio1 12 GPIO_ACTIVE_HIGH>;
+		pinctrl-0 = <&sata2_pwr_pin>;
+		pinctrl-names = "default";
+	};
 
-		sata2_regulator: sata2-regulator@2 {
-			compatible = "regulator-fixed";
-			reg = <2>;
-			regulator-name = "SATA2 Power";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			startup-delay-us = <4000000>;
-			enable-active-high;
-			regulator-always-on;
-			regulator-boot-on;
-			gpio = <&gpio1 12 GPIO_ACTIVE_HIGH>;
-		};
+	sata3_regulator: sata3-regulator-3 {
+		compatible = "regulator-fixed";
+		regulator-name = "SATA3 Power";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		startup-delay-us = <6000000>;
+		enable-active-high;
+		regulator-always-on;
+		regulator-boot-on;
+		gpio = <&gpio1 13 GPIO_ACTIVE_HIGH>;
+		pinctrl-0 = <&sata3_pwr_pin>;
+		pinctrl-names = "default";
+	};
 
-		sata3_regulator: sata3-regulator@3 {
-			compatible = "regulator-fixed";
-			reg = <3>;
-			regulator-name = "SATA3 Power";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			startup-delay-us = <6000000>;
-			enable-active-high;
-			regulator-always-on;
-			regulator-boot-on;
-			gpio = <&gpio1 13 GPIO_ACTIVE_HIGH>;
-		};
-
-		sata4_regulator: sata4-regulator@4 {
-			compatible = "regulator-fixed";
-			reg = <4>;
-			regulator-name = "SATA4 Power";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			startup-delay-us = <8000000>;
-			enable-active-high;
-			regulator-always-on;
-			regulator-boot-on;
-			gpio = <&gpio1 14 GPIO_ACTIVE_HIGH>;
-		};
+	sata4_regulator: sata4-regulator-4 {
+		compatible = "regulator-fixed";
+		regulator-name = "SATA4 Power";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		startup-delay-us = <8000000>;
+		enable-active-high;
+		regulator-always-on;
+		regulator-boot-on;
+		gpio = <&gpio1 14 GPIO_ACTIVE_HIGH>;
+		pinctrl-0 = <&sata4_pwr_pin>;
+		pinctrl-names = "default";
 	};
 };
 

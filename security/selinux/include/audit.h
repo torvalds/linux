@@ -57,4 +57,3 @@ int selinux_audit_rule_match(u32 sid, u32 field, u32 op, void *rule);
 int selinux_audit_rule_known(struct audit_krule *rule);
 
 #endif /* _SELINUX_AUDIT_H */
-

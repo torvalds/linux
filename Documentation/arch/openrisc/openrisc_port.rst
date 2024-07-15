@@ -106,7 +106,7 @@ History
 	a much improved version with changes all around.
 
 10-04-2004	Matjaz Breskvar (phoenix@bsemi.com)
-	alot of bugfixes all over.
+	a lot of bugfixes all over.
 	ethernet support, functional http and telnet servers.
 	running many standard linux apps.
 
@@ -114,7 +114,7 @@ History
 	port to 2.6.x
 
 30-11-2004	Matjaz Breskvar (phoenix@bsemi.com)
-	lots of bugfixes and enhancments.
+	lots of bugfixes and enhancements.
 	added opencores framebuffer driver.
 
 09-10-2010    Jonas Bonn (jonas@southpole.se)

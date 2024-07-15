@@ -53,6 +53,5 @@ examples:
         interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
         clocks = <&tegra_car TEGRA124_CLK_CEC>;
         clock-names = "cec";
-        status = "disabled";
         hdmi-phandle = <&hdmi>;
     };

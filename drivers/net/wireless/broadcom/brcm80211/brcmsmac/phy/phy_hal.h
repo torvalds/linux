@@ -141,11 +141,6 @@ struct tx_power {
 	u8 target[WL_TX_POWER_RATES];
 };
 
-struct tx_inst_power {
-	u8 txpwr_est_Pout[2];   /* Latest estimate for 2.4 and 5 Ghz */
-	u8 txpwr_est_Pout_gofdm;        /* Pwr estimate for 2.4 OFDM */
-};
-
 struct brcms_chanvec {
 	u8 vec[MAXCHANNEL / NBBY];
 };

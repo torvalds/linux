@@ -284,7 +284,9 @@ static void output_headers(struct perf_session *session, struct convert_json *c)
 	output_json_key_string(out, true, 2, "os-release", header->env.os_release);
 	output_json_key_string(out, true, 2, "arch", header->env.arch);
 
-	output_json_key_string(out, true, 2, "cpu-desc", header->env.cpu_desc);
+	if (header->env.cpu_desc)
+		output_json_key_string(out, true, 2, "cpu-desc", header->env.cpu_desc);
+
 	output_json_key_string(out, true, 2, "cpuid", header->env.cpuid);
 	output_json_key_format(out, true, 2, "nrcpus-online", "%u", header->env.nr_cpus_online);
 	output_json_key_format(out, true, 2, "nrcpus-avail", "%u", header->env.nr_cpus_avail);

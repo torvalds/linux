@@ -441,7 +441,7 @@ static const struct phy_ops serdes_ops = {
 };
 
 static struct phy *serdes_simple_xlate(struct device *dev,
-				       struct of_phandle_args *args)
+				       const struct of_phandle_args *args)
 {
 	struct serdes_ctrl *ctrl = dev_get_drvdata(dev);
 	unsigned int port, idx, i;

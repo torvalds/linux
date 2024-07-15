@@ -63,3 +63,4 @@ module_exit(exit_rc_map_ati_tv_wonder_hd_600)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Mauro Carvalho Chehab");
+MODULE_DESCRIPTION("ati-tv-wonder-hd-600 remote controller keytable");

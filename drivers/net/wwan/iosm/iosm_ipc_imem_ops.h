@@ -36,8 +36,8 @@
 /**
  * ipc_imem_sys_port_open - Open a port link to CP.
  * @ipc_imem:	Imem instance.
- * @chl_id:	Channel Indentifier.
- * @hp_id:	HP Indentifier.
+ * @chl_id:	Channel Identifier.
+ * @hp_id:	HP Identifier.
  *
  * Return: channel instance on success, NULL for failure
  */

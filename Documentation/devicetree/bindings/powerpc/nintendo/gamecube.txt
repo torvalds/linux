@@ -42,7 +42,7 @@ Nintendo GameCube device tree
 
   - compatible : should be "nintendo,flipper-pic"
 
-1.c) The Digital Signal Procesor (DSP) node
+1.c) The Digital Signal Processor (DSP) node
 
   Represents the digital signal processor interface, designed to offload
   audio related tasks.

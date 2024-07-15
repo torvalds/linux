@@ -137,21 +137,21 @@
 
 		key-down {
 			gpios = <&gpx3 3 GPIO_ACTIVE_LOW>;
-			linux,code = <114>;
+			linux,code = <KEY_VOLUMEDOWN>;
 			label = "volume down";
 			debounce-interval = <10>;
 		};
 
 		key-up {
 			gpios = <&gpx2 2 GPIO_ACTIVE_LOW>;
-			linux,code = <115>;
+			linux,code = <KEY_VOLUMEUP>;
 			label = "volume up";
 			debounce-interval = <10>;
 		};
 
 		key-power {
 			gpios = <&gpx2 7 GPIO_ACTIVE_LOW>;
-			linux,code = <116>;
+			linux,code = <KEY_POWER>;
 			label = "power";
 			debounce-interval = <10>;
 			wakeup-source;
@@ -159,7 +159,7 @@
 
 		key-ok {
 			gpios = <&gpx0 1 GPIO_ACTIVE_LOW>;
-			linux,code = <139>;
+			linux,code = <KEY_OK>;
 			label = "ok";
 			debounce-interval = <10>;
 			wakeup-source;
@@ -181,6 +181,38 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&max77693_irq>;
 			reg = <0x66>;
+
+			muic {
+				compatible = "maxim,max77693-muic";
+
+				connector {
+					compatible = "samsung,usb-connector-11pin",
+						     "usb-b-connector";
+					label = "micro-USB";
+					type = "micro";
+
+					ports {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						port@0 {
+							reg = <0>;
+
+							muic_to_usb: endpoint {
+								remote-endpoint = <&usb_to_muic>;
+							};
+						};
+
+						port@3 {
+							reg = <3>;
+
+							muic_to_mhl: endpoint {
+								remote-endpoint = <&mhl_to_muic>;
+							};
+						};
+					};
+				};
+			};
 
 			regulators {
 				esafeout1_reg: ESAFEOUT1 {
@@ -285,6 +317,14 @@
 
 					mhl_to_hdmi: endpoint {
 						remote-endpoint = <&hdmi_to_mhl>;
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+
+					mhl_to_muic: endpoint {
+						remote-endpoint = <&muic_to_mhl>;
 					};
 				};
 			};
@@ -545,8 +585,16 @@
 &hsotg {
 	vusb_d-supply = <&ldo15_reg>;
 	vusb_a-supply = <&ldo12_reg>;
-	dr_mode = "peripheral";
+	dr_mode = "otg";
+	role-switch-default-mode = "peripheral";
+	usb-role-switch;
 	status = "okay";
+
+	port {
+		usb_to_muic: endpoint {
+			remote-endpoint = <&muic_to_usb>;
+		};
+	};
 };
 
 &i2c_0 {
@@ -990,7 +1038,7 @@
 
 &pmu_system_controller {
 	assigned-clocks = <&pmu_system_controller 0>;
-	assigned-clock-parents =  <&clock CLK_XUSBXTI>;
+	assigned-clock-parents = <&clock CLK_XUSBXTI>;
 };
 
 &pinctrl_0 {

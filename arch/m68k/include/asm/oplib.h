@@ -9,6 +9,8 @@
 #ifndef __SPARC_OPLIB_H
 #define __SPARC_OPLIB_H
 
+#include <linux/compiler.h>
+
 #include <asm/openprom.h>
 
 /* The master romvec pointer... */
@@ -149,7 +151,7 @@ extern char prom_getchar(void);
 extern void prom_putchar(char character);
 
 /* Prom's internal printf routine, don't use in kernel/boot code. */
-void prom_printf(char *fmt, ...);
+__printf(1, 2) void prom_printf(char *fmt, ...);
 
 /* Query for input device type */
 

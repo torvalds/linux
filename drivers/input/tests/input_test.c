@@ -179,4 +179,5 @@ static struct kunit_suite input_test_suite = {
 kunit_test_suite(input_test_suite);
 
 MODULE_AUTHOR("Javier Martinez Canillas <javierm@redhat.com>");
+MODULE_DESCRIPTION("KUnit test for the input core");
 MODULE_LICENSE("GPL");

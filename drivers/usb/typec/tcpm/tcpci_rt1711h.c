@@ -7,6 +7,7 @@
 
 #include <linux/bits.h>
 #include <linux/kernel.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
@@ -51,13 +52,19 @@
 /* 1b0 as fixed rx threshold of rd/rp 0.55V, 1b1 depends on RTCRTL4[0] */
 #define BMCIO_RXDZEN	BIT(0)
 
+struct rt1711h_chip_info {
+	u32 rxdz_sel;
+	u16 did;
+	bool enable_pd30_extended_message;
+};
+
 struct rt1711h_chip {
 	struct tcpci_data data;
 	struct tcpci *tcpci;
 	struct device *dev;
 	struct regulator *vbus;
+	const struct rt1711h_chip_info *info;
 	bool src_en;
-	u16 did;
 };
 
 static int rt1711h_read16(struct rt1711h_chip *chip, unsigned int reg, u16 *val)
@@ -105,7 +112,7 @@ static int rt1711h_init(struct tcpci *tcpci, struct tcpci_data *tdata)
 		return ret;
 
 	/* Enable PD30 extended message for RT1715 */
-	if (chip->did == RT1715_DID) {
+	if (chip->info->enable_pd30_extended_message) {
 		ret = regmap_update_bits(regmap, RT1711H_RTCTRL8,
 					 RT1711H_ENEXTMSG, RT1711H_ENEXTMSG);
 		if (ret < 0)
@@ -200,10 +207,7 @@ static inline int rt1711h_init_cc_params(struct rt1711h_chip *chip, u8 status)
 	if ((cc1 >= TYPEC_CC_RP_1_5 && cc2 < TYPEC_CC_RP_DEF) ||
 	    (cc2 >= TYPEC_CC_RP_1_5 && cc1 < TYPEC_CC_RP_DEF)) {
 		rxdz_en = BMCIO_RXDZEN;
-		if (chip->did == RT1715_DID)
-			rxdz_sel = RT1711H_BMCIO_RXDZSEL;
-		else
-			rxdz_sel = 0;
+		rxdz_sel = chip->info->rxdz_sel;
 	} else {
 		rxdz_en = 0;
 		rxdz_sel = RT1711H_BMCIO_RXDZSEL;
@@ -319,7 +323,7 @@ static int rt1711h_check_revision(struct i2c_client *i2c, struct rt1711h_chip *c
 	ret = i2c_smbus_read_word_data(i2c, TCPC_BCD_DEV);
 	if (ret < 0)
 		return ret;
-	if (ret != chip->did) {
+	if (ret != chip->info->did) {
 		dev_err(&i2c->dev, "did is not correct, 0x%04x\n", ret);
 		return -ENODEV;
 	}
@@ -336,7 +340,7 @@ static int rt1711h_probe(struct i2c_client *client)
 	if (!chip)
 		return -ENOMEM;
 
-	chip->did = (size_t)device_get_match_data(&client->dev);
+	chip->info = i2c_get_match_data(client);
 
 	ret = rt1711h_check_revision(client, chip);
 	if (ret < 0) {
@@ -391,26 +395,34 @@ static void rt1711h_remove(struct i2c_client *client)
 	tcpci_unregister_port(chip->tcpci);
 }
 
+static const struct rt1711h_chip_info rt1711h = {
+	.did = RT1711H_DID,
+};
+
+static const struct rt1711h_chip_info rt1715 = {
+	.rxdz_sel = RT1711H_BMCIO_RXDZSEL,
+	.did = RT1715_DID,
+	.enable_pd30_extended_message = true,
+};
+
 static const struct i2c_device_id rt1711h_id[] = {
-	{ "rt1711h", 0 },
-	{ "rt1715", 0 },
-	{ }
+	{ "rt1711h", (kernel_ulong_t)&rt1711h },
+	{ "rt1715", (kernel_ulong_t)&rt1715 },
+	{}
 };
 MODULE_DEVICE_TABLE(i2c, rt1711h_id);
 
-#ifdef CONFIG_OF
 static const struct of_device_id rt1711h_of_match[] = {
-	{ .compatible = "richtek,rt1711h", .data = (void *)RT1711H_DID },
-	{ .compatible = "richtek,rt1715", .data = (void *)RT1715_DID },
-	{},
+	{ .compatible = "richtek,rt1711h", .data = &rt1711h },
+	{ .compatible = "richtek,rt1715", .data = &rt1715 },
+	{}
 };
 MODULE_DEVICE_TABLE(of, rt1711h_of_match);
-#endif
 
 static struct i2c_driver rt1711h_i2c_driver = {
 	.driver = {
 		.name = "rt1711h",
-		.of_match_table = of_match_ptr(rt1711h_of_match),
+		.of_match_table = rt1711h_of_match,
 	},
 	.probe = rt1711h_probe,
 	.remove = rt1711h_remove,

@@ -172,8 +172,6 @@ struct aux_engine_funcs {
 		struct aux_engine *engine,
 		uint8_t *returned_bytes);
 	bool (*is_engine_available)(struct aux_engine *engine);
-	enum i2caux_engine_type (*get_engine_type)(
-		const struct aux_engine *engine);
 	bool (*acquire)(
 		struct aux_engine *engine,
 		struct ddc *ddc);

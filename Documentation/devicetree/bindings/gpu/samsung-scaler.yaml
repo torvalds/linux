@@ -21,40 +21,20 @@ properties:
   interrupts:
     maxItems: 1
 
-  clocks: {}
-  clock-names: {}
-  iommus: {}
-  power-domains: {}
+  clocks:
+    minItems: 1
+    maxItems: 3
 
-if:
-  properties:
-    compatible:
-      contains:
-        const: samsung,exynos5420-scaler
+  clock-names:
+    minItems: 1
+    maxItems: 3
 
-then:
-  properties:
-    clocks:
-      items:
-        - description: mscl clock
+  iommus:
+    minItems: 1
+    maxItems: 2
 
-    clock-names:
-      items:
-        - const: mscl
-
-else:
-  properties:
-    clocks:
-      items:
-        - description: pclk clock
-        - description: aclk clock
-        - description: aclk_xiu clock
-
-    clock-names:
-      items:
-        - const: pclk
-        - const: aclk
-        - const: aclk_xiu
+  power-domains:
+    maxItems: 1
 
 required:
   - compatible
@@ -62,6 +42,39 @@ required:
   - interrupts
   - clocks
   - clock-names
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: samsung,exynos5420-scaler
+
+    then:
+      properties:
+        clocks:
+          items:
+            - description: mscl clock
+        clock-names:
+          items:
+            - const: mscl
+        iommus:
+          minItems: 2
+
+    else:
+      properties:
+        clocks:
+          items:
+            - description: pclk clock
+            - description: aclk clock
+            - description: aclk_xiu clock
+        clock-names:
+          items:
+            - const: pclk
+            - const: aclk
+            - const: aclk_xiu
+        iommus:
+          maxItems: 1
 
 additionalProperties: false
 

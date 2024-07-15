@@ -98,8 +98,8 @@
 };
 
 &usbphy1 {
-	fsl,tx-cal-45-dn-ohms = <55>;
-	fsl,tx-cal-45-dp-ohms = <55>;
+	fsl,tx-cal-45-dn-ohms = <54>;
+	fsl,tx-cal-45-dp-ohms = <54>;
 	fsl,tx-d-cal = <100>;
 };
 

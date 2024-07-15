@@ -194,9 +194,8 @@ static void ibmvnic_clean_affinity(struct ibmvnic_adapter *adapter)
 	struct ibmvnic_sub_crq_queue **rxqs;
 	struct ibmvnic_sub_crq_queue **txqs;
 	int num_rxqs, num_txqs;
-	int rc, i;
+	int i;
 
-	rc = 0;
 	rxqs = adapter->rx_scrq;
 	txqs = adapter->tx_scrq;
 	num_txqs = adapter->num_active_tx_scrqs;
@@ -3520,7 +3519,7 @@ restart_poll:
 		if (napi_complete_done(napi, frames_processed)) {
 			enable_scrq_irq(adapter, rx_scrq);
 			if (pending_scrq(adapter, rx_scrq)) {
-				if (napi_reschedule(napi)) {
+				if (napi_schedule(napi)) {
 					disable_scrq_irq(adapter, rx_scrq);
 					goto restart_poll;
 				}
@@ -5248,7 +5247,8 @@ static void handle_vpd_rsp(union ibmvnic_crq *crq,
 	/* copy firmware version string from vpd into adapter */
 	if ((substr + 3 + fw_level_len) <
 	    (adapter->vpd->buff + adapter->vpd->len)) {
-		strncpy((char *)adapter->fw_version, substr + 3, fw_level_len);
+		strscpy(adapter->fw_version, substr + 3,
+			sizeof(adapter->fw_version));
 	} else {
 		dev_info(dev, "FW substr extrapolated VPD buff\n");
 	}

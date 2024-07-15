@@ -23,6 +23,7 @@
 #include "ctxgf100.h"
 
 #include <core/firmware.h>
+#include <subdev/gsp.h>
 #include <subdev/acr.h>
 #include <subdev/timer.h>
 #include <subdev/vfn.h>
@@ -137,8 +138,15 @@ ga102_gr_oneinit_intr(struct gf100_gr *gr, enum nvkm_intr_type *pvector)
 	return &device->vfn->intr;
 }
 
+static int
+ga102_gr_nonstall(struct gf100_gr *gr)
+{
+	return nvkm_rd32(gr->base.engine.subdev.device, 0x400160) & 0x00000fff;
+}
+
 static const struct gf100_gr_func
 ga102_gr = {
+	.nonstall = ga102_gr_nonstall,
 	.oneinit_intr = ga102_gr_oneinit_intr,
 	.oneinit_tiles = gm200_gr_oneinit_tiles,
 	.oneinit_sm_id = gv100_gr_oneinit_sm_id,
@@ -343,5 +351,8 @@ ga102_gr_fwif[] = {
 int
 ga102_gr_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst, struct nvkm_gr **pgr)
 {
+	if (nvkm_gsp_rm(device->gsp))
+		return r535_gr_new(&ga102_gr, device, type, inst, pgr);
+
 	return gf100_gr_new_(ga102_gr_fwif, device, type, inst, pgr);
 }

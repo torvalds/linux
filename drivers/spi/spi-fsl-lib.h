@@ -103,12 +103,9 @@ extern void mpc8xxx_spi_rx_buf_u32(u32 data, struct mpc8xxx_spi *mpc8xxx_spi);
 
 extern struct mpc8xxx_spi_probe_info *to_of_pinfo(
 		struct fsl_spi_platform_data *pdata);
-extern int mpc8xxx_spi_bufs(struct mpc8xxx_spi *mspi,
-		struct spi_transfer *t, unsigned int len);
 extern const char *mpc8xxx_spi_strmode(unsigned int flags);
 extern void mpc8xxx_spi_probe(struct device *dev, struct resource *mem,
 		unsigned int irq);
-extern int mpc8xxx_spi_remove(struct device *dev);
 extern int of_mpc8xxx_spi_probe(struct platform_device *ofdev);
 
 #endif /* __SPI_FSL_LIB_H__ */

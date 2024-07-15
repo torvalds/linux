@@ -560,7 +560,7 @@ static int cros_ec_lightbar_probe(struct platform_device *pd)
 	return ret;
 }
 
-static int cros_ec_lightbar_remove(struct platform_device *pd)
+static void cros_ec_lightbar_remove(struct platform_device *pd)
 {
 	struct cros_ec_dev *ec_dev = dev_get_drvdata(pd->dev.parent);
 
@@ -569,8 +569,6 @@ static int cros_ec_lightbar_remove(struct platform_device *pd)
 
 	/* Let the EC take over the lightbar again. */
 	lb_manual_suspend_ctrl(ec_dev, 0);
-
-	return 0;
 }
 
 static int __maybe_unused cros_ec_lightbar_resume(struct device *dev)
@@ -603,7 +601,7 @@ static struct platform_driver cros_ec_lightbar_driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe = cros_ec_lightbar_probe,
-	.remove = cros_ec_lightbar_remove,
+	.remove_new = cros_ec_lightbar_remove,
 };
 
 module_platform_driver(cros_ec_lightbar_driver);

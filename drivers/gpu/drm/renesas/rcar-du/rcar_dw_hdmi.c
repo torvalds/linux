@@ -93,13 +93,11 @@ static int rcar_dw_hdmi_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int rcar_dw_hdmi_remove(struct platform_device *pdev)
+static void rcar_dw_hdmi_remove(struct platform_device *pdev)
 {
 	struct dw_hdmi *hdmi = platform_get_drvdata(pdev);
 
 	dw_hdmi_remove(hdmi);
-
-	return 0;
 }
 
 static const struct of_device_id rcar_dw_hdmi_of_table[] = {
@@ -110,7 +108,7 @@ MODULE_DEVICE_TABLE(of, rcar_dw_hdmi_of_table);
 
 static struct platform_driver rcar_dw_hdmi_platform_driver = {
 	.probe		= rcar_dw_hdmi_probe,
-	.remove		= rcar_dw_hdmi_remove,
+	.remove_new	= rcar_dw_hdmi_remove,
 	.driver		= {
 		.name	= "rcar-dw-hdmi",
 		.of_match_table = rcar_dw_hdmi_of_table,

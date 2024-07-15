@@ -19,7 +19,6 @@
 #include "isys_irq_global.h"
 #include "isys_irq_local.h"
 
-#if defined(ISP2401)
 
 void isys_irqc_state_get(const isys_irq_ID_t	isys_irqc_id,
 			 isys_irqc_state_t	*state);
@@ -36,6 +35,5 @@ hrt_data isys_irqc_reg_load(const isys_irq_ID_t	isys_irqc_id,
 
 void isys_irqc_status_enable(const isys_irq_ID_t isys_irqc_id);
 
-#endif /* defined(ISP2401) */
 
 #endif	/* __ISYS_IRQ_PUBLIC_H__ */

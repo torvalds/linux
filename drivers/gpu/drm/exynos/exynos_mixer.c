@@ -18,7 +18,6 @@
 #include <linux/kernel.h>
 #include <linux/ktime.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
@@ -1259,13 +1258,11 @@ static int mixer_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int mixer_remove(struct platform_device *pdev)
+static void mixer_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
 
 	component_del(&pdev->dev, &mixer_component_ops);
-
-	return 0;
 }
 
 static int __maybe_unused exynos_mixer_suspend(struct device *dev)
@@ -1339,5 +1336,5 @@ struct platform_driver mixer_driver = {
 		.of_match_table = mixer_match_types,
 	},
 	.probe = mixer_probe,
-	.remove = mixer_remove,
+	.remove_new = mixer_remove,
 };

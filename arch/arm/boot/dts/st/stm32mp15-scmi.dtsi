@@ -16,7 +16,6 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			linaro,optee-channel-id = <0>;
-			shmem = <&scmi_shm>;
 
 			scmi_clk: protocol@14 {
 				reg = <0x14>;
@@ -35,43 +34,27 @@
 					#address-cells = <1>;
 					#size-cells = <0>;
 
-					scmi_reg11: reg11@0 {
+					scmi_reg11: regulator@0 {
 						reg = <0>;
 						regulator-name = "reg11";
 						regulator-min-microvolt = <1100000>;
 						regulator-max-microvolt = <1100000>;
 					};
 
-					scmi_reg18: reg18@1 {
-						voltd-name = "reg18";
+					scmi_reg18: regulator@1 {
 						reg = <1>;
 						regulator-name = "reg18";
 						regulator-min-microvolt = <1800000>;
 						regulator-max-microvolt = <1800000>;
 					};
 
-					scmi_usb33: usb33@2 {
+					scmi_usb33: regulator@2 {
 						reg = <2>;
 						regulator-name = "usb33";
 						regulator-min-microvolt = <3300000>;
 						regulator-max-microvolt = <3300000>;
 					};
 				};
-			};
-		};
-	};
-
-	soc {
-		scmi_sram: sram@2ffff000 {
-			compatible = "mmio-sram";
-			reg = <0x2ffff000 0x1000>;
-			#address-cells = <1>;
-			#size-cells = <1>;
-			ranges = <0 0x2ffff000 0x1000>;
-
-			scmi_shm: scmi-sram@0 {
-				compatible = "arm,scmi-shmem";
-				reg = <0 0x80>;
 			};
 		};
 	};

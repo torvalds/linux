@@ -39,25 +39,6 @@
 /*
  * macros for easy use
  */
-#define rtsx_writel(chip, reg, value) \
-	iowrite32(value, (chip)->rtsx->remap_addr + reg)
-#define rtsx_readl(chip, reg) \
-	ioread32((chip)->rtsx->remap_addr + reg)
-#define rtsx_writew(chip, reg, value) \
-	iowrite16(value, (chip)->rtsx->remap_addr + reg)
-#define rtsx_readw(chip, reg) \
-	ioread16((chip)->rtsx->remap_addr + reg)
-#define rtsx_writeb(chip, reg, value) \
-	iowrite8(value, (chip)->rtsx->remap_addr + reg)
-#define rtsx_readb(chip, reg) \
-	ioread8((chip)->rtsx->remap_addr + reg)
-
-#define rtsx_read_config_byte(chip, where, val) \
-	pci_read_config_byte((chip)->rtsx->pci, where, val)
-
-#define rtsx_write_config_byte(chip, where, val) \
-	pci_write_config_byte((chip)->rtsx->pci, where, val)
-
 #define wait_timeout_x(task_state, msecs)	\
 do {						\
 	set_current_state((task_state));	\
@@ -127,13 +108,6 @@ static inline struct rtsx_dev *host_to_rtsx(struct Scsi_Host *host)
 	return (struct rtsx_dev *)host->hostdata;
 }
 
-/*
- * The scsi_lock() and scsi_unlock() macros protect the sm_state and the
- * single queue element srb for write access
- */
-#define scsi_unlock(host)	spin_unlock_irq(host->host_lock)
-#define scsi_lock(host)		spin_lock_irq(host->host_lock)
-
 #define lock_state(chip)	spin_lock_irq(&((chip)->rtsx->reg_lock))
 #define unlock_state(chip)	spin_unlock_irq(&((chip)->rtsx->reg_lock))
 
@@ -146,5 +120,45 @@ enum xfer_buf_dir	{TO_XFER_BUF, FROM_XFER_BUF};
 #include "rtsx_card.h"
 #include "rtsx_sys.h"
 #include "general.h"
+
+static inline void rtsx_writel(struct rtsx_chip *chip, u32 reg, u32 value)
+{
+	iowrite32(value, chip->rtsx->remap_addr + reg);
+}
+
+static inline u32 rtsx_readl(struct rtsx_chip *chip, u32 reg)
+{
+	return ioread32(chip->rtsx->remap_addr + reg);
+}
+
+static inline void rtsx_writew(struct rtsx_chip *chip, u32 reg, u16 value)
+{
+	iowrite16(value, chip->rtsx->remap_addr + reg);
+}
+
+static inline u16 rtsx_readw(struct rtsx_chip *chip, u32 reg)
+{
+	return ioread16(chip->rtsx->remap_addr + reg);
+}
+
+static inline void rtsx_writeb(struct rtsx_chip *chip, u32 reg, u8 value)
+{
+	iowrite8(value, chip->rtsx->remap_addr + reg);
+}
+
+static inline u8 rtsx_readb(struct rtsx_chip *chip, u32 reg)
+{
+	return ioread8((chip)->rtsx->remap_addr + reg);
+}
+
+static inline int rtsx_read_config_byte(struct rtsx_chip *chip, int where, u8 *val)
+{
+	return pci_read_config_byte(chip->rtsx->pci, where, val);
+}
+
+static inline int rtsx_write_config_byte(struct rtsx_chip *chip, int where, u8 val)
+{
+	return pci_write_config_byte(chip->rtsx->pci, where, val);
+}
 
 #endif  /* __REALTEK_RTSX_H */

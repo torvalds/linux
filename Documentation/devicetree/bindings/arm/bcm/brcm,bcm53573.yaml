@@ -1,0 +1,39 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/bcm/brcm,bcm53573.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Broadcom BCM53573 SoCs family
+
+description:
+  Broadcom BCM53573 / BCM47189 Wi-Fi SoCs derived from Northstar.
+
+maintainers:
+  - Rafał Miłecki <rafal@milecki.pl>
+
+properties:
+  $nodename:
+    const: '/'
+  compatible:
+    oneOf:
+      - description: BCM53573 based boards
+        items:
+          - enum:
+              - tenda,ac6-v1
+              - tenda,w15e-v1
+          - const: brcm,bcm53573
+
+      - description: BCM47189 based boards
+        items:
+          - enum:
+              - brcm,bcm947189acdbmr
+              - luxul,xap-810-v1
+              - luxul,xap-1440-v1
+              - tenda,ac9
+          - const: brcm,bcm47189
+          - const: brcm,bcm53573
+
+additionalProperties: true
+
+...

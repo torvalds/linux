@@ -40,7 +40,6 @@
 #include <asm/asm-offsets.h>
 #include <asm/cache.h>
 #include <asm/ptrace.h>
-#include <asm/export.h>
 #include <asm/feature-fixups.h>
 #include "head_booke.h"
 
@@ -396,7 +395,7 @@ interrupt_base:
 #ifdef CONFIG_PPC_FPU
 	FP_UNAVAILABLE_EXCEPTION
 #else
-	EXCEPTION(0x0800, FP_UNAVAIL, FloatingPointUnavailable, unknown_exception)
+	EXCEPTION(0x0800, FP_UNAVAIL, FloatingPointUnavailable, emulation_assist_interrupt)
 #endif
 
 	/* System Call Interrupt */
@@ -472,7 +471,7 @@ END_BTB_FLUSH_SECTION
 
 4:
 	/* Mask of required permission bits. Note that while we
-	 * do copy ESR:ST to _PAGE_RW position as trying to write
+	 * do copy ESR:ST to _PAGE_WRITE position as trying to write
 	 * to an RO page is pretty common, we don't do it with
 	 * _PAGE_DIRTY. We could do it, but it's a fairly rare
 	 * event so I'd rather take the overhead when it happens
@@ -486,10 +485,10 @@ END_BTB_FLUSH_SECTION
 	 */
 	mfspr	r12,SPRN_ESR
 #ifdef CONFIG_PTE_64BIT
-	li	r13,_PAGE_PRESENT
+	li	r13,_PAGE_PRESENT|_PAGE_BAP_SR
 	oris	r13,r13,_PAGE_ACCESSED@h
 #else
-	li	r13,_PAGE_PRESENT|_PAGE_ACCESSED
+	li	r13,_PAGE_PRESENT|_PAGE_READ|_PAGE_ACCESSED
 #endif
 	rlwimi	r13,r12,11,29,29
 
@@ -784,15 +783,15 @@ BEGIN_MMU_FTR_SECTION
 	mtspr	SPRN_MAS7, r10
 END_MMU_FTR_SECTION_IFSET(MMU_FTR_BIG_PHYS)
 #else
-	li	r10, (_PAGE_EXEC | _PAGE_PRESENT)
+	li	r10, (_PAGE_EXEC | _PAGE_READ)
 	mr	r13, r11
 	rlwimi	r10, r11, 31, 29, 29	/* extract _PAGE_DIRTY into SW */
 	and	r12, r11, r10
-	andi.	r10, r11, _PAGE_USER	/* Test for _PAGE_USER */
+	mcrf	cr0, cr5		/* Test for user page */
 	slwi	r10, r12, 1
 	or	r10, r10, r12
 	rlwinm	r10, r10, 0, ~_PAGE_EXEC	/* Clear SX on user pages */
-	iseleq	r12, r12, r10
+	isellt	r12, r10, r12
 	rlwimi	r13, r12, 0, 20, 31	/* Get RPN from PTE, merge w/ perms */
 	mtspr	SPRN_MAS3, r13
 #endif

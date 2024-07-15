@@ -98,10 +98,21 @@ struct ice_pkg_hdr {
 	__le32 seg_offset[];
 };
 
+/* Package signing algorithm types */
+#define SEGMENT_SIGN_TYPE_INVALID	0x00000000
+#define SEGMENT_SIGN_TYPE_RSA2K		0x00000001
+#define SEGMENT_SIGN_TYPE_RSA3K		0x00000002
+#define SEGMENT_SIGN_TYPE_RSA3K_SBB	0x00000003 /* Secure Boot Block */
+#define SEGMENT_SIGN_TYPE_RSA3K_E825	0x00000005
+
 /* generic segment */
 struct ice_generic_seg_hdr {
-#define SEGMENT_TYPE_METADATA 0x00000001
-#define SEGMENT_TYPE_ICE 0x00000010
+#define SEGMENT_TYPE_INVALID	0x00000000
+#define SEGMENT_TYPE_METADATA	0x00000001
+#define SEGMENT_TYPE_ICE_E810	0x00000010
+#define SEGMENT_TYPE_SIGNING	0x00001001
+#define SEGMENT_TYPE_ICE_RUN_TIME_CFG 0x00000020
+#define SEGMENT_TYPE_ICE_E830	0x00000017
 	__le32 seg_type;
 	struct ice_pkg_ver seg_format_ver;
 	__le32 seg_size;
@@ -162,6 +173,18 @@ struct ice_global_metadata_seg {
 #define ICE_MAX_S_OFF 4095
 #define ICE_MIN_S_SZ 1
 #define ICE_MAX_S_SZ 4084
+
+struct ice_sign_seg {
+	struct ice_generic_seg_hdr hdr;
+	__le32 seg_id;
+	__le32 sign_type;
+	__le32 signed_seg_idx;
+	__le32 signed_buf_start;
+	__le32 signed_buf_count;
+#define ICE_SIGN_SEG_RESERVED_COUNT	44
+	u8 reserved[ICE_SIGN_SEG_RESERVED_COUNT];
+	struct ice_buf_table buf_tbl;
+};
 
 /* section information */
 struct ice_section_entry {
@@ -416,20 +439,12 @@ struct ice_pkg_enum {
 	void *(*handler)(u32 sect_type, void *section, u32 index, u32 *offset);
 };
 
-int ice_aq_download_pkg(struct ice_hw *hw, struct ice_buf_hdr *pkg_buf,
-			u16 buf_size, bool last_buf, u32 *error_offset,
-			u32 *error_info, struct ice_sq_cd *cd);
 int ice_aq_upload_section(struct ice_hw *hw, struct ice_buf_hdr *pkg_buf,
 			  u16 buf_size, struct ice_sq_cd *cd);
 
 void *ice_pkg_buf_alloc_section(struct ice_buf_build *bld, u32 type, u16 size);
 
-enum ice_ddp_state ice_verify_pkg(struct ice_pkg_hdr *pkg, u32 len);
-
 struct ice_buf_build *ice_pkg_buf_alloc(struct ice_hw *hw);
-
-struct ice_generic_seg_hdr *ice_find_seg_in_pkg(struct ice_hw *hw, u32 seg_type,
-						struct ice_pkg_hdr *pkg_hdr);
 
 int ice_update_pkg_no_lock(struct ice_hw *hw, struct ice_buf *bufs, u32 count);
 int ice_update_pkg(struct ice_hw *hw, struct ice_buf *bufs, u32 count);
@@ -438,7 +453,5 @@ int ice_pkg_buf_reserve_section(struct ice_buf_build *bld, u16 count);
 u16 ice_pkg_buf_get_active_sections(struct ice_buf_build *bld);
 void *ice_pkg_enum_section(struct ice_seg *ice_seg, struct ice_pkg_enum *state,
 			   u32 sect_type);
-
-struct ice_buf_hdr *ice_pkg_val_buf(struct ice_buf *buf);
 
 #endif

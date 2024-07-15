@@ -117,9 +117,6 @@ static int vid_cap_queue_setup(struct vb2_queue *vq,
 					dev->fmt_cap->data_offset[p];
 	}
 
-	if (vq->num_buffers + *nbuffers < 2)
-		*nbuffers = 2 - vq->num_buffers;
-
 	*nplanes = buffers;
 
 	dprintk(dev, 1, "%s: count=%d\n", __func__, *nbuffers);

@@ -41,13 +41,12 @@ static struct dentry *cifs_get_parent(struct dentry *dentry)
 }
 
 const struct export_operations cifs_export_ops = {
+	.encode_fh = generic_encode_ino32_fh,
 	.get_parent = cifs_get_parent,
-/*	Following five export operations are unneeded so far and can default:
-	.get_dentry =
-	.get_name =
-	.find_exported_dentry =
-	.decode_fh =
-	.encode_fs =  */
+/*
+ * Following export operations are mandatory for NFS export support:
+ *	.fh_to_dentry =
+ */
 };
 
 #endif /* CONFIG_CIFS_NFSD_EXPORT */

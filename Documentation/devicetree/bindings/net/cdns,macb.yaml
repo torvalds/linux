@@ -59,6 +59,11 @@ properties:
           - cdns,gem                  # Generic
           - cdns,macb                 # Generic
 
+      - items:
+          - enum:
+              - microchip,sam9x7-gem     # Microchip SAM9X7 gigabit ethernet interface
+          - const: microchip,sama7g5-gem # Microchip SAMA7G5 gigabit ethernet interface
+
   reg:
     minItems: 1
     items:

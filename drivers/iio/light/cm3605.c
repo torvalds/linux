@@ -227,7 +227,7 @@ static int cm3605_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		ret = dev_err_probe(dev, irq, "failed to get irq\n");
+		ret = irq;
 		goto out_disable_aset;
 	}
 
@@ -266,7 +266,7 @@ out_disable_vdd:
 	return ret;
 }
 
-static int cm3605_remove(struct platform_device *pdev)
+static void cm3605_remove(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
 	struct cm3605 *cm3605 = iio_priv(indio_dev);
@@ -276,8 +276,6 @@ static int cm3605_remove(struct platform_device *pdev)
 	gpiod_set_value_cansleep(cm3605->aset, 0);
 	iio_device_unregister(indio_dev);
 	regulator_disable(cm3605->vdd);
-
-	return 0;
 }
 
 static int cm3605_pm_suspend(struct device *dev)
@@ -320,7 +318,7 @@ static struct platform_driver cm3605_driver = {
 		.pm = pm_sleep_ptr(&cm3605_dev_pm_ops),
 	},
 	.probe = cm3605_probe,
-	.remove = cm3605_remove,
+	.remove_new = cm3605_remove,
 };
 module_platform_driver(cm3605_driver);
 

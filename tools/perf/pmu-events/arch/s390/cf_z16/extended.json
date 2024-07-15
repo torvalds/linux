@@ -94,77 +94,77 @@
 		"Unit": "CPU-M-CF",
 		"EventCode": "145",
 		"EventName": "DCW_REQ",
-		"BriefDescription": "Directory Write Level 1 Data Cache from Cache",
+		"BriefDescription": "Directory Write Level 1 Data Cache from L2-Cache",
 		"PublicDescription": "A directory write to the Level-1 Data cache directory where the returned cache line was sourced from the requestors Level-2 cache."
 	},
 	{
 		"Unit": "CPU-M-CF",
 		"EventCode": "146",
 		"EventName": "DCW_REQ_IV",
-		"BriefDescription": "Directory Write Level 1 Data Cache from Cache with Intervention",
+		"BriefDescription": "Directory Write Level 1 Data Cache from L2-Cache with Intervention",
 		"PublicDescription": "A directory write to the Level-1 Data cache directory where the returned cache line was sourced from the requestors Level-2 cache with intervention."
 	},
 	{
 		"Unit": "CPU-M-CF",
 		"EventCode": "147",
 		"EventName": "DCW_REQ_CHIP_HIT",
-		"BriefDescription": "Directory Write Level 1 Data Cache from Cache with Chip HP Hit",
+		"BriefDescription": "Directory Write Level 1 Data Cache from L2-Cache with Chip HP Hit",
 		"PublicDescription": "A directory write to the Level-1 Data cache directory where the returned cache line was sourced from the requestors Level-2 cache after using chip level horizontal persistence, Chip-HP hit."
 	},
 	{
 		"Unit": "CPU-M-CF",
 		"EventCode": "148",
 		"EventName": "DCW_REQ_DRAWER_HIT",
-		"BriefDescription": "Directory Write Level 1 Data Cache from Cache with Drawer HP Hit",
+		"BriefDescription": "Directory Write Level 1 Data Cache from L2-Cache with Drawer HP Hit",
 		"PublicDescription": "A directory write to the Level-1 Data cache directory where the returned cache line was sourced from the requestors Level-2 cache after using drawer level horizontal persistence, Drawer-HP hit."
 	},
 	{
 		"Unit": "CPU-M-CF",
 		"EventCode": "149",
 		"EventName": "DCW_ON_CHIP",
-		"BriefDescription": "Directory Write Level 1 Data Cache from On-Chip Cache",
+		"BriefDescription": "Directory Write Level 1 Data Cache from On-Chip L2-Cache",
 		"PublicDescription": "A directory write to the Level-1 Data cache directory where the returned cache line was sourced from an On-Chip Level-2 cache."
 	},
 	{
 		"Unit": "CPU-M-CF",
 		"EventCode": "150",
 		"EventName": "DCW_ON_CHIP_IV",
-		"BriefDescription": "Directory Write Level 1 Data Cache from On-Chip Cache with Intervention",
+		"BriefDescription": "Directory Write Level 1 Data Cache from On-Chip L2-Cache with Intervention",
 		"PublicDescription": "A directory write to the Level-1 Data cache directory where the returned cache line was sourced from an On-Chip Level-2 cache with intervention."
 	},
 	{
 		"Unit": "CPU-M-CF",
 		"EventCode": "151",
 		"EventName": "DCW_ON_CHIP_CHIP_HIT",
-		"BriefDescription": "Directory Write Level 1 Data Cache from On-Chip Cache with Chip HP Hit",
+		"BriefDescription": "Directory Write Level 1 Data Cache from On-Chip L2-Cache with Chip HP Hit",
 		"PublicDescription": "A directory write to the Level-1 Data cache directory where the returned cache line was sourced from an On-Chip Level-2 cache after using chip level horizontal persistence, Chip-HP hit."
 	},
 	{
 		"Unit": "CPU-M-CF",
 		"EventCode": "152",
 		"EventName": "DCW_ON_CHIP_DRAWER_HIT",
-		"BriefDescription": "Directory Write Level 1 Data Cache from On-Chip Cache with Drawer HP Hit",
+		"BriefDescription": "Directory Write Level 1 Data Cache from On-Chip L2-Cache with Drawer HP Hit",
 		"PublicDescription": "A directory write to the Level-1 Data cache directory where the returned cache line was sourced from an On-Chip Level-2 cache using drawer level horizontal persistence, Drawer-HP hit."
 	},
 	{
 		"Unit": "CPU-M-CF",
 		"EventCode": "153",
 		"EventName": "DCW_ON_MODULE",
-		"BriefDescription": "Directory Write Level 1 Data Cache from On-Module Cache",
+		"BriefDescription": "Directory Write Level 1 Data Cache from On-Module L2-Cache",
 		"PublicDescription": "A directory write to the Level-1 Data cache directory where the returned cache line was sourced from an On-Module Level-2 cache."
 	},
 	{
 		"Unit": "CPU-M-CF",
 		"EventCode": "154",
 		"EventName": "DCW_ON_DRAWER",
-		"BriefDescription": "Directory Write Level 1 Data Cache from On-Drawer Cache",
+		"BriefDescription": "Directory Write Level 1 Data Cache from On-Drawer L2-Cache",
 		"PublicDescription": "A directory write to the Level-1 Data cache directory where the returned cache line was sourced from an On-Drawer Level-2 cache."
 	},
 	{
 		"Unit": "CPU-M-CF",
 		"EventCode": "155",
 		"EventName": "DCW_OFF_DRAWER",
-		"BriefDescription": "Directory Write Level 1 Data Cache from Off-Drawer Cache",
+		"BriefDescription": "Directory Write Level 1 Data Cache from Off-Drawer L2-Cache",
 		"PublicDescription": "A directory write to the Level-1 Data cache directory where the returned cache line was sourced from an Off-Drawer Level-2 cache."
 	},
 	{
@@ -199,140 +199,140 @@
 		"Unit": "CPU-M-CF",
 		"EventCode": "160",
 		"EventName": "IDCW_ON_MODULE_IV",
-		"BriefDescription": "Directory Write Level 1 Instruction and Data Cache from On-Module Memory Cache with Intervention",
+		"BriefDescription": "Directory Write Level 1 Instruction and Data Cache from On-Module Memory L2-Cache with Intervention",
 		"PublicDescription": "A directory write to the Level-1 Data or Level-1 Instruction cache directory where the returned cache line was sourced from an On-Module Level-2 cache with intervention."
 	},
 	{
 		"Unit": "CPU-M-CF",
 		"EventCode": "161",
 		"EventName": "IDCW_ON_MODULE_CHIP_HIT",
-		"BriefDescription": "Directory Write Level 1 Instruction and Data Cache from On-Module Memory Cache with Chip Hit",
+		"BriefDescription": "Directory Write Level 1 Instruction and Data Cache from On-Module Memory L2-Cache with Chip Hit",
 		"PublicDescription": "A directory write to the Level-1 Data or Level-1 Instruction cache directory where the returned cache line was sourced from an On-Module Level-2 cache using chip horizontal persistence, Chip-HP hit."
 	},
 	{
 		"Unit": "CPU-M-CF",
 		"EventCode": "162",
 		"EventName": "IDCW_ON_MODULE_DRAWER_HIT",
-		"BriefDescription": "Directory Write Level 1 Instruction and Data Cache from On-Module Memory Cache with Drawer Hit",
+		"BriefDescription": "Directory Write Level 1 Instruction and Data Cache from On-Module Memory L2-Cache with Drawer Hit",
 		"PublicDescription": "A directory write to the Level-1 Data or Level-1 Instruction cache directory where the returned cache line was sourced from an On-Module Level-2 cache using drawer level horizontal persistence, Drawer-HP hit."
 	},
 	{
 		"Unit": "CPU-M-CF",
 		"EventCode": "163",
 		"EventName": "IDCW_ON_DRAWER_IV",
-		"BriefDescription": "Directory Write Level 1 Instruction and Data Cache from On-Drawer Cache with Intervention",
+		"BriefDescription": "Directory Write Level 1 Instruction and Data Cache from On-Drawer L2-Cache with Intervention",
 		"PublicDescription": "A directory write to the Level-1 Data or Level-1 Instruction cache directory where the returned cache line was sourced from an On-Drawer Level-2 cache with intervention."
 	},
 	{
 		"Unit": "CPU-M-CF",
 		"EventCode": "164",
 		"EventName": "IDCW_ON_DRAWER_CHIP_HIT",
-		"BriefDescription": "Directory Write Level 1 Instruction and Data Cache from On-Drawer Cache with Chip Hit",
+		"BriefDescription": "Directory Write Level 1 Instruction and Data Cache from On-Drawer L2-Cache with Chip Hit",
 		"PublicDescription": "A directory write to the Level-1 Data or Level-1 instruction cache directory where the returned cache line was sourced from an On-Drawer Level-2 cache using chip level horizontal persistence, Chip-HP hit."
 	},
 	{
 		"Unit": "CPU-M-CF",
 		"EventCode": "165",
 		"EventName": "IDCW_ON_DRAWER_DRAWER_HIT",
-		"BriefDescription": "Directory Write Level 1 Instruction and Data Cache from On-Drawer Cache with Drawer Hit",
+		"BriefDescription": "Directory Write Level 1 Instruction and Data Cache from On-Drawer L2-Cache with Drawer Hit",
 		"PublicDescription": "A directory write to the Level-1 Data or Level-1 instruction cache directory where the returned cache line was sourced from an On-Drawer Level-2 cache using drawer level horizontal persistence, Drawer-HP hit."
 	},
 	{
 		"Unit": "CPU-M-CF",
 		"EventCode": "166",
 		"EventName": "IDCW_OFF_DRAWER_IV",
-		"BriefDescription": "Directory Write Level 1 Instruction and Data Cache from Off-Drawer Cache with Intervention",
+		"BriefDescription": "Directory Write Level 1 Instruction and Data Cache from Off-Drawer L2-Cache with Intervention",
 		"PublicDescription": "A directory write to the Level-1 Data or Level-1 instruction cache directory where the returned cache line was sourced from an Off-Drawer Level-2 cache with intervention."
 	},
 	{
 		"Unit": "CPU-M-CF",
 		"EventCode": "167",
 		"EventName": "IDCW_OFF_DRAWER_CHIP_HIT",
-		"BriefDescription": "Directory Write Level 1 Instruction and Data Cache from Off-Drawer Cache with Chip Hit",
+		"BriefDescription": "Directory Write Level 1 Instruction and Data Cache from Off-Drawer L2-Cache with Chip Hit",
 		"PublicDescription": "A directory write to the Level-1 Data or Level-1 instruction cache directory where the returned cache line was sourced from an Off-Drawer Level-2 cache using chip level horizontal persistence, Chip-HP hit."
 	},
 	{
 		"Unit": "CPU-M-CF",
 		"EventCode": "168",
 		"EventName": "IDCW_OFF_DRAWER_DRAWER_HIT",
-		"BriefDescription": "Directory Write Level 1 Instruction and Data Cache from Off-Drawer Cache with Drawer Hit",
+		"BriefDescription": "Directory Write Level 1 Instruction and Data Cache from Off-Drawer L2-Cache with Drawer Hit",
 		"PublicDescription": "A directory write to the Level-1 Data or Level-1 Instruction cache directory where the returned cache line was sourced from an Off-Drawer Level-2 cache using drawer level horizontal persistence, Drawer-HP hit."
 	},
 	{
 		"Unit": "CPU-M-CF",
 		"EventCode": "169",
 		"EventName": "ICW_REQ",
-		"BriefDescription": "Directory Write Level 1 Instruction Cache from Cache",
+		"BriefDescription": "Directory Write Level 1 Instruction Cache from L2-Cache",
 		"PublicDescription": "A directory write to the Level-1 Instruction cache directory where the returned cache line was sourced the requestors Level-2 cache."
 	},
 	{
 		"Unit": "CPU-M-CF",
 		"EventCode": "170",
 		"EventName": "ICW_REQ_IV",
-		"BriefDescription": "Directory Write Level 1 Instruction Cache from Cache with Intervention",
+		"BriefDescription": "Directory Write Level 1 Instruction Cache from L2-Cache with Intervention",
 		"PublicDescription": "A directory write to the Level-1 Instruction cache directory where the returned cache line was sourced from the requestors Level-2 cache with intervention."
 	},
 	{
 		"Unit": "CPU-M-CF",
 		"EventCode": "171",
 		"EventName": "ICW_REQ_CHIP_HIT",
-		"BriefDescription": "Directory Write Level 1 Instruction Cache from Cache with Chip HP Hit",
+		"BriefDescription": "Directory Write Level 1 Instruction Cache from L2-Cache with Chip HP Hit",
 		"PublicDescription": "A directory write to the Level-1 Instruction cache directory where the returned cache line was sourced from the requestors Level-2 cache using chip level horizontal persistence, Chip-HP hit."
 	},
 	{
 		"Unit": "CPU-M-CF",
 		"EventCode": "172",
 		"EventName": "ICW_REQ_DRAWER_HIT",
-		"BriefDescription": "Directory Write Level 1 Instruction Cache from Cache with Drawer HP Hit",
+		"BriefDescription": "Directory Write Level 1 Instruction Cache from L2-Cache with Drawer HP Hit",
 		"PublicDescription": "A directory write to the Level-1 Instruction cache directory where the returned cache line was sourced from the requestors Level-2 cache using drawer level horizontal persistence, Drawer-HP hit."
 	},
 	{
 		"Unit": "CPU-M-CF",
 		"EventCode": "173",
 		"EventName": "ICW_ON_CHIP",
-		"BriefDescription": "Directory Write Level 1 Instruction Cache from On-Chip Cache",
+		"BriefDescription": "Directory Write Level 1 Instruction Cache from On-Chip L2-Cache",
 		"PublicDescription": "A directory write to the Level-1 Instruction cache directory where the returned cache line was sourced from an On-Chip Level-2 cache."
 	},
 	{
 		"Unit": "CPU-M-CF",
 		"EventCode": "174",
 		"EventName": "ICW_ON_CHIP_IV",
-		"BriefDescription": "Directory Write Level 1 Instruction Cache from On-Chip Cache with Intervention",
+		"BriefDescription": "Directory Write Level 1 Instruction Cache from On-Chip L2-Cache with Intervention",
 		"PublicDescription": "A directory write to the Level-1 Instruction cache directory where the returned cache line was sourced an On-Chip Level-2 cache with intervention."
 	},
 	{
 		"Unit": "CPU-M-CF",
 		"EventCode": "175",
 		"EventName": "ICW_ON_CHIP_CHIP_HIT",
-		"BriefDescription": "Directory Write Level 1 Instruction Cache from On-Chip Cache with Chip HP Hit",
+		"BriefDescription": "Directory Write Level 1 Instruction Cache from On-Chip L2-Cache with Chip HP Hit",
 		"PublicDescription": "A directory write to the Level-1 Instruction cache directory where the returned cache line was sourced from an On-Chip Level-2 cache using chip level horizontal persistence, Chip-HP hit."
 	},
 	{
 		"Unit": "CPU-M-CF",
 		"EventCode": "176",
 		"EventName": "ICW_ON_CHIP_DRAWER_HIT",
-		"BriefDescription": "Directory Write Level 1 Instruction Cache from On-Chip Cache with Drawer HP Hit",
+		"BriefDescription": "Directory Write Level 1 Instruction Cache from On-Chip L2-Cache with Drawer HP Hit",
 		"PublicDescription": "A directory write to the Level-1 Instruction cache directory where the returned cache line was sourced from an On-Chip level 2 cache using drawer level horizontal persistence, Drawer-HP hit."
 	},
 	{
 		"Unit": "CPU-M-CF",
 		"EventCode": "177",
 		"EventName": "ICW_ON_MODULE",
-		"BriefDescription": "Directory Write Level 1 Instruction Cache from On-Module Cache",
+		"BriefDescription": "Directory Write Level 1 Instruction Cache from On-Module L2-Cache",
 		"PublicDescription": "A directory write to the Level-1 Instruction cache directory where the returned cache line was sourced from an On-Module Level-2 cache."
 	},
 	{
 		"Unit": "CPU-M-CF",
 		"EventCode": "178",
 		"EventName": "ICW_ON_DRAWER",
-		"BriefDescription": "Directory Write Level 1 Instruction Cache from On-Drawer Cache",
+		"BriefDescription": "Directory Write Level 1 Instruction Cache from On-Drawer L2-Cache",
 		"PublicDescription": "A directory write to the Level-1 Instruction cache directory where the returned cache line was sourced an On-Drawer Level-2 cache."
 	},
 	{
 		"Unit": "CPU-M-CF",
 		"EventCode": "179",
 		"EventName": "ICW_OFF_DRAWER",
-		"BriefDescription": "Directory Write Level 1 Instruction Cache from Off-Drawer Cache",
+		"BriefDescription": "Directory Write Level 1 Instruction Cache from Off-Drawer L2-Cache",
 		"PublicDescription": "A directory write to the Level-1 Instruction cache directory where the returned cache line was sourced an Off-Drawer Level-2 cache."
 	},
 	{

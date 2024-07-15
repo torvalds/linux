@@ -25,11 +25,12 @@ static int user_space_bind(struct thermal_zone_device *tz)
 /**
  * notify_user_space - Notifies user space about thermal events
  * @tz: thermal_zone_device
- * @trip: trip point index
+ * @trip: trip point
  *
  * This function notifies the user space through UEvents.
  */
-static int notify_user_space(struct thermal_zone_device *tz, int trip)
+static int notify_user_space(struct thermal_zone_device *tz,
+			     const struct thermal_trip *trip)
 {
 	char *thermal_prop[5];
 	int i;
@@ -38,7 +39,8 @@ static int notify_user_space(struct thermal_zone_device *tz, int trip)
 
 	thermal_prop[0] = kasprintf(GFP_KERNEL, "NAME=%s", tz->type);
 	thermal_prop[1] = kasprintf(GFP_KERNEL, "TEMP=%d", tz->temperature);
-	thermal_prop[2] = kasprintf(GFP_KERNEL, "TRIP=%d", trip);
+	thermal_prop[2] = kasprintf(GFP_KERNEL, "TRIP=%d",
+				    thermal_zone_trip_id(tz, trip));
 	thermal_prop[3] = kasprintf(GFP_KERNEL, "EVENT=%d", tz->notify_event);
 	thermal_prop[4] = NULL;
 	kobject_uevent_env(&tz->device.kobj, KOBJ_CHANGE, thermal_prop);

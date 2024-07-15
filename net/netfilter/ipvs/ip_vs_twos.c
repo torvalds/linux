@@ -137,3 +137,4 @@ static void __exit ip_vs_twos_cleanup(void)
 module_init(ip_vs_twos_init);
 module_exit(ip_vs_twos_cleanup);
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("ipvs power of twos choice scheduler");

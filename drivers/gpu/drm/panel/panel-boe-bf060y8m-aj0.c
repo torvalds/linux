@@ -34,7 +34,6 @@ struct boe_bf060y8m_aj0 {
 	struct mipi_dsi_device *dsi;
 	struct regulator_bulk_data vregs[BF060Y8M_VREG_MAX];
 	struct gpio_desc *reset_gpio;
-	bool prepared;
 };
 
 static inline
@@ -129,9 +128,6 @@ static int boe_bf060y8m_aj0_prepare(struct drm_panel *panel)
 	struct device *dev = &boe->dsi->dev;
 	int ret;
 
-	if (boe->prepared)
-		return 0;
-
 	/*
 	 * Enable EL Driving Voltage first - doing that at the beginning
 	 * or at the end of the power sequence doesn't matter, so enable
@@ -166,7 +162,6 @@ static int boe_bf060y8m_aj0_prepare(struct drm_panel *panel)
 		return ret;
 	}
 
-	boe->prepared = true;
 	return 0;
 
 err_vci:
@@ -186,9 +181,6 @@ static int boe_bf060y8m_aj0_unprepare(struct drm_panel *panel)
 	struct device *dev = &boe->dsi->dev;
 	int ret;
 
-	if (!boe->prepared)
-		return 0;
-
 	ret = boe_bf060y8m_aj0_off(boe);
 	if (ret < 0)
 		dev_err(dev, "Failed to un-initialize panel: %d\n", ret);
@@ -196,7 +188,6 @@ static int boe_bf060y8m_aj0_unprepare(struct drm_panel *panel)
 	gpiod_set_value_cansleep(boe->reset_gpio, 1);
 	ret = regulator_bulk_disable(ARRAY_SIZE(boe->vregs), boe->vregs);
 
-	boe->prepared = false;
 	return 0;
 }
 

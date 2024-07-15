@@ -8,7 +8,7 @@
 #define _ULTRASOC_SMB_H
 
 #include <linux/miscdevice.h>
-#include <linux/mutex.h>
+#include <linux/spinlock.h>
 
 /* Offset of SMB global registers */
 #define SMB_GLB_CFG_REG		0x00
@@ -105,21 +105,19 @@ struct smb_data_buffer {
  * @csdev:	Component vitals needed by the framework.
  * @sdb:	Data buffer for SMB.
  * @miscdev:	Specifics to handle "/dev/xyz.smb" entry.
- * @mutex:	Control data access to one at a time.
+ * @spinlock:	Control data access to one at a time.
  * @reading:	Synchronise user space access to SMB buffer.
  * @pid:	Process ID of the process being monitored by the
  *		session that is using this component.
- * @mode:	How this SMB is being used, perf mode or sysfs mode.
  */
 struct smb_drv_data {
 	void __iomem *base;
 	struct coresight_device	*csdev;
 	struct smb_data_buffer sdb;
 	struct miscdevice miscdev;
-	struct mutex mutex;
+	spinlock_t spinlock;
 	bool reading;
 	pid_t pid;
-	enum cs_mode mode;
 };
 
 #endif

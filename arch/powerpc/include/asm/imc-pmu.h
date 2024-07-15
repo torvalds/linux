@@ -74,14 +74,14 @@ struct imc_events {
  * The following is the data structure to hold trace imc data.
  */
 struct trace_imc_data {
-	u64 tb1;
-	u64 ip;
-	u64 val;
-	u64 cpmc1;
-	u64 cpmc2;
-	u64 cpmc3;
-	u64 cpmc4;
-	u64 tb2;
+	__be64 tb1;
+	__be64 ip;
+	__be64 val;
+	__be64 cpmc1;
+	__be64 cpmc2;
+	__be64 cpmc3;
+	__be64 cpmc4;
+	__be64 tb2;
 };
 
 /* Event attribute array index */

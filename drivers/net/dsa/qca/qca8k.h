@@ -454,11 +454,12 @@ struct qca8k_priv {
 	struct qca8k_ports_config ports_config;
 	struct regmap *regmap;
 	struct mii_bus *bus;
+	struct mii_bus *internal_mdio_bus;
 	struct dsa_switch *ds;
 	struct mutex reg_mutex;
 	struct device *dev;
 	struct gpio_desc *reset_gpio;
-	struct net_device *mgmt_master; /* Track if mdio/mib Ethernet is available */
+	struct net_device *mgmt_conduit; /* Track if mdio/mib Ethernet is available */
 	struct qca8k_mgmt_eth_data mgmt_eth_data;
 	struct qca8k_mib_eth_data mib_eth_data;
 	struct qca8k_mdio_cache mdio_cache;
@@ -517,11 +518,17 @@ void qca8k_get_ethtool_stats(struct dsa_switch *ds, int port,
 int qca8k_get_sset_count(struct dsa_switch *ds, int port, int sset);
 
 /* Common eee function */
-int qca8k_set_mac_eee(struct dsa_switch *ds, int port, struct ethtool_eee *eee);
-int qca8k_get_mac_eee(struct dsa_switch *ds, int port, struct ethtool_eee *e);
+int qca8k_set_mac_eee(struct dsa_switch *ds, int port, struct ethtool_keee *eee);
+int qca8k_get_mac_eee(struct dsa_switch *ds, int port, struct ethtool_keee *e);
 
 /* Common bridge function */
 void qca8k_port_stp_state_set(struct dsa_switch *ds, int port, u8 state);
+int qca8k_port_pre_bridge_flags(struct dsa_switch *ds, int port,
+				struct switchdev_brport_flags flags,
+				struct netlink_ext_ack *extack);
+int qca8k_port_bridge_flags(struct dsa_switch *ds, int port,
+			    struct switchdev_brport_flags flags,
+			    struct netlink_ext_ack *extack);
 int qca8k_port_bridge_join(struct dsa_switch *ds, int port,
 			   struct dsa_bridge bridge,
 			   bool *tx_fwd_offload,

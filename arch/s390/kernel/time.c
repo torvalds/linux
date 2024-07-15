@@ -173,10 +173,10 @@ void init_cpu_timer(void)
 	clockevents_register_device(cd);
 
 	/* Enable clock comparator timer interrupt. */
-	__ctl_set_bit(0,11);
+	local_ctl_set_bit(0, CR0_CLOCK_COMPARATOR_SUBMASK_BIT);
 
 	/* Always allow the timing alert external interrupt. */
-	__ctl_set_bit(0, 4);
+	local_ctl_set_bit(0, CR0_ETR_SUBMASK_BIT);
 }
 
 static void clock_comparator_interrupt(struct ext_code ext_code,
@@ -251,8 +251,8 @@ static struct clocksource clocksource_tod = {
 	.rating		= 400,
 	.read		= read_tod_clock,
 	.mask		= CLOCKSOURCE_MASK(64),
-	.mult		= 1000,
-	.shift		= 12,
+	.mult		= 4096000,
+	.shift		= 24,
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 	.vdso_clock_mode = VDSO_CLOCKMODE_TOD,
 };
@@ -716,7 +716,7 @@ out_unlock:
 /*
  * STP subsys sysfs interface functions
  */
-static struct bus_type stp_subsys = {
+static const struct bus_type stp_subsys = {
 	.name		= "stp",
 	.dev_name	= "stp",
 };

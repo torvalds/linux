@@ -127,11 +127,11 @@ FIXTURE_SETUP(pcmtest) {
 	int err;
 
 	if (geteuid())
-		SKIP(exit(-1), "This test needs root to run!");
+		SKIP(return, "This test needs root to run!");
 
 	err = read_patterns();
 	if (err)
-		SKIP(exit(-1), "Can't read patterns. Probably, module isn't loaded");
+		SKIP(return, "Can't read patterns. Probably, module isn't loaded");
 
 	card_name = malloc(127);
 	ASSERT_NE(card_name, NULL);
@@ -313,7 +313,6 @@ TEST_F(pcmtest, ni_playback) {
  */
 TEST_F(pcmtest, reset_ioctl) {
 	snd_pcm_t *handle;
-	unsigned char *it;
 	int test_res;
 	struct pcmtest_test_params *params = &self->params;
 

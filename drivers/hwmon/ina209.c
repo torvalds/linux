@@ -589,7 +589,6 @@ MODULE_DEVICE_TABLE(of, ina209_of_match);
 
 /* This is the driver that will be inserted */
 static struct i2c_driver ina209_driver = {
-	.class		= I2C_CLASS_HWMON,
 	.driver = {
 		.name	= "ina209",
 		.of_match_table = of_match_ptr(ina209_of_match),

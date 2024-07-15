@@ -2,7 +2,7 @@
 #ifndef _UAPI_LINUX_RESOURCE_H
 #define _UAPI_LINUX_RESOURCE_H
 
-#include <linux/time.h>
+#include <linux/time_types.h>
 #include <linux/types.h>
 
 /*

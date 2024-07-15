@@ -14,6 +14,7 @@
 	compatible = "rockchip,px30-evb", "rockchip,px30";
 
 	aliases {
+		ethernet0 = &gmac;
 		mmc0 = &sdmmc;
 		mmc1 = &sdio;
 		mmc2 = &emmc;

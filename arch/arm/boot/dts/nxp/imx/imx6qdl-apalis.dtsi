@@ -12,6 +12,13 @@
 	model = "Toradex Apalis iMX6Q/D Module";
 	compatible = "toradex,apalis_imx6q", "fsl,imx6q";
 
+	aliases {
+		mmc0 = &usdhc3; /* eMMC */
+		mmc1 = &usdhc1; /* MMC1 slot */
+		mmc2 = &usdhc2; /* SD1 slot */
+		/delete-property/ mmc3;
+	};
+
 	/* Will be filled by the bootloader */
 	memory@10000000 {
 		device_type = "memory";
@@ -166,7 +173,7 @@
 	reg_usb_host_vbus: regulator-usb-host-vbus {
 		compatible = "regulator-fixed";
 		enable-active-high;
-		gpio =  <&gpio1 0 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio1 0 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_regulator_usbh_pwr>;
 		regulator-max-microvolt = <5000000>;
@@ -619,7 +626,6 @@
 		blocks = <0x5>;
 		id = <0>;
 		interrupts = <10 IRQ_TYPE_LEVEL_LOW>;
-		interrupt-controller;
 		interrupt-parent = <&gpio4>;
 		irq-trigger = <0x1>;
 		pinctrl-names = "default";

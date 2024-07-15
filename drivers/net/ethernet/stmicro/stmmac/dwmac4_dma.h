@@ -92,7 +92,7 @@
 #define DMA_TBS_FTOV			BIT(0)
 #define DMA_TBS_DEF_FTOS		(DMA_TBS_FTOS | DMA_TBS_FTOV)
 
-/* Following DMA defines are chanels oriented */
+/* Following DMA defines are channel-oriented */
 #define DMA_CHAN_BASE_ADDR		0x00001100
 #define DMA_CHAN_BASE_OFFSET		0x80
 

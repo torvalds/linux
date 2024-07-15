@@ -15,7 +15,8 @@ The direct-io mode can be selected with the FOPEN_DIRECT_IO flag in the
 FUSE_OPEN reply.
 
 In direct-io mode the page cache is completely bypassed for reads and writes.
-No read-ahead takes place. Shared mmap is disabled.
+No read-ahead takes place. Shared mmap is disabled by default. To allow shared
+mmap, the FUSE_DIRECT_IO_ALLOW_MMAP flag may be enabled in the FUSE_INIT reply.
 
 In cached mode reads may be satisfied from the page cache, and data may be
 read-ahead by the kernel to fill the cache.  The cache is always kept consistent

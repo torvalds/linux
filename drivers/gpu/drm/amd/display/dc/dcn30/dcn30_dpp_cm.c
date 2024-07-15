@@ -56,15 +56,12 @@ static void dpp3_enable_cm_block(
 
 static enum dc_lut_mode dpp30_get_gamcor_current(struct dpp *dpp_base)
 {
-	enum dc_lut_mode mode;
+	enum dc_lut_mode mode = LUT_BYPASS;
 	uint32_t state_mode;
 	uint32_t lut_mode;
 	struct dcn3_dpp *dpp = TO_DCN30_DPP(dpp_base);
 
 	REG_GET(CM_GAMCOR_CONTROL, CM_GAMCOR_MODE_CURRENT, &state_mode);
-
-	if (state_mode == 0)
-		mode = LUT_BYPASS;
 
 	if (state_mode == 2) {//Programmable RAM LUT
 		REG_GET(CM_GAMCOR_CONTROL, CM_GAMCOR_SELECT_CURRENT, &lut_mode);
@@ -407,4 +404,58 @@ void dpp3_cm_set_gamut_remap(
 		//follow dcn2 approach for now - using only coefficient set A
 		program_gamut_remap(dpp, arr_reg_val, gamut_mode);
 	}
+}
+
+static void read_gamut_remap(struct dcn3_dpp *dpp,
+			     uint16_t *regval,
+			     int *select)
+{
+	struct color_matrices_reg gam_regs;
+	uint32_t selection;
+
+	//current coefficient set in use
+	REG_GET(CM_GAMUT_REMAP_CONTROL, CM_GAMUT_REMAP_MODE_CURRENT, &selection);
+
+	*select = selection;
+
+	gam_regs.shifts.csc_c11 = dpp->tf_shift->CM_GAMUT_REMAP_C11;
+	gam_regs.masks.csc_c11  = dpp->tf_mask->CM_GAMUT_REMAP_C11;
+	gam_regs.shifts.csc_c12 = dpp->tf_shift->CM_GAMUT_REMAP_C12;
+	gam_regs.masks.csc_c12 = dpp->tf_mask->CM_GAMUT_REMAP_C12;
+
+	if (*select == GAMUT_REMAP_COEFF) {
+		gam_regs.csc_c11_c12 = REG(CM_GAMUT_REMAP_C11_C12);
+		gam_regs.csc_c33_c34 = REG(CM_GAMUT_REMAP_C33_C34);
+
+		cm_helper_read_color_matrices(dpp->base.ctx,
+					      regval,
+					      &gam_regs);
+
+	} else if (*select == GAMUT_REMAP_COMA_COEFF) {
+		gam_regs.csc_c11_c12 = REG(CM_GAMUT_REMAP_B_C11_C12);
+		gam_regs.csc_c33_c34 = REG(CM_GAMUT_REMAP_B_C33_C34);
+
+		cm_helper_read_color_matrices(dpp->base.ctx,
+					      regval,
+					      &gam_regs);
+	}
+}
+
+void dpp3_cm_get_gamut_remap(struct dpp *dpp_base,
+			     struct dpp_grph_csc_adjustment *adjust)
+{
+	struct dcn3_dpp *dpp = TO_DCN30_DPP(dpp_base);
+	uint16_t arr_reg_val[12];
+	int select;
+
+	read_gamut_remap(dpp, arr_reg_val, &select);
+
+	if (select == GAMUT_REMAP_BYPASS) {
+		adjust->gamut_adjust_type = GRAPHICS_GAMUT_ADJUST_TYPE_BYPASS;
+		return;
+	}
+
+	adjust->gamut_adjust_type = GRAPHICS_GAMUT_ADJUST_TYPE_SW;
+	convert_hw_matrix(adjust->temperature_matrix,
+			  arr_reg_val, ARRAY_SIZE(arr_reg_val));
 }

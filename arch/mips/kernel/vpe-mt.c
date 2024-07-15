@@ -95,8 +95,8 @@ int vpe_run(struct vpe *v)
 	 * We don't pass the memsize here, so VPE programs need to be
 	 * compiled with DFLT_STACK_SIZE and DFLT_HEAP_SIZE defined.
 	 */
-	mttgpr(7, 0);
-	mttgpr(6, v->ntcs);
+	mttgpr($7, 0);
+	mttgpr($6, v->ntcs);
 
 	/* set up VPE1 */
 	/*

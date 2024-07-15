@@ -23,3 +23,4 @@ DVB-S2, DVB-T2, ISDB, etc.
     :maxdepth: 1
 
     frontend_legacy_dvbv3_api
+    legacy_dvb_decoder_api

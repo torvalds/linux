@@ -38,10 +38,10 @@ struct st_thermal_sensor;
  *
  * @power_ctrl:		Function for powering on/off a sensor. Clock to the
  *			sensor is also controlled from this function.
- * @alloc_regfields: 	Allocate regmap register fields, specific to a sensor.
- * @do_memmap_regmap: 	Memory map the thermal register space and init regmap
+ * @alloc_regfields:	Allocate regmap register fields, specific to a sensor.
+ * @do_memmap_regmap:	Memory map the thermal register space and init regmap
  *			instance or find regmap instance.
- * @register_irq: 	Register an interrupt handler for a sensor.
+ * @register_irq:	Register an interrupt handler for a sensor.
  */
 struct st_thermal_sensor_ops {
 	int (*power_ctrl)(struct st_thermal_sensor *, enum st_thermal_power_state);
@@ -56,15 +56,15 @@ struct st_thermal_sensor_ops {
  *
  * @reg_fields:		Pointer to the regfields array for a sensor.
  * @sys_compat:		Pointer to the syscon node compatible string.
- * @ops: 		Pointer to private thermal ops for a sensor.
- * @calibration_val: 	Default calibration value to be written to the DCORRECT
+ * @ops:		Pointer to private thermal ops for a sensor.
+ * @calibration_val:	Default calibration value to be written to the DCORRECT
  *			register field for a sensor.
- * @temp_adjust_val: 	Value to be added/subtracted from the data read from
+ * @temp_adjust_val:	Value to be added/subtracted from the data read from
  *			the sensor. If value needs to be added please provide a
  *			positive value and if it is to be subtracted please
- * 			provide a negative value.
- * @crit_temp: 		The temperature beyond which the SoC should be shutdown
- * 			to prevent damage.
+ *			provide a negative value.
+ * @crit_temp:		The temperature beyond which the SoC should be shutdown
+ *			to prevent damage.
  */
 struct st_thermal_compat_data {
 	char *sys_compat;

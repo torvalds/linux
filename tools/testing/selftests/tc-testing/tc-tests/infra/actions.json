@@ -6,8 +6,10 @@
             "infra",
             "pedit"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY ingress",
             "$TC action add action pedit munge offset 0 u8 clear index 1"
         ],
@@ -17,9 +19,7 @@
         "matchPattern": "^filter parent ffff: protocol ip pref 1 matchall.*handle 0x1.*",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY ingress",
-            "$IP link del dev $DUMMY type dummy",
-            "$TC actions flush action pedit"
+            "$TC qdisc del dev $DUMMY ingress"
         ]
     },
     {
@@ -29,8 +29,10 @@
             "infra",
             "mpls"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY ingress",
             "$TC action add action mpls pop protocol ipv4 index 1"
         ],
@@ -40,9 +42,7 @@
         "matchPattern": "^filter parent ffff: protocol ip pref 1 matchall.*handle 0x1.*",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY ingress",
-            "$IP link del dev $DUMMY type dummy",
-            "$TC actions flush action mpls"
+            "$TC qdisc del dev $DUMMY ingress"
         ]
     },
     {
@@ -52,8 +52,10 @@
             "infra",
             "bpf"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY ingress",
             "$TC action add action bpf bytecode '4,40 0 0 12,21 0 1 2048,6 0 0 262144,6 0 0 0' index 1"
         ],
@@ -63,9 +65,7 @@
         "matchPattern": "^filter parent ffff: protocol ip pref 1 matchall.*handle 0x1.*",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY ingress",
-            "$IP link del dev $DUMMY type dummy",
-            "$TC actions flush action bpf"
+            "$TC qdisc del dev $DUMMY ingress"
         ]
     },
     {
@@ -75,8 +75,10 @@
             "infra",
             "connmark"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY ingress",
             "$TC actions add action connmark"
         ],
@@ -86,9 +88,7 @@
         "matchPattern": "^filter parent ffff: protocol ip pref 1 matchall.*handle 0x1.*",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY ingress",
-            "$IP link del dev $DUMMY type dummy",
-            "$TC actions flush action connmark"
+            "$TC qdisc del dev $DUMMY ingress"
         ]
     },
     {
@@ -98,8 +98,10 @@
             "infra",
             "csum"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY ingress",
             "$TC actions add action csum ip4h index 1"
         ],
@@ -109,9 +111,7 @@
         "matchPattern": "^filter parent ffff: protocol ip pref 1 matchall.*handle 0x1.*",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY ingress",
-            "$IP link del dev $DUMMY type dummy",
-            "$TC actions flush action csum"
+            "$TC qdisc del dev $DUMMY ingress"
         ]
     },
     {
@@ -121,8 +121,10 @@
             "infra",
             "ct"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY ingress",
             "$TC actions add action ct index 1"
         ],
@@ -132,9 +134,7 @@
         "matchPattern": "^filter parent ffff: protocol ip pref 1 matchall.*handle 0x1.*",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY ingress",
-            "$IP link del dev $DUMMY type dummy",
-            "$TC actions flush action ct"
+            "$TC qdisc del dev $DUMMY ingress"
         ]
     },
     {
@@ -144,8 +144,10 @@
             "infra",
             "ctinfo"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY ingress",
             "$TC action add action ctinfo index 1"
         ],
@@ -155,9 +157,7 @@
         "matchPattern": "^filter parent ffff: protocol ip pref 1 matchall.*handle 0x1.*",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY ingress",
-            "$IP link del dev $DUMMY type dummy",
-            "$TC actions flush action ctinfo"
+            "$TC qdisc del dev $DUMMY ingress"
         ]
     },
     {
@@ -167,8 +167,10 @@
             "infra",
             "gact"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY ingress",
             "$TC actions add action pass index 1"
         ],
@@ -178,9 +180,7 @@
         "matchPattern": "^filter parent ffff: protocol ip pref 1 matchall.*handle 0x1.*",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY ingress",
-            "$IP link del dev $DUMMY type dummy",
-            "$TC actions flush action gact"
+            "$TC qdisc del dev $DUMMY ingress"
         ]
     },
     {
@@ -190,8 +190,10 @@
             "infra",
             "gate"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY ingress",
             "$TC action add action gate priority 1 sched-entry close 100000000ns index 1"
         ],
@@ -201,9 +203,7 @@
         "matchPattern": "^filter parent ffff: protocol ip pref 1 matchall.*handle 0x1.*",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY ingress",
-            "$IP link del dev $DUMMY type dummy",
-            "$TC actions flush action gate"
+            "$TC qdisc del dev $DUMMY ingress"
         ]
     },
     {
@@ -213,8 +213,10 @@
             "infra",
             "ife"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY ingress",
             "$TC actions add action ife encode allow mark pass index 1"
         ],
@@ -224,9 +226,7 @@
         "matchPattern": "^filter parent ffff: protocol ip pref 1 matchall.*handle 0x1.*",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY ingress",
-            "$IP link del dev $DUMMY type dummy",
-            "$TC actions flush action ife"
+            "$TC qdisc del dev $DUMMY ingress"
         ]
     },
     {
@@ -236,8 +236,10 @@
             "infra",
             "mirred"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY ingress",
             "$TC actions add action mirred egress mirror index 1 dev lo"
         ],
@@ -247,9 +249,7 @@
         "matchPattern": "^filter parent ffff: protocol ip pref 1 matchall.*handle 0x1.*",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY ingress",
-            "$IP link del dev $DUMMY type dummy",
-            "$TC actions flush action mirred"
+            "$TC qdisc del dev $DUMMY ingress"
         ]
     },
     {
@@ -259,8 +259,10 @@
             "infra",
             "nat"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY ingress",
             "$TC actions add action nat ingress 192.168.1.1 200.200.200.1"
         ],
@@ -270,9 +272,7 @@
         "matchPattern": "^filter parent ffff: protocol ip pref 1 matchall.*handle 0x1.*",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY ingress",
-            "$IP link del dev $DUMMY type dummy",
-            "$TC actions flush action nat"
+            "$TC qdisc del dev $DUMMY ingress"
         ]
     },
     {
@@ -282,8 +282,10 @@
             "infra",
             "police"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY ingress",
             "$TC actions add action police rate 1kbit burst 10k index 1"
         ],
@@ -293,9 +295,7 @@
         "matchPattern": "^filter parent ffff: protocol ip pref 1 matchall.*handle 0x1.*",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY ingress",
-            "$IP link del dev $DUMMY type dummy",
-            "$TC actions flush action police"
+            "$TC qdisc del dev $DUMMY ingress"
         ]
     },
     {
@@ -305,8 +305,10 @@
             "infra",
             "sample"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY ingress",
             "$TC actions add action sample rate 10 group 1 index 1"
         ],
@@ -316,9 +318,7 @@
         "matchPattern": "^filter parent ffff: protocol ip pref 1 matchall.*handle 0x1.*",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY ingress",
-            "$IP link del dev $DUMMY type dummy",
-            "$TC actions flush action sample"
+            "$TC qdisc del dev $DUMMY ingress"
         ]
     },
     {
@@ -328,8 +328,10 @@
             "infra",
             "skbedit"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY ingress",
             "$TC actions add action skbedit mark 1"
         ],
@@ -339,9 +341,7 @@
         "matchPattern": "^filter parent ffff: protocol ip pref 1 matchall.*handle 0x1.*",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY ingress",
-            "$IP link del dev $DUMMY type dummy",
-            "$TC actions flush action skbedit"
+            "$TC qdisc del dev $DUMMY ingress"
         ]
     },
     {
@@ -351,8 +351,10 @@
             "infra",
             "skbmod"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY ingress",
             "$TC actions add action skbmod set dmac 11:22:33:44:55:66 index 1"
         ],
@@ -362,9 +364,7 @@
         "matchPattern": "^filter parent ffff: protocol ip pref 1 matchall.*handle 0x1.*",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY ingress",
-            "$IP link del dev $DUMMY type dummy",
-            "$TC actions flush action skbmod"
+            "$TC qdisc del dev $DUMMY ingress"
         ]
     },
     {
@@ -374,8 +374,10 @@
             "infra",
             "tunnel_key"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY ingress",
             "$TC actions add action tunnel_key set src_ip 10.10.10.1 dst_ip 20.20.20.2 id 1 index 1"
         ],
@@ -385,9 +387,7 @@
         "matchPattern": "^filter parent ffff: protocol ip pref 1 matchall.*handle 0x1.*",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY ingress",
-            "$IP link del dev $DUMMY type dummy",
-            "$TC actions flush action tunnel_key"
+            "$TC qdisc del dev $DUMMY ingress"
         ]
     },
     {
@@ -397,8 +397,10 @@
             "infra",
             "tunnel_key"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY ingress",
             "$TC actions add action vlan pop pipe index 1"
         ],
@@ -408,9 +410,7 @@
         "matchPattern": "^filter parent ffff: protocol ip pref 1 matchall.*handle 0x1.*",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY ingress",
-            "$IP link del dev $DUMMY type dummy",
-            "$TC actions flush action vlan"
+            "$TC qdisc del dev $DUMMY ingress"
         ]
     }
 ]

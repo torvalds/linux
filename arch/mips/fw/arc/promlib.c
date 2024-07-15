@@ -15,11 +15,11 @@
 /*
  * For 64bit kernels working with a 32bit ARC PROM pointer arguments
  * for ARC calls need to reside in CKEG0/1. But as soon as the kernel
- * switches to it's first kernel thread stack is set to an address in
+ * switches to its first kernel thread stack is set to an address in
  * XKPHYS, so anything on stack can't be used anymore. This is solved
- * by using a * static declartion variables are put into BSS, which is
+ * by using a * static declaration variables are put into BSS, which is
  * linked to a CKSEG0 address. Since this is only used on UP platforms
- * there is not spinlock needed
+ * there is no spinlock needed
  */
 #define O32_STATIC	static
 #else

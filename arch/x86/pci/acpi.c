@@ -283,6 +283,9 @@ static int setup_mcfg_map(struct acpi_pci_root_info *ci)
 	info->mcfg_added = false;
 	seg = info->sd.domain;
 
+	dev_dbg(dev, "%s(%04x %pR ECAM %pa)\n", __func__, seg,
+		&root->secondary, &root->mcfg_addr);
+
 	/* return success if MMCFG is not in use */
 	if (raw_pci_ext_ops && raw_pci_ext_ops != &pci_mmcfg)
 		return 0;

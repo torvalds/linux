@@ -55,7 +55,16 @@
 #define DALSMC_MSG_SetFclkSwitchAllow             0x11
 #define DALSMC_MSG_SetCabForUclkPstate            0x12
 #define DALSMC_MSG_SetWorstCaseUclkLatency        0x13
-#define DALSMC_Message_Count                      0x14
+#define DALSMC_MSG_SetAlwaysWaitDmcubResp         0x14
+#define DALSMC_MSG_ReturnHardMinStatus            0x15
+#define DALSMC_Message_Count                      0x16
+
+#define CHECK_HARD_MIN_CLK_DISPCLK                0x1
+#define CHECK_HARD_MIN_CLK_DPPCLK                 0x2
+#define CHECK_HARD_MIN_CLK_DPREFCLK               0x4
+#define CHECK_HARD_MIN_CLK_DCFCLK                 0x8
+#define CHECK_HARD_MIN_CLK_DTBCLK                 0x10
+#define CHECK_HARD_MIN_CLK_UCLK                   0x20
 
 typedef enum {
 	FCLK_SWITCH_DISALLOW,

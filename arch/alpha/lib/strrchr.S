@@ -6,7 +6,7 @@
  * Return the address of the last occurrence of a given character
  * within a null-terminated string, or null if it is not found.
  */
-#include <asm/export.h>
+#include <linux/export.h>
 #include <asm/regdef.h>
 
 	.set noreorder

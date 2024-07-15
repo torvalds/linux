@@ -151,7 +151,6 @@ struct rz_mtu3 {
 	void *priv_data;
 };
 
-#if IS_ENABLED(CONFIG_RZ_MTU3)
 static inline bool rz_mtu3_request_channel(struct rz_mtu3_channel *ch)
 {
 	mutex_lock(&ch->lock);
@@ -188,70 +187,5 @@ void rz_mtu3_32bit_ch_write(struct rz_mtu3_channel *ch, u16 off, u32 val);
 void rz_mtu3_shared_reg_write(struct rz_mtu3_channel *ch, u16 off, u16 val);
 void rz_mtu3_shared_reg_update_bit(struct rz_mtu3_channel *ch, u16 off,
 				   u16 pos, u8 val);
-#else
-static inline bool rz_mtu3_request_channel(struct rz_mtu3_channel *ch)
-{
-	return false;
-}
-
-static inline void rz_mtu3_release_channel(struct rz_mtu3_channel *ch)
-{
-}
-
-static inline bool rz_mtu3_is_enabled(struct rz_mtu3_channel *ch)
-{
-	return false;
-}
-
-static inline void rz_mtu3_disable(struct rz_mtu3_channel *ch)
-{
-}
-
-static inline int rz_mtu3_enable(struct rz_mtu3_channel *ch)
-{
-	return 0;
-}
-
-static inline u8 rz_mtu3_8bit_ch_read(struct rz_mtu3_channel *ch, u16 off)
-{
-	return 0;
-}
-
-static inline u16 rz_mtu3_16bit_ch_read(struct rz_mtu3_channel *ch, u16 off)
-{
-	return 0;
-}
-
-static inline u32 rz_mtu3_32bit_ch_read(struct rz_mtu3_channel *ch, u16 off)
-{
-	return 0;
-}
-
-static inline u16 rz_mtu3_shared_reg_read(struct rz_mtu3_channel *ch, u16 off)
-{
-	return 0;
-}
-
-static inline void rz_mtu3_8bit_ch_write(struct rz_mtu3_channel *ch, u16 off, u8 val)
-{
-}
-
-static inline void rz_mtu3_16bit_ch_write(struct rz_mtu3_channel *ch, u16 off, u16 val)
-{
-}
-
-static inline void rz_mtu3_32bit_ch_write(struct rz_mtu3_channel *ch, u16 off, u32 val)
-{
-}
-
-static inline void rz_mtu3_shared_reg_write(struct rz_mtu3_channel *ch, u16 off, u16 val)
-{
-}
-
-static inline void rz_mtu3_shared_reg_update_bit(struct rz_mtu3_channel *ch,
-						 u16 off, u16 pos, u8 val)
-{
-}
-#endif
 
 #endif /* __MFD_RZ_MTU3_H__ */

@@ -9,17 +9,16 @@
  * This file implements various helper functions for UBIFS authentication support
  */
 
-#include <linux/crypto.h>
 #include <linux/verification.h>
 #include <crypto/hash.h>
-#include <crypto/algapi.h>
+#include <crypto/utils.h>
 #include <keys/user-type.h>
 #include <keys/asymmetric-type.h>
 
 #include "ubifs.h"
 
 /**
- * ubifs_node_calc_hash - calculate the hash of a UBIFS node
+ * __ubifs_node_calc_hash - calculate the hash of a UBIFS node
  * @c: UBIFS file-system description object
  * @node: the node to calculate a hash for
  * @hash: the returned hash
@@ -508,28 +507,13 @@ out:
  */
 int ubifs_hmac_wkm(struct ubifs_info *c, u8 *hmac)
 {
-	SHASH_DESC_ON_STACK(shash, c->hmac_tfm);
-	int err;
 	const char well_known_message[] = "UBIFS";
 
 	if (!ubifs_authenticated(c))
 		return 0;
 
-	shash->tfm = c->hmac_tfm;
-
-	err = crypto_shash_init(shash);
-	if (err)
-		return err;
-
-	err = crypto_shash_update(shash, well_known_message,
-				  sizeof(well_known_message) - 1);
-	if (err < 0)
-		return err;
-
-	err = crypto_shash_final(shash, hmac);
-	if (err)
-		return err;
-	return 0;
+	return crypto_shash_tfm_digest(c->hmac_tfm, well_known_message,
+				       sizeof(well_known_message) - 1, hmac);
 }
 
 /*

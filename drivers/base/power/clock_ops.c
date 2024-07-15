@@ -793,7 +793,7 @@ static int pm_clk_notify(struct notifier_block *nb,
  * the remaining members of @clknb should be populated prior to calling this
  * routine.
  */
-void pm_clk_add_notifier(struct bus_type *bus,
+void pm_clk_add_notifier(const struct bus_type *bus,
 				 struct pm_clk_notifier_block *clknb)
 {
 	if (!bus || !clknb)

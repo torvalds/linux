@@ -142,8 +142,7 @@ static int mv_ehci_probe(struct platform_device *pdev)
 		goto err_put_hcd;
 	}
 
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ehci_mv->base = devm_ioremap_resource(&pdev->dev, r);
+	ehci_mv->base = devm_platform_get_and_ioremap_resource(pdev, 0, &r);
 	if (IS_ERR(ehci_mv->base)) {
 		retval = PTR_ERR(ehci_mv->base);
 		goto err_put_hcd;

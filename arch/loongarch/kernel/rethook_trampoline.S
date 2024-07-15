@@ -76,6 +76,7 @@
 	.endm
 
 SYM_CODE_START(arch_rethook_trampoline)
+	UNWIND_HINT_UNDEFINED
 	addi.d	sp, sp, -PT_SIZE
 	save_all_base_regs
 

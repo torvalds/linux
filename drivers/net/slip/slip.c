@@ -685,8 +685,8 @@ static void sl_setup(struct net_device *dev)
  * in parallel
  */
 
-static void slip_receive_buf(struct tty_struct *tty, const unsigned char *cp,
-		const char *fp, int count)
+static void slip_receive_buf(struct tty_struct *tty, const u8 *cp, const u8 *fp,
+			     size_t count)
 {
 	struct slip *sl = tty->disc_data;
 
@@ -1437,5 +1437,6 @@ out:
 }
 
 #endif
+MODULE_DESCRIPTION("SLIP (serial line) protocol module");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_LDISC(N_SLIP);

@@ -2,10 +2,17 @@
 # perf pipe recording and injection test
 # SPDX-License-Identifier: GPL-2.0
 
+shelldir=$(dirname "$0")
+# shellcheck source=lib/perf_has_symbol.sh
+. "${shelldir}"/lib/perf_has_symbol.sh
+
+sym="noploop"
+
+skip_test_missing_symbol ${sym}
+
 data=$(mktemp /tmp/perf.data.XXXXXX)
 prog="perf test -w noploop"
 task="perf"
-sym="noploop"
 
 if ! perf record -e task-clock:u -o - ${prog} | perf report -i - --task | grep ${task}; then
 	echo "cannot find the test file in the perf report"

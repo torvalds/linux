@@ -13,6 +13,10 @@
 	model = "PINE64 RK3566 SOQuartz on Blade carrier board";
 	compatible = "pine64,soquartz-blade", "pine64,soquartz", "rockchip,rk3566";
 
+	aliases {
+		ethernet0 = &gmac1;
+	};
+
 	/* labeled VCC3V0_SD in schematic to not conflict with PMIC regulator */
 	vcc3v0_sd: vcc3v0-sd-regulator {
 		compatible = "regulator-fixed";

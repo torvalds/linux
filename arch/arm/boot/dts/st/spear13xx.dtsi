@@ -39,8 +39,8 @@
 
 	pmu {
 		compatible = "arm,cortex-a9-pmu";
-		interrupts = <0 6 0x04
-			      0 7 0x04>;
+		interrupts = <0 6 0x04>,
+			     <0 7 0x04>;
 	};
 
 	L2: cache-controller {
@@ -141,10 +141,10 @@
 			       0xb0820000 0x0010	/* NAND Base ADDR */
 			       0xb0810000 0x0010>;	/* NAND Base CMD */
 			reg-names = "fsmc_regs", "nand_data", "nand_addr", "nand_cmd";
-			interrupts = <0 20 0x4
-				      0 21 0x4
-				      0 22 0x4
-				      0 23 0x4>;
+			interrupts = <0 20 0x4>,
+				     <0 21 0x4>,
+				     <0 22 0x4>,
+				     <0 23 0x4>;
 			st,mode = <2>;
 			status = "disabled";
 		};
@@ -152,8 +152,8 @@
 		gmac0: eth@e2000000 {
 			compatible = "st,spear600-gmac";
 			reg = <0xe2000000 0x8000>;
-			interrupts = <0 33 0x4
-				      0 34 0x4>;
+			interrupts = <0 33 0x4>,
+				     <0 34 0x4>;
 			interrupt-names = "macirq", "eth_wake_irq";
 			status = "disabled";
 		};
@@ -263,8 +263,8 @@
 				compatible = "st,designware-i2s";
 				reg = <0xe0180000 0x1000>;
 				interrupt-names = "play_irq", "record_irq";
-				interrupts = <0 10 0x4
-					      0 11 0x4 >;
+				interrupts = <0 10 0x4>,
+					     <0 11 0x4>;
 				status = "disabled";
 			};
 
@@ -272,8 +272,8 @@
 				compatible = "st,designware-i2s";
 				reg = <0xe0200000 0x1000>;
 				interrupt-names = "play_irq", "record_irq";
-				interrupts = <0 26 0x4
-					      0 53 0x4>;
+				interrupts = <0 26 0x4>,
+					     <0 53 0x4>;
 				status = "disabled";
 			};
 

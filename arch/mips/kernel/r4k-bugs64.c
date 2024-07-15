@@ -14,6 +14,7 @@
 #include <asm/fpu.h>
 #include <asm/mipsregs.h>
 #include <asm/setup.h>
+#include <asm/traps.h>
 
 static char bug64hit[] __initdata =
 	"reliable operation impossible!\n%s";

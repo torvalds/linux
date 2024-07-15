@@ -12,7 +12,7 @@
 
 #include <linux/acpi.h>
 #include <linux/dmi.h>
-#include <linux/gpio/driver.h>
+#include <linux/gpio/consumer.h>
 #include <linux/gpio/machine.h>
 #include <linux/irq.h>
 #include <linux/module.h>
@@ -21,33 +21,55 @@
 #include <linux/string.h>
 
 #include "x86-android-tablets.h"
-/* For gpiochip_get_desc() which is EXPORT_SYMBOL_GPL() */
-#include "../../../gpio/gpiolib.h"
-#include "../../../gpio/gpiolib-acpi.h"
+#include "../serdev_helpers.h"
 
-static int gpiochip_find_match_label(struct gpio_chip *gc, void *data)
-{
-	return gc->label && !strcmp(gc->label, data);
-}
+static struct platform_device *x86_android_tablet_device;
 
-int x86_android_tablet_get_gpiod(const char *label, int pin, struct gpio_desc **desc)
+/*
+ * This helper allows getting a gpio_desc *before* the actual device consuming
+ * the GPIO has been instantiated. This function _must_ only be used to handle
+ * this special case such as e.g. :
+ *
+ * 1. Getting an IRQ from a GPIO for i2c_board_info.irq which is passed to
+ * i2c_client_new() to instantiate i2c_client-s; or
+ * 2. Calling desc_to_gpio() to get an old style GPIO number for gpio_keys
+ * platform_data which still uses old style GPIO numbers.
+ *
+ * Since the consuming device has not been instatiated yet a dynamic lookup
+ * is generated using the special x86_android_tablet dev for dev_id.
+ *
+ * For normal GPIO lookups a standard static gpiod_lookup_table _must_ be used.
+ */
+int x86_android_tablet_get_gpiod(const char *chip, int pin, const char *con_id,
+				 bool active_low, enum gpiod_flags dflags,
+				 struct gpio_desc **desc)
 {
+	struct gpiod_lookup_table *lookup;
 	struct gpio_desc *gpiod;
-	struct gpio_chip *chip;
 
-	chip = gpiochip_find((void *)label, gpiochip_find_match_label);
-	if (!chip) {
-		pr_err("error cannot find GPIO chip %s\n", label);
-		return -ENODEV;
-	}
+	lookup = kzalloc(struct_size(lookup, table, 2), GFP_KERNEL);
+	if (!lookup)
+		return -ENOMEM;
 
-	gpiod = gpiochip_get_desc(chip, pin);
+	lookup->dev_id = KBUILD_MODNAME;
+	lookup->table[0].key = chip;
+	lookup->table[0].chip_hwnum = pin;
+	lookup->table[0].con_id = con_id;
+	lookup->table[0].flags = active_low ? GPIO_ACTIVE_LOW : GPIO_ACTIVE_HIGH;
+
+	gpiod_add_lookup_table(lookup);
+	gpiod = devm_gpiod_get(&x86_android_tablet_device->dev, con_id, dflags);
+	gpiod_remove_lookup_table(lookup);
+	kfree(lookup);
+
 	if (IS_ERR(gpiod)) {
-		pr_err("error %ld getting GPIO %s %d\n", PTR_ERR(gpiod), label, pin);
+		pr_err("error %ld getting GPIO %s %d\n", PTR_ERR(gpiod), chip, pin);
 		return PTR_ERR(gpiod);
 	}
 
-	*desc = gpiod;
+	if (desc)
+		*desc = gpiod;
+
 	return 0;
 }
 
@@ -77,7 +99,8 @@ int x86_acpi_irq_helper_get(const struct x86_acpi_irq_data *data)
 		return irq;
 	case X86_ACPI_IRQ_TYPE_GPIOINT:
 		/* Like acpi_dev_gpio_irq_get(), but without parsing ACPI resources */
-		ret = x86_android_tablet_get_gpiod(data->chip, data->index, &gpiod);
+		ret = x86_android_tablet_get_gpiod(data->chip, data->index, data->con_id,
+						   false, GPIOD_ASIS, &gpiod);
 		if (ret)
 			return ret;
 
@@ -90,6 +113,9 @@ int x86_acpi_irq_helper_get(const struct x86_acpi_irq_data *data)
 		irq_type = acpi_dev_get_irq_type(data->trigger, data->polarity);
 		if (irq_type != IRQ_TYPE_NONE && irq_type != irq_get_trigger_type(irq))
 			irq_set_irq_type(irq, irq_type);
+
+		if (data->free_gpio)
+			devm_gpiod_put(&x86_android_tablet_device->dev, gpiod);
 
 		return irq;
 	case X86_ACPI_IRQ_TYPE_PMIC:
@@ -119,9 +145,11 @@ int x86_acpi_irq_helper_get(const struct x86_acpi_irq_data *data)
 }
 
 static int i2c_client_count;
+static int spi_dev_count;
 static int pdev_count;
 static int serdev_count;
 static struct i2c_client **i2c_clients;
+static struct spi_device **spi_devs;
 static struct platform_device **pdevs;
 static struct serdev_device **serdevs;
 static struct gpio_keys_button *buttons;
@@ -163,40 +191,62 @@ static __init int x86_instantiate_i2c_client(const struct x86_dev_info *dev_info
 	return 0;
 }
 
+static __init int x86_instantiate_spi_dev(const struct x86_dev_info *dev_info, int idx)
+{
+	const struct x86_spi_dev_info *spi_dev_info = &dev_info->spi_dev_info[idx];
+	struct spi_board_info board_info = spi_dev_info->board_info;
+	struct spi_controller *controller;
+	struct acpi_device *adev;
+	acpi_handle handle;
+	acpi_status status;
+
+	board_info.irq = x86_acpi_irq_helper_get(&spi_dev_info->irq_data);
+	if (board_info.irq < 0)
+		return board_info.irq;
+
+	status = acpi_get_handle(NULL, spi_dev_info->ctrl_path, &handle);
+	if (ACPI_FAILURE(status)) {
+		pr_err("Error could not get %s handle\n", spi_dev_info->ctrl_path);
+		return -ENODEV;
+	}
+
+	adev = acpi_fetch_acpi_dev(handle);
+	if (!adev) {
+		pr_err("Error could not get adev for %s\n", spi_dev_info->ctrl_path);
+		return -ENODEV;
+	}
+
+	controller = acpi_spi_find_controller_by_adev(adev);
+	if (!controller) {
+		pr_err("Error could not get SPI controller for %s\n", spi_dev_info->ctrl_path);
+		return -ENODEV;
+	}
+
+	spi_devs[idx] = spi_new_device(controller, &board_info);
+	put_device(&controller->dev);
+	if (!spi_devs[idx])
+		return dev_err_probe(&controller->dev, -ENOMEM,
+				     "creating SPI-device %d\n", idx);
+
+	return 0;
+}
+
 static __init int x86_instantiate_serdev(const struct x86_serdev_info *info, int idx)
 {
-	struct acpi_device *ctrl_adev, *serdev_adev;
+	struct acpi_device *serdev_adev;
 	struct serdev_device *serdev;
 	struct device *ctrl_dev;
 	int ret = -ENODEV;
 
-	ctrl_adev = acpi_dev_get_first_match_dev(info->ctrl_hid, info->ctrl_uid, -1);
-	if (!ctrl_adev) {
-		pr_err("error could not get %s/%s ctrl adev\n",
-		       info->ctrl_hid, info->ctrl_uid);
-		return -ENODEV;
-	}
+	ctrl_dev = get_serdev_controller(info->ctrl_hid, info->ctrl_uid, 0,
+					 info->ctrl_devname);
+	if (IS_ERR(ctrl_dev))
+		return PTR_ERR(ctrl_dev);
 
 	serdev_adev = acpi_dev_get_first_match_dev(info->serdev_hid, NULL, -1);
 	if (!serdev_adev) {
 		pr_err("error could not get %s serdev adev\n", info->serdev_hid);
-		goto put_ctrl_adev;
-	}
-
-	/* get_first_physical_node() returns a weak ref, no need to put() it */
-	ctrl_dev = acpi_get_first_physical_node(ctrl_adev);
-	if (!ctrl_dev)	{
-		pr_err("error could not get %s/%s ctrl physical dev\n",
-		       info->ctrl_hid, info->ctrl_uid);
-		goto put_serdev_adev;
-	}
-
-	/* ctrl_dev now points to the controller's parent, get the controller */
-	ctrl_dev = device_find_child_by_name(ctrl_dev, info->ctrl_devname);
-	if (!ctrl_dev) {
-		pr_err("error could not get %s/%s %s ctrl dev\n",
-		       info->ctrl_hid, info->ctrl_uid, info->ctrl_devname);
-		goto put_serdev_adev;
+		goto put_ctrl_dev;
 	}
 
 	serdev = serdev_device_alloc(to_serdev_controller(ctrl_dev));
@@ -219,12 +269,12 @@ static __init int x86_instantiate_serdev(const struct x86_serdev_info *info, int
 
 put_serdev_adev:
 	acpi_dev_put(serdev_adev);
-put_ctrl_adev:
-	acpi_dev_put(ctrl_adev);
+put_ctrl_dev:
+	put_device(ctrl_dev);
 	return ret;
 }
 
-static void x86_android_tablet_cleanup(void)
+static void x86_android_tablet_remove(struct platform_device *pdev)
 {
 	int i;
 
@@ -241,6 +291,11 @@ static void x86_android_tablet_cleanup(void)
 	kfree(pdevs);
 	kfree(buttons);
 
+	for (i = 0; i < spi_dev_count; i++)
+		spi_unregister_device(spi_devs[i]);
+
+	kfree(spi_devs);
+
 	for (i = 0; i < i2c_client_count; i++)
 		i2c_unregister_device(i2c_clients[i]);
 
@@ -255,11 +310,10 @@ static void x86_android_tablet_cleanup(void)
 	software_node_unregister(bat_swnode);
 }
 
-static __init int x86_android_tablet_init(void)
+static __init int x86_android_tablet_probe(struct platform_device *pdev)
 {
 	const struct x86_dev_info *dev_info;
 	const struct dmi_system_id *id;
-	struct gpio_chip *chip;
 	int i, ret = 0;
 
 	id = dmi_first_match(x86_android_tablet_ids);
@@ -267,20 +321,8 @@ static __init int x86_android_tablet_init(void)
 		return -ENODEV;
 
 	dev_info = id->driver_data;
-
-	/*
-	 * The broken DSDTs on these devices often also include broken
-	 * _AEI (ACPI Event Interrupt) handlers, disable these.
-	 */
-	if (dev_info->invalid_aei_gpiochip) {
-		chip = gpiochip_find(dev_info->invalid_aei_gpiochip,
-				     gpiochip_find_match_label);
-		if (!chip) {
-			pr_err("error cannot find GPIO chip %s\n", dev_info->invalid_aei_gpiochip);
-			return -ENODEV;
-		}
-		acpi_gpiochip_free_interrupts(chip);
-	}
+	/* Allow x86_android_tablet_device use before probe() exits */
+	x86_android_tablet_device = pdev;
 
 	/*
 	 * Since this runs from module_init() it cannot use -EPROBE_DEFER,
@@ -303,7 +345,7 @@ static __init int x86_android_tablet_init(void)
 	if (dev_info->init) {
 		ret = dev_info->init();
 		if (ret < 0) {
-			x86_android_tablet_cleanup();
+			x86_android_tablet_remove(pdev);
 			return ret;
 		}
 		exit_handler = dev_info->exit;
@@ -311,7 +353,7 @@ static __init int x86_android_tablet_init(void)
 
 	i2c_clients = kcalloc(dev_info->i2c_client_count, sizeof(*i2c_clients), GFP_KERNEL);
 	if (!i2c_clients) {
-		x86_android_tablet_cleanup();
+		x86_android_tablet_remove(pdev);
 		return -ENOMEM;
 	}
 
@@ -319,7 +361,22 @@ static __init int x86_android_tablet_init(void)
 	for (i = 0; i < i2c_client_count; i++) {
 		ret = x86_instantiate_i2c_client(dev_info, i);
 		if (ret < 0) {
-			x86_android_tablet_cleanup();
+			x86_android_tablet_remove(pdev);
+			return ret;
+		}
+	}
+
+	spi_devs = kcalloc(dev_info->spi_dev_count, sizeof(*spi_devs), GFP_KERNEL);
+	if (!spi_devs) {
+		x86_android_tablet_remove(pdev);
+		return -ENOMEM;
+	}
+
+	spi_dev_count = dev_info->spi_dev_count;
+	for (i = 0; i < spi_dev_count; i++) {
+		ret = x86_instantiate_spi_dev(dev_info, i);
+		if (ret < 0) {
+			x86_android_tablet_remove(pdev);
 			return ret;
 		}
 	}
@@ -327,7 +384,7 @@ static __init int x86_android_tablet_init(void)
 	/* + 1 to make space for (optional) gpio_keys_button pdev */
 	pdevs = kcalloc(dev_info->pdev_count + 1, sizeof(*pdevs), GFP_KERNEL);
 	if (!pdevs) {
-		x86_android_tablet_cleanup();
+		x86_android_tablet_remove(pdev);
 		return -ENOMEM;
 	}
 
@@ -335,14 +392,14 @@ static __init int x86_android_tablet_init(void)
 	for (i = 0; i < pdev_count; i++) {
 		pdevs[i] = platform_device_register_full(&dev_info->pdev_info[i]);
 		if (IS_ERR(pdevs[i])) {
-			x86_android_tablet_cleanup();
+			x86_android_tablet_remove(pdev);
 			return PTR_ERR(pdevs[i]);
 		}
 	}
 
 	serdevs = kcalloc(dev_info->serdev_count, sizeof(*serdevs), GFP_KERNEL);
 	if (!serdevs) {
-		x86_android_tablet_cleanup();
+		x86_android_tablet_remove(pdev);
 		return -ENOMEM;
 	}
 
@@ -350,7 +407,7 @@ static __init int x86_android_tablet_init(void)
 	for (i = 0; i < serdev_count; i++) {
 		ret = x86_instantiate_serdev(&dev_info->serdev_info[i], i);
 		if (ret < 0) {
-			x86_android_tablet_cleanup();
+			x86_android_tablet_remove(pdev);
 			return ret;
 		}
 	}
@@ -361,30 +418,34 @@ static __init int x86_android_tablet_init(void)
 
 		buttons = kcalloc(dev_info->gpio_button_count, sizeof(*buttons), GFP_KERNEL);
 		if (!buttons) {
-			x86_android_tablet_cleanup();
+			x86_android_tablet_remove(pdev);
 			return -ENOMEM;
 		}
 
 		for (i = 0; i < dev_info->gpio_button_count; i++) {
 			ret = x86_android_tablet_get_gpiod(dev_info->gpio_button[i].chip,
-							   dev_info->gpio_button[i].pin, &gpiod);
+							   dev_info->gpio_button[i].pin,
+							   dev_info->gpio_button[i].button.desc,
+							   false, GPIOD_IN, &gpiod);
 			if (ret < 0) {
-				x86_android_tablet_cleanup();
+				x86_android_tablet_remove(pdev);
 				return ret;
 			}
 
 			buttons[i] = dev_info->gpio_button[i].button;
 			buttons[i].gpio = desc_to_gpio(gpiod);
+			/* Release gpiod so that gpio-keys can request it */
+			devm_gpiod_put(&x86_android_tablet_device->dev, gpiod);
 		}
 
 		pdata.buttons = buttons;
 		pdata.nbuttons = dev_info->gpio_button_count;
 
-		pdevs[pdev_count] = platform_device_register_data(NULL, "gpio-keys",
+		pdevs[pdev_count] = platform_device_register_data(&pdev->dev, "gpio-keys",
 								  PLATFORM_DEVID_AUTO,
 								  &pdata, sizeof(pdata));
 		if (IS_ERR(pdevs[pdev_count])) {
-			x86_android_tablet_cleanup();
+			x86_android_tablet_remove(pdev);
 			return PTR_ERR(pdevs[pdev_count]);
 		}
 		pdev_count++;
@@ -393,8 +454,29 @@ static __init int x86_android_tablet_init(void)
 	return 0;
 }
 
+static struct platform_driver x86_android_tablet_driver = {
+	.driver = {
+		.name = KBUILD_MODNAME,
+	},
+	.remove_new = x86_android_tablet_remove,
+};
+
+static int __init x86_android_tablet_init(void)
+{
+	x86_android_tablet_device = platform_create_bundle(&x86_android_tablet_driver,
+						   x86_android_tablet_probe,
+						   NULL, 0, NULL, 0);
+
+	return PTR_ERR_OR_ZERO(x86_android_tablet_device);
+}
 module_init(x86_android_tablet_init);
-module_exit(x86_android_tablet_cleanup);
+
+static void __exit x86_android_tablet_exit(void)
+{
+	platform_device_unregister(x86_android_tablet_device);
+	platform_driver_unregister(&x86_android_tablet_driver);
+}
+module_exit(x86_android_tablet_exit);
 
 MODULE_AUTHOR("Hans de Goede <hdegoede@redhat.com>");
 MODULE_DESCRIPTION("X86 Android tablets DSDT fixups driver");

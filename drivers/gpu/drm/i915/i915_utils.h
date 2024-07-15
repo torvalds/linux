@@ -40,7 +40,7 @@
 struct drm_i915_private;
 struct timer_list;
 
-#define FDO_BUG_URL "https://gitlab.freedesktop.org/drm/intel/-/wikis/How-to-file-i915-bugs"
+#define FDO_BUG_URL "https://drm.pages.freedesktop.org/intel-docs/how-to-file-i915-bugs.html"
 
 #define MISSING_CASE(x) WARN(1, "Missing case (%s == %ld)\n", \
 			     __stringify(x), (long)(x))
@@ -390,5 +390,7 @@ static inline bool i915_run_as_guest(void)
 }
 
 bool i915_vtd_active(struct drm_i915_private *i915);
+
+bool i915_direct_stolen_access(struct drm_i915_private *i915);
 
 #endif /* !__I915_UTILS_H */

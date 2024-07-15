@@ -21,7 +21,7 @@
 #ifndef __AMDGPU_UMC_H__
 #define __AMDGPU_UMC_H__
 #include "amdgpu_ras.h"
-
+#include "amdgpu_mca.h"
 /*
  * (addr / 256) * 4096, the higher 26 bits in ErrorAddr
  * is the index of 4KB block
@@ -32,6 +32,11 @@
  * is the index of 8KB block
  */
 #define ADDR_OF_8KB_BLOCK(addr)			(((addr) & ~0xffULL) << 5)
+/*
+ * (addr / 256) * 32768, the higher 26 bits in ErrorAddr
+ * is the index of 8KB block
+ */
+#define ADDR_OF_32KB_BLOCK(addr)			(((addr) & ~0xffULL) << 7)
 /* channel index is the index of 256B block */
 #define ADDR_OF_256B_BLOCK(channel_index)	((channel_index) << 8)
 /* offset in 256B block */
@@ -59,6 +64,8 @@ struct amdgpu_umc_ras {
 				      void *ras_error_status);
 	void (*ecc_info_query_ras_error_address)(struct amdgpu_device *adev,
 					void *ras_error_status);
+	bool (*check_ecc_err_status)(struct amdgpu_device *adev,
+			enum amdgpu_mca_error_type type, void *ras_error_status);
 	/* support different eeprom table version for different asic */
 	void (*set_eeprom_table_version)(struct amdgpu_ras_eeprom_table_header *hdr);
 };
@@ -95,7 +102,8 @@ struct amdgpu_umc {
 
 int amdgpu_umc_ras_sw_init(struct amdgpu_device *adev);
 int amdgpu_umc_ras_late_init(struct amdgpu_device *adev, struct ras_common_if *ras_block);
-int amdgpu_umc_poison_handler(struct amdgpu_device *adev, bool reset);
+int amdgpu_umc_poison_handler(struct amdgpu_device *adev,
+			enum amdgpu_ras_block block, bool reset);
 int amdgpu_umc_process_ecc_irq(struct amdgpu_device *adev,
 		struct amdgpu_irq_src *source,
 		struct amdgpu_iv_entry *entry);
@@ -113,4 +121,7 @@ int amdgpu_umc_page_retirement_mca(struct amdgpu_device *adev,
 
 int amdgpu_umc_loop_channels(struct amdgpu_device *adev,
 			umc_func func, void *data);
+
+int amdgpu_umc_bad_page_polling_timeout(struct amdgpu_device *adev,
+			bool reset, uint32_t timeout_ms);
 #endif

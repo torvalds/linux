@@ -17,7 +17,9 @@
 #include <linux/of_irq.h>
 #include <linux/module.h>
 
+#include <asm/delay.h>
 #include <asm/hexagon_vm.h>
+#include <asm/time.h>
 
 #define TIMER_ENABLE		BIT(0)
 
@@ -160,7 +162,7 @@ static irqreturn_t timer_interrupt(int irq, void *devid)
  * This runs just before the delay loop is calibrated, and
  * is used for delay calibration.
  */
-void __init time_init_deferred(void)
+static void __init time_init_deferred(void)
 {
 	struct resource *resource = NULL;
 	struct clock_event_device *ce_dev = &hexagon_clockevent_dev;

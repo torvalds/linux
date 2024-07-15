@@ -13,6 +13,8 @@ struct nvkm_runq;
 struct nvkm_vctx;
 
 struct nvkm_fifo_func {
+	void (*dtor)(struct nvkm_fifo *);
+
 	int (*chid_nr)(struct nvkm_fifo *);
 	int (*chid_ctor)(struct nvkm_fifo *, int nr);
 	int (*runq_nr)(struct nvkm_fifo *);
@@ -58,6 +60,8 @@ struct nvkm_fifo_func {
 	} chan;
 };
 
+int r535_fifo_new(const struct nvkm_fifo_func *, struct nvkm_device *, enum nvkm_subdev_type, int,
+		  struct nvkm_fifo **);
 int nvkm_fifo_new_(const struct nvkm_fifo_func *, struct nvkm_device *, enum nvkm_subdev_type, int,
 		   struct nvkm_fifo **);
 

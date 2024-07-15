@@ -81,7 +81,7 @@ static int uniphier_u2phy_init(struct phy *phy)
 }
 
 static struct phy *uniphier_u2phy_xlate(struct device *dev,
-					struct of_phandle_args *args)
+					const struct of_phandle_args *args)
 {
 	struct uniphier_u2phy_priv *priv = dev_get_drvdata(dev);
 

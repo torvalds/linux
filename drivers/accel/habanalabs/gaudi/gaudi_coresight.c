@@ -482,6 +482,11 @@ static int gaudi_config_etf(struct hl_device *hdev,
 
 	WREG32(base_reg + 0xFB0, CORESIGHT_UNLOCK);
 
+	val = RREG32(base_reg + 0x20);
+
+	if ((!params->enable && val == 0x0) || (params->enable && val != 0x0))
+		return 0;
+
 	val = RREG32(base_reg + 0x304);
 	val |= 0x1000;
 	WREG32(base_reg + 0x304, val);
@@ -579,6 +584,13 @@ static int gaudi_config_etr(struct hl_device *hdev,
 	int rc;
 
 	WREG32(mmPSOC_ETR_LAR, CORESIGHT_UNLOCK);
+
+	val = RREG32(mmPSOC_ETR_CTL);
+
+	if ((!params->enable && val == 0x0) || (params->enable && val != 0x0))
+		return 0;
+
+
 
 	val = RREG32(mmPSOC_ETR_FFCR);
 	val |= 0x1000;

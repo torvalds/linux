@@ -1760,8 +1760,10 @@ static int fd_locked_ioctl(struct block_device *bdev, blk_mode_t mode,
 		/* invalidate the buffer track to force a reread */
 		BufferDrive = -1;
 		set_bit(drive, &fake_change);
-		if (disk_check_media_change(disk))
+		if (disk_check_media_change(disk)) {
+			bdev_mark_dead(disk->part0, true);
 			floppy_revalidate(disk);
+		}
 		return 0;
 	default:
 		return -EINVAL;
@@ -1992,7 +1994,7 @@ static int ataflop_alloc_disk(unsigned int drive, unsigned int type)
 {
 	struct gendisk *disk;
 
-	disk = blk_mq_alloc_disk(&unit[drive].tag_set, NULL);
+	disk = blk_mq_alloc_disk(&unit[drive].tag_set, NULL, NULL);
 	if (IS_ERR(disk))
 		return PTR_ERR(disk);
 

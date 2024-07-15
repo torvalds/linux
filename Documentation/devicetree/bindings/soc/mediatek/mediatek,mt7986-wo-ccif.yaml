@@ -12,7 +12,7 @@ maintainers:
 
 description:
   The MediaTek wo-ccif provides a configuration interface for WED WO
-  controller used to perfrom offload rx packet processing (e.g. 802.11
+  controller used to perform offload rx packet processing (e.g. 802.11
   aggregation packet reordering or rx header translation) on MT7986 soc.
 
 properties:
@@ -20,6 +20,7 @@ properties:
     items:
       - enum:
           - mediatek,mt7986-wo-ccif
+          - mediatek,mt7988-wo-ccif
       - const: syscon
 
   reg:

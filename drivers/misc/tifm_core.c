@@ -166,7 +166,7 @@ static void tifm_free(struct device *dev)
 	kfree(fm);
 }
 
-static struct class tifm_adapter_class = {
+static const struct class tifm_adapter_class = {
 	.name    = "tifm_adapter",
 	.dev_release = tifm_free
 };

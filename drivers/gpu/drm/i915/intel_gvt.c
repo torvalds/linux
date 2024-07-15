@@ -41,7 +41,7 @@
  * To virtualize GPU resources GVT-g driver depends on hypervisor technology
  * e.g KVM/VFIO/mdev, Xen, etc. to provide resource access trapping capability
  * and be virtualized within GVT-g device module. More architectural design
- * doc is available on https://01.org/group/2230/documentation-list.
+ * doc is available on https://github.com/intel/gvt-linux/wiki.
  */
 
 static LIST_HEAD(intel_gvt_devices);

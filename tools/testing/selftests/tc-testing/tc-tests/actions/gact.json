@@ -6,6 +6,9 @@
             "actions",
             "gact"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gact",
@@ -30,6 +33,9 @@
             "actions",
             "gact"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gact",
@@ -54,6 +60,9 @@
             "actions",
             "gact"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gact",
@@ -78,6 +87,9 @@
             "actions",
             "gact"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gact",
@@ -102,6 +114,9 @@
             "actions",
             "gact"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gact",
@@ -126,6 +141,9 @@
             "actions",
             "gact"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gact",
@@ -150,6 +168,9 @@
             "actions",
             "gact"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gact",
@@ -175,6 +196,9 @@
             "actions",
             "gact"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gact",
@@ -199,6 +223,9 @@
             "actions",
             "gact"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gact",
@@ -223,6 +250,9 @@
             "actions",
             "gact"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gact",
@@ -252,6 +282,9 @@
             "actions",
             "gact"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             "$TC actions add action reclassify index 101",
             "$TC actions add action reclassify index 102",
@@ -273,6 +306,9 @@
             "actions",
             "gact"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gact",
@@ -298,6 +334,9 @@
             "actions",
             "gact"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gact",
@@ -323,6 +362,9 @@
             "actions",
             "gact"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gact",
@@ -348,6 +390,9 @@
             "actions",
             "gact"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gact",
@@ -373,6 +418,9 @@
             "actions",
             "gact"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gact",
@@ -398,6 +446,9 @@
             "actions",
             "gact"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gact",
@@ -422,6 +473,9 @@
             "actions",
             "gact"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gact",
@@ -448,6 +502,9 @@
             "actions",
             "gact"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gact",
@@ -473,6 +530,9 @@
             "actions",
             "gact"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gact",
@@ -497,6 +557,9 @@
             "actions",
             "gact"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gact",
@@ -521,6 +584,9 @@
             "actions",
             "gact"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gact",
@@ -544,6 +610,9 @@
             "actions",
             "gact"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gact",
@@ -568,6 +637,9 @@
             "actions",
             "gact"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gact",
@@ -593,6 +665,9 @@
             "actions",
             "gact"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gact",

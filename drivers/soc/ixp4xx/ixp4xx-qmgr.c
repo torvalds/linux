@@ -442,11 +442,10 @@ static int ixp4xx_qmgr_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int ixp4xx_qmgr_remove(struct platform_device *pdev)
+static void ixp4xx_qmgr_remove(struct platform_device *pdev)
 {
 	synchronize_irq(qmgr_irq_1);
 	synchronize_irq(qmgr_irq_2);
-	return 0;
 }
 
 static const struct of_device_id ixp4xx_qmgr_of_match[] = {
@@ -462,7 +461,7 @@ static struct platform_driver ixp4xx_qmgr_driver = {
 		.of_match_table = ixp4xx_qmgr_of_match,
 	},
 	.probe = ixp4xx_qmgr_probe,
-	.remove = ixp4xx_qmgr_remove,
+	.remove_new = ixp4xx_qmgr_remove,
 };
 module_platform_driver(ixp4xx_qmgr_driver);
 

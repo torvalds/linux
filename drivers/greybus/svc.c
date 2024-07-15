@@ -1305,7 +1305,7 @@ static void gb_svc_release(struct device *dev)
 	kfree(svc);
 }
 
-struct device_type greybus_svc_type = {
+const struct device_type greybus_svc_type = {
 	.name		= "greybus_svc",
 	.release	= gb_svc_release,
 };

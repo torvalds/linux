@@ -364,28 +364,16 @@ static void set_buffer_cache_hints(struct vb2_queue *q,
 }
 
 static int vb2_queue_or_prepare_buf(struct vb2_queue *q, struct media_device *mdev,
-				    struct v4l2_buffer *b, bool is_prepare,
-				    struct media_request **p_req)
+				    struct vb2_buffer *vb, struct v4l2_buffer *b,
+				    bool is_prepare, struct media_request **p_req)
 {
 	const char *opname = is_prepare ? "prepare_buf" : "qbuf";
 	struct media_request *req;
 	struct vb2_v4l2_buffer *vbuf;
-	struct vb2_buffer *vb;
 	int ret;
 
 	if (b->type != q->type) {
 		dprintk(q, 1, "%s: invalid buffer type\n", opname);
-		return -EINVAL;
-	}
-
-	if (b->index >= q->num_buffers) {
-		dprintk(q, 1, "%s: buffer index out of range\n", opname);
-		return -EINVAL;
-	}
-
-	if (q->bufs[b->index] == NULL) {
-		/* Should never happen */
-		dprintk(q, 1, "%s: buffer is NULL\n", opname);
 		return -EINVAL;
 	}
 
@@ -394,7 +382,6 @@ static int vb2_queue_or_prepare_buf(struct vb2_queue *q, struct media_device *md
 		return -EINVAL;
 	}
 
-	vb = q->bufs[b->index];
 	vbuf = to_vb2_v4l2_buffer(vb);
 	ret = __verify_planes_array(vb, b);
 	if (ret)
@@ -628,11 +615,22 @@ static const struct vb2_buf_ops v4l2_buf_ops = {
 struct vb2_buffer *vb2_find_buffer(struct vb2_queue *q, u64 timestamp)
 {
 	unsigned int i;
+	struct vb2_buffer *vb2;
 
-	for (i = 0; i < q->num_buffers; i++)
-		if (q->bufs[i]->copied_timestamp &&
-		    q->bufs[i]->timestamp == timestamp)
-			return vb2_get_buffer(q, i);
+	/*
+	 * This loop doesn't scale if there is a really large number of buffers.
+	 * Maybe something more efficient will be needed in this case.
+	 */
+	for (i = 0; i < q->max_num_buffers; i++) {
+		vb2 = vb2_get_buffer(q, i);
+
+		if (!vb2)
+			continue;
+
+		if (vb2->copied_timestamp &&
+		    vb2->timestamp == timestamp)
+			return vb2;
+	}
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(vb2_find_buffer);
@@ -660,40 +658,21 @@ int vb2_querybuf(struct vb2_queue *q, struct v4l2_buffer *b)
 		return -EINVAL;
 	}
 
-	if (b->index >= q->num_buffers) {
-		dprintk(q, 1, "buffer index out of range\n");
+	vb = vb2_get_buffer(q, b->index);
+	if (!vb) {
+		dprintk(q, 1, "can't find the requested buffer %u\n", b->index);
 		return -EINVAL;
 	}
-	vb = q->bufs[b->index];
+
 	ret = __verify_planes_array(vb, b);
 	if (!ret)
-		vb2_core_querybuf(q, b->index, b);
+		vb2_core_querybuf(q, vb, b);
 	return ret;
 }
 EXPORT_SYMBOL(vb2_querybuf);
 
-static void fill_buf_caps(struct vb2_queue *q, u32 *caps)
-{
-	*caps = V4L2_BUF_CAP_SUPPORTS_ORPHANED_BUFS;
-	if (q->io_modes & VB2_MMAP)
-		*caps |= V4L2_BUF_CAP_SUPPORTS_MMAP;
-	if (q->io_modes & VB2_USERPTR)
-		*caps |= V4L2_BUF_CAP_SUPPORTS_USERPTR;
-	if (q->io_modes & VB2_DMABUF)
-		*caps |= V4L2_BUF_CAP_SUPPORTS_DMABUF;
-	if (q->subsystem_flags & VB2_V4L2_FL_SUPPORTS_M2M_HOLD_CAPTURE_BUF)
-		*caps |= V4L2_BUF_CAP_SUPPORTS_M2M_HOLD_CAPTURE_BUF;
-	if (q->allow_cache_hints && q->io_modes & VB2_MMAP)
-		*caps |= V4L2_BUF_CAP_SUPPORTS_MMAP_CACHE_HINTS;
-#ifdef CONFIG_MEDIA_CONTROLLER_REQUEST_API
-	if (q->supports_requests)
-		*caps |= V4L2_BUF_CAP_SUPPORTS_REQUESTS;
-#endif
-}
-
-static void validate_memory_flags(struct vb2_queue *q,
-				  int memory,
-				  u32 *flags)
+static void vb2_set_flags_and_caps(struct vb2_queue *q, u32 memory,
+				   u32 *flags, u32 *caps, u32 *max_num_bufs)
 {
 	if (!q->allow_cache_hints || memory != V4L2_MEMORY_MMAP) {
 		/*
@@ -705,6 +684,24 @@ static void validate_memory_flags(struct vb2_queue *q,
 		/* Clear all unknown flags. */
 		*flags &= V4L2_MEMORY_FLAG_NON_COHERENT;
 	}
+
+	*caps = V4L2_BUF_CAP_SUPPORTS_ORPHANED_BUFS;
+	if (q->io_modes & VB2_MMAP)
+		*caps |= V4L2_BUF_CAP_SUPPORTS_MMAP;
+	if (q->io_modes & VB2_USERPTR)
+		*caps |= V4L2_BUF_CAP_SUPPORTS_USERPTR;
+	if (q->io_modes & VB2_DMABUF)
+		*caps |= V4L2_BUF_CAP_SUPPORTS_DMABUF;
+	if (q->subsystem_flags & VB2_V4L2_FL_SUPPORTS_M2M_HOLD_CAPTURE_BUF)
+		*caps |= V4L2_BUF_CAP_SUPPORTS_M2M_HOLD_CAPTURE_BUF;
+	if (q->allow_cache_hints && q->io_modes & VB2_MMAP)
+		*caps |= V4L2_BUF_CAP_SUPPORTS_MMAP_CACHE_HINTS;
+	if (q->supports_requests)
+		*caps |= V4L2_BUF_CAP_SUPPORTS_REQUESTS;
+	if (max_num_bufs) {
+		*max_num_bufs = q->max_num_buffers;
+		*caps |= V4L2_BUF_CAP_SUPPORTS_MAX_NUM_BUFFERS;
+	}
 }
 
 int vb2_reqbufs(struct vb2_queue *q, struct v4l2_requestbuffers *req)
@@ -712,8 +709,8 @@ int vb2_reqbufs(struct vb2_queue *q, struct v4l2_requestbuffers *req)
 	int ret = vb2_verify_memory_type(q, req->memory, req->type);
 	u32 flags = req->flags;
 
-	fill_buf_caps(q, &req->capabilities);
-	validate_memory_flags(q, req->memory, &flags);
+	vb2_set_flags_and_caps(q, req->memory, &flags,
+			       &req->capabilities, NULL);
 	req->flags = flags;
 	return ret ? ret : vb2_core_reqbufs(q, req->memory,
 					    req->flags, &req->count);
@@ -723,6 +720,7 @@ EXPORT_SYMBOL_GPL(vb2_reqbufs);
 int vb2_prepare_buf(struct vb2_queue *q, struct media_device *mdev,
 		    struct v4l2_buffer *b)
 {
+	struct vb2_buffer *vb;
 	int ret;
 
 	if (vb2_fileio_is_active(q)) {
@@ -733,9 +731,15 @@ int vb2_prepare_buf(struct vb2_queue *q, struct media_device *mdev,
 	if (b->flags & V4L2_BUF_FLAG_REQUEST_FD)
 		return -EINVAL;
 
-	ret = vb2_queue_or_prepare_buf(q, mdev, b, true, NULL);
+	vb = vb2_get_buffer(q, b->index);
+	if (!vb) {
+		dprintk(q, 1, "can't find the requested buffer %u\n", b->index);
+		return -EINVAL;
+	}
 
-	return ret ? ret : vb2_core_prepare_buf(q, b->index, b);
+	ret = vb2_queue_or_prepare_buf(q, mdev, vb, b, true, NULL);
+
+	return ret ? ret : vb2_core_prepare_buf(q, vb, b);
 }
 EXPORT_SYMBOL_GPL(vb2_prepare_buf);
 
@@ -747,9 +751,9 @@ int vb2_create_bufs(struct vb2_queue *q, struct v4l2_create_buffers *create)
 	int ret = vb2_verify_memory_type(q, create->memory, f->type);
 	unsigned i;
 
-	fill_buf_caps(q, &create->capabilities);
-	validate_memory_flags(q, create->memory, &create->flags);
-	create->index = q->num_buffers;
+	create->index = vb2_get_num_buffers(q);
+	vb2_set_flags_and_caps(q, create->memory, &create->flags,
+			       &create->capabilities, &create->max_num_buffers);
 	if (create->count == 0)
 		return ret != -EBUSY ? ret : 0;
 
@@ -803,6 +807,7 @@ int vb2_qbuf(struct vb2_queue *q, struct media_device *mdev,
 	     struct v4l2_buffer *b)
 {
 	struct media_request *req = NULL;
+	struct vb2_buffer *vb;
 	int ret;
 
 	if (vb2_fileio_is_active(q)) {
@@ -810,10 +815,16 @@ int vb2_qbuf(struct vb2_queue *q, struct media_device *mdev,
 		return -EBUSY;
 	}
 
-	ret = vb2_queue_or_prepare_buf(q, mdev, b, false, &req);
+	vb = vb2_get_buffer(q, b->index);
+	if (!vb) {
+		dprintk(q, 1, "can't find the requested buffer %u\n", b->index);
+		return -EINVAL;
+	}
+
+	ret = vb2_queue_or_prepare_buf(q, mdev, vb, b, false, &req);
 	if (ret)
 		return ret;
-	ret = vb2_core_qbuf(q, b->index, b, req);
+	ret = vb2_core_qbuf(q, vb, b, req);
 	if (req)
 		media_request_put(req);
 	return ret;
@@ -873,7 +884,15 @@ EXPORT_SYMBOL_GPL(vb2_streamoff);
 
 int vb2_expbuf(struct vb2_queue *q, struct v4l2_exportbuffer *eb)
 {
-	return vb2_core_expbuf(q, &eb->fd, eb->type, eb->index,
+	struct vb2_buffer *vb;
+
+	vb = vb2_get_buffer(q, eb->index);
+	if (!vb) {
+		dprintk(q, 1, "can't find the requested buffer %u\n", eb->index);
+		return -EINVAL;
+	}
+
+	return vb2_core_expbuf(q, &eb->fd, eb->type, vb,
 				eb->plane, eb->flags);
 }
 EXPORT_SYMBOL_GPL(vb2_expbuf);
@@ -985,8 +1004,8 @@ int vb2_ioctl_reqbufs(struct file *file, void *priv,
 	int res = vb2_verify_memory_type(vdev->queue, p->memory, p->type);
 	u32 flags = p->flags;
 
-	fill_buf_caps(vdev->queue, &p->capabilities);
-	validate_memory_flags(vdev->queue, p->memory, &flags);
+	vb2_set_flags_and_caps(vdev->queue, p->memory, &flags,
+			       &p->capabilities, NULL);
 	p->flags = flags;
 	if (res)
 		return res;
@@ -1005,12 +1024,11 @@ int vb2_ioctl_create_bufs(struct file *file, void *priv,
 			  struct v4l2_create_buffers *p)
 {
 	struct video_device *vdev = video_devdata(file);
-	int res = vb2_verify_memory_type(vdev->queue, p->memory,
-			p->format.type);
+	int res = vb2_verify_memory_type(vdev->queue, p->memory, p->format.type);
 
-	p->index = vdev->queue->num_buffers;
-	fill_buf_caps(vdev->queue, &p->capabilities);
-	validate_memory_flags(vdev->queue, p->memory, &p->flags);
+	p->index = vb2_get_num_buffers(vdev->queue);
+	vb2_set_flags_and_caps(vdev->queue, p->memory, &p->flags,
+			       &p->capabilities, &p->max_num_buffers);
 	/*
 	 * If count == 0, then just check if memory and type are valid.
 	 * Any -EBUSY result from vb2_verify_memory_type can be mapped to 0.
@@ -1115,7 +1133,7 @@ int _vb2_fop_release(struct file *file, struct mutex *lock)
 
 	if (lock)
 		mutex_lock(lock);
-	if (file->private_data == vdev->queue->owner) {
+	if (!vdev->queue->owner || file->private_data == vdev->queue->owner) {
 		vb2_queue_release(vdev->queue);
 		vdev->queue->owner = NULL;
 	}
@@ -1243,7 +1261,7 @@ void vb2_video_unregister_device(struct video_device *vdev)
 	 */
 	get_device(&vdev->dev);
 	video_unregister_device(vdev);
-	if (vdev->queue && vdev->queue->owner) {
+	if (vdev->queue) {
 		struct mutex *lock = vdev->queue->lock ?
 			vdev->queue->lock : vdev->lock;
 

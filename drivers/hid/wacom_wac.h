@@ -13,6 +13,8 @@
 #define WACOM_NAME_MAX		64
 #define WACOM_MAX_REMOTES	5
 #define WACOM_STATUS_UNKNOWN	255
+#define WACOM_REMOTE_BATTERY_TIMEOUT	21000000000ll
+#define WACOM_AES_BATTERY_TIMEOUT       1800000
 
 /* packet length for individual models */
 #define WACOM_PKGLEN_BBFUN	 9
@@ -307,7 +309,6 @@ struct hid_data {
 	bool confidence;
 	int x;
 	int y;
-	int pressure;
 	int width;
 	int height;
 	int id;
@@ -327,10 +328,9 @@ struct hid_data {
 	ktime_t time_delayed;
 };
 
-struct wacom_remote_data {
+struct wacom_remote_work_data {
 	struct {
 		u32 serial;
-		bool connected;
 	} remote[WACOM_MAX_REMOTES];
 };
 

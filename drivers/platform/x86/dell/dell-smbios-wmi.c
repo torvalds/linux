@@ -6,12 +6,16 @@
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/device.h>
 #include <linux/dmi.h>
+#include <linux/fs.h>
 #include <linux/list.h>
+#include <linux/miscdevice.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/uaccess.h>
 #include <linux/wmi.h>
+#include <uapi/linux/wmi.h>
 #include "dell-smbios.h"
 #include "dell-wmi-descriptor.h"
 
@@ -32,7 +36,8 @@ struct wmi_smbios_priv {
 	struct list_head list;
 	struct wmi_device *wdev;
 	struct device *child;
-	u32 req_buf_size;
+	u64 req_buf_size;
+	struct miscdevice char_dev;
 };
 static LIST_HEAD(wmi_list);
 
@@ -108,48 +113,115 @@ out_wmi_call:
 	return ret;
 }
 
-static long dell_smbios_wmi_filter(struct wmi_device *wdev, unsigned int cmd,
-				   struct wmi_ioctl_buffer *arg)
+static int dell_smbios_wmi_open(struct inode *inode, struct file *filp)
 {
 	struct wmi_smbios_priv *priv;
-	int ret = 0;
 
-	switch (cmd) {
-	case DELL_WMI_SMBIOS_CMD:
-		mutex_lock(&call_mutex);
-		priv = dev_get_drvdata(&wdev->dev);
-		if (!priv) {
-			ret = -ENODEV;
-			goto fail_smbios_cmd;
-		}
-		memcpy(priv->buf, arg, priv->req_buf_size);
-		if (dell_smbios_call_filter(&wdev->dev, &priv->buf->std)) {
-			dev_err(&wdev->dev, "Invalid call %d/%d:%8x\n",
-				priv->buf->std.cmd_class,
-				priv->buf->std.cmd_select,
-				priv->buf->std.input[0]);
-			ret = -EFAULT;
-			goto fail_smbios_cmd;
-		}
-		ret = run_smbios_call(priv->wdev);
-		if (ret)
-			goto fail_smbios_cmd;
-		memcpy(arg, priv->buf, priv->req_buf_size);
-fail_smbios_cmd:
-		mutex_unlock(&call_mutex);
-		break;
-	default:
-		ret = -ENOIOCTLCMD;
+	priv = container_of(filp->private_data, struct wmi_smbios_priv, char_dev);
+	filp->private_data = priv;
+
+	return nonseekable_open(inode, filp);
+}
+
+static ssize_t dell_smbios_wmi_read(struct file *filp, char __user *buffer, size_t length,
+				    loff_t *offset)
+{
+	struct wmi_smbios_priv *priv = filp->private_data;
+
+	return simple_read_from_buffer(buffer, length, offset, &priv->req_buf_size,
+				       sizeof(priv->req_buf_size));
+}
+
+static long dell_smbios_wmi_do_ioctl(struct wmi_smbios_priv *priv,
+				     struct dell_wmi_smbios_buffer __user *arg)
+{
+	long ret;
+
+	if (get_user(priv->buf->length, &arg->length))
+		return -EFAULT;
+
+	if (priv->buf->length < priv->req_buf_size)
+		return -EINVAL;
+
+	/* if it's too big, warn, driver will only use what is needed */
+	if (priv->buf->length > priv->req_buf_size)
+		dev_err(&priv->wdev->dev, "Buffer %llu is bigger than required %llu\n",
+			priv->buf->length, priv->req_buf_size);
+
+	if (copy_from_user(priv->buf, arg, priv->req_buf_size))
+		return -EFAULT;
+
+	if (dell_smbios_call_filter(&priv->wdev->dev, &priv->buf->std)) {
+		dev_err(&priv->wdev->dev, "Invalid call %d/%d:%8x\n",
+			priv->buf->std.cmd_class,
+			priv->buf->std.cmd_select,
+			priv->buf->std.input[0]);
+
+		return -EINVAL;
 	}
+
+	ret = run_smbios_call(priv->wdev);
+	if (ret)
+		return ret;
+
+	if (copy_to_user(arg, priv->buf, priv->req_buf_size))
+		return -EFAULT;
+
+	return 0;
+}
+
+static long dell_smbios_wmi_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+{
+	struct dell_wmi_smbios_buffer __user *input = (struct dell_wmi_smbios_buffer __user *)arg;
+	struct wmi_smbios_priv *priv = filp->private_data;
+	long ret;
+
+	if (cmd != DELL_WMI_SMBIOS_CMD)
+		return -ENOIOCTLCMD;
+
+	mutex_lock(&call_mutex);
+	ret = dell_smbios_wmi_do_ioctl(priv, input);
+	mutex_unlock(&call_mutex);
+
 	return ret;
+}
+
+static const struct file_operations dell_smbios_wmi_fops = {
+	.owner		= THIS_MODULE,
+	.open		= dell_smbios_wmi_open,
+	.read		= dell_smbios_wmi_read,
+	.unlocked_ioctl	= dell_smbios_wmi_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
+};
+
+static void dell_smbios_wmi_unregister_chardev(void *data)
+{
+	struct miscdevice *char_dev = data;
+
+	misc_deregister(char_dev);
+}
+
+static int dell_smbios_wmi_register_chardev(struct wmi_smbios_priv *priv)
+{
+	int ret;
+
+	priv->char_dev.minor = MISC_DYNAMIC_MINOR;
+	priv->char_dev.name = "wmi/dell-smbios";
+	priv->char_dev.fops = &dell_smbios_wmi_fops;
+	priv->char_dev.mode = 0444;
+
+	ret = misc_register(&priv->char_dev);
+	if (ret < 0)
+		return ret;
+
+	return devm_add_action_or_reset(&priv->wdev->dev, dell_smbios_wmi_unregister_chardev,
+					&priv->char_dev);
 }
 
 static int dell_smbios_wmi_probe(struct wmi_device *wdev, const void *context)
 {
-	struct wmi_driver *wdriver =
-		container_of(wdev->dev.driver, struct wmi_driver, driver);
 	struct wmi_smbios_priv *priv;
-	u32 hotfix;
+	u32 buffer_size, hotfix;
 	int count;
 	int ret;
 
@@ -162,62 +234,58 @@ static int dell_smbios_wmi_probe(struct wmi_device *wdev, const void *context)
 	if (!priv)
 		return -ENOMEM;
 
+	priv->wdev = wdev;
+	dev_set_drvdata(&wdev->dev, priv);
+
 	/* WMI buffer size will be either 4k or 32k depending on machine */
-	if (!dell_wmi_get_size(&priv->req_buf_size))
+	if (!dell_wmi_get_size(&buffer_size))
 		return -EPROBE_DEFER;
+
+	priv->req_buf_size = buffer_size;
 
 	/* some SMBIOS calls fail unless BIOS contains hotfix */
 	if (!dell_wmi_get_hotfix(&hotfix))
 		return -EPROBE_DEFER;
-	if (!hotfix) {
+
+	if (!hotfix)
 		dev_warn(&wdev->dev,
 			"WMI SMBIOS userspace interface not supported(%u), try upgrading to a newer BIOS\n",
 			hotfix);
-		wdriver->filter_callback = NULL;
-	}
 
 	/* add in the length object we will use internally with ioctl */
 	priv->req_buf_size += sizeof(u64);
-	ret = set_required_buffer_size(wdev, priv->req_buf_size);
-	if (ret)
-		return ret;
 
 	count = get_order(priv->req_buf_size);
-	priv->buf = (void *)__get_free_pages(GFP_KERNEL, count);
+	priv->buf = (void *)devm_get_free_pages(&wdev->dev, GFP_KERNEL, count);
 	if (!priv->buf)
 		return -ENOMEM;
+
+	ret = dell_smbios_wmi_register_chardev(priv);
+	if (ret)
+		return ret;
 
 	/* ID is used by dell-smbios to set priority of drivers */
 	wdev->dev.id = 1;
 	ret = dell_smbios_register_device(&wdev->dev, &dell_smbios_wmi_call);
 	if (ret)
-		goto fail_register;
+		return ret;
 
-	priv->wdev = wdev;
-	dev_set_drvdata(&wdev->dev, priv);
 	mutex_lock(&list_mutex);
 	list_add_tail(&priv->list, &wmi_list);
 	mutex_unlock(&list_mutex);
 
 	return 0;
-
-fail_register:
-	free_pages((unsigned long)priv->buf, count);
-	return ret;
 }
 
 static void dell_smbios_wmi_remove(struct wmi_device *wdev)
 {
 	struct wmi_smbios_priv *priv = dev_get_drvdata(&wdev->dev);
-	int count;
 
 	mutex_lock(&call_mutex);
 	mutex_lock(&list_mutex);
 	list_del(&priv->list);
 	mutex_unlock(&list_mutex);
 	dell_smbios_unregister_device(&wdev->dev);
-	count = get_order(priv->req_buf_size);
-	free_pages((unsigned long)priv->buf, count);
 	mutex_unlock(&call_mutex);
 }
 
@@ -256,7 +324,6 @@ static struct wmi_driver dell_smbios_wmi_driver = {
 	.probe = dell_smbios_wmi_probe,
 	.remove = dell_smbios_wmi_remove,
 	.id_table = dell_smbios_wmi_id_table,
-	.filter_callback = dell_smbios_wmi_filter,
 };
 
 int init_dell_smbios_wmi(void)

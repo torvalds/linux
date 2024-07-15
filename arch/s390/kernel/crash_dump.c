@@ -22,6 +22,7 @@
 #include <asm/ipl.h>
 #include <asm/sclp.h>
 #include <asm/maccess.h>
+#include <asm/fpu.h>
 
 #define PTR_ADD(x, y) (((char *) (x)) + ((unsigned long) (y)))
 #define PTR_SUB(x, y) (((char *) (x)) - ((unsigned long) (y)))
@@ -319,7 +320,7 @@ static void *fill_cpu_elf_notes(void *ptr, int cpu, struct save_area *sa)
 	ptr = nt_init(ptr, NT_S390_TODPREG, &sa->todpreg, sizeof(sa->todpreg));
 	ptr = nt_init(ptr, NT_S390_CTRS, &sa->ctrs, sizeof(sa->ctrs));
 	ptr = nt_init(ptr, NT_S390_PREFIX, &sa->prefix, sizeof(sa->prefix));
-	if (MACHINE_HAS_VX) {
+	if (cpu_has_vx()) {
 		ptr = nt_init(ptr, NT_S390_VXRS_HIGH,
 			      &sa->vxrs_high, sizeof(sa->vxrs_high));
 		ptr = nt_init(ptr, NT_S390_VXRS_LOW,
@@ -343,7 +344,7 @@ static size_t get_cpu_elf_notes_size(void)
 	size +=  nt_size(NT_S390_TODPREG, sizeof(sa->todpreg));
 	size +=  nt_size(NT_S390_CTRS, sizeof(sa->ctrs));
 	size +=  nt_size(NT_S390_PREFIX, sizeof(sa->prefix));
-	if (MACHINE_HAS_VX) {
+	if (cpu_has_vx()) {
 		size += nt_size(NT_S390_VXRS_HIGH, sizeof(sa->vxrs_high));
 		size += nt_size(NT_S390_VXRS_LOW, sizeof(sa->vxrs_low));
 	}
@@ -498,7 +499,7 @@ static int get_mem_chunk_cnt(void)
 /*
  * Initialize ELF loads (new kernel)
  */
-static void loads_init(Elf64_Phdr *phdr, u64 loads_offset)
+static void loads_init(Elf64_Phdr *phdr)
 {
 	phys_addr_t start, end;
 	u64 idx;
@@ -507,7 +508,7 @@ static void loads_init(Elf64_Phdr *phdr, u64 loads_offset)
 		phdr->p_filesz = end - start;
 		phdr->p_type = PT_LOAD;
 		phdr->p_offset = start;
-		phdr->p_vaddr = start;
+		phdr->p_vaddr = (unsigned long)__va(start);
 		phdr->p_paddr = start;
 		phdr->p_memsz = end - start;
 		phdr->p_flags = PF_R | PF_W | PF_X;
@@ -612,7 +613,7 @@ int elfcorehdr_alloc(unsigned long long *addr, unsigned long long *size)
 	ptr = notes_init(phdr_notes, ptr, ((unsigned long) hdr) + hdr_off);
 	/* Init loads */
 	hdr_off = PTR_DIFF(ptr, hdr);
-	loads_init(phdr_loads, hdr_off);
+	loads_init(phdr_loads);
 	*addr = (unsigned long long) hdr;
 	*size = (unsigned long long) hdr_off;
 	BUG_ON(elfcorehdr_size > alloc_size);

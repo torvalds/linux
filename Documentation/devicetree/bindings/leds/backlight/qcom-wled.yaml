@@ -7,8 +7,8 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Qualcomm Technologies, Inc. WLED driver
 
 maintainers:
-  - Bjorn Andersson <bjorn.andersson@linaro.org>
-  - Kiran Gunda <kgunda@codeaurora.org>
+  - Bjorn Andersson <andersson@kernel.org>
+  - Kiran Gunda <quic_kgunda@quicinc.com>
 
 description: |
   WLED (White Light Emitting Diode) driver is used for controlling display

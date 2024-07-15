@@ -17,4 +17,6 @@
 
 #define pr_fmt(fmt) LANDLOCK_NAME ": " fmt
 
+#define BIT_INDEX(bit) HWEIGHT(bit - 1)
+
 #endif /* _SECURITY_LANDLOCK_COMMON_H */

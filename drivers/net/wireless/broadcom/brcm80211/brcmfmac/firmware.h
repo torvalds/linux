@@ -69,7 +69,7 @@ struct brcmf_fw_request {
 	u16 bus_nr;
 	u32 n_items;
 	const char *board_types[BRCMF_FW_MAX_BOARD_TYPES];
-	struct brcmf_fw_item items[];
+	struct brcmf_fw_item items[] __counted_by(n_items);
 };
 
 struct brcmf_fw_name {

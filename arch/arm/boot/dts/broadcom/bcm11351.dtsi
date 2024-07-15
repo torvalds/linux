@@ -111,13 +111,12 @@
 	gpio: gpio@35003000 {
 		compatible = "brcm,bcm11351-gpio", "brcm,kona-gpio";
 		reg = <0x35003000 0x800>;
-		interrupts =
-		       <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH
-			GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH
-			GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH
-			GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH
-			GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH
-			GIC_SPI 111 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 111 IRQ_TYPE_LEVEL_HIGH>;
 		#gpio-cells = <2>;
 		#interrupt-cells = <2>;
 		gpio-controller;

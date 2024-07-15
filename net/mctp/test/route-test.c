@@ -79,6 +79,16 @@ static void mctp_test_route_destroy(struct kunit *test,
 	kfree_rcu(&rt->rt, rcu);
 }
 
+static void mctp_test_skb_set_dev(struct sk_buff *skb,
+				  struct mctp_test_dev *dev)
+{
+	struct mctp_skb_cb *cb;
+
+	cb = mctp_cb(skb);
+	cb->net = READ_ONCE(dev->mdev->net);
+	skb->dev = dev->ndev;
+}
+
 static struct sk_buff *mctp_test_create_skb(const struct mctp_hdr *hdr,
 					    unsigned int data_len)
 {
@@ -91,6 +101,7 @@ static struct sk_buff *mctp_test_create_skb(const struct mctp_hdr *hdr,
 	if (!skb)
 		return NULL;
 
+	__mctp_cb(skb);
 	memcpy(skb_put(skb, hdr_len), hdr, hdr_len);
 
 	buf = skb_put(skb, data_len);
@@ -111,6 +122,7 @@ static struct sk_buff *__mctp_test_create_skb_data(const struct mctp_hdr *hdr,
 	if (!skb)
 		return NULL;
 
+	__mctp_cb(skb);
 	memcpy(skb_put(skb, hdr_len), hdr, hdr_len);
 	memcpy(skb_put(skb, data_len), data, data_len);
 
@@ -249,8 +261,6 @@ static void mctp_test_rx_input(struct kunit *test)
 	skb = mctp_test_create_skb(&params->hdr, 1);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, skb);
 
-	__mctp_cb(skb);
-
 	mctp_pkttype_receive(skb, dev->ndev, &mctp_packet_type, NULL);
 
 	KUNIT_EXPECT_EQ(test, !!rt->pkts.qlen, params->input);
@@ -283,7 +293,8 @@ KUNIT_ARRAY_PARAM(mctp_rx_input, mctp_rx_input_tests,
 static void __mctp_route_test_init(struct kunit *test,
 				   struct mctp_test_dev **devp,
 				   struct mctp_test_route **rtp,
-				   struct socket **sockp)
+				   struct socket **sockp,
+				   unsigned int netid)
 {
 	struct sockaddr_mctp addr = {0};
 	struct mctp_test_route *rt;
@@ -293,6 +304,8 @@ static void __mctp_route_test_init(struct kunit *test,
 
 	dev = mctp_test_create_dev();
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
+	if (netid != MCTP_NET_ANY)
+		WRITE_ONCE(dev->mdev->net, netid);
 
 	rt = mctp_test_create_route(&init_net, dev->mdev, 8, 68);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, rt);
@@ -301,7 +314,7 @@ static void __mctp_route_test_init(struct kunit *test,
 	KUNIT_ASSERT_EQ(test, rc, 0);
 
 	addr.smctp_family = AF_MCTP;
-	addr.smctp_network = MCTP_NET_ANY;
+	addr.smctp_network = netid;
 	addr.smctp_addr.s_addr = 8;
 	addr.smctp_type = 0;
 	rc = kernel_bind(sock, (struct sockaddr *)&addr, sizeof(addr));
@@ -339,13 +352,12 @@ static void mctp_test_route_input_sk(struct kunit *test)
 
 	params = test->param_value;
 
-	__mctp_route_test_init(test, &dev, &rt, &sock);
+	__mctp_route_test_init(test, &dev, &rt, &sock, MCTP_NET_ANY);
 
 	skb = mctp_test_create_skb_data(&params->hdr, &params->type);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, skb);
 
-	skb->dev = dev->ndev;
-	__mctp_cb(skb);
+	mctp_test_skb_set_dev(skb, dev);
 
 	rc = mctp_route_input(&rt->rt, skb);
 
@@ -410,15 +422,14 @@ static void mctp_test_route_input_sk_reasm(struct kunit *test)
 
 	params = test->param_value;
 
-	__mctp_route_test_init(test, &dev, &rt, &sock);
+	__mctp_route_test_init(test, &dev, &rt, &sock, MCTP_NET_ANY);
 
 	for (i = 0; i < params->n_hdrs; i++) {
 		c = i;
 		skb = mctp_test_create_skb_data(&params->hdrs[i], &c);
 		KUNIT_ASSERT_NOT_ERR_OR_NULL(test, skb);
 
-		skb->dev = dev->ndev;
-		__mctp_cb(skb);
+		mctp_test_skb_set_dev(skb, dev);
 
 		rc = mctp_route_input(&rt->rt, skb);
 	}
@@ -544,6 +555,7 @@ static void mctp_test_route_input_sk_keys(struct kunit *test)
 	struct mctp_sock *msk;
 	struct socket *sock;
 	unsigned long flags;
+	unsigned int net;
 	int rc;
 	u8 c;
 
@@ -551,6 +563,7 @@ static void mctp_test_route_input_sk_keys(struct kunit *test)
 
 	dev = mctp_test_create_dev();
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
+	net = READ_ONCE(dev->mdev->net);
 
 	rt = mctp_test_create_route(&init_net, dev->mdev, 8, 68);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, rt);
@@ -562,8 +575,9 @@ static void mctp_test_route_input_sk_keys(struct kunit *test)
 	mns = &sock_net(sock->sk)->mctp;
 
 	/* set the incoming tag according to test params */
-	key = mctp_key_alloc(msk, params->key_local_addr, params->key_peer_addr,
-			     params->key_tag, GFP_KERNEL);
+	key = mctp_key_alloc(msk, net, params->key_local_addr,
+			     params->key_peer_addr, params->key_tag,
+			     GFP_KERNEL);
 
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, key);
 
@@ -576,8 +590,7 @@ static void mctp_test_route_input_sk_keys(struct kunit *test)
 	skb = mctp_test_create_skb_data(&params->hdr, &c);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, skb);
 
-	skb->dev = dev->ndev;
-	__mctp_cb(skb);
+	mctp_test_skb_set_dev(skb, dev);
 
 	rc = mctp_route_input(&rt->rt, skb);
 
@@ -665,6 +678,373 @@ static void mctp_route_input_sk_keys_to_desc(
 KUNIT_ARRAY_PARAM(mctp_route_input_sk_keys, mctp_route_input_sk_keys_tests,
 		  mctp_route_input_sk_keys_to_desc);
 
+struct test_net {
+	unsigned int netid;
+	struct mctp_test_dev *dev;
+	struct mctp_test_route *rt;
+	struct socket *sock;
+	struct sk_buff *skb;
+	struct mctp_sk_key *key;
+	struct {
+		u8 type;
+		unsigned int data;
+	} msg;
+};
+
+static void
+mctp_test_route_input_multiple_nets_bind_init(struct kunit *test,
+					      struct test_net *t)
+{
+	struct mctp_hdr hdr = RX_HDR(1, 9, 8, FL_S | FL_E | FL_T(1) | FL_TO);
+
+	t->msg.data = t->netid;
+
+	__mctp_route_test_init(test, &t->dev, &t->rt, &t->sock, t->netid);
+
+	t->skb = mctp_test_create_skb_data(&hdr, &t->msg);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, t->skb);
+	mctp_test_skb_set_dev(t->skb, t->dev);
+}
+
+static void
+mctp_test_route_input_multiple_nets_bind_fini(struct kunit *test,
+					      struct test_net *t)
+{
+	__mctp_route_test_fini(test, t->dev, t->rt, t->sock);
+}
+
+/* Test that skbs from different nets (otherwise identical) get routed to their
+ * corresponding socket via the sockets' bind()
+ */
+static void mctp_test_route_input_multiple_nets_bind(struct kunit *test)
+{
+	struct sk_buff *rx_skb1, *rx_skb2;
+	struct test_net t1, t2;
+	int rc;
+
+	t1.netid = 1;
+	t2.netid = 2;
+
+	t1.msg.type = 0;
+	t2.msg.type = 0;
+
+	mctp_test_route_input_multiple_nets_bind_init(test, &t1);
+	mctp_test_route_input_multiple_nets_bind_init(test, &t2);
+
+	rc = mctp_route_input(&t1.rt->rt, t1.skb);
+	KUNIT_ASSERT_EQ(test, rc, 0);
+	rc = mctp_route_input(&t2.rt->rt, t2.skb);
+	KUNIT_ASSERT_EQ(test, rc, 0);
+
+	rx_skb1 = skb_recv_datagram(t1.sock->sk, MSG_DONTWAIT, &rc);
+	KUNIT_EXPECT_NOT_ERR_OR_NULL(test, rx_skb1);
+	KUNIT_EXPECT_EQ(test, rx_skb1->len, sizeof(t1.msg));
+	KUNIT_EXPECT_EQ(test,
+			*(unsigned int *)skb_pull(rx_skb1, sizeof(t1.msg.data)),
+			t1.netid);
+	kfree_skb(rx_skb1);
+
+	rx_skb2 = skb_recv_datagram(t2.sock->sk, MSG_DONTWAIT, &rc);
+	KUNIT_EXPECT_NOT_ERR_OR_NULL(test, rx_skb2);
+	KUNIT_EXPECT_EQ(test, rx_skb2->len, sizeof(t2.msg));
+	KUNIT_EXPECT_EQ(test,
+			*(unsigned int *)skb_pull(rx_skb2, sizeof(t2.msg.data)),
+			t2.netid);
+	kfree_skb(rx_skb2);
+
+	mctp_test_route_input_multiple_nets_bind_fini(test, &t1);
+	mctp_test_route_input_multiple_nets_bind_fini(test, &t2);
+}
+
+static void
+mctp_test_route_input_multiple_nets_key_init(struct kunit *test,
+					     struct test_net *t)
+{
+	struct mctp_hdr hdr = RX_HDR(1, 9, 8, FL_S | FL_E | FL_T(1));
+	struct mctp_sock *msk;
+	struct netns_mctp *mns;
+	unsigned long flags;
+
+	t->msg.data = t->netid;
+
+	__mctp_route_test_init(test, &t->dev, &t->rt, &t->sock, t->netid);
+
+	msk = container_of(t->sock->sk, struct mctp_sock, sk);
+
+	t->key = mctp_key_alloc(msk, t->netid, hdr.dest, hdr.src, 1, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, t->key);
+
+	mns = &sock_net(t->sock->sk)->mctp;
+	spin_lock_irqsave(&mns->keys_lock, flags);
+	mctp_reserve_tag(&init_net, t->key, msk);
+	spin_unlock_irqrestore(&mns->keys_lock, flags);
+
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, t->key);
+	t->skb = mctp_test_create_skb_data(&hdr, &t->msg);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, t->skb);
+	mctp_test_skb_set_dev(t->skb, t->dev);
+}
+
+static void
+mctp_test_route_input_multiple_nets_key_fini(struct kunit *test,
+					     struct test_net *t)
+{
+	mctp_key_unref(t->key);
+	__mctp_route_test_fini(test, t->dev, t->rt, t->sock);
+}
+
+/* test that skbs from different nets (otherwise identical) get routed to their
+ * corresponding socket via the sk_key
+ */
+static void mctp_test_route_input_multiple_nets_key(struct kunit *test)
+{
+	struct sk_buff *rx_skb1, *rx_skb2;
+	struct test_net t1, t2;
+	int rc;
+
+	t1.netid = 1;
+	t2.netid = 2;
+
+	/* use type 1 which is not bound */
+	t1.msg.type = 1;
+	t2.msg.type = 1;
+
+	mctp_test_route_input_multiple_nets_key_init(test, &t1);
+	mctp_test_route_input_multiple_nets_key_init(test, &t2);
+
+	rc = mctp_route_input(&t1.rt->rt, t1.skb);
+	KUNIT_ASSERT_EQ(test, rc, 0);
+	rc = mctp_route_input(&t2.rt->rt, t2.skb);
+	KUNIT_ASSERT_EQ(test, rc, 0);
+
+	rx_skb1 = skb_recv_datagram(t1.sock->sk, MSG_DONTWAIT, &rc);
+	KUNIT_EXPECT_NOT_ERR_OR_NULL(test, rx_skb1);
+	KUNIT_EXPECT_EQ(test, rx_skb1->len, sizeof(t1.msg));
+	KUNIT_EXPECT_EQ(test,
+			*(unsigned int *)skb_pull(rx_skb1, sizeof(t1.msg.data)),
+			t1.netid);
+	kfree_skb(rx_skb1);
+
+	rx_skb2 = skb_recv_datagram(t2.sock->sk, MSG_DONTWAIT, &rc);
+	KUNIT_EXPECT_NOT_ERR_OR_NULL(test, rx_skb2);
+	KUNIT_EXPECT_EQ(test, rx_skb2->len, sizeof(t2.msg));
+	KUNIT_EXPECT_EQ(test,
+			*(unsigned int *)skb_pull(rx_skb2, sizeof(t2.msg.data)),
+			t2.netid);
+	kfree_skb(rx_skb2);
+
+	mctp_test_route_input_multiple_nets_key_fini(test, &t1);
+	mctp_test_route_input_multiple_nets_key_fini(test, &t2);
+}
+
+#if IS_ENABLED(CONFIG_MCTP_FLOWS)
+
+static void mctp_test_flow_init(struct kunit *test,
+				struct mctp_test_dev **devp,
+				struct mctp_test_route **rtp,
+				struct socket **sock,
+				struct sk_buff **skbp,
+				unsigned int len)
+{
+	struct mctp_test_route *rt;
+	struct mctp_test_dev *dev;
+	struct sk_buff *skb;
+
+	/* we have a slightly odd routing setup here; the test route
+	 * is for EID 8, which is our local EID. We don't do a routing
+	 * lookup, so that's fine - all we require is a path through
+	 * mctp_local_output, which will call rt->output on whatever
+	 * route we provide
+	 */
+	__mctp_route_test_init(test, &dev, &rt, sock, MCTP_NET_ANY);
+
+	/* Assign a single EID. ->addrs is freed on mctp netdev release */
+	dev->mdev->addrs = kmalloc(sizeof(u8), GFP_KERNEL);
+	dev->mdev->num_addrs = 1;
+	dev->mdev->addrs[0] = 8;
+
+	skb = alloc_skb(len + sizeof(struct mctp_hdr) + 1, GFP_KERNEL);
+	KUNIT_ASSERT_TRUE(test, skb);
+	__mctp_cb(skb);
+	skb_reserve(skb, sizeof(struct mctp_hdr) + 1);
+	memset(skb_put(skb, len), 0, len);
+
+	/* take a ref for the route, we'll decrement in local output */
+	refcount_inc(&rt->rt.refs);
+
+	*devp = dev;
+	*rtp = rt;
+	*skbp = skb;
+}
+
+static void mctp_test_flow_fini(struct kunit *test,
+				struct mctp_test_dev *dev,
+				struct mctp_test_route *rt,
+				struct socket *sock)
+{
+	__mctp_route_test_fini(test, dev, rt, sock);
+}
+
+/* test that an outgoing skb has the correct MCTP extension data set */
+static void mctp_test_packet_flow(struct kunit *test)
+{
+	struct sk_buff *skb, *skb2;
+	struct mctp_test_route *rt;
+	struct mctp_test_dev *dev;
+	struct mctp_flow *flow;
+	struct socket *sock;
+	u8 dst = 8;
+	int n, rc;
+
+	mctp_test_flow_init(test, &dev, &rt, &sock, &skb, 30);
+
+	rc = mctp_local_output(sock->sk, &rt->rt, skb, dst, MCTP_TAG_OWNER);
+	KUNIT_ASSERT_EQ(test, rc, 0);
+
+	n = rt->pkts.qlen;
+	KUNIT_ASSERT_EQ(test, n, 1);
+
+	skb2 = skb_dequeue(&rt->pkts);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, skb2);
+
+	flow = skb_ext_find(skb2, SKB_EXT_MCTP);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, flow);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, flow->key);
+	KUNIT_ASSERT_PTR_EQ(test, flow->key->sk, sock->sk);
+
+	kfree_skb(skb2);
+	mctp_test_flow_fini(test, dev, rt, sock);
+}
+
+/* test that outgoing skbs, after fragmentation, all have the correct MCTP
+ * extension data set.
+ */
+static void mctp_test_fragment_flow(struct kunit *test)
+{
+	struct mctp_flow *flows[2];
+	struct sk_buff *tx_skbs[2];
+	struct mctp_test_route *rt;
+	struct mctp_test_dev *dev;
+	struct sk_buff *skb;
+	struct socket *sock;
+	u8 dst = 8;
+	int n, rc;
+
+	mctp_test_flow_init(test, &dev, &rt, &sock, &skb, 100);
+
+	rc = mctp_local_output(sock->sk, &rt->rt, skb, dst, MCTP_TAG_OWNER);
+	KUNIT_ASSERT_EQ(test, rc, 0);
+
+	n = rt->pkts.qlen;
+	KUNIT_ASSERT_EQ(test, n, 2);
+
+	/* both resulting packets should have the same flow data */
+	tx_skbs[0] = skb_dequeue(&rt->pkts);
+	tx_skbs[1] = skb_dequeue(&rt->pkts);
+
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, tx_skbs[0]);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, tx_skbs[1]);
+
+	flows[0] = skb_ext_find(tx_skbs[0], SKB_EXT_MCTP);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, flows[0]);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, flows[0]->key);
+	KUNIT_ASSERT_PTR_EQ(test, flows[0]->key->sk, sock->sk);
+
+	flows[1] = skb_ext_find(tx_skbs[1], SKB_EXT_MCTP);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, flows[1]);
+	KUNIT_ASSERT_PTR_EQ(test, flows[1]->key, flows[0]->key);
+
+	kfree_skb(tx_skbs[0]);
+	kfree_skb(tx_skbs[1]);
+	mctp_test_flow_fini(test, dev, rt, sock);
+}
+
+#else
+static void mctp_test_packet_flow(struct kunit *test)
+{
+	kunit_skip(test, "Requires CONFIG_MCTP_FLOWS=y");
+}
+
+static void mctp_test_fragment_flow(struct kunit *test)
+{
+	kunit_skip(test, "Requires CONFIG_MCTP_FLOWS=y");
+}
+#endif
+
+/* Test that outgoing skbs cause a suitable tag to be created */
+static void mctp_test_route_output_key_create(struct kunit *test)
+{
+	const unsigned int netid = 50;
+	const u8 dst = 26, src = 15;
+	struct mctp_test_route *rt;
+	struct mctp_test_dev *dev;
+	struct mctp_sk_key *key;
+	struct netns_mctp *mns;
+	unsigned long flags;
+	struct socket *sock;
+	struct sk_buff *skb;
+	bool empty, single;
+	const int len = 2;
+	int rc;
+
+	dev = mctp_test_create_dev();
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
+	WRITE_ONCE(dev->mdev->net, netid);
+
+	rt = mctp_test_create_route(&init_net, dev->mdev, dst, 68);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, rt);
+
+	rc = sock_create_kern(&init_net, AF_MCTP, SOCK_DGRAM, 0, &sock);
+	KUNIT_ASSERT_EQ(test, rc, 0);
+
+	dev->mdev->addrs = kmalloc(sizeof(u8), GFP_KERNEL);
+	dev->mdev->num_addrs = 1;
+	dev->mdev->addrs[0] = src;
+
+	skb = alloc_skb(sizeof(struct mctp_hdr) + 1 + len, GFP_KERNEL);
+	KUNIT_ASSERT_TRUE(test, skb);
+	__mctp_cb(skb);
+	skb_reserve(skb, sizeof(struct mctp_hdr) + 1 + len);
+	memset(skb_put(skb, len), 0, len);
+
+	refcount_inc(&rt->rt.refs);
+
+	mns = &sock_net(sock->sk)->mctp;
+
+	/* We assume we're starting from an empty keys list, which requires
+	 * preceding tests to clean up correctly!
+	 */
+	spin_lock_irqsave(&mns->keys_lock, flags);
+	empty = hlist_empty(&mns->keys);
+	spin_unlock_irqrestore(&mns->keys_lock, flags);
+	KUNIT_ASSERT_TRUE(test, empty);
+
+	rc = mctp_local_output(sock->sk, &rt->rt, skb, dst, MCTP_TAG_OWNER);
+	KUNIT_ASSERT_EQ(test, rc, 0);
+
+	key = NULL;
+	single = false;
+	spin_lock_irqsave(&mns->keys_lock, flags);
+	if (!hlist_empty(&mns->keys)) {
+		key = hlist_entry(mns->keys.first, struct mctp_sk_key, hlist);
+		single = hlist_is_singular_node(&key->hlist, &mns->keys);
+	}
+	spin_unlock_irqrestore(&mns->keys_lock, flags);
+
+	KUNIT_ASSERT_NOT_NULL(test, key);
+	KUNIT_ASSERT_TRUE(test, single);
+
+	KUNIT_EXPECT_EQ(test, key->net, netid);
+	KUNIT_EXPECT_EQ(test, key->local_addr, src);
+	KUNIT_EXPECT_EQ(test, key->peer_addr, dst);
+	/* key has incoming tag, so inverse of what we sent */
+	KUNIT_EXPECT_FALSE(test, key->tag & MCTP_TAG_OWNER);
+
+	sock_release(sock);
+	mctp_test_route_destroy(test, rt);
+	mctp_test_destroy_dev(dev);
+}
+
 static struct kunit_case mctp_test_cases[] = {
 	KUNIT_CASE_PARAM(mctp_test_fragment, mctp_frag_gen_params),
 	KUNIT_CASE_PARAM(mctp_test_rx_input, mctp_rx_input_gen_params),
@@ -673,6 +1053,11 @@ static struct kunit_case mctp_test_cases[] = {
 			 mctp_route_input_sk_reasm_gen_params),
 	KUNIT_CASE_PARAM(mctp_test_route_input_sk_keys,
 			 mctp_route_input_sk_keys_gen_params),
+	KUNIT_CASE(mctp_test_route_input_multiple_nets_bind),
+	KUNIT_CASE(mctp_test_route_input_multiple_nets_key),
+	KUNIT_CASE(mctp_test_packet_flow),
+	KUNIT_CASE(mctp_test_fragment_flow),
+	KUNIT_CASE(mctp_test_route_output_key_create),
 	{}
 };
 

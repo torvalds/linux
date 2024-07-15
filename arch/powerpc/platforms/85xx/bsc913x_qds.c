@@ -9,7 +9,7 @@
  * Copyright 2014 Freescale Semiconductor Inc.
  */
 
-#include <linux/of_platform.h>
+#include <linux/of.h>
 #include <linux/pci.h>
 #include <asm/mpic.h>
 #include <sysdev/fsl_soc.h>
@@ -19,7 +19,7 @@
 #include "mpc85xx.h"
 #include "smp.h"
 
-void __init bsc913x_qds_pic_init(void)
+static void __init bsc913x_qds_pic_init(void)
 {
 	struct mpic *mpic = mpic_alloc(NULL, 0, MPIC_BIG_ENDIAN |
 	  MPIC_SINGLE_DEST_CPU,

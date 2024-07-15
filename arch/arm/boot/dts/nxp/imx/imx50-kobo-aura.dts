@@ -73,7 +73,7 @@
 		states = <3300000 0>;
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
-		enable-gpio = <&gpio4 12 GPIO_ACTIVE_LOW>;
+		enable-gpios = <&gpio4 12 GPIO_ACTIVE_LOW>;
 		startup-delay-us = <100000>;
 	};
 };

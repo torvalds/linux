@@ -225,6 +225,63 @@ TRACE_EVENT(v3d_submit_csd,
 		      __entry->seqno)
 );
 
+TRACE_EVENT(v3d_submit_cpu_ioctl,
+	    TP_PROTO(struct drm_device *dev, enum v3d_cpu_job_type job_type),
+	    TP_ARGS(dev, job_type),
+
+	    TP_STRUCT__entry(
+			     __field(u32, dev)
+			     __field(enum v3d_cpu_job_type, job_type)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->dev = dev->primary->index;
+			   __entry->job_type = job_type;
+			   ),
+
+	    TP_printk("dev=%u, job_type=%d",
+		      __entry->dev,
+		      __entry->job_type)
+);
+
+TRACE_EVENT(v3d_cpu_job_begin,
+	    TP_PROTO(struct drm_device *dev, enum v3d_cpu_job_type job_type),
+	    TP_ARGS(dev, job_type),
+
+	    TP_STRUCT__entry(
+			     __field(u32, dev)
+			     __field(enum v3d_cpu_job_type, job_type)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->dev = dev->primary->index;
+			   __entry->job_type = job_type;
+			   ),
+
+	    TP_printk("dev=%u, job_type=%d",
+		      __entry->dev,
+		      __entry->job_type)
+);
+
+TRACE_EVENT(v3d_cpu_job_end,
+	    TP_PROTO(struct drm_device *dev, enum v3d_cpu_job_type job_type),
+	    TP_ARGS(dev, job_type),
+
+	    TP_STRUCT__entry(
+			     __field(u32, dev)
+			     __field(enum v3d_cpu_job_type, job_type)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->dev = dev->primary->index;
+			   __entry->job_type = job_type;
+			   ),
+
+	    TP_printk("dev=%u, job_type=%d",
+		      __entry->dev,
+		      __entry->job_type)
+);
+
 TRACE_EVENT(v3d_cache_clean_begin,
 	    TP_PROTO(struct drm_device *dev),
 	    TP_ARGS(dev),

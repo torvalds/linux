@@ -37,8 +37,6 @@ enum sec_mac_len {
 enum sec_cmode {
 	SEC_CMODE_ECB    = 0x0,
 	SEC_CMODE_CBC    = 0x1,
-	SEC_CMODE_CFB    = 0x2,
-	SEC_CMODE_OFB    = 0x3,
 	SEC_CMODE_CTR    = 0x4,
 	SEC_CMODE_CCM    = 0x5,
 	SEC_CMODE_GCM    = 0x6,

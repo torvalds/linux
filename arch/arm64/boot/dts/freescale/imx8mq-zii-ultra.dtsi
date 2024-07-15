@@ -15,7 +15,7 @@
 		stdout-path = &uart1;
 	};
 
-	mdio0: bitbang-mdio {
+	mdio0: mdio {
 		compatible = "virtual,mdio-gpio";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_mdio_bitbang>, <&pinctrl_fec1_phy_reset>;

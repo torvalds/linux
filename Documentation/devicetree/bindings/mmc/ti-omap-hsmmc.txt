@@ -95,7 +95,7 @@ while in suspend.
       | card | -- CIRQ -->  | hsmmc | -- IRQ -->  | CPU |
        ------                -------               -----
 
-In suspend the fclk is off and the module is disfunctional. Even register reads
+In suspend the fclk is off and the module is dysfunctional. Even register reads
 will fail. A small logic in the host will request fclk restore, when an
 external event is detected. Once the clock is restored, the host detects the
 event normally. Since am33xx doesn't have this line it never wakes from

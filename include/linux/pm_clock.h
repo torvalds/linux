@@ -91,10 +91,10 @@ static inline int devm_pm_clk_create(struct device *dev)
 #endif
 
 #ifdef CONFIG_HAVE_CLK
-extern void pm_clk_add_notifier(struct bus_type *bus,
+extern void pm_clk_add_notifier(const struct bus_type *bus,
 					struct pm_clk_notifier_block *clknb);
 #else
-static inline void pm_clk_add_notifier(struct bus_type *bus,
+static inline void pm_clk_add_notifier(const struct bus_type *bus,
 					struct pm_clk_notifier_block *clknb)
 {
 }

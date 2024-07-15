@@ -22,6 +22,7 @@
 #include <linux/of_mdio.h>
 #include <linux/prefetch.h>
 #include <linux/phy.h>
+#include <linux/platform_device.h>
 #include <net/ip.h>
 #include "mac.h"
 #include "enet.h"

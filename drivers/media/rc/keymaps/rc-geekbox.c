@@ -47,3 +47,4 @@ module_exit(exit_rc_map_geekbox)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Martin Blumenstingl <martin.blumenstingl@googlemail.com>");
+MODULE_DESCRIPTION("GeekBox remote controller keytable");

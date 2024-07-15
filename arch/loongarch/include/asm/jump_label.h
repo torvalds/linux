@@ -22,7 +22,7 @@
 
 static __always_inline bool arch_static_branch(struct static_key * const key, const bool branch)
 {
-	asm_volatile_goto(
+	asm goto(
 		"1:	nop			\n\t"
 		JUMP_TABLE_ENTRY
 		:  :  "i"(&((char *)key)[branch]) :  : l_yes);
@@ -35,7 +35,7 @@ l_yes:
 
 static __always_inline bool arch_static_branch_jump(struct static_key * const key, const bool branch)
 {
-	asm_volatile_goto(
+	asm goto(
 		"1:	b	%l[l_yes]	\n\t"
 		JUMP_TABLE_ENTRY
 		:  :  "i"(&((char *)key)[branch]) :  : l_yes);

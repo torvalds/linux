@@ -293,4 +293,5 @@ void mt76x02u_init_mcu(struct mt76_dev *dev)
 EXPORT_SYMBOL_GPL(mt76x02u_init_mcu);
 
 MODULE_AUTHOR("Lorenzo Bianconi <lorenzo.bianconi83@gmail.com>");
+MODULE_DESCRIPTION("MediaTek MT76x02 MCU helpers");
 MODULE_LICENSE("Dual BSD/GPL");

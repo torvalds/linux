@@ -610,6 +610,38 @@ struct atom_firmware_info_v3_4 {
         uint32_t reserved[2];
 };
 
+struct atom_firmware_info_v3_5 {
+  struct atom_common_table_header table_header;
+  uint32_t firmware_revision;
+  uint32_t bootup_clk_reserved[2];
+  uint32_t firmware_capability;             // enum atombios_firmware_capability
+  uint32_t fw_protect_region_size_in_kb;    /* FW allocate a write protect region at top of FB. */
+  uint32_t bios_scratch_reg_startaddr;      // 1st bios scratch register dword address
+  uint32_t bootup_voltage_reserved[2];
+  uint8_t  mem_module_id;
+  uint8_t  coolingsolution_id;              /*0: Air cooling; 1: Liquid cooling ... */
+  uint8_t  hw_blt_mode;                     //0:HW_BLT_DMA_PIO_MODE; 1:HW_BLT_LITE_SDMA_MODE; 2:HW_BLT_PCI_IO_MODE
+  uint8_t  reserved1;
+  uint32_t mc_baseaddr_high;
+  uint32_t mc_baseaddr_low;
+  uint8_t  board_i2c_feature_id;            // enum of atom_board_i2c_feature_id_def
+  uint8_t  board_i2c_feature_gpio_id;       // i2c id find in gpio_lut data table gpio_id
+  uint8_t  board_i2c_feature_slave_addr;
+  uint8_t  ras_rom_i2c_slave_addr;
+  uint32_t bootup_voltage_reserved1;
+  uint32_t zfb_reserved;
+  // if pplib_pptable_id!=0, pplib get powerplay table inside driver instead of from VBIOS
+  uint32_t pplib_pptable_id;
+  uint32_t hw_voltage_reserved[3];
+  uint32_t maco_pwrlimit_mw;                // bomaco mode power limit in unit of m-watt
+  uint32_t usb_pwrlimit_mw;                 // power limit when USB is enable in unit of m-watt
+  uint32_t fw_reserved_size_in_kb;          // VBIOS reserved extra fw size in unit of kb.
+  uint32_t pspbl_init_reserved[3];
+  uint32_t spi_rom_size;                    // GPU spi rom size
+  uint16_t support_dev_in_objinfo;
+  uint16_t disp_phy_tunning_size;
+  uint32_t reserved[16];
+};
 /* 
   ***************************************************************************
     Data Table lcd_info  structure
@@ -3115,6 +3147,24 @@ enum atom_umc_config1_def {
 	UMC_CONFIG1__DISABLE_STROBE_MODE = 0x00000008,
 	UMC_CONFIG1__DEBUG_DATA_PARITY_EN = 0x00000010,
 	UMC_CONFIG1__ENABLE_ECC_CAPABLE = 0x00010000,
+};
+
+struct atom_umc_info_v4_0 {
+	struct atom_common_table_header table_header;
+	uint32_t ucode_reserved[5];
+	uint8_t umcip_min_ver;
+	uint8_t umcip_max_ver;
+	uint8_t vram_type;
+	uint8_t umc_config;
+	uint32_t mem_refclk_10khz;
+	uint32_t clk_reserved[4];
+	uint32_t golden_reserved;
+	uint32_t umc_config1;
+	uint32_t reserved[2];
+	uint8_t channel_num;
+	uint8_t channel_width;
+	uint8_t channel_reserve[2];
+	uint8_t umc_info_reserved[16];
 };
 
 /* 

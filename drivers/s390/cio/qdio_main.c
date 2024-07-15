@@ -82,7 +82,7 @@ static inline int do_siga_input(unsigned long schid, unsigned long mask,
  */
 static inline int do_siga_output(unsigned long schid, unsigned long mask,
 				 unsigned int *bb, unsigned long fc,
-				 unsigned long aob)
+				 dma64_t aob)
 {
 	int cc;
 
@@ -321,7 +321,7 @@ static inline int qdio_siga_sync_q(struct qdio_q *q)
 }
 
 static int qdio_siga_output(struct qdio_q *q, unsigned int count,
-			    unsigned int *busy_bit, unsigned long aob)
+			    unsigned int *busy_bit, dma64_t aob)
 {
 	unsigned long schid = *((u32 *) &q->irq_ptr->schid);
 	unsigned int fc = QDIO_SIGA_WRITE;
@@ -628,7 +628,7 @@ int qdio_inspect_output_queue(struct ccw_device *cdev, unsigned int nr,
 EXPORT_SYMBOL_GPL(qdio_inspect_output_queue);
 
 static int qdio_kick_outbound_q(struct qdio_q *q, unsigned int count,
-				unsigned long aob)
+				dma64_t aob)
 {
 	int retries = 0, cc;
 	unsigned int busy_bit;
@@ -722,8 +722,8 @@ static void qdio_handle_activate_check(struct qdio_irq *irq_ptr,
 	lgr_info_log();
 }
 
-static void qdio_establish_handle_irq(struct qdio_irq *irq_ptr, int cstat,
-				      int dstat)
+static int qdio_establish_handle_irq(struct qdio_irq *irq_ptr, int cstat,
+				     int dstat, int dcc)
 {
 	DBF_DEV_EVENT(DBF_INFO, irq_ptr, "qest irq");
 
@@ -731,15 +731,18 @@ static void qdio_establish_handle_irq(struct qdio_irq *irq_ptr, int cstat,
 		goto error;
 	if (dstat & ~(DEV_STAT_DEV_END | DEV_STAT_CHN_END))
 		goto error;
+	if (dcc == 1)
+		return -EAGAIN;
 	if (!(dstat & DEV_STAT_DEV_END))
 		goto error;
 	qdio_set_state(irq_ptr, QDIO_IRQ_STATE_ESTABLISHED);
-	return;
+	return 0;
 
 error:
 	DBF_ERROR("%4x EQ:error", irq_ptr->schid.sch_no);
 	DBF_ERROR("ds: %2x cs:%2x", dstat, cstat);
 	qdio_set_state(irq_ptr, QDIO_IRQ_STATE_ERR);
+	return -EIO;
 }
 
 /* qdio interrupt handler */
@@ -748,7 +751,7 @@ void qdio_int_handler(struct ccw_device *cdev, unsigned long intparm,
 {
 	struct qdio_irq *irq_ptr = cdev->private->qdio_data;
 	struct subchannel_id schid;
-	int cstat, dstat;
+	int cstat, dstat, rc, dcc;
 
 	if (!intparm || !irq_ptr) {
 		ccw_device_get_schid(cdev, &schid);
@@ -768,10 +771,12 @@ void qdio_int_handler(struct ccw_device *cdev, unsigned long intparm,
 	qdio_irq_check_sense(irq_ptr, irb);
 	cstat = irb->scsw.cmd.cstat;
 	dstat = irb->scsw.cmd.dstat;
+	dcc   = scsw_cmd_is_valid_cc(&irb->scsw) ? irb->scsw.cmd.cc : 0;
+	rc    = 0;
 
 	switch (irq_ptr->state) {
 	case QDIO_IRQ_STATE_INACTIVE:
-		qdio_establish_handle_irq(irq_ptr, cstat, dstat);
+		rc = qdio_establish_handle_irq(irq_ptr, cstat, dstat, dcc);
 		break;
 	case QDIO_IRQ_STATE_CLEANUP:
 		qdio_set_state(irq_ptr, QDIO_IRQ_STATE_INACTIVE);
@@ -785,12 +790,25 @@ void qdio_int_handler(struct ccw_device *cdev, unsigned long intparm,
 		if (cstat || dstat)
 			qdio_handle_activate_check(irq_ptr, intparm, cstat,
 						   dstat);
+		else if (dcc == 1)
+			rc = -EAGAIN;
 		break;
 	case QDIO_IRQ_STATE_STOPPED:
 		break;
 	default:
 		WARN_ON_ONCE(1);
 	}
+
+	if (rc == -EAGAIN) {
+		DBF_DEV_EVENT(DBF_INFO, irq_ptr, "qint retry");
+		rc = ccw_device_start(cdev, irq_ptr->ccw, intparm, 0, 0);
+		if (!rc)
+			return;
+		DBF_ERROR("%4x RETRY ERR", irq_ptr->schid.sch_no);
+		DBF_ERROR("rc:%4x", rc);
+		qdio_set_state(irq_ptr, QDIO_IRQ_STATE_ERR);
+	}
+
 	wake_up(&cdev->private->wait_q);
 }
 
@@ -1070,7 +1088,7 @@ int qdio_establish(struct ccw_device *cdev,
 	irq_ptr->ccw->cmd_code = ciw->cmd;
 	irq_ptr->ccw->flags = CCW_FLAG_SLI;
 	irq_ptr->ccw->count = ciw->count;
-	irq_ptr->ccw->cda = (u32) virt_to_phys(irq_ptr->qdr);
+	irq_ptr->ccw->cda = virt_to_dma32(irq_ptr->qdr);
 
 	spin_lock_irq(get_ccwdev_lock(cdev));
 	ccw_device_set_options_mask(cdev, 0);
@@ -1263,9 +1281,9 @@ static int handle_outbound(struct qdio_q *q, unsigned int bufnr, unsigned int co
 		qperf_inc(q, outbound_queue_full);
 
 	if (queue_type(q) == QDIO_IQDIO_QFMT) {
-		unsigned long phys_aob = aob ? virt_to_phys(aob) : 0;
+		dma64_t phys_aob = aob ? virt_to_dma64(aob) : 0;
 
-		WARN_ON_ONCE(!IS_ALIGNED(phys_aob, 256));
+		WARN_ON_ONCE(!IS_ALIGNED(dma64_to_u64(phys_aob), 256));
 		rc = qdio_kick_outbound_q(q, count, phys_aob);
 	} else if (qdio_need_siga_sync(q->irq_ptr)) {
 		rc = qdio_sync_output_queue(q);

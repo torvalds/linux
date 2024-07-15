@@ -176,8 +176,6 @@ static int zevio_gpio_probe(struct platform_device *pdev)
 	if (!controller)
 		return -ENOMEM;
 
-	platform_set_drvdata(pdev, controller);
-
 	/* Copy our reference */
 	controller->chip = zevio_gpio_chip;
 	controller->chip.parent = &pdev->dev;

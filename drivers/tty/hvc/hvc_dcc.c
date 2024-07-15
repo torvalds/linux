@@ -26,10 +26,10 @@
 /* Lock to serialize access to DCC fifo */
 static DEFINE_SPINLOCK(dcc_lock);
 
-static DEFINE_KFIFO(inbuf, unsigned char, DCC_INBUF_SIZE);
-static DEFINE_KFIFO(outbuf, unsigned char, DCC_OUTBUF_SIZE);
+static DEFINE_KFIFO(inbuf, u8, DCC_INBUF_SIZE);
+static DEFINE_KFIFO(outbuf, u8, DCC_OUTBUF_SIZE);
 
-static void dcc_uart_console_putchar(struct uart_port *port, unsigned char ch)
+static void dcc_uart_console_putchar(struct uart_port *port, u8 ch)
 {
 	while (__dcc_getstatus() & DCC_STATUS_TX)
 		cpu_relax();
@@ -47,6 +47,14 @@ static void dcc_early_write(struct console *con, const char *s, unsigned n)
 static int __init dcc_early_console_setup(struct earlycon_device *device,
 					  const char *opt)
 {
+	unsigned int count = 0x4000000;
+
+	while (--count && (__dcc_getstatus() & DCC_STATUS_TX))
+		cpu_relax();
+
+	if (__dcc_getstatus() & DCC_STATUS_TX)
+		return -ENODEV;
+
 	device->con->write = dcc_early_write;
 
 	return 0;
@@ -54,9 +62,9 @@ static int __init dcc_early_console_setup(struct earlycon_device *device,
 
 EARLYCON_DECLARE(dcc, dcc_early_console_setup);
 
-static int hvc_dcc_put_chars(uint32_t vt, const char *buf, int count)
+static ssize_t hvc_dcc_put_chars(uint32_t vt, const u8 *buf, size_t count)
 {
-	int i;
+	size_t i;
 
 	for (i = 0; i < count; i++) {
 		while (__dcc_getstatus() & DCC_STATUS_TX)
@@ -68,9 +76,9 @@ static int hvc_dcc_put_chars(uint32_t vt, const char *buf, int count)
 	return count;
 }
 
-static int hvc_dcc_get_chars(uint32_t vt, char *buf, int count)
+static ssize_t hvc_dcc_get_chars(uint32_t vt, u8 *buf, size_t count)
 {
-	int i;
+	size_t i;
 
 	for (i = 0; i < count; ++i)
 		if (__dcc_getstatus() & DCC_STATUS_RX)
@@ -149,8 +157,8 @@ static DECLARE_WORK(dcc_pwork, dcc_put_work);
  */
 static void dcc_get_work(struct work_struct *work)
 {
-	unsigned char ch;
 	unsigned long irqflags;
+	u8 ch;
 
 	/*
 	 * Read characters from DCC and put them into the input FIFO, as
@@ -172,10 +180,10 @@ static DECLARE_WORK(dcc_gwork, dcc_get_work);
  * Write characters directly to the DCC if we're on core 0 and the FIFO
  * is empty, or write them to the FIFO if we're not.
  */
-static int hvc_dcc0_put_chars(u32 vt, const char *buf, int count)
+static ssize_t hvc_dcc0_put_chars(u32 vt, const u8 *buf, size_t count)
 {
-	int len;
 	unsigned long irqflags;
+	ssize_t len;
 
 	if (!IS_ENABLED(CONFIG_HVC_DCC_SERIALIZE_SMP))
 		return hvc_dcc_put_chars(vt, buf, count);
@@ -211,10 +219,10 @@ static int hvc_dcc0_put_chars(u32 vt, const char *buf, int count)
  * Read characters directly from the DCC if we're on core 0 and the FIFO
  * is empty, or read them from the FIFO if we're not.
  */
-static int hvc_dcc0_get_chars(u32 vt, char *buf, int count)
+static ssize_t hvc_dcc0_get_chars(u32 vt, u8 *buf, size_t count)
 {
-	int len;
 	unsigned long irqflags;
+	ssize_t len;
 
 	if (!IS_ENABLED(CONFIG_HVC_DCC_SERIALIZE_SMP))
 		return hvc_dcc_get_chars(vt, buf, count);

@@ -72,7 +72,7 @@ static void hd64461_irq_demux(struct irq_desc *desc)
 	}
 }
 
-int __init setup_hd64461(void)
+static int __init setup_hd64461(void)
 {
 	int irq_base, i;
 

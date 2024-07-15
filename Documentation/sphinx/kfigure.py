@@ -61,13 +61,7 @@ import sphinx
 from sphinx.util.nodes import clean_astext
 import kernellog
 
-# Get Sphinx version
-major, minor, patch = sphinx.version_info[:3]
-if major == 1 and minor > 3:
-    # patches.Figure only landed in Sphinx 1.4
-    from sphinx.directives.patches import Figure  # pylint: disable=C0413
-else:
-    Figure = images.Figure
+Figure = images.Figure
 
 __version__  = '1.0.0'
 
@@ -309,7 +303,7 @@ def convert_image(img_node, translator, src_fname=None):
     if dst_fname:
         # the builder needs not to copy one more time, so pop it if exists.
         translator.builder.images.pop(img_node['uri'], None)
-        _name = dst_fname[len(translator.builder.outdir) + 1:]
+        _name = dst_fname[len(str(translator.builder.outdir)) + 1:]
 
         if isNewer(dst_fname, src_fname):
             kernellog.verbose(app,

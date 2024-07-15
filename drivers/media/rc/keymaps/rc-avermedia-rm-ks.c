@@ -65,3 +65,4 @@ module_exit(exit_rc_map_avermedia_rm_ks)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Antti Palosaari <crope@iki.fi>");
+MODULE_DESCRIPTION("AverMedia RM-KS remote controller keytable");

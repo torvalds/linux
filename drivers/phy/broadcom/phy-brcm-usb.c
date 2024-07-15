@@ -11,7 +11,6 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
@@ -176,7 +175,7 @@ static const struct phy_ops brcm_usb_phy_ops = {
 };
 
 static struct phy *brcm_usb_phy_xlate(struct device *dev,
-				      struct of_phandle_args *args)
+				      const struct of_phandle_args *args)
 {
 	struct brcm_usb_phy_data *data = dev_get_drvdata(dev);
 

@@ -41,36 +41,6 @@ BFA_TRC_FILE(HAL, FCXP);
 	(bfa_ioc_is_disabled(&bfa->ioc) == BFA_TRUE))
 
 /*
- * BFA port state machine events
- */
-enum bfa_fcport_sm_event {
-	BFA_FCPORT_SM_START	= 1,	/*  start port state machine	*/
-	BFA_FCPORT_SM_STOP	= 2,	/*  stop port state machine	*/
-	BFA_FCPORT_SM_ENABLE	= 3,	/*  enable port		*/
-	BFA_FCPORT_SM_DISABLE	= 4,	/*  disable port state machine */
-	BFA_FCPORT_SM_FWRSP	= 5,	/*  firmware enable/disable rsp */
-	BFA_FCPORT_SM_LINKUP	= 6,	/*  firmware linkup event	*/
-	BFA_FCPORT_SM_LINKDOWN	= 7,	/*  firmware linkup down	*/
-	BFA_FCPORT_SM_QRESUME	= 8,	/*  CQ space available	*/
-	BFA_FCPORT_SM_HWFAIL	= 9,	/*  IOC h/w failure		*/
-	BFA_FCPORT_SM_DPORTENABLE = 10, /*  enable dport      */
-	BFA_FCPORT_SM_DPORTDISABLE = 11,/*  disable dport     */
-	BFA_FCPORT_SM_FAA_MISCONFIG = 12,	/* FAA misconfiguratin */
-	BFA_FCPORT_SM_DDPORTENABLE  = 13,	/* enable ddport	*/
-	BFA_FCPORT_SM_DDPORTDISABLE = 14,	/* disable ddport	*/
-};
-
-/*
- * BFA port link notification state machine events
- */
-
-enum bfa_fcport_ln_sm_event {
-	BFA_FCPORT_LN_SM_LINKUP		= 1,	/*  linkup event	*/
-	BFA_FCPORT_LN_SM_LINKDOWN	= 2,	/*  linkdown event	*/
-	BFA_FCPORT_LN_SM_NOTIFICATION	= 3	/*  done notification	*/
-};
-
-/*
  * RPORT related definitions
  */
 #define bfa_rport_offline_cb(__rp) do {					\
@@ -201,7 +171,23 @@ static void     bfa_fcport_ln_sm_up_dn_nf(struct bfa_fcport_ln_s *ln,
 static void     bfa_fcport_ln_sm_up_dn_up_nf(struct bfa_fcport_ln_s *ln,
 					enum bfa_fcport_ln_sm_event event);
 
-static struct bfa_sm_table_s hal_port_sm_table[] = {
+struct bfa_fcport_sm_table_s {
+	bfa_fcport_sm_t sm;		/*  state machine function	*/
+	enum bfa_port_states state;	/*  state machine encoding	*/
+	char		*name;		/*  state name for display	*/
+};
+
+static inline enum bfa_port_states
+bfa_fcport_sm_to_state(struct bfa_fcport_sm_table_s *smt, bfa_fcport_sm_t sm)
+{
+	int i = 0;
+
+	while (smt[i].sm && smt[i].sm != sm)
+		i++;
+	return smt[i].state;
+}
+
+static struct bfa_fcport_sm_table_s hal_port_sm_table[] = {
 	{BFA_SM(bfa_fcport_sm_uninit), BFA_PORT_ST_UNINIT},
 	{BFA_SM(bfa_fcport_sm_enabling_qwait), BFA_PORT_ST_ENABLING_QWAIT},
 	{BFA_SM(bfa_fcport_sm_enabling), BFA_PORT_ST_ENABLING},
@@ -3545,7 +3531,7 @@ bfa_fcport_isr(struct bfa_s *bfa, struct bfi_msg_s *msg)
 	fcport->event_arg.i2hmsg = i2hmsg;
 
 	bfa_trc(bfa, msg->mhdr.msg_id);
-	bfa_trc(bfa, bfa_sm_to_state(hal_port_sm_table, fcport->sm));
+	bfa_trc(bfa, bfa_fcport_sm_to_state(hal_port_sm_table, fcport->sm));
 
 	switch (msg->mhdr.msg_id) {
 	case BFI_FCPORT_I2H_ENABLE_RSP:
@@ -3980,7 +3966,7 @@ bfa_fcport_get_attr(struct bfa_s *bfa, struct bfa_port_attr_s *attr)
 
 	attr->pport_cfg.path_tov  = bfa_fcpim_path_tov_get(bfa);
 	attr->pport_cfg.q_depth  = bfa_fcpim_qdepth_get(bfa);
-	attr->port_state = bfa_sm_to_state(hal_port_sm_table, fcport->sm);
+	attr->port_state = bfa_fcport_sm_to_state(hal_port_sm_table, fcport->sm);
 
 	attr->fec_state = fcport->fec_state;
 
@@ -4062,7 +4048,7 @@ bfa_fcport_is_disabled(struct bfa_s *bfa)
 {
 	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
 
-	return bfa_sm_to_state(hal_port_sm_table, fcport->sm) ==
+	return bfa_fcport_sm_to_state(hal_port_sm_table, fcport->sm) ==
 		BFA_PORT_ST_DISABLED;
 
 }
@@ -4072,7 +4058,7 @@ bfa_fcport_is_dport(struct bfa_s *bfa)
 {
 	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
 
-	return (bfa_sm_to_state(hal_port_sm_table, fcport->sm) ==
+	return (bfa_fcport_sm_to_state(hal_port_sm_table, fcport->sm) ==
 		BFA_PORT_ST_DPORT);
 }
 
@@ -4081,7 +4067,7 @@ bfa_fcport_is_ddport(struct bfa_s *bfa)
 {
 	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
 
-	return (bfa_sm_to_state(hal_port_sm_table, fcport->sm) ==
+	return (bfa_fcport_sm_to_state(hal_port_sm_table, fcport->sm) ==
 		BFA_PORT_ST_DDPORT);
 }
 
@@ -5639,20 +5625,6 @@ enum bfa_dport_test_state_e {
 	BFA_DPORT_ST_COMP	= 2,	/*!< test complete successfully */
 	BFA_DPORT_ST_NO_SFP	= 3,	/*!< sfp is not present */
 	BFA_DPORT_ST_NOTSTART	= 4,	/*!< test not start dport is enabled */
-};
-
-/*
- * BFA DPORT state machine events
- */
-enum bfa_dport_sm_event {
-	BFA_DPORT_SM_ENABLE	= 1,	/* dport enable event         */
-	BFA_DPORT_SM_DISABLE    = 2,    /* dport disable event        */
-	BFA_DPORT_SM_FWRSP      = 3,    /* fw enable/disable rsp      */
-	BFA_DPORT_SM_QRESUME    = 4,    /* CQ space available         */
-	BFA_DPORT_SM_HWFAIL     = 5,    /* IOC h/w failure            */
-	BFA_DPORT_SM_START	= 6,	/* re-start dport test        */
-	BFA_DPORT_SM_REQFAIL	= 7,	/* request failure            */
-	BFA_DPORT_SM_SCN	= 8,	/* state change notify frm fw */
 };
 
 static void bfa_dport_sm_disabled(struct bfa_dport_s *dport,

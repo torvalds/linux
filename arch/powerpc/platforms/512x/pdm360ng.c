@@ -7,11 +7,12 @@
  * PDM360NG board setup
  */
 
+#include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/io.h>
+#include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_fdt.h>
-#include <linux/of_platform.h>
 
 #include <asm/machdep.h>
 #include <asm/ipic.h>
@@ -100,7 +101,7 @@ static inline void __init pdm360ng_touchscreen_init(void)
 }
 #endif /* CONFIG_TOUCHSCREEN_ADS7846 */
 
-void __init pdm360ng_init(void)
+static void __init pdm360ng_init(void)
 {
 	mpc512x_init();
 	pdm360ng_touchscreen_init();

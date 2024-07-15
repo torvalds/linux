@@ -872,10 +872,9 @@ static int sti_tvout_probe(struct platform_device *pdev)
 	return component_add(dev, &sti_tvout_ops);
 }
 
-static int sti_tvout_remove(struct platform_device *pdev)
+static void sti_tvout_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &sti_tvout_ops);
-	return 0;
 }
 
 static const struct of_device_id tvout_of_match[] = {
@@ -891,7 +890,7 @@ struct platform_driver sti_tvout_driver = {
 		.of_match_table = tvout_of_match,
 	},
 	.probe = sti_tvout_probe,
-	.remove = sti_tvout_remove,
+	.remove_new = sti_tvout_remove,
 };
 
 MODULE_AUTHOR("Benjamin Gaignard <benjamin.gaignard@st.com>");

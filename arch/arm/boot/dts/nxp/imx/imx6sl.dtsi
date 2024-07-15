@@ -949,7 +949,7 @@
 				clocks = <&clks IMX6SL_CLK_DUMMY>;
 			};
 
-			weim: weim@21b8000 {
+			weim: memory-controller@21b8000 {
 				#address-cells = <2>;
 				#size-cells = <1>;
 				reg = <0x021b8000 0x4000>;

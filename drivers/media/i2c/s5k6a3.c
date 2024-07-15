@@ -127,8 +127,7 @@ static struct v4l2_mbus_framefmt *__s5k6a3_get_format(
 		u32 pad, enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return sd_state ? v4l2_subdev_get_try_format(&sensor->subdev,
-							     sd_state, pad) : NULL;
+		return sd_state ? v4l2_subdev_state_get_format(sd_state, pad) : NULL;
 
 	return &sensor->format;
 }
@@ -174,9 +173,8 @@ static const struct v4l2_subdev_pad_ops s5k6a3_pad_ops = {
 
 static int s5k6a3_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
-	struct v4l2_mbus_framefmt *format = v4l2_subdev_get_try_format(sd,
-								       fh->state,
-								       0);
+	struct v4l2_mbus_framefmt *format = v4l2_subdev_state_get_format(fh->state,
+									 0);
 
 	*format		= s5k6a3_formats[0];
 	format->width	= S5K6A3_DEFAULT_WIDTH;

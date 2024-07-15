@@ -70,3 +70,4 @@ module_exit(exit_rc_map_dm1105_nec)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Mauro Carvalho Chehab");
+MODULE_DESCRIPTION("dm1105-nec remote controller keytable");

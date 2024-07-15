@@ -20,12 +20,20 @@
 #define DW_AN_C37_1000BASEX		4
 #define DW_10GBASER			5
 
+/* device vendor OUI */
+#define DW_OUI_WX			0x0018fc80
+
+/* dev_flag */
+#define DW_DEV_TXGBE			BIT(0)
+
 struct xpcs_id;
 
 struct dw_xpcs {
 	struct mdio_device *mdiodev;
 	const struct xpcs_id *id;
 	struct phylink_pcs pcs;
+	phy_interface_t interface;
+	int dev_flag;
 };
 
 int xpcs_get_an_mode(struct dw_xpcs *xpcs, phy_interface_t interface);

@@ -328,8 +328,9 @@ static int hitfb_set_par(struct fb_info *info)
 
 static const struct fb_ops hitfb_ops = {
 	.owner		= THIS_MODULE,
+	__FB_DEFAULT_IOMEM_OPS_RDWR,
 	.fb_check_var	= hitfb_check_var,
-	.fb_set_par		= hitfb_set_par,
+	.fb_set_par	= hitfb_set_par,
 	.fb_setcolreg	= hitfb_setcolreg,
 	.fb_blank	= hitfb_blank,
 	.fb_sync	= hitfb_sync,
@@ -337,6 +338,7 @@ static const struct fb_ops hitfb_ops = {
 	.fb_fillrect	= hitfb_fillrect,
 	.fb_copyarea	= hitfb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
+	__FB_DEFAULT_IOMEM_OPS_MMAP,
 };
 
 static int hitfb_probe(struct platform_device *dev)
@@ -405,7 +407,7 @@ static int hitfb_probe(struct platform_device *dev)
 	info->var = hitfb_var;
 	info->fix = hitfb_fix;
 	info->pseudo_palette = info->par;
-	info->flags = FBINFO_DEFAULT | FBINFO_HWACCEL_YPAN |
+	info->flags = FBINFO_HWACCEL_YPAN |
 		FBINFO_HWACCEL_FILLRECT | FBINFO_HWACCEL_COPYAREA;
 
 	info->screen_base = (char __iomem *)(uintptr_t)hitfb_fix.smem_start;

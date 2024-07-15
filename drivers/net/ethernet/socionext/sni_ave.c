@@ -15,10 +15,11 @@
 #include <linux/mii.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
+#include <linux/of.h>
 #include <linux/of_net.h>
 #include <linux/of_mdio.h>
-#include <linux/of_platform.h>
 #include <linux/phy.h>
+#include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
 #include <linux/types.h>
@@ -1718,7 +1719,7 @@ out_del_napi:
 	return ret;
 }
 
-static int ave_remove(struct platform_device *pdev)
+static void ave_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct ave_private *priv = netdev_priv(ndev);
@@ -1726,8 +1727,6 @@ static int ave_remove(struct platform_device *pdev)
 	unregister_netdev(ndev);
 	netif_napi_del(&priv->napi_rx);
 	netif_napi_del(&priv->napi_tx);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1975,7 +1974,7 @@ MODULE_DEVICE_TABLE(of, of_ave_match);
 
 static struct platform_driver ave_driver = {
 	.probe  = ave_probe,
-	.remove = ave_remove,
+	.remove_new = ave_remove,
 	.driver	= {
 		.name = "ave",
 		.pm   = AVE_PM_OPS,

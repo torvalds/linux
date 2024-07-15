@@ -73,8 +73,7 @@ static int psb_backlight_setup(struct drm_device *dev)
 	}
 
 	psb_intel_lvds_set_brightness(dev, PSB_MAX_BRIGHTNESS);
-	/* This must occur after the backlight is properly initialised */
-	psb_lid_timer_init(dev_priv);
+
 	return 0;
 }
 
@@ -259,8 +258,6 @@ static int psb_chip_setup(struct drm_device *dev)
 
 static void psb_chip_teardown(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
-	psb_lid_timer_takedown(dev_priv);
 	gma_intel_teardown_gmbus(dev);
 }
 

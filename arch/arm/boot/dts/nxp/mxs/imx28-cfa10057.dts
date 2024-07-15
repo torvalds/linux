@@ -14,26 +14,19 @@
 	model = "Crystalfontz CFA-10057 Board";
 	compatible = "crystalfontz,cfa10057", "crystalfontz,cfa10036", "fsl,imx28";
 
-	regulators {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		reg_usb1_vbus: regulator@0 {
-			compatible = "regulator-fixed";
-			reg = <0>;
-			pinctrl-names = "default";
-			pinctrl-0 = <&usb_pins_cfa10057>;
-			regulator-name = "usb1_vbus";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			gpio = <&gpio0 7 1>;
-		};
+	reg_usb1_vbus: regulator-0 {
+		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&usb_pins_cfa10057>;
+		regulator-name = "usb1_vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&gpio0 7 1>;
 	};
 
 	backlight {
 		compatible = "pwm-backlight";
-		pwms = <&pwm 4 5000000>;
+		pwms = <&pwm 4 5000000 0>;
 		brightness-levels = <0 4 8 16 32 64 128 255>;
 		default-brightness-level = <7>;
 	};

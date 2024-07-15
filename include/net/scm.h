@@ -5,10 +5,12 @@
 #include <linux/limits.h>
 #include <linux/net.h>
 #include <linux/cred.h>
+#include <linux/file.h>
 #include <linux/security.h>
 #include <linux/pid.h>
 #include <linux/nsproxy.h>
 #include <linux/sched/signal.h>
+#include <net/compat.h>
 
 /* Well, we should have at least one descriptor open
  * to accept passed FDs 8)
@@ -23,6 +25,7 @@ struct scm_creds {
 
 struct scm_fp_list {
 	short			count;
+	short			count_unix;
 	short			max;
 	struct user_struct	*user;
 	struct file		*fp[SCM_MAX_FD];
@@ -123,14 +126,17 @@ static inline bool scm_has_secdata(struct socket *sock)
 static __inline__ void scm_pidfd_recv(struct msghdr *msg, struct scm_cookie *scm)
 {
 	struct file *pidfd_file = NULL;
-	int pidfd;
+	int len, pidfd;
 
-	/*
-	 * put_cmsg() doesn't return an error if CMSG is truncated,
+	/* put_cmsg() doesn't return an error if CMSG is truncated,
 	 * that's why we need to opencode these checks here.
 	 */
-	if ((msg->msg_controllen <= sizeof(struct cmsghdr)) ||
-	    (msg->msg_controllen - sizeof(struct cmsghdr)) < sizeof(int)) {
+	if (msg->msg_flags & MSG_CMSG_COMPAT)
+		len = sizeof(struct compat_cmsghdr) + sizeof(int);
+	else
+		len = sizeof(struct cmsghdr) + sizeof(int);
+
+	if (msg->msg_controllen < len) {
 		msg->msg_flags |= MSG_CTRUNC;
 		return;
 	}
@@ -202,6 +208,14 @@ static inline void scm_recv_unix(struct socket *sock, struct msghdr *msg,
 		scm_pidfd_recv(msg, scm);
 
 	scm_destroy_cred(scm);
+}
+
+static inline int scm_recv_one_fd(struct file *f, int __user *ufd,
+				  unsigned int flags)
+{
+	if (!ufd)
+		return -EFAULT;
+	return receive_fd(f, ufd, flags);
 }
 
 #endif /* __LINUX_NET_SCM_H */

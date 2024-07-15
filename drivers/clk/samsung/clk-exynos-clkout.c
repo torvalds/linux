@@ -91,6 +91,11 @@ static int exynos_clkout_match_parent_dev(struct device *dev, u32 *mux_mask)
 		return -EINVAL;
 	}
 
+	/*
+	 * 'exynos_clkout_ids' arrays is not the ids array matched by
+	 * the dev->parent driver, so of_device_get_match_data() or
+	 * device_get_match_data() cannot be used here.
+	 */
 	match = of_match_device(exynos_clkout_ids, dev->parent);
 	if (!match) {
 		dev_err(dev, "cannot match parent device\n");

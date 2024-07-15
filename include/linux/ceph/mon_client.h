@@ -19,7 +19,7 @@ struct ceph_monmap {
 	struct ceph_fsid fsid;
 	u32 epoch;
 	u32 num_mon;
-	struct ceph_entity_inst mon_inst[];
+	struct ceph_entity_inst mon_inst[] __counted_by(num_mon);
 };
 
 struct ceph_mon_client;

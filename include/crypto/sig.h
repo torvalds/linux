@@ -79,7 +79,7 @@ int crypto_sig_maxsize(struct crypto_sig *tfm);
  * @tfm:	signature tfm handle allocated with crypto_alloc_sig()
  * @src:	source buffer
  * @slen:	source length
- * @dst:	destinatino obuffer
+ * @dst:	destination obuffer
  * @dlen:	destination length
  *
  * Return: zero on success; error code in case of error

@@ -6,6 +6,9 @@
 #include <subdev/therm.h>
 struct nvkm_bios;
 
+int r535_fb_new(const struct nvkm_fb_func *,
+		struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_fb **);
+
 struct nvkm_fb_func {
 	void *(*dtor)(struct nvkm_fb *);
 	u32 (*tags)(struct nvkm_fb *);
@@ -19,6 +22,10 @@ struct nvkm_fb_func {
 	struct nvkm_fb_func_sysmem {
 		void (*flush_page_init)(struct nvkm_fb *);
 	} sysmem;
+
+	struct nvkm_fb_func_vidmem {
+		u64 (*size)(struct nvkm_fb *);
+	} vidmem;
 
 	struct {
 		bool (*scrub_required)(struct nvkm_fb *);
@@ -84,6 +91,7 @@ void gp100_fb_init_remapper(struct nvkm_fb *);
 void gp100_fb_init_unkn(struct nvkm_fb *);
 
 int gp102_fb_oneinit(struct nvkm_fb *);
+u64 gp102_fb_vidmem_size(struct nvkm_fb *);
 bool gp102_fb_vpr_scrub_required(struct nvkm_fb *);
 int gp102_fb_vpr_scrub(struct nvkm_fb *);
 

@@ -325,7 +325,7 @@ const struct regmap_config wm8350_regmap = {
 	.reg_bits = 8,
 	.val_bits = 16,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 
 	.max_register = WM8350_MAX_REGISTER,
 	.readable_reg = wm8350_readable,

@@ -21,6 +21,7 @@
 #include <trace/events/sof_intel.h>
 #include "../ops.h"
 #include "../sof-audio.h"
+#include "../ipc4-priv.h"
 #include "hda.h"
 
 #define HDA_LTRP_GB_VALUE_US	95
@@ -38,7 +39,7 @@ static char *hda_hstream_dbg_get_stream_info_str(struct hdac_stream *hstream)
 	struct snd_soc_pcm_runtime *rtd;
 
 	if (hstream->substream)
-		rtd = asoc_substream_to_rtd(hstream->substream);
+		rtd = snd_soc_substream_to_rtd(hstream->substream);
 	else if (hstream->cstream)
 		rtd = hstream->cstream->private_data;
 	else
@@ -668,7 +669,7 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 			snd_sof_dsp_read(sdev, HDA_DSP_HDA_BAR,
 					 sd_offset +
 					 SOF_HDA_ADSP_REG_SD_FIFOSIZE);
-		hstream->fifo_size &= 0xffff;
+		hstream->fifo_size &= SOF_HDA_SD_FIFOSIZE_FIFOS_MASK;
 		hstream->fifo_size += 1;
 	} else {
 		hstream->fifo_size = 0;
@@ -869,8 +870,8 @@ int hda_dsp_stream_init(struct snd_sof_dev *sdev)
 		return -ENOMEM;
 	}
 
-	/* create capture streams */
-	for (i = 0; i < num_capture; i++) {
+	/* create capture and playback streams */
+	for (i = 0; i < num_total; i++) {
 		struct sof_intel_hda_stream *hda_stream;
 
 		hda_stream = devm_kzalloc(sdev->dev, sizeof(*hda_stream),
@@ -909,68 +910,16 @@ int hda_dsp_stream_init(struct snd_sof_dev *sdev)
 		hstream->index = i;
 		sd_offset = SOF_STREAM_SD_OFFSET(hstream);
 		hstream->sd_addr = sdev->bar[HDA_DSP_HDA_BAR] + sd_offset;
-		hstream->stream_tag = i + 1;
 		hstream->opened = false;
 		hstream->running = false;
-		hstream->direction = SNDRV_PCM_STREAM_CAPTURE;
 
-		/* memory alloc for stream BDL */
-		ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, &pci->dev,
-					  HDA_DSP_BDL_SIZE, &hstream->bdl);
-		if (ret < 0) {
-			dev_err(sdev->dev, "error: stream bdl dma alloc failed\n");
-			return -ENOMEM;
+		if (i < num_capture) {
+			hstream->stream_tag = i + 1;
+			hstream->direction = SNDRV_PCM_STREAM_CAPTURE;
+		} else {
+			hstream->stream_tag = i - num_capture + 1;
+			hstream->direction = SNDRV_PCM_STREAM_PLAYBACK;
 		}
-		hstream->posbuf = (__le32 *)(bus->posbuf.area +
-			(hstream->index) * 8);
-
-		list_add_tail(&hstream->list, &bus->stream_list);
-	}
-
-	/* create playback streams */
-	for (i = num_capture; i < num_total; i++) {
-		struct sof_intel_hda_stream *hda_stream;
-
-		hda_stream = devm_kzalloc(sdev->dev, sizeof(*hda_stream),
-					  GFP_KERNEL);
-		if (!hda_stream)
-			return -ENOMEM;
-
-		hda_stream->sdev = sdev;
-
-		hext_stream = &hda_stream->hext_stream;
-
-		if (sdev->bar[HDA_DSP_PP_BAR]) {
-			hext_stream->pphc_addr = sdev->bar[HDA_DSP_PP_BAR] +
-				SOF_HDA_PPHC_BASE + SOF_HDA_PPHC_INTERVAL * i;
-
-			hext_stream->pplc_addr = sdev->bar[HDA_DSP_PP_BAR] +
-				SOF_HDA_PPLC_BASE + SOF_HDA_PPLC_MULTI * num_total +
-				SOF_HDA_PPLC_INTERVAL * i;
-		}
-
-		hstream = &hext_stream->hstream;
-
-		/* do we support SPIB */
-		if (sdev->bar[HDA_DSP_SPIB_BAR]) {
-			hstream->spib_addr = sdev->bar[HDA_DSP_SPIB_BAR] +
-				SOF_HDA_SPIB_BASE + SOF_HDA_SPIB_INTERVAL * i +
-				SOF_HDA_SPIB_SPIB;
-
-			hstream->fifo_addr = sdev->bar[HDA_DSP_SPIB_BAR] +
-				SOF_HDA_SPIB_BASE + SOF_HDA_SPIB_INTERVAL * i +
-				SOF_HDA_SPIB_MAXFIFO;
-		}
-
-		hstream->bus = bus;
-		hstream->sd_int_sta_mask = 1 << i;
-		hstream->index = i;
-		sd_offset = SOF_STREAM_SD_OFFSET(hstream);
-		hstream->sd_addr = sdev->bar[HDA_DSP_HDA_BAR] + sd_offset;
-		hstream->stream_tag = i - num_capture + 1;
-		hstream->opened = false;
-		hstream->running = false;
-		hstream->direction = SNDRV_PCM_STREAM_PLAYBACK;
 
 		/* mem alloc for stream BDL */
 		ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, &pci->dev,
@@ -988,6 +937,14 @@ int hda_dsp_stream_init(struct snd_sof_dev *sdev)
 
 	/* store total stream count (playback + capture) from GCAP */
 	sof_hda->stream_max = num_total;
+
+	/* store stream count from GCAP required for CHAIN_DMA */
+	if (sdev->pdata->ipc_type == SOF_IPC_TYPE_4) {
+		struct sof_ipc4_fw_data *ipc4_data = sdev->private;
+
+		ipc4_data->num_playback_streams = num_playback;
+		ipc4_data->num_capture_streams = num_capture;
+	}
 
 	return 0;
 }
@@ -1105,4 +1062,74 @@ snd_pcm_uframes_t hda_dsp_stream_get_position(struct hdac_stream *hstream,
 		pos = 0;
 
 	return pos;
+}
+
+#define merge_u64(u32_u, u32_l) (((u64)(u32_u) << 32) | (u32_l))
+
+/**
+ * hda_dsp_get_stream_llp - Retrieve the LLP (Linear Link Position) of the stream
+ * @sdev: SOF device
+ * @component: ASoC component
+ * @substream: PCM substream
+ *
+ * Returns the raw Linear Link Position value
+ */
+u64 hda_dsp_get_stream_llp(struct snd_sof_dev *sdev,
+			   struct snd_soc_component *component,
+			   struct snd_pcm_substream *substream)
+{
+	struct hdac_stream *hstream = substream->runtime->private_data;
+	struct hdac_ext_stream *hext_stream = stream_to_hdac_ext_stream(hstream);
+	u32 llp_l, llp_u;
+
+	/*
+	 * The pplc_addr have been calculated during probe in
+	 * hda_dsp_stream_init():
+	 * pplc_addr = sdev->bar[HDA_DSP_PP_BAR] +
+	 *	       SOF_HDA_PPLC_BASE +
+	 *	       SOF_HDA_PPLC_MULTI * total_stream +
+	 *	       SOF_HDA_PPLC_INTERVAL * stream_index
+	 *
+	 * Use this pre-calculated address to avoid repeated re-calculation.
+	 */
+	llp_l = readl(hext_stream->pplc_addr + AZX_REG_PPLCLLPL);
+	llp_u = readl(hext_stream->pplc_addr + AZX_REG_PPLCLLPU);
+
+	/* Compensate the LLP counter with the saved offset */
+	if (hext_stream->pplcllpl || hext_stream->pplcllpu)
+		return merge_u64(llp_u, llp_l) -
+		       merge_u64(hext_stream->pplcllpu, hext_stream->pplcllpl);
+
+	return merge_u64(llp_u, llp_l);
+}
+
+/**
+ * hda_dsp_get_stream_ldp - Retrieve the LDP (Linear DMA Position) of the stream
+ * @sdev: SOF device
+ * @component: ASoC component
+ * @substream: PCM substream
+ *
+ * Returns the raw Linear Link Position value
+ */
+u64 hda_dsp_get_stream_ldp(struct snd_sof_dev *sdev,
+			   struct snd_soc_component *component,
+			   struct snd_pcm_substream *substream)
+{
+	struct hdac_stream *hstream = substream->runtime->private_data;
+	struct hdac_ext_stream *hext_stream = stream_to_hdac_ext_stream(hstream);
+	u32 ldp_l, ldp_u;
+
+	/*
+	 * The pphc_addr have been calculated during probe in
+	 * hda_dsp_stream_init():
+	 * pphc_addr = sdev->bar[HDA_DSP_PP_BAR] +
+	 *	       SOF_HDA_PPHC_BASE +
+	 *	       SOF_HDA_PPHC_INTERVAL * stream_index
+	 *
+	 * Use this pre-calculated address to avoid repeated re-calculation.
+	 */
+	ldp_l = readl(hext_stream->pphc_addr + AZX_REG_PPHCLDPL);
+	ldp_u = readl(hext_stream->pphc_addr + AZX_REG_PPHCLDPU);
+
+	return ((u64)ldp_u << 32) | ldp_l;
 }

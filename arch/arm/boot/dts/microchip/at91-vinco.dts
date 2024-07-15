@@ -159,7 +159,7 @@
 			atmel,vbus-gpio = <&pioE 31 GPIO_ACTIVE_HIGH>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_usba_vbus>;
-			status = "disable";
+			status = "disabled";
 		};
 
 		usb1: ohci@500000 {
@@ -168,7 +168,7 @@
 					   &pioE 11 GPIO_ACTIVE_LOW
 					   &pioE 12 GPIO_ACTIVE_LOW
 					  >;
-			status = "disable";
+			status = "disabled";
 		};
 
 		usb2: ehci@600000 {

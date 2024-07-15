@@ -1,4 +1,4 @@
-What:		/sys/devices/.../hwmon/hwmon<i>/in0_input
+What:		/sys/bus/pci/drivers/i915/.../hwmon/hwmon<i>/in0_input
 Date:		February 2023
 KernelVersion:	6.2
 Contact:	intel-gfx@lists.freedesktop.org
@@ -6,7 +6,7 @@ Description:	RO. Current Voltage in millivolt.
 
 		Only supported for particular Intel i915 graphics platforms.
 
-What:		/sys/devices/.../hwmon/hwmon<i>/power1_max
+What:		/sys/bus/pci/drivers/i915/.../hwmon/hwmon<i>/power1_max
 Date:		February 2023
 KernelVersion:	6.2
 Contact:	intel-gfx@lists.freedesktop.org
@@ -20,7 +20,7 @@ Description:	RW. Card reactive sustained  (PL1/Tau) power limit in microwatts.
 
 		Only supported for particular Intel i915 graphics platforms.
 
-What:		/sys/devices/.../hwmon/hwmon<i>/power1_rated_max
+What:		/sys/bus/pci/drivers/i915/.../hwmon/hwmon<i>/power1_rated_max
 Date:		February 2023
 KernelVersion:	6.2
 Contact:	intel-gfx@lists.freedesktop.org
@@ -28,7 +28,7 @@ Description:	RO. Card default power limit (default TDP setting).
 
 		Only supported for particular Intel i915 graphics platforms.
 
-What:		/sys/devices/.../hwmon/hwmon<i>/power1_max_interval
+What:		/sys/bus/pci/drivers/i915/.../hwmon/hwmon<i>/power1_max_interval
 Date:		February 2023
 KernelVersion:	6.2
 Contact:	intel-gfx@lists.freedesktop.org
@@ -37,7 +37,7 @@ Description:	RW. Sustained power limit interval (Tau in PL1/Tau) in
 
 		Only supported for particular Intel i915 graphics platforms.
 
-What:		/sys/devices/.../hwmon/hwmon<i>/power1_crit
+What:		/sys/bus/pci/drivers/i915/.../hwmon/hwmon<i>/power1_crit
 Date:		February 2023
 KernelVersion:	6.2
 Contact:	intel-gfx@lists.freedesktop.org
@@ -50,7 +50,7 @@ Description:	RW. Card reactive critical (I1) power limit in microwatts.
 
 		Only supported for particular Intel i915 graphics platforms.
 
-What:		/sys/devices/.../hwmon/hwmon<i>/curr1_crit
+What:		/sys/bus/pci/drivers/i915/.../hwmon/hwmon<i>/curr1_crit
 Date:		February 2023
 KernelVersion:	6.2
 Contact:	intel-gfx@lists.freedesktop.org
@@ -63,7 +63,7 @@ Description:	RW. Card reactive critical (I1) power limit in milliamperes.
 
 		Only supported for particular Intel i915 graphics platforms.
 
-What:		/sys/devices/.../hwmon/hwmon<i>/energy1_input
+What:		/sys/bus/pci/drivers/i915/.../hwmon/hwmon<i>/energy1_input
 Date:		February 2023
 KernelVersion:	6.2
 Contact:	intel-gfx@lists.freedesktop.org

@@ -12,6 +12,7 @@
 	compatible = "firefly,rk3566-roc-pc", "rockchip,rk3566";
 
 	aliases {
+		ethernet0 = &gmac1;
 		mmc0 = &sdmmc0;
 		mmc1 = &sdhci;
 		mmc2 = &sdmmc1;

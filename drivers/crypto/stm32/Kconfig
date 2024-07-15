@@ -16,6 +16,8 @@ config CRYPTO_DEV_STM32_HASH
 	select CRYPTO_MD5
 	select CRYPTO_SHA1
 	select CRYPTO_SHA256
+	select CRYPTO_SHA512
+	select CRYPTO_SHA3
 	select CRYPTO_ENGINE
 	help
 	  This enables support for the HASH hw accelerator which can be found

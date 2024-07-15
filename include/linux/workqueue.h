@@ -14,12 +14,7 @@
 #include <linux/atomic.h>
 #include <linux/cpumask.h>
 #include <linux/rcupdate.h>
-
-struct workqueue_struct;
-
-struct work_struct;
-typedef void (*work_func_t)(struct work_struct *work);
-void delayed_work_timer_fn(struct timer_list *t);
+#include <linux/workqueue_types.h>
 
 /*
  * The first word is the work queue pointer and the flags rolled into
@@ -27,20 +22,54 @@ void delayed_work_timer_fn(struct timer_list *t);
  */
 #define work_data_bits(work) ((unsigned long *)(&(work)->data))
 
-enum {
+enum work_bits {
 	WORK_STRUCT_PENDING_BIT	= 0,	/* work item is pending execution */
-	WORK_STRUCT_INACTIVE_BIT= 1,	/* work item is inactive */
-	WORK_STRUCT_PWQ_BIT	= 2,	/* data points to pwq */
-	WORK_STRUCT_LINKED_BIT	= 3,	/* next work is linked to this one */
+	WORK_STRUCT_INACTIVE_BIT,	/* work item is inactive */
+	WORK_STRUCT_PWQ_BIT,		/* data points to pwq */
+	WORK_STRUCT_LINKED_BIT,		/* next work is linked to this one */
 #ifdef CONFIG_DEBUG_OBJECTS_WORK
-	WORK_STRUCT_STATIC_BIT	= 4,	/* static initializer (debugobjects) */
-	WORK_STRUCT_COLOR_SHIFT	= 5,	/* color for workqueue flushing */
-#else
-	WORK_STRUCT_COLOR_SHIFT	= 4,	/* color for workqueue flushing */
+	WORK_STRUCT_STATIC_BIT,		/* static initializer (debugobjects) */
 #endif
+	WORK_STRUCT_FLAG_BITS,
 
+	/* color for workqueue flushing */
+	WORK_STRUCT_COLOR_SHIFT	= WORK_STRUCT_FLAG_BITS,
 	WORK_STRUCT_COLOR_BITS	= 4,
 
+	/*
+	 * When WORK_STRUCT_PWQ is set, reserve 8 bits off of pwq pointer w/
+	 * debugobjects turned off. This makes pwqs aligned to 256 bytes (512
+	 * bytes w/ DEBUG_OBJECTS_WORK) and allows 16 workqueue flush colors.
+	 *
+	 * MSB
+	 * [ pwq pointer ] [ flush color ] [ STRUCT flags ]
+	 *                     4 bits        4 or 5 bits
+	 */
+	WORK_STRUCT_PWQ_SHIFT	= WORK_STRUCT_COLOR_SHIFT + WORK_STRUCT_COLOR_BITS,
+
+	/*
+	 * data contains off-queue information when !WORK_STRUCT_PWQ.
+	 *
+	 * MSB
+	 * [ pool ID ] [ OFFQ flags ] [ STRUCT flags ]
+	 *                 1 bit        4 or 5 bits
+	 */
+	WORK_OFFQ_FLAG_SHIFT	= WORK_STRUCT_FLAG_BITS,
+	WORK_OFFQ_CANCELING_BIT = WORK_OFFQ_FLAG_SHIFT,
+	WORK_OFFQ_FLAG_END,
+	WORK_OFFQ_FLAG_BITS	= WORK_OFFQ_FLAG_END - WORK_OFFQ_FLAG_SHIFT,
+
+	/*
+	 * When a work item is off queue, the high bits encode off-queue flags
+	 * and the last pool it was on. Cap pool ID to 31 bits and use the
+	 * highest number to indicate that no pool is associated.
+	 */
+	WORK_OFFQ_POOL_SHIFT	= WORK_OFFQ_FLAG_SHIFT + WORK_OFFQ_FLAG_BITS,
+	WORK_OFFQ_LEFT		= BITS_PER_LONG - WORK_OFFQ_POOL_SHIFT,
+	WORK_OFFQ_POOL_BITS	= WORK_OFFQ_LEFT <= 31 ? WORK_OFFQ_LEFT : 31,
+};
+
+enum work_flags {
 	WORK_STRUCT_PENDING	= 1 << WORK_STRUCT_PENDING_BIT,
 	WORK_STRUCT_INACTIVE	= 1 << WORK_STRUCT_INACTIVE_BIT,
 	WORK_STRUCT_PWQ		= 1 << WORK_STRUCT_PWQ_BIT,
@@ -50,34 +79,13 @@ enum {
 #else
 	WORK_STRUCT_STATIC	= 0,
 #endif
+};
 
+enum wq_misc_consts {
 	WORK_NR_COLORS		= (1 << WORK_STRUCT_COLOR_BITS),
 
 	/* not bound to any CPU, prefer the local CPU */
 	WORK_CPU_UNBOUND	= NR_CPUS,
-
-	/*
-	 * Reserve 8 bits off of pwq pointer w/ debugobjects turned off.
-	 * This makes pwqs aligned to 256 bytes and allows 16 workqueue
-	 * flush colors.
-	 */
-	WORK_STRUCT_FLAG_BITS	= WORK_STRUCT_COLOR_SHIFT +
-				  WORK_STRUCT_COLOR_BITS,
-
-	/* data contains off-queue information when !WORK_STRUCT_PWQ */
-	WORK_OFFQ_FLAG_BASE	= WORK_STRUCT_COLOR_SHIFT,
-
-	__WORK_OFFQ_CANCELING	= WORK_OFFQ_FLAG_BASE,
-
-	/*
-	 * When a work item is off queue, its high bits point to the last
-	 * pool it was on.  Cap at 31 bits and use the highest number to
-	 * indicate that no pool is associated.
-	 */
-	WORK_OFFQ_FLAG_BITS	= 1,
-	WORK_OFFQ_POOL_SHIFT	= WORK_OFFQ_FLAG_BASE + WORK_OFFQ_FLAG_BITS,
-	WORK_OFFQ_LEFT		= BITS_PER_LONG - WORK_OFFQ_POOL_SHIFT,
-	WORK_OFFQ_POOL_BITS	= WORK_OFFQ_LEFT <= 31 ? WORK_OFFQ_LEFT : 31,
 
 	/* bit mask for work_busy() return values */
 	WORK_BUSY_PENDING	= 1 << 0,
@@ -88,21 +96,10 @@ enum {
 };
 
 /* Convenience constants - of type 'unsigned long', not 'enum'! */
-#define WORK_OFFQ_CANCELING	(1ul << __WORK_OFFQ_CANCELING)
+#define WORK_OFFQ_CANCELING	(1ul << WORK_OFFQ_CANCELING_BIT)
 #define WORK_OFFQ_POOL_NONE	((1ul << WORK_OFFQ_POOL_BITS) - 1)
 #define WORK_STRUCT_NO_POOL	(WORK_OFFQ_POOL_NONE << WORK_OFFQ_POOL_SHIFT)
-
-#define WORK_STRUCT_FLAG_MASK    ((1ul << WORK_STRUCT_FLAG_BITS) - 1)
-#define WORK_STRUCT_WQ_DATA_MASK (~WORK_STRUCT_FLAG_MASK)
-
-struct work_struct {
-	atomic_long_t data;
-	struct list_head entry;
-	work_func_t func;
-#ifdef CONFIG_LOCKDEP
-	struct lockdep_map lockdep_map;
-#endif
-};
+#define WORK_STRUCT_PWQ_MASK	(~((1ul << WORK_STRUCT_PWQ_SHIFT) - 1))
 
 #define WORK_DATA_INIT()	ATOMIC_LONG_INIT((unsigned long)WORK_STRUCT_NO_POOL)
 #define WORK_DATA_STATIC_INIT()	\
@@ -125,6 +122,17 @@ struct rcu_work {
 	struct workqueue_struct *wq;
 };
 
+enum wq_affn_scope {
+	WQ_AFFN_DFL,			/* use system default */
+	WQ_AFFN_CPU,			/* one pod per CPU */
+	WQ_AFFN_SMT,			/* one pod poer SMT */
+	WQ_AFFN_CACHE,			/* one pod per LLC */
+	WQ_AFFN_NUMA,			/* one pod per NUMA node */
+	WQ_AFFN_SYSTEM,			/* one pod across the whole system */
+
+	WQ_AFFN_NR_TYPES,
+};
+
 /**
  * struct workqueue_attrs - A struct for workqueue attributes.
  *
@@ -138,17 +146,58 @@ struct workqueue_attrs {
 
 	/**
 	 * @cpumask: allowed CPUs
+	 *
+	 * Work items in this workqueue are affine to these CPUs and not allowed
+	 * to execute on other CPUs. A pool serving a workqueue must have the
+	 * same @cpumask.
 	 */
 	cpumask_var_t cpumask;
 
 	/**
-	 * @no_numa: disable NUMA affinity
+	 * @__pod_cpumask: internal attribute used to create per-pod pools
 	 *
-	 * Unlike other fields, ``no_numa`` isn't a property of a worker_pool. It
-	 * only modifies how :c:func:`apply_workqueue_attrs` select pools and thus
-	 * doesn't participate in pool hash calculations or equality comparisons.
+	 * Internal use only.
+	 *
+	 * Per-pod unbound worker pools are used to improve locality. Always a
+	 * subset of ->cpumask. A workqueue can be associated with multiple
+	 * worker pools with disjoint @__pod_cpumask's. Whether the enforcement
+	 * of a pool's @__pod_cpumask is strict depends on @affn_strict.
 	 */
-	bool no_numa;
+	cpumask_var_t __pod_cpumask;
+
+	/**
+	 * @affn_strict: affinity scope is strict
+	 *
+	 * If clear, workqueue will make a best-effort attempt at starting the
+	 * worker inside @__pod_cpumask but the scheduler is free to migrate it
+	 * outside.
+	 *
+	 * If set, workers are only allowed to run inside @__pod_cpumask.
+	 */
+	bool affn_strict;
+
+	/*
+	 * Below fields aren't properties of a worker_pool. They only modify how
+	 * :c:func:`apply_workqueue_attrs` select pools and thus don't
+	 * participate in pool hash calculations or equality comparisons.
+	 */
+
+	/**
+	 * @affn_scope: unbound CPU affinity scope
+	 *
+	 * CPU pods are used to improve execution locality of unbound work
+	 * items. There are multiple pod types, one for each wq_affn_scope, and
+	 * every CPU in the system belongs to one pod in every pod type. CPUs
+	 * that belong to the same pod share the worker pool. For example,
+	 * selecting %WQ_AFFN_NUMA makes the workqueue use a separate worker
+	 * pool for each NUMA node.
+	 */
+	enum wq_affn_scope affn_scope;
+
+	/**
+	 * @ordered: work items must be executed one by one in queueing order
+	 */
+	bool ordered;
 };
 
 static inline struct delayed_work *to_delayed_work(struct work_struct *work)
@@ -222,18 +271,16 @@ static inline unsigned int work_static(struct work_struct *work) { return 0; }
  * to generate better code.
  */
 #ifdef CONFIG_LOCKDEP
-#define __INIT_WORK(_work, _func, _onstack)				\
+#define __INIT_WORK_KEY(_work, _func, _onstack, _key)			\
 	do {								\
-		static struct lock_class_key __key;			\
-									\
 		__init_work((_work), _onstack);				\
 		(_work)->data = (atomic_long_t) WORK_DATA_INIT();	\
-		lockdep_init_map(&(_work)->lockdep_map, "(work_completion)"#_work, &__key, 0); \
+		lockdep_init_map(&(_work)->lockdep_map, "(work_completion)"#_work, (_key), 0); \
 		INIT_LIST_HEAD(&(_work)->entry);			\
 		(_work)->func = (_func);				\
 	} while (0)
 #else
-#define __INIT_WORK(_work, _func, _onstack)				\
+#define __INIT_WORK_KEY(_work, _func, _onstack, _key)			\
 	do {								\
 		__init_work((_work), _onstack);				\
 		(_work)->data = (atomic_long_t) WORK_DATA_INIT();	\
@@ -242,11 +289,21 @@ static inline unsigned int work_static(struct work_struct *work) { return 0; }
 	} while (0)
 #endif
 
+#define __INIT_WORK(_work, _func, _onstack)				\
+	do {								\
+		static __maybe_unused struct lock_class_key __key;	\
+									\
+		__INIT_WORK_KEY(_work, _func, _onstack, &__key);	\
+	} while (0)
+
 #define INIT_WORK(_work, _func)						\
 	__INIT_WORK((_work), (_func), 0)
 
 #define INIT_WORK_ONSTACK(_work, _func)					\
 	__INIT_WORK((_work), (_func), 1)
+
+#define INIT_WORK_ONSTACK_KEY(_work, _func, _key)			\
+	__INIT_WORK_KEY((_work), (_func), 1, _key)
 
 #define __INIT_DELAYED_WORK(_work, _func, _tflags)			\
 	do {								\
@@ -301,7 +358,8 @@ static inline unsigned int work_static(struct work_struct *work) { return 0; }
  * Workqueue flags and constants.  For details, please refer to
  * Documentation/core-api/workqueue.rst.
  */
-enum {
+enum wq_flags {
+	WQ_BH			= 1 << 0, /* execute in bottom half (softirq) context */
 	WQ_UNBOUND		= 1 << 1, /* not bound to any cpu */
 	WQ_FREEZABLE		= 1 << 2, /* freeze during suspend */
 	WQ_MEM_RECLAIM		= 1 << 3, /* may be used for memory reclaim */
@@ -340,16 +398,23 @@ enum {
 	__WQ_DRAINING		= 1 << 16, /* internal: workqueue is draining */
 	__WQ_ORDERED		= 1 << 17, /* internal: workqueue is ordered */
 	__WQ_LEGACY		= 1 << 18, /* internal: create*_workqueue() */
-	__WQ_ORDERED_EXPLICIT	= 1 << 19, /* internal: alloc_ordered_workqueue() */
 
-	WQ_MAX_ACTIVE		= 512,	  /* I like 512, better ideas? */
-	WQ_MAX_UNBOUND_PER_CPU	= 4,	  /* 4 * #cpus for unbound wq */
-	WQ_DFL_ACTIVE		= WQ_MAX_ACTIVE / 2,
+	/* BH wq only allows the following flags */
+	__WQ_BH_ALLOWS		= WQ_BH | WQ_HIGHPRI,
 };
 
-/* unbound wq's aren't per-cpu, scale max_active according to #cpus */
-#define WQ_UNBOUND_MAX_ACTIVE	\
-	max_t(int, WQ_MAX_ACTIVE, num_possible_cpus() * WQ_MAX_UNBOUND_PER_CPU)
+enum wq_consts {
+	WQ_MAX_ACTIVE		= 512,	  /* I like 512, better ideas? */
+	WQ_UNBOUND_MAX_ACTIVE	= WQ_MAX_ACTIVE,
+	WQ_DFL_ACTIVE		= WQ_MAX_ACTIVE / 2,
+
+	/*
+	 * Per-node default cap on min_active. Unless explicitly set, min_active
+	 * is set to min(max_active, WQ_DFL_MIN_ACTIVE). For more details, see
+	 * workqueue_struct->min_active definition.
+	 */
+	WQ_DFL_MIN_ACTIVE	= 8,
+};
 
 /*
  * System-wide workqueues which are always present.
@@ -378,6 +443,9 @@ enum {
  * they are same as their non-power-efficient counterparts - e.g.
  * system_power_efficient_wq is identical to system_wq if
  * 'wq_power_efficient' is disabled.  See WQ_POWER_EFFICIENT for more info.
+ *
+ * system_bh[_highpri]_wq are convenience interface to softirq. BH work items
+ * are executed in the queueing CPU's BH context in the queueing order.
  */
 extern struct workqueue_struct *system_wq;
 extern struct workqueue_struct *system_highpri_wq;
@@ -386,6 +454,11 @@ extern struct workqueue_struct *system_unbound_wq;
 extern struct workqueue_struct *system_freezable_wq;
 extern struct workqueue_struct *system_power_efficient_wq;
 extern struct workqueue_struct *system_freezable_power_efficient_wq;
+extern struct workqueue_struct *system_bh_wq;
+extern struct workqueue_struct *system_bh_highpri_wq;
+
+void workqueue_softirq_action(bool highpri);
+void workqueue_softirq_dead(unsigned int cpu);
 
 /**
  * alloc_workqueue - allocate a workqueue
@@ -394,8 +467,30 @@ extern struct workqueue_struct *system_freezable_power_efficient_wq;
  * @max_active: max in-flight work items, 0 for default
  * remaining args: args for @fmt
  *
- * Allocate a workqueue with the specified parameters.  For detailed
- * information on WQ_* flags, please refer to
+ * For a per-cpu workqueue, @max_active limits the number of in-flight work
+ * items for each CPU. e.g. @max_active of 1 indicates that each CPU can be
+ * executing at most one work item for the workqueue.
+ *
+ * For unbound workqueues, @max_active limits the number of in-flight work items
+ * for the whole system. e.g. @max_active of 16 indicates that that there can be
+ * at most 16 work items executing for the workqueue in the whole system.
+ *
+ * As sharing the same active counter for an unbound workqueue across multiple
+ * NUMA nodes can be expensive, @max_active is distributed to each NUMA node
+ * according to the proportion of the number of online CPUs and enforced
+ * independently.
+ *
+ * Depending on online CPU distribution, a node may end up with per-node
+ * max_active which is significantly lower than @max_active, which can lead to
+ * deadlocks if the per-node concurrency limit is lower than the maximum number
+ * of interdependent work items for the workqueue.
+ *
+ * To guarantee forward progress regardless of online CPU distribution, the
+ * concurrency limit on every node is guaranteed to be equal to or greater than
+ * min_active which is set to min(@max_active, %WQ_DFL_MIN_ACTIVE). This means
+ * that the sum of per-node max_active's may be larger than @max_active.
+ *
+ * For detailed information on %WQ_* flags, please refer to
  * Documentation/core-api/workqueue.rst.
  *
  * RETURNS:
@@ -418,8 +513,7 @@ alloc_workqueue(const char *fmt, unsigned int flags, int max_active, ...);
  * Pointer to the allocated workqueue on success, %NULL on failure.
  */
 #define alloc_ordered_workqueue(fmt, flags, args...)			\
-	alloc_workqueue(fmt, WQ_UNBOUND | __WQ_ORDERED |		\
-			__WQ_ORDERED_EXPLICIT | (flags), 1, ##args)
+	alloc_workqueue(fmt, WQ_UNBOUND | __WQ_ORDERED | (flags), 1, ##args)
 
 #define create_workqueue(name)						\
 	alloc_workqueue("%s", __WQ_LEGACY | WQ_MEM_RECLAIM, 1, (name))
@@ -429,13 +523,16 @@ alloc_workqueue(const char *fmt, unsigned int flags, int max_active, ...);
 #define create_singlethread_workqueue(name)				\
 	alloc_ordered_workqueue("%s", __WQ_LEGACY | WQ_MEM_RECLAIM, name)
 
+#define from_work(var, callback_work, work_fieldname)	\
+	container_of(callback_work, typeof(*var), work_fieldname)
+
 extern void destroy_workqueue(struct workqueue_struct *wq);
 
 struct workqueue_attrs *alloc_workqueue_attrs(void);
 void free_workqueue_attrs(struct workqueue_attrs *attrs);
 int apply_workqueue_attrs(struct workqueue_struct *wq,
 			  const struct workqueue_attrs *attrs);
-int workqueue_set_unbound_cpumask(cpumask_var_t cpumask);
+extern int workqueue_unbound_exclude_cpumask(cpumask_var_t cpumask);
 
 extern bool queue_work_on(int cpu, struct workqueue_struct *wq,
 			struct work_struct *work);
@@ -466,6 +563,8 @@ extern bool flush_rcu_work(struct rcu_work *rwork);
 
 extern void workqueue_set_max_active(struct workqueue_struct *wq,
 				     int max_active);
+extern void workqueue_set_min_active(struct workqueue_struct *wq,
+				     int min_active);
 extern struct work_struct *current_work(void);
 extern bool current_is_workqueue_rescuer(void);
 extern bool workqueue_congested(int cpu, struct workqueue_struct *wq);
@@ -569,6 +668,7 @@ static inline bool schedule_work(struct work_struct *work)
 
 /*
  * Detect attempt to flush system-wide workqueues at compile time when possible.
+ * Warn attempt to flush system-wide workqueues at runtime.
  *
  * See https://lkml.kernel.org/r/49925af7-78a8-a3dd-bce6-cfc02e1a9236@I-love.SAKURA.ne.jp
  * for reasons and steps for converting system-wide workqueues into local workqueues.
@@ -576,52 +676,13 @@ static inline bool schedule_work(struct work_struct *work)
 extern void __warn_flushing_systemwide_wq(void)
 	__compiletime_warning("Please avoid flushing system-wide workqueues.");
 
-/**
- * flush_scheduled_work - ensure that any scheduled work has run to completion.
- *
- * Forces execution of the kernel-global workqueue and blocks until its
- * completion.
- *
- * It's very easy to get into trouble if you don't take great care.
- * Either of the following situations will lead to deadlock:
- *
- *	One of the work items currently on the workqueue needs to acquire
- *	a lock held by your code or its caller.
- *
- *	Your code is running in the context of a work routine.
- *
- * They will be detected by lockdep when they occur, but the first might not
- * occur very often.  It depends on what work items are on the workqueue and
- * what locks they need, which you have no control over.
- *
- * In most situations flushing the entire workqueue is overkill; you merely
- * need to know that a particular work item isn't queued and isn't running.
- * In such cases you should use cancel_delayed_work_sync() or
- * cancel_work_sync() instead.
- *
- * Please stop calling this function! A conversion to stop flushing system-wide
- * workqueues is in progress. This function will be removed after all in-tree
- * users stopped calling this function.
- */
-/*
- * The background of commit 771c035372a036f8 ("deprecate the
- * '__deprecated' attribute warnings entirely and for good") is that,
- * since Linus builds all modules between every single pull he does,
- * the standard kernel build needs to be _clean_ in order to be able to
- * notice when new problems happen. Therefore, don't emit warning while
- * there are in-tree users.
- */
+/* Please stop using this function, for this function will be removed in near future. */
 #define flush_scheduled_work()						\
 ({									\
-	if (0)								\
-		__warn_flushing_systemwide_wq();			\
+	__warn_flushing_systemwide_wq();				\
 	__flush_workqueue(system_wq);					\
 })
 
-/*
- * Although there is no longer in-tree caller, for now just emit warning
- * in order to give out-of-tree callers time to update.
- */
 #define flush_workqueue(wq)						\
 ({									\
 	struct workqueue_struct *_wq = (wq);				\
@@ -683,8 +744,32 @@ static inline long work_on_cpu_safe(int cpu, long (*fn)(void *), void *arg)
 	return fn(arg);
 }
 #else
-long work_on_cpu(int cpu, long (*fn)(void *), void *arg);
-long work_on_cpu_safe(int cpu, long (*fn)(void *), void *arg);
+long work_on_cpu_key(int cpu, long (*fn)(void *),
+		     void *arg, struct lock_class_key *key);
+/*
+ * A new key is defined for each caller to make sure the work
+ * associated with the function doesn't share its locking class.
+ */
+#define work_on_cpu(_cpu, _fn, _arg)			\
+({							\
+	static struct lock_class_key __key;		\
+							\
+	work_on_cpu_key(_cpu, _fn, _arg, &__key);	\
+})
+
+long work_on_cpu_safe_key(int cpu, long (*fn)(void *),
+			  void *arg, struct lock_class_key *key);
+
+/*
+ * A new key is defined for each caller to make sure the work
+ * associated with the function doesn't share its locking class.
+ */
+#define work_on_cpu_safe(_cpu, _fn, _arg)		\
+({							\
+	static struct lock_class_key __key;		\
+							\
+	work_on_cpu_safe_key(_cpu, _fn, _arg, &__key);	\
+})
 #endif /* CONFIG_SMP */
 
 #ifdef CONFIG_FREEZER
@@ -714,5 +799,6 @@ int workqueue_offline_cpu(unsigned int cpu);
 
 void __init workqueue_init_early(void);
 void __init workqueue_init(void);
+void __init workqueue_init_topology(void);
 
 #endif

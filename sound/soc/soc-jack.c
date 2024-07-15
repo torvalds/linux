@@ -37,7 +37,7 @@ void snd_soc_jack_report(struct snd_soc_jack *jack, int status, int mask)
 	struct snd_soc_jack_pin *pin;
 	unsigned int sync = 0;
 
-	if (!jack)
+	if (!jack || !jack->jack)
 		return;
 	trace_snd_soc_jack_report(jack, mask, status);
 

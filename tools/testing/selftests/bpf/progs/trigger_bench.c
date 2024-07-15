@@ -33,8 +33,36 @@ int bench_trigger_kprobe(void *ctx)
 	return 0;
 }
 
+SEC("kretprobe/" SYS_PREFIX "sys_getpgid")
+int bench_trigger_kretprobe(void *ctx)
+{
+	__sync_add_and_fetch(&hits, 1);
+	return 0;
+}
+
+SEC("kprobe.multi/" SYS_PREFIX "sys_getpgid")
+int bench_trigger_kprobe_multi(void *ctx)
+{
+	__sync_add_and_fetch(&hits, 1);
+	return 0;
+}
+
+SEC("kretprobe.multi/" SYS_PREFIX "sys_getpgid")
+int bench_trigger_kretprobe_multi(void *ctx)
+{
+	__sync_add_and_fetch(&hits, 1);
+	return 0;
+}
+
 SEC("fentry/" SYS_PREFIX "sys_getpgid")
 int bench_trigger_fentry(void *ctx)
+{
+	__sync_add_and_fetch(&hits, 1);
+	return 0;
+}
+
+SEC("fexit/" SYS_PREFIX "sys_getpgid")
+int bench_trigger_fexit(void *ctx)
 {
 	__sync_add_and_fetch(&hits, 1);
 	return 0;

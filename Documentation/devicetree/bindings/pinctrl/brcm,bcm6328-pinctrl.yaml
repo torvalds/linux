@@ -24,6 +24,7 @@ patternProperties:
   '-pins$':
     type: object
     $ref: pinmux-node.yaml#
+    unevaluatedProperties: false
 
     properties:
       function:
@@ -35,6 +36,10 @@ patternProperties:
         enum: [ gpio6, gpio7, gpio11, gpio16, gpio17, gpio18, gpio19,
                 gpio20, gpio25, gpio26, gpio27, gpio28, hsspi_cs1,
                 usb_port1 ]
+
+    patternProperties:
+      '-pins$':
+        $ref: '#/patternProperties/-pins$'
 
 allOf:
   - $ref: pinctrl.yaml#

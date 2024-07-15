@@ -19,6 +19,7 @@
 //! [`compiler_builtins`]: https://github.com/rust-lang/compiler-builtins
 //! [`compiler-rt`]: https://compiler-rt.llvm.org/
 
+#![allow(internal_features)]
 #![feature(compiler_builtins)]
 #![compiler_builtins]
 #![no_builtins]
@@ -37,14 +38,21 @@ macro_rules! define_panicking_intrinsics(
 );
 
 define_panicking_intrinsics!("`f32` should not be used", {
+    __addsf3,
     __eqsf2,
     __gesf2,
     __lesf2,
+    __ltsf2,
+    __mulsf3,
     __nesf2,
     __unordsf2,
 });
 
 define_panicking_intrinsics!("`f64` should not be used", {
+    __adddf3,
+    __ledf2,
+    __ltdf2,
+    __muldf3,
     __unorddf2,
 });
 

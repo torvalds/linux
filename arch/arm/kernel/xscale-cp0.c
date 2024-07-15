@@ -166,6 +166,7 @@ static int __init xscale_cp0_init(void)
 		pr_info("XScale iWMMXt coprocessor detected.\n");
 		elf_hwcap |= HWCAP_IWMMXT;
 		thread_register_notifier(&iwmmxt_notifier_block);
+		register_iwmmxt_undef_handler();
 #endif
 	} else {
 		pr_info("XScale DSP coprocessor detected.\n");

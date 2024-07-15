@@ -132,7 +132,6 @@ int snd_seq_prioq_cell_in(struct snd_seq_prioq * f,
 			  struct snd_seq_event_cell * cell)
 {
 	struct snd_seq_event_cell *cur, *prev;
-	unsigned long flags;
 	int count;
 	int prior;
 
@@ -142,7 +141,7 @@ int snd_seq_prioq_cell_in(struct snd_seq_prioq * f,
 	/* check flags */
 	prior = (cell->event.flags & SNDRV_SEQ_PRIORITY_MASK);
 
-	spin_lock_irqsave(&f->lock, flags);
+	guard(spinlock_irqsave)(&f->lock);
 
 	/* check if this element needs to inserted at the end (ie. ordered 
 	   data is inserted) This will be very likeley if a sequencer 
@@ -154,7 +153,6 @@ int snd_seq_prioq_cell_in(struct snd_seq_prioq * f,
 			f->tail = cell;
 			cell->next = NULL;
 			f->cells++;
-			spin_unlock_irqrestore(&f->lock, flags);
 			return 0;
 		}
 	}
@@ -179,7 +177,6 @@ int snd_seq_prioq_cell_in(struct snd_seq_prioq * f,
 		prev = cur;
 		cur = cur->next;
 		if (! --count) {
-			spin_unlock_irqrestore(&f->lock, flags);
 			pr_err("ALSA: seq: cannot find a pointer.. infinite loop?\n");
 			return -EINVAL;
 		}
@@ -195,7 +192,6 @@ int snd_seq_prioq_cell_in(struct snd_seq_prioq * f,
 	if (cur == NULL) /* reached end of the list */
 		f->tail = cell;
 	f->cells++;
-	spin_unlock_irqrestore(&f->lock, flags);
 	return 0;
 }
 
@@ -213,14 +209,13 @@ struct snd_seq_event_cell *snd_seq_prioq_cell_out(struct snd_seq_prioq *f,
 						  void *current_time)
 {
 	struct snd_seq_event_cell *cell;
-	unsigned long flags;
 
 	if (f == NULL) {
 		pr_debug("ALSA: seq: snd_seq_prioq_cell_in() called with NULL prioq\n");
 		return NULL;
 	}
-	spin_lock_irqsave(&f->lock, flags);
 
+	guard(spinlock_irqsave)(&f->lock);
 	cell = f->head;
 	if (cell && current_time && !event_is_ready(&cell->event, current_time))
 		cell = NULL;
@@ -235,7 +230,6 @@ struct snd_seq_event_cell *snd_seq_prioq_cell_out(struct snd_seq_prioq *f,
 		f->cells--;
 	}
 
-	spin_unlock_irqrestore(&f->lock, flags);
 	return cell;
 }
 
@@ -249,73 +243,43 @@ int snd_seq_prioq_avail(struct snd_seq_prioq * f)
 	return f->cells;
 }
 
-static inline int prioq_match(struct snd_seq_event_cell *cell,
-			      int client, int timestamp)
-{
-	if (cell->event.source.client == client ||
-	    cell->event.dest.client == client)
-		return 1;
-	if (!timestamp)
-		return 0;
-	switch (cell->event.flags & SNDRV_SEQ_TIME_STAMP_MASK) {
-	case SNDRV_SEQ_TIME_STAMP_TICK:
-		if (cell->event.time.tick)
-			return 1;
-		break;
-	case SNDRV_SEQ_TIME_STAMP_REAL:
-		if (cell->event.time.time.tv_sec ||
-		    cell->event.time.time.tv_nsec)
-			return 1;
-		break;
-	}
-	return 0;
-}
-
-/* remove cells for left client */
-void snd_seq_prioq_leave(struct snd_seq_prioq * f, int client, int timestamp)
+/* remove cells matching with the condition */
+static void prioq_remove_cells(struct snd_seq_prioq *f,
+			       bool (*match)(struct snd_seq_event_cell *cell,
+					     void *arg),
+			       void *arg)
 {
 	register struct snd_seq_event_cell *cell, *next;
-	unsigned long flags;
 	struct snd_seq_event_cell *prev = NULL;
 	struct snd_seq_event_cell *freefirst = NULL, *freeprev = NULL, *freenext;
 
 	/* collect all removed cells */
-	spin_lock_irqsave(&f->lock, flags);
-	cell = f->head;
-	while (cell) {
-		next = cell->next;
-		if (prioq_match(cell, client, timestamp)) {
-			/* remove cell from prioq */
-			if (cell == f->head) {
-				f->head = cell->next;
-			} else {
-				prev->next = cell->next;
+	scoped_guard(spinlock_irqsave, &f->lock) {
+		for (cell = f->head; cell; cell = next) {
+			next = cell->next;
+			if (!match(cell, arg)) {
+				prev = cell;
+				continue;
 			}
+
+			/* remove cell from prioq */
+			if (cell == f->head)
+				f->head = cell->next;
+			else
+				prev->next = cell->next;
 			if (cell == f->tail)
 				f->tail = cell->next;
 			f->cells--;
+
 			/* add cell to free list */
 			cell->next = NULL;
-			if (freefirst == NULL) {
+			if (freefirst == NULL)
 				freefirst = cell;
-			} else {
+			else
 				freeprev->next = cell;
-			}
 			freeprev = cell;
-		} else {
-#if 0
-			pr_debug("ALSA: seq: type = %i, source = %i, dest = %i, "
-			       "client = %i\n",
-				cell->event.type,
-				cell->event.source.client,
-				cell->event.dest.client,
-				client);
-#endif
-			prev = cell;
 		}
-		cell = next;		
 	}
-	spin_unlock_irqrestore(&f->lock, flags);	
 
 	/* remove selected cells */
 	while (freefirst) {
@@ -325,22 +289,68 @@ void snd_seq_prioq_leave(struct snd_seq_prioq * f, int client, int timestamp)
 	}
 }
 
-static int prioq_remove_match(struct snd_seq_remove_events *info,
-			      struct snd_seq_event *ev)
+struct prioq_match_arg {
+	int client;
+	int timestamp;
+};
+
+static inline bool prioq_match(struct snd_seq_event_cell *cell, void *arg)
 {
+	struct prioq_match_arg *v = arg;
+
+	if (cell->event.source.client == v->client ||
+	    cell->event.dest.client == v->client)
+		return true;
+	if (!v->timestamp)
+		return false;
+	switch (cell->event.flags & SNDRV_SEQ_TIME_STAMP_MASK) {
+	case SNDRV_SEQ_TIME_STAMP_TICK:
+		if (cell->event.time.tick)
+			return true;
+		break;
+	case SNDRV_SEQ_TIME_STAMP_REAL:
+		if (cell->event.time.time.tv_sec ||
+		    cell->event.time.time.tv_nsec)
+			return true;
+		break;
+	}
+	return false;
+}
+
+/* remove cells for left client */
+void snd_seq_prioq_leave(struct snd_seq_prioq *f, int client, int timestamp)
+{
+	struct prioq_match_arg arg = { client, timestamp };
+
+	return prioq_remove_cells(f, prioq_match, &arg);
+}
+
+struct prioq_remove_match_arg {
+	int client;
+	struct snd_seq_remove_events *info;
+};
+
+static bool prioq_remove_match(struct snd_seq_event_cell *cell, void *arg)
+{
+	struct prioq_remove_match_arg *v = arg;
+	struct snd_seq_event *ev = &cell->event;
+	struct snd_seq_remove_events *info = v->info;
 	int res;
+
+	if (ev->source.client != v->client)
+		return false;
 
 	if (info->remove_mode & SNDRV_SEQ_REMOVE_DEST) {
 		if (ev->dest.client != info->dest.client ||
 				ev->dest.port != info->dest.port)
-			return 0;
+			return false;
 	}
 	if (info->remove_mode & SNDRV_SEQ_REMOVE_DEST_CHANNEL) {
 		if (! snd_seq_ev_is_channel_type(ev))
-			return 0;
+			return false;
 		/* data.note.channel and data.control.channel are identical */
 		if (ev->data.note.channel != info->channel)
-			return 0;
+			return false;
 	}
 	if (info->remove_mode & SNDRV_SEQ_REMOVE_TIME_AFTER) {
 		if (info->remove_mode & SNDRV_SEQ_REMOVE_TIME_TICK)
@@ -348,7 +358,7 @@ static int prioq_remove_match(struct snd_seq_remove_events *info,
 		else
 			res = snd_seq_compare_real_time(&ev->time.time, &info->time.time);
 		if (!res)
-			return 0;
+			return false;
 	}
 	if (info->remove_mode & SNDRV_SEQ_REMOVE_TIME_BEFORE) {
 		if (info->remove_mode & SNDRV_SEQ_REMOVE_TIME_TICK)
@@ -356,81 +366,35 @@ static int prioq_remove_match(struct snd_seq_remove_events *info,
 		else
 			res = snd_seq_compare_real_time(&ev->time.time, &info->time.time);
 		if (res)
-			return 0;
+			return false;
 	}
 	if (info->remove_mode & SNDRV_SEQ_REMOVE_EVENT_TYPE) {
 		if (ev->type != info->type)
-			return 0;
+			return false;
 	}
 	if (info->remove_mode & SNDRV_SEQ_REMOVE_IGNORE_OFF) {
 		/* Do not remove off events */
 		switch (ev->type) {
 		case SNDRV_SEQ_EVENT_NOTEOFF:
 		/* case SNDRV_SEQ_EVENT_SAMPLE_STOP: */
-			return 0;
+			return false;
 		default:
 			break;
 		}
 	}
 	if (info->remove_mode & SNDRV_SEQ_REMOVE_TAG_MATCH) {
 		if (info->tag != ev->tag)
-			return 0;
+			return false;
 	}
 
-	return 1;
+	return true;
 }
 
 /* remove cells matching remove criteria */
 void snd_seq_prioq_remove_events(struct snd_seq_prioq * f, int client,
 				 struct snd_seq_remove_events *info)
 {
-	struct snd_seq_event_cell *cell, *next;
-	unsigned long flags;
-	struct snd_seq_event_cell *prev = NULL;
-	struct snd_seq_event_cell *freefirst = NULL, *freeprev = NULL, *freenext;
+	struct prioq_remove_match_arg arg = { client, info };
 
-	/* collect all removed cells */
-	spin_lock_irqsave(&f->lock, flags);
-	cell = f->head;
-
-	while (cell) {
-		next = cell->next;
-		if (cell->event.source.client == client &&
-			prioq_remove_match(info, &cell->event)) {
-
-			/* remove cell from prioq */
-			if (cell == f->head) {
-				f->head = cell->next;
-			} else {
-				prev->next = cell->next;
-			}
-
-			if (cell == f->tail)
-				f->tail = cell->next;
-			f->cells--;
-
-			/* add cell to free list */
-			cell->next = NULL;
-			if (freefirst == NULL) {
-				freefirst = cell;
-			} else {
-				freeprev->next = cell;
-			}
-
-			freeprev = cell;
-		} else {
-			prev = cell;
-		}
-		cell = next;		
-	}
-	spin_unlock_irqrestore(&f->lock, flags);	
-
-	/* remove selected cells */
-	while (freefirst) {
-		freenext = freefirst->next;
-		snd_seq_cell_free(freefirst);
-		freefirst = freenext;
-	}
+	return prioq_remove_cells(f, prioq_remove_match, &arg);
 }
-
-

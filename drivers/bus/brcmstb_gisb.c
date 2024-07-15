@@ -96,6 +96,20 @@ static const int gisb_offsets_bcm7400[] = {
 	[ARB_ERR_CAP_MASTER]	= 0x0d8,
 };
 
+static const int gisb_offsets_bcm74165[] = {
+	[ARB_TIMER]		= 0x008,
+	[ARB_BP_CAP_CLR]	= 0x044,
+	[ARB_BP_CAP_HI_ADDR]	= -1,
+	[ARB_BP_CAP_ADDR]	= 0x048,
+	[ARB_BP_CAP_STATUS]	= 0x058,
+	[ARB_BP_CAP_MASTER]	= 0x05c,
+	[ARB_ERR_CAP_CLR]	= 0x038,
+	[ARB_ERR_CAP_HI_ADDR]	= -1,
+	[ARB_ERR_CAP_ADDR]	= 0x020,
+	[ARB_ERR_CAP_STATUS]	= 0x030,
+	[ARB_ERR_CAP_MASTER]	= 0x034,
+};
+
 static const int gisb_offsets_bcm7435[] = {
 	[ARB_TIMER]		= 0x00c,
 	[ARB_BP_CAP_CLR]	= 0x014,
@@ -393,6 +407,7 @@ static const struct of_device_id brcmstb_gisb_arb_of_match[] = {
 	{ .compatible = "brcm,bcm7400-gisb-arb", .data = gisb_offsets_bcm7400 },
 	{ .compatible = "brcm,bcm7278-gisb-arb", .data = gisb_offsets_bcm7278 },
 	{ .compatible = "brcm,bcm7038-gisb-arb", .data = gisb_offsets_bcm7038 },
+	{ .compatible = "brcm,bcm74165-gisb-arb", .data = gisb_offsets_bcm74165 },
 	{ },
 };
 

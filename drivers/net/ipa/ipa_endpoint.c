@@ -233,8 +233,8 @@ static bool ipa_endpoint_data_valid_one(struct ipa *ipa, u32 count,
 			    const struct ipa_gsi_endpoint_data *data)
 {
 	const struct ipa_gsi_endpoint_data *other_data;
-	struct device *dev = &ipa->pdev->dev;
 	enum ipa_endpoint_name other_name;
+	struct device *dev = ipa->dev;
 
 	if (ipa_gsi_endpoint_data_empty(data))
 		return true;
@@ -388,7 +388,7 @@ static u32 ipa_endpoint_max(struct ipa *ipa, u32 count,
 			    const struct ipa_gsi_endpoint_data *data)
 {
 	const struct ipa_gsi_endpoint_data *dp = data;
-	struct device *dev = &ipa->pdev->dev;
+	struct device *dev = ipa->dev;
 	enum ipa_endpoint_name name;
 	u32 max;
 
@@ -606,7 +606,7 @@ int ipa_endpoint_modem_exception_reset_all(struct ipa *ipa)
 	count = ipa->modem_tx_count + ipa_cmd_pipeline_clear_count();
 	trans = ipa_cmd_trans_alloc(ipa, count);
 	if (!trans) {
-		dev_err(&ipa->pdev->dev,
+		dev_err(ipa->dev,
 			"no transaction to reset modem exception endpoints\n");
 		return -EBUSY;
 	}
@@ -1498,8 +1498,7 @@ ipa_endpoint_status_tag_valid(struct ipa_endpoint *endpoint, const void *data)
 	if (endpoint_id == command_endpoint->endpoint_id) {
 		complete(&ipa->completion);
 	} else {
-		dev_err(&ipa->pdev->dev,
-			"unexpected tagged packet from endpoint %u\n",
+		dev_err(ipa->dev, "unexpected tagged packet from endpoint %u\n",
 			endpoint_id);
 	}
 
@@ -1536,6 +1535,7 @@ static void ipa_endpoint_status_parse(struct ipa_endpoint *endpoint,
 	void *data = page_address(page) + NET_SKB_PAD;
 	u32 unused = buffer_size - total_len;
 	struct ipa *ipa = endpoint->ipa;
+	struct device *dev = ipa->dev;
 	u32 resid = total_len;
 
 	while (resid) {
@@ -1544,7 +1544,7 @@ static void ipa_endpoint_status_parse(struct ipa_endpoint *endpoint,
 		u32 len;
 
 		if (resid < IPA_STATUS_SIZE) {
-			dev_err(&endpoint->ipa->pdev->dev,
+			dev_err(dev,
 				"short message (%u bytes < %zu byte status)\n",
 				resid, IPA_STATUS_SIZE);
 			break;
@@ -1666,8 +1666,8 @@ void ipa_endpoint_default_route_clear(struct ipa *ipa)
  */
 static int ipa_endpoint_reset_rx_aggr(struct ipa_endpoint *endpoint)
 {
-	struct device *dev = &endpoint->ipa->pdev->dev;
 	struct ipa *ipa = endpoint->ipa;
+	struct device *dev = ipa->dev;
 	struct gsi *gsi = &ipa->gsi;
 	bool suspended = false;
 	dma_addr_t addr;
@@ -1769,7 +1769,7 @@ static void ipa_endpoint_reset(struct ipa_endpoint *endpoint)
 		gsi_channel_reset(&ipa->gsi, channel_id, true);
 
 	if (ret)
-		dev_err(&ipa->pdev->dev,
+		dev_err(ipa->dev,
 			"error %d resetting channel %u for endpoint %u\n",
 			ret, endpoint->channel_id, endpoint->endpoint_id);
 }
@@ -1817,7 +1817,7 @@ int ipa_endpoint_enable_one(struct ipa_endpoint *endpoint)
 
 	ret = gsi_channel_start(gsi, endpoint->channel_id);
 	if (ret) {
-		dev_err(&ipa->pdev->dev,
+		dev_err(ipa->dev,
 			"error %d starting %cX channel %u for endpoint %u\n",
 			ret, endpoint->toward_ipa ? 'T' : 'R',
 			endpoint->channel_id, endpoint_id);
@@ -1854,14 +1854,13 @@ void ipa_endpoint_disable_one(struct ipa_endpoint *endpoint)
 	/* Note that if stop fails, the channel's state is not well-defined */
 	ret = gsi_channel_stop(gsi, endpoint->channel_id);
 	if (ret)
-		dev_err(&ipa->pdev->dev,
-			"error %d attempting to stop endpoint %u\n", ret,
-			endpoint_id);
+		dev_err(ipa->dev, "error %d attempting to stop endpoint %u\n",
+			ret, endpoint_id);
 }
 
 void ipa_endpoint_suspend_one(struct ipa_endpoint *endpoint)
 {
-	struct device *dev = &endpoint->ipa->pdev->dev;
+	struct device *dev = endpoint->ipa->dev;
 	struct gsi *gsi = &endpoint->ipa->gsi;
 	int ret;
 
@@ -1881,7 +1880,7 @@ void ipa_endpoint_suspend_one(struct ipa_endpoint *endpoint)
 
 void ipa_endpoint_resume_one(struct ipa_endpoint *endpoint)
 {
-	struct device *dev = &endpoint->ipa->pdev->dev;
+	struct device *dev = endpoint->ipa->dev;
 	struct gsi *gsi = &endpoint->ipa->gsi;
 	int ret;
 
@@ -1983,7 +1982,7 @@ void ipa_endpoint_deconfig(struct ipa *ipa)
 
 int ipa_endpoint_config(struct ipa *ipa)
 {
-	struct device *dev = &ipa->pdev->dev;
+	struct device *dev = ipa->dev;
 	const struct reg *reg;
 	u32 endpoint_id;
 	u32 hw_limit;

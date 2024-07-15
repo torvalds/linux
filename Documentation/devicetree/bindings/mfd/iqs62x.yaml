@@ -31,7 +31,7 @@ properties:
     maxItems: 1
 
   firmware-name:
-    $ref: /schemas/types.yaml#/definitions/string
+    maxItems: 1
     description:
       Specifies the name of the calibration and configuration file selected by
       the driver. If this property is omitted, the name is chosen based on the

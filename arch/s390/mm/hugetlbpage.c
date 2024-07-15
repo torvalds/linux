@@ -139,10 +139,10 @@ static void clear_huge_pte_skeys(struct mm_struct *mm, unsigned long rste)
 	}
 
 	if (!test_and_set_bit(PG_arch_1, &page->flags))
-		__storage_key_init_range(paddr, paddr + size - 1);
+		__storage_key_init_range(paddr, paddr + size);
 }
 
-void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
+void __set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
 		     pte_t *ptep, pte_t pte)
 {
 	unsigned long rste;
@@ -161,6 +161,12 @@ void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
 
 	clear_huge_pte_skeys(mm, rste);
 	set_pte(ptep, __pte(rste));
+}
+
+void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
+		     pte_t *ptep, pte_t pte, unsigned long sz)
+{
+	__set_huge_pte_at(mm, addr, ptep, pte);
 }
 
 pte_t huge_ptep_get(pte_t *ptep)
@@ -218,7 +224,7 @@ pte_t *huge_pte_offset(struct mm_struct *mm,
 		if (p4d_present(*p4dp)) {
 			pudp = pud_offset(p4dp, addr);
 			if (pud_present(*pudp)) {
-				if (pud_large(*pudp))
+				if (pud_leaf(*pudp))
 					return (pte_t *) pudp;
 				pmdp = pmd_offset(pudp, addr);
 			}
@@ -229,12 +235,12 @@ pte_t *huge_pte_offset(struct mm_struct *mm,
 
 int pmd_huge(pmd_t pmd)
 {
-	return pmd_large(pmd);
+	return pmd_leaf(pmd);
 }
 
 int pud_huge(pud_t pud)
 {
-	return pud_large(pud);
+	return pud_leaf(pud);
 }
 
 bool __init arch_hugetlb_valid_size(unsigned long size)

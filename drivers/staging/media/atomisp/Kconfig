@@ -12,7 +12,10 @@ menuconfig INTEL_ATOMISP
 config VIDEO_ATOMISP
 	tristate "Intel Atom Image Signal Processor Driver"
 	depends on VIDEO_DEV && INTEL_ATOMISP
+	depends on IPU_BRIDGE
+	depends on MEDIA_PCI_SUPPORT
 	depends on PMIC_OPREGION
+	depends on I2C
 	select V4L2_FWNODE
 	select IOSF_MBI
 	select VIDEOBUF2_VMALLOC
@@ -22,18 +25,6 @@ config VIDEO_ATOMISP
 	  camera imaging subsystem.
 	  To compile this driver as a module, choose M here: the
 	  module will be called atomisp
-
-config VIDEO_ATOMISP_ISP2401
-	bool "Use Intel Atom ISP on Cherrytail/Anniedale (ISP2401)"
-	depends on VIDEO_ATOMISP
-	help
-	  Enable support for Atom ISP2401-based boards.
-
-	  Select this option for  Anniedale (Merrifield+ / Moorefield)
-	  and Cherrytrail SoCs.
-
-	  Disabling it enables support for Atom ISP2400-based boards
-	  (Merrifield and Baytrail SoCs).
 
 if VIDEO_ATOMISP
 source "drivers/staging/media/atomisp/i2c/Kconfig"

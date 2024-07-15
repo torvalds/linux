@@ -1208,14 +1208,12 @@ static int mcde_dsi_probe(struct platform_device *pdev)
 	return component_add(dev, &mcde_dsi_component_ops);
 }
 
-static int mcde_dsi_remove(struct platform_device *pdev)
+static void mcde_dsi_remove(struct platform_device *pdev)
 {
 	struct mcde_dsi *d = platform_get_drvdata(pdev);
 
 	component_del(&pdev->dev, &mcde_dsi_component_ops);
 	mipi_dsi_host_unregister(&d->dsi_host);
-
-	return 0;
 }
 
 static const struct of_device_id mcde_dsi_of_match[] = {
@@ -1228,8 +1226,8 @@ static const struct of_device_id mcde_dsi_of_match[] = {
 struct platform_driver mcde_dsi_driver = {
 	.driver = {
 		.name           = "mcde-dsi",
-		.of_match_table = of_match_ptr(mcde_dsi_of_match),
+		.of_match_table = mcde_dsi_of_match,
 	},
 	.probe = mcde_dsi_probe,
-	.remove = mcde_dsi_remove,
+	.remove_new = mcde_dsi_remove,
 };

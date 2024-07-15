@@ -153,7 +153,9 @@ void vmbus_free_ring(struct vmbus_channel *channel)
 	hv_ringbuffer_cleanup(&channel->inbound);
 
 	if (channel->ringbuffer_page) {
-		__free_pages(channel->ringbuffer_page,
+		/* In a CoCo VM leak the memory if it didn't get re-encrypted */
+		if (!channel->ringbuffer_gpadlhandle.decrypted)
+			__free_pages(channel->ringbuffer_page,
 			     get_order(channel->ringbuffer_pagecount
 				       << PAGE_SHIFT));
 		channel->ringbuffer_page = NULL;
@@ -322,125 +324,89 @@ static int create_gpadl_header(enum hv_gpadl_type type, void *kbuffer,
 
 	pagecount = hv_gpadl_size(type, size) >> HV_HYP_PAGE_SHIFT;
 
-	/* do we need a gpadl body msg */
 	pfnsize = MAX_SIZE_CHANNEL_MESSAGE -
 		  sizeof(struct vmbus_channel_gpadl_header) -
 		  sizeof(struct gpa_range);
+	pfncount = umin(pagecount, pfnsize / sizeof(u64));
+
+	msgsize = sizeof(struct vmbus_channel_msginfo) +
+		  sizeof(struct vmbus_channel_gpadl_header) +
+		  sizeof(struct gpa_range) + pfncount * sizeof(u64);
+	msgheader =  kzalloc(msgsize, GFP_KERNEL);
+	if (!msgheader)
+		return -ENOMEM;
+
+	INIT_LIST_HEAD(&msgheader->submsglist);
+	msgheader->msgsize = msgsize;
+
+	gpadl_header = (struct vmbus_channel_gpadl_header *)
+		msgheader->msg;
+	gpadl_header->rangecount = 1;
+	gpadl_header->range_buflen = sizeof(struct gpa_range) +
+				 pagecount * sizeof(u64);
+	gpadl_header->range[0].byte_offset = 0;
+	gpadl_header->range[0].byte_count = hv_gpadl_size(type, size);
+	for (i = 0; i < pfncount; i++)
+		gpadl_header->range[0].pfn_array[i] = hv_gpadl_hvpfn(
+			type, kbuffer, size, send_offset, i);
+	*msginfo = msgheader;
+
+	pfnsum = pfncount;
+	pfnleft = pagecount - pfncount;
+
+	/* how many pfns can we fit in a body message */
+	pfnsize = MAX_SIZE_CHANNEL_MESSAGE -
+		  sizeof(struct vmbus_channel_gpadl_body);
 	pfncount = pfnsize / sizeof(u64);
 
-	if (pagecount > pfncount) {
-		/* we need a gpadl body */
-		/* fill in the header */
+	/*
+	 * If pfnleft is zero, everything fits in the header and no body
+	 * messages are needed
+	 */
+	while (pfnleft) {
+		pfncurr = umin(pfncount, pfnleft);
 		msgsize = sizeof(struct vmbus_channel_msginfo) +
-			  sizeof(struct vmbus_channel_gpadl_header) +
-			  sizeof(struct gpa_range) + pfncount * sizeof(u64);
-		msgheader =  kzalloc(msgsize, GFP_KERNEL);
-		if (!msgheader)
-			goto nomem;
+			  sizeof(struct vmbus_channel_gpadl_body) +
+			  pfncurr * sizeof(u64);
+		msgbody = kzalloc(msgsize, GFP_KERNEL);
 
-		INIT_LIST_HEAD(&msgheader->submsglist);
-		msgheader->msgsize = msgsize;
-
-		gpadl_header = (struct vmbus_channel_gpadl_header *)
-			msgheader->msg;
-		gpadl_header->rangecount = 1;
-		gpadl_header->range_buflen = sizeof(struct gpa_range) +
-					 pagecount * sizeof(u64);
-		gpadl_header->range[0].byte_offset = 0;
-		gpadl_header->range[0].byte_count = hv_gpadl_size(type, size);
-		for (i = 0; i < pfncount; i++)
-			gpadl_header->range[0].pfn_array[i] = hv_gpadl_hvpfn(
-				type, kbuffer, size, send_offset, i);
-		*msginfo = msgheader;
-
-		pfnsum = pfncount;
-		pfnleft = pagecount - pfncount;
-
-		/* how many pfns can we fit */
-		pfnsize = MAX_SIZE_CHANNEL_MESSAGE -
-			  sizeof(struct vmbus_channel_gpadl_body);
-		pfncount = pfnsize / sizeof(u64);
-
-		/* fill in the body */
-		while (pfnleft) {
-			if (pfnleft > pfncount)
-				pfncurr = pfncount;
-			else
-				pfncurr = pfnleft;
-
-			msgsize = sizeof(struct vmbus_channel_msginfo) +
-				  sizeof(struct vmbus_channel_gpadl_body) +
-				  pfncurr * sizeof(u64);
-			msgbody = kzalloc(msgsize, GFP_KERNEL);
-
-			if (!msgbody) {
-				struct vmbus_channel_msginfo *pos = NULL;
-				struct vmbus_channel_msginfo *tmp = NULL;
-				/*
-				 * Free up all the allocated messages.
-				 */
-				list_for_each_entry_safe(pos, tmp,
-					&msgheader->submsglist,
-					msglistentry) {
-
-					list_del(&pos->msglistentry);
-					kfree(pos);
-				}
-
-				goto nomem;
-			}
-
-			msgbody->msgsize = msgsize;
-			gpadl_body =
-				(struct vmbus_channel_gpadl_body *)msgbody->msg;
-
+		if (!msgbody) {
+			struct vmbus_channel_msginfo *pos = NULL;
+			struct vmbus_channel_msginfo *tmp = NULL;
 			/*
-			 * Gpadl is u32 and we are using a pointer which could
-			 * be 64-bit
-			 * This is governed by the guest/host protocol and
-			 * so the hypervisor guarantees that this is ok.
+			 * Free up all the allocated messages.
 			 */
-			for (i = 0; i < pfncurr; i++)
-				gpadl_body->pfn[i] = hv_gpadl_hvpfn(type,
-					kbuffer, size, send_offset, pfnsum + i);
+			list_for_each_entry_safe(pos, tmp,
+				&msgheader->submsglist,
+				msglistentry) {
 
-			/* add to msg header */
-			list_add_tail(&msgbody->msglistentry,
-				      &msgheader->submsglist);
-			pfnsum += pfncurr;
-			pfnleft -= pfncurr;
+				list_del(&pos->msglistentry);
+				kfree(pos);
+			}
+			kfree(msgheader);
+			return -ENOMEM;
 		}
-	} else {
-		/* everything fits in a header */
-		msgsize = sizeof(struct vmbus_channel_msginfo) +
-			  sizeof(struct vmbus_channel_gpadl_header) +
-			  sizeof(struct gpa_range) + pagecount * sizeof(u64);
-		msgheader = kzalloc(msgsize, GFP_KERNEL);
-		if (msgheader == NULL)
-			goto nomem;
 
-		INIT_LIST_HEAD(&msgheader->submsglist);
-		msgheader->msgsize = msgsize;
+		msgbody->msgsize = msgsize;
+		gpadl_body = (struct vmbus_channel_gpadl_body *)msgbody->msg;
 
-		gpadl_header = (struct vmbus_channel_gpadl_header *)
-			msgheader->msg;
-		gpadl_header->rangecount = 1;
-		gpadl_header->range_buflen = sizeof(struct gpa_range) +
-					 pagecount * sizeof(u64);
-		gpadl_header->range[0].byte_offset = 0;
-		gpadl_header->range[0].byte_count = hv_gpadl_size(type, size);
-		for (i = 0; i < pagecount; i++)
-			gpadl_header->range[0].pfn_array[i] = hv_gpadl_hvpfn(
-				type, kbuffer, size, send_offset, i);
+		/*
+		 * Gpadl is u32 and we are using a pointer which could
+		 * be 64-bit
+		 * This is governed by the guest/host protocol and
+		 * so the hypervisor guarantees that this is ok.
+		 */
+		for (i = 0; i < pfncurr; i++)
+			gpadl_body->pfn[i] = hv_gpadl_hvpfn(type,
+				kbuffer, size, send_offset, pfnsum + i);
 
-		*msginfo = msgheader;
+		/* add to msg header */
+		list_add_tail(&msgbody->msglistentry, &msgheader->submsglist);
+		pfnsum += pfncurr;
+		pfnleft -= pfncurr;
 	}
 
 	return 0;
-nomem:
-	kfree(msgheader);
-	kfree(msgbody);
-	return -ENOMEM;
 }
 
 /*
@@ -472,9 +438,18 @@ static int __vmbus_establish_gpadl(struct vmbus_channel *channel,
 		(atomic_inc_return(&vmbus_connection.next_gpadl_handle) - 1);
 
 	ret = create_gpadl_header(type, kbuffer, size, send_offset, &msginfo);
-	if (ret)
+	if (ret) {
+		gpadl->decrypted = false;
 		return ret;
+	}
 
+	/*
+	 * Set the "decrypted" flag to true for the set_memory_decrypted()
+	 * success case. In the failure case, the encryption state of the
+	 * memory is unknown. Leave "decrypted" as true to ensure the
+	 * memory will be leaked instead of going back on the free list.
+	 */
+	gpadl->decrypted = true;
 	ret = set_memory_decrypted((unsigned long)kbuffer,
 				   PFN_UP(size));
 	if (ret) {
@@ -563,9 +538,15 @@ cleanup:
 
 	kfree(msginfo);
 
-	if (ret)
-		set_memory_encrypted((unsigned long)kbuffer,
-				     PFN_UP(size));
+	if (ret) {
+		/*
+		 * If set_memory_encrypted() fails, the decrypted flag is
+		 * left as true so the memory is leaked instead of being
+		 * put back on the free list.
+		 */
+		if (!set_memory_encrypted((unsigned long)kbuffer, PFN_UP(size)))
+			gpadl->decrypted = false;
+	}
 
 	return ret;
 }
@@ -885,6 +866,8 @@ post_msg_err:
 				   PFN_UP(gpadl->size));
 	if (ret)
 		pr_warn("Fail to set mem host visibility in GPADL teardown %d.\n", ret);
+
+	gpadl->decrypted = ret;
 
 	return ret;
 }

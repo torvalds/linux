@@ -649,7 +649,6 @@ static int vmac_create(struct crypto_template *tmpl, struct rtattr **tb)
 
 	inst->alg.base.cra_priority = alg->cra_priority;
 	inst->alg.base.cra_blocksize = alg->cra_blocksize;
-	inst->alg.base.cra_alignmask = alg->cra_alignmask;
 
 	inst->alg.base.cra_ctxsize = sizeof(struct vmac_tfm_ctx);
 	inst->alg.base.cra_init = vmac_init_tfm;

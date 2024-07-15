@@ -4,7 +4,6 @@
 #ifndef __CHCR_IPSEC_H__
 #define __CHCR_IPSEC_H__
 
-#include <crypto/algapi.h>
 #include "t4_hw.h"
 #include "cxgb4.h"
 #include "t4_msg.h"

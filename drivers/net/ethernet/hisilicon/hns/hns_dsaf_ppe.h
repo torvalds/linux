@@ -92,7 +92,7 @@ struct ppe_common_cb {
 	u8 comm_index;   /*ppe_common index*/
 
 	u32 ppe_num;
-	struct hns_ppe_cb ppe_cb[];
+	struct hns_ppe_cb ppe_cb[] __counted_by(ppe_num);
 
 };
 

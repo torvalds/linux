@@ -392,6 +392,69 @@ static const struct ieee1394_device_id dice_id_table[] = {
 		.model_id	= 0x0000de,
 		.driver_data	= (kernel_ulong_t)snd_dice_detect_focusrite_pro40_tcd3070_formats,
 	},
+	// Weiss DAC202: 192kHz 2-channel DAC
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID | IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_WEISS,
+		.model_id	= 0x000007,
+		.driver_data	= (kernel_ulong_t)snd_dice_detect_weiss_formats,
+	},
+	// Weiss DAC202: 192kHz 2-channel DAC (Maya edition)
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID | IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_WEISS,
+		.model_id	= 0x000008,
+		.driver_data	= (kernel_ulong_t)snd_dice_detect_weiss_formats,
+	},
+	// Weiss MAN301: 192kHz 2-channel music archive network player
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID | IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_WEISS,
+		.model_id	= 0x00000b,
+		.driver_data	= (kernel_ulong_t)snd_dice_detect_weiss_formats,
+	},
+	// Weiss INT202: 192kHz unidirectional 2-channel digital Firewire face
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID | IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_WEISS,
+		.model_id	= 0x000006,
+		.driver_data	= (kernel_ulong_t)snd_dice_detect_weiss_formats,
+	},
+	// Weiss INT203: 192kHz bidirectional 2-channel digital Firewire face
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID | IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_WEISS,
+		.model_id	= 0x00000a,
+		.driver_data	= (kernel_ulong_t)snd_dice_detect_weiss_formats,
+	},
+	// Weiss ADC2: 192kHz A/D converter with microphone preamps and inputs
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID | IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_WEISS,
+		.model_id	= 0x000001,
+		.driver_data	= (kernel_ulong_t)snd_dice_detect_weiss_formats,
+	},
+	// Weiss DAC2/Minerva: 192kHz 2-channel DAC
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID | IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_WEISS,
+		.model_id	= 0x000003,
+		.driver_data	= (kernel_ulong_t)snd_dice_detect_weiss_formats,
+	},
+	// Weiss Vesta: 192kHz 2-channel Firewire to AES/EBU interface
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID | IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_WEISS,
+		.model_id	= 0x000002,
+		.driver_data	= (kernel_ulong_t)snd_dice_detect_weiss_formats,
+	},
+	// Weiss AFI1: 192kHz 24-channel Firewire to ADAT or AES/EBU face
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID | IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_WEISS,
+		.model_id	= 0x000004,
+		.driver_data	= (kernel_ulong_t)snd_dice_detect_weiss_formats,
+	},
 	{
 		.match_flags = IEEE1394_MATCH_VERSION,
 		.version     = DICE_INTERFACE,

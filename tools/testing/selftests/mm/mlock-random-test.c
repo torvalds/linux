@@ -13,6 +13,7 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <time.h>
+#include "../kselftest.h"
 #include "mlock2.h"
 
 #define CHUNK_UNIT (128 * 1024)
@@ -31,14 +32,14 @@ int set_cap_limits(rlim_t max)
 	new.rlim_cur = max;
 	new.rlim_max = max;
 	if (setrlimit(RLIMIT_MEMLOCK, &new)) {
-		perror("setrlimit() returns error\n");
+		ksft_perror("setrlimit() returns error\n");
 		return -1;
 	}
 
 	/* drop capabilities including CAP_IPC_LOCK */
 	if (cap_set_proc(cap)) {
-		perror("cap_set_proc() returns error\n");
-		return -2;
+		ksft_perror("cap_set_proc() returns error\n");
+		return -1;
 	}
 
 	return 0;
@@ -52,27 +53,24 @@ int get_proc_locked_vm_size(void)
 	unsigned long lock_size = 0;
 
 	f = fopen("/proc/self/status", "r");
-	if (!f) {
-		perror("fopen");
-		return -1;
-	}
+	if (!f)
+		ksft_exit_fail_msg("fopen: %s\n", strerror(errno));
 
 	while (fgets(line, 1024, f)) {
 		if (strstr(line, "VmLck")) {
 			ret = sscanf(line, "VmLck:\t%8lu kB", &lock_size);
 			if (ret <= 0) {
-				printf("sscanf() on VmLck error: %s: %d\n",
-						line, ret);
 				fclose(f);
-				return -1;
+				ksft_exit_fail_msg("sscanf() on VmLck error: %s: %d\n",
+						   line, ret);
 			}
 			fclose(f);
 			return (int)(lock_size << 10);
 		}
 	}
 
-	perror("cannot parse VmLck in /proc/self/status\n");
 	fclose(f);
+	ksft_exit_fail_msg("cannot parse VmLck in /proc/self/status: %s\n", strerror(errno));
 	return -1;
 }
 
@@ -91,10 +89,8 @@ int get_proc_page_size(unsigned long addr)
 	size_t size;
 
 	smaps = seek_to_smaps_entry(addr);
-	if (!smaps) {
-		printf("Unable to parse /proc/self/smaps\n");
-		return 0;
-	}
+	if (!smaps)
+		ksft_exit_fail_msg("Unable to parse /proc/self/smaps\n");
 
 	while (getline(&line, &size, smaps) > 0) {
 		if (!strstr(line, "MMUPageSize")) {
@@ -105,12 +101,9 @@ int get_proc_page_size(unsigned long addr)
 		}
 
 		/* found the MMUPageSize of this section */
-		if (sscanf(line, "MMUPageSize:    %8lu kB",
-					&mmupage_size) < 1) {
-			printf("Unable to parse smaps entry for Size:%s\n",
-					line);
-			break;
-		}
+		if (sscanf(line, "MMUPageSize:    %8lu kB", &mmupage_size) < 1)
+			ksft_exit_fail_msg("Unable to parse smaps entry for Size:%s\n",
+					   line);
 
 	}
 	free(line);
@@ -136,7 +129,7 @@ int get_proc_page_size(unsigned long addr)
  *    return value: 0 - success
  *    else: failure
  */
-int test_mlock_within_limit(char *p, int alloc_size)
+static void test_mlock_within_limit(char *p, int alloc_size)
 {
 	int i;
 	int ret = 0;
@@ -145,11 +138,9 @@ int test_mlock_within_limit(char *p, int alloc_size)
 	int page_size = 0;
 
 	getrlimit(RLIMIT_MEMLOCK, &cur);
-	if (cur.rlim_cur < alloc_size) {
-		printf("alloc_size[%d] < %u rlimit,lead to mlock failure\n",
-				alloc_size, (unsigned int)cur.rlim_cur);
-		return -1;
-	}
+	if (cur.rlim_cur < alloc_size)
+		ksft_exit_fail_msg("alloc_size[%d] < %u rlimit,lead to mlock failure\n",
+				   alloc_size, (unsigned int)cur.rlim_cur);
 
 	srand(time(NULL));
 	for (i = 0; i < TEST_LOOP; i++) {
@@ -169,13 +160,11 @@ int test_mlock_within_limit(char *p, int alloc_size)
 			ret = mlock2_(p + start_offset, lock_size,
 				       MLOCK_ONFAULT);
 
-		if (ret) {
-			printf("%s() failure at |%p(%d)| mlock:|%p(%d)|\n",
-					is_mlock ? "mlock" : "mlock2",
-					p, alloc_size,
-					p + start_offset, lock_size);
-			return ret;
-		}
+		if (ret)
+			ksft_exit_fail_msg("%s() failure at |%p(%d)| mlock:|%p(%d)|\n",
+					   is_mlock ? "mlock" : "mlock2",
+					   p, alloc_size,
+					   p + start_offset, lock_size);
 	}
 
 	/*
@@ -183,18 +172,12 @@ int test_mlock_within_limit(char *p, int alloc_size)
 	 */
 	locked_vm_size = get_proc_locked_vm_size();
 	page_size = get_proc_page_size((unsigned long)p);
-	if (page_size == 0) {
-		printf("cannot get proc MMUPageSize\n");
-		return -1;
-	}
 
-	if (locked_vm_size > PAGE_ALIGN(alloc_size, page_size) + page_size) {
-		printf("test_mlock_within_limit() left VmLck:%d on %d chunk\n",
-				locked_vm_size, alloc_size);
-		return -1;
-	}
+	if (locked_vm_size > PAGE_ALIGN(alloc_size, page_size) + page_size)
+		ksft_exit_fail_msg("%s left VmLck:%d on %d chunk\n",
+				   __func__, locked_vm_size, alloc_size);
 
-	return 0;
+	ksft_test_result_pass("%s\n", __func__);
 }
 
 
@@ -213,7 +196,7 @@ int test_mlock_within_limit(char *p, int alloc_size)
  *    return value: 0 - success
  *    else: failure
  */
-int test_mlock_outof_limit(char *p, int alloc_size)
+static void test_mlock_outof_limit(char *p, int alloc_size)
 {
 	int i;
 	int ret = 0;
@@ -221,11 +204,9 @@ int test_mlock_outof_limit(char *p, int alloc_size)
 	struct rlimit cur;
 
 	getrlimit(RLIMIT_MEMLOCK, &cur);
-	if (cur.rlim_cur >= alloc_size) {
-		printf("alloc_size[%d] >%u rlimit, violates test condition\n",
-				alloc_size, (unsigned int)cur.rlim_cur);
-		return -1;
-	}
+	if (cur.rlim_cur >= alloc_size)
+		ksft_exit_fail_msg("alloc_size[%d] >%u rlimit, violates test condition\n",
+				   alloc_size, (unsigned int)cur.rlim_cur);
 
 	old_locked_vm_size = get_proc_locked_vm_size();
 	srand(time(NULL));
@@ -240,56 +221,47 @@ int test_mlock_outof_limit(char *p, int alloc_size)
 		else
 			ret = mlock2_(p + start_offset, lock_size,
 					MLOCK_ONFAULT);
-		if (ret == 0) {
-			printf("%s() succeeds? on %p(%d) mlock%p(%d)\n",
-					is_mlock ? "mlock" : "mlock2",
-					p, alloc_size,
-					p + start_offset, lock_size);
-			return -1;
-		}
+		if (ret == 0)
+			ksft_exit_fail_msg("%s() succeeds? on %p(%d) mlock%p(%d)\n",
+					   is_mlock ? "mlock" : "mlock2",
+					   p, alloc_size, p + start_offset, lock_size);
 	}
 
 	locked_vm_size = get_proc_locked_vm_size();
-	if (locked_vm_size != old_locked_vm_size) {
-		printf("tests leads to new mlocked page: old[%d], new[%d]\n",
-				old_locked_vm_size,
-				locked_vm_size);
-		return -1;
-	}
+	if (locked_vm_size != old_locked_vm_size)
+		ksft_exit_fail_msg("tests leads to new mlocked page: old[%d], new[%d]\n",
+				   old_locked_vm_size,
+				   locked_vm_size);
 
-	return 0;
+	ksft_test_result_pass("%s\n", __func__);
 }
 
 int main(int argc, char **argv)
 {
 	char *p = NULL;
-	int ret = 0;
+
+	ksft_print_header();
 
 	if (set_cap_limits(MLOCK_RLIMIT_SIZE))
-		return -1;
+		ksft_finished();
+
+	ksft_set_plan(2);
 
 	p = malloc(MLOCK_WITHIN_LIMIT_SIZE);
-	if (p == NULL) {
-		perror("malloc() failure\n");
-		return -1;
-	}
-	ret = test_mlock_within_limit(p, MLOCK_WITHIN_LIMIT_SIZE);
-	if (ret)
-		return ret;
+	if (p == NULL)
+		ksft_exit_fail_msg("malloc() failure: %s\n", strerror(errno));
+
+	test_mlock_within_limit(p, MLOCK_WITHIN_LIMIT_SIZE);
 	munlock(p, MLOCK_WITHIN_LIMIT_SIZE);
 	free(p);
 
-
 	p = malloc(MLOCK_OUTOF_LIMIT_SIZE);
-	if (p == NULL) {
-		perror("malloc() failure\n");
-		return -1;
-	}
-	ret = test_mlock_outof_limit(p, MLOCK_OUTOF_LIMIT_SIZE);
-	if (ret)
-		return ret;
+	if (p == NULL)
+		ksft_exit_fail_msg("malloc() failure: %s\n", strerror(errno));
+
+	test_mlock_outof_limit(p, MLOCK_OUTOF_LIMIT_SIZE);
 	munlock(p, MLOCK_OUTOF_LIMIT_SIZE);
 	free(p);
 
-	return 0;
+	ksft_finished();
 }

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* The industrial I/O core
+/*
+ * The industrial I/O core
  *
  * Copyright (c) 2008 Jonathan Cameron
  *
@@ -41,7 +42,7 @@ static DEFINE_IDA(iio_ida);
 static dev_t iio_devt;
 
 #define IIO_DEV_MAX 256
-struct bus_type iio_bus_type = {
+const struct bus_type iio_bus_type = {
 	.name = "iio",
 };
 EXPORT_SYMBOL(iio_bus_type);
@@ -89,6 +90,10 @@ static const char * const iio_chan_type_name_spec[] = {
 	[IIO_POSITIONRELATIVE]  = "positionrelative",
 	[IIO_PHASE] = "phase",
 	[IIO_MASSCONCENTRATION] = "massconcentration",
+	[IIO_DELTA_ANGL] = "deltaangl",
+	[IIO_DELTA_VELOCITY] = "deltavelocity",
+	[IIO_COLORTEMP] = "colortemp",
+	[IIO_CHROMATICITY] = "chromaticity",
 };
 
 static const char * const iio_modifier_names[] = {
@@ -112,6 +117,8 @@ static const char * const iio_modifier_names[] = {
 	[IIO_MOD_LIGHT_GREEN] = "green",
 	[IIO_MOD_LIGHT_BLUE] = "blue",
 	[IIO_MOD_LIGHT_UV] = "uv",
+	[IIO_MOD_LIGHT_UVA] = "uva",
+	[IIO_MOD_LIGHT_UVB] = "uvb",
 	[IIO_MOD_LIGHT_DUV] = "duv",
 	[IIO_MOD_QUATERNION] = "quaternion",
 	[IIO_MOD_TEMP_AMBIENT] = "ambient",
@@ -177,13 +184,16 @@ static const char * const iio_chan_info_postfix[] = {
 	[IIO_CHAN_INFO_THERMOCOUPLE_TYPE] = "thermocouple_type",
 	[IIO_CHAN_INFO_CALIBAMBIENT] = "calibambient",
 	[IIO_CHAN_INFO_ZEROPOINT] = "zeropoint",
+	[IIO_CHAN_INFO_TROUGH] = "trough_raw",
 };
 /**
  * iio_device_id() - query the unique ID for the device
  * @indio_dev:		Device structure whose ID is being queried
  *
  * The IIO device ID is a unique index used for example for the naming
- * of the character device /dev/iio\:device[ID]
+ * of the character device /dev/iio\:device[ID].
+ *
+ * Returns: Unique ID for the device.
  */
 int iio_device_id(struct iio_dev *indio_dev)
 {
@@ -196,14 +206,14 @@ EXPORT_SYMBOL_GPL(iio_device_id);
 /**
  * iio_buffer_enabled() - helper function to test if the buffer is enabled
  * @indio_dev:		IIO device structure for device
+ *
+ * Returns: True, if the buffer is enabled.
  */
 bool iio_buffer_enabled(struct iio_dev *indio_dev)
 {
 	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
 
-	return iio_dev_opaque->currentmode
-		& (INDIO_BUFFER_TRIGGERED | INDIO_BUFFER_HARDWARE |
-		   INDIO_BUFFER_SOFTWARE);
+	return iio_dev_opaque->currentmode & INDIO_ALL_BUFFER_MODES;
 }
 EXPORT_SYMBOL_GPL(iio_buffer_enabled);
 
@@ -225,6 +235,9 @@ EXPORT_SYMBOL_GPL(iio_get_debugfs_dentry);
  * iio_find_channel_from_si() - get channel from its scan index
  * @indio_dev:		device
  * @si:			scan index to match
+ *
+ * Returns:
+ * Constant pointer to iio_chan_spec, if scan index matches, NULL on failure.
  */
 const struct iio_chan_spec
 *iio_find_channel_from_si(struct iio_dev *indio_dev, int si)
@@ -249,7 +262,9 @@ EXPORT_SYMBOL(iio_read_const_attr);
 /**
  * iio_device_set_clock() - Set current timestamping clock for the device
  * @indio_dev: IIO device structure containing the device
- * @clock_id: timestamping clock posix identifier to set.
+ * @clock_id: timestamping clock POSIX identifier to set.
+ *
+ * Returns: 0 on success, or a negative error code.
  */
 int iio_device_set_clock(struct iio_dev *indio_dev, clockid_t clock_id)
 {
@@ -275,6 +290,8 @@ EXPORT_SYMBOL(iio_device_set_clock);
 /**
  * iio_device_get_clock() - Retrieve current timestamping clock for the device
  * @indio_dev: IIO device structure containing the device
+ *
+ * Returns: Clock ID of the current timestamping clock for the device.
  */
 clockid_t iio_device_get_clock(const struct iio_dev *indio_dev)
 {
@@ -287,6 +304,8 @@ EXPORT_SYMBOL(iio_device_get_clock);
 /**
  * iio_get_time_ns() - utility function to get a time stamp for events etc
  * @indio_dev: device
+ *
+ * Returns: Timestamp of the event in nanoseconds.
  */
 s64 iio_get_time_ns(const struct iio_dev *indio_dev)
 {
@@ -372,8 +391,8 @@ static ssize_t iio_debugfs_read_reg(struct file *file, char __user *userbuf,
 	}
 
 	iio_dev_opaque->read_buf_len = snprintf(iio_dev_opaque->read_buf,
-					      sizeof(iio_dev_opaque->read_buf),
-					      "0x%X\n", val);
+						sizeof(iio_dev_opaque->read_buf),
+						"0x%X\n", val);
 
 	return simple_read_from_buffer(userbuf, count, ppos,
 				       iio_dev_opaque->read_buf,
@@ -389,7 +408,7 @@ static ssize_t iio_debugfs_write_reg(struct file *file,
 	char buf[80];
 	int ret;
 
-	count = min_t(size_t, count, (sizeof(buf)-1));
+	count = min(count, sizeof(buf) - 1);
 	if (copy_from_user(buf, userbuf, count))
 		return -EFAULT;
 
@@ -476,8 +495,7 @@ static ssize_t iio_read_channel_ext_info(struct device *dev,
 
 static ssize_t iio_write_channel_ext_info(struct device *dev,
 				     struct device_attribute *attr,
-				     const char *buf,
-					 size_t len)
+				     const char *buf, size_t len)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
@@ -524,7 +542,7 @@ ssize_t iio_enum_read(struct iio_dev *indio_dev,
 	i = e->get(indio_dev, chan);
 	if (i < 0)
 		return i;
-	else if (i >= e->num_items || !e->items[i])
+	if (i >= e->num_items || !e->items[i])
 		return -EINVAL;
 
 	return sysfs_emit(buf, "%s\n", e->items[i]);
@@ -569,9 +587,9 @@ static int iio_setup_mount_idmatrix(const struct device *dev,
 ssize_t iio_show_mount_matrix(struct iio_dev *indio_dev, uintptr_t priv,
 			      const struct iio_chan_spec *chan, char *buf)
 {
-	const struct iio_mount_matrix *mtx = ((iio_get_mount_matrix_t *)
-					      priv)(indio_dev, chan);
+	const struct iio_mount_matrix *mtx;
 
+	mtx = ((iio_get_mount_matrix_t *)priv)(indio_dev, chan);
 	if (IS_ERR(mtx))
 		return PTR_ERR(mtx);
 
@@ -594,7 +612,7 @@ EXPORT_SYMBOL_GPL(iio_show_mount_matrix);
  * If device is assigned no mounting matrix property, a default 3x3 identity
  * matrix will be filled in.
  *
- * Return: 0 if success, or a negative error code on failure.
+ * Returns: 0 if success, or a negative error code on failure.
  */
 int iio_read_mount_matrix(struct device *dev, struct iio_mount_matrix *matrix)
 {
@@ -692,9 +710,9 @@ static ssize_t __iio_format_value(char *buf, size_t offset, unsigned int type,
  * @vals:	Pointer to the values, exact meaning depends on the
  *		type parameter.
  *
- * Return: 0 by default, a negative number on failure or the
- *	   total number of characters written for a type that belongs
- *	   to the IIO_VAL_* constant.
+ * Returns:
+ * 0 by default, a negative number on failure or the total number of characters
+ * written for a type that belongs to the IIO_VAL_* constant.
  */
 ssize_t iio_format_value(char *buf, unsigned int type, int size, int *vals)
 {
@@ -847,8 +865,8 @@ static ssize_t iio_read_channel_info_avail(struct device *dev,
  * @fract: The fractional part of the number
  * @scale_db: True if this should parse as dB
  *
- * Returns 0 on success, or a negative error code if the string could not be
- * parsed.
+ * Returns:
+ * 0 on success, or a negative error code if the string could not be parsed.
  */
 static int __iio_str_to_fixpoint(const char *str, int fract_mult,
 				 int *integer, int *fract, bool scale_db)
@@ -917,8 +935,8 @@ static int __iio_str_to_fixpoint(const char *str, int fract_mult,
  * @integer: The integer part of the number
  * @fract: The fractional part of the number
  *
- * Returns 0 on success, or a negative error code if the string could not be
- * parsed.
+ * Returns:
+ * 0 on success, or a negative error code if the string could not be parsed.
  */
 int iio_str_to_fixpoint(const char *str, int fract_mult,
 			int *integer, int *fract)
@@ -1009,14 +1027,12 @@ int __iio_device_attr_init(struct device_attribute *dev_attr,
 	if (chan->modified && (shared_by == IIO_SEPARATE)) {
 		if (chan->extend_name)
 			full_postfix = kasprintf(GFP_KERNEL, "%s_%s_%s",
-						 iio_modifier_names[chan
-								    ->channel2],
+						 iio_modifier_names[chan->channel2],
 						 chan->extend_name,
 						 postfix);
 		else
 			full_postfix = kasprintf(GFP_KERNEL, "%s_%s",
-						 iio_modifier_names[chan
-								    ->channel2],
+						 iio_modifier_names[chan->channel2],
 						 postfix);
 	} else {
 		if (chan->extend_name == NULL || shared_by != IIO_SEPARATE)
@@ -1217,7 +1233,7 @@ static int iio_device_add_info_mask_type(struct iio_dev *indio_dev,
 					     &iio_dev_opaque->channel_attr_list);
 		if ((ret == -EBUSY) && (shared_by != IIO_SEPARATE))
 			continue;
-		else if (ret < 0)
+		if (ret < 0)
 			return ret;
 		attrcount++;
 	}
@@ -1255,7 +1271,7 @@ static int iio_device_add_info_mask_type_avail(struct iio_dev *indio_dev,
 		kfree(avail_postfix);
 		if ((ret == -EBUSY) && (shared_by != IIO_SEPARATE))
 			continue;
-		else if (ret < 0)
+		if (ret < 0)
 			return ret;
 		attrcount++;
 	}
@@ -1400,50 +1416,42 @@ static ssize_t label_show(struct device *dev, struct device_attribute *attr,
 
 static DEVICE_ATTR_RO(label);
 
+static const char * const clock_names[] = {
+	[CLOCK_REALTIME]	 	= "realtime",
+	[CLOCK_MONOTONIC]	 	= "monotonic",
+	[CLOCK_PROCESS_CPUTIME_ID]	= "process_cputime_id",
+	[CLOCK_THREAD_CPUTIME_ID]	= "thread_cputime_id",
+	[CLOCK_MONOTONIC_RAW]	 	= "monotonic_raw",
+	[CLOCK_REALTIME_COARSE]	 	= "realtime_coarse",
+	[CLOCK_MONOTONIC_COARSE] 	= "monotonic_coarse",
+	[CLOCK_BOOTTIME]	 	= "boottime",
+	[CLOCK_REALTIME_ALARM]		= "realtime_alarm",
+	[CLOCK_BOOTTIME_ALARM]		= "boottime_alarm",
+	[CLOCK_SGI_CYCLE]		= "sgi_cycle",
+	[CLOCK_TAI]		 	= "tai",
+};
+
 static ssize_t current_timestamp_clock_show(struct device *dev,
 					    struct device_attribute *attr,
 					    char *buf)
 {
 	const struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	const clockid_t clk = iio_device_get_clock(indio_dev);
-	const char *name;
-	ssize_t sz;
 
 	switch (clk) {
 	case CLOCK_REALTIME:
-		name = "realtime\n";
-		sz = sizeof("realtime\n");
-		break;
 	case CLOCK_MONOTONIC:
-		name = "monotonic\n";
-		sz = sizeof("monotonic\n");
-		break;
 	case CLOCK_MONOTONIC_RAW:
-		name = "monotonic_raw\n";
-		sz = sizeof("monotonic_raw\n");
-		break;
 	case CLOCK_REALTIME_COARSE:
-		name = "realtime_coarse\n";
-		sz = sizeof("realtime_coarse\n");
-		break;
 	case CLOCK_MONOTONIC_COARSE:
-		name = "monotonic_coarse\n";
-		sz = sizeof("monotonic_coarse\n");
-		break;
 	case CLOCK_BOOTTIME:
-		name = "boottime\n";
-		sz = sizeof("boottime\n");
-		break;
 	case CLOCK_TAI:
-		name = "tai\n";
-		sz = sizeof("tai\n");
 		break;
 	default:
 		BUG();
 	}
 
-	memcpy(buf, name, sz);
-	return sz;
+	return sysfs_emit(buf, "%s\n", clock_names[clk]);
 }
 
 static ssize_t current_timestamp_clock_store(struct device *dev,
@@ -1453,22 +1461,23 @@ static ssize_t current_timestamp_clock_store(struct device *dev,
 	clockid_t clk;
 	int ret;
 
-	if (sysfs_streq(buf, "realtime"))
-		clk = CLOCK_REALTIME;
-	else if (sysfs_streq(buf, "monotonic"))
-		clk = CLOCK_MONOTONIC;
-	else if (sysfs_streq(buf, "monotonic_raw"))
-		clk = CLOCK_MONOTONIC_RAW;
-	else if (sysfs_streq(buf, "realtime_coarse"))
-		clk = CLOCK_REALTIME_COARSE;
-	else if (sysfs_streq(buf, "monotonic_coarse"))
-		clk = CLOCK_MONOTONIC_COARSE;
-	else if (sysfs_streq(buf, "boottime"))
-		clk = CLOCK_BOOTTIME;
-	else if (sysfs_streq(buf, "tai"))
-		clk = CLOCK_TAI;
-	else
+	ret = sysfs_match_string(clock_names, buf);
+	if (ret < 0)
+		return ret;
+	clk = ret;
+
+	switch (clk) {
+	case CLOCK_REALTIME:
+	case CLOCK_MONOTONIC:
+	case CLOCK_MONOTONIC_RAW:
+	case CLOCK_REALTIME_COARSE:
+	case CLOCK_MONOTONIC_COARSE:
+	case CLOCK_BOOTTIME:
+	case CLOCK_TAI:
+		break;
+	default:
 		return -EINVAL;
+	}
 
 	ret = iio_device_set_clock(dev_to_iio_dev(dev), clk);
 	if (ret)
@@ -1484,7 +1493,7 @@ int iio_device_register_sysfs_group(struct iio_dev *indio_dev,
 	const struct attribute_group **new, **old = iio_dev_opaque->groups;
 	unsigned int cnt = iio_dev_opaque->groupcounter;
 
-	new = krealloc(old, sizeof(*new) * (cnt + 2), GFP_KERNEL);
+	new = krealloc_array(old, cnt + 2, sizeof(*new), GFP_KERNEL);
 	if (!new)
 		return -ENOMEM;
 
@@ -1573,10 +1582,13 @@ static int iio_device_register_sysfs(struct iio_dev *indio_dev)
 	ret = iio_device_register_sysfs_group(indio_dev,
 					      &iio_dev_opaque->chan_attr_group);
 	if (ret)
-		goto error_clear_attrs;
+		goto error_free_chan_attrs;
 
 	return 0;
 
+error_free_chan_attrs:
+	kfree(iio_dev_opaque->chan_attr_group.attrs);
+	iio_dev_opaque->chan_attr_group.attrs = NULL;
 error_clear_attrs:
 	iio_free_chan_devattr_list(&iio_dev_opaque->channel_attr_list);
 
@@ -1621,7 +1633,10 @@ const struct device_type iio_device_type = {
  * iio_device_alloc() - allocate an iio_dev from a driver
  * @parent:		Parent device.
  * @sizeof_priv:	Space to allocate for private structure.
- **/
+ *
+ * Returns:
+ * Pointer to allocated iio_dev on success, NULL on failure.
+ */
 struct iio_dev *iio_device_alloc(struct device *parent, int sizeof_priv)
 {
 	struct iio_dev_opaque *iio_dev_opaque;
@@ -1677,7 +1692,7 @@ EXPORT_SYMBOL(iio_device_alloc);
 /**
  * iio_device_free() - free an iio_dev from a driver
  * @dev:		the iio_dev associated with the device
- **/
+ */
 void iio_device_free(struct iio_dev *dev)
 {
 	if (dev)
@@ -1698,7 +1713,7 @@ static void devm_iio_device_release(void *iio_dev)
  * Managed iio_device_alloc. iio_dev allocated with this function is
  * automatically freed on driver detach.
  *
- * RETURNS:
+ * Returns:
  * Pointer to allocated iio_dev on success, NULL on failure.
  */
 struct iio_dev *devm_iio_device_alloc(struct device *parent, int sizeof_priv)
@@ -1725,8 +1740,8 @@ EXPORT_SYMBOL_GPL(devm_iio_device_alloc);
  * @filp:	File structure for iio device used to keep and later access
  *		private data
  *
- * Return: 0 on success or -EBUSY if the device is already opened
- **/
+ * Returns: 0 on success or -EBUSY if the device is already opened
+ */
 static int iio_chrdev_open(struct inode *inode, struct file *filp)
 {
 	struct iio_dev_opaque *iio_dev_opaque =
@@ -1759,7 +1774,7 @@ static int iio_chrdev_open(struct inode *inode, struct file *filp)
  * @inode:	Inode structure pointer for the char device
  * @filp:	File structure pointer for the char device
  *
- * Return: 0 for successful release
+ * Returns: 0 for successful release.
  */
 static int iio_chrdev_release(struct inode *inode, struct file *filp)
 {
@@ -1798,7 +1813,7 @@ static long iio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	mutex_lock(&iio_dev_opaque->info_exist_lock);
 
-	/**
+	/*
 	 * The NULL check here is required to prevent crashing when a device
 	 * is being removed while userspace would still have open file handles
 	 * to try to access this device.
@@ -1885,6 +1900,66 @@ static int iio_check_extended_name(const struct iio_dev *indio_dev)
 
 static const struct iio_buffer_setup_ops noop_ring_setup_ops;
 
+static void iio_sanity_check_avail_scan_masks(struct iio_dev *indio_dev)
+{
+	unsigned int num_masks, masklength, longs_per_mask;
+	const unsigned long *av_masks;
+	int i;
+
+	av_masks = indio_dev->available_scan_masks;
+	masklength = indio_dev->masklength;
+	longs_per_mask = BITS_TO_LONGS(masklength);
+
+	/*
+	 * The code determining how many available_scan_masks is in the array
+	 * will be assuming the end of masks when first long with all bits
+	 * zeroed is encountered. This is incorrect for masks where mask
+	 * consists of more than one long, and where some of the available masks
+	 * has long worth of bits zeroed (but has subsequent bit(s) set). This
+	 * is a safety measure against bug where array of masks is terminated by
+	 * a single zero while mask width is greater than width of a long.
+	 */
+	if (longs_per_mask > 1)
+		dev_warn(indio_dev->dev.parent,
+			 "multi long available scan masks not fully supported\n");
+
+	if (bitmap_empty(av_masks, masklength))
+		dev_warn(indio_dev->dev.parent, "empty scan mask\n");
+
+	for (num_masks = 0; *av_masks; num_masks++)
+		av_masks += longs_per_mask;
+
+	if (num_masks < 2)
+		return;
+
+	av_masks = indio_dev->available_scan_masks;
+
+	/*
+	 * Go through all the masks from first to one before the last, and see
+	 * that no mask found later from the available_scan_masks array is a
+	 * subset of mask found earlier. If this happens, then the mask found
+	 * later will never get used because scanning the array is stopped when
+	 * the first suitable mask is found. Drivers should order the array of
+	 * available masks in the order of preference (presumably the least
+	 * costy to access masks first).
+	 */
+	for (i = 0; i < num_masks - 1; i++) {
+		const unsigned long *mask1;
+		int j;
+
+		mask1 = av_masks + i * longs_per_mask;
+		for (j = i + 1; j < num_masks; j++) {
+			const unsigned long *mask2;
+
+			mask2 = av_masks + j * longs_per_mask;
+			if (bitmap_subset(mask2, mask1, masklength))
+				dev_warn(indio_dev->dev.parent,
+					 "available_scan_mask %d subset of %d. Never used\n",
+					 j, i);
+		}
+	}
+}
+
 int __iio_device_register(struct iio_dev *indio_dev, struct module *this_mod)
 {
 	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
@@ -1922,6 +1997,9 @@ int __iio_device_register(struct iio_dev *indio_dev, struct module *this_mod)
 			"Failed to create buffer sysfs interfaces\n");
 		goto error_unreg_debugfs;
 	}
+
+	if (indio_dev->available_scan_masks)
+		iio_sanity_check_avail_scan_masks(indio_dev);
 
 	ret = iio_device_register_sysfs(indio_dev);
 	if (ret) {
@@ -1976,7 +2054,7 @@ EXPORT_SYMBOL(__iio_device_register);
 /**
  * iio_device_unregister() - unregister a device from the IIO subsystem
  * @indio_dev:		Device structure representing the device.
- **/
+ */
 void iio_device_unregister(struct iio_dev *indio_dev)
 {
 	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
@@ -2027,7 +2105,7 @@ EXPORT_SYMBOL_GPL(__devm_iio_device_register);
  *
  * Use with iio_device_release_direct_mode()
  *
- * Returns: 0 on success, -EBUSY on failure
+ * Returns: 0 on success, -EBUSY on failure.
  */
 int iio_device_claim_direct_mode(struct iio_dev *indio_dev)
 {

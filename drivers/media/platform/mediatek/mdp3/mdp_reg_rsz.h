@@ -20,6 +20,7 @@
 #define PRZ_LUMA_VERTICAL_SUBPIXEL_OFFSET                 0x02c
 #define PRZ_CHROMA_HORIZONTAL_INTEGER_OFFSET              0x030
 #define PRZ_CHROMA_HORIZONTAL_SUBPIXEL_OFFSET             0x034
+#define RSZ_ETC_CONTROL                                   0x22c
 
 /* MASK */
 #define PRZ_ENABLE_MASK                                   0x00010001
@@ -35,5 +36,6 @@
 #define PRZ_LUMA_VERTICAL_SUBPIXEL_OFFSET_MASK            0x001fffff
 #define PRZ_CHROMA_HORIZONTAL_INTEGER_OFFSET_MASK         0x0000ffff
 #define PRZ_CHROMA_HORIZONTAL_SUBPIXEL_OFFSET_MASK        0x001fffff
+#define RSZ_ETC_CONTROL_MASK                              0xff770000
 
 #endif // __MDP_REG_RSZ_H__

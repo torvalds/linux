@@ -822,6 +822,10 @@ static const struct mtmips_clk_data mt76x8_clk_data = {
 
 static const struct of_device_id mtmips_of_match[] = {
 	{
+		.compatible = "ralink,rt2880-reset",
+		.data = NULL,
+	},
+	{
 		.compatible = "ralink,rt2880-sysc",
 		.data = &rt2880_clk_data,
 	},
@@ -1088,25 +1092,11 @@ static int mtmips_clk_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id mtmips_clk_of_match[] = {
-	{ .compatible = "ralink,rt2880-reset" },
-	{ .compatible = "ralink,rt2880-sysc" },
-	{ .compatible = "ralink,rt3050-sysc" },
-	{ .compatible = "ralink,rt3052-sysc" },
-	{ .compatible = "ralink,rt3352-sysc" },
-	{ .compatible = "ralink,rt3883-sysc" },
-	{ .compatible = "ralink,rt5350-sysc" },
-	{ .compatible = "ralink,mt7620-sysc" },
-	{ .compatible = "ralink,mt7628-sysc" },
-	{ .compatible = "ralink,mt7688-sysc" },
-	{}
-};
-
 static struct platform_driver mtmips_clk_driver = {
 	.probe = mtmips_clk_probe,
 	.driver = {
 		.name = "mtmips-clk",
-		.of_match_table = mtmips_clk_of_match,
+		.of_match_table = mtmips_of_match,
 	},
 };
 

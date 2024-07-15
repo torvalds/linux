@@ -124,6 +124,8 @@ void mei_dma_ring_reset(struct mei_device *dev)
  * @buf: data buffer
  * @offset: offset in slots.
  * @n: number of slots to copy.
+ *
+ * Return: number of bytes copied
  */
 static size_t mei_dma_copy_from(struct mei_device *dev, unsigned char *buf,
 				u32 offset, u32 n)
@@ -144,6 +146,8 @@ static size_t mei_dma_copy_from(struct mei_device *dev, unsigned char *buf,
  * @buf: data buffer
  * @offset: offset in slots.
  * @n: number of slots to copy.
+ *
+ * Return: number of bytes copied
  */
 static size_t mei_dma_copy_to(struct mei_device *dev, unsigned char *buf,
 			      u32 offset, u32 n)
@@ -161,7 +165,7 @@ static size_t mei_dma_copy_to(struct mei_device *dev, unsigned char *buf,
 /**
  * mei_dma_ring_read() - read data from the ring
  * @dev: mei device
- * @buf: buffer to read into: may be NULL in case of droping the data.
+ * @buf: buffer to read into: may be NULL in case of dropping the data.
  * @len: length to read.
  */
 void mei_dma_ring_read(struct mei_device *dev, unsigned char *buf, u32 len)

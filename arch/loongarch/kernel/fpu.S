@@ -15,6 +15,7 @@
 #include <asm/fpregdef.h>
 #include <asm/loongarch.h>
 #include <asm/regdef.h>
+#include <asm/unwind_hints.h>
 
 #define FPU_REG_WIDTH		8
 #define LSX_REG_WIDTH		16
@@ -22,7 +23,7 @@
 
 	.macro	EX insn, reg, src, offs
 .ex\@:	\insn	\reg, \src, \offs
-	_asm_extable .ex\@, fault
+	_asm_extable .ex\@, .L_fpu_fault
 	.endm
 
 	.macro sc_save_fp base
@@ -138,6 +139,13 @@
 	.macro sc_save_fcsr base, tmp0
 	movfcsr2gr	\tmp0, fcsr0
 	EX	st.w	\tmp0, \base, 0
+#if defined(CONFIG_CPU_HAS_LBT)
+	/* TM bit is always 0 if LBT not supported */
+	andi		\tmp0, \tmp0, FPU_CSR_TM
+	beqz		\tmp0, 1f
+	x86clrtm
+1:
+#endif
 	.endm
 
 	.macro sc_restore_fcsr base, tmp0
@@ -309,7 +317,7 @@ EXPORT_SYMBOL(_save_fp)
  */
 SYM_FUNC_START(_restore_fp)
 	fpu_restore_double	a0 t1		# clobbers t1
-	fpu_restore_csr		a0 t1
+	fpu_restore_csr		a0 t1 t2
 	fpu_restore_cc		a0 t1 t2	# clobbers t1, t2
 	jr			ra
 SYM_FUNC_END(_restore_fp)
@@ -342,6 +350,7 @@ SYM_FUNC_START(_restore_lsx_upper)
 	lsx_restore_all_upper a0 t0 t1
 	jr	ra
 SYM_FUNC_END(_restore_lsx_upper)
+EXPORT_SYMBOL(_restore_lsx_upper)
 
 SYM_FUNC_START(_init_lsx_upper)
 	lsx_init_all_upper t1
@@ -377,6 +386,7 @@ SYM_FUNC_START(_restore_lasx_upper)
 	lasx_restore_all_upper a0 t0 t1
 	jr	ra
 SYM_FUNC_END(_restore_lasx_upper)
+EXPORT_SYMBOL(_restore_lasx_upper)
 
 SYM_FUNC_START(_init_lasx_upper)
 	lasx_init_all_upper t1
@@ -514,7 +524,12 @@ SYM_FUNC_START(_restore_lasx_context)
 	jr	ra
 SYM_FUNC_END(_restore_lasx_context)
 
-SYM_FUNC_START(fault)
+.L_fpu_fault:
 	li.w	a0, -EFAULT				# failure
 	jr	ra
-SYM_FUNC_END(fault)
+
+#ifdef CONFIG_CPU_HAS_LBT
+STACK_FRAME_NON_STANDARD _restore_fp
+STACK_FRAME_NON_STANDARD _restore_lsx
+STACK_FRAME_NON_STANDARD _restore_lasx
+#endif

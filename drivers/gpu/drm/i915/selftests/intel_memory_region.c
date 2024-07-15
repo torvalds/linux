@@ -544,8 +544,8 @@ static u64 igt_object_mappable_total(struct drm_i915_gem_object *obj)
 		u64 start = drm_buddy_block_offset(block);
 		u64 end = start + drm_buddy_block_size(mm, block);
 
-		if (start < mr->io_size)
-			total += min_t(u64, end, mr->io_size) - start;
+		if (start < resource_size(&mr->io))
+			total += min_t(u64, end, resource_size(&mr->io)) - start;
 	}
 
 	return total;

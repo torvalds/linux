@@ -335,11 +335,10 @@ static int static_funnel_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int static_funnel_remove(struct platform_device *pdev)
+static void static_funnel_remove(struct platform_device *pdev)
 {
 	funnel_remove(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-	return 0;
 }
 
 static const struct of_device_id static_funnel_match[] = {
@@ -351,7 +350,7 @@ MODULE_DEVICE_TABLE(of, static_funnel_match);
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id static_funnel_ids[] = {
-	{"ARMHC9FE", 0},
+	{"ARMHC9FE", 0, 0, 0},
 	{},
 };
 
@@ -360,7 +359,7 @@ MODULE_DEVICE_TABLE(acpi, static_funnel_ids);
 
 static struct platform_driver static_funnel_driver = {
 	.probe          = static_funnel_probe,
-	.remove          = static_funnel_remove,
+	.remove_new      = static_funnel_remove,
 	.driver         = {
 		.name   = "coresight-static-funnel",
 		/* THIS_MODULE is taken care of by platform_driver_register() */
@@ -392,7 +391,7 @@ static const struct amba_id dynamic_funnel_ids[] = {
 		.id     = 0x000bb9eb,
 		.mask   = 0x000fffff,
 	},
-	{ 0, 0},
+	{ 0, 0, NULL },
 };
 
 MODULE_DEVICE_TABLE(amba, dynamic_funnel_ids);

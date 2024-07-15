@@ -124,6 +124,7 @@ static bool rxrpc_extract_header(struct rxrpc_skb_priv *sp,
 				 struct sk_buff *skb)
 {
 	struct rxrpc_wire_header whdr;
+	struct rxrpc_ackpacket ack;
 
 	/* dig out the RxRPC connection details */
 	if (skb_copy_bits(skb, 0, &whdr, sizeof(whdr)) < 0)
@@ -141,6 +142,16 @@ static bool rxrpc_extract_header(struct rxrpc_skb_priv *sp,
 	sp->hdr.securityIndex	= whdr.securityIndex;
 	sp->hdr._rsvd		= ntohs(whdr._rsvd);
 	sp->hdr.serviceId	= ntohs(whdr.serviceId);
+
+	if (sp->hdr.type == RXRPC_PACKET_TYPE_ACK) {
+		if (skb_copy_bits(skb, sizeof(whdr), &ack, sizeof(ack)) < 0)
+			return rxrpc_bad_message(skb, rxrpc_badmsg_short_ack);
+		sp->ack.first_ack	= ntohl(ack.firstPacket);
+		sp->ack.prev_ack	= ntohl(ack.previousPacket);
+		sp->ack.acked_serial	= ntohl(ack.serial);
+		sp->ack.reason		= ack.reason;
+		sp->ack.nr_acks		= ack.nAcks;
+	}
 	return true;
 }
 

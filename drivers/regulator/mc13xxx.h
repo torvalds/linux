@@ -24,7 +24,7 @@ struct mc13xxx_regulator_priv {
 	u32 powermisc_pwgt_state;
 	struct mc13xxx_regulator *mc13xxx_regulators;
 	int num_regulators;
-	struct regulator_dev *regulators[];
+	struct regulator_dev *regulators[] __counted_by(num_regulators);
 };
 
 extern int mc13xxx_fixed_regulator_set_voltage(struct regulator_dev *rdev,

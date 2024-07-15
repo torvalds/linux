@@ -151,15 +151,13 @@ out_disable_clk:
 /*
  * disassociate the w1 device from the driver
  */
-static int mxc_w1_remove(struct platform_device *pdev)
+static void mxc_w1_remove(struct platform_device *pdev)
 {
 	struct mxc_w1_device *mdev = platform_get_drvdata(pdev);
 
 	w1_remove_master_device(&mdev->bus_master);
 
 	clk_disable_unprepare(mdev->clk);
-
-	return 0;
 }
 
 static const struct of_device_id mxc_w1_dt_ids[] = {
@@ -174,7 +172,7 @@ static struct platform_driver mxc_w1_driver = {
 		.of_match_table = mxc_w1_dt_ids,
 	},
 	.probe = mxc_w1_probe,
-	.remove = mxc_w1_remove,
+	.remove_new = mxc_w1_remove,
 };
 module_platform_driver(mxc_w1_driver);
 

@@ -148,7 +148,7 @@ properties:
   memcpy-channels:
     $ref: /schemas/types.yaml#/definitions/uint32-array
     description: Array of u32 elements indicating which channels on the DMA
-      engine are elegible for memcpy transfers
+      engine are eligible for memcpy transfers
 
 required:
   - "#dma-cells"

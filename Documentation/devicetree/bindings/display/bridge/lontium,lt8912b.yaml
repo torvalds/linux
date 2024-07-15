@@ -55,6 +55,27 @@ properties:
       - port@0
       - port@1
 
+  vcchdmipll-supply:
+    description: A 1.8V supply that powers the HDMI PLL.
+
+  vcchdmitx-supply:
+    description: A 1.8V supply that powers the HDMI TX part.
+
+  vcclvdspll-supply:
+    description: A 1.8V supply that powers the LVDS PLL.
+
+  vcclvdstx-supply:
+    description: A 1.8V supply that powers the LVDS TX part.
+
+  vccmipirx-supply:
+    description: A 1.8V supply that powers the MIPI RX part.
+
+  vccsysclk-supply:
+    description: A 1.8V supply that powers the SYSCLK.
+
+  vdd-supply:
+    description: A 1.8V supply that powers the digital part.
+
 required:
   - compatible
   - reg

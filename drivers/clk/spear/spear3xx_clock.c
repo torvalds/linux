@@ -11,7 +11,7 @@
 #include <linux/clk/spear.h>
 #include <linux/err.h>
 #include <linux/io.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
 #include <linux/spinlock_types.h>
 #include "clk.h"
 

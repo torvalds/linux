@@ -12,7 +12,6 @@
 #include <linux/kdebug.h>
 #include <linux/sched/task_stack.h>
 
-#include <asm/switch_to.h>
 #include <asm/facility.h>
 #include <asm/kprobes.h>
 #include <asm/dis.h>

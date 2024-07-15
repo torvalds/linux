@@ -5,7 +5,28 @@
 
 #include "adf_accel_devices.h"
 
+#if defined(CONFIG_PCI_IOV)
 void adf_pf2vf_notify_restarting(struct adf_accel_dev *accel_dev);
+void adf_pf2vf_wait_for_restarting_complete(struct adf_accel_dev *accel_dev);
+void adf_pf2vf_notify_restarted(struct adf_accel_dev *accel_dev);
+void adf_pf2vf_notify_fatal_error(struct adf_accel_dev *accel_dev);
+#else
+static inline void adf_pf2vf_notify_restarting(struct adf_accel_dev *accel_dev)
+{
+}
+
+static inline void adf_pf2vf_wait_for_restarting_complete(struct adf_accel_dev *accel_dev)
+{
+}
+
+static inline void adf_pf2vf_notify_restarted(struct adf_accel_dev *accel_dev)
+{
+}
+
+static inline void adf_pf2vf_notify_fatal_error(struct adf_accel_dev *accel_dev)
+{
+}
+#endif
 
 typedef int (*adf_pf2vf_blkmsg_provider)(struct adf_accel_dev *accel_dev,
 					 u8 *buffer, u8 compat);

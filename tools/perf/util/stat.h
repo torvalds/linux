@@ -48,6 +48,7 @@ enum aggr_mode {
 	AGGR_GLOBAL,
 	AGGR_SOCKET,
 	AGGR_DIE,
+	AGGR_CLUSTER,
 	AGGR_CACHE,
 	AGGR_CORE,
 	AGGR_THREAD,
@@ -76,7 +77,6 @@ struct perf_stat_config {
 	bool			 null_run;
 	bool			 ru_display;
 	bool			 big_num;
-	bool			 no_merge;
 	bool			 hybrid_merge;
 	bool			 walltime_run_table;
 	bool			 all_kernel;

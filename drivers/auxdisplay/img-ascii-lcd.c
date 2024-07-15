@@ -8,9 +8,9 @@
 #include <linux/io.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
-#include <linux/of_address.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
 
@@ -22,32 +22,30 @@ struct img_ascii_lcd_ctx;
  * struct img_ascii_lcd_config - Configuration information about an LCD model
  * @num_chars: the number of characters the LCD can display
  * @external_regmap: true if registers are in a system controller, else false
- * @update: function called to update the LCD
+ * @ops: character line display operations
  */
 struct img_ascii_lcd_config {
 	unsigned int num_chars;
 	bool external_regmap;
-	void (*update)(struct linedisp *linedisp);
+	const struct linedisp_ops ops;
 };
 
 /**
  * struct img_ascii_lcd_ctx - Private data structure
+ * @linedisp: line display structure
  * @base: the base address of the LCD registers
  * @regmap: the regmap through which LCD registers are accessed
  * @offset: the offset within regmap to the start of the LCD registers
  * @cfg: pointer to the LCD model configuration
- * @linedisp: line display structure
- * @curr: the string currently displayed on the LCD
  */
 struct img_ascii_lcd_ctx {
+	struct linedisp linedisp;
 	union {
 		void __iomem *base;
 		struct regmap *regmap;
 	};
 	u32 offset;
 	const struct img_ascii_lcd_config *cfg;
-	struct linedisp linedisp;
-	char curr[] __aligned(8);
 };
 
 /*
@@ -61,12 +59,12 @@ static void boston_update(struct linedisp *linedisp)
 	ulong val;
 
 #if BITS_PER_LONG == 64
-	val = *((u64 *)&ctx->curr[0]);
+	val = *((u64 *)&linedisp->buf[0]);
 	__raw_writeq(val, ctx->base);
 #elif BITS_PER_LONG == 32
-	val = *((u32 *)&ctx->curr[0]);
+	val = *((u32 *)&linedisp->buf[0]);
 	__raw_writel(val, ctx->base);
-	val = *((u32 *)&ctx->curr[4]);
+	val = *((u32 *)&linedisp->buf[4]);
 	__raw_writel(val, ctx->base + 4);
 #else
 # error Not 32 or 64 bit
@@ -75,7 +73,9 @@ static void boston_update(struct linedisp *linedisp)
 
 static struct img_ascii_lcd_config boston_config = {
 	.num_chars = 8,
-	.update = boston_update,
+	.ops = {
+		.update = boston_update,
+	},
 };
 
 /*
@@ -91,7 +91,7 @@ static void malta_update(struct linedisp *linedisp)
 
 	for (i = 0; i < linedisp->num_chars; i++) {
 		err = regmap_write(ctx->regmap,
-				   ctx->offset + (i * 8), ctx->curr[i]);
+				   ctx->offset + (i * 8), linedisp->buf[i]);
 		if (err)
 			break;
 	}
@@ -103,7 +103,9 @@ static void malta_update(struct linedisp *linedisp)
 static struct img_ascii_lcd_config malta_config = {
 	.num_chars = 8,
 	.external_regmap = true,
-	.update = malta_update,
+	.ops = {
+		.update = malta_update,
+	},
 };
 
 /*
@@ -191,7 +193,7 @@ static void sead3_update(struct linedisp *linedisp)
 
 		err = regmap_write(ctx->regmap,
 				   ctx->offset + SEAD3_REG_LCD_DATA,
-				   ctx->curr[i]);
+				   linedisp->buf[i]);
 		if (err)
 			break;
 	}
@@ -203,7 +205,9 @@ static void sead3_update(struct linedisp *linedisp)
 static struct img_ascii_lcd_config sead3_config = {
 	.num_chars = 16,
 	.external_regmap = true,
-	.update = sead3_update,
+	.ops = {
+		.update = sead3_update,
+	},
 };
 
 static const struct of_device_id img_ascii_lcd_matches[] = {
@@ -225,18 +229,12 @@ MODULE_DEVICE_TABLE(of, img_ascii_lcd_matches);
  */
 static int img_ascii_lcd_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *match;
-	const struct img_ascii_lcd_config *cfg;
 	struct device *dev = &pdev->dev;
+	const struct img_ascii_lcd_config *cfg = device_get_match_data(dev);
 	struct img_ascii_lcd_ctx *ctx;
 	int err;
 
-	match = of_match_device(img_ascii_lcd_matches, dev);
-	if (!match)
-		return -ENODEV;
-
-	cfg = match->data;
-	ctx = devm_kzalloc(dev, sizeof(*ctx) + cfg->num_chars, GFP_KERNEL);
+	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
 
@@ -253,8 +251,7 @@ static int img_ascii_lcd_probe(struct platform_device *pdev)
 			return PTR_ERR(ctx->base);
 	}
 
-	err = linedisp_register(&ctx->linedisp, dev, cfg->num_chars, ctx->curr,
-				cfg->update);
+	err = linedisp_register(&ctx->linedisp, dev, cfg->num_chars, &cfg->ops);
 	if (err)
 		return err;
 
@@ -279,16 +276,13 @@ err_unregister:
  *
  * Remove an LCD display device, freeing private resources & ensuring that the
  * driver stops using the LCD display registers.
- *
- * Return: 0
  */
-static int img_ascii_lcd_remove(struct platform_device *pdev)
+static void img_ascii_lcd_remove(struct platform_device *pdev)
 {
 	struct img_ascii_lcd_ctx *ctx = platform_get_drvdata(pdev);
 
 	sysfs_remove_link(&pdev->dev.kobj, "message");
 	linedisp_unregister(&ctx->linedisp);
-	return 0;
 }
 
 static struct platform_driver img_ascii_lcd_driver = {
@@ -297,10 +291,11 @@ static struct platform_driver img_ascii_lcd_driver = {
 		.of_match_table	= img_ascii_lcd_matches,
 	},
 	.probe	= img_ascii_lcd_probe,
-	.remove	= img_ascii_lcd_remove,
+	.remove_new = img_ascii_lcd_remove,
 };
 module_platform_driver(img_ascii_lcd_driver);
 
 MODULE_DESCRIPTION("Imagination Technologies ASCII LCD Display");
 MODULE_AUTHOR("Paul Burton <paul.burton@mips.com>");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(LINEDISP);

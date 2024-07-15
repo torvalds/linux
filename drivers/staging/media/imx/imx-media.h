@@ -192,8 +192,8 @@ static inline int imx_media_enum_ipu_formats(u32 *code, u32 index,
 int imx_media_init_mbus_fmt(struct v4l2_mbus_framefmt *mbus,
 			    u32 width, u32 height, u32 code, u32 field,
 			    const struct imx_media_pixfmt **cc);
-int imx_media_init_cfg(struct v4l2_subdev *sd,
-		       struct v4l2_subdev_state *sd_state);
+int imx_media_init_state(struct v4l2_subdev *sd,
+			 struct v4l2_subdev_state *sd_state);
 void imx_media_try_colorimetry(struct v4l2_mbus_framefmt *tryfmt,
 			       bool ic_route);
 int imx_media_mbus_fmt_to_pix_fmt(struct v4l2_pix_format *pix,

@@ -15,6 +15,7 @@
 	aliases {
 		serial3 = &uart4;
 		can = &hecc;
+		ethernet = &davinci_emac;
 	};
 
 	cpus {
@@ -34,14 +35,16 @@
 		 * appear to operate at 300MHz as well. Since AM3517 only
 		 * lists one operating voltage, it will remain fixed at 1.2V
 		 */
-		opp50-300000000 {
+		opp-50-300000000 {
+			/* OPP50 */
 			opp-hz = /bits/ 64 <300000000>;
 			opp-microvolt = <1200000>;
 			opp-supported-hw = <0xffffffff 0xffffffff>;
 			opp-suspend;
 		};
 
-		opp100-600000000 {
+		opp-100-600000000 {
+			/* OPP100 */
 			opp-hz = /bits/ 64 <600000000>;
 			opp-microvolt = <1200000>;
 			opp-supported-hw = <0xffffffff 0xffffffff>;
@@ -159,12 +162,13 @@
 			clock-names = "fck", "ick";
 			#address-cells = <1>;
 			#size-cells = <1>;
-			ranges = <0 0x50000000 0x4000>;
+			ranges = <0 0x50000000 0x10000>;
 
-			/*
-			 * Closed source PowerVR driver, no child device
-			 * binding or driver in mainline
-			 */
+			gpu@0 {
+				compatible = "ti,omap3430-gpu", "img,powervr-sgx530";
+				reg = <0x0 0x10000>; /* 64kB */
+				interrupts = <21>;
+			};
 		};
 	};
 };

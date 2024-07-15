@@ -18,11 +18,10 @@
 #include <linux/kernel.h>
 #include <linux/mfd/syscon.h>
 #include <linux/notifier.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
 #include <linux/of.h>
 #include <linux/platform_data/clk-davinci-pll.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
 #include <linux/types.h>
@@ -892,14 +891,11 @@ static int davinci_pll_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct davinci_pll_platform_data *pdata;
-	const struct of_device_id *of_id;
 	davinci_pll_init pll_init = NULL;
 	void __iomem *base;
 
-	of_id = of_match_device(davinci_pll_of_match, dev);
-	if (of_id)
-		pll_init = of_id->data;
-	else if (pdev->id_entry)
+	pll_init = device_get_match_data(dev);
+	if (!pll_init && pdev->id_entry)
 		pll_init = (void *)pdev->id_entry->driver_data;
 
 	if (!pll_init) {

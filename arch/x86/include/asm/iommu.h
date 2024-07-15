@@ -10,6 +10,7 @@ extern int force_iommu, no_iommu;
 extern int iommu_detected;
 extern int iommu_merge;
 extern int panic_on_overflow;
+extern bool amd_iommu_snp_en;
 
 #ifdef CONFIG_SWIOTLB
 extern bool x86_swiotlb_enable;

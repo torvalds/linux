@@ -1,16 +1,10 @@
 #!/bin/bash
 # perf metrics value validation
 # SPDX-License-Identifier: GPL-2.0
-if [ "x$PYTHON" == "x" ]
-then
-	if which python3 > /dev/null
-	then
-		PYTHON=python3
-	else
-		echo Skipping test, python3 not detected please set environment variable PYTHON.
-		exit 2
-	fi
-fi
+
+shelldir=$(dirname "$0")
+# shellcheck source=lib/setup_python.sh
+. "${shelldir}"/lib/setup_python.sh
 
 grep -q GenuineIntel /proc/cpuinfo || { echo Skipping non-Intel; exit 2; }
 
@@ -25,6 +19,8 @@ echo "Output will be stored in: $tmpdir"
 $PYTHON $pythonvalidator -rule $rulefile -output_dir $tmpdir -wl "${workload}"
 ret=$?
 rm -rf $tmpdir
-
+if [ $ret -ne 0 ]; then
+	echo "Metric validation return with erros. Please check metrics reported with errors."
+fi
 exit $ret
 

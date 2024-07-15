@@ -360,8 +360,6 @@ void atomisp_subdev_set_ffmt(struct v4l2_subdev *sd,
 			     uint32_t which,
 			     u32 pad, struct v4l2_mbus_framefmt *ffmt);
 
-int atomisp_update_run_mode(struct atomisp_sub_device *asd);
-
 void atomisp_subdev_cleanup_pending_events(struct atomisp_sub_device *asd);
 
 void atomisp_subdev_unregister_entities(struct atomisp_sub_device *asd);

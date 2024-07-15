@@ -357,7 +357,7 @@ static int am33xx_clkdm_save_context(struct clockdomain *clkdm)
 }
 
 /**
- * am33xx_restore_save_context - Restore the clockdomain transition context
+ * am33xx_clkdm_restore_context - Restore the clockdomain transition context
  * @clkdm: The clockdomain pointer whose context needs to be restored
  *
  * Restore the clockdomain transition context.

@@ -22,3 +22,23 @@
 	compatible = "samsung,e5", "qcom,msm8916";
 	chassis-type = "handset";
 };
+
+&blsp_i2c5 {
+	status = "okay";
+
+	touchscreen@48 {
+		compatible = "melfas,mms345l";
+		reg = <0x48>;
+
+		interrupts-extended = <&tlmm 13 IRQ_TYPE_EDGE_FALLING>;
+
+		touchscreen-size-x = <720>;
+		touchscreen-size-y = <1280>;
+
+		avdd-supply = <&reg_vdd_tsp_a>;
+		vdd-supply = <&pm8916_l6>;
+
+		pinctrl-0 = <&ts_int_default>;
+		pinctrl-names = "default";
+	};
+};

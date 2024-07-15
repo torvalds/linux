@@ -15,7 +15,6 @@
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/regmap.h>
 
 #include <linux/mfd/wm831x/core.h>
@@ -23,22 +22,15 @@
 
 static int wm831x_i2c_probe(struct i2c_client *i2c)
 {
-	const struct i2c_device_id *id = i2c_client_get_device_id(i2c);
 	struct wm831x_pdata *pdata = dev_get_platdata(&i2c->dev);
-	const struct of_device_id *of_id;
 	struct wm831x *wm831x;
 	enum wm831x_parent type;
 	int ret;
 
-	if (i2c->dev.of_node) {
-		of_id = of_match_device(wm831x_of_match, &i2c->dev);
-		if (!of_id) {
-			dev_err(&i2c->dev, "Failed to match device\n");
-			return -ENODEV;
-		}
-		type = (enum wm831x_parent)of_id->data;
-	} else {
-		type = (enum wm831x_parent)id->driver_data;
+	type = (uintptr_t)i2c_get_match_data(i2c);
+	if (!type) {
+		dev_err(&i2c->dev, "Failed to match device\n");
+		return -ENODEV;
 	}
 
 	wm831x = devm_kzalloc(&i2c->dev, sizeof(struct wm831x), GFP_KERNEL);

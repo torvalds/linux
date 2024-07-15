@@ -193,7 +193,6 @@ do {									\
 #ifndef smp_store_release
 #define smp_store_release(p, v)						\
 do {									\
-	compiletime_assert_atomic_type(*p);				\
 	barrier();							\
 	WRITE_ONCE(*p, v);						\
 } while (0)
@@ -203,7 +202,6 @@ do {									\
 #define smp_load_acquire(p)						\
 ({									\
 	__unqual_scalar_typeof(*p) ___p1 = READ_ONCE(*p);		\
-	compiletime_assert_atomic_type(*p);				\
 	barrier();							\
 	(typeof(*p))___p1;						\
 })
@@ -294,6 +292,14 @@ do {									\
  */
 #ifndef io_stop_wc
 #define io_stop_wc() do { } while (0)
+#endif
+
+/*
+ * Architectures that guarantee an implicit smp_mb() in switch_mm()
+ * can override smp_mb__after_switch_mm.
+ */
+#ifndef smp_mb__after_switch_mm
+# define smp_mb__after_switch_mm()	smp_mb()
 #endif
 
 #endif /* !__ASSEMBLY__ */

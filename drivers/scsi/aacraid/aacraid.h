@@ -1678,7 +1678,6 @@ struct aac_dev
 	u32			handle_pci_error;
 	bool			init_reset;
 	u8			soft_reset_support;
-	u8			use_map_queue;
 };
 
 #define aac_adapter_interrupt(dev) \

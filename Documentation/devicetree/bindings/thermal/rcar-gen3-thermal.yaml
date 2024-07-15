@@ -29,6 +29,7 @@ properties:
       - renesas,r8a779a0-thermal # R-Car V3U
       - renesas,r8a779f0-thermal # R-Car S4-8
       - renesas,r8a779g0-thermal # R-Car V4H
+      - renesas,r8a779h0-thermal # R-Car V4M
 
   reg: true
 
@@ -90,6 +91,7 @@ else:
             enum:
               - renesas,r8a779f0-thermal
               - renesas,r8a779g0-thermal
+              - renesas,r8a779h0-thermal
   then:
     required:
       - interrupts

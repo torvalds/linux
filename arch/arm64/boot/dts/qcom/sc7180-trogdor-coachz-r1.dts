@@ -24,8 +24,8 @@
 };
 
 &pm6150_adc {
-	/delete-node/ skin-temp-thermistor@4e;
-	/delete-node/ charger-thermistor@4f;
+	/delete-node/ channel@4e;
+	/delete-node/ channel@4f;
 };
 
 &pm6150_adc_tm {

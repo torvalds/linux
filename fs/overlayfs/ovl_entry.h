@@ -8,10 +8,12 @@
 struct ovl_config {
 	char *upperdir;
 	char *workdir;
+	char **lowerdirs;
 	bool default_permissions;
 	int redirect_mode;
+	int verity_mode;
 	bool index;
-	bool uuid;
+	int uuid;
 	bool nfs_export;
 	int xino;
 	bool metacopy;
@@ -38,16 +40,9 @@ struct ovl_layer {
 	int idx;
 	/* One fsid per unique underlying sb (upper fsid == 0) */
 	int fsid;
-	char *name;
+	/* xwhiteouts were found on this layer */
+	bool has_xwhiteouts;
 };
-
-/*
- * ovl_free_fs() relies on @mnt being the first member when unmounting
- * the private mounts created for each layer. Let's check both the
- * offset and type.
- */
-static_assert(offsetof(struct ovl_layer, mnt) == 0);
-static_assert(__same_type(typeof_member(struct ovl_layer, mnt), struct vfsmount *));
 
 struct ovl_path {
 	const struct ovl_layer *layer;
@@ -66,14 +61,12 @@ struct ovl_fs {
 	unsigned int numfs;
 	/* Number of data-only lower layers */
 	unsigned int numdatalayer;
-	const struct ovl_layer *layers;
+	struct ovl_layer *layers;
 	struct ovl_sb *fs;
 	/* workbasedir is the path at workdir= mount option */
 	struct dentry *workbasedir;
-	/* workdir is the 'work' directory under workbasedir */
+	/* workdir is the 'work' or 'index' directory under workbasedir */
 	struct dentry *workdir;
-	/* index directory listing overlay inodes by origin file handle */
-	struct dentry *indexdir;
 	long namelen;
 	/* pathnames of lower and upper dirs, for show_options */
 	struct ovl_config config;
@@ -81,13 +74,13 @@ struct ovl_fs {
 	const struct cred *creator_cred;
 	bool tmpfile;
 	bool noxattr;
+	bool nofh;
 	/* Did we take the inuse lock? */
 	bool upperdir_locked;
 	bool workdir_locked;
 	/* Traps in ovl inode cache */
 	struct inode *workbasedir_trap;
 	struct inode *workdir_trap;
-	struct inode *indexdir_trap;
 	/* -1: disabled, 0: same fs, 1..32: number of unused ino bits */
 	int xino_mode;
 	/* For allocation of non-persistent inode numbers */
@@ -115,8 +108,13 @@ static inline struct mnt_idmap *ovl_upper_mnt_idmap(struct ovl_fs *ofs)
 	return mnt_idmap(ovl_upper_mnt(ofs));
 }
 
+extern struct file_system_type ovl_fs_type;
+
 static inline struct ovl_fs *OVL_FS(struct super_block *sb)
 {
+	if (IS_ENABLED(CONFIG_OVERLAY_FS_DEBUG))
+		WARN_ON_ONCE(sb->s_type != &ovl_fs_type);
+
 	return (struct ovl_fs *)sb->s_fs_info;
 }
 

@@ -198,7 +198,7 @@ static void ath11k_tm_wmi_event_segmented(struct ath11k_base *ab, u32 cmd_id,
 	u16 length;
 	int ret;
 
-	tb = ath11k_wmi_tlv_parse_alloc(ab, skb->data, skb->len, GFP_ATOMIC);
+	tb = ath11k_wmi_tlv_parse_alloc(ab, skb, GFP_ATOMIC);
 	if (IS_ERR(tb)) {
 		ret = PTR_ERR(tb);
 		ath11k_warn(ab, "failed to parse ftm event tlv: %d\n", ret);
@@ -350,7 +350,7 @@ static int ath11k_tm_cmd_wmi(struct ath11k *ar, struct nlattr *tb[],
 	if (ar->ab->fw_mode != ATH11K_FIRMWARE_MODE_FTM &&
 	    (tag == WMI_TAG_VDEV_SET_PARAM_CMD || tag == WMI_TAG_UNIT_TEST_CMD)) {
 		if (vif) {
-			arvif = (struct ath11k_vif *)vif->drv_priv;
+			arvif = ath11k_vif_to_arvif(vif);
 			*ptr = arvif->vdev_id;
 		} else {
 			ret = -EINVAL;

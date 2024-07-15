@@ -390,14 +390,12 @@ irq_done:
 	return rc;
 }
 
-static int qcom_llcc_edac_remove(struct platform_device *pdev)
+static void qcom_llcc_edac_remove(struct platform_device *pdev)
 {
 	struct edac_device_ctl_info *edev_ctl = dev_get_drvdata(&pdev->dev);
 
 	edac_device_del_device(edev_ctl->dev);
 	edac_device_free_ctl_info(edev_ctl);
-
-	return 0;
 }
 
 static const struct platform_device_id qcom_llcc_edac_id_table[] = {
@@ -408,7 +406,7 @@ MODULE_DEVICE_TABLE(platform, qcom_llcc_edac_id_table);
 
 static struct platform_driver qcom_llcc_edac_driver = {
 	.probe = qcom_llcc_edac_probe,
-	.remove = qcom_llcc_edac_remove,
+	.remove_new = qcom_llcc_edac_remove,
 	.driver = {
 		.name = "qcom_llcc_edac",
 	},

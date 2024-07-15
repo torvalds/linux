@@ -193,8 +193,8 @@ data:
 	Asynchronous page fault (APF) control MSR.
 
 	Bits 63-6 hold 64-byte aligned physical address of a 64 byte memory area
-	which must be in guest RAM and must be zeroed. This memory is expected
-	to hold a copy of the following structure::
+	which must be in guest RAM. This memory is expected to hold the
+	following structure::
 
 	  struct kvm_vcpu_pv_apf_data {
 		/* Used for 'page not present' events delivered via #PF */
@@ -204,7 +204,6 @@ data:
 		__u32 token;
 
 		__u8 pad[56];
-		__u32 enabled;
 	  };
 
 	Bits 5-4 of the MSR are reserved and should be zero. Bit 0 is set to 1
@@ -232,14 +231,14 @@ data:
 	as regular page fault, guest must reset 'flags' to '0' before it does
 	something that can generate normal page fault.
 
-	Bytes 5-7 of 64 byte memory location ('token') will be written to by the
+	Bytes 4-7 of 64 byte memory location ('token') will be written to by the
 	hypervisor at the time of APF 'page ready' event injection. The content
-	of these bytes is a token which was previously delivered as 'page not
-	present' event. The event indicates the page in now available. Guest is
-	supposed to write '0' to 'token' when it is done handling 'page ready'
-	event and to write 1' to MSR_KVM_ASYNC_PF_ACK after clearing the location;
-	writing to the MSR forces KVM to re-scan its queue and deliver the next
-	pending notification.
+	of these bytes is a token which was previously delivered in CR2 as
+	'page not present' event. The event indicates the page is now available.
+	Guest is supposed to write '0' to 'token' when it is done handling
+	'page ready' event and to write '1' to MSR_KVM_ASYNC_PF_ACK after
+	clearing the location; writing to the MSR forces KVM to re-scan its
+	queue and deliver the next pending notification.
 
 	Note, MSR_KVM_ASYNC_PF_INT MSR specifying the interrupt vector for 'page
 	ready' APF delivery needs to be written to before enabling APF mechanism

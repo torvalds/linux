@@ -9,8 +9,6 @@
 #include <linux/acpi.h>
 #include <linux/cpuidle.h>
 #include <linux/cpu_pm.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/psci.h>
 
 #ifdef CONFIG_ACPI_PROCESSOR_IDLE

@@ -66,6 +66,8 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <setjmp.h>
+#include <syscall.h>
+#include <linux/sched.h>
 
 #include "kselftest.h"
 
@@ -79,6 +81,17 @@
 #ifndef TH_LOG_ENABLED
 #  define TH_LOG_ENABLED 1
 #endif
+
+/* Wait for the child process to end but without sharing memory mapping. */
+static inline pid_t clone3_vfork(void)
+{
+	struct clone_args args = {
+		.flags = CLONE_VFORK,
+		.exit_signal = SIGCHLD,
+	};
+
+	return syscall(__NR_clone3, &args, sizeof(args));
+}
 
 /**
  * TH_LOG()
@@ -95,14 +108,6 @@
  * E.g., #define TH_LOG_ENABLED 1
  *
  * If no definition is provided, logging is enabled by default.
- *
- * If there is no way to print an error message for the process running the
- * test (e.g. not allowed to write to stderr), it is still possible to get the
- * ASSERT_* number for which the test failed.  This behavior can be enabled by
- * writing `_metadata->no_print = true;` before the check sequence that is
- * unable to print.  When an error occur, instead of printing an error message
- * and calling `abort(3)`, the test process call `_exit(2)` with the assert
- * number as argument, which is then printed by the parent process.
  */
 #define TH_LOG(fmt, ...) do { \
 	if (TH_LOG_ENABLED) \
@@ -135,8 +140,7 @@
 		fprintf(TH_LOG_STREAM, "#      SKIP      %s\n", \
 			_metadata->results->reason); \
 	} \
-	_metadata->passed = 1; \
-	_metadata->skip = 1; \
+	_metadata->exit_code = KSFT_SKIP; \
 	_metadata->trigger = 0; \
 	statement; \
 } while (0)
@@ -290,6 +294,32 @@
  * A bare "return;" statement may be used to return early.
  */
 #define FIXTURE_TEARDOWN(fixture_name) \
+	static const bool fixture_name##_teardown_parent; \
+	__FIXTURE_TEARDOWN(fixture_name)
+
+/**
+ * FIXTURE_TEARDOWN_PARENT()
+ * *_metadata* is included so that EXPECT_*, ASSERT_* etc. work correctly.
+ *
+ * @fixture_name: fixture name
+ *
+ * .. code-block:: c
+ *
+ *     FIXTURE_TEARDOWN_PARENT(fixture_name) { implementation }
+ *
+ * Same as FIXTURE_TEARDOWN() but run this code in a parent process.  This
+ * enables the test process to drop its privileges without impacting the
+ * related FIXTURE_TEARDOWN_PARENT() (e.g. to remove files from a directory
+ * where write access was dropped).
+ *
+ * To make it possible for the parent process to use *self*, share (MAP_SHARED)
+ * the fixture data between all forked processes.
+ */
+#define FIXTURE_TEARDOWN_PARENT(fixture_name) \
+	static const bool fixture_name##_teardown_parent = true; \
+	__FIXTURE_TEARDOWN(fixture_name)
+
+#define __FIXTURE_TEARDOWN(fixture_name) \
 	void fixture_name##_teardown( \
 		struct __test_metadata __attribute__((unused)) *_metadata, \
 		FIXTURE_DATA(fixture_name) __attribute__((unused)) *self, \
@@ -334,7 +364,7 @@
  * variant.
  */
 #define FIXTURE_VARIANT_ADD(fixture_name, variant_name) \
-	extern FIXTURE_VARIANT(fixture_name) \
+	extern const FIXTURE_VARIANT(fixture_name) \
 		_##fixture_name##_##variant_name##_variant; \
 	static struct __fixture_variant_metadata \
 		_##fixture_name##_##variant_name##_object = \
@@ -346,7 +376,7 @@
 		__register_fixture_variant(&_##fixture_name##_fixture_object, \
 			&_##fixture_name##_##variant_name##_object);	\
 	} \
-	FIXTURE_VARIANT(fixture_name) \
+	const FIXTURE_VARIANT(fixture_name) \
 		_##fixture_name##_##variant_name##_variant =
 
 /**
@@ -363,6 +393,12 @@
  * Defines a test that depends on a fixture (e.g., is part of a test case).
  * Very similar to TEST() except that *self* is the setup instance of fixture's
  * datatype exposed for use by the implementation.
+ *
+ * The _metadata object is shared (MAP_SHARED) with all the potential forked
+ * processes, which enables them to use EXCEPT_*() and ASSERT_*().
+ *
+ * The *self* object is only shared with the potential forked processes if
+ * FIXTURE_TEARDOWN_PARENT() is used instead of FIXTURE_TEARDOWN().
  */
 #define TEST_F(fixture_name, test_name) \
 	__TEST_F_IMPL(fixture_name, test_name, -1, TEST_TIMEOUT_DEFAULT)
@@ -383,32 +419,71 @@
 		struct __fixture_variant_metadata *variant) \
 	{ \
 		/* fixture data is alloced, setup, and torn down per call. */ \
-		FIXTURE_DATA(fixture_name) self; \
-		memset(&self, 0, sizeof(FIXTURE_DATA(fixture_name))); \
-		if (setjmp(_metadata->env) == 0) { \
-			fixture_name##_setup(_metadata, &self, variant->data); \
-			/* Let setup failure terminate early. */ \
-                       if (!_metadata->passed || _metadata->skip) \
-				return; \
-			_metadata->setup_completed = true; \
-			fixture_name##_##test_name(_metadata, &self, variant->data); \
+		FIXTURE_DATA(fixture_name) self_private, *self = NULL; \
+		pid_t child = 1; \
+		int status = 0; \
+		/* Makes sure there is only one teardown, even when child forks again. */ \
+		bool *teardown = mmap(NULL, sizeof(*teardown), \
+			PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0); \
+		*teardown = false; \
+		if (sizeof(*self) > 0) { \
+			if (fixture_name##_teardown_parent) { \
+				self = mmap(NULL, sizeof(*self), PROT_READ | PROT_WRITE, \
+					MAP_SHARED | MAP_ANONYMOUS, -1, 0); \
+			} else { \
+				memset(&self_private, 0, sizeof(self_private)); \
+				self = &self_private; \
+			} \
 		} \
-		if (_metadata->setup_completed) \
-			fixture_name##_teardown(_metadata, &self, variant->data); \
+		if (setjmp(_metadata->env) == 0) { \
+			/* _metadata and potentially self are shared with all forks. */ \
+			child = clone3_vfork(); \
+			if (child == 0) { \
+				fixture_name##_setup(_metadata, self, variant->data); \
+				/* Let setup failure terminate early. */ \
+				if (_metadata->exit_code) \
+					_exit(0); \
+				_metadata->setup_completed = true; \
+				fixture_name##_##test_name(_metadata, self, variant->data); \
+			} else if (child < 0 || child != waitpid(child, &status, 0)) { \
+				ksft_print_msg("ERROR SPAWNING TEST GRANDCHILD\n"); \
+				_metadata->exit_code = KSFT_FAIL; \
+			} \
+		} \
+		if (child == 0) { \
+			if (_metadata->setup_completed && !fixture_name##_teardown_parent && \
+					__sync_bool_compare_and_swap(teardown, false, true)) \
+				fixture_name##_teardown(_metadata, self, variant->data); \
+			_exit(0); \
+		} \
+		if (_metadata->setup_completed && fixture_name##_teardown_parent && \
+				__sync_bool_compare_and_swap(teardown, false, true)) \
+			fixture_name##_teardown(_metadata, self, variant->data); \
+		munmap(teardown, sizeof(*teardown)); \
+		if (self && fixture_name##_teardown_parent) \
+			munmap(self, sizeof(*self)); \
+		if (WIFEXITED(status)) { \
+			if (WEXITSTATUS(status)) \
+				_metadata->exit_code = WEXITSTATUS(status); \
+		} else if (WIFSIGNALED(status)) { \
+			/* Forward signal to __wait_for_test(). */ \
+			kill(getpid(), WTERMSIG(status)); \
+		} \
 		__test_check_assert(_metadata); \
 	} \
-	static struct __test_metadata \
-		      _##fixture_name##_##test_name##_object = { \
-		.name = #test_name, \
-		.fn = &wrapper_##fixture_name##_##test_name, \
-		.fixture = &_##fixture_name##_fixture_object, \
-		.termsig = signal, \
-		.timeout = tmout, \
-	 }; \
+	static struct __test_metadata *_##fixture_name##_##test_name##_object; \
 	static void __attribute__((constructor)) \
 			_register_##fixture_name##_##test_name(void) \
 	{ \
-		__register_test(&_##fixture_name##_##test_name##_object); \
+		struct __test_metadata *object = mmap(NULL, sizeof(*object), \
+			PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0); \
+		object->name = #test_name; \
+		object->fn = &wrapper_##fixture_name##_##test_name; \
+		object->fixture = &_##fixture_name##_fixture_object; \
+		object->termsig = signal; \
+		object->timeout = tmout; \
+		_##fixture_name##_##test_name##_object = object; \
+		__register_test(object); \
 	} \
 	static void fixture_name##_##test_name( \
 		struct __test_metadata __attribute__((unused)) *_metadata, \
@@ -694,18 +769,12 @@
 	for (; _metadata->trigger; _metadata->trigger = \
 			__bail(_assert, _metadata))
 
-#define __INC_STEP(_metadata) \
-	/* Keep "step" below 255 (which is used for "SKIP" reporting). */	\
-	if (_metadata->passed && _metadata->step < 253) \
-		_metadata->step++;
-
 #define is_signed_type(var)       (!!(((__typeof__(var))(-1)) < (__typeof__(var))1))
 
 #define __EXPECT(_expected, _expected_str, _seen, _seen_str, _t, _assert) do { \
 	/* Avoid multiple evaluation of the cases */ \
 	__typeof__(_expected) __exp = (_expected); \
 	__typeof__(_seen) __seen = (_seen); \
-	if (_assert) __INC_STEP(_metadata); \
 	if (!(__exp _t __seen)) { \
 		/* Report with actual signedness to avoid weird output. */ \
 		switch (is_signed_type(__exp) * 2 + is_signed_type(__seen)) { \
@@ -742,7 +811,7 @@
 			break; \
 			} \
 		} \
-		_metadata->passed = 0; \
+		_metadata->exit_code = KSFT_FAIL; \
 		/* Ensure the optional handler is triggered */ \
 		_metadata->trigger = 1; \
 	} \
@@ -751,10 +820,9 @@
 #define __EXPECT_STR(_expected, _seen, _t, _assert) do { \
 	const char *__exp = (_expected); \
 	const char *__seen = (_seen); \
-	if (_assert) __INC_STEP(_metadata); \
 	if (!(strcmp(__exp, __seen) _t 0))  { \
 		__TH_LOG("Expected '%s' %s '%s'.", __exp, #_t, __seen); \
-		_metadata->passed = 0; \
+		_metadata->exit_code = KSFT_FAIL; \
 		_metadata->trigger = 1; \
 	} \
 } while (0); OPTIONAL_HANDLER(_assert)
@@ -800,6 +868,38 @@ struct __fixture_metadata {
 	.prev = &_fixture_global,
 };
 
+struct __test_xfail {
+	struct __fixture_metadata *fixture;
+	struct __fixture_variant_metadata *variant;
+	struct __test_metadata *test;
+	struct __test_xfail *prev, *next;
+};
+
+/**
+ * XFAIL_ADD() - mark variant + test case combination as expected to fail
+ * @fixture_name: name of the fixture
+ * @variant_name: name of the variant
+ * @test_name: name of the test case
+ *
+ * Mark a combination of variant + test case for a given fixture as expected
+ * to fail. Tests marked this way will report XPASS / XFAIL return codes,
+ * instead of PASS / FAIL,and use respective counters.
+ */
+#define XFAIL_ADD(fixture_name, variant_name, test_name) \
+	static struct __test_xfail \
+		_##fixture_name##_##variant_name##_##test_name##_xfail = \
+	{ \
+		.fixture = &_##fixture_name##_fixture_object, \
+		.variant = &_##fixture_name##_##variant_name##_object, \
+	}; \
+	static void __attribute__((constructor)) \
+		_register_##fixture_name##_##variant_name##_##test_name##_xfail(void) \
+	{ \
+		_##fixture_name##_##variant_name##_##test_name##_xfail.test = \
+			_##fixture_name##_##test_name##_object; \
+		__register_xfail(&_##fixture_name##_##variant_name##_##test_name##_xfail); \
+	}
+
 static struct __fixture_metadata *__fixture_list = &_fixture_global;
 static int __constructor_order;
 
@@ -814,6 +914,7 @@ static inline void __register_fixture(struct __fixture_metadata *f)
 struct __fixture_variant_metadata {
 	const char *name;
 	const void *data;
+	struct __test_xfail *xfails;
 	struct __fixture_variant_metadata *prev, *next;
 };
 
@@ -832,19 +933,22 @@ struct __test_metadata {
 	pid_t pid;	/* pid of test when being run */
 	struct __fixture_metadata *fixture;
 	int termsig;
-	int passed;
-	int skip;	/* did SKIP get used? */
+	int exit_code;
 	int trigger; /* extra handler after the evaluation */
 	int timeout;	/* seconds to wait for test timeout */
 	bool timed_out;	/* did this test timeout instead of exiting? */
-	__u8 step;
-	bool no_print; /* manual trigger when TH_LOG_STREAM is not available */
 	bool aborted;	/* stopped test due to failed ASSERT */
 	bool setup_completed; /* did setup finish? */
 	jmp_buf env;	/* for exiting out of test early */
 	struct __test_results *results;
 	struct __test_metadata *prev, *next;
 };
+
+static inline bool __test_passed(struct __test_metadata *metadata)
+{
+	return metadata->exit_code != KSFT_FAIL &&
+	       metadata->exit_code <= KSFT_SKIP;
+}
 
 /*
  * Since constructors are called in reverse order, reverse the test
@@ -860,6 +964,11 @@ static inline void __register_test(struct __test_metadata *t)
 	__LIST_APPEND(t->fixture->tests, t);
 }
 
+static inline void __register_xfail(struct __test_xfail *xf)
+{
+	__LIST_APPEND(xf->variant->xfails, xf);
+}
+
 static inline int __bail(int for_realz, struct __test_metadata *t)
 {
 	/* if this is ASSERT, return immediately. */
@@ -873,11 +982,8 @@ static inline int __bail(int for_realz, struct __test_metadata *t)
 
 static inline void __test_check_assert(struct __test_metadata *t)
 {
-	if (t->aborted) {
-		if (t->no_print)
-			_exit(t->step);
+	if (t->aborted)
 		abort();
-	}
 }
 
 struct __test_metadata *__active_test;
@@ -913,7 +1019,7 @@ void __wait_for_test(struct __test_metadata *t)
 	int status;
 
 	if (sigaction(SIGALRM, &action, &saved_action)) {
-		t->passed = 0;
+		t->exit_code = KSFT_FAIL;
 		fprintf(TH_LOG_STREAM,
 			"# %s: unable to install SIGALRM handler\n",
 			t->name);
@@ -925,7 +1031,7 @@ void __wait_for_test(struct __test_metadata *t)
 	waitpid(t->pid, &status, 0);
 	alarm(0);
 	if (sigaction(SIGALRM, &saved_action, NULL)) {
-		t->passed = 0;
+		t->exit_code = KSFT_FAIL;
 		fprintf(TH_LOG_STREAM,
 			"# %s: unable to uninstall SIGALRM handler\n",
 			t->name);
@@ -934,12 +1040,16 @@ void __wait_for_test(struct __test_metadata *t)
 	__active_test = NULL;
 
 	if (t->timed_out) {
-		t->passed = 0;
+		t->exit_code = KSFT_FAIL;
 		fprintf(TH_LOG_STREAM,
 			"# %s: Test terminated by timeout\n", t->name);
 	} else if (WIFEXITED(status)) {
-		if (t->termsig != -1) {
-			t->passed = 0;
+		if (WEXITSTATUS(status) == KSFT_SKIP ||
+		    WEXITSTATUS(status) == KSFT_XPASS ||
+		    WEXITSTATUS(status) == KSFT_XFAIL) {
+			t->exit_code = WEXITSTATUS(status);
+		} else if (t->termsig != -1) {
+			t->exit_code = KSFT_FAIL;
 			fprintf(TH_LOG_STREAM,
 				"# %s: Test exited normally instead of by signal (code: %d)\n",
 				t->name,
@@ -947,31 +1057,25 @@ void __wait_for_test(struct __test_metadata *t)
 		} else {
 			switch (WEXITSTATUS(status)) {
 			/* Success */
-			case 0:
-				t->passed = 1;
+			case KSFT_PASS:
+				t->exit_code = KSFT_PASS;
 				break;
-			/* SKIP */
-			case 255:
-				t->passed = 1;
-				t->skip = 1;
-				break;
-			/* Other failure, assume step report. */
+			/* Failure */
 			default:
-				t->passed = 0;
+				t->exit_code = KSFT_FAIL;
 				fprintf(TH_LOG_STREAM,
-					"# %s: Test failed at step #%d\n",
-					t->name,
-					WEXITSTATUS(status));
+					"# %s: Test failed\n",
+					t->name);
 			}
 		}
 	} else if (WIFSIGNALED(status)) {
-		t->passed = 0;
+		t->exit_code = KSFT_FAIL;
 		if (WTERMSIG(status) == SIGABRT) {
 			fprintf(TH_LOG_STREAM,
 				"# %s: Test terminated by assertion\n",
 				t->name);
 		} else if (WTERMSIG(status) == t->termsig) {
-			t->passed = 1;
+			t->exit_code = KSFT_PASS;
 		} else {
 			fprintf(TH_LOG_STREAM,
 				"# %s: Test terminated unexpectedly by signal %d\n",
@@ -1111,47 +1215,62 @@ void __run_test(struct __fixture_metadata *f,
 		struct __fixture_variant_metadata *variant,
 		struct __test_metadata *t)
 {
+	struct __test_xfail *xfail;
+	char *test_name;
+	const char *diagnostic;
+
 	/* reset test struct */
-	t->passed = 1;
-	t->skip = 0;
+	t->exit_code = KSFT_PASS;
 	t->trigger = 0;
-	t->step = 1;
-	t->no_print = 0;
+	t->aborted = false;
+	t->setup_completed = false;
+	memset(t->env, 0, sizeof(t->env));
 	memset(t->results->reason, 0, sizeof(t->results->reason));
 
-	ksft_print_msg(" RUN           %s%s%s.%s ...\n",
-	       f->name, variant->name[0] ? "." : "", variant->name, t->name);
+	if (asprintf(&test_name, "%s%s%s.%s", f->name,
+		variant->name[0] ? "." : "", variant->name, t->name) == -1) {
+		ksft_print_msg("ERROR ALLOCATING MEMORY\n");
+		t->exit_code = KSFT_FAIL;
+		_exit(t->exit_code);
+	}
+
+	ksft_print_msg(" RUN           %s ...\n", test_name);
 
 	/* Make sure output buffers are flushed before fork */
 	fflush(stdout);
 	fflush(stderr);
 
-	t->pid = fork();
+	t->pid = clone3_vfork();
 	if (t->pid < 0) {
 		ksft_print_msg("ERROR SPAWNING TEST CHILD\n");
-		t->passed = 0;
+		t->exit_code = KSFT_FAIL;
 	} else if (t->pid == 0) {
 		setpgrp();
 		t->fn(t, variant);
-		if (t->skip)
-			_exit(255);
-		/* Pass is exit 0 */
-		if (t->passed)
-			_exit(0);
-		/* Something else happened, report the step. */
-		_exit(t->step);
+		_exit(t->exit_code);
 	} else {
 		__wait_for_test(t);
 	}
-	ksft_print_msg("         %4s  %s%s%s.%s\n", t->passed ? "OK" : "FAIL",
-	       f->name, variant->name[0] ? "." : "", variant->name, t->name);
+	ksft_print_msg("         %4s  %s\n",
+		       __test_passed(t) ? "OK" : "FAIL", test_name);
 
-	if (t->skip)
-		ksft_test_result_skip("%s\n", t->results->reason[0] ?
-					t->results->reason : "unknown");
+	/* Check if we're expecting this test to fail */
+	for (xfail = variant->xfails; xfail; xfail = xfail->next)
+		if (xfail->test == t)
+			break;
+	if (xfail)
+		t->exit_code = __test_passed(t) ? KSFT_XPASS : KSFT_XFAIL;
+
+	if (t->results->reason[0])
+		diagnostic = t->results->reason;
+	else if (t->exit_code == KSFT_PASS || t->exit_code == KSFT_FAIL)
+		diagnostic = NULL;
 	else
-		ksft_test_result(t->passed, "%s%s%s.%s\n",
-			f->name, variant->name[0] ? "." : "", variant->name, t->name);
+		diagnostic = "unknown";
+
+	ksft_test_result_code(t->exit_code, test_name,
+			      diagnostic ? "%s" : NULL, diagnostic);
+	free(test_name);
 }
 
 static int test_harness_run(int argc, char **argv)
@@ -1199,7 +1318,7 @@ static int test_harness_run(int argc, char **argv)
 				t->results = results;
 				__run_test(f, v, t);
 				t->results = NULL;
-				if (t->passed)
+				if (__test_passed(t))
 					pass_count++;
 				else
 					ret = 1;

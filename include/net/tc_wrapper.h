@@ -4,7 +4,7 @@
 
 #include <net/pkt_cls.h>
 
-#if IS_ENABLED(CONFIG_RETPOLINE)
+#if IS_ENABLED(CONFIG_MITIGATION_RETPOLINE)
 
 #include <linux/cpufeature.h>
 #include <linux/static_key.h>
@@ -116,10 +116,6 @@ static inline int tc_act(struct sk_buff *skb, const struct tc_action *a,
 #if IS_BUILTIN(CONFIG_NET_ACT_IFE)
 	if (a->ops->act == tcf_ife_act)
 		return tcf_ife_act(skb, a, res);
-#endif
-#if IS_BUILTIN(CONFIG_NET_ACT_IPT)
-	if (a->ops->act == tcf_ipt_act)
-		return tcf_ipt_act(skb, a, res);
 #endif
 #if IS_BUILTIN(CONFIG_NET_ACT_SIMP)
 	if (a->ops->act == tcf_simp_act)

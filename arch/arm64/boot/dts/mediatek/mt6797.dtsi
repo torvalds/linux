@@ -117,7 +117,7 @@
 		#clock-cells = <1>;
 	};
 
-	infrasys: infracfg_ao@10001000 {
+	infrasys: syscon@10001000 {
 		compatible = "mediatek,mt6797-infracfg", "syscon";
 		reg = <0 0x10001000 0 0x1000>;
 		#clock-cells = <1>;
@@ -452,19 +452,19 @@
 		#clock-cells = <1>;
 	};
 
-	imgsys: imgsys_config@15000000  {
+	imgsys: syscon@15000000  {
 		compatible = "mediatek,mt6797-imgsys", "syscon";
 		reg = <0 0x15000000 0 0x1000>;
 		#clock-cells = <1>;
 	};
 
-	vdecsys: vdec_gcon@16000000 {
+	vdecsys: syscon@16000000 {
 		compatible = "mediatek,mt6797-vdecsys", "syscon";
 		reg = <0 0x16000000 0 0x10000>;
 		#clock-cells = <1>;
 	};
 
-	vencsys: venc_gcon@17000000 {
+	vencsys: syscon@17000000 {
 		compatible = "mediatek,mt6797-vencsys", "syscon";
 		reg = <0 0x17000000 0 0x1000>;
 		#clock-cells = <1>;

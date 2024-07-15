@@ -18,6 +18,12 @@
 #define PHY_ID_ADIN1110				0x0283bc91
 #define PHY_ID_ADIN2111				0x0283bca1
 
+#define ADIN_PHY_SUBSYS_IRQ_MASK		0x0021
+#define   ADIN_LINK_STAT_CHNG_IRQ_EN		BIT(1)
+
+#define ADIN_PHY_SUBSYS_IRQ_STATUS		0x0011
+#define   ADIN_LINK_STAT_CHNG			BIT(1)
+
 #define ADIN_FORCED_MODE			0x8000
 #define   ADIN_FORCED_MODE_EN			BIT(0)
 
@@ -134,6 +140,53 @@ static int adin_config_aneg(struct phy_device *phydev)
 	}
 
 	return genphy_c45_config_aneg(phydev);
+}
+
+static int adin_phy_ack_intr(struct phy_device *phydev)
+{
+	/* Clear pending interrupts */
+	int rc = phy_read_mmd(phydev, MDIO_MMD_VEND2,
+			      ADIN_PHY_SUBSYS_IRQ_STATUS);
+
+	return rc < 0 ? rc : 0;
+}
+
+static int adin_config_intr(struct phy_device *phydev)
+{
+	u16 irq_mask;
+	int ret;
+
+	ret = adin_phy_ack_intr(phydev);
+	if (ret)
+		return ret;
+
+	if (phydev->interrupts == PHY_INTERRUPT_ENABLED)
+		irq_mask = ADIN_LINK_STAT_CHNG_IRQ_EN;
+	else
+		irq_mask = 0;
+
+	return phy_modify_mmd(phydev, MDIO_MMD_VEND2,
+			      ADIN_PHY_SUBSYS_IRQ_MASK,
+			      ADIN_LINK_STAT_CHNG_IRQ_EN, irq_mask);
+}
+
+static irqreturn_t adin_phy_handle_interrupt(struct phy_device *phydev)
+{
+	int irq_status;
+
+	irq_status = phy_read_mmd(phydev, MDIO_MMD_VEND2,
+				  ADIN_PHY_SUBSYS_IRQ_STATUS);
+	if (irq_status < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+
+	if (!(irq_status & ADIN_LINK_STAT_CHNG))
+		return IRQ_NONE;
+
+	phy_trigger_machine(phydev);
+
+	return IRQ_HANDLED;
 }
 
 static int adin_set_powerdown_mode(struct phy_device *phydev, bool en)
@@ -275,6 +328,8 @@ static struct phy_driver adin_driver[] = {
 		.probe			= adin_probe,
 		.config_aneg		= adin_config_aneg,
 		.read_status		= adin_read_status,
+		.config_intr		= adin_config_intr,
+		.handle_interrupt	= adin_phy_handle_interrupt,
 		.set_loopback		= adin_set_loopback,
 		.suspend		= adin_suspend,
 		.resume			= adin_resume,

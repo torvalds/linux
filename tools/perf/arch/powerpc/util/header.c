@@ -34,7 +34,7 @@ get_cpuid_str(struct perf_pmu *pmu __maybe_unused)
 {
 	char *bufp;
 
-	if (asprintf(&bufp, "%.8lx", mfspr(SPRN_PVR)) < 0)
+	if (asprintf(&bufp, "0x%.8lx", mfspr(SPRN_PVR)) < 0)
 		bufp = NULL;
 
 	return bufp;

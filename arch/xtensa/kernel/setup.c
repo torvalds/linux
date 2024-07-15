@@ -19,7 +19,6 @@
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/proc_fs.h>
-#include <linux/screen_info.h>
 #include <linux/kernel.h>
 #include <linux/percpu.h>
 #include <linux/reboot.h>
@@ -48,17 +47,6 @@
 #include <asm/sysmem.h>
 #include <asm/timex.h>
 #include <asm/traps.h>
-
-#if defined(CONFIG_VGA_CONSOLE) || defined(CONFIG_DUMMY_CONSOLE)
-struct screen_info screen_info = {
-	.orig_x = 0,
-	.orig_y = 24,
-	.orig_video_cols = 80,
-	.orig_video_lines = 24,
-	.orig_video_isVGA = 1,
-	.orig_video_points = 16,
-};
-#endif
 
 #ifdef CONFIG_BLK_DEV_INITRD
 extern unsigned long initrd_start;
@@ -311,6 +299,9 @@ void __init setup_arch(char **cmdline_p)
 
 	mem_reserve(__pa(_stext), __pa(_end));
 #ifdef CONFIG_XIP_KERNEL
+#ifdef CONFIG_VECTORS_ADDR
+	mem_reserve(__pa(_xip_text_start), __pa(_xip_text_end));
+#endif
 	mem_reserve(__pa(_xip_start), __pa(_xip_end));
 #endif
 

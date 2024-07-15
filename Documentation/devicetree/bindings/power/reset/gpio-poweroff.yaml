@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: (GPL-2.0-only or BSD-2-Clause)
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 %YAML 1.2
 ---
 $id: http://devicetree.org/schemas/power/reset/gpio-poweroff.yaml#
@@ -17,6 +17,9 @@ description: >
   delay (inactive-delay-ms) it is configured as active again.
   Finally the operating system assumes the power off failed if
   the system is still running after waiting some time (timeout-ms).
+
+allOf:
+  - $ref: restart-handler.yaml#
 
 properties:
   compatible:
@@ -39,6 +42,9 @@ properties:
   inactive-delay-ms:
     default: 100
     description: Delay to wait after driving gpio inactive
+
+  priority:
+    default: 0
 
   timeout-ms:
     default: 3000

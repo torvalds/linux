@@ -98,9 +98,4 @@ typedef bool fq_skb_filter_t(struct fq *,
 			     struct sk_buff *,
 			     void *);
 
-typedef struct fq_flow *fq_flow_get_default_t(struct fq *,
-					      struct fq_tin *,
-					      int idx,
-					      struct sk_buff *);
-
 #endif

@@ -226,22 +226,6 @@ struct bfa_fcxp_wqe_s {
 
 void	bfa_fcxp_isr(struct bfa_s *bfa, struct bfi_msg_s *msg);
 
-
-/*
- * RPORT related defines
- */
-enum bfa_rport_event {
-	BFA_RPORT_SM_CREATE	= 1,	/*  rport create event          */
-	BFA_RPORT_SM_DELETE	= 2,	/*  deleting an existing rport  */
-	BFA_RPORT_SM_ONLINE	= 3,	/*  rport is online             */
-	BFA_RPORT_SM_OFFLINE	= 4,	/*  rport is offline            */
-	BFA_RPORT_SM_FWRSP	= 5,	/*  firmware response           */
-	BFA_RPORT_SM_HWFAIL	= 6,	/*  IOC h/w failure             */
-	BFA_RPORT_SM_QOS_SCN	= 7,	/*  QoS SCN from firmware       */
-	BFA_RPORT_SM_SET_SPEED	= 8,	/*  Set Rport Speed             */
-	BFA_RPORT_SM_QRESUME	= 9,	/*  space in requeue queue      */
-};
-
 #define BFA_RPORT_MIN	4
 
 struct bfa_rport_mod_s {
@@ -285,11 +269,29 @@ struct bfa_rport_info_s {
 };
 
 /*
+ * RPORT related defines
+ */
+enum bfa_rport_event {
+	BFA_RPORT_SM_CREATE	= 1,	/*  rport create event          */
+	BFA_RPORT_SM_DELETE	= 2,	/*  deleting an existing rport  */
+	BFA_RPORT_SM_ONLINE	= 3,	/*  rport is online             */
+	BFA_RPORT_SM_OFFLINE	= 4,	/*  rport is offline            */
+	BFA_RPORT_SM_FWRSP	= 5,	/*  firmware response           */
+	BFA_RPORT_SM_HWFAIL	= 6,	/*  IOC h/w failure             */
+	BFA_RPORT_SM_QOS_SCN	= 7,	/*  QoS SCN from firmware       */
+	BFA_RPORT_SM_SET_SPEED	= 8,	/*  Set Rport Speed             */
+	BFA_RPORT_SM_QRESUME	= 9,	/*  space in requeue queue      */
+};
+
+struct bfa_rport_s;
+typedef void (*bfa_rport_sm_t)(struct bfa_rport_s *, enum bfa_rport_event);
+
+/*
  * BFA rport data structure
  */
 struct bfa_rport_s {
 	struct list_head	qe;	/*  queue element		    */
-	bfa_sm_t	sm;		/*  state machine		    */
+	bfa_rport_sm_t	sm;		/*  state machine		    */
 	struct bfa_s	*bfa;		/*  backpointer to BFA		    */
 	void		*rport_drv;	/*  fcs/driver rport object	    */
 	u16	fw_handle;	/*  firmware rport handle	    */
@@ -378,12 +380,30 @@ void	bfa_uf_isr(struct bfa_s *bfa, struct bfi_msg_s *msg);
 void	bfa_uf_res_recfg(struct bfa_s *bfa, u16 num_uf_fw);
 
 /*
+ *  lps_pvt BFA LPS private functions
+ */
+
+enum bfa_lps_event {
+	BFA_LPS_SM_LOGIN	= 1,	/* login request from user      */
+	BFA_LPS_SM_LOGOUT	= 2,	/* logout request from user     */
+	BFA_LPS_SM_FWRSP	= 3,	/* f/w response to login/logout */
+	BFA_LPS_SM_RESUME	= 4,	/* space present in reqq queue  */
+	BFA_LPS_SM_DELETE	= 5,	/* lps delete from user         */
+	BFA_LPS_SM_OFFLINE	= 6,	/* Link is offline              */
+	BFA_LPS_SM_RX_CVL	= 7,	/* Rx clear virtual link        */
+	BFA_LPS_SM_SET_N2N_PID  = 8,	/* Set assigned PID for n2n */
+};
+
+struct bfa_lps_s;
+typedef void (*bfa_lps_sm_t)(struct bfa_lps_s *, enum bfa_lps_event);
+
+/*
  * LPS - bfa lport login/logout service interface
  */
 struct bfa_lps_s {
 	struct list_head	qe;	/*  queue element		*/
 	struct bfa_s	*bfa;		/*  parent bfa instance	*/
-	bfa_sm_t	sm;		/*  finite state machine	*/
+	bfa_lps_sm_t	sm;		/*  finite state machine	*/
 	u8		bfa_tag;	/*  lport tag		*/
 	u8		fw_tag;		/*  lport fw tag                */
 	u8		reqq;		/*  lport request queue	*/
@@ -440,11 +460,24 @@ void	bfa_lps_isr(struct bfa_s *bfa, struct bfi_msg_s *msg);
 #define BFA_FCPORT(_bfa)	(&((_bfa)->modules.port))
 
 /*
+ * BFA port link notification state machine events
+ */
+
+enum bfa_fcport_ln_sm_event {
+	BFA_FCPORT_LN_SM_LINKUP		= 1,	/*  linkup event	*/
+	BFA_FCPORT_LN_SM_LINKDOWN	= 2,	/*  linkdown event	*/
+	BFA_FCPORT_LN_SM_NOTIFICATION	= 3	/*  done notification	*/
+};
+
+struct bfa_fcport_ln_s;
+typedef void (*bfa_fcport_ln_sm_t)(struct bfa_fcport_ln_s *, enum bfa_fcport_ln_sm_event);
+
+/*
  * Link notification data structure
  */
 struct bfa_fcport_ln_s {
 	struct bfa_fcport_s	*fcport;
-	bfa_sm_t		sm;
+	bfa_fcport_ln_sm_t	sm;
 	struct bfa_cb_qe_s	ln_qe;	/*  BFA callback queue elem for ln */
 	enum bfa_port_linkstate ln_event; /*  ln event for callback */
 };
@@ -454,11 +487,34 @@ struct bfa_fcport_trunk_s {
 };
 
 /*
+ * BFA port state machine events
+ */
+enum bfa_fcport_sm_event {
+	BFA_FCPORT_SM_START	= 1,	/*  start port state machine	*/
+	BFA_FCPORT_SM_STOP	= 2,	/*  stop port state machine	*/
+	BFA_FCPORT_SM_ENABLE	= 3,	/*  enable port		*/
+	BFA_FCPORT_SM_DISABLE	= 4,	/*  disable port state machine */
+	BFA_FCPORT_SM_FWRSP	= 5,	/*  firmware enable/disable rsp */
+	BFA_FCPORT_SM_LINKUP	= 6,	/*  firmware linkup event	*/
+	BFA_FCPORT_SM_LINKDOWN	= 7,	/*  firmware linkup down	*/
+	BFA_FCPORT_SM_QRESUME	= 8,	/*  CQ space available	*/
+	BFA_FCPORT_SM_HWFAIL	= 9,	/*  IOC h/w failure		*/
+	BFA_FCPORT_SM_DPORTENABLE = 10, /*  enable dport      */
+	BFA_FCPORT_SM_DPORTDISABLE = 11,/*  disable dport     */
+	BFA_FCPORT_SM_FAA_MISCONFIG = 12,	/* FAA misconfiguratin */
+	BFA_FCPORT_SM_DDPORTENABLE  = 13,	/* enable ddport	*/
+	BFA_FCPORT_SM_DDPORTDISABLE = 14,	/* disable ddport	*/
+};
+
+struct bfa_fcport_s;
+typedef void (*bfa_fcport_sm_t)(struct bfa_fcport_s *, enum bfa_fcport_sm_event);
+
+/*
  * BFA FC port data structure
  */
 struct bfa_fcport_s {
 	struct bfa_s		*bfa;	/*  parent BFA instance */
-	bfa_sm_t		sm;	/*  port state machine */
+	bfa_fcport_sm_t		sm;	/*  port state machine */
 	wwn_t			nwwn;	/*  node wwn of physical port */
 	wwn_t			pwwn;	/*  port wwn of physical oprt */
 	enum bfa_port_speed speed_sup;
@@ -706,9 +762,26 @@ struct bfa_fcdiag_lb_s {
 	u32        status;
 };
 
+/*
+ * BFA DPORT state machine events
+ */
+enum bfa_dport_sm_event {
+	BFA_DPORT_SM_ENABLE	= 1,	/* dport enable event         */
+	BFA_DPORT_SM_DISABLE    = 2,    /* dport disable event        */
+	BFA_DPORT_SM_FWRSP      = 3,    /* fw enable/disable rsp      */
+	BFA_DPORT_SM_QRESUME    = 4,    /* CQ space available         */
+	BFA_DPORT_SM_HWFAIL     = 5,    /* IOC h/w failure            */
+	BFA_DPORT_SM_START	= 6,	/* re-start dport test        */
+	BFA_DPORT_SM_REQFAIL	= 7,	/* request failure            */
+	BFA_DPORT_SM_SCN	= 8,	/* state change notify frm fw */
+};
+
+struct bfa_dport_s;
+typedef void (*bfa_dport_sm_t)(struct bfa_dport_s *, enum bfa_dport_sm_event);
+
 struct bfa_dport_s {
 	struct bfa_s	*bfa;		/* Back pointer to BFA	*/
-	bfa_sm_t	sm;		/* finite state machine */
+	bfa_dport_sm_t	sm;		/* finite state machine */
 	struct bfa_reqq_wait_s reqq_wait;
 	bfa_cb_diag_t	cbfn;
 	void		*cbarg;

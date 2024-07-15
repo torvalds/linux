@@ -27,14 +27,12 @@
 
 #include <linux/types.h>
 
+#include "intel_display_power.h"
 #include "intel_wakeref.h"
 
-/*FIXME: Move this to a more appropriate place. */
-#define abs_diff(a, b) ({			\
-	typeof(a) __a = (a);			\
-	typeof(b) __b = (b);			\
-	(void) (&__a == &__b);			\
-	__a > __b ? (__a - __b) : (__b - __a); })
+#define for_each_shared_dpll(__i915, __pll, __i) \
+	for ((__i) = 0; (__i) < (__i915)->display.dpll.num_shared_dpll && \
+		     ((__pll) = &(__i915)->display.dpll.shared_dplls[(__i)]) ; (__i)++)
 
 enum tc_port;
 struct drm_i915_private;
@@ -269,20 +267,30 @@ struct dpll_info {
 	const struct intel_shared_dpll_funcs *funcs;
 
 	/**
-	 * @id: unique indentifier for this DPLL; should match the index in the
-	 * dev_priv->shared_dplls array
+	 * @id: unique indentifier for this DPLL
 	 */
 	enum intel_dpll_id id;
 
-#define INTEL_DPLL_ALWAYS_ON	(1 << 0)
 	/**
-	 * @flags:
-	 *
-	 * INTEL_DPLL_ALWAYS_ON
-	 *     Inform the state checker that the DPLL is kept enabled even if
-	 *     not in use by any CRTC.
+	 * @power_domain: extra power domain required by the DPLL
 	 */
-	u32 flags;
+	enum intel_display_power_domain power_domain;
+
+	/**
+	 * @always_on:
+	 *
+	 * Inform the state checker that the DPLL is kept enabled even if
+	 * not in use by any CRTC.
+	 */
+	bool always_on;
+
+	/**
+	 * @is_alt_port_dpll:
+	 *
+	 * Inform the state checker that the DPLL can be used as a fallback
+	 * (for TC->TBT fallback).
+	 */
+	bool is_alt_port_dpll;
 };
 
 /**
@@ -296,6 +304,11 @@ struct intel_shared_dpll {
 	 * and CRTCs using it.
 	 */
 	struct intel_shared_dpll_state state;
+
+	/**
+	 * @index: index for atomic state
+	 */
+	u8 index;
 
 	/**
 	 * @active_mask: mask of active pipes (i.e. DPMS on) using this DPLL
@@ -326,9 +339,9 @@ struct intel_shared_dpll {
 
 /* shared dpll functions */
 struct intel_shared_dpll *
-intel_get_shared_dpll_by_id(struct drm_i915_private *dev_priv,
+intel_get_shared_dpll_by_id(struct drm_i915_private *i915,
 			    enum intel_dpll_id id);
-void assert_shared_dpll(struct drm_i915_private *dev_priv,
+void assert_shared_dpll(struct drm_i915_private *i915,
 			struct intel_shared_dpll *pll,
 			bool state);
 #define assert_shared_dpll_enabled(d, p) assert_shared_dpll(d, p, true)
@@ -358,19 +371,21 @@ bool intel_dpll_get_hw_state(struct drm_i915_private *i915,
 void intel_enable_shared_dpll(const struct intel_crtc_state *crtc_state);
 void intel_disable_shared_dpll(const struct intel_crtc_state *crtc_state);
 void intel_shared_dpll_swap_state(struct intel_atomic_state *state);
-void intel_shared_dpll_init(struct drm_i915_private *dev_priv);
-void intel_dpll_update_ref_clks(struct drm_i915_private *dev_priv);
-void intel_dpll_readout_hw_state(struct drm_i915_private *dev_priv);
-void intel_dpll_sanitize_state(struct drm_i915_private *dev_priv);
+void intel_shared_dpll_init(struct drm_i915_private *i915);
+void intel_dpll_update_ref_clks(struct drm_i915_private *i915);
+void intel_dpll_readout_hw_state(struct drm_i915_private *i915);
+void intel_dpll_sanitize_state(struct drm_i915_private *i915);
 
-void intel_dpll_dump_hw_state(struct drm_i915_private *dev_priv,
+void intel_dpll_dump_hw_state(struct drm_i915_private *i915,
 			      const struct intel_dpll_hw_state *hw_state);
+bool intel_dpll_compare_hw_state(struct drm_i915_private *i915,
+				 const struct intel_dpll_hw_state *a,
+				 const struct intel_dpll_hw_state *b);
 enum intel_dpll_id icl_tc_port_to_pll_id(enum tc_port tc_port);
 bool intel_dpll_is_combophy(enum intel_dpll_id id);
 
-void intel_shared_dpll_state_verify(struct intel_crtc *crtc,
-				    struct intel_crtc_state *old_crtc_state,
-				    struct intel_crtc_state *new_crtc_state);
-void intel_shared_dpll_verify_disabled(struct drm_i915_private *i915);
+void intel_shared_dpll_state_verify(struct intel_atomic_state *state,
+				    struct intel_crtc *crtc);
+void intel_shared_dpll_verify_disabled(struct intel_atomic_state *state);
 
 #endif /* _INTEL_DPLL_MGR_H_ */

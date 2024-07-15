@@ -2,8 +2,9 @@
 /*
  * Implementation of the symbol table type.
  *
- * Author : Stephen Smalley, <sds@tycho.nsa.gov>
+ * Author : Stephen Smalley, <stephen.smalley.work@gmail.com>
  */
+
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/errno.h>
@@ -19,7 +20,8 @@ static unsigned int symhash(const void *key)
 	keyp = key;
 	size = strlen(keyp);
 	for (p = keyp; (p - keyp) < size; p++)
-		val = (val << 4 | (val >> (8*sizeof(unsigned int)-4))) ^ (*p);
+		val = (val << 4 | (val >> (8 * sizeof(unsigned int) - 4))) ^
+		      (*p);
 	return val;
 }
 
@@ -37,7 +39,7 @@ static const struct hashtab_key_params symtab_key_params = {
 	.cmp = symcmp,
 };
 
-int symtab_init(struct symtab *s, unsigned int size)
+int symtab_init(struct symtab *s, u32 size)
 {
 	s->nprim = 0;
 	return hashtab_init(&s->table, size);

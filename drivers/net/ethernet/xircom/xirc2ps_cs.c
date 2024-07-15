@@ -1240,9 +1240,7 @@ do_start_xmit(struct sk_buff *skb, struct net_device *dev)
     netif_stop_queue(dev);
     SelectPage(0);
     PutWord(XIRCREG0_TRS, (u_short)pktlen+2);
-    freespace = GetWord(XIRCREG0_TSO);
-    okay = freespace & 0x8000;
-    freespace &= 0x7fff;
+    freespace = GetWord(XIRCREG0_TSO) & 0x7fff;
     /* TRS doesn't work - (indeed it is eliminated with sil-rev 1) */
     okay = pktlen +2 < freespace;
     pr_debug("%s: avail. tx space=%u%s\n",

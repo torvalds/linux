@@ -90,10 +90,11 @@ union amd_sriov_msg_feature_flags {
 		uint32_t host_load_ucodes  : 1;
 		uint32_t host_flr_vramlost : 1;
 		uint32_t mm_bw_management  : 1;
-		uint32_t pp_one_vf_mode	   : 1;
+		uint32_t pp_one_vf_mode    : 1;
 		uint32_t reg_indirect_acc  : 1;
 		uint32_t av1_support       : 1;
-		uint32_t reserved	   : 25;
+		uint32_t vcn_rb_decouple   : 1;
+		uint32_t reserved          : 24;
 	} flags;
 	uint32_t all;
 };

@@ -742,8 +742,8 @@ overcommit_memory
 
 This value contains a flag that enables memory overcommitment.
 
-When this flag is 0, the kernel attempts to estimate the amount
-of free memory left when userspace requests more memory.
+When this flag is 0, the kernel compares the userspace memory request
+size against total memory plus swap and rejects obvious overcommits.
 
 When this flag is 1, the kernel pretends there is always enough
 memory until it actually runs out.

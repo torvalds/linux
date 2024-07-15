@@ -132,7 +132,6 @@ static inline bool dc_is_audio_capable_signal(enum signal_type signal)
 {
 	return (signal == SIGNAL_TYPE_DISPLAY_PORT ||
 		signal == SIGNAL_TYPE_DISPLAY_PORT_MST ||
-		signal == SIGNAL_TYPE_VIRTUAL ||
 		dc_is_hdmi_signal(signal));
 }
 

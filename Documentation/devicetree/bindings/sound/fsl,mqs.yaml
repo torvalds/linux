@@ -1,0 +1,105 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/fsl,mqs.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NXP Medium Quality Sound (MQS)
+
+maintainers:
+  - Shengjiu Wang <shengjiu.wang@nxp.com>
+  - Chancel Liu <chancel.liu@nxp.com>
+
+description: |
+  Medium quality sound (MQS) is used to generate medium quality audio
+  via a standard GPIO in the pinmux, allowing the user to connect
+  stereo speakers or headphones to a power amplifier without an
+  additional DAC chip.
+
+properties:
+  compatible:
+    enum:
+      - fsl,imx6sx-mqs
+      - fsl,imx8qm-mqs
+      - fsl,imx8qxp-mqs
+      - fsl,imx93-mqs
+
+  clocks:
+    minItems: 1
+    maxItems: 2
+
+  clock-names:
+    minItems: 1
+    maxItems: 2
+
+  gpr:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: The phandle to the General Purpose Register (GPR) node
+
+  reg:
+    maxItems: 1
+
+  power-domains:
+    maxItems: 1
+
+  resets:
+    maxItems: 1
+
+required:
+  - compatible
+  - clocks
+  - clock-names
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - fsl,imx8qm-mqs
+              - fsl,imx8qxp-mqs
+    then:
+      properties:
+        clocks:
+          items:
+            - description: Master clock
+            - description: Clock for register access
+        clock-names:
+          items:
+            - const: mclk
+            - const: core
+      required:
+        - reg
+        - power-domains
+    else:
+      properties:
+        clocks:
+          items:
+            - description: Master clock
+        clock-names:
+          items:
+            - const: mclk
+      required:
+        - gpr
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/imx6sx-clock.h>
+    mqs0: mqs {
+        compatible = "fsl,imx6sx-mqs";
+        gpr = <&gpr>;
+        clocks = <&clks IMX6SX_CLK_SAI1>;
+        clock-names = "mclk";
+    };
+
+  - |
+    #include <dt-bindings/firmware/imx/rsrc.h>
+    mqs1: mqs@59850000 {
+        compatible = "fsl,imx8qm-mqs";
+        reg = <0x59850000 0x10000>;
+        clocks = <&mqs0_lpcg 0>, <&mqs0_lpcg 1>;
+        clock-names = "mclk", "core";
+        power-domains = <&pd IMX_SC_R_MQS_0>;
+    };

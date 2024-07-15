@@ -70,15 +70,8 @@ static void __read_end_io(struct bio *bio)
 {
 	struct folio_iter fi;
 
-	bio_for_each_folio_all(fi, bio) {
-		struct folio *folio = fi.folio;
-
-		if (bio->bi_status)
-			folio_clear_uptodate(folio);
-		else
-			folio_mark_uptodate(folio);
-		folio_unlock(folio);
-	}
+	bio_for_each_folio_all(fi, bio)
+		folio_end_read(fi.folio, bio->bi_status == 0);
 	if (bio->bi_private)
 		mempool_free(bio->bi_private, bio_post_read_ctx_pool);
 	bio_put(bio);
@@ -336,8 +329,7 @@ int ext4_mpage_readpages(struct inode *inode,
 				if (ext4_need_verity(inode, folio->index) &&
 				    !fsverity_verify_folio(folio))
 					goto set_error_page;
-				folio_mark_uptodate(folio);
-				folio_unlock(folio);
+				folio_end_read(folio, true);
 				continue;
 			}
 		} else if (fully_mapped) {

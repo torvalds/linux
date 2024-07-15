@@ -1157,8 +1157,6 @@ DEFINE_OCFS2_ULL_ULL_EVENT(ocfs2_get_block_end);
 
 DEFINE_OCFS2_ULL_ULL_EVENT(ocfs2_readpage);
 
-DEFINE_OCFS2_ULL_ULL_EVENT(ocfs2_writepage);
-
 DEFINE_OCFS2_ULL_ULL_EVENT(ocfs2_bmap);
 
 TRACE_EVENT(ocfs2_try_to_write_inline_data,

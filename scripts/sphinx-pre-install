@@ -32,8 +32,7 @@ my $python_cmd = "";
 my $activate_cmd;
 my $min_version;
 my $cur_version;
-my $rec_version = "1.7.9";	# PDF won't build here
-my $min_pdf_version = "2.4.4";	# Min version where pdf builds
+my $rec_version = "3.4.3";
 my $latest_avail_ver;
 
 #
@@ -281,8 +280,6 @@ sub get_sphinx_version($)
 
 sub check_sphinx()
 {
-	my $default_version;
-
 	open IN, $conf or die "Can't open $conf";
 	while (<IN>) {
 		if (m/^\s*needs_sphinx\s*=\s*[\'\"]([\d\.]+)[\'\"]/) {
@@ -294,18 +291,7 @@ sub check_sphinx()
 
 	die "Can't get needs_sphinx version from $conf" if (!$min_version);
 
-	open IN, $requirement_file or die "Can't open $requirement_file";
-	while (<IN>) {
-		if (m/^\s*Sphinx\s*==\s*([\d\.]+)$/) {
-			$default_version=$1;
-			last;
-		}
-	}
-	close IN;
-
-	die "Can't get default sphinx version from $requirement_file" if (!$default_version);
-
-	$virtenv_dir = $virtenv_prefix . $default_version;
+	$virtenv_dir = $virtenv_prefix . "latest";
 
 	my $sphinx = get_sphinx_fname();
 	if ($sphinx eq "") {
@@ -319,8 +305,8 @@ sub check_sphinx()
 	die "$sphinx didn't return its version" if (!$cur_version);
 
 	if ($cur_version lt $min_version) {
-		printf "ERROR: Sphinx version is %s. It should be >= %s (recommended >= %s)\n",
-		       $cur_version, $min_version, $default_version;
+		printf "ERROR: Sphinx version is %s. It should be >= %s\n",
+		       $cur_version, $min_version;
 		$need_sphinx = 1;
 		return;
 	}
@@ -362,6 +348,7 @@ sub give_debian_hints()
 {
 	my %map = (
 		"python-sphinx"		=> "python3-sphinx",
+		"yaml"			=> "python3-yaml",
 		"ensurepip"		=> "python3-venv",
 		"virtualenv"		=> "virtualenv",
 		"dot"			=> "graphviz",
@@ -396,6 +383,7 @@ sub give_redhat_hints()
 {
 	my %map = (
 		"python-sphinx"		=> "python3-sphinx",
+		"yaml"			=> "python3-pyyaml",
 		"virtualenv"		=> "python3-virtualenv",
 		"dot"			=> "graphviz",
 		"convert"		=> "ImageMagick",
@@ -422,6 +410,7 @@ sub give_redhat_hints()
 	#
 	my $old = 0;
 	my $rel;
+	my $noto_sans_redhat = "google-noto-sans-cjk-ttc-fonts";
 	$rel = $1 if ($system_release =~ /release\s+(\d+)/);
 
 	if (!($system_release =~ /Fedora/)) {
@@ -439,6 +428,9 @@ sub give_redhat_hints()
 		if ($rel && $rel < 26) {
 			$old = 1;
 		}
+		if ($rel && $rel >= 38) {
+			$noto_sans_redhat = "google-noto-sans-cjk-fonts";
+		}
 	}
 	if (!$rel) {
 		printf("Couldn't identify release number\n");
@@ -447,8 +439,9 @@ sub give_redhat_hints()
 	}
 
 	if ($pdf) {
-		check_missing_file(["/usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc"],
-				   "google-noto-sans-cjk-ttc-fonts", 2);
+		check_missing_file(["/usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc",
+				    "/usr/share/fonts/google-noto-sans-cjk-fonts/NotoSansCJK-Regular.ttc"],
+				   $noto_sans_redhat, 2);
 	}
 
 	check_rpm_missing(\@fedora26_opt_pkgs, 2) if ($pdf && !$old);
@@ -473,6 +466,7 @@ sub give_opensuse_hints()
 {
 	my %map = (
 		"python-sphinx"		=> "python3-sphinx",
+		"yaml"			=> "python3-pyyaml",
 		"virtualenv"		=> "python3-virtualenv",
 		"dot"			=> "graphviz",
 		"convert"		=> "ImageMagick",
@@ -791,9 +785,6 @@ sub recommend_sphinx_version($)
 
 	# Version is OK. Nothing to do.
 	if ($cur_version && ($cur_version ge $rec_version)) {
-		if ($cur_version lt $min_pdf_version) {
-			print "note: If you want pdf, you need at least Sphinx $min_pdf_version.\n";
-		}
 		return;
 	};
 
@@ -841,10 +832,6 @@ sub recommend_sphinx_version($)
 			printf "\nNeed to activate Sphinx (version $latest_avail_ver) on virtualenv with:\n";
 			printf "\t. $activate_cmd\n";
 			deactivate_help();
-
-			if ($latest_avail_ver lt $min_pdf_version) {
-				print "note: If you want pdf, you need at least Sphinx $min_pdf_version.\n";
-			}
 
 			return;
 		}
@@ -959,6 +946,7 @@ sub check_needs()
 
 	# Check for needed programs/tools
 	check_perl_module("Pod::Usage", 0);
+	check_python_module("yaml", 0);
 	check_program("make", 0);
 	check_program("gcc", 0);
 	check_program("dot", 1);

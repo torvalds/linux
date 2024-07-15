@@ -50,6 +50,9 @@ struct clp_fh_list_entry {
 #define CLP_UTIL_STR_LEN	64
 #define CLP_PFIP_NR_SEGMENTS	4
 
+/* PCI function type numbers */
+#define PCI_FUNC_TYPE_ISM	0x5	/* ISM device */
+
 extern bool zpci_unique_uid;
 
 struct clp_rsp_slpc_pci {

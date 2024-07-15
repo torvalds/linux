@@ -380,6 +380,8 @@ static int dock_in_progress(struct dock_station *ds)
 
 /**
  * handle_eject_request - handle an undock request checking for error conditions
+ * @ds: The dock station to undock.
+ * @event: The ACPI event number associated with the undock request.
  *
  * Check to make sure the dock device is still present, then undock and
  * hotremove all the devices that may need removing.

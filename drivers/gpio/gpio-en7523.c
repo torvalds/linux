@@ -12,11 +12,11 @@
 #define AIROHA_GPIO_MAX		32
 
 /**
- * airoha_gpio_ctrl - Airoha GPIO driver data
+ * struct airoha_gpio_ctrl - Airoha GPIO driver data
  * @gc: Associated gpio_chip instance.
  * @data: The data register.
- * @dir0: The direction register for the lower 16 pins.
- * @dir1: The direction register for the higher 16 pins.
+ * @dir: [0] The direction register for the lower 16 pins.
+ * [1]: The direction register for the higher 16 pins.
  * @output: The output enable register.
  */
 struct airoha_gpio_ctrl {

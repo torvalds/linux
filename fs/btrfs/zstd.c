@@ -18,8 +18,9 @@
 #include <linux/slab.h>
 #include <linux/zstd.h>
 #include "misc.h"
+#include "fs.h"
 #include "compression.h"
-#include "ctree.h"
+#include "super.h"
 
 #define ZSTD_BTRFS_MAX_WINDOWLOG 17
 #define ZSTD_BTRFS_MAX_INPUT (1 << ZSTD_BTRFS_MAX_WINDOWLOG)
@@ -145,7 +146,7 @@ static void zstd_reclaim_timer_fn(struct timer_list *timer)
 }
 
 /*
- * zstd_calc_ws_mem_sizes - calculate monotonic memory bounds
+ * Calculate monotonic memory bounds.
  *
  * It is possible based on the level configurations that a higher level
  * workspace uses less memory than a lower level workspace.  In order to reuse
@@ -218,7 +219,8 @@ void zstd_cleanup_workspace_manager(void)
 }
 
 /*
- * zstd_find_workspace - find workspace
+ * Find workspace for given level.
+ *
  * @level: compression level
  *
  * This iterates over the set bits in the active_map beginning at the requested
@@ -256,7 +258,8 @@ static struct list_head *zstd_find_workspace(unsigned int level)
 }
 
 /*
- * zstd_get_workspace - zstd's get_workspace
+ * Zstd get_workspace for level.
+ *
  * @level: compression level
  *
  * If @level is 0, then any compression level can be used.  Therefore, we begin
@@ -296,7 +299,8 @@ again:
 }
 
 /*
- * zstd_put_workspace - zstd put_workspace
+ * Zstd put_workspace.
+ *
  * @ws: list_head for the workspace
  *
  * When putting back a workspace, we only need to update the LRU if we are of
@@ -407,9 +411,8 @@ int zstd_compress_pages(struct list_head *ws, struct address_space *mapping,
 	workspace->in_buf.pos = 0;
 	workspace->in_buf.size = min_t(size_t, len, PAGE_SIZE);
 
-
 	/* Allocate and map in the output buffer */
-	out_page = alloc_page(GFP_NOFS);
+	out_page = btrfs_alloc_compr_page();
 	if (out_page == NULL) {
 		ret = -ENOMEM;
 		goto out;
@@ -454,7 +457,7 @@ int zstd_compress_pages(struct list_head *ws, struct address_space *mapping,
 				ret = -E2BIG;
 				goto out;
 			}
-			out_page = alloc_page(GFP_NOFS);
+			out_page = btrfs_alloc_compr_page();
 			if (out_page == NULL) {
 				ret = -ENOMEM;
 				goto out;
@@ -511,7 +514,7 @@ int zstd_compress_pages(struct list_head *ws, struct address_space *mapping,
 			ret = -E2BIG;
 			goto out;
 		}
-		out_page = alloc_page(GFP_NOFS);
+		out_page = btrfs_alloc_compr_page();
 		if (out_page == NULL) {
 			ret = -ENOMEM;
 			goto out;
@@ -616,25 +619,22 @@ done:
 }
 
 int zstd_decompress(struct list_head *ws, const u8 *data_in,
-		struct page *dest_page, unsigned long start_byte, size_t srclen,
+		struct page *dest_page, unsigned long dest_pgoff, size_t srclen,
 		size_t destlen)
 {
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
+	struct btrfs_fs_info *fs_info = btrfs_sb(dest_page->mapping->host->i_sb);
+	const u32 sectorsize = fs_info->sectorsize;
 	zstd_dstream *stream;
 	int ret = 0;
-	size_t ret2;
-	unsigned long total_out = 0;
-	unsigned long pg_offset = 0;
+	unsigned long to_copy = 0;
 
 	stream = zstd_init_dstream(
 			ZSTD_BTRFS_MAX_INPUT, workspace->mem, workspace->size);
 	if (!stream) {
 		pr_warn("BTRFS: zstd_init_dstream failed\n");
-		ret = -EIO;
 		goto finish;
 	}
-
-	destlen = min_t(size_t, destlen, PAGE_SIZE);
 
 	workspace->in_buf.src = data_in;
 	workspace->in_buf.pos = 0;
@@ -642,54 +642,25 @@ int zstd_decompress(struct list_head *ws, const u8 *data_in,
 
 	workspace->out_buf.dst = workspace->buf;
 	workspace->out_buf.pos = 0;
-	workspace->out_buf.size = PAGE_SIZE;
+	workspace->out_buf.size = sectorsize;
 
-	ret2 = 1;
-	while (pg_offset < destlen
-	       && workspace->in_buf.pos < workspace->in_buf.size) {
-		unsigned long buf_start;
-		unsigned long buf_offset;
-		unsigned long bytes;
-
-		/* Check if the frame is over and we still need more input */
-		if (ret2 == 0) {
-			pr_debug("BTRFS: zstd_decompress_stream ended early\n");
-			ret = -EIO;
-			goto finish;
-		}
-		ret2 = zstd_decompress_stream(stream, &workspace->out_buf,
-				&workspace->in_buf);
-		if (zstd_is_error(ret2)) {
-			pr_debug("BTRFS: zstd_decompress_stream returned %d\n",
-					zstd_get_error_code(ret2));
-			ret = -EIO;
-			goto finish;
-		}
-
-		buf_start = total_out;
-		total_out += workspace->out_buf.pos;
-		workspace->out_buf.pos = 0;
-
-		if (total_out <= start_byte)
-			continue;
-
-		if (total_out > start_byte && buf_start < start_byte)
-			buf_offset = start_byte - buf_start;
-		else
-			buf_offset = 0;
-
-		bytes = min_t(unsigned long, destlen - pg_offset,
-				workspace->out_buf.size - buf_offset);
-
-		memcpy_to_page(dest_page, pg_offset,
-			       workspace->out_buf.dst + buf_offset, bytes);
-
-		pg_offset += bytes;
+	/*
+	 * Since both input and output buffers should not exceed one sector,
+	 * one call should end the decompression.
+	 */
+	ret = zstd_decompress_stream(stream, &workspace->out_buf, &workspace->in_buf);
+	if (zstd_is_error(ret)) {
+		pr_warn_ratelimited("BTRFS: zstd_decompress_stream return %d\n",
+				    zstd_get_error_code(ret));
+		goto finish;
 	}
-	ret = 0;
+	to_copy = workspace->out_buf.pos;
+	memcpy_to_page(dest_page, dest_pgoff, workspace->out_buf.dst, to_copy);
 finish:
-	if (pg_offset < destlen) {
-		memzero_page(dest_page, pg_offset, destlen - pg_offset);
+	/* Error or early end. */
+	if (unlikely(to_copy < destlen)) {
+		ret = -EIO;
+		memzero_page(dest_page, dest_pgoff + to_copy, destlen - to_copy);
 	}
 	return ret;
 }

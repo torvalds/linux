@@ -34,6 +34,7 @@
 
 #include "dce_clock_source.h"
 #include "clk_mgr.h"
+#include "dccg.h"
 
 #include "reg_helper.h"
 
@@ -43,7 +44,10 @@
 #define CTX \
 	clk_src->base.ctx
 
-#define DC_LOGGER_INIT()
+#define DC_LOGGER \
+	calc_pll_cs->ctx->logger
+#define DC_LOGGER_INIT() \
+	struct calc_pll_clock_source *calc_pll_cs = &clk_src->calc_pll
 
 #undef FN
 #define FN(reg_name, field_name) \
@@ -971,6 +975,12 @@ static bool dcn31_program_pix_clk(
 			look_up_in_video_optimized_rate_tlb(pix_clk_params->requested_pix_clk_100hz / 10);
 	struct bp_pixel_clock_parameters bp_pc_params = {0};
 	enum transmitter_color_depth bp_pc_colour_depth = TRANSMITTER_COLOR_DEPTH_24;
+
+	// Apply ssed(spread spectrum) dpref clock for edp only.
+	if (clock_source->ctx->dc->clk_mgr->dp_dto_source_clock_in_khz != 0
+		&& pix_clk_params->signal_type == SIGNAL_TYPE_EDP
+		&& encoding == DP_8b_10b_ENCODING)
+		dp_dto_ref_khz = clock_source->ctx->dc->clk_mgr->dp_dto_source_clock_in_khz;
 	// For these signal types Driver to program DP_DTO without calling VBIOS Command table
 	if (dc_is_dp_signal(pix_clk_params->signal_type) || dc_is_virtual_signal(pix_clk_params->signal_type)) {
 		if (e) {
@@ -1084,6 +1094,7 @@ static bool get_pixel_clk_frequency_100hz(
 	struct dce110_clk_src *clk_src = TO_DCE110_CLK_SRC(clock_source);
 	unsigned int clock_hz = 0;
 	unsigned int modulo_hz = 0;
+	unsigned int dp_dto_ref_khz = clock_source->ctx->dc->clk_mgr->dprefclk_khz;
 
 	if (clock_source->id == CLOCK_SOURCE_ID_DP_DTO) {
 		clock_hz = REG_READ(PHASE[inst]);
@@ -1096,7 +1107,7 @@ static bool get_pixel_clk_frequency_100hz(
 			modulo_hz = REG_READ(MODULO[inst]);
 			if (modulo_hz)
 				*pixel_clk_khz = div_u64((uint64_t)clock_hz*
-					clock_source->ctx->dc->clk_mgr->dprefclk_khz*10,
+					dp_dto_ref_khz*10,
 					modulo_hz);
 			else
 				*pixel_clk_khz = 0;
@@ -1254,6 +1265,7 @@ static uint32_t dcn3_get_pix_clk_dividers(
 		struct pll_settings *pll_settings)
 {
 	unsigned long long actual_pix_clk_100Hz = pix_clk_params ? pix_clk_params->requested_pix_clk_100hz : 0;
+	struct dce110_clk_src *clk_src = TO_DCE110_CLK_SRC(cs);
 
 	DC_LOGGER_INIT();
 

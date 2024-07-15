@@ -11,6 +11,7 @@
 /dts-v1/;
 
 #include "sc7180-trogdor-wormdingler.dtsi"
+#include "sc7180-trogdor-rt5682i-sku.dtsi"
 
 / {
 	model = "Google Wormdingler rev1+ BOE panel board";

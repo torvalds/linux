@@ -48,6 +48,8 @@
 #include <asm/io.h>
 #include <asm/config.h>
 
+#include "atari.h"
+
 u_long atari_mch_cookie;
 EXPORT_SYMBOL(atari_mch_cookie);
 
@@ -69,18 +71,9 @@ int atari_rtc_year_offset;
 static void atari_reset(void);
 static void atari_get_model(char *model);
 static void atari_get_hardware_list(struct seq_file *m);
-
-/* atari specific irq functions */
-extern void atari_init_IRQ (void);
-extern void atari_mksound(unsigned int count, unsigned int ticks);
 #ifdef CONFIG_HEARTBEAT
 static void atari_heartbeat(int on);
 #endif
-
-/* atari specific timer functions (in time.c) */
-extern void atari_sched_init(void);
-extern int atari_mste_hwclk (int, struct rtc_time *);
-extern int atari_tt_hwclk (int, struct rtc_time *);
 
 /* ++roman: This is a more elaborate test for an SCC chip, since the plain
  * Medusa board generates DTACK at the SCC's standard addresses, but a SCC
@@ -880,7 +873,7 @@ static const struct resource atari_falconide_rsrc[] __initconst = {
 	DEFINE_RES_MEM(FALCON_IDE_BASE + 0x38, 2),
 };
 
-int __init atari_platform_init(void)
+static int __init atari_platform_init(void)
 {
 	struct platform_device *pdev;
 	int rv = 0;
