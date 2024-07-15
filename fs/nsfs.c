@@ -12,6 +12,7 @@
 #include <linux/nsfs.h>
 #include <linux/uaccess.h>
 
+#include "mount.h"
 #include "internal.h"
 
 static struct vfsmount *nsfs_mnt;
@@ -143,6 +144,19 @@ static long ns_ioctl(struct file *filp, unsigned int ioctl,
 		argp = (uid_t __user *) arg;
 		uid = from_kuid_munged(current_user_ns(), user_ns->owner);
 		return put_user(uid, argp);
+	case NS_GET_MNTNS_ID: {
+		struct mnt_namespace *mnt_ns;
+		__u64 __user *idp;
+		__u64 id;
+
+		if (ns->ops->type != CLONE_NEWNS)
+			return -EINVAL;
+
+		mnt_ns = container_of(ns, struct mnt_namespace, ns);
+		idp = (__u64 __user *)arg;
+		id = mnt_ns->seq;
+		return put_user(id, idp);
+	}
 	default:
 		return -ENOTTY;
 	}
