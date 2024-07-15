@@ -5642,7 +5642,11 @@ struct mlx5_ifc_query_q_counter_out_bits {
 
 	u8         local_ack_timeout_err[0x20];
 
-	u8         reserved_at_320[0xa0];
+	u8         reserved_at_320[0x60];
+
+	u8         req_rnr_retries_exceeded[0x20];
+
+	u8         reserved_at_3a0[0x20];
 
 	u8         resp_local_length_error[0x20];
 
