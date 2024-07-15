@@ -72,10 +72,11 @@ static bool found_btree_node_is_readable(struct btree_trans *trans,
 
 	struct btree *b = bch2_btree_node_get_noiter(trans, &k.k, f->btree_id, f->level, false);
 	bool ret = !IS_ERR_OR_NULL(b);
-	if (ret) {
-		f->sectors_written = b->written;
-		six_unlock_read(&b->c.lock);
-	}
+	if (!ret)
+		return ret;
+
+	f->sectors_written = b->written;
+	six_unlock_read(&b->c.lock);
 
 	/*
 	 * We might update this node's range; if that happens, we need the node

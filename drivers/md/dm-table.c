@@ -1981,10 +1981,6 @@ int dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 	if (!dm_table_supports_secure_erase(t))
 		limits->max_secure_erase_sectors = 0;
 
-	r = queue_limits_set(q, limits);
-	if (r)
-		return r;
-
 	if (dm_table_supports_flush(t, (1UL << QUEUE_FLAG_WC))) {
 		wc = true;
 		if (dm_table_supports_flush(t, (1UL << QUEUE_FLAG_FUA)))
@@ -2036,14 +2032,15 @@ int dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 	 * For a zoned target, setup the zones related queue attributes
 	 * and resources necessary for zone append emulation if necessary.
 	 */
-	if (blk_queue_is_zoned(q)) {
-		r = dm_set_zones_restrictions(t, q);
+	if (IS_ENABLED(CONFIG_BLK_DEV_ZONED) && limits->zoned) {
+		r = dm_set_zones_restrictions(t, q, limits);
 		if (r)
 			return r;
-		if (blk_queue_is_zoned(q) &&
-		    !static_key_enabled(&zoned_enabled.key))
-			static_branch_enable(&zoned_enabled);
 	}
+
+	r = queue_limits_set(q, limits);
+	if (r)
+		return r;
 
 	dm_update_crypto_profile(q, t);
 

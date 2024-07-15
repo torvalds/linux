@@ -12,7 +12,7 @@
 static void netfs_cleanup_dio_write(struct netfs_io_request *wreq)
 {
 	struct inode *inode = wreq->inode;
-	unsigned long long end = wreq->start + wreq->len;
+	unsigned long long end = wreq->start + wreq->transferred;
 
 	if (!wreq->error &&
 	    i_size_read(inode) < end) {

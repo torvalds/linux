@@ -107,8 +107,16 @@ static int debugfs_parse_param(struct fs_context *fc, struct fs_parameter *param
 	int opt;
 
 	opt = fs_parse(fc, debugfs_param_specs, param, &result);
-	if (opt < 0)
+	if (opt < 0) {
+		/*
+                * We might like to report bad mount options here; but
+                * traditionally debugfs has ignored all mount options
+                */
+		if (opt == -ENOPARAM)
+			return 0;
+
 		return opt;
+	}
 
 	switch (opt) {
 	case Opt_uid:

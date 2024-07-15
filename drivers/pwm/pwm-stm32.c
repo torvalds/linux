@@ -321,22 +321,30 @@ static int stm32_pwm_config(struct stm32_pwm *priv, unsigned int ch,
 	 * First we need to find the minimal value for prescaler such that
 	 *
 	 *        period_ns * clkrate
-	 *   ------------------------------
+	 *   ------------------------------ < max_arr + 1
 	 *   NSEC_PER_SEC * (prescaler + 1)
 	 *
-	 * isn't bigger than max_arr.
+	 * This equation is equivalent to
+	 *
+	 *        period_ns * clkrate
+	 *   ---------------------------- < prescaler + 1
+	 *   NSEC_PER_SEC * (max_arr + 1)
+	 *
+	 * Using integer division and knowing that the right hand side is
+	 * integer, this is further equivalent to
+	 *
+	 *   (period_ns * clkrate) // (NSEC_PER_SEC * (max_arr + 1)) ≤ prescaler
 	 */
 
 	prescaler = mul_u64_u64_div_u64(period_ns, clk_get_rate(priv->clk),
-					(u64)NSEC_PER_SEC * priv->max_arr);
-	if (prescaler > 0)
-		prescaler -= 1;
-
+					(u64)NSEC_PER_SEC * ((u64)priv->max_arr + 1));
 	if (prescaler > MAX_TIM_PSC)
 		return -EINVAL;
 
 	prd = mul_u64_u64_div_u64(period_ns, clk_get_rate(priv->clk),
 				  (u64)NSEC_PER_SEC * (prescaler + 1));
+	if (!prd)
+		return -EINVAL;
 
 	/*
 	 * All channels share the same prescaler and counter so when two
@@ -673,7 +681,8 @@ static int stm32_pwm_probe(struct platform_device *pdev)
 	 * .apply() won't overflow.
 	 */
 	if (clk_get_rate(priv->clk) > 1000000000)
-		return dev_err_probe(dev, -EINVAL, "Failed to lock clock\n");
+		return dev_err_probe(dev, -EINVAL, "Clock freq too high (%lu)\n",
+				     clk_get_rate(priv->clk));
 
 	chip->ops = &stm32pwm_ops;
 

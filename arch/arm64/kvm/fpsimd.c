@@ -90,6 +90,13 @@ void kvm_arch_vcpu_load_fp(struct kvm_vcpu *vcpu)
 			fpsimd_save_and_flush_cpu_state();
 		}
 	}
+
+	/*
+	 * If normal guests gain SME support, maintain this behavior for pKVM
+	 * guests, which don't support SME.
+	 */
+	WARN_ON(is_protected_kvm_enabled() && system_supports_sme() &&
+		read_sysreg_s(SYS_SVCR));
 }
 
 /*
@@ -161,9 +168,7 @@ void kvm_arch_vcpu_put_fp(struct kvm_vcpu *vcpu)
 	if (has_vhe() && system_supports_sme()) {
 		/* Also restore EL0 state seen on entry */
 		if (vcpu_get_flag(vcpu, HOST_SME_ENABLED))
-			sysreg_clear_set(CPACR_EL1, 0,
-					 CPACR_EL1_SMEN_EL0EN |
-					 CPACR_EL1_SMEN_EL1EN);
+			sysreg_clear_set(CPACR_EL1, 0, CPACR_ELx_SMEN);
 		else
 			sysreg_clear_set(CPACR_EL1,
 					 CPACR_EL1_SMEN_EL0EN,

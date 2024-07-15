@@ -1167,6 +1167,9 @@ void bch2_dev_journal_stop(struct journal *j, struct bch_dev *ca)
 
 void bch2_fs_journal_stop(struct journal *j)
 {
+	if (!test_bit(JOURNAL_running, &j->flags))
+		return;
+
 	bch2_journal_reclaim_stop(j);
 	bch2_journal_flush_all_pins(j);
 

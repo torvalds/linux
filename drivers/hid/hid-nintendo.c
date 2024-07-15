@@ -2725,13 +2725,13 @@ static int nintendo_hid_probe(struct hid_device *hdev,
 	ret = joycon_power_supply_create(ctlr);
 	if (ret) {
 		hid_err(hdev, "Failed to create power_supply; ret=%d\n", ret);
-		goto err_close;
+		goto err_ida;
 	}
 
 	ret = joycon_input_create(ctlr);
 	if (ret) {
 		hid_err(hdev, "Failed to create input device; ret=%d\n", ret);
-		goto err_close;
+		goto err_ida;
 	}
 
 	ctlr->ctlr_state = JOYCON_CTLR_STATE_READ;
@@ -2739,6 +2739,8 @@ static int nintendo_hid_probe(struct hid_device *hdev,
 	hid_dbg(hdev, "probe - success\n");
 	return 0;
 
+err_ida:
+	ida_free(&nintendo_player_id_allocator, ctlr->player_id);
 err_close:
 	hid_hw_close(hdev);
 err_stop:

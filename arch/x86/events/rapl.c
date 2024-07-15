@@ -64,6 +64,7 @@
 #include "perf_event.h"
 #include "probe.h"
 
+MODULE_DESCRIPTION("Support Intel/AMD RAPL energy consumption counters");
 MODULE_LICENSE("GPL");
 
 /*

@@ -476,7 +476,7 @@ struct sof_ipc4_process {
 	u32 init_config;
 };
 
-bool sof_ipc4_copier_is_single_format(struct snd_sof_dev *sdev,
-				      struct sof_ipc4_pin_format *pin_fmts,
-				      u32 pin_fmts_size);
+bool sof_ipc4_copier_is_single_bitdepth(struct snd_sof_dev *sdev,
+					struct sof_ipc4_pin_format *pin_fmts,
+					u32 pin_fmts_size);
 #endif

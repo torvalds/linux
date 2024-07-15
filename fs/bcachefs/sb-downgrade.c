@@ -146,10 +146,17 @@ static int bch2_sb_downgrade_validate(struct bch_sb *sb, struct bch_sb_field *f,
 	for (const struct bch_sb_field_downgrade_entry *i = e->entries;
 	     (void *) i	< vstruct_end(&e->field);
 	     i = downgrade_entry_next_c(i)) {
+		/*
+		 * Careful: sb_field_downgrade_entry is only 2 byte aligned, but
+		 * section sizes are 8 byte aligned - an empty entry spanning
+		 * the end of the section is allowed (and ignored):
+		 */
+		if ((void *) &i->errors[0] > vstruct_end(&e->field))
+			break;
+
 		if (flags & BCH_VALIDATE_write &&
-		    ((void *) &i->errors[0] > vstruct_end(&e->field) ||
-		     (void *) downgrade_entry_next_c(i) > vstruct_end(&e->field))) {
-			prt_printf(err, "downgrade entry overruns end of superblock section)");
+		    (void *) downgrade_entry_next_c(i) > vstruct_end(&e->field)) {
+			prt_printf(err, "downgrade entry overruns end of superblock section");
 			return -BCH_ERR_invalid_sb_downgrade;
 		}
 
@@ -221,7 +228,7 @@ int bch2_sb_downgrade_update(struct bch_fs *c)
 
 		dst = (void *) &darray_top(table);
 		dst->version = cpu_to_le16(src->version);
-		dst->recovery_passes[0]	= cpu_to_le64(src->recovery_passes);
+		dst->recovery_passes[0]	= cpu_to_le64(bch2_recovery_passes_to_stable(src->recovery_passes));
 		dst->recovery_passes[1]	= 0;
 		dst->nr_errors		= cpu_to_le16(src->nr_errors);
 		for (unsigned i = 0; i < src->nr_errors; i++)

@@ -190,7 +190,7 @@ def output_dtb(fsw, seq, fname, arch, compress):
     Args:
         fsw (libfdt.FdtSw): Object to use for writing
         seq (int): Sequence number (1 for first)
-        fmame (str): Filename containing the DTB
+        fname (str): Filename containing the DTB
         arch: FIT architecture, e.g. 'arm64'
         compress (str): Compressed algorithm, e.g. 'gzip'
 
@@ -211,7 +211,6 @@ def output_dtb(fsw, seq, fname, arch, compress):
         fsw.property_string('type', 'flat_dt')
         fsw.property_string('arch', arch)
         fsw.property_string('compression', compress)
-        fsw.property('compatible', bytes(compat))
 
         with open(fname, 'rb') as inf:
             compressed = compress_data(inf, compress)

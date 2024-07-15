@@ -394,7 +394,7 @@ config LS2X_APB_DMA
 
 config MCF_EDMA
 	tristate "Freescale eDMA engine support, ColdFire mcf5441x SoCs"
-	depends on M5441x || COMPILE_TEST
+	depends on M5441x || (COMPILE_TEST && FSL_EDMA=n)
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 	help

@@ -384,7 +384,7 @@ static void fixup_vmlinux_info(void)
 void startup_kernel(void)
 {
 	unsigned long kernel_size = vmlinux.image_size + vmlinux.bss_size;
-	unsigned long nokaslr_offset_phys = mem_safe_offset();
+	unsigned long nokaslr_offset_phys, kaslr_large_page_offset;
 	unsigned long amode31_lma = 0;
 	unsigned long max_physmem_end;
 	unsigned long asce_limit;
@@ -393,6 +393,12 @@ void startup_kernel(void)
 
 	fixup_vmlinux_info();
 	setup_lpp();
+
+	/*
+	 * Non-randomized kernel physical start address must be _SEGMENT_SIZE
+	 * aligned (see blow).
+	 */
+	nokaslr_offset_phys = ALIGN(mem_safe_offset(), _SEGMENT_SIZE);
 	safe_addr = PAGE_ALIGN(nokaslr_offset_phys + kernel_size);
 
 	/*
@@ -425,10 +431,25 @@ void startup_kernel(void)
 	save_ipl_cert_comp_list();
 	rescue_initrd(safe_addr, ident_map_size);
 
-	if (kaslr_enabled())
-		__kaslr_offset_phys = randomize_within_range(kernel_size, THREAD_SIZE, 0, ident_map_size);
+	/*
+	 * __kaslr_offset_phys must be _SEGMENT_SIZE aligned, so the lower
+	 * 20 bits (the offset within a large page) are zero. Copy the last
+	 * 20 bits of __kaslr_offset, which is THREAD_SIZE aligned, to
+	 * __kaslr_offset_phys.
+	 *
+	 * With this the last 20 bits of __kaslr_offset_phys and __kaslr_offset
+	 * are identical, which is required to allow for large mappings of the
+	 * kernel image.
+	 */
+	kaslr_large_page_offset = __kaslr_offset & ~_SEGMENT_MASK;
+	if (kaslr_enabled()) {
+		unsigned long end = ident_map_size - kaslr_large_page_offset;
+
+		__kaslr_offset_phys = randomize_within_range(kernel_size, _SEGMENT_SIZE, 0, end);
+	}
 	if (!__kaslr_offset_phys)
 		__kaslr_offset_phys = nokaslr_offset_phys;
+	__kaslr_offset_phys |= kaslr_large_page_offset;
 	kaslr_adjust_vmlinux_info(__kaslr_offset_phys);
 	physmem_reserve(RR_VMLINUX, __kaslr_offset_phys, kernel_size);
 	deploy_kernel((void *)__kaslr_offset_phys);

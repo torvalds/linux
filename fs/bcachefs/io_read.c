@@ -84,9 +84,10 @@ struct promote_op {
 };
 
 static const struct rhashtable_params bch_promote_params = {
-	.head_offset	= offsetof(struct promote_op, hash),
-	.key_offset	= offsetof(struct promote_op, pos),
-	.key_len	= sizeof(struct bpos),
+	.head_offset		= offsetof(struct promote_op, hash),
+	.key_offset		= offsetof(struct promote_op, pos),
+	.key_len		= sizeof(struct bpos),
+	.automatic_shrinking	= true,
 };
 
 static inline int should_promote(struct bch_fs *c, struct bkey_s_c k,
@@ -776,18 +777,32 @@ static noinline void read_from_stale_dirty_pointer(struct btree_trans *trans,
 			     PTR_BUCKET_POS(ca, &ptr),
 			     BTREE_ITER_cached);
 
-	prt_printf(&buf, "Attempting to read from stale dirty pointer:\n");
-	printbuf_indent_add(&buf, 2);
+	u8 *gen = bucket_gen(ca, iter.pos.offset);
+	if (gen) {
 
-	bch2_bkey_val_to_text(&buf, c, k);
-	prt_newline(&buf);
+		prt_printf(&buf, "Attempting to read from stale dirty pointer:\n");
+		printbuf_indent_add(&buf, 2);
 
-	prt_printf(&buf, "memory gen: %u", *bucket_gen(ca, iter.pos.offset));
-
-	ret = lockrestart_do(trans, bkey_err(k = bch2_btree_iter_peek_slot(&iter)));
-	if (!ret) {
-		prt_newline(&buf);
 		bch2_bkey_val_to_text(&buf, c, k);
+		prt_newline(&buf);
+
+		prt_printf(&buf, "memory gen: %u", *gen);
+
+		ret = lockrestart_do(trans, bkey_err(k = bch2_btree_iter_peek_slot(&iter)));
+		if (!ret) {
+			prt_newline(&buf);
+			bch2_bkey_val_to_text(&buf, c, k);
+		}
+	} else {
+		prt_printf(&buf, "Attempting to read from invalid bucket %llu:%llu:\n",
+			   iter.pos.inode, iter.pos.offset);
+		printbuf_indent_add(&buf, 2);
+
+		prt_printf(&buf, "first bucket %u nbuckets %llu\n",
+			   ca->mi.first_bucket, ca->mi.nbuckets);
+
+		bch2_bkey_val_to_text(&buf, c, k);
+		prt_newline(&buf);
 	}
 
 	bch2_fs_inconsistent(c, "%s", buf.buf);

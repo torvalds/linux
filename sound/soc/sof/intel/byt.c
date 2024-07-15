@@ -475,6 +475,7 @@ static struct platform_driver snd_sof_acpi_intel_byt_driver = {
 module_platform_driver(snd_sof_acpi_intel_byt_driver);
 
 MODULE_LICENSE("Dual BSD/GPL");
+MODULE_DESCRIPTION("SOF support for Baytrail/Cherrytrail");
 MODULE_IMPORT_NS(SND_SOC_SOF_INTEL_HIFI_EP_IPC);
 MODULE_IMPORT_NS(SND_SOC_SOF_XTENSA);
 MODULE_IMPORT_NS(SND_SOC_SOF_ACPI_DEV);

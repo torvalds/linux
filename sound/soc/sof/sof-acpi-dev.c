@@ -100,3 +100,4 @@ void sof_acpi_remove(struct platform_device *pdev)
 EXPORT_SYMBOL_NS(sof_acpi_remove, SND_SOC_SOF_ACPI_DEV);
 
 MODULE_LICENSE("Dual BSD/GPL");
+MODULE_DESCRIPTION("SOF support for ACPI platforms");

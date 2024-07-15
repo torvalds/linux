@@ -4549,11 +4549,12 @@ static int check_stack_write_fixed_off(struct bpf_verifier_env *env,
 			state->stack[spi].spilled_ptr.id = 0;
 	} else if (!reg && !(off % BPF_REG_SIZE) && is_bpf_st_mem(insn) &&
 		   env->bpf_capable) {
-		struct bpf_reg_state fake_reg = {};
+		struct bpf_reg_state *tmp_reg = &env->fake_reg[0];
 
-		__mark_reg_known(&fake_reg, insn->imm);
-		fake_reg.type = SCALAR_VALUE;
-		save_register_state(env, state, spi, &fake_reg, size);
+		memset(tmp_reg, 0, sizeof(*tmp_reg));
+		__mark_reg_known(tmp_reg, insn->imm);
+		tmp_reg->type = SCALAR_VALUE;
+		save_register_state(env, state, spi, tmp_reg, size);
 	} else if (reg && is_spillable_regtype(reg->type)) {
 		/* register containing pointer is being spilled into stack */
 		if (size != BPF_REG_SIZE) {
@@ -8882,7 +8883,8 @@ static bool may_update_sockmap(struct bpf_verifier_env *env, int func_id)
 	enum bpf_attach_type eatype = env->prog->expected_attach_type;
 	enum bpf_prog_type type = resolve_prog_type(env->prog);
 
-	if (func_id != BPF_FUNC_map_update_elem)
+	if (func_id != BPF_FUNC_map_update_elem &&
+	    func_id != BPF_FUNC_map_delete_elem)
 		return false;
 
 	/* It's not possible to get access to a locked struct sock in these
@@ -8891,6 +8893,11 @@ static bool may_update_sockmap(struct bpf_verifier_env *env, int func_id)
 	switch (type) {
 	case BPF_PROG_TYPE_TRACING:
 		if (eatype == BPF_TRACE_ITER)
+			return true;
+		break;
+	case BPF_PROG_TYPE_SOCK_OPS:
+		/* map_update allowed only via dedicated helpers with event type checks */
+		if (func_id == BPF_FUNC_map_delete_elem)
 			return true;
 		break;
 	case BPF_PROG_TYPE_SOCKET_FILTER:
@@ -8988,7 +8995,6 @@ static int check_map_func_compatibility(struct bpf_verifier_env *env,
 	case BPF_MAP_TYPE_SOCKMAP:
 		if (func_id != BPF_FUNC_sk_redirect_map &&
 		    func_id != BPF_FUNC_sock_map_update &&
-		    func_id != BPF_FUNC_map_delete_elem &&
 		    func_id != BPF_FUNC_msg_redirect_map &&
 		    func_id != BPF_FUNC_sk_select_reuseport &&
 		    func_id != BPF_FUNC_map_lookup_elem &&
@@ -8998,7 +9004,6 @@ static int check_map_func_compatibility(struct bpf_verifier_env *env,
 	case BPF_MAP_TYPE_SOCKHASH:
 		if (func_id != BPF_FUNC_sk_redirect_hash &&
 		    func_id != BPF_FUNC_sock_hash_update &&
-		    func_id != BPF_FUNC_map_delete_elem &&
 		    func_id != BPF_FUNC_msg_redirect_hash &&
 		    func_id != BPF_FUNC_sk_select_reuseport &&
 		    func_id != BPF_FUNC_map_lookup_elem &&
@@ -11124,7 +11129,11 @@ BTF_ID(func, bpf_iter_css_task_new)
 #else
 BTF_ID_UNUSED
 #endif
+#ifdef CONFIG_BPF_EVENTS
 BTF_ID(func, bpf_session_cookie)
+#else
+BTF_ID_UNUSED
+#endif
 
 static bool is_kfunc_ret_null(struct bpf_kfunc_call_arg_meta *meta)
 {
@@ -15105,7 +15114,6 @@ static int check_cond_jmp_op(struct bpf_verifier_env *env,
 	struct bpf_reg_state *regs = this_branch->frame[this_branch->curframe]->regs;
 	struct bpf_reg_state *dst_reg, *other_branch_regs, *src_reg = NULL;
 	struct bpf_reg_state *eq_branch_regs;
-	struct bpf_reg_state fake_reg = {};
 	u8 opcode = BPF_OP(insn->code);
 	bool is_jmp32;
 	int pred = -1;
@@ -15171,7 +15179,8 @@ static int check_cond_jmp_op(struct bpf_verifier_env *env,
 			verbose(env, "BPF_JMP/JMP32 uses reserved fields\n");
 			return -EINVAL;
 		}
-		src_reg = &fake_reg;
+		src_reg = &env->fake_reg[0];
+		memset(src_reg, 0, sizeof(*src_reg));
 		src_reg->type = SCALAR_VALUE;
 		__mark_reg_known(src_reg, insn->imm);
 	}
@@ -15231,10 +15240,16 @@ static int check_cond_jmp_op(struct bpf_verifier_env *env,
 				      &other_branch_regs[insn->src_reg],
 				      dst_reg, src_reg, opcode, is_jmp32);
 	} else /* BPF_SRC(insn->code) == BPF_K */ {
+		/* reg_set_min_max() can mangle the fake_reg. Make a copy
+		 * so that these are two different memory locations. The
+		 * src_reg is not used beyond here in context of K.
+		 */
+		memcpy(&env->fake_reg[1], &env->fake_reg[0],
+		       sizeof(env->fake_reg[0]));
 		err = reg_set_min_max(env,
 				      &other_branch_regs[insn->dst_reg],
-				      src_reg /* fake one */,
-				      dst_reg, src_reg /* same fake one */,
+				      &env->fake_reg[0],
+				      dst_reg, &env->fake_reg[1],
 				      opcode, is_jmp32);
 	}
 	if (err)
@@ -20305,7 +20320,7 @@ patch_map_ops_generic:
 			goto next_insn;
 		}
 
-#ifdef CONFIG_X86_64
+#if defined(CONFIG_X86_64) && !defined(CONFIG_UML)
 		/* Implement bpf_get_smp_processor_id() inline. */
 		if (insn->imm == BPF_FUNC_get_smp_processor_id &&
 		    prog->jit_requested && bpf_jit_supports_percpu_insn()) {

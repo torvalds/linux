@@ -1388,7 +1388,7 @@ enum ice_param_id {
 	ICE_DEVLINK_PARAM_ID_TX_SCHED_LAYERS,
 };
 
-static const struct devlink_param ice_devlink_params[] = {
+static const struct devlink_param ice_dvl_rdma_params[] = {
 	DEVLINK_PARAM_GENERIC(ENABLE_ROCE, BIT(DEVLINK_PARAM_CMODE_RUNTIME),
 			      ice_devlink_enable_roce_get,
 			      ice_devlink_enable_roce_set,
@@ -1397,6 +1397,9 @@ static const struct devlink_param ice_devlink_params[] = {
 			      ice_devlink_enable_iw_get,
 			      ice_devlink_enable_iw_set,
 			      ice_devlink_enable_iw_validate),
+};
+
+static const struct devlink_param ice_dvl_sched_params[] = {
 	DEVLINK_PARAM_DRIVER(ICE_DEVLINK_PARAM_ID_TX_SCHED_LAYERS,
 			     "tx_scheduling_layers",
 			     DEVLINK_PARAM_TYPE_U8,
@@ -1464,21 +1467,31 @@ int ice_devlink_register_params(struct ice_pf *pf)
 {
 	struct devlink *devlink = priv_to_devlink(pf);
 	struct ice_hw *hw = &pf->hw;
-	size_t params_size;
+	int status;
 
-	params_size =  ARRAY_SIZE(ice_devlink_params);
+	status = devl_params_register(devlink, ice_dvl_rdma_params,
+				      ARRAY_SIZE(ice_dvl_rdma_params));
+	if (status)
+		return status;
 
-	if (!hw->func_caps.common_cap.tx_sched_topo_comp_mode_en)
-		params_size--;
+	if (hw->func_caps.common_cap.tx_sched_topo_comp_mode_en)
+		status = devl_params_register(devlink, ice_dvl_sched_params,
+					      ARRAY_SIZE(ice_dvl_sched_params));
 
-	return devl_params_register(devlink, ice_devlink_params,
-				    params_size);
+	return status;
 }
 
 void ice_devlink_unregister_params(struct ice_pf *pf)
 {
-	devl_params_unregister(priv_to_devlink(pf), ice_devlink_params,
-			       ARRAY_SIZE(ice_devlink_params));
+	struct devlink *devlink = priv_to_devlink(pf);
+	struct ice_hw *hw = &pf->hw;
+
+	devl_params_unregister(devlink, ice_dvl_rdma_params,
+			       ARRAY_SIZE(ice_dvl_rdma_params));
+
+	if (hw->func_caps.common_cap.tx_sched_topo_comp_mode_en)
+		devl_params_unregister(devlink, ice_dvl_sched_params,
+				       ARRAY_SIZE(ice_dvl_sched_params));
 }
 
 #define ICE_DEVLINK_READ_BLK_SIZE (1024 * 1024)

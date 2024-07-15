@@ -850,7 +850,6 @@ static int xlnx_mbox_init_sgi(struct platform_device *pdev,
 		return ret;
 	}
 
-	irq_to_desc(pdata->virq_sgi);
 	irq_set_status_flags(pdata->virq_sgi, IRQ_PER_CPU);
 
 	/* Setup function for the CPU hot-plug cases */

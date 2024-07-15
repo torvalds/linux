@@ -761,7 +761,7 @@ static void kvm_handle_service(struct kvm_vcpu *vcpu)
 	default:
 		ret = KVM_HCALL_INVALID_CODE;
 		break;
-	};
+	}
 
 	kvm_write_reg(vcpu, LOONGARCH_GPR_A0, ret);
 }
