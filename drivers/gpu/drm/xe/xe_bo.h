@@ -36,7 +36,7 @@
 #define XE_BO_FLAG_PAGETABLE		BIT(12)
 #define XE_BO_FLAG_NEEDS_CPU_ACCESS	BIT(13)
 #define XE_BO_FLAG_NEEDS_UC		BIT(14)
-#define XE_BO_NEEDS_64K			BIT(15)
+#define XE_BO_FLAG_NEEDS_64K		BIT(15)
 #define XE_BO_FLAG_GGTT_INVALIDATE	BIT(16)
 /* this one is trigger internally only */
 #define XE_BO_FLAG_INTERNAL_TEST	BIT(30)
