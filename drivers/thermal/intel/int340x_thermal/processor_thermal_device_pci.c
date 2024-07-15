@@ -194,7 +194,8 @@ static int sys_get_curr_temp(struct thermal_zone_device *tzd, int *temp)
 	return 0;
 }
 
-static int sys_set_trip_temp(struct thermal_zone_device *tzd, int trip, int temp)
+static int sys_set_trip_temp(struct thermal_zone_device *tzd,
+			     const struct thermal_trip *trip, int temp)
 {
 	struct proc_thermal_pci *pci_info = thermal_zone_device_priv(tzd);
 	int tjmax, _temp;
