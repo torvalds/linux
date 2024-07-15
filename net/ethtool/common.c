@@ -661,7 +661,7 @@ int ethtool_check_ops(const struct ethtool_ops *ops)
 	return 0;
 }
 
-int __ethtool_get_ts_info(struct net_device *dev, struct ethtool_ts_info *info)
+int __ethtool_get_ts_info(struct net_device *dev, struct kernel_ethtool_ts_info *info)
 {
 	const struct ethtool_ops *ops = dev->ethtool_ops;
 	struct phy_device *phydev = dev->phydev;
@@ -669,7 +669,7 @@ int __ethtool_get_ts_info(struct net_device *dev, struct ethtool_ts_info *info)
 	memset(info, 0, sizeof(*info));
 	info->cmd = ETHTOOL_GET_TS_INFO;
 
-	if (phy_has_tsinfo(phydev))
+	if (phy_is_default_hwtstamp(phydev) && phy_has_tsinfo(phydev))
 		return phy_ts_info(phydev, info);
 	if (ops->get_ts_info)
 		return ops->get_ts_info(dev, info);
@@ -683,7 +683,7 @@ int __ethtool_get_ts_info(struct net_device *dev, struct ethtool_ts_info *info)
 
 int ethtool_get_phc_vclocks(struct net_device *dev, int **vclock_index)
 {
-	struct ethtool_ts_info info = { };
+	struct kernel_ethtool_ts_info info = { };
 	int num = 0;
 
 	if (!__ethtool_get_ts_info(dev, &info))
@@ -693,7 +693,7 @@ int ethtool_get_phc_vclocks(struct net_device *dev, int **vclock_index)
 }
 EXPORT_SYMBOL(ethtool_get_phc_vclocks);
 
-int ethtool_get_ts_info_by_layer(struct net_device *dev, struct ethtool_ts_info *info)
+int ethtool_get_ts_info_by_layer(struct net_device *dev, struct kernel_ethtool_ts_info *info)
 {
 	return __ethtool_get_ts_info(dev, info);
 }

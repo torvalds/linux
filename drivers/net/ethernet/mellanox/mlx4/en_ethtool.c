@@ -1884,7 +1884,7 @@ out:
 }
 
 static int mlx4_en_get_ts_info(struct net_device *dev,
-			       struct ethtool_ts_info *info)
+			       struct kernel_ethtool_ts_info *info)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;

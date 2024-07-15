@@ -394,7 +394,7 @@ static int dpaa_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
 }
 
 static int dpaa_get_ts_info(struct net_device *net_dev,
-			    struct ethtool_ts_info *info)
+			    struct kernel_ethtool_ts_info *info)
 {
 	struct device *dev = net_dev->dev.parent;
 	struct device_node *mac_node = dev->of_node;

@@ -977,7 +977,7 @@ static int ionic_get_module_eeprom(struct net_device *netdev,
 }
 
 static int ionic_get_ts_info(struct net_device *netdev,
-			     struct ethtool_ts_info *info)
+			     struct kernel_ethtool_ts_info *info)
 {
 	struct ionic_lif *lif = netdev_priv(netdev);
 	struct ionic *ionic = lif->ionic;

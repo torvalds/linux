@@ -5024,7 +5024,7 @@ static int bnxt_get_dump_data(struct net_device *dev, struct ethtool_dump *dump,
 }
 
 static int bnxt_get_ts_info(struct net_device *dev,
-			    struct ethtool_ts_info *info)
+			    struct kernel_ethtool_ts_info *info)
 {
 	struct bnxt *bp = netdev_priv(dev);
 	struct bnxt_ptp_cfg *ptp;

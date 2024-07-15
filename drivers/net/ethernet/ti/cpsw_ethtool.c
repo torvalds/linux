@@ -717,7 +717,7 @@ err:
 }
 
 #if IS_ENABLED(CONFIG_TI_CPTS)
-int cpsw_get_ts_info(struct net_device *ndev, struct ethtool_ts_info *info)
+int cpsw_get_ts_info(struct net_device *ndev, struct kernel_ethtool_ts_info *info)
 {
 	struct cpsw_common *cpsw = ndev_to_cpsw(ndev);
 
@@ -738,7 +738,7 @@ int cpsw_get_ts_info(struct net_device *ndev, struct ethtool_ts_info *info)
 	return 0;
 }
 #else
-int cpsw_get_ts_info(struct net_device *ndev, struct ethtool_ts_info *info)
+int cpsw_get_ts_info(struct net_device *ndev, struct kernel_ethtool_ts_info *info)
 {
 	info->so_timestamping =
 		SOF_TIMESTAMPING_TX_SOFTWARE |

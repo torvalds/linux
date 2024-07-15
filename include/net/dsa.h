@@ -936,7 +936,7 @@ struct dsa_switch_ops {
 	 * ethtool timestamp info
 	 */
 	int	(*get_ts_info)(struct dsa_switch *ds, int port,
-			       struct ethtool_ts_info *ts);
+			       struct kernel_ethtool_ts_info *ts);
 
 	/*
 	 * ethtool MAC merge layer

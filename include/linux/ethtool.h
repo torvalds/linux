@@ -18,6 +18,7 @@
 #include <linux/if_ether.h>
 #include <linux/netlink.h>
 #include <uapi/linux/ethtool.h>
+#include <uapi/linux/net_tstamp.h>
 
 struct compat_ethtool_rx_flow_spec {
 	u32		flow_type;
@@ -706,6 +707,22 @@ struct ethtool_rxfh_param {
 };
 
 /**
+ * struct kernel_ethtool_ts_info - kernel copy of struct ethtool_ts_info
+ * @cmd: command number = %ETHTOOL_GET_TS_INFO
+ * @so_timestamping: bit mask of the sum of the supported SO_TIMESTAMPING flags
+ * @phc_index: device index of the associated PHC, or -1 if there is none
+ * @tx_types: bit mask of the supported hwtstamp_tx_types enumeration values
+ * @rx_filters: bit mask of the supported hwtstamp_rx_filters enumeration values
+ */
+struct kernel_ethtool_ts_info {
+	u32 cmd;
+	u32 so_timestamping;
+	int phc_index;
+	enum hwtstamp_tx_types tx_types;
+	enum hwtstamp_rx_filters rx_filters;
+};
+
+/**
  * struct ethtool_ops - optional netdev operations
  * @cap_link_lanes_supported: indicates if the driver supports lanes
  *	parameter.
@@ -1018,7 +1035,7 @@ struct ethtool_ops {
 	int	(*get_dump_data)(struct net_device *,
 				 struct ethtool_dump *, void *);
 	int	(*set_dump)(struct net_device *, struct ethtool_dump *);
-	int	(*get_ts_info)(struct net_device *, struct ethtool_ts_info *);
+	int	(*get_ts_info)(struct net_device *, struct kernel_ethtool_ts_info *);
 	void	(*get_ts_stats)(struct net_device *dev,
 				struct ethtool_ts_stats *ts_stats);
 	int     (*get_module_info)(struct net_device *,
@@ -1179,7 +1196,8 @@ int ethtool_get_phc_vclocks(struct net_device *dev, int **vclock_index);
 
 /* Some generic methods drivers may use in their ethtool_ops */
 u32 ethtool_op_get_link(struct net_device *dev);
-int ethtool_op_get_ts_info(struct net_device *dev, struct ethtool_ts_info *eti);
+int ethtool_op_get_ts_info(struct net_device *dev,
+			   struct kernel_ethtool_ts_info *eti);
 
 /**
  * ethtool_mm_frag_size_add_to_min - Translate (standard) additional fragment
@@ -1228,7 +1246,8 @@ static inline int ethtool_mm_frag_size_min_to_add(u32 val_min, u32 *val_add,
  * @info: buffer to hold the result
  * Returns zero on success, non-zero otherwise.
  */
-int ethtool_get_ts_info_by_layer(struct net_device *dev, struct ethtool_ts_info *info);
+int ethtool_get_ts_info_by_layer(struct net_device *dev,
+				 struct kernel_ethtool_ts_info *info);
 
 /**
  * ethtool_sprintf - Write formatted string to ethtool string data

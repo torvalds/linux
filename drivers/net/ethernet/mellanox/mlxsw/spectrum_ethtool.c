@@ -1082,7 +1082,7 @@ mlxsw_sp_set_module_eeprom_by_page(struct net_device *dev,
 }
 
 static int
-mlxsw_sp_get_ts_info(struct net_device *netdev, struct ethtool_ts_info *info)
+mlxsw_sp_get_ts_info(struct net_device *netdev, struct kernel_ethtool_ts_info *info)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(netdev);
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;

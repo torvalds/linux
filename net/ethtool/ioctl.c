@@ -65,7 +65,8 @@ u32 ethtool_op_get_link(struct net_device *dev)
 }
 EXPORT_SYMBOL(ethtool_op_get_link);
 
-int ethtool_op_get_ts_info(struct net_device *dev, struct ethtool_ts_info *info)
+int ethtool_op_get_ts_info(struct net_device *dev,
+			   struct kernel_ethtool_ts_info *info)
 {
 	info->so_timestamping =
 		SOF_TIMESTAMPING_TX_SOFTWARE |
@@ -2594,12 +2595,19 @@ out:
 
 static int ethtool_get_ts_info(struct net_device *dev, void __user *useraddr)
 {
-	struct ethtool_ts_info info;
+	struct kernel_ethtool_ts_info kernel_info;
+	struct ethtool_ts_info info = {};
 	int err;
 
-	err = __ethtool_get_ts_info(dev, &info);
+	err = __ethtool_get_ts_info(dev, &kernel_info);
 	if (err)
 		return err;
+
+	info.cmd = kernel_info.cmd;
+	info.so_timestamping = kernel_info.so_timestamping;
+	info.phc_index = kernel_info.phc_index;
+	info.tx_types = kernel_info.tx_types;
+	info.rx_filters = kernel_info.rx_filters;
 
 	if (copy_to_user(useraddr, &info, sizeof(info)))
 		return -EFAULT;

@@ -3783,7 +3783,7 @@ ice_set_rxfh(struct net_device *netdev, struct ethtool_rxfh_param *rxfh,
 }
 
 static int
-ice_get_ts_info(struct net_device *dev, struct ethtool_ts_info *info)
+ice_get_ts_info(struct net_device *dev, struct kernel_ethtool_ts_info *info)
 {
 	struct ice_pf *pf = ice_netdev_to_pf(dev);
 

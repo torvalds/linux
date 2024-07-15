@@ -226,7 +226,7 @@ static void efx_ethtool_get_fec_stats(struct net_device *net_dev,
 }
 
 static int efx_ethtool_get_ts_info(struct net_device *net_dev,
-				   struct ethtool_ts_info *ts_info)
+				   struct kernel_ethtool_ts_info *ts_info)
 {
 	struct efx_nic *efx = efx_netdev_priv(net_dev);
 

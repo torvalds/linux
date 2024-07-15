@@ -1658,7 +1658,7 @@ static int mlx5e_set_pauseparam(struct net_device *netdev,
 }
 
 int mlx5e_ethtool_get_ts_info(struct mlx5e_priv *priv,
-			      struct ethtool_ts_info *info)
+			      struct kernel_ethtool_ts_info *info)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
 
@@ -1682,7 +1682,7 @@ int mlx5e_ethtool_get_ts_info(struct mlx5e_priv *priv,
 }
 
 static int mlx5e_get_ts_info(struct net_device *dev,
-			     struct ethtool_ts_info *info)
+			     struct kernel_ethtool_ts_info *info)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 

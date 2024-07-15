@@ -538,7 +538,7 @@ static int lan966x_set_pauseparam(struct net_device *dev,
 }
 
 static int lan966x_get_ts_info(struct net_device *dev,
-			       struct ethtool_ts_info *info)
+			       struct kernel_ethtool_ts_info *info)
 {
 	struct lan966x_port *port = netdev_priv(dev);
 	struct lan966x *lan966x = port->lan966x;
