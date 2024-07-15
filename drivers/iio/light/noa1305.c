@@ -55,6 +55,17 @@ static int noa1305_scale_available[] = {
 	1000000, 625 * 77,	/* 6.25 ms */
 };
 
+static int noa1305_int_time_available[] = {
+	0, 800000,		/* 800 ms */
+	0, 400000,		/* 400 ms */
+	0, 200000,		/* 200 ms */
+	0, 100000,		/* 100 ms */
+	0, 50000,		/* 50 ms */
+	0, 25000,		/* 25 ms */
+	0, 12500,		/* 12.5 ms */
+	0, 6250,		/* 6.25 ms */
+};
+
 struct noa1305_priv {
 	struct i2c_client *client;
 	struct regmap *regmap;
@@ -97,12 +108,30 @@ static int noa1305_scale(struct noa1305_priv *priv, int *val, int *val2)
 	return IIO_VAL_FRACTIONAL;
 }
 
+static int noa1305_int_time(struct noa1305_priv *priv, int *val, int *val2)
+{
+	int data;
+	int ret;
+
+	ret = regmap_read(priv->regmap, NOA1305_REG_INTEGRATION_TIME, &data);
+	if (ret < 0)
+		return ret;
+
+	data &= NOA1305_INTEGR_TIME_MASK;
+	*val = noa1305_int_time_available[2 * data + 0];
+	*val2 = noa1305_int_time_available[2 * data + 1];
+
+	return IIO_VAL_INT_PLUS_MICRO;
+}
+
 static const struct iio_chan_spec noa1305_channels[] = {
 	{
 		.type = IIO_LIGHT,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),
 		.info_mask_shared_by_type_available = BIT(IIO_CHAN_INFO_SCALE),
+		.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_INT_TIME),
+		.info_mask_shared_by_all_available = BIT(IIO_CHAN_INFO_INT_TIME),
 	}
 };
 
@@ -119,6 +148,11 @@ static int noa1305_read_avail(struct iio_dev *indio_dev,
 		*vals = noa1305_scale_available;
 		*length = ARRAY_SIZE(noa1305_scale_available);
 		*type = IIO_VAL_FRACTIONAL;
+		return IIO_AVAIL_LIST;
+	case IIO_CHAN_INFO_INT_TIME:
+		*vals = noa1305_int_time_available;
+		*length = ARRAY_SIZE(noa1305_int_time_available);
+		*type = IIO_VAL_INT_PLUS_MICRO;
 		return IIO_AVAIL_LIST;
 	default:
 		return -EINVAL;
@@ -139,14 +173,41 @@ static int noa1305_read_raw(struct iio_dev *indio_dev,
 		return noa1305_measure(priv, val);
 	case IIO_CHAN_INFO_SCALE:
 		return noa1305_scale(priv, val, val2);
+	case IIO_CHAN_INFO_INT_TIME:
+		return noa1305_int_time(priv, val, val2);
 	default:
 		return -EINVAL;
 	}
 }
 
+static int noa1305_write_raw(struct iio_dev *indio_dev,
+			     struct iio_chan_spec const *chan,
+			     int val, int val2, long mask)
+{
+	struct noa1305_priv *priv = iio_priv(indio_dev);
+	int i;
+
+	if (chan->type != IIO_LIGHT)
+		return -EINVAL;
+
+	if (mask != IIO_CHAN_INFO_INT_TIME)
+		return -EINVAL;
+
+	if (val)	/* >= 1s integration time not supported */
+		return -EINVAL;
+
+	/* Look up integration time register settings and write it if found. */
+	for (i = 0; i < ARRAY_SIZE(noa1305_int_time_available); i++)
+		if (noa1305_int_time_available[2 * i + 1] == val2)
+			return regmap_write(priv->regmap, NOA1305_REG_INTEGRATION_TIME, i);
+
+	return -EINVAL;
+}
+
 static const struct iio_info noa1305_info = {
 	.read_avail = noa1305_read_avail,
 	.read_raw = noa1305_read_raw,
+	.write_raw = noa1305_write_raw,
 };
 
 static bool noa1305_writable_reg(struct device *dev, unsigned int reg)
