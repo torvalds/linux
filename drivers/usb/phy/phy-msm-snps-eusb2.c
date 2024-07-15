@@ -968,17 +968,13 @@ static int msm_eusb2_phy_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "eud_detect_reg");
-	if (!res) {
-		dev_err(dev, "missing eud_detect register address\n");
-		ret = -ENODEV;
-		goto err_ret;
-	}
-
-	phy->eud_detect_reg = devm_ioremap_resource(dev, res);
-	if (IS_ERR(phy->eud_detect_reg)) {
-		ret = PTR_ERR(phy->eud_detect_reg);
-		dev_err(dev, "eud_detect_reg ioremap err:%d\n", ret);
-		goto err_ret;
+	if (res) {
+		phy->eud_detect_reg = devm_ioremap_resource(dev, res);
+		if (IS_ERR(phy->eud_detect_reg)) {
+			ret = PTR_ERR(phy->eud_detect_reg);
+			dev_err(dev, "eud_detect_reg ioremap err:%d\n", ret);
+			goto err_ret;
+		}
 	}
 
 	phy->ref_clk_src = devm_clk_get(dev, "ref_clk_src");
