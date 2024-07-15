@@ -1653,8 +1653,7 @@ static int tsi148_dma_list_add(struct vme_dma_list *list,
 	case VME_DMA_PCI:
 		pci_attr = src->private;
 
-		reg_split((unsigned long long)pci_attr->address, &address_high,
-			&address_low);
+		reg_split((unsigned long long)pci_attr->address, &address_high, &address_low);
 		entry->descriptor.dsau = cpu_to_be32(address_high);
 		entry->descriptor.dsal = cpu_to_be32(address_low);
 		entry->descriptor.dsat = cpu_to_be32(TSI148_LCSR_DSAT_TYP_PCI);
@@ -1662,8 +1661,7 @@ static int tsi148_dma_list_add(struct vme_dma_list *list,
 	case VME_DMA_VME:
 		vme_attr = src->private;
 
-		reg_split((unsigned long long)vme_attr->address, &address_high,
-			&address_low);
+		reg_split((unsigned long long)vme_attr->address, &address_high, &address_low);
 		entry->descriptor.dsau = cpu_to_be32(address_high);
 		entry->descriptor.dsal = cpu_to_be32(address_low);
 		entry->descriptor.dsat = cpu_to_be32(TSI148_LCSR_DSAT_TYP_VME);
