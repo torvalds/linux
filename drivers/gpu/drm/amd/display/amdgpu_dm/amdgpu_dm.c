@@ -877,6 +877,7 @@ static void dm_dmub_outbox1_low_irq(void *interrupt_params)
 		"HPD_IRQ",
 		"SET_CONFIGC_REPLY",
 		"DPIA_NOTIFICATION",
+		"HPD_SENSE_NOTIFY",
 	};
 
 	do {
