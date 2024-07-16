@@ -27,17 +27,19 @@ properties:
     maxItems: 1
 
   voltage-ranges:
-    $ref: /schemas/types.yaml#/definitions/uint32-array
+    $ref: /schemas/types.yaml#/definitions/uint32-matrix
     description: |
       Two cells are required, first cell specifies minimum slot voltage (mV),
       second cell specifies maximum slot voltage (mV).
     items:
-      - description: |
-          value for minimum slot voltage in mV
-        default: 3200
-      - description: |
-          value for maximum slot voltage in mV
-        default: 3400
+      items:
+        - description: |
+            value for minimum slot voltage in mV
+          default: 3200
+        - description: |
+            value for maximum slot voltage in mV
+          default: 3400
+    maxItems: 1
 
   gpios:
     description: |

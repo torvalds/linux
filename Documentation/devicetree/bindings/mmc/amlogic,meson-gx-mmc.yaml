@@ -51,6 +51,9 @@ properties:
       set when controller's internal DMA engine cannot access the DRAM memory,
       like on the G12A dedicated SDIO controller.
 
+  power-domains:
+    maxItems: 1
+
 required:
   - compatible
   - reg
