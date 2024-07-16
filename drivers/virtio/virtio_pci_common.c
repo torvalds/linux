@@ -284,6 +284,44 @@ void vp_del_vqs(struct virtio_device *vdev)
 	vp_dev->vqs = NULL;
 }
 
+static struct virtqueue *vp_find_one_vq_msix(struct virtio_device *vdev,
+					     int queue_idx,
+					     vq_callback_t *callback,
+					     const char *name, bool ctx,
+					     int *allocated_vectors)
+{
+	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
+	struct virtqueue *vq;
+	u16 msix_vec;
+	int err;
+
+	if (!callback)
+		msix_vec = VIRTIO_MSI_NO_VECTOR;
+	else if (vp_dev->per_vq_vectors)
+		msix_vec = (*allocated_vectors)++;
+	else
+		msix_vec = VP_MSIX_VQ_VECTOR;
+	vq = vp_setup_vq(vdev, queue_idx, callback, name, ctx, msix_vec);
+	if (IS_ERR(vq))
+		return vq;
+
+	if (!vp_dev->per_vq_vectors || msix_vec == VIRTIO_MSI_NO_VECTOR)
+		return vq;
+
+	/* allocate per-vq irq if available and necessary */
+	snprintf(vp_dev->msix_names[msix_vec], sizeof(*vp_dev->msix_names),
+		 "%s-%s", dev_name(&vp_dev->vdev.dev), name);
+	err = request_irq(pci_irq_vector(vp_dev->pci_dev, msix_vec),
+			  vring_interrupt, 0,
+			  vp_dev->msix_names[msix_vec], vq);
+	if (err) {
+		vp_del_vq(vq);
+		return ERR_PTR(err);
+	}
+
+	return vq;
+}
+
 static int vp_find_vqs_msix(struct virtio_device *vdev, unsigned int nvqs,
 			    struct virtqueue *vqs[],
 			    struct virtqueue_info vqs_info[],
@@ -292,7 +330,6 @@ static int vp_find_vqs_msix(struct virtio_device *vdev, unsigned int nvqs,
 {
 	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
 	struct virtqueue_info *vqi;
-	u16 msix_vec;
 	int i, err, nvectors, allocated_vectors, queue_idx = 0;
 
 	vp_dev->vqs = kcalloc(nvqs, sizeof(*vp_dev->vqs), GFP_KERNEL);
@@ -325,34 +362,11 @@ static int vp_find_vqs_msix(struct virtio_device *vdev, unsigned int nvqs,
 			vqs[i] = NULL;
 			continue;
 		}
-
-		if (!vqi->callback)
-			msix_vec = VIRTIO_MSI_NO_VECTOR;
-		else if (vp_dev->per_vq_vectors)
-			msix_vec = allocated_vectors++;
-		else
-			msix_vec = VP_MSIX_VQ_VECTOR;
-		vqs[i] = vp_setup_vq(vdev, queue_idx++, vqi->callback,
-				     vqi->name, vqi->ctx, msix_vec);
+		vqs[i] = vp_find_one_vq_msix(vdev, queue_idx++, vqi->callback,
+					     vqi->name, vqi->ctx,
+					     &allocated_vectors);
 		if (IS_ERR(vqs[i])) {
 			err = PTR_ERR(vqs[i]);
-			goto error_find;
-		}
-
-		if (!vp_dev->per_vq_vectors || msix_vec == VIRTIO_MSI_NO_VECTOR)
-			continue;
-
-		/* allocate per-vq irq if available and necessary */
-		snprintf(vp_dev->msix_names[msix_vec],
-			 sizeof *vp_dev->msix_names,
-			 "%s-%s",
-			 dev_name(&vp_dev->vdev.dev), vqi->name);
-		err = request_irq(pci_irq_vector(vp_dev->pci_dev, msix_vec),
-				  vring_interrupt, 0,
-				  vp_dev->msix_names[msix_vec],
-				  vqs[i]);
-		if (err) {
-			vp_del_vq(vqs[i]);
 			goto error_find;
 		}
 	}
