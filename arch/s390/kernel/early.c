@@ -190,11 +190,6 @@ static noinline __init void setup_lowcore_early(void)
 	get_lowcore()->preempt_count = INIT_PREEMPT_COUNT;
 }
 
-static noinline __init void setup_facility_list(void)
-{
-	memcpy(alt_stfle_fac_list, stfle_fac_list, sizeof(alt_stfle_fac_list));
-}
-
 static __init void detect_diag9c(void)
 {
 	unsigned int cpu_address;
@@ -289,7 +284,6 @@ void __init startup_init(void)
 	lockdep_off();
 	sort_amode31_extable();
 	setup_lowcore_early();
-	setup_facility_list();
 	detect_machine_type();
 	setup_arch_string();
 	setup_boot_command_line();
