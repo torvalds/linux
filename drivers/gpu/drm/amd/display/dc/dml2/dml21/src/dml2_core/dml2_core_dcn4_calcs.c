@@ -3851,7 +3851,7 @@ static void CalculateSwathAndDETConfiguration(struct dml2_core_internal_scratch 
 
 	*p->hw_debug5 = false;
 	for (unsigned int k = 0; k < p->NumberOfActiveSurfaces; ++k) {
-		if (!(p->mrq_present) && (!p->UnboundedRequestEnabled) && (TotalActiveDPP == 1)
+		if (!(p->mrq_present) && (!(*p->UnboundedRequestEnabled)) && (TotalActiveDPP == 1)
 			&& p->display_cfg->plane_descriptors[k].surface.dcc.enable
 			&& ((p->rob_buffer_size_kbytes * 1024 * (p->mrq_present ? MAXIMUMCOMPRESSION : 1)
 				+ *p->CompressedBufferSizeInkByte * MAXIMUMCOMPRESSION * 1024) > TTUFIFODEPTH * (RoundedUpSwathSizeBytesY[k] + RoundedUpSwathSizeBytesC[k])))
