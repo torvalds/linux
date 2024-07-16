@@ -18,6 +18,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/regmap.h>
+#include <linux/util_macros.h>
 
 static const unsigned short normal_i2c[] = {
 	0x18, 0x19, 0x1a, 0x29, 0x2a, 0x2b, 0x4c, 0x4d, 0x4e, I2C_CLIENT_END };
@@ -102,11 +103,20 @@ static int max1619_temp_read(struct regmap *regmap, u32 attr, int channel, long 
 	return 0;
 }
 
+static u16 update_intervals[] = { 16000, 8000, 4000, 2000, 1000, 500, 250, 125 };
+
 static int max1619_chip_read(struct regmap *regmap, u32 attr, long *val)
 {
-	int alarms;
+	int alarms, ret;
+	u32 regval;
 
 	switch (attr) {
+	case hwmon_chip_update_interval:
+		ret = regmap_read(regmap, MAX1619_REG_CONVRATE, &regval);
+		if (ret < 0)
+			return ret;
+		*val = update_intervals[regval & 7];
+		break;
 	case hwmon_chip_alarms:
 		alarms = get_alarms(regmap);
 		if (alarms < 0)
@@ -134,14 +144,21 @@ static int max1619_read(struct device *dev, enum hwmon_sensor_types type,
 	}
 }
 
-static int max1619_write(struct device *dev, enum hwmon_sensor_types type,
-			 u32 attr, int channel, long val)
+static int max1619_chip_write(struct regmap *regmap, u32 attr, long val)
 {
-	struct regmap *regmap = dev_get_drvdata(dev);
-	int reg;
-
-	if (type != hwmon_temp)
+	switch (attr) {
+	case hwmon_chip_update_interval:
+		val = find_closest_descending(val, update_intervals, ARRAY_SIZE(update_intervals));
+		return regmap_write(regmap, MAX1619_REG_CONVRATE, val);
+	default:
 		return -EOPNOTSUPP;
+	}
+}
+
+static int max1619_temp_write(struct regmap *regmap,
+			      u32 attr, int channel, long val)
+{
+	int reg;
 
 	switch (attr) {
 	case hwmon_temp_min:
@@ -163,12 +180,29 @@ static int max1619_write(struct device *dev, enum hwmon_sensor_types type,
 	return regmap_write(regmap, reg, val);
 }
 
+static int max1619_write(struct device *dev, enum hwmon_sensor_types type,
+			 u32 attr, int channel, long val)
+{
+	struct regmap *regmap = dev_get_drvdata(dev);
+
+	switch (type) {
+	case hwmon_chip:
+		return max1619_chip_write(regmap, attr, val);
+	case hwmon_temp:
+		return max1619_temp_write(regmap, attr, channel, val);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static umode_t max1619_is_visible(const void *_data, enum hwmon_sensor_types type,
 				  u32 attr, int channel)
 {
 	switch (type) {
 	case hwmon_chip:
 		switch (attr) {
+		case hwmon_chip_update_interval:
+			return 0644;
 		case hwmon_chip_alarms:
 			return 0444;
 		default:
@@ -200,7 +234,7 @@ static umode_t max1619_is_visible(const void *_data, enum hwmon_sensor_types typ
 }
 
 static const struct hwmon_channel_info * const max1619_info[] = {
-	HWMON_CHANNEL_INFO(chip, HWMON_C_ALARMS),
+	HWMON_CHANNEL_INFO(chip, HWMON_C_ALARMS | HWMON_C_UPDATE_INTERVAL),
 	HWMON_CHANNEL_INFO(temp,
 			   HWMON_T_INPUT,
 			   HWMON_T_INPUT | HWMON_T_MIN | HWMON_T_MAX |
