@@ -395,6 +395,8 @@ static int vp_find_vqs_msix(struct virtio_device *vdev, unsigned int nvqs,
 			if (vqi->name && vqi->callback)
 				++nvectors;
 		}
+		if (avq_num && vector_policy == VP_VQ_VECTOR_POLICY_EACH)
+			++nvectors;
 	} else {
 		/* Second best: one for change, shared for all vqs. */
 		nvectors = 2;
@@ -425,9 +427,9 @@ static int vp_find_vqs_msix(struct virtio_device *vdev, unsigned int nvqs,
 	if (!avq_num)
 		return 0;
 	sprintf(avq->name, "avq.%u", avq->vq_index);
-	vq = vp_find_one_vq_msix(vdev, avq->vq_index, NULL, avq->name, false,
-				 true, &allocated_vectors, vector_policy,
-				 &vp_dev->admin_vq.info);
+	vq = vp_find_one_vq_msix(vdev, avq->vq_index, vp_modern_avq_done,
+				 avq->name, false, true, &allocated_vectors,
+				 vector_policy, &vp_dev->admin_vq.info);
 	if (IS_ERR(vq)) {
 		err = PTR_ERR(vq);
 		goto error_find;
@@ -486,8 +488,9 @@ static int vp_find_vqs_intx(struct virtio_device *vdev, unsigned int nvqs,
 	if (!avq_num)
 		return 0;
 	sprintf(avq->name, "avq.%u", avq->vq_index);
-	vq = vp_setup_vq(vdev, queue_idx++, NULL, avq->name, false,
-			 VIRTIO_MSI_NO_VECTOR, &vp_dev->admin_vq.info);
+	vq = vp_setup_vq(vdev, queue_idx++, vp_modern_avq_done, avq->name,
+			 false, VIRTIO_MSI_NO_VECTOR,
+			 &vp_dev->admin_vq.info);
 	if (IS_ERR(vq)) {
 		err = PTR_ERR(vq);
 		goto out_del_vqs;

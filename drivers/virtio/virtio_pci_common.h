@@ -47,6 +47,8 @@ struct virtio_pci_admin_vq {
 	struct virtio_pci_vq_info *info;
 	/* serializing admin commands execution. */
 	struct mutex cmd_lock;
+	/* Protects virtqueue access. */
+	spinlock_t lock;
 	u64 supported_cmds;
 	/* Name of the admin queue: avq.$vq_index. */
 	char name[10];
@@ -178,6 +180,7 @@ struct virtio_device *virtio_pci_vf_get_pf_dev(struct pci_dev *pdev);
 #define VIRTIO_ADMIN_CMD_BITMAP 0
 #endif
 
+void vp_modern_avq_done(struct virtqueue *vq);
 int vp_modern_admin_cmd_exec(struct virtio_device *vdev,
 			     struct virtio_admin_cmd *cmd);
 
