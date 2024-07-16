@@ -799,4 +799,5 @@ static void __exit inject_exit(void)
 
 module_init(inject_init);
 module_exit(inject_exit);
+MODULE_DESCRIPTION("Machine check injection support");
 MODULE_LICENSE("GPL");
