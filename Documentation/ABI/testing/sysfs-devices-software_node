@@ -1,0 +1,10 @@
+What:		/sys/devices/.../software_node/
+Date:		January 2019
+Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
+Description:
+		This directory contains the details about the device that are
+		assigned in kernel (i.e. software), as opposed to the
+		firmware_node directory which contains the details that are
+		assigned for the device in firmware. The main attributes in the
+		directory will show the properties the device has, and the
+		relationship it has to some of the other devices.

@@ -1,0 +1,211 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/arm,cci-400.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ARM CCI Cache Coherent Interconnect
+
+maintainers:
+  - Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>
+
+description: >
+  ARM multi-cluster systems maintain intra-cluster coherency through a cache
+  coherent interconnect (CCI) that is capable of monitoring bus transactions
+  and manage coherency, TLB invalidations and memory barriers.
+
+  It allows snooping and distributed virtual memory message broadcast across
+  clusters, through memory mapped interface, with a global control register
+  space and multiple sets of interface control registers, one per slave
+  interface.
+
+properties:
+  $nodename:
+    pattern: "^cci(@[0-9a-f]+)?$"
+
+  compatible:
+    enum:
+      - arm,cci-400
+      - arm,cci-500
+      - arm,cci-550
+
+  reg:
+    maxItems: 1
+    description: >
+      Specifies base physical address of CCI control registers common to all
+      interfaces.
+
+  "#address-cells": true
+  "#size-cells": true
+  ranges: true
+
+patternProperties:
+  "^slave-if@[0-9a-f]+$":
+    type: object
+
+    properties:
+      compatible:
+        const: arm,cci-400-ctrl-if
+
+      interface-type:
+        enum:
+          - ace
+          - ace-lite
+
+      reg:
+        maxItems: 1
+
+    required:
+      - compatible
+      - interface-type
+      - reg
+
+    additionalProperties: false
+
+  "^pmu@[0-9a-f]+$":
+    type: object
+
+    properties:
+      compatible:
+        oneOf:
+          - const: arm,cci-400-pmu,r0
+          - const: arm,cci-400-pmu,r1
+          - const: arm,cci-400-pmu
+            deprecated: true
+            description: >
+              Permitted only where OS has secure access to CCI registers
+          - const: arm,cci-500-pmu,r0
+          - const: arm,cci-550-pmu,r0
+
+      interrupts:
+        minItems: 1
+        maxItems: 8
+        description: >
+          List of counter overflow interrupts, one per counter. The interrupts
+          must be specified starting with the cycle counter overflow interrupt,
+          followed by counter0 overflow interrupt, counter1 overflow
+          interrupt,...  ,counterN overflow interrupt.
+
+          The CCI PMU has an interrupt signal for each counter. The number of
+          interrupts must be equal to the number of counters.
+
+      reg:
+        maxItems: 1
+
+    required:
+      - compatible
+      - interrupts
+      - reg
+
+    additionalProperties: false
+
+required:
+  - "#address-cells"
+  - "#size-cells"
+  - compatible
+  - ranges
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+      / {
+          #address-cells = <2>;
+          #size-cells = <2>;
+
+          compatible = "arm,vexpress,v2p-ca15_a7", "arm,vexpress";
+          model = "V2P-CA15_CA7";
+          arm,hbi = <0x249>;
+          interrupt-parent = <&gic>;
+
+          gic: interrupt-controller {
+              interrupt-controller;
+              #interrupt-cells = <3>;
+          };
+
+          /*
+           * This CCI node corresponds to a CCI component whose control
+           * registers sits at address 0x000000002c090000.
+           *
+           * CCI slave interface @0x000000002c091000 is connected to dma
+           * controller dma0.
+           *
+           * CCI slave interface @0x000000002c094000 is connected to CPUs
+           * {CPU0, CPU1};
+           *
+           * CCI slave interface @0x000000002c095000 is connected to CPUs
+           * {CPU2, CPU3};
+           */
+
+          cpus {
+              #size-cells = <0>;
+              #address-cells = <1>;
+
+              CPU0: cpu@0 {
+                  device_type = "cpu";
+                  compatible = "arm,cortex-a15";
+                  cci-control-port = <&cci_control1>;
+                  reg = <0x0>;
+              };
+
+              CPU1: cpu@1 {
+                  device_type = "cpu";
+                  compatible = "arm,cortex-a15";
+                  cci-control-port = <&cci_control1>;
+                  reg = <0x1>;
+              };
+
+              CPU2: cpu@100 {
+                  device_type = "cpu";
+                  compatible = "arm,cortex-a7";
+                  cci-control-port = <&cci_control2>;
+                  reg = <0x100>;
+              };
+
+              CPU3: cpu@101 {
+                  device_type = "cpu";
+                  compatible = "arm,cortex-a7";
+                  cci-control-port = <&cci_control2>;
+                  reg = <0x101>;
+              };
+          };
+
+          cci@2c090000 {
+              compatible = "arm,cci-400";
+              #address-cells = <1>;
+              #size-cells = <1>;
+              reg = <0x0 0x2c090000 0 0x1000>;
+              ranges = <0x0 0x0 0x2c090000 0x10000>;
+
+              cci_control0: slave-if@1000 {
+                  compatible = "arm,cci-400-ctrl-if";
+                  interface-type = "ace-lite";
+                  reg = <0x1000 0x1000>;
+              };
+
+              cci_control1: slave-if@4000 {
+                  compatible = "arm,cci-400-ctrl-if";
+                  interface-type = "ace";
+                  reg = <0x4000 0x1000>;
+              };
+
+              cci_control2: slave-if@5000 {
+                  compatible = "arm,cci-400-ctrl-if";
+                  interface-type = "ace";
+                  reg = <0x5000 0x1000>;
+              };
+
+              pmu@9000 {
+                  compatible = "arm,cci-400-pmu";
+                  reg = <0x9000 0x5000>;
+                  interrupts = <0 101 4>,
+                    <0 102 4>,
+                    <0 103 4>,
+                    <0 104 4>,
+                    <0 105 4>;
+              };
+          };
+      };
+
+...

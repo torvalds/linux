@@ -1,0 +1,76 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/dac/adi,ad5686.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Analog Devices AD5360 and similar DACs
+
+maintainers:
+  - Michael Hennerich <michael.hennerich@analog.com>
+  - Jonathan Cameron <jic23@kernel.org>
+
+properties:
+  compatible:
+    oneOf:
+      - description: SPI devices
+        enum:
+          - adi,ad5310r
+          - adi,ad5672r
+          - adi,ad5674r
+          - adi,ad5676
+          - adi,ad5676r
+          - adi,ad5679r
+          - adi,ad5681r
+          - adi,ad5682r
+          - adi,ad5683
+          - adi,ad5683r
+          - adi,ad5684
+          - adi,ad5684r
+          - adi,ad5685r
+          - adi,ad5686
+          - adi,ad5686r
+      - description: I2C devices
+        enum:
+          - adi,ad5311r
+          - adi,ad5338r
+          - adi,ad5671r
+          - adi,ad5675r
+          - adi,ad5691r
+          - adi,ad5692r
+          - adi,ad5693
+          - adi,ad5693r
+          - adi,ad5694
+          - adi,ad5694r
+          - adi,ad5695r
+          - adi,ad5696
+          - adi,ad5696r
+
+
+  reg:
+    maxItems: 1
+
+  vcc-supply:
+    description: If not supplied the internal reference is used.
+
+required:
+  - compatible
+  - reg
+
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        dac@0 {
+            reg = <0>;
+            compatible = "adi,ad5310r";
+            vcc-supply = <&dac_vref0>;
+        };
+    };
+...

@@ -1,0 +1,17 @@
+TODO
+=====
+
+1. Add tests trying to memblock_add() or memblock_reserve() 129th region.
+   This will trigger memblock_double_array(), make sure it succeeds.
+   *Important:* These tests require valid memory ranges, use dummy physical
+                memory block from common.c to implement them. It is also very
+                likely that the current MEM_SIZE won't be enough for these
+                test cases. Use realloc to adjust the size accordingly.
+
+2. Add test cases using this functions (implement them for both directions):
+   + memblock_alloc_raw()
+   + memblock_alloc_exact_nid_raw()
+   + memblock_alloc_try_nid_raw()
+
+3. Add tests for memblock_alloc_node() to check if the correct NUMA node is set
+   for the new region

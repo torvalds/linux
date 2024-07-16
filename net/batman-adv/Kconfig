@@ -1,0 +1,96 @@
+# SPDX-License-Identifier: GPL-2.0
+# Copyright (C) B.A.T.M.A.N. contributors:
+#
+# Marek Lindner, Simon Wunderlich
+
+#
+# B.A.T.M.A.N meshing protocol
+#
+
+config BATMAN_ADV
+	tristate "B.A.T.M.A.N. Advanced Meshing Protocol"
+	select LIBCRC32C
+	help
+	  B.A.T.M.A.N. (better approach to mobile ad-hoc networking) is
+	  a routing protocol for multi-hop ad-hoc mesh networks. The
+	  networks may be wired or wireless. See
+	  https://www.open-mesh.org/ for more information and user space
+	  tools.
+
+config BATMAN_ADV_BATMAN_V
+	bool "B.A.T.M.A.N. V protocol"
+	depends on BATMAN_ADV && !(CFG80211=m && BATMAN_ADV=y)
+	default y
+	help
+	  This option enables the B.A.T.M.A.N. V protocol, the successor
+	  of the currently used B.A.T.M.A.N. IV protocol. The main
+	  changes include splitting of the OGM protocol into a neighbor
+	  discovery protocol (Echo Location Protocol, ELP) and a new OGM
+	  Protocol OGMv2 for flooding protocol information through the
+	  network, as well as a throughput based metric.
+	  B.A.T.M.A.N. V is currently considered experimental and not
+	  compatible to B.A.T.M.A.N. IV networks.
+
+config BATMAN_ADV_BLA
+	bool "Bridge Loop Avoidance"
+	depends on BATMAN_ADV && INET
+	select CRC16
+	default y
+	help
+	  This option enables BLA (Bridge Loop Avoidance), a mechanism
+	  to avoid Ethernet frames looping when mesh nodes are connected
+	  to both the same LAN and the same mesh. If you will never use
+	  more than one mesh node in the same LAN, you can safely remove
+	  this feature and save some space.
+
+config BATMAN_ADV_DAT
+	bool "Distributed ARP Table"
+	depends on BATMAN_ADV && INET
+	default y
+	help
+	  This option enables DAT (Distributed ARP Table), a DHT based
+	  mechanism that increases ARP reliability on sparse wireless
+	  mesh networks. If you think that your network does not need
+	  this option you can safely remove it and save some space.
+
+config BATMAN_ADV_NC
+	bool "Network Coding"
+	depends on BATMAN_ADV
+	help
+	  This option enables network coding, a mechanism that aims to
+	  increase the overall network throughput by fusing multiple
+	  packets in one transmission.
+	  Note that interfaces controlled by batman-adv must be manually
+	  configured to have promiscuous mode enabled in order to make
+	  network coding work.
+	  If you think that your network does not need this feature you
+	  can safely disable it and save some space.
+
+config BATMAN_ADV_MCAST
+	bool "Multicast optimisation"
+	depends on BATMAN_ADV && INET && !(BRIDGE=m && BATMAN_ADV=y)
+	default y
+	help
+	  This option enables the multicast optimisation which aims to
+	  reduce the air overhead while improving the reliability of
+	  multicast messages.
+
+config BATMAN_ADV_DEBUG
+	bool "B.A.T.M.A.N. debugging"
+	depends on BATMAN_ADV
+	help
+	  This is an option for use by developers; most people should
+	  say N here. This enables compilation of support for
+	  outputting debugging information to the tracing buffer. The output is
+	  controlled via the batadv netdev specific log_level setting.
+
+config BATMAN_ADV_TRACING
+	bool "B.A.T.M.A.N. tracing support"
+	depends on BATMAN_ADV
+	depends on EVENT_TRACING
+	help
+	  This is an option for use by developers; most people should
+	  say N here. Select this option to gather traces like the debug
+	  messages using the generic tracing infrastructure of the kernel.
+	  BATMAN_ADV_DEBUG must also be selected to get trace events for
+	  batadv_dbg.

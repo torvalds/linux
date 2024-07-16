@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2016 Endless Computers, Inc.
+ * Author: Carlo Caione <carlo@endlessm.com>
+ */
+
+#include "meson-gxl.dtsi"
+#include "meson-gxl-mali.dtsi"
+
+/ {
+	compatible = "amlogic,s905d", "amlogic,meson-gxl";
+};

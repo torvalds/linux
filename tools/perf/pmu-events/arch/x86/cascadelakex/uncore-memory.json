@@ -1,0 +1,4547 @@
+[
+    {
+        "BriefDescription": "DRAM Page Activate commands sent due to a write request",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1",
+        "EventName": "UNC_M_ACT_COUNT.WR",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "All DRAM Read CAS Commands issued (does not include underfills)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x4",
+        "EventName": "UNC_M_CAS_COUNT.RD_REG",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "DRAM Underfill Read CAS Commands issued",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x4",
+        "EventName": "UNC_M_CAS_COUNT.RD_UNDERFILL",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "All DRAM Read CAS Commands issued (including underfills)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x4",
+        "EventName": "UNC_M_CAS_COUNT.RD",
+        "PerPkg": "1",
+        "UMask": "0x3",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "read requests to memory controller. Derived from unc_m_cas_count.rd",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x4",
+        "EventName": "LLC_MISSES.MEM_READ",
+        "PerPkg": "1",
+        "ScaleUnit": "64Bytes",
+        "UMask": "0x3",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "DRAM CAS (Column Address Strobe) Commands.; DRAM WR_CAS (w/ and w/out auto-pre) in Write Major Mode",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x4",
+        "EventName": "UNC_M_CAS_COUNT.WR_WMM",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "All DRAM Write CAS commands issued",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x4",
+        "EventName": "UNC_M_CAS_COUNT.WR",
+        "PerPkg": "1",
+        "UMask": "0xC",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "write requests to memory controller. Derived from unc_m_cas_count.wr",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x4",
+        "EventName": "LLC_MISSES.MEM_WRITE",
+        "PerPkg": "1",
+        "ScaleUnit": "64Bytes",
+        "UMask": "0xC",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "All DRAM CAS Commands issued",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x4",
+        "EventName": "UNC_M_CAS_COUNT.ALL",
+        "PerPkg": "1",
+        "UMask": "0xF",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Memory controller clock ticks",
+        "Counter": "0,1,2,3",
+        "EventName": "UNC_M_CLOCKTICKS",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Cycles where DRAM ranks are in power down (CKE) mode+C37",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x85",
+        "EventName": "UNC_M_POWER_CHANNEL_PPD",
+        "MetricExpr": "(UNC_M_POWER_CHANNEL_PPD / UNC_M_CLOCKTICKS) * 100.",
+        "MetricName": "power_channel_ppd %",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Cycles Memory is in self refresh power mode",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x43",
+        "EventName": "UNC_M_POWER_SELF_REFRESH",
+        "MetricExpr": "(UNC_M_POWER_SELF_REFRESH / UNC_M_CLOCKTICKS) * 100.",
+        "MetricName": "power_self_refresh %",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Pre-charges due to page misses",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2",
+        "EventName": "UNC_M_PRE_COUNT.PAGE_MISS",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Pre-charge for reads",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2",
+        "EventName": "UNC_M_PRE_COUNT.RD",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Read Pending Queue Allocations",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x10",
+        "EventName": "UNC_M_RPQ_INSERTS",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Read Pending Queue Occupancy",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x80",
+        "EventName": "UNC_M_RPQ_OCCUPANCY",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "All hits to Near Memory(DRAM cache) in Memory Mode",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD3",
+        "EventName": "UNC_M_TAGCHK.HIT",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "All Clean line misses to Near Memory(DRAM cache) in Memory Mode",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD3",
+        "EventName": "UNC_M_TAGCHK.MISS_CLEAN",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "All dirty line misses to Near Memory(DRAM cache) in Memory Mode",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD3",
+        "EventName": "UNC_M_TAGCHK.MISS_DIRTY",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Write Pending Queue Allocations",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x20",
+        "EventName": "UNC_M_WPQ_INSERTS",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Write Pending Queue Occupancy",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x81",
+        "EventName": "UNC_M_WPQ_OCCUPANCY",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Read Pending Queue Occupancy of all read requests for Intel Optane DC persistent memory",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xE0",
+        "EventName": "UNC_M_PMM_RPQ_OCCUPANCY.ALL",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Intel Optane DC persistent memory read latency (ns). Derived from unc_m_pmm_rpq_occupancy.all",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xE0",
+        "EventName": "UNC_M_PMM_READ_LATENCY",
+        "MetricExpr": "UNC_M_PMM_RPQ_OCCUPANCY.ALL / UNC_M_PMM_RPQ_INSERTS / UNC_M_CLOCKTICKS",
+        "MetricName": "UNC_M_PMM_READ_LATENCY",
+        "PerPkg": "1",
+        "ScaleUnit": "6000000000ns",
+        "UMask": "0x1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Write requests allocated in the PMM Write Pending Queue for Intel Optane DC persistent memory",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xE3",
+        "EventName": "UNC_M_PMM_RPQ_INSERTS",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Intel Optane DC persistent memory bandwidth read (MB/sec). Derived from unc_m_pmm_rpq_inserts",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xE3",
+        "EventName": "UNC_M_PMM_BANDWIDTH.READ",
+        "PerPkg": "1",
+        "ScaleUnit": "6.103515625E-5MB/sec",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Intel Optane DC persistent memory bandwidth total (MB/sec). Derived from unc_m_pmm_rpq_inserts",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xE3",
+        "EventName": "UNC_M_PMM_BANDWIDTH.TOTAL",
+        "MetricExpr": "UNC_M_PMM_RPQ_INSERTS + UNC_M_PMM_WPQ_INSERTS",
+        "MetricName": "UNC_M_PMM_BANDWIDTH.TOTAL",
+        "PerPkg": "1",
+        "ScaleUnit": "6.103515625E-5MB/sec",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "All commands for Intel Optane DC persistent memory",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xEA",
+        "EventName": "UNC_M_PMM_CMD1.ALL",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Regular reads(RPQ) commands for Intel Optane DC persistent memory",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xEA",
+        "EventName": "UNC_M_PMM_CMD1.RD",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Write commands for Intel Optane DC persistent memory",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xEA",
+        "EventName": "UNC_M_PMM_CMD1.WR",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Underfill read commands for Intel Optane DC persistent memory",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xEA",
+        "EventName": "UNC_M_PMM_CMD1.UFILL_RD",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Write requests allocated in the PMM Write Pending Queue for Intel Optane DC persistent memory",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xE7",
+        "EventName": "UNC_M_PMM_WPQ_INSERTS",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Intel Optane DC persistent memory bandwidth write (MB/sec). Derived from unc_m_pmm_wpq_inserts",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xE7",
+        "EventName": "UNC_M_PMM_BANDWIDTH.WRITE",
+        "PerPkg": "1",
+        "ScaleUnit": "6.103515625E-5MB/sec",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Write Pending Queue Occupancy of all write requests for Intel Optane DC persistent memory",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xE4",
+        "EventName": "UNC_M_PMM_WPQ_OCCUPANCY.ALL",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "DRAM Activate Count; Activate due to Read",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1",
+        "EventName": "UNC_M_ACT_COUNT.RD",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "DRAM Activate Count; Activate due to Bypass",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1",
+        "EventName": "UNC_M_ACT_COUNT.BYP",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "ACT command issued by 2 cycle bypass",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xA1",
+        "EventName": "UNC_M_BYP_CMDS.ACT",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "CAS command issued by 2 cycle bypass",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xA1",
+        "EventName": "UNC_M_BYP_CMDS.CAS",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "PRE command issued by 2 cycle bypass",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xA1",
+        "EventName": "UNC_M_BYP_CMDS.PRE",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "DRAM CAS (Column Address Strobe) Commands.; DRAM WR_CAS (w/ and w/out auto-pre) in Read Major Mode",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x4",
+        "EventName": "UNC_M_CAS_COUNT.WR_RMM",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "DRAM CAS (Column Address Strobe) Commands.; Read CAS issued in WMM",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x4",
+        "EventName": "UNC_M_CAS_COUNT.RD_WMM",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "DRAM CAS (Column Address Strobe) Commands.; Read CAS issued in RMM",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x4",
+        "EventName": "UNC_M_CAS_COUNT.RD_RMM",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "DRAM CAS (Column Address Strobe) Commands.; Read CAS issued in Read ISOCH Mode",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x4",
+        "EventName": "UNC_M_CAS_COUNT.RD_ISOCH",
+        "PerPkg": "1",
+        "UMask": "0x40",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "DRAM CAS (Column Address Strobe) Commands.; Read CAS issued in Write ISOCH Mode",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x4",
+        "EventName": "UNC_M_CAS_COUNT.WR_ISOCH",
+        "PerPkg": "1",
+        "UMask": "0x80",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "DRAM Precharge All Commands",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x6",
+        "EventName": "UNC_M_DRAM_PRE_ALL",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "ECC Correctable Errors",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x9",
+        "EventName": "UNC_M_ECC_CORRECTABLE_ERRORS",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Cycles in a Major Mode; Read Major Mode",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x7",
+        "EventName": "UNC_M_MAJOR_MODES.READ",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Cycles in a Major Mode; Write Major Mode",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x7",
+        "EventName": "UNC_M_MAJOR_MODES.WRITE",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Cycles in a Major Mode; Partial Major Mode",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x7",
+        "EventName": "UNC_M_MAJOR_MODES.PARTIAL",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Cycles in a Major Mode; Isoch Major Mode",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x7",
+        "EventName": "UNC_M_MAJOR_MODES.ISOCH",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Channel DLLOFF Cycles",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x84",
+        "EventName": "UNC_M_POWER_CHANNEL_DLLOFF",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "CKE_ON_CYCLES by Rank; DIMM ID",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x83",
+        "EventName": "UNC_M_POWER_CKE_CYCLES.RANK0",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "CKE_ON_CYCLES by Rank; DIMM ID",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x83",
+        "EventName": "UNC_M_POWER_CKE_CYCLES.RANK1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "CKE_ON_CYCLES by Rank; DIMM ID",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x83",
+        "EventName": "UNC_M_POWER_CKE_CYCLES.RANK2",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "CKE_ON_CYCLES by Rank; DIMM ID",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x83",
+        "EventName": "UNC_M_POWER_CKE_CYCLES.RANK3",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "CKE_ON_CYCLES by Rank; DIMM ID",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x83",
+        "EventName": "UNC_M_POWER_CKE_CYCLES.RANK4",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "CKE_ON_CYCLES by Rank; DIMM ID",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x83",
+        "EventName": "UNC_M_POWER_CKE_CYCLES.RANK5",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "CKE_ON_CYCLES by Rank; DIMM ID",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x83",
+        "EventName": "UNC_M_POWER_CKE_CYCLES.RANK6",
+        "PerPkg": "1",
+        "UMask": "0x40",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "CKE_ON_CYCLES by Rank; DIMM ID",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x83",
+        "EventName": "UNC_M_POWER_CKE_CYCLES.RANK7",
+        "PerPkg": "1",
+        "UMask": "0x80",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Critical Throttle Cycles",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x86",
+        "EventName": "UNC_M_POWER_CRITICAL_THROTTLE_CYCLES",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "UNC_M_POWER_PCU_THROTTLING",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x42",
+        "EventName": "UNC_M_POWER_PCU_THROTTLING",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Throttle Cycles for Rank 0; DIMM ID",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x41",
+        "EventName": "UNC_M_POWER_THROTTLE_CYCLES.RANK0",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Throttle Cycles for Rank 0; DIMM ID",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x41",
+        "EventName": "UNC_M_POWER_THROTTLE_CYCLES.RANK1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Throttle Cycles for Rank 0; DIMM ID",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x41",
+        "EventName": "UNC_M_POWER_THROTTLE_CYCLES.RANK2",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Throttle Cycles for Rank 0; DIMM ID",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x41",
+        "EventName": "UNC_M_POWER_THROTTLE_CYCLES.RANK3",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Throttle Cycles for Rank 0; DIMM ID",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x41",
+        "EventName": "UNC_M_POWER_THROTTLE_CYCLES.RANK4",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Throttle Cycles for Rank 0; DIMM ID",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x41",
+        "EventName": "UNC_M_POWER_THROTTLE_CYCLES.RANK5",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Throttle Cycles for Rank 0; DIMM ID",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x41",
+        "EventName": "UNC_M_POWER_THROTTLE_CYCLES.RANK6",
+        "PerPkg": "1",
+        "UMask": "0x40",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Throttle Cycles for Rank 0; DIMM ID",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x41",
+        "EventName": "UNC_M_POWER_THROTTLE_CYCLES.RANK7",
+        "PerPkg": "1",
+        "UMask": "0x80",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Read Preemption Count; Read over Read Preemption",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x8",
+        "EventName": "UNC_M_PREEMPTION.RD_PREEMPT_RD",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Read Preemption Count; Read over Write Preemption",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x8",
+        "EventName": "UNC_M_PREEMPTION.RD_PREEMPT_WR",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "DRAM Precharge commands.; Precharge due to timer expiration",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2",
+        "EventName": "UNC_M_PRE_COUNT.PAGE_CLOSE",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Pre-charge for writes",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2",
+        "EventName": "UNC_M_PRE_COUNT.WR",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "DRAM Precharge commands.; Precharge due to bypass",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2",
+        "EventName": "UNC_M_PRE_COUNT.BYP",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Read CAS issued with LOW priority",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xA0",
+        "EventName": "UNC_M_RD_CAS_PRIO.LOW",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Read CAS issued with MEDIUM priority",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xA0",
+        "EventName": "UNC_M_RD_CAS_PRIO.MED",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Read CAS issued with HIGH priority",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xA0",
+        "EventName": "UNC_M_RD_CAS_PRIO.HIGH",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Read CAS issued with PANIC NON ISOCH priority (starved)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xA0",
+        "EventName": "UNC_M_RD_CAS_PRIO.PANIC",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 0; Bank 0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB0",
+        "EventName": "UNC_M_RD_CAS_RANK0.BANK0",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 0; Bank 1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB0",
+        "EventName": "UNC_M_RD_CAS_RANK0.BANK1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 0; Bank 2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB0",
+        "EventName": "UNC_M_RD_CAS_RANK0.BANK2",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 0; Bank 3",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB0",
+        "EventName": "UNC_M_RD_CAS_RANK0.BANK3",
+        "PerPkg": "1",
+        "UMask": "0x3",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 0; Bank 4",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB0",
+        "EventName": "UNC_M_RD_CAS_RANK0.BANK4",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 0; Bank 5",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB0",
+        "EventName": "UNC_M_RD_CAS_RANK0.BANK5",
+        "PerPkg": "1",
+        "UMask": "0x5",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 0; Bank 6",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB0",
+        "EventName": "UNC_M_RD_CAS_RANK0.BANK6",
+        "PerPkg": "1",
+        "UMask": "0x6",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 0; Bank 7",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB0",
+        "EventName": "UNC_M_RD_CAS_RANK0.BANK7",
+        "PerPkg": "1",
+        "UMask": "0x7",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 0; Bank 8",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB0",
+        "EventName": "UNC_M_RD_CAS_RANK0.BANK8",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 0; Bank 9",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB0",
+        "EventName": "UNC_M_RD_CAS_RANK0.BANK9",
+        "PerPkg": "1",
+        "UMask": "0x9",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 0; Bank 10",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB0",
+        "EventName": "UNC_M_RD_CAS_RANK0.BANK10",
+        "PerPkg": "1",
+        "UMask": "0xA",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 0; Bank 11",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB0",
+        "EventName": "UNC_M_RD_CAS_RANK0.BANK11",
+        "PerPkg": "1",
+        "UMask": "0xB",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 0; Bank 12",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB0",
+        "EventName": "UNC_M_RD_CAS_RANK0.BANK12",
+        "PerPkg": "1",
+        "UMask": "0xC",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 0; Bank 13",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB0",
+        "EventName": "UNC_M_RD_CAS_RANK0.BANK13",
+        "PerPkg": "1",
+        "UMask": "0xD",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 0; Bank 14",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB0",
+        "EventName": "UNC_M_RD_CAS_RANK0.BANK14",
+        "PerPkg": "1",
+        "UMask": "0xE",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 0; Bank 15",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB0",
+        "EventName": "UNC_M_RD_CAS_RANK0.BANK15",
+        "PerPkg": "1",
+        "UMask": "0xF",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 0; All Banks",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB0",
+        "EventName": "UNC_M_RD_CAS_RANK0.ALLBANKS",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 0; Bank Group 0 (Banks 0-3)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB0",
+        "EventName": "UNC_M_RD_CAS_RANK0.BANKG0",
+        "PerPkg": "1",
+        "UMask": "0x11",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 0; Bank Group 1 (Banks 4-7)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB0",
+        "EventName": "UNC_M_RD_CAS_RANK0.BANKG1",
+        "PerPkg": "1",
+        "UMask": "0x12",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 0; Bank Group 2 (Banks 8-11)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB0",
+        "EventName": "UNC_M_RD_CAS_RANK0.BANKG2",
+        "PerPkg": "1",
+        "UMask": "0x13",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 0; Bank Group 3 (Banks 12-15)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB0",
+        "EventName": "UNC_M_RD_CAS_RANK0.BANKG3",
+        "PerPkg": "1",
+        "UMask": "0x14",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 1; Bank 0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB1",
+        "EventName": "UNC_M_RD_CAS_RANK1.BANK0",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 1; Bank 1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB1",
+        "EventName": "UNC_M_RD_CAS_RANK1.BANK1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 1; Bank 2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB1",
+        "EventName": "UNC_M_RD_CAS_RANK1.BANK2",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 1; Bank 3",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB1",
+        "EventName": "UNC_M_RD_CAS_RANK1.BANK3",
+        "PerPkg": "1",
+        "UMask": "0x3",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 1; Bank 4",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB1",
+        "EventName": "UNC_M_RD_CAS_RANK1.BANK4",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 1; Bank 5",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB1",
+        "EventName": "UNC_M_RD_CAS_RANK1.BANK5",
+        "PerPkg": "1",
+        "UMask": "0x5",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 1; Bank 6",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB1",
+        "EventName": "UNC_M_RD_CAS_RANK1.BANK6",
+        "PerPkg": "1",
+        "UMask": "0x6",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 1; Bank 7",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB1",
+        "EventName": "UNC_M_RD_CAS_RANK1.BANK7",
+        "PerPkg": "1",
+        "UMask": "0x7",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 1; Bank 8",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB1",
+        "EventName": "UNC_M_RD_CAS_RANK1.BANK8",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 1; Bank 9",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB1",
+        "EventName": "UNC_M_RD_CAS_RANK1.BANK9",
+        "PerPkg": "1",
+        "UMask": "0x9",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 1; Bank 10",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB1",
+        "EventName": "UNC_M_RD_CAS_RANK1.BANK10",
+        "PerPkg": "1",
+        "UMask": "0xA",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 1; Bank 11",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB1",
+        "EventName": "UNC_M_RD_CAS_RANK1.BANK11",
+        "PerPkg": "1",
+        "UMask": "0xB",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 1; Bank 12",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB1",
+        "EventName": "UNC_M_RD_CAS_RANK1.BANK12",
+        "PerPkg": "1",
+        "UMask": "0xC",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 1; Bank 13",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB1",
+        "EventName": "UNC_M_RD_CAS_RANK1.BANK13",
+        "PerPkg": "1",
+        "UMask": "0xD",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 1; Bank 14",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB1",
+        "EventName": "UNC_M_RD_CAS_RANK1.BANK14",
+        "PerPkg": "1",
+        "UMask": "0xE",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 1; Bank 15",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB1",
+        "EventName": "UNC_M_RD_CAS_RANK1.BANK15",
+        "PerPkg": "1",
+        "UMask": "0xF",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 1; All Banks",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB1",
+        "EventName": "UNC_M_RD_CAS_RANK1.ALLBANKS",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 1; Bank Group 0 (Banks 0-3)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB1",
+        "EventName": "UNC_M_RD_CAS_RANK1.BANKG0",
+        "PerPkg": "1",
+        "UMask": "0x11",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 1; Bank Group 1 (Banks 4-7)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB1",
+        "EventName": "UNC_M_RD_CAS_RANK1.BANKG1",
+        "PerPkg": "1",
+        "UMask": "0x12",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 1; Bank Group 2 (Banks 8-11)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB1",
+        "EventName": "UNC_M_RD_CAS_RANK1.BANKG2",
+        "PerPkg": "1",
+        "UMask": "0x13",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 1; Bank Group 3 (Banks 12-15)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB1",
+        "EventName": "UNC_M_RD_CAS_RANK1.BANKG3",
+        "PerPkg": "1",
+        "UMask": "0x14",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 2; Bank 0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB2",
+        "EventName": "UNC_M_RD_CAS_RANK2.BANK0",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 2; Bank 1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB2",
+        "EventName": "UNC_M_RD_CAS_RANK2.BANK1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 2; Bank 2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB2",
+        "EventName": "UNC_M_RD_CAS_RANK2.BANK2",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 2; Bank 3",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB2",
+        "EventName": "UNC_M_RD_CAS_RANK2.BANK3",
+        "PerPkg": "1",
+        "UMask": "0x3",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 2; Bank 4",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB2",
+        "EventName": "UNC_M_RD_CAS_RANK2.BANK4",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 2; Bank 5",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB2",
+        "EventName": "UNC_M_RD_CAS_RANK2.BANK5",
+        "PerPkg": "1",
+        "UMask": "0x5",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 2; Bank 6",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB2",
+        "EventName": "UNC_M_RD_CAS_RANK2.BANK6",
+        "PerPkg": "1",
+        "UMask": "0x6",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 2; Bank 7",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB2",
+        "EventName": "UNC_M_RD_CAS_RANK2.BANK7",
+        "PerPkg": "1",
+        "UMask": "0x7",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 2; Bank 8",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB2",
+        "EventName": "UNC_M_RD_CAS_RANK2.BANK8",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 2; Bank 9",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB2",
+        "EventName": "UNC_M_RD_CAS_RANK2.BANK9",
+        "PerPkg": "1",
+        "UMask": "0x9",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 2; Bank 10",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB2",
+        "EventName": "UNC_M_RD_CAS_RANK2.BANK10",
+        "PerPkg": "1",
+        "UMask": "0xA",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 2; Bank 11",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB2",
+        "EventName": "UNC_M_RD_CAS_RANK2.BANK11",
+        "PerPkg": "1",
+        "UMask": "0xB",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 2; Bank 12",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB2",
+        "EventName": "UNC_M_RD_CAS_RANK2.BANK12",
+        "PerPkg": "1",
+        "UMask": "0xC",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 2; Bank 13",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB2",
+        "EventName": "UNC_M_RD_CAS_RANK2.BANK13",
+        "PerPkg": "1",
+        "UMask": "0xD",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 2; Bank 14",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB2",
+        "EventName": "UNC_M_RD_CAS_RANK2.BANK14",
+        "PerPkg": "1",
+        "UMask": "0xE",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 2; Bank 15",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB2",
+        "EventName": "UNC_M_RD_CAS_RANK2.BANK15",
+        "PerPkg": "1",
+        "UMask": "0xF",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 2; All Banks",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB2",
+        "EventName": "UNC_M_RD_CAS_RANK2.ALLBANKS",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 2; Bank Group 0 (Banks 0-3)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB2",
+        "EventName": "UNC_M_RD_CAS_RANK2.BANKG0",
+        "PerPkg": "1",
+        "UMask": "0x11",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 2; Bank Group 1 (Banks 4-7)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB2",
+        "EventName": "UNC_M_RD_CAS_RANK2.BANKG1",
+        "PerPkg": "1",
+        "UMask": "0x12",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 2; Bank Group 2 (Banks 8-11)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB2",
+        "EventName": "UNC_M_RD_CAS_RANK2.BANKG2",
+        "PerPkg": "1",
+        "UMask": "0x13",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 2; Bank Group 3 (Banks 12-15)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB2",
+        "EventName": "UNC_M_RD_CAS_RANK2.BANKG3",
+        "PerPkg": "1",
+        "UMask": "0x14",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 3; Bank 0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB3",
+        "EventName": "UNC_M_RD_CAS_RANK3.BANK0",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 3; Bank 1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB3",
+        "EventName": "UNC_M_RD_CAS_RANK3.BANK1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 3; Bank 2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB3",
+        "EventName": "UNC_M_RD_CAS_RANK3.BANK2",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 3; Bank 3",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB3",
+        "EventName": "UNC_M_RD_CAS_RANK3.BANK3",
+        "PerPkg": "1",
+        "UMask": "0x3",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 3; Bank 4",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB3",
+        "EventName": "UNC_M_RD_CAS_RANK3.BANK4",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 3; Bank 5",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB3",
+        "EventName": "UNC_M_RD_CAS_RANK3.BANK5",
+        "PerPkg": "1",
+        "UMask": "0x5",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 3; Bank 6",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB3",
+        "EventName": "UNC_M_RD_CAS_RANK3.BANK6",
+        "PerPkg": "1",
+        "UMask": "0x6",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 3; Bank 7",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB3",
+        "EventName": "UNC_M_RD_CAS_RANK3.BANK7",
+        "PerPkg": "1",
+        "UMask": "0x7",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 3; Bank 8",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB3",
+        "EventName": "UNC_M_RD_CAS_RANK3.BANK8",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 3; Bank 9",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB3",
+        "EventName": "UNC_M_RD_CAS_RANK3.BANK9",
+        "PerPkg": "1",
+        "UMask": "0x9",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 3; Bank 10",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB3",
+        "EventName": "UNC_M_RD_CAS_RANK3.BANK10",
+        "PerPkg": "1",
+        "UMask": "0xA",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 3; Bank 11",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB3",
+        "EventName": "UNC_M_RD_CAS_RANK3.BANK11",
+        "PerPkg": "1",
+        "UMask": "0xB",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 3; Bank 12",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB3",
+        "EventName": "UNC_M_RD_CAS_RANK3.BANK12",
+        "PerPkg": "1",
+        "UMask": "0xC",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 3; Bank 13",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB3",
+        "EventName": "UNC_M_RD_CAS_RANK3.BANK13",
+        "PerPkg": "1",
+        "UMask": "0xD",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 3; Bank 14",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB3",
+        "EventName": "UNC_M_RD_CAS_RANK3.BANK14",
+        "PerPkg": "1",
+        "UMask": "0xE",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 3; Bank 15",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB3",
+        "EventName": "UNC_M_RD_CAS_RANK3.BANK15",
+        "PerPkg": "1",
+        "UMask": "0xF",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 3; All Banks",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB3",
+        "EventName": "UNC_M_RD_CAS_RANK3.ALLBANKS",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 3; Bank Group 0 (Banks 0-3)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB3",
+        "EventName": "UNC_M_RD_CAS_RANK3.BANKG0",
+        "PerPkg": "1",
+        "UMask": "0x11",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 3; Bank Group 1 (Banks 4-7)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB3",
+        "EventName": "UNC_M_RD_CAS_RANK3.BANKG1",
+        "PerPkg": "1",
+        "UMask": "0x12",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 3; Bank Group 2 (Banks 8-11)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB3",
+        "EventName": "UNC_M_RD_CAS_RANK3.BANKG2",
+        "PerPkg": "1",
+        "UMask": "0x13",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 3; Bank Group 3 (Banks 12-15)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB3",
+        "EventName": "UNC_M_RD_CAS_RANK3.BANKG3",
+        "PerPkg": "1",
+        "UMask": "0x14",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 4; Bank 0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB4",
+        "EventName": "UNC_M_RD_CAS_RANK4.BANK0",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 4; Bank 1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB4",
+        "EventName": "UNC_M_RD_CAS_RANK4.BANK1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 4; Bank 2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB4",
+        "EventName": "UNC_M_RD_CAS_RANK4.BANK2",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 4; Bank 3",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB4",
+        "EventName": "UNC_M_RD_CAS_RANK4.BANK3",
+        "PerPkg": "1",
+        "UMask": "0x3",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 4; Bank 4",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB4",
+        "EventName": "UNC_M_RD_CAS_RANK4.BANK4",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 4; Bank 5",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB4",
+        "EventName": "UNC_M_RD_CAS_RANK4.BANK5",
+        "PerPkg": "1",
+        "UMask": "0x5",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 4; Bank 6",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB4",
+        "EventName": "UNC_M_RD_CAS_RANK4.BANK6",
+        "PerPkg": "1",
+        "UMask": "0x6",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 4; Bank 7",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB4",
+        "EventName": "UNC_M_RD_CAS_RANK4.BANK7",
+        "PerPkg": "1",
+        "UMask": "0x7",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 4; Bank 8",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB4",
+        "EventName": "UNC_M_RD_CAS_RANK4.BANK8",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 4; Bank 9",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB4",
+        "EventName": "UNC_M_RD_CAS_RANK4.BANK9",
+        "PerPkg": "1",
+        "UMask": "0x9",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 4; Bank 10",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB4",
+        "EventName": "UNC_M_RD_CAS_RANK4.BANK10",
+        "PerPkg": "1",
+        "UMask": "0xA",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 4; Bank 11",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB4",
+        "EventName": "UNC_M_RD_CAS_RANK4.BANK11",
+        "PerPkg": "1",
+        "UMask": "0xB",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 4; Bank 12",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB4",
+        "EventName": "UNC_M_RD_CAS_RANK4.BANK12",
+        "PerPkg": "1",
+        "UMask": "0xC",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 4; Bank 13",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB4",
+        "EventName": "UNC_M_RD_CAS_RANK4.BANK13",
+        "PerPkg": "1",
+        "UMask": "0xD",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 4; Bank 14",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB4",
+        "EventName": "UNC_M_RD_CAS_RANK4.BANK14",
+        "PerPkg": "1",
+        "UMask": "0xE",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 4; Bank 15",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB4",
+        "EventName": "UNC_M_RD_CAS_RANK4.BANK15",
+        "PerPkg": "1",
+        "UMask": "0xF",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 4; All Banks",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB4",
+        "EventName": "UNC_M_RD_CAS_RANK4.ALLBANKS",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 4; Bank Group 0 (Banks 0-3)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB4",
+        "EventName": "UNC_M_RD_CAS_RANK4.BANKG0",
+        "PerPkg": "1",
+        "UMask": "0x11",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 4; Bank Group 1 (Banks 4-7)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB4",
+        "EventName": "UNC_M_RD_CAS_RANK4.BANKG1",
+        "PerPkg": "1",
+        "UMask": "0x12",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 4; Bank Group 2 (Banks 8-11)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB4",
+        "EventName": "UNC_M_RD_CAS_RANK4.BANKG2",
+        "PerPkg": "1",
+        "UMask": "0x13",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 4; Bank Group 3 (Banks 12-15)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB4",
+        "EventName": "UNC_M_RD_CAS_RANK4.BANKG3",
+        "PerPkg": "1",
+        "UMask": "0x14",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 5; Bank 0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB5",
+        "EventName": "UNC_M_RD_CAS_RANK5.BANK0",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 5; Bank 1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB5",
+        "EventName": "UNC_M_RD_CAS_RANK5.BANK1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 5; Bank 2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB5",
+        "EventName": "UNC_M_RD_CAS_RANK5.BANK2",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 5; Bank 3",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB5",
+        "EventName": "UNC_M_RD_CAS_RANK5.BANK3",
+        "PerPkg": "1",
+        "UMask": "0x3",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 5; Bank 4",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB5",
+        "EventName": "UNC_M_RD_CAS_RANK5.BANK4",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 5; Bank 5",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB5",
+        "EventName": "UNC_M_RD_CAS_RANK5.BANK5",
+        "PerPkg": "1",
+        "UMask": "0x5",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 5; Bank 6",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB5",
+        "EventName": "UNC_M_RD_CAS_RANK5.BANK6",
+        "PerPkg": "1",
+        "UMask": "0x6",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 5; Bank 7",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB5",
+        "EventName": "UNC_M_RD_CAS_RANK5.BANK7",
+        "PerPkg": "1",
+        "UMask": "0x7",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 5; Bank 8",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB5",
+        "EventName": "UNC_M_RD_CAS_RANK5.BANK8",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 5; Bank 9",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB5",
+        "EventName": "UNC_M_RD_CAS_RANK5.BANK9",
+        "PerPkg": "1",
+        "UMask": "0x9",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 5; Bank 10",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB5",
+        "EventName": "UNC_M_RD_CAS_RANK5.BANK10",
+        "PerPkg": "1",
+        "UMask": "0xA",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 5; Bank 11",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB5",
+        "EventName": "UNC_M_RD_CAS_RANK5.BANK11",
+        "PerPkg": "1",
+        "UMask": "0xB",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 5; Bank 12",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB5",
+        "EventName": "UNC_M_RD_CAS_RANK5.BANK12",
+        "PerPkg": "1",
+        "UMask": "0xC",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 5; Bank 13",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB5",
+        "EventName": "UNC_M_RD_CAS_RANK5.BANK13",
+        "PerPkg": "1",
+        "UMask": "0xD",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 5; Bank 14",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB5",
+        "EventName": "UNC_M_RD_CAS_RANK5.BANK14",
+        "PerPkg": "1",
+        "UMask": "0xE",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 5; Bank 15",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB5",
+        "EventName": "UNC_M_RD_CAS_RANK5.BANK15",
+        "PerPkg": "1",
+        "UMask": "0xF",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 5; All Banks",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB5",
+        "EventName": "UNC_M_RD_CAS_RANK5.ALLBANKS",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 5; Bank Group 0 (Banks 0-3)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB5",
+        "EventName": "UNC_M_RD_CAS_RANK5.BANKG0",
+        "PerPkg": "1",
+        "UMask": "0x11",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 5; Bank Group 1 (Banks 4-7)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB5",
+        "EventName": "UNC_M_RD_CAS_RANK5.BANKG1",
+        "PerPkg": "1",
+        "UMask": "0x12",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 5; Bank Group 2 (Banks 8-11)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB5",
+        "EventName": "UNC_M_RD_CAS_RANK5.BANKG2",
+        "PerPkg": "1",
+        "UMask": "0x13",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 5; Bank Group 3 (Banks 12-15)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB5",
+        "EventName": "UNC_M_RD_CAS_RANK5.BANKG3",
+        "PerPkg": "1",
+        "UMask": "0x14",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 6; Bank 0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB6",
+        "EventName": "UNC_M_RD_CAS_RANK6.BANK0",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 6; Bank 1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB6",
+        "EventName": "UNC_M_RD_CAS_RANK6.BANK1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 6; Bank 2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB6",
+        "EventName": "UNC_M_RD_CAS_RANK6.BANK2",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 6; Bank 3",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB6",
+        "EventName": "UNC_M_RD_CAS_RANK6.BANK3",
+        "PerPkg": "1",
+        "UMask": "0x3",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 6; Bank 4",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB6",
+        "EventName": "UNC_M_RD_CAS_RANK6.BANK4",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 6; Bank 5",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB6",
+        "EventName": "UNC_M_RD_CAS_RANK6.BANK5",
+        "PerPkg": "1",
+        "UMask": "0x5",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 6; Bank 6",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB6",
+        "EventName": "UNC_M_RD_CAS_RANK6.BANK6",
+        "PerPkg": "1",
+        "UMask": "0x6",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 6; Bank 7",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB6",
+        "EventName": "UNC_M_RD_CAS_RANK6.BANK7",
+        "PerPkg": "1",
+        "UMask": "0x7",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 6; Bank 8",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB6",
+        "EventName": "UNC_M_RD_CAS_RANK6.BANK8",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 6; Bank 9",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB6",
+        "EventName": "UNC_M_RD_CAS_RANK6.BANK9",
+        "PerPkg": "1",
+        "UMask": "0x9",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 6; Bank 10",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB6",
+        "EventName": "UNC_M_RD_CAS_RANK6.BANK10",
+        "PerPkg": "1",
+        "UMask": "0xA",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 6; Bank 11",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB6",
+        "EventName": "UNC_M_RD_CAS_RANK6.BANK11",
+        "PerPkg": "1",
+        "UMask": "0xB",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 6; Bank 12",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB6",
+        "EventName": "UNC_M_RD_CAS_RANK6.BANK12",
+        "PerPkg": "1",
+        "UMask": "0xC",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 6; Bank 13",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB6",
+        "EventName": "UNC_M_RD_CAS_RANK6.BANK13",
+        "PerPkg": "1",
+        "UMask": "0xD",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 6; Bank 14",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB6",
+        "EventName": "UNC_M_RD_CAS_RANK6.BANK14",
+        "PerPkg": "1",
+        "UMask": "0xE",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 6; Bank 15",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB6",
+        "EventName": "UNC_M_RD_CAS_RANK6.BANK15",
+        "PerPkg": "1",
+        "UMask": "0xF",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 6; All Banks",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB6",
+        "EventName": "UNC_M_RD_CAS_RANK6.ALLBANKS",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 6; Bank Group 0 (Banks 0-3)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB6",
+        "EventName": "UNC_M_RD_CAS_RANK6.BANKG0",
+        "PerPkg": "1",
+        "UMask": "0x11",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 6; Bank Group 1 (Banks 4-7)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB6",
+        "EventName": "UNC_M_RD_CAS_RANK6.BANKG1",
+        "PerPkg": "1",
+        "UMask": "0x12",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 6; Bank Group 2 (Banks 8-11)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB6",
+        "EventName": "UNC_M_RD_CAS_RANK6.BANKG2",
+        "PerPkg": "1",
+        "UMask": "0x13",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 6; Bank Group 3 (Banks 12-15)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB6",
+        "EventName": "UNC_M_RD_CAS_RANK6.BANKG3",
+        "PerPkg": "1",
+        "UMask": "0x14",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 7; Bank 0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB7",
+        "EventName": "UNC_M_RD_CAS_RANK7.BANK0",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 7; Bank 1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB7",
+        "EventName": "UNC_M_RD_CAS_RANK7.BANK1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 7; Bank 2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB7",
+        "EventName": "UNC_M_RD_CAS_RANK7.BANK2",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 7; Bank 3",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB7",
+        "EventName": "UNC_M_RD_CAS_RANK7.BANK3",
+        "PerPkg": "1",
+        "UMask": "0x3",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 7; Bank 4",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB7",
+        "EventName": "UNC_M_RD_CAS_RANK7.BANK4",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 7; Bank 5",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB7",
+        "EventName": "UNC_M_RD_CAS_RANK7.BANK5",
+        "PerPkg": "1",
+        "UMask": "0x5",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 7; Bank 6",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB7",
+        "EventName": "UNC_M_RD_CAS_RANK7.BANK6",
+        "PerPkg": "1",
+        "UMask": "0x6",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 7; Bank 7",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB7",
+        "EventName": "UNC_M_RD_CAS_RANK7.BANK7",
+        "PerPkg": "1",
+        "UMask": "0x7",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 7; Bank 8",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB7",
+        "EventName": "UNC_M_RD_CAS_RANK7.BANK8",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 7; Bank 9",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB7",
+        "EventName": "UNC_M_RD_CAS_RANK7.BANK9",
+        "PerPkg": "1",
+        "UMask": "0x9",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 7; Bank 10",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB7",
+        "EventName": "UNC_M_RD_CAS_RANK7.BANK10",
+        "PerPkg": "1",
+        "UMask": "0xA",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 7; Bank 11",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB7",
+        "EventName": "UNC_M_RD_CAS_RANK7.BANK11",
+        "PerPkg": "1",
+        "UMask": "0xB",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 7; Bank 12",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB7",
+        "EventName": "UNC_M_RD_CAS_RANK7.BANK12",
+        "PerPkg": "1",
+        "UMask": "0xC",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 7; Bank 13",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB7",
+        "EventName": "UNC_M_RD_CAS_RANK7.BANK13",
+        "PerPkg": "1",
+        "UMask": "0xD",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 7; Bank 14",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB7",
+        "EventName": "UNC_M_RD_CAS_RANK7.BANK14",
+        "PerPkg": "1",
+        "UMask": "0xE",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 7; Bank 15",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB7",
+        "EventName": "UNC_M_RD_CAS_RANK7.BANK15",
+        "PerPkg": "1",
+        "UMask": "0xF",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 7; All Banks",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB7",
+        "EventName": "UNC_M_RD_CAS_RANK7.ALLBANKS",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 7; Bank Group 0 (Banks 0-3)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB7",
+        "EventName": "UNC_M_RD_CAS_RANK7.BANKG0",
+        "PerPkg": "1",
+        "UMask": "0x11",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 7; Bank Group 1 (Banks 4-7)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB7",
+        "EventName": "UNC_M_RD_CAS_RANK7.BANKG1",
+        "PerPkg": "1",
+        "UMask": "0x12",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 7; Bank Group 2 (Banks 8-11)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB7",
+        "EventName": "UNC_M_RD_CAS_RANK7.BANKG2",
+        "PerPkg": "1",
+        "UMask": "0x13",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RD_CAS Access to Rank 7; Bank Group 3 (Banks 12-15)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB7",
+        "EventName": "UNC_M_RD_CAS_RANK7.BANKG3",
+        "PerPkg": "1",
+        "UMask": "0x14",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Read Pending Queue Full Cycles",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x12",
+        "EventName": "UNC_M_RPQ_CYCLES_FULL",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Read Pending Queue Not Empty",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x11",
+        "EventName": "UNC_M_RPQ_CYCLES_NE",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Accesses; Read Accepts",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD2",
+        "EventName": "UNC_M_SB_ACCESSES.RD_ACCEPTS",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Accesses; Read Rejects",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD2",
+        "EventName": "UNC_M_SB_ACCESSES.RD_REJECTS",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Accesses; NM read completions",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD2",
+        "EventName": "UNC_M_SB_ACCESSES.WR_ACCEPTS",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Accesses; NM write completions",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD2",
+        "EventName": "UNC_M_SB_ACCESSES.WR_REJECTS",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Accesses; FM read completions",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD2",
+        "EventName": "UNC_M_SB_ACCESSES.NM_RD_CMPS",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Accesses; FM write completions",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD2",
+        "EventName": "UNC_M_SB_ACCESSES.NM_WR_CMPS",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Accesses; Write Accepts",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD2",
+        "EventName": "UNC_M_SB_ACCESSES.FM_RD_CMPS",
+        "PerPkg": "1",
+        "UMask": "0x40",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Accesses; Write Rejects",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD2",
+        "EventName": "UNC_M_SB_ACCESSES.FM_WR_CMPS",
+        "PerPkg": "1",
+        "UMask": "0x80",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Alloc",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD9",
+        "EventName": "UNC_M_SB_CANARY.ALLOC",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Dealloc",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD9",
+        "EventName": "UNC_M_SB_CANARY.DEALLOC",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Reject",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD9",
+        "EventName": "UNC_M_SB_CANARY.REJ",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Valid",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD9",
+        "EventName": "UNC_M_SB_CANARY.VLD",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Near Mem Read Starved",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD9",
+        "EventName": "UNC_M_SB_CANARY.NMRD_STARVED",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Near Mem Write Starved",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD9",
+        "EventName": "UNC_M_SB_CANARY.NMWR_STARVED",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Far Mem Read Starved",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD9",
+        "EventName": "UNC_M_SB_CANARY.FMRD_STARVED",
+        "PerPkg": "1",
+        "UMask": "0x40",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Far Mem Write Starved",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD9",
+        "EventName": "UNC_M_SB_CANARY.FMWR_STARVED",
+        "PerPkg": "1",
+        "UMask": "0x80",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Cycles Full",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD1",
+        "EventName": "UNC_M_SB_CYCLES_FULL",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Cycles Not-Empty",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD0",
+        "EventName": "UNC_M_SB_CYCLES_NE",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Inserts; Reads",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD6",
+        "EventName": "UNC_M_SB_INSERTS.RDS",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Inserts; Writes",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD6",
+        "EventName": "UNC_M_SB_INSERTS.WRS",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Inserts; Block region reads",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD6",
+        "EventName": "UNC_M_SB_INSERTS.BLOCK_RDS",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Inserts; Block region writes",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD6",
+        "EventName": "UNC_M_SB_INSERTS.BLOCK_WRS",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Inserts; Dealloc all commands (for error flows)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD6",
+        "EventName": "UNC_M_SB_INSERTS.DEALLOC",
+        "PerPkg": "1",
+        "UMask": "0x40",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Inserts; Patrol inserts",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD6",
+        "EventName": "UNC_M_SB_INSERTS.PATROL",
+        "PerPkg": "1",
+        "UMask": "0x80",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Occupancy; Reads",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD5",
+        "EventName": "UNC_M_SB_OCCUPANCY.RDS",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Occupancy; Writes",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD5",
+        "EventName": "UNC_M_SB_OCCUPANCY.WRS",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Occupancy; Block region reads",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD5",
+        "EventName": "UNC_M_SB_OCCUPANCY.BLOCK_RDS",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Occupancy; Block region writes",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD5",
+        "EventName": "UNC_M_SB_OCCUPANCY.BLOCK_WRS",
+        "PerPkg": "1",
+        "UMask": "0x40",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Occupancy; Patrol",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD5",
+        "EventName": "UNC_M_SB_OCCUPANCY.PATROL",
+        "PerPkg": "1",
+        "UMask": "0x80",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Number of Scoreboard Requests Rejected; NM requests rejected due to set conflict",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD4",
+        "EventName": "UNC_M_SB_REJECT.NM_SET_CNFLT",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Number of Scoreboard Requests Rejected; FM requests rejected due to full address conflict",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD4",
+        "EventName": "UNC_M_SB_REJECT.FM_ADDR_CNFLT",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Number of Scoreboard Requests Rejected; Patrol requests rejected due to set conflict",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD4",
+        "EventName": "UNC_M_SB_REJECT.PATROL_SET_CNFLT",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Near Mem Read - Set",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD7",
+        "EventName": "UNC_M_SB_STRV_ALLOC.NMRD_SET",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Far Mem Read - Set",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD7",
+        "EventName": "UNC_M_SB_STRV_ALLOC.FMRD_SET",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Near Mem Write - Set",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD7",
+        "EventName": "UNC_M_SB_STRV_ALLOC.NMWR_SET",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Far Mem Write - Set",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD7",
+        "EventName": "UNC_M_SB_STRV_ALLOC.FMWR_SET",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Near Mem Read - Clear",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD7",
+        "EventName": "UNC_M_SB_STRV_ALLOC.NMRD_CLR",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Far Mem Read - Clear",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD7",
+        "EventName": "UNC_M_SB_STRV_ALLOC.FMRD_CLR",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Near Mem Write - Clear",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD7",
+        "EventName": "UNC_M_SB_STRV_ALLOC.NMWR_CLR",
+        "PerPkg": "1",
+        "UMask": "0x40",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Far Mem Write - Clear",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD7",
+        "EventName": "UNC_M_SB_STRV_ALLOC.FMWR_CLR",
+        "PerPkg": "1",
+        "UMask": "0x80",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Near Mem Read",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD8",
+        "EventName": "UNC_M_SB_STRV_OCC.NMRD",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Far Mem Read",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD8",
+        "EventName": "UNC_M_SB_STRV_OCC.FMRD",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Near Mem Write",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD8",
+        "EventName": "UNC_M_SB_STRV_OCC.NMWR",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Far Mem Write",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD8",
+        "EventName": "UNC_M_SB_STRV_OCC.FMWR",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "UNC_M_SB_TAGGED.NEW",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xDD",
+        "EventName": "UNC_M_SB_TAGGED.NEW",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "UNC_M_SB_TAGGED.RD_HIT",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xDD",
+        "EventName": "UNC_M_SB_TAGGED.RD_HIT",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "UNC_M_SB_TAGGED.RD_MISS",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xDD",
+        "EventName": "UNC_M_SB_TAGGED.RD_MISS",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "UNC_M_SB_TAGGED.DDR4_CMP",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xDD",
+        "EventName": "UNC_M_SB_TAGGED.DDR4_CMP",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "UNC_M_SB_TAGGED.OCC",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xDD",
+        "EventName": "UNC_M_SB_TAGGED.OCC",
+        "PerPkg": "1",
+        "UMask": "0x80",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Transition from WMM to RMM because of low threshold; Transition from WMM to RMM because of starve counter",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xC0",
+        "EventName": "UNC_M_WMM_TO_RMM.LOW_THRESH",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Transition from WMM to RMM because of low threshold",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xC0",
+        "EventName": "UNC_M_WMM_TO_RMM.STARVE",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Transition from WMM to RMM because of low threshold",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xC0",
+        "EventName": "UNC_M_WMM_TO_RMM.VMSE_RETRY",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Write Pending Queue Full Cycles",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x22",
+        "EventName": "UNC_M_WPQ_CYCLES_FULL",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Write Pending Queue Not Empty",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x21",
+        "EventName": "UNC_M_WPQ_CYCLES_NE",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Write Pending Queue CAM Match",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x23",
+        "EventName": "UNC_M_WPQ_READ_HIT",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Write Pending Queue CAM Match",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x24",
+        "EventName": "UNC_M_WPQ_WRITE_HIT",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Not getting the requested Major Mode",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xC1",
+        "EventName": "UNC_M_WRONG_MM",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 0; Bank 0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB8",
+        "EventName": "UNC_M_WR_CAS_RANK0.BANK0",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 0; Bank 1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB8",
+        "EventName": "UNC_M_WR_CAS_RANK0.BANK1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 0; Bank 2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB8",
+        "EventName": "UNC_M_WR_CAS_RANK0.BANK2",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 0; Bank 3",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB8",
+        "EventName": "UNC_M_WR_CAS_RANK0.BANK3",
+        "PerPkg": "1",
+        "UMask": "0x3",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 0; Bank 4",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB8",
+        "EventName": "UNC_M_WR_CAS_RANK0.BANK4",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 0; Bank 5",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB8",
+        "EventName": "UNC_M_WR_CAS_RANK0.BANK5",
+        "PerPkg": "1",
+        "UMask": "0x5",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 0; Bank 6",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB8",
+        "EventName": "UNC_M_WR_CAS_RANK0.BANK6",
+        "PerPkg": "1",
+        "UMask": "0x6",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 0; Bank 7",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB8",
+        "EventName": "UNC_M_WR_CAS_RANK0.BANK7",
+        "PerPkg": "1",
+        "UMask": "0x7",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 0; Bank 8",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB8",
+        "EventName": "UNC_M_WR_CAS_RANK0.BANK8",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 0; Bank 9",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB8",
+        "EventName": "UNC_M_WR_CAS_RANK0.BANK9",
+        "PerPkg": "1",
+        "UMask": "0x9",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 0; Bank 10",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB8",
+        "EventName": "UNC_M_WR_CAS_RANK0.BANK10",
+        "PerPkg": "1",
+        "UMask": "0xA",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 0; Bank 11",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB8",
+        "EventName": "UNC_M_WR_CAS_RANK0.BANK11",
+        "PerPkg": "1",
+        "UMask": "0xB",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 0; Bank 12",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB8",
+        "EventName": "UNC_M_WR_CAS_RANK0.BANK12",
+        "PerPkg": "1",
+        "UMask": "0xC",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 0; Bank 13",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB8",
+        "EventName": "UNC_M_WR_CAS_RANK0.BANK13",
+        "PerPkg": "1",
+        "UMask": "0xD",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 0; Bank 14",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB8",
+        "EventName": "UNC_M_WR_CAS_RANK0.BANK14",
+        "PerPkg": "1",
+        "UMask": "0xE",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 0; Bank 15",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB8",
+        "EventName": "UNC_M_WR_CAS_RANK0.BANK15",
+        "PerPkg": "1",
+        "UMask": "0xF",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 0; All Banks",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB8",
+        "EventName": "UNC_M_WR_CAS_RANK0.ALLBANKS",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 0; Bank Group 0 (Banks 0-3)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB8",
+        "EventName": "UNC_M_WR_CAS_RANK0.BANKG0",
+        "PerPkg": "1",
+        "UMask": "0x11",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 0; Bank Group 1 (Banks 4-7)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB8",
+        "EventName": "UNC_M_WR_CAS_RANK0.BANKG1",
+        "PerPkg": "1",
+        "UMask": "0x12",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 0; Bank Group 2 (Banks 8-11)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB8",
+        "EventName": "UNC_M_WR_CAS_RANK0.BANKG2",
+        "PerPkg": "1",
+        "UMask": "0x13",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 0; Bank Group 3 (Banks 12-15)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB8",
+        "EventName": "UNC_M_WR_CAS_RANK0.BANKG3",
+        "PerPkg": "1",
+        "UMask": "0x14",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 1; Bank 0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB9",
+        "EventName": "UNC_M_WR_CAS_RANK1.BANK0",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 1; Bank 1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB9",
+        "EventName": "UNC_M_WR_CAS_RANK1.BANK1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 1; Bank 2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB9",
+        "EventName": "UNC_M_WR_CAS_RANK1.BANK2",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 1; Bank 3",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB9",
+        "EventName": "UNC_M_WR_CAS_RANK1.BANK3",
+        "PerPkg": "1",
+        "UMask": "0x3",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 1; Bank 4",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB9",
+        "EventName": "UNC_M_WR_CAS_RANK1.BANK4",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 1; Bank 5",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB9",
+        "EventName": "UNC_M_WR_CAS_RANK1.BANK5",
+        "PerPkg": "1",
+        "UMask": "0x5",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 1; Bank 6",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB9",
+        "EventName": "UNC_M_WR_CAS_RANK1.BANK6",
+        "PerPkg": "1",
+        "UMask": "0x6",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 1; Bank 7",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB9",
+        "EventName": "UNC_M_WR_CAS_RANK1.BANK7",
+        "PerPkg": "1",
+        "UMask": "0x7",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 1; Bank 8",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB9",
+        "EventName": "UNC_M_WR_CAS_RANK1.BANK8",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 1; Bank 9",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB9",
+        "EventName": "UNC_M_WR_CAS_RANK1.BANK9",
+        "PerPkg": "1",
+        "UMask": "0x9",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 1; Bank 10",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB9",
+        "EventName": "UNC_M_WR_CAS_RANK1.BANK10",
+        "PerPkg": "1",
+        "UMask": "0xA",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 1; Bank 11",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB9",
+        "EventName": "UNC_M_WR_CAS_RANK1.BANK11",
+        "PerPkg": "1",
+        "UMask": "0xB",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 1; Bank 12",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB9",
+        "EventName": "UNC_M_WR_CAS_RANK1.BANK12",
+        "PerPkg": "1",
+        "UMask": "0xC",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 1; Bank 13",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB9",
+        "EventName": "UNC_M_WR_CAS_RANK1.BANK13",
+        "PerPkg": "1",
+        "UMask": "0xD",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 1; Bank 14",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB9",
+        "EventName": "UNC_M_WR_CAS_RANK1.BANK14",
+        "PerPkg": "1",
+        "UMask": "0xE",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 1; Bank 15",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB9",
+        "EventName": "UNC_M_WR_CAS_RANK1.BANK15",
+        "PerPkg": "1",
+        "UMask": "0xF",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 1; All Banks",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB9",
+        "EventName": "UNC_M_WR_CAS_RANK1.ALLBANKS",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 1; Bank Group 0 (Banks 0-3)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB9",
+        "EventName": "UNC_M_WR_CAS_RANK1.BANKG0",
+        "PerPkg": "1",
+        "UMask": "0x11",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 1; Bank Group 1 (Banks 4-7)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB9",
+        "EventName": "UNC_M_WR_CAS_RANK1.BANKG1",
+        "PerPkg": "1",
+        "UMask": "0x12",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 1; Bank Group 2 (Banks 8-11)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB9",
+        "EventName": "UNC_M_WR_CAS_RANK1.BANKG2",
+        "PerPkg": "1",
+        "UMask": "0x13",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 1; Bank Group 3 (Banks 12-15)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB9",
+        "EventName": "UNC_M_WR_CAS_RANK1.BANKG3",
+        "PerPkg": "1",
+        "UMask": "0x14",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 2; Bank 0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBA",
+        "EventName": "UNC_M_WR_CAS_RANK2.BANK0",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 2; Bank 1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBA",
+        "EventName": "UNC_M_WR_CAS_RANK2.BANK1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 2; Bank 2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBA",
+        "EventName": "UNC_M_WR_CAS_RANK2.BANK2",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 2; Bank 3",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBA",
+        "EventName": "UNC_M_WR_CAS_RANK2.BANK3",
+        "PerPkg": "1",
+        "UMask": "0x3",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 2; Bank 4",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBA",
+        "EventName": "UNC_M_WR_CAS_RANK2.BANK4",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 2; Bank 5",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBA",
+        "EventName": "UNC_M_WR_CAS_RANK2.BANK5",
+        "PerPkg": "1",
+        "UMask": "0x5",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 2; Bank 6",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBA",
+        "EventName": "UNC_M_WR_CAS_RANK2.BANK6",
+        "PerPkg": "1",
+        "UMask": "0x6",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 2; Bank 7",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBA",
+        "EventName": "UNC_M_WR_CAS_RANK2.BANK7",
+        "PerPkg": "1",
+        "UMask": "0x7",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 2; Bank 8",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBA",
+        "EventName": "UNC_M_WR_CAS_RANK2.BANK8",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 2; Bank 9",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBA",
+        "EventName": "UNC_M_WR_CAS_RANK2.BANK9",
+        "PerPkg": "1",
+        "UMask": "0x9",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 2; Bank 10",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBA",
+        "EventName": "UNC_M_WR_CAS_RANK2.BANK10",
+        "PerPkg": "1",
+        "UMask": "0xA",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 2; Bank 11",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBA",
+        "EventName": "UNC_M_WR_CAS_RANK2.BANK11",
+        "PerPkg": "1",
+        "UMask": "0xB",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 2; Bank 12",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBA",
+        "EventName": "UNC_M_WR_CAS_RANK2.BANK12",
+        "PerPkg": "1",
+        "UMask": "0xC",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 2; Bank 13",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBA",
+        "EventName": "UNC_M_WR_CAS_RANK2.BANK13",
+        "PerPkg": "1",
+        "UMask": "0xD",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 2; Bank 14",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBA",
+        "EventName": "UNC_M_WR_CAS_RANK2.BANK14",
+        "PerPkg": "1",
+        "UMask": "0xE",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 2; Bank 15",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBA",
+        "EventName": "UNC_M_WR_CAS_RANK2.BANK15",
+        "PerPkg": "1",
+        "UMask": "0xF",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 2; All Banks",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBA",
+        "EventName": "UNC_M_WR_CAS_RANK2.ALLBANKS",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 2; Bank Group 0 (Banks 0-3)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBA",
+        "EventName": "UNC_M_WR_CAS_RANK2.BANKG0",
+        "PerPkg": "1",
+        "UMask": "0x11",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 2; Bank Group 1 (Banks 4-7)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBA",
+        "EventName": "UNC_M_WR_CAS_RANK2.BANKG1",
+        "PerPkg": "1",
+        "UMask": "0x12",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 2; Bank Group 2 (Banks 8-11)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBA",
+        "EventName": "UNC_M_WR_CAS_RANK2.BANKG2",
+        "PerPkg": "1",
+        "UMask": "0x13",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 2; Bank Group 3 (Banks 12-15)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBA",
+        "EventName": "UNC_M_WR_CAS_RANK2.BANKG3",
+        "PerPkg": "1",
+        "UMask": "0x14",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 3; Bank 0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBB",
+        "EventName": "UNC_M_WR_CAS_RANK3.BANK0",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 3; Bank 1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBB",
+        "EventName": "UNC_M_WR_CAS_RANK3.BANK1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 3; Bank 2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBB",
+        "EventName": "UNC_M_WR_CAS_RANK3.BANK2",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 3; Bank 3",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBB",
+        "EventName": "UNC_M_WR_CAS_RANK3.BANK3",
+        "PerPkg": "1",
+        "UMask": "0x3",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 3; Bank 4",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBB",
+        "EventName": "UNC_M_WR_CAS_RANK3.BANK4",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 3; Bank 5",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBB",
+        "EventName": "UNC_M_WR_CAS_RANK3.BANK5",
+        "PerPkg": "1",
+        "UMask": "0x5",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 3; Bank 6",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBB",
+        "EventName": "UNC_M_WR_CAS_RANK3.BANK6",
+        "PerPkg": "1",
+        "UMask": "0x6",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 3; Bank 7",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBB",
+        "EventName": "UNC_M_WR_CAS_RANK3.BANK7",
+        "PerPkg": "1",
+        "UMask": "0x7",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 3; Bank 8",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBB",
+        "EventName": "UNC_M_WR_CAS_RANK3.BANK8",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 3; Bank 9",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBB",
+        "EventName": "UNC_M_WR_CAS_RANK3.BANK9",
+        "PerPkg": "1",
+        "UMask": "0x9",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 3; Bank 10",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBB",
+        "EventName": "UNC_M_WR_CAS_RANK3.BANK10",
+        "PerPkg": "1",
+        "UMask": "0xA",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 3; Bank 11",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBB",
+        "EventName": "UNC_M_WR_CAS_RANK3.BANK11",
+        "PerPkg": "1",
+        "UMask": "0xB",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 3; Bank 12",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBB",
+        "EventName": "UNC_M_WR_CAS_RANK3.BANK12",
+        "PerPkg": "1",
+        "UMask": "0xC",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 3; Bank 13",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBB",
+        "EventName": "UNC_M_WR_CAS_RANK3.BANK13",
+        "PerPkg": "1",
+        "UMask": "0xD",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 3; Bank 14",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBB",
+        "EventName": "UNC_M_WR_CAS_RANK3.BANK14",
+        "PerPkg": "1",
+        "UMask": "0xE",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 3; Bank 15",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBB",
+        "EventName": "UNC_M_WR_CAS_RANK3.BANK15",
+        "PerPkg": "1",
+        "UMask": "0xF",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 3; All Banks",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBB",
+        "EventName": "UNC_M_WR_CAS_RANK3.ALLBANKS",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 3; Bank Group 0 (Banks 0-3)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBB",
+        "EventName": "UNC_M_WR_CAS_RANK3.BANKG0",
+        "PerPkg": "1",
+        "UMask": "0x11",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 3; Bank Group 1 (Banks 4-7)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBB",
+        "EventName": "UNC_M_WR_CAS_RANK3.BANKG1",
+        "PerPkg": "1",
+        "UMask": "0x12",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 3; Bank Group 2 (Banks 8-11)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBB",
+        "EventName": "UNC_M_WR_CAS_RANK3.BANKG2",
+        "PerPkg": "1",
+        "UMask": "0x13",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 3; Bank Group 3 (Banks 12-15)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBB",
+        "EventName": "UNC_M_WR_CAS_RANK3.BANKG3",
+        "PerPkg": "1",
+        "UMask": "0x14",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 4; Bank 0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBC",
+        "EventName": "UNC_M_WR_CAS_RANK4.BANK0",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 4; Bank 1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBC",
+        "EventName": "UNC_M_WR_CAS_RANK4.BANK1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 4; Bank 2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBC",
+        "EventName": "UNC_M_WR_CAS_RANK4.BANK2",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 4; Bank 3",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBC",
+        "EventName": "UNC_M_WR_CAS_RANK4.BANK3",
+        "PerPkg": "1",
+        "UMask": "0x3",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 4; Bank 4",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBC",
+        "EventName": "UNC_M_WR_CAS_RANK4.BANK4",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 4; Bank 5",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBC",
+        "EventName": "UNC_M_WR_CAS_RANK4.BANK5",
+        "PerPkg": "1",
+        "UMask": "0x5",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 4; Bank 6",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBC",
+        "EventName": "UNC_M_WR_CAS_RANK4.BANK6",
+        "PerPkg": "1",
+        "UMask": "0x6",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 4; Bank 7",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBC",
+        "EventName": "UNC_M_WR_CAS_RANK4.BANK7",
+        "PerPkg": "1",
+        "UMask": "0x7",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 4; Bank 8",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBC",
+        "EventName": "UNC_M_WR_CAS_RANK4.BANK8",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 4; Bank 9",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBC",
+        "EventName": "UNC_M_WR_CAS_RANK4.BANK9",
+        "PerPkg": "1",
+        "UMask": "0x9",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 4; Bank 10",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBC",
+        "EventName": "UNC_M_WR_CAS_RANK4.BANK10",
+        "PerPkg": "1",
+        "UMask": "0xA",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 4; Bank 11",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBC",
+        "EventName": "UNC_M_WR_CAS_RANK4.BANK11",
+        "PerPkg": "1",
+        "UMask": "0xB",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 4; Bank 12",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBC",
+        "EventName": "UNC_M_WR_CAS_RANK4.BANK12",
+        "PerPkg": "1",
+        "UMask": "0xC",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 4; Bank 13",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBC",
+        "EventName": "UNC_M_WR_CAS_RANK4.BANK13",
+        "PerPkg": "1",
+        "UMask": "0xD",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 4; Bank 14",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBC",
+        "EventName": "UNC_M_WR_CAS_RANK4.BANK14",
+        "PerPkg": "1",
+        "UMask": "0xE",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 4; Bank 15",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBC",
+        "EventName": "UNC_M_WR_CAS_RANK4.BANK15",
+        "PerPkg": "1",
+        "UMask": "0xF",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 4; All Banks",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBC",
+        "EventName": "UNC_M_WR_CAS_RANK4.ALLBANKS",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 4; Bank Group 0 (Banks 0-3)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBC",
+        "EventName": "UNC_M_WR_CAS_RANK4.BANKG0",
+        "PerPkg": "1",
+        "UMask": "0x11",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 4; Bank Group 1 (Banks 4-7)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBC",
+        "EventName": "UNC_M_WR_CAS_RANK4.BANKG1",
+        "PerPkg": "1",
+        "UMask": "0x12",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 4; Bank Group 2 (Banks 8-11)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBC",
+        "EventName": "UNC_M_WR_CAS_RANK4.BANKG2",
+        "PerPkg": "1",
+        "UMask": "0x13",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 4; Bank Group 3 (Banks 12-15)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBC",
+        "EventName": "UNC_M_WR_CAS_RANK4.BANKG3",
+        "PerPkg": "1",
+        "UMask": "0x14",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 5; Bank 0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBD",
+        "EventName": "UNC_M_WR_CAS_RANK5.BANK0",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 5; Bank 1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBD",
+        "EventName": "UNC_M_WR_CAS_RANK5.BANK1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 5; Bank 2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBD",
+        "EventName": "UNC_M_WR_CAS_RANK5.BANK2",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 5; Bank 3",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBD",
+        "EventName": "UNC_M_WR_CAS_RANK5.BANK3",
+        "PerPkg": "1",
+        "UMask": "0x3",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 5; Bank 4",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBD",
+        "EventName": "UNC_M_WR_CAS_RANK5.BANK4",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 5; Bank 5",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBD",
+        "EventName": "UNC_M_WR_CAS_RANK5.BANK5",
+        "PerPkg": "1",
+        "UMask": "0x5",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 5; Bank 6",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBD",
+        "EventName": "UNC_M_WR_CAS_RANK5.BANK6",
+        "PerPkg": "1",
+        "UMask": "0x6",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 5; Bank 7",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBD",
+        "EventName": "UNC_M_WR_CAS_RANK5.BANK7",
+        "PerPkg": "1",
+        "UMask": "0x7",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 5; Bank 8",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBD",
+        "EventName": "UNC_M_WR_CAS_RANK5.BANK8",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 5; Bank 9",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBD",
+        "EventName": "UNC_M_WR_CAS_RANK5.BANK9",
+        "PerPkg": "1",
+        "UMask": "0x9",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 5; Bank 10",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBD",
+        "EventName": "UNC_M_WR_CAS_RANK5.BANK10",
+        "PerPkg": "1",
+        "UMask": "0xA",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 5; Bank 11",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBD",
+        "EventName": "UNC_M_WR_CAS_RANK5.BANK11",
+        "PerPkg": "1",
+        "UMask": "0xB",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 5; Bank 12",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBD",
+        "EventName": "UNC_M_WR_CAS_RANK5.BANK12",
+        "PerPkg": "1",
+        "UMask": "0xC",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 5; Bank 13",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBD",
+        "EventName": "UNC_M_WR_CAS_RANK5.BANK13",
+        "PerPkg": "1",
+        "UMask": "0xD",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 5; Bank 14",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBD",
+        "EventName": "UNC_M_WR_CAS_RANK5.BANK14",
+        "PerPkg": "1",
+        "UMask": "0xE",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 5; Bank 15",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBD",
+        "EventName": "UNC_M_WR_CAS_RANK5.BANK15",
+        "PerPkg": "1",
+        "UMask": "0xF",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 5; All Banks",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBD",
+        "EventName": "UNC_M_WR_CAS_RANK5.ALLBANKS",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 5; Bank Group 0 (Banks 0-3)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBD",
+        "EventName": "UNC_M_WR_CAS_RANK5.BANKG0",
+        "PerPkg": "1",
+        "UMask": "0x11",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 5; Bank Group 1 (Banks 4-7)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBD",
+        "EventName": "UNC_M_WR_CAS_RANK5.BANKG1",
+        "PerPkg": "1",
+        "UMask": "0x12",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 5; Bank Group 2 (Banks 8-11)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBD",
+        "EventName": "UNC_M_WR_CAS_RANK5.BANKG2",
+        "PerPkg": "1",
+        "UMask": "0x13",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 5; Bank Group 3 (Banks 12-15)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBD",
+        "EventName": "UNC_M_WR_CAS_RANK5.BANKG3",
+        "PerPkg": "1",
+        "UMask": "0x14",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 6; Bank 0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBE",
+        "EventName": "UNC_M_WR_CAS_RANK6.BANK0",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 6; Bank 1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBE",
+        "EventName": "UNC_M_WR_CAS_RANK6.BANK1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 6; Bank 2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBE",
+        "EventName": "UNC_M_WR_CAS_RANK6.BANK2",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 6; Bank 3",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBE",
+        "EventName": "UNC_M_WR_CAS_RANK6.BANK3",
+        "PerPkg": "1",
+        "UMask": "0x3",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 6; Bank 4",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBE",
+        "EventName": "UNC_M_WR_CAS_RANK6.BANK4",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 6; Bank 5",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBE",
+        "EventName": "UNC_M_WR_CAS_RANK6.BANK5",
+        "PerPkg": "1",
+        "UMask": "0x5",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 6; Bank 6",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBE",
+        "EventName": "UNC_M_WR_CAS_RANK6.BANK6",
+        "PerPkg": "1",
+        "UMask": "0x6",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 6; Bank 7",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBE",
+        "EventName": "UNC_M_WR_CAS_RANK6.BANK7",
+        "PerPkg": "1",
+        "UMask": "0x7",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 6; Bank 8",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBE",
+        "EventName": "UNC_M_WR_CAS_RANK6.BANK8",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 6; Bank 9",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBE",
+        "EventName": "UNC_M_WR_CAS_RANK6.BANK9",
+        "PerPkg": "1",
+        "UMask": "0x9",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 6; Bank 10",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBE",
+        "EventName": "UNC_M_WR_CAS_RANK6.BANK10",
+        "PerPkg": "1",
+        "UMask": "0xA",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 6; Bank 11",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBE",
+        "EventName": "UNC_M_WR_CAS_RANK6.BANK11",
+        "PerPkg": "1",
+        "UMask": "0xB",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 6; Bank 12",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBE",
+        "EventName": "UNC_M_WR_CAS_RANK6.BANK12",
+        "PerPkg": "1",
+        "UMask": "0xC",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 6; Bank 13",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBE",
+        "EventName": "UNC_M_WR_CAS_RANK6.BANK13",
+        "PerPkg": "1",
+        "UMask": "0xD",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 6; Bank 14",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBE",
+        "EventName": "UNC_M_WR_CAS_RANK6.BANK14",
+        "PerPkg": "1",
+        "UMask": "0xE",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 6; Bank 15",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBE",
+        "EventName": "UNC_M_WR_CAS_RANK6.BANK15",
+        "PerPkg": "1",
+        "UMask": "0xF",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 6; All Banks",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBE",
+        "EventName": "UNC_M_WR_CAS_RANK6.ALLBANKS",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 6; Bank Group 0 (Banks 0-3)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBE",
+        "EventName": "UNC_M_WR_CAS_RANK6.BANKG0",
+        "PerPkg": "1",
+        "UMask": "0x11",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 6; Bank Group 1 (Banks 4-7)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBE",
+        "EventName": "UNC_M_WR_CAS_RANK6.BANKG1",
+        "PerPkg": "1",
+        "UMask": "0x12",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 6; Bank Group 2 (Banks 8-11)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBE",
+        "EventName": "UNC_M_WR_CAS_RANK6.BANKG2",
+        "PerPkg": "1",
+        "UMask": "0x13",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 6; Bank Group 3 (Banks 12-15)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBE",
+        "EventName": "UNC_M_WR_CAS_RANK6.BANKG3",
+        "PerPkg": "1",
+        "UMask": "0x14",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 7; Bank 0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBF",
+        "EventName": "UNC_M_WR_CAS_RANK7.BANK0",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 7; Bank 1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBF",
+        "EventName": "UNC_M_WR_CAS_RANK7.BANK1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 7; Bank 2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBF",
+        "EventName": "UNC_M_WR_CAS_RANK7.BANK2",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 7; Bank 3",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBF",
+        "EventName": "UNC_M_WR_CAS_RANK7.BANK3",
+        "PerPkg": "1",
+        "UMask": "0x3",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 7; Bank 4",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBF",
+        "EventName": "UNC_M_WR_CAS_RANK7.BANK4",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 7; Bank 5",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBF",
+        "EventName": "UNC_M_WR_CAS_RANK7.BANK5",
+        "PerPkg": "1",
+        "UMask": "0x5",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 7; Bank 6",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBF",
+        "EventName": "UNC_M_WR_CAS_RANK7.BANK6",
+        "PerPkg": "1",
+        "UMask": "0x6",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 7; Bank 7",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBF",
+        "EventName": "UNC_M_WR_CAS_RANK7.BANK7",
+        "PerPkg": "1",
+        "UMask": "0x7",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 7; Bank 8",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBF",
+        "EventName": "UNC_M_WR_CAS_RANK7.BANK8",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 7; Bank 9",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBF",
+        "EventName": "UNC_M_WR_CAS_RANK7.BANK9",
+        "PerPkg": "1",
+        "UMask": "0x9",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 7; Bank 10",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBF",
+        "EventName": "UNC_M_WR_CAS_RANK7.BANK10",
+        "PerPkg": "1",
+        "UMask": "0xA",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 7; Bank 11",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBF",
+        "EventName": "UNC_M_WR_CAS_RANK7.BANK11",
+        "PerPkg": "1",
+        "UMask": "0xB",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 7; Bank 12",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBF",
+        "EventName": "UNC_M_WR_CAS_RANK7.BANK12",
+        "PerPkg": "1",
+        "UMask": "0xC",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 7; Bank 13",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBF",
+        "EventName": "UNC_M_WR_CAS_RANK7.BANK13",
+        "PerPkg": "1",
+        "UMask": "0xD",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 7; Bank 14",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBF",
+        "EventName": "UNC_M_WR_CAS_RANK7.BANK14",
+        "PerPkg": "1",
+        "UMask": "0xE",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 7; Bank 15",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBF",
+        "EventName": "UNC_M_WR_CAS_RANK7.BANK15",
+        "PerPkg": "1",
+        "UMask": "0xF",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 7; All Banks",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBF",
+        "EventName": "UNC_M_WR_CAS_RANK7.ALLBANKS",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 7; Bank Group 0 (Banks 0-3)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBF",
+        "EventName": "UNC_M_WR_CAS_RANK7.BANKG0",
+        "PerPkg": "1",
+        "UMask": "0x11",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 7; Bank Group 1 (Banks 4-7)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBF",
+        "EventName": "UNC_M_WR_CAS_RANK7.BANKG1",
+        "PerPkg": "1",
+        "UMask": "0x12",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 7; Bank Group 2 (Banks 8-11)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBF",
+        "EventName": "UNC_M_WR_CAS_RANK7.BANKG2",
+        "PerPkg": "1",
+        "UMask": "0x13",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "WR_CAS Access to Rank 7; Bank Group 3 (Banks 12-15)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xBF",
+        "EventName": "UNC_M_WR_CAS_RANK7.BANKG3",
+        "PerPkg": "1",
+        "UMask": "0x14",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Clockticks in the Memory Controller using a dedicated 48-bit Fixed Counter",
+        "Counter": "FIXED",
+        "EventCode": "0xff",
+        "EventName": "UNC_M_CLOCKTICKS_F",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "PMM Occupancy",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xE0",
+        "EventName": "UNC_M_PMM_RPQ_OCCUPANCY.GNT_WAIT",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "PMM Read Queue Cycles Not Empty",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xE1",
+        "EventName": "UNC_M_PMM_RPQ_CYCLES_NE",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "PMM Read Queue Cycles Full",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xE2",
+        "EventName": "UNC_M_PMM_RPQ_CYCLES_FULL",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "RPQ GNTs",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xEA",
+        "EventName": "UNC_M_PMM_CMD1.RPQ_GNTS",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Underfill GNTs",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xEA",
+        "EventName": "UNC_M_PMM_CMD1.WPQ_GNTS",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Misc GNTs",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xEA",
+        "EventName": "UNC_M_PMM_CMD1.MISC_GNT",
+        "PerPkg": "1",
+        "UMask": "0x40",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Misc Commands (error, flow ACKs)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xEA",
+        "EventName": "UNC_M_PMM_CMD1.MISC",
+        "PerPkg": "1",
+        "UMask": "0x80",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Opportunistic Reads",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xEB",
+        "EventName": "UNC_M_PMM_CMD2.OPP_RD",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Expected No data packet (ERID matched NDP encoding)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xEB",
+        "EventName": "UNC_M_PMM_CMD2.NODATA_EXP",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Unexpected No data packet (ERID matched a Read, but data was a NDP)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xEB",
+        "EventName": "UNC_M_PMM_CMD2.NODATA_UNEXP",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Read Requests - Slot 0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xEB",
+        "EventName": "UNC_M_PMM_CMD2.REQS_SLOT0",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Read Requests - Slot 1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xEB",
+        "EventName": "UNC_M_PMM_CMD2.REQS_SLOT1",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "PMM ECC Errors",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xEB",
+        "EventName": "UNC_M_PMM_CMD2.PMM_ECC_ERROR",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "PMM ERID detectable parity error",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xEB",
+        "EventName": "UNC_M_PMM_CMD2.PMM_ERID_ERROR",
+        "PerPkg": "1",
+        "UMask": "0x40",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "PMM Major Mode; Cycles PMM is in Read Major Mode",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xEC",
+        "EventName": "UNC_M_PMM_MAJMODE1.RD_CYC",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "PMM Major Mode; Cycles PMM is in Partial Write Major Mode",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xEC",
+        "EventName": "UNC_M_PMM_MAJMODE1.PARTIAL_WR_CYC",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "PMM Major Mode",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xEC",
+        "EventName": "UNC_M_PMM_MAJMODE1.PARTIAL_WR_ENTER",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "PMM Major Mode",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xEC",
+        "EventName": "UNC_M_PMM_MAJMODE1.PARTIAL_WR_EXIT",
+        "PerPkg": "1",
+        "UMask": "0x40",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "UNC_M_MAJMODE2.DRAM_CYC",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xED",
+        "EventName": "UNC_M_MAJMODE2.DRAM_CYC",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "UNC_M_MAJMODE2.DRAM_ENTER",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xED",
+        "EventName": "UNC_M_MAJMODE2.DRAM_ENTER",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "UNC_M_MAJMODE2.PMM_ENTER",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xED",
+        "EventName": "UNC_M_MAJMODE2.PMM_ENTER",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "PMM Write Queue Cycles Full",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xE6",
+        "EventName": "UNC_M_PMM_WPQ_CYCLES_FULL",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "PMM Write Queue Cycles Not Empty",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xE5",
+        "EventName": "UNC_M_PMM_WPQ_CYCLES_NE",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "PMM Occupancy",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xE4",
+        "EventName": "UNC_M_PMM_WPQ_OCCUPANCY.CAS",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "PMM Occupancy",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xE4",
+        "EventName": "UNC_M_PMM_WPQ_OCCUPANCY.PWR",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "UNC_M_PMM_WPQ_PCOMMIT",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xE8",
+        "EventName": "UNC_M_PMM_WPQ_PCOMMIT",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "UNC_M_PMM_WPQ_PCOMMIT_CYC",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xE9",
+        "EventName": "UNC_M_PMM_WPQ_PCOMMIT_CYC",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "PMM Major Mode; Cycles PMM is in Write Major Mode",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xEC",
+        "EventName": "UNC_M_PMM_MAJMODE1.WR_CYC",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "UNC_M_MAJMODE2.PMM_CYC",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xED",
+        "EventName": "UNC_M_MAJMODE2.PMM_CYC",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "UNC_M_SB_TAGGED.PMM0_CMP",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xDD",
+        "EventName": "UNC_M_SB_TAGGED.PMM0_CMP",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "UNC_M_SB_TAGGED.PMM1_CMP",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xDD",
+        "EventName": "UNC_M_SB_TAGGED.PMM1_CMP",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "UNC_M_SB_TAGGED.PMM2_CMP",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xDD",
+        "EventName": "UNC_M_SB_TAGGED.PMM2_CMP",
+        "PerPkg": "1",
+        "UMask": "0x40",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Inserts; Persistent Mem writes",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD6",
+        "EventName": "UNC_M_SB_INSERTS.PMM_WRS",
+        "PerPkg": "1",
+        "UMask": "0x08",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Occupancy; Persistent Mem writes",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD5",
+        "EventName": "UNC_M_SB_OCCUPANCY.PMM_WRS",
+        "PerPkg": "1",
+        "UMask": "0x08",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Occupancy; Persistent Mem reads",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD5",
+        "EventName": "UNC_M_SB_OCCUPANCY.PMM_RDS",
+        "PerPkg": "1",
+        "UMask": "0x04",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Scoreboard Inserts; Persistent Mem reads",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD6",
+        "EventName": "UNC_M_SB_INSERTS.PMM_RDS",
+        "PerPkg": "1",
+        "UMask": "0x04",
+        "Unit": "iMC"
+    }
+]

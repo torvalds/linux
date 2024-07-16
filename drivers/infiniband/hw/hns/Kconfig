@@ -1,0 +1,21 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config INFINIBAND_HNS
+	tristate "HNS RoCE Driver"
+	depends on NET_VENDOR_HISILICON
+	depends on ARM64 || (COMPILE_TEST && 64BIT)
+	depends on (HNS_DSAF && HNS_ENET) || HNS3
+	help
+	  This is a RoCE/RDMA driver for the Hisilicon RoCE engine.
+
+	  To compile HIP08 driver as module, choose M here.
+
+config INFINIBAND_HNS_HIP08
+	bool "Hisilicon Hip08 Family RoCE support"
+	depends on INFINIBAND_HNS && PCI && HNS3
+	depends on INFINIBAND_HNS=m || HNS3=y
+	help
+	  RoCE driver support for Hisilicon RoCE engine in Hisilicon Hip08 SoC.
+	  The RoCE engine is a PCI device.
+
+	  To compile this driver, choose Y here: if INFINIBAND_HNS is m, this
+	  module will be called hns-roce-hw-v2.

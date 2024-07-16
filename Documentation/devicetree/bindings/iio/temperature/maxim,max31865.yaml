@@ -1,0 +1,54 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/temperature/maxim,max31865.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Maxim MAX31865 Resistance Temperature Detector.
+
+maintainers:
+  - Navin Sankar Velliangiri <navin@linumiz.com>
+
+description: |
+  https://datasheets.maximintegrated.com/en/ds/MAX31865.pdf
+
+properties:
+  compatible:
+    const: maxim,max31865
+
+  reg:
+    maxItems: 1
+
+  maxim,3-wire:
+    description:
+      Identifies the number of wires used by the RTD. Setting this property
+      enables 3-wire RTD connection. Else 2-wire or 4-wire RTD connection.
+    type: boolean
+
+  spi-cpha: true
+
+required:
+  - compatible
+  - reg
+  - spi-cpha
+
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    spi {
+       #address-cells = <1>;
+       #size-cells = <0>;
+
+       temp_sensor@0 {
+         compatible = "maxim,max31865";
+         reg = <0>;
+         spi-max-frequency = <400000>;
+         spi-cpha;
+         maxim,3-wire;
+       };
+    };
+...

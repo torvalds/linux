@@ -1,0 +1,48 @@
+Texas Instruments TAS5086 6-channel PWM Processor
+
+Required properties:
+
+ - compatible:		Should contain "ti,tas5086".
+ - reg:			The i2c address. Should contain <0x1b>.
+
+Optional properties:
+
+ - reset-gpio: 		A GPIO spec to define which pin is connected to the
+			chip's !RESET pin. If specified, the driver will
+			assert a hardware reset at probe time.
+
+ - ti,charge-period:	This property should contain the time in microseconds
+			that closely matches the external single-ended
+			split-capacitor charge period. The hardware chip
+			waits for this period of time before starting the
+			PWM signals. This helps reduce pops and clicks.
+
+			When not specified, the hardware default of 1300ms
+			is retained.
+
+ - ti,mid-z-channel-X:	Boolean properties, X being a number from 1 to 6.
+			If given, channel X will start with the Mid-Z start
+			sequence, otherwise the default Low-Z scheme is used.
+
+			The correct configuration depends on how the power
+			stages connected to the PWM output pins work. Not all
+			power stages are compatible to Mid-Z - please refer
+			to the datasheets for more details.
+
+			Most systems should not set any of these properties.
+
+ - avdd-supply:         Power supply for AVDD, providing 3.3V
+ - dvdd-supply:         Power supply for DVDD, providing 3.3V
+
+Examples:
+
+	i2c_bus {
+		tas5086@1b {
+			compatible = "ti,tas5086";
+			reg = <0x1b>;
+			reset-gpio = <&gpio 23 0>;
+			ti,charge-period = <156000>;
+			avdd-supply = <&vdd_3v3_reg>;
+			dvdd-supply = <&vdd_3v3_reg>;
+		};
+	};

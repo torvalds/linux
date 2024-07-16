@@ -1,0 +1,33 @@
+Silicon Image SiI8620 HDMI/MHL bridge bindings
+
+Required properties:
+	- compatible: "sil,sii8620"
+	- reg: i2c address of the bridge
+	- cvcc10-supply: Digital Core Supply Voltage (1.0V)
+	- iovcc18-supply: I/O Supply Voltage (1.8V)
+	- interrupts: interrupt specifier of INT pin
+	- reset-gpios: gpio specifier of RESET pin
+	- clocks, clock-names: specification and name of "xtal" clock
+	- video interfaces: Device node can contain video interface port
+			    node for HDMI encoder according to [1].
+
+[1]: Documentation/devicetree/bindings/media/video-interfaces.txt
+
+Example:
+	sii8620@39 {
+		reg = <0x39>;
+		compatible = "sil,sii8620";
+		cvcc10-supply = <&ldo36_reg>;
+		iovcc18-supply = <&ldo34_reg>;
+		interrupt-parent = <&gpf0>;
+		interrupts = <2 0>;
+		reset-gpio = <&gpv7 0 0>;
+		clocks = <&pmu_system_controller 0>;
+		clock-names = "xtal";
+
+		port {
+			mhl_to_hdmi: endpoint {
+				remote-endpoint = <&hdmi_to_mhl>;
+			};
+		};
+	};

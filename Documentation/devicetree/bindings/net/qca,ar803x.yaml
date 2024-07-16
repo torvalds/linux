@@ -1,0 +1,132 @@
+# SPDX-License-Identifier: GPL-2.0+
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/qca,ar803x.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm Atheros AR803x PHY
+
+maintainers:
+  - Andrew Lunn <andrew@lunn.ch>
+  - Florian Fainelli <f.fainelli@gmail.com>
+  - Heiner Kallweit <hkallweit1@gmail.com>
+
+description: |
+  Bindings for Qualcomm Atheros AR803x PHYs
+
+allOf:
+  - $ref: ethernet-phy.yaml#
+
+properties:
+  qca,clk-out-frequency:
+    description: Clock output frequency in Hertz.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [25000000, 50000000, 62500000, 125000000]
+
+  qca,clk-out-strength:
+    description: Clock output driver strength.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 2]
+
+  qca,disable-smarteee:
+    description: Disable Atheros SmartEEE feature.
+    type: boolean
+
+  qca,keep-pll-enabled:
+    description: |
+      If set, keep the PLL enabled even if there is no link. Useful if you
+      want to use the clock output without an ethernet link.
+
+      Only supported on the AR8031.
+    type: boolean
+
+  qca,disable-hibernation-mode:
+    description: |
+      Disable Atheros AR803X PHYs hibernation mode. If present, indicates
+      that the hardware of PHY will not enter power saving mode when the
+      cable is disconnected. And the RX_CLK always keeps outputting a
+      valid clock.
+    type: boolean
+
+  qca,smarteee-tw-us-100m:
+    description: EEE Tw parameter for 100M links.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 1
+    maximum: 255
+
+  qca,smarteee-tw-us-1g:
+    description: EEE Tw parameter for gigabit links.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 1
+    maximum: 255
+
+  vddio-supply:
+    description: |
+      RGMII I/O voltage regulator (see regulator/regulator.yaml).
+
+      The PHY supports RGMII I/O voltages of 1.5V, 1.8V and 2.5V. You can
+      either connect this to the vddio-regulator (1.5V / 1.8V) or the
+      vddh-regulator (2.5V).
+
+      Only supported on the AR8031.
+
+  vddio-regulator:
+    type: object
+    description:
+      Initial data for the VDDIO regulator. Set this to 1.5V or 1.8V.
+    $ref: /schemas/regulator/regulator.yaml
+
+  vddh-regulator:
+    type: object
+    description:
+      Dummy subnode to model the external connection of the PHY VDDH
+      regulator to VDDIO.
+    $ref: /schemas/regulator/regulator.yaml
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/net/qca-ar803x.h>
+
+    ethernet {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        phy-mode = "rgmii-id";
+
+        ethernet-phy@0 {
+            reg = <0>;
+
+            qca,clk-out-frequency = <125000000>;
+            qca,clk-out-strength = <AR803X_STRENGTH_FULL>;
+
+            vddio-supply = <&vddio>;
+
+            vddio: vddio-regulator {
+                regulator-min-microvolt = <1800000>;
+                regulator-max-microvolt = <1800000>;
+            };
+        };
+    };
+  - |
+    #include <dt-bindings/net/qca-ar803x.h>
+
+    ethernet {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        phy-mode = "rgmii-id";
+
+        ethernet-phy@0 {
+            reg = <0>;
+
+            qca,clk-out-frequency = <50000000>;
+            qca,keep-pll-enabled;
+
+            vddio-supply = <&vddh>;
+
+            vddh: vddh-regulator {
+            };
+        };
+    };

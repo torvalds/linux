@@ -1,0 +1,15 @@
+* QNAP Power Off
+
+QNAP NAS devices have a microcontroller controlling the main power
+supply. This microcontroller is connected to UART1 of the Kirkwood and
+Orion5x SoCs. Sending the character 'A', at 19200 baud, tells the
+microcontroller to turn the power off.
+
+Synology NAS devices use a similar scheme, but a different baud rate,
+9600, and a different character, '1'.
+
+Required Properties:
+- compatible: Should be "qnap,power-off" or "synology,power-off"
+
+- reg: Address and length of the register set for UART1
+- clocks: tclk clock

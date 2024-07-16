@@ -1,0 +1,82 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/**
+ * dts file for Hisilicon D02 Development Board
+ *
+ * Copyright (C) 2014,2015 HiSilicon Ltd.
+ */
+
+/dts-v1/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include "hip05.dtsi"
+
+/ {
+	model = "Hisilicon Hip05 D02 Development Board";
+	compatible = "hisilicon,hip05-d02";
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x00000000 0x0 0x80000000>;
+	};
+
+	aliases {
+		serial0 = &uart0;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		pwr-button {
+			label = "Power Button";
+			gpios = <&porta 8 GPIO_ACTIVE_LOW>;
+			linux,code = <116>;
+			debounce-interval = <0>;
+		};
+	};
+};
+
+&uart0 {
+	status = "okay";
+};
+
+&peri_gpio0 {
+	status = "okay";
+};
+
+&lbc {
+	status = "okay";
+	#address-cells = <2>;
+	#size-cells = <1>;
+	ranges = <0 0 0x0 0x90000000 0x08000000>,
+		 <1 0 0x0 0x98000000 0x08000000>;
+
+	nor-flash@0,0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "numonyx,js28f00a", "cfi-flash";
+		reg = <0 0x0 0x08000000>;
+		bank-width = <2>;
+		/* The three parts may not used */
+		partition@0 {
+			label = "BIOS";
+			reg = <0x0 0x300000>;
+		};
+		partition@300000 {
+			label = "Linux";
+			reg = <0x300000 0xa00000>;
+		};
+		partition@1000000 {
+			label = "Rootfs";
+			reg = <0x01000000 0x02000000>;
+		};
+	};
+
+	cpld@1,0 {
+		compatible = "hisilicon,hip05-cpld";
+		reg = <1 0x0 0x100>;
+	};
+};

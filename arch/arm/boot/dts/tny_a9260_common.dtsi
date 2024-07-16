@@ -1,0 +1,112 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * tny_a9260_common.dtsi - Device Tree file for Caloa TNY A926x board
+ *
+ * Copyright (C) 2012 Jean-Christophe PLAGNIOL-VILLARD <plagnioj@jcrosoft.com>
+ */
+
+/ {
+	chosen {
+		bootargs = "mem=64M console=ttyS0,115200 root=/dev/mtdblock6 rw rootfstype=ubifs";
+	};
+
+	memory@20000000 {
+		reg = <0x20000000 0x4000000>;
+	};
+
+	clocks {
+		slow_xtal {
+			clock-frequency = <32768>;
+		};
+
+		main_xtal {
+			clock-frequency = <12000000>;
+		};
+	};
+
+	ahb {
+		apb {
+			tcb0: timer@fffa0000 {
+				timer@0 {
+					compatible = "atmel,tcb-timer";
+					reg = <0>, <1>;
+				};
+
+				timer@2 {
+					compatible = "atmel,tcb-timer";
+					reg = <2>;
+				};
+			};
+
+			dbgu: serial@fffff200 {
+				status = "okay";
+			};
+		};
+
+		ebi: ebi@10000000 {
+			status = "okay";
+
+			nand_controller: nand-controller {
+				status = "okay";
+				pinctrl-0 = <&pinctrl_nand_cs &pinctrl_nand_rb>;
+				pinctrl-names = "default";
+
+				nand@3 {
+					reg = <0x3 0x0 0x800000>;
+					rb-gpios = <&pioC 13 GPIO_ACTIVE_HIGH>;
+					cs-gpios = <&pioC 14 GPIO_ACTIVE_HIGH>;
+					nand-bus-width = <8>;
+					nand-ecc-mode = "soft";
+					nand-on-flash-bbt;
+					label = "atmel_nand";
+
+					partitions {
+						compatible = "fixed-partitions";
+						#address-cells = <1>;
+						#size-cells = <1>;
+
+						at91bootstrap@0 {
+							label = "at91bootstrap";
+							reg = <0x0 0x20000>;
+						};
+
+						barebox@20000 {
+							label = "barebox";
+							reg = <0x20000 0x40000>;
+						};
+
+						bareboxenv@60000 {
+							label = "bareboxenv";
+							reg = <0x60000 0x20000>;
+						};
+
+						bareboxenv2@80000 {
+							label = "bareboxenv2";
+							reg = <0x80000 0x20000>;
+						};
+
+						oftree@80000 {
+							label = "oftree";
+							reg = <0xa0000 0x20000>;
+						};
+
+						kernel@a0000 {
+							label = "kernel";
+							reg = <0xc0000 0x400000>;
+						};
+
+						rootfs@4a0000 {
+							label = "rootfs";
+							reg = <0x4c0000 0x7800000>;
+						};
+
+						data@7ca0000 {
+							label = "data";
+							reg = <0x7cc0000 0x8340000>;
+						};
+					};
+				};
+			};
+		};
+	};
+};

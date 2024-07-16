@@ -1,0 +1,31 @@
+tc Testing Suite To-Do list:
+
+- Determine what tc features are supported in the kernel. If features are not
+  present, prevent the related categories from running.
+
+- Add support for multiple versions of tc to run successively
+
+- Improve error messages when tdc aborts its run.  Partially done - still
+  need to better handle problems in pre- and post-suite.
+
+- Use python logger module for debug/verbose output
+
+- Allow tdc to write its results to file.
+  Maybe use python logger module for this too.
+
+- A better implementation of the "hooks".  Currently, every plugin
+  will attempt to run a function at every hook point.  Could be
+  changed so that plugin __init__ methods will register functions to
+  be run in the various predefined times.  Then if a plugin does not
+  require action at a specific point, no penalty will be paid for
+  trying to run a function that will do nothing.
+
+- Proper exception handling - make an exception class and use it
+
+- a TestCase class, for easier testcase handling, searching, comparison
+
+- a TestSuite class
+  and a way to configure a test suite,
+  to automate running multiple "test suites" with different requirements
+
+- super simple test case example using ls, touch, etc

@@ -1,0 +1,97 @@
+# SPDX-License-Identifier: GPL-2.0
+# Copyright (C) 2021 Sebastian Reichel
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/power/supply/bq2415x.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Binding for TI bq2415x Li-Ion Charger
+
+maintainers:
+  - Sebastian Reichel <sre@kernel.org>
+
+allOf:
+  - $ref: power-supply.yaml#
+
+properties:
+  compatible:
+    enum:
+      - ti,bq24150
+      - ti,bq24150a
+      - ti,bq24151
+      - ti,bq24151a
+      - ti,bq24152
+      - ti,bq24153
+      - ti,bq24153a
+      - ti,bq24155
+      - ti,bq24156
+      - ti,bq24156a
+      - ti,bq24158
+
+  reg:
+    maxItems: 1
+
+  ti,current-limit:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: initial maximum current charger can pull from power supply in mA.
+
+  ti,weak-battery-voltage:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      weak battery voltage threshold in mV.
+      The chip will use slow precharge if battery voltage is below this value.
+
+  ti,battery-regulation-voltage:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: maximum charging voltage in mV.
+
+  ti,charge-current:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: maximum charging current in mA.
+
+  ti,termination-current:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      charge will be terminated when current in constant-voltage phase drops
+      below this value (in mA).
+
+  ti,resistor-sense:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: value of sensing resistor in milliohm.
+
+  ti,usb-charger-detection:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: phandle to usb charger detection device (required for auto mode)
+
+required:
+  - compatible
+  - reg
+  - ti,current-limit
+  - ti,weak-battery-voltage
+  - ti,battery-regulation-voltage
+  - ti,charge-current
+  - ti,termination-current
+  - ti,resistor-sense
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c0 {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      charger@6b {
+        compatible = "ti,bq24150a";
+        reg = <0x6b>;
+
+        ti,current-limit = <100>;
+        ti,weak-battery-voltage = <3400>;
+        ti,battery-regulation-voltage = <4200>;
+        ti,charge-current = <650>;
+        ti,termination-current = <100>;
+        ti,resistor-sense = <68>;
+
+        ti,usb-charger-detection = <&isp1704>;
+      };
+    };

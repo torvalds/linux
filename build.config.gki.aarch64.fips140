@@ -1,0 +1,22 @@
+. ${ROOT_DIR}/${KERNEL_DIR}/build.config.common
+. ${ROOT_DIR}/${KERNEL_DIR}/build.config.aarch64
+. ${ROOT_DIR}/${KERNEL_DIR}/build.config.gki
+
+FILES="
+crypto/fips140.ko
+"
+
+MAKE_GOALS="
+modules
+"
+
+MODULES_ORDER=android/gki_aarch64_fips140_modules
+KERNEL_DIR=common
+
+DEFCONFIG=fips140_gki_defconfig
+PRE_DEFCONFIG_CMDS="mkdir -p \${OUT_DIR}/arch/arm64/configs/ && KCONFIG_CONFIG=\${OUT_DIR}/arch/arm64/configs/${DEFCONFIG} ${ROOT_DIR}/${KERNEL_DIR}/scripts/kconfig/merge_config.sh -m -r ${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/gki_defconfig ${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/fips140_gki.fragment"
+POST_DEFCONFIG_CMDS=""
+
+if [ -n "${GKI_BUILD_CONFIG_FRAGMENT}" ]; then
+source ${GKI_BUILD_CONFIG_FRAGMENT}
+fi

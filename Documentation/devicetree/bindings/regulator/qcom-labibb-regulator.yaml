@@ -1,0 +1,99 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/regulator/qcom-labibb-regulator.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm's LAB(LCD AMOLED Boost)/IBB(Inverting Buck Boost) Regulator
+
+maintainers:
+  - Sumit Semwal <sumit.semwal@linaro.org>
+
+description:
+  LAB can be used as a positive boost power supply and IBB can be used as a
+  negative boost power supply for display panels. Currently implemented for
+  pmi8998.
+
+properties:
+  compatible:
+    const: qcom,pmi8998-lab-ibb
+
+  lab:
+    type: object
+    additionalProperties: false
+
+    properties:
+      qcom,soft-start-us:
+        description: Regulator soft start time in microseconds.
+        enum: [200, 400, 600, 800]
+        default: 200
+
+      interrupts:
+        minItems: 1
+        maxItems: 2
+        description:
+          Short-circuit and over-current interrupts for lab.
+
+      interrupt-names:
+        minItems: 1
+        items:
+          - const: sc-err
+          - const: ocp
+
+    required:
+      - interrupts
+      - interrupt-names
+
+  ibb:
+    type: object
+    additionalProperties: false
+
+    properties:
+      qcom,discharge-resistor-kohms:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description: Discharge resistor value in KiloOhms.
+        enum: [300, 64, 32, 16]
+        default: 300
+
+      interrupts:
+        minItems: 1
+        maxItems: 2
+        description:
+          Short-circuit and over-current interrupts for ibb.
+
+      interrupt-names:
+        minItems: 1
+        items:
+          - const: sc-err
+          - const: ocp
+
+    required:
+      - interrupts
+      - interrupt-names
+
+required:
+  - compatible
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    labibb {
+      compatible = "qcom,pmi8998-lab-ibb";
+
+      lab {
+        interrupts = <0x3 0xde 0x1 IRQ_TYPE_EDGE_RISING>,
+                     <0x3 0xde 0x0 IRQ_TYPE_LEVEL_LOW>;
+        interrupt-names = "sc-err", "ocp";
+      };
+
+      ibb {
+        interrupts = <0x3 0xdc 0x2 IRQ_TYPE_EDGE_RISING>,
+                     <0x3 0xdc 0x0 IRQ_TYPE_LEVEL_LOW>;
+        interrupt-names = "sc-err", "ocp";
+      };
+    };
+
+...

@@ -1,0 +1,196 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+# Copyright (C) 2021 Renesas Electronics Corp.
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/media/renesas,isp.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Renesas R-Car ISP Channel Selector
+
+maintainers:
+  - Niklas Söderlund <niklas.soderlund@ragnatech.se>
+
+description:
+  The R-Car ISP Channel Selector provides MIPI CSI-2 VC and DT filtering
+  capabilities for the Renesas R-Car family of devices. It is used in
+  conjunction with the R-Car VIN and CSI-2 modules, which provides the video
+  capture capabilities.
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - renesas,r8a779a0-isp # V3U
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  power-domains:
+    maxItems: 1
+
+  resets:
+    maxItems: 1
+
+  ports:
+    $ref: /schemas/graph.yaml#/properties/ports
+
+    properties:
+      port@0:
+        $ref: /schemas/graph.yaml#/properties/port
+        description:
+          Input port node, multiple endpoints describing the connected R-Car
+          CSI-2 receivers.
+
+      port@1:
+        $ref: /schemas/graph.yaml#/properties/port
+        description:
+          Single endpoint describing the R-Car VIN connected to output port 0.
+
+      port@2:
+        $ref: /schemas/graph.yaml#/properties/port
+        description:
+          Single endpoint describing the R-Car VIN connected to output port 1.
+
+      port@3:
+        $ref: /schemas/graph.yaml#/properties/port
+        description:
+          Single endpoint describing the R-Car VIN connected to output port 2.
+
+      port@4:
+        $ref: /schemas/graph.yaml#/properties/port
+        description:
+          Single endpoint describing the R-Car VIN connected to output port 3.
+
+      port@5:
+        $ref: /schemas/graph.yaml#/properties/port
+        description:
+          Single endpoint describing the R-Car VIN connected to output port 4.
+
+      port@6:
+        $ref: /schemas/graph.yaml#/properties/port
+        description:
+          Single endpoint describing the R-Car VIN connected to output port 5.
+
+      port@7:
+        $ref: /schemas/graph.yaml#/properties/port
+        description:
+          Single endpoint describing the R-Car VIN connected to output port 6.
+
+      port@8:
+        $ref: /schemas/graph.yaml#/properties/port
+        description:
+          Single endpoint describing the R-Car VIN connected to output port 7.
+
+    required:
+      - port@0
+      - port@1
+      - port@2
+      - port@3
+      - port@4
+      - port@5
+      - port@6
+      - port@7
+      - port@8
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - power-domains
+  - resets
+  - ports
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/r8a779a0-cpg-mssr.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/power/r8a779a0-sysc.h>
+
+    isp1: isp@fed20000 {
+            compatible = "renesas,r8a779a0-isp";
+            reg = <0xfed20000 0x10000>;
+            interrupts = <GIC_SPI 155 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&cpg CPG_MOD 613>;
+            power-domains = <&sysc R8A779A0_PD_A3ISP01>;
+            resets = <&cpg 613>;
+
+            ports {
+                    #address-cells = <1>;
+                    #size-cells = <0>;
+
+                    port@0 {
+                            #address-cells = <1>;
+                            #size-cells = <0>;
+
+                            reg = <0>;
+                            isp1csi41: endpoint@1 {
+                                    reg = <1>;
+                                    remote-endpoint = <&csi41isp1>;
+                            };
+                    };
+
+                    port@1 {
+                            reg = <1>;
+                            isp1vin08: endpoint {
+                                    remote-endpoint = <&vin08isp1>;
+                            };
+                    };
+
+                    port@2 {
+                            reg = <2>;
+                            isp1vin09: endpoint {
+                                    remote-endpoint = <&vin09isp1>;
+                            };
+                    };
+
+                    port@3 {
+                            reg = <3>;
+                            isp1vin10: endpoint {
+                                    remote-endpoint = <&vin10isp1>;
+                            };
+                    };
+
+                    port@4 {
+                            reg = <4>;
+                            isp1vin11: endpoint {
+                                    remote-endpoint = <&vin11isp1>;
+                            };
+                    };
+
+                    port@5 {
+                            reg = <5>;
+                            isp1vin12: endpoint {
+                                    remote-endpoint = <&vin12isp1>;
+                            };
+                    };
+
+                    port@6 {
+                            reg = <6>;
+                            isp1vin13: endpoint {
+                                    remote-endpoint = <&vin13isp1>;
+                            };
+                    };
+
+                    port@7 {
+                            reg = <7>;
+                            isp1vin14: endpoint {
+                                    remote-endpoint = <&vin14isp1>;
+                            };
+                    };
+
+                    port@8 {
+                            reg = <8>;
+                            isp1vin15: endpoint {
+                                    remote-endpoint = <&vin15isp1>;
+                            };
+                    };
+            };
+    };

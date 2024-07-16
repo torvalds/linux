@@ -1,0 +1,48 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mmc/mmc-card.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: MMC Card / eMMC Generic
+
+maintainers:
+  - Ulf Hansson <ulf.hansson@linaro.org>
+
+description: |
+  This documents describes the devicetree bindings for a mmc-host controller
+  child node describing a mmc-card / an eMMC.
+
+properties:
+  compatible:
+    const: mmc-card
+
+  reg:
+    const: 0
+
+  broken-hpi:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      Use this to indicate that the mmc-card has a broken hpi
+      implementation, and that hpi should not be used.
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    mmc {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        card@0 {
+            compatible = "mmc-card";
+            reg = <0>;
+            broken-hpi;
+        };
+    };
+
+...

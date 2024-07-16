@@ -1,0 +1,134 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mmc/cdns,sdhci.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Cadence SD/SDIO/eMMC Host Controller (SD4HC)
+
+maintainers:
+  - Masahiro Yamada <yamada.masahiro@socionext.com>
+
+allOf:
+  - $ref: mmc-controller.yaml
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - microchip,mpfs-sd4hc
+          - socionext,uniphier-sd4hc
+      - const: cdns,sd4hc
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  # PHY DLL input delays:
+  # They are used to delay the data valid window, and align the window to
+  # sampling clock. The delay starts from 5ns (for delay parameter equal to 0)
+  # and it is increased by 2.5ns in each step.
+
+  cdns,phy-input-delay-sd-highspeed:
+    description: Value of the delay in the input path for SD high-speed timing
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    minimum: 0
+    maximum: 0x1f
+
+  cdns,phy-input-delay-legacy:
+    description: Value of the delay in the input path for legacy timing
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    minimum: 0
+    maximum: 0x1f
+
+  cdns,phy-input-delay-sd-uhs-sdr12:
+    description: Value of the delay in the input path for SD UHS SDR12 timing
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    minimum: 0
+    maximum: 0x1f
+
+  cdns,phy-input-delay-sd-uhs-sdr25:
+    description: Value of the delay in the input path for SD UHS SDR25 timing
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    minimum: 0
+    maximum: 0x1f
+
+  cdns,phy-input-delay-sd-uhs-sdr50:
+    description: Value of the delay in the input path for SD UHS SDR50 timing
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    minimum: 0
+    maximum: 0x1f
+
+  cdns,phy-input-delay-sd-uhs-ddr50:
+    description: Value of the delay in the input path for SD UHS DDR50 timing
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    minimum: 0
+    maximum: 0x1f
+
+  cdns,phy-input-delay-mmc-highspeed:
+    description: Value of the delay in the input path for MMC high-speed timing
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    minimum: 0
+    maximum: 0x1f
+
+  cdns,phy-input-delay-mmc-ddr:
+    description: Value of the delay in the input path for eMMC high-speed DDR timing
+
+  # PHY DLL clock delays:
+  # Each delay property represents the fraction of the clock period.
+  # The approximate delay value will be
+  # (<delay property value>/128)*sdmclk_clock_period.
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    minimum: 0
+    maximum: 0x1f
+
+  cdns,phy-dll-delay-sdclk:
+    description: |
+      Value of the delay introduced on the sdclk output for all modes except
+      HS200, HS400 and HS400_ES.
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    minimum: 0
+    maximum: 0x7f
+
+  cdns,phy-dll-delay-sdclk-hsmmc:
+    description: |
+      Value of the delay introduced on the sdclk output for HS200, HS400 and
+      HS400_ES speed modes.
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    minimum: 0
+    maximum: 0x7f
+
+  cdns,phy-dll-delay-strobe:
+    description: |
+      Value of the delay introduced on the dat_strobe input used in
+      HS400 / HS400_ES speed modes.
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    minimum: 0
+    maximum: 0x7f
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    emmc: mmc@5a000000 {
+        compatible = "socionext,uniphier-sd4hc", "cdns,sd4hc";
+        reg = <0x5a000000 0x400>;
+        interrupts = <0 78 4>;
+        clocks = <&clk 4>;
+        bus-width = <8>;
+        mmc-ddr-1_8v;
+        mmc-hs200-1_8v;
+        mmc-hs400-1_8v;
+        cdns,phy-dll-delay-sdclk = <0>;
+    };

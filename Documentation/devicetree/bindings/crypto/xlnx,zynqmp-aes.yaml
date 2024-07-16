@@ -1,0 +1,37 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/crypto/xlnx,zynqmp-aes.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Xilinx ZynqMP AES-GCM Hardware Accelerator
+
+maintainers:
+  - Kalyani Akula <kalyani.akula@xilinx.com>
+  - Michal Simek <michal.simek@xilinx.com>
+
+description: |
+  The ZynqMP AES-GCM hardened cryptographic accelerator is used to
+  encrypt or decrypt the data with provided key and initialization vector.
+
+properties:
+  compatible:
+    const: xlnx,zynqmp-aes
+
+required:
+  - compatible
+
+additionalProperties: false
+
+examples:
+  - |
+    firmware {
+      zynqmp_firmware: zynqmp-firmware {
+        compatible = "xlnx,zynqmp-firmware";
+        method = "smc";
+        xlnx_aes: zynqmp-aes {
+          compatible = "xlnx,zynqmp-aes";
+        };
+      };
+    };
+...

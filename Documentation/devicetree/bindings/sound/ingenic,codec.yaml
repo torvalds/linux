@@ -1,0 +1,60 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/ingenic,codec.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Ingenic JZ47xx internal codec DT bindings
+
+maintainers:
+  - Paul Cercueil <paul@crapouillou.net>
+
+properties:
+  $nodename:
+    pattern: '^audio-codec@.*'
+
+  compatible:
+    oneOf:
+      - enum:
+          - ingenic,jz4770-codec
+          - ingenic,jz4760-codec
+          - ingenic,jz4725b-codec
+          - ingenic,jz4740-codec
+      - items:
+          - const: ingenic,jz4760b-codec
+          - const: ingenic,jz4760-codec
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    items:
+      - const: aic
+
+  '#sound-dai-cells':
+    const: 0
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - '#sound-dai-cells'
+
+examples:
+  - |
+    #include <dt-bindings/clock/ingenic,jz4740-cgu.h>
+    codec: audio-codec@10020080 {
+      compatible = "ingenic,jz4740-codec";
+      reg = <0x10020080 0x8>;
+      #sound-dai-cells = <0>;
+      clocks = <&cgu JZ4740_CLK_AIC>;
+      clock-names = "aic";
+    };
+
+...

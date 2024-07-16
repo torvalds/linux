@@ -1,0 +1,24 @@
+<svg width="5.75in" height="3.90in" version="1.1" viewBox="1178 3138 6779.9424 4671.3427" xmlns="http://www.w3.org/2000/svg">
+ <polyline transform="translate(-18.5,-16.294)" points="1200 3600 1800 3600 2400 4800 3e3 4800 4200 5700 4800 5700" fill="none" stroke="#000" stroke-width="15"/>
+ <rect x="1181.5" y="3133.7" width="3600" height="3150" rx="0" fill="none" stroke="#000" stroke-width="7"/>
+ <polyline transform="translate(-18.5,-16.294)" points="1200 4800 4800 4800" fill="none" stroke="#000" stroke-width="7"/>
+ <polyline transform="translate(-18.5,-16.294)" points="2400 4800 2400 6525 1950 7125 1950 7800" fill="none" stroke="#000" stroke-dasharray="40, 40" stroke-width="7"/>
+ <polyline transform="translate(-18.5,-16.294)" points="3e3 4800 3e3 6525 3600 7125 3600 7800" fill="none" stroke="#000" stroke-dasharray="40, 40" stroke-width="7"/>
+ <polyline transform="translate(-18.5,-16.294)" points="3837 5389 4125 5100 5400 5100" fill="none" stroke="#000" stroke-width="7"/>
+ <polyline transform="translate(-18.5,-16.294)" points="3889 5292 3826 5398 3932 5334" fill="none" stroke="#000" stroke-miterlimit="8" stroke-width="7"/>
+ <polyline transform="translate(-18.5,-16.294)" points="2112 4189 2400 3900 5400 3900" fill="none" stroke="#000" stroke-width="7"/>
+ <polyline transform="translate(-18.5,-16.294)" points="2164 4092 2101 4198 2207 4134" fill="none" stroke="#000" stroke-miterlimit="8" stroke-width="7"/>
+ <polyline transform="translate(-18.5,-16.294)" points="4800 5700 5400 5700" fill="none" stroke="#000" stroke-dasharray="40, 40" stroke-width="7"/>
+ <polyline transform="translate(-18.5,-16.294)" points="1800 3600 5400 3600" fill="none" stroke="#000" stroke-dasharray="40, 40" stroke-width="7"/>
+ <polyline transform="translate(-18.5,-16.294)" points="2700 4784 2700 4425 5400 4425" fill="none" stroke="#000" stroke-width="7"/>
+ <polyline transform="translate(-18.5,-16.294)" points="2670 4678 2700 4798 2730 4678" fill="none" stroke="#000" stroke-miterlimit="8" stroke-width="7"/>
+ <polyline transform="translate(-18.5,-16.294)" points="1967 7800 3583 7800" fill="none" stroke="#000" stroke-width="7"/>
+ <polyline transform="translate(-18.5,-16.294)" points="3478 7830 3598 7800 3478 7770" fill="none" stroke="#000" stroke-miterlimit="8" stroke-width="7"/>
+ <polyline transform="translate(-18.5,-16.294)" points="2072 7770 1952 7800 2072 7830" fill="none" stroke="#000" stroke-miterlimit="8" stroke-width="7"/>
+ <text x="2775" y="7725" font-family="sans-serif" font-size="144px" stroke="#000000" stroke-width=".025in" text-anchor="middle" xml:space="preserve">Dead band</text>
+ <text x="5400" y="5700" font-family="sans-serif" font-size="144px" stroke="#000000" stroke-width=".025in" xml:space="preserve">right saturation</text>
+ <text x="5400" y="3600" font-family="sans-serif" font-size="144px" stroke="#000000" stroke-width=".025in" xml:space="preserve">left saturation</text>
+ <text x="5400" y="3900" font-family="sans-serif" font-size="144px" stroke="#000000" stroke-width=".025in" xml:space="preserve">left coeff ( positive in that case )</text>
+ <text x="5475" y="5100" font-family="sans-serif" font-size="144px" stroke="#000000" stroke-width=".025in" xml:space="preserve">right coeff ( negative in that case )</text>
+ <text x="5400" y="4425" font-family="sans-serif" font-size="144px" stroke="#000000" stroke-width=".025in" xml:space="preserve">center</text>
+</svg>

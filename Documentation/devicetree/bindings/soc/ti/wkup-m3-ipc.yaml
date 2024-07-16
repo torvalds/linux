@@ -1,0 +1,175 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/soc/ti/wkup-m3-ipc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Wakeup M3 IPC device
+
+maintainers:
+  - Dave Gerlach <d-gerlach@ti.com>
+  - Drew Fustini <dfustini@baylibre.com>
+
+description: |+
+  The TI AM33xx and AM43xx family of devices use a small Cortex M3 co-processor
+  (commonly referred to as Wakeup M3 or CM3) to help with various low power tasks
+  that cannot be controlled from the MPU, like suspend/resume and certain deep
+  C-states for CPU Idle. Once the wkup_m3_ipc driver uses the wkup_m3_rproc driver
+  to boot the wkup_m3, it handles communication with the CM3 using IPC registers
+  present in the SoC's control module and a mailbox. The wkup_m3_ipc exposes an
+  API to allow the SoC PM code to execute specific PM tasks.
+
+  Wkup M3 Device Node
+  ====================
+  A wkup_m3_ipc device node is used to represent the IPC registers within an
+  SoC.
+
+  Support for VTT Toggle with GPIO pin
+  ====================================
+  On some boards like the AM335x EVM-SK and the AM437x GP EVM, a GPIO pin is
+  connected to the enable pin on the DDR VTT regulator. This allows the
+  regulator to be disabled upon suspend and enabled upon resume. Please note
+  that the GPIO pin must be part of the GPIO0 module as only this GPIO module
+  is in the wakeup power domain.
+
+  Support for IO Isolation
+  ========================
+  On AM437x SoCs, certain pins can be forced into an alternate state when IO
+  isolation is activated. Those pins have pad control registers prefixed by
+  'CTRL_CONF_' that contain DS0 (e.g. deep sleep) configuration bits that can
+  override the pin's existing bias (pull-up/pull-down) and value (high/low) when
+  IO isolation is active.
+
+  Support for I2C PMIC Voltage Scaling
+  ====================================
+  It is possible to pass the name of a binary file to load into the CM3 memory.
+  The binary data is the I2C sequences for the CM3 to send out to the PMIC
+  during low power mode entry.
+
+properties:
+  compatible:
+    enum:
+      - ti,am3352-wkup-m3-ipc # for AM33xx SoCs
+      - ti,am4372-wkup-m3-ipc # for AM43xx SoCs
+
+  reg:
+    description:
+      The IPC register address space to communicate with the Wakeup M3 processor
+    maxItems: 1
+
+  interrupts:
+    description: wkup_m3 interrupt that signals the MPU
+    maxItems: 1
+
+  ti,rproc:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      phandle to the wkup_m3 rproc node so the IPC driver can boot it
+
+  mboxes:
+    description:
+      phandles used by IPC framework to get correct mbox
+      channel for communication. Must point to appropriate
+      mbox_wkupm3 child node.
+    maxItems: 1
+
+  firmware-name:
+    description:
+      Name of binary file with I2C sequences for PMIC voltage scaling
+
+  ti,vtt-gpio-pin:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: GPIO pin connected to enable pin on VTT regulator
+
+  ti,set-io-isolation:
+    type: boolean
+    description:
+      If this property is present, then the wkup_m3_ipc driver will instruct
+      the CM3 firmware to activate IO isolation when suspending to deep sleep.
+      This can be leveraged by a board design to put other devices on the board
+      into a low power state.
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          not:
+            contains:
+              const: ti,am4372-wkup-m3-ipc
+    then:
+      properties:
+        ti,set-io-isolation: false
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - ti,rproc
+  - mboxes
+
+additionalProperties: false
+
+examples:
+  - |
+    /* Example for AM335x SoC */
+    soc {
+        #address-cells = <1>;
+        #size-cells = <1>;
+
+        am335x_mailbox: mailbox {
+            #mbox-cells = <1>;
+        };
+
+        wkup_m3_ipc@1324 {
+           compatible = "ti,am3352-wkup-m3-ipc";
+           reg = <0x1324 0x24>;
+           interrupts = <78>;
+           ti,rproc = <&wkup_m3>;
+           mboxes = <&am335x_mailbox &mbox_wkupm3>;
+           ti,vtt-gpio-pin = <7>;
+           firmware-name = "am335x-evm-scale-data.bin";
+        };
+    };
+
+  - |
+    /*
+     * Example for AM473x SoC:
+     * On the AM437x-GP-EVM board, gpio5_7 is wired to enable pin of the DDR VTT
+     * regulator. The 'ddr_vtt_toggle_default' pinmux node configures gpio5_7
+     * for pull-up during normal system operation. However, the DS0 (deep sleep)
+     * state of the pin is configured for pull-down and thus the VTT regulator
+     * will be disabled to save power when IO isolation is active. Note that
+     * this method is an alternative to using the 'ti,vtt-gpio-pin' property.
+     */
+    #include <dt-bindings/pinctrl/am43xx.h>
+    soc {
+        #address-cells = <1>;
+        #size-cells = <1>;
+
+        am437x_mailbox: mailbox {
+            #mbox-cells = <1>;
+        };
+
+        am43xx_pinmux {
+            pinctrl-names = "default";
+            pinctrl-0 = <&ddr3_vtt_toggle_default>;
+
+            ddr3_vtt_toggle_default: ddr_vtt_toggle_default {
+                 pinctrl-single,pins = <
+                    0x25C (DS0_PULL_UP_DOWN_EN | PIN_OUTPUT_PULLUP | DS0_FORCE_OFF_MODE | MUX_MODE7)
+                 >;
+            };
+        };
+
+        wkup_m3_ipc@1324 {
+           compatible = "ti,am4372-wkup-m3-ipc";
+           reg = <0x1324 0x24>;
+           interrupts = <78>;
+           ti,rproc = <&wkup_m3>;
+           mboxes = <&am437x_mailbox &mbox_wkupm3>;
+           ti,set-io-isolation;
+           firmware-name = "am43x-evm-scale-data.bin";
+        };
+    };
+
+...

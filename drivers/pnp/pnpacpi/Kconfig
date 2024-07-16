@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Plug and Play ACPI configuration
+#
+config PNPACPI
+	bool
+	default (PNP && ACPI)

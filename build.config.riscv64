@@ -1,0 +1,14 @@
+ARCH=riscv
+MAKE_GOALS="
+Image
+modules
+"
+
+FILES="
+arch/riscv/boot/Image
+vmlinux
+System.map
+vmlinux.symvers
+modules.builtin
+modules.builtin.modinfo
+"

@@ -1,0 +1,38 @@
+Bindings for the Western Digital's MyBook Live memory-mapped GPIO controllers.
+
+The Western Digital MyBook Live has two memory-mapped GPIO controllers.
+Both GPIO controller only have a single 8-bit data register, where GPIO
+state can be read and/or written.
+
+Required properties:
+	- compatible: should be "wd,mbl-gpio"
+	- reg-names: must contain
+		"dat" - data register
+	- reg: address + size pairs describing the GPIO register sets;
+		order must correspond with the order of entries in reg-names
+	- #gpio-cells: must be set to 2. The first cell is the pin number and
+			the second cell is used to specify the gpio polarity:
+			0 = active high
+			1 = active low
+	- gpio-controller: Marks the device node as a gpio controller.
+
+Optional properties:
+	- no-output: GPIOs are read-only.
+
+Examples:
+	gpio0: gpio0@e0000000 {
+		compatible = "wd,mbl-gpio";
+		reg-names = "dat";
+		reg = <0xe0000000 0x1>;
+		#gpio-cells = <2>;
+		gpio-controller;
+	};
+
+	gpio1: gpio1@e0100000 {
+		compatible = "wd,mbl-gpio";
+		reg-names = "dat";
+		reg = <0xe0100000 0x1>;
+		#gpio-cells = <2>;
+		gpio-controller;
+		no-output;
+	};

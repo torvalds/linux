@@ -1,0 +1,39 @@
+Microchip PIC32 Clock Controller Binding
+----------------------------------------
+Microchip clock controller is consists of few oscillators, PLL, multiplexer
+and few divider modules.
+
+This binding uses common clock bindings.
+[1] Documentation/devicetree/bindings/clock/clock-bindings.txt
+
+Required properties:
+- compatible: shall be "microchip,pic32mzda-clk".
+- reg: shall contain base address and length of clock registers.
+- #clock-cells: shall be 1.
+
+Optional properties:
+- microchip,pic32mzda-sosc: shall be added only if platform has
+  secondary oscillator connected.
+
+Example:
+	rootclk: clock-controller@1f801200 {
+		compatible = "microchip,pic32mzda-clk";
+		reg = <0x1f801200 0x200>;
+		#clock-cells = <1>;
+		/* optional */
+		microchip,pic32mzda-sosc;
+	};
+
+
+The clock consumer shall specify the desired clock-output of the clock
+controller (as defined in [2]) by specifying output-id in its "clock"
+phandle cell.
+[2] include/dt-bindings/clock/microchip,pic32-clock.h
+
+For example for UART2:
+uart2: serial@2 {
+	compatible = "microchip,pic32mzda-uart";
+	reg = <>;
+	interrupts = <>;
+	clocks = <&rootclk PB2CLK>;
+};

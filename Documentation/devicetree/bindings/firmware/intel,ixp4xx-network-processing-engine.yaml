@@ -1,0 +1,94 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+# Copyright 2019 Linaro Ltd.
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/firmware/intel,ixp4xx-network-processing-engine.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: Intel IXP4xx Network Processing Engine
+
+maintainers:
+  - Linus Walleij <linus.walleij@linaro.org>
+
+description: |
+  On the IXP4xx SoCs, the Network Processing Engine (NPE) is a small
+  processor that can load a firmware to perform offloading of networking
+  and crypto tasks. It also manages the MDIO bus to the ethernet PHYs
+  on the IXP4xx platform. All IXP4xx platforms have three NPEs at
+  consecutive memory locations. They are all included in the same
+  device node since they are not independent of each other.
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - const: intel,ixp4xx-network-processing-engine
+
+  reg:
+    items:
+      - description: NPE0 (NPE-A) register range
+      - description: NPE1 (NPE-B) register range
+      - description: NPE2 (NPE-C) register range
+
+  crypto:
+    $ref: /schemas/crypto/intel,ixp4xx-crypto.yaml#
+    type: object
+    description: Optional node for the embedded crypto engine, the node
+      should be named with the instance number of the NPE engine used for
+      the crypto engine.
+
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 0
+
+patternProperties:
+  hss@[0-9]+$:
+    $ref: /schemas/net/intel,ixp4xx-hss.yaml#
+    type: object
+    description: Optional node for the High Speed Serial link (HSS), the
+      node should be named with the instance number of the NPE engine
+      used for the HSS.
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    npe: npe@c8006000 {
+         compatible = "intel,ixp4xx-network-processing-engine";
+         reg = <0xc8006000 0x1000>, <0xc8007000 0x1000>, <0xc8008000 0x1000>;
+         #address-cells = <1>;
+         #size-cells = <0>;
+
+         hss@0 {
+             compatible = "intel,ixp4xx-hss";
+             reg = <0>;
+             intel,npe-handle = <&npe 0>;
+             intel,queue-chl-rxtrig = <&qmgr 12>;
+             intel,queue-chl-txready = <&qmgr 34>;
+             intel,queue-pkt-rx = <&qmgr 13>;
+             intel,queue-pkt-tx = <&qmgr 14>, <&qmgr 15>, <&qmgr 16>, <&qmgr 17>;
+             intel,queue-pkt-rxfree = <&qmgr 18>, <&qmgr 19>, <&qmgr 20>, <&qmgr 21>;
+             intel,queue-pkt-txdone = <&qmgr 22>;
+             cts-gpios = <&gpio0 10 GPIO_ACTIVE_LOW>;
+             rts-gpios = <&gpio0 14 GPIO_ACTIVE_LOW>;
+             dcd-gpios = <&gpio0 6 GPIO_ACTIVE_LOW>;
+             dtr-gpios = <&gpio_74 2 GPIO_ACTIVE_LOW>;
+             clk-internal-gpios = <&gpio_74 0 GPIO_ACTIVE_HIGH>;
+         };
+
+         crypto {
+             compatible = "intel,ixp4xx-crypto";
+             intel,npe-handle = <&npe 2>;
+             queue-rx = <&qmgr 30>;
+             queue-txready = <&qmgr 29>;
+         };
+    };
+...

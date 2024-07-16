@@ -1,0 +1,54 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/timer/arm,armv7m-systick.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ARMv7M System Timer
+
+maintainers:
+  - Alexandre Torgue <alexandre.torgue@foss.st.com>
+  - Fabrice Gasnier <fabrice.gasnier@foss.st.com>
+
+description: ARMv7-M includes a system timer, known as SysTick.
+
+properties:
+  compatible:
+    const: arm,armv7m-systick
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-frequency: true
+
+oneOf:
+  - required:
+      - clocks
+  - required:
+      - clock-frequency
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    timer@e000e010 {
+        compatible = "arm,armv7m-systick";
+        reg = <0xe000e010 0x10>;
+        clocks = <&clk_systick>;
+    };
+
+  - |
+    timer@e000e010 {
+        compatible = "arm,armv7m-systick";
+        reg = <0xe000e010 0x10>;
+        clock-frequency = <90000000>;
+    };
+
+...

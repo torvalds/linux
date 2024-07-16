@@ -1,0 +1,222 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+/*
+ * Broadcom BCM470X / BCM5301X ARM platform code.
+ * DTS for Meraki MR32 / Codename: Espresso
+ *
+ * Copyright (C) 2018-2020 Christian Lamparter <chunkeey@gmail.com>
+ */
+
+/dts-v1/;
+
+#include "bcm4708.dtsi"
+#include "bcm5301x-nand-cs0-bch8.dtsi"
+#include <dt-bindings/leds/common.h>
+
+/ {
+	compatible = "meraki,mr32", "brcm,bcm53016", "brcm,bcm4708";
+	model = "Meraki MR32";
+
+	chosen {
+		bootargs = " console=ttyS0,115200n8 earlycon";
+	};
+
+	memory@0 {
+		reg = <0x00000000 0x08000000>;
+		device_type = "memory";
+	};
+
+	aliases {
+		serial1 = &uart2;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		sysled3 {
+			function = LED_FUNCTION_FAULT;
+			color = <LED_COLOR_ID_AMBER>;
+			gpios = <&chipcommon 18 GPIO_ACTIVE_LOW>;
+			panic-indicator;
+		};
+		sysled2 {
+			function = LED_FUNCTION_INDICATOR;
+			color = <LED_COLOR_ID_WHITE>;
+			gpios = <&chipcommon 19 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	keys {
+		compatible = "gpio-keys";
+
+		button-restart {
+			label = "Reset";
+			linux,code = <KEY_RESTART>;
+			gpios = <&chipcommon 21 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	pwm-leds {
+		compatible = "pwm-leds";
+
+		red {
+			/* SYS-LED 1 - Tricolor */
+			function = LED_FUNCTION_INDICATOR;
+			color = <LED_COLOR_ID_RED>;
+			pwms = <&pwm 0 50000 0>;
+			max-brightness = <255>;
+		};
+
+		green {
+			/* SYS-LED 1 - Tricolor */
+			function = LED_FUNCTION_POWER;
+			color = <LED_COLOR_ID_GREEN>;
+			pwms = <&pwm 1 50000 0>;
+			max-brightness = <255>;
+		};
+
+		blue {
+			/* SYS-LED 1 - Tricolor */
+			function = LED_FUNCTION_INDICATOR;
+			color = <LED_COLOR_ID_BLUE>;
+			pwms = <&pwm 2 50000 0>;
+			max-brightness = <255>;
+		};
+	};
+};
+
+&uart0 {
+	clock-frequency = <62500000>;
+	/delete-property/ clocks;
+};
+
+&uart1 {
+	status = "disabled";
+};
+
+&uart2 {
+	status = "okay";
+	/*
+	 * bluetooth-le {
+	 *	compatible = "brcm,bcm20732";
+	 *	enable-gpios = <&chipcommon 20 GPIO_ACTIVE_HIGH>;
+	 *};
+	 */
+};
+
+&gmac0 {
+	nvmem-cell-names = "mac-address";
+	nvmem-cells = <&mac_address>;
+};
+
+&gmac1 {
+	status = "disabled";
+};
+&gmac2 {
+	status = "disabled";
+};
+&gmac3 {
+	status = "disabled";
+};
+
+&pwm {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinmux_pwm>;
+};
+
+&nandcs {
+	nand-ecc-algo = "hw";
+
+	partitions {
+		/*
+		 * The partition autodetection does not work for this device.
+		 * It will only detect the "nvram" partition with an incorrect size.
+		 *	[    1.721667] 1 bcm47xxpart partitions found on MTD device brcmnand.0
+		 *	[    1.727962] Creating 1 MTD partitions on "brcmnand.0":
+		 *	[    1.733117] 0x000000400000-0x000008000000 : "nvram"
+		 */
+
+		compatible = "fixed-partitions";
+		#address-cells = <0x1>;
+		#size-cells = <0x1>;
+
+		partition0@0 {
+			label = "u-boot";
+			reg = <0x0 0x100000>;
+			read-only;
+		};
+
+		partition1@100000 {
+			label = "bootkernel1";
+			reg = <0x100000 0x300000>;
+			read-only;
+		};
+
+		partition2@400000 {
+			label = "nvram";
+			reg = <0x400000 0x100000>;
+			read-only;
+		};
+
+		partition3@500000 {
+			label = "bootkernel2";
+			reg = <0x500000 0x300000>;
+			read-only;
+		};
+
+		partition4@800000 {
+			label = "ubi";
+			reg = <0x800000 0x7780000>;
+		};
+	};
+};
+
+&srab {
+	status = "okay";
+
+	ports {
+		port@0 {
+			reg = <0>;
+			label = "poe";
+		};
+
+		port@5 {
+			reg = <5>;
+			label = "cpu";
+			ethernet = <&gmac0>;
+
+			fixed-link {
+				speed = <1000>;
+				full-duplex;
+			};
+		};
+	};
+};
+
+&i2c0 {
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinmux_i2c>;
+
+	clock-frequency = <100000>;
+
+	current_sense: ina219@45 {
+		compatible = "ti,ina219";
+		reg = <0x45>;
+		shunt-resistor = <60000>; /* = 60 mOhms */
+	};
+
+	eeprom: eeprom@50 {
+		compatible = "atmel,24c64";
+		reg = <0x50>;
+		pagesize = <32>;
+		read-only;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		mac_address: mac-address@66 {
+			reg = <0x66 0x6>;
+		};
+	};
+};

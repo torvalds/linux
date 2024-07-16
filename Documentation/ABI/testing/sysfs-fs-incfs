@@ -1,0 +1,70 @@
+What:		/sys/fs/incremental-fs/features/corefs
+Date:		2019
+Contact:	Paul Lawrence <paullawrence@google.com>
+Description:	Reads 'supported'. Always present.
+
+What:		/sys/fs/incremental-fs/features/v2
+Date:		April 2021
+Contact:	Paul Lawrence <paullawrence@google.com>
+Description:	Reads 'supported'. Present if all v2 features of incfs are
+		supported.
+
+What:		/sys/fs/incremental-fs/features/zstd
+Date:		April 2021
+Contact:	Paul Lawrence <paullawrence@google.com>
+Description:	Reads 'supported'. Present if zstd compression is supported
+		for data blocks.
+
+What:		/sys/fs/incremental-fs/features/bugfix_throttling
+Date:		January 2023
+Contact:	Paul Lawrence <paullawrence@google.com>
+Description:	Reads 'supported'. Present if the throttling lock bug is fixed
+		https://android-review.git.corp.google.com/c/kernel/common/+/2381827
+
+What:		/sys/fs/incremental-fs/instances/[name]
+Date:		April 2021
+Contact:	Paul Lawrence <paullawrence@google.com>
+Description:	Folder created when incfs is mounted with the sysfs_name=[name]
+		option. If this option is used, the following values are created
+		in this folder.
+
+What:		/sys/fs/incremental-fs/instances/[name]/reads_delayed_min
+Date:		April 2021
+Contact:	Paul Lawrence <paullawrence@google.com>
+Description:	Returns a count of the number of reads that were delayed as a
+		result of the per UID read timeouts min time setting.
+
+What:		/sys/fs/incremental-fs/instances/[name]/reads_delayed_min_us
+Date:		April 2021
+Contact:	Paul Lawrence <paullawrence@google.com>
+Description:	Returns total delay time for all files since first mount as a
+		result of the per UID read timeouts min time setting.
+
+What:		/sys/fs/incremental-fs/instances/[name]/reads_delayed_pending
+Date:		April 2021
+Contact:	Paul Lawrence <paullawrence@google.com>
+Description:	Returns a count of the number of reads that were delayed as a
+		result of waiting for a pending read.
+
+What:		/sys/fs/incremental-fs/instances/[name]/reads_delayed_pending_us
+Date:		April 2021
+Contact:	Paul Lawrence <paullawrence@google.com>
+Description:	Returns total delay time for all files since first mount as a
+		result of waiting for a pending read.
+
+What:		/sys/fs/incremental-fs/instances/[name]/reads_failed_hash_verification
+Date:		April 2021
+Contact:	Paul Lawrence <paullawrence@google.com>
+Description:	Returns number of reads that failed because of hash verification
+		failures.
+
+What:		/sys/fs/incremental-fs/instances/[name]/reads_failed_other
+Date:		April 2021
+Contact:	Paul Lawrence <paullawrence@google.com>
+Description:	Returns number of reads that failed for reasons other than
+		timing out or hash failures.
+
+What:		/sys/fs/incremental-fs/instances/[name]/reads_failed_timed_out
+Date:		April 2021
+Contact:	Paul Lawrence <paullawrence@google.com>
+Description:	Returns number of reads that timed out.

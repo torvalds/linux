@@ -1,0 +1,31 @@
+Lantiq SoC ASC serial controller
+
+Required properties:
+- compatible : Should be "lantiq,asc"
+- reg : Address and length of the register set for the device
+- interrupts: the 3 (tx rx err) interrupt numbers. The interrupt specifier
+  depends on the interrupt-parent interrupt controller.
+
+Optional properties:
+- clocks: Should contain frequency clock and gate clock
+- clock-names: Should be "freq" and "asc"
+
+Example:
+
+asc0: serial@16600000 {
+	compatible = "lantiq,asc";
+	reg = <0x16600000 0x100000>;
+	interrupt-parent = <&gic>;
+	interrupts = <GIC_SHARED 103 IRQ_TYPE_LEVEL_HIGH>,
+		<GIC_SHARED 105 IRQ_TYPE_LEVEL_HIGH>,
+		<GIC_SHARED 106 IRQ_TYPE_LEVEL_HIGH>;
+	clocks = <&cgu CLK_SSX4>, <&cgu GCLK_UART>;
+	clock-names = "freq", "asc";
+};
+
+asc1: serial@e100c00 {
+	compatible = "lantiq,asc";
+	reg = <0xE100C00 0x400>;
+	interrupt-parent = <&icu0>;
+	interrupts = <112 113 114>;
+};

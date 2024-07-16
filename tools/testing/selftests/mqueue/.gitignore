@@ -1,0 +1,3 @@
+# SPDX-License-Identifier: GPL-2.0-only
+mq_open_tests
+mq_perf_tests

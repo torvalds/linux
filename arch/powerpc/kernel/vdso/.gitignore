@@ -1,0 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0-only
+vdso32.lds
+vdso32.so.dbg
+vdso64.lds
+vdso64.so.dbg

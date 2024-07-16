@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# GCT GDM724x LTE driver configuration
+#
+
+config LTE_GDM724X
+	tristate "GCT GDM724x LTE support"
+	depends on NET && USB && TTY && m
+	help
+	  This driver supports GCT GDM724x LTE chip based USB modem devices.
+	  It exposes 4 network devices to be used per PDN and 2 tty devices to be
+	  used for AT commands and DM monitoring applications.
+	  The modules will be called gdmulte.ko and gdmtty.ko
+
+	  GCT-ATCx can be used for AT Commands
+	  GCT-DMx can be used for LTE protocol monitoring

@@ -1,0 +1,46 @@
+Texas Instruments TWL family (twl4030) audio module
+
+The audio module inside the TWL family consist of an audio codec and a vibra
+driver.
+
+Required properties:
+- compatible : must be "ti,twl4030-audio"
+
+Optional properties, nodes:
+
+Audio functionality:
+- codec { }: Need to be present if the audio functionality is used. Within this
+	     section the following options can be used:
+- ti,digimic_delay: Delay need after enabling the digimic to reduce artifacts
+		    from the start of the recorded sample (in ms)
+-ti,ramp_delay_value: HS ramp delay configuration to reduce pop noise
+-ti,hs_extmute: Use external mute for HS pop reduction
+-ti,hs_extmute_gpio: Use external GPIO to control the external mute
+-ti,offset_cncl_path: Offset cancellation path selection, refer to TRM for the
+		      valid values.
+
+Vibra functionality
+- ti,enable-vibra: Need to be set to <1> if the vibra functionality is used. if
+		   missing or it is 0, the vibra functionality is disabled.
+
+Example:
+&i2c1 {
+	clock-frequency = <2600000>;
+
+	twl: twl@48 {
+		reg = <0x48>;
+		interrupts = <7>; /* SYS_NIRQ cascaded to intc */
+		interrupt-parent = <&intc>;
+
+		twl_audio: audio {
+			compatible = "ti,twl4030-audio";
+
+			ti,enable-vibra = <1>;
+
+			codec {
+				ti,ramp_delay_value = <3>;
+			};
+
+		};
+	};
+};

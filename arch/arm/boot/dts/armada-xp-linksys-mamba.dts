@@ -1,0 +1,397 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/*
+ * Device Tree file for the Linksys WRT1900AC (Mamba).
+ *
+ * Note: this board is shipped with a new generation boot loader that
+ * remaps internal registers at 0xf1000000. Therefore, if earlyprintk
+ * is used, the CONFIG_DEBUG_MVEBU_UART0_ALTERNATE option should be
+ * used.
+ *
+ * Copyright (C) 2014 Imre Kaloz <kaloz@openwrt.org>
+ *
+ * Based on armada-xp-axpwifiap.dts:
+ *
+ *     Copyright (C) 2013 Marvell
+ *
+ *     Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
+ */
+
+/dts-v1/;
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include "armada-xp-mv78230.dtsi"
+
+/ {
+	model = "Linksys WRT1900AC";
+	compatible = "linksys,mamba", "marvell,armadaxp-mv78230",
+		     "marvell,armadaxp", "marvell,armada-370-xp";
+
+	chosen {
+		bootargs = "console=ttyS0,115200";
+		stdout-path = &uart0;
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x00000000 0x00000000 0x00000000 0x10000000>; /* 256MB */
+	};
+
+	soc {
+		ranges = <MBUS_ID(0xf0, 0x01) 0 0 0xf1000000 0x100000
+			  MBUS_ID(0x01, 0x1d) 0 0 0xfff00000 0x100000
+			  MBUS_ID(0x09, 0x09) 0 0 0xf1100000 0x10000
+			  MBUS_ID(0x09, 0x05) 0 0 0xf1110000 0x10000
+			  MBUS_ID(0x0c, 0x04) 0 0 0xf1200000 0x100000>;
+
+		internal-regs {
+
+			rtc@10300 {
+				/* No crystal connected to the internal RTC */
+				status = "disabled";
+			};
+
+			/* J10: VCC, NC, RX, NC, TX, GND  */
+			serial@12000 {
+				status = "okay";
+			};
+
+			sata@a0000 {
+				nr-ports = <1>;
+				status = "okay";
+			};
+
+			ethernet@70000 {
+				pinctrl-0 = <&ge0_rgmii_pins>;
+				pinctrl-names = "default";
+				status = "okay";
+				phy-mode = "rgmii-id";
+				buffer-manager = <&bm>;
+				bm,pool-long = <0>;
+				bm,pool-short = <1>;
+				fixed-link {
+					speed = <1000>;
+					full-duplex;
+				};
+			};
+
+			ethernet@74000 {
+				pinctrl-0 = <&ge1_rgmii_pins>;
+				pinctrl-names = "default";
+				status = "okay";
+				phy-mode = "rgmii-id";
+				buffer-manager = <&bm>;
+				bm,pool-long = <2>;
+				bm,pool-short = <3>;
+				fixed-link {
+					speed = <1000>;
+					full-duplex;
+				};
+			};
+
+			/* USB part of the eSATA/USB 2.0 port */
+			usb@50000 {
+				status = "okay";
+			};
+
+			i2c@11000 {
+				status = "okay";
+				clock-frequency = <100000>;
+
+				tmp421@4c {
+					compatible = "ti,tmp421";
+					reg = <0x4c>;
+				};
+
+				tlc59116@68 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					#gpio-cells = <2>;
+					compatible = "ti,tlc59116";
+					reg = <0x68>;
+
+					wan_amber@0 {
+						label = "mamba:amber:wan";
+						reg = <0x0>;
+					};
+
+					wan_white@1 {
+						label = "mamba:white:wan";
+						reg = <0x1>;
+					};
+
+					wlan_2g@2 {
+						label = "mamba:white:wlan_2g";
+						reg = <0x2>;
+					};
+
+					wlan_5g@3 {
+						label = "mamba:white:wlan_5g";
+						reg = <0x3>;
+					};
+
+					esata@4 {
+						label = "mamba:white:esata";
+						reg = <0x4>;
+						linux,default-trigger = "disk-activity";
+					};
+
+					usb2@5 {
+						label = "mamba:white:usb2";
+						reg = <0x5>;
+					};
+
+					usb3_1@6 {
+						label = "mamba:white:usb3_1";
+						reg = <0x6>;
+					};
+
+					usb3_2@7 {
+						label = "mamba:white:usb3_2";
+						reg = <0x7>;
+					};
+
+					wps_white@8 {
+						label = "mamba:white:wps";
+						reg = <0x8>;
+					};
+
+					wps_amber@9 {
+						label = "mamba:amber:wps";
+						reg = <0x9>;
+					};
+				};
+			};
+
+			bm@c8000 {
+				status = "okay";
+			};
+		};
+
+		bm-bppi {
+			status = "okay";
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		pinctrl-0 = <&keys_pin>;
+		pinctrl-names = "default";
+
+		button-wps {
+			label = "WPS";
+			linux,code = <KEY_WPS_BUTTON>;
+			gpios = <&gpio1 0 GPIO_ACTIVE_LOW>;
+		};
+
+		button-reset {
+			label = "Factory Reset Button";
+			linux,code = <KEY_RESTART>;
+			gpios = <&gpio1 1 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+		pinctrl-0 = <&power_led_pin>;
+		pinctrl-names = "default";
+
+		power {
+			label = "mamba:white:power";
+			gpios = <&gpio1 8 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
+	};
+
+	pwm_fan {
+		/* SUNON HA4010V4-0000-C99 */
+
+		compatible = "pwm-fan";
+		pwms = <&gpio0 24 4000>;
+	};
+};
+
+&pciec {
+	status = "okay";
+
+	/* Etron EJ168 USB 3.0 controller */
+	pcie@1,0 {
+		/* Port 0, Lane 0 */
+		status = "okay";
+	};
+
+	/* First mini-PCIe port */
+	pcie@2,0 {
+		/* Port 0, Lane 1 */
+		status = "okay";
+	};
+
+	/* Second mini-PCIe port */
+	pcie@3,0 {
+		/* Port 0, Lane 3 */
+		status = "okay";
+	};
+};
+
+&pinctrl {
+
+	keys_pin: keys-pin {
+		marvell,pins = "mpp32", "mpp33";
+		marvell,function = "gpio";
+	};
+
+	power_led_pin: power-led-pin {
+		marvell,pins = "mpp40";
+		marvell,function = "gpio";
+	};
+
+	gpio_fan_pin: gpio-fan-pin {
+		marvell,pins = "mpp24";
+		marvell,function = "gpio";
+	};
+};
+
+&spi0 {
+	status = "okay";
+
+	flash@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "everspin,mr25h256";
+		reg = <0>; /* Chip select 0 */
+		spi-max-frequency = <40000000>;
+	};
+};
+
+&mdio {
+	status = "okay";
+
+	switch@0 {
+		compatible = "marvell,mv88e6085";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				label = "lan4";
+			};
+
+			port@1 {
+				reg = <1>;
+				label = "lan3";
+			};
+
+			port@2 {
+				reg = <2>;
+				label = "lan2";
+			};
+
+			port@3 {
+				reg = <3>;
+				label = "lan1";
+			};
+
+			port@4 {
+				reg = <4>;
+				label = "internet";
+			};
+
+			port@5 {
+				reg = <5>;
+				label = "cpu";
+				ethernet = <&eth0>;
+				fixed-link {
+					speed = <1000>;
+					full-duplex;
+				};
+			};
+		};
+	};
+};
+
+&nand_controller {
+	status = "okay";
+
+	nand@0 {
+		reg = <0>;
+		label = "pxa3xx_nand-0";
+		nand-rb = <0>;
+		marvell,nand-keep-config;
+		nand-on-flash-bbt;
+		nand-ecc-strength = <4>;
+		nand-ecc-step-size = <512>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "u-boot";
+				reg = <0x0000000 0x100000>;  /* 1MB */
+				read-only;
+			};
+
+			partition@100000 {
+				label = "u_env";
+				reg = <0x100000 0x40000>;    /* 256KB */
+			};
+
+			partition@140000 {
+				label = "s_env";
+				reg = <0x140000 0x40000>;    /* 256KB */
+			};
+
+			partition@900000 {
+				label = "devinfo";
+				reg = <0x900000 0x100000>;   /* 1MB */
+				read-only;
+			};
+
+			/* kernel1 overlaps with rootfs1 by design */
+			partition@a00000 {
+				label = "kernel1";
+				reg = <0xa00000 0x2800000>;  /* 40MB */
+			};
+
+			partition@d00000 {
+				label = "rootfs1";
+				reg = <0xd00000 0x2500000>;  /* 37MB */
+			};
+
+			/* kernel2 overlaps with rootfs2 by design */
+			partition@3200000 {
+				label = "kernel2";
+				reg = <0x3200000 0x2800000>; /* 40MB */
+			};
+
+			partition@3500000 {
+				label = "rootfs2";
+				reg = <0x3500000 0x2500000>; /* 37MB */
+			};
+
+			/*
+			 * 38MB, last MB is for the BBT, not writable
+			 */
+			partition@5a00000 {
+				label = "syscfg";
+				reg = <0x5a00000 0x2600000>;
+			};
+
+			/*
+			 * Unused area between "s_env" and "devinfo".
+			 * Moved here because otherwise the renumbered
+			 * partitions would break the bootloader
+			 * supplied bootargs
+			 */
+			partition@180000 {
+				label = "unused_area";
+				reg = <0x180000 0x780000>;   /* 7.5MB */
+			};
+		};
+	};
+};

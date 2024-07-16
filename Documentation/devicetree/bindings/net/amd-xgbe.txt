@@ -1,0 +1,76 @@
+* AMD 10GbE driver (amd-xgbe)
+
+Required properties:
+- compatible: Should be "amd,xgbe-seattle-v1a"
+- reg: Address and length of the register sets for the device
+   - MAC registers
+   - PCS registers
+   - SerDes Rx/Tx registers
+   - SerDes integration registers (1/2)
+   - SerDes integration registers (2/2)
+- interrupts: Should contain the amd-xgbe interrupt(s). The first interrupt
+  listed is required and is the general device interrupt. If the optional
+  amd,per-channel-interrupt property is specified, then one additional
+  interrupt for each DMA channel supported by the device should be specified.
+  The last interrupt listed should be the PCS auto-negotiation interrupt.
+- clocks:
+   - DMA clock for the amd-xgbe device (used for calculating the
+     correct Rx interrupt watchdog timer value on a DMA channel
+     for coalescing)
+   - PTP clock for the amd-xgbe device
+- clock-names: Should be the names of the clocks
+   - "dma_clk" for the DMA clock
+   - "ptp_clk" for the PTP clock
+- phy-mode: See ethernet.txt file in the same directory
+
+Optional properties:
+- dma-coherent: Present if dma operations are coherent
+- amd,per-channel-interrupt: Indicates that Rx and Tx complete will generate
+  a unique interrupt for each DMA channel - this requires an additional
+  interrupt be configured for each DMA channel
+- amd,speed-set: Speed capabilities of the device
+    0 - 1GbE and 10GbE (default)
+    1 - 2.5GbE and 10GbE
+
+The MAC address will be determined using the optional properties defined in
+ethernet.txt.
+
+The following optional properties are represented by an array with each
+value corresponding to a particular speed. The first array value represents
+the setting for the 1GbE speed, the second value for the 2.5GbE speed and
+the third value for the 10GbE speed.  All three values are required if the
+property is used.
+- amd,serdes-blwc: Baseline wandering correction enablement
+    0 - Off
+    1 - On
+- amd,serdes-cdr-rate: CDR rate speed selection
+- amd,serdes-pq-skew: PQ (data sampling) skew
+- amd,serdes-tx-amp: TX amplitude boost
+- amd,serdes-dfe-tap-config: DFE taps available to run
+- amd,serdes-dfe-tap-enable: DFE taps to enable
+
+Example:
+	xgbe@e0700000 {
+		compatible = "amd,xgbe-seattle-v1a";
+		reg = <0 0xe0700000 0 0x80000>,
+		      <0 0xe0780000 0 0x80000>,
+		      <0 0xe1240800 0 0x00400>,
+		      <0 0xe1250000 0 0x00060>,
+		      <0 0xe1250080 0 0x00004>;
+		interrupt-parent = <&gic>;
+		interrupts = <0 325 4>,
+			     <0 326 1>, <0 327 1>, <0 328 1>, <0 329 1>,
+			     <0 323 4>;
+		amd,per-channel-interrupt;
+		clocks = <&xgbe_dma_clk>, <&xgbe_ptp_clk>;
+		clock-names = "dma_clk", "ptp_clk";
+		phy-mode = "xgmii";
+		mac-address = [ 02 a1 a2 a3 a4 a5 ];
+		amd,speed-set = <0>;
+		amd,serdes-blwc = <1>, <1>, <0>;
+		amd,serdes-cdr-rate = <2>, <2>, <7>;
+		amd,serdes-pq-skew = <10>, <10>, <30>;
+		amd,serdes-tx-amp = <15>, <15>, <10>;
+		amd,serdes-dfe-tap-config = <3>, <3>, <1>;
+		amd,serdes-dfe-tap-enable = <0>, <0>, <127>;
+	};

@@ -1,0 +1,390 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/power/rockchip-io-domain.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Rockchip SRAM for IO Voltage Domains
+
+maintainers:
+  - Heiko Stuebner <heiko@sntech.de>
+
+description: |
+  IO domain voltages on some Rockchip SoCs are variable but need to be
+  kept in sync between the regulators and the SoC using a special
+  register.
+
+  A specific example using rk3288
+    If the regulator hooked up to a pin like SDMMC0_VDD is 3.3V then
+    bit 7 of GRF_IO_VSEL needs to be 0. If the regulator hooked up to
+    that same pin is 1.8V then bit 7 of GRF_IO_VSEL needs to be 1.
+
+  Said another way, this driver simply handles keeping bits in the SoCs
+  General Register File (GRF) in sync with the actual value of a voltage
+  hooked up to the pins.
+
+  Note that this driver specifically does not include
+    any logic for deciding what voltage we should set regulators to
+    any logic for deciding whether regulators (or internal SoC blocks)
+    should have power or not have power
+
+  If there were some other software that had the smarts of making
+  decisions about regulators, it would work in conjunction with this
+  driver. When that other software adjusted a regulators voltage then
+  this driver would handle telling the SoC about it. A good example is
+  vqmmc for SD. In that case the dw_mmc driver simply is told about a
+  regulator. It changes the regulator between 3.3V and 1.8V at the
+  right time. This driver notices the change and makes sure that the
+  SoC is on the same page.
+
+  You specify supplies using the standard regulator bindings by including
+  a phandle the relevant regulator. All specified supplies must be able
+  to report their voltage. The IO Voltage Domain for any non-specified
+  supplies will be not be touched.
+
+properties:
+  compatible:
+    enum:
+      - rockchip,px30-io-voltage-domain
+      - rockchip,px30-pmu-io-voltage-domain
+      - rockchip,rk3188-io-voltage-domain
+      - rockchip,rk3228-io-voltage-domain
+      - rockchip,rk3288-io-voltage-domain
+      - rockchip,rk3328-io-voltage-domain
+      - rockchip,rk3368-io-voltage-domain
+      - rockchip,rk3368-pmu-io-voltage-domain
+      - rockchip,rk3399-io-voltage-domain
+      - rockchip,rk3399-pmu-io-voltage-domain
+      - rockchip,rk3568-pmu-io-voltage-domain
+      - rockchip,rv1108-io-voltage-domain
+      - rockchip,rv1108-pmu-io-voltage-domain
+      - rockchip,rv1126-pmu-io-voltage-domain
+
+required:
+  - compatible
+
+unevaluatedProperties: false
+
+allOf:
+  - $ref: "#/$defs/px30"
+  - $ref: "#/$defs/px30-pmu"
+  - $ref: "#/$defs/rk3188"
+  - $ref: "#/$defs/rk3228"
+  - $ref: "#/$defs/rk3288"
+  - $ref: "#/$defs/rk3328"
+  - $ref: "#/$defs/rk3368"
+  - $ref: "#/$defs/rk3368-pmu"
+  - $ref: "#/$defs/rk3399"
+  - $ref: "#/$defs/rk3399-pmu"
+  - $ref: "#/$defs/rk3568-pmu"
+  - $ref: "#/$defs/rv1108"
+  - $ref: "#/$defs/rv1108-pmu"
+  - $ref: "#/$defs/rv1126-pmu"
+
+$defs:
+  px30:
+    if:
+      properties:
+        compatible:
+          contains:
+            const: rockchip,px30-io-voltage-domain
+
+    then:
+      properties:
+        vccio1-supply:
+          description: The supply connected to VCCIO1.
+        vccio2-supply:
+          description: The supply connected to VCCIO2.
+        vccio3-supply:
+          description: The supply connected to VCCIO3.
+        vccio4-supply:
+          description: The supply connected to VCCIO4.
+        vccio5-supply:
+          description: The supply connected to VCCIO5.
+        vccio6-supply:
+          description: The supply connected to VCCIO6.
+        vccio-oscgpi-supply:
+          description: The supply connected to VCCIO_OSCGPI.
+
+  px30-pmu:
+    if:
+      properties:
+        compatible:
+          contains:
+            const: rockchip,px30-pmu-io-voltage-domain
+
+    then:
+      properties:
+        pmuio1-supply:
+          description: The supply connected to PMUIO1.
+        pmuio2-supply:
+          description: The supply connected to PMUIO2.
+
+  rk3188:
+    if:
+      properties:
+        compatible:
+          contains:
+            const: rockchip,rk3188-io-voltage-domain
+
+    then:
+      properties:
+        ap0-supply:
+          description: The supply connected to AP0_VCC.
+        ap1-supply:
+          description: The supply connected to AP1_VCC.
+        cif-supply:
+          description: The supply connected to CIF_VCC.
+        flash-supply:
+          description: The supply connected to FLASH_VCC.
+        lcdc0-supply:
+          description: The supply connected to LCD0_VCC.
+        lcdc1-supply:
+          description: The supply connected to LCD1_VCC.
+        vccio0-supply:
+          description: The supply connected to VCCIO0.
+        vccio1-supply:
+          description: The supply connected to VCCIO1. Also labeled as VCCIO2.
+
+  rk3228:
+    if:
+      properties:
+        compatible:
+          contains:
+            const: rockchip,rk3228-io-voltage-domain
+
+    then:
+      properties:
+        vccio1-supply:
+          description: The supply connected to VCCIO1.
+        vccio2-supply:
+          description: The supply connected to VCCIO2.
+        vccio3-supply:
+          description: The supply connected to VCCIO3.
+        vccio4-supply:
+          description: The supply connected to VCCIO4.
+
+  rk3288:
+    if:
+      properties:
+        compatible:
+          contains:
+            const: rockchip,rk3288-io-voltage-domain
+
+    then:
+      properties:
+        audio-supply:
+          description: The supply connected to APIO4_VDD.
+        bb-supply:
+          description: The supply connected to APIO5_VDD.
+        dvp-supply:
+          description: The supply connected to DVPIO_VDD.
+        flash0-supply:
+          description: The supply connected to FLASH0_VDD. Typically for eMMC.
+        flash1-supply:
+          description: The supply connected to FLASH1_VDD. Also known as SDIO1.
+        gpio30-supply:
+          description: The supply connected to APIO1_VDD.
+        gpio1830-supply:
+          description: The supply connected to APIO2_VDD.
+        lcdc-supply:
+          description: The supply connected to LCDC_VDD.
+        sdcard-supply:
+          description: The supply connected to SDMMC0_VDD.
+        wifi-supply:
+          description: The supply connected to APIO3_VDD. Also known as SDIO0.
+
+  rk3328:
+    if:
+      properties:
+        compatible:
+          contains:
+            const: rockchip,rk3328-io-voltage-domain
+
+    then:
+      properties:
+        vccio1-supply:
+          description: The supply connected to VCCIO1.
+        vccio2-supply:
+          description: The supply connected to VCCIO2.
+        vccio3-supply:
+          description: The supply connected to VCCIO3.
+        vccio4-supply:
+          description: The supply connected to VCCIO4.
+        vccio5-supply:
+          description: The supply connected to VCCIO5.
+        vccio6-supply:
+          description: The supply connected to VCCIO6.
+        pmuio-supply:
+          description: The supply connected to VCCIO_PMU.
+
+  rk3368:
+    if:
+      properties:
+        compatible:
+          contains:
+            const: rockchip,rk3368-io-voltage-domain
+
+    then:
+      properties:
+        audio-supply:
+          description: The supply connected to APIO3_VDD.
+        dvp-supply:
+          description: The supply connected to DVPIO_VDD.
+        flash0-supply:
+          description: The supply connected to FLASH0_VDD. Typically for eMMC.
+        gpio30-supply:
+          description: The supply connected to APIO1_VDD.
+        gpio1830-supply:
+          description: The supply connected to APIO4_VDD.
+        sdcard-supply:
+          description: The supply connected to SDMMC0_VDD.
+        wifi-supply:
+          description: The supply connected to APIO2_VDD. Also known as SDIO0.
+
+  rk3368-pmu:
+    if:
+      properties:
+        compatible:
+          contains:
+            const: rockchip,rk3368-pmu-io-voltage-domain
+
+    then:
+      properties:
+        pmu-supply:
+          description: The supply connected to PMUIO_VDD.
+        vop-supply:
+          description: The supply connected to LCDC_VDD.
+
+  rk3399:
+    if:
+      properties:
+        compatible:
+          contains:
+            const: rockchip,rk3399-io-voltage-domain
+
+    then:
+      properties:
+        audio-supply:
+          description: The supply connected to APIO5_VDD.
+        bt656-supply:
+          description: The supply connected to APIO2_VDD.
+        gpio1830-supply:
+          description: The supply connected to APIO4_VDD.
+        sdmmc-supply:
+          description: The supply connected to SDMMC0_VDD.
+
+  rk3399-pmu:
+    if:
+      properties:
+        compatible:
+          contains:
+            const: rockchip,rk3399-pmu-io-voltage-domain
+
+    then:
+      properties:
+        pmu1830-supply:
+          description: The supply connected to PMUIO2_VDD.
+
+  rk3568-pmu:
+    if:
+      properties:
+        compatible:
+          contains:
+            const: rockchip,rk3568-pmu-io-voltage-domain
+
+    then:
+      properties:
+        pmuio1-supply:
+          description: The supply connected to PMUIO1.
+        pmuio2-supply:
+          description: The supply connected to PMUIO2.
+        vccio1-supply:
+          description: The supply connected to VCCIO1.
+        vccio2-supply:
+          description: The supply connected to VCCIO2.
+        vccio3-supply:
+          description: The supply connected to VCCIO3.
+        vccio4-supply:
+          description: The supply connected to VCCIO4.
+        vccio5-supply:
+          description: The supply connected to VCCIO5.
+        vccio6-supply:
+          description: The supply connected to VCCIO6.
+        vccio7-supply:
+          description: The supply connected to VCCIO7.
+
+  rv1108:
+    if:
+      properties:
+        compatible:
+          contains:
+            const: rockchip,rv1108-io-voltage-domain
+
+    then:
+      properties:
+        vccio1-supply:
+          description: The supply connected to APIO1_VDD.
+        vccio2-supply:
+          description: The supply connected to APIO2_VDD.
+        vccio3-supply:
+          description: The supply connected to APIO3_VDD.
+        vccio5-supply:
+          description: The supply connected to APIO5_VDD.
+        vccio6-supply:
+          description: The supply connected to APIO6_VDD.
+
+  rv1108-pmu:
+    if:
+      properties:
+        compatible:
+          contains:
+            const: rockchip,rv1108-pmu-io-voltage-domain
+
+    then:
+      properties:
+        pmu-supply:
+          description: The supply connected to PMUIO_VDD.
+
+  rv1126-pmu:
+    if:
+      properties:
+        compatible:
+          contains:
+            const: rockchip,rv1126-pmu-io-voltage-domain
+
+    then:
+      properties:
+        vccio1-supply:
+          description: The supply connected to VCCIO1.
+        vccio2-supply:
+          description: The supply connected to VCCIO2.
+        vccio3-supply:
+          description: The supply connected to VCCIO3.
+        vccio4-supply:
+          description: The supply connected to VCCIO4.
+        vccio5-supply:
+          description: The supply connected to VCCIO5.
+        vccio6-supply:
+          description: The supply connected to VCCIO6.
+        vccio7-supply:
+          description: The supply connected to VCCIO7.
+        pmuio0-supply:
+          description: The supply connected to PMUIO0.
+        pmuio1-supply:
+          description: The supply connected to PMUIO1.
+
+examples:
+  - |
+    io-domains {
+      compatible = "rockchip,rk3288-io-voltage-domain";
+      audio-supply = <&vcc18_codec>;
+      bb-supply = <&vcc33_io>;
+      dvp-supply = <&vcc_18>;
+      flash0-supply = <&vcc18_flashio>;
+      gpio1830-supply = <&vcc33_io>;
+      gpio30-supply = <&vcc33_pmuio>;
+      lcdc-supply = <&vcc33_lcd>;
+      sdcard-supply = <&vccio_sd>;
+      wifi-supply = <&vcc18_wl>;
+    };

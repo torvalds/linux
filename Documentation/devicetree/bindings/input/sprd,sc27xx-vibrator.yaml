@@ -1,0 +1,48 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+# Copyright 2020 Unisoc Inc.
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/input/sprd,sc27xx-vibrator.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Spreadtrum SC27xx PMIC Vibrator
+
+maintainers:
+  - Orson Zhai <orsonzhai@gmail.com>
+  - Baolin Wang <baolin.wang7@gmail.com>
+  - Chunyan Zhang <zhang.lyra@gmail.com>
+
+properties:
+  compatible:
+    enum:
+      - sprd,sc2721-vibrator
+      - sprd,sc2730-vibrator
+      - sprd,sc2731-vibrator
+
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    sc2731_pmic: pmic@0 {
+      compatible = "sprd,sc2731";
+      reg = <0 0>;
+      spi-max-frequency = <26000000>;
+      interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
+      interrupt-controller;
+      #interrupt-cells = <2>;
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      vibrator@eb4 {
+        compatible = "sprd,sc2731-vibrator";
+        reg = <0xeb4>;
+      };
+    };

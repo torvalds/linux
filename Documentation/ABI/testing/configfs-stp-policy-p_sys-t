@@ -1,0 +1,41 @@
+What:		/config/stp-policy/<device>:p_sys-t.<policy>/<node>/uuid
+Date:		June 2018
+KernelVersion:	4.19
+Description:
+		UUID source identifier string, RW.
+		Default value is randomly generated at the mkdir <node> time.
+		Data coming from trace sources that use this <node> will be
+		tagged with this UUID in the MIPI SyS-T packet stream, to
+		allow the decoder to discern between different sources
+		within the same master/channel range, and identify the
+		higher level decoders that may be needed for each source.
+
+What:		/config/stp-policy/<device>:p_sys-t.<policy>/<node>/do_len
+Date:		June 2018
+KernelVersion:	4.19
+Description:
+		Include payload length in the MIPI SyS-T header, boolean.
+		If enabled, the SyS-T protocol encoder will include payload
+		length in each packet's metadata. This is normally redundant
+		if the underlying transport protocol supports marking message
+		boundaries (which STP does), so this is off by default.
+
+What:		/config/stp-policy/<device>:p_sys-t.<policy>/<node>/ts_interval
+Date:		June 2018
+KernelVersion:	4.19
+Description:
+		Time interval in milliseconds. Include a timestamp in the
+		MIPI SyS-T packet metadata, if this many milliseconds have
+		passed since the previous packet from this source. Zero is
+		the default and stands for "never send the timestamp".
+
+What:		/config/stp-policy/<device>:p_sys-t.<policy>/<node>/clocksync_interval
+Date:		June 2018
+KernelVersion:	4.19
+Description:
+		Time interval in milliseconds. Send a CLOCKSYNC packet if
+		this many milliseconds have passed since the previous
+		CLOCKSYNC packet from this source. Zero is the default and
+		stands for "never send the CLOCKSYNC". It makes sense to
+		use this option with sources that generate constant and/or
+		periodic data, like stm_heartbeat.

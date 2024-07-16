@@ -1,0 +1,135 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Key management configuration
+#
+
+config KEYS
+	bool "Enable access key retention support"
+	select ASSOCIATIVE_ARRAY
+	help
+	  This option provides support for retaining authentication tokens and
+	  access keys in the kernel.
+
+	  It also includes provision of methods by which such keys might be
+	  associated with a process so that network filesystems, encryption
+	  support and the like can find them.
+
+	  Furthermore, a special type of key is available that acts as keyring:
+	  a searchable sequence of keys. Each process is equipped with access
+	  to five standard keyrings: UID-specific, GID-specific, session,
+	  process and thread.
+
+	  If you are unsure as to whether this is required, answer N.
+
+config KEYS_REQUEST_CACHE
+	bool "Enable temporary caching of the last request_key() result"
+	depends on KEYS
+	help
+	  This option causes the result of the last successful request_key()
+	  call that didn't upcall to the kernel to be cached temporarily in the
+	  task_struct.  The cache is cleared by exit and just prior to the
+	  resumption of userspace.
+
+	  This allows the key used for multiple step processes where each step
+	  wants to request a key that is likely the same as the one requested
+	  by the last step to save on the searching.
+
+	  An example of such a process is a pathwalk through a network
+	  filesystem in which each method needs to request an authentication
+	  key.  Pathwalk will call multiple methods for each dentry traversed
+	  (permission, d_revalidate, lookup, getxattr, getacl, ...).
+
+config PERSISTENT_KEYRINGS
+	bool "Enable register of persistent per-UID keyrings"
+	depends on KEYS
+	help
+	  This option provides a register of persistent per-UID keyrings,
+	  primarily aimed at Kerberos key storage.  The keyrings are persistent
+	  in the sense that they stay around after all processes of that UID
+	  have exited, not that they survive the machine being rebooted.
+
+	  A particular keyring may be accessed by either the user whose keyring
+	  it is or by a process with administrative privileges.  The active
+	  LSMs gets to rule on which admin-level processes get to access the
+	  cache.
+
+	  Keyrings are created and added into the register upon demand and get
+	  removed if they expire (a default timeout is set upon creation).
+
+config BIG_KEYS
+	bool "Large payload keys"
+	depends on KEYS
+	depends on TMPFS
+	depends on CRYPTO_LIB_CHACHA20POLY1305 = y
+	help
+	  This option provides support for holding large keys within the kernel
+	  (for example Kerberos ticket caches).  The data may be stored out to
+	  swapspace by tmpfs.
+
+	  If you are unsure as to whether this is required, answer N.
+
+config TRUSTED_KEYS
+	tristate "TRUSTED KEYS"
+	depends on KEYS
+	help
+	  This option provides support for creating, sealing, and unsealing
+	  keys in the kernel. Trusted keys are random number symmetric keys,
+	  generated and sealed by a trust source selected at kernel boot-time.
+	  Userspace will only ever see encrypted blobs.
+
+	  If you are unsure as to whether this is required, answer N.
+
+if TRUSTED_KEYS
+source "security/keys/trusted-keys/Kconfig"
+endif
+
+config ENCRYPTED_KEYS
+	tristate "ENCRYPTED KEYS"
+	depends on KEYS
+	select CRYPTO
+	select CRYPTO_HMAC
+	select CRYPTO_AES
+	select CRYPTO_CBC
+	select CRYPTO_SHA256
+	select CRYPTO_RNG
+	help
+	  This option provides support for create/encrypting/decrypting keys
+	  in the kernel.  Encrypted keys are instantiated using kernel
+	  generated random numbers or provided decrypted data, and are
+	  encrypted/decrypted with a 'master' symmetric key. The 'master'
+	  key can be either a trusted-key or user-key type. Only encrypted
+	  blobs are ever output to Userspace.
+
+	  If you are unsure as to whether this is required, answer N.
+
+config USER_DECRYPTED_DATA
+	bool "Allow encrypted keys with user decrypted data"
+	depends on ENCRYPTED_KEYS
+	help
+	  This option provides support for instantiating encrypted keys using
+	  user-provided decrypted data.  The decrypted data must be hex-ascii
+	  encoded.
+
+	  If you are unsure as to whether this is required, answer N.
+
+config KEY_DH_OPERATIONS
+       bool "Diffie-Hellman operations on retained keys"
+       depends on KEYS
+       select CRYPTO
+       select CRYPTO_KDF800108_CTR
+       select CRYPTO_DH
+       help
+	 This option provides support for calculating Diffie-Hellman
+	 public keys and shared secrets using values stored as keys
+	 in the kernel.
+
+	 If you are unsure as to whether this is required, answer N.
+
+config KEY_NOTIFICATIONS
+	bool "Provide key/keyring change notifications"
+	depends on KEYS && WATCH_QUEUE
+	help
+	  This option provides support for getting change notifications
+	  on keys and keyrings on which the caller has View permission.
+	  This makes use of pipes to handle the notification buffer and
+	  provides KEYCTL_WATCH_KEY to enable/disable watches.

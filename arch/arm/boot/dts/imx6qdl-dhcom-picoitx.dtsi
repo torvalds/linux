@@ -1,0 +1,69 @@
+// SPDX-License-Identifier: GPL-2.0+
+/*
+ * Copyright (C) 2021 DH electronics GmbH
+ */
+
+#include <dt-bindings/leds/common.h>
+
+/ {
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	led {
+		compatible = "gpio-leds";
+
+		led-0 {
+			color = <LED_COLOR_ID_YELLOW>;
+			default-state = "off";
+			function = LED_FUNCTION_INDICATOR;
+			gpios = <&gpio4 8 GPIO_ACTIVE_HIGH>; /* GPIO I */
+			pinctrl-0 = <&pinctrl_dhcom_i>;
+			pinctrl-names = "default";
+		};
+	};
+};
+
+&gpio1 {
+	gpio-line-names =
+		"", "", "DHCOM-A", "", "DHCOM-B", "PicoITX-In2", "", "",
+		"", "", "", "", "", "", "", "",
+		"DHCOM-R", "DHCOM-S", "DHCOM-Q", "DHCOM-T", "DHCOM-U", "", "", "",
+		"", "", "", "", "", "", "", "";
+};
+
+&gpio4 {
+	gpio-line-names =
+		"", "", "", "", "", "PicoITX-In1", "DHCOM-INT", "DHCOM-H",
+		"DHCOM-I", "PicoITX-HW2", "", "", "", "", "", "",
+		"", "", "", "", "PicoITX-Out1", "", "", "",
+		"", "", "", "", "", "", "", "";
+};
+
+&gpio6 {
+	gpio-line-names =
+		"", "", "", "PicoITX-Out2", "", "", "SOM-HW1", "",
+		"", "", "", "", "", "", "PicoITX-HW0", "PicoITX-HW1",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "";
+};
+
+&iomuxc {
+	pinctrl-0 = <
+			/*
+			 * The following DHCOM GPIOs are used on this board.
+			 * Therefore, they have been removed from the list below.
+			 * I: yellow led
+			 */
+			&pinctrl_hog_base
+			&pinctrl_dhcom_a &pinctrl_dhcom_b &pinctrl_dhcom_c
+			&pinctrl_dhcom_d &pinctrl_dhcom_e &pinctrl_dhcom_f
+			&pinctrl_dhcom_g &pinctrl_dhcom_h
+			&pinctrl_dhcom_j &pinctrl_dhcom_k &pinctrl_dhcom_l
+			&pinctrl_dhcom_m &pinctrl_dhcom_n &pinctrl_dhcom_o
+			&pinctrl_dhcom_p &pinctrl_dhcom_q &pinctrl_dhcom_r
+			&pinctrl_dhcom_s &pinctrl_dhcom_t &pinctrl_dhcom_u
+			&pinctrl_dhcom_v &pinctrl_dhcom_w &pinctrl_dhcom_int
+		>;
+	pinctrl-names = "default";
+};

@@ -1,0 +1,175 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/ata/nvidia,tegra-ahci.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Tegra AHCI SATA Controller
+
+maintainers:
+  - Thierry Reding <thierry.reding@gmail.com>
+  - Jonathan Hunter <jonathanh@nvidia.com>
+
+properties:
+  compatible:
+    enum:
+      - nvidia,tegra124-ahci
+      - nvidia,tegra132-ahci
+      - nvidia,tegra210-ahci
+      - nvidia,tegra186-ahci
+
+  reg:
+    minItems: 2
+    items:
+      - description: AHCI registers
+      - description: SATA configuration and IPFS registers
+      - description: SATA AUX registers
+
+  interrupts:
+    maxItems: 1
+
+  clock-names:
+    items:
+      - const: sata
+      - const: sata-oob
+
+  clocks:
+    maxItems: 2
+
+  reset-names:
+    minItems: 2
+    items:
+      - const: sata
+      - const: sata-cold
+      - const: sata-oob
+
+  resets:
+    minItems: 2
+    maxItems: 3
+
+  iommus:
+    maxItems: 1
+
+  interconnect-names:
+    items:
+      - const: dma-mem
+      - const: write
+
+  interconnects:
+    maxItems: 2
+
+  power-domains:
+    items:
+      - description: SAX power-domain
+
+  phy-names:
+    items:
+      - const: sata-0
+
+  phys:
+    maxItems: 1
+
+  hvdd-supply:
+    description: SATA HVDD regulator supply.
+
+  vddio-supply:
+    description: SATA VDDIO regulator supply.
+
+  avdd-supply:
+    description: SATA AVDD regulator supply.
+
+  target-5v-supply:
+    description: SATA 5V power regulator supply.
+
+  target-12v-supply:
+    description: SATA 12V power regulator supply.
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clock-names
+  - clocks
+  - reset-names
+  - resets
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - nvidia,tegra124-ahci
+              - nvidia,tegra132-ahci
+    then:
+      properties:
+        reg:
+          maxItems: 2
+        reset-names:
+          minItems: 3
+        resets:
+          minItems: 3
+      required:
+        - phys
+        - phy-names
+        - hvdd-supply
+        - vddio-supply
+        - avdd-supply
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - nvidia,tegra210-ahci
+    then:
+      properties:
+        reg:
+          minItems: 3
+        reset-names:
+          minItems: 3
+        resets:
+          minItems: 3
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - nvidia,tegra186-ahci
+    then:
+      properties:
+        reg:
+          minItems: 3
+        reset-names:
+          maxItems: 2
+        resets:
+          maxItems: 2
+      required:
+        - iommus
+        - interconnect-names
+        - interconnects
+        - power-domains
+
+additionalProperties: true
+
+examples:
+  - |
+    #include <dt-bindings/clock/tegra210-car.h>
+    #include <dt-bindings/reset/tegra210-car.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    sata@70020000 {
+            compatible = "nvidia,tegra210-ahci";
+            reg = <0x70027000 0x00002000>, /* AHCI */
+                  <0x70020000 0x00007000>, /* SATA */
+                  <0x70001100 0x00010000>; /* SATA AUX */
+            interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&tegra_car TEGRA210_CLK_SATA>,
+                     <&tegra_car TEGRA210_CLK_SATA_OOB>;
+            clock-names = "sata", "sata-oob";
+            resets = <&tegra_car 124>,
+                     <&tegra_car 129>,
+                     <&tegra_car 123>;
+            reset-names = "sata", "sata-cold", "sata-oob";
+    };

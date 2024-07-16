@@ -1,0 +1,33 @@
+Binding for ArcticSand arc2c0608 LED driver
+
+Required properties:
+- compatible:		should be "arc,arc2c0608"
+- reg:			slave address
+
+Optional properties:
+- default-brightness:	brightness value on boot, value from: 0-4095
+- label:		The name of the backlight device
+			See Documentation/devicetree/bindings/leds/common.txt
+- led-sources:		List of enabled channels from 0 to 5.
+			See Documentation/devicetree/bindings/leds/common.txt
+
+- arc,led-config-0:	setting for register ILED_CONFIG_0
+- arc,led-config-1:	setting for register ILED_CONFIG_1
+- arc,dim-freq:		PWM mode frequence setting (bits [3:0] used)
+- arc,comp-config:	setting for register CONFIG_COMP
+- arc,filter-config:	setting for register FILTER_CONFIG
+- arc,trim-config:	setting for register IMAXTUNE
+
+Note: Optional properties not specified will default to values in IC EPROM
+
+Example:
+
+arc2c0608@30 {
+	compatible = "arc,arc2c0608";
+	reg = <0x30>;
+	default-brightness = <500>;
+	label = "lcd-backlight";
+	linux,default-trigger = "backlight";
+	led-sources = <0 1 2 5>;
+};
+

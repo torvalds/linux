@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0-only
+/config_data
+/kheaders.md5
+/gki_module_exported.h
+/gki_module_protected.h
+/module/gki_module_protected_exports.h
+/module/gki_module_unprotected.h

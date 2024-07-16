@@ -1,0 +1,26 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config USERMODE_DRIVER
+	bool
+	default n
+
+menuconfig BPF_PRELOAD
+	bool "Preload BPF file system with kernel specific program and map iterators"
+	depends on BPF
+	depends on BPF_SYSCALL
+	# The dependency on !COMPILE_TEST prevents it from being enabled
+	# in allmodconfig or allyesconfig configurations
+	depends on !COMPILE_TEST
+	select USERMODE_DRIVER
+	help
+	  This builds kernel module with several embedded BPF programs that are
+	  pinned into BPF FS mount point as human readable files that are
+	  useful in debugging and introspection of BPF programs and maps.
+
+if BPF_PRELOAD
+config BPF_PRELOAD_UMD
+	tristate "bpf_preload kernel module"
+	default m
+	help
+	  This builds bpf_preload kernel module with embedded BPF programs for
+	  introspection in bpffs.
+endif

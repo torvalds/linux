@@ -1,0 +1,334 @@
+/*
+ * Copyright 2015 Hans de Goede <hdegoede@redhat.com>
+ *
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This library is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of the
+ *     License, or (at your option) any later version.
+ *
+ *     This library is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ * Or, alternatively,
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use,
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+/dts-v1/;
+#include "sun6i-a31s.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	model = "Sinovoip BPI-M2";
+	compatible = "sinovoip,bpi-m2", "allwinner,sun6i-a31s";
+
+	aliases {
+		serial0 = &uart0;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		led-0 {
+			label = "bpi-m2:blue:usr";
+			gpios = <&pio 6 11 GPIO_ACTIVE_HIGH>; /* PG11 */
+		};
+
+		led-1 {
+			label = "bpi-m2:green:usr";
+			gpios = <&pio 6 10 GPIO_ACTIVE_HIGH>; /* PG10 */
+		};
+
+		led-2 {
+			label = "bpi-m2:red:usr";
+			gpios = <&pio 6 5 GPIO_ACTIVE_HIGH>; /* PG5 */
+		};
+	};
+
+	mmc2_pwrseq: mmc2_pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		reset-gpios = <&r_pio 0 8 GPIO_ACTIVE_LOW>; /* PL8 WIFI_EN */
+	};
+};
+
+&cpu0 {
+	cpu-supply = <&reg_dcdc3>;
+};
+
+&ehci0 {
+	status = "okay";
+};
+
+&gmac {
+	pinctrl-names = "default";
+	pinctrl-0 = <&gmac_rgmii_pins>;
+	phy-handle = <&phy1>;
+	phy-mode = "rgmii";
+	phy-supply = <&reg_dldo1>;
+	status = "okay";
+};
+
+&ir {
+	pinctrl-names = "default";
+	pinctrl-0 = <&s_ir_rx_pin>;
+	status = "okay";
+};
+
+&mdio {
+	phy1: ethernet-phy@1 {
+		reg = <1>;
+		reset-gpios = <&pio 0 21 GPIO_ACTIVE_LOW>; /* PA21 */
+		reset-assert-us = <10000>;
+		reset-deassert-us = <30000>;
+	};
+};
+
+&mmc0 {
+	vmmc-supply = <&reg_dcdc1>;
+	bus-width = <4>;
+	cd-gpios = <&pio 0 4 GPIO_ACTIVE_LOW>; /* PA4 */
+	status = "okay";
+};
+
+&mmc2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc2_4bit_pins>;
+	vmmc-supply = <&reg_aldo1>;
+	mmc-pwrseq = <&mmc2_pwrseq>;
+	bus-width = <4>;
+	non-removable;
+	status = "okay";
+
+	brcmf: wifi@1 {
+		reg = <1>;
+		compatible = "brcm,bcm4329-fmac";
+		interrupt-parent = <&r_pio>;
+		interrupts = <0 5 IRQ_TYPE_LEVEL_LOW>; /* PL5 */
+		interrupt-names = "host-wake";
+	};
+};
+
+&ohci0 {
+	status = "okay";
+};
+
+&p2wi {
+	status = "okay";
+
+	axp22x: pmic@68 {
+		compatible = "x-powers,axp221";
+		reg = <0x68>;
+		interrupt-parent = <&r_intc>;
+		interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_LOW>;
+		eldoin-supply = <&reg_dcdc1>;
+		x-powers,drive-vbus-en;
+	};
+};
+
+#include "axp22x.dtsi"
+
+&reg_aldo1 {
+	regulator-min-microvolt = <3300000>;
+	regulator-max-microvolt = <3300000>;
+	regulator-name = "vcc-wifi";
+};
+
+&reg_aldo2 {
+	regulator-always-on;
+	regulator-min-microvolt = <2500000>;
+	regulator-max-microvolt = <2500000>;
+	regulator-name = "vcc-gmac";
+};
+
+&reg_aldo3 {
+	regulator-always-on;
+	regulator-min-microvolt = <3000000>;
+	regulator-max-microvolt = <3000000>;
+	regulator-name = "avcc";
+};
+
+&reg_dc5ldo {
+	regulator-always-on;
+	regulator-min-microvolt = <700000>;
+	regulator-max-microvolt = <1320000>;
+	regulator-name = "vdd-cpus";
+};
+
+&reg_dcdc1 {
+	regulator-always-on;
+	regulator-min-microvolt = <3000000>;
+	regulator-max-microvolt = <3000000>;
+	regulator-name = "vdd-3v0";
+};
+
+&reg_dcdc2 {
+	regulator-min-microvolt = <700000>;
+	regulator-max-microvolt = <1320000>;
+	regulator-name = "vdd-gpu";
+};
+
+&reg_dcdc3 {
+	regulator-always-on;
+	regulator-min-microvolt = <700000>;
+	regulator-max-microvolt = <1320000>;
+	regulator-name = "vdd-cpu";
+};
+
+&reg_dcdc4 {
+	regulator-always-on;
+	regulator-min-microvolt = <700000>;
+	regulator-max-microvolt = <1320000>;
+	regulator-name = "vdd-sys-dll";
+};
+
+&reg_dcdc5 {
+	regulator-always-on;
+	regulator-min-microvolt = <1500000>;
+	regulator-max-microvolt = <1500000>;
+	regulator-name = "vcc-dram";
+};
+
+&reg_dldo1 {
+	regulator-min-microvolt = <3000000>;
+	regulator-max-microvolt = <3000000>;
+	regulator-name = "vcc-mac";
+};
+
+&reg_dldo2 {
+	regulator-min-microvolt = <2800000>;
+	regulator-max-microvolt = <2800000>;
+	regulator-name = "avdd-csi";
+};
+
+&reg_dldo3 {
+	regulator-always-on;
+	regulator-min-microvolt = <3300000>;
+	regulator-max-microvolt = <3300000>;
+	regulator-name = "vcc-pb";
+};
+
+&reg_eldo1 {
+	regulator-min-microvolt = <1800000>;
+	regulator-max-microvolt = <1800000>;
+	regulator-name = "vdd-csi";
+	status = "okay";
+};
+
+&reg_ldo_io1 {
+	regulator-always-on;
+	regulator-min-microvolt = <1800000>;
+	regulator-max-microvolt = <1800000>;
+	regulator-name = "vcc-pm-cpus";
+	status = "okay";
+};
+
+&uart0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart0_ph_pins>;
+	status = "okay";
+};
+
+&usbphy {
+	status = "okay";
+};
+
+&pio {
+	gpio-line-names =
+		/* PA */
+		"ETXD0", "ETXD1", "ETXD2", "ETXD3", "SDC0-DET", "", "",
+		"", "ETXCLK", "ETXEN", "EGTXCLK", "ERXD0", "ERXD1",
+		"ERXD2", "ERXD3", "", "", "", "", "ERXDV", "ERXCK",
+		"ETXERR", "ERXERR", "ECOL", "ECRS", "ECLKIN", "EMDC",
+		"EMDIO", "", "", "", "",
+
+		/* PB */
+		"CN7-P29", "CN7-P31", "CN7-P33", "CN7-P35", "CN7-P37",
+		"CN7-P28", "CN7-P27", "CN7-P32", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "", "", "", "", "", "", "",
+		"", "", "", "",
+
+		/* PC */
+		"", "", "", "", "", "", "WL-SDIO-CMD", "WL-SDIO-CLK",
+		"WL-SDIO-D0", "WL-SDIO-D2", "WL-SDIO-D2", "WL-SDIO-D3",
+		"", "", "", "", "", "", "", "", "", "", "", "", "", "",
+		"", "USB-DRV", "", "", "", "",
+
+		/* PD */
+		"CN9-P09", "CN9-P11", "CN9-P13", "CN9-P15", "CN9-P17",
+		"CN9-P19", "CN9-P21", "CN9-P23", "CN9-P25", "CN9-P27",
+		"CN9-P29", "CN9-P31", "CN9-P33", "CN9-P35", "CN9-P37",
+		"CN9-P39", "CN9-P40", "CN9-P38", "CN9-P36", "CN9-P34",
+		"CN9-P32", "CN9-P30", "CN9-P28", "CN9-P26", "CN9-P22",
+		"CN9-P14", "CN9-P18", "CN9-P16", "", "", "", "",
+
+		/* PE */
+		"CN6-P20", "CN6-P24", "CN6-P30", "CN6-P28", "CN7-P08",
+		"CN7-P10", "CN7-P36", "CN7-P38", "CN6-P17", "CN6-P19",
+		"CN6-P21", "CN6-P23", "CN6-P25", "CN6-P27", "CN6-P29",
+		"CN6-P31", "", "", "", "", "", "", "", "", "", "", "",
+		"", "", "", "", "",
+
+		/* PF */
+		"SDC0-D1", "SDC0-D0", "SDC0-CLK", "SDC0-CMD", "SDC0-D3",
+		"SDC0-D2", "", "", "", "", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "", "", "", "", "", "", "",
+		"",
+
+		/* PG */
+		"CN9-P06", "CN9-P08", "CN9-P20", "CN9-P12", "CN9-P07",
+		"LED-PWR", "CN7-P13", "CN7-P11", "CN7-P22", "CN7-P15",
+		"LED-G", "LED-B", "CN7-P26", "CN7-P24", "CN7-P23",
+		"CN7-P19", "CN7-P21", "HCEC", "CN6-P22", "", "", "", "",
+		"", "", "", "", "", "", "", "", "",
+
+		/* PH */
+		"", "", "", "", "", "", "", "", "", "CN7-P07",
+		"CN7-P12", "CN7-P16", "CN7-P18", "CN9-P10", "CN6-P16",
+		"CN6-P14", "CN9-P04", "CN9-P02", "CN7-P05", "CN7-P03",
+		"CN8-P03", "CN8-P02", "", "", "CN6-P34", "CN6-P32",
+		"CN6-P26", "CN6-P18", "", "", "", "";
+};
+
+&r_pio {
+	gpio-line-names =
+		/* PL */
+		"PMU-SCK", "PMU-SDA", "VBAT-EN", "", "IR-RX",
+		"WL-WAKE-HOST", "BT-WAKE_HOST", "BT-ENABLE",
+		"WL-PMU-EN", "", "", "", "", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "", "", "", "", "",
+
+		/* PM */
+		"CN6-P12", "CN6-P35", "CN7-P40", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "", "";
+};

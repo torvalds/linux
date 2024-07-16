@@ -1,0 +1,109 @@
+What:		/sys/bus/soundwire/devices/sdw:.../status
+		/sys/bus/soundwire/devices/sdw:.../device_number
+
+Date:		September 2020
+
+Contact:	Pierre-Louis Bossart <pierre-louis.bossart@linux.intel.com>
+		Bard Liao <yung-chuan.liao@linux.intel.com>
+		Vinod Koul <vkoul@kernel.org>
+
+Description:	SoundWire Slave status
+
+		These properties report the Slave status, e.g. if it
+		is UNATTACHED or not, and in the latter case show the
+		device_number. This status information is useful to
+		detect devices exposed by platform firmware but not
+		physically present on the bus, and conversely devices
+		not exposed in platform firmware but enumerated.
+
+What:		/sys/bus/soundwire/devices/sdw:.../dev-properties/mipi_revision
+		/sys/bus/soundwire/devices/sdw:.../dev-properties/wake_capable
+		/sys/bus/soundwire/devices/sdw:.../dev-properties/test_mode_capable
+		/sys/bus/soundwire/devices/sdw:.../dev-properties/clk_stop_mode1
+		/sys/bus/soundwire/devices/sdw:.../dev-properties/simple_clk_stop_capable
+		/sys/bus/soundwire/devices/sdw:.../dev-properties/clk_stop_timeout
+		/sys/bus/soundwire/devices/sdw:.../dev-properties/ch_prep_timeout
+		/sys/bus/soundwire/devices/sdw:.../dev-properties/reset_behave
+		/sys/bus/soundwire/devices/sdw:.../dev-properties/high_PHY_capable
+		/sys/bus/soundwire/devices/sdw:.../dev-properties/paging_support
+		/sys/bus/soundwire/devices/sdw:.../dev-properties/bank_delay_support
+		/sys/bus/soundwire/devices/sdw:.../dev-properties/p15_behave
+		/sys/bus/soundwire/devices/sdw:.../dev-properties/master_count
+		/sys/bus/soundwire/devices/sdw:.../dev-properties/source_ports
+		/sys/bus/soundwire/devices/sdw:.../dev-properties/sink_ports
+
+Date:		May 2020
+
+Contact:	Pierre-Louis Bossart <pierre-louis.bossart@linux.intel.com>
+		Bard Liao <yung-chuan.liao@linux.intel.com>
+		Vinod Koul <vkoul@kernel.org>
+
+Description:	SoundWire Slave DisCo properties.
+		These properties are defined by MIPI DisCo Specification
+		for SoundWire. They define various properties of the
+		SoundWire Slave and are used by the bus to configure
+		the Slave
+
+
+What:		/sys/bus/soundwire/devices/sdw:.../dp0/max_word
+		/sys/bus/soundwire/devices/sdw:.../dp0/min_word
+		/sys/bus/soundwire/devices/sdw:.../dp0/words
+		/sys/bus/soundwire/devices/sdw:.../dp0/BRA_flow_controlled
+		/sys/bus/soundwire/devices/sdw:.../dp0/simple_ch_prep_sm
+		/sys/bus/soundwire/devices/sdw:.../dp0/imp_def_interrupts
+
+Date:		May 2020
+
+Contact:	Pierre-Louis Bossart <pierre-louis.bossart@linux.intel.com>
+		Bard Liao <yung-chuan.liao@linux.intel.com>
+		Vinod Koul <vkoul@kernel.org>
+
+Description:	SoundWire Slave Data Port-0 DisCo properties.
+		These properties are defined by MIPI DisCo Specification
+		for the SoundWire. They define various properties of the
+		Data port 0 are used by the bus to configure the Data Port 0.
+
+
+What:		/sys/bus/soundwire/devices/sdw:.../dp<N>_src/max_word
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_src/min_word
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_src/words
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_src/type
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_src/max_grouping
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_src/simple_ch_prep_sm
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_src/ch_prep_timeout
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_src/imp_def_interrupts
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_src/min_ch
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_src/max_ch
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_src/channels
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_src/ch_combinations
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_src/max_async_buffer
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_src/block_pack_mode
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_src/port_encoding
+
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_sink/max_word
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_sink/min_word
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_sink/words
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_sink/type
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_sink/max_grouping
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_sink/simple_ch_prep_sm
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_sink/ch_prep_timeout
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_sink/imp_def_interrupts
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_sink/min_ch
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_sink/max_ch
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_sink/channels
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_sink/ch_combinations
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_sink/max_async_buffer
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_sink/block_pack_mode
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_sink/port_encoding
+
+Date:		May 2020
+
+Contact:	Pierre-Louis Bossart <pierre-louis.bossart@linux.intel.com>
+		Bard Liao <yung-chuan.liao@linux.intel.com>
+		Vinod Koul <vkoul@kernel.org>
+
+Description:	SoundWire Slave Data Source/Sink Port-N DisCo properties.
+		These properties are defined by MIPI DisCo Specification
+		for SoundWire. They define various properties of the
+		Source/Sink Data port N and are used by the bus to configure
+		the Data Port N.

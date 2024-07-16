@@ -1,0 +1,39 @@
+<svg width="7.95in" height="3.70in" version="1.1" viewBox="1956 1041 9354.492 4306.001" xmlns="http://www.w3.org/2000/svg">
+ <polyline transform="translate(-121.88 -68.4)" points="4200 3600 4200 3075 4950 2325 7425 2325 8250 3150 8250 3600" fill="none" stroke="#000" stroke-width="15"/>
+ <polyline transform="translate(-121.88 -68.4)" points="4200 3675 4200 5400" fill="none" stroke="#000" stroke-dasharray="40, 40" stroke-width="7"/>
+ <polyline transform="translate(-121.88 -68.4)" points="8250 3675 8250 5400" fill="none" stroke="#000" stroke-dasharray="40, 40" stroke-width="7"/>
+ <polyline transform="translate(-121.88 -68.4)" points="3675 3600 8700 3600" fill="none" stroke="#000" stroke-width="7"/>
+ <polyline transform="translate(-121.88 -68.4)" points="8775 3600 10200 3600" fill="none" stroke="#000" stroke-dasharray="40, 40" stroke-width="7"/>
+ <polyline transform="translate(-121.88 -68.4)" points="8325 3150 9075 3150" fill="none" stroke="#000" stroke-dasharray="40, 40" stroke-width="7"/>
+ <polyline transform="translate(-121.88 -68.4)" points="7500 2325 10200 2325" fill="none" stroke="#000" stroke-dasharray="40, 40" stroke-width="7"/>
+ <polyline transform="translate(-121.88 -68.4)" points="3600 3600 3e3 3600" fill="none" stroke="#000" stroke-dasharray="40, 40" stroke-width="7"/>
+ <polyline transform="translate(-121.88 -68.4)" points="4125 3075 3e3 3075" fill="none" stroke="#000" stroke-dasharray="40, 40" stroke-width="7"/>
+ <polyline transform="translate(-121.88 -68.4)" points="4217 5400 8158 5400" fill="none" stroke="#000" stroke-width="7"/>
+ <polyline transform="translate(-121.88 -68.4)" points="8053 5430 8173 5400 8053 5370" fill="none" stroke="#000" stroke-miterlimit="8" stroke-width="7"/>
+ <polyline transform="translate(-121.88 -68.4)" points="4322 5370 4202 5400 4322 5430" fill="none" stroke="#000" stroke-miterlimit="8" stroke-width="7"/>
+ <polyline transform="translate(-121.88 -68.4)" points="10125 2342 10125 3583" fill="none" stroke="#000" stroke-width="7"/>
+ <polyline transform="translate(-121.88 -68.4)" points="10095 3478 10125 3598 10155 3478" fill="none" stroke="#000" stroke-miterlimit="8" stroke-width="7"/>
+ <polyline transform="translate(-121.88 -68.4)" points="10155 2447 10125 2327 10095 2447" fill="none" stroke="#000" stroke-miterlimit="8" stroke-width="7"/>
+ <polyline transform="translate(-121.88 -68.4)" points="3e3 3167 3e3 3583" fill="none" stroke="#000" stroke-width="7"/>
+ <polyline transform="translate(-121.88 -68.4)" points="2970 3478 3e3 3598 3030 3478" fill="none" stroke="#000" stroke-miterlimit="8" stroke-width="7"/>
+ <polyline transform="translate(-121.88 -68.4)" points="3030 3272 3e3 3152 2970 3272" fill="none" stroke="#000" stroke-miterlimit="8" stroke-width="7"/>
+ <polyline transform="translate(-121.88 -68.4)" points="9075 3167 9075 3583" fill="none" stroke="#000" stroke-width="7"/>
+ <polyline transform="translate(-121.88 -68.4)" points="9045 3478 9075 3598 9105 3478" fill="none" stroke="#000" stroke-miterlimit="8" stroke-width="7"/>
+ <polyline transform="translate(-121.88 -68.4)" points="9105 3272 9075 3152 9045 3272" fill="none" stroke="#000" stroke-miterlimit="8" stroke-width="7"/>
+ <polyline transform="translate(-121.88 -68.4)" points="4950 2325 4950 1200" fill="none" stroke="#000" stroke-dasharray="40, 40" stroke-width="7"/>
+ <polyline transform="translate(-121.88 -68.4)" points="7425 2325 7425 1200" fill="none" stroke="#000" stroke-dasharray="40, 40" stroke-width="7"/>
+ <polyline transform="translate(-121.88 -68.4)" points="4200 3075 4200 2400 3600 1800 3600 1200" fill="none" stroke="#000" stroke-dasharray="40, 40" stroke-width="7"/>
+ <polyline transform="translate(-121.88 -68.4)" points="8250 3150 8250 2475 8775 1950 8775 1200" fill="none" stroke="#000" stroke-dasharray="40, 40" stroke-width="7"/>
+ <polyline transform="translate(-121.88 -68.4)" points="3617 1275 4933 1275" fill="none" stroke="#000" stroke-width="7"/>
+ <polyline transform="translate(-121.88 -68.4)" points="4828 1305 4948 1275 4828 1245" fill="none" stroke="#000" stroke-miterlimit="8" stroke-width="7"/>
+ <polyline transform="translate(-121.88 -68.4)" points="3722 1245 3602 1275 3722 1305" fill="none" stroke="#000" stroke-miterlimit="8" stroke-width="7"/>
+ <polyline transform="translate(-121.88 -68.4)" points="7442 1275 8683 1275" fill="none" stroke="#000" stroke-width="7"/>
+ <polyline transform="translate(-121.88 -68.4)" points="8578 1305 8698 1275 8578 1245" fill="none" stroke="#000" stroke-miterlimit="8" stroke-width="7"/>
+ <polyline transform="translate(-121.88 -68.4)" points="7547 1245 7427 1275 7547 1305" fill="none" stroke="#000" stroke-miterlimit="8" stroke-width="7"/>
+ <text x="5953.125" y="5256.6001" fill="#000000" font-family="sans-serif" font-size="144px" stroke-width=".025in" text-anchor="middle" xml:space="preserve">Effect duration</text>
+ <text x="10078.125" y="2931.5999" fill="#000000" font-family="sans-serif" font-size="144px" stroke-width=".025in" xml:space="preserve">Effect magnitude</text>
+ <text x="9028.125" y="3381.5999" fill="#000000" font-family="sans-serif" font-size="144px" stroke-width=".025in" xml:space="preserve">Fade level</text>
+ <text x="4153.125" y="1131.6" fill="#000000" font-family="sans-serif" font-size="144px" stroke-width=".025in" text-anchor="middle" xml:space="preserve">Attack length</text>
+ <text x="8053.125" y="1131.6" fill="#000000" font-family="sans-serif" font-size="144px" stroke-width=".025in" text-anchor="middle" xml:space="preserve">Fade length</text>
+ <text x="2803.125" y="3306.5999" fill="#000000" font-family="sans-serif" font-size="144px" stroke-width=".025in" text-anchor="end" xml:space="preserve">Attack level</text>
+</svg>

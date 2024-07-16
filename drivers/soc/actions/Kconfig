@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: GPL-2.0-only
+if ARCH_ACTIONS || COMPILE_TEST
+
+config OWL_PM_DOMAINS_HELPER
+	bool
+
+config OWL_PM_DOMAINS
+	bool "Actions Semi SPS power domains"
+	depends on PM
+	select OWL_PM_DOMAINS_HELPER
+	select PM_GENERIC_DOMAINS
+	help
+	  Say 'y' here to enable support for Smart Power System (SPS)
+	  power-gating on Actions Semiconductor S500, S700 and S900 SoCs.
+	  If unsure, say 'n'.
+
+endif

@@ -1,0 +1,32 @@
+* STMicroelectronics SAS. ST33ZP24 TPM SoC
+
+Required properties:
+- compatible: Should be "st,st33zp24-spi".
+- spi-max-frequency: Maximum SPI frequency (<= 10000000).
+
+Optional ST33ZP24 Properties:
+- interrupts: GPIO interrupt to which the chip is connected
+- lpcpd-gpios: Output GPIO pin used for ST33ZP24 power management D1/D2 state.
+If set, power must be present when the platform is going into sleep/hibernate mode.
+
+Optional SoC Specific Properties:
+- pinctrl-names: Contains only one value - "default".
+- pintctrl-0: Specifies the pin control groups used for this controller.
+
+Example (for ARM-based BeagleBoard xM with ST33ZP24 on SPI4):
+
+&mcspi4 {
+
+
+        st33zp24@0 {
+
+                compatible = "st,st33zp24-spi";
+
+                spi-max-frequency = <10000000>;
+
+                interrupt-parent = <&gpio5>;
+                interrupts = <7 IRQ_TYPE_LEVEL_HIGH>;
+
+                lpcpd-gpios = <&gpio5 15 GPIO_ACTIVE_HIGH>;
+        };
+};

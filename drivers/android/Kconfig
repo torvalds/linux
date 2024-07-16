@@ -1,0 +1,116 @@
+# SPDX-License-Identifier: GPL-2.0
+menu "Android"
+
+config ANDROID_BINDER_IPC
+	bool "Android Binder IPC Driver"
+	depends on MMU
+	default n
+	help
+	  Binder is used in Android for both communication between processes,
+	  and remote method invocation.
+
+	  This means one Android process can call a method/routine in another
+	  Android process, using Binder to identify, invoke and pass arguments
+	  between said processes.
+
+config ANDROID_BINDERFS
+	bool "Android Binderfs filesystem"
+	depends on ANDROID_BINDER_IPC
+	default n
+	help
+	  Binderfs is a pseudo-filesystem for the Android Binder IPC driver
+	  which can be mounted per-ipc namespace allowing to run multiple
+	  instances of Android.
+	  Each binderfs mount initially only contains a binder-control device.
+	  It can be used to dynamically allocate new binder IPC devices via
+	  ioctls.
+
+config ANDROID_BINDER_DEVICES
+	string "Android Binder devices"
+	depends on ANDROID_BINDER_IPC
+	default "binder,hwbinder,vndbinder"
+	help
+	  Default value for the binder.devices parameter.
+
+	  The binder.devices parameter is a comma-separated list of strings
+	  that specifies the names of the binder device nodes that will be
+	  created. Each binder device has its own context manager, and is
+	  therefore logically separated from the other devices.
+
+config ANDROID_BINDER_IPC_SELFTEST
+	bool "Android Binder IPC Driver Selftest"
+	depends on ANDROID_BINDER_IPC
+	help
+	  This feature allows binder selftest to run.
+
+	  Binder selftest checks the allocation and free of binder buffers
+	  exhaustively with combinations of various buffer sizes and
+	  alignments.
+
+config ANDROID_DEBUG_SYMBOLS
+	bool "Android Debug Symbols"
+	help
+	  Enables export of debug symbols that are useful for offline debugging
+	  of a kernel. These symbols would be used in vendor modules to find
+	  addresses of the core kernel symbols for vendor extensions.
+
+	  This driver is statically compiled into kernel and maintains all the
+	  required symbol addresses for vendor modules and provides necessary
+	  interface vendor modules.
+
+config ANDROID_VENDOR_HOOKS
+	bool "Android Vendor Hooks"
+	depends on TRACEPOINTS
+	help
+	  Enable vendor hooks implemented as tracepoints
+
+	  Allow vendor modules to attach to tracepoint "hooks" defined via
+	  DECLARE_HOOK or DECLARE_RESTRICTED_HOOK.
+
+config ANDROID_DEBUG_KINFO
+	bool "Android Debug Kernel Information Support"
+	depends on KALLSYMS
+	help
+	  This supports kernel information backup for bootloader usage.
+	  Specifics:
+	   - The kallsyms symbols for unwind_backtrace
+	   - Page directory pointer
+	   - UTS_RELEASE
+	   - BUILD_INFO(ro.build.fingerprint)
+
+config ANDROID_KABI_RESERVE
+	bool "Android KABI reserve padding"
+	default y
+	help
+	  This option enables the padding that the Android GKI kernel adds
+	  to many different kernel structures to support an in-kernel stable ABI
+	  over the lifespan of support for the kernel.
+
+	  Only disable this option if you have a system that needs the Android
+	  kernel drivers, but is NOT an Android GKI kernel image. If disabled
+	  it has the possibility to make the kernel static and runtime image
+	  slightly smaller but will NOT be supported by the Google Android
+	  kernel team.
+
+	  If even slightly unsure, say Y.
+
+config ANDROID_VENDOR_OEM_DATA
+	bool "Android vendor and OEM data padding"
+	default y
+	help
+	  This option enables the padding that the Android GKI kernel adds
+	  to many different kernel structures to support an in-kernel stable ABI
+	  over the lifespan of support for the kernel as well as OEM additional
+	  fields that are needed by some of the Android kernel tracepoints. The
+	  macros enabled by this option are used to enable padding in vendor modules
+	  used for the above specified purposes.
+
+	  Only disable this option if you have a system that needs the Android
+	  kernel drivers, but is NOT an Android GKI kernel image and you do NOT
+	  use the Android kernel tracepoints. If disabled it has the possibility
+	  to make the kernel static and runtime image slightly smaller but will
+	  NOT be supported by the Google Android kernel team.
+
+	  If even slightly unsure, say Y.
+
+endmenu

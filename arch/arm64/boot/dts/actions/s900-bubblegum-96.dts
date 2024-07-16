@@ -1,0 +1,314 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2017 Andreas Färber
+ */
+
+/dts-v1/;
+
+#include "s900.dtsi"
+
+/ {
+	compatible = "ucrobotics,bubblegum-96", "actions,s900";
+	model = "Bubblegum-96";
+
+	aliases {
+		mmc0 = &mmc0;
+		mmc1 = &mmc1;
+		mmc2 = &mmc2;
+		serial5 = &uart5;
+	};
+
+	chosen {
+		stdout-path = "serial5:115200n8";
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x0 0x0 0x80000000>;
+	};
+
+	/* Fixed regulator used in the absence of PMIC */
+	vcc_3v1: vcc-3v1 {
+		compatible = "regulator-fixed";
+		regulator-name = "fixed-3.1V";
+		regulator-min-microvolt = <3100000>;
+		regulator-max-microvolt = <3100000>;
+		regulator-always-on;
+	};
+
+	/* Fixed regulator used in the absence of PMIC */
+	sd_vcc: sd-vcc {
+		compatible = "regulator-fixed";
+		regulator-name = "fixed-3.1V";
+		regulator-min-microvolt = <3100000>;
+		regulator-max-microvolt = <3100000>;
+		regulator-always-on;
+	};
+};
+
+&i2c0 {
+	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c0_default>;
+};
+
+&i2c1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c1_default>;
+};
+
+&i2c2 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c2_default>;
+};
+
+/*
+ * GPIO name legend: proper name = the GPIO line is used as GPIO
+ *         NC = not connected (pin out but not routed from the chip to
+ *              anything the board)
+ *         "[PER]" = pin is muxed for [peripheral] (not GPIO)
+ *         LSEC = Low Speed External Connector
+ *         HSEC = High Speed External Connector
+ *
+ * Line names are taken from the schematic "Schematics Bubblegum96"
+ * version v1.0
+ *
+ * For the lines routed to the external connectors the
+ * lines are named after the 96Boards CE Specification 1.0,
+ * Appendix "Expansion Connector Signal Description".
+ *
+ * When the 96Boards naming of a line and the schematic name of
+ * the same line are in conflict, the 96Boards specification
+ * takes precedence, which means that the external UART on the
+ * LSEC is named UART0 while the schematic and SoC names this
+ * UART2. Only exception is the I2C lines for which the schematic
+ * naming has been preferred. This is only for the informational
+ * lines i.e. "[FOO]", the GPIO named lines "GPIO-A" thru "GPIO-L"
+ * are the only ones actually used for GPIO.
+ */
+
+&pinctrl {
+	gpio-line-names =
+		"GPIO-A", /* GPIO_0, LSEC pin 23 */
+		"GPIO-B", /* GPIO_1, LSEC pin 24 */
+		"GPIO-C", /* GPIO_2, LSEC pin 25 */
+		"GPIO-D", /* GPIO_3, LSEC pin 26 */
+		"GPIO-E", /* GPIO_4, LSEC pin 27 */
+		"GPIO-F", /* GPIO_5, LSEC pin 28 */
+		"GPIO-G", /* GPIO_6, LSEC pin 29 */
+		"GPIO-H", /* GPIO_7, LSEC pin 30 */
+		"GPIO-I", /* GPIO_8, LSEC pin 31 */
+		"GPIO-J", /* GPIO_9, LSEC pin 32 */
+		"NC", /* GPIO_10 */
+		"NC", /* GPIO_11 */
+		"SIRQ2_1V8", /* GPIO_12 */
+		"PCM0_OUT", /* GPIO_13 */
+		"WIFI_LED", /* GPIO_14 */
+		"PCM0_SYNC", /* GPIO_15 */
+		"PCM0_CLK", /* GPIO_16 */
+		"PCM0_IN", /* GPIO_17 */
+		"BT_LED", /* GPIO_18 */
+		"LED0", /* GPIO_19 */
+		"LED1", /* GPIO_20 */
+		"JTAG_TCK", /* GPIO_21 */
+		"JTAG_TMS", /* GPIO_22 */
+		"JTAG_TDI", /* GPIO_23 */
+		"JTAG_TDO", /* GPIO_24 */
+		"[UART1_RxD]", /* GPIO_25, LSEC pin 13 */
+		"NC", /* GPIO_26 */
+		"[UART1_TxD]", /* GPIO_27, LSEC pin 11 */
+		"SD0_D0", /* GPIO_28 */
+		"SD0_D1", /* GPIO_29 */
+		"SD0_D2", /* GPIO_30 */
+		"SD0_D3", /* GPIO_31 */
+		"SD1_D0", /* GPIO_32 */
+		"SD1_D1", /* GPIO_33 */
+		"SD1_D2", /* GPIO_34 */
+		"SD1_D3", /* GPIO_35 */
+		"SD0_CMD", /* GPIO_36 */
+		"SD0_CLK", /* GPIO_37 */
+		"SD1_CMD", /* GPIO_38 */
+		"SD1_CLK", /* GPIO_39 */
+		"SPI0_SCLK", /* GPIO_40, LSEC pin 8 */
+		"SPI0_CS", /* GPIO_41, LSEC pin 12 */
+		"SPI0_DIN", /* GPIO_42, LSEC pin 10 */
+		"SPI0_DOUT", /* GPIO_43, LSEC pin 14 */
+		"I2C5_SDATA", /* GPIO_44, HSEC pin 36 */
+		"I2C5_SCLK", /* GPIO_45, HSEC pin 38 */
+		"UART0_RX", /* GPIO_46, LSEC pin 7 */
+		"UART0_TX", /* GPIO_47, LSEC pin 5 */
+		"UART0_RTSB", /* GPIO_48, LSEC pin 9 */
+		"UART0_CTSB", /* GPIO_49, LSEC pin 3 */
+		"I2C4_SCLK", /* GPIO_50, HSEC pin 32 */
+		"I2C4_SDATA", /* GPIO_51, HSEC pin 34 */
+		"I2C0_SCLK", /* GPIO_52 */
+		"I2C0_SDATA", /* GPIO_53 */
+		"I2C1_SCLK", /* GPIO_54, LSEC pin 15 */
+		"I2C1_SDATA", /* GPIO_55, LSEC pin 17 */
+		"I2C2_SCLK", /* GPIO_56, LSEC pin 19 */
+		"I2C2_SDATA", /* GPIO_57, LSEC pin 21 */
+		"CSI0_DN0", /* GPIO_58, HSEC pin 10 */
+		"CSI0_DP0", /* GPIO_59, HSEC pin 8 */
+		"CSI0_DN1", /* GPIO_60, HSEC pin 16 */
+		"CSI0_DP1", /* GPIO_61, HSEC pin 14 */
+		"CSI0_CN", /* GPIO_62, HSEC pin 4 */
+		"CSI0_CP", /* GPIO_63, HSEC pin 2 */
+		"CSI0_DN2", /* GPIO_64, HSEC pin 22 */
+		"CSI0_DP2", /* GPIO_65, HSEC pin 20 */
+		"CSI0_DN3", /* GPIO_66, HSEC pin 28 */
+		"CSI0_DP3", /* GPIO_67, HSEC pin 26 */
+		"[CLK0]", /* GPIO_68, HSEC pin 15 */
+		"CSI1_DN0", /* GPIO_69, HSEC pin 44 */
+		"CSI1_DP0", /* GPIO_70, HSEC pin 42 */
+		"CSI1_DN1", /* GPIO_71, HSEC pin 50 */
+		"CSI1_DP1", /* GPIO_72, HSEC pin 48 */
+		"CSI1_CN", /* GPIO_73, HSEC pin 56 */
+		"CSI1_CP", /* GPIO_74, HSEC pin 54 */
+		"[CLK1]", /* GPIO_75, HSEC pin 17 */
+		"[GPIOD0]", /* GPIO_76 */
+		"[GPIOD1]", /* GPIO_77 */
+		"BT_RST_N", /* GPIO_78 */
+		"EXT_DC_EN", /* GPIO_79 */
+		"[PCM_DI]", /* GPIO_80, LSEC pin 22 */
+		"[PCM_DO]", /* GPIO_81, LSEC pin 20 */
+		"[PCM_CLK]", /* GPIO_82, LSEC pin 18 */
+		"[PCM_FS]", /* GPIO_83, LSEC pin 16 */
+		"WAKE_BT", /* GPIO_84 */
+		"WL_REG_ON", /* GPIO_85 */
+		"NC", /* GPIO_86 */
+		"NC", /* GPIO_87 */
+		"NC", /* GPIO_88 */
+		"NC", /* GPIO_89 */
+		"NC", /* GPIO_90 */
+		"WIFI_WAKE", /* GPIO_91 */
+		"BT_WAKE", /* GPIO_92 */
+		"NC", /* GPIO_93 */
+		"OTG_EN2", /* GPIO_94 */
+		"OTG_EN", /* GPIO_95 */
+		"DSI_DP3", /* GPIO_96, HSEC pin 45 */
+		"DSI_DN3", /* GPIO_97, HSEC pin 47 */
+		"DSI_DP1", /* GPIO_98, HSEC pin 33 */
+		"DSI_DN1", /* GPIO_99, HSEC pin 35 */
+		"DSI_CP", /* GPIO_100, HSEC pin 21 */
+		"DSI_CN", /* GPIO_101, HSEC pin 23 */
+		"DSI_DP0", /* GPIO_102, HSEC pin 27 */
+		"DSI_DN0", /* GPIO_103, HSEC pin 29 */
+		"DSI_DP2", /* GPIO_104, HSEC pin 39 */
+		"DSI_DN2", /* GPIO_105, HSEC pin 41 */
+		"N0_D0", /* GPIO_106 */
+		"N0_D1", /* GPIO_107 */
+		"N0_D2", /* GPIO_108 */
+		"N0_D3", /* GPIO_109 */
+		"N0_D4", /* GPIO_110 */
+		"N0_D5", /* GPIO_111 */
+		"N0_D6", /* GPIO_112 */
+		"N0_D7", /* GPIO_113 */
+		"N0_DQS", /* GPIO_114 */
+		"N0_DQSN", /* GPIO_115 */
+		"NC", /* GPIO_116 */
+		"NC", /* GPIO_117 */
+		"NC", /* GPIO_118 */
+		"N0_CEB1", /* GPIO_119 */
+		"CARD_DT", /* GPIO_120 */
+		"N0_CEB3", /* GPIO_121 */
+		"SD_DAT0", /* GPIO_122, HSEC pin 1 */
+		"SD_DAT1", /* GPIO_123, HSEC pin 3 */
+		"SD_DAT2", /* GPIO_124, HSEC pin 5 */
+		"SD_DAT3", /* GPIO_125, HSEC pin 7 */
+		"NC", /* GPIO_126 */
+		"NC", /* GPIO_127 */
+		"[PWR_BTN_N]", /* GPIO_128, LSEC pin 4 */
+		"[RST_BTN_N]", /* GPIO_129, LSEC pin 6 */
+		"NC", /* GPIO_130 */
+		"SD_CMD", /* GPIO_131 */
+		"GPIO-L", /* GPIO_132, LSEC pin 34 */
+		"GPIO-K", /* GPIO_133, LSEC pin 33 */
+		"NC", /* GPIO_134 */
+		"SD_SCLK", /* GPIO_135 */
+		"NC", /* GPIO_136 */
+		"JTAG_TRST", /* GPIO_137 */
+		"I2C3_SCLK", /* GPIO_138 */
+		"LED2", /* GPIO_139 */
+		"LED3", /* GPIO_140 */
+		"I2C3_SDATA", /* GPIO_141 */
+		"UART3_RX", /* GPIO_142 */
+		"UART3_TX", /* GPIO_143 */
+		"UART3_RTSB", /* GPIO_144 */
+		"UART3_CTSB"; /* GPIO_145 */
+
+	i2c0_default: i2c0-default {
+		pinmux {
+			groups = "i2c0_mfp";
+			function = "i2c0";
+		};
+		pinconf {
+			pins = "i2c0_sclk", "i2c0_sdata";
+			bias-pull-up;
+		};
+	};
+
+	i2c1_default: i2c1-default {
+		pinconf {
+			pins = "i2c1_sclk", "i2c1_sdata";
+			bias-pull-up;
+		};
+	};
+
+	i2c2_default: i2c2-default {
+		pinconf {
+			pins = "i2c2_sclk", "i2c2_sdata";
+			bias-pull-up;
+		};
+	};
+
+	mmc0_default: mmc0_default {
+		pinmux {
+			groups = "sd0_d0_mfp", "sd0_d1_mfp", "sd0_d2_d3_mfp",
+				 "sd0_cmd_mfp", "sd0_clk_mfp";
+			function = "sd0";
+		};
+	};
+
+	mmc2_default: mmc2_default {
+		pinmux {
+			groups = "nand0_d0_ceb3_mfp";
+			function = "sd2";
+		};
+	};
+};
+
+/* uSD */
+&mmc0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc0_default>;
+	no-sdio;
+	no-mmc;
+	no-1-8-v;
+	cd-gpios = <&pinctrl 120 GPIO_ACTIVE_LOW>;
+	bus-width = <4>;
+	vmmc-supply = <&sd_vcc>;
+	vqmmc-supply = <&sd_vcc>;
+};
+
+/* eMMC */
+&mmc2 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc2_default>;
+	no-sdio;
+	no-sd;
+	non-removable;
+	bus-width = <8>;
+	vmmc-supply = <&vcc_3v1>;
+};
+
+&timer {
+	clocks = <&hosc>;
+};
+
+&uart5 {
+	status = "okay";
+};

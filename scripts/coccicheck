@@ -1,0 +1,281 @@
+#!/bin/bash
+# SPDX-License-Identifier: GPL-2.0
+# Linux kernel coccicheck
+#
+# Read Documentation/dev-tools/coccinelle.rst
+#
+# This script requires at least spatch
+# version 1.0.0-rc11.
+
+DIR="$(dirname $(readlink -f $0))/.."
+SPATCH="`which ${SPATCH:=spatch}`"
+
+if [ ! -x "$SPATCH" ]; then
+    echo 'spatch is part of the Coccinelle project and is available at http://coccinelle.lip6.fr/'
+    exit 1
+fi
+
+SPATCH_VERSION=$($SPATCH --version | head -1 | awk '{print $3}')
+
+USE_JOBS="no"
+$SPATCH --help | grep "\-\-jobs" > /dev/null && USE_JOBS="yes"
+
+# The verbosity may be set by the environmental parameter V=
+# as for example with 'make V=1 coccicheck'
+
+if [ -n "$V" -a "$V" != "0" ]; then
+	VERBOSE="$V"
+else
+	VERBOSE=0
+fi
+
+FLAGS="--very-quiet"
+
+# You can use SPFLAGS to append extra arguments to coccicheck or override any
+# heuristics done in this file as Coccinelle accepts the last options when
+# options conflict.
+#
+# A good example for use of SPFLAGS is if you want to debug your cocci script,
+# you can for instance use the following:
+#
+# $ export COCCI=scripts/coccinelle/misc/irqf_oneshot.cocci
+# $ make coccicheck MODE=report DEBUG_FILE="all.err" SPFLAGS="--profile --show-trying" M=./drivers/mfd/arizona-irq.c
+#
+# "--show-trying" should show you what rule is being processed as it goes to
+# stdout, you do not need a debug file for that. The profile output will be
+# be sent to stdout, if you provide a DEBUG_FILE the profiling data can be
+# inspected there.
+#
+# --profile will not output if --very-quiet is used, so avoid it.
+echo $SPFLAGS | egrep -e "--profile|--show-trying" 2>&1 > /dev/null
+if [ $? -eq 0 ]; then
+	FLAGS="--quiet"
+fi
+
+# spatch only allows include directories with the syntax "-I include"
+# while gcc also allows "-Iinclude" and "-include include"
+COCCIINCLUDE=${LINUXINCLUDE//-I/-I }
+COCCIINCLUDE=${COCCIINCLUDE// -include/ --include}
+
+if [ "$C" = "1" -o "$C" = "2" ]; then
+    ONLINE=1
+
+    if [[ $# -le 0 ]]; then
+	    echo ''
+	    echo 'Specifying both the variable "C" and rule "coccicheck" in the make
+command results in a shift count error.'
+	    echo ''
+	    echo 'Try specifying "scripts/coccicheck" as a value for the CHECK variable instead.'
+	    echo ''
+	    echo 'Example:	make C=2 CHECK=scripts/coccicheck drivers/net/ethernet/ethoc.o'
+	    echo ''
+	    exit 1
+    fi
+
+    # Take only the last argument, which is the C file to test
+    shift $(( $# - 1 ))
+    OPTIONS="$COCCIINCLUDE $1"
+
+    # No need to parallelize Coccinelle since this mode takes one input file.
+    NPROC=1
+else
+    ONLINE=0
+    if [ "$KBUILD_EXTMOD" = "" ] ; then
+        OPTIONS="--dir $srctree $COCCIINCLUDE"
+    else
+        OPTIONS="--dir $KBUILD_EXTMOD $COCCIINCLUDE"
+    fi
+
+    # Use only one thread per core by default if hyperthreading is enabled
+    THREADS_PER_CORE=$(LANG=C lscpu | grep "Thread(s) per core: " | tr -cd "[:digit:]")
+    if [ -z "$J" ]; then
+        NPROC=$(getconf _NPROCESSORS_ONLN)
+	if [ $THREADS_PER_CORE -gt 1 -a $NPROC -gt 4 ] ; then
+		NPROC=$((NPROC/2))
+	fi
+    else
+        NPROC="$J"
+    fi
+fi
+
+if [ "$KBUILD_EXTMOD" != "" ] ; then
+    OPTIONS="--patch $srctree $OPTIONS"
+fi
+
+# You can override by using SPFLAGS
+if [ "$USE_JOBS" = "no" ]; then
+	trap kill_running SIGTERM SIGINT
+	declare -a SPATCH_PID
+elif [ "$NPROC" != "1" ]; then
+	# Using 0 should work as well, refer to _SC_NPROCESSORS_ONLN use on
+	# https://github.com/rdicosmo/parmap/blob/master/setcore_stubs.c
+	OPTIONS="$OPTIONS --jobs $NPROC --chunksize 1"
+fi
+
+if [ "$MODE" = "" ] ; then
+    if [ "$ONLINE" = "0" ] ; then
+	echo 'You have not explicitly specified the mode to use. Using default "report" mode.'
+	echo 'Available modes are the following: patch, report, context, org, chain'
+	echo 'You can specify the mode with "make coccicheck MODE=<mode>"'
+	echo 'Note however that some modes are not implemented by some semantic patches.'
+    fi
+    MODE="report"
+fi
+
+if [ "$MODE" = "chain" ] ; then
+    if [ "$ONLINE" = "0" ] ; then
+	echo 'You have selected the "chain" mode.'
+	echo 'All available modes will be tried (in that order): patch, report, context, org'
+    fi
+elif [ "$MODE" = "report" -o "$MODE" = "org" ] ; then
+    FLAGS="--no-show-diff $FLAGS"
+fi
+
+if [ "$ONLINE" = "0" ] ; then
+    echo ''
+    echo 'Please check for false positives in the output before submitting a patch.'
+    echo 'When using "patch" mode, carefully review the patch before submitting it.'
+    echo ''
+fi
+
+run_cmd_parmap() {
+	if [ $VERBOSE -ne 0 ] ; then
+		echo "Running ($NPROC in parallel): $@"
+	fi
+	if [ "$DEBUG_FILE" != "/dev/null" -a "$DEBUG_FILE" != "" ]; then
+                echo $@>>$DEBUG_FILE
+                $@ 2>>$DEBUG_FILE
+        else
+                echo $@
+                $@ 2>&1
+	fi
+
+	err=$?
+	if [[ $err -ne 0 ]]; then
+		echo "coccicheck failed"
+		exit $err
+	fi
+}
+
+run_cmd_old() {
+	local i
+	if [ $VERBOSE -ne 0 ] ; then
+		echo "Running ($NPROC in parallel): $@"
+	fi
+	for i in $(seq 0 $(( NPROC - 1)) ); do
+		eval "$@ --max $NPROC --index $i &"
+		SPATCH_PID[$i]=$!
+		if [ $VERBOSE -eq 2 ] ; then
+			echo "${SPATCH_PID[$i]} running"
+		fi
+	done
+	wait
+}
+
+run_cmd() {
+	if [ "$USE_JOBS" = "yes" ]; then
+		run_cmd_parmap $@
+	else
+		run_cmd_old $@
+	fi
+}
+
+kill_running() {
+	for i in $(seq 0 $(( NPROC - 1 )) ); do
+		if [ $VERBOSE -eq 2 ] ; then
+			echo "Killing ${SPATCH_PID[$i]}"
+		fi
+		kill ${SPATCH_PID[$i]} 2>/dev/null
+	done
+}
+
+# You can override heuristics with SPFLAGS, these must always go last
+OPTIONS="$OPTIONS $SPFLAGS"
+
+coccinelle () {
+    COCCI="$1"
+
+    OPT=`grep "Options:" $COCCI | cut -d':' -f2`
+    REQ=`grep "Requires:" $COCCI | cut -d':' -f2 | sed "s| ||"`
+    if [ -n "$REQ" ] && ! { echo "$REQ"; echo "$SPATCH_VERSION"; } | sort -CV ; then
+	    echo "Skipping coccinelle SmPL patch: $COCCI"
+	    echo "You have coccinelle:           $SPATCH_VERSION"
+	    echo "This SmPL patch requires:      $REQ"
+	    return
+    fi
+
+#   The option '--parse-cocci' can be used to syntactically check the SmPL files.
+#
+#    $SPATCH -D $MODE $FLAGS -parse_cocci $COCCI $OPT > /dev/null
+
+    if [ $VERBOSE -ne 0 -a $ONLINE -eq 0 ] ; then
+
+	FILE=${COCCI#$srctree/}
+
+	echo "Processing `basename $COCCI`"
+	echo "with option(s) \"$OPT\""
+	echo ''
+	echo 'Message example to submit a patch:'
+
+	sed -ne 's|^///||p' $COCCI
+
+	if [ "$MODE" = "patch" ] ; then
+	    echo ' The semantic patch that makes this change is available'
+	elif [ "$MODE" = "report" ] ; then
+	    echo ' The semantic patch that makes this report is available'
+	elif [ "$MODE" = "context" ] ; then
+	    echo ' The semantic patch that spots this code is available'
+	elif [ "$MODE" = "org" ] ; then
+	    echo ' The semantic patch that makes this Org report is available'
+	else
+	    echo ' The semantic patch that makes this output is available'
+	fi
+	echo " in $FILE."
+	echo ''
+	echo ' More information about semantic patching is available at'
+	echo ' http://coccinelle.lip6.fr/'
+	echo ''
+
+	if [ "`sed -ne 's|^//#||p' $COCCI`" ] ; then
+	    echo 'Semantic patch information:'
+	    sed -ne 's|^//#||p' $COCCI
+	    echo ''
+	fi
+    fi
+
+    if [ "$MODE" = "chain" ] ; then
+	run_cmd $SPATCH -D patch   \
+		$FLAGS --cocci-file $COCCI $OPT $OPTIONS               || \
+	run_cmd $SPATCH -D report  \
+		$FLAGS --cocci-file $COCCI $OPT $OPTIONS --no-show-diff || \
+	run_cmd $SPATCH -D context \
+		$FLAGS --cocci-file $COCCI $OPT $OPTIONS               || \
+	run_cmd $SPATCH -D org     \
+		$FLAGS --cocci-file $COCCI $OPT $OPTIONS --no-show-diff || exit 1
+    elif [ "$MODE" = "rep+ctxt" ] ; then
+	run_cmd $SPATCH -D report  \
+		$FLAGS --cocci-file $COCCI $OPT $OPTIONS --no-show-diff && \
+	run_cmd $SPATCH -D context \
+		$FLAGS --cocci-file $COCCI $OPT $OPTIONS || exit 1
+    else
+	run_cmd $SPATCH -D $MODE   $FLAGS --cocci-file $COCCI $OPT $OPTIONS || exit 1
+    fi
+
+}
+
+if [ "$DEBUG_FILE" != "/dev/null" -a "$DEBUG_FILE" != "" ]; then
+	if [ -f $DEBUG_FILE ]; then
+		echo "Debug file $DEBUG_FILE exists, bailing"
+		exit
+	fi
+else
+	DEBUG_FILE="/dev/null"
+fi
+
+if [ "$COCCI" = "" ] ; then
+    for f in `find $srctree/scripts/coccinelle/ -name '*.cocci' -type f | sort`; do
+	coccinelle $f
+    done
+else
+    coccinelle $COCCI
+fi

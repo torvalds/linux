@@ -1,0 +1,44 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Device Tree file for Freescale LS1012A FRWY Board.
+ *
+ * Copyright 2018 NXP
+ *
+ * Pramod Kumar <pramod.kumar_1@nxp.com>
+ *
+ */
+/dts-v1/;
+
+#include "fsl-ls1012a.dtsi"
+
+/ {
+	model = "LS1012A FRWY Board";
+	compatible = "fsl,ls1012a-frwy", "fsl,ls1012a";
+};
+
+&duart0 {
+	status = "okay";
+};
+
+&i2c0 {
+	status = "okay";
+};
+
+&pcie1 {
+	status = "okay";
+};
+
+&qspi {
+	status = "okay";
+
+	w25q16dw0: flash@0 {
+		compatible = "jedec,spi-nor";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		m25p,fast-read;
+		spi-max-frequency = <50000000>;
+		reg = <0>;
+		spi-rx-bus-width = <2>;
+		spi-tx-bus-width = <2>;
+	};
+};

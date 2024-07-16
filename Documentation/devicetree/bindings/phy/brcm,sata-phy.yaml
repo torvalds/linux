@@ -1,0 +1,144 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/phy/brcm,sata-phy.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: Broadcom SATA3 PHY
+
+maintainers:
+  - Florian Fainelli <f.fainelli@gmail.com>
+
+properties:
+  $nodename:
+    pattern: "^sata[-|_]phy(@.*)?$"
+
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - brcm,bcm7216-sata-phy
+              - brcm,bcm7425-sata-phy
+              - brcm,bcm7445-sata-phy
+              - brcm,bcm63138-sata-phy
+          - const: brcm,phy-sata3
+      - items:
+          - const: brcm,iproc-nsp-sata-phy
+      - items:
+          - const: brcm,iproc-ns2-sata-phy
+      - items:
+          - const: brcm,iproc-sr-sata-phy
+
+  reg:
+    minItems: 1
+    maxItems: 2
+
+  reg-names:
+    minItems: 1
+    items:
+      - const: phy
+      - const: phy-ctrl
+
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 0
+
+patternProperties:
+  "^sata-phy@[0-9]+$":
+    type: object
+    description: |
+      Each port's PHY should be represented as a sub-node.
+
+    properties:
+      reg:
+        description: The SATA PHY port number
+        maxItems: 1
+
+      "#phy-cells":
+        const: 0
+
+      "brcm,enable-ssc":
+        $ref: /schemas/types.yaml#/definitions/flag
+        description: |
+          Use spread spectrum clocking (SSC) on this port
+          This property is not applicable for "brcm,iproc-ns2-sata-phy",
+          "brcm,iproc-nsp-sata-phy" and "brcm,iproc-sr-sata-phy".
+
+      "brcm,rxaeq-mode":
+        $ref: /schemas/types.yaml#/definitions/string
+        description:
+          String that indicates the desired RX equalizer mode.
+        enum:
+          - off
+          - auto
+          - manual
+
+      "brcm,rxaeq-value":
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description: |
+            When 'brcm,rxaeq-mode' is set to "manual", provides the RX
+            equalizer value that should be used.
+        minimum: 0
+        maximum: 63
+
+      "brcm,tx-amplitude-millivolt":
+        description: |
+            Transmit amplitude voltage in millivolt.
+        $ref: /schemas/types.yaml#/definitions/uint32
+        enum: [400, 500, 600, 800]
+
+    required:
+      - reg
+      - "#phy-cells"
+
+    additionalProperties: false
+
+if:
+  properties:
+    compatible:
+      const: brcm,iproc-ns2-sata-phy
+then:
+  properties:
+    reg:
+      minItems: 2
+
+    reg-names:
+      minItems: 2
+else:
+  properties:
+    reg:
+      maxItems: 1
+
+    reg-names:
+      maxItems: 1
+
+required:
+  - compatible
+  - "#address-cells"
+  - "#size-cells"
+  - reg
+  - reg-names
+
+additionalProperties: false
+
+examples:
+  - |
+    sata_phy@f0458100 {
+        compatible = "brcm,bcm7445-sata-phy", "brcm,phy-sata3";
+        reg = <0xf0458100 0x1e00>;
+        reg-names = "phy";
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        sata-phy@0 {
+                reg = <0>;
+                #phy-cells = <0>;
+        };
+
+        sata-phy@1 {
+                reg = <1>;
+                #phy-cells = <0>;
+        };
+    };

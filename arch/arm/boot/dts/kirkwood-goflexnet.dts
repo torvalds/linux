@@ -1,0 +1,190 @@
+// SPDX-License-Identifier: GPL-2.0
+/dts-v1/;
+
+#include "kirkwood.dtsi"
+#include "kirkwood-6281.dtsi"
+
+/ {
+	model = "Seagate GoFlex Net";
+	compatible = "seagate,goflexnet", "marvell,kirkwood-88f6281", "marvell,kirkwood";
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x8000000>;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200n8 earlyprintk root=/dev/sda1 rootdelay=10";
+		stdout-path = &uart0;
+	};
+
+	ocp@f1000000 {
+		pinctrl: pin-controller@10000 {
+			pmx_usb_power_enable: pmx-usb-power-enable {
+				marvell,pins = "mpp29";
+				marvell,function = "gpio";
+			};
+			pmx_led_right_cap_0: pmx-led_right_cap_0 {
+				marvell,pins = "mpp38";
+				marvell,function = "gpio";
+			};
+			pmx_led_right_cap_1: pmx-led_right_cap_1 {
+				marvell,pins = "mpp39";
+				marvell,function = "gpio";
+			};
+			pmx_led_right_cap_2: pmx-led_right_cap_2 {
+				marvell,pins = "mpp40";
+				marvell,function = "gpio";
+			};
+			pmx_led_right_cap_3: pmx-led_right_cap_3 {
+				marvell,pins = "mpp41";
+				marvell,function = "gpio";
+			};
+			pmx_led_left_cap_0: pmx-led_left_cap_0 {
+				marvell,pins = "mpp42";
+				marvell,function = "gpio";
+			};
+			pmx_led_left_cap_1: pmx-led_left_cap_1 {
+				marvell,pins = "mpp43";
+				marvell,function = "gpio";
+			};
+			pmx_led_left_cap_2: pmx-led_left_cap_2 {
+				marvell,pins = "mpp44";
+				marvell,function = "gpio";
+			};
+			pmx_led_left_cap_3: pmx-led_left_cap_3 {
+				marvell,pins = "mpp45";
+				marvell,function = "gpio";
+			};
+			pmx_led_green: pmx-led_green {
+				marvell,pins = "mpp46";
+				marvell,function = "gpio";
+			};
+			pmx_led_orange: pmx-led_orange {
+				marvell,pins = "mpp47";
+				marvell,function = "gpio";
+			};
+		};
+		serial@12000 {
+			status = "okay";
+		};
+
+		sata@80000 {
+			status = "okay";
+			nr-ports = <2>;
+		};
+
+	};
+	gpio-leds {
+		compatible = "gpio-leds";
+		pinctrl-0 = < &pmx_led_orange
+			      &pmx_led_left_cap_0 &pmx_led_left_cap_1
+			      &pmx_led_left_cap_2 &pmx_led_left_cap_3
+			      &pmx_led_right_cap_0 &pmx_led_right_cap_1
+			      &pmx_led_right_cap_2 &pmx_led_right_cap_3
+			    >;
+		pinctrl-names = "default";
+
+		health {
+			label = "status:green:health";
+			gpios = <&gpio1 14 GPIO_ACTIVE_LOW>;
+			default-state = "keep";
+		};
+		fault {
+			label = "status:orange:fault";
+			gpios = <&gpio1 15 GPIO_ACTIVE_LOW>;
+		};
+		left0 {
+			label = "status:white:left0";
+			gpios = <&gpio1 10 GPIO_ACTIVE_HIGH>;
+		};
+		left1 {
+			label = "status:white:left1";
+			gpios = <&gpio1 11 GPIO_ACTIVE_HIGH>;
+		};
+		left2 {
+			label = "status:white:left2";
+			gpios = <&gpio1 12 GPIO_ACTIVE_HIGH>;
+		};
+		left3 {
+			label = "status:white:left3";
+			gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;
+		};
+		right0 {
+			label = "status:white:right0";
+			gpios = <&gpio1 6 GPIO_ACTIVE_HIGH>;
+		};
+		right1 {
+			label = "status:white:right1";
+			gpios = <&gpio1 7 GPIO_ACTIVE_HIGH>;
+		};
+		right2 {
+			label = "status:white:right2";
+			gpios = <&gpio1 8 GPIO_ACTIVE_HIGH>;
+		};
+		right3 {
+			label = "status:white:right3";
+			gpios = <&gpio1 9 GPIO_ACTIVE_HIGH>;
+		};
+	};
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-0 = <&pmx_usb_power_enable>;
+		pinctrl-names = "default";
+
+		usb_power: regulator@1 {
+			compatible = "regulator-fixed";
+			reg = <1>;
+			regulator-name = "USB Power";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			enable-active-high;
+			regulator-always-on;
+			regulator-boot-on;
+			gpio = <&gpio0 29 GPIO_ACTIVE_HIGH>;
+		};
+	};
+};
+
+&nand {
+	chip-delay = <40>;
+	status = "okay";
+
+	partition@0 {
+		label = "u-boot";
+		reg = <0x0000000 0x100000>;
+		read-only;
+	};
+
+	partition@100000 {
+		label = "uImage";
+		reg = <0x0100000 0x400000>;
+	};
+
+	partition@500000 {
+		label = "pogoplug";
+		reg = <0x0500000 0x2000000>;
+	};
+
+	partition@2500000 {
+		label = "root";
+		reg = <0x02500000 0xd800000>;
+	};
+};
+
+&mdio {
+	status = "okay";
+
+	ethphy0: ethernet-phy@0 {
+		reg = <0>;
+	};
+};
+
+&eth0 {
+	status = "okay";
+	ethernet0-port@0 {
+		phy-handle = <&ethphy0>;
+	};
+};

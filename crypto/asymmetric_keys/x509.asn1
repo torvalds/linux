@@ -1,0 +1,60 @@
+Certificate ::= SEQUENCE {
+	tbsCertificate		TBSCertificate ({ x509_note_tbs_certificate }),
+	signatureAlgorithm	AlgorithmIdentifier,
+	signature		BIT STRING ({ x509_note_signature })
+	}
+
+TBSCertificate ::= SEQUENCE {
+	version           [ 0 ]	Version DEFAULT,
+	serialNumber		CertificateSerialNumber ({ x509_note_serial }),
+	signature		AlgorithmIdentifier ({ x509_note_sig_algo }),
+	issuer			Name ({ x509_note_issuer }),
+	validity		Validity,
+	subject			Name ({ x509_note_subject }),
+	subjectPublicKeyInfo	SubjectPublicKeyInfo,
+	issuerUniqueID    [ 1 ]	IMPLICIT UniqueIdentifier OPTIONAL,
+	subjectUniqueID   [ 2 ]	IMPLICIT UniqueIdentifier OPTIONAL,
+	extensions        [ 3 ]	Extensions OPTIONAL
+	}
+
+Version ::= INTEGER
+CertificateSerialNumber ::= INTEGER
+
+AlgorithmIdentifier ::= SEQUENCE {
+	algorithm		OBJECT IDENTIFIER ({ x509_note_OID }),
+	parameters		ANY OPTIONAL ({ x509_note_params })
+}
+
+Name ::= SEQUENCE OF RelativeDistinguishedName
+
+RelativeDistinguishedName ::= SET OF AttributeValueAssertion
+
+AttributeValueAssertion ::= SEQUENCE {
+	attributeType		OBJECT IDENTIFIER ({ x509_note_OID }),
+	attributeValue		ANY ({ x509_extract_name_segment })
+	}
+
+Validity ::= SEQUENCE {
+	notBefore		Time ({ x509_note_not_before }),
+	notAfter		Time ({ x509_note_not_after })
+	}
+
+Time ::= CHOICE {
+	utcTime			UTCTime,
+	generalTime		GeneralizedTime
+	}
+
+SubjectPublicKeyInfo ::= SEQUENCE {
+	algorithm		AlgorithmIdentifier,
+	subjectPublicKey	BIT STRING ({ x509_extract_key_data })
+	}
+
+UniqueIdentifier ::= BIT STRING
+
+Extensions ::= SEQUENCE OF Extension
+
+Extension ::= SEQUENCE {
+	extnid			OBJECT IDENTIFIER ({ x509_note_OID }),
+	critical		BOOLEAN DEFAULT,
+	extnValue		OCTET STRING ({ x509_process_extension })
+	}

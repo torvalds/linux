@@ -1,0 +1,40 @@
+Binding for a ST pll clock driver.
+
+This binding uses the common clock binding[1].
+Base address is located to the parent node. See clock binding[2]
+
+[1] Documentation/devicetree/bindings/clock/clock-bindings.txt
+[2] Documentation/devicetree/bindings/clock/st/st,clkgen.txt
+
+Required properties:
+
+- compatible : shall be:
+	"st,clkgen-pll0"
+	"st,clkgen-pll0-a0"
+	"st,clkgen-pll0-c0"
+	"st,clkgen-pll1"
+	"st,clkgen-pll1-c0"
+	"st,stih407-clkgen-plla9"
+	"st,stih418-clkgen-plla9"
+
+- #clock-cells : From common clock binding; shall be set to 1.
+
+- clocks : From common clock binding
+
+- clock-output-names : From common clock binding.
+
+Example:
+
+	clockgen-a9@92b0000 {
+		compatible = "st,clkgen-c32";
+		reg = <0x92b0000 0xffff>;
+
+		clockgen_a9_pll: clockgen-a9-pll {
+			#clock-cells = <1>;
+			compatible = "st,stih407-clkgen-plla9";
+
+			clocks = <&clk_sysin>;
+
+			clock-output-names = "clockgen-a9-pll-odf";
+		};
+	};

@@ -1,0 +1,69 @@
+MAX8907 regulator
+
+Required properties:
+- compatible: "maxim,max8907"
+- reg: I2C slave address
+- interrupts: The interrupt output of the controller
+- mbatt-supply: The input supply for MBATT, BBAT, SDBY, VRTC.
+- in-v1-supply: The input supply for SD1.
+- in-v2-supply: The input supply for SD2.
+- in-v3-supply: The input supply for SD3.
+- in1-supply: The input supply for LDO1.
+...
+- in20-supply: The input supply for LDO20.
+- regulators: A node that houses a sub-node for each regulator within the
+  device. Each sub-node is identified using the node's name (or the deprecated
+  regulator-compatible property if present), with valid values listed below.
+  The content of each sub-node is defined by the standard binding for
+  regulators; see regulator.txt.
+
+Optional properties:
+- maxim,system-power-controller: Boolean property indicating that the PMIC
+  controls the overall system power.
+
+The valid names for regulators are:
+
+  sd1, sd2, sd3, ldo1, ldo2, ldo3, ldo4, ldo5, ldo6, ldo7, ldo8, ldo9, ldo10,
+  ldo11, ldo12, ldo13, ldo14, ldo15, ldo16, ldo17, ldo18, ldo19, ldo20, out5v,
+  out33v, bbat, sdby, vrtc.
+
+Example:
+
+		max8907@3c {
+			compatible = "maxim,max8907";
+			reg = <0x3c>;
+			interrupts = <0 86 0x4>;
+
+			maxim,system-power-controller;
+
+			mbatt-supply = <&some_reg>;
+			in-v1-supply = <&mbatt_reg>;
+			...
+			in1-supply = <&mbatt_reg>;
+			...
+
+			regulators {
+				mbatt_reg: mbatt {
+					regulator-name = "vbat_pmu";
+					regulator-min-microvolt = <5000000>;
+					regulator-max-microvolt = <5000000>;
+					regulator-always-on;
+				};
+
+				sd1 {
+					regulator-name = "nvvdd_sv1,vdd_cpu_pmu";
+					regulator-min-microvolt = <1000000>;
+					regulator-max-microvolt = <1000000>;
+					regulator-always-on;
+				};
+
+				sd2 {
+					regulator-name = "nvvdd_sv2,vdd_core";
+					regulator-min-microvolt = <1200000>;
+					regulator-max-microvolt = <1200000>;
+					regulator-always-on;
+				};
+...
+			};
+		};
+	};

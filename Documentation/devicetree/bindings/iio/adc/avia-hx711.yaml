@@ -1,0 +1,67 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/iio/adc/avia-hx711.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: AVIA HX711 ADC chip for weight cells
+
+maintainers:
+  - Andreas Klinger <ak@it-klinger.de>
+
+description: |
+  Bit-banging driver using two GPIOs:
+  - sck-gpio gives a clock to the sensor with 24 cycles for data retrieval
+    and up to 3 cycles for selection of the input channel and gain for the
+    next measurement
+  - dout-gpio is the sensor data the sensor responds to the clock
+
+  Specifications about the driver can be found at:
+  http://www.aviaic.com/ENProducts.aspx
+
+properties:
+  compatible:
+    enum:
+      - avia,hx711
+
+  sck-gpios:
+    description:
+      Definition of the GPIO for the clock (output). In the datasheet it is
+      named PD_SCK
+    maxItems: 1
+
+  dout-gpios:
+    description:
+      Definition of the GPIO for the data-out sent by the sensor in
+      response to the clock (input).
+      See Documentation/devicetree/bindings/gpio/gpio.txt for information
+      on how to specify a consumer gpio.
+    maxItems: 1
+
+  avdd-supply:
+    description:
+      Definition of the regulator used as analog supply
+
+  clock-frequency:
+    minimum: 20000
+    maximum: 2500000
+    default: 400000
+
+required:
+  - compatible
+  - sck-gpios
+  - dout-gpios
+  - avdd-supply
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    weight {
+        compatible = "avia,hx711";
+        sck-gpios = <&gpio3 10 GPIO_ACTIVE_HIGH>;
+        dout-gpios = <&gpio0 7 GPIO_ACTIVE_HIGH>;
+        avdd-supply = <&avdd>;
+        clock-frequency = <100000>;
+    };

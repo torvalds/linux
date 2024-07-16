@@ -1,0 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+comment "Amlogic media platform drivers"
+
+source "drivers/media/platform/amlogic/meson-ge2d/Kconfig"

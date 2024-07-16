@@ -1,0 +1,198 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/tegra/nvidia,tegra186-pmc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NVIDIA Tegra Power Management Controller (PMC)
+
+maintainers:
+  - Thierry Reding <thierry.reding@gmail.com>
+  - Jon Hunter <jonathanh@nvidia.com>
+
+properties:
+  compatible:
+    enum:
+      - nvidia,tegra186-pmc
+      - nvidia,tegra194-pmc
+      - nvidia,tegra234-pmc
+
+  reg:
+    minItems: 4
+    maxItems: 5
+
+  reg-names:
+    minItems: 4
+    items:
+      - const: pmc
+      - const: wake
+      - const: aotag
+      - const: scratch
+      - const: misc
+
+  interrupt-controller: true
+
+  "#interrupt-cells":
+    description: Specifies the number of cells needed to encode an
+      interrupt source. The value must be 2.
+    const: 2
+
+  nvidia,invert-interrupt:
+    description: If present, inverts the PMU interrupt signal.
+    $ref: /schemas/types.yaml#/definitions/flag
+
+if:
+  properties:
+    compatible:
+      contains:
+        const: nvidia,tegra186-pmc
+then:
+  properties:
+    reg:
+      maxItems: 4
+
+    reg-names:
+      maxItems: 4
+else:
+  properties:
+    reg:
+      minItems: 5
+
+    reg-names:
+      minItems: 5
+
+patternProperties:
+  "^[a-z0-9]+-[a-z0-9]+$":
+    if:
+      type: object
+    then:
+      description: |
+        These are pad configuration nodes. On Tegra SoCs a pad is a set of
+        pins which are configured as a group. The pin grouping is a fixed
+        attribute of the hardware. The PMC can be used to set pad power
+        state and signaling voltage. A pad can be either in active or
+        power down mode. The support for power state and signaling voltage
+        configuration varies depending on the pad in question. 3.3 V and
+        1.8 V signaling voltages are supported on pins where software
+        controllable signaling voltage switching is available.
+
+        Pad configurations are described with pin configuration nodes
+        which are placed under the pmc node and they are referred to by
+        the pinctrl client properties. For more information see
+
+          Documentation/devicetree/bindings/pinctrl/pinctrl-bindings.txt
+
+        The following pads are present on Tegra186:
+
+          csia, csib, dsi, mipi-bias, pex-clk-bias, pex-clk3, pex-clk2,
+          pex-clk1, usb0, usb1, usb2, usb-bias, uart, audio, hsic, dbg,
+          hdmi-dp0, hdmi-dp1, pex-cntrl, sdmmc2-hv, sdmmc4, cam, dsib,
+          dsic, dsid, csic, csid, csie, dsif, spi, ufs, dmic-hv, edp,
+          sdmmc1-hv, sdmmc3-hv, conn, audio-hv, ao-hv
+
+        The following pads are present on Tegra194:
+
+          csia, csib, mipi-bias, pex-clk-bias, pex-clk3, pex-clk2,
+          pex-clk1, eqos, pex-clk-2-bias, pex-clk-2, dap3, dap5, uart,
+          pwr-ctl, soc-gpio53, audio, gp-pwm2, gp-pwm3, soc-gpio12,
+          soc-gpio13, soc-gpio10, uart4, uart5, dbg, hdmi-dp3, hdmi-dp2,
+          hdmi-dp0, hdmi-dp1, pex-cntrl, pex-ctl2, pex-l0-rst,
+          pex-l1-rst, sdmmc4, pex-l5-rst, cam, csic, csid, csie, csif,
+          spi, ufs, csig, csih, edp, sdmmc1-hv, sdmmc3-hv, conn,
+          audio-hv, ao-hv
+
+      properties:
+        pins:
+          $ref: /schemas/types.yaml#/definitions/string
+          description: Must contain the name of the pad(s) to be
+            configured.
+
+        low-power-enable:
+          description: Configure the pad into power down mode.
+          $ref: /schemas/types.yaml#/definitions/flag
+
+        low-power-disable:
+          description: Configure the pad into active mode.
+          $ref: /schemas/types.yaml#/definitions/flag
+
+        power-source:
+          $ref: /schemas/types.yaml#/definitions/uint32
+          description: |
+            Must contain either TEGRA_IO_PAD_VOLTAGE_1V8 or
+            TEGRA_IO_PAD_VOLTAGE_3V3 to select between signalling
+            voltages.
+
+            The values are defined in
+
+              include/dt-bindings/pinctrl/pinctrl-tegra-io-pad.h
+
+            The power state can be configured on all of the above pads
+            except for ao-hv. Following pads have software configurable
+            signaling voltages: sdmmc2-hv, dmic-hv, sdmmc1-hv, sdmmc3-hv,
+            audio-hv, ao-hv.
+
+        phandle: true
+
+      required:
+        - pins
+
+      additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - reg-names
+
+additionalProperties: false
+
+dependencies:
+  interrupt-controller: ['#interrupt-cells']
+  "#interrupt-cells":
+    required:
+      - interrupt-controller
+
+examples:
+  - |
+    #include <dt-bindings/clock/tegra186-clock.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/pinctrl/pinctrl-tegra-io-pad.h>
+    #include <dt-bindings/memory/tegra186-mc.h>
+    #include <dt-bindings/reset/tegra186-reset.h>
+
+    pmc@c3600000 {
+        compatible = "nvidia,tegra186-pmc";
+        reg = <0x0c360000 0x10000>,
+              <0x0c370000 0x10000>,
+              <0x0c380000 0x10000>,
+              <0x0c390000 0x10000>;
+        reg-names = "pmc", "wake", "aotag", "scratch";
+        nvidia,invert-interrupt;
+
+        sdmmc1_3v3: sdmmc1-3v3 {
+            pins = "sdmmc1-hv";
+            power-source = <TEGRA_IO_PAD_VOLTAGE_3V3>;
+        };
+
+        sdmmc1_1v8: sdmmc1-1v8 {
+            pins = "sdmmc1-hv";
+            power-source = <TEGRA_IO_PAD_VOLTAGE_1V8>;
+        };
+    };
+
+    sdmmc1: mmc@3400000 {
+        compatible = "nvidia,tegra186-sdhci";
+        reg = <0x03400000 0x10000>;
+        interrupts = <GIC_SPI 62 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&bpmp TEGRA186_CLK_SDMMC1>,
+                 <&bpmp TEGRA186_CLK_SDMMC_LEGACY_TM>;
+        clock-names = "sdhci", "tmclk";
+        resets = <&bpmp TEGRA186_RESET_SDMMC1>;
+        reset-names = "sdhci";
+        interconnects = <&mc TEGRA186_MEMORY_CLIENT_SDMMCRA &emc>,
+                        <&mc TEGRA186_MEMORY_CLIENT_SDMMCWA &emc>;
+        interconnect-names = "dma-mem", "write";
+        iommus = <&smmu TEGRA186_SID_SDMMC1>;
+        pinctrl-names = "sdmmc-3v3", "sdmmc-1v8";
+        pinctrl-0 = <&sdmmc1_3v3>;
+        pinctrl-1 = <&sdmmc1_1v8>;
+    };

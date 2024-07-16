@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menuconfig ARCH_IXP4XX
+	bool "IXP4xx-based platforms"
+	depends on ARCH_MULTI_V5
+	depends on CPU_BIG_ENDIAN
+	select ARM_APPENDED_DTB # Old Redboot bootloaders deployed
+	select CPU_XSCALE
+	select GPIO_IXP4XX
+	select GPIOLIB
+	select FORCE_PCI
+	select I2C
+	select I2C_IOP3XX
+	select IXP4XX_IRQ
+	select IXP4XX_TIMER
+	select USB_EHCI_BIG_ENDIAN_DESC
+	select USB_EHCI_BIG_ENDIAN_MMIO
+	select USE_OF
+	help
+	  Support for Intel's IXP4XX (XScale) family of processors.

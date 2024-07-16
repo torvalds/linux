@@ -1,0 +1,316 @@
+[
+    {
+        "BriefDescription": "Counts the number of branch instructions retired...",
+        "Counter": "0,1",
+        "EventCode": "0xC4",
+        "EventName": "BR_INST_RETIRED.ALL_BRANCHES",
+        "PEBS": "1",
+        "PublicDescription": "ALL_BRANCHES counts the number of any branch instructions retired.  Branch prediction predicts the branch target and enables the processor to begin executing instructions long before the branch true execution path is known. All branches utilize the branch prediction unit (BPU) for prediction. This unit predicts the target address not only based on the EIP of the branch but also based on the execution path through which execution reached this EIP. The BPU can efficiently predict the following branch types: conditional branches, direct calls and jumps, indirect calls and jumps, returns.",
+        "SampleAfterValue": "200003"
+    },
+    {
+        "BriefDescription": "Counts the number of taken branch instructions retired",
+        "Counter": "0,1",
+        "EventCode": "0xC4",
+        "EventName": "BR_INST_RETIRED.ALL_TAKEN_BRANCHES",
+        "PEBS": "2",
+        "PEBScounters": "0,1",
+        "PublicDescription": "ALL_TAKEN_BRANCHES counts the number of all taken branch instructions retired.  Branch prediction predicts the branch target and enables the processor to begin executing instructions long before the branch true execution path is known. All branches utilize the branch prediction unit (BPU) for prediction. This unit predicts the target address not only based on the EIP of the branch but also based on the execution path through which execution reached this EIP. The BPU can efficiently predict the following branch types: conditional branches, direct calls and jumps, indirect calls and jumps, returns.",
+        "SampleAfterValue": "200003",
+        "UMask": "0x80"
+    },
+    {
+        "BriefDescription": "Counts the number of near CALL branch instructions retired",
+        "Counter": "0,1",
+        "EventCode": "0xC4",
+        "EventName": "BR_INST_RETIRED.CALL",
+        "PEBS": "1",
+        "PublicDescription": "CALL counts the number of near CALL branch instructions retired.  Branch prediction predicts the branch target and enables the processor to begin executing instructions long before the branch true execution path is known. All branches utilize the branch prediction unit (BPU) for prediction. This unit predicts the target address not only based on the EIP of the branch but also based on the execution path through which execution reached this EIP. The BPU can efficiently predict the following branch types: conditional branches, direct calls and jumps, indirect calls and jumps, returns.",
+        "SampleAfterValue": "200003",
+        "UMask": "0xf9"
+    },
+    {
+        "BriefDescription": "Counts the number of far branch instructions retired",
+        "Counter": "0,1",
+        "EventCode": "0xC4",
+        "EventName": "BR_INST_RETIRED.FAR_BRANCH",
+        "PEBS": "1",
+        "PublicDescription": "FAR counts the number of far branch instructions retired.  Branch prediction predicts the branch target and enables the processor to begin executing instructions long before the branch true execution path is known. All branches utilize the branch prediction unit (BPU) for prediction. This unit predicts the target address not only based on the EIP of the branch but also based on the execution path through which execution reached this EIP. The BPU can efficiently predict the following branch types: conditional branches, direct calls and jumps, indirect calls and jumps, returns.",
+        "SampleAfterValue": "200003",
+        "UMask": "0xbf"
+    },
+    {
+        "BriefDescription": "Counts the number of near indirect CALL branch instructions retired",
+        "Counter": "0,1",
+        "EventCode": "0xC4",
+        "EventName": "BR_INST_RETIRED.IND_CALL",
+        "PEBS": "1",
+        "PublicDescription": "IND_CALL counts the number of near indirect CALL branch instructions retired.  Branch prediction predicts the branch target and enables the processor to begin executing instructions long before the branch true execution path is known. All branches utilize the branch prediction unit (BPU) for prediction. This unit predicts the target address not only based on the EIP of the branch but also based on the execution path through which execution reached this EIP. The BPU can efficiently predict the following branch types: conditional branches, direct calls and jumps, indirect calls and jumps, returns.",
+        "SampleAfterValue": "200003",
+        "UMask": "0xfb"
+    },
+    {
+        "BriefDescription": "Counts the number of JCC branch instructions retired",
+        "Counter": "0,1",
+        "EventCode": "0xC4",
+        "EventName": "BR_INST_RETIRED.JCC",
+        "PEBS": "1",
+        "PublicDescription": "JCC counts the number of conditional branch (JCC) instructions retired. Branch prediction predicts the branch target and enables the processor to begin executing instructions long before the branch true execution path is known. All branches utilize the branch prediction unit (BPU) for prediction. This unit predicts the target address not only based on the EIP of the branch but also based on the execution path through which execution reached this EIP. The BPU can efficiently predict the following branch types: conditional branches, direct calls and jumps, indirect calls and jumps, returns.",
+        "SampleAfterValue": "200003",
+        "UMask": "0x7e"
+    },
+    {
+        "BriefDescription": "Counts the number of near indirect JMP and near indirect CALL branch instructions retired",
+        "Counter": "0,1",
+        "EventCode": "0xC4",
+        "EventName": "BR_INST_RETIRED.NON_RETURN_IND",
+        "PEBS": "1",
+        "PublicDescription": "NON_RETURN_IND counts the number of near indirect JMP and near indirect CALL branch instructions retired.  Branch prediction predicts the branch target and enables the processor to begin executing instructions long before the branch true execution path is known. All branches utilize the branch prediction unit (BPU) for prediction. This unit predicts the target address not only based on the EIP of the branch but also based on the execution path through which execution reached this EIP. The BPU can efficiently predict the following branch types: conditional branches, direct calls and jumps, indirect calls and jumps, returns.",
+        "SampleAfterValue": "200003",
+        "UMask": "0xeb"
+    },
+    {
+        "BriefDescription": "Counts the number of near relative CALL branch instructions retired",
+        "Counter": "0,1",
+        "EventCode": "0xC4",
+        "EventName": "BR_INST_RETIRED.REL_CALL",
+        "PEBS": "1",
+        "PublicDescription": "REL_CALL counts the number of near relative CALL branch instructions retired.  Branch prediction predicts the branch target and enables the processor to begin executing instructions long before the branch true execution path is known. All branches utilize the branch prediction unit (BPU) for prediction. This unit predicts the target address not only based on the EIP of the branch but also based on the execution path through which execution reached this EIP. The BPU can efficiently predict the following branch types: conditional branches, direct calls and jumps, indirect calls and jumps, returns.",
+        "SampleAfterValue": "200003",
+        "UMask": "0xfd"
+    },
+    {
+        "BriefDescription": "Counts the number of near RET branch instructions retired",
+        "Counter": "0,1",
+        "EventCode": "0xC4",
+        "EventName": "BR_INST_RETIRED.RETURN",
+        "PEBS": "1",
+        "PublicDescription": "RETURN counts the number of near RET branch instructions retired.  Branch prediction predicts the branch target and enables the processor to begin executing instructions long before the branch true execution path is known. All branches utilize the branch prediction unit (BPU) for prediction. This unit predicts the target address not only based on the EIP of the branch but also based on the execution path through which execution reached this EIP. The BPU can efficiently predict the following branch types: conditional branches, direct calls and jumps, indirect calls and jumps, returns.",
+        "SampleAfterValue": "200003",
+        "UMask": "0xf7"
+    },
+    {
+        "BriefDescription": "Counts the number of taken JCC branch instructions retired",
+        "Counter": "0,1",
+        "EventCode": "0xC4",
+        "EventName": "BR_INST_RETIRED.TAKEN_JCC",
+        "PEBS": "1",
+        "PublicDescription": "TAKEN_JCC counts the number of taken conditional branch (JCC) instructions retired. Branch prediction predicts the branch target and enables the processor to begin executing instructions long before the branch true execution path is known. All branches utilize the branch prediction unit (BPU) for prediction. This unit predicts the target address not only based on the EIP of the branch but also based on the execution path through which execution reached this EIP. The BPU can efficiently predict the following branch types: conditional branches, direct calls and jumps, indirect calls and jumps, returns.",
+        "SampleAfterValue": "200003",
+        "UMask": "0xfe"
+    },
+    {
+        "BriefDescription": "Counts the number of mispredicted branch instructions retired",
+        "Counter": "0,1",
+        "EventCode": "0xC5",
+        "EventName": "BR_MISP_RETIRED.ALL_BRANCHES",
+        "PEBS": "1",
+        "PublicDescription": "ALL_BRANCHES counts the number of any mispredicted branch instructions retired. This umask is an architecturally defined event. This event counts the number of retired branch instructions that were mispredicted by the processor, categorized by type. A branch misprediction occurs when the processor predicts that the branch would be taken, but it is not, or vice-versa.  When the misprediction is discovered, all the instructions executed in the wrong (speculative) path must be discarded, and the processor must start fetching from the correct path.",
+        "SampleAfterValue": "200003"
+    },
+    {
+        "BriefDescription": "Counts the number of mispredicted near indirect CALL branch instructions retired",
+        "Counter": "0,1",
+        "EventCode": "0xC5",
+        "EventName": "BR_MISP_RETIRED.IND_CALL",
+        "PEBS": "1",
+        "PublicDescription": "IND_CALL counts the number of mispredicted near indirect CALL branch instructions retired.  This event counts the number of retired branch instructions that were mispredicted by the processor, categorized by type. A branch misprediction occurs when the processor predicts that the branch would be taken, but it is not, or vice-versa.  When the misprediction is discovered, all the instructions executed in the wrong (speculative) path must be discarded, and the processor must start fetching from the correct path.",
+        "SampleAfterValue": "200003",
+        "UMask": "0xfb"
+    },
+    {
+        "BriefDescription": "Counts the number of mispredicted JCC branch instructions retired",
+        "Counter": "0,1",
+        "EventCode": "0xC5",
+        "EventName": "BR_MISP_RETIRED.JCC",
+        "PEBS": "1",
+        "PublicDescription": "JCC counts the number of mispredicted conditional branches (JCC) instructions retired.  This event counts the number of retired branch instructions that were mispredicted by the processor, categorized by type. A branch misprediction occurs when the processor predicts that the branch would be taken, but it is not, or vice-versa.  When the misprediction is discovered, all the instructions executed in the wrong (speculative) path must be discarded, and the processor must start fetching from the correct path.",
+        "SampleAfterValue": "200003",
+        "UMask": "0x7e"
+    },
+    {
+        "BriefDescription": "Counts the number of mispredicted near indirect JMP and near indirect CALL branch instructions retired",
+        "Counter": "0,1",
+        "EventCode": "0xC5",
+        "EventName": "BR_MISP_RETIRED.NON_RETURN_IND",
+        "PEBS": "1",
+        "PublicDescription": "NON_RETURN_IND counts the number of mispredicted near indirect JMP and near indirect CALL branch instructions retired.  This event counts the number of retired branch instructions that were mispredicted by the processor, categorized by type. A branch misprediction occurs when the processor predicts that the branch would be taken, but it is not, or vice-versa.  When the misprediction is discovered, all the instructions executed in the wrong (speculative) path must be discarded, and the processor must start fetching from the correct path.",
+        "SampleAfterValue": "200003",
+        "UMask": "0xeb"
+    },
+    {
+        "BriefDescription": "Counts the number of mispredicted near RET branch instructions retired",
+        "Counter": "0,1",
+        "EventCode": "0xC5",
+        "EventName": "BR_MISP_RETIRED.RETURN",
+        "PEBS": "1",
+        "PublicDescription": "RETURN counts the number of mispredicted near RET branch instructions retired.  This event counts the number of retired branch instructions that were mispredicted by the processor, categorized by type. A branch misprediction occurs when the processor predicts that the branch would be taken, but it is not, or vice-versa.  When the misprediction is discovered, all the instructions executed in the wrong (speculative) path must be discarded, and the processor must start fetching from the correct path.",
+        "SampleAfterValue": "200003",
+        "UMask": "0xf7"
+    },
+    {
+        "BriefDescription": "Counts the number of mispredicted taken JCC branch instructions retired",
+        "Counter": "0,1",
+        "EventCode": "0xC5",
+        "EventName": "BR_MISP_RETIRED.TAKEN_JCC",
+        "PEBS": "1",
+        "PublicDescription": "TAKEN_JCC counts the number of mispredicted taken conditional branch (JCC) instructions retired.  This event counts the number of retired branch instructions that were mispredicted by the processor, categorized by type. A branch misprediction occurs when the processor predicts that the branch would be taken, but it is not, or vice-versa.  When the misprediction is discovered, all the instructions executed in the wrong (speculative) path must be discarded, and the processor must start fetching from the correct path.",
+        "SampleAfterValue": "200003",
+        "UMask": "0xfe"
+    },
+    {
+        "BriefDescription": "Fixed Counter: Counts the number of unhalted core clock cycles",
+        "Counter": "Fixed counter 2",
+        "EventName": "CPU_CLK_UNHALTED.CORE",
+        "PublicDescription": "Counts the number of core cycles while the core is not in a halt state. The core enters the halt state when it is running the HLT instruction. This event is a component in many key event ratios.  The core frequency may change from time to time. For this reason this event may have a changing ratio with regards to time. In systems with a constant core frequency, this event can give you a measurement of the elapsed time while the core was not in halt state by dividing the event count by the core frequency. This event is architecturally defined and is a designated fixed counter.  CPU_CLK_UNHALTED.CORE and CPU_CLK_UNHALTED.CORE_P use the core frequency which may change from time to time.  CPU_CLK_UNHALTE.REF_TSC and CPU_CLK_UNHALTED.REF are not affected by core frequency changes but counts as if the core is running at the maximum frequency all the time.  The fixed events are CPU_CLK_UNHALTED.CORE and CPU_CLK_UNHALTED.REF_TSC and the programmable events are CPU_CLK_UNHALTED.CORE_P and CPU_CLK_UNHALTED.REF.",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x2"
+    },
+    {
+        "BriefDescription": "Core cycles when core is not halted",
+        "Counter": "0,1",
+        "EventCode": "0x3C",
+        "EventName": "CPU_CLK_UNHALTED.CORE_P",
+        "PublicDescription": "This event counts the number of core cycles while the core is not in a halt state. The core enters the halt state when it is running the HLT instruction. In mobile systems the core frequency may change from time to time. For this reason this event may have a changing ratio with regards to time.",
+        "SampleAfterValue": "2000003"
+    },
+    {
+        "BriefDescription": "Reference cycles when core is not halted",
+        "Counter": "0,1",
+        "EventCode": "0x3C",
+        "EventName": "CPU_CLK_UNHALTED.REF",
+        "PublicDescription": "This event counts the number of reference cycles that the core is not in a halt state. The core enters the halt state when it is running the HLT instruction. In mobile systems the core frequency may change from time. This event is not affected by core frequency changes but counts as if the core is running at the maximum frequency all the time.",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Fixed Counter: Counts the number of unhalted reference clock cycles",
+        "Counter": "Fixed counter 3",
+        "EventName": "CPU_CLK_UNHALTED.REF_TSC",
+        "PublicDescription": "Counts the number of reference cycles while the core is not in a halt state. The core enters the halt state when it is running the HLT instruction. This event is a component in many key event ratios.  The core frequency may change from time. This event is not affected by core frequency changes but counts as if the core is running at the maximum frequency all the time.  Divide this event count by core frequency to determine the elapsed time while the core was not in halt state.  Divide this event count by core frequency to determine the elapsed time while the core was not in halt state.  This event is architecturally defined and is a designated fixed counter.  CPU_CLK_UNHALTED.CORE and CPU_CLK_UNHALTED.CORE_P use the core frequency which may change from time to time.  CPU_CLK_UNHALTE.REF_TSC and CPU_CLK_UNHALTED.REF are not affected by core frequency changes but counts as if the core is running at the maximum frequency all the time.  The fixed events are CPU_CLK_UNHALTED.CORE and CPU_CLK_UNHALTED.REF_TSC and the programmable events are CPU_CLK_UNHALTED.CORE_P and CPU_CLK_UNHALTED.REF.",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x3"
+    },
+    {
+        "BriefDescription": "Cycles the divider is busy.  Does not imply a stall waiting for the divider.",
+        "Counter": "0,1",
+        "EventCode": "0xCD",
+        "EventName": "CYCLES_DIV_BUSY.ALL",
+        "PublicDescription": "Cycles the divider is busy.This event counts the cycles when the divide unit is unable to accept a new divide UOP because it is busy processing a previously dispatched UOP. The cycles will be counted irrespective of whether or not another divide UOP is waiting to enter the divide unit (from the RS). This event might count cycles while a divide is in progress even if the RS is empty.  The divide instruction is one of the longest latency instructions in the machine.  Hence, it has a special event associated with it to help determine if divides are delaying the retirement of instructions.",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Fixed Counter: Counts the number of instructions retired",
+        "Counter": "Fixed counter 1",
+        "EventName": "INST_RETIRED.ANY",
+        "PublicDescription": "This event counts the number of instructions that retire.  For instructions that consist of multiple micro-ops, this event counts exactly once, as the last micro-op of the instruction retires.  The event continues counting while instructions retire, including during interrupt service routines caused by hardware interrupts, faults or traps.  Background: Modern microprocessors employ extensive pipelining and speculative techniques.  Since sometimes an instruction is started but never completed, the notion of \"retirement\" is introduced.  A retired instruction is one that commits its states. Or stated differently, an instruction might be abandoned at some point. No instruction is truly finished until it retires.  This counter measures the number of completed instructions.  The fixed event is INST_RETIRED.ANY and the programmable event is INST_RETIRED.ANY_P.",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Instructions retired",
+        "Counter": "0,1",
+        "EventCode": "0xC0",
+        "EventName": "INST_RETIRED.ANY_P",
+        "PublicDescription": "This event counts the number of instructions that retire execution. For instructions that consist of multiple micro-ops, this event counts the retirement of the last micro-op of the instruction. The counter continues counting during hardware interrupts, traps, and inside interrupt handlers.",
+        "SampleAfterValue": "2000003"
+    },
+    {
+        "BriefDescription": "Counts all machine clears",
+        "Counter": "0,1",
+        "EventCode": "0xC3",
+        "EventName": "MACHINE_CLEARS.ALL",
+        "PublicDescription": "Machine clears happen when something happens in the machine that causes the hardware to need to take special care to get the right answer. When such a condition is signaled on an instruction, the front end of the machine is notified that it must restart, so no more instructions will be decoded from the current path.  All instructions \"older\" than this one will be allowed to finish.  This instruction and all \"younger\" instructions must be cleared, since they must not be allowed to complete.  Essentially, the hardware waits until the problematic instruction is the oldest instruction in the machine.  This means all older instructions are retired, and all pending stores (from older instructions) are completed.  Then the new path of instructions from the front end are allowed to start into the machine.  There are many conditions that might cause a machine clear (including the receipt of an interrupt, or a trap or a fault).  All those conditions (including but not limited to MACHINE_CLEARS.MEMORY_ORDERING, MACHINE_CLEARS.SMC, and MACHINE_CLEARS.FP_ASSIST) are captured in the ANY event. In addition, some conditions can be specifically counted (i.e. SMC, MEMORY_ORDERING, FP_ASSIST).  However, the sum of SMC, MEMORY_ORDERING, and FP_ASSIST machine clears will not necessarily equal the number of ANY.",
+        "SampleAfterValue": "200003",
+        "UMask": "0x8"
+    },
+    {
+        "BriefDescription": "Self-Modifying Code detected",
+        "Counter": "0,1",
+        "EventCode": "0xC3",
+        "EventName": "MACHINE_CLEARS.SMC",
+        "PublicDescription": "This event counts the number of times that a program writes to a code section. Self-modifying code causes a severe penalty in all Intel? architecture processors.",
+        "SampleAfterValue": "200003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts the number of cycles when no uops are allocated for any reason.",
+        "Counter": "0,1",
+        "EventCode": "0xCA",
+        "EventName": "NO_ALLOC_CYCLES.ALL",
+        "PublicDescription": "The NO_ALLOC_CYCLES.ALL event counts the number of cycles when the front-end does not provide any instructions to be allocated for any reason. This event indicates the cycles where an allocation stalls occurs, and no UOPS are allocated in that cycle.",
+        "SampleAfterValue": "200003",
+        "UMask": "0x3f"
+    },
+    {
+        "BriefDescription": "Counts the number of cycles when no uops are allocated and the alloc pipe is stalled waiting for a mispredicted jump to retire.  After the misprediction is detected, the front end will start immediately but the allocate pipe stalls until the mispredicted",
+        "Counter": "0,1",
+        "EventCode": "0xCA",
+        "EventName": "NO_ALLOC_CYCLES.MISPREDICTS",
+        "PublicDescription": "Counts the number of cycles when no uops are allocated and the alloc pipe is stalled waiting for a mispredicted jump to retire.  After the misprediction is detected, the front end will start immediately but the allocate pipe stalls until the mispredicted.",
+        "SampleAfterValue": "200003",
+        "UMask": "0x4"
+    },
+    {
+        "BriefDescription": "Counts the number of cycles when no uops are allocated, the IQ is empty, and no other condition is blocking allocation.",
+        "Counter": "0,1",
+        "EventCode": "0xCA",
+        "EventName": "NO_ALLOC_CYCLES.NOT_DELIVERED",
+        "PublicDescription": "The NO_ALLOC_CYCLES.NOT_DELIVERED event is used to measure front-end inefficiencies, i.e. when front-end of the machine is not delivering micro-ops to the back-end and the back-end is not stalled. This event can be used to identify if the machine is truly front-end bound.  When this event occurs, it is an indication that the front-end of the machine is operating at less than its theoretical peak performance.  Background: We can think of the processor pipeline as being divided into 2 broader parts: Front-end and Back-end. Front-end is responsible for fetching the instruction, decoding into micro-ops (uops) in machine understandable format and putting them into a micro-op queue to be consumed by back end. The back-end then takes these micro-ops, allocates the required resources.  When all resources are ready, micro-ops are executed. If the back-end is not ready to accept micro-ops from the front-end, then we do not want to count these as front-end bottlenecks.  However, whenever we have bottlenecks in the back-end, we will have allocation unit stalls and eventually forcing the front-end to wait until the back-end is ready to receive more UOPS. This event counts the cycles only when back-end is requesting more uops and front-end is not able to provide them. Some examples of conditions that cause front-end efficiencies are: Icache misses, ITLB misses, and decoder restrictions that limit the the front-end bandwidth.",
+        "SampleAfterValue": "200003",
+        "UMask": "0x50"
+    },
+    {
+        "BriefDescription": "Counts the number of cycles when no uops are allocated and a RATstall is asserted.",
+        "Counter": "0,1",
+        "EventCode": "0xCA",
+        "EventName": "NO_ALLOC_CYCLES.RAT_STALL",
+        "SampleAfterValue": "200003",
+        "UMask": "0x20"
+    },
+    {
+        "BriefDescription": "Counts the number of cycles when no uops are allocated and the ROB is full (less than 2 entries available)",
+        "Counter": "0,1",
+        "EventCode": "0xCA",
+        "EventName": "NO_ALLOC_CYCLES.ROB_FULL",
+        "PublicDescription": "Counts the number of cycles when no uops are allocated and the ROB is full (less than 2 entries available).",
+        "SampleAfterValue": "200003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts the number of cycles the Alloc pipeline is stalled when any one of the RSs (IEC, FPC and MEC) is full. This event is a superset of all the individual RS stall event counts.",
+        "Counter": "0,1",
+        "EventCode": "0xCB",
+        "EventName": "RS_FULL_STALL.ALL",
+        "SampleAfterValue": "200003",
+        "UMask": "0x1f"
+    },
+    {
+        "BriefDescription": "Counts the number of cycles and allocation pipeline is stalled and is waiting for a free MEC reservation station entry.  The cycles should be appropriately counted in case of the cracked ops e.g. In case of a cracked load-op, the load portion is sent to M",
+        "Counter": "0,1",
+        "EventCode": "0xCB",
+        "EventName": "RS_FULL_STALL.MEC",
+        "PublicDescription": "Counts the number of cycles and allocation pipeline is stalled and is waiting for a free MEC reservation station entry.  The cycles should be appropriately counted in case of the cracked ops e.g. In case of a cracked load-op, the load portion is sent to M.",
+        "SampleAfterValue": "200003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Micro-ops retired",
+        "Counter": "0,1",
+        "EventCode": "0xC2",
+        "EventName": "UOPS_RETIRED.ALL",
+        "PublicDescription": "This event counts the number of micro-ops retired. The processor decodes complex macro instructions into a sequence of simpler micro-ops. Most instructions are composed of one or two micro-ops. Some instructions are decoded into longer sequences such as repeat instructions, floating point transcendental instructions, and assists. In some cases micro-op sequences are fused or whole instructions are fused into one micro-op. See other UOPS_RETIRED events for differentiating retired fused and non-fused micro-ops.",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x10"
+    },
+    {
+        "BriefDescription": "MSROM micro-ops retired",
+        "Counter": "0,1",
+        "EventCode": "0xC2",
+        "EventName": "UOPS_RETIRED.MS",
+        "PublicDescription": "This event counts the number of micro-ops retired that were supplied from MSROM.",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x1"
+    }
+]

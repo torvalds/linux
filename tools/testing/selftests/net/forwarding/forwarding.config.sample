@@ -1,0 +1,51 @@
+#!/bin/bash
+# SPDX-License-Identifier: GPL-2.0
+
+##############################################################################
+# Topology description. p1 looped back to p2, p3 to p4 and so on.
+declare -A NETIFS
+
+NETIFS[p1]=veth0
+NETIFS[p2]=veth1
+NETIFS[p3]=veth2
+NETIFS[p4]=veth3
+NETIFS[p5]=veth4
+NETIFS[p6]=veth5
+NETIFS[p7]=veth6
+NETIFS[p8]=veth7
+NETIFS[p9]=veth8
+NETIFS[p10]=veth9
+
+# Port that does not have a cable connected.
+NETIF_NO_CABLE=eth8
+
+##############################################################################
+# Defines
+
+# IPv4 ping utility name
+PING=ping
+# IPv6 ping utility name. Some distributions use 'ping' for IPv6.
+PING6=ping6
+# Packet generator. Some distributions use 'mz'.
+MZ=mausezahn
+# Time to wait after interfaces participating in the test are all UP
+WAIT_TIME=5
+# Whether to pause on failure or not.
+PAUSE_ON_FAIL=no
+# Whether to pause on cleanup or not.
+PAUSE_ON_CLEANUP=no
+# Type of network interface to create
+NETIF_TYPE=veth
+# Whether to create virtual interfaces (veth) or not
+NETIF_CREATE=yes
+# Timeout (in seconds) before ping exits regardless of how many packets have
+# been sent or received
+PING_TIMEOUT=5
+# Minimum ageing_time (in centiseconds) supported by hardware
+LOW_AGEING_TIME=1000
+# Flag for tc match, supposed to be skip_sw/skip_hw which means do not process
+# filter by software/hardware
+TC_FLAG=skip_hw
+# IPv6 traceroute utility name.
+TROUTE6=traceroute6
+

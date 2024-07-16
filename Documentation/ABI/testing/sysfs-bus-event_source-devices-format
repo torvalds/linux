@@ -1,0 +1,21 @@
+What:		/sys/bus/event_source/devices/<dev>/format
+Date:		January 2012
+KernelVersion: 3.3
+Contact:	Jiri Olsa <jolsa@redhat.com>
+Description:
+		Attribute group to describe the magic bits that go into
+		perf_event_attr::config[012] for a particular pmu.
+		Each attribute of this group defines the 'hardware' bitmask
+		we want to export, so that userspace can deal with sane
+		name/value pairs.
+
+		Userspace must be prepared for the possibility that attributes
+		define overlapping bit ranges. For example::
+
+			attr1 = 'config:0-23'
+			attr2 = 'config:0-7'
+			attr3 = 'config:12-35'
+
+		Example: 'config1:1,6-10,44'
+		Defines contents of attribute that occupies bits 1,6-10,44 of
+		perf_event_attr::config1.

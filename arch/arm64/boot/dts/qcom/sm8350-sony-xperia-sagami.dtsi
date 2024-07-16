@@ -1,0 +1,259 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) 2021, Konrad Dybcio <konrad.dybcio@somainline.org>
+ */
+
+#include "sm8350.dtsi"
+#include "pm8350.dtsi"
+#include "pm8350b.dtsi"
+#include "pm8350c.dtsi"
+#include "pmk8350.dtsi"
+#include "pmr735a.dtsi"
+#include "pmr735b.dtsi"
+
+/ {
+	/*
+	 * Yes, you are correct, there is NO MORE {msm,board,pmic}-id on SM8350!
+	 * Adding it will cause the bootloader to go crazy and randomly crash
+	 * shortly after closing UEFI boot services.. Perhaps that has something
+	 * to do with the OS running inside a VM now..?
+	 */
+
+	chassis-type = "handset";
+
+	chosen {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		framebuffer: framebuffer@e1000000 {
+			compatible = "simple-framebuffer";
+			reg = <0 0xe1000000 0 0x2300000>;
+
+			/* The display, even though it's 4K, initializes at 1080-ish p */
+			width = <1096>;
+			height = <2560>;
+			stride = <(1096 * 4)>;
+			format = "a8r8g8b8";
+			/*
+			 * That's (going to be) a lot of clocks, but it's necessary due
+			 * to unused clk cleanup & no panel driver yet
+			 */
+			clocks = <&gcc GCC_DISP_HF_AXI_CLK>,
+				 <&gcc GCC_DISP_SF_AXI_CLK>;
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		/* For reasons still unknown, GAssist key and Camera Focus/Shutter don't work.. */
+
+		key-vol-down {
+			label = "Volume Down";
+			linux,code = <KEY_VOLUMEDOWN>;
+			gpios = <&pmk8350_gpios 3 GPIO_ACTIVE_LOW>;
+			debounce-interval = <15>;
+			linux,can-disable;
+			gpio-key,wakeup;
+		};
+	};
+
+	reserved-memory {
+		cont_splash_mem: memory@e1000000 {
+			reg = <0 0xe1000000 0 0x2300000>;
+			no-map;
+		};
+
+		ramoops@ffc00000 {
+			compatible = "ramoops";
+			reg = <0 0xffc00000 0 0x100000>;
+			console-size = <0x40000>;
+			record-size = <0x1000>;
+			no-map;
+		};
+	};
+};
+
+&adsp {
+	status = "okay";
+	firmware-name = "qcom/adsp.mbn";
+};
+
+&cdsp {
+	status = "okay";
+	firmware-name = "qcom/cdsp.mbn";
+};
+
+&i2c1 {
+	status = "okay";
+	clock-frequency = <1000000>;
+
+	/* Some subset of SONY IMX663 camera sensor @ 38 */
+};
+
+&i2c2 {
+	status = "okay";
+	clock-frequency = <400000>;
+
+	/* Richwave RTC6226 FM Radio Receiver @ 64 */
+};
+
+&i2c4 {
+	status = "okay";
+	clock-frequency = <400000>;
+
+	/* Samsung Touchscreen (needs I2C GPI DMA) @ 48 */
+};
+
+&i2c11 {
+	status = "okay";
+	clock-frequency = <1000000>;
+
+	cs35l41_l: cs35l41@40 {
+		compatible = "cirrus,cs35l41";
+		reg = <0x40>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <36 IRQ_TYPE_LEVEL_LOW>;
+		reset-gpios = <&tlmm 37 GPIO_ACTIVE_HIGH>;
+		cirrus,boost-peak-milliamp = <4000>;
+		cirrus,boost-ind-nanohenry = <1000>;
+		cirrus,boost-cap-microfarad = <15>;
+		cirrus,asp-sdout-hiz = <3>;
+		cirrus,gpio2-src-select = <2>;
+		cirrus,gpio2-output-enable;
+		#sound-dai-cells = <1>;
+	};
+
+	cs35l41_r: cs35l41@41 {
+		compatible = "cirrus,cs35l41";
+		reg = <0x41>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <36 IRQ_TYPE_LEVEL_LOW>;
+		reset-gpios = <&tlmm 37 GPIO_ACTIVE_HIGH>;
+		cirrus,boost-peak-milliamp = <4000>;
+		cirrus,boost-ind-nanohenry = <1000>;
+		cirrus,boost-cap-microfarad = <15>;
+		cirrus,asp-sdout-hiz = <3>;
+		cirrus,gpio2-src-select = <2>;
+		cirrus,gpio2-output-enable;
+		#sound-dai-cells = <1>;
+	};
+};
+
+&i2c12 {
+	status = "okay";
+	/* Clock frequency was not specified downstream, let's park it to 100 KHz */
+	clock-frequency = <100000>;
+
+	/* AMS TCS3490 RGB+IR color sensor @ 72 */
+};
+
+&i2c13 {
+	status = "okay";
+	/* Clock frequency was not specified downstream, let's park it to 100 KHz */
+	clock-frequency = <100000>;
+
+	/* Qualcomm PM8008i/PM8008j (?) @ 8, 9, c, d */
+	/* Dialog SLG51000 CMIC @ 75 */
+};
+
+&i2c15 {
+	status = "okay";
+	clock-frequency = <400000>;
+
+	/* NXP SN1X0 NFC @ 28 */
+};
+
+&i2c17 {
+	status = "okay";
+	clock-frequency = <1000000>;
+
+	/* Cirrus Logic CS40L25A boosted haptics driver @ 40 */
+};
+
+&ipa {
+	status = "okay";
+	memory-region = <&pil_ipa_fw_mem>;
+	firmware-name = "qcom/ipa_fws.mbn";
+};
+
+&mpss {
+	status = "okay";
+	firmware-name = "qcom/modem.mbn";
+};
+
+&pmk8350_rtc {
+	status = "okay";
+};
+
+&pon_pwrkey {
+	status = "okay";
+};
+
+&pon_resin {
+	status = "okay";
+	linux,code = <KEY_VOLUMEUP>;
+};
+
+&qupv3_id_0 {
+	status = "okay";
+};
+
+&qupv3_id_1 {
+	status = "okay";
+};
+
+&qupv3_id_2 {
+	status = "okay";
+};
+
+&slpi {
+	status = "okay";
+	firmware-name = "qcom/slpi.mbn";
+};
+
+&spi14 {
+	status = "okay";
+
+	/* NXP SN1X0 NFC Secure Element @ 0 */
+};
+
+&tlmm {
+	gpio-reserved-ranges = <44 4>;
+
+	ts_int_default: ts-int-default-state {
+		pins = "gpio23";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+		input-enable;
+	};
+};
+
+/* BIG WARNING! DO NOT TOUCH UFS, YOUR DEVICE WILL DIE! */
+&ufs_mem_hc { status = "disabled"; };
+&ufs_mem_phy { status = "disabled"; };
+
+/* TODO: Make USB3 work (perhaps needs regulators for higher-current operation?) */
+&usb_1 {
+	status = "okay";
+
+	qcom,select-utmi-as-pipe-clk;
+};
+
+&usb_1_dwc3 {
+	dr_mode = "peripheral";
+
+	maximum-speed = "high-speed";
+	phys = <&usb_1_hsphy>;
+	phy-names = "usb2-phy";
+};
+
+&usb_1_hsphy {
+	status = "okay";
+};
+
+&usb_1_qmpphy {
+	status = "okay";
+};
