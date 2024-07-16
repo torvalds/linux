@@ -22,7 +22,6 @@
  *
  */
 
-
 #include "dc_bios_types.h"
 #include "dcn30/dcn30_dio_stream_encoder.h"
 #include "dcn314/dcn314_dio_stream_encoder.h"
