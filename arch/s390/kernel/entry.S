@@ -32,19 +32,19 @@
 _LPP_OFFSET	= __LC_LPP
 
 	.macro STBEAR address
-	ALTERNATIVE "nop", ".insn s,0xb2010000,\address", 193
+	ALTERNATIVE "nop", ".insn s,0xb2010000,\address", ALT_FACILITY(193)
 	.endm
 
 	.macro LBEAR address
-	ALTERNATIVE "nop", ".insn s,0xb2000000,\address", 193
+	ALTERNATIVE "nop", ".insn s,0xb2000000,\address", ALT_FACILITY(193)
 	.endm
 
 	.macro LPSWEY address,lpswe
-	ALTERNATIVE "b \lpswe; nopr", ".insn siy,0xeb0000000071,\address,0", 193
+	ALTERNATIVE "b \lpswe; nopr", ".insn siy,0xeb0000000071,\address,0", ALT_FACILITY(193)
 	.endm
 
 	.macro MBEAR reg
-	ALTERNATIVE "brcl 0,0", __stringify(mvc __PT_LAST_BREAK(8,\reg),__LC_LAST_BREAK), 193
+	ALTERNATIVE "brcl 0,0", __stringify(mvc __PT_LAST_BREAK(8,\reg),__LC_LAST_BREAK), ALT_FACILITY(193)
 	.endm
 
 	.macro	CHECK_STACK savearea
@@ -100,22 +100,22 @@ _LPP_OFFSET	= __LC_LPP
 	.endm
 
 	.macro BPOFF
-	ALTERNATIVE "nop", ".insn rrf,0xb2e80000,0,0,12,0", 82
+	ALTERNATIVE "nop", ".insn rrf,0xb2e80000,0,0,12,0", ALT_FACILITY(82)
 	.endm
 
 	.macro BPON
-	ALTERNATIVE "nop", ".insn rrf,0xb2e80000,0,0,13,0", 82
+	ALTERNATIVE "nop", ".insn rrf,0xb2e80000,0,0,13,0", ALT_FACILITY(82)
 	.endm
 
 	.macro BPENTER tif_ptr,tif_mask
 	ALTERNATIVE "TSTMSK \tif_ptr,\tif_mask; jz .+8; .insn rrf,0xb2e80000,0,0,13,0", \
-		    "j .+12; nop; nop", 82
+		    "j .+12; nop; nop", ALT_FACILITY(82)
 	.endm
 
 	.macro BPEXIT tif_ptr,tif_mask
 	TSTMSK	\tif_ptr,\tif_mask
 	ALTERNATIVE "jz .+8;  .insn rrf,0xb2e80000,0,0,12,0", \
-		    "jnz .+8; .insn rrf,0xb2e80000,0,0,13,0", 82
+		    "jnz .+8; .insn rrf,0xb2e80000,0,0,13,0", ALT_FACILITY(82)
 	.endm
 
 #if IS_ENABLED(CONFIG_KVM)
@@ -169,7 +169,7 @@ SYM_FUNC_START(__switch_to_asm)
 	aghi	%r3,__TASK_pid
 	mvc	__LC_CURRENT_PID(4,%r0),0(%r3)	# store pid of next
 	lmg	%r6,%r15,__SF_GPRS(%r15)	# load gprs of next task
-	ALTERNATIVE "nop", "lpp _LPP_OFFSET", 40
+	ALTERNATIVE "nop", "lpp _LPP_OFFSET", ALT_FACILITY(40)
 	BR_EX	%r14
 SYM_FUNC_END(__switch_to_asm)
 
@@ -515,7 +515,7 @@ SYM_CODE_START(mcck_int_handler)
 	jno	0f
 	BPON
 	stpt	__LC_EXIT_TIMER
-0:	ALTERNATIVE "nop", __stringify(lghi %r12,__LC_LAST_BREAK_SAVE_AREA),193
+0:	ALTERNATIVE "nop", __stringify(lghi %r12,__LC_LAST_BREAK_SAVE_AREA), ALT_FACILITY(193)
 	LBEAR	0(%r12)
 	lmg	%r11,%r15,__PT_R11(%r11)
 	LPSWEY	__LC_RETURN_MCCK_PSW,__LC_RETURN_MCCK_LPSWE
@@ -551,7 +551,7 @@ SYM_CODE_START(mcck_int_handler)
 SYM_CODE_END(mcck_int_handler)
 
 SYM_CODE_START(restart_int_handler)
-	ALTERNATIVE "nop", "lpp _LPP_OFFSET", 40
+	ALTERNATIVE "nop", "lpp _LPP_OFFSET", ALT_FACILITY(40)
 	stg	%r15,__LC_SAVE_AREA_RESTART
 	TSTMSK	__LC_RESTART_FLAGS,RESTART_FLAG_CTLREGS,4
 	jz	0f

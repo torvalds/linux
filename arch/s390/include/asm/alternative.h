@@ -2,6 +2,44 @@
 #ifndef _ASM_S390_ALTERNATIVE_H
 #define _ASM_S390_ALTERNATIVE_H
 
+/*
+ * Each alternative comes with a 32 bit feature field:
+ *	union {
+ *		u32 feature;
+ *		struct {
+ *			u32 ctx	 : 4;
+ *			u32 type : 8;
+ *			u32 data : 20;
+ *		};
+ *	}
+ *
+ * @ctx is a bitfield, where only one bit must be set. Each bit defines
+ * in which context an alternative is supposed to be applied to the
+ * kernel image:
+ *
+ * - from the decompressor before the kernel itself is executed
+ * - from early kernel code from within the kernel
+ *
+ * @type is a number which defines the type and with that the type
+ * specific alternative patching.
+ *
+ * @data is additional type specific information which defines if an
+ * alternative should be applied.
+ */
+
+#define ALT_CTX_LATE		1
+#define ALT_CTX_ALL		ALT_CTX_LATE
+
+#define ALT_TYPE_FACILITY	0
+
+#define ALT_DATA_SHIFT		0
+#define ALT_TYPE_SHIFT		20
+#define ALT_CTX_SHIFT		28
+
+#define ALT_FACILITY(facility)		(ALT_CTX_LATE << ALT_CTX_SHIFT		| \
+					 ALT_TYPE_FACILITY << ALT_TYPE_SHIFT	| \
+					 (facility) << ALT_DATA_SHIFT)
+
 #ifndef __ASSEMBLY__
 
 #include <linux/types.h>
@@ -11,12 +49,30 @@
 struct alt_instr {
 	s32 instr_offset;	/* original instruction */
 	s32 repl_offset;	/* offset to replacement instruction */
-	u16 feature;		/* feature required for replacement */
+	union {
+		u32 feature;	/* feature required for replacement */
+		struct {
+			u32 ctx	 : 4;  /* context */
+			u32 type : 8;  /* type of alternative */
+			u32 data : 20; /* patching information */
+		};
+	};
 	u8  instrlen;		/* length of original instruction */
 } __packed;
 
-void apply_alternative_instructions(void);
-void apply_alternatives(struct alt_instr *start, struct alt_instr *end);
+extern struct alt_instr __alt_instructions[], __alt_instructions_end[];
+
+void __apply_alternatives(struct alt_instr *start, struct alt_instr *end, unsigned int ctx);
+
+static inline void apply_alternative_instructions(void)
+{
+	__apply_alternatives(__alt_instructions, __alt_instructions_end, ALT_CTX_LATE);
+}
+
+static inline void apply_alternatives(struct alt_instr *start, struct alt_instr *end)
+{
+	__apply_alternatives(start, end, ALT_CTX_ALL);
+}
 
 /*
  * +---------------------------------+
@@ -51,7 +107,7 @@ void apply_alternatives(struct alt_instr *start, struct alt_instr *end);
 #define ALTINSTR_ENTRY(feature, num)					\
 	"\t.long 661b - .\n"			/* old instruction */	\
 	"\t.long " b_altinstr(num)"b - .\n"	/* alt instruction */	\
-	"\t.word " __stringify(feature) "\n"	/* feature	   */	\
+	"\t.long " __stringify(feature) "\n"	/* feature	   */	\
 	"\t.byte " oldinstr_len "\n"		/* instruction len */	\
 	"\t.org . - (" oldinstr_len ") & 1\n"				\
 	"\t.org . - (" oldinstr_len ") + (" altinstr_len(num) ")\n"	\
@@ -127,7 +183,7 @@ void apply_alternatives(struct alt_instr *start, struct alt_instr *end);
 .macro alt_entry orig_start, orig_end, alt_start, alt_end, feature
 	.long	\orig_start - .
 	.long	\alt_start - .
-	.word	\feature
+	.long	\feature
 	.byte	\orig_end - \orig_start
 	.org	. - ( \orig_end - \orig_start ) & 1
 	.org	. - ( \orig_end - \orig_start ) + ( \alt_end - \alt_start )
