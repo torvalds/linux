@@ -997,7 +997,6 @@ void __init setup_arch(char **cmdline_p)
 	mem_encrypt_setup_arch();
 	cc_random_init();
 
-	efi_fake_memmap();
 	efi_find_mirror();
 	efi_esrt_init();
 	efi_mokvar_table_init();

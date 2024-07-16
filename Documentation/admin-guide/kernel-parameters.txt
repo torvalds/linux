@@ -1435,27 +1435,6 @@
 			you are really sure that your UEFI does sane gc and
 			fulfills the spec otherwise your board may brick.
 
-	efi_fake_mem=	nn[KMG]@ss[KMG]:aa[,nn[KMG]@ss[KMG]:aa,..] [EFI,X86,EARLY]
-			Add arbitrary attribute to specific memory range by
-			updating original EFI memory map.
-			Region of memory which aa attribute is added to is
-			from ss to ss+nn.
-
-			If efi_fake_mem=2G@4G:0x10000,2G@0x10a0000000:0x10000
-			is specified, EFI_MEMORY_MORE_RELIABLE(0x10000)
-			attribute is added to range 0x100000000-0x180000000 and
-			0x10a0000000-0x1120000000.
-
-			If efi_fake_mem=8G@9G:0x40000 is specified, the
-			EFI_MEMORY_SP(0x40000) attribute is added to
-			range 0x240000000-0x43fffffff.
-
-			Using this parameter you can do debugging of EFI memmap
-			related features. For example, you can do debugging of
-			Address Range Mirroring feature even if your box
-			doesn't support it, or mark specific memory as
-			"soft reserved".
-
 	efivar_ssdt=	[EFI; X86] Name of an EFI variable that contains an SSDT
 			that is to be dynamically loaded by Linux. If there are
 			multiple variables with the same name but with different
