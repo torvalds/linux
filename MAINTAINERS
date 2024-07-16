@@ -19196,8 +19196,8 @@ L:	linux-renesas-soc@vger.kernel.org
 S:	Supported
 F:	Documentation/devicetree/bindings/thermal/rcar-gen3-thermal.yaml
 F:	Documentation/devicetree/bindings/thermal/rcar-thermal.yaml
-F:	drivers/thermal/rcar_gen3_thermal.c
-F:	drivers/thermal/rcar_thermal.c
+F:	drivers/thermal/renesas/rcar_gen3_thermal.c
+F:	drivers/thermal/renesas/rcar_thermal.c
 
 RENESAS RIIC DRIVER
 M:	Chris Brandt <chris.brandt@renesas.com>

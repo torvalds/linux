@@ -17,7 +17,7 @@
 #include <linux/thermal.h>
 #include <linux/units.h>
 
-#include "thermal_hwmon.h"
+#include "../thermal_hwmon.h"
 
 #define CTEMP_MASK	0xFFF
 

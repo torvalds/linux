@@ -19,7 +19,7 @@
 #include <linux/spinlock.h>
 #include <linux/thermal.h>
 
-#include "thermal_hwmon.h"
+#include "../thermal_hwmon.h"
 
 #define IDLE_INTERVAL	5000
 

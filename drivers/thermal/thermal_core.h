@@ -250,7 +250,9 @@ void thermal_governor_update_tz(struct thermal_zone_device *tz,
 #define trip_to_trip_desc(__trip)	\
 	container_of(__trip, struct thermal_trip_desc, trip)
 
-void __thermal_zone_set_trips(struct thermal_zone_device *tz);
+const char *thermal_trip_type_name(enum thermal_trip_type trip_type);
+
+void thermal_zone_set_trips(struct thermal_zone_device *tz);
 int thermal_zone_trip_id(const struct thermal_zone_device *tz,
 			 const struct thermal_trip *trip);
 void thermal_zone_trip_updated(struct thermal_zone_device *tz,

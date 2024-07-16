@@ -465,6 +465,9 @@ static void thermal_governor_trip_crossed(struct thermal_governor *governor,
 					  const struct thermal_trip *trip,
 					  bool crossed_up)
 {
+	if (trip->type == THERMAL_TRIP_HOT || trip->type == THERMAL_TRIP_CRITICAL)
+		return;
+
 	if (governor->trip_crossed)
 		governor->trip_crossed(tz, trip, crossed_up);
 }
@@ -513,12 +516,12 @@ void __thermal_zone_device_update(struct thermal_zone_device *tz,
 	if (tz->temperature == THERMAL_TEMP_INVALID)
 		goto monitor;
 
-	__thermal_zone_set_trips(tz);
-
 	tz->notify_event = event;
 
 	for_each_trip_desc(tz, td)
 		handle_thermal_trip(tz, td, &way_up_list, &way_down_list);
+
+	thermal_zone_set_trips(tz);
 
 	list_sort(NULL, &way_up_list, thermal_trip_notify_cmp);
 	list_for_each_entry(td, &way_up_list, notify_list_node)
@@ -1127,7 +1130,7 @@ static void thermal_cooling_device_release(struct device *dev, void *res)
 struct thermal_cooling_device *
 devm_thermal_of_cooling_device_register(struct device *dev,
 				struct device_node *np,
-				char *type, void *devdata,
+				const char *type, void *devdata,
 				const struct thermal_cooling_device_ops *ops)
 {
 	struct thermal_cooling_device **ptr, *tcd;
@@ -1354,7 +1357,8 @@ thermal_zone_device_register_with_trips(const char *type,
 					int num_trips, void *devdata,
 					const struct thermal_zone_device_ops *ops,
 					const struct thermal_zone_params *tzp,
-					int passive_delay, int polling_delay)
+					unsigned int passive_delay,
+					unsigned int polling_delay)
 {
 	const struct thermal_trip *trip = trips;
 	struct thermal_zone_device *tz;
@@ -1386,6 +1390,14 @@ thermal_zone_device_register_with_trips(const char *type,
 
 	if (num_trips > 0 && !trips)
 		return ERR_PTR(-EINVAL);
+
+	if (polling_delay) {
+		if (passive_delay > polling_delay)
+			return ERR_PTR(-EINVAL);
+
+		if (!passive_delay)
+			passive_delay = polling_delay;
+	}
 
 	if (!thermal_class)
 		return ERR_PTR(-ENODEV);
@@ -1650,6 +1662,7 @@ static void thermal_zone_device_resume(struct work_struct *work)
 
 	tz->suspended = false;
 
+	thermal_debug_tz_resume(tz);
 	thermal_zone_device_init(tz);
 	__thermal_zone_device_update(tz, THERMAL_EVENT_UNSPECIFIED);
 
