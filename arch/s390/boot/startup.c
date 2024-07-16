@@ -376,6 +376,8 @@ static void kaslr_adjust_vmlinux_info(long offset)
 	vmlinux.init_mm_off += offset;
 	vmlinux.swapper_pg_dir_off += offset;
 	vmlinux.invalid_pg_dir_off += offset;
+	vmlinux.alt_instructions += offset;
+	vmlinux.alt_instructions_end += offset;
 #ifdef CONFIG_KASAN
 	vmlinux.kasan_early_shadow_page_off += offset;
 	vmlinux.kasan_early_shadow_pte_off += offset;
@@ -507,6 +509,9 @@ void startup_kernel(void)
 	kaslr_adjust_got(__kaslr_offset);
 	setup_vmem(__kaslr_offset, __kaslr_offset + kernel_size, asce_limit);
 	copy_bootdata();
+	__apply_alternatives((struct alt_instr *)_vmlinux_info.alt_instructions,
+			     (struct alt_instr *)_vmlinux_info.alt_instructions_end,
+			     ALT_CTX_EARLY);
 
 	/*
 	 * Save KASLR offset for early dumps, before vmcore_info is set.

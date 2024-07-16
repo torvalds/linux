@@ -18,9 +18,14 @@ void __apply_alternatives(struct alt_instr *start, struct alt_instr *end, unsign
 		if (!(a->ctx & ctx))
 			continue;
 		switch (a->type) {
+		case ALT_TYPE_FACILITY_EARLY:
+			replace = test_facility(a->data);
+			break;
+#ifndef __DECOMPRESSOR
 		case ALT_TYPE_FACILITY:
 			replace = __test_facility(a->data, alt_stfle_fac_list);
 			break;
+#endif
 		default:
 			replace = false;
 		}

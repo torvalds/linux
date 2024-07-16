@@ -222,6 +222,8 @@ SECTIONS
 		QUAD(init_mm)
 		QUAD(swapper_pg_dir)
 		QUAD(invalid_pg_dir)
+		QUAD(__alt_instructions)
+		QUAD(__alt_instructions_end)
 #ifdef CONFIG_KASAN
 		QUAD(kasan_early_shadow_page)
 		QUAD(kasan_early_shadow_pte)

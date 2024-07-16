@@ -30,6 +30,8 @@ struct vmlinux_info {
 	unsigned long init_mm_off;
 	unsigned long swapper_pg_dir_off;
 	unsigned long invalid_pg_dir_off;
+	unsigned long alt_instructions;
+	unsigned long alt_instructions_end;
 #ifdef CONFIG_KASAN
 	unsigned long kasan_early_shadow_page_off;
 	unsigned long kasan_early_shadow_pte_off;

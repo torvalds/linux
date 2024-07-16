@@ -27,14 +27,20 @@
  * alternative should be applied.
  */
 
-#define ALT_CTX_LATE		1
-#define ALT_CTX_ALL		ALT_CTX_LATE
+#define ALT_CTX_EARLY		1
+#define ALT_CTX_LATE		2
+#define ALT_CTX_ALL		(ALT_CTX_EARLY | ALT_CTX_LATE)
 
-#define ALT_TYPE_FACILITY	0
+#define ALT_TYPE_FACILITY_EARLY	0
+#define ALT_TYPE_FACILITY	1
 
 #define ALT_DATA_SHIFT		0
 #define ALT_TYPE_SHIFT		20
 #define ALT_CTX_SHIFT		28
+
+#define ALT_FACILITY_EARLY(facility)	(ALT_CTX_EARLY << ALT_CTX_SHIFT		   | \
+					 ALT_TYPE_FACILITY_EARLY << ALT_TYPE_SHIFT | \
+					 (facility) << ALT_DATA_SHIFT)
 
 #define ALT_FACILITY(facility)		(ALT_CTX_LATE << ALT_CTX_SHIFT		| \
 					 ALT_TYPE_FACILITY << ALT_TYPE_SHIFT	| \
