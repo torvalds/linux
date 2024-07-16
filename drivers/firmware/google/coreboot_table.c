@@ -255,4 +255,5 @@ module_init(coreboot_table_driver_init);
 module_exit(coreboot_table_driver_exit);
 
 MODULE_AUTHOR("Google, Inc.");
+MODULE_DESCRIPTION("Module providing coreboot table access");
 MODULE_LICENSE("GPL");
