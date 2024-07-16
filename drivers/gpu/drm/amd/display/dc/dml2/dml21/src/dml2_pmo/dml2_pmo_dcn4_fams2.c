@@ -1199,12 +1199,17 @@ static bool is_timing_group_schedulable(
 
 	/* init allow start and end lines for timing group */
 	stream_method_fams2_meta = get_per_method_common_meta(pmo, pstate_strategy->per_stream_pstate_method[base_stream_idx], base_stream_idx);
+	if (!stream_method_fams2_meta)
+		return false;
+
 	group_fams2_meta->allow_start_otg_vline = stream_method_fams2_meta->allow_start_otg_vline;
 	group_fams2_meta->allow_end_otg_vline = stream_method_fams2_meta->allow_end_otg_vline;
 	group_fams2_meta->period_us = stream_method_fams2_meta->period_us;
 	for (i = base_stream_idx + 1; i < display_cfg->display_config.num_streams; i++) {
 		if (is_bit_set_in_bitfield(pmo->scratch.pmo_dcn4.synchronized_timing_group_masks[timing_group_idx], i)) {
 			stream_method_fams2_meta = get_per_method_common_meta(pmo, pstate_strategy->per_stream_pstate_method[i], i);
+			if (!stream_method_fams2_meta)
+				return false;
 
 			if (group_fams2_meta->allow_start_otg_vline < stream_method_fams2_meta->allow_start_otg_vline) {
 				/* set group allow start to larger otg vline */
@@ -1768,6 +1773,9 @@ bool pmo_dcn4_fams2_init_for_pstate_support(struct dml2_pmo_init_for_pstate_supp
 	build_synchronized_timing_groups(pmo, display_config);
 
 	strategy_list = get_expanded_strategy_list(&pmo->init_data, display_config->display_config.num_streams);
+	if (!strategy_list)
+		return false;
+
 	strategy_list_size = get_num_expanded_strategies(&pmo->init_data, display_config->display_config.num_streams);
 
 	if (strategy_list_size == 0)
