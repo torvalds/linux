@@ -946,11 +946,6 @@ void kvm_post_set_cr0(struct kvm_vcpu *vcpu, unsigned long old_cr0, unsigned lon
 
 	if ((cr0 ^ old_cr0) & KVM_MMU_CR0_ROLE_BITS)
 		kvm_mmu_reset_context(vcpu);
-
-	if (((cr0 ^ old_cr0) & X86_CR0_CD) &&
-	    kvm_mmu_honors_guest_mtrrs(vcpu->kvm) &&
-	    !kvm_check_has_quirk(vcpu->kvm, KVM_X86_QUIRK_CD_NW_CLEARED))
-		kvm_zap_gfn_range(vcpu->kvm, 0, ~0ULL);
 }
 EXPORT_SYMBOL_GPL(kvm_post_set_cr0);
 
@@ -11182,6 +11177,12 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 	kvm_vcpu_srcu_read_lock(vcpu);
 
 	/*
+	 * Call this to ensure WC buffers in guest are evicted after each VM
+	 * Exit, so that the evicted WC writes can be snooped across all cpus
+	 */
+	smp_mb__after_srcu_read_lock();
+
+	/*
 	 * Profile KVM exit RIPs:
 	 */
 	if (unlikely(prof_on == KVM_PROFILING)) {
@@ -12264,7 +12265,6 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 	vcpu->arch.arch_capabilities = kvm_get_arch_capabilities();
 	vcpu->arch.msr_platform_info = MSR_PLATFORM_INFO_CPUID_FAULT;
 	kvm_xen_init_vcpu(vcpu);
-	kvm_vcpu_mtrr_init(vcpu);
 	vcpu_load(vcpu);
 	kvm_set_tsc_khz(vcpu, vcpu->kvm->arch.default_tsc_khz);
 	kvm_vcpu_reset(vcpu, false);
@@ -13528,13 +13528,13 @@ EXPORT_SYMBOL_GPL(kvm_arch_has_assigned_device);
 static void kvm_noncoherent_dma_assignment_start_or_stop(struct kvm *kvm)
 {
 	/*
-	 * Non-coherent DMA assignment and de-assignment will affect
-	 * whether KVM honors guest MTRRs and cause changes in memtypes
-	 * in TDP.
-	 * So, pass %true unconditionally to indicate non-coherent DMA was,
-	 * or will be involved, and that zapping SPTEs might be necessary.
+	 * Non-coherent DMA assignment and de-assignment may affect whether or
+	 * not KVM honors guest PAT, and thus may cause changes in EPT SPTEs
+	 * due to toggling the "ignore PAT" bit.  Zap all SPTEs when the first
+	 * (or last) non-coherent device is (un)registered to so that new SPTEs
+	 * with the correct "ignore guest PAT" setting are created.
 	 */
-	if (__kvm_mmu_honors_guest_mtrrs(true))
+	if (kvm_mmu_may_ignore_guest_pat())
 		kvm_zap_gfn_range(kvm, gpa_to_gfn(0), gpa_to_gfn(~0ULL));
 }
 
