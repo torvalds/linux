@@ -35,7 +35,7 @@ struct virtio_pci_vq_info {
 	/* the actual virtqueue */
 	struct virtqueue *vq;
 
-	/* the list node for the virtqueues list */
+	/* the list node for the virtqueues or slow_virtqueues list */
 	struct list_head node;
 
 	/* MSI-X vector (or none) */
@@ -66,9 +66,12 @@ struct virtio_pci_device {
 	/* Where to read and clear interrupt */
 	u8 __iomem *isr;
 
-	/* a list of queues so we can dispatch IRQs */
+	/* Lists of queues and potentially slow path queues
+	 * so we can dispatch IRQs.
+	 */
 	spinlock_t lock;
 	struct list_head virtqueues;
+	struct list_head slow_virtqueues;
 
 	/* Array of all virtqueues reported in the
 	 * PCI common config num_queues field
