@@ -656,6 +656,8 @@ static bool tmigr_active_up(struct tmigr_group *group,
 
 	} while (!atomic_try_cmpxchg(&group->migr_state, &curstate.state, newstate.state));
 
+	trace_tmigr_group_set_cpu_active(group, newstate, childmask);
+
 	if (walk_done == false)
 		data->childmask = group->childmask;
 
@@ -672,8 +674,6 @@ static bool tmigr_active_up(struct tmigr_group *group,
 	 * state change will not be lost.
 	 */
 	group->groupevt.ignore = true;
-
-	trace_tmigr_group_set_cpu_active(group, newstate, childmask);
 
 	return walk_done;
 }
@@ -1306,9 +1306,10 @@ static bool tmigr_inactive_up(struct tmigr_group *group,
 
 		WARN_ON_ONCE((newstate.migrator != TMIGR_NONE) && !(newstate.active));
 
-		if (atomic_try_cmpxchg(&group->migr_state, &curstate.state,
-				       newstate.state))
+		if (atomic_try_cmpxchg(&group->migr_state, &curstate.state, newstate.state)) {
+			trace_tmigr_group_set_cpu_inactive(group, newstate, childmask);
 			break;
+		}
 
 		/*
 		 * The memory barrier is paired with the cmpxchg() in
@@ -1326,8 +1327,6 @@ static bool tmigr_inactive_up(struct tmigr_group *group,
 
 	if (walk_done == false)
 		data->childmask = group->childmask;
-
-	trace_tmigr_group_set_cpu_inactive(group, newstate, childmask);
 
 	return walk_done;
 }
