@@ -165,6 +165,7 @@ unsigned long saved_video_mode;
 static char __initdata command_line[COMMAND_LINE_SIZE];
 #ifdef CONFIG_CMDLINE_BOOL
 static char __initdata builtin_cmdline[COMMAND_LINE_SIZE] = CONFIG_CMDLINE;
+bool builtin_cmdline_added __ro_after_init;
 #endif
 
 #if defined(CONFIG_EDD) || defined(CONFIG_EDD_MODULE)
@@ -765,6 +766,7 @@ void __init setup_arch(char **cmdline_p)
 		strscpy(boot_command_line, builtin_cmdline, COMMAND_LINE_SIZE);
 	}
 #endif
+	builtin_cmdline_added = true;
 #endif
 
 	strscpy(command_line, boot_command_line, COMMAND_LINE_SIZE);
