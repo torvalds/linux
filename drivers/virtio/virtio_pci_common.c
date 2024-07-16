@@ -292,11 +292,11 @@ enum vp_vq_vector_policy {
 	VP_VQ_VECTOR_POLICY_SHARED,
 };
 
-static struct virtqueue *vp_find_one_vq_msix(struct virtio_device *vdev,
-					     int queue_idx,
-					     vq_callback_t *callback,
-					     const char *name, bool ctx,
-					     int *allocated_vectors)
+static struct virtqueue *
+vp_find_one_vq_msix(struct virtio_device *vdev, int queue_idx,
+		    vq_callback_t *callback, const char *name, bool ctx,
+		    int *allocated_vectors,
+		    enum vp_vq_vector_policy vector_policy)
 {
 	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
 	struct virtqueue *vq;
@@ -305,7 +305,7 @@ static struct virtqueue *vp_find_one_vq_msix(struct virtio_device *vdev,
 
 	if (!callback)
 		msix_vec = VIRTIO_MSI_NO_VECTOR;
-	else if (vp_dev->per_vq_vectors)
+	else if (vector_policy == VP_VQ_VECTOR_POLICY_EACH)
 		msix_vec = (*allocated_vectors)++;
 	else
 		msix_vec = VP_MSIX_VQ_VECTOR;
@@ -313,7 +313,8 @@ static struct virtqueue *vp_find_one_vq_msix(struct virtio_device *vdev,
 	if (IS_ERR(vq))
 		return vq;
 
-	if (!vp_dev->per_vq_vectors || msix_vec == VIRTIO_MSI_NO_VECTOR)
+	if (vector_policy == VP_VQ_VECTOR_POLICY_SHARED ||
+	    msix_vec == VIRTIO_MSI_NO_VECTOR)
 		return vq;
 
 	/* allocate per-vq irq if available and necessary */
@@ -374,7 +375,7 @@ static int vp_find_vqs_msix(struct virtio_device *vdev, unsigned int nvqs,
 		}
 		vqs[i] = vp_find_one_vq_msix(vdev, queue_idx++, vqi->callback,
 					     vqi->name, vqi->ctx,
-					     &allocated_vectors);
+					     &allocated_vectors, vector_policy);
 		if (IS_ERR(vqs[i])) {
 			err = PTR_ERR(vqs[i]);
 			goto error_find;
