@@ -191,6 +191,7 @@ static int qcom_cpufreq_kryo_name_version(struct device *cpu_dev,
 	case QCOM_ID_IPQ5312:
 	case QCOM_ID_IPQ5302:
 	case QCOM_ID_IPQ5300:
+	case QCOM_ID_IPQ5321:
 	case QCOM_ID_IPQ9514:
 	case QCOM_ID_IPQ9550:
 	case QCOM_ID_IPQ9554:

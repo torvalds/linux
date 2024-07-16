@@ -2,7 +2,7 @@
 # Copyright (C) 2020 Texas Instruments Incorporated - http://www.ti.com/
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/mfd/ti,j721e-system-controller.yaml#
+$id: http://devicetree.org/schemas/soc/ti/ti,j721e-system-controller.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: TI J721e System Controller Registers R/W
@@ -19,7 +19,7 @@ description: |
   and access the registers directly.
 
 maintainers:
-  - Kishon Vijay Abraham I <kishon@ti.com>
+  - Kishon Vijay Abraham I <kishon@kernel.org>
   - Roger Quadros <rogerq@kernel.org>
 
 properties:
