@@ -911,7 +911,8 @@ static int FNAME(sync_spte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp, int 
 	gpa_t pte_gpa;
 	gfn_t gfn;
 
-	if (WARN_ON_ONCE(sp->spt[i] == SHADOW_NONPRESENT_VALUE))
+	if (WARN_ON_ONCE(sp->spt[i] == SHADOW_NONPRESENT_VALUE ||
+			 !sp->shadowed_translation))
 		return 0;
 
 	first_pte_gpa = FNAME(get_level1_sp_gpa)(sp);

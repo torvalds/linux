@@ -1340,62 +1340,19 @@ bool kvm_tdp_mmu_wrprot_slot(struct kvm *kvm,
 	return spte_set;
 }
 
-static struct kvm_mmu_page *__tdp_mmu_alloc_sp_for_split(gfp_t gfp)
+static struct kvm_mmu_page *tdp_mmu_alloc_sp_for_split(void)
 {
 	struct kvm_mmu_page *sp;
 
-	gfp |= __GFP_ZERO;
-
-	sp = kmem_cache_alloc(mmu_page_header_cache, gfp);
+	sp = kmem_cache_zalloc(mmu_page_header_cache, GFP_KERNEL_ACCOUNT);
 	if (!sp)
 		return NULL;
 
-	sp->spt = (void *)__get_free_page(gfp);
+	sp->spt = (void *)get_zeroed_page(GFP_KERNEL_ACCOUNT);
 	if (!sp->spt) {
 		kmem_cache_free(mmu_page_header_cache, sp);
 		return NULL;
 	}
-
-	return sp;
-}
-
-static struct kvm_mmu_page *tdp_mmu_alloc_sp_for_split(struct kvm *kvm,
-						       struct tdp_iter *iter,
-						       bool shared)
-{
-	struct kvm_mmu_page *sp;
-
-	kvm_lockdep_assert_mmu_lock_held(kvm, shared);
-
-	/*
-	 * Since we are allocating while under the MMU lock we have to be
-	 * careful about GFP flags. Use GFP_NOWAIT to avoid blocking on direct
-	 * reclaim and to avoid making any filesystem callbacks (which can end
-	 * up invoking KVM MMU notifiers, resulting in a deadlock).
-	 *
-	 * If this allocation fails we drop the lock and retry with reclaim
-	 * allowed.
-	 */
-	sp = __tdp_mmu_alloc_sp_for_split(GFP_NOWAIT | __GFP_ACCOUNT);
-	if (sp)
-		return sp;
-
-	rcu_read_unlock();
-
-	if (shared)
-		read_unlock(&kvm->mmu_lock);
-	else
-		write_unlock(&kvm->mmu_lock);
-
-	iter->yielded = true;
-	sp = __tdp_mmu_alloc_sp_for_split(GFP_KERNEL_ACCOUNT);
-
-	if (shared)
-		read_lock(&kvm->mmu_lock);
-	else
-		write_lock(&kvm->mmu_lock);
-
-	rcu_read_lock();
 
 	return sp;
 }
@@ -1446,7 +1403,6 @@ static int tdp_mmu_split_huge_pages_root(struct kvm *kvm,
 {
 	struct kvm_mmu_page *sp = NULL;
 	struct tdp_iter iter;
-	int ret = 0;
 
 	rcu_read_lock();
 
@@ -1470,17 +1426,31 @@ retry:
 			continue;
 
 		if (!sp) {
-			sp = tdp_mmu_alloc_sp_for_split(kvm, &iter, shared);
+			rcu_read_unlock();
+
+			if (shared)
+				read_unlock(&kvm->mmu_lock);
+			else
+				write_unlock(&kvm->mmu_lock);
+
+			sp = tdp_mmu_alloc_sp_for_split();
+
+			if (shared)
+				read_lock(&kvm->mmu_lock);
+			else
+				write_lock(&kvm->mmu_lock);
+
 			if (!sp) {
-				ret = -ENOMEM;
 				trace_kvm_mmu_split_huge_page(iter.gfn,
 							      iter.old_spte,
-							      iter.level, ret);
-				break;
+							      iter.level, -ENOMEM);
+				return -ENOMEM;
 			}
 
-			if (iter.yielded)
-				continue;
+			rcu_read_lock();
+
+			iter.yielded = true;
+			continue;
 		}
 
 		tdp_mmu_init_child_sp(sp, &iter);
@@ -1501,7 +1471,7 @@ retry:
 	if (sp)
 		tdp_mmu_free_sp(sp);
 
-	return ret;
+	return 0;
 }
 
 
