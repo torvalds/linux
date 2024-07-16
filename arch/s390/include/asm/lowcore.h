@@ -97,8 +97,7 @@ struct lowcore {
 	__u64	save_area_async[8];		/* 0x0240 */
 	__u64	save_area_restart[1];		/* 0x0280 */
 
-	/* CPU flags. */
-	__u64	cpu_flags;			/* 0x0288 */
+	__u64	pcpu;				/* 0x0288 */
 
 	/* Return psws. */
 	psw_t	return_psw;			/* 0x0290 */

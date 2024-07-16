@@ -42,21 +42,37 @@
 #include <asm/irqflags.h>
 #include <asm/alternative.h>
 
+struct pcpu {
+	unsigned long ec_mask;		/* bit mask for ec_xxx functions */
+	unsigned long ec_clk;		/* sigp timestamp for ec_xxx */
+	unsigned long flags;		/* per CPU flags */
+	signed char state;		/* physical cpu state */
+	signed char polarization;	/* physical polarization */
+	u16 address;			/* physical cpu address */
+};
+
+DECLARE_PER_CPU(struct pcpu, pcpu_devices);
+
 typedef long (*sys_call_ptr_t)(struct pt_regs *regs);
+
+static __always_inline struct pcpu *this_pcpu(void)
+{
+	return (struct pcpu *)(get_lowcore()->pcpu);
+}
 
 static __always_inline void set_cpu_flag(int flag)
 {
-	get_lowcore()->cpu_flags |= (1UL << flag);
+	this_pcpu()->flags |= (1UL << flag);
 }
 
 static __always_inline void clear_cpu_flag(int flag)
 {
-	get_lowcore()->cpu_flags &= ~(1UL << flag);
+	this_pcpu()->flags &= ~(1UL << flag);
 }
 
 static __always_inline bool test_cpu_flag(int flag)
 {
-	return get_lowcore()->cpu_flags & (1UL << flag);
+	return this_pcpu()->flags & (1UL << flag);
 }
 
 static __always_inline bool test_and_set_cpu_flag(int flag)
@@ -81,9 +97,7 @@ static __always_inline bool test_and_clear_cpu_flag(int flag)
  */
 static __always_inline bool test_cpu_flag_of(int flag, int cpu)
 {
-	struct lowcore *lc = lowcore_ptr[cpu];
-
-	return lc->cpu_flags & (1UL << flag);
+	return per_cpu(pcpu_devices, cpu).flags & (1UL << flag);
 }
 
 #define arch_needs_cpu() test_cpu_flag(CIF_NOHZ_DELAY)

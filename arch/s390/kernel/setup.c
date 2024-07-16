@@ -406,6 +406,7 @@ static void __init setup_lowcore(void)
 		panic("%s: Failed to allocate %zu bytes align=%zx\n",
 		      __func__, sizeof(*lc), sizeof(*lc));
 
+	lc->pcpu = (unsigned long)per_cpu_ptr(&pcpu_devices, 0);
 	lc->restart_psw.mask = PSW_KERNEL_BITS & ~PSW_MASK_DAT;
 	lc->restart_psw.addr = __pa(restart_int_handler);
 	lc->external_new_psw.mask = PSW_KERNEL_BITS;
