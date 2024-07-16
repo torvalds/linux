@@ -3540,7 +3540,7 @@ static int cam_cc_sm8550_probe(struct platform_device *pdev)
 	qcom_branch_set_clk_en(regmap, 0x1419c); /* CAM_CC_GDSC_CLK */
 	qcom_branch_set_clk_en(regmap, 0x142cc); /* CAM_CC_SLEEP_CLK */
 
-	ret = qcom_cc_really_probe(pdev, &cam_cc_sm8550_desc, regmap);
+	ret = qcom_cc_really_probe(&pdev->dev, &cam_cc_sm8550_desc, regmap);
 
 	pm_runtime_put(&pdev->dev);
 
