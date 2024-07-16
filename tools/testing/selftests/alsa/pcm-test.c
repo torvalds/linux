@@ -240,6 +240,10 @@ static void find_pcms(void)
 				if (err < 0)
 					ksft_exit_fail_msg("snd_ctl_pcm_info: %d:%d:%d\n",
 							   dev, 0, stream);
+
+				ksft_print_msg("%s.0 - %s\n", card_data->name,
+					       snd_pcm_info_get_id(pcm_info));
+
 				count = snd_pcm_info_get_subdevices_count(pcm_info);
 				for (subdev = 0; subdev < count; subdev++) {
 					sprintf(key, "pcm.%d.%d.%s", dev, subdev, snd_pcm_stream_name(stream));
