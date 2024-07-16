@@ -870,6 +870,9 @@ u64 xe_device_uncanonicalize_addr(struct xe_device *xe, u64 address)
  */
 void xe_device_declare_wedged(struct xe_device *xe)
 {
+	struct xe_gt *gt;
+	u8 id;
+
 	if (xe->wedged.mode == 0) {
 		drm_dbg(&xe->drm, "Wedged mode is forcibly disabled\n");
 		return;
@@ -883,4 +886,7 @@ void xe_device_declare_wedged(struct xe_device *xe)
 			"Please file a _new_ bug report at https://gitlab.freedesktop.org/drm/xe/kernel/issues/new\n",
 			dev_name(xe->drm.dev));
 	}
+
+	for_each_gt(gt, xe, id)
+		xe_gt_declare_wedged(gt);
 }
