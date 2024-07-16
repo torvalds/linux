@@ -432,6 +432,11 @@ static int alt_replace_call(u8 *instr, u8 *insn_buff, struct alt_instr *a)
 	return 5;
 }
 
+static inline u8 * instr_va(struct alt_instr *i)
+{
+	return (u8 *)&i->instr_offset + i->instr_offset;
+}
+
 /*
  * Replace instructions with better alternatives for this CPU type. This runs
  * before SMP is initialized to avoid SMP problems with self modifying code.
@@ -447,7 +452,7 @@ void __init_or_module noinline apply_alternatives(struct alt_instr *start,
 {
 	u8 insn_buff[MAX_PATCH_LEN];
 	u8 *instr, *replacement;
-	struct alt_instr *a;
+	struct alt_instr *a, *b;
 
 	DPRINTK(ALT, "alt table %px, -> %px", start, end);
 
@@ -473,7 +478,18 @@ void __init_or_module noinline apply_alternatives(struct alt_instr *start,
 	for (a = start; a < end; a++) {
 		int insn_buff_sz = 0;
 
-		instr = (u8 *)&a->instr_offset + a->instr_offset;
+		/*
+		 * In case of nested ALTERNATIVE()s the outer alternative might
+		 * add more padding. To ensure consistent patching find the max
+		 * padding for all alt_instr entries for this site (nested
+		 * alternatives result in consecutive entries).
+		 */
+		for (b = a+1; b < end && instr_va(b) == instr_va(a); b++) {
+			u8 len = max(a->instrlen, b->instrlen);
+			a->instrlen = b->instrlen = len;
+		}
+
+		instr = instr_va(a);
 		replacement = (u8 *)&a->repl_offset + a->repl_offset;
 		BUG_ON(a->instrlen > sizeof(insn_buff));
 		BUG_ON(a->cpuid >= (NCAPINTS + NBUGINTS) * 32);
@@ -1641,7 +1657,7 @@ static noinline void __init alt_reloc_selftest(void)
 	 */
 	asm_inline volatile (
 		ALTERNATIVE("", "lea %[mem], %%" _ASM_ARG1 "; call __alt_reloc_selftest;", X86_FEATURE_ALWAYS)
-		: /* output */
+		: ASM_CALL_CONSTRAINT
 		: [mem] "m" (__alt_reloc_selftest_addr)
 		: _ASM_ARG1
 	);
