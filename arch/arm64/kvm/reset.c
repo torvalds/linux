@@ -268,6 +268,12 @@ void kvm_reset_vcpu(struct kvm_vcpu *vcpu)
 	preempt_enable();
 }
 
+u32 kvm_get_pa_bits(struct kvm *kvm)
+{
+	/* Fixed limit until we can configure ID_AA64MMFR0.PARange */
+	return kvm_ipa_limit;
+}
+
 u32 get_kvm_ipa_limit(void)
 {
 	return kvm_ipa_limit;
