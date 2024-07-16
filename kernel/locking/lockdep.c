@@ -97,7 +97,6 @@ static struct ctl_table kern_lockdep_table[] = {
 		.proc_handler   = proc_dointvec,
 	},
 #endif /* CONFIG_LOCK_STAT */
-	{ }
 };
 
 static __init int kernel_lockdep_sysctls_init(void)
