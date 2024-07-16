@@ -28,6 +28,16 @@
 #include <drm/ttm/ttm_bo.h>
 
 /**
+ * ttm_bo_get - reference a struct ttm_buffer_object
+ *
+ * @bo: The buffer object.
+ */
+static inline void ttm_bo_get(struct ttm_buffer_object *bo)
+{
+	kref_get(&bo->kref);
+}
+
+/**
  * ttm_bo_get_unless_zero - reference a struct ttm_buffer_object unless
  * its refcount has already reached zero.
  * @bo: The buffer object.

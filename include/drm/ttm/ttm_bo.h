@@ -245,16 +245,6 @@ bool ttm_bo_shrink_suitable(struct ttm_buffer_object *bo, struct ttm_operation_c
 bool ttm_bo_shrink_avoid_wait(void);
 
 /**
- * ttm_bo_get - reference a struct ttm_buffer_object
- *
- * @bo: The buffer object.
- */
-static inline void ttm_bo_get(struct ttm_buffer_object *bo)
-{
-	kref_get(&bo->kref);
-}
-
-/**
  * ttm_bo_reserve:
  *
  * @bo: A pointer to a struct ttm_buffer_object.
