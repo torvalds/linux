@@ -535,6 +535,7 @@ static void __walk_groups(up_f up, struct tmigr_walk *data,
 
 		child = group;
 		group = group->parent;
+		data->childmask = child->childmask;
 	} while (group);
 }
 
@@ -646,9 +647,6 @@ static bool tmigr_active_up(struct tmigr_group *group,
 	} while (!atomic_try_cmpxchg(&group->migr_state, &curstate.state, newstate.state));
 
 	trace_tmigr_group_set_cpu_active(group, newstate, childmask);
-
-	if (walk_done == false)
-		data->childmask = group->childmask;
 
 	/*
 	 * The group is active (again). The group event might be still queued
@@ -1027,12 +1025,10 @@ again:
 	}
 
 	/*
-	 * Update of childmask for the next level and keep track of the expiry
-	 * of the first event that needs to be handled (group->next_expiry was
-	 * updated by tmigr_next_expired_groupevt(), next was set by
-	 * tmigr_handle_remote_cpu()).
+	 * Keep track of the expiry of the first event that needs to be handled
+	 * (group->next_expiry was updated by tmigr_next_expired_groupevt(),
+	 * next was set by tmigr_handle_remote_cpu()).
 	 */
-	data->childmask = group->childmask;
 	data->firstexp = group->next_expiry;
 
 	raw_spin_unlock_irq(&group->lock);
@@ -1110,7 +1106,7 @@ static bool tmigr_requires_handle_remote_up(struct tmigr_group *group,
 	 * group before reading the next_expiry value.
 	 */
 	if (group->parent && !data->tmc_active)
-		goto out;
+		return false;
 
 	/*
 	 * The lock is required on 32bit architectures to read the variable
@@ -1135,9 +1131,6 @@ static bool tmigr_requires_handle_remote_up(struct tmigr_group *group,
 		raw_spin_unlock(&group->lock);
 	}
 
-out:
-	/* Update of childmask for the next level */
-	data->childmask = group->childmask;
 	return false;
 }
 
@@ -1308,9 +1301,6 @@ static bool tmigr_inactive_up(struct tmigr_group *group,
 
 	/* Event Handling */
 	tmigr_update_events(group, child, data);
-
-	if (walk_done == false)
-		data->childmask = group->childmask;
 
 	return walk_done;
 }
