@@ -8,6 +8,8 @@
  *  Copyright (c) 2006-2007 Jiri Kosina
  *  Copyright (c) 2008 Jiri Slaby <jirislaby@gmail.com>
  *  Copyright (c) 2019 Paul Pawlowski <paul@mrarm.io>
+ *  Copyright (c) 2023 Orlando Chamberlain <orlandoch.dev@gmail.com>
+ *  Copyright (c) 2024 Aditya Garg <gargaditya08@live.com>
  */
 
 /*
@@ -23,6 +25,7 @@
 #include <linux/timer.h>
 #include <linux/string.h>
 #include <linux/leds.h>
+#include <dt-bindings/leds/common.h>
 
 #include "hid-ids.h"
 
@@ -38,11 +41,16 @@
 #define APPLE_RDESC_BATTERY	BIT(9)
 #define APPLE_BACKLIGHT_CTL	BIT(10)
 #define APPLE_IS_NON_APPLE	BIT(11)
+#define APPLE_MAGIC_BACKLIGHT	BIT(12)
 
 #define APPLE_FLAG_FKEY		0x01
 
 #define HID_COUNTRY_INTERNATIONAL_ISO	13
 #define APPLE_BATTERY_TIMEOUT_MS	60000
+
+#define HID_USAGE_MAGIC_BL			0xff00000f
+#define APPLE_MAGIC_REPORT_ID_POWER		3
+#define APPLE_MAGIC_REPORT_ID_BRIGHTNESS	1
 
 static unsigned int fnmode = 3;
 module_param(fnmode, uint, 0644);
@@ -79,6 +87,12 @@ struct apple_non_apple_keyboard {
 struct apple_sc_backlight {
 	struct led_classdev cdev;
 	struct hid_device *hdev;
+};
+
+struct apple_magic_backlight {
+	struct led_classdev cdev;
+	struct hid_report *brightness;
+	struct hid_report *power;
 };
 
 struct apple_sc {
@@ -822,6 +836,66 @@ cleanup_and_exit:
 	return ret;
 }
 
+static void apple_magic_backlight_report_set(struct hid_report *rep, s32 value, u8 rate)
+{
+	rep->field[0]->value[0] = value;
+	rep->field[1]->value[0] = 0x5e; /* Mimic Windows */
+	rep->field[1]->value[0] |= rate << 8;
+
+	hid_hw_request(rep->device, rep, HID_REQ_SET_REPORT);
+}
+
+static void apple_magic_backlight_set(struct apple_magic_backlight *backlight,
+				     int brightness, char rate)
+{
+	apple_magic_backlight_report_set(backlight->power, brightness ? 1 : 0, rate);
+	if (brightness)
+		apple_magic_backlight_report_set(backlight->brightness, brightness, rate);
+}
+
+static int apple_magic_backlight_led_set(struct led_classdev *led_cdev,
+					 enum led_brightness brightness)
+{
+	struct apple_magic_backlight *backlight = container_of(led_cdev,
+			struct apple_magic_backlight, cdev);
+
+	apple_magic_backlight_set(backlight, brightness, 1);
+	return 0;
+}
+
+static int apple_magic_backlight_init(struct hid_device *hdev)
+{
+	struct apple_magic_backlight *backlight;
+	struct hid_report_enum *report_enum;
+
+	/*
+	 * Ensure this usb endpoint is for the keyboard backlight, not touchbar
+	 * backlight.
+	 */
+	if (hdev->collection[0].usage != HID_USAGE_MAGIC_BL)
+		return -ENODEV;
+
+	backlight = devm_kzalloc(&hdev->dev, sizeof(*backlight), GFP_KERNEL);
+	if (!backlight)
+		return -ENOMEM;
+
+	report_enum = &hdev->report_enum[HID_FEATURE_REPORT];
+	backlight->brightness = report_enum->report_id_hash[APPLE_MAGIC_REPORT_ID_BRIGHTNESS];
+	backlight->power = report_enum->report_id_hash[APPLE_MAGIC_REPORT_ID_POWER];
+
+	if (!backlight->brightness || !backlight->power)
+		return -ENODEV;
+
+	backlight->cdev.name = ":white:" LED_FUNCTION_KBD_BACKLIGHT;
+	backlight->cdev.max_brightness = backlight->brightness->field[0]->logical_maximum;
+	backlight->cdev.brightness_set_blocking = apple_magic_backlight_led_set;
+
+	apple_magic_backlight_set(backlight, 0, 0);
+
+	return devm_led_classdev_register(&hdev->dev, &backlight->cdev);
+
+}
+
 static int apple_probe(struct hid_device *hdev,
 		const struct hid_device_id *id)
 {
@@ -860,7 +934,18 @@ static int apple_probe(struct hid_device *hdev,
 	if (quirks & APPLE_BACKLIGHT_CTL)
 		apple_backlight_init(hdev);
 
+	if (quirks & APPLE_MAGIC_BACKLIGHT) {
+		ret = apple_magic_backlight_init(hdev);
+		if (ret)
+			goto out_err;
+	}
+
 	return 0;
+
+out_err:
+	del_timer_sync(&asc->battery_timer);
+	hid_hw_stop(hdev);
+	return ret;
 }
 
 static void apple_remove(struct hid_device *hdev)
@@ -1073,6 +1158,8 @@ static const struct hid_device_id apple_devices[] = {
 		.driver_data = APPLE_HAS_FN | APPLE_ISO_TILDE_QUIRK | APPLE_RDESC_BATTERY },
 	{ HID_BLUETOOTH_DEVICE(BT_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_MAGIC_KEYBOARD_NUMPAD_2021),
 		.driver_data = APPLE_HAS_FN | APPLE_ISO_TILDE_QUIRK },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_TOUCHBAR_BACKLIGHT),
+		.driver_data = APPLE_MAGIC_BACKLIGHT },
 
 	{ }
 };
