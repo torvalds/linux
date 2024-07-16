@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * <linux/gpio.h>
+ * NOTE: This header *must not* be included.
  *
  * This is the LEGACY GPIO bulk include file, including legacy APIs. It is
  * used for GPIO drivers still referencing the global GPIO numberspace,
@@ -15,8 +15,6 @@
 #include <linux/types.h>
 
 struct device;
-
-/* see Documentation/driver-api/gpio/legacy.rst */
 
 /* make these flag values available regardless of GPIO kconfig options */
 #define GPIOF_DIR_OUT	(0 << 0)
@@ -120,8 +118,6 @@ static inline int gpio_to_irq(unsigned gpio)
 }
 
 int gpio_request_one(unsigned gpio, unsigned long flags, const char *label);
-
-/* CONFIG_GPIOLIB: bindings for managed devices that want to request gpios */
 
 int devm_gpio_request(struct device *dev, unsigned gpio, const char *label);
 int devm_gpio_request_one(struct device *dev, unsigned gpio,

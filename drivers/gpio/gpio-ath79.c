@@ -273,8 +273,6 @@ static int ath79_gpio_probe(struct platform_device *pdev)
 		dev_err(dev, "bgpio_init failed\n");
 		return err;
 	}
-	/* Use base 0 to stay compatible with legacy platforms */
-	ctrl->gc.base = 0;
 
 	/* Optional interrupt setup */
 	if (!np || of_property_read_bool(np, "interrupt-controller")) {
