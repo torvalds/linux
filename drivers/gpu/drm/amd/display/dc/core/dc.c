@@ -1823,10 +1823,18 @@ bool dc_validate_boot_timing(const struct dc *dc,
 			tg->funcs->get_optc_source(tg,
 						&numOdmPipes, &id_src[0], &id_src[1]);
 
-		if (numOdmPipes == 2)
+		if (numOdmPipes == 2) {
 			pix_clk_100hz *= 2;
-		if (numOdmPipes == 4)
+		} else if (numOdmPipes == 4) {
 			pix_clk_100hz *= 4;
+		} else if (se && se->funcs->get_pixels_per_cycle) {
+			uint32_t pixels_per_cycle = se->funcs->get_pixels_per_cycle(se);
+
+			if (pixels_per_cycle != 1 && !dc->debug.enable_dp_dig_pixel_rate_div_policy)
+				return false;
+
+			pix_clk_100hz *= pixels_per_cycle;
+		}
 
 		// Note: In rare cases, HW pixclk may differ from crtc's pixclk
 		// slightly due to rounding issues in 10 kHz units.

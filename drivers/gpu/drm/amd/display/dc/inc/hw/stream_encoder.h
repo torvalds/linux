@@ -273,6 +273,7 @@ struct stream_encoder_funcs {
 	void (*disable_fifo)(struct stream_encoder *enc);
 	bool (*is_fifo_enabled)(struct stream_encoder *enc);
 	void (*map_stream_to_link)(struct stream_encoder *enc, uint32_t stream_enc_inst, uint32_t link_enc_inst);
+	uint32_t (*get_pixels_per_cycle)(struct stream_encoder *enc);
 };
 
 struct hpo_dp_stream_encoder_state {
