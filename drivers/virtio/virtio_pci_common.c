@@ -287,6 +287,11 @@ void vp_del_vqs(struct virtio_device *vdev)
 	vp_dev->vqs = NULL;
 }
 
+enum vp_vq_vector_policy {
+	VP_VQ_VECTOR_POLICY_EACH,
+	VP_VQ_VECTOR_POLICY_SHARED,
+};
+
 static struct virtqueue *vp_find_one_vq_msix(struct virtio_device *vdev,
 					     int queue_idx,
 					     vq_callback_t *callback,
@@ -328,16 +333,19 @@ static struct virtqueue *vp_find_one_vq_msix(struct virtio_device *vdev,
 static int vp_find_vqs_msix(struct virtio_device *vdev, unsigned int nvqs,
 			    struct virtqueue *vqs[],
 			    struct virtqueue_info vqs_info[],
-			    bool per_vq_vectors,
+			    enum vp_vq_vector_policy vector_policy,
 			    struct irq_affinity *desc)
 {
 	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
 	struct virtqueue_info *vqi;
 	int i, err, nvectors, allocated_vectors, queue_idx = 0;
+	bool per_vq_vectors;
 
 	vp_dev->vqs = kcalloc(nvqs, sizeof(*vp_dev->vqs), GFP_KERNEL);
 	if (!vp_dev->vqs)
 		return -ENOMEM;
+
+	per_vq_vectors = vector_policy != VP_VQ_VECTOR_POLICY_SHARED;
 
 	if (per_vq_vectors) {
 		/* Best option: one for change interrupt, one per vq. */
@@ -427,11 +435,13 @@ int vp_find_vqs(struct virtio_device *vdev, unsigned int nvqs,
 	int err;
 
 	/* Try MSI-X with one vector per queue. */
-	err = vp_find_vqs_msix(vdev, nvqs, vqs, vqs_info, true, desc);
+	err = vp_find_vqs_msix(vdev, nvqs, vqs, vqs_info,
+			       VP_VQ_VECTOR_POLICY_EACH, desc);
 	if (!err)
 		return 0;
 	/* Fallback: MSI-X with one vector for config, one shared for queues. */
-	err = vp_find_vqs_msix(vdev, nvqs, vqs, vqs_info, false, desc);
+	err = vp_find_vqs_msix(vdev, nvqs, vqs, vqs_info,
+			       VP_VQ_VECTOR_POLICY_SHARED, desc);
 	if (!err)
 		return 0;
 	/* Is there an interrupt? If not give up. */
