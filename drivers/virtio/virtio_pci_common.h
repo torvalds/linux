@@ -45,8 +45,6 @@ struct virtio_pci_vq_info {
 struct virtio_pci_admin_vq {
 	/* Virtqueue info associated with this admin queue. */
 	struct virtio_pci_vq_info *info;
-	/* serializing admin commands execution. */
-	struct mutex cmd_lock;
 	/* Protects virtqueue access. */
 	spinlock_t lock;
 	u64 supported_cmds;

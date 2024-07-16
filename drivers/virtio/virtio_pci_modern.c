@@ -167,12 +167,9 @@ int vp_modern_admin_cmd_exec(struct virtio_device *vdev,
 		in_num++;
 	}
 
-	mutex_lock(&vp_dev->admin_vq.cmd_lock);
 	ret = virtqueue_exec_admin_cmd(&vp_dev->admin_vq,
 				       le16_to_cpu(cmd->opcode),
 				       sgs, out_num, in_num, cmd);
-	mutex_unlock(&vp_dev->admin_vq.cmd_lock);
-
 	if (ret) {
 		dev_err(&vdev->dev,
 			"Failed to execute command on admin vq: %d\n.", ret);
@@ -837,7 +834,6 @@ int virtio_pci_modern_probe(struct virtio_pci_device *vp_dev)
 	vp_dev->vdev.id = mdev->id;
 
 	spin_lock_init(&vp_dev->admin_vq.lock);
-	mutex_init(&vp_dev->admin_vq.cmd_lock);
 	return 0;
 }
 
@@ -845,6 +841,5 @@ void virtio_pci_modern_remove(struct virtio_pci_device *vp_dev)
 {
 	struct virtio_pci_modern_device *mdev = &vp_dev->mdev;
 
-	mutex_destroy(&vp_dev->admin_vq.cmd_lock);
 	vp_modern_remove(mdev);
 }
