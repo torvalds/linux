@@ -2414,6 +2414,15 @@ config STRICT_SIGALTSTACK_SIZE
 
 	  Say 'N' unless you want to really enforce this check.
 
+config CFI_AUTO_DEFAULT
+	bool "Attempt to use FineIBT by default at boot time"
+	depends on FINEIBT
+	default y
+	help
+	  Attempt to use FineIBT by default at boot time. If enabled,
+	  this is the same as booting with "cfi=auto". If disabled,
+	  this is the same as booting with "cfi=kcfi".
+
 source "kernel/livepatch/Kconfig"
 
 endmenu

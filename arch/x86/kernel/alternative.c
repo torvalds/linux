@@ -901,8 +901,8 @@ void __init_or_module apply_seal_endbr(s32 *start, s32 *end) { }
 
 #endif /* CONFIG_X86_KERNEL_IBT */
 
-#ifdef CONFIG_FINEIBT
-#define __CFI_DEFAULT	CFI_DEFAULT
+#ifdef CONFIG_CFI_AUTO_DEFAULT
+#define __CFI_DEFAULT	CFI_AUTO
 #elif defined(CONFIG_CFI_CLANG)
 #define __CFI_DEFAULT	CFI_KCFI
 #else
@@ -1010,7 +1010,7 @@ static __init int cfi_parse_cmdline(char *str)
 		}
 
 		if (!strcmp(str, "auto")) {
-			cfi_mode = CFI_DEFAULT;
+			cfi_mode = CFI_AUTO;
 		} else if (!strcmp(str, "off")) {
 			cfi_mode = CFI_OFF;
 			cfi_rand = false;
@@ -1270,7 +1270,7 @@ static void __apply_fineibt(s32 *start_retpoline, s32 *end_retpoline,
 		      "FineIBT preamble wrong size: %ld", fineibt_preamble_size))
 		return;
 
-	if (cfi_mode == CFI_DEFAULT) {
+	if (cfi_mode == CFI_AUTO) {
 		cfi_mode = CFI_KCFI;
 		if (HAS_KERNEL_IBT && cpu_feature_enabled(X86_FEATURE_IBT))
 			cfi_mode = CFI_FINEIBT;

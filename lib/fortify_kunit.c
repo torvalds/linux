@@ -910,10 +910,9 @@ static void fortify_test_##memfunc(struct kunit *test)		\
 	memfunc(zero.buf, srcB, 0 + unconst);			\
 	KUNIT_EXPECT_EQ(test, fortify_read_overflows, 0);	\
 	KUNIT_EXPECT_EQ(test, fortify_write_overflows, 0);	\
-	/* We currently explicitly ignore zero-sized dests. */	\
 	memfunc(zero.buf, srcB, 1 + unconst);			\
 	KUNIT_EXPECT_EQ(test, fortify_read_overflows, 0);	\
-	KUNIT_EXPECT_EQ(test, fortify_write_overflows, 0);	\
+	KUNIT_EXPECT_EQ(test, fortify_write_overflows, 1);	\
 }
 __fortify_test(memcpy)
 __fortify_test(memmove)
