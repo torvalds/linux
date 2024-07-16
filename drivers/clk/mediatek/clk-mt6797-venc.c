@@ -52,4 +52,6 @@ static struct platform_driver clk_mt6797_venc_drv = {
 	},
 };
 module_platform_driver(clk_mt6797_venc_drv);
+
+MODULE_DESCRIPTION("MediaTek MT6797 Video Encoders clocks driver");
 MODULE_LICENSE("GPL");

@@ -57,4 +57,6 @@ static struct platform_driver clk_mt6779_ipe_drv = {
 };
 
 module_platform_driver(clk_mt6779_ipe_drv);
+
+MODULE_DESCRIPTION("MediaTek MT6779 Image Processing Engine clocks driver");
 MODULE_LICENSE("GPL");
