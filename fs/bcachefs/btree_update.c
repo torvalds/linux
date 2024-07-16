@@ -449,7 +449,7 @@ bch2_trans_update_by_path(struct btree_trans *trans, btree_path_idx_t path_idx,
 		}
 	}
 
-	__btree_path_get(trans->paths + i->path, true);
+	__btree_path_get(trans, trans->paths + i->path, true);
 
 	/*
 	 * If a key is present in the key cache, it must also exist in the

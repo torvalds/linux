@@ -1010,9 +1010,9 @@ retry_all:
 		 * the same position:
 		 */
 		if (trans->paths[idx].uptodate) {
-			__btree_path_get(&trans->paths[idx], false);
+			__btree_path_get(trans, &trans->paths[idx], false);
 			ret = bch2_btree_path_traverse_one(trans, idx, 0, _THIS_IP_);
-			__btree_path_put(&trans->paths[idx], false);
+			__btree_path_put(trans, &trans->paths[idx], false);
 
 			if (bch2_err_matches(ret, BCH_ERR_transaction_restart) ||
 			    bch2_err_matches(ret, ENOMEM))
@@ -1225,7 +1225,7 @@ static btree_path_idx_t btree_path_clone(struct btree_trans *trans, btree_path_i
 {
 	btree_path_idx_t new = btree_path_alloc(trans, src);
 	btree_path_copy(trans, trans->paths + new, trans->paths + src);
-	__btree_path_get(trans->paths + new, intent);
+	__btree_path_get(trans, trans->paths + new, intent);
 #ifdef TRACK_PATH_ALLOCATED
 	trans->paths[new].ip_allocated = ip;
 #endif
@@ -1236,7 +1236,7 @@ __flatten
 btree_path_idx_t __bch2_btree_path_make_mut(struct btree_trans *trans,
 			btree_path_idx_t path, bool intent, unsigned long ip)
 {
-	__btree_path_put(trans->paths + path, intent);
+	__btree_path_put(trans, trans->paths + path, intent);
 	path = btree_path_clone(trans, path, intent, ip);
 	trans->paths[path].preserve = false;
 	return path;
@@ -1361,7 +1361,7 @@ void bch2_path_put(struct btree_trans *trans, btree_path_idx_t path_idx, bool in
 {
 	struct btree_path *path = trans->paths + path_idx, *dup;
 
-	if (!__btree_path_put(path, intent))
+	if (!__btree_path_put(trans, path, intent))
 		return;
 
 	dup = path->preserve
@@ -1392,7 +1392,7 @@ void bch2_path_put(struct btree_trans *trans, btree_path_idx_t path_idx, bool in
 static void bch2_path_put_nokeep(struct btree_trans *trans, btree_path_idx_t path,
 				 bool intent)
 {
-	if (!__btree_path_put(trans->paths + path, intent))
+	if (!__btree_path_put(trans, trans->paths + path, intent))
 		return;
 
 	__bch2_path_free(trans, path);
@@ -1716,14 +1716,14 @@ btree_path_idx_t bch2_path_get(struct btree_trans *trans,
 	    trans->paths[path_pos].cached	== cached &&
 	    trans->paths[path_pos].btree_id	== btree_id &&
 	    trans->paths[path_pos].level	== level) {
-		__btree_path_get(trans->paths + path_pos, intent);
+		__btree_path_get(trans, trans->paths + path_pos, intent);
 		path_idx = bch2_btree_path_set_pos(trans, path_pos, pos, intent, ip);
 		path = trans->paths + path_idx;
 	} else {
 		path_idx = btree_path_alloc(trans, path_pos);
 		path = trans->paths + path_idx;
 
-		__btree_path_get(path, intent);
+		__btree_path_get(trans, path, intent);
 		path->pos			= pos;
 		path->btree_id			= btree_id;
 		path->cached			= cached;
@@ -2326,7 +2326,7 @@ struct bkey_s_c bch2_btree_iter_peek_upto(struct btree_iter *iter, struct bpos e
 			 * advance, same as on exit for iter->path, but only up
 			 * to snapshot
 			 */
-			__btree_path_get(trans->paths + iter->path, iter->flags & BTREE_ITER_intent);
+			__btree_path_get(trans, trans->paths + iter->path, iter->flags & BTREE_ITER_intent);
 			iter->update_path = iter->path;
 
 			iter->update_path = bch2_btree_path_set_pos(trans,
@@ -2911,9 +2911,9 @@ void bch2_trans_copy_iter(struct btree_iter *dst, struct btree_iter *src)
 	dst->ip_allocated = _RET_IP_;
 #endif
 	if (src->path)
-		__btree_path_get(trans->paths + src->path, src->flags & BTREE_ITER_intent);
+		__btree_path_get(trans, trans->paths + src->path, src->flags & BTREE_ITER_intent);
 	if (src->update_path)
-		__btree_path_get(trans->paths + src->update_path, src->flags & BTREE_ITER_intent);
+		__btree_path_get(trans, trans->paths + src->update_path, src->flags & BTREE_ITER_intent);
 	dst->key_cache_path = 0;
 }
 
@@ -3237,7 +3237,7 @@ void bch2_trans_put(struct btree_trans *trans)
 	bch2_trans_unlock(trans);
 
 	trans_for_each_update(trans, i)
-		__btree_path_put(trans->paths + i->path, true);
+		__btree_path_put(trans, trans->paths + i->path, true);
 	trans->nr_updates	= 0;
 
 	check_btree_paths_leaked(trans);

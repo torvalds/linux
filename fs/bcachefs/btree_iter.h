@@ -6,6 +6,12 @@
 #include "btree_types.h"
 #include "trace.h"
 
+void bch2_trans_updates_to_text(struct printbuf *, struct btree_trans *);
+void bch2_btree_path_to_text(struct printbuf *, struct btree_trans *, btree_path_idx_t);
+void bch2_trans_paths_to_text(struct printbuf *, struct btree_trans *);
+void bch2_dump_trans_updates(struct btree_trans *);
+void bch2_dump_trans_paths_updates(struct btree_trans *);
+
 static inline int __bkey_err(const struct bkey *k)
 {
 	return PTR_ERR_OR_ZERO(k);
@@ -13,16 +19,26 @@ static inline int __bkey_err(const struct bkey *k)
 
 #define bkey_err(_k)	__bkey_err((_k).k)
 
-static inline void __btree_path_get(struct btree_path *path, bool intent)
+static inline void __btree_path_get(struct btree_trans *trans, struct btree_path *path, bool intent)
 {
+	unsigned idx = path - trans->paths;
+
+	EBUG_ON(!test_bit(idx, trans->paths_allocated));
+	if (unlikely(path->ref == U8_MAX)) {
+		bch2_dump_trans_paths_updates(trans);
+		panic("path %u refcount overflow\n", idx);
+	}
+
 	path->ref++;
 	path->intent_ref += intent;
 }
 
-static inline bool __btree_path_put(struct btree_path *path, bool intent)
+static inline bool __btree_path_put(struct btree_trans *trans, struct btree_path *path, bool intent)
 {
+	EBUG_ON(!test_bit(path - trans->paths, trans->paths_allocated));
 	EBUG_ON(!path->ref);
 	EBUG_ON(!path->intent_ref && intent);
+
 	path->intent_ref -= intent;
 	return --path->ref == 0;
 }
@@ -893,12 +909,6 @@ __bch2_btree_iter_peek_and_restart(struct btree_trans *trans,
 	bch2_trans_put(trans);						\
 	_ret;								\
 })
-
-void bch2_trans_updates_to_text(struct printbuf *, struct btree_trans *);
-void bch2_btree_path_to_text(struct printbuf *, struct btree_trans *, btree_path_idx_t);
-void bch2_trans_paths_to_text(struct printbuf *, struct btree_trans *);
-void bch2_dump_trans_updates(struct btree_trans *);
-void bch2_dump_trans_paths_updates(struct btree_trans *);
 
 struct btree_trans *__bch2_trans_get(struct bch_fs *, unsigned);
 void bch2_trans_put(struct btree_trans *);
