@@ -51,8 +51,8 @@ struct security_hook_heads {
  * Contains the information that identifies the LSM.
  */
 struct lsm_id {
-	const char	*name;
-	u64		id;
+	const char *name;
+	u64 id;
 };
 
 /*
@@ -60,48 +60,30 @@ struct lsm_id {
  * For use with generic list macros for common operations.
  */
 struct security_hook_list {
-	struct hlist_node		list;
-	struct hlist_head		*head;
-	union security_list_options	hook;
-	const struct lsm_id		*lsmid;
+	struct hlist_node list;
+	struct hlist_head *head;
+	union security_list_options hook;
+	const struct lsm_id *lsmid;
 } __randomize_layout;
 
 /*
  * Security blob size or offset data.
  */
 struct lsm_blob_sizes {
-	int	lbs_cred;
-	int	lbs_file;
-	int	lbs_ib;
-	int	lbs_inode;
-	int	lbs_sock;
-	int	lbs_superblock;
-	int	lbs_ipc;
-	int	lbs_key;
-	int	lbs_msg_msg;
-	int	lbs_perf_event;
-	int	lbs_task;
-	int	lbs_xattr_count; /* number of xattr slots in new_xattrs array */
-	int	lbs_tun_dev;
+	int lbs_cred;
+	int lbs_file;
+	int lbs_ib;
+	int lbs_inode;
+	int lbs_sock;
+	int lbs_superblock;
+	int lbs_ipc;
+	int lbs_key;
+	int lbs_msg_msg;
+	int lbs_perf_event;
+	int lbs_task;
+	int lbs_xattr_count; /* number of xattr slots in new_xattrs array */
+	int lbs_tun_dev;
 };
-
-/**
- * lsm_get_xattr_slot - Return the next available slot and increment the index
- * @xattrs: array storing LSM-provided xattrs
- * @xattr_count: number of already stored xattrs (updated)
- *
- * Retrieve the first available slot in the @xattrs array to fill with an xattr,
- * and increment @xattr_count.
- *
- * Return: The slot to fill in @xattrs if non-NULL, NULL otherwise.
- */
-static inline struct xattr *lsm_get_xattr_slot(struct xattr *xattrs,
-					       int *xattr_count)
-{
-	if (unlikely(!xattrs))
-		return NULL;
-	return &xattrs[(*xattr_count)++];
-}
 
 /*
  * LSM_RET_VOID is used as the default value in LSM_HOOK definitions for void
@@ -117,9 +99,6 @@ static inline struct xattr *lsm_get_xattr_slot(struct xattr *xattrs,
  */
 #define LSM_HOOK_INIT(HEAD, HOOK) \
 	{ .head = &security_hook_heads.HEAD, .hook = { .HEAD = HOOK } }
-
-extern struct security_hook_heads security_hook_heads;
-extern char *lsm_names;
 
 extern void security_add_hooks(struct security_hook_list *hooks, int count,
 			       const struct lsm_id *lsmid);
@@ -142,9 +121,6 @@ struct lsm_info {
 	struct lsm_blob_sizes *blobs; /* Optional: for blob sharing. */
 };
 
-extern struct lsm_info __start_lsm_info[], __end_lsm_info[];
-extern struct lsm_info __start_early_lsm_info[], __end_early_lsm_info[];
-
 #define DEFINE_LSM(lsm)							\
 	static struct lsm_info __lsm_##lsm				\
 		__used __section(".lsm_info.init")			\
@@ -155,6 +131,29 @@ extern struct lsm_info __start_early_lsm_info[], __end_early_lsm_info[];
 		__used __section(".early_lsm_info.init")		\
 		__aligned(sizeof(unsigned long))
 
-extern int lsm_inode_alloc(struct inode *inode);
+/* DO NOT tamper with these variables outside of the LSM framework */
+extern char *lsm_names;
+extern struct security_hook_heads security_hook_heads;
+extern struct lsm_static_calls_table static_calls_table __ro_after_init;
+extern struct lsm_info __start_lsm_info[], __end_lsm_info[];
+extern struct lsm_info __start_early_lsm_info[], __end_early_lsm_info[];
+
+/**
+ * lsm_get_xattr_slot - Return the next available slot and increment the index
+ * @xattrs: array storing LSM-provided xattrs
+ * @xattr_count: number of already stored xattrs (updated)
+ *
+ * Retrieve the first available slot in the @xattrs array to fill with an xattr,
+ * and increment @xattr_count.
+ *
+ * Return: The slot to fill in @xattrs if non-NULL, NULL otherwise.
+ */
+static inline struct xattr *lsm_get_xattr_slot(struct xattr *xattrs,
+					       int *xattr_count)
+{
+	if (unlikely(!xattrs))
+		return NULL;
+	return &xattrs[(*xattr_count)++];
+}
 
 #endif /* ! __LINUX_LSM_HOOKS_H */

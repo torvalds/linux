@@ -689,7 +689,7 @@ static int lsm_file_alloc(struct file *file)
  *
  * Returns 0, or -ENOMEM if memory can't be allocated.
  */
-int lsm_inode_alloc(struct inode *inode)
+static int lsm_inode_alloc(struct inode *inode)
 {
 	if (!lsm_inode_cache) {
 		inode->i_security = NULL;
