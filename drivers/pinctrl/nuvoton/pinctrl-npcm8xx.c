@@ -316,8 +316,8 @@ static struct irq_chip npcmgpio_irqchip = {
 	GPIOCHIP_IRQ_RESOURCE_HELPERS,
 };
 
-static const int gpi36_pins[] = { 58 };
-static const int gpi35_pins[] = { 58 };
+static const int gpi36_pins[] = { 36 };
+static const int gpi35_pins[] = { 35 };
 
 static const int tp_jtag3_pins[] = { 44, 62, 45, 46 };
 static const int tp_uart_pins[] = { 50, 51 };
@@ -1358,6 +1358,8 @@ static const struct npcm8xx_pincfg pincfg[] = {
 	NPCM8XX_PINCFG(32,	spi0cs1, MFSEL1, 3,	smb14b, MFSEL7, 26,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
 	NPCM8XX_PINCFG(33,	i3c4, MFSEL6, 10,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
 	NPCM8XX_PINCFG(34,	i3c4, MFSEL6, 10,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
+	NPCM8XX_PINCFG(35,	gpi35, MFSEL5, 16,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		0),
+	NPCM8XX_PINCFG(36,	gpi36, MFSEL5, 18,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		0),
 	NPCM8XX_PINCFG(37,	smb3c, I2CSEGSEL, 12,	smb23, MFSEL5, 31,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
 	NPCM8XX_PINCFG(38,	smb3c, I2CSEGSEL, 12,	smb23, MFSEL5, 31,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
 	NPCM8XX_PINCFG(39,	smb3b, I2CSEGSEL, 11,	smb22, MFSEL5, 30,	none, NONE, 0,		none, NONE, 0,		none, NONE, 0,		SLEW),
@@ -1603,6 +1605,8 @@ static const struct pinctrl_pin_desc npcm8xx_pins[] = {
 	PINCTRL_PIN(32, "GPIO32/SMB14B_SCL/SPI0_nCS1"),
 	PINCTRL_PIN(33, "GPIO33/I3C4_SCL"),
 	PINCTRL_PIN(34, "GPIO34/I3C4_SDA"),
+	PINCTRL_PIN(35, "MCBPCK/GPI35_AHB2PCI_DIS"),
+	PINCTRL_PIN(36, "SYSBPCK/GPI36"),
 	PINCTRL_PIN(37, "GPIO37/SMB3C_SDA/SMB23_SDA"),
 	PINCTRL_PIN(38, "GPIO38/SMB3C_SCL/SMB23_SCL"),
 	PINCTRL_PIN(39, "GPIO39/SMB3B_SDA/SMB22_SDA"),
@@ -2037,7 +2041,7 @@ static int npcm8xx_gpio_request_enable(struct pinctrl_dev *pctldev,
 	const unsigned int *pin = &offset;
 	int mode = fn_gpio;
 
-	if (pin[0] >= 183 && pin[0] <= 189)
+	if ((pin[0] >= 183 && pin[0] <= 189) || pin[0] == 35 || pin[0] == 36)
 		mode = pincfg[pin[0]].fn0;
 
 	npcm8xx_setfunc(npcm->gcr_regmap, &offset, 1, mode);
