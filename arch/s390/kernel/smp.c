@@ -383,21 +383,6 @@ static int pcpu_set_smt(unsigned int mtid)
 }
 
 /*
- * Call function on an online CPU.
- */
-void smp_call_online_cpu(void (*func)(void *), void *data)
-{
-	struct pcpu *pcpu;
-
-	/* Use the current cpu if it is online. */
-	pcpu = pcpu_find_address(cpu_online_mask, stap());
-	if (!pcpu)
-		/* Use the first online cpu. */
-		pcpu = pcpu_devices + cpumask_first(cpu_online_mask);
-	pcpu_delegate(pcpu, func, data, (unsigned long) restart_stack);
-}
-
-/*
  * Call function on the ipl CPU.
  */
 void smp_call_ipl_cpu(void (*func)(void *), void *data)
