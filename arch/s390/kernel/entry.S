@@ -100,22 +100,22 @@ _LPP_OFFSET	= __LC_LPP
 	.endm
 
 	.macro BPOFF
-	ALTERNATIVE "nop", ".insn rrf,0xb2e80000,0,0,12,0", ALT_FACILITY(82)
+	ALTERNATIVE "nop", ".insn rrf,0xb2e80000,0,0,12,0", ALT_SPEC(82)
 	.endm
 
 	.macro BPON
-	ALTERNATIVE "nop", ".insn rrf,0xb2e80000,0,0,13,0", ALT_FACILITY(82)
+	ALTERNATIVE "nop", ".insn rrf,0xb2e80000,0,0,13,0", ALT_SPEC(82)
 	.endm
 
 	.macro BPENTER tif_ptr,tif_mask
 	ALTERNATIVE "TSTMSK \tif_ptr,\tif_mask; jz .+8; .insn rrf,0xb2e80000,0,0,13,0", \
-		    "j .+12; nop; nop", ALT_FACILITY(82)
+		    "j .+12; nop; nop", ALT_SPEC(82)
 	.endm
 
 	.macro BPEXIT tif_ptr,tif_mask
 	TSTMSK	\tif_ptr,\tif_mask
 	ALTERNATIVE "jz .+8;  .insn rrf,0xb2e80000,0,0,12,0", \
-		    "jnz .+8; .insn rrf,0xb2e80000,0,0,13,0", ALT_FACILITY(82)
+		    "jnz .+8; .insn rrf,0xb2e80000,0,0,13,0", ALT_SPEC(82)
 	.endm
 
 #if IS_ENABLED(CONFIG_KVM)
