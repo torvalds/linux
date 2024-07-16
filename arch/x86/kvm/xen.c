@@ -741,7 +741,7 @@ int kvm_xen_hvm_set_attr(struct kvm *kvm, struct kvm_xen_hvm_attr *data)
 		} else {
 			void __user * hva = u64_to_user_ptr(data->u.shared_info.hva);
 
-			if (!PAGE_ALIGNED(hva) || !access_ok(hva, PAGE_SIZE)) {
+			if (!PAGE_ALIGNED(hva)) {
 				r = -EINVAL;
 			} else if (!hva) {
 				kvm_gpc_deactivate(&kvm->arch.xen.shinfo_cache);
