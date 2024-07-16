@@ -486,17 +486,10 @@
 
 &mdss_dp {
 	status = "okay";
+};
 
-	ports {
-		port@1 {
-			reg = <1>;
-
-			mdss_dp0_out: endpoint {
-				data-lanes = <0 1>;
-				remote-endpoint = <&usb_1_qmpphy_dp_in>;
-			};
-		};
-	};
+&mdss_dp_out {
+	data-lanes = <0 1>;
 };
 
 &mpss {
@@ -864,10 +857,6 @@
 	remote-endpoint = <&pmic_glink_hs_in>;
 };
 
-&usb_1_dwc3_ss {
-	remote-endpoint = <&usb_1_qmpphy_usb_ss_in>;
-};
-
 &usb_1_hsphy {
 	status = "okay";
 
@@ -881,20 +870,10 @@
 
 	vdda-phy-supply = <&vreg_l6b_1p2>;
 	vdda-pll-supply = <&vreg_l1b_0p88>;
-
-	orientation-switch;
-};
-
-&usb_1_qmpphy_dp_in {
-	remote-endpoint = <&mdss_dp0_out>;
 };
 
 &usb_1_qmpphy_out {
 	remote-endpoint = <&pmic_glink_ss_in>;
-};
-
-&usb_1_qmpphy_usb_ss_in {
-	remote-endpoint = <&usb_1_dwc3_ss>;
 };
 
 &usb_2 {

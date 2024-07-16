@@ -827,6 +827,14 @@ config SM_CAMCC_8550
 	  Support for the camera clock controller on SM8550 devices.
 	  Say Y if you want to support camera devices and camera functionality.
 
+config SM_CAMCC_8650
+	tristate "SM8650 Camera Clock Controller"
+	depends on ARM64 || COMPILE_TEST
+	select SM_GCC_8650
+	help
+	  Support for the camera clock controller on SM8650 devices.
+	  Say Y if you want to support camera devices and camera functionality.
+
 config SM_DISPCC_6115
 	tristate "SM6115 Display Clock Controller"
 	depends on ARM64 || COMPILE_TEST
