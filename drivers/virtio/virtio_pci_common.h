@@ -44,7 +44,7 @@ struct virtio_pci_vq_info {
 
 struct virtio_pci_admin_vq {
 	/* Virtqueue info associated with this admin queue. */
-	struct virtio_pci_vq_info info;
+	struct virtio_pci_vq_info *info;
 	/* serializing admin commands execution. */
 	struct mutex cmd_lock;
 	u64 supported_cmds;
@@ -105,7 +105,7 @@ struct virtio_pci_device {
 	void (*del_vq)(struct virtio_pci_vq_info *info);
 
 	u16 (*config_vector)(struct virtio_pci_device *vp_dev, u16 vector);
-	bool (*is_avq)(struct virtio_device *vdev, unsigned int index);
+	int (*avq_index)(struct virtio_device *vdev, u16 *index, u16 *num);
 };
 
 /* Constants for MSI-X */
