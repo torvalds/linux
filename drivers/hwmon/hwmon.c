@@ -14,6 +14,7 @@
 #include <linux/err.h>
 #include <linux/gfp.h>
 #include <linux/hwmon.h>
+#include <linux/i2c.h>
 #include <linux/idr.h>
 #include <linux/kstrtox.h>
 #include <linux/list.h>
@@ -136,7 +137,7 @@ static void hwmon_dev_release(struct device *dev)
 	kfree(hwdev);
 }
 
-static struct class hwmon_class = {
+static const struct class hwmon_class = {
 	.name = "hwmon",
 	.dev_groups = hwmon_dev_attr_groups,
 	.dev_release = hwmon_dev_release,
@@ -309,6 +310,114 @@ static int hwmon_attr_base(enum hwmon_sensor_types type)
 	return 1;
 }
 
+#if IS_REACHABLE(CONFIG_I2C)
+
+/*
+ * PEC support
+ *
+ * The 'pec' attribute is attached to I2C client devices. It is only provided
+ * if the i2c controller supports PEC.
+ *
+ * The mutex ensures that PEC configuration between i2c device and the hardware
+ * is consistent. Use a single mutex because attribute writes are supposed to be
+ * rare, and maintaining a separate mutex for each hardware monitoring device
+ * would add substantial complexity to the driver for little if any gain.
+ *
+ * The hardware monitoring device is identified as child of the i2c client
+ * device. This assumes that only a single hardware monitoring device is
+ * attached to an i2c client device.
+ */
+
+static DEFINE_MUTEX(hwmon_pec_mutex);
+
+static int hwmon_match_device(struct device *dev, void *data)
+{
+	return dev->class == &hwmon_class;
+}
+
+static ssize_t pec_show(struct device *dev, struct device_attribute *dummy,
+			char *buf)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+
+	return sysfs_emit(buf, "%d\n", !!(client->flags & I2C_CLIENT_PEC));
+}
+
+static ssize_t pec_store(struct device *dev, struct device_attribute *devattr,
+			 const char *buf, size_t count)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct hwmon_device *hwdev;
+	struct device *hdev;
+	bool val;
+	int err;
+
+	err = kstrtobool(buf, &val);
+	if (err < 0)
+		return err;
+
+	hdev = device_find_child(dev, NULL, hwmon_match_device);
+	if (!hdev)
+		return -ENODEV;
+
+	mutex_lock(&hwmon_pec_mutex);
+
+	/*
+	 * If there is no write function, we assume that chip specific
+	 * handling is not required.
+	 */
+	hwdev = to_hwmon_device(hdev);
+	if (hwdev->chip->ops->write) {
+		err = hwdev->chip->ops->write(hdev, hwmon_chip, hwmon_chip_pec, 0, val);
+		if (err && err != -EOPNOTSUPP)
+			goto unlock;
+	}
+
+	if (!val)
+		client->flags &= ~I2C_CLIENT_PEC;
+	else
+		client->flags |= I2C_CLIENT_PEC;
+
+	err = count;
+unlock:
+	mutex_unlock(&hwmon_pec_mutex);
+	put_device(hdev);
+
+	return err;
+}
+
+static DEVICE_ATTR_RW(pec);
+
+static void hwmon_remove_pec(void *dev)
+{
+	device_remove_file(dev, &dev_attr_pec);
+}
+
+static int hwmon_pec_register(struct device *hdev)
+{
+	struct i2c_client *client = i2c_verify_client(hdev->parent);
+	int err;
+
+	if (!client)
+		return -EINVAL;
+
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_PEC))
+		return 0;
+
+	err = device_create_file(&client->dev, &dev_attr_pec);
+	if (err)
+		return err;
+
+	return devm_add_action_or_reset(hdev, hwmon_remove_pec, &client->dev);
+}
+
+#else /* CONFIG_I2C */
+static int hwmon_pec_register(struct device *hdev)
+{
+	return -EINVAL;
+}
+#endif /* CONFIG_I2C */
+
 /* sysfs attribute management */
 
 static ssize_t hwmon_attr_show(struct device *dev,
@@ -396,10 +505,6 @@ static struct attribute *hwmon_genattr(const void *drvdata,
 	umode_t mode;
 	const char *name;
 	bool is_string = is_string_attr(type, attr);
-
-	/* The attribute is invisible if there is no template string */
-	if (!template)
-		return ERR_PTR(-ENOENT);
 
 	mode = ops->is_visible(drvdata, type, attr, index);
 	if (!mode)
@@ -712,8 +817,8 @@ static int hwmon_genattrs(const void *drvdata,
 
 			attr = __ffs(attr_mask);
 			attr_mask &= ~BIT(attr);
-			if (attr >= template_size)
-				return -EINVAL;
+			if (attr >= template_size || !templates[attr])
+				continue;	/* attribute is invisible */
 			a = hwmon_genattr(drvdata, info->type, attr, i,
 					  templates[attr], ops);
 			if (IS_ERR(a)) {
@@ -849,16 +954,26 @@ __hwmon_device_register(struct device *dev, const char *name, void *drvdata,
 	INIT_LIST_HEAD(&hwdev->tzdata);
 
 	if (hdev->of_node && chip && chip->ops->read &&
-	    chip->info[0]->type == hwmon_chip &&
-	    (chip->info[0]->config[0] & HWMON_C_REGISTER_TZ)) {
-		err = hwmon_thermal_register_sensors(hdev);
-		if (err) {
-			device_unregister(hdev);
-			/*
-			 * Don't worry about hwdev; hwmon_dev_release(), called
-			 * from device_unregister(), will free it.
-			 */
-			goto ida_remove;
+	    chip->info[0]->type == hwmon_chip) {
+		u32 config = chip->info[0]->config[0];
+
+		if (config & HWMON_C_REGISTER_TZ) {
+			err = hwmon_thermal_register_sensors(hdev);
+			if (err) {
+				device_unregister(hdev);
+				/*
+				 * Don't worry about hwdev; hwmon_dev_release(),
+				 * called from device_unregister(), will free it.
+				 */
+				goto ida_remove;
+			}
+		}
+		if (config & HWMON_C_PEC) {
+			err = hwmon_pec_register(hdev);
+			if (err) {
+				device_unregister(hdev);
+				goto ida_remove;
+			}
 		}
 	}
 

@@ -25,7 +25,6 @@ Hardware Monitoring Kernel Drivers
    acpi_power_meter
    ad7314
    adc128d818
-   adm1021
    adm1025
    adm1026
    adm1031
@@ -155,7 +154,6 @@ Hardware Monitoring Kernel Drivers
    max34440
    max6620
    max6639
-   max6642
    max6650
    max6697
    max8688
@@ -166,9 +164,13 @@ Hardware Monitoring Kernel Drivers
    mlxreg-fan
    mp2856
    mp2888
+   mp2891
    mp2975
+   mp2993
    mp5023
+   mp5920
    mp5990
+   mp9941
    mpq8785
    nct6683
    nct6775
@@ -216,6 +218,7 @@ Hardware Monitoring Kernel Drivers
    smsc47m192
    smsc47m1
    sparx5-temp
+   spd5118
    stpddc60
    surface_fan
    sy7636a-hwmon
