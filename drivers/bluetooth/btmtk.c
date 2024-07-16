@@ -1262,7 +1262,8 @@ int btmtk_usb_suspend(struct hci_dev *hdev)
 	struct btmtk_data *btmtk_data = hci_get_priv(hdev);
 
 	/* Stop urb anchor for iso data transmission */
-	usb_kill_anchored_urbs(&btmtk_data->isopkt_anchor);
+	if (test_bit(BTMTK_ISOPKT_RUNNING, &btmtk_data->flags))
+		usb_kill_anchored_urbs(&btmtk_data->isopkt_anchor);
 
 	return 0;
 }
