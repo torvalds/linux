@@ -59,7 +59,7 @@ static u32 lpi_id_bits;
 #define LPI_PROPBASE_SZ		ALIGN(BIT(LPI_NRBITS), SZ_64K)
 #define LPI_PENDBASE_SZ		ALIGN(BIT(LPI_NRBITS) / 8, SZ_64K)
 
-#define LPI_PROP_DEFAULT_PRIO	GICD_INT_DEF_PRI
+static u8 __ro_after_init lpi_prop_prio;
 
 /*
  * Collection structure - just an ID, and a redistributor address to
@@ -1926,7 +1926,7 @@ static int its_vlpi_unmap(struct irq_data *d)
 	/* and restore the physical one */
 	irqd_clr_forwarded_to_vcpu(d);
 	its_send_mapti(its_dev, d->hwirq, event);
-	lpi_update_config(d, 0xff, (LPI_PROP_DEFAULT_PRIO |
+	lpi_update_config(d, 0xff, (lpi_prop_prio |
 				    LPI_PROP_ENABLED |
 				    LPI_PROP_GROUP1));
 
@@ -2181,8 +2181,8 @@ static void its_lpi_free(unsigned long *bitmap, u32 base, u32 nr_ids)
 
 static void gic_reset_prop_table(void *va)
 {
-	/* Priority 0xa0, Group-1, disabled */
-	memset(va, LPI_PROP_DEFAULT_PRIO | LPI_PROP_GROUP1, LPI_PROPBASE_SZ);
+	/* Regular IRQ priority, Group-1, disabled */
+	memset(va, lpi_prop_prio | LPI_PROP_GROUP1, LPI_PROPBASE_SZ);
 
 	/* Make sure the GIC will observe the written configuration */
 	gic_flush_dcache_to_poc(va, LPI_PROPBASE_SZ);
@@ -5650,7 +5650,7 @@ int __init its_lpi_memreserve_init(void)
 }
 
 int __init its_init(struct fwnode_handle *handle, struct rdists *rdists,
-		    struct irq_domain *parent_domain)
+		    struct irq_domain *parent_domain, u8 irq_prio)
 {
 	struct device_node *of_node;
 	struct its_node *its;
@@ -5660,6 +5660,7 @@ int __init its_init(struct fwnode_handle *handle, struct rdists *rdists,
 
 	gic_rdists = rdists;
 
+	lpi_prop_prio = irq_prio;
 	its_parent = parent_domain;
 	of_node = to_of_node(handle);
 	if (of_node)

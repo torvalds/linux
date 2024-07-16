@@ -121,6 +121,14 @@
 #define ESR_ELx_FSC_SECC	(0x18)
 #define ESR_ELx_FSC_SECC_TTW(n)	(0x1c + (n))
 
+/* Status codes for individual page table levels */
+#define ESR_ELx_FSC_ACCESS_L(n)	(ESR_ELx_FSC_ACCESS + n)
+#define ESR_ELx_FSC_PERM_L(n)	(ESR_ELx_FSC_PERM + n)
+
+#define ESR_ELx_FSC_FAULT_nL	(0x2C)
+#define ESR_ELx_FSC_FAULT_L(n)	(((n) < 0 ? ESR_ELx_FSC_FAULT_nL : \
+					    ESR_ELx_FSC_FAULT) + (n))
+
 /* ISS field definitions for Data Aborts */
 #define ESR_ELx_ISV_SHIFT	(24)
 #define ESR_ELx_ISV		(UL(1) << ESR_ELx_ISV_SHIFT)
@@ -388,20 +396,33 @@ static inline bool esr_is_data_abort(unsigned long esr)
 
 static inline bool esr_fsc_is_translation_fault(unsigned long esr)
 {
-	/* Translation fault, level -1 */
-	if ((esr & ESR_ELx_FSC) == 0b101011)
-		return true;
-	return (esr & ESR_ELx_FSC_TYPE) == ESR_ELx_FSC_FAULT;
+	esr = esr & ESR_ELx_FSC;
+
+	return (esr == ESR_ELx_FSC_FAULT_L(3)) ||
+	       (esr == ESR_ELx_FSC_FAULT_L(2)) ||
+	       (esr == ESR_ELx_FSC_FAULT_L(1)) ||
+	       (esr == ESR_ELx_FSC_FAULT_L(0)) ||
+	       (esr == ESR_ELx_FSC_FAULT_L(-1));
 }
 
 static inline bool esr_fsc_is_permission_fault(unsigned long esr)
 {
-	return (esr & ESR_ELx_FSC_TYPE) == ESR_ELx_FSC_PERM;
+	esr = esr & ESR_ELx_FSC;
+
+	return (esr == ESR_ELx_FSC_PERM_L(3)) ||
+	       (esr == ESR_ELx_FSC_PERM_L(2)) ||
+	       (esr == ESR_ELx_FSC_PERM_L(1)) ||
+	       (esr == ESR_ELx_FSC_PERM_L(0));
 }
 
 static inline bool esr_fsc_is_access_flag_fault(unsigned long esr)
 {
-	return (esr & ESR_ELx_FSC_TYPE) == ESR_ELx_FSC_ACCESS;
+	esr = esr & ESR_ELx_FSC;
+
+	return (esr == ESR_ELx_FSC_ACCESS_L(3)) ||
+	       (esr == ESR_ELx_FSC_ACCESS_L(2)) ||
+	       (esr == ESR_ELx_FSC_ACCESS_L(1)) ||
+	       (esr == ESR_ELx_FSC_ACCESS_L(0));
 }
 
 /* Indicate whether ESR.EC==0x1A is for an ERETAx instruction */

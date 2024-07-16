@@ -30,6 +30,7 @@
 #include <linux/pgtable.h>
 
 #include <acpi/ghes.h>
+#include <acpi/processor.h>
 #include <asm/cputype.h>
 #include <asm/cpu_ops.h>
 #include <asm/daifflags.h>
@@ -45,6 +46,7 @@ EXPORT_SYMBOL(acpi_pci_disabled);
 static bool param_acpi_off __initdata;
 static bool param_acpi_on __initdata;
 static bool param_acpi_force __initdata;
+static bool param_acpi_nospcr __initdata;
 
 static int __init parse_acpi(char *arg)
 {
@@ -58,6 +60,8 @@ static int __init parse_acpi(char *arg)
 		param_acpi_on = true;
 	else if (strcmp(arg, "force") == 0) /* force ACPI to be enabled */
 		param_acpi_force = true;
+	else if (strcmp(arg, "nospcr") == 0) /* disable SPCR as default console */
+		param_acpi_nospcr = true;
 	else
 		return -EINVAL;	/* Core will print when we return error */
 
@@ -237,7 +241,20 @@ done:
 			acpi_put_table(facs);
 		}
 #endif
-		acpi_parse_spcr(earlycon_acpi_spcr_enable, true);
+
+		/*
+		 * For varying privacy and security reasons, sometimes need
+		 * to completely silence the serial console output, and only
+		 * enable it when needed.
+		 * But there are many existing systems that depend on this
+		 * behaviour, use acpi=nospcr to disable console in ACPI SPCR
+		 * table as default serial console.
+		 */
+		acpi_parse_spcr(earlycon_acpi_spcr_enable,
+			!param_acpi_nospcr);
+		pr_info("Use ACPI SPCR as default console: %s\n",
+				param_acpi_nospcr ? "No" : "Yes");
+
 		if (IS_ENABLED(CONFIG_ACPI_BGRT))
 			acpi_table_parse(ACPI_SIG_BGRT, acpi_parse_bgrt);
 	}
@@ -423,107 +440,23 @@ void arch_reserve_mem_area(acpi_physical_address addr, size_t size)
 	memblock_mark_nomap(addr, size);
 }
 
-#ifdef CONFIG_ACPI_FFH
-/*
- * Implements ARM64 specific callbacks to support ACPI FFH Operation Region as
- * specified in https://developer.arm.com/docs/den0048/latest
- */
-struct acpi_ffh_data {
-	struct acpi_ffh_info info;
-	void (*invoke_ffh_fn)(unsigned long a0, unsigned long a1,
-			      unsigned long a2, unsigned long a3,
-			      unsigned long a4, unsigned long a5,
-			      unsigned long a6, unsigned long a7,
-			      struct arm_smccc_res *args,
-			      struct arm_smccc_quirk *res);
-	void (*invoke_ffh64_fn)(const struct arm_smccc_1_2_regs *args,
-				struct arm_smccc_1_2_regs *res);
-};
-
-int acpi_ffh_address_space_arch_setup(void *handler_ctxt, void **region_ctxt)
+#ifdef CONFIG_ACPI_HOTPLUG_CPU
+int acpi_map_cpu(acpi_handle handle, phys_cpuid_t physid, u32 apci_id,
+		 int *pcpu)
 {
-	enum arm_smccc_conduit conduit;
-	struct acpi_ffh_data *ffh_ctxt;
-
-	if (arm_smccc_get_version() < ARM_SMCCC_VERSION_1_2)
-		return -EOPNOTSUPP;
-
-	conduit = arm_smccc_1_1_get_conduit();
-	if (conduit == SMCCC_CONDUIT_NONE) {
-		pr_err("%s: invalid SMCCC conduit\n", __func__);
-		return -EOPNOTSUPP;
+	/* If an error code is passed in this stub can't fix it */
+	if (*pcpu < 0) {
+		pr_warn_once("Unable to map CPU to valid ID\n");
+		return *pcpu;
 	}
 
-	ffh_ctxt = kzalloc(sizeof(*ffh_ctxt), GFP_KERNEL);
-	if (!ffh_ctxt)
-		return -ENOMEM;
-
-	if (conduit == SMCCC_CONDUIT_SMC) {
-		ffh_ctxt->invoke_ffh_fn = __arm_smccc_smc;
-		ffh_ctxt->invoke_ffh64_fn = arm_smccc_1_2_smc;
-	} else {
-		ffh_ctxt->invoke_ffh_fn = __arm_smccc_hvc;
-		ffh_ctxt->invoke_ffh64_fn = arm_smccc_1_2_hvc;
-	}
-
-	memcpy(ffh_ctxt, handler_ctxt, sizeof(ffh_ctxt->info));
-
-	*region_ctxt = ffh_ctxt;
-	return AE_OK;
+	return 0;
 }
+EXPORT_SYMBOL(acpi_map_cpu);
 
-static bool acpi_ffh_smccc_owner_allowed(u32 fid)
+int acpi_unmap_cpu(int cpu)
 {
-	int owner = ARM_SMCCC_OWNER_NUM(fid);
-
-	if (owner == ARM_SMCCC_OWNER_STANDARD ||
-	    owner == ARM_SMCCC_OWNER_SIP || owner == ARM_SMCCC_OWNER_OEM)
-		return true;
-
-	return false;
+	return 0;
 }
-
-int acpi_ffh_address_space_arch_handler(acpi_integer *value, void *region_context)
-{
-	int ret = 0;
-	struct acpi_ffh_data *ffh_ctxt = region_context;
-
-	if (ffh_ctxt->info.offset == 0) {
-		/* SMC/HVC 32bit call */
-		struct arm_smccc_res res;
-		u32 a[8] = { 0 }, *ptr = (u32 *)value;
-
-		if (!ARM_SMCCC_IS_FAST_CALL(*ptr) || ARM_SMCCC_IS_64(*ptr) ||
-		    !acpi_ffh_smccc_owner_allowed(*ptr) ||
-		    ffh_ctxt->info.length > 32) {
-			ret = AE_ERROR;
-		} else {
-			int idx, len = ffh_ctxt->info.length >> 2;
-
-			for (idx = 0; idx < len; idx++)
-				a[idx] = *(ptr + idx);
-
-			ffh_ctxt->invoke_ffh_fn(a[0], a[1], a[2], a[3], a[4],
-						a[5], a[6], a[7], &res, NULL);
-			memcpy(value, &res, sizeof(res));
-		}
-
-	} else if (ffh_ctxt->info.offset == 1) {
-		/* SMC/HVC 64bit call */
-		struct arm_smccc_1_2_regs *r = (struct arm_smccc_1_2_regs *)value;
-
-		if (!ARM_SMCCC_IS_FAST_CALL(r->a0) || !ARM_SMCCC_IS_64(r->a0) ||
-		    !acpi_ffh_smccc_owner_allowed(r->a0) ||
-		    ffh_ctxt->info.length > sizeof(*r)) {
-			ret = AE_ERROR;
-		} else {
-			ffh_ctxt->invoke_ffh64_fn(r, r);
-			memcpy(value, r, ffh_ctxt->info.length);
-		}
-	} else {
-		ret = AE_ERROR;
-	}
-
-	return ret;
-}
-#endif /* CONFIG_ACPI_FFH */
+EXPORT_SYMBOL(acpi_unmap_cpu);
+#endif /* CONFIG_ACPI_HOTPLUG_CPU */

@@ -17,8 +17,6 @@
  *  counter and all 4 performance counters together can be reset separately.
  */
 
-#ifdef CONFIG_CPU_V7
-
 #include <asm/cp15.h>
 #include <asm/cputype.h>
 #include <asm/irq_regs.h>
@@ -1979,17 +1977,9 @@ static const struct of_device_id armv7_pmu_of_device_ids[] = {
 	{},
 };
 
-static const struct pmu_probe_info armv7_pmu_probe_table[] = {
-	ARM_PMU_PROBE(ARM_CPU_PART_CORTEX_A8, armv7_a8_pmu_init),
-	ARM_PMU_PROBE(ARM_CPU_PART_CORTEX_A9, armv7_a9_pmu_init),
-	{ /* sentinel value */ }
-};
-
-
 static int armv7_pmu_device_probe(struct platform_device *pdev)
 {
-	return arm_pmu_device_probe(pdev, armv7_pmu_of_device_ids,
-				    armv7_pmu_probe_table);
+	return arm_pmu_device_probe(pdev, armv7_pmu_of_device_ids, NULL);
 }
 
 static struct platform_driver armv7_pmu_driver = {
@@ -2002,4 +1992,3 @@ static struct platform_driver armv7_pmu_driver = {
 };
 
 builtin_platform_driver(armv7_pmu_driver);
-#endif	/* CONFIG_CPU_V7 */
