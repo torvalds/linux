@@ -11,7 +11,7 @@
 struct alt_instr {
 	s32 instr_offset;	/* original instruction */
 	s32 repl_offset;	/* offset to replacement instruction */
-	u16 facility;		/* facility bit set for replacement */
+	u16 feature;		/* feature required for replacement */
 	u8  instrlen;		/* length of original instruction */
 } __packed;
 
@@ -48,10 +48,10 @@ void apply_alternatives(struct alt_instr *start, struct alt_instr *end);
 #define OLDINSTR(oldinstr) \
 	"661:\n\t" oldinstr "\n662:\n"
 
-#define ALTINSTR_ENTRY(facility, num)					\
+#define ALTINSTR_ENTRY(feature, num)					\
 	"\t.long 661b - .\n"			/* old instruction */	\
 	"\t.long " b_altinstr(num)"b - .\n"	/* alt instruction */	\
-	"\t.word " __stringify(facility) "\n"	/* facility bit    */	\
+	"\t.word " __stringify(feature) "\n"	/* feature	   */	\
 	"\t.byte " oldinstr_len "\n"		/* instruction len */	\
 	"\t.org . - (" oldinstr_len ") & 1\n"				\
 	"\t.org . - (" oldinstr_len ") + (" altinstr_len(num) ")\n"	\
@@ -61,24 +61,24 @@ void apply_alternatives(struct alt_instr *start, struct alt_instr *end);
 	b_altinstr(num)":\n\t" altinstr "\n" e_altinstr(num) ":\n"
 
 /* alternative assembly primitive: */
-#define ALTERNATIVE(oldinstr, altinstr, facility) \
+#define ALTERNATIVE(oldinstr, altinstr, feature) \
 	".pushsection .altinstr_replacement, \"ax\"\n"			\
 	ALTINSTR_REPLACEMENT(altinstr, 1)				\
 	".popsection\n"							\
 	OLDINSTR(oldinstr)						\
 	".pushsection .altinstructions,\"a\"\n"				\
-	ALTINSTR_ENTRY(facility, 1)					\
+	ALTINSTR_ENTRY(feature, 1)					\
 	".popsection\n"
 
-#define ALTERNATIVE_2(oldinstr, altinstr1, facility1, altinstr2, facility2)\
+#define ALTERNATIVE_2(oldinstr, altinstr1, feature1, altinstr2, feature2)\
 	".pushsection .altinstr_replacement, \"ax\"\n"			\
 	ALTINSTR_REPLACEMENT(altinstr1, 1)				\
 	ALTINSTR_REPLACEMENT(altinstr2, 2)				\
 	".popsection\n"							\
 	OLDINSTR(oldinstr)						\
 	".pushsection .altinstructions,\"a\"\n"				\
-	ALTINSTR_ENTRY(facility1, 1)					\
-	ALTINSTR_ENTRY(facility2, 2)					\
+	ALTINSTR_ENTRY(feature1, 1)					\
+	ALTINSTR_ENTRY(feature2, 2)					\
 	".popsection\n"
 
 /*
@@ -93,12 +93,12 @@ void apply_alternatives(struct alt_instr *start, struct alt_instr *end);
  * For non barrier like inlines please define new variants
  * without volatile and memory clobber.
  */
-#define alternative(oldinstr, altinstr, facility)			\
-	asm_inline volatile(ALTERNATIVE(oldinstr, altinstr, facility) : : : "memory")
+#define alternative(oldinstr, altinstr, feature)			\
+	asm_inline volatile(ALTERNATIVE(oldinstr, altinstr, feature) : : : "memory")
 
-#define alternative_2(oldinstr, altinstr1, facility1, altinstr2, facility2) \
-	asm_inline volatile(ALTERNATIVE_2(oldinstr, altinstr1, facility1,   \
-				   altinstr2, facility2) ::: "memory")
+#define alternative_2(oldinstr, altinstr1, feature1, altinstr2, feature2) \
+	asm_inline volatile(ALTERNATIVE_2(oldinstr, altinstr1, feature1,   \
+				   altinstr2, feature2) ::: "memory")
 
 /* Alternative inline assembly with input. */
 #define alternative_input(oldinstr, newinstr, feature, input...)	\
@@ -106,8 +106,8 @@ void apply_alternatives(struct alt_instr *start, struct alt_instr *end);
 		: : input)
 
 /* Like alternative_input, but with a single output argument */
-#define alternative_io(oldinstr, altinstr, facility, output, input...)	\
-	asm_inline volatile(ALTERNATIVE(oldinstr, altinstr, facility)	\
+#define alternative_io(oldinstr, altinstr, feature, output, input...)	\
+	asm_inline volatile(ALTERNATIVE(oldinstr, altinstr, feature)	\
 		: output : input)
 
 /* Use this macro if more than one output parameter is needed. */
