@@ -34,3 +34,4 @@ debug_symbol.ko
 virtio_net.ko
 net_failover.ko
 failover.ko
+stub-regulator.ko
