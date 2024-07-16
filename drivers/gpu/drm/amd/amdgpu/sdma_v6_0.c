@@ -1556,6 +1556,27 @@ static void sdma_v6_0_get_clockgating_state(void *handle, u64 *flags)
 {
 }
 
+static void sdma_v6_0_print_ip_state(void *handle, struct drm_printer *p)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	int i, j;
+	uint32_t reg_count = ARRAY_SIZE(sdma_reg_list_6_0);
+	uint32_t instance_offset;
+
+	if (!adev->sdma.ip_dump)
+		return;
+
+	drm_printf(p, "num_instances:%d\n", adev->sdma.num_instances);
+	for (i = 0; i < adev->sdma.num_instances; i++) {
+		instance_offset = i * reg_count;
+		drm_printf(p, "\nInstance:%d\n", i);
+
+		for (j = 0; j < reg_count; j++)
+			drm_printf(p, "%-50s \t 0x%08x\n", sdma_reg_list_6_0[j].reg_name,
+				   adev->sdma.ip_dump[instance_offset + j]);
+	}
+}
+
 static void sdma_v6_0_dump_ip_state(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
@@ -1595,6 +1616,7 @@ const struct amd_ip_funcs sdma_v6_0_ip_funcs = {
 	.set_powergating_state = sdma_v6_0_set_powergating_state,
 	.get_clockgating_state = sdma_v6_0_get_clockgating_state,
 	.dump_ip_state = sdma_v6_0_dump_ip_state,
+	.print_ip_state = sdma_v6_0_print_ip_state,
 };
 
 static const struct amdgpu_ring_funcs sdma_v6_0_ring_funcs = {
