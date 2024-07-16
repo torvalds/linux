@@ -30,7 +30,6 @@ extern const struct device_type i2c_client_type;
 /* --- General options ------------------------------------------------	*/
 
 struct i2c_msg;
-struct i2c_algorithm;
 struct i2c_adapter;
 struct i2c_client;
 struct i2c_driver;
@@ -533,8 +532,6 @@ i2c_register_board_info(int busnum, struct i2c_board_info const *info,
  * @reg_slave: deprecated, use @reg_target
  * @unreg_slave: deprecated, use @unreg_target
  *
- *
- * The following structs are for those who like to implement new bus drivers:
  * i2c_algorithm is the interface to a class of hardware solutions which can
  * be addressed using the same bus algorithms - i.e. bit-banging or the PCF8584
  * to name two of the most common.
@@ -550,9 +547,6 @@ struct i2c_algorithm {
 	 * to NULL. If an adapter algorithm can do SMBus access, set
 	 * smbus_xfer. If set to NULL, the SMBus protocol is simulated
 	 * using common I2C messages.
-	 *
-	 * xfer should return the number of messages successfully
-	 * processed, or a negative value on error
 	 */
 	union {
 		int (*xfer)(struct i2c_adapter *adap, struct i2c_msg *msgs,
