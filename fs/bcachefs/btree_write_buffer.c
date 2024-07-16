@@ -560,7 +560,7 @@ int bch2_btree_write_buffer_tryflush(struct btree_trans *trans)
 	return ret;
 }
 
-/**
+/*
  * In check and repair code, when checking references to write buffer btrees we
  * need to issue a flush before we have a definitive error: this issues a flush
  * if this is a key we haven't yet checked.
