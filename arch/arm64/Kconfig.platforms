@@ -207,7 +207,6 @@ if ARCH_NXP
 
 config ARCH_LAYERSCAPE
 	bool "Freescale Layerscape SoC family"
-	select EDAC_SUPPORT
 	help
 	  This enables support for the Freescale Layerscape SoC family.
 
