@@ -194,4 +194,5 @@ static void __exit nfhd_exit(void)
 module_init(nfhd_init);
 module_exit(nfhd_exit);
 
+MODULE_DESCRIPTION("Atari NatFeat block device driver");
 MODULE_LICENSE("GPL");
