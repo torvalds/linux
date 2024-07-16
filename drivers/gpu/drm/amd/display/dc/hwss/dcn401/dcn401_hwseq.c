@@ -497,6 +497,7 @@ void dcn401_populate_mcm_luts(struct dc *dc,
 	enum MCM_LUT_XABLE lut3d_xable = MCM_LUT_DISABLE;
 	enum MCM_LUT_XABLE lut1d_xable = MCM_LUT_DISABLE;
 	bool is_17x17x17 = true;
+	bool rval;
 
 	dcn401_get_mcm_lut_xable_from_pipe_ctx(dc, pipe_ctx, &shaper_xable, &lut3d_xable, &lut1d_xable);
 
@@ -506,11 +507,10 @@ void dcn401_populate_mcm_luts(struct dc *dc,
 		if (mcm_luts.lut1d_func->type == TF_TYPE_HWPWL)
 			m_lut_params.pwl = &mcm_luts.lut1d_func->pwl;
 		else if (mcm_luts.lut1d_func->type == TF_TYPE_DISTRIBUTED_POINTS) {
-			cm_helper_translate_curve_to_hw_format(
-					dc->ctx,
+			rval = cm3_helper_translate_curve_to_hw_format(
 					mcm_luts.lut1d_func,
 					&dpp_base->regamma_params, false);
-			m_lut_params.pwl = &dpp_base->regamma_params;
+			m_lut_params.pwl = rval ? &dpp_base->regamma_params : NULL;
 		}
 		if (m_lut_params.pwl) {
 			if (mpc->funcs->populate_lut)
@@ -527,11 +527,10 @@ void dcn401_populate_mcm_luts(struct dc *dc,
 			m_lut_params.pwl = &mcm_luts.shaper->pwl;
 		else if (mcm_luts.shaper->type == TF_TYPE_DISTRIBUTED_POINTS) {
 			ASSERT(false);
-			cm_helper_translate_curve_to_hw_format(
-					dc->ctx,
+			rval = cm3_helper_translate_curve_to_hw_format(
 					mcm_luts.shaper,
 					&dpp_base->regamma_params, true);
-			m_lut_params.pwl = &dpp_base->regamma_params;
+			m_lut_params.pwl = rval ? &dpp_base->regamma_params : NULL;
 		}
 		if (m_lut_params.pwl) {
 			if (mpc->funcs->populate_lut)
@@ -669,6 +668,7 @@ bool dcn401_set_mcm_luts(struct pipe_ctx *pipe_ctx,
 	struct mpc *mpc = pipe_ctx->stream_res.opp->ctx->dc->res_pool->mpc;
 	bool result = true;
 	const struct pwl_params *lut_params = NULL;
+	bool rval;
 
 	mpc->funcs->set_movable_cm_location(mpc, MPCC_MOVABLE_CM_LOCATION_BEFORE, mpcc_id);
 	pipe_ctx->plane_state->mcm_location = MPCC_MOVABLE_CM_LOCATION_BEFORE;
@@ -677,10 +677,9 @@ bool dcn401_set_mcm_luts(struct pipe_ctx *pipe_ctx,
 		if (plane_state->blend_tf.type == TF_TYPE_HWPWL)
 			lut_params = &plane_state->blend_tf.pwl;
 		else if (plane_state->blend_tf.type == TF_TYPE_DISTRIBUTED_POINTS) {
-			cm_helper_translate_curve_to_hw_format(plane_state->ctx,
-					&plane_state->blend_tf,
+			rval = cm3_helper_translate_curve_to_hw_format(&plane_state->blend_tf,
 					&dpp_base->regamma_params, false);
-			lut_params = &dpp_base->regamma_params;
+			lut_params = rval ? &dpp_base->regamma_params : NULL;
 		}
 		result = mpc->funcs->program_1dlut(mpc, lut_params, mpcc_id);
 		lut_params = NULL;
@@ -693,10 +692,9 @@ bool dcn401_set_mcm_luts(struct pipe_ctx *pipe_ctx,
 		else if (plane_state->in_shaper_func.type == TF_TYPE_DISTRIBUTED_POINTS) {
 			// TODO: dpp_base replace
 			ASSERT(false);
-			cm_helper_translate_curve_to_hw_format(plane_state->ctx,
-					&plane_state->in_shaper_func,
+			rval = cm3_helper_translate_curve_to_hw_format(&plane_state->in_shaper_func,
 					&dpp_base->shaper_params, true);
-			lut_params = &dpp_base->shaper_params;
+			lut_params = rval ? &dpp_base->shaper_params : NULL;
 		}
 
 		result = mpc->funcs->program_shaper(mpc, lut_params, mpcc_id);
