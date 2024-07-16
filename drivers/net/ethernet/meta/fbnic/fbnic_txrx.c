@@ -1499,7 +1499,7 @@ void fbnic_disable(struct fbnic_net *fbn)
 
 static void fbnic_tx_flush(struct fbnic_dev *fbd)
 {
-	netdev_warn(fbd->netdev, "tiggerring Tx flush\n");
+	netdev_warn(fbd->netdev, "triggering Tx flush\n");
 
 	fbnic_rmw32(fbd, FBNIC_TMI_DROP_CTRL, FBNIC_TMI_DROP_CTRL_EN,
 		    FBNIC_TMI_DROP_CTRL_EN);
