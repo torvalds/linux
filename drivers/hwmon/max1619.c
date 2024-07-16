@@ -52,16 +52,6 @@ static const unsigned short normal_i2c[] = {
  * Conversions
  */
 
-static int temp_from_reg(int val)
-{
-	return (val & 0x80 ? val-0x100 : val) * 1000;
-}
-
-static int temp_to_reg(int val)
-{
-	return (val < 0 ? val+0x100*1000 : val) / 1000;
-}
-
 enum temp_index {
 	t_input1 = 0,
 	t_input2,
@@ -142,7 +132,7 @@ static ssize_t temp_show(struct device *dev, struct device_attribute *devattr,
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct max1619_data *data = max1619_update_device(dev);
 
-	return sprintf(buf, "%d\n", temp_from_reg(data->temp[attr->index]));
+	return sprintf(buf, "%d\n", sign_extend(data->temp[attr->index], 7) * 1000);
 }
 
 static ssize_t temp_store(struct device *dev,
@@ -158,7 +148,7 @@ static ssize_t temp_store(struct device *dev,
 		return err;
 
 	mutex_lock(&data->update_lock);
-	data->temp[attr->index] = temp_to_reg(val);
+	data->temp[attr->index] = DIV_ROUND_CLOSEST(clamp_val(val, -128000, 127000), 1000);
 	i2c_smbus_write_byte_data(client, regs_write[attr->index],
 				  data->temp[attr->index]);
 	mutex_unlock(&data->update_lock);
