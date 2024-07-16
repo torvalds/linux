@@ -854,6 +854,13 @@ u64 xe_device_uncanonicalize_addr(struct xe_device *xe, u64 address)
 	return address & GENMASK_ULL(xe->info.va_bits - 1, 0);
 }
 
+static void xe_device_wedged_fini(struct drm_device *drm, void *arg)
+{
+	struct xe_device *xe = arg;
+
+	xe_pm_runtime_put(xe);
+}
+
 /**
  * xe_device_declare_wedged - Declare device wedged
  * @xe: xe device instance
@@ -877,6 +884,13 @@ void xe_device_declare_wedged(struct xe_device *xe)
 		drm_dbg(&xe->drm, "Wedged mode is forcibly disabled\n");
 		return;
 	}
+
+	if (drmm_add_action_or_reset(&xe->drm, xe_device_wedged_fini, xe)) {
+		drm_err(&xe->drm, "Failed to register xe_device_wedged_fini clean-up. Although device is wedged.\n");
+		return;
+	}
+
+	xe_pm_runtime_get_noresume(xe);
 
 	if (!atomic_xchg(&xe->wedged.flag, 1)) {
 		xe->needs_flr_on_fini = true;
