@@ -2069,7 +2069,7 @@ static int __cmd_inject(struct perf_inject *inject)
 		 */
 		inject->tool.finished_init	= host__finished_init;
 		/* Obey finished round ordering */
-		inject->tool.finished_round	= host__finished_round,
+		inject->tool.finished_round	= host__finished_round;
 		/* Keep track of which CPU a VCPU is runnng on */
 		inject->tool.context_switch	= host__context_switch;
 		/*
