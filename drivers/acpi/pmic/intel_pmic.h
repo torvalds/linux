@@ -21,9 +21,9 @@ struct intel_pmic_opregion_data {
 					  u32 reg_address, u32 value, u32 mask);
 	int (*lpat_raw_to_temp)(struct acpi_lpat_conversion_table *lpat_table,
 				int raw);
-	struct pmic_table *power_table;
+	const struct pmic_table *power_table;
 	int power_table_count;
-	struct pmic_table *thermal_table;
+	const struct pmic_table *thermal_table;
 	int thermal_table_count;
 	/* For generic exec_mipi_pmic_seq_element handling */
 	int pmic_i2c_address;

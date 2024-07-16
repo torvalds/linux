@@ -619,9 +619,9 @@ static bool __init acpi_early_processor_osc(void)
 void __init acpi_early_processor_control_setup(void)
 {
 	if (acpi_early_processor_osc()) {
-		pr_info("_OSC evaluated successfully for all CPUs\n");
+		pr_debug("_OSC evaluated successfully for all CPUs\n");
 	} else {
-		pr_info("_OSC evaluation for CPUs failed, trying _PDC\n");
+		pr_debug("_OSC evaluation for CPUs failed, trying _PDC\n");
 		acpi_early_processor_set_pdc();
 	}
 }
