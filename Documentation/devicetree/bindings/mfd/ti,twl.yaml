@@ -22,6 +22,32 @@ allOf:
           contains:
             const: ti,twl4030
     then:
+      patternProperties:
+        "^regulator-":
+          properties:
+            compatible:
+              enum:
+                - ti,twl4030-vaux1
+                - ti,twl4030-vaux2
+                - ti,twl4030-vaux3
+                - ti,twl4030-vaux4
+                - ti,twl4030-vmmc1
+                - ti,twl4030-vmmc2
+                - ti,twl4030-vpll1
+                - ti,twl4030-vpll2
+                - ti,twl4030-vsim
+                - ti,twl4030-vdac
+                - ti,twl4030-vintana2
+                - ti,twl4030-vio
+                - ti,twl4030-vdd1
+                - ti,twl4030-vdd2
+                - ti,twl4030-vintana1
+                - ti,twl4030-vintdig
+                - ti,twl4030-vusb1v5
+                - ti,twl4030-vusb1v8
+                - ti,twl4030-vusb3v1
+            ti,retain-on-reset: false
+
       properties:
         madc:
           type: object
@@ -50,13 +76,34 @@ allOf:
           properties:
             compatible:
               const: ti,twl4030-wdt
-
   - if:
       properties:
         compatible:
           contains:
             const: ti,twl6030
     then:
+      patternProperties:
+        "^regulator-":
+          properties:
+            compatible:
+              enum:
+                - ti,twl6030-vaux1
+                - ti,twl6030-vaux2
+                - ti,twl6030-vaux3
+                - ti,twl6030-vmmc
+                - ti,twl6030-vpp
+                - ti,twl6030-vusim
+                - ti,twl6030-vana
+                - ti,twl6030-vcxio
+                - ti,twl6030-vdac
+                - ti,twl6030-vusb
+                - ti,twl6030-v1v8
+                - ti,twl6030-v2v1
+                - ti,twl6030-vdd1
+                - ti,twl6030-vdd2
+                - ti,twl6030-vdd3
+            regulator-initial-mode: false
+
       properties:
         gpadc:
           type: object
@@ -69,6 +116,25 @@ allOf:
           contains:
             const: ti,twl6032
     then:
+      patternProperties:
+        "^regulator-":
+          properties:
+            compatible:
+              enum:
+                - ti,twl6032-ldo1
+                - ti,twl6032-ldo2
+                - ti,twl6032-ldo3
+                - ti,twl6032-ldo4
+                - ti,twl6032-ldo5
+                - ti,twl6032-ldo6
+                - ti,twl6032-ldo7
+                - ti,twl6032-ldoln
+                - ti,twl6032-ldousb
+                - ti,twl6032-smps3
+                - ti,twl6032-smps4
+                - ti,twl6032-vio
+            regulator-initial-mode: false
+
       properties:
         gpadc:
           type: object
@@ -112,6 +178,27 @@ properties:
       interrupts:
         maxItems: 1
 
+patternProperties:
+  "^regulator-":
+    type: object
+    unevaluatedProperties: false
+    $ref: /schemas/regulator/regulator.yaml
+    properties:
+      compatible: true
+      regulator-initial-mode:
+        enum:
+          - 0x08 # Sleep mode, the nominal output voltage is maintained
+                 # with low power consumption with low load current capability
+          - 0x0e # Active mode, the regulator can deliver its nominal output
+                 # voltage with full-load current capability
+      ti,retain-on-reset:
+        description:
+          Does not turn off the supplies during warm
+          reset. Could be needed for VMMC, as TWL6030
+          reset sequence for this signal does not comply
+          with the SD specification.
+        type: boolean
+
 unevaluatedProperties: false
 
 required:
@@ -131,9 +218,85 @@ examples:
         compatible = "ti,twl6030";
         reg = <0x48>;
         interrupts = <39>; /* IRQ_SYS_1N cascaded to gic */
+        interrupt-parent = <&gic>;
         interrupt-controller;
         #interrupt-cells = <1>;
-        interrupt-parent = <&gic>;
+
+        gpadc {
+          compatible = "ti,twl6030-gpadc";
+          interrupts = <6>;
+          #io-channel-cells = <1>;
+        };
+
+        rtc {
+          compatible = "ti,twl4030-rtc";
+          interrupts = <8>;
+        };
+
+        regulator-vaux1 {
+          compatible = "ti,twl6030-vaux1";
+          regulator-min-microvolt = <1000000>;
+          regulator-max-microvolt = <3000000>;
+        };
+
+        regulator-vmmc1 {
+          compatible = "ti,twl6030-vmmc";
+          ti,retain-on-reset;
+        };
       };
     };
 
+  - |
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      pmic@48 {
+        compatible = "ti,twl4030";
+        reg = <0x48>;
+        interrupts = <7>; /* SYS_NIRQ cascaded to intc */
+        interrupt-parent = <&intc>;
+        interrupt-controller;
+        #interrupt-cells = <1>;
+
+        bci {
+          compatible = "ti,twl4030-bci";
+          interrupts = <9>, <2>;
+          bci3v1-supply = <&vusb3v1>;
+          io-channels = <&twl_madc 11>;
+          io-channel-names = "vac";
+        };
+
+        twl_madc: madc {
+          compatible = "ti,twl4030-madc";
+          interrupts = <3>;
+          #io-channel-cells = <1>;
+        };
+
+        pwrbutton {
+          compatible = "ti,twl4030-pwrbutton";
+          interrupts = <8>;
+        };
+
+        rtc {
+          compatible = "ti,twl4030-rtc";
+          interrupts = <11>;
+        };
+
+        regulator-vaux1 {
+          compatible = "ti,twl4030-vaux1";
+          regulator-min-microvolt = <1000000>;
+          regulator-max-microvolt = <3000000>;
+          regulator-initial-mode = <0xe>;
+        };
+
+        vusb3v1: regulator-vusb3v1 {
+          compatible = "ti,twl4030-vusb3v1";
+        };
+
+        watchdog {
+          compatible = "ti,twl4030-wdt";
+        };
+      };
+    };
+...

@@ -202,4 +202,5 @@ static struct platform_driver rt4831_regulator_driver = {
 module_platform_driver(rt4831_regulator_driver);
 
 MODULE_AUTHOR("ChiYuan Huang <cy_huang@richtek.com>");
+MODULE_DESCRIPTION("Richtek RT4831 DSV Regulators driver");
 MODULE_LICENSE("GPL v2");
