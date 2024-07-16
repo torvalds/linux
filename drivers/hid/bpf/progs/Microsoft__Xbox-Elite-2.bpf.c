@@ -15,20 +15,19 @@ HID_BPF_CONFIG(
 );
 
 /*
- * When using the XBox Wireless Controller Elite 2 over Bluetooth,
- * the device exports the paddle on the back of the device as a single
+ * When using the Xbox Wireless Controller Elite 2 over Bluetooth,
+ * the device exports the paddles on the back of the device as a single
  * bitfield value of usage "Assign Selection".
  *
- * The kernel doesn't process those usages properly and report KEY_UNKNOWN
- * for it.
+ * The kernel doesn't process the paddles usage properly and reports KEY_UNKNOWN.
  *
- * SDL doesn't know how to interprete that KEY_UNKNOWN and thus ignores the paddles.
+ * SDL doesn't know how to interpret KEY_UNKNOWN and thus ignores the paddles.
  *
  * Given that over USB the kernel uses BTN_TRIGGER_HAPPY[5-8], we
- * can tweak the report descriptor to make the kernel interprete it properly:
- * - we need an application collection of gamepad (so we have to close the current
+ * can tweak the report descriptor to make the kernel interpret it properly:
+ * - We need an application collection of gamepad (so we have to close the current
  *   Consumer Control one)
- * - we need to change the usage to be buttons from 0x15 to 0x18
+ * - We need to change the usage to be buttons from 0x15 to 0x18
  */
 
 #define OFFSET_ASSIGN_SELECTION		211
@@ -93,7 +92,7 @@ _Static_assert(sizeof(rdesc_assign_selection) == sizeof(fixed_rdesc_assign_selec
 _Static_assert(sizeof(rdesc_assign_selection) + OFFSET_ASSIGN_SELECTION < ORIGINAL_RDESC_SIZE,
 	       "Rdesc at given offset is too big");
 
-SEC("fmod_ret/hid_bpf_rdesc_fixup")
+SEC(HID_BPF_RDESC_FIXUP)
 int BPF_PROG(hid_fix_rdesc, struct hid_bpf_ctx *hctx)
 {
 	__u8 *data = hid_bpf_get_data(hctx, 0 /* offset */, 4096 /* size */);
@@ -113,6 +112,10 @@ int BPF_PROG(hid_fix_rdesc, struct hid_bpf_ctx *hctx)
 
 	return 0;
 }
+
+HID_BPF_OPS(xbox_elite_2) = {
+	.hid_rdesc_fixup = (void *)hid_fix_rdesc,
+};
 
 SEC("syscall")
 int probe(struct hid_bpf_probe_args *ctx)
