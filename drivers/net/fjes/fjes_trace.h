@@ -85,7 +85,7 @@ TRACE_EVENT(fjes_hw_request_info_err,
 		__string(err, err)
 	),
 	TP_fast_assign(
-		__assign_str(err, err);
+		__assign_str(err);
 	),
 	TP_printk("%s", __get_str(err))
 );
@@ -145,7 +145,7 @@ TRACE_EVENT(fjes_hw_register_buff_addr_err,
 		__string(err, err)
 	),
 	TP_fast_assign(
-		__assign_str(err, err);
+		__assign_str(err);
 	),
 	TP_printk("%s", __get_str(err))
 );
@@ -189,7 +189,7 @@ TRACE_EVENT(fjes_hw_unregister_buff_addr_err,
 		__string(err, err)
 	),
 	TP_fast_assign(
-		__assign_str(err, err);
+		__assign_str(err);
 	),
 	TP_printk("%s", __get_str(err))
 );
@@ -232,7 +232,7 @@ TRACE_EVENT(fjes_hw_start_debug_err,
 		 __string(err, err)
 	),
 	TP_fast_assign(
-		__assign_str(err, err);
+		__assign_str(err);
 	),
 	TP_printk("%s", __get_str(err))
 );
@@ -258,7 +258,7 @@ TRACE_EVENT(fjes_hw_stop_debug_err,
 		 __string(err, err)
 	),
 	TP_fast_assign(
-		__assign_str(err, err);
+		__assign_str(err);
 	),
 	TP_printk("%s", __get_str(err))
 );

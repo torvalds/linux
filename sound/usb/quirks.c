@@ -1740,7 +1740,7 @@ static void mbox3_set_format_quirk(struct snd_usb_substream *subs,
 	u32 current_rate;
 
 	// Get current rate from card and check if changing it is needed
-	snd_usb_ctl_msg(subs->dev, usb_sndctrlpipe(subs->dev, 0),
+	snd_usb_ctl_msg(subs->dev, usb_rcvctrlpipe(subs->dev, 0),
 					0x01, 0x21 | USB_DIR_IN, 0x0100, 0x8101, &buff4, 4);
 	current_rate = le32_to_cpu(buff4);
 	dev_dbg(&subs->dev->dev,
@@ -1765,7 +1765,7 @@ static void mbox3_set_format_quirk(struct snd_usb_substream *subs,
 
 	// Check whether the change was successful
 	buff4 = 0;
-	snd_usb_ctl_msg(subs->dev, usb_sndctrlpipe(subs->dev, 0),
+	snd_usb_ctl_msg(subs->dev, usb_rcvctrlpipe(subs->dev, 0),
 					0x01, 0x21 | USB_DIR_IN, 0x0100, 0x8101, &buff4, 4);
 	if (new_rate != le32_to_cpu(buff4))
 		dev_warn(&subs->dev->dev, "MBOX3: Couldn't set the sample rate");

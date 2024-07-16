@@ -440,11 +440,6 @@ int __usb_get_extra_descriptor(char *buffer, unsigned size,
 
 /* ----------------------------------------------------------------------- */
 
-/* USB device number allocation bitmap */
-struct usb_devmap {
-	unsigned long devicemap[128 / (8*sizeof(unsigned long))];
-};
-
 /*
  * Allocated per bus (tree of devices) we have:
  */
@@ -472,7 +467,7 @@ struct usb_bus {
 					 * round-robin allocation */
 	struct mutex devnum_next_mutex; /* devnum_next mutex */
 
-	struct usb_devmap devmap;	/* device address allocation map */
+	DECLARE_BITMAP(devmap, 128);	/* USB device number allocation bitmap */
 	struct usb_device *root_hub;	/* Root hub */
 	struct usb_bus *hs_companion;	/* Companion EHCI bus, if any */
 

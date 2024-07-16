@@ -5,7 +5,6 @@
         "EventName": "UNC_CHACMS_CLOCKTICKS",
         "PerPkg": "1",
         "PortMask": "0x000",
-        "PublicDescription": "UNC_CHACMS_CLOCKTICKS",
         "Unit": "CHACMS"
     },
     {
@@ -1217,6 +1216,15 @@
         "Unit": "CHA"
     },
     {
+        "BriefDescription": "TOR Occupancy for Data read opt from local IA that miss the cache",
+        "EventCode": "0x36",
+        "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_DRD_OPT",
+        "PerPkg": "1",
+        "PublicDescription": "TOR Occupancy : DRd_Opts issued by iA Cores",
+        "UMask": "0xc827ff01",
+        "Unit": "CHA"
+    },
+    {
         "BriefDescription": "TOR Occupancy for Data read opt prefetch from local IA that miss the cache",
         "EventCode": "0x36",
         "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_DRD_OPT_PREF",
@@ -1250,6 +1258,15 @@
         "PerPkg": "1",
         "PublicDescription": "TOR Occupancy : CRd_Prefs issued by iA Cores that hit the LLC",
         "UMask": "0xc88ffd01",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "TOR Occupancy for Data read opt from local IA that hit the cache",
+        "EventCode": "0x36",
+        "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_HIT_DRD_OPT",
+        "PerPkg": "1",
+        "PublicDescription": "TOR Occupancy : DRd_Opts issued by iA Cores that hit the LLC",
+        "UMask": "0xc827fd01",
         "Unit": "CHA"
     },
     {
@@ -1403,6 +1420,15 @@
         "PerPkg": "1",
         "PublicDescription": "TOR Occupancy : CRd_Prefs issued by iA Cores that Missed the LLC - HOMed locally",
         "UMask": "0xc88efe01",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "TOR Occupancy for Data read opt from local IA that miss the cache",
+        "EventCode": "0x36",
+        "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_DRD_OPT",
+        "PerPkg": "1",
+        "PublicDescription": "TOR Occupancy : DRd_Opt issued by iA Cores that missed the LLC",
+        "UMask": "0xc827fe01",
         "Unit": "CHA"
     },
     {

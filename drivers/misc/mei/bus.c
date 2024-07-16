@@ -1327,7 +1327,7 @@ static int mei_cl_device_uevent(const struct device *dev, struct kobj_uevent_env
 	return 0;
 }
 
-static struct bus_type mei_cl_bus_type = {
+static const struct bus_type mei_cl_bus_type = {
 	.name		= "mei",
 	.dev_groups	= mei_cldev_groups,
 	.match		= mei_cl_device_match,

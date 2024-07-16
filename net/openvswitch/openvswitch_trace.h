@@ -43,8 +43,8 @@ TRACE_EVENT(ovs_do_execute_action,
 
 	TP_fast_assign(
 		__entry->dpaddr = dp;
-		__assign_str(dp_name, ovs_dp_name(dp));
-		__assign_str(dev_name, skb->dev->name);
+		__assign_str(dp_name);
+		__assign_str(dev_name);
 		__entry->skbaddr = skb;
 		__entry->len = skb->len;
 		__entry->data_len = skb->data_len;
@@ -113,8 +113,8 @@ TRACE_EVENT(ovs_dp_upcall,
 
 	TP_fast_assign(
 		__entry->dpaddr = dp;
-		__assign_str(dp_name, ovs_dp_name(dp));
-		__assign_str(dev_name, skb->dev->name);
+		__assign_str(dp_name);
+		__assign_str(dev_name);
 		__entry->skbaddr = skb;
 		__entry->len = skb->len;
 		__entry->data_len = skb->data_len;

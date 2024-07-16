@@ -823,14 +823,6 @@ ff_layout_pg_get_read(struct nfs_pageio_descriptor *pgio,
 }
 
 static void
-ff_layout_pg_check_layout(struct nfs_pageio_descriptor *pgio,
-			  struct nfs_page *req)
-{
-	pnfs_generic_pg_check_layout(pgio);
-	pnfs_generic_pg_check_range(pgio, req);
-}
-
-static void
 ff_layout_pg_init_read(struct nfs_pageio_descriptor *pgio,
 			struct nfs_page *req)
 {
@@ -840,7 +832,7 @@ ff_layout_pg_init_read(struct nfs_pageio_descriptor *pgio,
 	u32 ds_idx;
 
 retry:
-	ff_layout_pg_check_layout(pgio, req);
+	pnfs_generic_pg_check_layout(pgio, req);
 	/* Use full layout for now */
 	if (!pgio->pg_lseg) {
 		ff_layout_pg_get_read(pgio, req, false);
@@ -895,7 +887,7 @@ ff_layout_pg_init_write(struct nfs_pageio_descriptor *pgio,
 	u32 i;
 
 retry:
-	ff_layout_pg_check_layout(pgio, req);
+	pnfs_generic_pg_check_layout(pgio, req);
 	if (!pgio->pg_lseg) {
 		pgio->pg_lseg =
 			pnfs_update_layout(pgio->pg_inode, nfs_req_openctx(req),

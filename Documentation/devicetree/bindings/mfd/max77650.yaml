@@ -53,16 +53,16 @@ properties:
       Single string containing the name of the GPIO line.
 
   regulators:
-    $ref: ../regulator/max77650-regulator.yaml
+    $ref: /schemas/regulator/max77650-regulator.yaml
 
   charger:
-    $ref: ../power/supply/max77650-charger.yaml
+    $ref: /schemas/power/supply/max77650-charger.yaml
 
   leds:
-    $ref: ../leds/leds-max77650.yaml
+    $ref: /schemas/leds/leds-max77650.yaml
 
   onkey:
-    $ref: ../input/max77650-onkey.yaml
+    $ref: /schemas/input/max77650-onkey.yaml
 
 required:
   - compatible

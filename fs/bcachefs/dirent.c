@@ -15,6 +15,9 @@
 
 static unsigned bch2_dirent_name_bytes(struct bkey_s_c_dirent d)
 {
+	if (bkey_val_bytes(d.k) < offsetof(struct bch_dirent, d_name))
+		return 0;
+
 	unsigned bkey_u64s = bkey_val_u64s(d.k);
 	unsigned bkey_bytes = bkey_u64s * sizeof(u64);
 	u64 last_u64 = ((u64*)d.v)[bkey_u64s - 1];

@@ -109,7 +109,7 @@ int rt_sdca_jack_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *d
 		return -ENOMEM;
 
 	for (i = 0; i < ARRAY_SIZE(need_sdca_suffix); i++) {
-		if (strstr(codec_dai->name, need_sdca_suffix[i])) {
+		if (strstr(component->name_prefix, need_sdca_suffix[i])) {
 			/* Add -sdca suffix for existing UCMs */
 			card->components = devm_kasprintf(card->dev, GFP_KERNEL,
 							  "%s-sdca", card->components);

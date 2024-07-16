@@ -510,7 +510,7 @@ reassess_streams:
 	 * stream has a gap that can be jumped.
 	 */
 	if (notes & SOME_EMPTY) {
-		unsigned long long jump_to = wreq->start + wreq->len;
+		unsigned long long jump_to = wreq->start + READ_ONCE(wreq->submitted);
 
 		for (s = 0; s < NR_IO_STREAMS; s++) {
 			stream = &wreq->io_streams[s];
@@ -690,10 +690,11 @@ void netfs_write_collection_worker(struct work_struct *work)
 	wake_up_bit(&wreq->flags, NETFS_RREQ_IN_PROGRESS);
 
 	if (wreq->iocb) {
-		wreq->iocb->ki_pos += wreq->transferred;
+		size_t written = min(wreq->transferred, wreq->len);
+		wreq->iocb->ki_pos += written;
 		if (wreq->iocb->ki_complete)
 			wreq->iocb->ki_complete(
-				wreq->iocb, wreq->error ? wreq->error : wreq->transferred);
+				wreq->iocb, wreq->error ? wreq->error : written);
 		wreq->iocb = VFS_PTR_POISON;
 	}
 

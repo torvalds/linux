@@ -866,7 +866,7 @@ static int usb_rh_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
  */
 static void usb_bus_init (struct usb_bus *bus)
 {
-	memset (&bus->devmap, 0, sizeof(struct usb_devmap));
+	memset(&bus->devmap, 0, sizeof(bus->devmap));
 
 	bus->devnum_next = 1;
 
@@ -962,7 +962,7 @@ static int register_root_hub(struct usb_hcd *hcd)
 
 	usb_dev->devnum = devnum;
 	usb_dev->bus->devnum_next = devnum + 1;
-	set_bit (devnum, usb_dev->bus->devmap.devicemap);
+	set_bit(devnum, usb_dev->bus->devmap);
 	usb_set_device_state(usb_dev, USB_STATE_ADDRESS);
 
 	mutex_lock(&usb_bus_idr_lock);

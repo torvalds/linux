@@ -3189,6 +3189,28 @@ static void cifs_swap_deactivate(struct file *file)
 	/* do we need to unpin (or unlock) the file */
 }
 
+/**
+ * cifs_swap_rw - SMB3 address space operation for swap I/O
+ * @iocb: target I/O control block
+ * @iter: I/O buffer
+ *
+ * Perform IO to the swap-file.  This is much like direct IO.
+ */
+static int cifs_swap_rw(struct kiocb *iocb, struct iov_iter *iter)
+{
+	ssize_t ret;
+
+	WARN_ON_ONCE(iov_iter_count(iter) != PAGE_SIZE);
+
+	if (iov_iter_rw(iter) == READ)
+		ret = netfs_unbuffered_read_iter_locked(iocb, iter);
+	else
+		ret = netfs_unbuffered_write_iter_locked(iocb, iter, NULL);
+	if (ret < 0)
+		return ret;
+	return 0;
+}
+
 const struct address_space_operations cifs_addr_ops = {
 	.read_folio	= netfs_read_folio,
 	.readahead	= netfs_readahead,
@@ -3204,6 +3226,7 @@ const struct address_space_operations cifs_addr_ops = {
 	 */
 	.swap_activate	= cifs_swap_activate,
 	.swap_deactivate = cifs_swap_deactivate,
+	.swap_rw = cifs_swap_rw,
 };
 
 /*

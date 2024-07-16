@@ -87,7 +87,7 @@ static inline void trace_ ## name(proto) {}
 #endif
 
 #define DEV_ENTRY	__string(dev, dev_name(dev))
-#define DEV_ASSIGN	__assign_str(dev, dev_name(dev))
+#define DEV_ASSIGN	__assign_str(dev)
 
 #include "iwl-devtrace-io.h"
 #include "iwl-devtrace-ucode.h"

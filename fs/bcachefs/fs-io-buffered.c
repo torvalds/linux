@@ -257,7 +257,6 @@ void bch2_readahead(struct readahead_control *ractl)
 	struct bch_inode_info *inode = to_bch_ei(ractl->mapping->host);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	struct bch_io_opts opts;
-	struct btree_trans *trans = bch2_trans_get(c);
 	struct folio *folio;
 	struct readpages_iter readpages_iter;
 
@@ -269,6 +268,7 @@ void bch2_readahead(struct readahead_control *ractl)
 
 	bch2_pagecache_add_get(inode);
 
+	struct btree_trans *trans = bch2_trans_get(c);
 	while ((folio = readpage_iter_peek(&readpages_iter))) {
 		unsigned n = min_t(unsigned,
 				   readpages_iter.folios.nr -
@@ -289,10 +289,10 @@ void bch2_readahead(struct readahead_control *ractl)
 			   &readpages_iter);
 		bch2_trans_unlock(trans);
 	}
+	bch2_trans_put(trans);
 
 	bch2_pagecache_add_put(inode);
 
-	bch2_trans_put(trans);
 	darray_exit(&readpages_iter.folios);
 }
 
@@ -437,8 +437,8 @@ static void bch2_writepage_io_done(struct bch_write_op *op)
 	 */
 
 	/*
-	 * PageWriteback is effectively our ref on the inode - fixup i_blocks
-	 * before calling end_page_writeback:
+	 * The writeback flag is effectively our ref on the inode -
+	 * fixup i_blocks before calling folio_end_writeback:
 	 */
 	bch2_i_sectors_acct(c, io->inode, NULL, io->op.i_sectors_delta);
 
@@ -898,7 +898,7 @@ static int __bch2_buffered_write(struct bch_inode_info *inode,
 	darray_for_each(fs, fi) {
 		f = *fi;
 		f_len = min(end, folio_end_pos(f)) - f_pos;
-		f_copied = copy_page_from_iter_atomic(&f->page, f_offset, f_len, iter);
+		f_copied = copy_folio_from_iter_atomic(f, f_offset, f_len, iter);
 		if (!f_copied) {
 			folios_trunc(&fs, fi);
 			break;

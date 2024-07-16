@@ -31,6 +31,7 @@
 #include "util/evsel.h"
 #include "util/evswitch.h"
 #include "util/header.h"
+#include "util/mem-info.h"
 #include "util/session.h"
 #include "util/srcline.h"
 #include "util/tool.h"
@@ -172,7 +173,7 @@ static int hist_iter__report_callback(struct hist_entry_iter *iter,
 	struct mem_info *mi;
 	struct branch_info *bi;
 
-	if (!ui__has_annotation() && !rep->symbol_ipc && !rep->data_type)
+	if (!ui__has_annotation() && !rep->symbol_ipc)
 		return 0;
 
 	if (sort__mode == SORT_MODE__BRANCH) {
@@ -185,7 +186,7 @@ static int hist_iter__report_callback(struct hist_entry_iter *iter,
 
 	} else if (rep->mem_mode) {
 		mi = he->mem_info;
-		err = addr_map_symbol__inc_samples(&mi->daddr, sample, evsel);
+		err = addr_map_symbol__inc_samples(mem_info__daddr(mi), sample, evsel);
 		if (err)
 			goto out;
 
@@ -322,7 +323,7 @@ static int process_sample_event(struct perf_tool *tool,
 	}
 
 	if (al.map != NULL)
-		map__dso(al.map)->hit = 1;
+		dso__set_hit(map__dso(al.map));
 
 	if (ui__has_annotation() || rep->symbol_ipc || rep->total_cycles_mode) {
 		hist__account_cycles(sample->branch_stack, &al, sample,
@@ -428,7 +429,7 @@ static int report__setup_sample_type(struct report *rep)
 		 * compatibility, set the bit if it's an old perf data file.
 		 */
 		evlist__for_each_entry(session->evlist, evsel) {
-			if (strstr(evsel->name, "arm_spe") &&
+			if (strstr(evsel__name(evsel), "arm_spe") &&
 				!(sample_type & PERF_SAMPLE_DATA_SRC)) {
 				evsel->core.attr.sample_type |= PERF_SAMPLE_DATA_SRC;
 				sample_type |= PERF_SAMPLE_DATA_SRC;
@@ -609,7 +610,7 @@ static void report__warn_kptr_restrict(const struct report *rep)
 		return;
 
 	if (kernel_map == NULL ||
-	     (map__dso(kernel_map)->hit &&
+	    (dso__hit(map__dso(kernel_map)) &&
 	     (kernel_kmap->ref_reloc_sym == NULL ||
 	      kernel_kmap->ref_reloc_sym->addr == 0))) {
 		const char *desc =
@@ -850,7 +851,7 @@ static int maps__fprintf_task_cb(struct map *map, void *data)
 		prot & PROT_EXEC ? 'x' : '-',
 		map__flags(map) ? 's' : 'p',
 		map__pgoff(map),
-		dso->id.ino, dso->name);
+		dso__id_const(dso)->ino, dso__name(dso));
 
 	if (ret < 0)
 		return ret;
@@ -1693,6 +1694,11 @@ repeat:
 		setup_browser(true);
 	else
 		use_browser = 0;
+
+	if (report.data_type && use_browser == 1) {
+		symbol_conf.annotate_data_member = true;
+		symbol_conf.annotate_data_sample = true;
+	}
 
 	if (sort_order && strstr(sort_order, "ipc")) {
 		parse_options_usage(report_usage, options, "s", 1);

@@ -322,7 +322,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(cy8ctma140_pm,
 				cy8ctma140_suspend, cy8ctma140_resume);
 
 static const struct i2c_device_id cy8ctma140_idtable[] = {
-	{ CY8CTMA140_NAME, 0 },
+	{ CY8CTMA140_NAME },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(i2c, cy8ctma140_idtable);

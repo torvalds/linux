@@ -2346,8 +2346,6 @@ static void fw_devlink_link_device(struct device *dev)
 
 /* Device links support end. */
 
-int (*platform_notify)(struct device *dev) = NULL;
-int (*platform_notify_remove)(struct device *dev) = NULL;
 static struct kobject *dev_kobj;
 
 /* /sys/dev/char */
@@ -2395,16 +2393,10 @@ static void device_platform_notify(struct device *dev)
 	acpi_device_notify(dev);
 
 	software_node_notify(dev);
-
-	if (platform_notify)
-		platform_notify(dev);
 }
 
 static void device_platform_notify_remove(struct device *dev)
 {
-	if (platform_notify_remove)
-		platform_notify_remove(dev);
-
 	software_node_notify_remove(dev);
 
 	acpi_device_notify_remove(dev);
@@ -2545,6 +2537,15 @@ ssize_t device_show_bool(struct device *dev, struct device_attribute *attr,
 	return sysfs_emit(buf, "%d\n", *(bool *)(ea->var));
 }
 EXPORT_SYMBOL_GPL(device_show_bool);
+
+ssize_t device_show_string(struct device *dev,
+			   struct device_attribute *attr, char *buf)
+{
+	struct dev_ext_attribute *ea = to_ext_attr(attr);
+
+	return sysfs_emit(buf, "%s\n", (char *)ea->var);
+}
+EXPORT_SYMBOL_GPL(device_show_string);
 
 /**
  * device_release - free device structure.

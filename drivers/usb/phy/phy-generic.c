@@ -71,6 +71,7 @@ static void nop_reset(struct usb_phy_generic *nop)
 	gpiod_set_value_cansleep(nop->gpiod_reset, 1);
 	usleep_range(10000, 20000);
 	gpiod_set_value_cansleep(nop->gpiod_reset, 0);
+	usleep_range(10000, 30000);
 }
 
 /* interface to regulator framework */

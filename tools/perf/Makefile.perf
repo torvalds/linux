@@ -458,34 +458,52 @@ SHELL = $(SHELL_PATH)
 
 arm64_gen_sysreg_dir := $(srctree)/tools/arch/arm64/tools
 ifneq ($(OUTPUT),)
-  arm64_gen_sysreg_outdir := $(OUTPUT)
+  arm64_gen_sysreg_outdir := $(abspath $(OUTPUT))
 else
   arm64_gen_sysreg_outdir := $(CURDIR)
 endif
 
 arm64-sysreg-defs: FORCE
-	$(Q)$(MAKE) -C $(arm64_gen_sysreg_dir) O=$(arm64_gen_sysreg_outdir)
+	$(Q)$(MAKE) -C $(arm64_gen_sysreg_dir) O=$(arm64_gen_sysreg_outdir) \
+		prefix= subdir=
 
 arm64-sysreg-defs-clean:
 	$(call QUIET_CLEAN,arm64-sysreg-defs)
 	$(Q)$(MAKE) -C $(arm64_gen_sysreg_dir) O=$(arm64_gen_sysreg_outdir) \
-		clean > /dev/null
+		prefix= subdir= clean > /dev/null
 
 beauty_linux_dir := $(srctree)/tools/perf/trace/beauty/include/linux/
+beauty_uapi_linux_dir := $(srctree)/tools/perf/trace/beauty/include/uapi/linux/
+beauty_uapi_sound_dir := $(srctree)/tools/perf/trace/beauty/include/uapi/sound/
+beauty_arch_asm_dir := $(srctree)/tools/perf/trace/beauty/arch/x86/include/asm/
+beauty_x86_arch_asm_uapi_dir := $(srctree)/tools/perf/trace/beauty/arch/x86/include/uapi/asm/
+
 linux_uapi_dir := $(srctree)/tools/include/uapi/linux
 asm_generic_uapi_dir := $(srctree)/tools/include/uapi/asm-generic
 arch_asm_uapi_dir := $(srctree)/tools/arch/$(SRCARCH)/include/uapi/asm/
-x86_arch_asm_uapi_dir := $(srctree)/tools/arch/x86/include/uapi/asm/
 x86_arch_asm_dir := $(srctree)/tools/arch/x86/include/asm/
 
 beauty_outdir := $(OUTPUT)trace/beauty/generated
 beauty_ioctl_outdir := $(beauty_outdir)/ioctl
-drm_ioctl_array := $(beauty_ioctl_outdir)/drm_ioctl_array.c
-drm_hdr_dir := $(srctree)/tools/include/uapi/drm
-drm_ioctl_tbl := $(srctree)/tools/perf/trace/beauty/drm_ioctl.sh
 
 # Create output directory if not already present
 $(shell [ -d '$(beauty_ioctl_outdir)' ] || mkdir -p '$(beauty_ioctl_outdir)')
+
+fs_at_flags_array := $(beauty_outdir)/fs_at_flags_array.c
+fs_at_flags_tbl := $(srctree)/tools/perf/trace/beauty/fs_at_flags.sh
+
+$(fs_at_flags_array): $(beauty_uapi_linux_dir)/fcntl.h $(fs_at_flags_tbl)
+	$(Q)$(SHELL) '$(fs_at_flags_tbl)' $(beauty_uapi_linux_dir) > $@
+
+clone_flags_array := $(beauty_outdir)/clone_flags_array.c
+clone_flags_tbl := $(srctree)/tools/perf/trace/beauty/clone.sh
+
+$(clone_flags_array): $(beauty_uapi_linux_dir)/sched.h $(clone_flags_tbl)
+	$(Q)$(SHELL) '$(clone_flags_tbl)' $(beauty_uapi_linux_dir) > $@
+
+drm_ioctl_array := $(beauty_ioctl_outdir)/drm_ioctl_array.c
+drm_hdr_dir := $(srctree)/tools/include/uapi/drm
+drm_ioctl_tbl := $(srctree)/tools/perf/trace/beauty/drm_ioctl.sh
 
 $(drm_ioctl_array): $(drm_hdr_dir)/drm.h $(drm_hdr_dir)/i915_drm.h $(drm_ioctl_tbl)
 	$(Q)$(SHELL) '$(drm_ioctl_tbl)' $(drm_hdr_dir) > $@
@@ -499,20 +517,20 @@ $(fadvise_advice_array): $(linux_uapi_dir)/in.h $(fadvise_advice_tbl)
 fsmount_arrays := $(beauty_outdir)/fsmount_arrays.c
 fsmount_tbls := $(srctree)/tools/perf/trace/beauty/fsmount.sh
 
-$(fsmount_arrays): $(linux_uapi_dir)/fs.h $(fsmount_tbls)
-	$(Q)$(SHELL) '$(fsmount_tbls)' $(linux_uapi_dir) > $@
+$(fsmount_arrays): $(beauty_uapi_linux_dir)/mount.h $(fsmount_tbls)
+	$(Q)$(SHELL) '$(fsmount_tbls)' $(beauty_uapi_linux_dir) > $@
 
 fspick_arrays := $(beauty_outdir)/fspick_arrays.c
 fspick_tbls := $(srctree)/tools/perf/trace/beauty/fspick.sh
 
-$(fspick_arrays): $(linux_uapi_dir)/fs.h $(fspick_tbls)
-	$(Q)$(SHELL) '$(fspick_tbls)' $(linux_uapi_dir) > $@
+$(fspick_arrays): $(beauty_uapi_linux_dir)/mount.h $(fspick_tbls)
+	$(Q)$(SHELL) '$(fspick_tbls)' $(beauty_uapi_linux_dir) > $@
 
 fsconfig_arrays := $(beauty_outdir)/fsconfig_arrays.c
 fsconfig_tbls := $(srctree)/tools/perf/trace/beauty/fsconfig.sh
 
-$(fsconfig_arrays): $(linux_uapi_dir)/fs.h $(fsconfig_tbls)
-	$(Q)$(SHELL) '$(fsconfig_tbls)' $(linux_uapi_dir) > $@
+$(fsconfig_arrays): $(beauty_uapi_linux_dir)/mount.h $(fsconfig_tbls)
+	$(Q)$(SHELL) '$(fsconfig_tbls)' $(beauty_uapi_linux_dir) > $@
 
 pkey_alloc_access_rights_array := $(beauty_outdir)/pkey_alloc_access_rights_array.c
 asm_generic_hdr_dir := $(srctree)/tools/include/uapi/asm-generic/
@@ -525,15 +543,15 @@ sndrv_ctl_ioctl_array := $(beauty_ioctl_outdir)/sndrv_ctl_ioctl_array.c
 sndrv_ctl_hdr_dir := $(srctree)/tools/include/uapi/sound
 sndrv_ctl_ioctl_tbl := $(srctree)/tools/perf/trace/beauty/sndrv_ctl_ioctl.sh
 
-$(sndrv_ctl_ioctl_array): $(sndrv_ctl_hdr_dir)/asound.h $(sndrv_ctl_ioctl_tbl)
-	$(Q)$(SHELL) '$(sndrv_ctl_ioctl_tbl)' $(sndrv_ctl_hdr_dir) > $@
+$(sndrv_ctl_ioctl_array): $(beauty_uapi_sound_dir)/asound.h $(sndrv_ctl_ioctl_tbl)
+	$(Q)$(SHELL) '$(sndrv_ctl_ioctl_tbl)' $(beauty_uapi_sound_dir) > $@
 
 sndrv_pcm_ioctl_array := $(beauty_ioctl_outdir)/sndrv_pcm_ioctl_array.c
 sndrv_pcm_hdr_dir := $(srctree)/tools/include/uapi/sound
 sndrv_pcm_ioctl_tbl := $(srctree)/tools/perf/trace/beauty/sndrv_pcm_ioctl.sh
 
-$(sndrv_pcm_ioctl_array): $(sndrv_pcm_hdr_dir)/asound.h $(sndrv_pcm_ioctl_tbl)
-	$(Q)$(SHELL) '$(sndrv_pcm_ioctl_tbl)' $(sndrv_pcm_hdr_dir) > $@
+$(sndrv_pcm_ioctl_array): $(beauty_uapi_sound_dir)/asound.h $(sndrv_pcm_ioctl_tbl)
+	$(Q)$(SHELL) '$(sndrv_pcm_ioctl_tbl)' $(beauty_uapi_sound_dir) > $@
 
 kcmp_type_array := $(beauty_outdir)/kcmp_type_array.c
 kcmp_hdr_dir := $(srctree)/tools/include/uapi/linux/
@@ -562,11 +580,10 @@ $(sockaddr_arrays): $(beauty_linux_dir)/socket.h $(sockaddr_tbl)
 	$(Q)$(SHELL) '$(sockaddr_tbl)' $(beauty_linux_dir) > $@
 
 vhost_virtio_ioctl_array := $(beauty_ioctl_outdir)/vhost_virtio_ioctl_array.c
-vhost_virtio_hdr_dir := $(srctree)/tools/include/uapi/linux
 vhost_virtio_ioctl_tbl := $(srctree)/tools/perf/trace/beauty/vhost_virtio_ioctl.sh
 
-$(vhost_virtio_ioctl_array): $(vhost_virtio_hdr_dir)/vhost.h $(vhost_virtio_ioctl_tbl)
-	$(Q)$(SHELL) '$(vhost_virtio_ioctl_tbl)' $(vhost_virtio_hdr_dir) > $@
+$(vhost_virtio_ioctl_array): $(beauty_uapi_linux_dir)/vhost.h $(vhost_virtio_ioctl_tbl)
+	$(Q)$(SHELL) '$(vhost_virtio_ioctl_tbl)' $(beauty_uapi_linux_dir) > $@
 
 perf_ioctl_array := $(beauty_ioctl_outdir)/perf_ioctl_array.c
 perf_hdr_dir := $(srctree)/tools/include/uapi/linux
@@ -597,15 +614,14 @@ $(mremap_flags_array): $(linux_uapi_dir)/mman.h $(mremap_flags_tbl)
 mount_flags_array := $(beauty_outdir)/mount_flags_array.c
 mount_flags_tbl := $(srctree)/tools/perf/trace/beauty/mount_flags.sh
 
-$(mount_flags_array): $(linux_uapi_dir)/fs.h $(mount_flags_tbl)
-	$(Q)$(SHELL) '$(mount_flags_tbl)' $(linux_uapi_dir) > $@
+$(mount_flags_array): $(beauty_uapi_linux_dir)/mount.h $(mount_flags_tbl)
+	$(Q)$(SHELL) '$(mount_flags_tbl)' $(beauty_uapi_linux_dir) > $@
 
 move_mount_flags_array := $(beauty_outdir)/move_mount_flags_array.c
 move_mount_flags_tbl := $(srctree)/tools/perf/trace/beauty/move_mount_flags.sh
 
-$(move_mount_flags_array): $(linux_uapi_dir)/fs.h $(move_mount_flags_tbl)
-	$(Q)$(SHELL) '$(move_mount_flags_tbl)' $(linux_uapi_dir) > $@
-
+$(move_mount_flags_array): $(beauty_uapi_linux_dir)/mount.h $(move_mount_flags_tbl)
+	$(Q)$(SHELL) '$(move_mount_flags_tbl)' $(beauty_uapi_linux_dir) > $@
 
 mmap_prot_array := $(beauty_outdir)/mmap_prot_array.c
 mmap_prot_tbl := $(srctree)/tools/perf/trace/beauty/mmap_prot.sh
@@ -614,29 +630,28 @@ $(mmap_prot_array): $(asm_generic_uapi_dir)/mman.h $(asm_generic_uapi_dir)/mman-
 	$(Q)$(SHELL) '$(mmap_prot_tbl)' $(asm_generic_uapi_dir) $(arch_asm_uapi_dir) > $@
 
 prctl_option_array := $(beauty_outdir)/prctl_option_array.c
-prctl_hdr_dir := $(srctree)/tools/include/uapi/linux/
 prctl_option_tbl := $(srctree)/tools/perf/trace/beauty/prctl_option.sh
 
-$(prctl_option_array): $(prctl_hdr_dir)/prctl.h $(prctl_option_tbl)
-	$(Q)$(SHELL) '$(prctl_option_tbl)' $(prctl_hdr_dir) > $@
+$(prctl_option_array): $(beauty_uapi_linux_dir)/prctl.h $(prctl_option_tbl)
+	$(Q)$(SHELL) '$(prctl_option_tbl)' $(beauty_uapi_linux_dir) > $@
 
 usbdevfs_ioctl_array := $(beauty_ioctl_outdir)/usbdevfs_ioctl_array.c
 usbdevfs_ioctl_tbl := $(srctree)/tools/perf/trace/beauty/usbdevfs_ioctl.sh
 
-$(usbdevfs_ioctl_array): $(linux_uapi_dir)/usbdevice_fs.h $(usbdevfs_ioctl_tbl)
-	$(Q)$(SHELL) '$(usbdevfs_ioctl_tbl)' $(linux_uapi_dir) > $@
+$(usbdevfs_ioctl_array): $(beauty_uapi_linux_dir)/usbdevice_fs.h $(usbdevfs_ioctl_tbl)
+	$(Q)$(SHELL) '$(usbdevfs_ioctl_tbl)' $(beauty_uapi_linux_dir) > $@
 
 x86_arch_prctl_code_array := $(beauty_outdir)/x86_arch_prctl_code_array.c
 x86_arch_prctl_code_tbl := $(srctree)/tools/perf/trace/beauty/x86_arch_prctl.sh
 
-$(x86_arch_prctl_code_array): $(x86_arch_asm_uapi_dir)/prctl.h $(x86_arch_prctl_code_tbl)
-	$(Q)$(SHELL) '$(x86_arch_prctl_code_tbl)' $(x86_arch_asm_uapi_dir) > $@
+$(x86_arch_prctl_code_array): $(beauty_x86_arch_asm_uapi_dir)/prctl.h $(x86_arch_prctl_code_tbl)
+	$(Q)$(SHELL) '$(x86_arch_prctl_code_tbl)' $(beauty_x86_arch_asm_uapi_dir) > $@
 
 x86_arch_irq_vectors_array := $(beauty_outdir)/x86_arch_irq_vectors_array.c
 x86_arch_irq_vectors_tbl := $(srctree)/tools/perf/trace/beauty/tracepoints/x86_irq_vectors.sh
 
-$(x86_arch_irq_vectors_array): $(x86_arch_asm_dir)/irq_vectors.h $(x86_arch_irq_vectors_tbl)
-	$(Q)$(SHELL) '$(x86_arch_irq_vectors_tbl)' $(x86_arch_asm_dir) > $@
+$(x86_arch_irq_vectors_array): $(beauty_arch_asm_dir)/irq_vectors.h $(x86_arch_irq_vectors_tbl)
+	$(Q)$(SHELL) '$(x86_arch_irq_vectors_tbl)' $(beauty_arch_asm_dir) > $@
 
 x86_arch_MSRs_array := $(beauty_outdir)/x86_arch_MSRs_array.c
 x86_arch_MSRs_tbl := $(srctree)/tools/perf/trace/beauty/tracepoints/x86_msr.sh
@@ -647,8 +662,8 @@ $(x86_arch_MSRs_array): $(x86_arch_asm_dir)/msr-index.h $(x86_arch_MSRs_tbl)
 rename_flags_array := $(beauty_outdir)/rename_flags_array.c
 rename_flags_tbl := $(srctree)/tools/perf/trace/beauty/rename_flags.sh
 
-$(rename_flags_array): $(linux_uapi_dir)/fs.h $(rename_flags_tbl)
-	$(Q)$(SHELL) '$(rename_flags_tbl)' $(linux_uapi_dir) > $@
+$(rename_flags_array): $(beauty_uapi_linux_dir)/fs.h $(rename_flags_tbl)
+	$(Q)$(SHELL) '$(rename_flags_tbl)' $(beauty_uapi_linux_dir) > $@
 
 arch_errno_name_array := $(beauty_outdir)/arch_errno_name_array.c
 arch_errno_hdr_dir := $(srctree)/tools
@@ -657,11 +672,17 @@ arch_errno_tbl := $(srctree)/tools/perf/trace/beauty/arch_errno_names.sh
 $(arch_errno_name_array): $(arch_errno_tbl)
 	$(Q)$(SHELL) '$(arch_errno_tbl)' '$(patsubst -%,,$(CC))' $(arch_errno_hdr_dir) > $@
 
+statx_mask_array := $(beauty_outdir)/statx_mask_array.c
+statx_mask_tbl := $(srctree)/tools/perf/trace/beauty/statx_mask.sh
+
+$(statx_mask_array): $(beauty_uapi_linux_dir)/stat.h $(statx_mask_tbl)
+	$(Q)$(SHELL) '$(statx_mask_tbl)' $(beauty_uapi_linux_dir) > $@
+
 sync_file_range_arrays := $(beauty_outdir)/sync_file_range_arrays.c
 sync_file_range_tbls := $(srctree)/tools/perf/trace/beauty/sync_file_range.sh
 
-$(sync_file_range_arrays): $(linux_uapi_dir)/fs.h $(sync_file_range_tbls)
-	$(Q)$(SHELL) '$(sync_file_range_tbls)' $(linux_uapi_dir) > $@
+$(sync_file_range_arrays): $(beauty_uapi_linux_dir)/fs.h $(sync_file_range_tbls)
+	$(Q)$(SHELL) '$(sync_file_range_tbls)' $(beauty_uapi_linux_dir) > $@
 
 TESTS_CORESIGHT_DIR := $(srctree)/tools/perf/tests/shell/coresight
 
@@ -762,6 +783,8 @@ build-dir   = $(or $(__build-dir),.)
 
 prepare: $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)common-cmds.h archheaders \
 	arm64-sysreg-defs \
+	$(fs_at_flags_array) \
+	$(clone_flags_array) \
 	$(drm_ioctl_array) \
 	$(fadvise_advice_array) \
 	$(fsconfig_arrays) \
@@ -789,6 +812,7 @@ prepare: $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)common-cmds.h archheaders \
 	$(x86_arch_prctl_code_array) \
 	$(rename_flags_array) \
 	$(arch_errno_name_array) \
+	$(statx_mask_array) \
 	$(sync_file_range_arrays) \
 	$(LIBAPI) \
 	$(LIBPERF) \

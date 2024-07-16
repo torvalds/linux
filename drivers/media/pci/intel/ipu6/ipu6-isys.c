@@ -678,6 +678,12 @@ static int isys_notifier_bound(struct v4l2_async_notifier *notifier,
 		container_of(asc, struct sensor_async_sd, asc);
 	int ret;
 
+	if (s_asd->csi2.port >= isys->pdata->ipdata->csi2.nports) {
+		dev_err(&isys->adev->auxdev.dev, "invalid csi2 port %u\n",
+			s_asd->csi2.port);
+		return -EINVAL;
+	}
+
 	ret = ipu_bridge_instantiate_vcm(sd->dev);
 	if (ret) {
 		dev_err(&isys->adev->auxdev.dev, "instantiate vcm failed\n");
@@ -925,39 +931,18 @@ static const struct dev_pm_ops isys_pm_ops = {
 	.resume = isys_resume,
 };
 
-static void isys_remove(struct auxiliary_device *auxdev)
+static void free_fw_msg_bufs(struct ipu6_isys *isys)
 {
-	struct ipu6_bus_device *adev = auxdev_to_adev(auxdev);
-	struct ipu6_isys *isys = dev_get_drvdata(&auxdev->dev);
-	struct ipu6_device *isp = adev->isp;
+	struct device *dev = &isys->adev->auxdev.dev;
 	struct isys_fw_msgs *fwmsg, *safe;
-	unsigned int i;
 
 	list_for_each_entry_safe(fwmsg, safe, &isys->framebuflist, head)
-		dma_free_attrs(&auxdev->dev, sizeof(struct isys_fw_msgs),
-			       fwmsg, fwmsg->dma_addr, 0);
+		dma_free_attrs(dev, sizeof(struct isys_fw_msgs), fwmsg,
+			       fwmsg->dma_addr, 0);
 
 	list_for_each_entry_safe(fwmsg, safe, &isys->framebuflist_fw, head)
-		dma_free_attrs(&auxdev->dev, sizeof(struct isys_fw_msgs),
-			       fwmsg, fwmsg->dma_addr, 0);
-
-	isys_unregister_devices(isys);
-	isys_notifier_cleanup(isys);
-
-	cpu_latency_qos_remove_request(&isys->pm_qos);
-
-	if (!isp->secure_mode) {
-		ipu6_cpd_free_pkg_dir(adev);
-		ipu6_buttress_unmap_fw_image(adev, &adev->fw_sgt);
-		release_firmware(adev->fw);
-	}
-
-	for (i = 0; i < IPU6_ISYS_MAX_STREAMS; i++)
-		mutex_destroy(&isys->streams[i].mutex);
-
-	isys_iwake_watermark_cleanup(isys);
-	mutex_destroy(&isys->stream_mutex);
-	mutex_destroy(&isys->mutex);
+		dma_free_attrs(dev, sizeof(struct isys_fw_msgs), fwmsg,
+			       fwmsg->dma_addr, 0);
 }
 
 static int alloc_fw_msg_bufs(struct ipu6_isys *isys, int amount)
@@ -1140,12 +1125,14 @@ static int isys_probe(struct auxiliary_device *auxdev,
 
 	ret = isys_register_devices(isys);
 	if (ret)
-		goto out_remove_pkg_dir_shared_buffer;
+		goto free_fw_msg_bufs;
 
 	ipu6_mmu_hw_cleanup(adev->mmu);
 
 	return 0;
 
+free_fw_msg_bufs:
+	free_fw_msg_bufs(isys);
 out_remove_pkg_dir_shared_buffer:
 	if (!isp->secure_mode)
 		ipu6_cpd_free_pkg_dir(adev);
@@ -1165,6 +1152,34 @@ release_firmware:
 	ipu6_mmu_hw_cleanup(adev->mmu);
 
 	return ret;
+}
+
+static void isys_remove(struct auxiliary_device *auxdev)
+{
+	struct ipu6_bus_device *adev = auxdev_to_adev(auxdev);
+	struct ipu6_isys *isys = dev_get_drvdata(&auxdev->dev);
+	struct ipu6_device *isp = adev->isp;
+	unsigned int i;
+
+	free_fw_msg_bufs(isys);
+
+	isys_unregister_devices(isys);
+	isys_notifier_cleanup(isys);
+
+	cpu_latency_qos_remove_request(&isys->pm_qos);
+
+	if (!isp->secure_mode) {
+		ipu6_cpd_free_pkg_dir(adev);
+		ipu6_buttress_unmap_fw_image(adev, &adev->fw_sgt);
+		release_firmware(adev->fw);
+	}
+
+	for (i = 0; i < IPU6_ISYS_MAX_STREAMS; i++)
+		mutex_destroy(&isys->streams[i].mutex);
+
+	isys_iwake_watermark_cleanup(isys);
+	mutex_destroy(&isys->stream_mutex);
+	mutex_destroy(&isys->mutex);
 }
 
 struct fwmsg {

@@ -11,6 +11,7 @@
 #include <linux/preempt.h>
 #include <asm/percpu.h>
 #include <linux/cpumask.h>
+#include <linux/smp.h>
 #include <linux/static_key.h>
 #include <linux/irqflags.h>
 

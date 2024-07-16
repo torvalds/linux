@@ -222,8 +222,7 @@ int amd_iommu_iopf_init(struct amd_iommu *iommu)
 	if (iommu->iopf_queue)
 		return ret;
 
-	snprintf(iommu->iopfq_name, sizeof(iommu->iopfq_name),
-		 "amdiommu-%#x-iopfq",
+	snprintf(iommu->iopfq_name, sizeof(iommu->iopfq_name), "amdvi-%#x",
 		 PCI_SEG_DEVID_TO_SBDF(iommu->pci_seg->id, iommu->devid));
 
 	iommu->iopf_queue = iopf_queue_alloc(iommu->iopfq_name);
@@ -249,40 +248,26 @@ void amd_iommu_page_response(struct device *dev, struct iopf_fault *evt,
 int amd_iommu_iopf_add_device(struct amd_iommu *iommu,
 			      struct iommu_dev_data *dev_data)
 {
-	unsigned long flags;
 	int ret = 0;
 
 	if (!dev_data->pri_enabled)
 		return ret;
 
-	raw_spin_lock_irqsave(&iommu->lock, flags);
-
-	if (!iommu->iopf_queue) {
-		ret = -EINVAL;
-		goto out_unlock;
-	}
+	if (!iommu->iopf_queue)
+		return -EINVAL;
 
 	ret = iopf_queue_add_device(iommu->iopf_queue, dev_data->dev);
 	if (ret)
-		goto out_unlock;
+		return ret;
 
 	dev_data->ppr = true;
-
-out_unlock:
-	raw_spin_unlock_irqrestore(&iommu->lock, flags);
-	return ret;
+	return 0;
 }
 
 /* Its assumed that caller has verified that device was added to iopf queue */
 void amd_iommu_iopf_remove_device(struct amd_iommu *iommu,
 				  struct iommu_dev_data *dev_data)
 {
-	unsigned long flags;
-
-	raw_spin_lock_irqsave(&iommu->lock, flags);
-
 	iopf_queue_remove_device(iommu->iopf_queue, dev_data->dev);
 	dev_data->ppr = false;
-
-	raw_spin_unlock_irqrestore(&iommu->lock, flags);
 }

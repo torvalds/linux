@@ -458,17 +458,13 @@ _transport_expander_report_manufacture(struct MPT3SAS_ADAPTER *ioc,
 			goto out;
 
 		manufacture_reply = data_out + sizeof(struct rep_manu_request);
-		strscpy(edev->vendor_id, manufacture_reply->vendor_id,
-			sizeof(edev->vendor_id));
-		strscpy(edev->product_id, manufacture_reply->product_id,
-			sizeof(edev->product_id));
-		strscpy(edev->product_rev, manufacture_reply->product_rev,
-			sizeof(edev->product_rev));
+		memtostr(edev->vendor_id, manufacture_reply->vendor_id);
+		memtostr(edev->product_id, manufacture_reply->product_id);
+		memtostr(edev->product_rev, manufacture_reply->product_rev);
 		edev->level = manufacture_reply->sas_format & 1;
 		if (edev->level) {
-			strscpy(edev->component_vendor_id,
-				manufacture_reply->component_vendor_id,
-				sizeof(edev->component_vendor_id));
+			memtostr(edev->component_vendor_id,
+				 manufacture_reply->component_vendor_id);
 			tmp = (u8 *)&manufacture_reply->component_id;
 			edev->component_id = tmp[0] << 8 | tmp[1];
 			edev->component_revision_id =

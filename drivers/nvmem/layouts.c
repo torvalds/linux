@@ -52,13 +52,15 @@ static const struct bus_type nvmem_layout_bus_type = {
 	.remove		= nvmem_layout_bus_remove,
 };
 
-int nvmem_layout_driver_register(struct nvmem_layout_driver *drv)
+int __nvmem_layout_driver_register(struct nvmem_layout_driver *drv,
+				   struct module *owner)
 {
 	drv->driver.bus = &nvmem_layout_bus_type;
+	drv->driver.owner = owner;
 
 	return driver_register(&drv->driver);
 }
-EXPORT_SYMBOL_GPL(nvmem_layout_driver_register);
+EXPORT_SYMBOL_GPL(__nvmem_layout_driver_register);
 
 void nvmem_layout_driver_unregister(struct nvmem_layout_driver *drv)
 {

@@ -174,17 +174,18 @@ static void linflex_put_char(struct uart_port *sport, unsigned char c)
 
 static inline void linflex_transmit_buffer(struct uart_port *sport)
 {
-	struct circ_buf *xmit = &sport->state->xmit;
+	struct tty_port *tport = &sport->state->port;
+	unsigned char c;
 
-	while (!uart_circ_empty(xmit)) {
-		linflex_put_char(sport, xmit->buf[xmit->tail]);
-		uart_xmit_advance(sport, 1);
+	while (uart_fifo_get(sport, &c)) {
+		linflex_put_char(sport, c);
+		sport->icount.tx++;
 	}
 
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+	if (kfifo_len(&tport->xmit_fifo) < WAKEUP_CHARS)
 		uart_write_wakeup(sport);
 
-	if (uart_circ_empty(xmit))
+	if (kfifo_is_empty(&tport->xmit_fifo))
 		linflex_stop_tx(sport);
 }
 
@@ -200,7 +201,7 @@ static void linflex_start_tx(struct uart_port *port)
 static irqreturn_t linflex_txint(int irq, void *dev_id)
 {
 	struct uart_port *sport = dev_id;
-	struct circ_buf *xmit = &sport->state->xmit;
+	struct tty_port *tport = &sport->state->port;
 	unsigned long flags;
 
 	uart_port_lock_irqsave(sport, &flags);
@@ -210,7 +211,7 @@ static irqreturn_t linflex_txint(int irq, void *dev_id)
 		goto out;
 	}
 
-	if (uart_circ_empty(xmit) || uart_tx_stopped(sport)) {
+	if (kfifo_is_empty(&tport->xmit_fifo) || uart_tx_stopped(sport)) {
 		linflex_stop_tx(sport);
 		goto out;
 	}

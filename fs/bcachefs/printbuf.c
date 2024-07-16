@@ -45,6 +45,13 @@ int bch2_printbuf_make_room(struct printbuf *out, unsigned extra)
 
 	unsigned new_size = roundup_pow_of_two(out->size + extra);
 
+	/* Sanity check... */
+	if (new_size > PAGE_SIZE << MAX_PAGE_ORDER) {
+		out->allocation_failure = true;
+		out->overflow = true;
+		return -ENOMEM;
+	}
+
 	/*
 	 * Note: output buffer must be freeable with kfree(), it's not required
 	 * that the user use printbuf_exit().

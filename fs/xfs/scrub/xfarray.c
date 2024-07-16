@@ -822,12 +822,14 @@ xfarray_sort_scan(
 
 	/* Grab the first folio that backs this array element. */
 	if (!si->folio) {
+		struct folio	*folio;
 		loff_t		next_pos;
 
-		si->folio = xfile_get_folio(si->array->xfile, idx_pos,
+		folio = xfile_get_folio(si->array->xfile, idx_pos,
 				si->array->obj_size, XFILE_ALLOC);
-		if (IS_ERR(si->folio))
-			return PTR_ERR(si->folio);
+		if (IS_ERR(folio))
+			return PTR_ERR(folio);
+		si->folio = folio;
 
 		si->first_folio_idx = xfarray_idx(si->array,
 				folio_pos(si->folio) + si->array->obj_size - 1);
@@ -1048,6 +1050,7 @@ xfarray_sort(
 
 out_free:
 	trace_xfarray_sort_stats(si, error);
+	xfarray_sort_scan_done(si);
 	kvfree(si);
 	return error;
 }

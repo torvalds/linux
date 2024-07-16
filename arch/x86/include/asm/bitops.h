@@ -250,7 +250,7 @@ static __always_inline unsigned long variable__ffs(unsigned long word)
 {
 	asm("rep; bsf %1,%0"
 		: "=r" (word)
-		: "rm" (word));
+		: ASM_INPUT_RM (word));
 	return word;
 }
 
@@ -297,7 +297,7 @@ static __always_inline unsigned long __fls(unsigned long word)
 
 	asm("bsr %1,%0"
 	    : "=r" (word)
-	    : "rm" (word));
+	    : ASM_INPUT_RM (word));
 	return word;
 }
 
@@ -320,7 +320,7 @@ static __always_inline int variable_ffs(int x)
 	 */
 	asm("bsfl %1,%0"
 	    : "=r" (r)
-	    : "rm" (x), "0" (-1));
+	    : ASM_INPUT_RM (x), "0" (-1));
 #elif defined(CONFIG_X86_CMOV)
 	asm("bsfl %1,%0\n\t"
 	    "cmovzl %2,%0"
@@ -377,7 +377,7 @@ static __always_inline int fls(unsigned int x)
 	 */
 	asm("bsrl %1,%0"
 	    : "=r" (r)
-	    : "rm" (x), "0" (-1));
+	    : ASM_INPUT_RM (x), "0" (-1));
 #elif defined(CONFIG_X86_CMOV)
 	asm("bsrl %1,%0\n\t"
 	    "cmovzl %2,%0"
@@ -416,7 +416,7 @@ static __always_inline int fls64(__u64 x)
 	 */
 	asm("bsrq %1,%q0"
 	    : "+r" (bitpos)
-	    : "rm" (x));
+	    : ASM_INPUT_RM (x));
 	return bitpos + 1;
 }
 #else

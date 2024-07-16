@@ -236,9 +236,6 @@ static void fortify_test_alloc_size_##allocator##_dynamic(struct kunit *test) \
 		kfree(p));						\
 	checker(expected_size, __kmalloc(alloc_size, gfp),		\
 		kfree(p));						\
-	checker(expected_size,						\
-		__kmalloc_node(alloc_size, gfp, NUMA_NO_NODE),		\
-		kfree(p));						\
 									\
 	orig = kmalloc(alloc_size, gfp);				\
 	KUNIT_EXPECT_TRUE(test, orig != NULL);				\
@@ -990,7 +987,7 @@ static void fortify_test_memcmp(struct kunit *test)
 	KUNIT_ASSERT_EQ(test, memcmp(one, two, one_len), 0);
 	KUNIT_EXPECT_EQ(test, fortify_read_overflows, 0);
 	/* Still in bounds, but no longer matching. */
-	KUNIT_ASSERT_EQ(test, memcmp(one, two, one_len + 1), -32);
+	KUNIT_ASSERT_LT(test, memcmp(one, two, one_len + 1), 0);
 	KUNIT_EXPECT_EQ(test, fortify_read_overflows, 0);
 
 	/* Catch too-large ranges. */

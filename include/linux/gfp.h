@@ -157,6 +157,31 @@ static inline int gfp_zonelist(gfp_t flags)
 }
 
 /*
+ * gfp flag masking for nested internal allocations.
+ *
+ * For code that needs to do allocations inside the public allocation API (e.g.
+ * memory allocation tracking code) the allocations need to obey the caller
+ * allocation context constrains to prevent allocation context mismatches (e.g.
+ * GFP_KERNEL allocations in GFP_NOFS contexts) from potential deadlock
+ * situations.
+ *
+ * It is also assumed that these nested allocations are for internal kernel
+ * object storage purposes only and are not going to be used for DMA, etc. Hence
+ * we strip out all the zone information and leave just the context information
+ * intact.
+ *
+ * Further, internal allocations must fail before the higher level allocation
+ * can fail, so we must make them fail faster and fail silently. We also don't
+ * want them to deplete emergency reserves.  Hence nested allocations must be
+ * prepared for these allocations to fail.
+ */
+static inline gfp_t gfp_nested_mask(gfp_t flags)
+{
+	return ((flags & (GFP_KERNEL | GFP_ATOMIC | __GFP_NOLOCKDEP)) |
+		(__GFP_NORETRY | __GFP_NOMEMALLOC | __GFP_NOWARN));
+}
+
+/*
  * We get the zone list from the current node and the gfp_mask.
  * This zone list contains a maximum of MAX_NUMNODES*MAX_NR_ZONES zones.
  * There are two zonelists per node, one for all zones with memory and

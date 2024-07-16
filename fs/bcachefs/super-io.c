@@ -1132,18 +1132,12 @@ bool bch2_check_version_downgrade(struct bch_fs *c)
 	 * c->sb will be checked before we write the superblock, so update it as
 	 * well:
 	 */
-	if (BCH_SB_VERSION_UPGRADE_COMPLETE(c->disk_sb.sb) > bcachefs_metadata_version_current) {
+	if (BCH_SB_VERSION_UPGRADE_COMPLETE(c->disk_sb.sb) > bcachefs_metadata_version_current)
 		SET_BCH_SB_VERSION_UPGRADE_COMPLETE(c->disk_sb.sb, bcachefs_metadata_version_current);
-		c->sb.version_upgrade_complete = bcachefs_metadata_version_current;
-	}
-	if (c->sb.version > bcachefs_metadata_version_current) {
+	if (c->sb.version > bcachefs_metadata_version_current)
 		c->disk_sb.sb->version = cpu_to_le16(bcachefs_metadata_version_current);
-		c->sb.version = bcachefs_metadata_version_current;
-	}
-	if (c->sb.version_min > bcachefs_metadata_version_current) {
+	if (c->sb.version_min > bcachefs_metadata_version_current)
 		c->disk_sb.sb->version_min = cpu_to_le16(bcachefs_metadata_version_current);
-		c->sb.version_min = bcachefs_metadata_version_current;
-	}
 	c->disk_sb.sb->compat[0] &= cpu_to_le64((1ULL << BCH_COMPAT_NR) - 1);
 	return ret;
 }

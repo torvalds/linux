@@ -291,7 +291,7 @@ int st_uvis25_probe(struct device *dev, int irq, struct regmap *regmap)
 	if (!iio_dev)
 		return -ENOMEM;
 
-	dev_set_drvdata(dev, (void *)iio_dev);
+	dev_set_drvdata(dev, iio_dev);
 
 	hw = iio_priv(iio_dev);
 	hw->irq = irq;

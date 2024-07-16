@@ -72,7 +72,7 @@ DECLARE_EVENT_CLASS(nbd_send_request,
 	),
 
 	TP_fast_assign(
-		__entry->nbd_request = 0;
+		__entry->nbd_request = NULL;
 		__entry->dev_index = index;
 		__entry->request = rq;
 	),

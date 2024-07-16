@@ -17,7 +17,7 @@ TRACE_EVENT(netlink_extack,
 	),
 
 	TP_fast_assign(
-		__assign_str(msg, msg);
+		__assign_str(msg);
 	),
 
 	TP_printk("msg=%s", __get_str(msg))

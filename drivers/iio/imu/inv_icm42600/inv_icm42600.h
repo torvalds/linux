@@ -13,6 +13,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/pm.h>
 #include <linux/iio/iio.h>
+#include <linux/iio/common/inv_sensors_timestamp.h>
 
 #include "inv_icm42600_buffer.h"
 
@@ -21,7 +22,9 @@ enum inv_icm42600_chip {
 	INV_CHIP_ICM42600,
 	INV_CHIP_ICM42602,
 	INV_CHIP_ICM42605,
+	INV_CHIP_ICM42686,
 	INV_CHIP_ICM42622,
+	INV_CHIP_ICM42688,
 	INV_CHIP_ICM42631,
 	INV_CHIP_NB,
 };
@@ -56,6 +59,17 @@ enum inv_icm42600_gyro_fs {
 	INV_ICM42600_GYRO_FS_15_625DPS,
 	INV_ICM42600_GYRO_FS_NB,
 };
+enum inv_icm42686_gyro_fs {
+	INV_ICM42686_GYRO_FS_4000DPS,
+	INV_ICM42686_GYRO_FS_2000DPS,
+	INV_ICM42686_GYRO_FS_1000DPS,
+	INV_ICM42686_GYRO_FS_500DPS,
+	INV_ICM42686_GYRO_FS_250DPS,
+	INV_ICM42686_GYRO_FS_125DPS,
+	INV_ICM42686_GYRO_FS_62_5DPS,
+	INV_ICM42686_GYRO_FS_31_25DPS,
+	INV_ICM42686_GYRO_FS_NB,
+};
 
 /* accelerometer fullscale values */
 enum inv_icm42600_accel_fs {
@@ -64,6 +78,14 @@ enum inv_icm42600_accel_fs {
 	INV_ICM42600_ACCEL_FS_4G,
 	INV_ICM42600_ACCEL_FS_2G,
 	INV_ICM42600_ACCEL_FS_NB,
+};
+enum inv_icm42686_accel_fs {
+	INV_ICM42686_ACCEL_FS_32G,
+	INV_ICM42686_ACCEL_FS_16G,
+	INV_ICM42686_ACCEL_FS_8G,
+	INV_ICM42686_ACCEL_FS_4G,
+	INV_ICM42686_ACCEL_FS_2G,
+	INV_ICM42686_ACCEL_FS_NB,
 };
 
 /* ODR suffixed by LN or LP are Low-Noise or Low-Power mode only */
@@ -148,6 +170,19 @@ struct inv_icm42600_state {
 		int64_t gyro;
 		int64_t accel;
 	} timestamp;
+};
+
+
+/**
+ * struct inv_icm42600_sensor_state - sensor state variables
+ * @scales:		table of scales.
+ * @scales_len:		length (nb of items) of the scales table.
+ * @ts:			timestamp module states.
+ */
+struct inv_icm42600_sensor_state {
+	const int *scales;
+	size_t scales_len;
+	struct inv_sensors_timestamp ts;
 };
 
 /* Virtual register addresses: @bank on MSB (4 upper bits), @address on LSB */
@@ -303,7 +338,9 @@ struct inv_icm42600_state {
 #define INV_ICM42600_WHOAMI_ICM42600			0x40
 #define INV_ICM42600_WHOAMI_ICM42602			0x41
 #define INV_ICM42600_WHOAMI_ICM42605			0x42
+#define INV_ICM42600_WHOAMI_ICM42686			0x44
 #define INV_ICM42600_WHOAMI_ICM42622			0x46
+#define INV_ICM42600_WHOAMI_ICM42688			0x47
 #define INV_ICM42600_WHOAMI_ICM42631			0x5C
 
 /* User bank 1 (MSB 0x10) */

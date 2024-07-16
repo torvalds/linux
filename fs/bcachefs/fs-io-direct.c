@@ -609,8 +609,10 @@ ssize_t bch2_direct_write(struct kiocb *req, struct iov_iter *iter)
 	if (unlikely(ret))
 		goto err_put_write_ref;
 
-	if (unlikely((req->ki_pos|iter->count) & (block_bytes(c) - 1)))
+	if (unlikely((req->ki_pos|iter->count) & (block_bytes(c) - 1))) {
+		ret = -EINVAL;
 		goto err_put_write_ref;
+	}
 
 	inode_dio_begin(&inode->v);
 	bch2_pagecache_block_get(inode);

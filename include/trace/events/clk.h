@@ -23,7 +23,7 @@ DECLARE_EVENT_CLASS(clk,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, core->name);
+		__assign_str(name);
 	),
 
 	TP_printk("%s", __get_str(name))
@@ -97,7 +97,7 @@ DECLARE_EVENT_CLASS(clk_rate,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, core->name);
+		__assign_str(name);
 		__entry->rate = rate;
 	),
 
@@ -145,7 +145,7 @@ DECLARE_EVENT_CLASS(clk_rate_range,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, core->name);
+		__assign_str(name);
 		__entry->min = min;
 		__entry->max = max;
 	),
@@ -174,8 +174,8 @@ DECLARE_EVENT_CLASS(clk_parent,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, core->name);
-		__assign_str(pname, parent ? parent->name : "none");
+		__assign_str(name);
+		__assign_str(pname);
 	),
 
 	TP_printk("%s %s", __get_str(name), __get_str(pname))
@@ -207,7 +207,7 @@ DECLARE_EVENT_CLASS(clk_phase,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, core->name);
+		__assign_str(name);
 		__entry->phase = phase;
 	),
 
@@ -241,7 +241,7 @@ DECLARE_EVENT_CLASS(clk_duty_cycle,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, core->name);
+		__assign_str(name);
 		__entry->num = duty->num;
 		__entry->den = duty->den;
 	),
@@ -279,8 +279,8 @@ DECLARE_EVENT_CLASS(clk_rate_request,
 	),
 
 	TP_fast_assign(
-		__assign_str(name, req->core ? req->core->name : "none");
-		__assign_str(pname, req->best_parent_hw ? clk_hw_get_name(req->best_parent_hw) : "none");
+		__assign_str(name);
+		__assign_str(pname);
 		__entry->min = req->min_rate;
 		__entry->max = req->max_rate;
 		__entry->prate = req->best_parent_rate;

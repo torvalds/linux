@@ -4888,7 +4888,7 @@
         "Unit": "MDF"
     },
     {
-        "BriefDescription": "Number of cycles incoming messages from the vertical ring that are bounced at the SBO\r\nIngress (V-EMIB) (AD)",
+        "BriefDescription": "Number of cycles incoming messages from the vertical ring that are bounced at the SBO Ingress (V-EMIB) (AD)",
         "EventCode": "0x4B",
         "EventName": "UNC_MDF_CRS_TxR_V_BOUNCES.AD",
         "PerPkg": "1",
@@ -4897,7 +4897,7 @@
         "Unit": "MDF"
     },
     {
-        "BriefDescription": "Number of cycles incoming messages from the vertical ring that are bounced at the SBO\r\nIngress (V-EMIB) (AK)",
+        "BriefDescription": "Number of cycles incoming messages from the vertical ring that are bounced at the SBO Ingress (V-EMIB) (AK)",
         "EventCode": "0x4B",
         "EventName": "UNC_MDF_CRS_TxR_V_BOUNCES.AK",
         "PerPkg": "1",
@@ -4906,7 +4906,7 @@
         "Unit": "MDF"
     },
     {
-        "BriefDescription": "Number of cycles incoming messages from the vertical ring that are bounced at the SBO\r\nIngress (V-EMIB) (AKC)",
+        "BriefDescription": "Number of cycles incoming messages from the vertical ring that are bounced at the SBO Ingress (V-EMIB) (AKC)",
         "EventCode": "0x4B",
         "EventName": "UNC_MDF_CRS_TxR_V_BOUNCES.AKC",
         "PerPkg": "1",
@@ -4915,7 +4915,7 @@
         "Unit": "MDF"
     },
     {
-        "BriefDescription": "Number of cycles incoming messages from the vertical ring that are bounced at the SBO\r\nIngress (V-EMIB) (BL)",
+        "BriefDescription": "Number of cycles incoming messages from the vertical ring that are bounced at the SBO Ingress (V-EMIB) (BL)",
         "EventCode": "0x4B",
         "EventName": "UNC_MDF_CRS_TxR_V_BOUNCES.BL",
         "PerPkg": "1",
@@ -4924,7 +4924,7 @@
         "Unit": "MDF"
     },
     {
-        "BriefDescription": "Number of cycles incoming messages from the vertical ring that are bounced at the SBO\r\nIngress (V-EMIB) (IV)",
+        "BriefDescription": "Number of cycles incoming messages from the vertical ring that are bounced at the SBO Ingress (V-EMIB) (IV)",
         "EventCode": "0x4B",
         "EventName": "UNC_MDF_CRS_TxR_V_BOUNCES.IV",
         "PerPkg": "1",
@@ -5291,7 +5291,7 @@
         "EventCode": "0x05",
         "EventName": "UNC_UPI_RxL_BASIC_HDR_MATCH.NCB",
         "PerPkg": "1",
-        "PublicDescription": "Matches on Receive path of a UPI Port : Non-Coherent Bypass : Matches on Receive path of a UPI port.\r\nMatch based on UMask specific bits:\r\nZ: Message Class (3-bit)\r\nY: Message Class Enable\r\nW: Opcode (4-bit)\r\nV: Opcode Enable\r\nU: Local Enable\r\nT: Remote Enable\r\nS: Data Hdr Enable\r\nR: Non-Data Hdr Enable\r\nQ: Dual Slot Hdr Enable\r\nP: Single Slot Hdr Enable\r\nLink Layer control types are excluded (LL CTRL, slot NULL, LLCRD) even under specific opcode match_en cases.\r\nNote: If Message Class is disabled, we expect opcode to also be disabled.",
+        "PublicDescription": "Matches on Receive path of a UPI Port : Non-Coherent Bypass : Matches on Receive path of a UPI port. Match based on UMask specific bits: Z: Message Class (3-bit) Y: Message Class Enable W: Opcode (4-bit) V: Opcode Enable U: Local Enable T: Remote Enable S: Data Hdr Enable R: Non-Data Hdr Enable Q: Dual Slot Hdr Enable P: Single Slot Hdr Enable Link Layer control types are excluded (LL CTRL, slot NULL, LLCRD) even under specific opcode match_en cases. Note: If Message Class is disabled, we expect opcode to also be disabled.",
         "UMask": "0xe",
         "Unit": "UPI"
     },
@@ -5300,7 +5300,7 @@
         "EventCode": "0x05",
         "EventName": "UNC_UPI_RxL_BASIC_HDR_MATCH.NCB_OPC",
         "PerPkg": "1",
-        "PublicDescription": "Matches on Receive path of a UPI Port : Non-Coherent Bypass, Match Opcode : Matches on Receive path of a UPI port.\r\nMatch based on UMask specific bits:\r\nZ: Message Class (3-bit)\r\nY: Message Class Enable\r\nW: Opcode (4-bit)\r\nV: Opcode Enable\r\nU: Local Enable\r\nT: Remote Enable\r\nS: Data Hdr Enable\r\nR: Non-Data Hdr Enable\r\nQ: Dual Slot Hdr Enable\r\nP: Single Slot Hdr Enable\r\nLink Layer control types are excluded (LL CTRL, slot NULL, LLCRD) even under specific opcode match_en cases.\r\nNote: If Message Class is disabled, we expect opcode to also be disabled.",
+        "PublicDescription": "Matches on Receive path of a UPI Port : Non-Coherent Bypass, Match Opcode : Matches on Receive path of a UPI port. Match based on UMask specific bits: Z: Message Class (3-bit) Y: Message Class Enable W: Opcode (4-bit) V: Opcode Enable U: Local Enable T: Remote Enable S: Data Hdr Enable R: Non-Data Hdr Enable Q: Dual Slot Hdr Enable P: Single Slot Hdr Enable Link Layer control types are excluded (LL CTRL, slot NULL, LLCRD) even under specific opcode match_en cases. Note: If Message Class is disabled, we expect opcode to also be disabled.",
         "UMask": "0x10e",
         "Unit": "UPI"
     },
@@ -5309,7 +5309,7 @@
         "EventCode": "0x05",
         "EventName": "UNC_UPI_RxL_BASIC_HDR_MATCH.NCS",
         "PerPkg": "1",
-        "PublicDescription": "Matches on Receive path of a UPI Port : Non-Coherent Standard : Matches on Receive path of a UPI port.\r\nMatch based on UMask specific bits:\r\nZ: Message Class (3-bit)\r\nY: Message Class Enable\r\nW: Opcode (4-bit)\r\nV: Opcode Enable\r\nU: Local Enable\r\nT: Remote Enable\r\nS: Data Hdr Enable\r\nR: Non-Data Hdr Enable\r\nQ: Dual Slot Hdr Enable\r\nP: Single Slot Hdr Enable\r\nLink Layer control types are excluded (LL CTRL, slot NULL, LLCRD) even under specific opcode match_en cases.\r\nNote: If Message Class is disabled, we expect opcode to also be disabled.",
+        "PublicDescription": "Matches on Receive path of a UPI Port : Non-Coherent Standard : Matches on Receive path of a UPI port. Match based on UMask specific bits: Z: Message Class (3-bit) Y: Message Class Enable W: Opcode (4-bit) V: Opcode Enable U: Local Enable T: Remote Enable S: Data Hdr Enable R: Non-Data Hdr Enable Q: Dual Slot Hdr Enable P: Single Slot Hdr Enable Link Layer control types are excluded (LL CTRL, slot NULL, LLCRD) even under specific opcode match_en cases. Note: If Message Class is disabled, we expect opcode to also be disabled.",
         "UMask": "0xf",
         "Unit": "UPI"
     },
@@ -5318,7 +5318,7 @@
         "EventCode": "0x05",
         "EventName": "UNC_UPI_RxL_BASIC_HDR_MATCH.NCS_OPC",
         "PerPkg": "1",
-        "PublicDescription": "Matches on Receive path of a UPI Port : Non-Coherent Standard, Match Opcode : Matches on Receive path of a UPI port.\r\nMatch based on UMask specific bits:\r\nZ: Message Class (3-bit)\r\nY: Message Class Enable\r\nW: Opcode (4-bit)\r\nV: Opcode Enable\r\nU: Local Enable\r\nT: Remote Enable\r\nS: Data Hdr Enable\r\nR: Non-Data Hdr Enable\r\nQ: Dual Slot Hdr Enable\r\nP: Single Slot Hdr Enable\r\nLink Layer control types are excluded (LL CTRL, slot NULL, LLCRD) even under specific opcode match_en cases.\r\nNote: If Message Class is disabled, we expect opcode to also be disabled.",
+        "PublicDescription": "Matches on Receive path of a UPI Port : Non-Coherent Standard, Match Opcode : Matches on Receive path of a UPI port. Match based on UMask specific bits: Z: Message Class (3-bit) Y: Message Class Enable W: Opcode (4-bit) V: Opcode Enable U: Local Enable T: Remote Enable S: Data Hdr Enable R: Non-Data Hdr Enable Q: Dual Slot Hdr Enable P: Single Slot Hdr Enable Link Layer control types are excluded (LL CTRL, slot NULL, LLCRD) even under specific opcode match_en cases. Note: If Message Class is disabled, we expect opcode to also be disabled.",
         "UMask": "0x10f",
         "Unit": "UPI"
     },
@@ -5763,7 +5763,7 @@
         "EventCode": "0x04",
         "EventName": "UNC_UPI_TxL_BASIC_HDR_MATCH.NCB",
         "PerPkg": "1",
-        "PublicDescription": "Matches on Transmit path of a UPI Port : Non-Coherent Bypass : Matches on Transmit path of a UPI port.\r\nMatch based on UMask specific bits:\r\nZ: Message Class (3-bit)\r\nY: Message Class Enable\r\nW: Opcode (4-bit)\r\nV: Opcode Enable\r\nU: Local Enable\r\nT: Remote Enable\r\nS: Data Hdr Enable\r\nR: Non-Data Hdr Enable\r\nQ: Dual Slot Hdr Enable\r\nP: Single Slot Hdr Enable\r\nLink Layer control types are excluded (LL CTRL, slot NULL, LLCRD) even under specific opcode match_en cases.\r\nNote: If Message Class is disabled, we expect opcode to also be disabled.",
+        "PublicDescription": "Matches on Transmit path of a UPI Port : Non-Coherent Bypass : Matches on Transmit path of a UPI port. Match based on UMask specific bits: Z: Message Class (3-bit) Y: Message Class Enable W: Opcode (4-bit) V: Opcode Enable U: Local Enable T: Remote Enable S: Data Hdr Enable R: Non-Data Hdr Enable Q: Dual Slot Hdr Enable P: Single Slot Hdr Enable Link Layer control types are excluded (LL CTRL, slot NULL, LLCRD) even under specific opcode match_en cases. Note: If Message Class is disabled, we expect opcode to also be disabled.",
         "UMask": "0xe",
         "Unit": "UPI"
     },
@@ -5772,7 +5772,7 @@
         "EventCode": "0x04",
         "EventName": "UNC_UPI_TxL_BASIC_HDR_MATCH.NCB_OPC",
         "PerPkg": "1",
-        "PublicDescription": "Matches on Transmit path of a UPI Port : Non-Coherent Bypass, Match Opcode : Matches on Transmit path of a UPI port.\r\nMatch based on UMask specific bits:\r\nZ: Message Class (3-bit)\r\nY: Message Class Enable\r\nW: Opcode (4-bit)\r\nV: Opcode Enable\r\nU: Local Enable\r\nT: Remote Enable\r\nS: Data Hdr Enable\r\nR: Non-Data Hdr Enable\r\nQ: Dual Slot Hdr Enable\r\nP: Single Slot Hdr Enable\r\nLink Layer control types are excluded (LL CTRL, slot NULL, LLCRD) even under specific opcode match_en cases.\r\nNote: If Message Class is disabled, we expect opcode to also be disabled.",
+        "PublicDescription": "Matches on Transmit path of a UPI Port : Non-Coherent Bypass, Match Opcode : Matches on Transmit path of a UPI port. Match based on UMask specific bits: Z: Message Class (3-bit) Y: Message Class Enable W: Opcode (4-bit) V: Opcode Enable U: Local Enable T: Remote Enable S: Data Hdr Enable R: Non-Data Hdr Enable Q: Dual Slot Hdr Enable P: Single Slot Hdr Enable Link Layer control types are excluded (LL CTRL, slot NULL, LLCRD) even under specific opcode match_en cases. Note: If Message Class is disabled, we expect opcode to also be disabled.",
         "UMask": "0x10e",
         "Unit": "UPI"
     },
@@ -5781,7 +5781,7 @@
         "EventCode": "0x04",
         "EventName": "UNC_UPI_TxL_BASIC_HDR_MATCH.NCS",
         "PerPkg": "1",
-        "PublicDescription": "Matches on Transmit path of a UPI Port : Non-Coherent Standard : Matches on Transmit path of a UPI port.\r\nMatch based on UMask specific bits:\r\nZ: Message Class (3-bit)\r\nY: Message Class Enable\r\nW: Opcode (4-bit)\r\nV: Opcode Enable\r\nU: Local Enable\r\nT: Remote Enable\r\nS: Data Hdr Enable\r\nR: Non-Data Hdr Enable\r\nQ: Dual Slot Hdr Enable\r\nP: Single Slot Hdr Enable\r\nLink Layer control types are excluded (LL CTRL, slot NULL, LLCRD) even under specific opcode match_en cases.\r\nNote: If Message Class is disabled, we expect opcode to also be disabled.",
+        "PublicDescription": "Matches on Transmit path of a UPI Port : Non-Coherent Standard : Matches on Transmit path of a UPI port. Match based on UMask specific bits: Z: Message Class (3-bit) Y: Message Class Enable W: Opcode (4-bit) V: Opcode Enable U: Local Enable T: Remote Enable S: Data Hdr Enable R: Non-Data Hdr Enable Q: Dual Slot Hdr Enable P: Single Slot Hdr Enable Link Layer control types are excluded (LL CTRL, slot NULL, LLCRD) even under specific opcode match_en cases. Note: If Message Class is disabled, we expect opcode to also be disabled.",
         "UMask": "0xf",
         "Unit": "UPI"
     },
@@ -5790,7 +5790,7 @@
         "EventCode": "0x04",
         "EventName": "UNC_UPI_TxL_BASIC_HDR_MATCH.NCS_OPC",
         "PerPkg": "1",
-        "PublicDescription": "Matches on Transmit path of a UPI Port : Non-Coherent Standard, Match Opcode : Matches on Transmit path of a UPI port.\r\nMatch based on UMask specific bits:\r\nZ: Message Class (3-bit)\r\nY: Message Class Enable\r\nW: Opcode (4-bit)\r\nV: Opcode Enable\r\nU: Local Enable\r\nT: Remote Enable\r\nS: Data Hdr Enable\r\nR: Non-Data Hdr Enable\r\nQ: Dual Slot Hdr Enable\r\nP: Single Slot Hdr Enable\r\nLink Layer control types are excluded (LL CTRL, slot NULL, LLCRD) even under specific opcode match_en cases.\r\nNote: If Message Class is disabled, we expect opcode to also be disabled.",
+        "PublicDescription": "Matches on Transmit path of a UPI Port : Non-Coherent Standard, Match Opcode : Matches on Transmit path of a UPI port. Match based on UMask specific bits: Z: Message Class (3-bit) Y: Message Class Enable W: Opcode (4-bit) V: Opcode Enable U: Local Enable T: Remote Enable S: Data Hdr Enable R: Non-Data Hdr Enable Q: Dual Slot Hdr Enable P: Single Slot Hdr Enable Link Layer control types are excluded (LL CTRL, slot NULL, LLCRD) even under specific opcode match_en cases. Note: If Message Class is disabled, we expect opcode to also be disabled.",
         "UMask": "0x10f",
         "Unit": "UPI"
     },

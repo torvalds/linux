@@ -119,6 +119,7 @@ enum {
 	Opt_thread_pool,
 	Opt_treelog,
 	Opt_user_subvol_rm_allowed,
+	Opt_norecovery,
 
 	/* Rescue options */
 	Opt_rescue,
@@ -245,6 +246,8 @@ static const struct fs_parameter_spec btrfs_fs_parameters[] = {
 	__fsparam(NULL, "nologreplay", Opt_nologreplay, fs_param_deprecated, NULL),
 	/* Deprecated, with alias rescue=usebackuproot */
 	__fsparam(NULL, "usebackuproot", Opt_usebackuproot, fs_param_deprecated, NULL),
+	/* For compatibility only, alias for "rescue=nologreplay". */
+	fsparam_flag("norecovery", Opt_norecovery),
 
 	/* Debugging options. */
 	fsparam_flag_no("enospc_debug", Opt_enospc_debug),
@@ -436,6 +439,11 @@ static int btrfs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	case Opt_nologreplay:
 		btrfs_warn(NULL,
 		"'nologreplay' is deprecated, use 'rescue=nologreplay' instead");
+		btrfs_set_opt(ctx->mount_opt, NOLOGREPLAY);
+		break;
+	case Opt_norecovery:
+		btrfs_info(NULL,
+"'norecovery' is for compatibility only, recommended to use 'rescue=nologreplay'");
 		btrfs_set_opt(ctx->mount_opt, NOLOGREPLAY);
 		break;
 	case Opt_flushoncommit:

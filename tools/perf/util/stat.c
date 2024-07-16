@@ -315,7 +315,7 @@ static int check_per_pkg(struct evsel *counter, struct perf_counts_values *vals,
 	if (!counter->per_pkg)
 		return 0;
 
-	if (perf_cpu_map__has_any_cpu_or_is_empty(cpus))
+	if (perf_cpu_map__is_any_cpu_or_is_empty(cpus))
 		return 0;
 
 	if (!mask) {

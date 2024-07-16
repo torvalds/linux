@@ -234,8 +234,8 @@ static int qt1070_resume(struct device *dev)
 static DEFINE_SIMPLE_DEV_PM_OPS(qt1070_pm_ops, qt1070_suspend, qt1070_resume);
 
 static const struct i2c_device_id qt1070_id[] = {
-	{ "qt1070", 0 },
-	{ },
+	{ "qt1070" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, qt1070_id);
 

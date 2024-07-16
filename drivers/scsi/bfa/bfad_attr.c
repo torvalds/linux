@@ -854,13 +854,6 @@ bfad_im_hw_version_show(struct device *dev, struct device_attribute *attr,
 }
 
 static ssize_t
-bfad_im_drv_version_show(struct device *dev, struct device_attribute *attr,
-				char *buf)
-{
-	return sysfs_emit(buf, "%s\n", BFAD_DRIVER_VERSION);
-}
-
-static ssize_t
 bfad_im_optionrom_version_show(struct device *dev,
 			 struct device_attribute *attr, char *buf)
 {
@@ -902,13 +895,6 @@ bfad_im_num_of_ports_show(struct device *dev, struct device_attribute *attr,
 }
 
 static ssize_t
-bfad_im_drv_name_show(struct device *dev, struct device_attribute *attr,
-				char *buf)
-{
-	return sysfs_emit(buf, "%s\n", BFAD_DRIVER_NAME);
-}
-
-static ssize_t
 bfad_im_num_of_discovered_ports_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
@@ -944,15 +930,15 @@ static          DEVICE_ATTR(symbolic_name, S_IRUGO,
 				bfad_im_symbolic_name_show, NULL);
 static          DEVICE_ATTR(hardware_version, S_IRUGO,
 				bfad_im_hw_version_show, NULL);
-static          DEVICE_ATTR(driver_version, S_IRUGO,
-				bfad_im_drv_version_show, NULL);
+static		DEVICE_STRING_ATTR_RO(driver_version, S_IRUGO,
+				BFAD_DRIVER_VERSION);
 static          DEVICE_ATTR(option_rom_version, S_IRUGO,
 				bfad_im_optionrom_version_show, NULL);
 static          DEVICE_ATTR(firmware_version, S_IRUGO,
 				bfad_im_fw_version_show, NULL);
 static          DEVICE_ATTR(number_of_ports, S_IRUGO,
 				bfad_im_num_of_ports_show, NULL);
-static          DEVICE_ATTR(driver_name, S_IRUGO, bfad_im_drv_name_show, NULL);
+static		DEVICE_STRING_ATTR_RO(driver_name, S_IRUGO, BFAD_DRIVER_NAME);
 static          DEVICE_ATTR(number_of_discovered_ports, S_IRUGO,
 				bfad_im_num_of_discovered_ports_show, NULL);
 
@@ -963,11 +949,11 @@ static struct attribute *bfad_im_host_attrs[] = {
 	&dev_attr_node_name.attr,
 	&dev_attr_symbolic_name.attr,
 	&dev_attr_hardware_version.attr,
-	&dev_attr_driver_version.attr,
+	&dev_attr_driver_version.attr.attr,
 	&dev_attr_option_rom_version.attr,
 	&dev_attr_firmware_version.attr,
 	&dev_attr_number_of_ports.attr,
-	&dev_attr_driver_name.attr,
+	&dev_attr_driver_name.attr.attr,
 	&dev_attr_number_of_discovered_ports.attr,
 	NULL,
 };
@@ -988,11 +974,11 @@ static struct attribute *bfad_im_vport_attrs[] = {
 	&dev_attr_node_name.attr,
 	&dev_attr_symbolic_name.attr,
 	&dev_attr_hardware_version.attr,
-	&dev_attr_driver_version.attr,
+	&dev_attr_driver_version.attr.attr,
 	&dev_attr_option_rom_version.attr,
 	&dev_attr_firmware_version.attr,
 	&dev_attr_number_of_ports.attr,
-	&dev_attr_driver_name.attr,
+	&dev_attr_driver_name.attr.attr,
 	&dev_attr_number_of_discovered_ports.attr,
 	NULL,
 };

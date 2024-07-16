@@ -197,8 +197,8 @@ void __send_fd(struct __test_metadata *_metadata,
 	       const FIXTURE_VARIANT(scm_rights) *variant,
 	       int inflight, int receiver)
 {
-#define MSG "nop"
-#define MSGLEN 3
+#define MSG "x"
+#define MSGLEN 1
 	struct {
 		struct cmsghdr cmsghdr;
 		int fd[2];

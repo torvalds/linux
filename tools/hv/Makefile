@@ -2,6 +2,7 @@
 # Makefile for Hyper-V tools
 include ../scripts/Makefile.include
 
+ARCH := $(shell uname -m 2>/dev/null)
 sbindir ?= /usr/sbin
 libexecdir ?= /usr/libexec
 sharedstatedir ?= /var/lib
@@ -17,7 +18,10 @@ MAKEFLAGS += -r
 
 override CFLAGS += -O2 -Wall -g -D_GNU_SOURCE -I$(OUTPUT)include
 
-ALL_TARGETS := hv_kvp_daemon hv_vss_daemon hv_fcopy_daemon
+ALL_TARGETS := hv_kvp_daemon hv_vss_daemon
+ifneq ($(ARCH), aarch64)
+ALL_TARGETS += hv_fcopy_uio_daemon
+endif
 ALL_PROGRAMS := $(patsubst %,$(OUTPUT)%,$(ALL_TARGETS))
 
 ALL_SCRIPTS := hv_get_dhcp_info.sh hv_get_dns_info.sh hv_set_ifconfig.sh
@@ -39,10 +43,10 @@ $(HV_VSS_DAEMON_IN): FORCE
 $(OUTPUT)hv_vss_daemon: $(HV_VSS_DAEMON_IN)
 	$(QUIET_LINK)$(CC) $(CFLAGS) $(LDFLAGS) $< -o $@
 
-HV_FCOPY_DAEMON_IN := $(OUTPUT)hv_fcopy_daemon-in.o
-$(HV_FCOPY_DAEMON_IN): FORCE
-	$(Q)$(MAKE) $(build)=hv_fcopy_daemon
-$(OUTPUT)hv_fcopy_daemon: $(HV_FCOPY_DAEMON_IN)
+HV_FCOPY_UIO_DAEMON_IN := $(OUTPUT)hv_fcopy_uio_daemon-in.o
+$(HV_FCOPY_UIO_DAEMON_IN): FORCE
+	$(Q)$(MAKE) $(build)=hv_fcopy_uio_daemon
+$(OUTPUT)hv_fcopy_uio_daemon: $(HV_FCOPY_UIO_DAEMON_IN)
 	$(QUIET_LINK)$(CC) $(CFLAGS) $(LDFLAGS) $< -o $@
 
 clean:

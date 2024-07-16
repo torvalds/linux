@@ -27,20 +27,20 @@
 
 #include <linux/bitops.h>
 #include <linux/bitfield.h>
-#include <linux/device.h>
-#include <linux/module.h>
-#include <linux/nvmem-provider.h>
-#include <linux/regmap.h>
+#include <linux/completion.h>
 #include <linux/delay.h>
-#include <linux/iio/iio.h>
-#include <linux/iio/sysfs.h>
+#include <linux/device.h>
 #include <linux/gpio/consumer.h>
-#include <linux/regulator/consumer.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h> /* For irq_get_irq_data() */
-#include <linux/completion.h>
+#include <linux/module.h>
+#include <linux/nvmem-provider.h>
 #include <linux/pm_runtime.h>
 #include <linux/random.h>
+#include <linux/regmap.h>
+#include <linux/regulator/consumer.h>
+
+#include <linux/iio/iio.h>
 
 #include <asm/unaligned.h>
 

@@ -424,16 +424,16 @@ static int btree_key_cache_fill(struct btree_trans *trans,
 				goto err;
 			}
 
+			ret = bch2_trans_relock(trans);
+			if (ret) {
+				kfree(new_k);
+				goto err;
+			}
+
 			if (!bch2_btree_node_relock(trans, ck_path, 0)) {
 				kfree(new_k);
 				trace_and_count(trans->c, trans_restart_relock_key_cache_fill, trans, _THIS_IP_, ck_path);
 				ret = btree_trans_restart(trans, BCH_ERR_transaction_restart_key_cache_fill);
-				goto err;
-			}
-
-			ret = bch2_trans_relock(trans);
-			if (ret) {
-				kfree(new_k);
 				goto err;
 			}
 		}

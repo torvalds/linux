@@ -20,7 +20,12 @@
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
 
-static struct class *phy_class;
+static void phy_release(struct device *dev);
+static const struct class phy_class = {
+	.name = "phy",
+	.dev_release = phy_release,
+};
+
 static struct dentry *phy_debugfs_root;
 static DEFINE_MUTEX(phy_provider_mutex);
 static LIST_HEAD(phy_provider_list);
@@ -753,7 +758,7 @@ struct phy *of_phy_simple_xlate(struct device *dev,
 	struct phy *phy;
 	struct class_dev_iter iter;
 
-	class_dev_iter_init(&iter, phy_class, NULL, NULL);
+	class_dev_iter_init(&iter, &phy_class, NULL, NULL);
 	while ((dev = class_dev_iter_next(&iter))) {
 		phy = to_phy(dev);
 		if (args->np != phy->dev.of_node)
@@ -1016,7 +1021,7 @@ struct phy *phy_create(struct device *dev, struct device_node *node,
 	device_initialize(&phy->dev);
 	mutex_init(&phy->mutex);
 
-	phy->dev.class = phy_class;
+	phy->dev.class = &phy_class;
 	phy->dev.parent = dev;
 	phy->dev.of_node = node ?: dev->of_node;
 	phy->id = id;
@@ -1285,14 +1290,13 @@ static void phy_release(struct device *dev)
 
 static int __init phy_core_init(void)
 {
-	phy_class = class_create("phy");
-	if (IS_ERR(phy_class)) {
-		pr_err("failed to create phy class --> %ld\n",
-			PTR_ERR(phy_class));
-		return PTR_ERR(phy_class);
-	}
+	int err;
 
-	phy_class->dev_release = phy_release;
+	err = class_register(&phy_class);
+	if (err) {
+		pr_err("failed to register phy class");
+		return err;
+	}
 
 	phy_debugfs_root = debugfs_create_dir("phy", NULL);
 
@@ -1303,6 +1307,6 @@ device_initcall(phy_core_init);
 static void __exit phy_core_exit(void)
 {
 	debugfs_remove_recursive(phy_debugfs_root);
-	class_destroy(phy_class);
+	class_unregister(&phy_class);
 }
 module_exit(phy_core_exit);

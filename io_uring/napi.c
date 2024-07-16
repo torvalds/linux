@@ -261,12 +261,14 @@ int io_unregister_napi(struct io_ring_ctx *ctx, void __user *arg)
 }
 
 /*
- * __io_napi_adjust_timeout() - Add napi id to the busy poll list
+ * __io_napi_adjust_timeout() - adjust busy loop timeout
  * @ctx: pointer to io-uring context structure
  * @iowq: pointer to io wait queue
  * @ts: pointer to timespec or NULL
  *
  * Adjust the busy loop timeout according to timespec and busy poll timeout.
+ * If the specified NAPI timeout is bigger than the wait timeout, then adjust
+ * the NAPI timeout accordingly.
  */
 void __io_napi_adjust_timeout(struct io_ring_ctx *ctx, struct io_wait_queue *iowq,
 			      struct timespec64 *ts)
@@ -274,16 +276,16 @@ void __io_napi_adjust_timeout(struct io_ring_ctx *ctx, struct io_wait_queue *iow
 	unsigned int poll_to = READ_ONCE(ctx->napi_busy_poll_to);
 
 	if (ts) {
-		struct timespec64 poll_to_ts = ns_to_timespec64(1000 * (s64)poll_to);
+		struct timespec64 poll_to_ts;
 
-		if (timespec64_compare(ts, &poll_to_ts) > 0) {
-			*ts = timespec64_sub(*ts, poll_to_ts);
-		} else {
-			u64 to = timespec64_to_ns(ts);
-
-			do_div(to, 1000);
-			ts->tv_sec = 0;
-			ts->tv_nsec = 0;
+		poll_to_ts = ns_to_timespec64(1000 * (s64)poll_to);
+		if (timespec64_compare(ts, &poll_to_ts) < 0) {
+			s64 poll_to_ns = timespec64_to_ns(ts);
+			if (poll_to_ns > 0) {
+				u64 val = poll_to_ns + 999;
+				do_div(val, (s64) 1000);
+				poll_to = val;
+			}
 		}
 	}
 

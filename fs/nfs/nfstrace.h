@@ -409,7 +409,7 @@ DECLARE_EVENT_CLASS(nfs_lookup_event,
 			__entry->dir = NFS_FILEID(dir);
 			__entry->flags = flags;
 			__entry->fileid = d_is_negative(dentry) ? 0 : NFS_FILEID(d_inode(dentry));
-			__assign_str(name, dentry->d_name.name);
+			__assign_str(name);
 		),
 
 		TP_printk(
@@ -457,7 +457,7 @@ DECLARE_EVENT_CLASS(nfs_lookup_event_done,
 			__entry->error = error < 0 ? -error : 0;
 			__entry->flags = flags;
 			__entry->fileid = d_is_negative(dentry) ? 0 : NFS_FILEID(d_inode(dentry));
-			__assign_str(name, dentry->d_name.name);
+			__assign_str(name);
 		),
 
 		TP_printk(
@@ -512,7 +512,7 @@ TRACE_EVENT(nfs_atomic_open_enter,
 			__entry->dir = NFS_FILEID(dir);
 			__entry->flags = flags;
 			__entry->fmode = (__force unsigned long)ctx->mode;
-			__assign_str(name, ctx->dentry->d_name.name);
+			__assign_str(name);
 		),
 
 		TP_printk(
@@ -551,7 +551,7 @@ TRACE_EVENT(nfs_atomic_open_exit,
 			__entry->dir = NFS_FILEID(dir);
 			__entry->flags = flags;
 			__entry->fmode = (__force unsigned long)ctx->mode;
-			__assign_str(name, ctx->dentry->d_name.name);
+			__assign_str(name);
 		),
 
 		TP_printk(
@@ -587,7 +587,7 @@ TRACE_EVENT(nfs_create_enter,
 			__entry->dev = dir->i_sb->s_dev;
 			__entry->dir = NFS_FILEID(dir);
 			__entry->flags = flags;
-			__assign_str(name, dentry->d_name.name);
+			__assign_str(name);
 		),
 
 		TP_printk(
@@ -623,7 +623,7 @@ TRACE_EVENT(nfs_create_exit,
 			__entry->dev = dir->i_sb->s_dev;
 			__entry->dir = NFS_FILEID(dir);
 			__entry->flags = flags;
-			__assign_str(name, dentry->d_name.name);
+			__assign_str(name);
 		),
 
 		TP_printk(
@@ -654,7 +654,7 @@ DECLARE_EVENT_CLASS(nfs_directory_event,
 		TP_fast_assign(
 			__entry->dev = dir->i_sb->s_dev;
 			__entry->dir = NFS_FILEID(dir);
-			__assign_str(name, dentry->d_name.name);
+			__assign_str(name);
 		),
 
 		TP_printk(
@@ -693,7 +693,7 @@ DECLARE_EVENT_CLASS(nfs_directory_event_done,
 			__entry->dev = dir->i_sb->s_dev;
 			__entry->dir = NFS_FILEID(dir);
 			__entry->error = error < 0 ? -error : 0;
-			__assign_str(name, dentry->d_name.name);
+			__assign_str(name);
 		),
 
 		TP_printk(
@@ -747,7 +747,7 @@ TRACE_EVENT(nfs_link_enter,
 			__entry->dev = inode->i_sb->s_dev;
 			__entry->fileid = NFS_FILEID(inode);
 			__entry->dir = NFS_FILEID(dir);
-			__assign_str(name, dentry->d_name.name);
+			__assign_str(name);
 		),
 
 		TP_printk(
@@ -783,7 +783,7 @@ TRACE_EVENT(nfs_link_exit,
 			__entry->fileid = NFS_FILEID(inode);
 			__entry->dir = NFS_FILEID(dir);
 			__entry->error = error < 0 ? -error : 0;
-			__assign_str(name, dentry->d_name.name);
+			__assign_str(name);
 		),
 
 		TP_printk(
@@ -819,8 +819,8 @@ DECLARE_EVENT_CLASS(nfs_rename_event,
 			__entry->dev = old_dir->i_sb->s_dev;
 			__entry->old_dir = NFS_FILEID(old_dir);
 			__entry->new_dir = NFS_FILEID(new_dir);
-			__assign_str(old_name, old_dentry->d_name.name);
-			__assign_str(new_name, new_dentry->d_name.name);
+			__assign_str(old_name);
+			__assign_str(new_name);
 		),
 
 		TP_printk(
@@ -868,8 +868,8 @@ DECLARE_EVENT_CLASS(nfs_rename_event_done,
 			__entry->error = -error;
 			__entry->old_dir = NFS_FILEID(old_dir);
 			__entry->new_dir = NFS_FILEID(new_dir);
-			__assign_str(old_name, old_dentry->d_name.name);
-			__assign_str(new_name, new_dentry->d_name.name);
+			__assign_str(old_name);
+			__assign_str(new_name);
 		),
 
 		TP_printk(
@@ -1636,8 +1636,8 @@ TRACE_EVENT(nfs_mount_assign,
 	),
 
 	TP_fast_assign(
-		__assign_str(option, option);
-		__assign_str(value, value);
+		__assign_str(option);
+		__assign_str(value);
 	),
 
 	TP_printk("option %s=%s",
@@ -1657,7 +1657,7 @@ TRACE_EVENT(nfs_mount_option,
 	),
 
 	TP_fast_assign(
-		__assign_str(option, param->key);
+		__assign_str(option);
 	),
 
 	TP_printk("option %s", __get_str(option))
@@ -1675,7 +1675,7 @@ TRACE_EVENT(nfs_mount_path,
 	),
 
 	TP_fast_assign(
-		__assign_str(path, path);
+		__assign_str(path);
 	),
 
 	TP_printk("path='%s'", __get_str(path))
@@ -1710,9 +1710,8 @@ DECLARE_EVENT_CLASS(nfs_xdr_event,
 			__entry->xid = be32_to_cpu(rqstp->rq_xid);
 			__entry->version = task->tk_client->cl_vers;
 			__entry->error = error;
-			__assign_str(program,
-				     task->tk_client->cl_program->name);
-			__assign_str(procedure, task->tk_msg.rpc_proc->p_name);
+			__assign_str(program);
+			__assign_str(procedure);
 		),
 
 		TP_printk(SUNRPC_TRACE_TASK_SPECIFIER

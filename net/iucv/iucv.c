@@ -73,8 +73,42 @@ const struct bus_type iucv_bus = {
 };
 EXPORT_SYMBOL(iucv_bus);
 
-struct device *iucv_root;
-EXPORT_SYMBOL(iucv_root);
+static struct device *iucv_root;
+
+static void iucv_release_device(struct device *device)
+{
+	kfree(device);
+}
+
+struct device *iucv_alloc_device(const struct attribute_group **attrs,
+				 struct device_driver *driver,
+				 void *priv, const char *fmt, ...)
+{
+	struct device *dev;
+	va_list vargs;
+	int rc;
+
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	if (!dev)
+		goto out_error;
+	va_start(vargs, fmt);
+	rc = dev_set_name(dev, fmt, vargs);
+	va_end(vargs);
+	if (rc)
+		goto out_error;
+	dev->bus = &iucv_bus;
+	dev->parent = iucv_root;
+	dev->driver = driver;
+	dev->groups = attrs;
+	dev->release = iucv_release_device;
+	dev_set_drvdata(dev, priv);
+	return dev;
+
+out_error:
+	kfree(dev);
+	return NULL;
+}
+EXPORT_SYMBOL(iucv_alloc_device);
 
 static int iucv_available;
 

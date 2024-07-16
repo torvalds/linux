@@ -1136,6 +1136,23 @@ static void dw_i3c_master_free_ibi(struct i3c_dev_desc *dev)
 	data->ibi_pool = NULL;
 }
 
+static void dw_i3c_master_enable_sir_signal(struct dw_i3c_master *master, bool enable)
+{
+	u32 reg;
+
+	reg = readl(master->regs + INTR_STATUS_EN);
+	reg &= ~INTR_IBI_THLD_STAT;
+	if (enable)
+		reg |= INTR_IBI_THLD_STAT;
+	writel(reg, master->regs + INTR_STATUS_EN);
+
+	reg = readl(master->regs + INTR_SIGNAL_EN);
+	reg &= ~INTR_IBI_THLD_STAT;
+	if (enable)
+		reg |= INTR_IBI_THLD_STAT;
+	writel(reg, master->regs + INTR_SIGNAL_EN);
+}
+
 static void dw_i3c_master_set_sir_enabled(struct dw_i3c_master *master,
 					  struct i3c_dev_desc *dev,
 					  u8 idx, bool enable)
@@ -1170,21 +1187,32 @@ static void dw_i3c_master_set_sir_enabled(struct dw_i3c_master *master,
 	}
 	writel(reg, master->regs + IBI_SIR_REQ_REJECT);
 
-	if (global) {
-		reg = readl(master->regs + INTR_STATUS_EN);
-		reg &= ~INTR_IBI_THLD_STAT;
-		if (enable)
-			reg |= INTR_IBI_THLD_STAT;
-		writel(reg, master->regs + INTR_STATUS_EN);
+	if (global)
+		dw_i3c_master_enable_sir_signal(master, enable);
 
-		reg = readl(master->regs + INTR_SIGNAL_EN);
-		reg &= ~INTR_IBI_THLD_STAT;
-		if (enable)
-			reg |= INTR_IBI_THLD_STAT;
-		writel(reg, master->regs + INTR_SIGNAL_EN);
-	}
 
 	spin_unlock_irqrestore(&master->devs_lock, flags);
+}
+
+static int dw_i3c_master_enable_hotjoin(struct i3c_master_controller *m)
+{
+	struct dw_i3c_master *master = to_dw_i3c_master(m);
+
+	dw_i3c_master_enable_sir_signal(master, true);
+	writel(readl(master->regs + DEVICE_CTRL) & ~DEV_CTRL_HOT_JOIN_NACK,
+	       master->regs + DEVICE_CTRL);
+
+	return 0;
+}
+
+static int dw_i3c_master_disable_hotjoin(struct i3c_master_controller *m)
+{
+	struct dw_i3c_master *master = to_dw_i3c_master(m);
+
+	writel(readl(master->regs + DEVICE_CTRL) | DEV_CTRL_HOT_JOIN_NACK,
+	       master->regs + DEVICE_CTRL);
+
+	return 0;
 }
 
 static int dw_i3c_master_enable_ibi(struct i3c_dev_desc *dev)
@@ -1326,6 +1354,8 @@ static void dw_i3c_master_irq_handle_ibis(struct dw_i3c_master *master)
 
 		if (IBI_TYPE_SIRQ(reg)) {
 			dw_i3c_master_handle_ibi_sir(master, reg);
+		} else if (IBI_TYPE_HJ(reg)) {
+			queue_work(master->base.wq, &master->hj_work);
 		} else {
 			len = IBI_QUEUE_STATUS_DATA_LEN(reg);
 			dev_info(&master->base.dev,
@@ -1393,6 +1423,8 @@ static const struct i3c_master_controller_ops dw_mipi_i3c_ibi_ops = {
 	.enable_ibi = dw_i3c_master_enable_ibi,
 	.disable_ibi = dw_i3c_master_disable_ibi,
 	.recycle_ibi_slot = dw_i3c_master_recycle_ibi_slot,
+	.enable_hotjoin = dw_i3c_master_enable_hotjoin,
+	.disable_hotjoin = dw_i3c_master_disable_hotjoin,
 };
 
 /* default platform ops implementations */
@@ -1411,6 +1443,14 @@ static const struct dw_i3c_platform_ops dw_i3c_platform_ops_default = {
 	.init = dw_i3c_platform_init_nop,
 	.set_dat_ibi = dw_i3c_platform_set_dat_ibi_nop,
 };
+
+static void dw_i3c_hj_work(struct work_struct *work)
+{
+	struct dw_i3c_master *master =
+		container_of(work, typeof(*master), hj_work);
+
+	i3c_master_do_daa(&master->base);
+}
 
 int dw_i3c_common_probe(struct dw_i3c_master *master,
 			struct platform_device *pdev)
@@ -1469,6 +1509,7 @@ int dw_i3c_common_probe(struct dw_i3c_master *master,
 	if (master->ibi_capable)
 		ops = &dw_mipi_i3c_ibi_ops;
 
+	INIT_WORK(&master->hj_work, dw_i3c_hj_work);
 	ret = i3c_master_register(&master->base, &pdev->dev, ops, false);
 	if (ret)
 		goto err_assert_rst;

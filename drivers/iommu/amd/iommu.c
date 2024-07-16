@@ -2032,7 +2032,6 @@ static int do_attach(struct iommu_dev_data *dev_data,
 		     struct protection_domain *domain)
 {
 	struct amd_iommu *iommu = get_amd_iommu_from_dev_data(dev_data);
-	struct pci_dev *pdev;
 	int ret = 0;
 
 	/* Update data structures */
@@ -2047,29 +2046,12 @@ static int do_attach(struct iommu_dev_data *dev_data,
 	domain->dev_iommu[iommu->index] += 1;
 	domain->dev_cnt                 += 1;
 
-	pdev = dev_is_pci(dev_data->dev) ? to_pci_dev(dev_data->dev) : NULL;
+	/* Setup GCR3 table */
 	if (pdom_is_sva_capable(domain)) {
 		ret = init_gcr3_table(dev_data, domain);
 		if (ret)
 			return ret;
-
-		if (pdev) {
-			pdev_enable_caps(pdev);
-
-			/*
-			 * Device can continue to function even if IOPF
-			 * enablement failed. Hence in error path just
-			 * disable device PRI support.
-			 */
-			if (amd_iommu_iopf_add_device(iommu, dev_data))
-				pdev_disable_cap_pri(pdev);
-		}
-	} else if (pdev) {
-		pdev_enable_cap_ats(pdev);
 	}
-
-	/* Update device table */
-	amd_iommu_dev_update_dte(dev_data, true);
 
 	return ret;
 }
@@ -2163,6 +2145,11 @@ static void detach_device(struct device *dev)
 
 	do_detach(dev_data);
 
+out:
+	spin_unlock(&dev_data->lock);
+
+	spin_unlock_irqrestore(&domain->lock, flags);
+
 	/* Remove IOPF handler */
 	if (ppr)
 		amd_iommu_iopf_remove_device(iommu, dev_data);
@@ -2170,10 +2157,6 @@ static void detach_device(struct device *dev)
 	if (dev_is_pci(dev))
 		pdev_disable_caps(to_pci_dev(dev));
 
-out:
-	spin_unlock(&dev_data->lock);
-
-	spin_unlock_irqrestore(&domain->lock, flags);
 }
 
 static struct iommu_device *amd_iommu_probe_device(struct device *dev)
@@ -2485,6 +2468,7 @@ static int amd_iommu_attach_device(struct iommu_domain *dom,
 	struct iommu_dev_data *dev_data = dev_iommu_priv_get(dev);
 	struct protection_domain *domain = to_pdomain(dom);
 	struct amd_iommu *iommu = get_amd_iommu_from_dev(dev);
+	struct pci_dev *pdev;
 	int ret;
 
 	/*
@@ -2517,7 +2501,23 @@ static int amd_iommu_attach_device(struct iommu_domain *dom,
 	}
 #endif
 
-	iommu_completion_wait(iommu);
+	pdev = dev_is_pci(dev_data->dev) ? to_pci_dev(dev_data->dev) : NULL;
+	if (pdev && pdom_is_sva_capable(domain)) {
+		pdev_enable_caps(pdev);
+
+		/*
+		 * Device can continue to function even if IOPF
+		 * enablement failed. Hence in error path just
+		 * disable device PRI support.
+		 */
+		if (amd_iommu_iopf_add_device(iommu, dev_data))
+			pdev_disable_cap_pri(pdev);
+	} else if (pdev) {
+		pdev_enable_cap_ats(pdev);
+	}
+
+	/* Update device table */
+	amd_iommu_dev_update_dte(dev_data, true);
 
 	return ret;
 }
@@ -3784,17 +3784,8 @@ static struct irq_chip amd_ir_chip = {
 };
 
 static const struct msi_parent_ops amdvi_msi_parent_ops = {
-	.supported_flags	= X86_VECTOR_MSI_FLAGS_SUPPORTED |
-				  MSI_FLAG_MULTI_PCI_MSI |
-				  MSI_FLAG_PCI_IMS,
+	.supported_flags	= X86_VECTOR_MSI_FLAGS_SUPPORTED | MSI_FLAG_MULTI_PCI_MSI,
 	.prefix			= "IR-",
-	.init_dev_msi_info	= msi_parent_init_dev_msi_info,
-};
-
-static const struct msi_parent_ops virt_amdvi_msi_parent_ops = {
-	.supported_flags	= X86_VECTOR_MSI_FLAGS_SUPPORTED |
-				  MSI_FLAG_MULTI_PCI_MSI,
-	.prefix			= "vIR-",
 	.init_dev_msi_info	= msi_parent_init_dev_msi_info,
 };
 
@@ -3815,11 +3806,7 @@ int amd_iommu_create_irq_domain(struct amd_iommu *iommu)
 	irq_domain_update_bus_token(iommu->ir_domain,  DOMAIN_BUS_AMDVI);
 	iommu->ir_domain->flags |= IRQ_DOMAIN_FLAG_MSI_PARENT |
 				   IRQ_DOMAIN_FLAG_ISOLATED_MSI;
-
-	if (amd_iommu_np_cache)
-		iommu->ir_domain->msi_parent_ops = &virt_amdvi_msi_parent_ops;
-	else
-		iommu->ir_domain->msi_parent_ops = &amdvi_msi_parent_ops;
+	iommu->ir_domain->msi_parent_ops = &amdvi_msi_parent_ops;
 
 	return 0;
 }

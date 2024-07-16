@@ -164,15 +164,6 @@ module_param(kvmclock_periodic_sync, bool, 0444);
 static u32 __read_mostly tsc_tolerance_ppm = 250;
 module_param(tsc_tolerance_ppm, uint, 0644);
 
-/*
- * lapic timer advance (tscdeadline mode only) in nanoseconds.  '-1' enables
- * adaptive tuning starting from default advancement of 1000ns.  '0' disables
- * advancement entirely.  Any other value is used as-is and disables adaptive
- * tuning, i.e. allows privileged userspace to set an exact advancement time.
- */
-static int __read_mostly lapic_timer_advance_ns = -1;
-module_param(lapic_timer_advance_ns, int, 0644);
-
 static bool __read_mostly vector_hashing = true;
 module_param(vector_hashing, bool, 0444);
 
@@ -12169,7 +12160,7 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 	if (r < 0)
 		return r;
 
-	r = kvm_create_lapic(vcpu, lapic_timer_advance_ns);
+	r = kvm_create_lapic(vcpu);
 	if (r < 0)
 		goto fail_mmu_destroy;
 

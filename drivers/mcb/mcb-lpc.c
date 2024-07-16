@@ -97,13 +97,11 @@ out_mcb_bus:
 	return ret;
 }
 
-static int mcb_lpc_remove(struct platform_device *pdev)
+static void mcb_lpc_remove(struct platform_device *pdev)
 {
 	struct priv *priv = platform_get_drvdata(pdev);
 
 	mcb_release_bus(priv->bus);
-
-	return 0;
 }
 
 static struct platform_device *mcb_lpc_pdev;
@@ -140,7 +138,7 @@ static struct platform_driver mcb_lpc_driver = {
 		.name = "mcb-lpc",
 	},
 	.probe		= mcb_lpc_probe,
-	.remove		= mcb_lpc_remove,
+	.remove_new	= mcb_lpc_remove,
 };
 
 static const struct dmi_system_id mcb_lpc_dmi_table[] = {

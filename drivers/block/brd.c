@@ -222,12 +222,35 @@ out:
 	return err;
 }
 
+static void brd_do_discard(struct brd_device *brd, sector_t sector, u32 size)
+{
+	sector_t aligned_sector = (sector + PAGE_SECTORS) & ~PAGE_SECTORS;
+	struct page *page;
+
+	size -= (aligned_sector - sector) * SECTOR_SIZE;
+	xa_lock(&brd->brd_pages);
+	while (size >= PAGE_SIZE && aligned_sector < rd_size * 2) {
+		page = __xa_erase(&brd->brd_pages, aligned_sector >> PAGE_SECTORS_SHIFT);
+		if (page)
+			__free_page(page);
+		aligned_sector += PAGE_SECTORS;
+		size -= PAGE_SIZE;
+	}
+	xa_unlock(&brd->brd_pages);
+}
+
 static void brd_submit_bio(struct bio *bio)
 {
 	struct brd_device *brd = bio->bi_bdev->bd_disk->private_data;
 	sector_t sector = bio->bi_iter.bi_sector;
 	struct bio_vec bvec;
 	struct bvec_iter iter;
+
+	if (unlikely(op_is_discard(bio->bi_opf))) {
+		brd_do_discard(brd, sector, bio->bi_iter.bi_size);
+		bio_endio(bio);
+		return;
+	}
 
 	bio_for_each_segment(bvec, bio, iter) {
 		unsigned int len = bvec.bv_len;
@@ -309,6 +332,9 @@ static int brd_alloc(int i)
 		 *  is harmless)
 		 */
 		.physical_block_size	= PAGE_SIZE,
+		.max_hw_discard_sectors	= UINT_MAX,
+		.max_discard_segments	= 1,
+		.discard_granularity	= PAGE_SIZE,
 	};
 
 	list_for_each_entry(brd, &brd_devices, brd_list)

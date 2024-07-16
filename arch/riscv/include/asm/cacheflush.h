@@ -13,6 +13,12 @@ static inline void local_flush_icache_all(void)
 	asm volatile ("fence.i" ::: "memory");
 }
 
+static inline void local_flush_icache_range(unsigned long start,
+					    unsigned long end)
+{
+	local_flush_icache_all();
+}
+
 #define PG_dcache_clean PG_arch_1
 
 static inline void flush_dcache_folio(struct folio *folio)
@@ -33,8 +39,11 @@ static inline void flush_dcache_page(struct page *page)
  * so instead we just flush the whole thing.
  */
 #define flush_icache_range(start, end) flush_icache_all()
-#define flush_icache_user_page(vma, pg, addr, len) \
-	flush_icache_mm(vma->vm_mm, 0)
+#define flush_icache_user_page(vma, pg, addr, len)	\
+do {							\
+	if (vma->vm_flags & VM_EXEC)			\
+		flush_icache_mm(vma->vm_mm, 0);		\
+} while (0)
 
 #ifdef CONFIG_64BIT
 #define flush_cache_vmap(start, end)		flush_tlb_kernel_range(start, end)

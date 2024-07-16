@@ -32,7 +32,7 @@ TRACE_EVENT(funeth_tx,
 		__entry->len = len;
 		__entry->sqe_idx = sqe_idx;
 		__entry->ngle = ngle;
-		__assign_str(devname, txq->netdev->name);
+		__assign_str(devname);
 	),
 
 	TP_printk("%s: Txq %u, SQE idx %u, len %u, num GLEs %u",
@@ -62,7 +62,7 @@ TRACE_EVENT(funeth_tx_free,
 		__entry->sqe_idx = sqe_idx;
 		__entry->num_sqes = num_sqes;
 		__entry->hw_head = hw_head;
-		__assign_str(devname, txq->netdev->name);
+		__assign_str(devname);
 	),
 
 	TP_printk("%s: Txq %u, SQE idx %u, SQEs %u, HW head %u",
@@ -97,7 +97,7 @@ TRACE_EVENT(funeth_rx,
 		__entry->len = pkt_len;
 		__entry->hash = hash;
 		__entry->cls_vec = cls_vec;
-		__assign_str(devname, rxq->netdev->name);
+		__assign_str(devname);
 	),
 
 	TP_printk("%s: Rxq %u, CQ head %u, RQEs %u, len %u, hash %u, CV %#x",

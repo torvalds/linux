@@ -256,9 +256,9 @@ range_alloc_fail:
 	return NULL;
 }
 
-unsigned long dma_4v_iotsb_bind(unsigned long devhandle,
-				unsigned long iotsb_num,
-				struct pci_bus *bus_dev)
+static unsigned long dma_4v_iotsb_bind(unsigned long devhandle,
+				       unsigned long iotsb_num,
+				       struct pci_bus *bus_dev)
 {
 	struct pci_dev *pdev;
 	unsigned long err;

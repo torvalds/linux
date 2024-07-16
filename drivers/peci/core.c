@@ -25,7 +25,7 @@ static void peci_controller_dev_release(struct device *dev)
 	kfree(controller);
 }
 
-struct device_type peci_controller_type = {
+const struct device_type peci_controller_type = {
 	.release	= peci_controller_dev_release,
 };
 
@@ -201,7 +201,7 @@ static void peci_bus_device_remove(struct device *dev)
 		driver->remove(device);
 }
 
-struct bus_type peci_bus_type = {
+const struct bus_type peci_bus_type = {
 	.name		= "peci",
 	.match		= peci_bus_device_match,
 	.probe		= peci_bus_device_probe,

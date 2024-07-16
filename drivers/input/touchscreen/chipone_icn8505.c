@@ -68,7 +68,6 @@ struct icn8505_touch_data {
 struct icn8505_data {
 	struct i2c_client *client;
 	struct input_dev *input;
-	struct gpio_desc *wake_gpio;
 	struct touchscreen_properties prop;
 	char firmware_name[32];
 };

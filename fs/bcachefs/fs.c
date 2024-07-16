@@ -188,8 +188,7 @@ static struct bch_inode_info *bch2_inode_insert(struct bch_fs *c, struct bch_ino
 	BUG_ON(!old);
 
 	if (unlikely(old != inode)) {
-		__destroy_inode(&inode->v);
-		kmem_cache_free(bch2_inode_cache, inode);
+		discard_new_inode(&inode->v);
 		inode = old;
 	} else {
 		mutex_lock(&c->vfs_inodes_lock);
@@ -1145,6 +1144,8 @@ static int bch2_open(struct inode *vinode, struct file *file)
 			return ret;
 	}
 
+	file->f_mode |= FMODE_CAN_ODIRECT;
+
 	return generic_file_open(vinode, file);
 }
 
@@ -1237,7 +1238,6 @@ static const struct address_space_operations bch_address_space_operations = {
 	.write_end	= bch2_write_end,
 	.invalidate_folio = bch2_invalidate_folio,
 	.release_folio	= bch2_release_folio,
-	.direct_IO	= noop_direct_IO,
 #ifdef CONFIG_MIGRATION
 	.migrate_folio	= filemap_migrate_folio,
 #endif
@@ -1939,8 +1939,7 @@ got_sb:
 
 	if (IS_ERR(sb)) {
 		ret = PTR_ERR(sb);
-		ret = bch2_err_class(ret);
-		return ERR_PTR(ret);
+		goto err;
 	}
 
 	c = sb->s_fs_info;
@@ -2016,6 +2015,15 @@ out:
 err_put_super:
 	__bch2_fs_stop(c);
 	deactivate_locked_super(sb);
+err:
+	/*
+	 * On an inconsistency error in recovery we might see an -EROFS derived
+	 * errorcode (from the journal), but we don't want to return that to
+	 * userspace as that causes util-linux to retry the mount RO - which is
+	 * confusing:
+	 */
+	if (bch2_err_matches(ret, EROFS) && ret != -EROFS)
+		ret = -EIO;
 	return ERR_PTR(bch2_err_class(ret));
 }
 

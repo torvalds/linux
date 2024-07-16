@@ -1375,9 +1375,7 @@ int zap_other_threads(struct task_struct *p)
 
 	for_other_threads(p, t) {
 		task_clear_jobctl_pending(t, JOBCTL_PENDING_MASK);
-		/* Don't require de_thread to wait for the vhost_worker */
-		if ((t->flags & (PF_IO_WORKER | PF_USER_WORKER)) != PF_USER_WORKER)
-			count++;
+		count++;
 
 		/* Don't bother with already dead threads */
 		if (t->exit_state)

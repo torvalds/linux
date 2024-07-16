@@ -45,12 +45,17 @@ struct block_device {
 	struct request_queue *	bd_queue;
 	struct disk_stats __percpu *bd_stats;
 	unsigned long		bd_stamp;
-	bool			bd_read_only;	/* read-only policy */
-	u8			bd_partno;
-	bool			bd_write_holder;
-	bool			bd_has_submit_bio;
+	atomic_t		__bd_flags;	// partition number + flags
+#define BD_PARTNO		255	// lower 8 bits; assign-once
+#define BD_READ_ONLY		(1u<<8) // read-only policy
+#define BD_WRITE_HOLDER		(1u<<9)
+#define BD_HAS_SUBMIT_BIO	(1u<<10)
+#define BD_RO_WARNED		(1u<<11)
+#ifdef CONFIG_FAIL_MAKE_REQUEST
+#define BD_MAKE_IT_FAIL		(1u<<12)
+#endif
 	dev_t			bd_dev;
-	struct inode		*bd_inode;	/* will die */
+	struct address_space	*bd_mapping;	/* page cache */
 
 	atomic_t		bd_openers;
 	spinlock_t		bd_size_lock; /* for bd_inode->i_size updates */
@@ -65,10 +70,6 @@ struct block_device {
 	struct mutex		bd_fsfreeze_mutex; /* serialize freeze/thaw */
 
 	struct partition_meta_info *bd_meta_info;
-#ifdef CONFIG_FAIL_MAKE_REQUEST
-	bool			bd_make_it_fail;
-#endif
-	bool			bd_ro_warned;
 	int			bd_writers;
 	/*
 	 * keep this out-of-line as it's both big and not needed in the fast

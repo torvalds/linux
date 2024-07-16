@@ -413,10 +413,7 @@ static void coredump_task_exit(struct task_struct *tsk)
 	tsk->flags |= PF_POSTCOREDUMP;
 	core_state = tsk->signal->core_state;
 	spin_unlock_irq(&tsk->sighand->siglock);
-
-	/* The vhost_worker does not particpate in coredumps */
-	if (core_state &&
-	    ((tsk->flags & (PF_IO_WORKER | PF_USER_WORKER)) != PF_USER_WORKER)) {
+	if (core_state) {
 		struct core_thread self;
 
 		self.task = current;

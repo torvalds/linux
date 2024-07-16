@@ -15,7 +15,7 @@ struct pcap_init {
 	char *filter;
 };
 
-void pcap_init_kern(struct net_device *dev, void *data)
+static void pcap_init_kern(struct net_device *dev, void *data)
 {
 	struct uml_net_private *pri;
 	struct pcap_data *ppri;
@@ -50,7 +50,7 @@ static const struct net_kern_info pcap_kern_info = {
 	.write			= pcap_write,
 };
 
-int pcap_setup(char *str, char **mac_out, void *data)
+static int pcap_setup(char *str, char **mac_out, void *data)
 {
 	struct pcap_init *init = data;
 	char *remain, *host_if = NULL, *options[2] = { NULL, NULL };

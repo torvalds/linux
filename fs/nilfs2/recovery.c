@@ -702,8 +702,12 @@ static void nilfs_finish_roll_forward(struct the_nilfs *nilfs,
 	if (WARN_ON(!bh))
 		return;  /* should never happen */
 
+	lock_buffer(bh);
 	memset(bh->b_data, 0, bh->b_size);
+	set_buffer_uptodate(bh);
 	set_buffer_dirty(bh);
+	unlock_buffer(bh);
+
 	err = sync_dirty_buffer(bh);
 	if (unlikely(err))
 		nilfs_warn(nilfs->ns_sb,

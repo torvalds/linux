@@ -369,7 +369,7 @@ static int mpr_resume(struct device *dev)
 static DEFINE_SIMPLE_DEV_PM_OPS(mpr121_touchkey_pm_ops, mpr_suspend, mpr_resume);
 
 static const struct i2c_device_id mpr121_id[] = {
-	{ "mpr121_touchkey", 0 },
+	{ "mpr121_touchkey" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mpr121_id);

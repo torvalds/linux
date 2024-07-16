@@ -829,8 +829,8 @@ static void es8326_jack_detect_handler(struct work_struct *work)
 			/* mute adc when mic path switch */
 			regmap_write(es8326->regmap, ES8326_ADC1_SRC, 0x44);
 			regmap_write(es8326->regmap, ES8326_ADC2_SRC, 0x66);
-			es8326->hp = 0;
 		}
+		es8326->hp = 0;
 		regmap_update_bits(es8326->regmap, ES8326_HPDET_TYPE, 0x03, 0x01);
 		regmap_write(es8326->regmap, ES8326_SYS_BIAS, 0x0a);
 		regmap_update_bits(es8326->regmap, ES8326_HP_DRIVER_REF, 0x0f, 0x03);
@@ -981,7 +981,7 @@ static int es8326_resume(struct snd_soc_component *component)
 	regmap_write(es8326->regmap, ES8326_ANA_LP, 0xf0);
 	usleep_range(10000, 15000);
 	regmap_write(es8326->regmap, ES8326_HPJACK_TIMER, 0xd9);
-	regmap_write(es8326->regmap, ES8326_ANA_MICBIAS, 0xcb);
+	regmap_write(es8326->regmap, ES8326_ANA_MICBIAS, 0xd8);
 	/* set headphone default type and detect pin */
 	regmap_write(es8326->regmap, ES8326_HPDET_TYPE, 0x83);
 	regmap_write(es8326->regmap, ES8326_CLK_RESAMPLE, 0x05);
@@ -1018,7 +1018,7 @@ static int es8326_resume(struct snd_soc_component *component)
 
 	regmap_write(es8326->regmap, ES8326_ANA_VSEL, 0x7F);
 	/* select vdda as micbias source */
-	regmap_write(es8326->regmap, ES8326_VMIDLOW, 0x23);
+	regmap_write(es8326->regmap, ES8326_VMIDLOW, 0x03);
 	/* set dac dsmclip = 1 */
 	regmap_write(es8326->regmap, ES8326_DAC_DSM, 0x08);
 	regmap_write(es8326->regmap, ES8326_DAC_VPPSCALE, 0x15);

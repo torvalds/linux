@@ -46,6 +46,7 @@ static int set_dvs_level(const struct regulator_desc *desc,
 			continue;
 		if (ret == uv) {
 			i <<= ffs(desc->vsel_mask) - 1;
+
 			ret = regmap_update_bits(regmap, reg, mask, i);
 			if (omask && !ret)
 				ret = regmap_update_bits(regmap, oreg, omask,
@@ -53,6 +54,9 @@ static int set_dvs_level(const struct regulator_desc *desc,
 			break;
 		}
 	}
+	if (i == desc->n_voltages)
+		pr_warn("Unsupported %s voltage %u\n", prop, uv);
+
 	return ret;
 }
 

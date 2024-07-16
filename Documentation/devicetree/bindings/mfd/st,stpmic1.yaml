@@ -29,7 +29,7 @@ properties:
   onkey:
     type: object
 
-    $ref: ../input/input.yaml
+    $ref: /schemas/input/input.yaml
 
     properties:
       compatible:
@@ -67,7 +67,7 @@ properties:
   watchdog:
     type: object
 
-    $ref: ../watchdog/watchdog.yaml
+    $ref: /schemas/watchdog/watchdog.yaml
 
     properties:
       compatible:

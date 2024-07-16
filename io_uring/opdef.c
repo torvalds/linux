@@ -516,10 +516,12 @@ const struct io_cold_def io_cold_defs[] = {
 	},
 	[IORING_OP_READ_FIXED] = {
 		.name			= "READ_FIXED",
+		.cleanup		= io_readv_writev_cleanup,
 		.fail			= io_rw_fail,
 	},
 	[IORING_OP_WRITE_FIXED] = {
 		.name			= "WRITE_FIXED",
+		.cleanup		= io_readv_writev_cleanup,
 		.fail			= io_rw_fail,
 	},
 	[IORING_OP_POLL_ADD] = {
@@ -582,10 +584,12 @@ const struct io_cold_def io_cold_defs[] = {
 	},
 	[IORING_OP_READ] = {
 		.name			= "READ",
+		.cleanup		= io_readv_writev_cleanup,
 		.fail			= io_rw_fail,
 	},
 	[IORING_OP_WRITE] = {
 		.name			= "WRITE",
+		.cleanup		= io_readv_writev_cleanup,
 		.fail			= io_rw_fail,
 	},
 	[IORING_OP_FADVISE] = {
@@ -692,6 +696,7 @@ const struct io_cold_def io_cold_defs[] = {
 	},
 	[IORING_OP_READ_MULTISHOT] = {
 		.name			= "READ_MULTISHOT",
+		.cleanup		= io_readv_writev_cleanup,
 	},
 	[IORING_OP_WAITID] = {
 		.name			= "WAITID",

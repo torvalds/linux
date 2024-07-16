@@ -193,14 +193,12 @@ static int usb_extcon_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int usb_extcon_remove(struct platform_device *pdev)
+static void usb_extcon_remove(struct platform_device *pdev)
 {
 	struct usb_extcon_info *info = platform_get_drvdata(pdev);
 
 	cancel_delayed_work_sync(&info->wq_detcable);
 	device_init_wakeup(&pdev->dev, false);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -281,7 +279,7 @@ MODULE_DEVICE_TABLE(platform, usb_extcon_platform_ids);
 
 static struct platform_driver usb_extcon_driver = {
 	.probe		= usb_extcon_probe,
-	.remove		= usb_extcon_remove,
+	.remove_new	= usb_extcon_remove,
 	.driver		= {
 		.name	= "extcon-usb-gpio",
 		.pm	= &usb_extcon_pm_ops,

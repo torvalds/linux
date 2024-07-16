@@ -479,9 +479,8 @@ int bch2_check_fix_ptrs(struct btree_trans *trans,
 
 	percpu_down_read(&c->mark_lock);
 
-	rcu_read_lock();
 	bkey_for_each_ptr_decode(k.k, ptrs_c, p, entry_c) {
-		struct bch_dev *ca = bch2_dev_rcu(c, p.ptr.dev);
+		struct bch_dev *ca = bch2_dev_tryget(c, p.ptr.dev);
 		if (!ca) {
 			if (fsck_err(c, ptr_to_invalid_device,
 				     "pointer to missing device %u\n"
@@ -558,7 +557,7 @@ int bch2_check_fix_ptrs(struct btree_trans *trans,
 			do_update = true;
 
 		if (data_type != BCH_DATA_btree && p.ptr.gen != g->gen)
-			continue;
+			goto next;
 
 		if (fsck_err_on(bucket_data_type_mismatch(g->data_type, data_type),
 				c, ptr_bucket_data_type_mismatch,
@@ -601,8 +600,9 @@ int bch2_check_fix_ptrs(struct btree_trans *trans,
 					 bch2_bkey_val_to_text(&buf, c, k), buf.buf)))
 				do_update = true;
 		}
+next:
+		bch2_dev_put(ca);
 	}
-	rcu_read_unlock();
 
 	if (do_update) {
 		if (flags & BTREE_TRIGGER_is_root) {
@@ -638,9 +638,10 @@ int bch2_check_fix_ptrs(struct btree_trans *trans,
 		} else {
 			struct bkey_ptrs ptrs;
 			union bch_extent_entry *entry;
+
+			rcu_read_lock();
 restart_drop_ptrs:
 			ptrs = bch2_bkey_ptrs(bkey_i_to_s(new));
-			rcu_read_lock();
 			bkey_for_each_ptr_decode(bkey_i_to_s(new).k, ptrs, p, entry) {
 				struct bch_dev *ca = bch2_dev_rcu(c, p.ptr.dev);
 				struct bucket *g = PTR_GC_BUCKET(ca, &p.ptr);
@@ -1133,7 +1134,7 @@ static int __trigger_extent(struct btree_trans *trans,
 	r.e.nr_required	= 1;
 
 	bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
-		s64 disk_sectors;
+		s64 disk_sectors = 0;
 		ret = bch2_trigger_pointer(trans, btree_id, level, k, p, entry, &disk_sectors, flags);
 		if (ret < 0)
 			return ret;
@@ -1464,7 +1465,7 @@ int bch2_trans_mark_dev_sbs_flags(struct bch_fs *c,
 	for_each_online_member(c, ca) {
 		int ret = bch2_trans_mark_dev_sb(c, ca, flags);
 		if (ret) {
-			bch2_dev_put(ca);
+			percpu_ref_put(&ca->io_ref);
 			return ret;
 		}
 	}

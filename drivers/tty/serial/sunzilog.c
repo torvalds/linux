@@ -453,7 +453,8 @@ static void sunzilog_status_handle(struct uart_sunzilog_port *up,
 static void sunzilog_transmit_chars(struct uart_sunzilog_port *up,
 				    struct zilog_channel __iomem *channel)
 {
-	struct circ_buf *xmit;
+	struct tty_port *tport;
+	unsigned char ch;
 
 	if (ZS_IS_CONS(up)) {
 		unsigned char status = readb(&channel->control);
@@ -496,21 +497,20 @@ static void sunzilog_transmit_chars(struct uart_sunzilog_port *up,
 
 	if (up->port.state == NULL)
 		goto ack_tx_int;
-	xmit = &up->port.state->xmit;
-	if (uart_circ_empty(xmit))
-		goto ack_tx_int;
+	tport = &up->port.state->port;
 
 	if (uart_tx_stopped(&up->port))
 		goto ack_tx_int;
 
+	if (!uart_fifo_get(&up->port, &ch))
+		goto ack_tx_int;
+
 	up->flags |= SUNZILOG_FLAG_TX_ACTIVE;
-	writeb(xmit->buf[xmit->tail], &channel->data);
+	writeb(ch, &channel->data);
 	ZSDELAY();
 	ZS_WSYNC(channel);
 
-	uart_xmit_advance(&up->port, 1);
-
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+	if (kfifo_len(&tport->xmit_fifo) < WAKEUP_CHARS)
 		uart_write_wakeup(&up->port);
 
 	return;
@@ -700,17 +700,16 @@ static void sunzilog_start_tx(struct uart_port *port)
 		port->icount.tx++;
 		port->x_char = 0;
 	} else {
-		struct circ_buf *xmit = &port->state->xmit;
+		struct tty_port *tport = &port->state->port;
+		unsigned char ch;
 
-		if (uart_circ_empty(xmit))
+		if (!uart_fifo_get(&up->port, &ch))
 			return;
-		writeb(xmit->buf[xmit->tail], &channel->data);
+		writeb(ch, &channel->data);
 		ZSDELAY();
 		ZS_WSYNC(channel);
 
-		uart_xmit_advance(port, 1);
-
-		if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+		if (kfifo_len(&tport->xmit_fifo) < WAKEUP_CHARS)
 			uart_write_wakeup(&up->port);
 	}
 }

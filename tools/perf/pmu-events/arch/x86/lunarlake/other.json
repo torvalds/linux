@@ -24,7 +24,7 @@
         "EventCode": "0xB7",
         "EventName": "OCR.DEMAND_DATA_RD.DRAM",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x184000001",
+        "MSRValue": "0x1FBC000001",
         "SampleAfterValue": "100003",
         "UMask": "0x1",
         "Unit": "cpu_atom"
@@ -34,7 +34,7 @@
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.DEMAND_DATA_RD.DRAM",
         "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x184000001",
+        "MSRValue": "0x1E780000001",
         "SampleAfterValue": "100003",
         "UMask": "0x1",
         "Unit": "cpu_core"

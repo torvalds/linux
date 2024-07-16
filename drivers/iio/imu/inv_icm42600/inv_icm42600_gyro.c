@@ -99,7 +99,8 @@ static int inv_icm42600_gyro_update_scan_mode(struct iio_dev *indio_dev,
 					      const unsigned long *scan_mask)
 {
 	struct inv_icm42600_state *st = iio_device_get_drvdata(indio_dev);
-	struct inv_sensors_timestamp *ts = iio_priv(indio_dev);
+	struct inv_icm42600_sensor_state *gyro_st = iio_priv(indio_dev);
+	struct inv_sensors_timestamp *ts = &gyro_st->ts;
 	struct inv_icm42600_sensor_conf conf = INV_ICM42600_SENSOR_CONF_INIT;
 	unsigned int fifo_en = 0;
 	unsigned int sleep_gyro = 0;
@@ -222,33 +223,63 @@ static const int inv_icm42600_gyro_scale[] = {
 	[2 * INV_ICM42600_GYRO_FS_15_625DPS] = 0,
 	[2 * INV_ICM42600_GYRO_FS_15_625DPS + 1] = 8322,
 };
+static const int inv_icm42686_gyro_scale[] = {
+	/* +/- 4000dps => 0.002130529 rad/s */
+	[2 * INV_ICM42686_GYRO_FS_4000DPS] = 0,
+	[2 * INV_ICM42686_GYRO_FS_4000DPS + 1] = 2130529,
+	/* +/- 2000dps => 0.001065264 rad/s */
+	[2 * INV_ICM42686_GYRO_FS_2000DPS] = 0,
+	[2 * INV_ICM42686_GYRO_FS_2000DPS + 1] = 1065264,
+	/* +/- 1000dps => 0.000532632 rad/s */
+	[2 * INV_ICM42686_GYRO_FS_1000DPS] = 0,
+	[2 * INV_ICM42686_GYRO_FS_1000DPS + 1] = 532632,
+	/* +/- 500dps => 0.000266316 rad/s */
+	[2 * INV_ICM42686_GYRO_FS_500DPS] = 0,
+	[2 * INV_ICM42686_GYRO_FS_500DPS + 1] = 266316,
+	/* +/- 250dps => 0.000133158 rad/s */
+	[2 * INV_ICM42686_GYRO_FS_250DPS] = 0,
+	[2 * INV_ICM42686_GYRO_FS_250DPS + 1] = 133158,
+	/* +/- 125dps => 0.000066579 rad/s */
+	[2 * INV_ICM42686_GYRO_FS_125DPS] = 0,
+	[2 * INV_ICM42686_GYRO_FS_125DPS + 1] = 66579,
+	/* +/- 62.5dps => 0.000033290 rad/s */
+	[2 * INV_ICM42686_GYRO_FS_62_5DPS] = 0,
+	[2 * INV_ICM42686_GYRO_FS_62_5DPS + 1] = 33290,
+	/* +/- 31.25dps => 0.000016645 rad/s */
+	[2 * INV_ICM42686_GYRO_FS_31_25DPS] = 0,
+	[2 * INV_ICM42686_GYRO_FS_31_25DPS + 1] = 16645,
+};
 
-static int inv_icm42600_gyro_read_scale(struct inv_icm42600_state *st,
+static int inv_icm42600_gyro_read_scale(struct iio_dev *indio_dev,
 					int *val, int *val2)
 {
+	struct inv_icm42600_state *st = iio_device_get_drvdata(indio_dev);
+	struct inv_icm42600_sensor_state *gyro_st = iio_priv(indio_dev);
 	unsigned int idx;
 
 	idx = st->conf.gyro.fs;
 
-	*val = inv_icm42600_gyro_scale[2 * idx];
-	*val2 = inv_icm42600_gyro_scale[2 * idx + 1];
+	*val = gyro_st->scales[2 * idx];
+	*val2 = gyro_st->scales[2 * idx + 1];
 	return IIO_VAL_INT_PLUS_NANO;
 }
 
-static int inv_icm42600_gyro_write_scale(struct inv_icm42600_state *st,
+static int inv_icm42600_gyro_write_scale(struct iio_dev *indio_dev,
 					 int val, int val2)
 {
+	struct inv_icm42600_state *st = iio_device_get_drvdata(indio_dev);
+	struct inv_icm42600_sensor_state *gyro_st = iio_priv(indio_dev);
 	struct device *dev = regmap_get_device(st->map);
 	unsigned int idx;
 	struct inv_icm42600_sensor_conf conf = INV_ICM42600_SENSOR_CONF_INIT;
 	int ret;
 
-	for (idx = 0; idx < ARRAY_SIZE(inv_icm42600_gyro_scale); idx += 2) {
-		if (val == inv_icm42600_gyro_scale[idx] &&
-		    val2 == inv_icm42600_gyro_scale[idx + 1])
+	for (idx = 0; idx < gyro_st->scales_len; idx += 2) {
+		if (val == gyro_st->scales[idx] &&
+		    val2 == gyro_st->scales[idx + 1])
 			break;
 	}
-	if (idx >= ARRAY_SIZE(inv_icm42600_gyro_scale))
+	if (idx >= gyro_st->scales_len)
 		return -EINVAL;
 
 	conf.fs = idx / 2;
@@ -321,7 +352,8 @@ static int inv_icm42600_gyro_write_odr(struct iio_dev *indio_dev,
 				       int val, int val2)
 {
 	struct inv_icm42600_state *st = iio_device_get_drvdata(indio_dev);
-	struct inv_sensors_timestamp *ts = iio_priv(indio_dev);
+	struct inv_icm42600_sensor_state *gyro_st = iio_priv(indio_dev);
+	struct inv_sensors_timestamp *ts = &gyro_st->ts;
 	struct device *dev = regmap_get_device(st->map);
 	unsigned int idx;
 	struct inv_icm42600_sensor_conf conf = INV_ICM42600_SENSOR_CONF_INIT;
@@ -576,7 +608,7 @@ static int inv_icm42600_gyro_read_raw(struct iio_dev *indio_dev,
 		*val = data;
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
-		return inv_icm42600_gyro_read_scale(st, val, val2);
+		return inv_icm42600_gyro_read_scale(indio_dev, val, val2);
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		return inv_icm42600_gyro_read_odr(st, val, val2);
 	case IIO_CHAN_INFO_CALIBBIAS:
@@ -591,14 +623,16 @@ static int inv_icm42600_gyro_read_avail(struct iio_dev *indio_dev,
 					const int **vals,
 					int *type, int *length, long mask)
 {
+	struct inv_icm42600_sensor_state *gyro_st = iio_priv(indio_dev);
+
 	if (chan->type != IIO_ANGL_VEL)
 		return -EINVAL;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_SCALE:
-		*vals = inv_icm42600_gyro_scale;
+		*vals = gyro_st->scales;
 		*type = IIO_VAL_INT_PLUS_NANO;
-		*length = ARRAY_SIZE(inv_icm42600_gyro_scale);
+		*length = gyro_st->scales_len;
 		return IIO_AVAIL_LIST;
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		*vals = inv_icm42600_gyro_odr;
@@ -629,7 +663,7 @@ static int inv_icm42600_gyro_write_raw(struct iio_dev *indio_dev,
 		ret = iio_device_claim_direct_mode(indio_dev);
 		if (ret)
 			return ret;
-		ret = inv_icm42600_gyro_write_scale(st, val, val2);
+		ret = inv_icm42600_gyro_write_scale(indio_dev, val, val2);
 		iio_device_release_direct_mode(indio_dev);
 		return ret;
 	case IIO_CHAN_INFO_SAMP_FREQ:
@@ -716,8 +750,8 @@ struct iio_dev *inv_icm42600_gyro_init(struct inv_icm42600_state *st)
 {
 	struct device *dev = regmap_get_device(st->map);
 	const char *name;
+	struct inv_icm42600_sensor_state *gyro_st;
 	struct inv_sensors_timestamp_chip ts_chip;
-	struct inv_sensors_timestamp *ts;
 	struct iio_dev *indio_dev;
 	int ret;
 
@@ -725,9 +759,21 @@ struct iio_dev *inv_icm42600_gyro_init(struct inv_icm42600_state *st)
 	if (!name)
 		return ERR_PTR(-ENOMEM);
 
-	indio_dev = devm_iio_device_alloc(dev, sizeof(*ts));
+	indio_dev = devm_iio_device_alloc(dev, sizeof(*gyro_st));
 	if (!indio_dev)
 		return ERR_PTR(-ENOMEM);
+	gyro_st = iio_priv(indio_dev);
+
+	switch (st->chip) {
+	case INV_CHIP_ICM42686:
+		gyro_st->scales = inv_icm42686_gyro_scale;
+		gyro_st->scales_len = ARRAY_SIZE(inv_icm42686_gyro_scale);
+		break;
+	default:
+		gyro_st->scales = inv_icm42600_gyro_scale;
+		gyro_st->scales_len = ARRAY_SIZE(inv_icm42600_gyro_scale);
+		break;
+	}
 
 	/*
 	 * clock period is 32kHz (31250ns)
@@ -736,8 +782,7 @@ struct iio_dev *inv_icm42600_gyro_init(struct inv_icm42600_state *st)
 	ts_chip.clock_period = 31250;
 	ts_chip.jitter = 20;
 	ts_chip.init_period = inv_icm42600_odr_to_period(st->conf.accel.odr);
-	ts = iio_priv(indio_dev);
-	inv_sensors_timestamp_init(ts, &ts_chip);
+	inv_sensors_timestamp_init(&gyro_st->ts, &ts_chip);
 
 	iio_device_set_drvdata(indio_dev, st);
 	indio_dev->name = name;
@@ -763,7 +808,8 @@ struct iio_dev *inv_icm42600_gyro_init(struct inv_icm42600_state *st)
 int inv_icm42600_gyro_parse_fifo(struct iio_dev *indio_dev)
 {
 	struct inv_icm42600_state *st = iio_device_get_drvdata(indio_dev);
-	struct inv_sensors_timestamp *ts = iio_priv(indio_dev);
+	struct inv_icm42600_sensor_state *gyro_st = iio_priv(indio_dev);
+	struct inv_sensors_timestamp *ts = &gyro_st->ts;
 	ssize_t i, size;
 	unsigned int no;
 	const void *accel, *gyro, *timestamp;

@@ -901,7 +901,7 @@ static int alx_init_intr(struct alx_priv *alx)
 	int ret;
 
 	ret = pci_alloc_irq_vectors(alx->hw.pdev, 1, 1,
-			PCI_IRQ_MSI | PCI_IRQ_LEGACY);
+			PCI_IRQ_MSI | PCI_IRQ_INTX);
 	if (ret < 0)
 		return ret;
 

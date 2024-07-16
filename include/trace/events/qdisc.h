@@ -88,8 +88,8 @@ TRACE_EVENT(qdisc_reset,
 	),
 
 	TP_fast_assign(
-		__assign_str(dev, qdisc_dev(q)->name);
-		__assign_str(kind, q->ops->id);
+		__assign_str(dev);
+		__assign_str(kind);
 		__entry->parent = q->parent;
 		__entry->handle = q->handle;
 	),
@@ -113,8 +113,8 @@ TRACE_EVENT(qdisc_destroy,
 	),
 
 	TP_fast_assign(
-		__assign_str(dev, qdisc_dev(q)->name);
-		__assign_str(kind, q->ops->id);
+		__assign_str(dev);
+		__assign_str(kind);
 		__entry->parent = q->parent;
 		__entry->handle = q->handle;
 	),
@@ -137,8 +137,8 @@ TRACE_EVENT(qdisc_create,
 	),
 
 	TP_fast_assign(
-		__assign_str(dev, dev->name);
-		__assign_str(kind, ops->id);
+		__assign_str(dev);
+		__assign_str(kind);
 		__entry->parent = parent;
 	),
 

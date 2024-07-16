@@ -128,7 +128,24 @@ static bool acpi_gpio_deferred_req_irqs_done;
 
 static int acpi_gpiochip_find(struct gpio_chip *gc, const void *data)
 {
-	return device_match_acpi_handle(&gc->gpiodev->dev, data);
+	/* First check the actual GPIO device */
+	if (device_match_acpi_handle(&gc->gpiodev->dev, data))
+		return true;
+
+	/*
+	 * When the ACPI device is artificially split to the banks of GPIOs,
+	 * where each of them is represented by a separate GPIO device,
+	 * the firmware node of the physical device may not be shared among
+	 * the banks as they may require different values for the same property,
+	 * e.g., number of GPIOs in a certain bank. In such case the ACPI handle
+	 * of a GPIO device is NULL and can not be used. Hence we have to check
+	 * the parent device to be sure that there is no match before bailing
+	 * out.
+	 */
+	if (gc->parent)
+		return device_match_acpi_handle(gc->parent, data);
+
+	return false;
 }
 
 /**
@@ -938,6 +955,10 @@ static struct gpio_desc *acpi_get_gpiod_from_data(struct fwnode_handle *fwnode,
 static bool acpi_can_fallback_to_crs(struct acpi_device *adev,
 				     const char *con_id)
 {
+	/* If there is no ACPI device, there is no _CRS to fall back to */
+	if (!adev)
+		return false;
+
 	/* Never allow fallback if the device has properties */
 	if (acpi_dev_has_props(adev) || adev->driver_gpios)
 		return false;
@@ -978,10 +999,10 @@ __acpi_find_gpio(struct fwnode_handle *fwnode, const char *con_id, unsigned int 
 	}
 
 	/* Then from plain _CRS GPIOs */
-	if (!adev || !can_fallback)
-		return ERR_PTR(-ENOENT);
+	if (can_fallback)
+		return acpi_get_gpiod_by_index(adev, NULL, idx, info);
 
-	return acpi_get_gpiod_by_index(adev, NULL, idx, info);
+	return ERR_PTR(-ENOENT);
 }
 
 struct gpio_desc *acpi_find_gpio(struct fwnode_handle *fwnode,

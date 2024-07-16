@@ -609,12 +609,19 @@ static void stride(struct kunit *test)
 	config.reg_stride = 2;
 	config.num_reg_defaults = BLOCK_TEST_SIZE / 2;
 
+	/*
+	 * Allow one extra register so that the read/written arrays
+	 * are sized big enough to include an entry for the odd
+	 * address past the final reg_default register.
+	 */
+	config.max_register = BLOCK_TEST_SIZE;
+
 	map = gen_regmap(test, &config, &data);
 	KUNIT_ASSERT_FALSE(test, IS_ERR(map));
 	if (IS_ERR(map))
 		return;
 
-	/* Only even registers can be accessed, try both read and write */
+	/* Only even addresses can be accessed, try both read and write */
 	for (i = 0; i < BLOCK_TEST_SIZE; i++) {
 		data->read[i] = false;
 		data->written[i] = false;

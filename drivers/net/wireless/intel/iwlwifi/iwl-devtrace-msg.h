@@ -57,7 +57,7 @@ TRACE_EVENT(iwlwifi_dbg,
 	),
 	TP_fast_assign(
 		__entry->level = level;
-		__assign_str(function, function);
+		__assign_str(function);
 		__assign_vstr(msg, vaf->fmt, vaf->va);
 	),
 	TP_printk("%s", __get_str(msg))

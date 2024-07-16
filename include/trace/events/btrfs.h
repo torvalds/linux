@@ -1140,7 +1140,7 @@ TRACE_EVENT(btrfs_space_reservation,
 	),
 
 	TP_fast_assign_btrfs(fs_info,
-		__assign_str(type, type);
+		__assign_str(type);
 		__entry->val		= val;
 		__entry->bytes		= bytes;
 		__entry->reserve	= reserve;
@@ -1169,7 +1169,7 @@ TRACE_EVENT(btrfs_trigger_flush,
 		__entry->flags	= flags;
 		__entry->bytes	= bytes;
 		__entry->flush	= flush;
-		__assign_str(reason, reason);
+		__assign_str(reason);
 	),
 
 	TP_printk_btrfs("%s: flush=%d(%s) flags=%llu(%s) bytes=%llu",
@@ -1622,7 +1622,7 @@ DECLARE_EVENT_CLASS(btrfs_workqueue,
 
 	TP_fast_assign_btrfs(btrfs_workqueue_owner(wq),
 		__entry->wq		= wq;
-		__assign_str(name, name);
+		__assign_str(name);
 	),
 
 	TP_printk_btrfs("name=%s wq=%p", __get_str(name),

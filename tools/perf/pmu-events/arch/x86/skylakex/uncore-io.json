@@ -34,7 +34,7 @@
         "EventCode": "0x1",
         "EventName": "UNC_IIO_CLOCKTICKS",
         "PerPkg": "1",
-        "PublicDescription": "Counts clockticks of the 1GHz trafiic controller clock in the IIO unit.",
+        "PublicDescription": "Counts clockticks of the 1GHz traffic controller clock in the IIO unit.",
         "Unit": "IIO"
     },
     {

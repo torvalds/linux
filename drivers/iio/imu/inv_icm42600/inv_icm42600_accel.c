@@ -99,7 +99,8 @@ static int inv_icm42600_accel_update_scan_mode(struct iio_dev *indio_dev,
 					       const unsigned long *scan_mask)
 {
 	struct inv_icm42600_state *st = iio_device_get_drvdata(indio_dev);
-	struct inv_sensors_timestamp *ts = iio_priv(indio_dev);
+	struct inv_icm42600_sensor_state *accel_st = iio_priv(indio_dev);
+	struct inv_sensors_timestamp *ts = &accel_st->ts;
 	struct inv_icm42600_sensor_conf conf = INV_ICM42600_SENSOR_CONF_INIT;
 	unsigned int fifo_en = 0;
 	unsigned int sleep_temp = 0;
@@ -210,33 +211,54 @@ static const int inv_icm42600_accel_scale[] = {
 	[2 * INV_ICM42600_ACCEL_FS_2G] = 0,
 	[2 * INV_ICM42600_ACCEL_FS_2G + 1] = 598550,
 };
+static const int inv_icm42686_accel_scale[] = {
+	/* +/- 32G => 0.009576807 m/s-2 */
+	[2 * INV_ICM42686_ACCEL_FS_32G] = 0,
+	[2 * INV_ICM42686_ACCEL_FS_32G + 1] = 9576807,
+	/* +/- 16G => 0.004788403 m/s-2 */
+	[2 * INV_ICM42686_ACCEL_FS_16G] = 0,
+	[2 * INV_ICM42686_ACCEL_FS_16G + 1] = 4788403,
+	/* +/- 8G => 0.002394202 m/s-2 */
+	[2 * INV_ICM42686_ACCEL_FS_8G] = 0,
+	[2 * INV_ICM42686_ACCEL_FS_8G + 1] = 2394202,
+	/* +/- 4G => 0.001197101 m/s-2 */
+	[2 * INV_ICM42686_ACCEL_FS_4G] = 0,
+	[2 * INV_ICM42686_ACCEL_FS_4G + 1] = 1197101,
+	/* +/- 2G => 0.000598550 m/s-2 */
+	[2 * INV_ICM42686_ACCEL_FS_2G] = 0,
+	[2 * INV_ICM42686_ACCEL_FS_2G + 1] = 598550,
+};
 
-static int inv_icm42600_accel_read_scale(struct inv_icm42600_state *st,
+static int inv_icm42600_accel_read_scale(struct iio_dev *indio_dev,
 					 int *val, int *val2)
 {
+	struct inv_icm42600_state *st = iio_device_get_drvdata(indio_dev);
+	struct inv_icm42600_sensor_state *accel_st = iio_priv(indio_dev);
 	unsigned int idx;
 
 	idx = st->conf.accel.fs;
 
-	*val = inv_icm42600_accel_scale[2 * idx];
-	*val2 = inv_icm42600_accel_scale[2 * idx + 1];
+	*val = accel_st->scales[2 * idx];
+	*val2 = accel_st->scales[2 * idx + 1];
 	return IIO_VAL_INT_PLUS_NANO;
 }
 
-static int inv_icm42600_accel_write_scale(struct inv_icm42600_state *st,
+static int inv_icm42600_accel_write_scale(struct iio_dev *indio_dev,
 					  int val, int val2)
 {
+	struct inv_icm42600_state *st = iio_device_get_drvdata(indio_dev);
+	struct inv_icm42600_sensor_state *accel_st = iio_priv(indio_dev);
 	struct device *dev = regmap_get_device(st->map);
 	unsigned int idx;
 	struct inv_icm42600_sensor_conf conf = INV_ICM42600_SENSOR_CONF_INIT;
 	int ret;
 
-	for (idx = 0; idx < ARRAY_SIZE(inv_icm42600_accel_scale); idx += 2) {
-		if (val == inv_icm42600_accel_scale[idx] &&
-		    val2 == inv_icm42600_accel_scale[idx + 1])
+	for (idx = 0; idx < accel_st->scales_len; idx += 2) {
+		if (val == accel_st->scales[idx] &&
+		    val2 == accel_st->scales[idx + 1])
 			break;
 	}
-	if (idx >= ARRAY_SIZE(inv_icm42600_accel_scale))
+	if (idx >= accel_st->scales_len)
 		return -EINVAL;
 
 	conf.fs = idx / 2;
@@ -309,7 +331,8 @@ static int inv_icm42600_accel_write_odr(struct iio_dev *indio_dev,
 					int val, int val2)
 {
 	struct inv_icm42600_state *st = iio_device_get_drvdata(indio_dev);
-	struct inv_sensors_timestamp *ts = iio_priv(indio_dev);
+	struct inv_icm42600_sensor_state *accel_st = iio_priv(indio_dev);
+	struct inv_sensors_timestamp *ts = &accel_st->ts;
 	struct device *dev = regmap_get_device(st->map);
 	unsigned int idx;
 	struct inv_icm42600_sensor_conf conf = INV_ICM42600_SENSOR_CONF_INIT;
@@ -565,7 +588,7 @@ static int inv_icm42600_accel_read_raw(struct iio_dev *indio_dev,
 		*val = data;
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
-		return inv_icm42600_accel_read_scale(st, val, val2);
+		return inv_icm42600_accel_read_scale(indio_dev, val, val2);
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		return inv_icm42600_accel_read_odr(st, val, val2);
 	case IIO_CHAN_INFO_CALIBBIAS:
@@ -580,14 +603,16 @@ static int inv_icm42600_accel_read_avail(struct iio_dev *indio_dev,
 					 const int **vals,
 					 int *type, int *length, long mask)
 {
+	struct inv_icm42600_sensor_state *accel_st = iio_priv(indio_dev);
+
 	if (chan->type != IIO_ACCEL)
 		return -EINVAL;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_SCALE:
-		*vals = inv_icm42600_accel_scale;
+		*vals = accel_st->scales;
 		*type = IIO_VAL_INT_PLUS_NANO;
-		*length = ARRAY_SIZE(inv_icm42600_accel_scale);
+		*length = accel_st->scales_len;
 		return IIO_AVAIL_LIST;
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		*vals = inv_icm42600_accel_odr;
@@ -618,7 +643,7 @@ static int inv_icm42600_accel_write_raw(struct iio_dev *indio_dev,
 		ret = iio_device_claim_direct_mode(indio_dev);
 		if (ret)
 			return ret;
-		ret = inv_icm42600_accel_write_scale(st, val, val2);
+		ret = inv_icm42600_accel_write_scale(indio_dev, val, val2);
 		iio_device_release_direct_mode(indio_dev);
 		return ret;
 	case IIO_CHAN_INFO_SAMP_FREQ:
@@ -705,8 +730,8 @@ struct iio_dev *inv_icm42600_accel_init(struct inv_icm42600_state *st)
 {
 	struct device *dev = regmap_get_device(st->map);
 	const char *name;
+	struct inv_icm42600_sensor_state *accel_st;
 	struct inv_sensors_timestamp_chip ts_chip;
-	struct inv_sensors_timestamp *ts;
 	struct iio_dev *indio_dev;
 	int ret;
 
@@ -714,9 +739,21 @@ struct iio_dev *inv_icm42600_accel_init(struct inv_icm42600_state *st)
 	if (!name)
 		return ERR_PTR(-ENOMEM);
 
-	indio_dev = devm_iio_device_alloc(dev, sizeof(*ts));
+	indio_dev = devm_iio_device_alloc(dev, sizeof(*accel_st));
 	if (!indio_dev)
 		return ERR_PTR(-ENOMEM);
+	accel_st = iio_priv(indio_dev);
+
+	switch (st->chip) {
+	case INV_CHIP_ICM42686:
+		accel_st->scales = inv_icm42686_accel_scale;
+		accel_st->scales_len = ARRAY_SIZE(inv_icm42686_accel_scale);
+		break;
+	default:
+		accel_st->scales = inv_icm42600_accel_scale;
+		accel_st->scales_len = ARRAY_SIZE(inv_icm42600_accel_scale);
+		break;
+	}
 
 	/*
 	 * clock period is 32kHz (31250ns)
@@ -725,8 +762,7 @@ struct iio_dev *inv_icm42600_accel_init(struct inv_icm42600_state *st)
 	ts_chip.clock_period = 31250;
 	ts_chip.jitter = 20;
 	ts_chip.init_period = inv_icm42600_odr_to_period(st->conf.accel.odr);
-	ts = iio_priv(indio_dev);
-	inv_sensors_timestamp_init(ts, &ts_chip);
+	inv_sensors_timestamp_init(&accel_st->ts, &ts_chip);
 
 	iio_device_set_drvdata(indio_dev, st);
 	indio_dev->name = name;
@@ -751,7 +787,8 @@ struct iio_dev *inv_icm42600_accel_init(struct inv_icm42600_state *st)
 int inv_icm42600_accel_parse_fifo(struct iio_dev *indio_dev)
 {
 	struct inv_icm42600_state *st = iio_device_get_drvdata(indio_dev);
-	struct inv_sensors_timestamp *ts = iio_priv(indio_dev);
+	struct inv_icm42600_sensor_state *accel_st = iio_priv(indio_dev);
+	struct inv_sensors_timestamp *ts = &accel_st->ts;
 	ssize_t i, size;
 	unsigned int no;
 	const void *accel, *gyro, *timestamp;

@@ -127,7 +127,7 @@ static void panthor_free_heap_chunk(struct panthor_vm *vm,
 	heap->chunk_count--;
 	mutex_unlock(&heap->lock);
 
-	panthor_kernel_bo_destroy(vm, chunk->bo);
+	panthor_kernel_bo_destroy(chunk->bo);
 	kfree(chunk);
 }
 
@@ -183,7 +183,7 @@ static int panthor_alloc_heap_chunk(struct panthor_device *ptdev,
 	return 0;
 
 err_destroy_bo:
-	panthor_kernel_bo_destroy(vm, chunk->bo);
+	panthor_kernel_bo_destroy(chunk->bo);
 
 err_free_chunk:
 	kfree(chunk);
@@ -253,8 +253,8 @@ int panthor_heap_destroy(struct panthor_heap_pool *pool, u32 handle)
  * @pool: Pool to instantiate the heap context from.
  * @initial_chunk_count: Number of chunk allocated at initialization time.
  * Must be at least 1.
- * @chunk_size: The size of each chunk. Must be a power of two between 256k
- * and 2M.
+ * @chunk_size: The size of each chunk. Must be page-aligned and lie in the
+ * [128k:8M] range.
  * @max_chunks: Maximum number of chunks that can be allocated.
  * @target_in_flight: Maximum number of in-flight render passes.
  * @heap_ctx_gpu_va: Pointer holding the GPU address of the allocated heap
@@ -281,8 +281,11 @@ int panthor_heap_create(struct panthor_heap_pool *pool,
 	if (initial_chunk_count == 0)
 		return -EINVAL;
 
-	if (hweight32(chunk_size) != 1 ||
-	    chunk_size < SZ_256K || chunk_size > SZ_2M)
+	if (initial_chunk_count > max_chunks)
+		return -EINVAL;
+
+	if (!IS_ALIGNED(chunk_size, PAGE_SIZE) ||
+	    chunk_size < SZ_128K || chunk_size > SZ_8M)
 		return -EINVAL;
 
 	down_read(&pool->lock);
@@ -320,7 +323,8 @@ int panthor_heap_create(struct panthor_heap_pool *pool,
 	if (!pool->vm) {
 		ret = -EINVAL;
 	} else {
-		ret = xa_alloc(&pool->xa, &id, heap, XA_LIMIT(1, MAX_HEAPS_PER_POOL), GFP_KERNEL);
+		ret = xa_alloc(&pool->xa, &id, heap,
+			       XA_LIMIT(0, MAX_HEAPS_PER_POOL - 1), GFP_KERNEL);
 		if (!ret) {
 			void *gpu_ctx = panthor_get_heap_ctx(pool, id);
 
@@ -391,7 +395,7 @@ int panthor_heap_return_chunk(struct panthor_heap_pool *pool,
 	mutex_unlock(&heap->lock);
 
 	if (removed) {
-		panthor_kernel_bo_destroy(pool->vm, chunk->bo);
+		panthor_kernel_bo_destroy(chunk->bo);
 		kfree(chunk);
 		ret = 0;
 	} else {
@@ -410,6 +414,13 @@ out_unlock:
  * @renderpasses_in_flight: Number of render passes currently in-flight.
  * @pending_frag_count: Number of fragment jobs waiting for execution/completion.
  * @new_chunk_gpu_va: Pointer used to return the chunk VA.
+ *
+ * Return:
+ * - 0 if a new heap was allocated
+ * - -ENOMEM if the tiler context reached the maximum number of chunks
+ *   or if too many render passes are in-flight
+ *   or if the allocation failed
+ * - -EINVAL if any of the arguments passed to panthor_heap_grow() is invalid
  */
 int panthor_heap_grow(struct panthor_heap_pool *pool,
 		      u64 heap_gpu_va,
@@ -439,10 +450,7 @@ int panthor_heap_grow(struct panthor_heap_pool *pool,
 	 * handler provided by the userspace driver, if any).
 	 */
 	if (renderpasses_in_flight > heap->target_in_flight ||
-	    (pending_frag_count > 0 && heap->chunk_count >= heap->max_chunks)) {
-		ret = -EBUSY;
-		goto out_unlock;
-	} else if (heap->chunk_count >= heap->max_chunks) {
+	    heap->chunk_count >= heap->max_chunks) {
 		ret = -ENOMEM;
 		goto out_unlock;
 	}
@@ -536,7 +544,7 @@ panthor_heap_pool_create(struct panthor_device *ptdev, struct panthor_vm *vm)
 	pool->vm = vm;
 	pool->ptdev = ptdev;
 	init_rwsem(&pool->lock);
-	xa_init_flags(&pool->xa, XA_FLAGS_ALLOC1);
+	xa_init_flags(&pool->xa, XA_FLAGS_ALLOC);
 	kref_init(&pool->refcount);
 
 	pool->gpu_contexts = panthor_kernel_bo_create(ptdev, vm, bosize,
@@ -587,7 +595,7 @@ void panthor_heap_pool_destroy(struct panthor_heap_pool *pool)
 		drm_WARN_ON(&pool->ptdev->base, panthor_heap_destroy_locked(pool, i));
 
 	if (!IS_ERR_OR_NULL(pool->gpu_contexts))
-		panthor_kernel_bo_destroy(pool->vm, pool->gpu_contexts);
+		panthor_kernel_bo_destroy(pool->gpu_contexts);
 
 	/* Reflects the fact the pool has been destroyed. */
 	pool->vm = NULL;

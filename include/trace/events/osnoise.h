@@ -75,7 +75,7 @@ TRACE_EVENT(irq_noise,
 	),
 
 	TP_fast_assign(
-		__assign_str(desc, desc);
+		__assign_str(desc);
 		__entry->vector = vector;
 		__entry->start = start;
 		__entry->duration = duration;

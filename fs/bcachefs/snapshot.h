@@ -176,12 +176,9 @@ static inline bool bch2_snapshot_is_ancestor(struct bch_fs *c, u32 id, u32 ances
 
 static inline bool bch2_snapshot_has_children(struct bch_fs *c, u32 id)
 {
-	const struct snapshot_t *t;
-	bool ret;
-
 	rcu_read_lock();
-	t = snapshot_t(c, id);
-	ret = (t->children[0]|t->children[1]) != 0;
+	const struct snapshot_t *t = snapshot_t(c, id);
+	bool ret = t && (t->children[0]|t->children[1]) != 0;
 	rcu_read_unlock();
 
 	return ret;
@@ -245,6 +242,7 @@ int bch2_snapshot_node_create(struct btree_trans *, u32,
 int bch2_check_snapshot_trees(struct bch_fs *);
 int bch2_check_snapshots(struct bch_fs *);
 int bch2_reconstruct_snapshots(struct bch_fs *);
+int bch2_check_key_has_snapshot(struct btree_trans *, struct btree_iter *, struct bkey_s_c);
 
 int bch2_snapshot_node_set_deleted(struct btree_trans *, u32);
 void bch2_delete_dead_snapshots_work(struct work_struct *);

@@ -457,6 +457,7 @@ enum bch_time_stats {
 };
 
 #include "alloc_types.h"
+#include "btree_gc_types.h"
 #include "btree_types.h"
 #include "btree_node_scan_types.h"
 #include "btree_write_buffer_types.h"
@@ -487,49 +488,6 @@ enum bch_time_stats {
 #define BTREE_NODE_OPEN_BUCKET_RESERVE	(BTREE_RESERVE_MAX * BCH_REPLICAS_MAX)
 
 struct btree;
-
-enum gc_phase {
-	GC_PHASE_NOT_RUNNING,
-	GC_PHASE_START,
-	GC_PHASE_SB,
-
-	GC_PHASE_BTREE_stripes,
-	GC_PHASE_BTREE_extents,
-	GC_PHASE_BTREE_inodes,
-	GC_PHASE_BTREE_dirents,
-	GC_PHASE_BTREE_xattrs,
-	GC_PHASE_BTREE_alloc,
-	GC_PHASE_BTREE_quotas,
-	GC_PHASE_BTREE_reflink,
-	GC_PHASE_BTREE_subvolumes,
-	GC_PHASE_BTREE_snapshots,
-	GC_PHASE_BTREE_lru,
-	GC_PHASE_BTREE_freespace,
-	GC_PHASE_BTREE_need_discard,
-	GC_PHASE_BTREE_backpointers,
-	GC_PHASE_BTREE_bucket_gens,
-	GC_PHASE_BTREE_snapshot_trees,
-	GC_PHASE_BTREE_deleted_inodes,
-	GC_PHASE_BTREE_logged_ops,
-	GC_PHASE_BTREE_rebalance_work,
-	GC_PHASE_BTREE_subvolume_children,
-
-	GC_PHASE_PENDING_DELETE,
-};
-
-struct gc_pos {
-	enum gc_phase		phase;
-	u16			level;
-	struct bpos		pos;
-};
-
-struct reflink_gc {
-	u64		offset;
-	u32		size;
-	u32		refcount;
-};
-
-typedef GENRADIX(struct reflink_gc) reflink_gc_table;
 
 struct io_count {
 	u64			sectors[2][BCH_DATA_NR];

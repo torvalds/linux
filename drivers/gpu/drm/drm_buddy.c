@@ -239,7 +239,7 @@ int drm_buddy_init(struct drm_buddy *mm, u64 size, u64 chunk_size)
 	if (size < chunk_size)
 		return -EINVAL;
 
-	if (chunk_size < PAGE_SIZE)
+	if (chunk_size < SZ_4K)
 		return -EINVAL;
 
 	if (!is_power_of_2(chunk_size))
@@ -524,11 +524,11 @@ __alloc_range_bias(struct drm_buddy *mm,
 				continue;
 		}
 
+		if (!fallback && block_incompatible(block, flags))
+			continue;
+
 		if (contains(start, end, block_start, block_end) &&
 		    order == drm_buddy_block_order(block)) {
-			if (!fallback && block_incompatible(block, flags))
-				continue;
-
 			/*
 			 * Find the free block within the range.
 			 */

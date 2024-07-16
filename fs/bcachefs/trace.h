@@ -43,7 +43,7 @@ DECLARE_EVENT_CLASS(fs_str,
 
 	TP_fast_assign(
 		__entry->dev		= c->dev;
-		__assign_str(str, str);
+		__assign_str(str);
 	),
 
 	TP_printk("%d,%d\n%s", MAJOR(__entry->dev), MINOR(__entry->dev), __get_str(str))
@@ -64,7 +64,7 @@ DECLARE_EVENT_CLASS(trans_str,
 		__entry->dev		= trans->c->dev;
 		strscpy(__entry->trans_fn, trans->fn, sizeof(__entry->trans_fn));
 		__entry->caller_ip		= caller_ip;
-		__assign_str(str, str);
+		__assign_str(str);
 	),
 
 	TP_printk("%d,%d %s %pS %s",
@@ -85,7 +85,7 @@ DECLARE_EVENT_CLASS(trans_str_nocaller,
 	TP_fast_assign(
 		__entry->dev		= trans->c->dev;
 		strscpy(__entry->trans_fn, trans->fn, sizeof(__entry->trans_fn));
-		__assign_str(str, str);
+		__assign_str(str);
 	),
 
 	TP_printk("%d,%d %s %s",

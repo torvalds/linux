@@ -422,7 +422,7 @@ static const struct regmap_config axp717_regmap_config = {
 	.wr_table = &axp717_writeable_table,
 	.volatile_table = &axp717_volatile_table,
 	.max_register = AXP717_CPUSLDO_CONTROL,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static const struct regmap_config axp806_regmap_config = {

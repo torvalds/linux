@@ -32,7 +32,7 @@ TRACE_EVENT(qi_submit,
 	),
 
 	TP_fast_assign(
-		__assign_str(iommu, iommu->name);
+		__assign_str(iommu);
 		__entry->qw0 = qw0;
 		__entry->qw1 = qw1;
 		__entry->qw2 = qw2;
@@ -79,8 +79,8 @@ TRACE_EVENT(prq_report,
 		__entry->dw2 = dw2;
 		__entry->dw3 = dw3;
 		__entry->seq = seq;
-		__assign_str(iommu, iommu->name);
-		__assign_str(dev, dev_name(dev));
+		__assign_str(iommu);
+		__assign_str(dev);
 	),
 
 	TP_printk("%s/%s seq# %ld: %s",
@@ -102,8 +102,8 @@ DECLARE_EVENT_CLASS(cache_tag_log,
 		__field(u32, users)
 	),
 	TP_fast_assign(
-		__assign_str(iommu, tag->iommu->name);
-		__assign_str(dev, dev_name(tag->dev));
+		__assign_str(iommu);
+		__assign_str(dev);
 		__entry->type = tag->type;
 		__entry->domain_id = tag->domain_id;
 		__entry->pasid = tag->pasid;
@@ -152,8 +152,8 @@ DECLARE_EVENT_CLASS(cache_tag_flush,
 		__field(unsigned long, mask)
 	),
 	TP_fast_assign(
-		__assign_str(iommu, tag->iommu->name);
-		__assign_str(dev, dev_name(tag->dev));
+		__assign_str(iommu);
+		__assign_str(dev);
 		__entry->type = tag->type;
 		__entry->domain_id = tag->domain_id;
 		__entry->pasid = tag->pasid;

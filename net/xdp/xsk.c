@@ -313,13 +313,10 @@ static bool xsk_is_bound(struct xdp_sock *xs)
 
 static int xsk_rcv_check(struct xdp_sock *xs, struct xdp_buff *xdp, u32 len)
 {
-	struct net_device *dev = xdp->rxq->dev;
-	u32 qid = xdp->rxq->queue_index;
-
 	if (!xsk_is_bound(xs))
 		return -ENXIO;
 
-	if (!dev->_rx[qid].pool || xs->umem != dev->_rx[qid].pool->umem)
+	if (xs->dev != xdp->rxq->dev || xs->queue_id != xdp->rxq->queue_index)
 		return -EINVAL;
 
 	if (len > xsk_pool_get_rx_frame_size(xs->pool) && !xs->sg) {

@@ -838,7 +838,7 @@ __bch2_btree_iter_peek_and_restart(struct btree_trans *trans,
 #define drop_locks_do(_trans, _do)					\
 ({									\
 	bch2_trans_unlock(_trans);					\
-	_do ?: bch2_trans_relock(_trans);				\
+	(_do) ?: bch2_trans_relock(_trans);				\
 })
 
 #define allocate_dropping_locks_errcode(_trans, _do)			\

@@ -405,11 +405,9 @@ static int ipmi_probe(struct platform_device *pdev)
 	return platform_ipmi_probe(pdev);
 }
 
-static int ipmi_remove(struct platform_device *pdev)
+static void ipmi_remove(struct platform_device *pdev)
 {
 	ipmi_si_remove_by_dev(&pdev->dev);
-
-	return 0;
 }
 
 static int pdev_match_name(struct device *dev, const void *data)
@@ -447,7 +445,7 @@ struct platform_driver ipmi_platform_driver = {
 		.acpi_match_table = ACPI_PTR(acpi_ipmi_match),
 	},
 	.probe		= ipmi_probe,
-	.remove		= ipmi_remove,
+	.remove_new	= ipmi_remove,
 	.id_table       = si_plat_ids
 };
 

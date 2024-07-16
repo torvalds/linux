@@ -14,6 +14,9 @@
 	COMMENT(#val " / sizeof(unsigned long)");	\
 	DEFINE(sym, val / sizeof(unsigned long))
 
+/* workaround for a warning with -Wmissing-prototypes */
+void foo(void);
+
 void foo(void)
 {
 #ifdef __i386__

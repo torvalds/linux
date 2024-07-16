@@ -253,9 +253,9 @@ static int read_object_code(u64 addr, size_t len, u8 cpumode,
 		goto out;
 	}
 	dso = map__dso(al.map);
-	pr_debug("File is: %s\n", dso->long_name);
+	pr_debug("File is: %s\n", dso__long_name(dso));
 
-	if (dso->symtab_type == DSO_BINARY_TYPE__KALLSYMS && !dso__is_kcore(dso)) {
+	if (dso__symtab_type(dso) == DSO_BINARY_TYPE__KALLSYMS && !dso__is_kcore(dso)) {
 		pr_debug("Unexpected kernel address - skipping\n");
 		goto out;
 	}
@@ -274,7 +274,7 @@ static int read_object_code(u64 addr, size_t len, u8 cpumode,
 	 * modules to manage long jumps. Check if the ip offset falls in stubs
 	 * sections for kernel modules. And skip module address after text end
 	 */
-	if (dso->is_kmod && al.addr > dso->text_end) {
+	if (dso__is_kmod(dso) && al.addr > dso__text_end(dso)) {
 		pr_debug("skipping the module address %#"PRIx64" after text end\n", al.addr);
 		goto out;
 	}
@@ -315,7 +315,7 @@ static int read_object_code(u64 addr, size_t len, u8 cpumode,
 		state->done[state->done_cnt++] = map__start(al.map);
 	}
 
-	objdump_name = dso->long_name;
+	objdump_name = dso__long_name(dso);
 	if (dso__needs_decompress(dso)) {
 		if (dso__decompress_kmodule_path(dso, objdump_name,
 						 decomp_name,
@@ -637,11 +637,11 @@ static int do_test_code_reading(bool try_kcore)
 
 		evlist__config(evlist, &opts, NULL);
 
-		evsel = evlist__first(evlist);
-
-		evsel->core.attr.comm = 1;
-		evsel->core.attr.disabled = 1;
-		evsel->core.attr.enable_on_exec = 0;
+		evlist__for_each_entry(evlist, evsel) {
+			evsel->core.attr.comm = 1;
+			evsel->core.attr.disabled = 1;
+			evsel->core.attr.enable_on_exec = 0;
+		}
 
 		ret = evlist__open(evlist);
 		if (ret < 0) {

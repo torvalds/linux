@@ -5,15 +5,15 @@
  * Copyright (C) 2007 Ville Syrjala <syrjala@sci.fi>
  */
 
-#include <linux/init.h>
+#include <linux/delay.h>
+#include <linux/device.h>
+#include <linux/err.h>
+#include <linux/gpio/consumer.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/slab.h>
-#include <linux/gpio/consumer.h>
-#include <linux/of_platform.h>
-#include <linux/err.h>
-#include <linux/of.h>
-#include <linux/delay.h>
+#include <linux/property.h>
+#include <linux/types.h>
 
 #include <linux/w1.h>
 
@@ -63,20 +63,11 @@ static u8 w1_gpio_read_bit(void *data)
 	return gpiod_get_value(ddata->gpiod) ? 1 : 0;
 }
 
-#if defined(CONFIG_OF)
-static const struct of_device_id w1_gpio_dt_ids[] = {
-	{ .compatible = "w1-gpio" },
-	{}
-};
-MODULE_DEVICE_TABLE(of, w1_gpio_dt_ids);
-#endif
-
 static int w1_gpio_probe(struct platform_device *pdev)
 {
 	struct w1_bus_master *master;
 	struct w1_gpio_ddata *ddata;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
 	/* Enforce open drain mode by default */
 	enum gpiod_flags gflags = GPIOD_OUT_LOW_OPEN_DRAIN;
 	int err;
@@ -91,27 +82,22 @@ static int w1_gpio_probe(struct platform_device *pdev)
 	 * driver it high/low like we are in full control of the line and
 	 * open drain will happen transparently.
 	 */
-	if (of_property_present(np, "linux,open-drain"))
+	if (device_property_present(dev, "linux,open-drain"))
 		gflags = GPIOD_OUT_LOW;
 
-	master = devm_kzalloc(dev, sizeof(struct w1_bus_master),
-			GFP_KERNEL);
+	master = devm_kzalloc(dev, sizeof(*master), GFP_KERNEL);
 	if (!master)
 		return -ENOMEM;
 
 	ddata->gpiod = devm_gpiod_get_index(dev, NULL, 0, gflags);
-	if (IS_ERR(ddata->gpiod)) {
-		dev_err(dev, "gpio_request (pin) failed\n");
-		return PTR_ERR(ddata->gpiod);
-	}
+	if (IS_ERR(ddata->gpiod))
+		return dev_err_probe(dev, PTR_ERR(ddata->gpiod), "gpio_request (pin) failed\n");
 
 	ddata->pullup_gpiod =
 		devm_gpiod_get_index_optional(dev, NULL, 1, GPIOD_OUT_LOW);
-	if (IS_ERR(ddata->pullup_gpiod)) {
-		dev_err(dev, "gpio_request_one "
-			"(ext_pullup_enable_pin) failed\n");
-		return PTR_ERR(ddata->pullup_gpiod);
-	}
+	if (IS_ERR(ddata->pullup_gpiod))
+		return dev_err_probe(dev, PTR_ERR(ddata->pullup_gpiod),
+				     "gpio_request (ext_pullup_enable_pin) failed\n");
 
 	master->data = ddata;
 	master->read_bit = w1_gpio_read_bit;
@@ -128,13 +114,10 @@ static int w1_gpio_probe(struct platform_device *pdev)
 		master->set_pullup = w1_gpio_set_pullup;
 
 	err = w1_add_master_device(master);
-	if (err) {
-		dev_err(dev, "w1_add_master device failed\n");
-		return err;
-	}
+	if (err)
+		return dev_err_probe(dev, err, "w1_add_master device failed\n");
 
-	if (ddata->pullup_gpiod)
-		gpiod_set_value(ddata->pullup_gpiod, 1);
+	gpiod_set_value(ddata->pullup_gpiod, 1);
 
 	platform_set_drvdata(pdev, master);
 
@@ -146,16 +129,21 @@ static void w1_gpio_remove(struct platform_device *pdev)
 	struct w1_bus_master *master = platform_get_drvdata(pdev);
 	struct w1_gpio_ddata *ddata = master->data;
 
-	if (ddata->pullup_gpiod)
-		gpiod_set_value(ddata->pullup_gpiod, 0);
+	gpiod_set_value(ddata->pullup_gpiod, 0);
 
 	w1_remove_master_device(master);
 }
 
+static const struct of_device_id w1_gpio_dt_ids[] = {
+	{ .compatible = "w1-gpio" },
+	{}
+};
+MODULE_DEVICE_TABLE(of, w1_gpio_dt_ids);
+
 static struct platform_driver w1_gpio_driver = {
 	.driver = {
 		.name	= "w1-gpio",
-		.of_match_table = of_match_ptr(w1_gpio_dt_ids),
+		.of_match_table = w1_gpio_dt_ids,
 	},
 	.probe = w1_gpio_probe,
 	.remove_new = w1_gpio_remove,

@@ -18,26 +18,34 @@
 
 char *parse_events_get_text(yyscan_t yyscanner);
 YYSTYPE *parse_events_get_lval(yyscan_t yyscanner);
+int parse_events_get_column(yyscan_t yyscanner);
+int parse_events_get_leng(yyscan_t yyscanner);
 
-static int __value(YYSTYPE *yylval, char *str, int base, int token)
+static int get_column(yyscan_t scanner)
 {
-	u64 num;
-
-	errno = 0;
-	num = strtoull(str, NULL, base);
-	if (errno)
-		return PE_ERROR;
-
-	yylval->num = num;
-	return token;
+	return parse_events_get_column(scanner) - parse_events_get_leng(scanner);
 }
 
-static int value(yyscan_t scanner, int base)
+static int value(struct parse_events_state *parse_state, yyscan_t scanner, int base)
 {
 	YYSTYPE *yylval = parse_events_get_lval(scanner);
 	char *text = parse_events_get_text(scanner);
+	u64 num;
 
-	return __value(yylval, text, base, PE_VALUE);
+	errno = 0;
+	num = strtoull(text, NULL, base);
+	if (errno) {
+		struct parse_events_error *error = parse_state->error;
+		char *help = NULL;
+
+		if (asprintf(&help, "Bad base %d number \"%s\"", base, text) > 0)
+			parse_events_error__handle(error, get_column(scanner), help , NULL);
+
+		return PE_ERROR;
+	}
+
+	yylval->num = num;
+	return PE_VALUE;
 }
 
 static int str(yyscan_t scanner, int token)
@@ -88,6 +96,11 @@ static int drv_str(yyscan_t scanner, int token)
 	return token;
 }
 
+/*
+ * Use yyless to return all the characaters to the input. Update the column for
+ * location debugging. If __alloc is non-zero set yylval to the text for the
+ * returned token's value.
+ */
 #define REWIND(__alloc)				\
 do {								\
 	YYSTYPE *__yylval = parse_events_get_lval(yyscanner);	\
@@ -134,6 +147,77 @@ static int hw_term(yyscan_t scanner, int config)
 	return PE_TERM_HW;
 }
 
+static void modifiers_error(struct parse_events_state *parse_state, yyscan_t scanner,
+			    int pos, char mod_char, const char *mod_name)
+{
+	struct parse_events_error *error = parse_state->error;
+	char *help = NULL;
+
+	if (asprintf(&help, "Duplicate modifier '%c' (%s)", mod_char, mod_name) > 0)
+		parse_events_error__handle(error, get_column(scanner) + pos, help , NULL);
+}
+
+static int modifiers(struct parse_events_state *parse_state, yyscan_t scanner)
+{
+	YYSTYPE *yylval = parse_events_get_lval(scanner);
+	char *text = parse_events_get_text(scanner);
+	struct parse_events_modifier mod = { .precise = 0, };
+
+	for (size_t i = 0, n = strlen(text); i < n; i++) {
+#define CASE(c, field)							\
+		case c:							\
+			if (mod.field) {				\
+				modifiers_error(parse_state, scanner, i, c, #field); \
+				return PE_ERROR;			\
+			}						\
+			mod.field = true;				\
+			break
+
+		switch (text[i]) {
+		CASE('u', user);
+		CASE('k', kernel);
+		CASE('h', hypervisor);
+		CASE('I', non_idle);
+		CASE('G', guest);
+		CASE('H', host);
+		case 'p':
+			mod.precise++;
+			/*
+			 * precise ip:
+			 *
+			 *  0 - SAMPLE_IP can have arbitrary skid
+			 *  1 - SAMPLE_IP must have constant skid
+			 *  2 - SAMPLE_IP requested to have 0 skid
+			 *  3 - SAMPLE_IP must have 0 skid
+			 *
+			 *  See also PERF_RECORD_MISC_EXACT_IP
+			 */
+			if (mod.precise > 3) {
+				struct parse_events_error *error = parse_state->error;
+				char *help = strdup("Maximum precise value is 3");
+
+				if (help) {
+					parse_events_error__handle(error, get_column(scanner) + i,
+								   help , NULL);
+				}
+				return PE_ERROR;
+			}
+			break;
+		CASE('P', precise_max);
+		CASE('S', sample_read);
+		CASE('D', pinned);
+		CASE('W', weak);
+		CASE('e', exclusive);
+		CASE('b', bpf);
+		default:
+			return PE_ERROR;
+		}
+#undef CASE
+	}
+	yylval->mod = mod;
+	return PE_MODIFIER_EVENT;
+}
+
 #define YY_USER_ACTION					\
 do {							\
 	yylloc->last_column  = yylloc->first_column;	\
@@ -158,15 +242,15 @@ event		[^,{}/]+
 num_dec		[0-9]+
 num_hex		0x[a-fA-F0-9]{1,16}
 num_raw_hex	[a-fA-F0-9]{1,16}
-name		[a-zA-Z_*?\[\]][a-zA-Z0-9_*?.\[\]!\-]*
-name_tag	[\'][a-zA-Z_*?\[\]][a-zA-Z0-9_*?\-,\.\[\]:=]*[\']
+name		[a-zA-Z0-9_*?\[\]][a-zA-Z0-9_*?.\[\]!\-]*
+name_tag	[\'][a-zA-Z0-9_*?\[\]][a-zA-Z0-9_*?\-,\.\[\]:=]*[\']
 name_minus	[a-zA-Z_*?][a-zA-Z0-9\-_*?.:]*
 drv_cfg_term	[a-zA-Z0-9_\.]+(=[a-zA-Z0-9_*?\.:]+)?
 /*
  * If you add a modifier you need to update check_modifier().
  * Also, the letters in modifier_event must not be in modifier_bp.
  */
-modifier_event	[ukhpPGHSDIWeb]+
+modifier_event	[ukhpPGHSDIWeb]{1,15}
 modifier_bp	[rwx]{1,3}
 lc_type 	(L1-dcache|l1-d|l1d|L1-data|L1-icache|l1-i|l1i|L1-instruction|LLC|L2|dTLB|d-tlb|Data-TLB|iTLB|i-tlb|Instruction-TLB|branch|branches|bpu|btb|bpc|node)
 lc_op_result	(load|loads|read|store|stores|write|prefetch|prefetches|speculative-read|speculative-load|refs|Reference|ops|access|misses|miss)
@@ -283,8 +367,8 @@ r0x{num_raw_hex}	{ return str(yyscanner, PE_RAW); }
 	 */
 "/"/{digit}		{ return PE_BP_SLASH; }
 "/"/{non_digit}		{ BEGIN(config); return '/'; }
-{num_dec}		{ return value(yyscanner, 10); }
-{num_hex}		{ return value(yyscanner, 16); }
+{num_dec}		{ return value(_parse_state, yyscanner, 10); }
+{num_hex}		{ return value(_parse_state, yyscanner, 16); }
 	/*
 	 * We need to separate 'mem:' scanner part, in order to get specific
 	 * modifier bits parsed out. Otherwise we would need to handle PE_NAME
@@ -330,10 +414,10 @@ cgroup-switches					{ return sym(yyscanner, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_CG
 {lc_type}-{lc_op_result}-{lc_op_result}	{ return str(yyscanner, PE_LEGACY_CACHE); }
 mem:			{ BEGIN(mem); return PE_PREFIX_MEM; }
 r{num_raw_hex}		{ return str(yyscanner, PE_RAW); }
-{num_dec}		{ return value(yyscanner, 10); }
-{num_hex}		{ return value(yyscanner, 16); }
+{num_dec}		{ return value(_parse_state, yyscanner, 10); }
+{num_hex}		{ return value(_parse_state, yyscanner, 16); }
 
-{modifier_event}	{ return str(yyscanner, PE_MODIFIER_EVENT); }
+{modifier_event}	{ return modifiers(_parse_state, yyscanner); }
 {name}			{ return str(yyscanner, PE_NAME); }
 {name_tag}		{ return str(yyscanner, PE_NAME); }
 "/"			{ BEGIN(config); return '/'; }
