@@ -7,18 +7,8 @@
 #include <asm/facility.h>
 #include <asm/nospec-branch.h>
 
-static int __initdata_or_module alt_instr_disabled;
-
-static int __init disable_alternative_instructions(char *str)
-{
-	alt_instr_disabled = 1;
-	return 0;
-}
-
-early_param("noaltinstr", disable_alternative_instructions);
-
-static void __init_or_module __apply_alternatives(struct alt_instr *start,
-						  struct alt_instr *end)
+void __init_or_module apply_alternatives(struct alt_instr *start,
+					 struct alt_instr *end)
 {
 	struct alt_instr *a;
 	u8 *instr, *replacement;
@@ -35,13 +25,6 @@ static void __init_or_module __apply_alternatives(struct alt_instr *start,
 			continue;
 		s390_kernel_write(instr, replacement, a->instrlen);
 	}
-}
-
-void __init_or_module apply_alternatives(struct alt_instr *start,
-					 struct alt_instr *end)
-{
-	if (!alt_instr_disabled)
-		__apply_alternatives(start, end);
 }
 
 extern struct alt_instr __alt_instructions[], __alt_instructions_end[];
