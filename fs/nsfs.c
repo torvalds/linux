@@ -174,14 +174,14 @@ static long ns_ioctl(struct file *filp, unsigned int ioctl,
 		fallthrough;
 	case NS_GET_PID_IN_PIDNS:
 		fallthrough;
-	case NS_GET_TGID_IN_PIDNS:
+	case NS_GET_TGID_IN_PIDNS: {
 		if (ns->ops->type != CLONE_NEWPID)
 			return -EINVAL;
 
 		ret = -ESRCH;
 		pid_ns = container_of(ns, struct pid_namespace, ns);
 
-		rcu_read_lock();
+		guard(rcu)();
 
 		if (ioctl == NS_GET_PID_IN_PIDNS ||
 		    ioctl == NS_GET_TGID_IN_PIDNS)
@@ -208,11 +208,11 @@ static long ns_ioctl(struct file *filp, unsigned int ioctl,
 			ret = 0;
 			break;
 		}
-		rcu_read_unlock();
 
 		if (!ret)
 			ret = -ESRCH;
 		break;
+	}
 	default:
 		ret = -ENOTTY;
 	}
