@@ -166,6 +166,13 @@ aborting or finishing any DMA in progress, an implicit
         :ref:`V4L2_BUF_FLAG_NO_CACHE_INVALIDATE <V4L2-BUF-FLAG-NO-CACHE-INVALIDATE>`,
         :ref:`V4L2_BUF_FLAG_NO_CACHE_CLEAN <V4L2-BUF-FLAG-NO-CACHE-CLEAN>` and
         :ref:`V4L2_MEMORY_FLAG_NON_COHERENT <V4L2-MEMORY-FLAG-NON-COHERENT>`.
+    * - ``V4L2_BUF_CAP_SUPPORTS_MAX_NUM_BUFFERS``
+      - 0x00000080
+      - If set, then the ``max_num_buffers`` field in ``struct v4l2_create_buffers``
+        is valid. If not set, then the maximum is ``VIDEO_MAX_FRAME`` buffers.
+    * - ``V4L2_BUF_CAP_SUPPORTS_REMOVE_BUFS``
+      - 0x00000100
+      - If set, then ``VIDIOC_REMOVE_BUFS`` is supported.
 
 .. raw:: latex
 
