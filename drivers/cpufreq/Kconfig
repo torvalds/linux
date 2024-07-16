@@ -262,6 +262,18 @@ config LOONGSON2_CPUFREQ
 	  If in doubt, say N.
 endif
 
+if LOONGARCH
+config LOONGSON3_CPUFREQ
+	tristate "Loongson3 CPUFreq Driver"
+	help
+	  This option adds a CPUFreq driver for Loongson processors which
+	  support software configurable cpu frequency.
+
+	  Loongson-3 family processors support this feature.
+
+	  If in doubt, say N.
+endif
+
 if SPARC64
 config SPARC_US3_CPUFREQ
 	tristate "UltraSPARC-III CPU Frequency driver"

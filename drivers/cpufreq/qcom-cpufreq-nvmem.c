@@ -456,7 +456,6 @@ static int qcom_cpufreq_probe(struct platform_device *pdev)
 {
 	struct qcom_cpufreq_drv *drv;
 	struct nvmem_cell *speedbin_nvmem;
-	struct device_node *np;
 	struct device *cpu_dev;
 	char pvs_name_buffer[] = "speedXX-pvsXX-vXX";
 	char *pvs_name = pvs_name_buffer;
@@ -468,16 +467,15 @@ static int qcom_cpufreq_probe(struct platform_device *pdev)
 	if (!cpu_dev)
 		return -ENODEV;
 
-	np = dev_pm_opp_of_get_opp_desc_node(cpu_dev);
+	struct device_node *np __free(device_node) =
+		dev_pm_opp_of_get_opp_desc_node(cpu_dev);
 	if (!np)
 		return -ENOENT;
 
 	ret = of_device_is_compatible(np, "operating-points-v2-kryo-cpu") ||
 	      of_device_is_compatible(np, "operating-points-v2-krait-cpu");
-	if (!ret) {
-		of_node_put(np);
+	if (!ret)
 		return -ENOENT;
-	}
 
 	drv = devm_kzalloc(&pdev->dev, struct_size(drv, cpus, num_possible_cpus()),
 		           GFP_KERNEL);
@@ -503,7 +501,6 @@ static int qcom_cpufreq_probe(struct platform_device *pdev)
 		}
 		nvmem_cell_put(speedbin_nvmem);
 	}
-	of_node_put(np);
 
 	for_each_possible_cpu(cpu) {
 		struct device **virt_devs = NULL;
@@ -639,7 +636,7 @@ MODULE_DEVICE_TABLE(of, qcom_cpufreq_match_list);
  */
 static int __init qcom_cpufreq_init(void)
 {
-	struct device_node *np = of_find_node_by_path("/");
+	struct device_node *np __free(device_node) = of_find_node_by_path("/");
 	const struct of_device_id *match;
 	int ret;
 
@@ -647,7 +644,6 @@ static int __init qcom_cpufreq_init(void)
 		return -ENODEV;
 
 	match = of_match_node(qcom_cpufreq_match_list, np);
-	of_node_put(np);
 	if (!match)
 		return -ENODEV;
 
