@@ -481,7 +481,13 @@ static int hab_receive_export_desc(struct physical_channel *pchan,
 			pchan->vmid_remote, exp_desc->domid_local);
 	exp_desc->domid_remote = pchan->vmid_remote;
 	exp_desc->domid_local = pchan->vmid_local;
+	/*
+	 * re-init pchan, vchan to local pointers for local usage.
+	 * exp->ctx is left un-initialized due to no local usage.
+	 */
 	exp_desc->pchan = pchan;
+	exp_desc->vchan = vchan;
+
 	if (pchan->mem_proto == 1) {
 		exp_desc->vcid_remote = exp_desc->vcid_local;
 		exp_desc->vcid_local = vchan->id;
