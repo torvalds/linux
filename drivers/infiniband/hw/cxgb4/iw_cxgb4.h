@@ -532,11 +532,21 @@ static inline struct c4iw_ucontext *to_c4iw_ucontext(struct ib_ucontext *c)
 	return container_of(c, struct c4iw_ucontext, ibucontext);
 }
 
+enum {
+	CXGB4_MMAP_BAR,
+	CXGB4_MMAP_BAR_WC,
+	CXGB4_MMAP_CONTIG,
+	CXGB4_MMAP_NON_CONTIG,
+};
+
 struct c4iw_mm_entry {
 	struct list_head entry;
 	u64 addr;
 	u32 key;
+	void *vaddr;
+	dma_addr_t dma_addr;
 	unsigned len;
+	u8 mmap_flag;
 };
 
 static inline struct c4iw_mm_entry *remove_mmap(struct c4iw_ucontext *ucontext,
@@ -559,6 +569,32 @@ static inline struct c4iw_mm_entry *remove_mmap(struct c4iw_ucontext *ucontext,
 	}
 	spin_unlock(&ucontext->mmap_lock);
 	return NULL;
+}
+
+static inline void insert_flag_to_mmap(struct c4iw_rdev *rdev,
+				       struct c4iw_mm_entry *mm, u64 addr)
+{
+	if (addr >= pci_resource_start(rdev->lldi.pdev, 0) &&
+	    (addr < (pci_resource_start(rdev->lldi.pdev, 0) +
+		    pci_resource_len(rdev->lldi.pdev, 0))))
+		mm->mmap_flag = CXGB4_MMAP_BAR;
+	else if (addr >= pci_resource_start(rdev->lldi.pdev, 2) &&
+		 (addr < (pci_resource_start(rdev->lldi.pdev, 2) +
+			 pci_resource_len(rdev->lldi.pdev, 2)))) {
+		if (addr >= rdev->oc_mw_pa) {
+			mm->mmap_flag = CXGB4_MMAP_BAR_WC;
+		} else {
+			if (is_t4(rdev->lldi.adapter_type))
+				mm->mmap_flag = CXGB4_MMAP_BAR;
+			else
+				mm->mmap_flag = CXGB4_MMAP_BAR_WC;
+		}
+	} else {
+		if (addr)
+			mm->mmap_flag = CXGB4_MMAP_CONTIG;
+		else
+			mm->mmap_flag = CXGB4_MMAP_NON_CONTIG;
+	}
 }
 
 static inline void insert_mmap(struct c4iw_ucontext *ucontext,
