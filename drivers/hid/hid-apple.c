@@ -1091,4 +1091,5 @@ static struct hid_driver apple_driver = {
 };
 module_hid_driver(apple_driver);
 
+MODULE_DESCRIPTION("Apple USB HID quirks support for Linux");
 MODULE_LICENSE("GPL");

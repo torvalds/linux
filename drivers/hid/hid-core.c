@@ -3024,4 +3024,5 @@ module_exit(hid_exit);
 MODULE_AUTHOR("Andreas Gal");
 MODULE_AUTHOR("Vojtech Pavlik");
 MODULE_AUTHOR("Jiri Kosina");
+MODULE_DESCRIPTION("HID support for Linux");
 MODULE_LICENSE("GPL");

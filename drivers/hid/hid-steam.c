@@ -45,6 +45,7 @@
 #include <linux/power_supply.h>
 #include "hid-ids.h"
 
+MODULE_DESCRIPTION("HID driver for Valve Steam Controller");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Rodrigo Rivas Costa <rodrigorivascosta@gmail.com>");
 
