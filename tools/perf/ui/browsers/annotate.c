@@ -985,7 +985,7 @@ int symbol__tui_annotate(struct map_symbol *ms, struct evsel *evsel,
 
 	browser.b.width = notes->src->widths.max_line_len;
 	browser.b.nr_entries = notes->src->nr_entries;
-	browser.b.entries = &notes->src->source,
+	browser.b.entries = &notes->src->source;
 	browser.b.width += 18; /* Percentage */
 
 	if (annotate_opts.hide_src_code)
