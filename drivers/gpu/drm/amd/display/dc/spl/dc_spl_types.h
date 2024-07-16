@@ -10,22 +10,6 @@
 #ifndef __DC_SPL_TYPES_H__
 #define __DC_SPL_TYPES_H__
 
-enum lb_memory_config {
-	/* Enable all 3 pieces of memory */
-	LB_MEMORY_CONFIG_0 = 0,
-
-	/* Enable only the first piece of memory */
-	LB_MEMORY_CONFIG_1 = 1,
-
-	/* Enable only the second piece of memory */
-	LB_MEMORY_CONFIG_2 = 2,
-
-	/* Only applicable in 4:2:0 mode, enable all 3 pieces of memory and the
-	 * last piece of chroma memory used for the luma storage
-	 */
-	LB_MEMORY_CONFIG_3 = 3
-};
-
 struct spl_size {
 	uint32_t width;
 	uint32_t height;
@@ -85,6 +69,22 @@ enum spl_pixel_format {
 	SPL_PIXEL_FORMAT_VIDEO_BEGIN = SPL_PIXEL_FORMAT_420BPP8,
 	SPL_PIXEL_FORMAT_VIDEO_END = SPL_PIXEL_FORMAT_420BPP10,
 	SPL_PIXEL_FORMAT_UNKNOWN
+};
+
+enum lb_memory_config {
+	/* Enable all 3 pieces of memory */
+	LB_MEMORY_CONFIG_0 = 0,
+
+	/* Enable only the first piece of memory */
+	LB_MEMORY_CONFIG_1 = 1,
+
+	/* Enable only the second piece of memory */
+	LB_MEMORY_CONFIG_2 = 2,
+
+	/* Only applicable in 4:2:0 mode, enable all 3 pieces of memory and the
+	 * last piece of chroma memory used for the luma storage
+	 */
+	LB_MEMORY_CONFIG_3 = 3
 };
 
 /* Rotation angle */
