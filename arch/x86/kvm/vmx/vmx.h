@@ -727,7 +727,7 @@ static inline bool vmx_need_pf_intercept(struct kvm_vcpu *vcpu)
 		return true;
 
 	return allow_smaller_maxphyaddr &&
-	       cpuid_maxphyaddr(vcpu) < kvm_get_shadow_phys_bits();
+	       cpuid_maxphyaddr(vcpu) < kvm_host.maxphyaddr;
 }
 
 static inline bool is_unrestricted_guest(struct kvm_vcpu *vcpu)

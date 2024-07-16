@@ -74,6 +74,7 @@
 #include "posted_intr.h"
 
 MODULE_AUTHOR("Qumranet");
+MODULE_DESCRIPTION("KVM support for VMX (Intel VT-x) extensions");
 MODULE_LICENSE("GPL");
 
 #ifdef MODULE
@@ -259,7 +260,7 @@ static int vmx_setup_l1d_flush(enum vmx_l1d_flush_state l1tf)
 		return 0;
 	}
 
-	if (host_arch_capabilities & ARCH_CAP_SKIP_VMENTRY_L1DFLUSH) {
+	if (kvm_host.arch_capabilities & ARCH_CAP_SKIP_VMENTRY_L1DFLUSH) {
 		l1tf_vmx_mitigation = VMENTER_L1D_FLUSH_NOT_REQUIRED;
 		return 0;
 	}
@@ -404,7 +405,7 @@ static void vmx_update_fb_clear_dis(struct kvm_vcpu *vcpu, struct vcpu_vmx *vmx)
 	 * and VM-Exit.
 	 */
 	vmx->disable_fb_clear = !cpu_feature_enabled(X86_FEATURE_CLEAR_CPU_BUF) &&
-				(host_arch_capabilities & ARCH_CAP_FB_CLEAR_CTRL) &&
+				(kvm_host.arch_capabilities & ARCH_CAP_FB_CLEAR_CTRL) &&
 				!boot_cpu_has_bug(X86_BUG_MDS) &&
 				!boot_cpu_has_bug(X86_BUG_TAA);
 
@@ -1123,12 +1124,12 @@ static bool update_transition_efer(struct vcpu_vmx *vmx)
 	 * atomically, since it's faster than switching it manually.
 	 */
 	if (cpu_has_load_ia32_efer() ||
-	    (enable_ept && ((vmx->vcpu.arch.efer ^ host_efer) & EFER_NX))) {
+	    (enable_ept && ((vmx->vcpu.arch.efer ^ kvm_host.efer) & EFER_NX))) {
 		if (!(guest_efer & EFER_LMA))
 			guest_efer &= ~EFER_LME;
-		if (guest_efer != host_efer)
+		if (guest_efer != kvm_host.efer)
 			add_atomic_switch_msr(vmx, MSR_EFER,
-					      guest_efer, host_efer, false);
+					      guest_efer, kvm_host.efer, false);
 		else
 			clear_atomic_switch_msr(vmx, MSR_EFER);
 		return false;
@@ -1141,7 +1142,7 @@ static bool update_transition_efer(struct vcpu_vmx *vmx)
 	clear_atomic_switch_msr(vmx, MSR_EFER);
 
 	guest_efer &= ~ignore_bits;
-	guest_efer |= host_efer & ignore_bits;
+	guest_efer |= kvm_host.efer & ignore_bits;
 
 	vmx->guest_uret_msrs[i].data = guest_efer;
 	vmx->guest_uret_msrs[i].mask = ~ignore_bits;
@@ -4392,7 +4393,7 @@ void vmx_set_constant_host_state(struct vcpu_vmx *vmx)
 	}
 
 	if (cpu_has_load_ia32_efer())
-		vmcs_write64(HOST_IA32_EFER, host_efer);
+		vmcs_write64(HOST_IA32_EFER, kvm_host.efer);
 }
 
 void set_cr4_guest_host_mask(struct vcpu_vmx *vmx)
@@ -8394,18 +8395,16 @@ static void __init vmx_setup_me_spte_mask(void)
 	u64 me_mask = 0;
 
 	/*
-	 * kvm_get_shadow_phys_bits() returns shadow_phys_bits.  Use
-	 * the former to avoid exposing shadow_phys_bits.
-	 *
 	 * On pre-MKTME system, boot_cpu_data.x86_phys_bits equals to
-	 * shadow_phys_bits.  On MKTME and/or TDX capable systems,
+	 * kvm_host.maxphyaddr.  On MKTME and/or TDX capable systems,
 	 * boot_cpu_data.x86_phys_bits holds the actual physical address
-	 * w/o the KeyID bits, and shadow_phys_bits equals to MAXPHYADDR
-	 * reported by CPUID.  Those bits between are KeyID bits.
+	 * w/o the KeyID bits, and kvm_host.maxphyaddr equals to
+	 * MAXPHYADDR reported by CPUID.  Those bits between are KeyID bits.
 	 */
-	if (boot_cpu_data.x86_phys_bits != kvm_get_shadow_phys_bits())
+	if (boot_cpu_data.x86_phys_bits != kvm_host.maxphyaddr)
 		me_mask = rsvd_bits(boot_cpu_data.x86_phys_bits,
-			kvm_get_shadow_phys_bits() - 1);
+				    kvm_host.maxphyaddr - 1);
+
 	/*
 	 * Unlike SME, host kernel doesn't support setting up any
 	 * MKTME KeyID on Intel platforms.  No memory encryption
