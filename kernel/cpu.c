@@ -1829,6 +1829,11 @@ static inline const struct cpumask *cpuhp_get_primary_thread_mask(void)
 }
 #endif
 
+bool __weak arch_cpuhp_init_parallel_bringup(void)
+{
+	return true;
+}
+
 /*
  * On architectures which have enabled parallel bringup this invokes all BP
  * prepare states for each of the to be onlined APs first. The last state
