@@ -476,6 +476,8 @@ btrfs_get_bdev_and_sb(const char *device_path, blk_mode_t flags, void *holder,
 
 	if (IS_ERR(*bdev_file)) {
 		ret = PTR_ERR(*bdev_file);
+		btrfs_err(NULL, "failed to open device for path %s with flags 0x%x: %d",
+			  device_path, flags, ret);
 		goto error;
 	}
 	bdev = file_bdev(*bdev_file);
