@@ -29,7 +29,6 @@
 
 #include <linux/err.h>
 #include <linux/hwmon.h>
-#include <linux/hwmon-sysfs.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -76,21 +75,6 @@ static inline u8 ALARMS_FROM_REG(s16 reg)
 	return reg & 0x0007;
 }
 
-enum temp_index {
-	t_input,
-	t_crit,
-	t_min,
-	t_max,
-	t_num_regs
-};
-
-static const u8 lm92_regs[t_num_regs] = {
-	[t_input] = LM92_REG_TEMP,
-	[t_crit] = LM92_REG_TEMP_CRIT,
-	[t_min] = LM92_REG_TEMP_LOW,
-	[t_max] = LM92_REG_TEMP_HIGH,
-};
-
 /* Client data (each client gets its own) */
 struct lm92_data {
 	struct regmap *regmap;
@@ -98,147 +82,209 @@ struct lm92_data {
 	int resolution;
 };
 
-/*
- * Sysfs attributes and callback functions
- */
-
-static ssize_t temp_show(struct device *dev, struct device_attribute *devattr,
-			 char *buf)
+static int lm92_temp_read(struct lm92_data *data, u32 attr, int channel, long *val)
 {
-	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
-	struct lm92_data *data = dev_get_drvdata(dev);
-	u32 temp;
-	int err;
-
-	err = regmap_read(data->regmap, lm92_regs[attr->index], &temp);
-	if (err)
-		return err;
-
-	return sprintf(buf, "%d\n", TEMP_FROM_REG(temp));
-}
-
-static ssize_t temp_store(struct device *dev,
-			  struct device_attribute *devattr, const char *buf,
-			  size_t count)
-{
-	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
-	struct lm92_data *data = dev_get_drvdata(dev);
-	struct regmap *regmap = data->regmap;
-	int nr = attr->index;
-	long val;
-	int err;
-
-	err = kstrtol(buf, 10, &val);
-	if (err)
-		return err;
-
-	err = regmap_write(regmap, lm92_regs[nr], TEMP_TO_REG(val, data->resolution));
-	if (err)
-		return err;
-	return count;
-}
-
-static ssize_t temp_hyst_show(struct device *dev,
-			      struct device_attribute *devattr, char *buf)
-{
-	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
-	u32 regs[2] = { lm92_regs[attr->index], LM92_REG_TEMP_HYST };
-	struct lm92_data *data = dev_get_drvdata(dev);
-	u16 regvals[2];
-	int err;
-
-	err = regmap_multi_reg_read(data->regmap, regs, regvals, 2);
-	if (err)
-		return err;
-
-	return sprintf(buf, "%d\n",
-		       TEMP_FROM_REG(regvals[0]) - TEMP_FROM_REG(regvals[1]));
-}
-
-static ssize_t temp1_min_hyst_show(struct device *dev,
-				   struct device_attribute *attr, char *buf)
-{
-	static u32 regs[2] = { LM92_REG_TEMP_LOW, LM92_REG_TEMP_HYST };
-	struct lm92_data *data = dev_get_drvdata(dev);
-	u16 regvals[2];
-	int err;
-
-	err = regmap_multi_reg_read(data->regmap, regs, regvals, 2);
-	if (err)
-		return err;
-
-	return sprintf(buf, "%d\n",
-		       TEMP_FROM_REG(regvals[0]) + TEMP_FROM_REG(regvals[1]));
-}
-
-static ssize_t temp_hyst_store(struct device *dev,
-			       struct device_attribute *devattr,
-			       const char *buf, size_t count)
-{
-	struct lm92_data *data = dev_get_drvdata(dev);
+	int reg = -1, hyst_reg = -1, alarm_bit = 0;
 	struct regmap *regmap = data->regmap;
 	u32 temp;
-	long val;
-	int err;
+	int ret;
 
-	err = kstrtol(buf, 10, &val);
-	if (err)
-		return err;
+	switch (attr) {
+	case hwmon_temp_input:
+		reg = LM92_REG_TEMP;
+		break;
+	case hwmon_temp_min:
+		reg = LM92_REG_TEMP_LOW;
+		break;
+	case hwmon_temp_max:
+		reg = LM92_REG_TEMP_HIGH;
+		break;
+	case hwmon_temp_crit:
+		reg = LM92_REG_TEMP_CRIT;
+		break;
+	case hwmon_temp_min_hyst:
+		hyst_reg = LM92_REG_TEMP_LOW;
+		break;
+	case hwmon_temp_max_hyst:
+		hyst_reg = LM92_REG_TEMP_HIGH;
+		break;
+	case hwmon_temp_crit_hyst:
+		hyst_reg = LM92_REG_TEMP_CRIT;
+		break;
+	case hwmon_temp_min_alarm:
+		alarm_bit = 0;
+		break;
+	case hwmon_temp_max_alarm:
+		alarm_bit = 1;
+		break;
+	case hwmon_temp_crit_alarm:
+		alarm_bit = 2;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+	if (reg >= 0) {
+		ret = regmap_read(regmap, reg, &temp);
+		if (ret < 0)
+			return ret;
+		*val = TEMP_FROM_REG(temp);
+	} else if (hyst_reg >= 0) {
+		u32 regs[2] = { hyst_reg, LM92_REG_TEMP_HYST };
+		u16 regvals[2];
 
-	val = clamp_val(val, -120000, 220000);
-	mutex_lock(&data->update_lock);
-	err = regmap_read(regmap, LM92_REG_TEMP_CRIT, &temp);
-	if (err)
-		goto unlock;
-	val = TEMP_TO_REG(TEMP_FROM_REG(temp) - val, data->resolution);
-	err = regmap_write(regmap, LM92_REG_TEMP_HYST, val);
+		ret = regmap_multi_reg_read(regmap, regs, regvals, 2);
+		if (ret)
+			return ret;
+		if (attr == hwmon_temp_min_hyst)
+			*val = TEMP_FROM_REG(regvals[0]) + TEMP_FROM_REG(regvals[1]);
+		else
+			*val = TEMP_FROM_REG(regvals[0]) - TEMP_FROM_REG(regvals[1]);
+	} else {
+		ret = regmap_read(regmap, LM92_REG_TEMP, &temp);
+		if (ret)
+			return ret;
+		*val = !!(temp & BIT(alarm_bit));
+	}
+	return 0;
+}
+
+static int lm92_chip_read(struct lm92_data *data, u32 attr, long *val)
+{
+	u32 temp;
+	int ret;
+
+	switch (attr) {
+	case hwmon_chip_alarms:
+		ret = regmap_read(data->regmap, LM92_REG_TEMP, &temp);
+		if (ret)
+			return ret;
+		*val = ALARMS_FROM_REG(temp);
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+	return 0;
+}
+
+static int lm92_read(struct device *dev, enum hwmon_sensor_types type, u32 attr,
+		     int channel, long *val)
+{
+	struct lm92_data *data = dev_get_drvdata(dev);
+
+	switch (type) {
+	case hwmon_chip:
+		return lm92_chip_read(data, attr, val);
+	case hwmon_temp:
+		return lm92_temp_read(data, attr, channel, val);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int lm92_temp_write(struct lm92_data *data, u32 attr, long val)
+{
+	struct regmap *regmap = data->regmap;
+	int reg, err;
+	u32 temp;
+
+	switch (attr) {
+	case hwmon_temp_min:
+		reg = LM92_REG_TEMP_LOW;
+		break;
+	case hwmon_temp_max:
+		reg = LM92_REG_TEMP_HIGH;
+		break;
+	case hwmon_temp_crit:
+		reg = LM92_REG_TEMP_CRIT;
+		break;
+	case hwmon_temp_crit_hyst:
+		val = clamp_val(val, -120000, 220000);
+		mutex_lock(&data->update_lock);
+		err = regmap_read(regmap, LM92_REG_TEMP_CRIT, &temp);
+		if (err)
+			goto unlock;
+		val = TEMP_TO_REG(TEMP_FROM_REG(temp) - val, data->resolution);
+		err = regmap_write(regmap, LM92_REG_TEMP_HYST, val);
 unlock:
-	mutex_unlock(&data->update_lock);
-	if (err)
+		mutex_unlock(&data->update_lock);
 		return err;
-	return count;
+	default:
+		return -EOPNOTSUPP;
+	}
+	return regmap_write(regmap, reg, TEMP_TO_REG(val, data->resolution));
 }
 
-static ssize_t alarms_show(struct device *dev, struct device_attribute *attr,
-			   char *buf)
+static int lm92_write(struct device *dev, enum hwmon_sensor_types type,
+		      u32 attr, int channel, long val)
 {
 	struct lm92_data *data = dev_get_drvdata(dev);
-	u32 temp;
-	int err;
 
-	err = regmap_read(data->regmap, LM92_REG_TEMP, &temp);
-	if (err)
-		return err;
-
-	return sprintf(buf, "%d\n", ALARMS_FROM_REG(temp));
+	switch (type) {
+	case hwmon_temp:
+		return lm92_temp_write(data, attr, val);
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
-static ssize_t alarm_show(struct device *dev, struct device_attribute *attr,
-			  char *buf)
+static umode_t lm92_is_visible(const void *_data, enum hwmon_sensor_types type,
+			       u32 attr, int channel)
 {
-	struct lm92_data *data = dev_get_drvdata(dev);
-	int bitnr = to_sensor_dev_attr(attr)->index;
-	u32 temp;
-	int err;
-
-	err = regmap_read(data->regmap, LM92_REG_TEMP, &temp);
-	if (err)
-		return err;
-
-	return sprintf(buf, "%d\n", (temp >> bitnr) & 1);
+	switch (type) {
+	case hwmon_chip:
+		switch (attr) {
+		case hwmon_chip_alarms:
+			return 0444;
+		default:
+			break;
+		}
+		break;
+	case hwmon_temp:
+		switch (attr) {
+		case hwmon_temp_min:
+		case hwmon_temp_max:
+		case hwmon_temp_crit:
+		case hwmon_temp_crit_hyst:
+			return 0644;
+		case hwmon_temp_input:
+		case hwmon_temp_min_hyst:
+		case hwmon_temp_max_hyst:
+		case hwmon_temp_min_alarm:
+		case hwmon_temp_max_alarm:
+		case hwmon_temp_crit_alarm:
+			return 0444;
+		default:
+			break;
+		}
+		break;
+	default:
+		break;
+	}
+	return 0;
 }
 
-static SENSOR_DEVICE_ATTR_RO(temp1_input, temp, t_input);
-static SENSOR_DEVICE_ATTR_RW(temp1_crit, temp, t_crit);
-static SENSOR_DEVICE_ATTR_RW(temp1_crit_hyst, temp_hyst, t_crit);
-static SENSOR_DEVICE_ATTR_RW(temp1_min, temp, t_min);
-static DEVICE_ATTR_RO(temp1_min_hyst);
-static SENSOR_DEVICE_ATTR_RW(temp1_max, temp, t_max);
-static SENSOR_DEVICE_ATTR_RO(temp1_max_hyst, temp_hyst, t_max);
-static DEVICE_ATTR_RO(alarms);
-static SENSOR_DEVICE_ATTR_RO(temp1_crit_alarm, alarm, 2);
-static SENSOR_DEVICE_ATTR_RO(temp1_min_alarm, alarm, 0);
-static SENSOR_DEVICE_ATTR_RO(temp1_max_alarm, alarm, 1);
+static const struct hwmon_channel_info * const lm92_info[] = {
+	HWMON_CHANNEL_INFO(chip, HWMON_C_ALARMS),
+	HWMON_CHANNEL_INFO(temp,
+			   HWMON_T_INPUT |
+			   HWMON_T_MIN | HWMON_T_MIN_HYST |
+			   HWMON_T_MAX | HWMON_T_MAX_HYST |
+			   HWMON_T_CRIT | HWMON_T_CRIT_HYST |
+			   HWMON_T_MIN_ALARM | HWMON_T_MAX_ALARM |
+			   HWMON_T_CRIT_ALARM),
+	NULL
+};
+
+static const struct hwmon_ops lm92_hwmon_ops = {
+	.is_visible = lm92_is_visible,
+	.read = lm92_read,
+	.write = lm92_write,
+};
+
+static const struct hwmon_chip_info lm92_chip_info = {
+	.ops = &lm92_hwmon_ops,
+	.info = lm92_info,
+};
 
 /*
  * Detection and registration
@@ -248,22 +294,6 @@ static int lm92_init_client(struct regmap *regmap)
 {
 	return regmap_clear_bits(regmap, LM92_REG_CONFIG, 0x01);
 }
-
-static struct attribute *lm92_attrs[] = {
-	&sensor_dev_attr_temp1_input.dev_attr.attr,
-	&sensor_dev_attr_temp1_crit.dev_attr.attr,
-	&sensor_dev_attr_temp1_crit_hyst.dev_attr.attr,
-	&sensor_dev_attr_temp1_min.dev_attr.attr,
-	&dev_attr_temp1_min_hyst.attr,
-	&sensor_dev_attr_temp1_max.dev_attr.attr,
-	&sensor_dev_attr_temp1_max_hyst.dev_attr.attr,
-	&dev_attr_alarms.attr,
-	&sensor_dev_attr_temp1_crit_alarm.dev_attr.attr,
-	&sensor_dev_attr_temp1_min_alarm.dev_attr.attr,
-	&sensor_dev_attr_temp1_max_alarm.dev_attr.attr,
-	NULL
-};
-ATTRIBUTE_GROUPS(lm92);
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
 static int lm92_detect(struct i2c_client *new_client,
@@ -373,9 +403,8 @@ static int lm92_probe(struct i2c_client *client)
 	if (err)
 		return err;
 
-	hwmon_dev = devm_hwmon_device_register_with_groups(dev,
-							   client->name,
-							   data, lm92_groups);
+	hwmon_dev = devm_hwmon_device_register_with_info(dev, client->name, data,
+							 &lm92_chip_info, NULL);
 	return PTR_ERR_OR_ZERO(hwmon_dev);
 }
 
