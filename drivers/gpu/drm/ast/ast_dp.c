@@ -9,8 +9,6 @@
 
 bool ast_astdp_is_connected(struct ast_device *ast)
 {
-	if (!ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xD1, ASTDP_MCU_FW_EXECUTING))
-		return false;
 	if (!ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDF, ASTDP_HPD))
 		return false;
 	if (!ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDC, ASTDP_LINK_SUCCESS))
@@ -24,13 +22,11 @@ int ast_astdp_read_edid(struct drm_device *dev, u8 *ediddata)
 	u8 i = 0, j = 0;
 
 	/*
-	 * CRD1[b5]: DP MCU FW is executing
 	 * CRDC[b0]: DP link success
 	 * CRDF[b0]: DP HPD
 	 * CRE5[b0]: Host reading EDID process is done
 	 */
-	if (!(ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xD1, ASTDP_MCU_FW_EXECUTING) &&
-		ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDC, ASTDP_LINK_SUCCESS) &&
+	if (!(ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDC, ASTDP_LINK_SUCCESS) &&
 		ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDF, ASTDP_HPD) &&
 		ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xE5,
 								ASTDP_HOST_EDID_READ_DONE_MASK))) {
@@ -64,9 +60,7 @@ int ast_astdp_read_edid(struct drm_device *dev, u8 *ediddata)
 			 */
 			mdelay(j+1);
 
-			if (!(ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xD1,
-							ASTDP_MCU_FW_EXECUTING) &&
-				ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDC,
+			if (!(ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDC,
 							ASTDP_LINK_SUCCESS) &&
 				ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDF, ASTDP_HPD))) {
 				goto err_astdp_jump_out_loop_of_edid;
@@ -115,8 +109,6 @@ err_astdp_jump_out_loop_of_edid:
 	return (~(j+256) + 1);
 
 err_astdp_edid_not_ready:
-	if (!(ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xD1, ASTDP_MCU_FW_EXECUTING)))
-		return (~0xD1 + 1);
 	if (!(ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDC, ASTDP_LINK_SUCCESS)))
 		return (~0xDC + 1);
 	if (!(ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDF, ASTDP_HPD)))
@@ -130,32 +122,29 @@ err_astdp_edid_not_ready:
 /*
  * Launch Aspeed DP
  */
-void ast_dp_launch(struct drm_device *dev)
+int ast_dp_launch(struct ast_device *ast)
 {
-	u32 i = 0;
-	u8 bDPExecute = 1;
-	struct ast_device *ast = to_ast_device(dev);
+	struct drm_device *dev = &ast->base;
+	unsigned int i = 10;
 
-	// Wait one second then timeout.
-	while (ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xD1, ASTDP_MCU_FW_EXECUTING) !=
-		ASTDP_MCU_FW_EXECUTING) {
-		i++;
-		// wait 100 ms
-		msleep(100);
+	while (i) {
+		u8 vgacrd1 = ast_get_index_reg(ast, AST_IO_VGACRI, 0xd1);
 
-		if (i >= 10) {
-			// DP would not be ready.
-			bDPExecute = 0;
+		if (vgacrd1 & AST_IO_VGACRD1_MCU_FW_EXECUTING)
 			break;
-		}
+		--i;
+		msleep(100);
 	}
-
-	if (!bDPExecute)
+	if (!i) {
 		drm_err(dev, "Wait DPMCU executing timeout\n");
+		return -ENODEV;
+	}
 
 	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xE5,
 			       (u8) ~ASTDP_HOST_EDID_READ_DONE_MASK,
 			       ASTDP_HOST_EDID_READ_DONE);
+
+	return 0;
 }
 
 
