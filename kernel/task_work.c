@@ -1,9 +1,17 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <linux/irq_work.h>
 #include <linux/spinlock.h>
 #include <linux/task_work.h>
 #include <linux/resume_user_mode.h>
 
 static struct callback_head work_exited; /* all we need is ->next == NULL */
+
+static void task_work_set_notify_irq(struct irq_work *entry)
+{
+	test_and_set_tsk_thread_flag(current, TIF_NOTIFY_RESUME);
+}
+static DEFINE_PER_CPU(struct irq_work, irq_work_NMI_resume) =
+	IRQ_WORK_INIT_HARD(task_work_set_notify_irq);
 
 /**
  * task_work_add - ask the @task to execute @work->func()
@@ -12,7 +20,7 @@ static struct callback_head work_exited; /* all we need is ->next == NULL */
  * @notify: how to notify the targeted task
  *
  * Queue @work for task_work_run() below and notify the @task if @notify
- * is @TWA_RESUME, @TWA_SIGNAL, or @TWA_SIGNAL_NO_IPI.
+ * is @TWA_RESUME, @TWA_SIGNAL, @TWA_SIGNAL_NO_IPI or @TWA_NMI_CURRENT.
  *
  * @TWA_SIGNAL works like signals, in that the it will interrupt the targeted
  * task and run the task_work, regardless of whether the task is currently
@@ -24,6 +32,8 @@ static struct callback_head work_exited; /* all we need is ->next == NULL */
  * kernel anyway.
  * @TWA_RESUME work is run only when the task exits the kernel and returns to
  * user mode, or before entering guest mode.
+ * @TWA_NMI_CURRENT works like @TWA_RESUME, except it can only be used for the
+ * current @task and if the current context is NMI.
  *
  * Fails if the @task is exiting/exited and thus it can't process this @work.
  * Otherwise @work->func() will be called when the @task goes through one of
@@ -44,8 +54,13 @@ int task_work_add(struct task_struct *task, struct callback_head *work,
 {
 	struct callback_head *head;
 
-	/* record the work call stack in order to print it in KASAN reports */
-	kasan_record_aux_stack(work);
+	if (notify == TWA_NMI_CURRENT) {
+		if (WARN_ON_ONCE(task != current))
+			return -EINVAL;
+	} else {
+		/* record the work call stack in order to print it in KASAN reports */
+		kasan_record_aux_stack(work);
+	}
 
 	head = READ_ONCE(task->task_works);
 	do {
@@ -65,6 +80,9 @@ int task_work_add(struct task_struct *task, struct callback_head *work,
 		break;
 	case TWA_SIGNAL_NO_IPI:
 		__set_notify_signal(task);
+		break;
+	case TWA_NMI_CURRENT:
+		irq_work_queue(this_cpu_ptr(&irq_work_NMI_resume));
 		break;
 	default:
 		WARN_ON_ONCE(1);
@@ -120,9 +138,9 @@ static bool task_work_func_match(struct callback_head *cb, void *data)
 }
 
 /**
- * task_work_cancel - cancel a pending work added by task_work_add()
- * @task: the task which should execute the work
- * @func: identifies the work to remove
+ * task_work_cancel_func - cancel a pending work matching a function added by task_work_add()
+ * @task: the task which should execute the func's work
+ * @func: identifies the func to match with a work to remove
  *
  * Find the last queued pending work with ->func == @func and remove
  * it from queue.
@@ -131,9 +149,33 @@ static bool task_work_func_match(struct callback_head *cb, void *data)
  * The found work or NULL if not found.
  */
 struct callback_head *
-task_work_cancel(struct task_struct *task, task_work_func_t func)
+task_work_cancel_func(struct task_struct *task, task_work_func_t func)
 {
 	return task_work_cancel_match(task, task_work_func_match, func);
+}
+
+static bool task_work_match(struct callback_head *cb, void *data)
+{
+	return cb == data;
+}
+
+/**
+ * task_work_cancel - cancel a pending work added by task_work_add()
+ * @task: the task which should execute the work
+ * @cb: the callback to remove if queued
+ *
+ * Remove a callback from a task's queue if queued.
+ *
+ * RETURNS:
+ * True if the callback was queued and got cancelled, false otherwise.
+ */
+bool task_work_cancel(struct task_struct *task, struct callback_head *cb)
+{
+	struct callback_head *ret;
+
+	ret = task_work_cancel_match(task, task_work_match, cb);
+
+	return ret == cb;
 }
 
 /**
@@ -168,7 +210,7 @@ void task_work_run(void)
 		if (!work)
 			break;
 		/*
-		 * Synchronize with task_work_cancel(). It can not remove
+		 * Synchronize with task_work_cancel_match(). It can not remove
 		 * the first entry == work, cmpxchg(task_works) must fail.
 		 * But it can remove another entry from the ->next list.
 		 */
