@@ -20,6 +20,7 @@ def define_neo_la():
         "drivers/irqchip/msm_show_resume_irq.ko",
         "drivers/perf/qcom_llcc_pmu.ko",
         "drivers/pinctrl/qcom/pinctrl-msm.ko",
+        "drivers/pinctrl/qcom/pinctrl-neo.ko",
         "drivers/power/reset/qcom-dload-mode.ko",
         "drivers/power/reset/qcom-reboot-reason.ko",
         "drivers/soc/qcom/boot_stats.ko",
