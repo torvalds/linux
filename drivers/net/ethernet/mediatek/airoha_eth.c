@@ -1585,7 +1585,6 @@ static int airoha_qdma_init_rx_queue(struct airoha_eth *eth,
 
 static void airoha_qdma_cleanup_rx_queue(struct airoha_queue *q)
 {
-	enum dma_data_direction dir = page_pool_get_dma_dir(q->page_pool);
 	struct airoha_eth *eth = q->eth;
 
 	while (q->queued) {
@@ -1593,7 +1592,7 @@ static void airoha_qdma_cleanup_rx_queue(struct airoha_queue *q)
 		struct page *page = virt_to_head_page(e->buf);
 
 		dma_sync_single_for_cpu(eth->dev, e->dma_addr, e->dma_len,
-					dir);
+					page_pool_get_dma_dir(q->page_pool));
 		page_pool_put_full_page(q->page_pool, page, false);
 		q->tail = (q->tail + 1) % q->ndesc;
 		q->queued--;
