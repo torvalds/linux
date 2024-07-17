@@ -977,7 +977,7 @@ static int airoha_set_gdm_ports(struct airoha_eth *eth, bool enable)
 	return 0;
 
 error:
-	for (i--; i >= 0; i++)
+	for (i--; i >= 0; i--)
 		airoha_set_gdm_port(eth, port_list[i], false);
 
 	return err;
@@ -2431,9 +2431,11 @@ static netdev_tx_t airoha_dev_xmit(struct sk_buff *skb,
 	return NETDEV_TX_OK;
 
 error_unmap:
-	for (i--; i >= 0; i++)
-		dma_unmap_single(dev->dev.parent, q->entry[i].dma_addr,
-				 q->entry[i].dma_len, DMA_TO_DEVICE);
+	for (i--; i >= 0; i--) {
+		index = (q->head + i) % q->ndesc;
+		dma_unmap_single(dev->dev.parent, q->entry[index].dma_addr,
+				 q->entry[index].dma_len, DMA_TO_DEVICE);
+	}
 
 	spin_unlock_bh(&q->lock);
 error:
