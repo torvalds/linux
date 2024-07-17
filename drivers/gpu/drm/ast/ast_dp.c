@@ -9,7 +9,7 @@
 
 bool ast_astdp_is_connected(struct ast_device *ast)
 {
-	if (!ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDF, ASTDP_HPD))
+	if (!ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDF, AST_IO_VGACRDF_HPD))
 		return false;
 	if (!ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDC, ASTDP_LINK_SUCCESS))
 		return false;
@@ -23,11 +23,9 @@ int ast_astdp_read_edid(struct drm_device *dev, u8 *ediddata)
 
 	/*
 	 * CRDC[b0]: DP link success
-	 * CRDF[b0]: DP HPD
 	 * CRE5[b0]: Host reading EDID process is done
 	 */
 	if (!(ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDC, ASTDP_LINK_SUCCESS) &&
-		ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDF, ASTDP_HPD) &&
 		ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xE5,
 								ASTDP_HOST_EDID_READ_DONE_MASK))) {
 		goto err_astdp_edid_not_ready;
@@ -61,8 +59,7 @@ int ast_astdp_read_edid(struct drm_device *dev, u8 *ediddata)
 			mdelay(j+1);
 
 			if (!(ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDC,
-							ASTDP_LINK_SUCCESS) &&
-				ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDF, ASTDP_HPD))) {
+							ASTDP_LINK_SUCCESS))) {
 				goto err_astdp_jump_out_loop_of_edid;
 			}
 
@@ -111,8 +108,6 @@ err_astdp_jump_out_loop_of_edid:
 err_astdp_edid_not_ready:
 	if (!(ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDC, ASTDP_LINK_SUCCESS)))
 		return (~0xDC + 1);
-	if (!(ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDF, ASTDP_HPD)))
-		return (~0xDF + 1);
 	if (!(ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xE5, ASTDP_HOST_EDID_READ_DONE_MASK)))
 		return (~0xE5 + 1);
 
@@ -175,8 +170,7 @@ void ast_dp_set_on_off(struct drm_device *dev, bool on)
 	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xE3, (u8) ~AST_DP_VIDEO_ENABLE, on);
 
 	// If DP plug in and link successful then check video on / off status
-	if (ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDC, ASTDP_LINK_SUCCESS) &&
-		ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDF, ASTDP_HPD)) {
+	if (ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDC, ASTDP_LINK_SUCCESS)) {
 		video_on_off <<= 4;
 		while (ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDF,
 						ASTDP_MIRROR_VIDEO_ENABLE) != video_on_off) {
