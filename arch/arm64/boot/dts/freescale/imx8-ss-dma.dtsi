@@ -370,7 +370,7 @@ dma_subsys: bus@5a000000 {
 		assigned-clock-rates = <24000000>;
 		power-domains = <&pd IMX_SC_R_ADC_0>;
 		status = "disabled";
-	 };
+	};
 
 	adc1: adc@5a890000 {
 		compatible = "nxp,imx8qxp-adc";
