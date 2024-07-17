@@ -374,4 +374,5 @@ static struct kunit_suite example_init_test_suite = {
  */
 kunit_test_init_section_suites(&example_init_test_suite);
 
+MODULE_DESCRIPTION("Example KUnit test suite");
 MODULE_LICENSE("GPL v2");
