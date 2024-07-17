@@ -11,6 +11,9 @@ if [ -e "$perfdir/scripts/python/Perf-Trace-Util" ]; then
   export PERF_EXEC_PATH=$perfdir
 fi
 
+# Disable lsan to avoid warnings about python memory leaks.
+export ASAN_OPTIONS=detect_leaks=0
+
 cleanup() {
   rm -f perf.data
   rm -f perf.data.old

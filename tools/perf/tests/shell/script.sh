@@ -61,7 +61,10 @@ _end_of_file_
 	esac
 
 	perf record $cmd_flags -o "${perfdatafile}" true
+	# Disable lsan to avoid warnings about python memory leaks.
+	export ASAN_OPTIONS=detect_leaks=0
 	perf script -i "${perfdatafile}" -s "${db_test}"
+	export ASAN_OPTIONS=
 	echo "DB test [Success]"
 }
 
