@@ -17,6 +17,9 @@
 /* esdACC DLC register layout */
 #define ACC_DLC_DLC_MASK GENMASK(3, 0)
 #define ACC_DLC_RTR_FLAG BIT(4)
+#define ACC_DLC_SSTX_FLAG BIT(24)	/* Single Shot TX */
+
+/* esdACC DLC in struct acc_bmmsg_rxtxdone::acc_dlc.len only! */
 #define ACC_DLC_TXD_FLAG BIT(5)
 
 /* ecc value of esdACC equals SJA1000's ECC register */
@@ -59,7 +62,7 @@ static void acc_resetmode_leave(struct acc_core *core)
 	acc_resetmode_entered(core);
 }
 
-static void acc_txq_put(struct acc_core *core, u32 acc_id, u8 acc_dlc,
+static void acc_txq_put(struct acc_core *core, u32 acc_id, u32 acc_dlc,
 			const void *data)
 {
 	acc_write32_noswap(core, ACC_CORE_OF_TXFIFO_DATA_1,
@@ -249,7 +252,7 @@ netdev_tx_t acc_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	u8 tx_fifo_head = core->tx_fifo_head;
 	int fifo_usage;
 	u32 acc_id;
-	u8 acc_dlc;
+	u32 acc_dlc;
 
 	if (can_dropped_invalid_skb(netdev, skb))
 		return NETDEV_TX_OK;
@@ -274,6 +277,8 @@ netdev_tx_t acc_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	acc_dlc = can_get_cc_dlc(cf, priv->can.ctrlmode);
 	if (cf->can_id & CAN_RTR_FLAG)
 		acc_dlc |= ACC_DLC_RTR_FLAG;
+	if (priv->can.ctrlmode & CAN_CTRLMODE_ONE_SHOT)
+		acc_dlc |= ACC_DLC_SSTX_FLAG;
 
 	if (cf->can_id & CAN_EFF_FLAG) {
 		acc_id = cf->can_id & CAN_EFF_MASK;
