@@ -151,7 +151,6 @@ static void bchfs_read(struct btree_trans *trans,
 	struct bkey_buf sk;
 	int flags = BCH_READ_RETRY_IF_STALE|
 		BCH_READ_MAY_PROMOTE;
-	u32 snapshot;
 	int ret = 0;
 
 	rbio->c = c;
@@ -159,29 +158,23 @@ static void bchfs_read(struct btree_trans *trans,
 	rbio->subvol = inum.subvol;
 
 	bch2_bkey_buf_init(&sk);
-retry:
 	bch2_trans_begin(trans);
-	iter = (struct btree_iter) { NULL };
-
-	ret = bch2_subvolume_get_snapshot(trans, inum.subvol, &snapshot);
-	if (ret)
-		goto err;
-
 	bch2_trans_iter_init(trans, &iter, BTREE_ID_extents,
-			     SPOS(inum.inum, rbio->bio.bi_iter.bi_sector, snapshot),
+			     POS(inum.inum, rbio->bio.bi_iter.bi_sector),
 			     BTREE_ITER_slots);
 	while (1) {
 		struct bkey_s_c k;
 		unsigned bytes, sectors, offset_into_extent;
 		enum btree_id data_btree = BTREE_ID_extents;
 
-		/*
-		 * read_extent -> io_time_reset may cause a transaction restart
-		 * without returning an error, we need to check for that here:
-		 */
-		ret = bch2_trans_relock(trans);
+		bch2_trans_begin(trans);
+
+		u32 snapshot;
+		ret = bch2_subvolume_get_snapshot(trans, inum.subvol, &snapshot);
 		if (ret)
-			break;
+			goto err;
+
+		bch2_btree_iter_set_snapshot(&iter, snapshot);
 
 		bch2_btree_iter_set_pos(&iter,
 				POS(inum.inum, rbio->bio.bi_iter.bi_sector));
@@ -189,7 +182,7 @@ retry:
 		k = bch2_btree_iter_peek_slot(&iter);
 		ret = bkey_err(k);
 		if (ret)
-			break;
+			goto err;
 
 		offset_into_extent = iter.pos.offset -
 			bkey_start_offset(k.k);
@@ -200,7 +193,7 @@ retry:
 		ret = bch2_read_indirect_extent(trans, &data_btree,
 					&offset_into_extent, &sk);
 		if (ret)
-			break;
+			goto err;
 
 		k = bkey_i_to_s_c(sk.k);
 
@@ -210,7 +203,7 @@ retry:
 			ret = readpage_bio_extend(trans, readpages_iter, &rbio->bio, sectors,
 						  extent_partial_reads_expensive(k));
 			if (ret)
-				break;
+				goto err;
 		}
 
 		bytes = min(sectors, bio_sectors(&rbio->bio)) << 9;
@@ -229,16 +222,12 @@ retry:
 
 		swap(rbio->bio.bi_iter.bi_size, bytes);
 		bio_advance(&rbio->bio, bytes);
-
-		ret = btree_trans_too_many_iters(trans);
-		if (ret)
+err:
+		if (ret &&
+		    !bch2_err_matches(ret, BCH_ERR_transaction_restart))
 			break;
 	}
-err:
 	bch2_trans_iter_exit(trans, &iter);
-
-	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
-		goto retry;
 
 	if (ret) {
 		bch_err_inum_offset_ratelimited(c,

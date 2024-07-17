@@ -1214,10 +1214,6 @@ void __bch2_read(struct bch_fs *c, struct bch_read_bio *rbio,
 
 		swap(bvec_iter.bi_size, bytes);
 		bio_advance_iter(&rbio->bio, &bvec_iter, bytes);
-
-		ret = btree_trans_too_many_iters(trans);
-		if (ret)
-			goto err;
 err:
 		if (ret &&
 		    !bch2_err_matches(ret, BCH_ERR_transaction_restart) &&
