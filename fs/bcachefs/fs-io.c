@@ -942,42 +942,25 @@ static loff_t bch2_seek_data(struct file *file, u64 offset)
 {
 	struct bch_inode_info *inode = file_bch_inode(file);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
-	struct btree_trans *trans;
-	struct btree_iter iter;
-	struct bkey_s_c k;
 	subvol_inum inum = inode_inum(inode);
 	u64 isize, next_data = MAX_LFS_FILESIZE;
-	u32 snapshot;
-	int ret;
 
 	isize = i_size_read(&inode->v);
 	if (offset >= isize)
 		return -ENXIO;
 
-	trans = bch2_trans_get(c);
-retry:
-	bch2_trans_begin(trans);
-
-	ret = bch2_subvolume_get_snapshot(trans, inum.subvol, &snapshot);
-	if (ret)
-		goto err;
-
-	for_each_btree_key_upto_norestart(trans, iter, BTREE_ID_extents,
-			   SPOS(inode->v.i_ino, offset >> 9, snapshot),
-			   POS(inode->v.i_ino, U64_MAX),
-			   0, k, ret) {
-		if (bkey_extent_is_data(k.k)) {
-			next_data = max(offset, bkey_start_offset(k.k) << 9);
-			break;
-		} else if (k.k->p.offset >> 9 > isize)
-			break;
-	}
-	bch2_trans_iter_exit(trans, &iter);
-err:
-	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
-		goto retry;
-
-	bch2_trans_put(trans);
+	int ret = bch2_trans_run(c,
+		for_each_btree_key_in_subvolume_upto(trans, iter, BTREE_ID_extents,
+				   POS(inode->v.i_ino, offset >> 9),
+				   POS(inode->v.i_ino, U64_MAX),
+				   inum.subvol, 0, k, ({
+			if (bkey_extent_is_data(k.k)) {
+				next_data = max(offset, bkey_start_offset(k.k) << 9);
+				break;
+			} else if (k.k->p.offset >> 9 > isize)
+				break;
+			0;
+		})));
 	if (ret)
 		return ret;
 
