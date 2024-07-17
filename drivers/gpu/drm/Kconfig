@@ -107,7 +107,7 @@ config DRM_KMS_HELPER
 
 config DRM_PANIC
 	bool "Display a user-friendly message when a kernel panic occurs"
-	depends on DRM && !(FRAMEBUFFER_CONSOLE && VT_CONSOLE)
+	depends on DRM
 	select FONT_SUPPORT
 	help
 	  Enable a drm panic handler, which will display a user-friendly message
