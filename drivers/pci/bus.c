@@ -356,8 +356,8 @@ void pci_bus_add_device(struct pci_dev *dev)
 
 	pci_dev_assign_added(dev, true);
 
-	if (IS_ENABLED(CONFIG_OF) && pci_is_bridge(dev)) {
-		retval = of_platform_populate(dev->dev.of_node, NULL, NULL,
+	if (dev_of_node(&dev->dev) && pci_is_bridge(dev)) {
+		retval = of_platform_populate(dev_of_node(&dev->dev), NULL, NULL,
 					      &dev->dev);
 		if (retval)
 			pci_err(dev, "failed to populate child OF nodes (%d)\n",
