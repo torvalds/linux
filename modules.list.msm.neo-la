@@ -51,6 +51,7 @@ msm_rtb.ko
 mem_buf.ko
 mem_buf_dev.ko
 pinctrl-msm.ko
+pinctrl-neo.ko
 phy-generic.ko
 phy-qcom-emu.ko
 qcom_dma_heaps.ko
