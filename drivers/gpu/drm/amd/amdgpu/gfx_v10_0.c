@@ -7324,11 +7324,9 @@ static int gfx_v10_0_hw_init(void *handle)
 		 * loaded firstly, so in direct type, it has to load smc ucode
 		 * here before rlc.
 		 */
-		if (!(adev->flags & AMD_IS_APU)) {
-			r = amdgpu_pm_load_smu_firmware(adev, NULL);
-			if (r)
-				return r;
-		}
+		r = amdgpu_pm_load_smu_firmware(adev, NULL);
+		if (r)
+			return r;
 		gfx_v10_0_disable_gpa_mode(adev);
 	}
 
@@ -9334,7 +9332,7 @@ static void gfx_v10_ip_dump(void *handle)
 		for (j = 0; j < adev->gfx.mec.num_pipe_per_mec; j++) {
 			for (k = 0; k < adev->gfx.mec.num_queue_per_pipe; k++) {
 				/* ME0 is for GFX so start from 1 for CP */
-				nv_grbm_select(adev, 1 + i, j, k, 0);
+				nv_grbm_select(adev, adev->gfx.me.num_me + i, j, k, 0);
 
 				for (reg = 0; reg < reg_count; reg++) {
 					adev->gfx.ip_dump_compute_queues[index + reg] =

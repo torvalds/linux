@@ -29,6 +29,7 @@
 #include "mp/mp_13_0_6_sh_mask.h"
 
 #define MAX_ECC_NUM_PER_RETIREMENT  32
+#define DELAYED_TIME_FOR_GPU_RESET  1000  //ms
 
 static inline uint64_t get_umc_v12_0_reg_offset(struct amdgpu_device *adev,
 					    uint32_t node_inst,
@@ -567,6 +568,23 @@ static int umc_v12_0_update_ecc_status(struct amdgpu_device *adev,
 	}
 
 	con->umc_ecc_log.de_queried_count++;
+
+	/* The problem case is as follows:
+	 * 1. GPU A triggers a gpu ras reset, and GPU A drives
+	 *    GPU B to also perform a gpu ras reset.
+	 * 2. After gpu B ras reset started, gpu B queried a DE
+	 *    data. Since the DE data was queried in the ras reset
+	 *    thread instead of the page retirement thread, bad
+	 *    page retirement work would not be triggered. Then
+	 *    even if all gpu resets are completed, the bad pages
+	 *    will be cached in RAM until GPU B's bad page retirement
+	 *    work is triggered again and then saved to eeprom.
+	 * Trigger delayed work to save the bad pages to eeprom in time
+	 * after gpu ras reset is completed.
+	 */
+	if (amdgpu_ras_in_recovery(adev))
+		schedule_delayed_work(&con->page_retirement_dwork,
+			msecs_to_jiffies(DELAYED_TIME_FOR_GPU_RESET));
 
 	return 0;
 }

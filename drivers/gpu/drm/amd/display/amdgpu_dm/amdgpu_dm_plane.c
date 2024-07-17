@@ -689,13 +689,32 @@ static void amdgpu_dm_plane_add_gfx12_modifiers(struct amdgpu_device *adev,
 		      uint64_t **mods, uint64_t *size, uint64_t *capacity)
 {
 	uint64_t ver = AMD_FMT_MOD | AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX12);
+	uint64_t mod_256k = ver | AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX12_256K_2D);
+	uint64_t mod_64k = ver | AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX12_64K_2D);
+	uint64_t mod_4k = ver | AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX12_4K_2D);
+	uint64_t mod_256b = ver | AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX12_256B_2D);
+	uint64_t dcc = ver | AMD_FMT_MOD_SET(DCC, 1);
+	uint8_t max_comp_block[] = {1, 0};
+	uint64_t max_comp_block_mod[ARRAY_SIZE(max_comp_block)] = {0};
+	uint8_t i = 0, j = 0;
+	uint64_t gfx12_modifiers[] = {mod_256k, mod_64k, mod_4k, mod_256b, DRM_FORMAT_MOD_LINEAR};
 
-	/* Without DCC: */
-	amdgpu_dm_plane_add_modifier(mods, size, capacity, ver | AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX12_256K_2D));
-	amdgpu_dm_plane_add_modifier(mods, size, capacity, ver | AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX12_64K_2D));
-	amdgpu_dm_plane_add_modifier(mods, size, capacity, ver | AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX12_4K_2D));
-	amdgpu_dm_plane_add_modifier(mods, size, capacity, ver | AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX12_256B_2D));
-	amdgpu_dm_plane_add_modifier(mods, size, capacity, DRM_FORMAT_MOD_LINEAR);
+	for (i = 0; i < ARRAY_SIZE(max_comp_block); i++)
+		max_comp_block_mod[i] = AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, max_comp_block[i]);
+
+	/* With DCC: Best choice should be kept first. Hence, add all 256k modifiers of different
+	 * max compressed blocks first and then move on to the next smaller sized layouts.
+	 * Do not add the linear modifier here, and hence the condition of size-1 for the loop
+	 */
+	for (j = 0; j < ARRAY_SIZE(gfx12_modifiers) - 1; j++)
+		for (i = 0; i < ARRAY_SIZE(max_comp_block); i++)
+			amdgpu_dm_plane_add_modifier(mods, size, capacity,
+						     ver | dcc | max_comp_block_mod[i] | gfx12_modifiers[j]);
+
+	/* Without DCC. Add all modifiers including linear at the end */
+	for (i = 0; i < ARRAY_SIZE(gfx12_modifiers); i++)
+		amdgpu_dm_plane_add_modifier(mods, size, capacity, gfx12_modifiers[i]);
+
 }
 
 static int amdgpu_dm_plane_get_plane_modifiers(struct amdgpu_device *adev, unsigned int plane_type, uint64_t **mods)

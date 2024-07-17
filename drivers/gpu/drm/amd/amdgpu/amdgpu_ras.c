@@ -124,6 +124,8 @@ const char *get_ras_block_str(struct ras_common_if *ras_block)
 
 #define AMDGPU_RAS_RETIRE_PAGE_INTERVAL 100  //ms
 
+#define MAX_FLUSH_RETIRE_DWORK_TIMES  100
+
 enum amdgpu_ras_retire_page_reservation {
 	AMDGPU_RAS_RETIRE_PAGE_RESERVED,
 	AMDGPU_RAS_RETIRE_PAGE_PENDING,
@@ -1055,7 +1057,7 @@ static void amdgpu_ras_error_print_error_data(struct amdgpu_device *adev,
 	struct amdgpu_smuio_mcm_config_info *mcm_info;
 	struct ras_err_node *err_node;
 	struct ras_err_info *err_info;
-	u64 event_id = qctx->event_id;
+	u64 event_id = qctx->evid.event_id;
 
 	if (is_ue) {
 		for_each_ras_error(err_node, err_data) {
@@ -1140,7 +1142,7 @@ static void amdgpu_ras_error_generate_report(struct amdgpu_device *adev,
 {
 	struct ras_manager *ras_mgr = amdgpu_ras_find_obj(adev, &query_if->head);
 	const char *blk_name = get_ras_block_str(&query_if->head);
-	u64 event_id = qctx->event_id;
+	u64 event_id = qctx->evid.event_id;
 
 	if (err_data->ce_count) {
 		if (err_data_has_source_info(err_data)) {
@@ -1295,6 +1297,9 @@ ssize_t amdgpu_ras_aca_sysfs_read(struct device *dev, struct device_attribute *a
 		.head = obj->head,
 	};
 
+	if (!amdgpu_ras_get_error_query_ready(obj->adev))
+		return sysfs_emit(buf, "Query currently inaccessible\n");
+
 	if (amdgpu_ras_query_error_status(obj->adev, &info))
 		return -EINVAL;
 
@@ -1363,7 +1368,9 @@ static int amdgpu_ras_query_error_status_helper(struct amdgpu_device *adev,
 }
 
 /* query/inject/cure begin */
-int amdgpu_ras_query_error_status(struct amdgpu_device *adev, struct ras_query_if *info)
+static int amdgpu_ras_query_error_status_with_event(struct amdgpu_device *adev,
+						    struct ras_query_if *info,
+						    enum ras_event_type type)
 {
 	struct ras_manager *obj = amdgpu_ras_find_obj(adev, &info->head);
 	struct ras_err_data err_data;
@@ -1382,8 +1389,8 @@ int amdgpu_ras_query_error_status(struct amdgpu_device *adev, struct ras_query_i
 		return -EINVAL;
 
 	memset(&qctx, 0, sizeof(qctx));
-	qctx.event_id = amdgpu_ras_acquire_event_id(adev, amdgpu_ras_intr_triggered() ?
-						   RAS_EVENT_TYPE_ISR : RAS_EVENT_TYPE_INVALID);
+	qctx.evid.type = type;
+	qctx.evid.event_id = amdgpu_ras_acquire_event_id(adev, type);
 
 	if (!down_read_trylock(&adev->reset_domain->sem)) {
 		ret = -EIO;
@@ -1410,6 +1417,11 @@ out_fini_err_data:
 	amdgpu_ras_error_data_fini(&err_data);
 
 	return ret;
+}
+
+int amdgpu_ras_query_error_status(struct amdgpu_device *adev, struct ras_query_if *info)
+{
+	return amdgpu_ras_query_error_status_with_event(adev, info, RAS_EVENT_TYPE_INVALID);
 }
 
 int amdgpu_ras_reset_error_count(struct amdgpu_device *adev,
@@ -1721,6 +1733,39 @@ static ssize_t amdgpu_ras_sysfs_schema_show(struct device *dev,
 	return sysfs_emit(buf, "schema: 0x%x\n", con->schema);
 }
 
+static struct {
+	enum ras_event_type type;
+	const char *name;
+} dump_event[] = {
+	{RAS_EVENT_TYPE_FATAL, "Fatal Error"},
+	{RAS_EVENT_TYPE_POISON_CREATION, "Poison Creation"},
+	{RAS_EVENT_TYPE_POISON_CONSUMPTION, "Poison Consumption"},
+};
+
+static ssize_t amdgpu_ras_sysfs_event_state_show(struct device *dev,
+						 struct device_attribute *attr, char *buf)
+{
+	struct amdgpu_ras *con =
+		container_of(attr, struct amdgpu_ras, event_state_attr);
+	struct ras_event_manager *event_mgr = con->event_mgr;
+	struct ras_event_state *event_state;
+	int i, size = 0;
+
+	if (!event_mgr)
+		return -EINVAL;
+
+	size += sysfs_emit_at(buf, size, "current seqno: %llu\n", atomic64_read(&event_mgr->seqno));
+	for (i = 0; i < ARRAY_SIZE(dump_event); i++) {
+		event_state = &event_mgr->event_state[dump_event[i].type];
+		size += sysfs_emit_at(buf, size, "%s: count:%llu, last_seqno:%llu\n",
+				      dump_event[i].name,
+				      atomic64_read(&event_state->count),
+				      event_state->last_seqno);
+	}
+
+	return (ssize_t)size;
+}
+
 static void amdgpu_ras_sysfs_remove_bad_page_node(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
@@ -1738,6 +1783,7 @@ static int amdgpu_ras_sysfs_remove_dev_attr_node(struct amdgpu_device *adev)
 		&con->features_attr.attr,
 		&con->version_attr.attr,
 		&con->schema_attr.attr,
+		&con->event_state_attr.attr,
 		NULL
 	};
 	struct attribute_group group = {
@@ -1970,6 +2016,8 @@ static DEVICE_ATTR(version, 0444,
 		amdgpu_ras_sysfs_version_show, NULL);
 static DEVICE_ATTR(schema, 0444,
 		amdgpu_ras_sysfs_schema_show, NULL);
+static DEVICE_ATTR(event_state, 0444,
+		   amdgpu_ras_sysfs_event_state_show, NULL);
 static int amdgpu_ras_fs_init(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
@@ -1980,6 +2028,7 @@ static int amdgpu_ras_fs_init(struct amdgpu_device *adev)
 		&con->features_attr.attr,
 		&con->version_attr.attr,
 		&con->schema_attr.attr,
+		&con->event_state_attr.attr,
 		NULL
 	};
 	struct bin_attribute *bin_attrs[] = {
@@ -2001,6 +2050,10 @@ static int amdgpu_ras_fs_init(struct amdgpu_device *adev)
 	/* add schema entry */
 	con->schema_attr = dev_attr_schema;
 	sysfs_attr_init(attrs[2]);
+
+	/* add event_state entry */
+	con->event_state_attr = dev_attr_event_state;
+	sysfs_attr_init(attrs[3]);
 
 	if (amdgpu_bad_page_threshold != 0) {
 		/* add bad_page_features entry */
@@ -2066,8 +2119,15 @@ static void amdgpu_ras_interrupt_poison_consumption_handler(struct ras_manager *
 	struct amdgpu_ras_block_object *block_obj =
 		amdgpu_ras_get_ras_block(adev, obj->head.block, 0);
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+	enum ras_event_type type = RAS_EVENT_TYPE_POISON_CONSUMPTION;
+	u64 event_id;
+	int ret;
 
 	if (!block_obj || !con)
+		return;
+
+	ret = amdgpu_ras_mark_ras_event(adev, type);
+	if (ret)
 		return;
 
 	/* both query_poison_status and handle_poison_consumption are optional,
@@ -2094,8 +2154,10 @@ static void amdgpu_ras_interrupt_poison_consumption_handler(struct ras_manager *
 	 * For RMA case, amdgpu_umc_poison_handler will handle gpu reset.
 	 */
 	if (poison_stat && !con->is_rma) {
-		dev_info(adev->dev, "GPU reset for %s RAS poison consumption is issued!\n",
-				block_obj->ras_comm.name);
+		event_id = amdgpu_ras_acquire_event_id(adev, type);
+		RAS_EVENT_LOG(adev, event_id,
+			      "GPU reset for %s RAS poison consumption is issued!\n",
+			      block_obj->ras_comm.name);
 		amdgpu_ras_reset_gpu(adev);
 	}
 
@@ -2106,8 +2168,17 @@ static void amdgpu_ras_interrupt_poison_consumption_handler(struct ras_manager *
 static void amdgpu_ras_interrupt_poison_creation_handler(struct ras_manager *obj,
 				struct amdgpu_iv_entry *entry)
 {
-	dev_info(obj->adev->dev,
-		"Poison is created\n");
+	struct amdgpu_device *adev = obj->adev;
+	enum ras_event_type type = RAS_EVENT_TYPE_POISON_CREATION;
+	u64 event_id;
+	int ret;
+
+	ret = amdgpu_ras_mark_ras_event(adev, type);
+	if (ret)
+		return;
+
+	event_id = amdgpu_ras_acquire_event_id(adev, type);
+	RAS_EVENT_LOG(adev, event_id, "Poison is created\n");
 
 	if (amdgpu_ip_version(obj->adev, UMC_HWIP, 0) >= IP_VERSION(12, 0, 0)) {
 		struct amdgpu_ras *con = amdgpu_ras_get_context(obj->adev);
@@ -2302,7 +2373,7 @@ static int amdgpu_ras_interrupt_remove_all(struct amdgpu_device *adev)
 /* ih end */
 
 /* traversal all IPs except NBIO to query error counter */
-static void amdgpu_ras_log_on_err_counter(struct amdgpu_device *adev)
+static void amdgpu_ras_log_on_err_counter(struct amdgpu_device *adev, enum ras_event_type type)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct ras_manager *obj;
@@ -2335,7 +2406,7 @@ static void amdgpu_ras_log_on_err_counter(struct amdgpu_device *adev)
 		     IP_VERSION(13, 0, 2)))
 			continue;
 
-		amdgpu_ras_query_error_status(adev, &info);
+		amdgpu_ras_query_error_status_with_event(adev, &info, type);
 
 		if (amdgpu_ip_version(adev, MP0_HWIP, 0) !=
 			    IP_VERSION(11, 0, 2) &&
@@ -2474,6 +2545,14 @@ bool amdgpu_ras_in_recovery(struct amdgpu_device *adev)
 	return false;
 }
 
+static enum ras_event_type amdgpu_ras_get_fatal_error_event(struct amdgpu_device *adev)
+{
+	if (amdgpu_ras_intr_triggered())
+		return RAS_EVENT_TYPE_FATAL;
+	else
+		return RAS_EVENT_TYPE_POISON_CONSUMPTION;
+}
+
 static void amdgpu_ras_do_recovery(struct work_struct *work)
 {
 	struct amdgpu_ras *ras =
@@ -2482,6 +2561,7 @@ static void amdgpu_ras_do_recovery(struct work_struct *work)
 	struct amdgpu_device *adev = ras->adev;
 	struct list_head device_list, *device_list_handle =  NULL;
 	struct amdgpu_hive_info *hive = amdgpu_get_xgmi_hive(adev);
+	enum ras_event_type type;
 
 	if (hive) {
 		atomic_set(&hive->ras_recovery, 1);
@@ -2509,10 +2589,11 @@ static void amdgpu_ras_do_recovery(struct work_struct *work)
 			device_list_handle = &device_list;
 		}
 
+		type = amdgpu_ras_get_fatal_error_event(adev);
 		list_for_each_entry(remote_adev,
 				device_list_handle, gmc.xgmi.head) {
 			amdgpu_ras_query_err_status(remote_adev);
-			amdgpu_ras_log_on_err_counter(remote_adev);
+			amdgpu_ras_log_on_err_counter(remote_adev, type);
 		}
 
 	}
@@ -2828,6 +2909,23 @@ static void amdgpu_ras_ecc_log_fini(struct ras_ecc_log_info *ecc_log)
 	ecc_log->prev_de_queried_count = 0;
 }
 
+static bool amdgpu_ras_schedule_retirement_dwork(struct amdgpu_ras *con,
+				uint32_t delayed_ms)
+{
+	int ret;
+
+	mutex_lock(&con->umc_ecc_log.lock);
+	ret = radix_tree_tagged(&con->umc_ecc_log.de_page_tree,
+			UMC_ECC_NEW_DETECTED_TAG);
+	mutex_unlock(&con->umc_ecc_log.lock);
+
+	if (ret)
+		schedule_delayed_work(&con->page_retirement_dwork,
+			msecs_to_jiffies(delayed_ms));
+
+	return ret ? true : false;
+}
+
 static void amdgpu_ras_do_page_retirement(struct work_struct *work)
 {
 	struct amdgpu_ras *con = container_of(work, struct amdgpu_ras,
@@ -2836,8 +2934,12 @@ static void amdgpu_ras_do_page_retirement(struct work_struct *work)
 	struct ras_err_data err_data;
 	unsigned long err_cnt;
 
-	if (amdgpu_in_reset(adev) || amdgpu_ras_in_recovery(adev))
+	/* If gpu reset is ongoing, delay retiring the bad pages */
+	if (amdgpu_in_reset(adev) || amdgpu_ras_in_recovery(adev)) {
+		amdgpu_ras_schedule_retirement_dwork(con,
+				AMDGPU_RAS_RETIRE_PAGE_INTERVAL * 3);
 		return;
+	}
 
 	amdgpu_ras_error_data_init(&err_data);
 
@@ -2849,12 +2951,8 @@ static void amdgpu_ras_do_page_retirement(struct work_struct *work)
 	if (err_cnt && con->is_rma)
 		amdgpu_ras_reset_gpu(adev);
 
-	mutex_lock(&con->umc_ecc_log.lock);
-	if (radix_tree_tagged(&con->umc_ecc_log.de_page_tree,
-				UMC_ECC_NEW_DETECTED_TAG))
-		schedule_delayed_work(&con->page_retirement_dwork,
-			msecs_to_jiffies(AMDGPU_RAS_RETIRE_PAGE_INTERVAL));
-	mutex_unlock(&con->umc_ecc_log.lock);
+	amdgpu_ras_schedule_retirement_dwork(con,
+			AMDGPU_RAS_RETIRE_PAGE_INTERVAL);
 }
 
 static int amdgpu_ras_poison_creation_handler(struct amdgpu_device *adev,
@@ -2869,6 +2967,7 @@ static int amdgpu_ras_poison_creation_handler(struct amdgpu_device *adev,
 	uint32_t new_detect_count, total_detect_count;
 	uint32_t need_query_count = poison_creation_count;
 	bool query_data_timeout = false;
+	enum ras_event_type type = RAS_EVENT_TYPE_POISON_CREATION;
 
 	memset(&info, 0, sizeof(info));
 	info.head.block = AMDGPU_RAS_BLOCK__UMC;
@@ -2876,7 +2975,7 @@ static int amdgpu_ras_poison_creation_handler(struct amdgpu_device *adev,
 	ecc_log = &ras->umc_ecc_log;
 	total_detect_count = 0;
 	do {
-		ret = amdgpu_ras_query_error_status(adev, &info);
+		ret = amdgpu_ras_query_error_status_with_event(adev, &info, type);
 		if (ret)
 			return ret;
 
@@ -3157,10 +3256,18 @@ static int amdgpu_ras_recovery_fini(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct ras_err_handler_data *data = con->eh_data;
+	int max_flush_timeout = MAX_FLUSH_RETIRE_DWORK_TIMES;
+	bool ret;
 
 	/* recovery_init failed to init it, fini is useless */
 	if (!data)
 		return 0;
+
+	/* Save all cached bad pages to eeprom */
+	do {
+		flush_delayed_work(&con->page_retirement_dwork);
+		ret = amdgpu_ras_schedule_retirement_dwork(con, 0);
+	} while (ret && max_flush_timeout--);
 
 	if (con->page_retirement_thread)
 		kthread_stop(con->page_retirement_thread);
@@ -3401,10 +3508,17 @@ static int amdgpu_get_ras_schema(struct amdgpu_device *adev)
 
 static void ras_event_mgr_init(struct ras_event_manager *mgr)
 {
+	struct ras_event_state *event_state;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(mgr->seqnos); i++)
-		atomic64_set(&mgr->seqnos[i], 0);
+	memset(mgr, 0, sizeof(*mgr));
+	atomic64_set(&mgr->seqno, 0);
+
+	for (i = 0; i < ARRAY_SIZE(mgr->event_state); i++) {
+		event_state = &mgr->event_state[i];
+		event_state->last_seqno = RAS_EVENT_INVALID_ID;
+		atomic64_set(&event_state->count, 0);
+	}
 }
 
 static void amdgpu_ras_event_mgr_init(struct amdgpu_device *adev)
@@ -3904,23 +4018,68 @@ void amdgpu_ras_set_fed(struct amdgpu_device *adev, bool status)
 		atomic_set(&ras->fed, !!status);
 }
 
-bool amdgpu_ras_event_id_is_valid(struct amdgpu_device *adev, u64 id)
+static struct ras_event_manager *__get_ras_event_mgr(struct amdgpu_device *adev)
 {
-	return !(id & BIT_ULL(63));
+	struct amdgpu_ras *ras;
+
+	ras = amdgpu_ras_get_context(adev);
+	if (!ras)
+		return NULL;
+
+	return ras->event_mgr;
+}
+
+int amdgpu_ras_mark_ras_event_caller(struct amdgpu_device *adev, enum ras_event_type type,
+				     const void *caller)
+{
+	struct ras_event_manager *event_mgr;
+	struct ras_event_state *event_state;
+	int ret = 0;
+
+	if (type >= RAS_EVENT_TYPE_COUNT) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	event_mgr = __get_ras_event_mgr(adev);
+	if (!event_mgr) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	event_state = &event_mgr->event_state[type];
+	event_state->last_seqno = atomic64_inc_return(&event_mgr->seqno);
+	atomic64_inc(&event_state->count);
+
+out:
+	if (ret && caller)
+		dev_warn(adev->dev, "failed mark ras event (%d) in %ps, ret:%d\n",
+			 (int)type, caller, ret);
+
+	return ret;
 }
 
 u64 amdgpu_ras_acquire_event_id(struct amdgpu_device *adev, enum ras_event_type type)
 {
-	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
+	struct ras_event_manager *event_mgr;
 	u64 id;
 
+	if (type >= RAS_EVENT_TYPE_COUNT)
+		return RAS_EVENT_INVALID_ID;
+
 	switch (type) {
-	case RAS_EVENT_TYPE_ISR:
-		id = (u64)atomic64_read(&ras->event_mgr->seqnos[type]);
+	case RAS_EVENT_TYPE_FATAL:
+	case RAS_EVENT_TYPE_POISON_CREATION:
+	case RAS_EVENT_TYPE_POISON_CONSUMPTION:
+		event_mgr = __get_ras_event_mgr(adev);
+		if (!event_mgr)
+			return RAS_EVENT_INVALID_ID;
+
+		id = event_mgr->event_state[type].last_seqno;
 		break;
 	case RAS_EVENT_TYPE_INVALID:
 	default:
-		id = BIT_ULL(63) | 0ULL;
+		id = RAS_EVENT_INVALID_ID;
 		break;
 	}
 
@@ -3931,7 +4090,13 @@ void amdgpu_ras_global_ras_isr(struct amdgpu_device *adev)
 {
 	if (atomic_cmpxchg(&amdgpu_ras_in_intr, 0, 1) == 0) {
 		struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
-		u64 event_id = (u64)atomic64_inc_return(&ras->event_mgr->seqnos[RAS_EVENT_TYPE_ISR]);
+		enum ras_event_type type = RAS_EVENT_TYPE_FATAL;
+		u64 event_id;
+
+		if (amdgpu_ras_mark_ras_event(adev, type))
+			return;
+
+		event_id = amdgpu_ras_acquire_event_id(adev, type);
 
 		RAS_EVENT_LOG(adev, event_id, "uncorrectable hardware error"
 			      "(ERREVENT_ATHUB_INTERRUPT) detected!\n");
@@ -4665,7 +4830,7 @@ void amdgpu_ras_event_log_print(struct amdgpu_device *adev, u64 event_id,
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
-	if (amdgpu_ras_event_id_is_valid(adev, event_id))
+	if (RAS_EVENT_ID_IS_VALID(event_id))
 		dev_printk(KERN_INFO, adev->dev, "{%llu}%pV", event_id, &vaf);
 	else
 		dev_printk(KERN_INFO, adev->dev, "%pV", &vaf);

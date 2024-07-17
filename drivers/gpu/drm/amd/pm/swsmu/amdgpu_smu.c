@@ -1755,6 +1755,8 @@ static int smu_start_smc_engine(struct smu_context *smu)
 	struct amdgpu_device *adev = smu->adev;
 	int ret = 0;
 
+	smu->smc_fw_state = SMU_FW_INIT;
+
 	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP) {
 		if (amdgpu_ip_version(adev, MP1_HWIP, 0) < IP_VERSION(11, 0, 0)) {
 			if (smu->ppt_funcs->load_microcode) {

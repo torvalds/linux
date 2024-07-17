@@ -99,6 +99,7 @@ static const char *mes_v12_0_opcodes[] = {
 	"SET_LOG_BUFFER",
 	"CHANGE_GANG_PRORITY",
 	"QUERY_SCHEDULER_STATUS",
+	"unused",
 	"SET_DEBUG_VMID",
 	"MISC",
 	"UPDATE_ROOT_PAGE_TABLE",

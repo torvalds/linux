@@ -274,7 +274,7 @@ int amdgpu_mca_smu_set_debug_mode(struct amdgpu_device *adev, bool enable)
 static void amdgpu_mca_smu_mca_bank_dump(struct amdgpu_device *adev, int idx, struct mca_bank_entry *entry,
 					 struct ras_query_context *qctx)
 {
-	u64 event_id = qctx->event_id;
+	u64 event_id = qctx ? qctx->evid.event_id : RAS_EVENT_INVALID_ID;
 
 	RAS_EVENT_LOG(adev, event_id, HW_ERR "Accelerator Check Architecture events logged\n");
 	RAS_EVENT_LOG(adev, event_id, HW_ERR "aca entry[%02d].STATUS=0x%016llx\n",
@@ -543,7 +543,7 @@ static int mca_dump_show(struct seq_file *m, enum amdgpu_mca_error_type type)
 
 	amdgpu_mca_bank_set_init(&mca_set);
 
-	qctx.event_id = 0ULL;
+	qctx.evid.event_id = RAS_EVENT_INVALID_ID;
 	ret = amdgpu_mca_smu_get_mca_set(adev, type, &mca_set, &qctx);
 	if (ret)
 		goto err_free_mca_set;

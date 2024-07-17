@@ -35,7 +35,27 @@
 #define regGRBM_GFX_INDEX_DEFAULT	0xe0000000
 
 static const char *gfxhub_client_ids[] = {
-	/* TODO */
+	"CB",
+	"DB",
+	"GE1",
+	"GE2",
+	"CPF",
+	"CPC",
+	"CPG",
+	"RLC",
+	"TCP",
+	"SQC (inst)",
+	"SQC (data)",
+	"SQG/PC/SC",
+	"Reserved",
+	"SDMA0",
+	"SDMA1",
+	"GCR",
+	"Reserved",
+	"Reserved",
+	"WGS",
+	"DSM",
+	"PA"
 };
 
 static uint32_t gfxhub_v12_0_get_invalidate_req(unsigned int vmid,

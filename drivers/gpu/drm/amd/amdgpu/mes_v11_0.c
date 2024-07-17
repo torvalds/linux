@@ -120,6 +120,9 @@ static const char *mes_v11_0_opcodes[] = {
 	"MISC",
 	"UPDATE_ROOT_PAGE_TABLE",
 	"AMD_LOG",
+	"unused",
+	"unused",
+	"SET_HW_RSRC_1",
 };
 
 static const char *mes_v11_0_misc_opcodes[] = {
