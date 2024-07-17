@@ -18,14 +18,17 @@ void adf_pf2vf_notify_restarting(struct adf_accel_dev *accel_dev)
 
 	dev_dbg(&GET_DEV(accel_dev), "pf2vf notify restarting\n");
 	for (i = 0, vf = accel_dev->pf.vf_info; i < num_vfs; i++, vf++) {
-		vf->restarting = false;
+		if (vf->init && vf->vf_compat_ver >= ADF_PFVF_COMPAT_FALLBACK)
+			vf->restarting = true;
+		else
+			vf->restarting = false;
+
 		if (!vf->init)
 			continue;
+
 		if (adf_send_pf2vf_msg(accel_dev, i, msg))
 			dev_err(&GET_DEV(accel_dev),
 				"Failed to send restarting msg to VF%d\n", i);
-		else if (vf->vf_compat_ver >= ADF_PFVF_COMPAT_FALLBACK)
-			vf->restarting = true;
 	}
 }
 
