@@ -477,8 +477,8 @@ struct btree_trans {
 	btree_path_idx_t	nr_sorted;
 	btree_path_idx_t	nr_paths;
 	btree_path_idx_t	nr_paths_max;
+	btree_path_idx_t	nr_updates;
 	u8			fn_idx;
-	u8			nr_updates;
 	u8			lock_must_abort;
 	bool			lock_may_not_fail:1;
 	bool			srcu_held:1;
