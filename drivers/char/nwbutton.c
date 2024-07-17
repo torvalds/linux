@@ -241,6 +241,7 @@ static void __exit nwbutton_exit (void)
 
 
 MODULE_AUTHOR("Alex Holden");
+MODULE_DESCRIPTION("NetWinder button driver");
 MODULE_LICENSE("GPL");
 
 module_init(nwbutton_init);
