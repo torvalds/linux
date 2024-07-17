@@ -43,8 +43,6 @@
  */
 static const unsigned short normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4b,
 						I2C_CLIENT_END };
-enum chips { lm92, max6635 };
-
 /* The LM92 registers */
 #define LM92_REG_CONFIG			0x01 /* 8-bit, RW */
 #define LM92_REG_TEMP			0x00 /* 16-bit, RO */
@@ -66,10 +64,10 @@ static inline int TEMP_FROM_REG(s16 reg)
 	return reg / 8 * 625 / 10;
 }
 
-static inline s16 TEMP_TO_REG(long val)
+static inline s16 TEMP_TO_REG(long val, int resolution)
 {
 	val = clamp_val(val, -60000, 160000);
-	return val * 10 / 625 * 8;
+	return DIV_ROUND_CLOSEST(val << (resolution - 9), 1000) << (16 - resolution);
 }
 
 /* Alarm flags are stored in the 3 LSB of the temperature register */
@@ -99,6 +97,7 @@ static const u8 regs[t_num_regs] = {
 struct lm92_data {
 	struct i2c_client *client;
 	struct mutex update_lock;
+	int resolution;
 	bool valid; /* false until following fields are valid */
 	unsigned long last_updated; /* in jiffies */
 
@@ -159,7 +158,7 @@ static ssize_t temp_store(struct device *dev,
 		return err;
 
 	mutex_lock(&data->update_lock);
-	data->temp[nr] = TEMP_TO_REG(val);
+	data->temp[nr] = TEMP_TO_REG(val, data->resolution);
 	i2c_smbus_write_word_swapped(client, regs[nr], data->temp[nr]);
 	mutex_unlock(&data->update_lock);
 	return count;
@@ -201,7 +200,8 @@ static ssize_t temp_hyst_store(struct device *dev,
 	val = clamp_val(val, -120000, 220000);
 	mutex_lock(&data->update_lock);
 	data->temp[t_hyst] =
-		TEMP_TO_REG(TEMP_FROM_REG(data->temp[attr->index]) - val);
+		TEMP_TO_REG(TEMP_FROM_REG(data->temp[attr->index]) - val,
+			    data->resolution);
 	i2c_smbus_write_word_swapped(client, LM92_REG_TEMP_HYST,
 				     data->temp[t_hyst]);
 	mutex_unlock(&data->update_lock);
@@ -311,6 +311,7 @@ static int lm92_probe(struct i2c_client *new_client)
 		return -ENOMEM;
 
 	data->client = new_client;
+	data->resolution = (unsigned long)i2c_get_match_data(new_client);
 	mutex_init(&data->update_lock);
 
 	/* Initialize the chipset */
@@ -326,9 +327,10 @@ static int lm92_probe(struct i2c_client *new_client)
  * Module and driver stuff
  */
 
+/* .driver_data is limit register resolution */ 
 static const struct i2c_device_id lm92_id[] = {
-	{ "lm92", lm92 },
-	{ "max6635", max6635 },
+	{ "lm92", 13 },
+	{ "max6635", 9 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lm92_id);
