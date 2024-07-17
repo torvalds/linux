@@ -396,25 +396,72 @@ static inline bool ad7192_valid_external_frequency(u32 freq)
 		freq <= AD7192_EXT_FREQ_MHZ_MAX);
 }
 
-static int ad7192_clock_select(struct ad7192_state *st)
+/*
+ * Position 0 of ad7192_clock_names, xtal, corresponds to clock source
+ * configuration AD7192_CLK_EXT_MCLK1_2 and position 1, mclk, corresponds to
+ * AD7192_CLK_EXT_MCLK2
+ */
+static const char *const ad7192_clock_names[] = {
+	"xtal",
+	"mclk"
+};
+
+static int ad7192_clock_setup(struct ad7192_state *st)
 {
 	struct device *dev = &st->sd.spi->dev;
-	unsigned int clock_sel;
+	int ret;
 
-	clock_sel = AD7192_CLK_INT;
+	/*
+	 * The following two if branches are kept for backward compatibility but
+	 * the use of the two devicetree properties is highly discouraged. Clock
+	 * configuration should be done according to the bindings.
+	 */
 
-	/* use internal clock */
-	if (!st->mclk) {
-		if (device_property_read_bool(dev, "adi,int-clock-output-enable"))
-			clock_sel = AD7192_CLK_INT_CO;
-	} else {
-		if (device_property_read_bool(dev, "adi,clock-xtal"))
-			clock_sel = AD7192_CLK_EXT_MCLK1_2;
-		else
-			clock_sel = AD7192_CLK_EXT_MCLK2;
+	if (device_property_read_bool(dev, "adi,int-clock-output-enable")) {
+		st->clock_sel = AD7192_CLK_INT_CO;
+		st->fclk = AD7192_INT_FREQ_MHZ;
+		dev_warn(dev, "Property adi,int-clock-output-enable is deprecated! Check bindings!\n");
+		return 0;
 	}
 
-	return clock_sel;
+	if (device_property_read_bool(dev, "adi,clock-xtal")) {
+		st->clock_sel = AD7192_CLK_EXT_MCLK1_2;
+		st->mclk = devm_clk_get_enabled(dev, "mclk");
+		if (IS_ERR(st->mclk))
+			return dev_err_probe(dev, PTR_ERR(st->mclk),
+					     "Failed to get mclk\n");
+
+		st->fclk = clk_get_rate(st->mclk);
+		if (!ad7192_valid_external_frequency(st->fclk))
+			return dev_err_probe(dev, -EINVAL,
+					     "External clock frequency out of bounds\n");
+
+		dev_warn(dev, "Property adi,clock-xtal is deprecated! Check bindings!\n");
+		return 0;
+	}
+
+	ret = device_property_match_property_string(dev, "clock-names",
+						    ad7192_clock_names,
+						    ARRAY_SIZE(ad7192_clock_names));
+	if (ret < 0) {
+		st->clock_sel = AD7192_CLK_INT;
+		st->fclk = AD7192_INT_FREQ_MHZ;
+		return 0;
+	}
+
+	st->clock_sel = AD7192_CLK_EXT_MCLK1_2 + ret;
+
+	st->mclk = devm_clk_get_enabled(dev, ad7192_clock_names[ret]);
+	if (IS_ERR(st->mclk))
+		return dev_err_probe(dev, PTR_ERR(st->mclk),
+				     "Failed to get clock source\n");
+
+	st->fclk = clk_get_rate(st->mclk);
+	if (!ad7192_valid_external_frequency(st->fclk))
+		return dev_err_probe(dev, -EINVAL,
+				     "External clock frequency out of bounds\n");
+
+	return 0;
 }
 
 static int ad7192_setup(struct iio_dev *indio_dev, struct device *dev)
@@ -1275,21 +1322,9 @@ static int ad7192_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	st->fclk = AD7192_INT_FREQ_MHZ;
-
-	st->mclk = devm_clk_get_optional_enabled(dev, "mclk");
-	if (IS_ERR(st->mclk))
-		return PTR_ERR(st->mclk);
-
-	st->clock_sel = ad7192_clock_select(st);
-
-	if (st->clock_sel == AD7192_CLK_EXT_MCLK1_2 ||
-	    st->clock_sel == AD7192_CLK_EXT_MCLK2) {
-		st->fclk = clk_get_rate(st->mclk);
-		if (!ad7192_valid_external_frequency(st->fclk))
-			return dev_err_probe(dev, -EINVAL,
-					     "External clock frequency out of bounds\n");
-	}
+	ret = ad7192_clock_setup(st);
+	if (ret)
+		return ret;
 
 	ret = ad7192_setup(indio_dev, dev);
 	if (ret)
