@@ -2549,6 +2549,14 @@ static int snp_launch_finish(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	data->gctx_paddr = __psp_pa(sev->snp_context);
 	ret = sev_issue_cmd(kvm, SEV_CMD_SNP_LAUNCH_FINISH, data, &argp->error);
 
+	/*
+	 * Now that there will be no more SNP_LAUNCH_UPDATE ioctls, private pages
+	 * can be given to the guest simply by marking the RMP entry as private.
+	 * This can happen on first access and also with KVM_PRE_FAULT_MEMORY.
+	 */
+	if (!ret)
+		kvm->arch.pre_fault_allowed = true;
+
 	kfree(id_auth);
 
 e_free_id_block:

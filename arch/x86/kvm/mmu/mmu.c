@@ -4743,6 +4743,9 @@ long kvm_arch_vcpu_pre_fault_memory(struct kvm_vcpu *vcpu,
 	u64 end;
 	int r;
 
+	if (!vcpu->kvm->arch.pre_fault_allowed)
+		return -EOPNOTSUPP;
+
 	/*
 	 * reload is efficient when called repeatedly, so we can do it on
 	 * every iteration.
