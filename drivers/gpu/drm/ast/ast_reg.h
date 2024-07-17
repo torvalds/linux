@@ -38,6 +38,7 @@
 #define AST_IO_VGACRCB_HWC_ENABLED	BIT(1)
 
 #define AST_IO_VGACRD1_MCU_FW_EXECUTING	BIT(5)
+#define AST_IO_VGACRDC_LINK_SUCCESS	BIT(0)
 #define AST_IO_VGACRDF_HPD		BIT(0)
 
 #define AST_IO_VGAIR1_R			(0x5A)
@@ -70,10 +71,8 @@
 #define AST_DP_VIDEO_ENABLE		BIT(0)
 
 /*
- * CRDC[b0]: DP link success
  * CRE5[b0]: Host reading EDID process is done
  */
-#define ASTDP_LINK_SUCCESS		BIT(0)
 #define ASTDP_HOST_EDID_READ_DONE	BIT(0)
 #define ASTDP_HOST_EDID_READ_DONE_MASK	GENMASK(0, 0)
 

@@ -11,8 +11,6 @@ bool ast_astdp_is_connected(struct ast_device *ast)
 {
 	if (!ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDF, AST_IO_VGACRDF_HPD))
 		return false;
-	if (!ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDC, ASTDP_LINK_SUCCESS))
-		return false;
 	return true;
 }
 
@@ -22,14 +20,10 @@ int ast_astdp_read_edid(struct drm_device *dev, u8 *ediddata)
 	u8 i = 0, j = 0;
 
 	/*
-	 * CRDC[b0]: DP link success
 	 * CRE5[b0]: Host reading EDID process is done
 	 */
-	if (!(ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDC, ASTDP_LINK_SUCCESS) &&
-		ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xE5,
-								ASTDP_HOST_EDID_READ_DONE_MASK))) {
+	if (!(ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xE5, ASTDP_HOST_EDID_READ_DONE_MASK)))
 		goto err_astdp_edid_not_ready;
-	}
 
 	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xE5, (u8) ~ASTDP_HOST_EDID_READ_DONE_MASK,
 							0x00);
@@ -57,11 +51,6 @@ int ast_astdp_read_edid(struct drm_device *dev, u8 *ediddata)
 			 * 2. The Delays are often longer a lot when system resume from S3/S4.
 			 */
 			mdelay(j+1);
-
-			if (!(ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDC,
-							ASTDP_LINK_SUCCESS))) {
-				goto err_astdp_jump_out_loop_of_edid;
-			}
 
 			j++;
 			if (j > 200)
@@ -106,8 +95,6 @@ err_astdp_jump_out_loop_of_edid:
 	return (~(j+256) + 1);
 
 err_astdp_edid_not_ready:
-	if (!(ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDC, ASTDP_LINK_SUCCESS)))
-		return (~0xDC + 1);
 	if (!(ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xE5, ASTDP_HOST_EDID_READ_DONE_MASK)))
 		return (~0xE5 + 1);
 
@@ -158,7 +145,22 @@ void ast_dp_power_on_off(struct drm_device *dev, bool on)
 	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xE3, (u8) ~AST_DP_PHY_SLEEP, bE3);
 }
 
+void ast_dp_link_training(struct ast_device *ast)
+{
+	struct drm_device *dev = &ast->base;
+	unsigned int i = 10;
 
+	while (i--) {
+		u8 vgacrdc = ast_get_index_reg(ast, AST_IO_VGACRI, 0xdc);
+
+		if (vgacrdc & AST_IO_VGACRDC_LINK_SUCCESS)
+			break;
+		if (i)
+			msleep(100);
+	}
+	if (!i)
+		drm_err(dev, "Link training failed\n");
+}
 
 void ast_dp_set_on_off(struct drm_device *dev, bool on)
 {
@@ -169,16 +171,13 @@ void ast_dp_set_on_off(struct drm_device *dev, bool on)
 	// Video On/Off
 	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xE3, (u8) ~AST_DP_VIDEO_ENABLE, on);
 
-	// If DP plug in and link successful then check video on / off status
-	if (ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDC, ASTDP_LINK_SUCCESS)) {
-		video_on_off <<= 4;
-		while (ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDF,
+	video_on_off <<= 4;
+	while (ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDF,
 						ASTDP_MIRROR_VIDEO_ENABLE) != video_on_off) {
-			// wait 1 ms
-			mdelay(1);
-			if (++i > 200)
-				break;
-		}
+		// wait 1 ms
+		mdelay(1);
+		if (++i > 200)
+			break;
 	}
 }
 
