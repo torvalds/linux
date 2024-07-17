@@ -221,30 +221,11 @@ static inline int range_has_data(struct bch_fs *c, u32 subvol,
 				 struct bpos start,
 				 struct bpos end)
 {
-	struct btree_trans *trans = bch2_trans_get(c);
-	struct btree_iter iter;
-	struct bkey_s_c k;
-	int ret = 0;
-retry:
-	bch2_trans_begin(trans);
-
-	ret = bch2_subvolume_get_snapshot(trans, subvol, &start.snapshot);
-	if (ret)
-		goto err;
-
-	for_each_btree_key_upto_norestart(trans, iter, BTREE_ID_extents, start, end, 0, k, ret)
-		if (bkey_extent_is_data(k.k) && !bkey_extent_is_unwritten(k)) {
-			ret = 1;
-			break;
-		}
-	start = iter.pos;
-	bch2_trans_iter_exit(trans, &iter);
-err:
-	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
-		goto retry;
-
-	bch2_trans_put(trans);
-	return ret;
+	return bch2_trans_run(c,
+		for_each_btree_key_in_subvolume_upto(trans, iter, BTREE_ID_extents, start, end,
+						    subvol, 0, k, ({
+			bkey_extent_is_data(k.k) && !bkey_extent_is_unwritten(k);
+		})));
 }
 
 static int __bch2_truncate_folio(struct bch_inode_info *inode,
