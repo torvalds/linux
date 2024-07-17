@@ -393,17 +393,22 @@ static struct dma_fence *blt_copy(struct xe_tile *tile,
 		u32 flush_flags = 0;
 		u32 update_idx;
 		u32 avail_pts = max_mem_transfer_per_pass(xe) / LEVEL0_PAGE_TABLE_ENCODE_SIZE;
+		u32 pte_flags;
 
 		src_L0 = xe_migrate_res_sizes(m, &src_it);
 		dst_L0 = xe_migrate_res_sizes(m, &dst_it);
 
 		src_L0 = min(src_L0, dst_L0);
 
-		batch_size += pte_update_size(m, src_is_vram, src_is_vram, src, &src_it, &src_L0,
+		pte_flags = src_is_vram ? (PTE_UPDATE_FLAG_IS_VRAM |
+					   PTE_UPDATE_FLAG_IS_COMP_PTE) : 0;
+		batch_size += pte_update_size(m, pte_flags, src, &src_it, &src_L0,
 					      &src_L0_ofs, &src_L0_pt, 0, 0,
 					      avail_pts);
 
-		batch_size += pte_update_size(m, dst_is_vram, dst_is_vram, dst, &dst_it, &src_L0,
+		pte_flags = dst_is_vram ? (PTE_UPDATE_FLAG_IS_VRAM |
+					   PTE_UPDATE_FLAG_IS_COMP_PTE) : 0;
+		batch_size += pte_update_size(m, pte_flags, dst, &dst_it, &src_L0,
 					      &dst_L0_ofs, &dst_L0_pt, 0,
 					      avail_pts, avail_pts);
 
