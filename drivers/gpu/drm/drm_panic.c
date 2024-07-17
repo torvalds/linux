@@ -704,6 +704,26 @@ static void debugfs_register_plane(struct drm_plane *plane, int index) {}
 #endif /* CONFIG_DRM_PANIC_DEBUG */
 
 /**
+ * drm_panic_is_enabled
+ * @dev: the drm device that may supports drm_panic
+ *
+ * returns true if the drm device supports drm_panic
+ */
+bool drm_panic_is_enabled(struct drm_device *dev)
+{
+	struct drm_plane *plane;
+
+	if (!dev->mode_config.num_total_plane)
+		return false;
+
+	drm_for_each_plane(plane, dev)
+		if (plane->helper_private && plane->helper_private->get_scanout_buffer)
+			return true;
+	return false;
+}
+EXPORT_SYMBOL(drm_panic_is_enabled);
+
+/**
  * drm_panic_register() - Initialize DRM panic for a device
  * @dev: the drm device on which the panic screen will be displayed.
  */
