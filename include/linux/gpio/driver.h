@@ -813,6 +813,11 @@ const char *gpio_device_get_label(struct gpio_device *gdev);
 struct gpio_device *gpio_device_find_by_label(const char *label);
 struct gpio_device *gpio_device_find_by_fwnode(const struct fwnode_handle *fwnode);
 
+#define for_each_gpio_desc(gc, desc)					\
+	for (unsigned int __i = 0;					\
+	     __i < gc->ngpio && (desc = gpiochip_get_desc(gc, __i));	\
+	     __i++)							\
+
 #else /* CONFIG_GPIOLIB */
 
 #include <asm/bug.h>

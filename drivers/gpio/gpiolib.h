@@ -115,11 +115,6 @@ struct gpio_array {
 	unsigned long		invert_mask[];
 };
 
-#define for_each_gpio_desc(gc, desc)					\
-	for (unsigned int __i = 0;					\
-	     __i < gc->ngpio && (desc = gpiochip_get_desc(gc, __i));	\
-	     __i++)							\
-
 #define for_each_gpio_desc_with_flag(gc, desc, flag)			\
 	for_each_gpio_desc(gc, desc)					\
 		if (!test_bit(flag, &desc->flags)) {} else
