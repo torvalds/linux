@@ -496,12 +496,6 @@ again:
 		for (alloc_cursor = max(alloc_cursor, bkey_start_offset(k.k));
 		     alloc_cursor < k.k->p.offset;
 		     alloc_cursor++) {
-			ret = btree_trans_too_many_iters(trans);
-			if (ret) {
-				ob = ERR_PTR(ret);
-				break;
-			}
-
 			s->buckets_seen++;
 
 			u64 bucket = alloc_cursor & ~(~0ULL << 56);
