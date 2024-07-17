@@ -17,54 +17,55 @@ bool ast_astdp_is_connected(struct ast_device *ast)
 int ast_astdp_read_edid(struct drm_device *dev, u8 *ediddata)
 {
 	struct ast_device *ast = to_ast_device(dev);
-	u8 i = 0, j = 0;
+	int ret = 0;
+	u8 i;
 
-	/*
-	 * CRE5[b0]: Host reading EDID process is done
-	 */
-	if (!(ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xE5, ASTDP_HOST_EDID_READ_DONE_MASK)))
-		goto err_astdp_edid_not_ready;
-
-	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xE5, (u8) ~ASTDP_HOST_EDID_READ_DONE_MASK,
-							0x00);
+	/* Start reading EDID data */
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xe5, (u8)~AST_IO_VGACRE5_EDID_READ_DONE, 0x00);
 
 	for (i = 0; i < 32; i++) {
+		unsigned int j;
+
 		/*
 		 * CRE4[7:0]: Read-Pointer for EDID (Unit: 4bytes); valid range: 0~64
 		 */
-		ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xE4,
-				       ASTDP_AND_CLEAR_MASK, (u8)i);
-		j = 0;
+		ast_set_index_reg(ast, AST_IO_VGACRI, 0xe4, i);
 
 		/*
 		 * CRD7[b0]: valid flag for EDID
 		 * CRD6[b0]: mirror read pointer for EDID
 		 */
-		while ((ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xD7,
-				ASTDP_EDID_VALID_FLAG_MASK) != 0x01) ||
-			(ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xD6,
-						ASTDP_EDID_READ_POINTER_MASK) != i)) {
+		for (j = 0; j < 200; ++j) {
+			u8 vgacrd7, vgacrd6;
+
 			/*
 			 * Delay are getting longer with each retry.
-			 * 1. The Delays are often 2 loops when users request "Display Settings"
+			 *
+			 * 1. No delay on first try
+			 * 2. The Delays are often 2 loops when users request "Display Settings"
 			 *	  of right-click of mouse.
-			 * 2. The Delays are often longer a lot when system resume from S3/S4.
+			 * 3. The Delays are often longer a lot when system resume from S3/S4.
 			 */
-			mdelay(j+1);
+			if (j)
+				mdelay(j + 1);
 
-			j++;
-			if (j > 200)
-				goto err_astdp_jump_out_loop_of_edid;
+			/* Wait for EDID offset to show up in mirror register */
+			vgacrd7 = ast_get_index_reg(ast, AST_IO_VGACRI, 0xd7);
+			if (vgacrd7 & AST_IO_VGACRD7_EDID_VALID_FLAG) {
+				vgacrd6 = ast_get_index_reg(ast, AST_IO_VGACRI, 0xd6);
+				if (vgacrd6 == i)
+					break;
+			}
+		}
+		if (j == 200) {
+			ret = -EBUSY;
+			goto out;
 		}
 
-		*(ediddata) = ast_get_index_reg_mask(ast, AST_IO_VGACRI,
-							0xD8, ASTDP_EDID_READ_DATA_MASK);
-		*(ediddata + 1) = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xD9,
-								ASTDP_EDID_READ_DATA_MASK);
-		*(ediddata + 2) = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDA,
-								ASTDP_EDID_READ_DATA_MASK);
-		*(ediddata + 3) = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDB,
-								ASTDP_EDID_READ_DATA_MASK);
+		ediddata[0] = ast_get_index_reg(ast, AST_IO_VGACRI, 0xd8);
+		ediddata[1] = ast_get_index_reg(ast, AST_IO_VGACRI, 0xd9);
+		ediddata[2] = ast_get_index_reg(ast, AST_IO_VGACRI, 0xda);
+		ediddata[3] = ast_get_index_reg(ast, AST_IO_VGACRI, 0xdb);
 
 		if (i == 31) {
 			/*
@@ -76,29 +77,19 @@ int ast_astdp_read_edid(struct drm_device *dev, u8 *ediddata)
 			 *		The Bytes-126 indicates the Number of extensions to
 			 *		follow. 0 represents noextensions.
 			 */
-			*(ediddata + 3) = *(ediddata + 3) + *(ediddata + 2);
-			*(ediddata + 2) = 0;
+			ediddata[3] = ediddata[3] + ediddata[2];
+			ediddata[2] = 0;
 		}
 
 		ediddata += 4;
 	}
 
-	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xE5, (u8) ~ASTDP_HOST_EDID_READ_DONE_MASK,
-							ASTDP_HOST_EDID_READ_DONE);
+out:
+	/* Signal end of reading */
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xe5, (u8)~AST_IO_VGACRE5_EDID_READ_DONE,
+			       AST_IO_VGACRE5_EDID_READ_DONE);
 
-	return 0;
-
-err_astdp_jump_out_loop_of_edid:
-	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xE5,
-							(u8) ~ASTDP_HOST_EDID_READ_DONE_MASK,
-							ASTDP_HOST_EDID_READ_DONE);
-	return (~(j+256) + 1);
-
-err_astdp_edid_not_ready:
-	if (!(ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xE5, ASTDP_HOST_EDID_READ_DONE_MASK)))
-		return (~0xE5 + 1);
-
-	return	0;
+	return ret;
 }
 
 /*
@@ -122,9 +113,9 @@ int ast_dp_launch(struct ast_device *ast)
 		return -ENODEV;
 	}
 
-	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xE5,
-			       (u8) ~ASTDP_HOST_EDID_READ_DONE_MASK,
-			       ASTDP_HOST_EDID_READ_DONE);
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xe5,
+			       (u8) ~AST_IO_VGACRE5_EDID_READ_DONE,
+			       AST_IO_VGACRE5_EDID_READ_DONE);
 
 	return 0;
 }
