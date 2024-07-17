@@ -2726,6 +2726,7 @@ struct bkey_s_c bch2_btree_iter_prev_slot(struct btree_iter *iter)
 	return bch2_btree_iter_peek_slot(iter);
 }
 
+/* Obsolete, but still used by rust wrapper in -tools */
 struct bkey_s_c bch2_btree_iter_peek_and_restart_outlined(struct btree_iter *iter)
 {
 	struct bkey_s_c k;
