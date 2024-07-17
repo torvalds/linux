@@ -42,12 +42,18 @@ properties:
     description:
       Optionally, either a crystal can be attached externally between MCLK1 and
       MCLK2 pins, or an external CMOS-compatible clock can drive the MCLK2
-      pin. If absent, internal 4.92MHz clock is used.
+      pin. If absent, internal 4.92MHz clock is used, which can be made
+      available on MCLK2 pin.
 
   clock-names:
     enum:
       - xtal
       - mclk
+
+  "#clock-cells":
+    const: 0
+    description:
+      If present when internal clock is used, configured as clock provider.
 
   interrupts:
     maxItems: 1
@@ -165,6 +171,8 @@ allOf:
         - required:
             - clock-names
     then:
+      properties:
+        "#clock-cells": false
       required:
         - clocks
         - clock-names
@@ -213,8 +221,7 @@ examples:
             spi-max-frequency = <1000000>;
             spi-cpol;
             spi-cpha;
-            clocks = <&ad7192_mclk>;
-            clock-names = "mclk";
+            #clock-cells = <0>;
             interrupts = <25 0x2>;
             interrupt-parent = <&gpio>;
             aincom-supply = <&aincom>;
