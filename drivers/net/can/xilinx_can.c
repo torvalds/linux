@@ -6,7 +6,7 @@
  * Copyright (C) 2017 - 2018 Sandvik Mining and Construction Oy
  *
  * Description:
- * This driver is developed for Axi CAN IP and for Zynq CANPS Controller.
+ * This driver is developed for AXI CAN IP, AXI CANFD IP, CANPS and CANFD PS Controller.
  */
 
 #include <linux/bitfield.h>

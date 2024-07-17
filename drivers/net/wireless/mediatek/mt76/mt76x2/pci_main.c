@@ -24,7 +24,7 @@ mt76x2_start(struct ieee80211_hw *hw)
 }
 
 static void
-mt76x2_stop(struct ieee80211_hw *hw)
+mt76x2_stop(struct ieee80211_hw *hw, bool suspend)
 {
 	struct mt76x02_dev *dev = hw->priv;
 

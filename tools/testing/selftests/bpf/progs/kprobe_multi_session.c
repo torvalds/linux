@@ -4,8 +4,7 @@
 #include <bpf/bpf_tracing.h>
 #include <stdbool.h>
 #include "bpf_kfuncs.h"
-
-#define ARRAY_SIZE(x) (int)(sizeof(x) / sizeof((x)[0]))
+#include "bpf_misc.h"
 
 char _license[] SEC("license") = "GPL";
 

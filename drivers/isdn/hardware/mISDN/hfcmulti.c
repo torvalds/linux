@@ -221,6 +221,7 @@ static uint	hwid = HWID_NONE;
 static int	HFC_cnt, E1_cnt, bmask_cnt, Port_cnt, PCM_cnt = 99;
 
 MODULE_AUTHOR("Andreas Eversberg");
+MODULE_DESCRIPTION("mISDN driver for hfc-4s/hfc-8s/hfc-e1 based cards");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(HFC_MULTI_VERSION);
 module_param(debug, uint, S_IRUGO | S_IWUSR);

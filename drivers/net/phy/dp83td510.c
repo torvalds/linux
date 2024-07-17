@@ -4,6 +4,7 @@
  */
 
 #include <linux/bitfield.h>
+#include <linux/ethtool_netlink.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/phy.h>
@@ -29,6 +30,10 @@
 #define DP83TD510E_INT1_LINK			BIT(13)
 #define DP83TD510E_INT1_LINK_EN			BIT(5)
 
+#define DP83TD510E_CTRL				0x1f
+#define DP83TD510E_CTRL_HW_RESET		BIT(15)
+#define DP83TD510E_CTRL_SW_RESET		BIT(14)
+
 #define DP83TD510E_AN_STAT_1			0x60c
 #define DP83TD510E_MASTER_SLAVE_RESOL_FAIL	BIT(15)
 
@@ -52,6 +57,117 @@ static const u16 dp83td510_mse_sqi_map[] = {
 	0x015b, /* 23dB =< SNR < 24dB */
 	0x0000  /* 24dB =< SNR */
 };
+
+/* Time Domain Reflectometry (TDR) Functionality of DP83TD510 PHY
+ *
+ * I assume that this PHY is using a variation of Spread Spectrum Time Domain
+ * Reflectometry (SSTDR) rather than the commonly used TDR found in many PHYs.
+ * Here are the following observations which likely confirm this:
+ * - The DP83TD510 PHY transmits a modulated signal of configurable length
+ *   (default 16000 µs) instead of a single pulse pattern, which is typical
+ *   for traditional TDR.
+ * - The pulse observed on the wire, triggered by the HW RESET register, is not
+ *   part of the cable testing process.
+ *
+ * I assume that SSTDR seems to be a logical choice for the 10BaseT1L
+ * environment due to improved noise resistance, making it suitable for
+ * environments  with significant electrical noise, such as long 10BaseT1L cable
+ * runs.
+ *
+ * Configuration Variables:
+ * The SSTDR variation used in this PHY involves more configuration variables
+ * that can dramatically affect the functionality and precision of cable
+ * testing. Since most of  these configuration options are either not well
+ * documented or documented with minimal details, the following sections
+ * describe my understanding and observations of these variables and their
+ * impact on TDR functionality.
+ *
+ * Timeline:
+ *     ,<--cfg_pre_silence_time
+ *     |            ,<-SSTDR Modulated Transmission
+ *     |	    |            ,<--cfg_post_silence_time
+ *     |	    |            |             ,<--Force Link Mode
+ * |<--'-->|<-------'------->|<--'-->|<--------'------->|
+ *
+ * - cfg_pre_silence_time: Optional silence time before TDR transmission starts.
+ * - SSTDR Modulated Transmission: Transmission duration configured by
+ *   cfg_tdr_tx_duration and amplitude configured by cfg_tdr_tx_type.
+ * - cfg_post_silence_time: Silence time after TDR transmission.
+ * - Force Link Mode: If nothing is configured after cfg_post_silence_time,
+ *   the PHY continues in force link mode without autonegotiation.
+ */
+
+#define DP83TD510E_TDR_CFG				0x1e
+#define DP83TD510E_TDR_START				BIT(15)
+#define DP83TD510E_TDR_DONE				BIT(1)
+#define DP83TD510E_TDR_FAIL				BIT(0)
+
+#define DP83TD510E_TDR_CFG1				0x300
+/* cfg_tdr_tx_type: Transmit voltage level for TDR.
+ * 0 = 1V, 1 = 2.4V
+ * Note: Using different voltage levels may not work
+ * in all configuration variations. For example, setting
+ * 2.4V may give different cable length measurements.
+ * Other settings may be needed to make it work properly.
+ */
+#define DP83TD510E_TDR_TX_TYPE				BIT(12)
+#define DP83TD510E_TDR_TX_TYPE_1V			0
+#define DP83TD510E_TDR_TX_TYPE_2_4V			1
+/* cfg_post_silence_time: Time after the TDR sequence. Since we force master mode
+ * for the TDR will proceed with forced link state after this time. For Linux
+ * it is better to set max value to avoid false link state detection.
+ */
+#define DP83TD510E_TDR_CFG1_POST_SILENCE_TIME		GENMASK(3, 2)
+#define DP83TD510E_TDR_CFG1_POST_SILENCE_TIME_0MS	0
+#define DP83TD510E_TDR_CFG1_POST_SILENCE_TIME_10MS	1
+#define DP83TD510E_TDR_CFG1_POST_SILENCE_TIME_100MS	2
+#define DP83TD510E_TDR_CFG1_POST_SILENCE_TIME_1000MS	3
+/* cfg_pre_silence_time: Time before the TDR sequence. It should be enough to
+ * settle down all pulses and reflections. Since for 10BASE-T1L we have
+ * maximum 2000m cable length, we can set it to 1ms.
+ */
+#define DP83TD510E_TDR_CFG1_PRE_SILENCE_TIME		GENMASK(1, 0)
+#define DP83TD510E_TDR_CFG1_PRE_SILENCE_TIME_0MS	0
+#define DP83TD510E_TDR_CFG1_PRE_SILENCE_TIME_10MS	1
+#define DP83TD510E_TDR_CFG1_PRE_SILENCE_TIME_100MS	2
+#define DP83TD510E_TDR_CFG1_PRE_SILENCE_TIME_1000MS	3
+
+#define DP83TD510E_TDR_CFG2				0x301
+#define DP83TD510E_TDR_END_TAP_INDEX_1			GENMASK(14, 8)
+#define DP83TD510E_TDR_END_TAP_INDEX_1_DEF		36
+#define DP83TD510E_TDR_START_TAP_INDEX_1		GENMASK(6, 0)
+#define DP83TD510E_TDR_START_TAP_INDEX_1_DEF		4
+
+#define DP83TD510E_TDR_CFG3				0x302
+/* cfg_tdr_tx_duration: Duration of the TDR transmission in microseconds.
+ * This value sets the duration of the modulated signal used for TDR
+ * measurements.
+ * - Default: 16000 µs
+ * - Observation: A minimum duration of 6000 µs is recommended to ensure
+ *   accurate detection of cable faults. Durations shorter than 6000 µs may
+ *   result in incomplete data, especially for shorter cables (e.g., 20 meters),
+ *   leading to false "OK" results. Longer durations (e.g., 6000 µs or more)
+ *   provide better accuracy, particularly for detecting open circuits.
+ */
+#define DP83TD510E_TDR_TX_DURATION_US			GENMASK(15, 0)
+#define DP83TD510E_TDR_TX_DURATION_US_DEF		16000
+
+#define DP83TD510E_TDR_FAULT_CFG1			0x303
+#define DP83TD510E_TDR_FLT_LOC_OFFSET_1			GENMASK(14, 8)
+#define DP83TD510E_TDR_FLT_LOC_OFFSET_1_DEF		4
+#define DP83TD510E_TDR_FLT_INIT_1			GENMASK(7, 0)
+#define DP83TD510E_TDR_FLT_INIT_1_DEF			62
+
+#define DP83TD510E_TDR_FAULT_STAT			0x30c
+#define DP83TD510E_TDR_PEAK_DETECT			BIT(11)
+#define DP83TD510E_TDR_PEAK_SIGN			BIT(10)
+#define DP83TD510E_TDR_PEAK_LOCATION			GENMASK(9, 0)
+
+/* Not documented registers and values but recommended according to
+ * "DP83TD510E Cable Diagnostics Toolkit revC"
+ */
+#define DP83TD510E_UNKN_030E				0x30e
+#define DP83TD510E_030E_VAL				0x2520
 
 static int dp83td510_config_intr(struct phy_device *phydev)
 {
@@ -198,6 +314,151 @@ static int dp83td510_get_sqi_max(struct phy_device *phydev)
 	return DP83TD510_SQI_MAX;
 }
 
+/**
+ * dp83td510_cable_test_start - Start the cable test for the DP83TD510 PHY.
+ * @phydev: Pointer to the phy_device structure.
+ *
+ * This sequence is implemented according to the "Application Note DP83TD510E
+ * Cable Diagnostics Toolkit revC".
+ *
+ * Returns: 0 on success, a negative error code on failure.
+ */
+static int dp83td510_cable_test_start(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = phy_set_bits_mmd(phydev, MDIO_MMD_VEND2, DP83TD510E_CTRL,
+			       DP83TD510E_CTRL_HW_RESET);
+	if (ret)
+		return ret;
+
+	ret = genphy_c45_an_disable_aneg(phydev);
+	if (ret)
+		return ret;
+
+	/* Force master mode */
+	ret = phy_set_bits_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_PMA_PMD_BT1_CTRL,
+			       MDIO_PMA_PMD_BT1_CTRL_CFG_MST);
+	if (ret)
+		return ret;
+
+	/* There is no official recommendation for this register, but it is
+	 * better to use 1V for TDR since other values seems to be optimized
+	 * for this amplitude. Except of amplitude, it is better to configure
+	 * pre TDR silence time to 10ms to avoid false reflections (value 0
+	 * seems to be too short, otherwise we need to implement own silence
+	 * time). Also, post TDR silence time should be set to 1000ms to avoid
+	 * false link state detection, it fits to the polling time of the
+	 * PHY framework. The idea is to wait until
+	 * dp83td510_cable_test_get_status() will be called and reconfigure
+	 * the PHY to the default state within the post silence time window.
+	 */
+	ret = phy_modify_mmd(phydev, MDIO_MMD_VEND2, DP83TD510E_TDR_CFG1,
+			     DP83TD510E_TDR_TX_TYPE |
+			     DP83TD510E_TDR_CFG1_POST_SILENCE_TIME |
+			     DP83TD510E_TDR_CFG1_PRE_SILENCE_TIME,
+			     DP83TD510E_TDR_TX_TYPE_1V |
+			     DP83TD510E_TDR_CFG1_PRE_SILENCE_TIME_10MS |
+			     DP83TD510E_TDR_CFG1_POST_SILENCE_TIME_1000MS);
+	if (ret)
+		return ret;
+
+	ret = phy_write_mmd(phydev, MDIO_MMD_VEND2, DP83TD510E_TDR_CFG2,
+			    FIELD_PREP(DP83TD510E_TDR_END_TAP_INDEX_1,
+				       DP83TD510E_TDR_END_TAP_INDEX_1_DEF) |
+			    FIELD_PREP(DP83TD510E_TDR_START_TAP_INDEX_1,
+				       DP83TD510E_TDR_START_TAP_INDEX_1_DEF));
+	if (ret)
+		return ret;
+
+	ret = phy_write_mmd(phydev, MDIO_MMD_VEND2, DP83TD510E_TDR_FAULT_CFG1,
+			    FIELD_PREP(DP83TD510E_TDR_FLT_LOC_OFFSET_1,
+				       DP83TD510E_TDR_FLT_LOC_OFFSET_1_DEF) |
+			    FIELD_PREP(DP83TD510E_TDR_FLT_INIT_1,
+				       DP83TD510E_TDR_FLT_INIT_1_DEF));
+	if (ret)
+		return ret;
+
+	/* Undocumented register, from the "Application Note DP83TD510E Cable
+	 * Diagnostics Toolkit revC".
+	 */
+	ret = phy_write_mmd(phydev, MDIO_MMD_VEND2, DP83TD510E_UNKN_030E,
+			    DP83TD510E_030E_VAL);
+	if (ret)
+		return ret;
+
+	ret = phy_write_mmd(phydev, MDIO_MMD_VEND2, DP83TD510E_TDR_CFG3,
+			    DP83TD510E_TDR_TX_DURATION_US_DEF);
+	if (ret)
+		return ret;
+
+	ret = phy_set_bits_mmd(phydev, MDIO_MMD_VEND2, DP83TD510E_CTRL,
+			       DP83TD510E_CTRL_SW_RESET);
+	if (ret)
+		return ret;
+
+	return phy_set_bits_mmd(phydev, MDIO_MMD_VEND2, DP83TD510E_TDR_CFG,
+				DP83TD510E_TDR_START);
+}
+
+/**
+ * dp83td510_cable_test_get_status - Get the status of the cable test for the
+ *                                   DP83TD510 PHY.
+ * @phydev: Pointer to the phy_device structure.
+ * @finished: Pointer to a boolean that indicates whether the test is finished.
+ *
+ * The function sets the @finished flag to true if the test is complete.
+ *
+ * Returns: 0 on success or a negative error code on failure.
+ */
+static int dp83td510_cable_test_get_status(struct phy_device *phydev,
+					   bool *finished)
+{
+	int ret, stat;
+
+	*finished = false;
+
+	ret = phy_read_mmd(phydev, MDIO_MMD_VEND2, DP83TD510E_TDR_CFG);
+	if (ret < 0)
+		return ret;
+
+	if (!(ret & DP83TD510E_TDR_DONE))
+		return 0;
+
+	if (!(ret & DP83TD510E_TDR_FAIL)) {
+		int location;
+
+		ret = phy_read_mmd(phydev, MDIO_MMD_VEND2,
+				   DP83TD510E_TDR_FAULT_STAT);
+		if (ret < 0)
+			return ret;
+
+		if (ret & DP83TD510E_TDR_PEAK_DETECT) {
+			if (ret & DP83TD510E_TDR_PEAK_SIGN)
+				stat = ETHTOOL_A_CABLE_RESULT_CODE_OPEN;
+			else
+				stat = ETHTOOL_A_CABLE_RESULT_CODE_SAME_SHORT;
+
+			location = FIELD_GET(DP83TD510E_TDR_PEAK_LOCATION,
+					     ret) * 100;
+			ethnl_cable_test_fault_length(phydev,
+						      ETHTOOL_A_CABLE_PAIR_A,
+						      location);
+		} else {
+			stat = ETHTOOL_A_CABLE_RESULT_CODE_OK;
+		}
+	} else {
+		/* Most probably we have active link partner */
+		stat = ETHTOOL_A_CABLE_RESULT_CODE_UNSPEC;
+	}
+
+	*finished = true;
+
+	ethnl_cable_test_result(phydev, ETHTOOL_A_CABLE_PAIR_A, stat);
+
+	return phy_init_hw(phydev);
+}
+
 static int dp83td510_get_features(struct phy_device *phydev)
 {
 	/* This PHY can't respond on MDIO bus if no RMII clock is enabled.
@@ -221,6 +482,7 @@ static struct phy_driver dp83td510_driver[] = {
 	PHY_ID_MATCH_MODEL(DP83TD510E_PHY_ID),
 	.name		= "TI DP83TD510E",
 
+	.flags          = PHY_POLL_CABLE_TEST,
 	.config_aneg	= dp83td510_config_aneg,
 	.read_status	= dp83td510_read_status,
 	.get_features	= dp83td510_get_features,
@@ -228,6 +490,8 @@ static struct phy_driver dp83td510_driver[] = {
 	.handle_interrupt = dp83td510_handle_interrupt,
 	.get_sqi	= dp83td510_get_sqi,
 	.get_sqi_max	= dp83td510_get_sqi_max,
+	.cable_test_start = dp83td510_cable_test_start,
+	.cable_test_get_status = dp83td510_cable_test_get_status,
 
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,

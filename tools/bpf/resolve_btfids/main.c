@@ -409,6 +409,14 @@ static int elf_collect(struct object *obj)
 			obj->efile.idlist       = data;
 			obj->efile.idlist_shndx = idx;
 			obj->efile.idlist_addr  = sh.sh_addr;
+		} else if (!strcmp(name, BTF_BASE_ELF_SEC)) {
+			/* If a .BTF.base section is found, do not resolve
+			 * BTF ids relative to vmlinux; resolve relative
+			 * to the .BTF.base section instead.  btf__parse_split()
+			 * will take care of this once the base BTF it is
+			 * passed is NULL.
+			 */
+			obj->base_btf_path = NULL;
 		}
 
 		if (compressed_section_fix(elf, scn, &sh))

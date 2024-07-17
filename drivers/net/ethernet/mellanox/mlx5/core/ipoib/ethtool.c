@@ -136,7 +136,7 @@ static int mlx5i_get_coalesce(struct net_device *netdev,
 }
 
 static int mlx5i_get_ts_info(struct net_device *netdev,
-			     struct ethtool_ts_info *info)
+			     struct kernel_ethtool_ts_info *info)
 {
 	struct mlx5e_priv *priv = mlx5i_epriv(netdev);
 

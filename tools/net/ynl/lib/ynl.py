@@ -743,6 +743,8 @@ class YnlFamily(SpecFamily):
                 decoded = attr.as_scalar(attr_spec['type'], attr_spec.byte_order)
                 if 'enum' in attr_spec:
                     decoded = self._decode_enum(decoded, attr_spec)
+                elif attr_spec.display_hint:
+                    decoded = self._formatted_string(decoded, attr_spec.display_hint)
             elif attr_spec["type"] == 'indexed-array':
                 decoded = self._decode_array_attr(attr, attr_spec)
             elif attr_spec["type"] == 'bitfield32':

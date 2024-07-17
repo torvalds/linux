@@ -154,6 +154,19 @@ struct mlx5e_tc_table *mlx5e_fs_get_tc(struct mlx5e_flow_steering *fs);
 struct mlx5e_l2_table *mlx5e_fs_get_l2(struct mlx5e_flow_steering *fs);
 struct mlx5_flow_namespace *mlx5e_fs_get_ns(struct mlx5e_flow_steering *fs, bool egress);
 void mlx5e_fs_set_ns(struct mlx5e_flow_steering *fs, struct mlx5_flow_namespace *ns, bool egress);
+
+static inline bool mlx5e_fs_has_arfs(struct net_device *netdev)
+{
+	return IS_ENABLED(CONFIG_MLX5_EN_ARFS) &&
+		netdev->hw_features & NETIF_F_NTUPLE;
+}
+
+static inline bool mlx5e_fs_want_arfs(struct net_device *netdev)
+{
+	return IS_ENABLED(CONFIG_MLX5_EN_ARFS) &&
+		netdev->features & NETIF_F_NTUPLE;
+}
+
 #ifdef CONFIG_MLX5_EN_RXNFC
 struct mlx5e_ethtool_steering *mlx5e_fs_get_ethtool(struct mlx5e_flow_steering *fs);
 #endif

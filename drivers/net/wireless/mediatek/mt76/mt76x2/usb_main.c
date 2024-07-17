@@ -22,7 +22,7 @@ static int mt76x2u_start(struct ieee80211_hw *hw)
 	return 0;
 }
 
-static void mt76x2u_stop(struct ieee80211_hw *hw)
+static void mt76x2u_stop(struct ieee80211_hw *hw, bool suspend)
 {
 	struct mt76x02_dev *dev = hw->priv;
 

@@ -1277,14 +1277,14 @@ int io_send_zc_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	return io_sendmsg_prep_setup(req, req->opcode == IORING_OP_SENDMSG_ZC);
 }
 
-static int io_sg_from_iter_iovec(struct sock *sk, struct sk_buff *skb,
+static int io_sg_from_iter_iovec(struct sk_buff *skb,
 				 struct iov_iter *from, size_t length)
 {
 	skb_zcopy_downgrade_managed(skb);
-	return __zerocopy_sg_from_iter(NULL, sk, skb, from, length);
+	return zerocopy_fill_skb_from_iter(skb, from, length);
 }
 
-static int io_sg_from_iter(struct sock *sk, struct sk_buff *skb,
+static int io_sg_from_iter(struct sk_buff *skb,
 			   struct iov_iter *from, size_t length)
 {
 	struct skb_shared_info *shinfo = skb_shinfo(skb);
@@ -1297,7 +1297,7 @@ static int io_sg_from_iter(struct sock *sk, struct sk_buff *skb,
 	if (!frag)
 		shinfo->flags |= SKBFL_MANAGED_FRAG_REFS;
 	else if (unlikely(!skb_zcopy_managed(skb)))
-		return __zerocopy_sg_from_iter(NULL, sk, skb, from, length);
+		return zerocopy_fill_skb_from_iter(skb, from, length);
 
 	bi.bi_size = min(from->count, length);
 	bi.bi_bvec_done = from->iov_offset;
@@ -1324,14 +1324,6 @@ static int io_sg_from_iter(struct sock *sk, struct sk_buff *skb,
 	skb->data_len += copied;
 	skb->len += copied;
 	skb->truesize += truesize;
-
-	if (sk && sk->sk_type == SOCK_STREAM) {
-		sk_wmem_queued_add(sk, truesize);
-		if (!skb_zcopy_pure(skb))
-			sk_mem_charge(sk, truesize);
-	} else {
-		refcount_add(truesize, &skb->sk->sk_wmem_alloc);
-	}
 	return ret;
 }
 

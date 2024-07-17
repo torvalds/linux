@@ -23,7 +23,7 @@ mt7603_start(struct ieee80211_hw *hw)
 }
 
 static void
-mt7603_stop(struct ieee80211_hw *hw)
+mt7603_stop(struct ieee80211_hw *hw, bool suspend)
 {
 	struct mt7603_dev *dev = hw->priv;
 

@@ -211,19 +211,37 @@ static void iwl_mvm_power_configure_uapsd(struct iwl_mvm *mvm,
 		IWL_MVM_PS_HEAVY_RX_THLD_PERCENT;
 }
 
-static void iwl_mvm_p2p_standalone_iterator(void *_data, u8 *mac,
-					    struct ieee80211_vif *vif)
-{
-	bool *is_p2p_standalone = _data;
+struct iwl_allow_uapsd_iface_iterator_data {
+	struct ieee80211_vif *current_vif;
+	bool allow_uapsd;
+};
 
-	switch (ieee80211_vif_type_p2p(vif)) {
-	case NL80211_IFTYPE_P2P_GO:
+static void iwl_mvm_allow_uapsd_iterator(void *_data, u8 *mac,
+					 struct ieee80211_vif *vif)
+{
+	struct iwl_allow_uapsd_iface_iterator_data *data = _data;
+	struct iwl_mvm_vif *other_mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm_vif *curr_mvmvif =
+		iwl_mvm_vif_from_mac80211(data->current_vif);
+
+	/* exclude the given vif */
+	if (vif == data->current_vif)
+		return;
+
+	switch (vif->type) {
 	case NL80211_IFTYPE_AP:
-		*is_p2p_standalone = false;
+	case NL80211_IFTYPE_ADHOC:
+	case NL80211_IFTYPE_NAN:
+		data->allow_uapsd = false;
 		break;
 	case NL80211_IFTYPE_STATION:
-		if (vif->cfg.assoc)
-			*is_p2p_standalone = false;
+		/* allow UAPSD if P2P interface and BSS station interface share
+		 * the same channel.
+		 */
+		if (vif->cfg.assoc && other_mvmvif->deflink.phy_ctxt &&
+		    curr_mvmvif->deflink.phy_ctxt &&
+		    other_mvmvif->deflink.phy_ctxt->id != curr_mvmvif->deflink.phy_ctxt->id)
+			data->allow_uapsd = false;
 		break;
 
 	default:
@@ -235,6 +253,10 @@ static bool iwl_mvm_power_allow_uapsd(struct iwl_mvm *mvm,
 				       struct ieee80211_vif *vif)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_allow_uapsd_iface_iterator_data data = {
+		.current_vif = vif,
+		.allow_uapsd = true,
+	};
 
 	if (ether_addr_equal(mvmvif->uapsd_misbehaving_ap_addr,
 			     vif->cfg.ap_addr))
@@ -249,88 +271,75 @@ static bool iwl_mvm_power_allow_uapsd(struct iwl_mvm *mvm,
 	    IEEE80211_P2P_OPPPS_ENABLE_BIT))
 		return false;
 
-	/*
-	 * Avoid using uAPSD if client is in DCM -
-	 * low latency issue in Miracast
-	 */
-	if (iwl_mvm_phy_ctx_count(mvm) >= 2)
+	if (vif->p2p && !iwl_mvm_is_p2p_scm_uapsd_supported(mvm))
 		return false;
 
-	if (vif->p2p) {
-		/* Allow U-APSD only if p2p is stand alone */
-		bool is_p2p_standalone = true;
+	ieee80211_iterate_active_interfaces_atomic(mvm->hw,
+				IEEE80211_IFACE_ITER_NORMAL,
+				iwl_mvm_allow_uapsd_iterator,
+				&data);
 
-		if (!iwl_mvm_is_p2p_scm_uapsd_supported(mvm))
-			return false;
-
-		ieee80211_iterate_active_interfaces_atomic(mvm->hw,
-					IEEE80211_IFACE_ITER_NORMAL,
-					iwl_mvm_p2p_standalone_iterator,
-					&is_p2p_standalone);
-
-		if (!is_p2p_standalone)
-			return false;
-	}
-
-	return true;
+	return data.allow_uapsd;
 }
 
-static bool iwl_mvm_power_is_radar(struct ieee80211_vif *vif)
+static bool iwl_mvm_power_is_radar(struct ieee80211_bss_conf *link_conf)
 {
 	struct ieee80211_chanctx_conf *chanctx_conf;
-	struct ieee80211_bss_conf *link_conf;
-	bool radar_detect = false;
-	unsigned int link_id;
 
-	rcu_read_lock();
-	for_each_vif_active_link(vif, link_conf, link_id) {
-		chanctx_conf = rcu_dereference(link_conf->chanctx_conf);
-		/* this happens on link switching, just ignore inactive ones */
-		if (!chanctx_conf)
-			continue;
+	chanctx_conf = rcu_dereference(link_conf->chanctx_conf);
 
-		radar_detect = !!(chanctx_conf->def.chan->flags &
-				  IEEE80211_CHAN_RADAR);
-		if (radar_detect)
-			goto out;
-	}
+	/* this happens on link switching, just ignore inactive ones */
+	if (!chanctx_conf)
+		return false;
 
-out:
-	rcu_read_unlock();
-	return radar_detect;
+	return chanctx_conf->def.chan->flags & IEEE80211_CHAN_RADAR;
 }
 
 static void iwl_mvm_power_config_skip_dtim(struct iwl_mvm *mvm,
 					   struct ieee80211_vif *vif,
 					   struct iwl_mac_power_cmd *cmd)
 {
-	int dtimper = vif->bss_conf.dtim_period ?: 1;
-	int skip;
+	struct ieee80211_bss_conf *link_conf;
+	unsigned int min_link_skip = ~0;
+	unsigned int link_id;
 
 	/* disable, in case we're supposed to override */
 	cmd->skip_dtim_periods = 0;
 	cmd->flags &= ~cpu_to_le16(POWER_FLAGS_SKIP_OVER_DTIM_MSK);
 
-	if (iwl_mvm_power_is_radar(vif))
-		return;
-
-	if (dtimper >= 10)
-		return;
-
 	if (!test_bit(IWL_MVM_STATUS_IN_D3, &mvm->status)) {
 		if (iwlmvm_mod_params.power_scheme != IWL_POWER_SCHEME_LP)
 			return;
-		skip = 2;
-	} else {
-		int dtimper_tu = dtimper * vif->bss_conf.beacon_int;
-
-		if (WARN_ON(!dtimper_tu))
-			return;
-		/* configure skip over dtim up to 900 TU DTIM interval */
-		skip = max_t(u8, 1, 900 / dtimper_tu);
+		cmd->skip_dtim_periods = 2;
+		cmd->flags |= cpu_to_le16(POWER_FLAGS_SKIP_OVER_DTIM_MSK);
+		return;
 	}
 
-	cmd->skip_dtim_periods = skip;
+	rcu_read_lock();
+	for_each_vif_active_link(vif, link_conf, link_id) {
+		unsigned int dtimper = link_conf->dtim_period ?: 1;
+		unsigned int dtimper_tu = dtimper * link_conf->beacon_int;
+		unsigned int skip;
+
+		if (dtimper >= 10 || iwl_mvm_power_is_radar(link_conf)) {
+			rcu_read_unlock();
+			return;
+		}
+
+		if (WARN_ON(!dtimper_tu))
+			continue;
+
+		/* configure skip over dtim up to 900 TU DTIM interval */
+		skip = max_t(int, 1, 900 / dtimper_tu);
+		min_link_skip = min(min_link_skip, skip);
+	}
+	rcu_read_unlock();
+
+	/* no WARN_ON, can only happen with WARN_ON above */
+	if (min_link_skip == ~0)
+		return;
+
+	cmd->skip_dtim_periods = min_link_skip;
 	cmd->flags |= cpu_to_le16(POWER_FLAGS_SKIP_OVER_DTIM_MSK);
 }
 

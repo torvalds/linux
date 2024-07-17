@@ -1084,7 +1084,7 @@ static int macvlan_ethtool_get_link_ksettings(struct net_device *dev,
 }
 
 static int macvlan_ethtool_get_ts_info(struct net_device *dev,
-				       struct ethtool_ts_info *info)
+				       struct kernel_ethtool_ts_info *info)
 {
 	struct net_device *real_dev = macvlan_dev_real_dev(dev);
 

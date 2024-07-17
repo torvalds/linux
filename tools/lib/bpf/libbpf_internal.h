@@ -234,6 +234,9 @@ struct btf_type;
 struct btf_type *btf_type_by_id(const struct btf *btf, __u32 type_id);
 const char *btf_kind_str(const struct btf_type *t);
 const struct btf_type *skip_mods_and_typedefs(const struct btf *btf, __u32 id, __u32 *res_id);
+const struct btf_header *btf_header(const struct btf *btf);
+void btf_set_base_btf(struct btf *btf, const struct btf *base_btf);
+int btf_relocate(struct btf *btf, const struct btf *base_btf, __u32 **id_map);
 
 static inline enum btf_func_linkage btf_func_linkage(const struct btf_type *t)
 {
@@ -508,11 +511,33 @@ struct bpf_line_info_min {
 	__u32	line_col;
 };
 
+enum btf_field_iter_kind {
+	BTF_FIELD_ITER_IDS,
+	BTF_FIELD_ITER_STRS,
+};
+
+struct btf_field_desc {
+	/* once-per-type offsets */
+	int t_off_cnt, t_offs[2];
+	/* member struct size, or zero, if no members */
+	int m_sz;
+	/* repeated per-member offsets */
+	int m_off_cnt, m_offs[1];
+};
+
+struct btf_field_iter {
+	struct btf_field_desc desc;
+	void *p;
+	int m_idx;
+	int off_idx;
+	int vlen;
+};
+
+int btf_field_iter_init(struct btf_field_iter *it, struct btf_type *t, enum btf_field_iter_kind iter_kind);
+__u32 *btf_field_iter_next(struct btf_field_iter *it);
 
 typedef int (*type_id_visit_fn)(__u32 *type_id, void *ctx);
 typedef int (*str_off_visit_fn)(__u32 *str_off, void *ctx);
-int btf_type_visit_type_ids(struct btf_type *t, type_id_visit_fn visit, void *ctx);
-int btf_type_visit_str_offs(struct btf_type *t, str_off_visit_fn visit, void *ctx);
 int btf_ext_visit_type_ids(struct btf_ext *btf_ext, type_id_visit_fn visit, void *ctx);
 int btf_ext_visit_str_offs(struct btf_ext *btf_ext, str_off_visit_fn visit, void *ctx);
 __s32 btf__find_by_name_kind_own(const struct btf *btf, const char *type_name,
@@ -597,13 +622,9 @@ static inline int ensure_good_fd(int fd)
 	return fd;
 }
 
-static inline int sys_dup2(int oldfd, int newfd)
+static inline int sys_dup3(int oldfd, int newfd, int flags)
 {
-#ifdef __NR_dup2
-	return syscall(__NR_dup2, oldfd, newfd);
-#else
-	return syscall(__NR_dup3, oldfd, newfd, 0);
-#endif
+	return syscall(__NR_dup3, oldfd, newfd, flags);
 }
 
 /* Point *fixed_fd* to the same file that *tmp_fd* points to.
@@ -614,7 +635,7 @@ static inline int reuse_fd(int fixed_fd, int tmp_fd)
 {
 	int err;
 
-	err = sys_dup2(tmp_fd, fixed_fd);
+	err = sys_dup3(tmp_fd, fixed_fd, O_CLOEXEC);
 	err = err < 0 ? -errno : 0;
 	close(tmp_fd); /* clean up temporary FD */
 	return err;

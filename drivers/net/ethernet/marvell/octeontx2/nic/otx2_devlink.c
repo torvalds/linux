@@ -64,9 +64,68 @@ static int otx2_dl_mcam_count_get(struct devlink *devlink, u32 id,
 	return 0;
 }
 
+static int otx2_dl_ucast_flt_cnt_set(struct devlink *devlink, u32 id,
+				     struct devlink_param_gset_ctx *ctx,
+				     struct netlink_ext_ack *extack)
+{
+	struct otx2_devlink *otx2_dl = devlink_priv(devlink);
+	struct otx2_nic *pfvf = otx2_dl->pfvf;
+	int err;
+
+	pfvf->flow_cfg->ucast_flt_cnt = ctx->val.vu8;
+
+	otx2_mcam_flow_del(pfvf);
+	err = otx2_mcam_entry_init(pfvf);
+	if (err)
+		return err;
+
+	return 0;
+}
+
+static int otx2_dl_ucast_flt_cnt_get(struct devlink *devlink, u32 id,
+				     struct devlink_param_gset_ctx *ctx)
+{
+	struct otx2_devlink *otx2_dl = devlink_priv(devlink);
+	struct otx2_nic *pfvf = otx2_dl->pfvf;
+
+	ctx->val.vu8 = pfvf->flow_cfg ? pfvf->flow_cfg->ucast_flt_cnt : 0;
+
+	return 0;
+}
+
+static int otx2_dl_ucast_flt_cnt_validate(struct devlink *devlink, u32 id,
+					  union devlink_param_value val,
+					  struct netlink_ext_ack *extack)
+{
+	struct otx2_devlink *otx2_dl = devlink_priv(devlink);
+	struct otx2_nic *pfvf = otx2_dl->pfvf;
+
+	/* Check for UNICAST filter support*/
+	if (!(pfvf->flags & OTX2_FLAG_UCAST_FLTR_SUPPORT)) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Unicast filter not enabled");
+		return -EINVAL;
+	}
+
+	if (!pfvf->flow_cfg) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "pfvf->flow_cfg not initialized");
+		return -EINVAL;
+	}
+
+	if (pfvf->flow_cfg->nr_flows) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Cannot modify count when there are active rules");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 enum otx2_dl_param_id {
 	OTX2_DEVLINK_PARAM_ID_BASE = DEVLINK_PARAM_GENERIC_ID_MAX,
 	OTX2_DEVLINK_PARAM_ID_MCAM_COUNT,
+	OTX2_DEVLINK_PARAM_ID_UCAST_FLT_CNT,
 };
 
 static const struct devlink_param otx2_dl_params[] = {
@@ -75,6 +134,11 @@ static const struct devlink_param otx2_dl_params[] = {
 			     BIT(DEVLINK_PARAM_CMODE_RUNTIME),
 			     otx2_dl_mcam_count_get, otx2_dl_mcam_count_set,
 			     otx2_dl_mcam_count_validate),
+	DEVLINK_PARAM_DRIVER(OTX2_DEVLINK_PARAM_ID_UCAST_FLT_CNT,
+			     "unicast_filter_count", DEVLINK_PARAM_TYPE_U8,
+			     BIT(DEVLINK_PARAM_CMODE_RUNTIME),
+			     otx2_dl_ucast_flt_cnt_get, otx2_dl_ucast_flt_cnt_set,
+			     otx2_dl_ucast_flt_cnt_validate),
 };
 
 static const struct devlink_ops otx2_devlink_ops = {

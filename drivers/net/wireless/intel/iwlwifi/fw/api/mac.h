@@ -310,6 +310,13 @@ struct iwl_ac_qos {
  * @filter_flags: combination of &enum iwl_mac_filter_flags
  * @qos_flags: from &enum iwl_mac_qos_flags
  * @ac: one iwl_mac_qos configuration for each AC
+ * @ap: AP specific config data, see &struct iwl_mac_data_ap
+ * @go: GO specific config data, see &struct iwl_mac_data_go
+ * @sta: BSS client specific config data, see &struct iwl_mac_data_sta
+ * @p2p_sta: P2P client specific config data, see &struct iwl_mac_data_p2p_sta
+ * @p2p_dev: P2P-device specific config data, see &struct iwl_mac_data_p2p_dev
+ * @pibss: Pseudo-IBSS specific data, unused; see struct iwl_mac_data_pibss
+ * @ibss: IBSS specific config data, see &struct iwl_mac_data_ibss
  */
 struct iwl_mac_ctx_cmd {
 	/* COMMON_INDEX_HDR_API_S_VER_1 */

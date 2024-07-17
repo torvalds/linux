@@ -139,6 +139,7 @@ M(MSIX_OFFSET,		0x005, msix_offset, msg_req, msix_offset_rsp)	\
 M(VF_FLR,		0x006, vf_flr, msg_req, msg_rsp)		\
 M(PTP_OP,		0x007, ptp_op, ptp_req, ptp_rsp)		\
 M(GET_HW_CAP,		0x008, get_hw_cap, msg_req, get_hw_cap_rsp)	\
+M(NDC_SYNC_OP,		0x009, ndc_sync_op, ndc_sync_op, msg_rsp)	\
 M(LMTST_TBL_SETUP,	0x00a, lmtst_tbl_setup, lmtst_tbl_setup_req,    \
 				msg_rsp)				\
 M(SET_VF_PERM,		0x00b, set_vf_perm, set_vf_perm, msg_rsp)	\
@@ -1714,6 +1715,13 @@ struct lmtst_tbl_setup_req {
 	u8  use_local_lmt_region;
 	u64 lmt_iova;
 	u64 rsvd[4];
+};
+
+struct ndc_sync_op {
+	struct mbox_msghdr hdr;
+	u8 nix_lf_tx_sync;
+	u8 nix_lf_rx_sync;
+	u8 npa_lf_sync;
 };
 
 /* CPT mailbox error codes

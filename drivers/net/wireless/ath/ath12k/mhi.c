@@ -16,6 +16,7 @@
 #define MHI_TIMEOUT_DEFAULT_MS	90000
 #define OTP_INVALID_BOARD_ID	0xFFFF
 #define OTP_VALID_DUALMAC_BOARD_ID_MASK		0x1000
+#define MHI_CB_INVALID	0xff
 
 static const struct mhi_channel_config ath12k_mhi_channels_qcn9274[] = {
 	{
@@ -268,6 +269,7 @@ static void ath12k_mhi_op_status_cb(struct mhi_controller *mhi_cntrl,
 				    enum mhi_callback cb)
 {
 	struct ath12k_base *ab = dev_get_drvdata(mhi_cntrl->cntrl_dev);
+	struct ath12k_pci *ab_pci = ath12k_pci_priv(ab);
 
 	ath12k_dbg(ab, ATH12K_DBG_BOOT, "mhi notify status reason %s\n",
 		   ath12k_mhi_op_callback_to_str(cb));
@@ -277,12 +279,20 @@ static void ath12k_mhi_op_status_cb(struct mhi_controller *mhi_cntrl,
 		ath12k_warn(ab, "firmware crashed: MHI_CB_SYS_ERROR\n");
 		break;
 	case MHI_CB_EE_RDDM:
+		if (ab_pci->mhi_pre_cb == MHI_CB_EE_RDDM) {
+			ath12k_dbg(ab, ATH12K_DBG_BOOT,
+				   "do not queue again for consecutive RDDM event\n");
+			break;
+		}
+
 		if (!(test_bit(ATH12K_FLAG_UNREGISTERING, &ab->dev_flags)))
 			queue_work(ab->workqueue_aux, &ab->reset_work);
 		break;
 	default:
 		break;
 	}
+
+	ab_pci->mhi_pre_cb = cb;
 }
 
 static int ath12k_mhi_op_read_reg(struct mhi_controller *mhi_cntrl,
@@ -313,6 +323,7 @@ int ath12k_mhi_register(struct ath12k_pci *ab_pci)
 	if (!mhi_ctrl)
 		return -ENOMEM;
 
+	ab_pci->mhi_pre_cb = MHI_CB_INVALID;
 	ab_pci->mhi_ctrl = mhi_ctrl;
 	mhi_ctrl->cntrl_dev = ab->dev;
 	mhi_ctrl->regs = ab->mem;

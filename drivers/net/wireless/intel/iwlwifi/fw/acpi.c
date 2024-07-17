@@ -27,6 +27,7 @@ static const size_t acpi_dsm_size[DSM_FUNC_NUM_FUNCS] = {
 	[DSM_FUNC_FORCE_DISABLE_CHANNELS] =	sizeof(u32),
 	[DSM_FUNC_ENERGY_DETECTION_THRESHOLD] =	sizeof(u32),
 	[DSM_FUNC_RFI_CONFIG] =			sizeof(u32),
+	[DSM_FUNC_ENABLE_11BE] =		sizeof(u32),
 };
 
 static int iwl_acpi_get_handle(struct device *dev, acpi_string method,
