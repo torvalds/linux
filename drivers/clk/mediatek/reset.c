@@ -138,7 +138,7 @@ int mtk_register_reset_controller(struct device_node *np,
 	regmap = device_node_to_regmap(np);
 	if (IS_ERR(regmap)) {
 		pr_err("Cannot find regmap for %pOF: %pe\n", np, regmap);
-		return -EINVAL;
+		return PTR_ERR(regmap);
 	}
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
@@ -198,7 +198,7 @@ int mtk_register_reset_controller_with_dev(struct device *dev,
 	regmap = device_node_to_regmap(np);
 	if (IS_ERR(regmap)) {
 		dev_err(dev, "Cannot find regmap %pe\n", regmap);
-		return -EINVAL;
+		return PTR_ERR(regmap);
 	}
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
