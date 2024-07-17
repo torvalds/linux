@@ -25,6 +25,8 @@
 
 #include "amdgpu_socbb.h"
 
+#define RS64_FW_UC_START_ADDR_LO 0x3000
+
 struct common_firmware_header {
 	uint32_t size_bytes; /* size of the entire header+image(s) in bytes */
 	uint32_t header_size_bytes; /* size of just the header in bytes */
