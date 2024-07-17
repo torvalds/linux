@@ -1008,7 +1008,7 @@ xfs_ag_shrink_space(
 			goto resv_err;
 
 		err2 = xfs_free_extent_later(*tpp, args.fsbno, delta, NULL,
-				XFS_AG_RESV_NONE, true);
+				XFS_AG_RESV_NONE, XFS_FREE_EXTENT_SKIP_DISCARD);
 		if (err2)
 			goto resv_err;
 
