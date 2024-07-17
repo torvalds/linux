@@ -788,7 +788,7 @@ static struct file_system_type exfat_fs_type = {
 	.init_fs_context	= exfat_init_fs_context,
 	.parameters		= exfat_parameters,
 	.kill_sb		= exfat_kill_sb,
-	.fs_flags		= FS_REQUIRES_DEV,
+	.fs_flags		= FS_REQUIRES_DEV | FS_ALLOW_IDMAP,
 };
 
 static void exfat_inode_init_once(void *foo)
