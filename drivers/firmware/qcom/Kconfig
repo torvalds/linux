@@ -16,6 +16,7 @@ config QCOM_TZMEM
 
 choice
 	prompt "TrustZone interface memory allocator mode"
+	depends on QCOM_TZMEM
 	default QCOM_TZMEM_MODE_GENERIC
 	help
 	  Selects the mode of the memory allocator providing memory buffers of
