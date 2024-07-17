@@ -1,5 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0
-generic-y += bpf_perf_event.h
 generic-y += bug.h
 generic-y += compat.h
 generic-y += current.h

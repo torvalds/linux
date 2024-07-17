@@ -20,6 +20,7 @@
 
 #undef __SYSCALL
 #define __SYSCALL(nr, call)	[nr] = (call),
+#define __SYSCALL_WITH_COMPAT(nr, native, compat) __SYSCALL(nr, native)
 
 SYSCALL_DEFINE6(mmap, unsigned long, addr, unsigned long, len, unsigned long,
 		prot, unsigned long, flags, unsigned long, fd, unsigned long, offset)
@@ -32,7 +33,7 @@ SYSCALL_DEFINE6(mmap, unsigned long, addr, unsigned long, len, unsigned long,
 
 void *sys_call_table[__NR_syscalls] = {
 	[0 ... __NR_syscalls - 1] = sys_ni_syscall,
-#include <asm/unistd.h>
+#include <asm/syscall_table_64.h>
 };
 
 typedef long (*sys_call_fn)(unsigned long, unsigned long,
