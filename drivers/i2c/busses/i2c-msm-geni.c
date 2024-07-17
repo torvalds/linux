@@ -1106,7 +1106,20 @@ static void gi2c_ev_cb(struct dma_chan *ch, struct msm_gpi_cb const *cb_str,
 static void gi2c_gsi_cb_err(struct msm_gpi_dma_async_tx_cb_param *cb,
 								char *xfer)
 {
-	struct geni_i2c_dev *gi2c = cb->userdata;
+	struct geni_i2c_dev *gi2c;
+
+	if (!cb || !cb->userdata) {
+		pr_err("%s: Invalid gsi_cb\n", __func__);
+		return;
+	}
+
+	gi2c = cb->userdata;
+
+	if (!gi2c->cur) {
+		geni_i2c_err(gi2c, GENI_SPURIOUS_IRQ);
+		I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev, "%s: Invalid gi2c dev\n", __func__);
+		return;
+	}
 
 	if (cb->status & DM_I2C_CB_ERR) {
 		I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev,
