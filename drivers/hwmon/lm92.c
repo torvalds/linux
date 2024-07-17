@@ -272,20 +272,28 @@ static int lm92_detect(struct i2c_client *new_client,
 		       struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = new_client->adapter;
-	u8 config;
-	u16 man_id;
+	u8 config_addr = LM92_REG_CONFIG;
+	u8 man_id_addr = LM92_REG_MAN_ID;
+	int i, regval;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA
 					    | I2C_FUNC_SMBUS_WORD_DATA))
 		return -ENODEV;
 
-	config = i2c_smbus_read_byte_data(new_client, LM92_REG_CONFIG);
-	man_id = i2c_smbus_read_word_data(new_client, LM92_REG_MAN_ID);
-
-	if ((config & 0xe0) == 0x00 && man_id == 0x0180)
-		pr_info("lm92: Found National Semiconductor LM92 chip\n");
-	else
-		return -ENODEV;
+	/*
+	 * Register values repeat with multiples of 8.
+	 * Read twice to improve detection accuracy.
+	 */
+	for (i = 0; i < 2; i++) {
+		regval = i2c_smbus_read_word_data(new_client, man_id_addr);
+		if (regval != 0x0180)
+			return -ENODEV;
+		regval = i2c_smbus_read_byte_data(new_client, config_addr);
+		if (regval < 0 || (regval & 0xe0))
+			return -ENODEV;
+		config_addr += 8;
+		man_id_addr += 8;
+	}
 
 	strscpy(info->type, "lm92", I2C_NAME_SIZE);
 
