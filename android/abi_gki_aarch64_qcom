@@ -1326,6 +1326,7 @@
   gro_cells_destroy
   gro_cells_init
   gro_cells_receive
+  groups_free
   h4_recv_buf
   handle_bad_irq
   handle_edge_irq
