@@ -192,7 +192,7 @@ int adf_sriov_configure(struct pci_dev *pdev, int numvfs)
 			return -EBUSY;
 		}
 
-		ret = adf_dev_down(accel_dev, true);
+		ret = adf_dev_down(accel_dev);
 		if (ret)
 			return ret;
 	}
