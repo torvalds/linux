@@ -43,8 +43,8 @@
 
 static void acc_resetmode_enter(struct acc_core *core)
 {
-	acc_set_bits(core, ACC_CORE_OF_CTRL_MODE,
-		     ACC_REG_CONTROL_MASK_MODE_RESETMODE);
+	acc_set_bits(core, ACC_CORE_OF_CTRL,
+		     ACC_REG_CTRL_MASK_RESETMODE);
 
 	/* Read back reset mode bit to flush PCI write posting */
 	acc_resetmode_entered(core);
@@ -52,8 +52,8 @@ static void acc_resetmode_enter(struct acc_core *core)
 
 static void acc_resetmode_leave(struct acc_core *core)
 {
-	acc_clear_bits(core, ACC_CORE_OF_CTRL_MODE,
-		       ACC_REG_CONTROL_MASK_MODE_RESETMODE);
+	acc_clear_bits(core, ACC_CORE_OF_CTRL,
+		       ACC_REG_CTRL_MASK_RESETMODE);
 
 	/* Read back reset mode bit to flush PCI write posting */
 	acc_resetmode_entered(core);
@@ -172,7 +172,7 @@ int acc_open(struct net_device *netdev)
 	struct acc_net_priv *priv = netdev_priv(netdev);
 	struct acc_core *core = priv->core;
 	u32 tx_fifo_status;
-	u32 ctrl_mode;
+	u32 ctrl;
 	int err;
 
 	/* Retry to enter RESET mode if out of sync. */
@@ -187,19 +187,19 @@ int acc_open(struct net_device *netdev)
 	if (err)
 		return err;
 
-	ctrl_mode = ACC_REG_CONTROL_MASK_IE_RXTX |
-			ACC_REG_CONTROL_MASK_IE_TXERROR |
-			ACC_REG_CONTROL_MASK_IE_ERRWARN |
-			ACC_REG_CONTROL_MASK_IE_OVERRUN |
-			ACC_REG_CONTROL_MASK_IE_ERRPASS;
+	ctrl = ACC_REG_CTRL_MASK_IE_RXTX |
+		ACC_REG_CTRL_MASK_IE_TXERROR |
+		ACC_REG_CTRL_MASK_IE_ERRWARN |
+		ACC_REG_CTRL_MASK_IE_OVERRUN |
+		ACC_REG_CTRL_MASK_IE_ERRPASS;
 
 	if (priv->can.ctrlmode & CAN_CTRLMODE_BERR_REPORTING)
-		ctrl_mode |= ACC_REG_CONTROL_MASK_IE_BUSERR;
+		ctrl |= ACC_REG_CTRL_MASK_IE_BUSERR;
 
 	if (priv->can.ctrlmode & CAN_CTRLMODE_LISTENONLY)
-		ctrl_mode |= ACC_REG_CONTROL_MASK_MODE_LOM;
+		ctrl |= ACC_REG_CTRL_MASK_LOM;
 
-	acc_set_bits(core, ACC_CORE_OF_CTRL_MODE, ctrl_mode);
+	acc_set_bits(core, ACC_CORE_OF_CTRL, ctrl);
 
 	acc_resetmode_leave(core);
 	priv->can.state = CAN_STATE_ERROR_ACTIVE;
@@ -218,13 +218,13 @@ int acc_close(struct net_device *netdev)
 	struct acc_net_priv *priv = netdev_priv(netdev);
 	struct acc_core *core = priv->core;
 
-	acc_clear_bits(core, ACC_CORE_OF_CTRL_MODE,
-		       ACC_REG_CONTROL_MASK_IE_RXTX |
-		       ACC_REG_CONTROL_MASK_IE_TXERROR |
-		       ACC_REG_CONTROL_MASK_IE_ERRWARN |
-		       ACC_REG_CONTROL_MASK_IE_OVERRUN |
-		       ACC_REG_CONTROL_MASK_IE_ERRPASS |
-		       ACC_REG_CONTROL_MASK_IE_BUSERR);
+	acc_clear_bits(core, ACC_CORE_OF_CTRL,
+		       ACC_REG_CTRL_MASK_IE_RXTX |
+		       ACC_REG_CTRL_MASK_IE_TXERROR |
+		       ACC_REG_CTRL_MASK_IE_ERRWARN |
+		       ACC_REG_CTRL_MASK_IE_OVERRUN |
+		       ACC_REG_CTRL_MASK_IE_ERRPASS |
+		       ACC_REG_CTRL_MASK_IE_BUSERR);
 
 	netif_stop_queue(netdev);
 	acc_resetmode_enter(core);
@@ -233,9 +233,9 @@ int acc_close(struct net_device *netdev)
 	/* Mark pending TX requests to be aborted after controller restart. */
 	acc_write32(core, ACC_CORE_OF_TX_ABORT_MASK, 0xffff);
 
-	/* ACC_REG_CONTROL_MASK_MODE_LOM is only accessible in RESET mode */
-	acc_clear_bits(core, ACC_CORE_OF_CTRL_MODE,
-		       ACC_REG_CONTROL_MASK_MODE_LOM);
+	/* ACC_REG_CTRL_MASK_LOM is only accessible in RESET mode */
+	acc_clear_bits(core, ACC_CORE_OF_CTRL,
+		       ACC_REG_CTRL_MASK_LOM);
 
 	close_candev(netdev);
 	return 0;
